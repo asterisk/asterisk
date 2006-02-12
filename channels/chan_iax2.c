@@ -9170,31 +9170,29 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 	return -1;
 }
 
-static char *function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-	char *ret = NULL;
 	struct iax2_peer *peer;
 	char *peername, *colname;
 	char iabuf[INET_ADDRSTRLEN];
 
 	if (!(peername = ast_strdupa(data)))
-		return ret;
+		return -1;
 
 	/* if our channel, return the IP address of the endpoint of current channel */
 	if (!strcmp(peername,"CURRENTCHANNEL")) {
 	        unsigned short callno = PTR_TO_CALLNO(chan->tech_pvt);
 		ast_copy_string(buf, iaxs[callno]->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[callno]->addr.sin_addr) : "", len);
-		return buf;
+		return 0;
 	}
 
-	if ((colname = strchr(peername, ':'))) {
-		*colname = '\0';
-		colname++;
-	} else {
+	if ((colname = strchr(peername, ':')))
+		*colname++ = '\0';
+	else
 		colname = "ip";
-	}
+
 	if (!(peer = find_peer(peername, 1)))
-		return ret;
+		return -1;
 
 	if (!strcasecmp(colname, "ip")) {
 		ast_copy_string(buf, peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", len);
@@ -9229,16 +9227,15 @@ static char *function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, c
 			ast_copy_string(buf, ast_getformatname(codec), len);
 		}
 	}
-	ret = buf;
 
-	return ret;
+	return 0;
 }
 
 struct ast_custom_function iaxpeer_function = {
-    .name = "IAXPEER",
-    .synopsis = "Gets IAX peer information",
-    .syntax = "IAXPEER(<peername|CURRENTCHANNEL>[:item])",
-    .read = function_iaxpeer,
+	.name = "IAXPEER",
+	.synopsis = "Gets IAX peer information",
+	.syntax = "IAXPEER(<peername|CURRENTCHANNEL>[:item])",
+	.read = function_iaxpeer,
 	.desc = "If peername specified, valid items are:\n"
 	"- ip (default)          The IP address.\n"
 	"- status                The peer's status (if qualify=yes)\n"

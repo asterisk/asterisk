@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -3142,19 +3142,18 @@ check_turns:
 	return res;
 }
 
-static char *queue_function_qac(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	int count = 0;
 	struct ast_call_queue *q;
 	struct localuser *u;
 	struct member *m;
 
-
-	ast_copy_string(buf, "0", len);
+	buf[0] = '\0';
 	
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "%s requires an argument: queuename\n", cmd);
-		return buf;
+		return -1;
 	}
 
 	LOCAL_USER_ACF_ADD(u);
@@ -3183,10 +3182,10 @@ static char *queue_function_qac(struct ast_channel *chan, char *cmd, char *data,
 
 	snprintf(buf, len, "%d", count);
 	LOCAL_USER_REMOVE(u);
-	return buf;
+	return 0;
 }
 
-static char *queue_function_queuememberlist(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int queue_function_queuememberlist(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	struct localuser *u;
 	struct ast_call_queue *q;
@@ -3197,7 +3196,7 @@ static char *queue_function_queuememberlist(struct ast_channel *chan, char *cmd,
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "QUEUE_MEMBER_LIST requires an argument: queuename\n");
-		return buf;
+		return -1;
 	}
 	
 	LOCAL_USER_ACF_ADD(u);
@@ -3236,7 +3235,7 @@ static char *queue_function_queuememberlist(struct ast_channel *chan, char *cmd,
 	/* We should already be terminated, but let's make sure. */
 	buf[len - 1] = '\0';
 	LOCAL_USER_REMOVE(u);
-	return buf;
+	return 0;
 }
 
 static struct ast_custom_function queueagentcount_function = {

@@ -9269,21 +9269,21 @@ static char show_settings_usage[] =
 
 
 /*! \brief  func_header_read: Read SIP header (dialplan function) */
-static char *func_header_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+int func_header_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len) 
 {
 	struct sip_pvt *p;
 	char *content;
 	
  	if (!data) {
 		ast_log(LOG_WARNING, "This function requires a header name.\n");
-		return NULL;
+		return -1;
 	}
 
 	ast_mutex_lock(&chan->lock);
 	if (chan->tech != &sip_tech) {
 		ast_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
 		ast_mutex_unlock(&chan->lock);
-		return NULL;
+		return -1;
 	}
 
 	p = chan->tech_pvt;
@@ -9291,22 +9291,21 @@ static char *func_header_read(struct ast_channel *chan, char *cmd, char *data, c
 	/* If there is no private structure, this channel is no longer alive */
 	if (!p) {
 		ast_mutex_unlock(&chan->lock);
-		return NULL;
+		return -1;
 	}
 
 	content = get_header(&p->initreq, data);
 
 	if (ast_strlen_zero(content)) {
 		ast_mutex_unlock(&chan->lock);
-		return NULL;
+		return -1;
 	}
 
 	ast_copy_string(buf, content, len);
 	ast_mutex_unlock(&chan->lock);
 
-	return buf;
+	return 0;
 }
-
 
 static struct ast_custom_function sip_header_function = {
 	.name = "SIP_HEADER",
@@ -9316,17 +9315,17 @@ static struct ast_custom_function sip_header_function = {
 };
 
 /*! \brief  function_check_sipdomain: Dial plan function to check if domain is local */
-static char *func_check_sipdomain(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+int func_check_sipdomain(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "CHECKSIPDOMAIN requires an argument - A domain name\n");
-		return buf;
+		return -1;
 	}
 	if (check_sip_domain(data, NULL, 0))
 		ast_copy_string(buf, data, len);
 	else
 		buf[0] = '\0';
-	return buf;
+	return 0;
 }
 
 static struct ast_custom_function checksipdomain_function = {
@@ -9340,26 +9339,20 @@ static struct ast_custom_function checksipdomain_function = {
 		"Check the domain= configuration in sip.conf\n",
 };
 
-
 /*! \brief  function_sippeer: ${SIPPEER()} Dialplan function - reads peer data */
-static char *function_sippeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+int function_sippeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-	char *ret = NULL;
 	struct sip_peer *peer;
 	char *peername, *colname;
 	char iabuf[INET_ADDRSTRLEN];
 
-	if (!(peername = ast_strdupa(data)))
-		return ret;
-
-	if ((colname = strchr(peername, ':'))) {
-		*colname = '\0';
-		colname++;
-	} else {
+	if ((colname = strchr(data, ':')))
+		*colname++ = '\0';
+	else
 		colname = "ip";
-	}
+
 	if (!(peer = find_peer(peername, NULL, 1)))
-		return ret;
+		return -1;
 
 	if (!strcasecmp(colname, "ip")) {
 		ast_copy_string(buf, peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", len);
@@ -9396,19 +9389,18 @@ static char *function_sippeer(struct ast_channel *chan, char *cmd, char *data, c
 		codecnum = strchr(colname, '[');
 		*codecnum = '\0';
 		codecnum++;
-		if ((ptr = strchr(codecnum, ']'))) {
+		if ((ptr = strchr(codecnum, ']')))
 			*ptr = '\0';
-		}
+
 		index = atoi(codecnum);
 		if((codec = ast_codec_pref_index(&peer->prefs, index))) {
 			ast_copy_string(buf, ast_getformatname(codec), len);
 		}
 	}
-	ret = buf;
 
 	ASTOBJ_UNREF(peer, sip_destroy_peer);
 
-	return ret;
+	return 0;
 }
 
 /*! \brief Structure to declare a dialplan function: SIPPEER */
@@ -9438,7 +9430,7 @@ struct ast_custom_function sippeer_function = {
 };
 
 /*! \brief  function_sipchaninfo_read: ${SIPCHANINFO()} Dialplan function - reads sip channel data */
-static char *function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+int function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	struct sip_pvt *p;
 	char iabuf[INET_ADDRSTRLEN];
@@ -9447,14 +9439,14 @@ static char *function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char
 	
  	if (!data) {
 		ast_log(LOG_WARNING, "This function requires a parameter name.\n");
-		return NULL;
+		return -1;
 	}
 
 	ast_mutex_lock(&chan->lock);
 	if (chan->tech != &sip_tech) {
 		ast_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
 		ast_mutex_unlock(&chan->lock);
-		return NULL;
+		return -1;
 	}
 
 /* 	ast_verbose("function_sipchaninfo_read: %s\n", data); */
@@ -9463,7 +9455,7 @@ static char *function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char
 	/* If there is no private structure, this channel is no longer alive */
 	if (!p) {
 		ast_mutex_unlock(&chan->lock);
-		return NULL;
+		return -1;
 	}
 
 	if (!strcasecmp(data, "peerip")) {
@@ -9480,11 +9472,11 @@ static char *function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char
 		ast_copy_string(buf, p->peername, len);
 	} else {
 		ast_mutex_unlock(&chan->lock);
-		return NULL;
+		return -1;
 	}
 	ast_mutex_unlock(&chan->lock);
 
-	return buf;
+	return 0;
 }
 
 /*! \brief Structure to declare a dialplan function: SIPCHANINFO */
@@ -9501,8 +9493,6 @@ static struct ast_custom_function sipchaninfo_function = {
 	"- useragent             The useragent.\n"
 	"- peername              The name of the peer.\n"
 };
-
-
 
 /*! \brief  parse_moved_contact: Parse 302 Moved temporalily response */
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)

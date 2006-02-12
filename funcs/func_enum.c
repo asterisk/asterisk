@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005
+ * Copyright (C) 1999 - 2006
  *
  * Mark Spencer <markster@digium.com>
  * Oleksiy Krivoshey <oleksiyk@gmail.com>
@@ -40,124 +40,100 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
-
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
-
 #include "asterisk/pbx.h"
 #include "asterisk/options.h"
-
 #include "asterisk/enum.h"
+#include "asterisk/app.h"
 
-static char* synopsis = "Syntax: ENUMLOOKUP(number[,Method-type[,options|record#[,zone-suffix]]])\n";
+ static char *synopsis = "Syntax: ENUMLOOKUP(number[|Method-type[|options[|record#[|zone-suffix]]]])\n";
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static char *function_enum(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int function_enum(struct ast_channel *chan, char *cmd, char *data,
+			 char *buf, size_t len)
 {
-       int res=0;
-       char tech[80];
-       char dest[80] = "";
-       char *zone;
-       char *options;
-       struct localuser *u;
-       char *params[4];
-       char *p = data;
-       char *s;
-       int i = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(number);
+		AST_APP_ARG(tech);
+		AST_APP_ARG(options);
+		AST_APP_ARG(record);
+		AST_APP_ARG(zone);
+	);
+	int res = 0;
+	char tech[80];
+	char dest[80] = "";
+	char *zone;
+	char *options;
+	struct localuser *u;
+	char *s, *p;
 
+	buf[0] = '\0';
 
-       if (ast_strlen_zero(data)) {
-               ast_log(LOG_WARNING, synopsis);
-               return "";
-       }
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, synopsis);
+		return -1;
+	}
 
-       do {
-               if(i>3){
-                       ast_log(LOG_WARNING, synopsis);
-                       return "";
-               }
-               params[i++] = p;
-               p = strchr(p, '|');
-               if(p){
-                       *p = '\0';
-                       p++;
-               }
-       } while(p);
+	AST_STANDARD_APP_ARGS(args, data);
 
-       if(i < 1){
-               ast_log(LOG_WARNING, synopsis);
-               return "";
-       }
+	if (args.argc < 1) {
+		ast_log(LOG_WARNING, synopsis);
+		return -1;
+	}
 
-       if( (i > 1 && strlen(params[1]) == 0) || i < 2){
-               ast_copy_string(tech, "sip", sizeof(tech));
-       } else {
-               ast_copy_string(tech, params[1], sizeof(tech));
-       }
+	ast_copy_string(tech, args.tech ? args.tech : "sip", sizeof(tech));
 
-       if( (i > 3 && strlen(params[3]) == 0) || i<4){
-               zone = "e164.arpa";
-       } else {
-               zone = params[3];
-       }
+	if (!args.zone)
+		args.zone = "e164.arpa";
 
-       if( (i > 2 && strlen(params[2]) == 0) || i<3){
-               options = "1";
-       } else {
-               options = params[2];
-       }
+	if (!args.options)
+		args.options = "1";
 
-       /* strip any '-' signs from number */
-       p = params[0];
-       /*
-       while(*p == '+'){
-               p++;
-       }
-       */
-       s = p;
-       i = 0;
-       while(*p && *s){
-               if(*s == '-'){
-                       s++;
-               } else {
-                       p[i++] = *s++;
-               }
-       }
-       p[i] = 0;
+	/* strip any '-' signs from number */
+	for (p = args.number, s = p; *s; *s++) {
+		if (*s != '-')
+			*p++ = *s;
+	}
+	*p = '\0';
 
-       LOCAL_USER_ACF_ADD(u);
+	LOCAL_USER_ACF_ADD(u);
 
-       res = ast_get_enum(chan, p, dest, sizeof(dest), tech, sizeof(tech), zone, options);
+	res = ast_get_enum(chan, p, dest, sizeof(dest), tech, sizeof(tech), zone,
+			   options);
 
-       LOCAL_USER_REMOVE(u);
+	LOCAL_USER_REMOVE(u);
 
-       p = strchr(dest, ':');
-       if(p && strncasecmp(tech, "ALL", sizeof(tech))) {
-               ast_copy_string(buf, p+1, sizeof(dest));
-       } else {
-               ast_copy_string(buf, dest, sizeof(dest));
-       }
+	p = strchr(dest, ':');
+	if (p && strcasecmp(tech, "ALL"))
+		ast_copy_string(buf, p + 1, len);
+	else
+		ast_copy_string(buf, dest, len);
 
-       return buf;
+	return 0;
 }
 
 static struct ast_custom_function enum_function = {
-       .name = "ENUMLOOKUP",
-       .synopsis = "ENUMLOOKUP allows for general or specific querying of NAPTR records"
-       " or counts of NAPTR types for ENUM or ENUM-like DNS pointers",
-       .syntax = "ENUMLOOKUP(number[,Method-type[,options|record#[,zone-suffix]]])",
-       .desc = "Option 'c' returns an integer count of the number of NAPTRs of a certain RR type.\n"
-       "Combination of 'c' and Method-type of 'ALL' will return a count of all NAPTRs for the record.\n"
-       "Defaults are: Method-type=sip, no options, record=1, zone-suffix=e164.arpa\n\n"
-       "For more information, see README.enum",
-       .read = function_enum,
+	.name = "ENUMLOOKUP",
+	.synopsis =
+		"ENUMLOOKUP allows for general or specific querying of NAPTR records"
+		" or counts of NAPTR types for ENUM or ENUM-like DNS pointers",
+	.syntax =
+		"ENUMLOOKUP(number[|Method-type[|options[|record#[|zone-suffix]]]])",
+	.desc =
+		"Option 'c' returns an integer count of the number of NAPTRs of a certain RR type.\n"
+		"Combination of 'c' and Method-type of 'ALL' will return a count of all NAPTRs for the record.\n"
+		"Defaults are: Method-type=sip, no options, record=1, zone-suffix=e164.arpa\n\n"
+		"For more information, see README.enum",
+	.read = function_enum,
 };
 
-static char *function_txtcidname(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int function_txtcidname(struct ast_channel *chan, char *cmd,
+			       char *data, char *buf, size_t len)
 {
 	int res;
 	char tech[80];
@@ -165,34 +141,36 @@ static char *function_txtcidname(struct ast_channel *chan, char *cmd, char *data
 	char dest[80];
 	struct localuser *u;
 
-	LOCAL_USER_ACF_ADD(u);
-
 	buf[0] = '\0';
+
+	LOCAL_USER_ACF_ADD(u);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "TXTCIDNAME requires an argument (number)\n");
 		LOCAL_USER_REMOVE(u);
-		return buf;	
+		return -1;
 	}
 
-	res = ast_get_txt(chan, data, dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
-	
+	res = ast_get_txt(chan, data, dest, sizeof(dest), tech, sizeof(tech), txt,
+			  sizeof(txt));
+
 	if (!ast_strlen_zero(txt))
 		ast_copy_string(buf, txt, len);
-	
+
 	LOCAL_USER_REMOVE(u);
 
-	return buf;
+	return 0;
 }
 
 static struct ast_custom_function txtcidname_function = {
-       .name = "TXTCIDNAME",
-       .synopsis = "TXTCIDNAME looks up a caller name via DNS",
-       .syntax = "TXTCIDNAME(<number>)",
-       .desc = "This function looks up the given phone number in DNS to retrieve\n"
-	"the caller id name.  The result will either be blank or be the value\n"
-	"found in the TXT record in DNS.\n",
-       .read = function_txtcidname,
+	.name = "TXTCIDNAME",
+	.synopsis = "TXTCIDNAME looks up a caller name via DNS",
+	.syntax = "TXTCIDNAME(<number>)",
+	.desc =
+		"This function looks up the given phone number in DNS to retrieve\n"
+		"the caller id name.  The result will either be blank or be the value\n"
+		"found in the TXT record in DNS.\n",
+	.read = function_txtcidname,
 };
 
 static char *tdesc = "ENUM related dialplan functions";
@@ -200,19 +178,19 @@ static char *tdesc = "ENUM related dialplan functions";
 int unload_module(void)
 {
 	int res = 0;
-	
+
 	res |= ast_custom_function_unregister(&enum_function);
 	res |= ast_custom_function_unregister(&txtcidname_function);
 
 	STANDARD_HANGUP_LOCALUSERS;
-	
+
 	return res;
 }
 
 int load_module(void)
 {
 	int res = 0;
-	
+
 	res |= ast_custom_function_register(&enum_function);
 	res |= ast_custom_function_register(&txtcidname_function);
 
@@ -221,13 +199,13 @@ int load_module(void)
 
 char *description(void)
 {
-       return tdesc;
+	return tdesc;
 }
 
 int usecount(void)
 {
 	int res;
-	
+
 	STANDARD_USECOUNT(res);
 
 	return res;
@@ -235,6 +213,5 @@ int usecount(void)
 
 char *key()
 {
-       return ASTERISK_GPL_KEY;
+	return ASTERISK_GPL_KEY;
 }
-

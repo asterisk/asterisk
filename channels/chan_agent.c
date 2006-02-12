@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -2409,7 +2409,7 @@ struct agent_pvt *find_agent(char *agentid)
 	return cur;	
 }
 
-static char *function_agent(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int function_agent(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	char *parse;    
 	AST_DECLARE_APP_ARGS(args,
@@ -2423,11 +2423,11 @@ static char *function_agent(struct ast_channel *chan, char *cmd, char *data, cha
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "The AGENT function requires an argument - agentid!\n");
-		return buf;	
+		return -1;
 	}
 
 	if (!(parse = ast_strdupa(data)))
-		return buf;
+		return -1;
 
 	AST_NONSTANDARD_APP_ARGS(args, parse, ':');
 	if (!args.item)
@@ -2435,7 +2435,7 @@ static char *function_agent(struct ast_channel *chan, char *cmd, char *data, cha
 
 	if (!(agent = find_agent(args.agentid))) {
 		ast_log(LOG_WARNING, "Agent '%s' not found!\n", args.agentid);
-		return buf;
+		return -1;
 	}
 
 	if (!strcasecmp(args.item, "status")) {
@@ -2461,7 +2461,7 @@ static char *function_agent(struct ast_channel *chan, char *cmd, char *data, cha
 		ast_copy_string(buf, agent->loginchan, len);	
 	}
 
-	return buf;
+	return 0;
 }
 
 struct ast_custom_function agent_function = {

@@ -36,31 +36,30 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
-static char *base64_encode(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static int base64_encode(struct ast_channel *chan, char *cmd, char *data,
+			 char *buf, size_t len)
 {
-	int res = 0;
-
-	if (ast_strlen_zero(data) ) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: BASE64_ENCODE(<data>) - missing argument!\n");
-		return NULL;
+		return -1;
 	}
 
-	ast_log(LOG_DEBUG, "data=%s\n",data);
-	res = ast_base64encode(buf, (unsigned char *)data, strlen(data), len);
-	ast_log(LOG_DEBUG, "res=%d\n", res);
-	return buf;
+	ast_base64encode(buf, (unsigned char *) data, strlen(data), len);
+
+	return 0;
 }
 
-static char *base64_decode(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static int base64_decode(struct ast_channel *chan, char *cmd, char *data,
+			 char *buf, size_t len)
 {
-	if (ast_strlen_zero(data) ) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: BASE64_DECODE(<base_64 string>) - missing argument!\n");
-		return NULL;
+		return -1;
 	}
 
-	ast_log(LOG_DEBUG, "data=%s\n", data);
-	ast_base64decode((unsigned char *)buf, data, len);
-	return buf;
+	ast_base64decode((unsigned char *) buf, data, len);
+
+	return 0;
 }
 
 static struct ast_custom_function base64_encode_function = {
@@ -83,13 +82,13 @@ static char *tdesc = "base64 encode/decode dialplan functions";
 
 int unload_module(void)
 {
-        return ast_custom_function_unregister(&base64_encode_function) ||
+	return ast_custom_function_unregister(&base64_encode_function) |
 		ast_custom_function_unregister(&base64_decode_function);
 }
 
 int load_module(void)
 {
-        return ast_custom_function_register(&base64_encode_function) ||
+	return ast_custom_function_register(&base64_encode_function) |
 		ast_custom_function_register(&base64_decode_function);
 }
 
@@ -107,11 +106,3 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
-
-/*
-Local Variables:
-mode: C
-c-file-style: "linux"
-indent-tabs-mode: nil
-End:
-*/

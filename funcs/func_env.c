@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -37,21 +37,24 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
-static char *env_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static int env_read(struct ast_channel *chan, char *cmd, char *data,
+		    char *buf, size_t len)
 {
-	char *ret = "";
+	char *ret = NULL;
 
-	if (data) {
+	*buf = '\0';
+
+	if (data)
 		ret = getenv(data);
-		if (!ret)
-			ret = "";
-	}
-	ast_copy_string(buf, ret, len);
 
-	return buf;
+	if (ret)
+		ast_copy_string(buf, ret, len);
+
+	return 0;
 }
 
-static void env_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
+static int env_write(struct ast_channel *chan, char *cmd, char *data,
+		     const char *value)
 {
 	if (!ast_strlen_zero(data)) {
 		if (!ast_strlen_zero(value)) {
@@ -60,29 +63,28 @@ static void env_write(struct ast_channel *chan, char *cmd, char *data, const cha
 			unsetenv(data);
 		}
 	}
+
+	return 0;
 }
 
-static char *stat_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int stat_read(struct ast_channel *chan, char *cmd, char *data,
+		     char *buf, size_t len)
 {
 	char *action;
 	struct stat s;
 
-	ast_copy_string(buf, "0", len);
-	if (!data) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return buf;
-	}
+	*buf = '\0';
 
 	action = strsep(&data, "|");
 	if (stat(data, &s)) {
-		return buf;
+		return -1;
 	} else {
 		switch (*action) {
 		case 'e':
-			ast_copy_string(buf, "1", len);
+			strcpy(buf, "1");
 			break;
 		case 's':
-			snprintf(buf, len, "%d", (unsigned int)s.st_size);
+			snprintf(buf, len, "%d", (unsigned int) s.st_size);
 			break;
 		case 'f':
 			snprintf(buf, len, "%d", S_ISREG(s.st_mode) ? 1 : 0);
@@ -91,20 +93,21 @@ static char *stat_read(struct ast_channel *chan, char *cmd, char *data, char *bu
 			snprintf(buf, len, "%d", S_ISDIR(s.st_mode) ? 1 : 0);
 			break;
 		case 'M':
-			snprintf(buf, len, "%d", (int)s.st_mtime);
+			snprintf(buf, len, "%d", (int) s.st_mtime);
 			break;
 		case 'A':
-			snprintf(buf, len, "%d", (int)s.st_mtime);
+			snprintf(buf, len, "%d", (int) s.st_mtime);
 			break;
 		case 'C':
-			snprintf(buf, len, "%d", (int)s.st_ctime);
+			snprintf(buf, len, "%d", (int) s.st_ctime);
 			break;
 		case 'm':
-			snprintf(buf, len, "%o", (int)s.st_mode);
+			snprintf(buf, len, "%o", (int) s.st_mode);
 			break;
 		}
 	}
-	return buf;
+
+	return 0;
 }
 
 static struct ast_custom_function env_function = {
@@ -121,15 +124,15 @@ static struct ast_custom_function stat_function = {
 	.syntax = "STAT(<flag>,<filename>)",
 	.read = stat_read,
 	.desc =
-"flag may be one of the following:\n"
-"  d - Checks if the file is a directory\n"
-"  e - Checks if the file exists\n"
-"  f - Checks if the file is a regular file\n"
-"  m - Returns the file mode (in octal)\n"
-"  s - Returns the size (in bytes) of the file\n"
-"  A - Returns the epoch at which the file was last accessed\n"
-"  C - Returns the epoch at which the inode was last changed\n"
-"  M - Returns the epoch at which the file was last modified\n",
+		"flag may be one of the following:\n"
+		"  d - Checks if the file is a directory\n"
+		"  e - Checks if the file exists\n"
+		"  f - Checks if the file is a regular file\n"
+		"  m - Returns the file mode (in octal)\n"
+		"  s - Returns the size (in bytes) of the file\n"
+		"  A - Returns the epoch at which the file was last accessed\n"
+		"  C - Returns the epoch at which the inode was last changed\n"
+		"  M - Returns the epoch at which the file was last modified\n",
 };
 
 
@@ -169,11 +172,3 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
-
-/*
-Local Variables:
-mode: C
-c-file-style: "linux"
-indent-tabs-mode: nil
-End:
-*/

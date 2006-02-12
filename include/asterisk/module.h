@@ -336,7 +336,7 @@ void ast_unregister_atexit(void (*func)(void));
  \
 	if (!(u=calloc(1,sizeof(*u)))) { \
 		ast_log(LOG_WARNING, "Out of memory\n"); \
-		return ""; \
+		return -1; \
 	} \
 	ast_mutex_lock(&localuser_lock); \
 	u->chan = chan; \

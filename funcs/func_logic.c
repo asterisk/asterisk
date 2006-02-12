@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  * Portions Copyright (C) 2005, Anthony Minessale II
  *
  * See http://www.asterisk.org for more information about
@@ -37,26 +37,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
-static char *isnull(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static int isnull(struct ast_channel *chan, char *cmd, char *data,
+		  char *buf, size_t len)
 {
-	return data && *data ? "0" : "1";
+	strcpy(buf, data && *data ? "0" : "1");
+
+	return 0;
 }
 
-static char *exists(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static int exists(struct ast_channel *chan, char *cmd, char *data, char *buf,
+		  size_t len)
 {
-	return data && *data ? "1" : "0";
+	strcpy(buf, data && *data ? "1" : "0");
+
+	return 0;
 }
 
-static char *iftime(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static int iftime(struct ast_channel *chan, char *cmd, char *data, char *buf,
+		  size_t len)
 {
 	struct ast_timing timing;
-	char *ret;
 	char *expr;
 	char *iftrue;
 	char *iffalse;
-
-	if (!(data = ast_strdupa(data)))
-		return NULL;
 
 	data = ast_strip_quoted(data, "\"", "\"");
 	expr = strsep(&data, "?");
@@ -64,13 +67,14 @@ static char *iftime(struct ast_channel *chan, char *cmd, char *data, char *buf, 
 	iffalse = data;
 
 	if (ast_strlen_zero(expr) || !(iftrue || iffalse)) {
-		ast_log(LOG_WARNING, "Syntax IFTIME(<timespec>?[<true>][:<false>])\n");
-		return NULL;
+		ast_log(LOG_WARNING,
+				"Syntax IFTIME(<timespec>?[<true>][:<false>])\n");
+		return -1;
 	}
 
 	if (!ast_build_timing(&timing, expr)) {
 		ast_log(LOG_WARNING, "Invalid Time Spec.\n");
-		return NULL;
+		return -1;
 	}
 
 	if (iftrue)
@@ -78,23 +82,17 @@ static char *iftime(struct ast_channel *chan, char *cmd, char *data, char *buf, 
 	if (iffalse)
 		iffalse = ast_strip_quoted(iffalse, "\"", "\"");
 
-	if ((ret = ast_check_timing(&timing) ? iftrue : iffalse)) {
-		ast_copy_string(buf, ret, len);
-		ret = buf;
-	} 
-	
-	return ret;
+	ast_copy_string(buf, ast_check_timing(&timing) ? iftrue : iffalse, len);
+
+	return 0;
 }
 
-static char *acf_if(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static int acf_if(struct ast_channel *chan, char *cmd, char *data, char *buf,
+		  size_t len)
 {
-	char *ret;
 	char *expr;
 	char *iftrue;
 	char *iffalse;
-
-	if (!(data = ast_strdupa(data)))
-		return NULL;
 
 	data = ast_strip_quoted(data, "\"", "\"");
 	expr = strsep(&data, "?");
@@ -103,7 +101,7 @@ static char *acf_if(struct ast_channel *chan, char *cmd, char *data, char *buf, 
 
 	if (ast_strlen_zero(expr) || !(iftrue || iffalse)) {
 		ast_log(LOG_WARNING, "Syntax IF(<expr>?[<true>][:<false>])\n");
-		return NULL;
+		return -1;
 	}
 
 	expr = ast_strip(expr);
@@ -112,28 +110,23 @@ static char *acf_if(struct ast_channel *chan, char *cmd, char *data, char *buf, 
 	if (iffalse)
 		iffalse = ast_strip_quoted(iffalse, "\"", "\"");
 
-	if ((ret = ast_true(expr) ? iftrue : iffalse)) {
-		ast_copy_string(buf, ret, len);
-		ret = buf;
-	} 
-	
-	return ret;
+	ast_copy_string(buf, ast_true(expr) ? iftrue : iffalse, len);
+
+	return 0;
 }
 
-static char *set(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static int set(struct ast_channel *chan, char *cmd, char *data, char *buf,
+	       size_t len)
 {
 	char *varname;
 	char *val;
-
-	if (!(data = ast_strdupa(data)))
-		return NULL;
 
 	varname = strsep(&data, "=");
 	val = data;
 
 	if (ast_strlen_zero(varname) || !val) {
 		ast_log(LOG_WARNING, "Syntax SET(<varname>=[<value>])\n");
-		return NULL;
+		return -1;
 	}
 
 	varname = ast_strip(varname);
@@ -141,7 +134,7 @@ static char *set(struct ast_channel *chan, char *cmd, char *data, char *buf, siz
 	pbx_builtin_setvar_helper(chan, varname, val);
 	ast_copy_string(buf, val, len);
 
-	return buf;
+	return 0;
 }
 
 static struct ast_custom_function isnull_function = {
@@ -167,14 +160,16 @@ static struct ast_custom_function exists_function = {
 
 static struct ast_custom_function if_function = {
 	.name = "IF",
-	.synopsis = "Conditional: Returns the data following '?' if true else the data following ':'",
+	.synopsis =
+		"Conditional: Returns the data following '?' if true else the data following ':'",
 	.syntax = "IF(<expr>?[<true>][:<false>])",
 	.read = acf_if,
 };
 
 static struct ast_custom_function if_time_function = {
 	.name = "IFTIME",
-	.synopsis = "Temporal Conditional: Returns the data following '?' if true else the data following ':'",
+	.synopsis =
+		"Temporal Conditional: Returns the data following '?' if true else the data following ':'",
 	.syntax = "IFTIME(<timespec>?[<true>][:<false>])",
 	.read = iftime,
 };

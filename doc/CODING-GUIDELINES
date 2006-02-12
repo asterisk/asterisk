@@ -77,7 +77,7 @@ $ cvs diff -urN <mycodefile>.c
 Roughly, Asterisk code formatting guidelines are generally equivalent to the 
 following:
 
-# indent -i4 -ts4 -br -brs -cdw -cli0 -ce -nbfda -npcs -nprs -npsl -saf -sai -saw foo.c
+# indent -i4 -ts4 -br -brs -cdw -lp -ce -nbfda -npcs -nprs -npsl -nbbo -saf -sai -saw -cs -ln90 foo.c
 
 this means in verbose:
  -i4:    indent level 4
@@ -85,7 +85,7 @@ this means in verbose:
  -br:    braces on if line
  -brs:   braces on struct decl line
  -cdw:   cuddle do while
- -cli0:  case indentation 0
+ -lp:    line up continuation below parenthesis
  -ce:    cuddle else
  -nbfda: dont break function decl args
  -npcs:  no space after function call names
@@ -94,6 +94,8 @@ this means in verbose:
  -saf:   space after for
  -sai:   space after if
  -saw:   space after while
+ -cs:    space after cast
+ -ln90:  line length 90 columns
 
 Function calls and arguments should be spaced in a consistent way across
 the codebase.

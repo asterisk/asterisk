@@ -20,7 +20,7 @@
  * \arg File name extension: ogg
  * \ingroup formats
  */
- 
+
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -48,37 +48,35 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
-
 #define SAMPLES_MAX 160
 #define BLOCK_SIZE 4096
 
-
 struct ast_filestream {
 	void *reserved[AST_RESERVED_POINTERS];
-
+	
 	FILE *f;
-
+	
 	/* structures for handling the Ogg container */
-	ogg_sync_state	 oy;
+	ogg_sync_state oy;
 	ogg_stream_state os;
-	ogg_page	 og;
-	ogg_packet	 op;
+	ogg_page og;
+	ogg_packet op;
 	
 	/* structures for handling Vorbis audio data */
-	vorbis_info	 vi;
-	vorbis_comment	 vc;
+	vorbis_info vi;
+	vorbis_comment vc;
 	vorbis_dsp_state vd;
-	vorbis_block	 vb;
+	vorbis_block vb;
 	
 	/*! \brief Indicates whether this filestream is set up for reading or writing. */
 	int writing;
-
+	
 	/*! \brief Indicates whether an End of Stream condition has been detected. */
 	int eos;
-
+	
 	/*! \brief Buffer to hold audio data. */
 	short buffer[SAMPLES_MAX];
-
+	
 	/*! \brief Asterisk frame object. */
 	struct ast_frame fr;
 	char waste[AST_FRIENDLY_OFFSET];
@@ -86,6 +84,7 @@ struct ast_filestream {
 };
 
 AST_MUTEX_DEFINE_STATIC(ogg_vorbis_lock);
+
 static int glistcnt = 0;
 
 static char *name = "ogg_vorbis";
@@ -97,7 +96,7 @@ static char *exts = "ogg";
  * \param f File that points to on disk storage of the OGG/Vorbis data.
  * \return The new filestream.
  */
-static struct ast_filestream *ogg_vorbis_open(FILE *f)
+static struct ast_filestream *ogg_vorbis_open(FILE * f)
 {
 	int i;
 	int bytes;
@@ -107,7 +106,7 @@ static struct ast_filestream *ogg_vorbis_open(FILE *f)
 
 	struct ast_filestream *tmp;
 
-	if((tmp = malloc(sizeof(struct ast_filestream)))) {
+	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
 
 		tmp->writing = 0;
@@ -120,24 +119,26 @@ static struct ast_filestream *ogg_vorbis_open(FILE *f)
 		ogg_sync_wrote(&tmp->oy, bytes);
 
 		result = ogg_sync_pageout(&tmp->oy, &tmp->og);
-		if(result != 1) {
-			if(bytes < BLOCK_SIZE) {
+		if (result != 1) {
+			if (bytes < BLOCK_SIZE) {
 				ast_log(LOG_ERROR, "Run out of data...\n");
 			} else {
-				ast_log(LOG_ERROR, "Input does not appear to be an Ogg bitstream.\n");
+				ast_log(LOG_ERROR,
+						"Input does not appear to be an Ogg bitstream.\n");
 			}
 			fclose(f);
 			ogg_sync_clear(&tmp->oy);
 			free(tmp);
 			return NULL;
 		}
-		
+
 		ogg_stream_init(&tmp->os, ogg_page_serialno(&tmp->og));
 		vorbis_info_init(&tmp->vi);
 		vorbis_comment_init(&tmp->vc);
 
-		if(ogg_stream_pagein(&tmp->os, &tmp->og) < 0) { 
-			ast_log(LOG_ERROR, "Error reading first page of Ogg bitstream data.\n");
+		if (ogg_stream_pagein(&tmp->os, &tmp->og) < 0) {
+			ast_log(LOG_ERROR,
+					"Error reading first page of Ogg bitstream data.\n");
 			fclose(f);
 			ogg_stream_clear(&tmp->os);
 			vorbis_comment_clear(&tmp->vc);
@@ -146,8 +147,8 @@ static struct ast_filestream *ogg_vorbis_open(FILE *f)
 			free(tmp);
 			return NULL;
 		}
-		
-		if(ogg_stream_packetout(&tmp->os, &tmp->op) != 1) { 
+
+		if (ogg_stream_packetout(&tmp->os, &tmp->op) != 1) {
 			ast_log(LOG_ERROR, "Error reading initial header packet.\n");
 			fclose(f);
 			ogg_stream_clear(&tmp->os);
@@ -157,8 +158,8 @@ static struct ast_filestream *ogg_vorbis_open(FILE *f)
 			free(tmp);
 			return NULL;
 		}
-		
-		if(vorbis_synthesis_headerin(&tmp->vi, &tmp->vc, &tmp->op) < 0) { 
+
+		if (vorbis_synthesis_headerin(&tmp->vi, &tmp->vc, &tmp->op) < 0) {
 			ast_log(LOG_ERROR, "This Ogg bitstream does not contain Vorbis audio data.\n");
 			fclose(f);
 			ogg_stream_clear(&tmp->os);
@@ -168,20 +169,20 @@ static struct ast_filestream *ogg_vorbis_open(FILE *f)
 			free(tmp);
 			return NULL;
 		}
-		
+
 		i = 0;
-		while(i < 2) {
-			while(i < 2){
+		while (i < 2) {
+			while (i < 2) {
 				result = ogg_sync_pageout(&tmp->oy, &tmp->og);
-				if(result == 0)
+				if (result == 0)
 					break;
-				if(result == 1) {
+				if (result == 1) {
 					ogg_stream_pagein(&tmp->os, &tmp->og);
-					while(i < 2) {
-						result = ogg_stream_packetout(&tmp->os,&tmp->op);
-						if(result == 0)
+					while (i < 2) {
+						result = ogg_stream_packetout(&tmp->os, &tmp->op);
+						if (result == 0)
 							break;
-						if(result < 0) {
+						if (result < 0) {
 							ast_log(LOG_ERROR, "Corrupt secondary header.  Exiting.\n");
 							fclose(f);
 							ogg_stream_clear(&tmp->os);
@@ -199,7 +200,7 @@ static struct ast_filestream *ogg_vorbis_open(FILE *f)
 
 			buffer = ogg_sync_buffer(&tmp->oy, BLOCK_SIZE);
 			bytes = fread(buffer, 1, BLOCK_SIZE, f);
-			if(bytes == 0 && i < 2) {
+			if (bytes == 0 && i < 2) {
 				ast_log(LOG_ERROR, "End of file before finding all Vorbis headers!\n");
 				fclose(f);
 				ogg_stream_clear(&tmp->os);
@@ -211,16 +212,18 @@ static struct ast_filestream *ogg_vorbis_open(FILE *f)
 			}
 			ogg_sync_wrote(&tmp->oy, bytes);
 		}
-		
+
 		ptr = tmp->vc.user_comments;
-		while(*ptr){
+		while (*ptr) {
 			ast_log(LOG_DEBUG, "OGG/Vorbis comment: %s\n", *ptr);
 			++ptr;
 		}
-		ast_log(LOG_DEBUG, "OGG/Vorbis bitstream is %d channel, %ldHz\n", tmp->vi.channels, tmp->vi.rate);
-		ast_log(LOG_DEBUG, "OGG/Vorbis file encoded by: %s\n", tmp->vc.vendor);
+		ast_log(LOG_DEBUG, "OGG/Vorbis bitstream is %d channel, %ldHz\n",
+			tmp->vi.channels, tmp->vi.rate);
+		ast_log(LOG_DEBUG, "OGG/Vorbis file encoded by: %s\n",
+			tmp->vc.vendor);
 
-		if(tmp->vi.channels != 1) {
+		if (tmp->vi.channels != 1) {
 			ast_log(LOG_ERROR, "Only monophonic OGG/Vorbis files are currently supported!\n");
 			ogg_stream_clear(&tmp->os);
 			vorbis_comment_clear(&tmp->vc);
@@ -229,9 +232,8 @@ static struct ast_filestream *ogg_vorbis_open(FILE *f)
 			free(tmp);
 			return NULL;
 		}
-		
 
-		if(tmp->vi.rate != 8000) {
+		if (tmp->vi.rate != 8000) {
 			ast_log(LOG_ERROR, "Only 8000Hz OGG/Vorbis files are currently supported!\n");
 			fclose(f);
 			ogg_stream_clear(&tmp->os);
@@ -243,11 +245,11 @@ static struct ast_filestream *ogg_vorbis_open(FILE *f)
 			free(tmp);
 			return NULL;
 		}
-		
+
 		vorbis_synthesis_init(&tmp->vd, &tmp->vi);
 		vorbis_block_init(&tmp->vd, &tmp->vb);
 
-		if(ast_mutex_lock(&ogg_vorbis_lock)) {
+		if (ast_mutex_lock(&ogg_vorbis_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock ogg_vorbis list\n");
 			fclose(f);
 			ogg_stream_clear(&tmp->os);
@@ -272,7 +274,8 @@ static struct ast_filestream *ogg_vorbis_open(FILE *f)
  * \param comment Comment that should be embedded in the OGG/Vorbis file.
  * \return A new filestream.
  */
-static struct ast_filestream *ogg_vorbis_rewrite(FILE *f, const char *comment)
+static struct ast_filestream *ogg_vorbis_rewrite(FILE * f,
+						 const char *comment)
 {
 	ogg_packet header;
 	ogg_packet header_comm;
@@ -280,7 +283,7 @@ static struct ast_filestream *ogg_vorbis_rewrite(FILE *f, const char *comment)
 
 	struct ast_filestream *tmp;
 
-	if((tmp = malloc(sizeof(struct ast_filestream)))) {
+	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
 
 		tmp->writing = 1;
@@ -288,7 +291,7 @@ static struct ast_filestream *ogg_vorbis_rewrite(FILE *f, const char *comment)
 
 		vorbis_info_init(&tmp->vi);
 
-		if(vorbis_encode_init_vbr(&tmp->vi, 1, 8000, 0.4)) {
+		if (vorbis_encode_init_vbr(&tmp->vi, 1, 8000, 0.4)) {
 			ast_log(LOG_ERROR, "Unable to initialize Vorbis encoder!\n");
 			free(tmp);
 			return NULL;
@@ -296,7 +299,7 @@ static struct ast_filestream *ogg_vorbis_rewrite(FILE *f, const char *comment)
 
 		vorbis_comment_init(&tmp->vc);
 		vorbis_comment_add_tag(&tmp->vc, "ENCODER", "Asterisk PBX");
-		if(comment)
+		if (comment)
 			vorbis_comment_add_tag(&tmp->vc, "COMMENT", (char *) comment);
 
 		vorbis_analysis_init(&tmp->vd, &tmp->vi);
@@ -304,21 +307,22 @@ static struct ast_filestream *ogg_vorbis_rewrite(FILE *f, const char *comment)
 
 		ogg_stream_init(&tmp->os, rand());
 
-		vorbis_analysis_headerout(&tmp->vd, &tmp->vc, &header, &header_comm, &header_code);
-		ogg_stream_packetin(&tmp->os, &header);							
+		vorbis_analysis_headerout(&tmp->vd, &tmp->vc, &header, &header_comm,
+					  &header_code);
+		ogg_stream_packetin(&tmp->os, &header);
 		ogg_stream_packetin(&tmp->os, &header_comm);
 		ogg_stream_packetin(&tmp->os, &header_code);
 
-		while(!tmp->eos) {
-			if(ogg_stream_flush(&tmp->os, &tmp->og) == 0)
+		while (!tmp->eos) {
+			if (ogg_stream_flush(&tmp->os, &tmp->og) == 0)
 				break;
 			fwrite(tmp->og.header, 1, tmp->og.header_len, tmp->f);
 			fwrite(tmp->og.body, 1, tmp->og.body_len, tmp->f);
-			if(ogg_page_eos(&tmp->og))
+			if (ogg_page_eos(&tmp->og))
 				tmp->eos = 1;
 		}
 
-		if(ast_mutex_lock(&ogg_vorbis_lock)) {
+		if (ast_mutex_lock(&ogg_vorbis_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock ogg_vorbis list\n");
 			fclose(f);
 			ogg_stream_clear(&tmp->os);
@@ -345,16 +349,16 @@ static void write_stream(struct ast_filestream *s)
 	while (vorbis_analysis_blockout(&s->vd, &s->vb) == 1) {
 		vorbis_analysis(&s->vb, NULL);
 		vorbis_bitrate_addblock(&s->vb);
-		
+
 		while (vorbis_bitrate_flushpacket(&s->vd, &s->op)) {
 			ogg_stream_packetin(&s->os, &s->op);
 			while (!s->eos) {
-				if(ogg_stream_pageout(&s->os, &s->og) == 0) {
+				if (ogg_stream_pageout(&s->os, &s->og) == 0) {
 					break;
 				}
 				fwrite(s->og.header, 1, s->og.header_len, s->f);
 				fwrite(s->og.body, 1, s->og.body_len, s->f);
-				if(ogg_page_eos(&s->og)) {
+				if (ogg_page_eos(&s->og)) {
 					s->eos = 1;
 				}
 			}
@@ -374,20 +378,21 @@ static int ogg_vorbis_write(struct ast_filestream *s, struct ast_frame *f)
 	float **buffer;
 	short *data;
 
-	if(!s->writing) {
+	if (!s->writing) {
 		ast_log(LOG_ERROR, "This stream is not set up for writing!\n");
 		return -1;
 	}
 
-	if(f->frametype != AST_FRAME_VOICE) {
+	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if(f->subclass != AST_FORMAT_SLINEAR) {
-		ast_log(LOG_WARNING, "Asked to write non-SLINEAR frame (%d)!\n", f->subclass);
+	if (f->subclass != AST_FORMAT_SLINEAR) {
+		ast_log(LOG_WARNING, "Asked to write non-SLINEAR frame (%d)!\n",
+				f->subclass);
 		return -1;
 	}
-	if(!f->datalen)
+	if (!f->datalen)
 		return -1;
 
 	data = (short *) f->data;
@@ -395,7 +400,7 @@ static int ogg_vorbis_write(struct ast_filestream *s, struct ast_frame *f)
 	buffer = vorbis_analysis_buffer(&s->vd, f->samples);
 
 	for (i = 0; i < f->samples; i++) {
-		buffer[0][i] = data[i]/32768.f;
+		buffer[0][i] = data[i] / 32768.f;
 	}
 
 	vorbis_analysis_wrote(&s->vd, f->samples);
@@ -411,7 +416,7 @@ static int ogg_vorbis_write(struct ast_filestream *s, struct ast_frame *f)
  */
 static void ogg_vorbis_close(struct ast_filestream *s)
 {
-	if(ast_mutex_lock(&ogg_vorbis_lock)) {
+	if (ast_mutex_lock(&ogg_vorbis_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock ogg_vorbis list\n");
 		return;
 	}
@@ -419,7 +424,7 @@ static void ogg_vorbis_close(struct ast_filestream *s)
 	ast_mutex_unlock(&ogg_vorbis_lock);
 	ast_update_use_count();
 
-	if(s->writing) {
+	if (s->writing) {
 		/* Tell the Vorbis encoder that the stream is finished
 		 * and write out the rest of the data */
 		vorbis_analysis_wrote(&s->vd, 0);
@@ -432,10 +437,10 @@ static void ogg_vorbis_close(struct ast_filestream *s)
 	vorbis_comment_clear(&s->vc);
 	vorbis_info_clear(&s->vi);
 
-	if(s->writing) {
+	if (s->writing) {
 		ogg_sync_clear(&s->oy);
 	}
-	
+
 	fclose(s->f);
 	free(s);
 }
@@ -455,28 +460,29 @@ static int read_samples(struct ast_filestream *s, float ***pcm)
 
 	while (1) {
 		samples_in = vorbis_synthesis_pcmout(&s->vd, pcm);
-		if(samples_in > 0) {
+		if (samples_in > 0) {
 			return samples_in;
 		}
-		
+
 		/* The Vorbis decoder needs more data... */
 		/* See ifOGG has any packets in the current page for the Vorbis decoder. */
 		result = ogg_stream_packetout(&s->os, &s->op);
-		if(result > 0) {
+		if (result > 0) {
 			/* Yes OGG had some more packets for the Vorbis decoder. */
-			if(vorbis_synthesis(&s->vb, &s->op) == 0) {
+			if (vorbis_synthesis(&s->vb, &s->op) == 0) {
 				vorbis_synthesis_blockin(&s->vd, &s->vb);
 			}
-			
+
 			continue;
 		}
 
-		if(result < 0)
-			ast_log(LOG_WARNING, "Corrupt or missing data at this page position; continuing...\n");
-		
+		if (result < 0)
+			ast_log(LOG_WARNING,
+					"Corrupt or missing data at this page position; continuing...\n");
+
 		/* No more packets left in the current page... */
 
-		if(s->eos) {
+		if (s->eos) {
 			/* No more pages left in the stream */
 			return -1;
 		}
@@ -484,22 +490,24 @@ static int read_samples(struct ast_filestream *s, float ***pcm)
 		while (!s->eos) {
 			/* See ifOGG has any pages in it's internal buffers */
 			result = ogg_sync_pageout(&s->oy, &s->og);
-			if(result > 0) {
+			if (result > 0) {
 				/* Yes, OGG has more pages in it's internal buffers,
 				   add the page to the stream state */
 				result = ogg_stream_pagein(&s->os, &s->og);
-				if(result == 0) {
+				if (result == 0) {
 					/* Yes, got a new,valid page */
-					if(ogg_page_eos(&s->og)) {
+					if (ogg_page_eos(&s->og)) {
 						s->eos = 1;
 					}
 					break;
 				}
-				ast_log(LOG_WARNING, "Invalid page in the bitstream; continuing...\n");
+				ast_log(LOG_WARNING,
+						"Invalid page in the bitstream; continuing...\n");
 			}
-			
-			if(result < 0)
-				ast_log(LOG_WARNING, "Corrupt or missing data in bitstream; continuing...\n");
+
+			if (result < 0)
+				ast_log(LOG_WARNING,
+						"Corrupt or missing data in bitstream; continuing...\n");
 
 			/* No, we need to read more data from the file descrptor */
 			/* get a buffer from OGG to read the data into */
@@ -508,7 +516,7 @@ static int read_samples(struct ast_filestream *s, float ***pcm)
 			bytes = fread(buffer, 1, BLOCK_SIZE, s->f);
 			/* Tell OGG how many bytes we actually read into the buffer */
 			ogg_sync_wrote(&s->oy, bytes);
-			if(bytes == 0) {
+			if (bytes == 0) {
 				s->eos = 1;
 			}
 		}
@@ -521,7 +529,8 @@ static int read_samples(struct ast_filestream *s, float ***pcm)
  * \param whennext Number of sample times to schedule the next call.
  * \return A pointer to a frame containing audio data or NULL ifthere is no more audio data.
  */
-static struct ast_frame *ogg_vorbis_read(struct ast_filestream *s, int *whennext)
+static struct ast_frame *ogg_vorbis_read(struct ast_filestream *s,
+					 int *whennext)
 {
 	int clipflag = 0;
 	int i;
@@ -535,25 +544,25 @@ static struct ast_frame *ogg_vorbis_read(struct ast_filestream *s, int *whennext
 
 	while (1) {
 		/* See ifwe have filled up an audio frame yet */
-		if(samples_out == SAMPLES_MAX)
+		if (samples_out == SAMPLES_MAX)
 			break;
 
 		/* See ifVorbis decoder has some audio data for us ... */
 		samples_in = read_samples(s, &pcm);
-		if(samples_in <= 0)
+		if (samples_in <= 0)
 			break;
 
 		/* Got some audio data from Vorbis... */
 		/* Convert the float audio data to 16-bit signed linear */
-		
+
 		clipflag = 0;
 
 		samples_in = samples_in < (SAMPLES_MAX - samples_out) ? samples_in : (SAMPLES_MAX - samples_out);
-  
-		for(j = 0; j < samples_in; j++)
+
+		for (j = 0; j < samples_in; j++)
 			accumulator[j] = 0.0;
 
-		for(i = 0; i < s->vi.channels; i++) {
+		for (i = 0; i < s->vi.channels; i++) {
 			mono = pcm[i];
 			for (j = 0; j < samples_in; j++) {
 				accumulator[j] += mono[j];
@@ -561,27 +570,26 @@ static struct ast_frame *ogg_vorbis_read(struct ast_filestream *s, int *whennext
 		}
 
 		for (j = 0; j < samples_in; j++) {
-			val =  accumulator[j] * 32767.0 / s->vi.channels;
-			if(val > 32767) {
+			val = accumulator[j] * 32767.0 / s->vi.channels;
+			if (val > 32767) {
 				val = 32767;
 				clipflag = 1;
 			}
-			if(val < -32768) {
+			if (val < -32768) {
 				val = -32768;
 				clipflag = 1;
 			}
 			s->buffer[samples_out + j] = val;
 		}
-			
-		if(clipflag)
-			ast_log(LOG_WARNING, "Clipping in frame %ld\n", (long)(s->vd.sequence));
-		
+
+		if (clipflag)
+			ast_log(LOG_WARNING, "Clipping in frame %ld\n", (long) (s->vd.sequence));
 		/* Tell the Vorbis decoder how many samples we actually used. */
 		vorbis_synthesis_read(&s->vd, samples_in);
 		samples_out += samples_in;
 	}
 
-	if(samples_out > 0) {
+	if (samples_out > 0) {
 		s->fr.frametype = AST_FRAME_VOICE;
 		s->fr.subclass = AST_FORMAT_SLINEAR;
 		s->fr.offset = AST_FRIENDLY_OFFSET;
@@ -591,7 +599,7 @@ static struct ast_frame *ogg_vorbis_read(struct ast_filestream *s, int *whennext
 		s->fr.mallocd = 0;
 		s->fr.samples = samples_out;
 		*whennext = samples_out;
-		
+
 		return &s->fr;
 	} else {
 		return NULL;
@@ -618,17 +626,21 @@ static int ogg_vorbis_trunc(struct ast_filestream *s)
  * \return 0 on success, -1 on failure.
  */
 
-static int ogg_vorbis_seek(struct ast_filestream *s, long sample_offset, int whence) {
+static int ogg_vorbis_seek(struct ast_filestream *s, long sample_offset,
+			   int whence)
+{
 	ast_log(LOG_WARNING, "Seeking is not supported on OGG/Vorbis streams!\n");
 	return -1;
 }
 
-static long ogg_vorbis_tell(struct ast_filestream *s) {
+static long ogg_vorbis_tell(struct ast_filestream *s)
+{
 	ast_log(LOG_WARNING, "Telling is not supported on OGG/Vorbis streams!\n");
 	return -1;
 }
 
-static char *ogg_vorbis_getcomment(struct ast_filestream *s) {
+static char *ogg_vorbis_getcomment(struct ast_filestream *s)
+{
 	ast_log(LOG_WARNING, "Getting comments is not supported on OGG/Vorbis streams!\n");
 	return NULL;
 }
@@ -650,7 +662,7 @@ int load_module()
 int unload_module()
 {
 	return ast_format_unregister(name);
-}	
+}
 
 int usecount()
 {
@@ -667,11 +679,3 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
-
-/*
-Local Variables:
-mode: C
-c-file-style: "linux"
-indent-tabs-mode: t
-End:
-*/

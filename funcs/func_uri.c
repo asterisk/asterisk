@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Created by Olle E. Johansson, Edvina.net 
  *
@@ -44,33 +44,32 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 
 /*! \brief uriencode: Encode URL according to RFC 2396 */
-static char *uriencode(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static int uriencode(struct ast_channel *chan, char *cmd, char *data,
+		     char *buf, size_t len)
 {
-	char uri[BUFSIZ];
-
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: URIENCODE(<data>) - missing argument!\n");
-		return NULL;
+		return -1;
 	}
 
-	ast_uri_encode(data, uri, sizeof(uri), 1);
-	ast_copy_string(buf, uri, len);
+	ast_uri_encode(data, buf, len, 1);
 
-	return buf;
+	return 0;
 }
 
 /*!\brief uridecode: Decode URI according to RFC 2396 */
-static char *uridecode(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static int uridecode(struct ast_channel *chan, char *cmd, char *data,
+		     char *buf, size_t len)
 {
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: URIDECODE(<data>) - missing argument!\n");
-		return NULL;
+		return -1;
 	}
 
-	
 	ast_copy_string(buf, data, len);
 	ast_uri_decode(buf);
-	return buf;
+
+	return 0;
 }
 
 static struct ast_custom_function urldecode_function = {
@@ -91,12 +90,14 @@ static char *tdesc = "URI encode/decode dialplan functions";
 
 int unload_module(void)
 {
-        return ast_custom_function_unregister(&urldecode_function) || ast_custom_function_unregister(&urlencode_function);
+	return ast_custom_function_unregister(&urldecode_function)
+		|| ast_custom_function_unregister(&urlencode_function);
 }
 
 int load_module(void)
 {
-        return ast_custom_function_register(&urldecode_function) || ast_custom_function_register(&urlencode_function);
+	return ast_custom_function_register(&urldecode_function)
+		|| ast_custom_function_register(&urlencode_function);
 }
 
 char *description(void)

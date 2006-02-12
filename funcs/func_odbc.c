@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (c) 2005 Tilghman Lesher
+ * Copyright (c) 2005, 2006 Tilghman Lesher
  *
  * Tilghman Lesher <func_odbc__200508@the-tilghman.com>
  *
@@ -75,11 +75,11 @@ static void acf_odbc_error(SQLHSTMT stmt, int res)
 /*
  * Master control routine
  */
-static void acf_odbc_write(struct ast_channel *chan, char *cmd, char *data, const char *value)
+static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const char *value)
 {
 	odbc_obj *obj;
 	struct acf_odbc_query *query;
-	char *s, *t, *arg, buf[512]="", varname[15];
+	char *t, *arg, buf[512]="", varname[15];
 	int res, argcount=0, valcount=0, i, retry=0;
 	struct ast_channel *ast;
 	SQLHSTMT stmt;
@@ -101,7 +101,7 @@ static void acf_odbc_write(struct ast_channel *chan, char *cmd, char *data, cons
 	if (!query) {
 		ast_log(LOG_ERROR, "No such function '%s'\n", cmd);
 		ast_mutex_unlock(&query_lock);
-		return;
+		return -1;
 	}
 
 	obj = fetch_odbc_obj(query->dsn, 0);
@@ -109,21 +109,16 @@ static void acf_odbc_write(struct ast_channel *chan, char *cmd, char *data, cons
 	if (!obj) {
 		ast_log(LOG_ERROR, "No such DSN registered: %s (check res_odbc.conf)\n", query->dsn);
 		ast_mutex_unlock(&query_lock);
-		return;
+		return -1;
 	}
 
 	/* Parse our arguments */
-	s = ast_strdupa(data);
-	if (value) {
-		t = ast_strdupa(value);
-	} else {
-		t = "";
-	}
+	t = value ? ast_strdupa(value) : "";
 
 	if (!s || !t) {
 		ast_log(LOG_ERROR, "Out of memory\n");
 		ast_mutex_unlock(&query_lock);
-		return;
+		return -1;
 	}
 
 	/* XXX You might be tempted to change this section into using
@@ -184,7 +179,7 @@ retry_write:
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
 		pbx_builtin_setvar_helper(chan, "ODBCROWS", "-1");
-		return;
+		return -1;
 	}
 
 	res = SQLPrepare(stmt, (unsigned char *)buf, SQL_NTS);
@@ -192,7 +187,7 @@ retry_write:
 		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", buf);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		pbx_builtin_setvar_helper(chan, "ODBCROWS", "-1");
-		return;
+		return -1;
 	}
 
 	res = SQLExecute(stmt);
@@ -234,13 +229,15 @@ retry_write:
 	}
 
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+
+	return 0;
 }
 
-static char *acf_odbc_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf, size_t len)
 {
 	odbc_obj *obj;
 	struct acf_odbc_query *query;
-	char *s, *arg, sql[512] = "", varname[15];
+	char *arg, sql[512] = "", varname[15];
 	int count=0, res, x;
 	SQLHSTMT stmt;
 	SQLSMALLINT colcount=0;
@@ -260,7 +257,7 @@ static char *acf_odbc_read(struct ast_channel *chan, char *cmd, char *data, char
 	if (!query) {
 		ast_log(LOG_ERROR, "No such function '%s'\n", cmd);
 		ast_mutex_unlock(&query_lock);
-		return "";
+		return -1;
 	}
 
 	obj = fetch_odbc_obj(query->dsn, 0);
@@ -268,19 +265,13 @@ static char *acf_odbc_read(struct ast_channel *chan, char *cmd, char *data, char
 	if (!obj) {
 		ast_log(LOG_ERROR, "No such DSN registered: %s (check res_odbc.conf)\n", query->dsn);
 		ast_mutex_unlock(&query_lock);
-		return "";
+		return -1;
 	}
 
 #ifdef NEEDTRACE
 	SQLSetConnectAttr(obj->con, SQL_ATTR_TRACE, &enable, SQL_IS_INTEGER);
 	SQLSetConnectAttr(obj->con, SQL_ATTR_TRACEFILE, tracefile, strlen(tracefile));
 #endif
-
-	/* Parse our arguments */
-	if (!(s = ast_strdupa(data))) {
-		ast_mutex_unlock(&query_lock);
-		return "";
-	}
 
 	while ((arg = strsep(&s, "|"))) {
 		count++;
@@ -302,31 +293,31 @@ static char *acf_odbc_read(struct ast_channel *chan, char *cmd, char *data, char
 	res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
-		return "";
+		return -1;
 	}
 
 	res = SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-		return "";
+		return -1;
 	}
 
 	res = odbc_smart_execute(obj, stmt);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-		return "";
+		return -1;
 	}
 
 	res = SQLNumResultCols(stmt, &colcount);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-		return "";
+		return -1;
 	}
 
-	memset(buf, 0, len);
+	*buf = '\0';
 
 	res = SQLFetch(stmt);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -354,7 +345,7 @@ static char *acf_odbc_read(struct ast_channel *chan, char *cmd, char *data, char
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-			return "";
+			return -1;
 		}
 
 		strncat(buf + buflen, coldata, len - buflen);
@@ -366,22 +357,23 @@ static char *acf_odbc_read(struct ast_channel *chan, char *cmd, char *data, char
 
 acf_out:
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-	return buf;
+	return 0;
 }
 
-static char *acf_escape(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int acf_escape(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-	char *in, *out = buf;
-	for (in = data; *in && out - buf < len; in++) {
-		if (*in == '\'') {
+	char *out = buf;
+
+	for (; *data && out - buf < len; data++) {
+		if (*data == '\'') {
 			*out = '\'';
 			out++;
 		}
-		*out = *in;
-		out++;
+		*out++ = *data;
 	}
 	*out = '\0';
-	return buf;
+
+	return 0;
 }
 
 static struct ast_custom_function escape_function = {
@@ -395,8 +387,6 @@ static struct ast_custom_function escape_function = {
 	.read = acf_escape,
 	.write = NULL,
 };
-
-
 
 static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_query **query)
 {

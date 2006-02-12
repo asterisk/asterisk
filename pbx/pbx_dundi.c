@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -3837,9 +3837,8 @@ int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_e
 	return dundi_query_eid_internal(dei, dcontext, &eid, &hmd, dundi_ttl, 0, avoid);
 }
 
-static char *dundifunc_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int dundifunc_read(struct ast_channel *chan, char *cmd, char *num, char *buf, size_t len)
 {
-	char *num;
 	char *context;
 	char *opts;
 	int results;
@@ -3852,27 +3851,18 @@ static char *dundifunc_read(struct ast_channel *chan, char *cmd, char *data, cha
 
 	buf[0] = '\0';
 
-	if (ast_strlen_zero(data)) {
+	if (ast_strlen_zero(num)) {
 		ast_log(LOG_WARNING, "DUNDILOOKUP requires an argument (number)\n");
 		LOCAL_USER_REMOVE(u);
-		return buf;
-	}
-
-	num = ast_strdupa(data);
-	if (!num) {
-		ast_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return buf;
+		return -1;
 	}
 
 	context = strchr(num, '|');
 	if (context) {
-		*context = '\0';
-		context++;
+		*context++ = '\0';
 		opts = strchr(context, '|');
 		if (opts) {
-			*opts = '\0';
-			opts++;
+			*opts++ = '\0';
 			if (strchr(opts, 'b'))
 				bypass = 1;
 		}
@@ -3894,7 +3884,7 @@ static char *dundifunc_read(struct ast_channel *chan, char *cmd, char *data, cha
 
 	LOCAL_USER_REMOVE(u);
 
-	return buf;
+	return 0;
 }
 
 /*! DUNDILOOKUP

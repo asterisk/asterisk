@@ -1211,68 +1211,60 @@ int ast_custom_function_register(struct ast_custom_function *acf)
 	return 0;
 }
 
-char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, size_t len)
+int ast_func_read(struct ast_channel *chan, char *function, char *workspace, size_t len)
 {
-	char *args = NULL, *function, *p;
-	char *ret = "0";
+	char *args = NULL, *p;
 	struct ast_custom_function *acfptr;
 
-	if (!(function = ast_strdupa(in)))
-		return ret;
 	if ((args = strchr(function, '('))) {
-		*args = '\0';
-		args++;
-		if ((p = strrchr(args, ')'))) {
+		*args++ = '\0';
+		if ((p = strrchr(args, ')')))
 			*p = '\0';
-		} else {
+		else
 			ast_log(LOG_WARNING, "Can't find trailing parenthesis?\n");
-		}
 	} else {
 		ast_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
 	}
 
 	if ((acfptr = ast_custom_function_find(function))) {
 		/* run the custom function */
-		if (acfptr->read) {
+		if (acfptr->read)
 			return acfptr->read(chan, function, args, workspace, len);
-		} else {
+		else
 			ast_log(LOG_ERROR, "Function %s cannot be read\n", function);
-		}
 	} else {
 		ast_log(LOG_ERROR, "Function %s not registered\n", function);
 	}
-	return ret;
+
+	return -1;
 }
 
-void ast_func_write(struct ast_channel *chan, const char *in, const char *value)
+int ast_func_write(struct ast_channel *chan, char *function, const char *value)
 {
-	char *args = NULL, *function, *p;
+	char *args = NULL, *p;
 	struct ast_custom_function *acfptr;
 
-	if (!(function = ast_strdupa(in)))
-		return;
 	if ((args = strchr(function, '('))) {
-		*args = '\0';
-		args++;
-		if ((p = strrchr(args, ')'))) {
+		*args++ = '\0';
+		if ((p = strrchr(args, ')')))
 			*p = '\0';
-		} else {
+		else
 			ast_log(LOG_WARNING, "Can't find trailing parenthesis?\n");
-		}
 	} else {
 		ast_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
 	}
 
 	if ((acfptr = ast_custom_function_find(function))) {
 		/* run the custom function */
-		if (acfptr->write) {
-			acfptr->write(chan, function, args, value);
-		} else {
+		if (acfptr->write)
+			return acfptr->write(chan, function, args, value);
+		else
 			ast_log(LOG_ERROR, "Function %s is read-only, it cannot be written to\n", function);
-		}
 	} else {
 		ast_log(LOG_ERROR, "Function %s not registered\n", function);
 	}
+
+	return -1;
 }
 
 static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count)
@@ -1373,7 +1365,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 			parse_variable_name(vars, &offset, &offset2, &isfunction);
 			if (isfunction) {
 				/* Evaluate function */
-				cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE);
+				cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
 
 				ast_log(LOG_DEBUG, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
 			} else {
@@ -5485,8 +5477,11 @@ void pbx_builtin_pushvar_helper(struct ast_channel *chan, const char *name, cons
 	struct varshead *headp;
 
 	if (name[strlen(name)-1] == ')') {
+		char *function = ast_strdupa(name);
+
 		ast_log(LOG_WARNING, "Cannot push a value onto a function\n");
-		return ast_func_write(chan, name, value);
+		ast_func_write(chan, function, value);
+		return;
 	}
 
 	headp = (chan) ? &chan->varshead : &globals;
@@ -5505,8 +5500,12 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 	struct varshead *headp;
 	const char *nametail = name;
 
-	if (name[strlen(name)-1] == ')')
-		return ast_func_write(chan, name, value);
+	if (name[strlen(name)-1] == ')') {
+		char *function = ast_strdupa(name);
+		
+		ast_func_write(chan, function, value);
+		return;
+	}
 
 	headp = (chan) ? &chan->varshead : &globals;
 

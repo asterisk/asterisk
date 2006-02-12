@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999-2006, Digium, Inc.
  *
  * Portions Copyright (C) 2005, Anthony Minessale II
  *
@@ -47,71 +47,65 @@ AST_APP_OPTIONS(cdr_func_options, {
 	AST_APP_OPTION('r', OPT_RECURSIVE),
 });
 
-static char *cdr_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static int cdr_read(struct ast_channel *chan, char *cmd, char *parse,
+		    char *buf, size_t len)
 {
 	char *ret;
-	char *parse;
-	struct ast_flags flags = {0};
-	
+	struct ast_flags flags = { 0 };
 	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(variable);
-		AST_APP_ARG(options);
+			     AST_APP_ARG(variable);
+			     AST_APP_ARG(options);
 	);
 
-	if (ast_strlen_zero(data))
-		return NULL;
-	
-	if (!chan->cdr)
-		return NULL;
+	if (ast_strlen_zero(parse))
+		return -1;
 
-	if (!(parse = ast_strdupa(data)))
-		return NULL;
+	if (!chan->cdr)
+		return -1;
 
 	AST_STANDARD_APP_ARGS(args, parse);
-	
-	if(!ast_strlen_zero(args.options) ) {
-		ast_app_parse_options(cdr_func_options, &flags, NULL, args.options);
-	}
-	ast_cdr_getvar(chan->cdr, args.variable, &ret, buf, len, (ast_test_flag(&flags,OPT_RECURSIVE) ) ? 1 : 0 );
 
-	return ret;
+	if (!ast_strlen_zero(args.options))
+		ast_app_parse_options(cdr_func_options, &flags, NULL, args.options);
+
+	ast_cdr_getvar(chan->cdr, args.variable, &ret, buf, len,
+		       ast_test_flag(&flags, OPT_RECURSIVE));
+
+	return 0;
 }
 
-static void cdr_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
+static int cdr_write(struct ast_channel *chan, char *cmd, char *parse,
+		     const char *value)
 {
-	char *parse;
-	struct ast_flags flags = {0};
+	struct ast_flags flags = { 0 };
+	AST_DECLARE_APP_ARGS(args,
+			     AST_APP_ARG(variable);
+			     AST_APP_ARG(options);
+	);
 
-	AST_DECLARE_APP_ARGS(args, 
-		AST_APP_ARG(variable);
-		AST_APP_ARG(options);
-	);      
-
-	if (ast_strlen_zero(data) || !value)
-		return;
-	
-	if (!(parse = ast_strdupa(data)))
-		return;
+	if (ast_strlen_zero(parse) || !value)
+		return -1;
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	/* check for a trailing flags argument */
-	if(!ast_strlen_zero(args.options) ) {
+	if (!ast_strlen_zero(args.options))
 		ast_app_parse_options(cdr_func_options, &flags, NULL, args.options);
-	}
 
 	if (!strcasecmp(args.variable, "accountcode"))
 		ast_cdr_setaccount(chan, value);
 	else if (!strcasecmp(args.variable, "userfield"))
 		ast_cdr_setuserfield(chan, value);
 	else if (chan->cdr)
-		ast_cdr_setvar(chan->cdr, args.variable, value, (ast_test_flag(&flags,OPT_RECURSIVE) ) ? 1 : 0 );
+		ast_cdr_setvar(chan->cdr, args.variable, value,
+			       ast_test_flag(&flags, OPT_RECURSIVE));
+
+	return 0;
 }
 
 static struct ast_custom_function cdr_function = {
 	.name = "CDR",
 	.synopsis = "Gets or sets a CDR variable",
-	.desc= "Option 'r' searches the entire stack of CDRs on the channel\n",
+	.desc = "Option 'r' searches the entire stack of CDRs on the channel\n",
 	.syntax = "CDR(<name>[|options])",
 	.read = cdr_read,
 	.write = cdr_write,
@@ -121,12 +115,12 @@ static char *tdesc = "CDR dialplan function";
 
 int unload_module(void)
 {
-        return ast_custom_function_unregister(&cdr_function);
+	return ast_custom_function_unregister(&cdr_function);
 }
 
 int load_module(void)
 {
-        return ast_custom_function_register(&cdr_function);
+	return ast_custom_function_register(&cdr_function);
 }
 
 char *description(void)
@@ -143,11 +137,3 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
-
-/*
-Local Variables:
-mode: C
-c-file-style: "linux"
-indent-tabs-mode: nil
-End:
-*/

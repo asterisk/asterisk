@@ -1167,7 +1167,7 @@ static int handle_getvariable(struct ast_channel *chan, AGI *agi, int argc, char
 
 	/* check if we want to execute an ast_custom_function */
 	if (!ast_strlen_zero(argv[2]) && (argv[2][strlen(argv[2]) - 1] == ')')) {
-		ret = ast_func_read(chan, argv[2], tempstr, sizeof(tempstr));
+		ret = ast_func_read(chan, argv[2], tempstr, sizeof(tempstr)) ? NULL : tempstr;
 	} else {
 		pbx_retrieve_variable(chan, argv[2], &ret, tempstr, sizeof(tempstr), NULL);
 	}

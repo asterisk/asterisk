@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Changes Copyright (c) 2004 - 2005 Todd Freeman <freeman@andrews.edu>
+ * Changes Copyright (c) 2004 - 2006 Todd Freeman <freeman@andrews.edu>
  * 
  * 95% based on HasNewVoicemail by:
  * 
@@ -178,10 +178,10 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static char *acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+int acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *argsstr, char *buf, size_t len)
 {
 	struct localuser *u;
-	char *argsstr, *context;
+	char *context;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(vmbox);
 		AST_APP_ARG(folder);
@@ -190,11 +190,6 @@ static char *acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *data, c
 	LOCAL_USER_ACF_ADD(u);
 
 	buf[0] = '\0';
-
-	if (!(argsstr = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return buf;
-	}
 
 	AST_STANDARD_APP_ARGS(args, argsstr);
 
@@ -213,7 +208,7 @@ static char *acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *data, c
 
 	LOCAL_USER_REMOVE(u);
 	
-	return buf;
+	return 0;
 }
 
 struct ast_custom_function acf_vmcount = {

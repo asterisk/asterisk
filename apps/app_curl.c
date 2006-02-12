@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C)  2004 - 2005, Tilghman Lesher
+ * Copyright (C)  2004 - 2006, Tilghman Lesher
  *
  * Tilghman Lesher <curl-20050919@the-tilghman.com>
  * and Brian Wilkins <bwilkins@cfl.rr.com> (Added POST option)
@@ -109,10 +109,9 @@ static int curl_internal(struct MemoryStruct *chunk, char *url, char *post)
 	return 0;
 }
 
-static char *acf_curl_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int acf_curl_exec(struct ast_channel *chan, char *cmd, char *info, char *buf, size_t len)
 {
 	struct localuser *u;
-	char *info;
 	struct MemoryStruct chunk = { NULL, 0 };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(url);
@@ -121,21 +120,16 @@ static char *acf_curl_exec(struct ast_channel *chan, char *cmd, char *data, char
 
 	*buf = '\0';
 	
-	if (ast_strlen_zero(data)) {
+	if (ast_strlen_zero(info)) {
 		ast_log(LOG_WARNING, "CURL requires an argument (URL)\n");
-		return buf;
+		return -1;
 	}
 
 	LOCAL_USER_ACF_ADD(u);
 
-	if (!(info = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return buf;
-	}
-
 	AST_STANDARD_APP_ARGS(args, info);	
 	
-	if (! curl_internal(&chunk, args.url, args.postdata)) {
+	if (!curl_internal(&chunk, args.url, args.postdata)) {
 		if (chunk.memory) {
 			chunk.memory[chunk.size] = '\0';
 			if (chunk.memory[chunk.size - 1] == 10)
@@ -149,7 +143,8 @@ static char *acf_curl_exec(struct ast_channel *chan, char *cmd, char *data, char
 	}
 
 	LOCAL_USER_REMOVE(u);
-	return buf;
+
+	return 0;
 }
 
 struct ast_custom_function acf_curl = {
