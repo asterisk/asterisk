@@ -67,8 +67,6 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 	int res = 0;
 	char tech[80];
 	char dest[80] = "";
-	char *zone;
-	char *options;
 	struct localuser *u;
 	char *s, *p;
 
@@ -103,8 +101,8 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 
 	LOCAL_USER_ACF_ADD(u);
 
-	res = ast_get_enum(chan, p, dest, sizeof(dest), tech, sizeof(tech), zone,
-			   options);
+	res = ast_get_enum(chan, p, dest, sizeof(dest), tech, sizeof(tech), args.zone,
+			   args.options);
 
 	LOCAL_USER_REMOVE(u);
 
