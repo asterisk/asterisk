@@ -49,14 +49,14 @@ static char *morsecode_synopsis = "Plays morse code";
 
 static char *morsecode_descrip =
 "Usage: Morsecode(<string>)\n"
-"Plays the Morse code equivalent of the passed string\n";
+"Plays the Morse code equivalent of the passed string.  If the variable\n"
+"MORSEDITLEN is set, it will use that value for the length (in ms) of the dit\n"
+"(defaults to 80).  Additionally, if MORSETONE is set, it will use that tone\n"
+"(in Hz).  The tone default is 800.\n";
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
-
-#define	TONE	800
-#define	DITLEN	80
 
 static char *morsecode[] = {
 	"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", /*  0-15 */
@@ -105,16 +105,17 @@ static char *morsecode[] = {
 static void playtone(struct ast_channel *chan, int tone, int len)
 {
 	char dtmf[20];
-	snprintf(dtmf, sizeof(dtmf), "%d/%d", tone, DITLEN * len);
+	snprintf(dtmf, sizeof(dtmf), "%d/%d", tone, len);
 	ast_playtones_start(chan, 0, dtmf, 0);
-	ast_safe_sleep(chan, DITLEN * len);
+	ast_safe_sleep(chan, len);
 	ast_playtones_stop(chan);
 }
 
 static int morsecode_exec(struct ast_channel *chan, void *data)
 {
-	int res=0;
+	int res=0, ditlen, tone;
 	char *digit;
+	const char *ditlenc, *tonec;
 	struct localuser *u;
 
 	LOCAL_USER_ADD(u);
@@ -125,6 +126,18 @@ static int morsecode_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
+	/* Use variable MORESEDITLEN, if set (else 80) */
+	ditlenc = pbx_builtin_getvar_helper(chan, "MORSEDITLEN");
+	if (ast_strlen_zero(ditlenc) || (sscanf(ditlenc, "%d", &ditlen) != 1)) {
+		ditlen = 80;
+	}
+
+	/* Use variable MORSETONE, if set (else 800) */
+	tonec = pbx_builtin_getvar_helper(chan, "MORSETONE");
+	if (ast_strlen_zero(tonec) || (sscanf(tonec, "%d", &tone) != 1)) {
+		tone = 800;
+	}
+
 	for (digit = data; *digit; digit++) {
 		char *dahdit;
 		if (*digit < 0) {
@@ -132,19 +145,19 @@ static int morsecode_exec(struct ast_channel *chan, void *data)
 		}
 		for (dahdit = morsecode[(int)*digit]; *dahdit; dahdit++) {
 			if (*dahdit == '-') {
-				playtone(chan, TONE, 3);
+				playtone(chan, tone, 3 * ditlen);
 			} else if (*dahdit == '.') {
-				playtone(chan, TONE, 1);
+				playtone(chan, tone, 1 * ditlen);
 			} else {
 				/* Account for ditlen of silence immediately following */
-				playtone(chan, 0, 2);
+				playtone(chan, 0, 2 * ditlen);
 			}
 
 			/* Pause slightly between each dit and dah */
-			playtone(chan, 0, 1);
+			playtone(chan, 0, 1 * ditlen);
 		}
 		/* Pause between characters */
-		playtone(chan, 0, 2);
+		playtone(chan, 0, 2 * ditlen);
 	}
 
 	LOCAL_USER_REMOVE(u);
