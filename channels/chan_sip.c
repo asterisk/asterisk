@@ -9343,7 +9343,7 @@ static struct ast_custom_function checksipdomain_function = {
 int function_sippeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	struct sip_peer *peer;
-	char *peername, *colname;
+	char *peername = data, *colname;
 	char iabuf[INET_ADDRSTRLEN];
 
 	if ((colname = strchr(data, ':')))
