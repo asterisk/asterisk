@@ -637,7 +637,7 @@ static inline int ast_cond_timedwait(ast_cond_t *cond, ast_mutex_t *t, const str
 #define pthread_cond_signal use_ast_cond_signal_instead_of_pthread_cond_signal
 #define pthread_cond_broadcast use_ast_cond_broadcast_instead_of_pthread_cond_broadcast
 #define pthread_cond_wait use_ast_cond_wait_instead_of_pthread_cond_wait
-#define pthread_cond_timedwait use_ast_cond_wait_instead_of_pthread_cond_timedwait
+#define pthread_cond_timedwait use_ast_cond_timedwait_instead_of_pthread_cond_timedwait
 
 #define AST_MUTEX_DEFINE_STATIC(mutex) __AST_MUTEX_DEFINE(static,mutex)
 #define AST_MUTEX_DEFINE_EXPORTED(mutex) __AST_MUTEX_DEFINE(/**/,mutex)
