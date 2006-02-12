@@ -43,8 +43,11 @@ install:
 uninstall:
 	for x in $(TARGET); do rm -f $$x $(DESTDIR)$(ASTSBINDIR)/$$x; done
 
-clean:
-	rm -f *.o astman smsq stereorize streamplayer check_expr .depend
+clean-depend:
+	rm -f .depend
+
+clean: clean-depend
+	rm -f *.o astman smsq stereorize streamplayer check_expr
 	rm -f ast_expr2.o ast_expr2f.o
 
 astman: astman.o ../md5.o

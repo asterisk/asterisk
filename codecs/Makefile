@@ -63,8 +63,11 @@ LIBLPC10=lpc10/liblpc10.a
 
 all: depend $(MODS)
 
-clean:
-	rm -f *.so *.o .depend
+clean-depend:
+	rm -f .depend
+
+clean: clean-depend
+	rm -f *.so *.o
 	[ ! -d g723.1 ] || $(MAKE) -C g723.1 clean
 	[ ! -d g723.1b ] || $(MAKE) -C g723.1b clean
 	$(MAKE) -C gsm clean

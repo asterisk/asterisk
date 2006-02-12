@@ -42,6 +42,8 @@ $(LIBDBSO): $(SHOBJS)
 $(PROG): db_dump185.o $(LIBDBSO)
 	$(CC) -o $@ db_dump185.o -L. -ldb
 
+clean-depend:
+
 clean:
 	rm -f $(LIBDB) $(LIBDBSO) $(OBJS) $(SHOBJS)
 

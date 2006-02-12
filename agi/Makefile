@@ -39,8 +39,11 @@ eagi-test: eagi-test.o
 eagi-sphinx-test: eagi-sphinx-test.o
 	$(CC) $(CFLAGS) -o eagi-sphinx-test eagi-sphinx-test.o $(LIBS) 
 
-clean:
-	rm -f *.so *.o look .depend eagi-test eagi-sphinx-test
+clean-depend:
+	rm -f .depend
+
+clean: clean-depend
+	rm -f *.so *.o look eagi-test eagi-sphinx-test
 
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<

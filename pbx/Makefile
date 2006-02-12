@@ -40,8 +40,11 @@ KDE_CONSOLE_OBJS=pbx_kdeconsole_main.o pbx_kdeconsole.o
 
 all: depend $(MODS)
 
-clean:
-	rm -f *.so *.o .depend
+clean-depend:
+	rm -f .depend
+
+clean: clean-depend
+	rm -f *.so *.o
 
 pbx_gtkconsole.o: pbx_gtkconsole.c
 	$(CC) $(CFLAGS) $(GTK_FLAGS) -c -o $@ $<

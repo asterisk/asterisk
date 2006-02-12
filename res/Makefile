@@ -86,8 +86,11 @@ uninstall:
 res_crypto.so: res_crypto.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(CRYPTO_LIBS)
 
-clean:
-	rm -f *.so *.o .depend
+clean-depend:
+	rm -f .depend
+
+clean: clean-depend
+	rm -f *.so *.o
 
 res_odbc.so: res_odbc.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lodbc

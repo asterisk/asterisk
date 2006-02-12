@@ -454,12 +454,7 @@ editline/libedit.a: FORCE
 	$(MAKE) -C editline libedit.a
 
 db1-ast/libdb1.a: FORCE
-	@if [ -d db1-ast ]; then \
-		$(MAKE) -C db1-ast libdb1.a ; \
-	else \
-		echo "You need to do a cvs update -d not just cvs update"; \
-		exit 1; \
-	fi
+	$(MAKE) -C db1-ast libdb1.a
 
 ifneq ($(wildcard .depend),)
   include .depend
@@ -516,12 +511,7 @@ include/asterisk/version.h: FORCE
 	rm -f $@.tmp
 
 stdtime/libtime.a: FORCE
-	@if [ -d stdtime ]; then \
-		$(MAKE) -C stdtime libtime.a ; \
-	else \
-		echo "You need to do a cvs update -d not just cvs update"; \
-		exit 1; \
-	fi
+	$(MAKE) -C stdtime libtime.a
 
 cygwin_a:
 	$(MAKE) -C cygwin all
@@ -541,13 +531,17 @@ muted: muted.o
 subdirs: 
 	for x in $(SUBDIRS); do $(MAKE) -C $$x || exit 1 ; done
 
-clean:
+clean-depend:
+	for x in $(SUBDIRS); do $(MAKE) -C $$x clean-depend || exit 1 ; done
+	rm -f .depend .tags-depend
+
+clean: clean-depend
 	for x in $(SUBDIRS); do $(MAKE) -C $$x clean || exit 1 ; done
-	rm -f *.o *.so asterisk .depend
+	rm -f *.o *.so asterisk
 	rm -f defaults.h
 	rm -f include/asterisk/build.h
 	rm -f include/asterisk/version.h
-	rm -f .tags-depend .tags-sources tags TAGS
+	rm -f .tags-sources tags TAGS
 	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
 	@if [ -d mpg123-0.59r ]; then $(MAKE) -C mpg123-0.59r clean; fi
 	$(MAKE) -C db1-ast clean
@@ -617,6 +611,7 @@ update:
 			grep ^C update.out | cut -b4- ; \
 		fi ; \
 		rm -f update.out; \
+		$(MAKE) clean-depend; \
 	elif [ -d CVS ]; then \
 		echo "Updating from CVS..." ; \
 		cvs -q -z3 update -Pd | tee update.out; \
@@ -626,6 +621,7 @@ update:
 			grep ^C update.out | cut -d' ' -f2- ; \
 		fi ; \
 		rm -f update.out; \
+		$(MAKE) clean-depend; \
 	else \
 		echo "Not under version control";  \
 	fi

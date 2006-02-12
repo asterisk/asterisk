@@ -26,8 +26,11 @@ endif
 
 all: $(MODS)
 
-clean:
-	rm -f *.so *.o .depend
+clean-depend:
+	rm -f .depend
+
+clean: clean-depend
+	rm -f *.so *.o
 
 %.so : %.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}

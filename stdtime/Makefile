@@ -10,8 +10,11 @@ install:
 
 uninstall:
 
-clean:
-	rm -f libtime.a *.o test .depend
+clean-depend:
+	rm -f .depend
+
+clean: clean-depend
+	rm -f libtime.a *.o test
 
 depend: .depend
 
