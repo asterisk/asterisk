@@ -985,6 +985,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		}
 	}
 
+	ast_indicate(chan, -1);
+
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to write linear mode\n", chan->name);
 		goto outrun;
@@ -995,7 +997,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		goto outrun;
 	}
 
-	ast_indicate(chan, -1);
 	retryzap = strcasecmp(chan->tech->type, "Zap");
 	user->zapchannel = !retryzap;
 
