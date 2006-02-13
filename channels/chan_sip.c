@@ -9340,7 +9340,7 @@ static struct ast_custom_function checksipdomain_function = {
 };
 
 /*! \brief  function_sippeer: ${SIPPEER()} Dialplan function - reads peer data */
-int function_sippeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int function_sippeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	struct sip_peer *peer;
 	char *colname;
