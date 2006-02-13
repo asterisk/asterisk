@@ -125,7 +125,7 @@ static int acf_curl_exec(struct ast_channel *chan, char *cmd, char *info, char *
 		return -1;
 	}
 
-	LOCAL_USER_ACF_ADD(u);
+	LOCAL_USER_ADD(u);
 
 	AST_STANDARD_APP_ARGS(args, info);	
 	

@@ -233,7 +233,7 @@ static int acf_sort_exec(struct ast_channel *chan, char *cmd, char *data, char *
 	struct localuser *u;
 	int ret = -1;
 
-	LOCAL_USER_ACF_ADD(u);
+	LOCAL_USER_ADD(u);
 
 	switch (sort_internal(chan, data, buf, len)) {
 	case ERROR_NOARG:
@@ -258,7 +258,7 @@ static int acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char *b
 	int ret = -1;
 	struct localuser *u;
 
-	LOCAL_USER_ACF_ADD(u);
+	LOCAL_USER_ADD(u);
 
 	switch (cut_internal(chan, data, buf, len)) {
 	case ERROR_NOARG:

@@ -53,7 +53,7 @@ static int acf_rand_exec(struct ast_channel *chan, char *cmd,
 			     AST_APP_ARG(max);
 	);
 
-	LOCAL_USER_ACF_ADD(u);
+	LOCAL_USER_ADD(u);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 

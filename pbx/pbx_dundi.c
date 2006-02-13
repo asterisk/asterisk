@@ -3847,7 +3847,7 @@ static int dundifunc_read(struct ast_channel *chan, char *cmd, char *num, char *
 	struct localuser *u;
 	struct dundi_result dr[MAX_RESULTS];
 
-	LOCAL_USER_ACF_ADD(u);
+	LOCAL_USER_ADD(u);
 
 	buf[0] = '\0';
 

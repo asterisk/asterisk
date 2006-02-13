@@ -99,7 +99,7 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 	}
 	*p = '\0';
 
-	LOCAL_USER_ACF_ADD(u);
+	LOCAL_USER_ADD(u);
 
 	res = ast_get_enum(chan, p, dest, sizeof(dest), tech, sizeof(tech), args.zone,
 			   args.options);
@@ -141,7 +141,7 @@ static int function_txtcidname(struct ast_channel *chan, char *cmd,
 
 	buf[0] = '\0';
 
-	LOCAL_USER_ACF_ADD(u);
+	LOCAL_USER_ADD(u);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "TXTCIDNAME requires an argument (number)\n");

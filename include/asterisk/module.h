@@ -332,21 +332,6 @@ void ast_unregister_atexit(void (*func)(void));
 	ast_update_use_count(); \
 }
 
-#define LOCAL_USER_ACF_ADD(u) { \
- \
-	if (!(u=calloc(1,sizeof(*u)))) { \
-		ast_log(LOG_WARNING, "Out of memory\n"); \
-		return -1; \
-	} \
-	ast_mutex_lock(&localuser_lock); \
-	u->chan = chan; \
-	u->next = localusers; \
-	localusers = u; \
-	localusecnt++; \
-	ast_mutex_unlock(&localuser_lock); \
-	ast_update_use_count(); \
-}
-
 /*! 
  * \brief Remove a localuser.
  * \param u the user to add, should be of type struct localuser

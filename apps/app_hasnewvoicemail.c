@@ -187,7 +187,7 @@ int acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *argsstr, char *b
 		AST_APP_ARG(folder);
 	);
 
-	LOCAL_USER_ACF_ADD(u);
+	LOCAL_USER_ADD(u);
 
 	buf[0] = '\0';
 

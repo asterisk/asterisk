@@ -3156,7 +3156,7 @@ static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, c
 		return -1;
 	}
 
-	LOCAL_USER_ACF_ADD(u);
+	LOCAL_USER_ADD(u);
 	
 	AST_LIST_LOCK(&queues);
 
@@ -3199,7 +3199,7 @@ static int queue_function_queuememberlist(struct ast_channel *chan, char *cmd, c
 		return -1;
 	}
 	
-	LOCAL_USER_ACF_ADD(u);
+	LOCAL_USER_ADD(u);
 
 	AST_LIST_LOCK(&queues);
 
