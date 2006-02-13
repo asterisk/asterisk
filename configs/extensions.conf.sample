@@ -128,14 +128,19 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ; they are listed.
 ;
 ;[context]
-;exten => someexten,priority[+offset][(alias)],application(arg1,arg2,...)
-;exten => someexten,priority[+offset][(alias)],application,arg1|arg2...
+;exten => someexten,{priority|label{+|-}offset}[(alias)],application(arg1,arg2,...)
+;exten => someexten,{priority|label{+|-}offset}[(alias)],application,arg1|arg2...
 ;
 ; Timing list for includes is 
 ;
 ;   <time range>|<days of week>|<days of month>|<months>
 ;
+; Note that ranges may be specified to wrap around the ends.  Also, minutes are
+; fine-grained only down to the closest even minute.
+;
 ;include => daytime|9:00-17:00|mon-fri|*|*
+;include => weekend|*|sat-sun|*|*
+;include => weeknights|17:02-8:58|mon-fri|*|*
 ;
 ; ignorepat can be used to instruct drivers to not cancel dialtone upon
 ; receipt of a particular pattern.  The most commonly used example is
@@ -352,7 +357,7 @@ exten => a,1,VoicemailMain(${ARG1})				; If they press *, send the user into Voi
 ;   ${ARG1} - Device to page
 
 exten => s,1,ChanIsAvail(${ARG1}|js)                            ; j is for Jump and s is for ANY call
-exten => s,2,GoToIf([${AVAILSTATUS} = "1"]?3?7)
+exten => s,2,GoToIf([${AVAILSTATUS} = "1"]?3:7)
 exten => s,3,Set(_ALERT_INFO="RA")                              ; This is for the PolyComs
 exten => s,4,SIPAddHeader(Call-Info: Answer-After=0)            ; This is for the Grandstream, Snoms, and Others
 exten => s,5,NoOp()                                             ; Add others here and Post on the Wiki!!!!
@@ -364,7 +369,7 @@ exten => s,7,Hangup
 ;
 ; We start with what to do when a call first comes in.
 ;
-exten => s,1,Wait,1			; Wait a second, just for fun
+exten => s,1,Wait(1)			; Wait a second, just for fun
 exten => s,n,Answer			; Answer the line
 exten => s,n,Set(TIMEOUT(digit)=5)	; Set Digit Timeout to 5 seconds
 exten => s,n,Set(TIMEOUT(response)=10)	; Set Response Timeout to 10 seconds
