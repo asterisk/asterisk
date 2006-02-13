@@ -89,7 +89,7 @@ $(LIBLPC10):
 $(LIBILBC):
 	$(MAKE) -C ilbc all
 
-$(MODILBC): codec_ilbc.o $(LIBILBC)
+codec_ilbc.so: codec_ilbc.o $(LIBILBC)
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBILBC)
 
 codec_g723_1.so : codec_g723_1.o $(LIBG723)
