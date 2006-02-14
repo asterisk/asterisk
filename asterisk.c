@@ -75,6 +75,7 @@
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
+#include <sys/prctl.h>
 #include <regex.h>
 
 #if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
@@ -2208,6 +2209,12 @@ int main(int argc, char *argv[])
 	}
 
 #endif /* __CYGWIN__ */
+
+	if (geteuid() && ast_opt_dump_core) {
+		if (prctl(PR_SET_DUMPABLE, 1, 0, 0, 0) < 0) {
+			ast_log(LOG_WARNING, "Unable to set the process for core dumps after changing to a non-root user. %s\n", strerror(errno));
+		}	
+	}
 
 	term_init();
 	printf(term_end());
