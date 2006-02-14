@@ -12,7 +12,7 @@
 ; If exceeded then MACHINE
 
 
-[AnsweringMachineDetector]
+[general]
 initial_silence            = 2500
 greeting                   = 1500
 after_greeting_silence     = 300

@@ -60,14 +60,14 @@ static char *descrip =
 "This application sets the following channel variable upon completion:\n"
 "    AMDSTATUS - This is the status of the answering machine detection.\n"
 "                Possible values are:\n"
-"                AMD_MACHINE | AMD_PERSON | AMD_NOTSURE | AMD_HANGUP\n"
+"                AMDMACHINE | AMDPERSON | AMDNOTSURE | AMDHANGUP\n"
 "    AMDCAUSE - Indicates the cause that led to the conclusion.\n"
 "               Possible values are:\n"
-"               AMD_TOOLONG-<%d total_time>\n"
-"               AMD_INITIALSILENCE-<%d silenceDuration>-<%d initialSilence>\n"
-"               AMD_HUMAN-<%d silenceDuration>-<%d afterGreetingSilence>\n"
-"               AMD_MAXWORDS-<%d wordsCount>-<%d maximumNumberOfWords>\n"
-"               AMD_LONGGREETING-<%d voiceDuration>-<%d greeting>\n";
+"               AMDTOOLONG-<%d total_time>\n"
+"               AMDINITIALSILENCE-<%d silenceDuration>-<%d initialSilence>\n"
+"               AMDHUMAN-<%d silenceDuration>-<%d afterGreetingSilence>\n"
+"               AMDMAXWORDS-<%d wordsCount>-<%d maximumNumberOfWords>\n"
+"               AMDLONGGREETING-<%d voiceDuration>-<%d greeting>\n";
 
 
 STANDARD_LOCAL_USER;
@@ -96,6 +96,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 	struct ast_dsp *silenceDetector;         /* silence detector dsp */
 	int dspsilence = 0;
 	int readFormat;
+	int framelength;
 
 	int inInitialSilence         = 1;
 	int inGreeting               = 0;
@@ -208,16 +209,17 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 			/* No Frame: Called Party Must Have Dropped */
 			ast_verbose(VERBOSE_PREFIX_3 "AMD: HANGUP\n");
 			ast_log(LOG_DEBUG, "Got hangup\n");
-			strcpy(amdStatus , "AMD_HANGUP" );
+			strcpy(amdStatus , "AMDHANGUP" );
 			strcpy(amdCause , "" );
 			break;
 		}
-		iTotalTime += 20;
+		framelength = (ast_codec_get_samples(f) / 8);
+		iTotalTime += framelength;
 		if (iTotalTime >= totalAnalysisTime ) {
 			ast_verbose(VERBOSE_PREFIX_3 "AMD: Channel [%s]. Too long...\n", chan->name );
 			ast_frfree(f);
-			strcpy(amdStatus , "AMD_NOTSURE" );
-			sprintf(amdCause , "AMD_TOOLONG-%d", iTotalTime );
+			strcpy(amdStatus , "AMDNOTSURE" );
+			sprintf(amdCause , "AMDTOOLONG-%d", iTotalTime );
 			break;
 		}
 		if (f->frametype == AST_FRAME_VOICE ) {
@@ -238,8 +240,8 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 					ast_verbose(VERBOSE_PREFIX_3 "AMD: ANSWERING MACHINE: silenceDuration:%d initialSilence:%d\n",
 							silenceDuration, initialSilence );
 					ast_frfree(f);
-					strcpy(amdStatus , "AMD_MACHINE" );
-					sprintf(amdCause , "AMD_INITIALSILENCE-%d-%d", silenceDuration, initialSilence );
+					strcpy(amdStatus , "AMDMACHINE" );
+					sprintf(amdCause , "AMDINITIALSILENCE-%d-%d", silenceDuration, initialSilence );
 					break;
 				}
 
@@ -247,13 +249,13 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 					ast_verbose(VERBOSE_PREFIX_3 "AMD: HUMAN: silenceDuration:%d afterGreetingSilence:%d\n",
 							silenceDuration, afterGreetingSilence );
 					ast_frfree(f);
-					strcpy(amdStatus , "AMD_PERSON" );
-					sprintf(amdCause , "AMD_HUMAN-%d-%d", silenceDuration, afterGreetingSilence );
+					strcpy(amdStatus , "AMDPERSON" );
+					sprintf(amdCause , "AMDHUMAN-%d-%d", silenceDuration, afterGreetingSilence );
 					break;
 				}
 			} else {
-				consecutiveVoiceDuration += 20;
-				voiceDuration += 20;
+				consecutiveVoiceDuration += framelength;
+				voiceDuration += framelength;
 				/* ast_verbose(VERBOSE_PREFIX_3 "AMD: %d VOICE: ConsecutiveVoice:%d voiceDuration:%d inGreeting:%d\n", currentState, consecutiveVoiceDuration, voiceDuration, inGreeting ); */
 
 				/* If I have enough consecutive voice to say that I am in a Word, I can only increment the
@@ -270,8 +272,8 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 				if (iWordsCount >= maximumNumberOfWords ) {
 					ast_verbose(VERBOSE_PREFIX_3 "AMD: ANSWERING MACHINE: iWordsCount:%d\n", iWordsCount );
 					ast_frfree(f);
-					strcpy(amdStatus , "AMD_MACHINE" );
-					sprintf(amdCause , "AMD_MAXWORDS-%d-%d", iWordsCount, maximumNumberOfWords );
+					strcpy(amdStatus , "AMDMACHINE" );
+					sprintf(amdCause , "AMDMAXWORDS-%d-%d", iWordsCount, maximumNumberOfWords );
 					break;
 				}
 
@@ -279,8 +281,8 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 					ast_verbose(VERBOSE_PREFIX_3 "AMD: ANSWERING MACHINE: voiceDuration:%d greeting:%d\n",
 							voiceDuration, greeting );
 					ast_frfree(f);
-					strcpy(amdStatus , "AMD_MACHINE" );
-					sprintf(amdCause , "AMD_LONGGREETING-%d-%d", voiceDuration, greeting );
+					strcpy(amdStatus , "AMDMACHINE" );
+					sprintf(amdCause , "AMDLONGGREETING-%d-%d", voiceDuration, greeting );
 					break;
 				}
 				if (voiceDuration >= minimumWordLength ) {
