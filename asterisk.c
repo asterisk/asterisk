@@ -75,8 +75,11 @@
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
-#include <sys/prctl.h>
 #include <regex.h>
+
+#ifdef linux
+#include <sys/prctl.h>
+#endif 
 
 #if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
 #include <netdb.h>
@@ -2210,11 +2213,15 @@ int main(int argc, char *argv[])
 
 #endif /* __CYGWIN__ */
 
+#ifdef linux
+
 	if (geteuid() && option_dumpcore) {
 		if (prctl(PR_SET_DUMPABLE, 1, 0, 0, 0) < 0) {
 			ast_log(LOG_WARNING, "Unable to set the process for core dumps after changing to a non-root user. %s\n", strerror(errno));
 		}	
 	}
+
+#endif
 
 	term_init();
 	printf(term_end());
