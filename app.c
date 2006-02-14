@@ -425,9 +425,7 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 			return -1;
 		}
 	}
-	lin = malloc(sizeof(struct linear_state));
-	if (lin) {
-		memset(lin, 0, sizeof(lin));
+	if ((lin = ast_calloc(1, sizeof(*lin)))) {
 		lin->fd = fd;
 		lin->allowoverride = allowoverride;
 		lin->autoclose = autoclose;
@@ -1155,10 +1153,7 @@ enum AST_LOCK_RESULT ast_lock_path(const char *path)
 	int fd;
 	time_t start;
 
-	s = alloca(strlen(path) + 10);
-	fs = alloca(strlen(path) + 20);
-
-	if (!fs || !s) {
+	if (!(s = alloca(strlen(path) + 10)) || !(fs = alloca(strlen(path) + 20))) {
 		ast_log(LOG_WARNING, "Out of memory!\n");
 		return AST_LOCK_FAILURE;
 	}
@@ -1188,8 +1183,7 @@ enum AST_LOCK_RESULT ast_lock_path(const char *path)
 int ast_unlock_path(const char *path)
 {
 	char *s;
-	s = alloca(strlen(path) + 10);
-	if (!s)
+	if (!(s = alloca(strlen(path) + 10)))
 		return -1;
 	snprintf(s, strlen(path) + 9, "%s/%s", path, ".lock");
 	ast_log(LOG_DEBUG, "Unlocked path '%s'\n", path);
@@ -1514,9 +1508,8 @@ char *ast_read_textfile(const char *filename)
 	if (fd < 0) {
 		ast_log(LOG_WARNING, "Cannot open file '%s' for reading: %s\n", filename, strerror(errno));
 		return NULL;
-	}
-	output=(char *)malloc(count);
-	if (output) {
+	}	
+	if ((output = ast_malloc(count))) {
 		res = read(fd, output, count - 1);
 		if (res == count - 1) {
 			output[res] = '\0';
@@ -1525,8 +1518,7 @@ char *ast_read_textfile(const char *filename)
 			free(output);
 			output = NULL;
 		}
-	} else 
-		ast_log(LOG_WARNING, "Out of memory!\n");
+	}
 	close(fd);
 	return output;
 }

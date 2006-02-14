@@ -238,9 +238,8 @@ void ast_register_file_version(const char *file, const char *version)
 	work = ast_strdupa(version);
 	work = ast_strip(ast_strip_quoted(work, "$", "$"));
 	version_length = strlen(work) + 1;
-
-	new = calloc(1, sizeof(*new) + version_length);
-	if (!new)
+	
+	if (!(new = ast_calloc(1, sizeof(*new) + version_length)))
 		return;
 
 	new->file = file;
@@ -357,11 +356,9 @@ int ast_register_atexit(void (*func)(void))
 {
 	int res = -1;
 	struct ast_atexit *ae;
-	ast_unregister_atexit(func);
-	ae = malloc(sizeof(struct ast_atexit));
+	ast_unregister_atexit(func);	
 	AST_LIST_LOCK(&atexits);
-	if (ae) {
-		memset(ae, 0, sizeof(struct ast_atexit));
+	if ((ae = ast_calloc(1, sizeof(*ae)))) {
 		AST_LIST_INSERT_HEAD(&atexits, ae, list);
 		ae->func = func;
 		res = 0;
@@ -481,8 +478,8 @@ static void network_verboser(const char *s, int pos, int replace, int complete)
 	/* ARGUSED */
 {
 	if (replace) {
-		char *t = alloca(strlen(s) + 2);
-		if (t) {
+		char *t;
+		if ((t = alloca(strlen(s) + 2))) {
 			sprintf(t, "\r%s", s);
 			if (complete)
 				ast_network_puts(t);
@@ -1350,7 +1347,7 @@ static char *cli_prompt(EditLine *el)
 						}
 						break;
 					case 'd': /* date */
-						memset(&tm, 0, sizeof(struct tm));
+						memset(&tm, 0, sizeof(tm));
 						time(&ts);
 						if (localtime_r(&ts, &tm)) {
 							strftime(p, sizeof(prompt) - strlen(prompt), "%Y-%m-%d", &tm);
@@ -1407,7 +1404,7 @@ static char *cli_prompt(EditLine *el)
 						break;
 #endif
 					case 't': /* time */
-						memset(&tm, 0, sizeof(struct tm));
+						memset(&tm, 0, sizeof(tm));
 						time(&ts);
 						if (localtime_r(&ts, &tm)) {
 							strftime(p, sizeof(prompt) - strlen(prompt), "%H:%M:%S", &tm);
@@ -1467,7 +1464,9 @@ static char **ast_el_strtoarr(char *buf)
 			break;
 		if (matches + 1 >= match_list_len) {
 			match_list_len <<= 1;
-			match_list = realloc(match_list, match_list_len * sizeof(char *));
+			if (!(match_list = ast_realloc(match_list, match_list_len * sizeof(char *)))) {
+				/* TODO: Handle memory allocation failure */
+			}
 		}
 
 		match_list[matches++] = strdup(retstr);
@@ -1476,8 +1475,11 @@ static char **ast_el_strtoarr(char *buf)
 	if (!match_list)
 		return (char **) NULL;
 
-	if (matches>= match_list_len)
-		match_list = realloc(match_list, (match_list_len + 1) * sizeof(char *));
+	if (matches >= match_list_len) {
+		if (!(match_list = ast_realloc(match_list, (match_list_len + 1) * sizeof(char *)))) {
+			/* TODO: Handle memory allocation failure */
+		}
+	}
 
 	match_list[matches] = (char *) NULL;
 
@@ -1578,9 +1580,8 @@ static char *cli_complete(EditLine *el, int ch)
 		if (nummatches > 0) {
 			char *mbuf;
 			int mlen = 0, maxmbuf = 2048;
-			/* Start with a 2048 byte buffer */
-			mbuf = malloc(maxmbuf);
-			if (!mbuf)
+			/* Start with a 2048 byte buffer */			
+			if (!(mbuf = ast_malloc(maxmbuf)))
 				return (char *)(CC_ERROR);
 			snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr); 
 			fdprint(ast_consock, buf);
@@ -1589,9 +1590,8 @@ static char *cli_complete(EditLine *el, int ch)
 			while (!strstr(mbuf, AST_CLI_COMPLETE_EOF) && res != -1) {
 				if (mlen + 1024 > maxmbuf) {
 					/* Every step increment buffer 1024 bytes */
-					maxmbuf += 1024;
-					mbuf = realloc(mbuf, maxmbuf);
-					if (!mbuf)
+					maxmbuf += 1024;					
+					if (!(mbuf = ast_realloc(mbuf, maxmbuf)))
 						return (char *)(CC_ERROR);
 				}
 				/* Only read 1024 bytes at a time */

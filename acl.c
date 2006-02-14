@@ -113,9 +113,12 @@ static void ast_copy_ha(struct ast_ha *from, struct ast_ha *to)
 /* Create duplicate of ha structure */
 static struct ast_ha *ast_duplicate_ha(struct ast_ha *original)
 {
-	struct ast_ha *new_ha = malloc(sizeof(struct ast_ha));
-	/* Copy from original to new object */
-	ast_copy_ha(original, new_ha); 
+	struct ast_ha *new_ha;
+
+	if ((new_ha = ast_malloc(sizeof(*new_ha)))) {
+		/* Copy from original to new object */
+		ast_copy_ha(original, new_ha);
+	}
 
 	return new_ha;
 }
@@ -144,19 +147,20 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 
 struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 {
-	struct ast_ha *ha = malloc(sizeof(struct ast_ha));
+	struct ast_ha *ha;
 	char *nm = "255.255.255.255";
 	char tmp[256];
 	struct ast_ha *prev = NULL;
 	struct ast_ha *ret;
 	int x, z;
-	unsigned int y;
+	unsigned int y;		
+
 	ret = path;
 	while (path) {
 		prev = path;
 		path = path->next;
 	}
-	if (ha) {
+	if ((ha = ast_malloc(sizeof(*ha)))) {
 		ast_copy_string(tmp, stuff, sizeof(tmp));
 		nm = strchr(tmp, '/');
 		if (!nm) {
