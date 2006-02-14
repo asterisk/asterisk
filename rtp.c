@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2006, Digium, Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -807,6 +807,17 @@ int ast_rtp_lookup_code(struct ast_rtp* rtp, const int isAstFormat, const int co
 		return rtp->rtp_lookup_code_cache_result;
 	}
 
+	/* Check the dynamic list first */
+	for (pt = 0; pt < MAX_RTP_PT; ++pt) {
+  		if (rtp->current_RTP_PT[pt].code == code && rtp->current_RTP_PT[pt].isAstFormat == isAstFormat) {
+			rtp->rtp_lookup_code_cache_isAstFormat = isAstFormat;
+			rtp->rtp_lookup_code_cache_code = code;
+			rtp->rtp_lookup_code_cache_result = pt;
+			return pt;
+		}
+	}
+
+	/* Then the static list */
 	for (pt = 0; pt < MAX_RTP_PT; ++pt) {
 		if (static_RTP_PT[pt].code == code && static_RTP_PT[pt].isAstFormat == isAstFormat) {
 			rtp->rtp_lookup_code_cache_isAstFormat = isAstFormat;
