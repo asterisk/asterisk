@@ -594,6 +594,7 @@ ${TIMESTAMP}	 	* Current date time in the format: YYYYMMDD-HHMMSS (Deprecated; u
 ${TRANSFER_CONTEXT} 	Context for transferred calls
 ${FORWARD_CONTEXT}     Context for forwarded calls
 ${UNIQUEID}	 	* Current call unique identifier
+${SYSTEMNAME}		* value of the systemname option of asterisk.conf
 
 Application return values
 -------------------------

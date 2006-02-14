@@ -212,6 +212,7 @@ char ast_config_AST_CTL_PERMISSIONS[AST_CONFIG_MAX_PATH];
 char ast_config_AST_CTL_OWNER[AST_CONFIG_MAX_PATH] = "\0";
 char ast_config_AST_CTL_GROUP[AST_CONFIG_MAX_PATH] = "\0";
 char ast_config_AST_CTL[AST_CONFIG_MAX_PATH] = "asterisk.ctl";
+char ast_config_AST_SYSTEM_NAME[20]="";
 
 static char *_argv[256];
 static int shuttingdown = 0;
@@ -1982,6 +1983,8 @@ static void ast_readconfig(void) {
 		/* What group to run as */
 		} else if (!strcasecmp(v->name, "rungroup")) {
 			ast_copy_string(ast_config_AST_RUN_GROUP, v->value, sizeof(ast_config_AST_RUN_GROUP));
+		} else if (!strcasecmp(v->name, "systemname")) {
+			ast_copy_string(ast_config_AST_SYSTEM_NAME, v->value, sizeof(ast_config_AST_SYSTEM_NAME));
 		}
 		v = v->next;
 	}

@@ -670,7 +670,10 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	tmp->fin = global_fin;
 	tmp->fout = global_fout;
 	ast_mutex_lock(&uniquelock);
-	snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", (long) time(NULL), uniqueint++);
+	if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME))
+		ast_string_field_build(tmp, uniqueid, "%li.%d", (long) time(NULL), uniqueint++);
+	else
+		ast_string_field_build(tmp, uniqueid, "%s-%li.%d", ast_config_AST_SYSTEM_NAME, (long) time(NULL), uniqueint++);
 	ast_mutex_unlock(&uniquelock);
 	headp = &tmp->varshead;
 	ast_mutex_init(&tmp->lock);

@@ -890,7 +890,7 @@ static char *substring(const char *value, int offset, int length, char *workspac
 void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
 {
 	const char not_found = '\0';
-	char tmpvar[80];
+	char *tmpvar;
 	const char *s;	/* the result */
 	int offset, length;
 	int i, need_substring;
@@ -904,7 +904,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 	 * Then if called directly, we might need to run substring() on the result;
 	 * remember this for later in 'need_substring', 'offset' and 'length'
 	 */
-	ast_copy_string(tmpvar, var, sizeof(tmpvar));	/* parse_variable_name modifies the string */
+	tmpvar = ast_strdupa(var);	/* parse_variable_name modifies the string */
 	need_substring = parse_variable_name(tmpvar, &offset, &length, &i /* ignored */);
 
 	/*
@@ -960,6 +960,8 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		if (!strcmp(var, "EPOCH")) {
 			snprintf(workspace, workspacelen, "%u",(int)time(NULL));
 			s = workspace;
+		} else if (!strcmp(var, "SYSTEMNAME")) {
+			ast_copy_string(workspace, ast_config_AST_SYSTEM_NAME, workspacelen);
 		}
 	}
 	/* if not found, look into chanvars or global vars */

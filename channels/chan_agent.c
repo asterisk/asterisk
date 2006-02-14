@@ -242,7 +242,7 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/**< Holds the list of agents (l
 
 static struct ast_channel *agent_request(const char *type, int format, void *data, int *cause);
 static int agent_devicestate(void *data);
-static void agent_logoff_maintenance(struct agent_pvt *p, char *loginchan, long logintime, char *uniqueid, char *logcommand);
+static void agent_logoff_maintenance(struct agent_pvt *p, char *loginchan, long logintime, const char *uniqueid, char *logcommand);
 static int agent_digit(struct ast_channel *ast, char digit);
 static int agent_call(struct ast_channel *ast, char *dest, int timeout);
 static int agent_hangup(struct ast_channel *ast);
@@ -1430,7 +1430,7 @@ static int action_agents(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static void agent_logoff_maintenance(struct agent_pvt *p, char *loginchan, long logintime, char *uniqueid, char *logcommand)
+static void agent_logoff_maintenance(struct agent_pvt *p, char *loginchan, long logintime, const char *uniqueid, char *logcommand)
 {
 	char *tmp = NULL;
 	char agent[AST_MAX_AGENT];

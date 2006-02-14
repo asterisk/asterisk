@@ -283,6 +283,7 @@ struct ast_channel {
 		AST_STRING_FIELD(musicclass);		/*! Default music class */
 		AST_STRING_FIELD(accountcode);		/*! Account code for billing */
 		AST_STRING_FIELD(call_forward);		/*! Where to forward to if asked to dial on this interface */
+		AST_STRING_FIELD(uniqueid);		/*! Unique Channel Identifier */
 	);
 	
 	/*! File descriptor for channel -- Drivers will poll on these file descriptors, so at least one must be non -1.  */
@@ -394,9 +395,6 @@ struct ast_channel {
 	/* Frames in/out counters */
 	unsigned int fin;
 	unsigned int fout;
-
-	/* Unique Channel Identifier */
-	char uniqueid[32];
 
 	/* Why is the channel hanged up */
 	int hangupcause;
