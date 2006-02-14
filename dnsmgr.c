@@ -291,9 +291,9 @@ int dnsmgr_init(void)
 	return do_reload(1);
 }
 
-void dnsmgr_reload(void)
+int dnsmgr_reload(void)
 {
-	do_reload(0);
+	return do_reload(0);
 }
 
 static int do_reload(int loading)

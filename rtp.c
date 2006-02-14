@@ -1871,7 +1871,7 @@ static struct ast_cli_entry  cli_debug =
 static struct ast_cli_entry  cli_no_debug =
 {{ "rtp", "no", "debug", NULL } , rtp_no_debug, "Disable RTP debugging", no_debug_usage };
 
-void ast_rtp_reload(void)
+int ast_rtp_reload(void)
 {
 	struct ast_config *cfg;
 	char *s;
@@ -1923,7 +1923,7 @@ void ast_rtp_reload(void)
 	}
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "RTP Allocating from port range %d -> %d\n", rtpstart, rtpend);
-	
+	return 0;
 }
 
 /*! \brief Initialize the RTP system in Asterisk */

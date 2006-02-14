@@ -781,7 +781,7 @@ static int append_mapping(char *name, char *driver, char *database, char *table)
 	return 0;
 }
 
-void read_config_maps(void) 
+int read_config_maps(void) 
 {
 	struct ast_config *config, *configtmp;
 	struct ast_variable *v;
@@ -794,7 +794,7 @@ void read_config_maps(void)
 	config = ast_config_internal_load(extconfig_conf, configtmp);
 	if (!config) {
 		ast_config_destroy(configtmp);
-		return;
+		return 0;
 	}
 
 	for (v = ast_variable_browse(config, "settings"); v; v = v->next) {
@@ -843,6 +843,7 @@ void read_config_maps(void)
 	}
 		
 	ast_config_destroy(config);
+	return 0;
 }
 
 int ast_config_engine_register(struct ast_config_engine *new) 

@@ -166,7 +166,7 @@ int ast_config_engine_register(struct ast_config_engine *newconfig);
 int ast_config_engine_deregister(struct ast_config_engine *del);
 
 int register_config_cli(void);
-void read_config_maps(void);
+int read_config_maps(void);
 
 struct ast_config *ast_config_new(void);
 struct ast_category *ast_config_get_current_category(const struct ast_config *cfg);

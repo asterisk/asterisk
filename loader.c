@@ -55,59 +55,90 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define RTLD_NOW 0
 #endif
 
-AST_MUTEX_DEFINE_STATIC(modlock);
-AST_MUTEX_DEFINE_STATIC(reloadlock);
 
-static struct module *module_list=NULL;
-static int modlistver = 0;
+static int modlistver = 0; /* increase whenever the list changes, to protect reload */
 
 static unsigned char expected_key[] =
 { 0x8e, 0x93, 0x22, 0x83, 0xf5, 0xc3, 0xc0, 0x75,
   0xff, 0x8b, 0xa9, 0xbe, 0x7c, 0x43, 0x74, 0x63 };
 
-struct module {
+/*
+ * All module symbols are in module_symbols.
+ * Modules are then linked in a list of struct module,
+ * whereas updaters are in a list of struct loadupdate.
+ *
+ * Both lists (basically, the entire loader) are protected by
+ * the lock in module_list.
+ *
+ * A second lock, reloadlock, is used to prevent concurrent reloads
+ */
+
+struct module_symbols {
 	int (*load_module)(void);
 	int (*unload_module)(void);
 	int (*usecount)(void);
 	char *(*description)(void);
 	char *(*key)(void);
 	int (*reload)(void);
-	void *lib;
-	char resource[256];
-	struct module *next;
 };
 
-static struct loadupdate {
-	int (*updater)(void);
-	struct loadupdate *next;
-} *updaters = NULL;
+struct module {
+	AST_LIST_ENTRY(module) next;
+	struct module_symbols cb;
+	void *lib;		/* the shared lib */
+	char resource[256];
+};
 
-static int printdigest(unsigned char *d)
+
+struct loadupdate {
+	AST_LIST_ENTRY(loadupdate) next;
+	int (*updater)(void);
+};
+
+static AST_LIST_HEAD_STATIC(module_list, module);
+static AST_LIST_HEAD_STATIC(updaters, loadupdate);
+AST_MUTEX_DEFINE_STATIC(reloadlock);
+
+/*
+ * In addition to modules, the reload command handles some extra keywords
+ * which are listed here together with the corresponding handlers.
+ * This table is also used by the command completion code.
+ */
+static struct reload_classes_t {
+	const char *name;
+	int (*reload_fn)(void);
+} reload_classes[] = {	/* list in alpha order, longest match first */
+	{ "cdr",	ast_cdr_engine_reload },
+	{ "dnsmgr",	dnsmgr_reload },
+	{ "extconfig",	read_config_maps },
+	{ "enum",	ast_enum_reload },
+	{ "manager",	reload_manager },
+	{ "rtp",	ast_rtp_reload },
+	{ NULL, NULL }
+};
+
+static int printdigest(const unsigned char *d)
 {
-	int x;
-	char buf[256];
-	char buf2[16];
-	snprintf(buf, sizeof(buf), "Unexpected signature:");
-	for (x=0; x<16; x++) {
-		snprintf(buf2, sizeof(buf2), " %02x", *(d++));
-		strcat(buf, buf2);
-	}
-	strcat(buf, "\n");
-	ast_log(LOG_DEBUG, "%s", buf);
+	int x, pos;
+	char buf[256]; /* large enough so we don't have to worry */
+
+	for (pos = 0, x=0; x<16; x++)
+		pos += sprintf(buf + pos, " %02x", *d++);
+	ast_log(LOG_DEBUG, "Unexpected signature:%s\n", buf);
 	return 0;
 }
 
-static int key_matches(unsigned char *key1, unsigned char *key2)
+static int key_matches(const unsigned char *key1, const unsigned char *key2)
 {
-	int match = 1;
 	int x;
 	for (x=0; x<16; x++) {
-		match &= (key1[x] == key2[x]);
+		if (key1[x] != key2[x])	/* mismatch - fail now. */
+			return 0;
 	}
-	return match;
+	return 1;
 }
 
-static int verify_key(unsigned char *key)
+static int verify_key(const unsigned char *key)
 {
 	struct MD5Context c;
 	unsigned char digest[16];
@@ -122,168 +153,173 @@ static int verify_key(unsigned char *key)
 
 int ast_unload_resource(const char *resource_name, int force)
 {
-	struct module *m, *ml = NULL;
+	struct module *cur;
 	int res = -1;
-	if (ast_mutex_lock(&modlock))
+	int error = 0;
+	if (AST_LIST_LOCK(&module_list)) /* XXX should fail here ? */
 		ast_log(LOG_WARNING, "Failed to lock\n");
-	m = module_list;
-	while(m) {
-		if (!strcasecmp(m->resource, resource_name)) {
-			if ((res = m->usecount()) > 0)  {
-				if (force) 
-					ast_log(LOG_WARNING, "Warning:  Forcing removal of module %s with use count %d\n", resource_name, res);
-				else {
-					ast_log(LOG_WARNING, "Soft unload failed, '%s' has use count %d\n", resource_name, res);
-					ast_mutex_unlock(&modlock);
-					return -1;
-				}
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&module_list, cur, next) {
+		struct module_symbols *m = &cur->cb;
+		
+		if (strcasecmp(cur->resource, resource_name))	/* not us */
+			continue;
+		if ((res = m->usecount()) > 0)  {
+			if (force) 
+				ast_log(LOG_WARNING, "Warning:  Forcing removal of module %s with use count %d\n", resource_name, res);
+			else {
+				ast_log(LOG_WARNING, "Soft unload failed, '%s' has use count %d\n", resource_name, res);
+				error = 1;
+				break;
 			}
-			res = m->unload_module();
-			if (res) {
-				ast_log(LOG_WARNING, "Firm unload failed for %s\n", resource_name);
-				if (force <= AST_FORCE_FIRM) {
-					ast_mutex_unlock(&modlock);
-					return -1;
-				} else
-					ast_log(LOG_WARNING, "** Dangerous **: Unloading resource anyway, at user request\n");
-			}
-			if (ml)
-				ml->next = m->next;
-			else
-				module_list = m->next;
-			dlclose(m->lib);
-			free(m);
-			break;
 		}
-		ml = m;
-		m = m->next;
+		res = m->unload_module();
+		if (res) {
+			ast_log(LOG_WARNING, "Firm unload failed for %s\n", resource_name);
+			if (force <= AST_FORCE_FIRM) {
+				error = 1;
+				break;
+			} else
+				ast_log(LOG_WARNING, "** Dangerous **: Unloading resource anyway, at user request\n");
+		}
+		AST_LIST_REMOVE_CURRENT(&module_list, next);
+		dlclose(cur->lib);
+		free(cur);
+		break;
 	}
-	modlistver = rand();
-	ast_mutex_unlock(&modlock);
-	ast_update_use_count();
+	AST_LIST_TRAVERSE_SAFE_END;
+	if (!error)
+		modlistver++;
+	AST_LIST_UNLOCK(&module_list);
+	if (!error)	/* XXX maybe within the lock ? */
+		ast_update_use_count();
 	return res;
 }
 
 char *ast_module_helper(const char *line, const char *word, int pos, int state, int rpos, int needsreload)
 {
-	struct module *m;
-	int which=0;
-	char *ret;
+	struct module *cur;
+	int i, which=0, l = strlen(word);
+	char *ret = NULL;
 
 	if (pos != rpos)
 		return NULL;
-	ast_mutex_lock(&modlock);
-	m = module_list;
-	while(m) {
-		if (!strncasecmp(word, m->resource, strlen(word)) && (m->reload || !needsreload)) {
-			if (++which > state)
-				break;
+	AST_LIST_LOCK(&module_list);
+	AST_LIST_TRAVERSE(&module_list, cur, next) {
+		if (!strncasecmp(word, cur->resource, l) && (cur->cb.reload || !needsreload) &&
+				++which > state) {
+			ret = strdup(cur->resource);
+			break;
 		}
-		m = m->next;
 	}
-	if (m) {
-		ret = strdup(m->resource);
-	} else {
-		ret = NULL;
-		if (!strncasecmp(word, "extconfig", strlen(word))) {
-			if (++which > state)
-				ret = strdup("extconfig");
-		} else if (!strncasecmp(word, "manager", strlen(word))) {
-			if (++which > state)
-				ret = strdup("manager");
-		} else if (!strncasecmp(word, "enum", strlen(word))) {
-			if (++which > state)
-				ret = strdup("enum");
-		} else if (!strncasecmp(word, "rtp", strlen(word))) {
-			if (++which > state)
-				ret = strdup("rtp");
+	AST_LIST_UNLOCK(&module_list);
+	if (!ret) {
+		for (i=0; !ret && reload_classes[i].name; i++) {
+			if (!strncasecmp(word, reload_classes[i].name, l) && ++which > state)
+				ret = strdup(reload_classes[i].name);
 		}
-			
 	}
-	ast_mutex_unlock(&modlock);
 	return ret;
 }
 
 int ast_module_reload(const char *name)
 {
-	struct module *m;
-	int reloaded = 0;
-	int oldversion;
+	struct module *cur;
+	int res = 0; /* return value. 0 = not found, others, see below */
+	int i, oldversion;
 	int (*reload)(void);
-	/* We'll do the logger and manager the favor of calling its reload here first */
 
 	if (ast_mutex_trylock(&reloadlock)) {
 		ast_verbose("The previous reload command didn't finish yet\n");
-		return -1;
+		return -1;	/* reload already in progress */
 	}
-	if (!name || !strcasecmp(name, "extconfig")) {
-		read_config_maps();
-		reloaded = 2;
-	}
-	if (!name || !strcasecmp(name, "manager")) {
-		reload_manager();
-		reloaded = 2;
-	}
-	if (!name || !strcasecmp(name, "cdr")) {
-		ast_cdr_engine_reload();
-		reloaded = 2;
-	}
-	if (!name || !strcasecmp(name, "enum")) {
-		ast_enum_reload();
-		reloaded = 2;
-	}
-	if (!name || !strcasecmp(name, "rtp")) {
-		ast_rtp_reload();
-		reloaded = 2;
-	}
-	if (!name || !strcasecmp(name, "dnsmgr")) {
-		dnsmgr_reload();
-		reloaded = 2;
-	}
-	time(&ast_lastreloadtime);
-
-	ast_mutex_lock(&modlock);
-	oldversion = modlistver;
-	m = module_list;
-	while(m) {
-		if (!name || !strcasecmp(name, m->resource)) {
-			if (reloaded < 1)
-				reloaded = 1;
-			reload = m->reload;
-			ast_mutex_unlock(&modlock);
-			if (reload) {
-				reloaded = 2;
-				if (option_verbose > 2) 
-					ast_verbose(VERBOSE_PREFIX_3 "Reloading module '%s' (%s)\n", m->resource, m->description());
-				reload();
-			}
-			ast_mutex_lock(&modlock);
-			if (oldversion != modlistver)
-				break;
+	/* Call "predefined" reload here first */
+	for (i = 0; reload_classes[i].name; i++) {
+		if (!name || !strcasecmp(name, reload_classes[i].name)) {
+			reload_classes[i].reload_fn();	/* XXX should check error ? */
+			res = 2;	/* found and reloaded */
 		}
-		m = m->next;
 	}
-	ast_mutex_unlock(&modlock);
+	ast_lastreloadtime = time(NULL);
+
+	AST_LIST_LOCK(&module_list);
+	oldversion = modlistver;
+	AST_LIST_TRAVERSE(&module_list, cur, next) {
+		struct module_symbols *m = &cur->cb;
+		if (name && strcasecmp(name, cur->resource))	/* not ours */
+			continue;
+		reload = m->reload;
+		if (!reload) {	/* cannot be reloaded */
+			if (res < 1)	/* store result if possible */
+				res = 1;	/* 1 = no reload() method */
+			continue;
+		}
+		/* drop the lock and try a reload. if successful, break */
+		AST_LIST_UNLOCK(&module_list);
+		res = 2;
+		if (option_verbose > 2) 
+			ast_verbose(VERBOSE_PREFIX_3 "Reloading module '%s' (%s)\n", cur->resource, m->description());
+		reload();
+		AST_LIST_LOCK(&module_list);
+		if (oldversion != modlistver) /* something changed, abort */
+			break;
+	}
+	AST_LIST_UNLOCK(&module_list);
 	ast_mutex_unlock(&reloadlock);
-	return reloaded;
+	return res;
 }
 
+static int resource_exists(const char *resource, int do_lock)
+{
+	struct module *cur;
+	if (do_lock && AST_LIST_LOCK(&module_list))
+		ast_log(LOG_WARNING, "Failed to lock\n");
+	AST_LIST_TRAVERSE(&module_list, cur, next) {
+		if (!strcasecmp(resource, cur->resource))
+			break;
+	}
+	if (do_lock)
+		AST_LIST_UNLOCK(&module_list);
+	return cur ? -1 : 0;
+}
+
+/* lookup a symbol with or without leading '_', accept either form in input */
+static void *find_symbol(struct module *m, const char *name, int verbose)
+{
+	char *n1;
+	void *s;
+
+	if (name[0] == '_')
+		name++;
+	n1 = alloca(strlen(name)+2); /* room for leading '_' and final '\0' */
+	if (n1 == NULL)
+		return NULL;
+	n1[0] = '_';
+	strcpy(n1+1, name);
+	s = dlsym(m->lib, n1+1);	/* try without '_' */
+	if (s == NULL)
+		s = dlsym(m->lib, n1);
+	if (verbose && s == NULL)
+		ast_log(LOG_WARNING, "No symbol '%s' in module '%s\n",
+			n1, m->resource);
+	return s;
+}
+
+/* XXX cfg is only used for !res_* and #ifdef RTLD_GLOBAL */
 static int __load_resource(const char *resource_name, const struct ast_config *cfg)
 {
 	static char fn[256];
 	int errors=0;
 	int res;
-	struct module *m;
+	struct module *cur;
+	struct module_symbols *m;
 	int flags=RTLD_NOW;
-#ifdef RTLD_GLOBAL
-	char *val;
-#endif
 	unsigned char *key;
 	char tmp[80];
 
 	if (strncasecmp(resource_name, "res_", 4)) {
 #ifdef RTLD_GLOBAL
 		if (cfg) {
+			char *val;
 			if ((val = ast_variable_retrieve(cfg, "global", resource_name))
 					&& ast_true(val))
 				flags |= RTLD_GLOBAL;
@@ -298,76 +334,48 @@ static int __load_resource(const char *resource_name, const struct ast_config *c
 #endif
 	}
 	
-	if (ast_mutex_lock(&modlock))
+	if (AST_LIST_LOCK(&module_list))
 		ast_log(LOG_WARNING, "Failed to lock\n");
-	m = module_list;
-	while(m) {
-		if (!strcasecmp(m->resource, resource_name)) {
-			ast_log(LOG_WARNING, "Module '%s' already exists\n", resource_name);
-			ast_mutex_unlock(&modlock);
-			return -1;
-		}
-		m = m->next;
+	if (resource_exists(resource_name, 0)) {
+		ast_log(LOG_WARNING, "Module '%s' already exists\n", resource_name);
+		AST_LIST_UNLOCK(&module_list);
+		return -1;
 	}
-	m = malloc(sizeof(struct module));	
-	if (!m) {
+	cur = calloc(1, sizeof(struct module));	
+	if (!cur) {
 		ast_log(LOG_WARNING, "Out of memory\n");
-		ast_mutex_unlock(&modlock);
+		AST_LIST_UNLOCK(&module_list);
 		return -1;
 	}
-	strncpy(m->resource, resource_name, sizeof(m->resource)-1);
-	if (resource_name[0] == '/') {
-		strncpy(fn, resource_name, sizeof(fn)-1);
-	} else {
-		snprintf(fn, sizeof(fn), "%s/%s", (char *)ast_config_AST_MODULE_DIR, resource_name);
-	}
-	m->lib = dlopen(fn, flags);
-	if (!m->lib) {
+	m = &cur->cb;
+	ast_copy_string(cur->resource, resource_name, sizeof(cur->resource));
+	if (resource_name[0] == '/')
+		ast_copy_string(fn, resource_name, sizeof(fn));
+	else
+		snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_MODULE_DIR, resource_name);
+	cur->lib = dlopen(fn, flags);
+	if (!cur->lib) {
 		ast_log(LOG_WARNING, "%s\n", dlerror());
-		free(m);
-		ast_mutex_unlock(&modlock);
+		free(cur);
+		AST_LIST_UNLOCK(&module_list);
 		return -1;
 	}
-	m->load_module = dlsym(m->lib, "load_module");
-	if (m->load_module == NULL)
-		m->load_module = dlsym(m->lib, "_load_module");
-	if (!m->load_module) {
-		ast_log(LOG_WARNING, "No load_module in module %s\n", fn);
+	m->load_module = find_symbol(cur, "load_module", 1);
+	if (!m->load_module)
 		errors++;
-	}
-	m->unload_module = dlsym(m->lib, "unload_module");
-	if (m->unload_module == NULL)
-		m->unload_module = dlsym(m->lib, "_unload_module");
-	if (!m->unload_module) {
-		ast_log(LOG_WARNING, "No unload_module in module %s\n", fn);
+	m->unload_module = find_symbol(cur, "unload_module", 1);
+	if (!m->unload_module)
 		errors++;
-	}
-	m->usecount = dlsym(m->lib, "usecount");
-	if (m->usecount == NULL)
-		m->usecount = dlsym(m->lib, "_usecount");
-	if (!m->usecount) {
-		ast_log(LOG_WARNING, "No usecount in module %s\n", fn);
+	m->usecount = find_symbol(cur, "usecount", 1);
+	if (!m->usecount)
 		errors++;
-	}
-	m->description = dlsym(m->lib, "description");
-	if (m->description == NULL)
-		m->description = dlsym(m->lib, "_description");
-	if (!m->description) {
-		ast_log(LOG_WARNING, "No description in module %s\n", fn);
+	m->description = find_symbol(cur, "description", 1);
+	if (!m->description)
 		errors++;
-	}
-	m->key = dlsym(m->lib, "key");
-	if (m->key == NULL)
-		m->key = dlsym(m->lib, "_key");
-	if (!m->key) {
-		ast_log(LOG_WARNING, "No key routine in module %s\n", fn);
+	m->key = find_symbol(cur, "key", 1);
+	if (!m->key)
 		errors++;
-	}
-
-	m->reload = dlsym(m->lib, "reload");
-	if (m->reload == NULL)
-		m->reload = dlsym(m->lib, "_reload");
-
+	m->reload = find_symbol(cur, "reload", 0);
 	if (!m->key || !(key = (unsigned char *) m->key())) {
 		ast_log(LOG_WARNING, "Key routine returned NULL in module %s\n", fn);
 		key = NULL;
@@ -379,9 +387,9 @@ static int __load_resource(const char *resource_name, const struct ast_config *c
 	}
 	if (errors) {
 		ast_log(LOG_WARNING, "%d error%s loading module %s, aborted\n", errors, (errors != 1) ? "s" : "", fn);
-		dlclose(m->lib);
-		free(m);
-		ast_mutex_unlock(&modlock);
+		dlclose(cur->lib);
+		free(cur);
+		AST_LIST_UNLOCK(&module_list);
 		return -1;
 	}
 	if (!ast_fully_booted) {
@@ -394,25 +402,14 @@ static int __load_resource(const char *resource_name, const struct ast_config *c
 			ast_verbose(VERBOSE_PREFIX_1 "Loaded %s => (%s)\n", fn, m->description());
 	}
 
-	/* add module 'm' to end of module_list chain
+	AST_LIST_INSERT_TAIL(&module_list, cur, next);
+	/* add module to end of module_list chain
   	   so reload commands will be issued in same order modules were loaded */
-	m->next = NULL;
-	if (module_list == NULL) {
-		/* empty list so far, add at front */
-		module_list = m;
-	}
-	else {
-		struct module *i;
-		/* find end of chain, and add there */
-		for (i = module_list; i->next; i = i->next)
-			;
-		i->next = m;
-	}
 	
-	modlistver = rand();
-	ast_mutex_unlock(&modlock);
+	modlistver++;
+	AST_LIST_UNLOCK(&module_list);
 	if ((res = m->load_module())) {
-		ast_log(LOG_WARNING, "%s: load_module failed, returning %d\n", m->resource, res);
+		ast_log(LOG_WARNING, "%s: load_module failed, returning %d\n", resource_name, res);
 		ast_unload_resource(resource_name, 0);
 		return -1;
 	}
@@ -422,37 +419,34 @@ static int __load_resource(const char *resource_name, const struct ast_config *c
 
 int ast_load_resource(const char *resource_name)
 {
-	int o;
+	int res, o = option_verbose;
 	struct ast_config *cfg = NULL;
-	int res;
 
-	/* Keep the module file parsing silent */
-	o = option_verbose;
-	option_verbose = 0;
+	option_verbose = 0;	/* Keep the module file parsing silent */
 	cfg = ast_config_load(AST_MODULE_CONFIG);
-	option_verbose = o;
+	option_verbose = o;	/* restore verbosity */
 	res = __load_resource(resource_name, cfg);
 	if (cfg)
 		ast_config_destroy(cfg);
 	return res;
 }	
 
-static int ast_resource_exists(char *resource)
+/* if enabled, log and output on console the module's name, and try load it */
+static int print_and_load(const char *s, struct ast_config *cfg)
 {
-	struct module *m;
-	if (ast_mutex_lock(&modlock))
-		ast_log(LOG_WARNING, "Failed to lock\n");
-	m = module_list;
-	while(m) {
-		if (!strcasecmp(resource, m->resource))
-			break;
-		m = m->next;
+	char tmp[80];
+
+	if (option_debug && !option_verbose)
+		ast_log(LOG_DEBUG, "Loading module %s\n", s);
+	if (option_verbose) {
+		ast_verbose(VERBOSE_PREFIX_1 "[%s]",
+			term_color(tmp, s, COLOR_BRWHITE, 0, sizeof(tmp)));
+		fflush(stdout);
 	}
-	ast_mutex_unlock(&modlock);
-	if (m)
-		return -1;
-	else
-		return 0;
+	if (!__load_resource(s, cfg))
+		return 0; /* success */
+	ast_log(LOG_WARNING, "Loading module %s failed!\n", s);
+	return -1;
 }
 
 static const char *loadorder[] =
@@ -467,40 +461,24 @@ int load_modules(const int preload_only)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	char tmp[80];
+	int x;
 
 	if (option_verbose) {
-		if (preload_only)
-			ast_verbose("Asterisk Dynamic Loader loading preload modules:\n");
-		else
-			ast_verbose("Asterisk Dynamic Loader Starting:\n");
+		ast_verbose(preload_only ?
+			"Asterisk Dynamic Loader loading preload modules:\n" :
+			"Asterisk Dynamic Loader Starting:\n");
 	}
 
 	cfg = ast_config_load(AST_MODULE_CONFIG);
 	if (cfg) {
-		int doload;
-
+		const char *cmd = preload_only ? "preload" : "load";
 		/* Load explicitly defined modules */
 		for (v = ast_variable_browse(cfg, "modules"); v; v = v->next) {
-			doload = 0;
-
-			if (preload_only)
-				doload = !strcasecmp(v->name, "preload");
-			else
-				doload = !strcasecmp(v->name, "load");
-
-		       if (doload) {
-				if (option_debug && !option_verbose)
-					ast_log(LOG_DEBUG, "Loading module %s\n", v->value);
-				if (option_verbose) {
-					ast_verbose(VERBOSE_PREFIX_1 "[%s]", term_color(tmp, v->value, COLOR_BRWHITE, 0, sizeof(tmp)));
-					fflush(stdout);
-				}
-				if (__load_resource(v->value, cfg)) {
-					ast_log(LOG_WARNING, "Loading module %s failed!\n", v->value);
-					ast_config_destroy(cfg);
-					return -1;
-				}
+			if (strcasecmp(v->name, cmd)) /* not what we are looking for */
+				continue;
+			if (print_and_load(v->value, cfg)) {	/* XXX really fatal ? */
+				ast_config_destroy(cfg);
+				return -1;
 			}
 		}
 	}
@@ -510,62 +488,63 @@ int load_modules(const int preload_only)
 		return 0;
 	}
 
-	if (!cfg || ast_true(ast_variable_retrieve(cfg, "modules", "autoload"))) {
-		/* Load all modules */
-		DIR *mods;
-		struct dirent *d;
-		int x;
+	if (cfg && !ast_true(ast_variable_retrieve(cfg, "modules", "autoload"))) {
+		/* no autoload */
+		ast_config_destroy(cfg);
+		return 0;
+	}
+	/*
+	 * Load all modules. To help resolving dependencies, we load modules
+	 * in the order defined by loadorder[], with the final step for
+	 * all modules with other prefixes.
+	 * (XXX the new loader does not need this).
+	 */
 
-		/* Loop through each order */
-		for (x=0; x<sizeof(loadorder) / sizeof(loadorder[0]); x++) {
-			mods = opendir((char *)ast_config_AST_MODULE_DIR);
-			if (mods) {
-				while((d = readdir(mods))) {
-					/* Must end in .so to load it.  */
-					if ((strlen(d->d_name) > 3) && 
-					    (!loadorder[x] || !strncasecmp(d->d_name, loadorder[x], strlen(loadorder[x]))) && 
-					    !strcasecmp(d->d_name + strlen(d->d_name) - 3, ".so") &&
-						!ast_resource_exists(d->d_name)) {
-						/* It's a shared library -- Just be sure we're allowed to load it -- kinda
-						   an inefficient way to do it, but oh well. */
-						if (cfg) {
-							v = ast_variable_browse(cfg, "modules");
-							while(v) {
-								if (!strcasecmp(v->name, "noload") &&
-								    !strcasecmp(v->value, d->d_name)) 
-									break;
-								v = v->next;
-							}
-							if (v) {
-								if (option_verbose) {
-									ast_verbose( VERBOSE_PREFIX_1 "[skipping %s]\n", d->d_name);
-									fflush(stdout);
-								}
-								continue;
-							}
-							
-						}
-						if (option_debug && !option_verbose)
-							ast_log(LOG_DEBUG, "Loading module %s\n", d->d_name);
+	for (x=0; x<sizeof(loadorder) / sizeof(loadorder[0]); x++) {
+		struct dirent *d;
+		DIR *mods = opendir(ast_config_AST_MODULE_DIR);
+		const char *base = loadorder[x];
+		int lx = base ? strlen(base) : 0;
+
+		if (!mods) {
+			if (!ast_opt_quiet)
+				ast_log(LOG_WARNING, "Unable to open modules directory %s.\n",
+					ast_config_AST_MODULE_DIR);
+			break; /* suffices to try once! */
+		}
+		while((d = readdir(mods))) {
+			int ld = strlen(d->d_name);
+			/* Must end in .so to load it.  */
+			if (ld > 3 && (!base || !strncasecmp(d->d_name, base, lx)) && 
+					!strcasecmp(d->d_name + ld - 3, ".so") &&
+					!resource_exists(d->d_name, 1)) {
+				/* It's a shared library, check if we are allowed to load it
+				 * (very inefficient, but oh well.
+				 */
+				if (cfg) {
+					for (v = ast_variable_browse(cfg, "modules"); v; v = v->next) {
+						if (!strcasecmp(v->name, "noload") &&
+								!strcasecmp(v->value, d->d_name)) 
+							break;
+					}
+					if (v) {
 						if (option_verbose) {
-							ast_verbose( VERBOSE_PREFIX_1 "[%s]", term_color(tmp, d->d_name, COLOR_BRWHITE, 0, sizeof(tmp)));
+							ast_verbose( VERBOSE_PREFIX_1 "[skipping %s]\n",
+									d->d_name);
 							fflush(stdout);
 						}
-						if (__load_resource(d->d_name, cfg)) {
-							ast_log(LOG_WARNING, "Loading module %s failed!\n", d->d_name);
-							if (cfg)
-								ast_config_destroy(cfg);
-							return -1;
-						}
+						continue;
 					}
+					
 				}
-				closedir(mods);
-			} else {
-				if (!ast_opt_quiet)
-					ast_log(LOG_WARNING, "Unable to open modules directory %s.\n", (char *)ast_config_AST_MODULE_DIR);
+				if (print_and_load(d->d_name, cfg)) {
+					ast_config_destroy(cfg);
+					return -1;
+				}
 			}
 		}
-	} 
+		closedir(mods);
+	}
 	ast_config_destroy(cfg);
 	return 0;
 }
@@ -575,73 +554,58 @@ void ast_update_use_count(void)
 	/* Notify any module monitors that the use count for a 
 	   resource has changed */
 	struct loadupdate *m;
-	if (ast_mutex_lock(&modlock))
+	if (AST_LIST_LOCK(&module_list))
 		ast_log(LOG_WARNING, "Failed to lock\n");
-	m = updaters;
-	while(m) {
+	AST_LIST_TRAVERSE(&updaters, m, next)
 		m->updater();
-		m = m->next;
-	}
-	ast_mutex_unlock(&modlock);
+	AST_LIST_UNLOCK(&module_list);
 	
 }
 
 int ast_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *like),
 			   const char *like)
 {
-	struct module *m;
+	struct module *cur;
 	int unlock = -1;
 	int total_mod_loaded = 0;
 
-	if (ast_mutex_trylock(&modlock))
+	if (ast_mutex_trylock(&module_list.lock))
 		unlock = 0;
-	m = module_list;
-	while (m) {
-		total_mod_loaded += modentry(m->resource, m->description(), m->usecount(), like);
-		m = m->next;
-	}
+	AST_LIST_TRAVERSE(&module_list, cur, next)
+		total_mod_loaded += modentry(cur->resource, cur->cb.description(), cur->cb.usecount(), like);
 	if (unlock)
-		ast_mutex_unlock(&modlock);
+		AST_LIST_UNLOCK(&module_list);
 
 	return total_mod_loaded;
 }
 
 int ast_loader_register(int (*v)(void)) 
 {
-	struct loadupdate *tmp;
 	/* XXX Should be more flexible here, taking > 1 verboser XXX */
-	if ((tmp = malloc(sizeof (struct loadupdate)))) {
-		tmp->updater = v;
-		if (ast_mutex_lock(&modlock))
-			ast_log(LOG_WARNING, "Failed to lock\n");
-		tmp->next = updaters;
-		updaters = tmp;
-		ast_mutex_unlock(&modlock);
-		return 0;
-	}
-	return -1;
+	struct loadupdate *tmp = malloc(sizeof (struct loadupdate));
+	if (!tmp)
+		return -1;
+	tmp->updater = v;
+	if (AST_LIST_LOCK(&module_list))
+		ast_log(LOG_WARNING, "Failed to lock\n");
+	AST_LIST_INSERT_HEAD(&updaters, tmp, next);
+	AST_LIST_UNLOCK(&module_list);
+	return 0;
 }
 
 int ast_loader_unregister(int (*v)(void))
 {
-	int res = -1;
-	struct loadupdate *tmp, *tmpl=NULL;
-	if (ast_mutex_lock(&modlock))
+	struct loadupdate *cur;
+
+	if (AST_LIST_LOCK(&module_list))
 		ast_log(LOG_WARNING, "Failed to lock\n");
-	tmp = updaters;
-	while(tmp) {
-		if (tmp->updater == v)	{
-			if (tmpl)
-				tmpl->next = tmp->next;
-			else
-				updaters = tmp->next;
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&updaters, cur, next) {
+		if (cur->updater == v)	{
+			AST_LIST_REMOVE_CURRENT(&updaters, next);
 			break;
 		}
-		tmpl = tmp;
-		tmp = tmp->next;
 	}
-	if (tmp)
-		res = 0;
-	ast_mutex_unlock(&modlock);
-	return res;
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&module_list);
+	return cur ? 0 : -1;
 }

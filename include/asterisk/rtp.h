@@ -160,7 +160,7 @@ void ast_rtp_stop(struct ast_rtp *rtp);
 
 void ast_rtp_init(void);
 
-void ast_rtp_reload(void);
+int ast_rtp_reload(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -1244,8 +1244,8 @@ void ast_cdr_engine_term(void)
 	ast_cdr_submit_batch(batchsafeshutdown);
 }
 
-void ast_cdr_engine_reload(void)
+int ast_cdr_engine_reload(void)
 {
-	do_reload();
+	return do_reload();
 }
 

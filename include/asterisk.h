@@ -63,7 +63,7 @@ void ast_channels_init(void);
 /* Provided by dnsmgr.c */
 int dnsmgr_init(void);
 void dnsmgr_start_refresh(void);
-void dnsmgr_reload(void);
+int dnsmgr_reload(void);
 
 /*!
  * \brief Register the version of a source code file with the core.

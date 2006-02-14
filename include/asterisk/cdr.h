@@ -286,7 +286,7 @@ extern char ast_default_accountcode[AST_MAX_ACCOUNT_CODE];
 struct ast_cdr *ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr);
 
 /*! Reload the configuration file cdr.conf and start/stop CDR scheduling thread */
-void ast_cdr_engine_reload(void);
+int ast_cdr_engine_reload(void);
 
 /*! Load the configuration file cdr.conf and possibly start the CDR scheduling thread */
 int ast_cdr_engine_init(void);
