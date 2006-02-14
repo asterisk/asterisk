@@ -75,8 +75,11 @@
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
-#include <sys/prctl.h>
 #include <regex.h>
+
+#ifdef linux
+#include <sys/prctl.h>
+#endif 
 
 #if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
 #include <netdb.h>
