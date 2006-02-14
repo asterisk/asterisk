@@ -1523,6 +1523,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			lastmarked = currentmarked;
 		}
 	}
+
+	if (musiconhold)
+		ast_moh_stop(chan);
+	
 	if (using_pseudo)
 		close(fd);
 	else {
