@@ -40,6 +40,9 @@ Functions:
   modules.conf file then you will need to explicitly load the modules that
   contain the functions you want to use.
 
+* The ENUM() function no longer supplies a default zone for searching; instead,
+  it uses the default zone(s) defined in enum.conf.
+
 The SIP channel:
 
 * The "incominglimit" setting is replaced by the "call-limit" setting in sip.conf.

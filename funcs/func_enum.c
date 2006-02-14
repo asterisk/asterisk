@@ -86,9 +86,6 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 
 	ast_copy_string(tech, args.tech ? args.tech : "sip", sizeof(tech));
 
-	if (!args.zone)
-		args.zone = "e164.arpa";
-
 	if (!args.options)
 		args.options = "1";
 
