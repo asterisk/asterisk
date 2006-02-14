@@ -40,6 +40,7 @@ func_odbc.so: func_odbc.o
 
 install: all
 	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
+	rm -f $(DESTDIR)$(MODULES_DIR)/pbx_functions.so
 
 uninstall:
 

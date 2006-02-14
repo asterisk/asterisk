@@ -22,7 +22,7 @@ else
   endif
 endif
 
-ifneq ($(NOCRYPTO),yes)
+ifeq ($(NOCRYPTO),yes)
   MODS:=$(filter-out res_crypto.so,$(MODS))
 endif
 
