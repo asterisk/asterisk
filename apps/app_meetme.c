@@ -1351,9 +1351,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						if (!menu_active) {
 							menu_active = 1;
 							/* Record this sound! */
-							if (!ast_streamfile(chan, "conf-adminmenu", chan->language))
+							if (!ast_streamfile(chan, "conf-adminmenu", chan->language)) {
 								dtmf = ast_waitstream(chan, AST_DIGIT_ANY);
-							else 
+								ast_stopstream(chan);
+							} else 
 								dtmf = 0;
 						} else 
 							dtmf = f->subclass;
@@ -1430,9 +1431,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						/* User menu */
 						if (!menu_active) {
 							menu_active = 1;
-							if (!ast_streamfile(chan, "conf-usermenu", chan->language))
+							if (!ast_streamfile(chan, "conf-usermenu", chan->language)) {
 								dtmf = ast_waitstream(chan, AST_DIGIT_ANY);
-							else
+								ast_stopstream(chan);
+							} else
 								dtmf = 0;
 						} else 
 							dtmf = f->subclass;
