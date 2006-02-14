@@ -4492,7 +4492,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		ast_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
 		return -1;
 	}
-	capability = p->capability;
+	capability = p->jointcapability;
 		
 	if (!p->sessionid) {
 		p->sessionid = getpid();
