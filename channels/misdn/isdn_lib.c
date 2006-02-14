@@ -2037,7 +2037,8 @@ int handle_bchan(msg_t *msg)
 				
 				int i=cb_event( EVENT_BCHAN_DATA, bc, glob_mgr->user_data);
 				if (i<0) {
-					clean_up_bc(bc);
+					cb_log(2,stack->port,"cb_event returned <0\n");
+					/*clean_up_bc(bc);*/
 				}
 			}
 		}

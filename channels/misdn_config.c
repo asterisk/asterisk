@@ -105,7 +105,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "early_bconnect", MISDN_CFG_EARLY_BCONNECT, MISDN_CTYPE_BOOL, "yes", NONE },
 	{ "echocancel", MISDN_CFG_ECHOCANCEL, MISDN_CTYPE_BOOLINT, "0", 128 },
 	{ "echocancelwhenbridged", MISDN_CFG_ECHOCANCELWHENBRIDGED, MISDN_CTYPE_BOOL, "no", NONE },
-	{ "echotraining", MISDN_CFG_ECHOTRAINING, MISDN_CTYPE_BOOLINT, "1", 1 },
+	{ "echotraining", MISDN_CFG_ECHOTRAINING, MISDN_CTYPE_BOOLINT, "0", 1 },
 	{ "need_more_infos", MISDN_CFG_NEED_MORE_INFOS, MISDN_CTYPE_BOOL, "0", NONE },
 	{ "jitterbuffer", MISDN_CFG_JITTERBUFFER, MISDN_CTYPE_INT, "1000", NONE },
 	{ "jitterbuffer_upper_threshold", MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD, MISDN_CTYPE_INT, "600", NONE },
