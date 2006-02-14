@@ -261,7 +261,8 @@ const struct {
    use it not only for keeping track of what is in use but
    also for keeping track of who we're dialing. */
 
-struct localuser {
+struct callattempt {
+	struct callattempt *q_next;
 	struct ast_channel *chan;
 	char interface[256];
 	int stillgoing;
@@ -269,11 +270,11 @@ struct localuser {
 	int oldstatus;
 	time_t lastcall;
 	struct member *member;
-	struct localuser *next;
 };
 
-LOCAL_USER_DECL;
+STANDARD_LOCAL_USER;
 
+LOCAL_USER_DECL;
 
 struct queue_ent {
 	struct ast_call_queue *parent;	/*!< What queue is our parent */
@@ -1262,16 +1263,16 @@ ast_log(LOG_NOTICE, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name 
 }
 
 /* Hang up a list of outgoing calls */
-static void hangupcalls(struct localuser *outgoing, struct ast_channel *exception)
+static void hangupcalls(struct callattempt *outgoing, struct ast_channel *exception)
 {
-	struct localuser *oo;
+	struct callattempt *oo;
 
 	while(outgoing) {
 		/* Hangup any existing lines we have open */
 		if (outgoing->chan && (outgoing->chan != exception))
 			ast_hangup(outgoing->chan);
 		oo = outgoing;
-		outgoing=outgoing->next;
+		outgoing=outgoing->q_next;
 		free(oo);
 	}
 }
@@ -1283,8 +1284,7 @@ static int update_status(struct ast_call_queue *q, struct member *member, int st
 	/* Since a reload could have taken place, we have to traverse the list to
 		be sure it's still valid */
 	ast_mutex_lock(&q->lock);
-	cur = q->members;
-	while(cur) {
+	for (cur = q->members; cur; cur = cur->next) {
 		if (member == cur) {
 			cur->status = status;
 			if (!q->maskmemberstatus) {
@@ -1302,7 +1302,6 @@ static int update_status(struct ast_call_queue *q, struct member *member, int st
 			}
 			break;
 		}
-		cur = cur->next;
 	}
 	ast_mutex_unlock(&q->lock);
 	return 0;
@@ -1354,13 +1353,22 @@ static int compare_weight(struct ast_call_queue *rq, struct member *member)
 	return found;
 }
 
-static int ring_entry(struct queue_ent *qe, struct localuser *tmp, int *busies)
+/*! \brief common hangup actions */
+static void do_hang(struct callattempt *o)
+{
+	o->stillgoing = 0;
+	ast_hangup(o->chan);
+	o->chan = NULL;
+}
+
+static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies)
 {
 	int res;
 	int status;
 	char tech[256];
 	char *location;
 
+	/* on entry here, we know that tmp->chan == NULL */
 	if (qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime)) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Wrapuptime not yet expired for %s\n", tmp->interface);
@@ -1442,9 +1450,7 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp, int *busies)
 			ast_log(LOG_DEBUG, "ast call on peer returned %d\n", res);
 		else if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", tmp->interface);
-		ast_hangup(tmp->chan);
-		tmp->chan = NULL;
-		tmp->stillgoing = 0;
+		do_hang(tmp);
 		(*busies)++;
 		return 0;
 	} else {
@@ -1468,69 +1474,58 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp, int *busies)
 	return 1;
 }
 
-static int ring_one(struct queue_ent *qe, struct localuser *outgoing, int *busies)
+/*! \brief find the entry with the best metric, or NULL */
+static struct callattempt *find_best(struct callattempt *outgoing)
 {
-	struct localuser *cur;
-	struct localuser *best;
-	int bestmetric=0;
+	struct callattempt *best = NULL, *cur;
 
-	do {
-		best = NULL;
-		cur = outgoing;
-		while(cur) {
-			if (cur->stillgoing &&					/* Not already done */
-				!cur->chan &&					/* Isn't already going */
-				(!best || (cur->metric < bestmetric))) {	/* We haven't found one yet, or it's better */
-					bestmetric = cur->metric;
-					best = cur;
-			}
-			cur = cur->next;
-		}
-		if (best) {
-			if (!qe->parent->strategy) {
-				/* Ring everyone who shares this best metric (for ringall) */
-				cur = outgoing;
-				while(cur) {
-					if (cur->stillgoing && !cur->chan && (cur->metric <= bestmetric)) {
-						if (option_debug)
-							ast_log(LOG_DEBUG, "(Parallel) Trying '%s' with metric %d\n", cur->interface, cur->metric);
-						ring_entry(qe, cur, busies);
-					}
-					cur = cur->next;
-				}
-			} else {
-				/* Ring just the best channel */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Trying '%s' with metric %d\n", best->interface, best->metric);
-				ring_entry(qe, best, busies);
-			}
-		}
-	} while (best && !best->chan);
-	if (!best) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Nobody left to try ringing in queue\n");
-		return 0;
-	}
-	return 1;
-}
-
-static int store_next(struct queue_ent *qe, struct localuser *outgoing)
-{
-	struct localuser *cur;
-	struct localuser *best;
-	int bestmetric=0;
-
-	best = NULL;
-	cur = outgoing;
-	while(cur) {
+	for (cur = outgoing; cur; cur = cur->q_next) {
 		if (cur->stillgoing &&					/* Not already done */
 			!cur->chan &&					/* Isn't already going */
-			(!best || (cur->metric < bestmetric))) {	/* We haven't found one yet, or it's better */
-				bestmetric = cur->metric;
+			(!best || cur->metric < best->metric)) {	/* We haven't found one yet, or it's better */
 				best = cur;
 		}
-		cur = cur->next;
 	}
+	return best;
+}
+
+static int ring_one(struct queue_ent *qe, struct callattempt *outgoing, int *busies)
+{
+	int ret = 0;
+
+	while (ret == 0) {
+		struct callattempt *best = find_best(outgoing);
+		if (!best) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Nobody left to try ringing in queue\n");
+			break;
+		}
+		if (!qe->parent->strategy) {
+			struct callattempt *cur;
+			/* Ring everyone who shares this best metric (for ringall) */
+			for (cur = outgoing; cur; cur = cur->q_next) {
+				if (cur->stillgoing && !cur->chan && cur->metric <= best->metric) {
+					if (option_debug)
+						ast_log(LOG_DEBUG, "(Parallel) Trying '%s' with metric %d\n", cur->interface, cur->metric);
+					ring_entry(qe, cur, busies);
+				}
+			}
+		} else {
+			/* Ring just the best channel */
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Trying '%s' with metric %d\n", best->interface, best->metric);
+			ring_entry(qe, best, busies);
+		}
+		if (best->chan) /* break out with result = 1 */
+			ret = 1;
+	}
+	return ret;
+}
+
+static int store_next(struct queue_ent *qe, struct callattempt *outgoing)
+{
+	struct callattempt *best = find_best(outgoing);
+
 	if (best) {
 		/* Ring just the best channel */
 		if (option_debug)
@@ -1625,33 +1620,10 @@ static void record_abandoned(struct queue_ent *qe)
 
 #define AST_MAX_WATCHERS 256
 
-#define BUILD_WATCHERS do { \
-		o = outgoing; \
-		found = -1; \
-		pos = 1; \
-		numlines = 0; \
-		watchers[0] = in; \
-		while(o) { \
-			/* Keep track of important channels */ \
-			if (o->stillgoing) { \
-				stillgoing = 1; \
-				if (o->chan) { \
-					watchers[pos++] = o->chan; \
-					found = 1; \
-				} \
-			} \
-			o = o->next; \
-			numlines++; \
-		} \
-	} while(0)
-	
-static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, char *digit, int prebusies, int caller_disconnect)
+static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callattempt *outgoing, int *to, char *digit, int prebusies, int caller_disconnect)
 {
 	char *queue = qe->parent->name;
-	char on[256] = "";
-	struct localuser *o;
-	int found;
-	int numlines;
+	struct callattempt *o;
 	int status;
 	int sentringing = 0;
 	int numbusies = prebusies;
@@ -1659,21 +1631,35 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 	int stillgoing = 0;
 	int orig = *to;
 	struct ast_frame *f;
-	struct localuser *peer = NULL;
-	struct ast_channel *watchers[AST_MAX_WATCHERS];
-	int pos;
+	struct callattempt *peer = NULL;
 	struct ast_channel *winner;
 	struct ast_channel *in = qe->chan;
+	char on[256] = "";
 	
 	while(*to && !peer) {
-		BUILD_WATCHERS;
-		if ((found < 0) && stillgoing && !qe->parent->strategy) {
+		int numlines, retry, pos = 1;
+		struct ast_channel *watchers[AST_MAX_WATCHERS];
+		watchers[0] = in;
+
+		for (retry = 0; retry < 2; retry++) {
+			numlines = 0;
+			for (o = outgoing; o; o = o->q_next) { /* Keep track of important channels */
+				if (o->stillgoing) {	/* Keep track of important channels */
+					stillgoing = 1;
+					if (o->chan)
+						watchers[pos++] = o->chan;
+				}
+				numlines++;
+			}
+			if (pos > 1 /* found */ || !stillgoing /* nobody listening */ ||
+					 qe->parent->strategy /* ring would not be delivered */)
+				break;
 			/* On "ringall" strategy we only move to the next penalty level
 			   when *all* ringing phones are done in the current penalty level */
 			ring_one(qe, outgoing, &numbusies);
-			BUILD_WATCHERS;
+			/* and retry... */
 		}
-		if (found < 0) {
+		if (pos == 1 /* not found */) {
 			if (numlines == (numbusies + numnochan)) {
 				ast_log(LOG_DEBUG, "Everyone is busy at this time\n");
 			} else {
@@ -1683,8 +1669,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 			return NULL;
 		}
 		winner = ast_waitfor_n(watchers, pos, to);
-		o = outgoing;
-		while(o) {
+		for (o = outgoing; o; o = o->q_next) {
 			if (o->stillgoing && (o->chan) &&  (o->chan->_state == AST_STATE_UP)) {
 				if (!peer) {
 					if (option_verbose > 2)
@@ -1699,8 +1684,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 					char *tech;
 					ast_copy_string(tmpchan, o->chan->call_forward, sizeof(tmpchan));
 					if ((stuff = strchr(tmpchan, '/'))) {
-						*stuff = '\0';
-						stuff++;
+						*stuff++ = '\0';
 						tech = tmpchan;
 					} else {
 						snprintf(tmpchan, sizeof(tmpchan), "%s@%s", o->chan->call_forward, o->chan->context);
@@ -1752,9 +1736,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 							o->chan->cid.cid_rdnis = strdup(in->exten);
 						if (ast_call(o->chan, tmpchan, 0)) {
 							ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
-							o->stillgoing = 0;
-							ast_hangup(o->chan);
-							o->chan = NULL;
+							do_hang(o);
 							numnochan++;
 						}
 					}
@@ -1777,11 +1759,9 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 						case AST_CONTROL_BUSY:
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "%s is busy\n", o->chan->name);
-							o->stillgoing = 0;
 							if (in->cdr)
 								ast_cdr_busy(in->cdr);
-							ast_hangup(o->chan);
-							o->chan = NULL;
+							do_hang(o);
 							if (qe->parent->strategy) {
 								if (qe->parent->timeoutrestart)
 									*to = orig;
@@ -1792,11 +1772,9 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 						case AST_CONTROL_CONGESTION:
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "%s is circuit-busy\n", o->chan->name);
-							o->stillgoing = 0;
 							if (in->cdr)
 								ast_cdr_busy(in->cdr);
-							ast_hangup(o->chan);
-							o->chan = NULL;
+							do_hang(o);
 							if (qe->parent->strategy) {
 								if (qe->parent->timeoutrestart)
 									*to = orig;
@@ -1823,9 +1801,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 					}
 					ast_frfree(f);
 				} else {
-					o->stillgoing = 0;
-					ast_hangup(o->chan);
-					o->chan = NULL;
+					do_hang(o);
 					if (qe->parent->strategy) {
 						if (qe->parent->timeoutrestart)
 							*to = orig;
@@ -1833,7 +1809,6 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 					}
 				}
 			}
-			o = o->next;
 		}
 		if (winner == in) {
 			f = ast_read(in);
@@ -1883,7 +1858,6 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 	}
 
 	return peer;
-	
 }
 
 static int is_our_turn(struct queue_ent *qe)
@@ -1979,7 +1953,7 @@ static int update_queue(struct ast_call_queue *q, struct member *member)
 	return 0;
 }
 
-static int calc_metric(struct ast_call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct localuser *tmp)
+static int calc_metric(struct ast_call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct callattempt *tmp)
 {
 	if (mem->penalty > qe->max_penalty)
 		return -1;
@@ -2037,7 +2011,7 @@ static int calc_metric(struct ast_call_queue *q, struct member *mem, int pos, st
 static int try_calling(struct queue_ent *qe, const char *options, char *announceoverride, const char *url, int *go_on)
 {
 	struct member *cur;
-	struct localuser *outgoing=NULL, *tmp = NULL;
+	struct callattempt *outgoing=NULL; /* the queue we are building */
 	int to;
 	char restofit[AST_MAX_EXTENSION];
 	char oldexten[AST_MAX_EXTENSION]="";
@@ -2046,7 +2020,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	char *newnum;
 	struct ast_channel *peer;
 	struct ast_channel *which;
-	struct localuser *lpeer;
+	struct callattempt *lpeer;
 	struct member *member;
 	int res = 0, bridge = 0;
 	int numbusies = 0;
@@ -2104,8 +2078,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	if (!ast_strlen_zero(announceoverride))
 		announce = announceoverride;
 
-	while(cur) {
-		if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
+ 	for (;cur; cur = cur->next) {
+ 		struct callattempt *tmp = ast_calloc(1, sizeof(*tmp));
+		if (!tmp) {
 			ast_mutex_unlock(&qe->parent->lock);
 			if (use_weight) 
 				AST_LIST_UNLOCK(&queues);
@@ -2137,7 +2112,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			/* Put them in the list of outgoing thingies...  We're ready now. 
 			   XXX If we're forcibly removed, these outgoing calls won't get
 			   hung up XXX */
-			tmp->next = outgoing;
+			tmp->q_next = outgoing;
 			outgoing = tmp;		
 			/* If this line is up, don't try anybody else */
 			if (outgoing->chan && (outgoing->chan->_state == AST_STATE_UP))
@@ -2145,13 +2120,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		} else {
 			free(tmp);
 		}
-
-		cur = cur->next;
 	}
-	if (qe->parent->timeout)
-		to = qe->parent->timeout * 1000;
-	else
-		to = -1;
+	to = (qe->parent->timeout) ? qe->parent->timeout * 1000 : -1;
 	ring_one(qe, outgoing, &numbusies);
 	ast_mutex_unlock(&qe->parent->lock);
 	if (use_weight) 
@@ -2162,10 +2132,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		store_next(qe, outgoing);
 	}
 	ast_mutex_unlock(&qe->parent->lock);
-	if (lpeer)
-		peer = lpeer->chan;
-	else
-		peer = NULL;
+	peer = lpeer ? lpeer->chan : NULL;
 	if (!peer) {
 		if (to) {
 			/* Must gotten hung up */
@@ -2175,9 +2142,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 		if (option_debug)
 			ast_log(LOG_DEBUG, "%s: Nobody answered.\n", qe->chan->name);
-		goto out;
-	}
-	if (peer) {
+	} else { /* peer is valid */
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the 
 		   conversation.  */
@@ -2337,7 +2302,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			res = 1; /* JDG: bridge successfully, leave app_queue */
 		else 
 			res = bridge; /* bridge error, stay in the queue */
-	}	
+	}
 out:
 	hangupcalls(outgoing, NULL);
 	return res;
@@ -2630,7 +2595,7 @@ static void reload_queue_members(void)
 
 static int pqm_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct localuser *lu;
 	char *parse;
 	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
@@ -2649,7 +2614,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	LOCAL_USER_ADD(u);
+	LOCAL_USER_ADD(lu);
 
 	if (args.options) {
 		if (strchr(args.options, 'j'))
@@ -2658,7 +2623,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 
 	if (ast_strlen_zero(args.interface)) {
 		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface[|options])\n");
-		LOCAL_USER_REMOVE(u);
+		LOCAL_USER_REMOVE(lu);
 		return -1;
 	}
 
@@ -2667,23 +2632,23 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 		if (priority_jump || ast_opt_priority_jumping) {
 			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
 				pbx_builtin_setvar_helper(chan, "PQMSTATUS", "NOTFOUND");
-				LOCAL_USER_REMOVE(u);
+				LOCAL_USER_REMOVE(lu);
 				return 0;
 			}
 		}
-		LOCAL_USER_REMOVE(u);
+		LOCAL_USER_REMOVE(lu);
 		pbx_builtin_setvar_helper(chan, "PQMSTATUS", "NOTFOUND");
 		return -1;
 	}
 
-	LOCAL_USER_REMOVE(u);
+	LOCAL_USER_REMOVE(lu);
 	pbx_builtin_setvar_helper(chan, "PQMSTATUS", "PAUSED");
 	return 0;
 }
 
 static int upqm_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct localuser *lu;
 	char *parse;
 	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
@@ -2702,7 +2667,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	LOCAL_USER_ADD(u);
+	LOCAL_USER_ADD(lu);
 
 	if (args.options) {
 		if (strchr(args.options, 'j'))
@@ -2711,7 +2676,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 
 	if (ast_strlen_zero(args.interface)) {
 		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface[|options])\n");
-		LOCAL_USER_REMOVE(u);
+		LOCAL_USER_REMOVE(lu);
 		return -1;
 	}
 
@@ -2720,16 +2685,16 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 		if (priority_jump || ast_opt_priority_jumping) {
 			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
 				pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "NOTFOUND");
-				LOCAL_USER_REMOVE(u);
+				LOCAL_USER_REMOVE(lu);
 				return 0;
 			}
 		}
-		LOCAL_USER_REMOVE(u);
+		LOCAL_USER_REMOVE(lu);
 		pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "NOTFOUND");
 		return -1;
 	}
 
-	LOCAL_USER_REMOVE(u);
+	LOCAL_USER_REMOVE(lu);
 	pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "UNPAUSED");
 	return 0;
 }
@@ -2737,7 +2702,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 static int rqm_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
-	struct localuser *u;
+	struct localuser *lu;
 	char *parse, *temppos = NULL;
 	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
@@ -2757,7 +2722,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	LOCAL_USER_ADD(u);
+	LOCAL_USER_ADD(lu);
 
 	if (ast_strlen_zero(args.interface)) {
 		args.interface = ast_strdupa(chan->name);
@@ -2794,14 +2759,14 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 		break;
 	}
 
-	LOCAL_USER_REMOVE(u);
+	LOCAL_USER_REMOVE(lu);
 	return res;
 }
 
 static int aqm_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
-	struct localuser *u;
+	struct localuser *lu;
 	char *parse, *temppos = NULL;
 	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
@@ -2822,7 +2787,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	LOCAL_USER_ADD(u);
+	LOCAL_USER_ADD(lu);
 
 	if (ast_strlen_zero(args.interface)) {
 		args.interface = ast_strdupa(chan->name);
@@ -2867,7 +2832,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 		break;
 	}
 
-	LOCAL_USER_REMOVE(u);
+	LOCAL_USER_REMOVE(lu);
 	return res;
 }
 
@@ -2875,7 +2840,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	int ringing=0;
-	struct localuser *u;
+	struct localuser *lu;
 	const char *user_priority;
 	const char *max_penalty_str;
 	int prio;
@@ -2909,7 +2874,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	}
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	LOCAL_USER_ADD(u);
+	LOCAL_USER_ADD(lu);
 
 	/* Setup our queue entry */
 	memset(&qe, 0, sizeof(qe));
@@ -3137,7 +3102,7 @@ check_turns:
 		set_queue_result(chan, reason);
 		res = 0;
 	}
-	LOCAL_USER_REMOVE(u);
+	LOCAL_USER_REMOVE(lu);
 	return res;
 }
 
@@ -3145,7 +3110,7 @@ static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, c
 {
 	int count = 0;
 	struct ast_call_queue *q;
-	struct localuser *u;
+	struct localuser *lu;
 	struct member *m;
 
 	buf[0] = '\0';
@@ -3155,7 +3120,7 @@ static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, c
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	LOCAL_USER_ADD(lu);
 	
 	AST_LIST_LOCK(&queues);
 
@@ -3180,7 +3145,7 @@ static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, c
 	}
 
 	snprintf(buf, len, "%d", count);
-	LOCAL_USER_REMOVE(u);
+	LOCAL_USER_REMOVE(lu);
 	return 0;
 }
 
@@ -3290,8 +3255,8 @@ static void reload_queues(void)
 		q->dead = 1;
 	}
 	/* Chug through config file */
-	cat = ast_category_browse(cfg, NULL);
-	while(cat) {
+	cat = NULL;
+	while ((cat = ast_category_browse(cfg, cat)) ) {
 		if (!strcasecmp(cat, "general")) {	
 			/* Initialize global settings */
 			queue_persistent_members = 0;
@@ -3324,8 +3289,7 @@ static void reload_queues(void)
 					while(prev->next)
 						prev = prev->next;
 				}
-				var = ast_variable_browse(cfg, cat);
-				while(var) {
+				for (var = ast_variable_browse(cfg, cat); var; var = var->next) {
 					if (!strcasecmp(var->name, "member")) {
 						/* Add a new member */
 						ast_copy_string(interface, var->value, sizeof(interface));
@@ -3349,7 +3313,6 @@ static void reload_queues(void)
 					} else {
 						queue_set_param(q, var->name, var->value, var->lineno, 1);
 					}
-					var = var->next;
 				}
 				if (new) {
 					AST_LIST_INSERT_HEAD(&queues, q, list);
@@ -3357,7 +3320,6 @@ static void reload_queues(void)
 					ast_mutex_unlock(&q->lock);
 			}
 		}
-		cat = ast_category_browse(cfg, cat);
 	}
 	ast_config_destroy(cfg);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&queues, q, list) {
@@ -3488,11 +3450,9 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
 	
 	AST_LIST_LOCK(&queues);
 	AST_LIST_TRAVERSE(&queues, q, list) {
-		if (!strncasecmp(word, q->name, wordlen)) {
-			if (++which > state) {
-				ret = strdup(q->name);	
-				break;
-			}
+		if (!strncasecmp(word, q->name, wordlen) &&  (++which > state)) {
+			ret = strdup(q->name);	
+			break;
 		}
 	}
 	AST_LIST_UNLOCK(&queues);
@@ -3624,9 +3584,8 @@ static int manager_add_queue_member(struct mansession *s, struct message *m)
 
 	if (ast_strlen_zero(penalty_s))
 		penalty = 0;
-	else if (sscanf(penalty_s, "%d", &penalty) != 1) {
+	else if (sscanf(penalty_s, "%d", &penalty) != 1)
 		penalty = 0;
-	}
 
 	if (ast_strlen_zero(paused_s))
 		paused = 0;
@@ -3698,11 +3657,7 @@ static int manager_pause_queue_member(struct mansession *s, struct message *m)
 	if (set_member_paused(queuename, interface, paused))
 		astman_send_error(s, m, "Interface not found");
 	else
-		if (paused)
-			astman_send_ack(s, m, "Interface paused successfully");
-		else
-			astman_send_ack(s, m, "Interface unpaused successfully");
-
+		astman_send_ack(s, m, paused ? "Interface paused successfully" : "Interface unpaused successfully");
 	return 0;
 }
 
@@ -3757,24 +3712,14 @@ static char *complete_add_queue_member(const char *line, const char *word, int p
 {
 	/* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - to; 5 - <queue>; 6 - penalty; 7 - <penalty> */
 	switch (pos) {
-	case 3:
-		/* Don't attempt to complete name of member (infinite possibilities) */
+	case 3:	/* Don't attempt to complete name of member (infinite possibilities) */
 		return NULL;
-	case 4:
-		if (state == 0) {
-			return strdup("to");
-		} else {
-			return NULL;
-		}
-	case 5:
-		/* No need to duplicate code */
+	case 4:	/* only one possible match, "to" */
+		return state == 0 ? strdup("to") : NULL;
+	case 5:	/* <queue> */
 		return complete_queue(line, word, pos, state);
-	case 6:
-		if (state == 0) {
-			return strdup("penalty");
-		} else {
-			return NULL;
-		}
+	case 6: /* only one possible match, "penalty" */
+		return state == 0 ? strdup("penalty") : NULL;
 	case 7:
 		if (state < 100) {	/* 0-99 */
 			char *num;
@@ -3827,23 +3772,16 @@ static char *complete_remove_queue_member(const char *line, const char *word, in
 	struct ast_call_queue *q;
 	struct member *m;
 
-	/* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - to; 5 - <queue> */
-	if ((pos > 5) || (pos < 3)) {
-		return NULL;
-	}
-	if (pos == 4) {
-		if (state == 0) {
-			return strdup("from");
-		} else {
-			return NULL;
-		}
-	}
-
-	if (pos == 5) {
-		/* No need to duplicate code */
-		return complete_queue(line, word, pos, state);
-	}
-
+ 	/* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - from; 5 - <queue> */
+ 	if (pos > 5 || pos < 3)
+  		return NULL;
+ 	if (pos == 4)	/* only one possible match, 'from' */
+ 		return state == 0 ? strdup("from") : NULL;
+  
+ 	if (pos == 5)	/* No need to duplicate code */
+  		return complete_queue(line, word, pos, state);
+  
+ 	/* here is the case for 3, <member> */
 	if (!AST_LIST_EMPTY(&queues)) {
 		AST_LIST_TRAVERSE(&queues, q, list) {
 			ast_mutex_lock(&q->lock);
