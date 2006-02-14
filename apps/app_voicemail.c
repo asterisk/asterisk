@@ -240,7 +240,7 @@ struct ast_vm_user {
 	unsigned int flags;		/*!< VM_ flags */	
 	int saydurationm;
 	int maxmsg;			/*!< Maximum number of msgs per folder for this mailbox */
-	struct ast_vm_user *next;
+	AST_LIST_ENTRY(ast_vm_user) list;
 };
 
 struct vm_zone {
@@ -386,9 +386,7 @@ static char *app2 = "VoiceMailMain";
 static char *app3 = "MailboxExists";
 static char *app4 = "VMAuthenticate";
 
-AST_MUTEX_DEFINE_STATIC(vmlock);
-struct ast_vm_user *users;
-struct ast_vm_user *usersl;
+static AST_LIST_HEAD_STATIC(users, ast_vm_user);
 struct vm_zone *zones = NULL;
 struct vm_zone *zonesl = NULL;
 static int maxsilence;
@@ -586,29 +584,27 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 {
 	/* This function could be made to generate one from a database, too */
 	struct ast_vm_user *vmu=NULL, *cur;
-	ast_mutex_lock(&vmlock);
-	cur = users;
+	AST_LIST_LOCK(&users);
 
 	if (!context && !ast_test_flag((&globalflags), VM_SEARCH))
 		context = "default";
 
-	while (cur) {
+	AST_LIST_TRAVERSE(&users, cur, list) {
 		if (ast_test_flag((&globalflags), VM_SEARCH) && !strcasecmp(mailbox, cur->mailbox))
 			break;
 		if (context && (!strcasecmp(context, cur->context)) && (!strcasecmp(mailbox, cur->mailbox)))
 			break;
-		cur=cur->next;
 	}
 	if (cur) {
 		/* Make a copy, so that on a reload, we have no race */
 		if ((vmu = (ivm ? ivm : ast_malloc(sizeof(*vmu))))) {
 			memcpy(vmu, cur, sizeof(*vmu));
-			ast_set2_flag(vmu, !ivm, VM_ALLOCED);	
-			vmu->next = NULL;
+			ast_set2_flag(vmu, !ivm, VM_ALLOCED);
+			AST_LIST_NEXT(vmu, list) = NULL;
 		}
 	} else
 		vmu = find_user_realtime(ivm, context, mailbox);
-	ast_mutex_unlock(&vmlock);
+	AST_LIST_UNLOCK(&users);
 	return vmu;
 }
 
@@ -617,19 +613,17 @@ static int reset_user_pw(const char *context, const char *mailbox, const char *n
 	/* This function could be made to generate one from a database, too */
 	struct ast_vm_user *cur;
 	int res = -1;
-	ast_mutex_lock(&vmlock);
-	cur = users;
-	while (cur) {
+	AST_LIST_LOCK(&users);
+	AST_LIST_TRAVERSE(&users, cur, list) {
 		if ((!context || !strcasecmp(context, cur->context)) &&
 			(!strcasecmp(mailbox, cur->mailbox)))
 				break;
-		cur=cur->next;
 	}
 	if (cur) {
 		ast_copy_string(cur->password, newpass, sizeof(cur->password));
 		res = 0;
 	}
-	ast_mutex_unlock(&vmlock);
+	AST_LIST_UNLOCK(&users);
 	return res;
 }
 
@@ -3363,7 +3357,8 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 	char callerid[512];
 	char ext_context[256]="";
 	int res = 0, cmd = 0;
-	struct ast_vm_user *receiver = NULL, *extensions = NULL, *vmtmp = NULL, *vmfree;
+	struct ast_vm_user *receiver, *vmtmp;
+	AST_LIST_HEAD_NOLOCK(extension, ast_vm_user) extensions;
 	char tmp[256];
 	char *stringp, *s;
 	int saved_messages = 0, found = 0;
@@ -3459,12 +3454,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		while (s) {
 			/* find_user is going to ast_malloc since we have a NULL as first argument */
 			if ((receiver = find_user(NULL, context, s))) {
-				if (!extensions)
-					vmtmp = extensions = receiver;
-				else {
-					vmtmp->next = receiver;
-					vmtmp = receiver;
-				}
+				AST_LIST_INSERT_HEAD(&extensions, receiver, list);
 				found++;
 			} else {
 				valid_extensions = 0;
@@ -3479,9 +3469,8 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		res = ast_play_and_wait(chan, "pbx-invalid");
 	}
 	/* check if we're clear to proceed */
-	if (!extensions || !valid_extensions)
+	if (AST_LIST_EMPTY(&extensions) || !valid_extensions)
 		return res;
-	vmtmp = extensions;
 	if (flag==1) {
 		struct leave_vm_options leave_options;
 
@@ -3495,7 +3484,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		RETRIEVE(dir, curmsg);
 		cmd = vm_forwardoptions(chan, sender, dir, curmsg, vmfmts, context, record_gain);
 		if (!cmd) {
-			while (!res && vmtmp) {
+			AST_LIST_TRAVERSE_SAFE_BEGIN(&extensions, vmtmp, list) {
 				/* if (ast_play_and_wait(chan, "vm-savedto"))
 					break;
 				*/
@@ -3567,10 +3556,12 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				run_externnotify(vmtmp->context, vmtmp->mailbox);
 	
 				saved_messages++;
-				vmfree = vmtmp;
-				vmtmp = vmtmp->next;
-				free_user(vmfree);
+				AST_LIST_REMOVE_CURRENT(&extensions, list);
+				free_user(vmtmp);
+				if (res)
+					break;
 			}
+			AST_LIST_TRAVERSE_SAFE_END;
 			if (saved_messages > 0) {
 				/* give confirmation that the message was saved */
 				/* commented out since we can't forward batches yet
@@ -5645,12 +5636,7 @@ static int append_mailbox(char *context, char *mbox, char *data)
 		if (stringp && (s = strsep(&stringp, ","))) 
 			apply_options(vmu, s);
 		
-		vmu->next = NULL;
-		if (usersl)
-			usersl->next = vmu;
-		else
-			users = vmu;
-		usersl = vmu;
+		AST_LIST_INSERT_TAIL(&users, vmu, list);
 	}
 	return 0;
 }
@@ -5752,31 +5738,31 @@ static char show_voicemail_zones_help[] =
 
 static int handle_show_voicemail_users(int fd, int argc, char *argv[])
 {
-	struct ast_vm_user *vmu = users;
+	struct ast_vm_user *vmu;
 	char *output_format = "%-10s %-5s %-25s %-10s %6s\n";
 
 	if ((argc < 3) || (argc > 5) || (argc == 4)) return RESULT_SHOWUSAGE;
 	else if ((argc == 5) && strcmp(argv[3],"for")) return RESULT_SHOWUSAGE;
 
-	if (vmu) {
+	AST_LIST_LOCK(&users);
+	if (!AST_LIST_EMPTY(&users)) {
 		if (argc == 3)
 			ast_cli(fd, output_format, "Context", "Mbox", "User", "Zone", "NewMsg");
 		else {
 			int count = 0;
-			while (vmu) {
+			AST_LIST_TRAVERSE(&users, vmu, list) {
 				if (!strcmp(argv[4],vmu->context))
 					count++;
-				vmu = vmu->next;
 			}
 			if (count) {
-				vmu = users;
 				ast_cli(fd, output_format, "Context", "Mbox", "User", "Zone", "NewMsg");
 			} else {
 				ast_cli(fd, "No such voicemail context \"%s\"\n", argv[4]);
+				AST_LIST_UNLOCK(&users);
 				return RESULT_FAILURE;
 			}
 		}
-		while (vmu) {
+		AST_LIST_TRAVERSE(&users, vmu, list) {
 			char dirname[256];
 			DIR *vmdir;
 			struct dirent *vment;
@@ -5795,12 +5781,13 @@ static int handle_show_voicemail_users(int fd, int argc, char *argv[])
 				snprintf(count,sizeof(count),"%d",vmcount);
 				ast_cli(fd, output_format, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
 			}
-			vmu = vmu->next;
 		}
 	} else {
 		ast_cli(fd, "There are no voicemail users currently defined\n");
+		AST_LIST_UNLOCK(&users);
 		return RESULT_FAILURE;
 	}
+	AST_LIST_UNLOCK(&users);
 	return RESULT_SUCCESS;
 }
 
@@ -5841,7 +5828,7 @@ static char *complete_show_voicemail_users(const char *line, const char *word, i
 			return NULL;
 	}
 	wordlen = strlen(word);
-	for (vmu = users; vmu; vmu = vmu->next) {
+	AST_LIST_TRAVERSE(&users, vmu, list) {
 		if (!strncasecmp(word, vmu->context, wordlen)) {
 			if (context && strcmp(context, vmu->context)) {
 				if (++which > state) {
@@ -5866,7 +5853,7 @@ static struct ast_cli_entry show_voicemail_zones_cli =
 
 static int load_config(void)
 {
-	struct ast_vm_user *cur, *l;
+	struct ast_vm_user *cur;
 	struct vm_zone *zcur, *zl;
 	struct ast_config *cfg;
 	char *cat;
@@ -5902,14 +5889,13 @@ static int load_config(void)
 	int tmpadsi[4];
 
 	cfg = ast_config_load(VOICEMAIL_CONFIG);
-	ast_mutex_lock(&vmlock);
-	cur = users;
-	while (cur) {
-		l = cur;
-		cur = cur->next;
-		ast_set_flag(l, VM_ALLOCED);	
-		free_user(l);
+	AST_LIST_LOCK(&users);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&users, cur, list) {
+		AST_LIST_REMOVE_CURRENT(&users, list);
+		ast_set_flag(cur, VM_ALLOCED);	
+		free_user(cur);
 	}
+	AST_LIST_TRAVERSE_SAFE_END
 	zcur = zones;
 	while (zcur) {
 		zl = zcur;
@@ -5918,8 +5904,7 @@ static int load_config(void)
 	}
 	zones = NULL;
 	zonesl = NULL;
-	users = NULL;
-	usersl = NULL;
+	AST_LIST_HEAD_INIT(&users);
 	memset(ext_pass_cmd, 0, sizeof(ext_pass_cmd));
 
 	if (cfg) {
@@ -6310,11 +6295,11 @@ static int load_config(void)
 				tmpread = tmpwrite+len;
 			}
 		}
-		ast_mutex_unlock(&vmlock);
+		AST_LIST_UNLOCK(&users);
 		ast_config_destroy(cfg);
 		return 0;
 	} else {
-		ast_mutex_unlock(&vmlock);
+		AST_LIST_UNLOCK(&users);
 		ast_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
 		return 0;
 	}
