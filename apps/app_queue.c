@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -2141,7 +2141,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	if (!peer) {
 		if (to) {
 			/* Musta gotten hung up */
-			record_abandoned(qe);
 			res = -1;
 		} else {
 			res = digit;
