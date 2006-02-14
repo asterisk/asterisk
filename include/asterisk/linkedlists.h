@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  * Kevin P. Fleming <kpfleming@digium.com>
@@ -312,6 +312,26 @@ struct {								\
 		(head)->first = __list_next;						\
 	if (!__list_next)								\
 		(head)->last = __list_prev;
+
+/*!
+  \brief Inserts a list entry before the current entry during a traversal.
+  \param head This is a pointer to the list head structure
+  \param elm This is a pointer to the entry to be inserted.
+  \param field This is the name of the field (declared using AST_LIST_ENTRY())
+  used to link entries of this list together.
+
+  \note This macro can \b only be used inside an AST_LIST_TRAVERSE_SAFE_BEGIN()
+  block.
+ */
+#define AST_LIST_INSERT_BEFORE_CURRENT(head, elm, field) do {		\
+	if (__list_prev) {						\
+		(elm)->field.next = __list_prev->field.next;		\
+		__list_prev->field.next = elm;				\
+	} else {							\
+		(elm)->field.next = (head)->first;			\
+		(head)->first = (elm);					\
+	}										\
+} while (0)
 
 /*!
   \brief Closes a safe loop traversal block.

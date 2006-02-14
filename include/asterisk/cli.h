@@ -29,6 +29,8 @@ extern "C" {
 
 #include <stdarg.h>
 
+#include "asterisk/linkedlists.h"
+
 void ast_cli(int fd, char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
 
@@ -67,10 +69,10 @@ struct ast_cli_entry {
 	  until a NULL is returned.
 	 */
 	char *(*generator)(const char *line, const char *word, int pos, int n);
-	/*! For linking */
-	struct ast_cli_entry *next;
 	/*! For keeping track of usage */
 	int inuse;
+	/*! For linking */
+	AST_LIST_ENTRY(ast_cli_entry) list;
 };
 
 

@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -77,9 +77,7 @@ void ast_cli(int fd, char *fmt, ...)
 	}
 }
 
-AST_MUTEX_DEFINE_STATIC(clilock);
-
-struct ast_cli_entry *helpers = NULL;
+static AST_LIST_HEAD_STATIC(helpers, ast_cli_entry);
 
 static char load_help[] = 
 "Usage: load <module name>\n"
@@ -946,7 +944,7 @@ static struct ast_cli_entry *find_cli(char *const cmds[], int exact)
 	int match;
 	struct ast_cli_entry *e=NULL;
 
-	for (e=helpers;e;e=e->next) {
+	AST_LIST_TRAVERSE(&helpers, e, list) {
 		match = 1;
 		for (y=0;match && cmds[y]; y++) {
 			if (!e->cmda[y] && !exact)
@@ -1025,72 +1023,47 @@ static char *find_best(char *argv[])
 
 int ast_cli_unregister(struct ast_cli_entry *e)
 {
-	struct ast_cli_entry *cur, *l=NULL;
-	ast_mutex_lock(&clilock);
-	cur = helpers;
-	while(cur) {
-		if (e == cur) {
-			if (e->inuse) {
-				ast_log(LOG_WARNING, "Can't remove command that is in use\n");
-			} else {
-				/* Rewrite */
-				if (l)
-					l->next = e->next;
-				else
-					helpers = e->next;
-				e->next = NULL;
-				break;
-			}
-		}
-		l = cur;
-		cur = cur->next;
+	if (e->inuse) {
+		ast_log(LOG_WARNING, "Can't remove command that is in use\n");
+	} else {
+		AST_LIST_LOCK(&helpers);
+		AST_LIST_REMOVE(&helpers, e, list);
+		AST_LIST_UNLOCK(&helpers);
 	}
-	ast_mutex_unlock(&clilock);
 	return 0;
 }
 
 int ast_cli_register(struct ast_cli_entry *e)
 {
-	struct ast_cli_entry *cur, *l=NULL;
+	struct ast_cli_entry *cur;
 	char fulle[80] ="", fulltst[80] ="";
 	static int len;
 	
-	ast_mutex_lock(&clilock);
+	AST_LIST_LOCK(&helpers);
 	join2(fulle, sizeof(fulle), e->cmda);
 	
 	if (find_cli(e->cmda, -1)) {
-		ast_mutex_unlock(&clilock);
+		AST_LIST_UNLOCK(&helpers);
 		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", fulle);
 		return -1;
 	}
 	
-	for (cur = helpers; cur; cur = cur->next) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&helpers, cur, list) {
 		join2(fulltst, sizeof(fulltst), cur->cmda);
 		len = strlen(fulltst);
 		if (strlen(fulle) < len)
 			len = strlen(fulle);
 		if (strncasecmp(fulle, fulltst, len) < 0) {
-			if (l) {
-				e->next = l->next;
-				l->next = e;
-			} else {
-				e->next = helpers;
-				helpers = e;
-			}
+			AST_LIST_INSERT_BEFORE_CURRENT(&helpers, e, list); 
 			break;
 		}
-		l = cur;
 	}
+	AST_LIST_TRAVERSE_SAFE_END;
 
-	if (!cur) {
-		if (l)
-			l->next = e;
-		else
-			helpers = e;
-		e->next = NULL;
-	}
+	if (!cur)
+		AST_LIST_INSERT_TAIL(&helpers, e, list); 
 
-	ast_mutex_unlock(&clilock);
+	AST_LIST_UNLOCK(&helpers);
 	
 	return 0;
 }
@@ -1122,7 +1095,7 @@ static int help_workhorse(int fd, char *match[])
 	char *fullcmd = NULL;
 	struct ast_cli_entry *e, *e1, *e2;
 	e1 = builtins;
-	e2 = helpers;
+	e2 = AST_LIST_FIRST(&helpers);
 	if (match)
 		join(matchstr, sizeof(matchstr), match, 0);
 	while(e1->cmda[0] || e2) {
@@ -1136,7 +1109,7 @@ static int help_workhorse(int fd, char *match[])
 			e = e2;
 			fullcmd = fullcmd2;
 			/* Increment by going to next */
-			e2 = e2->next;
+			e2 = AST_LIST_NEXT(e2, list);
 		} else {
 			/* Use e1 */
 			e = e1;
@@ -1322,9 +1295,9 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 	if ((dup = parse_args(text, &x, argv, sizeof(argv) / sizeof(argv[0]), &tws))) {
 		join(matchstr, sizeof(matchstr), argv, tws);
 		if (lock)
-			ast_mutex_lock(&clilock);
+			AST_LIST_LOCK(&helpers);
 		e1 = builtins;
-		e2 = helpers;
+		e2 = AST_LIST_FIRST(&helpers);
 		while(e1->cmda[0] || e2) {
 			if (e2)
 				join(fullcmd2, sizeof(fullcmd2), e2->cmda, tws);
@@ -1336,7 +1309,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 				e = e2;
 				fullcmd = fullcmd2;
 				/* Increment by going to next */
-				e2 = e2->next;
+				e2 = AST_LIST_NEXT(e2, list);
 			} else {
 				/* Use e1 */
 				e = e1;
@@ -1355,7 +1328,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 					matchnum++;
 					if (matchnum > state) {
 						if (lock)
-							ast_mutex_unlock(&clilock);
+							AST_LIST_UNLOCK(&helpers);
 						free(dup);
 						return strdup(res);
 					}
@@ -1368,7 +1341,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 				fullcmd = e->generator(matchstr, word, (!ast_strlen_zero(word) ? (x - 1) : (x)), state);
 				if (fullcmd) {
 					if (lock)
-						ast_mutex_unlock(&clilock);
+						AST_LIST_UNLOCK(&helpers);
 					free(dup);
 					return fullcmd;
 				}
@@ -1376,7 +1349,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 			
 		}
 		if (lock)
-			ast_mutex_unlock(&clilock);
+			AST_LIST_UNLOCK(&helpers);
 		free(dup);
 	}
 	return NULL;
@@ -1402,11 +1375,11 @@ int ast_cli_command(int fd, const char *s)
 
 	/* We need at least one entry, or ignore */
 	if (x > 0) {
-		ast_mutex_lock(&clilock);
+		AST_LIST_LOCK(&helpers);
 		e = find_cli(argv, 0);
 		if (e)
 			e->inuse++;
-		ast_mutex_unlock(&clilock);
+		AST_LIST_UNLOCK(&helpers);
 		if (e) {
 			switch(e->handler(fd, x, argv)) {
 			case RESULT_SHOWUSAGE:
@@ -1416,9 +1389,9 @@ int ast_cli_command(int fd, const char *s)
 		} else 
 			ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));
 		if (e) {
-			ast_mutex_lock(&clilock);
+			AST_LIST_LOCK(&helpers);
 			e->inuse--;
-			ast_mutex_unlock(&clilock);
+			AST_LIST_UNLOCK(&helpers);
 		}
 	}
 	free(dup);
