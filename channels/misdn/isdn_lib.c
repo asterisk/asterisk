@@ -3248,7 +3248,7 @@ int misdn_lib_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len)
  */
 void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2)
 {
-	unsigned char buffer[mISDN_HEADER_LEN+sizeof(int)+sizeof(int)];
+	unsigned char buffer[mISDN_HEADER_LEN+2*sizeof(long)];
 	iframe_t *ctrl = (iframe_t *)buffer; /* preload data */
 	unsigned long *d = (unsigned long *)&ctrl->data.p;
 	struct misdn_stack *stack=get_stack_by_bc(bc);
@@ -3267,7 +3267,7 @@ void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2)
  */
 void manager_ph_control_block(struct misdn_bchannel *bc, int c1, void *c2, int c2_len)
 {
-	unsigned char buffer[mISDN_HEADER_LEN+sizeof(int)+c2_len];
+	unsigned char buffer[mISDN_HEADER_LEN+sizeof(long)+c2_len];
 	iframe_t *ctrl = (iframe_t *)buffer;
 	unsigned long *d = (unsigned long *)&ctrl->data.p;
 	struct misdn_stack *stack=get_stack_by_bc(bc);
