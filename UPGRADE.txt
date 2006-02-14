@@ -1,6 +1,13 @@
 Information for Upgrading From Previous Asterisk Releases
 =========================================================
 
+Command Line Interface:
+
+* 'show channels concise', designed to be used by applications that will parse
+  its output, previously used ':' characters to separate fields. However, some
+  of those fields can easily contain that character, making the output not
+  parseable. The delimiter has been changed to '!'.
+
 Applications:
 
 * In previous Asterisk releases, many applications would jump to priority n+101

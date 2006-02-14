@@ -379,7 +379,7 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 {
 #define FORMAT_STRING  "%-20.20s %-20.20s %-7.7s %-30.30s\n"
 #define FORMAT_STRING2 "%-20.20s %-20.20s %-7.7s %-30.30s\n"
-#define CONCISE_FORMAT_STRING  "%s:%s:%s:%d:%s:%s:%s:%s:%s:%d:%s:%s\n"
+#define CONCISE_FORMAT_STRING  "%s!%s!%s!%d!%s!%s!%s!%s!%s!%d!%s!%s\n"
 #define VERBOSE_FORMAT_STRING  "%-20.20s %-20.20s %-16.16s %4d %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-20.20s\n"
 #define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-20.20s\n"
 
