@@ -60,14 +60,14 @@ static char *descrip =
 "This application sets the following channel variable upon completion:\n"
 "    AMDSTATUS - This is the status of the answering machine detection.\n"
 "                Possible values are:\n"
-"                AMDMACHINE | AMDPERSON | AMDNOTSURE | AMDHANGUP\n"
+"                MACHINE | PERSON | NOTSURE | HANGUP\n"
 "    AMDCAUSE - Indicates the cause that led to the conclusion.\n"
 "               Possible values are:\n"
-"               AMDTOOLONG-<%d total_time>\n"
-"               AMDINITIALSILENCE-<%d silenceDuration>-<%d initialSilence>\n"
-"               AMDHUMAN-<%d silenceDuration>-<%d afterGreetingSilence>\n"
-"               AMDMAXWORDS-<%d wordsCount>-<%d maximumNumberOfWords>\n"
-"               AMDLONGGREETING-<%d voiceDuration>-<%d greeting>\n";
+"               TOOLONG-<%d total_time>\n"
+"               INITIALSILENCE-<%d silenceDuration>-<%d initialSilence>\n"
+"               HUMAN-<%d silenceDuration>-<%d afterGreetingSilence>\n"
+"               MAXWORDS-<%d wordsCount>-<%d maximumNumberOfWords>\n"
+"               LONGGREETING-<%d voiceDuration>-<%d greeting>\n";
 
 
 STANDARD_LOCAL_USER;
@@ -209,7 +209,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 			/* No Frame: Called Party Must Have Dropped */
 			ast_verbose(VERBOSE_PREFIX_3 "AMD: HANGUP\n");
 			ast_log(LOG_DEBUG, "Got hangup\n");
-			strcpy(amdStatus , "AMDHANGUP" );
+			strcpy(amdStatus , "HANGUP" );
 			strcpy(amdCause , "" );
 			break;
 		}
@@ -218,8 +218,8 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 		if (iTotalTime >= totalAnalysisTime ) {
 			ast_verbose(VERBOSE_PREFIX_3 "AMD: Channel [%s]. Too long...\n", chan->name );
 			ast_frfree(f);
-			strcpy(amdStatus , "AMDNOTSURE" );
-			sprintf(amdCause , "AMDTOOLONG-%d", iTotalTime );
+			strcpy(amdStatus , "NOTSURE" );
+			sprintf(amdCause , "TOOLONG-%d", iTotalTime );
 			break;
 		}
 		if (f->frametype == AST_FRAME_VOICE ) {
@@ -240,8 +240,8 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 					ast_verbose(VERBOSE_PREFIX_3 "AMD: ANSWERING MACHINE: silenceDuration:%d initialSilence:%d\n",
 							silenceDuration, initialSilence );
 					ast_frfree(f);
-					strcpy(amdStatus , "AMDMACHINE" );
-					sprintf(amdCause , "AMDINITIALSILENCE-%d-%d", silenceDuration, initialSilence );
+					strcpy(amdStatus , "MACHINE" );
+					sprintf(amdCause , "INITIALSILENCE-%d-%d", silenceDuration, initialSilence );
 					break;
 				}
 
@@ -249,8 +249,8 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 					ast_verbose(VERBOSE_PREFIX_3 "AMD: HUMAN: silenceDuration:%d afterGreetingSilence:%d\n",
 							silenceDuration, afterGreetingSilence );
 					ast_frfree(f);
-					strcpy(amdStatus , "AMDPERSON" );
-					sprintf(amdCause , "AMDHUMAN-%d-%d", silenceDuration, afterGreetingSilence );
+					strcpy(amdStatus , "PERSON" );
+					sprintf(amdCause , "HUMAN-%d-%d", silenceDuration, afterGreetingSilence );
 					break;
 				}
 			} else {
@@ -272,8 +272,8 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 				if (iWordsCount >= maximumNumberOfWords ) {
 					ast_verbose(VERBOSE_PREFIX_3 "AMD: ANSWERING MACHINE: iWordsCount:%d\n", iWordsCount );
 					ast_frfree(f);
-					strcpy(amdStatus , "AMDMACHINE" );
-					sprintf(amdCause , "AMDMAXWORDS-%d-%d", iWordsCount, maximumNumberOfWords );
+					strcpy(amdStatus , "MACHINE" );
+					sprintf(amdCause , "MAXWORDS-%d-%d", iWordsCount, maximumNumberOfWords );
 					break;
 				}
 
@@ -281,8 +281,8 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 					ast_verbose(VERBOSE_PREFIX_3 "AMD: ANSWERING MACHINE: voiceDuration:%d greeting:%d\n",
 							voiceDuration, greeting );
 					ast_frfree(f);
-					strcpy(amdStatus , "AMDMACHINE" );
-					sprintf(amdCause , "AMDLONGGREETING-%d-%d", voiceDuration, greeting );
+					strcpy(amdStatus , "MACHINE" );
+					sprintf(amdCause , "LONGGREETING-%d-%d", voiceDuration, greeting );
 					break;
 				}
 				if (voiceDuration >= minimumWordLength ) {
