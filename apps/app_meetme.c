@@ -1602,6 +1602,10 @@ bailoutandtrynormal:
 			lastmarked = currentmarked;
 		}
 	}
+
+	if (musiconhold)
+		ast_moh_stop(chan);
+	
 	if (using_pseudo)
 		close(fd);
 	else {
