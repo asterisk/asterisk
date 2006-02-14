@@ -2169,7 +2169,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	if (!peer) {
 		if (to) {
 			/* Must gotten hung up */
-			record_abandoned(qe);
 			res = -1;
 		} else {
 			res = digit;
