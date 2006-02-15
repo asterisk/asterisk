@@ -1034,11 +1034,11 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 		q->count++;
 		res = 0;
 		manager_event(EVENT_FLAG_CALL, "Join", 
-			      "Channel: %s\r\nCallerID: %s\r\nCallerIDName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
+			      "Channel: %s\r\nCallerID: %s\r\nCallerIDName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\nUniqueid: %s\r\n",
 			      qe->chan->name, 
 			      qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown",
 			      qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
-			      q->name, qe->pos, q->count );
+			      q->name, qe->pos, q->count, qe->chan->uniqueid );
 #if 0
 ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 #endif
