@@ -326,6 +326,7 @@ struct ast_call_queue {
 	unsigned int joinempty:2;
 	unsigned int eventwhencalled:1;
 	unsigned int leavewhenempty:2;
+	unsigned int ringinuse:1;
 	unsigned int reportholdtime:1;
 	unsigned int wrapped:1;
 	unsigned int timeoutrestart:1;
@@ -575,6 +576,7 @@ static void init_queue(struct ast_call_queue *q)
 	q->announceholdtime = 0;
 	q->roundingseconds = 0; /* Default - don't announce seconds */
 	q->servicelevel = 0;
+	q->ringinuse = 1;
 	q->moh[0] = '\0';
 	q->announce[0] = '\0';
 	q->context[0] = '\0';
@@ -626,6 +628,8 @@ static void queue_set_param(struct ast_call_queue *q, const char *param, const c
 		q->timeout = atoi(val);
 		if (q->timeout < 0)
 			q->timeout = DEFAULT_TIMEOUT;
+	} else if (!strcasecmp(param, "ringinuse")) {
+		q->ringinuse = ast_true(val);
 	} else if (!strcasecmp(param, "monitor-join")) {
 		q->monjoin = ast_true(val);
 	} else if (!strcasecmp(param, "monitor-format")) {
@@ -1378,7 +1382,16 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		(*busies)++;
 		return 0;
 	}
-	
+
+	if (!qe->parent->ringinuse && (tmp->member->status == AST_DEVICE_INUSE)) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "%s in use, can't receive call\n", tmp->interface);
+		if (qe->chan->cdr)
+			ast_cdr_busy(qe->chan->cdr);
+		tmp->stillgoing = 0;
+		return 0;
+	}
+
 	if (tmp->member->paused) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "%s paused, can't receive call\n", tmp->interface);
