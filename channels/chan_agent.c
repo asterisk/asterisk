@@ -2193,6 +2193,8 @@ static int action_agent_callback_login(struct mansession *s, struct message *m)
 			ast_verbose(VERBOSE_PREFIX_2 "Callback Agent '%s' logged in on %s\n", p->agent, p->loginchan);
 		ast_device_state_changed("Agent/%s", p->agent);
 		ast_mutex_unlock(&p->lock);
+		if (persistent_agents)
+			dump_agents();
 	}
 	AST_LIST_UNLOCK(&agents);
 
