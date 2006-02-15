@@ -43,6 +43,7 @@ enum misdn_cfg_elements {
 	MISDN_CFG_SENDDTMF,           /* int (bool) */
 	MISDN_CFG_HOLD_ALLOWED,        /* int (bool) */
 	MISDN_CFG_EARLY_BCONNECT,      /* int (bool) */
+	MISDN_CFG_INCOMING_EARLY_AUDIO,      /* int (bool) */
 	MISDN_CFG_ECHOCANCEL,          /* int */
 	MISDN_CFG_ECHOCANCELWHENBRIDGED,  /* int (bool) */
 	MISDN_CFG_ECHOTRAINING,        /* int (bool) */

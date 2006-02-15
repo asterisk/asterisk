@@ -104,6 +104,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "senddtmf", MISDN_CFG_SENDDTMF, MISDN_CTYPE_BOOL, "no", NONE },
 	{ "hold_allowed", MISDN_CFG_HOLD_ALLOWED, MISDN_CTYPE_BOOL, "no", NONE },
 	{ "early_bconnect", MISDN_CFG_EARLY_BCONNECT, MISDN_CTYPE_BOOL, "yes", NONE },
+	{ "incoming_early_audio", MISDN_CFG_INCOMING_EARLY_AUDIO, MISDN_CTYPE_BOOL, "no", NONE },
 	{ "echocancel", MISDN_CFG_ECHOCANCEL, MISDN_CTYPE_BOOLINT, "0", 128 },
 	{ "echocancelwhenbridged", MISDN_CFG_ECHOCANCELWHENBRIDGED, MISDN_CTYPE_BOOL, "no", NONE },
 	{ "echotraining", MISDN_CFG_ECHOTRAINING, MISDN_CTYPE_BOOLINT, "0", 1 },

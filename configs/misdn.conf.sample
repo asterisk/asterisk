@@ -197,6 +197,17 @@ localdialplan=0
 ;
 early_bconnect=yes
 
+
+;
+; turn this on if you like to send Tone Indications to a Incoming
+; isdn channel on a TE Port. Rarely used, only if the Telco allows
+; you to send indications by yourself, normally the Telco sends the 
+; indications to the remote party.
+; 
+; default: no
+;
+incoming_early_audio=no
+
 ; uncomment the following to get into s extension at extension conf
 ; there you can use DigitTimeout if you can't or don't want to use
 ; isdn overlap dial. 
