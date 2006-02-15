@@ -909,13 +909,18 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 
 	/*
 	 * Look first into predefined variables, then into variable lists.
+	 * Variable 's' points to the result, according to the following rules:
 	 * s == &not_found (set at the beginning) means that we did not find a
-	 * matching variable and need to look into more places.
+	 *	matching variable and need to look into more places.
 	 * If s != &not_found, s is a valid result string as follows:
 	 * s = NULL if the variable does not have a value;
+	 *	you typically do this when looking for an unset predefined variable.
 	 * s = workspace if the result has been assembled there;
+	 *	typically done when the result is built e.g. with an snprintf(),
+	 *	so we don't need to do an additional copy.
 	 * s != workspace in case we have a string, that needs to be copied
 	 *	(the ast_copy_string is done once for all at the end).
+	 *	Typically done when the result is already available in some string.
 	 */
 	s = &not_found;	/* default value */
 	if (c) {	/* This group requires a valid channel */
@@ -961,7 +966,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 			snprintf(workspace, workspacelen, "%u",(int)time(NULL));
 			s = workspace;
 		} else if (!strcmp(var, "SYSTEMNAME")) {
-			ast_copy_string(workspace, ast_config_AST_SYSTEM_NAME, workspacelen);
+			s = ast_config_AST_SYSTEM_NAME;
 		}
 	}
 	/* if not found, look into chanvars or global vars */
