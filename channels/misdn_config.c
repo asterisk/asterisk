@@ -87,6 +87,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "rxgain", MISDN_CFG_RXGAIN, MISDN_CTYPE_INT, "0", NONE },
 	{ "txgain", MISDN_CFG_TXGAIN, MISDN_CTYPE_INT, "0", NONE },
 	{ "te_choose_channel", MISDN_CFG_TE_CHOOSE_CHANNEL, MISDN_CTYPE_BOOL, "no", NONE },
+	{ "pmp_l1_check", MISDN_CFG_PMP_L1_CHECK, MISDN_CTYPE_BOOL, "yes", NONE },
 	{ "context", MISDN_CFG_CONTEXT, MISDN_CTYPE_STR, "default", NONE },
 	{ "language", MISDN_CFG_LANGUAGE, MISDN_CTYPE_STR, "en", NONE },
 	{ "musicclass", MISDN_CFG_MUSICCLASS, MISDN_CTYPE_STR, "default", NONE },

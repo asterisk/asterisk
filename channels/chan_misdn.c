@@ -2306,8 +2306,9 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 					
 					if (!strcasecmp(cfg_group, group)) {
 						int port_up;
-					
-						port_up = misdn_lib_port_up(port);
+						int check;
+						misdn_cfg_get(port, MISDN_CFG_PMP_L1_CHECK, &check, sizeof(int));
+						port_up = misdn_lib_port_up(port, check);
 						
 						if ( port_up )	{
 							newbc = misdn_lib_get_free_bc(port, robin_channel);
@@ -2333,12 +2334,14 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 				 port=misdn_cfg_get_next_port(port)) {
 				
 				misdn_cfg_get( port, MISDN_CFG_GROUPNAME, cfg_group, BUFFERSIZE);
-				
+
+				chan_misdn_log(3,port, "Group [%s] Port [%d]\n", group, port);
 				if (!strcasecmp(cfg_group, group)) {
 					int port_up;
+					int check;
+					misdn_cfg_get(port, MISDN_CFG_PMP_L1_CHECK, &check, sizeof(int));
+					port_up = misdn_lib_port_up(port, check);
 					
-					port_up = misdn_lib_port_up(port);
-
 					chan_misdn_log(4, port, "portup:%d\n", port_up);
 					
 					if ( port_up )	{

@@ -142,6 +142,19 @@ txgain=0
 te_choose_channel=no
 
 
+
+;
+; This option defines, if chan_misdn should check the L1 on  a PMP 
+; before makeing a group call on it. The L1 may go down for PMP Ports
+; so we might need this.
+; But be aware! a broken or plugged off cable might be used for a group call
+; as well, since chan_misdn has no chance to distinguish if the L1 is down
+; because of a lost Link or because the Provider shut it down...
+;
+; default: yes
+;
+pmp_l1_check=yes
+
 ;
 ; Send Setup_Acknowledge on incoming calls anyway (instead of PROCEEDING), 
 ; this requests additional Infos, so we can waitfordigits 

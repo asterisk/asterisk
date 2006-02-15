@@ -1460,27 +1460,25 @@ int misdn_lib_send_facility(struct misdn_bchannel *bc, enum facility_type fac, v
 }
 
 
-int misdn_lib_port_up(int port)
+int misdn_lib_port_up(int port, int check)
 {
 	struct misdn_stack *stack;
-	
+
+
 	for (stack=glob_mgr->stack_list;
 	     stack;
 	     stack=stack->next) {
 		
+		if ( !stack->ptp && !check) return 1;
+		
 		if (stack->port == port) {
-			if (stack->nt) {
-				if (stack->l1link)
-					return 1;
-				else
-					return 0;
-			} else {
-				if (stack->l1link)
-					return 1;
-				else
-					return 0;
+			if (stack->l1link)
+				return 1;
+			else {
+				cb_log(-1,port, "Port down [%s]\n",
+				       stack->ptp?"PP":"PMP");
+				return 0;
 			}
-
 		}
 	}
   
