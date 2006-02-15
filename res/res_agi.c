@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -190,17 +190,23 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 		close(s);
 		return -1;
 	}
+
 	pfds[0].fd = s;
 	pfds[0].events = POLLOUT;
-	if (poll(pfds, 1, MAX_AGI_CONNECT) != 1) {
-		ast_log(LOG_WARNING, "Connect to '%s' failed!\n", agiurl);
-		close(s);
-		return -1;
+	while (poll(pfds, 1, MAX_AGI_CONNECT) != 1) {
+		if (errno != EINTR) {
+			ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
+			close(s);
+			return -1;
+		}
 	}
-	if (write(s, "agi_network: yes\n", strlen("agi_network: yes\n")) < 0) {
-		ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
-		close(s);
-		return -1;
+
+	while (write(s, "agi_network: yes\n", strlen("agi_network: yes\n")) < 0) {
+		if (errno != EINTR) {
+			ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
+			close(s);
+			return -1;
+		}
 	}
 
 	/* If we have a script parameter, relay it to the fastagi server */
