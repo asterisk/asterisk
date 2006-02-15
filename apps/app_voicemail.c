@@ -3608,25 +3608,21 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 	int res = 0;
 	struct vm_zone *the_zone = NULL;
 	time_t t;
-	long tin;
 
-	if (sscanf(origtime,"%ld",&tin) < 1) {
+	if (ast_get_time_t(origtime, &t, 0)) {
 		ast_log(LOG_WARNING, "Couldn't find origtime in %s\n", filename);
 		return 0;
 	}
-	t = tin;
 
 	/* Does this user have a timezone specified? */
 	if (!ast_strlen_zero(vmu->zonetag)) {
 		/* Find the zone in the list */
 		struct vm_zone *z;
-		z = zones;
-		while (z) {
+		for (z = zones; z; z = z->next) {
 			if (!strcmp(z->name, vmu->zonetag)) {
 				the_zone = z;
 				break;
 			}
-			z = z->next;
 		}
 	}
 

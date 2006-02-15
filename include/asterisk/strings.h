@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -222,6 +222,15 @@ int ast_false(const char *val);
   string from 'w'.
 */
 void ast_join(char *s, size_t len, char * const w[]);
+
+/*
+  \brief Parse a time (integer) string.
+  \param src String to parse
+  \param dst Destination
+  \param _default Value to use if the string does not contain a valid time
+  \return zero on success, non-zero on failure
+*/
+int ast_get_time_t(const char *src, time_t *dst, time_t _default);
 
 /* The realloca lets us ast_restrdupa(), but you can't mix any other ast_strdup calls! */
 

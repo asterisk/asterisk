@@ -742,16 +742,13 @@ static int handle_saytime(struct ast_channel *chan, AGI *agi, int argc, char *ar
 	if (res == 1)
 		return RESULT_SUCCESS;
 	fdprintf(agi->fd, "200 result=%d\n", res);
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 static int handle_saydatetime(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res=0;
-	long unixtime;
+	time_t unixtime;
 	char *format, *zone=NULL;
 	
 	if (argc < 4)
@@ -770,19 +767,15 @@ static int handle_saydatetime(struct ast_channel *chan, AGI *agi, int argc, char
 	if (argc > 5 && !ast_strlen_zero(argv[5]))
 		zone = argv[5];
 
-	if (sscanf(argv[2], "%ld", &unixtime) != 1)
+	if (ast_get_time_t(argv[2], &unixtime, 0))
 		return RESULT_SHOWUSAGE;
 
-	res = ast_say_date_with_format(chan, (time_t) unixtime, argv[3], chan->language, format, zone);
+	res = ast_say_date_with_format(chan, unixtime, argv[3], chan->language, format, zone);
 	if (res == 1)
 		return RESULT_SUCCESS;
 
 	fdprintf(agi->fd, "200 result=%d\n", res);
-
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 static int handle_sayphonetic(struct ast_channel *chan, AGI *agi, int argc, char *argv[])

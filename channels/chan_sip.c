@@ -12152,15 +12152,12 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		ast_variables_destroy(peer->chanvars);
 		peer->chanvars = NULL;
 	}
-	while(v) {
-		if (handle_common_options(&peerflags, &mask, v)) {
-			v = v->next;
+	for (; v; v = v->next) {
+		if (handle_common_options(&peerflags, &mask, v))
 			continue;
-		}
 
 		if (realtime && !strcasecmp(v->name, "regseconds")) {
-			if (sscanf(v->value, "%ld", (time_t *)&regseconds) != 1)
-				regseconds = 0;
+			ast_get_time_t(v->value, &regseconds, 0);
 		} else if (realtime && !strcasecmp(v->name, "ipaddr") && !ast_strlen_zero(v->value) ) {
 			inet_aton(v->value, &(peer->addr.sin_addr));
 		} else if (realtime && !strcasecmp(v->name, "name"))
@@ -12309,10 +12306,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 				peer->maxms = 0;
 			}
 		}
-		/* else if (strcasecmp(v->name,"type"))
-		 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
-		 */
-		v=v->next;
 	}
 	if (!ast_test_flag((&global_flags_page2), SIP_PAGE2_IGNOREREGEXPIRE) && ast_test_flag((&peer->flags_page2), SIP_PAGE2_DYNAMIC) && realtime) {
 		time_t nowtime;

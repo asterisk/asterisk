@@ -2562,7 +2562,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 	struct ast_variable *var;
 	struct ast_variable *tmp;
 	struct iax2_peer *peer=NULL;
-	time_t regseconds, nowtime;
+	time_t regseconds = 0, nowtime;
 	int dynamic=0;
 
 	if (peername)
@@ -2603,8 +2603,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 				break;
 			} 
 		} else if (!strcasecmp(tmp->name, "regseconds")) {
-			if (sscanf(tmp->value, "%ld", (time_t *)&regseconds) != 1)
-				regseconds = 0;
+			ast_get_time_t(tmp->value, &regseconds, 0);
 		} else if (!strcasecmp(tmp->name, "ipaddr")) {
 			inet_aton(tmp->value, &(peer->addr.sin_addr));
 		} else if (!strcasecmp(tmp->name, "port")) {

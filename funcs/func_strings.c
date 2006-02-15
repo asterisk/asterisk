@@ -232,8 +232,8 @@ static int acf_strftime(struct ast_channel *chan, char *cmd, char *parse,
 			     AST_APP_ARG(timezone);
 			     AST_APP_ARG(format);
 	);
-	long epochi;
-	struct tm time;
+	time_t epochi;
+	struct tm tm;
 
 	buf[0] = '\0';
 
@@ -245,14 +245,13 @@ static int acf_strftime(struct ast_channel *chan, char *cmd, char *parse,
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (ast_strlen_zero(args.epoch) || !sscanf(args.epoch, "%ld", &epochi)) {
-		struct timeval tv = ast_tvnow();
-		epochi = tv.tv_sec;
-	}
+	ast_get_time_t(args.epoch, &epochi, time(NULL));
+	ast_localtime(&epochi, &tm, args.timezone);
 
-	ast_localtime(&epochi, &time, args.timezone);
+	if (!args.format)
+		args.format = "%c";
 
-	if (!strftime(buf, len, args.format ? args.format : "%c", &time))
+	if (!strftime(buf, len, args.format, &tm))
 		ast_log(LOG_WARNING, "C function strftime() output nothing?!!\n");
 
 	buf[len - 1] = '\0';

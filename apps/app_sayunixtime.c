@@ -76,45 +76,26 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char *s,*zone=NULL,*timec,*format;
 	time_t unixtime;
-	struct timeval tv;
 	
+	s = ast_strdupa(data);
+	if (!s)
+		return data ? -1 : 0;
 	LOCAL_USER_ADD(u);
 
-	tv = ast_tvnow();
-	unixtime = (time_t)tv.tv_sec;
+	format = "c";	/* default datetime */
 
-	if( !strcasecmp(chan->language, "da" ) ) {
-		format = "A dBY HMS";
-	} else if ( !strcasecmp(chan->language, "de" ) ) {
-		format = "A dBY HMS";
-	} else {
-		format = "ABdY 'digits/at' IMp";
-	} 
-
-	if (data) {
-		s = data;
-		if ((s = ast_strdupa(s))) {
-			timec = strsep(&s,"|");
-			if ((timec) && (*timec != '\0')) {
-				long timein;
-				if (sscanf(timec,"%ld",&timein) == 1) {
-					unixtime = (time_t)timein;
-				}
-			}
-			if (s) {
-				zone = strsep(&s,"|");
-				if (zone && (*zone == '\0'))
-					zone = NULL;
-				if (s) {
-					format = s;
-				}
-			}
-		}
+	timec = strsep(&s,"|");
+	ast_get_time_t(timec, &unixtime, time(NULL));
+	if (s) {
+		zone = strsep(&s,"|");
+		if (ast_strlen_zero(zone))
+			zone = NULL;
 	}
+	if (s)	/* override format */
+		format = s;
 
-	if (chan->_state != AST_STATE_UP) {
+	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
-	}
 	if (!res)
 		res = ast_say_date_with_format(chan, unixtime, AST_DIGIT_ANY, chan->language, format, zone);
 
