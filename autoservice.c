@@ -30,7 +30,6 @@
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
-#include <math.h>			/* For PI */
 
 #include "asterisk.h"
 
@@ -64,15 +63,13 @@ static pthread_t asthread = AST_PTHREADT_NULL;
 
 static void *autoservice_run(void *ign)
 {
-	struct ast_channel *mons[MAX_AUTOMONS];
-	int x;
-	int ms;
-	struct ast_channel *chan;
-	struct asent *as;
-	struct ast_frame *f;
 
 	for(;;) {
-		x = 0;
+		struct ast_channel *mons[MAX_AUTOMONS];
+		struct ast_channel *chan;
+		struct asent *as;
+		int x = 0, ms = 500;
+
 		AST_LIST_LOCK(&aslist);
 		AST_LIST_TRAVERSE(&aslist, as, list) {
 			if (!as->chan->_softhangup) {
@@ -84,11 +81,10 @@ static void *autoservice_run(void *ign)
 		}
 		AST_LIST_UNLOCK(&aslist);
 
-		ms = 500;
 		chan = ast_waitfor_n(mons, x, &ms);
 		if (chan) {
 			/* Read and ignore anything that occurs */
-			f = ast_read(chan);
+			struct ast_frame *f = ast_read(chan);
 			if (f)
 				ast_frfree(f);
 		}
@@ -101,17 +97,14 @@ int ast_autoservice_start(struct ast_channel *chan)
 {
 	int res = -1;
 	struct asent *as;
-	int needstart;
 	AST_LIST_LOCK(&aslist);
-
-	/* Check if autoservice thread is executing */
-	needstart = (asthread == AST_PTHREADT_NULL) ? 1 : 0 ;
 
 	/* Check if the channel already has autoservice */
 	AST_LIST_TRAVERSE(&aslist, as, list) {
 		if (as->chan == chan)
 			break;
 	}
+	/* XXX if found, we return -1, why ??? */
 
 	/* If not, start autoservice on channel */
 	if (!as) {
@@ -120,7 +113,7 @@ int ast_autoservice_start(struct ast_channel *chan)
 			as->chan = chan;
 			AST_LIST_INSERT_HEAD(&aslist, as, list);
 			res = 0;
-			if (needstart) {
+			if (asthread == AST_PTHREADT_NULL) { /* need start the thread */
 				if (ast_pthread_create(&asthread, NULL, autoservice_run, NULL)) {
 					ast_log(LOG_WARNING, "Unable to create autoservice thread :(\n");
 					/* There will only be a single member in the list at this point,
