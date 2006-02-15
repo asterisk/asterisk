@@ -11377,15 +11377,7 @@ restartsearch:
 			ast_mutex_unlock(&sip->lock);
 		}
 		ast_mutex_unlock(&iflock);
-		/* Don't let anybody kill us right away.  Nobody should lock the interface list
-		   and wait for the monitor list, but the other way around is okay. */
-		ast_mutex_lock(&monlock);
-		/* Lock the network interface */
-		ast_mutex_lock(&netlock);
-		/* Okay, now that we know what to do, release the network lock */
-		ast_mutex_unlock(&netlock);
-		/* And from now on, we're okay to be killed, so release the monitor lock as well */
-		ast_mutex_unlock(&monlock);
+
 		pthread_testcancel();
 		/* Wait for sched or io */
 		res = ast_sched_wait(sched);
