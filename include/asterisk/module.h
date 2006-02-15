@@ -264,25 +264,24 @@ void ast_unregister_atexit(void (*func)(void));
 
 /*! 
  * \brief Standard localuser struct definition.
- *
- * This macro defines a localuser struct.  The channel.h file must be included
- * to use this macro because it refrences ast_channel.
+ * used to keep track of channels using a given resource.
  */
-#define STANDARD_LOCAL_USER struct localuser { \
-						struct ast_channel *chan; \
-						struct localuser *next; \
-					     }
+struct localuser {
+	struct ast_channel *chan;
+	struct localuser *next;
+};
+
+#define STANDARD_LOCAL_USER	/* unused and deprecated now */
 
 /*! 
  * \brief The localuser declaration.
  *
- * This macro should be used in combination with #STANDARD_LOCAL_USER.  It
- * creates a localuser mutex and several other variables used for keeping the
- * use count.
+ * This creates a localuser mutex and the head of a list of localusers
+ * that is used for keeping track of channels using a resource, as well 
+ * as the use count.
  *
  * <b>Sample Usage:</b>
  * \code
- * STANDARD_LOCAL_USER;
  * LOCAL_USER_DECL;
  * \endcode
  */
