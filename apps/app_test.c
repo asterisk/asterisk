@@ -48,8 +48,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static char *tdesc = "Interface Test Application";

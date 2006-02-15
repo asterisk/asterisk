@@ -45,8 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/app.h"
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static const char *tdesc = "Transfer";

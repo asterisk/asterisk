@@ -68,8 +68,6 @@ static const char *descrip =
 "  CPLAYBACKSTATUS -  This variable contains the status of the attempt as a text\n"
 "                     string, one of: SUCCESS | USERSTOPPED | ERROR\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int is_on_phonepad(char key)

@@ -56,8 +56,6 @@ static char *exec_descrip =
 "see the application System. Returns whatever value the\n"
 "app returns or a non-zero value if the app cannot be found.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int exec_exec(struct ast_channel *chan, void *data)

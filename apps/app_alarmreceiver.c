@@ -95,15 +95,9 @@ static char event_app[128] = {'\0'};
 static char db_family[128] = {'\0'};
 static char time_stamp_format[128] = {"%a %b %d, %Y @ %H:%M:%S %Z"};
 
-
 /* Misc variables */
-
 	
 static char event_file[14] = "/event-XXXXXX";
-
-
-
-STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 

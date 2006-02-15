@@ -75,9 +75,6 @@ static char *descrip =
 "call was placed.  Use with the Local channel to allow the dialplan to make\n"
 "use of this information.\n";
 
-
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int parkandannounce_exec(struct ast_channel *chan, void *data)

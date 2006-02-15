@@ -46,8 +46,6 @@ static char *nocdr_descrip =
 static char *nocdr_app = "NoCDR";
 static char *nocdr_synopsis = "Tell Asterisk to not maintain a CDR for the current call";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int nocdr_exec(struct ast_channel *chan, void *data)

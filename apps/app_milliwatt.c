@@ -52,8 +52,6 @@ static char *synopsis = "Generate a Constant 1000Hz tone at 0dbm (mu-law)";
 static char *descrip = 
 "Milliwatt(): Generate a Constant 1000Hz tone at 0dbm (mu-law)\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;

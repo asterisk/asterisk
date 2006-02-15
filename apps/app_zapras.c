@@ -73,8 +73,6 @@ static char *descrip =
 "Your pppd must be patched to be zaptel aware. Arguments should be\n"
 "separated by | characters.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 #define PPP_MAX_ARGS	32

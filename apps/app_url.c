@@ -70,8 +70,6 @@ static char *descrip =
 " SendURL only returns 0 if the URL was sent correctly  or if\n"
 " the channel does not support HTML transport, and -1 otherwise.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int sendurl_exec(struct ast_channel *chan, void *data)

@@ -76,8 +76,6 @@ static char *descrip =
 /* How many digits to read in */
 #define NUMDIGITS 3
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static char *convert(char *lastname)

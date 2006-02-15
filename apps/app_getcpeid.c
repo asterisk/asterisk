@@ -53,8 +53,6 @@ static char *descrip =
 "  GetCPEID: Obtains and displays ADSI CPE ID and other information in order\n"
 "to properly setup zapata.conf for on-hook operations.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int cpeid_setstatus(struct ast_channel *chan, char *stuff[], int voice)

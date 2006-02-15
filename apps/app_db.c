@@ -64,8 +64,6 @@ static char *dt_app = "DBdeltree";
 static char *d_synopsis = "Delete a key from the database";
 static char *dt_synopsis = "Delete a family or keytree from the database";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int deltree_exec(struct ast_channel *chan, void *data)

@@ -56,8 +56,6 @@ static char *descrip =
 "is no callerid information available.  Options should be separated by |\n"
 "characters\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int zapateller_exec(struct ast_channel *chan, void *data)

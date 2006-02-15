@@ -54,10 +54,7 @@ static char *readfile_descrip =
 "  File - The name of the file to read.\n"
 "  Length - Maximum number of characters to capture.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
-
 
 static int readfile_exec(struct ast_channel *chan, void *data)
 {

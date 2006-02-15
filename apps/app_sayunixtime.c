@@ -67,8 +67,6 @@ static char *datetime_descrip =
 "  format:   a format the time is to be said in.  See voicemail.conf.\n"
 "              defaults to \"ABdY 'digits/at' IMp\"\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int sayunixtime_exec(struct ast_channel *chan, void *data)

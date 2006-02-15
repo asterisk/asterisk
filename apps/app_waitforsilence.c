@@ -61,8 +61,6 @@ static char *descrip =
 "  - WaitForSilence(500|2) will wait for 1/2 second of silence, twice\n"
 "  - WaitForSilence(1000) will wait for 1 second of silence, once\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int do_waiting(struct ast_channel *chan, int maxsilence) {

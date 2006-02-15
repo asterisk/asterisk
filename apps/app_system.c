@@ -83,8 +83,6 @@ static char *descrip2 =
 "instance, then  the  channel  will  be  setup  to continue at that\n"
 "priority level.  Otherwise, System will terminate.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int system_exec_helper(struct ast_channel *chan, void *data, int failmode)

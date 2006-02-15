@@ -61,8 +61,6 @@ static char *descrip =
 "(available separately).  A configuration file must be supplied\n"
 "for ices (see examples/asterisk-ices.conf). \n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int icesencode(char *filename, int fd)

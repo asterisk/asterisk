@@ -71,10 +71,7 @@ static char *descrip =
 "a convenient way.  Use '#' to select the next channel and use '*' to exit\n"
 "Limit scanning to a channel GROUP by setting the option group argument.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
-
 
 #define CONF_SIZE 160
 

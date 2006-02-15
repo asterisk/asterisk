@@ -60,8 +60,6 @@ static const char *page_descrip =
 "        d - full duplex audio\n"
 "	 q - quiet, do not play beep to caller\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 enum {

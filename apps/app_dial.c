@@ -271,7 +271,6 @@ struct dial_localuser {
 };
 
 LOCAL_USER_DECL;
-STANDARD_LOCAL_USER;
 
 static void hanguptree(struct dial_localuser *outgoing, struct ast_channel *exception)
 {

@@ -80,8 +80,6 @@ static const char *desc = ""
 "The variable MIXMONITOR_FILENAME will contain the filename used to record.\n"
 "";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static const char *mixmonitor_spy_type = "MixMonitor";

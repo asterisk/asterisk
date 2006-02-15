@@ -256,7 +256,6 @@ static char *remote_rig_rbi="rbi";
 
 struct	ast_config *cfg;
 
-STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
 #define	MSWAIT 200

@@ -84,8 +84,6 @@ AST_IVR_DECLARE_MENU(ivr_demo, "IVR Demo Main Menu", 0,
 	{ NULL },
 });
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int skel_exec(struct ast_channel *chan, void *data)

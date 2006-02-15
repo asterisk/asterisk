@@ -72,8 +72,6 @@ static char *descrip =
 "If the user should hangup during a recording, all data will be lost and the\n"
 "application will teminate. \n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int record_exec(struct ast_channel *chan, void *data)

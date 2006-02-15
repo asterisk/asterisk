@@ -54,8 +54,6 @@ static char *log_descrip =
 "Log(<level>|<message>)\n"
 "  level must be one of ERROR, WARNING, NOTICE, DEBUG, VERBOSE, DTMF\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int verbose_exec(struct ast_channel *chan, void *data)

@@ -46,8 +46,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *tdesc = "Cut out information from a string";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 struct sortable_keys {

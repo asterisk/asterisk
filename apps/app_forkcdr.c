@@ -52,9 +52,6 @@ static char *descrip =
 "If the option 'v' is passed all cdr variables will be passed along also.\n"
 "";
 
-
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static void ast_cdr_fork(struct ast_channel *chan) 

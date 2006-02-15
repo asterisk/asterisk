@@ -95,8 +95,6 @@ static signed short wave[] = {
 static unsigned char wavea[80];
 #endif
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 /* SMS 7 bit character mapping to UCS-2 */

@@ -60,8 +60,6 @@ static char *descrip =
 "which typically would be a filename or a URL. User can exit by pressing\n"
 "any key on the dialpad, or by hanging up."; 
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int mp3play(char *filename, int fd)

@@ -142,8 +142,6 @@ AST_MUTEX_DEFINE_STATIC(parking_lock);
 
 static pthread_t parking_thread;
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 char *ast_parking_ext(void)

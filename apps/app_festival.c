@@ -69,8 +69,6 @@ static char *descrip =
 "play it to the user, allowing any given interrupt keys to immediately terminate and return\n"
 "the value, or 'any' to allow any number back (useful in dialplan)\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static char *socket_receive_file_to_buff(int fd,int *size)

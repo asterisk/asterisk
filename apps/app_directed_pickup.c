@@ -50,8 +50,6 @@ static const char *descrip =
 "that is calling the specified extension. If no context is specified, the current\n"
 "context will be used.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int pickup_exec(struct ast_channel *chan, void *data)

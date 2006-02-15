@@ -61,8 +61,6 @@ static char *descrip =
 "	SENDIMAGESTATUS		The status is the result of the attempt as a text string, one of\n"
 "		OK | NOSUPPORT \n";			
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int sendimage_exec(struct ast_channel *chan, void *data)

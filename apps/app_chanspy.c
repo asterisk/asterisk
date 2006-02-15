@@ -107,7 +107,6 @@ AST_APP_OPTIONS(chanspy_opts, {
 	AST_APP_OPTION_ARG('r', OPTION_RECORD, OPT_ARG_RECORD),
 });
 
-STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
 struct chanspy_translation_helper {

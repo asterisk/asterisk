@@ -60,8 +60,6 @@ static char *descrip =
 "if available.  If unspecified, sil, min, and max default to 1000, 100, and\n"
 "infinity respectively.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int background_detect_exec(struct ast_channel *chan, void *data)

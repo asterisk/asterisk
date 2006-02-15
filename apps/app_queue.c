@@ -272,8 +272,6 @@ struct callattempt {
 	struct member *member;
 };
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 struct queue_ent {

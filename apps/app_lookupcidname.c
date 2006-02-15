@@ -59,8 +59,6 @@ static char *descrip =
   "name delivery, or if you want to change the names on some incoming\n"
   "calls.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int

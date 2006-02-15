@@ -47,8 +47,6 @@ static char *app2 = "SetCallerPres";
 
 static char *synopsis2 = "Set CallerID Presentation";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static char *descrip2 = 

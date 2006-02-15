@@ -576,8 +576,6 @@ odbc_status odbc_obj_connect(odbc_obj *obj)
 	return ODBC_SUCCESS;
 }
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 int unload_module(void)

@@ -54,8 +54,6 @@ static char *desc = "  WaitForRing(timeout)\n"
 
 static char *app = "WaitForRing";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int waitforring_exec(struct ast_channel *chan, void *data)

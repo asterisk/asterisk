@@ -132,8 +132,6 @@ static const char *descrip3 =
 
 #define CONFIG_FILE_NAME "meetme.conf"
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 struct ast_conference {

@@ -54,8 +54,6 @@ static char *morsecode_descrip =
 "(defaults to 80).  Additionally, if MORSETONE is set, it will use that tone\n"
 "(in Hz).  The tone default is 800.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static char *morsecode[] = {

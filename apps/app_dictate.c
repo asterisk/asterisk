@@ -52,8 +52,6 @@ static char *synopsis = "Virtual Dictation Machine";
 static char *desc = "  Dictate([<base_dir>[|<filename>]])\n"
 "Start dictation machine using optional base dir for files.\n";
 
-
-STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
 typedef enum {

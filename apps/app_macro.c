@@ -85,8 +85,6 @@ static char *synopsis = "Macro Implementation";
 static char *if_synopsis = "Conditional Macro Implementation";
 static char *exit_synopsis = "Exit From Macro";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int macro_exec(struct ast_channel *chan, void *data)

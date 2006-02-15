@@ -76,11 +76,7 @@ static char *descrip =
   "          SUCCESS | FAILED \n"
 ;
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
-
-
 
 static int privacy_exec (struct ast_channel *chan, void *data)
 {

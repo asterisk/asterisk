@@ -97,8 +97,6 @@ static char *descrip =
 	"exists in the context, it will be used. Also, if you set the 5th argument\n"
 	"to 'NOANSWER', the DISA application will not answer initially.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static void play_dialtone(struct ast_channel *chan, char *mailbox)

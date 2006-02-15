@@ -97,10 +97,7 @@ static char *descrip =
 
 static int agidebug = 0;
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
-
 
 #define TONE_BLOCK_SIZE 200
 

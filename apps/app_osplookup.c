@@ -96,8 +96,6 @@ static char *descrip3 =
 "	OSPFINISHSTATUS	The status of the OSP Finish attempt as a text string, one of\n"
 "		SUCCESS | FAILED \n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int str2cause(char *cause)

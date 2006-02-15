@@ -61,8 +61,6 @@ AST_DECLARE_OPTIONS(app_opts,{
 	['c'] = { OPTION_C, 2 }
 });
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int app_exec(struct ast_channel *chan, void *data)

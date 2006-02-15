@@ -65,8 +65,6 @@ static char *descrip =
 "    s - Consider the channel unavailable if the channel is in use at all\n"
 "    j - Support jumping to priority n+101 if no channel is available\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int chanavail_exec(struct ast_channel *chan, void *data)

@@ -64,8 +64,6 @@ static char *descrip =
 "  NBScat: Executes nbscat to listen to the local NBS stream.\n"
 "User can exit by pressing any key\n.";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int NBScatplay(int fd)

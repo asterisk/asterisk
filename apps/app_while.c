@@ -73,10 +73,6 @@ static char *stop_synopsis = "End A While Loop";
 
 static char *tdesc = "While Loops and Conditional Execution";
 
-
-
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int execif_exec(struct ast_channel *chan, void *data) {

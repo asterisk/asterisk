@@ -92,8 +92,6 @@ static char *descrip =
 "         Defaults to 0 - no limit - wait for the user press the '#' key.\n"
 ;
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int auth_exec(struct ast_channel *chan, void *data)

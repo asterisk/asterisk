@@ -69,7 +69,6 @@ static char *udesc = "Use the RealTime config handler system to update a value\n
 "updated to <newval>.  REALTIMECOUNT will be set with the number of rows\n"
 "updated or -1 if an error occurs.\n";
 
-STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
 static int cli_load_realtime(int fd, int argc, char **argv) 

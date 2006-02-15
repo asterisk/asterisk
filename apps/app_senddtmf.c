@@ -56,8 +56,6 @@ static char *descrip =
 " The application will either pass the assigned digits or terminate if it\n"
 " encounters an error.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int senddtmf_exec(struct ast_channel *chan, void *data)

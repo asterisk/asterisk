@@ -1654,7 +1654,6 @@ static struct ast_cli_entry cli_agent_logoff = {
 	{ "agent", "logoff", NULL }, agent_logoff_cmd, 
 	"Sets an agent offline", agent_logoff_usage, complete_agent_logoff_cmd };
 
-STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
 /*!

@@ -2755,8 +2755,6 @@ static struct ast_cli_entry  cli_precache =
 static struct ast_cli_entry  cli_queryeid =
 	{ { "dundi", "query", NULL }, dundi_do_query, "Query a DUNDi EID", query_usage };
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static struct dundi_transaction *create_transaction(struct dundi_peer *p)

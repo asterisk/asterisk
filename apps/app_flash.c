@@ -61,8 +61,6 @@ static char *descrip =
 "people who want to perform transfers and such via AGI and is generally\n"
 "quite useless oths application will only work on Zap trunks.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static inline int zt_wait_event(int fd)

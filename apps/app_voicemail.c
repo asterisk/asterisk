@@ -430,8 +430,6 @@ static unsigned char adsisec[4] = "\x9B\xDB\xF7\xAC";
 static int adsiver = 1;
 static char emaildateformat[32] = "%A, %B %d, %Y at %r";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static void populate_defaults(struct ast_vm_user *vmu)

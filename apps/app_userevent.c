@@ -56,8 +56,6 @@ static char *descrip =
 "If the body is not specified, only Event, Channel, and Uniqueid fields\n"
 "will be present.  Returns 0.";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int userevent_exec(struct ast_channel *chan, void *data)

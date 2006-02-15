@@ -52,8 +52,6 @@ static char *descrip =
 "the calling channel back to itself. If the DTMF digit '#' is received, the\n"
 "application will exit.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int echo_exec(struct ast_channel *chan, void *data)

@@ -67,8 +67,6 @@ static const char *pop_descrip =
 "StackPop()\n"
 "  Removes last label on the stack, discarding it.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int pop_exec(struct ast_channel *chan, void *data)

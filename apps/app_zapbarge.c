@@ -73,11 +73,7 @@ static char *descrip =
 "-1 when caller user hangs up and is independent of the\n"
 "state of the channel being monitored.";
 
-
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
-
 
 #define CONF_SIZE 160
 

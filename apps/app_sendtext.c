@@ -65,8 +65,6 @@ static const char *descrip =
 "'j' -- jump to n+101 priority if the channel doesn't support\n"
 "       text transport\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int sendtext_exec(struct ast_channel *chan, void *data)

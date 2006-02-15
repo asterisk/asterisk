@@ -63,8 +63,6 @@ static char *descrip =
   "		FOUND | NOTFOUND\n"
   "Example: exten => 1234,1,LookupBlacklist()\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int

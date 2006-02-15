@@ -85,7 +85,6 @@ struct ivr_localuser {
 };
 
 LOCAL_USER_DECL;
-STANDARD_LOCAL_USER;
 
 struct gen_state {
 	struct ivr_localuser *u;

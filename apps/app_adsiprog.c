@@ -61,8 +61,6 @@ static char *descrip =
 "  ADSIProg(script): This application programs an ADSI Phone with the given\n"
 "script. If nothing is specified, the default script (asterisk.adsi) is used.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 struct adsi_event {

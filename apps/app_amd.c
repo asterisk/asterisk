@@ -70,8 +70,6 @@ static char *descrip =
 "               LONGGREETING-<%d voiceDuration>-<%d greeting>\n";
 
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 #define STATE_IN_WORD       1

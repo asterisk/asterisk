@@ -54,8 +54,6 @@ static char *desc = "  SoftHangup(Technology/resource|options)\n"
 
 static char *app = "SoftHangup";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int softhangup_exec(struct ast_channel *chan, void *data)

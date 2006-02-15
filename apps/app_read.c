@@ -82,8 +82,6 @@ static char *descrip =
 "  timeout    -- if greater than 0, that value will override the default timeout.\n\n"
 "Read should disconnect if the function fails or errors out.\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 #define ast_next_data(instr,ptr,delim) if((ptr=strchr(instr,delim))) { *(ptr) = '\0' ; ptr++;}

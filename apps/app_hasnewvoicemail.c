@@ -78,8 +78,6 @@ static char *hasnewvoicemail_descrip =
 "	HASVMSTATUS		The result of the new voicemail check returned as a text string as follows\n"
 "		<# of messages in the folder, 0 for NONE>\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int hasvoicemail_internal(char *context, char *box, char *folder)

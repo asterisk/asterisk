@@ -56,8 +56,6 @@ static char *desc =
 "displayed when the verbose level is currently set to that number\n"
 "or greater. \n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)

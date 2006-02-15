@@ -52,8 +52,6 @@ static char *random_descrip =
 "  probability := INTEGER in the range 1 to 100\n"
 "DEPRECATED: Use GotoIf($[${RAND(1,100)} > <number>]?<label>)\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int random_exec(struct ast_channel *chan, void *data)

@@ -44,8 +44,6 @@ static char *app = "SetTransferCapability";
 
 static char *synopsis = "Set ISDN Transfer Capability";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static struct {	int val; char *name; } transcaps[] = {

@@ -50,8 +50,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
  static char *synopsis = "Syntax: ENUMLOOKUP(number[|Method-type[|options[|record#[|zone-suffix]]]])\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int function_enum(struct ast_channel *chan, char *cmd, char *data,

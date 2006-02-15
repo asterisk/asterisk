@@ -74,8 +74,6 @@ static char *appendcdruserfield_descrip =
 static char *appendcdruserfield_app = "AppendCDRUserField";
 static char *appendcdruserfield_synopsis = "Append to the CDR user field";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int action_setcdruserfield(struct mansession *s, struct message *m)

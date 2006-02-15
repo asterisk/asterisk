@@ -50,8 +50,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *tdesc = "Load external URL";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 struct MemoryStruct {
