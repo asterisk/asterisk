@@ -66,7 +66,7 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 	);
 	int res = 0;
 	char tech[80];
-	char dest[80] = "";
+	char dest[256] = "";
 	struct localuser *u;
 	char *s, *p;
 
