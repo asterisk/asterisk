@@ -101,6 +101,23 @@ struct name {								\
 }
 
 /*!
+  \brief Defines initial values for a declaration of AST_LIST_HEAD
+*/
+#define AST_LIST_HEAD_INIT_VALUE	{		\
+	.first = NULL,					\
+	.last = NULL,					\
+	.lock = AST_MUTEX_INIT_VALUE,			\
+	}
+
+/*!
+  \brief Defines initial values for a declaration of AST_LIST_HEAD_NOLOCK
+*/
+#define AST_LIST_HEAD_NOLOCK_INIT_VALUE	{	\
+	.first = NULL,					\
+	.last = NULL,					\
+	}
+
+/*!
   \brief Defines a structure to be used to hold a list of specified type, statically initialized.
   \param name This will be the name of the defined structure.
   \param type This is the type of each list entry.
@@ -122,11 +139,7 @@ struct name {								\
 	struct type *first;						\
 	struct type *last;						\
 	ast_mutex_t lock;						\
-} name = {								\
-	.first = NULL,							\
-	.last = NULL,							\
-	.lock = AST_MUTEX_INIT_VALUE,					\
-};
+} name = AST_LIST_HEAD_INIT_VALUE;
 
 /*!
   \brief Defines a structure to be used to hold a list of specified type, statically initialized.
@@ -137,10 +150,7 @@ struct name {								\
 struct name {								\
 	struct type *first;						\
 	struct type *last;						\
-} name = {								\
-	.first = NULL,							\
-	.last = NULL,							\
-};
+} name = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 
 /*!
   \brief Initializes a list head structure with a specified first entry.

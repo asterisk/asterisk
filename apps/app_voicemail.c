@@ -3355,8 +3355,8 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 	char callerid[512];
 	char ext_context[256]="";
 	int res = 0, cmd = 0;
-	struct ast_vm_user *receiver, *vmtmp;
-	AST_LIST_HEAD_NOLOCK(extension, ast_vm_user) extensions;
+	struct ast_vm_user *receiver = NULL, *vmtmp;
+	AST_LIST_HEAD_NOLOCK_STATIC(extensions, ast_vm_user);
 	char tmp[256];
 	char *stringp, *s;
 	int saved_messages = 0, found = 0;
