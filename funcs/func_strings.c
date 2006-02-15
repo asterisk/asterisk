@@ -349,6 +349,49 @@ static struct ast_custom_function eval_function = {
 	.read = function_eval,
 };
 
+static int keypadhash(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	char *bufptr, *dataptr;
+
+	for (bufptr = buf, dataptr = data; bufptr < buf + len - 1; dataptr++) {
+		if (*dataptr == '1') {
+			*bufptr++ = '1';
+		} else if (strchr("AaBbCc2", *dataptr)) {
+			*bufptr++ = '2';
+		} else if (strchr("DdEeFf3", *dataptr)) {
+			*bufptr++ = '3';
+		} else if (strchr("GgHhIi4", *dataptr)) {
+			*bufptr++ = '4';
+		} else if (strchr("JjKkLl5", *dataptr)) {
+			*bufptr++ = '5';
+		} else if (strchr("MmNnOo6", *dataptr)) {
+			*bufptr++ = '6';
+		} else if (strchr("PpQqRrSs7", *dataptr)) {
+			*bufptr++ = '7';
+		} else if (strchr("TtUuVv8", *dataptr)) {
+			*bufptr++ = '8';
+		} else if (strchr("WwXxYyZz9", *dataptr)) {
+			*bufptr++ = '9';
+		} else if (*dataptr == '0') {
+			*bufptr++ = '0';
+		} else if (*dataptr == '\0') {
+			*bufptr++ = '\0';
+			break;
+		}
+	}
+	buf[len - 1] = '\0';
+
+	return 0;
+}
+
+static struct ast_custom_function keypadhash_function = {
+	.name = "KEYPADHASH",
+	.synopsis = "Hash the letters in the string into the equivalent keypad numbers.",
+	.syntax = "KEYPADHASH(<string>)",
+	.read = keypadhash,
+	.desc = "Example:  ${KEYPADHASH(Les)} returns \"537\"\n",
+};
+
 static char *tdesc = "String handling dialplan functions";
 
 int unload_module(void)
@@ -363,6 +406,7 @@ int unload_module(void)
 	res |= ast_custom_function_unregister(&strftime_function);
 	res |= ast_custom_function_unregister(&strptime_function);
 	res |= ast_custom_function_unregister(&eval_function);
+	res |= ast_custom_function_unregister(&keypadhash_function);
 
 	return res;
 }
@@ -379,6 +423,7 @@ int load_module(void)
 	res |= ast_custom_function_register(&strftime_function);
 	res |= ast_custom_function_register(&strptime_function);
 	res |= ast_custom_function_register(&eval_function);
+	res |= ast_custom_function_register(&keypadhash_function);
 
 	return res;
 }
