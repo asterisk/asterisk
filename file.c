@@ -720,11 +720,11 @@ int ast_closestream(struct ast_filestream *f)
 		free(f->realfilename);
 		f->realfilename = NULL;
 	}
-	f->fmt->close(f);
 	if (f->vfs) {
 		ast_closestream(f->vfs);
 		f->vfs = NULL;
 	}
+	f->fmt->close(f);
 	return 0;
 }
 
