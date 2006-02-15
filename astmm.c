@@ -41,13 +41,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define SOME_PRIME 563
 
-#define FUNC_CALLOC	1
-#define FUNC_MALLOC	2
-#define FUNC_REALLOC	3
-#define FUNC_STRDUP	4
-#define FUNC_STRNDUP	5
-#define FUNC_VASPRINTF	6
-#define FUNC_ASPRINTF   7
+enum func_type {
+	FUNC_CALLOC = 1,
+	FUNC_MALLOC,
+	FUNC_REALLOC,
+	FUNC_STRDUP,
+	FUNC_STRNDUP,
+	FUNC_VASPRINTF,
+	FUNC_ASPRINTF
+};
 
 /* Undefine all our macros */
 #undef malloc
@@ -68,7 +70,7 @@ static struct ast_region {
 	char file[40];
 	char func[40];
 	int lineno;
-	int which;
+	enum func_type which;
 	size_t len;
 	unsigned int fence;
 	unsigned char data[0];
@@ -80,13 +82,13 @@ static struct ast_region {
 AST_MUTEX_DEFINE_STATIC(reglock);
 AST_MUTEX_DEFINE_STATIC(showmemorylock);
 
-static inline void *__ast_alloc_region(size_t size, int which, const char *file, int lineno, const char *func)
+static inline void *__ast_alloc_region(size_t size, const enum func_type which, const char *file, int lineno, const char *func)
 {
 	struct ast_region *reg;
 	void *ptr = NULL;
 	unsigned int *fence;
 	int hash;
-	reg = malloc(size + sizeof(struct ast_region) + sizeof(unsigned int));
+	reg = malloc(size + sizeof(*reg) + sizeof(*fence));
 	ast_mutex_lock(&reglock);
 	if (reg) {
 		ast_copy_string(reg->file, file, sizeof(reg->file));
@@ -106,9 +108,9 @@ static inline void *__ast_alloc_region(size_t size, int which, const char *file,
 	}
 	ast_mutex_unlock(&reglock);
 	if (!reg) {
-		fprintf(stderr, "Out of memory :(\n");
+		fprintf(stderr, "Memory allocation failure\n");
 		if (mmlog) {
-			fprintf(mmlog, "%ld - Out of memory\n", time(NULL));
+			fprintf(mmlog, "%ld - Memory allocation failure\n", time(NULL));
 			fflush(mmlog);
 		}
 	}
@@ -184,8 +186,7 @@ static void __ast_free_region(void *ptr, const char *file, int lineno, const cha
 void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func) 
 {
 	void *ptr;
-	ptr = __ast_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func);
-	if (ptr) 
+	if ((ptr = __ast_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func))) 
 		memset(ptr, 0, size * nmemb);
 	return ptr;
 }
@@ -204,19 +205,15 @@ void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const 
 {
 	void *tmp;
 	size_t len = 0;
-	if (ptr) {
-		len = __ast_sizeof_region(ptr);
-		if (!len) {
-			fprintf(stderr, "WARNING: Realloc of unalloced memory at %p, in %s of %s, line %d\n", ptr, func, file, lineno);
-			if (mmlog) {
-				fprintf(mmlog, "%ld - WARNING: Realloc of unalloced memory at %p, in %s of %s, line %d\n", time(NULL), ptr, func, file, lineno);
-				fflush(mmlog);
-			}
-			return NULL;
+	if (ptr && !(len = __ast_sizeof_region(ptr))) {
+		fprintf(stderr, "WARNING: Realloc of unalloced memory at %p, in %s of %s, line %d\n", ptr, func, file, lineno);
+		if (mmlog) {
+			fprintf(mmlog, "%ld - WARNING: Realloc of unalloced memory at %p, in %s of %s, line %d\n", time(NULL), ptr, func, file, lineno);
+			fflush(mmlog);
 		}
+		return NULL;
 	}
-	tmp = __ast_alloc_region(size, FUNC_REALLOC, file, lineno, func);
-	if (tmp) {
+	if ((tmp = __ast_alloc_region(size, FUNC_REALLOC, file, lineno, func))) {
 		if (len > size)
 			len = size;
 		if (ptr) {
@@ -234,8 +231,7 @@ char *__ast_strdup(const char *s, const char *file, int lineno, const char *func
 	if (!s)
 		return NULL;
 	len = strlen(s) + 1;
-	ptr = __ast_alloc_region(len, FUNC_STRDUP, file, lineno, func);
-	if (ptr)
+	if ((ptr = __ast_alloc_region(len, FUNC_STRDUP, file, lineno, func)))
 		strcpy(ptr, s);
 	return ptr;
 }
@@ -249,8 +245,7 @@ char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const
 	len = strlen(s) + 1;
 	if (len > n)
 		len = n;
-	ptr = __ast_alloc_region(len, FUNC_STRNDUP, file, lineno, func);
-	if (ptr)
+	if ((ptr = __ast_alloc_region(len, FUNC_STRNDUP, file, lineno, func)))
 		strcpy(ptr, s);
 	return ptr;
 }
@@ -266,8 +261,7 @@ int __ast_asprintf(const char *file, int lineno, const char *func, char **strp, 
 	va_copy(ap2, ap);
 	size = vsnprintf(&s, 1, fmt, ap2);
 	va_end(ap2);
-	*strp = __ast_alloc_region(size + 1, FUNC_ASPRINTF, file, lineno, func);
-	if (!*strp) {
+	if (!(*strp = __ast_alloc_region(size + 1, FUNC_ASPRINTF, file, lineno, func))) {
 		va_end(ap);
 		return -1;
 	}
@@ -287,8 +281,7 @@ int __ast_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, 
 	va_copy(ap2, ap);
 	size = vsnprintf(&s, 1, fmt, ap2);
 	va_end(ap2);
-	*strp = __ast_alloc_region(size + 1, FUNC_VASPRINTF, file, lineno, func);
-	if (!*strp) {
+	if (!(*strp = __ast_alloc_region(size + 1, FUNC_VASPRINTF, file, lineno, func))) {
 		va_end(ap);
 		return -1;
 	}
@@ -377,8 +370,8 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 					cur = cur->next;
 				}
 				if (!cur) {
-					cur = alloca(sizeof(struct file_summary));
-					memset(cur, 0, sizeof(struct file_summary));
+					cur = alloca(sizeof(*cur));
+					memset(cur, 0, sizeof(*cur));
 					ast_copy_string(cur->fn, fn ? reg->func : reg->file, sizeof(cur->fn));
 					cur->next = list;
 					list = cur;

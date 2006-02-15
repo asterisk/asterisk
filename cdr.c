@@ -129,11 +129,9 @@ int ast_cdr_register(char *name, char *desc, ast_cdrbe be)
 		return -1;
 	}
 
-	i = malloc(sizeof(*i));
-	if (!i) 	
+	if (!(i = ast_calloc(1, sizeof(*i)))) 	
 		return -1;
 
-	memset(i, 0, sizeof(*i));
 	i->be = be;
 	ast_copy_string(i->name, name, sizeof(i->name));
 	ast_copy_string(i->desc, desc, sizeof(i->desc));
@@ -172,7 +170,6 @@ struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr)
 	struct ast_cdr *newcdr;
 
 	if (!(newcdr = ast_cdr_alloc())) {
-		ast_log(LOG_ERROR, "Memory Error!\n");
 		return NULL;
 	}
 
@@ -438,13 +435,7 @@ void ast_cdr_free(struct ast_cdr *cdr)
 
 struct ast_cdr *ast_cdr_alloc(void)
 {
-	struct ast_cdr *cdr;
-
-	cdr = malloc(sizeof(*cdr));
-	if (cdr)
-		memset(cdr, 0, sizeof(*cdr));
-
-	return cdr;
+	return ast_calloc(1, sizeof(struct ast_cdr));
 }
 
 void ast_cdr_start(struct ast_cdr *cdr)
@@ -876,9 +867,7 @@ static void reset_batch(void)
 static int init_batch(void)
 {
 	/* This is the single meta-batch used to keep track of all CDRs during the entire life of the program */
-	batch = malloc(sizeof(*batch));
-	if (!batch) {
-		ast_log(LOG_WARNING, "CDR: out of memory while trying to handle batched records, data will most likely be lost\n");
+	if (!(batch = ast_malloc(sizeof(*batch)))) {
 		return -1;
 	}
 
@@ -986,15 +975,12 @@ void ast_cdr_detach(struct ast_cdr *cdr)
 	if (option_debug)
 		ast_log(LOG_DEBUG, "CDR detaching from this thread\n");
 
-	/* we'll need a new tail for every CDR */
-	newtail = malloc(sizeof(*newtail));
-	if (!newtail) {
-		ast_log(LOG_WARNING, "CDR: out of memory while trying to detach, will try in this thread instead\n");
+	/* we'll need a new tail for every CDR */	
+	if (!(newtail = ast_calloc(1, sizeof(*newtail)))) {
 		post_cdr(cdr);
 		ast_cdr_free(cdr);
 		return;
 	}
-	memset(newtail, 0, sizeof(*newtail));
 
 	/* don't traverse a whole list (just keep track of the tail) */
 	ast_mutex_lock(&cdr_batch_lock);

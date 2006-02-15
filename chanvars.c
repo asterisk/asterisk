@@ -33,23 +33,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/chanvars.h"
 #include "asterisk/logger.h"
 #include "asterisk/strings.h"
+#include "asterisk/utils.h"
 
 struct ast_var_t *ast_var_assign(const char *name, const char *value)
-{
-	int i;
+{	
 	struct ast_var_t *var;
-	
-	var = calloc(sizeof(struct ast_var_t) + strlen(name) + 1 + strlen(value) + 1, sizeof(char));
+	int name_len = strlen(name) + 1;
+	int value_len = strlen(value) + 1;
 
-	if (var == NULL) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+	if (!(var = ast_calloc(sizeof(*var) + name_len + value_len, sizeof(char)))) {
 		return NULL;
 	}
 
-	i = strlen(name) + 1;
-	ast_copy_string(var->name, name, i);
-	var->value = var->name + i;
-	ast_copy_string(var->value, value, strlen(value) + 1);
+	ast_copy_string(var->name, name, name_len);
+	var->value = var->name + name_len;
+	ast_copy_string(var->value, value, value_len);
 	
 	return var;
 }	

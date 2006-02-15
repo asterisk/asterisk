@@ -417,10 +417,8 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 			return -1;
 		}
 	}
-
-	chan = malloc(sizeof(*chan));
-	if (!chan) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+	
+	if (!(chan = ast_malloc(sizeof(*chan)))) {
 		AST_LIST_UNLOCK(&channels);
 		return -1;
 	}
@@ -607,15 +605,11 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 		return NULL;
 	}
 
-	tmp = malloc(sizeof(struct ast_channel));
-	if (!tmp) {
-		ast_log(LOG_WARNING, "Channel allocation failed: Out of memory\n");
+	if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
 		return NULL;
 	}
 
-	memset(tmp, 0, sizeof(struct ast_channel));
-	tmp->sched = sched_context_create();
-	if (!tmp->sched) {
+	if (!(tmp->sched = sched_context_create())) {
 		ast_log(LOG_WARNING, "Channel allocation failed: Unable to create schedule context\n");
 		free(tmp);
 		return NULL;
@@ -702,8 +696,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 	int qlen = 0;
 
 	/* Build us a copy and free the original one */
-	f = ast_frdup(fin);
-	if (!f) {
+	if (!(f = ast_frdup(fin))) {
 		ast_log(LOG_WARNING, "Unable to duplicate frame\n");
 		return -1;
 	}
@@ -1048,8 +1041,7 @@ int ast_channel_spy_add(struct ast_channel *chan, struct ast_channel_spy *spy)
 	}
 
 	if (!chan->spies) {
-		if (!(chan->spies = calloc(1, sizeof(*chan->spies)))) {
-			ast_log(LOG_WARNING, "Memory allocation failure\n");
+		if (!(chan->spies = ast_calloc(1, sizeof(*chan->spies)))) {
 			return -1;
 		}
 
@@ -1478,9 +1470,8 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 	}
 
 	ast_prod(chan);
-	if (gen->alloc) {
-		if (!(chan->generatordata = gen->alloc(chan, params)))
-			res = -1;
+	if (gen->alloc && !(chan->generatordata = gen->alloc(chan, params))) {
+		res = -1;
 	}
 	
 	if (!res) {
@@ -1520,9 +1511,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	} *fdmap;
 
 	sz = n * AST_MAX_FDS + nfds;
-	pfds = alloca(sizeof(struct pollfd) * sz);
-	fdmap = alloca(sizeof(struct fdmap) * sz);
-	if (!pfds || !fdmap) {
+	if (!(pfds = alloca(sizeof(*pfds) * sz)) || !(fdmap = alloca(sizeof(*fdmap) * sz))) {
 		ast_log(LOG_ERROR, "Out of memory\n");
 		*outfd = -1;
 		return NULL;
@@ -2510,10 +2499,8 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 	if (outstate)
 		*outstate = state;
 	if (chan && res <= 0) {
-		if (!chan->cdr) {
-			chan->cdr = ast_cdr_alloc();
-			if (chan->cdr)
-				ast_cdr_init(chan->cdr, chan);
+		if (!chan->cdr && (chan->cdr = ast_cdr_alloc())) {
+			ast_cdr_init(chan->cdr, chan);
 		}
 		if (chan->cdr) {
 			char tmp[256];
@@ -2525,8 +2512,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 			/* If the cause wasn't handled properly */
 			if (ast_cdr_disposition(chan->cdr,chan->hangupcause))
 				ast_cdr_failed(chan->cdr);
-		} else 
-			ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
+		}
 		ast_hangup(chan);
 		chan = NULL;
 	}
@@ -3663,8 +3649,7 @@ static void *tonepair_alloc(struct ast_channel *chan, void *params)
 	struct tonepair_state *ts;
 	struct tonepair_def *td = params;
 
-	ts = calloc(1, sizeof(struct tonepair_state));
-	if (!ts)
+	if (!(ts = ast_calloc(1, sizeof(*ts))))
 		return NULL;
 	ts->origwfmt = chan->writeformat;
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
@@ -4074,8 +4059,7 @@ struct ast_silence_generator *ast_channel_start_silence_generator(struct ast_cha
 {
 	struct ast_silence_generator *state;
 
-	if (!(state = calloc(1, sizeof(*state)))) {
-		ast_log(LOG_WARNING, "Could not allocate state structure\n");
+	if (!(state = ast_calloc(1, sizeof(*state)))) {
 		return NULL;
 	}
 

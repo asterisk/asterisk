@@ -107,23 +107,20 @@ int ast_autoservice_start(struct ast_channel *chan)
 	/* XXX if found, we return -1, why ??? */
 
 	/* If not, start autoservice on channel */
-	if (!as) {
-		as = calloc(1, sizeof(struct asent));
-		if (as) {
-			as->chan = chan;
-			AST_LIST_INSERT_HEAD(&aslist, as, list);
-			res = 0;
-			if (asthread == AST_PTHREADT_NULL) { /* need start the thread */
-				if (ast_pthread_create(&asthread, NULL, autoservice_run, NULL)) {
-					ast_log(LOG_WARNING, "Unable to create autoservice thread :(\n");
-					/* There will only be a single member in the list at this point,
-					   the one we just added. */
-					AST_LIST_REMOVE(&aslist, as, list);
-					free(as);
-					res = -1;
-				} else
-					pthread_kill(asthread, SIGURG);
-			}
+	if (!as && (as = ast_calloc(1, sizeof(*as)))) {
+		as->chan = chan;
+		AST_LIST_INSERT_HEAD(&aslist, as, list);
+		res = 0;
+		if (asthread == AST_PTHREADT_NULL) { /* need start the thread */
+			if (ast_pthread_create(&asthread, NULL, autoservice_run, NULL)) {
+				ast_log(LOG_WARNING, "Unable to create autoservice thread :(\n");
+				/* There will only be a single member in the list at this point,
+				   the one we just added. */
+				AST_LIST_REMOVE(&aslist, as, list);
+				free(as);
+				res = -1;
+			} else
+				pthread_kill(asthread, SIGURG);
 		}
 	}
 	AST_LIST_UNLOCK(&aslist);

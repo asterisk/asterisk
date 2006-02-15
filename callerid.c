@@ -131,32 +131,29 @@ void callerid_init(void)
 struct callerid_state *callerid_new(int cid_signalling)
 {
 	struct callerid_state *cid;
-	cid = malloc(sizeof(struct callerid_state));
-	if (cid) {
-		memset(cid, 0, sizeof(struct callerid_state));
-		cid->fskd.spb = 7;		/* 1200 baud */
-		cid->fskd.hdlc = 0;		/* Async */
-		cid->fskd.nbit = 8;		/* 8 bits */
-		cid->fskd.nstop = 1;	/* 1 stop bit */
-		cid->fskd.paridad = 0;	/* No parity */
-		cid->fskd.bw=1;			/* Filter 800 Hz */
-		if (cid_signalling == 2) { /* v23 signalling */
+
+	if ((cid = ast_calloc(1, sizeof(*cid)))) {
+		cid->fskd.spb = 7.0;          	/* 1200 baud */
+		/* cid->fskd.hdlc = 0; */     	/* Async */
+		cid->fskd.nbit = 8;           	/* 8 bits */
+		cid->fskd.nstop = 1.0;        	/* 1 stop bit */
+		/* cid->fskd.paridad = 0; */  	/* No parity */
+		cid->fskd.bw = 1;             	/* Filter 800 Hz */
+		if (cid_signalling == 2) {    	/* v23 signalling */
 			cid->fskd.f_mark_idx =  4;	/* 1300 Hz */
 			cid->fskd.f_space_idx = 5;	/* 2100 Hz */
-		} else { /* Bell 202 signalling as default */ 
+		} else {                      	/* Bell 202 signalling as default */
 			cid->fskd.f_mark_idx =  2;	/* 1200 Hz */
 			cid->fskd.f_space_idx = 3;	/* 2200 Hz */
 		}
-		cid->fskd.pcola = 0;		/* No clue */
-		cid->fskd.cont = 0;			/* Digital PLL reset */
-		cid->fskd.x0 = 0.0;
-		cid->fskd.state = 0;
-		memset(cid->name, 0, sizeof(cid->name));
-		memset(cid->number, 0, sizeof(cid->number));
+		/* cid->fskd.pcola = 0; */    	/* No clue */
+		/* cid->fskd.cont = 0.0; */   	/* Digital PLL reset */
+		/* cid->fskd.x0 = 0.0; */
+		/* cid->fskd.state = 0; */
 		cid->flags = CID_UNKNOWN_NAME | CID_UNKNOWN_NUMBER;
-		cid->pos = 0;
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
+		/* cid->pos = 0; */
+	}
+
 	return cid;
 }
 
@@ -284,15 +281,14 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 	int b2 ;
 	int res;
 	int x;
-	short *buf = malloc(2 * len + cid->oldlen);
-	short *obuf = buf;
+	short *buf;
+	short *obuf;
 
-	if (!buf) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+	if (!(buf = ast_calloc(1, 2 * len + cid->oldlen))) {
 		return -1;
 	}
 
-	memset(buf, 0, 2 * len + cid->oldlen);
+	obuf = buf;
 	memcpy(buf, cid->oldstuff, cid->oldlen);
 	mylen += cid->oldlen/2;
 
@@ -534,15 +530,17 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 	int b = 'X';
 	int res;
 	int x;
-	short *buf = malloc(2 * len + cid->oldlen);
-	short *obuf = buf;
-	if (!buf) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+	short *buf;
+	short *obuf;
+
+	if (!(buf = ast_calloc(1, 2 * len + cid->oldlen))) {
 		return -1;
 	}
-	memset(buf, 0, 2 * len + cid->oldlen);
+
+	obuf = buf;
 	memcpy(buf, cid->oldstuff, cid->oldlen);
 	mylen += cid->oldlen/2;
+
 	for (x=0;x<len;x++) 
 		buf[x+cid->oldlen/2] = AST_XLAW(ubuf[x]);
 	while(mylen >= 160) {
