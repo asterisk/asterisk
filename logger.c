@@ -841,17 +841,17 @@ void ast_backtrace(void)
 		count = backtrace(addresses, 20);
 		strings = backtrace_symbols(addresses, count);
 		if (strings) {
-			ast_log(LOG_WARNING, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
+			ast_log(LOG_DEBUG, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
 			for (i=0; i < count ; i++) {
-				ast_log(LOG_WARNING, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
+				ast_log(LOG_DEBUG, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
 			}
 			free(strings);
 		} else {
-			ast_log(LOG_WARNING, "Could not allocate memory for backtrace\n");
+			ast_log(LOG_DEBUG, "Could not allocate memory for backtrace\n");
 		}
 		free(addresses);
 	} else {
-		ast_log(LOG_WARNING, "Could not allocate memory for backtrace\n");
+		ast_log(LOG_DEBUG, "Could not allocate memory for backtrace\n");
 	}
 #else
 #ifdef Linux
