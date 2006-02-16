@@ -139,7 +139,7 @@ struct name {								\
 	struct type *first;						\
 	struct type *last;						\
 	ast_mutex_t lock;						\
-} name = AST_LIST_HEAD_INIT_VALUE;
+} name = AST_LIST_HEAD_INIT_VALUE
 
 /*!
   \brief Defines a structure to be used to hold a list of specified type, statically initialized.
@@ -150,7 +150,7 @@ struct name {								\
 struct name {								\
 	struct type *first;						\
 	struct type *last;						\
-} name = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
+} name = AST_LIST_HEAD_NOLOCK_INIT_VALUE
 
 /*!
   \brief Initializes a list head structure with a specified first entry.
