@@ -24,6 +24,7 @@ endif
 
 ifeq ($(NOCRYPTO),yes)
   MODS:=$(filter-out res_crypto.so,$(MODS))
+  MODS:=$(filter-out res_osp.so,$(MODS))
 endif
 
 OSPLIB:=$(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libosptk.a $(CROSS_COMPILE_TARGET)/usr/local/lib/libosptk.a)
@@ -96,7 +97,7 @@ res_odbc.so: res_odbc.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lodbc
 
 res_osp.so: res_osp.o $(OSPLIB)
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(OSPLIB)
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(OSPLIB) $(CRYPTO_LIBS)
 
 %.so : %.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}

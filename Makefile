@@ -419,8 +419,6 @@ else
   HAVEDOT=no
 endif
 
-LIBS+=-lssl
-
 INSTALL=install
 
 CFLAGS+=-DT38_SUPPORT
