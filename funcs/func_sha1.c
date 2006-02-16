@@ -52,7 +52,7 @@ static int sha1(struct ast_channel *chan, char *cmd, char *data,
 	else {
 		ast_log(LOG_ERROR,
 				"Insufficient space to produce SHA1 hash result (%d < 41)\n",
-				len);
+				(int) len);
 	}
 
 	return 0;
