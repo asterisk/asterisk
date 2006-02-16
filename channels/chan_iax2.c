@@ -6970,6 +6970,9 @@ retryowner:
 				break;
 			case IAX_COMMAND_TRANSFER:
 				if (iaxs[fr.callno]->owner && ast_bridged_channel(iaxs[fr.callno]->owner) && ies.called_number) {
+					/* Set BLINDTRANSFER channel variables */
+					pbx_builtin_setvar_helper(iaxs[fr.callno]->owner, "BLINDTRANSFER", ast_bridged_channel(iaxs[fr.callno]->owner)->name);
+					pbx_builtin_setvar_helper(ast_bridged_channel(iaxs[fr.callno]->owner), "BLINDTRANSFER", iaxs[fr.callno]->owner->name);
 					if (!strcmp(ies.called_number, ast_parking_ext())) {
 						if (iax_park(ast_bridged_channel(iaxs[fr.callno]->owner), iaxs[fr.callno]->owner)) {
 							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", ast_bridged_channel(iaxs[fr.callno]->owner)->name);
