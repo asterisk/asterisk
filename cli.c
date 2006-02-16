@@ -781,7 +781,7 @@ static char *complete_show_channels(const char *line, const char *word, int pos,
 	return NULL;
 }
 
-static char *complete_ch_helper(const char *line, const char *word, int pos, int state, int rpos)
+char *ast_complete_channels(const char *line, const char *word, int pos, int state, int rpos)
 {
 	struct ast_channel *c = NULL;
 	int which = 0;
@@ -809,12 +809,12 @@ static char *complete_ch_helper(const char *line, const char *word, int pos, int
 
 static char *complete_ch_3(const char *line, const char *word, int pos, int state)
 {
-	return complete_ch_helper(line, word, pos, state, 2);
+	return ast_complete_channels(line, word, pos, state, 2);
 }
 
 static char *complete_ch_4(const char *line, const char *word, int pos, int state)
 {
-	return complete_ch_helper(line, word, pos, state, 3);
+	return ast_complete_channels(line, word, pos, state, 3);
 }
 
 static char *complete_mod_2(const char *line, const char *word, int pos, int state)

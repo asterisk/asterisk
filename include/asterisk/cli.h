@@ -132,6 +132,15 @@ int ast_cli_generatornummatches(const char *, const char *);
  */
 char **ast_cli_completion_matches(const char *, const char *);
 
+/*!
+ * \brief Command completion for the list of active channels
+ *
+ * This can be called from a CLI command completion function that wants to
+ * complete from the list of active channels.  'rpos' is the required
+ * position in the command.  This function will return NULL immediately if
+ * 'rpos' is not the same as the current position, 'pos'.
+ */
+char *ast_complete_channels(const char *line, const char *word, int pos, int state, int rpos);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

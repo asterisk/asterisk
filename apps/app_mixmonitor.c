@@ -80,6 +80,14 @@ static const char *desc = ""
 "The variable MIXMONITOR_FILENAME will contain the filename used to record.\n"
 "";
 
+static const char *stop_app = "StopMixMonitor";
+static const char *stop_synopsis = "Stop recording a call through MixMonitor";
+static const char *stop_desc = ""
+"  StopMixMonitor()\n\n"
+"Stops the audio recording that was started with a call to MixMonitor()\n"
+"on the current channel.\n"
+"";
+
 LOCAL_USER_DECL;
 
 static const char *mixmonitor_spy_type = "MixMonitor";
@@ -397,6 +405,25 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+static int stop_mixmonitor_exec(struct ast_channel *chan, void *data)
+{
+	struct localuser *u;
+
+	LOCAL_USER_ADD(u);
+
+	if (!ast_mutex_lock(&chan->lock)) {
+		ast_channel_spy_stop_by_type(chan, mixmonitor_spy_type);
+		ast_mutex_unlock(&chan->lock);
+	} else {
+		ast_log(LOG_WARNING, "Could not lock %s to stop MixMonitor on it\n", 
+				chan->name);
+	}
+
+	LOCAL_USER_REMOVE(u);
+
+	return 0;
+}
+
 static int mixmonitor_cli(int fd, int argc, char **argv) 
 {
 	struct ast_channel *chan;
@@ -419,20 +446,26 @@ static int mixmonitor_cli(int fd, int argc, char **argv)
 	return RESULT_SUCCESS;
 }
 
+static char *complete_mixmonitor_cli(const char *line, const char *word, int pos, int state)
+{
+	return ast_complete_channels(line, word, pos, state, 2);
+}
 
 static struct ast_cli_entry cli_mixmonitor = {
 	{ "mixmonitor", NULL, NULL },
 	mixmonitor_cli, 
-	"Execute a MixMonitor command",
-	"mixmonitor <start|stop> <chan_name> [<args>]\n"
+	"Execute a MixMonitor command. The optional arguments are passed to the\n"
+	"MixMonitor application when the 'start' command is used.\n",
+	"mixmonitor <start|stop> <chan_name> [args]\n",
+	complete_mixmonitor_cli
 };
-
 
 int unload_module(void)
 {
 	int res;
 
 	res = ast_cli_unregister(&cli_mixmonitor);
+	res |= ast_unregister_application(stop_app);
 	res |= ast_unregister_application(app);
 	
 	STANDARD_HANGUP_LOCALUSERS;
@@ -446,6 +479,7 @@ int load_module(void)
 
 	res = ast_cli_register(&cli_mixmonitor);
 	res |= ast_register_application(app, mixmonitor_exec, synopsis, desc);
+	res |= ast_register_application(stop_app, stop_mixmonitor_exec, stop_synopsis, stop_desc);
 
 	return res;
 }
