@@ -186,7 +186,7 @@ static const struct cfsubscription_types {
 	const char * const mediatype;
 	const char * const text;
 } subscription_types[] = {
-	{ NONE,            "-",        "unknown",	                  "unknown" },
+	{ NONE,		   "-",        "unknown",	             "unknown" },
  	/* IETF draft: draft-ietf-sipping-dialog-package-05.txt */
 	{ DIALOG_INFO_XML, "dialog",   "application/dialog-info+xml", "dialog-info+xml" },
 	{ CPIM_PIDF_XML,   "presence", "application/cpim-pidf+xml",   "cpim-pidf+xml" },  /* RFC 3863 */
@@ -261,10 +261,10 @@ static const struct cfalias {
 	{ "Allow-Events", "u" },
 	{ "Event", "o" },
 	{ "Via", "v" },
-	{ "Accept-Contact",      "a" },
-	{ "Reject-Contact",      "j" },
+	{ "Accept-Contact", "a" },
+	{ "Reject-Contact", "j" },
 	{ "Request-Disposition", "d" },
-	{ "Session-Expires",     "x" },
+	{ "Session-Expires", "x" },
 };
 
 /*!  Define SIP option tags, used in Require: and Supported: headers 
@@ -520,10 +520,10 @@ AST_LIST_HEAD_NOLOCK(sip_history_head, sip_history); /*!< history list, entry in
 /*! \brief sip_auth: Creadentials for authentication to other SIP services */
 struct sip_auth {
 	char realm[AST_MAX_EXTENSION];  /*!< Realm in which these credentials are valid */
-	char username[256];             /*!< Username */
-	char secret[256];               /*!< Secret */
-	char md5secret[256];            /*!< MD5Secret */
-	struct sip_auth *next;          /*!< Next auth structure in list */
+	char username[256];		/*!< Username */
+	char secret[256];		/*!< Secret */
+	char md5secret[256];		/*!< MD5Secret */
+	struct sip_auth *next;		/*!< Next auth structure in list */
 };
 
 /*--- Various flags for the flags field in the pvt structure 
@@ -705,7 +705,7 @@ static struct sip_pvt {
 	int rtpkeepalive;			/*!< Send RTP packets for keepalive */
 	enum subscriptiontype subscribed;	/*!< Is this dialog a subscription?  */
 	int stateid;
-	int laststate;                          /*!< Last known extension state */
+	int laststate;				/*!< Last known extension state */
 	int dialogver;
 	
 	struct ast_dsp *vad;			/*!< Voice Activation Detection dsp */
@@ -829,10 +829,10 @@ struct sip_peer {
 #define REG_STATE_UNREGISTERED		0	/*!< We are not registred */
 #define REG_STATE_REGSENT		1	/*!< Registration request sent */
 #define REG_STATE_AUTHSENT		2	/*!< We have tried to authenticate */
-#define REG_STATE_REGISTERED   		3	/*!< Registred and done */
-#define REG_STATE_REJECTED	   	4	/*!< Registration rejected */
-#define REG_STATE_TIMEOUT	   	5	/*!< Registration timed out */
-#define REG_STATE_NOAUTH	   	6	/*!< We have no accepted credentials */
+#define REG_STATE_REGISTERED		3	/*!< Registred and done */
+#define REG_STATE_REJECTED		4	/*!< Registration rejected */
+#define REG_STATE_TIMEOUT		5	/*!< Registration timed out */
+#define REG_STATE_NOAUTH		6	/*!< We have no accepted credentials */
 #define REG_STATE_FAILED		7	/*!< Registration failed after several tries */
 
 
@@ -887,7 +887,7 @@ static struct ast_register_list {
 } regl;
 
 /*! \todo Move the sip_auth list to AST_LIST */
-static struct sip_auth *authl = NULL;          /*!< Authentication list for realm authentication */
+static struct sip_auth *authl = NULL;		/*!< Authentication list for realm authentication */
 
 
 /* --- Sockets and networking --------------*/
@@ -942,12 +942,12 @@ static int sip_indicate(struct ast_channel *ast, int condition);
 static int sip_transfer(struct ast_channel *ast, const char *dest);
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int sip_senddigit(struct ast_channel *ast, char digit);
-static int clear_realm_authentication(struct sip_auth *authlist);                            /* Clear realm authentication list (at reload) */
-static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);   /* Add realm authentication in list */
-static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, const char *realm);         /* Find authentication for a specific realm */
+static int clear_realm_authentication(struct sip_auth *authlist);	/* Clear realm authentication list (at reload) */
+static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);	/* Add realm authentication in list */
+static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, const char *realm);	/* Find authentication for a specific realm */
 static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
-		      const char *secret, const char *md5secret, int sipmethod,
-		      char *uri, int reliable, int ignore);
+		const char *secret, const char *md5secret, int sipmethod,
+		char *uri, int reliable, int ignore);
 static int check_sip_domain(const char *domain, char *context, size_t len); /* Check if domain is one of our local domains */
 static void append_date(struct sip_request *req);	/* Append date to SIP packet */
 static int determine_firstline_parts(struct sip_request *req);
@@ -1140,7 +1140,7 @@ static void build_via(struct sip_pvt *p)
 
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	ast_string_field_build(p, via, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x%s",
-			       ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch, rport);
+			 ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch, rport);
 }
 
 /*! \brief NAT fix - decide which IP address to use for ASterisk server?
@@ -1212,15 +1212,15 @@ static void append_history_va(struct sip_pvt *p, const char *fmt, va_list ap)
 /*! \brief Append to SIP dialog history with arg list  */
 static int append_history_full(struct sip_pvt *p, const char *fmt, ...)
 {
-        va_list ap;
+	va_list ap;
 
 	if (!recordhistory || !p)
 		return 0;
-        va_start(ap, fmt);
-        append_history_va(p, fmt, ap);
-        va_end(ap);
+	va_start(ap, fmt);
+	append_history_va(p, fmt, ap);
+	va_end(ap);
 
-        return 0;
+	return 0;
 }
 
 /*! \brief Retransmit SIP message if no answer */
@@ -2081,8 +2081,8 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		/* Check whether there is a VXML_URL variable */
 		if (!p->options->vxml_url && !strcasecmp(ast_var_name(current), "VXML_URL")) {
 			p->options->vxml_url = ast_var_value(current);
-               } else if (!p->options->uri_options && !strcasecmp(ast_var_name(current), "SIP_URI_OPTIONS")) {
-                       p->options->uri_options = ast_var_value(current);
+		} else if (!p->options->uri_options && !strcasecmp(ast_var_name(current), "SIP_URI_OPTIONS")) {
+			p->options->uri_options = ast_var_value(current);
 		} else if (!p->options->distinctive_ring && !strcasecmp(ast_var_name(current), "ALERT_INFO")) {
 			/* Check whether there is a ALERT_INFO variable */
 			p->options->distinctive_ring = ast_var_value(current);
@@ -2307,8 +2307,8 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		/* incoming and outgoing affects the inUse counter */
 		case DEC_CALL_LIMIT:
 			if ( *inuse > 0 ) {
-			         if (ast_test_flag(fup, SIP_INC_COUNT))
-				         (*inuse)--;
+				if (ast_test_flag(fup, SIP_INC_COUNT))
+					(*inuse)--;
 			} else {
 				*inuse = 0;
 			}
@@ -2328,7 +2328,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 				}
 			}
 			(*inuse)++;
-	                ast_set_flag(fup, SIP_INC_COUNT);
+			ast_set_flag(fup, SIP_INC_COUNT);
 			if (option_debug > 1 || sipdebug) {
 				ast_log(LOG_DEBUG, "Call %s %s '%s' is %d out of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *inuse, *call_limit);
 			}
@@ -2474,9 +2474,9 @@ static char *hangup_cause2sip(int cause)
 		case AST_CAUSE_NO_ROUTE_DESTINATION:	/* 3 IAX2: Can't find extension in context */
 		case AST_CAUSE_NO_ROUTE_TRANSIT_NET:	/* 2 */
 			return "404 Not Found";
-                case AST_CAUSE_CONGESTION:		/* 34 */
-                case AST_CAUSE_SWITCH_CONGESTION:	/* 42 */
-                        return "503 Service Unavailable";
+		case AST_CAUSE_CONGESTION:		/* 34 */
+		case AST_CAUSE_SWITCH_CONGESTION:	/* 42 */
+			return "503 Service Unavailable";
 		case AST_CAUSE_NO_USER_RESPONSE:	/* 18 */
 			return "408 Request Timeout";
 		case AST_CAUSE_NO_ANSWER:		/* 19 */
@@ -2492,7 +2492,7 @@ static char *hangup_cause2sip(int cause)
 		case AST_CAUSE_USER_BUSY:
 			return "486 Busy here";
 		case AST_CAUSE_FAILURE:
-                	return "500 Server internal failure";
+			return "500 Server internal failure";
 		case AST_CAUSE_FACILITY_REJECTED:	/* 29 */
 			return "501 Not Implemented";
 		case AST_CAUSE_CHAN_NOT_IMPLEMENTED:
@@ -3783,8 +3783,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 
 	/* Manager Hold and Unhold events must be generated, if necessary */
-	if (sin.sin_addr.s_addr && !sendonly) {	        
-	        append_history(p, "Unhold", "%s", req->data);
+	if (sin.sin_addr.s_addr && !sendonly) {
+		append_history(p, "Unhold", "%s", req->data);
 
 		if (global_callevents && ast_test_flag(p, SIP_CALL_ONHOLD)) {
 			manager_event(EVENT_FLAG_CALL, "Unhold",
@@ -3793,16 +3793,16 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				p->owner->name, 
 				p->owner->uniqueid);
 
-       		}
+		}
 		ast_clear_flag(p, SIP_CALL_ONHOLD);
-	} else {	        
+	} else {
 		/* No address for RTP, we're on hold */
-	        append_history(p, "Hold", "%s", req->data);
+		append_history(p, "Hold", "%s", req->data);
 
-	        if (global_callevents && !ast_test_flag(p, SIP_CALL_ONHOLD)) {
+		if (global_callevents && !ast_test_flag(p, SIP_CALL_ONHOLD)) {
 			manager_event(EVENT_FLAG_CALL, "Hold",
 				"Channel: %s\r\n"
-		   	    	"Uniqueid: %s\r\n",
+				"Uniqueid: %s\r\n",
 				p->owner->name, 
 				p->owner->uniqueid);
 		}
@@ -3973,8 +3973,8 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 
 					/* Add rport to first VIA header if requested */
 					/* Whoo hoo!  Now we can indicate port address translation too!  Just
-				   	   another RFC (RFC3581). I'll leave the original comments in for
-				   	   posterity.  */
+					   another RFC (RFC3581). I'll leave the original comments in for
+					   posterity.  */
 					snprintf(new, sizeof(new), "%s;received=%s;rport=%d", tmp, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
 				} else {
 					/* We should *always* add a received to the topmost via */
@@ -4880,10 +4880,10 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		x=0;
 
 		/* Test p->username against allowed characters in AST_DIGIT_ANY
-		If it matches the allowed characters list, then sipuser = ";user=phone"
-		If not, then sipuser = ""
-        	*/
-        	/* + is allowed in first position in a tel: uri */
+			If it matches the allowed characters list, then sipuser = ";user=phone"
+			If not, then sipuser = ""
+		*/
+		/* + is allowed in first position in a tel: uri */
         	if (p->username && p->username[0] == '+')
 			x=1;
 
@@ -5048,7 +5048,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 				ast_log(LOG_WARNING,"No Headp for the channel...ooops!\n");
 			else {
 				AST_LIST_TRAVERSE(headp, current, entries) {  
-					/* SIPADDHEADER: Add SIP header to outgoing call        */
+					/* SIPADDHEADER: Add SIP header to outgoing call */
 					if (!strncasecmp(ast_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER"))) {
 						char *content, *end;
 						const char *header = ast_var_value(current);
@@ -6853,7 +6853,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 		} else {
 			ast_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'.  Both legs must reside on Asterisk box to transfer at this time.\n", replace_callid);
 			/* XXX The refer_to could contain a call on an entirely different machine, requiring an 
-	    		  INVITE with a replaces header -anthm XXX */
+				INVITE with a replaces header -anthm XXX */
 			/* The only way to find out is to use the dialplan - oej */
 		}
 	} else if (ast_exists_extension(NULL, sip_pvt->context, refer_to, 1, NULL) || !strcmp(refer_to, ast_parking_ext())) {
@@ -7372,7 +7372,7 @@ static int get_msg_text(char *buf, int len, struct sip_request *req)
 	return 0;
 }
 
-                
+
 /*! \brief  Receive SIP MESSAGE method messages
 \note	We only handle messages within current calls currently 
 	Reference: RFC 3428 */
@@ -7502,7 +7502,7 @@ static int peer_status(struct sip_peer *peer, char *status, int statuslen)
 	}
 	return res;
 }
-                           
+
 /*! \brief  CLI Command 'SIP Show Users' */
 static int sip_show_users(int fd, int argc, char *argv[])
 {
@@ -8440,9 +8440,9 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 		}
 		if (cur->subscribed != NONE && subscriptions) {
 			ast_cli(fd, FORMAT3, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr),
-			        ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
-			        cur->callid, cur->exten, ast_extension_state2str(cur->laststate), 
-			        subscription_type2str(cur->subscribed));
+				ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
+			   	cur->callid, cur->exten, ast_extension_state2str(cur->laststate), 
+				subscription_type2str(cur->subscribed));
 			numchans++;
 		}
 		cur = cur->next;
@@ -10021,7 +10021,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					update_call_counter(p, DEC_CALL_LIMIT);
 					break;
 				case 482: /* SIP is incapable of performing a hairpin call, which
-				             is yet another failure of not having a layer 2 (again, YAY
+					is yet another failure of not having a layer 2 (again, YAY
 							 IETF for thinking ahead).  So we treat this as a call
 							 forward and hope we end up at the right place... */
 					ast_log(LOG_DEBUG, "Hairpin detected, setting up call forward for what it's worth\n");
