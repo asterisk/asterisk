@@ -267,6 +267,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	AST_LIST_HEAD_INIT(&u->playlist);
 	AST_LIST_HEAD_INIT(&u->finishlist);
 	u->abort_current_sound = 0;
+	u->chan = chan;
 	
 	if (ast_strlen_zero(args)) {
 		ast_log(LOG_WARNING, "ExternalIVR requires a command to execute\n");
