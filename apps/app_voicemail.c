@@ -3403,7 +3403,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				break;
 		}
 		
-		if( use_directory ) {
+		if (use_directory) {
 			/* use app_directory */
 			
 			char old_context[sizeof(chan->context)];
@@ -3420,7 +3420,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				old_priority = chan->priority;
 				
 				/* call the the Directory, changes the channel */
-				res = pbx_exec(chan, app, ((context)?context:chan->context), 1);
+				res = pbx_exec(chan, app, context ? context : "default", 1);
 				
 				ast_copy_string(username, chan->exten, sizeof(username));
 				
