@@ -769,9 +769,9 @@ static void vm_change_password_shell(struct ast_vm_user *vmu, char *newpassword)
 		ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
 }
 
-static int make_dir(char *dest, int len, char *context, char *ext, char *mailbox)
+static int make_dir(char *dest, int len, char *context, char *ext, char *folder)
 {
-	return snprintf(dest, len, "%s%s/%s/%s", VM_SPOOL_DIR, context, ext, mailbox);
+	return snprintf(dest, len, "%s%s/%s/%s", VM_SPOOL_DIR, context, ext, folder);
 }
 
 static int make_file(char *dest, int len, char *dir, int num)
@@ -779,33 +779,33 @@ static int make_file(char *dest, int len, char *dir, int num)
 	return snprintf(dest, len, "%s/msg%04d", dir, num);
 }
 
-/*! \brief basically mkdir -p $dest/$context/$ext/$mailbox
+/*! \brief basically mkdir -p $dest/$context/$ext/$folder
  * \param dest    String. base directory.
  * \param context String. Ignored if is null or empty string.
  * \param ext     String. Ignored if is null or empty string.
- * \param mailbox String. Ignored if is null or empty string. 
+ * \param folder  String. Ignored if is null or empty string. 
  * \return 0 on failure, 1 on success.
  */
-static int create_dirpath(char *dest, int len, char *context, char *ext, char *mailbox)
+static int create_dirpath(char *dest, int len, char *context, char *ext, char *folder)
 {
 	mode_t	mode = VOICEMAIL_DIR_MODE;
 
-	if(context && context[0] != '\0') {
+	if (!ast_strlen_zero(context)) {
 		make_dir(dest, len, context, "", "");
 		if(mkdir(dest, mode) && errno != EEXIST) {
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
 			return 0;
 		}
 	}
-	if(ext && ext[0] != '\0') {
+	if (!ast_strlen_zero(ext)) {
 		make_dir(dest, len, context, ext, "");
 		if(mkdir(dest, mode) && errno != EEXIST) {
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
 			return 0;
 		}
 	}
-	if(mailbox && mailbox[0] != '\0') {
-		make_dir(dest, len, context, ext, mailbox);
+	if (!ast_strlen_zero(folder)) {
+		make_dir(dest, len, context, ext, folder);
 		if(mkdir(dest, mode) && errno != EEXIST) {
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
 			return 0;
@@ -2538,7 +2538,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 
 		/* 
 		 * This operation can be very expensive if done say over NFS or if the mailbox has 100+ messages
-		 * in the mailbox.  So we should get this first so we don't cut off the first few seconds of the 
+		 * in the folder.  So we should get this first so we don't cut off the first few seconds of the 
 		 * message.  
 		 */
 		do {
