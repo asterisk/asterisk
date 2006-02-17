@@ -454,9 +454,10 @@ static char *complete_mixmonitor_cli(const char *line, const char *word, int pos
 static struct ast_cli_entry cli_mixmonitor = {
 	{ "mixmonitor", NULL, NULL },
 	mixmonitor_cli, 
-	"Execute a MixMonitor command. The optional arguments are passed to the\n"
+	"Execute a MixMonitor command.",
+	"mixmonitor <start|stop> <chan_name> [args]\n\n"
+	"The optional arguments are passed to the\n"
 	"MixMonitor application when the 'start' command is used.\n",
-	"mixmonitor <start|stop> <chan_name> [args]\n",
 	complete_mixmonitor_cli
 };
 
