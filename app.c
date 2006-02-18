@@ -852,6 +852,7 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+			ast_dsp_free(sildet);
 			return -1;
 		}
 	}
@@ -956,6 +957,7 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 	} else {
 		ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", prependfile, sfmt[x]); 
 	}
+	ast_dsp_free(sildet);
 	*duration = end - start;
 #if 0
 	if (outmsg > 1) {
