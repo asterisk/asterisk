@@ -63,32 +63,33 @@ struct ast_translator {
 
 struct ast_trans_pvt;
 
-/*! Register a translator */
-/*! 
+/*!
+ * \brief Register a translator
  * \param t populated ast_translator structure
  * This registers a codec translator with asterisk
  * Returns 0 on success, -1 on failure
  */
 extern int ast_register_translator(struct ast_translator *t);
 
-/*! Unregister a translator */
 /*!
+ * \brief Unregister a translator
  * \param t translator to unregister
  * Unregisters the given tranlator
  * Returns 0 on success, -1 on failure
  */
 extern int ast_unregister_translator(struct ast_translator *t);
 
-/*! Chooses the best translation path */
-/*! 
+/*!
+ * \brief Chooses the best translation path
+ *
  * Given a list of sources, and a designed destination format, which should
-   I choose? Returns 0 on success, -1 if no path could be found.  Modifies
-   dests and srcs in place 
-   */
+ * I choose? Returns 0 on success, -1 if no path could be found.  Modifies
+ * dests and srcs in place 
+ */
 extern int ast_translator_best_choice(int *dsts, int *srcs);
 
-/*!Builds a translator path */
 /*! 
+ * \brief Builds a translator path
  * \param dest destination format
  * \param source source format
  * Build a path (possibly NULL) from source to dest 
@@ -96,15 +97,15 @@ extern int ast_translator_best_choice(int *dsts, int *srcs);
  * */
 extern struct ast_trans_pvt *ast_translator_build_path(int dest, int source);
 
-/*! Frees a translator path */
 /*!
+ * \brief Frees a translator path
  * \param tr translator path to get rid of
  * Frees the given translator path structure
  */
 extern void ast_translator_free_path(struct ast_trans_pvt *tr);
 
-/*! translates one or more frames */
-/*! 
+/*!
+ * \brief translates one or more frames
  * \param tr translator structure to use for translation
  * \param f frame to translate
  * \param consume Whether or not to free the original frame
