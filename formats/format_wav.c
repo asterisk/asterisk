@@ -467,7 +467,6 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 
 static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 {
-	int res = 0;
 	int x;
 	short tmp[8000], *tmpi;
 	float tmpf;
@@ -508,7 +507,7 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 
 		}
 		if ((fwrite(tmp, 1, f->datalen, fs->f) != f->datalen) ) {
-			ast_log(LOG_WARNING, "Bad write (%d): %s\n", res, strerror(errno));
+			ast_log(LOG_WARNING, "Bad write (%d): %s\n", errno, strerror(errno));
 			return -1;
 		}
 	} else {
