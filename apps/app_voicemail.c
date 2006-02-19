@@ -4932,7 +4932,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			   struct ast_vm_user *res_vmu, const char *context, const char *prefix,
 			   int skipuser, int maxlogins, int silent)
 {
-	int useadsi, valid=0, logretries=0;
+	int useadsi=0, valid=0, logretries=0;
 	char password[AST_MAX_EXTENSION]="", *passptr;
 	struct ast_vm_user vmus, *vmu = NULL;
 
