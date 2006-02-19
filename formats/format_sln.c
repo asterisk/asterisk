@@ -172,6 +172,7 @@ static int slinear_write(struct ast_filestream *fs, struct ast_frame *f)
 static int slinear_seek(struct ast_filestream *fs, long sample_offset, int whence)
 {
 	off_t offset=0,min,cur,max;
+	int res;
 
 	min = 0;
 	sample_offset <<= 1;
@@ -189,7 +190,12 @@ static int slinear_seek(struct ast_filestream *fs, long sample_offset, int whenc
 	}
 	/* always protect against seeking past begining. */
 	offset = (offset < min)?min:offset;
-	return fseek(fs->f, offset, SEEK_SET) / 2;
+	res = fseek(fs->f, offset, SEEK_SET);
+	/* Negative values indicate error */
+	if (res > -1)
+		return res / 2;
+	else
+		return res;
 }
 
 static int slinear_trunc(struct ast_filestream *fs)
