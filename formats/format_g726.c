@@ -391,7 +391,7 @@ static char *g726_getcomment(struct ast_filestream *s)
 	return NULL;
 }
 
-static int g726_seek(struct ast_filestream *fs, long sample_offset, int whence)
+static int g726_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
 	return -1;
 }
@@ -401,7 +401,7 @@ static int g726_trunc(struct ast_filestream *fs)
 	return -1;
 }
 
-static long g726_tell(struct ast_filestream *fs)
+static off_t g726_tell(struct ast_filestream *fs)
 {
 	return -1;
 }

@@ -214,7 +214,7 @@ static int g723_write(struct ast_filestream *fs, struct ast_frame *f)
 	return 0;
 }
 
-static int g723_seek(struct ast_filestream *fs, long sample_offset, int whence)
+static int g723_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
 	return -1;
 }
@@ -222,12 +222,12 @@ static int g723_seek(struct ast_filestream *fs, long sample_offset, int whence)
 static int g723_trunc(struct ast_filestream *fs)
 {
 	/* Truncate file to current length */
-	if (ftruncate(fileno(fs->f), ftell(fs->f)) < 0)
+	if (ftruncate(fileno(fs->f), ftello(fs->f)) < 0)
 		return -1;
 	return 0;
 }
 
-static long g723_tell(struct ast_filestream *fs)
+static off_t g723_tell(struct ast_filestream *fs)
 {
 	return -1;
 }

@@ -174,14 +174,14 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 	return 0;
 }
 
-static int pcm_seek(struct ast_filestream *fs, long sample_offset, int whence)
+static int pcm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
-	long cur, max, offset = 0;
+	off_t cur, max, offset = 0;
  	int ret = -1;	/* assume error */
 
-	cur = ftell(fs->f);
-	fseek(fs->f, 0, SEEK_END);
-	max = ftell(fs->f);
+	cur = ftello(fs->f);
+	fseeko(fs->f, 0, SEEK_END);
+	max = ftello(fs->f);
 
 	switch (whence) {
 	case SEEK_SET:
@@ -218,20 +218,20 @@ static int pcm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 			ast_log(LOG_WARNING, "offset too large %ld, truncating to %ld\n", offset, max);
 			offset = max;
 		}
-		ret = fseek(fs->f, offset, SEEK_SET);
+		ret = fseeko(fs->f, offset, SEEK_SET);
 	}
 	return ret;
 }
 
 static int pcm_trunc(struct ast_filestream *fs)
 {
-	return ftruncate(fileno(fs->f), ftell(fs->f));
+	return ftruncate(fileno(fs->f), ftello(fs->f));
 }
 
-static long pcm_tell(struct ast_filestream *fs)
+static off_t pcm_tell(struct ast_filestream *fs)
 {
 	off_t offset;
-	offset = ftell(fs->f);
+	offset = ftello(fs->f);
 	return offset;
 }
 

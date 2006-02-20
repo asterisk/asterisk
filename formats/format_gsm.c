@@ -195,14 +195,14 @@ static int gsm_write(struct ast_filestream *fs, struct ast_frame *f)
 	return 0;
 }
 
-static int gsm_seek(struct ast_filestream *fs, long sample_offset, int whence)
+static int gsm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
 	off_t offset=0,min,cur,max,distance;
 	
 	min = 0;
-	cur = ftell(fs->f);
-	fseek(fs->f, 0, SEEK_END);
-	max = ftell(fs->f);
+	cur = ftello(fs->f);
+	fseeko(fs->f, 0, SEEK_END);
+	max = ftello(fs->f);
 	/* have to fudge to frame here, so not fully to sample */
 	distance = (sample_offset/160) * 33;
 	if(whence == SEEK_SET)
@@ -217,23 +217,23 @@ static int gsm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 		offset = (offset > max)?max:offset;
 	} else if (offset > max) {
 		int i;
-		fseek(fs->f, 0, SEEK_END);
+		fseeko(fs->f, 0, SEEK_END);
 		for (i=0; i< (offset - max) / 33; i++) {
 			fwrite(gsm_silence, 1, 33, fs->f);
 		}
 	}
-	return fseek(fs->f, offset, SEEK_SET);
+	return fseeko(fs->f, offset, SEEK_SET);
 }
 
 static int gsm_trunc(struct ast_filestream *fs)
 {
-	return ftruncate(fileno(fs->f), ftell(fs->f));
+	return ftruncate(fileno(fs->f), ftello(fs->f));
 }
 
-static long gsm_tell(struct ast_filestream *fs)
+static off_t gsm_tell(struct ast_filestream *fs)
 {
 	off_t offset;
-	offset = ftell(fs->f);
+	offset = ftello(fs->f);
 	return (offset/33)*160;
 }
 

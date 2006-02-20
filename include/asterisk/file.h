@@ -31,7 +31,6 @@
 #include "asterisk/frame.h"
 #include <fcntl.h>
 
-
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -56,9 +55,9 @@ int ast_format_register(const char *name, const char *exts, int format,
 						struct ast_filestream * (*open)(FILE *f),
 						struct ast_filestream * (*rewrite)(FILE *f, const char *comment),
 						int (*write)(struct ast_filestream *, struct ast_frame *),
-						int (*seek)(struct ast_filestream *, long offset, int whence),
+						int (*seek)(struct ast_filestream *, off_t offset, int whence),
 						int (*trunc)(struct ast_filestream *),
-						long (*tell)(struct ast_filestream *),
+						off_t (*tell)(struct ast_filestream *),
 						struct ast_frame * (*read)(struct ast_filestream *, int *timetonext),
 						void (*close)(struct ast_filestream *),
 						char * (*getcomment)(struct ast_filestream *));
@@ -262,7 +261,7 @@ int ast_playstream(struct ast_filestream *s);
  * \param whence SEEK_SET, SEEK_CUR, SEEK_END 
  * Returns 0 for success, or -1 for error
  */
-int ast_seekstream(struct ast_filestream *fs, long sample_offset, int whence);
+int ast_seekstream(struct ast_filestream *fs, off_t sample_offset, int whence);
 
 /*! Trunc stream at current location */
 /*!
@@ -277,7 +276,7 @@ int ast_truncstream(struct ast_filestream *fs);
  * \param ms milliseconds to move
  * Returns 0 for success, or -1 for error
  */
-int ast_stream_fastforward(struct ast_filestream *fs, long ms);
+int ast_stream_fastforward(struct ast_filestream *fs, off_t ms);
 
 /*! Rewind stream ms */
 /*!
@@ -285,14 +284,14 @@ int ast_stream_fastforward(struct ast_filestream *fs, long ms);
  * \param ms milliseconds to move
  * Returns 0 for success, or -1 for error
  */
-int ast_stream_rewind(struct ast_filestream *fs, long ms);
+int ast_stream_rewind(struct ast_filestream *fs, off_t ms);
 
 /*! Tell where we are in a stream */
 /*!
  * \param fs fs to act on
  * Returns a long as a sample offset into stream
  */
-long ast_tellstream(struct ast_filestream *fs);
+off_t ast_tellstream(struct ast_filestream *fs);
 
 /*! Read a frame from a filestream */
 /*!

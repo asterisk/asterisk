@@ -232,9 +232,9 @@ static int update_header(FILE *f)
 	off_t cur,end,bytes;
 	int datalen,filelen;
 	
-	cur = ftell(f);
+	cur = ftello(f);
 	fseek(f, 0, SEEK_END);
-	end = ftell(f);
+	end = ftello(f);
 	/* in a gsm WAV, data starts 60 bytes in */
 	bytes = end - 60;
 	datalen = htoll((bytes + 1) & ~0x1);
@@ -259,7 +259,7 @@ static int update_header(FILE *f)
 		ast_log(LOG_WARNING, "Unable to set write datalen\n");
 		return -1;
 	}
-	if (fseek(f, cur, SEEK_SET)) {
+	if (fseeko(f, cur, SEEK_SET)) {
 		ast_log(LOG_WARNING, "Unable to return to position\n");
 		return -1;
 	}
@@ -417,7 +417,7 @@ static void wav_close(struct ast_filestream *s)
 	ast_update_use_count();
 	/* Pad to even length */
 	fseek(s->f, 0, SEEK_END);
-	if (ftell(s->f) & 0x1)
+	if (ftello(s->f) & 0x1)
 		fwrite(&zero, 1, 1, s->f);
 	fclose(s->f);
 	free(s);
@@ -499,13 +499,13 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 	return 0;
 }
 
-static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
+static int wav_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
 	off_t offset=0,distance,cur,min,max;
 	min = 60;
-	cur = ftell(fs->f);
+	cur = ftello(fs->f);
 	fseek(fs->f, 0, SEEK_END);
-	max = ftell(fs->f);
+	max = ftello(fs->f);
 	/* I'm getting sloppy here, I'm only going to go to even splits of the 2
 	 * frames, if you want tighter cuts use format_gsm, format_pcm, or format_wav */
 	distance = (sample_offset/320) * 65;
@@ -527,20 +527,20 @@ static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
 		}
 	}
 	fs->secondhalf = 0;
-	return fseek(fs->f, offset, SEEK_SET);
+	return fseeko(fs->f, offset, SEEK_SET);
 }
 
 static int wav_trunc(struct ast_filestream *fs)
 {
-	if (ftruncate(fileno(fs->f), ftell(fs->f)))
+	if (ftruncate(fileno(fs->f), ftello(fs->f)))
 		return -1;
 	return update_header(fs->f);
 }
 
-static long wav_tell(struct ast_filestream *fs)
+static off_t wav_tell(struct ast_filestream *fs)
 {
 	off_t offset;
-	offset = ftell(fs->f);
+	offset = ftello(fs->f);
 	/* since this will most likely be used later in play or record, lets stick
 	 * to that level of resolution, just even frames boundaries */
 	return (offset - 52)/65*320;

@@ -178,14 +178,14 @@ static char *vox_getcomment(struct ast_filestream *s)
 	return NULL;
 }
 
-static int vox_seek(struct ast_filestream *fs, long sample_offset, int whence)
+static int vox_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
      off_t offset=0,min,cur,max,distance;
 	
      min = 0;
-     cur = ftell(fs->f);
-     fseek(fs->f, 0, SEEK_END);
-	 max = ftell(fs->f);
+     cur = ftello(fs->f);
+     fseeko(fs->f, 0, SEEK_END);
+	 max = ftello(fs->f);
 	 
      /* have to fudge to frame here, so not fully to sample */
      distance = sample_offset/2;
@@ -199,19 +199,19 @@ static int vox_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	  offset = (offset > max)?max:offset;
 	  offset = (offset < min)?min:offset;
      }
-     fseek(fs->f, offset, SEEK_SET);
-	 return ftell(fs->f);
+     fseeko(fs->f, offset, SEEK_SET);
+	 return ftello(fs->f);
 }
 
 static int vox_trunc(struct ast_filestream *fs)
 {
-     return ftruncate(fileno(fs->f), ftell(fs->f));
+     return ftruncate(fileno(fs->f), ftello(fs->f));
 }
 
-static long vox_tell(struct ast_filestream *fs)
+static off_t vox_tell(struct ast_filestream *fs)
 {
      off_t offset;
-     offset = ftell(fs->f) << 1;
+     offset = ftello(fs->f) << 1;
      return offset; 
 }
 

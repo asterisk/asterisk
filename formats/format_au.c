@@ -107,7 +107,7 @@ static int check_header(FILE *f)
 	AU_HEADER(header);
 	u_int32_t magic;
 	u_int32_t hdr_size;
-	u_int32_t data_size;
+	off_t data_size;
 	u_int32_t encoding;
 	u_int32_t sample_rate;
 	u_int32_t channels;
@@ -141,7 +141,7 @@ static int check_header(FILE *f)
 	}
 	/* Skip to data */
 	fseek(f, 0, SEEK_END);
-	data_size = ftell(f) - hdr_size;
+	data_size = ftello(f) - hdr_size;
 	if (fseek(f, hdr_size, SEEK_SET) == -1 ) {
 		ast_log(LOG_WARNING, "Failed to skip to data: %d\n", hdr_size);
 		return -1;
@@ -155,9 +155,9 @@ static int update_header(FILE *f)
 	u_int32_t datalen;
 	int bytes;
 
-	cur = ftell(f);
+	cur = ftello(f);
 	fseek(f, 0, SEEK_END);
-	end = ftell(f);
+	end = ftello(f);
 	/* data starts 24 bytes in */
 	bytes = end - AU_HEADER_SIZE;
 	datalen = htoll(bytes);
@@ -315,16 +315,16 @@ static int au_write(struct ast_filestream *fs, struct ast_frame *f)
 	return 0;
 }
 
-static int au_seek(struct ast_filestream *fs, long sample_offset, int whence)
+static int au_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
 	off_t min, max, cur;
-	long offset = 0, samples;
+	unsigned long offset = 0, samples;
 	
 	samples = sample_offset;
 	min = AU_HEADER_SIZE;
-	cur = ftell(fs->f);
+	cur = ftello(fs->f);
 	fseek(fs->f, 0, SEEK_END);
-	max = ftell(fs->f);
+	max = ftello(fs->f);
 	if (whence == SEEK_SET)
 		offset = samples + min;
 	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
@@ -341,16 +341,16 @@ static int au_seek(struct ast_filestream *fs, long sample_offset, int whence)
 
 static int au_trunc(struct ast_filestream *fs)
 {
-	if (ftruncate(fileno(fs->f), ftell(fs->f)))
+	if (ftruncate(fileno(fs->f), ftello(fs->f)))
 		return -1;
 	return update_header(fs->f);
 }
 
-static long au_tell(struct ast_filestream *fs)
+static off_t au_tell(struct ast_filestream *fs)
 {
 	off_t offset;
 
-	offset = ftell(fs->f);
+	offset = ftello(fs->f);
 	return offset - AU_HEADER_SIZE;
 }
 

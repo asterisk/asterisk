@@ -147,6 +147,9 @@ endif
 
 ASTCFLAGS=
 
+# Define this to use files larger than 2GB (useful for sound files longer than 37 hours and logfiles)
+ASTCFLAGS+=-D_FILE_OFFSET_BITS=64
+
 # Pentium Pro Optimize
 #PROC=i686
 

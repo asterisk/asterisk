@@ -234,9 +234,9 @@ static int update_header(FILE *f)
 	int datalen,filelen,bytes;
 	
 	
-	cur = ftell(f);
+	cur = ftello(f);
 	fseek(f, 0, SEEK_END);
-	end = ftell(f);
+	end = ftello(f);
 	/* data starts 44 bytes in */
 	bytes = end - 44;
 	datalen = htoll(bytes);
@@ -263,7 +263,7 @@ static int update_header(FILE *f)
 		ast_log(LOG_WARNING, "Unable to set write datalen\n");
 		return -1;
 	}
-	if (fseek(f, cur, SEEK_SET)) {
+	if (fseeko(f, cur, SEEK_SET)) {
 		ast_log(LOG_WARNING, "Unable to return to position\n");
 		return -1;
 	}
@@ -419,7 +419,7 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	int bytes = sizeof(tmp);
 	off_t here;
 	/* Send a frame from the file to the appropriate channel */
-	here = ftell(s->f);
+	here = ftello(s->f);
 	if ((s->maxlen - here) < bytes)
 		bytes = s->maxlen - here;
 	if (bytes < 0)
@@ -522,16 +522,15 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 
 }
 
-static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
+static int wav_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
-	off_t min,max,cur;
-	long offset=0,samples;
-	
+	off_t min, max, cur, offset = 0, samples;
+
 	samples = sample_offset * 2; /* SLINEAR is 16 bits mono, so sample_offset * 2 = bytes */
 	min = 44; /* wav header is 44 bytes */
-	cur = ftell(fs->f);
-	fseek(fs->f, 0, SEEK_END);
-	max = ftell(fs->f);
+	cur = ftello(fs->f);
+	fseeko(fs->f, 0, SEEK_END);
+	max = ftello(fs->f);
 	if (whence == SEEK_SET)
 		offset = samples + min;
 	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
@@ -543,20 +542,20 @@ static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	}
 	/* always protect the header space. */
 	offset = (offset < min)?min:offset;
-	return fseek(fs->f,offset,SEEK_SET);
+	return fseeko(fs->f, offset, SEEK_SET);
 }
 
 static int wav_trunc(struct ast_filestream *fs)
 {
-	if (ftruncate(fileno(fs->f), ftell(fs->f)))
+	if (ftruncate(fileno(fs->f), ftello(fs->f)))
 		return -1;
 	return update_header(fs->f);
 }
 
-static long wav_tell(struct ast_filestream *fs)
+static off_t wav_tell(struct ast_filestream *fs)
 {
 	off_t offset;
-	offset = ftell(fs->f);
+	offset = ftello(fs->f);
 	/* subtract header size to get samples, then divide by 2 for 16 bit samples */
 	return (offset - 44)/2;
 }

@@ -169,15 +169,15 @@ static int slinear_write(struct ast_filestream *fs, struct ast_frame *f)
 	return 0;
 }
 
-static int slinear_seek(struct ast_filestream *fs, long sample_offset, int whence)
+static int slinear_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
 	off_t offset=0,min,cur,max;
 
 	min = 0;
 	sample_offset <<= 1;
-	cur = ftell(fs->f);
-	fseek(fs->f, 0, SEEK_END);
-	max = ftell(fs->f);
+	cur = ftello(fs->f);
+	fseeko(fs->f, 0, SEEK_END);
+	max = ftello(fs->f);
 	if (whence == SEEK_SET)
 		offset = sample_offset;
 	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
@@ -189,18 +189,18 @@ static int slinear_seek(struct ast_filestream *fs, long sample_offset, int whenc
 	}
 	/* always protect against seeking past begining. */
 	offset = (offset < min)?min:offset;
-	return fseek(fs->f, offset, SEEK_SET);
+	return fseeko(fs->f, offset, SEEK_SET);
 }
 
 static int slinear_trunc(struct ast_filestream *fs)
 {
-	return ftruncate(fileno(fs->f), ftell(fs->f));
+	return ftruncate(fileno(fs->f), ftello(fs->f));
 }
 
-static long slinear_tell(struct ast_filestream *fs)
+static off_t slinear_tell(struct ast_filestream *fs)
 {
 	off_t offset;
-	offset = ftell(fs->f);
+	offset = ftello(fs->f);
 	return offset / 2;
 }
 

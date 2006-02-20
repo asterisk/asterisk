@@ -221,7 +221,7 @@ static char *h263_getcomment(struct ast_filestream *s)
 	return NULL;
 }
 
-static int h263_seek(struct ast_filestream *fs, long sample_offset, int whence)
+static int h263_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
 	/* No way Jose */
 	return -1;
@@ -230,16 +230,16 @@ static int h263_seek(struct ast_filestream *fs, long sample_offset, int whence)
 static int h263_trunc(struct ast_filestream *fs)
 {
 	/* Truncate file to current length */
-	if (ftruncate(fileno(fs->f), ftell(fs->f)) < 0)
+	if (ftruncate(fileno(fs->f), ftello(fs->f)) < 0)
 		return -1;
 	return 0;
 }
 
-static long h263_tell(struct ast_filestream *fs)
+static off_t h263_tell(struct ast_filestream *fs)
 {
 	/* XXX This is totally bogus XXX */
 	off_t offset;
-	offset = ftell(fs->f);
+	offset = ftello(fs->f);
 	return (offset/20)*160;
 }
 

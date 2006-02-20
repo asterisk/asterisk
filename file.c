@@ -67,11 +67,11 @@ struct ast_format {
 	/*! Write a frame to a channel */
 	int (*write)(struct ast_filestream *, struct ast_frame *);
 	/*! seek num samples into file, whence(think normal seek) */
-	int (*seek)(struct ast_filestream *, long offset, int whence);
+	int (*seek)(struct ast_filestream *, off_t offset, int whence);
 	/*! trunc file to current position */
 	int (*trunc)(struct ast_filestream *fs);
 	/*! tell current position */
-	long (*tell)(struct ast_filestream *fs);
+	off_t (*tell)(struct ast_filestream *fs);
 	/*! Read the next frame from the filestream (if available) and report when to get next one
 		(in samples) */
 	struct ast_frame * (*read)(struct ast_filestream *, int *whennext);
@@ -106,9 +106,9 @@ int ast_format_register(const char *name, const char *exts, int format,
 						struct ast_filestream * (*open)(FILE *f),
 						struct ast_filestream * (*rewrite)(FILE *f, const char *comment),
 						int (*write)(struct ast_filestream *, struct ast_frame *),
-						int (*seek)(struct ast_filestream *, long sample_offset, int whence),
+						int (*seek)(struct ast_filestream *, off_t sample_offset, int whence),
 						int (*trunc)(struct ast_filestream *),
-						long (*tell)(struct ast_filestream *),
+						off_t (*tell)(struct ast_filestream *),
 						struct ast_frame * (*read)(struct ast_filestream *, int *whennext),
 						void (*close)(struct ast_filestream *),
 						char * (*getcomment)(struct ast_filestream *))
@@ -647,7 +647,7 @@ int ast_playstream(struct ast_filestream *s)
 	return 0;
 }
 
-int ast_seekstream(struct ast_filestream *fs, long sample_offset, int whence)
+int ast_seekstream(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
 	return fs->fmt->seek(fs, sample_offset, whence);
 }
@@ -657,22 +657,22 @@ int ast_truncstream(struct ast_filestream *fs)
 	return fs->fmt->trunc(fs);
 }
 
-long ast_tellstream(struct ast_filestream *fs)
+off_t ast_tellstream(struct ast_filestream *fs)
 {
 	return fs->fmt->tell(fs);
 }
 
-int ast_stream_fastforward(struct ast_filestream *fs, long ms)
+int ast_stream_fastforward(struct ast_filestream *fs, off_t ms)
 {
 	/* I think this is right, 8000 samples per second, 1000 ms a second so 8
 	 * samples per ms  */
-	long samples = ms * 8;
+	off_t samples = ms * 8;
 	return ast_seekstream(fs, samples, SEEK_CUR);
 }
 
-int ast_stream_rewind(struct ast_filestream *fs, long ms)
+int ast_stream_rewind(struct ast_filestream *fs, off_t ms)
 {
-	long samples = ms * 8;
+	off_t samples = ms * 8;
 	samples = samples * -1;
 	return ast_seekstream(fs, samples, SEEK_CUR);
 }

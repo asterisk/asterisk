@@ -180,14 +180,14 @@ static char *ilbc_getcomment(struct ast_filestream *s)
 	return NULL;
 }
 
-static int ilbc_seek(struct ast_filestream *fs, long sample_offset, int whence)
+static int ilbc_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
 	long bytes;
 	off_t min,cur,max,offset=0;
 	min = 0;
-	cur = ftell(fs->f);
-	fseek(fs->f, 0, SEEK_END);
-	max = ftell(fs->f);
+	cur = ftello(fs->f);
+	fseeko(fs->f, 0, SEEK_END);
+	max = ftello(fs->f);
 	
 	bytes = 50 * (sample_offset / 240);
 	if (whence == SEEK_SET)
@@ -201,7 +201,7 @@ static int ilbc_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	}
 	/* protect against seeking beyond begining. */
 	offset = (offset < min)?min:offset;
-	if (fseek(fs->f, offset, SEEK_SET) < 0)
+	if (fseeko(fs->f, offset, SEEK_SET) < 0)
 		return -1;
 	return 0;
 }
@@ -209,15 +209,15 @@ static int ilbc_seek(struct ast_filestream *fs, long sample_offset, int whence)
 static int ilbc_trunc(struct ast_filestream *fs)
 {
 	/* Truncate file to current length */
-	if (ftruncate(fileno(fs->f), ftell(fs->f)) < 0)
+	if (ftruncate(fileno(fs->f), ftello(fs->f)) < 0)
 		return -1;
 	return 0;
 }
 
-static long ilbc_tell(struct ast_filestream *fs)
+static off_t ilbc_tell(struct ast_filestream *fs)
 {
 	off_t offset;
-	offset = ftell(fs->f);
+	offset = ftello(fs->f);
 	return (offset/50)*240;
 }
 

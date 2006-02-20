@@ -626,14 +626,12 @@ static int ogg_vorbis_trunc(struct ast_filestream *s)
  * \return 0 on success, -1 on failure.
  */
 
-static int ogg_vorbis_seek(struct ast_filestream *s, long sample_offset,
-			   int whence)
-{
+static int ogg_vorbis_seek(struct ast_filestream *s, off_t sample_offset, int whence) {
 	ast_log(LOG_WARNING, "Seeking is not supported on OGG/Vorbis streams!\n");
 	return -1;
 }
 
-static long ogg_vorbis_tell(struct ast_filestream *s)
+static off_t ogg_vorbis_tell(struct ast_filestream *s)
 {
 	ast_log(LOG_WARNING, "Telling is not supported on OGG/Vorbis streams!\n");
 	return -1;
