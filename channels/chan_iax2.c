@@ -2244,11 +2244,12 @@ static int get_from_jb(void *p)
 
 /* while we transition from the old JB to the new one, we can either make two schedule_delivery functions, or 
  * make preprocessor swiss-cheese out of this one.  I'm not sure which is less revolting.. */
-static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtrunk)
+static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtrunk, unsigned int *tsout)
 {
 #ifdef NEWJB
 	int type, len;
 	int ret;
+	int needfree = 0;
 #else
 	int x;
 	int ms;
@@ -2271,7 +2272,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 
 	/* Attempt to recover wrapped timestamps */
 	unwrap_timestamp(fr);
-
+	
 	if (updatehistory) {
 #ifndef NEWJB
 
@@ -2369,8 +2370,10 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 	}
 
 	if ( (!ast_test_flag(iaxs[fr->callno], IAX_USEJITTERBUF)) ) {
+		if (tsout)
+			*tsout = fr->ts;
 		__do_deliver(fr);
-		return 0;
+		return -1;
 	}
 
 	/* if the user hasn't requested we force the use of the jitterbuffer, and we're bridged to
@@ -2392,8 +2395,10 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 		iaxs[fr->callno]->jbid = -1;
 
 		/* deliver this frame now */
+		if (tsout)
+			*tsout = fr->ts;
 		__do_deliver(fr);
-		return 0;
+		return -1;
 
 	}
 
@@ -2403,7 +2408,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 	ret = jb_put(iaxs[fr->callno]->jb, fr, type, len, fr->ts,
 			calc_rxstamp(iaxs[fr->callno],fr->ts));
 	if (ret == JB_DROP) {
-		iax2_frame_free(fr);
+		needfree++;
 	} else if (ret == JB_SCHED) {
 		update_jbsched(iaxs[fr->callno]);
 	}
@@ -2472,13 +2477,15 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 		if ((delay > -4) || (fr->af.frametype != AST_FRAME_VOICE)) {
 			if (option_debug && iaxdebug)
 				ast_log(LOG_DEBUG, "schedule_delivery: Delivering immediately (Calculated delay is %d)\n", delay);
+			if (tsout)
+				*tsout = fr->ts;
 			__do_deliver(fr);
+			return -1;
 		} else {
 			if (option_debug && iaxdebug)
 				ast_log(LOG_DEBUG, "schedule_delivery: Dropping voice packet since %dms delay is too old\n", delay);
 			iaxs[fr->callno]->frames_dropped++;
-			/* Free our iax frame */
-			iax2_frame_free(fr);
+			needfree++;
 		}
 	} else {
 		if (option_debug && iaxdebug)
@@ -2486,6 +2493,13 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 		fr->retrans = ast_sched_add(sched, delay, do_deliver, fr);
 	}
 #endif
+	if (tsout)
+		*tsout = fr->ts;
+	if (needfree) {
+		/* Free our iax frame */
+		iax2_frame_free(fr);
+		return -1;
+	}
 	return 0;
 }
 
@@ -6392,15 +6406,13 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 									} else {
 										duped_fr = iaxfrdup2(&fr);
 										if (duped_fr) {
-											schedule_delivery(duped_fr, updatehistory, 1);
-											fr.ts = duped_fr->ts;
+											schedule_delivery(duped_fr, updatehistory, 1, &fr.ts);
 										}
 									}
 #else
 									duped_fr = iaxfrdup2(&fr);
 									if (duped_fr) {
-										schedule_delivery(duped_fr, updatehistory, 1);
-										fr.ts = duped_fr->ts;
+										schedule_delivery(duped_fr, updatehistory, 1, &fr.ts);
 									}
 #endif
 									if (iaxs[fr.callno]->last < fr.ts) {
@@ -7585,15 +7597,13 @@ retryowner2:
 	} else {
 		duped_fr = iaxfrdup2(&fr);
 		if (duped_fr) {
-			schedule_delivery(duped_fr, updatehistory, 0);
-			fr.ts = duped_fr->ts;
+			schedule_delivery(duped_fr, updatehistory, 0, &fr.ts);
 		}
 	}
 #else
 	duped_fr = iaxfrdup2(&fr);
 	if (duped_fr) {
-		schedule_delivery(duped_fr, updatehistory, 0);
-		fr.ts = duped_fr->ts;
+		schedule_delivery(duped_fr, updatehistory, 0, &fr.ts);
 	}
 #endif
 
