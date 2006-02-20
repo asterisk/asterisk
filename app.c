@@ -594,7 +594,7 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 
 	while((fmt = strsep(&stringp, "|"))) {
 		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
-			ast_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
+			ast_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app.c\n");
 			break;
 		}
 		sfmt[fmtcnt++] = ast_strdupa(fmt);
@@ -824,7 +824,7 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 	
 	while((fmt = strsep(&stringp, "|"))) {
 		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
-			ast_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
+			ast_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app.c\n");
 			break;
 		}
 		sfmt[fmtcnt++] = ast_strdupa(fmt);
