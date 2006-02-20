@@ -60,7 +60,7 @@ static char *descrip =
 "This application sets the following channel variable upon completion:\n"
 "    AMDSTATUS - This is the status of the answering machine detection.\n"
 "                Possible values are:\n"
-"                MACHINE | PERSON | NOTSURE | HANGUP\n"
+"                MACHINE | HUMAN | NOTSURE | HANGUP\n"
 "    AMDCAUSE - Indicates the cause that led to the conclusion.\n"
 "               Possible values are:\n"
 "               TOOLONG-<%d total_time>\n"
@@ -247,7 +247,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 					ast_verbose(VERBOSE_PREFIX_3 "AMD: HUMAN: silenceDuration:%d afterGreetingSilence:%d\n",
 							silenceDuration, afterGreetingSilence );
 					ast_frfree(f);
-					strcpy(amdStatus , "PERSON" );
+					strcpy(amdStatus , "HUMAN" );
 					sprintf(amdCause , "HUMAN-%d-%d", silenceDuration, afterGreetingSilence );
 					break;
 				}
