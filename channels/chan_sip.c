@@ -11153,7 +11153,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		/* Make sure we don't ignore this */
 		if (seqno == p->pendinginvite) {
 			p->pendinginvite = 0;
-			__sip_ack(p, seqno, FLAG_RESPONSE, -1);
+			__sip_ack(p, seqno, FLAG_RESPONSE, 0);
 			if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
 				if (process_sdp(p, req))
 					return -1;
