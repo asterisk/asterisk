@@ -9168,7 +9168,7 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_CONFIG_ERR:
-				ast_log(LOG_WARNING, "PRI Error: %s\n", e->err.err);
+				ast_log(LOG_WARNING, "PRI Error on span %d: %s\n", pri->trunkgroup, e->err.err);
 				break;
 			case PRI_EVENT_RESTART_ACK:
 				chanpos = pri_find_principle(pri, e->restartack.channel);
