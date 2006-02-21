@@ -50,11 +50,14 @@ AST_MUTEX_DEFINE_STATIC(framelock);
 
 #define SMOOTHER_SIZE 8000
 
-#define TYPE_HIGH	 0x0
-#define TYPE_LOW	 0x1
-#define TYPE_SILENCE	 0x2
-#define TYPE_DONTSEND	 0x3
-#define TYPE_MASK	 0x3
+enum frame_type {
+	TYPE_HIGH,     /* 0x0 */
+	TYPE_LOW,      /* 0x1 */
+	TYPE_SILENCE,  /* 0x2 */
+	TYPE_DONTSEND  /* 0x3 */
+};
+
+#define TYPE_MASK 0x3
 
 struct ast_smoother {
 	int size;
@@ -110,7 +113,7 @@ struct ast_frame ast_null_frame = { AST_FRAME_NULL, };
 
 void ast_smoother_reset(struct ast_smoother *s, int size)
 {
-	memset(s, 0, sizeof(struct ast_smoother));
+	memset(s, 0, sizeof(*s));
 	s->size = size;
 }
 
@@ -119,8 +122,7 @@ struct ast_smoother *ast_smoother_new(int size)
 	struct ast_smoother *s;
 	if (size < 1)
 		return NULL;
-	s = malloc(sizeof(struct ast_smoother));
-	if (s)
+	if ((s = ast_malloc(sizeof(*s))))
 		ast_smoother_reset(s, size);
 	return s;
 }
@@ -248,10 +250,7 @@ void ast_smoother_free(struct ast_smoother *s)
 
 static struct ast_frame *ast_frame_header_new(void)
 {
-	struct ast_frame *f;
-	f = malloc(sizeof(struct ast_frame));
-	if (f)
-		memset(f, 0, sizeof(struct ast_frame));
+	struct ast_frame *f = ast_calloc(1, sizeof(*f));
 #ifdef TRACE_FRAMES
 	if (f) {
 		headers++;
@@ -307,9 +306,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 	struct ast_frame *out;
 	if (!(fr->mallocd & AST_MALLOCD_HDR)) {
 		/* Allocate a new header if needed */
-		out = ast_frame_header_new();
-		if (!out) {
-			ast_log(LOG_WARNING, "Out of memory\n");
+		if (!(out = ast_frame_header_new())) {
 			return NULL;
 		}
 		out->frametype = fr->frametype;
@@ -328,10 +325,8 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 	} else
 		out->src = fr->src;
 	if (!(fr->mallocd & AST_MALLOCD_DATA))  {
-		out->data = malloc(fr->datalen + AST_FRIENDLY_OFFSET);
-		if (!out->data) {
+		if (!(out->data = ast_malloc(fr->datalen + AST_FRIENDLY_OFFSET))) {
 			free(out);
-			ast_log(LOG_WARNING, "Out of memory\n");
 			return NULL;
 		}
 		out->data += AST_FRIENDLY_OFFSET;
@@ -349,7 +344,7 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 	int len, srclen = 0;
 	void *buf;
 	/* Start with standard stuff */
-	len = sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET + f->datalen;
+	len = sizeof(*out) + AST_FRIENDLY_OFFSET + f->datalen;
 	/* If we have a source, add space for it */
 	/*
 	 * XXX Watch out here - if we receive a src which is not terminated
@@ -359,8 +354,7 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 		srclen = strlen(f->src);
 	if (srclen > 0)
 		len += srclen + 1;
-	buf = malloc(len);
-	if (!buf)
+	if (!(buf = ast_malloc(len)))
 		return NULL;
 	out = buf;
 	/* Set us as having malloc'd header only, so it will eventually
@@ -372,7 +366,7 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 	out->delivery = f->delivery;
 	out->mallocd = AST_MALLOCD_HDR;
 	out->offset = AST_FRIENDLY_OFFSET;
-	out->data = buf + sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET;
+	out->data = buf + sizeof(*out) + AST_FRIENDLY_OFFSET;
 	if (srclen > 0) {
 		out->src = out->data + f->datalen;
 		/* Must have space since we allocated for it */
@@ -395,9 +389,9 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 struct ast_frame *ast_fr_fdread(int fd)
 {
 	char buf[65536];
-	int res;
-	int ttl = sizeof(struct ast_frame);
+	int res;	
 	struct ast_frame *f = (struct ast_frame *)buf;
+	int ttl = sizeof(*f);
 	/* Read a frame directly from there.  They're always in the
 	   right format. */
 	
@@ -411,15 +405,15 @@ struct ast_frame *ast_fr_fdread(int fd)
 	}
 	
 	/* read the frame header */
-	f->mallocd = 0;
+
 	/* Re-write data position */
-	f->data = buf + sizeof(struct ast_frame);
+	f->data = buf + sizeof(*f);
 	f->offset = 0;
 	/* Forget about being mallocd */
 	f->mallocd = 0;
 	/* Re-write the source */
 	f->src = (char *)__FUNCTION__;
-	if (f->datalen > sizeof(buf) - sizeof(struct ast_frame)) {
+	if (f->datalen > sizeof(buf) - sizeof(*f)) {
 		/* Really bad read */
 		ast_log(LOG_WARNING, "Strange read (%d bytes)\n", f->datalen);
 		return NULL;
@@ -448,7 +442,7 @@ struct ast_frame *ast_fr_fdread(int fd)
 int ast_fr_fdwrite(int fd, struct ast_frame *frame)
 {
 	/* Write the frame exactly */
-	if (write(fd, frame, sizeof(struct ast_frame)) != sizeof(struct ast_frame)) {
+	if (write(fd, frame, sizeof(*frame)) != sizeof(*frame)) {
 		ast_log(LOG_WARNING, "Write error: %s\n", strerror(errno));
 		return -1;
 	}
@@ -487,15 +481,15 @@ struct ast_format_list *ast_get_format_list_index(int index)
 
 struct ast_format_list *ast_get_format_list(size_t *size) 
 {
-	*size = (sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list));
+	*size = (sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]));
 	return AST_FORMAT_LIST;
 }
 
 char* ast_getformatname(int format)
 {
-	int x = 0;
+	int x;
 	char *ret = "unknown";
-	for (x = 0 ; x < sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list) ; x++) {
+	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
 		if(AST_FORMAT_LIST[x].visible && AST_FORMAT_LIST[x].bits == format) {
 			ret = AST_FORMAT_LIST[x].name;
 			break;
@@ -506,17 +500,16 @@ char* ast_getformatname(int format)
 
 char *ast_getformatname_multiple(char *buf, size_t size, int format) {
 
-	int x = 0;
+	int x;
 	unsigned len;
-	char *end = buf;
-	char *start = buf;
+	char *start, *end = buf;
 	if (!size) return buf;
 	snprintf(end, size, "0x%x (", format);
 	len = strlen(end);
 	end += len;
 	size -= len;
 	start = end;
-	for (x = 0 ; x < sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list) ; x++) {
+	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
 		if (AST_FORMAT_LIST[x].visible && (AST_FORMAT_LIST[x].bits & format)) {
 			snprintf(end, size,"%s|",AST_FORMAT_LIST[x].name);
 			len = strlen(end);
@@ -541,9 +534,9 @@ static struct ast_codec_alias_table {
 };
 
 static const char *ast_expand_codec_alias(const char *in) {
-	int x = 0;
+	int x;
 
-	for (x = 0; x < sizeof(ast_codec_alias_table) / sizeof(struct ast_codec_alias_table) ; x++) {
+	for (x = 0; x < sizeof(ast_codec_alias_table) / sizeof(ast_codec_alias_table[0]); x++) {
 		if(!strcmp(in,ast_codec_alias_table[x].alias))
 			return ast_codec_alias_table[x].realname;
 	}
@@ -552,10 +545,10 @@ static const char *ast_expand_codec_alias(const char *in) {
 
 int ast_getformatbyname(const char *name)
 {
-	int x = 0, all = 0, format = 0;
+	int x, all, format = 0;
 
 	all = strcasecmp(name, "all") ? 0 : 1;
-	for (x = 0 ; x < sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list) ; x++) {
+	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
 		if(AST_FORMAT_LIST[x].visible && (all || 
 										  !strcasecmp(AST_FORMAT_LIST[x].name,name) ||
 										  !strcasecmp(AST_FORMAT_LIST[x].name,ast_expand_codec_alias(name)))) {
@@ -569,9 +562,9 @@ int ast_getformatbyname(const char *name)
 }
 
 char *ast_codec2str(int codec) {
-	int x = 0;
+	int x;
 	char *ret = "unknown";
-	for (x = 0 ; x < sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list) ; x++) {
+	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
 		if(AST_FORMAT_LIST[x].visible && AST_FORMAT_LIST[x].bits == codec) {
 			ret = AST_FORMAT_LIST[x].desc;
 			break;
@@ -860,8 +853,8 @@ int init_framer(void)
 
 void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size, int right) 
 {
-	int x = 0, differential = (int) 'A', mem = 0;
-	char *from = NULL, *to = NULL;
+	int x, differential = (int) 'A', mem;
+	char *from, *to;
 
 	if(right) {
 		from = pref->order;
@@ -883,9 +876,9 @@ void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size,
 
 int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size) 
 {
-	int x = 0, codec = 0; 
-	size_t total_len = 0, slen = 0;
-	char *formatname = 0;
+	int x, codec; 
+	size_t total_len, slen;
+	char *formatname;
 	
 	memset(buf,0,size);
 	total_len = size;
@@ -932,19 +925,16 @@ int ast_codec_pref_index(struct ast_codec_pref *pref, int index)
 void ast_codec_pref_remove(struct ast_codec_pref *pref, int format)
 {
 	struct ast_codec_pref oldorder;
-	int x=0, y=0;
-	size_t size = 0;
-	int slot = 0;
+	int x, y = 0;
+	int slot;
 
 	if(!pref->order[0])
 		return;
 
-	size = sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list);
+	memcpy(&oldorder, pref, sizeof(oldorder));
+	memset(pref, 0, sizeof(*pref));
 
-	memcpy(&oldorder,pref,sizeof(struct ast_codec_pref));
-	memset(pref,0,sizeof(struct ast_codec_pref));
-
-	for (x = 0; x < size; x++) {
+	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
 		slot = oldorder.order[x];
 		if(! slot)
 			break;
@@ -957,13 +947,11 @@ void ast_codec_pref_remove(struct ast_codec_pref *pref, int format)
 /*! \brief ast_codec_pref_append: Append codec to list ---*/
 int ast_codec_pref_append(struct ast_codec_pref *pref, int format)
 {
-	size_t size = 0;
-	int x = 0, newindex = -1;
+	int x, newindex = -1;
 
 	ast_codec_pref_remove(pref, format);
-	size = sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list);
 
-	for (x = 0; x < size; x++) {
+	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
 		if(AST_FORMAT_LIST[x].bits == format) {
 			newindex = x + 1;
 			break;
@@ -971,7 +959,7 @@ int ast_codec_pref_append(struct ast_codec_pref *pref, int format)
 	}
 
 	if(newindex) {
-		for (x = 0; x < size; x++) {
+		for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
 			if(!pref->order[x]) {
 				pref->order[x] = newindex;
 				break;
@@ -986,11 +974,9 @@ int ast_codec_pref_append(struct ast_codec_pref *pref, int format)
 /*! \brief ast_codec_choose: Pick a codec ---*/
 int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best)
 {
-	size_t size = 0;
-	int x = 0, ret = 0, slot = 0;
+	int x, ret = 0, slot;
 
-	size = sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list);
-	for (x = 0; x < size; x++) {
+	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
 		slot = pref->order[x];
 
 		if(!slot)
@@ -1041,7 +1027,9 @@ void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, const char
 
 static int g723_len(unsigned char buf)
 {
-	switch(buf & TYPE_MASK) {
+	enum frame_type type = buf & TYPE_MASK;
+
+	switch(type) {
 	case TYPE_DONTSEND:
 		return 0;
 		break;
@@ -1055,7 +1043,7 @@ static int g723_len(unsigned char buf)
 		return 20;
 		break;
 	default:
-		ast_log(LOG_WARNING, "Badly encoded frame (%d)\n", buf & TYPE_MASK);
+		ast_log(LOG_WARNING, "Badly encoded frame (%d)\n", type);
 	}
 	return -1;
 }
@@ -1138,7 +1126,7 @@ static int speex_samples(unsigned char *data, int len)
 		32, 32, 64, 64 };
 	int bit = 0;
 	int cnt = 0;
-	int off = 0;
+	int off;
 	unsigned char c;
 
 	while ((len * 8 - bit) >= 5) {
