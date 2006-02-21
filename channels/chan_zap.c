@@ -9524,6 +9524,27 @@ static void build_status(char *s, size_t len, int status, int active)
 	s[len - 1] = '\0';
 }
 
+static int handle_pri_show_spans(int fd, int argc, char *argv[])
+{
+	int span;
+	int x;
+	char status[256];
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+
+	for (span = 0; span < NUM_SPANS; span++) {
+		if (pris[span].pri) {
+			for (x = 0; x < NUM_DCHANS; x++) {
+				if (pris[span].dchannels[x]) {
+					build_status(status, sizeof(status), pris[span].dchanavail[x], pris[span].dchans[x] == pris[span].pri);
+					ast_cli(fd, "PRI span %d/%d: %s\n", span + 1, x, status);
+				}
+			}
+		}
+	}
+	return RESULT_SUCCESS;
+}
+
 static int handle_pri_show_span(int fd, int argc, char *argv[])
 {
 	int span;
@@ -9607,6 +9628,10 @@ static const char pri_really_debug_help[] =
 
 static const char pri_show_span_help[] = 
 	"Usage: pri show span <span>\n"
+	"       Displays PRI Information on a given PRI span\n";
+
+static const char pri_show_spans_help[] = 
+	"Usage: pri show spans\n"
 	"       Displays PRI Information\n";
 
 static struct ast_cli_entry zap_pri_cli[] = {
@@ -9616,6 +9641,8 @@ static struct ast_cli_entry zap_pri_cli[] = {
 	  "Disables PRI debugging on a span", pri_no_debug_help, complete_span_5 },
 	{ { "pri", "intense", "debug", "span", NULL }, handle_pri_really_debug,
 	  "Enables REALLY INTENSE PRI debugging", pri_really_debug_help, complete_span_5 },
+	{ { "pri", "show", "spans", NULL }, handle_pri_show_spans,
+	  "Displays PRI Information", pri_show_spans_help },
 	{ { "pri", "show", "span", NULL }, handle_pri_show_span,
 	  "Displays PRI Information", pri_show_span_help, complete_span_4 },
 	{ { "pri", "show", "debug", NULL }, handle_pri_show_debug,
