@@ -233,6 +233,10 @@ endif
 INCLUDE+=-Iinclude -I../include
 ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
 ASTCFLAGS+=$(OPTIMIZE)
+ASTCFLAGS+= -Werror -Wunused
+ifeq ($(shell gcc -v 2>&1 | grep 'gcc version' | cut -f3 -d' ' | cut -f1 -d.),4)
+ASTCFLAGS+= -Wno-pointer-sign
+endif
 ASTOBJ=-o asterisk
 
 ifeq ($(findstring BSD,$(OSARCH)),BSD)

@@ -222,7 +222,7 @@ chan_nbs.so: chan_nbs.o
 	$(CC) $(SOLINK) -o $@ $< -lnbs
 
 chan_vpb.o: chan_vpb.c
-	$(CXX) -c $(CFLAGS) -o $@ chan_vpb.c
+	$(CXX) -c $(CFLAGS:-Werror=) -o $@ chan_vpb.c
 
 chan_vpb.so: chan_vpb.o
 	 $(CXX) $(SOLINK) -o $@ $< -lvpb -lpthread -lm -ldl

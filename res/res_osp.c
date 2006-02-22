@@ -568,7 +568,7 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 	char destination[2048]="";
 	char token[2000];
 	char tmp[256]="", *l, *n;
-	char *devinfo = NULL;
+	const char *devinfo = NULL;
 
 	result->handle = -1;
 	result->numresults = 0;

@@ -3114,13 +3114,14 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -3150,13 +3151,14 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -3336,13 +3338,14 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -3362,13 +3365,14 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -3534,13 +3538,14 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -3560,10 +3565,11 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
@@ -3742,14 +3748,15 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 					char todo = format[offset]; /* The letter to format*/
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						if (todo == 'Q') {
@@ -3902,13 +3909,14 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -3928,13 +3936,14 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -4126,13 +4135,14 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -4152,13 +4162,14 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -4332,15 +4343,16 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-			        struct timeval now;
+					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 	
-			        gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					gettimeofday(&now,NULL);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -4357,13 +4369,14 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 	
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -4562,13 +4575,14 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -4585,13 +4599,14 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -4777,13 +4792,14 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -4803,13 +4819,14 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -5053,13 +5070,14 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -5079,13 +5097,14 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tt;
 
 					gettimeofday(&now,NULL);
-					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -6092,13 +6111,14 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 			{
 				struct timeval now;
 				struct tm tmnow;
-				time_t beg_today;
+				time_t beg_today, tt;
 				
 				gettimeofday(&now,NULL);
-				ast_localtime(&now.tv_sec,&tmnow,timezone);
+				tt = now.tv_sec;
+				ast_localtime(&tt,&tmnow,timezone);
 				/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 				/* In any case, it saves not having to do ast_mktime() */
-				beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+				beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 				if (beg_today < time) {
 					/* Today */
 					res = wait_file(chan,ints, "digits/today",lang);
@@ -6118,13 +6138,14 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 			{
 				struct timeval now;
 				struct tm tmnow;
-				time_t beg_today;
+				time_t beg_today, tt;
 				
 				gettimeofday(&now,NULL);
-				ast_localtime(&now.tv_sec,&tmnow,timezone);
+				tt = now.tv_sec;
+				ast_localtime(&tt,&tmnow,timezone);
 				/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 				/* In any case, it saves not having to do ast_mktime() */
-				beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+				beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 				if (beg_today < time) {
 					/* Today */
 				} else if ((beg_today - 86400) < time) {

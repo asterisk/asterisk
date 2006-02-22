@@ -12097,7 +12097,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	int obproxyfound=0;
 	int found=0;
 	int format=0;		/* Ama flags */
-	time_t regseconds;
+	time_t regseconds = 0;
 	char *varname = NULL, *varval = NULL;
 	struct ast_variable *tmpvar = NULL;
 	struct ast_flags peerflags = {(0)};

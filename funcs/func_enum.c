@@ -88,7 +88,7 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 		args.options = "1";
 
 	/* strip any '-' signs from number */
-	for (p = args.number, s = p; *s; *s++) {
+	for (s = p = args.number; *s; s++) {
 		if (*s != '-')
 			*p++ = *s;
 	}

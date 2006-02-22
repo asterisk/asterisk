@@ -32,7 +32,6 @@
  *    name              meaning
  *  uint32_t         unsigned 32 bit integer
  *  uint8_t          unsigned 8 bit integer (i.e., unsigned char)
- *  int_least16_t    integer of >= 16 bits
  *
  */
 
@@ -60,7 +59,7 @@ typedef struct SHA1Context
     uint32_t Length_High;           /* Message length in bits      */
 
                                /* Index into message block array   */
-    int_least16_t Message_Block_Index;
+    uint32_t Message_Block_Index;	/* 8 bits actually suffice */
     uint8_t Message_Block[64];      /* 512-bit message blocks      */
 
     int Computed;               /* Is the digest computed?         */

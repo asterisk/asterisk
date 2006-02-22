@@ -364,7 +364,7 @@ TOAST_INSTALL_TARGETS =	\
 # Default rules
 
 .c.o:
-		$(CC) $(CFLAGS) $?
+		$(CC) $(CFLAGS:-Werror=) $?
 		@-mv `$(BASENAME) $@` $@ > /dev/null 2>&1
 
 # Target rules
