@@ -1558,7 +1558,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					if (!user->listen.actual && 
 						((confflags & CONFFLAG_MONITOR) || 
 						 (user->adminflags & ADMINFLAG_MUTED) ||
-						 (user->talking && (confflags & CONFFLAG_OPTIMIZETALKER))
+						 (!user->talking && (confflags & CONFFLAG_OPTIMIZETALKER))
 						 )) {
 						int index;
 						for (index=0;index<AST_FRAME_BITS;index++)
