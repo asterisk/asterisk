@@ -836,7 +836,7 @@ void ast_backtrace(void)
 	void **addresses;
 	char **strings;
 
-	addresses = calloc(levels, sizeof(void *));
+	addresses = calloc(20, sizeof(void *));
 	if (addresses) {
 		count = backtrace(addresses, 20);
 		strings = backtrace_symbols(addresses, count);
