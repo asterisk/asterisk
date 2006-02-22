@@ -214,7 +214,7 @@ static void _free_port_cfg (void)
 {
 	int i, j;
 	int gn = map[MISDN_CFG_GROUPNAME];
-	union misdn_cfg_pt* free_list[max_ports + 1];
+	union misdn_cfg_pt* free_list[max_ports + 2];
 	
 	memset(free_list, 0, sizeof(free_list));
 	free_list[0] = port_cfg[0];

@@ -798,8 +798,8 @@ msg_t *build_release (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
  
 	release=(RELEASE_t*)((msg->data+HEADER_LEN)); 
   
-  
-	enc_ie_cause(&release->CAUSE, msg, nt?1:0, bc->out_cause, nt,bc);
+	if (bc->out_cause>= 0)
+		enc_ie_cause(&release->CAUSE, msg, nt?1:0, bc->out_cause, nt,bc);
   
 #if DEBUG 
 	printf("Building RELEASE Msg\n"); 

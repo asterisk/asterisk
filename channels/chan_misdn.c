@@ -1915,14 +1915,16 @@ static int misdn_hangup(struct ast_channel *ast)
 			chan_misdn_log(1, bc->port, " --> cause %d\n",bc->cause);
 			chan_misdn_log(1, bc->port, " --> out_cause %d\n",bc->out_cause);
 			
+			bc->out_cause=-1;
 			misdn_lib_send_event(bc,EVENT_RELEASE);
 			break;
 		default:
 			/*  Alerting or Disconect */
 
-			if (bc->nt)
+			if (bc->nt) {
+				bc->out_cause=-1;
 				misdn_lib_send_event(bc, EVENT_RELEASE);
-			else
+			} else
 				misdn_lib_send_event(bc, EVENT_DISCONNECT);
 			p->state=MISDN_CLEANING; /* MISDN_HUNGUP_FROM_AST; */
 		}
@@ -3377,12 +3379,14 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 		
 		stop_bc_tones(ch);
-		bc->out_cause=16;
+		/*bc->out_cause=16;*/
+		bc->out_cause=-1;
 		
-		//if (ch->state == MISDN_CONNECTED) 
-		//misdn_lib_send_event(bc,EVENT_RELEASE);
-		//else
-		//misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
+		/*if (ch->state == MISDN_CONNECTED) 
+		misdn_lib_send_event(bc,EVENT_RELEASE);
+		else
+		misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
+		*/
 		
 		misdn_lib_send_event(bc,EVENT_RELEASE);
 		
@@ -3401,15 +3405,18 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				  before, so we should RELEASE_COMPLETE after that Disconnect
 				  (looks like ALERTING State at misdn_hangup !!
 				*/
-				return RESPONSE_OK;
+				
+				/*return RESPONSE_OK;*/
 				break;
 			}
 			
 			
 			bc->out_cause=16;
 			
-			stop_bc_tones(ch);
-			release_chan(bc);
+			/*stop_bc_tones(ch);
+			  release_chan(bc);*/
+			
+			misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
 		}
 		break;
 	case EVENT_RELEASE_COMPLETE:

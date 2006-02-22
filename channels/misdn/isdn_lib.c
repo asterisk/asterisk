@@ -1659,13 +1659,13 @@ handle_event_nt(void *dat, void *arg)
 
 		case CC_RELEASE|CONFIRM:
 		{
-			struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
-			cb_log(3, stack->port, " --> RELEASE CONFIRM, doing nothin\n");
-			cb_event(EVENT_CLEANUP, bc, glob_mgr->user_data);
-			empty_chan_in_stack(stack,bc->channel);
-			empty_bc(bc);
-			free_msg(msg);
-			return 0;
+			/*struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
+			  cb_log(3, stack->port, " --> RELEASE CONFIRM, doing nothin\n");
+			  cb_event(EVENT_CLEANUP, bc, glob_mgr->user_data);
+			  empty_chan_in_stack(stack,bc->channel);
+			  empty_bc(bc);
+			  free_msg(msg);
+			  return 0;*/
 		}
 		break;  
 		case CC_RELEASE|INDICATION:
@@ -2035,7 +2035,7 @@ int handle_bchan(msg_t *msg)
 				
 				int i=cb_event( EVENT_BCHAN_DATA, bc, glob_mgr->user_data);
 				if (i<0) {
-					cb_log(2,stack->port,"cb_event returned <0\n");
+					cb_log(5,stack->port,"cb_event returned <0\n");
 					/*clean_up_bc(bc);*/
 				}
 			}
@@ -2990,11 +2990,12 @@ int misdn_lib_init(char *portlist, struct misdn_lib_iface *iface, void *user_dat
 	glob_mgr = mgr;
   
 	msg_init();
-	debug_init(0 , NULL, NULL, NULL);
 #if 0
 	int flags=0xff;
 	flags &= ~DBGM_MSG;
 	debug_init( flags , NULL, NULL, NULL);
+#else
+	debug_init(0 , NULL, NULL, NULL);
 #endif	
 	if (!portlist || (*portlist == 0) ) return 1;
 	
