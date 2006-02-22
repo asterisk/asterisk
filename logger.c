@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -36,6 +36,7 @@
 #include <sys/stat.h>
 #ifdef STACK_BACKTRACES
 #include <execinfo.h>
+#define MAX_BACKTRACE_FRAMES 20
 #endif
 
 #define SYSLOG_NAMES /* so we can map syslog facilities names to their numeric values,
@@ -836,9 +837,9 @@ void ast_backtrace(void)
 	void **addresses;
 	char **strings;
 
-	addresses = calloc(20, sizeof(void *));
+	addresses = calloc(MAX_BACKTRACE_FRAMES, sizeof(void *));
 	if (addresses) {
-		count = backtrace(addresses, 20);
+		count = backtrace(addresses, MAX_BACKTRACE_FRAMES);
 		strings = backtrace_symbols(addresses, count);
 		if (strings) {
 			ast_log(LOG_DEBUG, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
