@@ -298,9 +298,11 @@ struct {								\
 #define AST_LIST_TRAVERSE_SAFE_BEGIN(head, var, field) {				\
 	typeof((head)->first) __list_next;						\
 	typeof((head)->first) __list_prev = NULL;					\
-	for ((var) = (head)->first,  __list_next = (var) ? (var)->field.next : NULL;	\
+	typeof((head)->first) __new_prev = NULL;					\
+	for ((var) = (head)->first, __new_prev = (var),					\
+	      __list_next = (var) ? (var)->field.next : NULL;				\
 	     (var);									\
-	     __list_prev = (var), (var) = __list_next,					\
+	     __list_prev = __new_prev, (var) = __list_next,				\
 	     __list_next = (var) ? (var)->field.next : NULL				\
 	    )
 
@@ -316,6 +318,7 @@ struct {								\
   previous entry, if any).
  */
 #define AST_LIST_REMOVE_CURRENT(head, field)						\
+	__new_prev = __list_prev;							\
 	if (__list_prev)								\
 		__list_prev->field.next = __list_next;					\
 	else										\
@@ -340,7 +343,8 @@ struct {								\
 	} else {							\
 		(elm)->field.next = (head)->first;			\
 		(head)->first = (elm);					\
-	}										\
+	}								\
+	__new_prev = (elm);						\
 } while (0)
 
 /*!

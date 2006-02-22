@@ -5898,7 +5898,6 @@ static int load_config(void)
 	}
 	zones = NULL;
 	zonesl = NULL;
-	AST_LIST_HEAD_INIT(&users);
 	memset(ext_pass_cmd, 0, sizeof(ext_pass_cmd));
 
 	if (cfg) {
