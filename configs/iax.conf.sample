@@ -333,6 +333,11 @@ inkeys=freeworlddialup
 ; keys should always be 3DES encrypted.
 ;
 ;
+; NOTE: All hostnames and IP addresses in this file are for example purposes
+;       only; you should not expect any of them to actually be available for
+;       your use.
+;
+;
 ;[markster]
 ;type=user
 ;context=default
