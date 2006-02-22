@@ -50,15 +50,23 @@ static char *synopsis =
 static char *descrip = "This application is a template to build other applications from.\n"
  " It shows you the basic structure to create your own Asterisk applications.\n";
 
-#define OPTION_A	(1 << 0)	/* Option A */
-#define OPTION_B	(1 << 1)	/* Option B(n) */
-#define OPTION_C	(1 << 2)	/* Option C(str) */
-#define OPTION_NULL	(1 << 3)	/* Dummy Termination */
+enum {
+	OPTION_A = (1 << 0),
+	OPTION_B = (1 << 1),
+	OPTION_C = (1 << 2),
+} option_flags;
 
-AST_DECLARE_OPTIONS(app_opts,{
-	['a'] = { OPTION_A },
-	['b'] = { OPTION_B, 1 },
-	['c'] = { OPTION_C, 2 }
+enum {
+	OPTION_ARG_B = 0,
+	OPTION_ARG_C = 1,
+	/* This *must* be the last value in this enum! */
+	OPTION_ARG_ARRAY_SIZE = 2,
+} option_args;
+
+AST_APP_OPTIONS(app_opts,{
+	AST_APP_OPTION('a', OPTION_A),
+	AST_APP_OPTION_ARG('b', OPTION_B, OPTION_ARG_B),
+	AST_APP_OPTION_ARG('c', OPTION_C, OPTION_ARG_C),
 });
 
 LOCAL_USER_DECL;
@@ -68,15 +76,14 @@ static int app_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct ast_flags flags;
 	struct localuser *u;
-	char *options = NULL;
-	char *dummy = NULL;
-	char *args;
-	int argc = 0;
-	char *opts[2];
-	char *argv[2];
+	char *parse, *opts[OPTION_ARG_ARRAY_SIZE];
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(dummy);
+		AST_APP_ARG(options);
+	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "%s requires an argument (dummy|[options])\n",app);
+		ast_log(LOG_WARNING, "%s requires an argument (dummy|[options])\n", app);
 		return -1;
 	}
 
@@ -85,28 +92,27 @@ static int app_exec(struct ast_channel *chan, void *data)
 	/* Do our thing here */
 
 	/* We need to make a copy of the input string if we are going to modify it! */
-	if (!(args = ast_strdupa(data))) {
+	if (!(parse = ast_strdupa(data))) {
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	
-	if ((argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
-		dummy = argv[0];
-		options = argv[1];
-		ast_parseoptions(app_opts, &flags, opts, options);
-	}
 
-	if (!ast_strlen_zero(dummy)) 
-		ast_log(LOG_NOTICE, "Dummy value is : %s\n", dummy);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (args.argc == 2)
+		ast_app_parse_options(app_opts, &flags, opts, args.options);
+
+	if (!ast_strlen_zero(args.dummy)) 
+		ast_log(LOG_NOTICE, "Dummy value is : %s\n", args.dummy);
 
 	if (ast_test_flag(&flags, OPTION_A))
 		ast_log(LOG_NOTICE, "Option A is set\n");
 
 	if (ast_test_flag(&flags, OPTION_B))
-		ast_log(LOG_NOTICE,"Option B is set with : %s\n", opts[0] ? opts[0] : "<unspecified>");
+		ast_log(LOG_NOTICE, "Option B is set with : %s\n", opts[OPTION_ARG_B] ? opts[OPTION_ARG_B] : "<unspecified>");
 
 	if (ast_test_flag(&flags, OPTION_C))
-		ast_log(LOG_NOTICE,"Option C is set with : %s\n", opts[1] ? opts[1] : "<unspecified>");
+		ast_log(LOG_NOTICE, "Option C is set with : %s\n", opts[OPTION_ARG_C] ? opts[OPTION_ARG_C] : "<unspecified>");
 
 	LOCAL_USER_REMOVE(u);
 
