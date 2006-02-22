@@ -69,7 +69,7 @@ ast_mutex_t release_lock_mutex;
 #define release_unlock ast_mutex_unlock(&release_lock_mutex)
 
 
-char global_tracefile[BUFFERSIZE];
+char global_tracefile[BUFFERSIZE+1];
 
 
 struct misdn_jb{
@@ -83,6 +83,10 @@ struct misdn_jb{
 	int bytes_wrote;
 	ast_mutex_t mutexjb;
 };
+
+void export_ies(struct ast_channel *chan, struct misdn_bchannel *bc);
+void import_ies(struct ast_channel *chan, struct misdn_bchannel *bc);
+
 
 /* allocates the jb-structure and initialise the elements*/
 struct misdn_jb *misdn_jb_init(int size, int upper_threshold);
@@ -242,14 +246,13 @@ static void send_digit_to_chan(struct chan_list *cl, char digit );
 
 #define MISDN_ASTERISK_TECH_PVT(ast) ast->tech_pvt
 #define MISDN_ASTERISK_PVT(ast) 1
-#define MISDN_ASTERISK_TYPE(ast) ast->tech->type
 
 #include <asterisk/strings.h>
 
 /* #define MISDN_DEBUG 1 */
 
 static char *desc = "Channel driver for mISDN Support (Bri/Pri)";
-static char *misdn_type = "mISDN";
+static const char misdn_type[] = "mISDN";
 
 static int tracing = 0 ;
 
@@ -882,9 +885,7 @@ static int misdn_send_display (int fd, int argc, char *argv[])
 		tmp=get_chan_by_ast_name(channame);
     
 		if (tmp && tmp->bc) {
-			int l = sizeof(tmp->bc->display);
-			strncpy(tmp->bc->display, msg, l);
-			tmp->bc->display[l-1] = 0;
+			ast_copy_string(tmp->bc->display, msg, sizeof(tmp->bc->display));
 			misdn_lib_send_event(tmp->bc, EVENT_INFORMATION);
 		} else {
 			ast_cli(fd,"No such channel %s\n",channame);
@@ -1197,13 +1198,13 @@ static int read_config(struct chan_list *ch, int orig) {
 	
 	chan_misdn_log(1,port,"read_config: Getting Config\n");
 
-	char lang[BUFFERSIZE];
+	char lang[BUFFERSIZE+1];
 	
 
 	misdn_cfg_get( port, MISDN_CFG_LANGUAGE, lang, BUFFERSIZE);
 	ast_string_field_set(ast, language, lang);
 
-	char localmusicclass[BUFFERSIZE];
+	char localmusicclass[BUFFERSIZE+1];
 	
 	misdn_cfg_get( port, MISDN_CFG_MUSICCLASS, localmusicclass, BUFFERSIZE);
 	ast_string_field_set(ast, musicclass, localmusicclass);
@@ -1229,7 +1230,7 @@ static int read_config(struct chan_list *ch, int orig) {
 	
 	misdn_cfg_get( bc->port, MISDN_CFG_CONTEXT, ch->context, sizeof(ch->context));
 	
-	strncpy(ast->context,ch->context,sizeof(ast->context)-1);
+	ast_copy_string (ast->context,ch->context,sizeof(ast->context));
 	
 	{
 		int ec, ectr;
@@ -1278,7 +1279,7 @@ static int read_config(struct chan_list *ch, int orig) {
 		
 		
 		{
-			char callerid[BUFFERSIZE];
+			char callerid[BUFFERSIZE+1];
 			misdn_cfg_get( port, MISDN_CFG_CALLERID, callerid, BUFFERSIZE);
 			if ( ! ast_strlen_zero(callerid) ) {
 				chan_misdn_log(1, port, " --> * Setting Cid to %s\n", callerid);
@@ -1338,7 +1339,7 @@ static int read_config(struct chan_list *ch, int orig) {
 		
 	} else { /** ORIGINATOR MISDN **/
 		
-		char prefix[BUFFERSIZE]="";
+		char prefix[BUFFERSIZE+1]="";
 		switch( bc->onumplan ) {
 		case NUMPLAN_INTERNATIONAL:
 			misdn_cfg_get( bc->port, MISDN_CFG_INTERNATPREFIX, prefix, BUFFERSIZE);
@@ -1369,13 +1370,11 @@ static int read_config(struct chan_list *ch, int orig) {
 		
 		
 		if (!ast_strlen_zero(bc->dad)) {
-			strncpy(bc->orig_dad,bc->dad, sizeof(bc->orig_dad));
-			bc->orig_dad[sizeof(bc->orig_dad)-1] = 0;
+			ast_copy_string(bc->orig_dad,bc->dad, sizeof(bc->orig_dad));
 		}
 		
 		if ( ast_strlen_zero(bc->dad) && !ast_strlen_zero(bc->keypad)) {
-			strncpy(bc->dad,bc->keypad, sizeof(bc->dad));
-			bc->dad[sizeof(bc->dad)-1] = 0;
+			ast_copy_string(bc->dad,bc->keypad, sizeof(bc->dad));
 		}
 		prefix[0] = 0;
 		
@@ -1418,10 +1417,9 @@ static int read_config(struct chan_list *ch, int orig) {
 		if ( !ast->cid.cid_num) {
 			ast->cid.cid_num=strdup(bc->oad);
 		}
-			
+		
 		pbx_builtin_setvar_helper(ch->ast,"REDIRECTING_NUMBER",bc->rad);
 	}
-	
 	return 0;
 }
 
@@ -1529,7 +1527,10 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 
 		/* update screening and presentation */ 
 		update_config(ch,ORG_AST);
-	
+
+		/* fill in some ies from channel vary*/
+		import_ies(ast, newbc);
+		
 		/* Finally The Options Override Everything */
 		if (opts)
 			misdn_set_opt_exec(ast,opts);
@@ -2230,7 +2231,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 
 {
 	struct ast_channel *tmp = NULL;
-	char group[BUFFERSIZE]="";
+	char group[BUFFERSIZE+1]="";
 	char buf[128];
 	char buf2[128], *ext=NULL, *port_str;
 	char *tokb=NULL, *p=NULL;
@@ -2240,20 +2241,12 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	struct chan_list *cl=init_chan_list();
 	
 	sprintf(buf,"%s/%s",misdn_type,(char*)data);
-	strncpy(buf2,data, 128);
-	buf2[127] = 0;
+	ast_copy_string(buf2,data, 128);
+	
 	port_str=strtok_r(buf2,"/", &tokb);
 
 	ext=strtok_r(NULL,"/", &tokb);
 
-	/*
-	  if (!ext) {
-	  ast_log(LOG_WARNING, " --> ! IND : CALL dad:%s WITH WRONG ARGS, check extension.conf\n",ext);
-	  
-	  return NULL;
-	  }
- 	*/
-	
 	if (port_str) {
 		if (port_str[0]=='g' && port_str[1]==':' ) {
 			/* We make a group call lets checkout which ports are in my group */
@@ -2281,7 +2274,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 
 	if (!ast_strlen_zero(group)) {
 	
-		char cfg_group[BUFFERSIZE];
+		char cfg_group[BUFFERSIZE+1];
 		struct robin_list *rr = NULL;
 
 		if (misdn_cfg_is_group_method(group, METHOD_ROUND_ROBIN)) {
@@ -2937,6 +2930,43 @@ static void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel*bc) {
 	}
 }
 
+
+void import_ies(struct ast_channel *chan, struct misdn_bchannel *bc)
+{
+	char *tmp;
+
+	tmp=pbx_builtin_getvar_helper(chan,"PRI_MODE");
+	if (tmp) bc->mode=atoi(tmp);
+
+	tmp=pbx_builtin_getvar_helper(chan,"PRI_URATE");
+	if (tmp) bc->urate=atoi(tmp);
+
+	tmp=pbx_builtin_getvar_helper(chan,"PRI_RATE");
+	if (tmp) bc->rate=atoi(tmp);
+
+	tmp=pbx_builtin_getvar_helper(chan,"PRI_USER1");
+	if (tmp) bc->user1=atoi(tmp);
+}
+
+void export_ies(struct ast_channel *chan, struct misdn_bchannel *bc)
+{
+	char tmp[32];
+	
+	sprintf(tmp,"%d",bc->mode);
+	pbx_builtin_setvar_helper(chan,"PRI_MODE",tmp);
+
+	sprintf(tmp,"%d",bc->urate);
+	pbx_builtin_setvar_helper(chan,"PRI_URATE",tmp);
+
+	sprintf(tmp,"%d",bc->rate);
+	pbx_builtin_setvar_helper(chan,"PRI_RATE",tmp);
+	
+	sprintf(tmp,"%d",bc->user1);
+	pbx_builtin_setvar_helper(chan,"PRI_USER1",tmp);
+}
+
+
+
 /************************************************************/
 /*  Receive Events from isdn_lib  here                     */
 /************************************************************/
@@ -3145,11 +3175,13 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->l3id=bc->l3_id;
 		ch->addr=bc->addr;
 		ch->orginator = ORG_MISDN;
-		
+
 		chan=misdn_new(ch, AST_STATE_RESERVED,bc->dad, bc->oad, AST_FORMAT_ALAW, bc->port, bc->channel);
-	ch->ast = chan;
-		
+		ch->ast = chan;
+
 		read_config(ch, ORG_MISDN);
+		
+		export_ies(chan, bc);
 		
 		ch->ast->rings=1;
 		ast_setstate(ch->ast, AST_STATE_RINGING);
@@ -3260,7 +3292,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				tone_indicate(ch,TONE_NONE);
 			else
 				tone_indicate(ch,TONE_DIAL);
-	
+			
 			ch->state=MISDN_WAITING4DIGS;
 		}
       
@@ -3648,7 +3680,7 @@ int load_module(void)
 
 	
 	{
-		char tempbuf[BUFFERSIZE];
+		char tempbuf[BUFFERSIZE+1];
 		misdn_cfg_get( 0, MISDN_GEN_TRACEFILE, tempbuf, BUFFERSIZE);
 		if (strlen(tempbuf))
 			tracing = 1;
@@ -3878,7 +3910,7 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 		switch(tok[0]) {
 			
 		case 'd' :
-			strncpy(ch->bc->display,++tok,84);
+			ast_copy_string(ch->bc->display,++tok,84);
 			chan_misdn_log(1, ch->bc->port, "SETOPT: Display:%s\n",ch->bc->display);
 			break;
 			
@@ -3946,10 +3978,9 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 			}
       
 			{
-				int l = sizeof(ch->bc->crypt_key);
-				strncpy(ch->bc->crypt_key, misdn_key_vector[keyidx], l);
-				ch->bc->crypt_key[l-1] = 0;
+				ast_copy_string(ch->bc->crypt_key,  misdn_key_vector[keyidx], sizeof(ch->bc->crypt_key));
 			}
+			
 			chan_misdn_log(0, ch->bc->port, "SETOPT: crypt with key:%s\n",misdn_key_vector[keyidx]);
 			break;
 

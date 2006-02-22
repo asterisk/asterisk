@@ -491,7 +491,7 @@ void empty_bc(struct misdn_bchannel *bc)
 	bc->capability=INFO_CAPABILITY_SPEECH;
 	bc->law=INFO_CODEC_ALAW;
 	bc->mode=0;
-	bc->rate=0;
+	bc->rate=0x10;
 	bc->user1=0;
 	bc->urate=0;
 	
@@ -503,6 +503,7 @@ void empty_bc(struct misdn_bchannel *bc)
 	bc->infos_pending[0] = 0;
 	bc->oad[0] = 0;
 	bc->dad[0] = 0;
+	bc->rad[0] = 0;
 	bc->orig_dad[0] = 0;
 	
 	bc->fac_type=FACILITY_NONE;

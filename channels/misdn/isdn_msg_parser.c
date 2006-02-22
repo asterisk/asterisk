@@ -300,6 +300,8 @@ msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 			break;
 		case INFO_CAPABILITY_DIGITAL_UNRESTRICTED: capability = 8;
 			user=-1;
+			mode=bc->mode;
+			rate=bc->rate;
 			break;
 		case INFO_CAPABILITY_DIGITAL_RESTRICTED: capability = 9;
 			user=-1;
