@@ -47,10 +47,8 @@ Functions:
   modules.conf file then you will need to explicitly load the modules that
   contain the functions you want to use.
 
-* The ENUMLOOKUP() function no longer supplies a default zone for searching; instead,
-  it uses the default zone(s) defined in enum.conf. In addition, when the 'c'
-  option (for counting the number of records is specified), but the lookup fails
-  to match any records, the returned value will now be "0" instead of blank.
+* The ENUMLOOKUP() function with the 'c' option (for counting the number of records),
+  but the lookup fails to match any records, the returned value will now be "0" instead of blank.
 
 The SIP channel:
 

@@ -64,8 +64,7 @@ options = optional specifiers.
     ordinal list starting with 1 (by order first, then priority).
     The default of <options> is "1"
  
-zone_suffix = allows customization of the ENUM zone. If no zone_suffix is 
-    given the default zones are taken from enum.conf
+zone_suffix = allows customization of the ENUM zone. Default is e164.arpa.
 
 
 EXAMPLE USES:
@@ -118,7 +117,7 @@ Example 6: Give back the second full URI in the sorted list of all NAPTR URIs:
 exten => 100,1,Set(foo=${ENUMLOOKUP(+13015611020,ALL,2,loligo.com)})
   returns: ${foo}="tel:+14155551212"  [note the "tel:" prefix in the string]
 
-Example 7: Look up first SIP entry for the number in the default zone(s) from enum.conf 
+Example 7: Look up first SIP entry for the number in the e164.arpa zone (all defaults)
 exten => 100,1,Set(foo=${ENUMLOOKUP(+437203001721)})
   returns: ${foo}="enum-test@sip.nemox.net"  [note: this result is
   subject to change as it is "live" DNS and not under my control]
@@ -196,9 +195,10 @@ Usage notes and subtle features:
   a result of your query, the function will RANDOMLY select a single
   NAPTR from those equal results.
 
-  g) If a zone is given explicitely the function ignores the settings 
-  in enum.conf as the search zone name is now specified within the function, 
-  and the H323  driver can be chosen by the user via the dialplan. 
+  g) Currently, the function ignores the settings in enum.conf as the
+  search zone name is now specified within the function, and the H323
+  driver can be chosen by the user via the dialplan.  There were no
+  other values in this file, and so it becomes deprecated.
 
   h) The function will digest and return NAPTRs which use older
   (depricated) style, reversed method strings such as "sip+E2U"
@@ -225,8 +225,7 @@ Usage notes and subtle features:
 ==EXAMPLES==
 
 All examples below except where noted use "e164.arpa" as the
-referenced domain, which is the default domain name for ENUMLOOKUP if
-'search => e164.arpa' is set in enum.conf.
+referenced domain, which is the default domain name for ENUMLOOKUP.
 All numbers are assumed to not have a leading "+" as dialed by the
 inbound channel, so that character is added where necessary during
 ENUMLOOKUP function calls.
@@ -271,16 +270,16 @@ exten => _011.,n,Dial(Zap/g1/${EXTEN})
 ;
 ; Start first with e164.arpa zone...
 ;
-exten => _X.,1,Set(sipcount=${ENUMLOOKUP(+${EXTEN},sip,c,e164.arpa)}|counter=0)
+exten => _X.,1,Set(sipcount=${ENUMLOOKUP(+${EXTEN},sip,c)}|counter=0)
 exten => _X.,2,GotoIf($["${counter}"<"${sipcount}"]?3:6)
 exten => _X.,3,Set(counter=$[${counter}+1])
-exten => _X.,4,Dial(SIP/${ENUMLOOKUP(+${EXTEN},sip,${counter},e164.arpa)})
+exten => _X.,4,Dial(SIP/${ENUMLOOKUP(+${EXTEN},sip,${counter})})
 exten => _X.,5,GotoIf($["${counter}"<"${sipcount}"]?3:6)
 ;
-exten => _X.,6,Set(iaxcount=${ENUMLOOKUP(+${EXTEN},iax2,c,e164.arpa)}|counter=0)
+exten => _X.,6,Set(iaxcount=${ENUMLOOKUP(+${EXTEN},iax2,c)}|counter=0)
 exten => _X.,7,GotoIf($["${counter}"<"${iaxcount}"]?8:11)
 exten => _X.,8,Set(counter=$[${counter}+1])
-exten => _X.,9,Dial(IAX2/${ENUMLOOKUP(+${EXTEN},iax2,${counter},e164.arpa)})
+exten => _X.,9,Dial(IAX2/${ENUMLOOKUP(+${EXTEN},iax2,${counter})})
 exten => _X.,10,GotoIf($["${counter}"<"${iaxcount}"]?8:11)
 ;
 exten => _X.,11,NoOp("No valid entries in e164.arpa for ${EXTEN} - checking in e164.org")
@@ -305,26 +304,3 @@ exten => _X.,22,NoOp("No valid entries in e164.org for ${EXTEN} - sending out vi
 exten => _X.,23,Dial(Zap/g1/${EXTEN})
 ;
 ; end example 3
-
-;
-;
-; An alternative to example 3 would be setting the search zones in enum.conf like
-; search => e164.arpa
-; search => e164.org
-;
-; Start start matching the default zones from configuration:
-exten => _X.,1,Set(sipcount=${ENUMLOOKUP(+${EXTEN},sip,c)}|counter=0)
-exten => _X.,2,GotoIf($["${counter}"<"${sipcount}"]?3:6)
-exten => _X.,3,Set(counter=$[${counter}+1])
-exten => _X.,4,Dial(SIP/${ENUMLOOKUP(+${EXTEN},sip,${counter})})
-exten => _X.,5,GotoIf($["${counter}"<"${sipcount}"]?3:6)
-;
-exten => _X.,6,Set(iaxcount=${ENUMLOOKUP(+${EXTEN},iax2,c)}|counter=0)
-exten => _X.,7,GotoIf($["${counter}"<"${iaxcount}"]?8:11)
-exten => _X.,8,Set(counter=$[${counter}+1])
-exten => _X.,9,Dial(IAX2/${ENUMLOOKUP(+${EXTEN},iax2,${counter})})
-exten => _X.,10,GotoIf($["${counter}"<"${iaxcount}"]?8:11)
-;
-exten => _X.,11,NoOp("No valid entries in default zones from enum.conf for ${EXTEN}")
-;
-
