@@ -1132,10 +1132,12 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 	int expiration;
 	char fs[256];
 	time_t timeout;
+	unsigned int x;
 	/* Build request string */
 	if (!ast_db_get("dundi/cache", key, data, sizeof(data))) {
 		ptr = data;
-		if (sscanf(ptr, "%d|%n", (int *)&timeout, &length) == 1) {
+		if (sscanf(ptr, "%d|%n", (int *)&x, &length) == 1) {
+			timeout = x;
 			expiration = timeout - now;
 			if (expiration > 0) {
 				ast_log(LOG_DEBUG, "Found cache expiring in %d seconds!\n", (int)(timeout - now));
@@ -2028,9 +2030,11 @@ static void load_password(void)
 	char *last=NULL;
 	char tmp[256];
 	time_t expired;
+	unsigned int x;
 	
 	ast_db_get(secretpath, "secretexpiry", tmp, sizeof(tmp));
-	if (sscanf(tmp, "%d", (int *)&expired) == 1) {
+	if (sscanf(tmp, "%d", (int *)&x) == 1) {
+		expired = x;
 		ast_db_get(secretpath, "secret", tmp, sizeof(tmp));
 		current = strchr(tmp, ';');
 		if (!current)
