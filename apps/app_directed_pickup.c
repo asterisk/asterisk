@@ -82,7 +82,7 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 		origin = ast_get_channel_by_exten_locked(exten, context);
 		if (origin) {
 			ast_cdr_getvar(origin->cdr, "dstchannel", &tmp, workspace,
-					sizeof(workspace), 0);
+					sizeof(workspace), 0, 0);
 			if (tmp) {
 				/* We have a possible channel... now we need to find it! */
 				target = ast_get_channel_by_name_locked(tmp);

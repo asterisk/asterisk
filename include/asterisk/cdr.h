@@ -96,7 +96,7 @@ struct ast_cdr {
 	struct ast_cdr *next;
 };
 
-void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur);
+void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur, int raw);
 int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int recur);
 int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur);
 void ast_cdr_free_vars(struct ast_cdr *cdr, int recur);

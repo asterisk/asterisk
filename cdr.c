@@ -205,7 +205,7 @@ static const char *ast_cdr_getvar_internal(struct ast_cdr *cdr, const char *name
 }
 
 /*! CDR channel variable retrieval */
-void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur) 
+void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur, int raw) 
 {
 	struct tm tm;
 	time_t t;
@@ -233,32 +233,52 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 	else if (!strcasecmp(name, "lastdata"))
 		ast_copy_string(workspace, cdr->lastdata, workspacelen);
 	else if (!strcasecmp(name, "start")) {
-		t = cdr->start.tv_sec;
-		if (t) {
-			localtime_r(&t, &tm);
-			strftime(workspace, workspacelen, fmt, &tm);
+		if (raw) {
+			snprintf(workspace, workspacelen, "%ld.%06ld", (long)cdr->start.tv_sec, (long)cdr->start.tv_usec);
+		} else {
+			t = cdr->start.tv_sec;
+			if (t) {
+				localtime_r(&t, &tm);
+				strftime(workspace, workspacelen, fmt, &tm);
+			}
 		}
 	} else if (!strcasecmp(name, "answer")) {
-		t = cdr->answer.tv_sec;
-		if (t) {
-			localtime_r(&t, &tm);
-			strftime(workspace, workspacelen, fmt, &tm);
+		if (raw) {
+			snprintf(workspace, workspacelen, "%ld.%06ld", (long)cdr->answer.tv_sec, (long)cdr->answer.tv_usec);
+		} else {
+			t = cdr->answer.tv_sec;
+			if (t) {
+				localtime_r(&t, &tm);
+				strftime(workspace, workspacelen, fmt, &tm);
+			}
 		}
 	} else if (!strcasecmp(name, "end")) {
-		t = cdr->end.tv_sec;
-		if (t) {
-			localtime_r(&t, &tm);
-			strftime(workspace, workspacelen, fmt, &tm);
+		if (raw) {
+			snprintf(workspace, workspacelen, "%ld.%06ld", (long)cdr->end.tv_sec, (long)cdr->end.tv_usec);
+		} else {
+			t = cdr->end.tv_sec;
+			if (t) {
+				localtime_r(&t, &tm);
+				strftime(workspace, workspacelen, fmt, &tm);
+			}
 		}
 	} else if (!strcasecmp(name, "duration"))
 		snprintf(workspace, workspacelen, "%d", cdr->duration);
 	else if (!strcasecmp(name, "billsec"))
 		snprintf(workspace, workspacelen, "%d", cdr->billsec);
-	else if (!strcasecmp(name, "disposition"))
-		ast_copy_string(workspace, ast_cdr_disp2str(cdr->disposition), workspacelen);
-	else if (!strcasecmp(name, "amaflags"))
-		ast_copy_string(workspace, ast_cdr_flags2str(cdr->amaflags), workspacelen);
-	else if (!strcasecmp(name, "accountcode"))
+	else if (!strcasecmp(name, "disposition")) {
+		if (raw) {
+			snprintf(workspace, workspacelen, "%d", cdr->disposition);
+		} else {
+			ast_copy_string(workspace, ast_cdr_disp2str(cdr->disposition), workspacelen);
+		}
+	} else if (!strcasecmp(name, "amaflags")) {
+		if (raw) {
+			snprintf(workspace, workspacelen, "%d", cdr->amaflags);
+		} else {
+			ast_copy_string(workspace, ast_cdr_flags2str(cdr->amaflags), workspacelen);
+		}
+	} else if (!strcasecmp(name, "accountcode"))
 		ast_copy_string(workspace, cdr->accountcode, workspacelen);
 	else if (!strcasecmp(name, "uniqueid"))
 		ast_copy_string(workspace, cdr->uniqueid, workspacelen);
@@ -375,7 +395,7 @@ int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, cha
 		}
 
 		for (i = 0; cdr_readonly_vars[i]; i++) {
-			ast_cdr_getvar(cdr, cdr_readonly_vars[i], &tmp, workspace, sizeof(workspace), 0);
+			ast_cdr_getvar(cdr, cdr_readonly_vars[i], &tmp, workspace, sizeof(workspace), 0, 0);
 			if (!tmp)
 				continue;
 			

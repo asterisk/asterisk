@@ -41,10 +41,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 enum {
 	OPT_RECURSIVE = (1 << 0),
+	OPT_UNPARSED = (1 << 1),
 } cdr_option_flags;
 
 AST_APP_OPTIONS(cdr_func_options, {
 	AST_APP_OPTION('r', OPT_RECURSIVE),
+	AST_APP_OPTION('u', OPT_UNPARSED),
 });
 
 static int cdr_read(struct ast_channel *chan, char *cmd, char *parse,
@@ -69,7 +71,8 @@ static int cdr_read(struct ast_channel *chan, char *cmd, char *parse,
 		ast_app_parse_options(cdr_func_options, &flags, NULL, args.options);
 
 	ast_cdr_getvar(chan->cdr, args.variable, &ret, buf, len,
-		       ast_test_flag(&flags, OPT_RECURSIVE));
+		       ast_test_flag(&flags, OPT_RECURSIVE),
+			   ast_test_flag(&flags, OPT_UNPARSED));
 
 	return 0;
 }
@@ -96,8 +99,9 @@ static int cdr_write(struct ast_channel *chan, char *cmd, char *parse,
 	else if (!strcasecmp(args.variable, "userfield"))
 		ast_cdr_setuserfield(chan, value);
 	else if (chan->cdr)
-		ast_cdr_setvar(chan->cdr, args.variable, value,
-			       ast_test_flag(&flags, OPT_RECURSIVE));
+		ast_cdr_setvar(chan->cdr, args.variable, value, ast_test_flag(&flags, OPT_RECURSIVE));
+		/* No need to worry about the u flag, as all fields for which setting
+		 * 'u' would do anything are marked as readonly. */
 
 	return 0;
 }
@@ -105,10 +109,17 @@ static int cdr_write(struct ast_channel *chan, char *cmd, char *parse,
 static struct ast_custom_function cdr_function = {
 	.name = "CDR",
 	.synopsis = "Gets or sets a CDR variable",
-	.desc = "Option 'r' searches the entire stack of CDRs on the channel\n",
 	.syntax = "CDR(<name>[|options])",
 	.read = cdr_read,
 	.write = cdr_write,
+	.desc =
+"Options:\n"
+"  'r' searches the entire stack of CDRs on the channel\n"
+"  'u' retrieves the raw, unprocessed value\n"
+"  For example, 'start', 'answer', and 'end' will be retrieved as epoch\n"
+"  values, when the n option is passed, but formatted as YYYY-MM-DD HH:MM:SS\n"
+"  otherwise.  Similarly, disposition and amaflags will return their raw\n"
+"  integral values.\n",
 };
 
 static char *tdesc = "CDR dialplan function";
