@@ -307,7 +307,6 @@ static int do_reload(int loading)
 	const char *enabled_value;
 	int interval;
 	int was_enabled;
-	pthread_attr_t attr;
 	int res = -1;
 
 	/* ensure that no refresh cycles run while the reload is in progress */
