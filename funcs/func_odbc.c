@@ -51,8 +51,8 @@ static char *config = "func_odbc.conf";
 struct acf_odbc_query {
 	char name[30];
 	char dsn[30];
-	char sql_read[512];
-	char sql_write[512];
+	char sql_read[2048];
+	char sql_write[2048];
 	struct ast_custom_function *acf;
 	unsigned int deleteme:1;
 	struct acf_odbc_query *next;
@@ -79,7 +79,7 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 {
 	odbc_obj *obj;
 	struct acf_odbc_query *query;
-	char *t, *arg, buf[512]="", varname[15];
+	char *t, *arg, buf[2048]="", varname[15];
 	int res, argcount=0, valcount=0, i, retry=0;
 	struct ast_channel *ast;
 	SQLHSTMT stmt;
@@ -237,7 +237,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 {
 	odbc_obj *obj;
 	struct acf_odbc_query *query;
-	char *arg, sql[512] = "", varname[15];
+	char *arg, sql[2048] = "", varname[15];
 	int count=0, res, x;
 	SQLHSTMT stmt;
 	SQLSMALLINT colcount=0;
