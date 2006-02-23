@@ -149,7 +149,9 @@ static VPB_TONE Ringbacktone = {440, 480,   0, -20,   -20, -100,  2000, 4000};
 #endif
 
 /* grunt tone defn's */
+#if 0
 static VPB_DETECT toned_grunt = { 3, VPB_GRUNT, 1, 2000, 3000, 0, 0, -40, 0, 0, 0, 40, { { VPB_DELAY, 1000, 0, 0 }, { VPB_RISING, 0, 40, 0 }, { 0, 100, 0, 0 } } };
+#endif
 static VPB_DETECT toned_ungrunt = { 2, VPB_GRUNT, 1, 2000, 1, 0, 0, -40, 0, 0, 30, 40, { { 0, 0, 0, 0 } } };
 
 /* Use loop polarity detection for CID */

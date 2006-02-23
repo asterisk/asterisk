@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  * 
- * Copyright (C) 2004, Christian Richter
+ * Copyright (C) 2004 - 2006, Christian Richter
  *
  * Christian Richter <crich@beronet.com>
  *
@@ -2933,7 +2933,7 @@ static void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel*bc) {
 
 void import_ies(struct ast_channel *chan, struct misdn_bchannel *bc)
 {
-	char *tmp;
+	const char *tmp;
 
 	tmp=pbx_builtin_getvar_helper(chan,"PRI_MODE");
 	if (tmp) bc->mode=atoi(tmp);

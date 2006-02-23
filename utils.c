@@ -1051,9 +1051,10 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 /*
  * get values from config variables.
  */
-int ast_get_time_t(const char *src, time_t *dst, time_t _default)
+int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed)
 {
 	long t;
+	int scanned;
 
 	if (dst == NULL)
 		return -1;
@@ -1064,8 +1065,10 @@ int ast_get_time_t(const char *src, time_t *dst, time_t _default)
 		return -1;
 
 	/* only integer at the moment, but one day we could accept more formats */
-	if (sscanf(src, "%ld", &t) == 1) {
+	if (sscanf(src, "%ld%n", &t, &scanned) == 1) {
 		*dst = t;
+		if (consumed)
+			*consumed = scanned;
 		return 0;
 	} else
 		return -1;

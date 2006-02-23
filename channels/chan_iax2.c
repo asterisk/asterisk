@@ -2617,7 +2617,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 				break;
 			} 
 		} else if (!strcasecmp(tmp->name, "regseconds")) {
-			ast_get_time_t(tmp->value, &regseconds, 0);
+			ast_get_time_t(tmp->value, &regseconds, 0, NULL);
 		} else if (!strcasecmp(tmp->name, "ipaddr")) {
 			inet_aton(tmp->value, &(peer->addr.sin_addr));
 		} else if (!strcasecmp(tmp->name, "port")) {

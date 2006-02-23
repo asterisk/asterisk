@@ -3607,7 +3607,7 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 	struct vm_zone *the_zone = NULL;
 	time_t t;
 
-	if (ast_get_time_t(origtime, &t, 0)) {
+	if (ast_get_time_t(origtime, &t, 0, NULL)) {
 		ast_log(LOG_WARNING, "Couldn't find origtime in %s\n", filename);
 		return 0;
 	}

@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (c) 2003 Tilghman Lesher.  All rights reserved.
+ * Copyright (c) 2003, 2006 Tilghman Lesher.  All rights reserved.
  * Copyright (c) 2006 Digium, Inc.
  *
  * Tilghman Lesher <app_sayunixtime__200309@the-tilghman.com>
@@ -93,7 +93,7 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	ast_get_time_t(args.timeval, &unixtime, time(NULL));
+	ast_get_time_t(args.timeval, &unixtime, time(NULL), NULL);
 
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);

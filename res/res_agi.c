@@ -770,7 +770,7 @@ static int handle_saydatetime(struct ast_channel *chan, AGI *agi, int argc, char
 	if (argc > 5 && !ast_strlen_zero(argv[5]))
 		zone = argv[5];
 
-	if (ast_get_time_t(argv[2], &unixtime, 0))
+	if (ast_get_time_t(argv[2], &unixtime, 0, NULL))
 		return RESULT_SHOWUSAGE;
 
 	res = ast_say_date_with_format(chan, unixtime, argv[3], chan->language, format, zone);

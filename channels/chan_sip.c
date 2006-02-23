@@ -12149,7 +12149,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			continue;
 
 		if (realtime && !strcasecmp(v->name, "regseconds")) {
-			ast_get_time_t(v->value, &regseconds, 0);
+			ast_get_time_t(v->value, &regseconds, 0, NULL);
 		} else if (realtime && !strcasecmp(v->name, "ipaddr") && !ast_strlen_zero(v->value) ) {
 			inet_aton(v->value, &(peer->addr.sin_addr));
 		} else if (realtime && !strcasecmp(v->name, "name"))

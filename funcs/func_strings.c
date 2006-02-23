@@ -245,7 +245,7 @@ static int acf_strftime(struct ast_channel *chan, char *cmd, char *parse,
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	ast_get_time_t(args.epoch, &epochi, time(NULL));
+	ast_get_time_t(args.epoch, &epochi, time(NULL), NULL);
 	ast_localtime(&epochi, &tm, args.timezone);
 
 	if (!args.format)
