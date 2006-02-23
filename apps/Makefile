@@ -32,14 +32,6 @@ ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/osp/osp.h $(CROSS_COM
   MODS:=$(filter-out app_osplookup.so,$(MODS))
 endif
 
-ifneq ($(shell if [[ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]]; then echo "OK" ; fi),)
-  CURLLIBS:=$(shell $(CROSS_COMPILE_BIN)curl-config --libs)
-endif
-
-ifeq (${CURLLIBS},)
-  MODS:=$(filter-out app_curl.so,$(MODS))
-endif
-
 ifneq (${WITH_SMDI},)
   CFLAGS+=-DWITH_SMDI
 endif
@@ -82,9 +74,6 @@ install: all
 	rm -f $(DESTDIR)$(MODULES_DIR)/app_qcall.so
 
 uninstall:
-
-app_curl.so: app_curl.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(CURLLIBS)
 
 look:	look.c
 	$(CC) -pipe -O6 -g look.c -o look -lncurses

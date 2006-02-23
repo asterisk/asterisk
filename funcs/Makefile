@@ -17,6 +17,14 @@ ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h $(CROSS_COMPILE_
   MODS:=$(filter-out func_odbc.so,$(MODS))
 endif
 
+ifneq ($(shell if [[ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]]; then echo "OK" ; fi),)
+  CURLLIBS:=$(shell $(CROSS_COMPILE_BIN)curl-config --libs)
+endif
+
+ifeq (${CURLLIBS},)
+  MODS:=$(filter-out func_curl.so,$(MODS))
+endif
+
 ifeq (${OSARCH},CYGWIN)
   CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
   CYGSOLIB=-L.. -L. -lasterisk.dll
@@ -34,6 +42,9 @@ clean: clean-depend
 
 %.so : %.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
+
+func_curl.so: func_curl.o
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(CURLLIBS)
 
 func_odbc.so: func_odbc.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lodbc
