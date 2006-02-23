@@ -204,6 +204,36 @@ static struct ast_custom_function array_function = {
 		"entire argument, since Set can take multiple arguments itself.\n",
 };
 
+static char *builtin_function_quote(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	char *bufptr = buf, *dataptr = data;
+	*bufptr++ = '"';
+	for (; bufptr < buf + len - 1; dataptr++) {
+		if (*dataptr == '\\') {
+			*bufptr++ = '\\';
+			*bufptr++ = '\\';
+		} else if (*dataptr == '"') {
+			*bufptr++ = '\\';
+			*bufptr++ = '"';
+		} else if (*dataptr == '\0') {
+			break;
+		} else {
+			*bufptr++ = *dataptr;
+		}
+	}
+	*bufptr++ = '"';
+	*bufptr = '\0';
+	return buf;
+}
+
+static struct ast_custom_function quote_function = {
+	.name = "QUOTE",
+	.synopsis = "Quotes a given string, escaping embedded quotes as necessary",
+	.syntax = "QUOTE(<string>)",
+	.read = builtin_function_quote,
+};
+
+
 static int len(struct ast_channel *chan, char *cmd, char *data, char *buf,
 	       size_t len)
 {
@@ -402,6 +432,7 @@ int unload_module(void)
 	res |= ast_custom_function_unregister(&filter_function);
 	res |= ast_custom_function_unregister(&regex_function);
 	res |= ast_custom_function_unregister(&array_function);
+	res |= ast_custom_function_unregister(&quote_function);
 	res |= ast_custom_function_unregister(&len_function);
 	res |= ast_custom_function_unregister(&strftime_function);
 	res |= ast_custom_function_unregister(&strptime_function);
@@ -419,6 +450,7 @@ int load_module(void)
 	res |= ast_custom_function_register(&filter_function);
 	res |= ast_custom_function_register(&regex_function);
 	res |= ast_custom_function_register(&array_function);
+	res |= ast_custom_function_register(&quote_function);
 	res |= ast_custom_function_register(&len_function);
 	res |= ast_custom_function_register(&strftime_function);
 	res |= ast_custom_function_register(&strptime_function);
