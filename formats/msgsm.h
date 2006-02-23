@@ -456,7 +456,9 @@ static inline void conv65( wav_byte * c, gsm_byte * d){
 
                 unsigned int sr = 0;
                 unsigned int frame_chain;
-				unsigned int    LARc[8], Nc[4], Mc[4], bc[4], xmaxc[4], xmc[13*4];
+		unsigned int LARc[8], Nc[4], Mc[4], bc[4], xmaxc[4];
+		/* silence bogus compiler warning */
+		unsigned int xmc[13*4] = { 0, };
  
                         sr = *c++;
                         LARc[0] = sr & 0x3f;  sr >>= 6;

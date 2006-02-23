@@ -276,7 +276,7 @@ static int pcm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 
 	if (offset < 0) {
 		offset = 0;
-		ast_log(LOG_WARNING, "negative offset %ld, resetting to 0\n", offset);
+		ast_log(LOG_WARNING, "negative offset %ld, resetting to 0\n", (long) offset);
 	}
 	if (whence == SEEK_FORCECUR && offset > max) {
 		size_t left = offset - max;
@@ -291,7 +291,7 @@ static int pcm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 		ret = 0; /* success */
 	} else {
 		if (offset > max) {
-			ast_log(LOG_WARNING, "offset too large %ld, truncating to %ld\n", offset, max);
+			ast_log(LOG_WARNING, "offset too large %ld, truncating to %ld\n", (long) offset, (long) max);
 			offset = max;
 		}
 		ret = fseeko(fs->f, offset, SEEK_SET);
