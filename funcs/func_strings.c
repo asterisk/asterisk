@@ -204,7 +204,7 @@ static struct ast_custom_function array_function = {
 		"entire argument, since Set can take multiple arguments itself.\n",
 };
 
-static char *builtin_function_quote(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int quote(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	char *bufptr = buf, *dataptr = data;
 	*bufptr++ = '"';
@@ -223,14 +223,14 @@ static char *builtin_function_quote(struct ast_channel *chan, char *cmd, char *d
 	}
 	*bufptr++ = '"';
 	*bufptr = '\0';
-	return buf;
+	return 0;
 }
 
 static struct ast_custom_function quote_function = {
 	.name = "QUOTE",
 	.synopsis = "Quotes a given string, escaping embedded quotes as necessary",
 	.syntax = "QUOTE(<string>)",
-	.read = builtin_function_quote,
+	.read = quote,
 };
 
 
