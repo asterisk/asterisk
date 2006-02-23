@@ -19,13 +19,13 @@
 
 /*! \file
  * 
- * \brief Curl - App to load a URL
+ * \brief Curl - Load a URL
  *
  * \author Tilghman Lesher <curl-20050919@the-tilghman.com>
  *
  * \note Brian Wilkins <bwilkins@cfl.rr.com> (Added POST option) 
  * 
- * \ingroup applications
+ * \ingroup functions
  */
  
 #include <stdio.h>
