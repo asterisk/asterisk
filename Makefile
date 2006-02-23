@@ -36,6 +36,8 @@ endif
 # Remember the MAKELEVEL at the top
 MAKETOPLEVEL?=$(MAKELEVEL)
 
+PWD=$(shell pwd)
+
 ifneq ($(findstring dont-optimize,$(MAKECMDGOALS)),dont-optimize)
 ######### More GSM codec optimization
 ######### Uncomment to enable MMXTM optimizations for x86 architecture CPU's
@@ -209,7 +211,6 @@ ifeq ($(OSARCH),Linux)
   MPG123TARG=linux
 endif
 
-PWD=$(shell pwd)
 GREP=grep
 
 ifeq ($(OSARCH),SunOS)
