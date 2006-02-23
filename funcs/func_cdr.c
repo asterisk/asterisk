@@ -117,7 +117,7 @@ static struct ast_custom_function cdr_function = {
 "  'r' searches the entire stack of CDRs on the channel\n"
 "  'u' retrieves the raw, unprocessed value\n"
 "  For example, 'start', 'answer', and 'end' will be retrieved as epoch\n"
-"  values, when the n option is passed, but formatted as YYYY-MM-DD HH:MM:SS\n"
+"  values, when the 'u' option is passed, but formatted as YYYY-MM-DD HH:MM:SS\n"
 "  otherwise.  Similarly, disposition and amaflags will return their raw\n"
 "  integral values.\n",
 };
