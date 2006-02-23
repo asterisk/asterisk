@@ -33,6 +33,8 @@ else
   OSREV=$(CROSS_REV)
 endif
 
+PWD=$(shell pwd)
+
 # Remember the MAKELEVEL at the top
 MAKETOPLEVEL?=$(MAKELEVEL)
 
@@ -222,7 +224,6 @@ ifeq ($(OSARCH),Linux)
   MPG123TARG=linux
 endif
 
-PWD=$(shell pwd)
 GREP=grep
 
 ifeq ($(OSARCH),SunOS)
