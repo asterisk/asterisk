@@ -57,7 +57,7 @@ static char *tdesc = "Outgoing Spool Support";
 static char qdir[255];
 
 struct outgoing {
-	char fn[256];
+	char fn[AST_MAX_FILENAME_LEN];
 	/* Current number of retries */
 	int retries;
 	/* Maximum number of retries permitted */
@@ -78,8 +78,8 @@ struct outgoing {
 	char data[256];
 
 	/* If extension/context/priority */
-	char exten[256];
-	char context[256];
+	char exten[AST_MAX_EXTENSION];
+	char context[AST_MAX_CONTEXT];
 	int priority;
 
 	/* CallerID Information */
@@ -355,7 +355,7 @@ static void *scan_thread(void *unused)
 	struct stat st;
 	DIR *dir;
 	struct dirent *de;
-	char fn[256];
+	char fn[AST_MAX_FILENAME_LEN];
 	int res;
 	time_t last = 0, next = 0, now;
 	for(;;) {

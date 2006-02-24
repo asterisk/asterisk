@@ -82,7 +82,7 @@ struct ast_comment {
 };
 
 struct ast_category {
-	char name[80];
+	char name[AST_MAX_CONFIG_CATEGORY];
 	int ignored;			/* do not let user of the config see this category */
 	struct ast_variable *root;
 	struct ast_variable *last;
@@ -522,11 +522,11 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 
 static struct ast_config *config_text_file_load(const char *database, const char *table, const char *filename, struct ast_config *cfg)
 {
-	char fn[256];
+	char fn[AST_MAX_FILENAME_LEN];
 	char buf[8192];
 	char *new_buf, *comment_p, *process_buf;
 	FILE *f;
-	int lineno=0;
+	int lineno = 0;
 	int comment = 0, nest[MAX_NESTED_COMMENTS];
 	struct ast_category *cat = NULL;
 	int count = 0;
@@ -669,7 +669,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 int config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
 {
 	FILE *f;
-	char fn[256];
+	char fn[AST_MAX_FILENAME_LEN];
 	char date[256]="";
 	time_t t;
 	struct ast_variable *var;
@@ -929,8 +929,8 @@ static struct ast_config_engine text_file_engine = {
 
 struct ast_config *ast_config_internal_load(const char *filename, struct ast_config *cfg)
 {
-	char db[256];
-	char table[256];
+	char db[AST_MAX_FILENAME_LEN];
+	char table[AST_MAX_FILENAME_LEN];
 	struct ast_config_engine *loader = &text_file_engine;
 	struct ast_config *result;
 
@@ -983,8 +983,8 @@ struct ast_config *ast_config_load(const char *filename)
 struct ast_variable *ast_load_realtime(const char *family, ...)
 {
 	struct ast_config_engine *eng;
-	char db[256]="";
-	char table[256]="";
+	char db[AST_MAX_FILENAME_LEN]="";
+	char table[AST_MAX_FILENAME_LEN]="";
 	struct ast_variable *res=NULL;
 	va_list ap;
 
@@ -1012,8 +1012,8 @@ int ast_check_realtime(const char *family)
 struct ast_config *ast_load_realtime_multientry(const char *family, ...)
 {
 	struct ast_config_engine *eng;
-	char db[256]="";
-	char table[256]="";
+	char db[AST_MAX_FILENAME_LEN]="";
+	char table[AST_MAX_FILENAME_LEN]="";
 	struct ast_config *res=NULL;
 	va_list ap;
 
@@ -1030,8 +1030,8 @@ int ast_update_realtime(const char *family, const char *keyfield, const char *lo
 {
 	struct ast_config_engine *eng;
 	int res = -1;
-	char db[256]="";
-	char table[256]="";
+	char db[AST_MAX_FILENAME_LEN]="";
+	char table[AST_MAX_FILENAME_LEN]="";
 	va_list ap;
 
 	va_start(ap, lookup);

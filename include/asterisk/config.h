@@ -33,6 +33,10 @@ struct ast_config;
 
 struct ast_category;
 
+#define AST_MAX_CONFIG_CATEGORY 80	/*!< Maximum length of configuration section, which also
+					     sets the maximum length of a device name in channels
+					     and a context in the dial plan */
+
 struct ast_variable {
 	char *name;
 	char *value;
