@@ -2946,6 +2946,10 @@ void import_ies(struct ast_channel *chan, struct misdn_bchannel *bc)
 
 	tmp=pbx_builtin_getvar_helper(chan,"PRI_USER1");
 	if (tmp) bc->user1=atoi(tmp);
+	
+	tmp=pbx_builtin_getvar_helper(chan,"RDNIS");
+	if (tmp) ast_copy_string(bc->rad,tmp,sizeof(bc->rad));
+	
 }
 
 void export_ies(struct ast_channel *chan, struct misdn_bchannel *bc)
@@ -2963,6 +2967,8 @@ void export_ies(struct ast_channel *chan, struct misdn_bchannel *bc)
 	
 	sprintf(tmp,"%d",bc->user1);
 	pbx_builtin_setvar_helper(chan,"PRI_USER1",tmp);
+	
+	pbx_builtin_setvar_helper(chan,"RDNIS",bc->rad);
 }
 
 

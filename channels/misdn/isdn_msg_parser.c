@@ -277,6 +277,13 @@ msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 		if (bc->dad[0])
 			enc_ie_called_pn(&setup->CALLED_PN, msg, bc->dnumplan, 1, bc->dad, nt,bc);
 	}
+
+	{
+		if (bc->rad[0])
+			enc_ie_redir_nr(&setup->REDIR_NR, msg, 1, 1,  bc->pres, bc->screen, 0, bc->rad, nt,bc);
+	}
+
+	
   
 	if (*bc->display) {
 		enc_ie_display(&setup->DISPLAY, msg, bc->display, nt,bc);
