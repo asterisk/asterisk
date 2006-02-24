@@ -124,7 +124,7 @@ struct moh_files_state {
 
 struct mohclass {
 	char name[MAX_MUSICCLASS];
-	char dir[AST_MAX_FILENAME_LEN];
+	char dir[256];
 	char args[256];
 	char mode[80];
 	char filearray[MAX_MOHFILES][MAX_MOHFILE_LEN];

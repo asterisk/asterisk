@@ -142,15 +142,14 @@ struct ast_hostent {
 
 struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
 
-/*! \brief Produces MD5 hash based on input string */
+/* ast_md5_hash 
+	\brief Produces MD5 hash based on input string */
 void ast_md5_hash(char *output, char *input);
 /* ast_sha1_hash
 	\brief Produces SHA1 hash based on input string */
 void ast_sha1_hash(char *output, char *input);
 
-/*! \brief Encode string into Base 64 encoded string */
 int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max);
-/*! \brief Decode Base 64 encoded string */
 int ast_base64decode(unsigned char *dst, const char *src, int max);
 
 /*! ast_uri_encode
@@ -167,6 +166,7 @@ int ast_base64decode(unsigned char *dst, const char *src, int max);
 	\param buflen	Size of output buffer
 	\param doreserved	Convert reserved characters
 */
+
 char *ast_uri_encode(const char *string, char *outbuf, int buflen, int doreserved);
 
 /*!	\brief Decode URI, URN, URL (overwrite string)
@@ -217,13 +217,14 @@ const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
 int ast_utils_init(void);
 int ast_wait_for_input(int fd, int ms);
 
-/*! \brief Compares the source address and port of two sockaddr_in */
+/*! Compares the source address and port of two sockaddr_in */
 static force_inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockaddr_in *sin2)
 {
 	return ((sin1->sin_addr.s_addr != sin2->sin_addr.s_addr) 
 		|| (sin1->sin_port != sin2->sin_port));
 }
 
+#define AST_STACKSIZE 256 * 1024
 #define ast_pthread_create(a,b,c,d) ast_pthread_create_stack(a,b,c,d,0)
 int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
 
@@ -238,10 +239,6 @@ char *ast_process_quotes_and_slashes(char *start, char find, char replace_with);
 #ifndef HAVE_GETLOADAVG
 int getloadavg(double *list, int nelem);
 #endif
-
-#define AST_STACKSIZE 256 * 1024
-#define AST_MAX_FILENAME_LEN	256	/*!< Maximum length of file names */
-#define AST_MAX_SHELL_COMMAND	512	/*!< Maximum length of shell commands */
 
 #ifdef linux
 #define ast_random random

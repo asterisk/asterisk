@@ -924,7 +924,7 @@ static char *complete_context_add_include(const char *line, const char *word, in
  */
 static int handle_save_dialplan(int fd, int argc, char *argv[])
 {
-	char filename[AST_MAX_FILENAME_LEN];
+	char filename[256];
 	struct ast_context *c;
 	struct ast_config *cfg;
 	struct ast_variable *v;
