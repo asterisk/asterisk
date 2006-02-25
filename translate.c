@@ -471,8 +471,10 @@ int ast_translator_best_choice(int *dst, int *srcs)
 		/* We will need to translate */
 		ast_mutex_lock(&list_lock);
 		for (y = 0; y < MAX_FORMAT; y++) {
-			if (!(cur & *dst))
+			if (!(cur & *dst)) {
+				cur = cur << 1;
 				continue;
+			}
 
 			for (x = 0; x < MAX_FORMAT; x++) {
 				if ((*srcs & (1 << x)) &&			/* x is a valid source format */
