@@ -1213,7 +1213,12 @@ static void queue_frame_to_spies(struct ast_channel *chan, struct ast_frame *f, 
 						trans->last_format = f->subclass;
 					}
 				}
-				translated_frame = ast_translate(trans->path, f, 0);
+				if (!(translated_frame = ast_translate(trans->path, f, 0))) {
+					ast_log(LOG_ERROR, "Translation to %s failed, dropping frame for spies\n",
+						ast_getformatname(AST_FORMAT_SLINEAR));
+					ast_mutex_unlock(&spy->lock);
+					break;
+				}
 			}
 
 			for (last = queue->head; last && last->next; last = last->next);
