@@ -55,7 +55,8 @@ static struct ast_translator *list = NULL;
 
 struct ast_translator_dir {
 	struct ast_translator *step;	/*!< Next step translator */
-	int cost;			/*!< Complete cost to destination */
+	unsigned int cost;		/*!< Complete cost to destination */
+	unsigned int multistep;		/*!< Multiple conversions required for this translation */
 };
 
 struct ast_frame_delivery {
@@ -271,55 +272,61 @@ static void rebuild_matrix(int samples)
 {
 	struct ast_translator *t;
 	int changed;
-	int x,y,z;
+	int x, y, z;
 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Resetting translation matrix\n");
+
 	bzero(tr_matrix, sizeof(tr_matrix));
-	t = list;
-	while(t) {
-		if(samples)
+
+	for (t = list; t; t = t->next) {
+		if (samples)
 			calc_cost(t, samples);
 	  
 		if (!tr_matrix[t->srcfmt][t->dstfmt].step ||
-		     tr_matrix[t->srcfmt][t->dstfmt].cost > t->cost) {
+		    tr_matrix[t->srcfmt][t->dstfmt].cost > t->cost) {
 			tr_matrix[t->srcfmt][t->dstfmt].step = t;
 			tr_matrix[t->srcfmt][t->dstfmt].cost = t->cost;
 		}
-		t = t->next;
 	}
+
 	do {
 		changed = 0;
+
 		/* Don't you just love O(N^3) operations? */
-		for (x=0; x< MAX_FORMAT; x++)				/* For each source format */
-			for (y=0; y < MAX_FORMAT; y++) 			/* And each destination format */
-				if (x != y)				/* Except ourselves, of course */
-					for (z=0; z < MAX_FORMAT; z++) 	/* And each format it might convert to */
-						if ((x!=z) && (y!=z)) 		/* Don't ever convert back to us */
-							if (tr_matrix[x][y].step && /* We can convert from x to y */
-								tr_matrix[y][z].step && /* And from y to z and... */
-								(!tr_matrix[x][z].step || 	/* Either there isn't an x->z conversion */
-								(tr_matrix[x][y].cost + 
-								 tr_matrix[y][z].cost <	/* Or we're cheaper than the existing */
-								 tr_matrix[x][z].cost)  /* solution */
-							     )) {
-								 			/* We can get from x to z via y with a cost that
-											   is the sum of the transition from x to y and
-											   from y to z */
-								 
-								 	tr_matrix[x][z].step = tr_matrix[x][y].step;
-									tr_matrix[x][z].cost = tr_matrix[x][y].cost + 
-														   tr_matrix[y][z].cost;
-									if (option_debug)
-										ast_log(LOG_DEBUG, "Discovered %d cost path from %s to %s, via %d\n", tr_matrix[x][z].cost, ast_getformatname(x), ast_getformatname(z), y);
-									changed++;
-								 }
-		
+		for (x = 0; x< MAX_FORMAT; x++) {			/* For each source format */
+			for (y = 0; y < MAX_FORMAT; y++) {		/* And each destination format */
+				if (x == y)				/* Except ourselves, of course */
+					continue;
+
+				for (z=0; z < MAX_FORMAT; z++) { 	/* And each format it might convert to */
+					if ((x == z) || (y == z))	/* Don't ever convert back to us */
+						continue;
+
+					if (tr_matrix[x][y].step &&	/* We can convert from x to y */
+					    tr_matrix[y][z].step &&	/* And from y to z and... */
+					    (!tr_matrix[x][z].step || 	/* Either there isn't an x->z conversion */
+					     (tr_matrix[x][y].cost + 
+					      tr_matrix[y][z].cost <	/* Or we're cheaper than the existing */
+					      tr_matrix[x][z].cost)	/* solution */
+						    )) {
+						/* We can get from x to z via y with a cost that
+						   is the sum of the transition from x to y and
+						   from y to z */
+						
+						tr_matrix[x][z].step = tr_matrix[x][y].step;
+						tr_matrix[x][z].cost = tr_matrix[x][y].cost + 
+							tr_matrix[y][z].cost;
+						tr_matrix[x][z].multistep = 1;
+						if (option_debug)
+							ast_log(LOG_DEBUG, "Discovered %d cost path from %s to %s, via %d\n", tr_matrix[x][z].cost, ast_getformatname(x), ast_getformatname(z), y);
+						changed++;
+					}
+				}
+			}
+		}
 	} while (changed);
 }
-
-
-
 
 
 /*! \brief CLI "show translation" command handler */
