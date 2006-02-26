@@ -32,6 +32,11 @@ ifeq (${OSPLIB},)
   MODS:=$(filter-out res_osp.so,$(MODS))
 endif
 
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/net-snmp/net-snmp-config.h),)
+	SNMP_LDLIBS+=$(shell net-snmp-config --agent-libs)
+	MODS+=res_snmp.so
+endif
+
 ifeq (${WITH_SMDI},)
   MODS:=$(filter-out res_smdi.so,$(MODS))
 endif
@@ -107,6 +112,9 @@ res_features.so: res_features.o
 
 res_config_odbc.so: res_config_odbc.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} ${CYG_RES_CONFIG_ODBC_LIB}
+
+res_snmp.so: res_snmp.o snmp/agent.o
+	$(CC) $(SOLINK) ${SNMP_LDFLAGS} -o $@ ${CYGSOLINK} res_snmp.o snmp/agent.o ${CYGSOLIB} ${SNMP_LDLIBS}
 
 ifneq ($(wildcard .depend),)
   include .depend
