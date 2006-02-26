@@ -163,6 +163,10 @@ forcejitterbuffer=no
 ; minregexpire = 60
 ; maxregexpire = 60
 ;
+; IAX helper threads
+; Establishes the number of iax helper threads to handle I/O.
+; iaxthreadcount = 10
+;
 ; We can register with another IAX server to let him know where we are
 ; in case we have a dynamic IP address for example
 ;
