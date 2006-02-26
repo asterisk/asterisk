@@ -32,9 +32,9 @@ ifeq (${OSPLIB},)
   MODS:=$(filter-out res_osp.so,$(MODS))
 endif
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/net-snmp/net-snmp-config.h),)
-	SNMP_LDLIBS+=$(shell net-snmp-config --agent-libs)
-	MODS+=res_snmp.so
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/net-snmp/net-snmp-config.h),)
+  SNMP_LDLIBS+=$(shell net-snmp-config --agent-libs)
+  MODS:=$(filter-out res_snmp.so,$(MODS))
 endif
 
 ifeq (${WITH_SMDI},)
