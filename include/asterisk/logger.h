@@ -34,6 +34,7 @@ extern "C" {
 #endif
 
 #define EVENTLOG "event_log"
+#define	QUEUELOG	"queue_log"
 
 #define DEBUG_M(a) { \
 	a; \
