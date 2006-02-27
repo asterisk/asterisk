@@ -1680,7 +1680,10 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 		var = ast_load_realtime("sippeers", "name", peername, NULL);
 	else if (sin) {	/* Then check on IP address */
 		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
-		var = ast_load_realtime("sippeers", "ipaddr", iabuf, NULL);
+		var = ast_load_realtime("sippeers", "host", iabuf, NULL);	/* First check for fixed IP hosts */
+		if (!var)
+			var = ast_load_realtime("sippeers", "ipaddr", iabuf, NULL);	/* Then check for registred hosts */
+	
 	} else
 		return NULL;
 
