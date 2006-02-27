@@ -1383,7 +1383,10 @@ int ast_cli_command(int fd, const char *s)
 		if (e) {
 			switch(e->handler(fd, x, argv)) {
 			case RESULT_SHOWUSAGE:
-				ast_cli(fd, "%s", e->usage);
+				if (e->usage)
+					ast_cli(fd, "%s", e->usage);
+				else
+					ast_cli(fd, "Invalid usage, but no usage information available.\n");
 				break;
 			}
 		} else 
