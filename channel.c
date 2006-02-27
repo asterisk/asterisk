@@ -2437,7 +2437,8 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 		ast_set_callerid(chan, cid_num, cid_name, cid_num);
 
 		if (!ast_call(chan, data, 0)) {
-			while(timeout && (chan->_state != AST_STATE_UP)) {
+			res = 1;	/* in case chan->_state is already AST_STATE_UP */
+			while (timeout && (chan->_state != AST_STATE_UP)) {
 				res = ast_waitfor(chan, timeout);
 				if (res < 0) {
 					/* Something not cool, or timed out */
