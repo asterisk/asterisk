@@ -184,14 +184,9 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 	CODE *cptr;
 #endif
 
-	if (ast_strlen_zero(channel))
-		return NULL;
-	chan = malloc(sizeof(struct logchannel));
-
-	if (!chan)	/* Can't allocate memory */
+	if (ast_strlen_zero(channel) || !(chan = ast_calloc(1, sizeof(*chan))))
 		return NULL;
 
-	memset(chan, 0, sizeof(struct logchannel));
 	if (!strcasecmp(channel, "console")) {
 		chan->type = LOGTYPE_CONSOLE;
 	} else if (!strncasecmp(channel, "syslog", 6)) {
@@ -319,8 +314,8 @@ static void init_logger_chain(void)
 	/* If no config file, we're fine, set default options. */
 	if (!cfg) {
 		fprintf(stderr, "Unable to open logger.conf: %s\n", strerror(errno));
-		chan = malloc(sizeof(struct logchannel));
-		memset(chan, 0, sizeof(struct logchannel));
+		if (!(chan = ast_calloc(1, sizeof(*chan))))
+			return;
 		chan->type = LOGTYPE_CONSOLE;
 		chan->logmask = 28; /*warning,notice,error */
 		chan->next = logchannels;
@@ -821,11 +816,9 @@ void ast_backtrace(void)
 	void **addresses;
 	char **strings;
 
-	addresses = calloc(MAX_BACKTRACE_FRAMES, sizeof(void *));
-	if (addresses) {
+	if ((addresses = ast_calloc(MAX_BACKTRACE_FRAMES, sizeof(*addresses)))) {
 		count = backtrace(addresses, MAX_BACKTRACE_FRAMES);
-		strings = backtrace_symbols(addresses, count);
-		if (strings) {
+		if ((strings = backtrace_symbols(addresses, count))) {
 			ast_log(LOG_DEBUG, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
 			for (i=0; i < count ; i++) {
 				ast_log(LOG_DEBUG, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
@@ -835,8 +828,6 @@ void ast_backtrace(void)
 			ast_log(LOG_DEBUG, "Could not allocate memory for backtrace\n");
 		}
 		free(addresses);
-	} else {
-		ast_log(LOG_DEBUG, "Could not allocate memory for backtrace\n");
 	}
 #else
 #ifdef Linux
@@ -870,8 +861,7 @@ void ast_verbose(const char *fmt, ...)
 		time(&t);
 		localtime_r(&t, &tm);
 		strftime(date, sizeof(date), dateformat, &tm);
-		datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
-		if (datefmt) {
+		if ((datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1))) {
 			sprintf(datefmt, "[%s] %s", date, fmt);
 			fmt = datefmt;
 		}
@@ -905,7 +895,7 @@ void ast_verbose(const char *fmt, ...)
 	if (complete) {
 		if (msgcnt < MAX_MSG_QUEUE) {
 			/* Allocate new structure */
-			if ((m = malloc(sizeof(*m))))
+			if ((m = ast_malloc(sizeof(*m))))
 				msgcnt++;
 		} else {
 			/* Recycle the oldest entry */
@@ -914,8 +904,7 @@ void ast_verbose(const char *fmt, ...)
 			free(m->msg);
 		}
 		if (m) {
-			m->msg = strdup(stuff);
-			if (m->msg) {
+			if ((m->msg = ast_strdup(stuff))) {
 				if (last)
 					last->next = m;
 				else
@@ -924,7 +913,6 @@ void ast_verbose(const char *fmt, ...)
 				last = m;
 			} else {
 				msgcnt--;
-				ast_log(LOG_ERROR, "Out of memory\n");
 				free(m);
 			}
 		}
@@ -964,7 +952,7 @@ int ast_register_verbose(void (*v)(const char *string, int opos, int replacelast
 	struct msglist *m;
 	struct verb *tmp;
 	/* XXX Should be more flexible here, taking > 1 verboser XXX */
-	if ((tmp = malloc(sizeof (struct verb)))) {
+	if ((tmp = ast_malloc(sizeof(*tmp)))) {
 		tmp->verboser = v;
 		ast_mutex_lock(&msglist_lock);
 		tmp->next = verboser;
