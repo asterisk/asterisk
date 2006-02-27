@@ -35,21 +35,23 @@ extern "C" {
 	/* ms between growing and shrinking; may not be honored if jitterbuffer runs out of space */
 #define JB_ADJUST_DELAY 40
 
+enum jb_return_code {
+	/* return codes */
+	JB_OK,            /* 0 */
+	JB_EMPTY,         /* 1 */
+	JB_NOFRAME,       /* 2 */
+	JB_INTERP,        /* 3 */
+	JB_DROP,          /* 4 */
+	JB_SCHED          /* 5 */
+};
 
-/* return codes */
-#define JB_OK		0
-#define JB_EMPTY	1
-#define JB_NOFRAME	2
-#define JB_INTERP	3
-#define JB_DROP		4
-#define JB_SCHED	5
-
-/* frame types */
-#define JB_TYPE_CONTROL	0
-#define JB_TYPE_VOICE	1
-#define JB_TYPE_VIDEO	2  /* reserved */
-#define JB_TYPE_SILENCE	3
-
+enum jb_frame_type {
+	/* frame types */
+	JB_TYPE_CONTROL,  /* 0            */
+	JB_TYPE_VOICE,    /* 1            */
+	JB_TYPE_VIDEO,    /* 2 - reserved */
+	JB_TYPE_SILENCE   /* 3            */
+};
 
 typedef struct jb_conf {
 	/* settings */
@@ -85,10 +87,10 @@ typedef struct jb_info {
 } jb_info;
 
 typedef struct jb_frame {
-	void *data;		/* the frame data */
-	long ts;	/* the relative delivery time expected */
-	long ms;	/* the time covered by this frame, in sec/8000 */
-	int  type;	/* the type of frame */
+	void *data;               /* the frame data */
+	long ts;                  /* the relative delivery time expected */
+	long ms;                  /* the time covered by this frame, in sec/8000 */
+	enum jb_frame_type type;  /* the type of frame */
 	struct jb_frame *next, *prev;
 } jb_frame;
 
@@ -125,7 +127,7 @@ void			jb_reset(jitterbuf *jb);
  * JB_DROP: Drop this frame immediately
  * JB_SCHED: Frame added. Call jb_next() to get a new time for the next frame
  */
-int 			jb_put(jitterbuf *jb, void *data, int type, long ms, long ts, long now);
+enum jb_return_code jb_put(jitterbuf *jb, void *data, const enum jb_frame_type type, long ms, long ts, long now);
 
 /* get a frame for time now (receiver's time)  return value is one of
  * JB_OK:  You've got frame!
@@ -134,20 +136,20 @@ int 			jb_put(jitterbuf *jb, void *data, int type, long ms, long ts, long now);
  * JB_INTERP: Please interpolate an interpl-length frame for this time (either we need to grow, or there was a lost frame) 
  * JB_EMPTY: The jb is empty.
  */
-int			jb_get(jitterbuf *jb, jb_frame *frame, long now, long interpl);
+enum jb_return_code jb_get(jitterbuf *jb, jb_frame *frame, long now, long interpl);
 
 /* unconditionally get frames from jitterbuf until empty */
-int jb_getall(jitterbuf *jb, jb_frame *frameout);
+enum jb_return_code jb_getall(jitterbuf *jb, jb_frame *frameout);
 
 /* when is the next frame due out, in receiver's time (0=EMPTY) 
  * This value may change as frames are added (esp non-audio frames) */
 long			jb_next(jitterbuf *jb);
 
 /* get jitterbuf info: only "statistics" may be valid */
-int			jb_getinfo(jitterbuf *jb, jb_info *stats);
+enum jb_return_code jb_getinfo(jitterbuf *jb, jb_info *stats);
 
 /* set jitterbuf conf */
-int			jb_setconf(jitterbuf *jb, jb_conf *conf);
+enum jb_return_code jb_setconf(jitterbuf *jb, jb_conf *conf);
 
 typedef 		void (*jb_output_function_t)(const char *fmt, ...);
 void 			jb_setoutput(jb_output_function_t err, jb_output_function_t warn, jb_output_function_t dbg);

@@ -35,6 +35,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "jitterbuf.h"
+#include "asterisk/utils.h"
 
 /*! define these here, just for ancient compiler systems */
 #define JB_LONGMAX 2147483647L
@@ -73,7 +74,7 @@ void jb_reset(jitterbuf *jb)
 {
 	/* only save settings */
 	jb_conf s = jb->info.conf;
-	memset(jb,0,sizeof(jitterbuf));
+	memset(jb, 0, sizeof(*jb));
 	jb->info.conf = s;
 
 	/* initialize length */
@@ -85,9 +86,7 @@ jitterbuf * jb_new()
 {
 	jitterbuf *jb;
 
-
-	jb = malloc(sizeof(jitterbuf));
-	if (!jb) 
+	if (!(jb = ast_malloc(sizeof(*jb)))) 
 		return NULL;
 
 	jb_reset(jb);
@@ -236,7 +235,7 @@ static void history_calc_maxbuf(jitterbuf *jb)
 				/* found where it fits */
 				if (toins > jb->hist_maxbuf[j]) {
 					/* move over */
-					memmove(jb->hist_maxbuf+j+1,jb->hist_maxbuf+j, (JB_HISTORY_MAXBUF_SZ-(j+1)) * sizeof(long));
+					memmove(jb->hist_maxbuf + j + 1, jb->hist_maxbuf + j, (JB_HISTORY_MAXBUF_SZ - (j + 1)) * sizeof(jb->hist_maxbuf[0]));
 					/* insert */
 					jb->hist_maxbuf[j] = toins;
 
@@ -253,7 +252,7 @@ static void history_calc_maxbuf(jitterbuf *jb)
 				/* found where it fits */
 				if (toins < jb->hist_minbuf[j]) {
 					/* move over */
-					memmove(jb->hist_minbuf+j+1,jb->hist_minbuf+j, (JB_HISTORY_MAXBUF_SZ-(j+1)) * sizeof(long));
+					memmove(jb->hist_minbuf + j + 1, jb->hist_minbuf + j, (JB_HISTORY_MAXBUF_SZ - (j + 1)) * sizeof(jb->hist_minbuf[0]));
 					/* insert */
 					jb->hist_minbuf[j] = toins;
 
@@ -321,21 +320,16 @@ static void history_get(jitterbuf *jb)
 }
 
 /* returns 1 if frame was inserted into head of queue, 0 otherwise */
-static int queue_put(jitterbuf *jb, void *data, int type, long ms, long ts) 
+static int queue_put(jitterbuf *jb, void *data, const enum jb_frame_type type, long ms, long ts) 
 {
 	jb_frame *frame;
 	jb_frame *p;
 	int head = 0;
 	long resync_ts = ts - jb->info.resync_offset;
 
-	frame = jb->free;
-	if (frame) {
+	if ((frame = jb->free)) {
 		jb->free = frame->next;
-	} else {
-		frame = malloc(sizeof(jb_frame));
-	}
-
-	if (!frame) {
+	} else if (!(frame = ast_malloc(sizeof(*frame)))) {
 		jb_err("cannot allocate frame\n");
 		return 0;
 	}
@@ -514,7 +508,7 @@ static void jb_dbgqueue(jitterbuf *jb)
 }
 #endif
 
-int jb_put(jitterbuf *jb, void *data, int type, long ms, long ts, long now) 
+enum jb_return_code jb_put(jitterbuf *jb, void *data, const enum jb_frame_type type, long ms, long ts, long now) 
 {
 	jb_dbg2("jb_put(%x,%x,%ld,%ld,%ld)\n", jb, data, ms, ts, now);
 
@@ -535,7 +529,7 @@ int jb_put(jitterbuf *jb, void *data, int type, long ms, long ts, long now)
 }
 
 
-static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl) 
+static enum jb_return_code _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl) 
 {
 	jb_frame *frame;
 	long diff;
@@ -775,9 +769,9 @@ long jb_next(jitterbuf *jb)
 	}
 }
 
-int jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl) 
+enum jb_return_code jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl) 
 {
-	int ret = _jb_get(jb,frameout,now,interpl);
+	enum jb_return_code ret = _jb_get(jb, frameout, now, interpl);
 #if 0
 	static int lastts=0;
 	int thists = ((ret == JB_OK) || (ret == JB_DROP)) ? frameout->ts : 0;
@@ -791,7 +785,7 @@ int jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 	return ret;
 }
 
-int jb_getall(jitterbuf *jb, jb_frame *frameout) 
+enum jb_return_code jb_getall(jitterbuf *jb, jb_frame *frameout) 
 {
 	jb_frame *frame;
 	frame = queue_getall(jb);
@@ -805,7 +799,7 @@ int jb_getall(jitterbuf *jb, jb_frame *frameout)
 }
 
 
-int jb_getinfo(jitterbuf *jb, jb_info *stats) 
+enum jb_return_code jb_getinfo(jitterbuf *jb, jb_info *stats) 
 {
 
 	history_get(jb);
@@ -815,7 +809,7 @@ int jb_getinfo(jitterbuf *jb, jb_info *stats)
 	return JB_OK;
 }
 
-int jb_setconf(jitterbuf *jb, jb_conf *conf) 
+enum jb_return_code jb_setconf(jitterbuf *jb, jb_conf *conf) 
 {
 	/* take selected settings from the struct */
 

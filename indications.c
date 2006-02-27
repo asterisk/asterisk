@@ -113,10 +113,9 @@ static void playtones_release(struct ast_channel *chan, void *params)
 static void * playtones_alloc(struct ast_channel *chan, void *params)
 {
 	struct playtones_def *pd = params;
-	struct playtones_state *ps = malloc(sizeof(struct playtones_state));
-	if (!ps)
+	struct playtones_state *ps;
+	if (!(ps = ast_calloc(1, sizeof(*ps))))
 		return NULL;
-	memset(ps, 0, sizeof(struct playtones_state));
 	ps->origwfmt = chan->writeformat;
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", chan->name);
@@ -300,9 +299,7 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 				freq2 = 0;
 		}
 
-		d.items = realloc(d.items,(d.nitems+1)*sizeof(struct playtones_item));
-		if (d.items == NULL) {
-			ast_log(LOG_WARNING, "Realloc failed!\n");
+		if (!(d.items = ast_realloc(d.items, (d.nitems + 1) * sizeof(*d.items)))) {
 			return -1;
 		}
 		d.items[d.nitems].fac1 = 2.0 * cos(2.0 * M_PI * (freq1 / 8000.0)) * 32768.0;
@@ -433,7 +430,7 @@ static inline void free_zone(struct tone_zone* zone)
 		zone->tones = tmp;
 	}
 	if (zone->ringcadence)
-		free((void*)zone->ringcadence);
+		free(zone->ringcadence);
 	free(zone);
 }
 
@@ -547,18 +544,13 @@ int ast_register_indication(struct tone_zone *zone, const char *indication, cons
 	}
 	if (!ts) {
 		/* not there, we have to add */
-		ts = malloc(sizeof(struct tone_zone_sound));
-		if (!ts) {
-			ast_log(LOG_WARNING, "Out of memory\n");
+		if (!(ts = ast_malloc(sizeof(*ts)))) {
 			ast_mutex_unlock(&tzlock);
 			return -2;
 		}
 		ts->next = NULL;
 	}
-	ts->name = strdup(indication);
-	ts->data = strdup(tonelist);
-	if (ts->name==NULL || ts->data==NULL) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+	if (!(ts->name = ast_strdup(indication)) || !(ts->data = ast_strdup(tonelist))) {
 		ast_mutex_unlock(&tzlock);
 		return -2;
 	}

@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <dlfcn.h>
 #endif
 #include "asterisk/md5.h"
+#include "asterisk/utils.h"
 
 #ifndef RTLD_NOW
 #define RTLD_NOW 0
@@ -290,8 +291,7 @@ static void *find_symbol(struct module *m, const char *name, int verbose)
 
 	if (name[0] == '_')
 		name++;
-	n1 = alloca(strlen(name)+2); /* room for leading '_' and final '\0' */
-	if (n1 == NULL)
+	if (!(n1 = alloca(strlen(name) + 2))) /* room for leading '_' and final '\0' */
 		return NULL;
 	n1[0] = '_';
 	strcpy(n1+1, name);
@@ -341,9 +341,7 @@ static int __load_resource(const char *resource_name, const struct ast_config *c
 		AST_LIST_UNLOCK(&module_list);
 		return -1;
 	}
-	cur = calloc(1, sizeof(struct module));	
-	if (!cur) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+	if (!(cur = ast_calloc(1, sizeof(*cur)))) {
 		AST_LIST_UNLOCK(&module_list);
 		return -1;
 	}
@@ -582,8 +580,8 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
 int ast_loader_register(int (*v)(void)) 
 {
 	/* XXX Should be more flexible here, taking > 1 verboser XXX */
-	struct loadupdate *tmp = malloc(sizeof (struct loadupdate));
-	if (!tmp)
+	struct loadupdate *tmp;	
+	if (!(tmp = ast_malloc(sizeof(*tmp))))
 		return -1;
 	tmp->updater = v;
 	if (AST_LIST_LOCK(&module_list))

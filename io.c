@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/io.h"
 #include "asterisk/logger.h"
+#include "asterisk/utils.h"
 
 #ifdef DEBUG_IO
 #define DEBUG DEBUG_M
@@ -82,25 +83,19 @@ struct io_context *io_context_create(void)
 {
 	/* Create an I/O context */
 	struct io_context *tmp;
-	tmp = malloc(sizeof(struct io_context));
-	if (tmp) {
+	if ((tmp = ast_malloc(sizeof(*tmp)))) {
 		tmp->needshrink = 0;
 		tmp->fdcnt = 0;
 		tmp->maxfdcnt = GROW_SHRINK_SIZE/2;
 		tmp->current_ioc = -1;
-		tmp->fds = malloc((GROW_SHRINK_SIZE/2) * sizeof(struct pollfd));
-		if (!tmp->fds) {
+		if (!(tmp->fds = ast_calloc(1, (GROW_SHRINK_SIZE / 2) * sizeof(*tmp->fds)))) {
 			free(tmp);
 			tmp = NULL;
 		} else {
-			memset(tmp->fds, 0, (GROW_SHRINK_SIZE / 2) * sizeof(struct pollfd));
-			tmp->ior =  malloc((GROW_SHRINK_SIZE / 2) * sizeof(struct io_rec));
-			if (!tmp->ior) {
+			if (!(tmp->ior = ast_calloc(1, (GROW_SHRINK_SIZE / 2) * sizeof(*tmp->ior)))) {
 				free(tmp->fds);
 				free(tmp);
 				tmp = NULL;
-			} else {
-				memset(tmp->ior, 0, (GROW_SHRINK_SIZE / 2) * sizeof(struct io_rec));
 			}
 		}
 	}
@@ -126,25 +121,24 @@ static int io_grow(struct io_context *ioc)
 	void *tmp;
 	DEBUG(ast_log(LOG_DEBUG, "io_grow()\n"));
 	ioc->maxfdcnt += GROW_SHRINK_SIZE;
-	tmp = realloc(ioc->ior, (ioc->maxfdcnt + 1) * sizeof(struct io_rec));
-	if (tmp) {
-		ioc->ior = (struct io_rec *)tmp;
-		tmp = realloc(ioc->fds, (ioc->maxfdcnt + 1) * sizeof(struct pollfd));
-		if (tmp) {
+	if ((tmp = ast_realloc(ioc->ior, (ioc->maxfdcnt + 1) * sizeof(*ioc->ior)))) {
+		ioc->ior = tmp;
+		if ((tmp = ast_realloc(ioc->fds, (ioc->maxfdcnt + 1) * sizeof(*ioc->fds)))) {
 			ioc->fds = tmp;
 		} else {
 			/*
-			 * Not enough memory for the pollfd.  Not really any need
-			 * to shrink back the iorec's as we'll probably want to
-			 * grow them again soon when more memory is available, and
-			 * then they'll already be the right size
+			 * Failed to allocate enough memory for the pollfd.  Not
+			 * really any need to shrink back the iorec's as we'll
+			 * probably want to grow them again soon when more memory
+			 * is available, and then they'll already be the right size
 			 */
 			ioc->maxfdcnt -= GROW_SHRINK_SIZE;
 			return -1;
 		}
 	} else {
 		/*
-		 * Out of memory.  We return to the old size, and return a failure
+		 * Memory allocation failure.  We return to the old size, and 
+		 * return a failure
 		 */
 		ioc->maxfdcnt -= GROW_SHRINK_SIZE;
 		return -1;
@@ -180,10 +174,10 @@ int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events
 	ioc->fds[ioc->fdcnt].revents = 0;
 	ioc->ior[ioc->fdcnt].callback = callback;
 	ioc->ior[ioc->fdcnt].data = data;
-	ioc->ior[ioc->fdcnt].id = (int *)malloc(sizeof(int));
-	/* Bonk if we couldn't allocate an int */
-	if (!ioc->ior[ioc->fdcnt].id)
+	if (!(ioc->ior[ioc->fdcnt].id = ast_malloc(sizeof(*ioc->ior[ioc->fdcnt].id)))) {
+		/* Bonk if we couldn't allocate an int */
 		return NULL;
+	}
 	*(ioc->ior[ioc->fdcnt].id) = ioc->fdcnt;
 	ret = ioc->ior[ioc->fdcnt].id;
 	ioc->fdcnt++;
