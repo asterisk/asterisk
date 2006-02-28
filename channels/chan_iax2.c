@@ -104,6 +104,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
    multithreaded mode. */
 #define SCHED_MULTITHREADED
 
+/* Define DEBUG_SCHED_MULTITHREADED to keep track of where each
+   thread is actually doing. */
+#define DEBUG_SCHED_MULTITHREAD
+
 #ifdef NEWJB
 #include "../jitterbuf.h"
 #endif
@@ -680,6 +684,9 @@ struct iax2_thread {
 	void (*schedfunc)(void *);
 	void *scheddata;
 #endif
+#ifdef DEBUG_SCHED_MULTITHREAD
+	char curfunc[80];
+#endif	
 	int actions;
 	int halt;
 	pthread_t threadid;
@@ -816,7 +823,7 @@ static struct iax2_thread *find_idle_thread(void)
 }
 
 #ifdef SCHED_MULTITHREADED
-static int schedule_action(void (*func)(void *data), void *data)
+static int __schedule_action(void (*func)(void *data), void *data, const char *funcname)
 {
 	struct iax2_thread *thread;
 	static time_t lasterror;
@@ -826,6 +833,9 @@ static int schedule_action(void (*func)(void *data), void *data)
 		thread->schedfunc = func;
 		thread->scheddata = data;
 		thread->iostate = IAX_IOSTATE_SCHEDREADY;
+#ifdef DEBUG_SCHED_MULTITHREAD
+		ast_copy_string(thread->curfunc, funcname, sizeof(thread->curfunc));
+#endif
 		pthread_kill(thread->threadid, SIGURG);
 		return 0;
 	}
@@ -835,6 +845,7 @@ static int schedule_action(void (*func)(void *data), void *data)
 	lasterror = t;
 	return -1;
 }
+#define schedule_action(func, data) __schedule_action(func, data, __PRETTY_FUNCTION__)
 #endif
 
 static void __send_ping(void *data)
@@ -4416,14 +4427,26 @@ static int iax2_show_threads(int fd, int argc, char *argv[])
 	time(&t);
 	ast_cli(fd, "Idle Threads:\n");
 	ASTOBJ_CONTAINER_TRAVERSE(&idlelist, 1, {
-		ast_cli(fd, "Thread %d: state %d, last update: %d seconds ago, %d actions handled, refcnt = %d\n", 
-			iterator->threadnum, iterator->iostate, (int)(t - iterator->checktime), iterator->actions, iterator->refcount);
+		ast_cli(fd, "Thread %d: state=%d, update=%d, actions=%d, refcnt=%d, func ='%s'\n", 
+			iterator->threadnum, iterator->iostate, (int)(t - iterator->checktime), iterator->actions, iterator->refcount,
+#ifdef DEBUG_SCHED_MULTITHREAD
+		iterator->curfunc
+#else
+		""
+#endif
+		);
 		threadcount++;
 	});
 	ast_cli(fd, "Active Threads:\n");
 	ASTOBJ_CONTAINER_TRAVERSE(&activelist, 1, {
-		ast_cli(fd, "Thread %d: state %d, last update: %d seconds ago, %d actions handled, refcnt = %d\n", 
-			iterator->threadnum, iterator->iostate, (int)(t - iterator->checktime), iterator->actions, iterator->refcount);
+		ast_cli(fd, "Thread %d: state=%d, update=%d, actions=%d, refcnt=%d, func ='%s'\n", 
+			iterator->threadnum, iterator->iostate, (int)(t - iterator->checktime), iterator->actions, iterator->refcount,
+#ifdef DEBUG_SCHED_MULTITHREAD
+		iterator->curfunc
+#else
+		""
+#endif
+			);
 		threadcount++;
 	});
 	ast_cli(fd, "%d of %d threads accounted for\n", threadcount, iaxthreadcount);
@@ -6467,6 +6490,9 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		}
 		/* Mark as ready and send on its way */
 		thread->iostate = IAX_IOSTATE_READY;
+#ifdef DEBUG_SCHED_MULTITHREAD
+		ast_copy_string(thread->curfunc, "socket_process", sizeof(thread->curfunc));
+#endif
 		pthread_kill(thread->threadid, SIGURG);
 	} else {
 		time(&t);
@@ -7874,6 +7900,9 @@ static void *iax2_process_thread(void *data)
 		}
 		time(&thread->checktime);
 		thread->iostate = IAX_IOSTATE_IDLE;
+#ifdef DEBUG_SCHED_MULTITHREAD
+		thread->curfunc[0]='\0';
+#endif		
 		ASTOBJ_CONTAINER_UNLINK(&activelist, thread);
 		ASTOBJ_CONTAINER_LINK_END(&idlelist, thread);
 		/* Make a copy so we don't lose thread, but if 
