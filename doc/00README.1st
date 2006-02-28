@@ -39,6 +39,8 @@ privacy.txt		Privacy enhancements in Asterisk
 queuelog.txt		Agent and queue logging
 channelvariables.txt	Channel variables
 cdrdrivers.txt		About CDR storage in various databases (needs update)
+asterisk-mib.txt	SNMP mib for Asterisk (net-snmp)
+digium-mib.txt		SNMP mib for Asterisk (net-snmp)
 
 Channel drivers
 ---------------
