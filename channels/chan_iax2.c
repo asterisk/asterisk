@@ -6022,7 +6022,6 @@ static void __auth_reject(void *nothing)
 	struct iax_ie_data ied;
 	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno]) {
-		iaxs[callno]->authid = -1;
 		memset(&ied, 0, sizeof(ied));
 		if (iaxs[callno]->authfail == IAX_COMMAND_REGREJ) {
 			iax_ie_append_str(&ied, IAX_IE_CAUSE, "Registration Refused");
@@ -6038,6 +6037,12 @@ static void __auth_reject(void *nothing)
 
 static int auth_reject(void *data)
 {
+	int callno = (int)(long)(data);
+	ast_mutex_lock(&iaxsl[callno]);
+	if (iaxs[callno]) {
+		iaxs[callno]->authid = -1;
+	}
+	ast_mutex_unlock(&iaxsl[callno]);
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__auth_reject, data))
 #endif		
@@ -6070,7 +6075,6 @@ static void __auto_hangup(void *nothing)
 	struct iax_ie_data ied;
 	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno]) {
-		iaxs[callno]->autoid = -1;
 		memset(&ied, 0, sizeof(ied));
 		iax_ie_append_str(&ied, IAX_IE_CAUSE, "Timeout");
 		iax_ie_append_byte(&ied, IAX_IE_CAUSECODE, AST_CAUSE_NO_USER_RESPONSE);
@@ -6081,6 +6085,12 @@ static void __auto_hangup(void *nothing)
 
 static int auto_hangup(void *data)
 {
+	int callno = (int)(long)(data);
+	ast_mutex_lock(&iaxsl[callno]);
+	if (iaxs[callno]) {
+		iaxs[callno]->autoid = -1;
+	}
+	ast_mutex_unlock(&iaxsl[callno]);
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__auto_hangup, data))
 #endif		
@@ -6125,12 +6135,13 @@ static void vnak_retransmit(int callno, int last)
 static void __iax2_poke_peer_s(void *data)
 {
 	struct iax2_peer *peer = data;
-	peer->pokeexpire = -1;
 	iax2_poke_peer(peer, 0);
 }
 
 static int iax2_poke_peer_s(void *data)
 {
+	struct iax2_peer *peer = data;
+	peer->pokeexpire = -1;
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__iax2_poke_peer_s, data))
 #endif		
@@ -8070,7 +8081,6 @@ static int iax2_prov_cmd(int fd, int argc, char *argv[])
 static void __iax2_poke_noanswer(void *data)
 {
 	struct iax2_peer *peer = data;
-	peer->pokeexpire = -1;
 	if (peer->lastms > -1) {
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE! Time: %d\n", peer->name, peer->lastms);
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, peer->lastms);
@@ -8086,6 +8096,8 @@ static void __iax2_poke_noanswer(void *data)
 
 static int iax2_poke_noanswer(void *data)
 {
+	struct iax2_peer *peer = data;
+	peer->pokeexpire = -1;
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__iax2_poke_noanswer, data))
 #endif		
