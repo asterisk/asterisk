@@ -91,7 +91,7 @@ static char *descrip =
 "and stdout.\n"
 "Returns -1 on hangup (except for DeadAGI) or if application requested\n"
 " hangup, or 0 on non-hangup exit. \n"
-"Using 'EAGI' provides enhanced AGI, with incoming audio available out of band"
+"Using 'EAGI' provides enhanced AGI, with incoming audio available out of band\n"
 "on file descriptor 3\n\n"
 "Use the CLI command 'show agi' to list available agi commands\n";
 
