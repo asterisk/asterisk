@@ -6486,9 +6486,10 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 {
 	struct iax2_thread *thread;
 	socklen_t len;
-	thread = find_idle_thread();
 	time_t t;
 	static time_t last_errtime=0;
+
+	thread = find_idle_thread();
 	if (thread) {
 		len = sizeof(thread->iosin);
 		thread->iofd = fd;
