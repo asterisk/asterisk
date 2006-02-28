@@ -4441,13 +4441,13 @@ static int iax2_show_threads(int fd, int argc, char *argv[])
 #endif
 	ast_cli(fd, "Active Threads:\n");
 #ifdef DEBUG_SCHED_MULTITHREAD
-	ASTOBJ_CONTAINER_TRAVERSE(&idlelist, 1, {
+	ASTOBJ_CONTAINER_TRAVERSE(&activelist, 1, {
 		ast_cli(fd, "Thread %d: state=%d, update=%d, actions=%d, refcnt=%d, func ='%s'\n", 
 			iterator->threadnum, iterator->iostate, (int)(t - iterator->checktime), iterator->actions, iterator->refcount, iterator->curfunc);
 		threadcount++;
 	});
 #else
-	ASTOBJ_CONTAINER_TRAVERSE(&idlelist, 1, {
+	ASTOBJ_CONTAINER_TRAVERSE(&activelist, 1, {
 		ast_cli(fd, "Thread %d: state=%d, update=%d, actions=%d, refcnt=%d\n", 
 			iterator->threadnum, iterator->iostate, (int)(t - iterator->checktime), iterator->actions, iterator->refcount);
 		threadcount++;
