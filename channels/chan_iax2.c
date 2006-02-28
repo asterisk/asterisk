@@ -5226,6 +5226,11 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	p = find_peer(peer, 1);
 	ast_mutex_lock(&iaxsl[callno]);
 
+	if (!iaxs[callno]) {
+		/* Call has disappeared */
+		ast_mutex_unlock(&iaxsl[callno]);
+		return -1;
+	}
 	if (!p) {
 		if (authdebug)
 			ast_log(LOG_NOTICE, "No registration for peer '%s' (from %s)\n", peer, ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
@@ -6059,15 +6064,17 @@ static int auth_fail(int callno, int failcode)
 	/* Schedule sending the authentication failure in one second, to prevent
 	   guessing */
 	ast_mutex_lock(&iaxsl[callno]);
-	iaxs[callno]->authfail = failcode;
-	if (delayreject) {
-		ast_mutex_lock(&iaxsl[callno]);
-		if (iaxs[callno]->authid > -1)
-			ast_sched_del(sched, iaxs[callno]->authid);
-		iaxs[callno]->authid = ast_sched_add(sched, 1000, auth_reject, (void *)(long)callno);
-		ast_mutex_unlock(&iaxsl[callno]);
-	} else
-		auth_reject((void *)(long)callno);
+	if (iaxs[callno]) {
+		iaxs[callno]->authfail = failcode;
+		if (delayreject) {
+			ast_mutex_lock(&iaxsl[callno]);
+			if (iaxs[callno]->authid > -1)
+				ast_sched_del(sched, iaxs[callno]->authid);
+			iaxs[callno]->authid = ast_sched_add(sched, 1000, auth_reject, (void *)(long)callno);
+			ast_mutex_unlock(&iaxsl[callno]);
+		} else
+			auth_reject((void *)(long)callno);
+	}
 	ast_mutex_unlock(&iaxsl[callno]);
 	return 0;
 }
