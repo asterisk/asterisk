@@ -277,7 +277,7 @@ echotraining=yes
 ;
 ; chan_misdns jitterbuffer, default 1000
 ; 
-jitterbuffer=1000
+jitterbuffer=4000
 
 ;
 ; change this threshold to enable dejitter functionality

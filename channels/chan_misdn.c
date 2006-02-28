@@ -3946,7 +3946,7 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 				break;
 				
 			default:
-				ch->jb_len=1000;
+				ch->jb_len=4000;
 				ch->jb_upper_threshold=0;
 				chan_misdn_log(1, ch->bc->port, " --> buffer_len:%d (default)\n",ch->jb_len);
 				chan_misdn_log(1, ch->bc->port, " --> upper_threshold:%d (default)\n",ch->jb_upper_threshold);
