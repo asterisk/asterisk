@@ -17,7 +17,7 @@ ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h $(CROSS_COMPILE_
   MODS:=$(filter-out func_odbc.so,$(MODS))
 endif
 
-ifneq ($(shell if [[ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]]; then echo "OK" ; fi),)
+ifneq ($(shell if [ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]; then echo "OK" ; fi),)
   CURLLIBS:=$(shell $(CROSS_COMPILE_BIN)curl-config --libs)
 endif
 
