@@ -251,9 +251,9 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 			strftime(workspace, workspacelen, fmt, &tm);
 		}
 	} else if (!strcasecmp(name, "duration"))
-		snprintf(workspace, workspacelen, "%d", cdr->duration);
+		snprintf(workspace, workspacelen, "%ld", cdr->duration);
 	else if (!strcasecmp(name, "billsec"))
-		snprintf(workspace, workspacelen, "%d", cdr->billsec);
+		snprintf(workspace, workspacelen, "%ld", cdr->billsec);
 	else if (!strcasecmp(name, "disposition"))
 		ast_copy_string(workspace, ast_cdr_disp2str(cdr->disposition), workspacelen);
 	else if (!strcasecmp(name, "amaflags"))
