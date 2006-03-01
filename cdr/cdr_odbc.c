@@ -122,7 +122,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Failure in AllocStatement %d\n", ODBC_res);
-		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
+		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, (unsigned char *)ODBC_stat, &ODBC_err, (unsigned char *)ODBC_msg, 100, &ODBC_mlen);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);	
 		connected = 0;
 		ast_mutex_unlock(&odbc_lock);
@@ -133,12 +133,12 @@ static int odbc_log(struct ast_cdr *cdr)
 	   strange reason if I don't it blows holes in memory like
 	   like a shotgun.  So we just do this so its safe. */
 
-	ODBC_res = SQLPrepare(ODBC_stmt, sqlcmd, SQL_NTS);
+	ODBC_res = SQLPrepare(ODBC_stmt, (unsigned char *)sqlcmd, SQL_NTS);
 	
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error in PREPARE %d\n", ODBC_res);
-		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
+		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, (unsigned char *)ODBC_stat, &ODBC_err, (unsigned char *)ODBC_msg, 100, &ODBC_mlen);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
 		connected = 0;
 		ast_mutex_unlock(&odbc_lock);
@@ -381,7 +381,7 @@ static int odbc_do_query(void)
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error in Query %d\n", ODBC_res);
-		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
+		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, (unsigned char *)ODBC_stat, &ODBC_err, (unsigned char *)ODBC_msg, 100, &ODBC_mlen);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
 		connected = 0;
 		return -1;
@@ -438,7 +438,7 @@ static int odbc_init(void)
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error SQLConnect %d\n", ODBC_res);
-		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
+		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, (unsigned char *)ODBC_stat, &ODBC_err, (unsigned char *)ODBC_msg, 100, &ODBC_mlen);
 		SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
 		connected = 0;
 		return -1;

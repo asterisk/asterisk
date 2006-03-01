@@ -74,13 +74,13 @@ struct ast_cdr {
 	
 	struct timeval end;
 	/*! Total time in system, in seconds */
-	int duration;				
+	long int duration;				
 	/*! Total time call is up, in seconds */
-	int billsec;				
+	long int billsec;				
 	/*! What happened to the call */
-	int disposition;			
+	long int disposition;			
 	/*! What flags to use */
-	int amaflags;				
+	long int amaflags;				
 	/*! What account number to use */
 	char accountcode[AST_MAX_ACCOUNT_CODE];			
 	/*! flags */

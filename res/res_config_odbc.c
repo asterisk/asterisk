@@ -105,7 +105,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		newval = va_arg(aq, const char *);
 	}
 	va_end(aq);
-	res = SQLPrepare(stmt, sql, SQL_NTS);
+	res = SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
@@ -148,7 +148,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	for (x=0;x<colcount;x++) {
 		rowdata[0] = '\0';
 		collen = sizeof(coltitle);
-		res = SQLDescribeCol(stmt, x + 1, coltitle, sizeof(coltitle), &collen, 
+		res = SQLDescribeCol(stmt, x + 1, (unsigned char *)coltitle, sizeof(coltitle), &collen, 
 					&datatype, &colsize, &decimaldigits, &nullable);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Describe Column error!\n[%s]\n\n", sql);
@@ -251,7 +251,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	if (initfield)
 		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " ORDER BY %s", initfield);
 	va_end(aq);
-	res = SQLPrepare(stmt, sql, SQL_NTS);
+	res = SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
@@ -302,7 +302,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 		for (x=0;x<colcount;x++) {
 			rowdata[0] = '\0';
 			collen = sizeof(coltitle);
-			res = SQLDescribeCol(stmt, x + 1, coltitle, sizeof(coltitle), &collen, 
+			res = SQLDescribeCol(stmt, x + 1, (unsigned char *)coltitle, sizeof(coltitle), &collen, 
 						&datatype, &colsize, &decimaldigits, &nullable);
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 				ast_log(LOG_WARNING, "SQL Describe Column error!\n[%s]\n\n", sql);
@@ -378,7 +378,7 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 	va_end(aq);
 	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " WHERE %s=?", keyfield);
 	
-	res = SQLPrepare(stmt, sql, SQL_NTS);
+	res = SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);

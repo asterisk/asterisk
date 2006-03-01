@@ -263,18 +263,18 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 			}
 		}
 	} else if (!strcasecmp(name, "duration"))
-		snprintf(workspace, workspacelen, "%d", cdr->duration);
+		snprintf(workspace, workspacelen, "%ld", cdr->duration);
 	else if (!strcasecmp(name, "billsec"))
-		snprintf(workspace, workspacelen, "%d", cdr->billsec);
+		snprintf(workspace, workspacelen, "%ld", cdr->billsec);
 	else if (!strcasecmp(name, "disposition")) {
 		if (raw) {
-			snprintf(workspace, workspacelen, "%d", cdr->disposition);
+			snprintf(workspace, workspacelen, "%ld", cdr->disposition);
 		} else {
 			ast_copy_string(workspace, ast_cdr_disp2str(cdr->disposition), workspacelen);
 		}
 	} else if (!strcasecmp(name, "amaflags")) {
 		if (raw) {
-			snprintf(workspace, workspacelen, "%d", cdr->amaflags);
+			snprintf(workspace, workspacelen, "%ld", cdr->amaflags);
 		} else {
 			ast_copy_string(workspace, ast_cdr_flags2str(cdr->amaflags), workspacelen);
 		}
