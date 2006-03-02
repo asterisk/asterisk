@@ -578,7 +578,7 @@ static int change_monitor_action(struct mansession *s, struct message *m)
 		return 0;
 	}
 	ast_mutex_unlock(&c->lock);
-	astman_send_ack(s, m, "Stopped monitoring channel");
+	astman_send_ack(s, m, "Changed monitor filename");
 	return 0;
 }
 
