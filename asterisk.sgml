@@ -27,6 +27,7 @@
 <arg><option>-G </option><replaceable class="parameter">group</replaceable></arg>
 <arg><option>-x </option><replaceable class="parameter">command</replaceable></arg>
 <arg><option>-M </option><replaceable class="parameter">value</replaceable></arg>
+<arg><option>-L </option><replaceable class="parameter">loadaverage</replaceable></arg>
 	</cmdsynopsis>
 	<cmdsynopsis>
 
