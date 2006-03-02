@@ -82,6 +82,9 @@
 
 #if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
 #include <netdb.h>
+#if defined(SOLARIS)
+extern int daemon(int, int);  /* defined in libresolv of all places */
+#endif
 #endif
 
 #include "asterisk.h"
@@ -2160,7 +2163,7 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 		if (setgid(gr->gr_gid)) {
-			ast_log(LOG_WARNING, "Unable to setgid to %d (%s)\n", gr->gr_gid, rungroup);
+			ast_log(LOG_WARNING, "Unable to setgid to %d (%s)\n", (int)gr->gr_gid, rungroup);
 			exit(1);
 		}
 		if (setgroups(0, NULL)) {
@@ -2180,7 +2183,7 @@ int main(int argc, char *argv[])
 		}
 		if (!rungroup) {
 			if (setgid(pw->pw_gid)) {
-				ast_log(LOG_WARNING, "Unable to setgid to %d!\n", pw->pw_gid);
+				ast_log(LOG_WARNING, "Unable to setgid to %d!\n", (int)pw->pw_gid);
 				exit(1);
 			}
 			if (initgroups(pw->pw_name, pw->pw_gid)) {
@@ -2189,7 +2192,7 @@ int main(int argc, char *argv[])
 			}
 		}
 		if (setuid(pw->pw_uid)) {
-			ast_log(LOG_WARNING, "Unable to setuid to %d (%s)\n", pw->pw_uid, runuser);
+			ast_log(LOG_WARNING, "Unable to setuid to %d (%s)\n", (int)pw->pw_uid, runuser);
 			exit(1);
 		}
 		setenv("ASTERISK_ALREADY_NONROOT","yes",1);
@@ -2254,7 +2257,7 @@ int main(int argc, char *argv[])
 	unlink(ast_config_AST_PID);
 	f = fopen(ast_config_AST_PID, "w");
 	if (f) {
-		fprintf(f, "%d\n", getpid());
+		fprintf(f, "%d\n", (int)getpid());
 		fclose(f);
 	} else
 		ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
@@ -2265,7 +2268,7 @@ int main(int argc, char *argv[])
 		unlink(ast_config_AST_PID);
 		f = fopen(ast_config_AST_PID, "w");
 		if (f) {
-			fprintf(f, "%d\n", getpid());
+			fprintf(f, "%d\n", (int)getpid());
 			fclose(f);
 		} else
 			ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
