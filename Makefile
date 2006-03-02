@@ -331,7 +331,9 @@ ASTCFLAGS+= $(TRACE_FRAMES)
 ASTCFLAGS+= $(MALLOC_DEBUG)
 ASTCFLAGS+= $(BUSYDETECT)
 ASTCFLAGS+= $(OPTIONS)
+ifneq ($(findstring dont-optimize,$(MAKECMDGOALS)),dont-optimize)
 ASTCFLAGS+= -fomit-frame-pointer 
+endif
 SUBDIRS=res channels pbx apps codecs formats agi cdr funcs utils stdtime
 
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
