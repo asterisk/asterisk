@@ -37,6 +37,9 @@ Variables:
   functions.  You are encouraged to move towards the associated dialplan
   function, as these variables will be removed in a future release.
 
+* The CDR-CSV variables uniqueid, userfield, and basing time on GMT are now 
+  adjustable from cdr.conf, instead of recompiling.
+
 Functions:
 
 * The function ${CHECK_MD5()} has been deprecated in favor of using an
