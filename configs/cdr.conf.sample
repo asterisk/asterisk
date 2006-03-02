@@ -48,4 +48,9 @@
 ; submission of CDR data during asterisk shutdown, set this to "yes".  Default
 ; is "yes".
 ;safeshutdown=yes
+;
+;[csv]
+;usegmtime=yes ;log date/time in GMT
+;loguniqueid=yes ;log uniqueid
+;loguserfield=yes ;log user field
 

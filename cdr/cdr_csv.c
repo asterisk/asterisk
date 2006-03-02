@@ -41,6 +41,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/config.h"
 #include "asterisk/channel.h"
 #include "asterisk/cdr.h"
 #include "asterisk/module.h"
@@ -51,6 +52,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define CSV_MASTER  "/Master.csv"
 
 #define DATE_FORMAT "%Y-%m-%d %T"
+
+static int usegmtime = 0;
+static int loguniqueid = 0;
+static int loguserfield = 0;
+static char *config = "cdr.conf";
 
 /* #define CSV_LOGUNIQUEID 1 */
 /* #define CSV_LOGUSERFIELD 1 */
@@ -88,6 +94,58 @@ static char *desc = "Comma Separated Values CDR Backend";
 static char *name = "csv";
 
 static FILE *mf = NULL;
+
+
+static int load_config(void)
+{
+	struct ast_config *cfg;
+	struct ast_variable *var;
+	char *tmp;
+
+	usegmtime = 0;
+	loguniqueid = 0;
+	loguserfield = 0;
+	
+	cfg = ast_config_load(config);
+	
+	if (!cfg) {
+		ast_log(LOG_WARNING, "unable to load config: %s\n", config);
+		return -1;
+	} 
+	
+	var = ast_variable_browse(cfg, "csv");
+	if (!var) {
+		ast_config_destroy(cfg);
+		return -1;
+	}
+	
+	tmp = ast_variable_retrieve(cfg, "csv", "usegmtime");
+	if (tmp) {
+		usegmtime = ast_true(tmp);
+		if (usegmtime) {
+			ast_log(LOG_DEBUG, "logging time in GMT\n");
+		}
+	}
+
+	tmp = ast_variable_retrieve(cfg, "csv", "loguniqueid");
+	if (tmp) {
+		loguniqueid = ast_true(tmp);
+		if (loguniqueid) {
+			ast_log(LOG_DEBUG, "logging CDR field UNIQUEID\n");
+		}
+	}
+
+	tmp = ast_variable_retrieve(cfg, "csv", "loguserfield");
+	if (tmp) {
+		loguserfield = ast_true(tmp);
+		if (loguserfield) {
+			ast_log(LOG_DEBUG, "logging CDR user-defined field\n");
+		}
+	}
+
+	ast_config_destroy(cfg);
+	return 0;
+}
 
 static int append_string(char *buf, char *s, size_t bufsize)
 {
@@ -140,7 +198,11 @@ static int append_date(char *buf, struct timeval tv, size_t bufsize)
 		strncat(buf, ",", bufsize - strlen(buf) - 1);
 		return 0;
 	}
-	localtime_r(&t,&tm);
+	if (usegmtime) {
+		gmtime_r(&t,&tm);
+	} else {
+		localtime_r(&t,&tm);
+	}
 	strftime(tmp, sizeof(tmp), DATE_FORMAT, &tm);
 	return append_string(buf, tmp, bufsize);
 }
@@ -181,15 +243,12 @@ static int build_csv_record(char *buf, size_t bufsize, struct ast_cdr *cdr)
 	append_string(buf, ast_cdr_disp2str(cdr->disposition), bufsize);
 	/* AMA Flags */
 	append_string(buf, ast_cdr_flags2str(cdr->amaflags), bufsize);
-
-#ifdef CSV_LOGUNIQUEID
 	/* Unique ID */
-	append_string(buf, cdr->uniqueid, bufsize);
-#endif
-#ifdef CSV_LOGUSERFIELD
+	if (loguniqueid)
+		append_string(buf, cdr->uniqueid, bufsize);
 	/* append the user field */
-	append_string(buf, cdr->userfield,bufsize);	
-#endif
+	if(loguserfield)
+		append_string(buf, cdr->userfield,bufsize);	
 	/* If we hit the end of our buffer, log an error */
 	if (strlen(buf) < bufsize - 5) {
 		/* Trim off trailing comma */
@@ -268,6 +327,8 @@ int unload_module(void)
 int load_module(void)
 {
 	int res;
+	
+	load_config();
 
 	res = ast_cdr_register(name, desc, csv_log);
 	if (res) {
@@ -280,6 +341,7 @@ int load_module(void)
 
 int reload(void)
 {
+	load_config();
 	return 0;
 }
 
