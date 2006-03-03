@@ -59,8 +59,8 @@ Tilghman Lesher - ast_localtime(); ast_say_date_with_format();
 Jayson Vantuyl - Manager protocol changes, various other bugs.
 	jvantuyl@computingedge.net
 Thorsten Lockert - OpenBSD, FreeBSD ports, making MacOS X port run on 10.3,
-	dialplan include verification, route lookup on OpenBSD, various other
-	bugs. tholo@sigmasoft.com
+	dialplan include verification, route lookup on OpenBSD, SNMP agent
+	support (res_snmp), various other bugs. tholo@sigmasoft.com
 Brian West - ODBC support and Bug Marshaling  
 Josh Roberson - chan_zap reload support, Advanced Voicemail Features, other misc. patches,
 	and Bug Marshalling. - josh@asteriasgi.com, http://www.asteriasgi.com
