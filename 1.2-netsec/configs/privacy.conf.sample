@@ -1,0 +1,3 @@
+[general]
+
+maxretries = 2	;How many chances the caller has to enter their number

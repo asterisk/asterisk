@@ -1,0 +1,213 @@
+;
+; Voicemail Configuration
+;
+
+;
+; NOTE: Asterisk has to edit this file to change a user's password.  This does
+; note currently work with the "#include <file>" directive for Asterisk
+; configuration files.  Do not use it with this configuration file.
+;
+
+[general]
+; Default formats for writing Voicemail
+;format=g723sf|wav49|wav
+format=wav49|gsm|wav
+;
+; WARNING:
+; If you change the list of formats that you record voicemail in
+; when you have mailboxes that contain messages, you _MUST_ absolutely
+; manually go through those mailboxes and convert/delete/add the
+; the message files so that they appear to have been stored using
+; your new format list. If you don't do this, very unpleasant
+; things may happen to your users while they are retrieving and
+; manipulating their voicemail.
+;
+; In other words: don't change the format list on a production system
+; unless you are _VERY_  sure that you know what you are doing and are
+; prepared for the consequences.
+;
+; Who the e-mail notification should appear to come from
+serveremail=asterisk
+;serveremail=asterisk@linux-support.net
+; Should the email contain the voicemail as an attachment
+attach=yes
+; Maximum number of messages per folder.  If not specified, a default value
+; (100) is used.  Maximum value for this option is 9999.
+;maxmsg=100
+; Maximum length of a voicemail message in seconds
+;maxmessage=180
+; Minimum length of a voicemail message in seconds for the message to be kept
+; The default is no minimum.
+;minmessage=3
+; Maximum length of greetings in seconds
+;maxgreet=60
+; How many miliseconds to skip forward/back when rew/ff in message playback
+skipms=3000
+; How many seconds of silence before we end the recording
+maxsilence=10
+; Silence threshold (what we consider silence, the lower, the more sensitive)
+silencethreshold=128
+; Max number of failed login attempts
+maxlogins=3
+; If you need to have an external program, i.e. /usr/bin/myapp called when a
+; voicemail is left, delivered, or your voicemailbox is checked, uncomment
+; this:
+;externnotify=/usr/bin/myapp
+; If you need to have an external program, i.e. /usr/bin/myapp called when a
+; voicemail password is changed, uncomment this:
+;externpass=/usr/bin/myapp
+; For the directory, you can override the intro file if you want
+;directoryintro=dir-intro
+; The character set for voicemail messages can be specified here
+;charset=ISO-8859-1
+; The ADSI feature descriptor number to download to 
+;adsifdn=0000000F
+; The ADSI security lock code
+;adsisec=9BDBF7AC
+; The ADSI voicemail application version number.
+;adsiver=1
+; Skip the "[PBX]:" string from the message title
+;pbxskip=yes
+; Change the From: string
+;fromstring=The Asterisk PBX
+; Permit finding entries for forward/compose from the directory
+;usedirectory=yes
+;
+; Change the from, body and/or subject, variables:
+;     VM_NAME, VM_DUR, VM_MSGNUM, VM_MAILBOX, VM_CALLERID, VM_CIDNUM,
+;     VM_CIDNAME, VM_DATE
+;
+; Note: The emailbody config row can only be up to 512 characters due to a
+;       limitation in the Asterisk configuration subsystem.
+;emailsubject=[PBX]: New message ${VM_MSGNUM} in mailbox ${VM_MAILBOX}
+; The following definition is very close to the default, but the default shows
+; just the CIDNAME, if it is not null, otherise just the CIDNUM, or "an unknown
+; caller", if they are both null.
+;emailbody=Dear ${VM_NAME}:\n\n\tjust wanted to let you know you were just left a ${VM_DUR} long message (number ${VM_MSGNUM})\nin mailbox ${VM_MAILBOX} from ${VM_CALLERID}, on ${VM_DATE}, so you might\nwant to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n
+;
+; You can also change the Pager From: string, the pager body and/or subject.
+; The above defined variables also can be used here
+;pagerfromstring=The Asterisk PBX
+;pagersubject=New VM
+;pagerbody=New ${VM_DUR} long msg in box ${VM_MAILBOX}\nfrom ${VM_CALLERID}, on ${VM_DATE}
+;
+; Set the date format on outgoing mails. Valid arguments can be found on the
+; strftime(3) man page
+;
+; Default
+emaildateformat=%A, %B %d, %Y at %r
+; 24h date format
+;emaildateformat=%A, %d %B %Y at %H:%M:%S
+;
+; You can override the default program to send e-mail if you wish, too
+;
+;mailcmd=/usr/sbin/sendmail -t
+; 
+; Users may be located in different timezones, or may have different 
+; message announcements for their introductory message when they enter 
+; the voicemail system. Set the message and the timezone each user 
+; hears here. Set the user into one of these zones with the tz= attribute 
+; in the options field of the mailbox. Of course, language substitution 
+; still applies here so you may have several directory trees that have 
+; alternate language choices. 
+; 
+; Look in /usr/share/zoneinfo/ for names of timezones. 
+; Look at the manual page for strftime for a quick tutorial on how the 
+; variable substitution is done on the values below. 
+; 
+; Supported values: 
+; 'filename'    filename of a soundfile (single ticks around the filename
+;               required)
+; ${VAR}        variable substitution 
+; A or a        Day of week (Saturday, Sunday, ...) 
+; B or b or h   Month name (January, February, ...) 
+; d or e        numeric day of month (first, second, ..., thirty-first) 
+; Y             Year 
+; I or l        Hour, 12 hour clock 
+; H             Hour, 24 hour clock (single digit hours preceded by "oh") 
+; k             Hour, 24 hour clock (single digit hours NOT preceded by "oh") 
+; M             Minute, with 00 pronounced as "o'clock" 
+; N             Minute, with 00 pronounced as "hundred" (US military time)
+; P or p        AM or PM 
+; Q             "today", "yesterday" or ABdY
+;               (*note: not standard strftime value) 
+; q             "" (for today), "yesterday", weekday, or ABdY
+;               (*note: not standard strftime value) 
+; R             24 hour time, including minute 
+; 
+; 
+
+;
+; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>,<options>
+; if the e-mail is specified, a message will be sent when a message is
+; received, to the given mailbox. If pager is specified, a message will be
+; sent there as well. If the password is prefixed by '-', then it is
+; considered to be unchangable.
+;
+; Advanced options example is extension 4069
+; NOTE: All options can be expressed globally in the general section, and
+; overriden in the per-mailbox settings, unless listed otherwise.
+; 
+; tz=central 		; Timezone from zonemessages above.  Irrelevant if envelope=no.
+; attach=yes 		; Attach the voicemail to the notification email *NOT* the pager email
+; saycid=yes 		; Say the caller id information before the message. If not described, 
+			;     or set to no, it will be in the envelope
+; cidinternalcontexts=intern	; Internal Context for Name Playback instead of extension digits when saying caller id.
+; sayduration=no 	; Turn on/off the duration information before the message. [ON by default]
+; saydurationm=2        ; Specify the minimum duration to say. Default is 2 minutes
+; dialout=fromvm 	; Context to dial out from [option 4 from the advanced menu]
+			;     if not listed, dialing out will not be permitted
+sendvoicemail=yes	; Context to Send voicemail from [option 5 from the advanced menu]
+  			; if not listed, sending messages from inside voicemail will not be 
+			; permitted
+; searchcontexts=yes	; Current default behavior is to search only the default context
+			; if one is not specified.  The older behavior was to search all contexts.
+			; This option restores the old behavior [DEFAULT=no]
+; callback=fromvm 	; Context to call back from  
+			;     if not listed, calling the sender back will not be permitted
+; review=yes 		; Allow sender to review/rerecord their message before saving it [OFF by default
+; operator=yes 		; Allow sender to hit 0 before/after/during  leaving a voicemail to 
+			;     reach an operator  [OFF by default]
+; envelope=no 		; Turn on/off envelope playback before message playback. [ON by default] 
+			;     This does NOT affect option 3,3 from the advanced options menu
+; delete=yes		; After notification, the voicemail is deleted from the server. [per-mailbox only]
+			;     This is intended for use with users who wish to receive their voicemail ONLY by email.
+			;     Note:  deletevoicemail is provided as an equivalent option for Realtime configuration.
+; nextaftercmd=yes	; Skips to the next message after hitting 7 or 9 to delete/save current message.
+			;     [global option only at this time] 
+; forcename=yes		; Forces a new user to record their name.  A new user is
+			;     determined by the password being the same as
+			;     the mailbox number.  The default is "no".
+; forcegreetings=no	; This is the same as forcename, except for recording
+			;     greetings.  The default is "no".
+; hidefromdir=yes	; Hide this mailbox from the directory produced by app_directory
+			;     The default is "no".
+
+[zonemessages]
+eastern=America/New_York|'vm-received' Q 'digits/at' IMp
+central=America/Chicago|'vm-received' Q 'digits/at' IMp
+central24=America/Chicago|'vm-received' q 'digits/at' H N 'hours'
+military=Zulu|'vm-received' q 'digits/at' H N 'hours' 'phonetic/z_p'
+
+[default]
+; Define maximum number of messages per folder for partcular context.
+;maxmsg=50
+
+1234 => 4242,Example Mailbox,root@localhost
+;4200 => 9855,Mark Spencer,markster@linux-support.net,mypager@digium.com,attach=no|serveremail=myaddy@digium.com|tz=central|maxmsg=10
+;4300 => 3456,Ben Rigas,ben@american-computer.net
+;4310 => -5432,Sales,sales@marko.net
+;4069 => 6522,Matt Brooks,matt@marko.net,,|tz=central|attach=yes|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes|envelope=yes|sayduration=yes|saydurationm=1
+;4073 => 1099,Bianca Paige,bianca@biancapaige.com,,delete=1
+;4110 => 3443,Rob Flynn,rflynn@blueridge.net
+
+
+;
+; Mailboxes may be organized into multiple contexts for
+; voicemail virtualhosting
+;
+
+[other]
+;The intro can be customized on a per-context basis
+;directoryintro=dir-company2
+1234 => 5678,Company2 User,root@localhost

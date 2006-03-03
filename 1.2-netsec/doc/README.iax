@@ -1,0 +1,369 @@
+Inter-Asterisk eXchange Protocol
+================================
+
+INTRODUCTION
+------------
+
+This document is intended as an introduction to the Inter-Asterisk 
+eXchange (or simply IAX) protocol.  It provides both a theoretical 
+background and practical information on its use.
+
+WHY IAX
+-------
+The first question most people are thinking at this point is "Why do you 
+need another VoIP protocol?  Why didn't you just use SIP or H.323?"
+
+Well, the answer is a fairly complicated one, but in a nutshell it's like
+this...  Asterisk is intended as a very flexible and powerful
+communications tool.  As such, the primary feature we need from a VoIP
+protocol is the ability to meet our own goals with Asterisk, and one with
+enough flexibility that we could use it as a kind of laboratory for
+inventing and implementing new concepts in the field.  Neither H.323 or
+SIP fit the roles we needed, so we developed our own protocol, which,
+while not standards based, provides a number of advantages over both SIP
+and H.323, some of which are:
+
+	* Interoperability with NAT/PAT/Masquerade firewalls
+	     IAX seamlessly interoperates through all sorts of NAT and PAT
+             and other firewalls, including the ability to place and 
+             receive calls, and transfer calls to other stations.
+
+	* High performance, low overhead protocol
+	     When running on low-bandwidth connections, or when running 
+	     large numbers of calls, optimized bandwidth utilization is 
+	     imperative.  IAX uses only 4 bytes of overhead
+
+	* Internationalization support
+	     IAX transmits language information, so that remote PBX 
+	     content can be delivered in the native language of the
+	     calling party.
+
+	* Remote dialplan polling
+	     IAX allows a PBX or IP phone to poll the availability of a 
+	     number from a remote server.  This allows PBX dialplans to 
+	     be centralized.
+
+	* Flexible authentication
+	     IAX supports cleartext, md5, and RSA authentication, 
+	     providing flexible security models for outgoing calls and 
+	     registration services.
+	
+	* Multimedia protocol
+	     IAX supports the transmission of voice, video, images, text, 
+	     HTML, DTMF, and URL's.  Voice menus can be presented in both
+	     audibly and visually.
+
+	* Call statistic gathering
+	     IAX gathers statistics about network performance (including 
+	     latency and jitter, as well as providing end-to-end latency
+	     measurement.
+
+	* Call parameter communication
+	     Caller*ID, requested extension, requested context, etc are
+	     all communicated through the call.
+
+	* Single socket design
+	     IAX's single socket design allows up to 32768 calls to be 
+	     multiplexed.
+	
+While we value the importance of standards based (i.e. SIP) call handling, 
+hopefully this will provide a reasonable explanation of why we developed 
+IAX rather than starting with SIP.
+
+CONFIG FILE CONVENTIONS
+-----------------------
+Lines beginning with '>' represent lines which might appear in an actual 
+configuration file.  The '>' is used to help separate them from the 
+descriptive text and should not actually be included in the file itself.
+
+Lines within []'s by themselves represent section labels within the 
+configuration file.  like this:
+
+> [mysection]
+
+Options are set using the "=" sign, for example
+
+> myoption = value
+
+Sometimes an option will have a number of discrete values which it can 
+take.  In that case, in the documentation, the options will be listed 
+within square brackets (the "[" and "]" ones) separated by the pipe symbol 
+("|").  For example:
+
+> myoption = [value1|value2|value3]
+
+means the option "myoption" can be assigned a value of "value1", "value2", 
+or "value3".
+
+Objects, or pseudo-objects are instantiated using the "=>" construct.  For 
+example:
+
+> myobject => parameter
+
+creates an object called "myobject" with some parameter whose definition
+would be specific to that object.  Note that the config file parser
+considers "=>" and "=" to be equivalent and their use is purely to make
+configuration files more readable and easier to "humanly parse".
+
+The comment character in Asterisk configuration files is the semicolon 
+";".  The reason it is not "#" is because the "#" symbol can be used as 
+parts of extensions and it didn't seem like a good idea to have to escape 
+it.
+
+IAX CONFIGURATION IN ASTERISK
+-----------------------------
+
+Like everything else in Asterisk, IAX's configuration lies in 
+/etc/asterisk -- specifically /etc/asterisk/iax.conf
+
+The IAX configuration file is a collection of sections, each of which
+(with the exception of the "general" section) represents an entity within 
+the IAX scope.
+
+------------
+
+The first section is typically the "general" section.  In this area, 
+a number of parameters which affect the entire system are configured.  
+Specifically, the default codecs, port and address, jitter behavior, TOS 
+bits, and registrations.
+
+The first line of the "general" section is always:
+
+> [general]
+
+Following the first line are a number of other possibilities:
+
+> bindport = <portnum>
+
+This sets the port that IAX will bind to.  The default IAX version 1 
+port number is 5036.  For IAX version 2, that is now the default in
+Asterisk, the default port is 4569.
+It is recommended that this value not be altered in general.
+
+> bindaddr = <ipaddr>
+
+This allows you to bind IAX to a specific local IP address instead of
+binding to all addresses.  This could be used to enhance security if, for
+example, you only wanted IAX to be available to users on your LAN.
+
+> bandwidth = [low|medium|high]
+
+The bandwidth selection initializes the codec selection to appropriate
+values for given bandwidths.  The "high" selection enables all codecs and
+is recommended only for 10Mbps or higher connections.  The "medium"
+bandwidth eliminates signed linear, Mu-law and A-law codecs, leaving only
+the codecs which are 32kbps and smaller (with MP3 as a special case).  It
+can be used with broadband connections if desired. "low" eliminates ADPCM
+and MP3 formats, leaving only the G.723.1, GSM, and LPC10.
+
+> allow = [gsm|lpc10|g723.1|adpcm|ulaw|alaw|mp3|slinear|all]
+> disallow = [gsm|lpc10|g723.1|adpcm|ulaw|alaw|mp3|slinear|all]
+
+The "allow" and "disallow" allow you to fine tune the codec selection 
+beyond the initial bandwidth selection on a codec-by-codec basis.  
+
+The recommended configuration is to select "low" bandwidth and then 
+disallow the LPC10 codec just because it doesn't sound very good. 
+
+> jitterbuffer = [yes|no]
+> dropcount = <dropamount>
+> maxjitterbuffer = <max>
+> maxexcessbuffer = <max>
+
+These parameters control the operation of the jitter buffer.  The 
+jitterbuffer should always be enabled unless you expect all your 
+connections to be over a LAN.  
+* drop count is the maximum number of voice packets to allow to drop 
+  (out of 100).  Useful values are 3-10.  
+* maxjitterbuffer is the maximum amount of jitter buffer to permit to be 
+  used.  
+* maxexcessbuffer is the maximum amount of excess jitter buffer 
+  that is permitted before the jitter buffer is slowly shrunk to eliminate 
+  latency.
+* minexcessbuffer is the minimum amout of excess jitter buffer
+
+> accountcode = <code>
+> amaflags = [default|omit|billing|documentation]
+
+These parameters affect call detail record generation.  The first sets the 
+account code for records received with IAX.  The account code can be 
+overridden on a per-user basis for incoming calls (see below).  The 
+amaflags controls how the record is labeled ("omit" causes no record to be 
+written.  "billing" and "documentation" label the records as billing or 
+documentation records respectively, and "default" selects the system 
+default.
+
+> tos = [lowdelay|throughput|reliability|mincost|none]
+
+IAX can optionally set the TOS (Type of Service) bits to specified values 
+to help improve performance in routing.  The recommended value is 
+"lowdelay", which many routers (including any Linux routers with 2.4 
+kernels that have not been altered with ip tables) will give priority to 
+these packets, improving voice quality.
+
+> register => <name>[:<secret>]@<host>[:port]
+
+Any number of registry entries may be instantiated in the general 
+section.  Registration allows Asterisk to notify a remote Asterisk server 
+(with a fixed address) what our current address is.  In order for 
+registration to work, the remote Asterisk server will need to have a 
+dynamic peer entry with the same name (and secret if provided).  
+
+The name is a required field, and is the remote peer name that we wish to 
+identify ourselves as.  A secret may be provided as well.  The secret is 
+generally a shared password between the local server and the remote 
+server.  However, if the secret is in square brackets ([]'s) then it is 
+interpreted as the name of a RSA key to use.  In that case, the local Asterisk 
+server must have the *private* key (/var/lib/asterisk/keys/<name>.key) and 
+the remote server will have to have the corresponding public key.
+
+The "host" is a required field and is the hostname or IP address of the 
+remote Asterisk server.  The port specification is optional and is by 
+default 4569 for iax2 if not specified.
+
+> notransfer = yes | no
+
+If an IAX phone calls another IAX phone by using a Asterisk server, 
+Asterisk will transfer the call to go peer to peer. If you do not
+want this, turn on notransfer with a "yes". This is also settable
+for peers and users.
+
+-------------
+
+The following sections, after "general" define either users, peers or
+friends.  A "user" is someone who connects to us.  A "peer" is someone
+that we connect to.  A "friend" is simply shorthand for creating a "user" 
+and "peer" with identical parameters (i.e. someone who can contact us and 
+who we contact). 
+
+> [identifier]
+
+The section begins with the identifier in square brackets.  The identifier 
+should be an alphanumeric string.
+
+> type = [user|peer|friend]
+
+This line tells Asterisk how to interpret this entity.  Users are things 
+that connect to us, while peers are phones we connect to, and a friend is 
+shorthand for creating a user and a peer with identical information
+
+----------------
+User fields:
+
+> context = <context>
+
+One or more context lines may be specified in a user, thus giving the user 
+access to place calls in the given contexts.  Contexts are used by 
+Asterisk to divide dialing plans into logical units each with the ability 
+to have numbers interpreted differently, have their own security model, 
+auxiliary switch handling, and include other contexts.  Most users are 
+given access to the default context.  Trusted users could be given access 
+to the local context for example.
+
+> permit = <ipaddr>/<netmask>
+> deny = <ipaddr>/<netmask>
+
+Permit and deny rules may be applied to users, allowing them to connect 
+from certain IP addresses and not others.  The permit and deny rules are 
+interpreted in sequence and all are evaluated on a given IP address, with 
+the final result being the decision.  For example:
+
+> permit = 0.0.0.0/0.0.0.0
+> deny = 192.168.0.0/255.255.255.0
+
+would deny anyone in 192.168.0.0 with a netmask of 24 bits (class C), 
+whereas:
+
+> deny = 192.168.0.0/24
+> permit = 0.0.0.0/0
+
+would not deny anyone since the final rule would permit anyone, thus 
+overriding the denial.  
+
+If no permit/deny rules are listed, it is assumed that someone may connect 
+from anywhere.
+
+> callerid = <callerid>
+
+You may override the Caller*ID information passed by a user to you (if 
+they choose to send it) in order that it always be accurate from the 
+perspective of your server.
+
+> auth = [md5|plaintext|rsa]
+
+You may select which authentication methods are permitted to be used by 
+the user to authenticate to us.  Multiple methods may be specified, 
+separated by commas. If md5 or plaintext authentication is selected, a 
+secret must be provided. If RSA authentication is specified, then one or 
+more key names must be specified with "inkeys"
+
+If no secret is specified and no authentication method is specified, then 
+no authentication will be required.
+
+> secret = <secret>
+
+The "secret" line specifies the shared secret for md5 and plaintext 
+authentication methods.  It is never suggested to use plaintext except in 
+some cases for debugging.
+
+> inkeys = key1[:key2...]
+
+The "inkeys" line specifies which keys we can use to authenticate the 
+remote peer.  If the peer's challenge passes with any of the given keys, 
+then we accept its authentication.  The key files live in 
+/var/lib/asterisk/keys/<name>.pub and are *public keys*.  Public keys are 
+not typically DES3 encrypted and thus do not usually need initialization.
+
+---------------
+Peer configuration
+
+> allow = [gsm|lpc10|g723.1|adpcm|ulaw|alaw|mp3|slinear|all]
+> disallow = [gsm|lpc10|g723.1|adpcm|ulaw|alaw|mp3|slinear|all]
+
+The "allow" and "disallow" may be used to enable or disable specific codec 
+support on a per-peer basis.  
+
+> host = [<ipaddr>|dynamic]
+
+The host line specifies the hostname or IP address of the remote host, or 
+may be the word "dynamic" signifying that the host will register with us 
+(see register => in the general section above).
+
+> defaultip = <ipaddr>
+
+If the host uses dynamic registration, Asterisk may still be given a 
+default IP address to use when dynamic registration has not been performed 
+or has timed out.
+
+> peercontext = <context>
+
+Specifies the context name to be passed to the peer for it to use when routing
+the call through its dial plan. This entry will be used only if a context
+is not included in the IAX2 channel name passed to the Dial command.
+
+> qualify = [yes | no | <value>]
+
+Qualify turns on checking of availability of the remote peer. If the 
+peer becomes unavailable, no calls are placed to the peer until
+it is reachable again. This is also helpful in certain NAT situations.
+
+> jitterbuffer = [yes | no]
+
+Turns on or off the jitterbuffer for this peer
+
+> mailbox = <mailbox>[@mailboxcontext]
+
+Specifies a mailbox to check for voicemail notification.
+
+> permit = <ipaddr>/<netmask>
+> deny = <ipaddr>/<netmask>
+
+Permit and deny rules may be applied to users, allowing them to connect 
+from certain IP addresses and not others.  The permit and deny rules are 
+interpreted in sequence and all are evaluated on a given IP address, with 
+the final result being the decision.  See the user section above 
+for examples.
+
+----------------------------------------------------------------------
+For more examples of a configuration, please see the iax.conf.sample in
+your the /configs directory of you source code distribution

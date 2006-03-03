@@ -1,0 +1,42 @@
+#!/bin/sh
+#
+# Start/stop/restart Asterisk PBX
+#
+# Version: 1.0 - Paul Belanger <pabelanger@gmail.com>
+#
+# 03.29.2005 - Initial Version
+#
+
+asterisk_start() {
+   if [ -x /usr/sbin/asterisk ]; then
+      echo "Starting Asterisk   /usr/sbin/asterisk"
+      /usr/sbin/asterisk
+   fi
+}
+
+asterisk_stop() {
+    # If there is no PID file, ignore this request...
+    if [ -r /var/run/asterisk.pid ]; then
+      killall asterisk
+    fi
+}
+
+asterisk_restart() {
+   asterisk_stop
+   asterisk_start
+}
+
+case "$1" in
+   'start')
+      asterisk_start
+      ;;
+   'stop')
+      asterisk_stop
+      ;;
+   'restart')
+      asterisk_restart
+      ;;
+   *)
+      echo "usage $0 start|stop|restart" ;;
+esac
+

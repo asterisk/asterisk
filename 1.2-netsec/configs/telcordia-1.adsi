@@ -1,0 +1,83 @@
+;
+; Asterisk default ADSI script
+;
+;
+; Begin with the preamble requirements
+;
+DESCRIPTION "Telcordia Demo"		; Name of vendor
+VERSION 0x02				; Version of stuff
+;SECURITY "_AST"				; Security code
+SECURITY 0x0000				; Security code
+FDN 0x0000000f				; Descriptor number
+
+;
+; Predefined strings
+;
+DISPLAY "talkingto" IS "Talking To" "$Call1p" WRAP
+DISPLAY "titles" IS "20th Century IQ Svc"
+DISPLAY "newcall" IS "New Call From" "$Call1p" WRAP
+DISPLAY "ringing" IS "Ringing"
+
+;
+; Begin state definitions
+;
+STATE "callup"		; Call is currently up
+STATE "inactive"	; No active call
+
+;
+; Begin soft key definitions
+;
+KEY "CB_OH" IS "Block" OR "Call Block"
+	OFFHOOK
+	VOICEMODE
+	WAITDIALTONE
+	SENDDTMF "*60"
+	SUBSCRIPT "offHook"
+ENDKEY
+
+KEY "CB" IS "Block" OR "Call Block"
+	SENDDTMF "*60"
+ENDKEY
+
+;
+; Begin main subroutine
+;
+
+SUB "main" IS
+	IFEVENT NEARANSWER THEN
+		CLEAR
+		SHOWDISPLAY "talkingto" AT 1
+		GOTO "stableCall"
+	ENDIF
+	IFEVENT OFFHOOK THEN
+		CLEAR
+		SHOWDISPLAY "titles" AT 1
+		SHOWKEYS "CB"
+		GOTO "offHook"
+	ENDIF
+	IFEVENT IDLE THEN
+		CLEAR
+		SHOWDISPLAY "titles" AT 1
+		SHOWKEYS "CB_OH"
+	ENDIF
+	IFEVENT CALLERID THEN
+		CLEAR
+		SHOWDISPLAY "newcall" AT 1
+	ENDIF
+ENDSUB
+
+SUB "offHook" IS
+	IFEVENT FARRING THEN
+		CLEAR
+		SHOWDISPLAY "ringing" AT 1
+	ENDIF
+	IFEVENT FARANSWER THEN
+		CLEAR
+		SHOWDISPLAY "talkingto" AT 1
+		GOTO "stableCall"
+	ENDIF
+ENDSUB
+
+SUB "stableCall" IS
+
+ENDSUB

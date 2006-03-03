@@ -1,0 +1,271 @@
+diff -u -r -P /tmp/mISDNuser/example/Makefile mISDNuser/example/Makefile
+--- /tmp/mISDNuser/example/Makefile	2004-08-28 14:31:02.000000000 +0200
++++ mISDNuser/example/Makefile	2005-12-05 18:57:10.000000000 +0100
+@@ -3,6 +3,11 @@
+ 
+ all: $(PROGS)
+ 
++install:
++	for i in $(PROGS) ; do \
++		install -m 755 $$i $(INSTALL_PREFIX)/usr/bin ;\
++	done
++
+ testcon: testcon.o $(mISDNLIB)
+ 
+ testnet: testnet.o $(mISDNLIB)
+@@ -26,7 +31,7 @@
+ 
+ 
+ clean:
+-	rm -f *.o *~ DEADJOE
++	rm -f *.o *.so *~ DEADJOE
+ 	rm -f loadfirm logger testcon testcon_l2 testnet
+ 
+ distclean: clean
+diff -u -r -P /tmp/mISDNuser/i4lnet/Makefile mISDNuser/i4lnet/Makefile
+--- /tmp/mISDNuser/i4lnet/Makefile	2004-08-28 14:27:53.000000000 +0200
++++ mISDNuser/i4lnet/Makefile	2005-12-05 18:57:40.000000000 +0100
+@@ -1,9 +1,18 @@
+ 
+-all: libisdnnet.a
++all: libisdnnet.a libisdnnet.so
++
++install:
++	install -m 644 libisdnnet.so $(INSTALL_PREFIX)/usr/lib/
++	cp *.h $(INSTALL_PREFIX)/usr/include/mISDNuser/
++
+ 
+ ISDNNETOBJ = net_if.o isdn_debug.o isdn_msg.o fsm.o net_l2.o tei.o net_l3.o \
+ 		manager.o tone.o bchannel.o g711.o
+ 
++libisdnnet.so: $(ISDNNETOBJ)
++	rm -f $@
++	$(CC) -shared -Xlinker -x -o $@ $(ISDNNETOBJ)
++
+ libisdnnet.a: $(ISDNNETOBJ)
+ 	rm -f $@
+ 	ar cr $@ $(ISDNNETOBJ)
+@@ -33,7 +42,7 @@
+ g711.o: g711.c $(INCLUDEDIR)/g711.h
+ 
+ clean:
+-	rm -f *.o *~ DEADJOE
++	rm -f *.o *.so *~ DEADJOE
+ 	rm -f libisdnnet.a
+ 
+ distclean: clean
+diff -u -r -P /tmp/mISDNuser/i4lnet/net_if.c mISDNuser/i4lnet/net_if.c
+--- /tmp/mISDNuser/i4lnet/net_if.c	2004-12-05 18:23:40.000000000 +0100
++++ mISDNuser/i4lnet/net_if.c	2005-11-14 09:27:58.000000000 +0100
+@@ -1,7 +1,7 @@
+ #include <stdlib.h>
+ #include <unistd.h>
+ #include <string.h>
+-#include <asm/bitops.h>
++#include "net_l2.h"
+ #include "isdn_net.h"
+ #include "bchannel.h"
+ #include "helper.h"
+diff -u -r -P /tmp/mISDNuser/i4lnet/net_l2.c mISDNuser/i4lnet/net_l2.c
+--- /tmp/mISDNuser/i4lnet/net_l2.c	2004-12-05 23:22:15.000000000 +0100
++++ mISDNuser/i4lnet/net_l2.c	2005-11-14 09:27:58.000000000 +0100
+@@ -32,18 +32,6 @@
+ 
+ #define L2_STATE_COUNT (ST_L2_8+1)
+ 
+-static char *strL2State[] =
+-{
+-	"ST_L2_1",
+-	"ST_L2_2",
+-	"ST_L2_3",
+-	"ST_L2_4",
+-	"ST_L2_5",
+-	"ST_L2_6",
+-	"ST_L2_7",
+-	"ST_L2_8",
+-};
+-
+ enum {
+ 	EV_L2_UI,
+ 	EV_L2_SABME,
+diff -u -r -P /tmp/mISDNuser/i4lnet/net_l2.h mISDNuser/i4lnet/net_l2.h
+--- /tmp/mISDNuser/i4lnet/net_l2.h	2004-12-05 00:47:10.000000000 +0100
++++ mISDNuser/i4lnet/net_l2.h	2005-11-14 09:27:58.000000000 +0100
+@@ -9,7 +9,6 @@
+ #ifndef NET_L2_H
+ #define NET_L2_H
+ 
+-#include <asm/bitops.h>
+ #include "mISDNlib.h"
+ #include "isdn_net.h"
+ #include "fsm.h"
+@@ -118,4 +117,31 @@
+ #define FLG_LAPD_NET	18
+ #define FLG_TEI_T201_1	19
+ 
++
++/* Simple replacement for the NON-ATOMIC routines which asm/bitops.h
++   was providing. */
++static inline int test_bit(int bit, unsigned long *word)
++{
++	return !!((*word) & (1<<bit));
++}
++static inline int test_and_clear_bit(int bit, unsigned long *word)
++{
++	int ret = !!((*word) & (1<<bit));
++	*word &= ~(1<<bit);
++	return ret;
++}
++static inline int test_and_set_bit(int bit, unsigned long *word)
++{
++	int ret = !!((*word) & (1<<bit));
++	*word |= 1<<bit;
++	return ret;
++}
++static inline void clear_bit(int bit, unsigned long *word)
++{
++	*word &= ~(1<<bit);
++}	
++static inline void set_bit(int bit, unsigned long *word)
++{
++	*word |= 1<<bit;
++}	
+ #endif
+diff -u -r -P /tmp/mISDNuser/i4lnet/net_l3.c mISDNuser/i4lnet/net_l3.c
+--- /tmp/mISDNuser/i4lnet/net_l3.c	2005-04-30 17:32:06.000000000 +0200
++++ mISDNuser/i4lnet/net_l3.c	2005-11-14 09:27:58.000000000 +0100
+@@ -9,7 +9,6 @@
+  */
+ 
+ #include <stdlib.h>
+-#include <asm/bitops.h>
+ #include "mISDNlib.h"
+ #include "net_l2.h"
+ #include "net_l3.h"
+diff -u -r -P /tmp/mISDNuser/lib/Makefile mISDNuser/lib/Makefile
+--- /tmp/mISDNuser/lib/Makefile	2004-08-28 14:28:38.000000000 +0200
++++ mISDNuser/lib/Makefile	2005-12-05 18:57:27.000000000 +0100
+@@ -1,7 +1,18 @@
+ 
+-all: libmISDN.a
++all: libmISDN.a libmISDN.so
+ 
+-libmISDN.a: device.o layer.o stack.o status.o
++install:
++	install -m 644 libmISDN.so $(INSTALL_PREFIX)/usr/lib/
++
++LIBMISDN_OBJS=device.o layer.o stack.o status.o
++
++libmISDN.so: $(LIBMISDN_OBJS)
++	rm -f $@
++	$(CC) -shared -Xlinker -x -o $@ $(LIBMISDN_OBJS)
++
++
++
++libmISDN.a: $(LIBMISDN_OBJS)
+ 	rm -f $@
+ 	ar -r $@ $^
+ 	ar -s $@
+@@ -12,9 +23,8 @@
+ status.o : status.c ../include/mISDNlib.h 
+ 
+ clean:
+-	rm -f *.o *~ DEADJOE
++	rm -f *.o *.so *~ DEADJOE
+ 	rm -f libmISDN.a
+ 
+ distclean: clean
+ 	rm -f *.a
+- 
+diff -u -r -P /tmp/mISDNuser/Makefile mISDNuser/Makefile
+--- /tmp/mISDNuser/Makefile	2004-08-28 14:30:55.000000000 +0200
++++ mISDNuser/Makefile	2005-12-05 19:16:52.000000000 +0100
+@@ -1,10 +1,26 @@
++#
++# Set this to your local copy of mISDN
++#
++MISDNDIR := /usr/src/mISDN
++
++#
++# Change this to create an install prefix for the shared libs, programms and
++# includes
++#
++INSTALL_PREFIX := /
++export INSTALL_PREFIX
++
++MISDNINCLUDEDIR := $(MISDNDIR)/include
++export MISDNINCLUDEDIR
++
+ mISDN_DIR := $(PWD)
+ export mISDN_DIR
+ 
+ INCLUDEDIR := $(mISDN_DIR)/include
+ export INCLUDEDIR
+ 
+-CFLAGS:= -g -Wall -O2 -I $(INCLUDEDIR)
++CFLAGS:= -g -Wall -O2 -I $(INCLUDEDIR) -I $(MISDNINCLUDEDIR)
++CFLAGS+= -D CLOSE_REPORT=1
+ export CFLAGS
+ 
+ mISDNLIB	:= $(PWD)/lib/libmISDN.a
+@@ -20,9 +36,20 @@
+ 
+ LIBS := lib/libmISDN.a
+ 
+-all:
++all: test_misdn_includes
+ 	make TARGET=$@ subdirs
+ 
++
++install_path:
++	mkdir -p $(INSTALL_PREFIX)/usr/bin/
++	mkdir -p $(INSTALL_PREFIX)/usr/lib/mISDNuser/
++	mkdir -p $(INSTALL_PREFIX)/usr/include/mISDNuser/
++
++install: install_path all
++	make TARGET=install subdirs
++	cp include/*.h $(INSTALL_PREFIX)/usr/include/mISDNuser/
++
++
+ subdirs:
+ 	set -e; for i in $(SUBDIRS) ; do $(MAKE) -C $$i $(TARGET); done
+ 
+@@ -61,3 +88,8 @@
+ voiparchiv: ARCHIVNAME := $(ARCHIVDIR)/$(MAINDIR)_voip-$(VERSION).tar.bz2
+ voiparchiv: archiv
+ 
++
++test_misdn_includes:
++	@if ! echo "#include <linux/mISDNif.h>" | gcc -I$(MISDNINCLUDEDIR) -C -E - >/tmp/muh ; then echo -e "\n\nYou either don't seem to have installed mISDN properly\nor you haven't set the MISDNDIR variable in this very Makefile.\n\nPlease either install mISDN or set the MISDNDIR properly\n"; exit 1; fi
++
++
+diff -u -r -P /tmp/mISDNuser/tenovis/Makefile mISDNuser/tenovis/Makefile
+--- /tmp/mISDNuser/tenovis/Makefile	2004-08-28 14:29:27.000000000 +0200
++++ mISDNuser/tenovis/Makefile	2005-12-05 18:51:05.000000000 +0100
+@@ -10,6 +10,11 @@
+ 
+ all: sublib $(PROGS)
+ 
++install:
++	for i in $(PROGS) ; do \
++		install -m 755 $$i $(INSTALL_PREFIX)/usr/bin ;\
++	done
++
+ testlib: testlib.o $(TENOVISLIB) $(mISDNLIB)
+ 
+ tstlib: tstlib.o $(TENOVISLIB) $(mISDNLIB)
+diff -u -r -P /tmp/mISDNuser/voip/Makefile mISDNuser/voip/Makefile
+--- /tmp/mISDNuser/voip/Makefile	2004-08-28 14:29:53.000000000 +0200
++++ mISDNuser/voip/Makefile	2005-12-05 18:50:39.000000000 +0100
+@@ -24,6 +24,11 @@
+ 
+ all: $(PROGRAMMS)
+ 
++install:
++	for i in $(PROGRAMMS) ; do \
++		install -m 755 $$i $(INSTALL_PREFIX)/usr/bin ;\
++	done
++
+ INTERNET_PORT = 2074
+ 
+ CARGS	= -DInternet_Port=$(INTERNET_PORT)

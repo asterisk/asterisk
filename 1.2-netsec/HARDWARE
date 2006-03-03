@@ -1,0 +1,70 @@
+A PBX is only really useful if you can get calls into it.  Of course, you
+can use Asterisk with VoIP calls (SIP, H.323, IAX), but you can also talk
+to the real PSTN through various cards.
+
+Supported Hardware is divided into two general groups:  Zaptel devices and 
+non-zaptel devices.  The Zaptel compatible hardware supports pseudo-TDM 
+conferencing and all call features through chan_zap, whereas non-zaptel 
+compatible hardware may have different features.
+
+Zaptel compatible hardware
+==========================
+
+-- Digium (Primary author of Asterisk)
+        http://www.digium.com, http://store.yahoo.com/asteriskpbx
+
+   * Wildcard X100P - Single FXO interface connects to Loopstart phone 
+     line
+
+   * Wildcard T400P (obsolete) - Quad T1 interface connects to four T1/PRI 
+     interfaces.  Supports RBS and PRI voice and PPP, FR, and HDLC data.
+
+   * Wildcard E400P (obsolete)- Quad E1 interface connects to four E1/PRI 
+     (or PRA) interfaces.  Supports PRA/PRI, EuroISDN voice and data.
+
+   * Wildcard T100P - Single T1 interface connects to a single T1/PRI
+     interface.  Supports RBS and PRI voice and PPP, FR, and HDLC data.
+
+   * Wildcard E100P - Single E1 interface connects to a single E1/PRI (or PRA)
+     interface.  Supports PRA/PRI, EuroISDN voice and PPP, FR, HDLC data.
+
+   * Wildcard S100U - Single FXS interface connects to a standard analog
+     telephone.
+
+   * Wildcard TDM400P - Quad Modular FXS interface connects to standard
+     analog telephones.
+
+   * Wildcard TE410P - Quad T1/E1 switchable interface.  Supports PRI and 
+     RBS signalling, as well as PPP, FR, and HDLC data modes.
+
+Non-zaptel compatible hardware
+==============================
+
+-- QuickNet, Inc. 
+       http://www.quicknet.net
+
+   * Internet PhoneJack - Single FXS interface.  Supports Linux telephony
+     interface.  DSP compression built-in.
+
+   * Internet LineJack - Single FXS or FXO interface.  Supports Linux 
+     telephony interface.
+
+
+Miscellaneous other interfaces
+==============================
+
+-- ISDN4Linux
+       http://www.isdn4linux.de/
+
+   * Any ISDN terminal adapter supported by isdn4linux should provide
+     connectivity.
+
+-- ALSA
+       http://www.alsa-project.org
+
+   * Any ALSA compatible full-duplex sound card
+
+-- OSS
+       http://www.opensound.com
+
+   * Any OSS compatible full-duplex sound card

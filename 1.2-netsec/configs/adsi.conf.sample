@@ -1,0 +1,8 @@
+;
+; Sample ADSI Configuration file
+;
+[intro]
+alignment = center
+greeting => Welcome to the
+greeting => Asterisk
+greeting => Open Source PBX

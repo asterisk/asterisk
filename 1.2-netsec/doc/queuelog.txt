@@ -1,0 +1,77 @@
+Queue Log Information
+=====================
+
+In order to properly manage ACD queues, it is important to be able to
+keep track of details of call setups and teardowns in much greater detail
+than traditional call detail records provide.  In order to support this,
+extensive and detailed tracing of every queued call is stored in the
+queue log, located (by default) in /var/log/asterisk/queue_log.
+
+These are the events (and associated information) in the queue log:
+
+ABANDON(position|origposition|waittime)
+The caller abandoned their position in the queue.  The position is the
+caller's position in the queue when they hungup, the origposition is
+the original position the caller was when they first entered the
+queue, and the waittime is how long the call had been waiting in the 
+queue at the time of disconnect.
+
+AGENTDUMP
+The agent dumped the caller while listening to the queue announcement.
+
+AGENTLOGIN(channel)
+The agent logged in.  The channel is recorded.
+
+AGENTCALLBACKLOGIN(exten@context)
+The callback agent logged in.  The login extension and context is recorded.
+
+AGENTLOGOFF(channel|logintime)
+The agent logged off.  The channel is recorded, along with the total time
+the agent was logged in.
+
+AGENTCALLBACKLOGOFF(exten@context|logintime|reason)
+The callback agent logged off.  The last login extension and context is
+recorded, along with the total time the agent was logged in, and the
+reason for the logoff if it was not a normal logoff (e.g., Autologoff)
+
+COMPLETEAGENT(holdtime|calltime|origposition)
+The caller was connected to an agent, and the call was terminated normally
+by the *agent*.  The caller's hold time and the length of the call are both
+recorded.  The caller's original position in the queue is recorded in
+origposition.
+
+COMPLETECALLER(holdtime|calltime|origposition)
+The caller was connected to an agent, and the call was terminated normally
+by the *caller*.  The caller's hold time and the length of the call are both
+recorded.  The caller's original position in the queue is recorded in
+origposition.
+
+CONFIGRELOAD
+The configuration has been reloaded (e.g. with asterisk -rx reload)
+
+CONNECT(holdtime)
+The caller was connected to an agent.  Hold time represents the amount
+of time the caller was on hold.
+
+ENTERQUEUE(url|callerid)
+A call has entered the queue.  URL (if specified) and Caller*ID are placed
+in the log.
+
+EXITWITHKEY(key|position)
+The caller elected to use a menu key to exit the queue.  The key and
+the caller's position in the queue are recorded.
+
+EXITWITHTIMEOUT(position)
+The caller was on hold too long and the timeout expired.
+
+QUEUESTART
+The queueing system has been started for the first time this session.
+
+SYSCOMPAT
+A call was answered by an agent, but the call was dropped because the 
+channels were not compatible.
+
+TRANSFER(extension,context)
+Caller was transferred to a different extension.  Context and extension
+are recorded.
+

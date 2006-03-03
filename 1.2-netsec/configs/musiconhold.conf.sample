@@ -1,0 +1,64 @@
+;
+; Music on Hold -- Sample Configuration
+;
+
+[default]
+mode=quietmp3
+directory=/var/lib/asterisk/mohmp3
+
+; valid mode options:
+; quietmp3 	-- default
+; mp3 		-- loud
+; mp3nb		-- unbuffered
+; quietmp3nb	-- quiet unbuffered
+; custom	-- run a custom application 
+; files		-- read files from a directory in any Asterisk supported format
+
+;[manual]
+;mode=custom
+; Note that with mode=custom, a directory is not required, such as when reading
+; from a stream.
+;directory=/var/lib/asterisk/mohmp3
+;application=/usr/bin/mpg123 -q -r 8000 -f 8192 -b 2048 --mono -s
+
+;[ulawstream]
+;mode=custom
+;application=/usr/bin/streamplayer 192.168.100.52 888
+;format=ulaw
+
+; mpg123 on Solaris does not always exit properly; madplay may be a better
+; choice
+;[solaris]
+;mode=custom
+;directory=/var/lib/asterisk/mohmp3
+;application=/site/sw/bin/madplay -Q -o raw:- --mono -R 8000 -a -12
+;
+
+;
+; File-based (native) music on hold
+;
+; This plays files directly from the specified directory, no external
+; processes are required. Files are played in normal sorting order
+; (same as a sorted directory listing), and no volume or other
+; sound adjustments are available. If the file is available in
+; the same format as the channel's codec, then it will be played
+; without transcoding (same as Playback would do in the dialplan).
+; Files can be present in as many formats as you wish, and the
+; 'best' format will be chosen at playback time.
+;
+; NOTE:
+; If you are not using "autoload" in modules.conf, then you
+; must ensure that the format modules for any formats you wish
+; to use are loaded _before_ res_musiconhold. If you do not do
+; this, res_musiconhold will skip the files it is not able to
+; understand when it loads.
+;
+
+;[native]
+;mode=files
+;directory=/var/lib/asterisk/moh-native
+;
+;[native-random]
+;mode=files
+;directory=/var/lib/asterisk/moh-native
+;random=yes 	; Play the files in a random order

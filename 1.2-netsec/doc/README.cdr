@@ -1,0 +1,122 @@
+Asterisk billing support - Call Detail Records
+----------------------------------------------
+Asterisk generates Call Detail Records in a database or in a comma
+separated text file. 
+
+   * cdr_csv supports comma separated text file storage, this is the
+     default driver
+   * cdr_manager supports CDR information via the AMI, The Asterisk Manager
+     interface
+   * cdr_odbc supports UnixODBC databases, see http://www.unixodbc.org
+     for an updated list of supported databases, from MySQL to MsSQL
+     and text files.
+   * cdr_tds supports FreeTDS databases (Among them MS SQL)
+	NOTE: Please read README.tds for information on possible
+	problems with the FreeTDS driver
+   * cdr_sqlite supports SQlite
+   * cdr_pgsql supports PostgreSQL
+
+In the asterisk-addons cvs archive, there's a cdr_mysql driver for
+MySQL.
+
+
+
+Applications
+------------
+
+    * SetAccount  		Set account code for billing
+    * SetAMAFlags 		Sets AMA flags
+    * NoCDR  			Make sure no CDR is saved for a specific call
+    * ResetCDR  		Reset CDR
+    * ForkCDR 			Save current CDR and start a new CDR for this call
+    * Authenticate 		Authenticates and sets the account code
+    * SetCDRUserField   	Set CDR user field
+    * AppendCDRUserField   	Append data to CDR User field 
+
+For more information, use the "show application" command.
+You can set default account codes and AMA flags for devices in 
+channel configuration files, like sip.conf, iax.conf etc.
+
+
+Fields of the CDR in Asterisk
+-----------------------------
+
+   1. accountcode:	What account number to use, (string, 20 characters)
+   2. src:		Caller*ID number (string, 80 characters)
+   3. dst:		Destination extension (string, 80 characters)
+   4. dcontext:		Destination context (string, 80 characters)
+   5. clid:		Caller*ID with text (80 characters)
+   6. channel:		Channel used (80 characters)
+   7. dstchannel:	Destination channel if appropriate (80 characters)
+   8. lastapp:		Last application if appropriate (80 characters)
+   9. lastdata:		Last application data (arguments) (80 characters)
+  10. start:		Start of call (date/time)
+  11. answer:		Answer of call (date/time)
+  12. end:		End of call (date/time)
+  13. duration:		Total time in system, in seconds (integer), from dial to hangup
+  14. billsec:		Total time call is up, in seconds (integer), from answer to hangup
+  15. disposition:	What happened to the call: ANSWERED, NO ANSWER, BUSY
+  16. amaflags:		What flags to use: DOCUMENTATION, BILL, IGNORE etc, 
+      			specified on a per channel basis like accountcode.
+  17. user field:	A user-defined field, maximum 255 characters 
+
+In some cases, uniqueid is appended:
+
+    * uniqueid:		Unique Channel Identifier (32 characters) 
+      This needs to be enabled in the source code at compile time
+
+
+ONE IMPORTANT NOTE: If you are trying to collect records on IAX to IAX calls
+you need to be aware that by default, IAX will attempt to transfer calls
+in this situation (if DTMF is not required).  When the transfer is completed
+the call is dumped from the middle machine and thus the call detail records
+will report a short call time.  If you want detailed records you must
+turn off IAX transfer, but unless your servers are very close together, you
+will definitely get a latency hit from doing so.
+
+____________________________________
+CDR Variables
+------------------------------------
+
+If the channel has a cdr, that cdr record has its own set of variables which 
+can be accessed just like channel variables. The following builtin variables
+are available.
+
+${CDR(clid)}			Caller ID
+${CDR(src)}			Source 
+${CDR(dst)}			Destination
+${CDR(dcontext)}		Destination context
+${CDR(channel)}			Channel name
+${CDR(dstchannel)}		Destination channel
+${CDR(lastapp)}			Last app executed
+${CDR(lastdata)}		Last app's arguments
+${CDR(start)}			Time the call started.
+${CDR(answer)}			Time the call was answered.
+${CDR(end)}			Time the call ended.
+${CDR(duration)}		Duration of the call.
+${CDR(billsec)}			Duration of the call once it was answered.
+${CDR(disposition)}		ANSWERED, NO ANSWER, BUSY
+${CDR(amaflags)}		DOCUMENTATION, BILL, IGNORE etc
+${CDR(accountcode)}		The channel's account code.
+${CDR(uniqueid)}		The channel's unique id.
+${CDR(userfield)}		The channels uses specified field.
+
+In addition, you can set your own extra variables by using Set(CDR(name)=value).
+
+______________________________
+cdr_csv2
+------------------------------
+
+This module is an experimental new cdr module to demonstrate the cdr vars.
+usage(
+
+*) Create a file called cdr.conf and place it in your /etc/asterisk (or wherever your config files are) in the [cdr_csv2] section.
+*) Add an entry called format to indicate any format you want for the output.
+
+The following format string will emulate the regular cdr file format:
+[cdr_csv2]
+
+format => "${CDR(clid)}","${CDR(src)}","${CDR(dst)}","${CDR(dcontext)}","${CDR(channel)}","${CDR(dstchannel)}","${CDR(lastapp)}","${CDR(lastdata)}","${CDR(start)}","${CDR(answer)}","${CDR(end)}","${CDR(duration)}","${CDR(billsec)}","${CDR(disposition)}","${CDR(amaflags)}","${CDR(accountcode)}","${CDR(uniqueid)}","${CDR(userfield)}"
+
+You can put anything you want as the value of format incuding new cdr vars you make up or any global variables.
+

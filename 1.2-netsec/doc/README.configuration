@@ -1,0 +1,180 @@
+Asterisk Configuration Parser (version 1.1 and later)
+-----------------------------------------------------
+
+The Asterisk configuration parser in the 1.1 development version (1.2
+stable) and beyond series has been improved in a number of ways. In
+addition to the realtime architecture, we now have the ability to create
+templates in configuration files, and use these as templates when we
+configure phones, voicemail accounts and queues.
+
+These changes are general to the configuration parser, and works in
+all configuration files. 
+
+General syntax
+--------------
+Asterisk configuration files are defined as follows:
+
+	[section]
+	label = value
+	label2 = value
+
+In some files, (e.g. mgcp.conf, zapata.conf and agents.conf), the syntax
+is a bit different. In these files the syntax is as follows:
+	
+	[section]
+	label1 = value1
+	label2 = value2
+	object => name
+
+	label3 = value3
+	label2 = value4
+	object2 => name2
+
+In this syntax, we create objects with the settings defined above the object
+creation. Note that settings are inherited from the top, so in the example 
+above object2 has inherited the setting for "label1" from the first object.
+
+For template configurations, the syntax for defining a section is changed
+to 
+	[section](options)
+	label = value
+
+The options field is used to define templates, refer to templates and hide
+templates. Any object can be used as a template.
+
+No whitespace is allowed between the closing "]" and the parenthesis "(".
+
+Comments
+--------
+All lines that starts with semi-colon ";" is treated as comments
+and is not parsed.
+
+The ";--" is a marker for a multi-line comment. Everything after
+that marker will be treated as a comment until the end-marker "--;"
+is found. Parsing begins directly after the end-marker.
+
+	;This is a comment
+	label = value
+	;-- This is 
+	a comment --;
+	
+	;-- Comment --; exten=> 1000,1,dial(SIP/lisa)	
+
+Including other files
+---------------------
+In all of the configuration files, you may include the content of another
+file with the #include statement. The content of the other file will be
+included at the row that the #include statement occured.
+	
+	#include myusers.conf
+
+You may also include the output of a program with the #exec directive,
+if you enable it in asterisk.conf
+	
+In asterisk.conf, add the execincludes = yes statement in the options
+section:
+	[options]
+	execincludes=yes
+
+The exec directive is used like this:
+	
+	#exec /usr/local/bin/myasteriskconfigurator.sh
+
+Adding to an existing section
+-----------------------------
+
+	[section] 
+	label = value
+	
+	[section](+)
+	label2 = value2	
+	
+In this case, the plus sign indicates that the second section (with the
+same name) is an addition to the first section. The second section can
+be in another file (by using the #include statement). If the section
+name referred to before the plus is missing, the configuration will fail
+to load.
+
+Defining a template-only section
+--------------------------------
+	[section](!)
+	label = value
+
+The exclamation mark indicates to the config parser that this is a only
+a template and should not itself be used by the Asterisk module for
+configuration. The section can be inherited by other sections (see 
+section "Using templates" below) but is not used by itself.
+
+Using templates (or other configuration sections)
+-------------------------------------------------
+	[section](name[,name])
+	label = value
+
+The name within the parenthesis refers to other sections, either
+templates or standard sections. The referred sections are included
+before the configuration engine parses the local settings within the
+section as though their entire contents (and anything they were 
+previously based upon) were included in the new section.  For example 
+consider the following:
+
+[foo]
+permit=192.168.0.2
+host=asdf
+deny=192.168.0.1
+
+[bar]
+permit=192.168.1.2
+host=jkl
+deny=192.168.1.1
+
+[baz](foo,bar)
+permit=192.168.3.1
+host=bnm
+
+The [baz] section will be processed as though it had been written in the 
+following way:
+
+[baz]
+permit=192.168.0.2
+host=asdf
+deny=192.168.0.1
+permit=192.168.1.2
+host=jkl
+deny=192.168.1.1
+permit=192.168.3.1
+host=bnm
+
+Additional Examples:
+--------------------
+
+(in top-level sip.conf)
+
+[defaults](!)
+type=friend
+nat=yes
+qualify=on
+dtmfmode=rfc2833
+disallow=all
+allow=alaw
+
+#include accounts/*/sip.conf
+
+(in accounts/customer1/sip.conf)
+
+[def-customer1](!,defaults)
+secret=this_is_not_secret
+context=from-customer1
+callerid=Customer 1 <300>
+accountcode=0001
+
+[phone1](def-customer1)
+mailbox=phone1@customer1
+
+[phone2](def-customer1)
+mailbox=phone2@customer1
+
+This example defines two phones - phone1 and phone2 with settings
+inherited from "def-customer1".  The "def-customer1" is a template that
+inherits from "defaults", which also is a template.
+
+

@@ -1,0 +1,85 @@
+#!/bin/sh
+CLIARGS="$*"		# Grab any args passed to safe_asterisk
+TTY=9			# TTY (if you want one) for Asterisk to run on
+CONSOLE=yes		# Whether or not you want a console
+#NOTIFY=ben@alkaloid.net	# Who to notify about crashes
+MACHINE=`hostname`      # To specify which machine has crashed when getting the mail
+DUMPDROP=/tmp
+ASTSBINDIR=__ASTERISK_SBIN_DIR__
+#
+# Don't fork when running "safely"
+#
+ASTARGS=""
+if [ "$TTY" != "" ]; then
+	if [ -c /dev/tty${TTY} ]; then
+		TTY=tty${TTY}
+	elif [ -c /dev/vc/${TTY} ]; then
+		TTY=vc/${TTY}
+	else
+		echo "Cannot find your TTY (${TTY})" >&2
+		exit 1
+	fi
+	ASTARGS="${ASTARGS} -vvvg"
+	if [ "$CONSOLE" != "no" ]; then
+		ASTARGS="${ASTARGS} -c"
+	fi
+fi
+if [ ! -w ${DUMPDROP} ]; then	
+	echo "Cannot write to ${DUMPDROP}" >&2
+	exit 1
+fi
+
+#
+# Let Asterisk dump core
+#
+ulimit -c unlimited
+
+#launch_asterisk()
+#{
+#}
+
+run_asterisk()
+{
+	while :; do 
+
+		if [ "$TTY" != "" ]; then
+			cd /tmp
+			stty sane < /dev/${TTY}
+			${ASTSBINDIR}/asterisk ${CLIARGS} ${ASTARGS} >& /dev/${TTY} < /dev/${TTY}
+		else
+			cd /tmp
+			${ASTSBINDIR}/asterisk ${CLIARGS} ${ASTARGS}
+		fi
+		EXITSTATUS=$?
+		echo "Asterisk ended with exit status $EXITSTATUS"
+		if [ "$EXITSTATUS" = "0" ]; then
+			# Properly shutdown....
+			echo "Asterisk shutdown normally."
+			exit 0
+		elif [ $EXITSTATUS -gt 128 ]; then
+			let EXITSIGNAL=EXITSTATUS-128
+			echo "Asterisk exited on signal $EXITSIGNAL."
+			if [ "$NOTIFY" != "" ]; then
+				echo "Asterisk on $MACHINE exited on signal $EXITSIGNAL.  Might want to take a peek." | \
+				mail -s "Asterisk Died" $NOTIFY
+			fi
+                        if [ -f /tmp/core ]; then
+				mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
+			fi
+		else
+			if [ "${EXITSTATUS}" = "0" ]; then
+				echo "Asterisk ended normally.  Aborting."
+				exit 0
+			else
+				echo "Asterisk died with code $EXITSTATUS."
+	                        if [ -f /tmp/core ]; then
+					mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
+				fi
+			fi
+		fi
+		echo "Automatically restarting Asterisk."
+		sleep 4
+	done
+}
+
+run_asterisk &

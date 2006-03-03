@@ -1,0 +1,342 @@
+mISDN Channel Driver for Asterisk PBX
+======================================
+
+
+This package contains the mISDN Channel Driver for the Asterisk PBX. It 
+supports every mISDN Hardware and provides an interface for asterisk. 
+
+Features: 
+---------
+
+* NT and TE mode
+* PP and PMP mode
+* BRI and PRI (with BNE1 and BN2E1 Cards)
+* DTMF Detection in HW+mISDNdsp (much better than asterisks internal!)
+* Display Messages to Phones (which support display msg)
+* HOLD/RETRIEVE/TRANSFER on ISDN Phones : )
+* Screen/ Not Screen User Number
+* Basic EchoCancellation 
+* Volume Control 
+* Crypting with mISDNdsp (Blowfish)
+* Data (HDLC) callthrough 
+* Data Calling (with app_ptyfork +pppd)
+* Echo cancellation
+* Some other
+
+Supported Hardware:
+-------------------
+
+chan_misdn supports any mISDN compatible Hardware.
+
+Overview
+--------
+
+- Fast Installation Guide
+- Pre-Requisites
+- Compilation 
+- Installation
+- Configuration
+- Dial and Options String
+- misdn cli commands
+- Debugging and sending Bugreports
+- Examples
+- Known working Configurations
+- Known Problems
+- Changes
+
+
+Fast Installation Guide
+-----------------------
+
+It is easy to install mISDN and mISDNuser. Using the Makefile from
+channels/misdn. You just need to type:
+
+cd channels/misdn 
+make misdn
+
+Then all the necessary files are fetched from jollys homepage and are patched
+with the Echocanellor.
+
+
+Pre-Requisites
+--------------
+
+To compile and install this driver, you'll need at least one mISDN Driver and
+the mISDNuser package. Chan_misdn works with both, the current release version
+and the development (svn trunk) version of Asterisk. mISDNuser and mISDN must
+be fetched from jollys homepage and must be patched with the Echocancellor.
+
+Please Note that mISDN works good for the linux-2.6.x kernels. Some of the
+mISDN drivers do not compile against the 2.4.x or older kernels, you can patch
+them, but than you'll get mysterious errors.
+
+Using Kernels > 2.6.9 works perfect. 
+
+Ok so far so good, now follow the compilation instructions.
+
+!! Dont forget to create the /dev/mISDN device node.
+
+Compilation 
+-----------
+
+The compilation of chan_misdn requires a library which will be generated under
+channels/misdn/.
+
+To compile this library you just need to go into this directory and type
+make. Now you can go back to the asterisk source root and type make install
+again, which now should compile and install chan_misdn.
+
+
+
+Installation
+------------
+
+Chan_misdn is automatically installed by the asterisk installation process.
+
+There is a sample init.d script for loading the mISDN modules (mISDN.sample),
+5Asimply copy it to /etc/init.d/ and modify it, there you can enter your cards.
+
+!! Forget to use capi together with chan_misdn. 
+
+
+Configuration
+-------------
+
+First of all you must configure the mISDN drivers. Each driver module has got
+an options and layermask option, which tells the driver wether to start in
+TE, NT, PP or PMP mode (there are lots more, please read docs in misdn for
+that).
+
+After thinking about the above you'll probably want to configure the
+misdn.conf file which resides in the asterisk config directory (normally
+/etc/asterisk).
+
+- misdn.conf: [general]
+The misdn.conf file contains a "general" Section, and user sections which
+contain misdn port settings and different Asterisk contexts.
+
+The general section contains especially a variable named context with which
+the default context is set. There is also the very important debug variable
+which you can set from the Asterisk cli (command line interface) or in this
+configuration file, bigger numbers will lead to more debug output. There's also a
+tracefile option, which takes a path+filename where debug output is written
+to.
+
+- misdn.conf: [default] section 
+The default section is another special section which can contain all the
+options available int the usr/port sections. the user/port section inherit
+their parameters from the default section.
+
+- misdn.conf: user/port sections
+The user sections have names which are unequal to "general". Those sections
+contain the ports variable which mean the mISDN Ports. Here you can add
+multiple ports, comma separated. 
+
+Espacially for TE-Mode Ports there is a msns variable. This variable tells the
+chan_misdn driver to listen for incomming calls with the given msns, you can
+insert a '*' as single msn, which leads in getting every incoming call (if
+you want to share on PMP TE S0 with a asterisk and a phone or isdn card you
+should insert here the msns which you'll like to give the Asterisk).  Finally
+a context variable resides in the user sections, which tells chan_misdn where
+to send incoming calls to in the Asterisk dial plan (extension.conf).
+
+In NT-Mode Ports there is a new option, directly after the port number you can
+write ptp, this enables PP Mode for this port, please look at misdn.conf.sample for
+an example.
+
+
+Dial and Options String
+-----------------------
+
+The dial string of chan_misdn got more complex, because we added more features,
+so the generic dial string looks like:
+
+mISDN/<port>|g:<group>/<extension>[/<OPTIONSSTRING>]
+
+The Optionsstring looks Like:
+:<optchar1><OptParam1>:<optchar2><OptParam2>
+
+the ":" character is the delimiter.
+
+The available Optchars are: 
+	d - Send display text on called phone, text is the optparam
+	n - don't detect dtmf tones on called channel
+	h - make digital outgoing call
+	c - make crypted outgoing call, param is keyindex
+	e - perform echo cancelation on this channel, 
+	    takes taps as arguments (32,64,128,256)
+	s - send Non Inband DTMF as inband
+	vr - rxgain control
+	vt - txgain control
+
+
+chan_misdn registers a new dial plan application "misdn_set_opt" when
+loaded. This application takes the Optionsstring as argument. The Syntax is:
+
+misdn_set_opt(<OPTIONSSTRING>)
+
+
+When you set options in the dialstring, the options are set in the external
+channel. When you set options with misdn_set_opt, they are set in the current
+incoming channel. So if you like to use static encryption, the scenario looks
+as follows:
+
+Phone1 --> * Box 1 --> PSTN_TE 
+PSTN_TE --> * Box 2 --> Phone2
+
+The Encryption must be done on the PSTN sides, so the dialplan on the boxes
+are:
+
+* Box 1:
+exten => _${CRYPT_PREFIX}X.,1,Dial(mISDN/g:outbound/:c1)
+
+* Box 2:
+exten => ${CRYPT_MSN},1,misdn_set_opt(:c1)
+exten => ${CRYPT_MSN},2,dial(${PHONE2})
+
+
+
+
+misdn cli commands
+------------------
+
+At the Asterisk cli you can try to type in: 
+
+misdn <tab> <tab>
+
+Now you should see the misdn cli commands: 
+
+- clean
+	-> pid 		(cleans a broken call, use with care, leads often
+			 to a segmentation fault)
+- send
+	-> display	(sends a Text Message to a Asterisk channel, 
+			 this channel must be an misdn channel)
+- set
+	-> debug	(sets debug level)
+- show
+	-> config	(shows the configuration options)
+	-> channels	(shows the current active misdn channels)
+	-> channel	(shows details about the given misdn channels)
+	-> stacks	(shows the currend ports, there protocols and states)
+	-> fullstacks	(shows the current active and inactive misdn channels)
+
+- restart 
+	-> port		(restarts given port (L2 Restart) )
+
+- reload 		(reloads misdn.conf)
+
+You can only use "misdn send display" when an Asterisk channel is created and
+isdn is in the correct state. "correct state" means that you have established a
+call to another phone (mustn't be isdn though).
+
+Then you use it like this:
+
+misdn send display mISDN/1/101 "Hello World!"
+
+where 1 is the Port of the Card where the phone is plugged in, and 101 is the
+msn (callerid) of the Phone to send the text to.
+
+
+
+Debugging and sending bug reports
+---------------------------------
+
+If you encounter problems, you should set up the debugging flag, usually debug=1 
+should be enough. the messages are divided in asterisk and misdn parts. 
+Misdn Debug messages begin with an 'I', asterisk messages begin with an '*', 
+the rest is clear I think. 
+
+Please take a trace of the problem and open a report in the Asterisk issue
+tracker at http://bugs.digium.com in the "channel drivers" project,
+"chan_misdn" category. Read the bug guidelines to make sure you
+provide all the information needed.
+
+
+Examples
+--------
+
+Here are some examples of how to use chan_misdn in the dialplan (extensions.conf): 
+
+
+[globals]
+OUT_PORT=1 ; The physical Port of the Card
+OUT_GROUP=ExternE1 ; The Group of Ports defined in misdn.conf
+
+[misdnIn]
+exten => _X.,1,Dial(mISDN/${OUT_PORT}/${EXTEN})
+exten => _0X.,1,Dial(mISDN/g:${OUT_GROUP}/${EXTEN:1})
+exten => _1X.,1,Dial(mISDN/g:${OUT_GROUP}/${EXTEN:1}/:dHello)
+exten => _1X.,1,Dial(mISDN/g:${OUT_GROUP}/${EXTEN:1}/:dHello Test:n)
+
+In the last line you will notice the last argument (Hello), this is sended
+as Display Message to the Phone.
+
+
+Known working configurations
+----------------------------
+
+In this section I'll put working configurations for chan_misdn. Beware It
+seems that between Kernel 2.6.3 and Kernel 2.6.8 there were lots of mISDN
+Bugs. I use Kernel 2.6.9 now, it works quite ok, Kernel 2.6.10+ has changed
+the pci_find_subgsys funktion, so hfc_multi from mISDN doesn't compile against
+it, you can just change pci_find_subsys to pci_get_subsys, this works.
+
+
+- chan_misdn-0.0.3-rc1: 	
+	* linux-kernel >= 2.6.3 (but at least 2.6) 
+	* asterisk >= v1-0 
+	* mISDN/mISDNuser since September/04
+
+- chan_misdn-0.0.3-rc3: 	
+	* linux-kernel >= 2.6.3 (but at least 2.6) 
+	* asterisk >= v1-0.2 
+	* mISDN/mISDNuser since December/04
+
+- chan_misdn-0.0.3-rc4: 	
+	* linux-kernel >= 2.6.8 (but at least 2.6) 
+	* asterisk >= v1-0.2 
+	* mISDN/mISDNuser head on cvs.isdn4linux.de
+
+- chan_misdn-0.0.3-rc6: 	
+	* linux-kernel >= 2.6.8 (but at least 2.6) 
+	* asterisk >= v1-0.2 
+	* mISDN/mISDNuser head on cvs.isdn4linux.de
+
+- chan_misdn-0.1.0
+	* linux-kernel >= 2.6.8 (but at least 2.6) 
+	* asterisk >= v1-0.2 , also CVS Head
+	* mISDN/mISDNuser (3.0-beta) from isdn.jolly.de
+
+- chan_misdn-0.2.1
+	* linux-kernel >= 2.6.8 (but at least 2.6) 
+	* asterisk >= v1.2 , also CVS Head
+	* mISDN/mISDNuser (3.0) from isdn.jolly.de
+
+
+Known Problems
+--------------
+
+* When I use mISDN->IAX I cannot make Trunk calls
+
+-> You need to use ztdummy as dummy zaptel interface for the iax timing in
+trunking mode, simply grab libpri, zaptel and compile them (i think you need
+to modify the makefile in zaptel to add ztdummy to the defaultly compiled
+modules) then modprobe ztdummy, this resolves the problem.
+
+
+* I cannot hear any tone after succesfull CONNECT to other end
+
+-> you forgot to load mISDNdsp, which is now needed by chan_misdn for switching
+and dtmf tone detection
+
+* I have strange ISDN behavior: sometimes I hear the other end, sometimes
+not. Also I get STATUS Events with cause 100, with misdn debugging
+
+-> Please update to newest version of chan_misdn and set the te_choose_channel
+option in misdn.conf to yes
+
+Changes
+-------
+in the Changes File
+

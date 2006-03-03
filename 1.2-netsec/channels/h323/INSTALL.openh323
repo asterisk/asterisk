@@ -1,0 +1,18 @@
+To build Open H.323 see: 
+
+http://www.openh323.org/build.html#unix
+
+You only need to do 'make opt'. Anything else you will be simply waisting time and HD space.
+Also, you will notice they never tell you to 'make install' so don't do it.
+
+
+On FreeBSD, the Makefiles are configured to
+locate the compiled openh323 port, if it has
+been built.  Here is one way to build
+openh323 and ptlib on such that the Makefiles
+find it:
+	# cd /usr/ports/net/openh323
+	# make
+It is not necessary to install the port.  The
+asterisk makefiles do not use any files
+installed by the port.
