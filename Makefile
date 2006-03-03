@@ -212,10 +212,12 @@ ifeq ($(OSARCH),Linux)
 endif
 
 GREP=grep
+ID=id
 
 ifeq ($(OSARCH),SunOS)
   GREP=/usr/xpg4/bin/grep
   M4=/usr/local/bin/m4
+  ID=/usr/xpg4/bin/id
 endif
 
 INCLUDE+=-Iinclude -I../include
@@ -539,7 +541,7 @@ clean:
 	$(MAKE) -C stdtime clean
 
 datafiles: all
-	if [ x`id -un` = xroot ]; then sh mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
+	if [ x`$(ID) -un` = xroot ]; then sh mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/priv-callerintros
 	for x in sounds/digits/*.gsm; do \
