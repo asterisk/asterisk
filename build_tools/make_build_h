@@ -3,7 +3,7 @@ HOSTNAME=`uname -n`
 KERNEL=`uname -r`
 MACHINE=`uname -m`
 OS=`uname -s`
-USER=`whoami`
+USER=`id -un`
 DATE=`date -u "+%Y-%m-%d %H:%M:%S"`
 cat << END
 /*
