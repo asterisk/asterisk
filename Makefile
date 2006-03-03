@@ -554,7 +554,7 @@ clean: clean-depend
 	$(MAKE) -C stdtime clean
 
 datafiles: all
-	if [ x`whoami` = xroot ]; then sh build_tools/mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
+	if [ x`id -un` = xroot ]; then sh build_tools/mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/priv-callerintros
 	for x in sounds/digits/*.gsm; do \
