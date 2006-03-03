@@ -4499,6 +4499,79 @@ static int vm_intro_cz(struct ast_channel *chan,struct vm_state *vms)
 	return res;
 }
 
+static int get_lastdigits(int num)
+{
+	num %= 100;
+	return (num < 20) ? num : num % 10;
+}
+
+static int vm_intro_ru(struct ast_channel *chan,struct vm_state *vms)
+{
+	int res;
+	int lastnum;
+	int dcnum;
+
+	res = ast_play_and_wait(chan, "vm-youhave");
+	if (!res && vms->newmessages) {
+		lastnum = get_lastdigits(vms->newmessages);
+		dcnum = vms->newmessages - lastnum;
+		if (dcnum)
+			res = say_and_wait(chan, dcnum, chan->language);
+		if (!res && lastnum) {
+			if (lastnum == 1) 
+				res = ast_play_and_wait(chan, "digits/ru/odno");
+			else
+				res = say_and_wait(chan, lastnum, chan->language);
+		}
+
+		if (!res)
+			res = ast_play_and_wait(chan, (lastnum == 1) ? "vm-novoe" : "vm-novyh");
+
+		if (!res && vms->oldmessages)
+			res = ast_play_and_wait(chan, "vm-and");
+	}
+
+	if (!res && vms->oldmessages) {
+		lastnum = get_lastdigits(vms->oldmessages);
+		dcnum = vms->newmessages - lastnum;
+		if (dcnum)
+			res = say_and_wait(chan, dcnum, chan->language);
+		if (!res && lastnum) {
+			if (lastnum == 1) 
+				res = ast_play_and_wait(chan, "digits/ru/odno");
+			else
+				res = say_and_wait(chan, lastnum, chan->language);
+		}
+
+		if (!res)
+			res = ast_play_and_wait(chan, (lastnum == 1) ? "vm-staroe" : "vm-staryh");
+	}
+
+	if (!res && !vms->newmessages && !vms->oldmessages) {
+		lastnum = 0;
+		res = ast_play_and_wait(chan, "vm-no");
+	}
+
+	if (!res) {
+		switch(lastnum) {
+		case 1:
+			res = ast_play_and_wait(chan, "vm-soobshenie");
+			break;
+		case 2:
+		case 3:
+		case 4:
+			res = ast_play_and_wait(chan, "vm-soobsheniya");
+			break;
+		default:
+			res = ast_play_and_wait(chan, "vm-soobsheniy");
+			break;
+		}
+	}
+
+	return res;
+}
+
+
 static int vm_intro(struct ast_channel *chan,struct vm_state *vms)
 {
 	/* Play voicemail intro - syntax is different for different languages */
@@ -4522,6 +4595,8 @@ static int vm_intro(struct ast_channel *chan,struct vm_state *vms)
 		return vm_intro_se(chan, vms);
 	} else if (!strcasecmp(chan->language, "no")) {	/* NORWEGIAN syntax */
 		return vm_intro_no(chan, vms);
+	} else if (!strcasecmp(chan->language, "ru")) {   /* RUSSIAN syntax */
+		return vm_intro_ru(chan, vms);
 	} else {					/* Default to ENGLISH */
 		return vm_intro_en(chan, vms);
 	}
