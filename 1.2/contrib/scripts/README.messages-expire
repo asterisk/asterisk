@@ -1,0 +1,20 @@
+messages-expire.pl
+
+messages-expire finds messages more than X days old and deletes them. 
+Because the older messages will be the lower numbers in the folder (msg0000
+will be older than msg0005), just deleting msg0000 will not work. 
+expire-messages then runs a routine that goes into every folder in every
+mailbox to reorganize.  If the folder contains msg0000, no action is taken. 
+If the folder does not, the rename routine takes the oldest message and
+names it msg0000, the next oldest message and names it msg0001 and so on.
+
+The file deletion is done by the -exec parameter to 'find'.  It would be far
+more efficient to take the output from 'find' and just reorganize the
+directories from which we deleted a file.  Something for the future...
+
+Keep in mind that messages are deleted at the beginning of the script you
+will have mailbox trouble if you check messages before the script
+reorganizes your mailbox.
+
+To use it, make sure the paths are right.  Adjust $age (originally set to
+31) if necessary.

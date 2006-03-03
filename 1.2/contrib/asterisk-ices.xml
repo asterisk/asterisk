@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<ices>
+
+    <!-- run in background  -->
+    <background>0</background>
+    <!-- where logs go. -->
+    <logpath>/var/log/ices</logpath>
+    <logfile>ices.log</logfile>
+    <!-- 1=error, 2=warn, 3=infoa ,4=debug -->
+    <loglevel>4</loglevel>
+    <!-- logfile is ignored if this is set to 1 -->
+    <consolelog>0</consolelog>
+
+    <!-- optional filename to write process id to -->
+    <!-- <pidfile>/home/ices/ices.pid</pidfile> -->
+
+    <stream>
+        <!-- metadata used for stream listing -->
+        <metadata>
+            <name>Example stream name</name>
+            <genre>Example genre</genre>
+            <description>A short description of your stream</description>
+            <url>http://mysite.org</url>
+        </metadata>
+
+        <!--    Input module.
+
+            This example uses the 'oss' module. It takes input from the
+            OSS audio device (e.g. line-in), and processes it for live
+            encoding.  -->
+        <input>
+            <module>stdinpcm</module>
+            <param name="rate">8000</param>
+            <param name="channels">1</param>
+            <!-- Read metadata (from stdin by default, or -->
+            <!-- filename defined below (if the latter, only on SIGUSR1) -->
+            <param name="metadata">1</param>
+            <param name="metadatafilename">test</param>
+        </input>
+
+        <!--    Stream instance.
+
+            You may have one or more instances here.  This allows you to
+            send the same input data to one or more servers (or to different
+            mountpoints on the same server). Each of them can have different
+            parameters. This is primarily useful for a) relaying to multiple
+            independent servers, and b) encoding/reencoding to multiple
+            bitrates.
+
+            If one instance fails (for example, the associated server goes
+            down, etc), the others will continue to function correctly.
+            This example defines a single instance doing live encoding at
+            low bitrate.  -->
+
+        <instance>
+            <!--    Server details.
+
+                You define hostname and port for the server here, along
+                with the source password and mountpoint.  -->
+
+            <hostname>localhost</hostname>
+            <port>8000</port>
+            <password>temppass</password>
+            <mount>/example.ogg</mount>
+            <yp>1</yp>   <!-- allow stream to be advertised on YP, default 0 -->
+
+            <!--    Live encoding/reencoding:
+
+                channels and samplerate currently MUST match the channels
+                and samplerate given in the parameters to the oss input
+                module above or the remsaple/downmix section below.  -->
+
+            <encode>  
+                <quality>0</quality>
+                <samplerate>8000</samplerate>
+                <channels>1</channels>
+            </encode>
+
+            <!-- stereo->mono downmixing, enabled by setting this to 1 -->
+            <downmix>0</downmix>
+
+            <!-- resampling.
+            
+                Set to the frequency (in Hz) you wish to resample to, -->
+             
+            <!-- <resample>
+                <in-rate>44100</in-rate>
+                <out-rate>22050</out-rate>
+            </resample> -->
+        </instance>
+
+    </stream>
+</ices>

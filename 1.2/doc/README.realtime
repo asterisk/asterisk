@@ -1,0 +1,111 @@
+The Asterisk Realtime Architecture
+----------------------------------
+
+The Asterisk Realtime Architecture is a new set of drivers and 
+functions implemented in Asterisk 1.2. The benefits of this 
+architecture are many, both from a code management
+standpoint and from an installation perspective. 
+
+Additional information on the configuration of Realtime with Asterisk 
+can be found in README.extconfig
+
+The ARA is designed to be independent of storage. Currently, most
+drivers are based on SQL, but the architecture should be able to handle
+other storage methods in the future, like LDAP.
+
+The main benefit comes in the database support. In Asterisk v1.0 some 
+functions supported MySQL database, some PostgreSQL and other ODBC.
+With the ARA, we have a unified database interface internally in Asterisk,
+so if one function supports database integration, all databases that has a 
+realtime driver will be supported in that function.
+
+Currently there are three realtime database drivers:
+
+* ODBC: Support for UnixODBC, integrated into Asterisk
+  The UnixODBC subsystem supports many different databases,
+  please check www.unixodbc.org for more information.
+* MySQL: Found in the asterisk-addons cvs archive on cvs.digium.com
+* Res_perl: Found in the asterisk-addons cvs archive on cvs.digium.com
+
+
+* Two modes: Static and Realtime
+--------------------------------
+The ARA realtime mode is used to dynamically load and update objects.
+This mode is used in the SIP and IAX2 channels, as well as in the voicemail
+system. For SIP and IAX2 this is similar to the v1.0 MYSQL_FRIENDS 
+functionality. With the ARA, we now support many more databases for
+dynamic configuration of phones.
+
+The ARA static mode is used to load configuration files. For the Asterisk
+modules that read configurations, there's no difference between a static
+file in the file system, like extensions.conf, and a configuration loaded
+from a database.
+
+* Realtime SIP friends
+----------------------
+The SIP realtime objects are users and peers that are loaded in memory 
+when needed, then deleted. This means that Asterisk currently can't handle
+voicemail notification and NAT keepalives for these peers. Other than that,
+most of the functionality works the same way for realtime friends as for
+the ones in static configuration.
+
+There is some work to create a solution for Realtime SIP devices that
+loads from database and stays in memory for the duration of a call or
+a registration, but that work is not integrated into Asterisk yet.
+
+* New function in the dial plan: The Realtime Switch
+----------------------------------------------------
+The realtime switch is more than a port of functionality in v1.0 to the
+new architecture, this is a new feature of Asterisk based on the 
+ARA. The realtime switch lets your Asterisk server do database lookups
+of extensions in realtime from your dial plan. You can have many Asterisk
+servers sharing a dynamically updated dial plan in real time with this
+solution.
+
+Note that this switch does _NOT_ support Caller ID matching, only
+extension name/pattern matching.
+
+* So what can you do?
+---------------------
+The realtime Architecture lets you store all of your configuration in
+databases and reload it whenever you want. You can force a reload over
+the AMI, Asterisk Manager Interface or by calling Asterisk from a 
+shell script with 
+	asterisk -rx "reload"
+
+You may also dynamically add SIP and IAX devices and extensions 
+and making them available without a reload, by using the realtime
+objects and the realtime switch.
+
+
+* Configuration in extconfig.conf
+---------------------------------
+You configure the ARA in extconfig.conf (yes, it's a strange name, but
+is was defined in the early days of the realtime architecture and kind
+of stuck). Please see README.extconfig for database schemas.
+
+The part of Asterisk that connects to the ARA use a well defined family
+name to find the proper database driver. The syntax is easy:
+   <family> => <realtime driver>,<db name>[,<table>]
+
+The options following the realtime driver identified depends on the
+driver.
+
+Defined well-known family names are:
+
+* sippeers, sipusers	SIP peers and users
+* iaxfriends		IAX2 peers
+* voicemail		Voicemail accounts 
+
+There is documentation of the SQL database in the file
+README.extconfig in your Asterisk source code tree, the /doc
+directory.
+
+For voicemail storage with the support of ODBC, there is a 
+README.odbcstorage documentation file.
+
+
+* FreeTDS not supported
+-----------------------
+Due to architectural constraints in the FreeTDS libraries, FreeTDS is not
+supported for use with realtime at this time.

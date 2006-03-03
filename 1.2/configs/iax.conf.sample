@@ -1,0 +1,418 @@
+
+; Inter-Asterisk eXchange driver definition
+;
+; This configuration is re-read at reload
+; or with the CLI command
+; 	reload chan_iax2.so
+;
+; General settings, like port number to bind to, and
+; an option address (the default is to bind to all
+; local addresses).
+;
+[general]
+;bindport=4569			; bindport and bindaddr may be specified
+;                               ; NOTE: bindport must be specified BEFORE bindaddr
+;                               ; or may be specified on a specific bindaddr if followed by
+;                               ; colon and port (e.g. bindaddr=192.168.0.1:4569)
+;bindaddr=192.168.0.1		; more than once to bind to multiple
+;                               ; addresses, but the first will be the 
+;                               ; default
+;
+; Set iaxcompat to yes if you plan to use layered switches or
+; some other scenario which may cause some delay when doing a
+; lookup in the dialplan. It incurs a small performance hit to
+; enable it. This option causes Asterisk to spawn a separate thread
+; when it receives an IAX DPREQ (Dialplan Request) instead of
+; blocking while it waits for a response.
+;
+;iaxcompat=yes
+;
+; Disable UDP checksums (if nochecksums is set, then no checkums will
+; be calculated/checked on systems supporting this feature)
+;
+;nochecksums=no
+;
+;
+; For increased security against brute force password attacks
+; enable "delayreject" which will delay the sending of authentication
+; reject for REGREQ or AUTHREP if there is a password.  
+;
+;delayreject=yes
+;
+; You may specify a global default AMA flag for iaxtel calls.  It must be
+; one of 'default', 'omit', 'billing', or 'documentation'.  These flags
+; are used in the generation of call detail records.
+;
+;amaflags=default
+;
+; You may specify a default account for Call Detail Records in addition
+; to specifying on a per-user basis
+;
+;accountcode=lss0101
+;
+; You may specify a global default language for users. 
+; Can be specified also on a per-user basis
+; If omitted, will fallback to english
+;
+;language=en
+;
+; Specify bandwidth of low, medium, or high to control which codecs are used
+; in general.
+;
+bandwidth=low
+;
+; You can also fine tune codecs here using "allow" and "disallow" clauses
+; with specific codecs.  Use "all" to represent all formats.
+;
+;allow=all			; same as bandwidth=high
+;disallow=g723.1		; Hm...  Proprietary, don't use it...
+disallow=lpc10			; Icky sound quality...  Mr. Roboto.
+;allow=gsm			; Always allow GSM, it's cool :)
+;
+
+; You can adjust several parameters relating to the jitter buffer.
+; The jitter buffer's function is to compensate for varying
+; network delay.
+;
+; There are presently two jitterbuffer implementations available for Asterisk
+; and chan_iax2; the classic and the new, channel/application independent
+; implementation.  These are controlled at compile-time.  The new jitterbuffer
+; additionally has support for PLC which greatly improves quality as the
+; jitterbuffer adapts size, and in compensating for lost packets.
+;
+; All the jitter buffer settings except dropcount are in milliseconds.
+; The jitter buffer works for INCOMING audio - the outbound audio
+; will be dejittered by the jitter buffer at the other end.
+;
+; jitterbuffer=yes|no: global default as to whether you want
+; the jitter buffer at all.
+;
+; forcejitterbuffer=yes|no: in the ideal world, when we bridge VoIP channels
+; we don't want to do jitterbuffering on the switch, since the endpoints
+; can each handle this.  However, some endpoints may have poor jitterbuffers 
+; themselves, so this option will force * to always jitterbuffer, even in this
+; case.
+; [This option presently applies only to the new jitterbuffer implementation]
+;
+; dropcount: the jitter buffer is sized such that no more than "dropcount"
+; frames would have been "too late" over the last 2 seconds.
+; Set to a small number.  "3" represents 1.5% of frames dropped
+; [This option is not applicable to, and ignored by the new jitterbuffer implementation]
+;
+; maxjitterbuffer: a maximum size for the jitter buffer.
+; Setting a reasonable maximum here will prevent the call delay
+; from rising to silly values in extreme situations; you'll hear
+; SOMETHING, even though it will be jittery.
+;
+; resyncthreshold: when the jitterbuffer notices a significant change in delay
+; that continues over a few frames, it will resync, assuming that the change in
+; delay was caused by a timestamping mix-up. The threshold for noticing a
+; change in delay is measured as twice the measured jitter plus this resync
+; threshold.
+; Resyncing can be disabled by setting this parameter to -1.
+; [This option presently applies only to the new jitterbuffer implementation]
+;
+; maxjitterinterps: the maximum number of interpolation frames the jitterbuffer
+; should return in a row. Since some clients do not send CNG/DTX frames to
+; indicate silence, the jitterbuffer will assume silence has begun after
+; returning this many interpolations. This prevents interpolating throughout
+; a long silence.
+; [This option presently applies only to the new jitterbuffer implementation]
+;
+; maxexcessbuffer: If conditions improve after a period of high jitter,
+; the jitter buffer can end up bigger than necessary.  If it ends up
+; more than "maxexcessbuffer" bigger than needed, Asterisk will start
+; gradually decreasing the amount of jitter buffering.
+; [This option is not applicable to, and ignored by the new jitterbuffer implementation]
+;
+; minexcessbuffer: Sets a desired mimimum amount of headroom in 
+; the jitter buffer.  If Asterisk has less headroom than this, then
+; it will start gradually increasing the amount of jitter buffering.
+; [This option is not applicable to, and ignored by the new jitterbuffer implementation]
+;
+; jittershrinkrate: when the jitter buffer is being gradually shrunk 
+; (or enlarged), how many millisecs shall we take off per 20ms frame
+; received?  Use a small number, or you will be able to hear it
+; changing.  An example: if you set this to 2, then the jitter buffer
+; size will change by 100 millisecs per second.
+; [This option is not applicable to, and ignored by the new jitterbuffer implementation]
+
+jitterbuffer=no
+forcejitterbuffer=no
+;dropcount=2
+;maxjitterbuffer=1000
+;maxjitterinterps=10
+;resyncthreshold=1000
+;maxexcessbuffer=80
+;minexcessbuffer=10
+;jittershrinkrate=1
+
+;trunkfreq=20			; How frequently to send trunk msgs (in ms)
+
+; Should we send timestamps for the individual sub-frames within trunk frames?
+; There is a small bandwidth use for these (less than 1kbps/call), but they
+; ensure that frame timestamps get sent end-to-end properly.  If both ends of
+; all your trunks go directly to TDM, _and_ your trunkfreq equals the frame
+; length for your codecs, you can probably suppress these.  The receiver must
+; also support this feature, although they do not also need to have it enabled.
+;
+; trunktimestamps=yes
+;
+; Minimum and maximum amounts of time that IAX peers can request as
+; a registration expiration interval (in seconds).
+; minregexpire = 60
+; maxregexpire = 60
+;
+; We can register with another IAX server to let him know where we are
+; in case we have a dynamic IP address for example
+;
+; Register with tormenta using username marko and password secretpass
+;
+;register => marko:secretpass@tormenta.linux-support.net
+;
+; Register joe at remote host with no password
+;
+;register => joe@remotehost:5656
+;
+; Register marko at tormenta.linux-support.net using RSA key "torkey"
+;
+;register => marko:[torkey]@tormenta.linux-support.net
+;
+; Sample Registration for iaxtel
+;
+; Visit http://www.iaxtel.com to register with iaxtel.  Replace "user"
+; and "pass" with your username and password for iaxtel.  Incoming 
+; calls arrive at the "s" extension of "default" context.
+;
+;register => user:pass@iaxtel.com
+;
+; Sample Registration for IAX + FWD
+;
+; To register using IAX with FWD, it must be enabled by visiting the URL
+; http://www.fwdnet.net/index.php?section_id=112
+;
+; Note that you need an extension in you default context which matches
+; your free world dialup number.  Please replace "FWDNumber" with your
+; FWD number and "passwd" with your password.
+;
+;register => FWDNumber:passwd@iax.fwdnet.net
+;
+;
+; You can disable authentication debugging to reduce the amount of 
+; debugging traffic.
+;
+;authdebug=no
+;
+; Finally, you can set values for your TOS bits to help improve 
+; performance.  Valid values are:
+;   lowdelay		-- Minimize delay
+;   throughput		-- Maximize throughput
+;   reliability		-- Maximize reliability
+;   mincost		-- Minimize cost
+;   none		-- No flags
+;
+tos=lowdelay
+;
+; If mailboxdetail is set to "yes", the user receives
+; the actual new/old message counts, not just a yes/no
+; as to whether they have messages.  this can be set on
+; a per-peer basis as well
+;
+;mailboxdetail=yes
+;
+; If regcontext is specified, Asterisk will dynamically create and destroy
+; a NoOp priority 1 extension for a given peer who registers or unregisters
+; with us.  The actual extension is the 'regexten' parameter of the registering
+; peer or its name if 'regexten' is not provided.  More than one regexten
+; may be supplied if they are separated by '&'.  Patterns may be used in
+; regexten.
+;
+;regcontext=iaxregistrations
+;
+; If we don't get ACK to our NEW within 2000ms, and autokill is set to yes,
+; then we cancel the whole thing (that's enough time for one retransmission
+; only).  This is used to keep things from stalling for a long time for a host
+; that is not available, but would be ill advised for bad connections.  In
+; addition to 'yes' or 'no' you can also specify a number of milliseconds.
+; See 'qualify' for individual peers to turn on for just a specific peer.
+;
+autokill=yes
+;
+; codecpriority controls the codec negotiation of an inbound IAX call.
+; This option is inherited to all user entities.  It can also be defined 
+; in each user entity separately which will override the setting in general.
+;
+; The valid values are:
+;
+; caller   - Consider the callers preferred order ahead of the host's.
+; host     - Consider the host's preferred order ahead of the caller's.
+; disabled - Disable the consideration of codec preference alltogether.
+;            (this is the original behaviour before preferences were added)
+; reqonly  - Same as disabled, only do not consider capabilities if
+;            the requested format is not available the call will only
+;            be accepted if the requested format is available.
+;
+; The default value is 'host'
+;
+;codecpriority=host
+
+;rtcachefriends=yes		; Cache realtime friends by adding them to the internal list
+				; just like friends added from the config file only on a
+				; as-needed basis? (yes|no)
+
+;rtupdate=yes			; Send registry updates to database using realtime? (yes|no)
+				; If set to yes, when a IAX2 peer registers successfully, the ip address,
+				; the origination port, the registration period, and the username of
+				; the peer will be set to database via realtime. If not present, defaults to 'yes'.
+
+;rtautoclear=yes		; Auto-Expire friends created on the fly on the same schedule
+				; as if it had just registered? (yes|no|<seconds>)
+				; If set to yes, when the registration expires, the friend will vanish from
+				; the configuration until requested again. If set to an integer,
+				; friends expire within this number of seconds instead of the
+				; registration interval.
+
+;rtignoreexpire=yes		; When reading a peer from Realtime, if the peer's registration
+				; has expired based on its registration interval, used the stored
+				; address information regardless. (yes|no)
+
+; Guest sections for unauthenticated connection attempts.  Just specify an
+; empty secret, or provide no secret section.
+;
+[guest]
+type=user
+context=default
+callerid="Guest IAX User"
+
+;
+; Trust Caller*ID Coming from iaxtel.com
+;
+[iaxtel]
+type=user
+context=default
+auth=rsa
+inkeys=iaxtel
+
+;
+; Trust Caller*ID Coming from iax.fwdnet.net
+;
+[iaxfwd]
+type=user
+context=default
+auth=rsa
+inkeys=freeworlddialup
+
+;
+; Trust callerid delivered over DUNDi/e164
+;
+;
+;[dundi]
+;type=user
+;dbsecret=dundi/secret
+;context=dundi-e164-local
+
+;
+; Further user sections may be added, specifying a context and a secret used
+; for connections with that given authentication name.  Limited IP based
+; access control is allowed by use of "allow" and "deny" keywords.  Multiple
+; rules are permitted.  Multiple permitted contexts may be specified, in
+; which case the first will be the default.  You can also override caller*ID
+; so that when you receive a call you set the Caller*ID to be what you want
+; instead of trusting what the remote user provides
+;
+; There are three authentication methods that are supported:  md5, plaintext,
+; and rsa.  The least secure is "plaintext", which sends passwords cleartext
+; across the net.  "md5" uses a challenge/response md5 sum arrangement, but
+; still requires both ends have plain text access to the secret.  "rsa" allows
+; unidirectional secret knowledge through public/private keys.  If "rsa"
+; authentication is used, "inkeys" is a list of acceptable public keys on the 
+; local system that can be used to authenticate the remote peer, separated by
+; the ":" character.  "outkey" is a single, private key to use to authenticate
+; to the other side.  Public keys are named /var/lib/asterisk/keys/<name>.pub
+; while private keys are named /var/lib/asterisk/keys/<name>.key.  Private
+; keys should always be 3DES encrypted.
+;
+;
+; NOTE: All hostnames and IP addresses in this file are for example purposes
+;       only; you should not expect any of them to actually be available for
+;       your use.
+;
+;
+;[markster]
+;type=user
+;context=default
+;context=local
+;auth=md5,plaintext,rsa
+;secret=markpasswd
+;setvar=foo=bar
+;dbsecret=mysecrets/place	; Secrets can be stored in astdb, too
+;notransfer=yes		; Disable IAX native transfer
+;jitterbuffer=yes	; Override global setting an enable jitter buffer
+;			; for this user
+;callerid="Mark Spencer" <(256) 428-6275>
+;deny=0.0.0.0/0.0.0.0
+;accountcode=markster0101
+;permit=209.16.236.73/255.255.255.0
+;language=en		; Use english as default language
+;
+; Peers may also be specified, with a secret and
+; a remote hostname.
+;
+[demo]
+type=peer
+username=asterisk
+secret=supersecret
+host=216.207.245.47
+;sendani=no
+;host=asterisk.linux-support.net
+;port=5036
+;mask=255.255.255.255
+;qualify=yes			; Make sure this peer is alive
+;qualifysmoothing = yes		; use an average of the last two PONG
+				; results to reduce falsly detected LAGGED hosts
+				; Default: Off
+;qualifyfreqok = 60000		; how frequently to ping the peer when
+				; everything seems to be ok, in milliseconds
+;qualifyfreqnotok = 10000	; how frequently to ping the peer when it's
+				; either LAGGED or UNAVAILABLE, in milliseconds
+;jitterbuffer=no		; Turn off jitter buffer for this peer
+
+;
+; Peers can remotely register as well, so that they can be mobile.  Default
+; IP's can also optionally be given but are not required.  Caller*ID can be
+; suggested to the other side as well if it is for example a phone instead of
+; another PBX.
+;
+
+;[dynamichost]
+;host=dynamic
+;secret=mysecret
+;mailbox=1234		; Notify about mailbox 1234
+;inkeys=key1:key2
+;peercontext=local	; Default context to request for calls to peer
+;defaultip=216.207.245.34
+;callerid="Some Host" <(256) 428-6011>
+;
+
+;
+;[biggateway]
+;type=peer
+;host=192.168.0.1
+;context=*
+;secret=myscret
+;trunk=yes			; Use IAX2 trunking with this host
+;timezone=America/New_York	; Set a timezone for the date/time IE
+;
+
+;
+; Friends are a short cut for creating a user and
+; a peer with the same values.
+;
+;[marko]
+;type=friend
+;host=dynamic
+;regexten=1234
+;secret=moofoo
+;context=default
+;permit=0.0.0.0/0.0.0.0
+

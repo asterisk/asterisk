@@ -1,0 +1,94 @@
+#!/usr/bin/perl
+use strict;
+use Socket;
+use Carp;
+use IO::Handle;
+
+my $port = 4573;
+
+$|=1;
+
+# Setup some variables
+my %AGI; my $tests = 0; my $fail = 0; my $pass = 0;
+
+sub checkresult {
+	my ($res) = @_;
+	my $retval;
+	$tests++;
+	chomp $res;
+	if ($res =~ /^200/) {
+		$res =~ /result=(-?\d+)/;
+		if (!length($1)) {
+			print STDERR "FAIL ($res)\n";
+			$fail++;
+		} else {
+			print STDERR "PASS ($1)\n";
+			$pass++;
+		}
+	} else {
+		print STDERR "FAIL (unexpected result '$res')\n";
+		$fail++;
+	}
+}
+
+socket(SERVER, PF_INET, SOCK_STREAM, 0);
+setsockopt(SERVER, SOL_SOCKET, SO_REUSEADDR, pack("l", 1));
+bind(SERVER, sockaddr_in($port, INADDR_ANY)) || die("can't bind\n");
+listen(SERVER, SOMAXCONN);
+
+for(;;) {
+	my $raddr = accept(CLIENT, SERVER);
+	my ($s, $p) = sockaddr_in($raddr);
+	CLIENT->autoflush(1);
+	while(<CLIENT>) {
+		chomp;
+		last unless length($_);
+		if (/^agi_(\w+)\:\s+(.*)$/) {
+			$AGI{$1} = $2;
+		}
+	}
+	print STDERR "AGI Environment Dump from $s:$p --\n";
+	foreach my $i (sort keys %AGI) {
+		print STDERR " -- $i = $AGI{$i}\n";
+	}
+
+	print STDERR "1.  Testing 'sendfile'...";
+	print CLIENT "STREAM FILE beep \"\"\n";
+	my $result = <CLIENT>;
+	&checkresult($result);
+
+	print STDERR "2.  Testing 'sendtext'...";
+	print CLIENT "SEND TEXT \"hello world\"\n";
+	my $result = <CLIENT>;
+	&checkresult($result);
+
+	print STDERR "3.  Testing 'sendimage'...";
+	print CLIENT "SEND IMAGE asterisk-image\n";
+	my $result = <CLIENT>;
+	&checkresult($result);
+
+	print STDERR "4.  Testing 'saynumber'...";
+	print CLIENT "SAY NUMBER 192837465 \"\"\n";
+	my $result = <CLIENT>;
+	&checkresult($result);
+
+	print STDERR "5.  Testing 'waitdtmf'...";
+	print CLIENT "WAIT FOR DIGIT 1000\n";
+	my $result = <CLIENT>;
+	&checkresult($result);
+
+	print STDERR "6.  Testing 'record'...";
+	print CLIENT "RECORD FILE testagi gsm 1234 3000\n";
+	my $result = <CLIENT>;
+	&checkresult($result);
+
+	print STDERR "6a.  Testing 'record' playback...";
+	print CLIENT "STREAM FILE testagi \"\"\n";
+	my $result = <CLIENT>;
+	&checkresult($result);
+	close(CLIENT);
+	print STDERR "================== Complete ======================\n";
+	print STDERR "$tests tests completed, $pass passed, $fail failed\n";
+	print STDERR "==================================================\n";
+}
+

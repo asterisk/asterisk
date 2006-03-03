@@ -1,0 +1,64 @@
+;
+; Open Settlement Protocol Sample Configuration File
+;
+;
+; This file contains configuration of providers that
+; are used by the OSP subsystem of Asterisk.  The section
+; "general" is reserved for global options.  Each other 
+; section declares an OSP Provider.  The provider "default"
+; is used when no provider is otherwise specified.
+;
+[general]
+;
+; Should hardware accelleration be enabled?  May not be changed
+; on a reload.
+;
+;accelerate=yes
+;
+; Defines the token format that Asterisk can validate. 
+; 0 - signed tokens only 
+; 1 - unsigned tokens only 
+; 2 - both signed and unsigned
+; The defaults to 0, i.e. the Asterisk can validate signed tokens only.
+;
+;tokenformat=0
+
+;[default]
+;
+; All paths are presumed to be under /var/lib/asterisk/keys unless
+; the path begins with '/'
+;
+; Specify the private keyfile.  If unspecified, defaults to the name
+; of the section followed by "-privatekey.pem" (e.g. default-privatekey.pem)
+;
+;privatekey=pkey.pem
+;
+; Specify the local certificate file.  If unspecified, defaults to
+; the name of the section followed by "-localcert.pem"
+;
+;localcert=localcert.pem
+;
+; Specify one or more Certificate Authority keys.  If none are listed,
+; a single one is added with the name "-cacert.pem"
+;
+;cacert=cacert_0.pem
+;
+; Specific parameters can be tuned as well:
+;
+; maxconnections: Max number of simultaneous connections to the provider (default=20)
+; retrydelay:     Extra delay between retries (default=0)
+; retrylimit:     Max number of retries before giving up (default=2)
+; timeout:        Timeout for response in milliseconds (default=500)
+;
+;maxconnections=20
+;retrydelay=0
+;retrylimit=2
+;timeout=500
+;
+; List all service points for this provider
+;
+;servicepoint=http://osptestserver.transnexus.com:1080/osp
+;
+; Set the "source" for requesting authorization
+;
+;source=foo

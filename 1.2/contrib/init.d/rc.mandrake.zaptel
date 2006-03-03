@@ -1,0 +1,98 @@
+#!/bin/sh
+#
+# zaptel:       Loads Asterisk modules
+#
+# Version:      @(#) /etc/rc.d/init.d/zaptel 1.0
+#
+# chkconfig: 2345 90 10
+# description: Loads and unloads zaptel modules at boot time and shutdown.
+#
+# hide: true
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Default modules - override in /etc/sysconfig/zaptel
+######################################
+MODULES="usb-uhci zaptel wcfxo wcusb"
+######################################
+
+[ -f /etc/sysconfig/`basename $0` ] && . /etc/sysconfig/`basename $0`
+
+function probe() {
+	gprintf "                           $1"
+	modprobe -i $1
+	# It has to be in the module list, otherwise something is wrong
+	if lsmod | grep -c ^$1 >/dev/null; then
+		success
+	else
+		failure
+	fi
+	echo
+}
+
+function unprobe() {
+	gprintf "                           $1"
+	rmmod $1 >/dev/null 2>&1
+	# If it's still in the module list after removing it, there's something wrong.
+	if lsmod | grep -c ^$1 >/dev/null; then
+		failure
+	else
+		success
+	fi
+	echo
+}
+
+function reverse_modules() {
+	tmp=$MODULES
+	MODULES=''
+	for i in $tmp; do
+		MODULES="$i $MODULES" ;
+	done
+}
+
+# See how we were called.
+case "$1" in
+  start)
+	gprintf "Loading Asterisk modules:\n"
+	for i in $MODULES; do
+		probe $i
+		usleep 100000 ;
+	done
+	ztcfg
+	;;
+  stop)
+	gprintf "Unloading Asterisk modules:\n"
+	reverse_modules
+	for i in $MODULES; do
+		unprobe $i
+		usleep 100000 ;
+	done
+	;;
+  status)
+  	#ztcfg -vv
+	OK=1
+	gprintf "Checking Asterisk modules"
+	for i in $MODULES; do
+		if [ `lsmod | grep -c $i` -eq 0 ]; then
+			OK=0
+		fi
+	done
+	if [ $OK -gt 0 ]; then
+		success
+	else
+		failure
+	fi
+	echo
+	;;
+  restart)
+  	$0 stop
+	$0 start
+	;;
+  *)
+	gprintf "*** Usage: $0 {start|stop|status|restart}\n"
+	exit 1
+esac
+
+exit 0
+
