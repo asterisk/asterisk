@@ -4299,24 +4299,24 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			}
 			break;
 		case ZT_EVENT_POLARITY:
-                        /*
-                         * If we get a Polarity Switch event, check to see
-                         * if we should change the polarity state and
-                         * mark the channel as UP or if this is an indication
-                         * of remote end disconnect.
-                         */
-                        if (p->polarity == POLARITY_IDLE) {
-                                p->polarity = POLARITY_REV;
-                                if (p->answeronpolarityswitch &&
-                                    ((ast->_state == AST_STATE_DIALING) ||
-                                     (ast->_state == AST_STATE_RINGING))) {
-                                        ast_log(LOG_DEBUG, "Answering on polarity switch!\n");
-                                        ast_setstate(p->owner, AST_STATE_UP);
+			/*
+			 * If we get a Polarity Switch event, check to see
+			 * if we should change the polarity state and
+			 * mark the channel as UP or if this is an indication
+			 * of remote end disconnect.
+			 */
+			if (p->polarity == POLARITY_IDLE) {
+				p->polarity = POLARITY_REV;
+				if (p->answeronpolarityswitch &&
+				    ((ast->_state == AST_STATE_DIALING) ||
+					 (ast->_state == AST_STATE_RINGING))) {
+					ast_log(LOG_DEBUG, "Answering on polarity switch!\n");
+					ast_setstate(p->owner, AST_STATE_UP);
 					if (p->hanguponpolarityswitch) {
 						gettimeofday(&p->polaritydelaytv, NULL);
 					}
-                                } else
-                                        ast_log(LOG_DEBUG, "Ignore switch to REVERSED Polarity on channel %d, state %d\n", p->channel, ast->_state);
+				} else
+					ast_log(LOG_DEBUG, "Ignore switch to REVERSED Polarity on channel %d, state %d\n", p->channel, ast->_state);
 			} 
 			/* Removed else statement from here as it was preventing hangups from ever happening*/
 			/* Added AST_STATE_RING in if statement below to deal with calling party hangups that take place when ringing */
