@@ -217,6 +217,17 @@ static void *mixmonitor_thread(void *obj)
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Begin MixMonitor Recording %s\n", name);
 	
+	if (mixmonitor->post_process) {
+		char *p;
+
+		for (p = mixmonitor->post_process; *p ; p++) {
+			if (*p == '^' && *(p+1) == '{') {
+				*p = '$';
+			}
+		}
+		pbx_substitute_variables_helper(mixmonitor->chan, mixmonitor->post_process, post_process, sizeof(post_process) - 1);
+	}
+
 	while (1) {
 		struct ast_frame *next;
 		int write;
@@ -251,17 +262,6 @@ static void *mixmonitor_thread(void *obj)
 		ast_mutex_unlock(&spy.lock);
 	}
 	
-	if (mixmonitor->post_process) {
-		char *p;
-
-		for (p = mixmonitor->post_process; *p ; p++) {
-			if (*p == '^' && *(p+1) == '{') {
-				*p = '$';
-			}
-		}
-		pbx_substitute_variables_helper(mixmonitor->chan, mixmonitor->post_process, post_process, sizeof(post_process) - 1);
-	}
-
 	stopmon(mixmonitor->chan, &spy);
 
 	if (option_verbose > 1)
