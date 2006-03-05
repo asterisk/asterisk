@@ -12323,6 +12323,7 @@ static int reload_config(void)
 	global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
 	global_regattempts_max = 0;
 	ast_clear_flag(&global_flags, AST_FLAGS_ALL);
+	ast_clear_flag(&global_flags_page2, AST_FLAGS_ALL);
 	ast_set_flag(&global_flags, SIP_DTMF_RFC2833);
 	ast_set_flag(&global_flags, SIP_NAT_RFC3581);
 	ast_set_flag(&global_flags, SIP_CAN_REINVITE);
