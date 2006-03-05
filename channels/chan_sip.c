@@ -12339,7 +12339,7 @@ static int reload_config(enum channelreloadreason reason)
 	int auto_sip_domains = FALSE;
 	struct sockaddr_in old_bindaddr = bindaddr;
 	int registry_count = 0, peer_count = 0, user_count = 0;
-	static struct ast_flags debugflag = {0};
+	struct ast_flags debugflag = {0};
 
 	cfg = ast_config_load(config);
 
