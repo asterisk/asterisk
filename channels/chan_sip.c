@@ -12339,6 +12339,7 @@ static int reload_config(enum channelreloadreason reason)
 	int auto_sip_domains = FALSE;
 	struct sockaddr_in old_bindaddr = bindaddr;
 	int registry_count = 0, peer_count = 0, user_count = 0;
+	int debugflag;
 
 	cfg = ast_config_load(config);
 
@@ -12349,7 +12350,11 @@ static int reload_config(enum channelreloadreason reason)
 	}
 	
 	/* Clear all flags before setting default values */
+	/* Preserve debugging settings for console */
+	ast_copy_flags((&debugflag), (&global_flags_page2), SIP_PAGE2_DEBUG_CONSOLE);
 	ast_clear_flag(&global_flags, AST_FLAGS_ALL);
+	ast_clear_flag(&global_flags_page2, AST_FLAGS_ALL);
+	ast_copy_flags((&global_flags_page2), (&debugflag), SIP_PAGE2_DEBUG_CONSOLE);
 
 	/* Reset IP addresses  */
 	memset(&bindaddr, 0, sizeof(bindaddr));
