@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-AGIS=agi-test.agi eagi-test eagi-sphinx-test
+AGIS=agi-test.agi eagi-test eagi-sphinx-test jukebox.agi
 
 CFLAGS+=
 
