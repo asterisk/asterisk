@@ -1921,6 +1921,67 @@ static int manager_parking_status( struct mansession *s, struct message *m )
         return RESULT_SUCCESS;
 }
 
+static char mandescr_park[] =
+"Description: Park a channel.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Channel: Channel name to park\n"
+"	*Channel2: Channel to announce park info to (and return to if timeout)\n"
+"	Timeout: Number of milliseconds to wait before callback.\n";  
+
+static int manager_park(struct mansession *s, struct message *m)
+{
+	char *channel = astman_get_header(m, "Channel");
+	char *channel2 = astman_get_header(m, "Channel2");
+	char *timeout = astman_get_header(m, "Timeout");
+	char buf[BUFSIZ];
+	int to = 0;
+	int res = 0;
+	int parkExt = 0;
+	struct ast_channel *ch1, *ch2;
+
+	if (ast_strlen_zero(channel)) {
+		astman_send_error(s, m, "Channel not specified");
+		return 0;
+	}
+
+	if (ast_strlen_zero(channel2)) {
+		astman_send_error(s, m, "Channel2 not specified");
+		return 0;
+	}
+
+	ch1 = ast_get_channel_by_name_locked(channel);
+	if (!ch1) {
+		snprintf(buf, sizeof(buf), "Channel does not exist: %s", channel);
+		astman_send_error(s, m, buf);
+		return 0;
+	}
+
+	ch2 = ast_get_channel_by_name_locked(channel2);
+	if (!ch2) {
+		snprintf(buf, sizeof(buf), "Channel does not exist: %s", channel2);
+		astman_send_error(s, m, buf);
+		ast_mutex_unlock(&ch1->lock);
+		return 0;
+	}
+
+	if (!ast_strlen_zero(timeout)) {
+		sscanf(timeout, "%d", &to);
+	}
+
+	res = ast_masq_park_call(ch1, ch2, to, &parkExt);
+	if (!res) {
+		ast_softhangup(ch2, AST_SOFTHANGUP_EXPLICIT);
+		astman_send_ack(s, m, "Park successful");
+	} else {
+		astman_send_error(s, m, "Park failure");
+	}
+
+	ast_mutex_unlock(&ch1->lock);
+	ast_mutex_unlock(&ch2->lock);
+
+	return 0;
+}
+
 
 int ast_pickup_call(struct ast_channel *chan)
 {
@@ -2157,6 +2218,8 @@ int load_module(void)
 		res = ast_register_application(parkcall, park_call_exec, synopsis2, descrip2);
 	if (!res) {
 		ast_manager_register("ParkedCalls", 0, manager_parking_status, "List parked calls" );
+		ast_manager_register2("Park", EVENT_FLAG_CALL, manager_park,
+			"Park a channel", mandescr_park); 
 	}
 	return res;
 }
@@ -2167,6 +2230,7 @@ int unload_module(void)
 	STANDARD_HANGUP_LOCALUSERS;
 
 	ast_manager_unregister("ParkedCalls");
+	ast_manager_unregister("Park");
 	ast_cli_unregister(&showfeatures);
 	ast_cli_unregister(&showparked);
 	ast_unregister_application(parkcall);
