@@ -4508,7 +4508,7 @@ static int get_lastdigits(int num)
 static int vm_intro_ru(struct ast_channel *chan,struct vm_state *vms)
 {
 	int res;
-	int lastnum;
+	int lastnum = 0;
 	int dcnum;
 
 	res = ast_play_and_wait(chan, "vm-youhave");
