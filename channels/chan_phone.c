@@ -36,6 +36,7 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <signal.h>
 #include <linux/telephony.h>
 /* Still use some IXJ specific stuff */
 #include <linux/version.h>
@@ -107,6 +108,9 @@ AST_MUTEX_DEFINE_STATIC(iflock);
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
 AST_MUTEX_DEFINE_STATIC(monlock);
+
+/* Boolean value whether the monitoring thread shall continue. */
+static unsigned int monitor;
    
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -990,22 +994,12 @@ static void *do_monitor(void *data)
 	int dotone;
 	/* This thread monitors all the frame relay interfaces which are not yet in use
 	   (and thus do not have a separate thread) indefinitely */
-	/* From here on out, we die whenever asked */
-	if (pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL)) {
-		ast_log(LOG_WARNING, "Unable to set cancel type to asynchronous\n");
-		return NULL;
-	}
-	for(;;) {
+	while (monitor) {
 		/* Don't let anybody kill us right away.  Nobody should lock the interface list
 		   and wait for the monitor list, but the other way around is okay. */
-		if (ast_mutex_lock(&monlock)) {
-			ast_log(LOG_ERROR, "Unable to grab monitor lock\n");
-			return NULL;
-		}
 		/* Lock the interface list */
 		if (ast_mutex_lock(&iflock)) {
 			ast_log(LOG_ERROR, "Unable to grab interface lock\n");
-			ast_mutex_unlock(&monlock);
 			return NULL;
 		}
 		/* Build the stuff we're going to select on, that is the socket of every
@@ -1015,7 +1009,7 @@ static void *do_monitor(void *data)
 		FD_ZERO(&efds);
 		i = iflist;
 		dotone = 0;
-		while(i) {
+		while (i) {
 			if (FD_ISSET(i->fd, &rfds)) 
 				ast_log(LOG_WARNING, "Descriptor %d appears twice (%s)?\n", i->fd, i->dev);
 			if (!i->owner) {
@@ -1041,9 +1035,6 @@ static void *do_monitor(void *data)
 		/* Okay, now that we know what to do, release the interface lock */
 		ast_mutex_unlock(&iflock);
 
-		/* And from now on, we're okay to be killed, so release the monitor lock as well */
-		ast_mutex_unlock(&monlock);
-
 		/* Wait indefinitely for something to happen */
 		if (dotone) {
 			/* If we're ready to recycle the time, set it to 30 ms */
@@ -1061,7 +1052,7 @@ static void *do_monitor(void *data)
 		}
 		/* Okay, select has finished.  Let's see what happened.  */
 		if (res < 0) {
-			ast_log(LOG_WARNING, "select return %d: %s\n", res, strerror(errno));
+			ast_log(LOG_DEBUG, "select return %d: %s\n", res, strerror(errno));
 			continue;
 		}
 		/* If there are no fd's changed, just continue, it's probably time
@@ -1092,7 +1083,6 @@ static void *do_monitor(void *data)
 		}
 		ast_mutex_unlock(&iflock);
 	}
-	/* Never reached */
 	return NULL;
 	
 }
@@ -1113,16 +1103,17 @@ static int restart_monitor()
 	}
 	if (monitor_thread != AST_PTHREADT_NULL) {
 		if (ast_mutex_lock(&iflock)) {
-		  ast_mutex_unlock(&monlock);
-		  ast_log(LOG_WARNING, "Unable to lock the interface list\n");
-		  return -1;
+			ast_mutex_unlock(&monlock);
+			ast_log(LOG_WARNING, "Unable to lock the interface list\n");
+			return -1;
 		}
-		pthread_cancel(monitor_thread);
-#if 0
+		monitor = 0;
+		while (pthread_kill(monitor_thread, SIGURG) == 0)
+			sched_yield();
 		pthread_join(monitor_thread, NULL);
-#endif
 		ast_mutex_unlock(&iflock);
 	}
+	monitor = 1;
 	/* Start a new monitor */
 	if (ast_pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
 		ast_mutex_unlock(&monlock);
@@ -1278,7 +1269,9 @@ static int __unload_module(void)
 	}
 	if (!ast_mutex_lock(&monlock)) {
 		if (monitor_thread > AST_PTHREADT_NULL) {
-			pthread_cancel(monitor_thread);
+			monitor = 0;
+			while (pthread_kill(monitor_thread, SIGURG) == 0)
+				sched_yield();
 			pthread_join(monitor_thread, NULL);
 		}
 		monitor_thread = AST_PTHREADT_STOP;
