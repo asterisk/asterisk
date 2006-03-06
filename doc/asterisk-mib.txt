@@ -11,14 +11,36 @@ IMPORTS
 		FROM DIGIUM-MIB;
 
 asterisk MODULE-IDENTITY
-	LAST-UPDATED	"200602041900Z"
+	LAST-UPDATED	"200603061840Z"
 	ORGANIZATION	"Digium, Inc."
 	CONTACT-INFO
-		"Mark Spencer
-		Email: markster@digium.com"
+		"Mark A. Spencer
+		Postal: Digium, Inc.
+		        150 West Park Loop, Suite 100
+		        Huntsville, AL 35806
+		        USA
+		   Tel: +1 256 428 6000
+		 Email: markster@digium.com"
+
+		Thorsten Lockert
+		Postal: Voop AS
+		        Boehmergaten 42
+			NO-5057 Bergen
+			Norway
+		   Tel: +47 5598 7200
+		 Email: tholo@voop.no"
 	DESCRIPTION
 		"Asterisk is an Open Source PBX.  This MIB defined
 		objects for managing Asterisk instances."
+	REVISION	"200603061840Z"
+	DESCRIPTION
+		"Change audio codec identification from 3kAudio to
+		Audio3k to conform better with specification.
+
+		Expand on contact information."
+	REVISION	"200602041900Z"
+	DESCRIPTION
+		"Initial published revision."
 	::= { digium 1 }
 
 asteriskVersion		OBJECT IDENTIFIER ::= { asterisk 1 }
@@ -611,7 +633,7 @@ astChanTransferCap OBJECT-TYPE
 		Speech(0),
 		Digital(8),
 		RestrictedDigital(9),
-		3kAudio(16),
+		Audio3k(16),
 		DigitalWithTones(17),
 		Video(24)
 	}
