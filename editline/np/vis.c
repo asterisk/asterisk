@@ -68,6 +68,7 @@ __weak_alias(vis,_vis)
 #endif
 
 #ifdef SOLARIS
+#include <alloca.h>
 typedef unsigned int	u_int32_t;
 #endif
 
