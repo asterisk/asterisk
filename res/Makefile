@@ -32,6 +32,17 @@ ifeq (${OSPLIB},)
   MODS:=$(filter-out res_osp.so,$(MODS))
 endif
 
+# NETsnmp has some difficulties on some platforms (conflict with unload_module)
+# Until we figure out if the collission is version-specific or what to do
+# we have disabled res_snmp on OS/X and *BSD
+ifeq ($(OSARCH),Darwin)
+  MODS:=$(filter-out res_snmp.so,$(MODS))
+else
+  ifeq ($(findstring BSD,$(OSARCH)),BSD)
+    MODS:=$(filter-out res_snmp.so,$(MODS))
+  endif
+endif
+
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/net-snmp/net-snmp-config.h),)
   MODS:=$(filter-out res_snmp.so,$(MODS))
 else
