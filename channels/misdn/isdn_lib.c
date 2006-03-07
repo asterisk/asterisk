@@ -192,7 +192,7 @@ void te_lib_destroy(int midev) ;
 struct misdn_bchannel *manager_find_bc_by_pid(int pid);
 struct misdn_bchannel *manager_find_bc_holded(struct misdn_bchannel* bc);
 unsigned char * manager_flip_buf_bits ( unsigned char * buf , int len);
-void manager_ph_control_block(struct misdn_bchannel *bc, int c1, void *c2, int c2_len);
+void manager_ph_control_block(struct misdn_bchannel *bc, long c1, void *c2, int c2_len);
 void manager_clean_bc(struct misdn_bchannel *bc );
 void manager_bchannel_setup (struct misdn_bchannel *bc);
 void manager_bchannel_cleanup (struct misdn_bchannel *bc);
@@ -595,6 +595,49 @@ int chan_in_stack_free(struct misdn_stack *stack, int channel)
 static int newteid=0;
 
 #define MAXPROCS 0x100
+
+int misdn_lib_get_l1_down(struct misdn_stack *stack)
+{
+	/* Pull Up L1 */ 
+	iframe_t act;
+	act.prim = PH_DEACTIVATE | REQUEST; 
+	act.addr = (stack->upper_id | FLG_MSG_DOWN)  ;
+
+	
+	act.dinfo = 0;
+	act.len = 0;
+
+	return mISDN_write(stack->midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
+
+
+}
+
+
+int misdn_lib_get_l2_down(struct misdn_stack *stack)
+{
+	
+	if (stack->ptp && (stack->nt) ) {
+		msg_t *dmsg;
+		/* L2 */
+		dmsg = create_l2msg(DL_RELEASE| REQUEST, 0, 0);
+		
+		if (stack->nst.manager_l3(&stack->nst, dmsg))
+			free_msg(dmsg);
+		
+	} else {
+		iframe_t act;
+		
+		act.prim = DL_RELEASE| REQUEST;
+		act.addr = (stack->upper_id |FLG_MSG_DOWN)  ;
+		
+		act.dinfo = 0;
+		act.len = 0;
+		return mISDN_write(stack->midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
+	}
+	
+	return 0;
+}
+
 
 int misdn_lib_get_l1_up(struct misdn_stack *stack)
 {
@@ -1442,6 +1485,22 @@ int misdn_lib_get_port_up (int port)
 	return 0;
 }
 
+
+int misdn_lib_get_port_down (int port) 
+{ /* Pull Down L1 */ 
+	struct misdn_stack *stack;
+	for (stack=glob_mgr->stack_list;
+	     stack;
+	     stack=stack->next) {
+		if (stack->port == port) {
+				if (stack->l2link)
+					misdn_lib_get_l2_down(stack);
+				misdn_lib_get_l1_down(stack);
+			return 0;
+		}
+	}
+	return 0;
+}
 
 int misdn_lib_send_facility(struct misdn_bchannel *bc, enum facility_type fac, void *data)
 {
@@ -3246,7 +3305,7 @@ int misdn_lib_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len)
 /*
  * send control information to the channel (dsp-module)
  */
-void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2)
+void manager_ph_control(struct misdn_bchannel *bc, long c1, long c2)
 {
 	unsigned char buffer[mISDN_HEADER_LEN+2*sizeof(long)];
 	iframe_t *ctrl = (iframe_t *)buffer; /* preload data */
@@ -3265,7 +3324,7 @@ void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2)
 /*
  * send control information to the channel (dsp-module)
  */
-void manager_ph_control_block(struct misdn_bchannel *bc, int c1, void *c2, int c2_len)
+void manager_ph_control_block(struct misdn_bchannel *bc, long c1, void *c2, int c2_len)
 {
 	unsigned char buffer[mISDN_HEADER_LEN+sizeof(long)+c2_len];
 	iframe_t *ctrl = (iframe_t *)buffer;

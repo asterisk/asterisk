@@ -515,6 +515,20 @@ static int misdn_port_up (int fd, int argc, char *argv[])
 	return 0;
 }
 
+static int misdn_port_down (int fd, int argc, char *argv[])
+{
+	int port;
+	
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	
+	port = atoi(argv[3]);
+	
+	misdn_lib_get_port_down(port);
+  
+	return 0;
+}
+
 
 static int misdn_show_config (int fd, int argc, char *argv[])
 {
@@ -1030,6 +1044,15 @@ static struct ast_cli_entry cli_port_up =
   "Tries to establish L1 on the given port", 
   "Usage: misdn port up <port>\n"
 };
+
+static struct ast_cli_entry cli_port_down =
+{ {"misdn","port","down", NULL},
+  misdn_port_down,
+  "Tries to deacivate the L1 on the given port", 
+  "Usage: misdn port up <port>\n"
+};
+
+
 
 static struct ast_cli_entry cli_show_stacks =
 { {"misdn","show","stacks", NULL},
@@ -2807,9 +2830,7 @@ static void release_chan(struct misdn_bchannel *bc) {
 				default:
 					chan_misdn_log(2,  bc->port, "* --> In State Default\n");
 					chan_misdn_log(2,  bc->port, "* --> Queue Hangup\n");
-	
-					
-					if (ast && MISDN_ASTERISK_PVT(ast)) {
+					if (ast) {
 						ast_queue_hangup(ast);
 					} else {
 						chan_misdn_log (0,  bc->port, "!! Not really queued!\n");
@@ -3735,6 +3756,7 @@ int load_module(void)
 
 	ast_cli_register(&cli_restart_port);
 	ast_cli_register(&cli_port_up);
+	ast_cli_register(&cli_port_down);
 	ast_cli_register(&cli_set_debug);
 	ast_cli_register(&cli_set_crypt_debug);
 	ast_cli_register(&cli_reload);
@@ -3789,6 +3811,7 @@ int unload_module(void)
 	ast_cli_unregister(&cli_show_stacks);
 	ast_cli_unregister(&cli_restart_port);
 	ast_cli_unregister(&cli_port_up);
+	ast_cli_unregister(&cli_port_down);
 	ast_cli_unregister(&cli_set_debug);
 	ast_cli_unregister(&cli_set_crypt_debug);
 	ast_cli_unregister(&cli_reload);
