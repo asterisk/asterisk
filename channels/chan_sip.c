@@ -1426,12 +1426,12 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 
 	msg = sip_methods[sipmethod].text;
 
+	ast_mutex_lock(&p->lock);
 	cur = p->packets;
 	while(cur) {
 		if ((cur->seqno == seqno) && ((ast_test_flag(cur, FLAG_RESPONSE)) == resp) &&
 			((ast_test_flag(cur, FLAG_RESPONSE)) || 
 			 (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33)))) {
-			ast_mutex_lock(&p->lock);
 			if (!resp && (seqno == p->pendinginvite)) {
 				ast_log(LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
 				p->pendinginvite = 0;
@@ -1447,13 +1447,13 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 				ast_sched_del(sched, cur->retransid);
 			}
 			free(cur);
-			ast_mutex_unlock(&p->lock);
 			res = 0;
 			break;
 		}
 		prev = cur;
 		cur = cur->next;
 	}
+	ast_mutex_unlock(&p->lock);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Stopping retransmission on '%s' of %s %d: Match %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
 	return res;
