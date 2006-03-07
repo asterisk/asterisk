@@ -130,6 +130,7 @@ enum misdn_chan_state {
 	MISDN_ALERTING, /*!<  when Alerting */
 	MISDN_BUSY, /*!<  when BUSY */
 	MISDN_CONNECTED, /*!<  when connected */
+	MISDN_DISCONNECTED, /*!<  when connected */
 	MISDN_BRIDGED, /*!<  when bridged */
 	MISDN_CLEANING, /*!< when hangup from * but we were connected before */
 	MISDN_HUNGUP_FROM_MISDN, /*!< when DISCONNECT/RELEASE/REL_COMP  cam from misdn */
@@ -1929,6 +1930,11 @@ static int misdn_hangup(struct ast_channel *ast)
       
 			p->state=MISDN_CLEANING; /* MISDN_HUNGUP_FROM_AST; */
 			break;
+		case MISDN_DISCONNECTED:
+			chan_misdn_log(2, bc->port, " --> * State Disconnected\n");
+			misdn_lib_send_event( bc, EVENT_RELEASE);
+			p->state=MISDN_CLEANING; /* MISDN_HUNGUP_FROM_AST; */
+			break;
 
 		case MISDN_CLEANING:
 			break;
@@ -2936,9 +2942,14 @@ static void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel*bc) {
  	case 4:
  	case 22:
  	case 27:
+		/*
+		 * Not Queueing the Congestion anymore, since we want to hear
+		 * the inband message
+		 *
 		chan_misdn_log(1, bc?bc->port:0, " --> * SEND: Queue Congestion pid:%d\n", bc?bc->pid:-1);
 		
 		ast_queue_control(ast, AST_CONTROL_CONGESTION);
+		*/
 		break;
 		
 	case 21:
@@ -3424,6 +3435,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			   dialled number, or perhaps even giving an
 			   alternative number, then play it instead of
 			   immediately releasing the call */
+			chan_misdn_log(0,bc->port, " --> Inband Info Avail, not sending RELEASE\n");
+			ch->state = MISDN_DISCONNECTED;
 			start_bc_tones(ch);
 			break;
 		}
