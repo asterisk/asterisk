@@ -124,7 +124,7 @@ int ast_category_exist(const struct ast_config *config, const char *category_nam
  * This will use builtin configuration backends to look up a particular 
  * entity in realtime and return a variable list of its parameters.  Note
  * that unlike the variables in ast_config, the resulting list of variables
- * MUST be fred with ast_free_runtime() as there is no container.
+ * MUST be freed with ast_variables_destroy() as there is no container.
  */
 struct ast_variable *ast_load_realtime(const char *family, ...);
 

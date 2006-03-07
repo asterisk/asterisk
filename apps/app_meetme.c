@@ -1,3 +1,4 @@
+
 /*
  * Asterisk -- An open source telephony toolkit.
  *
@@ -147,9 +148,9 @@ struct ast_conference {
 	struct ast_conf_user *firstuser;	/* Pointer to the first user struct */
 	struct ast_conf_user *lastuser;		/* Pointer to the last user struct */
 	time_t start;				/* Start time (s) */
-	int recording;				/* recording status */
-	int isdynamic;				/* Created on the fly? */
-	int locked;				/* Is the conference locked? */
+	unsigned int recording:2;				/* recording status */
+	unsigned int isdynamic:1;				/* Created on the fly? */
+	unsigned int locked:1;				/* Is the conference locked? */
 	pthread_t recordthread;			/* thread for recording */
 	pthread_attr_t attr;			/* thread attribute */
 	const char *recordingfilename;		/* Filename to record the Conference into */
@@ -518,7 +519,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 			/* Fill the conference struct */
 			cnf->start = time(NULL);
 			cnf->zapconf = ztc.confno;
-			cnf->isdynamic = dynamic;
+			cnf->isdynamic = dynamic ? 1 : 0;
 			cnf->firstuser = NULL;
 			cnf->lastuser = NULL;
 			cnf->locked = 0;
@@ -851,6 +852,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	char meetmesecs[30] = "";
 	char exitcontext[AST_MAX_CONTEXT] = "";
 	char recordingtmp[AST_MAX_EXTENSION] = "";
+	char members[10] = "";
 	int dtmf;
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
@@ -920,6 +922,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	user->adminflags = 0;
 	user->talking = -1;
 	conf->users++;
+	/* Update table */
+	snprintf(members, sizeof(members), "%d", conf->users);
+	ast_update_realtime("meetme", "confno", conf->confno, "members", members , NULL);
+
 	ast_mutex_unlock(&conf->playlock);
 
 	if (confflags & CONFFLAG_EXIT_CONTEXT) {
@@ -1665,6 +1671,9 @@ bailoutandtrynormal:
 		          "<no name>", hr, min, sec);
 
 		conf->users--;
+		/* Update table */
+		snprintf(members, sizeof(members), "%d", conf->users);
+		ast_update_realtime("meetme", "confno", conf->confno, "members", members, NULL);
 		if (confflags & CONFFLAG_MARKEDUSER) 
 			conf->markedusers--;
 		if (!conf->users) {
@@ -1708,6 +1717,52 @@ bailoutandtrynormal:
 
 	return ret;
 }
+
+/*
+  This function looks for a conference via the RealTime module
+*/
+static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char *confno, int make, int dynamic, char *dynamic_pin)
+{
+
+	struct ast_variable *var;
+	struct ast_conference *cnf;
+
+	/* Check first in the conference list */
+	AST_LIST_LOCK(&confs);
+	AST_LIST_TRAVERSE(&confs, cnf, list) {
+		if (!strcmp(confno, cnf->confno)) 
+			break;
+	}
+	AST_LIST_UNLOCK(&confs);
+
+	if (!cnf) {
+		char *pin = NULL, *pinadmin = NULL; /* For temp use */
+
+		cnf = ast_calloc(1, sizeof(struct ast_conference));
+		if (!cnf) {
+			ast_log(LOG_ERROR, "Out of memory\n");
+			return NULL;
+		}
+
+		var = ast_load_realtime("meetme", "confno", confno, NULL);
+		while (var) {
+			if (!strcasecmp(var->name, "confno")) {
+				ast_copy_string(cnf->confno, var->value, sizeof(cnf->confno));
+			} else if (!strcasecmp(var->name, "pin")) {
+				pin = ast_strdupa(var->value);
+			} else if (!strcasecmp(var->name, "adminpin")) {
+				pinadmin = ast_strdupa(var->value);
+			}
+			var = var->next;
+		}
+		ast_variables_destroy(var);
+
+		cnf = build_conf(confno, pin ? pin : "", pinadmin ? pinadmin : "", make, dynamic);
+	}
+
+	return cnf;
+}
+
 
 static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, int make, int dynamic, char *dynamic_pin)
 {
@@ -2006,6 +2061,9 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		if (!ast_strlen_zero(confno)) {
 			/* Check the validity of the conference */
 			cnf = find_conf(chan, confno, 1, dynamic, the_pin);
+			if (!cnf) {
+				cnf = find_conf_realtime(chan, confno, 1, dynamic, the_pin);
+			}
 			if (!cnf) {
 				res = ast_streamfile(chan, "conf-invalid", chan->language);
 				if (!res)
