@@ -1050,7 +1050,7 @@ static struct ast_cli_entry cli_port_down =
 { {"misdn","port","down", NULL},
   misdn_port_down,
   "Tries to deacivate the L1 on the given port", 
-  "Usage: misdn port up <port>\n"
+  "Usage: misdn port down <port>\n"
 };
 
 
