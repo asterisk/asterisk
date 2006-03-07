@@ -268,21 +268,25 @@ screen=-1
 ;
 echocancelwhenbridged=no
 
-; Set this to no to disable echotraining
+
+; Set this to no to disable echotraining. You can enter a number > 10
+; the value is a multiple of 0.125 ms. 
 ;
-; default value: yes
+; default value: no 
+; yes = 2000
+; no = 0
 ;
-echotraining=yes
+echotraining=no
 
 ;
-; chan_misdns jitterbuffer, default 1000
+; chan_misdns jitterbuffer, default 4000
 ; 
 jitterbuffer=4000
 
 ;
 ; change this threshold to enable dejitter functionality
 ;
-jitterbuffer_upper_threshold=600
+jitterbuffer_upper_threshold=0
 
 
 [intern]
