@@ -2810,6 +2810,14 @@ static char show_hints_help[] =
 "Usage: show hints\n"
 "       Show registered hints\n";
 
+static char show_globals_help[] = 
+"Usage: show globals\n"
+"       Show current global dialplan variables and their values\n";
+
+static char set_global_help[] = 
+"Usage: set global <name> <value>\n"
+"       Set global dialplan variable <name> to <value>\n";
+
 
 /*
  * IMPLEMENTATION OF CLI FUNCTIONS IS IN THE SAME ORDER AS COMMANDS HELPS
@@ -3389,6 +3397,35 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+/*! \brief CLI support for listing global variables in a parseable way */
+static int handle_show_globals(int fd, int argc, char *argv[])
+{
+	int i = 0;
+	struct ast_var_t *newvariable;
+
+	AST_LIST_TRAVERSE (&globals, newvariable, entries) {
+		i++;
+		ast_cli(fd, "   %s=%s\n", ast_var_name(newvariable), ast_var_value(newvariable));
+	}
+	/* ... we have applications ... */
+	ast_cli(fd, "\n    -- %d variables\n", i);
+	return RESULT_SUCCESS;
+}
+
+/*! \brief  CLI support for setting global variables */
+static int handle_set_global(int fd, int argc, char *argv[])
+{
+	if (argc != 4) 
+		return RESULT_SHOWUSAGE;
+
+	pbx_builtin_setvar_helper(NULL, argv[2], argv[3]);
+	ast_cli(fd, "\n    -- Global variables %s set to %s\n", argv[2], argv[3]);
+
+	return RESULT_SUCCESS;
+}
+
+
+
 /*
  * CLI entries for upper commands ...
  */
@@ -3407,6 +3444,10 @@ static struct ast_cli_entry pbx_cli[] = {
 	  "Show alternative switches", show_switches_help },
 	{ { "show", "hints", NULL }, handle_show_hints,
 	  "Show dialplan hints", show_hints_help },
+	{ { "show", "globals", NULL }, handle_show_globals,
+	  "Show global dialplan variables", show_globals_help },
+	{ { "set", "global", NULL }, handle_set_global,
+	  "Set global dialplan variable", set_global_help },
 };
 
 int ast_unregister_application(const char *app) 
