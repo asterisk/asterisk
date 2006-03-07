@@ -64,13 +64,13 @@ static char b2a[256];
 
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__) || defined(__CYGWIN__)
 
-/* duh? ERANGE value copied from web... */
-#define ERANGE 34
+#define ERANGE 34	/*!< duh? ERANGE value copied from web... */
 #undef gethostbyname
 
 AST_MUTEX_DEFINE_STATIC(__mutex);
 
-/* Recursive replacement for gethostbyname for BSD-based systems.  This
+/*! \brief Recursive replacement for gethostbyname for BSD-based systems.
+\note This
 routine is derived from code originally written and placed in the public 
 domain by Enzo Michelangeli <em@em.no-ip.com> */
 
@@ -282,7 +282,7 @@ int test_for_thread_safety(void)
 	return(test_errors);          /* return 0 on success. */
 }
 
-/*! \brief ast_md5_hash: Produce 32 char MD5 hash of value. ---*/
+/*! \brief Produce 32 char MD5 hash of value. */
 void ast_md5_hash(char *output, char *input)
 {
 	struct MD5Context md5;
@@ -298,7 +298,7 @@ void ast_md5_hash(char *output, char *input)
 		ptr += sprintf(ptr, "%2.2x", digest[x]);
 }
 
-/*! \brief ast_sha1_hash: Produce 40 char SHA1 hash of value. ---*/
+/*! \brief Produce 40 char SHA1 hash of value. */
 void ast_sha1_hash(char *output, char *input)
 {
 	struct SHA1Context sha;
@@ -316,6 +316,7 @@ void ast_sha1_hash(char *output, char *input)
 		ptr += sprintf(ptr, "%2.2x", Message_Digest[x]);
 }
 
+/*! \brief decode BASE64 encoded text */
 int ast_base64decode(unsigned char *dst, const char *src, int max)
 {
 	int cnt = 0;
@@ -354,6 +355,7 @@ int ast_base64decode(unsigned char *dst, const char *src, int max)
 	return cnt;
 }
 
+/*! \brief encode text to BASE64 coding */
 int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max)
 {
 	int cnt = 0;
@@ -431,8 +433,8 @@ static void base64_init(void)
 #endif
 }
 
-/*! \brief  ast_uri_encode: Turn text string to URI-encoded %XX version ---*/
-/* 	At this point, we're converting from ISO-8859-x (8-bit), not UTF8
+/*! \brief  ast_uri_encode: Turn text string to URI-encoded %XX version
+\note 	At this point, we're converting from ISO-8859-x (8-bit), not UTF8
 	as in the SIP protocol spec 
 	If doreserved == 1 we will convert reserved characters also.
 	RFC 2396, section 2.4
@@ -473,7 +475,7 @@ char *ast_uri_encode(const char *string, char *outbuf, int buflen, int doreserve
 	return outbuf;
 }
 
-/*! \brief  ast_uri_decode: Decode SIP URI, URN, URL (overwrite the string)  ---*/
+/*! \brief  ast_uri_decode: Decode SIP URI, URN, URL (overwrite the string)  */
 void ast_uri_decode(char *s) 
 {
 	char *o;
@@ -773,10 +775,10 @@ int vasprintf(char **strp, const char *fmt, va_list ap)
 	                                 /* max value of a "long int" */
 #endif
 
-/*
+/*! \brief
  * Convert a string to a quad integer.
  *
- * Ignores `locale' stuff.  Assumes that the upper and lower case
+ * \note Ignores `locale' stuff.  Assumes that the upper and lower case
  * alphabets and digits are each contiguous.
  */
 uint64_t strtoq(const char *nptr, char **endptr, int base)
@@ -866,7 +868,7 @@ uint64_t strtoq(const char *nptr, char **endptr, int base)
 
 #ifndef HAVE_GETLOADAVG
 #ifdef linux
-/* Alternative method of getting load avg on Linux only */
+/*! \brief Alternative method of getting load avg on Linux only */
 int getloadavg(double *list, int nelem)
 {
 	FILE *LOADAVG;
@@ -886,7 +888,7 @@ int getloadavg(double *list, int nelem)
 	return res;
 }
 #else /* !linux */
-/* Return something that won't cancel the call, but still return -1, in case
+/*! \brief Return something that won't cancel the call, but still return -1, in case
  * we correct the implementation to check return value */
 int getloadavg(double *list, int nelem)
 {
@@ -900,7 +902,7 @@ int getloadavg(double *list, int nelem)
 #endif /* linux */
 #endif /* !defined(_BSD_SOURCE) */
 
-/* glibc puts a lock inside random(3), so that the results are thread-safe.
+/*! \brief glibc puts a lock inside random(3), so that the results are thread-safe.
  * BSD libc (and others) do not. */
 #ifndef linux
 
@@ -1052,7 +1054,7 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 }
 
 
-/*
+/*! \brief
  * get values from config variables.
  */
 int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed)
