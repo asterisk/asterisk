@@ -51,6 +51,11 @@ __RCSID("$NetBSD: readline.c,v 1.21 2002/03/18 16:20:36 christos Exp $");
 #include <stdlib.h>
 #include <unistd.h>
 #include <limits.h>
+
+#ifdef SOLARIS
+#include <alloca.h>
+#endif
+
 #include "histedit.h"
 #include "readline/readline.h"
 #include "el.h"
