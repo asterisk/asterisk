@@ -12040,14 +12040,19 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 /*! \brief Set peer defaults before configuring specific configurations */
 static void set_peer_defaults(struct sip_peer *peer)
 {
-	peer->expire = -1;
-	peer->pokeexpire = -1;
+	if (peer->expire == 0) {
+		/* Don't reset expire or port time during reload 
+		   if we have an active registration 
+		*/
+		peer->expire = -1;
+		peer->pokeexpire = -1;
+		peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
+	}
 	ast_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
 	strcpy(peer->context, default_context);
 	strcpy(peer->subscribecontext, default_subscribecontext);
 	strcpy(peer->language, default_language);
 	strcpy(peer->musicclass, default_musicclass);
-	peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
 	peer->addr.sin_family = AF_INET;
 	peer->defaddr.sin_family = AF_INET;
 	peer->capability = global_capability;
@@ -12127,8 +12132,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		else
 			speerobjs++;
 		ASTOBJ_INIT(peer);
-		peer->expire = -1;
-		peer->pokeexpire = -1;
 	}
 	/* Note that our peer HAS had its reference count incrased */
 
@@ -12136,12 +12139,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	oldha = peer->ha;
 	peer->ha = NULL;
 	set_peer_defaults(peer);	/* Set peer defaults */
-	if (!found) {
-		if (name)
+	if (!found && name)
 			ast_copy_string(peer->name, name, sizeof(peer->name));
-		peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
-		peer->addr.sin_family = AF_INET;
-	}
+
 	/* If we have channel variables, remove them (reload) */
 	if (peer->chanvars) {
 		ast_variables_destroy(peer->chanvars);
