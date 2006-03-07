@@ -9366,6 +9366,8 @@ static int function_sippeer(struct ast_channel *chan, char *cmd, char *data, cha
 		snprintf(buf, len, "%d", peer->call_limit);
 	} else  if (!strcasecmp(colname, "curcalls")) {
 		snprintf(buf, len, "%d", peer->inUse);
+	} else  if (!strcasecmp(colname, "accountcode")) {
+		ast_copy_string(buf, peer->accountcode, len);
 	} else  if (!strcasecmp(colname, "useragent")) {
 		ast_copy_string(buf, peer->useragent, len);
 	} else  if (!strcasecmp(colname, "mailbox")) {
@@ -9424,6 +9426,7 @@ struct ast_custom_function sippeer_function = {
 	"- curcalls              Current amount of calls \n"
 	"                        Only available if call-limit is set\n"
 	"- language              Default language for peer\n"
+	"- accountcode           Account code for this peer\n"
 	"- useragent             Current user agent id for peer\n"
 	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
 	"\n"
