@@ -9502,6 +9502,8 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 {
 	char tmp[256];
 	char *s, *e;
+	char *domain;
+
 	ast_copy_string(tmp, get_header(req, "Contact"), sizeof(tmp));
 	s = get_in_brackets(tmp);
 	e = strchr(s, ';');
@@ -9518,16 +9520,25 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 			ast_string_field_build(p->owner, call_forward, "SIP/%s", s);
 	} else {
 		e = strchr(tmp, '@');
-		if (e)
+		if (e) {
 			*e = '\0';
+			e++;
+			domain = e;
+		} else {
+			/* No username part */
+			domain = tmp;
+		}
 		e = strchr(tmp, '/');
 		if (e)
 			*e = '\0';
 		if (!strncasecmp(s, "sip:", 4))
 			s += 4;
-		ast_log(LOG_DEBUG, "Found 302 Redirect to extension '%s'\n", s);
-		if (p->owner)
+		if (option_debug > 1)
+			ast_log(LOG_DEBUG, "Received 302 Redirect to extension '%s' (domain %s)\n", s, domain);
+		if (p->owner) {
+			pbx_builtin_setvar_helper(p->owner, "SIPDOMAIN", domain);
 			ast_string_field_set(p->owner, call_forward, s);
+		}
 	}
 }
 
