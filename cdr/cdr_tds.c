@@ -89,6 +89,7 @@ static char *name = "mssql";
 static char *config = "cdr_tds.conf";
 
 static char *hostname = NULL, *dbname = NULL, *dbuser = NULL, *password = NULL, *charset = NULL, *language = NULL;
+static char *table = NULL;
 
 static int connected = 0;
 
@@ -135,7 +136,7 @@ static int tds_log(struct ast_cdr *cdr)
 
 	sprintf(
 		sqlcmd,
-		"INSERT INTO cdr "
+		"INSERT INTO %s "
 		"("
 			"accountcode, "
 			"src, "
@@ -175,6 +176,7 @@ static int tds_log(struct ast_cdr *cdr)
 			"'%s', "	/* amaflags */
 			"'%s'"		/* uniqueid */
 		")",
+		table,
 		accountcode,
 		src,
 		dst,
@@ -415,6 +417,7 @@ static int tds_unload_module(void)
 	if (password) free(password);
 	if (charset) free(charset);
 	if (language) free(language);
+	if (table) free(table);
 
 	return 0;
 }
@@ -474,6 +477,13 @@ static int tds_load_module(void)
 		language = strdup(ptr);
 	else
 		language = strdup("us_english");
+
+	ptr = ast_variable_retrieve(cfg,"global","table");
+	if (ptr == NULL) {
+		ast_log(LOG_DEBUG,"cdr_tds: table not specified.  Assuming cdr\n");
+		ptr = "cdr";
+	}
+	table = strdup(ptr);
 
 	ast_config_destroy(cfg);
 
