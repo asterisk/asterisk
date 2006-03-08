@@ -9242,6 +9242,8 @@ static char *function_sippeer(struct ast_channel *chan, char *cmd, char *data, c
 		snprintf(buf, len, "%d", peer->call_limit);
 	} else  if (!strcasecmp(colname, "curcalls")) {
 		snprintf(buf, len, "%d", peer->inUse);
+	} else  if (!strcasecmp(colname, "accountcode")) {
+		ast_copy_string(buf, peer->accountcode, len);
 	} else  if (!strcasecmp(colname, "useragent")) {
 		ast_copy_string(buf, peer->useragent, len);
 	} else  if (!strcasecmp(colname, "mailbox")) {
@@ -9301,6 +9303,7 @@ struct ast_custom_function sippeer_function = {
 	"- curcalls              Current amount of calls \n"
 	"                        Only available if call-limit is set\n"
 	"- language              Default language for peer\n"
+	"- accountcode           Account code for this peer\n"
 	"- useragent             Current user agent id for peer\n"
 	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
 	"\n"
@@ -9462,12 +9465,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 	case 183:	/* Session progress */
 		sip_cancel_destroy(p);
+		/* Ignore 183 Session progress without SDP */
 		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
 			process_sdp(p, req);
-		}
-		if (!ignore && p->owner) {
-			/* Queue a progress frame */
-			ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
+			if (!ignore && p->owner) {
+				/* Queue a progress frame */
+				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
+			}
 		}
 		break;
 	case 200:	/* 200 OK on invite - someone's answering our call */
