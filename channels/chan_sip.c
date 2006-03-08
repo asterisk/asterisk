@@ -9597,12 +9597,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 	case 183:	/* Session progress */
 		sip_cancel_destroy(p);
+		/* Ignore 183 Session progress without SDP */
 		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
 			process_sdp(p, req);
-		}
-		if (!ignore && p->owner) {
-			/* Queue a progress frame */
-			ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
+			if (!ignore && p->owner) {
+				/* Queue a progress frame */
+				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
+			}
 		}
 		break;
 	case 200:	/* 200 OK on invite - someone's answering our call */
