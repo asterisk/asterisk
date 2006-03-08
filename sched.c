@@ -50,29 +50,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					 (((b).tv_sec == (a).tv_sec) && ((b).tv_usec > (a).tv_usec)))
 
 struct sched {
-	struct sched *next;		/* Next event in the list */
-	int id; 			/* ID number of event */
-	struct timeval when;		/* Absolute time event should take place */
-	int resched;			/* When to reschedule */
-	int variable;		/* Use return value from callback to reschedule */
-	void *data; 			/* Data */
-	ast_sched_cb callback;		/* Callback */
+	struct sched *next;		/*!< Next event in the list */
+	int id; 			/*!< ID number of event */
+	struct timeval when;		/*!< Absolute time event should take place */
+	int resched;			/*!< When to reschedule */
+	int variable;			/*!< Use return value from callback to reschedule */
+	void *data; 			/*!< Data */
+	ast_sched_cb callback;		/*!< Callback */
 };
 
 struct sched_context {
 	ast_mutex_t lock;
-	/* Number of events processed */
-	int eventcnt;
-
-	/* Number of outstanding schedule events */
-	int schedcnt;
-
-	/* Schedule entry and main queue */
- 	struct sched *schedq;
+	int eventcnt;			/*!< Number of events processed */
+	int schedcnt;			/*!< Number of outstanding schedule events */
+ 	struct sched *schedq;		/*!< Schedule entry and main queue */
 
 #ifdef SCHED_MAX_CACHE
-	/* Cache of unused schedule structures and how many */
-	struct sched *schedc;
+	struct sched *schedc;		/*!< Cache of unused schedule structures and how many */
 	int schedccnt;
 #endif
 };
@@ -156,12 +150,12 @@ static void sched_release(struct sched_context *con, struct sched *tmp)
 		free(tmp);
 }
 
+/*! \brief
+ * Return the number of milliseconds 
+ * until the next scheduled event
+ */
 int ast_sched_wait(struct sched_context *con)
 {
-	/*
-	 * Return the number of milliseconds 
-	 * until the next scheduled event
-	 */
 	int ms;
 	DEBUG(ast_log(LOG_DEBUG, "ast_sched_wait()\n"));
 	ast_mutex_lock(&con->lock);
@@ -178,13 +172,13 @@ int ast_sched_wait(struct sched_context *con)
 }
 
 
+/*! \brief
+ * Take a sched structure and put it in the
+ * queue, such that the soonest event is
+ * first in the list. 
+ */
 static void schedule(struct sched_context *con, struct sched *s)
 {
-	/*
-	 * Take a sched structure and put it in the
-	 * queue, such that the soonest event is
-	 * first in the list. 
-	 */
 	 
 	struct sched *last=NULL;
 	struct sched *current=con->schedq;
@@ -203,7 +197,7 @@ static void schedule(struct sched_context *con, struct sched *s)
 	con->schedcnt++;
 }
 
-/*
+/*! \brief
  * given the last event *tv and the offset in milliseconds 'when',
  * computes the next value,
  */
@@ -223,11 +217,11 @@ static int sched_settime(struct timeval *tv, int when)
 }
 
 
+/*! \brief
+ * Schedule callback(data) to happen when ms into the future
+ */
 int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, void *data, int variable)
 {
-	/*
-	 * Schedule callback(data) to happen when ms into the future
-	 */
 	struct sched *tmp;
 	int res = -1;
 	DEBUG(ast_log(LOG_DEBUG, "ast_sched_add()\n"));
@@ -263,14 +257,14 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, vo
 	return ast_sched_add_variable(con, when, callback, data, 0);
 }
 
+/*! \brief
+ * Delete the schedule entry with number
+ * "id".  It's nearly impossible that there
+ * would be two or more in the list with that
+ * id.
+ */
 int ast_sched_del(struct sched_context *con, int id)
 {
-	/*
-	 * Delete the schedule entry with number
-	 * "id".  It's nearly impossible that there
-	 * would be two or more in the list with that
-	 * id.
-	 */
 	struct sched *last=NULL, *s;
 	DEBUG(ast_log(LOG_DEBUG, "ast_sched_del()\n"));
 	ast_mutex_lock(&con->lock);
@@ -334,11 +328,11 @@ void ast_sched_dump(const struct sched_context *con)
 	
 }
 
+/*! \brief
+ * Launch all events which need to be run at this time.
+ */
 int ast_sched_runq(struct sched_context *con)
 {
-	/*
-	 * Launch all events which need to be run at this time.
-	 */
 	struct sched *current;
 	struct timeval tv;
 	int x=0;
