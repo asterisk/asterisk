@@ -20,7 +20,7 @@ asterisk MODULE-IDENTITY
 		        Huntsville, AL 35806
 		        USA
 		   Tel: +1 256 428 6000
-		 Email: markster@digium.com"
+		 Email: markster@digium.com
 
 		Thorsten Lockert
 		Postal: Voop AS
