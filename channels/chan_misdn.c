@@ -648,13 +648,14 @@ static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel
 {
 	struct ast_channel *ast=help->ast;
 	ast_cli(fd,
-		"* Pid:%d Prt:%d Ch:%d Mode:%s Org:%s dad:%s oad:%s ctx:%s state:%s\n",
+		"* Pid:%d Prt:%d Ch:%d Mode:%s Org:%s dad:%s oad:%s rad:%s ctx:%s state:%s\n",
 
 		bc->pid, bc->port, bc->channel,
 		bc->nt?"NT":"TE",
 		help->orginator == ORG_AST?"*":"I",
 		ast?ast->exten:NULL,
 		ast?AST_CID_P(ast):NULL,
+		bc->rad,
 		ast?ast->context:NULL,
 		misdn_get_ch_state(help)
 		);
@@ -1340,26 +1341,47 @@ static int read_config(struct chan_list *ch, int orig) {
 			misdn_cfg_get( port, MISDN_CFG_LOCALDIALPLAN, &bc->onumplan, sizeof(int));
 			switch (bc->onumplan) {
 			case NUMPLAN_INTERNATIONAL:
-				chan_misdn_log(2, port, " --> TON: International\n");
+				chan_misdn_log(2, port, " --> LTON: International\n");
 				break;
 			case NUMPLAN_NATIONAL:
-				chan_misdn_log(2, port, " --> TON: National\n");
+				chan_misdn_log(2, port, " --> LTON: National\n");
 				break;
 			case NUMPLAN_SUBSCRIBER:
-				chan_misdn_log(2, port, " --> TON: Subscriber\n");
+				chan_misdn_log(2, port, " --> LTON: Subscriber\n");
 				break;
 			case NUMPLAN_UNKNOWN:
-				chan_misdn_log(2, port, " --> TON: Unknown\n");
+				chan_misdn_log(2, port, " --> LTON: Unknown\n");
 				break;
 				/* Maybe we should cut off the prefix if present ? */
 			default:
 					chan_misdn_log(0, port, " --> !!!! Wrong dialplan setting, please see the misdn.conf sample file\n ");
 					break;
 			}
+
+			misdn_cfg_get( port, MISDN_CFG_CPNDIALPLAN, &bc->cpnnumplan, sizeof(int));
+
+			switch (bc->cpnnumplan) {
+			case NUMPLAN_INTERNATIONAL:
+				chan_misdn_log(2, port, " --> CTON: International\n");
+				break;
+			case NUMPLAN_NATIONAL:
+				chan_misdn_log(2, port, " --> CTON: National\n");
+				break;
+			case NUMPLAN_SUBSCRIBER:
+				chan_misdn_log(2, port, " --> CTON: Subscriber\n");
+				break;
+			case NUMPLAN_UNKNOWN:
+				chan_misdn_log(2, port, " --> CTON: Unknown\n");
+				break;
+				/* Maybe we should cut off the prefix if present ? */
+			default:
+					chan_misdn_log(0, port, " --> !!!! Wrong dialplan setting, please see the misdn.conf sample file\n ");
+					break;
+			}
+
 		}
 
 		
-				
 		
 	} else { /** ORIGINATOR MISDN **/
 		

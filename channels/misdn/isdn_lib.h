@@ -210,6 +210,7 @@ struct misdn_bchannel {
 	enum mISDN_NUMBER_PLAN dnumplan;
 	enum mISDN_NUMBER_PLAN rnumplan;
 	enum mISDN_NUMBER_PLAN onumplan;
+	enum mISDN_NUMBER_PLAN cpnnumplan;
 
 	int progress_coding;
 	int progress_location;

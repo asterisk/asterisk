@@ -359,7 +359,7 @@ msg_t *build_connect (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	}
   
 	{
-		int type=0, plan=1, present=2, screen=0;
+		int type=bc->cpnnumplan, plan=1, present=2, screen=0;
 		enc_ie_connected_pn(&connect->CONNECT_PN, msg, type,plan, present, screen, (unsigned char*) bc->dad , nt , bc);
 	}
 

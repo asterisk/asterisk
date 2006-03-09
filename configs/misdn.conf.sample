@@ -176,6 +176,12 @@ method=standard
 ;
 ; dialplan means Type Of Number in ISDN Terms (for outgoing calls)
 ;
+; there are different types of the dialplan:
+;
+; dialplan -> outgoing Number
+; localdialplan -> callerid
+; cpndialplan -> connected party number
+;
 ; dialplan options: 
 ;
 ; 0 - unknown
@@ -189,6 +195,7 @@ method=standard
 ;
 dialplan=0
 localdialplan=0
+cpndialplan=0
 
 
 

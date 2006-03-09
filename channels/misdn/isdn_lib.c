@@ -463,6 +463,7 @@ void empty_bc(struct misdn_bchannel *bc)
 	bc->dnumplan=NUMPLAN_UNKNOWN;
 	bc->onumplan=NUMPLAN_UNKNOWN;
 	bc->rnumplan=NUMPLAN_UNKNOWN;
+	bc->cpnnumplan=NUMPLAN_UNKNOWN;
 	
 
 	bc->active = 0;

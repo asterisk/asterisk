@@ -95,6 +95,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "method", MISDN_CFG_METHOD, MISDN_CTYPE_STR, "standard", NONE },
 	{ "dialplan", MISDN_CFG_DIALPLAN, MISDN_CTYPE_INT, "0", NONE },
 	{ "localdialplan", MISDN_CFG_LOCALDIALPLAN, MISDN_CTYPE_INT, "0", NONE },
+	{ "cpndialplan", MISDN_CFG_CPNDIALPLAN, MISDN_CTYPE_INT, "0", NONE },
 	{ "nationalprefix", MISDN_CFG_NATPREFIX, MISDN_CTYPE_STR, "0", NONE },
 	{ "internationalprefix", MISDN_CFG_INTERNATPREFIX, MISDN_CTYPE_STR, "00", NONE },
 	{ "presentation", MISDN_CFG_PRES, MISDN_CTYPE_INT, "-1", NONE },
