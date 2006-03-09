@@ -5759,8 +5759,6 @@ static void __expire_registry(void *data)
 	ast_log(LOG_DEBUG, "Expiring registration for peer '%s'\n", p->name);
 	/* Reset the address */
 	memset(&p->addr, 0, sizeof(p->addr));
-	/* Reset expire notice */
-	p->expire = -1;
 	/* Reset expiry value */
 	p->expiry = min_reg_expire;
 	if (!ast_test_flag(p, IAX_TEMPONLY))
@@ -5778,6 +5776,9 @@ static void __expire_registry(void *data)
 
 static int expire_registry(void *data)
 {
+	struct iax2_peer *p = data;
+	/* Reset expire notice */
+	p->expire = -1;
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__expire_registry, data))
 #endif		
