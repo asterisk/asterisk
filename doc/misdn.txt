@@ -49,9 +49,9 @@ Fast Installation Guide
 -----------------------
 
 It is easy to install mISDN and mISDNuser. Just fetch the newest head of the
-cvs mqueue branch, this can be done by:
+cvs, this can be done by:
 
-cvs -d:pserver:anonymous:readonly@cvs.isdn4linux.de:/i4ldev co -r mqueue mISDN mISDNuser
+cvs -d:pserver:anonymous:readonly@cvs.isdn4linux.de:/i4ldev co mISDN mISDNuser
 
 the compile and install both with:
 
@@ -80,7 +80,7 @@ Pre-Requisites
 To compile and install this driver, you'll need at least one mISDN Driver and
 the mISDNuser package. Chan_misdn works with both, the current release version
 and the development (svn trunk) version of Asterisk. mISDNuser and mISDN must
-be fetched from cvs.isdn4linux.de (mqueue branch).
+be fetched from cvs.isdn4linux.de (mqueue).
 
 You should use Kernels >= 2.6.9 
 
