@@ -69,7 +69,7 @@
 
 /*! \page AstDebug Debugging
  *  \section debug Debugging
- *  \verbinclude README.backtrace
+ *  \verbinclude backtrace.txt
  */
 
 /*! \page AstAMI AMI - The Manager Interface
@@ -83,8 +83,8 @@
  *  \section realtime ARA - a generic API to storage and retrieval
  *  Implemented in \ref config.c 
  *  Implemented in \ref pbx_realtime.c 
- *  \verbinclude README.realtime 
- *  \verbinclude README.extconfig
+ *  \verbinclude realtime.txt
+ *  \verbinclude extconfig.txt
  */
 
 /*!  \page AstDUNDi DUNDi
@@ -105,7 +105,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \arg \ref cdr_drivers
  * \arg \ref Config_cdr CDR configuration files
  *
- *  \verbinclude README.cdr
+ *  \verbinclude cdr.txt
  */
 
 /*! \page AstREADME README - the general administrator introduction
@@ -118,7 +118,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
 
 /*! \page AstVar Global channel variables
  * \section globchan Global Channel Variables
- *  \verbinclude README.variables
+ *  \verbinclude variables.txt
  */
 
 /*! \page AstENUM ENUM
@@ -127,7 +127,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \arg \ref enum.c
  * \arg \ref func_enum.c
  *
- * \verbinclude README.enum
+ * \verbinclude enum.txt
  */
 
 /*! \page ConfigFiles Configuration files
@@ -171,7 +171,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  */
 
 /*! \page Config_ast Asterisk.conf
- * \verbinclude README.asterisk.conf
+ * \verbinclude asterisk-conf.txt
  */
 /*! \page Config_mod Modules configuration
  * All res_ resource modules are loaded with globals on, which means
@@ -198,11 +198,11 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * IAX2 is implemented in \ref chan_iax2.c
  * \arg \link Config_iax iax.conf Configuration file example \endlink
  * \section iaxreadme IAX readme file
- * \verbinclude README.iax
+ * \verbinclude iax.txt
  * \section Config_iax IAX Configuration example
  * \verbinclude iax.conf.sample
  * \section iaxjitter IAX Jitterbuffer information
- * \verbinclude README.jitterbuffer
+ * \verbinclude jitterbuffer.txt
  */
 
 /*! \page Config_iax IAX configuration
@@ -251,7 +251,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \arg Implemented in \ref chan_h323.c
  * \section h323conf h323.conf
  * \ref chan_h323.c
- * \verbinclude README.h323
+ * \verbinclude h323.txt
  */
 
 /*! \page Config_oss OSS configuration
