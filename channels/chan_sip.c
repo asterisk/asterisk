@@ -103,6 +103,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #ifndef TRUE
 #define TRUE 1
 #endif
+
  
 #define VIDEO_CODEC_MASK	0x1fc0000 /*!< Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO */
 #ifndef IPTOS_MINCOST
@@ -170,6 +171,13 @@ static int usecnt = 0;
    submitting a patch. If these two lists do not match properly
    bad things will happen.
 */
+
+enum xmittype {
+	XMIT_CRITICAL = 2,		/*!< Transmit critical SIP message reliably, with re-transmits.
+							If it fails, it's critical and will cause a teardown of the session */
+	XMIT_RELIABLE = 1,		/*!< Transmit SIP message reliably, with re-transmits */
+	XMIT_UNRELIABLE = 0,		/*!< Transmit SIP message without bothering with re-transmits */
+};
 
 enum subscriptiontype { 
 	NONE = 0,
@@ -909,11 +917,11 @@ struct ast_config *notify_types;		/*!< The list of manual NOTIFY types we know h
 
 /*---------------------------- Forward declarations of functions in chan_sip.c */
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
-static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
+static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, enum xmittype reliable);
 static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, struct sip_request *req, char *unsupported);
-static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *rand, int reliable, const char *header, int stale);
-static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
-static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
+static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *rand, enum xmittype reliable, const char *header, int stale);
+static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
+static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, int init);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
@@ -947,7 +955,7 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
 static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, const char *realm);	/* Find authentication for a specific realm */
 static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
 		const char *secret, const char *md5secret, int sipmethod,
-		char *uri, int reliable, int ignore);
+		char *uri, enum xmittype reliable, int ignore);
 static int check_sip_domain(const char *domain, char *context, size_t len); /* Check if domain is one of our local domains */
 static void append_date(struct sip_request *req);	/* Append date to SIP packet */
 static int determine_firstline_parts(struct sip_request *req);
@@ -961,7 +969,7 @@ static void sip_destroy(struct sip_pvt *p);
 static void parse_request(struct sip_request *req);
 static char *get_header(struct sip_request *req, const char *name);
 static void copy_request(struct sip_request *dst,struct sip_request *src);
-static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req, int fatal);
+static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, char *authheader);
 static int sip_poke_peer(struct sip_peer *peer);
 static int __sip_do_register(struct sip_registry *r);
@@ -1344,6 +1352,7 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
 	if (fatal)
 		ast_set_flag(pkt, FLAG_FATAL);
+
 	if (pkt->timer_t1)
 		siptimer_a = pkt->timer_t1 * 2;
 
@@ -1527,7 +1536,7 @@ static void parse_copy(struct sip_request *dst, struct sip_request *src)
 }
 
 /*! \brief Transmit response on SIP request*/
-static int send_response(struct sip_pvt *p, struct sip_request *req, int reliable, int seqno)
+static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno)
 {
 	int res;
 
@@ -1544,7 +1553,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s", tmp.data, get_header(&tmp, "CSeq"));
 	}
 	res = (reliable) ?
-		__sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable > 1), req->method) :
+		__sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
 		__sip_xmit(p, req->data, req->len);
 	if (res > 0)
 		return 0;
@@ -1552,7 +1561,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 }
 
 /*! \brief Send SIP Request to the other part of the dialogue */
-static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable, int seqno)
+static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno)
 {
 	int res;
 
@@ -2569,13 +2578,13 @@ static int sip_hangup(struct ast_channel *ast)
 	if (!ast_test_flag(p, SIP_ALREADYGONE) && !ast_strlen_zero(p->initreq.data)) {
 		if (needcancel) {	/* Outgoing call, not up */
 			if (ast_test_flag(p, SIP_OUTGOING)) {
-				transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, 1, 0);
+				transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, XMIT_RELIABLE, 0);
 				/* Actually don't destroy us yet, wait for the 487 on our original 
 				   INVITE, but do set an autodestruct just in case we never get it. */
 				ast_clear_flag(&locflags, SIP_NEEDDESTROY);
-				sip_scheddestroy(p, 15000);
 				/* stop retransmitting an INVITE that has not received a response */
 				__sip_pretend_ack(p);
+				sip_scheddestroy(p, 32000);
 				if ( p->initid != -1 ) {
 					/* channel still up - reverse dec of inUse counter
 					   only if the channel is not auto-congested */
@@ -2584,14 +2593,14 @@ static int sip_hangup(struct ast_channel *ast)
 			} else {	/* Incoming call, not up */
 				char *res;
 				if (ast->hangupcause && ((res = hangup_cause2sip(ast->hangupcause)))) {
-					transmit_response_reliable(p, res, &p->initreq, 1);
+					transmit_response_reliable(p, res, &p->initreq);
 				} else 
-					transmit_response_reliable(p, "603 Declined", &p->initreq, 1);
+					transmit_response_reliable(p, "603 Declined", &p->initreq);
 			}
 		} else {	/* Call is in UP state, send BYE */
 			if (!p->pendinginvite) {
 				/* Send a hangup */
-				transmit_request_with_auth(p, SIP_BYE, 0, 1, 1);
+				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
 			} else {
 				/* Note we will need a BYE when this all settles out
 				   but we can't send one while we have "INVITE" outstanding. */
@@ -2645,7 +2654,7 @@ static int sip_answer(struct ast_channel *ast)
 		ast_setstate(ast, AST_STATE_UP);
 		if (option_debug)
 			ast_log(LOG_DEBUG, "SIP answering channel: %s\n", ast->name);
-		res = transmit_response_with_sdp(p, "200 OK", &p->initreq, 1);
+		res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_RELIABLE);
 	}
 	ast_mutex_unlock(&p->lock);
 	return res;
@@ -2669,7 +2678,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 			if (p->rtp) {
 				/* If channel is not up, activate early media session */
 				if ((ast->_state != AST_STATE_UP) && !ast_test_flag(p, SIP_PROGRESS_SENT) && !ast_test_flag(p, SIP_OUTGOING)) {
-					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
+					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
 					ast_set_flag(p, SIP_PROGRESS_SENT);	
 				}
 				time(&p->lastrtptx);
@@ -2684,7 +2693,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 			if (p->vrtp) {
 				/* Activate video early media */
 				if ((ast->_state != AST_STATE_UP) && !ast_test_flag(p, SIP_PROGRESS_SENT) && !ast_test_flag(p, SIP_OUTGOING)) {
-					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
+					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
 					ast_set_flag(p, SIP_PROGRESS_SENT);	
 				}
 				time(&p->lastrtptx);
@@ -2813,7 +2822,7 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 		break;
 	case AST_CONTROL_PROGRESS:
 		if ((ast->_state != AST_STATE_UP) && !ast_test_flag(p, SIP_PROGRESS_SENT) && !ast_test_flag(p, SIP_OUTGOING)) {
-			transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
+			transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
 			ast_set_flag(p, SIP_PROGRESS_SENT);	
 			break;
 		}
@@ -4284,7 +4293,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 }
 
 /*! \brief Base transmit response function */
-static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req, int reliable)
+static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req, enum xmittype reliable)
 {
 	struct sip_request resp;
 	int seqno = 0;
@@ -4307,7 +4316,7 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 /*! \brief Transmit response, no retransmits */
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req) 
 {
-	return __transmit_response(p, msg, req, 0);
+	return __transmit_response(p, msg, req, XMIT_UNRELIABLE);
 }
 
 /*! \brief Transmit response, no retransmits */
@@ -4317,13 +4326,15 @@ static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, stru
 	respprep(&resp, p, msg, req);
 	append_date(&resp);
 	add_header(&resp, "Unsupported", unsupported);
-	return send_response(p, &resp, 0, 0);
+	return send_response(p, &resp, XMIT_UNRELIABLE, 0);
 }
 
-/*! \brief Transmit response, Make sure you get a reply */
-static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req, int fatal)
+/*! \brief Transmit response, Make sure you get an ACK
+	This is only used for responses to INVITEs, where we need to make sure we get an ACK
+*/
+static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req)
 {
-	return __transmit_response(p, msg, req, fatal ? 2 : 1);
+	return __transmit_response(p, msg, req, XMIT_CRITICAL);
 }
 
 /*! \brief Append date to SIP message */
@@ -4347,11 +4358,11 @@ static int transmit_response_with_date(struct sip_pvt *p, char *msg, struct sip_
 	append_date(&resp);
 	add_header_contentLength(&resp, 0);
 	add_blank_header(&resp);
-	return send_response(p, &resp, 0, 0);
+	return send_response(p, &resp, XMIT_UNRELIABLE, 0);
 }
 
 /*! \brief Append Accept header, content length before transmitting response */
-static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip_request *req, int reliable)
+static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip_request *req, enum xmittype reliable)
 {
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
@@ -4362,7 +4373,7 @@ static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip
 }
 
 /*! \brief Respond with authorization request */
-static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *randdata, int reliable, const char *header, int stale)
+static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *randdata, enum xmittype reliable, const char *header, int stale)
 {
 	struct sip_request resp;
 	char tmp[256];
@@ -4671,7 +4682,7 @@ static void copy_request(struct sip_request *dst, struct sip_request *src)
 }
 
 /*! \brief Used for 200 OK and 183 early media */
-static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans)
+static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, enum xmittype reliable)
 {
 	struct sip_request resp;
 	int seqno;
@@ -4686,7 +4697,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 	} else {
 		ast_log(LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
 	}
-	return send_response(p, &resp, retrans, seqno);
+	return send_response(p, &resp, reliable, seqno);
 }
 
 /*! \brief Parse first line of incoming SIP request */
@@ -5718,7 +5729,7 @@ static int transmit_info_with_vidupdate(struct sip_pvt *p)
 }
 
 /*! \brief Transmit generic SIP request */
-static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, int reliable, int newbranch)
+static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, enum xmittype reliable, int newbranch)
 {
 	struct sip_request resp;
 	reqprep(&resp, p, sipmethod, seqno, newbranch);
@@ -5728,7 +5739,7 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, int rel
 }
 
 /*! \brief Transmit SIP request, auth added */
-static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqno, int reliable, int newbranch)
+static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqno, enum xmittype reliable, int newbranch)
 {
 	struct sip_request resp;
 
@@ -6244,7 +6255,7 @@ static int check_osptoken (struct sip_pvt *p, char *token)
 */
 static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
 		      const char *secret, const char *md5secret, int sipmethod,
-		      char *uri, int reliable, int ignore)
+		      char *uri, enum xmittype reliable, int ignore)
 {
 	const char *response = "407 Proxy Authentication Required";
 	const char *reqheader = "Proxy-Authorization";
@@ -6522,7 +6533,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		} else {
 			ast_copy_flags(p, peer, SIP_NAT);
 			transmit_response(p, "100 Trying", req);
-			if (!(res = check_auth(p, req, peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri, 0, ignore))) {
+			if (!(res = check_auth(p, req, peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri, XMIT_UNRELIABLE, ignore))) {
 				sip_cancel_destroy(p);
 				switch (parse_register_contact(p, peer, req)) {
 				case PARSE_REGISTER_FAILED:
@@ -7066,7 +7077,7 @@ static int get_rpid_num(char *input,char *output, int maxlen)
 	\return 0 on success, -1 on failure, and 1 on challenge sent
 	-2 on authentication error from chedck_auth()
 */
-static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, int reliable, struct sockaddr_in *sin, int ignore, char *mailbox, int mailboxlen)
+static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, enum xmittype reliable, struct sockaddr_in *sin, int ignore, char *mailbox, int mailboxlen)
 {
 	struct sip_user *user = NULL;
 	struct sip_peer *peer;
@@ -7359,7 +7370,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 /*! \brief  Find user 
 	If we get a match, this will add a reference pointer to the user object in ASTOBJ, that needs to be unreferenced
 */
-static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, int reliable, struct sockaddr_in *sin, int ignore)
+static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, enum xmittype reliable, struct sockaddr_in *sin, int ignore)
 {
 	return check_user_full(p, req, sipmethod, uri, reliable, sin, ignore, NULL, 0);
 }
@@ -9560,7 +9571,7 @@ static void check_pendings(struct sip_pvt *p)
 {
 	/* Go ahead and send bye at this point */
 	if (ast_test_flag(p, SIP_PENDINGBYE)) {
-		transmit_request_with_auth(p, SIP_BYE, 0, 1, 1);
+		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
 		ast_set_flag(p, SIP_NEEDDESTROY);	
 		ast_clear_flag(p, SIP_NEEDREINVITE);	
 	} else if (ast_test_flag(p, SIP_NEEDREINVITE)) {
@@ -9653,13 +9664,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				ast_set_flag(p, SIP_PENDINGBYE);	
 		}
 		/* If I understand this right, the branch is different for a non-200 ACK only */
-		transmit_request(p, SIP_ACK, seqno, 0, 1);
+		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 1);
 		check_pendings(p);
 		break;
 	case 407: /* Proxy authentication */
 	case 401: /* Www auth */
 		/* First we ACK */
-		transmit_request(p, SIP_ACK, seqno, 0, 0);
+		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
 		if (p->options)
 			p->options->auth_type = (resp == 401 ? WWW_AUTH : PROXY_AUTH);
 
@@ -9679,7 +9690,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 	case 403: /* Forbidden */
 		/* First we ACK */
-		transmit_request(p, SIP_ACK, seqno, 0, 0);
+		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
 		ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for INVITE to '%s'\n", get_header(&p->initreq, "From"));
 		if (!ignore && p->owner)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
@@ -9687,7 +9698,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_set_flag(p, SIP_ALREADYGONE);	
 		break;
 	case 404: /* Not found */
-		transmit_request(p, SIP_ACK, seqno, 0, 0);
+		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
 		if (p->owner && !ignore)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		ast_set_flag(p, SIP_ALREADYGONE);	
@@ -9695,7 +9706,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	case 481: /* Call leg does not exist */
 		/* Could be REFER or INVITE */
 		ast_log(LOG_WARNING, "Re-invite to non-existing call leg on other UA. SIP dialog '%s'. Giving up.\n", p->callid);
-		transmit_request(p, SIP_ACK, seqno, 0, 0);
+		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
 		break;
 	case 491: /* Pending */
 		/* we have to wait a while, then retransmit */
@@ -9869,7 +9880,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
 		if (peer->pokeexpire > -1)
 			ast_sched_del(sched, peer->pokeexpire);
 		if (sipmethod == SIP_INVITE)	/* Does this really happen? */
-			transmit_request(p, SIP_ACK, seqno, 0, 0);
+			transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
 		ast_set_flag(p, SIP_NEEDDESTROY);	
 
 		/* Try again eventually */
@@ -10019,6 +10030,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		default:
 			if ((resp >= 300) && (resp < 700)) {
+				/* Fatal response */
 				if ((option_verbose > 2) && (resp != 487))
 					ast_verbose(VERBOSE_PREFIX_3 "Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
 				ast_set_flag(p, SIP_ALREADYGONE);	
@@ -10044,7 +10056,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					if (p->owner)
 						ast_queue_control(p->owner, AST_CONTROL_BUSY);
 					break;
-				case 487:
+				case 487:	/* Response on INVITE that has been CANCELled */
 					/* channel now destroyed - dec the inUse counter */
 					update_call_counter(p, DEC_CALL_LIMIT);
 					break;
@@ -10075,7 +10087,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				}
 				/* ACK on invite */
 				if (sipmethod == SIP_INVITE) 
-					transmit_request(p, SIP_ACK, seqno, 0, 0);
+					transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
 				ast_set_flag(p, SIP_ALREADYGONE);	
 				if (!p->owner)
 					ast_set_flag(p, SIP_NEEDDESTROY);	
@@ -10442,12 +10454,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	if (!p->lastinvite && !ignore && !p->owner) {
 
 		/* Handle authentication if this is our first invite */
-		res = check_user(p, req, SIP_INVITE, e, 1, sin, ignore);
+		res = check_user(p, req, SIP_INVITE, e, XMIT_RELIABLE, sin, ignore);
 		if (res > 0)	/* We have challenged the user for auth */
 			return 0; 
 		if (res < 0) { /* Something failed in authentication */
 			ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
-			transmit_response_reliable(p, "403 Forbidden", req, 1);
+			transmit_response_reliable(p, "403 Forbidden", req);
 			ast_set_flag(p, SIP_NEEDDESTROY);
 			ast_string_field_free(p, theirtag);
 			return 0;
@@ -10457,7 +10469,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
 			if (process_sdp(p, req)) {
 				/* Unacceptable codecs */
-				transmit_response_reliable(p, "488 Not acceptable here", req, 1);
+				transmit_response_reliable(p, "488 Not acceptable here", req);
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 				return -1;
 			}
@@ -10482,7 +10494,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (res) {
 			if (res < 0) {
 				ast_log(LOG_NOTICE, "Failed to place call for user %s, too many calls\n", p->username);
-				transmit_response_reliable(p, "480 Temporarily Unavailable (Call limit) ", req, 1);
+				transmit_response_reliable(p, "480 Temporarily Unavailable (Call limit) ", req);
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 			}
 			return 0;
@@ -10494,10 +10506,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 		if (gotdest) {
 			if (gotdest < 0) {
-				transmit_response_reliable(p, "404 Not Found", req, 1);
+				transmit_response_reliable(p, "404 Not Found", req);
 				update_call_counter(p, DEC_CALL_LIMIT);
 			} else {
-				transmit_response_reliable(p, "484 Address Incomplete", req, 1);
+				transmit_response_reliable(p, "484 Address Incomplete", req);
 				update_call_counter(p, DEC_CALL_LIMIT);
 			}
 			ast_set_flag(p, SIP_NEEDDESTROY);		
@@ -10548,14 +10560,14 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					if (ignore)
 						transmit_response(p, "503 Unavailable", req);
 					else
-						transmit_response_reliable(p, "503 Unavailable", req, 1);
+						transmit_response_reliable(p, "503 Unavailable", req);
 					break;
 				case AST_PBX_CALL_LIMIT:
 					ast_log(LOG_WARNING, "Failed to start PBX (call limit reached) \n");
 					if (ignore)
 						transmit_response(p, "480 Temporarily Unavailable", req);
 					else
-						transmit_response_reliable(p, "480 Temporarily Unavailable", req, 1);
+						transmit_response_reliable(p, "480 Temporarily Unavailable", req);
 					break;
 				case AST_PBX_SUCCESS:
 					/* nothing to do */
@@ -10578,7 +10590,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					if (ignore)
 						transmit_response(p, "503 Unavailable", req);
 					else
-						transmit_response_reliable(p, "503 Unavailable", req, 1);
+						transmit_response_reliable(p, "503 Unavailable", req);
 					ast_set_flag(p, SIP_ALREADYGONE);	
 					/* Unlock locks so ast_hangup can do its magic */
 					ast_mutex_unlock(&p->lock);
@@ -10613,14 +10625,14 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				if (ignore)
 					transmit_response(p, "488 Not Acceptable Here (codec error)", req);
 				else
-					transmit_response_reliable(p, "488 Not Acceptable Here (codec error)", req, 1);
+					transmit_response_reliable(p, "488 Not Acceptable Here (codec error)", req);
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 			} else {
 				ast_log(LOG_NOTICE, "Unable to create/find channel\n");
 				if (ignore)
 					transmit_response(p, "503 Unavailable", req);
 				else
-					transmit_response_reliable(p, "503 Unavailable", req, 1);
+					transmit_response_reliable(p, "503 Unavailable", req);
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 			}
 		}
@@ -10688,7 +10700,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			transmit_notify_with_sipfrag(p, seqno);
 			/* Always increment on a BYE */
 			if (!nobye) {
-				transmit_request_with_auth(p, SIP_BYE, 0, 1, 1);
+				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
 				ast_set_flag(p, SIP_ALREADYGONE);	
 			}
 		}
@@ -10715,7 +10727,7 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req, int
 		ast_set_flag(p, SIP_NEEDDESTROY);	
 	if (p->initreq.len > 0) {
 		if (!ignore)
-			transmit_response_reliable(p, "487 Request Terminated", &p->initreq, 1);
+			transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
 		transmit_response(p, "200 OK", req);
 		return 1;
 	} else {
@@ -10733,7 +10745,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
 	char iabuf[INET_ADDRSTRLEN];
 	
 	if (p->pendinginvite && !ast_test_flag(p, SIP_OUTGOING) && !ignore)
-		transmit_response_reliable(p, "487 Request Terminated", &p->initreq, 1);
+		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
 
 	copy_request(&p->initreq, req);
 	check_via(p, req);
@@ -10834,7 +10846,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			mailboxsize = sizeof(mailboxbuf);
 		}
 		/* Handle authentication if this is our first subscribe */
-		res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, ignore, mailbox, mailboxsize);
+		res = check_user_full(p, req, SIP_SUBSCRIBE, e, XMIT_UNRELIABLE, sin, ignore, mailbox, mailboxsize);
 		if (res) {
 			if (res < 0) {
 				ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
@@ -11125,7 +11137,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if (!p->initreq.headers && ast_test_flag(req, SIP_PKT_WITH_TOTAG)) {
 			/* If this is a first request and it got a to-tag, it is not for us */
 			if (!ignore && req->method == SIP_INVITE) {
-				transmit_response_reliable(p, "481 Call/Transaction Does Not Exist", req, 1);
+				transmit_response_reliable(p, "481 Call/Transaction Does Not Exist", req);
 				/* Will cease to exist after ACK */
 			} else {
 				transmit_response(p, "481 Call/Transaction Does Not Exist", req);
@@ -13003,7 +13015,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	}
 
 	ast_string_field_build(p, our_contact, "Transfer <sip:%s@%s%s%s>", extension, host, port ? ":" : "", port ? port : "");
-	transmit_response_reliable(p, "302 Moved Temporarily", &p->initreq, 1);
+	transmit_response_reliable(p, "302 Moved Temporarily", &p->initreq);
 
 	/* this is all that we want to send to that SIP device */
 	ast_set_flag(p, SIP_ALREADYGONE);
