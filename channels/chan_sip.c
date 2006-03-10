@@ -2578,12 +2578,15 @@ static int sip_hangup(struct ast_channel *ast)
 	if (!ast_test_flag(p, SIP_ALREADYGONE) && !ast_strlen_zero(p->initreq.data)) {
 		if (needcancel) {	/* Outgoing call, not up */
 			if (ast_test_flag(p, SIP_OUTGOING)) {
+				/* stop retransmitting an INVITE that has not received a response */
+				__sip_pretend_ack(p);
+
+				/* Send a new request: CANCEL */
 				transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, XMIT_RELIABLE, 0);
 				/* Actually don't destroy us yet, wait for the 487 on our original 
 				   INVITE, but do set an autodestruct just in case we never get it. */
 				ast_clear_flag(&locflags, SIP_NEEDDESTROY);
-				/* stop retransmitting an INVITE that has not received a response */
-				__sip_pretend_ack(p);
+
 				sip_scheddestroy(p, 32000);
 				if ( p->initid != -1 ) {
 					/* channel still up - reverse dec of inUse counter
