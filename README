@@ -51,13 +51,15 @@ ANY special hardware, not even a soundcard) to install and run Asterisk.
 	* All Wildcard (tm) products from Digium (www.digium.com)
 	* QuickNet Internet PhoneJack and LineJack (http://www.quicknet.net)
 	* any full duplex sound card supported by ALSA or OSS
+	* any ISDN card supported by mISDN on Linux (BRI)
+	* The Xorcom AstriBank channel bank
         * VoiceTronix OpenLine products
 
 The are several drivers for ISDN BRI cards available from third party sources.
-Check the voip-info.org wiki for more information on chan_capi, chan_misdn and 
+Check the voip-info.org wiki for more information on chan_capi and 
 zaphfc.
 
-* UPGRADING FROM VERSION 1.0
+* UPGRADING FROM AN EARLIER VERSION
 
   If you are updating from a previous version of Asterisk, make sure you
 read the UPGRADE.txt file in the source directory. There are some files
