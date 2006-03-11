@@ -1624,6 +1624,14 @@ static int say_periodic_announcement(struct queue_ent *qe)
 static void record_abandoned(struct queue_ent *qe)
 {
 	ast_mutex_lock(&qe->parent->lock);
+	manager_event(EVENT_FLAG_AGENT, "QueueCallerAbandon",
+	              "Queue: %s\r\n"
+	              "Uniqueid: %s\r\n"
+	              "Position: %d\r\n"
+	              "OriginalPosition: %d\r\n"
+	              "HoldTime: %d\r\n",
+	              qe->parent->name, qe->chan->uniqueid, qe->pos, qe->opos, (int)(time(NULL) - qe->start));
+
 	qe->parent->callsabandoned++;
 	ast_mutex_unlock(&qe->parent->lock);
 }
