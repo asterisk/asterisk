@@ -2981,7 +2981,7 @@ int ast_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 			s, parseio->string,spacebuf2);
 #endif
 #ifndef STANDALONE
-	ast_log(LOG_WARNING,"If you have questions, please refer to doc/README.variables in the asterisk source.\n");
+	ast_log(LOG_WARNING,"If you have questions, please refer to doc/channelvariables.txt in the asterisk source.\n");
 #endif
 	return(0);
 }
