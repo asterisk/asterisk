@@ -2971,6 +2971,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {
 			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+			tmp->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 			ast_hangup(tmp);
 			tmp = NULL;
 		}
@@ -10217,8 +10218,10 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	chan2m = ast_channel_alloc(0);
 	if ((!chan2m) || (!chan1m)) {
 		if (chan1m)
+			chan1m->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 			ast_hangup(chan1m);
 		if (chan2m)
+			chan2m->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 			ast_hangup(chan2m);
 		return -1;
 	}
@@ -10247,6 +10250,7 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	if (ast_do_masquerade(chan2m)) {
 		ast_log(LOG_WARNING, "Masquerade failed :(\n");
 		ast_mutex_unlock(&chan2m->lock);
+		chan2m->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 		ast_hangup(chan2m);
 		return -1;
 	}
@@ -10578,7 +10582,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				}
 
 				if (res) {
-					ast_log(LOG_WARNING, "Failed to start PBX :(\n");
 					/* Unlock locks so ast_hangup can do its magic */
 					ast_mutex_unlock(&c->lock);
 					ast_mutex_unlock(&p->lock);
@@ -10597,12 +10600,14 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					ast_set_flag(p, SIP_ALREADYGONE);	
 					/* Unlock locks so ast_hangup can do its magic */
 					ast_mutex_unlock(&p->lock);
+					c->hangupcause = AST_CAUSE_CALL_REJECTED;
 					ast_hangup(c);
 					ast_mutex_lock(&p->lock);
 					c = NULL;
 				} else {
 					ast_mutex_unlock(&p->lock);
 					ast_setstate(c, AST_STATE_DOWN);
+					c->hangupcause = AST_CAUSE_NORMAL_CLEARING;
 					ast_hangup(c);
 					ast_mutex_lock(&p->lock);
 					c = NULL;
