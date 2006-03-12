@@ -430,7 +430,7 @@ diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/dsp_cancel.c mISDN/drivers/
 --- /tmp/mISDN/drivers/isdn/hardware/mISDN/dsp_cancel.c	1970-01-01 01:00:00.000000000 +0100
 +++ mISDN/drivers/isdn/hardware/mISDN/dsp_cancel.c	2005-12-02 09:57:08.000000000 +0100
 @@ -0,0 +1,390 @@
-+/* $Id: mISDN_echo_cancel.patch,v 1.1 2005/11/07 16:01:31 nadi Exp $
++/* $Id$
 + *
 + * Simple but fast Echo cancellation for mISDN_dsp.
 + *
