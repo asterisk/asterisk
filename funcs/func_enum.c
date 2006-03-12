@@ -124,7 +124,7 @@ static struct ast_custom_function enum_function = {
 		"Option 'c' returns an integer count of the number of NAPTRs of a certain RR type.\n"
 		"Combination of 'c' and Method-type of 'ALL' will return a count of all NAPTRs for the record.\n"
 		"Defaults are: Method-type=sip, no options, record=1, zone-suffix=e164.arpa\n\n"
-		"For more information, see README.enum",
+		"For more information, see doc/enum.txt",
 	.read = function_enum,
 };
 

@@ -1,5 +1,5 @@
-README.enum
-
+Enum support in the ENUMLOOKUP dialplan function
+------------------------------------------------
 2005-09-06 
 jtodd@loligo.com
 

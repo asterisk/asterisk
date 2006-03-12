@@ -11,7 +11,7 @@ separated text file.
      for an updated list of supported databases, from MySQL to MsSQL
      and text files.
    * cdr_tds supports FreeTDS databases (Among them MS SQL)
-	NOTE: Please read README.tds for information on possible
+	NOTE: Please read doc/freetds.txt for information on possible
 	problems with the FreeTDS driver
    * cdr_sqlite supports SQlite
    * cdr_pgsql supports PostgreSQL

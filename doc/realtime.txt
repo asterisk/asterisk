@@ -8,7 +8,7 @@ The benefits of this architecture are many, both from a code management
 standpoint and from an installation perspective. 
 
 Additional information on the configuration of Realtime with Asterisk 
-can be found in README.extconfig
+can be found in doc/extconfig.txt
 
 The ARA is designed to be independent of storage. Currently, most
 drivers are based on SQL, but the architecture should be able to handle
@@ -82,7 +82,7 @@ objects and the realtime switch.
 ---------------------------------
 You configure the ARA in extconfig.conf (yes, it's a strange name, but
 is was defined in the early days of the realtime architecture and kind
-of stuck). Please see README.extconfig for database schemas.
+of stuck). Please see doc/extconfig.txt for database schemas.
 
 The part of Asterisk that connects to the ARA use a well defined family
 name to find the proper database driver. The syntax is easy:
@@ -98,11 +98,10 @@ Defined well-known family names are:
 * voicemail		Voicemail accounts 
 
 There is documentation of the SQL database in the file
-README.extconfig in your Asterisk source code tree, the /doc
-directory.
+doc/extconfig.txt in your Asterisk source code tree.
 
 For voicemail storage with the support of ODBC, there is a 
-README.odbcstorage documentation file.
+doc/odbcstorage.txt documentation file.
 
 
 * FreeTDS not supported

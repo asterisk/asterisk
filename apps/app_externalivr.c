@@ -65,7 +65,7 @@ static const char *descrip =
 "will receive all DTMF events received on the channel, and notification\n"
 "if the channel is hung up. The application will not be forcibly terminated\n"
 "when the channel is hung up.\n"
-"See doc/README.externalivr for a protocol specification.\n";
+"See doc/externalivr.txt for a protocol specification.\n";
 
 /* XXX the parser in gcc 2.95 gets confused if you don't put a space between 'name' and the comma */
 #define ast_chan_log(level, channel, format, ...) ast_log(level, "%s: " format, channel->name , ## __VA_ARGS__)

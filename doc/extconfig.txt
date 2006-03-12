@@ -9,7 +9,7 @@ Asterisk's internal configuration structure and external SQL other other
 databases (maybe even LDAP one day).
 
 The external configuration engine is the basis for the ARA, the
-Asterisk Realtime Architecture (see README.realtime for more 
+Asterisk Realtime Architecture (see doc/realtime.txt for more 
 information).
 
 * Configuration

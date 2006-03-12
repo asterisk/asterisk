@@ -23,7 +23,7 @@
  * \author Mark Spencer <markster@digium.com>
  *
  * Includes the Asterisk Realtime API - ARA
- * See README.realtime
+ * See doc/realtime.txt and doc/extconfig.txt
  */
 
 #include <stdio.h>
