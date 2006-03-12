@@ -225,6 +225,7 @@ static int pbx_builtin_setvar_old(struct ast_channel *, void *);
 int pbx_builtin_setvar(struct ast_channel *, void *);
 static int pbx_builtin_importvar(struct ast_channel *, void *);
 
+AST_MUTEX_DEFINE_STATIC(globalslock);
 static struct varshead globals;
 
 static int autofallthrough = 0;
@@ -1138,10 +1139,8 @@ icky:
 		}
 		if (!(*ret)) {
 			/* Try globals */
+			ast_mutex_lock(&globalslock);
 			AST_LIST_TRAVERSE(&globals,variables,entries) {
-#if 0
-				ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,ast_var_name(variables));
-#endif
 				if (strcasecmp(ast_var_name(variables),var)==0) {
 					*ret = ast_var_value(variables);
 					if (*ret) {
@@ -1150,6 +1149,7 @@ icky:
 					}
 				}
 			}
+			ast_mutex_unlock(&globalslock);
 		}
 	}
 }
@@ -4655,10 +4655,12 @@ int ast_add_extension2(struct ast_context *con,
 	/* if we are adding a hint, and there are global variables, and the hint
 	   contains variable references, then expand them
 	*/
+	ast_mutex_lock(&globalslock);
 	if ((priority == PRIORITY_HINT) && AST_LIST_FIRST(&globals) && strstr(application, "${")) {
 		pbx_substitute_variables_varshead(&globals, application, expand_buf, sizeof(expand_buf));
 		application = expand_buf;
 	}
+	ast_mutex_unlock(&globalslock);
 
 	length = sizeof(struct ast_exten);
 	length += strlen(extension) + 1;
@@ -5891,29 +5893,34 @@ int pbx_builtin_serialize_variables(struct ast_channel *chan, char *buf, size_t 
 
 char *pbx_builtin_getvar_helper(struct ast_channel *chan, const char *name) 
 {
-	struct ast_var_t *variables;
-	struct varshead *headp;
+        struct ast_var_t *variables;
+        char *ret = NULL;
+        int i;
+        struct varshead *places[2] = { NULL, &globals };
+        
+        if (!name)
+                return NULL;
+        if (chan)
+                places[0] = &chan->varshead;
 
-	if (chan)
-		headp=&chan->varshead;
-	else
-		headp=&globals;
+        for (i = 0; i < 2; i++) {
+                if (!places[i])
+                        continue;
+                if (places[i] == &globals)
+                        ast_mutex_lock(&globalslock);
+                AST_LIST_TRAVERSE(places[i], variables, entries) {
+                        if (!strcmp(name, ast_var_name(variables))) {
+                                ret = ast_var_value(variables);
+                                break;
+                        }
+                }
+                if (places[i] == &globals)
+                        ast_mutex_unlock(&globalslock);
+                if (ret)
+                        break;
+        }
 
-	if (name) {
-		AST_LIST_TRAVERSE(headp,variables,entries) {
-			if (!strcmp(name, ast_var_name(variables)))
-				return ast_var_value(variables);
-		}
-		if (headp != &globals) {
-			/* Check global variables if we haven't already */
-			headp = &globals;
-			AST_LIST_TRAVERSE(headp,variables,entries) {
-				if (!strcmp(name, ast_var_name(variables)))
-					return ast_var_value(variables);
-			}
-		}
-	}
-	return NULL;
+        return ret;                
 }
 
 void pbx_builtin_pushvar_helper(struct ast_channel *chan, const char *name, const char *value)
@@ -5931,8 +5938,12 @@ void pbx_builtin_pushvar_helper(struct ast_channel *chan, const char *name, cons
 	if (value) {
 		if ((option_verbose > 1) && (headp == &globals))
 			ast_verbose(VERBOSE_PREFIX_2 "Setting global variable '%s' to '%s'\n", name, value);
-		newvariable = ast_var_assign(name, value);	
+		newvariable = ast_var_assign(name, value);
+		if (headp == &globals)
+			ast_mutex_lock(&globalslock);
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
+		if (headp == &globals)
+			ast_mutex_unlock(&globalslock);
 	}
 }
 
@@ -5954,6 +5965,8 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 			nametail++;
 	}
 
+	if (headp == &globals)
+		ast_mutex_lock(&globalslock);
 	AST_LIST_TRAVERSE (headp, newvariable, entries) {
 		if (strcasecmp(ast_var_name(newvariable), nametail) == 0) {
 			/* there is already such a variable, delete it */
@@ -5961,14 +5974,17 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 			ast_var_delete(newvariable);
 			break;
 		}
-	} 
-
+	}
+	
 	if (value) {
 		if ((option_verbose > 1) && (headp == &globals))
 			ast_verbose(VERBOSE_PREFIX_2 "Setting global variable '%s' to '%s'\n", name, value);
 		newvariable = ast_var_assign(name, value);	
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
+	
+	if (headp == &globals)
+		ast_mutex_unlock(&globalslock);
 }
 
 int pbx_builtin_setvar_old(struct ast_channel *chan, void *data)
@@ -6083,10 +6099,11 @@ static int pbx_builtin_noop(struct ast_channel *chan, void *data)
 void pbx_builtin_clear_globals(void)
 {
 	struct ast_var_t *vardata;
-	while (!AST_LIST_EMPTY(&globals)) {
-		vardata = AST_LIST_REMOVE_HEAD(&globals, entries);
+
+	ast_mutex_lock(&globalslock);
+	while ((vardata = AST_LIST_REMOVE_HEAD(&globals, entries)))
 		ast_var_delete(vardata);
-	}
+	ast_mutex_unlock(&globalslock);
 }
 
 static int pbx_checkcondition(char *condition) 
