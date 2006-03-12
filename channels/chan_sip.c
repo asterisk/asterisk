@@ -10217,12 +10217,14 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	chan1m = ast_channel_alloc(0);
 	chan2m = ast_channel_alloc(0);
 	if ((!chan2m) || (!chan1m)) {
-		if (chan1m)
+		if (chan1m) {
 			chan1m->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 			ast_hangup(chan1m);
-		if (chan2m)
+		}
+		if (chan2m) {
 			chan2m->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 			ast_hangup(chan2m);
+		}
 		return -1;
 	}
 	ast_string_field_build(chan1m, name, "Parking/%s", chan1->name);
