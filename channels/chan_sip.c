@@ -2485,13 +2485,15 @@ static int sip_hangup(struct ast_channel *ast)
 	if (!ast_test_flag(p, SIP_ALREADYGONE) && !ast_strlen_zero(p->initreq.data)) {
 		if (needcancel) {	/* Outgoing call, not up */
 			if (ast_test_flag(p, SIP_OUTGOING)) {
+				/* stop retransmitting an INVITE that has not received a response */
+				__sip_pretend_ack(p);
+
+				/* Send a new request: CANCEL */
 				transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, 1, 0);
 				/* Actually don't destroy us yet, wait for the 487 on our original 
 				   INVITE, but do set an autodestruct just in case we never get it. */
 				ast_clear_flag(&locflags, SIP_NEEDDESTROY);
-				sip_scheddestroy(p, 15000);
-				/* stop retransmitting an INVITE that has not received a response */
-				__sip_pretend_ack(p);
+				sip_scheddestroy(p, 32000);
 				if ( p->initid != -1 ) {
 					/* channel still up - reverse dec of inUse counter
 					   only if the channel is not auto-congested */
@@ -2521,12 +2523,34 @@ static int sip_hangup(struct ast_channel *ast)
 	return 0;
 }
 
+/*! \brief Try setting codec suggested by the SIP_CODEC channel variable */
+static void try_suggested_sip_codec(struct sip_pvt *p)
+{
+	int fmt;
+	char *codec;
+
+	codec = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC");
+	if (!codec) 
+		return;
+
+	fmt = ast_getformatbyname(codec);
+	if (fmt) {
+		ast_log(LOG_NOTICE, "Changing codec to '%s' for this call because of ${SIP_CODEC) variable\n",codec);
+		if (p->jointcapability & fmt) {
+			p->jointcapability &= fmt;
+			p->capability &= fmt;
+		} else
+			ast_log(LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because it is not shared by both ends.\n");
+	} else
+		ast_log(LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because of unrecognized/not configured codec (check allow/disallow in sip.conf): %s\n",codec);
+	return;	
+}
+
 /*! \brief  sip_answer: Answer SIP call , send 200 OK on Invite 
  * Part of PBX interface */
 static int sip_answer(struct ast_channel *ast)
 {
-	int res = 0,fmt;
-	char *codec;
+	int res = 0;
 	struct sip_pvt *p = ast->tech_pvt;
 
 	ast_mutex_lock(&p->lock);
@@ -2534,19 +2558,7 @@ static int sip_answer(struct ast_channel *ast)
 #ifdef OSP_SUPPORT	
 		time(&p->ospstart);
 #endif
-	
-		codec=pbx_builtin_getvar_helper(p->owner,"SIP_CODEC");
-		if (codec) {
-			fmt=ast_getformatbyname(codec);
-			if (fmt) {
-				ast_log(LOG_NOTICE, "Changing codec to '%s' for this call because of ${SIP_CODEC) variable\n",codec);
-				if (p->jointcapability & fmt) {
-					p->jointcapability &= fmt;
-					p->capability &= fmt;
-				} else
-					ast_log(LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because it is not shared by both ends.\n");
-			} else ast_log(LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because of unrecognized/not configured codec (check allow/disallow in sip.conf): %s\n",codec);
-		}
+		try_suggested_sip_codec(p);	
 
 		ast_setstate(ast, AST_STATE_UP);
 		if (option_debug)
@@ -4580,6 +4592,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 	respprep(&resp, p, msg, req);
 	if (p->rtp) {
 		ast_rtp_offered_from_local(p->rtp, 0);
+		try_suggested_sip_codec(p);	
 		add_sdp(&resp, p);
 	} else {
 		ast_log(LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
@@ -9329,6 +9342,8 @@ static char *function_sippeer(struct ast_channel *chan, char *cmd, char *data, c
 		snprintf(buf, len, "%d", peer->call_limit);
 	} else  if (!strcasecmp(colname, "curcalls")) {
 		snprintf(buf, len, "%d", peer->inUse);
+	} else  if (!strcasecmp(colname, "accountcode")) {
+		ast_copy_string(buf, peer->accountcode, len);
 	} else  if (!strcasecmp(colname, "useragent")) {
 		ast_copy_string(buf, peer->useragent, len);
 	} else  if (!strcasecmp(colname, "mailbox")) {
@@ -9388,6 +9403,7 @@ struct ast_custom_function sippeer_function = {
 	"- curcalls              Current amount of calls \n"
 	"                        Only available if call-limit is set\n"
 	"- language              Default language for peer\n"
+	"- accountcode           Account code for this peer\n"
 	"- useragent             Current user agent id for peer\n"
 	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
 	"\n"
@@ -9549,12 +9565,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 	case 183:	/* Session progress */
 		sip_cancel_destroy(p);
+		/* Ignore 183 Session progress without SDP */
 		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
 			process_sdp(p, req);
-		}
-		if (!ignore && p->owner) {
-			/* Queue a progress frame */
-			ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
+			if (!ignore && p->owner) {
+				/* Queue a progress frame */
+				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
+			}
 		}
 		break;
 	case 200:	/* 200 OK on invite - someone's answering our call */
