@@ -148,6 +148,7 @@ struct ast_conference {
 	struct ast_conf_user *firstuser;	/* Pointer to the first user struct */
 	struct ast_conf_user *lastuser;		/* Pointer to the last user struct */
 	time_t start;				/* Start time (s) */
+	int refcount;				/* reference count of usage */
 	unsigned int recording:2;				/* recording status */
 	unsigned int isdynamic:1;				/* Created on the fly? */
 	unsigned int locked:1;				/* Is the conference locked? */
@@ -453,7 +454,7 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, int
 		ast_autoservice_stop(chan);
 }
 
-static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic)
+static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic, int refcount)
 {
 	struct ast_conference *cnf;
 	struct zt_confinfo ztc;
@@ -473,6 +474,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 			ast_copy_string(cnf->confno, confno, sizeof(cnf->confno));
 			ast_copy_string(cnf->pin, pin, sizeof(cnf->pin));
 			ast_copy_string(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin));
+			cnf->refcount = 0;
 			cnf->markedusers = 0;
 			cnf->chan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL);
 			if (cnf->chan) {
@@ -529,6 +531,9 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 		} 
 	}
  cnfout:
+	if (cnf){ 
+		cnf->refcount += refcount;
+	}
 	AST_LIST_UNLOCK(&confs);
 	return cnf;
 }
@@ -859,6 +864,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
 
 	if (!(user = ast_calloc(1, sizeof(*user)))) {
+		AST_LIST_LOCK(&confs);
+		conf->refcount--;
+		if (!conf->refcount){
+			conf_free(conf);
+		}
+		AST_LIST_UNLOCK(&confs);
 		return ret;
 	}
 
@@ -1671,14 +1682,17 @@ bailoutandtrynormal:
 		          "<no name>", hr, min, sec);
 
 		conf->users--;
+		conf->refcount--;
 		/* Update table */
 		snprintf(members, sizeof(members), "%d", conf->users);
 		ast_update_realtime("meetme", "confno", conf->confno, "members", members, NULL);
 		if (confflags & CONFFLAG_MARKEDUSER) 
 			conf->markedusers--;
 		if (!conf->users) {
-			/* No more users -- close this one out */
-			conf_free(conf);
+			/* close this one when no more users and no references*/
+			if (!conf->refcount){
+				conf_free(conf);
+			}
 		} else {
 			/* Remove the user struct */ 
 			if (user == conf->firstuser) {
@@ -1721,7 +1735,7 @@ bailoutandtrynormal:
 /*
   This function looks for a conference via the RealTime module
 */
-static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char *confno, int make, int dynamic, char *dynamic_pin)
+static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char *confno, int make, int dynamic, char *dynamic_pin, int refcount)
 {
 
 	struct ast_variable *var;
@@ -1732,6 +1746,9 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 	AST_LIST_TRAVERSE(&confs, cnf, list) {
 		if (!strcmp(confno, cnf->confno)) 
 			break;
+	}
+	if (cnf){
+		cnf->refcount += refcount;
 	}
 	AST_LIST_UNLOCK(&confs);
 
@@ -1757,14 +1774,14 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		}
 		ast_variables_destroy(var);
 
-		cnf = build_conf(confno, pin ? pin : "", pinadmin ? pinadmin : "", make, dynamic);
+		cnf = build_conf(confno, pin ? pin : "", pinadmin ? pinadmin : "", make, dynamic, refcount);
 	}
 
 	return cnf;
 }
 
 
-static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, int make, int dynamic, char *dynamic_pin)
+static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, int make, int dynamic, char *dynamic_pin, int refcount)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
@@ -1782,6 +1799,9 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 		if (!strcmp(confno, cnf->confno)) 
 			break;
 	}
+	if (cnf){
+		cnf->refcount += refcount;
+	}
 	AST_LIST_UNLOCK(&confs);
 
 	if (!cnf) {
@@ -1794,9 +1814,9 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 					if (ast_app_getdata(chan, "conf-getpin", dynamic_pin, AST_MAX_EXTENSION - 1, 0) < 0)
 						return NULL;
 				}
-				cnf = build_conf(confno, dynamic_pin, "", make, dynamic);
+				cnf = build_conf(confno, dynamic_pin, "", make, dynamic, refcount);
 			} else {
-				cnf = build_conf(confno, "", "", make, dynamic);
+				cnf = build_conf(confno, "", "", make, dynamic, refcount);
 			}
 		} else {
 			/* Check the config */
@@ -1818,14 +1838,14 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 					/* Bingo it's a valid conference */
 					if (args.pin) {
 						if (args.pinadmin)
-							cnf = build_conf(args.confno, args.pin, args.pinadmin, make, dynamic);
+							cnf = build_conf(args.confno, args.pin, args.pinadmin, make, dynamic, refcount);
 						else
-							cnf = build_conf(args.confno, args.pin, "", make, dynamic);
+							cnf = build_conf(args.confno, args.pin, "", make, dynamic, refcount);
 					} else {
 						if (args.pinadmin)
-							cnf = build_conf(args.confno, "", args.pinadmin, make, dynamic);
+							cnf = build_conf(args.confno, "", args.pinadmin, make, dynamic, refcount);
 						else
-							cnf = build_conf(args.confno, "", "", make, dynamic);
+							cnf = build_conf(args.confno, "", "", make, dynamic, refcount);
 					}
 					break;
 				}
@@ -1874,7 +1894,7 @@ static int count_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, localdata);
 	
-	conf = find_conf(chan, args.confno, 0, 0, NULL);
+	conf = find_conf(chan, args.confno, 0, 0, NULL, 0);
 	if (conf)
 		count = conf->users;
 	else
@@ -2060,9 +2080,9 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		}
 		if (!ast_strlen_zero(confno)) {
 			/* Check the validity of the conference */
-			cnf = find_conf(chan, confno, 1, dynamic, the_pin);
+			cnf = find_conf(chan, confno, 1, dynamic, the_pin, 1);
 			if (!cnf) {
-				cnf = find_conf_realtime(chan, confno, 1, dynamic, the_pin);
+				cnf = find_conf_realtime(chan, confno, 1, dynamic, the_pin, 1);
 			}
 			if (!cnf) {
 				res = ast_streamfile(chan, "conf-invalid", chan->language);
@@ -2104,8 +2124,15 @@ static int conf_exec(struct ast_channel *chan, void *data)
 								res = ast_streamfile(chan, "conf-invalidpin", chan->language);
 								if (!res)
 									ast_waitstream(chan, AST_DIGIT_ANY);
-								if (res < 0)
+								if (res < 0) {
+									AST_LIST_LOCK(&confs);
+									cnf->refcount--;
+									if (!cnf->refcount){
+										conf_free(cnf);
+									}
+									AST_LIST_UNLOCK(&confs);
 									break;
+								}
 								pin[0] = res;
 								pin[1] = '\0';
 								res = -1;
@@ -2118,8 +2145,9 @@ static int conf_exec(struct ast_channel *chan, void *data)
 							allowretry = 0;
 							/* see if we need to get rid of the conference */
 							AST_LIST_LOCK(&confs);
-							if (!cnf->users) {
-								conf_free(cnf);	
+							cnf->refcount--;
+							if (!cnf->refcount) {
+								conf_free(cnf);
 							}
 							AST_LIST_UNLOCK(&confs);
 							break;
