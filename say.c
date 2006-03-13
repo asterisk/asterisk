@@ -2949,6 +2949,10 @@ int ast_say_date_pt(struct ast_channel *chan, time_t t, const char *ints, const 
 
 int ast_say_date_with_format(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
+	/* If no format is given, use default english format */
+	if (format == NULL)
+		format = "ABdY 'digits/at' IMp";
+
 	if (!strcasecmp(lang, "en") ) {	/* English syntax */
 		return(ast_say_date_with_format_en(chan, time, ints, lang, format, timezone));
 	} else if (!strcasecmp(lang, "da") ) {	/* Danish syntax */
