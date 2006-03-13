@@ -37,30 +37,10 @@ WAV49	= -DWAV49
 ######### ppro's, etc, as well as the AMD K6 and K7.  The compile will
 ######### probably require gcc. 
 
-ifneq (${OSARCH},Darwin)
-ifneq (${OSARCH},SunOS)
-ifneq (${PROC},x86_64)
-ifneq (${PROC},ultrasparc)
-ifneq ($(shell uname -m),ppc)
-ifneq ($(shell uname -m),ppc64)
-ifneq ($(shell uname -m),alpha)
-ifneq ($(shell uname -m),armv4l)
-ifneq (${PROC},sparc64)
-ifneq (${PROC},arm)
-ifneq (${PROC},ppc)
-ifneq (${PROC},ppc64)
-ifneq (${PROC},ia64)
+ifeq (, $(findstring $(OSARCH) , Darwin SunOS ))
+ifeq (, $(findstring $(PROC) , x86_64 ultrasparc sparc64 arm ppc ppc64 ia64 ))
+ifeq (, $(findstring $(shell uname -m) , ppc ppc64 alpha armv4l ))
 OPTIMIZE+=-march=$(PROC)
-endif
-endif
-endif
-endif
-endif
-endif
-endif
-endif
-endif
-endif
 endif
 endif
 endif
@@ -230,23 +210,14 @@ GSM_SOURCES =	$(SRC)/add.c		\
 		$(SRC)/gsm_option.c	\
 		$(SRC)/short_term.c	\
 		$(SRC)/table.c
+
+# add k6-specific code only if not on a non-k6 hardware or proc.
+# XXX Keep a space after each findstring argument
+# XXX should merge with GSM_OBJECTS
 ifeq (${OSARCH},Linux)
-ifneq ($(shell uname -m),x86_64)
-ifneq ($(shell uname -m),ppc)
-ifneq ($(shell uname -m),ppc64)
-ifneq ($(shell uname -m),alpha)
-ifneq ($(shell uname -m),armv4l)
-ifneq ($(shell uname -m),sparc64)
-ifneq (${PROC},arm)
-ifneq (${PROC},ia64)
-ifneq ($(shell uname -m), parisc)
+ifeq (,$(findstring $(shell uname -m) , x86_64 ppc ppc64 alpha armv4l sparc64 parisc ))
+ifeq (,$(findstring ${PROC} , arm ia64 ))
 GSM_SOURCES+= $(SRC)/k6opt.s
-endif
-endif
-endif
-endif
-endif
-endif
 endif
 endif
 endif
@@ -296,20 +267,9 @@ GSM_OBJECTS =	$(SRC)/add.o		\
 		$(SRC)/table.o
 
 ifeq (${OSARCH},Linux)
-ifneq ($(shell uname -m), x86_64)
-ifneq ($(shell uname -m), ppc)
-ifneq ($(shell uname -m), ppc64)
-ifneq ($(shell uname -m), alpha)
-ifneq ($(shell uname -m), sparc64)
-ifneq ($(shell uname -m), armv4l)
-ifneq (${PROC},ia64)
-ifneq ($(shell uname -m), parisc)
+ifeq (,$(findstring $(shell uname -m) , x86_64 ppc ppc64 alpha armv4l sparc64 parisc ))
+ifeq (,$(findstring ${PROC} , arm ia64 ))
 GSM_OBJECTS+= $(SRC)/k6opt.o
-endif
-endif
-endif
-endif
-endif
 endif
 endif
 endif
