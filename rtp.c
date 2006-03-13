@@ -1193,6 +1193,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	int hdrlen = 12;
 	int res;
 	int x;
+	unsigned short duration = 0;
 	int payload;
 	char data[256];
 	char iabuf[INET_ADDRSTRLEN];
@@ -1225,7 +1226,8 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	rtpheader[1] = htonl(rtp->lastdigitts);
 	rtpheader[2] = htonl(rtp->ssrc); 
 	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
-	for (x = 0; x < 6; x++) {
+
+	for (x = 0; x < 5; x++) {
 		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 			res = sendto(rtp->s, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
 			if (res < 0) 
@@ -1237,35 +1239,48 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 					    ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
 					    ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 		}
-		/* Sequence number of last two end packets does not get incremented */
-		if (x < 3)
-			rtp->seqno++;
+
+		/* Sequence number must be incremented for every packet */
+		rtp->seqno++;
 		/* Clear marker bit and set seqno */
 		rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno));
-		/* For the last three packets, set the duration and the end bit */
-		if (x == 2) {
-#if 0
-			/* No, this is wrong...  Do not increment lastdigitts, that's not according
-			   to the RFC, as best we can determine */
-			rtp->lastdigitts++; /* or else the SPA3000 will click instead of beeping... */
-			rtpheader[1] = htonl(rtp->lastdigitts);
-#endif			
-			/* Make duration 800 (100ms) */
-			rtpheader[3] |= htonl((800));
-			/* Set the End bit */
-			rtpheader[3] |= htonl((1 << 23));
-		}
+		/* Increment duration for 160 (20ms) */
+		duration += 160;
+		rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (duration));
 	}
+
+	/* Set the End bit */
+	rtpheader[3] |= htonl((1 << 23));
+
+	/* Send last packet and repeat it 2 times */
+	for (x = 0; x < 3; x++) {
+		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
+			res = sendto(rtp->s, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
+			if (res < 0) {
+				ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
+					ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
+					ntohs(rtp->them.sin_port), strerror(errno));
+			}
+			if (rtp_debug_test_addr(&rtp->them)) {
+				ast_verbose("Sent RTP packet to %s:%d (type %d, seq %u, ts %u, len %u)\n",
+					    ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
+					    ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
+			}
+		}
+		
+		/* Sequence number must be incremented for every packet, even for retransmitted last two packets */
+		rtp->seqno++;
+		/* Set seqno */
+		rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno));
+	}
+
 	/* Increment the digit timestamp by 120ms, to ensure that digits
 	   sent sequentially with no intervening non-digit packets do not
 	   get sent with the same timestamp, and that sequential digits
 	   have some 'dead air' in between them
 	*/
-	rtp->lastdigitts += 960;
-	/* Increment the sequence number to reflect the last packet
-	   that was sent
-	*/
-	rtp->seqno++;
+	duration += 160;
+	rtp->lastdigitts += duration;
 	return 0;
 }
 
