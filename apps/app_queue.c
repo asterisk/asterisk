@@ -952,7 +952,7 @@ static struct ast_call_queue *load_realtime_queue(char *queuename)
 	}
 	AST_LIST_UNLOCK(&queues);
 
-	if (!q) {
+	if (!q || q->realtime) {
 		/*! \note Load from realtime before taking the global qlock, to avoid blocking all
 		   queue operations while waiting for the DB.
 
