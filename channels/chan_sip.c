@@ -91,6 +91,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/devicestate.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/monitor.h"
 
 #ifdef OSP_SUPPORT
 #include "asterisk/astosp.h"
