@@ -49,6 +49,13 @@
 ; is "yes".
 ;safeshutdown=yes
 ;
+
+; Normally, CDR's are not closed out until after all extensions are finished
+; executing.  By enabling this option, the CDR will be ended before executing
+; the "h" extension so that CDR values such as "end" and "billsec" may be
+; retrieved inside of of this extension.
+;endbeforehexten=no
+
 ;[csv]
 ;usegmtime=yes ;log date/time in GMT
 ;loguniqueid=yes ;log uniqueid

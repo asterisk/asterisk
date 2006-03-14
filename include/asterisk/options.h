@@ -69,7 +69,9 @@ enum ast_option_flags {
 	/*! Transmit Silence during Record() */
 	AST_OPT_FLAG_TRANSMIT_SILENCE = (1 << 17),
 	/*! Suppress some warnings */
-	AST_OPT_FLAG_DONT_WARN = (1 << 18)
+	AST_OPT_FLAG_DONT_WARN = (1 << 18),
+	/*! End CDRs before the 'h' extension */
+	AST_OPT_END_CDR_BEFORE_H_EXTEN = (1 << 19)
 };
 
 #define ast_opt_exec_includes		ast_test_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES)
@@ -91,6 +93,7 @@ enum ast_option_flags {
 #define ast_opt_reconnect		ast_test_flag(&ast_options, AST_OPT_FLAG_RECONNECT)
 #define ast_opt_transmit_silence	ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE)
 #define ast_opt_dont_warn		ast_test_flag(&ast_options, AST_OPT_FLAG_DONT_WARN)
+#define ast_opt_end_cdr_before_h_exten	ast_test_flag(&ast_options, AST_OPT_END_CDR_BEFORE_H_EXTEN)
 
 extern struct ast_flags ast_options;
 

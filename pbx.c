@@ -2278,6 +2278,8 @@ static int __ast_pbx_run(struct ast_channel *c)
 		ast_log(LOG_WARNING, "Don't know what to do with '%s'\n", c->name);
 out:
 	if ((res != AST_PBX_KEEPALIVE) && ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num)) {
+		if (c->cdr && ast_opt_end_cdr_before_h_exten)
+			ast_cdr_end(c->cdr);
 		c->exten[0] = 'h';
 		c->exten[1] = '\0';
 		c->priority = 1;

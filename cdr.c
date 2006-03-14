@@ -657,6 +657,11 @@ void ast_cdr_end(struct ast_cdr *cdr)
 			ast_log(LOG_WARNING, "CDR on channel '%s' has not started\n", chan);
 		if (ast_tvzero(cdr->end))
 			cdr->end = ast_tvnow();
+		cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec + (cdr->end.tv_usec - cdr->start.tv_usec) / 1000000;
+		if (!ast_tvzero(cdr->answer))
+			cdr->billsec = cdr->end.tv_sec - cdr->answer.tv_sec + (cdr->end.tv_usec - cdr->answer.tv_usec) / 1000000;
+		else
+			cdr->billsec = 0;
 		cdr = cdr->next;
 	}
 }
@@ -804,11 +809,6 @@ static void post_cdr(struct ast_cdr *cdr)
 			ast_log(LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
 		if (ast_tvzero(cdr->start))
 			ast_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
-		cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec + (cdr->end.tv_usec - cdr->start.tv_usec) / 1000000;
-		if (!ast_tvzero(cdr->answer))
-			cdr->billsec = cdr->end.tv_sec - cdr->answer.tv_sec + (cdr->end.tv_usec - cdr->answer.tv_usec) / 1000000;
-		else
-			cdr->billsec = 0;
 		ast_set_flag(cdr, AST_CDR_FLAG_POSTED);
 		AST_LIST_LOCK(&be_list);
 		AST_LIST_TRAVERSE(&be_list, i, list) {
@@ -1121,6 +1121,7 @@ static int do_reload(void)
 	const char *batchsafeshutdown_value;
 	const char *size_value;
 	const char *time_value;
+	const char *end_before_h_value;
 	int cfg_size;
 	int cfg_time;
 	int was_enabled;
@@ -1171,6 +1172,8 @@ static int do_reload(void)
 			else
 				batchtime = cfg_time;
 		}
+		if ((end_before_h_value = ast_variable_retrieve(config, "general", "endbeforehexten")))
+			ast_set2_flag(&ast_options, ast_true(end_before_h_value), AST_OPT_END_CDR_BEFORE_H_EXTEN);
 	}
 
 	if (enabled && !batchmode) {
