@@ -2207,10 +2207,9 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	DIR *dir;
 	struct dirent *de;
 	char fn[256];
-	char tmp[256]="";
-	char *mb, *cur;
+	char tmp[256];
 	char *context;
-	int ret;
+
 	if (newmsgs)
 		*newmsgs = 0;
 	if (oldmsgs)
@@ -2220,9 +2219,10 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		return 0;
 	if (strchr(mailbox, ',')) {
 		int tmpnew, tmpold;
+		char *mb, *cur;
+
 		ast_copy_string(tmp, mailbox, sizeof(tmp));
 		mb = tmp;
-		ret = 0;
 		while((cur = strsep(&mb, ", "))) {
 			if (!ast_strlen_zero(cur)) {
 				if (messagecount(cur, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
