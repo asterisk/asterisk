@@ -2010,7 +2010,7 @@ struct ast_channel *mychannel,*genchannel;
 	strncpy(mychannel->exten, myrpt->exten, sizeof(mychannel->exten) - 1);
 	strncpy(mychannel->context, myrpt->ourcontext, sizeof(mychannel->context) - 1);
 	if (myrpt->acctcode)
-		strncpy(mychannel->accountcode, myrpt->acctcode, sizeof(mychannel->accountcode) - 1);
+		ast_string_field_set(mychannel, accountcode, myrpt->acctcode);
 	mychannel->priority = 1;
 	ast_channel_undefer_dtmf(mychannel);
 	if (ast_pbx_start(mychannel) < 0)
