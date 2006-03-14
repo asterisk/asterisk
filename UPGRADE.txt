@@ -53,6 +53,15 @@ Functions:
 * The ENUMLOOKUP() function with the 'c' option (for counting the number of records),
   but the lookup fails to match any records, the returned value will now be "0" instead of blank.
 
+The IAX2 channel:
+
+* The "mailboxdetail" option has been deprecated.  Previously, if this option
+  was not enabled, the 2 byte MSGCOUNT information element would be set to all
+  1's to indicate there there is some number of messages waiting.  With this
+  option enabled, the number of new messages were placed in one byte and the
+  number of old messages are placed in the other.  This is now the default
+  (and the only) behavior.
+
 The SIP channel:
 
 * The "incominglimit" setting is replaced by the "call-limit" setting in sip.conf.
@@ -66,3 +75,4 @@ If you have an old installation, you might want to remove the binaries and move 
 	ASTETCDIR	/usr/local/etc/asterisk
 	ASTBINDIR	/usr/local/bin/asterisk
 	ASTSBINDIR	/usr/local/sbin/asterisk
+
