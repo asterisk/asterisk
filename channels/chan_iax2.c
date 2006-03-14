@@ -262,7 +262,7 @@ enum {
 	IAX_USEJITTERBUF =	(1 << 5),	/*!< Use jitter buffer */
 	IAX_DYNAMIC =		(1 << 6),	/*!< dynamic peer */
 	IAX_SENDANI = 		(1 << 7),	/*!< Send ANI along with CallerID */
-	IAX_MESSAGEDETAIL =	(1 << 8),	/*!< Show exact numbers */
+	/* (1 << 8) is currently unused due to the deprecation of an old option. Go ahead, take it! */	
 	IAX_ALREADYGONE =	(1 << 9),	/*!< Already disconnected */
 	IAX_PROVISION =		(1 << 10),	/*!< This is a provisioning request */
 	IAX_QUELCH = 		(1 << 11),	/*!< Whether or not we quelch audio */
@@ -5901,19 +5901,13 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 		iax_ie_append_short(&ied, IAX_IE_REFRESH, p->expiry);
 		iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
 		if (!ast_strlen_zero(p->mailbox)) {
-			if (ast_test_flag(p, IAX_MESSAGEDETAIL)) {
-				int new, old;
-				ast_app_messagecount(p->mailbox, &new, &old);
-				if (new > 255)
-					new = 255;
-				if (old > 255)
-					old = 255;
-				msgcount = (old << 8) | new;
-			} else {
-				msgcount = ast_app_has_voicemail(p->mailbox, NULL);
-				if (msgcount)
-					msgcount = 65535;
-			}
+			int new, old;
+			ast_app_messagecount(p->mailbox, &new, &old);
+			if (new > 255)
+				new = 255;
+			if (old > 255)
+				old = 255;
+			msgcount = (old << 8) | new;
 			iax_ie_append_short(&ied, IAX_IE_MSGCOUNT, msgcount);
 		}
 		if (ast_test_flag(p, IAX_HASCALLERID)) {
@@ -8501,7 +8495,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		}
 	}
 	if (peer) {
-		ast_copy_flags(peer, &globalflags, IAX_MESSAGEDETAIL | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
+		ast_copy_flags(peer, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
 		peer->encmethods = iax2_encryption;
 		peer->secret[0] = '\0';
 		if (!found) {
@@ -8527,8 +8521,6 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 				ast_copy_string(peer->mailbox, v->value, sizeof(peer->mailbox));
 			} else if (!strcasecmp(v->name, "dbsecret")) {
 				ast_copy_string(peer->dbsecret, v->value, sizeof(peer->dbsecret));
-			} else if (!strcasecmp(v->name, "mailboxdetail")) {
-				ast_set2_flag(peer, ast_true(v->value), IAX_MESSAGEDETAIL);	
 			} else if (!strcasecmp(v->name, "trunk")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_TRUNK);	
 				if (ast_test_flag(peer, IAX_TRUNK) && (timingfd < 0)) {
@@ -9074,8 +9066,6 @@ static int set_config(char *config_file, int reload)
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_FORCEJITTERBUF);	
 		else if (!strcasecmp(v->name, "delayreject"))
 			delayreject = ast_true(v->value);
-		else if (!strcasecmp(v->name, "mailboxdetail"))
-			ast_set2_flag((&globalflags), ast_true(v->value), IAX_MESSAGEDETAIL);	
 		else if (!strcasecmp(v->name, "rtcachefriends"))
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_RTCACHEFRIENDS);	
 		else if (!strcasecmp(v->name, "rtignoreregexpire"))

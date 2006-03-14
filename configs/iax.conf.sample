@@ -217,13 +217,6 @@ forcejitterbuffer=no
 ;
 tos=lowdelay
 ;
-; If mailboxdetail is set to "yes", the user receives
-; the actual new/old message counts, not just a yes/no
-; as to whether they have messages.  this can be set on
-; a per-peer basis as well
-;
-;mailboxdetail=yes
-;
 ; If regcontext is specified, Asterisk will dynamically create and destroy
 ; a NoOp priority 1 extension for a given peer who registers or unregisters
 ; with us.  The actual extension is the 'regexten' parameter of the registering
