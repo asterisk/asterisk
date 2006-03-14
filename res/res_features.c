@@ -1451,6 +1451,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	return res;
 }
 
+/*! \brief Take care of parked calls and unpark them if needed */
 static void *do_parking_thread(void *ignore)
 {
 	int ms, tms, max;

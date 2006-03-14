@@ -950,7 +950,7 @@ static int load_moh_classes(int reload)
 						class->format = AST_FORMAT_SLINEAR;
 					}
 				}
-					var = var->next;
+				var = var->next;
 			}
 
 			if (ast_strlen_zero(class->dir)) {
