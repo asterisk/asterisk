@@ -5948,6 +5948,8 @@ static int load_config(void)
 	char *fmt;
 	char *astemail;
  	char *astmailcmd = SENDMAIL;
+	char *astforcename;
+	char *astforcegreet;
 	char *s,*q,*stringp;
 	char *dialoutcxt = NULL;
 	char *callbackcxt = NULL;	
@@ -6119,14 +6121,14 @@ static int load_config(void)
 		}
 
 		/* Force new user to record name ? */
-		if (!(astattach = ast_variable_retrieve(cfg, "general", "forcename"))) 
-			astattach = "no";
-		ast_set2_flag((&globalflags), ast_true(astattach), VM_FORCENAME);
+		if (!(astforcename = ast_variable_retrieve(cfg, "general", "forcename"))) 
+			astforcename = "no";
+		ast_set2_flag((&globalflags), ast_true(astforcename), VM_FORCENAME);
 
 		/* Force new user to record greetings ? */
-		if (!(astattach = ast_variable_retrieve(cfg, "general", "forcegreetings"))) 
-			astattach = "no";
-		ast_set2_flag((&globalflags), ast_true(astattach), VM_FORCEGREET);
+		if (!(astforcegreet = ast_variable_retrieve(cfg, "general", "forcegreetings"))) 
+			astforcegreet = "no";
+		ast_set2_flag((&globalflags), ast_true(astforcegreet), VM_FORCEGREET);
 
 		if ((s = ast_variable_retrieve(cfg, "general", "cidinternalcontexts"))){
 			ast_log(LOG_DEBUG,"VM_CID Internal context string: %s\n",s);
