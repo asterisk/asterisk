@@ -152,7 +152,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  */
 /*! @{ */
 
-struct ast_flags ast_options = { AST_OPT_FLAG_TRANSCODE_VIA_SLIN };
+struct ast_flags ast_options = { AST_DEFAULT_OPTIONS };
 
 int option_verbose = 0;				/*!< Verbosity level */
 int option_debug = 0;				/*!< Debug level */

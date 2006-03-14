@@ -74,6 +74,9 @@ enum ast_option_flags {
 	AST_OPT_END_CDR_BEFORE_H_EXTEN = (1 << 19)
 };
 
+/*! These are the options that set by default when Asterisk starts */
+#define AST_DEFAULT_OPTIONS AST_OPT_FLAG_TRANSCODE_VIA_SLIN
+
 #define ast_opt_exec_includes		ast_test_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES)
 #define ast_opt_no_fork			ast_test_flag(&ast_options, AST_OPT_FLAG_NO_FORK)
 #define ast_opt_quiet			ast_test_flag(&ast_options, AST_OPT_FLAG_QUIET)
