@@ -7919,7 +7919,9 @@ static void *iax2_process_thread(void *data)
 		case IAX_IOSTATE_SCHEDREADY:
 			thread->actions++;
 			thread->iostate = IAX_IOSTATE_PROCESSING;
+#ifdef SCHED_MULTITHREAD
 			thread->schedfunc(thread->scheddata);
+#endif		
 			break;
 		}
 		time(&thread->checktime);
