@@ -1425,7 +1425,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 			ast_parseable_goto(chan, opt_args[OPT_ARG_GOTO]);
 			ast_parseable_goto(peer, opt_args[OPT_ARG_GOTO]);
-			peer->priority++;
 			ast_pbx_start(peer);
 			hanguptree(outgoing, NULL);
 			LOCAL_USER_REMOVE(u);
