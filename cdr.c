@@ -653,11 +653,12 @@ void ast_cdr_end(struct ast_cdr *cdr)
 		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-		if (ast_tvzero(cdr->start))
-			ast_log(LOG_WARNING, "CDR on channel '%s' has not started\n", chan);
 		if (ast_tvzero(cdr->end))
 			cdr->end = ast_tvnow();
-		cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec;
+		if (ast_tvzero(cdr->start))
+			ast_log(LOG_WARNING, "CDR on channel '%s' has not started\n", chan);
+		else
+			cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec;
 		if (!ast_tvzero(cdr->answer))
 			cdr->billsec = cdr->end.tv_sec - cdr->answer.tv_sec;
 		else
