@@ -807,11 +807,13 @@ static void post_cdr(struct ast_cdr *cdr)
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 		if (ast_tvzero(cdr->end))
 			ast_log(LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
-		if (ast_tvzero(cdr->start))
+		if (ast_tvzero(cdr->start)) {
 			ast_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
-		cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec + (cdr->end.tv_usec - cdr->start.tv_usec) / 1000000;
+			cdr->disposition = AST_CDR_FAILED;
+		} else
+			cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec;
 		if (!ast_tvzero(cdr->answer))
-			cdr->billsec = cdr->end.tv_sec - cdr->answer.tv_sec + (cdr->end.tv_usec - cdr->answer.tv_usec) / 1000000;
+			cdr->billsec = cdr->end.tv_sec - cdr->answer.tv_sec;
 		else
 			cdr->billsec = 0;
 		ast_set_flag(cdr, AST_CDR_FLAG_POSTED);
