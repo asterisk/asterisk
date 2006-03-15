@@ -71,18 +71,18 @@ static const char *synopsis2 = "MeetMe participant count";
 static const char *synopsis3 = "MeetMe conference Administration";
 
 static const char *descrip =
-"  MeetMe([confno][,[options][,pin]]): Enters the user into a specified MeetMe conference.\n"
-"If the conference number is omitted, the user will be prompted to enter\n"
-"one. \n"
-"User can exit the conference by hangup, or if the 'p' option is specified, by pressing '#'.\n"
+"  MeetMe([confno][,[options][,pin]]): Enters the user into a specified MeetMe\n"
+"conference.  If the conference number is omitted, the user will be prompted\n"
+"to enter one.  User can exit the conference by hangup, or if the 'p' option\n"
+"is specified, by pressing '#'.\n"
 "Please note: A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING TO WORK!\n\n"
 
 "The option string may contain zero or more of the following characters:\n"
 "      'a' -- set admin mode\n"
 "      'A' -- set marked mode\n"
 "      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND}\n"
-"             Default: conf-background.agi\n"
-"             (Note: This does not work with non-Zap channels in the same conference)\n"
+"             Default: conf-background.agi  (Note: This does not work with\n"
+"             non-Zap channels in the same conference)\n"
 "      'c' -- announce user(s) count on joining a conference\n"
 "      'd' -- dynamically add conference\n"
 "      'D' -- dynamically add conference, prompting for a PIN\n"
@@ -91,31 +91,34 @@ static const char *descrip =
 "      'i' -- announce user join/leave\n"
 "      'm' -- set monitor only mode (Listen only, no talking)\n"
 "      'M' -- enable music on hold when the conference has a single caller\n"
+"      'o' -- set talker optimization - treats talkers who aren't speaking as\n"
+"             being muted, meaning (a) No encode is done on transmission and\n"
+"             (b) Received audio that is not registered as talking is omitted\n"
+"             causing no buildup in background noise\n"
 "      'p' -- allow user to exit the conference by pressing '#'\n"
 "      'P' -- always prompt for the pin even if it is specified\n"
 "      'q' -- quiet mode (don't play enter/leave sounds)\n"
 "      'r' -- Record conference (records as ${MEETME_RECORDINGFILE}\n"
 "             using format ${MEETME_RECORDINGFORMAT}). Default filename is\n"
-"             meetme-conf-rec-${CONFNO}-${UNIQUEID} and the default format is wav.\n"
+"             meetme-conf-rec-${CONFNO}-${UNIQUEID} and the default format is\n"
+"             wav.\n"
 "      's' -- Present menu (user or admin) when '*' is received ('send' to menu)\n"
 "      't' -- set talk only mode. (Talk only, no listening)\n"
 "      'T' -- set talker detection (sent to manager interface and meetme list)\n"
-"      'o' -- set talker optimization - treats talkers who aren't speaking as\n"
-"             being muted, meaning (a) No encode is done on transmission and\n"
-"             (b) Received audio that is not registered as talking is omitted\n"
-"             causing no buildup in background noise\n"
 "      'v' -- video mode\n"
 "      'w' -- wait until the marked user enters the conference\n"
 "      'x' -- close the conference when last marked user exits\n"
 "      'X' -- allow user to exit the conference by entering a valid single\n"
 "             digit extension ${MEETME_EXIT_CONTEXT} or the current context\n"
-"             if that variable is not defined.\n";
+"             if that variable is not defined.\n"
+"      '1' -- do not play message when first person enters\n";
 
 static const char *descrip2 =
 "  MeetMeCount(confno[|var]): Plays back the number of users in the specified\n"
 "MeetMe conference. If var is specified, playback will be skipped and the value\n"
-"will be returned in the variable. Upon app completion, MeetMeCount will hangup the\n"
-"channel, unless priority n+1 exists, in which case priority progress will continue.\n"
+"will be returned in the variable. Upon app completion, MeetMeCount will hangup\n"
+"the channel, unless priority n+1 exists, in which case priority progress will\n"
+"continue.\n"
 "A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
 
 static const char *descrip3 = 
@@ -245,31 +248,33 @@ static void *recordthread(void *args);
 #define CONFFLAG_ALWAYSPROMPT (1 << 21)
 #define CONFFLAG_ANNOUNCEUSERCOUNT (1 << 22)	/* If set, when user joins the conference, they will be told the number of users that are already in */
 #define CONFFLAG_OPTIMIZETALKER (1 << 23)	/* If set, treats talking users as muted users */
+#define CONFFLAG_NOONLYPERSON (1 << 24)		/* If set, won't speak the extra prompt when the first person enters the conference */
 
 
 AST_APP_OPTIONS(meetme_opts, {
-	AST_APP_OPTION('a', CONFFLAG_ADMIN ),
-	AST_APP_OPTION('c', CONFFLAG_ANNOUNCEUSERCOUNT ),
-	AST_APP_OPTION('T', CONFFLAG_MONITORTALKER ),
-	AST_APP_OPTION('o', CONFFLAG_OPTIMIZETALKER ),
-	AST_APP_OPTION('i', CONFFLAG_INTROUSER ),
-	AST_APP_OPTION('m', CONFFLAG_MONITOR ),
-	AST_APP_OPTION('p', CONFFLAG_POUNDEXIT ),
-	AST_APP_OPTION('s', CONFFLAG_STARMENU ),
-	AST_APP_OPTION('t', CONFFLAG_TALKER ),
-	AST_APP_OPTION('q', CONFFLAG_QUIET ),
-	AST_APP_OPTION('M', CONFFLAG_MOH ),
-	AST_APP_OPTION('x', CONFFLAG_MARKEDEXIT ),
-	AST_APP_OPTION('X', CONFFLAG_EXIT_CONTEXT ),
 	AST_APP_OPTION('A', CONFFLAG_MARKEDUSER ),
+	AST_APP_OPTION('a', CONFFLAG_ADMIN ),
 	AST_APP_OPTION('b', CONFFLAG_AGI ),
-	AST_APP_OPTION('w', CONFFLAG_WAITMARKED ),
-	AST_APP_OPTION('r', CONFFLAG_RECORDCONF ),
-	AST_APP_OPTION('d', CONFFLAG_DYNAMIC ),
+	AST_APP_OPTION('c', CONFFLAG_ANNOUNCEUSERCOUNT ),
 	AST_APP_OPTION('D', CONFFLAG_DYNAMICPIN ),
-	AST_APP_OPTION('e', CONFFLAG_EMPTY ),
+	AST_APP_OPTION('d', CONFFLAG_DYNAMIC ),
 	AST_APP_OPTION('E', CONFFLAG_EMPTYNOPIN ),
+	AST_APP_OPTION('e', CONFFLAG_EMPTY ),
+	AST_APP_OPTION('i', CONFFLAG_INTROUSER ),
+	AST_APP_OPTION('M', CONFFLAG_MOH ),
+	AST_APP_OPTION('m', CONFFLAG_MONITOR ),
+	AST_APP_OPTION('o', CONFFLAG_OPTIMIZETALKER ),
 	AST_APP_OPTION('P', CONFFLAG_ALWAYSPROMPT ),
+	AST_APP_OPTION('p', CONFFLAG_POUNDEXIT ),
+	AST_APP_OPTION('q', CONFFLAG_QUIET ),
+	AST_APP_OPTION('r', CONFFLAG_RECORDCONF ),
+	AST_APP_OPTION('s', CONFFLAG_STARMENU ),
+	AST_APP_OPTION('T', CONFFLAG_MONITORTALKER ),
+	AST_APP_OPTION('t', CONFFLAG_TALKER ),
+	AST_APP_OPTION('w', CONFFLAG_WAITMARKED ),
+	AST_APP_OPTION('X', CONFFLAG_EXIT_CONTEXT ),
+	AST_APP_OPTION('x', CONFFLAG_MARKEDEXIT ),
+	AST_APP_OPTION('1', CONFFLAG_NOONLYPERSON ),
 });
 
 static char *istalking(int x)
@@ -955,7 +960,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		ast_record_review(chan, "vm-rec-name", user->namerecloc, 10, "sln", &duration, NULL);
 	}
 
-	if (!(confflags & CONFFLAG_QUIET)) {
+	if ( !(confflags & (CONFFLAG_QUIET | CONFFLAG_NOONLYPERSON)) ) {
 		if (conf->users == 1 && !(confflags & CONFFLAG_WAITMARKED))
 			if (!ast_streamfile(chan, "conf-onlyperson", chan->language))
 				ast_waitstream(chan, "");
