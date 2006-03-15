@@ -657,9 +657,9 @@ void ast_cdr_end(struct ast_cdr *cdr)
 			ast_log(LOG_WARNING, "CDR on channel '%s' has not started\n", chan);
 		if (ast_tvzero(cdr->end))
 			cdr->end = ast_tvnow();
-		cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec + (cdr->end.tv_usec - cdr->start.tv_usec) / 1000000;
+		cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec;
 		if (!ast_tvzero(cdr->answer))
-			cdr->billsec = cdr->end.tv_sec - cdr->answer.tv_sec + (cdr->end.tv_usec - cdr->answer.tv_usec) / 1000000;
+			cdr->billsec = cdr->end.tv_sec - cdr->answer.tv_sec;
 		else
 			cdr->billsec = 0;
 		cdr = cdr->next;
