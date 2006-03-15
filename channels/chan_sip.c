@@ -10848,9 +10848,17 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		char mailboxbuf[256]="";
 		char *mailbox = NULL;
 		int mailboxsize = 0;
+		char *eventparam;
 
 		char *event = get_header(req, "Event");	/* Get Event package name */
 		char *accept = get_header(req, "Accept");
+
+		/* Find parameters to Event: header value and remove them for now */
+		eventparam = strchr(event, ";");
+		if (eventparam) {
+			*eventparam = '\0';
+			eventparam++;
+		}
 
  		if (!strcmp(event, "message-summary") && !strcmp(accept, "application/simple-message-summary")) {
 			mailbox = mailboxbuf;
