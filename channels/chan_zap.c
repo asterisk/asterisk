@@ -6017,7 +6017,6 @@ lax);
 					number = 0;
 			/* If set to use V23 Signalling, launch our FSK gubbins and listen for it */
 			} else if ((p->cid_signalling == CID_SIG_V23) || (p->cid_signalling == CID_SIG_V23_JP)) {
-
 				cs = callerid_new(p->cid_signalling);
 				if (cs) {
 					samples = 0;
@@ -6212,7 +6211,7 @@ lax);
 			}
 		} else if (p->use_callerid && p->cid_start == CID_START_RING) {
 			/* FSK Bell202 callerID */
-			cs = callerid_new(cid_signalling);
+			cs = callerid_new(p->cid_signalling);
 			if (cs) {
 #if 1
 				bump_gains(p);
