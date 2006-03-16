@@ -89,6 +89,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;progressinband=never		; If we should generate in-band ringing always
 				; use 'never' to never use in-band signalling, even in cases
 				; where some buggy devices might not render it
+				; Valid values: yes, no, never Default: never
 ;useragent=Asterisk PBX		; Allows you to change the user agent string
 ;promiscredir = no      	; If yes, allows 302 or REDIR to non-local SIP address
 	                       	; Note that promiscredir when redirects are made to the
