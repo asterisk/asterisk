@@ -10706,7 +10706,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		char *accept = get_header(req, "Accept");
 
 		/* Find parameters to Event: header value and remove them for now */
-		eventparam = strchr(event, ";");
+		eventparam = strchr(event, ';');
 		if (eventparam) {
 			*eventparam = '\0';
 			eventparam++;
