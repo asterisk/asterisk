@@ -29,10 +29,10 @@
 #include <asterisk/ast_expr.h>
 #include <asterisk/logger.h>
 
-#ifdef LONG_LONG_MIN
+#if defined(LONG_LONG_MIN) && !defined(QUAD_MIN)
 #define QUAD_MIN LONG_LONG_MIN
 #endif
-#ifdef LONG_LONG_MAX
+#if defined(LONG_LONG_MAX) && !defined(QUAD_MAX)
 #define QUAD_MAX LONG_LONG_MAX
 #endif
 
