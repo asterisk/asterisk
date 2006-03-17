@@ -196,6 +196,18 @@ struct ast_hint {
 	AST_LIST_ENTRY(ast_hint) list;	/*!< Pointer to next hint in list */
 };
 
+static const struct cfextension_states {
+	int extension_state;
+	const char * const text;
+} extension_states[] = {
+	{ AST_EXTENSION_NOT_INUSE,                     "Idle" },
+	{ AST_EXTENSION_INUSE,                         "InUse" },
+	{ AST_EXTENSION_BUSY,                          "Busy" },
+	{ AST_EXTENSION_UNAVAILABLE,                   "Unavailable" },
+	{ AST_EXTENSION_RINGING,                       "Ringing" },
+	{ AST_EXTENSION_INUSE | AST_EXTENSION_RINGING, "InUse&Ringing" }
+};
+
 int ast_pbx_outgoing_cdr_failed(void);
 
 static int pbx_builtin_answer(struct ast_channel *, void *);

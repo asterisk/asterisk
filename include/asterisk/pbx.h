@@ -62,18 +62,6 @@ enum ast_extension_states {
 };
 
 
-static const struct cfextension_states {
-	int extension_state;
-	const char * const text;
-} extension_states[] = {
-	{ AST_EXTENSION_NOT_INUSE,                     "Idle" },
-	{ AST_EXTENSION_INUSE,                         "InUse" },
-	{ AST_EXTENSION_BUSY,                          "Busy" },
-	{ AST_EXTENSION_UNAVAILABLE,                   "Unavailable" },
-	{ AST_EXTENSION_RINGING,                       "Ringing" },
-	{ AST_EXTENSION_INUSE | AST_EXTENSION_RINGING, "InUse&Ringing" }
-};
-
 struct ast_context;
 struct ast_exten;     
 struct ast_include;
