@@ -7,12 +7,13 @@ mode=quietmp3
 directory=/var/lib/asterisk/mohmp3
 
 ; valid mode options:
-; quietmp3 	-- default
+; quietmp3 	-- default 
 ; mp3 		-- loud
 ; mp3nb		-- unbuffered
 ; quietmp3nb	-- quiet unbuffered
-; custom	-- run a custom application 
-; files		-- read files from a directory in any Asterisk supported format
+; custom	-- run a custom application (See examples below)
+; files		-- read files from a directory in any Asterisk supported 
+;		   media format. (See examples below)
 
 ;[manual]
 ;mode=custom
