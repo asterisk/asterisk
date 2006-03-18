@@ -74,18 +74,13 @@ struct sched_context {
 struct sched_context *sched_context_create(void)
 {
 	struct sched_context *tmp;
-	tmp = malloc(sizeof(struct sched_context));
-	if (tmp) {
-          	memset(tmp, 0, sizeof(struct sched_context));
-		ast_mutex_init(&tmp->lock);
-		tmp->eventcnt = 1;
-		tmp->schedcnt = 0;
-		tmp->schedq = NULL;
-#ifdef SCHED_MAX_CACHE
-		tmp->schedc = NULL;
-		tmp->schedccnt = 0;
-#endif
-	}
+
+	if (!(tmp = ast_calloc(1, sizeof(*tmp))))
+		return NULL;
+
+	ast_mutex_init(&tmp->lock);
+	tmp->eventcnt = 1;
+	
 	return tmp;
 }
 
