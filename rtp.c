@@ -982,10 +982,9 @@ static int rtp_socket(void)
 static struct ast_rtcp *ast_rtcp_new(void)
 {
 	struct ast_rtcp *rtcp;
-	rtcp = malloc(sizeof(struct ast_rtcp));
-	if (!rtcp)
+
+	if (!(rtcp = ast_calloc(1, sizeof(*rtcp))))
 		return NULL;
-	memset(rtcp, 0, sizeof(struct ast_rtcp));
 	rtcp->s = rtp_socket();
 	rtcp->us.sin_family = AF_INET;
 	if (rtcp->s < 0) {
@@ -993,6 +992,7 @@ static struct ast_rtcp *ast_rtcp_new(void)
 		ast_log(LOG_WARNING, "Unable to allocate socket: %s\n", strerror(errno));
 		return NULL;
 	}
+
 	return rtcp;
 }
 
@@ -1002,10 +1002,9 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 	int x;
 	int first;
 	int startplace;
-	rtp = malloc(sizeof(struct ast_rtp));
-	if (!rtp)
+	
+	if (!(rtp = ast_calloc(1, sizeof(*rtp))))
 		return NULL;
-	memset(rtp, 0, sizeof(struct ast_rtp));
 	rtp->them.sin_family = AF_INET;
 	rtp->us.sin_family = AF_INET;
 	rtp->s = rtp_socket();
