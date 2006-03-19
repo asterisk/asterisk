@@ -205,7 +205,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 
 ;----------------------------------------- REALTIME SUPPORT ------------------------
 ; For additional information on ARA, the Asterisk Realtime Architecture,
-; please read README.realtime and README.extconfig in the /doc directory of the
+; please read realtime.txt and extconfig.txt in the /doc directory of the
 ; source code.
 ;
 ;rtcachefriends=yes		; Cache realtime friends by adding them to the internal list
