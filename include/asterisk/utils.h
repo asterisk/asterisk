@@ -246,6 +246,8 @@ int getloadavg(double *list, int nelem);
 long int ast_random(void);
 #endif
 
+#ifndef __AST_DEBUG_MALLOC
+
 /*!
   \brief A wrapper for malloc()
 
@@ -382,6 +384,19 @@ char *_ast_strndup(const char *str, size_t len, const char *file, int lineno, co
 	return newstr;
 }
 )
+
+#else
+
+/* If astmm is in use, let it handle these.  Otherwise, it will report that
+   all allocations are coming from this header file */
+
+#define ast_malloc(a)		malloc(a)
+#define ast_calloc(a,b)		calloc(a,b)
+#define ast_realloc(a,b)	realloc(a,b)
+#define ast_strdup(a)		strdup(a)
+#define ast_strndup(a,b)	strndup(a,b)
+
+#endif /* AST_DEBUG_MALLOC */
 
 #if !defined(ast_strdupa) && defined(__GNUC__)
 /*!

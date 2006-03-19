@@ -108,9 +108,9 @@ static inline void *__ast_alloc_region(size_t size, const enum func_type which, 
 	}
 	ast_mutex_unlock(&reglock);
 	if (!reg) {
-		fprintf(stderr, "Memory allocation failure\n");
+		fprintf(stderr, "Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", (int) size, func, lineno, file);
 		if (mmlog) {
-			fprintf(mmlog, "%ld - Memory allocation failure\n", time(NULL));
+			fprintf(stderr, "%ld - Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", time(NULL), (int) size, func, lineno, file);
 			fflush(mmlog);
 		}
 	}
