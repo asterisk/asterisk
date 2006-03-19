@@ -13,7 +13,7 @@
 
 AGIS=agi-test.agi eagi-test eagi-sphinx-test jukebox.agi
 
-CFLAGS+=
+CFLAGS+=-DNO_AST_MM
 
 LIBS=
 ifeq ($(OSARCH),SunOS)
