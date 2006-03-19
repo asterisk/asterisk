@@ -747,83 +747,79 @@ int ast_safe_sleep_conditional(struct ast_channel *chan, int ms, int (*cond)(voi
    will be -1 */
 struct ast_channel *ast_waitfor_nandfds(struct ast_channel **chan, int n, int *fds, int nfds, int *exception, int *outfd, int *ms);
 
-/*! Waits for input on a group of channels */
-/*! Wait for input on an array of channels for a given # of milliseconds. Return channel
-   with activity, or NULL if none has activity.  time "ms" is modified in-place, if applicable */
+/*! \brief Waits for input on a group of channels
+   Wait for input on an array of channels for a given # of milliseconds. 
+	\return Return channel with activity, or NULL if none has activity.  
+	\param ms time "ms" is modified in-place, if applicable */
 struct ast_channel *ast_waitfor_n(struct ast_channel **chan, int n, int *ms);
 
-/*! Waits for input on an fd */
-/*! This version works on fd's only.  Be careful with it. */
+/*! \brief Waits for input on an fd
+	This version works on fd's only.  Be careful with it. */
 int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception);
 
 
-/*! Reads a frame */
-/*!
+/*! \brief Reads a frame
  * \param chan channel to read a frame from
- * Read a frame.  Returns a frame, or NULL on error.  If it returns NULL, you
-   best just stop reading frames and assume the channel has been
-   disconnected. */
+	Read a frame.  
+	\return Returns a frame, or NULL on error.  If it returns NULL, you
+		best just stop reading frames and assume the channel has been
+		disconnected. */
 struct ast_frame *ast_read(struct ast_channel *chan);
 
-/*! Reads a frame, returning AST_FRAME_NULL frame if audio. */
-/*!
- * \param chan channel to read a frame from
- * Read a frame.  Returns a frame, or NULL on error.  If it returns NULL, you
-   best just stop reading frames and assume the channel has been
-   disconnected.  Audio is replaced with AST_FRAME_NULL to avoid 
-   transcode when the resulting audio is not necessary. */
+/*! \brief Reads a frame, returning AST_FRAME_NULL frame if audio. 
+ * Read a frame. 
+ 	\param chan channel to read a frame from
+	\return  Returns a frame, or NULL on error.  If it returns NULL, you
+		best just stop reading frames and assume the channel has been
+		disconnected.  
+	\note Audio is replaced with AST_FRAME_NULL to avoid 
+	transcode when the resulting audio is not necessary. */
 struct ast_frame *ast_read_noaudio(struct ast_channel *chan);
 
-/*! Write a frame to a channel */
-/*!
+/*! \brief Write a frame to a channel 
+ * This function writes the given frame to the indicated channel.
  * \param chan destination channel of the frame
  * \param frame frame that will be written
- * This function writes the given frame to the indicated channel.
- * It returns 0 on success, -1 on failure.
+ * \return It returns 0 on success, -1 on failure.
  */
 int ast_write(struct ast_channel *chan, struct ast_frame *frame);
 
-/*! Write video frame to a channel */
-/*!
+/*! \brief Write video frame to a channel 
+ * This function writes the given frame to the indicated channel.
  * \param chan destination channel of the frame
  * \param frame frame that will be written
- * This function writes the given frame to the indicated channel.
- * It returns 1 on success, 0 if not implemented, and -1 on failure.
+ * \return It returns 1 on success, 0 if not implemented, and -1 on failure.
  */
 int ast_write_video(struct ast_channel *chan, struct ast_frame *frame);
 
-/* Send empty audio to prime a channel driver */
+/*! \brief Send empty audio to prime a channel driver */
 int ast_prod(struct ast_channel *chan);
 
-/*! Sets read format on channel chan */
-/*! 
+/*! \brief Sets read format on channel chan
+ * Set read format for channel to whichever component of "format" is best. 
  * \param chan channel to change
  * \param format format to change to
- * Set read format for channel to whichever component of "format" is best. 
- * Returns 0 on success, -1 on failure
+ * \return Returns 0 on success, -1 on failure
  */
 int ast_set_read_format(struct ast_channel *chan, int format);
 
-/*! Sets write format on channel chan */
-/*! 
+/*! \brief Sets write format on channel chan
+ * Set write format for channel to whichever compoent of "format" is best. 
  * \param chan channel to change
  * \param format new format for writing
- * Set write format for channel to whichever compoent of "format" is best. 
- * Returns 0 on success, -1 on failure
+ * \return Returns 0 on success, -1 on failure
  */
 int ast_set_write_format(struct ast_channel *chan, int format);
 
-/*! Sends text to a channel */
-/*! 
+/*! \brief Sends text to a channel 
+ * Write text to a display on a channel
  * \param chan channel to act upon
  * \param text string of text to send on the channel
- * Write text to a display on a channel
- * Returns 0 on success, -1 on failure
+ * \return Returns 0 on success, -1 on failure
  */
 int ast_sendtext(struct ast_channel *chan, const char *text);
 
-/*! Receives a text character from a channel */
-/*! 
+/*! \brief Receives a text character from a channel
  * \param chan channel to act upon
  * \param timeout timeout in milliseconds (0 for infinite wait)
  * Read a char of text from a channel
@@ -831,58 +827,56 @@ int ast_sendtext(struct ast_channel *chan, const char *text);
  */
 int ast_recvchar(struct ast_channel *chan, int timeout);
 
-/*! Send a DTMF digit to a channel */
-/*! 
+/*! \brief Send a DTMF digit to a channel
+ * Send a DTMF digit to a channel.
  * \param chan channel to act upon
  * \param digit the DTMF digit to send, encoded in ASCII
- * Send a DTMF digit to a channel.
- * Returns 0 on success, -1 on failure
+ * \return Returns 0 on success, -1 on failure
  */
 int ast_senddigit(struct ast_channel *chan, char digit);
 
-/*! Receives a text string from a channel */
-/*! 
+/*! \brief Receives a text string from a channel
+ * Read a string of text from a channel
  * \param chan channel to act upon
  * \param timeout timeout in milliseconds (0 for infinite wait)
  * \return the received text, or NULL to signify failure.
- * Read a string of text from a channel
  */
 char *ast_recvtext(struct ast_channel *chan, int timeout);
 
-/*! Browse channels in use */
-/*! 
- * \param prev where you want to start in the channel list
+/*! \brief Browse channels in use
  * Browse the channels currently in use 
- * Returns the next channel in the list, NULL on end.
- * If it returns a channel, that channel *has been locked*!
+ * \param prev where you want to start in the channel list
+ * \return Returns the next channel in the list, NULL on end.
+ * 	If it returns a channel, that channel *has been locked*!
  */
 struct ast_channel *ast_channel_walk_locked(const struct ast_channel *prev);
 
-/*! Get channel by name (locks channel) */
+/*! \brief Get channel by name (locks channel) */
 struct ast_channel *ast_get_channel_by_name_locked(const char *chan);
 
-/*! Get channel by name prefix (locks channel) */
+/*! \brief Get channel by name prefix (locks channel) */
 struct ast_channel *ast_get_channel_by_name_prefix_locked(const char *name, const int namelen);
 
-/*! Get channel by name prefix (locks channel) */
+/*! \brief Get channel by name prefix (locks channel) */
 struct ast_channel *ast_walk_channel_by_name_prefix_locked(struct ast_channel *chan, const char *name, const int namelen);
 
-/*--- ast_get_channel_by_exten_locked: Get channel by exten (and optionally context) and lock it */
+/*! \brief Get channel by exten (and optionally context) and lock it */
 struct ast_channel *ast_get_channel_by_exten_locked(const char *exten, const char *context);
 
-/*! Waits for a digit */
-/*! 
+/*! ! \brief Waits for a digit
  * \param c channel to wait for a digit on
  * \param ms how many milliseconds to wait
- * Wait for a digit.  Returns <0 on error, 0 on no entry, and the digit on success. */
+ * \return Returns <0 on error, 0 on no entry, and the digit on success. */
 int ast_waitfordigit(struct ast_channel *c, int ms);
 
-/* Same as above with audio fd for outputing read audio and ctrlfd to monitor for
-   reading. Returns 1 if ctrlfd becomes available */
+/*! \brief Wait for a digit
+ Same as ast_waitfordigit() with audio fd for outputing read audio and ctrlfd to monitor for reading. 
+ * \param c channel to wait for a digit on
+ * \param ms how many milliseconds to wait
+ * \return Returns 1 if ctrlfd becomes available */
 int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int ctrlfd);
 
-/*! Reads multiple digits */
-/*! 
+/*! Reads multiple digits 
  * \param c channel to read from
  * \param s string to read in to.  Must be at least the size of your length
  * \param len how many digits to read (maximum)
@@ -897,28 +891,26 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int ctrlfd
 int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int rtimeout, char *enders);
 int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, int rtimeout, char *enders, int audiofd, int ctrlfd);
 
-/*! Report DTMF on channel 0 */
+/*! \brief Report DTMF on channel 0 */
 #define AST_BRIDGE_DTMF_CHANNEL_0		(1 << 0)		
-/*! Report DTMF on channel 1 */
+/*! \brief Report DTMF on channel 1 */
 #define AST_BRIDGE_DTMF_CHANNEL_1		(1 << 1)		
-/*! Return all voice frames on channel 0 */
+/*! \brief Return all voice frames on channel 0 */
 #define AST_BRIDGE_REC_CHANNEL_0		(1 << 2)		
-/*! Return all voice frames on channel 1 */
+/*! \brief Return all voice frames on channel 1 */
 #define AST_BRIDGE_REC_CHANNEL_1		(1 << 3)		
-/*! Ignore all signal frames except NULL */
+/*! \brief Ignore all signal frames except NULL */
 #define AST_BRIDGE_IGNORE_SIGS			(1 << 4)		
 
 
-/*! Makes two channel formats compatible */
-/*! 
+/*! \brief Makes two channel formats compatible 
  * \param c0 first channel to make compatible
  * \param c1 other channel to make compatible
- * Set two channels to compatible formats -- call before ast_channel_bridge in general .  Returns 0 on success
-   and -1 if it could not be done */
+ * Set two channels to compatible formats -- call before ast_channel_bridge in general .  
+ * \return Returns 0 on success and -1 if it could not be done */
 int ast_channel_make_compatible(struct ast_channel *c0, struct ast_channel *c1);
 
-/*! Bridge two channels together */
-/*! 
+/*! Bridge two channels together 
  * \param c0 first channel to bridge
  * \param c1 second channel to bridge
  * \param config config for the channels
@@ -929,8 +921,7 @@ int ast_channel_make_compatible(struct ast_channel *c0, struct ast_channel *c1);
 /* int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc); */
 int ast_channel_bridge(struct ast_channel *c0,struct ast_channel *c1,struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc);
 
-/*! Weird function made for call transfers */
-/*! 
+/*! \brief Weird function made for call transfers
  * \param original channel to make a copy of
  * \param clone copy of the original channel
  * This is a very strange and freaky function used primarily for transfer.  Suppose that
