@@ -1418,7 +1418,7 @@ term_echotc(EditLine *el, int argc, const char **argv)
 			}
 		(void) fprintf(el->el_outfile, fmtd, 0);
 #else
-		(void) fprintf(el->el_outfile, fmtd, el->el_tty.t_speed);
+		(void) fprintf(el->el_outfile, fmtd, (int) el->el_tty.t_speed);
 #endif
 		return (0);
 	} else if (strcmp(*argv, "rows") == 0 || strcmp(*argv, "lines") == 0) {
