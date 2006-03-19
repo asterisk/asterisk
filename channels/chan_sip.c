@@ -391,7 +391,7 @@ static char default_musicclass[MAX_MUSICCLASS];		/*!< Global music on hold class
 static struct ast_codec_pref default_prefs;		/*!< Default codec prefs */
 
 /* Global settings only apply to the channel */
-static int global_rtautoclear = 120;
+static int global_rtautoclear;
 static int global_notifyringing;	/*!< Send notifications on ringing */
 static int srvlookup;			/*!< SRV Lookup on or off. Default is off, RFC behavior is on */
 static int pedanticsipchecking;		/*!< Extra checking ?  Default off */
@@ -615,7 +615,6 @@ struct sip_auth {
 #define sipdebug		ast_test_flag(&global_flags_page2, SIP_PAGE2_DEBUG)
 #define sipdebug_config		ast_test_flag(&global_flags_page2, SIP_PAGE2_DEBUG_CONFIG)
 #define sipdebug_console	ast_test_flag(&global_flags_page2, SIP_PAGE2_DEBUG_CONSOLE)
-
 
 /*! \brief sip_pvt: PVT structures are used for each SIP dialog, ie. a call, a registration, a subscribe  */
 static struct sip_pvt {
@@ -12453,6 +12452,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_rtptimeout = 0;
 	global_rtpholdtimeout = 0;
 	global_rtpkeepalive = 0;
+	global_rtautoclear = 120;
 	ast_set_flag(&global_flags_page2, SIP_PAGE2_RTUPDATE);
 
 	/* Initialize some reasonable defaults at SIP reload (used both for channel and as default for peers and users */
