@@ -520,15 +520,15 @@ static int manager_dbput(struct mansession *s, struct message *m)
 	char *val = astman_get_header(m, "Val");
 	int res;
 
-	if (!strlen(family)) {
+	if (ast_strlen_zero(family)) {
 		astman_send_error(s, m, "No family specified");
 		return 0;
 	}
-	if (!strlen(key)) {
+	if (ast_strlen_zero(key)) {
 		astman_send_error(s, m, "No key specified");
 		return 0;
 	}
-	if (!strlen(val)) {
+	if (ast_strlen_zero(val)) {
 		astman_send_error(s, m, "No val specified");
 		return 0;
 	}
@@ -551,11 +551,11 @@ static int manager_dbget(struct mansession *s, struct message *m)
 	char tmp[256];
 	int res;
 
-	if (!strlen(family)) {
+	if (ast_strlen_zero(family)) {
 		astman_send_error(s, m, "No family specified.");
 		return 0;
 	}
-	if (!strlen(key)) {
+	if (ast_strlen_zero(key)) {
 		astman_send_error(s, m, "No key specified.");
 		return 0;
 	}
