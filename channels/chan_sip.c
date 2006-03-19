@@ -8000,7 +8000,6 @@ static int sip_show_domains(int fd, int argc, char *argv[])
 
 static char mandescr_show_peer[] = 
 "Description: Show one SIP peer with details on current status.\n"
-"  The XML format is under development, feedback welcome! /oej\n"
 "Variables: \n"
 "  Peer: <name>           The peer name you want to check.\n"
 "  ActionID: <id>	  Optional action ID for this AMI transaction.\n";
