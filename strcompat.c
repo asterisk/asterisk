@@ -50,8 +50,8 @@ int setenv(const char *name, const char *value, int overwrite)
 	return ret;
 }
 
-int unsetenv(const char *name)
+void unsetenv(const char *name)
 {
-  setenv(name,"",0);
+	setenv(name, "", 0);
 }
 

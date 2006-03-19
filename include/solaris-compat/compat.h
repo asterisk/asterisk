@@ -42,5 +42,5 @@ typedef unsigned int	u_int32_t;
 
 char* strsep(char** str, const char* delims);
 int setenv(const char *name, const char *value, int overwrite);
-int unsetenv(const char *name);
+void unsetenv(const char *name);
 #endif
