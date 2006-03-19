@@ -410,7 +410,7 @@ static int compactheaders;		/*!< send compact sip headers */
 static int recordhistory;		/*!< Record SIP history. Off by default */
 static int dumphistory;			/*!< Dump history to verbose before destroying SIP dialog */
 static char global_realm[MAXHOSTNAMELEN]; 		/*!< Default realm */
-static char regcontext[AST_MAX_CONTEXT];		/*!< Context for auto-extensions */
+static char global_regcontext[AST_MAX_CONTEXT];		/*!< Context for auto-extensions */
 static char global_useragent[AST_MAX_EXTENSION];	/*!< Useragent for the SIP channel */
 static int allow_external_domains;	/*!< Accept calls to external SIP domains? */
 static int global_callevents;		/*!< Whether we send manager events or not */
@@ -1671,15 +1671,15 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 {
 	char multi[256];
 	char *stringp, *ext;
-	if (!ast_strlen_zero(regcontext)) {
+	if (!ast_strlen_zero(global_regcontext)) {
 		ast_copy_string(multi, ast_strlen_zero(peer->regexten) ? peer->name : peer->regexten, sizeof(multi));
 		stringp = multi;
 		while((ext = strsep(&stringp, "&"))) {
 			if (onoff)
-				ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop",
+				ast_add_extension(global_regcontext, 1, ext, 1, NULL, NULL, "Noop",
 						  ast_strdup(peer->name), free, "SIP");
 			else
-				ast_context_remove_extension(regcontext, ext, 1, NULL);
+				ast_context_remove_extension(global_regcontext, ext, 1, NULL);
 		}
 	}
 }
@@ -1701,7 +1701,7 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		ast_sched_del(sched, peer->expire);
 	if (peer->pokeexpire > -1)
 		ast_sched_del(sched, peer->pokeexpire);
-	register_peer_exten(peer, 0);
+	register_peer_exten(peer, FALSE);
 	ast_free_ha(peer->ha);
 	if (ast_test_flag((&peer->flags_page2), SIP_PAGE2_SELFDESTRUCT))
 		apeerobjs--;
@@ -5798,7 +5798,7 @@ static int expire_register(void *data)
 	destroy_association(peer);
 	
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
-	register_peer_exten(peer, 0);
+	register_peer_exten(peer, FALSE);
 	peer->expire = -1;
 	ast_device_state_changed("SIP/%s", peer->name);
 	if (ast_test_flag((&peer->flags_page2), SIP_PAGE2_SELFDESTRUCT) || ast_test_flag((&peer->flags_page2), SIP_PAGE2_RTAUTOCLEAR)) {
@@ -5877,7 +5877,7 @@ static void reg_source_db(struct sip_peer *peer)
 	if (peer->expire > -1)
 		ast_sched_del(sched, peer->expire);
 	peer->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
-	register_peer_exten(peer, 1);
+	register_peer_exten(peer, TRUE);
 }
 
 /*! \brief Parse contact header for 200 OK on INVITE */
@@ -8114,6 +8114,8 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  ToHost       : %s\n", peer->tohost);
 		ast_cli(fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
 		ast_cli(fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
+		if (!ast_strlen_zero(global_regcontext))
+			ast_cli(fd, "  Reg. exten   : %s\n", peer->regexten);
 		ast_cli(fd, "  Def. Username: %s\n", peer->username);
 		ast_cli(fd, "  SIP Options  : ");
 		if (peer->sipoptions) {
@@ -8189,6 +8191,8 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "Address-IP: %s\r\nAddress-Port: %d\r\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", ntohs(peer->addr.sin_port));
 		ast_cli(fd, "Default-addr-IP: %s\r\nDefault-addr-port: %d\r\n", ast_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
 		ast_cli(fd, "Default-Username: %s\r\n", peer->username);
+		if (!ast_strlen_zero(global_regcontext))
+			ast_cli(fd, "RegExtension: %s\r\n", peer->regexten);
 		ast_cli(fd, "Codecs: ");
 		ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability);
 		ast_cli(fd, "%s\r\n", codec_buf);
@@ -8338,7 +8342,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Realm. auth:            %s\n", authl ? "Yes": "No");
 	ast_cli(fd, "  User Agent:             %s\n", global_useragent);
 	ast_cli(fd, "  MWI checking interval:  %d secs\n", global_mwitime);
-	ast_cli(fd, "  Reg. context:           %s\n", ast_strlen_zero(regcontext) ? "(not set)" : regcontext);
+	ast_cli(fd, "  Reg. context:           %s\n", ast_strlen_zero(global_regcontext) ? "(not set)" : global_regcontext);
 	ast_cli(fd, "  Caller ID:              %s\n", default_callerid);
 	ast_cli(fd, "  From: Domain:           %s\n", default_fromdomain);
 	ast_cli(fd, "  Record SIP history:     %s\n", recordhistory ? "On" : "Off");
@@ -12432,7 +12436,7 @@ static int reload_config(enum channelreloadreason reason)
 
 	/* Reset channel settings to default before re-configuring */
 	allow_external_domains = DEFAULT_ALLOW_EXT_DOM;				/* Allow external invites */
-	regcontext[0] = '\0';
+	global_regcontext[0] = '\0';
 	expiry = DEFAULT_EXPIRY;
 	global_notifyringing = DEFAULT_NOTIFYRINGING;
 	ast_copy_string(global_useragent, DEFAULT_USERAGENT, sizeof(global_useragent));
@@ -12541,10 +12545,10 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "language")) {
 			ast_copy_string(default_language, v->value, sizeof(default_language));
 		} else if (!strcasecmp(v->name, "regcontext")) {
-			ast_copy_string(regcontext, v->value, sizeof(regcontext));
+			ast_copy_string(global_regcontext, v->value, sizeof(global_regcontext));
 			/* Create context if it doesn't exist already */
-			if (!ast_context_find(regcontext))
-				ast_context_create(NULL, regcontext, "SIP");
+			if (!ast_context_find(global_regcontext))
+				ast_context_create(NULL, global_regcontext, "SIP");
 		} else if (!strcasecmp(v->name, "callerid")) {
 			ast_copy_string(default_callerid, v->value, sizeof(default_callerid));
 		} else if (!strcasecmp(v->name, "fromdomain")) {
