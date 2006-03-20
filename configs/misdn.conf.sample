@@ -31,15 +31,6 @@ debug=0
 ;
 ;tracefile=/var/log/misdn.trace
 
-; single call trace files
-; set to true if you want to have them
-; they depend on debug level
-;
-; default values: trace_calls : false
-;                 trace_dir   : /var/log/
-;
-trace_calls=false
-trace_dir=/var/log/
 
 ; set to yes if you want mISDN_dsp to bridge the calls in HW
 ;
