@@ -1105,6 +1105,21 @@ static int update_config (struct chan_list *ch, int orig)
 	
 	chan_misdn_log(1,port,"update_config: Getting Config\n");
 
+
+	int hdlc=0;
+	misdn_cfg_get( port, MISDN_CFG_HDLC, &hdlc, sizeof(int));
+	
+	if (hdlc) {
+		switch (bc->capability) {
+		case INFO_CAPABILITY_DIGITAL_UNRESTRICTED:
+		case INFO_CAPABILITY_DIGITAL_RESTRICTED:
+			chan_misdn_log(1,bc->port," --> CONF HDLC\n");
+			bc->hdlc=1;
+			break;
+		}
+		
+	}
+	
 	
 	int pres, screen;
 			
@@ -1244,7 +1259,19 @@ static int read_config(struct chan_list *ch, int orig) {
 
 	misdn_cfg_get( port, MISDN_CFG_NEED_MORE_INFOS, &bc->need_more_infos, sizeof(int));
 	
-
+	int hdlc=0;
+	misdn_cfg_get( port, MISDN_CFG_HDLC, &hdlc, sizeof(int));
+	
+	if (hdlc) {
+		switch (bc->capability) {
+		case INFO_CAPABILITY_DIGITAL_UNRESTRICTED:
+		case INFO_CAPABILITY_DIGITAL_RESTRICTED:
+			chan_misdn_log(1,bc->port," --> CONF HDLC\n");
+			bc->hdlc=1;
+			break;
+		}
+		
+	}
 	/*Initialize new Jitterbuffer*/
 	{
 		misdn_cfg_get( port, MISDN_CFG_JITTERBUFFER, &ch->jb_len, sizeof(int));
@@ -1573,7 +1600,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 
 		/* update screening and presentation */ 
 		update_config(ch,ORG_AST);
-
+		
 		/* fill in some ies from channel vary*/
 		import_ies(ast, newbc);
 		

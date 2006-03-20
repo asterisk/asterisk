@@ -27,6 +27,7 @@ enum misdn_cfg_elements {
 	MISDN_CFG_TXGAIN,              /* int */
 	MISDN_CFG_TE_CHOOSE_CHANNEL,   /* int (bool) */
 	MISDN_CFG_PMP_L1_CHECK,        /* int (bool) */
+	MISDN_CFG_HDLC,                /* int (bool) */
 	MISDN_CFG_CONTEXT,             /* char[] */
 	MISDN_CFG_LANGUAGE,            /* char[] */
 	MISDN_CFG_MUSICCLASS,            /* char[] */

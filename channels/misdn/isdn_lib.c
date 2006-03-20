@@ -818,9 +818,11 @@ int setup_bc(struct misdn_bchannel *bc)
 	int channel=bc->channel-1-(bc->channel>16);
 	int b_stid=stack->b_stids[channel>=0?channel:0];
 
+#if 0
 	if (bc->hdlc) {
 		clean_up_bc(bc);
 	}
+#endif
 	
 	if (bc->upset) {
 		cb_log(4, stack->port, "$$$ bc already upsetted stid :%x\n", b_stid);
@@ -946,9 +948,7 @@ int setup_bc(struct misdn_bchannel *bc)
 	
 	bc->upset=1;
 	
-	
 	manager_bchannel_deactivate(bc);
-	
 	return 0;
 }
 
