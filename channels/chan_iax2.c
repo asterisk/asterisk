@@ -5037,7 +5037,8 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 				ast_copy_string(iaxs[callno]->cid_name, user->cid_name, sizeof(iaxs[callno]->cid_name));
 				iaxs[callno]->calling_pres = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
 			}
-			ast_copy_string(iaxs[callno]->ani, user->cid_num, sizeof(iaxs[callno]->ani));
+			if (ast_strlen_zero(iaxs[callno]->ani))
+				ast_copy_string(iaxs[callno]->ani, user->cid_num, sizeof(iaxs[callno]->ani));
 		} else {
 			iaxs[callno]->calling_pres = AST_PRES_NUMBER_NOT_AVAILABLE;
 		}
