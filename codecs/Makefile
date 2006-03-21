@@ -26,9 +26,8 @@ else
   LIBG723=g723.1/libg723.a
 endif
 
-ifeq ($(wildcard g723.1b/coder2.c),)
-  MODS:=$(filter-out codec_g723_1b.so,$(MODS))
-else
+ifneq ($(wildcard g723.1b/coder2.c),)
+  MODS+=codec_g723_1b.so
   LIBG723B=g723.1b/libg723b.a
 endif
 
