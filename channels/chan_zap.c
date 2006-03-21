@@ -225,6 +225,7 @@ static int cid_signalling = CID_SIG_BELL;
 static int cid_start = CID_START_RING;
 static int zaptrcallerid = 0;
 static int cur_signalling = -1;
+static int cur_outsignalling = -1;
 
 static ast_group_t cur_group = 0;
 static ast_group_t cur_callergroup = 0;
@@ -549,6 +550,7 @@ static struct zt_pvt {
 	
 	int sig;					/*!< Signalling style */
 	int radio;					/*!< radio type */
+	int outsigmod;					/*!< Outbound Signalling style (modifier) */
 	float rxgain;
 	float txgain;
 	int tonezone;					/*!< tone zone for this chan, or -1 for default */
@@ -1757,7 +1759,7 @@ static int zt_callwait(struct ast_channel *ast)
 static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 {
 	struct zt_pvt *p = ast->tech_pvt;
-	int x, res, index;
+	int x, res, index,mysig;
 	char *c, *n, *l;
 #ifdef ZAPATA_PRI
 	char *s=NULL;
@@ -1792,7 +1794,10 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 
 	set_actual_gain(p->subs[SUB_REAL].zfd, 0, p->rxgain, p->txgain, p->law);
 
-	switch(p->sig) {
+	mysig = p->sig;
+	if (p->outsigmod) mysig = p->outsigmod;
+
+	switch(mysig) {
 	case SIG_FXOLS:
 	case SIG_FXOGS:
 	case SIG_FXOKS:
@@ -1934,7 +1939,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 
 		c += p->stripmsd;
 
-		switch (p->sig) {
+		switch (mysig) {
 		case SIG_FEATD:
 			l = ast->cid.cid_num;
 			if (l) 
@@ -2053,7 +2058,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			ast_mutex_unlock(&p->lock);
 			return -1;
 		}
-		if (p->sig != SIG_FXSKS) {
+		if (mysig != SIG_FXSKS) {
 			p->dop.op = ZT_DIAL_OP_REPLACE;
 			s = strchr(c + p->stripmsd, 'w');
 			if (s) {
@@ -2082,7 +2087,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			pri_rel(p->pri);
 			ast_mutex_unlock(&p->lock);
 		}
-		if (p->bearer || (p->sig == SIG_FXSKS)) {
+		if (p->bearer || (mysig == SIG_FXSKS)) {
 			if (p->bearer) {
 				ast_log(LOG_DEBUG, "Oooh, I have a bearer on %d (%d:%d)\n", PVT_TO_CHANNEL(p->bearer), p->bearer->logicalspan, p->bearer->channel);
 				p->bearer->call = p->call;
@@ -3588,7 +3593,7 @@ static int get_alarms(struct zt_pvt *p)
 static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 {
 	int res,x;
-	int index;
+	int index,mysig;
 	char *c;
 	struct zt_pvt *p = ast->tech_pvt;
 	pthread_t threadid;
@@ -3600,6 +3605,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
 	index = zt_get_index(ast, p, 0);
+	mysig = p->sig;
+	if (p->outsigmod) mysig = p->outsigmod;
 	p->subs[index].f.frametype = AST_FRAME_NULL;
 	p->subs[index].f.subclass = 0;
 	p->subs[index].f.datalen = 0;
@@ -3694,7 +3701,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					p->echobreak = 0;
 				} else {
 					p->dialing = 0;
-					if ((p->sig == SIG_E911) || (p->sig == SIG_FGC_CAMA) || (p->sig == SIG_FGC_CAMAMF)) {
+					if ((mysig == SIG_E911) || (mysig == SIG_FGC_CAMA) || (mysig == SIG_FGC_CAMAMF)) {
 						/* if thru with dialing after offhook */
 						if (ast->_state == AST_STATE_DIALING_OFFHOOK) {
 							ast_setstate(ast, AST_STATE_UP);
@@ -3709,7 +3716,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					if (ast->_state == AST_STATE_DIALING) {
 						if ((p->callprogress & 1) && CANPROGRESSDETECT(p) && p->dsp && p->outgoing) {
 							ast_log(LOG_DEBUG, "Done dialing, but waiting for progress detection before doing more...\n");
-						} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EM_E1) ||  (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF_TA) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_E911) || (p->sig == SIG_FGC_CAMA) || (p->sig == SIG_FGC_CAMAMF) || (p->sig == SIG_FEATB) || (p->sig == SIG_SF) || (p->sig == SIG_SFWINK) || (p->sig == SIG_SF_FEATD) || (p->sig == SIG_SF_FEATDMF) || (p->sig == SIG_SF_FEATB)))) {
+						} else if (p->confirmanswer || (!p->dialednone && ((mysig == SIG_EM) || (mysig == SIG_EM_E1) ||  (mysig == SIG_EMWINK) || (mysig == SIG_FEATD) || (mysig == SIG_FEATDMF_TA) || (mysig == SIG_FEATDMF) || (mysig == SIG_E911) || (mysig == SIG_FGC_CAMA) || (mysig == SIG_FGC_CAMAMF) || (mysig == SIG_FEATB) || (mysig == SIG_SF) || (mysig == SIG_SFWINK) || (mysig == SIG_SF_FEATD) || (mysig == SIG_SF_FEATDMF) || (mysig == SIG_SF_FEATB)))) {
 							ast_setstate(ast, AST_STATE_RINGING);
 						} else if (!p->answeronpolarityswitch) {
 							ast_setstate(ast, AST_STATE_UP);
@@ -3870,7 +3877,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			}
 			/* for E911, its supposed to wait for offhook then dial
 			   the second half of the dial string */
-			if (((p->sig == SIG_E911) || (p->sig == SIG_FGC_CAMA) || (p->sig == SIG_FGC_CAMAMF)) && (ast->_state == AST_STATE_DIALING_OFFHOOK)) {
+			if (((mysig == SIG_E911) || (mysig == SIG_FGC_CAMA) || (mysig == SIG_FGC_CAMAMF)) && (ast->_state == AST_STATE_DIALING_OFFHOOK)) {
 				c = strchr(p->dialdest, '/');
 				if (c)
 					c++;
@@ -4061,7 +4068,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			if (p->radio) break;
 			/* Remember last time we got a flash-hook */
 			gettimeofday(&p->flashtime, NULL);
-			switch(p->sig) {
+			switch(mysig) {
 			case SIG_FXOLS:
 			case SIG_FXOGS:
 			case SIG_FXOKS:
@@ -4262,7 +4269,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		case ZT_EVENT_HOOKCOMPLETE:
 			if (p->inalarm) break;
 			if (p->radio) break;
-			switch(p->sig) {
+			switch(mysig) {
 			case SIG_FXSLS:  /* only interesting for FXS */
 			case SIG_FXSGS:
 			case SIG_FXSKS:
@@ -5436,6 +5443,17 @@ static void *ss_thread(void *data)
 			case SIG_FGC_CAMAMF:
 			case SIG_SF_FEATDMF:
 				res = my_getsigstr(chan, dtmfbuf + 1, "#", 3000);
+				/* if international caca, do it again to get real ANO */
+				if ((p->sig == SIG_FEATDMF) && (dtmfbuf[1] != '0') && (strlen(dtmfbuf) != 14))
+				{
+					if (zt_wink(p, index)) return NULL;
+					dtmfbuf[0] = 0;
+					/* Wait for the first digit (up to 5 seconds). */
+					res = ast_waitfordigit(chan, 5000);
+					if (res <= 0) break;
+					dtmfbuf[0] = res;
+					res = my_getsigstr(chan, dtmfbuf + 1, "#", 3000);
+				}
 				if (res > 0) {
 					/* if E911, take off hook */
 					if (p->sig == SIG_E911)
@@ -6997,7 +7015,7 @@ static int pri_create_spanmap(int span, int trunkgroup, int logicalspan)
 
 #endif
 
-static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_pri *pri, int reloading)
+static struct zt_pvt *mkintf(int channel, int signalling, int outsignalling, int radio, struct zt_pri *pri, int reloading)
 {
 	/* Make a zt_pvt structure for this interface (or CRV if "pri" is specified) */
 	struct zt_pvt *tmp = NULL, *tmp2,  *prev = NULL;
@@ -7305,6 +7323,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp->immediate = immediate;
 		tmp->transfertobusy = transfertobusy;
 		tmp->sig = signalling;
+		tmp->outsigmod = outsignalling;
 		tmp->radio = radio;
 		tmp->ringt_base = ringt_base;
 		tmp->firstradio = 0;
@@ -10515,11 +10534,12 @@ static int setup_zap(int reload)
 					finish = start;
 					start = x;
 				}
+				if (cur_outsignalling < 0) cur_outsignalling = cur_signalling;
 				for (x=start;x<=finish;x++) {
 #ifdef ZAPATA_PRI
-					tmp = mkintf(x, cur_signalling, cur_radio, pri, reload);
+					tmp = mkintf(x, cur_signalling, cur_outsignalling, cur_radio, pri, reload);
 #else					
-					tmp = mkintf(x, cur_signalling, cur_radio, NULL, reload);
+					tmp = mkintf(x, cur_signalling, cur_outsignalling, cur_radio, NULL, reload);
 #endif					
 
 					if (tmp) {
@@ -10724,6 +10744,7 @@ static int setup_zap(int reload)
 				amaflags = y;
 		} else if(!reload){ 
 			 if (!strcasecmp(v->name, "signalling")) {
+				cur_outsignalling = -1;
 				if (!strcasecmp(v->value, "em")) {
 					cur_signalling = SIG_EM;
 				} else if (!strcasecmp(v->value, "em_e1")) {
@@ -10847,6 +10868,42 @@ static int setup_zap(int reload)
 					cur_signalling = SIG_R2;
 					cur_radio = 0;
 #endif			
+				} else {
+					ast_log(LOG_ERROR, "Unknown signalling method '%s'\n", v->value);
+				}
+			 } else if (!strcasecmp(v->name, "outsignalling")) {
+				if (!strcasecmp(v->value, "em")) {
+					cur_outsignalling = SIG_EM;
+				} else if (!strcasecmp(v->value, "em_e1")) {
+					cur_outsignalling = SIG_EM_E1;
+				} else if (!strcasecmp(v->value, "em_w")) {
+					cur_outsignalling = SIG_EMWINK;
+				} else if (!strcasecmp(v->value, "sf")) {
+					cur_outsignalling = SIG_SF;
+				} else if (!strcasecmp(v->value, "sf_w")) {
+					cur_outsignalling = SIG_SFWINK;
+				} else if (!strcasecmp(v->value, "sf_featd")) {
+					cur_outsignalling = SIG_FEATD;
+				} else if (!strcasecmp(v->value, "sf_featdmf")) {
+					cur_outsignalling = SIG_FEATDMF;
+				} else if (!strcasecmp(v->value, "sf_featb")) {
+					cur_outsignalling = SIG_SF_FEATB;
+				} else if (!strcasecmp(v->value, "sf")) {
+					cur_outsignalling = SIG_SF;
+				} else if (!strcasecmp(v->value, "featd")) {
+					cur_outsignalling = SIG_FEATD;
+				} else if (!strcasecmp(v->value, "featdmf")) {
+					cur_outsignalling = SIG_FEATDMF;
+				} else if (!strcasecmp(v->value, "featdmf_ta")) {
+					cur_outsignalling = SIG_FEATDMF_TA;
+				} else if (!strcasecmp(v->value, "e911")) {
+					cur_outsignalling = SIG_E911;
+				} else if (!strcasecmp(v->value, "fgccama")) {
+					cur_outsignalling = SIG_FGC_CAMA;
+				} else if (!strcasecmp(v->value, "fgccamamf")) {
+					cur_outsignalling = SIG_FGC_CAMAMF;
+				} else if (!strcasecmp(v->value, "featb")) {
+					cur_outsignalling = SIG_FEATB;
 				} else {
 					ast_log(LOG_ERROR, "Unknown signalling method '%s'\n", v->value);
 				}
@@ -11129,7 +11186,7 @@ static int setup_zap(int reload)
 		cur_callergroup = 0;
 		cur_pickupgroup = 0;
 	
-		tmp = mkintf(CHAN_PSEUDO, cur_signalling, cur_radio, NULL, reload);
+		tmp = mkintf(CHAN_PSEUDO, cur_signalling, cur_signalling, cur_radio, NULL, reload);
 
 		if (tmp) {
 			if (option_verbose > 2)

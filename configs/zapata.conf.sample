@@ -189,6 +189,15 @@ switchtype=national
 ;
 signalling=fxo_ls
 ;
+; If you have an outbound signalling format that is different from format
+; specified above (but compatible), you can specify outbound signalling format,
+; (see below). The 'signalling' format specified will be the inbound signalling
+; format. If you only specify 'signalling', then it will be the format for
+; both inbound and outbound.
+; 
+; signaling=featdmf
+; outsignalling=featb
+;
 ; For Feature Group D Tandem access, to set the default CIC and OZZ use these
 ; parameters:
 ;defaultozz=0000
