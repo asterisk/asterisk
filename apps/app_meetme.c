@@ -1830,28 +1830,20 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 				ast_log(LOG_WARNING, "No %s file :(\n", CONFIG_FILE_NAME);
 				return NULL;
 			}
-			var = ast_variable_browse(cfg, "rooms");
-			for (; var; var = var->next) {
+			for (var = ast_variable_browse(cfg, "rooms"); var; var = var->next) {
 				if (strcasecmp(var->name, "conf"))
 					continue;
 				
 				if (!(parse = ast_strdupa(var->value)))
 					return NULL;
 				
-				AST_STANDARD_APP_ARGS(args, parse);
+				AST_NONSTANDARD_APP_ARGS(args, parse, ',');
 				if (!strcasecmp(args.confno, confno)) {
 					/* Bingo it's a valid conference */
-					if (args.pin) {
-						if (args.pinadmin)
-							cnf = build_conf(args.confno, args.pin, args.pinadmin, make, dynamic, refcount);
-						else
-							cnf = build_conf(args.confno, args.pin, "", make, dynamic, refcount);
-					} else {
-						if (args.pinadmin)
-							cnf = build_conf(args.confno, "", args.pinadmin, make, dynamic, refcount);
-						else
-							cnf = build_conf(args.confno, "", "", make, dynamic, refcount);
-					}
+					cnf = build_conf(args.confno,
+							ast_strlen_zero(args.pin) ? "" : args.pin,
+							ast_strlen_zero(args.pinadmin) ? "" : args.pinadmin,
+							make, dynamic, refcount);
 					break;
 				}
 			}
@@ -2026,7 +2018,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 									AST_LIST_UNLOCK(&confs);
 									if (!found) {
 										/* At this point, we have a confno_tmp (static conference) that is empty */
-										if ((empty_no_pin && ((!stringp) || (stringp && (stringp[0] == '\0')))) || (!empty_no_pin)) {
+										if ((empty_no_pin && ast_strlen_zero(stringp)) || (!empty_no_pin)) {
 											/* Case 1:  empty_no_pin and pin is nonexistent (NULL)
 											 * Case 2:  empty_no_pin and pin is blank (but not NULL)
 											 * Case 3:  not empty_no_pin
