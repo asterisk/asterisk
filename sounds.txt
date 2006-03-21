@@ -641,7 +641,7 @@
 
 %v_p.gsm%victor
 
-%w_p.gsm%wiskey
+%w_p.gsm%whiskey
 
 %x_p.gsm%xray
 
