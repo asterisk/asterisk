@@ -45,11 +45,16 @@ Priority: 1
 #Callerid: Wakeup Call Service <(555) 555-5555>
 
 #
+# An account code can be specified the following way:
+#
+#Account: mysuperfunaccountcode
+
+#
 # You can set channel variables that will be passed to the channel.
-# This includes writable dialplan functions.
+# This includes writable dialplan functions. To set a writable dialplan
+# function, the module containing this function *must* be loaded.
 #
 #Set: file1=/tmp/to
 #Set: file2=/tmp/msg
 #Set: timestamp=20021023104500
-#Set: CDR(accountcode|r)=blort
 #Set: CDR(userfield|r)=42
