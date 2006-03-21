@@ -64,7 +64,7 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 	);
 	int res = 0;
 	char tech[80];
-	char dest[256] = "";
+	char dest[256] = "", tmp[2] = "", num[AST_MAX_EXTENSION] = "";
 	struct localuser *u;
 	char *s, *p;
 
@@ -82,6 +82,8 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 		return -1;
 	}
 
+	LOCAL_USER_ADD(u);
+
 	ast_copy_string(tech, args.tech ? args.tech : "sip", sizeof(tech));
 
 	if (!args.zone)
@@ -92,23 +94,23 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 
 	/* strip any '-' signs from number */
 	for (s = p = args.number; *s; s++) {
-		if (*s != '-')
-			*p++ = *s;
+		if (*s != '-') {
+			snprintf(tmp, sizeof(tmp), "%c", *s);
+			strncat(num, tmp, sizeof(num));
+		}
+
 	}
-	*p = '\0';
 
-	LOCAL_USER_ADD(u);
-
-	res = ast_get_enum(chan, p, dest, sizeof(dest), tech, sizeof(tech), args.zone,
+	res = ast_get_enum(chan, num, dest, sizeof(dest), tech, sizeof(tech), args.zone,
 			   args.options);
-
-	LOCAL_USER_REMOVE(u);
 
 	p = strchr(dest, ':');
 	if (p && strcasecmp(tech, "ALL"))
 		ast_copy_string(buf, p + 1, len);
 	else
 		ast_copy_string(buf, dest, len);
+
+	LOCAL_USER_REMOVE(u);
 
 	return 0;
 }
