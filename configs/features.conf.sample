@@ -3,7 +3,7 @@
 ;
 
 [general]
-parkext => 700			; What ext. to dial to park
+parkext => 700			; What extension to dial to park
 parkpos => 701-720		; What extensions to park calls on
 context => parkedcalls		; Which context parked calls are in
 ;parkingtime => 45		; Number of seconds a call can be parked for 
@@ -30,6 +30,11 @@ context => parkedcalls		; Which context parked calls are in
 ;atxfer => *2			; Attended transfer
 
 [applicationmap]
+; Note that the DYNAMIC_FEATURES channel variable must be set to use the features
+; defined here.  The value of DYNAMIC_FEATURES should be the names of the features
+; to allow the channel to use separated by '#'.  For example:
+;    Set(DYNAMIC_FEATURES=myfeature1#myfeature2#myfeature3)
+;
 ;testfeature => #9,callee,Playback,tt-monkeys	;Play tt-monkeys to 
 						;callee if #9 was pressed
 ;pauseMonitor   => #1,caller,Pausemonitor	;Pause monitoring on channel
