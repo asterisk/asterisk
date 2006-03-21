@@ -76,3 +76,10 @@ If you have an old installation, you might want to remove the binaries and move 
 	ASTBINDIR	/usr/local/bin/asterisk
 	ASTSBINDIR	/usr/local/sbin/asterisk
 
+Sounds:
+
+* The phonetic sounds directory has been removed from the asterisk-sounds package
+  because they are now included directly in Asterisk.  However, it is important to
+  note that the phonetic sounds that existed in asterisk-sounds used a different
+  naming convention than the sounds in Asterisk.  For example, instead of alpha.gsm
+  and bravo.gsm, Asterisk has a_p.gsm and b_p.gsm.
