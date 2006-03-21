@@ -2080,7 +2080,7 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 
 
 	if ( !frame->subclass) {
-		chan_misdn_log(0, ch->bc->port, "misdn_write: * prods us\n");
+		chan_misdn_log(2, ch->bc->port, "misdn_write: * prods us\n");
 		return 0;
 	}
 	
@@ -2164,19 +2164,19 @@ enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 		int ecwb;
 		misdn_cfg_get( ch1->bc->port, MISDN_CFG_ECHOCANCELWHENBRIDGED, &ecwb, sizeof(int));
 		if ( !ecwb ) {
-			chan_misdn_log(0, ch1->bc->port, "Disabling Echo Cancellor when Bridged\n");
+			chan_misdn_log(2, ch1->bc->port, "Disabling Echo Cancellor when Bridged\n");
 			ch1->bc->ec_enable=0;
 			manager_ec_disable(ch1->bc);
 		}
 		misdn_cfg_get( ch2->bc->port, MISDN_CFG_ECHOCANCELWHENBRIDGED, &ecwb, sizeof(int));
 		if ( !ecwb ) {
-			chan_misdn_log(0, ch2->bc->port, "Disabling Echo Cancellor when Bridged\n");
+			chan_misdn_log(2, ch2->bc->port, "Disabling Echo Cancellor when Bridged\n");
 			ch2->bc->ec_enable=0;
 			manager_ec_disable(ch2->bc);
 		}
 		
 		/* trying to make a mISDN_dsp conference */
-		chan_misdn_log(0, ch1->bc->port, "I SEND: Making conference with Number:%d\n", (ch1->bc->pid<<1) +1);
+		chan_misdn_log(1, ch1->bc->port, "I SEND: Making conference with Number:%d\n", (ch1->bc->pid<<1) +1);
 
 		misdn_lib_bridge(ch1->bc,ch2->bc);
 	}
@@ -2228,7 +2228,7 @@ static int tone_indicate( struct chan_list *cl, enum tone_e tone)
 	const struct tone_zone_sound *ts= NULL;
 	struct ast_channel *ast=cl->ast;
 	
-	chan_misdn_log(0,cl->bc->port,"Tone Indicate:\n");
+	chan_misdn_log(2,cl->bc->port,"Tone Indicate:\n");
 	
 	if (!cl->ast) {
 		return 0;
@@ -2236,17 +2236,17 @@ static int tone_indicate( struct chan_list *cl, enum tone_e tone)
 	
 	switch (tone) {
 	case TONE_DIAL:
-		chan_misdn_log(0,cl->bc->port," --> Dial\n");
+		chan_misdn_log(2,cl->bc->port," --> Dial\n");
 		ts=ast_get_indication_tone(ast->zone,"dial");
 		misdn_lib_tone_generator_start(cl->bc);
 		break;
 	case TONE_ALERTING:
-		chan_misdn_log(0,cl->bc->port," --> Ring\n");
+		chan_misdn_log(2,cl->bc->port," --> Ring\n");
 		ts=ast_get_indication_tone(ast->zone,"ring");
 		misdn_lib_tone_generator_stop(cl->bc);
 		break;
 	case TONE_BUSY:
-		chan_misdn_log(0,cl->bc->port," --> Busy\n");
+		chan_misdn_log(2,cl->bc->port," --> Busy\n");
 		ts=ast_get_indication_tone(ast->zone,"busy");
 		misdn_lib_tone_generator_stop(cl->bc);
 		break;
@@ -2254,7 +2254,7 @@ static int tone_indicate( struct chan_list *cl, enum tone_e tone)
 		break;
 
 	case TONE_NONE:
-		chan_misdn_log(0,cl->bc->port," --> None\n");
+		chan_misdn_log(2,cl->bc->port," --> None\n");
 		misdn_lib_tone_generator_stop(cl->bc);
 		ast_playtones_stop(ast);
 		break;
@@ -3325,7 +3325,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 
 		
-			chan_misdn_log(0,bc->port,"CONTEXT:%s\n",ch->context);
+			chan_misdn_log(5,bc->port,"CONTEXT:%s\n",ch->context);
 			if(!ast_canmatch_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
 			
 			chan_misdn_log(-1, bc->port, "Extension can never match, so disconnecting\n");
