@@ -89,10 +89,9 @@ static char *builtin_function_regex(struct ast_channel *chan, char *cmd, char *d
 	/* Regex in quotes */
 	arg = strchr(tmp, '"');
 	if (arg) {
-		arg++;
-		earg = strrchr(arg, '"');
+		earg = ++arg;
+		strsep(&earg, "\"");
 		if (earg) {
-			*earg++ = '\0';
 			/* Skip over any spaces before the data we are checking */
 			while (*earg == ' ')
 				earg++;
