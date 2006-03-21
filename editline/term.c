@@ -64,10 +64,16 @@ __RCSID("$NetBSD: term.c,v 1.35 2002/03/18 16:00:59 christos Exp $");
 #ifdef HAVE_NCURSES_H
 #include <ncurses.h>
 #endif
-/* Solaris's term.h does horrid things. */
-#if (defined(HAVE_TERM_H) && !defined(SUNOS))
-#include <term.h>
-#endif
+#if defined(HAVE_TERM_H)
+#include "term.h"
+/* Can not use /usr/include/term.h because of a lot of incompatibilities, so just define some prototypes */
+extern int tgetent(char *, const char *);
+extern int tgetflag(const char *);
+extern int tgetnum(const char *);
+extern char *tgetstr(const char *, char **);
+extern int tputs (const char *, int, int (*)(int));
+extern char *tgoto (const char *, int, int);
+#endif /* defined(HAVE_TERM_H) */
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
@@ -1190,15 +1196,15 @@ term_bind_arrow(EditLine *el)
 		if (p && *p) {
 			j = (unsigned char) *p;
 			/*
-		         * Assign the arrow keys only if:
-		         *
-		         * 1. They are multi-character arrow keys and the user
-		         *    has not re-assigned the leading character, or
-		         *    has re-assigned the leading character to be
-		         *	  ED_SEQUENCE_LEAD_IN
-		         * 2. They are single arrow keys pointing to an
+			 * Assign the arrow keys only if:
+			 *
+			 * 1. They are multi-character arrow keys and the user
+			 *    has not re-assigned the leading character, or
+			 *    has re-assigned the leading character to be
+			 *	  ED_SEQUENCE_LEAD_IN
+			 * 2. They are single arrow keys pointing to an
 			 *    unassigned key.
-		         */
+			 */
 			if (arrow[i].type == XK_NOD)
 				key_clear(el, map, p);
 			else {
