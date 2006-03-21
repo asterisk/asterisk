@@ -26,6 +26,8 @@
 #ifndef _ASTERISK_MODULE_H
 #define _ASTERISK_MODULE_H
 
+#include "asterisk/utils.h"
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -318,10 +320,8 @@ struct localuser {
  */
 #define LOCAL_USER_ADD(u) { \
  \
-	if (!(u=calloc(1,sizeof(*u)))) { \
-		ast_log(LOG_WARNING, "Out of memory\n"); \
+	if (!(u = ast_calloc(1, sizeof(*u)))) \
 		return -1; \
-	} \
 	ast_mutex_lock(&localuser_lock); \
 	u->chan = chan; \
 	u->next = localusers; \
