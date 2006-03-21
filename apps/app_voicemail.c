@@ -2367,7 +2367,7 @@ struct leave_vm_options {
 
 static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_options *options)
 {
-	char txtfile[256];
+	char tmptxtfile[256], txtfile[256];
 	char callerid[256];
 	FILE *txt;
 	int res = 0;
@@ -2564,7 +2564,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				
 			/* Store information */
 			snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
-			txt = fopen(txtfile, "w+");
+			snprintf(tmptxtfile, sizeof(tmptxtfile), "%s.txt.tmp", fn);
+			txt = fopen(tmptxtfile, "w+");
 			if (txt) {
 				get_date(date, sizeof(date));
 				fprintf(txt, 
@@ -2604,6 +2605,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			if (txt) {
 				fprintf(txt, "duration=%d\n", duration);
 				fclose(txt);
+				rename(tmptxtfile, txtfile);
 			}
 				
 			if (duration < vmminmessage) {
