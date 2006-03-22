@@ -32,8 +32,8 @@
 
 #define AST_CDR_NOANSWER			(1 << 0)
 #define AST_CDR_BUSY				(1 << 1)
-#define AST_CDR_ANSWERED			(1 << 2)
-#define AST_CDR_FAILED				(1 << 3)
+#define AST_CDR_FAILED				(1 << 2)
+#define AST_CDR_ANSWERED			(1 << 3)
 
 /*! AMA Flags */
 #define AST_CDR_OMIT				(1)

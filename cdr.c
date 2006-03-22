@@ -515,8 +515,10 @@ void ast_cdr_failed(struct ast_cdr *cdr)
 		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
-			cdr->disposition = AST_CDR_FAILED;
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+			if (cdr->disposition < AST_CDR_FAILED)
+				cdr->disposition = AST_CDR_FAILED;
+		}
 		cdr = cdr->next;
 	}
 }
