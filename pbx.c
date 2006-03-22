@@ -4678,10 +4678,9 @@ static void *async_wait(void *data)
 	return NULL;
 }
 
-/*! Function to update the cdr after a spool call fails.
+/*! Function to post an empty cdr after a spool call fails.
  *
- *  This function updates the cdr for a failed spool call
- *  and takes the channel of the failed call as an argument.
+ *  This function posts an empty cdr for a failed spool call
  *
  */
 int ast_pbx_outgoing_cdr_failed(void)
