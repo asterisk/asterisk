@@ -3707,13 +3707,15 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 				if (!ast_strlen_zero(prefile)) {
 				/* See if we can find a recorded name for this person instead of their extension number */
 					if (ast_fileexists(prefile, NULL, NULL) > 0) {
-						ast_verbose(VERBOSE_PREFIX_3 "Playing envelope info: CID number '%s' matches mailbox number, playing recorded name\n", callerid);
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "Playing envelope info: CID number '%s' matches mailbox number, playing recorded name\n", callerid);
 						if (!callback)
 							res = wait_file2(chan, vms, "vm-from");
 						res = ast_streamfile(chan, prefile, chan->language) > -1;
 						res = ast_waitstream(chan, "");
 					} else {
-						ast_verbose(VERBOSE_PREFIX_3 "Playing envelope info: message from '%s'\n", callerid);
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "Playing envelope info: message from '%s'\n", callerid);
 						/* BB: Say "from extension" as one saying to sound smoother */
 						if (!callback)
 							res = wait_file2(chan, vms, "vm-from-extension");
@@ -5248,7 +5250,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 					cmd = 't';
 					break;
 				case '2': /* Callback */
-					ast_verbose( VERBOSE_PREFIX_3 "Callback Requested\n");
+					if (option_verbose > 2)
+						ast_verbose( VERBOSE_PREFIX_3 "Callback Requested\n");
 					if (!ast_strlen_zero(vmu->callback) && vms.lastmsg > -1) {
 						cmd = advanced_options(chan, vmu, &vms, vms.curmsg, 2, record_gain);
 						if (cmd == 9) {
@@ -6330,7 +6333,8 @@ static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num,
 	int retries = 0;
 
 	if (!num) {
-		ast_verbose( VERBOSE_PREFIX_3 "Destination number will be entered manually\n");
+		if (option_verbose > 2)
+			ast_verbose( VERBOSE_PREFIX_3 "Destination number will be entered manually\n");
 		while (retries < 3 && cmd != 't') {
 			destination[1] = '\0';
 			destination[0] = cmd = ast_play_and_wait(chan,"vm-enter-num-to-call");
@@ -6350,7 +6354,8 @@ static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num,
 				if (cmd < 0)
 					return 0;
 				if (cmd == '*') {
-					ast_verbose( VERBOSE_PREFIX_3 "User hit '*' to cancel outgoing call\n");
+					if (option_verbose > 2)
+						ast_verbose( VERBOSE_PREFIX_3 "User hit '*' to cancel outgoing call\n");
 					return 0;
 				}
 				if ((cmd = ast_readstring(chan,destination + strlen(destination),sizeof(destination)-1,6000,10000,"#")) < 0) 
@@ -6364,14 +6369,16 @@ static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num,
 		}
 		
 	} else {
-		ast_verbose( VERBOSE_PREFIX_3 "Destination number is CID number '%s'\n", num);
+		if (option_verbose > 2)
+			ast_verbose( VERBOSE_PREFIX_3 "Destination number is CID number '%s'\n", num);
 		ast_copy_string(destination, num, sizeof(destination));
 	}
 
 	if (!ast_strlen_zero(destination)) {
 		if (destination[strlen(destination) -1 ] == '*')
 			return 0; 
-		ast_verbose( VERBOSE_PREFIX_3 "Placing outgoing call to extension '%s' in context '%s' from context '%s'\n", destination, outgoing_context, chan->context);
+		if (option_verbose > 2)
+			ast_verbose( VERBOSE_PREFIX_3 "Placing outgoing call to extension '%s' in context '%s' from context '%s'\n", destination, outgoing_context, chan->context);
 		ast_copy_string(chan->exten, destination, sizeof(chan->exten));
 		ast_copy_string(chan->context, outgoing_context, sizeof(chan->context));
 		chan->priority = 0;
@@ -6442,7 +6449,8 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 							if (res)
 								return 9;
 						} else {
-							ast_verbose( VERBOSE_PREFIX_3 "Caller can not specify callback number - no dialout context available\n");
+							if (option_verbose > 2)
+								ast_verbose( VERBOSE_PREFIX_3 "Caller can not specify callback number - no dialout context available\n");
 							res = ast_play_and_wait(chan, "vm-sorry");
 						}
 						return res;
@@ -6463,7 +6471,8 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 						break;
 					default:
 						if (num) {
-							ast_verbose( VERBOSE_PREFIX_3 "Confirm CID number '%s' is number to use for callback\n", num);
+							if (option_verbose > 2)
+								ast_verbose( VERBOSE_PREFIX_3 "Confirm CID number '%s' is number to use for callback\n", num);
 							res = ast_play_and_wait(chan, "vm-num-i-have");
 							if (!res)
 								res = play_message_callerid(chan, vms, num, vmu->context, 1);
@@ -6505,7 +6514,8 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 		if (!ast_strlen_zero(cid)) {
 			ast_callerid_parse(cid, &name, &num);
 			if (!num) {
-				ast_verbose(VERBOSE_PREFIX_3 "No CID number available, no reply sent\n");
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "No CID number available, no reply sent\n");
 				if (!res)
 					res = ast_play_and_wait(chan, "vm-nonumber");
 				return res;
@@ -6513,7 +6523,8 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 				if (find_user(NULL, vmu->context, num)) {
 					struct leave_vm_options leave_options;
 
-					ast_verbose(VERBOSE_PREFIX_3 "Leaving voicemail for '%s' in context '%s'\n", num, vmu->context);
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Leaving voicemail for '%s' in context '%s'\n", num, vmu->context);
 					
 					memset(&leave_options, 0, sizeof(leave_options));
 					leave_options.record_gain = record_gain;
@@ -6523,7 +6534,8 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 					return res;
 				} else {
 					/* Sender has no mailbox, can't reply */
-					ast_verbose( VERBOSE_PREFIX_3 "No mailbox number '%s' in context '%s', no reply sent\n", num, vmu->context);
+					if (option_verbose > 2)
+						ast_verbose( VERBOSE_PREFIX_3 "No mailbox number '%s' in context '%s', no reply sent\n", num, vmu->context);
 					ast_play_and_wait(chan, "vm-nobox");
 					res = 't';
 					return res;
@@ -6574,7 +6586,8 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  				break;
  			} else {
  				/* Otherwise 1 is to save the existing message */
- 				ast_verbose(VERBOSE_PREFIX_3 "Saving message as is\n");
+ 				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Saving message as is\n");
  				ast_streamfile(chan, "vm-msgsaved", chan->language);
  				ast_waitstream(chan, "");
 				STORE(recordfile, vmu->mailbox, vmu->context, -1);
@@ -6584,7 +6597,8 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  			}
  		case '2':
  			/* Review */
- 			ast_verbose(VERBOSE_PREFIX_3 "Reviewing the message\n");
+ 			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Reviewing the message\n");
  			ast_streamfile(chan, recordfile, chan->language);
  			cmd = ast_waitstream(chan, AST_DIGIT_ANY);
  			break;
@@ -6592,9 +6606,11 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  			message_exists = 0;
  			/* Record */
  			if (recorded == 1)
-				ast_verbose(VERBOSE_PREFIX_3 "Re-recording the message\n");
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Re-recording the message\n");
  			else	
-				ast_verbose(VERBOSE_PREFIX_3 "Recording the message\n");
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Recording the message\n");
 			if (recorded && outsidecaller) {
  				cmd = ast_play_and_wait(chan, INTRO);
  				cmd = ast_play_and_wait(chan, "beep");
@@ -6618,14 +6634,16 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 #if 0			
  			else if (vmu->review && (*duration < 5)) {
  				/* Message is too short */
- 				ast_verbose(VERBOSE_PREFIX_3 "Message too short\n");
+ 				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Message too short\n");
 				cmd = ast_play_and_wait(chan, "vm-tooshort");
  				cmd = vm_delete(recordfile);
  				break;
  			}
  			else if (vmu->review && (cmd == 2 && *duration < (maxsilence + 3))) {
  				/* Message is all silence */
- 				ast_verbose(VERBOSE_PREFIX_3 "Nothing recorded\n");
+ 				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Nothing recorded\n");
  				cmd = vm_delete(recordfile);
 				cmd = ast_play_and_wait(chan, "vm-nothingrecorded");
 				if (!cmd)
