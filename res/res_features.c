@@ -1123,6 +1123,9 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 							ast_indicate(caller, AST_CONTROL_RINGING);
 						} else if ((f->subclass == AST_CONTROL_BUSY) || (f->subclass == AST_CONTROL_CONGESTION)) {
 							state = f->subclass;
+							if (option_verbose > 2)
+								ast_verbose( VERBOSE_PREFIX_3 "%s is busy\n", chan->name);
+							ast_indicate(caller, AST_CONTROL_BUSY);
 							ast_frfree(f);
 							f = NULL;
 							break;
