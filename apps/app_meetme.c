@@ -779,6 +779,8 @@ static void conf_flush(int fd, struct ast_channel *chan)
 			f = ast_read(chan);
 			if (f)
 				ast_frfree(f);
+			else /* channel was hung up or something else happened */
+				break;
 		}
 	}
 
