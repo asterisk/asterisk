@@ -51,6 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/ast_expr.h"
 #include "asterisk/linkedlists.h"
+#define	SAY_STUBS	/* generate declarations and stubs for say methods */
 #include "asterisk/say.h"
 #include "asterisk/utils.h"
 #include "asterisk/causes.h"

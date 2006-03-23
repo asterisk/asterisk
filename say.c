@@ -56,7 +56,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Forward declaration */
 static int wait_file(struct ast_channel *chan, const char *ints, const char *file, const char *lang);
 
-int ast_say_character_str_full(struct ast_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
+
+static int say_character_str_full(struct ast_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
 {
 	const char *fn;
 	char fnbuf[256];
@@ -131,12 +132,12 @@ int ast_say_character_str_full(struct ast_channel *chan, const char *str, const 
 	return res;
 }
 
-int ast_say_character_str(struct ast_channel *chan, const char *str, const char *ints, const char *lang)
+static int say_character_str(struct ast_channel *chan, const char *str, const char *ints, const char *lang)
 {
 	return ast_say_character_str_full(chan, str, ints, lang, -1, -1);
 }
 
-int ast_say_phonetic_str_full(struct ast_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
+static int say_phonetic_str_full(struct ast_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
 {
 	const char *fn;
 	char fnbuf[256];
@@ -210,12 +211,12 @@ int ast_say_phonetic_str_full(struct ast_channel *chan, const char *str, const c
 	return res;
 }
 
-int ast_say_phonetic_str(struct ast_channel *chan, const char *str, const char *ints, const char *lang)
+static int say_phonetic_str(struct ast_channel *chan, const char *str, const char *ints, const char *lang)
 {
 	return ast_say_phonetic_str_full(chan, str, ints, lang, -1, -1);
 }
 
-int ast_say_digit_str_full(struct ast_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
+static int say_digit_str_full(struct ast_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
 {
 	const char *fn;
 	char fnbuf[256];
@@ -261,12 +262,12 @@ int ast_say_digit_str_full(struct ast_channel *chan, const char *str, const char
 	return res;
 }
 
-int ast_say_digit_str(struct ast_channel *chan, const char *str, const char *ints, const char *lang)
+static int say_digit_str(struct ast_channel *chan, const char *str, const char *ints, const char *lang)
 {
 	return ast_say_digit_str_full(chan, str, ints, lang, -1, -1);
 }
 
-int ast_say_digits_full(struct ast_channel *chan, int num, const char *ints, const char *lang, int audiofd, int ctrlfd)
+static int say_digits_full(struct ast_channel *chan, int num, const char *ints, const char *lang, int audiofd, int ctrlfd)
 {
 	char fn2[256];
 
@@ -274,7 +275,7 @@ int ast_say_digits_full(struct ast_channel *chan, int num, const char *ints, con
 	return ast_say_digit_str_full(chan, fn2, ints, lang, audiofd, ctrlfd);
 }
 
-int ast_say_digits(struct ast_channel *chan, int num, const char *ints, const char *lang)
+static int say_digits(struct ast_channel *chan, int num, const char *ints, const char *lang)
 {
 	return ast_say_digits_full(chan, num, ints, lang, -1, -1);
 }
@@ -413,7 +414,7 @@ static int wait_file(struct ast_channel *chan, const char *ints, const char *fil
 
 /*! \brief  ast_say_number_full: call language-specific functions */
 /* Called from AGI */
-int ast_say_number_full(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+static int say_number_full(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
 	if (!strcasecmp(language,"en") ) {	/* English syntax */
 	   return(ast_say_number_full_en(chan, num, ints, language, audiofd, ctrlfd));
@@ -456,7 +457,7 @@ int ast_say_number_full(struct ast_channel *chan, int num, const char *ints, con
 }
 
 /*! \brief  ast_say_number: call language-specific functions without file descriptors */
-int ast_say_number(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options)
+static int say_number(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options)
 {
 	return(ast_say_number_full(chan, num, ints, language, options, -1, -1));
 }
@@ -2273,7 +2274,7 @@ static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char 
 
 /*! \brief  ast_say_enumeration_full: call language-specific functions */
 /* Called from AGI */
-int ast_say_enumeration_full(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+static int say_enumeration_full(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
 	if (!strcasecmp(language,"en") ) {	/* English syntax */
 	   return(ast_say_enumeration_full_en(chan, num, ints, language, audiofd, ctrlfd));
@@ -2288,7 +2289,7 @@ int ast_say_enumeration_full(struct ast_channel *chan, int num, const char *ints
 }
 
 /*! \brief  ast_say_enumeration: call language-specific functions without file descriptors */
-int ast_say_enumeration(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options)
+static int say_enumeration(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options)
 {
 	return(ast_say_enumeration_full(chan, num, ints, language, options, -1, -1));
 }
@@ -2718,7 +2719,7 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 	return res;
 }
 
-int ast_say_date(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
+static int say_date(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
 	if (!strcasecmp(lang, "en") ) {	/* English syntax */
 		return(ast_say_date_en(chan, t, ints, lang));
@@ -2947,7 +2948,7 @@ int ast_say_date_pt(struct ast_channel *chan, time_t t, const char *ints, const 
 	return res;
 }
 
-int ast_say_date_with_format(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
+static int say_date_with_format(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
 	/* If no format is given, use default english format */
 	if (format == NULL)
@@ -5164,7 +5165,7 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 	return res;
 }
 
-int ast_say_time(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
+static int say_time(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
 	if (!strcasecmp(lang, "en") ) {	/* English syntax */
 		return(ast_say_time_en(chan, t, ints, lang));
@@ -5353,7 +5354,7 @@ int ast_say_time_tw(struct ast_channel *chan, time_t t, const char *ints, const 
 	return res;
 }
 
-int ast_say_datetime(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
+static int say_datetime(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
 	if (!strcasecmp(lang, "en") ) {	/* English syntax */
 		return(ast_say_datetime_en(chan, t, ints, lang));
@@ -5632,7 +5633,7 @@ int ast_say_datetime_tw(struct ast_channel *chan, time_t t, const char *ints, co
 	return res;
 }
 
-int ast_say_datetime_from_now(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
+static int say_datetime_from_now(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
 	if (!strcasecmp(lang, "en") ) {	/* English syntax */
 		return(ast_say_datetime_from_now_en(chan, t, ints, lang));
@@ -6193,4 +6194,28 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 		}
 	}
 	return res;
+}
+
+/*
+ * remap the 'say' functions to use those in this file
+ */
+static void __attribute__((constructor)) __say_init(void)
+{
+	ast_say_number = say_number;
+	ast_say_number_full = say_number_full;
+	ast_say_enumeration = say_enumeration;
+	ast_say_enumeration_full = say_enumeration_full;
+	ast_say_digits = say_digits;
+	ast_say_digits_full = say_digits_full;
+	ast_say_digit_str = say_digit_str;
+	ast_say_digit_str_full = say_digit_str_full;
+	ast_say_character_str = say_character_str;
+	ast_say_character_str_full = say_character_str_full;
+	ast_say_phonetic_str = say_phonetic_str;
+	ast_say_phonetic_str_full = say_phonetic_str_full;
+	ast_say_datetime = say_datetime;
+	ast_say_time = say_time;
+	ast_say_date = say_date;
+	ast_say_datetime_from_now = say_datetime_from_now;
+	ast_say_date_with_format = say_date_with_format;
 }
