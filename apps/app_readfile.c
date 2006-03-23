@@ -92,15 +92,16 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	returnvar = ast_read_textfile(file);
-	if(len > 0){
-		if(len < strlen(returnvar))
-			returnvar[len]='\0';
-		else
-			ast_log(LOG_WARNING,"%s is longer than %d, and %d \n", file, len, (int)strlen(returnvar));
+	if ((returnvar = ast_read_textfile(file))) {
+		if (len > 0) {
+			if (len < strlen(returnvar))
+				returnvar[len]='\0';
+			else
+				ast_log(LOG_WARNING, "%s is longer than %d, and %d \n", file, len, (int)strlen(returnvar));
+		}
+		pbx_builtin_setvar_helper(chan, varname, returnvar);
+		free(returnvar);
 	}
-	pbx_builtin_setvar_helper(chan, varname, returnvar);
-	free(returnvar);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
