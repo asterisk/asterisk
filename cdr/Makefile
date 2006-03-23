@@ -37,11 +37,6 @@ else
   CFLAGS+=-fPIC
 endif
 
-ifeq ($(findstring BSD,${OSARCH}),BSD)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include
-  SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
-endif
-
 #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
 #This works for even old (2.96) versions of gcc and provides a small boost either way.
 #A ultrasparc cpu is really v9 but the stock debian stable 3.0 gcc doesn.t support it.

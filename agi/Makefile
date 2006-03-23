@@ -20,10 +20,6 @@ ifeq ($(OSARCH),SunOS)
   LIBS=-lsocket -lnsl ../strcompat.o
 endif
 
-ifeq ($(findstring BSD,${OSARCH}),BSD)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
-endif
-
 all: depend $(AGIS)
 
 install: all
