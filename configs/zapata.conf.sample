@@ -62,7 +62,7 @@ context=default
 switchtype=national
 ;
 ; Some switches (AT&T especially) require network specific facility IE
-; supported values are currently 'none', 'sdn', 'megacom', 'accunet'
+; supported values are currently 'none', 'sdn', 'megacom', 'tollfreemegacom', 'accunet'
 ;
 ;nsf=none
 ;

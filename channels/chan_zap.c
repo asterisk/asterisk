@@ -9249,15 +9249,19 @@ static void *pri_dchannel(void *vpri)
 					ast_log(LOG_WARNING, "Received SETUP_ACKNOWLEDGE on unconfigured channel %d/%d span %d\n", 
 						PRI_SPAN(e->setup_ack.channel), PRI_CHANNEL(e->setup_ack.channel), pri->span);
 				} else {
-					ast_mutex_lock(&pri->pvts[chanpos]->lock);
-					pri->pvts[chanpos]->setup_ack = 1;
-					/* Send any queued digits */
-					for (x=0;x<strlen(pri->pvts[chanpos]->dialdest);x++) {
-						ast_log(LOG_DEBUG, "Sending pending digit '%c'\n", pri->pvts[chanpos]->dialdest[x]);
-						pri_information(pri->pri, pri->pvts[chanpos]->call, 
-							pri->pvts[chanpos]->dialdest[x]);
-					}
-					ast_mutex_unlock(&pri->pvts[chanpos]->lock);
+					chanpos = pri_fixup_principle(pri, chanpos, e->ring.call);
+					if (chanpos > -1) {
+						ast_mutex_lock(&pri->pvts[chanpos]->lock);
+						pri->pvts[chanpos]->setup_ack = 1;
+						/* Send any queued digits */
+						for (x=0;x<strlen(pri->pvts[chanpos]->dialdest);x++) {
+							ast_log(LOG_DEBUG, "Sending pending digit '%c'\n", pri->pvts[chanpos]->dialdest[x]);
+							pri_information(pri->pri, pri->pvts[chanpos]->call, 
+								pri->pvts[chanpos]->dialdest[x]);
+						}
+						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
+					} else
+						ast_log(LOG_WARNING, "Unable to move channel %d!\n", e->setup_ack.channel);
 				}
 				break;
 			case PRI_EVENT_NOTIFY:
@@ -10973,6 +10977,8 @@ static int setup_zap(int reload)
 					nsf = PRI_NSF_SDN;
 				else if (!strcasecmp(v->value, "megacom"))
 					nsf = PRI_NSF_MEGACOM;
+				else if (!strcasecmp(v->value, "tollfreemegacom"))
+					nsf = PRI_NSF_TOLL_FREE_MEGACOM;				
 				else if (!strcasecmp(v->value, "accunet"))
 					nsf = PRI_NSF_ACCUNET;
 				else if (!strcasecmp(v->value, "none"))
