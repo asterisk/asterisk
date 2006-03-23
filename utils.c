@@ -1024,11 +1024,7 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 	va_list ap1, ap2;
 
 	va_start(ap1, format);
-#if defined(__FreeBSD__)
 	va_start(ap2, format);		/* va_copy does not exist on FreeBSD */
-#else
-	va_copy(ap2, ap1);
-#endif
 
 	needed = vsnprintf(mgr->pool->base + mgr->used, mgr->space, format, ap1) + 1;
 
