@@ -8264,13 +8264,16 @@ static void *sched_thread(void *ignore)
 {
 	int count;
 	int res;
+	struct timeval tv;
 	struct timespec ts;
 
 	for (;;) {
 		res = ast_sched_wait(sched);
 		if ((res > 1000) || (res < 0))
 			res = 1000;
-		ts.tv_sec = res;
+		tv = ast_tvadd(ast_tvnow(), ast_samp2tv(res, 1000));
+		ts.tv_sec = tv.tv_sec;
+		ts.tv_nsec = tv.tv_usec * 1000;
 
 		ast_mutex_lock(&sched_lock);
 		ast_cond_timedwait(&sched_cond, &sched_lock, &ts);
