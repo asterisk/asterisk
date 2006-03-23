@@ -7622,8 +7622,8 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 	regex_t regexbuf;
 	int havepattern = FALSE;
 
-#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8s %-10s\n"
-#define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-10s\n"
+#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8s %-10s %-10s\n"
+#define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-10s %-10s\n"
 
 	char name[256];
 	char iabuf[INET_ADDRSTRLEN];
@@ -7632,6 +7632,9 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 	int peers_offline = 0;
 	char *id;
 	char idtext[256] = "";
+	int realtimepeers;
+
+	realtimepeers = ast_check_realtime("sippeers");
 
 	if (s) {	/* Manager - get ActionID */
 		id = astman_get_header(m,"ActionID");
@@ -7654,7 +7657,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 	}
 
 	if (!s) { /* Normal list */
-		ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Port", "Status");
+		ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Port", "Status", (realtimepeers ? "Realtime" : ""));
 	} 
 	
 	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
@@ -7695,7 +7698,8 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			ast_test_flag((&iterator->flags_page2), SIP_PAGE2_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
 			(ast_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
 			iterator->ha ? " A " : "   ", 	/* permit/deny */
-			ntohs(iterator->addr.sin_port), status);
+			ntohs(iterator->addr.sin_port), status,
+			realtimepeers ? (ast_test_flag(iterator, SIP_REALTIME) ? "Cached RT":"") : "");
 
 		if (!s)  {/* Normal CLI list */
 			ast_cli(fd, FORMAT, name, 
@@ -7704,7 +7708,8 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			(ast_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
 			iterator->ha ? " A " : "   ",       /* permit/deny */
 			
-			ntohs(iterator->addr.sin_port), status);
+			ntohs(iterator->addr.sin_port), status,
+			realtimepeers ? (ast_test_flag(iterator, SIP_REALTIME) ? "Cached RT":"") : "");
 		} else {	/* Manager format */
 			/* The names here need to be the same as other channels */
 			ast_cli(fd, 
@@ -7717,15 +7722,17 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			"Dynamic: %s\r\n"
 			"Natsupport: %s\r\n"
 			"ACL: %s\r\n"
-			"Status: %s\r\n\r\n", 
+			"Status: %s\r\n"
+			"RealtimeDevice: %s\r\n\r\n", 
 			idtext,
 			iterator->name, 
 			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), iterator->addr.sin_addr) : "-none-",
 			ntohs(iterator->addr.sin_port), 
 			ast_test_flag((&iterator->flags_page2), SIP_PAGE2_DYNAMIC) ? "yes" : "no", 	/* Dynamic or not? */
 			(ast_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? "yes" : "no",	/* NAT=yes? */
-			iterator->ha ? "yes" : "no",       /* permit/deny */
-			status);
+			iterator->ha ? "yes" : "no",       /* iterator/deny */
+			status,
+			realtimepeers ? (ast_test_flag(iterator, SIP_REALTIME) ? "yes":"no") : "no");
 		}
 
 		ASTOBJ_UNLOCK(iterator);
@@ -8049,6 +8056,9 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 	struct ast_variable *v;
 	struct sip_auth *auth;
 	int x = 0, codec = 0, load_realtime;
+	int realtimepeers;
+
+	realtimepeers = ast_check_realtime("sippeers");
 
 	if (argc < 4)
 		return RESULT_SHOWUSAGE;
@@ -8067,6 +8077,9 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 	if (peer && type==0 ) { /* Normal listing */
 		ast_cli(fd,"\n\n");
 		ast_cli(fd, "  * Name       : %s\n", peer->name);
+		if (realtimepeers) {	/* Realtime is enabled */
+			ast_cli(fd, "  Realtime peer: %s\n", ast_test_flag(peer, SIP_REALTIME) ? "Yes, cached" : "No");
+		}
 		ast_cli(fd, "  Secret       : %s\n", ast_strlen_zero(peer->secret)?"<Not set>":"<Set>");
 		ast_cli(fd, "  MD5Secret    : %s\n", ast_strlen_zero(peer->md5secret)?"<Not set>":"<Set>");
 		auth = peer->auth;
@@ -8317,8 +8330,8 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 static int sip_show_settings(int fd, int argc, char *argv[])
 {
 	char tmp[BUFSIZ];
-	int realtimepeers = 0;
-	int realtimeusers = 0;
+	int realtimepeers;
+	int realtimeusers;
 
 	realtimepeers = ast_check_realtime("sippeers");
 	realtimeusers = ast_check_realtime("sipusers");
