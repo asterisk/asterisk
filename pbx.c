@@ -3423,12 +3423,14 @@ static int handle_show_globals(int fd, int argc, char *argv[])
 	int i = 0;
 	struct ast_var_t *newvariable;
 
+	ast_mutex_lock(&globalslock);
 	AST_LIST_TRAVERSE (&globals, newvariable, entries) {
 		i++;
 		ast_cli(fd, "   %s=%s\n", ast_var_name(newvariable), ast_var_value(newvariable));
 	}
-	/* ... we have applications ... */
+	ast_mutex_unlock(&globalslock);
 	ast_cli(fd, "\n    -- %d variables\n", i);
+
 	return RESULT_SUCCESS;
 }
 
