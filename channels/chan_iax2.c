@@ -240,6 +240,9 @@ static struct ast_flags globalflags = { 0 };
 
 static pthread_t netthreadid = AST_PTHREADT_NULL;
 static pthread_t schedthreadid = AST_PTHREADT_NULL;
+AST_MUTEX_DEFINE_STATIC(sched_lock);
+static int sched_halt = 0;
+static ast_cond_t sched_cond;
 
 enum {
 	IAX_STATE_STARTED = 		(1 << 0),
@@ -696,6 +699,8 @@ struct iax2_thread {
 	int iores;
 	int iofd;
 	time_t checktime;
+	ast_mutex_t lock;
+	ast_cond_t cond;
 };
 
 struct iax2_thread_list {
@@ -703,6 +708,13 @@ struct iax2_thread_list {
 };
 
 static struct iax2_thread_list idlelist, activelist;
+
+static void signal_condition(ast_mutex_t *lock, ast_cond_t *cond)
+{
+	ast_mutex_lock(lock);
+	ast_cond_signal(cond);
+	ast_mutex_unlock(lock);
+}
 
 static void iax_debug_output(const char *data)
 {
@@ -836,7 +848,7 @@ static int __schedule_action(void (*func)(void *data), void *data, const char *f
 #ifdef DEBUG_SCHED_MULTITHREAD
 		ast_copy_string(thread->curfunc, funcname, sizeof(thread->curfunc));
 #endif
-		pthread_kill(thread->threadid, SIGURG);
+		signal_condition(&thread->lock, &thread->cond);
 		return 0;
 	}
 	time(&t);
@@ -2283,7 +2295,9 @@ static void update_jbsched(struct chan_iax2_pvt *pvt) {
     }
 
     pvt->jbid = ast_sched_add(sched, when, get_from_jb, (void *)pvt);
-	pthread_kill(schedthreadid, SIGURG);
+
+    /* Signal scheduler thread */
+    signal_condition(&sched_lock, &sched_cond);
 }
 
 static void __get_from_jb(void *p) 
@@ -2617,7 +2631,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 		if (option_debug && iaxdebug)
 			ast_log(LOG_DEBUG, "schedule_delivery: Scheduling delivery in %d ms\n", delay);
 		fr->retrans = ast_sched_add(sched, delay, do_deliver, fr);
-		pthread_kill(schedthreadid, SIGURG);
+		signal_condition(&sched_lock, &sched_cond);
 	}
 #endif
 	if (tsout)
@@ -2653,7 +2667,7 @@ static int iax2_transmit(struct iax_frame *fr)
 	ast_mutex_unlock(&iaxq.lock);
 	/* Wake up the network and scheduler thread */
 	pthread_kill(netthreadid, SIGURG);
-	pthread_kill(schedthreadid, SIGURG);
+	signal_condition(&sched_lock, &sched_cond);
 	return 0;
 }
 
@@ -6512,7 +6526,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 #ifdef DEBUG_SCHED_MULTITHREAD
 		ast_copy_string(thread->curfunc, "socket_process", sizeof(thread->curfunc));
 #endif
-		pthread_kill(thread->threadid, SIGURG);
+		signal_condition(&thread->lock, &thread->cond);
 	} else {
 		time(&t);
 		if (t != last_errtime)
@@ -7882,18 +7896,20 @@ retryowner2:
 static void destroy_helper(struct iax2_thread *thread)
 {
 	ast_log(LOG_DEBUG, "Destroying helper %d!\n", thread->threadnum);
+	ast_mutex_destroy(&thread->lock);
+	ast_cond_destroy(&thread->cond);
 	free(thread);
 }
 
 static void *iax2_process_thread(void *data)
 {
 	struct iax2_thread *thread_copy, *thread = data;
-	struct timeval tv;
+
 	for(;;) {
-		/* Sleep for up to 1 second */
-		tv.tv_sec = 1;
-		tv.tv_usec = 0;
-		select(0, NULL, NULL, NULL, &tv);
+		/* Wait for something to signal us to be awake */
+		ast_mutex_lock(&thread->lock);
+		ast_cond_wait(&thread->cond, &thread->lock);
+		ast_mutex_unlock(&thread->lock);
 		/* Unlink from idlelist / activelist if there*/
 		ASTOBJ_CONTAINER_UNLINK(&idlelist, thread);
 		ASTOBJ_CONTAINER_UNLINK(&activelist, thread);
@@ -8248,19 +8264,25 @@ static void *sched_thread(void *ignore)
 {
 	int count;
 	int res;
+	struct timespec ts;
+
 	for (;;) {
 		res = ast_sched_wait(sched);
 		if ((res > 1000) || (res < 0))
 			res = 1000;
-		res = poll(NULL, 0, res);
-		if (res < 0) {
-			if ((errno != EAGAIN) && (errno != EINTR))
-				ast_log(LOG_WARNING, "poll failed: %s\n", strerror(errno));
-		}
+		ts.tv_sec = res;
+
+		ast_mutex_lock(&sched_lock);
+		ast_cond_timedwait(&sched_cond, &sched_lock, &ts);
+		if (sched_halt == 1)
+			break;
+		ast_mutex_unlock(&sched_lock);
+
 		count = ast_sched_runq(sched);
 		if (count >= 20)
 			ast_log(LOG_DEBUG, "chan_iax2: ast_sched_runq ran %d scheduled tasks all at once\n", count);
 	}
+	ast_mutex_unlock(&sched_lock);
 	return NULL;
 }
 
@@ -8304,7 +8326,7 @@ static void *network_thread(void *ignore)
 					/* We need reliable delivery.  Schedule a retransmission */
 					f->retries++;
 					f->retrans = ast_sched_add(sched, f->retrytime, attempt_transmit, f);
-					pthread_kill(schedthreadid, SIGURG);
+					signal_condition(&sched_lock, &sched_cond);
 				}
 			}
 			f = f->next;
@@ -8336,6 +8358,8 @@ static int start_network_thread(void)
 		if (thread) {
 			ASTOBJ_INIT(thread);
 			thread->threadnum = ++threadcount;
+			ast_mutex_init(&thread->lock);
+			ast_cond_init(&thread->cond, NULL);
 			if (ast_pthread_create(&thread->threadid, NULL, iax2_process_thread, thread)) {
 				ast_log(LOG_WARNING, "Failed to create new thread!\n");
 				free(thread);
@@ -9862,16 +9886,20 @@ static int __unload_module(void)
 	}
 	if (schedthreadid != AST_PTHREADT_NULL) {
 		pthread_cancel(schedthreadid);
+		ast_mutex_lock(&sched_lock);
+		sched_halt = 1;
+		ast_cond_signal(&sched_cond);
+		ast_mutex_unlock(&sched_lock);
 		pthread_join(schedthreadid, NULL);
 	}
 	while (idlelist.head || activelist.head) {
 		ASTOBJ_CONTAINER_TRAVERSE(&idlelist, 1, {
 			iterator->halt = 1;
-			pthread_kill(iterator->threadid, SIGURG);
+			signal_condition(&iterator->lock, &iterator->cond);
 		});
 		ASTOBJ_CONTAINER_TRAVERSE(&activelist, 1, {
 			iterator->halt = 1;
-			pthread_kill(iterator->threadid, SIGURG);
+			signal_condition(&iterator->lock, &iterator->cond);
 		});
 		usleep(100000);
 	}
