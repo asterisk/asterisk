@@ -3439,7 +3439,7 @@ static int handle_set_global(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	pbx_builtin_setvar_helper(NULL, argv[2], argv[3]);
-	ast_cli(fd, "\n    -- Global variables %s set to %s\n", argv[2], argv[3]);
+	ast_cli(fd, "\n    -- Global variable %s set to %s\n", argv[2], argv[3]);
 
 	return RESULT_SUCCESS;
 }
