@@ -84,6 +84,10 @@ int unsetenv(const char *name);
 #define HAVE_STRNLEN
 #endif
 
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#endif
+
 #ifdef SOLARIS
 #undef HAVE_VASPRINTF
 #undef HAVE_STRTOQ
