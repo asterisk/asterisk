@@ -141,13 +141,13 @@ static int function_txtcidname(struct ast_channel *chan, char *cmd,
 
 	buf[0] = '\0';
 
-	LOCAL_USER_ADD(u);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "TXTCIDNAME requires an argument (number)\n");
-		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
+
+	LOCAL_USER_ADD(u);
 
 	res = ast_get_txt(chan, data, dest, sizeof(dest), tech, sizeof(tech), txt,
 			  sizeof(txt));
