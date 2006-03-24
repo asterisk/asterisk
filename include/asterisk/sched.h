@@ -64,7 +64,7 @@ typedef int (*ast_sched_cb)(void *data);
 
 /*!Adds a scheduled event */
 /*! 
- * \param con Schduler context to add
+ * \param con Scheduler context to add
  * \param when how many milliseconds to wait for event to occur
  * \param callback function to call when the amount of time expires
  * \param data data to pass to the callback
@@ -78,7 +78,7 @@ extern int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callb
 
 /*!Adds a scheduled event */
 /*! 
- * \param con Schduler context to add
+ * \param con Scheduler context to add
  * \param when how many milliseconds to wait for event to occur
  * \param callback function to call when the amount of time expires
  * \param data data to pass to the callback
