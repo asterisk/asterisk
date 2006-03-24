@@ -35,6 +35,11 @@ static force_inline int ast_strlen_zero(const char *s)
 	return (!s || (*s == '\0'));
 }
 
+/*! \brief returns the equivalent of logic or for strings:
+ * first one if not empty, otherwise second one.
+ */
+#define S_OR(a, b)	(!ast_strlen_zero(a) ? (a) : (b))
+
 /*!
   \brief Gets a pointer to the first non-whitespace character in a string.
   \param ast_skip_blanks function being used
