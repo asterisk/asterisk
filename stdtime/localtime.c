@@ -52,6 +52,11 @@
 #ifdef DEBUG
 #include <stdio.h>
 #endif
+
+#include "asterisk.h"
+ 
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "private.h"
 #include "tzfile.h"
 #include "asterisk/lock.h"
