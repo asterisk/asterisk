@@ -153,7 +153,7 @@ struct ast_frame *ast_read_image(char *filename, const char *preflang, int forma
 				lseek(fd, 0, SEEK_SET);
 				f = found->read_image(fd,len); 
 			} else
-				ast_log(LOG_WARNING, "%s does not appear to be a %s file\n", buf, i->name);
+				ast_log(LOG_WARNING, "%s does not appear to be a %s file\n", buf, found->name);
 			close(fd);
 		} else
 			ast_log(LOG_WARNING, "Unable to open '%s': %s\n", buf, strerror(errno));
