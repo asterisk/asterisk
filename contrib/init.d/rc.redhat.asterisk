@@ -20,27 +20,11 @@
 # - Added support for -U and -G command line options
 # - Modified "reload" to call asterisk -rx 'reload' 
 
-# Source function library.
-. /etc/rc.d/init.d/functions
+# Use this option to specify a different configuration directory
+#AST_CONFIG=/etc/asterisk
 
-if ! [ -x /usr/sbin/asterisk ] ; then
-	echo "ERROR: /usr/sbin/asterisk not found"
-	exit 0
-fi
-
-if ! [ -d /etc/asterisk ] ; then
-	echo "ERROR: /etc/asterisk directory not found"
-	exit 0
-fi
-
-# Uncomment this ONLY if you know what you are doing.
-# export LD_ASSUME_KERNEL=2.4.1
-
-# Full path to asterisk binary
-DAEMON=/usr/sbin/asterisk
-
-# Full path to safe_asterisk script
-SAFE_ASTERISK=/usr/sbin/safe_asterisk
+# Installation directory
+AST_SBIN=/usr/sbin
 
 # Uncomment the following and set them to the user/groups that you
 # want to run Asterisk as. NOTE: this requires substantial work to
@@ -49,6 +33,37 @@ SAFE_ASTERISK=/usr/sbin/safe_asterisk
 # socket, the asterisk database, etc.
 #AST_USER="asterisk"
 #AST_GROUP="asterisk"
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+if ! [ -x $AST_SBIN/asterisk ] ; then
+	echo "ERROR: /usr/sbin/asterisk not found"
+	exit 0
+fi
+
+if ! [ -d $AST_CONFIG ] ; then
+	echo "ERROR: /etc/asterisk directory not found"
+	exit 0
+fi
+
+# Uncomment this ONLY if you know what you are doing.
+# export LD_ASSUME_KERNEL=2.4.1
+
+# Full path to asterisk binary
+DAEMON=$AST_SBIN/asterisk
+
+# Full path to safe_asterisk script
+SAFE_ASTERISK=$AST_SBIN/safe_asterisk
+
+# Allow configuration overrides in /etc/sysconfig/asterisk
+CONFIG0=`readlink $0`
+if [ $CONFIG0 = "" ]; then
+	CONFIGFILE=/etc/sysconfig/`basename $0`
+else
+	CONFIGFILE=/etc/sysconfig/`basename $CONFIG0`
+fi
+[ -x $CONFIGFILE ] && . $CONFIGFILE
 
 RETVAL=0
 
@@ -62,7 +77,10 @@ start() {
 		ASTARGS="-U $AST_USER"
 	fi
 	if [ $AST_GROUP ] ; then
-		ASTARGS="`echo $ASTARGS` -G $AST_GROUP"
+		ASTARGS="$ASTARGS -G $AST_GROUP"
+	fi
+	if [ $AST_CONFIG ]; then
+		ASTARGS="$ASTARGS -C $AST_CONFIG"
 	fi
 	daemon $DAEMON $ASTARGS
 	RETVAL=$?
