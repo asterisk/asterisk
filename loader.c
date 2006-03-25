@@ -33,6 +33,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/linkedlists.h"
 #include "asterisk/module.h"
 #include "asterisk/options.h"
 #include "asterisk/config.h"
@@ -56,12 +57,28 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define RTLD_NOW 0
 #endif
 
-
 static int modlistver = 0; /* increase whenever the list changes, to protect reload */
 
 static unsigned char expected_key[] =
 { 0x8e, 0x93, 0x22, 0x83, 0xf5, 0xc3, 0xc0, 0x75,
   0xff, 0x8b, 0xa9, 0xbe, 0x7c, 0x43, 0x74, 0x63 };
+
+/*
+ * Modules can be in a number of different states, as below:
+ * MS_FAILED	attempt to load failed. This is final.
+ * MS_NEW	just added to the list, symbols unresolved.
+ * MS_RESOLVED	all symbols resolved, but supplier modules not active yet.
+ * MS_CANLOAD	all symbols resolved and suppliers are all active
+ *		(or we are in a cyclic dependency and we are breaking a loop)
+ * MS_ACTIVE	load() returned successfully.
+ */
+enum st_t {  /* possible states of a module */
+	MS_FAILED = 0,              /* cannot load */
+	MS_NEW = 1,                 /* nothing known */
+	MS_RESOLVED = 2,            /* all required resolved */
+	MS_CANLOAD = 3,             /* as above, plus cyclic depend.*/
+	MS_ACTIVE = 4,              /* all done */
+};
 
 /*
  * All module symbols are in module_symbols.
@@ -73,21 +90,18 @@ static unsigned char expected_key[] =
  *
  * A second lock, reloadlock, is used to prevent concurrent reloads
  */
-
-struct module_symbols {
-	int (*load_module)(void);
-	int (*unload_module)(void);
-	int (*usecount)(void);
-	char *(*description)(void);
-	char *(*key)(void);
-	int (*reload)(void);
-};
-
 struct module {
 	AST_LIST_ENTRY(module) next;
 	struct module_symbols cb;
 	void *lib;		/* the shared lib */
 	char resource[256];
+
+	enum st_t state;
+	int export_refcount;	/* how many users of exported symbols */
+
+	ast_mutex_t mtx;	/* for future use */
+	struct localuser *lu;
+	int localusecnt;
 };
 
 
@@ -99,6 +113,340 @@ struct loadupdate {
 static AST_LIST_HEAD_STATIC(module_list, module);
 static AST_LIST_HEAD_STATIC(updaters, loadupdate);
 AST_MUTEX_DEFINE_STATIC(reloadlock);
+
+/*
+ * helper localuser routines.
+ * All of these routines are extremely expensive, so the use of
+ * macros is totally unnecessary from the point of view of performance:
+ * the extra function call will be totally negligible in all cases.
+ */
+
+struct localuser *ast_localuser_add(struct ast_module_lock *m,
+	struct ast_channel *chan)
+{
+	struct localuser *u = ast_calloc(1, sizeof(*u));
+	if (u == NULL)
+		return NULL;
+	u->chan = chan;
+	ast_mutex_lock(&m->lock);
+	AST_LIST_INSERT_HEAD(&m->u, u, next);
+	m->usecnt++;
+	ast_mutex_unlock(&m->lock);
+	ast_update_use_count();
+	return u;
+}
+
+void ast_localuser_remove(struct ast_module_lock *m, struct localuser *u)
+{
+	ast_mutex_lock(&m->lock);
+	AST_LIST_REMOVE(&m->u, u, next);
+	m->usecnt--;
+	free(u);
+	ast_mutex_unlock(&m->lock);
+	ast_update_use_count();
+}
+
+void ast_hangup_localusers(struct ast_module_lock *m)
+{
+	struct localuser *u;
+	ast_mutex_lock(&m->lock);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&m->u, u, next) {
+		ast_softhangup(u->chan, AST_SOFTHANGUP_APPUNLOAD);
+		free(u);
+		AST_LIST_REMOVE_CURRENT(&m->u, next);
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	m->usecnt = 0;
+	ast_mutex_unlock(&m->lock);
+        ast_update_use_count();
+}
+
+/*--- new-style loader routines ---*/
+
+/*
+ * For backward compatibility, we have 3 types of loadable modules:
+ *
+ * MOD_0 these are the 'old style' modules, which export a number
+ *       of callbacks, and their full interface, as globally visible
+ *       symbols. The module needs to be loaded with RTLD_LAZY and
+ *       RTLD_GLOBAL to make symbols visible to other modules, and
+ *       to avoid load failures due to cross dependencies.
+ *
+ * MOD_1 almost as above, but the generic callbacks are all into a
+ *       a structure, mod_data. Same load requirements as above.
+ *
+ * MOD_2 this is the 'new style' format for modules. The module must
+ *       explictly declare which simbols are exported and which
+ *       symbols from other modules are used, and the code in this
+ *       loader will implement appropriate checks to load the modules
+ *       in the correct order. Also this allows to load modules
+ *       with RTLD_NOW and RTLD_LOCAL so there is no chance of run-time
+ *       bugs due to unresolved symbols or name conflicts.
+ */
+
+/*
+ * helper routine to print the symbolic name associated to a state
+ */
+static const char *st_name(enum st_t state)
+{
+	/* try to resolve required symbols */
+	const char *st;
+	switch (state) {
+#define ST(x)  case x: st = # x; break;
+	ST(MS_NEW);
+	ST(MS_FAILED);
+	ST(MS_RESOLVED);
+	ST(MS_ACTIVE);
+	ST(MS_CANLOAD);
+	default:
+		st = "unknown";
+	}
+	return st;
+#undef ST
+}
+
+/*! \brief
+ * Fetch/release an exported symbol - modify export_refcount by delta
+ * \param delta 1 to fetch a symbol, -1 to release it.
+ * on success, return symbol value.
+ * Note, modules in MS_FAIL will never match in a 'get' request.
+ * If src is non-NULL, on exit *src points to the source module.
+ *
+ * Must be called with the lock held.
+ */
+static void *module_symbol_helper(const char *name,
+		int delta, struct module **src)
+{
+	void *ret = NULL;
+	struct module *m;
+
+	AST_LIST_TRAVERSE(&module_list, m, next) {
+		struct symbol_entry *es;
+		if (delta > 0 && m->state == MS_FAILED)
+			continue; /* cannot 'get' a symbol from a failed module */
+		for (es = m->cb.exported_symbols; ret == NULL && es && es->name; es++) {
+			if (!strcmp(es->name, name)) {
+				ret = es->value;
+				m->export_refcount += delta;
+				if (src)
+					*src = m;
+				break;
+			}
+		}
+		if (ret)
+			break;
+	}
+	if (ret == NULL)
+		ast_log(LOG_WARNING, "symbol %s not found\n", name);
+	return ret;
+}
+
+static void *release_module_symbol(const char *name)
+{
+	return module_symbol_helper(name, -1, NULL);
+}
+
+static void *get_module_symbol(const char *name, struct module **src)
+{
+	return module_symbol_helper(name, +1, src);
+}
+
+/*!
+ * \brief Release refcounts to all imported symbols,
+ * and change module state to MS_FAILED.
+ */
+static void release_module(struct module *m)
+{
+	struct symbol_entry *s;
+
+	for (s = m->cb.required_symbols; s && s->name != NULL; s++) {
+		if (s->value != NULL) {
+			release_module_symbol(s->name);
+			s->value = NULL;
+		}
+	}
+	m->state = MS_FAILED;
+}
+
+/*! \brief check that no NULL symbols are exported  - the algorithms rely on that. */
+static int check_exported(struct module *m)
+{
+	struct symbol_entry *es = m->cb.exported_symbols;
+	int errors = 0;
+
+	if (es == NULL)
+		return 0;
+	ast_log(LOG_WARNING, "module %s exports the following symbols\n",
+		es->name);
+	for (; es->name; es++) {
+		void **p = es->value;
+		int i;
+
+		ast_log(LOG_WARNING, "\taddr %p size %8d %s\n",
+			es->value, es->size, es->name);
+		for (i = 0; i <  es->size / sizeof(void *); i++, p++) {
+			if (*p == NULL) {
+				ast_log(LOG_WARNING, "\t *** null field at offset %d\n", i);
+					errors++;
+			}
+		}
+	}
+	return errors;
+}
+
+/*!
+ * \brief Resolve symbols and change state accordingly.
+ * Return 1 if state changed, 0 otherwise.
+ * If MS_FAILED, MS_ACTIVE or MS_CANLOAD there is nothing to do.
+ * If a symbol cannot be resolved (no supplier or supplier in MS_FAIL),
+ * move to MS_FAIL and release all symbols;
+ * If all suppliers are MS_ACTIVE, move to MS_CANLOAD
+ * otherwise move to MS_RESOLVED.
+ */
+static int resolve(struct module *m)
+{
+	struct symbol_entry *s;
+
+	if (m->state == MS_FAILED || m->state == MS_ACTIVE || m->state == MS_CANLOAD)
+		return 0;	/* already decided what to do */
+	/* now it's either MS_NEW or MS_RESOLVED.
+	 * Be optimistic and put it in MS_CANLOAD, then try to
+	 * resolve and verify symbols, and downgrade as appropriate.
+	 */
+	m->state = MS_CANLOAD;
+	for (s = m->cb.required_symbols; s && s->name != NULL; s++) {
+		void **p = (void **)(s->value);
+
+		if (*p == NULL)		/* symbol not resolved yet */
+			*p = get_module_symbol(s->name, &s->src);
+		if (*p == NULL || s->src->state == MS_FAILED) {        /* fail */
+			ast_log(LOG_WARNING,
+				"Unresolved symbol %s for module %s\n",
+				s->name, m->resource);
+			release_module(m); /* and set to MS_FAILED */
+                        break;
+		}
+		if (s->src->state != MS_ACTIVE)
+			m->state = MS_RESOLVED; /* downgrade */
+	}
+	return 1;
+}
+
+/*
+ * Fixup references and load modules according to their dependency order.
+ * Called when new modules are added to the list.
+ * The algorithm is as follows:
+ * - all modules MS_FAILED are changed to MS_NEW, in case something
+ *      happened that could help them.
+ * - first try to resolve symbols. If successful, change the
+ *   module's state to MS_RESOLVED otherwise to MS_FAILED
+ * - repeat on all modules until there is progress:
+ *    . if it is MS_ACTIVE or MS_FAILED, continue (no progress)
+ *    . if one has all required modules in MS_ACTIVE, try to load it.
+ *      If successful it becomes MS_ACTIVE itself, otherwise
+ *             MS_FAILED and releases all symbols.
+ *             In any case, we have progress.
+ *    . if one of the dependencies is MS_FAILED, release and set to
+ *      MS_FAILED here too. We have progress.
+ * - if we have no progress there is a cyclic dependency.
+ *      Take first and change to MS_CANLOAD, i.e. as if all required are
+ *      MS_ACTIVE. we have progress, so repeat.
+ * NOTE:
+ *   must be called with lock held
+ *   recursive calls simply return success.
+ */
+static int fixup(const char *caller)
+{
+	struct module *m;
+	int total = 0, new = 0, cycle = 0;
+	static int in_fixup = 0;        /* disable recursive calls */
+
+	if (in_fixup)
+		return 0;
+	in_fixup++;
+	AST_LIST_TRAVERSE(&module_list, m, next) {
+		total++;
+		if (m->state == MS_FAILED)
+			m->state = MS_NEW;
+		if (m->state == MS_NEW)
+			new++;
+		/* print some debugging info for new modules */
+		if (m->state == MS_NEW &&
+		    (m->cb.exported_symbols || m->cb.required_symbols))
+			ast_log(LOG_WARNING,
+			    "module %-30s exports %p requires %p state %s(%d)\n",
+				m->resource, m->cb.exported_symbols,
+				m->cb.required_symbols,
+				st_name(m->state), m->state);
+	}
+	ast_log(LOG_WARNING, "---- fixup (%s): %d modules, %d new ---\n",
+		caller, total, new);
+	for (;;cycle++) {
+		int again = 0;	/* set if we need another round */
+		
+		ast_log(LOG_WARNING, "---- fixup: cycle %d ---\n", cycle);
+		AST_LIST_TRAVERSE(&module_list, m, next) {
+			if (resolve(m))
+				again = 1;	/* something changed */
+			if (m->state != MS_CANLOAD)	/* for now, done with this module */
+				continue;
+			/* try to run the load routine */
+			if (m->cb.load_module()) { /* error */
+				ast_log(LOG_WARNING, "load_module %s fail\n",
+					m->resource);
+				release_module(m); /* and set to MS_FAIL */
+			} else {
+				ast_log(LOG_WARNING, "load_module %s success\n",
+					m->resource);
+				m->state = MS_ACTIVE;
+			}
+			again = 1;	/* something has changed */
+		}
+		/* Modules in MS_RESOLVED mean a possible cyclic dependency.
+		 * Break the indecision by setting one to CANLOAD, and repeat.
+		 */
+		AST_LIST_TRAVERSE(&module_list, m, next) {
+			if (m->state == MS_RESOLVED) {
+				m->state = MS_CANLOAD;
+				again = 1;
+				break;
+			}
+		}
+		if (!again)	/* we are done */
+			break;
+	}
+	ast_log(LOG_WARNING, "---- fixup complete ---\n");
+	in_fixup--;
+	return 0;
+}
+
+/* test routines to see which modules depend on global symbols
+ * exported by other modules.
+ */
+static void check_symbols(void)
+{
+	struct dirent *d;
+	DIR *mods = opendir(ast_config_AST_MODULE_DIR);
+	void *lib;
+	char buf[1024];
+
+	ast_log(LOG_WARNING, "module dir <%s>\n", ast_config_AST_MODULE_DIR);
+	if (!mods)
+		return;
+	while((d = readdir(mods))) {
+		int ld = strlen(d->d_name);
+		/* Must end in .so to load it.  */
+		if (ld <= 3 || strcasecmp(d->d_name + ld - 3, ".so"))
+			continue;
+		snprintf(buf, sizeof(buf), "%s/%s", ast_config_AST_MODULE_DIR, d->d_name);
+		lib = dlopen(buf, RTLD_NOW | RTLD_LOCAL);
+		if (lib == NULL) {
+			ast_log(LOG_WARNING, "module %s error %s\n", d->d_name, dlerror());
+		}
+		dlclose(lib);
+	}
+}
+/*--- end new-style routines ---*/
 
 /*
  * In addition to modules, the reload command handles some extra keywords
@@ -182,6 +530,7 @@ int ast_unload_resource(const char *resource_name, int force)
 			} else
 				ast_log(LOG_WARNING, "** Dangerous **: Unloading resource anyway, at user request\n");
 		}
+		release_module(cur);	/* bookkeeping */
 		AST_LIST_REMOVE_CURRENT(&module_list, next);
 		dlclose(cur->lib);
 		free(cur);
@@ -220,6 +569,24 @@ char *ast_module_helper(const char *line, const char *word, int pos, int state, 
 		}
 	}
 	return ret;
+}
+
+/*!
+ * \brief Given a function address, find the corresponding module.
+ * This is required as a workaround to the fact that we do not
+ * have a module argument to the load_module() function.
+ * Hopefully the performance implications are small.
+ */
+struct module *ast_find_module(int (*load_fn)(void))
+{
+	struct module *cur;
+	AST_LIST_LOCK(&module_list);
+	AST_LIST_TRAVERSE(&module_list, cur, next) {
+		if (cur->cb.load_module == load_fn)
+			break;
+	}
+	AST_LIST_UNLOCK(&module_list);
+	return cur;
 }
 
 int ast_module_reload(const char *name)
@@ -305,13 +672,14 @@ static void *find_symbol(struct module *m, const char *name, int verbose)
 }
 
 /* XXX cfg is only used for !res_* and #ifdef RTLD_GLOBAL */
-static int __load_resource(const char *resource_name, const struct ast_config *cfg)
+static struct module * __load_resource(const char *resource_name,
+	const struct ast_config *cfg)
 {
 	static char fn[256];
 	int errors=0;
 	int res;
 	struct module *cur;
-	struct module_symbols *m;
+	struct module_symbols *m, *m1;
 	int flags=RTLD_NOW;
 	unsigned char *key;
 	char tmp[80];
@@ -339,11 +707,11 @@ static int __load_resource(const char *resource_name, const struct ast_config *c
 	if (resource_exists(resource_name, 0)) {
 		ast_log(LOG_WARNING, "Module '%s' already exists\n", resource_name);
 		AST_LIST_UNLOCK(&module_list);
-		return -1;
+		return NULL;
 	}
 	if (!(cur = ast_calloc(1, sizeof(*cur)))) {
 		AST_LIST_UNLOCK(&module_list);
-		return -1;
+		return NULL;
 	}
 	m = &cur->cb;
 	ast_copy_string(cur->resource, resource_name, sizeof(cur->resource));
@@ -351,29 +719,45 @@ static int __load_resource(const char *resource_name, const struct ast_config *c
 		ast_copy_string(fn, resource_name, sizeof(fn));
 	else
 		snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_MODULE_DIR, resource_name);
+	/* first, open in a sane way */
+	cur->lib = dlopen(fn, RTLD_NOW | RTLD_LOCAL);
+	if (cur->lib == NULL) {
+		ast_log(LOG_WARNING, "test %s\n", dlerror());
+	} else
+		dlclose(cur->lib);
+
 	cur->lib = dlopen(fn, flags);
 	if (!cur->lib) {
 		ast_log(LOG_WARNING, "%s\n", dlerror());
 		free(cur);
 		AST_LIST_UNLOCK(&module_list);
-		return -1;
+		return NULL;
 	}
-	m->load_module = find_symbol(cur, "load_module", 1);
+	m1 = find_symbol(cur, "mod_data", 0);
+	if (m1 != NULL) {	/* new style module */
+		errors = check_exported(cur);
+		*m = *m1;
+		if (m->type == MOD_2)
+			ast_log(LOG_WARNING, "new style %s, should unload and reload with RTLD_LOCAL\n", resource_name);
+	} else {
+		m->type = MOD_0;
+		m->load_module = find_symbol(cur, "load_module", 1);
+		m->unload_module = find_symbol(cur, "unload_module", 1);
+		m->usecount = find_symbol(cur, "usecount", 1);
+		m->description = find_symbol(cur, "description", 1);
+		m->key = find_symbol(cur, "key", 1);
+		m->reload = find_symbol(cur, "reload", 0);
+	}
 	if (!m->load_module)
 		errors++;
-	m->unload_module = find_symbol(cur, "unload_module", 1);
 	if (!m->unload_module)
 		errors++;
-	m->usecount = find_symbol(cur, "usecount", 1);
 	if (!m->usecount)
 		errors++;
-	m->description = find_symbol(cur, "description", 1);
 	if (!m->description)
 		errors++;
-	m->key = find_symbol(cur, "key", 1);
 	if (!m->key)
 		errors++;
-	m->reload = find_symbol(cur, "reload", 0);
 	if (!m->key || !(key = (unsigned char *) m->key())) {
 		ast_log(LOG_WARNING, "Key routine returned NULL in module %s\n", fn);
 		key = NULL;
@@ -388,7 +772,7 @@ static int __load_resource(const char *resource_name, const struct ast_config *c
 		dlclose(cur->lib);
 		free(cur);
 		AST_LIST_UNLOCK(&module_list);
-		return -1;
+		return NULL;
 	}
 	if (!ast_fully_booted) {
 		if (option_verbose) 
@@ -405,29 +789,63 @@ static int __load_resource(const char *resource_name, const struct ast_config *c
   	   so reload commands will be issued in same order modules were loaded */
 	
 	modlistver++;
+	if (m->type == MOD_2) {
+		ast_log(LOG_WARNING, "new-style module %s, deferring load()\n",
+			resource_name);
+		cur->state = MS_NEW;
+	} else
+		cur->state = MS_CANLOAD;
+	/* XXX TODO: make sure the usecount is 1 before releasing the lock */
 	AST_LIST_UNLOCK(&module_list);
-	if ((res = m->load_module())) {
+	
+	if (cur->state == MS_CANLOAD && (res = m->load_module())) {
 		ast_log(LOG_WARNING, "%s: load_module failed, returning %d\n", resource_name, res);
 		ast_unload_resource(resource_name, 0);
-		return -1;
+		return NULL;
 	}
+	cur->state = MS_ACTIVE;
 	ast_update_use_count();
-	return 0;
+	return cur;
 }
 
+/*
+ * load a single module (API call).
+ * (recursive calls from load_module() succeed.
+ * Returns 0 on success, -1 on error.
+ */
 int ast_load_resource(const char *resource_name)
 {
-	int res, o = option_verbose;
+	int o = option_verbose;
 	struct ast_config *cfg = NULL;
+	struct module *m;
 
 	option_verbose = 0;	/* Keep the module file parsing silent */
 	cfg = ast_config_load(AST_MODULE_CONFIG);
 	option_verbose = o;	/* restore verbosity */
-	res = __load_resource(resource_name, cfg);
+	m = __load_resource(resource_name, cfg);
 	if (cfg)
 		ast_config_destroy(cfg);
-	return res;
+	return m ? 0 : -1;
 }	
+
+#if 0
+/*
+ * load a single module (API call).
+ * (recursive calls from load_module() succeed.
+ */
+int ast_load_resource(const char *resource_name)
+{
+       struct module *m;
+       int ret;
+
+       ast_mutex_lock(&modlock);
+       m = __load_resource(resource_name, 0);
+       fixup(resource_name);
+       ret = (m->state == MS_FAILED) ? -1 : 0;
+       ast_mutex_unlock(&modlock);
+       return ret;
+}
+#endif
 
 /* if enabled, log and output on console the module's name, and try load it */
 static int print_and_load(const char *s, struct ast_config *cfg)
@@ -441,7 +859,7 @@ static int print_and_load(const char *s, struct ast_config *cfg)
 			term_color(tmp, s, COLOR_BRWHITE, 0, sizeof(tmp)));
 		fflush(stdout);
 	}
-	if (!__load_resource(s, cfg))
+	if (__load_resource(s, cfg))
 		return 0; /* success */
 	ast_log(LOG_WARNING, "Loading module %s failed!\n", s);
 	return -1;
@@ -458,7 +876,6 @@ static const char *loadorder[] =
 int load_modules(const int preload_only)
 {
 	struct ast_config *cfg;
-	struct ast_variable *v;
 	int x;
 
 	if (option_verbose) {
@@ -467,9 +884,13 @@ int load_modules(const int preload_only)
 			"Asterisk Dynamic Loader Starting:\n");
 	}
 
+	check_symbols();
+
 	cfg = ast_config_load(AST_MODULE_CONFIG);
+
 	if (cfg) {
 		const char *cmd = preload_only ? "preload" : "load";
+		struct ast_variable *v;
 		/* Load explicitly defined modules */
 		for (v = ast_variable_browse(cfg, "modules"); v; v = v->next) {
 			if (strcasecmp(v->name, cmd)) /* not what we are looking for */
@@ -481,16 +902,12 @@ int load_modules(const int preload_only)
 		}
 	}
 
-	if (preload_only) {
-		ast_config_destroy(cfg);
-		return 0;
-	}
+	if (preload_only)
+		goto done;
 
-	if (cfg && !ast_true(ast_variable_retrieve(cfg, "modules", "autoload"))) {
+	if (cfg && !ast_true(ast_variable_retrieve(cfg, "modules", "autoload")))
 		/* no autoload */
-		ast_config_destroy(cfg);
-		return 0;
-	}
+		goto done;
 	/*
 	 * Load all modules. To help resolving dependencies, we load modules
 	 * in the order defined by loadorder[], with the final step for
@@ -517,9 +934,10 @@ int load_modules(const int preload_only)
 					!strcasecmp(d->d_name + ld - 3, ".so") &&
 					!resource_exists(d->d_name, 1)) {
 				/* It's a shared library, check if we are allowed to load it
-				 * (very inefficient, but oh well.
+				 * (very inefficient, but oh well).
 				 */
 				if (cfg) {
+					struct ast_variable *v;
 					for (v = ast_variable_browse(cfg, "modules"); v; v = v->next) {
 						if (!strcasecmp(v->name, "noload") &&
 								!strcasecmp(v->value, d->d_name)) 
@@ -543,6 +961,8 @@ int load_modules(const int preload_only)
 		}
 		closedir(mods);
 	}
+done:
+	fixup("load_modules");
 	ast_config_destroy(cfg);
 	return 0;
 }
@@ -557,7 +977,6 @@ void ast_update_use_count(void)
 	AST_LIST_TRAVERSE(&updaters, m, next)
 		m->updater();
 	AST_LIST_UNLOCK(&module_list);
-	
 }
 
 int ast_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *like),
