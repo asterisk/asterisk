@@ -3882,7 +3882,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 		return ERROR_LOCK_PATH;
 	
 	vms->curmsg = -1; 
-	for (x=0;x < vmu->maxmsg;x++) { 
+	for (x = 0; x < vmu->maxmsg; x++) { 
 		if (!vms->deleted[x] && (strcasecmp(vms->curbox, "INBOX") || !vms->heard[x])) { 
 			/* Save this message.  It's not in INBOX or hasn't been heard */ 
 			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
@@ -3916,9 +3916,9 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 
 done:
 	if (vms->deleted)
-		memset(vms->deleted, 0, sizeof(vms->deleted)); 
+		memset(vms->deleted, 0, vmu->maxmsg * sizeof(int)); 
 	if (vms->heard)
-		memset(vms->heard, 0, sizeof(vms->heard)); 
+		memset(vms->heard, 0, vmu->maxmsg * sizeof(int)); 
 
 	return 0;
 }
