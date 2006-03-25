@@ -407,7 +407,7 @@ char *description(void)
 int usecount(void)
 {
 	int res;
-	OLD_STANDARD_USECOUNT(res);
+	STANDARD_USECOUNT(res);
 	return res;
 }
 
