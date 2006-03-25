@@ -3357,7 +3357,7 @@ static void reload_queues(void)
 	AST_LIST_UNLOCK(&queues);
 }
 
-static int __queues_show(int manager, int fd, int argc, char **argv, int queue_show)
+static int __queues_show(struct mansession *s, int manager, int fd, int argc, char **argv, int queue_show)
 {
 	struct ast_call_queue *q;
 	struct queue_ent *qe;
@@ -3381,10 +3381,17 @@ static int __queues_show(int manager, int fd, int argc, char **argv, int queue_s
 	AST_LIST_LOCK(&queues);
 	if (AST_LIST_EMPTY(&queues)) {
 		AST_LIST_UNLOCK(&queues);
-		if (queue_show)
-			ast_cli(fd, "No such queue: %s.%s",argv[2], term);
-		else
-			ast_cli(fd, "No queues.%s", term);
+		if (queue_show) {
+			if (s)
+				astman_append(s, "No such queue: %s.%s",argv[2], term);
+			else
+				ast_cli(fd, "No such queue: %s.%s",argv[2], term);
+		} else {
+			if (s)
+				astman_append(s, "No queues.%s", term);
+			else
+				ast_cli(fd, "No queues.%s", term);
+		}
 		return RESULT_SUCCESS;
 	}
 	AST_LIST_TRAVERSE(&queues, q, list) {
@@ -3409,10 +3416,17 @@ static int __queues_show(int manager, int fd, int argc, char **argv, int queue_s
 		sl = 0;
 		if(q->callscompleted > 0)
 			sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
-		ast_cli(fd, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds%s",
-			q->name, q->count, max_buf, int2strat(q->strategy), q->holdtime, q->weight, q->callscompleted, q->callsabandoned,sl,q->servicelevel, term);
+		if (s)
+			astman_append(s, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds%s",
+				q->name, q->count, max_buf, int2strat(q->strategy), q->holdtime, q->weight, q->callscompleted, q->callsabandoned,sl,q->servicelevel, term);
+		else
+			ast_cli(fd, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds%s",
+				q->name, q->count, max_buf, int2strat(q->strategy), q->holdtime, q->weight, q->callscompleted, q->callsabandoned,sl,q->servicelevel, term);
 		if (q->members) {
-			ast_cli(fd, "   Members: %s", term);
+			if (s)
+				astman_append(s, "   Members: %s", term);
+			else
+				ast_cli(fd, "   Members: %s", term);
 			for (mem = q->members; mem; mem = mem->next) {
 				max_buf[0] = '\0';
 				max = max_buf;
@@ -3429,19 +3443,37 @@ static int __queues_show(int manager, int fd, int argc, char **argv, int queue_s
 							 mem->calls, (long)(time(NULL) - mem->lastcall));
 				} else
 					ast_build_string(&max, &max_left, " has taken no calls yet");
-				ast_cli(fd, "      %s%s%s", mem->interface, max_buf, term);
+				if (s)
+					astman_append(s, "      %s%s%s", mem->interface, max_buf, term);
+				else
+					ast_cli(fd, "      %s%s%s", mem->interface, max_buf, term);
 			}
-		} else
+		} else if (s)
+			astman_append(s, "   No Members%s", term);
+		else	
 			ast_cli(fd, "   No Members%s", term);
 		if (q->head) {
 			pos = 1;
-			ast_cli(fd, "   Callers: %s", term);
-			for (qe = q->head; qe; qe = qe->next) 
-				ast_cli(fd, "      %d. %s (wait: %ld:%2.2ld, prio: %d)%s", pos++, qe->chan->name,
-					(long)(now - qe->start) / 60, (long)(now - qe->start) % 60, qe->prio, term);
-		} else
+			if (s)
+				astman_append(s, "   Callers: %s", term);
+			else
+				ast_cli(fd, "   Callers: %s", term);
+			for (qe = q->head; qe; qe = qe->next) {
+				if (s)
+					astman_append(s, "      %d. %s (wait: %ld:%2.2ld, prio: %d)%s", pos++, qe->chan->name,
+						(long)(now - qe->start) / 60, (long)(now - qe->start) % 60, qe->prio, term);
+				else
+					ast_cli(fd, "      %d. %s (wait: %ld:%2.2ld, prio: %d)%s", pos++, qe->chan->name,
+						(long)(now - qe->start) / 60, (long)(now - qe->start) % 60, qe->prio, term);
+			}
+		} else if (s)
+			astman_append(s, "   No Callers%s", term);
+		else
 			ast_cli(fd, "   No Callers%s", term);
-		ast_cli(fd, "%s", term);
+		if (s)
+			astman_append(s, "%s", term);
+		else
+			ast_cli(fd, "%s", term);
 		ast_mutex_unlock(&q->lock);
 		if (queue_show)
 			break;
@@ -3452,12 +3484,12 @@ static int __queues_show(int manager, int fd, int argc, char **argv, int queue_s
 
 static int queues_show(int fd, int argc, char **argv)
 {
-	return __queues_show(0, fd, argc, argv, 0);
+	return __queues_show(NULL, 0, fd, argc, argv, 0);
 }
 
 static int queue_show(int fd, int argc, char **argv)
 {
-	return __queues_show(0, fd, argc, argv, 1);
+	return __queues_show(NULL, 0, fd, argc, argv, 1);
 }
 
 static char *complete_queue(const char *line, const char *word, int pos, int state)
@@ -3485,8 +3517,8 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
 static int manager_queues_show( struct mansession *s, struct message *m )
 {
 	char *a[] = { "show", "queues" };
-	__queues_show(1, s->fd, 2, a, 0);
-	ast_cli(s->fd, "\r\n\r\n");	/* Properly terminate Manager output */
+	__queues_show(s, 1, -1, 2, a, 0);
+	astman_append(s, "\r\n\r\n");	/* Properly terminate Manager output */
 
 	return RESULT_SUCCESS;
 } 
@@ -3518,7 +3550,7 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 		if (ast_strlen_zero(queuefilter) || !strcmp(q->name, queuefilter)) {
 			if(q->callscompleted > 0)
 				sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
-			ast_cli(s->fd, "Event: QueueParams\r\n"
+			astman_append(s, "Event: QueueParams\r\n"
 						"Queue: %s\r\n"
 						"Max: %d\r\n"
 						"Calls: %d\r\n"
@@ -3535,7 +3567,7 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 			/* List Queue Members */
 			for (mem = q->members; mem; mem = mem->next) {
 				if (ast_strlen_zero(memberfilter) || !strcmp(mem->interface, memberfilter)) {
-					ast_cli(s->fd, "Event: QueueMember\r\n"
+					astman_append(s, "Event: QueueMember\r\n"
 						"Queue: %s\r\n"
 						"Location: %s\r\n"
 						"Membership: %s\r\n"
@@ -3553,7 +3585,7 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 			/* List Queue Entries */
 			pos = 1;
 			for (qe = q->head; qe; qe = qe->next) {
-				ast_cli(s->fd, "Event: QueueEntry\r\n"
+				astman_append(s, "Event: QueueEntry\r\n"
 					"Queue: %s\r\n"
 					"Position: %d\r\n"
 					"Channel: %s\r\n"
@@ -3572,7 +3604,7 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 	}
 	AST_LIST_UNLOCK(&queues);
 
-	ast_cli(s->fd,
+	astman_append(s,
 		"Event: QueueStatusComplete\r\n"
 		"%s"
 		"\r\n",idText);

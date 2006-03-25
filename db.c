@@ -568,7 +568,7 @@ static int manager_dbget(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Database entry not found");
 	} else {
 		astman_send_ack(s, m, "Result will follow");
-		ast_cli(s->fd, "Event: DBGetResponse\r\n"
+		astman_append(s, "Event: DBGetResponse\r\n"
 				"Family: %s\r\n"
 				"Key: %s\r\n"
 				"Val: %s\r\n"

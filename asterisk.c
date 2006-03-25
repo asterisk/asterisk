@@ -107,6 +107,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/enum.h"
 #include "asterisk/rtp.h"
+#include "asterisk/http.h"
 #if defined(T38_SUPPORT)
 #include "asterisk/udptl.h"
 #endif
@@ -1847,7 +1848,8 @@ static int show_cli_help(void) {
 	return 0;
 }
 
-static void ast_readconfig(void) {
+static void ast_readconfig(void) 
+{
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	char *config = AST_CONFIG_FILE;
@@ -2321,6 +2323,7 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
+	ast_http_init();
 	ast_channels_init();
 	if (init_manager()) {
 		printf(term_quit());

@@ -1411,7 +1411,7 @@ static int action_agents(struct mansession *s, struct message *m)
 			status = "AGENT_LOGGEDOFF";
 		}
 
-		ast_cli(s->fd, "Event: Agents\r\n"
+		astman_append(s, "Event: Agents\r\n"
 			"Agent: %s\r\n"
 			"Name: %s\r\n"
 			"Status: %s\r\n"
@@ -1424,7 +1424,7 @@ static int action_agents(struct mansession *s, struct message *m)
 		ast_mutex_unlock(&p->lock);
 	}
 	AST_LIST_UNLOCK(&agents);
-	ast_cli(s->fd, "Event: AgentsComplete\r\n"
+	astman_append(s, "Event: AgentsComplete\r\n"
 		"%s"
 		"\r\n",idText);
 	return 0;

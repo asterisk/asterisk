@@ -7600,9 +7600,9 @@ static int manager_sip_show_peers( struct mansession *s, struct message *m )
 
 	astman_send_ack(s, m, "Peer status list will follow");
 	/* List the peers in separate manager events */
-	_sip_show_peers(s->fd, &total, s, m, 3, a);
+	_sip_show_peers(-1, &total, s, m, 3, a);
 	/* Send final confirmation */
-	ast_cli(s->fd,
+	astman_append(s,
 	"Event: PeerlistComplete\r\n"
 	"ListItems: %d\r\n"
 	"%s"
@@ -7712,7 +7712,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			realtimepeers ? (ast_test_flag(iterator, SIP_REALTIME) ? "Cached RT":"") : "");
 		} else {	/* Manager format */
 			/* The names here need to be the same as other channels */
-			ast_cli(fd, 
+			astman_append(s, 
 			"Event: PeerEntry\r\n%s"
 			"Channeltype: SIP\r\n"
 			"ObjectName: %s\r\n"
@@ -8031,9 +8031,9 @@ static int manager_sip_show_peer( struct mansession *s, struct message *m )
 	a[3] = peer;
 
 	if (!ast_strlen_zero(id))
-		ast_cli(s->fd, "ActionID: %s\r\n",id);
-	ret = _sip_show_peer(1, s->fd, s, m, 4, a );
-	ast_cli( s->fd, "\r\n\r\n" );
+		astman_append(s, "ActionID: %s\r\n",id);
+	ret = _sip_show_peer(1, -1, s, m, 4, a );
+	astman_append(s, "\r\n\r\n" );
 	return ret;
 }
 
@@ -8067,7 +8067,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 	peer = find_peer(argv[3], NULL, load_realtime);
 	if (s) { 	/* Manager */
 		if (peer)
-			ast_cli(s->fd, "Response: Success\r\n");
+			astman_append(s, "Response: Success\r\n");
 		else {
 			snprintf (cbuf, sizeof(cbuf), "Peer %s not found.\n", argv[3]);
 			astman_send_error(s, m, cbuf);
@@ -8161,73 +8161,73 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 	} else  if (peer && type == 1) { /* manager listing */
 		char *actionid = astman_get_header(m,"ActionID");
 
-		ast_cli(fd, "Channeltype: SIP\r\n");
+		astman_append(s, "Channeltype: SIP\r\n");
 		if (actionid)
-			ast_cli(fd, "ActionID: %s\r\n", actionid);
-		ast_cli(fd, "ObjectName: %s\r\n", peer->name);
-		ast_cli(fd, "ChanObjectType: peer\r\n");
-		ast_cli(fd, "SecretExist: %s\r\n", ast_strlen_zero(peer->secret)?"N":"Y");
-		ast_cli(fd, "MD5SecretExist: %s\r\n", ast_strlen_zero(peer->md5secret)?"N":"Y");
-		ast_cli(fd, "Context: %s\r\n", peer->context);
-		ast_cli(fd, "Language: %s\r\n", peer->language);
+			astman_append(s, "ActionID: %s\r\n", actionid);
+		astman_append(s, "ObjectName: %s\r\n", peer->name);
+		astman_append(s, "ChanObjectType: peer\r\n");
+		astman_append(s, "SecretExist: %s\r\n", ast_strlen_zero(peer->secret)?"N":"Y");
+		astman_append(s, "MD5SecretExist: %s\r\n", ast_strlen_zero(peer->md5secret)?"N":"Y");
+		astman_append(s, "Context: %s\r\n", peer->context);
+		astman_append(s, "Language: %s\r\n", peer->language);
 		if (!ast_strlen_zero(peer->accountcode))
-			ast_cli(fd, "Accountcode: %s\r\n", peer->accountcode);
-		ast_cli(fd, "AMAflags: %s\r\n", ast_cdr_flags2str(peer->amaflags));
-		ast_cli(fd, "CID-CallingPres: %s\r\n", ast_describe_caller_presentation(peer->callingpres));
+			astman_append(s, "Accountcode: %s\r\n", peer->accountcode);
+		astman_append(s, "AMAflags: %s\r\n", ast_cdr_flags2str(peer->amaflags));
+		astman_append(s, "CID-CallingPres: %s\r\n", ast_describe_caller_presentation(peer->callingpres));
 		if (!ast_strlen_zero(peer->fromuser))
-			ast_cli(fd, "SIP-FromUser: %s\r\n", peer->fromuser);
+			astman_append(s, "SIP-FromUser: %s\r\n", peer->fromuser);
 		if (!ast_strlen_zero(peer->fromdomain))
-			ast_cli(fd, "SIP-FromDomain: %s\r\n", peer->fromdomain);
-		ast_cli(fd, "Callgroup: ");
+			astman_append(s, "SIP-FromDomain: %s\r\n", peer->fromdomain);
+		astman_append(s, "Callgroup: ");
 		print_group(fd, peer->callgroup, 1);
-		ast_cli(fd, "Pickupgroup: ");
+		astman_append(s, "Pickupgroup: ");
 		print_group(fd, peer->pickupgroup, 1);
-		ast_cli(fd, "VoiceMailbox: %s\r\n", peer->mailbox);
-		ast_cli(fd, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
-		ast_cli(fd, "Call limit: %d\r\n", peer->call_limit);
-		ast_cli(fd, "Dynamic: %s\r\n", (ast_test_flag((&peer->flags_page2), SIP_PAGE2_DYNAMIC)?"Y":"N"));
-		ast_cli(fd, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, ""));
-		ast_cli(fd, "RegExpire: %ld seconds\r\n", ast_sched_when(sched,peer->expire));
-		ast_cli(fd, "SIP-AuthInsecure: %s\r\n", insecure2str(ast_test_flag(peer, SIP_INSECURE_PORT), ast_test_flag(peer, SIP_INSECURE_INVITE)));
-		ast_cli(fd, "SIP-NatSupport: %s\r\n", nat2str(ast_test_flag(peer, SIP_NAT)));
-		ast_cli(fd, "ACL: %s\r\n", (peer->ha?"Y":"N"));
-		ast_cli(fd, "SIP-CanReinvite: %s\r\n", (ast_test_flag(peer, SIP_CAN_REINVITE)?"Y":"N"));
-		ast_cli(fd, "SIP-PromiscRedir: %s\r\n", (ast_test_flag(peer, SIP_PROMISCREDIR)?"Y":"N"));
-		ast_cli(fd, "SIP-UserPhone: %s\r\n", (ast_test_flag(peer, SIP_USEREQPHONE)?"Y":"N"));
+		astman_append(s, "VoiceMailbox: %s\r\n", peer->mailbox);
+		astman_append(s, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
+		astman_append(s, "Call limit: %d\r\n", peer->call_limit);
+		astman_append(s, "Dynamic: %s\r\n", (ast_test_flag((&peer->flags_page2), SIP_PAGE2_DYNAMIC)?"Y":"N"));
+		astman_append(s, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, ""));
+		astman_append(s, "RegExpire: %ld seconds\r\n", ast_sched_when(sched,peer->expire));
+		astman_append(s, "SIP-AuthInsecure: %s\r\n", insecure2str(ast_test_flag(peer, SIP_INSECURE_PORT), ast_test_flag(peer, SIP_INSECURE_INVITE)));
+		astman_append(s, "SIP-NatSupport: %s\r\n", nat2str(ast_test_flag(peer, SIP_NAT)));
+		astman_append(s, "ACL: %s\r\n", (peer->ha?"Y":"N"));
+		astman_append(s, "SIP-CanReinvite: %s\r\n", (ast_test_flag(peer, SIP_CAN_REINVITE)?"Y":"N"));
+		astman_append(s, "SIP-PromiscRedir: %s\r\n", (ast_test_flag(peer, SIP_PROMISCREDIR)?"Y":"N"));
+		astman_append(s, "SIP-UserPhone: %s\r\n", (ast_test_flag(peer, SIP_USEREQPHONE)?"Y":"N"));
 
 		/* - is enumerated */
-		ast_cli(fd, "SIP-DTMFmode %s\r\n", dtmfmode2str(ast_test_flag(peer, SIP_DTMF)));
-		ast_cli(fd, "SIPLastMsg: %d\r\n", peer->lastmsg);
-		ast_cli(fd, "ToHost: %s\r\n", peer->tohost);
-		ast_cli(fd, "Address-IP: %s\r\nAddress-Port: %d\r\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", ntohs(peer->addr.sin_port));
-		ast_cli(fd, "Default-addr-IP: %s\r\nDefault-addr-port: %d\r\n", ast_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
-		ast_cli(fd, "Default-Username: %s\r\n", peer->username);
+		astman_append(s, "SIP-DTMFmode %s\r\n", dtmfmode2str(ast_test_flag(peer, SIP_DTMF)));
+		astman_append(s, "SIPLastMsg: %d\r\n", peer->lastmsg);
+		astman_append(s, "ToHost: %s\r\n", peer->tohost);
+		astman_append(s, "Address-IP: %s\r\nAddress-Port: %d\r\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", ntohs(peer->addr.sin_port));
+		astman_append(s, "Default-addr-IP: %s\r\nDefault-addr-port: %d\r\n", ast_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
+		astman_append(s, "Default-Username: %s\r\n", peer->username);
 		if (!ast_strlen_zero(global_regcontext))
-			ast_cli(fd, "RegExtension: %s\r\n", peer->regexten);
-		ast_cli(fd, "Codecs: ");
+			astman_append(s, "RegExtension: %s\r\n", peer->regexten);
+		astman_append(s, "Codecs: ");
 		ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability);
-		ast_cli(fd, "%s\r\n", codec_buf);
-		ast_cli(fd, "CodecOrder: ");
+		astman_append(s, "%s\r\n", codec_buf);
+		astman_append(s, "CodecOrder: ");
 		pref = &peer->prefs;
 		for(x = 0; x < 32 ; x++) {
 			codec = ast_codec_pref_index(pref,x);
 			if (!codec)
 				break;
-			ast_cli(fd, "%s", ast_getformatname(codec));
+			astman_append(s, "%s", ast_getformatname(codec));
 			if (x < 31 && ast_codec_pref_index(pref,x+1))
-				ast_cli(fd, ",");
+				astman_append(s, ",");
 		}
 
-		ast_cli(fd, "\r\n");
-		ast_cli(fd, "Status: ");
+		astman_append(s, "\r\n");
+		astman_append(s, "Status: ");
 		peer_status(peer, status, sizeof(status));
-		ast_cli(fd, "%s\r\n", status);
- 		ast_cli(fd, "SIP-Useragent: %s\r\n", peer->useragent);
- 		ast_cli(fd, "Reg-Contact : %s\r\n", peer->fullcontact);
+		astman_append(s, "%s\r\n", status);
+ 		astman_append(s, "SIP-Useragent: %s\r\n", peer->useragent);
+ 		astman_append(s, "Reg-Contact : %s\r\n", peer->fullcontact);
 		if (peer->chanvars) {
 			for (v = peer->chanvars ; v ; v = v->next) {
- 				ast_cli(fd, "ChanVariable:\n");
- 				ast_cli(fd, " %s,%s\r\n", v->name, v->value);
+ 				astman_append(s, "ChanVariable:\n");
+ 				astman_append(s, " %s,%s\r\n", v->name, v->value);
 			}
 		}
 

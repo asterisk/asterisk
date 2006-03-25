@@ -31,7 +31,7 @@ int res_snmp_agentx_subagent;
 int res_snmp_dont_stop;
 int res_snmp_enabled;
 
-static pthread_t thread;
+static pthread_t thread = AST_PTHREADT_NULL;
 
 static int load_config(void)
 {
@@ -111,8 +111,9 @@ int reload(void)
     ast_verbose(VERBOSE_PREFIX_1 "Reloading [Sub]Agent Module\n");
 
     res_snmp_dont_stop = 0;
-    pthread_join(thread, NULL);
-
+	if (thread != AST_PTHREADT_NULL)
+	    pthread_join(thread, NULL);
+	thread = AST_PTHREADT_NULL;
     load_config();
 
     res_snmp_dont_stop = 1;

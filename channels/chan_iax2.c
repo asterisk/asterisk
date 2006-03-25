@@ -673,7 +673,7 @@ static void reg_source_db(struct iax2_peer *p);
 static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in *sin);
 
 static void destroy_peer(struct iax2_peer *peer);
-static int ast_cli_netstats(int fd, int limit_fmt);
+static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt);
 
 #define IAX_IOSTATE_IDLE		0
 #define IAX_IOSTATE_READY		1
@@ -4324,7 +4324,7 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
-static int __iax2_show_peers(int manager, int fd, int argc, char *argv[])
+static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc, char *argv[])
 {
 	regex_t regexbuf;
 	int havepattern = 0;
@@ -4376,7 +4376,10 @@ static int __iax2_show_peers(int manager, int fd, int argc, char *argv[])
 	}
 
 	ast_mutex_lock(&peerl.lock);
-	ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", term);
+	if (s)
+		astman_append(s, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", term);
+	else
+		ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", term);
 	for (peer = peerl.peers;peer;peer = peer->next) {
 		char nm[20];
 		char status[20];
@@ -4410,7 +4413,15 @@ static int __iax2_show_peers(int manager, int fd, int argc, char *argv[])
 					ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
 					peer->encmethods ? "(E)" : "   ", status, term);
 
-		ast_cli(fd, FORMAT, name, 
+		if (s)
+			astman_append(s, FORMAT, name, 
+					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
+					ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
+					nm,
+					ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
+					peer->encmethods ? "(E)" : "   ", status, term);
+		else
+			ast_cli(fd, FORMAT, name, 
 					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
 					ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
 					nm,
@@ -4420,7 +4431,10 @@ static int __iax2_show_peers(int manager, int fd, int argc, char *argv[])
 	}
 	ast_mutex_unlock(&peerl.lock);
 
-	ast_cli(fd,"%d iax2 peers [%d online, %d offline, %d unmonitored]%s", total_peers, online_peers, offline_peers, unmonitored_peers, term);
+	if (s)
+		astman_append(s,"%d iax2 peers [%d online, %d offline, %d unmonitored]%s", total_peers, online_peers, offline_peers, unmonitored_peers, term);
+	else
+		ast_cli(fd,"%d iax2 peers [%d online, %d offline, %d unmonitored]%s", total_peers, online_peers, offline_peers, unmonitored_peers, term);
 
 	if (havepattern)
 		regfree(&regexbuf);
@@ -4473,12 +4487,12 @@ static int iax2_show_threads(int fd, int argc, char *argv[])
 
 static int iax2_show_peers(int fd, int argc, char *argv[])
 {
-	return __iax2_show_peers(0, fd, argc, argv);
+	return __iax2_show_peers(0, fd, NULL, argc, argv);
 }
 static int manager_iax2_show_netstats( struct mansession *s, struct message *m )
 {
-	ast_cli_netstats(s->fd, 0);
-	ast_cli(s->fd, "\r\n");
+	ast_cli_netstats(s, -1, 0);
+	astman_append(s, "\r\n");
 	return RESULT_SUCCESS;
 }
 
@@ -4515,9 +4529,9 @@ static int manager_iax2_show_peers( struct mansession *s, struct message *m )
 	char *id;
 	id = astman_get_header(m,"ActionID");
 	if (!ast_strlen_zero(id))
-		ast_cli(s->fd, "ActionID: %s\r\n",id);
-	ret = __iax2_show_peers(1, s->fd, 3, a );
-	ast_cli(s->fd, "\r\n\r\n" );
+		astman_append(s, "ActionID: %s\r\n",id);
+	ret = __iax2_show_peers(1, -1, s, 3, a );
+	astman_append(s, "\r\n\r\n" );
 	return ret;
 } /* /JDG */
 
@@ -4651,7 +4665,7 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 #undef FORMATB
 }
 
-static int ast_cli_netstats(int fd, int limit_fmt)
+static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 {
 	int x;
 	int numchans = 0;
@@ -4660,13 +4674,21 @@ static int ast_cli_netstats(int fd, int limit_fmt)
 		if (iaxs[x]) {
 #ifdef BRIDGE_OPTIMIZATION
 			if (iaxs[x]->bridgecallno) {
-				if (limit_fmt)	
-					ast_cli(fd, "%-25.25s <NATIVE BRIDGED>",
-						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
-				else
-					ast_cli(fd, "%s <NATIVE BRIDGED>",
-						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
-                        } else
+				if (limit_fmt)	 {
+					if (s)
+						astman_append(s, "%-25.25s <NATIVE BRIDGED>",
+							iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
+					else
+						ast_cli(fd, "%-25.25s <NATIVE BRIDGED>",
+							iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
+			 	} else {
+					if (s)
+						astman_append(s, "%s <NATIVE BRIDGED>",
+							iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
+					else
+						ast_cli(fd, "%s <NATIVE BRIDGED>",
+							iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
+				} else
 #endif
 			{
 				int localjitter, localdelay, locallost, locallosspct, localdropped, localooo;
@@ -4705,7 +4727,27 @@ static int ast_cli_netstats(int fd, int limit_fmt)
 					fmt = "%-25.25s %4d %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d\n";
 				else
 					fmt = "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n";
-				ast_cli(fd, fmt,
+				if (s)
+				
+					astman_append(s, fmt,
+						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
+						iaxs[x]->pingtime,
+						localjitter, 
+						localdelay,
+						locallost,
+						locallosspct,
+						localdropped,
+						localooo,
+						iaxs[x]->frames_received/1000,
+						iaxs[x]->remote_rr.jitter,
+						iaxs[x]->remote_rr.delay,
+						iaxs[x]->remote_rr.losscnt,
+						iaxs[x]->remote_rr.losspct,
+						iaxs[x]->remote_rr.dropped,
+						iaxs[x]->remote_rr.ooo,
+						iaxs[x]->remote_rr.packets/1000);
+				else
+					ast_cli(fd, fmt,
 						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
 						iaxs[x]->pingtime,
 						localjitter, 
@@ -4738,7 +4780,7 @@ static int iax2_show_netstats(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, "                                -------- LOCAL ---------------------  -------- REMOTE --------------------\n");
 	ast_cli(fd, "Channel                    RTT  Jit  Del  Lost   %%  Drop  OOO  Kpkts  Jit  Del  Lost   %%  Drop  OOO  Kpkts\n");
-	numchans = ast_cli_netstats(fd, 1);
+	numchans = ast_cli_netstats(NULL, fd, 1);
 	ast_cli(fd, "%d active IAX channel%s\n", numchans, (numchans != 1) ? "s" : "");
 	return RESULT_SUCCESS;
 }

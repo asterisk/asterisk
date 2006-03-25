@@ -64,40 +64,7 @@ struct eventqent {
 	char eventdata[1];
 };
 
-struct mansession {
-	/*! Execution thread */
-	pthread_t t;
-	/*! Thread lock -- don't use in action callbacks, it's already taken care of  */
-	ast_mutex_t __lock;
-	/*! socket address */
-	struct sockaddr_in sin;
-	/*! TCP socket */
-	int fd;
-	/*! Whether or not we're busy doing an action */
-	int busy;
-	/*! Whether or not we're "dead" */
-	int dead;
-	/*! Logged in username */
-	char username[80];
-	/*! Authentication challenge */
-	char challenge[10];
-	/*! Authentication status */
-	int authenticated;
-	/*! Authorization for reading */
-	int readperm;
-	/*! Authorization for writing */
-	int writeperm;
-	/*! Buffer */
-	char inbuf[AST_MAX_MANHEADER_LEN];
-	int inlen;
-	int send_events;
-	/* Queued events that we've not had the ability to send yet */
-	struct eventqent *eventq;
-	/* Timeout for ast_carefulwrite() */
-	int writetimeout;
-	struct mansession *next;
-};
-
+struct mansession;
 
 struct message {
 	int hdrcount;
@@ -163,6 +130,10 @@ struct ast_variable *astman_get_variables(struct message *m);
 extern void astman_send_error(struct mansession *s, struct message *m, char *error);
 extern void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg);
 extern void astman_send_ack(struct mansession *s, struct message *m, char *msg);
+
+extern void astman_append(struct mansession *s, const char *fmt, ...)
+        __attribute__ ((format (printf, 2, 3)));
+
 
 /*! Called by Asterisk initialization */
 extern int init_manager(void);

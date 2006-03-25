@@ -1897,7 +1897,7 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 
         cur=parkinglot;
         while(cur) {
-			ast_cli(s->fd, "Event: ParkedCall\r\n"
+			astman_append(s, "Event: ParkedCall\r\n"
 			"Exten: %d\r\n"
 			"Channel: %s\r\n"
 			"From: %s\r\n"
@@ -1915,7 +1915,7 @@ static int manager_parking_status( struct mansession *s, struct message *m )
             cur = cur->next;
         }
 
-	ast_cli(s->fd,
+	astman_append(s,
 	"Event: ParkedCallsComplete\r\n"
 	"%s"
 	"\r\n",idText);

@@ -106,7 +106,40 @@ static struct permalias {
 	{ 0, "none" },
 };
 
-static struct mansession *sessions = NULL;
+static struct mansession {
+	/*! Execution thread */
+	pthread_t t;
+	/*! Thread lock -- don't use in action callbacks, it's already taken care of  */
+	ast_mutex_t __lock;
+	/*! socket address */
+	struct sockaddr_in sin;
+	/*! TCP socket */
+	int fd;
+	/*! Whether or not we're busy doing an action */
+	int busy;
+	/*! Whether or not we're "dead" */
+	int dead;
+	/*! Logged in username */
+	char username[80];
+	/*! Authentication challenge */
+	char challenge[10];
+	/*! Authentication status */
+	int authenticated;
+	/*! Authorization for reading */
+	int readperm;
+	/*! Authorization for writing */
+	int writeperm;
+	/*! Buffer */
+	char inbuf[AST_MAX_MANHEADER_LEN];
+	int inlen;
+	int send_events;
+	/* Queued events that we've not had the ability to send yet */
+	struct eventqent *eventq;
+	/* Timeout for ast_carefulwrite() */
+	int writetimeout;
+	struct mansession *next;
+} *sessions = NULL;
+
 static struct manager_action *first_action = NULL;
 AST_MUTEX_DEFINE_STATIC(actionlock);
 
@@ -180,6 +213,23 @@ static char *complete_show_mancmd(const char *line, const char *word, int pos, i
 	}
 	ast_mutex_unlock(&actionlock);
 	return NULL;
+}
+
+void astman_append(struct mansession *s, const char *fmt, ...)
+{
+	char *stuff;
+	int res;
+	va_list ap;
+
+	va_start(ap, fmt);
+	res = vasprintf(&stuff, fmt, ap);
+	va_end(ap);
+	if (res == -1) {
+		ast_log(LOG_ERROR, "Memory allocation failure\n");
+	} else {
+		ast_carefulwrite(s->fd, stuff, strlen(stuff), 100);
+		free(stuff);
+	}
 }
 
 static int handle_showmancmd(int fd, int argc, char *argv[])
@@ -370,23 +420,23 @@ void astman_send_error(struct mansession *s, struct message *m, char *error)
 {
 	char *id = astman_get_header(m,"ActionID");
 
-	ast_cli(s->fd, "Response: Error\r\n");
+	astman_append(s, "Response: Error\r\n");
 	if (!ast_strlen_zero(id))
-		ast_cli(s->fd, "ActionID: %s\r\n",id);
-	ast_cli(s->fd, "Message: %s\r\n\r\n", error);
+		astman_append(s, "ActionID: %s\r\n",id);
+	astman_append(s, "Message: %s\r\n\r\n", error);
 }
 
 void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg)
 {
 	char *id = astman_get_header(m,"ActionID");
 
-	ast_cli(s->fd, "Response: %s\r\n", resp);
+	astman_append(s, "Response: %s\r\n", resp);
 	if (!ast_strlen_zero(id))
-		ast_cli(s->fd, "ActionID: %s\r\n",id);
+		astman_append(s, "ActionID: %s\r\n",id);
 	if (msg)
-		ast_cli(s->fd, "Message: %s\r\n\r\n", msg);
+		astman_append(s, "Message: %s\r\n\r\n", msg);
 	else
-		ast_cli(s->fd, "\r\n");
+		astman_append(s, "\r\n");
 }
 
 void astman_send_ack(struct mansession *s, struct message *m, char *msg)
@@ -610,15 +660,15 @@ static int action_listcommands(struct mansession *s, struct message *m)
 
 	if (!ast_strlen_zero(id))
 		snprintf(idText,256,"ActionID: %s\r\n",id);
-	ast_cli(s->fd, "Response: Success\r\n%s", idText);
+	astman_append(s, "Response: Success\r\n%s", idText);
 	ast_mutex_lock(&actionlock);
 	while (cur) { /* Walk the list of actions */
 		if ((s->writeperm & cur->authority) == cur->authority)
-			ast_cli(s->fd, "%s: %s (Priv: %s)\r\n", cur->action, cur->synopsis, authority_to_str(cur->authority, temp, sizeof(temp)) );
+			astman_append(s, "%s: %s (Priv: %s)\r\n", cur->action, cur->synopsis, authority_to_str(cur->authority, temp, sizeof(temp)) );
 		cur = cur->next;
 	}
 	ast_mutex_unlock(&actionlock);
-	ast_cli(s->fd, "\r\n");
+	astman_append(s, "\r\n");
 
 	return 0;
 }
@@ -758,11 +808,11 @@ static int action_getvar(struct mansession *s, struct message *m)
 
 	if (c)
 		ast_mutex_unlock(&c->lock);
-	ast_cli(s->fd, "Response: Success\r\n"
+	astman_append(s, "Response: Success\r\n"
 		"Variable: %s\r\nValue: %s\r\n", varname, varval);
 	if (!ast_strlen_zero(id))
-		ast_cli(s->fd, "ActionID: %s\r\n",id);
-	ast_cli(s->fd, "\r\n");
+		astman_append(s, "ActionID: %s\r\n",id);
+	astman_append(s, "\r\n");
 
 	return 0;
 }
@@ -803,7 +853,7 @@ static int action_status(struct mansession *s, struct message *m)
 			if (c->cdr) {
 				elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
 			}
-			ast_cli(s->fd,
+			astman_append(s,
 			"Event: Status\r\n"
 			"Privilege: Call\r\n"
 			"Channel: %s\r\n"
@@ -826,7 +876,7 @@ static int action_status(struct mansession *s, struct message *m)
 			ast_state2str(c->_state), c->context,
 			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, idText);
 		} else {
-			ast_cli(s->fd,
+			astman_append(s,
 			"Event: Status\r\n"
 			"Privilege: Call\r\n"
 			"Channel: %s\r\n"
@@ -849,7 +899,7 @@ static int action_status(struct mansession *s, struct message *m)
 			break;
 		c = ast_channel_walk_locked(c);
 	}
-	ast_cli(s->fd,
+	astman_append(s,
 	"Event: StatusComplete\r\n"
 	"%s"
 	"\r\n",idText);
@@ -930,12 +980,12 @@ static int action_command(struct mansession *s, struct message *m)
 {
 	char *cmd = astman_get_header(m, "Command");
 	char *id = astman_get_header(m, "ActionID");
-	ast_cli(s->fd, "Response: Follows\r\nPrivilege: Command\r\n");
+	astman_append(s, "Response: Follows\r\nPrivilege: Command\r\n");
 	if (!ast_strlen_zero(id))
-		ast_cli(s->fd, "ActionID: %s\r\n", id);
+		astman_append(s, "ActionID: %s\r\n", id);
 	/* FIXME: Wedge a ActionID response in here, waiting for later changes */
 	ast_cli_command(s->fd, cmd);
-	ast_cli(s->fd, "--END COMMAND--\r\n\r\n");
+	astman_append(s, "--END COMMAND--\r\n\r\n");
 	return 0;
 }
 
@@ -1130,7 +1180,7 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
         if (!ast_strlen_zero(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);
 	ret = ast_app_has_voicemail(mailbox, NULL);
-	ast_cli(s->fd, "Response: Success\r\n"
+	astman_append(s, "Response: Success\r\n"
 				   "%s"
 				   "Message: Mailbox Status\r\n"
 				   "Mailbox: %s\r\n"
@@ -1163,7 +1213,7 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 	if (!ast_strlen_zero(id)) {
 		snprintf(idText,256,"ActionID: %s\r\n",id);
 	}
-	ast_cli(s->fd, "Response: Success\r\n"
+	astman_append(s, "Response: Success\r\n"
 				   "%s"
 				   "Message: Mailbox Message Count\r\n"
 				   "Mailbox: %s\r\n"
@@ -1204,7 +1254,7 @@ static int action_extensionstate(struct mansession *s, struct message *m)
         if (!ast_strlen_zero(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
-	ast_cli(s->fd, "Response: Success\r\n"
+	astman_append(s, "Response: Success\r\n"
 			           "%s"
 				   "Message: Extension Status\r\n"
 				   "Exten: %s\r\n"
@@ -1261,9 +1311,9 @@ static int process_message(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Missing action in request");
 		return 0;
 	}
-        if (!ast_strlen_zero(id)) {
-                snprintf(idText,256,"ActionID: %s\r\n",id);
-        }
+	if (!ast_strlen_zero(id)) {
+		snprintf(idText,256,"ActionID: %s\r\n",id);
+	}
 	if (!s->authenticated) {
 		if (!strcasecmp(action, "Challenge")) {
 			char *authtype;
@@ -1272,7 +1322,7 @@ static int process_message(struct mansession *s, struct message *m)
 				if (ast_strlen_zero(s->challenge))
 					snprintf(s->challenge, sizeof(s->challenge), "%d", rand());
 				ast_mutex_lock(&s->__lock);
-				ast_cli(s->fd, "Response: Success\r\n"
+				astman_append(s, "Response: Success\r\n"
 						"%s"
 						"Challenge: %s\r\n\r\n",
 						idText,s->challenge);
@@ -1396,7 +1446,7 @@ static void *session_do(void *data)
 	int res;
 	
 	ast_mutex_lock(&s->__lock);
-	ast_cli(s->fd, "Asterisk Call Manager/1.0\r\n");
+	astman_append(s, "Asterisk Call Manager/1.0\r\n");
 	ast_mutex_unlock(&s->__lock);
 	memset(&m, 0, sizeof(m));
 	for (;;) {

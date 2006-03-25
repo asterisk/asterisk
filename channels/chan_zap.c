@@ -10251,7 +10251,7 @@ static int action_zapshowchannels(struct mansession *s, struct message *m)
 	while (tmp) {
 		if (tmp->channel > 0) {
 			int alarm = get_alarms(tmp);
-			ast_cli(s->fd,
+			astman_append(s,
 				"Event: ZapShowChannels\r\n"
 				"Channel: %d\r\n"
 				"Signalling: %s\r\n"
@@ -10270,7 +10270,7 @@ static int action_zapshowchannels(struct mansession *s, struct message *m)
 
 	ast_mutex_unlock(&iflock);
 	
-	ast_cli(s->fd, 
+	astman_append(s, 
 		"Event: ZapShowChannelsComplete\r\n"
 		"%s"
 		"\r\n", 

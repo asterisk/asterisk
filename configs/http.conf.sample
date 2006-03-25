@@ -1,0 +1,23 @@
+;
+; Asterisk Builtin mini-HTTP server
+;
+;
+[general]
+;
+; Whether HTTP interface is enabled or not.
+;
+enabled=yes
+;
+; Address to bind to
+;
+bindaddr=127.0.0.1
+;
+; Port to bind to
+;
+bindport=8088
+;
+; Prefix allows you to specify a prefix for all requests
+; to the server.  The default is "asterisk" so that all
+; requests must begin with /asterisk
+;
+;prefix=asterisk

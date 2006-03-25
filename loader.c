@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cdr.h"
 #include "asterisk/enum.h"
 #include "asterisk/rtp.h"
+#include "asterisk/http.h"
 #include "asterisk/lock.h"
 #ifdef DLFCNCOMPAT
 #include "asterisk/dlfcn-compat.h"
@@ -115,6 +116,7 @@ static struct reload_classes_t {
 	{ "enum",	ast_enum_reload },
 	{ "manager",	reload_manager },
 	{ "rtp",	ast_rtp_reload },
+	{ "http",	ast_http_reload },
 	{ NULL, NULL }
 };
 
