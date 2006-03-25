@@ -73,7 +73,14 @@ static int func_channel_read(struct ast_channel *chan, char *function,
 		locked_copy_string(chan, buf, chan->language, len);
 	else if (!strcasecmp(data, "musicclass"))
 		locked_copy_string(chan, buf, chan->musicclass, len);
-	else if (!chan->tech->func_channel_read
+	else if (!strcasecmp(data, "state"))
+		locked_copy_string(chan, buf, ast_state2str(chan->_state), len);
+	else if (!strcasecmp(data, "channeltype"))
+		locked_copy_string(chan, buf, chan->tech->type, len);
+	else if (!strcasecmp(data, "callgroup")) {
+		char groupbuf[256];
+		locked_copy_string(chan, buf,  ast_print_group(groupbuf, sizeof(groupbuf), chan->callgroup), len);
+	} else if (!chan->tech->func_channel_read
 		 || chan->tech->func_channel_read(chan, function, data, buf, len)) {
 		ast_log(LOG_WARNING, "Unknown or unavailable item requested: '%s'\n", data);
 		ret = -1;
@@ -91,6 +98,8 @@ static int func_channel_write(struct ast_channel *chan, char *function,
 		locked_string_field_set(chan, language, value);
 	else if (!strcasecmp(data, "musicclass"))
 		locked_string_field_set(chan, musicclass, value);
+	else if (!strcasecmp(data, "callgroup"))
+		chan->callgroup = ast_get_group(data);
 	else if (!chan->tech->func_channel_write
 		 || chan->tech->func_channel_write(chan, function, data, value)) {
 		ast_log(LOG_WARNING, "Unknown or unavailable item requested: '%s'\n",
@@ -110,8 +119,11 @@ static struct ast_custom_function channel_function = {
 		"R/O	audioreadformat		format currently being read\n"
 		"R/O	audionativeformat 	format used natively for audio\n"
 		"R/O	audiowriteformat 	format currently being written\n"
+		"R/W	callgroup		call groups for call pickup\n"
+		"R/O	channeltype		technology used for channel\n"
 		"R/W	language 		language for sounds played\n"
 		"R/W	musicclass 		class (from musiconhold.conf) for hold music\n"
+		"R/O	state			state for channel\n"
 		"R/O	tonezone 		zone for indications played\n"
 		"R/O	videonativeformat 	format used natively for video\n"
 		"\n"
