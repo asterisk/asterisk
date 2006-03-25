@@ -3473,11 +3473,13 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		return res;
 	if (flag==1) {
 		struct leave_vm_options leave_options;
+		char mailbox[AST_MAX_EXTENSION * 2 + 2];
+		snprintf(mailbox, sizeof(mailbox), "%s@%s", username, context);
 
 		/* Send VoiceMail */
 		memset(&leave_options, 0, sizeof(leave_options));
 		leave_options.record_gain = record_gain;
-		cmd = leave_voicemail(chan, username, &leave_options);
+		cmd = leave_voicemail(chan, mailbox, &leave_options);
 	} else {
 
 		/* Forward VoiceMail */
@@ -6635,13 +6637,15 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 			} else {
 				if (find_user(NULL, vmu->context, num)) {
 					struct leave_vm_options leave_options;
+					char mailbox[AST_MAX_EXTENSION * 2 + 2];
+					snprintf(mailbox, sizeof(mailbox), "%s@%s", num, vmu->context);
 
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Leaving voicemail for '%s' in context '%s'\n", num, vmu->context);
 					
 					memset(&leave_options, 0, sizeof(leave_options));
 					leave_options.record_gain = record_gain;
-					res = leave_voicemail(chan, num, &leave_options);
+					res = leave_voicemail(chan, mailbox, &leave_options);
 					if (!res)
 						res = 't';
 					return res;
