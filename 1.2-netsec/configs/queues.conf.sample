@@ -1,0 +1,200 @@
+[general]
+;
+; Global settings for call queues
+;
+; Persistent Members
+;    Store each dynamic agent in each queue in the astdb so that
+;    when asterisk is restarted, each agent will be automatically
+;    readded into their recorded queues. Default is 'yes'.
+;
+persistentmembers = yes
+;
+; Note that a timeout to fail out of a queue may be passed as part of
+; an application call from extensions.conf:
+; Queue(queuename|[options]|[optionalurl]|[announceoverride]|[timeout])
+; example: Queue(dave|t|||45)
+
+;[markq]
+;
+; A sample call queue
+;
+; Musiconhold sets which music applies for this particular
+; call queue (configure classes in musiconhold.conf)
+;
+;musiconhold = default
+;
+; An announcement may be specified which is played for the member as
+; soon as they answer a call, typically to indicate to them which queue
+; this call should be answered as, so that agents or members who are
+; listening to more than one queue can differentiated how they should
+; engage the customer
+;
+;announce = queue-markq
+;
+; A strategy may be specified.  Valid strategies include:
+;
+; ringall - ring all available channels until one answers (default)
+; roundrobin - take turns ringing each available interface 
+; leastrecent - ring interface which was least recently called by this queue
+; fewestcalls - ring the one with fewest completed calls from this queue
+; random - ring random interface
+; rrmemory - round robin with memory, remember where we left off last ring pass
+;
+;strategy = ringall
+;
+; Second settings for service level (default 0)
+; Used for service level statistics (calls answered within service level time
+; frame)
+;servicelevel = 60
+;
+; A context may be specified, in which if the user types a SINGLE
+; digit extension while they are in the queue, they will be taken out
+; of the queue and sent to that extension in this context.
+;
+;context = qoutcon
+;
+; How long do we let the phone ring before we consider this a timeout...
+;
+;timeout = 15
+;
+; How long do we wait before trying all the members again?
+;
+;retry = 5
+;
+; Weight of queue - when compared to other queues, higher weights get 
+; first shot at available channels when the same channel is included in 
+; more than one queue.
+;
+;weight=0
+;
+; After a successful call, how long to wait before sending a potentially
+; free member another call (default is 0, or no delay)
+;
+;wrapuptime=15
+;
+; Maximum number of people waiting in the queue (0 for unlimited)
+;
+;maxlen = 0
+;
+;
+; How often to announce queue position and/or estimated holdtime to caller (0=off)
+;
+;announce-frequency = 90 
+;
+;
+; How often to make any periodic announcement (see periodic-announce)
+;
+;periodic-announce-frequency=60
+;
+; Should we include estimated hold time in position announcements?
+; Either yes, no, or only once.
+; Hold time will be announced as the estimated time, 
+; or "less than 2 minutes" when appropriate.
+;
+;announce-holdtime = yes|no|once
+
+;
+; What's the rounding time for the seconds?
+; If this is non-zero, then we announce the seconds as well as the minutes
+; rounded to this value.
+;
+; announce-round-seconds = 10
+;
+; Use these sound files in making position/holdtime announcements.  The
+; defaults are as listed below -- change only if you need to.
+;
+;queue-youarenext = queue-youarenext		;	("You are now first in line.")
+;queue-thereare	= queue-thereare		;	("There are")
+;queue-callswaiting = queue-callswaiting	;	("calls waiting.")
+;queue-holdtime = queue-holdtime		;	("The current est. holdtime is")
+;queue-minutes = queue-minutes			;	("minutes.")
+;queue-seconds = queue-seconds			;	("seconds.")
+;queue-thankyou = queue-thankyou		;	("Thank you for your patience.")
+;queue-lessthan = queue-less-than		;       ("less than")
+;queue-reporthold = queue-reporthold		;       ("Hold time")
+;periodic-announce = queue-periodic-announce    ;       ("All reps busy / wait for next")
+;
+; Calls may be recorded using Asterisk's monitor resource
+; This can be enabled from within the Queue application, starting recording
+; when the call is actually picked up; thus, only successful calls are
+; recorded, and you are not recording while people are listening to MOH.
+; To enable monitoring, simply specify "monitor-format";  it will be disabled
+; otherwise.
+;
+; You can specify the monitor filename with by calling
+;    Set(MONITOR_FILENAME=foo)
+; Otherwise it will use MONITOR_FILENAME=${UNIQUEID}
+;
+; monitor-format = gsm|wav|wav49
+;
+; If you wish to have the two files joined together when the call ends, set this
+; to yes.
+;
+; monitor-join = yes
+;
+; This setting controls whether callers can join a queue with no members. There
+; are three choices:
+;
+; yes    - callers can join a queue with no members or only unavailable members
+; no     - callers cannot join a queue with no members
+; strict - callers cannot join a queue with no members or only unavailable
+;          members
+;
+; joinempty = yes
+;
+; If you wish to remove callers from the queue when new callers cannot join,
+; set this setting to one of the same choices for 'joinempty'
+;
+; leavewhenempty = yes
+;
+;
+; If this is set to yes, the following manager events will be generated:
+; AgentCalled, AgentDump, AgentConnect, AgentComplete
+; (may generate some extra manager events, but probably ones you want)
+;
+; eventwhencalled = yes
+;
+; If this is set to no, the following manager events will be generated:
+; QueueMemberStatus
+; (may generate a WHOLE LOT of extra manager events)
+;
+; eventmemberstatusoff = no
+;
+; If you wish to report the caller's hold time to the member before they are
+; connected to the caller, set this to yes.
+;
+; reportholdtime = no
+;
+;
+; If you wish to have a delay before the member is connected to the caller (or
+; before the member hears any announcement messages), set this to the number of
+; seconds to delay.
+;
+; memberdelay = 0
+;
+; If timeoutrestart is set to yes, then the timeout for an agent to answer is
+; reset if a BUSY or CONGESTION is received.  This can be useful if agents
+; are able to cancel a call with reject or similar.
+;
+; timeoutrestart = no
+;
+; Each member of this call queue is listed on a separate line in
+; the form technology/dialstring.  "member" means a normal member of a
+; queue.  An optional penalty may be specified after a comma, such that
+; entries with higher penalties are considered last.
+;
+;member => Zap/1
+;member => Zap/2
+;member => Agent/1001
+;member => Agent/1002
+
+;
+; Note that using agent groups is probably not what you want.  Strategies do
+; not propagate down to the Agent system so if you want round robin, least
+; recent, etc, you should list all the agents in this file individually and not
+; use agent groups.
+;
+;member => Agent/@1		; Any agent in group 1
+;member => Agent/:1,1		; Any agent in group 1, wait for first
+                                ; available, but consider with penalty
+

@@ -1,0 +1,53 @@
+;
+; Asterisk configuration file
+;
+; Module Loader configuration file
+;
+
+[modules]
+autoload=yes
+;
+; Any modules that need to be loaded before the Asterisk core has been
+; initialized (just after the logger has been initialized) can be loaded
+; using 'preload'. This will frequently be needed if you wish to map all
+; module configuration files into Realtime storage, since the Realtime
+; driver will need to be loaded before the modules using those configuration
+; files are initialized.
+;
+; An example of loading ODBC support would be:
+;preload => res_odbc.so
+;preload => res_config_odbc.so
+;
+; If you want, load the GTK console right away.  
+; Don't load the KDE console since
+; it's not as sophisticated right now.
+;
+noload => pbx_gtkconsole.so
+;load => pbx_gtkconsole.so
+noload => pbx_kdeconsole.so
+;
+; Intercom application is obsoleted by
+; chan_oss.  Don't load it.
+;
+noload => app_intercom.so
+;
+; The 'modem' channel driver and its subdrivers are
+; obsolete, don't load them.
+;
+noload => chan_modem.so
+noload => chan_modem_aopen.so
+noload => chan_modem_bestdata.so
+noload => chan_modem_i4l.so
+;
+load => res_musiconhold.so
+;
+; Load either OSS or ALSA, not both
+; By default, load OSS only (automatically) and do not load ALSA
+;
+noload => chan_alsa.so
+;noload => chan_oss.so
+;
+; Module names listed in "global" section will have symbols globally
+; exported to modules loaded after them.
+;
+[global]

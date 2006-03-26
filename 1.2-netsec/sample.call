@@ -1,0 +1,60 @@
+#
+# This is a sample file that can be dumped in /var/spool/asterisk/outgoing
+# to generate a call.  
+#
+# Comments are indicated by a '#' character that begins a line, or follows
+# a space or tab character.  To be consistent with the configuration files
+# in Asterisk, comments can also be indicated by a semicolon.  However, the
+# multiline comments (;-- --;) used in Asterisk configuration files are not 
+# supported.  Semicolons can be escaped by a backslash.
+#
+
+# Obviously, you MUST specify at least a channel in the same format as you
+# would for the "Dial" application.  Only one channel name is permitted.
+#
+Channel: Zap/1
+#
+# You may also specify a wait time (default is 45 seconds) for how long to
+# wait for the channel to be answered, a retry time (default is 5 mins)
+# for how soon to retry this call, and a maximum number of retries (default
+# is 0) for how many times to retry this call.
+#
+MaxRetries: 2
+RetryTime: 60
+WaitTime: 30
+
+#
+# Once the call is answered, you must provide either an application/data
+# combination, or a context/extension/priority in which to start the PBX.
+#
+Context: default
+Extension: s
+Priority: 1
+
+#
+# Alternatively you can specify just an application
+# and its arguments to be run, instead of a context
+# extension and priority
+#
+#Application: VoiceMailMain
+#Data: 1234
+
+#
+# You can set the callerid that will be used for the outgoing call
+#
+#Callerid: Wakeup Call Service <(555) 555-5555>
+
+#
+# An account code can be specified the following way:
+#
+#Account: mysuperfunaccountcode
+
+#
+# You can set channel variables that will be passed to the channel.
+# This includes writable dialplan functions. To set a writable dialplan
+# function, the module containing this function *must* be loaded.
+#
+#Set: file1=/tmp/to
+#Set: file2=/tmp/msg
+#Set: timestamp=20021023104500
+#Set: CDR(userfield|r)=42

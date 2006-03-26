@@ -1,0 +1,12 @@
+Icecast + Asterisk
+==================
+The advent of icecast into Asterisk allows you to do neat things like have
+a caller stream right into an ice-cast stream as well as using chan_local
+to place things like conferences, music on hold, etc. into the stream.
+
+You'll need to specify a config file for the ices encoder.  An example is
+included in contrib/asterisk-ices.xml
+
+Anyway hope you like it.
+
+Mark

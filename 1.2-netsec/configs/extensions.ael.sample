@@ -1,0 +1,62 @@
+//
+// Example AEL config file
+//
+
+macro std-exten-ael( ext , dev ) {
+        Dial(${dev}/${ext},20);
+        switch(${DIALSTATUS}) {
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        };
+        catch a {
+                VoiceMailMain(${ext});
+                return;
+        };
+};
+
+context ael-demo {
+	s => {
+		Wait(1);
+		Answer();
+		TIMEOUT(digit)=5;
+		TIMEOUT(response)=10;
+restart:
+		Background(demo-congrats);
+instructions:
+		for (x=0; ${x} < 3; x=${x} + 1) {
+			Background(demo-instruct);
+			WaitExten();
+		};
+	};
+	2 => {
+		Background(demo-moreinfo);
+		goto s|instructions;
+	};
+	3 => {
+		LANGUAGE()=fr;
+		goto s|restart;
+	};
+	500 => {
+		Playback(demo-abouttotry);
+		Dial(IAX2/guest@misery.digium.com);
+		Playback(demo-nogo);
+		goto s|instructions;
+	};
+	600 => {
+		Playback(demo-echotest);
+		Echo();
+		Playback(demo-echodone);
+		goto s|instructions;
+	};
+	_1234 => &std-exten-ael(${EXTEN}, "IAX2");
+	# => {
+		Playback(demo-thanks);
+		Hangup();
+	};
+	t => jump #;
+	i => Playback(invalid);
+};
+

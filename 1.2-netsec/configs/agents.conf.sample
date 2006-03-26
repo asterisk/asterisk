@@ -1,0 +1,80 @@
+[general]
+;
+; Define whether callbacklogins should be stored in astdb for
+; persistence. Persistent logins will be reloaded after
+; Asterisk restarts.
+;
+persistentagents=yes
+;
+; Agent configuration
+;
+;
+[agents]
+;
+; Define autologoff times if appropriate.  This is how long
+; the phone has to ring with no answer before the agent is
+; automatically logged off (in seconds)
+;
+;autologoff=15
+;
+; Define ackcall to require an acknowledgement by '#' when
+; an agent logs in using agentcallbacklogin.  Default is "no".
+;
+;ackcall=no
+;
+; Define wrapuptime.  This is the minimum amount of time when
+; after disconnecting before the caller can receive a new call
+; note this is in milliseconds.
+;
+;wrapuptime=5000
+;
+; Define the default musiconhold for agents
+; musiconhold => music_class
+;
+;musiconhold => default
+;
+; Define updatecdr. This is whether or not to change the source 
+; channel in the CDR record for this call to agent/agent_id so 
+; that we know which agent generates the call
+;
+;updatecdr=no
+;
+; Group memberships for agents (may change in mid-file)
+; 
+;group=3
+;group=1,2
+;group=
+;
+; --------------------------------------------------
+; This section is devoted to recording agent's calls
+; The keywords are global to the chan_agent channel driver
+; 
+; Enable recording calls addressed to agents. It's turned off by default.
+;recordagentcalls=yes
+;
+; The format to be used to record the calls: wav, gsm, wav49.
+; By default its "wav".
+;recordformat=gsm
+;
+; Insert into CDR userfield a name of the the created recording 
+; By default it's turned off. 
+;createlink=yes
+;
+; The text to be added to the name of the recording. Allows forming a url link.
+;urlprefix=http://localhost/calls/
+;
+; The optional directory to save the conversations in. The default is
+; /var/spool/asterisk/monitor
+;savecallsin=/var/calls
+;
+; An optional custom beep sound file to play to always-connected agents. 
+;custom_beep=beep
+;
+; --------------------------------------------------
+;
+; This section contains the agent definitions, in the form:
+;
+; agent => agentid,agentpassword,name
+;
+;agent => 1001,4321,Mark Spencer
+;agent => 1002,4321,Will Meadows

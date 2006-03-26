@@ -1,0 +1,729 @@
+;Sound Files and Sound Scripts
+
+;Note: All .gsm files are in the following format: 8.000 kHz, Mono 1 kb/sec
+
+;sounds directory - File Name Sound File Script
+
+%agent-alreadyon.gsm%That agent is already logged on.  Please enter your agent number followed by the pound key.
+
+%agent-incorrect.gsm%Login incorrect.  Please enter your agent number followed by the pound key.
+
+%agent-newlocation.gsm%Please enter new extension followed by pound, or just press pound for immediate service.
+
+%agent-loggedoff.gsm%Agent Logged off.
+
+%agent-loginok.gsm%Agent logged in.
+
+%agent-pass.gsm%Please enter your password followed by the pound key.
+
+%agent-user.gsm%Agent login.  Please enter your agent number followed by the pound key.
+
+%auth-incorrect.gsm%Login incorrect.  Please enter your password followed by the pound key.
+
+%auth-thankyou.gsm%Thank you.
+
+%beep.gsm%[this is a simple beep tone]
+
+%beeperr.gsm%[this is an error beep tone]
+
+%conf-hasleft.gsm%has left the conference.
+
+%conf-hasjoin.gsm%has joined the conference.
+
+%conf-getconfno.gsm%Please enter your conference number followed by the pound key.
+
+%conf-getchannel.gsm%Please enter your channel number followed by the pound key.
+
+%conf-getpin.gsm%Please enter the conference pin number.
+
+%conf-invalid.gsm%That is not a valid conference number.  Please try again.
+
+%conf-invalidpin.gsm%That pin is invalid for this conference.
+
+%conf-onlyperson.gsm%You are currently the only person in this conference.
+
+%conf-noempty.gsm%No empty conferences currently exist.
+
+%conf-enteringno.gsm%You are entering conference number
+
+%demo-abouttotry.gsm%I am about to attempt an Inter-Asterisk Exchange connection to a demonstration server located at Digium.  In order for this to work you must already be connected to the Internet.  Please wait a moment while I attempt to make the connection.
+
+%demo-congrats.gsm%Congratulations.  You have successfully installed and executed the Asterisk open source PBX.  You have also installed a set of sample sounds and configuration files that should help you to get started.  Like a normal PBX you will navigate this demonstration by dialing digits.  If you are using a console channel driver instead of a real phone you can use the dial, answer, and hang up commands to simulate the actions of a standard telephone.
+
+%demo-echodone.gsm%The echo test has been completed.
+
+%demo-echotest.gsm%You are about to enter an echo test.  In this mode everything you say will be repeated back to you just as soon as it is received.  The purpose of this test is to give you an audible sense of the latency between you and the machine that is running the echo test application.  You may end the test by hanging up or by pressing the pound key.
+
+%demo-enterkeywords.gsm%Please enter one or more keywords separated by * and then press the pound key.
+
+%demo-nomatch.gsm%I'm sorry there are no matches for those keywords
+
+%demo-instruct.gsm%If you would like to learn more technical information about Asterisk dial 2 now.  If you'd like to test out the voice over IP capabilities of Asterisk you can dial 500 to attempt an Inter-Asterisk Exchange or IAX connection to a demonstration server at Digium.  In order for this test to work you will need to be connected to the Internet and have at least a 28.8 kilobit modem.  To execute an echo test dial 600.  This test is most useful when you have connected to this Asterisk server from a remote location.  The sample configuration also has a single user with extension 1234 and password 4242.  That user is configured to ring the console when their extension is dialed.  If you dial 1234 you can try to ring the console.  If the console is busy or unavailable you will be given the option to leave voicemail.  To check voice mail for the user dial extension 8500 to enter the voicemail system.  Finally,  you can press the pound key to disconnect from the PBX.
+
+%demo-moreinfo.gsm%This message has not yet been written.
+
+%demo-nogo.gsm%I am afraid I was unable to create a connection to the Digium demonstration Asterisk server.  You may find some helpful debugging information on the Asterisk console.
+
+%demo-thanks.gsm%Goodbye.  Thank you for trying out the Asterisk Open Source PBX.
+ 
+%dir-instr.gsm%If this is the person you are looking for press 1 now, otherwise please press star now.
+
+%dir-intro.gsm%Welcome to the Asterisk directory.  Please enter the first three letters of your parties last name using your touch tone keypad.  Use the 7 key for Q and the 9 key for Z.
+
+%dir-intro-fn.gsm%Welcome to the Asterisk directory.  Please enter the first three letters of your parties first name using your touch tone keypad.  Use the 7 key for Q and the 9 key for Z.
+
+%dir-nomatch.gsm%No directory entries match your search.
+
+%dir-nomore.gsm%There are no more compatible entries in the directory.
+
+%hello-world.gsm%Hello world.
+
+%invalid.gsm%I am sorry, that's not a valid extension.  Please try again.
+
+%pbx-invalid.gsm%I am sorry, that's not a valid extension.  Please try again.
+
+%pbx-invalidpark.gsm%I am sorry, there is no call parked on that extension.  Please try again.
+
+%pbx-transfer.gsm%Transfer.
+
+%queue-periodic-announce.gsm%All of our represenatives are currently busy. Please stay on the line and your call will be answered by the next available representative.
+
+%queue-callswaiting.gsm%Waiting to speak with a representative
+
+%queue-holdtime.gsm%The estimated hold time is currently
+
+%queue-reporthold.gsm%Hold time
+
+%queue-minutes.gsm%Minutes
+
+%queue-seconds.gsm%Seconds
+
+%queue-thankyou.gsm%Thank you for your patience
+
+%queue-thereare.gsm%You are currently caller number
+
+%queue-youarenext.gsm%Your call is now first in line and will be answered by the next available representative.
+
+%ss-noservice.gsm%The number you have dialed is not in service. Please check the number and try again.
+
+%transfer.gsm%Please hold while I try that extension.
+
+%vm-forward.gsm%Press 1 to enter an extension, press 2 to use the directory
+
+%vm-Cust1.gsm%folder 5
+
+%vm-Cust2.gsm%folder 6
+
+%vm-Cust3.gsm%folder 7
+
+%vm-Cust4.gsm%folder 8
+
+%vm-Cust5.gsm%folder 9
+
+%vm-and.gsm%and
+
+%vm-changeto.gsm%Change to which folder?
+
+%vm-delete.gsm%Press 7 to delete this message.
+
+%vm-deleted.gsm%Message deleted.
+
+%vm-extension.gsm%extension
+
+%vm-Family.gsm%family
+
+%vm-first.gsm%first
+
+%vm-for.gsm%for
+
+%vm-Friends.gsm%friends
+
+%vm-goodbye.gsm%Goodbye
+ 
+%vm-helpexit.gsm%Press star for help or pound to exit.
+
+%vm-INBOX.gsm%new
+
+%vm-minutes.gsm%minutes
+
+%vm-incorrect-mailbox.gsm%Login incorrect.  Mailbox?
+
+%vm-incorrect.gsm%Login incorrect.
+
+%vm-instructions.gsm%To look into your messages press 1 now.  You may quit voicemail at any time by pressing the pound key.
+
+%vm-intro.gsm%Please leave your message after the tone.  When done hang up or press the pound key. (simple tone sound plays)
+
+%vm-isonphone.gsm%is on the phone
+
+%vm-isunavail.gsm%is unavailable
+ 
+%vm-last.gsm%last
+
+%vm-login.gsm%Asterisk Mail.  Mailbox?
+
+%vm-message.gsm%message
+
+%vm-messages.gsm%messages
+
+%vm-mismatch.gsm%The passwords you entered and re-entered did not match.  Please try again.
+
+%vm-msginstruct.gsm%To hear the next message press 6, to repeat this message press 5, to hear the previous message press 4, to delete or undelete this message press seven, to quite voicemail press pound.  During message playback, you may press * to rewind, and # to fast forward.
+ 
+%vm-msgsaved.gsm%Your message has been saved.
+
+%vm-newpassword.gsm%Please enter your new password followed by the pound key?
+
+%vm-next.gsm%Press 6 to play the next message.
+
+%vm-no.gsm%no
+
+%vm-nobodyavail.gsm%Nobody is available to take your call at the moment
+
+%vm-nomore.gsm%No more messages.
+
+%vm-Old.gsm%old
+
+%vm-onefor.gsm%Press 1 for
+
+%vm-options.gsm%Press 1 to record your unavailable message, press 2 to record your busy message, press 3 to record your name, press 4 to record your temporary message, press 5 to change your password, press star to return to the main menu.
+
+%vm-opts.gsm%Press 2 to change folders, press 3 for advanced options, press zero for mailbox options.
+
+%vm-passchanged.gsm%Your passwords have been changed.
+
+%vm-password.gsm%password
+
+%vm-press.gsm%press
+
+%vm-prev.gsm%Press 4 for the previous message
+
+%vm-rec-busy.gsm%After the tone say your busy message and then press the pound key.
+
+%vm-rec-name.gsm%After the tone say your name and then press the pound key.
+
+%vm-rec-unv.gsm%After the tone say your unavailable message and then press the pound key.
+
+%vm-rec-temp.gsm%After the tone, say your temporary message, and then press the pound key.
+
+%vm-reenterpassword.gsm%Please re-enter your password followed by the pound key.
+
+%vm-repeat.gsm%Press 5 to repeat the current message.
+
+%vm-saved.gsm%saved
+
+%vm-savedto.gsm%saved to
+
+%vm-savefolder.gsm%Which folder should I save the message to?
+
+%vm-savemessage.gsm%or 9 to save this message
+
+%vm-sorry.gsm%I'm sorry I did not understand your response.
+
+%vm-tempgreeting.gsm%press 1 to record your temporary greeting
+
+%vm-tempgreeting2.gsm%press 1 to record your temporary greeting, or press 2 to erase your temporary greeting
+
+%vm-tempremoved.gsm%Your temporary greeting has been removed
+
+%vm-theperson.gsm%The person at extension
+
+%vm-tocancel.gsm%or pound to cancel.
+
+%vm-toforward.gsm%Press 8 to forward the message to another user
+
+%vm-undelete.gsm%Press 7 to undelete this message
+
+%vm-undeleted.gsm%Message undeleted.
+
+%vm-whichbox.gsm%To leave a message, please enter a mailbox number.
+
+%vm-Work.gsm%work
+
+%vm-youhave.gsm%you have
+
+%vm-newuser.gsm%Welcome to Comedian Mail. First, I will guide you through a short setup process.
+
+%priv-sayname.gsm%After the tone, please say your name or the company you represent.
+
+%priv-trying.gsm%Please hold while I attempt to contact your party.
+
+%priv-callfrom.gsm%You have a call from
+
+%priv-at.gsm%at
+
+%priv-instruct.gsm%Press 1 to accept this call.  Press 2 to not accept this call.  Press 3 to always accept calls from this number.  Press 4 to never accept calls from this number.  Press 5 to reject calls from this number and request that they add you to their do not call list.
+
+%priv-callee-options.gsm%Dial 1 if you wish this caller to reach you directly now, and in the future.  Dial 2 if you wish to send this caller to voicemail now and forevermore.  Dial 3 to send this caller to the torture menus, now and forevermore.  Dial 4 to send this caller to a polite "don't call" menu, now and forevermore.  Dial 5 to allow this caller to come straight thru to you in the future, but just this once, send them to voicemail.
+
+%screen-callee-options.gsm%You have these options: Dial 1 if you wish to immediately connect to the incoming call.  Dial 2 if you wish to send this caller to voicemail.  Dial 3 to send this callerr to the torture menus.  Dial 4 to send this caller to a polite "don't call" menu.
+
+%priv-introsaved.gsm%Thank you. Please hold, while I attempt to connect you with your party!
+
+%priv-recordintro.gsm%At the tone, please say your name.
+
+%priv-callpending.gsm%I have a caller waiting, who introduces themselves as:
+
+%privacy-unident.gsm%The party you are trying to reach does not accept unidentified calls.
+
+%privacy-prompt.gsm%Please enter your phone number, starting with the area code.
+
+%privacy-incorrect.gsm%I'm sorry, that number is not valid.
+
+%privacy-thankyou.gsm%Thank you.
+
+%tt-allbusy.gsm%All representatives of the household are currently assisting other telemarketers.  Please hold and your call will be answered in the order it was received.
+
+%tt-monkeysintro.gsm%They have been carried away by monkeys
+
+%tt-monkeys.gsm%[sound of monkeys screaming]
+
+%tt-somethingwrong.gsm%Something is terribly wrong
+
+%tt-weasels.gsm%Weasels have eaten our phone system
+
+;dictate directory - app_dictate
+
+%both_help.gsm%press * to toggle pause, press # to enter a new dictation filename
+
+%enter_filename.gsm%Enter a numeric dictation filename followed by # or just # to exit
+
+%forhelp.gsm%press 0 for help
+
+%inithelp.gsm%1 to switch to playback mode
+
+%pause.gsm%pause
+
+%paused.gsm%paused
+
+%play_help.gsm%press 1 to switch to record mode, press 2 to toggle fast playback, press 7 to jump backwards, press 8 to jump forwards
+
+%playback.gsm%playback
+
+%playback_mode.gsm%playback mode
+
+%record.gsm%record
+
+%record_help.gsm%press 1 to switch to playback mode, press 8 to truncate the file and start over
+
+%record_mode.gsm%record mode
+
+%truncating_audio.gsm%truncating audio
+
+;digits directory  - File Name Sound File Script
+
+%minus.gsm%minus
+
+%0.gsm%zero
+
+%1.gsm%one
+
+%2.gsm%two
+
+%3.gsm%three
+
+%4.gsm%four
+
+%5.gsm%five
+
+%6.gsm%six
+
+%7.gsm%seven
+
+%8.gsm%eight
+
+%9.gsm%nine
+
+%10.gsm%ten
+
+%11.gsm%eleven
+
+%12.gsm%twelve
+
+%13.gsm%thirteen
+
+%14.gsm%fourteen
+
+%15.gsm%fifteen
+
+%16.gsm%sixteen
+
+%17.gsm%seventeen
+
+%18.gsm%eighteen
+
+%19.gsm%nineteen
+
+%20.gsm%twenty
+
+%30.gsm%thirty
+
+%40.gsm%forty
+
+%50.gsm%fifty
+
+%60.gsm%sixty
+
+%70.gsm%seventy
+
+%80.gsm%eighty
+
+%90.gsm%ninety
+
+%a-m.gsm%A.M.
+
+%day-0.gsm%Sunday
+
+%day-1.gsm%Monday
+
+%day-2.gsm%Tuesday
+
+%day-3.gsm%Wednesday
+
+%day-4.gsm%Thursday
+
+%day-5.gsm%Friday
+
+%day-6.gsm%Saturday
+
+%dollars.gsm%dollars
+
+%hundred.gsm%hundred
+
+%million.gsm%million
+
+%mon-0.gsm%January
+
+%mon-1.gsm%February
+
+%mon-2.gsm%March
+
+%mon-3.gsm%April
+
+%mon-4.gsm%May
+
+%mon-5.gsm%June
+
+%mon-6.gsm%July
+
+%mon-7.gsm%August
+
+%mon-8.gsm%September
+
+%mon-9.gsm%October
+
+%mon-10.gsm%November
+
+%mon-11.gsm%December
+
+%oclock.gsm%o'clock
+
+%oh.gsm%oh
+
+%p-m.gsm%P.M.
+
+%pound.gsm%pound
+
+%seconds.gsm%seconds
+
+%star.gsm%star
+
+%thousand.gsm%thousand
+
+%h-1.gsm%first
+
+%h-2.gsm%second
+
+%h-3.gsm%third
+
+%h-4.gsm%fourth
+
+%h-5.gsm%fifth
+
+%h-6.gsm%sixth
+
+%h-7.gsm%seventh
+
+%h-8.gsm%eighth
+
+%h-9.gsm%ninth
+
+%h-10.gsm%tenth
+
+%h-11.gsm%eleventh
+
+%h-12.gsm%twelfth
+
+%h-13.gsm%thirteenth
+
+%h-14.gsm%fourteenth
+
+%h-15.gsm%fifteenth
+
+%h-16.gsm%sixteenth
+
+%h-17.gsm%seventeenth
+
+%h-18.gsm%eighteenth
+
+%h-19.gsm%nineteenth
+
+%h-20.gsm%twentieth
+
+%h-30.gsm%thirtieth
+
+%today.gsm%today
+
+%tomorrow.gsm%tomorrow
+
+%yesterday.gsm%yesterday
+
+%vm-received.gsm%received
+
+%hours.gsm%hours
+
+%minutes.gsm%minutes
+
+%vm-forwardoptions.gsm%press 1 to prepend a message or 2 to forward the
+ message without prepending
+
+%vm-mailboxfull.gsm%sorry but the users mail box can't accept more messages
+
+%vm-tocancelmsg.gsm%press star to cancel this message
+
+%vm-from.gsm%from
+
+%vm-from-extension.gsm%from extension
+
+%vm-from-phonenumber.gsm%from phone number
+
+%vm-unknown-caller.gsm%from an unknown caller
+
+%vm-advopts.gsm%press 3 for advanced options
+
+%vm-saveoper.gsm%press 1 to accept this recording, or continue to hold
+
+%vm-toreply.gsm%press 1 to send a reply
+
+%vm-tocallback.gsm%press 2 to call the person who sent this message
+
+%vm-tohearenv.gsm%press 3 to hear the message envelope
+
+%vm-tomakecall.gsm%press 4 to place an outgoing call
+
+%vm-starmain.gsm%press star to return to the main menu
+
+%vm-dialout.gsm%please wait while i connect your call
+
+%vm-enter-num-to-call.gsm%please enter the number you wish to call
+
+%vm-then-pound.gsm%then press pound
+
+%vm-star-cancel.gsm%press star to cancel
+
+%vm-num-i-have.gsm%the number i have is
+
+%vm-tocallnum.gsm%press 1 to call this number
+
+%vm-calldiffnum.gsm%press 2 to enter a different number
+
+%vm-nonumber.gsm%i'm afraid i don't know who sent this message
+
+%vm-toenternumber.gsm%press 1 to enter a number
+
+%vm-nobox.gsm%you cannot reply to this message because the sender does not have a mailbox
+
+%vm-review.gsm%press 1 to accept this recording press 2 to listen to it press 3 to rerecord your message
+
+%vm-torerecord.gsm%press 3 to rerecord your message
+
+%vm-reachoper.gsm%press 0 to reach an operator
+
+%vm-tooshort.gsm%your message is too short 
+
+%9_p.gsm%niner
+
+%a.gsm%a
+
+%b.gsm%b
+
+%c.gsm%c
+
+%d.gsm%d
+
+%e.gsm%e
+
+%f.gsm%f
+
+%g.gsm%g
+
+%h.gsm%h
+
+%i.gsm%i
+
+%j.gsm%j
+
+%k.gsm%k
+
+%l.gsm%l
+
+%m.gsm%m
+
+%n.gsm%n
+
+%o.gsm%o
+
+%p.gsm%p
+
+%q.gsm%q
+
+%r.gsm%r
+
+%s.gsm%s
+
+%t.gsm%t
+
+%u.gsm%u
+
+%v.gsm%v
+
+%w.gsm%w
+
+%x.gsm%x
+
+%y.gsm%y
+
+%z.gsm%z
+
+%zed.gsm%zed
+
+%a_p.gsm%alpha
+
+%b_p.gsm%bravo
+
+%c_p.gsm%charlie
+
+%d_p.gsm%delta
+
+%e_p.gsm%echo
+
+%f_p.gsm%foxtrot
+
+%g_p.gsm%golf
+
+%h_p.gsm%hotel
+
+%i_p.gsm%india
+
+%j_p.gsm%juliet
+
+%k_p.gsm%kilo
+
+%l_p.gsm%lima
+
+%m_p.gsm%mike
+
+%n_p.gsm%november
+
+%o_p.gsm%oscar
+
+%p_p.gsm%papa
+
+%q_p.gsm%quebec
+
+%r_p.gsm%romeo
+
+%s_p.gsm%sierra
+
+%t_p.gsm%tango
+
+%u_p.gsm%uniform
+
+%v_p.gsm%victor
+
+%w_p.gsm%whiskey
+
+%x_p.gsm%xray
+
+%y_p.gsm%yankee
+
+%z_p.gsm%zulu
+
+%niner.gsm%niner
+
+; Misc 
+
+%percent.gsm%percent [%]
+
+%plus.gsm%plus [+]
+
+%exclaimation-point.gsm%exclaimation-point [!]
+
+%at.gsm%at [@]
+
+%dollar.gsm%dollar [$]
+
+%dash.gsm%dash [-]
+
+%dot.gsm%dot [.]
+
+%slash.gsm%slash [/]
+
+%space.gsm%space [ ]
+
+%equals.gsm%equals [=]
+
+%conf-locked.gsm%This conference is locked!
+
+%conf-kicked.gsm%You have been kicked from this conference
+
+%conf-adminmenu.gsm%Please press 1 to mute or unmute yourself, 2 to lock or unlock the conference, 3 to eject the last user, 4 or 6 to decrease or increase the conference volume, 7 or 9 to decrease or increase your volume, or 8 to exit
+
+%conf-usermenu.gsm%Please press 1 to mute or unmute yourself, 4 or 6 to decrease or increase the conference volume, 7 or 9 to decrease or increase your volume, or 8 to exit
+
+%conf-errormenu.gsm%Invalid Choice
+
+%conf-muted.gsm%You are now muted
+
+%conf-unmuted.gsm%You are now unmuted
+
+%conf-lockednow.gsm%The conference is now locked
+
+%conf-unlockednow.gsm%The conference is now unlocked
+
+%vm-leavemsg.gsm% Press 5 to send a voicemail message
+
+%queue-less-than.gsm%less than
+
+%conf-waitforleader.gsm%The conference will begin when the leader arrives.
+
+%conf-userwilljoin.gsm%user will join the conference.
+
+%conf-userswilljoin.gsm%users will join the conference.
+
+%conf-leaderhasleft.gsm%The leader has left the conference.
+
+%conf-placeintoconf.gsm%You will now be placed into the conference.
+
+%conf-thereare.gsm%There are currently
+
+%conf-otherinparty.gsm%other participants in the conference
+
+%conf-onlyone.gsm%There is currently only one other participant in the conference.
+
+
+%spy-agent.gsm%Agent
+
+%spy-h323.gsm%H.323
+
+%spy-iax.gsm%IAX
+
+%spy-iax2.gsm%IAX (note: does not say "2")
+
+%spy-mgcp.gsm%MGCP
+
+%spy-sip.gsm%SIP
+
+%spy-skinny.gsm%Skinny
+
+%spy-zap.gsm%Zap

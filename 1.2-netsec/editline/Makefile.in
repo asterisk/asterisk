@@ -1,0 +1,233 @@
+#
+# Generic Makefile for libedit.
+#
+
+OSTYPE=$(shell uname -s)
+define cyg_subst_sys
+	if uname -s | grep -qi cygwin; then \
+	cat $@ | sed -e s/"sys\.h"/"config.h"/g > $@.copy; \
+	mv --force $@.copy $@; \
+	fi
+endef
+
+SHELL = /bin/sh
+
+CC = @CC@
+AR = @AR@
+RANLIB = @RANLIB@
+CPPFLAGS = @CPPFLAGS@ -I.
+CFLAGS = @CFLAGS@
+A_CFLAGS = @A_CFLAGS@
+S_CFLAGS = @S_CFLAGS@
+LDFLAGS = @LDFLAGS@
+S_LDFLAGS = @S_LDFLAGS@
+LIBS = @LIBS@
+
+INSTALL = @INSTALL@
+PREFIX = @prefix@
+
+ifeq ($(OSTYPE),SunOS)
+CFLAGS+=-DSOLARIS -I../include/solaris-compat
+endif
+
+# .c files.
+ACSRCS = @ACSRCS@
+BCSRCS = @BCSRCS@
+CCSRCS = @CCSRCS@
+
+# Generated .c files.
+AGCSRCS = @AGCSRCS@
+BGCSRCS = @BGCSRCS@
+
+# .h files.
+HDRS = @HDRS@
+
+# Generated .h files.
+AGHDRS = @AGHDRS@
+BGHDRS = @BGHDRS@
+
+# Installed .h files.
+IHDRS = @IHDRS@
+IHDR_LINKS = @IHDR_LINKS@
+HDR_DIRS = @HDR_DIRS@
+
+# Man pages.
+MAN3 = @MAN3@
+MAN5 = @MAN5@
+MAN3_LINKS = @MAN3_LINKS@
+MAN_DIRS = @MAN_DIRS@
+
+# Library.
+LIB_DIRS = @LIB_DIRS@
+LIB_VER = @LIB_VER@
+LIB_A = @LIB_A@
+LIB_A_LINKS = @LIB_A_LINKS@
+LIB_S = @LIB_S@
+LIB_S_LINKS = @LIB_S_LINKS@
+
+# Test program.
+TEST = @TEST@
+TCSRCS = @TCSRCS@
+
+# Clear out all paths, then set just one (default path) for the main build
+# directory.
+.PATH :
+.PATH : .
+
+.SUFFIXES :
+.SUFFIXES : .c .o .o_a .o_s
+
+all :  lib_a lib_s
+
+lib_a : $(LIB_A)
+lib_s : $(LIB_S)
+
+test : $(TEST)
+
+install : install_hdr install_lib install_man
+
+install_hdr :
+	@for i in $(HDR_DIRS) ; do \
+		echo "$(INSTALL) -d $(PREFIX)/$$i/"; \
+		$(INSTALL) -d $(PREFIX)/$$i/; \
+	done
+	@for i in $(IHDRS); do \
+		echo "$(INSTALL) -m 0444 $$i $(PREFIX)/include/`dirname $$i`/"; \
+		$(INSTALL) -m 0444 $$i $(PREFIX)/include/`dirname $$i`/; \
+	done
+	@f=; \
+	for i in $(IHDR_LINKS) ""; do \
+		if test -z "$$f" ; then \
+			f=$$i; \
+		else \
+			echo "rm -f $(PREFIX)/include/$$i"; \
+			rm -f $(PREFIX)/include/$$i; \
+			echo "ln -s $$f $(PREFIX)/include/$$i"; \
+			ln -s $$f $(PREFIX)/include/$$i; \
+			f=; \
+		fi; \
+	done
+
+install_lib : install_lib_a install_lib_s
+
+install_lib_common :
+	@for i in $(LIB_DIRS) ; do \
+		echo "$(INSTALL) -d $(PREFIX)/$$i/"; \
+		$(INSTALL) -d $(PREFIX)/$$i/; \
+	done
+
+install_lib_a : $(LIB_A) install_lib_common
+	$(INSTALL) -m 0644 $(LIB_A) $(PREFIX)/lib/
+	@f=; \
+	for i in $(LIB_A_LINKS) ""; do \
+		if test -z "$$f" ; then \
+			f=$$i; \
+		else \
+			echo "rm -f $(PREFIX)/lib/$$i"; \
+			rm -f $(PREFIX)/lib/$$i; \
+			echo "ln -s $$f $(PREFIX)/lib/$$i"; \
+			ln -s $$f $(PREFIX)/lib/$$i; \
+			f=; \
+		fi; \
+	done
+
+install_lib_s : $(LIB_S) install_lib_common
+	$(INSTALL) -m 0755 $(LIB_S) $(PREFIX)/lib/
+	@f=; \
+	for i in $(LIB_S_LINKS) ""; do \
+		if test -z "$$f" ; then \
+			f=$$i; \
+		else \
+			echo "rm -f $(PREFIX)/lib/$$i"; \
+			rm -f $(PREFIX)/lib/$$i; \
+			echo "ln -s $$f $(PREFIX)/lib/$$i"; \
+			ln -s $$f $(PREFIX)/lib/$$i; \
+			f=; \
+		fi; \
+	done
+
+install_man :
+	@for i in $(MAN_DIRS) ; do \
+		echo "$(INSTALL) -d $(PREFIX)/$$i/"; \
+		$(INSTALL) -d $(PREFIX)/$$i/; \
+	done
+	@for i in $(MAN3); do \
+		echo $(INSTALL) -m 0444 $$i $(PREFIX)/man/man3/; \
+		$(INSTALL) -m 0444 $$i $(PREFIX)/man/man3/; \
+	done
+	@f=; \
+	for i in $(MAN3_LINKS) ""; do \
+		if test -z "$$f" ; then \
+			f=$$i; \
+		else \
+			echo "rm -f $(PREFIX)/man/man3/$$i"; \
+			rm -f $(PREFIX)/man/man3/$$i; \
+			echo "ln -s $$f $(PREFIX)/man/man3/$$i"; \
+			ln -s $$f $(PREFIX)/man/man3/$$i; \
+			f=; \
+		fi; \
+	done
+	@for i in $(MAN5); do\
+		echo $(INSTALL) -m 0444 $$i $(PREFIX)/man/man5/; \
+		$(INSTALL) -m 0444 $$i $(PREFIX)/man/man5/; \
+	done
+
+clean :
+	rm -f $(AGCSRCS) $(BGCSRCS) $(AGHDRS) $(BGHDRS) $(LIB_A) $(LIB_S)
+	rm -f $(BGCSRCS:.c=.o_a) $(CCSRCS:.c=.o_a)
+	rm -f $(BGCSRCS:.c=.o_s) $(CCSRCS:.c=.o_s)
+	rm -f $(TCSRCS:.c=.o) $(TEST)
+
+distclean : clean
+	rm -f config.cache config.log config.status config.h Makefile
+
+#
+# Internal targets and rules.
+#
+
+$(LIB_A) : $(BGCSRCS:.c=.o_a) $(CCSRCS:.c=.o_a)
+	$(AR) cru $@ $?
+	$(RANLIB) $@
+
+$(LIB_S) : $(BGCSRCS:.c=.o_s) $(CCSRCS:.c=.o_s)
+	$(CC) $(S_LDFLAGS) -o $@ $(BGCSRCS:.c=.o_s) $(CCSRCS:.c=.o_s) $(LIBS)
+
+$(TEST) : $(TCSRCS:.c=.o) $(LIB_A)
+	$(CC) -o $@ $(TCSRCS:.c=.o) $(LIB_A) $(LIBS)
+
+common.h : common.c
+	$(SHELL) makelist -h common.c > $@
+
+emacs.h : emacs.c
+	$(SHELL) makelist -h emacs.c> $@
+
+vi.h : vi.c
+	$(SHELL) makelist -h vi.c > $@
+
+fcns.h : $(AGHDRS)
+	$(SHELL) makelist -fh $(AGHDRS) > $@
+
+fcns.c : $(AGHDRS) fcns.h
+	$(SHELL) makelist -fc $(AGHDRS) > $@
+	$(cyg_subst_sys)
+
+help.h : $(ACSRCS)
+	$(SHELL) makelist -bh $(ACSRCS) > $@
+
+help.c : $(ACSRCS) help.h
+	$(SHELL) makelist -bc $(ACSRCS) > $@
+	$(cyg_subst_sys)
+
+editline.c : $(ACSRCS) $(BCSRCS) $(AGCSRCS)
+	$(SHELL) makelist -e $(ACSRCS) $(BCSRCS) $(AGCSRCS) > $@
+
+.c.o :
+	$(CC) -c $(A_CFLAGS) $(CFLAGS) $(CPPFLAGS) $< -o $@
+
+.c.o_a : $(AGHDRS) $(BGHDRS)
+	$(CC) -c $(A_CFLAGS) $(CFLAGS) $(CPPFLAGS) $< -o $@
+
+.c.o_s : $(AGHDRS) $(BGHDRS)
+	$(CC) -c $(S_CFLAGS) $(CFLAGS) $(CPPFLAGS) $< -o $@
+
+$(CCSRCS) : $(BGHDRS)

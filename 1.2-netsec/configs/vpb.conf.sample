@@ -1,0 +1,108 @@
+;
+; V6PCI/V12PCI config file for VoiceTronix Hardware
+;
+; Options for [general] section
+;
+; type = v12pci|v6pci|v4pci
+; cards = number of cards
+;    To use Asterisk indication tones
+; indication = 1
+;    none,-24db,-18db only for use with OpenLine4
+; ecsuppthres = 0|2048|4096
+;    Inter Digit Delay timeout for when collecting DTMF tones for dialling
+;    from a Station port, in ms
+; dtmfidd = 3000
+;    To use Asterisk DTMF detection
+; ast-dtmf-det=1
+;    Used with ast-dtmf-det
+; relaxdtmf=1
+;    When a native bridge occurs between 2 vpb channels, it will only break
+;    the connection for '#' and '*'
+; break-for-dtmf=no
+;    Set the maximum period between received rings, default 4000ms
+; timer_period_ring=4000
+;
+; Options for [interface] section
+; board = board_number (1, 2, 3, ...)
+; channel = channel_number (1,2,3...)
+; mode = fxo|immediate|dialtone -- for type of line and line handling
+; context = starting context
+; echocancel = on|off (on by default of v4pci, off by default for others)
+; callerid = on|off|v23|bell (on => to collect caller ID if available between 1st/2nd rings using vpb functions)
+;                            (v23|bell => collect caller ID using asterisk functions)
+;            Or for use with FXS channels a '"name" <location>' format can be used to set the channels CID
+;
+; UseLoopDrop = 0|1 (enables the use of Loop Drop detection, on by default in
+;                    some cases spurious loop-drops can cause unexpected 
+;                    hangup detection)
+; 
+; Gain settings
+; txgain  => Transmit Software Gain (-12 => 12)
+; rxgain  => Receive Software Gain (-12 => 12)
+; txhwgain => Transmit hardware gain (-12 => 12)
+; rxhwgain => Receive Hardware gain (-12 => 12)
+;
+; These are advanced settings and only mentioned for fullnes.
+; bal1  => Hybrid balance codec register 1
+; bal2  => Hybrid balance codec register 2
+; bal3  => Hybrid balance codec register 3
+;
+; Dial translations - if you want a pause or hook-flash in your dial string
+; you can use "w" for pause (wait) or "f" for "hook-flash", eg:
+; exten => _9XXX,1,Dial(vpb/g1/ww${EXTEN:${TRUNKMSD}})
+;
+;
+
+[general]
+type = v12pci
+;type = v6pci
+;type = v4pci
+cards = 1
+
+[interfaces]
+
+board = 1
+echocancel = on
+
+
+; For OpenLine4 cards
+;context = demo
+;mode = fxo
+;channel = 1
+;channel = 2
+;channel = 3
+;channel = 4
+
+; For OpenSwith12 with jumpers at factory default
+context = demo
+mode = fxo
+channel = 9
+channel = 10
+channel = 11
+channel = 12
+
+context = local
+mode = dialtone
+channel = 1
+channel = 2
+channel = 3
+channel = 4
+channel = 5
+channel = 6
+channel = 7
+channel = 8
+;
+; For OpenSwitch6
+; Note that V6PCI channel numbers start at 7!
+;context = demo
+;mode = fxo
+;channel = 7
+;channel = 8
+
+;mode = dialtone
+;channel = 9
+;channel = 10
+;channel = 11
+;channel = 12
+
+

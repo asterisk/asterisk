@@ -1,0 +1,55 @@
+;
+; Skinny Configuration for Asterisk
+;
+[general]
+port = 2000 		; Port to bind to, default tcp/2000
+bindaddr = 0.0.0.0 	; Address to bind to
+dateFormat = M-D-Y      ; M,D,Y in any order (5 chars max)
+keepAlive = 120		
+
+; allow = all
+; disallow = 
+
+
+; Typical config for 12SP+
+;[florian]
+;device=SEP00D0BA847E6B
+;model=12SP		; Specific model of device, for button templates 
+			; Valid models: 12SP, 30VIP, 7910, 7920 (so far)
+;version=P002G204 	; Thanks critch
+;context=did
+;line => 120		; Dial(Skinny/120@florian)
+
+
+; Typical config for a 7910
+;[duba]  		; Device name
+;model=7910		; Device model
+;device=SEP0007EB463101	; Offical identifier
+;version=P002F202	; Firmware version identifier
+;host=192.168.1.144	; 
+;permit=192.168.0/24	; Optional, used for authentication
+;nat=0
+;callerid="George W. Bush" <202-456-1414>
+;mailbox=500
+;callwaiting=1
+;transfer=1
+;threewaycalling=1
+;context=default
+;line => 500		; Dial(Skinny/500@duba)
+
+; Typical config for a 7940 / ATA
+;[support]
+;device=SEP0007EB463121
+;nat=0
+;callerid="Customer Support" <810-234-1212>
+;mailbox=100
+;context=inbound
+;linelabel="Support Line" ; Displays next to the line button on 7940's and 7960s  
+;line => 100
+;callerid="John Chambers" <408-526-4000>
+;context=did
+;linelabel="John"
+;mailbox=110
+;line => 110
+
+

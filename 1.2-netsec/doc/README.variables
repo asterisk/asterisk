@@ -1,0 +1,792 @@
+----------------------------
+Asterisk dial plan variables 
+----------------------------
+
+There are two levels of parameter evaluation done in the Asterisk
+dial plan in extensions.conf.
+* The first, and most frequently used, is the substitution of variable
+  references with their values. 
+* Then there are the evaluations of expressions done in $[ .. ]. 
+  This will be discussed below.
+
+Asterisk has user-defined variables and standard variables set
+by various modules in Asterisk. These standard variables are
+listed at the end of this document.
+
+___________________________
+PARAMETER QUOTING: 
+---------------------------
+
+exten => s,5,BackGround,blabla
+
+The parameter (blabla) can be quoted ("blabla"). In this case, a 
+comma does not terminate the field. However, the double quotes
+will be passed down to the Background command, in this example.
+
+Also, characters special to variable substitution, expression evaluation, etc
+(see below), can be quoted. For example, to literally use a $ on the 
+string "$1231", quote it with a preceding \. Special characters that must
+be quoted to be used, are [ ] $ " \. (to write \ itself, use \\). 
+
+These Double quotes and escapes are evaluated at the level of the
+asterisk config file parser. 
+
+Double quotes can also be used inside expressions, as discussed below.
+
+___________________________
+VARIABLES: 
+---------------------------
+
+Parameter strings can include variables. Variable names are arbitrary strings. 
+They are stored in the respective channel structure. 
+
+To set a variable to a particular value, do : 
+
+    exten => 1,2,Set(varname=value)
+
+You can substitute the value of a variable everywhere using ${variablename}.
+For example, to stringwise append $lala to $blabla and store result in $koko, 
+do: 
+
+   exten => 1,2,Set(koko=${blabla}${lala})
+
+
+There are two reference modes - reference by value and reference by name. 
+To refer to a variable with its name (as an argument to a function that 
+requires a variable), just write the name. To refer to the variable's value, 
+enclose it inside ${}. For example, Set takes as the first argument 
+(before the =) a variable name, so: 
+
+	exten => 1,2,Set(koko=lala)
+	exten => 1,3,Set(${koko}=blabla)
+
+stores to the variable "koko" the value "lala" and to variable "lala" the 
+value "blabla". 
+
+In fact, everything contained ${here} is just replaced with the value of 
+the variable "here". 
+
+____________________
+VARIABLE INHERITANCE
+--------------------
+
+Variable names which are prefixed by "_" will be inherited to channels 
+that are created in the process of servicing the original channel in 
+which the variable was set.  When the inheritance takes place, the 
+prefix will be removed in the channel inheriting the variable.  If the 
+name is prefixed by "__" in the channel, then the variable is 
+inherited and the "__" will remain intact in the new channel.
+
+In the dialplan, all references to these variables refer to the same 
+variable, regardless of having a prefix or not.  Note that setting any 
+version of the variable removes any other version of the variable, 
+regardless of prefix.
+
+Example:
+
+Set(__FOO=bar) ; Sets an inherited version of "FOO" variable 
+Set(FOO=bar)   ; Removes the inherited version and sets a local 
+               ; variable.
+
+However,
+
+NoOp(${__FOO}) is identical to NoOp(${FOO})
+
+
+
+___________________________________
+SELECTING CHARACTERS FROM VARIABLES
+-----------------------------------
+
+The format for selecting characters from a variable can be expressed as:
+
+	${variable_name[:offset[:length]]}
+
+If you want to select the first N characters from the string assigned
+to a variable, simply append a colon and the number of characters to
+skip from the beginning of the string to the variable name.
+
+	;Remove the first character of extension, save in "number" variable
+	exten => _9X.,1,Set(number=${EXTEN:1})
+
+Assuming we've dialed 918005551234, the value saved to the 'number' variable
+would be 18005551234. This is useful in situations when we require users to 
+dial a number to access an outside line, but do not wish to pass the first 
+digit.
+
+If you use a negative offset number, Asterisk starts counting from the end 
+of the string and then selects everything after the new position. The following
+example will save the numbers 1234 to the 'number' variable, still assuming
+we've dialed 918005551234.
+
+	;Remove everything before the last four digits of the dialed string
+	exten => _9X.,1,Set(number=${EXTEN:-4})
+
+We can also limit the number of characters from our offset position that we
+wish to use. This is done by appending a second colon and length value to the
+variable name. The following example will save the numbers 555 to the 'number'
+variable.
+
+	;Only save the middle numbers 555 from the string 918005551234
+	exten => _9X.,1,Set(number=${EXTEN:5:3})
+
+The length value can also be used in conjunction with a negative offset. This
+may be useful if the length of the string is unknown, but the trailing digits
+are. The following example will save the numbers 555 to the 'number' variable,
+even if the string starts with more characters than expected (unlike the
+previous example).
+
+	;Save the numbers 555 to the 'number' variable
+	exten => _9X.,1,Set(number=${EXTEN:-7:3})
+
+If a negative length value is entered, it is ignored and Asterisk will match
+to the end of the string.
+___________________________
+EXPRESSIONS: 
+---------------------------
+
+Everything contained inside a bracket pair prefixed by a $ (like $[this]) is 
+considered as an expression and it is evaluated. Evaluation works similar to 
+(but is done on a later stage than) variable substitution: the expression 
+(including the square brackets) is replaced by the result of the expression 
+evaluation. 
+
+For example, after the sequence: 
+
+exten => 1,1,Set(lala=$[1 + 2])
+exten => 1,2,Set(koko=$[2 * ${lala}])
+
+the value of variable koko is "6".
+
+and, further:
+
+exten => 1,1,Set,(lala=$[  1 +    2   ]);
+
+will parse as intended. Extra spaces are ignored.
+
+
+______________________________
+SPACES INSIDE VARIABLE VALUES
+------------------------------
+If the variable being evaluated contains spaces, there can be problems.
+
+For these cases, double quotes around text that may contain spaces
+will force the surrounded text to be evaluated as a single token.
+The double quotes will be counted as part of that lexical token.
+
+As an example:
+
+exten => s,6,GotoIf($[ "${CALLERIDNAME}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
+
+The variable CALLERIDNAME could evaluate to "DELOREAN MOTORS" (with a space)
+but the above will evaluate to:
+
+"DELOREAN MOTORS" : "Privacy Manager"
+
+and will evaluate to 0.
+
+The above without double quotes would have evaluated to:
+
+DELOREAN MOTORS : Privacy Manager
+
+and will result in syntax errors, because token DELOREAN is immediately
+followed by token MOTORS and the expression parser will not know how to 
+evaluate this expression, because it does not match its grammar.
+
+_____________________
+OPERATORS
+---------------------
+Operators are listed below in order of increasing precedence.  Operators
+with equal precedence are grouped within { } symbols.
+
+     expr1 | expr2
+             Return the evaluation of expr1 if it is neither an empty string
+             nor zero; otherwise, returns the evaluation of expr2.
+
+     expr1 & expr2
+             Return the evaluation of expr1 if neither expression evaluates to
+             an empty string or zero; otherwise, returns zero.
+
+     expr1 {=, >, >=, <, <=, !=} expr2
+             Return the results of integer comparison if both arguments are
+             integers; otherwise, returns the results of string comparison
+             using the locale-specific collation sequence.  The result of each
+             comparison is 1 if the specified relation is true, or 0 if the
+             relation is false.
+
+     expr1 {+, -} expr2
+             Return the results of addition or subtraction of integer-valued
+             arguments.
+
+     expr1 {*, /, %} expr2
+             Return the results of multiplication, integer division, or
+             remainder of integer-valued arguments.
+
+     - expr1
+            Return the result of subtracting expr1 from 0.
+            This, the unary minus operator, is right associative, and
+            has the same precedence as the ! operator.
+
+     ! expr1
+            Return the result of a logical complement of expr1.
+            In other words, if expr1 is null, 0, an empty string,
+            or the string "0", return a 1. Otherwise, return a 0.
+            It has the same precedence as the unary minus operator, and
+            is also right associative.
+
+     expr1 : expr2
+             The `:' operator matches expr1 against expr2, which must be a
+             regular expression.  The regular expression is anchored to the
+             beginning of  the string with an implicit `^'.
+
+             If the match succeeds and the pattern contains at least one regu-
+             lar expression subexpression `\(...\)', the string correspond-
+             ing to `\1' is returned; otherwise the matching operator
+             returns the number of characters matched.  If the match fails and
+             the pattern contains a regular expression subexpression the null
+             string is returned; otherwise 0.
+
+             Normally, the double quotes wrapping a string are left as part
+             of the string. This is disastrous to the : operator. Therefore,
+             before the regex match is made, beginning and ending double quote
+             characters are stripped from both the pattern and the string.
+
+      expr1 =~ expr2
+             Exactly the same as the ':' operator, except that the match is
+             not anchored to the beginning of the string. Pardon any similarity
+             to seemingly similar operators in other programming languages!
+             The ":" and "=~" operators share the same precedence.
+
+      expr1 ? expr2 :: expr3
+             Traditional Conditional operator. If expr1 is a number
+	     that evaluates to 0 (false), expr3 is result of the this
+	     expression evaluation.  Otherwise, expr2 is the result.
+	     If expr1 is a string, and evaluates to an empty string,
+	     or the two characters (""), then expr3 is the
+	     result. Otherwise, expr2 is the result.  In Asterisk, all
+	     3 exprs will be "evaluated"; if expr1 is "true", expr2
+	     will be the result of the "evaluation" of this
+	     expression.  expr3 will be the result otherwise. This
+	     operator has the lowest precedence.
+
+Parentheses are used for grouping in the usual manner.
+
+Operator precedence is applied as one would expect in any of the C
+or C derived languages.
+
+Examples
+
+ "One Thousand Five Hundred" =~ "(T[^ ]+)"
+	returns: Thousand
+
+ "One Thousand Five Hundred" =~ "T[^ ]+"
+	returns: 8
+
+ "One Thousand Five Hundred" : "T[^ ]+"
+	returns: 0
+
+ "8015551212" : "(...)"
+	returns: 801
+
+ "3075551212":"...(...)"
+	returns: 555
+
+ ! "One Thousand Five Hundred" =~ "T[^ ]+"
+	returns: 0 (because it applies to the string, which is non-null,
+                    which it turns to "0", and then looks for the pattern
+                    in the "0", and doesn't find it)
+
+ !( "One Thousand Five Hundred" : "T[^ ]+" )
+	returns: 1  (because the string doesn't start with a word starting
+                     with T, so the match evals to 0, and the ! operator
+                     inverts it to 1 ).
+
+ 2 + 8 / 2
+	returns 6. (because of operator precedence; the division is done first, then the addition).
+
+ 2+8/2
+	returns 6. Spaces aren't necessary.
+
+(2+8)/2
+	returns 5, of course.
+
+Of course, all of the above examples use constants, but would work the
+same if any of the numeric or string constants were replaced with a
+variable reference ${CALLERIDNUM}, for instance.
+
+__________________________
+NUMBERS VS STRINGS
+--------------------------
+
+Tokens consisting only of numbers are converted to 64-bit numbers for
+most of the operators. This means that overflows can occur when the
+numbers get above 18 digits.  Warnings will appear in the logs in this
+case.
+___________________________
+CONDITIONALS
+---------------------------
+
+There is one conditional application - the conditional goto : 
+
+	exten => 1,2,gotoif(condition?label1:label2)
+
+If condition is true go to label1, else go to label2. Labels are interpreted
+exactly as in the normal goto command.
+
+"condition" is just a string. If the string is empty or "0", the condition
+is considered to be false, if it's anything else, the condition is true. 
+This is designed to be used together with the expression syntax described 
+above, eg : 
+
+	exten => 1,2,gotoif($[${CALLERID} = 123456]?2|1:3|1)
+
+Example of use : 
+
+exten => s,2,Set(vara=1)
+exten => s,3,Set(varb=$[${vara} + 2])
+exten => s,4,Set(varc=$[${varb} * 2])
+exten => s,5,GotoIf($[${varc} = 6]?99|1:s|6)
+
+___________________________
+PARSE ERRORS
+---------------------------
+
+Syntax errors are now output with 3 lines.
+
+If the extensions.conf file contains a line like:
+
+exten => s,6,GotoIf($[ "${CALLERIDNUM}"  = "3071234567" & &  "${CALLERIDNAME}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
+
+You may see an error in /var/log/asterisk/messages like this:
+
+Jul 15 21:27:49 WARNING[1251240752]: ast_yyerror(): syntax error: parse error, unexpected TOK_AND, expecting TOK_MINUS or TOK_LP or TOKEN; Input:
+"3072312154"  = "3071234567" & & "Steves Extension" : "Privacy Manager" 
+                               ^
+
+The log line tells you that a syntax error was encountered. It now
+also tells you (in grand standard bison format) that it hit an "AND"
+(&) token unexpectedly, and that was hoping for for a MINUS (-), LP
+(left parenthesis), or a plain token (a string or number).
+
+The next line shows the evaluated expression, and the line after
+that, the position of the parser in the expression when it became confused,
+marked with the "^" character.
+
+___________________________
+NULL STRINGS
+---------------------------
+
+Testing to see if a string is null can be done in one of two different ways:
+
+	exten => _XX.,1,GotoIf($["${calledid}" != ""]?3) 
+
+	exten => _XX.,1,GotoIf($[foo${calledid} != foo]?3) 
+
+
+The second example above is the way suggested by the WIKI. It will 
+work as long as there are no spaces in the evaluated value.
+
+The first way should work in all cases, and indeed, might now
+be the safest way to handle this situation.
+
+___________________________
+WARNING
+---------------------------
+
+If you need to do complicated things with strings, asterisk expressions
+is most likely NOT the best way to go about it. AGI scripts are an
+excellent option to this need, and make available the full power of
+whatever language you desire, be it Perl, C, C++, Cobol, RPG, Java,
+Snobol, PL/I, Scheme, Common Lisp, Shell scripts, Tcl, Forth, Modula,
+Pascal, APL, assembler, etc.
+
+----------------------------
+INCOMPATIBILITIES
+----------------------------
+
+The asterisk expression parser has undergone some evolution. It is hoped
+that the changes will be viewed as positive. 
+
+The "original" expression parser had a simple, hand-written scanner,
+and a simple bison grammar. This was upgraded to a more involved bison
+grammar, and a hand-written scanner upgraded to allow extra spaces,
+and to generate better error diagnostics. This upgrade required bison
+1.85, and part of the user community felt the pain of having to
+upgrade their bison version.
+
+The next upgrade included new bison and flex input files, and the makefile
+was upgraded to detect current version of both flex and bison, conditionally
+compiling and linking the new files if the versions of flex and bison would
+allow it.
+
+If you have not touched your extensions.conf files in a year or so, the
+above upgrades may cause you some heartburn in certain circumstances, as
+several changes have been made, and these will affect asterisk's behavior on 
+legacy extension.conf constructs.  The changes have been engineered
+to minimize these conflicts, but there are bound to be problems.
+
+The following list gives some (and most likely, not all) of areas
+of possible concern with "legacy" extension.conf files:
+
+1. Tokens separated by space(s).
+   Previously, tokens were separated by spaces. Thus, ' 1 + 1 ' would evaluate
+   to the value '2', but '1+1' would evaluate to the string '1+1'. If this
+   behavior was depended on, then the expression evaluation will break. '1+1'
+   will now evaluate to '2', and something is not going to work right.
+   To keep such strings from being evaluated, simply wrap them in double 
+   quotes: '  "1+1" '
+
+2. The colon operator. In versions previous to double quoting, the
+   colon operator takes the right hand string, and using it as a 
+   regex pattern, looks for it in the left hand string. It is given
+   an implicit ^ operator at the beginning, meaning the pattern 
+   will match only at the beginning of the left hand string. 
+   If the pattern or the matching string had double quotes around
+   them, these could get in the way of the pattern match. Now,
+   the wrapping double quotes are stripped from both the pattern 
+   and the left hand string before applying the pattern. This
+   was done because it recognized that the new way of
+   scanning the expression doesn't use spaces to separate tokens,
+   and the average regex expression is full of operators that 
+   the scanner will recognize as expression operators. Thus, unless
+   the pattern is wrapped in double quotes, there will be trouble.
+   For instance,      ${VAR1} : (Who|What*)+
+   may have have worked before, but unless you wrap the pattern
+   in double quotes now, look out for trouble! This is better:
+         "${VAR1}" : "(Who|What*)+"
+   and should work as previous.
+
+3. Variables and Double Quotes
+   Before these changes, if a variable's value contained one or more double
+   quotes, it was no reason for concern. It is now!
+
+4. LE, GE, NE operators removed. The code supported these operators,
+   but they were not documented. The symbolic operators, <=, >=, and !=
+   should be used instead.
+
+5.  Added the unary '-' operator. So you can 3+ -4 and get -1.
+
+6.  Added the unary '!' operator, which is a logical complement.
+    Basically, if the string or number is null, empty, or '0',
+    a '1' is returned. Otherwise a '0' is returned.
+
+7.  Added the '=~' operator, just in case someone is just looking for
+    match anywhere in the string. The only diff with the ':' is that
+    match doesn't have to be anchored to the beginning of the string.
+
+8.  Added the conditional operator  'expr1 ? true_expr :: false_expr'
+    First, all 3 exprs are evaluated, and if expr1 is false, the 'false_expr'
+    is returned as the result. See above for details. 
+
+9.  Unary operators '-' and '!' were made right associative.
+
+--------------------------------------------------------
+DEBUGGING HINTS FOR $[  ]  EXPRESSIONS
+--------------------------------------------------------
+
+There are two utilities you can build to help debug the $[ ] in
+your extensions.conf file.
+
+The first, and most simplistic, is to issue the command:
+
+make testexpr2
+
+in the top level asterisk source directory. This will build a small
+executable, that is able to take the first command line argument, and
+run it thru the expression parser. No variable substitutions will be
+performed. It might be safest to wrap the expression in single
+quotes...
+
+testexpr2 '2*2+2/2'
+
+is an example.
+
+And, in the utils directory, you can say:
+
+make check_expr
+
+and a small program will be built, that will check the file mentioned
+in the first command line argument, for any expressions that might be
+have problems when you move to flex-2.5.31.  It was originally
+designed to help spot possible incompatibilities when moving from the
+pre-2.5.31 world to the upgraded version of the lexer.
+
+But one more capability has been added to check_expr, that might make
+it more generally useful. It now does a simple minded evaluation of
+all variables, and then passes the $[] exprs to the parser. If there
+are any parse errors, they will be reported in the log file. You can
+use check_expr to do a quick sanity check of the expressions in your
+extensions.conf file, to see if they pass a crude syntax check.
+
+The "simple-minded" variable substitution replaces ${varname} variable
+references with '555'. You can override the 555 for variable values,
+by entering in var=val arguments after the filename on the command
+line.  So...
+
+ check_expr /etc/asterisk/extensions.conf CALLERIDNUM=3075551212 DIALSTATUS=TORTURE EXTEN=121
+
+will substitute any ${CALLERIDNUM} variable references with
+3075551212, any ${DIALSTATUS} variable references with 'TORTURE', and
+any ${EXTEN} references with '121'.  If there is any fancy stuff
+going on in the reference, like ${EXTEN:2}, then the override will
+not work. Everything in the ${...} has to match. So, to substitute
+#{EXTEN:2} references, you'd best say:
+
+ check_expr /etc/asterisk/extensions.conf CALLERIDNUM=3075551212 DIALSTATUS=TORTURE EXTEN:2=121
+
+on stdout, you will see something like:
+
+ OK -- $[ "${DIALSTATUS}"  = "TORTURE" | "${DIALSTATUS}" = "DONTCALL" ] at line 416
+
+In the expr2_log file that is generated, you will see:
+
+ line 416, evaluation of $[  "TORTURE"  = "TORTURE" | "TORTURE" = "DONTCALL"  ] result: 1
+
+check_expr is a very simplistic algorithm, and it is far from being
+guaranteed to work in all cases, but it is hoped that it will be
+useful.
+
+---------------------------------------------------------
+Asterisk standard channel variables 
+---------------------------------------------------------
+There are a number of variables that are defined or read
+by Asterisk. Here is a list of them. More information is
+available in each application's help text. All these variables
+are in UPPER CASE only.
+
+Variables marked with a * are builtin functions and can't be set,
+only read in the dialplan.  Writes to such variables are silently 
+ignored.
+
+${ACCOUNTCODE} 	 	* Account code (if specified) (Deprecated; use ${CDR(accountcode)})
+${BLINDTRANSFER} 	The name of the channel on the other side of a blind transfer
+${BRIDGEPEER}	 	Bridged peer
+${CALLERANI}	 	* Caller ANI (PRI channels) (Deprecated; use ${CALLERID(ani)})
+${CALLERID}	 	* Caller ID (Deprecated; use ${CALLERID(all)})
+${CALLERIDNAME}	 	* Caller ID Name only (Deprecated; use ${CALLERID(name)})
+${CALLERIDNUM}	 	* Caller ID Number only (Deprecated; use ${CALLERID(num)})
+${CALLINGANI2}	 	* Caller ANI2 (PRI channels)
+${CALLINGPRES}	 	* Caller ID presentation for incoming calls (PRI channels)
+${CALLINGTNS} 	 	* Transit Network Selector (PRI channels)
+${CALLINGTON}    	* Caller Type of Number (PRI channels)
+${CHANNEL}	 	* Current channel name
+${CONTEXT}       	* Current context
+${DATETIME}	 	* Current date time in the format: DDMMYYYY-HH:MM:SS (Deprecated; use ${STRFTIME(${EPOCH},,%d%m%Y-%H:%M:%S)})
+${DB_RESULT}		Result value of DB_EXISTS() dial plan function
+${DNID}          	* Dialed Number Identifier (Deprecated; use ${CALLERID(dnid)})
+${EPOCH}	 	* Current unix style epoch
+${EXTEN}	 	* Current extension
+${ENV(VAR)}	 	Environmental variable VAR
+${GOTO_ON_BLINDXFR}	Transfer to the specified context/extension/priority
+			after a blind transfer (use ^ characters in place of
+			| to separate context/extension/priority when setting
+			this variable from the dialplan)
+${HANGUPCAUSE}	 	* Asterisk cause of hangup (inbound/outbound)
+${HINT}          	* Channel hints for this extension
+${HINTNAME}      	* Suggested Caller*ID name for this extension
+${INVALID_EXTEN} 	The invalid called extension (used in the "i" extension)
+${LANGUAGE}	 	* Current language (Deprecated; use ${LANGUAGE()})
+${LEN(VAR)}	 	* String length of VAR (integer)
+${PRIORITY}	 	* Current priority in the dialplan
+${PRIREDIRECTREASON} 	Reason for redirect on PRI, if a call was directed
+${RDNIS}         	* Redirected Dial Number ID Service (Deprecated; use ${CALLERID(rdnis)})
+${TIMESTAMP}	 	* Current date time in the format: YYYYMMDD-HHMMSS (Deprecated; use ${STRFTIME(${EPOCH},,%Y%m%d-%H%M%S)})
+${TRANSFER_CONTEXT} 	Context for transferred calls
+${UNIQUEID}	 	* Current call unique identifier
+
+Application return values
+-------------------------
+In Asterisk 1.2, many applications return the result in a variable
+instead of, as in Asterisk 1.0, changing the dial plan priority (+101).
+For the various status values, see each application's help text.
+
+${AQMSTATUS}			* addqueuemember()
+${AVAILSTATUS}			* chanisavail()
+${CHECKGROUPSTATUS}		* checkgroup()
+${CHECKMD5STATUS}		* checkmd5()
+${CPLAYBACKSTATUS}		* controlplayback()
+${DIALSTATUS}   		* dial()
+${DBGETSTATUS}			* dbget()
+${ENUMSTATUS}			* enumlookup()
+${HASVMSTATUS}			* hasnewvoicemail()
+${LOOKUPBLSTATUS}		* lookupblacklist()
+${OSPLOOKUPSTATUS}		* osplookup()
+${OSPNEXTSTATUS}		* ospnext()
+${OSPFINISHSTATUS}		* ospfinish()
+${PLAYBACKSTATUS}		* playback()
+${PQMSTATUS}			* pausequeuemember()
+${PRIVACYMGRSTATUS}		* privacymanager()
+${QUEUESTATUS}			* queue()
+${RQMSTATUS}			* removequeuemember()
+${SENDIMAGESTATUS}		* sendimage()
+${SENDTEXTSTATUS}		* sendtext()
+${SENDURLSTATUS}		* sendurl()
+${SYSTEMSTATUS}			* system()
+${TRANSFERSTATUS}		* transfer()
+${TXTCIDNAMESTATUS}		* txtcidname()
+${UPQMSTATUS}			* unpausequeuemember()
+${VMSTATUS}			* voicmail()
+${VMBOXEXISTSSTATUS}		* vmboxexists()
+${WAITSTATUS}			* waitforsilence()
+
+
+Various application variables
+-----------------------------
+${CURL}			* Resulting page content for curl()
+${ENUM}			* Result of application EnumLookup
+${EXITCONTEXT}		Context to exit to in IVR menu (app background())
+			or in the RetryDial() application
+${MONITOR}		* Set to "TRUE" if the channel is/has been monitored (app monitor())
+${MONITOR_EXEC}		Application to execute after monitoring a call
+${MONITOR_EXEC_ARGS}	Arguments to application
+${MONITOR_FILENAME} 	File for monitoring (recording) calls in queue
+${QUEUE_PRIO}		Queue priority
+${QUEUESTATUS} 		Status of the call, one of:
+			(TIMEOUT | FULL | JOINEMPTY | LEAVEEMPTY | JOINUNAVAIL | LEAVEUNAVAIL)
+${RECORDED_FILE} 	* Recorded file in record()
+${TALK_DETECTED} 	* Result from talkdetect()
+${TOUCH_MONITOR} 	The filename base to use with Touch Monitor (auto record)
+${TOUCH_MONITOR_FORMAT} The audio format to use with Touch Monitor (auto record)
+${TXTCIDNAME}		* Result of application TXTCIDName
+${VPB_GETDTMF}		chan_vpb
+
+The MeetMe Conference Bridge uses the following variables:
+----------------------------------------------------------
+${MEETME_RECORDINGFILE} 	Name of file for recording a conference with 
+				the "r" option
+${MEETME_RECORDINGFORMAT} 	Format of file to be recorded
+${MEETME_EXIT_CONTEXT} 		Context for exit out of meetme meeting
+${MEETME_AGI_BACKGROUND} 	AGI script for Meetme (zap only)
+${MEETMESECS} 			* Number of seconds a user participated in a MeetMe conference
+
+The VoiceMail() application uses the following variables:
+---------------------------------------------------------
+${VM_CATEGORY}		Sets voicemail category
+${VM_NAME}		* Full name in voicemail
+${VM_DUR}		* Voicemail duration
+${VM_MSGNUM}		* Number of voicemail message in mailbox
+${VM_CALLERID}		* Voicemail Caller ID (Person leaving vm)
+${VM_CIDNAME}		* Voicemail Caller ID Name
+${VM_CIDNUM}		* Voicemail Caller ID Number
+${VM_DATE}		* Voicemail Date
+${VM_MESSAGEFILE}	* Path to message left by caller
+
+The VMAuthenticate() application uses the following variables:
+---------------------------------------------------------
+${AUTH_MAILBOX}	* Authenticated mailbox
+${AUTH_CONTEXT}	* Authenticated mailbox context
+
+DUNDiLookup() uses the following variables
+---------------------------------------------------------
+${DUNDTECH}	* The Technology of the result from a call to DUNDiLookup()
+${DUNDDEST}	* The Destination of the result from a call to DUNDiLookup()
+
+The Zaptel channel sets the following variables:
+---------------------------------------------------------
+${ANI2}			* The ANI2 Code provided by the network on the incoming call. 
+			(ie, Code 29 identifies call as a Prison/Inmate Call)
+${CALLTYPE}		* Type of call (Speech, Digital, etc)
+${CALLEDTON}		* Type of number for incoming PRI extension
+			i.e. 0=unknown, 1=international, 2=domestic, 3=net_specific, 
+			4=subscriber, 6=abbreviated, 7=reserved 
+${CALLINGSUBADDR}	* Called PRI Subaddress
+${FAXEXTEN}	 	* The extension called before being redirected to "fax"	
+${PRIREDIRECTREASON}	* Reason for redirect, if a call was directed
+
+The SIP channel uses the following variables:
+---------------------------------------------------------
+${SIPCALLID} 		* SIP Call-ID: header verbatim (for logging or CDR matching)
+${SIPDOMAIN}    	* SIP destination domain of an inbound call (if appropriate)
+${SIPUSERAGENT} 	* SIP user agent 
+${SIPURI}		* SIP uri
+${SIP_CODEC} 		Set the SIP codec for a call	
+${SIP_URI_OPTIONS}	* additional options to add to the URI for an outgoing call
+
+The Agent channel uses the following variables:
+---------------------------------------------------------
+${AGENTMAXLOGINTRIES}	Set the maximum number of failed logins
+${AGENTUPDATECDR}	Whether to update the CDR record with Agent channel data
+${AGENTGOODBYE}		Sound file to use for "Good Bye" when agent logs out
+${AGENTACKCALL} 	Whether the agent should acknowledge the incoming call
+${AGENTAUTOLOGOFF}	Auto logging off for an agent
+${AGENTWRAPUPTIME}	Setting the time for wrapup between incoming calls
+${AGENTNUMBER}		* Agent number (username) set at login
+${AGENTSTATUS}		* Status of login	( fail | on | off )
+${AGENTEXTEN}		* Extension for logged in agent
+
+The Dial() application uses the following variables:
+---------------------------------------------------------
+${DIALEDPEERNAME} 		* Dialed peer name
+${DIALEDPEERNUMBER} 		* Dialed peer number
+${DIALEDTIME}   		* Time for the call (seconds)
+${ANSWEREDTIME} 		* Time from dial to answer (seconds)
+${DIALSTATUS}   		* Status of the call, one of:
+                		(CHANUNAVAIL | CONGESTION | BUSY | NOANSWER 
+					| ANSWER | CANCEL | DONTCALL | TORTURE)
+${DYNAMIC_FEATURES}		* The list of features (from the [applicationmap] section of
+				  features.conf) to activate during the call, with feature
+				  names separated by '#' characters
+${LIMIT_PLAYAUDIO_CALLER}	Soundfile for call limits
+${LIMIT_PLAYAUDIO_CALLEE}	Soundfile for call limits
+${LIMIT_WARNING_FILE}		Soundfile for call limits
+${LIMIT_TIMEOUT_FILE}		Soundfile for call limits
+${LIMIT_CONNECT_FILE}		Soundfile for call limits
+${OUTBOUND_GROUP}		Default groups for peer channels (as in SetGroup)
+* See "show application dial" for more information
+
+The chanisavail() application sets the following variables:
+-----------------------------------------------------------
+${AVAILCHAN}		* the name of the available channel if one was found	
+${AVAILORIGCHAN} 	* the canonical channel name that was used to create the channel
+${AVAILSTATUS}		* Status of requested channel
+
+When using macros in the dialplan, these variables are available
+---------------------------------------------------------
+${MACRO_EXTEN}		* The calling extensions
+${MACRO_CONTEXT}	* The calling context
+${MACRO_PRIORITY}	* The calling priority
+${MACRO_OFFSET}		Offset to add to priority at return from macro
+
+If you compile with OSP support in the SIP channel, these
+variables are used:
+---------------------------------------------------------
+${OSPHANDLE}		Handle from the OSP Library
+${OSPTECH}		OSP Technology from Library
+${OSPDEST}		OSP Destination from Library
+${OSPTOKEN}		OSP Token to use for call from Library
+${OSPRESULTS}		Number of OSP results
+
+____________________________________
+CDR Variables
+------------------------------------
+
+If the channel has a cdr, that cdr record has it's own set of variables which 
+can be accessed just like channel variables. The following builtin variables
+are available.
+
+${CDR(clid)}			Caller ID
+${CDR(src)}			Source 
+${CDR(dst)}			Destination
+${CDR(dcontext)}		Destination context
+${CDR(channel)}			Channel name
+${CDR(dstchannel)}		Destination channel
+${CDR(lastapp)}			Last app executed
+${CDR(lastdata)}		Last app's arguments
+${CDR(start)}			Time the call started.
+${CDR(answer)}			Time the call was answered.
+${CDR(end)}			Time the call ended.
+${CDR(duration)}		Duration of the call.
+${CDR(billsec)}			Duration of the call once it was answered.
+${CDR(disposition)}		ANSWERED, NO ANSWER, BUSY
+${CDR(amaflags)}		DOCUMENTATION, BILL, IGNORE etc
+${CDR(accountcode)}		The channel's account code.
+${CDR(uniqueid)}		The channel's unique id.
+${CDR(userfield)}		The channels uses specified field.
+
+
+In addition, you can set your own extra variables with a traditional
+Set(CDR(var)=val) to anything you want.
+
+Certain functional variables may be accessed with ${foo(<args>)}.  A list
+of these functional variables may be found by typing "show functions"
+at the Asterisk CLI.

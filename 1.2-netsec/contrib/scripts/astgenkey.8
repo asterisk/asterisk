@@ -1,0 +1,129 @@
+.\" $Header$
+.\"
+.\"	transcript compatibility for postscript use.
+.\"
+.\"	synopsis:  .P! <file.ps>
+.\"
+.de P!
+.fl
+\!!1 setgray
+.fl
+\\&.\"
+.fl
+\!!0 setgray
+.fl			\" force out current output buffer
+\!!save /psv exch def currentpoint translate 0 0 moveto
+\!!/showpage{}def
+.fl			\" prolog
+.sy sed \-e 's/^/!/' \\$1\" bring in postscript file
+\!!psv restore
+.
+.de pF
+.ie     \\*(f1 .ds f1 \\n(.f
+.el .ie \\*(f2 .ds f2 \\n(.f
+.el .ie \\*(f3 .ds f3 \\n(.f
+.el .ie \\*(f4 .ds f4 \\n(.f
+.el .tm ? font overflow
+.ft \\$1
+..
+.de fP
+.ie     !\\*(f4 \{\
+.	ft \\*(f4
+.	ds f4\"
+'	br \}
+.el .ie !\\*(f3 \{\
+.	ft \\*(f3
+.	ds f3\"
+'	br \}
+.el .ie !\\*(f2 \{\
+.	ft \\*(f2
+.	ds f2\"
+'	br \}
+.el .ie !\\*(f1 \{\
+.	ft \\*(f1
+.	ds f1\"
+'	br \}
+.el .tm ? font underflow
+..
+.ds f1\"
+.ds f2\"
+.ds f3\"
+.ds f4\"
+'\" t 
+.ta 8n 16n 24n 32n 40n 48n 56n 64n 72n  
+.TH ASTGENKEY 8 "May 14th, 2005" "Asterisk" "Linux Programmer's Manual"
+.SH NAME
+.B astgenkey
+-- generates keys for for Asterisk IAX2 RSA authentication
+.SH SYNOPSIS
+.PP 
+.B astgenkey
+[ -q ] [ -n ] [ \fIkeyname\fP ]
+
+.SH DESCRIPTION
+.B genzaptelconf 
+This script generates an RSA private and public key pair in PEM format 
+for use by Asterisk.  The private key should be kept a secret, as it can 
+be used to fake your system's identity.  Thus by default (without the 
+option 
+.I -n
+) the script will create a passphrase-encrypted copy of your secret key: 
+without entering the passphrase you won't be able to use it. 
+
+However if you want to use such a key with Asterisk, you'll have to start 
+it interactively, because the scripts that start asterisk can't use that
+encrypted key.
+
+The key is identified by a name. If you don't write the name on the 
+command-line you'll be prompted for one. The outputs of the script are:
+
+.I name\fB.pub
+.RS
+The public key: not secret. Send this to the other side.
+.RE
+
+.I name\fB.key
+.RS
+The private key: secret.
+.RE
+
+Those files should be copied to 
+.I /var/lib/asterisk/keys
+
+(The private key: on your system. The public key: on other systems)
+
+To see the currently-installed keys from the asterisk CLI, use the command
+
+.RS
+show keys
+.RE
+
+.SH OPTIONS
+.B -q
+.RS
+Run quietly.
+.RE
+
+.B -n
+.RS
+Don't encrypt the private key.
+.RE
+
+.SH FILES
+.I /var/lib/asterisk/keys
+.RS
+.RE
+
+.SH "SEE ALSO" 
+asterisk(8), genrsa(1), rsa(1), 
+
+http://www.voip-info.org/wiki-Asterisk+iax+rsa+auth
+
+.SH "AUTHOR" 
+This manual page was written by Tzafrir Cohen <tzafrir.cohen@xorcom.com> 
+Permission is granted to copy, distribute and/or modify this document under 
+the terms of the GNU General Public License, Version 2 any  
+later version published by the Free Software Foundation. 
+
+On Debian systems, the complete text of the GNU General Public 
+License can be found in /usr/share/common-licenses/GPL. 

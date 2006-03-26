@@ -1,0 +1,51 @@
+;
+; Asterisk Call Detail Record engine configuration
+;
+; CDR is Call Detail Record, which provides logging services via a variety of
+; pluggable backend modules.  Detailed call information can be recorded to
+; databases, files, etc.  Useful for billing, fraud prevention, compliance with
+; Sarbanes-Oxley aka The Enron Act, QOS evaluations, and more.
+;
+
+[general]
+
+; Define whether or not to use CDR logging.  Setting this to "no" will override
+; any loading of backend CDR modules.  Default is "yes".
+;enable=yes
+
+; Define the CDR batch mode, where instead of posting the CDR at the end of
+; every call, the data will be stored in a buffer to help alleviate load on the
+; asterisk server.  Default is "no".
+;
+; WARNING WARNING WARNING
+; Use of batch mode may result in data loss after unsafe asterisk termination
+; ie. software crash, power failure, kill -9, etc.
+; WARNING WARNING WARNING
+;
+;batch=no
+
+; Define the maximum number of CDRs to accumulate in the buffer before posting
+; them to the backend engines.  'batch' must be set to 'yes'.  Default is 100.
+;size=100
+
+; Define the maximum time to accumulate CDRs in the buffer before posting them
+; to the backend engines.  If this time limit is reached, then it will post the
+; records, regardless of the value defined for 'size'.  'batch' must be set to
+; 'yes'.  Note that time is in seconds.  Default is 300 (5 minutes).
+;time=300
+
+; The CDR engine uses the internal asterisk scheduler to determine when to post
+; records.  Posting can either occure inside the scheduler thread, or a new
+; thread can be spawned for the submission of every batch.  For small batches,
+; it might be acceptable to just use the scheduler thread, so set this to "yes".
+; For large batches, say anything over size=10, a new thread is recommended, so
+; set this to "no".  Default is "no".
+;scheduleronly=no
+
+; When shutting down asterisk, you can block until the CDRs are submitted.  If
+; you don't, then data will likely be lost.  You can always check the size of
+; the CDR batch buffer with the CLI "cdr status" command.  To enable blocking on
+; submission of CDR data during asterisk shutdown, set this to "yes".  Default
+; is "yes".
+;safeshutdown=yes
+

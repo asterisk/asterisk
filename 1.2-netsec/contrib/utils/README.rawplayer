@@ -1,0 +1,37 @@
+rawplayer is a simple C applet to stream raw music files in place of mpg123
+
+INSTALL
+
+compile the .c file and install:
+gcc -O2 rawplayer.c -o /usr/bin/rawplayer
+
+
+
+Converting MP3 to RAW
+
+Make track01.mp3 into track01.raw with sox (if compiled with mp3 support).
+sox -c 1 track01.mp3 -t raw -r 8000 -c 1 -s -w track01.raw
+
+Otherwise, use whatever app to turn track01.mp3 into track01.wav then use sox on the wav.
+sox -c 1 track01.wav -t raw -r 8000 -c 1 -s -w track01.raw
+
+
+Once you have the raw files put them in any dir on your system (eg /var/lib/asterisk/holdmusic_raw).
+and set up a class in musiconhold.conf like so:
+
+[classes]
+default => custom:/var/lib/asterisk/holdmusic_raw,/usr/bin/rawplayer
+
+
+This is the most efficient way to implement moh because no cpu usage is required to 
+explode the very compressed mp3 data then downsample the music to the 8khz mono on the fly
+instead the data is already stored on the disk in the format that asterisk needs it to be 
+and the player does little more than pick up frames from the file and hand them to right 
+to the asterisk pipe where the audio is shared into all the channels who require it.
+
+
+If you have cpu to spare and want a simple mp3 solution consider the format_mp3 from
+asterisk-addons and the files based moh.
+
+
+
