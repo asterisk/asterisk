@@ -1,9 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
- *
- * Mark Spencer <markster@digium.com>
+ * Copyright (C) 2006, Sergey Basmanov
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -18,10 +16,10 @@
 
 /*! \file
  *
- * \brief ManagerRedirect application
+ * \brief ChannelRedirect application
  *
  * \author Sergey Basmanov <sergey_basmanov@mail.ru>
- * 
+ *
  * \ingroup applications
  */
 
@@ -43,11 +41,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/features.h"
 
-static char *tdesc = "Manager Redirect";
-static char *app = "ManagerRedirect";
-static char *synopsis = "Redirects another channel in dialplan.";
+static char *tdesc = "Channel Redirect";
+static char *app = "ChannelRedirect";
+static char *synopsis = "Redirects given channel to a dialplan target.";
 static char *descrip = 
-"ManagerRedirect(channel|[[context|]extension|]priority):\n"
+"ChannelRedirect(channel|[[context|]extension|]priority):\n"
 "  Sends the specified channel to the specified extension priority\n";
 
 STANDARD_LOCAL_USER;
@@ -56,7 +54,7 @@ LOCAL_USER_DECL;
 
 static int asyncgoto_exec(struct ast_channel *chan, void *data)
 {
-	int res = 0;
+	int res = -1;
 	struct localuser *u;
 	char *info, *context, *exten, *priority;
 	int prio = 1;
@@ -79,15 +77,13 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 
 	if (ast_strlen_zero(args.channel) || ast_strlen_zero(args.label)) {
 		ast_log(LOG_WARNING, "%s requires an argument (channel|[[context|]exten|]priority)\n", app);
-		LOCAL_USER_REMOVE(u);
-		return -1;
+		goto quit;
 	}
 
 	chan2 = ast_get_channel_by_name_locked(args.channel);
 	if (!chan2) {
 		ast_log(LOG_WARNING, "No such channel: %s\n", args.channel);
-		LOCAL_USER_REMOVE(u);
-		return -1;
+		goto quit;
 	}
 
 	/* Parsed right to left, so standard parsing won't work */
@@ -105,20 +101,22 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 		context = NULL;
 	}
 
-	if (!(prio = ast_findlabel_extension(chan2, context ? context : chan2->context, exten ? exten : chan2->exten, priority, chan2->cid.cid_num))) {
+	if (!(prio = ast_findlabel_extension(chan2, S_OR(context, chan2->context), S_OR(exten, chan2->exten),
+					     priority, chan2->cid.cid_num))) {
 		ast_log(LOG_WARNING, "'%s' is not a known priority or label\n", priority);
-		ast_mutex_unlock(&chan2->lock);
-		LOCAL_USER_REMOVE(u);
-		return -1;
+		goto chanquit;
 	}
 
 	ast_log(LOG_DEBUG, "Attempting async goto (%s) to %s\n", args.channel, args.label);
 
-	if (ast_async_goto_if_exists(chan2, context ? context : chan2->context, exten ? exten : chan2->exten, prio)) {
-		ast_log(LOG_WARNING, "ManagerRedirect failed for %s\n", args.channel);
-	}
+	if (ast_async_goto_if_exists(chan2, context ? context : chan2->context, exten ? exten : chan2->exten, prio))
+		ast_log(LOG_WARNING, "%s failed for %s\n", app, args.channel);
+	else
+		res = 0;
 
+ chanquit:
 	ast_mutex_unlock(&chan2->lock);
+ quit:
 	LOCAL_USER_REMOVE(u);
 
 	return res;
