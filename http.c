@@ -16,6 +16,14 @@
  * at the top of the source tree.
  */
 
+/*!
+ * \file 
+ * \brief http server
+ *
+ * This program implements a tiny http server supporting the "get" method
+ * only and was inspired by micro-httpd by Jef Poskanzer 
+ */
+
 #include <sys/types.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -30,16 +38,14 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
-#include <asterisk/cli.h>
-#include <asterisk/http.h>
-#include <asterisk/utils.h>
-#include <asterisk/strings.h>
+
+#include "asterisk/cli.h"
+#include "asterisk/http.h"
+#include "asterisk/utils.h"
+#include "asterisk/strings.h"
 
 #define MAX_PREFIX 80
 #define DEFAULT_PREFIX "asterisk"
-
-/* This program implements a tiny http server supporting the "get" method
-   only and was inspired by micro-httpd by Jef Poskanzer */
 
 struct ast_http_server_instance {
 	FILE *f;
