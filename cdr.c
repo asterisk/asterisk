@@ -439,7 +439,7 @@ void ast_cdr_free(struct ast_cdr *cdr)
 
 	while (cdr) {
 		next = cdr->next;
-		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = S_OR(cdr->channel, "<unknown>");
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_POSTED) && !ast_test_flag(cdr, AST_CDR_FLAG_POST_DISABLED))
 			ast_log(LOG_WARNING, "CDR on channel '%s' not posted\n", chan);
 		if (ast_tvzero(cdr->end))
@@ -464,7 +464,7 @@ void ast_cdr_start(struct ast_cdr *cdr)
 
 	while (cdr) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+			chan = S_OR(cdr->channel, "<unknown>");
 			if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 				ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 			if (!ast_tvzero(cdr->start))
@@ -480,7 +480,7 @@ void ast_cdr_answer(struct ast_cdr *cdr)
 	char *chan; 
 
 	while (cdr) {
-		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = S_OR(cdr->channel, "<unknown>");
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 		if (cdr->disposition < AST_CDR_ANSWERED)
@@ -497,7 +497,7 @@ void ast_cdr_busy(struct ast_cdr *cdr)
 
 	while (cdr) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+			chan = S_OR(cdr->channel, "<unknown>");
 			if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 				ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 			if (cdr->disposition < AST_CDR_BUSY)
@@ -512,7 +512,7 @@ void ast_cdr_failed(struct ast_cdr *cdr)
 	char *chan; 
 
 	while (cdr) {
-		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = S_OR(cdr->channel, "<unknown>");
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
@@ -554,7 +554,7 @@ void ast_cdr_setdestchan(struct ast_cdr *cdr, const char *chann)
 	char *chan; 
 
 	while (cdr) {
-		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = S_OR(cdr->channel, "<unknown>");
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
@@ -569,7 +569,7 @@ void ast_cdr_setapp(struct ast_cdr *cdr, char *app, char *data)
 
 	while (cdr) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+			chan = S_OR(cdr->channel, "<unknown>");
 			if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 				ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 			if (!app)
@@ -617,7 +617,7 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 
 	while (cdr) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+			chan = S_OR(cdr->channel, "<unknown>");
 			if (!ast_strlen_zero(cdr->channel)) 
 				ast_log(LOG_WARNING, "CDR already initialized on '%s'\n", chan); 
 			ast_copy_string(cdr->channel, c->name, sizeof(cdr->channel));
@@ -652,7 +652,7 @@ void ast_cdr_end(struct ast_cdr *cdr)
 	char *chan;
 
 	while (cdr) {
-		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = S_OR(cdr->channel, "<unknown>");
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 		if (ast_tvzero(cdr->end))
@@ -778,8 +778,8 @@ int ast_cdr_update(struct ast_channel *c)
 			/* Copy account code et-al */	
 			ast_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
 			/* Destination information */
-			ast_copy_string(cdr->dst, (ast_strlen_zero(c->macroexten)) ? c->exten : c->macroexten, sizeof(cdr->dst));
-			ast_copy_string(cdr->dcontext, (ast_strlen_zero(c->macrocontext)) ? c->context : c->macrocontext, sizeof(cdr->dcontext));
+			ast_copy_string(cdr->dst, S_OR(c->macroexten, c->exten), sizeof(cdr->dst));
+			ast_copy_string(cdr->dcontext, S_OR(c->macrocontext, c->context), sizeof(cdr->dcontext));
 		}
 		cdr = cdr->next;
 	}
@@ -806,7 +806,7 @@ static void post_cdr(struct ast_cdr *cdr)
 	struct ast_cdr_beitem *i;
 
 	while (cdr) {
-		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = S_OR(cdr->channel, "<unknown>");
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 		if (ast_tvzero(cdr->end))

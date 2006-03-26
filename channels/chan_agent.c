@@ -1230,7 +1230,7 @@ static int allow_multiple_login(char *chan,char *context)
 	if(!chan) 
 		return 0;
 
-	snprintf(loginchan, sizeof(loginchan), "%s@%s", chan, !ast_strlen_zero(context) ? context : "default");
+	snprintf(loginchan, sizeof(loginchan), "%s@%s", chan, S_OR(context,"default"));
 	
 	AST_LIST_TRAVERSE(&agents, p, list) {
 		if(!strcasecmp(chan, p->loginchan))
