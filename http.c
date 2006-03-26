@@ -60,7 +60,7 @@ static struct sockaddr_in oldsin;
 static char *httpstatus_callback(struct sockaddr_in *req, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
 {
 	char result[4096];
-	int reslen = sizeof(result);
+	size_t reslen = sizeof(result);
 	char *c=result;
 	struct ast_variable *v;
 	char iabuf[INET_ADDRSTRLEN];
