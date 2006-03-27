@@ -3349,12 +3349,12 @@ int unload_module()
 		return -1;
 	}
 
-	ast_rtp_proto_register(&skinny_rtp);
+	ast_rtp_proto_unregister(&skinny_rtp);
 	ast_channel_unregister(&skinny_tech);
-	ast_cli_register(&cli_show_devices);
-	ast_cli_register(&cli_show_lines);
-	ast_cli_register(&cli_debug);
-	ast_cli_register(&cli_no_debug);
+	ast_cli_unregister(&cli_show_devices);
+	ast_cli_unregister(&cli_show_lines);
+	ast_cli_unregister(&cli_debug);
+	ast_cli_unregister(&cli_no_debug);
 
 	return 0;
 #endif
