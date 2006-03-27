@@ -1127,10 +1127,10 @@ static int moh_classes_show(int fd, int argc, char *argv[])
 	ast_mutex_lock(&moh_lock);
 	for (class = mohclasses; class; class = class->next) {
 		ast_cli(fd, "Class: %s\n", class->name);
-		ast_cli(fd, "\tMode: %s\n", ast_strlen_zero(class->mode) ? "<none>" : class->mode);
-		ast_cli(fd, "\tDirectory: %s\n", ast_strlen_zero(class->dir) ? "<none>" : class->dir);
+		ast_cli(fd, "\tMode: %s\n", S_OR(class->mode,"<none>"));
+		ast_cli(fd, "\tDirectory: %s\n", S_OR(class->dir, "<none>"));
 		if (ast_test_flag(class, MOH_CUSTOM))
-			ast_cli(fd, "\tApplication: %s\n", ast_strlen_zero(class->args) ? "<none>" : class->args);
+			ast_cli(fd, "\tApplication: %s\n", S_OR(class->args, "<none>"));
 		ast_cli(fd, "\tFormat: %s\n", ast_getformatname(class->format));
 	}
 	ast_mutex_unlock(&moh_lock);

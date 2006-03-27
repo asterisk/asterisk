@@ -2641,7 +2641,7 @@ static int misdn_tx2ast_frm(struct chan_list * tmp, char * buf,  int len )
 				if (!tmp->faxhandled) {
 					tmp->faxhandled++;
 					if (strcmp(ast->exten, "fax")) {
-						if (ast_exists_extension(ast, ast_strlen_zero(ast->macrocontext)? ast->context : ast->macrocontext, "fax", 1, AST_CID_P(ast))) {
+						if (ast_exists_extension(ast, S_OR(ast->macrocontext, ast->context), "fax", 1, AST_CID_P(ast))) {
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", ast->name);
 							/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */

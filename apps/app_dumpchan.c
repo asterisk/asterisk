@@ -126,7 +126,7 @@ static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 ast_print_group(cgrp, sizeof(cgrp), c->callgroup),
 			 ast_print_group(pgrp, sizeof(pgrp), c->pickupgroup),
 			 ( c->appl ? c->appl : "(N/A)" ),
-			 ( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
+			 ( c-> data ? S_OR(c->data, "(Empty)") : "(None)"),
 			 (ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 
 	return 0;

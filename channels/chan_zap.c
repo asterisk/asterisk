@@ -4559,9 +4559,9 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	}
 
 	if (p->subs[index].needcallerid) {
-		ast_set_callerid(ast, !ast_strlen_zero(p->lastcid_num) ? p->lastcid_num : NULL, 
-							!ast_strlen_zero(p->lastcid_name) ? p->lastcid_name : NULL,
-							!ast_strlen_zero(p->lastcid_num) ? p->lastcid_num : NULL
+		ast_set_callerid(ast, S_OR(p->lastcid_num, NULL),
+							S_OR(p->lastcid_name, NULL),
+							S_OR(p->lastcid_num, NULL)
 							);
 		p->subs[index].needcallerid = 0;
 	}
@@ -4751,7 +4751,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 			if (!p->faxhandled) {
 				p->faxhandled++;
 				if (strcmp(ast->exten, "fax")) {
-					const char *target_context = ast_strlen_zero(ast->macrocontext) ? ast->context : ast->macrocontext;
+					const char *target_context = S_OR(ast->macrocontext, ast->context);
 
 					if (ast_exists_extension(ast, target_context, "fax", 1, ast->cid.cid_num)) {
 						if (option_verbose > 2)
@@ -5213,7 +5213,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			tmp->cid.cid_dnid = ast_strdup(i->dnid);
 
 #ifdef PRI_ANI
-		ast_set_callerid(tmp, i->cid_num, i->cid_name, ast_strlen_zero(i->cid_ani) ? i->cid_num : i->cid_ani);
+		ast_set_callerid(tmp, i->cid_num, i->cid_name, S_OR(i->cid_ani, i->cid_num));
 #else
 		ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
 #endif
@@ -8760,7 +8760,7 @@ static void *pri_dchannel(void *vpri)
 							if (c && !ast_pthread_create(&threadid, &attr, ss_thread, c)) {
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
-										plancallingnum, !ast_strlen_zero(pri->pvts[chanpos]->exten) ? pri->pvts[chanpos]->exten : "<unspecified>", 
+										plancallingnum, S_OR(pri->pvts[chanpos]->exten, "<unspecified>"),
 										pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
 							} else {
 								ast_log(LOG_WARNING, "Unable to start PBX on channel %d/%d, span %d\n", 

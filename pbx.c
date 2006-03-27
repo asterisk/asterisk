@@ -4311,8 +4311,8 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 			tmpchan->writeformat = chan->writeformat;
 			/* Setup proper location */
 			ast_explicit_goto(tmpchan,
-					  (!ast_strlen_zero(context)) ? context : chan->context,
-					  (!ast_strlen_zero(exten)) ? exten : chan->exten,
+					  S_OR(context, chan->context),
+					  S_OR(exten, chan->exten),
 					  priority);
 
 			/* Masquerade into temp channel */

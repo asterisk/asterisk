@@ -1845,8 +1845,8 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 				if (!strcasecmp(args.confno, confno)) {
 					/* Bingo it's a valid conference */
 					cnf = build_conf(args.confno,
-							ast_strlen_zero(args.pin) ? "" : args.pin,
-							ast_strlen_zero(args.pinadmin) ? "" : args.pinadmin,
+							S_OR(args.pin, ""),
+							S_OR(args.pinadmin, ""),
 							make, dynamic, refcount);
 					break;
 				}

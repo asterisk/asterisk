@@ -179,7 +179,7 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 		}
 		ast_stopstream(chan);
 	} else {
-		res = ast_say_character_str(chan, !ast_strlen_zero(name) ? name : ext,
+		res = ast_say_character_str(chan, S_OR(name, ext),
 					AST_DIGIT_ANY, chan->language);
 	}
 

@@ -1681,7 +1681,8 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 	char multi[256];
 	char *stringp, *ext;
 	if (!ast_strlen_zero(global_regcontext)) {
-		ast_copy_string(multi, ast_strlen_zero(peer->regexten) ? peer->name : peer->regexten, sizeof(multi));
+
+		ast_copy_string(multi, S_OR(peer->regexten, peer->name), sizeof(multi));
 		stringp = multi;
 		while((ext = strsep(&stringp, "&"))) {
 			if (onoff)
@@ -3190,7 +3191,7 @@ static void build_callid_pvt(struct sip_pvt *pvt)
 	char iabuf[INET_ADDRSTRLEN];
 	char buf[33];
 
-	const char *host = ast_strlen_zero(pvt->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), pvt->ourip) : pvt->fromdomain;
+	const char *host = S_OR(pvt->fromdomain, ast_inet_ntoa(iabuf, sizeof(iabuf), pvt->ourip));
 	
 	ast_string_field_build(pvt, callid, "%s@%s", generate_random_string(buf, sizeof(buf)), host);
 
@@ -3202,7 +3203,7 @@ static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip
 	char iabuf[INET_ADDRSTRLEN];
 	char buf[33];
 
-	const char *host = ast_strlen_zero(fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), ourip) : fromdomain;
+	const char *host = S_OR(fromdomain, ast_inet_ntoa(iabuf, sizeof(iabuf), ourip));
 
 	ast_string_field_build(reg, callid, "%s@%s", generate_random_string(buf, sizeof(buf)), host);
 }
@@ -8161,7 +8162,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 			auth = auth->next;
 		}
 		ast_cli(fd, "  Context      : %s\n", peer->context);
-		ast_cli(fd, "  Subscr.Cont. : %s\n", ast_strlen_zero(peer->subscribecontext)?"<Not set>":peer->subscribecontext);
+		ast_cli(fd, "  Subscr.Cont. : %s\n", S_OR(peer->subscribecontext, "<Not set>") );
 		ast_cli(fd, "  Language     : %s\n", peer->language);
 		if (!ast_strlen_zero(peer->accountcode))
 			ast_cli(fd, "  Accountcode  : %s\n", peer->accountcode);

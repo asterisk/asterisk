@@ -425,7 +425,7 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 			        durbuf, bc ? bc->name : "(None)");
 		} else if (verbose) {
 			ast_cli(fd, VERBOSE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
-			        c->appl ? c->appl : "(None)", c->data ? ( !ast_strlen_zero(c->data) ? c->data : "(Empty)" ): "(None)",
+			        c->appl ? c->appl : "(None)", c->data ? S_OR(c->data, "(Empty)" ): "(None)",
 			        c->cid.cid_num ? c->cid.cid_num : "", durbuf,
 			        c->accountcode ? c->accountcode : "", bc ? bc->name : "(None)");
 		} else {
@@ -746,7 +746,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)c->whentohangup,
 		cdrtime, c->_bridge ? c->_bridge->name : "<none>", ast_bridged_channel(c) ? ast_bridged_channel(c)->name : "<none>", 
 		c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
-		( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
+		( c-> data ? S_OR(c->data, "(Empty)") : "(None)"),
 		(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 	
 	if(pbx_builtin_serialize_variables(c,buf,sizeof(buf)))

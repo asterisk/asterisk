@@ -541,7 +541,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 							senddialevent(in, o->chan);
 							/* After calling, set callerid to extension */
 							if (!ast_test_flag(peerflags, OPT_ORIGINAL_CLID))
-								ast_set_callerid(o->chan, ast_strlen_zero(in->macroexten) ? in->exten : in->macroexten, get_cid_name(cidname, sizeof(cidname), in), NULL);
+								ast_set_callerid(o->chan, S_OR(in->macroexten, in->exten), get_cid_name(cidname, sizeof(cidname), in), NULL);
 						}
 					}
 					/* Hangup the original channel now, in case we needed it */
@@ -1135,7 +1135,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
 			if (!ast_test_flag(peerflags, OPT_ORIGINAL_CLID))
-				ast_set_callerid(tmp->chan, ast_strlen_zero(chan->macroexten) ? chan->exten : chan->macroexten, get_cid_name(cidname, sizeof(cidname), chan), NULL);
+				ast_set_callerid(tmp->chan, S_OR(chan->macroexten, chan->exten), get_cid_name(cidname, sizeof(cidname), chan), NULL);
 		}
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get

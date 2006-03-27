@@ -1059,7 +1059,7 @@ int ast_app_group_get_count(const char *group, const char *category)
 	if (ast_strlen_zero(group))
 		return 0;
 
- 	s = (!ast_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
+ 	s = S_OR(category, GROUP_CATEGORY_PREFIX);
 	ast_copy_string(cat, s, sizeof(cat));
 
 	chan = NULL;
@@ -1089,7 +1089,7 @@ int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 	if (regcomp(&regexbuf, groupmatch, REG_EXTENDED | REG_NOSUB))
 		return 0;
 
-	s = (!ast_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
+	s = S_OR(category, GROUP_CATEGORY_PREFIX);
 	ast_copy_string(cat, s, sizeof(cat));
 
 	chan = NULL;

@@ -1825,7 +1825,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								res = ast_app_getdata(chan, "agent-newlocation", tmpchan+pos, sizeof(tmpchan) - 2, 0);
 							if (ast_strlen_zero(tmpchan) )
 								break;
-							if(ast_exists_extension(chan, !ast_strlen_zero(context) ? context : "default", tmpchan,1, NULL) ) {
+							if(ast_exists_extension(chan, S_OR(context,"default"), tmpchan,1, NULL) ) {
 								if(!allow_multiple_login(tmpchan,context) ) {
 									args.extension = NULL;
 									pos = 0;
@@ -1837,7 +1837,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								args.extension = NULL;
 								pos = 0;
 							} else {
-								ast_log(LOG_WARNING, "Extension '%s@%s' is not valid for automatic login of agent '%s'\n", tmpchan, !ast_strlen_zero(context) ? context : "default", p->agent);
+								ast_log(LOG_WARNING, "Extension '%s@%s' is not valid for automatic login of agent '%s'\n", tmpchan, S_OR(context, "default"), p->agent);
 								res = ast_streamfile(chan, "invalid", chan->language);
 								if (!res)
 									res = ast_waitstream(chan, AST_DIGIT_ANY);

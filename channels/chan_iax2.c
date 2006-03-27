@@ -4618,10 +4618,10 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 			if (iaxs[x]->bridgecallno)
 				ast_cli(fd, FORMATB,
 						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
-						ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[x]->addr.sin_addr), 
-						!ast_strlen_zero(iaxs[x]->username) ? iaxs[x]->username : "(None)", 
-						iaxs[x]->callno, iaxs[x]->peercallno, 
-						iaxs[x]->oseqno, iaxs[x]->iseqno, 
+						ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[x]->addr.sin_addr),
+						S_OR(iaxs[x]->username, "(None)"),
+						iaxs[x]->callno, iaxs[x]->peercallno,
+						iaxs[x]->oseqno, iaxs[x]->iseqno,
 						iaxs[x]->bridgecallno );
 			else
 #endif
@@ -4646,9 +4646,9 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 				ast_cli(fd, FORMAT,
 						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
 						ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[x]->addr.sin_addr), 
-						!ast_strlen_zero(iaxs[x]->username) ? iaxs[x]->username : "(None)", 
-						iaxs[x]->callno, iaxs[x]->peercallno, 
-						iaxs[x]->oseqno, iaxs[x]->iseqno, 
+						S_OR(iaxs[x]->username, "(None)"),
+						iaxs[x]->callno, iaxs[x]->peercallno,
+						iaxs[x]->oseqno, iaxs[x]->iseqno,
 						lag,
 						jitter,
 						localdelay,
@@ -5795,7 +5795,7 @@ static void register_peer_exten(struct iax2_peer *peer, int onoff)
 	char multi[256];
 	char *stringp, *ext;
 	if (!ast_strlen_zero(regcontext)) {
-		ast_copy_string(multi, ast_strlen_zero(peer->regexten) ? peer->name : peer->regexten, sizeof(multi));
+		ast_copy_string(multi, S_OR(peer->regexten, peer->name), sizeof(multi));
 		stringp = multi;
 		while((ext = strsep(&stringp, "&"))) {
 			if (onoff) {

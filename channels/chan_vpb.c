@@ -923,7 +923,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 			else if (e->data == VPB_FAX){
 				if (!p->faxhandled){
 					if (strcmp(p->owner->exten, "fax")) {
-						const char *target_context = ast_strlen_zero(p->owner->macrocontext) ? p->owner->context : p->owner->macrocontext;
+						const char *target_context = S_OR(p->owner->macrocontext, p->owner->context);
 						
 						if (ast_exists_extension(p->owner, target_context, "fax", 1, p->owner->cid.cid_num)) {
 							if (option_verbose > 2)
