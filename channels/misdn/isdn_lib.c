@@ -1652,6 +1652,7 @@ handle_event_nt(void *dat, void *arg)
 		case CC_CONNECT|INDICATION:
 		case CC_ALERTING|INDICATION:
 		case CC_PROCEEDING|INDICATION:
+		case CC_SETUP_ACKNOWLEDGE|INDICATION:
 
 		{
 			struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
