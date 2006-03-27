@@ -403,6 +403,8 @@ static int global_rtpkeepalive;		/*!< Send RTP keepalives */
 static int global_reg_timeout;	
 static int global_regattempts_max;	/*!< Registration attempts before giving up */
 static int global_allowguest;		/*!< allow unauthenticated users/peers to connect? */
+static int global_allowsubscribe;	/*!< Flag for disabling ALL subscriptions, this is FALSE only if all peers are FALSE 
+					    the global setting is in globals_flag_page2 */
 static int global_mwitime;		/*!< Time between MWI checks for peers */
 static int global_tos;			/*!< IP Type of service */
 static int global_videosupport;		/*!< Videosupport on or off */
@@ -607,6 +609,11 @@ struct sip_auth {
 #define SIP_PAGE2_DEBUG_CONSOLE 	(1 << 6)
 #define SIP_PAGE2_DYNAMIC		(1 << 7)	/*!< Dynamic Peers register with Asterisk */
 #define SIP_PAGE2_SELFDESTRUCT		(1 << 8)	/*!< Automatic peers need to destruct themselves */
+#define SIP_PAGE2_ALLOWSUBSCRIBE	(1 << 10)	/*!< Allow subscriptions from this peer? */
+#define SIP_PAGE2_ALLOWOVERLAP		(1 << 11)	/*!< Allow overlap dialing ? */
+
+#define SIP_PAGE2_FLAGS_TO_COPY \
+	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP)
 
 /* SIP packet flags */
 #define SIP_PKT_DEBUG		(1 << 0)	/*!< Debug this packet */
@@ -667,6 +674,7 @@ static struct sip_pvt {
 	ast_group_t pickupgroup;		/*!< Pickup group */
 	int lastinvite;				/*!< Last Cseq of invite */
 	unsigned int flags;			/*!< SIP_ flags */	
+	struct ast_flags flags_page2;		/*!< SIP PAGE2 flags */
 	int timer_t1;				/*!< SIP timer T1, ms rtt */
 	unsigned int sipoptions;		/*!< Supported SIP sipoptions on the other end */
 	int capability;				/*!< Special capability (codec) */
@@ -7156,6 +7164,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	/* Find user based on user name in the from header */
 	if (user && ast_apply_ha(user->ha, sin)) {
 		ast_copy_flags(p, user, SIP_FLAGS_TO_COPY);
+		ast_copy_flags(p, &user->flags_page2, SIP_PAGE2_FLAGS_TO_COPY);
 		/* copy channel vars */
 		for (v = user->chanvars ; v ; v = v->next) {
 			if ((tmpvar = ast_variable_new(v->name, v->value))) {
@@ -8118,6 +8127,8 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  User=Phone   : %s\n", (ast_test_flag(peer, SIP_USEREQPHONE)?"Yes":"No"));
 		ast_cli(fd, "  Trust RPID   : %s\n", (ast_test_flag(peer, SIP_TRUSTRPID) ? "Yes" : "No"));
 		ast_cli(fd, "  Send RPID    : %s\n", (ast_test_flag(peer, SIP_SENDRPID) ? "Yes" : "No"));
+		ast_cli(fd, "  Subscriptions: %s\n", ast_test_flag(&peer->flags_page2, SIP_PAGE2_ALLOWSUBSCRIBE) ? "Yes" : "No");
+		ast_cli(fd, "  Overlap dial : %s\n", ast_test_flag(&peer->flags_page2, SIP_PAGE2_ALLOWOVERLAP) ? "Yes" : "No");
 
 		/* - is enumerated */
 		ast_cli(fd, "  DTMFmode     : %s\n", dtmfmode2str(ast_test_flag(peer, SIP_DTMF)));
@@ -8345,6 +8356,8 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Videosupport:           %s\n", global_videosupport ? "Yes" : "No");
 	ast_cli(fd, "  AutoCreatePeer:         %s\n", autocreatepeer ? "Yes" : "No");
 	ast_cli(fd, "  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No");
+	ast_cli(fd, "  Allow subscriptions:    %s\n", ast_test_flag(&global_flags_page2, SIP_PAGE2_ALLOWSUBSCRIBE) ? "Yes" : "No");
+	ast_cli(fd, "  Allow overlap dialing:  %s\n", ast_test_flag(&global_flags_page2, SIP_PAGE2_ALLOWOVERLAP) ? "Yes" : "No");
 	ast_cli(fd, "  Promsic. redir:         %s\n", ast_test_flag(&global_flags, SIP_PROMISCREDIR) ? "Yes" : "No");
 	ast_cli(fd, "  SIP domain support:     %s\n", AST_LIST_EMPTY(&domain_list) ? "No" : "Yes");
 	ast_cli(fd, "  Call to non-local dom.: %s\n", allow_external_domains ? "Yes" : "No");
@@ -10397,8 +10410,6 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, in
 		ast_string_field_set(p, context, default_context);
 	if (res < 0)
 		transmit_response_with_allow(p, "404 Not Found", req, 0);
-	else if (res > 0)
-		transmit_response_with_allow(p, "484 Address Incomplete", req, 0);
 	else 
 		transmit_response_with_allow(p, "200 OK", req, 0);
 	/* Destroy if this OPTIONS was the opening request, but not if
@@ -10531,11 +10542,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		build_contact(p);			/* Build our contact header */
 
 		if (gotdest) {
-			if (gotdest < 0) {
-				transmit_response_reliable(p, "404 Not Found", req);
+			if (gotdest == 1 && ast_test_flag(&p->flags_page2, SIP_PAGE2_ALLOWOVERLAP)) {
+				transmit_response_reliable(p, "484 Address Incomplete", req);
 				update_call_counter(p, DEC_CALL_LIMIT);
 			} else {
-				transmit_response_reliable(p, "484 Address Incomplete", req);
+				transmit_response_reliable(p, "404 Not Found", req);
 				update_call_counter(p, DEC_CALL_LIMIT);
 			}
 			ast_set_flag(p, SIP_NEEDDESTROY);		
@@ -10679,10 +10690,13 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	if (ast_strlen_zero(p->context))
 		ast_string_field_set(p, context, default_context);
 	res = get_refer_info(p, req);
-	if (res < 0)
+	if (res > 0) {
+		if (ast_test_flag(&p->flags_page2, SIP_PAGE2_ALLOWOVERLAP)) 
+			transmit_response_with_allow(p, "484 Address Incomplete", req, 1);
+		else
+			transmit_response_with_allow(p, "404 Not Found", req, 1);
+	} else if (res < 0)
 		transmit_response_with_allow(p, "404 Not Found", req, 1);
-	else if (res > 0)
-		transmit_response_with_allow(p, "484 Address Incomplete", req, 1);
 	else {
 		int nobye = 0;
 		if (!ignore) {
@@ -10849,6 +10863,17 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				ast_log(LOG_DEBUG, "Got a re-subscribe on existing subscription %s\n", p->callid);
 		}
 	}
+
+	/* Check if we have a global disallow setting on subscriptions. 
+		if so, we don't have to check peer/user settings after auth, which saves a lot of processing
+	*/
+	if (!global_allowsubscribe) {
+ 		transmit_response(p, "403 Forbidden (policy)", req);
+		ast_set_flag(p, SIP_NEEDDESTROY);	
+		return 0;
+
+	}
+
 	if (!ignore && !p->initreq.headers) {
 		/* Use this as the basis */
 		if (debug)
@@ -10889,6 +10914,14 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			}
 			return 0;
 		}
+
+		/* Check if this user/peer is allowed to subscribe at all */
+		if (! ast_test_flag(&p->flags_page2, SIP_PAGE2_ALLOWSUBSCRIBE)) {
+ 			transmit_response(p, "403 Forbidden (policy)", req);
+			ast_set_flag(p, SIP_NEEDDESTROY);	
+			return 0;
+		}
+
 		/* Initialize the context if it hasn't been already */
 		if (!ast_strlen_zero(p->subscribecontext))
 			ast_string_field_set(p, context, p->subscribecontext);
@@ -10898,10 +10931,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		gotdest = get_destination(p, NULL);
 		build_contact(p);
 		if (gotdest) {
-			if (gotdest < 0)
-				transmit_response(p, "404 Not Found", req);
-			else
-				transmit_response(p, "484 Address Incomplete", req);	/* Overlap dialing on SUBSCRIBE?? */
+			transmit_response(p, "404 Not Found", req);
 			ast_set_flag(p, SIP_NEEDDESTROY);	
 		} else {
 
@@ -12040,6 +12070,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	oldha = user->ha;
 	user->ha = NULL;
 	ast_copy_flags(user, &global_flags, SIP_FLAGS_TO_COPY);
+	ast_copy_flags(user, &global_flags_page2, SIP_PAGE2_FLAGS_TO_COPY);
 	user->capability = global_capability;
 	user->prefs = default_prefs;
 	/* set default context */
@@ -12083,6 +12114,17 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			ast_copy_string(user->musicclass, v->value, sizeof(user->musicclass));
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(user->accountcode, v->value, sizeof(user->accountcode));
+		} else if (!strcasecmp(v->name, "allowsubscribe")) {
+			if (ast_true(v->value)) {
+				global_allowsubscribe = TRUE;	/* No global ban any more */
+				ast_set_flag(&user->flags_page2, SIP_PAGE2_ALLOWSUBSCRIBE);
+			} else
+				ast_clear_flag(&user->flags_page2, SIP_PAGE2_ALLOWSUBSCRIBE);
+		} else if (!strcasecmp(v->name, "allowoverlap")) {
+			if (ast_true(v->value)) {
+				ast_set_flag(&user->flags_page2, SIP_PAGE2_ALLOWOVERLAP);
+			} else
+				ast_clear_flag(&user->flags_page2, SIP_PAGE2_ALLOWOVERLAP);
 		} else if (!strcasecmp(v->name, "call-limit")) {
 			user->call_limit = atoi(v->value);
 			if (user->call_limit < 0)
@@ -12121,6 +12163,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 		peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
 	}
 	ast_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
+	ast_copy_flags(&peer->flags_page2, &global_flags_page2, SIP_PAGE2_FLAGS_TO_COPY);
 	strcpy(peer->context, default_context);
 	strcpy(peer->subscribecontext, default_subscribecontext);
 	strcpy(peer->language, default_language);
@@ -12244,6 +12287,17 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			ast_copy_string(peer->context, v->value, sizeof(peer->context));
 		} else if (!strcasecmp(v->name, "subscribecontext")) {
 			ast_copy_string(peer->subscribecontext, v->value, sizeof(peer->subscribecontext));
+		} else if (!strcasecmp(v->name, "allowsubscribe")) {
+			if (ast_true(v->value)) {
+				global_allowsubscribe = TRUE;	/* No global ban any more */
+				ast_set_flag(&peer->flags_page2, SIP_PAGE2_ALLOWSUBSCRIBE);
+			} else
+				ast_clear_flag(&peer->flags_page2, SIP_PAGE2_ALLOWSUBSCRIBE);
+		} else if (!strcasecmp(v->name, "allowoverlap")) {
+			if (ast_true(v->value)) {
+				ast_set_flag(&peer->flags_page2, SIP_PAGE2_ALLOWOVERLAP);
+			} else
+				ast_clear_flag(&peer->flags_page2, SIP_PAGE2_ALLOWOVERLAP);
 		} else if (!strcasecmp(v->name, "fromdomain"))
 			ast_copy_string(peer->fromdomain, v->value, sizeof(peer->fromdomain));
 		else if (!strcasecmp(v->name, "usereqphone"))
@@ -12451,6 +12505,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_regcontext[0] = '\0';
 	expiry = DEFAULT_EXPIRY;
 	global_notifyringing = DEFAULT_NOTIFYRINGING;
+	global_allowsubscribe = TRUE;
 	ast_copy_string(global_useragent, DEFAULT_USERAGENT, sizeof(global_useragent));
 	ast_copy_string(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime));
 	ast_copy_string(global_realm, DEFAULT_REALM, sizeof(global_realm));
@@ -12467,6 +12522,10 @@ static int reload_config(enum channelreloadreason reason)
 	global_rtpholdtimeout = 0;
 	global_rtpkeepalive = 0;
 	global_rtautoclear = 120;
+	global_allowsubscribe = TRUE;					/* Global flag, default = TRUE */
+	ast_set_flag(&global_flags_page2, SIP_PAGE2_ALLOWSUBSCRIBE);	/* Default for peers, users: TRUE */
+	ast_set_flag(&global_flags_page2, SIP_PAGE2_ALLOWOVERLAP);	/* Default for peers, users: TRUE */
+
 	ast_set_flag(&global_flags_page2, SIP_PAGE2_RTUPDATE);
 
 	/* Initialize some reasonable defaults at SIP reload (used both for channel and as default for peers and users */
@@ -12640,6 +12699,24 @@ static int reload_config(enum channelreloadreason reason)
 			ast_parse_allow_disallow(&default_prefs, &global_capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
 			ast_parse_allow_disallow(&default_prefs, &global_capability, v->value, 0);
+  		} else if (!strcasecmp(v->name, "allowsubscribe")) {
+			if (ast_true(v->value)) {
+				ast_log(LOG_DEBUG, "Turning on global subscription support!\n");
+				global_allowsubscribe = TRUE;
+				ast_set_flag(&global_flags_page2, SIP_PAGE2_ALLOWSUBSCRIBE);
+			} else {
+				global_allowsubscribe = FALSE;
+				ast_log(LOG_DEBUG, "Turning off global subscription support!\n");
+				ast_clear_flag(&global_flags_page2, SIP_PAGE2_ALLOWSUBSCRIBE);
+			}
+  		} else if (!strcasecmp(v->name, "allowoverlap")) {
+			if (ast_true(v->value)) {
+				ast_log(LOG_DEBUG, "Turning on global overlap support!\n");
+				ast_set_flag(&global_flags_page2, SIP_PAGE2_ALLOWOVERLAP);
+			} else {
+				ast_log(LOG_DEBUG, "Turning off global overlap support!\n");
+				ast_clear_flag(&global_flags_page2, SIP_PAGE2_ALLOWOVERLAP);
+			}
 		} else if (!strcasecmp(v->name, "allowexternaldomains")) {
 			allow_external_domains = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "autodomain")) {

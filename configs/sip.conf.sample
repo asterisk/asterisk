@@ -26,7 +26,9 @@
 [general]
 context=default			; Default context for incoming calls
 ;allowguest=no			; Allow or reject guest calls (default is yes, this can also be set to 'osp'
-				; if asterisk was compiled with OSP support.
+				; if asterisk was compiled with OSP support.)
+allowoverlap=no			; Disable overlap dialing support. (Default is yes)
+;allowsubscribe=no		; Disable support for subscriptions. (Default is yes)
 ;realm=mydomain.tld		; Realm for digest authentication
 				; defaults to "asterisk"
 				; Realms MUST be globally unique according to RFC 3261
@@ -310,6 +312,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; amaflags		      amaflags
 ; call-limit		      call-limit
 ; restrictcid		      restrictcid
+; allowoverlap		      allowoverlap
+; allowsubscribe	      allowsubscribe
 ; subscribecontext	      subscribecontext
 ;                             mailbox
 ;                             username
