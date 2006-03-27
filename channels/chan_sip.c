@@ -6519,6 +6519,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	char tmp[256] = "", *uri, *a;
 	char tmpf[256], *from;
 	struct sip_request *req;
+	char *colon;
 	
 	req = oreq;
 	if (!req)
@@ -6550,20 +6551,24 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		ast_uri_decode(from);
 	}
 
-	/* Get the target domain */
-	if ((a = strchr(uri, '@'))) {
-		char *colon;
-		*a = '\0';
-		a++;
-		colon = strchr(a, ':'); /* Remove :port */
-		if (colon)
-			*colon = '\0';
-		ast_copy_string(p->domain, a, sizeof(p->domain));
-	}
 	/* Skip any options */
 	if ((a = strchr(uri, ';'))) {
 		*a = '\0';
 	}
+
+	/* Get the target domain */
+	if ((a = strchr(uri, '@'))) {
+		*a = '\0';
+		a++;
+	} else {	/* No username part */
+		a = uri;
+		uri = "s";	/* Set extension to "s" */
+	}
+	colon = strchr(a, ':'); /* Remove :port */
+	if (colon)
+		*colon = '\0';
+
+	ast_copy_string(p->domain, a, sizeof(p->domain));
 
 	if (!AST_LIST_EMPTY(&domain_list)) {
 		char domain_context[AST_MAX_EXTENSION];
