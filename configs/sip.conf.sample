@@ -70,7 +70,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;vmexten=voicemail		; dialplan extension to reach mailbox sets the 
 				; Message-Account in the MWI notify message 
 				; defaults to "asterisk"
-;videosupport=yes		; Turn on support for SIP video
 ;recordhistory=yes		; Record SIP history by default 
 				; (see sip history / sip no history)
 
@@ -112,6 +111,11 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Useful to limit subscriptions to local extensions
 				; Settable per peer/user also
 ;notifyringing = yes		; Notify subscriptions on RINGING state
+;
+;videosupport=yes		; Turn on support for SIP video
+;maxcallbitrate=384		; Maximum bitrate for video calls (default 384 kb/s)
+				; Videosupport and maxcallbitrate is settable
+				; for peers and users as well
 ;callevents=no			; generate manager events when sip ua performs events (e.g. hold)
 
 ;
@@ -315,6 +319,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; allowoverlap		      allowoverlap
 ; allowsubscribe	      allowsubscribe
 ; subscribecontext	      subscribecontext
+; videosupport		      videosupport
+; maxcallbitrate	      maxcallbitrate
 ;                             mailbox
 ;                             username
 ;                             template

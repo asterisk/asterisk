@@ -362,7 +362,6 @@ static const struct cfsip_options {
 #define DEFAULT_NOTIFYMIME 	"application/simple-message-summary"
 #define DEFAULT_MWITIME 	10
 #define DEFAULT_ALLOWGUEST	TRUE
-#define DEFAULT_VIDEOSUPPORT	FALSE
 #define DEFAULT_SRVLOOKUP	FALSE		/*!< Recommended setting is ON */
 #define DEFAULT_COMPACTHEADERS	FALSE
 #define DEFAULT_TOS		FALSE
@@ -373,9 +372,11 @@ static const struct cfsip_options {
 #define DEFAULT_AUTOCREATEPEER	FALSE
 #define DEFAULT_QUALIFY		FALSE
 #define DEFAULT_T1MIN		100		/*!< 100 MS for minimal roundtrip time */
+#define DEFAULT_MAX_CALL_BITRATE (384)		/*!< Max bitrate for video */
 #ifndef DEFAULT_USERAGENT
 #define DEFAULT_USERAGENT "Asterisk PBX"	/*!< Default Useragent: header unless re-defined in sip.conf */
 #endif
+
 
 /* Default setttings are used as a channel setting and as a default when
    configuring devices */
@@ -388,6 +389,7 @@ static char default_notifymime[AST_MAX_EXTENSION];
 static int default_qualify;		/*!< Default Qualify= setting */
 static char default_vmexten[AST_MAX_EXTENSION];
 static char default_musicclass[MAX_MUSICCLASS];		/*!< Global music on hold class */
+static int default_maxcallbitrate;	/*!< Maximum bitrate for call */
 static struct ast_codec_pref default_prefs;		/*!< Default codec prefs */
 
 /* Global settings only apply to the channel */
@@ -407,7 +409,6 @@ static int global_allowsubscribe;	/*!< Flag for disabling ALL subscriptions, thi
 					    the global setting is in globals_flag_page2 */
 static int global_mwitime;		/*!< Time between MWI checks for peers */
 static int global_tos;			/*!< IP Type of service */
-static int global_videosupport;		/*!< Videosupport on or off */
 static int compactheaders;		/*!< send compact sip headers */
 static int recordhistory;		/*!< Record SIP history. Off by default */
 static int dumphistory;			/*!< Dump history to verbose before destroying SIP dialog */
@@ -609,11 +610,13 @@ struct sip_auth {
 #define SIP_PAGE2_DEBUG_CONSOLE 	(1 << 6)
 #define SIP_PAGE2_DYNAMIC		(1 << 7)	/*!< Dynamic Peers register with Asterisk */
 #define SIP_PAGE2_SELFDESTRUCT		(1 << 8)	/*!< Automatic peers need to destruct themselves */
+#define SIP_PAGE2_VIDEOSUPPORT		(1 << 9)
 #define SIP_PAGE2_ALLOWSUBSCRIBE	(1 << 10)	/*!< Allow subscriptions from this peer? */
 #define SIP_PAGE2_ALLOWOVERLAP		(1 << 11)	/*!< Allow overlap dialing ? */
 
+
 #define SIP_PAGE2_FLAGS_TO_COPY \
-	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP)
+	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT)
 
 /* SIP packet flags */
 #define SIP_PKT_DEBUG		(1 << 0)	/*!< Debug this packet */
@@ -682,6 +685,7 @@ static struct sip_pvt {
 	int peercapability;			/*!< Supported peer capability */
 	int prefcodec;				/*!< Preferred codec (outbound only) */
 	int noncodeccapability;
+	int maxcallbitrate;			/*!< Maximum Call Bitrate for Video Calls */	
 	int callingpres;			/*!< Calling presentation */
 	int authtries;				/*!< Times we've tried to authenticate */
 	int expiry;				/*!< How long we take to expire */
@@ -782,6 +786,7 @@ struct sip_user {
 	int call_limit;			/*!< Limit of concurrent calls */
 	struct ast_ha *ha;		/*!< ACL setting */
 	struct ast_variable *chanvars;	/*!< Variables to set for channel created by user */
+	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
 };
 
 /*! \brief Structure for SIP peer data, we place calls to peers if registered  or fixed IP address (host) */
@@ -826,7 +831,8 @@ struct sip_peer {
 	ast_group_t pickupgroup;	/*!<  Pickup group */
 	struct ast_dnsmgr_entry *dnsmgr;/*!<  DNS refresh manager for peer */
 	struct sockaddr_in addr;	/*!<  IP address of peer */
-
+	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
+	
 	/* Qualification */
 	struct sip_pvt *call;		/*!<  Call pointer */
 	int pokeexpire;			/*!<  When to expire poke (qualify= checking) */
@@ -1926,7 +1932,12 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	}
 
 	ast_copy_flags(r, peer, SIP_FLAGS_TO_COPY);
+	ast_copy_flags((&r->flags_page2),(&peer->flags_page2), SIP_PAGE2_FLAGS_TO_COPY);
 	r->capability = peer->capability;
+	if (!ast_test_flag((&r->flags_page2), SIP_PAGE2_VIDEOSUPPORT) && r->vrtp) {
+		ast_rtp_destroy(r->vrtp);
+		r->vrtp = NULL;
+	}
 	r->prefs = peer->prefs;
 	if (r->rtp) {
 		if (option_debug)
@@ -1985,7 +1996,8 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	r->rtpkeepalive = peer->rtpkeepalive;
 	if (peer->call_limit)
 		ast_set_flag(r, SIP_CALL_LIMIT);
-
+	r->maxcallbitrate = peer->maxcallbitrate;
+	
 	return 0;
 }
 
@@ -2852,6 +2864,7 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 	case AST_CONTROL_VIDUPDATE:	/* Request a video frame update */
 		if (p->vrtp && !ast_test_flag(p, SIP_NOVIDEO)) {
 			transmit_info_with_vidupdate(p);
+			/* ast_rtcp_send_h261fur(p->vrtp); */
 			res = 0;
 		} else
 			res = -1;
@@ -3230,6 +3243,9 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	} else {
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	}
+	
+	ast_copy_flags(p, &global_flags, SIP_FLAGS_TO_COPY);
+	ast_copy_flags((&p->flags_page2),(&global_flags_page2), SIP_PAGE2_FLAGS_TO_COPY);
 
 	p->branch = thread_safe_rand();	
 	make_our_tag(p->tag, sizeof(p->tag));
@@ -3238,10 +3254,10 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 
 	if (sip_methods[intended_method].need_rtp) {
 		p->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
-		if (global_videosupport)
+		if (ast_test_flag((&p->flags_page2), SIP_PAGE2_VIDEOSUPPORT))
 			p->vrtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
-		if (!p->rtp || (global_videosupport && !p->vrtp)) {
-			ast_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n", global_videosupport ? "and video" : "", strerror(errno));
+		if (!p->rtp || (ast_test_flag((&p->flags_page2), SIP_PAGE2_VIDEOSUPPORT) && !p->vrtp)) {
+			ast_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n", ast_test_flag((&p->flags_page2), SIP_PAGE2_VIDEOSUPPORT) ? "and video" : "", strerror(errno));
 			ast_mutex_destroy(&p->lock);
 			if (p->chanvars) {
 				ast_variables_destroy(p->chanvars);
@@ -3256,6 +3272,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 		p->rtptimeout = global_rtptimeout;
 		p->rtpholdtimeout = global_rtpholdtimeout;
 		p->rtpkeepalive = global_rtpkeepalive;
+		p->maxcallbitrate = default_maxcallbitrate;
 	}
 
 	if (useglobal_nat && sin) {
@@ -3275,7 +3292,6 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 		build_callid_pvt(p);
 	else
 		ast_string_field_set(p, callid, callid);
-	ast_copy_flags(p, &global_flags, SIP_FLAGS_TO_COPY);
 	/* Assign default music on hold class */
 	ast_string_field_set(p, musicclass, default_musicclass);
 	p->capability = global_capability;
@@ -4501,6 +4517,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	char o[256];
 	char c[256];
 	char t[256];
+	char b[256];
 	char m_audio[256];
 	char m_video[256];
 	char a_audio[1024];
@@ -4571,6 +4588,8 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, ast_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
 	snprintf(s, sizeof(s), "s=session\r\n");
 	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", ast_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
+	if ((p->vrtp) && (!ast_test_flag(p, SIP_NOVIDEO)) && (capability & VIDEO_CODEC_MASK)) /* only if video response is appropriate */
+		snprintf(b, sizeof(b), "b=CT:%d\r\n", p->maxcallbitrate);	
 	snprintf(t, sizeof(t), "t=0 0\r\n");
 
 	ast_build_string(&m_audio_next, &m_audio_left, "m=audio %d RTP/AVP", ntohs(dest.sin_port));
@@ -4616,7 +4635,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 
 	/* Now send any other common codecs, and non-codec formats: */
-	for (x = 1; x <= ((global_videosupport && p->vrtp) ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
+	for (x = 1; x <= ((ast_test_flag((&p->flags_page2), SIP_PAGE2_VIDEOSUPPORT) && p->vrtp) ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
 		if (!(capability & x))
 			continue;
 
@@ -4655,7 +4674,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m_audio) + strlen(a_audio);
 	if ((p->vrtp) && (!ast_test_flag(p, SIP_NOVIDEO)) && (capability & VIDEO_CODEC_MASK)) /* only if video response is appropriate */
-		len += strlen(m_video) + strlen(a_video);
+		len += strlen(m_video) + strlen(a_video) + strlen(b);
 
 	add_header(resp, "Content-Type", "application/sdp");
 	add_header_contentLength(resp, len);
@@ -4663,6 +4682,8 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	add_line(resp, o);
 	add_line(resp, s);
 	add_line(resp, c);
+	if ((p->vrtp) && (!ast_test_flag(p, SIP_NOVIDEO)) && (capability & VIDEO_CODEC_MASK)) /* only if video response is appropriate */
+		add_line(resp, b);
 	add_line(resp, t);
 	add_line(resp, m_audio);
 	add_line(resp, a_audio);
@@ -7200,6 +7221,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		if (!(res = check_auth(p, req, user->name, user->secret, user->md5secret, sipmethod, uri, reliable, ignore))) {
 			sip_cancel_destroy(p);
 			ast_copy_flags(p, user, SIP_FLAGS_TO_COPY);
+			ast_copy_flags((&p->flags_page2),(&user->flags_page2), SIP_PAGE2_FLAGS_TO_COPY);
 			/* Copy SIP extensions profile from INVITE */
 			if (p->sipoptions)
 				user->sipoptions = p->sipoptions;
@@ -7233,6 +7255,11 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			p->callingpres = user->callingpres;
 			p->capability = user->capability;
 			p->jointcapability = user->capability;
+			p->maxcallbitrate = user->maxcallbitrate;
+			if (!ast_test_flag((&p->flags_page2), SIP_PAGE2_VIDEOSUPPORT) && p->vrtp) {
+				ast_rtp_destroy(p->vrtp);
+				p->vrtp = NULL;
+			}
 			if (p->peercapability)
 				p->jointcapability &= p->peercapability;
 			if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833) || (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_AUTO))
@@ -7352,6 +7379,11 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				p->jointcapability = peer->capability;
 				if (p->peercapability)
 					p->jointcapability &= p->peercapability;
+				p->maxcallbitrate = peer->maxcallbitrate;
+				if (!ast_test_flag((&p->flags_page2), SIP_PAGE2_VIDEOSUPPORT) && p->vrtp) {
+					ast_rtp_destroy(p->vrtp);
+					p->vrtp = NULL;
+				}
 				if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833) || (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_AUTO))
 					p->noncodeccapability |= AST_RTP_DTMF;
 				else
@@ -7730,6 +7762,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			"IPport: %d\r\n"
 			"Dynamic: %s\r\n"
 			"Natsupport: %s\r\n"
+			"Video Support: %s\r\n"
 			"ACL: %s\r\n"
 			"Status: %s\r\n"
 			"RealtimeDevice: %s\r\n\r\n", 
@@ -7739,7 +7772,8 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			ntohs(iterator->addr.sin_port), 
 			ast_test_flag((&iterator->flags_page2), SIP_PAGE2_DYNAMIC) ? "yes" : "no", 	/* Dynamic or not? */
 			(ast_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? "yes" : "no",	/* NAT=yes? */
-			iterator->ha ? "yes" : "no",       /* iterator/deny */
+			ast_test_flag((&iterator->flags_page2), SIP_PAGE2_VIDEOSUPPORT) ? "yes" : "no",	/* VIDEOSUPPORT=yes? */
+			iterator->ha ? "yes" : "no",       /* permit/deny */
 			status,
 			realtimepeers ? (ast_test_flag(iterator, SIP_REALTIME) ? "yes":"no") : "no");
 		}
@@ -8118,6 +8152,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  Call limit   : %d\n", peer->call_limit);
 		ast_cli(fd, "  Dynamic      : %s\n", (ast_test_flag((&peer->flags_page2), SIP_PAGE2_DYNAMIC)?"Yes":"No"));
 		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
+		ast_cli(fd, "  MaxCallBR    : %dkbps\n", peer->maxcallbitrate);
 		ast_cli(fd, "  Expire       : %d\n", peer->expire);
 		ast_cli(fd, "  Insecure     : %s\n", insecure2str(ast_test_flag(peer, SIP_INSECURE_PORT), ast_test_flag(peer, SIP_INSECURE_INVITE)));
 		ast_cli(fd, "  Nat          : %s\n", nat2str(ast_test_flag(peer, SIP_NAT)));
@@ -8125,6 +8160,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  CanReinvite  : %s\n", (ast_test_flag(peer, SIP_CAN_REINVITE)?"Yes":"No"));
 		ast_cli(fd, "  PromiscRedir : %s\n", (ast_test_flag(peer, SIP_PROMISCREDIR)?"Yes":"No"));
 		ast_cli(fd, "  User=Phone   : %s\n", (ast_test_flag(peer, SIP_USEREQPHONE)?"Yes":"No"));
+		ast_cli(fd, "  Video Support: %s\n", (ast_test_flag((&peer->flags_page2), SIP_PAGE2_VIDEOSUPPORT)?"Yes":"No"));
 		ast_cli(fd, "  Trust RPID   : %s\n", (ast_test_flag(peer, SIP_TRUSTRPID) ? "Yes" : "No"));
 		ast_cli(fd, "  Send RPID    : %s\n", (ast_test_flag(peer, SIP_SENDRPID) ? "Yes" : "No"));
 		ast_cli(fd, "  Subscriptions: %s\n", ast_test_flag(&peer->flags_page2, SIP_PAGE2_ALLOWSUBSCRIBE) ? "Yes" : "No");
@@ -8196,6 +8232,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		astman_append(s, "VoiceMailbox: %s\r\n", peer->mailbox);
 		astman_append(s, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
 		astman_append(s, "Call limit: %d\r\n", peer->call_limit);
+		astman_append(s, "MaxCallBR: %dkbps\r\n", peer->maxcallbitrate);
 		astman_append(s, "Dynamic: %s\r\n", (ast_test_flag((&peer->flags_page2), SIP_PAGE2_DYNAMIC)?"Y":"N"));
 		astman_append(s, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, ""));
 		astman_append(s, "RegExpire: %ld seconds\r\n", ast_sched_when(sched,peer->expire));
@@ -8205,6 +8242,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		astman_append(s, "SIP-CanReinvite: %s\r\n", (ast_test_flag(peer, SIP_CAN_REINVITE)?"Y":"N"));
 		astman_append(s, "SIP-PromiscRedir: %s\r\n", (ast_test_flag(peer, SIP_PROMISCREDIR)?"Y":"N"));
 		astman_append(s, "SIP-UserPhone: %s\r\n", (ast_test_flag(peer, SIP_USEREQPHONE)?"Y":"N"));
+		astman_append(s, "SIP-VideoSupport: %s\r\n", (ast_test_flag((&peer->flags_page2), SIP_PAGE2_VIDEOSUPPORT)?"Y":"N"));
 
 		/* - is enumerated */
 		astman_append(s, "SIP-DTMFmode %s\r\n", dtmfmode2str(ast_test_flag(peer, SIP_DTMF)));
@@ -8353,7 +8391,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "----------------\n");
 	ast_cli(fd, "  SIP Port:               %d\n", ntohs(bindaddr.sin_port));
 	ast_cli(fd, "  Bindaddress:            %s\n", ast_inet_ntoa(tmp, sizeof(tmp), bindaddr.sin_addr));
-	ast_cli(fd, "  Videosupport:           %s\n", global_videosupport ? "Yes" : "No");
+	ast_cli(fd, "  Videosupport:           %s\n", ast_test_flag((&global_flags_page2), SIP_PAGE2_VIDEOSUPPORT) ? "Yes" : "No");
 	ast_cli(fd, "  AutoCreatePeer:         %s\n", autocreatepeer ? "Yes" : "No");
 	ast_cli(fd, "  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No");
 	ast_cli(fd, "  Allow subscriptions:    %s\n", ast_test_flag(&global_flags_page2, SIP_PAGE2_ALLOWSUBSCRIBE) ? "Yes" : "No");
@@ -8401,6 +8439,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Outbound reg. timeout:  %d secs\n", global_reg_timeout);
 	ast_cli(fd, "  Outbound reg. attempts: %d\n", global_regattempts_max);
 	ast_cli(fd, "  Notify ringing state:   %s\n", global_notifyringing ? "Yes" : "No");
+	ast_cli(fd, "  Max Call Bitrate:       %dkbps\r\n", default_maxcallbitrate);
 	ast_cli(fd, "\nDefault Settings:\n");
 	ast_cli(fd, "-----------------\n");
 	ast_cli(fd, "  Context:                %s\n", default_context);
@@ -12144,7 +12183,18 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			user->callingpres = ast_parse_caller_presentation(v->value);
 			if (user->callingpres == -1)
 				user->callingpres = atoi(v->value);
-		}
+		} else if (!strcasecmp(v->name, "maxcallbitrate")) {
+			user->maxcallbitrate = atoi(v->value);
+			if (user->maxcallbitrate < 0)
+				user->maxcallbitrate = default_maxcallbitrate;
+		} else if (!strcasecmp(v->name, "videosupport")) {
+			if (ast_test_flag((&global_flags_page2), SIP_PAGE2_VIDEOSUPPORT)) {
+				if (ast_true(v->value))
+					ast_set_flag((&user->flags_page2), SIP_PAGE2_VIDEOSUPPORT);
+				else
+					ast_clear_flag((&user->flags_page2), SIP_PAGE2_VIDEOSUPPORT);
+			}
+ 		}
 	}
 	ast_copy_flags(user, &userflags, mask.flags);
 	ast_free_ha(oldha);
@@ -12162,6 +12212,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 		peer->pokeexpire = -1;
 		peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
 	}
+	ast_copy_flags((&peer->flags_page2), &global_flags_page2, SIP_PAGE2_FLAGS_TO_COPY);
 	ast_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&peer->flags_page2, &global_flags_page2, SIP_PAGE2_FLAGS_TO_COPY);
 	strcpy(peer->context, default_context);
@@ -12171,6 +12222,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->addr.sin_family = AF_INET;
 	peer->defaddr.sin_family = AF_INET;
 	peer->capability = global_capability;
+	peer->maxcallbitrate = default_maxcallbitrate;
 	peer->rtptimeout = global_rtptimeout;
 	peer->rtpholdtimeout = global_rtpholdtimeout;
 	peer->rtpkeepalive = global_rtpkeepalive;
@@ -12302,7 +12354,14 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			ast_copy_string(peer->fromdomain, v->value, sizeof(peer->fromdomain));
 		else if (!strcasecmp(v->name, "usereqphone"))
 			ast_set2_flag(peer, ast_true(v->value), SIP_USEREQPHONE);
-		else if (!strcasecmp(v->name, "fromuser"))
+		else if (!strcasecmp(v->name, "videosupport")) {
+			if (ast_test_flag((&global_flags_page2), SIP_PAGE2_VIDEOSUPPORT)) {
+				if (ast_true(v->value))
+					ast_set_flag((&peer->flags_page2), SIP_PAGE2_VIDEOSUPPORT);
+				else
+					ast_clear_flag((&peer->flags_page2), SIP_PAGE2_VIDEOSUPPORT);
+			}
+		} else if (!strcasecmp(v->name, "fromuser"))
 			ast_copy_string(peer->fromuser, v->value, sizeof(peer->fromuser));
 		else if (!strcasecmp(v->name, "host") || !strcasecmp(v->name, "outboundproxy")) {
 			if (!strcasecmp(v->value, "dynamic")) {
@@ -12426,6 +12485,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 				ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
 				peer->maxms = 0;
 			}
+		} else if (!strcasecmp(v->name, "maxcallbitrate")) {
+			peer->maxcallbitrate = atoi(v->value);
+			if (peer->maxcallbitrate < 0)
+				peer->maxcallbitrate = default_maxcallbitrate;
 		}
 	}
 	if (!ast_test_flag((&global_flags_page2), SIP_PAGE2_IGNOREREGEXPIRE) && ast_test_flag((&peer->flags_page2), SIP_PAGE2_DYNAMIC) && realtime) {
@@ -12510,7 +12573,6 @@ static int reload_config(enum channelreloadreason reason)
 	ast_copy_string(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime));
 	ast_copy_string(global_realm, DEFAULT_REALM, sizeof(global_realm));
 	ast_copy_string(default_callerid, DEFAULT_CALLERID, sizeof(default_callerid));
-	global_videosupport = DEFAULT_VIDEOSUPPORT;
 	compactheaders = DEFAULT_COMPACTHEADERS;
 	global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
 	global_regattempts_max = 0;
@@ -12534,6 +12596,7 @@ static int reload_config(enum channelreloadreason reason)
 	default_language[0] = '\0';
 	default_fromdomain[0] = '\0';
 	default_qualify = DEFAULT_QUALIFY;
+	default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
 	ast_copy_string(default_musicclass, DEFAULT_MUSICCLASS, sizeof(default_musicclass));
 	ast_copy_string(default_vmexten, DEFAULT_VMEXTEN, sizeof(default_vmexten));
 	ast_set_flag(&global_flags, SIP_DTMF_RFC2833);			/*!< Default DTMF setting: RFC2833 */
@@ -12549,6 +12612,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_relaxdtmf = FALSE;
 	global_callevents = FALSE;
 	global_t1min = DEFAULT_T1MIN;		
+	ast_clear_flag(&global_flags_page2, SIP_PAGE2_VIDEOSUPPORT);
 
 	/* Read the [general] config section of sip.conf (or from realtime config) */
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
@@ -12605,7 +12669,7 @@ static int reload_config(enum channelreloadreason reason)
 				global_rtpkeepalive = 0;
 			}
 		} else if (!strcasecmp(v->name, "videosupport")) {
-			global_videosupport = ast_true(v->value);
+			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_VIDEOSUPPORT);	
 		} else if (!strcasecmp(v->name, "compactheaders")) {
 			compactheaders = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifymimetype")) {
@@ -12757,6 +12821,10 @@ static int reload_config(enum channelreloadreason reason)
 			}
 		} else if (!strcasecmp(v->name, "callevents")) {
 			global_callevents = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "maxcallbitrate")) {
+			default_maxcallbitrate = atoi(v->value);
+			if (default_maxcallbitrate < 0)
+				default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
 		}
 	}
 
