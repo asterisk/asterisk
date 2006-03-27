@@ -1553,6 +1553,7 @@ handle_event_nt(void *dat, void *arg)
 	manager_t *mgr = (manager_t *)dat;
 	msg_t *msg = (msg_t *)arg;
 	mISDNuser_head_t *hh;
+	int reject=0;
 
 	struct misdn_stack *stack=find_stack_by_mgr(mgr);
 	int port;
@@ -1681,8 +1682,8 @@ handle_event_nt(void *dat, void *arg)
 				if (bc) { 
 					int myprocid=bc->l3_id&0x0000ffff;
 					hh->dinfo=(hh->dinfo&0xffff0000)|myprocid;
-					cb_log(3,stack->port,"Repaired reject Bug, new dinfo: %x\n",hh->dinfo);
-					return 0;
+					cb_log(3,stack->port,"Reject dinfo: %x cause:%d\n",hh->dinfo,bc->cause);
+					reject=1;		
 				}
 			}
 		}
@@ -1833,9 +1834,18 @@ handle_event_nt(void *dat, void *arg)
 			if(!isdn_get_info(msgs_g,event,1)) {
 				cb_log(4, stack->port, "Unknown Event Ind: prim %x dinfo %x\n",hh->prim, hh->dinfo);
 			} else {
+				if (reject) {
+					switch(bc->cause){
+						case 17:
+							cb_log(1, stack->port, "Siemens Busy reject..\n");
+
+							break;
+						default:
+							return 0;
+					}
+				}
 				cb_event(event, bc, glob_mgr->user_data);
 			}
-
       
 		} else {
 			cb_log(4, stack->port, "No BC found with l3id: prim %x dinfo %x\n",hh->prim, hh->dinfo);

@@ -3324,6 +3324,16 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			
 		}
 
+		/* check if we should jump into s when we have no dad */
+		{
+			int im;
+			misdn_cfg_get( bc->port, MISDN_CFG_IMMEDIATE, &im, sizeof(im));
+			if ( im && ast_strlen_zero(bc->dad) ) {
+				do_immediate_setup(bc, ch , chan);
+				break;
+			}
+		}
+
 		
 			chan_misdn_log(5,bc->port,"CONTEXT:%s\n",ch->context);
 			if(!ast_canmatch_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
