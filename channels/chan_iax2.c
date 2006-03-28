@@ -6735,7 +6735,7 @@ static int socket_process(struct iax2_thread *thread)
 									if (iaxs[fr.callno]->last < fr.ts) {
 										iaxs[fr.callno]->last = fr.ts;
 #if 1
-										if (option_debug)
+										if (option_debug && iaxdebug)
 											ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
 #endif
 									}
