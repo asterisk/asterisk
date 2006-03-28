@@ -1552,18 +1552,15 @@ static int action_agent_logoff(struct mansession *s, struct message *m)
 
 static char *complete_agent_logoff_cmd(const char *line, const char *word, int pos, int state)
 {
-	struct agent_pvt *p;
-	char name[AST_MAX_AGENT];
-	int which = 0;
-
 	if (pos == 2) {
+		struct agent_pvt *p;
+		char name[AST_MAX_AGENT];
+		int which = 0, len = strlen(word);
+
 		AST_LIST_TRAVERSE(&agents, p, list) {
 			snprintf(name, sizeof(name), "Agent/%s", p->agent);
-			if (!strncasecmp(word, name, strlen(word))) {
-				if (++which > state) {
-					return ast_strdup(name);
-				}
-			}
+			if (!strncasecmp(word, name, len) && ++which > state)
+				return ast_strdup(name);
 		}
 	} else if (pos == 3 && state == 0) {
 		return ast_strdup("soft");
