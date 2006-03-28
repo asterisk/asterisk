@@ -313,7 +313,7 @@ int ast_str2tos(const char *value, unsigned int *tos)
 	else
 		return -1;
 
-	ast_log(LOG_WARNING, "tos value %s is deprecated.  See doc/ip-tos.txt for more information.", value);
+	ast_log(LOG_WARNING, "TOS value %s is deprecated. Please see doc/ip-tos.txt for more information.\n", value);
 
 	return 0;
 }
