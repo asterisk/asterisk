@@ -1949,7 +1949,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	ast_copy_flags(&r->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&r->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 	r->capability = peer->capability;
-	if (!ast_test_flag(&r->flags[0], SIP_PAGE2_VIDEOSUPPORT) && r->vrtp) {
+	if (!ast_test_flag(&r->flags[1], SIP_PAGE2_VIDEOSUPPORT) && r->vrtp) {
 		ast_rtp_destroy(r->vrtp);
 		r->vrtp = NULL;
 	}
