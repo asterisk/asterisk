@@ -42,6 +42,7 @@
 #include <sys/signal.h>
 #include <signal.h>
 #include <string.h>
+#include <strings.h>
 #include <errno.h>
 #include <unistd.h>
 #include <netdb.h>
@@ -5544,7 +5545,7 @@ static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 	
 	memset(&ied, 0, sizeof(ied));
 	if (ies->apparent_addr)
-		memcpy(&new, ies->apparent_addr, sizeof(new));
+		bcopy(ies->apparent_addr, &new, sizeof(new));
 	if (ies->callno)
 		newcall = ies->callno;
 	if (!newcall || !new.sin_addr.s_addr || !new.sin_port) {
@@ -5695,7 +5696,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 
 	memset(&us, 0, sizeof(us));
 	if (ies->apparent_addr)
-		memcpy(&us, ies->apparent_addr, sizeof(us));
+		bcopy(ies->apparent_addr, &us, sizeof(us));
 	if (ies->username)
 		ast_copy_string(peer, ies->username, sizeof(peer));
 	if (ies->refresh)
