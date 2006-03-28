@@ -11759,8 +11759,8 @@ static int sip_poke_peer(struct sip_peer *peer)
 	
 	memcpy(&p->sa, &peer->addr, sizeof(p->sa));
 	memcpy(&p->recv, &peer->addr, sizeof(p->sa));
-	ast_copy_flags(&peer->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
-	ast_copy_flags(&peer->flags[1], &global_flags[1], SIP_PAGE2_FLAGS_TO_COPY);
+	ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
+	ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 
 	/* Send OPTIONs to peer's fullcontact */
 	if (!ast_strlen_zero(peer->fullcontact))
