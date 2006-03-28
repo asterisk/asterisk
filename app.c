@@ -79,7 +79,7 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 	else 
 		ast_log(LOG_NOTICE,"Huh....? no dial for indications?\n");
 	
-	for (x = strlen(collect); strlen(collect) < maxlen; ) {
+	for (x = strlen(collect); x < maxlen; ) {
 		res = ast_waitfordigit(chan, timeout);
 		if (!ast_ignore_pattern(context, collect))
 			ast_playtones_stop(chan);
@@ -94,12 +94,8 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 			break;
 		}
 	}
-	if (res >= 0) {
-		if (ast_exists_extension(chan, context, collect, 1, chan->cid.cid_num))
-			res = 1;
-		else
-			res = 0;
-	}
+	if (res >= 0)
+		res = ast_exists_extension(chan, context, collect, 1, chan->cid.cid_num) ? 1 : 0;
 	return res;
 }
 
@@ -1153,9 +1149,10 @@ enum AST_LOCK_RESULT ast_lock_path(const char *path)
 	char *fs;
 	int res;
 	int fd;
+	int lp = strlen(path);
 	time_t start;
 
-	if (!(s = alloca(strlen(path) + 10)) || !(fs = alloca(strlen(path) + 20))) {
+	if (!(s = alloca(lp + 10)) || !(fs = alloca(lp + 20))) {
 		ast_log(LOG_WARNING, "Out of memory!\n");
 		return AST_LOCK_FAILURE;
 	}
@@ -1510,7 +1507,7 @@ char *ast_read_textfile(const char *filename)
 	if (fd < 0) {
 		ast_log(LOG_WARNING, "Cannot open file '%s' for reading: %s\n", filename, strerror(errno));
 		return NULL;
-	}	
+	}
 	if ((output = ast_malloc(count))) {
 		res = read(fd, output, count - 1);
 		if (res == count - 1) {
@@ -1540,14 +1537,13 @@ int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags
 
 	s = optstr;
 	while (*s) {
-		curarg = *s++ & 0x7f;
+		curarg = *s++ & 0x7f;	/* the array (in app.h) has 128 entries */
 		ast_set_flag(flags, options[curarg].flag);
 		argloc = options[curarg].arg_index;
 		if (*s == '(') {
 			/* Has argument */
 			arg = ++s;
-			while (*s && (*s != ')'))
-				s++;
+			s = strchr(s, ')');
 			if (*s) {
 				if (argloc)
 					args[argloc - 1] = arg;
