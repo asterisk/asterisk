@@ -430,6 +430,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;dtmfmode=inband		; Choices are inband, rfc2833, or info
 ;defaultip=192.168.0.59		; IP used until peer registers
 ;mailbox=1234@context,2345      ; Mailbox(-es) for message waiting indicator
+;subscribemwi=yes		; Only send notifications if this phone 
+				; subscribes for mailbox notification
 ;vmexten=voicemail		; dialplan extension to reach mailbox 
 				; sets the Message-Account in the MWI notify message
 				; defaults to global vmexten which defaults to "asterisk"

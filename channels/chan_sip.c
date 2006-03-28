@@ -186,7 +186,8 @@ enum subscriptiontype {
 	XPIDF_XML,
 	DIALOG_INFO_XML,
 	CPIM_PIDF_XML,
-	PIDF_XML
+	PIDF_XML,
+	MWI_NOTIFICATION
 };
 
 static const struct cfsubscription_types {
@@ -200,7 +201,8 @@ static const struct cfsubscription_types {
 	{ DIALOG_INFO_XML, "dialog",   "application/dialog-info+xml", "dialog-info+xml" },
 	{ CPIM_PIDF_XML,   "presence", "application/cpim-pidf+xml",   "cpim-pidf+xml" },  /* RFC 3863 */
 	{ PIDF_XML,        "presence", "application/pidf+xml",        "pidf+xml" },       /* RFC 3863 */
-	{ XPIDF_XML,       "presence", "application/xpidf+xml",       "xpidf+xml" }       /* Pre-RFC 3863 with MS additions */
+	{ XPIDF_XML,       "presence", "application/xpidf+xml",       "xpidf+xml" },       /* Pre-RFC 3863 with MS additions */
+	{ MWI_NOTIFICATION,	"message-summary", "application/simple-message-summary", "mwi" } /* Mailbox notification */
 };
 
 enum sipmethod {
@@ -408,7 +410,7 @@ static int global_reg_timeout;
 static int global_regattempts_max;	/*!< Registration attempts before giving up */
 static int global_allowguest;		/*!< allow unauthenticated users/peers to connect? */
 static int global_allowsubscribe;	/*!< Flag for disabling ALL subscriptions, this is FALSE only if all peers are FALSE 
-					    the global setting is in globals_flag_page2 */
+					    the global setting is in globals_flags[1] */
 static int global_mwitime;		/*!< Time between MWI checks for peers */
 static int global_tos_sip;		/*!< IP type of service for SIP packets */
 static int global_tos_audio;		/*!< IP type of service for audio RTP packets */
@@ -616,6 +618,7 @@ struct sip_auth {
 #define SIP_PAGE2_VIDEOSUPPORT		(1 << 9)
 #define SIP_PAGE2_ALLOWSUBSCRIBE	(1 << 10)	/*!< Allow subscriptions from this peer? */
 #define SIP_PAGE2_ALLOWOVERLAP		(1 << 11)	/*!< Allow overlap dialing ? */
+#define SIP_PAGE2_SUBSCRIBEMWIONLY	(1 << 12)	/*!< Only issue MWI notification if subscribed to */
 
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
@@ -732,7 +735,8 @@ static struct sip_pvt {
 	
 	struct ast_dsp *vad;			/*!< Voice Activation Detection dsp */
 	
-	struct sip_peer *peerpoke;		/*!< If this dialog is to poke a peer, which one */
+	struct sip_peer *relatedpeer;		/*!< If this dialog is related to a peer, which one 
+							Used in peerpoke, mwi subscriptions */
 	struct sip_registry *registry;		/*!< If this is a REGISTER dialog, to which registry */
 	struct ast_rtp *rtp;			/*!< RTP Session */
 	struct ast_rtp *vrtp;			/*!< Video RTP session */
@@ -843,6 +847,7 @@ struct sip_peer {
 	struct sockaddr_in defaddr;	/*!<  Default IP address, used until registration */
 	struct ast_ha *ha;		/*!<  Access control list */
 	struct ast_variable *chanvars;	/*!<  Variables to set for channel created by user */
+	struct sip_pvt *mwipvt;		/*!<  Subscription for MWI */
 	int lastmsg;
 };
 
@@ -980,6 +985,8 @@ static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tag
 static int find_sip_method(char *msg);
 static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported);
 static void sip_destroy(struct sip_pvt *p);
+static void sip_destroy_peer(struct sip_peer *peer);
+static void sip_destroy_user(struct sip_user *user);
 static void parse_request(struct sip_request *req);
 static char *get_header(struct sip_request *req, const char *name);
 static void copy_request(struct sip_request *dst,struct sip_request *src);
@@ -990,6 +997,8 @@ static int __sip_do_register(struct sip_registry *r);
 static int restart_monitor(void);
 static void set_peer_defaults(struct sip_peer *peer);
 static struct sip_peer *temp_peer(const char *name);
+static int sip_send_mwi_to_peer(struct sip_peer *peer);
+static int sip_scheddestroy(struct sip_pvt *p, int ms);
 
 
 /*----- RTP interface functions */
@@ -1707,6 +1716,11 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	/* Delete it, it needs to disappear */
 	if (peer->call)
 		sip_destroy(peer->call);
+
+	if (peer->mwipvt) {	/* We have an active subscription, delete it */
+		sip_destroy(peer->mwipvt);
+	}
+
 	if (peer->chanvars) {
 		ast_variables_destroy(peer->chanvars);
 		peer->chanvars = NULL;
@@ -2194,6 +2208,10 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 
 	if (sip_debug_test_pvt(p) || option_debug > 2)
 		ast_verbose("Really destroying SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
+
+	/* Remove link from peer to subscription of MWI */
+	if (p->relatedpeer && p->relatedpeer->mwipvt)
+		p->relatedpeer->mwipvt = (struct sip_pvt *) NULL;
 
 	if (dumphistory)
 		sip_dump_history(p);
@@ -5283,7 +5301,6 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 	case AST_EXTENSION_REMOVED:
 		add_header(&req, "Subscription-State", "terminated;reason=noresource");
 		break;
-		break;
 	default:
 		if (p->expiry)
 			add_header(&req, "Subscription-State", "active");
@@ -5364,6 +5381,12 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	ast_build_string(&t, &maxbytes, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
 	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n", !ast_strlen_zero(vmexten) ? vmexten : default_vmexten, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain);
 	ast_build_string(&t, &maxbytes, "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
+	if (p->subscribed) {
+		if (p->expiry)
+			add_header(&req, "Subscription-State", "active");
+		else	/* Expired */
+			add_header(&req, "Subscription-State", "terminated;reason=timeout");
+	}
 
 	if (t > tmp + sizeof(tmp))
 		ast_log(LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
@@ -6608,7 +6631,8 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 					update_peer(peer, p->expiry);
 					/* Say OK and ask subsystem to retransmit msg counter */
 					transmit_response_with_date(p, "200 OK", req);
-					peer->lastmsgssent = -1;
+					if (!ast_test_flag((&peer->flags[1]), SIP_PAGE2_SUBSCRIBEMWIONLY))
+						peer->lastmsgssent = -1;
 					res = 0;
 					break;
 				}
@@ -7145,7 +7169,7 @@ static int get_rpid_num(char *input,char *output, int maxlen)
 	\return 0 on success, -1 on failure, and 1 on challenge sent
 	-2 on authentication error from chedck_auth()
 */
-static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, enum xmittype reliable, struct sockaddr_in *sin, int ignore, char *mailbox, int mailboxlen)
+static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, enum xmittype reliable, struct sockaddr_in *sin, int ignore, struct sip_peer **authpeer)
 {
 	struct sip_user *user = NULL;
 	struct sip_peer *peer;
@@ -7215,7 +7239,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	if (ast_strlen_zero(of))
 		return 0;
 
-	if (!mailbox)	/* If it's a mailbox SUBSCRIBE, don't check users */
+	if (!authpeer)	/* If we are looking for a peer, don't check the user objects (or realtime) */
 		user = find_user(of, 1);
 
 	/* Find user based on user name in the from header */
@@ -7311,7 +7335,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			ast_verbose("Found user '%s'\n", user->name);
 	} else {
 		if (user) {
-			if (!mailbox && debug)
+			if (!authpeer && debug)
 				ast_verbose("Found user '%s', but fails host access\n", user->name);
 			ASTOBJ_UNREF(user,sip_destroy_user);
 		}
@@ -7333,6 +7357,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		if (peer) {
 			if (debug)
 				ast_verbose("Found peer '%s'\n", peer->name);
+
 			/* Take the peer */
 			ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
 			ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
@@ -7389,8 +7414,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 						p->chanvars = tmpvar;
 					}
 				}
-				if (mailbox)
-					snprintf(mailbox, mailboxlen, ",%s,", peer->mailbox);
+				if (authpeer) {
+					(*authpeer) = ASTOBJ_REF(peer);	/* Add a ref to the object here, to keep it in memory a bit longer if it is realtime */
+				}
+
 				if (!ast_strlen_zero(peer->username)) {
 					ast_string_field_set(p, username, peer->username);
 					/* Use the default username for authentication on outbound calls */
@@ -7461,7 +7488,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 */
 static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, enum xmittype reliable, struct sockaddr_in *sin, int ignore)
 {
-	return check_user_full(p, req, sipmethod, uri, reliable, sin, ignore, NULL, 0);
+	return check_user_full(p, req, sipmethod, uri, reliable, sin, ignore, NULL);
 }
 
 /*! \brief  Get text out of a SIP MESSAGE packet */
@@ -8554,7 +8581,7 @@ static int sip_show_subscriptions(int fd, int argc, char *argv[])
 
 static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions)
 {
-#define FORMAT3 "%-15.15s  %-10.10s  %-11.11s  %-15.15s  %-13.13s  %-15.15s\n"
+#define FORMAT3 "%-15.15s  %-10.10s  %-11.11s  %-15.15s  %-13.13s  %-15.15s %-10.10s\n"
 #define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-4.4s  %-7.7s  %-15.15s\n"
 #define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-4.4s  %-3.3s %-3.3s  %-15.15s\n"
 	struct sip_pvt *cur;
@@ -8566,8 +8593,8 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 	cur = iflist;
 	if (!subscriptions)
 		ast_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Format", "Hold", "Last Message");
-	else
-		ast_cli(fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type");
+	else 
+		ast_cli(fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type", "Mailbox");
 	while (cur) {
 		if (cur->subscribed == NONE && !subscriptions) {
 			ast_cli(fd, FORMAT, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), 
@@ -8583,8 +8610,12 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 		if (cur->subscribed != NONE && subscriptions) {
 			ast_cli(fd, FORMAT3, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr),
 				ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
-			   	cur->callid, cur->exten, ast_extension_state2str(cur->laststate), 
-				subscription_type2str(cur->subscribed));
+			   	cur->callid,
+				cur->subscribed == MWI_NOTIFICATION ? "--" : cur->exten,
+				cur->subscribed == MWI_NOTIFICATION ? "<none>" : ast_extension_state2str(cur->laststate), 
+				subscription_type2str(cur->subscribed),
+				cur->subscribed == MWI_NOTIFICATION ? (cur->relatedpeer ? cur->relatedpeer->mailbox : "<none>") : "<none>"
+);
 			numchans++;
 		}
 		cur = cur->next;
@@ -9964,7 +9995,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
 	if (resp != 100) {
 		int statechanged = 0;
 		int newstate = 0;
-		peer = p->peerpoke;
+		peer = p->relatedpeer;
 		gettimeofday(&tv, NULL);
 		pingtime = ast_tvdiff_ms(tv, peer->ps);
 		if (pingtime < 1)
@@ -10044,7 +10075,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		gettag(req, "To", tag, sizeof(tag));
 		ast_string_field_set(p, theirtag, tag);
 	}
-	if (p->peerpoke) {
+	if (p->relatedpeer && p->method == SIP_OPTIONS) {
 		/* We don't really care what the response is, just that it replied back. 
 		   Well, as long as it's not a 100 response...  since we might
 		   need to hang around for something more "definitive" */
@@ -10933,6 +10964,10 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	int gotdest;
 	int res = 0;
 	int firststate = AST_EXTENSION_REMOVED;
+	struct sip_peer *authpeer = NULL;
+	char *event = get_header(req, "Event");	/* Get Event package name */
+	char *accept = get_header(req, "Accept");
+	char *eventparam;
 
 	if (p->initreq.headers) {	
 		/* We already have a dialog */
@@ -10943,9 +10978,11 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			/* Do not destroy session, since we will break the call if we do */
 			ast_log(LOG_DEBUG, "Got a subscription within the context of another call, can't handle that - %s (Method %s)\n", p->callid, sip_methods[p->initreq.method].text);
 			return 0;
-		} else {
-			if (debug)
+		} else if (debug) {
+			if (p->subscribed != NONE)
 				ast_log(LOG_DEBUG, "Got a re-subscribe on existing subscription %s\n", p->callid);
+			else
+				ast_log(LOG_DEBUG, "Got a new subscription %s (possibly with auth)\n", p->callid);
 		}
 	}
 
@@ -10958,10 +10995,11 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		return 0;
 	}
 
-	if (!ignore && !p->initreq.headers) {
+	if (!ignore && !p->initreq.headers) {	/* Set up dialog, new subscription */
 		/* Use this as the basis */
 		if (debug)
-			ast_verbose("Using latest SUBSCRIBE request as basis request\n");
+			ast_verbose("Creating new subscription\n");
+
 		/* This call is no longer outgoing if it ever was */
 		ast_clear_flag(&p->flags[0], SIP_OUTGOING);
 		copy_request(&p->initreq, req);
@@ -10969,113 +11007,96 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	} else if (debug && ignore)
 		ast_verbose("Ignoring this SUBSCRIBE request\n");
 
-	if (!p->lastinvite) {
-		char mailboxbuf[256]="";
-		char *mailbox = NULL;
-		int mailboxsize = 0;
-		char *eventparam;
 
-		char *event = get_header(req, "Event");	/* Get Event package name */
-		char *accept = get_header(req, "Accept");
 
-		/* Find parameters to Event: header value and remove them for now */
-		eventparam = strchr(event, ';');
-		if (eventparam) {
-			*eventparam = '\0';
-			eventparam++;
-		}
+	/* Find parameters to Event: header value and remove them for now */
+	if ((eventparam = strchr(event, ';')))
+		*eventparam++ = '\0';
 
- 		if (!strcmp(event, "message-summary") && !strcmp(accept, "application/simple-message-summary")) {
-			mailbox = mailboxbuf;
-			mailboxsize = sizeof(mailboxbuf);
-		}
-		/* Handle authentication if this is our first subscribe */
-		res = check_user_full(p, req, SIP_SUBSCRIBE, e, XMIT_UNRELIABLE, sin, ignore, mailbox, mailboxsize);
-		if (res) {
-			if (res < 0) {
-				ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
-				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-			}
-			return 0;
-		}
-
-		/* Check if this user/peer is allowed to subscribe at all */
-		if (! ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
- 			transmit_response(p, "403 Forbidden (policy)", req);
+	/* Handle authentication if this is our first subscribe */
+	res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, ignore, &authpeer);
+	if (res) {
+		if (res < 0) {
+			ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-			return 0;
 		}
+		return 0;
+	}
 
-		/* Initialize the context if it hasn't been already */
-		if (!ast_strlen_zero(p->subscribecontext))
-			ast_string_field_set(p, context, p->subscribecontext);
-		else if (ast_strlen_zero(p->context))
-			ast_string_field_set(p, context, default_context);
-		/* Get destination right away */
-		gotdest = get_destination(p, NULL);
-		build_contact(p);
-		if (gotdest) {
-			transmit_response(p, "404 Not Found", req);
-			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-		} else {
+	/* Check if this user/peer is allowed to subscribe at all */
+	if (!ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
+		transmit_response(p, "403 Forbidden (policy)", req);
+		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+		return 0;
+	}
 
-			/* Initialize tag for new subscriptions */	
-			if (ast_strlen_zero(p->tag))
-				make_our_tag(p->tag, sizeof(p->tag));
+	/* Initialize the context if it hasn't been already */
+	if (!ast_strlen_zero(p->subscribecontext))
+		ast_string_field_set(p, context, p->subscribecontext);
+	else if (ast_strlen_zero(p->context))
+		ast_string_field_set(p, context, default_context);
 
-			if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
+	/* Get destination right away */
+	gotdest = get_destination(p, NULL);
+	build_contact(p);
+	if (gotdest) {
+		transmit_response(p, "404 Not Found", req);
+		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		return 0;
+	} else {
 
- 				/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
- 				if (strstr(accept, "application/pidf+xml")) {
- 					p->subscribed = PIDF_XML;         /* RFC 3863 format */
- 				} else if (strstr(accept, "application/dialog-info+xml")) {
- 					p->subscribed = DIALOG_INFO_XML;
- 					/* IETF draft: draft-ietf-sipping-dialog-package-05.txt */
- 				} else if (strstr(accept, "application/cpim-pidf+xml")) {
- 					p->subscribed = CPIM_PIDF_XML;    /* RFC 3863 format */
- 				} else if (strstr(accept, "application/xpidf+xml")) {
- 					p->subscribed = XPIDF_XML;        /* Early pre-RFC 3863 format with MSN additions (Microsoft Messenger) */
- 				} else if (strstr(p->useragent, "Polycom")) {
- 					p->subscribed = XPIDF_XML;        /*  Polycoms subscribe for "event: dialog" but don't include an "accept:" header */
-				} else {
- 					/* Can't find a format for events that we know about */
- 					transmit_response(p, "489 Bad Event", req);
- 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
- 					return 0;
- 				}
- 			} else if (!strcmp(event, "message-summary") && !strcmp(accept, "application/simple-message-summary")) {
-				/* Looks like they actually want a mailbox status */
+		/* Initialize tag for new subscriptions */	
+		if (ast_strlen_zero(p->tag))
+			make_our_tag(p->tag, sizeof(p->tag));
 
-				/* At this point, we should check if they subscribe to a mailbox that
-				  has the same extension as the peer or the mailbox id. If we configure
-				  the context to be the same as a SIP domain, we could check mailbox
-				  context as well. To be able to securely accept subscribes on mailbox
-				  IDs, not extensions, we need to check the digest auth user to make
-				  sure that the user has access to the mailbox.
-				 
-				  Since we do not act on this subscribe anyway, we might as well 
-				  accept any authenticated peer with a mailbox definition in their 
-				  config section.
-				
-				*/
-				if (!ast_strlen_zero(mailbox)) {
-					transmit_response(p, "200 OK", req);
-					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-				} else {
-					transmit_response(p, "404 Not found", req);
-					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-				}
-				return 0;
-			} else { /* At this point, Asterisk does not understand the specified event */
-				transmit_response(p, "489 Bad Event", req);
-				if (option_debug > 1)
-					ast_log(LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
+		if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
+
+			/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
+ 			if (strstr(accept, "application/pidf+xml")) {
+ 				p->subscribed = PIDF_XML;         /* RFC 3863 format */
+ 			} else if (strstr(accept, "application/dialog-info+xml")) {
+ 				p->subscribed = DIALOG_INFO_XML;
+ 				/* IETF draft: draft-ietf-sipping-dialog-package-05.txt */
+ 			} else if (strstr(accept, "application/cpim-pidf+xml")) {
+ 				p->subscribed = CPIM_PIDF_XML;    /* RFC 3863 format */
+ 			} else if (strstr(accept, "application/xpidf+xml")) {
+ 				p->subscribed = XPIDF_XML;        /* Early pre-RFC 3863 format with MSN additions (Microsoft Messenger) */
+ 			} else if (strstr(p->useragent, "Polycom")) {
+ 				p->subscribed = XPIDF_XML;        /*  Polycoms subscribe for "event: dialog" but don't include an "accept:" header */
+			} else {
+ 				/* Can't find a format for events that we know about */
+ 				transmit_response(p, "489 Bad Event", req);
+ 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+ 				return 0;
+ 			}
+ 		} else if (!strcmp(event, "message-summary") && !strcmp(accept, "application/simple-message-summary")) {
+			/* Looks like they actually want a mailbox status 
+			  This version of Asterisk supports mailbox subscriptions
+			  The subscribed URI needs to exist in the dial plan
+			  In most devices, this is configurable to the voicemailmain extension you use
+			*/
+			if (!authpeer || ast_strlen_zero(authpeer->mailbox)) {
+				transmit_response(p, "404 Not found (no mailbox)", req);
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+				ast_log(LOG_NOTICE, "Received SIP subscribe for peer without mailbox: %s\n", authpeer->name);
 				return 0;
 			}
-			if (p->subscribed != NONE)
-				p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
+
+ 			p->subscribed = MWI_NOTIFICATION;
+			if (authpeer->mwipvt && authpeer->mwipvt != p)	/* Destroy old PVT if this is a new one */
+				/* We only allow one subscription per peer */
+				sip_destroy(authpeer->mwipvt);
+			authpeer->mwipvt = p;		/* Link from peer to pvt */
+			p->relatedpeer = authpeer;	/* Link from pvt to peer */
+		} else { /* At this point, Asterisk does not understand the specified event */
+			transmit_response(p, "489 Bad Event", req);
+			if (option_debug > 1)
+				ast_log(LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
+ 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			return 0;
 		}
+		if (p->subscribed != MWI_NOTIFICATION)
+			p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
 	}
 
 	if (!ignore && p)
@@ -11089,54 +11110,69 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (p->expiry < min_expiry && p->expiry > 0)
 			p->expiry = min_expiry;
 
-		if (sipdebug || option_debug > 1)
-			ast_log(LOG_DEBUG, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
+		if (sipdebug || option_debug > 1) {
+			if (p->subscribed == MWI_NOTIFICATION && p->relatedpeer)
+				ast_log(LOG_DEBUG, "Adding subscription for mailbox notification - peer %s Mailbox %s\n", p->relatedpeer->name, p->relatedpeer->mailbox);
+			else
+				ast_log(LOG_DEBUG, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
+		}
 		if (p->autokillid > -1)
 			sip_cancel_destroy(p);	/* Remove subscription expiry for renewals */
 		if (p->expiry > 0)
 			sip_scheddestroy(p, (p->expiry + 10) * 1000);	/* Set timer for destruction of call at expiration */
 
-		if ((firststate = ast_extension_state(NULL, p->context, p->exten)) < 0) {
-			ast_log(LOG_ERROR, "Got SUBSCRIBE for extensions without hint. Please add hint to %s in context %s\n", p->exten, p->context);
-			transmit_response(p, "404 Not found", req);
-			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-			return 0;
-		} else {
-			struct sip_pvt *p_old;
-
+		if (p->subscribed == MWI_NOTIFICATION) {
 			transmit_response(p, "200 OK", req);
-			transmit_state_notify(p, firststate, 1);	/* Send first notification */
-			append_history(p, "Subscribestatus", "%s", ast_extension_state2str(firststate));
-
-			/* remove any old subscription from this peer for the same exten/context,
-			   as the peer has obviously forgotten about it and it's wasteful to wait
-			   for it to expire and send NOTIFY messages to the peer only to have them
-			   ignored (or generate errors)
-			*/
-			ast_mutex_lock(&iflock);
-			for (p_old = iflist; p_old; p_old = p_old->next) {
-				if (p_old == p)
-					continue;
-				if (p_old->initreq.method != SIP_SUBSCRIBE)
-					continue;
-				if (p_old->subscribed == NONE)
-					continue;
-				ast_mutex_lock(&p_old->lock);
-				if (!strcmp(p_old->username, p->username)) {
-					if (!strcmp(p_old->exten, p->exten) &&
-					    !strcmp(p_old->context, p->context)) {
-						ast_set_flag(&p_old->flags[0], SIP_NEEDDESTROY);
-						ast_mutex_unlock(&p_old->lock);
-						break;
-					}
-				}
-				ast_mutex_unlock(&p_old->lock);
+			if (p->relatedpeer) {	/* Send first notification */
+				ASTOBJ_WRLOCK(p->relatedpeer);
+				sip_send_mwi_to_peer(p->relatedpeer);
+				ASTOBJ_UNLOCK(p->relatedpeer);
 			}
-			ast_mutex_unlock(&iflock);
+		} else {
+			if ((firststate = ast_extension_state(NULL, p->context, p->exten)) < 0) {
+				ast_log(LOG_ERROR, "Got SUBSCRIBE for extension without hint. Please add hint to %s in context %s\n", p->exten, p->context);
+				transmit_response(p, "404 Not found", req);
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+				return 0;
+			} else {
+				struct sip_pvt *p_old;
+	
+				transmit_response(p, "200 OK", req);
+				transmit_state_notify(p, firststate, 1);	/* Send first notification */
+				append_history(p, "Subscribestatus", "%s", ast_extension_state2str(firststate));
+
+				/* remove any old subscription from this peer for the same exten/context,
+			   	as the peer has obviously forgotten about it and it's wasteful to wait
+			   	for it to expire and send NOTIFY messages to the peer only to have them
+			   	ignored (or generate errors)
+				*/
+				ast_mutex_lock(&iflock);
+				for (p_old = iflist; p_old; p_old = p_old->next) {
+					if (p_old == p)
+						continue;
+					if (p_old->initreq.method != SIP_SUBSCRIBE)
+						continue;
+					if (p_old->subscribed == NONE)
+						continue;
+					ast_mutex_lock(&p_old->lock);
+					if (!strcmp(p_old->username, p->username)) {
+						if (!strcmp(p_old->exten, p->exten) &&
+						    !strcmp(p_old->context, p->context)) {
+							ast_set_flag(&p_old->flags[0], SIP_NEEDDESTROY);
+							ast_mutex_unlock(&p_old->lock);
+							break;
+						}
+					}
+					ast_mutex_unlock(&p_old->lock);
+				}
+				ast_mutex_unlock(&iflock);
+			}
 		}
 		if (!p->expiry)
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 	}
+	if (authpeer)
+		ASTOBJ_UNREF(authpeer, sip_destroy_peer);
 	return 1;
 }
 
@@ -11471,26 +11507,54 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		return 0;
 	}
 	
-	if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY)))
-		return -1;
 	
 	peer->lastmsgssent = ((newmsgs << 8) | (oldmsgs));
-	if (create_addr_from_peer(p, peer)) {
-		/* Maybe they're not registered, etc. */
-		sip_destroy(p);
-		return 0;
+
+	if (peer->mwipvt) {
+		/* Base message on subscription */
+		p = peer->mwipvt;
+	} else {
+		/* Build temporary dialog for this message */
+		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY)))
+			return -1;
+		if (create_addr_from_peer(p, peer)) {
+			/* Maybe they're not registered, etc. */
+			sip_destroy(p);
+			return 0;
+		}
+		/* Recalculate our side, and recalculate Call ID */
+		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
+			memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+		build_via(p);
+		build_callid_pvt(p);
+		/* Destroy this session after 32 secs */
+		sip_scheddestroy(p, 32000);
 	}
-	/* Recalculate our side, and recalculate Call ID */
-	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
-		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
-	build_via(p);
-	build_callid_pvt(p);
 	/* Send MWI */
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 	transmit_notify_with_mwi(p, newmsgs, oldmsgs, peer->vmexten);
-	sip_scheddestroy(p, 15000);
 	return 0;
 }
+
+/*! \brief Check whether peer needs a new MWI notification check */
+static int does_peer_need_mwi(struct sip_peer *peer)
+{
+	time_t t;
+
+	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SUBSCRIBEMWIONLY) &&
+	    !peer->mwipvt) {	/* We don't have a subscription */
+		time(&peer->lastmsgcheck);	/* Reset timer */
+		return FALSE;
+	}
+
+	time(&t);
+			
+	if (!ast_strlen_zero(peer->mailbox) && ((t - peer->lastmsgcheck) > global_mwitime)) 
+		return TRUE;
+
+	return FALSE;
+}
+
 
 /*! \brief The SIP monitoring thread 
 \note	This thread monitors all the SIP sessions and peers that needs notification of mwi
@@ -11594,7 +11658,7 @@ restartsearch:
 		curpeernum = 0;
 		peer = NULL;
 		ASTOBJ_CONTAINER_TRAVERSE(&peerl, !peer, do {
-			if ((curpeernum > lastpeernum) && !ast_strlen_zero(iterator->mailbox) && ((t - iterator->lastmsgcheck) > global_mwitime)) {
+			if ((curpeernum > lastpeernum) && does_peer_need_mwi(iterator)) {
 				fastrestart = TRUE;
 				lastpeernum = curpeernum;
 				peer = ASTOBJ_REF(iterator);
@@ -11719,7 +11783,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 
 	if (peer->pokeexpire > -1)
 		ast_sched_del(sched, peer->pokeexpire);
-	p->peerpoke = peer;
+	p->relatedpeer = peer;
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 #ifdef VOCAL_DATA_HACK
 	ast_copy_string(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
@@ -12471,6 +12535,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			ast_copy_string(peer->musicclass, v->value, sizeof(peer->musicclass));
 		} else if (!strcasecmp(v->name, "mailbox")) {
 			ast_copy_string(peer->mailbox, v->value, sizeof(peer->mailbox));
+		} else if (!strcasecmp(v->name, "subscribemwi")) {
+			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_SUBSCRIBEMWIONLY);
 		} else if (!strcasecmp(v->name, "vmexten")) {
 			ast_copy_string(peer->vmexten, v->value, sizeof(peer->vmexten));
 		} else if (!strcasecmp(v->name, "callgroup")) {
