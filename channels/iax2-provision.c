@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -330,7 +330,7 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 				ast_log(LOG_WARNING, "Ignoring invalid codec '%s' for '%s' at line %d\n", v->value, s, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (ast_str2tos(v->value, &cur->tos))
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, see doc/iptos.txt for more information.\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos value at line %d, see doc/ip-tos.txt for more information.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "user")) {
 			strncpy(cur->user, v->value, sizeof(cur->user) - 1);
 			if (strcmp(cur->user, v->value))

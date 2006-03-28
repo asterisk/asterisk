@@ -12821,18 +12821,18 @@ static int reload_config(enum channelreloadreason reason)
 				global_tos_sip = temp_tos;
 				global_tos_audio = temp_tos;
 				global_tos_video = temp_tos;
-				ast_log(LOG_WARNING, "tos value at line %d is deprecated.  See doc/iptos.txt for more information.", v->lineno);
+				ast_log(LOG_WARNING, "tos value at line %d is deprecated.  See doc/ip-tos.txt for more information.", v->lineno);
 			} else
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, See doc/iptos.txt for more information.\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos value at line %d, See doc/ip-tos.txt for more information.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "tos_sip")) {
 			if (ast_str2tos(v->value, &global_tos_sip))
-				ast_log(LOG_WARNING, "Invalid tos_sip value at line %d, recommended value is 'cs3'. See doc/iptos.txt.\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos_sip value at line %d, recommended value is 'cs3'. See doc/ip-tos.txt.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "tos_audio")) {
 			if (ast_str2tos(v->value, &global_tos_audio))
-				ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, recommended value is 'ef'. See doc/iptos.txt.\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, recommended value is 'ef'. See doc/ip-tos.txt.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "tos_video")) {
 			if (ast_str2tos(v->value, &global_tos_video))
-				ast_log(LOG_WARNING, "Invalid tos_video value at line %d, recommended value is 'af41'. See doc/iptos.txt.\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos_video value at line %d, recommended value is 'af41'. See doc/ip-tos.txt.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "bindport")) {
 			if (sscanf(v->value, "%d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
