@@ -685,42 +685,36 @@ static int conf_cmd(int fd, int argc, char **argv) {
 	return 0;
 }
 
-static char *complete_confcmd(const char *line, const char *word, int pos, int state) {
-#define CONF_COMMANDS 6
-	int which = 0, x = 0;
+static char *complete_confcmd(const char *line, const char *word, int pos, int state)
+{
+	static char *cmds[] = {"lock", "unlock", "mute", "unmute", "kick", "list", NULL};
+
+	int len = strlen(word);
+	int which = 0;
 	struct ast_conference *cnf = NULL;
 	struct ast_conf_user *usr = NULL;
 	char *confno = NULL;
 	char usrno[50] = "";
-	char cmds[CONF_COMMANDS][20] = {"lock", "unlock", "mute", "unmute", "kick", "list"};
-	char *myline;
+	char *myline, *ret = NULL;
 	
-	if (pos == 1) {
-		/* Command */
-		for (x = 0;x < CONF_COMMANDS; x++) {
-			if (!strncasecmp(cmds[x], word, strlen(word))) {
-				if (++which > state) {
-					return strdup(cmds[x]);
-				}
-			}
-		}
-	} else if (pos == 2) {
-		/* Conference Number */
+	if (pos == 1) {		/* Command */
+		return ast_cli_complete(word, cmds, state);
+	} else if (pos == 2) {	/* Conference Number */
 		AST_LIST_LOCK(&confs);
 		AST_LIST_TRAVERSE(&confs, cnf, list) {
-			if (!strncasecmp(word, cnf->confno, strlen(word))) {
-				if (++which > state)
-					break;
+			if (!strncasecmp(word, cnf->confno, len) && ++which > state) {
+				ret = cnf->confno;
+				break;
 			}
 		}
+		ret = ast_strdup(ret); /* dup before releasing the lock */
 		AST_LIST_UNLOCK(&confs);
-		return cnf ? strdup(cnf->confno) : NULL;
+		return ret;
 	} else if (pos == 3) {
 		/* User Number || Conf Command option*/
 		if (strstr(line, "mute") || strstr(line, "kick")) {
-			if ((state == 0) && (strstr(line, "kick") || strstr(line,"mute")) && !(strncasecmp(word, "all", strlen(word)))) {
+			if (state == 0 && (strstr(line, "kick") || strstr(line,"mute")) && !strncasecmp(word, "all", len))
 				return strdup("all");
-			}
 			which++;
 			AST_LIST_LOCK(&confs);
 
@@ -740,10 +734,8 @@ static char *complete_confcmd(const char *line, const char *word, int pos, int s
 				/* Search for the user */
 				for (usr = cnf->firstuser; usr; usr = usr->nextuser) {
 					snprintf(usrno, sizeof(usrno), "%d", usr->user_no);
-					if (!strncasecmp(word, usrno, strlen(word))) {
-						if (++which > state)
-							break;
-					}
+					if (!strncasecmp(word, usrno, len) && ++which > state)
+						break;
 				}
 			}
 			AST_LIST_UNLOCK(&confs);
