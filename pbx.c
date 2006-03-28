@@ -2974,7 +2974,7 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 		watchers = 0;
 		for (watcher = hint->callbacks; watcher; watcher = watcher->next)
 			watchers++;
-		ast_cli(fd, "   %-20.20s@%20s: %-20.20s  State:%-15.15s Watchers %2d\n",
+		ast_cli(fd, "   %20s@%-20.20s: %-20.20s  State:%-15.15s Watchers %2d\n",
 			ast_get_extension_name(hint->exten),
 			ast_get_context_name(ast_get_extension_context(hint->exten)),
 			ast_get_extension_app(hint->exten),
