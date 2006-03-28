@@ -21,6 +21,7 @@
  * \brief Module Loader
  *
  * \author Mark Spencer <markster@digium.com> 
+ * - See ModMngMnt
  */
 
 #include <stdio.h>
@@ -74,14 +75,14 @@ static unsigned char expected_key[] =
  * MS_ACTIVE	load() returned successfully.
  */
 enum st_t {  /* possible states of a module */
-	MS_FAILED = 0,              /* cannot load */
-	MS_NEW = 1,                 /* nothing known */
-	MS_RESOLVED = 2,            /* all required resolved */
-	MS_CANLOAD = 3,             /* as above, plus cyclic depend.*/
-	MS_ACTIVE = 4,              /* all done */
+	MS_FAILED = 0,              /*!< cannot load */
+	MS_NEW = 1,                 /*!< nothing known */
+	MS_RESOLVED = 2,            /*!< all required resolved */
+	MS_CANLOAD = 3,             /*!< as above, plus cyclic depend.*/
+	MS_ACTIVE = 4,              /*!< all done */
 };
 
-/*
+/*! \note
  * All module symbols are in module_symbols.
  * Modules are then linked in a list of struct module,
  * whereas updaters are in a list of struct loadupdate.
@@ -115,7 +116,7 @@ static AST_LIST_HEAD_STATIC(module_list, module);
 static AST_LIST_HEAD_STATIC(updaters, loadupdate);
 AST_MUTEX_DEFINE_STATIC(reloadlock);
 
-/*
+/*! \note
  * helper localuser routines.
  * All of these routines are extremely expensive, so the use of
  * macros is totally unnecessary from the point of view of performance:
@@ -209,8 +210,8 @@ static const char *st_name(enum st_t state)
 /*! \brief
  * Fetch/release an exported symbol - modify export_refcount by delta
  * \param delta 1 to fetch a symbol, -1 to release it.
- * on success, return symbol value.
- * Note, modules in MS_FAIL will never match in a 'get' request.
+ * \return on success, return symbol value.
+ * \note Note, modules in MS_FAIL will never match in a 'get' request.
  * If src is non-NULL, on exit *src points to the source module.
  *
  * Must be called with the lock held.
@@ -297,8 +298,8 @@ static int check_exported(struct module *m)
 
 /*!
  * \brief Resolve symbols and change state accordingly.
- * Return 1 if state changed, 0 otherwise.
- * If MS_FAILED, MS_ACTIVE or MS_CANLOAD there is nothing to do.
+ * \return Return 1 if state changed, 0 otherwise.
+ * \note If MS_FAILED, MS_ACTIVE or MS_CANLOAD there is nothing to do.
  * If a symbol cannot be resolved (no supplier or supplier in MS_FAIL),
  * move to MS_FAIL and release all symbols;
  * If all suppliers are MS_ACTIVE, move to MS_CANLOAD
@@ -333,8 +334,8 @@ static int resolve(struct module *m)
 	return 1;
 }
 
-/*
- * Fixup references and load modules according to their dependency order.
+/*!
+ * \brief Fixup references and load modules according to their dependency order.
  * Called when new modules are added to the list.
  * The algorithm is as follows:
  * - all modules MS_FAILED are changed to MS_NEW, in case something
@@ -342,19 +343,19 @@ static int resolve(struct module *m)
  * - first try to resolve symbols. If successful, change the
  *   module's state to MS_RESOLVED otherwise to MS_FAILED
  * - repeat on all modules until there is progress:
- *    . if it is MS_ACTIVE or MS_FAILED, continue (no progress)
- *    . if one has all required modules in MS_ACTIVE, try to load it.
+ *    - if it is MS_ACTIVE or MS_FAILED, continue (no progress)
+ *    - if one has all required modules in MS_ACTIVE, try to load it.
  *      If successful it becomes MS_ACTIVE itself, otherwise
  *             MS_FAILED and releases all symbols.
  *             In any case, we have progress.
- *    . if one of the dependencies is MS_FAILED, release and set to
+ *    - if one of the dependencies is MS_FAILED, release and set to
  *      MS_FAILED here too. We have progress.
  * - if we have no progress there is a cyclic dependency.
  *      Take first and change to MS_CANLOAD, i.e. as if all required are
  *      MS_ACTIVE. we have progress, so repeat.
- * NOTE:
- *   must be called with lock held
- *   recursive calls simply return success.
+ * \par NOTE:
+ *   - must be called with lock held
+ *   - recursive calls simply return success.
  */
 static int fixup(const char *caller)
 {
@@ -449,7 +450,7 @@ static void check_symbols(void)
 }
 /*--- end new-style routines ---*/
 
-/*
+/*! \note
  * In addition to modules, the reload command handles some extra keywords
  * which are listed here together with the corresponding handlers.
  * This table is also used by the command completion code.
@@ -812,10 +813,10 @@ static struct module * __load_resource(const char *resource_name,
 	return cur;
 }
 
-/*
- * load a single module (API call).
+/*!
+ * \brief load a single module (API call).
  * (recursive calls from load_module() succeed.
- * Returns 0 on success, -1 on error.
+ * \return Returns 0 on success, -1 on error.
  */
 int ast_load_resource(const char *resource_name)
 {
@@ -851,7 +852,7 @@ int ast_load_resource(const char *resource_name)
 +}
 #endif
 
-/* if enabled, log and output on console the module's name, and try load it */
+/*! \brief if enabled, log and output on console the module's name, and try load it */
 static int print_and_load(const char *s, struct ast_config *cfg)
 {
 	char tmp[80];

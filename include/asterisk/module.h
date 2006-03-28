@@ -41,7 +41,7 @@ extern "C" {
 #define STATIC_MODULE	static /* symbols are static */
 #endif
 
-/* Every module should provide these functions */
+/*! \note Every module should provide these functions */
 /*! 
  * \brief Initialize the module.
  * 
@@ -285,8 +285,8 @@ struct localuser {
 	AST_LIST_ENTRY(localuser) next;
 };
 
-/*! structure used for lock and refcount of module users.
- * The mutex protects the usecnt field and whatever needs to be
+/*! \brief structure used for lock and refcount of module users.
+ * \note The mutex protects the usecnt field and whatever needs to be
  * protected (typically, a list of struct localuser).
  * As a trick, if usecnt is initialized with -1,
  * ast_format_register will init the mutex for you.
@@ -318,7 +318,7 @@ void ast_hangup_localusers(struct ast_module_lock *m);
 
 #define STANDARD_USECOUNT_DECL LOCAL_USER_DECL	/* XXX lock remains unused */
 
-/*! run 'x' protected by lock, then call ast_update_use_count() */
+/*! \brief run 'x' protected by lock, then call ast_update_use_count() */
 #define __MOD_PROTECT(x) do {			\
 	ast_mutex_lock(&me.lock);		\
 	x;					\
@@ -381,8 +381,8 @@ void ast_hangup_localusers(struct ast_module_lock *m);
  */
 #define STANDARD_USECOUNT(res) do { res = me.usecnt; } while (0)
 
-/*
- * XXX The following macro is deprecated, and only used by modules
+/*! \brief Old usecount macro
+ * \note XXX The following macro is deprecated, and only used by modules
  * in codecs/ and a few other places which do their own manipulation
  * of the usecount variable.
  * Its use is supposed to be gradually phased away as those modules
@@ -390,16 +390,18 @@ void ast_hangup_localusers(struct ast_module_lock *m);
  */
 #define OLD_STANDARD_USECOUNT(res) do { res = localusecnt; } while (0)
 
-/*!
- * \brief The following is part of the new module management code.
+/*! \page ModMngmnt The Asterisk Module management interface
+ * \par The following is part of the new module management code.
  *
  * All modules must implement the module API (load, unload...)
  * whose functions are exported through fields of a "struct module_symbol";
  *
  * Modules exporting extra symbols (data or functions), should list
- * them into an array of struct symbol_entry:
+ * them into an array of struct symbol_entry: \r
  *     struct symbol_entry exported_symbols[]
+ * \r
  * of symbols, with a NULL name on the last entry
+ *
  * Functions should be added with MOD_FUNC(name),
  * data structures with MOD_DATA(_name).
  * The array in turn is referenced by struct module_symbol.
@@ -407,6 +409,7 @@ void ast_hangup_localusers(struct ast_module_lock *m);
  * to a record containing all the methods. This is the API of the module,
  * and should be known to the module's clients as well.
  *
+ * \par Connections to symbols in other modules
  * Modules that require symbols supplied by other modules should
  * provide an array
  *     struct symbol_entry required_symbols[]
@@ -438,7 +441,7 @@ void ast_hangup_localusers(struct ast_module_lock *m);
  *	.buf = buf,
  *     }
  *
- * NOTE: symbol names are 'global' in this module namespace, so it
+ * \note NOTE: symbol names are 'global' in this module namespace, so it
  * will be wiser to name exported symbols with a prefix indicating the module
  * supplying it, e.g. foo_f, foo_g, foo_buf. Internally to the module,
  * symbols are still static so they can keep short and meaningful names.
@@ -451,6 +454,36 @@ void ast_hangup_localusers(struct ast_module_lock *m);
  *
  * Note that the loader requires that no fields of exported_symbols
  * are NULL, because that is used as an indication of the end of the array.
+ *
+ * \par Module states
+ * Modules can be in a number of different states, as below:
+ * - \b MS_FAILED    attempt to load failed. This is final.
+ * - \b MS_NEW       just added to the list, symbols unresolved.
+ * - \b MS_RESOLVED  all symbols resolved, but supplier modules not active yet.
+ * - \b MS_CANLOAD   all symbols resolved and suppliers are all active
+ *              (or we are in a cyclic dependency and we are breaking a loop)
+ * - \b MS_ACTIVE    load() returned successfully.
+ *
+ * 
+ * \par Module Types
+ * For backward compatibility, we have 3 types of loadable modules:
+ *
+ * - \b MOD_0 these are the 'old style' modules, which export a number
+ *       of callbacks, and their full interface, as globally visible
+ *       symbols. The module needs to be loaded with RTLD_LAZY and
+ *       RTLD_GLOBAL to make symbols visible to other modules, and
+ *       to avoid load failures due to cross dependencies.
+ *
+ * - \b MOD_1 almost as above, but the generic callbacks are all into a
+ *       a structure, mod_data. Same load requirements as above.
+ *
+ * - \b MOD_2 this is the 'new style' format for modules. The module must
+ *       explictly declare which simbols are exported and which
+ *       symbols from other modules are used, and the code in this
+ *       loader will implement appropriate checks to load the modules
+ *       in the correct order. Also this allows to load modules
+ *       with RTLD_NOW and RTLD_LOCAL so there is no chance of run-time
+ *       bugs due to unresolved symbols or name conflicts.
  */
 
 struct symbol_entry {
