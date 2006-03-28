@@ -5461,6 +5461,8 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 		ast_copy_string(r->callid, p->callid, sizeof(r->callid));
 		if (r->portno)
 			p->sa.sin_port = htons(r->portno);
+		else 	/* Set registry port to the port set from the peer definition/srv or default */
+			r->portno = p->sa.sin_port;
 		ast_set_flag(p, SIP_OUTGOING);	/* Registration is outgoing call */
 		r->call=p;			/* Save pointer to SIP packet */
 		p->registry=ASTOBJ_REF(r);	/* Add pointer to registry in packet */
@@ -11542,8 +11544,9 @@ static int sip_poke_peer(struct sip_peer *peer)
 	}
 	memcpy(&p->sa, &peer->addr, sizeof(p->sa));
 	memcpy(&p->recv, &peer->addr, sizeof(p->sa));
+	ast_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
 
-	/* Send options to peer's fullcontact */
+	/* Send OPTIONs to peer's fullcontact */
 	if (!ast_strlen_zero(peer->fullcontact)) {
 		ast_copy_string (p->fullcontact, peer->fullcontact, sizeof(p->fullcontact));
 	}
