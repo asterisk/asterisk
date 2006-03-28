@@ -2116,11 +2116,9 @@ static char *complete_iax2_show_peer(const char *line, const char *word, int pos
 	if (pos == 3) {
 		ast_mutex_lock(&peerl.lock);
 		for (p = peerl.peers ; p ; p = p->next) {
-			if (!strncasecmp(p->name, word, wordlen)) {
-				if (++which > state) {
-					res = ast_strdup(p->name);
-					break;
-				}
+			if (!strncasecmp(p->name, word, wordlen) && ++which > state) {
+				res = ast_strdup(p->name);
+				break;
 			}
 		}
 		ast_mutex_unlock(&peerl.lock);

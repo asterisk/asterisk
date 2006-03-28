@@ -1035,19 +1035,9 @@ static int console_autoanswer(int fd, int argc, char *argv[])
 
 static char *autoanswer_complete(const char *line, const char *word, int pos, int state)
 {
-	int l = strlen(word);
+	static char *choices[] = { "on", "off", NULL };
 
-	switch(state) {
-	case 0:
-		if (l && !strncasecmp(word, "on", MIN(l, 2)))
-			return ast_strdup("on");
-	case 1:
-		if (l && !strncasecmp(word, "off", MIN(l, 3)))
-			return ast_strdup("off");
-	default:
-		return NULL;
-	}
-	return NULL;
+	return (pos != 1) ? NULL : ast_cli_complete(word, choices, state);
 }
 
 static char autoanswer_usage[] =
