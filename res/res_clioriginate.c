@@ -150,29 +150,15 @@ static int handle_orig(int fd, int argc, char *argv[])
 
 static char *complete_orig(const char *line, const char *word, int pos, int state)
 {
-	int wordlen;
-	char *app = "application";
-	char *exten = "extension";
-	char *ret = NULL;
+	static char *choices[] = { "application", "extension", NULL };
+	char *ret;
 
-	if (pos != 2 || state)
+	if (pos != 2)
 		return NULL;
 
 	STANDARD_INCREMENT_USECOUNT;
 
-	wordlen = strlen(word);
-
-	if (ast_strlen_zero(word)) {
-		/* show the options in alphabetical order */
-		if (!state)
-			ret = strdup(app);
-		else
-			ret = strdup(exten);
-	} else if (!strncasecmp(word, app, wordlen)) {
-		ret = strdup(app);
-	} else if (!strncasecmp(word, exten, wordlen)) {
-		ret = strdup(exten);
-	}
+	ret = ast_cli_complete(word, choices, state);
 
 	STANDARD_DECREMENT_USECOUNT;
 
