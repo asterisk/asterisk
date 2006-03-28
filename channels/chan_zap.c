@@ -107,7 +107,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
 #endif
 
-#ifndef ZT_SIG_HARDHDLC
+#if !defined(ZT_SIG_EM_E1) || (defined(ZAPATA_PRI) && !defined(ZT_SIG_HARDHDLC))
 #error "Your zaptel is too old.  please update"
 #endif
 
