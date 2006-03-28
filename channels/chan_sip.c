@@ -8611,7 +8611,8 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 			ast_cli(fd, FORMAT3, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr),
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")), 
 			   	cur->callid,
-				cur->subscribed == MWI_NOTIFICATION ? "--" : cur->exten,
+				/* the 'complete' exten/context is hidden in the refer_to field for subscriptions */
+				cur->subscribed == MWI_NOTIFICATION ? "--" : cur->refer_to,
 				cur->subscribed == MWI_NOTIFICATION ? "<none>" : ast_extension_state2str(cur->laststate), 
 				subscription_type2str(cur->subscribed),
 				cur->subscribed == MWI_NOTIFICATION ? (cur->relatedpeer ? cur->relatedpeer->mailbox : "<none>") : "<none>"
@@ -11007,8 +11008,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	} else if (debug && ignore)
 		ast_verbose("Ignoring this SUBSCRIBE request\n");
 
-
-
 	/* Find parameters to Event: header value and remove them for now */
 	if ((eventparam = strchr(event, ';')))
 		*eventparam++ = '\0';
@@ -11044,7 +11043,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		return 0;
 	} else {
-
 		/* Initialize tag for new subscriptions */	
 		if (ast_strlen_zero(p->tag))
 			make_our_tag(p->tag, sizeof(p->tag));
@@ -11140,6 +11138,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				transmit_response(p, "200 OK", req);
 				transmit_state_notify(p, firststate, 1);	/* Send first notification */
 				append_history(p, "Subscribestatus", "%s", ast_extension_state2str(firststate));
+				/* hide the 'complete' exten/context in the refer_to field for later display */
+				ast_string_field_build(p, refer_to, "%s@%s", p->exten, p->context);
 
 				/* remove any old subscription from this peer for the same exten/context,
 			   	as the peer has obviously forgotten about it and it's wasteful to wait
