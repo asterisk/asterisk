@@ -9394,20 +9394,19 @@ static int start_pri(struct zt_pri *pri)
 
 static char *complete_span_helper(const char *line, const char *word, int pos, int state, int rpos)
 {
-	int span=1;
-	char tmp[50];
+	int which, span;
+	char *ret = NULL;
+
 	if (pos != rpos)
-		return 0;
-	while(span <= NUM_SPANS) {
-		if (span > state && pris[span-1].pri)
+		return ret;
+
+	for (which = span = 0; span < NUM_SPANS; span++) {
+		if (pris[span].pri && ++which > state) {
+			asprintf(&ret, "%d", span + 1);	/* user indexes start from 1 */
 			break;
-		span++;
+		}
 	}
-	if (span <= NUM_SPANS) {
-		snprintf(tmp, sizeof(tmp), "%d", span);
-		return ast_strdup(tmp);
-	} else
-		return NULL;
+	return ret;
 }
 
 static char *complete_span_4(const char *line, const char *word, int pos, int state)
