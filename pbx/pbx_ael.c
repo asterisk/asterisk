@@ -778,8 +778,8 @@ static int __build_step(const char *what, const char *name, const char *filename
 				*label = NULL;
 				/* Remember where the whileblock starts */
 				forblock = (*pos);
-				build_step("for", margs, filename, lineno, con, exten, pos, fields->next->next->data, &fillin, label);
 				build_step("for", margs, filename, lineno, con, exten, pos, c, &fillin, label);
+				build_step("for", margs, filename, lineno, con, exten, pos, fields->next->next->data, &fillin, label);
 				/* Close the loop */
 				app = "Goto";
 				snprintf(margs, mlen, "%d", forstart);
