@@ -1129,17 +1129,16 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 	int weight;
 	int length;
 	int z;
-	int expiration;
 	char fs[256];
-	time_t timeout;
 
 	/* Build request string */
 	if (!ast_db_get("dundi/cache", key, data, sizeof(data))) {
+		time_t timeout;
 		ptr = data;
 		if (!ast_get_time_t(ptr, &timeout, 0, &length)) {
-			expiration = timeout - now;
+			int expiration = timeout - now;
 			if (expiration > 0) {
-				ast_log(LOG_DEBUG, "Found cache expiring in %d seconds!\n", (int)(timeout - now));
+				ast_log(LOG_DEBUG, "Found cache expiring in %d seconds!\n", expiration);
 				ptr += length + 1;
 				while((sscanf(ptr, "%d/%d/%d/%n", &(flags.flags), &weight, &tech, &length) == 3)) {
 					ptr += length;
@@ -2229,25 +2228,20 @@ static char *model2str(int model)
 
 static char *complete_peer_helper(const char *line, const char *word, int pos, int state, int rpos)
 {
-	int which=0;
-	char *ret;
+	int which=0, len;
+	char *ret = NULL;
 	struct dundi_peer *p;
 	char eid_str[20];
+
 	if (pos != rpos)
 		return NULL;
 	ast_mutex_lock(&peerlock);
-	p = peers;
-	while(p) {
-		if (!strncasecmp(word, dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid), strlen(word))) {
-			if (++which > state)
-				break;
-		}
-		p = p->next;
+	len = strlen(word);
+	for (p = peers; !ret && p; p = p->next) {
+		const char *s = dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid);
+		if (!strncasecmp(word, s, len) && ++which > state)
+			ret = ast_strdup(s);
 	}
-	if (p) {
-		ret = strdup(dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid));
-	} else
-		ret = NULL;
 	ast_mutex_unlock(&peerlock);
 	return ret;
 }
@@ -3846,15 +3840,14 @@ static int dundifunc_read(struct ast_channel *chan, char *cmd, char *num, char *
 	struct localuser *u;
 	struct dundi_result dr[MAX_RESULTS];
 
-	LOCAL_USER_ADD(u);
-
 	buf[0] = '\0';
 
 	if (ast_strlen_zero(num)) {
 		ast_log(LOG_WARNING, "DUNDILOOKUP requires an argument (number)\n");
-		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
+
+	LOCAL_USER_ADD(u);
 
 	context = strchr(num, '|');
 	if (context) {
