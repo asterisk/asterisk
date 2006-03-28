@@ -43,7 +43,7 @@ if ! [ -x $AST_SBIN/asterisk ] ; then
 fi
 
 if ! [ -d $AST_CONFIG ] ; then
-	echo "ERROR: /etc/asterisk directory not found"
+	echo "ERROR: $AST_CONFIG directory not found"
 	exit 0
 fi
 
@@ -58,7 +58,7 @@ SAFE_ASTERISK=$AST_SBIN/safe_asterisk
 
 # Allow configuration overrides in /etc/sysconfig/asterisk
 CONFIG0=`readlink $0`
-if [ $CONFIG0 = "" ]; then
+if [ "$CONFIG0" = "" ]; then
 	CONFIGFILE=/etc/sysconfig/`basename $0`
 else
 	CONFIGFILE=/etc/sysconfig/`basename $CONFIG0`
