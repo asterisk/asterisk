@@ -59,8 +59,7 @@ static int smdi_load(int reload);
 
 /* Use count stuff */
 
-AST_MUTEX_DEFINE_STATIC(localuser_lock);
-static int localusecnt = 0;
+LOCAL_USER_DECL;
 
 /*! \brief SMDI interface container. */
 struct ast_smdi_interface_container {
@@ -505,10 +504,7 @@ void ast_smdi_interface_destroy(struct ast_smdi_interface *iface)
 	ASTOBJ_CONTAINER_DESTROY(&iface->mwi_q);
 	free(iface);
 
-	ast_mutex_lock(&localuser_lock);
-	localusecnt--;
-	ast_mutex_unlock(&localuser_lock);
-	ast_update_use_count();
+	STANDARD_DECREMENT_USECOUNT;
 }
 
 /*!
@@ -692,10 +688,7 @@ static int smdi_load(int reload)
 
 			ASTOBJ_CONTAINER_LINK(&smdi_ifaces, iface);
 			ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
-			ast_mutex_lock(&localuser_lock);
-			localusecnt++;
-			ast_mutex_unlock(&localuser_lock);
-			ast_update_use_count();
+			STANDARD_INCREMENT_USECOUNT;
 		} else {
 			ast_log(LOG_NOTICE, "Ignoring unknown option %s in %s\n", v->name, config_file);
 		}
@@ -747,6 +740,12 @@ int unload_module(void)
 	ASTOBJ_CONTAINER_DESTROYALL(&smdi_ifaces, ast_smdi_interface_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&smdi_ifaces);
 
+	/*
+	 * localusers = NULL; is just to silence the compiler warning
+	 * about an unused variable. It will be removed soon, when the
+	 * LOCALUSER-related functions are rewritten.
+	 */
+	localusers = NULL;
 	return 0;
 }
 
