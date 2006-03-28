@@ -6,7 +6,7 @@
 ;
 ; Whether HTTP interface is enabled or not.
 ;
-enabled=yes
+enabled=no
 ;
 ; Address to bind to
 ;
