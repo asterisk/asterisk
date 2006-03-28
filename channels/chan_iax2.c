@@ -1607,28 +1607,30 @@ static int send_packet(struct iax_frame *f)
 {
 	int res;
 	char iabuf[INET_ADDRSTRLEN];
+	int callno = f->callno;
+	
 	/* Called with iaxsl held */
 	if (option_debug > 2 && iaxdebug)
-		ast_log(LOG_DEBUG, "Sending %d on %d/%d to %s:%d\n", f->ts, f->callno, iaxs[f->callno]->peercallno, ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr), ntohs(iaxs[f->callno]->addr.sin_port));
+		ast_log(LOG_DEBUG, "Sending %d on %d/%d to %s:%d\n", f->ts, callno, iaxs[callno]->peercallno, ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[callno]->addr.sin_addr), ntohs(iaxs[callno]->addr.sin_port));
 	/* Don't send if there was an error, but return error instead */
-	if (!f->callno) {
-		ast_log(LOG_WARNING, "Call number = %d\n", f->callno);
+	if (!callno) {
+		ast_log(LOG_WARNING, "Call number = %d\n", callno);
 		return -1;
 	}
-	if (!iaxs[f->callno])
+	if (!iaxs[callno])
 		return -1;
-	if (iaxs[f->callno]->error)
+	if (iaxs[callno]->error)
 		return -1;
 	if (f->transfer) {
 		if (iaxdebug)
-			iax_showframe(f, NULL, 0, &iaxs[f->callno]->transfer, f->datalen - sizeof(struct ast_iax2_full_hdr));
-		res = sendto(iaxs[f->callno]->sockfd, f->data, f->datalen, 0,(struct sockaddr *)&iaxs[f->callno]->transfer,
-					sizeof(iaxs[f->callno]->transfer));
+			iax_showframe(f, NULL, 0, &iaxs[callno]->transfer, f->datalen - sizeof(struct ast_iax2_full_hdr));
+		res = sendto(iaxs[callno]->sockfd, f->data, f->datalen, 0,(struct sockaddr *)&iaxs[callno]->transfer,
+					sizeof(iaxs[callno]->transfer));
 	} else {
 		if (iaxdebug)
-			iax_showframe(f, NULL, 0, &iaxs[f->callno]->addr, f->datalen - sizeof(struct ast_iax2_full_hdr));
-		res = sendto(iaxs[f->callno]->sockfd, f->data, f->datalen, 0,(struct sockaddr *)&iaxs[f->callno]->addr,
-					sizeof(iaxs[f->callno]->addr));
+			iax_showframe(f, NULL, 0, &iaxs[callno]->addr, f->datalen - sizeof(struct ast_iax2_full_hdr));
+		res = sendto(iaxs[callno]->sockfd, f->data, f->datalen, 0,(struct sockaddr *)&iaxs[callno]->addr,
+					sizeof(iaxs[callno]->addr));
 	}
 	if (res < 0) {
 		if (option_debug && iaxdebug)
