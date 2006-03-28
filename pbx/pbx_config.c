@@ -143,222 +143,197 @@ static int handle_context_dont_include(int fd, int argc, char *argv[])
 	return RESULT_FAILURE;
 }
 
+/*! \brief return true if 'name' is included by context c */
+static int lookup_ci(struct ast_context *c, const char *name)
+{
+	struct ast_include *i = NULL;
+
+	if (ast_lock_context(c))	/* error, skip */
+		return 0;
+	while ( (i = ast_walk_context_includes(c, i)) )
+		if (!strcmp(name, ast_get_include_name(i)))
+			break;
+	ast_unlock_context(c);
+	return i ? -1 /* success */ : 0;
+}
+
+/*! \brief return true if 'name' is in the ignorepats for context c */
+static int lookup_c_ip(struct ast_context *c, const char *name)
+{
+	struct ast_ignorepat *ip = NULL;
+
+	if (ast_lock_context(c))	/* error, skip */
+		return 0;
+	while ( (ip = ast_walk_context_ignorepats(c, ip)) )
+		if (!strcmp(name, ast_get_ignorepat_name(ip)))
+			break;
+	ast_unlock_context(c);
+	return ip ? -1 /* success */ : 0;
+}
+
+/*! \brief moves to the n-th word in the string, or empty string if none */
+static const char *skip_words(const char *p, int n)
+{
+	int in_blank = 0;
+	for (;n && *p; p++) {
+		if (isblank(*p) /* XXX order is important */ && !in_blank) {
+			n--;	/* one word is gone */
+			in_blank = 1;
+		} else if (/* !is_blank(*p), we know already, && */ in_blank) {
+			in_blank = 0;
+		}
+	}
+	return p;
+}
+
+/*! \brief match the first 'len' chars of word. len==0 always succeeds */
+static int partial_match(const char *s, const char *word, int len)
+{
+	return (len == 0 || !strncmp(s, word, len));
+}
+
+/*! \brief split extension@context in two parts, return -1 on error.
+ * The return string is malloc'ed and pointed by *ext
+ */
+static int split_ec(const char *src, char **ext, char ** const ctx)
+{
+	char *c, *e = ast_strdup(src); /* now src is not used anymore */
+
+	if (e == NULL)
+		return -1;	/* malloc error */
+	/* now, parse values from 'exten@context' */
+	*ext = e;
+	c = strchr(e, '@');
+	if (c == NULL)	/* no context part */
+		*ctx = "";	/* it is not overwritten, anyways */
+	else {	/* found context, check for duplicity ... */
+		*c++ = '\0';
+		*ctx = c;
+		if (strchr(c, '@')) { /* two @, not allowed */
+			free(e);
+			return -1;
+		}
+	} 
+	return 0;
+}
+
+/* _X_ is the string we need to complete */
 static char *complete_context_dont_include(const char *line, const char *word,
 	int pos, int state)
 {
 	int which = 0;
+	char *res = NULL;
+	int len = strlen(word); /* how many bytes to match */
+	struct ast_context *c = NULL;
 
-	/*
-	 * Context completion ...
-	 */
-	if (pos == 2) {
-		struct ast_context *c;
-
+	if (pos == 2) {		/* "dont include _X_" */
 		if (ast_lock_contexts()) {
 			ast_log(LOG_ERROR, "Failed to lock context list\n");
 			return NULL;
 		}
+		/* walk contexts and their includes, return the n-th match */
+		while (!res && (c = ast_walk_contexts(c))) {
+			struct ast_include *i = NULL;
 
-		/* walk pbx_get_contexts ... */
-		c = ast_walk_contexts(NULL); 
-		while (c) {
-			struct ast_include *i;
-
-			if (ast_lock_context(c)) {
-				c = ast_walk_contexts(c);
+			if (ast_lock_context(c))	/* error ? skip this one */
 				continue;
+
+			while ( !res && (i = ast_walk_context_includes(c, i)) ) {
+				const char *i_name = ast_get_include_name(i);
+				struct ast_context *nc = NULL;
+				int already_served = 0;
+
+				if (!partial_match(i_name, word, len))
+					continue;	/* not matched */
+
+				/* check if this include is already served or not */
+
+				/* go through all contexts again till we reach actual
+				 * context or already_served = 1
+				 */
+				while ( (nc = ast_walk_contexts(nc)) && nc != c && !already_served)
+					already_served = lookup_ci(nc, i_name);
+
+				if (!already_served && ++which > state)
+					res = strdup(i_name);
 			}
-
-			i = ast_walk_context_includes(c, NULL);
-			while (i) {
-				if (!strlen(word) ||
-					!strncmp(ast_get_include_name(i), word, strlen(word))) {
-					struct ast_context *nc;
-					int already_served = 0;
-
-					/* check if this include is already served or not */
-
-					/* go through all contexts again till we reach actuall
-					 * context or already_served = 1
-					 */
-					nc = ast_walk_contexts(NULL);
-					while (nc && nc != c && !already_served) {
-						if (!ast_lock_context(nc)) {
-							struct ast_include *ni;
-
-							ni = ast_walk_context_includes(nc, NULL);
-							while (ni && !already_served) {
-								if (!strcmp(ast_get_include_name(i),
-									ast_get_include_name(ni)))
-									already_served = 1;
-								ni = ast_walk_context_includes(nc, ni);
-							}	
-							
-							ast_unlock_context(nc);
-						}
-						nc = ast_walk_contexts(nc);
-					}
-
-					if (!already_served) {
-						if (++which > state) {
-							char *res =
-								strdup(ast_get_include_name(i));
-							ast_unlock_context(c);
-							ast_unlock_contexts();
-							return res;
-						}
-					}
-				}
-				i = ast_walk_context_includes(c, i);
-			}
-
 			ast_unlock_context(c);
-			c = ast_walk_contexts(c);
 		}
 
 		ast_unlock_contexts();
-		return NULL;
-	}
+		return res;
+	} else if (pos == 3) { /* "dont include CTX _X_" */
+		/*
+		 * complete as 'in', but only if previous context is really
+		 * included somewhere
+		 */
+		char *context, *dupline;
+		const char *s = skip_words(line, 2); /* skip 'dont' 'include' */
 
-	/*
-	 * 'in' completion ... (complete only if previous context is really
-	 * included somewhere)
-	 */
-	if (pos == 3) {
-		struct ast_context *c;
-		char *context, *dupline, *duplinet;
-
-		if (state > 0) return NULL;
-
-		/* take 'context' from line ... */
-		if (!(dupline = strdup(line))) {
+		if (state > 0)
+			return NULL;
+		context = dupline = strdup(s);
+		if (!dupline) {
 			ast_log(LOG_ERROR, "Out of free memory\n");
 			return NULL;
 		}
-
-		duplinet = dupline;
-		strsep(&duplinet, " "); /* skip 'dont' */
-		strsep(&duplinet, " "); /* skip 'include' */
-		context = strsep(&duplinet, " ");
-
-		if (!context) {
-			free(dupline);
-			return NULL;
-		}
+		strsep(&dupline, " ");
 
 		if (ast_lock_contexts()) {
-			ast_log(LOG_WARNING, "Failed to lock contexts list\n");
-			free(dupline);
+			ast_log(LOG_ERROR, "Failed to lock contexts list\n");
+			free(context);
 			return NULL;
 		}
 
 		/* go through all contexts and check if is included ... */
-		c = ast_walk_contexts(NULL);
-		while (c) {
-			struct ast_include *i;
-			if (ast_lock_context(c)) {
-				free(dupline);
-				ast_unlock_contexts();
-				return NULL;
-			}
-
-			i = ast_walk_context_includes(c, NULL);
-			while (i) {
-				/* is it our context? */
-				if (!strcmp(ast_get_include_name(i), context)) {
-					/* yes, it is, context is really included, so
-					 * complete "in" command
-					 */
-					free(dupline);
-					ast_unlock_context(c);
-					ast_unlock_contexts();
-					return strdup("in");
-				}
-				i = ast_walk_context_includes(c, i);
-			}
-			ast_unlock_context(c);
-			c = ast_walk_contexts(c);
-		}
-		free(dupline);
+		while (!res && (c = ast_walk_contexts(c)))
+			if (lookup_ci(c, context)) /* context is really included, complete "in" command */
+				res = strdup("in");
 		ast_unlock_contexts();
-		return NULL;
-	}
-
-	/*
-	 * Context from which we removing include ... 
-	 */
-	if (pos == 4) {
-		struct ast_context *c;
-		char *context, *dupline, *duplinet, *in;
-
-		if (!(dupline = strdup(line))) {
+		if (!res)
+			ast_log(LOG_WARNING, "%s not included anywhere\n", context);
+		free(context);
+		return res;
+	} else if (pos == 4) { /* "dont include CTX in _X_" */
+		/*
+		 * Context from which we removing include ... 
+		 */
+		char *context, *dupline, *in;
+		const char *s = skip_words(line, 2); /* skip 'dont' 'include' */
+		context = dupline = strdup(s);
+		if (!dupline) {
 			ast_log(LOG_ERROR, "Out of free memory\n");
 			return NULL;
 		}
 
-		duplinet = dupline;
+		strsep(&dupline, " "); /* skip context */
 
-		strsep(&duplinet, " "); /* skip 'dont' */
-		strsep(&duplinet, " "); /* skip 'include' */
-
-		if (!(context = strsep(&duplinet, " "))) {
-			free(dupline);
-			return NULL;
-		}
-
-		/* third word must be in */
-		in = strsep(&duplinet, " ");
-		if (!in ||
-			strcmp(in, "in")) {
-			free(dupline);
+		/* third word must be 'in' */
+		in = strsep(&dupline, " ");
+		if (!in || strcmp(in, "in")) {
+			free(context);
 			return NULL;
 		}
 
 		if (ast_lock_contexts()) {
 			ast_log(LOG_ERROR, "Failed to lock context list\n");
-			free(dupline);
+			free(context);
 			return NULL;
 		}
 
 		/* walk through all contexts ... */
-		c = ast_walk_contexts(NULL);
-		while (c) {
-			struct ast_include *i;
-			if (ast_lock_context(c)) {
-				free(dupline);
-				return NULL;
-			}
-	
+		c = NULL;
+		while ( !res && (c = ast_walk_contexts(c))) {
+			const char *c_name = ast_get_context_name(c);
+			if (!partial_match(c_name, word, len))	/* not a good target */
+				continue;
 			/* walk through all includes and check if it is our context */	
-			i = ast_walk_context_includes(c, NULL);
-			while (i) {
-				/* is in this context included another on which we want to
-				 * remove?
-				 */
-				if (!strcmp(context, ast_get_include_name(i))) {
-					/* yes, it's included, is matching our word too? */
-					if (!strncmp(ast_get_context_name(c),
-							word, strlen(word))) {
-						/* check state for completion */
-						if (++which > state) {
-							char *res = strdup(ast_get_context_name(c));
-							free(dupline);
-							ast_unlock_context(c);
-							ast_unlock_contexts();
-							return res;
-						}
-					}
-					break;
-				}
-				i = ast_walk_context_includes(c, i);
-			}	
-			ast_unlock_context(c);
-			c = ast_walk_contexts(c);
+			if (lookup_ci(c, context) && ++which > state)
+				res = strdup(c_name);
 		}
-
-		free(dupline);
 		ast_unlock_contexts();
-		return NULL;
+		free(context);
+		return res;
 	}
 
 	return NULL;
@@ -371,6 +346,7 @@ static int handle_context_remove_extension(int fd, int argc, char *argv[])
 {
 	int removing_priority = 0;
 	char *exten, *context;
+	int ret = RESULT_FAILURE;
 
 	if (argc != 4 && argc != 3) return RESULT_SHOWUSAGE;
 
@@ -384,16 +360,17 @@ static int handle_context_remove_extension(int fd, int argc, char *argv[])
 		 * why? because atoi (strtol) returns 0 if any characters in
 		 * string and whole extension will be removed, it's not good
 		 */
-		if (strcmp("hint", c)) {
-    		    while (*c != '\0') {
-			if (!isdigit(*c++)) {
+		if (!strcmp("hint", c))
+			removing_priority = PRIORITY_HINT;
+		else {
+			while (*c && isdigit(*c))
+				c++;
+			if (*c) { /* non-digit in string */
 				ast_cli(fd, "Invalid priority '%s'\n", argv[3]);
 				return RESULT_FAILURE;
 			}
-		    }
-		    removing_priority = atoi(argv[3]);
-		} else
-		    removing_priority = PRIORITY_HINT;
+			removing_priority = atoi(argv[3]);
+		}
 
 		if (removing_priority == 0) {
 			ast_cli(fd, "If you want to remove whole extension, please " \
@@ -402,19 +379,16 @@ static int handle_context_remove_extension(int fd, int argc, char *argv[])
 		}
 	}
 
+	/* XXX original overwrote argv[2] */
 	/*
 	 * Format exten@context checking ...
 	 */
-	if (!(context = strchr(argv[2], (int)'@'))) {
-		ast_cli(fd, "First argument must be in exten@context format\n");
-		return RESULT_FAILURE;
-	}
-
-	*context++ = '\0';
-	exten = argv[2];
+	if (split_ec(argv[2], &exten, &context))
+		return RESULT_FAILURE; /* XXX malloc failure */
 	if ((!strlen(exten)) || (!(strlen(context)))) {
-		ast_cli(fd, "Missing extension or context name in second argument '%s@%s'\n",
-			exten == NULL ? "?" : exten, context == NULL ? "?" : context);
+		ast_cli(fd, "Missing extension or context name in second argument '%s'\n",
+			argv[2]);
+		free(exten);
 		return RESULT_FAILURE;
 	}
 
@@ -426,12 +400,13 @@ static int handle_context_remove_extension(int fd, int argc, char *argv[])
 			ast_cli(fd, "Extension %s@%s with priority %d removed\n",
 				exten, context, removing_priority);
 			
-		return RESULT_SUCCESS;
+		ret = RESULT_SUCCESS;
+	} else {
+		ast_cli(fd, "Failed to remove extension %s@%s\n", exten, context);
+		ret = RESULT_FAILURE;
 	}
-
-	ast_cli(fd, "Failed to remove extension %s@%s\n", exten, context);
-
-	return RESULT_FAILURE;
+	free(exten);
+	return ret;
 }
 
 #define BROKEN_READLINE 1
@@ -481,230 +456,126 @@ static int fix_complete_args(const char *line, char **word, int *pos)
 }
 #endif /* BROKEN_READLINE */
 
-static char *complete_context_remove_extension(const char *line, const char *word2, int pos,
+static char *complete_context_remove_extension(const char *line, const char *word, int pos,
 	int state)
 {
 	char *ret = NULL;
 	int which = 0;
 
 #ifdef BROKEN_READLINE
-	char *word = (char *)word2;	/* fool the compiler. XXX will go away later */
+	char *word2;
 	/*
 	 * Fix arguments, *word is a new allocated structure, REMEMBER to
 	 * free *word when you want to return from this function ...
 	 */
-	if (fix_complete_args(line, &word, &pos)) {
+	if (fix_complete_args(line, &word2, &pos)) {
 		ast_log(LOG_ERROR, "Out of free memory\n");
 		return NULL;
 	}
-#else
-	const char *word = word2;
+	word = word2;
 #endif
 
-	/*
-	 * exten@context completion ... 
-	 */
-	if (pos == 2) {
-		struct ast_context *c;
-		struct ast_exten *e;
-		char *context = NULL, *exten = NULL, *delim = NULL;
+	if (pos == 2) { /* 'remove extension _X_' (exten@context ... */
+		struct ast_context *c = NULL;
+		char *context = NULL, *exten = NULL;
+		int le = 0;	/* length of extension */
+		int lc = 0;	/* length of context */
 
-		/* now, parse values from word = exten@context */
-		if ((delim = strchr(word, (int)'@'))) {
-			/* check for duplicity ... */
-			if (delim != strrchr(word, (int)'@')) {
+		lc = split_ec(word, &exten, &context);
 #ifdef BROKEN_READLINE
-				free(word);
+		free(word2);
 #endif
-				return NULL;
-			}
-
-			*delim = '\0';
-			exten = strdup(word);
-			context = strdup(delim + 1);
-			*delim = '@';
-		} else {
-			exten = strdup(word);
-		}
-#ifdef BROKEN_READLINE
-		free(word);
-#endif
+		if (lc)	/* error */
+			return NULL;
+		le = strlen(exten);
+		lc = strlen(context);
 
 		if (ast_lock_contexts()) {
 			ast_log(LOG_ERROR, "Failed to lock context list\n");
-			free(context); free(exten);
-			return NULL;
+			goto error2;
 		}
 
 		/* find our context ... */
-		c = ast_walk_contexts(NULL); 
-		while (c) {
-			/* our context? */
-			if ( (!context || !strlen(context)) ||                            /* if no input, all contexts ... */
-				 (context && !strncmp(ast_get_context_name(c),
-				              context, strlen(context))) ) {                  /* if input, compare ... */
-				/* try to complete extensions ... */
-				e = ast_walk_context_extensions(c, NULL);
-				while (e) {
-					/* our extension? */
-					if ( (!exten || !strlen(exten)) ||                           /* if not input, all extensions ... */
-						 (exten && !strncmp(ast_get_extension_name(e), exten,
-						                    strlen(exten))) ) { /* if input, compare ... */
-						if (++which > state) {
-							/* If there is an extension then return
-							 * exten@context.
-							 */
-							if (exten) {
-								ret = malloc(strlen(ast_get_extension_name(e)) +
-									strlen(ast_get_context_name(c)) + 2);
-								if (ret)
-									sprintf(ret, "%s@%s", ast_get_extension_name(e),
-										ast_get_context_name(c));
-							}
-							free(exten); free(context);
-
-							ast_unlock_contexts();
-	
-							return ret;
-						}
-					}
-					e = ast_walk_context_extensions(c, e);
+		while ( (c = ast_walk_contexts(c)) ) {	/* match our context if any */
+			struct ast_exten *e = NULL;
+			/* XXX locking ? */
+			if (!partial_match(ast_get_context_name(c), context, lc))
+				continue;	/* context not matched */
+			while ( (e = ast_walk_context_extensions(c, e)) ) { /* try to complete extensions ... */
+				if ( partial_match(ast_get_extension_name(e), exten, le) && ++which > state) { /* n-th match */
+					/* If there is an extension then return exten@context. XXX otherwise ? */
+					if (exten)
+						asprintf(&ret, "%s@%s", ast_get_extension_name(e), ast_get_context_name(c));
+					break;
 				}
 			}
-			c = ast_walk_contexts(c);
+			if (e)	/* got a match */
+				break;
 		}
 
 		ast_unlock_contexts();
-
-		free(exten); free(context);
-
-		return NULL;
-	}
-
-	/*
-	 * Complete priority ...
-	 */
-	if (pos == 3) {
-		char *delim, *exten, *context, *dupline, *duplinet, *ec;
+	error2:
+		if (exten)
+			free(exten);
+	} else if (pos == 3) { /* 'remove extension EXT _X_' (priority) */
+		char *exten = NULL, *context, *p;
 		struct ast_context *c;
+		int le, lc, len;
+		const char *s = skip_words(line, 2); /* skip 'remove' 'extension' */
+		int i = split_ec(s, &exten, &context);	/* parse ext@context */
 
-		dupline = strdup(line);
-		if (!dupline) {
-#ifdef BROKEN_READLINE
-			free(word);
-#endif
-			return NULL;
-		}
-		duplinet = dupline;
-
-		strsep(&duplinet, " "); /* skip 'remove' */
-		strsep(&duplinet, " "); /* skip 'extension */
-
-		if (!(ec = strsep(&duplinet, " "))) {
-			free(dupline);
-#ifdef BROKEN_READLINE
-			free(word);
-#endif
-			return NULL;
-		}
-
-		/* wrong exten@context format? */
-		if (!(delim = strchr(ec, (int)'@')) ||
-			(strchr(ec, (int)'@') != strrchr(ec, (int)'@'))) {
-#ifdef BROKEN_READLINE
-			free(word);
-#endif
-			free(dupline);
-			return NULL;
-		}
-
-		/* check if there is exten and context too ... */
-		*delim = '\0';
-		if ((!strlen(ec)) || (!strlen(delim + 1))) {
-#ifdef BROKEN_READLINE
-			free(word);
-#endif
-			free(dupline);
-			return NULL;
-		}
-
-		exten = strdup(ec);
-		context = strdup(delim + 1);
-		free(dupline);
+		if (i)	/* error */
+			goto error3;
+		if ( (p = strchr(exten, ' ')) ) /* remove space after extension */
+			*p = '\0';
+		if ( (p = strchr(context, ' ')) ) /* remove space after context */
+			*p = '\0';
+		le = strlen(exten);
+		lc = strlen(context);
+		len = strlen(word);
+		if (le == 0 || lc == 0)
+			goto error3;
 
 		if (ast_lock_contexts()) {
 			ast_log(LOG_ERROR, "Failed to lock context list\n");
-#ifdef BROKEN_READLINE
-			free(word);
-#endif
-			free(exten); free(context);
-			return NULL;
+			goto error3;
 		}
 
 		/* walk contexts */
-		c = ast_walk_contexts(NULL); 
-		while (c) {
-			if (!strcmp(ast_get_context_name(c), context)) {
-				struct ast_exten *e;
+		c = NULL;
+		while ( (c = ast_walk_contexts(c)) ) {
+			/* XXX locking on c ? */
+			struct ast_exten *e;
+			if (strcmp(ast_get_context_name(c), context) != 0)
+				continue;
+			/* got it, we must match here */
+			e = NULL;
+			while ( (e = ast_walk_context_extensions(c, e)) ) {
+				struct ast_exten *priority;
+				char buffer[10];
 
-				/* walk extensions */
-				free(context);
-				e = ast_walk_context_extensions(c, NULL); 
-				while (e) {
-					if (!strcmp(ast_get_extension_name(e), exten)) {
-						struct ast_exten *priority;
-						char buffer[10];
-					
-						free(exten);
-						priority = ast_walk_extension_priorities(e, NULL);
-						/* serve priorities */
-						do {
-							snprintf(buffer, 10, "%u",
-								ast_get_extension_priority(priority));
-							if (!strncmp(word, buffer, strlen(word))) {
-								if (++which > state) {
-#ifdef BROKEN_READLINE
-									free(word);
-#endif
-									ast_unlock_contexts();
-									return strdup(buffer);
-								}
-							}
-							priority = ast_walk_extension_priorities(e,
-								priority);
-						} while (priority);
-
-#ifdef BROKEN_READLINE
-						free(word);
-#endif
-						ast_unlock_contexts();
-						return NULL;			
-					}
-					e = ast_walk_context_extensions(c, e);
+				if (strcmp(ast_get_extension_name(e), exten) != 0)
+					continue;
+				/* XXX lock e ? */
+				priority = NULL;
+				while ( !ret && (priority = ast_walk_extension_priorities(e, priority)) ) {
+					snprintf(buffer, sizeof(buffer), "%u", ast_get_extension_priority(priority));
+					if (partial_match(buffer, word, len) && ++which > state) /* n-th match */
+						ret = strdup(buffer);
 				}
-#ifdef BROKEN_READLINE
-				free(word);
-#endif
-				free(exten);
-				ast_unlock_contexts();
-				return NULL;
+				break;
 			}
-			c = ast_walk_contexts(c);
+			break;
 		}
-
-#ifdef BROKEN_READLINE
-		free(word);
-#endif
-		free(exten); free(context);
-
 		ast_unlock_contexts();
-		return NULL;
-	}
-
+	error3:
+		if (exten)
+			free(exten);
 #ifdef BROKEN_READLINE
-	free(word);
+		free(word2);
 #endif
-	return NULL; 
+	}
+	return ret; 
 }
 
 /*!
@@ -712,31 +583,38 @@ static char *complete_context_remove_extension(const char *line, const char *wor
  */
 static int handle_context_add_include(int fd, int argc, char *argv[])
 {
-	if (argc != 5) return RESULT_SHOWUSAGE;
+	if (argc != 5) /* include context CTX in CTX */
+		return RESULT_SHOWUSAGE;
 
 	/* third arg must be 'in' ... */
-	if (strcmp(argv[3], "in") && strcmp(argv[3], "into")) return RESULT_SHOWUSAGE;
+	if (strcmp(argv[3], "in") && strcmp(argv[3], "into")) /* XXX why both ? */
+		return RESULT_SHOWUSAGE;
 
 	if (ast_context_add_include(argv[4], argv[2], registrar)) {
 		switch (errno) {
-			case ENOMEM:
-				ast_cli(fd, "Out of memory for context addition\n"); break;
+		case ENOMEM:
+			ast_cli(fd, "Out of memory for context addition\n");
+			break;
 
-			case EBUSY:
-				ast_cli(fd, "Failed to lock context(s) list, please try again later\n"); break;
+		case EBUSY:
+			ast_cli(fd, "Failed to lock context(s) list, please try again later\n");
+			break;
 
-			case EEXIST:
-				ast_cli(fd, "Context '%s' already included in '%s' context\n",
-					argv[2], argv[4]); break;
+		case EEXIST:
+			ast_cli(fd, "Context '%s' already included in '%s' context\n",
+				argv[2], argv[4]);
+			break;
 
-			case ENOENT:
-			case EINVAL:
-				ast_cli(fd, "There is no existence of context '%s'\n",
-					errno == ENOENT ? argv[4] : argv[2]); break;
+		case ENOENT:
+		case EINVAL:
+			ast_cli(fd, "There is no existence of context '%s'\n",
+				errno == ENOENT ? argv[4] : argv[2]);
+			break;
 
-			default:
-				ast_cli(fd, "Failed to include '%s' in '%s' context\n",
-					argv[2], argv[4]); break;
+		default:
+			ast_cli(fd, "Failed to include '%s' in '%s' context\n",
+				argv[2], argv[4]);
+			break;
 		}
 		return RESULT_FAILURE;
 	}
@@ -753,167 +631,91 @@ static char *complete_context_add_include(const char *line, const char *word, in
 {
 	struct ast_context *c;
 	int which = 0;
+	char *ret = NULL;
+	int len = strlen(word);
 
-	/* server context for inclusion ... */
-	if (pos == 1)
-	{
+	if (pos == 2) {		/* 'include context _X_' (context) ... */
 		if (ast_lock_contexts()) {
 			ast_log(LOG_ERROR, "Failed to lock context list\n");
 			return NULL;
 		}
-
-		/* server all contexts */ 
-		c = ast_walk_contexts(NULL); 
-		while (c) {
-			if ((!strlen(word) || 
-				 !strncmp(ast_get_context_name(c), word, strlen(word))) &&
-				++which > state)
-			{
-				char *context = strdup(ast_get_context_name(c));
-				ast_unlock_contexts();
-				return context;
-			}
-			c = ast_walk_contexts(c);
-		}
-
+		for (c = NULL; !ret && (c = ast_walk_contexts(c)); )
+			if (partial_match(ast_get_context_name(c), word, len) && ++which > state)
+				ret = strdup(ast_get_context_name(c));
 		ast_unlock_contexts();
-	}
+		return ret;
+	} else if (pos == 3) { /* include context CTX _X_ */
+		/* complete  as 'in' if context exists or we are unable to check */
+		char *context, *dupline;
+		struct ast_context *c;
+		const char *s = skip_words(line, 2);	/* should not fail */
 
-	/* complete 'in' only if context exist ... */
-	if (pos == 2)
-	{
-		char *context, *dupline, *duplinet;
-
-		if (state != 0) return NULL;
+		if (state != 0)	/* only once */
+			return NULL;
 
 		/* parse context from line ... */
-		if (!(dupline = strdup(line))) {
+		context = dupline = strdup(s);
+		if (!context) {
 			ast_log(LOG_ERROR, "Out of free memory\n");
-			if (state == 0) return strdup("in");
-			return NULL;
+			return strdup("in");
 		}
+		strsep(&dupline, " ");
 
-		duplinet = dupline;
-
-		strsep(&duplinet, " ");
-		context = strsep(&duplinet, " ");
-		if (context) {
-			struct ast_context *c;
-			int context_existence = 0;
-
-			/* check for context existence ... */
-			if (ast_lock_contexts()) {
-				ast_log(LOG_ERROR, "Failed to lock context list\n");
-				free(dupline);
-				/* our fault, we can't check, so complete 'in' ... */
-				return strdup("in");
-			}
-
-			c = ast_walk_contexts(NULL);
-			while (c && !context_existence) {
-				if (!strcmp(context, ast_get_context_name(c))) {
-					context_existence = 1;
-					continue;
-				}
-				c = ast_walk_contexts(c);
-			}
-
-			/* if context exists, return 'into' ... */
-			if (context_existence) {
-				free(dupline);
-				ast_unlock_contexts();
-				return strdup("into");
-			}
-
+		/* check for context existence ... */
+		if (ast_lock_contexts()) {
+			ast_log(LOG_ERROR, "Failed to lock context list\n");
+			/* our fault, we can't check, so complete 'in' ... */
+			ret = strdup("in");
+		} else {
+			for (c = NULL; !ret && (c = ast_walk_contexts(c)); )
+				if (!strcmp(context, ast_get_context_name(c)))
+					ret = strdup("in"); /* found */
 			ast_unlock_contexts();
-		}	
-
-		free(dupline);
-		return NULL;
-	}
-
-	/* serve context into which we include another context */
-	if (pos == 3)
-	{
-		char *context, *dupline, *duplinet, *in;
-		int context_existence = 0;
-
-		if (!(dupline = strdup(line))) {
+		}
+		free(context);
+		return ret;
+	} else if (pos == 4) { /* 'include context CTX in _X_' (dst context) */
+		char *context, *dupline, *in;
+		const char *s = skip_words(line, 2); /* should not fail */
+		context = dupline = strdup(s);
+		if (!dupline) {
 			ast_log(LOG_ERROR, "Out of free memory\n");
 			return NULL;
 		}
-
-		duplinet = dupline;
-
-		strsep(&duplinet, " "); /* skip 'include' */
-		context = strsep(&duplinet, " ");
-		in = strsep(&duplinet, " ");
-
-		/* given some context and third word is in? */
+		strsep(&dupline, " "); /* skip context */
+		in = strsep(&dupline, " ");
+		/* error if missing context or third word is not 'in' */
 		if (!strlen(context) || strcmp(in, "in")) {
-			free(dupline);
-			return NULL;
+			ast_log(LOG_ERROR, "bad context %s or missing in %s\n",
+				context, in);
+			goto error3;
 		}
 
 		if (ast_lock_contexts()) {
 			ast_log(LOG_ERROR, "Failed to lock context list\n");
-			free(dupline);
-			return NULL;
+			goto error3;
 		}
 
-		/* check for context existence ... */
-		c = ast_walk_contexts(NULL);
-		while (c && !context_existence) {
-			if (!strcmp(context, ast_get_context_name(c))) {
-				context_existence = 1;
-				continue;
+		for (c = NULL; (c = ast_walk_contexts(c)); )
+			if (!strcmp(context, ast_get_context_name(c)))
+				break;
+		if (c) { /* first context exists, go on... */
+			/* go through all contexts ... */
+			for (c = NULL; !ret && (c = ast_walk_contexts(c)); ) {
+				if (!strcmp(context, ast_get_context_name(c)))
+					continue; /* skip ourselves */
+				if (partial_match(ast_get_context_name(c), word, len) &&
+						!lookup_ci(c, context) /* not included yet */ &&
+						++which > state)
+					ret = strdup(ast_get_context_name(c));
 			}
-			c = ast_walk_contexts(c);
+		} else {
+			ast_log(LOG_ERROR, "context %s not found\n", context);
 		}
-
-		if (!context_existence) {
-			free(dupline);
-			ast_unlock_contexts();
-			return NULL;
-		}
-
-		/* go through all contexts ... */
-		c = ast_walk_contexts(NULL);
-		while (c) {
-			/* must be different contexts ... */
-			if (strcmp(context, ast_get_context_name(c))) {
-				if (!ast_lock_context(c)) {
-					struct ast_include *i;
-					int included = 0;
-
-					/* check for duplicity inclusion ... */
-					i = ast_walk_context_includes(c, NULL);
-					while (i && !included) {
-						if (!strcmp(ast_get_include_name(i), context))
-							included = 1;
-						i = ast_walk_context_includes(c, i);
-					}
-					ast_unlock_context(c);
-
-					/* not included yet, so show possibility ... */
-					if (!included &&
-						!strncmp(ast_get_context_name(c), word, strlen(word))){
-						
-						if (++which > state) {
-							char *res = strdup(ast_get_context_name(c));
-							free(dupline);
-							ast_unlock_contexts();
-							return res;
-						}
-					}	
-				}
-			}
-			c = ast_walk_contexts(c);
-		}
-
 		ast_unlock_contexts();
-		free(dupline);
-		return NULL;
+	error3:
+		free(context);
+		return ret;
 	}
 
 	return NULL;
@@ -928,9 +730,10 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	struct ast_context *c;
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	int context_header_written;
 	int incomplete = 0; /* incomplete config write? */
 	FILE *output;
+
+	const char *base, *slash, *file;
 
 	if (! (static_config && !write_protect_config)) {
 		ast_cli(fd,
@@ -939,33 +742,34 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 		return RESULT_FAILURE;
 	}
 
-	if (argc != 2 && argc != 3) return RESULT_SHOWUSAGE;
+	if (argc != 2 && argc != 3)
+		return RESULT_SHOWUSAGE;
 
 	if (ast_mutex_lock(&save_dialplan_lock)) {
 		ast_cli(fd,
 			"Failed to lock dialplan saving (another proccess saving?)\n");
 		return RESULT_FAILURE;
 	}
-
-	/* have config path? */
-	if (argc == 3) {
-		/* is there extension.conf too? */
-		if (!strstr(argv[2], ".conf")) {
-			/* no, only directory path, check for last '/' occurence */
-			if (*(argv[2] + strlen(argv[2]) -1) == '/')
-				snprintf(filename, sizeof(filename), "%s%s",
-					argv[2], config);
-			else
-				/* without config extensions.conf, add it */
-				snprintf(filename, sizeof(filename), "%s/%s",
-					argv[2], config);
-		} else
-			/* there is an .conf */
-			snprintf(filename, sizeof(filename), argv[2]);
-	} else
+	/* XXX the code here is quite loose, a pathname with .conf in it
+	 * is assumed to be a complete pathname
+	 */
+	if (argc == 3) {	/* have config path. Look for *.conf */
+		base = argv[2];
+		if (!strstr(argv[2], ".conf")) { /*no, this is assumed to be a pathname */
+			/* if filename ends with '/', do not add one */
+			slash = (*(argv[2] + strlen(argv[2]) -1) == '/') ? "/" : "";
+			file = config;	/* default: 'extensions.conf' */
+		} else {	/* yes, complete file name */
+			slash = "";
+			file = "";
+		}
+	} else {
 		/* no config file, default one */
-		snprintf(filename, sizeof(filename), "%s/%s",
-			(char *)ast_config_AST_CONFIG_DIR, config);
+		base = ast_config_AST_CONFIG_DIR;
+		slash = "/";
+		file = config;
+	}
+	snprintf(filename, sizeof(filename), "%s%s%s", base, slash, config);
 
 	cfg = ast_config_load("extensions.conf");
 
@@ -1003,144 +807,118 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 
 	ast_config_destroy(cfg);
 	
+#define PUT_CTX_HDR	do { \
+	if (!context_header_written) {	\
+		fprintf(output, "[%s]\n", ast_get_context_name(c));	\
+		context_header_written = 1;	\
+	}	\
+	} while (0)
+
 	/* walk all contexts */
-	c = ast_walk_contexts(NULL);
-	while (c) {
-		context_header_written = 0;
-	
+	for (c = NULL; (c = ast_walk_contexts(c)); ) {
+		int context_header_written = 0;
+		struct ast_exten *e, *last_written_e = NULL;
+		struct ast_include *i;
+		struct ast_ignorepat *ip;
+		struct ast_sw *sw;
+
 		/* try to lock context and fireout all info */	
-		if (!ast_lock_context(c)) {
-			struct ast_exten *e, *last_written_e = NULL;
-			struct ast_include *i;
-			struct ast_ignorepat *ip;
-			struct ast_sw *sw;
-
-			/* registered by this module? */
-			if (!strcmp(ast_get_context_registrar(c), registrar)) {
-				fprintf(output, "[%s]\n", ast_get_context_name(c));
-				context_header_written = 1;
-			}
-
-			/* walk extensions ... */
-			e = ast_walk_context_extensions(c, NULL);
-			while (e) {
-				struct ast_exten *p;
-
-				/* fireout priorities */
-				p = ast_walk_extension_priorities(e, NULL);
-				while (p) {
-					if (!strcmp(ast_get_extension_registrar(p),
-						registrar)) {
-			
-						/* make empty line between different extensions */	
-						if (last_written_e != NULL &&
-							strcmp(ast_get_extension_name(last_written_e),
-								ast_get_extension_name(p)))
-							fprintf(output, "\n");
-						last_written_e = p;
-				
-						if (!context_header_written) {
-							fprintf(output, "[%s]\n", ast_get_context_name(c));
-							context_header_written = 1;
-						}
-
-						if (ast_get_extension_priority(p)!=PRIORITY_HINT) {
-							char *tempdata = NULL, *startdata;
-							tempdata = strdup((char *)ast_get_extension_app_data(p));
-							if (tempdata) {
-								startdata = tempdata;
-								while (*tempdata) {
-									if (*tempdata == '|')
-										*tempdata = ',';
-									tempdata++;
-								}
-								tempdata = startdata;
-							}
-							if (ast_get_extension_matchcid(p))
-								fprintf(output, "exten => %s/%s,%d,%s(%s)\n",
-								    ast_get_extension_name(p),
-								    ast_get_extension_cidmatch(p),
-								    ast_get_extension_priority(p),
-								    ast_get_extension_app(p),
-								    tempdata);
-							else
-								fprintf(output, "exten => %s,%d,%s(%s)\n",
-								    ast_get_extension_name(p),
-								    ast_get_extension_priority(p),
-								    ast_get_extension_app(p),
-								    tempdata);
-							if (tempdata)
-								free(tempdata);
-						} else
-							fprintf(output, "exten => %s,hint,%s\n",
-							    ast_get_extension_name(p),
-							    ast_get_extension_app(p));
-						
-					}
-					p = ast_walk_extension_priorities(e, p);
-				}
-
-				e = ast_walk_context_extensions(c, e);
-			}
-
-			/* written any extensions? ok, write space between exten & inc */
-			if (last_written_e) fprintf(output, "\n");
-
-			/* walk through includes */
-			i = ast_walk_context_includes(c, NULL);
-			while (i) {
-				if (!strcmp(ast_get_include_registrar(i), registrar)) {
-					if (!context_header_written) {
-						fprintf(output, "[%s]\n", ast_get_context_name(c));
-						context_header_written = 1;
-					}
-					fprintf(output, "include => %s\n",
-						ast_get_include_name(i));
-				}
-				i = ast_walk_context_includes(c, i);
-			}
-
-			if (ast_walk_context_includes(c, NULL))
-				fprintf(output, "\n");
-
-			/* walk through switches */
-			sw = ast_walk_context_switches(c, NULL);
-			while (sw) {
-				if (!strcmp(ast_get_switch_registrar(sw), registrar)) {
-					if (!context_header_written) {
-						fprintf(output, "[%s]\n", ast_get_context_name(c));
-						context_header_written = 1;
-					}
-					fprintf(output, "switch => %s/%s\n",
-						ast_get_switch_name(sw),
-						ast_get_switch_data(sw));
-				}
-				sw = ast_walk_context_switches(c, sw);
-			}
-
-			if (ast_walk_context_switches(c, NULL))
-				fprintf(output, "\n");
-
-			/* fireout ignorepats ... */
-			ip = ast_walk_context_ignorepats(c, NULL);
-			while (ip) {
-				if (!strcmp(ast_get_ignorepat_registrar(ip), registrar)) {
-					if (!context_header_written) {
-						fprintf(output, "[%s]\n", ast_get_context_name(c));
-						context_header_written = 1;
-					}
-
-					fprintf(output, "ignorepat => %s\n",
-						ast_get_ignorepat_name(ip));
-				}
-				ip = ast_walk_context_ignorepats(c, ip);
-			}
-
-			ast_unlock_context(c);
-		} else
+		if (ast_lock_context(c)) { /* lock failure */
 			incomplete = 1;
+			continue;
+		}
+		/* registered by this module? */
+		/* XXX do we need this ? */
+		if (!strcmp(ast_get_context_registrar(c), registrar)) {
+			fprintf(output, "[%s]\n", ast_get_context_name(c));
+			context_header_written = 1;
+		}
 
-		c = ast_walk_contexts(c);
+		/* walk extensions ... */
+		for (e = NULL; (e = ast_walk_context_extensions(c, e)); ) {
+			struct ast_exten *p = NULL;
+
+			/* fireout priorities */
+			while ( (p = ast_walk_extension_priorities(e, p)) ) {
+				if (strcmp(ast_get_extension_registrar(p), registrar) != 0) /* not this source */
+					continue;
+		
+				/* make empty line between different extensions */	
+				if (last_written_e != NULL &&
+					    strcmp(ast_get_extension_name(last_written_e),
+						    ast_get_extension_name(p)))
+					fprintf(output, "\n");
+				last_written_e = p;
+			
+				PUT_CTX_HDR;
+
+				if (ast_get_extension_priority(p)==PRIORITY_HINT) { /* easy */
+					fprintf(output, "exten => %s,hint,%s\n",
+						    ast_get_extension_name(p),
+						    ast_get_extension_app(p));
+				} else { /* copy and replace '|' with ',' */
+					const char *sep, *cid;
+					char *tempdata = strdup(ast_get_extension_app_data(p));
+					char *s;
+
+					if (!tempdata) { /* XXX error duplicating string ? */
+						incomplete = 1;
+						continue;
+					}
+					for (s = tempdata; *s; s++)
+						if (*s == '|')
+							*s = ',';
+					if (ast_get_extension_matchcid(p)) {
+						sep = "/";
+						cid = ast_get_extension_cidmatch(p);
+					} else {
+						sep = cid = "";
+					}
+					fprintf(output, "exten => %s%s%s,%d,%s(%s)\n",
+					    ast_get_extension_name(p), sep, cid,
+					    ast_get_extension_priority(p),
+					    ast_get_extension_app(p), tempdata);
+					free(tempdata);
+				}
+			}
+		}
+
+		/* written any extensions? ok, write space between exten & inc */
+		if (last_written_e)
+			fprintf(output, "\n");
+
+		/* walk through includes */
+		for (i = NULL; (i = ast_walk_context_includes(c, i)) ; ) {
+			if (strcmp(ast_get_include_registrar(i), registrar) != 0)
+				continue; /* not mine */
+			PUT_CTX_HDR;
+			fprintf(output, "include => %s\n", ast_get_include_name(i));
+		}
+		if (ast_walk_context_includes(c, NULL))
+			fprintf(output, "\n");
+
+		/* walk through switches */
+		for (sw = NULL; (sw = ast_walk_context_switches(c, sw)) ; ) {
+			if (strcmp(ast_get_switch_registrar(sw), registrar) != 0)
+				continue; /* not mine */
+			PUT_CTX_HDR;
+			fprintf(output, "switch => %s/%s\n",
+				    ast_get_switch_name(sw), ast_get_switch_data(sw));
+		}
+
+		if (ast_walk_context_switches(c, NULL))
+			fprintf(output, "\n");
+
+		/* fireout ignorepats ... */
+		for (ip = NULL; (ip = ast_walk_context_ignorepats(c, ip)); ) {
+			if (strcmp(ast_get_ignorepat_registrar(ip), registrar) != 0)
+				continue; /* not mine */
+			PUT_CTX_HDR;
+			fprintf(output, "ignorepat => %s\n",
+						ast_get_ignorepat_name(ip));
+		}
+
+		ast_unlock_context(c);
 	}	
 
 	ast_unlock_contexts();
@@ -1169,12 +947,15 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 	char *start, *end;
 
 	/* check for arguments at first */
-	if (argc != 5 && argc != 6) return RESULT_SHOWUSAGE;
-	if (strcmp(argv[3], "into")) return RESULT_SHOWUSAGE;
+	if (argc != 5 && argc != 6)
+		return RESULT_SHOWUSAGE;
+	if (strcmp(argv[3], "into"))
+		return RESULT_SHOWUSAGE;
 	if (argc == 6) if (strcmp(argv[5], "replace")) return RESULT_SHOWUSAGE;
 
+	/* XXX overwrite argv[2] */
 	whole_exten = argv[2];
-	exten 		= strsep(&whole_exten,",");
+	exten 	= strsep(&whole_exten,",");
 	if (strchr(exten, '/')) {
 		cidmatch = exten;
 		strsep(&cidmatch,"/");
@@ -1183,7 +964,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 	}
 	prior       = strsep(&whole_exten,",");
 	if (prior) {
-    	if (!strcmp(prior, "hint")) {
+		if (!strcmp(prior, "hint")) {
 			iprior = PRIORITY_HINT;
 		} else {
 			if (sscanf(prior, "%d", &iprior) != 1) {
@@ -1208,29 +989,35 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 			app_data = NULL;
 	}
 
-	if (!exten || !prior || !app || (!app_data && iprior != PRIORITY_HINT)) return RESULT_SHOWUSAGE;
+	if (!exten || !prior || !app || (!app_data && iprior != PRIORITY_HINT))
+		return RESULT_SHOWUSAGE;
 
 	if (!app_data)
 		app_data="";
 	if (ast_add_extension(argv[4], argc == 6 ? 1 : 0, exten, iprior, NULL, cidmatch, app,
 		(void *)strdup(app_data), free, registrar)) {
 		switch (errno) {
-			case ENOMEM:
-				ast_cli(fd, "Out of free memory\n"); break;
+		case ENOMEM:
+			ast_cli(fd, "Out of free memory\n");
+			break;
 
-			case EBUSY:
-				ast_cli(fd, "Failed to lock context(s) list, please try again later\n"); break;
+		case EBUSY:
+			ast_cli(fd, "Failed to lock context(s) list, please try again later\n");
+			break;
 
-			case ENOENT:
-				ast_cli(fd, "No existence of '%s' context\n", argv[4]); break;
+		case ENOENT:
+			ast_cli(fd, "No existence of '%s' context\n", argv[4]);
+			break;
 
-			case EEXIST:
-				ast_cli(fd, "Extension %s@%s with priority %s already exists\n",
-					exten, argv[4], prior); break;
+		case EEXIST:
+			ast_cli(fd, "Extension %s@%s with priority %s already exists\n",
+				exten, argv[4], prior);
+			break;
 
-			default:
-				ast_cli(fd, "Failed to add '%s,%s,%s,%s' extension into '%s' context\n",
-					exten, prior, app, app_data, argv[4]); break;
+		default:
+			ast_cli(fd, "Failed to add '%s,%s,%s,%s' extension into '%s' context\n",
+					exten, prior, app, app_data, argv[4]);
+			break;
 		}
 		return RESULT_FAILURE;
 	}
@@ -1251,15 +1038,12 @@ static char *complete_context_add_extension(const char *line, const char *word,
 {
 	int which = 0;
 
-	/* complete 'into' word ... */
-	if (pos == 3) {
-		if (state == 0) return strdup("into");
-		return NULL;
-	}
-
-	/* complete context */
-	if (pos == 4) {
-		struct ast_context *c;
+	if (pos == 3) {		/* complete 'into' word ... */
+		return (state == 0) ? strdup("into") : NULL;
+	} else if (pos == 4) { /* complete context */
+		struct ast_context *c = NULL;
+		int len = strlen(word);
+		char *res = NULL;
 
 		/* try to lock contexts list ... */
 		if (ast_lock_contexts()) {
@@ -1268,25 +1052,14 @@ static char *complete_context_add_extension(const char *line, const char *word,
 		}
 
 		/* walk through all contexts */
-		c = ast_walk_contexts(NULL);
-		while (c) {
-			/* matching context? */
-			if (!strncmp(ast_get_context_name(c), word, strlen(word))) {
-				if (++which > state) {
-					char *res = strdup(ast_get_context_name(c));
-					ast_unlock_contexts();
-					return res;
-				}
-			}
-			c = ast_walk_contexts(c);
-		}
-
+		while ( !res && (c = ast_walk_contexts(c)) )
+			if (partial_match(ast_get_context_name(c), word, len) && ++which > state)
+				res = strdup(ast_get_context_name(c));
 		ast_unlock_contexts();
-		return NULL;
+		return res;
+	} else if (pos == 5) {
+		return state == 0 ? strdup("replace") : NULL;
 	}
-
-	if (pos == 5) return state == 0 ? strdup("replace") : NULL;
-
 	return NULL;
 }
 
@@ -1295,31 +1068,34 @@ static char *complete_context_add_extension(const char *line, const char *word,
  */
 static int handle_context_add_ignorepat(int fd, int argc, char *argv[])
 {
-	if (argc != 5) return RESULT_SHOWUSAGE;
-	if (strcmp(argv[3], "into")) return RESULT_SHOWUSAGE;
+	if (argc != 5)
+		return RESULT_SHOWUSAGE;
+	if (strcmp(argv[3], "into"))
+		return RESULT_SHOWUSAGE;
 
 	if (ast_context_add_ignorepat(argv[4], argv[2], registrar)) {
 		switch (errno) {
-			case ENOMEM:
-				ast_cli(fd, "Out of free memory\n"); break;
+		case ENOMEM:
+			ast_cli(fd, "Out of free memory\n");
+			break;
 
-			case ENOENT:
-				ast_cli(fd, "There is no existence of '%s' context\n", argv[4]);
-				break;
+		case ENOENT:
+			ast_cli(fd, "There is no existence of '%s' context\n", argv[4]);
+			break;
 
-			case EEXIST:
-				ast_cli(fd, "Ignore pattern '%s' already included in '%s' context\n",
-					argv[2], argv[4]);
-				break;
+		case EEXIST:
+			ast_cli(fd, "Ignore pattern '%s' already included in '%s' context\n",
+				argv[2], argv[4]);
+			break;
 
-			case EBUSY:
-				ast_cli(fd, "Failed to lock context(s) list, please, try again later\n");
-				break;
+		case EBUSY:
+			ast_cli(fd, "Failed to lock context(s) list, please, try again later\n");
+			break;
 
-			default:
-				ast_cli(fd, "Failed to add ingore pattern '%s' into '%s' context\n",
-					argv[2], argv[4]);
-				break;
+		default:
+			ast_cli(fd, "Failed to add ingore pattern '%s' into '%s' context\n",
+				argv[2], argv[4]);
+			break;
 		}
 		return RESULT_FAILURE;
 	}
@@ -1332,58 +1108,47 @@ static int handle_context_add_ignorepat(int fd, int argc, char *argv[])
 static char *complete_context_add_ignorepat(const char *line, const char *word,
 	int pos, int state)
 {
-	if (pos == 3) return state == 0 ? strdup("into") : NULL;
-
-	if (pos == 4) {
+	if (pos == 3)
+		return state == 0 ? strdup("into") : NULL;
+	else if (pos == 4) {
 		struct ast_context *c;
 		int which = 0;
-		char *dupline, *duplinet, *ignorepat = NULL;
+		char *dupline, *ignorepat = NULL;
+		const char *s;
+		char *ret = NULL;
+		int len = strlen(word);
 
-		dupline = strdup(line);
-		duplinet = dupline;
-
-		if (duplinet) {
-			strsep(&duplinet, " "); /* skip 'add' */
-			strsep(&duplinet, " "); /* skip 'ignorepat' */
-			ignorepat = strsep(&duplinet, " ");
+		/* XXX skip first two words 'add' 'ignorepat' */
+		s = skip_words(line, 2);
+		if (s == NULL)
+			return NULL;
+		dupline = strdup(s);
+		if (!dupline) {
+			ast_log(LOG_ERROR, "Malloc failure\n");
+			return NULL;
 		}
+		ignorepat = strsep(&dupline, " ");
 
 		if (ast_lock_contexts()) {
 			ast_log(LOG_ERROR, "Failed to lock contexts list\n");
 			return NULL;
 		}
 
-		c = ast_walk_contexts(NULL);
-		while (c) {
-			if (!strncmp(ast_get_context_name(c), word, strlen(word))) {
-				int serve_context = 1;
-				if (ignorepat) {
-					if (!ast_lock_context(c)) {
-						struct ast_ignorepat *ip;
-						ip = ast_walk_context_ignorepats(c, NULL);
-						while (ip && serve_context) {
-							if (!strcmp(ast_get_ignorepat_name(ip), ignorepat))
-								serve_context = 0;
-							ip = ast_walk_context_ignorepats(c, ip);
-						}
-						ast_unlock_context(c);
-					}
-				}
-				if (serve_context) {
-					if (++which > state) {
-						char *context = strdup(ast_get_context_name(c));
-						if (dupline) free(dupline);
-						ast_unlock_contexts();
-						return context;
-					}
-				}
-			}
-			c = ast_walk_contexts(c);
+		for (c = NULL; !ret && (c = ast_walk_contexts(c));) {
+			int found = 0;
+
+			if (!partial_match(ast_get_context_name(c), word, len))
+				continue; /* not mine */
+			if (ignorepat) /* there must be one, right ? */
+				found = lookup_c_ip(c, ignorepat);
+			if (!found && ++which > state)
+				ret = strdup(ast_get_context_name(c));
 		}
 
-		if (dupline) free(dupline);
+		if (ignorepat)
+			free(ignorepat);
 		ast_unlock_contexts();
-		return NULL;
+		return ret;
 	}
 
 	return NULL;
@@ -1391,27 +1156,29 @@ static char *complete_context_add_ignorepat(const char *line, const char *word,
 
 static int handle_context_remove_ignorepat(int fd, int argc, char *argv[])
 {
-	if (argc != 5) return RESULT_SHOWUSAGE;
-	if (strcmp(argv[3], "from")) return RESULT_SHOWUSAGE;
+	if (argc != 5)
+		return RESULT_SHOWUSAGE;
+	if (strcmp(argv[3], "from"))
+		return RESULT_SHOWUSAGE;
 
 	if (ast_context_remove_ignorepat(argv[4], argv[2], registrar)) {
 		switch (errno) {
-			case EBUSY:
-				ast_cli(fd, "Failed to lock context(s) list, please try again later\n");
-				break;
+		case EBUSY:
+			ast_cli(fd, "Failed to lock context(s) list, please try again later\n");
+			break;
 
-			case ENOENT:
-				ast_cli(fd, "There is no existence of '%s' context\n", argv[4]);
-				break;
+		case ENOENT:
+			ast_cli(fd, "There is no existence of '%s' context\n", argv[4]);
+			break;
 
-			case EINVAL:
-				ast_cli(fd, "There is no existence of '%s' ignore pattern in '%s' context\n",
+		case EINVAL:
+			ast_cli(fd, "There is no existence of '%s' ignore pattern in '%s' context\n",
 					argv[2], argv[4]);
-				break;
+			break;
 
-			default:
-				ast_cli(fd, "Failed to remove ignore pattern '%s' from '%s' context\n", argv[2], argv[4]);
-				break;
+		default:
+			ast_cli(fd, "Failed to remove ignore pattern '%s' from '%s' context\n", argv[2], argv[4]);
+			break;
 		}
 		return RESULT_FAILURE;
 	}
@@ -1425,7 +1192,8 @@ static int pbx_load_module(void);
 
 static int handle_reload_extensions(int fd, int argc, char *argv[])
 {
-	if (argc!=2) return RESULT_SHOWUSAGE;
+	if (argc!=2)
+		return RESULT_SHOWUSAGE;
 	pbx_load_module();
 	return RESULT_SUCCESS;
 }
@@ -1435,63 +1203,43 @@ static char *complete_context_remove_ignorepat(const char *line, const char *wor
 {
 	struct ast_context *c;
 	int which = 0;
+	char *ret = NULL;
 
 	if (pos == 2) {
+		int len = strlen(word);
 		if (ast_lock_contexts()) {
 			ast_log(LOG_WARNING, "Failed to lock contexts list\n");
 			return NULL;
 		}
 
-		c = ast_walk_contexts(NULL);
-		while (c) {
-			if (!ast_lock_context(c)) {
-				struct ast_ignorepat *ip;
+		for (c = NULL; !ret && (c = ast_walk_contexts(c));) {
+			struct ast_ignorepat *ip;
+
+			if (ast_lock_context(c))	/* error, skip it */
+				continue;
 			
-				ip = ast_walk_context_ignorepats(c, NULL);
-				while (ip) {
-					if (!strncmp(ast_get_ignorepat_name(ip), word, strlen(word))) {
-						if (which + 1 > state) {
-							struct ast_context *cw;
-							int already_served = 0;
-							cw = ast_walk_contexts(NULL);
-							while (cw && cw != c && !already_served) {
-								if (!ast_lock_context(cw)) {
-									struct ast_ignorepat *ipw;
-									ipw = ast_walk_context_ignorepats(cw, NULL);
-									while (ipw) {
-										if (!strcmp(ast_get_ignorepat_name(ipw),
-											ast_get_ignorepat_name(ip))) already_served = 1;
-										ipw = ast_walk_context_ignorepats(cw, ipw);
-									}
-									ast_unlock_context(cw);
-								}
-								cw = ast_walk_contexts(cw);
-							}
-							if (!already_served) {
-								char *ret = strdup(ast_get_ignorepat_name(ip));
-								ast_unlock_context(c);
-								ast_unlock_contexts();
-								return ret;
-							}
-						} else
-							which++;
+			for (ip = NULL; !ret && (ip = ast_walk_context_ignorepats(c, ip));) {
+				if (partial_match(ast_get_ignorepat_name(ip), word, len) && ++which > state) {
+					/* n-th match */
+					struct ast_context *cw = NULL;
+					int found = 0;
+					while ( (cw = ast_walk_contexts(cw)) && cw != c && !found) {
+						/* XXX do i stop on c, or skip it ? */
+						found = lookup_c_ip(cw, ast_get_ignorepat_name(ip));
 					}
-					ip = ast_walk_context_ignorepats(c, ip);
+					if (!found)
+						ret = strdup(ast_get_ignorepat_name(ip));
 				}
-
-				ast_unlock_context(c);
 			}
-			c = ast_walk_contexts(c);
+			ast_unlock_context(c);
 		}
-
 		ast_unlock_contexts();
-		return NULL;
-	}
- 
-	if (pos == 3) return state == 0 ? strdup("from") : NULL;
-
-	if (pos == 4) {
+		return ret;
+	} else if (pos == 3) {
+		 return state == 0 ? strdup("from") : NULL;
+	} else if (pos == 4) { /* XXX check this */
 		char *dupline, *duplinet, *ignorepat;
+		int len = strlen(word);
 
 		dupline = strdup(line);
 		if (!dupline) {
@@ -1515,33 +1263,17 @@ static char *complete_context_remove_ignorepat(const char *line, const char *wor
 			return NULL;
 		}
 
-		c = ast_walk_contexts(NULL);
-		while (c) {
-			if (!ast_lock_context(c)) {
-				struct ast_ignorepat *ip;
-				ip = ast_walk_context_ignorepats(c, NULL);
-				while (ip) {
-					if (!strcmp(ast_get_ignorepat_name(ip), ignorepat)) {
-						if (!strncmp(ast_get_context_name(c), word, strlen(word))) {
-							if (++which > state) {
-								char *ret = strdup(ast_get_context_name(c));
-								free(dupline);
-								ast_unlock_context(c);
-								ast_unlock_contexts();
-								return ret;
-							}
-						}
-					}
-					ip = ast_walk_context_ignorepats(c, ip);
-				}
-
-				ast_unlock_context(c);
-			}
-			c = ast_walk_contexts(c);
+		for (c = NULL; !ret && (c = ast_walk_contexts(c)); ) {
+			if (ast_lock_context(c))	/* fail, skip it */
+				continue;
+			if (!partial_match(ast_get_context_name(c), word, len))
+				continue;
+			if (lookup_c_ip(c, ignorepat) && ++which > state)
+				ret = strdup(ast_get_context_name(c));
+			ast_unlock_context(c);
 		}
-
-		free(dupline);
 		ast_unlock_contexts();
+		free(dupline);
 		return NULL;
 	}
 
@@ -1610,16 +1342,17 @@ int unload_module(void)
 static int pbx_load_module(void)
 {
 	struct ast_config *cfg;
-	struct ast_variable *v;
-	char *cxt, *ext, *pri, *appl, *data, *tc, *cidmatch;
-	struct ast_context *con;
 	char *end;
 	char *label;
 	char realvalue[256];
 	int lastpri = -2;
+	struct ast_context *con;
 
 	cfg = ast_config_load(config);
 	if (cfg) {
+		struct ast_variable *v;
+		char *cxt;
+
 		/* Use existing config to populate the PBX table */
 		static_config = ast_true(ast_variable_retrieve(cfg, "general", "static"));
 		write_protect_config = ast_true(ast_variable_retrieve(cfg, "general", "writeprotect"));
@@ -1627,29 +1360,32 @@ static int pbx_load_module(void)
 		clearglobalvars_config = ast_true(ast_variable_retrieve(cfg, "general", "clearglobalvars"));
 		ast_set2_flag(&ast_options, !ast_false(ast_variable_retrieve(cfg, "general", "priorityjumping")), AST_OPT_FLAG_PRIORITY_JUMPING);
 									    
-		v = ast_variable_browse(cfg, "globals");
-		for (; v; v = v->next) {
+		for (v = ast_variable_browse(cfg, "globals"); v; v = v->next) {
 			memset(realvalue, 0, sizeof(realvalue));
 			pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 			pbx_builtin_setvar_helper(NULL, v->name, realvalue);
 		}
-		cxt = ast_category_browse(cfg, NULL);
-		while(cxt) {
+		for (cxt = NULL; (cxt = ast_category_browse(cfg, cxt)); ) {
+
 			/* All categories but "general" or "globals" are considered contexts */
-			if (!strcasecmp(cxt, "general") || !strcasecmp(cxt, "globals")) {
-				cxt = ast_category_browse(cfg, cxt);
+			if (!strcasecmp(cxt, "general") || !strcasecmp(cxt, "globals"))
 				continue;
-			}
-			if ((con=ast_context_create(&local_contexts,cxt, registrar))) {
-				v = ast_variable_browse(cfg, cxt);
-				while(v) {
+			con=ast_context_create(&local_contexts,cxt, registrar);
+			if (con == NULL)
+				continue;
+
+				/* XXX indentation should be fixed for this block */
+				for (v = ast_variable_browse(cfg, cxt); v; v = v->next) {
 					if (!strcasecmp(v->name, "exten")) {
+						char *ext, *pri, *appl, *data, *cidmatch;
 						char *stringp=NULL;
 						int ipri = -2;
 						char realext[256]="";
 						char *plus, *firstp, *firstc;
-						tc = strdup(v->value);
-						if(tc!=NULL){
+						char *tc = strdup(v->value);
+						if (tc == NULL)
+							fprintf(stderr,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
+						else {
 							stringp=tc;
 							ext = strsep(&stringp, ",");
 							if (!ext)
@@ -1657,8 +1393,7 @@ static int pbx_load_module(void)
 							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
 							cidmatch = strchr(realext, '/');
 							if (cidmatch) {
-								*cidmatch = '\0';
-								cidmatch++;
+								*cidmatch++ = '\0';
 								ast_shrink_phone_number(cidmatch);
 							}
 							pri = strsep(&stringp, ",");
@@ -1666,8 +1401,7 @@ static int pbx_load_module(void)
 								pri="";
 							label = strchr(pri, '(');
 							if (label) {
-								*label = '\0';
-								label++;
+								*label++ = '\0';
 								end = strchr(label, ')');
 								if (end)
 									*end = '\0';
@@ -1675,10 +1409,8 @@ static int pbx_load_module(void)
 									ast_log(LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
 							}
 							plus = strchr(pri, '+');
-							if (plus) {
-								*plus = '\0';
-								plus++;
-							}
+							if (plus)
+								*plus++ = '\0';
 							if (!strcmp(pri,"hint"))
 								ipri=PRIORITY_HINT;
 							else if (!strcmp(pri, "next") || !strcmp(pri, "n")) {
@@ -1728,7 +1460,7 @@ static int pbx_load_module(void)
 
 							if (!data)
 								data="";
-							while(*appl && (*appl < 33)) appl++;
+							appl = ast_skip_blanks(appl);
 							if (ipri) {
 								if (plus)
 									ipri += atoi(plus);
@@ -1737,12 +1469,12 @@ static int pbx_load_module(void)
 									if (!strcmp(realext, "_."))
 										ast_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
 								}
-								if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), FREE, registrar)) {
+								if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), free, registrar)) {
 									ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 								}
 							}
 							free(tc);
-						} else fprintf(stderr,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
+						}
 					} else if(!strcasecmp(v->name, "include")) {
 						memset(realvalue, 0, sizeof(realvalue));
 						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
@@ -1754,31 +1486,28 @@ static int pbx_load_module(void)
 						if (ast_context_add_ignorepat2(con, realvalue, registrar))
 							ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 					} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
-						char *stringp=NULL;
+						char *stringp= realvalue;
+						char *appl, *data;
+
 						memset(realvalue, 0, sizeof(realvalue));
 						if (!strcasecmp(v->name, "switch"))
 							pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 						else
-							strncpy(realvalue, v->value, sizeof(realvalue) - 1);
-						tc = realvalue;
-						stringp=tc;
+							ast_copy_string(realvalue, v->value, sizeof(realvalue));
 						appl = strsep(&stringp, "/");
-						data = strsep(&stringp, "");
+						data = strsep(&stringp, ""); /* XXX what for ? */
 						if (!data)
 							data = "";
 						if (ast_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
 							ast_log(LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
 					}
-					v = v->next;
 				}
-			}
-			cxt = ast_category_browse(cfg, cxt);
 		}
 		ast_config_destroy(cfg);
 	}
 	ast_merge_contexts_and_delete(&local_contexts,registrar);
 
-	for (con = ast_walk_contexts(NULL); con; con = ast_walk_contexts(con))
+	for (con = NULL; (con = ast_walk_contexts(con));)
 		ast_context_verify_includes(con);
 
 	pbx_set_autofallthrough(autofallthrough_config);
