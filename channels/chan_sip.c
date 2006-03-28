@@ -7283,7 +7283,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		}
 		if (!(res = check_auth(p, req, user->name, user->secret, user->md5secret, sipmethod, uri, reliable, ignore))) {
 			sip_cancel_destroy(p);
-			ast_copy_flags(&p->flags[0], &user->flags[1], SIP_FLAGS_TO_COPY);
+			ast_copy_flags(&p->flags[0], &user->flags[0], SIP_FLAGS_TO_COPY);
 			ast_copy_flags(&p->flags[1], &user->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 			/* Copy SIP extensions profile from INVITE */
 			if (p->sipoptions)
