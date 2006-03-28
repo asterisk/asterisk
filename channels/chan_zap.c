@@ -3665,6 +3665,13 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	}
 
 	switch(res) {
+#ifdef ZT_EVENT_EC_DISABLED
+		case ZT_EVENT_EC_DISABLED:
+			if (option_verbose > 2) 
+				ast_verbose(VERBOSE_PREFIX_3 "Channel %d echo canceler disabled due to CED detection\n", p->channel);
+			p->echocanon = 0;
+			break;
+#endif
 		case ZT_EVENT_BITSCHANGED:
 			if (p->sig == SIG_R2) {
 #ifdef ZAPATA_R2
