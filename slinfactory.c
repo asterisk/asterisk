@@ -156,7 +156,3 @@ int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t bytes)
 	sf->size -= sofar;
 	return sofar;
 }
-
-
-
-

@@ -20,7 +20,7 @@
  *
  * \brief Various sorts of access control
  *
- * \author Mark Spencer <markster@digium.com> 
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include <stdio.h>
@@ -136,7 +136,7 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 		if (prev)
 			prev->next = link;		/* Link previous to this object */
 
-		if (!ret) 
+		if (!ret)
 			ret = link;		/* Save starting point */
 
 		start = start->next;		/* Go to next object */
@@ -153,7 +153,7 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 	struct ast_ha *prev = NULL;
 	struct ast_ha *ret;
 	int x, z;
-	unsigned int y;		
+	unsigned int y;
 
 	ret = path;
 	while (path) {
@@ -349,7 +349,7 @@ int ast_get_ip(struct sockaddr_in *sin, const char *value)
 }
 
 /* iface is the interface (e.g. eth0); address is the return value */
-int ast_lookup_iface(char *iface, struct in_addr *address) 
+int ast_lookup_iface(char *iface, struct in_addr *address)
 {
 	int mysock, res = 0;
 	struct my_ifreq ifreq;
@@ -428,4 +428,3 @@ int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
 		return 0;
 	return -1;
 }
-
