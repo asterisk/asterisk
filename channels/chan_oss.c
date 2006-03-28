@@ -94,24 +94,51 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 START_CONFIG
 
 [general]
-; general config options, default values are shown
-; all but debug can go also in the device-specific sections.
-; debug=0x0		; misc debug flags, default is 0
+    ; General config options, with default values shown.
+    ; You should use one section per device, with [general] being used
+    ; for the first device and also as a template for other devices.
+    ;
+    ; All but 'debug' can go also in the device-specific sections.
+    ;
+    ; debug = 0x0		; misc debug flags, default is 0
+
+    ; Set the device to use for I/O
+    ; device = /dev/dsp
+
+    ; Optional mixer command to run upon startup (e.g. to set
+    ; volume levels, mutes, etc.
+    ; mixer =
+
+    ; Software mic volume booster (or attenuator), useful for sound
+    ; cards or microphones with poor sensitivity. The volume level
+    ; is in dB, ranging from -20.0 to +20.0
+    ; boost = n			; mic volume boost in dB
+
+    ; Set the callerid for outgoing calls
+    ; callerid = John Doe <555-1234>
+
+    ; autoanswer = no		; no autoanswer on call
+    ; autohangup = yes		; hangup when other party closes
+    ; extension = s		; default extension to call
+    ; context = default		; default context for outgoing calls
+    ; language = ""		; default language
+
+    ; If you set overridecontext to 'yes', then the whole dial string
+    ; will be interpreted as an extension, which is extremely useful
+    ; to dial SIP, IAX and other extensions which use the '@' character.
+    ; The default is 'no' just for backward compatibility, but the
+    ; suggestion is to change it.
+    ; overridecontext = no	; if 'no', the last @ will start the context
+				; if 'yes' the whole string is an extension.
+
+    ; low level device parameters in case you have problems with the
+    ; device driver on your operating system. You should not touch these
+    ; unless you know what you are doing.
+    ; queuesize = 10		; frames in device driver
+    ; frags = 8			; argument to SETFRAGMENT
 
 [card1]
-; autoanswer = no	; no autoanswer on call
-; autohangup = yes	; hangup when other party closes
-; extension=s		; default extension to call
-; context=default	; default context
-; language=""		; default language
-; overridecontext=yes	; the whole dial string is considered an extension.
-			; if no, the last @ will start the context
-
-; device=/dev/dsp	; device to open
-; mixer="-f /dev/mixer0 pcm 80 ; mixer command to run on start
-; queuesize=10		; frames in device driver
-; frags=8		; argument to SETFRAGMENT
-; boost = n		; mic volume boost in dB
+    ; device = /dev/dsp1	; alternate device
 
 END_CONFIG
 
