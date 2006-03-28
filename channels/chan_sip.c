@@ -4946,7 +4946,7 @@ static void build_rpid(struct sip_pvt *p)
 		break;
 	}
 	
-	fromdomain = ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain;
+	fromdomain = S_OR(p->fromdomain, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
 
 	snprintf(buf, sizeof(buf), "\"%s\" <sip:%s@%s>", clin, clid, fromdomain);
 	if (send_pres_tags)
@@ -4954,7 +4954,7 @@ static void build_rpid(struct sip_pvt *p)
 	ast_string_field_set(p, rpid, buf);
 
 	ast_string_field_build(p, rpid_from, "\"%s\" <sip:%s@%s>;tag=%s", clin,
-			       ast_strlen_zero(p->fromuser) ? clid : p->fromuser,
+			       S_OR(p->fromuser, clid),
 			       fromdomain, p->tag);
 }
 
@@ -5034,9 +5034,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	}
 
 	if ((ourport != 5060) && ast_strlen_zero(p->fromdomain))	/* Needs to be 5060 */
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, ourport, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip)), ourport, p->tag);
 	else
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip)), p->tag);
 
 	/* If we're calling a registered SIP peer, use the fullcontact to dial to the peer */
 	if (!ast_strlen_zero(p->fullcontact)) {
@@ -5379,7 +5379,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	add_header(&req, "Content-Type", default_notifymime);
 
 	ast_build_string(&t, &maxbytes, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
-	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n", !ast_strlen_zero(vmexten) ? vmexten : default_vmexten, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain);
+	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n", !ast_strlen_zero(vmexten) ? vmexten : default_vmexten, S_OR(p->fromdomain, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip)));
 	ast_build_string(&t, &maxbytes, "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
 	if (p->subscribed) {
 		if (p->expiry)
@@ -6488,7 +6488,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 			char resp[256];
 
 			snprintf(a2, sizeof(a2), "%s:%s", sip_methods[sipmethod].text,
-					!ast_strlen_zero(keys[K_URI].s) ? keys[K_URI].s : uri);
+					S_OR(keys[K_URI].s, uri));
 			ast_md5_hash(a2_hash, a2);
 			snprintf(resp, sizeof(resp), "%s:%s:%s", a1_hash, usednonce, a2_hash);
 			ast_md5_hash(resp_hash, resp);
@@ -8109,7 +8109,7 @@ static int sip_show_domains(int fd, int argc, char *argv[])
 		ast_cli(fd, FORMAT, "Our local SIP domains:", "Context", "Set by");
 		AST_LIST_LOCK(&domain_list);
 		AST_LIST_TRAVERSE(&domain_list, d, list)
-			ast_cli(fd, FORMAT, d->domain, ast_strlen_zero(d->context) ? "(default)": d->context,
+			ast_cli(fd, FORMAT, d->domain, S_OR(d->context, "(default)"),
 				domain_mode_to_text(d->mode));
 		AST_LIST_UNLOCK(&domain_list);
 		ast_cli(fd, "\n");
@@ -8475,7 +8475,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Realm. auth:            %s\n", authl ? "Yes": "No");
 	ast_cli(fd, "  User Agent:             %s\n", global_useragent);
 	ast_cli(fd, "  MWI checking interval:  %d secs\n", global_mwitime);
-	ast_cli(fd, "  Reg. context:           %s\n", ast_strlen_zero(global_regcontext) ? "(not set)" : global_regcontext);
+	ast_cli(fd, "  Reg. context:           %s\n", S_OR(global_regcontext, "(not set)"));
 	ast_cli(fd, "  Caller ID:              %s\n", default_callerid);
 	ast_cli(fd, "  From: Domain:           %s\n", default_fromdomain);
 	ast_cli(fd, "  Record SIP history:     %s\n", recordhistory ? "On" : "Off");
@@ -8521,7 +8521,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Qualify:                %d\n", default_qualify);
 	ast_cli(fd, "  Use ClientCode:         %s\n", ast_test_flag(&global_flags[0], SIP_USECLIENTCODE) ? "Yes" : "No");
 	ast_cli(fd, "  Progress inband:        %s\n", (ast_test_flag(&global_flags[0], SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER) ? "Never" : (ast_test_flag(&global_flags[0], SIP_PROG_INBAND) == SIP_PROG_INBAND_NO) ? "No" : "Yes" );
-	ast_cli(fd, "  Language:               %s\n", ast_strlen_zero(default_language) ? "(Defaults to English)" : default_language);
+	ast_cli(fd, "  Language:               %s\n", S_OR(default_language, "(Defaults to English)"));
 	ast_cli(fd, "  Musicclass:             %s\n", default_musicclass);
 	ast_cli(fd, "  Voice Mail Extension:   %s\n", default_vmexten);
 
@@ -8598,7 +8598,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 	while (cur) {
 		if (cur->subscribed == NONE && !subscriptions) {
 			ast_cli(fd, FORMAT, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), 
-				ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
+				S_OR(cur->username, S_OR(cur->cid_num, "(None)")),
 				cur->callid, 
 				cur->ocseq, cur->icseq, 
 				ast_getformatname(cur->owner ? cur->owner->nativeformats : 0), 
@@ -8609,7 +8609,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 		}
 		if (cur->subscribed != NONE && subscriptions) {
 			ast_cli(fd, FORMAT3, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr),
-				ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
+				S_OR(cur->username, S_OR(cur->cid_num, "(None)")), 
 			   	cur->callid,
 				cur->subscribed == MWI_NOTIFICATION ? "--" : cur->exten,
 				cur->subscribed == MWI_NOTIFICATION ? "<none>" : ast_extension_state2str(cur->laststate), 
@@ -10673,7 +10673,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			/* Initialize our tag */	
 			make_our_tag(p->tag, sizeof(p->tag));
 			/* First invitation */
-			c = sip_new(p, AST_STATE_DOWN, ast_strlen_zero(p->username) ? NULL : p->username);
+			c = sip_new(p, AST_STATE_DOWN, S_OR(p->username, NULL));
 			*recount = 1;
 			/* Save Record-Route for any later requests we make on this dialogue */
 			build_route(p, req, 0);
