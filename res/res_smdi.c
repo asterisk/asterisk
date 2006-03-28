@@ -740,12 +740,6 @@ int unload_module(void)
 	ASTOBJ_CONTAINER_DESTROYALL(&smdi_ifaces, ast_smdi_interface_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&smdi_ifaces);
 
-	/*
-	 * localusers = NULL; is just to silence the compiler warning
-	 * about an unused variable. It will be removed soon, when the
-	 * LOCALUSER-related functions are rewritten.
-	 */
-	localusers = NULL;
 	return 0;
 }
 

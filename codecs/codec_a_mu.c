@@ -316,7 +316,7 @@ char *description(void)
 int usecount(void)
 {
 	int res;
-	STANDARD_USECOUNT(res);
+	OLD_STANDARD_USECOUNT(res);
 	return res;
 }
 
