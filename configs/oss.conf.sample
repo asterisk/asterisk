@@ -1,43 +1,51 @@
-;
-; Open Sound System Console Driver Configuration File
-;
+#
+# Automatically generated from ../channels/chan_oss.c
+#
+
 [general]
-;
-; Automatically answer incoming calls on the console?  Choose yes if
-; for example you want to use this as an intercom.
-;
-autoanswer=yes
-;
-; Default context (is overridden with @context syntax)
-;
-context=local
-;
-; Set overridecontext to yes if you want the context specified above
-; to override what someone places on the command line.
-;
-;overridecontext=yes
-;
-; Default extension to call
-;
-extension=s
-;
-; Default language
-;
-;language=en
-;
-; CallerID for outbound calls
-;
-;callerid=John Doe <1234>
-;
-; Silence supression can be enabled when sound is over a certain threshold.
-; The value for the threshold should probably be between 500 and 2000 or so,
-; but your mileage may vary.  Use the echo test to evaluate the best setting.
-;silencesuppression = yes
-;silencethreshold = 1000
-;
-; On half-duplex cards, the driver attempts to switch back and forth between
-; read and write modes.  Unfortunately, this fails sometimes on older hardware.
-; To prevent the driver from switching (ie. only play files on your speakers),
-; then set the playbackonly option to yes.  Default is no.  Note this option has
-; no effect on full-duplex cards.
-;playbackonly=no
+    ; General config options, with default values shown.
+    ; You should use one section per device, with [general] being used
+    ; for the first device and also as a template for other devices.
+    ;
+    ; All but 'debug' can go also in the device-specific sections.
+    ;
+    ; debug = 0x0		; misc debug flags, default is 0
+
+    ; Set the device to use for I/O
+    ; device = /dev/dsp
+
+    ; Optional mixer command to run upon startup (e.g. to set
+    ; volume levels, mutes, etc.
+    ; mixer =
+
+    ; Software mic volume booster (or attenuator), useful for sound
+    ; cards or microphones with poor sensitivity. The volume level
+    ; is in dB, ranging from -20.0 to +20.0
+    ; boost = n			; mic volume boost in dB
+
+    ; Set the callerid for outgoing calls
+    ; callerid = John Doe <555-1234>
+
+    ; autoanswer = no		; no autoanswer on call
+    ; autohangup = yes		; hangup when other party closes
+    ; extension = s		; default extension to call
+    ; context = default		; default context for outgoing calls
+    ; language = ""		; default language
+
+    ; If you set overridecontext to 'yes', then the whole dial string
+    ; will be interpreted as an extension, which is extremely useful
+    ; to dial SIP, IAX and other extensions which use the '@' character.
+    ; The default is 'no' just for backward compatibility, but the
+    ; suggestion is to change it.
+    ; overridecontext = no	; if 'no', the last @ will start the context
+				; if 'yes' the whole string is an extension.
+
+    ; low level device parameters in case you have problems with the
+    ; device driver on your operating system. You should not touch these
+    ; unless you know what you are doing.
+    ; queuesize = 10		; frames in device driver
+    ; frags = 8			; argument to SETFRAGMENT
+
+[card1]
+    ; device = /dev/dsp1	; alternate device
+
