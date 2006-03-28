@@ -71,10 +71,29 @@ struct ast_cli_entry {
 	char *(*generator)(const char *line, const char *word, int pos, int n);
 	/*! For keeping track of usage */
 	int inuse;
+	struct module *module;	/*! module this belongs to */
+	char *_full_cmd;	/* built at load time from cmda[] */
 	/*! For linking */
 	AST_LIST_ENTRY(ast_cli_entry) list;
 };
 
+/*!
+ * \brief Helper function to generate cli entries from a NULL-terminated array.
+ * Returns the n-th matching entry from the array, or NULL if not found.
+ * Can be used to implement generate() for static entries as below
+ * (in this example we complete the word in position 2):
+  \code
+    char *my_generate(const char *line, const char *word, int pos, int n)
+    {
+        static char *choices = { "one", "two", "three", NULL };
+	if (pos == 2)
+        	return ast_cli_complete(word, choices, n);
+	else
+		return NULL;
+    }
+  \endcode
+ */
+char *ast_cli_complete(const char *word, char *const choices[], int pos);
 
 /*! \brief Interprets a command 
  * Interpret a command s, sending output to fd

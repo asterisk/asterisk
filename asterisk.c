@@ -2031,6 +2031,7 @@ int main(int argc, char *argv[])
 	ast_ulaw_init();
 	ast_alaw_init();
 	callerid_init();
+	ast_builtins_init();
 	ast_utils_init();
 	tdd_init();
 	/* When Asterisk restarts after it has dropped the root privileges,
