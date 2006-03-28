@@ -197,22 +197,19 @@ static char *authority_to_str(int authority, char *res, int reslen)
 
 static char *complete_show_mancmd(const char *line, const char *word, int pos, int state)
 {
-	struct manager_action *cur = first_action;
+	struct manager_action *cur;
 	int which = 0;
+	char *ret = NULL;
 
 	ast_mutex_lock(&actionlock);
-	while (cur) { /* Walk the list of actions */
-		if (!strncasecmp(word, cur->action, strlen(word))) {
-			if (++which > state) {
-				char *ret = strdup(cur->action);
-				ast_mutex_unlock(&actionlock);
-				return ret;
-			}
+	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
+		if (!strncasecmp(word, cur->action, strlen(word)) && ++which > state) {
+			ret = ast_strdup(cur->action);
+			break;	/* make sure we exit even if ast_strdup() returns NULL */
 		}
-		cur = cur->next;
 	}
 	ast_mutex_unlock(&actionlock);
-	return NULL;
+	return ret;
 }
 
 void astman_append(struct mansession *s, const char *fmt, ...)
@@ -659,7 +656,7 @@ static int action_listcommands(struct mansession *s, struct message *m)
 	char *id = astman_get_header(m,"ActionID");
 
 	if (!ast_strlen_zero(id))
-		snprintf(idText,256,"ActionID: %s\r\n",id);
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	astman_append(s, "Response: Success\r\n%s", idText);
 	ast_mutex_lock(&actionlock);
 	while (cur) { /* Walk the list of actions */
@@ -833,7 +830,7 @@ static int action_status(struct mansession *s, struct message *m)
 
 	astman_send_ack(s, m, "Channel status will follow");
         if (!ast_strlen_zero(id))
-                snprintf(idText,256,"ActionID: %s\r\n",id);
+                snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	if (all)
 		c = ast_channel_walk_locked(NULL);
 	else {
@@ -938,6 +935,7 @@ static int action_redirect(struct mansession *s, struct message *m)
 			return 0;
 		}
 	}
+	/* XXX watch out, possible deadlock!!! */
 	chan = ast_get_channel_by_name_locked(name);
 	if (!chan) {
 		char buf[BUFSIZ];
@@ -1094,8 +1092,7 @@ static int action_originate(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Invalid channel\n");
 		return 0;
 	}
-	*data = '\0';
-	data++;
+	*data++ = '\0';
 	ast_copy_string(tmp2, callerid, sizeof(tmp2));
 	ast_callerid_parse(tmp2, &n, &l);
 	if (n) {
@@ -1178,7 +1175,7 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 		return 0;
 	}
         if (!ast_strlen_zero(id))
-                snprintf(idText,256,"ActionID: %s\r\n",id);
+                snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	ret = ast_app_has_voicemail(mailbox, NULL);
 	astman_append(s, "Response: Success\r\n"
 				   "%s"
@@ -1211,7 +1208,7 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 	}
 	ast_app_messagecount(mailbox, &newmsgs, &oldmsgs);
 	if (!ast_strlen_zero(id)) {
-		snprintf(idText,256,"ActionID: %s\r\n",id);
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n",id);
 	}
 	astman_append(s, "Response: Success\r\n"
 				   "%s"
@@ -1252,7 +1249,7 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 	status = ast_extension_state(NULL, context, exten);
 	ast_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, context, exten);
         if (!ast_strlen_zero(id)) {
-                snprintf(idText,256,"ActionID: %s\r\n",id);
+                snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
         }
 	astman_append(s, "Response: Success\r\n"
 			           "%s"
@@ -1311,9 +1308,9 @@ static int process_message(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Missing action in request");
 		return 0;
 	}
-	if (!ast_strlen_zero(id)) {
-		snprintf(idText,256,"ActionID: %s\r\n",id);
-	}
+        if (!ast_strlen_zero(id)) {
+                snprintf(idText, sizeof(idText), "ActionID: %s\r\n",id);
+        }
 	if (!s->authenticated) {
 		if (!strcasecmp(action, "Challenge")) {
 			char *authtype;
