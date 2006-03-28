@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -38,16 +38,17 @@ extern "C" {
 
 struct ast_ha;
 
-extern void ast_free_ha(struct ast_ha *ha);
-extern struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path);
-extern int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin);
-extern int ast_get_ip(struct sockaddr_in *sin, const char *value);
-extern int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
-extern int ast_ouraddrfor(struct in_addr *them, struct in_addr *us);
-extern int ast_lookup_iface(char *iface, struct in_addr *address);
-extern struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original);
-extern int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
-extern int ast_str2tos(const char *value, int *tos);
+void ast_free_ha(struct ast_ha *ha);
+struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path);
+int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin);
+int ast_get_ip(struct sockaddr_in *sin, const char *value);
+int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
+int ast_ouraddrfor(struct in_addr *them, struct in_addr *us);
+int ast_lookup_iface(char *iface, struct in_addr *address);
+struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original);
+int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
+int ast_str2tos(const char *value, unsigned int *tos);
+const char *ast_tos2str(unsigned int tos);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

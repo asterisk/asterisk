@@ -9040,7 +9040,7 @@ static int set_config(char *config_file, int reload)
 	tosval = ast_variable_retrieve(cfg, "general", "tos");
 	if (tosval) {
 		if (ast_str2tos(tosval, &tos))
-			ast_log(LOG_WARNING, "Invalid tos value, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n");
+			ast_log(LOG_WARNING, "Invalid tos value, see doc/iptos.txt for more information.\n");
 	}
 	while(v) {
 		if (!strcasecmp(v->name, "bindport")){ 
@@ -9190,7 +9190,7 @@ static int set_config(char *config_file, int reload)
 				ast_context_create(NULL, regcontext, "IAX2");
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (ast_str2tos(v->value, &tos))
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos value at line %d, see doc/iptos.txt for more information.'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(accountcode, v->value, sizeof(accountcode));
 		} else if (!strcasecmp(v->name, "amaflags")) {

@@ -53,10 +53,8 @@ codec=ulaw
 ;
 flags=register,heartbeat
 ;
-; tos is the requested type of service setting and may be one a number or
-; 'lowdelay','throughput','reliability','mincost' or 'none'
-;
-tos=lowdelay
+; See doc/README.tos for a description of this parameter.
+;tos=ef
 ;
 ; Example iaxy provisioning
 ;

@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -252,12 +252,55 @@ int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *se
 	return 0;
 }
 
-int ast_str2tos(const char *value, int *tos)
+struct dscp_codepoint {
+	char *name;
+	unsigned int space;
+};
+
+/* IANA registered DSCP codepoints */
+
+static const struct dscp_codepoint dscp_pool1[] = {
+	{ "CS0", 0x00 },
+	{ "CS1", 0x08 },
+	{ "CS2", 0x10 },
+	{ "CS3", 0x18 },
+	{ "CS4", 0x20 },
+	{ "CS5", 0x28 },
+	{ "CS6", 0x30 },
+	{ "CS7", 0x38 },
+	{ "AF11", 0x0A },
+	{ "AF12", 0x0C },
+	{ "AF13", 0x0E },
+	{ "AF21", 0x12 },
+	{ "AF22", 0x14 },
+	{ "AF23", 0x16 },
+	{ "AF31", 0x1A },
+	{ "AF32", 0x1C },
+	{ "AF33", 0x1E },
+	{ "AF41", 0x22 },
+	{ "AF42", 0x24 },
+	{ "AF43", 0x26 },
+	{ "EF", 0x2E },
+};
+
+int ast_str2tos(const char *value, unsigned int *tos)
 {
 	int fval;
-	if (sscanf(value, "%i", &fval) == 1)
-		*tos = fval & 0xff;
-	else if (!strcasecmp(value, "lowdelay"))
+	unsigned int x;
+
+	if (sscanf(value, "%i", &fval) == 1) {
+		*tos = fval & 0xFF;
+		return 0;
+	}
+
+	for (x = 0; x < sizeof(dscp_pool1) / sizeof(dscp_pool1[0]); x++) {
+		if (!strcasecmp(value, dscp_pool1[x].name)) {
+			*tos = dscp_pool1[x].space << 2;
+			return 0;
+		}
+	}
+
+	if (!strcasecmp(value, "lowdelay"))
 		*tos = IPTOS_LOWDELAY;
 	else if (!strcasecmp(value, "throughput"))
 		*tos = IPTOS_THROUGHPUT;
@@ -269,7 +312,35 @@ int ast_str2tos(const char *value, int *tos)
 		*tos = 0;
 	else
 		return -1;
+
+	ast_log(LOG_WARNING, "tos value %s is deprecated.  See doc/iptos.txt for more information.", value);
+
 	return 0;
+}
+
+const char *ast_tos2str(unsigned int tos)
+{
+	unsigned int x;
+
+	switch (tos) {
+	case 0:
+		return "none";
+	case IPTOS_LOWDELAY:
+		return "lowdelay";
+	case IPTOS_THROUGHPUT:
+		return "throughput";
+	case IPTOS_RELIABILITY:
+		return "reliability";
+	case IPTOS_MINCOST:
+		return "mincost";
+	default:
+		for (x = 0; x < sizeof(dscp_pool1) / sizeof(dscp_pool1[0]); x++) {
+			if (dscp_pool1[x].space == (tos >> 2))
+				return dscp_pool1[x].name;
+		}
+	}
+
+	return "unknown";
 }
 
 int ast_get_ip(struct sockaddr_in *sin, const char *value)

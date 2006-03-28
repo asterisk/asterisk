@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/md5.h"
 #include "asterisk/astdb.h"
 #include "asterisk/utils.h"
+#include "asterisk/acl.h"
 #include "iax2.h"
 #include "iax2-provision.h"
 #include "iax2-parser.h"
@@ -328,20 +329,8 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 			} else
 				ast_log(LOG_WARNING, "Ignoring invalid codec '%s' for '%s' at line %d\n", v->value, s, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (sscanf(v->value, "%d", &x) == 1)
-				cur->tos = x & 0xff;
-			else if (!strcasecmp(v->value, "lowdelay"))
-				cur->tos = IPTOS_LOWDELAY;
-			else if (!strcasecmp(v->value, "throughput"))
-				cur->tos = IPTOS_THROUGHPUT;
-			else if (!strcasecmp(v->value, "reliability"))
-				cur->tos = IPTOS_RELIABILITY;
-			else if (!strcasecmp(v->value, "mincost"))
-				cur->tos = IPTOS_MINCOST;
-			else if (!strcasecmp(v->value, "none"))
-				cur->tos = 0;
-			else
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
+			if (ast_str2tos(v->value, &cur->tos))
+				ast_log(LOG_WARNING, "Invalid tos value at line %d, see doc/iptos.txt for more information.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "user")) {
 			strncpy(cur->user, v->value, sizeof(cur->user) - 1);
 			if (strcmp(cur->user, v->value))
@@ -453,7 +442,7 @@ static int iax_show_provisioning(int fd, int argc, char *argv[])
 			ast_cli(fd, "Alternate:    %s\n", iax_server(iabuf, sizeof(iabuf), cur->altserver));
 			ast_cli(fd, "Flags:        %s\n", iax_provflags2str(iabuf, sizeof(iabuf), cur->flags));
 			ast_cli(fd, "Format:       %s\n", ast_getformatname(cur->format));
-			ast_cli(fd, "TOS:          %d\n", cur->tos);
+			ast_cli(fd, "TOS:          0x%x\n", cur->tos);
 			found++;
 		}
 	}

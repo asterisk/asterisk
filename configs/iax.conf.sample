@@ -207,15 +207,8 @@ forcejitterbuffer=no
 ;
 ;authdebug=no
 ;
-; Finally, you can set values for your TOS bits to help improve 
-; performance.  Valid values are:
-;   lowdelay		-- Minimize delay
-;   throughput		-- Maximize throughput
-;   reliability		-- Maximize reliability
-;   mincost		-- Minimize cost
-;   none		-- No flags
-;
-tos=lowdelay
+; See doc/README.tos for a description of the tos parameters.
+;tos=ef
 ;
 ; If regcontext is specified, Asterisk will dynamically create and destroy
 ; a NoOp priority 1 extension for a given peer who registers or unregisters

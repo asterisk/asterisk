@@ -58,8 +58,12 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;pedantic=yes			; Enable slow, pedantic checking for Pingtel
 				; and multiline formatted headers for strict
 				; SIP compatibility (defaults to "no")
-;tos=184			; Set IP QoS to either a keyword or numeric val
-;tos=lowdelay			; lowdelay,throughput,reliability,mincost,none
+
+; See doc/README.tos for a description of these parameters.
+;tos_sip=cs3                    ; Sets TOS for SIP packets.
+;tos_audio=ef                   ; Sets TOS for RTP audio packets.
+;tos_video=af41                 ; Sets TOS for RTP video packets.
+
 ;maxexpiry=3600			; Max length of incoming registrations/subscriptions we allow (seconds)
 ;minexpiry=60			; Minimum length of registrations/subscriptions (default 60)
 ;defaultexpiry=120		; Default length of incoming/outoing registration

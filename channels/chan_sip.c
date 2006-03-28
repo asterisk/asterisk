@@ -364,7 +364,9 @@ static const struct cfsip_options {
 #define DEFAULT_ALLOWGUEST	TRUE
 #define DEFAULT_SRVLOOKUP	FALSE		/*!< Recommended setting is ON */
 #define DEFAULT_COMPACTHEADERS	FALSE
-#define DEFAULT_TOS		FALSE
+#define DEFAULT_TOS_SIP         0               /*!< Call signalling packets should be marked as DSCP CS3, but the default is 0 to be compatible with previous versions. */
+#define DEFAULT_TOS_AUDIO       0               /*!< Audio packets should be marked as DSCP EF (Expedited Forwarding), but the default is 0 to be compatible with previous versions. */
+#define DEFAULT_TOS_VIDEO       0               /*!< Video packets should be marked as DSCP AF41, but the default is 0 to be compatible with previous versions. */
 #define DEFAULT_ALLOW_EXT_DOM	TRUE
 #define DEFAULT_REALM		"asterisk"
 #define DEFAULT_NOTIFYRINGING	TRUE
@@ -408,7 +410,9 @@ static int global_allowguest;		/*!< allow unauthenticated users/peers to connect
 static int global_allowsubscribe;	/*!< Flag for disabling ALL subscriptions, this is FALSE only if all peers are FALSE 
 					    the global setting is in globals_flag_page2 */
 static int global_mwitime;		/*!< Time between MWI checks for peers */
-static int global_tos;			/*!< IP Type of service */
+static int global_tos_sip;		/*!< IP type of service for SIP packets */
+static int global_tos_audio;		/*!< IP type of service for audio RTP packets */
+static int global_tos_video;		/*!< IP type of service for video RTP packets */
 static int compactheaders;		/*!< send compact sip headers */
 static int recordhistory;		/*!< Record SIP history. Off by default */
 static int dumphistory;			/*!< Dump history to verbose before destroying SIP dialog */
@@ -3274,9 +3278,9 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			free(p);
 			return NULL;
 		}
-		ast_rtp_settos(p->rtp, global_tos);
+		ast_rtp_settos(p->rtp, global_tos_audio);
 		if (p->vrtp)
-			ast_rtp_settos(p->vrtp, global_tos);
+			ast_rtp_settos(p->vrtp, global_tos_video);
 		p->rtptimeout = global_rtptimeout;
 		p->rtpholdtimeout = global_rtpholdtimeout;
 		p->rtpkeepalive = global_rtpkeepalive;
@@ -8449,7 +8453,9 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  From: Domain:           %s\n", default_fromdomain);
 	ast_cli(fd, "  Record SIP history:     %s\n", recordhistory ? "On" : "Off");
 	ast_cli(fd, "  Call Events:            %s\n", global_callevents ? "On" : "Off");
-	ast_cli(fd, "  IP ToS:                 0x%x\n", global_tos);
+	ast_cli(fd, "  IP ToS SIP:             %s\n", ast_tos2str(global_tos_sip));
+	ast_cli(fd, "  IP ToS RTP audio:       %s\n", ast_tos2str(global_tos_audio));
+	ast_cli(fd, "  IP ToS RTP video:       %s\n", ast_tos2str(global_tos_video));
 #ifdef OSP_SUPPORT
 	ast_cli(fd, "  OSP Support:            Yes\n");
 #else
@@ -12559,6 +12565,7 @@ static int reload_config(enum channelreloadreason reason)
 	int auto_sip_domains = FALSE;
 	struct sockaddr_in old_bindaddr = bindaddr;
 	int registry_count = 0, peer_count = 0, user_count = 0;
+	int temp_tos = 0;
 	struct ast_flags debugflag = {0};
 
 	cfg = ast_config_load(config);
@@ -12585,7 +12592,9 @@ static int reload_config(enum channelreloadreason reason)
 	outboundproxyip.sin_family = AF_INET;	/* Type of address: IPv4 */
 	ourport = DEFAULT_SIP_PORT;
 	srvlookup = DEFAULT_SRVLOOKUP;
-	global_tos = DEFAULT_TOS;
+	global_tos_sip = DEFAULT_TOS_SIP;
+	global_tos_audio = DEFAULT_TOS_AUDIO;
+	global_tos_video = DEFAULT_TOS_VIDEO;
 	externhost[0] = '\0';			/* External host name (for behind NAT DynDNS support) */
 	externexpire = 0;			/* Expiration for DNS re-issuing */
 	externrefresh = 10;
@@ -12808,8 +12817,22 @@ static int reload_config(enum channelreloadreason reason)
 			if (sip_register(v->value, v->lineno) == 0)
 				registry_count++;
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (ast_str2tos(v->value, &global_tos))
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
+			if (!ast_str2tos(v->value, &temp_tos)) {
+				global_tos_sip = temp_tos;
+				global_tos_audio = temp_tos;
+				global_tos_video = temp_tos;
+				ast_log(LOG_WARNING, "tos value at line %d is deprecated.  See doc/iptos.txt for more information.", v->lineno);
+			} else
+				ast_log(LOG_WARNING, "Invalid tos value at line %d, See doc/iptos.txt for more information.\n", v->lineno);
+		} else if (!strcasecmp(v->name, "tos_sip")) {
+			if (ast_str2tos(v->value, &global_tos_sip))
+				ast_log(LOG_WARNING, "Invalid tos_sip value at line %d, recommended value is 'cs3'. See doc/iptos.txt.\n", v->lineno);
+		} else if (!strcasecmp(v->name, "tos_audio")) {
+			if (ast_str2tos(v->value, &global_tos_audio))
+				ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, recommended value is 'ef'. See doc/iptos.txt.\n", v->lineno);
+		} else if (!strcasecmp(v->name, "tos_video")) {
+			if (ast_str2tos(v->value, &global_tos_video))
+				ast_log(LOG_WARNING, "Invalid tos_video value at line %d, recommended value is 'af41'. See doc/iptos.txt.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "bindport")) {
 			if (sscanf(v->value, "%d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
@@ -12922,10 +12945,10 @@ static int reload_config(enum channelreloadreason reason)
 				if (option_verbose > 1) { 
 					ast_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
 					ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-					ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", global_tos);
+					ast_verbose(VERBOSE_PREFIX_2 "Using SIP TOS: %s\n", ast_tos2str(global_tos_sip));
 				}
-				if (setsockopt(sipsock, IPPROTO_IP, IP_TOS, &global_tos, sizeof(global_tos))) 
-					ast_log(LOG_WARNING, "Unable to set TOS to %d\n", global_tos);
+				if (setsockopt(sipsock, IPPROTO_IP, IP_TOS, &global_tos_sip, sizeof(global_tos_sip))) 
+					ast_log(LOG_WARNING, "Unable to set SIP TOS to %s\n", ast_tos2str(global_tos_sip));
 			}
 		}
 	}
