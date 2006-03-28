@@ -723,6 +723,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 /* Functions for returning values from structures */
 const char *ast_get_context_name(struct ast_context *con);
 const char *ast_get_extension_name(struct ast_exten *exten);
+struct ast_context *ast_get_extension_context(struct ast_exten *exten);
 const char *ast_get_include_name(struct ast_include *include);
 const char *ast_get_ignorepat_name(struct ast_ignorepat *ip);
 const char *ast_get_switch_name(struct ast_sw *sw);

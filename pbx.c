@@ -2974,8 +2974,10 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 		watchers = 0;
 		for (watcher = hint->callbacks; watcher; watcher = watcher->next)
 			watchers++;
-		ast_cli(fd, "   %-20.20s: %-20.20s  State:%-15.15s Watchers %2d\n",
-			ast_get_extension_name(hint->exten), ast_get_extension_app(hint->exten),
+		ast_cli(fd, "   %-20.20s@%20s: %-20.20s  State:%-15.15s Watchers %2d\n",
+			ast_get_extension_name(hint->exten),
+			ast_get_context_name(ast_get_extension_context(hint->exten)),
+			ast_get_extension_app(hint->exten),
 			ast_extension_state2str(hint->laststate), watchers);
 		num++;
 	}
@@ -5891,6 +5893,11 @@ int ast_unlock_context(struct ast_context *con)
 const char *ast_get_context_name(struct ast_context *con)
 {
 	return con ? con->name : NULL;
+}
+
+struct ast_context *ast_get_extension_context(struct ast_exten *exten)
+{
+	return exten ? exten->parent : NULL;
 }
 
 const char *ast_get_extension_name(struct ast_exten *exten)
