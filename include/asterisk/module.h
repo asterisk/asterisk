@@ -273,8 +273,6 @@ struct localuser {
 	struct localuser *next;
 };
 
-#define STANDARD_LOCAL_USER	/* unused and deprecated now */
-
 /*! 
  * \brief The localuser declaration.
  *

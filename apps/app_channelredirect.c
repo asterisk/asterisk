@@ -48,8 +48,6 @@ static char *descrip =
 "ChannelRedirect(channel|[[context|]extension|]priority):\n"
 "  Sends the specified channel to the specified extension priority\n";
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static int asyncgoto_exec(struct ast_channel *chan, void *data)
