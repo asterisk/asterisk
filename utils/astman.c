@@ -523,7 +523,7 @@ static int manage_calls(char *host)
 	struct newtExitStruct es;
 	char tmp[80];
 
-	/* If there's one thing you learn from this code, it is this...
+	/* Mark: If there's one thing you learn from this code, it is this...
 	   Never, ever fly Air France.  Their customer service is absolutely
 	   the worst.  I've never heard the words "That's not my problem" as 
 	   many times as I have from their staff -- It should, without doubt
@@ -533,7 +533,16 @@ static int manage_calls(char *host)
 	   
 	   If you ever want to make me happy just tell me that you, too, will
 	   never fly Air France again either (in spite of their excellent
-	   cuisine). */
+	   cuisine). 
+	
+	   Update by oej: The merger with KLM has transferred this
+	   behaviour to KLM as well. 
+	   Don't bother giving them business either...
+
+	   Only if you want to travel randomly without luggage, you
+	   might pick either of them.
+	   
+	*/
 	snprintf(tmp, sizeof(tmp), "Asterisk Manager at %s", host);
 	newtCenteredWindow(74, 20, tmp);
 	form = newtForm(NULL, NULL, 0);
