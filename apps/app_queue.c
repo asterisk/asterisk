@@ -1440,12 +1440,9 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	if (tmp->chan->cid.cid_ani)
 		free(tmp->chan->cid.cid_ani);
 	tmp->chan->cid.cid_ani = NULL;
-	if (qe->chan->cid.cid_num)
-		tmp->chan->cid.cid_num = strdup(qe->chan->cid.cid_num);
-	if (qe->chan->cid.cid_name)
-		tmp->chan->cid.cid_name = strdup(qe->chan->cid.cid_name);
-	if (qe->chan->cid.cid_ani)
-		tmp->chan->cid.cid_ani = strdup(qe->chan->cid.cid_ani);
+	tmp->chan->cid.cid_num = ast_strdup(qe->chan->cid.cid_num);
+	tmp->chan->cid.cid_name = ast_strdup(qe->chan->cid.cid_name);
+	tmp->chan->cid.cid_ani = ast_strdup(qe->chan->cid.cid_ani);
 
 	/* Inherit specially named variables from parent channel */
 	ast_channel_inherit_variables(qe->chan, tmp->chan);
@@ -1724,21 +1721,12 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					} else {
 						if (o->chan->cid.cid_num)
 							free(o->chan->cid.cid_num);
-						o->chan->cid.cid_num = NULL;
+						o->chan->cid.cid_num = ast_strdup(in->cid.cid_num);
+
 						if (o->chan->cid.cid_name)
 							free(o->chan->cid.cid_name);
-						o->chan->cid.cid_name = NULL;
+						o->chan->cid.cid_name = ast_strdup(in->cid.cid_name);
 
-						if (in->cid.cid_num) {
-							o->chan->cid.cid_num = strdup(in->cid.cid_num);
-							if (!o->chan->cid.cid_num)
-								ast_log(LOG_WARNING, "Out of memory\n");	
-						}
-						if (in->cid.cid_name) {
-							o->chan->cid.cid_name = strdup(in->cid.cid_name);
-							if (!o->chan->cid.cid_name)
-								ast_log(LOG_WARNING, "Out of memory\n");	
-						}
 						ast_string_field_set(o->chan, accountcode, in->accountcode);
 						o->chan->cdrflags = in->cdrflags;
 
@@ -1749,10 +1737,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						}
 						if (o->chan->cid.cid_rdnis) 
 							free(o->chan->cid.cid_rdnis);
-						if (!ast_strlen_zero(in->macroexten))
-							o->chan->cid.cid_rdnis = strdup(in->macroexten);
-						else
-							o->chan->cid.cid_rdnis = strdup(in->exten);
+						o->chan->cid.cid_rdnis =
+								ast_strdup(S_OR(in->macroexten, in->exten));
 						if (ast_call(o->chan, tmpchan, 0)) {
 							ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
 							do_hang(o);
@@ -2097,8 +2083,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	if (!ast_strlen_zero(announceoverride))
 		announce = announceoverride;
 
- 	for (;cur; cur = cur->next) {
- 		struct callattempt *tmp = ast_calloc(1, sizeof(*tmp));
+	for (;cur; cur = cur->next) {
+		struct callattempt *tmp = ast_calloc(1, sizeof(*tmp));
 		if (!tmp) {
 			ast_mutex_unlock(&qe->parent->lock);
 			if (use_weight) 
@@ -2682,7 +2668,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (!(parse = ast_strdupa(data))) 
-		return -1;	
+		return -1;
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -3501,8 +3487,8 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
 	
 	AST_LIST_LOCK(&queues);
 	AST_LIST_TRAVERSE(&queues, q, list) {
-		if (!strncasecmp(word, q->name, wordlen) &&  (++which > state)) {
-			ret = strdup(q->name);	
+		if (!strncasecmp(word, q->name, wordlen) && ++which > state) {
+			ret = ast_strdup(q->name);	
 			break;
 		}
 	}
@@ -3766,11 +3752,11 @@ static char *complete_add_queue_member(const char *line, const char *word, int p
 	case 3:	/* Don't attempt to complete name of member (infinite possibilities) */
 		return NULL;
 	case 4:	/* only one possible match, "to" */
-		return state == 0 ? strdup("to") : NULL;
+		return state == 0 ? ast_strdup("to") : NULL;
 	case 5:	/* <queue> */
 		return complete_queue(line, word, pos, state);
 	case 6: /* only one possible match, "penalty" */
-		return state == 0 ? strdup("penalty") : NULL;
+		return state == 0 ? ast_strdup("penalty") : NULL;
 	case 7:
 		if (state < 100) {	/* 0-99 */
 			char *num;
@@ -3823,23 +3809,23 @@ static char *complete_remove_queue_member(const char *line, const char *word, in
 	struct ast_call_queue *q;
 	struct member *m;
 
- 	/* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - from; 5 - <queue> */
- 	if (pos > 5 || pos < 3)
-  		return NULL;
- 	if (pos == 4)	/* only one possible match, 'from' */
- 		return state == 0 ? strdup("from") : NULL;
-  
- 	if (pos == 5)	/* No need to duplicate code */
-  		return complete_queue(line, word, pos, state);
-  
- 	/* here is the case for 3, <member> */
-	if (!AST_LIST_EMPTY(&queues)) {
+	/* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - from; 5 - <queue> */
+	if (pos > 5 || pos < 3)
+		return NULL;
+	if (pos == 4)	/* only one possible match, 'from' */
+		return state == 0 ? ast_strdup("from") : NULL;
+
+	if (pos == 5)	/* No need to duplicate code */
+		return complete_queue(line, word, pos, state);
+
+	/* here is the case for 3, <member> */
+	if (!AST_LIST_EMPTY(&queues)) { /* XXX unnecessary ? the traverse does that for us */
 		AST_LIST_TRAVERSE(&queues, q, list) {
 			ast_mutex_lock(&q->lock);
 			for (m = q->members ; m ; m = m->next) {
 				if (++which > state) {
 					ast_mutex_unlock(&q->lock);
-					return strdup(m->interface);
+					return ast_strdup(m->interface);
 				}
 			}
 			ast_mutex_unlock(&q->lock);
