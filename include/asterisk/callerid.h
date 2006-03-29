@@ -19,12 +19,24 @@
 /*! \file
  * \brief CallerID (and other GR30) management and generation
  * Includes code and algorithms from the Zapata library.
+ *
+ */
+
+/*!
+ * \page CID Caller ID names and numbers
+ *
  * Caller ID names are currently 8 bit characters, propably
  * ISO8859-1, depending on what your channel drivers handle.
+ *
+ * IAX2 and SIP caller ID names are UTF8
+ * On ISDN Caller ID names are 7 bit, Almost ASCII
+ * (See http://www.zytrax.com/tech/ia5.html )
+ *
  * \note Asterisk does not currently support SIP utf8 caller ID names or caller ID's.
  *
  * \par See also
  * 	\arg \ref callerid.c
+ * 	\arg \ref callerid.h
  *	\arg \ref Def_CallerPres
  */
 
@@ -315,6 +327,7 @@ const char *ast_describe_caller_presentation(int data);
 	\par References
 	\arg \ref callerid.h Definitions
 	\arg \ref callerid.c Functions
+	\arg \ref CID Caller ID names and numbers
 */
 
 
