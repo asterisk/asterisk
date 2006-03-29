@@ -303,6 +303,7 @@ struct {								\
 	      __list_next = (var) ? (var)->field.next : NULL;				\
 	     (var);									\
 	     __list_prev = __new_prev, (var) = __list_next,				\
+	     __new_prev = (var),							\
 	     __list_next = (var) ? (var)->field.next : NULL				\
 	    )
 
