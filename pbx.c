@@ -1822,8 +1822,7 @@ int ast_extension_state_add(const char *context, const char *exten,
 		}
 	
 		/* Now insert the callback */
-		cblist = calloc(1, sizeof(struct ast_state_cb));
-		if (!cblist) {
+		if (!(cblist = ast_calloc(1, sizeof(*cblist)))) {
 			AST_LIST_UNLOCK(&hints);	
 			return -1;
 		}
@@ -1862,8 +1861,7 @@ int ast_extension_state_add(const char *context, const char *exten,
 	}
 
 	/* Now insert the callback in the callback list  */
-	cblist = calloc(1, sizeof(struct ast_state_cb));
-	if (!cblist) {
+	if (!(cblist = ast_calloc(1, sizeof(*cblist)))) {
 		AST_LIST_UNLOCK(&hints);
 		return -1;
 	}
@@ -1958,11 +1956,8 @@ static int ast_add_hint(struct ast_exten *e)
 	if (option_debug > 1)
 		ast_log(LOG_DEBUG, "HINTS: Adding hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
 
-	hint = calloc(1, sizeof(struct ast_hint));
-	if (!hint) {
+	if (!(hint = ast_calloc(1, sizeof(*hint)))) {
 		AST_LIST_UNLOCK(&hints);
-		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "HINTS: Out of memory...\n");
 		return -1;
 	}
 	/* Initialize and insert new item at the top */
@@ -2098,11 +2093,8 @@ static int __ast_pbx_run(struct ast_channel *c)
 	/* A little initial setup here */
 	if (c->pbx)
 		ast_log(LOG_WARNING, "%s already has PBX structure??\n", c->name);
-	c->pbx = calloc(1, sizeof(struct ast_pbx));
-	if (!c->pbx) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(c->pbx = ast_calloc(1, sizeof(*c->pbx))))
 		return -1;
-	}
 	if (c->amaflags) {
 		if (!c->cdr) {
 			c->cdr = ast_cdr_alloc();
@@ -2720,9 +2712,7 @@ int ast_register_application(const char *app, int (*execute)(struct ast_channel 
 		}
 	}
 	
-	tmp = calloc(1, length);
-	if (!tmp) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(tmp = ast_calloc(1, length))) {
 		ast_mutex_unlock(&applock);
 		return -1;
 	}
@@ -3493,8 +3483,7 @@ struct ast_context *ast_context_create(struct ast_context **extcontexts, const c
 			return NULL;
 		}
 	}
-	tmp = calloc(1, length);
-	if (tmp) {
+	if ((tmp = ast_calloc(1, length))) {
 		ast_mutex_init(&tmp->lock);
 		strcpy(tmp->name, name);
 		tmp->root = NULL;
@@ -3507,8 +3496,7 @@ struct ast_context *ast_context_create(struct ast_context **extcontexts, const c
 			ast_log(LOG_DEBUG, "Registered context '%s'\n", tmp->name);
 		else if (option_verbose > 2)
 			ast_verbose( VERBOSE_PREFIX_3 "Registered extension context '%s'\n", tmp->name);
-	} else
-		ast_log(LOG_ERROR, "Out of memory\n");
+	}
 	
 	if (!extcontexts)
 		ast_mutex_unlock(&conlock);
@@ -3544,11 +3532,8 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	AST_LIST_TRAVERSE(&hints, hint, list) {
 		if (hint->callbacks && !strcmp(registrar, hint->exten->parent->registrar)) {
 			length = strlen(hint->exten->exten) + strlen(hint->exten->parent->name) + 2 + sizeof(*this);
-			this = calloc(1, length);
-			if (!this) {
-				ast_log(LOG_WARNING, "Could not allocate memory to preserve hint\n");
+			if (!(this = ast_calloc(1, length)))
 				continue;
-			}
 			this->callbacks = hint->callbacks;
 			hint->callbacks = NULL;
 			this->laststate = hint->laststate;
@@ -3914,11 +3899,8 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 	length += 2 * (strlen(value) + 1);
 
 	/* allocate new include structure ... */
-	if (!(new_include = calloc(1, length))) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		errno = ENOMEM;
+	if (!(new_include = ast_calloc(1, length)))
 		return -1;
-	}
 	
 	/* Fill in this structure. Use 'p' for assignments, as the fields
 	 * in the structure are 'const char *'
@@ -4025,11 +4007,8 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 	}
 
 	/* allocate new sw structure ... */
-	if (!(new_sw = calloc(1, length))) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		errno = ENOMEM;
+	if (!(new_sw = ast_calloc(1, length)))
 		return -1;
-	}
 	
 	/* ... fill in this structure ... */
 	p = new_sw->stuff;
@@ -4168,12 +4147,8 @@ int ast_context_add_ignorepat2(struct ast_context *con, const char *value, const
 	int length;
 	length = sizeof(struct ast_ignorepat);
 	length += strlen(value) + 1;
-	ignorepat = calloc(1, length);
-	if (!ignorepat) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		errno = ENOMEM;
+	if (!(ignorepat = ast_calloc(1, length)))
 		return -1;
-	}
 	/* The cast to char * is because we need to write the initial value.
 	 * The field is not supposed to be modified otherwise
 	 */
@@ -4411,39 +4386,34 @@ int ast_add_extension2(struct ast_context *con,
 	/* Be optimistic:  Build the extension structure first */
 	if (datad == NULL)
 		datad = null_datad;
-	tmp = calloc(1, length);
-	if (tmp) {
-		/* use p as dst in assignments, as the fields are const char * */
-		p = tmp->stuff;
-		if (label) {
-			tmp->label = p;
-			strcpy(p, label);
-			p += strlen(label) + 1;
-		}
-		tmp->exten = p;
-		p += ext_strncpy(p, extension, strlen(extension) + 1) + 1;
-		tmp->priority = priority;
-		tmp->cidmatch = p;	/* but use p for assignments below */
-		if (callerid) {
-			p += ext_strncpy(p, callerid, strlen(callerid) + 1) + 1;
-			tmp->matchcid = 1;
-		} else {
-			*p++ = '\0';
-			tmp->matchcid = 0;
-		}
-		tmp->app = p;
-		strcpy(p, application);
-		tmp->parent = con;
-		tmp->data = data;
-		tmp->datad = datad;
-		tmp->registrar = registrar;
-		tmp->peer = NULL;
-		tmp->next =  NULL;
-	} else {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		errno = ENOMEM;
+	if (!(tmp = ast_calloc(1, length)))
 		return -1;
+		
+	/* use p as dst in assignments, as the fields are const char * */
+	p = tmp->stuff;
+	if (label) {
+		tmp->label = p;
+		strcpy(p, label);
+		p += strlen(label) + 1;
 	}
+	tmp->exten = p;
+	p += ext_strncpy(p, extension, strlen(extension) + 1) + 1;
+	tmp->priority = priority;
+	tmp->cidmatch = p;	/* but use p for assignments below */
+	if (callerid) {
+		p += ext_strncpy(p, callerid, strlen(callerid) + 1) + 1;
+		tmp->matchcid = 1;
+	} else {
+		*p++ = '\0';
+		tmp->matchcid = 0;
+	}
+	tmp->app = p;
+	strcpy(p, application);
+	tmp->parent = con;
+	tmp->data = data;
+	tmp->datad = datad;
+	tmp->registrar = registrar;
+	
 	if (ast_mutex_lock(&con->lock)) {
 		free(tmp);
 		/* And properly destroy the data */
@@ -4665,17 +4635,14 @@ int ast_pbx_outgoing_cdr_failed(void)
 {
 	/* allocate a channel */
 	struct ast_channel *chan = ast_channel_alloc(0);
-	if (!chan) {
-		/* allocation of the channel failed, let some peeps know */
-		ast_log(LOG_WARNING, "Unable to allocate channel structure for CDR record\n");
+	
+	if (!chan)
 		return -1;  /* failure */
-	}
 
 	chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
 
 	if (!chan->cdr) {
 		/* allocation of the cdr failed */
-		ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
 		ast_channel_free(chan);   /* free the channel */
 		return -1;                /* return failure */
 	}
@@ -4714,7 +4681,6 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 				chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
 				if (!chan->cdr) {
 					/* allocation of the cdr failed */
-					ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
 					free(chan->pbx);
 					res = -1;
 					goto outgoing_exten_cleanup;
@@ -4788,17 +4754,14 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 					if (account)
 						ast_cdr_setaccount(chan, account);
 					ast_pbx_run(chan);	
-				} else 
-					ast_log(LOG_WARNING, "Can't allocate the channel structure, skipping execution of extension 'failed'\n");
+				} 
 			}
 		}
 	} else {
-		as = malloc(sizeof(struct async_stat));
-		if (!as) {
+		if (!(as = ast_calloc(1, sizeof(*as)))) {
 			res = -1;
 			goto outgoing_exten_cleanup;
 		}	
-		memset(as, 0, sizeof(struct async_stat));
 		chan = ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name);
 		if (channel) {
 			*channel = chan;
@@ -4887,7 +4850,6 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 				chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
 				if(!chan->cdr) {
 					/* allocation of the cdr failed */
-					ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
 					free(chan->pbx);
 					res = -1;
 					goto outgoing_app_cleanup;
@@ -4903,9 +4865,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 				res = 0;
 				if (option_verbose > 3)
 					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was answered.\n", chan->name);
-				tmp = malloc(sizeof(struct app_tmp));
-				if (tmp) {
-					memset(tmp, 0, sizeof(struct app_tmp));
+				if ((tmp = ast_calloc(1, sizeof(*tmp)))) {
 					ast_copy_string(tmp->app, app, sizeof(tmp->app));
 					if (appdata)
 						ast_copy_string(tmp->data, appdata, sizeof(tmp->data));
@@ -4932,7 +4892,6 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 						}
 					}
 				} else {
-					ast_log(LOG_ERROR, "Out of memory :(\n");
 					res = -1;
 				}
 			} else {
@@ -4960,12 +4919,10 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 		}
 
 	} else {
-		as = malloc(sizeof(struct async_stat));
-		if (!as) {
+		if (!(as = ast_calloc(1, sizeof(*as)))) {
 			res = -1;
 			goto outgoing_app_cleanup;
 		}
-		memset(as, 0, sizeof(struct async_stat));
 		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
 		if (!chan) {
 			free(as);
