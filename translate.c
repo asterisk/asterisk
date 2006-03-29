@@ -110,7 +110,7 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 	source = powerof(source);
 	dest = powerof(dest);
 	
-	while(source != dest) {
+	while (source != dest) {
 		if (!tr_matrix[source][dest].step) {
 			/* We shouldn't have allocated any memory */
 			ast_log(LOG_WARNING, "No translator path from %s to %s\n", 
@@ -119,13 +119,12 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 		}
 
 		if (tmp) {
-			tmp->next = malloc(sizeof(*tmp));
+			tmp->next = ast_malloc(sizeof(*tmp));
 			tmp = tmp->next;
 		} else
-			tmp = malloc(sizeof(*tmp));
+			tmp = ast_malloc(sizeof(*tmp));
 			
 		if (!tmp) {
-			ast_log(LOG_WARNING, "Out of memory\n");
 			if (tmpr)
 				ast_translator_free_path(tmpr);	
 			return NULL;
