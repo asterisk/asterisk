@@ -1,6 +1,6 @@
-#
-# Automatically generated from ../channels/chan_oss.c
-#
+;
+; Automatically generated from ../channels/chan_oss.c
+;
 
 [general]
     ; General config options, with default values shown.
