@@ -1374,134 +1374,133 @@ static int pbx_load_module(void)
 			if (con == NULL)
 				continue;
 
-				/* XXX indentation should be fixed for this block */
-				for (v = ast_variable_browse(cfg, cxt); v; v = v->next) {
-					if (!strcasecmp(v->name, "exten")) {
-						char *ext, *pri, *appl, *data, *cidmatch;
-						char *stringp=NULL;
-						int ipri = -2;
-						char realext[256]="";
-						char *plus, *firstp, *firstc;
-						char *tc = strdup(v->value);
-						if (tc == NULL)
-							fprintf(stderr,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
-						else {
-							stringp=tc;
-							ext = strsep(&stringp, ",");
-							if (!ext)
-								ext="";
-							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
-							cidmatch = strchr(realext, '/');
-							if (cidmatch) {
-								*cidmatch++ = '\0';
-								ast_shrink_phone_number(cidmatch);
-							}
-							pri = strsep(&stringp, ",");
-							if (!pri)
-								pri="";
-							label = strchr(pri, '(');
-							if (label) {
-								*label++ = '\0';
-								end = strchr(label, ')');
-								if (end)
-									*end = '\0';
-								else
-									ast_log(LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
-							}
-							plus = strchr(pri, '+');
-							if (plus)
-								*plus++ = '\0';
-							if (!strcmp(pri,"hint"))
-								ipri=PRIORITY_HINT;
-							else if (!strcmp(pri, "next") || !strcmp(pri, "n")) {
-								if (lastpri > -2)
-									ipri = lastpri + 1;
-								else
-									ast_log(LOG_WARNING, "Can't use 'next' priority on the first entry!\n");
-							} else if (!strcmp(pri, "same") || !strcmp(pri, "s")) {
-								if (lastpri > -2)
-									ipri = lastpri;
-								else
-									ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
-							} else  {
-								if (sscanf(pri, "%d", &ipri) != 1) {
-									if ((ipri = ast_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
-										ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
-										ipri = 0;
-									}
-								}
-							}
-							appl = stringp;
-							if (!appl)
-								appl="";
-							/* Find the first occurrence of either '(' or ',' */
-							firstc = strchr(appl, ',');
-							firstp = strchr(appl, '(');
-							if (firstc && ((!firstp) || (firstc < firstp))) {
-								/* comma found, no parenthesis */
-								/* or both found, but comma found first */
-								appl = strsep(&stringp, ",");
-								data = stringp;
-							} else if ((!firstc) && (!firstp)) {
-								/* Neither found */
-								data = "";
-							} else {
-								/* Final remaining case is parenthesis found first */
-								appl = strsep(&stringp, "(");
-								data = stringp;
-								end = strrchr(data, ')');
-								if ((end = strrchr(data, ')'))) {
-									*end = '\0';
-								} else {
-									ast_log(LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
-								}
-								ast_process_quotes_and_slashes(data, ',', '|');
-							}
-
-							if (!data)
-								data="";
-							appl = ast_skip_blanks(appl);
-							if (ipri) {
-								if (plus)
-									ipri += atoi(plus);
-								lastpri = ipri;
-								if (!ast_opt_dont_warn) {
-									if (!strcmp(realext, "_."))
-										ast_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
-								}
-								if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), free, registrar)) {
-									ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
-								}
-							}
-							free(tc);
+			for (v = ast_variable_browse(cfg, cxt); v; v = v->next) {
+				if (!strcasecmp(v->name, "exten")) {
+					char *ext, *pri, *appl, *data, *cidmatch;
+					char *stringp=NULL;
+					int ipri = -2;
+					char realext[256]="";
+					char *plus, *firstp, *firstc;
+					char *tc = strdup(v->value);
+					if (tc == NULL)
+						fprintf(stderr,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
+					else {
+						stringp=tc;
+						ext = strsep(&stringp, ",");
+						if (!ext)
+							ext="";
+						pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
+						cidmatch = strchr(realext, '/');
+						if (cidmatch) {
+							*cidmatch++ = '\0';
+							ast_shrink_phone_number(cidmatch);
 						}
-					} else if(!strcasecmp(v->name, "include")) {
-						memset(realvalue, 0, sizeof(realvalue));
-						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
-						if (ast_context_add_include2(con, realvalue, registrar))
-							ast_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
-					} else if(!strcasecmp(v->name, "ignorepat")) {
-						memset(realvalue, 0, sizeof(realvalue));
-						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
-						if (ast_context_add_ignorepat2(con, realvalue, registrar))
-							ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
-					} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
-						char *stringp= realvalue;
-						char *appl, *data;
-
-						memset(realvalue, 0, sizeof(realvalue));
-						if (!strcasecmp(v->name, "switch"))
-							pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
-						else
-							ast_copy_string(realvalue, v->value, sizeof(realvalue));
-						appl = strsep(&stringp, "/");
-						data = strsep(&stringp, ""); /* XXX what for ? */
-						if (!data)
+						pri = strsep(&stringp, ",");
+						if (!pri)
+							pri="";
+						label = strchr(pri, '(');
+						if (label) {
+							*label++ = '\0';
+							end = strchr(label, ')');
+							if (end)
+								*end = '\0';
+							else
+								ast_log(LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
+						}
+						plus = strchr(pri, '+');
+						if (plus)
+							*plus++ = '\0';
+						if (!strcmp(pri,"hint"))
+							ipri=PRIORITY_HINT;
+						else if (!strcmp(pri, "next") || !strcmp(pri, "n")) {
+							if (lastpri > -2)
+								ipri = lastpri + 1;
+							else
+								ast_log(LOG_WARNING, "Can't use 'next' priority on the first entry!\n");
+						} else if (!strcmp(pri, "same") || !strcmp(pri, "s")) {
+							if (lastpri > -2)
+								ipri = lastpri;
+							else
+								ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
+						} else  {
+							if (sscanf(pri, "%d", &ipri) != 1) {
+								if ((ipri = ast_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
+									ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
+									ipri = 0;
+								}
+							}
+						}
+						appl = stringp;
+						if (!appl)
+							appl="";
+						/* Find the first occurrence of either '(' or ',' */
+						firstc = strchr(appl, ',');
+						firstp = strchr(appl, '(');
+						if (firstc && ((!firstp) || (firstc < firstp))) {
+							/* comma found, no parenthesis */
+							/* or both found, but comma found first */
+							appl = strsep(&stringp, ",");
+							data = stringp;
+						} else if ((!firstc) && (!firstp)) {
+							/* Neither found */
 							data = "";
-						if (ast_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
-							ast_log(LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
+						} else {
+							/* Final remaining case is parenthesis found first */
+							appl = strsep(&stringp, "(");
+							data = stringp;
+							end = strrchr(data, ')');
+							if ((end = strrchr(data, ')'))) {
+								*end = '\0';
+							} else {
+								ast_log(LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
+							}
+							ast_process_quotes_and_slashes(data, ',', '|');
+						}
+
+						if (!data)
+							data="";
+						appl = ast_skip_blanks(appl);
+						if (ipri) {
+							if (plus)
+								ipri += atoi(plus);
+							lastpri = ipri;
+							if (!ast_opt_dont_warn) {
+								if (!strcmp(realext, "_."))
+									ast_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
+							}
+							if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), free, registrar)) {
+								ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
+							}
+						}
+						free(tc);
 					}
+				} else if(!strcasecmp(v->name, "include")) {
+					memset(realvalue, 0, sizeof(realvalue));
+					pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
+					if (ast_context_add_include2(con, realvalue, registrar))
+						ast_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
+				} else if(!strcasecmp(v->name, "ignorepat")) {
+					memset(realvalue, 0, sizeof(realvalue));
+					pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
+					if (ast_context_add_ignorepat2(con, realvalue, registrar))
+						ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
+				} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
+					char *stringp= realvalue;
+					char *appl, *data;
+
+					memset(realvalue, 0, sizeof(realvalue));
+					if (!strcasecmp(v->name, "switch"))
+						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
+					else
+						ast_copy_string(realvalue, v->value, sizeof(realvalue));
+					appl = strsep(&stringp, "/");
+					data = strsep(&stringp, ""); /* XXX what for ? */
+					if (!data)
+						data = "";
+					if (ast_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
+						ast_log(LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
 				}
+			}
 		}
 		ast_config_destroy(cfg);
 	}
