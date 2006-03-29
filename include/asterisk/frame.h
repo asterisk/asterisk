@@ -111,6 +111,13 @@ struct ast_frame {
 	struct ast_frame *next;			
 };
 
+#define	FR_SET_BUF(fr, _base, _ofs, _datalen)	\
+	{					\
+	(fr)->data = (char *)_base + (_ofs);	\
+	(fr)->offset = (_ofs);			\
+	(fr)->datalen = (_datalen);		\
+	}
+
 /*! Queueing a null frame is fairly common, so we declare a global null frame object
     for this purpose instead of having to declare one on the stack */
 extern struct ast_frame ast_null_frame;
