@@ -103,11 +103,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* Define SCHED_MULTITHREADED to run the scheduler in a special
    multithreaded mode. */
-// #define SCHED_MULTITHREADED
+#define SCHED_MULTITHREADED
 
 /* Define DEBUG_SCHED_MULTITHREADED to keep track of where each
    thread is actually doing. */
-// #define DEBUG_SCHED_MULTITHREAD
+#define DEBUG_SCHED_MULTITHREAD
 
 #ifdef NEWJB
 #include "../jitterbuf.h"
