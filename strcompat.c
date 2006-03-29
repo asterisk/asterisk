@@ -47,8 +47,8 @@ int setenv(const char *name, const char *value, int overwrite)
 	return putenv(buf);
 }
 
-void unsetenv(const char *name)
+int unsetenv(const char *name)
 {
-	setenv(name, "", 0);
+	return setenv(name, "", 0);
 }
 
