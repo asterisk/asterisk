@@ -3092,33 +3092,9 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 
 static char *complete_show_applications(const char *line, const char *word, int pos, int state)
 {
-	int wordlen = strlen(word);
+	static char* choices[] = { "like", "describing", NULL };
 
-	if (pos == 2) {
-		if (ast_strlen_zero(word)) {
-			switch (state) {
-			case 0:
-				return strdup("like");
-			case 1:
-				return strdup("describing");
-			default:
-				return NULL;
-			}
-		} else if (! strncasecmp(word, "like", wordlen)) {
-			if (state == 0) {
-				return strdup("like");
-			} else {
-				return NULL;
-			}
-		} else if (! strncasecmp(word, "describing", wordlen)) {
-			if (state == 0) {
-				return strdup("describing");
-			} else {
-				return NULL;
-			}
-		}
-	}
-	return NULL;
+	return (pos != 2) ? NULL : ast_cli_complete(word, choices, state);
 }
 
 /*
@@ -3144,16 +3120,11 @@ static char *complete_show_dialplan_context(const char *line, const char *word, 
 
 	wordlen = strlen(word);
 
-	/* ... walk through all contexts ... */
+	/* walk through all contexts and return the n-th match */
 	while ( (c = ast_walk_contexts(c)) ) {
-		/* ... word matches context name? yes? ... */
-		if (!strncasecmp(word, ast_get_context_name(c), wordlen)) {
-			/* ... for serve? ... */
-			if (++which > state) {
-				/* ... yes, serve this context name ... */
-				ret = strdup(ast_get_context_name(c));
-				break;
-			}
+		if (!strncasecmp(word, ast_get_context_name(c), wordlen) && ++which > state) {
+			ret = ast_strdup(ast_get_context_name(c));
+			break;
 		}
 	}
 
