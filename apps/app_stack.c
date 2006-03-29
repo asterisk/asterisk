@@ -140,7 +140,7 @@ static int gosubif_exec(struct ast_channel *chan, void *data)
 	label1 = strsep(&args, ":");
 	label2 = args;
 
-	if (ast_true(condition)) {
+	if (pbx_checkcondition(condition)) {
 		if (label1) {
 			res = gosub_exec(chan, label1);
 		}
