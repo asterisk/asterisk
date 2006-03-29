@@ -56,7 +56,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* We do a straight line fade to zero volume in 50ms when we are filling in for missing data. */
 #define ATTENUATION_INCREMENT       0.0025			      /* Attenuation per sample */
 
-#define ms_to_samples(t)	    (((t)*SAMPLE_RATE)/1000)
+#define ms_to_samples(t)	    (((t)*DEFAULT_SAMPLE_RATE)/1000)
 
 static inline int16_t fsaturate(double damp)
 {

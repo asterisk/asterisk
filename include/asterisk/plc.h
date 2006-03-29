@@ -95,8 +95,6 @@ When a real packet is not available in time, call plc_fillin() to create a sythe
 That's it!
 */
 
-#define SAMPLE_RATE     8000
-
 /*! Minimum allowed pitch (66 Hz) */
 #define PLC_PITCH_MIN           120
 /*! Maximum allowed pitch (200 Hz) */

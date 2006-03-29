@@ -20,6 +20,9 @@
 
 #define DEFAULT_LANGUAGE "en"
 
+#define DEFAULT_SAMPLE_RATE 8000
+#define DEFAULT_SAMPLES_PER_MS  ((DEFAULT_SAMPLE_RATE)/1000)
+
 #define AST_CONFIG_MAX_PATH 255
 
 /* provided in asterisk.c */
