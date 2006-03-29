@@ -314,11 +314,13 @@ static struct pbx_builtin {
 
 	{ "GotoIf", pbx_builtin_gotoif,
 	"Conditional goto",
-	"  GotoIf(Condition?[label1]:[label2]): This application will cause the calling\n"
-	"channel to jump to the speicifed location in the dialplan based on the\n"
-	"evaluation of the given condition. The channel will continue at 'label1' if the\n"
-	"condition is true, or 'label2' if the condition is false. The labels are\n"
-	"specified in the same syntax that is used with the Goto application.\n"
+	"  GotoIf(condition?[labeliftrue]:[labeliffalse]): This application will cause\n"
+	"the calling channel to jump to the specified location in the dialplan based on\n"
+	"the evaluation of the given condition. The channel will continue at\n"
+	"'labeliftrue' if the condition is true, or 'labeliffalse' if the condition is\n"
+	"false. The labels are specified with the same syntax as used within the Goto\n"
+	"application.  If the label chosen by the condition is omitted, no jump is\n"
+	"performed, but execution continues with the next priority in the dialplan.\n"
 	},
 
 	{ "GotoIfTime", pbx_builtin_gotoiftime,
