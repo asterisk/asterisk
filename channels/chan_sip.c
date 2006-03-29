@@ -5610,7 +5610,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 		if (r->portno)
 			p->sa.sin_port = htons(r->portno);
 		else 	/* Set registry port to the port set from the peer definition/srv or default */
-			r->portno = p->sa.sin_port;
+			r->portno = ntohs(p->sa.sin_port);
 		ast_set_flag(&p->flags[0], SIP_OUTGOING);	/* Registration is outgoing call */
 		r->call=p;			/* Save pointer to SIP packet */
 		p->registry = ASTOBJ_REF(r);	/* Add pointer to registry in packet */
