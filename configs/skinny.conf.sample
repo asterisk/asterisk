@@ -15,7 +15,8 @@ keepAlive = 120
 ;[florian]
 ;device=SEP00D0BA847E6B
 ;model=12SP		; Specific model of device, for button templates 
-			; Valid models: 12SP, 30VIP, 7910, 7920 (so far)
+			; Valid models: 12SP, 30VIP, 7910, 7920,
+			; 7935, 7940, 7960, 7970 (so far)
 ;version=P002G204 	; Thanks critch
 ;context=did
 ;line => 120		; Dial(Skinny/120@florian)
