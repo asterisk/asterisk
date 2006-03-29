@@ -6107,7 +6107,7 @@ void pbx_builtin_clear_globals(void)
 	ast_mutex_unlock(&globalslock);
 }
 
-static int pbx_checkcondition(char *condition) 
+int pbx_checkcondition(char *condition) 
 {
 	if (condition) {
 		if (*condition == '\0') {
