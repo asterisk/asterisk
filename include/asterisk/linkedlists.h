@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  * Kevin P. Fleming <kpfleming@digium.com>
@@ -279,6 +279,7 @@ struct {								\
 	      __list_next = (var) ? (var)->field.next : NULL;				\
 	     (var);									\
 	     __list_prev = __new_prev, (var) = __list_next,				\
+	     __new_prev = (var),							\
 	     __list_next = (var) ? (var)->field.next : NULL				\
 	    )
 
