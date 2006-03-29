@@ -219,7 +219,7 @@ void callerid_get_dtmf(char *cidstring, char *number, int *flags)
 			"parsing might be unreliable\n");
 		for (i = 0; i < strlen(cidstring); i++) {
 			if (isdigit(cidstring[i]))
-                                number[i] = cidstring[i];
+				number[i] = cidstring[i];
 			else
 				break;
 		}
@@ -254,21 +254,24 @@ int ast_gen_cas(unsigned char *outbuf, int sendsas, int len, int codec)
 
 static unsigned short calc_crc(unsigned short crc, unsigned char data)
 {
-   	unsigned int i, j, org, dst;
-   	org = data;
-   	dst = 0;
-   	for (i=0; i<CHAR_BIT; i++) {
-       	org <<= 1;
-       	dst >>= 1;
-       	if (org & 0x100) {
-           	dst |= 0x80;
-       	}
-   	}
-   	data = (unsigned char)dst;
+	unsigned int i, j, org, dst;
+	org = data;
+	dst = 0;
+
+	for (i=0; i < CHAR_BIT; i++) {
+		org <<= 1;
+		dst >>= 1;
+		if (org & 0x100) {
+			dst |= 0x80;
+		}
+	}
+	data = (unsigned char)dst;
 	crc ^= (unsigned int)data << (16 - CHAR_BIT);
 	for ( j=0; j<CHAR_BIT; j++ ) {
-		if ( crc & 0x8000U ) crc = (crc << 1) ^ 0x1021U ;
-		else crc <<= 1 ;
+		if ( crc & 0x8000U )
+			crc = (crc << 1) ^ 0x1021U ;
+		else
+			crc <<= 1 ;
 	}
    	return crc;
 }
@@ -296,7 +299,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 		buf[x+cid->oldlen/2] = AST_XLAW(ubuf[x]);
 
 	while (mylen >= 160) {
-        b = b2 = 0 ;
+	b = b2 = 0 ;
 		olen = mylen;
 		res = fsk_serie(&cid->fskd, buf, &mylen, &b);
 
@@ -407,103 +410,108 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 					/* extract caller id data */
 					for (x=0; x<cid->pos; ) {
 						switch (cid->rawdata[x++]) {
-							case 0x02: /* caller id  number */
-								cid->number[0] = '\0';
-								cid->name[0] = '\0';
-								cid->flags = 0;
-								res = cid->rawdata[x++];
-								ast_copy_string(cid->number, &cid->rawdata[x], res+1 );
-                                x += res;
-								break;
-							case 0x21: /* additional information */
-								/* length */
-                                x++; 
-								/* number type */
-                           		switch (cid->rawdata[x]) { 
-									case 0x00: /* unknown */
-									case 0x01: /* international number */
-									case 0x02: /* domestic number */
-									case 0x03: /* network */
-									case 0x04: /* local call */
-									case 0x06: /* short dial number */
-									case 0x07: /* reserved */
-									default:   /* reserved */
-										ast_log(LOG_NOTICE, "cid info:#1=%X\n", cid->rawdata[x]);
-										break ;
-								}
-                                x++; 
-								/* numbering plan octed 4 */
-                                x++; 
-								/* numbering plan octed 5 */
-                           		switch (cid->rawdata[x]) { 
-									case 0x00: /* unknown */
-									case 0x01: /* recommendation E.164 ISDN */
-									case 0x03: /* recommendation X.121 */
-									case 0x04: /* telex dial plan */
-									case 0x08: /* domestic dial plan */
-									case 0x09: /* private dial plan */
-									case 0x05: /* reserved */
-									default:   /* reserved */
-										ast_log(LOG_NOTICE, "cid info:#2=%X\n", cid->rawdata[x]);
-										break ;
-								}
-                                x++; 
+						case 0x02: /* caller id  number */
+							cid->number[0] = '\0';
+							cid->name[0] = '\0';
+							cid->flags = 0;
+							res = cid->rawdata[x++];
+							ast_copy_string(cid->number, &cid->rawdata[x], res+1 );
+							x += res;
+							break;
+						case 0x21: /* additional information */
+							/* length */
+							x++; 
+							/* number type */
+                        		   		switch (cid->rawdata[x]) { 
+							case 0x00: /* unknown */
+							case 0x01: /* international number */
+							case 0x02: /* domestic number */
+							case 0x03: /* network */
+							case 0x04: /* local call */
+							case 0x06: /* short dial number */
+							case 0x07: /* reserved */
+							default:   /* reserved */
+								if (option_debug > 1)
+									ast_log(LOG_DEBUG, "cid info:#1=%X\n", cid->rawdata[x]);
 								break ;
-							case 0x04: /* no callerid reason */
-								/* length */
-                                x++; 
-								/* no callerid reason code */
-                            	switch (cid->rawdata[x]) {
-									case 'P': /* caller id denied by user */
-									case 'O': /* service not available */
-									case 'C': /* pay phone */
-									case 'S': /* service congested */
-                    					cid->flags |= CID_UNKNOWN_NUMBER;
-										ast_log(LOG_NOTICE, "no cid reason:%c\n",cid->rawdata[x]);
-										break ;
-								}
-                                x++; 
+							}
+							x++; 
+							/* numbering plan octed 4 */
+							x++; 
+							/* numbering plan octed 5 */
+							switch (cid->rawdata[x]) { 
+							case 0x00: /* unknown */
+							case 0x01: /* recommendation E.164 ISDN */
+							case 0x03: /* recommendation X.121 */
+							case 0x04: /* telex dial plan */
+							case 0x08: /* domestic dial plan */
+							case 0x09: /* private dial plan */
+							case 0x05: /* reserved */
+							default:   /* reserved */
+								if (option_debug > 1)
+									ast_log(LOG_DEBUG, "cid info:#2=%X\n", cid->rawdata[x]);
 								break ;
-							case 0x09: /* dialed number */
-								/* length */
-								res = cid->rawdata[x++];
-								/* dialed number */
-								x += res;
+							}
+							x++; 
+							break ;
+						case 0x04: /* no callerid reason */
+							/* length */
+							x++; 
+							/* no callerid reason code */
+							switch (cid->rawdata[x]) {
+							case 'P': /* caller id denied by user */
+							case 'O': /* service not available */
+							case 'C': /* pay phone */
+							case 'S': /* service congested */
+                    						cid->flags |= CID_UNKNOWN_NUMBER;
+								if (option_debug > 1)
+									ast_log(LOG_DEBUG, "no cid reason:%c\n",cid->rawdata[x]);
 								break ;
-							case 0x22: /* dialed number additional information */
-                                /* length */
-                                x++;
-                                /* number type */
-                                switch (cid->rawdata[x]) {
-                                    case 0x00: /* unknown */
-                                    case 0x01: /* international number */
-                                    case 0x02: /* domestic number */
-                                    case 0x03: /* network */
-                                    case 0x04: /* local call */
-                                    case 0x06: /* short dial number */
-                                    case 0x07: /* reserved */
-                                    default:   /* reserved */
-                                        ast_log(LOG_NOTICE, "did info:#1=%X\n", cid->rawdata[x]);
-                                        break ;
-                                }
-                                x++;
-                                /* numbering plan octed 4 */
-                                x++;
-                                /* numbering plan octed 5 */
-                                switch (cid->rawdata[x]) {
-                                    case 0x00: /* unknown */
-                                    case 0x01: /* recommendation E.164 ISDN */
-                                    case 0x03: /* recommendation X.121 */
-                                    case 0x04: /* telex dial plan */
-                                    case 0x08: /* domestic dial plan */
-                                    case 0x09: /* private dial plan */
-                                    case 0x05: /* reserved */
-                                    default:   /* reserved */
-                                        ast_log(LOG_NOTICE, "did info:#2=%X\n", cid->rawdata[x]);
-                                        break ;
-                                }
-                                x++;
-                                break ;
+							}
+							x++; 
+							break ;
+						case 0x09: /* dialed number */
+							/* length */
+							res = cid->rawdata[x++];
+							/* dialed number */
+							x += res;
+							break ;
+						case 0x22: /* dialed number additional information */
+							/* length */
+							x++;
+							/* number type */
+							switch (cid->rawdata[x]) {
+							case 0x00: /* unknown */
+							case 0x01: /* international number */
+							case 0x02: /* domestic number */
+							case 0x03: /* network */
+							case 0x04: /* local call */
+							case 0x06: /* short dial number */
+							case 0x07: /* reserved */
+							default:   /* reserved */
+								if (option_debug > 1)
+									ast_log(LOG_NOTICE, "did info:#1=%X\n", cid->rawdata[x]);
+								break ;
+							}
+							x++;
+							/* numbering plan octed 4 */
+							x++;
+                                			/* numbering plan octed 5 */
+							switch (cid->rawdata[x]) {
+							case 0x00: /* unknown */
+							case 0x01: /* recommendation E.164 ISDN */
+							case 0x03: /* recommendation X.121 */
+							case 0x04: /* telex dial plan */
+							case 0x08: /* domestic dial plan */
+							case 0x09: /* private dial plan */
+							case 0x05: /* reserved */
+							default:   /* reserved */
+								if (option_debug > 1)
+									ast_log(LOG_DEBUG, "did info:#2=%X\n", cid->rawdata[x]);
+								break ;
+							}
+							x++;
+							break ;
 						}
 					}
 					return 1;
@@ -722,7 +730,7 @@ static int callerid_genmsg(char *msg, int size, char *number, char *name, int fl
 		res = snprintf(ptr, size, "\002%c", i);
 		size -= res;
 		ptr += res;
-		for (x=0;x<i;x++)
+		for (x = 0; x < i; x++)
 			ptr[x] = number[x];
 		ptr[i] = '\0';
 		ptr += i;
@@ -796,24 +804,24 @@ int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec)
 		}
 	}
 	sum = 0;
-	for (x=0;x<len;x++)
+	for (x=0; x<len; x++)
 		sum += msg[x];
 	sum = (256 - (sum & 255));
 	msg[len++] = sum;
 	/* Wait a half a second */
-	for (x=0;x<4000;x++)
+	for (x=0; x<4000; x++)
 		PUT_BYTE(0x7f);
 	/* Transmit 30 0x55's (looks like a square wave) for channel seizure */
-	for (x=0;x<30;x++)
+	for (x=0; x<30; x++)
 		PUT_CLID(0x55);
 	/* Send 170ms of callerid marks */
-	for (x=0;x<170;x++)
+	for (x=0; x<170; x++)
 		PUT_CLID_MARKMS;
-	for (x=0;x<len;x++) {
+	for (x=0; x<len; x++) {
 		PUT_CLID(msg[x]);
 	}
 	/* Send 50 more ms of marks */
-	for (x=0;x<50;x++)
+	for (x=0; x<50; x++)
 		PUT_CLID_MARKMS;
 	return bytes;
 }
@@ -823,6 +831,7 @@ int callerid_generate(unsigned char *buf, char *number, char *name, int flags, i
 	int bytes=0;
 	int x, sum;
 	int len;
+
 	/* Initial carriers (real/imaginary) */
 	float cr = 1.0;
 	float ci = 0.0;
@@ -831,14 +840,14 @@ int callerid_generate(unsigned char *buf, char *number, char *name, int flags, i
 	len = callerid_genmsg(msg, sizeof(msg), number, name, flags);
 	if (!callwaiting) {
 		/* Wait a half a second */
-		for (x=0;x<4000;x++)
+		for (x=0; x<4000; x++)
 			PUT_BYTE(0x7f);
 		/* Transmit 30 0x55's (looks like a square wave) for channel seizure */
-		for (x=0;x<30;x++)
+		for (x=0; x<30; x++)
 			PUT_CLID(0x55);
 	}
 	/* Send 150ms of callerid marks */
-	for (x=0;x<150;x++)
+	for (x=0; x<150; x++)
 		PUT_CLID_MARKMS;
 	/* Send 0x80 indicating MDMF format */
 	PUT_CLID(0x80);
@@ -846,7 +855,7 @@ int callerid_generate(unsigned char *buf, char *number, char *name, int flags, i
 	PUT_CLID(len);
 	sum = 0x80 + strlen(msg);
 	/* Put each character of message and update checksum */
-	for (x=0;x<len; x++) {
+	for (x=0; x<len; x++) {
 		PUT_CLID(msg[x]);
 		sum += msg[x];
 	}
@@ -854,21 +863,22 @@ int callerid_generate(unsigned char *buf, char *number, char *name, int flags, i
 	PUT_CLID(256 - (sum & 255));
 
 	/* Send 50 more ms of marks */
-	for (x=0;x<50;x++)
+	for (x=0; x<50; x++)
 		PUT_CLID_MARKMS;
 	
 	return bytes;
 }
 
-/*
+/*! \brief Clean up phone string
  * remove '(', ' ', ')', non-trailing '.', and '-' not in square brackets.
  * Basically, remove anything that could be invalid in a pattern.
  */
 void ast_shrink_phone_number(char *n)
 {
-	int x,y=0;
-	int bracketed=0;
-	for (x=0;n[x];x++) {
+	int x, y=0;
+	int bracketed = 0;
+
+	for (x=0; n[x]; x++) {
 		switch(n[x]) {
 		case '[':
 			bracketed++;
@@ -936,6 +946,7 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 		}
 	} else {	/* no valid brackets */
 		char tmp[256];
+
 		ast_copy_string(tmp, instr, sizeof(tmp));
 		ast_shrink_phone_number(tmp);
 		if (ast_isphonenumber(tmp)) {	/* Assume it's just a location */
@@ -994,6 +1005,7 @@ int ast_callerid_split(const char *buf, char *name, int namelen, char *num, int 
 {
 	char *tmp;
 	char *l = NULL, *n = NULL;
+
 	tmp = ast_strdupa(buf);
 	if (!tmp) {
 		name[0] = '\0';
@@ -1013,6 +1025,7 @@ int ast_callerid_split(const char *buf, char *name, int namelen, char *num, int 
 	return 0;
 }
 
+/*! \brief Translation table for Caller ID Presentation settings */
 static struct {
 	int val;
 	char *name;
