@@ -2046,7 +2046,7 @@ int handle_bchan(msg_t *msg)
     
 	case PH_CONTROL|INDICATION:
 	{
-		unsigned long cont = *((unsigned long *)&frm->data.p);
+		unsigned int cont = *((unsigned int *)&frm->data.p);
 		
 		cb_log(4, stack->port, "PH_CONTROL: channel:%d oad%d:%s dad%d:%s \n", bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
 
