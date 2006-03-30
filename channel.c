@@ -2033,9 +2033,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 
 int ast_internal_timing_enabled(struct ast_channel *chan)
 {
-	int ret = option_internal_timing && chan->timingfd > -1;
-	if (option_verbose > 2) 
-		ast_verbose(VERBOSE_PREFIX_3 "Internal timing is %s (option_internal_timing=%d chan->timingfd=%d)\n", ret? "enabled": "disabled", option_internal_timing, chan->timingfd);
+	int ret = ast_opt_internal_timing && chan->timingfd > -1;
+	if (option_debug > 3) 
+		ast_log(LOG_DEBUG, "Internal timing is %s (option_internal_timing=%d chan->timingfd=%d)\n", ret? "enabled": "disabled", ast_opt_internal_timing, chan->timingfd);
 	return ret;
 }
 

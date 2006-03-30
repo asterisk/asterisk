@@ -161,9 +161,6 @@ int option_debug = 0;				/*!< Debug level */
 double option_maxload = 0.0;			/*!< Max load avg on system */
 int option_maxcalls = 0;			/*!< Max number of active calls */
 
-int option_internal_timing = 0;
-
-
 /*! @} */
 
 char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
@@ -1975,7 +1972,7 @@ static void ast_readconfig(void)
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TRANSMIT_SILENCE);
 		/* Enable internal timing */
 		} else if (!strcasecmp(v->name, "internal_timing")) {
-			option_internal_timing = ast_true(v->value);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_INTERNAL_TIMING);
 		} else if (!strcasecmp(v->name, "maxcalls")) {
 			if ((sscanf(v->value, "%d", &option_maxcalls) != 1) || (option_maxcalls < 0)) {
 				option_maxcalls = 0;
@@ -2110,7 +2107,7 @@ int main(int argc, char *argv[])
 			ast_set_flag(&ast_options, AST_OPT_FLAG_OVERRIDE_CONFIG);
 			break;
 		case 'I':
-			option_internal_timing = 1;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_INTERNAL_TIMING);
 			break;
 		case 'i':
 			ast_set_flag(&ast_options, AST_OPT_FLAG_INIT_KEYS);

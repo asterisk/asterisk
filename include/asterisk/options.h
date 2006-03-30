@@ -71,7 +71,9 @@ enum ast_option_flags {
 	/*! Suppress some warnings */
 	AST_OPT_FLAG_DONT_WARN = (1 << 18),
 	/*! End CDRs before the 'h' extension */
-	AST_OPT_END_CDR_BEFORE_H_EXTEN = (1 << 19)
+	AST_OPT_END_CDR_BEFORE_H_EXTEN = (1 << 19),
+	/*! Use Zaptel Timing for generators if available */
+	AST_OPT_FLAG_INTERNAL_TIMING = (1 << 20)
 };
 
 /*! These are the options that set by default when Asterisk starts */
@@ -97,6 +99,7 @@ enum ast_option_flags {
 #define ast_opt_transmit_silence	ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE)
 #define ast_opt_dont_warn		ast_test_flag(&ast_options, AST_OPT_FLAG_DONT_WARN)
 #define ast_opt_end_cdr_before_h_exten	ast_test_flag(&ast_options, AST_OPT_END_CDR_BEFORE_H_EXTEN)
+#define ast_opt_internal_timing		ast_test_flag(&ast_options, AST_OPT_FLAG_INTERNAL_TIMING)
 
 extern struct ast_flags ast_options;
 
@@ -104,7 +107,6 @@ extern int option_verbose;
 extern int option_debug;		/*!< Debugging */
 extern int option_maxcalls;		/*!< Maximum number of simultaneous channels */
 extern double option_maxload;
-extern int option_internal_timing;	/*!< Flag for internal timing (RTP) */
 extern char defaultlanguage[];
 
 extern time_t ast_startuptime;
