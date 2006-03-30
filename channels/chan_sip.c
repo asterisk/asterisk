@@ -8287,11 +8287,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd,"\n");
 		ASTOBJ_UNREF(peer,sip_destroy_peer);
 	} else  if (peer && type == 1) { /* manager listing */
-		char *actionid = astman_get_header(m,"ActionID");
-
 		astman_append(s, "Channeltype: SIP\r\n");
-		if (actionid)
-			astman_append(s, "ActionID: %s\r\n", actionid);
 		astman_append(s, "ObjectName: %s\r\n", peer->name);
 		astman_append(s, "ChanObjectType: peer\r\n");
 		astman_append(s, "SecretExist: %s\r\n", ast_strlen_zero(peer->secret)?"N":"Y");
@@ -8326,7 +8322,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		astman_append(s, "SIP-VideoSupport: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT)?"Y":"N"));
 
 		/* - is enumerated */
-		astman_append(s, "SIP-DTMFmode %s\r\n", dtmfmode2str(ast_test_flag(&peer->flags[0], SIP_DTMF)));
+		astman_append(s, "SIP-DTMFmode: %s\r\n", dtmfmode2str(ast_test_flag(&peer->flags[0], SIP_DTMF)));
 		astman_append(s, "SIPLastMsg: %d\r\n", peer->lastmsg);
 		astman_append(s, "ToHost: %s\r\n", peer->tohost);
 		astman_append(s, "Address-IP: %s\r\nAddress-Port: %d\r\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", ntohs(peer->addr.sin_port));
