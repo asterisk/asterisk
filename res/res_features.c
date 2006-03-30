@@ -2047,6 +2047,7 @@ static int load_config(void)
 	parking_start = 701;
 	parking_stop = 750;
 	parkfindnext = 0;
+	adsipark = 0;
 
 	transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 	featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
