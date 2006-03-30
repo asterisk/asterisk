@@ -257,8 +257,8 @@ static char *group_count_descrip =
 "  Calculates the group count for the specified group, or uses\n"
 "the current channel's group if not specifed (and non-empty).\n"
 "Stores result in GROUPCOUNT. \n"
-"This application has been deprecated, please use the function\n"
-"GroupCount.\n";
+"Note: This application has been deprecated, please use the function\n"
+"GROUP_COUNT.\n";
 
 static char *group_set_descrip =
 "Usage: SetGroup(groupname[@category])\n"
@@ -284,8 +284,8 @@ static char *group_match_count_descrip =
 "  Calculates the group count for all groups that match the specified\n"
 "pattern. Uses standard regular expression matching (see regex(7)).\n"
 "Stores result in GROUPCOUNT.  Always returns 0.\n"
-"This application has been deprecated, please use the function\n"
-"GroupMatchCount.\n";
+"Note: This application has been deprecated, please use the function\n"
+"GROUP_MATCH_COUNT.\n";
 
 static char show_channels_usage[] = 
 "Usage: group show channels [pattern]\n"
