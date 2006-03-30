@@ -330,22 +330,28 @@ void ast_playtones_stop(struct ast_channel *chan)
 
 /*--------------------------------------------*/
 
-struct tone_zone *tone_zones;
+static struct tone_zone *tone_zones;
 static struct tone_zone *current_tonezone;
 
 /* Protect the tone_zones list (highly unlikely that two things would change
  * it at the same time, but still! */
-AST_MUTEX_DEFINE_EXPORTED(tzlock);
-/* XXX note - this is the only instance of AST_MUTEX_DEFINE_EXPORTED()
- * in the entire asterisk code base, and should be replaced by a static one.
- * The mutex is declared exported because it is accessed
- * by other files, namely res/snmp/agent.c and res/res_indications.c.
- * However there are also unprotected accesses to the list, because
- * some of the functions below export pointers to the elements, so
- * the entire mechanism is useless.
- * This needs to be fixed by providing functions to navigate in the
- * list, and refcounts to prevent entries from being destroyed.
- */
+AST_MUTEX_DEFINE_STATIC(tzlock);
+
+struct tone_zone *ast_walk_indications(const struct tone_zone *cur)
+{
+	struct tone_zone *tz;
+
+	if (cur == NULL)
+		return tone_zones;
+	ast_mutex_lock(&tzlock);
+	for (tz = tone_zones; tz; tz = tz->next)
+		if (tz == cur)
+			break;
+	if (tz)
+		tz = tz->next;
+	ast_mutex_unlock(&tzlock);
+	return tz;
+}
 
 /* Set global indication country */
 int ast_set_indication_country(const char *country)

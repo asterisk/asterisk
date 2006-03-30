@@ -149,26 +149,20 @@ static int handle_remove_indication(int fd, int argc, char *argv[])
  */
 static int handle_show_indications(int fd, int argc, char *argv[])
 {
-	struct tone_zone *tz;
+	struct tone_zone *tz = NULL;
 	char buf[256];
 	int found_country = 0;
 
-	if (ast_mutex_lock(&tzlock)) {
-		ast_log(LOG_WARNING, "Unable to lock tone_zones list\n");
-		return 0;
-	}
 	if (argc == 2) {
 		/* no arguments, show a list of countries */
 		ast_cli(fd,"Country Alias   Description\n"
 			   "===========================\n");
-		for (tz=tone_zones; tz; tz=tz->next) {
+		while ( (tz = ast_walk_indications(tz) ) )
 			ast_cli(fd,"%-7.7s %-7.7s %s\n", tz->country, tz->alias, tz->description);
-		}
-		ast_mutex_unlock(&tzlock);
 		return 0;
 	}
 	/* there was a request for specific country(ies), lets humor them */
-	for (tz=tone_zones; tz; tz=tz->next) {
+	while ( (tz = ast_walk_indications(tz) ) ) {
 		int i,j;
 		for (i=2; i<argc; i++) {
 			if (strcasecmp(tz->country,argv[i])==0 &&
@@ -183,7 +177,8 @@ static int handle_show_indications(int fd, int argc, char *argv[])
 				for (i=0; i<tz->nrringcadence; i++) {
 					j += snprintf(buf+j,sizeof(buf)-j,"%d,",tz->ringcadence[i]);
 				}
-				if (tz->nrringcadence) j--;
+				if (tz->nrringcadence)
+					j--;
 				ast_copy_string(buf+j,"\n",sizeof(buf)-j);
 				ast_cli(fd,buf);
 				for (ts=tz->tones; ts; ts=ts->next)
@@ -194,7 +189,6 @@ static int handle_show_indications(int fd, int argc, char *argv[])
 	}
 	if (!found_country)
 		ast_cli(fd,"No countries matched your criteria.\n");
-	ast_mutex_unlock(&tzlock);
 	return -1;
 }
 

@@ -631,22 +631,16 @@ static u_char *ast_var_indications(struct variable *vp, oid *name, size_t *lengt
 								  int exact, size_t *var_len, WriteMethod **write_method)
 {
     static unsigned long long_ret;
-    struct tone_zone *tz;
+    struct tone_zone *tz = NULL;
 
     if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
 
     switch (vp->magic) {
 	case ASTINDCOUNT:
-		if (ast_mutex_lock(&tzlock)) {
-			ast_log(LOG_WARNING, "Unable to lock tone_zones list\n");
-			snmp_log(LOG_ERR, "Unable to lock tone_zones list in ast_var_indications\n");
-			return NULL;
-		}
 		long_ret = 0;
-		for (tz = tone_zones; tz; tz = tz->next)
+		while ( (tz = ast_walk_indications(tz)) )
 			long_ret++;
-		ast_mutex_unlock(&tzlock);
 
 		return (u_char *)&long_ret;
 	case ASTINDCURRENT:
@@ -667,21 +661,15 @@ static u_char *ast_var_indications_table(struct variable *vp, oid *name, size_t 
 									   int exact, size_t *var_len, WriteMethod **write_method)
 {
     static unsigned long long_ret;
-    struct tone_zone *tz;
+    struct tone_zone *tz = NULL;
     int i;
 
     if (header_simple_table(vp, name, length, exact, var_len, write_method, -1))
 		return NULL;
 
-    if (ast_mutex_lock(&tzlock)) {
-		ast_log(LOG_WARNING, "Unable to lock tone_zones list\n");
-		snmp_log(LOG_ERR, "Unable to lock tone_zones list in ast_var_indications_table\n");
-		return NULL;
-    }
     i = name[*length - 1] - 1;
-    for (tz = tone_zones; tz && i; tz = tz->next)
-		i--;
-    ast_mutex_unlock(&tzlock);
+    while ( (tz = ast_walk_indications(tz)) && i )
+	i--;
     if (tz == NULL)
 		return NULL;
 
