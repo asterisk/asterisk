@@ -19,24 +19,28 @@
 /*! \file
  * \brief General Asterisk channel locking definitions.
  *
+ * - See \ref LockDef
+ */
+/* \page LockDef Asterisk thread locking models
+ *
  * This file provides several different implementation of the functions,
  * depending on the platform, the use of DEBUG_THREADS, and the way
  * global mutexes are initialized.
  * At the moment, we have 3 ways to initialize global mutexes, depending on
  *
- *  + static: the mutex is assigned the value AST_MUTEX_INIT_VALUE
+ *  - \b static: the mutex is assigned the value AST_MUTEX_INIT_VALUE
  *        this is done at compile time, and is the way used on Linux.
  *        This method is not applicable to all platforms e.g. when the
  *        initialization needs that some code is run.
  *
- *  + on first use: the mutex is assigned a magic value at compile time,
+ *  - \b on first use: the mutex is assigned a magic value at compile time,
  *        and ast_mutex_init() is called when this magic value is detected.
  *        This technique is generally applicable, though it has a bit of
  *        overhead on each access to check whether initialization is needed.
  *        On the other hand, the overall cost of a mutex_lock operation
  *        is such that this overhead is often negligible.
 
- *  + through constructors: for each mutex, a constructor function is
+ *  - \b through constructors: for each mutex, a constructor function is
  *        defined, which then runs when the program (or the module)
  *        starts. The problem with this approach is that there is a
  *        lot of code duplication (a new block of code is created for
