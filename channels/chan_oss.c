@@ -671,7 +671,7 @@ static int setformat(struct chan_oss_pvt *o, int mode)
 		ast_log(LOG_WARNING, "Failed to set audio device to mono\n");
 		return -1;
 	}
-	fmt = desired = 8000; /* 8000 Hz desired */
+	fmt = desired = DEFAULT_SAMPLE_RATE; /* 8000 Hz desired */
 	res = ioctl(fd, SNDCTL_DSP_SPEED, &fmt);
 
 	if (res < 0) {
