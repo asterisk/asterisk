@@ -1875,7 +1875,7 @@ static void ast_readconfig(void) {
 	/* init with buildtime config */
 	ast_copy_string(ast_config_AST_CONFIG_DIR, AST_CONFIG_DIR, sizeof(ast_config_AST_CONFIG_DIR));
 	ast_copy_string(ast_config_AST_SPOOL_DIR, AST_SPOOL_DIR, sizeof(ast_config_AST_SPOOL_DIR));
-	ast_copy_string(ast_config_AST_MODULE_DIR, AST_MODULE_DIR, sizeof(ast_config_AST_VAR_DIR));
+	ast_copy_string(ast_config_AST_MODULE_DIR, AST_MODULE_DIR, sizeof(ast_config_AST_MODULE_DIR));
  	snprintf(ast_config_AST_MONITOR_DIR, sizeof(ast_config_AST_MONITOR_DIR) - 1, "%s/monitor", ast_config_AST_SPOOL_DIR);
 	ast_copy_string(ast_config_AST_VAR_DIR, AST_VAR_DIR, sizeof(ast_config_AST_VAR_DIR));
 	ast_copy_string(ast_config_AST_LOG_DIR, AST_LOG_DIR, sizeof(ast_config_AST_LOG_DIR));
