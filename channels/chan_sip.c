@@ -11959,6 +11959,8 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v)
 {
 	int res = 0;
+	static int dep_insecure_very = 0;
+	static int dep_insecure_yes = 0;
 
 	if (!strcasecmp(v->name, "trustrpid")) {
 		ast_set_flag(&mask[0], SIP_TRUSTRPID);
@@ -12008,10 +12010,20 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "insecure")) {
 		ast_set_flag(&mask[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
 		ast_clear_flag(&flags[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
-		if (!strcasecmp(v->value, "very"))
+		if (!strcasecmp(v->value, "very")) {
 			ast_set_flag(&flags[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
-		else if (ast_true(v->value))
+			if (!dep_insecure_very) {
+				ast_log(LOG_WARNING, "insecure=very at line %d is deprecated; use insecure=port,invite instead\n", v->lineno);
+				dep_insecure_very = 1;
+			}
+		}
+		else if (ast_true(v->value)) {
 			ast_set_flag(&flags[0], SIP_INSECURE_PORT);
+			if (!dep_insecure_yes) {
+				ast_log(LOG_WARNING, "insecure=%s at line %d is deprecated; use insecure=port instead\n", v->value, v->lineno);
+				dep_insecure_yes = 1;
+			}
+		}
 		else if (!ast_false(v->value)) {
 			char buf[64];
 			char *word, *next;
