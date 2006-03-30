@@ -40,7 +40,7 @@ autofallthrough=yes
 ;
 ; If clearglobalvars is not set, then global variables will persist
 ; through reloads, and even if deleted from the extensions.conf or
-; one if its included files, will remain set to the previous value.
+; one of its included files, will remain set to the previous value.
 ;
 clearglobalvars=no
 ;
