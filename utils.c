@@ -39,6 +39,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#define AST_API_MODULE		/* ensure that inlinable API functions will be built in lock.h if required */
 #include "asterisk/lock.h"
 #include "asterisk/io.h"
 #include "asterisk/logger.h"
@@ -1049,6 +1050,16 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 	va_end(ap2);
 }
 
+AST_MUTEX_DEFINE_STATIC(fetchadd_m); /* used for all fetc&add ops */
+int ast_atomic_fetchadd_int_slow(volatile int *p, int v)
+{
+        int ret;
+        ast_mutex_lock(&fetchadd_m);
+        ret = *p;
+        *p += v;
+        ast_mutex_unlock(&fetchadd_m);
+        return ret;
+}
 
 /*! \brief
  * get values from config variables.

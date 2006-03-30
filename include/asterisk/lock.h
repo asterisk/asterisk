@@ -679,4 +679,50 @@ static inline int ast_cond_timedwait(ast_cond_t *cond, ast_mutex_t *t, const str
 #define pthread_create __use_ast_pthread_create_instead__
 #endif
 
+/*
+ * Initial support for atomic instructions.
+ * For platforms that have it, use the native cpu instruction to
+ * implement them. For other platforms, resort to a 'slow' version
+ * (defined in utils.c) that protects the atomic instruction with
+ * a single lock.
+ * The slow versions is always available, for testing purposes,
+ * as ast_atomic_fetchadd_int_slow()
+ */
+
+int ast_atomic_fetchadd_int_slow(volatile int *p, int v);
+
+#include "asterisk/inline_api.h"
+
+/*! \brief Atomically add v to *pp and return * the previous value of *p.
+ * This can be used to handle reference counts, and the return value
+ * can be used to generate unique identifiers.
+ */
+
+#if defined ( __i386__)
+AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
+{
+	__asm __volatile (
+	"       lock   xaddl   %0, %1 ;        "
+	: "+r" (v),                     /* 0 (result) */   
+	  "=m" (*p)                     /* 1 */
+	: "m" (*p));                    /* 2 */
+	return (v);
+})
+#else   /* low performance version in utils.c */
+AST_INLINE_AP(int ast_atomic_fetchadd_int(volatile int *p, int v),
+{
+	return ast_atomic_fetchadd_int_slow(p, v);
+})
+#endif
+
+/*! \brief decrement *p by 1 and return true if the variable has reached 0.
+ * Useful e.g. to check if a refcount has reached 0.
+ */
+AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
+{
+	int a = ast_atomic_fetchadd_int(p, -1);
+	return a == 1; /* true if the value is 0 now (so it was 1 previously) */
+}
+)
+
 #endif /* _ASTERISK_LOCK_H */
