@@ -7098,13 +7098,17 @@ static char *get_calleridname(char *input, char *output, size_t outputsize)
 	int bytes = 0;
 	int maxbytes = outputsize - 1;
 
-	if (!end || (end == input)) return NULL;
+	if (!end || (end == input))
+		return NULL;
+
 	/* move away from "<" */
 	end--;
+
 	/* we found "name" */
 	if (tmp && tmp < end) {
 		end = strchr(tmp+1, '\"');
-		if (!end) return NULL;
+		if (!end)
+			return NULL;
 		bytes = (int) (end - tmp);
 		/* protect the output buffer */
 		if (bytes > maxbytes)
