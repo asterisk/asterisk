@@ -90,6 +90,11 @@ Brian M. Clapper - poll.c emulation
 Music provided by www.freeplaymusic.com
 
 === OTHER SOURCE CODE IN ASTERISK ===
+Asterisk uses libedit, the lightweight readline replacement from
+NetBSD. It is BSD-licensed and requires the following statement:
+
+      This product includes software developed by the NetBSD
+      Foundation, Inc. and its contributors.
 
 Digium did not implement the codecs in Asterisk.  Here is the copyright on the
 GSM source:
