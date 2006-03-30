@@ -38,7 +38,7 @@ WAV49	= -DWAV49
 ######### probably require gcc. 
 
 ifeq (, $(findstring $(OSARCH) , Darwin SunOS ))
-ifeq (, $(findstring $(PROC) , x86_64 ultrasparc sparc64 arm ppc ppc64 ia64 ))
+ifeq (, $(findstring $(PROC) , x86_64 amd64 ultrasparc sparc64 arm ppc ppc64 ia64 ))
 ifeq (, $(findstring $(shell uname -m) , ppc ppc64 alpha armv4l ))
 OPTIMIZE+=-march=$(PROC)
 endif
@@ -215,7 +215,7 @@ GSM_SOURCES =	$(SRC)/add.c		\
 # XXX Keep a space after each findstring argument
 # XXX should merge with GSM_OBJECTS
 ifeq (${OSARCH},Linux)
-ifeq (,$(findstring $(shell uname -m) , x86_64 ppc ppc64 alpha armv4l sparc64 parisc ))
+ifeq (,$(findstring $(shell uname -m) , x86_64 amd64 ppc ppc64 alpha armv4l sparc64 parisc ))
 ifeq (,$(findstring ${PROC} , arm ia64 ))
 GSM_SOURCES+= $(SRC)/k6opt.s
 endif
@@ -267,7 +267,7 @@ GSM_OBJECTS =	$(SRC)/add.o		\
 		$(SRC)/table.o
 
 ifeq (${OSARCH},Linux)
-ifeq (,$(findstring $(shell uname -m) , x86_64 ppc ppc64 alpha armv4l sparc64 parisc ))
+ifeq (,$(findstring $(shell uname -m) , x86_64 amd64 ppc ppc64 alpha armv4l sparc64 parisc ))
 ifeq (,$(findstring ${PROC} , arm ia64 ))
 GSM_OBJECTS+= $(SRC)/k6opt.o
 endif
