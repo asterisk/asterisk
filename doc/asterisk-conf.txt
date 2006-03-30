@@ -52,6 +52,7 @@ timestamp = yes | no				; Force timestamping on log entries to console (-T)
 runuser = asterisk				; User to run asterisk as (-U) NOTE: will require changes to
 						; directory and device permisions
 rungroup = asterisk				; Group to run asterisk as (-G)
+internal_timing = yes | no			; Enable internal timing support (-I)
 
 ;These options have no command line equivalent
 cache_record_files = yes | no			; Cache record() files in another directory until completion

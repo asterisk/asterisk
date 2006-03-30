@@ -101,10 +101,10 @@ enum ast_option_flags {
 extern struct ast_flags ast_options;
 
 extern int option_verbose;
-extern int option_debug;
-extern int option_maxcalls;
+extern int option_debug;		/*!< Debugging */
+extern int option_maxcalls;		/*!< Maximum number of simultaneous channels */
 extern double option_maxload;
-
+extern int option_internal_timing;	/*!< Flag for internal timing (RTP) */
 extern char defaultlanguage[];
 
 extern time_t ast_startuptime;

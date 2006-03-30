@@ -1177,32 +1177,31 @@ static int sms_generate (struct ast_channel *chan, void *data, int len, int samp
 {
 	struct ast_frame f = { 0 };
 	unsigned char waste[AST_FRIENDLY_OFFSET];
+#define MAXSAMPLES (800)
 #ifdef OUTALAW
-	unsigned char buf[800];
+	unsigned char buf[MAXSAMPLES];
 #else
-	signed short buf[800];
+	signed short buf[MAXSAMPLES];
 #endif
+#define SAMPLE2LEN (sizeof (buf[0]))
 	sms_t *h = data;
 	int i;
 
-	if (len > sizeof (buf)) {
-		ast_log (LOG_WARNING, "Only doing %d bytes (%d bytes requested)\n", (int)(sizeof (buf) / sizeof (signed short)), len);
-		len = sizeof (buf);
-#ifdef OUTALAW
-		samples = len;
-#else
-		samples = len / 2;
-#endif
+	if (samples > MAXSAMPLES) {
+		ast_log (LOG_WARNING, "Only doing %d samples (%d requested)\n",
+			 MAXSAMPLES, samples);
+		samples = MAXSAMPLES;
 	}
-	waste[0] = 0;					 /* make compiler happy */
+	len = samples * SAMPLE2LEN;
+
+	waste[0] = 0;				 /* make compiler happy */
 	f.frametype = AST_FRAME_VOICE;
 #ifdef OUTALAW
 	f.subclass = AST_FORMAT_ALAW;
-	f.datalen = samples;
 #else
 	f.subclass = AST_FORMAT_SLINEAR;
-	f.datalen = samples * 2;
 #endif
+	f.datalen = len;
 	f.offset = AST_FRIENDLY_OFFSET;
 	f.mallocd = 0;
 	f.data = buf;
@@ -1254,6 +1253,8 @@ static int sms_generate (struct ast_channel *chan, void *data, int len, int samp
 		return -1;
 	}
 	return 0;
+#undef SAMPLE2LEN
+#undef MAXSAMPLES
 }
 
 static void sms_process (sms_t * h, int samples, signed short *data)

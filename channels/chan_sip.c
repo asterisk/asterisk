@@ -4699,7 +4699,8 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 				    debug);
 	}
 
-	ast_build_string(&a_audio_next, &a_audio_left, "a=silenceSupp:off - - - -\r\n");
+	if(!ast_internal_timing_enabled(p->owner))
+		ast_build_string(&a_audio_next, &a_audio_left, "a=silenceSupp:off - - - -\r\n");
 
 	if ((m_audio_left < 2) || (m_video_left < 2) || (a_audio_left == 0) || (a_video_left == 0))
 		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");

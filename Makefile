@@ -788,6 +788,8 @@ samples: adsi
 		echo ";astctlowner = root" ; \
 		echo ";astctlgroup = apache" ; \
 		echo ";astctl = asterisk.ctl" ; \
+		echo ";[options]" ; \
+		echo ";internal_timing = yes" ; \
 		) > $(DESTDIR)$(ASTCONFPATH) ; \
 	else \
 		echo "Skipping asterisk.conf creation"; \

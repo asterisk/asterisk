@@ -1124,6 +1124,16 @@ struct ast_silence_generator *ast_channel_start_silence_generator(struct ast_cha
  */
 void ast_channel_stop_silence_generator(struct ast_channel *chan, struct ast_silence_generator *state);
 
+/*!
+  \brief Check if the channel can run in internal timing mode.
+  \param chan The channel to check
+  \return boolean
+
+  This function will return 1 if internal timing is enabled and the timing
+  device is available.
+ */
+int ast_internal_timing_enabled(struct ast_channel *chan);
+
 /* Misc. functions below */
 
 /* if fd is a valid descriptor, set *pfd with the descriptor

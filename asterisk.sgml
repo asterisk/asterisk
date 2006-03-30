@@ -21,7 +21,7 @@
 <refsynopsisdiv>
 	<cmdsynopsis>
 	<command>asterisk</command>
-<arg><option>-tThfdvVqpRgcin</option></arg>
+<arg><option>-tThfdvVqpRgciIn</option></arg>
 <arg><option>-C </option><replaceable class="parameter">file</replaceable></arg>
 <arg><option>-U </option><replaceable class="parameter">user</replaceable></arg>
 <arg><option>-G </option><replaceable class="parameter">group</replaceable></arg>
@@ -38,7 +38,7 @@
 </refsynopsisdiv>
 <refsect1>
 	<refsect1info>
-		<date>2004-07-01</date>
+		<date>2006-03-29</date>
 	</refsect1info>
 	<title>DESCRIPTION</title>
 	<para>
@@ -150,6 +150,17 @@
 			<para>
 			Prompt user to intialize any encrypted private keys for IAX2
 			secure authentication during startup.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-I</term>
+		<listitem>
+			<para>
+			Enable internal timing if Zaptel timing is available.
+			The default behaviour is that outbound packets are phase locked
+			to inbound packets. Enabling this switch causes them to be
+			locked to the internal Zaptel timer instead.
 			</para>
 		</listitem>
 	</varlistentry>

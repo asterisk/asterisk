@@ -9,7 +9,7 @@
 asterisk \- All-purpose telephony server.
 .SH SYNOPSIS
 
-\fBasterisk\fR [ \fB-tThfdvVqpRgcin\fR ] [ \fB-C \fIfile\fB\fR ] [ \fB-U \fIuser\fB\fR ] [ \fB-G \fIgroup\fB\fR ] [ \fB-x \fIcommand\fB\fR ] [ \fB-M \fIvalue\fB\fR ]
+\fBasterisk\fR [ \fB-tThfdvVqpRgciIn\fR ] [ \fB-C \fIfile\fB\fR ] [ \fB-U \fIuser\fB\fR ] [ \fB-G \fIgroup\fB\fR ] [ \fB-x \fIcommand\fB\fR ] [ \fB-M \fIvalue\fB\fR ]
 
 
 \fBasterisk -r\fR [ \fB-v\fR ] [ \fB-x \fIcommand\fB\fR ]
@@ -113,6 +113,12 @@ Much like \fB-r\fR\&.  Instead of running a new Asterisk process, attempt to con
 to a running Asterisk process and provide a console interface
 for controlling it. Additionally, if connection to the Asterisk 
 process is lost, attempt to reconnect for as long as 30 seconds.
+.TP
+\fB-I\fR
+Enable internal timing if Zaptel timer is available
+The default behaviour is that outbound packets are phase locked
+to inbound packets. Enabling this switch causes them to be
+locked to the internal Zaptel timer instead.
 .TP
 \fB-t\fR
 When recording files, write them first into a temporary holding directory, 

@@ -71,20 +71,27 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 {
 	struct ast_frame wf;
 	unsigned char buf[AST_FRIENDLY_OFFSET + 640];
-	int i,*indexp = (int *) data;
+	const int maxsamples = sizeof (buf) / sizeof (buf[0]);
+	int i, *indexp = (int *) data;
 
-	if (len + AST_FRIENDLY_OFFSET > sizeof(buf))
-	{
-		ast_log(LOG_WARNING,"Only doing %d bytes (%d bytes requested)\n",(int)(sizeof(buf) - AST_FRIENDLY_OFFSET),len);
-		len = sizeof(buf) - AST_FRIENDLY_OFFSET;
+	/* Instead of len, use samples, because channel.c generator_force
+	* generate(chan, tmp, 0, 160) ignores len. In any case, len is
+	* a multiple of samples, given by number of samples times bytes per
+	* sample. In the case of ulaw, len = samples. for signed linear
+	* len = 2 * samples */
+
+	if (samples > maxsamples) {
+		ast_log(LOG_WARNING, "Only doing %d samples (%d requested)\n", maxsamples, samples);
+		samples = maxsamples;
 	}
+	len = samples * sizeof (buf[0]);
 	wf.frametype = AST_FRAME_VOICE;
 	wf.subclass = AST_FORMAT_ULAW;
 	wf.offset = AST_FRIENDLY_OFFSET;
 	wf.mallocd = 0;
 	wf.data = buf + AST_FRIENDLY_OFFSET;
 	wf.datalen = len;
-	wf.samples = wf.datalen;
+	wf.samples = samples;
 	wf.src = "app_milliwatt";
 	wf.delivery.tv_sec = 0;
 	wf.delivery.tv_usec = 0;

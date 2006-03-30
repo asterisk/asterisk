@@ -1976,30 +1976,34 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 						f = &ast_null_frame;
 				}
 
-				/* Run any generator sitting on the channel */
-				if (chan->generatordata) {
-					/* Mask generator data temporarily and apply.  If there is a timing function, it
-					   will be calling the generator instead */
+				/* Run generator sitting on the line if timing device not available
+				* and synchronous generation of outgoing frames is necessary       */
+				if (chan->generatordata &&  !ast_internal_timing_enabled(chan)) {
 					void *tmp;
 					int res;
 					int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
-					
+
 					if (chan->timingfunc) {
-						ast_log(LOG_DEBUG, "Generator got voice, switching to phase locked mode\n");
+						if (option_debug > 1)
+							ast_log(LOG_DEBUG, "Generator got voice, switching to phase locked mode\n");
 						ast_settimeout(chan, 0, NULL, NULL);
 					}
+
 					tmp = chan->generatordata;
 					chan->generatordata = NULL;
 					generate = chan->generator->generate;
 					res = generate(chan, tmp, f->datalen, f->samples);
 					chan->generatordata = tmp;
 					if (res) {
-						ast_log(LOG_DEBUG, "Auto-deactivating generator\n");
+						if (option_debug > 1)
+							ast_log(LOG_DEBUG, "Auto-deactivating generator\n");
 						ast_deactivate_generator(chan);
 					}
+
 				} else if (f->frametype == AST_FRAME_CNG) {
 					if (chan->generator && !chan->timingfunc && (chan->timingfd > -1)) {
-						ast_log(LOG_DEBUG, "Generator got CNG, switching to timed mode\n");
+						if (option_debug > 1)
+							ast_log(LOG_DEBUG, "Generator got CNG, switching to timed mode\n");
 						ast_settimeout(chan, 160, generator_force, chan);
 					}
 				}
@@ -2025,6 +2029,14 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	ast_mutex_unlock(&chan->lock);
 
 	return f;
+}
+
+int ast_internal_timing_enabled(struct ast_channel *chan)
+{
+	int ret = option_internal_timing && chan->timingfd > -1;
+	if (option_verbose > 2) 
+		ast_verbose(VERBOSE_PREFIX_3 "Internal timing is %s (option_internal_timing=%d chan->timingfd=%d)\n", ret? "enabled": "disabled", option_internal_timing, chan->timingfd);
+	return ret;
 }
 
 struct ast_frame *ast_read(struct ast_channel *chan)
