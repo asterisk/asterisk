@@ -7984,11 +7984,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd,"\n");
 		ASTOBJ_UNREF(peer,sip_destroy_peer);
 	} else  if (peer && type == 1) { /* manager listing */
-		char *actionid = astman_get_header(m,"ActionID");
-
 		ast_cli(fd, "Channeltype: SIP\r\n");
-		if (actionid)
-			ast_cli(fd, "ActionID: %s\r\n", actionid);
 		ast_cli(fd, "ObjectName: %s\r\n", peer->name);
 		ast_cli(fd, "ChanObjectType: peer\r\n");
 		ast_cli(fd, "SecretExist: %s\r\n", ast_strlen_zero(peer->secret)?"N":"Y");
@@ -8021,7 +8017,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "SIP-UserPhone: %s\r\n", (ast_test_flag(peer, SIP_USEREQPHONE)?"Y":"N"));
 
 		/* - is enumerated */
-		ast_cli(fd, "SIP-DTMFmode %s\r\n", dtmfmode2str(ast_test_flag(peer, SIP_DTMF)));
+		ast_cli(fd, "SIP-DTMFmode: %s\r\n", dtmfmode2str(ast_test_flag(peer, SIP_DTMF)));
 		ast_cli(fd, "SIPLastMsg: %d\r\n", peer->lastmsg);
 		ast_cli(fd, "ToHost: %s\r\n", peer->tohost);
 		ast_cli(fd, "Address-IP: %s\r\nAddress-Port: %d\r\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", ntohs(peer->addr.sin_port));
