@@ -905,19 +905,40 @@ void ast_shrink_phone_number(char *n)
 	n[y] = '\0';
 }
 
+/*! \brief Checks if phone number consists of valid characters 
+	\param exten	String that needs to be checked
+	\param valid	Valid characters in string
+	\return 1 if valid string, 0 if string contains invalid characters
+*/
+static int ast_is_valid_string(const char *exten, const char *valid)
+{
+	int x;
+
+	if (ast_strlen_zero(exten))
+		return 0;
+	for (x=0; exten[x]; x++)
+		if (!strchr(valid, exten[x]))
+			return 0;
+	return 1;
+}
+
 /*! \brief checks if string consists only of digits and * \# and + 
 	\return 1 if string is valid AST phone number
 	\return 0 if not
 */
-int ast_isphonenumber(char *n)
+int ast_isphonenumber(const char *n)
 {
-	int x;
-	if (ast_strlen_zero(n))
-		return 0;
-	for (x=0;n[x];x++)
-		if (!strchr("0123456789*#+", n[x]))
-			return 0;
-	return 1;
+	return ast_is_valid_string(n, "0123456789*#+");
+}
+
+/*! \brief checks if string consists only of digits and ( ) - * \# and + 
+	Pre-qualifies the string for ast_shrink_phone_number()
+	\return 1 if string is valid AST shrinkable phone number
+	\return 0 if not
+*/
+int ast_is_shrinkable_phonenumber(const char *exten)
+{
+	return ast_is_valid_string(exten, "0123456789*#+()-.");
 }
 
 /*! \brief parse string for caller id information 

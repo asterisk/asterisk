@@ -7234,7 +7234,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			*c = '\0';
 		tmp = ast_strdupa(of);
 		if (tmp) {
-			ast_shrink_phone_number(tmp);
+			if (ast_is_shrinkable_phonenumber(tmp))
+				ast_shrink_phone_number(tmp);
 			ast_string_field_set(p, cid_num, tmp);
 		} else {
 			ast_string_field_set(p, cid_num, of);
@@ -7265,7 +7266,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				ast_string_field_set(p, cid_name, calleridname);
 			tmp = ast_strdupa(rpid_num);
 			if (tmp) {
-				ast_shrink_phone_number(tmp);
+				if (ast_is_shrinkable_phonenumber(tmp))
+					ast_shrink_phone_number(tmp);
 				ast_string_field_set(p, cid_num, tmp);
 			} else {
 				ast_string_field_set(p, cid_num, rpid_num);
@@ -7301,7 +7303,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			if (!ast_strlen_zero(user->cid_num) && !ast_strlen_zero(p->cid_num)) {
 				char *tmp = ast_strdupa(user->cid_num);
 				if (tmp) {
-					ast_shrink_phone_number(tmp);
+					if (ast_is_shrinkable_phonenumber(tmp))
+						ast_shrink_phone_number(tmp);
 					ast_string_field_set(p, cid_num, tmp);
 				} else {
 					ast_string_field_set(p, cid_num, user->cid_num);
@@ -7376,7 +7379,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				if (*calleridname)
 					ast_string_field_set(p, cid_name, calleridname);
 				if (tmp) {
-					ast_shrink_phone_number(tmp);
+					if (ast_is_shrinkable_phonenumber(tmp))
+						ast_shrink_phone_number(tmp);
 					ast_string_field_set(p, cid_num, tmp);
 				} else {
 					ast_string_field_set(p, cid_num, rpid_num);
@@ -7430,7 +7434,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				if (!ast_strlen_zero(peer->cid_num) && !ast_strlen_zero(p->cid_num)) {
 					char *tmp = ast_strdupa(peer->cid_num);
 					if (tmp) {
-						ast_shrink_phone_number(tmp);
+						if (ast_is_shrinkable_phonenumber(tmp))
+							ast_shrink_phone_number(tmp);
 						ast_string_field_set(p, cid_num, tmp);
 					} else {
 						ast_string_field_set(p, cid_num, peer->cid_num);

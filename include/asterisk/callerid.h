@@ -193,11 +193,18 @@ extern int ast_gen_cas(unsigned char *outbuf, int sas, int len, int codec);
  */
 extern void ast_shrink_phone_number(char *n);
 
-/*! \brief Check if a string consists only of digits.   
+/*! \brief Check if a string consists only of digits and + \#
     \param n number to be checked.
     \return Returns 0 if n is a number, 1 if it's not.
  */
-extern int ast_isphonenumber(char *n);
+extern int ast_isphonenumber(const char *n);
+
+/*! \brief Check if a string consists only of digits and and + \# ( ) - .
+	(meaning it can be cleaned with ast_shrink_phone_number)
+    \param exten The extension (or URI) to be checked.
+    \return Returns 0 if n is a number, 1 if it's not.
+ */
+extern int ast_is_shrinkable_phonenumber(const char *exten);
 
 extern int ast_callerid_split(const char *src, char *name, int namelen, char *num, int numlen);
 
