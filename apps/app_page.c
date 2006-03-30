@@ -186,7 +186,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 	}
 	if (!res) {
 		snprintf(meetmeopts, sizeof(meetmeopts), "%ud|A%sqxd", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t");
-		pbx_exec(chan, app, meetmeopts, 1);
+		pbx_exec(chan, app, meetmeopts);
 	}
 
 	LOCAL_USER_REMOVE(u);

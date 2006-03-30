@@ -317,10 +317,8 @@ struct ast_channel {
 	/*! Procedure causing blocking */
 	const char *blockproc;			
 
-	/*! Current application */
-	char *appl;				
-	/*! Data passed to current application */
-	char *data;				
+	const char *appl;				/*! Current application */
+	const char *data;				/*! Data passed to current application */
 	
 	/*! Which fd had an event detected on */
 	int fdno;				

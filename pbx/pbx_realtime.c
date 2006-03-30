@@ -177,14 +177,14 @@ static int realtime_canmatch(struct ast_channel *chan, const char *context, cons
 	return res > 0 ? res : 0;
 }
 
-static int realtime_exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
+static int realtime_exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	char app[256];
 	char appdata[512]="";
 	char *tmp="";
-    char tmp1[80];
-    char tmp2[80];
-    char tmp3[EXT_DATA_SIZE];
+	char tmp1[80];
+	char tmp2[80];
+	char tmp3[EXT_DATA_SIZE];
 	struct ast_app *a;
 	struct ast_variable *v;
 	REALTIME_COMMON(MODE_MATCH);
@@ -218,7 +218,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 							  "Uniqueid: %s\r\n",
 							  chan->name, chan->context, chan->exten, chan->priority, app, appdata ? appdata : "(NULL)", chan->uniqueid);
 				
-				res = pbx_exec(chan, a, appdata, newstack);
+				res = pbx_exec(chan, a, appdata);
 			} else
 				ast_log(LOG_NOTICE, "No such application '%s' for extension '%s' in context '%s'\n", app, exten, context);
 		}

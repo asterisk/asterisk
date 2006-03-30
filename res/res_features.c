@@ -502,7 +502,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 		if (option_verbose > 3)
 			ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to record call. filename: %s\n", code, args);
 
-		pbx_exec(callee_chan, monitor_app, args, 1);
+		pbx_exec(callee_chan, monitor_app, args);
 		pbx_builtin_setvar_helper(callee_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
 		pbx_builtin_setvar_helper(caller_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
 	
@@ -924,7 +924,7 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 		struct ast_channel *work = chan;
 		if (ast_test_flag(feature, AST_FEATURE_FLAG_CALLEE))
 			work = peer;
-		res = pbx_exec(work, app, feature->app_args, 1);
+		res = pbx_exec(work, app, feature->app_args);
 		if (res < 0)
 			return res; 
 	} else {
@@ -1267,7 +1267,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		if (monitor_app && src) {
 			char *tmp = ast_strdupa(monitor_exec);
 			if (tmp) {
-				pbx_exec(src, monitor_app, tmp, 1);
+				pbx_exec(src, monitor_app, tmp);
 			} else {
 				ast_log(LOG_ERROR, "Monitor failed: out of memory\n");
 			}

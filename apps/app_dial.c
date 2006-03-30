@@ -1449,7 +1449,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 					if (*ch == '^')
 						*ch = '|';
 				}
-				res = pbx_exec(peer, app, opt_args[OPT_ARG_CALLEE_MACRO], 1);
+				res = pbx_exec(peer, app, opt_args[OPT_ARG_CALLEE_MACRO]);
 				ast_log(LOG_DEBUG, "Macro exited with status %d\n", res);
 				res = 0;
 			} else {

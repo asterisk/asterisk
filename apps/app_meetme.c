@@ -1143,7 +1143,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		app = pbx_findapp("agi");
 		if (app) {
 			char *s = ast_strdupa(agifile);
-			ret = pbx_exec(chan, app, s, 1);
+			ret = pbx_exec(chan, app, s);
 		} else {
 			ast_log(LOG_WARNING, "Could not find application (agi)\n");
 			ret = -2;

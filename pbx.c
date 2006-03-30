@@ -478,34 +478,29 @@ struct ast_state_cb *statecbs = NULL;
    how many times it is called, it returns to the same place */
 int pbx_exec(struct ast_channel *c, 		/*!< Channel */
 		struct ast_app *app,		/*!< Application */
-		void *data,			/*!< Data for execution */
-		int newstack)			/*!< Force stack increment */
+		void *data)			/*!< Data for execution */
 {
 	int res;
 	
-	char *saved_c_appl;
-	char *saved_c_data;
+	const char *saved_c_appl;
+	const char *saved_c_data;
 	
 	int (*execute)(struct ast_channel *chan, void *data) = app->execute; 
 
-	if (newstack) {
-		if (c->cdr)
-			ast_cdr_setapp(c->cdr, app->name, data);
+	if (c->cdr)
+		ast_cdr_setapp(c->cdr, app->name, data);
 
-		/* save channel values */
-		saved_c_appl= c->appl;
-		saved_c_data= c->data;
+	/* save channel values */
+	saved_c_appl= c->appl;
+	saved_c_data= c->data;
 
-		c->appl = app->name;
-		c->data = data;		
-		res = execute(c, data);
-		/* restore channel values */
-		c->appl= saved_c_appl;
-		c->data= saved_c_data;
-		return res;
-	} else
-		ast_log(LOG_WARNING, "You really didn't want to call this function with newstack set to 0\n");
-	return -1;
+	c->appl = app->name;
+	c->data = data;		
+	res = execute(c, data);
+	/* restore channel values */
+	c->appl= saved_c_appl;
+	c->data= saved_c_data;
+	return res;
 }
 
 
@@ -514,7 +509,6 @@ int pbx_exec(struct ast_channel *c, 		/*!< Channel */
 
 #define HELPER_EXISTS 0
 #define HELPER_SPAWN 1
-#define HELPER_EXEC 2
 #define HELPER_CANMATCH 3
 #define HELPER_MATCHMORE 4
 #define HELPER_FINDLABEL 5
@@ -1500,7 +1494,6 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 	struct ast_switch *sw;
 	char *data;
 	const char *foundcontext=NULL;
-	int newstack = 0;
 	int res;
 	int status = 0;
 	char *incstack[AST_PBX_MAX_STACK];
@@ -1536,9 +1529,6 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 			ast_mutex_unlock(&conlock);
 			return -1;
 		case HELPER_SPAWN:
-			newstack++;
-			/* Fall through */
-		case HELPER_EXEC:
 			app = pbx_findapp(e->app);
 			ast_mutex_unlock(&conlock);
 			if (app) {
@@ -1551,7 +1541,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 				if (option_debug) {
 						ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
 						snprintf(atmp, 80, "STACK-%s-%s-%d", context, exten, priority);
-						snprintf(atmp2, EXT_DATA_SIZE+100, "%s(\"%s\", \"%s\") %s", app->name, c->name, passdata, (newstack ? "in new stack" : "in same stack"));
+						snprintf(atmp2, EXT_DATA_SIZE+100, "%s(\"%s\", \"%s\") %s", app->name, c->name, passdata, "in new stack");
 						pbx_builtin_setvar_helper(c, atmp, atmp2);
 				}
 				if (option_verbose > 2)
@@ -1559,7 +1549,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 								term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
 								term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
 								term_color(tmp3, passdata, COLOR_BRMAGENTA, 0, sizeof(tmp3)),
-								(newstack ? "in new stack" : "in same stack"));
+								"in new stack");
 				manager_event(EVENT_FLAG_CALL, "Newexten", 
 					"Channel: %s\r\n"
 					"Context: %s\r\n"
@@ -1569,7 +1559,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 					"AppData: %s\r\n"
 					"Uniqueid: %s\r\n",
 					c->name, c->context, c->exten, c->priority, app->name, passdata, c->uniqueid);
-				res = pbx_exec(c, app, passdata, newstack);
+				res = pbx_exec(c, app, passdata);
 				return res;
 			} else {
 				ast_log(LOG_WARNING, "No application '%s' for extension (%s, %s, %d)\n", e->app, context, exten, priority);
@@ -1594,12 +1584,9 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 			ast_mutex_unlock(&conlock);
 			return -1;
 		case HELPER_SPAWN:
-			newstack++;
-			/* Fall through */
-		case HELPER_EXEC:
 			ast_mutex_unlock(&conlock);
 			if (sw->exec)
-				res = sw->exec(c, foundcontext ? foundcontext : context, exten, priority, callerid, newstack, data);
+				res = sw->exec(c, foundcontext ? foundcontext : context, exten, priority, callerid, data);
 			else {
 				ast_log(LOG_WARNING, "No execution engine for switch %s\n", sw->name);
 				res = -1;
@@ -2073,11 +2060,6 @@ int ast_matchmore_extension(struct ast_channel *c, const char *context, const ch
 int ast_spawn_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid) 
 {
 	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_SPAWN);
-}
-
-int ast_exec_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid) 
-{
-	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_EXEC);
 }
 
 static int __ast_pbx_run(struct ast_channel *c)
@@ -4600,7 +4582,7 @@ static void *async_wait(void *data)
 			if (app) {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Launching %s(%s) on %s\n", as->app, as->appdata, chan->name);
-				pbx_exec(chan, app, as->appdata, 1);
+				pbx_exec(chan, app, as->appdata);
 			} else
 				ast_log(LOG_WARNING, "No such application '%s'\n", as->app);
 		} else {
@@ -4814,7 +4796,7 @@ static void *ast_pbx_run_app(void *data)
 	if (app) {
 		if (option_verbose > 3)
 			ast_verbose(VERBOSE_PREFIX_4 "Launching %s(%s) on %s\n", tmp->app, tmp->data, tmp->chan->name);
-		pbx_exec(tmp->chan, app, tmp->data, 1);
+		pbx_exec(tmp->chan, app, tmp->data);
 	} else
 		ast_log(LOG_WARNING, "No such application '%s'\n", tmp->app);
 	ast_hangup(tmp->chan);
@@ -5247,7 +5229,7 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 		}
 		
 		if ((app = pbx_findapp(ptr2))) {
-			res = pbx_exec(chan, app, ptr1 ? ptr1 : "", 1);
+			res = pbx_exec(chan, app, ptr1 ? ptr1 : "");
 		} else {
 			ast_log(LOG_WARNING, "Cannot locate application %s\n", ptr2);
 			res = -1;

@@ -9573,7 +9573,7 @@ static int iax2_matchmore(struct ast_channel *chan, const char *context, const c
 }
 
 /*! \brief Execute IAX2 dialplan switch */
-static int iax2_exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
+static int iax2_exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	char odata[256];
 	char req[256];
@@ -9589,7 +9589,7 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 		if (dialstatus) {
 			dial = pbx_findapp(dialstatus);
 			if (dial) 
-				pbx_exec(chan, dial, "", newstack);
+				pbx_exec(chan, dial, "");
 		}
 		return -1;
 	} else if (priority != 1)
@@ -9618,7 +9618,7 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 	ast_mutex_unlock(&dpcache_lock);
 	dial = pbx_findapp("Dial");
 	if (dial) {
-		return pbx_exec(chan, dial, req, newstack);
+		return pbx_exec(chan, dial, req);
 	} else {
 		ast_log(LOG_WARNING, "No dial application registered\n");
 	}

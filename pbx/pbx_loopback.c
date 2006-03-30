@@ -147,13 +147,11 @@ static int loopback_canmatch(struct ast_channel *chan, const char *context, cons
 	return res;
 }
 
-static int loopback_exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
+static int loopback_exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	LOOPBACK_COMMON;
-	if (newstack)
-		res = ast_spawn_extension(chan, newcontext, newexten, newpriority, callerid);
-	else
-		res = ast_exec_extension(chan, newcontext, newexten, newpriority, callerid);
+	res = ast_spawn_extension(chan, newcontext, newexten, newpriority, callerid);
+	/* XXX hmmm... res is overridden ? */
 	if (newpattern && !ast_extension_match(newpattern, exten))
 		res = -1;
 	return res;

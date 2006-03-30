@@ -82,22 +82,20 @@ struct ast_custom_function {
 	struct ast_custom_function *next;
 };
 
+/*! \brief All switch functions have the same interface, so define a type for them */
+typedef int (ast_switch_f)(struct ast_channel *chan, const char *context,
+	const char *exten, int priority, const char *callerid, const char *data);
+
 /*! Data structure associated with an asterisk switch */
 struct ast_switch {
-	/*! NULL */
 	struct ast_switch *next;	
-	/*! Name of the switch */
-	const char *name;				
-	/*! Description of the switch */
-	const char *description;		
+	const char *name;			/*! Name of the switch */
+	const char *description;		/*! Description of the switch */
 	
-	int (*exists)(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
-	
-	int (*canmatch)(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
-	
-	int (*exec)(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data);
-
-	int (*matchmore)(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
+	ast_switch_f *exists;
+	ast_switch_f *canmatch;
+	ast_switch_f *exec;
+	ast_switch_f *matchmore;
 };
 
 struct ast_timing {
@@ -160,7 +158,6 @@ struct ast_app *pbx_findapp(const char *app);
  * \param c channel to execute on
  * \param app which app to execute
  * \param data the data passed into the app
- * \param newstack stack pointer
  *
  * This application executes an application on a given channel.  It
  * saves the stack and executes the given appliation passing in
@@ -168,7 +165,7 @@ struct ast_app *pbx_findapp(const char *app);
  *
  * \return 0 on success, and -1 on failure
  */
-int pbx_exec(struct ast_channel *c, struct ast_app *app, void *data, int newstack);
+int pbx_exec(struct ast_channel *c, struct ast_app *app, void *data);
 
 /*!
  * \brief Register a new context
@@ -484,22 +481,6 @@ int ast_extension_close(const char *pattern, const char *data, int needmore);
  * \retval -1 on failure.
  */
 int ast_spawn_extension(struct ast_channel *c, const char *context, 
-	const char *exten, int priority, const char *callerid);
-
-/*! 
- * \brief Execute an extension.
- * 
- * \param c channel to execute upon
- * \param context which context extension is in
- * \param exten extension to execute
- * \param priority priority to execute within the given extension
- * \param callerid Caller-ID
- *
- * If it's not available, do whatever you should do for
- * default extensions and halt the thread if necessary.  This function does not
- * return, except on error.
- */
-int ast_exec_extension(struct ast_channel *c, const char *context, 
 	const char *exten, int priority, const char *callerid);
 
 /*! 
