@@ -59,7 +59,6 @@ static int echo_exec(struct ast_channel *chan, void *data)
 	int res = -1;
 	int format;
 	struct localuser *u;
-	struct ast_frame *f;
 
 	LOCAL_USER_ADD(u);
 
@@ -68,7 +67,7 @@ static int echo_exec(struct ast_channel *chan, void *data)
 	ast_set_read_format(chan, format);
 
 	while (ast_waitfor(chan, -1) > -1) {
-		f = ast_read(chan);
+		struct ast_frame *f = ast_read(chan);
 		if (!f)
 			break;
 		f->delivery.tv_sec = 0;
