@@ -188,7 +188,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
   		snprintf(varname, sizeof(varname), "ARG%d", argc);
 		s = pbx_builtin_getvar_helper(chan, varname);
 		if (s)
-			oldargs[argc] = strdup(s);
+			oldargs[argc] = ast_strdup(s);
 		pbx_builtin_setvar_helper(chan, varname, cur);
 		argc++;
 	}
