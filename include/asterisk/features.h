@@ -56,7 +56,7 @@ struct ast_call_feature {
 	\param timeout is a timeout in milliseconds
 	\param extout is a parameter to an int that will hold the parked location, or NULL if you want
 */
-extern int ast_park_call(struct ast_channel *chan, struct ast_channel *host, int timeout, int *extout);
+int ast_park_call(struct ast_channel *chan, struct ast_channel *host, int timeout, int *extout);
 
 /*! \brief Park a call via a masqueraded channel
  *  \param rchan the real channel to be parked
@@ -66,30 +66,30 @@ extern int ast_park_call(struct ast_channel *chan, struct ast_channel *host, int
 	\param timeout is a timeout in milliseconds
 	\param extout is a parameter to an int that will hold the parked location, or NULL if you want
 */
-extern int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *host, int timeout, int *extout);
+int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *host, int timeout, int *extout);
 
 /*! \brief Determine system parking extension
  *  Returns the call parking extension for drivers that provide special
     call parking help */
-extern char *ast_parking_ext(void);
+char *ast_parking_ext(void);
 
 /*! \brief Determine system call pickup extension */
-extern char *ast_pickup_ext(void);
+char *ast_pickup_ext(void);
 
 /*! \brief Bridge a call, optionally allowing redirection */
-extern int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct ast_bridge_config *config);
+int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct ast_bridge_config *config);
 
 /*! \brief Pickup a call */
-extern int ast_pickup_call(struct ast_channel *chan);
+int ast_pickup_call(struct ast_channel *chan);
 
 /*! \brief register new feature into feature_set 
    \param feature an ast_call_feature object which contains a keysequence
    and a callback function which is called when this keysequence is pressed
    during a call. */
-extern void ast_register_feature(struct ast_call_feature *feature);
+void ast_register_feature(struct ast_call_feature *feature);
 
 /*! \brief unregister feature from feature_set
     \param feature the ast_call_feature object which was registered before*/
-extern void ast_unregister_feature(struct ast_call_feature *feature);
+void ast_unregister_feature(struct ast_call_feature *feature);
 
 #endif /* _AST_FEATURES_H */
