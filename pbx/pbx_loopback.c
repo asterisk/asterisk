@@ -90,18 +90,14 @@ static char *loopback_helper(char *buf, int buflen, const char *exten, const cha
 	snprintf(tmp, sizeof(tmp), "%d", priority);
 	memset(buf, 0, buflen);
 	AST_LIST_HEAD_INIT_NOLOCK(&headp);
-	newvariable = ast_var_assign("EXTEN", exten);
-	AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
-	newvariable = ast_var_assign("CONTEXT", context);
-	AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
-	newvariable = ast_var_assign("PRIORITY", tmp);
-	AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
-	pbx_substitute_variables_varshead(&headp, data, buf, buflen);
+	AST_LIST_INSERT_HEAD(&headp, ast_var_assign("EXTEN", exten), entries);
+	AST_LIST_INSERT_HEAD(&headp, ast_var_assign("CONTEXT", context), entries);
+	AST_LIST_INSERT_HEAD(&headp, ast_var_assign("PRIORITY", tmp), entries);
 	/* Substitute variables */
-	while (!AST_LIST_EMPTY(&headp)) {           /* List Deletion. */
-		newvariable = AST_LIST_REMOVE_HEAD(&headp, entries);
-		ast_var_delete(newvariable);
-	}
+	pbx_substitute_variables_varshead(&headp, data, buf, buflen);
+	/* free the list */
+	while ((newvariable = AST_LIST_REMOVE_HEAD(&headp, entries)))
+                ast_var_delete(newvariable);
 	return buf;
 }
 
@@ -110,14 +106,11 @@ static void loopback_subst(char **newexten, char **newcontext, int *priority, ch
 	char *con;
 	char *pri;
 	*newpattern = strchr(buf, '/');
-	if (*newpattern) {
-		*(*newpattern) = '\0';
-		(*newpattern)++;
-	}
+	if (*newpattern)
+		*(*newpattern)++ = '\0';
 	con = strchr(buf, '@');
 	if (con) {
-		*con = '\0';
-		con++;
+		*con++ = '\0';
 		pri = strchr(con, ':');
 	} else
 		pri = strchr(buf, ':');
