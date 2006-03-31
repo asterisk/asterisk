@@ -229,6 +229,19 @@ enum sip_auth_type {
 	WWW_AUTH,
 };
 
+/* States for outbound registrations (with register= lines in sip.conf */
+enum sipregistrystate {
+	REG_STATE_UNREGISTERED = 0,	/*!< We are not registred */
+	REG_STATE_REGSENT,	/*!< Registration request sent */
+	REG_STATE_AUTHSENT,	/*!< We have tried to authenticate */
+	REG_STATE_REGISTERED,	/*!< Registred and done */
+	REG_STATE_REJECTED,	/*!< Registration rejected */
+	REG_STATE_TIMEOUT,	/*!< Registration timed out */
+	REG_STATE_NOAUTH,	/*!< We have no accepted credentials */
+	REG_STATE_FAILED,	/*!< Registration failed after several tries */
+};
+
+
 /*! XXX Note that sip_methods[i].id == i must hold or the code breaks */
 static const struct  cfsip_methods { 
 	enum sipmethod id;
@@ -852,16 +865,6 @@ struct sip_peer {
 };
 
 
-/* States for outbound registrations (with register= lines in sip.conf */
-#define REG_STATE_UNREGISTERED		0	/*!< We are not registred */
-#define REG_STATE_REGSENT		1	/*!< Registration request sent */
-#define REG_STATE_AUTHSENT		2	/*!< We have tried to authenticate */
-#define REG_STATE_REGISTERED		3	/*!< Registred and done */
-#define REG_STATE_REJECTED		4	/*!< Registration rejected */
-#define REG_STATE_TIMEOUT		5	/*!< Registration timed out */
-#define REG_STATE_NOAUTH		6	/*!< We have no accepted credentials */
-#define REG_STATE_FAILED		7	/*!< Registration failed after several tries */
-
 
 /*! \brief Registrations with other SIP proxies */
 struct sip_registry {
@@ -887,7 +890,7 @@ struct sip_registry {
 	int timeout; 			/*!< sched id of sip_reg_timeout */
 	int refresh;			/*!< How often to refresh */
 	struct sip_pvt *call;		/*!< create a sip_pvt structure for each outbound "registration dialog" in progress */
-	int regstate;			/*!< Registration state (see above) */
+	enum sipregistrystate regstate;	/*!< Registration state (see above) */
 	int callid_valid;		/*!< 0 means we haven't chosen callid for this registry yet. */
 	unsigned int ocseq;		/*!< Sequence number we got to for REGISTERs for this registry */
 	struct sockaddr_in us;		/*!< Who the server thinks we are */
@@ -5453,7 +5456,7 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 }
 
 /*! \build Convert registration state status to string */
-static char *regstate2str(int regstate)
+static char *regstate2str(enum sipregistrystate regstate)
 {
 	switch(regstate) {
 	case REG_STATE_FAILED:
@@ -5732,7 +5735,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 		ast_verbose("REGISTER %d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 	}
 	determine_firstline_parts(&p->initreq);
-	r->regstate=auth?REG_STATE_AUTHSENT:REG_STATE_REGSENT;
+	r->regstate = auth ? REG_STATE_AUTHSENT : REG_STATE_REGSENT;
 	r->regattempts++;	/* Another attempt */
 	if (option_debug > 3)
 		ast_verbose("REGISTER attempt %d to %s@%s\n", r->regattempts, r->username, r->hostname);
@@ -9926,7 +9929,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 			return 0;
 		}
 
-		r->regstate=REG_STATE_REGISTERED;
+		r->regstate = REG_STATE_REGISTERED;
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
 		r->regattempts = 0;
 		ast_log(LOG_DEBUG, "Registration successful\n");
