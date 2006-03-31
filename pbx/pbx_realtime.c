@@ -229,7 +229,8 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 static int realtime_matchmore(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	REALTIME_COMMON(MODE_MATCHMORE);
-	if (var) ast_variables_destroy(var);
+	if (var)
+		ast_variables_destroy(var);
 	if (var)
 		res = 1;
 	return res > 0 ? res : 0;
