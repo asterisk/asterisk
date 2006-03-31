@@ -1713,11 +1713,9 @@ retry:
 	ast_mutex_lock(&iaxsl[callno]);
 	pvt = iaxs[callno];
 	gettimeofday(&lastused[callno], NULL);
+	
+	owner = pvt ? pvt->owner : NULL;
 
-	if (pvt)
-		owner = pvt->owner;
-	else
-		owner = NULL;
 	if (owner) {
 		if (ast_mutex_trylock(&owner->lock)) {
 			ast_log(LOG_NOTICE, "Avoiding IAX destroy deadlock\n");
@@ -1770,9 +1768,8 @@ retry:
 			if (cur->callno == pvt->callno) 
 				cur->retries = -1;
 		}
-		if (pvt->reg) {
+		if (pvt->reg)
 			pvt->reg->callno = 0;
-		}
 		if (!owner) {
 			if (pvt->vars) {
 				ast_variables_destroy(pvt->vars);
@@ -1828,37 +1825,37 @@ static void __attempt_transmit(void *data)
 	/* Make sure this call is still active */
 	if (callno) 
 		ast_mutex_lock(&iaxsl[callno]);
-	if ((f->callno) && iaxs[f->callno]) {
+	if (callno && iaxs[callno]) {
 		if ((f->retries < 0) /* Already ACK'd */ ||
 		    (f->retries >= max_retries) /* Too many attempts */) {
 				/* Record an error if we've transmitted too many times */
 				if (f->retries >= max_retries) {
 					if (f->transfer) {
 						/* Transfer timeout */
-						send_command(iaxs[f->callno], AST_FRAME_IAX, IAX_COMMAND_TXREJ, 0, NULL, 0, -1);
+						send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_TXREJ, 0, NULL, 0, -1);
 					} else if (f->final) {
 						if (f->final) 
-							iax2_destroy_nolock(f->callno);
+							iax2_destroy_nolock(callno);
 					} else {
-						if (iaxs[f->callno]->owner)
+						if (iaxs[callno]->owner)
 							ast_log(LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %d, ts=%d, seqno=%d)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr),iaxs[f->callno]->owner->name , f->af.frametype, f->af.subclass, f->ts, f->oseqno);
-						iaxs[f->callno]->error = ETIMEDOUT;
-						if (iaxs[f->callno]->owner) {
+						iaxs[callno]->error = ETIMEDOUT;
+						if (iaxs[callno]->owner) {
 							struct ast_frame fr = { 0, };
 							/* Hangup the fd */
 							fr.frametype = AST_FRAME_CONTROL;
 							fr.subclass = AST_CONTROL_HANGUP;
-							iax2_queue_frame(f->callno, &fr);
+							iax2_queue_frame(callno, &fr);
 							/* Remember, owner could disappear */
-							if (iaxs[f->callno]->owner)
-								iaxs[f->callno]->owner->hangupcause = AST_CAUSE_DESTINATION_OUT_OF_ORDER;
+							if (iaxs[callno]->owner)
+								iaxs[callno]->owner->hangupcause = AST_CAUSE_DESTINATION_OUT_OF_ORDER;
 						} else {
-							if (iaxs[f->callno]->reg) {
-								memset(&iaxs[f->callno]->reg->us, 0, sizeof(iaxs[f->callno]->reg->us));
-								iaxs[f->callno]->reg->regstate = REG_STATE_TIMEOUT;
-								iaxs[f->callno]->reg->refresh = IAX_DEFAULT_REG_EXPIRE;
+							if (iaxs[callno]->reg) {
+								memset(&iaxs[callno]->reg->us, 0, sizeof(iaxs[callno]->reg->us));
+								iaxs[callno]->reg->regstate = REG_STATE_TIMEOUT;
+								iaxs[callno]->reg->refresh = IAX_DEFAULT_REG_EXPIRE;
 							}
-							iax2_destroy_nolock(f->callno);
+							iax2_destroy_nolock(callno);
 						}
 					}
 
@@ -1929,15 +1926,16 @@ static int iax2_set_jitter(int fd, int argc, char *argv[])
 			max_jitter_buffer = 0;
 	} else {
 		if (argc == 5) {
-			if ((atoi(argv[3]) >= 0) && (atoi(argv[3]) < IAX_MAX_CALLS)) {
-				if (iaxs[atoi(argv[3])]) {
-					iaxs[atoi(argv[3])]->jitterbuffer = atoi(argv[4]);
-					if (iaxs[atoi(argv[3])]->jitterbuffer < 0)
-						iaxs[atoi(argv[3])]->jitterbuffer = 0;
+			int callno = atoi(argv[3]);
+			if ((callno >= 0) && (callno < IAX_MAX_CALLS)) {
+				if (iaxs[callno]) {
+					iaxs[callno]->jitterbuffer = atoi(argv[4]);
+					if (iaxs[callno]->jitterbuffer < 0)
+						iaxs[callno]->jitterbuffer = 0;
 				} else
-					ast_cli(fd, "No such call '%d'\n", atoi(argv[3]));
+					ast_cli(fd, "No such call '%d'\n", callno);
 			} else
-				ast_cli(fd, "%d is not a valid call number\n", atoi(argv[3]));
+				ast_cli(fd, "%d is not a valid call number\n", callno);
 		}
 	}
 	return RESULT_SUCCESS;
