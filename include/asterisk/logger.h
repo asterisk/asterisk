@@ -43,7 +43,7 @@ extern "C" {
 #define VERBOSE_PREFIX_1 " "
 #define VERBOSE_PREFIX_2 "  == "
 #define VERBOSE_PREFIX_3 "    -- "
-#define VERBOSE_PREFIX_4 "       > "  
+#define VERBOSE_PREFIX_4 "       > "
 
 /*! Used for sending a log message */
 /*!
@@ -59,28 +59,28 @@ extern "C" {
 	\param function	Will be provided by the LOG_* macro
 	\param fmt	This is what is important.  The format is the same as your favorite breed of printf.  You know how that works, right? :-)
  */
-extern void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 	__attribute__ ((format (printf, 5, 6)));
 
-extern void ast_backtrace(void);
+void ast_backtrace(void);
 
-extern void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
+void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
 	__attribute__ ((format (printf, 5, 6)));
 
-/*! Send a verbose message (based on verbose level) 
+/*! Send a verbose message (based on verbose level)
  	\brief This works like ast_log, but prints verbose messages to the console depending on verbosity level set.
  	ast_verbose(VERBOSE_PREFIX_3 "Whatever %s is happening\n", "nothing");
  	This will print the message to the console if the verbose level is set to a level >= 3
  	Note the abscence of a comma after the VERBOSE_PREFIX_3.  This is important.
  	VERBOSE_PREFIX_1 through VERBOSE_PREFIX_3 are defined.
  */
-extern void ast_verbose(const char *fmt, ...)
+void ast_verbose(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
-extern int ast_register_verbose(void (*verboser)(const char *string, int opos, int replacelast, int complete));
-extern int ast_unregister_verbose(void (*verboser)(const char *string, int opos, int replacelast, int complete));
-extern int ast_verbose_dmesg(void (*verboser)(const char *string, int opos, int replacelast, int complete));
-extern void ast_console_puts(const char *string);
+int ast_register_verbose(void (*verboser)(const char *string, int opos, int replacelast, int complete));
+int ast_unregister_verbose(void (*verboser)(const char *string, int opos, int replacelast, int complete));
+int ast_verbose_dmesg(void (*verboser)(const char *string, int opos, int replacelast, int complete));
+void ast_console_puts(const char *string);
 
 #define _A_ __FILE__, __LINE__, __PRETTY_FUNCTION__
 
