@@ -382,12 +382,11 @@ static int local_hangup(struct ast_channel *ast)
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
 	struct ast_channel *ochan = NULL;
 	int glaredetect;
-	const char *status;
 
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	if (isoutbound) {
-		status = pbx_builtin_getvar_helper(p->chan, "DIALSTATUS");
+		const char *status = pbx_builtin_getvar_helper(p->chan, "DIALSTATUS");
 		if ((status) && (p->owner))
 			pbx_builtin_setvar_helper(p->owner, "CHANLOCALSTATUS", status);
 		p->chan = NULL;
@@ -512,8 +511,7 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 	p->owner = tmp;
 	p->chan = tmp2;
 	ast_mutex_lock(&usecnt_lock);
-	usecnt++;
-	usecnt++;
+	usecnt += 2;	/* we allocate 2 new channels */
 	ast_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 	ast_copy_string(tmp->context, p->context, sizeof(tmp->context));
