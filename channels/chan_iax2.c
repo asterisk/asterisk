@@ -1486,6 +1486,8 @@ static int send_packet(struct iax_frame *f)
 	int res;
 	char iabuf[INET_ADDRSTRLEN];
 	/* Called with iaxsl held */
+	if (!iaxs[f->callno])
+		return -1;
 	if (option_debug > 2 && iaxdebug)
 		ast_log(LOG_DEBUG, "Sending %d on %d/%d to %s:%d\n", f->ts, f->callno, iaxs[f->callno]->peercallno, ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr), ntohs(iaxs[f->callno]->addr.sin_port));
 	/* Don't send if there was an error, but return error instead */
@@ -1493,8 +1495,6 @@ static int send_packet(struct iax_frame *f)
 		ast_log(LOG_WARNING, "Call number = %d\n", f->callno);
 		return -1;
 	}
-	if (!iaxs[f->callno])
-		return -1;
 	if (iaxs[f->callno]->error)
 		return -1;
 	if (f->transfer) {
