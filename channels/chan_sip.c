@@ -6534,6 +6534,10 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 {
 	struct sip_pvt *p = data;
 
+	if (p == (struct sip_pvt *) NULL) {
+		ast_log(LOG_ERROR, "We're sent state change for channel we don't know... Major issue!!!!! Notify management!!!\n");
+		return 0;
+	}
 	switch(state) {
 	case AST_EXTENSION_DEACTIVATED:	/* Retry after a while */
 	case AST_EXTENSION_REMOVED:	/* Extension is gone */
@@ -11024,93 +11028,97 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	} else if (debug && ignore)
 		ast_verbose("Ignoring this SUBSCRIBE request\n");
 
-	/* Find parameters to Event: header value and remove them for now */
-	if ((eventparam = strchr(event, ';')))
-		*eventparam++ = '\0';
+	/* Don't treat this SUBSCRIBE request as new if it isn't */
+	if (!p->lastinvite) {
 
-	/* Handle authentication if this is our first subscribe */
-	res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, ignore, &authpeer);
-	if (res) {
-		if (res < 0) {
-			ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
-			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-		}
-		return 0;
-	}
-
-	/* Check if this user/peer is allowed to subscribe at all */
-	if (!ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
-		transmit_response(p, "403 Forbidden (policy)", req);
-		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
-		return 0;
-	}
-
-	/* Initialize the context if it hasn't been already */
-	if (!ast_strlen_zero(p->subscribecontext))
-		ast_string_field_set(p, context, p->subscribecontext);
-	else if (ast_strlen_zero(p->context))
-		ast_string_field_set(p, context, default_context);
-
-	/* Get destination right away */
-	gotdest = get_destination(p, NULL);
-	build_contact(p);
-	if (gotdest) {
-		transmit_response(p, "404 Not Found", req);
-		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-		return 0;
-	} else {
-		/* Initialize tag for new subscriptions */	
-		if (ast_strlen_zero(p->tag))
-			make_our_tag(p->tag, sizeof(p->tag));
-
-		if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
-
-			/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
- 			if (strstr(accept, "application/pidf+xml")) {
- 				p->subscribed = PIDF_XML;         /* RFC 3863 format */
- 			} else if (strstr(accept, "application/dialog-info+xml")) {
- 				p->subscribed = DIALOG_INFO_XML;
- 				/* IETF draft: draft-ietf-sipping-dialog-package-05.txt */
- 			} else if (strstr(accept, "application/cpim-pidf+xml")) {
- 				p->subscribed = CPIM_PIDF_XML;    /* RFC 3863 format */
- 			} else if (strstr(accept, "application/xpidf+xml")) {
- 				p->subscribed = XPIDF_XML;        /* Early pre-RFC 3863 format with MSN additions (Microsoft Messenger) */
- 			} else if (strstr(p->useragent, "Polycom")) {
- 				p->subscribed = XPIDF_XML;        /*  Polycoms subscribe for "event: dialog" but don't include an "accept:" header */
-			} else {
- 				/* Can't find a format for events that we know about */
- 				transmit_response(p, "489 Bad Event", req);
- 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
- 				return 0;
- 			}
- 		} else if (!strcmp(event, "message-summary") && !strcmp(accept, "application/simple-message-summary")) {
-			/* Looks like they actually want a mailbox status 
-			  This version of Asterisk supports mailbox subscriptions
-			  The subscribed URI needs to exist in the dial plan
-			  In most devices, this is configurable to the voicemailmain extension you use
-			*/
-			if (!authpeer || ast_strlen_zero(authpeer->mailbox)) {
-				transmit_response(p, "404 Not found (no mailbox)", req);
+		/* Find parameters to Event: header value and remove them for now */
+		if ((eventparam = strchr(event, ';')))
+			*eventparam++ = '\0';
+	
+		/* Handle authentication if this is our first subscribe */
+		res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, ignore, &authpeer);
+		if (res) {
+			if (res < 0) {
+				ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-				ast_log(LOG_NOTICE, "Received SIP subscribe for peer without mailbox: %s\n", authpeer->name);
-				return 0;
 			}
-
- 			p->subscribed = MWI_NOTIFICATION;
-			if (authpeer->mwipvt && authpeer->mwipvt != p)	/* Destroy old PVT if this is a new one */
-				/* We only allow one subscription per peer */
-				sip_destroy(authpeer->mwipvt);
-			authpeer->mwipvt = p;		/* Link from peer to pvt */
-			p->relatedpeer = authpeer;	/* Link from pvt to peer */
-		} else { /* At this point, Asterisk does not understand the specified event */
-			transmit_response(p, "489 Bad Event", req);
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
- 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			return 0;
 		}
-		if (p->subscribed != MWI_NOTIFICATION)
-			p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
+	
+		/* Check if this user/peer is allowed to subscribe at all */
+		if (!ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
+			transmit_response(p, "403 Forbidden (policy)", req);
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+			return 0;
+		}
+	
+		/* Initialize the context if it hasn't been already */
+		if (!ast_strlen_zero(p->subscribecontext))
+			ast_string_field_set(p, context, p->subscribecontext);
+		else if (ast_strlen_zero(p->context))
+			ast_string_field_set(p, context, default_context);
+	
+		/* Get destination right away */
+		gotdest = get_destination(p, NULL);
+		build_contact(p);
+		if (gotdest) {
+			transmit_response(p, "404 Not Found", req);
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			return 0;
+		} else {
+			/* Initialize tag for new subscriptions */	
+			if (ast_strlen_zero(p->tag))
+				make_our_tag(p->tag, sizeof(p->tag));
+	
+			if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
+	
+				/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
+ 				if (strstr(accept, "application/pidf+xml")) {
+ 					p->subscribed = PIDF_XML;         /* RFC 3863 format */
+ 				} else if (strstr(accept, "application/dialog-info+xml")) {
+ 					p->subscribed = DIALOG_INFO_XML;
+ 					/* IETF draft: draft-ietf-sipping-dialog-package-05.txt */
+ 				} else if (strstr(accept, "application/cpim-pidf+xml")) {
+ 					p->subscribed = CPIM_PIDF_XML;    /* RFC 3863 format */
+ 				} else if (strstr(accept, "application/xpidf+xml")) {
+ 					p->subscribed = XPIDF_XML;        /* Early pre-RFC 3863 format with MSN additions (Microsoft Messenger) */
+ 				} else if (strstr(p->useragent, "Polycom")) {
+ 					p->subscribed = XPIDF_XML;        /*  Polycoms subscribe for "event: dialog" but don't include an "accept:" header */
+				} else {
+ 					/* Can't find a format for events that we know about */
+ 					transmit_response(p, "489 Bad Event", req);
+ 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+ 					return 0;
+ 				}
+ 			} else if (!strcmp(event, "message-summary") && !strcmp(accept, "application/simple-message-summary")) {
+				/* Looks like they actually want a mailbox status 
+				  This version of Asterisk supports mailbox subscriptions
+				  The subscribed URI needs to exist in the dial plan
+				  In most devices, this is configurable to the voicemailmain extension you use
+				*/
+				if (!authpeer || ast_strlen_zero(authpeer->mailbox)) {
+					transmit_response(p, "404 Not found (no mailbox)", req);
+					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+					ast_log(LOG_NOTICE, "Received SIP subscribe for peer without mailbox: %s\n", authpeer->name);
+					return 0;
+				}
+	
+ 				p->subscribed = MWI_NOTIFICATION;
+				if (authpeer->mwipvt && authpeer->mwipvt != p)	/* Destroy old PVT if this is a new one */
+					/* We only allow one subscription per peer */
+					sip_destroy(authpeer->mwipvt);
+				authpeer->mwipvt = p;		/* Link from peer to pvt */
+				p->relatedpeer = authpeer;	/* Link from pvt to peer */
+			} else { /* At this point, Asterisk does not understand the specified event */
+				transmit_response(p, "489 Bad Event", req);
+				if (option_debug > 1)
+					ast_log(LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
+ 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+				return 0;
+			}
+			if (p->subscribed != MWI_NOTIFICATION)
+				p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
+		}
 	}
 
 	if (!ignore && p)
