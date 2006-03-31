@@ -543,7 +543,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 				rtp->lasteventseqn = seqno;
 			} else 
 				f = NULL;
-				if (f) 
+			if (f) 
 				return f; 
 			else 
 				return &ast_null_frame;
@@ -555,7 +555,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			else 
 				return &ast_null_frame;
 		} else {
-			ast_log(LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
+			ast_log(LOG_NOTICE, "Unknown RTP codec %d received from '%s'\n", payloadtype, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
 			return &ast_null_frame;
 		}
 	}
