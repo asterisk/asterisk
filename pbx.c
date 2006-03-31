@@ -514,6 +514,12 @@ AST_MUTEX_DEFINE_STATIC(applock); 		/* Lock for the application list */
 struct ast_switch *switches = NULL;
 AST_MUTEX_DEFINE_STATIC(switchlock);		/* Lock for switches */
 
+/* WARNING:
+   When holding this lock, do _not_ do anything that will cause conlock
+   to be taken, unless you _already_ hold it. The ast_merge_contexts_and_delete
+   function will take the locks in conlock/hintlock order, so any other
+   paths that require both locks must also take them in that order.
+*/
 AST_MUTEX_DEFINE_STATIC(hintlock);		/* Lock for extension state notifys */
 static int stateid = 1;
 struct ast_hint *hints = NULL;
@@ -3696,9 +3702,20 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	int length;
 	struct ast_state_cb *thiscb, *prevcb;
 
-	/* preserve all watchers for hints associated with this registrar */
 	AST_LIST_HEAD_INIT(&store);
+
+	/* it is very important that this function hold the hintlock _and_ the conlock
+	   during its operation; not only do we need to ensure that the list of contexts
+	   and extensions does not change, but also that no hint callbacks (watchers) are
+	   added or removed during the merge/delete process
+
+	   in addition, the locks _must_ be taken in this order, because there are already
+	   other code paths that use this order
+	*/
+	ast_mutex_lock(&conlock);
 	ast_mutex_lock(&hintlock);
+
+	/* preserve all watchers for hints associated with this registrar */
 	for (hint = hints; hint; hint = hint->next) {
 		if (hint->callbacks && !strcmp(registrar, hint->exten->parent->registrar)) {
 			length = strlen(hint->exten->exten) + strlen(hint->exten->parent->name) + 2 + sizeof(*this);
@@ -3717,10 +3734,8 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 			AST_LIST_INSERT_HEAD(&store, this, list);
 		}
 	}
-	ast_mutex_unlock(&hintlock);
 
 	tmp = *extcontexts;
-	ast_mutex_lock(&conlock);
 	if (registrar) {
 		__ast_context_destroy(NULL,registrar);
 		while (tmp) {
@@ -3740,7 +3755,6 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 		*extcontexts = NULL;
 	} else 
 		ast_log(LOG_WARNING, "Requested contexts didn't get merged\n");
-	ast_mutex_unlock(&conlock);
 
 	/* restore the watchers for hints that can be found; notify those that
 	   cannot be restored
@@ -3748,7 +3762,6 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	while ((this = AST_LIST_REMOVE_HEAD(&store, list))) {
 		exten = ast_hint_extension(NULL, this->context, this->exten);
 		/* Find the hint in the list of hints */
-		ast_mutex_lock(&hintlock);
 		for (hint = hints; hint; hint = hint->next) {
 			if (hint->exten == exten)
 				break;
@@ -3771,9 +3784,11 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 			hint->callbacks = this->callbacks;
 			hint->laststate = this->laststate;
 		}
-		ast_mutex_unlock(&hintlock);
 		free(this);
 	}
+
+	ast_mutex_unlock(&hintlock);
+	ast_mutex_unlock(&conlock);
 
 	return;	
 }
