@@ -21,12 +21,14 @@
  *
  * - See \ref LockDef
  */
+
 /* \page LockDef Asterisk thread locking models
  *
  * This file provides several different implementation of the functions,
  * depending on the platform, the use of DEBUG_THREADS, and the way
  * global mutexes are initialized.
- * At the moment, we have 3 ways to initialize global mutexes, depending on
+ *
+ * \par At the moment, we have 3 ways to initialize global mutexes, depending on
  *
  *  - \b static: the mutex is assigned the value AST_MUTEX_INIT_VALUE
  *        this is done at compile time, and is the way used on Linux.
@@ -212,7 +214,7 @@ static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, 
 }
 
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
-/* if AST_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
+/*! \brief  if AST_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
  constrictors/destructors to create/destroy mutexes.  */
 #define __AST_MUTEX_DEFINE(scope,mutex) \
 	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE; \
@@ -225,11 +227,13 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 	ast_mutex_destroy(&mutex); \
 }
 #elif defined(AST_MUTEX_INIT_ON_FIRST_USE)
-/* if AST_MUTEX_INIT_ON_FIRST_USE is defined, mutexes are created on
+/*! \note
+ if AST_MUTEX_INIT_ON_FIRST_USE is defined, mutexes are created on
  first use.  The performance impact on FreeBSD should be small since
  the pthreads library does this itself to initialize errror checking
  (defaulty type) mutexes.  If nither is defined, the pthreads librariy
- does the initialization itself on first use. */ 
+ does the initialization itself on first use. 
+*/ 
 #define __AST_MUTEX_DEFINE(scope,mutex) \
 	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE
 #else /* AST_MUTEX_INIT_W_CONSTRUCTORS */
@@ -709,7 +713,7 @@ AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 	return (v);
 })
 #else   /* low performance version in utils.c */
-AST_INLINE_AP(int ast_atomic_fetchadd_int(volatile int *p, int v),
+AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
 	return ast_atomic_fetchadd_int_slow(p, v);
 })
