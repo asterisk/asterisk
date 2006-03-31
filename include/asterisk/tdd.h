@@ -17,7 +17,7 @@
  */
 
 /*! \file
- * \brief TTY/TDD Generation support 
+ * \brief TTY/TDD Generation support
  * \note Includes code and algorithms from the Zapata library.
  */
 
@@ -33,7 +33,7 @@ typedef struct tdd_state TDDSTATE;
 /*!
  * Initializes the TDD system.  Mostly stuff for inverse FFT
  */
-extern void tdd_init(void);
+void tdd_init(void);
 
 /*! Generates a CallerID FSK stream in ulaw format suitable for transmission. */
 /*!
@@ -43,14 +43,14 @@ extern void tdd_init(void);
  * This function creates a stream of TDD data in ulaw format. It returns the size
  * (in bytes) of the data (if it returns a size of 0, there is probably an error)
 */
-extern int tdd_generate(struct tdd_state *tdd, unsigned char *buf, const char *string);
+int tdd_generate(struct tdd_state *tdd, unsigned char *buf, const char *string);
 
 /*! Create a TDD state machine */
 /*!
  * This function returns a malloc'd instance of the tdd_state data structure.
  * Returns a pointer to a malloc'd tdd_state structure, or NULL on error.
  */
-extern struct tdd_state *tdd_new(void);
+struct tdd_state *tdd_new(void);
 
 /*! Read samples into the state machine, and return character (if any). */
 /*!
@@ -59,17 +59,17 @@ extern struct tdd_state *tdd_new(void);
  * \param samples number of samples contained within the buffer.
  *
  * Send received audio to the TDD demodulator.
- * Returns -1 on error, 0 for "needs more samples", 
+ * Returns -1 on error, 0 for "needs more samples",
  * and > 0 (the character) if reception of a character is complete.
  */
-extern int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int samples);
+int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int samples);
 
 /*! Free a TDD state machine */
 /*!
  * \param tdd This is the tdd_state state machine to free
  * This function frees tdd_state tdd.
  */
-extern void tdd_free(struct tdd_state *tdd);
+void tdd_free(struct tdd_state *tdd);
 
 /*! Generate Echo Canceller diable tone (2100HZ) */
 /*!
@@ -77,6 +77,6 @@ extern void tdd_free(struct tdd_state *tdd);
  * \param len This is the length (in samples) of the tone data to generate
  * Returns 0 if no error, and -1 if error.
  */
-extern int ast_tdd_gen_ecdisa(unsigned char *outbuf, int len);
+int ast_tdd_gen_ecdisa(unsigned char *outbuf, int len);
 
 #endif /* _ASTERISK_TDD_H */
