@@ -10584,6 +10584,16 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* We do NOT destroy p here, so that our response will be accepted */
 		return 0;
 	}
+
+	if (!ignore && p->pendinginvite) {
+		/* We already have a pending invite. Sorry. You are on hold. */
+		transmit_response(p, "491 Request Pending", req);
+		if (option_debug > 1)
+			ast_log(LOG_DEBUG, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
+		/* Do NOT destroy dialog */
+		return 0;
+	}
+
 	if (!ignore) {
 		/* Use this as the basis */
 		if (debug)
