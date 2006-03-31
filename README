@@ -8,8 +8,8 @@ and other copyright holders.
 
 * SECURITY
   It is imperative that you read and fully understand the contents of
-the SECURITY file before you attempt to configure and run an Asterisk
-server.
+the security information file (doc/security.txt) before you attempt 
+to configure and run an Asterisk server.
 
 * WHAT IS ASTERISK ?
   Asterisk is an Open Source PBX and telephony toolkit.  It is, in a
@@ -84,11 +84,18 @@ On many distributions, these files are installed by packages with names like
 
   So let's proceed:
 
-1) Run "make"
+1) Read the README files.
+   There are more README files than this one in the doc/ directory.
+   Start with doc/00README.1st
+   You may also want to check the configuration files that contain
+   examples and reference guides. They are all in the configs/
+   directory.
+
+2) Run "make"
 
   Assuming the build completes successfully:
 
-2) Run "make install"
+3) Run "make install"
 
   Each time you update or checkout from the repository, you are strongly
 encouraged to ensure all previous object files are removed to avoid internal 
@@ -99,7 +106,7 @@ is required, and the file .lastclean, which contains the last .cleancount used.
   If this is your first time working with Asterisk, you may wish to install
 the sample PBX, with demonstration extensions, etc.  If so, run:
 
-3) "make samples"
+4) "make samples"
 
   Doing so will overwrite any existing config files you have.
 
