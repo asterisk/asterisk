@@ -36,7 +36,7 @@ void ast_moh_stop(struct ast_channel *chan);
 void ast_install_music_functions(int (*start_ptr)(struct ast_channel *, const char *),
 				 void (*stop_ptr)(struct ast_channel *),
 				 void (*cleanup_ptr)(struct ast_channel *));
-	
+
 void ast_uninstall_music_functions(void);
 
 void ast_moh_cleanup(struct ast_channel *chan);

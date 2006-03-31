@@ -44,7 +44,7 @@ void ast_cli(int fd, char *fmt, ...)
 
 #define AST_CLI_COMPLETE_EOF	"_EOF_"
 
-/*! \brief A command line entry */ 
+/*! \brief A command line entry */
 struct ast_cli_entry {
 	char * const cmda[AST_MAX_CMD_LEN];
 	/*! Handler for the command (fd for output, # of args, argument list).
@@ -95,20 +95,20 @@ struct ast_cli_entry {
  */
 char *ast_cli_complete(const char *word, char *const choices[], int pos);
 
-/*! \brief Interprets a command 
+/*! \brief Interprets a command
  * Interpret a command s, sending output to fd
- * Returns 0 on succes, -1 on failure 
+ * Returns 0 on succes, -1 on failure
  */
 int ast_cli_command(int fd, const char *s);
 
-/*! \brief Registers a command or an array of commands 
+/*! \brief Registers a command or an array of commands
  * \param e which cli entry to register
  * Register your own command
  * Returns 0 on success, -1 on failure
  */
 int ast_cli_register(struct ast_cli_entry *e);
 
-/*! 
+/*!
  * \brief Register multiple commands
  * \param e pointer to first cli entry to register
  * \param len number of entries to register
@@ -130,7 +130,7 @@ int ast_cli_unregister(struct ast_cli_entry *e);
  */
 void ast_cli_unregister_multiple(struct ast_cli_entry *e, int len);
 
-/*! \brief Readline madness 
+/*! \brief Readline madness
  * Useful for readline, that's about it
  * Returns 0 on success, -1 on failure
  */
@@ -140,7 +140,7 @@ int ast_cli_generatornummatches(const char *, const char *);
 
 /*!
  * \brief Generates a NULL-terminated array of strings that
- * 1) begin with the string in the second parameter, and 
+ * 1) begin with the string in the second parameter, and
  * 2) are valid in a command after the string in the first parameter.
  *
  * The first entry (offset 0) of the result is the longest common substring

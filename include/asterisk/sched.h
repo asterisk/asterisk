@@ -27,21 +27,21 @@
 extern "C" {
 #endif
 
-/*! \brief Max num of schedule structs 
+/*! \brief Max num of schedule structs
  * \note The max number of schedule structs to keep around
  * for use.  Undefine to disable schedule structure
- * caching. (Only disable this on very low memory 
+ * caching. (Only disable this on very low memory
  * machines)
  */
 #define SCHED_MAX_CACHE 128
 
 struct sched_context;
 
-/*! \brief New schedule context 
+/*! \brief New schedule context
  * \note Create a scheduling context
  * \return Returns a malloc'd sched_context structure, NULL on failure
  */
-extern struct sched_context *sched_context_create(void);
+struct sched_context *sched_context_create(void);
 
 /*! \brief destroys a schedule context
  * Destroys (free's) the given sched_context structure
@@ -58,8 +58,8 @@ void sched_context_destroy(struct sched_context *c);
 typedef int (*ast_sched_cb)(void *data);
 #define AST_SCHED_CB(a) ((ast_sched_cb)(a))
 
-/*! \brief Adds a scheduled event 
- * Schedule an event to take place at some point in the future.  callback 
+/*! \brief Adds a scheduled event
+ * Schedule an event to take place at some point in the future.  callback
  * will be called with data as the argument, when milliseconds into the
  * future (approximately)
  * If callback returns 0, no further events will be re-scheduled
@@ -69,63 +69,63 @@ typedef int (*ast_sched_cb)(void *data);
  * \param data data to pass to the callback
  * \return Returns a schedule item ID on success, -1 on failure
  */
-extern int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, void *data);
+int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, void *data);
 
 /*!Adds a scheduled event with rescheduling support
  * \param con Scheduler context to add
  * \param when how many milliseconds to wait for event to occur
  * \param callback function to call when the amount of time expires
  * \param data data to pass to the callback
- * \param variable If true, the result value of callback function will be 
+ * \param variable If true, the result value of callback function will be
  *       used for rescheduling
- * Schedule an event to take place at some point in the future.  Callback 
+ * Schedule an event to take place at some point in the future.  Callback
  * will be called with data as the argument, when milliseconds into the
  * future (approximately)
  * If callback returns 0, no further events will be re-scheduled
  * \return Returns a schedule item ID on success, -1 on failure
  */
-extern int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, void *data, int variable);
+int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, void *data, int variable);
 
-/*! \brief Deletes a scheduled event 
+/*! \brief Deletes a scheduled event
  * Remove this event from being run.  A procedure should not remove its
  * own event, but return 0 instead.
  * \param con scheduling context to delete item from
  * \param id ID of the scheduled item to delete
  * \return Returns 0 on success, -1 on failure
  */
-extern int ast_sched_del(struct sched_context *con, int id);
+int ast_sched_del(struct sched_context *con, int id);
 
-/*! \brief Determines number of seconds until the next outstanding event to take place 
+/*! \brief Determines number of seconds until the next outstanding event to take place
  * Determine the number of seconds until the next outstanding event
  * should take place, and return the number of milliseconds until
  * it needs to be run.  This value is perfect for passing to the poll
- * call.  
+ * call.
  * \param con context to act upon
  * \return Returns "-1" if there is nothing there are no scheduled events
  * (and thus the poll should not timeout)
  */
-extern int ast_sched_wait(struct sched_context *con);
+int ast_sched_wait(struct sched_context *con);
 
-/*! \brief Runs the queue 
+/*! \brief Runs the queue
  * \param con Scheduling context to run
  * Run the queue, executing all callbacks which need to be performed
  * at this time.
  * \param con context to act upon
  * \return Returns the number of events processed.
  */
-extern int ast_sched_runq(struct sched_context *con);
+int ast_sched_runq(struct sched_context *con);
 
 /*! \brief Dumps the scheduler contents
  * Debugging: Dump the contents of the scheduler to stderr
  * \param con Context to dump
  */
-extern void ast_sched_dump(const struct sched_context *con);
+void ast_sched_dump(const struct sched_context *con);
 
 /*! \brief Returns the number of seconds before an event takes place
  * \param con Context to use
  * \param id Id to dump
  */
-extern long ast_sched_when(struct sched_context *con,int id);
+long ast_sched_when(struct sched_context *con,int id);
 
 /*!
  * \brief Convenience macro for objects and reference (add)

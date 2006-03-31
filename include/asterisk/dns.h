@@ -26,7 +26,7 @@
 
 struct ast_channel;
 
-/*!	\brief	Perform DNS lookup (used by DNS, enum and SRV lookups) 
+/*!	\brief	Perform DNS lookup (used by DNS, enum and SRV lookups)
 	\param	context
 	\param	dname	Domain name to lookup (host, SRV domain, TXT record name)
 	\param	class	Record Class (see "man res_search")
@@ -35,7 +35,7 @@ struct ast_channel;
 	\note   Asterisk DNS is synchronus at this time. This means that if your DNS
 		services does not work, Asterisk may lock while waiting for response.
 */
-extern int ast_search_dns(void *context, const char *dname, int class, int type,
+int ast_search_dns(void *context, const char *dname, int class, int type,
 	 int (*callback)(void *context, char *answer, int len, char *fullanswer));
 
 #endif /* _ASTERISK_DNS_H */
