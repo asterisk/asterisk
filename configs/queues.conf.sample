@@ -73,7 +73,11 @@ persistentmembers = yes
 ;wrapuptime=15
 ;
 ; Autofill will follow queue strategy but push multiple calls through
-; at same time.
+; at same time. WARNING: By setting this to yes, if you have a number
+; of calls waiting in queue, and only a single member becoming available
+; at a time, it is more than likely NOT going to be the caller that's
+; been waiting the longest that will get assigned to this newly available
+; queue member.
 ; 
 ;autofill=yes
 ;
