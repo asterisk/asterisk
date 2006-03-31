@@ -9208,6 +9208,18 @@ static int set_config(char *config_file, int reload)
 		/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 		v = v->next;
 	}
+	
+	if (defaultsockfd < 0) {
+		if (!(ns = ast_netsock_bind(netsock, io, "0.0.0.0", portno, tos, socket_read, NULL))) {
+			ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
+		} else {
+			if (option_verbose > 1)
+				ast_verbose(VERBOSE_PREFIX_2 "Binding IAX2 to default address 0.0.0.0:%d\n", portno);
+			defaultsockfd = ast_netsock_sockfd(ns);
+			ast_netsock_unref(ns);
+		}
+	}
+	
 	if (min_reg_expire > max_reg_expire) {
 		ast_log(LOG_WARNING, "Minimum registration interval of %d is more than maximum of %d, resetting minimum to %d\n",
 			min_reg_expire, max_reg_expire, max_reg_expire);
@@ -9988,9 +10000,6 @@ int load_module(void)
 	struct iax2_registry *reg;
 	struct iax2_peer *peer;
 	
-	struct ast_netsock *ns;
-	struct sockaddr_in sin;
-	
 	ast_custom_function_register(&iaxpeer_function);
 
 	iax_set_output(iax_debug_output);
@@ -9999,10 +10008,6 @@ int load_module(void)
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
 #endif
 	
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(IAX_DEFAULT_PORTNO);
-	sin.sin_addr.s_addr = INADDR_ANY;
-
 #ifdef IAX_TRUNKING
 #ifdef ZT_TIMERACK
 	timingfd = open("/dev/zap/timer", O_RDWR);
@@ -10055,19 +10060,7 @@ int load_module(void)
 
 	if (ast_register_switch(&iax2_switch)) 
 		ast_log(LOG_ERROR, "Unable to register IAX switch\n");
-	
-	if (defaultsockfd < 0) {
-		if (!(ns = ast_netsock_bindaddr(netsock, io, &sin, tos, socket_read, NULL))) {
-			ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
-			return -1;
-		} else {
-			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Binding IAX2 to default address 0.0.0.0:%d\n", IAX_DEFAULT_PORTNO);
-			defaultsockfd = ast_netsock_sockfd(ns);
-			ast_netsock_unref(ns);
-		}
-	}
-	
+
 	res = start_network_thread();
 	if (!res) {
 		if (option_verbose > 1) 
