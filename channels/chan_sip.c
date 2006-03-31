@@ -583,9 +583,9 @@ struct sip_auth {
 /* NAT settings */
 #define SIP_NAT			(3 << 18)	/*!< four settings, uses two bits */
 #define SIP_NAT_NEVER		(0 << 18)	/*!< No nat support */
-#define SIP_NAT_RFC3581		(1 << 18)
-#define SIP_NAT_ROUTE		(2 << 18)
-#define SIP_NAT_ALWAYS		(3 << 18)
+#define SIP_NAT_RFC3581		(1 << 18)	/*!< NAT RFC3581 */
+#define SIP_NAT_ROUTE		(2 << 18)	/*!< NAT Only ROUTE */
+#define SIP_NAT_ALWAYS		(3 << 18)	/*!< NAT Both ROUTE and RFC3581 */
 /* re-INVITE related settings */
 #define SIP_REINVITE		(3 << 20)	/*!< two bits used */
 #define SIP_CAN_REINVITE	(1 << 20)	/*!< allow peers to be reinvited to send media directly p2p */
@@ -604,13 +604,10 @@ struct sip_auth {
 #define SIP_OSPAUTH_GATEWAY	(1 << 26)
 #define SIP_OSPAUTH_PROXY	(2 << 26)
 #define SIP_OSPAUTH_EXCLUSIVE	(3 << 26)
-/* Call states */
-#define SIP_CALL_ONHOLD		(1 << 28)	 
-#define SIP_CALL_LIMIT		(1 << 29)
-/* Remote Party-ID Support */
-#define SIP_SENDRPID		(1 << 30)
-/* Did this connection increment the counter of in-use calls? */
-#define SIP_INC_COUNT		(1 << 31)
+#define SIP_CALL_ONHOLD		(1 << 28)	/*!< Call states */
+#define SIP_CALL_LIMIT		(1 << 29)	/*!< Call limit enforced for this call */
+#define SIP_SENDRPID		(1 << 30)	/*!< Remote Party-ID Support */
+#define SIP_INC_COUNT		(1 << 31)	/*!< Did this connection increment the counter of in-use calls? */
 
 #define SIP_FLAGS_TO_COPY \
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
