@@ -566,6 +566,13 @@ clean: clean-depend
 
 datafiles: all
 	if [ x`$(ID) -un` = xroot ]; then sh build_tools/mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
+	# Should static HTTP be installed during make samples or even with its own target ala
+	# webvoicemail?  There are portions here that *could* be customized but might also be
+	# improved a lot.  I'll put it here for now.
+	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/static-http
+	for x in static-http/*; do \
+		install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/static-http ; \
+	done
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/priv-callerintros
 	for x in sounds/digits/*.gsm; do \

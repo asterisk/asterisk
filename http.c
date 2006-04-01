@@ -33,16 +33,20 @@
 #include <netinet/in.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/signal.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
 
+#include "asterisk.h"
 #include "asterisk/cli.h"
 #include "asterisk/http.h"
 #include "asterisk/utils.h"
 #include "asterisk/strings.h"
+#include "asterisk/options.h"
+#include "asterisk/config.h"
 
 #define MAX_PREFIX 80
 #define DEFAULT_PREFIX "asterisk"
@@ -61,6 +65,100 @@ static pthread_t master = AST_PTHREADT_NULL;
 static char prefix[MAX_PREFIX];
 static int prefix_len = 0;
 static struct sockaddr_in oldsin;
+static int enablestatic=0;
+
+/* Limit the kinds of files we're willing to serve up */
+static struct {
+	char *ext;
+	char *mtype;
+} mimetypes[] = {
+	{ "png", "image/png" },
+	{ "jpg", "image/jpeg" },
+	{ "js", "application/x-javascript" },
+	{ "wav", "audio/x-wav" },
+	{ "mp3", "audio/mpeg" },
+};
+
+static char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
+{
+	int x;
+	if (ftype) {
+		for (x=0;x<sizeof(mimetypes) / sizeof(mimetypes[0]); x++) {
+			if (!strcasecmp(ftype, mimetypes[x].ext))
+				return mimetypes[x].mtype;
+		}
+	}
+	snprintf(wkspace, wkspacelen, "text/%s", ftype ? ftype : "plain");
+	return wkspace;
+}
+
+static char *static_callback(struct sockaddr_in *req, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
+{
+	char result[4096];
+	char *c=result;
+	char *path;
+	char *ftype, *mtype;
+	char wkspace[80];
+	struct stat st;
+	int len;
+	int fd;
+	void *blob;
+
+	/* Yuck.  I'm not really sold on this, but if you don't deliver static content it makes your configuration 
+	   substantially more challenging, but this seems like a rather irritating feature creep on Asterisk. */
+	if (!enablestatic || ast_strlen_zero(uri))
+		goto out403;
+	/* Disallow any funny filenames at all */
+	if ((uri[0] < 33) || strchr("./|~@#$%^&*() \t", uri[0]))
+		goto out403;
+	if (strstr(uri, "/.."))
+		goto out403;
+		
+	if ((ftype = strrchr(uri, '.')))
+		ftype++;
+	mtype=ftype2mtype(ftype, wkspace, sizeof(wkspace));
+	
+	/* Cap maximum length */
+	len = strlen(uri) + strlen(ast_config_AST_VAR_DIR) + strlen("/static-http/") + 5;
+	if (len > 1024)
+		goto out403;
+		
+	path = alloca(len);
+	sprintf(path, "%s/static-http/%s", ast_config_AST_VAR_DIR, uri);
+	if (stat(path, &st))
+		goto out404;
+	if (S_ISDIR(st.st_mode))
+		goto out404;
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		goto out403;
+	
+	len = st.st_size + strlen(mtype) + 40;
+	
+	blob = malloc(len);
+	if (blob) {
+		c = blob;
+		sprintf(c, "Content-type: %s\r\n\r\n", mtype);
+		c += strlen(c);
+		*contentlength = read(fd, c, st.st_size);
+		if (*contentlength < 0) {
+			close(fd);
+			free(blob);
+			goto out403;
+		}
+	}
+	return blob;
+
+out404:
+	*status = 404;
+	*title = strdup("Not Found");
+	return ast_http_error(404, "Not Found", NULL, "Nothing to see here.  Move along.");
+
+out403:
+	*status = 403;
+	*title = strdup("Access Denied");
+	return ast_http_error(403, "Access Denied", NULL, "Sorry, I cannot let you do that, Dave.");
+}
 
 
 static char *httpstatus_callback(struct sockaddr_in *req, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
@@ -86,7 +184,15 @@ static char *httpstatus_callback(struct sockaddr_in *req, const char *uri, struc
 	ast_build_string(&c, &reslen, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
 	v = vars;
 	while(v) {
-		ast_build_string(&c, &reslen, "<tr><td><i>Submitted Variable '%s'</i></td><td>%s</td></tr>\r\n", v->name, v->value);
+		if (strncasecmp(v->name, "cookie_", 7))
+			ast_build_string(&c, &reslen, "<tr><td><i>Submitted Variable '%s'</i></td><td>%s</td></tr>\r\n", v->name, v->value);
+		v = v->next;
+	}
+	ast_build_string(&c, &reslen, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
+	v = vars;
+	while(v) {
+		if (!strncasecmp(v->name, "cookie_", 7))
+			ast_build_string(&c, &reslen, "<tr><td><i>Cookie '%s'</i></td><td>%s</td></tr>\r\n", v->name, v->value);
 		v = v->next;
 	}
 	ast_build_string(&c, &reslen, "</table><center><font size=\"-1\"><i>Asterisk and Digium are registered trademarks of Digium, Inc.</i></font></center></body>\r\n");
@@ -98,6 +204,13 @@ static struct ast_http_uri statusuri = {
 	.description = "Asterisk HTTP General Status",
 	.uri = "httpstatus",
 	.has_subtree = 0,
+};
+	
+static struct ast_http_uri staticuri = {
+	.callback = static_callback,
+	.description = "Asterisk HTTP Static Delivery",
+	.uri = "static",
+	.has_subtree = 1,
 };
 	
 char *ast_http_error(int status, const char *title, const char *extra_header, const char *text)
@@ -153,7 +266,7 @@ void ast_http_uri_unlink(struct ast_http_uri *urih)
 	}
 }
 
-static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **title, int *contentlength)
+static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **title, int *contentlength, struct ast_variable **cookies)
 {
 	char *c;
 	char *turi;
@@ -176,9 +289,9 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 			if (val) {
 				*val = '\0';
 				val++;
+				ast_uri_decode(val);
 			} else 
 				val = "";
-			ast_uri_decode(val);
 			ast_uri_decode(var);
 			if ((v = ast_variable_new(var, val))) {
 				if (vars)
@@ -189,6 +302,11 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 			}
 		}
 	}
+	if (prev)
+		prev->next = *cookies;
+	else
+		vars = *cookies;
+	*cookies = NULL;
 	ast_uri_decode(uri);
 	if (!strncasecmp(uri, prefix, prefix_len)) {
 		uri += prefix_len;
@@ -227,9 +345,12 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 static void *ast_httpd_helper_thread(void *data)
 {
 	char buf[4096];
+	char cookie[4096];
 	char timebuf[256];
 	struct ast_http_server_instance *ser = data;
+	struct ast_variable *var, *prev=NULL, *vars=NULL;
 	char *uri, *c, *title=NULL;
+	char *vname, *vval;
 	int status = 200, contentlength = 0;
 	time_t t;
 
@@ -252,25 +373,68 @@ static void *ast_httpd_helper_thread(void *data)
 				*c = '\0';
 			}
 		}
+
+		while (fgets(cookie, sizeof(cookie), ser->f)) {
+			/* Trim trailing characters */
+			while(!ast_strlen_zero(cookie) && (cookie[strlen(cookie) - 1] < 33)) {
+				cookie[strlen(cookie) - 1] = '\0';
+			}
+			if (ast_strlen_zero(cookie))
+				break;
+			if (!strncasecmp(cookie, "Cookie: ", 8)) {
+				vname = cookie + 8;
+				vval = strchr(vname, '=');
+				if (vval) {
+					/* Ditch the = and the quotes */
+					*vval = '\0';
+					vval++;
+					if (*vval)
+						vval++;
+					if (strlen(vval))
+						vval[strlen(vval) - 1] = '\0';
+					var = ast_variable_new(vname, vval);
+					if (var) {
+						if (prev)
+							prev->next = var;
+						else
+							vars = var;
+						prev = var;
+					}
+				}
+			}
+		}
+
 		if (*uri) {
 			if (!strcasecmp(buf, "get")) 
-				c = handle_uri(&ser->requestor, uri, &status, &title, &contentlength);
+				c = handle_uri(&ser->requestor, uri, &status, &title, &contentlength, &vars);
 			else 
 				c = ast_http_error(501, "Not Implemented", NULL, "Attempt to use unimplemented / unsupported method");\
 		} else 
 			c = ast_http_error(400, "Bad Request", NULL, "Invalid Request");
+
+		/* If they aren't mopped up already, clean up the cookies */
+		if (vars)
+			ast_variables_destroy(vars);
+
 		if (!c)
 			c = ast_http_error(500, "Internal Error", NULL, "Internal Server Error");
 		if (c) {
 			time(&t);
 			strftime(timebuf, sizeof(timebuf), "%a, %d %b %Y %H:%M:%S GMT", gmtime(&t));
-			ast_cli(ser->fd, "HTTP/1.1 GET %d %s\r\n", status, title ? title : "OK");
+			ast_cli(ser->fd, "HTTP/1.1 %d %s\r\n", status, title ? title : "OK");
 			ast_cli(ser->fd, "Server: Asterisk\r\n");
 			ast_cli(ser->fd, "Date: %s\r\n", timebuf);
-			if (contentlength)
-				ast_cli(ser->fd, "Content-length: %d\r\n", contentlength);
 			ast_cli(ser->fd, "Connection: close\r\n");
-			ast_cli(ser->fd, "%s", c);
+			if (contentlength) {
+				char *tmp;
+				tmp = strstr(c, "\r\n\r\n");
+				if (tmp) {
+					ast_cli(ser->fd, "Content-length: %d\r\n", contentlength);
+					write(ser->fd, c, (tmp + 4 - c));
+					write(ser->fd, tmp + 4, contentlength);
+				}
+			} else
+				ast_cli(ser->fd, "%s", c);
 			free(c);
 		}
 		if (title)
@@ -297,25 +461,40 @@ static void *http_root(void *data)
 				ast_log(LOG_WARNING, "Accept failed: %s\n", strerror(errno));
 			continue;
 		}
-		if (!(ser = ast_calloc(1, sizeof(*ser)))) {
-			close(fd);
-			continue;
-		}
-		ser->fd = fd;
-		if ((ser->f = fdopen(ser->fd, "w+"))) {
-			if (ast_pthread_create(&launched, NULL, ast_httpd_helper_thread, ser)) {
-				ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
-				fclose(ser->f);
+		ser = ast_calloc(1, sizeof(*ser));
+		if (ser) {
+			ser->fd = fd;
+			memcpy(&ser->requestor, &sin, sizeof(ser->requestor));
+			if ((ser->f = fdopen(ser->fd, "w+"))) {
+				if (ast_pthread_create(&launched, NULL, ast_httpd_helper_thread, ser)) {
+					ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
+					fclose(ser->f);
+					free(ser);
+				}
+			} else {
+				ast_log(LOG_WARNING, "fdopen failed!\n");
+				close(ser->fd);
 				free(ser);
 			}
 		} else {
-			ast_log(LOG_WARNING, "fdopen failed!\n");
 			close(ser->fd);
 			free(ser);
 		}
 	}
 	return NULL;
 }
+
+char *ast_http_setcookie(const char *var, const char *val, int expires, char *buf, int buflen)
+{
+	char *c;
+	c = buf;
+	ast_build_string(&c, &buflen, "Set-Cookie: %s=\"%s\"; Version=\"1\"", var, val);
+	if (expires)
+		ast_build_string(&c, &buflen, "; Max-Age=%d", expires);
+	ast_build_string(&c, &buflen, "\r\n");
+	return buf;
+}
+
 
 static void http_server_start(struct sockaddr_in *sin)
 {
@@ -383,6 +562,7 @@ static int __ast_http_load(int reload)
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	int enabled=0;
+	int newenablestatic=0;
 	struct sockaddr_in sin;
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -396,6 +576,8 @@ static int __ast_http_load(int reload)
 		while(v) {
 			if (!strcasecmp(v->name, "enabled"))
 				enabled = ast_true(v->value);
+			else if (!strcasecmp(v->name, "enablestatic"))
+				newenablestatic = ast_true(v->value);
 			else if (!strcasecmp(v->name, "bindport"))
 				sin.sin_port = ntohs(atoi(v->value));
 			else if (!strcasecmp(v->name, "bindaddr")) {
@@ -416,6 +598,7 @@ static int __ast_http_load(int reload)
 		ast_copy_string(prefix, newprefix, sizeof(prefix));
 		prefix_len = strlen(prefix);
 	}
+	enablestatic = newenablestatic;
 	http_server_start(&sin);
 	return 0;
 }
@@ -462,6 +645,7 @@ static struct ast_cli_entry http_cli[] = {
 int ast_http_init(void)
 {
 	ast_http_uri_link(&statusuri);
+	ast_http_uri_link(&staticuri);
 	ast_cli_register_multiple(http_cli, sizeof(http_cli) / sizeof(http_cli[0]));
 	return __ast_http_load(0);
 }

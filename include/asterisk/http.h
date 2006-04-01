@@ -58,6 +58,8 @@ char *ast_http_error(int status, const char *title, const char *extra_header, co
 /* Destroy an HTTP server */
 void ast_http_uri_unlink(struct ast_http_uri *urihandler);
 
+char *ast_http_setcookie(const char *var, const char *val, int expires, char *buf, int buflen);
+
 int ast_http_init(void);
 int ast_http_reload(void);
 

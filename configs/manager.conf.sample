@@ -13,11 +13,18 @@
 ; ---------------------------- SECURITY NOTE -------------------------------
 ; Note that you should not enable the AMI on a public IP address. If needed,
 ; block this TCP port with iptables (or another FW software) and reach it
-; with IPsec, SSH, or SSL vpn tunnel
+; with IPsec, SSH, or SSL vpn tunnel.  You can also make the manager 
+; interface available over http if Asterisk's http server is enabled in
+; http.conf and if both "enabled" and "webenabled" are set to yes in
+; this file.  Both default to no.  httptimeout provides the maximum 
+; timeout in seconds before a web based session is discarded.  The 
+; default is 60 seconds.
 ;
 [general]
 enabled = no
+;webenabled = yes
 port = 5038
+;httptimeout = 60
 bindaddr = 0.0.0.0
 ;displayconnects = yes
 ;

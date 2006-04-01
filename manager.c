@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <netdb.h>
@@ -64,6 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/md5.h"
 #include "asterisk/acl.h"
 #include "asterisk/utils.h"
+#include "asterisk/http.h"
 
 struct fast_originate_helper {
 	char tech[AST_MAX_MANHEADER_LEN];
@@ -86,6 +88,7 @@ static int portno = DEFAULT_MANAGER_PORT;
 static int asock = -1;
 static int displayconnects = 1;
 static int timestampevents = 0;
+static int httptimeout = 60;
 
 static pthread_t t;
 AST_MUTEX_DEFINE_STATIC(sessionlock);
@@ -119,6 +122,18 @@ static struct mansession {
 	int busy;
 	/*! Whether or not we're "dead" */
 	int dead;
+	/*! Whether an HTTP manager is in use */
+	int inuse;
+	/*! Whether an HTTP session should be destroyed */
+	int needdestroy;
+	/*! Whether an HTTP session has someone waiting on events */
+	pthread_t waiting_thread;
+	/*! Unique manager identifer */
+	unsigned long managerid;
+	/*! Session timeout if HTTP */
+	time_t sessiontimeout;
+	/*! Output from manager interface */
+	char *outputstr;
 	/*! Logged in username */
 	char username[80];
 	/*! Authentication challenge */
@@ -212,11 +227,168 @@ static char *complete_show_mancmd(const char *line, const char *word, int pos, i
 	return ret;
 }
 
+static void xml_copy_escape(char **dst, int *maxlen, const char *src, int lower)
+{
+	while (*src && (*maxlen > 6)) {
+		switch(*src) {
+		case '<':
+			strcpy(*dst, "&lt;");
+			(*dst) += 4;
+			*maxlen -= 4;
+			break;
+		case '>':
+			strcpy(*dst, "&gt;");
+			(*dst) += 4;
+			*maxlen -= 4;
+			break;
+		case '\"':
+			strcpy(*dst, "&quot;");
+			(*dst) += 6;
+			*maxlen -= 6;
+			break;
+		case '\'':
+			strcpy(*dst, "&apos;");
+			(*dst) += 6;
+			*maxlen -= 6;
+			break;
+		case '&':
+			strcpy(*dst, "&amp;");
+			(*dst) += 4;
+			*maxlen -= 4;
+			break;		
+		default:
+			*(*dst)++ = lower ? tolower(*src) : *src;
+			(*maxlen)--;
+		}
+		src++;
+	}
+}
+static char *xml_translate(char *in, struct ast_variable *vars)
+{
+	struct ast_variable *v;
+	char *dest=NULL;
+	char *out, *tmp, *var, *val;
+	char *objtype=NULL;
+	int colons = 0;
+	int breaks = 0;
+	int len;
+	int count = 1;
+	int escaped = 0;
+	int inobj = 0;
+	int x;
+	v = vars;
+	while(v) {
+		if (!dest && !strcasecmp(v->name, "ajaxdest"))
+			dest = v->value;
+		else if (!objtype && !strcasecmp(v->name, "ajaxobjtype")) 
+			objtype = v->value;
+		v = v->next;
+	}
+	if (!dest)
+		dest = "unknown";
+	if (!objtype)
+		objtype = "generic";
+	for (x=0;in[x];x++) {
+		if (in[x] == ':')
+			colons++;
+		else if (in[x] == '\n')
+			breaks++;
+		else if (strchr("&\"<>", in[x]))
+			escaped++;
+	}
+	len = strlen(in) + colons * 5 + breaks * (40 + strlen(dest) + strlen(objtype)) + escaped * 10; /* foo="bar", "<response type=\"object\" id=\"dest\"", "&amp;" */
+	out = malloc(len);
+	if (!out)
+		return 0;
+	tmp = out;
+	while(*in) {
+		var = in;
+		while (*in && (*in >= 32)) in++;
+		if (*in) {
+			if ((count > 3) && inobj) {
+				ast_build_string(&tmp, &len, " /></response>\n");
+				inobj = 0;
+			}
+			count = 0;
+			while (*in && (*in < 32)) {
+				*in = '\0';
+				in++;
+				count++;
+			}
+			val = strchr(var, ':');
+			if (val) {
+				*val = '\0';
+				val++;
+				if (*val == ' ')
+					val++;
+				if (!inobj) {
+					ast_build_string(&tmp, &len, "<response type='object' id='%s'><%s", dest, objtype);
+					inobj = 1;
+				}
+				ast_build_string(&tmp, &len, " ");				
+				xml_copy_escape(&tmp, &len, var, 1);
+				ast_build_string(&tmp, &len, "='");
+				xml_copy_escape(&tmp, &len, val, 0);
+				ast_build_string(&tmp, &len, "'");
+			}
+		}
+	}
+	if (inobj)
+		ast_build_string(&tmp, &len, " /></response>\n");
+	return out;
+}
+
+static char *html_translate(char *in)
+{
+	int x;
+	int colons = 0;
+	int breaks = 0;
+	int len;
+	int count=1;
+	char *tmp, *var, *val, *out;
+	for (x=0;in[x];x++) {
+		if (in[x] == ':')
+			colons++;
+		if (in[x] == '\n')
+			breaks++;
+	}
+	len = strlen(in) + colons * 40 + breaks * 40; /* <tr><td></td><td></td></tr>, "<tr><td colspan=\"2\"><hr></td></tr> */
+	out = malloc(len);
+	if (!out)
+		return 0;
+	tmp = out;
+	while(*in) {
+		var = in;
+		while (*in && (*in >= 32)) in++;
+		if (*in) {
+			if ((count % 4) == 0){
+				ast_build_string(&tmp, &len, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
+			}
+			count = 0;
+			while (*in && (*in < 32)) {
+				*in = '\0';
+				in++;
+				count++;
+			}
+			val = strchr(var, ':');
+			if (val) {
+				*val = '\0';
+				val++;
+				if (*val == ' ')
+					val++;
+				ast_build_string(&tmp, &len, "<tr><td>%s</td><td>%s</td></tr>\r\n", var, val);
+			}
+		}
+	}
+	return out;
+}
+
 void astman_append(struct mansession *s, const char *fmt, ...)
 {
 	char *stuff;
 	int res;
 	va_list ap;
+	char *tmp;
 
 	va_start(ap, fmt);
 	res = vasprintf(&stuff, fmt, ap);
@@ -224,7 +396,17 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 	if (res == -1) {
 		ast_log(LOG_ERROR, "Memory allocation failure\n");
 	} else {
-		ast_carefulwrite(s->fd, stuff, strlen(stuff), 100);
+		if (s->fd > -1)
+			ast_carefulwrite(s->fd, stuff, strlen(stuff), 100);
+		else {
+			tmp = realloc(s->outputstr, (s->outputstr ? strlen(s->outputstr) : 0) + strlen(stuff) + 1);
+			if (tmp) {
+				if (!s->outputstr)
+					tmp[0] = '\0';
+				s->outputstr = tmp;
+				strcat(s->outputstr, stuff);
+			}
+		}
 		free(stuff);
 	}
 }
@@ -320,6 +502,8 @@ static void free_session(struct mansession *s)
 	struct eventqent *eqe;
 	if (s->fd > -1)
 		close(s->fd);
+	if (s->outputstr)
+		free(s->outputstr);
 	ast_mutex_destroy(&s->__lock);
 	while(s->eventq) {
 		eqe = s->eventq;
@@ -606,7 +790,7 @@ static int authenticate(struct mansession *s, struct message *m)
 							return -1;
 						}
 					}
-				} else if (password && !strcasecmp(password, pass)) {
+				} else if (password && !strcmp(password, pass)) {
 					break;
 				} else {
 					ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
@@ -633,13 +817,101 @@ static int authenticate(struct mansession *s, struct message *m)
 
 /*! \brief PING: Manager PING */
 static char mandescr_ping[] = 
-"Description: A 'Ping' action will ellicit a 'Pong' response.  Used to keep the "
+"Description: A 'Ping' action will ellicit a 'Pong' response.  Used to keep the\n"
 "  manager connection open.\n"
 "Variables: NONE\n";
 
 static int action_ping(struct mansession *s, struct message *m)
 {
 	astman_send_response(s, m, "Pong", NULL);
+	return 0;
+}
+
+/*! \brief WAITEVENT: Manager WAITEVENT */
+static char mandescr_waitevent[] = 
+"Description: A 'WaitEvent' action will ellicit a 'Success' response.  Whenever\n"
+"a manager event is queued.  Once WaitEvent has been called on an HTTP manager\n"
+"session, events will be generated and queued.\n"
+"Variables: \n"
+"   Timeout: Maximum time to wait for events\n";
+
+static int action_waitevent(struct mansession *s, struct message *m)
+{
+	char *timeouts = astman_get_header(m, "Timeout");
+	int timeout = -1, max;
+	int x;
+	int needexit = 0;
+	time_t now;
+	struct eventqent *eqe;
+	char *id = astman_get_header(m,"ActionID");
+	char idText[256]="";
+
+	if (!ast_strlen_zero(id))
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+
+	if (!ast_strlen_zero(timeouts)) {
+		sscanf(timeouts, "%i", &timeout);
+	}
+	
+	ast_mutex_lock(&s->__lock);
+	if (s->waiting_thread != AST_PTHREADT_NULL) {
+		pthread_kill(s->waiting_thread, SIGURG);
+	}
+	if (s->sessiontimeout) {
+		time(&now);
+		max = s->sessiontimeout - now - 10;
+		if (max < 0)
+			max = 0;
+		if ((timeout < 0) || (timeout > max))
+			timeout = max;
+		if (!s->send_events)
+			s->send_events = -1;
+		/* Once waitevent is called, always queue events from now on */
+		if (s->busy == 1)
+			s->busy = 2;
+	}
+	ast_mutex_unlock(&s->__lock);
+	s->waiting_thread = pthread_self();
+
+	ast_log(LOG_DEBUG, "Starting waiting for an event!\n");
+	for (x=0;((x<timeout) || (timeout < 0)); x++) {
+		ast_mutex_lock(&s->__lock);
+		if (s->eventq)
+			needexit = 1;
+		if (s->waiting_thread != pthread_self())
+			needexit = 1;
+		if (s->needdestroy)
+			needexit = 1;
+		ast_mutex_unlock(&s->__lock);
+		if (needexit)
+			break;
+		if (s->fd > 0) {
+			if (ast_wait_for_input(s->fd, 1000))
+				break;
+		} else {
+			sleep(1);
+		}
+	}
+	ast_log(LOG_DEBUG, "Finished waiting for an event!\n");
+	ast_mutex_lock(&s->__lock);
+	if (s->waiting_thread == pthread_self()) {
+		astman_send_response(s, m, "Success", "Waiting for Event...");
+		/* Only show events if we're the most recent waiter */
+		while(s->eventq) {
+			astman_append(s, "%s", s->eventq->eventdata);
+			eqe = s->eventq;
+			s->eventq = s->eventq->next;
+			free(eqe);
+		}
+		astman_append(s,
+			"Event: WaitEventComplete\r\n"
+			"%s"
+			"\r\n",idText);
+		s->waiting_thread = AST_PTHREADT_NULL;
+	} else {
+		ast_log(LOG_DEBUG, "Abandoning event request!\n");
+	}
+	ast_mutex_unlock(&s->__lock);
 	return 0;
 }
 
@@ -1338,10 +1610,10 @@ static int process_message(struct mansession *s, struct message *m)
 				s->authenticated = 1;
 				if (option_verbose > 1) {
 					if ( displayconnects ) {
-						ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+						ast_verbose(VERBOSE_PREFIX_2 "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 					}
 				}
-				ast_log(LOG_EVENT, "Manager '%s' logged on from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+				ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 				astman_send_ack(s, m, "Authentication accepted");
 			}
 		} else if (!strcasecmp(action, "Logoff")) {
@@ -1353,7 +1625,7 @@ static int process_message(struct mansession *s, struct message *m)
 		int ret=0;
 		struct eventqent *eqe;
 		ast_mutex_lock(&s->__lock);
-		s->busy = 1;
+		s->busy++;
 		ast_mutex_unlock(&s->__lock);
 		while( tmp ) { 		
 			if (!strcasecmp(action, tmp->action)) {
@@ -1370,15 +1642,17 @@ static int process_message(struct mansession *s, struct message *m)
 		if (!tmp)
 			astman_send_error(s, m, "Invalid/unknown command");
 		ast_mutex_lock(&s->__lock);
-		s->busy = 0;
-		while(s->eventq) {
-			if (ast_carefulwrite(s->fd, s->eventq->eventdata, strlen(s->eventq->eventdata), s->writetimeout) < 0) {
-				ret = -1;
-				break;
+		if (s->fd > -1) {
+			s->busy--;
+			while(s->eventq) {
+				if (ast_carefulwrite(s->fd, s->eventq->eventdata, strlen(s->eventq->eventdata), s->writetimeout) < 0) {
+					ret = -1;
+					break;
+				}
+				eqe = s->eventq;
+				s->eventq = s->eventq->next;
+				free(eqe);
 			}
-			eqe = s->eventq;
-			s->eventq = s->eventq->next;
-			free(eqe);
 		}
 		ast_mutex_unlock(&s->__lock);
 		return ret;
@@ -1484,17 +1758,48 @@ static void *accept_thread(void *ignore)
 	int as;
 	struct sockaddr_in sin;
 	socklen_t sinlen;
-	struct mansession *s;
+	struct mansession *s, *prev=NULL, *next;
 	struct protoent *p;
 	int arg = 1;
 	int flags;
 	pthread_attr_t attr;
+	time_t now;
+	struct pollfd pfds[1];
+	char iabuf[INET_ADDRSTRLEN];
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
 	for (;;) {
+		time(&now);
+		ast_mutex_lock(&sessionlock);
+		prev = NULL;
+		s = sessions;
+		while(s) {
+			next = s->next;
+			if (s->sessiontimeout && (now > s->sessiontimeout) && !s->inuse) {
+				if (prev)
+					prev->next = next;
+				else
+					sessions = next;
+				if (s->authenticated && (option_verbose > 1) && displayconnects) {
+					ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' timed out from %s\n",
+						s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+				}
+				free_session(s);
+			} else
+				prev = s;
+			s = next;
+		}
+		ast_mutex_unlock(&sessionlock);
+
 		sinlen = sizeof(sin);
+		pfds[0].fd = asock;
+		pfds[0].events = POLLIN;
+		/* Wait for something to happen, but timeout every few seconds so
+		   we can ditch any old manager sessions */
+		if (poll(pfds, 1, 5000) < 1)
+			continue;
 		as = accept(asock, (struct sockaddr *)&sin, &sinlen);
 		if (as < 0) {
 			ast_log(LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
@@ -1514,6 +1819,7 @@ static void *accept_thread(void *ignore)
 		memset(s, 0, sizeof(struct mansession));
 		memcpy(&s->sin, &sin, sizeof(sin));
 		s->writetimeout = 100;
+		s->waiting_thread = AST_PTHREADT_NULL;
 
 		if(! block_sockets) {
 			/* For safety, make sure socket is non-blocking */
@@ -1593,7 +1899,9 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 		ast_mutex_lock(&s->__lock);
 		if (s->busy) {
 			append_event(s, tmp);
-		} else if (!s->dead) {
+			if (s->waiting_thread != AST_PTHREADT_NULL)
+				pthread_kill(s->waiting_thread, SIGURG);
+		} else if (!s->dead && !s->sessiontimeout) {
 			if (ast_carefulwrite(s->fd, tmp, tmp_next - tmp, s->writetimeout) < 0) {
 				ast_log(LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
 				s->dead = 1;
@@ -1701,7 +2009,211 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 /*! @}
  END Doxygen group */
 
+static struct mansession *find_session(unsigned long ident)
+{
+	struct mansession *s;
+	ast_mutex_lock(&sessionlock);
+	s = sessions;
+	while(s) {
+		ast_mutex_lock(&s->__lock);
+		if (s->sessiontimeout && (s->managerid == ident) && !s->needdestroy) {
+			s->inuse++;
+			break;
+		}
+		ast_mutex_unlock(&s->__lock);
+		s = s->next;
+	}
+	ast_mutex_unlock(&sessionlock);
+	return s;
+}
+
+
+static void vars2msg(struct message *m, struct ast_variable *vars)
+{
+	int x;
+	for (x=0;vars && (x<AST_MAX_MANHEADERS);x++,vars = vars->next) {
+		if (!vars)
+			break;
+		m->hdrcount = x + 1;
+		snprintf(m->headers[x], sizeof(m->headers[x]), "%s: %s", vars->name, vars->value);
+	}
+}
+
+#define FORMAT_RAW	0
+#define FORMAT_HTML	1
+#define FORMAT_XML	2
+
+static char *contenttype[] = { "plain", "html", "xml" };
+
+static char *generic_http_callback(int format, struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+{
+	struct mansession *s=NULL;
+	unsigned long ident=0;
+	char workspace[256];
+	char cookie[128];
+	char iabuf[INET_ADDRSTRLEN];
+	int len = sizeof(workspace);
+	int blastaway = 0;
+	char *c = workspace;
+	char *retval=NULL;
+	struct message m;
+	struct ast_variable *v;
+	
+	v = params;
+	while(v) {
+		if (!strcasecmp(v->name, "mansession_id")) {
+			sscanf(v->value, "%lx", &ident);
+			break;
+		}
+		v = v->next;
+	}
+	s = find_session(ident);
+
+	if (!s) {
+		/* Create new session */
+		s = calloc(1, sizeof(struct mansession));
+		memcpy(&s->sin, requestor, sizeof(s->sin));
+		s->fd = -1;
+		s->waiting_thread = AST_PTHREADT_NULL;
+		s->send_events = 0;
+		ast_mutex_init(&s->__lock);
+		ast_mutex_lock(&s->__lock);
+		ast_mutex_lock(&sessionlock);
+		s->inuse = 1;
+		s->managerid = rand() | (unsigned long)s;
+		s->next = sessions;
+		sessions = s;
+		ast_mutex_unlock(&sessionlock);
+	}
+
+	/* Reset HTTP timeout */
+	time(&s->sessiontimeout);
+	s->sessiontimeout += httptimeout;
+	ast_mutex_unlock(&s->__lock);
+	
+	memset(&m, 0, sizeof(m));
+	if (s) {
+		char tmp[80];
+		ast_build_string(&c, &len, "Content-type: text/%s\n", contenttype[format]);
+		sprintf(tmp, "%08lx", s->managerid);
+		ast_build_string(&c, &len, "%s\r\n", ast_http_setcookie("mansession_id", tmp, httptimeout, cookie, sizeof(cookie)));
+		if (format == FORMAT_HTML)
+			ast_build_string(&c, &len, "<title>Asterisk&trade; Manager Test Interface</title>");
+		vars2msg(&m, params);
+		if (format == FORMAT_XML) {
+			ast_build_string(&c, &len, "<ajax-response>\n");
+		} else if (format == FORMAT_HTML) {
+			ast_build_string(&c, &len, "<body bgcolor=\"#ffffff\"><table align=center bgcolor=\"#f1f1f1\" width=\"500\">\r\n");
+			ast_build_string(&c, &len, "<tr><td colspan=\"2\" bgcolor=\"#f1f1ff\"><h1>&nbsp;&nbsp;Manager Tester</h1></td></tr>\r\n");
+		}
+		if (process_message(s, &m)) {
+			if (s->authenticated) {
+				if (option_verbose > 1) {
+					if (displayconnects) 
+						ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));    
+				}
+				ast_log(LOG_EVENT, "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+			} else {
+				if (option_verbose > 1) {
+					if (displayconnects)
+						ast_verbose(VERBOSE_PREFIX_2 "HTTP Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+				}
+				ast_log(LOG_EVENT, "HTTP Failed attempt from %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+			}
+			s->needdestroy = 1;
+		}
+		if (s->outputstr) {
+			char *tmp;
+			if (format == FORMAT_XML)
+				tmp = xml_translate(s->outputstr, params);
+			else if (format == FORMAT_HTML)
+				tmp = html_translate(s->outputstr);
+			else
+				tmp = s->outputstr;
+			if (tmp) {
+				retval = malloc(strlen(workspace) + strlen(tmp) + 128);
+				if (retval) {
+					strcpy(retval, workspace);
+					strcpy(retval + strlen(retval), tmp);
+					c = retval + strlen(retval);
+					len = 120;
+				}
+				free(tmp);
+			}
+			if (tmp != s->outputstr)
+				free(s->outputstr);
+			s->outputstr = NULL;
+		}
+		/* Still okay because c would safely be pointing to workspace even
+		   if retval failed to allocate above */
+		if (format == FORMAT_XML) {
+			ast_build_string(&c, &len, "</ajax-response>\n");
+		} else if (format == FORMAT_HTML)
+			ast_build_string(&c, &len, "</table></body>\r\n");
+	} else {
+		*status = 500;
+		*title = strdup("Server Error");
+	}
+	ast_mutex_lock(&s->__lock);
+	if (s->needdestroy) {
+		if (s->inuse == 1) {
+			ast_log(LOG_DEBUG, "Need destroy, doing it now!\n");
+			blastaway = 1;
+		} else {
+			ast_log(LOG_DEBUG, "Need destroy, but can't do it yet!\n");
+			if (s->waiting_thread != AST_PTHREADT_NULL)
+				pthread_kill(s->waiting_thread, SIGURG);
+			s->inuse--;
+		}
+	} else
+		s->inuse--;
+	ast_mutex_unlock(&s->__lock);
+	
+	if (blastaway)
+		destroy_session(s);
+	if (*status != 200)
+		return ast_http_error(500, "Server Error", NULL, "Internal Server Error (out of memory)\n"); 
+	return retval;
+}
+
+static char *manager_http_callback(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+{
+	return generic_http_callback(FORMAT_HTML, requestor, uri, params, status, title, contentlength);
+}
+
+static char *mxml_http_callback(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+{
+	return generic_http_callback(FORMAT_XML, requestor, uri, params, status, title, contentlength);
+}
+
+static char *rawman_http_callback(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+{
+	return generic_http_callback(FORMAT_RAW, requestor, uri, params, status, title, contentlength);
+}
+
+struct ast_http_uri rawmanuri = {
+	.description = "Raw HTTP Manager Event Interface",
+	.uri = "rawman",
+	.has_subtree = 0,
+	.callback = rawman_http_callback,
+};
+
+struct ast_http_uri manageruri = {
+	.description = "HTML Manager Event Interface",
+	.uri = "manager",
+	.has_subtree = 0,
+	.callback = manager_http_callback,
+};
+
+struct ast_http_uri managerxmluri = {
+	.description = "XML Manager Event Interface",
+	.uri = "mxml",
+	.has_subtree = 0,
+	.callback = mxml_http_callback,
+};
+
 static int registered = 0;
+static int webregged = 0;
 
 int init_manager(void)
 {
@@ -1710,6 +2222,9 @@ int init_manager(void)
 	int oldportno = portno;
 	static struct sockaddr_in ba;
 	int x = 1;
+	int flags;
+	int webenabled=0;
+	int newhttptimeout = 60;
 	if (!registered) {
 		/* Register default actions */
 		ast_manager_register2("Ping", 0, action_ping, "Keepalive command", mandescr_ping);
@@ -1727,6 +2242,7 @@ int init_manager(void)
 		ast_manager_register2("MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox", mandescr_mailboxstatus );
 		ast_manager_register2("MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count", mandescr_mailboxcount );
 		ast_manager_register2("ListCommands", 0, action_listcommands, "List available manager commands", mandescr_listcommands);
+		ast_manager_register2("WaitEvent", 0, action_waitevent, "Wait for an event to occur", mandescr_waitevent);
 
 		ast_cli_register(&show_mancmd_cli);
 		ast_cli_register(&show_mancmds_cli);
@@ -1750,6 +2266,10 @@ int init_manager(void)
 	if(val)
 		block_sockets = ast_true(val);
 
+	val = ast_variable_retrieve(cfg, "general", "webenabled");
+	if (val)
+		webenabled = ast_true(val);
+
 	if ((val = ast_variable_retrieve(cfg, "general", "port"))) {
 		if (sscanf(val, "%d", &portno) != 1) {
 			ast_log(LOG_WARNING, "Invalid port number '%s'\n", val);
@@ -1762,6 +2282,9 @@ int init_manager(void)
 
 	if ((val = ast_variable_retrieve(cfg, "general", "timestampevents")))
 		timestampevents = ast_true(val);
+
+	if ((val = ast_variable_retrieve(cfg, "general", "httptimeout")))
+		newhttptimeout = atoi(val);
 	
 	ba.sin_family = AF_INET;
 	ba.sin_port = htons(portno);
@@ -1784,6 +2307,25 @@ int init_manager(void)
 #endif
 	}
 	ast_config_destroy(cfg);
+	
+	if (webenabled && enabled) {
+		if (!webregged) {
+			ast_http_uri_link(&rawmanuri);
+			ast_http_uri_link(&manageruri);
+			ast_http_uri_link(&managerxmluri);
+			webregged = 1;
+		}
+	} else {
+		if (webregged) {
+			ast_http_uri_unlink(&rawmanuri);
+			ast_http_uri_unlink(&manageruri);
+			ast_http_uri_unlink(&managerxmluri);
+			webregged = 0;
+		}
+	}
+
+	if (newhttptimeout > 0)
+		httptimeout = newhttptimeout;
 	
 	/* If not enabled, do nothing */
 	if (!enabled) {
@@ -1808,6 +2350,8 @@ int init_manager(void)
 			asock = -1;
 			return -1;
 		}
+		flags = fcntl(asock, F_GETFL);
+		fcntl(asock, F_SETFL, flags | O_NONBLOCK);
 		if (option_verbose)
 			ast_verbose("Asterisk Management interface listening on port %d\n", portno);
 		ast_pthread_create(&t, NULL, accept_thread, NULL);
