@@ -608,7 +608,6 @@ pthread_t id;
 /* Debug mode */
 static int rpt_do_debug(int fd, int argc, char *argv[]);
 static int rpt_do_dump(int fd, int argc, char *argv[]);
-static int rpt_do_frog(int fd, int argc, char *argv[]);
 
 static char debug_usage[] =
 "Usage: rpt debug level {0-7}\n"
@@ -618,10 +617,6 @@ static char dump_usage[] =
 "Usage: rpt dump <nodename>\n"
 "       Dumps struct debug info to log\n";
 
-static char frog_usage[] =
-"Usage: frog [warp_factor]\n"
-"       Performs frog-in-a-blender calculations (Jacobsen Corollary)\n";
-
 static struct ast_cli_entry  cli_debug =
         { { "rpt", "debug", "level" }, rpt_do_debug, 
 		"Enable app_rpt debugging", debug_usage };
@@ -629,10 +624,6 @@ static struct ast_cli_entry  cli_debug =
 static struct ast_cli_entry  cli_dump =
         { { "rpt", "dump" }, rpt_do_dump,
 		"Dump app_rpt structs for debugging", dump_usage };
-
-static struct ast_cli_entry  cli_frog =
-        { { "frog" }, rpt_do_frog,
-		"Perform frog-in-a-blender calculations", frog_usage };
 
 /*
 * Telemetry defaults
@@ -777,26 +768,6 @@ static int rpt_do_dump(int fd, int argc, char *argv[])
 		        return RESULT_SUCCESS;
 		}
 	}
-	return RESULT_FAILURE;
-}
-
-/*
-* Perform frong-in-a-blender calculations (Jacobsen Corollary) 
-*/
-                                                                                                                                 
-static int rpt_do_frog(int fd, int argc, char *argv[])
-{
-	double warpone = 75139293848.398696166028333356763;
-	double warpfactor = 1.0;
-
-        if (argc > 2) return RESULT_SHOWUSAGE;
-	if ((argc > 1) && (sscanf(argv[1],"%lf",&warpfactor) != 1))
-                return RESULT_SHOWUSAGE;
-
-        ast_cli(fd, "A frog in a blender with a base diameter of 3 inches going\n");
-        ast_cli(fd, "%lf RPM will be travelling at warp factor %lf,\n",
-		warpfactor * warpfactor * warpfactor * warpone,warpfactor);
-	ast_cli(fd,"based upon the Jacobsen Frog Corollary.\n");
 	return RESULT_FAILURE;
 }
 
@@ -7066,7 +7037,6 @@ int unload_module(void)
 	/* Unregister cli extensions */
 	ast_cli_unregister(&cli_debug);
 	ast_cli_unregister(&cli_dump);
-	ast_cli_unregister(&cli_frog);
 
 	return i;
 }
@@ -7078,7 +7048,6 @@ int load_module(void)
 	/* Register cli extensions */
 	ast_cli_register(&cli_debug);
 	ast_cli_register(&cli_dump);
-	ast_cli_register(&cli_frog);
 
 	return ast_register_application(app, rpt_exec, synopsis, descrip);
 }
