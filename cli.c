@@ -133,6 +133,10 @@ static char group_show_channels_help[] =
 "       Optional regular expression pattern is matched to group names for each\n"
 "       channel.\n";
 
+static char frog_help[] =
+"Usage: frog [warp_factor]\n"
+"       Performs frog-in-a-blender calculations (Jacobsen Corollary)\n";
+
 static int handle_load(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
@@ -244,6 +248,27 @@ static int handle_unload(int fd, int argc, char *argv[])
 	}
 	return RESULT_SUCCESS;
 }
+
+/*
+* Perform frong-in-a-blender calculations (Jacobsen Corollary) 
+*/
+                                                                                                                                 
+static int handle_frog(int fd, int argc, char *argv[])
+{
+	double warpone = 75139293848.0;
+	double warpfactor = 1.0;
+
+        if (argc > 2) return RESULT_SHOWUSAGE;
+	if ((argc > 1) && (sscanf(argv[1],"%lf",&warpfactor) != 1))
+                return RESULT_SHOWUSAGE;
+
+        ast_cli(fd, "A frog in a blender with a base diameter of 3 inches going\n");
+        ast_cli(fd, "%.0lf RPM will be travelling at warp factor %lf,\n",
+		warpfactor * warpfactor * warpfactor * warpone,warpfactor);
+	ast_cli(fd,"based upon the Jacobsen Frog Corollary.\n");
+	return RESULT_SUCCESS;
+}
+
 
 #define MODLIST_FORMAT  "%-30s %-40.40s %-10d\n"
 #define MODLIST_FORMAT2 "%-30s %-40.40s %-10s\n"
@@ -900,6 +925,7 @@ static struct ast_cli_entry builtins[] = {
 	{ { "_command", "matchesarray", NULL }, handle_commandmatchesarray, "Returns command matches array", commandmatchesarray_help },
 	{ { "debug", "channel", NULL }, handle_debugchan, "Enable debugging on a channel", debugchan_help, complete_ch_3 },
 	{ { "debug", "level", NULL }, handle_debuglevel, "Set global debug level", debuglevel_help },
+	{ { "frog", NULL }, handle_frog,"Perform frog-in-a-blender calculations", frog_help },
 	{ { "group", "show", "channels", NULL }, group_show_channels, "Show active channels with group(s)", group_show_channels_help},
 	{ { "help", NULL }, handle_help, "Display help list, or specific help on a command", help_help, complete_help },
 	{ { "load", NULL }, handle_load, "Load a dynamic module by name", load_help, complete_fn },
