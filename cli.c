@@ -258,12 +258,13 @@ static int handle_frog(int fd, int argc, char *argv[])
 	double warpone = 75139293848.0;
 	double warpfactor = 1.0;
 
-        if (argc > 2) return RESULT_SHOWUSAGE;
-	if ((argc > 1) && (sscanf(argv[1],"%lf",&warpfactor) != 1))
+        if (argc > 2)
+		return RESULT_SHOWUSAGE;
+	if (argc > 1 && sscanf(argv[1],"%lf",&warpfactor) != 1)
                 return RESULT_SHOWUSAGE;
 
         ast_cli(fd, "A frog in a blender with a base diameter of 3 inches going\n");
-        ast_cli(fd, "%.0lf RPM will be travelling at warp factor %lf,\n",
+        ast_cli(fd, "%.0f RPM will be travelling at warp factor %f,\n",
 		warpfactor * warpfactor * warpfactor * warpone,warpfactor);
 	ast_cli(fd,"based upon the Jacobsen Frog Corollary.\n");
 	return RESULT_SUCCESS;
