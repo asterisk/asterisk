@@ -872,8 +872,8 @@ static int action_waitevent(struct mansession *s, struct message *m)
 	}
 	ast_mutex_unlock(&s->__lock);
 	s->waiting_thread = pthread_self();
-
-	ast_log(LOG_DEBUG, "Starting waiting for an event!\n");
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Starting waiting for an event!\n");
 	for (x=0;((x<timeout) || (timeout < 0)); x++) {
 		ast_mutex_lock(&s->__lock);
 		if (s->eventq)
@@ -892,7 +892,8 @@ static int action_waitevent(struct mansession *s, struct message *m)
 			sleep(1);
 		}
 	}
-	ast_log(LOG_DEBUG, "Finished waiting for an event!\n");
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Finished waiting for an event!\n");
 	ast_mutex_lock(&s->__lock);
 	if (s->waiting_thread == pthread_self()) {
 		astman_send_response(s, m, "Success", "Waiting for Event...");
