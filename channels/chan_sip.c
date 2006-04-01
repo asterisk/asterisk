@@ -10985,6 +10985,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	char *event = get_header(req, "Event");	/* Get Event package name */
 	char *accept = get_header(req, "Accept");
 	char *eventparam;
+	int resubscribe = (p->subscribed != NONE);
 
 	if (p->initreq.headers) {	
 		/* We already have a dialog */
@@ -10996,7 +10997,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			ast_log(LOG_DEBUG, "Got a subscription within the context of another call, can't handle that - %s (Method %s)\n", p->callid, sip_methods[p->initreq.method].text);
 			return 0;
 		} else if (debug) {
-			if (p->subscribed != NONE)
+			if (resubscribe)
 				ast_log(LOG_DEBUG, "Got a re-subscribe on existing subscription %s\n", p->callid);
 			else
 				ast_log(LOG_DEBUG, "Got a new subscription %s (possibly with auth)\n", p->callid);
@@ -11109,7 +11110,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
  			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			return 0;
 		}
-		if (p->subscribed != MWI_NOTIFICATION)
+		if (p->subscribed != MWI_NOTIFICATION && !resubscribe)
 			p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
 	}
 
