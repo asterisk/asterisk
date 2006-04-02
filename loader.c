@@ -375,18 +375,18 @@ static int fixup(const char *caller)
 		/* print some debugging info for new modules */
 		if (m->state == MS_NEW &&
 		    (m->cb.exported_symbols || m->cb.required_symbols))
-			ast_log(LOG_WARNING,
+			ast_log(LOG_NOTICE,
 			    "module %-30s exports %p requires %p state %s(%d)\n",
 				m->resource, m->cb.exported_symbols,
 				m->cb.required_symbols,
 				st_name(m->state), m->state);
 	}
-	ast_log(LOG_WARNING, "---- fixup (%s): %d modules, %d new ---\n",
+	ast_log(LOG_DEBUG, "---- fixup (%s): %d modules, %d new ---\n",
 		caller, total, new);
 	for (;;cycle++) {
 		int again = 0;	/* set if we need another round */
 		
-		ast_log(LOG_WARNING, "---- fixup: cycle %d ---\n", cycle);
+		ast_log(LOG_DEBUG, "---- fixup: cycle %d ---\n", cycle);
 		AST_LIST_TRAVERSE(&module_list, m, next) {
 			if (resolve(m))
 				again = 1;	/* something changed */
@@ -417,7 +417,7 @@ static int fixup(const char *caller)
 		if (!again)	/* we are done */
 			break;
 	}
-	ast_log(LOG_WARNING, "---- fixup complete ---\n");
+	ast_log(LOG_DEBUG, "---- fixup complete ---\n");
 	in_fixup--;
 	return 0;
 }
