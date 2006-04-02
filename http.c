@@ -49,7 +49,7 @@
 #include "asterisk/config.h"
 
 #define MAX_PREFIX 80
-#define DEFAULT_PREFIX "asterisk"
+#define DEFAULT_PREFIX "/asterisk"
 
 struct ast_http_server_instance {
 	FILE *f;
@@ -455,6 +455,8 @@ static void *http_root(void *data)
 	int sinlen;
 	struct ast_http_server_instance *ser;
 	pthread_t launched;
+	pthread_attr_t attr;
+	
 	for (;;) {
 		ast_wait_for_input(httpfd, -1);
 		sinlen = sizeof(sin);
@@ -469,7 +471,10 @@ static void *http_root(void *data)
 			ser->fd = fd;
 			memcpy(&ser->requestor, &sin, sizeof(ser->requestor));
 			if ((ser->f = fdopen(ser->fd, "w+"))) {
-				if (ast_pthread_create(&launched, NULL, ast_httpd_helper_thread, ser)) {
+				pthread_attr_init(&attr);
+				pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+				
+				if (ast_pthread_create(&launched, &attr, ast_httpd_helper_thread, ser)) {
 					ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
 					fclose(ser->f);
 					free(ser);
