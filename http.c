@@ -278,8 +278,6 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 	struct ast_variable *vars=NULL, *v, *prev = NULL;
 	
 	
-	if (*uri == '/')
-		uri++;
 	params = strchr(uri, '?');
 	if (params) {
 		*params = '\0';
@@ -334,6 +332,11 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 	if (urih) {
 		c = urih->callback(sin, uri, vars, status, title, contentlength);
 		ast_variables_destroy(vars);
+	} else if (ast_strlen_zero(uri) && ast_strlen_zero(prefix)) {
+		/* Special case: If no prefix, and no URI, send to /static/index.html */
+		c = ast_http_error(302, "Moved Temporarily", "Location: /static/index.html\r\n", "This is not the page you are looking for...");
+		*status = 302;
+		*title = strdup("Moved Temporarily");
 	} else {
 		c = ast_http_error(404, "Not Found", NULL, "The requested URL was not found on this serer.");
 		*status = 404;
@@ -586,8 +589,15 @@ static int __ast_http_load(int reload)
 				} else {
 					ast_log(LOG_WARNING, "Invalid bind address '%s'\n", v->value);
 				}
-			} else if (!strcasecmp(v->name, "prefix"))
-				ast_copy_string(newprefix, v->value, sizeof(newprefix));
+			} else if (!strcasecmp(v->name, "prefix")) {
+				if (!ast_strlen_zero(v->value)) {
+					newprefix[0] = '/';
+					ast_copy_string(newprefix + 1, v->value, sizeof(newprefix) - 1);
+				} else {
+					newprefix[0] = '\0';
+				}
+					
+			}
 			v = v->next;
 		}
 		ast_config_destroy(cfg);
@@ -620,7 +630,7 @@ static int handle_show_http(int fd, int argc, char *argv[])
 	ast_cli(fd, "Enabled URI's:\n");
 	urih = uris;
 	while(urih){
-		ast_cli(fd, "/%s/%s%s => %s\n", prefix, urih->uri, (urih->has_subtree ? "/..." : "" ), urih->description);
+		ast_cli(fd, "%s/%s%s => %s\n", prefix, urih->uri, (urih->has_subtree ? "/..." : "" ), urih->description);
 		urih = urih->next;
 	}
 	if (!uris)
