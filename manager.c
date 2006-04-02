@@ -540,7 +540,7 @@ static void unuse_eventqent(struct eventqent *e)
 	int val;
 	ast_mutex_lock(&e->lock);
 	e->usecount--;
-	val = e->usecount && e->next;
+	val = !e->usecount && e->next;
 	ast_mutex_unlock(&e->lock);
 	/* Wake up sleeping beauty */
 	if (val)
