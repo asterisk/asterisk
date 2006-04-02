@@ -59,11 +59,6 @@
 #define AST_MAX_MANHEADERS 80
 #define AST_MAX_MANHEADER_LEN 256
 
-struct eventqent {
-	struct eventqent *next;
-	char eventdata[1];
-};
-
 struct mansession;
 
 struct message {
