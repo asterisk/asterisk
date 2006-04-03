@@ -5066,12 +5066,16 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	
 	ast_string_field_set(p, uri, invite_buf);
 
-	/* If there is a VXML URL append it to the SIP URL */
-	if (p->options && p->options->vxml_url) {
+	if (sipmethod == SIP_NOTIFY && !ast_strlen_zero(p->theirtag)) { 
+		/* If this is a NOTIFY, use the From: tag in the subscribe (RFC 3265) */
+		snprintf(to, sizeof(to), "<sip:%s>;tag=%s", p->uri, p->theirtag);
+	} else if (p->options && p->options->vxml_url) {
+		/* If there is a VXML URL append it to the SIP URL */
 		snprintf(to, sizeof(to), "<%s>;%s", p->uri, p->options->vxml_url);
 	} else {
 		snprintf(to, sizeof(to), "<%s>", p->uri);
 	}
+	
 	memset(req, 0, sizeof(struct sip_request));
 	init_req(req, sipmethod, p->uri);
 	snprintf(tmp, sizeof(tmp), "%d %s", ++p->ocseq, sip_methods[sipmethod].text);
