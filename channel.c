@@ -333,7 +333,7 @@ void ast_begin_shutdown(int hangup)
 	shutting_down = 1;
 	if (hangup) {
 		AST_LIST_LOCK(&channels);
-		AST_LIST_TRAVERSE(&channels, c, list)
+		AST_LIST_TRAVERSE(&channels, c, chan_list)
 			ast_softhangup(c, AST_SOFTHANGUP_SHUTDOWN);
 		AST_LIST_UNLOCK(&channels);
 	}
@@ -345,7 +345,7 @@ int ast_active_channels(void)
 	struct ast_channel *c;
 	int cnt = 0;
 	AST_LIST_LOCK(&channels);
-	AST_LIST_TRAVERSE(&channels, c, list)
+	AST_LIST_TRAVERSE(&channels, c, chan_list)
 		cnt++;
 	AST_LIST_UNLOCK(&channels);
 	return cnt;
@@ -682,7 +682,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	tmp->tech = &null_tech;
 
 	AST_LIST_LOCK(&channels);
-	AST_LIST_INSERT_HEAD(&channels, tmp, list);
+	AST_LIST_INSERT_HEAD(&channels, tmp, chan_list);
 	AST_LIST_UNLOCK(&channels);
 	return tmp;
 }
@@ -816,7 +816,7 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 
 	for (retries = 0; retries < 10; retries++) {
 		AST_LIST_LOCK(&channels);
-		AST_LIST_TRAVERSE(&channels, c, list) {
+		AST_LIST_TRAVERSE(&channels, c, chan_list) {
 			if (!prev) {
 				/* want head of list */
 				if (!name && !exten)
@@ -845,7 +845,7 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 						break;
 				}
 			} else if (c == prev) { /* found, return c->next */
-				c = AST_LIST_NEXT(c, list);
+				c = AST_LIST_NEXT(c, chan_list);
 				break;
 			}
 		}
@@ -952,7 +952,7 @@ void ast_channel_free(struct ast_channel *chan)
 	headp=&chan->varshead;
 	
 	AST_LIST_LOCK(&channels);
-	AST_LIST_REMOVE(&channels, chan, list);
+	AST_LIST_REMOVE(&channels, chan, chan_list);
 	/* Lock and unlock the channel just to be sure nobody
 	   has it locked still */
 	ast_mutex_lock(&chan->lock);
