@@ -121,6 +121,7 @@ function Astman() {
 		var s, x;
 		var cclass, count=0;
 		var found = 0;
+		var foundactive = 0;
 		var fieldlist = new Array("channel", "callerid", "calleridname", "context", "extension", "priority");
 
 		me.chancallback = callback;
@@ -133,8 +134,10 @@ function Astman() {
 					cclass = "chanlistodd";
 				else
 					cclass = "chanlisteven";
-				if (me.selecttarget && (me.selecttarget == x))
+				if (me.selecttarget && (me.selecttarget == x)) {
 					cclass = "chanlistselected";
+					foundactive = 1;
+				}
 				count++;
 				s = s + "\t<tr class='" + cclass + "' id='" + channels[x].channel + "' onClick='astmanEngine.clickChannel(event)'>";
 				s = s + "<td>" + channels[x].channel + "</td>";
@@ -169,6 +172,9 @@ function Astman() {
 		if (!found)
 			s += "<tr><td colspan=" + fieldlist.length + "><i class='light'>No active channels</i></td>\n";
 		s += "</table>\n";
+		if (!foundactive) {
+			me.selecttarget = null;
+		}
 		return s;
 	};
 	this.parseResponse = function(t, callback) {

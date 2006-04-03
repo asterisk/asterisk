@@ -49,10 +49,14 @@
 			selectedchan = null;
 		}
 		if (loggedon) {
+			$('username').disabled = 1;
+			$('secret').disabled = 1;
 			$('logoff').disabled = 0;
 			$('login').disabled = 1;
 			$('refresh').disabled = 0;
 		} else {
+			$('username').disabled = 0;
+			$('secret').disabled = 0;
 			$('logoff').disabled = 1;
 			$('login').disabled = 0;
 			$('refresh').disabled = 1;
