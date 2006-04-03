@@ -11084,7 +11084,15 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
  				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
  				return 0;
  			}
- 		} else if (!strcmp(event, "message-summary") && !strcmp(accept, "application/simple-message-summary")) {
+ 		} else if (!strcmp(event, "message-summary")) { 
+			if (!ast_strlen_zero(accept) && strcmp(accept, "application/simple-message-summary")) {
+				/* Format requested that we do not support */
+				transmit_response(p, "406 Not Acceptable", req);
+				if (option_debug > 1)
+					ast_log(LOG_DEBUG, "Received SIP mailbox subscription for unknown format: %s\n", accept);
+ 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+				return 0;
+			}
 			/* Looks like they actually want a mailbox status 
 			  This version of Asterisk supports mailbox subscriptions
 			  The subscribed URI needs to exist in the dial plan
