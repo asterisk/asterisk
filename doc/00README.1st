@@ -14,6 +14,7 @@ Configuration
 configuration.txt	Features in the configuration parser
 extensions.txt		Basics about the dialplan
 extconfig.txt		How to use databases for configuration of Asterisk (ARA)
+ip-tos.txt		About the IP Type Of Service settings
 realtime.txt		The Asterisk Realtime Architecture - database support
 freetds.txt		Information about the FreeTDS support
 ael.txt			Information about the Asterisk Extension Language
@@ -21,6 +22,7 @@ ael.txt			Information about the Asterisk Extension Language
 Misc
 ----
 PEERING			The General Peering Agreement for Dundi
+ajam.txt		About the HTTP-based manager interface
 app_sms.txt		How to configure the SMS application
 asterisk.conf.txt	Documentation of various options in asterisk.conf
 callingpres.txt		Settings for Caller ID presentation
