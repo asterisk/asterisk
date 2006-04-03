@@ -228,8 +228,16 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \verbinclude mgcp.conf.sample
  */
 
+/*! \page README_misdn MISDN documentation
+ * \arg See \ref Config_misdn
+ * \section mISDN configuration
+ * \verbinclude misdn.txt
+ */
+
 /*! \page Config_misdn MISDN configuration
  * \arg Implemented in \ref chan_misdn.c
+ * \arg \ref README_misdn
+ * \arg See the mISDN home page: http://www.isdn4linux.de/mISDN/
  * \section misdnconf misdn.conf
  * \verbinclude misdn.conf.sample
  */
