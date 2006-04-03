@@ -4,7 +4,9 @@
 
 [general]
 parkext => 700			; What extension to dial to park
-parkpos => 701-720		; What extensions to park calls on
+parkpos => 701-720		; What extensions to park calls on. These needs to be
+				; numeric, as Asterisk starts from the start position
+				; and increments with one for the next parked call.
 context => parkedcalls		; Which context parked calls are in
 ;parkingtime => 45		; Number of seconds a call can be parked for 
 				; (default is 45 seconds)
@@ -14,7 +16,8 @@ context => parkedcalls		; Which context parked calls are in
 ;xfersound = beep		; to indicate an attended transfer is complete
 ;xferfailsound = beeperr	; to indicate a failed transfer
 ;adsipark = yes			; if you want ADSI parking announcements
-;findslot => next		; Continue to the 'next' parking space. Defaults to 'first' available
+;findslot => next		; Continue to the 'next' free parking space. 
+				; Defaults to 'first' available
 ;pickupexten = *8		; Configure the pickup extension.  Default is *8
 ;featuredigittimeout = 500	; Max time (ms) between digits for 
 				; feature activation.  Default is 500
