@@ -23,18 +23,25 @@
 
 #define MAX_BCHANS 30
 
-enum bc_state_e {
-	STATE_NOTHING=0,
-	STATE_NULL,
-	STATE_CALL_INIT,
-	STATE_CONNECTED,
-	STATE_HOLD_ACKNOWLEDGE
+enum bchannel_state {
+	BCHAN_CLEANED=0,
+	BCHAN_EMPTY,
+	BCHAN_SETUP,
+	BCHAN_SETUPED,
+	BCHAN_ACTIVE,
+	BCHAN_ACTIVATED,
+	BCHAN_BRIDGE,
+	BCHAN_BRIDGED,
+	BCHAN_RELEASE,
+	BCHAN_RELEASED,
+	BCHAN_CLEAN,
+	BCHAN_ERROR
 };
+
 
 enum misdn_err_e {
 	ENOCHAN=1
 };
-
 
 
 enum mISDN_NUMBER_PLAN {
@@ -52,7 +59,6 @@ enum event_response_e {
 	RESPONSE_ERR,
 	RESPONSE_OK
 };
-
 
 
 enum event_e {
@@ -243,11 +249,16 @@ struct misdn_bchannel {
 
 	int generate_tone;
 	int tone_cnt;
-  
-	enum bc_state_e state;
+ 
+	enum bchannel_state bc_state;
+	enum bchannel_state next_bc_state;
 
+	int conf_id;
+	
 	int holded;
 	int stack_holder;
+
+	struct misdn_bchannel *holded_bc;
 	
 	int pres;
 	int screen;
@@ -389,5 +400,12 @@ int misdn_lib_is_ptp(int port);
 #define PRI_TRANS_CAP_RESTRICTED_DIGITAL                        0x09
 #define PRI_TRANS_CAP_3_1K_AUDIO                                0x10
 #define PRI_TRANS_CAP_7K_AUDIO                                  0x11
+
+
+
+char *bc_state2str(enum bchannel_state state);
+void bc_state_change(struct misdn_bchannel *bc, enum bchannel_state state);
+
+
 
 #endif

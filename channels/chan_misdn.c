@@ -668,6 +668,7 @@ static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel
 			"  --> bc_l3id: %x\n"
 			"  --> display: %s\n"
 			"  --> activated: %d\n"
+			"  --> state: %s\n"
 			"  --> capability: %s\n"
 			"  --> echo_cancel: %d\n"
 			"  --> notone : rx %d tx:%d\n"
@@ -680,6 +681,7 @@ static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel
 			bc->display,
 			
 			bc->active,
+			bc_state2str(bc->bc_state),
 			bearer2str(bc->capability),
 			bc->ec_enable,
 			help->norxtone,help->notxtone,
@@ -2032,6 +2034,14 @@ static struct ast_frame  *misdn_read(struct ast_channel *ast)
 	
 	len = misdn_ibuf_usedcount(tmp->bc->astbuf);
 
+	if (!len) {
+		chan_misdn_log(4,tmp->bc->port,"misdn_read: ZERO READ\n");
+
+		tmp->frame.frametype = AST_FRAME_NULL;
+		tmp->frame.subclass = 0;
+		return &tmp->frame;
+	}
+
 	/*shrinken len if necessary, we transmit at maximum 4k*/
 	len = len<=sizeof(tmp->ast_rd_buf)?len:sizeof(tmp->ast_rd_buf);
 	
@@ -2080,7 +2090,7 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 
 
 	if ( !frame->subclass) {
-		chan_misdn_log(2, ch->bc->port, "misdn_write: * prods us\n");
+		chan_misdn_log(4, ch->bc->port, "misdn_write: * prods us\n");
 		return 0;
 	}
 	
@@ -2090,6 +2100,16 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 		return -1;
 	}
 	
+
+	if ( !frame->samples ) {
+		chan_misdn_log(4, ch->bc->port, "misdn_write: zero write\n");
+		return 0;
+	}
+
+	if ( ! ch->bc->addr ) {
+		chan_misdn_log(4, ch->bc->port, "misdn_write: no addr for bc dropping:%d\n", frame->samples);
+		return 0;
+	}
 	
 #if MISDN_DEBUG
 	{
@@ -2102,9 +2122,13 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 #endif
 
-	
-	if (!ch->bc->active) {
-		chan_misdn_log(5, ch->bc->port, "BC not active droping: %d frames\n",frame->samples);
+
+	switch (ch->bc->bc_state) {
+		case BCHAN_ACTIVATED:
+		case BCHAN_BRIDGED:
+			break;
+		default:
+		chan_misdn_log(5, ch->bc->port, "BC not active (nor bridged) droping: %d frames addr:%x\n",frame->samples,ch->bc->addr);
 		return 0;
 	}
 	
@@ -2166,13 +2190,13 @@ enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 		if ( !ecwb ) {
 			chan_misdn_log(2, ch1->bc->port, "Disabling Echo Cancellor when Bridged\n");
 			ch1->bc->ec_enable=0;
-			manager_ec_disable(ch1->bc);
+		/*	manager_ec_disable(ch1->bc); */
 		}
 		misdn_cfg_get( ch2->bc->port, MISDN_CFG_ECHOCANCELWHENBRIDGED, &ecwb, sizeof(int));
 		if ( !ecwb ) {
 			chan_misdn_log(2, ch2->bc->port, "Disabling Echo Cancellor when Bridged\n");
 			ch2->bc->ec_enable=0;
-			manager_ec_disable(ch2->bc);
+		/*	manager_ec_disable(ch2->bc); */
 		}
 		
 		/* trying to make a mISDN_dsp conference */
@@ -2707,7 +2731,7 @@ static struct chan_list *find_chan_by_l3id(struct chan_list *list, unsigned long
 		if (help->l3id == l3id ) return help;
 	}
   
-	chan_misdn_log(4, list? (list->bc? list->bc->port : 0) : 0, "$$$ find_chan: No channel found with l3id:%x\n",l3id);
+	chan_misdn_log(6, list? (list->bc? list->bc->port : 0) : 0, "$$$ find_chan: No channel found with l3id:%x\n",l3id);
   
 	return NULL;
 }
@@ -2719,7 +2743,7 @@ static struct chan_list *find_chan_by_bc(struct chan_list *list, struct misdn_bc
 		if (help->bc == bc) return help;
 	}
   
-	chan_misdn_log(4, bc->port, "$$$ find_chan: No channel found for oad:%s dad:%s\n",bc->oad,bc->dad);
+	chan_misdn_log(6, bc->port, "$$$ find_chan: No channel found for oad:%s dad:%s\n",bc->oad,bc->dad);
   
 	return NULL;
 }
@@ -2729,14 +2753,14 @@ static struct chan_list *find_holded(struct chan_list *list, struct misdn_bchann
 {
 	struct chan_list *help=list;
 	
-	chan_misdn_log(4, bc->port, "$$$ find_holded: channel:%d oad:%s dad:%s\n",bc->channel, bc->oad,bc->dad);
+	chan_misdn_log(6, bc->port, "$$$ find_holded: channel:%d oad:%s dad:%s\n",bc->channel, bc->oad,bc->dad);
 	for (;help; help=help->next) {
 		chan_misdn_log(4, bc->port, "$$$ find_holded: --> holded:%d channel:%d\n",help->bc->holded, help->bc->channel);
 		if (help->bc->port == bc->port
 		    && help->bc->holded ) return help;
 	}
 	
-	chan_misdn_log(4, bc->port, "$$$ find_chan: No channel found for oad:%s dad:%s\n",bc->oad,bc->dad);
+	chan_misdn_log(6, bc->port, "$$$ find_chan: No channel found for oad:%s dad:%s\n",bc->oad,bc->dad);
   
 	return NULL;
 }
@@ -3068,6 +3092,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	if (event != EVENT_BCHAN_DATA && event != EVENT_TONE_GENERATE) { /*  Debug Only Non-Bchan */
 		chan_misdn_log(1, bc->port, "I IND :%s oad:%s dad:%s\n", manager_isdn_get_info(event), bc->oad, bc->dad);
 		misdn_lib_log_ies(bc);
+		chan_misdn_log(2,bc->port," --> bc_state:%s\n",bc_state2str(bc->bc_state));
 	}
 	
 	if (event != EVENT_SETUP) {
@@ -3468,8 +3493,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		misdn_lib_send_event(bc,EVENT_CONNECT_ACKNOWLEDGE);
 	case EVENT_CONNECT_ACKNOWLEDGE:
 	{
-		bc->state=STATE_CONNECTED;
-		
 		ch->l3id=bc->l3_id;
 		ch->addr=bc->addr;
 		
@@ -3592,8 +3615,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		} else {
 			int len=bc->bframe_len;
 			int free=misdn_ibuf_freecount(bc->astbuf);
-			
-			
+		
 			if (bc->bframe_len > free) {
 				ast_log(LOG_DEBUG, "sbuf overflow!\n");
 				len=misdn_ibuf_freecount(bc->astbuf);
@@ -3693,13 +3715,17 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 		}
 #endif
+		struct ast_channel *bridged=AST_BRIDGED_P(ch->ast);
 		
-		if (AST_BRIDGED_P(ch->ast)){
+		if (bridged){
+			struct chan_list *bridged_ch=MISDN_ASTERISK_TECH_PVT(bridged);
 			ch->state = MISDN_HOLDED;
 			ch->l3id = bc->l3_id;
 			
-			ast_moh_start(AST_BRIDGED_P(ch->ast), NULL);
+			bc->holded_bc=bridged_ch->bc;
 			misdn_lib_send_event(bc, EVENT_HOLD_ACKNOWLEDGE);
+
+			ast_moh_start(bridged, NULL);
 		} else {
 			misdn_lib_send_event(bc, EVENT_HOLD_REJECT);
 			chan_misdn_log(0, bc->port, "We aren't bridged to anybody\n");
@@ -3729,9 +3755,13 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 		break;
 		default:
-			chan_misdn_log(1,bc->port," --> not yet handled\n");
+			chan_misdn_log(1, bc->port," --> not yet handled\n");
 		}
 		
+		break;
+
+
+	case EVENT_RESTART:
 		break;
 				
 	default:

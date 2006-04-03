@@ -14,6 +14,11 @@
 #include "isdn_lib_intern.h"
 #include <mISDNuser/isdn_debug.h>
 
+
+void misdn_join_conf(struct misdn_bchannel *bc, int conf_id);
+void misdn_split_conf(struct misdn_bchannel *bc, int conf_id);
+
+
 void misdn_free_ibuffer(void *ibuf)
 {
 	free_ibuffer((ibuffer_t*)ibuf);
@@ -389,7 +394,7 @@ void dump_chan_list(struct misdn_stack *stack)
 	int i;
 
 	for (i=0; i <stack->b_num; i++) {
-		cb_log(5, stack->port, "Idx:%d stack->cchan:%d Chan:%d\n",i,stack->channels[i], i+1);
+		cb_log(8, stack->port, "Idx:%d stack->cchan:%d Chan:%d\n",i,stack->channels[i], i+1);
 	}
 }
 
@@ -431,15 +436,71 @@ int empty_chan_in_stack(struct misdn_stack *stack, int channel)
 	return 0;
 }
 
+char *bc_state2str(enum bchannel_state state) {
+	int i;
+	
+	struct bchan_state_s {
+		char *n;
+		enum bchannel_state s;
+	} states[] = {
+		{"BCHAN_CLEANED", BCHAN_CLEANED },
+		{"BCHAN_EMPTY", BCHAN_EMPTY},
+		{"BCHAN_SETUP", BCHAN_SETUP},
+		{"BCHAN_SETUPED", BCHAN_SETUPED},
+		{"BCHAN_ACTIVE", BCHAN_ACTIVE},
+		{"BCHAN_ACTIVATED", BCHAN_ACTIVATED},
+		{"BCHAN_BRIDGE",  BCHAN_BRIDGE},
+		{"BCHAN_BRIDGED", BCHAN_BRIDGED},
+		{"BCHAN_RELEASE", BCHAN_RELEASE},
+		{"BCHAN_RELEASED", BCHAN_RELEASED},
+		{"BCHAN_CLEAN", BCHAN_CLEAN},
+		{"BCHAN_ERROR", BCHAN_ERROR}
+	};
+	
+	for (i=0; i< sizeof(states)/sizeof(struct bchan_state_s); i++)
+		if ( states[i].s == state)
+			return states[i].n;
+
+	return "UNKNOWN";
+}
+
+void bc_state_change(struct misdn_bchannel *bc, enum bchannel_state state)
+{
+	cb_log(3,bc->port,"BC_STATE_CHANGE: from:%s to:%s\n",
+	       bc_state2str(bc->bc_state),
+	       bc_state2str(state) );
+	
+	switch (state) {
+		case BCHAN_ACTIVATED:
+			if (bc->next_bc_state ==  BCHAN_BRIDGED) {
+				misdn_join_conf(bc, bc->conf_id);
+				bc->next_bc_state = BCHAN_EMPTY;
+				return;
+			}
+		default:
+			bc->bc_state=state;
+			break;
+	}
+}
+
+void bc_next_state_change(struct misdn_bchannel *bc, enum bchannel_state state)
+{
+	cb_log(3,bc->port,"BC_NEXT_STATE_CHANGE: from:%s to:%s\n",
+	       bc_state2str(bc->next_bc_state),
+	       bc_state2str(state) );
+
+	bc->next_bc_state=state;
+}
+
 
 void empty_bc(struct misdn_bchannel *bc)
 {
 	bc->bframe_len=0;
-
-	bc->state=STATE_NOTHING;
 	
 	bc->channel = 0;
 	bc->in_use = 0;
+
+	bc->conf_id = 0;
 
 	bc->need_more_infos = 0;
 	
@@ -510,6 +571,11 @@ void empty_bc(struct misdn_bchannel *bc)
 	bc->fac_type=FACILITY_NONE;
 	
 	bc->te_choose_channel = 0;
+
+	bc->holded_bc=NULL;
+	
+	bc_state_change(bc,BCHAN_EMPTY);
+	bc_next_state_change(bc,BCHAN_EMPTY);
 }
 
 
@@ -518,43 +584,44 @@ int clean_up_bc(struct misdn_bchannel *bc)
 	int ret=0;
 	unsigned char buff[32];
 	struct misdn_stack * stack;
+
+	cb_log(2, 0, "$$$ CLEANUP CALLED\n");
 	
 	if (!bc  ) return -1;
 	stack=get_stack_by_bc(bc);
+	
 	if (!stack) return -1;
 	
-	if (!bc->upset) {
+	switch (bc->bc_state ) {
+		
+	case BCHAN_CLEANED:
 		cb_log(5, stack->port, "$$$ Already cleaned up bc with stid :%x\n", bc->b_stid);
 		return -1;
-	}
-
-	if (bc->active) {
+		
+	case BCHAN_ACTIVATED:
 		cb_log(2, stack->port, "$$$ bc still active, deactivatiing .. stid :%x\n", bc->b_stid);
 		manager_bchannel_deactivate(bc);
+		break;
+		
+	case BCHAN_BRIDGED:
+		cb_log(2, stack->port, "$$$ bc still bridged\n");
+	default:
+		break;
 	}
 	
 	cb_log(5, stack->port, "$$$ Cleaning up bc with stid :%x\n", bc->b_stid);
-	
 	
 	if ( misdn_cap_is_speech(bc->capability) && bc->ec_enable) {
 		manager_ec_disable(bc);
 	}
 
+	cb_log(2, stack->port, "$$$ CLEARING STACK\n");
+	/*mISDN_clear_stack(stack->midev,bc->b_stid);*/
+	
 	mISDN_write_frame(stack->midev, buff, bc->addr|FLG_MSG_DOWN, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
 	
-
-#ifdef ACK_HDLC	
-	if (bc->ack_hdlc ) {
-		free(bc->ack_hdlc);
-		bc->ack_hdlc=NULL;
-	}
-#endif
-	
-	
 	bc->b_stid = 0;
-	
-	bc->upset=0;
-	
+	bc_state_change(bc, BCHAN_CLEANED);
 	
 	return ret;
 }
@@ -818,14 +885,9 @@ int setup_bc(struct misdn_bchannel *bc)
 	int channel=bc->channel-1-(bc->channel>16);
 	int b_stid=stack->b_stids[channel>=0?channel:0];
 
-#if 0
-	if (bc->hdlc) {
-		clean_up_bc(bc);
-	}
-#endif
-	
-	if (bc->upset) {
-		cb_log(4, stack->port, "$$$ bc already upsetted stid :%x\n", b_stid);
+
+	if ( bc->bc_state != BCHAN_CLEANED) {
+		cb_log(4, stack->port, "$$$ bc already upsetted stid :%x (state:%s)\n", b_stid, bc_state2str(bc->bc_state) );
 		return -1;
 	}
 	
@@ -833,7 +895,8 @@ int setup_bc(struct misdn_bchannel *bc)
 	
 	if (b_stid <= 0) {
 		cb_log(-1, stack->port," -- Stid <=0 at the moment in channel:%d\n",channel);
-
+		
+		bc_state_change(bc,BCHAN_ERROR);
 		return 1;
 	}
 	
@@ -882,7 +945,8 @@ int setup_bc(struct misdn_bchannel *bc)
 		ret = mISDN_new_layer(midev, &li);
 		if (ret ) {
 			cb_log(-1, stack->port,"New Layer Err: %d %s\n",ret,strerror(errno));
-			
+
+			bc_state_change(bc,BCHAN_ERROR);
 			return(-EINVAL);
 		}
 		
@@ -930,25 +994,18 @@ int setup_bc(struct misdn_bchannel *bc)
 		cb_log(5, stack->port,"$$$ Set Stack Err: %d %s\n",ret,strerror(errno));
 		
 		mISDN_write_frame(midev, buff, bc->layer_id, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
+
+		bc_state_change(bc,BCHAN_ERROR);
 		return(-EINVAL);
 	}
 
-#if 0
-	ret = mISDN_get_setstack_ind(midev, bc->layer_id );
-	
-	if (ret){
-		cb_log(5, stack->port,"$$$ Get Set Stack Err: %d %s\n",ret,strerror(errno));
-		
-		mISDN_write_frame(midev, buff, bc->layer_id, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
-		return(-EINVAL);
-	}
 
-#endif
+	bc_state_change(bc,BCHAN_SETUP);
 
 	
-	bc->upset=1;
+	/*manager_bchannel_deactivate(bc);*/
 	
-	manager_bchannel_deactivate(bc);
+	
 	return 0;
 }
 
@@ -975,7 +1032,8 @@ int init_bc(struct misdn_stack *stack,  struct misdn_bchannel *bc, int midev, in
 	
 	
 	empty_bc(bc);
-	bc->upset=0;
+	bc_state_change(bc, BCHAN_CLEANED);
+	
 	bc->port=stack->port;
 	bc->nt=stack->nt?1:0;
 	
@@ -1378,7 +1436,7 @@ int handle_new_process(struct misdn_stack *stack, iframe_t *frm)
 		return -1;
 	}
   
-	cb_log(4, stack->port, " --> new_process: New L3Id: %x\n",frm->dinfo);
+	cb_log(7, stack->port, " --> new_process: New L3Id: %x\n",frm->dinfo);
 	bc->l3_id=frm->dinfo;
 	
 	if (mypid>5000) mypid=0;
@@ -1392,7 +1450,7 @@ int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
   
 	switch (frm->prim) {
 	case CC_NEW_CR|INDICATION:
-		cb_log(4, stack->port, " --> lib: NEW_CR Ind with l3id:%x on this port.\n",frm->dinfo);
+		cb_log(7, stack->port, " --> lib: NEW_CR Ind with l3id:%x on this port.\n",frm->dinfo);
 		handle_new_process(stack, frm); 
 		return 1;
 	case CC_NEW_CR|CONFIRM:
@@ -1721,16 +1779,8 @@ handle_event_nt(void *dat, void *arg)
 			break;
 
 		case CC_RELEASE|CONFIRM:
-		{
-			/*struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
-			  cb_log(3, stack->port, " --> RELEASE CONFIRM, doing nothin\n");
-			  cb_event(EVENT_CLEANUP, bc, glob_mgr->user_data);
-			  empty_chan_in_stack(stack,bc->channel);
-			  empty_bc(bc);
-			  free_msg(msg);
-			  return 0;*/
-		}
-		break;  
+			break;
+			
 		case CC_RELEASE|INDICATION:
 			break;
 
@@ -1991,9 +2041,13 @@ int handle_bchan(msg_t *msg)
 	}
 	
 	switch (frm->prim) {
+
+	case MGR_SETSTACK| CONFIRM:
+		cb_log(2, stack->port, "BCHAN: MGR_SETSTACK|CONFIRM \n");
+		break;
+		
 	case MGR_SETSTACK| INDICATION:
 		cb_log(2, stack->port, "BCHAN: MGR_SETSTACK|IND \n");
-		
 		
 		bc->addr = mISDN_get_layerid(stack->midev, bc->b_stid, bc->layer);
 		if (!bc->addr) {
@@ -2005,16 +2059,28 @@ int handle_bchan(msg_t *msg)
 		}
 		
 		cb_log(4, stack->port," --> Got Adr %x\n", bc->addr);
-		
-		bc->upset=2;
-		
+
 		free_msg(msg);
+		
+		if (bc->bc_state !=  BCHAN_SETUP) {
+			cb_log(4, stack->port," --> STATE WASN'T SETUP in SETSTACK|IND\n");
+		}
+		
+		bc_state_change(bc,BCHAN_SETUPED);
+		
 		
 		manager_bchannel_activate(bc);
 				
 		return 1;
+
+	case MGR_DELLAYER| INDICATION:
+		cb_log(2, stack->port, "BCHAN: MGR_DELLAYER|IND\n");
+		break;
+		
 	case MGR_DELLAYER| CONFIRM:
 		cb_log(2, stack->port, "BCHAN: MGR_DELLAYER|CNF \n");
+		
+		bc_state_change(bc,BCHAN_CLEANED);
 		
 		free_msg(msg);
 		return 1;
@@ -2022,11 +2088,17 @@ int handle_bchan(msg_t *msg)
 	case PH_ACTIVATE | INDICATION:
 	case DL_ESTABLISH | INDICATION:
 		cb_log(4, stack->port, "BCHAN: ACT Ind\n");
+
+		bc_state_change(bc,BCHAN_ACTIVATED);
+		
 		free_msg(msg);
 		return 1;    
 
 	case PH_ACTIVATE | CONFIRM:
 	case DL_ESTABLISH | CONFIRM:
+		
+		bc_state_change(bc,BCHAN_ACTIVATED);
+		
 		cb_log(4, stack->port, "BCHAN: bchan ACT Confirm\n");
 		free_msg(msg);
 		
@@ -2035,12 +2107,16 @@ int handle_bchan(msg_t *msg)
 	case PH_DEACTIVATE | INDICATION:
 	case DL_RELEASE | INDICATION:
 		cb_log (4, stack->port, "BCHAN: DeACT Ind\n");
+		
+		bc_state_change(bc,BCHAN_RELEASED);
 		free_msg(msg);
 		return 1;
     
 	case PH_DEACTIVATE | CONFIRM:
 	case DL_RELEASE | CONFIRM:
 		cb_log(4, stack->port, "BCHAN: DeACT Conf\n");
+		
+		bc_state_change(bc,BCHAN_RELEASED);
 		free_msg(msg);
 		return 1;
     
@@ -2089,14 +2165,26 @@ int handle_bchan(msg_t *msg)
 		/** Anyway flip the bufbits **/
 		if ( misdn_cap_is_speech(bc->capability) ) 
 			flip_buf_bits(bc->bframe, bc->bframe_len);
-		
+	
+
+		if (!bc->bframe_len) {
+			cb_log(2, stack->port, "DL_DATA INDICATION bc->addr:%x frm->addr:%x\n", bc->addr, frm->addr);
+			free_msg(msg);
+			return 1;
+		}
+
+		if ( (bc->addr&STACK_ID_MASK) != (frm->addr&STACK_ID_MASK) ) {
+			cb_log(2, stack->port, "DL_DATA INDICATION bc->addr:%x frm->addr:%x\n", bc->addr, frm->addr);
+			free_msg(msg);
+			return 1;
+		}
 		
 #if MISDN_DEBUG
 		cb_log(-1, stack->port, "DL_DATA INDICATION Len %d\n", frm->len);
 
 #endif
 		
-		if (bc->active && frm->len > 0) {
+		if ( (bc->bc_state == BCHAN_ACTIVATED) && frm->len > 0) {
 			if (  !do_tone(bc, frm->len)   ) {
 				
 				if ( misdn_cap_is_speech(bc->capability)) {
@@ -2107,7 +2195,7 @@ int handle_bchan(msg_t *msg)
 				
 				int i=cb_event( EVENT_BCHAN_DATA, bc, glob_mgr->user_data);
 				if (i<0) {
-					cb_log(5,stack->port,"cb_event returned <0\n");
+					cb_log(10,stack->port,"cb_event returned <0\n");
 					/*clean_up_bc(bc);*/
 				}
 			}
@@ -2115,6 +2203,12 @@ int handle_bchan(msg_t *msg)
 		free_msg(msg);
 		return 1;
 	}
+
+
+	case PH_CONTROL | CONFIRM:
+		cb_log(2, stack->port, "PH_CONTROL|CNF bc->addr:%x\n", frm->addr);
+		free_msg(msg);
+		return 1;
 
 	case PH_DATA | CONFIRM:
 	case DL_DATA|CONFIRM:
@@ -2124,13 +2218,7 @@ int handle_bchan(msg_t *msg)
 
 #endif
 		free_msg(msg);
-
-#ifdef ACK_HDLC
-		if (bc->hdlc) {
-			cb_log(4,stack->port,"Acknowledge Packet\n");
-			sem_post( (sem_t*)bc->ack_hdlc);
-		}
-#endif
+		
 		return 1;
 	case DL_DATA|RESPONSE:
 #if MISDN_DEBUG
@@ -2385,6 +2473,13 @@ int handle_mgmt(msg_t *msg)
 	struct misdn_stack * stack=find_stack_by_addr(frm->addr);
 	
 	if (!stack) {
+		if (frm->prim == (MGR_DELLAYER|CONFIRM)) {
+			cb_log(2, 0, "MGMT: DELLAYER|CONFIRM Addr: %x !\n",
+					frm->addr) ;
+			free(msg);
+			return 1;
+		}
+		
 		return 0;
 	}
 	
@@ -2707,6 +2802,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	}
 	
 	cb_log(1, stack->port, "I SEND:%s oad:%s dad:%s \n", isdn_get_info(msgs_g, event, 0), bc->oad, bc->dad);
+	cb_log(1, stack->port, " --> bc_state:%s\n",bc_state2str(bc->bc_state));
 	misdn_lib_log_ies(bc);
 	
 	switch (event) {
@@ -2782,14 +2878,22 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		stack_holder_add(stack,holded_bc);
 		
 		if (stack->nt) {
+			if (bc->bc_state == BCHAN_BRIDGED) {
+				misdn_split_conf(bc,bc->conf_id);
+				misdn_split_conf(bc->holded_bc,bc->holded_bc->conf_id);
+				/*bc_state_change(bc,BCHAN_SETUPED);
+				manager_bchannel_activate(bc);*/
+			}
+
 			empty_chan_in_stack(stack,bc->channel);
 			empty_bc(bc);
 			clean_up_bc(bc);
 		}
 		
 		/** we set it up later at RETRIEVE_ACK again.**/
-		holded_bc->upset=0;
-		holded_bc->active=0;
+		/*holded_bc->upset=0;
+		  holded_bc->active=0;*/
+		bc_state_change(holded_bc,BCHAN_CLEANED);
 		
 		cb_event( EVENT_NEW_BC, holded_bc, glob_mgr->user_data);
 	}
@@ -2866,7 +2970,7 @@ int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 	
 	if (handle_frm(msg)) 
 		return 0 ;
-	
+
 	cb_log(-1, 0, "Unhandled Message: prim %x len %d from addr %x, dinfo %x on this port.\n",frm->prim, frm->len, frm->addr, frm->dinfo);		
    
 	free_msg(msg);
@@ -3227,20 +3331,27 @@ void manager_bchannel_activate(struct misdn_bchannel *bc)
 		return ;
 	}
 
-	if (bc->upset != 2 ) {
-		cb_log(1, stack->port, "bchannel_activate: BC Not properly upsetted addr:%x\n", bc->addr);
+
+	switch (bc->bc_state) {
+
+	case BCHAN_SETUPED:
+		break;
+		
+	default:
+		cb_log(1, stack->port, "bchannel_activate: BC Not properly upsetted (state:%s) addr:%x\n", bc_state2str(bc->bc_state), bc->addr);
+
+		
 		return;
 	}
 	
+
 	
 	frm=(iframe_t*)msg->data;
 	/* we must activate if we are deactivated */
 	clear_ibuffer(bc->astbuf);
 	
-	if (bc->active) return;
-  
 	cb_log(5, stack->port, "$$$ Bchan Activated addr %x\n", bc->addr);
-
+	
 	/* activate bchannel */
 	frm->prim = DL_ESTABLISH | REQUEST;
 	frm->addr = bc->addr | FLG_MSG_DOWN ;
@@ -3249,9 +3360,9 @@ void manager_bchannel_activate(struct misdn_bchannel *bc)
 	
 	msg_queue_tail(&glob_mgr->activatequeue, msg);
 	sem_post(&glob_mgr->new_msg);
-
-	bc->active=1;
-  
+	
+	bc_state_change(bc, BCHAN_ACTIVE);
+	
 	return ;
   
 }
@@ -3262,20 +3373,33 @@ void manager_bchannel_deactivate(struct misdn_bchannel * bc)
 	iframe_t dact;
 
 	struct misdn_stack *stack=get_stack_by_bc(bc);
-	if (!bc->active) return;
-  
+
+
+	switch (bc->bc_state) {
+		case BCHAN_ACTIVATED:
+			break;
+		case BCHAN_BRIDGED:
+			misdn_split_conf(bc,bc->conf_id);
+			break;
+		default:
+			cb_log( 4, bc->port,"bchan_deactivate: called but not activated\n");
+			return ;
+
+	}
+	
 	cb_log(5, stack->port, "$$$ Bchan deActivated addr %x\n", bc->addr);
-  
+	
 	bc->generate_tone=0;
 	
 	dact.prim = DL_RELEASE | REQUEST;
 	dact.addr = bc->addr | FLG_MSG_DOWN;
 	dact.dinfo = 0;
 	dact.len = 0;
-  
+	
 	mISDN_write(stack->midev, &dact, mISDN_HEADER_LEN+dact.len, TIMEOUT_1SEC);
 	clear_ibuffer(bc->astbuf);
-	bc->active=0;
+	
+	bc_state_change(bc,BCHAN_RELEASE);
   
 	return;
 }
@@ -3284,7 +3408,15 @@ void manager_bchannel_deactivate(struct misdn_bchannel * bc)
 int misdn_lib_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len)
 {
 	struct misdn_stack *stack=get_stack_by_bc(bc);
-	if (!bc->active) return -1;   
+
+	switch (bc->bc_state) {
+		case BCHAN_ACTIVATED:
+		case BCHAN_BRIDGED:
+			break;
+		default:
+			cb_log(3, bc->port, "BC not yet activated (state:%s)\n",bc_state2str(bc->bc_state));
+			return -1;
+	}
 	
 	char buf[4096 + mISDN_HEADER_LEN];
 	iframe_t *frm= (iframe_t*)buf;
@@ -3359,9 +3491,6 @@ void manager_clean_bc(struct misdn_bchannel *bc )
 {
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	
-	if (bc->state == STATE_CONNECTED)
-		misdn_lib_send_event(bc,EVENT_DISCONNECT);
-
 	empty_chan_in_stack(stack, bc->channel);
 	empty_bc(bc);
   
@@ -3491,21 +3620,72 @@ struct misdn_stack* get_misdn_stack() {
 
 
 
-void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2) {
-	manager_ph_control(bc1, CMX_RECEIVE_OFF, 0);
-	manager_ph_control(bc2, CMX_RECEIVE_OFF, 0);
+void misdn_join_conf(struct misdn_bchannel *bc, int conf_id)
+{
+	bc_state_change(bc,BCHAN_BRIDGED);
+	manager_ph_control(bc, CMX_RECEIVE_OFF, 0);
+	manager_ph_control(bc, CMX_CONF_JOIN, conf_id);
+
+	cb_log(1,bc->port, "Joining bc:%x in conf:%d\n",bc->addr,conf_id);
+
+	char data[16];
+	int len=15;
+
+	memset(data,0,15);
 	
-	manager_ph_control(bc1, CMX_CONF_JOIN, (bc1->pid<<1) +1);
-	manager_ph_control(bc2, CMX_CONF_JOIN, (bc1->pid<<1) +1);
+	misdn_lib_tx2misdn_frm(bc, data, len);
+
+}
+
+
+void misdn_split_conf(struct misdn_bchannel *bc, int conf_id)
+{
+	bc_state_change(bc,BCHAN_ACTIVATED);
+	manager_ph_control(bc, CMX_RECEIVE_ON, 0);
+	manager_ph_control(bc, CMX_CONF_SPLIT, conf_id);
+
+	cb_log(1,bc->port, "Splitting bc:%x in conf:%d\n",bc->addr,conf_id);
+}
+
+void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2) {
+	int conf_id=(bc1->pid<<1) +1;
+
+	cb_log(1, bc1->port, "I Send: BRIDGE from:%d to:%d\n",bc1->port,bc2->port);
+	
+	struct misdn_bchannel *bc_list[]={
+		bc1,bc2,NULL
+	};
+	struct misdn_bchannel **bc;
+		
+	for (bc=bc_list; *bc;  *bc++) { 
+		(*bc)->conf_id=conf_id;
+		cb_log(1, (*bc)->port, " --> bc_addr:%x\n",(*bc)->addr);
+	
+		switch((*bc)->bc_state) {
+			case BCHAN_ACTIVATED:
+				misdn_join_conf(*bc,conf_id);
+				break;
+			default:
+				bc_next_state_change(*bc,BCHAN_BRIDGED);
+				break;
+		}
+	}
 }
 
 void misdn_lib_split_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2)
 {
-	
-	manager_ph_control(bc1, CMX_RECEIVE_ON, 0) ;
-	manager_ph_control(bc2, CMX_RECEIVE_ON, 0);
-	
-	manager_ph_control(bc1, CMX_CONF_SPLIT, (bc1->pid<<1) +1);
-	manager_ph_control(bc2, CMX_CONF_SPLIT, (bc1->pid<<1) +1);
+
+	struct misdn_bchannel *bc_list[]={
+		bc1,bc2,NULL
+	};
+	struct misdn_bchannel **bc;
+		
+	for (bc=bc_list; *bc;  *bc++) { 
+		if ( (*bc)->bc_state == BCHAN_BRIDGED){
+			misdn_split_conf( *bc, (*bc)->conf_id);
+		} else {
+			cb_log( 2, (*bc)->port, "BC not bridged (state:%s) so not splitting it\n",bc_state2str((*bc)->bc_state));
+		}
+	}
 	
 }
