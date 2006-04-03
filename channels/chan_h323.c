@@ -78,6 +78,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/dsp.h"
 #include "asterisk/causes.h"
+#include "asterisk/stringfields.h"
 #ifdef __cplusplus
 }
 #endif
@@ -101,12 +102,13 @@ setcapabilities_cb on_setcapabilities;
 int h323debug;
 
 /** Variables required by Asterisk */
-static const char type[] = "H323";
 static const char desc[] = "The NuFone Network's Open H.323 Channel Driver";
 static const char tdesc[] = "The NuFone Network's Open H.323 Channel Driver";
 static const char config[] = "h323.conf";
 static char default_context[AST_MAX_CONTEXT] = "default";
 static struct sockaddr_in bindaddr;
+
+#define GLOBAL_CAPABILITY (AST_FORMAT_G723_1 | AST_FORMAT_GSM | AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_G729A | AST_FORMAT_H261)
 
 /** H.323 configuration values */
 static int h323_signalling_port = 1720;
@@ -206,9 +208,9 @@ static int oh323_indicate(struct ast_channel *c, int condition);
 static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
 static const struct ast_channel_tech oh323_tech = {
-	.type = type,
+	.type = "H323",
 	.description = tdesc,
-	.capabilities = AST_FORMAT_ULAW,
+	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
 	.properties = AST_CHAN_TP_WANTSJITTER,
 	.requester = oh323_request,
 	.send_digit = oh323_digit,
@@ -496,7 +498,7 @@ static int oh323_hangup(struct ast_channel *c)
 	if (c->hangupcause) {
 		q931cause = c->hangupcause;
 	} else {
-		char *cause = pbx_builtin_getvar_helper(c, "DIALSTATUS");
+		const char *cause = pbx_builtin_getvar_helper(c, "DIALSTATUS");
 		if (cause) {
 			if (!strcmp(cause, "CONGESTION")) {
 				q931cause = AST_CAUSE_NORMAL_CIRCUIT_CONGESTION;
@@ -735,14 +737,13 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 	ast_mutex_lock(&pvt->lock);
 	if (ch) {
 		ch->tech = &oh323_tech;
-		snprintf(ch->name, sizeof(ch->name), "H323/%s", host);
+		ast_string_field_build(ch, name, "H323/%s", host);
 		ch->nativeformats = pvt->options.capability;
 		if (!ch->nativeformats) {
 			ch->nativeformats = global_options.capability;
 		}
 		pvt->nativeformats = ch->nativeformats;
 		fmt = ast_best_codec(ch->nativeformats);
-		ch->type = type;
 		ch->fds[0] = ast_rtp_fd(pvt->rtp);
 		if (state == AST_STATE_RING) {
 			ch->rings = 1;
@@ -765,7 +766,7 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		strncpy(ch->exten, pvt->exten, sizeof(ch->exten) - 1);		
 		ch->priority = 1;
 		if (!ast_strlen_zero(pvt->accountcode)) {
-			strncpy(ch->accountcode, pvt->accountcode, sizeof(ch->accountcode) - 1);
+			ast_string_field_set(ch, accountcode, pvt->accountcode);
 		}
 		if (pvt->amaflags) {
 			ch->amaflags = pvt->amaflags;
@@ -1234,7 +1235,6 @@ void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int rem
   */
 void connection_made(unsigned call_reference, const char *token)
 {
-	struct ast_channel *c = NULL;
 	struct oh323_pvt *pvt;
 
 	if (h323debug)
@@ -1436,7 +1436,6 @@ int setup_outgoing_call(call_details_t *cd)
   */
 void chan_ringing(unsigned call_reference, const char *token)
 {
-	struct ast_channel *c = NULL;
 	struct oh323_pvt *pvt;
 
 	if (h323debug)
@@ -1479,7 +1478,7 @@ static void cleanup_connection(unsigned call_reference, const char *call_token)
 			break;
 #if 1
 #ifdef DEBUG_THREADS
-		ast_log(LOG_NOTICE, "Avoiding H.323 destory deadlock on %s, locked at %ld/%d by %s (%s:%d)\n", call_token, pvt->owner->lock.thread, pvt->owner->lock.reentrancy, pvt->owner->lock.func, pvt->owner->lock.file, pvt->owner->lock.lineno);
+		ast_log(LOG_NOTICE, "Avoiding H.323 destory deadlock on %s, locked at %ld/%d by %s (%s:%d)\n", call_token, pvt->owner->lock.thread[0], pvt->owner->lock.reentrancy, pvt->owner->lock.func[0], pvt->owner->lock.file[0], pvt->owner->lock.lineno[0]);
 #else
 		ast_log(LOG_NOTICE, "Avoiding H.323 destory deadlock on %s\n", call_token);
 #endif
@@ -2026,7 +2025,7 @@ int reload_config(void)
 	memset(&global_options, 0, sizeof(global_options));
 	global_options.dtmfcodec = 101;
 	global_options.dtmfmode = H323_DTMF_RFC2833;
-	global_options.capability = ~0;	/* All capabilities */
+	global_options.capability = GLOBAL_CAPABILITY;
 	global_options.bridge = 1;		/* Do native bridging by default */
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
@@ -2282,7 +2281,7 @@ static char *convertcap(int cap)
 	}
 }
 
-static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
+static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active)
 {
 	/* XXX Deal with Video */
 	struct oh323_pvt *pvt;
@@ -2308,7 +2307,7 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, str
 }
 
 static struct ast_rtp_protocol oh323_rtp = {
-	.type = type,
+	.type = "H323",
 	.get_rtp_info = oh323_get_rtp_peer,
 	.get_vrtp_info = oh323_get_vrtp_peer,
 	.set_rtp_peer=  oh323_set_rtp_peer,
@@ -2334,7 +2333,7 @@ int load_module()
 	} else {
 		/* Make sure we can register our channel type */
 		if (ast_channel_register(&oh323_tech)) {
-			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+			ast_log(LOG_ERROR, "Unable to register channel class 'H323'\n");
 			h323_end_process();
 			return -1;
 		}
