@@ -4365,7 +4365,7 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 	add_header_contentLength(&resp, 0);
 	/* If we are cancelling an incoming invite for some reason, add information
 		about the reason why we are doing this in clear text */
-	if (p->owner && p->owner->hangupcause) {
+	if (msg[0] != '1' && p->owner && p->owner->hangupcause) {
 		add_header(&resp, "X-Asterisk-HangupCause", ast_cause2str(p->owner->hangupcause));
 	}
 	add_blank_header(&resp);
