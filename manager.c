@@ -407,7 +407,7 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 		ast_log(LOG_ERROR, "Memory allocation failure\n");
 	} else {
 		if (s->fd > -1)
-			ast_carefulwrite(s->fd, stuff, strlen(stuff), 100);
+			ast_carefulwrite(s->fd, stuff, strlen(stuff), s->writetimeout);
 		else {
 			tmp = realloc(s->outputstr, (s->outputstr ? strlen(s->outputstr) : 0) + strlen(stuff) + 1);
 			if (tmp) {
