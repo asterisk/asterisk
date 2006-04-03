@@ -18,10 +18,13 @@
 
 /*!
  * \file 
- * \brief http server
+ * \brief http server for AMI access
  *
+ * \author Mark Spencer <markster@digium.com>
  * This program implements a tiny http server supporting the "get" method
  * only and was inspired by micro-httpd by Jef Poskanzer 
+ * 
+ * \ref AstHTTP - AMI over the http protocol
  */
 
 #include <sys/types.h>
@@ -41,6 +44,9 @@
 #include <pthread.h>
 
 #include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/cli.h"
 #include "asterisk/http.h"
 #include "asterisk/utils.h"
@@ -67,7 +73,7 @@ static int prefix_len = 0;
 static struct sockaddr_in oldsin;
 static int enablestatic=0;
 
-/* Limit the kinds of files we're willing to serve up */
+/*! \brief Limit the kinds of files we're willing to serve up */
 static struct {
 	char *ext;
 	char *mtype;
@@ -360,18 +366,21 @@ static void *ast_httpd_helper_thread(void *data)
 	if (fgets(buf, sizeof(buf), ser->f)) {
 		/* Skip method */
 		uri = buf;
-		while(*uri && (*uri > 32)) uri++;
+		while(*uri && (*uri > 32))
+			uri++;
 		if (*uri) {
 			*uri = '\0';
 			uri++;
 		}
 
 		/* Skip white space */
-		while (*uri && (*uri < 33)) uri++;
+		while (*uri && (*uri < 33))
+			uri++;
 
 		if (*uri) {
 			c = uri;
-			while (*c && (*c > 32)) c++;
+			while (*c && (*c > 32))
+				 c++;
 			if (*c) {
 				*c = '\0';
 			}
@@ -492,7 +501,7 @@ static void *http_root(void *data)
 	return NULL;
 }
 
-char *ast_http_setcookie(const char *var, const char *val, int expires, char *buf, int buflen)
+char *ast_http_setcookie(const char *var, const char *val, int expires, char *buf, size_t buflen)
 {
 	char *c;
 	c = buf;
@@ -575,6 +584,7 @@ static int __ast_http_load(int reload)
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	char newprefix[MAX_PREFIX];
+
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_port = 8088;
 	strcpy(newprefix, DEFAULT_PREFIX);
@@ -654,7 +664,7 @@ static char show_http_help[] =
 
 static struct ast_cli_entry http_cli[] = {
 	{ { "show", "http", NULL }, handle_show_http,
-	  "Display HTTP status", show_http_help },
+	  "Display HTTP server status", show_http_help },
 };
 
 int ast_http_init(void)

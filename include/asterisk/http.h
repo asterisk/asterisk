@@ -16,10 +16,6 @@
  * at the top of the source tree.
  */
 
-/*
- * DNS SRV record support
- */
-
 #ifndef _ASTERISK_HTTP_H
 #define _ASTERISK_HTTP_H
 
@@ -30,9 +26,10 @@
   \brief Support for Private Asterisk HTTP Servers.
   \note Note: The Asterisk HTTP servers are extremely simple and minimal and
         only support the "GET" method.
+  \author Mark Spencer <markster@digium.com>
 */
 
-/* HTTP Callbacks take the socket, the method and the path as arguments and should
+/*! \brief HTTP Callbacks take the socket, the method and the path as arguments and should
    return the content, allocated with malloc().  Status should be changed to reflect
    the status of the request if it isn't 200 and title may be set to a malloc()'d string
    to an appropriate title for non-200 responses.  Content length may also be specified. 
@@ -49,16 +46,16 @@ struct ast_http_uri {
 	ast_http_callback callback;
 };
 
-/* Link into the Asterisk HTTP server */
+/*! \brief Link into the Asterisk HTTP server */
 int ast_http_uri_link(struct ast_http_uri *urihandler);
 
-/* Return a malloc()'d string containing an HTTP error message */
+/*! \brief Return a malloc()'d string containing an HTTP error message */
 char *ast_http_error(int status, const char *title, const char *extra_header, const char *text);
 
-/* Destroy an HTTP server */
+/*! \brief Destroy an HTTP server */
 void ast_http_uri_unlink(struct ast_http_uri *urihandler);
 
-char *ast_http_setcookie(const char *var, const char *val, int expires, char *buf, int buflen);
+char *ast_http_setcookie(const char *var, const char *val, int expires, char *buf, size_t buflen);
 
 int ast_http_init(void);
 int ast_http_reload(void);

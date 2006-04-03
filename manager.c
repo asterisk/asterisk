@@ -237,7 +237,7 @@ static char *complete_show_mancmd(const char *line, const char *word, int pos, i
 	return ret;
 }
 
-static void xml_copy_escape(char **dst, int *maxlen, const char *src, int lower)
+static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int lower)
 {
 	while (*src && (*maxlen > 6)) {
 		switch(*src) {
@@ -273,6 +273,7 @@ static void xml_copy_escape(char **dst, int *maxlen, const char *src, int lower)
 		src++;
 	}
 }
+
 static char *xml_translate(char *in, struct ast_variable *vars)
 {
 	struct ast_variable *v;
@@ -281,12 +282,13 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 	char *objtype=NULL;
 	int colons = 0;
 	int breaks = 0;
-	int len;
+	size_t len;
 	int count = 1;
 	int escaped = 0;
 	int inobj = 0;
 	int x;
 	v = vars;
+
 	while(v) {
 		if (!dest && !strcasecmp(v->name, "ajaxdest"))
 			dest = v->value;
@@ -298,7 +300,7 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 		dest = "unknown";
 	if (!objtype)
 		objtype = "generic";
-	for (x=0;in[x];x++) {
+	for (x=0; in[x]; x++) {
 		if (in[x] == ':')
 			colons++;
 		else if (in[x] == '\n')
@@ -306,14 +308,15 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 		else if (strchr("&\"<>", in[x]))
 			escaped++;
 	}
-	len = strlen(in) + colons * 5 + breaks * (40 + strlen(dest) + strlen(objtype)) + escaped * 10; /* foo="bar", "<response type=\"object\" id=\"dest\"", "&amp;" */
+	len = (size_t) (strlen(in) + colons * 5 + breaks * (40 + strlen(dest) + strlen(objtype)) + escaped * 10); /* foo="bar", "<response type=\"object\" id=\"dest\"", "&amp;" */
 	out = malloc(len);
 	if (!out)
 		return 0;
 	tmp = out;
 	while(*in) {
 		var = in;
-		while (*in && (*in >= 32)) in++;
+		while (*in && (*in >= 32))
+			in++;
 		if (*in) {
 			if ((count > 3) && inobj) {
 				ast_build_string(&tmp, &len, " /></response>\n");
@@ -353,10 +356,11 @@ static char *html_translate(char *in)
 	int x;
 	int colons = 0;
 	int breaks = 0;
-	int len;
+	size_t len;
 	int count=1;
 	char *tmp, *var, *val, *out;
-	for (x=0;in[x];x++) {
+
+	for (x=0; in[x]; x++) {
 		if (in[x] == ':')
 			colons++;
 		if (in[x] == '\n')
@@ -369,7 +373,8 @@ static char *html_translate(char *in)
 	tmp = out;
 	while(*in) {
 		var = in;
-		while (*in && (*in >= 32)) in++;
+		while (*in && (*in >= 32))
+			in++;
 		if (*in) {
 			if ((count % 4) == 0){
 				ast_build_string(&tmp, &len, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
@@ -405,20 +410,20 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 	va_end(ap);
 	if (res == -1) {
 		ast_log(LOG_ERROR, "Memory allocation failure\n");
-	} else {
-		if (s->fd > -1)
-			ast_carefulwrite(s->fd, stuff, strlen(stuff), s->writetimeout);
-		else {
-			tmp = realloc(s->outputstr, (s->outputstr ? strlen(s->outputstr) : 0) + strlen(stuff) + 1);
-			if (tmp) {
-				if (!s->outputstr)
-					tmp[0] = '\0';
-				s->outputstr = tmp;
-				strcat(s->outputstr, stuff);
-			}
+		return;
+	} 
+	if (s->fd > -1)
+		ast_carefulwrite(s->fd, stuff, strlen(stuff), s->writetimeout);
+	else {
+		tmp = realloc(s->outputstr, (s->outputstr ? strlen(s->outputstr) : 0) + strlen(stuff) + 1);
+		if (tmp) {
+			if (!s->outputstr)
+				tmp[0] = '\0';
+			s->outputstr = tmp;
+			strcat(s->outputstr, stuff);
 		}
-		free(stuff);
 	}
+	free(stuff);
 }
 
 static int handle_showmancmd(int fd, int argc, char *argv[])
@@ -2139,7 +2144,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 	char workspace[256];
 	char cookie[128];
 	char iabuf[INET_ADDRSTRLEN];
-	int len = sizeof(workspace);
+	size_t len = sizeof(workspace);
 	int blastaway = 0;
 	char *c = workspace;
 	char *retval=NULL;

@@ -37,6 +37,7 @@
  *  \arg \ref AstREADME
  *  \arg \ref AstVar
  *  \arg \ref AstENUM : The IETF way to redirect from phone numbers to VoIP calls
+ *  \arg \ref AstHTTP
  *  \arg \ref ConfigFiles
  *  \arg \ref SoundFiles included in the Asterisk distribution
  *  \arg \ref AstCREDITS : A Thank You to contributors
@@ -446,3 +447,12 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  *  \par See also
  *  \arg \ref codecs 
  */
+
+/*! \page AstHTTP AMI over HTTP support
+ * The http.c file includes support for manager transactions over
+ * http.
+ *  \section ami AMI - The manager Interface
+ *  \arg \link Config_ami Configuration file \endlink
+ *  \verbinclude http.txt
+ */
+
