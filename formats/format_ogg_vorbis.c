@@ -523,12 +523,6 @@ static off_t ogg_vorbis_tell(struct ast_filestream *s)
 	return -1;
 }
 
-static char *ogg_vorbis_getcomment(struct ast_filestream *s)
-{
-	ast_log(LOG_WARNING, "Getting comments is not supported on OGG/Vorbis streams!\n");
-	return NULL;
-}
-
 static struct ast_format_lock me = { .usecnt = -1 };
 
 static const struct ast_format vorbis_f = {
