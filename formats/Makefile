@@ -22,8 +22,6 @@ MODS:=$(filter-out format_au.so,$(MODS))
 # OGG/Vorbis format
 # (on FreeBSD is in /usr/local/include/...
 
-MODS:=$(filter-out format_ogg_vorbis.so,$(MODS))
-
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/vorbis/codec.h),)
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/vorbis/codec.h),)
   MODS:=$(filter-out format_ogg_vorbis.so,$(MODS))
