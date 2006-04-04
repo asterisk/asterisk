@@ -176,14 +176,15 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 {
 	/* Try to write string, but wait no more than ms milliseconds
 	   before timing out */
-	int res=0;
+	int res = 0;
 	struct pollfd fds[1];
-	while(len) {
+	while (len) {
 		res = write(fd, s, len);
 		if ((res < 0) && (errno != EAGAIN)) {
 			return -1;
 		}
-		if (res < 0) res = 0;
+		if (res < 0)
+			res = 0;
 		len -= res;
 		s += res;
 		res = 0;
@@ -240,7 +241,7 @@ static char *complete_show_mancmd(const char *line, const char *word, int pos, i
 static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int lower)
 {
 	while (*src && (*maxlen > 6)) {
-		switch(*src) {
+		switch (*src) {
 		case '<':
 			strcpy(*dst, "&lt;");
 			(*dst) += 4;
@@ -277,9 +278,9 @@ static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int low
 static char *xml_translate(char *in, struct ast_variable *vars)
 {
 	struct ast_variable *v;
-	char *dest=NULL;
+	char *dest = NULL;
 	char *out, *tmp, *var, *val;
-	char *objtype=NULL;
+	char *objtype = NULL;
 	int colons = 0;
 	int breaks = 0;
 	size_t len;
@@ -289,7 +290,7 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 	int x;
 	v = vars;
 
-	while(v) {
+	while (v) {
 		if (!dest && !strcasecmp(v->name, "ajaxdest"))
 			dest = v->value;
 		else if (!objtype && !strcasecmp(v->name, "ajaxobjtype")) 
@@ -313,7 +314,7 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 	if (!out)
 		return 0;
 	tmp = out;
-	while(*in) {
+	while (*in) {
 		var = in;
 		while (*in && (*in >= 32))
 			in++;
@@ -357,7 +358,7 @@ static char *html_translate(char *in)
 	int colons = 0;
 	int breaks = 0;
 	size_t len;
-	int count=1;
+	int count = 1;
 	char *tmp, *var, *val, *out;
 
 	for (x=0; in[x]; x++) {
@@ -371,7 +372,7 @@ static char *html_translate(char *in)
 	if (!out)
 		return 0;
 	tmp = out;
-	while(*in) {
+	while (*in) {
 		var = in;
 		while (*in && (*in >= 32))
 			in++;
@@ -560,7 +561,7 @@ static void free_session(struct mansession *s)
 	if (s->outputstr)
 		free(s->outputstr);
 	ast_mutex_destroy(&s->__lock);
-	while(s->eventq) {
+	while (s->eventq) {
 		eqe = s->eventq;
 		s->eventq = s->eventq->next;
 		unuse_eventqent(eqe);
@@ -573,7 +574,7 @@ static void destroy_session(struct mansession *s)
 	struct mansession *cur, *prev = NULL;
 	ast_mutex_lock(&sessionlock);
 	cur = sessions;
-	while(cur) {
+	while (cur) {
 		if (cur == s)
 			break;
 		prev = cur;
@@ -589,7 +590,6 @@ static void destroy_session(struct mansession *s)
 	} else
 		ast_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
 	ast_mutex_unlock(&sessionlock);
-	
 }
 
 char *astman_get_header(struct message *m, char *var)
@@ -597,7 +597,7 @@ char *astman_get_header(struct message *m, char *var)
 	char cmp[80];
 	int x;
 	snprintf(cmp, sizeof(cmp), "%s: ", var);
-	for (x=0;x<m->hdrcount;x++)
+	for (x=0; x<m->hdrcount; x++)
 		if (!strncasecmp(cmp, m->headers[x], strlen(cmp)))
 			return m->headers[x] + strlen(cmp);
 	return "";
@@ -659,7 +659,7 @@ void astman_send_error(struct mansession *s, struct message *m, char *error)
 
 	astman_append(s, "Response: Error\r\n");
 	if (!ast_strlen_zero(id))
-		astman_append(s, "ActionID: %s\r\n",id);
+		astman_append(s, "ActionID: %s\r\n", id);
 	astman_append(s, "Message: %s\r\n\r\n", error);
 }
 
@@ -669,7 +669,7 @@ void astman_send_response(struct mansession *s, struct message *m, char *resp, c
 
 	astman_append(s, "Response: %s\r\n", resp);
 	if (!ast_strlen_zero(id))
-		astman_append(s, "ActionID: %s\r\n",id);
+		astman_append(s, "ActionID: %s\r\n", id);
 	if (msg)
 		astman_append(s, "Message: %s\r\n\r\n", msg);
 	else
@@ -794,7 +794,7 @@ static int authenticate(struct mansession *s, struct message *m)
 	if (!cfg)
 		return -1;
 	cat = ast_category_browse(cfg, NULL);
-	while(cat) {
+	while (cat) {
 		if (strcasecmp(cat, "general")) {
 			/* This is a user */
 			if (!strcasecmp(cat, user)) {
@@ -829,7 +829,7 @@ static int authenticate(struct mansession *s, struct message *m)
 				if (!strcasecmp(authtype, "MD5")) {
 					if (!ast_strlen_zero(key) && s->challenge) {
 						int x;
-						int len=0;
+						int len = 0;
 						char md5key[256] = "";
 						struct MD5Context md5;
 						unsigned char digest[16];
@@ -837,7 +837,7 @@ static int authenticate(struct mansession *s, struct message *m)
 						MD5Update(&md5, (unsigned char *) s->challenge, strlen(s->challenge));
 						MD5Update(&md5, (unsigned char *) password, strlen(password));
 						MD5Final(digest, &md5);
-						for (x=0;x<16;x++)
+						for (x=0; x<16; x++)
 							len += sprintf(md5key + len, "%2.2x", digest[x]);
 						if (!strcmp(md5key, key))
 							break;
@@ -900,7 +900,7 @@ static int action_waitevent(struct mansession *s, struct message *m)
 	time_t now;
 	struct eventqent *eqe;
 	char *id = astman_get_header(m,"ActionID");
-	char idText[256]="";
+	char idText[256] = "";
 
 	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
@@ -930,7 +930,7 @@ static int action_waitevent(struct mansession *s, struct message *m)
 	s->waiting_thread = pthread_self();
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Starting waiting for an event!\n");
-	for (x=0;((x<timeout) || (timeout < 0)); x++) {
+	for (x=0; ((x < timeout) || (timeout < 0)); x++) {
 		ast_mutex_lock(&s->__lock);
 		if (s->eventq && s->eventq->next)
 			needexit = 1;
@@ -966,7 +966,7 @@ static int action_waitevent(struct mansession *s, struct message *m)
 		astman_append(s,
 			"Event: WaitEventComplete\r\n"
 			"%s"
-			"\r\n",idText);
+			"\r\n", idText);
 		s->waiting_thread = AST_PTHREADT_NULL;
 	} else {
 		ast_log(LOG_DEBUG, "Abandoning event request!\n");
@@ -993,7 +993,7 @@ static int action_listcommands(struct mansession *s, struct message *m)
 	ast_mutex_lock(&actionlock);
 	while (cur) { /* Walk the list of actions */
 		if ((s->writeperm & cur->authority) == cur->authority)
-			astman_append(s, "%s: %s (Priv: %s)\r\n", cur->action, cur->synopsis, authority_to_str(cur->authority, temp, sizeof(temp)) );
+			astman_append(s, "%s: %s (Priv: %s)\r\n", cur->action, cur->synopsis, authority_to_str(cur->authority, temp, sizeof(temp)));
 		cur = cur->next;
 	}
 	ast_mutex_unlock(&actionlock);
@@ -1157,7 +1157,7 @@ static int action_status(struct mansession *s, struct message *m)
 	struct ast_channel *c;
 	char bridge[256];
 	struct timeval now = ast_tvnow();
-	long elapsed_seconds=0;
+	long elapsed_seconds = 0;
 	int all = ast_strlen_zero(name); /* set if we want all channels */
 
 	astman_send_ack(s, m, "Channel status will follow");
@@ -1173,7 +1173,7 @@ static int action_status(struct mansession *s, struct message *m)
 		}
 	}
 	/* if we look by name, we break after the first iteration */
-	while(c) {
+	while (c) {
 		if (c->_bridge)
 			snprintf(bridge, sizeof(bridge), "Link: %s\r\n", c->_bridge->name);
 		else
@@ -1393,7 +1393,7 @@ static int action_originate(struct mansession *s, struct message *m)
 	char *id = astman_get_header(m, "ActionID");
 	struct ast_variable *vars = astman_get_variables(m);
 	char *tech, *data;
-	char *l=NULL, *n=NULL;
+	char *l = NULL, *n = NULL;
 	int pi = 0;
 	int res;
 	int to = 30000;
@@ -1666,7 +1666,7 @@ static int process_message(struct mansession *s, struct message *m)
 		return 0;
 	}
 	if (!ast_strlen_zero(id)) {
-		snprintf(idText, sizeof(idText), "ActionID: %s\r\n",id);
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	}
 	if (!s->authenticated) {
 		if (!strcasecmp(action, "Challenge")) {
@@ -1679,7 +1679,7 @@ static int process_message(struct mansession *s, struct message *m)
 				astman_append(s, "Response: Success\r\n"
 						"%s"
 						"Challenge: %s\r\n\r\n",
-						idText,s->challenge);
+						idText, s->challenge);
 				ast_mutex_unlock(&s->__lock);
 				return 0;
 			} else {
@@ -1694,7 +1694,7 @@ static int process_message(struct mansession *s, struct message *m)
 			} else {
 				s->authenticated = 1;
 				if (option_verbose > 1) {
-					if ( displayconnects ) {
+					if (displayconnects) {
 						ast_verbose(VERBOSE_PREFIX_2 "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 					}
 				}
@@ -1710,7 +1710,7 @@ static int process_message(struct mansession *s, struct message *m)
 		ast_mutex_lock(&s->__lock);
 		s->busy++;
 		ast_mutex_unlock(&s->__lock);
-		while( tmp ) { 		
+		while (tmp) { 		
 			if (!strcasecmp(action, tmp->action)) {
 				if ((s->writeperm & tmp->authority) == tmp->authority) {
 					if (tmp->func(s, m))
@@ -1737,7 +1737,7 @@ static int get_input(struct mansession *s, char *output)
 	int x;
 	struct pollfd fds[1];
 	char iabuf[INET_ADDRSTRLEN];
-	for (x=1;x<s->inlen;x++) {
+	for (x = 1; x < s->inlen; x++) {
 		if ((s->inbuf[x] == '\n') && (s->inbuf[x-1] == '\r')) {
 			/* Copy output data up to and including \r\n */
 			memcpy(output, s->inbuf, x + 1);
@@ -1821,12 +1821,12 @@ static void *session_do(void *data)
 	if (s->authenticated) {
 		if (option_verbose > 1) {
 			if (displayconnects) 
-				ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));    
+				ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 		}
 		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 	} else {
 		if (option_verbose > 1) {
-			if ( displayconnects )
+			if (displayconnects)
 				ast_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 		}
 		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
@@ -1841,7 +1841,7 @@ static void *accept_thread(void *ignore)
 	struct sockaddr_in sin;
 	socklen_t sinlen;
 	struct eventqent *eqe;
-	struct mansession *s, *prev=NULL, *next;
+	struct mansession *s, *prev = NULL, *next;
 	struct protoent *p;
 	int arg = 1;
 	int flags;
@@ -1858,7 +1858,7 @@ static void *accept_thread(void *ignore)
 		ast_mutex_lock(&sessionlock);
 		prev = NULL;
 		s = sessions;
-		while(s) {
+		while (s) {
 			next = s->next;
 			if (s->sessiontimeout && (now > s->sessiontimeout) && !s->inuse) {
 				num_sessions--;
@@ -1913,7 +1913,7 @@ static void *accept_thread(void *ignore)
 		s->writetimeout = 100;
 		s->waiting_thread = AST_PTHREADT_NULL;
 
-		if(! block_sockets) {
+		if (!block_sockets) {
 			/* For safety, make sure socket is non-blocking */
 			flags = fcntl(as, F_GETFL);
 			fcntl(as, F_SETFL, flags | O_NONBLOCK);
@@ -1943,7 +1943,7 @@ static void *accept_thread(void *ignore)
 
 static int append_event(const char *str, int category)
 {
-	struct eventqent *tmp, *prev=NULL;
+	struct eventqent *tmp, *prev = NULL;
 	tmp = malloc(sizeof(struct eventqent) + strlen(str));
 	if (tmp) {
 		ast_mutex_init(&tmp->lock);
@@ -1952,7 +1952,7 @@ static int append_event(const char *str, int category)
 		strcpy(tmp->eventdata, str);
 		if (master_eventq) {
 			prev = master_eventq;
-			while(prev->next) 
+			while (prev->next) 
 				prev = prev->next;
 			prev->next = tmp;
 		} else {
@@ -2012,7 +2012,7 @@ int ast_manager_unregister( char *action )
 	struct manager_action *cur = first_action, *prev = first_action;
 
 	ast_mutex_lock(&actionlock);
-	while( cur ) { 		
+	while (cur) {
 		if (!strcasecmp(action, cur->action)) {
 			prev->next = cur->next;
 			free(cur);
@@ -2041,7 +2041,7 @@ static int ast_manager_register_struct(struct manager_action *act)
 	int ret;
 
 	ast_mutex_lock(&actionlock);
-	while(cur) { /* Walk the list of actions */
+	while (cur) { /* Walk the list of actions */
 		ret = strcasecmp(cur->action, act->action);
 		if (ret == 0) {
 			ast_log(LOG_WARNING, "Manager: Action '%s' already registered\n", act->action);
@@ -2106,7 +2106,7 @@ static struct mansession *find_session(unsigned long ident)
 	struct mansession *s;
 	ast_mutex_lock(&sessionlock);
 	s = sessions;
-	while(s) {
+	while (s) {
 		ast_mutex_lock(&s->__lock);
 		if (s->sessiontimeout && (s->managerid == ident) && !s->needdestroy) {
 			s->inuse++;
@@ -2123,7 +2123,7 @@ static struct mansession *find_session(unsigned long ident)
 static void vars2msg(struct message *m, struct ast_variable *vars)
 {
 	int x;
-	for (x=0;vars && (x<AST_MAX_MANHEADERS);x++,vars = vars->next) {
+	for (x = 0; vars && (x < AST_MAX_MANHEADERS); x++, vars = vars->next) {
 		if (!vars)
 			break;
 		m->hdrcount = x + 1;
@@ -2139,20 +2139,20 @@ static char *contenttype[] = { "plain", "html", "xml" };
 
 static char *generic_http_callback(int format, struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
 {
-	struct mansession *s=NULL;
-	unsigned long ident=0;
+	struct mansession *s = NULL;
+	unsigned long ident = 0;
 	char workspace[256];
 	char cookie[128];
 	char iabuf[INET_ADDRSTRLEN];
 	size_t len = sizeof(workspace);
 	int blastaway = 0;
 	char *c = workspace;
-	char *retval=NULL;
+	char *retval = NULL;
 	struct message m;
 	struct ast_variable *v;
-	
+
 	v = params;
-	while(v) {
+	while (v) {
 		if (!strcasecmp(v->name, "mansession_id")) {
 			sscanf(v->value, "%lx", &ident);
 			break;
@@ -2178,7 +2178,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 		num_sessions++;
 		/* Hook into the last spot in the event queue */
 		s->eventq = master_eventq;
-		while(s->eventq->next)
+		while (s->eventq->next)
 			s->eventq = s->eventq->next;
 		ast_mutex_lock(&s->eventq->lock);
 		s->eventq->usecount++;
@@ -2326,7 +2326,7 @@ int init_manager(void)
 	static struct sockaddr_in ba;
 	int x = 1;
 	int flags;
-	int webenabled=0;
+	int webenabled = 0;
 	int newhttptimeout = 60;
 	if (!registered) {
 		/* Register default actions */
@@ -2368,7 +2368,7 @@ int init_manager(void)
 		enabled = ast_true(val);
 
 	val = ast_variable_retrieve(cfg, "general", "block-sockets");
-	if(val)
+	if (val)
 		block_sockets = ast_true(val);
 
 	val = ast_variable_retrieve(cfg, "general", "webenabled");
@@ -2402,6 +2402,7 @@ int init_manager(void)
 		}
 	}
 	
+
 	if ((asock > -1) && ((portno != oldportno) || !enabled)) {
 #if 0
 		/* Can't be done yet */
@@ -2431,11 +2432,12 @@ int init_manager(void)
 
 	if (newhttptimeout > 0)
 		httptimeout = newhttptimeout;
-	
+
 	/* If not enabled, do nothing */
 	if (!enabled) {
 		return 0;
 	}
+
 	if (asock < 0) {
 		asock = socket(AF_INET, SOCK_STREAM, 0);
 		if (asock < 0) {
