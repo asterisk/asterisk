@@ -356,6 +356,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;host=box.provider.com
 ;usereqphone=yes		; This provider requires ";user=phone" on URI
 ;call-limit=5			; permit only 5 simultaneous outgoing calls to this peer
+				; Call-limits will not be enforced on real-time peers,
+				; since they are not stored in-memory
 
 ;------------------------------------------------------------------------------
 ; Definitions of locally connected SIP phones
