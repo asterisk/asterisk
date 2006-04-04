@@ -478,11 +478,13 @@ struct {								\
 			(head)->last = NULL;			\
 	} else {								\
 		typeof(elm) curelm = (head)->first;			\
-		while (curelm->field.next != (elm))			\
+		while (curelm && (curelm->field.next != (elm)))			\
 			curelm = curelm->field.next;			\
-		curelm->field.next = (elm)->field.next;			\
-		if ((head)->last == (elm))				\
-			(head)->last = curelm;				\
+		if (curelm) { \
+			curelm->field.next = (elm)->field.next;			\
+			if ((head)->last == (elm))				\
+				(head)->last = curelm;				\
+		} \
 	}								\
 } while (0)
 
