@@ -755,7 +755,7 @@ static inline int pri_grab(struct zt_pvt *pvt, struct zt_pri *pri)
 	int res;
 	/* Grab the lock first */
 	do {
-	    res = ast_mutex_trylock(&pri->lock);
+		res = ast_mutex_trylock(&pri->lock);
 		if (res) {
 			ast_mutex_unlock(&pvt->lock);
 			/* Release the lock and try again */
@@ -1117,11 +1117,11 @@ static char *alarm2str(int alarm)
 
 static char *event2str(int event)
 {
-        static char buf[256];
-        if ((event < (sizeof(events) / sizeof(events[0]))) && (event > -1))
-                return events[event];
-        sprintf(buf, "Event %d", event); /* safe */
-        return buf;
+	static char buf[256];
+	if ((event < (sizeof(events) / sizeof(events[0]))) && (event > -1))
+		return events[event];
+	sprintf(buf, "Event %d", event); /* safe */
+	return buf;
 }
 
 #ifdef ZAPATA_PRI
@@ -1137,16 +1137,16 @@ static char *dialplan2str(int dialplan)
 #ifdef ZAPATA_R2
 static int str2r2prot(char *swtype)
 {
-    if (!strcasecmp(swtype, "ar"))
-        return MFCR2_PROT_ARGENTINA;
-    /*endif*/
-    if (!strcasecmp(swtype, "cn"))
-        return MFCR2_PROT_CHINA;
-    /*endif*/
-    if (!strcasecmp(swtype, "kr"))
-        return MFCR2_PROT_KOREA;
-    /*endif*/
-    return -1;
+	 if (!strcasecmp(swtype, "ar"))
+		  return MFCR2_PROT_ARGENTINA;
+	 /*endif*/
+	 if (!strcasecmp(swtype, "cn"))
+		  return MFCR2_PROT_CHINA;
+	 /*endif*/
+	 if (!strcasecmp(swtype, "kr"))
+		  return MFCR2_PROT_KOREA;
+	 /*endif*/
+	 return -1;
 }
 #endif
 
@@ -10138,38 +10138,38 @@ static struct zt_pvt *find_channel(int channel)
 
 static int action_zapdndon(struct mansession *s, struct message *m)
 {
-    struct zt_pvt *p = NULL;
-    char *channel = astman_get_header(m, "ZapChannel");
-    if (ast_strlen_zero(channel)) {
-        astman_send_error(s, m, "No channel specified");
-        return 0;
-    }
-    p = find_channel(atoi(channel));
-    if (!p) {
-        astman_send_error(s, m, "No such channel");
-        return 0;
-    }
-    p->dnd = 1;
-    astman_send_ack(s, m, "DND Enabled");
-    return 0;
+	 struct zt_pvt *p = NULL;
+	 char *channel = astman_get_header(m, "ZapChannel");
+	 if (ast_strlen_zero(channel)) {
+		  astman_send_error(s, m, "No channel specified");
+		  return 0;
+	 }
+	 p = find_channel(atoi(channel));
+	 if (!p) {
+		  astman_send_error(s, m, "No such channel");
+		  return 0;
+	 }
+	 p->dnd = 1;
+	 astman_send_ack(s, m, "DND Enabled");
+	 return 0;
 }
 
 static int action_zapdndoff(struct mansession *s, struct message *m)
 {
-    struct zt_pvt *p = NULL;
-    char *channel = astman_get_header(m, "ZapChannel");
-    if (ast_strlen_zero(channel)) {
-        astman_send_error(s, m, "No channel specified");
-        return 0;
-    }
-    p = find_channel(atoi(channel));
-    if (!p) {
-        astman_send_error(s, m, "No such channel");
-        return 0;
-    }
-    p->dnd = 0;
-    astman_send_ack(s, m, "DND Disabled");
-    return 0;
+	 struct zt_pvt *p = NULL;
+	 char *channel = astman_get_header(m, "ZapChannel");
+	 if (ast_strlen_zero(channel)) {
+		  astman_send_error(s, m, "No channel specified");
+		  return 0;
+	 }
+	 p = find_channel(atoi(channel));
+	 if (!p) {
+		  astman_send_error(s, m, "No such channel");
+		  return 0;
+	 }
+	 p->dnd = 0;
+	 astman_send_ack(s, m, "DND Disabled");
+	 return 0;
 }
 
 static int action_transfer(struct mansession *s, struct message *m)
@@ -11056,7 +11056,7 @@ static int setup_zap(int reload)
 				int i;
 				struct zt_ring_cadence new_cadence;
 				int cid_location = -1;
-                		int firstcadencepos = 0;
+				int firstcadencepos = 0;
 				char original_args[80];
 				int cadence_is_ok = 1;
 
@@ -11072,27 +11072,27 @@ static int setup_zap(int reload)
 	
 				/* Ring cadences cannot be negative */
 				for (i=0;i<element_count;i++) {
-				        if (c[i] == 0) {
-					        ast_log(LOG_ERROR, "Ring or silence duration cannot be zero: %s\n", original_args);
+					if (c[i] == 0) {
+						ast_log(LOG_ERROR, "Ring or silence duration cannot be zero: %s\n", original_args);
 						cadence_is_ok = 0;
 						break;
 					} else if (c[i] < 0) {
 						if (i % 2 == 1) {
-						        /* Silence duration, negative possibly okay */
+							/* Silence duration, negative possibly okay */
 							if (cid_location == -1) {
-							        cid_location = i;
+								cid_location = i;
 								c[i] *= -1;
 							} else {
-							        ast_log(LOG_ERROR, "CID location specified twice: %s\n",original_args);
+								ast_log(LOG_ERROR, "CID location specified twice: %s\n",original_args);
 								cadence_is_ok = 0;
 								break;
 							}
 						} else {
 							if (firstcadencepos == 0) {
-							        firstcadencepos = i; /* only recorded to avoid duplicate specification */
-								                     /* duration will be passed negative to the zaptel driver */
+								firstcadencepos = i; /* only recorded to avoid duplicate specification */
+											/* duration will be passed negative to the zaptel driver */
 							} else {
-							        ast_log(LOG_ERROR, "First cadence position specified twice: %s\n",original_args);
+								 ast_log(LOG_ERROR, "First cadence position specified twice: %s\n",original_args);
 								cadence_is_ok = 0;
 								break;
 							}
