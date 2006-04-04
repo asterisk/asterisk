@@ -778,6 +778,7 @@ static int send_command_locked(unsigned short callno, char, int, unsigned int, c
 static int send_command_immediate(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
 static int send_command_final(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
 static int send_command_transfer(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int);
+static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, int temponly);
 static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly);
 static void destroy_user(struct iax2_user *user);
 static int expire_registry(void *data);
@@ -2705,12 +2706,6 @@ static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newcha
 	ast_mutex_unlock(&iaxsl[callno]);
 	return 0;
 }
-
-static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, int temponly);
-static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly);
-
-static void destroy_user(struct iax2_user *user);
-static int expire_registry(void *data);
 
 static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in *sin)
 {
@@ -5720,17 +5715,19 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	if (reg->expire > -1)
 		ast_sched_del(sched, reg->expire);
 	reg->expire = ast_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
-	if ((inaddrcmp(&oldus, &reg->us) || (reg->messages != oldmsgs)) && (option_verbose > 2)) {
-		if (reg->messages > 65534)
-			snprintf(msgstatus, sizeof(msgstatus), " with message(s) waiting\n");
-		else if (reg->messages > 1)
-			snprintf(msgstatus, sizeof(msgstatus), " with %d messages waiting\n", reg->messages);
-		else if (reg->messages > 0)
-			snprintf(msgstatus, sizeof(msgstatus), " with 1 message waiting\n");
-		else
-			snprintf(msgstatus, sizeof(msgstatus), " with no messages waiting\n");
-		snprintf(ourip, sizeof(ourip), "%s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), reg->us.sin_addr), ntohs(reg->us.sin_port));
-		ast_verbose(VERBOSE_PREFIX_3 "Registered IAX2 to '%s', who sees us as %s%s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ourip, msgstatus);
+	if (inaddrcmp(&oldus, &reg->us) || (reg->messages != oldmsgs)) {
+		if (option_verbose > 2) {
+			if (reg->messages > 65534)
+				snprintf(msgstatus, sizeof(msgstatus), " with message(s) waiting\n");
+			else if (reg->messages > 1)
+				snprintf(msgstatus, sizeof(msgstatus), " with %d messages waiting\n", reg->messages);
+			else if (reg->messages > 0)
+				snprintf(msgstatus, sizeof(msgstatus), " with 1 message waiting\n");
+			else
+				snprintf(msgstatus, sizeof(msgstatus), " with no messages waiting\n");
+			snprintf(ourip, sizeof(ourip), "%s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), reg->us.sin_addr), ntohs(reg->us.sin_port));
+			ast_verbose(VERBOSE_PREFIX_3 "Registered IAX2 to '%s', who sees us as %s%s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ourip, msgstatus);
+		}
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: IAX2\r\nDomain: %s\r\nStatus: Registered\r\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 	}
 	reg->regstate = REG_STATE_REGISTERED;
@@ -5813,6 +5810,7 @@ static void __expire_registry(void *data)
 	struct iax2_peer *p = data;
 
 	ast_log(LOG_DEBUG, "Expiring registration for peer '%s'\n", p->name);
+	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", p->name);
 	/* Reset the address */
 	memset(&p->addr, 0, sizeof(p->addr));
 	/* Reset expiry value */
