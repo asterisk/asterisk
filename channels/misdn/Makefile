@@ -5,7 +5,7 @@
 #
 
 # Verify those options with main Makefile
-CFLAGS		= -pipe -c -Wall
+CFLAGS		= -pipe -c -Wall -ggdb
 ifeq ($(shell uname -m),x86_64)
 CFLAGS	       += -fPIC
 endif

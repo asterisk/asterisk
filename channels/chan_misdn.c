@@ -1218,6 +1218,9 @@ void config_jitterbuffer(struct chan_list *ch)
 		}
 		
 		ch->jb=misdn_jb_init(len, threshold);
+
+		if (!ch->jb ) 
+			bc->nojitter=1;
 	}
 }
 
@@ -1930,7 +1933,6 @@ static int misdn_hangup(struct ast_channel *ast)
 	
 	release_unlock;
 	
-	
 	{
 		const char *varcause=NULL;
 		bc->cause=ast->hangupcause?ast->hangupcause:16;
@@ -2012,6 +2014,7 @@ static int misdn_hangup(struct ast_channel *ast)
     
 	}
 	
+
 	chan_misdn_log(1, bc->port, "Channel: %s hanguped\n",ast->name);
 	
 	return 0;
@@ -2107,7 +2110,7 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 
 	if ( ! ch->bc->addr ) {
-		chan_misdn_log(4, ch->bc->port, "misdn_write: no addr for bc dropping:%d\n", frame->samples);
+		chan_misdn_log(8, ch->bc->port, "misdn_write: no addr for bc dropping:%d\n", frame->samples);
 		return 0;
 	}
 	
@@ -4227,7 +4230,19 @@ struct misdn_jb *misdn_jb_init(int size, int upper_threshold)
     jb->state_empty = 0;
     jb->bytes_wrote = 0;
     jb->samples = (char *)malloc(size*sizeof(char));
+
+    if (!jb->samples) {
+	    chan_misdn_log(-1,0,"No free Mem for jb->samples\n");
+	    return NULL;
+    }
+    
     jb->ok = (char *)malloc(size*sizeof(char));
+
+    if (!jb->ok) {
+	    chan_misdn_log(-1,0,"No free Mem for jb->ok\n");
+	    return NULL;
+    }
+
     for(i=0; i<size; i++)
  	jb->ok[i]=0;
 
@@ -4240,7 +4255,6 @@ struct misdn_jb *misdn_jb_init(int size, int upper_threshold)
 void misdn_jb_destroy(struct misdn_jb *jb)
 {
 	ast_mutex_destroy(&jb->mutexjb);
-	
 	
 	free(jb->samples);
 	free(jb);
@@ -4374,7 +4388,8 @@ void chan_misdn_log(int level, int port, char *tmpl, ...)
 {
 	if (! ((0 <= port) && (port <= max_ports))) {
 		ast_log(LOG_WARNING, "cb_log called with out-of-range port number! (%d)\n", port);
-		port=-1;
+		port=0;
+		level=-1;
 	}
 		
 	va_list ap;

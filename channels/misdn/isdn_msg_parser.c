@@ -333,10 +333,17 @@ void parse_connect (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *b
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	CONNECT_t *connect=(CONNECT_t*)((unsigned long)(msg->data+HEADER_LEN));
   
+	int type,plan,pres,screen;
+	char connected_pn[32];
+	
 	bc->ces = connect->ces;
 	bc->ces = connect->ces;
 
 	dec_ie_progress(connect->PROGRESS, (Q931_info_t *)connect, &bc->progress_coding, &bc->progress_location, &bc->progress_indicator, nt, bc);
+
+	dec_ie_connected_pn(connect->CONNECT_PN,(Q931_info_t *)connect, &type, &plan, &pres, &screen, connected_pn, 31, nt, bc);
+
+	cb_log(1,bc->port,"CONNETED PN: %s cpn_dialplan:%d\n", connected_pn, type);
 	
 #if DEBUG 
 	printf("Parsing CONNECT Msg\n"); 

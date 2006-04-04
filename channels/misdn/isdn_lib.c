@@ -880,6 +880,11 @@ int setup_bc(struct misdn_bchannel *bc)
 	
 
 	struct misdn_stack *stack=get_stack_by_bc(bc);
+
+	if (!stack) {
+		cb_log(-1, bc->port, "setup_bc: NO STACK FOUND!!\n");
+		return -1;
+	}
 	
 	int midev=stack->midev;
 	int channel=bc->channel-1-(bc->channel>16);
@@ -2790,7 +2795,12 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	if (!bc) goto ERR; 
 	
 	struct misdn_stack *stack=get_stack_by_bc(bc);
-
+	
+	if (!stack) {
+		cb_log(-1,bc->port,"SENDEVENT: no Stack for event:%s oad:%s dad:%s \n", isdn_get_info(msgs_g, event, 0), bc->oad, bc->dad);
+		return -1;
+	}
+	
 	cb_log(6,stack->port,"SENDEVENT: stack->nt:%d stack->uperid:%x\n",stack->nt, stack->upper_id);
 
 	if ( stack->nt && !stack->l1link) {
@@ -2938,6 +2948,43 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 }
 
 
+int handle_err(msg_t *msg)
+{
+	iframe_t *frm = (iframe_t*) msg->data;
+	unsigned char buff[32];
+	
+	switch (frm->prim) {
+		case DL_DATA|INDICATION:
+			{
+			struct misdn_stack *stack=find_stack_by_port( (frm->addr&MASTER_ID_MASK) >> 8);
+			if (!stack) {
+				cb_log(-1,0,"BCHAN DATA without having a Chan Object (addr:%x) probably we died before closing..\n",frm->addr);
+				return 0;
+			}
+			cb_log(-1,stack->port,"BCHAN DATA without having a Chan Object (addr:%x) probably we died before closing..\n",frm->addr);
+
+			if (stack->l1link)
+				misdn_lib_get_l1_down(stack);
+#if 0
+			iframe_t dact;
+			dact.prim = DL_RELEASE | REQUEST;
+			dact.addr = frm->addr | FLG_MSG_DOWN;
+			dact.dinfo = 0;
+			dact.len = 0;
+	
+			mISDN_write(glob_mgr->midev, &dact, mISDN_HEADER_LEN+dact.len, TIMEOUT_1SEC);
+
+			mISDN_write_frame(glob_mgr->midev, buff, frm->addr|FLG_MSG_DOWN, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
+#endif
+			free_msg(msg);
+			return 1;
+			}
+	}
+
+	return 0;
+}
+
+
 int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 {  
 
@@ -2971,6 +3018,9 @@ int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 	if (handle_frm(msg)) 
 		return 0 ;
 
+	if (handle_err(msg)) 
+		return 0 ;
+	
 	cb_log(-1, 0, "Unhandled Message: prim %x len %d from addr %x, dinfo %x on this port.\n",frm->prim, frm->len, frm->addr, frm->dinfo);		
    
 	free_msg(msg);
@@ -3322,7 +3372,8 @@ void manager_bchannel_activate(struct misdn_bchannel *bc)
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 
 	if (!stack) {
-		cb_log(-1, stack->port, "bchannel_activate: Stack not found !");
+		cb_log(-1, bc->port, "bchannel_activate: Stack not found !");
+		return ;
 	}
 	
 	if (!msg) {
@@ -3370,7 +3421,6 @@ void manager_bchannel_activate(struct misdn_bchannel *bc)
 
 void manager_bchannel_deactivate(struct misdn_bchannel * bc)
 {
-	iframe_t dact;
 
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 
@@ -3391,6 +3441,7 @@ void manager_bchannel_deactivate(struct misdn_bchannel * bc)
 	
 	bc->generate_tone=0;
 	
+	iframe_t dact;
 	dact.prim = DL_RELEASE | REQUEST;
 	dact.addr = bc->addr | FLG_MSG_DOWN;
 	dact.dinfo = 0;
