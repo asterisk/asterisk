@@ -1610,19 +1610,14 @@ static int send_packet(struct iax_frame *f)
 	int res;
 	char iabuf[INET_ADDRSTRLEN];
 	int callno = f->callno;
+
+	/* Don't send if there was an error, but return error instead */
+	if (!callno || !iaxs[callno] || iaxs[callno]->error)
+	    return -1;
 	
 	/* Called with iaxsl held */
-	if (!iaxs[callno])
-		return -1;
 	if (option_debug > 2 && iaxdebug)
 		ast_log(LOG_DEBUG, "Sending %d on %d/%d to %s:%d\n", f->ts, callno, iaxs[callno]->peercallno, ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[callno]->addr.sin_addr), ntohs(iaxs[callno]->addr.sin_port));
-	/* Don't send if there was an error, but return error instead */
-	if (!callno) {
-		ast_log(LOG_WARNING, "Call number = %d\n", callno);
-		return -1;
-	}
-	if (iaxs[callno]->error)
-		return -1;
 	if (f->transfer) {
 		if (iaxdebug)
 			iax_showframe(f, NULL, 0, &iaxs[callno]->transfer, f->datalen - sizeof(struct ast_iax2_full_hdr));
@@ -1643,6 +1638,30 @@ static int send_packet(struct iax_frame *f)
 	return res;
 }
 
+static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
+{
+	/* No more pings or lagrq's */
+	if (pvt->pingid > -1)
+		ast_sched_del(sched, pvt->pingid);
+	pvt->pingid = -1;
+	if (pvt->lagid > -1)
+		ast_sched_del(sched, pvt->lagid);
+	pvt->lagid = -1;
+	if (pvt->autoid > -1)
+		ast_sched_del(sched, pvt->autoid);
+	pvt->autoid = -1;
+	if (pvt->authid > -1)
+		ast_sched_del(sched, pvt->authid);
+	pvt->authid = -1;
+	if (pvt->initid > -1)
+		ast_sched_del(sched, pvt->initid);
+	pvt->initid = -1;
+#ifdef NEWJB
+	if (pvt->jbid > -1)
+		ast_sched_del(sched, pvt->jbid);
+	pvt->jbid = -1;
+#endif
+}
 
 static int iax2_predestroy(int callno)
 {
@@ -1655,27 +1674,7 @@ static int iax2_predestroy(int callno)
 		return -1;
 	}
 	if (!ast_test_flag(pvt, IAX_ALREADYGONE)) {
-		/* No more pings or lagrq's */
-		if (pvt->pingid > -1)
-			ast_sched_del(sched, pvt->pingid);
-		if (pvt->lagid > -1)
-			ast_sched_del(sched, pvt->lagid);
-		if (pvt->autoid > -1)
-			ast_sched_del(sched, pvt->autoid);
-		if (pvt->authid > -1)
-			ast_sched_del(sched, pvt->authid);
-		if (pvt->initid > -1)
-			ast_sched_del(sched, pvt->initid);
-#ifdef NEWJB
-		if (pvt->jbid > -1)
-			ast_sched_del(sched, pvt->jbid);
-		pvt->jbid = -1;
-#endif
-		pvt->pingid = -1;
-		pvt->lagid = -1;
-		pvt->autoid = -1;
-		pvt->initid = -1;
-		pvt->authid = -1;
+		iax2_destroy_helper(pvt);
 		ast_set_flag(pvt, IAX_ALREADYGONE);	
 	}
 	c = pvt->owner;
@@ -1730,27 +1729,7 @@ retry:
 	if (pvt) {
 		if (!owner)
 			pvt->owner = NULL;
-		/* No more pings or lagrq's */
-		if (pvt->pingid > -1)
-			ast_sched_del(sched, pvt->pingid);
-		if (pvt->lagid > -1)
-			ast_sched_del(sched, pvt->lagid);
-		if (pvt->autoid > -1)
-			ast_sched_del(sched, pvt->autoid);
-		if (pvt->authid > -1)
-			ast_sched_del(sched, pvt->authid);
-		if (pvt->initid > -1)
-			ast_sched_del(sched, pvt->initid);
-#ifdef NEWJB
-		if (pvt->jbid > -1)
-			ast_sched_del(sched, pvt->jbid);
-		pvt->jbid = -1;
-#endif
-		pvt->pingid = -1;
-		pvt->lagid = -1;
-		pvt->autoid = -1;
-		pvt->authid = -1;
-		pvt->initid = -1;
+		iax2_destroy_helper(pvt);
 		if (pvt->bridgetrans)
 			ast_translator_free_path(pvt->bridgetrans);
 		pvt->bridgetrans = NULL;
@@ -6048,29 +6027,9 @@ static int registry_rerequest(struct iax_ies *ies, int callno, struct sockaddr_i
 	return -1;
 }
 
-static int stop_stuff(int callno)
+static void stop_stuff(int callno)
 {
-		if (iaxs[callno]->lagid > -1)
-			ast_sched_del(sched, iaxs[callno]->lagid);
-		iaxs[callno]->lagid = -1;
-		if (iaxs[callno]->pingid > -1)
-			ast_sched_del(sched, iaxs[callno]->pingid);
-		iaxs[callno]->pingid = -1;
-		if (iaxs[callno]->autoid > -1)
-			ast_sched_del(sched, iaxs[callno]->autoid);
-		iaxs[callno]->autoid = -1;
-		if (iaxs[callno]->initid > -1)
-			ast_sched_del(sched, iaxs[callno]->initid);
-		iaxs[callno]->initid = -1;
-		if (iaxs[callno]->authid > -1)
-			ast_sched_del(sched, iaxs[callno]->authid);
-		iaxs[callno]->authid = -1;
-#ifdef NEWJB
-		if (iaxs[callno]->jbid > -1)
-			ast_sched_del(sched, iaxs[callno]->jbid);
-		iaxs[callno]->jbid = -1;
-#endif
-		return 0;
+	iax2_destroy_helper(iaxs[callno]);
 }
 
 static void __auth_reject(void *nothing)
@@ -6097,9 +6056,8 @@ static int auth_reject(void *data)
 {
 	int callno = (int)(long)(data);
 	ast_mutex_lock(&iaxsl[callno]);
-	if (iaxs[callno]) {
+	if (iaxs[callno])
 		iaxs[callno]->authid = -1;
-	}
 	ast_mutex_unlock(&iaxsl[callno]);
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__auth_reject, data))
