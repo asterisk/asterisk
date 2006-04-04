@@ -551,13 +551,12 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 
 		checksum = checksum % 15;
 
-		if(checksum){
+		if (checksum) {
 			database_increment("checksum-errors");
-			if(option_verbose >= 2){
+			if (option_verbose >= 2)
 				ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Nonzero checksum\n");
 			ast_log(LOG_DEBUG, "AlarmReceiver: Nonzero checksum\n");
 			continue;
-			}
 		}
 
 		/* Check the message type for correctness */
