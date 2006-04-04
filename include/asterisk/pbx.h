@@ -73,10 +73,10 @@ typedef int (*ast_state_cb_type)(char *context, char* id, enum ast_extension_sta
 
 /*! Data structure associated with a custom function */
 struct ast_custom_function {
-	char *name;
-	char *synopsis;
-	char *desc;
-	char *syntax;
+	const char *name;
+	const char *synopsis;
+	const char *desc;
+	const char *syntax;
 	int (*read)(struct ast_channel *, char *, char *, char *, size_t);
 	int (*write)(struct ast_channel *, char *, char *, const char *);
 	struct ast_custom_function *next;
