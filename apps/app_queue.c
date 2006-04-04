@@ -1211,7 +1211,7 @@ static void recalc_holdtime(struct queue_ent *qe)
 
 	ast_mutex_lock(&qe->parent->lock);
 	if (newvalue <= qe->parent->servicelevel)
-       		qe->parent->callscompletedinsl++;
+		qe->parent->callscompletedinsl++;
 	oldvalue = qe->parent->holdtime;
 	qe->parent->holdtime = (((oldvalue << 2) - oldvalue) + newvalue) >> 2;
 	ast_mutex_unlock(&qe->parent->lock);
@@ -1753,7 +1753,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				if (f) {
 					if (f->frametype == AST_FRAME_CONTROL) {
 						switch(f->subclass) {
-		    			case AST_CONTROL_ANSWER:
+						case AST_CONTROL_ANSWER:
 							/* This is our guy if someone answered. */
 							if (!peer) {
 								if (option_verbose > 2)
@@ -2193,7 +2193,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				/* Agent must have hung up */
 				ast_log(LOG_WARNING, "Agent on %s hungup on the customer.  They're going to be pissed.\n", peer->name);
 				ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "AGENTDUMP", "%s", "");
-                                record_abandoned(qe);
+				record_abandoned(qe);
 				if (qe->parent->eventwhencalled) {
 					manager_event(EVENT_FLAG_AGENT, "AgentDump",
 						      "Queue: %s\r\n"
@@ -2223,7 +2223,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (res < 0) {
 			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "SYSCOMPAT", "%s", "");
 			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", qe->chan->name, peer->name);
-                        record_abandoned(qe);
+		record_abandoned(qe);
 			ast_hangup(peer);
 			return -1;
 		}
@@ -2403,7 +2403,7 @@ static int remove_from_queue(char *queuename, char *interface)
 				free(last_member);
 
 				if (queue_persistent_members)
-				    dump_queue_members(q);
+					dump_queue_members(q);
 
 				res = RES_OKAY;
 			} else {
@@ -2440,17 +2440,17 @@ static int add_to_queue(char *queuename, char *interface, int penalty, int pause
 				new_member->next = q->members;
 				q->members = new_member;
 				manager_event(EVENT_FLAG_AGENT, "QueueMemberAdded",
-					"Queue: %s\r\n"
-					"Location: %s\r\n"
-					"Membership: %s\r\n"
-					"Penalty: %d\r\n"
-					"CallsTaken: %d\r\n"
-					"LastCall: %d\r\n"
-					"Status: %d\r\n"
-					"Paused: %d\r\n",
-				q->name, new_member->interface, new_member->dynamic ? "dynamic" : "static",
-				new_member->penalty, new_member->calls, (int)new_member->lastcall, new_member->status, new_member->paused);
-					
+						"Queue: %s\r\n"
+						"Location: %s\r\n"
+						"Membership: %s\r\n"
+						"Penalty: %d\r\n"
+						"CallsTaken: %d\r\n"
+						"LastCall: %d\r\n"
+						"Status: %d\r\n"
+						"Paused: %d\r\n",
+						q->name, new_member->interface, new_member->dynamic ? "dynamic" : "static",
+						new_member->penalty, new_member->calls, (int)new_member->lastcall, new_member->status, new_member->paused);
+
 				if (dump)
 					dump_queue_members(q);
 
@@ -2489,7 +2489,7 @@ static int set_member_paused(char *queuename, char *interface, int paused)
 				mem->paused = paused;
 
 				if (queue_persistent_members)
-				    dump_queue_members(q);
+					dump_queue_members(q);
 
 				ast_queue_log(q->name, "NONE", interface, (paused ? "PAUSE" : "UNPAUSE"), "%s", "");
 
@@ -2944,7 +2944,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 check_turns:
 		if (ringing) {
 			ast_indicate(chan, AST_CONTROL_RINGING);
-		} else {              
+		} else {
 			ast_moh_start(chan, qe.moh);
 		}
 		for (;;) {
@@ -2958,8 +2958,8 @@ check_turns:
 				 ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
 				if (option_verbose > 2) {
 					ast_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s while waiting their turn\n", args.queuename);
-					res = -1;
 				}
+				res = -1;
 				break;
 			}
 			if (!res) 
@@ -2981,7 +2981,7 @@ check_turns:
 
 				/* Leave if we have exceeded our queuetimeout */
 				if (qe.expire && (time(NULL) > qe.expire)) {
-                                        record_abandoned(&qe);
+					record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
 					ast_queue_log(args.queuename, chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
@@ -3057,8 +3057,8 @@ check_turns:
 					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
 					if (option_verbose > 2) {
 						ast_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s when they almost made it\n", args.queuename);
-						res = -1;
 					}
+					res = -1;
 					break;
 				}
 				if (res && valid_exit(&qe, res)) {
@@ -3067,12 +3067,10 @@ check_turns:
 				}
 				/* exit after 'timeout' cycle if 'n' option enabled */
 				if (go_on) {
-					if (option_verbose > 2) {
+					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Exiting on time-out cycle\n");
-						res = -1;
-					}
 					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
-                                        record_abandoned(&qe);
+					record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
 					break;
