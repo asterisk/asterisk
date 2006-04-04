@@ -42,17 +42,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/options.h"
 
+/*! \brief Device state strings for printing */
 static const char *devstatestring[] = {
-	/* 0 AST_DEVICE_UNKNOWN */	"Unknown",	/* Valid, but unknown state */
-	/* 1 AST_DEVICE_NOT_INUSE */	"Not in use",	/* Not used */
-	/* 2 AST_DEVICE IN USE */	"In use",	/* In use */
-	/* 3 AST_DEVICE_BUSY */		"Busy",		/* Busy */
-	/* 4 AST_DEVICE_INVALID */	"Invalid",	/* Invalid - not known to Asterisk */
-	/* 5 AST_DEVICE_UNAVAILABLE */	"Unavailable",	/* Unavailable (not registred) */
-	/* 6 AST_DEVICE_RINGING */	"Ringing"	/* Ring, ring, ring */
+	/* 0 AST_DEVICE_UNKNOWN */	"Unknown",	/*!< Valid, but unknown state */
+	/* 1 AST_DEVICE_NOT_INUSE */	"Not in use",	/*!< Not used */
+	/* 2 AST_DEVICE IN USE */	"In use",	/*!< In use */
+	/* 3 AST_DEVICE_BUSY */		"Busy",		/*!< Busy */
+	/* 4 AST_DEVICE_INVALID */	"Invalid",	/*!< Invalid - not known to Asterisk */
+	/* 5 AST_DEVICE_UNAVAILABLE */	"Unavailable",	/*!< Unavailable (not registred) */
+	/* 6 AST_DEVICE_RINGING */	"Ringing"	/*!< Ring, ring, ring */
 };
 
-/* ast_devstate_cb: A device state watcher (callback) */
+/*! \brief  A device state watcher (callback) */
 struct devstate_cb {
 	void *data;
 	ast_devstate_cb_type callback;
@@ -77,7 +78,11 @@ const char *devstate2str(int devstate)
 	return devstatestring[devstate];
 }
 
-/*! \brief Find out if device is active in a call or not */
+/*! \brief Find out if device is active in a call or not 
+\note find channels with the device's name in it
+This function is only used for channels that does not implement 
+devicestate natively
+*/
 int ast_parse_device_state(const char *device)
 {
 	struct ast_channel *chan;

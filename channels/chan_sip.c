@@ -11835,12 +11835,16 @@ static int sip_poke_peer(struct sip_peer *peer)
 
 	For peers with call limit:
 		- not registered			AST_DEVICE_UNAVAILABLE
-		- registered, no call		AST_DEVICE_NOT_INUSE
-		- registered, calls possible	AST_DEVICE_INUSE
+		- registered, no call			AST_DEVICE_NOT_INUSE
+		- registered, active calls		AST_DEVICE_INUSE
 		- registered, call limit reached	AST_DEVICE_BUSY
 	For peers without call limit:
 		- not registered			AST_DEVICE_UNAVAILABLE
-		- registered			AST_DEVICE_UNKNOWN
+		- registered				AST_DEVICE_NOT_INUSE
+		- fixed IP (!dynamic)			AST_DEVICE_NOT_INUSE
+
+	If we return AST_DEVICE_UNKNOWN, the device state engine will try to find
+	out a state by walking the channel list.
 */
 static int sip_devicestate(void *data)
 {
@@ -11873,10 +11877,8 @@ static int sip_devicestate(void *data)
 					res = AST_DEVICE_BUSY;
 				else if (p->call_limit && p->inUse)
 					res = AST_DEVICE_INUSE;
-				else if (p->call_limit)
-					res = AST_DEVICE_NOT_INUSE;
 				else
-					res = AST_DEVICE_UNKNOWN;
+					res = AST_DEVICE_NOT_INUSE;
 			}
 		} else {
 			/* there is no address, it's unavailable */
