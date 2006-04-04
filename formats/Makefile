@@ -13,6 +13,11 @@
 
 MODS:=$(patsubst %.c,%.so,$(wildcard format_*.c))
 
+MODS:=$(filter-out format_pcm_alaw.so,$(MODS))
+MODS:=$(filter-out format_au.so,$(MODS))
+
+# merged.	format_pcm_alaw.so
+# merged.	format_au.so
 #
 # OGG/Vorbis format
 #

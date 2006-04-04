@@ -43,111 +43,26 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/endian.h"
 
-#define BUF_SIZE 320		/* 320 samples */
-
-struct ast_filestream {
-	void *reserved[AST_RESERVED_POINTERS];
-	/* This is what a filestream means to us */
-	FILE *f; /* Descriptor */
-	struct ast_channel *owner;
-	struct ast_frame fr;				/* Frame information */
-	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
-	char empty;							/* Empty character */
-	unsigned char buf[BUF_SIZE];				/* Output Buffer */
-	struct timeval last;
-};
-
-
-AST_MUTEX_DEFINE_STATIC(slinear_lock);
-static int glistcnt = 0;
-
-static char *name = "sln";
-static char *desc = "Raw Signed Linear Audio support (SLN)";
-static char *exts = "sln|raw";
-
-static struct ast_filestream *slinear_open(FILE *f)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&slinear_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock slinear list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->fr.data = tmp->buf;
-		tmp->fr.frametype = AST_FRAME_VOICE;
-		tmp->fr.subclass = AST_FORMAT_SLINEAR;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
-		glistcnt++;
-		ast_mutex_unlock(&slinear_lock);
-		ast_update_use_count();
-	}
-	return tmp;
-}
-
-static struct ast_filestream *slinear_rewrite(FILE *f, const char *comment)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&slinear_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock slinear list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		glistcnt++;
-		ast_mutex_unlock(&slinear_lock);
-		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
-}
-
-static void slinear_close(struct ast_filestream *s)
-{
-	if (ast_mutex_lock(&slinear_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock slinear list\n");
-		return;
-	}
-	glistcnt--;
-	ast_mutex_unlock(&slinear_lock);
-	ast_update_use_count();
-	fclose(s->f);
-	free(s);
-	s = NULL;
-}
+#define BUF_SIZE	320		/* 320 bytes, 160 samples */
+#define	SLIN_SAMPLES	160
 
 static struct ast_frame *slinear_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
-	int delay;
 	/* Send a frame from the file to the appropriate channel */
 
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_SLINEAR;
 	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.mallocd = 0;
-	s->fr.data = s->buf;
-	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1) {
+	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
+	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) < 1) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
 	}
-	s->fr.samples = res/2;
+	*whennext = s->fr.samples = res/2;
 	s->fr.datalen = res;
-	delay = s->fr.samples;
-	*whennext = delay;
 	return &s->fr;
 }
 
@@ -199,47 +114,43 @@ static int slinear_trunc(struct ast_filestream *fs)
 
 static off_t slinear_tell(struct ast_filestream *fs)
 {
-	off_t offset;
-	offset = ftello(fs->f);
-	return offset / 2;
+	return ftello(fs->f) / 2;
 }
 
-static char *slinear_getcomment(struct ast_filestream *s)
-{
-	return NULL;
-}
+static struct ast_format_lock me = { .usecnt = -1 };
+
+static const struct ast_format slin_f = {
+	.name = "sln",
+	.exts = "sln|raw",
+	.format = AST_FORMAT_SLINEAR,
+	.write = slinear_write,
+	.seek = slinear_seek,
+	.trunc = slinear_trunc,
+	.tell = slinear_tell,
+	.read = slinear_read,
+	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
+	.lockp = &me,
+};
 
 int load_module()
 {
-	return ast_format_register(name, exts, AST_FORMAT_SLINEAR,
-								slinear_open,
-								slinear_rewrite,
-								slinear_write,
-								slinear_seek,
-								slinear_trunc,
-								slinear_tell,
-								slinear_read,
-								slinear_close,
-								slinear_getcomment);
-								
-								
+	return ast_format_register(&slin_f);
 }
 
 int unload_module()
 {
-	return ast_format_unregister(name);
+	return ast_format_unregister(slin_f.name);
 }	
 
 int usecount()
 {
-	return glistcnt;
+	return me.usecnt;
 }
 
 char *description()
 {
-	return desc;
+	return "Raw Signed Linear Audio support (SLN)";
 }
-
 
 char *key()
 {

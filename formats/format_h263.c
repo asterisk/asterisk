@@ -48,133 +48,60 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* Portions of the conversion code are by guido@sienanet.it */
 
-struct ast_filestream {
-	void *reserved[AST_RESERVED_POINTERS];
-	/* Believe it or not, we must decode/recode to account for the
-	   weird MS format */
-	/* This is what a filestream means to us */
-	FILE *f; /* Descriptor */
+#define	BUF_SIZE	4096	/* Two Real h263 Frames */
+
+struct h263_desc {
 	unsigned int lastts;
-	struct ast_frame fr;				/* Frame information */
-	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
-	char empty;							/* Empty character */
-	unsigned char h263[4096];				/* Two Real h263 Frames */
 };
 
 
-AST_MUTEX_DEFINE_STATIC(h263_lock);
-static int glistcnt = 0;
-
-static char *name = "h263";
-static char *desc = "Raw h263 data";
-static char *exts = "h263";
-
-static struct ast_filestream *h263_open(FILE *f)
+static int h263_open(struct ast_filestream *s)
 {
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
 	unsigned int ts;
 	int res;
-	if ((res = fread(&ts, 1, sizeof(ts), f)) < sizeof(ts)) {
+
+	if ((res = fread(&ts, 1, sizeof(ts), s->f)) < sizeof(ts)) {
 		ast_log(LOG_WARNING, "Empty file!\n");
-		return NULL;
+		return -1;
 	}
-		
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&h263_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock h263 list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->fr.data = tmp->h263;
-		tmp->fr.frametype = AST_FRAME_VIDEO;
-		tmp->fr.subclass = AST_FORMAT_H263;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
-		glistcnt++;
-		ast_mutex_unlock(&h263_lock);
-		ast_update_use_count();
-	}
-	return tmp;
-}
-
-static struct ast_filestream *h263_rewrite(FILE *f, const char *comment)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&h263_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock h263 list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		glistcnt++;
-		ast_mutex_unlock(&h263_lock);
-		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
-}
-
-static void h263_close(struct ast_filestream *s)
-{
-	if (ast_mutex_lock(&h263_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock h263 list\n");
-		return;
-	}
-	glistcnt--;
-	ast_mutex_unlock(&h263_lock);
-	ast_update_use_count();
-	fclose(s->f);
-	free(s);
-	s = NULL;
+	return 0;
 }
 
 static struct ast_frame *h263_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
-	int mark=0;
+	int mark;
 	unsigned short len;
 	unsigned int ts;
+	struct h263_desc *fs = (struct h263_desc *)s->private;
+
 	/* Send a frame from the file to the appropriate channel */
+	if ((res = fread(&len, 1, sizeof(len), s->f)) < 1)
+		return NULL;
+	len = ntohs(len);
+	mark = (len & 0x8000) ? 1 : 0;
+	len &= 0x7fff;
+	if (len > BUF_SIZE) {
+		ast_log(LOG_WARNING, "Length %d is too long\n", len);
+		len = BUF_SIZE;	/* XXX truncate ? */
+	}
 	s->fr.frametype = AST_FRAME_VIDEO;
 	s->fr.subclass = AST_FORMAT_H263;
-	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.mallocd = 0;
-	s->fr.data = s->h263;
-	if ((res = fread(&len, 1, sizeof(len), s->f)) < 1) {
-		return NULL;
-	}
-	len = ntohs(len);
-	if (len & 0x8000) {
-		mark = 1;
-	}
-	len &= 0x7fff;
-	if (len > sizeof(s->h263)) {
-		ast_log(LOG_WARNING, "Length %d is too long\n", len);
-	}
-	if ((res = fread(s->h263, 1, len, s->f)) != len) {
+	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, len);
+	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
 	}
-	s->fr.samples = s->lastts;
+	s->fr.samples = fs->lastts;	/* XXX what ? */
 	s->fr.datalen = len;
 	s->fr.subclass |= mark;
 	s->fr.delivery.tv_sec = 0;
 	s->fr.delivery.tv_usec = 0;
 	if ((res = fread(&ts, 1, sizeof(ts), s->f)) == sizeof(ts)) {
-		s->lastts = ntohl(ts);
-		*whennext = s->lastts * 4/45;
+		fs->lastts = ntohl(ts);
+		*whennext = fs->lastts * 4/45;
 	} else
 		*whennext = 0;
 	return &s->fr;
@@ -216,11 +143,6 @@ static int h263_write(struct ast_filestream *fs, struct ast_frame *f)
 	return 0;
 }
 
-static char *h263_getcomment(struct ast_filestream *s)
-{
-	return NULL;
-}
-
 static int h263_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
 	/* No way Jose */
@@ -237,43 +159,46 @@ static int h263_trunc(struct ast_filestream *fs)
 
 static off_t h263_tell(struct ast_filestream *fs)
 {
-	/* XXX This is totally bogus XXX */
-	off_t offset;
-	offset = ftello(fs->f);
-	return (offset/20)*160;
+	off_t offset = ftello(fs->f);
+	return offset;	/* XXX totally bogus, needs fixing */
 }
+
+static struct ast_format_lock me = { .usecnt = -1 };
+
+static const struct ast_format h263_f = {
+	.name = "h263",
+	.exts = "h264",
+	.format = AST_FORMAT_H263,
+	.open = h263_open,
+	.write = h263_write,
+	.seek = h263_seek,
+	.trunc = h263_trunc,
+	.tell = h263_tell,
+	.read = h263_read,
+	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
+	.desc_size = sizeof(struct h263_desc),
+	.lockp = &me,
+};
 
 int load_module()
 {
-	return ast_format_register(name, exts, AST_FORMAT_H263,
-								h263_open,
-								h263_rewrite,
-								h263_write,
-								h263_seek,
-								h263_trunc,
-								h263_tell,
-								h263_read,
-								h263_close,
-								h263_getcomment);
-								
-								
+	return ast_format_register(&h263_f);
 }
 
 int unload_module()
 {
-	return ast_format_unregister(name);
+	return ast_format_unregister(h263_f.name);
 }	
 
 int usecount()
 {
-	return glistcnt;
+	return me.usecnt;
 }
 
 char *description()
 {
-	return desc;
+	return "Raw h263 data";
 }
-
 
 char *key()
 {

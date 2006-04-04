@@ -58,6 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* We can only read/write chunks of FRAME_TIME ms G.726 data */
 #define	FRAME_TIME	10	/* 10 ms size */
 
+#define	BUF_SIZE	(5*FRAME_TIME)	/* max frame size in bytes ? */
 /* Frame sizes in bytes */
 static int frame_size[4] = { 
 		FRAME_TIME * 5,
@@ -66,293 +67,79 @@ static int frame_size[4] = {
 		FRAME_TIME * 2
 };
 
-struct ast_filestream {
-	/* Do not place anything before "reserved" */
-	void *reserved[AST_RESERVED_POINTERS];
-	/* This is what a filestream means to us */
-	FILE *f; 							/* Open file descriptor */
-	int rate;							/* RATE_* defines */
-	struct ast_frame fr;				/* Frame information */
-	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
-	char empty;							/* Empty character */
-	unsigned char g726[FRAME_TIME * 5];	/* G.726 encoded voice */
+struct g726_desc  {
+	int rate;	/* RATE_* defines */
 };
-
-AST_MUTEX_DEFINE_STATIC(g726_lock);
-static int glistcnt = 0;
-
-static char *desc = "Raw G.726 (16/24/32/40kbps) data";
-static char *name40 = "g726-40";
-static char *name32 = "g726-32";
-static char *name24 = "g726-24";
-static char *name16 = "g726-16";
-static char *exts40 = "g726-40";
-static char *exts32 = "g726-32";
-static char *exts24 = "g726-24";
-static char *exts16 = "g726-16";
 
 /*
  * Rate dependant format functions (open, rewrite)
  */
-static struct ast_filestream *g726_40_open(FILE *f)
+static int g726_open(struct ast_filestream *tmp, int rate)
 {
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&g726_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock g726 list.\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->rate = RATE_40;
-		tmp->fr.data = tmp->g726;
-		tmp->fr.frametype = AST_FRAME_VOICE;
-		tmp->fr.subclass = AST_FORMAT_G726;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name40;
-		tmp->fr.mallocd = 0;
-		glistcnt++;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-									40 - tmp->rate * 8);
-		ast_mutex_unlock(&g726_lock);
-		ast_update_use_count();
-	}
-	return tmp;
+	struct g726_desc *s = (struct g726_desc *)tmp->private;
+	s->rate = rate;
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
+				40 - s->rate * 8);
+	return 0;
 }
 
-static struct ast_filestream *g726_32_open(FILE *f)
+static int g726_40_open(struct ast_filestream *s)
 {
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&g726_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock g726 list.\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->rate = RATE_32;
-		tmp->fr.data = tmp->g726;
-		tmp->fr.frametype = AST_FRAME_VOICE;
-		tmp->fr.subclass = AST_FORMAT_G726;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name32;
-		tmp->fr.mallocd = 0;
-		glistcnt++;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-									40 - tmp->rate * 8);
-		ast_mutex_unlock(&g726_lock);
-		ast_update_use_count();
-	}
-	return tmp;
+	return g726_open(s, RATE_40);
 }
 
-static struct ast_filestream *g726_24_open(FILE *f)
+static int g726_32_open(struct ast_filestream *s)
 {
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&g726_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock g726 list.\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->rate = RATE_24;
-		tmp->fr.data = tmp->g726;
-		tmp->fr.frametype = AST_FRAME_VOICE;
-		tmp->fr.subclass = AST_FORMAT_G726;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name24;
-		tmp->fr.mallocd = 0;
-		glistcnt++;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-									40 - tmp->rate * 8);
-		ast_mutex_unlock(&g726_lock);
-		ast_update_use_count();
-	}
-	return tmp;
+	return g726_open(s, RATE_32);
 }
 
-static struct ast_filestream *g726_16_open(FILE *f)
+static int g726_24_open(struct ast_filestream *s)
 {
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&g726_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock g726 list.\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->rate = RATE_16;
-		tmp->fr.data = tmp->g726;
-		tmp->fr.frametype = AST_FRAME_VOICE;
-		tmp->fr.subclass = AST_FORMAT_G726;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name16;
-		tmp->fr.mallocd = 0;
-		glistcnt++;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-									40 - tmp->rate * 8);
-		ast_mutex_unlock(&g726_lock);
-		ast_update_use_count();
-	}
-	return tmp;
+	return g726_open(s, RATE_24);
 }
 
-static struct ast_filestream *g726_40_rewrite(FILE *f, const char *comment)
+static int g726_16_open(struct ast_filestream *s)
 {
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&g726_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock g726 list.\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->rate = RATE_40;
-		glistcnt++;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-									40 - tmp->rate * 8);
-		ast_mutex_unlock(&g726_lock);
-		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
+	return g726_open(s, RATE_16);
 }
 
-static struct ast_filestream *g726_32_rewrite(FILE *f, const char *comment)
+static int g726_40_rewrite(struct ast_filestream *s, const char *comment)
 {
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&g726_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock g726 list.\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->rate = RATE_32;
-		glistcnt++;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-									40 - tmp->rate * 8);
-		ast_mutex_unlock(&g726_lock);
-		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
+	return g726_open(s, RATE_40);
 }
 
-static struct ast_filestream *g726_24_rewrite(FILE *f, const char *comment)
+static int g726_32_rewrite(struct ast_filestream *s, const char *comment)
 {
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&g726_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock g726 list.\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->rate = RATE_24;
-		glistcnt++;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-									40 - tmp->rate * 8);
-		ast_mutex_unlock(&g726_lock);
-		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
+	return g726_open(s, RATE_32);
 }
 
-static struct ast_filestream *g726_16_rewrite(FILE *f, const char *comment)
+static int g726_24_rewrite(struct ast_filestream *s, const char *comment)
 {
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&g726_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock g726 list.\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->rate = RATE_16;
-		glistcnt++;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-									40 - tmp->rate * 8);
-		ast_mutex_unlock(&g726_lock);
-		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
+	return g726_open(s, RATE_24);
+}
+
+static int g726_16_rewrite(struct ast_filestream *s, const char *comment)
+{
+	return g726_open(s, RATE_16);
 }
 
 /*
- * Rate independent format functions (close, read, write)
+ * Rate independent format functions (read, write)
  */
-static void g726_close(struct ast_filestream *s)
-{
-	if (ast_mutex_lock(&g726_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock g726 list.\n");
-		return;
-	}
-	glistcnt--;
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Closed filestream G.726-%dk.\n", 40 - s->rate * 8);
-	ast_mutex_unlock(&g726_lock);
-	ast_update_use_count();
-	fclose(s->f);
-	free(s);
-	s = NULL;
-}
 
 static struct ast_frame *g726_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
+	struct g726_desc *fs = (struct g726_desc *)s->private;
+
 	/* Send a frame from the file to the appropriate channel */
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_G726;
-	s->fr.offset = AST_FRIENDLY_OFFSET;
-	s->fr.samples = 8 * FRAME_TIME;
-	s->fr.datalen = frame_size[s->rate];
 	s->fr.mallocd = 0;
-	s->fr.data = s->g726;
-	if ((res = fread(s->g726, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
+	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, frame_size[fs->rate]);
+	s->fr.samples = 8 * FRAME_TIME;
+	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -361,9 +148,11 @@ static struct ast_frame *g726_read(struct ast_filestream *s, int *whennext)
 	return &s->fr;
 }
 
-static int g726_write(struct ast_filestream *fs, struct ast_frame *f)
+static int g726_write(struct ast_filestream *s, struct ast_frame *f)
 {
 	int res;
+	struct g726_desc *fs = (struct g726_desc *)s->private;
+
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
@@ -378,17 +167,12 @@ static int g726_write(struct ast_filestream *fs, struct ast_frame *f)
 						f->datalen, frame_size[fs->rate]);
 		return -1;
 	}
-	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
-			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", 
-							res, frame_size[fs->rate], strerror(errno));
+	if ((res = fwrite(f->data, 1, f->datalen, s->f)) != f->datalen) {
+		ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", 
+				res, frame_size[fs->rate], strerror(errno));
 			return -1;
 	}
 	return 0;
-}
-
-static char *g726_getcomment(struct ast_filestream *s)
-{
-	return NULL;
 }
 
 static int g726_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
@@ -406,107 +190,107 @@ static off_t g726_tell(struct ast_filestream *fs)
 	return -1;
 }
 
+static struct ast_format_lock me = { .usecnt = -1 };
+
+static const struct ast_format f[] = {
+	{
+		.name = "g726-40",
+		.exts = "g726-40",
+		.format = AST_FORMAT_G726,
+		.open = g726_40_open,
+		.rewrite = g726_40_rewrite,
+		.write = g726_write,
+		.seek = g726_seek,
+		.trunc = g726_trunc,
+		.tell = g726_tell,
+		.read = g726_read,
+		.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
+		.desc_size = sizeof(struct g726_desc),
+		.lockp = &me,
+	},
+	{
+		.name = "g726-32",
+		.exts = "g726-32",
+		.format = AST_FORMAT_G726,
+		.open = g726_32_open,
+		.rewrite = g726_32_rewrite,
+		.write = g726_write,
+		.seek = g726_seek,
+		.trunc = g726_trunc,
+		.tell = g726_tell,
+		.read = g726_read,
+		.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
+		.desc_size = sizeof(struct g726_desc),
+		.lockp = &me,
+	},
+	{
+		.name = "g726-24",
+		.exts = "g726-24",
+		.format = AST_FORMAT_G726,
+		.open = g726_24_open,
+		.rewrite = g726_24_rewrite,
+		.write = g726_write,
+		.seek = g726_seek,
+		.trunc = g726_trunc,
+		.tell = g726_tell,
+		.read = g726_read,
+		.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
+		.desc_size = sizeof(struct g726_desc),
+		.lockp = &me,
+	},
+	{
+		.name = "g726-16",
+		.exts = "g726-16",
+		.format = AST_FORMAT_G726,
+		.open = g726_16_open,
+		.rewrite = g726_16_rewrite,
+		.write = g726_write,
+		.seek = g726_seek,
+		.trunc = g726_trunc,
+		.tell = g726_tell,
+		.read = g726_read,
+		.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
+		.desc_size = sizeof(struct g726_desc),
+		.lockp = &me,
+	},
+	{	.format = 0 }	/* terminator */
+};
+
 /*
  * Module interface (load_module, unload_module, usecount, description, key)
  */
 int load_module()
 {
-	int res;
+	int i;
 
-	res = ast_format_register(name40, exts40, AST_FORMAT_G726,
-								g726_40_open,
-								g726_40_rewrite,
-								g726_write,
-								g726_seek,
-								g726_trunc,
-								g726_tell,
-								g726_read,
-								g726_close,
-								g726_getcomment);
-	if (res) {
-		ast_log(LOG_WARNING, "Failed to register format %s.\n", name40);
-		return(-1);
+	for (i = 0; f[i].format ; i++) {
+		if (ast_format_register(&f[i])) {	/* errors are fatal */
+			ast_log(LOG_WARNING, "Failed to register format %s.\n", f[i].name);
+			return -1;
+		}
 	}
-	res = ast_format_register(name32, exts32, AST_FORMAT_G726,
-								g726_32_open,
-								g726_32_rewrite,
-								g726_write,
-								g726_seek,
-								g726_trunc,
-								g726_tell,
-								g726_read,
-								g726_close,
-								g726_getcomment);
-	if (res) {
-		ast_log(LOG_WARNING, "Failed to register format %s.\n", name32);
-		return(-1);
-	}
-	res = ast_format_register(name24, exts24, AST_FORMAT_G726,
-								g726_24_open,
-								g726_24_rewrite,
-								g726_write,
-								g726_seek,
-								g726_trunc,
-								g726_tell,
-								g726_read,
-								g726_close,
-								g726_getcomment);
-	if (res) {
-		ast_log(LOG_WARNING, "Failed to register format %s.\n", name24);
-		return(-1);
-	}
-	res = ast_format_register(name16, exts16, AST_FORMAT_G726,
-								g726_16_open,
-								g726_16_rewrite,
-								g726_write,
-								g726_seek,
-								g726_trunc,
-								g726_tell,
-								g726_read,
-								g726_close,
-								g726_getcomment);
-	if (res) {
-		ast_log(LOG_WARNING, "Failed to register format %s.\n", name16);
-		return(-1);
-	}
-	return(0);
+	return 0;
 }
 
 int unload_module()
 {
-	int res;
+	int i;
 
-	res = ast_format_unregister(name16);
-	if (res) {
-		ast_log(LOG_WARNING, "Failed to unregister format %s.\n", name16);
-		return(-1);
-	}
-	res = ast_format_unregister(name24);
-	if (res) {
-		ast_log(LOG_WARNING, "Failed to unregister format %s.\n", name24);
-		return(-1);
-	}
-	res = ast_format_unregister(name32);
-	if (res) {
-		ast_log(LOG_WARNING, "Failed to unregister format %s.\n", name32);
-		return(-1);
-	}
-	res = ast_format_unregister(name40);
-	if (res) {
-		ast_log(LOG_WARNING, "Failed to unregister format %s.\n", name40);
-		return(-1);
+	for (i = 0; f[i].format ; i++) {
+		if (ast_format_unregister(f[i].name))
+			ast_log(LOG_WARNING, "Failed to unregister format %s.\n", f[i].name);
 	}
 	return(0);
 }	
 
 int usecount()
 {
-	return glistcnt;
+	return me.usecnt;
 }
 
 char *description()
 {
-	return desc;
+	return "Raw G.726 (16/24/32/40kbps) data";
 }
 
 char *key()

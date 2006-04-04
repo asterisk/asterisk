@@ -50,88 +50,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* Portions of the conversion code are by guido@sienanet.it */
 
-struct ast_filestream {
-	void *reserved[AST_RESERVED_POINTERS];
-	/* Believe it or not, we must decode/recode to account for the
-	   weird MS format */
-	/* This is what a filestream means to us */
-	FILE *f; /* Descriptor */
-	struct ast_frame fr;				/* Frame information */
-	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
-	char empty;							/* Empty character */
-	unsigned char ilbc[50];				/* One Real iLBC Frame */
-};
-
-
-AST_MUTEX_DEFINE_STATIC(ilbc_lock);
-static int glistcnt = 0;
-
-static char *name = "iLBC";
-static char *desc = "Raw iLBC data";
-static char *exts = "ilbc";
-
-static struct ast_filestream *ilbc_open(FILE *f)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&ilbc_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock ilbc list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->fr.data = tmp->ilbc;
-		tmp->fr.frametype = AST_FRAME_VOICE;
-		tmp->fr.subclass = AST_FORMAT_ILBC;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
-		glistcnt++;
-		ast_mutex_unlock(&ilbc_lock);
-		ast_update_use_count();
-	}
-	return tmp;
-}
-
-static struct ast_filestream *ilbc_rewrite(FILE *f, const char *comment)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&ilbc_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock ilbc list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		glistcnt++;
-		ast_mutex_unlock(&ilbc_lock);
-		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
-}
-
-static void ilbc_close(struct ast_filestream *s)
-{
-	if (ast_mutex_lock(&ilbc_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock ilbc list\n");
-		return;
-	}
-	glistcnt--;
-	ast_mutex_unlock(&ilbc_lock);
-	ast_update_use_count();
-	fclose(s->f);
-	free(s);
-	s = NULL;
-}
+#define	ILBC_BUF_SIZE	50	/* One Real iLBC Frame */
+#define	ILBC_SAMPLES	240
 
 static struct ast_frame *ilbc_read(struct ast_filestream *s, int *whennext)
 {
@@ -139,17 +59,14 @@ static struct ast_frame *ilbc_read(struct ast_filestream *s, int *whennext)
 	/* Send a frame from the file to the appropriate channel */
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_ILBC;
-	s->fr.offset = AST_FRIENDLY_OFFSET;
-	s->fr.samples = 240;
-	s->fr.datalen = 50;
 	s->fr.mallocd = 0;
-	s->fr.data = s->ilbc;
-	if ((res = fread(s->ilbc, 1, 50, s->f)) != 50) {
+	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, ILBC_BUF_SIZE);
+	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
 	}
-	*whennext = s->fr.samples;
+	*whennext = s->fr.samples = ILBC_SAMPLES;
 	return &s->fr;
 }
 
@@ -175,11 +92,6 @@ static int ilbc_write(struct ast_filestream *fs, struct ast_frame *f)
 	return 0;
 }
 
-static char *ilbc_getcomment(struct ast_filestream *s)
-{
-	return NULL;
-}
-
 static int ilbc_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
 	long bytes;
@@ -189,7 +101,7 @@ static int ilbc_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 	fseeko(fs->f, 0, SEEK_END);
 	max = ftello(fs->f);
 	
-	bytes = 50 * (sample_offset / 240);
+	bytes = ILBC_BUF_SIZE * (sample_offset / ILBC_SAMPLES);
 	if (whence == SEEK_SET)
 		offset = bytes;
 	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
@@ -216,42 +128,45 @@ static int ilbc_trunc(struct ast_filestream *fs)
 
 static off_t ilbc_tell(struct ast_filestream *fs)
 {
-	off_t offset;
-	offset = ftello(fs->f);
-	return (offset/50)*240;
+	off_t offset = ftello(fs->f);
+	return (offset/ILBC_BUF_SIZE)*ILBC_SAMPLES;
 }
+
+static struct ast_format_lock me = { .usecnt = -1 };
+
+static const struct ast_format ilbc_f = {
+	.name = "iLBC",
+	.exts = "ilbc",
+	.format = AST_FORMAT_ILBC,
+	.write = ilbc_write,
+	.seek = ilbc_seek,
+	.trunc = ilbc_trunc,
+	.tell = ilbc_tell,
+	.read = ilbc_read,
+	.buf_size = ILBC_BUF_SIZE + AST_FRIENDLY_OFFSET,
+	.lockp = &me,
+};
 
 int load_module()
 {
-	return ast_format_register(name, exts, AST_FORMAT_ILBC,
-								ilbc_open,
-								ilbc_rewrite,
-								ilbc_write,
-								ilbc_seek,
-								ilbc_trunc,
-								ilbc_tell,
-								ilbc_read,
-								ilbc_close,
-								ilbc_getcomment);
-								
-								
+	return ast_format_register(&ilbc_f);
 }
+
 
 int unload_module()
 {
-	return ast_format_unregister(name);
+	return ast_format_unregister(ilbc_f.name);
 }	
 
 int usecount()
 {
-	return glistcnt;
+	return me.usecnt;
 }
 
 char *description()
 {
-	return desc;
+	return "Raw iLBC data";
 }
-
 
 char *key()
 {

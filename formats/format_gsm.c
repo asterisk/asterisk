@@ -50,6 +50,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* Portions of the conversion code are by guido@sienanet.it */
 
+#define	GSM_FRAME_SIZE	33
+#define	GSM_SAMPLES	160
+
 /* silent gsm frame */
 /* begin binary data: */
 char gsm_silence[] = /* 33 */
@@ -58,111 +61,28 @@ char gsm_silence[] = /* 33 */
 ,0x92,0x49,0x24};
 /* end binary data. size = 33 bytes */
 
-struct ast_filestream {
-	void *reserved[AST_RESERVED_POINTERS];
-	/* Believe it or not, we must decode/recode to account for the
-	   weird MS format */
-	/* This is what a filestream means to us */
-	FILE *f; /* Descriptor */
-	struct ast_frame fr;				/* Frame information */
-	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
-	char empty;							/* Empty character */
-	unsigned char gsm[66];				/* Two Real GSM Frames */
-};
-
-
-AST_MUTEX_DEFINE_STATIC(gsm_lock);
-static int glistcnt = 0;
-
-static char *name = "gsm";
-static char *desc = "Raw GSM data";
-static char *exts = "gsm";
-
-static struct ast_filestream *gsm_open(FILE *f)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&gsm_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock gsm list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->fr.data = tmp->gsm;
-		tmp->fr.frametype = AST_FRAME_VOICE;
-		tmp->fr.subclass = AST_FORMAT_GSM;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
-		glistcnt++;
-		ast_mutex_unlock(&gsm_lock);
-		ast_update_use_count();
-	}
-	return tmp;
-}
-
-static struct ast_filestream *gsm_rewrite(FILE *f, const char *comment)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&gsm_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock gsm list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		glistcnt++;
-		ast_mutex_unlock(&gsm_lock);
-		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
-}
-
-static void gsm_close(struct ast_filestream *s)
-{
-	if (ast_mutex_lock(&gsm_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock gsm list\n");
-		return;
-	}
-	glistcnt--;
-	ast_mutex_unlock(&gsm_lock);
-	ast_update_use_count();
-	fclose(s->f);
-	free(s);
-}
-
 static struct ast_frame *gsm_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
+
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_GSM;
-	s->fr.offset = AST_FRIENDLY_OFFSET;
-	s->fr.samples = 160;
-	s->fr.datalen = 33;
+	FR_SET_BUF(&(s->fr), s->buf, AST_FRIENDLY_OFFSET, GSM_FRAME_SIZE)
 	s->fr.mallocd = 0;
-	s->fr.data = s->gsm;
-	if ((res = fread(s->gsm, 1, 33, s->f)) != 33) {
+	if ((res = fread(s->fr.data, 1, GSM_FRAME_SIZE, s->f)) != GSM_FRAME_SIZE) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
 	}
-	*whennext = 160;
+	*whennext = s->fr.samples = GSM_SAMPLES;
 	return &s->fr;
 }
 
 static int gsm_write(struct ast_filestream *fs, struct ast_frame *f)
 {
 	int res;
-	unsigned char gsm[66];
+	unsigned char gsm[2*GSM_FRAME_SIZE];
+
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
@@ -176,14 +96,14 @@ static int gsm_write(struct ast_filestream *fs, struct ast_frame *f)
 		int len=0;
 		while(len < f->datalen) {
 			conv65(f->data + len, gsm);
-			if ((res = fwrite(gsm, 1, 66, fs->f)) != 66) {
+			if ((res = fwrite(gsm, 1, 2*GSM_FRAME_SIZE, fs->f)) != 2*GSM_FRAME_SIZE) {
 				ast_log(LOG_WARNING, "Bad write (%d/66): %s\n", res, strerror(errno));
 				return -1;
 			}
 			len += 65;
 		}
 	} else {
-		if (f->datalen % 33) {
+		if (f->datalen % GSM_FRAME_SIZE) {
 			ast_log(LOG_WARNING, "Invalid data length, %d, should be multiple of 33\n", f->datalen);
 			return -1;
 		}
@@ -204,7 +124,7 @@ static int gsm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 	fseeko(fs->f, 0, SEEK_END);
 	max = ftello(fs->f);
 	/* have to fudge to frame here, so not fully to sample */
-	distance = (sample_offset/160) * 33;
+	distance = (sample_offset/GSM_SAMPLES) * GSM_FRAME_SIZE;
 	if(whence == SEEK_SET)
 		offset = distance;
 	else if(whence == SEEK_CUR || whence == SEEK_FORCECUR)
@@ -218,8 +138,8 @@ static int gsm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 	} else if (offset > max) {
 		int i;
 		fseeko(fs->f, 0, SEEK_END);
-		for (i=0; i< (offset - max) / 33; i++) {
-			fwrite(gsm_silence, 1, 33, fs->f);
+		for (i=0; i< (offset - max) / GSM_FRAME_SIZE; i++) {
+			fwrite(gsm_silence, 1, GSM_FRAME_SIZE, fs->f);
 		}
 	}
 	return fseeko(fs->f, offset, SEEK_SET);
@@ -232,47 +152,44 @@ static int gsm_trunc(struct ast_filestream *fs)
 
 static off_t gsm_tell(struct ast_filestream *fs)
 {
-	off_t offset;
-	offset = ftello(fs->f);
-	return (offset/33)*160;
+	off_t offset = ftello(fs->f);
+	return (offset/GSM_FRAME_SIZE)*GSM_SAMPLES;
 }
 
-static char *gsm_getcomment(struct ast_filestream *s)
-{
-	return NULL;
-}
+static struct ast_format_lock me = { .usecnt = -1 };
+
+static const struct ast_format gsm_f = {
+	.name = "gsm",
+	.exts = "gsm",
+	.format = AST_FORMAT_GSM,
+	.write = gsm_write,
+	.seek =	gsm_seek,
+	.trunc = gsm_trunc,
+	.tell =	gsm_tell,
+	.read =	gsm_read,
+	.buf_size = 2*GSM_FRAME_SIZE + AST_FRIENDLY_OFFSET,	/* 2 gsm frames */
+	.lockp = &me,
+};
 
 int load_module()
 {
-	return ast_format_register(name, exts, AST_FORMAT_GSM,
-								gsm_open,
-								gsm_rewrite,
-								gsm_write,
-								gsm_seek,
-								gsm_trunc,
-								gsm_tell,
-								gsm_read,
-								gsm_close,
-								gsm_getcomment);
-								
-								
+	return ast_format_register(&gsm_f);
 }
 
 int unload_module()
 {
-	return ast_format_unregister(name);
+	return ast_format_unregister(gsm_f.name);
 }	
 
 int usecount()
 {
-	return glistcnt;
+	return me.usecnt;
 }
 
 char *description()
 {
-	return desc;
+	return "Raw GSM data";
 }
-
 
 char *key()
 {

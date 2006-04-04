@@ -51,11 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define SAMPLES_MAX 160
 #define BLOCK_SIZE 4096
 
-struct ast_filestream {
-	void *reserved[AST_RESERVED_POINTERS];
-	
-	FILE *f;
-	
+struct vorbis_desc {
 	/* structures for handling the Ogg container */
 	ogg_sync_state oy;
 	ogg_stream_state os;
@@ -73,14 +69,6 @@ struct ast_filestream {
 	
 	/*! \brief Indicates whether an End of Stream condition has been detected. */
 	int eos;
-	
-	/*! \brief Buffer to hold audio data. */
-	short buffer[SAMPLES_MAX];
-	
-	/*! \brief Asterisk frame object. */
-	struct ast_frame fr;
-	char waste[AST_FRIENDLY_OFFSET];
-	char empty;
 };
 
 AST_MUTEX_DEFINE_STATIC(ogg_vorbis_lock);
@@ -96,176 +84,123 @@ static char *exts = "ogg";
  * \param f File that points to on disk storage of the OGG/Vorbis data.
  * \return The new filestream.
  */
-static struct ast_filestream *ogg_vorbis_open(FILE * f)
+static int ogg_vorbis_open(struct ast_filestream *s)
 {
 	int i;
 	int bytes;
 	int result;
 	char **ptr;
 	char *buffer;
+	struct vorbis_desc *tmp = (struct vorbis_desc *)s->private;
 
-	struct ast_filestream *tmp;
+	tmp->writing = 0;
+	tmp->f = f;
 
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
+	ogg_sync_init(&tmp->oy);
 
-		tmp->writing = 0;
-		tmp->f = f;
+	buffer = ogg_sync_buffer(&tmp->oy, BLOCK_SIZE);
+	bytes = fread(buffer, 1, BLOCK_SIZE, f);
+	ogg_sync_wrote(&tmp->oy, bytes);
 
-		ogg_sync_init(&tmp->oy);
+	result = ogg_sync_pageout(&tmp->oy, &tmp->og);
+	if (result != 1) {
+		if(bytes < BLOCK_SIZE) {
+			ast_log(LOG_ERROR, "Run out of data...\n");
+		} else {
+			ast_log(LOG_ERROR, "Input does not appear to be an Ogg bitstream.\n");
+		}
+		ogg_sync_clear(&tmp->oy);
+		return -1;
+	}
+	
+	ogg_stream_init(&tmp->os, ogg_page_serialno(&tmp->og));
+	vorbis_info_init(&tmp->vi);
+	vorbis_comment_init(&tmp->vc);
+
+	if (ogg_stream_pagein(&tmp->os, &tmp->og) < 0) { 
+		ast_log(LOG_ERROR, "Error reading first page of Ogg bitstream data.\n");
+error:
+		ogg_stream_clear(&tmp->os);
+		vorbis_comment_clear(&tmp->vc);
+		vorbis_info_clear(&tmp->vi);
+		ogg_sync_clear(&tmp->oy);
+		return -1;
+	}
+	
+	if (ogg_stream_packetout(&tmp->os, &tmp->op) != 1) { 
+		ast_log(LOG_ERROR, "Error reading initial header packet.\n");
+		goto error;
+	}
+	
+	if (vorbis_synthesis_headerin(&tmp->vi, &tmp->vc, &tmp->op) < 0) { 
+		ast_log(LOG_ERROR, "This Ogg bitstream does not contain Vorbis audio data.\n");
+		goto error;
+	}
+	
+	for (i = 0; i < 2 ; ) {
+		while (i < 2) {
+			result = ogg_sync_pageout(&tmp->oy, &tmp->og);
+			if (result == 0)
+				break;
+			if (result == 1) {
+				ogg_stream_pagein(&tmp->os, &tmp->og);
+				while(i < 2) {
+					result = ogg_stream_packetout(&tmp->os,&tmp->op);
+					if(result == 0)
+						break;
+					if(result < 0) {
+						ast_log(LOG_ERROR, "Corrupt secondary header.  Exiting.\n");
+						goto error;
+					}
+					vorbis_synthesis_headerin(&tmp->vi, &tmp->vc, &tmp->op);
+					i++;
+				}
+			}
+		}
 
 		buffer = ogg_sync_buffer(&tmp->oy, BLOCK_SIZE);
 		bytes = fread(buffer, 1, BLOCK_SIZE, f);
+		if(bytes == 0 && i < 2) {
+			ast_log(LOG_ERROR, "End of file before finding all Vorbis headers!\n");
+			goto error;
+		}
 		ogg_sync_wrote(&tmp->oy, bytes);
-
-		result = ogg_sync_pageout(&tmp->oy, &tmp->og);
-		if (result != 1) {
-			if (bytes < BLOCK_SIZE) {
-				ast_log(LOG_ERROR, "Run out of data...\n");
-			} else {
-				ast_log(LOG_ERROR,
-						"Input does not appear to be an Ogg bitstream.\n");
-			}
-			fclose(f);
-			ogg_sync_clear(&tmp->oy);
-			free(tmp);
-			return NULL;
-		}
-
-		ogg_stream_init(&tmp->os, ogg_page_serialno(&tmp->og));
-		vorbis_info_init(&tmp->vi);
-		vorbis_comment_init(&tmp->vc);
-
-		if (ogg_stream_pagein(&tmp->os, &tmp->og) < 0) {
-			ast_log(LOG_ERROR,
-					"Error reading first page of Ogg bitstream data.\n");
-			fclose(f);
-			ogg_stream_clear(&tmp->os);
-			vorbis_comment_clear(&tmp->vc);
-			vorbis_info_clear(&tmp->vi);
-			ogg_sync_clear(&tmp->oy);
-			free(tmp);
-			return NULL;
-		}
-
-		if (ogg_stream_packetout(&tmp->os, &tmp->op) != 1) {
-			ast_log(LOG_ERROR, "Error reading initial header packet.\n");
-			fclose(f);
-			ogg_stream_clear(&tmp->os);
-			vorbis_comment_clear(&tmp->vc);
-			vorbis_info_clear(&tmp->vi);
-			ogg_sync_clear(&tmp->oy);
-			free(tmp);
-			return NULL;
-		}
-
-		if (vorbis_synthesis_headerin(&tmp->vi, &tmp->vc, &tmp->op) < 0) {
-			ast_log(LOG_ERROR, "This Ogg bitstream does not contain Vorbis audio data.\n");
-			fclose(f);
-			ogg_stream_clear(&tmp->os);
-			vorbis_comment_clear(&tmp->vc);
-			vorbis_info_clear(&tmp->vi);
-			ogg_sync_clear(&tmp->oy);
-			free(tmp);
-			return NULL;
-		}
-
-		i = 0;
-		while (i < 2) {
-			while (i < 2) {
-				result = ogg_sync_pageout(&tmp->oy, &tmp->og);
-				if (result == 0)
-					break;
-				if (result == 1) {
-					ogg_stream_pagein(&tmp->os, &tmp->og);
-					while (i < 2) {
-						result = ogg_stream_packetout(&tmp->os, &tmp->op);
-						if (result == 0)
-							break;
-						if (result < 0) {
-							ast_log(LOG_ERROR, "Corrupt secondary header.  Exiting.\n");
-							fclose(f);
-							ogg_stream_clear(&tmp->os);
-							vorbis_comment_clear(&tmp->vc);
-							vorbis_info_clear(&tmp->vi);
-							ogg_sync_clear(&tmp->oy);
-							free(tmp);
-							return NULL;
-						}
-						vorbis_synthesis_headerin(&tmp->vi, &tmp->vc, &tmp->op);
-						i++;
-					}
-				}
-			}
-
-			buffer = ogg_sync_buffer(&tmp->oy, BLOCK_SIZE);
-			bytes = fread(buffer, 1, BLOCK_SIZE, f);
-			if (bytes == 0 && i < 2) {
-				ast_log(LOG_ERROR, "End of file before finding all Vorbis headers!\n");
-				fclose(f);
-				ogg_stream_clear(&tmp->os);
-				vorbis_comment_clear(&tmp->vc);
-				vorbis_info_clear(&tmp->vi);
-				ogg_sync_clear(&tmp->oy);
-				free(tmp);
-				return NULL;
-			}
-			ogg_sync_wrote(&tmp->oy, bytes);
-		}
-
-		ptr = tmp->vc.user_comments;
-		while (*ptr) {
-			ast_log(LOG_DEBUG, "OGG/Vorbis comment: %s\n", *ptr);
-			++ptr;
-		}
-		ast_log(LOG_DEBUG, "OGG/Vorbis bitstream is %d channel, %ldHz\n",
-			tmp->vi.channels, tmp->vi.rate);
-		ast_log(LOG_DEBUG, "OGG/Vorbis file encoded by: %s\n",
-			tmp->vc.vendor);
-
-		if (tmp->vi.channels != 1) {
-			ast_log(LOG_ERROR, "Only monophonic OGG/Vorbis files are currently supported!\n");
-			ogg_stream_clear(&tmp->os);
-			vorbis_comment_clear(&tmp->vc);
-			vorbis_info_clear(&tmp->vi);
-			ogg_sync_clear(&tmp->oy);
-			free(tmp);
-			return NULL;
-		}
-
-		if (tmp->vi.rate != 8000) {
-			ast_log(LOG_ERROR, "Only 8000Hz OGG/Vorbis files are currently supported!\n");
-			fclose(f);
-			ogg_stream_clear(&tmp->os);
-			vorbis_block_clear(&tmp->vb);
-			vorbis_dsp_clear(&tmp->vd);
-			vorbis_comment_clear(&tmp->vc);
-			vorbis_info_clear(&tmp->vi);
-			ogg_sync_clear(&tmp->oy);
-			free(tmp);
-			return NULL;
-		}
-
-		vorbis_synthesis_init(&tmp->vd, &tmp->vi);
-		vorbis_block_init(&tmp->vd, &tmp->vb);
-
-		if (ast_mutex_lock(&ogg_vorbis_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock ogg_vorbis list\n");
-			fclose(f);
-			ogg_stream_clear(&tmp->os);
-			vorbis_block_clear(&tmp->vb);
-			vorbis_dsp_clear(&tmp->vd);
-			vorbis_comment_clear(&tmp->vc);
-			vorbis_info_clear(&tmp->vi);
-			ogg_sync_clear(&tmp->oy);
-			free(tmp);
-			return NULL;
-		}
-		glistcnt++;
-		ast_mutex_unlock(&ogg_vorbis_lock);
-		ast_update_use_count();
 	}
-	return tmp;
+	
+	ptr = tmp->vc.user_comments;
+	while(*ptr){
+		ast_log(LOG_DEBUG, "OGG/Vorbis comment: %s\n", *ptr);
+		++ptr;
+	}
+	ast_log(LOG_DEBUG, "OGG/Vorbis bitstream is %d channel, %ldHz\n", tmp->vi.channels, tmp->vi.rate);
+	ast_log(LOG_DEBUG, "OGG/Vorbis file encoded by: %s\n", tmp->vc.vendor);
+
+	if(tmp->vi.channels != 1) {
+		ast_log(LOG_ERROR, "Only monophonic OGG/Vorbis files are currently supported!\n");
+		goto error;
+	}
+	
+
+	if(tmp->vi.rate != DEFAULT_SAMPLE_RATE) {
+		ast_log(LOG_ERROR, "Only 8000Hz OGG/Vorbis files are currently supported!\n");
+		vorbis_block_clear(&tmp->vb);
+		vorbis_dsp_clear(&tmp->vd);
+		goto error;
+	}
+	
+	vorbis_synthesis_init(&tmp->vd, &tmp->vi);
+	vorbis_block_init(&tmp->vd, &tmp->vb);
+
+	if(ast_mutex_lock(&ogg_vorbis_lock)) {
+		ast_log(LOG_WARNING, "Unable to lock ogg_vorbis list\n");
+		vorbis_block_clear(&tmp->vb);
+		vorbis_dsp_clear(&tmp->vd);
+		goto error;
+	}
+	glistcnt++;
+	ast_mutex_unlock(&ogg_vorbis_lock);
+	ast_update_use_count();
+return 0;
 }
 
 /*!
@@ -291,7 +226,7 @@ static struct ast_filestream *ogg_vorbis_rewrite(FILE * f,
 
 		vorbis_info_init(&tmp->vi);
 
-		if (vorbis_encode_init_vbr(&tmp->vi, 1, 8000, 0.4)) {
+		if (vorbis_encode_init_vbr(&tmp->vi, 1, DEFAULT_SAMPLE_RATE, 0.4)) {
 			ast_log(LOG_ERROR, "Unable to initialize Vorbis encoder!\n");
 			free(tmp);
 			return NULL;
@@ -440,9 +375,6 @@ static void ogg_vorbis_close(struct ast_filestream *s)
 	if (s->writing) {
 		ogg_sync_clear(&s->oy);
 	}
-
-	fclose(s->f);
-	free(s);
 }
 
 /*!
@@ -643,18 +575,28 @@ static char *ogg_vorbis_getcomment(struct ast_filestream *s)
 	return NULL;
 }
 
+static struct ast_format_lock me = { .usecnt = -1 };
+
+static const struct ast_format vorbis_f = {
+	.name =
+	.ext =
+	.format = AST_FORMAT_SLINEAR,
+	.open = ogg_vorbis_open,
+	.rewrite = ogg_vorbis_rewrite,
+	.write = ogg_vorbis_write,
+	.seek =	ogg_vorbis_seek,
+	.trunc = ogg_vorbis_trunc,
+	.tell = ogg_vorbis_tell,
+	.read = ogg_vorbis_read,
+	.close = ogg_vorbis_close,
+	.buf_sie = BUF_SIZE + AST_FRIENDLY_OFFSET,
+	.desc_size = sizeof(struct vorbis_desc),
+	.lockp = &me,
+};
+
 int load_module()
 {
-	return ast_format_register(name, exts, AST_FORMAT_SLINEAR,
-				   ogg_vorbis_open,
-				   ogg_vorbis_rewrite,
-				   ogg_vorbis_write,
-				   ogg_vorbis_seek,
-				   ogg_vorbis_trunc,
-				   ogg_vorbis_tell,
-				   ogg_vorbis_read,
-				   ogg_vorbis_close,
-				   ogg_vorbis_getcomment);
+	return ast_format_register(&vorbis_f);
 }
 
 int unload_module()
@@ -664,7 +606,7 @@ int unload_module()
 
 int usecount()
 {
-	return glistcnt;
+	return me.usecnt;
 }
 
 char *description()

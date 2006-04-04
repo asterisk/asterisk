@@ -49,29 +49,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* Portions of the conversion code are by guido@sienanet.it */
 
-struct ast_filestream {
-	void *reserved[AST_RESERVED_POINTERS];
-	/* This is what a filestream means to us */
-	FILE *f; /* Descriptor */
+#define	WAV_BUF_SIZE	320
+
+struct wav_desc {	/* format-specific parameters */
 	int bytes;
 	int needsgain;
-	struct ast_frame fr;				/* Frame information */
-	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
-	char empty;							/* Empty character */
-	short buf[160];	
-	int foffset;
 	int lasttimeout;
 	int maxlen;
 	struct timeval last;
 };
-
-
-AST_MUTEX_DEFINE_STATIC(wav_lock);
-static int glistcnt = 0;
-
-static char *name = "wav";
-static char *desc = "Microsoft WAV format (8000hz Signed Linear)";
-static char *exts = "wav";
 
 #define BLOCKSIZE 160
 
@@ -165,7 +151,7 @@ static int check_header(FILE *f)
 		ast_log(LOG_WARNING, "Read failed (freq)\n");
 		return -1;
 	}
-	if (ltohl(freq) != 8000) {
+	if (ltohl(freq) != DEFAULT_SAMPLE_RATE) {
 		ast_log(LOG_WARNING, "Unexpected freqency %d\n", ltohl(freq));
 		return -1;
 	}
@@ -232,7 +218,6 @@ static int update_header(FILE *f)
 {
 	off_t cur,end;
 	int datalen,filelen,bytes;
-	
 	
 	cur = ftello(f);
 	fseek(f, 0, SEEK_END);
@@ -333,135 +318,90 @@ static int write_header(FILE *f)
 	return 0;
 }
 
-static struct ast_filestream *wav_open(FILE *f)
+static int wav_open(struct ast_filestream *s)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
 	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if ((tmp->maxlen = check_header(f)) < 0) {
-			free(tmp);
-			return NULL;
-		}
-		if (ast_mutex_lock(&wav_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock wav list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->needsgain = 1;
-		tmp->fr.data = tmp->buf;
-		tmp->fr.frametype = AST_FRAME_VOICE;
-		tmp->fr.subclass = AST_FORMAT_SLINEAR;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
-		tmp->bytes = 0;
-		glistcnt++;
-		ast_mutex_unlock(&wav_lock);
-		ast_update_use_count();
-	}
-	return tmp;
+	struct wav_desc *tmp = (struct wav_desc *)s->private;
+	if ((tmp->maxlen = check_header(s->f)) < 0)
+		return -1;
+	return 0;
 }
 
-static struct ast_filestream *wav_rewrite(FILE *f, const char *comment)
+static int wav_rewrite(struct ast_filestream *s, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
 	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (write_header(f)) {
-			free(tmp);
-			return NULL;
-		}
-		if (ast_mutex_lock(&wav_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock wav list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		glistcnt++;
-		ast_mutex_unlock(&wav_lock);
-		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
+
+	if (write_header(s->f))
+		return -1;
+	return 0;
 }
 
 static void wav_close(struct ast_filestream *s)
 {
 	char zero = 0;
-	if (ast_mutex_lock(&wav_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock wav list\n");
-		return;
-	}
-	glistcnt--;
-	ast_mutex_unlock(&wav_lock);
-	ast_update_use_count();
+	struct wav_desc *fs = (struct wav_desc *)s->private;
 	/* Pad to even length */
-	if (s->bytes & 0x1)
+	if (fs->bytes & 0x1)
 		fwrite(&zero, 1, 1, s->f);
-	fclose(s->f);
-	free(s);
-	s = NULL;
 }
 
 static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
-	int delay;
+	int samples;	/* actual samples read */
 	int x;
-	short tmp[sizeof(s->buf) / 2];
-	int bytes = sizeof(tmp);
+	short *tmp;
+	int bytes = WAV_BUF_SIZE;	/* in bytes */
 	off_t here;
 	/* Send a frame from the file to the appropriate channel */
+	struct wav_desc *fs = (struct wav_desc *)s->private;
+
 	here = ftello(s->f);
-	if ((s->maxlen - here) < bytes)
-		bytes = s->maxlen - here;
+	if (fs->maxlen - here < bytes)		/* truncate if necessary */
+		bytes = fs->maxlen - here;
 	if (bytes < 0)
 		bytes = 0;
 /* 	ast_log(LOG_DEBUG, "here: %d, maxlen: %d, bytes: %d\n", here, s->maxlen, bytes); */
+	s->fr.frametype = AST_FRAME_VOICE;
+	s->fr.subclass = AST_FORMAT_SLINEAR;
+	s->fr.mallocd = 0;
+	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, bytes);
 	
-	if ( (res = fread(tmp, 1, bytes, s->f)) <= 0 ) {
-		if (res) {
+	if ( (res = fread(s->fr.data, 1, s->fr.datalen, s->f)) <= 0 ) {
+		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
-		}
 		return NULL;
 	}
+	s->fr.datalen = res;
+	s->fr.samples = samples = res / 2;
 
+	tmp = (short *)(s->fr.data);
 #if __BYTE_ORDER == __BIG_ENDIAN
-	for( x = 0; x < sizeof(tmp)/2; x++) tmp[x] = (tmp[x] << 8) | ((tmp[x] & 0xff00) >> 8);
+	/* file format is little endian so we need to swap */
+	for( x = 0; x < samples; x++)
+		tmp[x] = (tmp[x] << 8) | ((tmp[x] & 0xff00) >> 8);
 #endif
 
-	if (s->needsgain) {
-		for (x=0;x<sizeof(tmp)/2;x++)
+	if (fs->needsgain) {
+		for (x=0; x < samples; x++) {
 			if (tmp[x] & ((1 << GAIN) - 1)) {
 				/* If it has data down low, then it's not something we've artificially increased gain
 				   on, so we don't need to gain adjust it */
-				s->needsgain = 0;
+				fs->needsgain = 0;
+				break;
 			}
-	}
-	if (s->needsgain) {
-		for (x=0;x<sizeof(tmp)/2;x++) {
-			s->buf[x] = tmp[x] >> GAIN;
 		}
-	} else {
-		memcpy(s->buf, tmp, sizeof(s->buf));
+		if (fs->needsgain) {
+			for (x=0; x < samples; x++)
+				tmp[x] = tmp[x] >> GAIN;
+		}
 	}
 			
-	delay = res / 2;
-	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass = AST_FORMAT_SLINEAR;
-	s->fr.offset = AST_FRIENDLY_OFFSET;
-	s->fr.datalen = res;
-	s->fr.data = s->buf;
-	s->fr.mallocd = 0;
-	s->fr.samples = delay;
-	*whennext = delay;
+	*whennext = samples;
 	return &s->fr;
 }
 
@@ -470,6 +410,9 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 	int x;
 	short tmp[8000], *tmpi;
 	float tmpf;
+	struct wav_desc *s = (struct wav_desc *)fs->private;
+	int res;
+
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
@@ -489,33 +432,28 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 	printf("Data Length: %d\n", f->datalen);
 #endif	
 
-	if (fs->buf) {
-		tmpi = f->data;
-		/* Volume adjust here to accomodate */
-		for (x=0;x<f->datalen/2;x++) {
-			tmpf = ((float)tmpi[x]) * ((float)(1 << GAIN));
-			if (tmpf > 32767.0)
-				tmpf = 32767.0;
-			if (tmpf < -32768.0)
-				tmpf = -32768.0;
-			tmp[x] = tmpf;
-			tmp[x] &= ~((1 << GAIN) - 1);
+	tmpi = f->data;
+	/* Volume adjust here to accomodate */
+	for (x=0;x<f->datalen/2;x++) {
+		tmpf = ((float)tmpi[x]) * ((float)(1 << GAIN));
+		if (tmpf > 32767.0)
+			tmpf = 32767.0;
+		if (tmpf < -32768.0)
+			tmpf = -32768.0;
+		tmp[x] = tmpf;
+		tmp[x] &= ~((1 << GAIN) - 1);
 
 #if __BYTE_ORDER == __BIG_ENDIAN
-			tmp[x] = (tmp[x] << 8) | ((tmp[x] & 0xff00) >> 8);
+		tmp[x] = (tmp[x] << 8) | ((tmp[x] & 0xff00) >> 8);
 #endif
 
-		}
-		if ((fwrite(tmp, 1, f->datalen, fs->f) != f->datalen) ) {
-			ast_log(LOG_WARNING, "Bad write (%d): %s\n", errno, strerror(errno));
-			return -1;
-		}
-	} else {
-		ast_log(LOG_WARNING, "Cannot write data to file.\n");
+	}
+	if ((res = fwrite(tmp, 1, f->datalen, fs->f)) != f->datalen ) {
+		ast_log(LOG_WARNING, "Bad write (%d): %s\n", res, strerror(errno));
 		return -1;
 	}
-	
-	fs->bytes += f->datalen;
+
+	s->bytes += f->datalen;
 	update_header(fs->f);
 		
 	return 0;
@@ -560,42 +498,44 @@ static off_t wav_tell(struct ast_filestream *fs)
 	return (offset - 44)/2;
 }
 
-static char *wav_getcomment(struct ast_filestream *s)
-{
-	return NULL;
-}
+static struct ast_format_lock me = { .usecnt = -1 };
+
+static const struct ast_format wav_f = {
+	.name = "wav",
+	.exts = "wav",
+	.format = AST_FORMAT_SLINEAR,
+	.open =	wav_open,
+	.rewrite = wav_rewrite,
+	.write = wav_write,
+	.seek = wav_seek,
+	.trunc = wav_trunc,
+	.tell =	wav_tell,
+	.read = wav_read,
+	.close = wav_close,
+	.buf_size = WAV_BUF_SIZE + AST_FRIENDLY_OFFSET,
+	.desc_size = sizeof(struct wav_desc),
+	.lockp = &me,
+};
 
 int load_module()
 {
-	return ast_format_register(name, exts, AST_FORMAT_SLINEAR,
-								wav_open,
-								wav_rewrite,
-								wav_write,
-								wav_seek,
-								wav_trunc,
-								wav_tell,
-								wav_read,
-								wav_close,
-								wav_getcomment);
-								
-								
+	return ast_format_register(&wav_f);
 }
 
 int unload_module()
 {
-	return ast_format_unregister(name);
+	return ast_format_unregister(wav_f.name);
 }	
 
 int usecount()
 {
-	return glistcnt;
+	return me.usecnt;
 }
 
 char *description()
 {
-	return desc;
+	return "Microsoft WAV format (8000hz Signed Linear)";
 }
-
 
 char *key()
 {

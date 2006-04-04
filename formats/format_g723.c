@@ -47,81 +47,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define G723_MAX_SIZE 1024
 
-struct ast_filestream {
-	/* First entry MUST be reserved for the channel type */
-	void *reserved[AST_RESERVED_POINTERS];
-	/* This is what a filestream means to us */
-	FILE *f; /* Descriptor */
-	struct ast_filestream *next;
-	struct ast_frame *fr;	/* Frame representation of buf */
-	struct timeval orig;	/* Original frame time */
-	char buf[G723_MAX_SIZE + AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
-};
-
-
-AST_MUTEX_DEFINE_STATIC(g723_lock);
-static int glistcnt = 0;
-
-static char *name = "g723sf";
-static char *desc = "G.723.1 Simple Timestamp File Format";
-static char *exts = "g723|g723sf";
-
-static struct ast_filestream *g723_open(FILE *f)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&g723_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock g723 list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->fr = (struct ast_frame *)tmp->buf;
-		tmp->fr->data = tmp->buf + sizeof(struct ast_frame);
-		tmp->fr->frametype = AST_FRAME_VOICE;
-		tmp->fr->subclass = AST_FORMAT_G723_1;
-		/* datalen will vary for each frame */
-		tmp->fr->src = name;
-		tmp->fr->mallocd = 0;
-		glistcnt++;
-		ast_mutex_unlock(&g723_lock);
-		ast_update_use_count();
-	}
-	return tmp;
-}
-
-static struct ast_filestream *g723_rewrite(FILE *f, const char *comment)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&g723_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock g723 list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		glistcnt++;
-		ast_mutex_unlock(&g723_lock);
-		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
-}
-
 static struct ast_frame *g723_read(struct ast_filestream *s, int *whennext)
 {
 	unsigned short size;
 	int res;
 	int delay;
 	/* Read the delay for the next packet, and schedule again if necessary */
+	/* XXX is this ignored ? */
 	if (fread(&delay, 1, 4, s->f) == 4) 
 		delay = ntohl(delay);
 	else
@@ -133,7 +65,7 @@ static struct ast_frame *g723_read(struct ast_filestream *s, int *whennext)
 	}
 	/* Looks like we have a frame to read from here */
 	size = ntohs(size);
-	if (size > G723_MAX_SIZE - sizeof(struct ast_frame)) {
+	if (size > G723_MAX_SIZE) {
 		ast_log(LOG_WARNING, "Size %d is invalid\n", size);
 		/* The file is apparently no longer any good, as we
 		   shouldn't ever get frames even close to this 
@@ -141,50 +73,24 @@ static struct ast_frame *g723_read(struct ast_filestream *s, int *whennext)
 		return NULL;
 	}
 	/* Read the data into the buffer */
-	s->fr->offset = AST_FRIENDLY_OFFSET;
-	s->fr->datalen = size;
-	s->fr->data = s->buf + sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET;
-	if ((res = fread(s->fr->data, 1, size, s->f)) != size) {
+	s->fr.frametype = AST_FRAME_VOICE;
+	s->fr.subclass = AST_FORMAT_G723_1;
+	s->fr.mallocd = 0;
+	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, size);
+	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) != size) {
 		ast_log(LOG_WARNING, "Short read (%d of %d bytes) (%s)!\n", res, size, strerror(errno));
 		return NULL;
 	}
-#if 0
-		/* Average out frames <= 50 ms */
-		if (delay < 50)
-			s->fr->timelen = 30;
-		else
-			s->fr->timelen = delay;
-#else
-		s->fr->samples = 240;
-#endif
-	*whennext = s->fr->samples;
-	return s->fr;
+	*whennext = s->fr.samples = 240;
+	return &s->fr;
 }
 
-static void g723_close(struct ast_filestream *s)
-{
-	if (ast_mutex_lock(&g723_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock g723 list\n");
-		return;
-	}
-	glistcnt--;
-	ast_mutex_unlock(&g723_lock);
-	ast_update_use_count();
-	fclose(s->f);
-	free(s);
-	s = NULL;
-}
-
-
-static int g723_write(struct ast_filestream *fs, struct ast_frame *f)
+static int g723_write(struct ast_filestream *s, struct ast_frame *f)
 {
 	u_int32_t delay;
 	u_int16_t size;
 	int res;
-	if (fs->fr) {
-		ast_log(LOG_WARNING, "Asked to write on a read stream??\n");
-		return -1;
-	}
+	/* XXX there used to be a check s->fr means a read stream */
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
@@ -198,16 +104,16 @@ static int g723_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Short frame ignored (%d bytes long?)\n", f->datalen);
 		return 0;
 	}
-	if ((res = fwrite(&delay, 1, 4, fs->f)) != 4) {
+	if ((res = fwrite(&delay, 1, 4, s->f)) != 4) {
 		ast_log(LOG_WARNING, "Unable to write delay: res=%d (%s)\n", res, strerror(errno));
 		return -1;
 	}
 	size = htons(f->datalen);
-	if ((res = fwrite(&size, 1, 2, fs->f)) != 2) {
+	if ((res = fwrite(&size, 1, 2, s->f)) != 2) {
 		ast_log(LOG_WARNING, "Unable to write size: res=%d (%s)\n", res, strerror(errno));
 		return -1;
 	}
-	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
+	if ((res = fwrite(f->data, 1, f->datalen, s->f)) != f->datalen) {
 		ast_log(LOG_WARNING, "Unable to write frame: res=%d (%s)\n", res, strerror(errno));
 		return -1;
 	}	
@@ -232,42 +138,40 @@ static off_t g723_tell(struct ast_filestream *fs)
 	return -1;
 }
 
-static char *g723_getcomment(struct ast_filestream *s)
-{
-	return NULL;
-}
+static struct ast_format_lock me = { .usecnt = -1 };
+
+static const struct ast_format g723_1_f = {
+	.name = "g723sf",
+	.exts = "g723|g723sf",
+	.format = AST_FORMAT_G723_1,
+	.write = g723_write,
+	.seek =	g723_seek,
+	.trunc = g723_trunc,
+	.tell =	g723_tell,
+	.read =	g723_read,
+	.buf_size = G723_MAX_SIZE + AST_FRIENDLY_OFFSET,
+	.lockp = &me,
+};
 
 int load_module()
 {
-	return ast_format_register(name, exts, AST_FORMAT_G723_1,
-								g723_open,
-								g723_rewrite,
-								g723_write,
-								g723_seek,
-								g723_trunc,
-								g723_tell,
-								g723_read,
-								g723_close,
-								g723_getcomment);
-								
-								
+	return ast_format_register(&g723_1_f);
 }
 
 int unload_module()
 {
-	return ast_format_unregister(name);
+	return ast_format_unregister(g723_1_f.name);
 }	
 
 int usecount()
 {
-	return glistcnt;
+	return me.usecnt;
 }
 
 char *description()
 {
-	return desc;
+	return "G.723.1 Simple Timestamp File Format";
 }
-
 
 char *key()
 {

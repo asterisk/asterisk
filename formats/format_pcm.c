@@ -45,133 +45,65 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/endian.h"
 #include "asterisk/ulaw.h"
+#include "asterisk/alaw.h"
 
-#define BUF_SIZE 160		/* 160 samples */
-
-struct ast_filestream {
-	void *reserved[AST_RESERVED_POINTERS];
-	/* This is what a filestream means to us */
-	FILE *f; /* Descriptor */
-	struct ast_channel *owner;
-	struct ast_frame fr;				/* Frame information */
-	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
-	char empty;							/* Empty character */
-	unsigned char buf[BUF_SIZE];				/* Output Buffer */
-	struct timeval last;
-};
-
-
-AST_MUTEX_DEFINE_STATIC(pcm_lock);
-static int glistcnt = 0;
-
-static char *name = "pcm";
-static char *desc = "Raw uLaw 8khz Audio support (PCM)";
-static char *exts = "pcm|ulaw|ul|mu";
+#define BUF_SIZE 160		/* 160 bytes, and same number of samples */
 
 static char ulaw_silence[BUF_SIZE];
+static char alaw_silence[BUF_SIZE];
 
-static struct ast_filestream *pcm_open(FILE *f)
+/* #define REALTIME_WRITE */	/* XXX does it work at all ? */
+
+#ifdef REALTIME_WRITE
+struct pcm_desc {
+	unsigned long start_time;
+};
+
+/* Returns time in msec since system boot. */
+static unsigned long get_time(void)
 {
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&pcm_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock pcm list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->fr.data = tmp->buf;
-		tmp->fr.frametype = AST_FRAME_VOICE;
-		tmp->fr.subclass = AST_FORMAT_ULAW;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
-		glistcnt++;
-		ast_mutex_unlock(&pcm_lock);
-		ast_update_use_count();
+	struct tms buf;
+	clock_t cur;
+
+	cur = times( &buf );
+	if( cur < 0 ) {
+		ast_log( LOG_WARNING, "Cannot get current time\n" );
+		return 0;
 	}
-	return tmp;
+	return cur * 1000 / sysconf( _SC_CLK_TCK );
 }
 
-static struct ast_filestream *pcm_rewrite(FILE *f, const char *comment)
+static int pcma_open(struct ast_filestream *s)
 {
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&pcm_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock pcm list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		glistcnt++;
-		ast_mutex_unlock(&pcm_lock);
-		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
+	if (s->fmt->format == AST_FORMAT_ALAW)
+		pd->starttime = get_time();
+	return 0;
 }
 
-static void pcm_close(struct ast_filestream *s)
+static int pcma_rewrite(struct ast_filestream *s, const char *comment)
 {
-	if (ast_mutex_lock(&pcm_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock pcm list\n");
-		return;
-	}
-	glistcnt--;
-	ast_mutex_unlock(&pcm_lock);
-	ast_update_use_count();
-	fclose(s->f);
-	free(s);
-	s = NULL;
+	return pcma_open(s);
 }
+#endif
 
 static struct ast_frame *pcm_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
-	int delay;
+	
 	/* Send a frame from the file to the appropriate channel */
 
 	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass = AST_FORMAT_ULAW;
-	s->fr.offset = AST_FRIENDLY_OFFSET;
+	s->fr.subclass = s->fmt->format;
 	s->fr.mallocd = 0;
-	s->fr.data = s->buf;
-	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1) {
+	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
+	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) < 1) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
 	}
-	s->fr.samples = res;
 	s->fr.datalen = res;
-	delay = s->fr.samples;
-	*whennext = delay;
+	*whennext = s->fr.samples = res;
 	return &s->fr;
-}
-
-static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
-{
-	int res;
-	if (f->frametype != AST_FRAME_VOICE) {
-		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
-		return -1;
-	}
-	if (f->subclass != AST_FORMAT_ULAW) {
-		ast_log(LOG_WARNING, "Asked to write non-ulaw frame (%d)!\n", f->subclass);
-		return -1;
-	}
-	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
-			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
-			return -1;
-	}
-	return 0;
 }
 
 static int pcm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
@@ -204,13 +136,13 @@ static int pcm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 	}
 	if (whence == SEEK_FORCECUR && offset > max) { /* extend the file */
 		size_t left = offset - max;
+		const char *src = (fs->fmt->format == AST_FORMAT_ALAW) ? alaw_silence : ulaw_silence;
 
 		while (left) {
-			size_t written = fwrite(ulaw_silence, sizeof(ulaw_silence[0]),
-				     (left > BUF_SIZE) ? BUF_SIZE : left, fs->f);
+			size_t written = fwrite(src, 1, (left > BUF_SIZE) ? BUF_SIZE : left, fs->f);
 			if (written == -1)
 				break;	/* error */
-			left -= written * sizeof(ulaw_silence[0]);
+			left -= written;
 		}
 		ret = 0; /* successful */
 	} else {
@@ -230,50 +162,335 @@ static int pcm_trunc(struct ast_filestream *fs)
 
 static off_t pcm_tell(struct ast_filestream *fs)
 {
-	off_t offset;
-	offset = ftello(fs->f);
-	return offset;
+	return ftello(fs->f);
 }
 
-static char *pcm_getcomment(struct ast_filestream *s)
+static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 {
-	return NULL;
+	int res;
+
+	if (f->frametype != AST_FRAME_VOICE) {
+		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
+		return -1;
+	}
+	if (f->subclass != fs->fmt->format) {
+		ast_log(LOG_WARNING, "Asked to write incompatible format frame (%d)!\n", f->subclass);
+		return -1;
+	}
+
+#ifdef REALTIME_WRITE
+	if (s->fmt->format == AST_FORMAT_ALAW) {
+		struct pcm_desc *pd = (struct pcm_desc *)fs->private;
+		struct stat stat_buf;
+		unsigned long cur_time = get_time();
+		unsigned long fpos = ( cur_time - pd->start_time ) * 8;	/* 8 bytes per msec */
+		/* Check if we have written to this position yet. If we have, then increment pos by one frame
+		*  for some degree of protection against receiving packets in the same clock tick.
+		*/
+		
+		fstat(fileno(fs->f), &stat_buf );
+		if (stat_buf.st_size > fpos )
+			fpos += f->datalen;	/* Incrementing with the size of this current frame */
+
+		if (stat_buf.st_size < fpos) {
+			/* fill the gap with 0x55 rather than 0. */
+			char buf[1024];
+			unsigned long cur, to_write;
+
+			cur = stat_buf.st_size;
+			if (fseek(fs->f, cur, SEEK_SET) < 0) {
+				ast_log( LOG_WARNING, "Cannot seek in file: %s\n", strerror(errno) );
+				return -1;
+			}
+			memset(buf, 0x55, 512);
+			while (cur < fpos) {
+				to_write = fpos - cur;
+				if (to_write > sizeof(buf))
+					to_write = sizeof(buf);
+				fwrite(buf, 1, to_write, fs->f);
+				cur += to_write;
+			}
+		}
+
+		if (fseek(s->f, fpos, SEEK_SET) < 0) {
+			ast_log( LOG_WARNING, "Cannot seek in file: %s\n", strerror(errno) );
+			return -1;
+		}
+	}
+#endif	/* REALTIME_WRITE */
+	
+	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
+		ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
+		return -1;
+	}
+	return 0;
 }
+
+/* SUN .au support routines */
+
+#define AU_HEADER_SIZE		24
+#define AU_HEADER(var)		u_int32_t var[6]
+
+#define AU_HDR_MAGIC_OFF	0
+#define AU_HDR_HDR_SIZE_OFF	1
+#define AU_HDR_DATA_SIZE_OFF	2
+#define AU_HDR_ENCODING_OFF	3
+#define AU_HDR_SAMPLE_RATE_OFF	4
+#define AU_HDR_CHANNELS_OFF	5
+
+#define AU_ENC_8BIT_ULAW	1
+
+#define AU_MAGIC 0x2e736e64
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define htoll(b) (b)
+#define htols(b) (b)
+#define ltohl(b) (b)
+#define ltohs(b) (b)
+#else
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+#define htoll(b)  \
+          (((((b)      ) & 0xFF) << 24) | \
+	       ((((b) >>  8) & 0xFF) << 16) | \
+		   ((((b) >> 16) & 0xFF) <<  8) | \
+		   ((((b) >> 24) & 0xFF)      ))
+#define htols(b) \
+          (((((b)      ) & 0xFF) << 8) | \
+		   ((((b) >> 8) & 0xFF)      ))
+#define ltohl(b) htoll(b)
+#define ltohs(b) htols(b)
+#else
+#error "Endianess not defined"
+#endif
+#endif
+
+static int check_header(FILE *f)
+{
+	AU_HEADER(header);
+	u_int32_t magic;
+	u_int32_t hdr_size;
+	u_int32_t data_size;
+	u_int32_t encoding;
+	u_int32_t sample_rate;
+	u_int32_t channels;
+
+	if (fread(header, 1, AU_HEADER_SIZE, f) != AU_HEADER_SIZE) {
+		ast_log(LOG_WARNING, "Read failed (header)\n");
+		return -1;
+	}
+	magic = ltohl(header[AU_HDR_MAGIC_OFF]);
+	if (magic != (u_int32_t) AU_MAGIC) {
+		ast_log(LOG_WARNING, "Bad magic: 0x%x\n", magic);
+	}
+/*	hdr_size = ltohl(header[AU_HDR_HDR_SIZE_OFF]);
+	if (hdr_size < AU_HEADER_SIZE)*/
+	hdr_size = AU_HEADER_SIZE;
+/*	data_size = ltohl(header[AU_HDR_DATA_SIZE_OFF]); */
+	encoding = ltohl(header[AU_HDR_ENCODING_OFF]);
+	if (encoding != AU_ENC_8BIT_ULAW) {
+		ast_log(LOG_WARNING, "Unexpected format: %d. Only 8bit ULAW allowed (%d)\n", encoding, AU_ENC_8BIT_ULAW);
+		return -1;
+	}
+	sample_rate = ltohl(header[AU_HDR_SAMPLE_RATE_OFF]);
+	if (sample_rate != DEFAULT_SAMPLE_RATE) {
+		ast_log(LOG_WARNING, "Sample rate can only be 8000 not %d\n", sample_rate);
+		return -1;
+	}
+	channels = ltohl(header[AU_HDR_CHANNELS_OFF]);
+	if (channels != 1) {
+		ast_log(LOG_WARNING, "Not in mono: channels=%d\n", channels);
+		return -1;
+	}
+	/* Skip to data */
+	fseek(f, 0, SEEK_END);
+	data_size = ftell(f) - hdr_size;
+	if (fseek(f, hdr_size, SEEK_SET) == -1 ) {
+		ast_log(LOG_WARNING, "Failed to skip to data: %d\n", hdr_size);
+		return -1;
+	}
+	return data_size;
+}
+
+static int update_header(FILE *f)
+{
+	off_t cur, end;
+	u_int32_t datalen;
+	int bytes;
+
+	cur = ftell(f);
+	fseek(f, 0, SEEK_END);
+	end = ftell(f);
+	/* data starts 24 bytes in */
+	bytes = end - AU_HEADER_SIZE;
+	datalen = htoll(bytes);
+
+	if (cur < 0) {
+		ast_log(LOG_WARNING, "Unable to find our position\n");
+		return -1;
+	}
+	if (fseek(f, AU_HDR_DATA_SIZE_OFF * sizeof(u_int32_t), SEEK_SET)) {
+		ast_log(LOG_WARNING, "Unable to set our position\n");
+		return -1;
+	}
+	if (fwrite(&datalen, 1, sizeof(datalen), f) != sizeof(datalen)) {
+		ast_log(LOG_WARNING, "Unable to set write file size\n");
+		return -1;
+	}
+	if (fseek(f, cur, SEEK_SET)) {
+		ast_log(LOG_WARNING, "Unable to return to position\n");
+		return -1;
+	}
+	return 0;
+}
+
+static int write_header(FILE *f)
+{
+	AU_HEADER(header);
+
+	header[AU_HDR_MAGIC_OFF] = htoll((u_int32_t) AU_MAGIC);
+	header[AU_HDR_HDR_SIZE_OFF] = htoll(AU_HEADER_SIZE);
+	header[AU_HDR_DATA_SIZE_OFF] = 0;
+	header[AU_HDR_ENCODING_OFF] = htoll(AU_ENC_8BIT_ULAW);
+	header[AU_HDR_SAMPLE_RATE_OFF] = htoll(DEFAULT_SAMPLE_RATE);
+	header[AU_HDR_CHANNELS_OFF] = htoll(1);
+
+	/* Write an au header, ignoring sizes which will be filled in later */
+	fseek(f, 0, SEEK_SET);
+	if (fwrite(header, 1, AU_HEADER_SIZE, f) != AU_HEADER_SIZE) {
+		ast_log(LOG_WARNING, "Unable to write header\n");
+		return -1;
+	}
+	return 0;
+}
+
+static int au_open(struct ast_filestream *s)
+{
+	if (check_header(s->f) < 0)
+		return -1;
+	return 0;
+}
+
+static int au_rewrite(struct ast_filestream *s, const char *comment)
+{
+	if (write_header(s->f))
+		return -1;
+	return 0;
+}
+
+/* XXX check this, probably incorrect */
+static int au_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
+{
+	off_t min, max, cur;
+	long offset = 0, samples;
+	
+	samples = sample_offset;
+	min = AU_HEADER_SIZE;
+	cur = ftello(fs->f);
+	fseek(fs->f, 0, SEEK_END);
+	max = ftello(fs->f);
+	if (whence == SEEK_SET)
+		offset = samples + min;
+	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
+		offset = samples + cur;
+	else if (whence == SEEK_END)
+		offset = max - samples;
+        if (whence != SEEK_FORCECUR) {
+		offset = (offset > max) ? max : offset;
+	}
+	/* always protect the header space. */
+	offset = (offset < min) ? min : offset;
+	return fseeko(fs->f, offset, SEEK_SET);
+}
+
+static int au_trunc(struct ast_filestream *fs)
+{
+	if (ftruncate(fileno(fs->f), ftell(fs->f)))
+		return -1;
+	return update_header(fs->f);
+}
+
+static off_t au_tell(struct ast_filestream *fs)
+{
+	off_t offset = ftello(fs->f);
+	return offset - AU_HEADER_SIZE;
+}
+
+static struct ast_format_lock me = { .usecnt = -1 };
+
+static const struct ast_format alaw_f = {
+	.name = "alaw",
+	.exts = "alaw|al",
+	.format = AST_FORMAT_ALAW,
+	.write = pcm_write,
+	.seek = pcm_seek,
+	.trunc = pcm_trunc,
+	.tell = pcm_tell,
+	.read = pcm_read,
+	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
+	.lockp = &me,
+#ifdef REALTIME_WRITE
+	.open = pcma_open,
+	.rewrite = pcma_rewrite,
+	.desc_size = sizeof(struct pcm_desc),
+#endif
+};
+
+static const struct ast_format pcm_f = {
+	.name = "pcm",
+	.exts = "pcm|ulaw|ul|mu",
+	.format = AST_FORMAT_ULAW,
+	.write = pcm_write,
+	.seek = pcm_seek,
+	.trunc = pcm_trunc,
+	.tell = pcm_tell,
+	.read = pcm_read,
+	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
+	.lockp = &me,
+};
+
+static const struct ast_format au_f = {
+	.name = "au",
+	.exts = "au",
+	.format = AST_FORMAT_ULAW,
+	.open = au_open,
+	.rewrite = au_rewrite,
+	.write = pcm_write,
+	.seek = au_seek,
+	.trunc = au_trunc,
+	.tell = au_tell,
+	.read = pcm_read,
+	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,	/* this many shorts */
+	.lockp = &me,
+};
 
 int load_module()
 {
 	int index;
 
+	/* XXX better init ? */
 	for (index = 0; index < (sizeof(ulaw_silence) / sizeof(ulaw_silence[0])); index++)
 		ulaw_silence[index] = AST_LIN2MU(0);
+	for (index = 0; index < (sizeof(alaw_silence) / sizeof(alaw_silence[0])); index++)
+		alaw_silence[index] = AST_LIN2A(0);
 
-	return ast_format_register(name, exts, AST_FORMAT_ULAW,
-				   pcm_open,
-				   pcm_rewrite,
-				   pcm_write,
-				   pcm_seek,
-				   pcm_trunc,
-				   pcm_tell,
-				   pcm_read,
-				   pcm_close,
-				   pcm_getcomment);
+	return ast_format_register(&pcm_f) || ast_format_register(&alaw_f)
+		|| ast_format_register(&au_f);
 }
 
 int unload_module()
 {
-	return ast_format_unregister(name);
+	return ast_format_unregister(pcm_f.name) || ast_format_unregister(alaw_f.name)
+		|| ast_format_unregister(au_f.name);
 }	
 
 int usecount()
 {
-	return glistcnt;
+	return me.usecnt;
 }
 
 char *description()
 {
-	return desc;
+	return "Raw/Sun uLaw/ALaw 8khz Audio support (PCM,PCMA,AU)";
 }
-
 
 char *key()
 {

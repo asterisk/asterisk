@@ -45,117 +45,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/endian.h"
 
-#define BUF_SIZE 80		/* 160 samples */
-
-struct ast_filestream {
-	void *reserved[AST_RESERVED_POINTERS];
-	/* This is what a filestream means to us */
-	FILE *f; /* Descriptor */
-	struct ast_frame fr;				/* Frame information */
-	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
-	char empty;							/* Empty character */
-	unsigned char buf[BUF_SIZE];	/* Output Buffer */
-	int lasttimeout;
-	struct timeval last;
-	short signal;						/* Signal level (file side) */
-	short ssindex;						/* Signal ssindex (file side) */
-	unsigned char zero_count;				/* counter of consecutive zero samples */
-	unsigned char next_flag;
-};
-
-
-AST_MUTEX_DEFINE_STATIC(vox_lock);
-static int glistcnt = 0;
-
-static char *name = "vox";
-static char *desc = "Dialogic VOX (ADPCM) File Format";
-static char *exts = "vox";
-
-static struct ast_filestream *vox_open(FILE *f)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&vox_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock vox list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->fr.data = tmp->buf;
-		tmp->fr.frametype = AST_FRAME_VOICE;
-		tmp->fr.subclass = AST_FORMAT_ADPCM;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
-		tmp->lasttimeout = -1;
-		glistcnt++;
-		ast_mutex_unlock(&vox_lock);
-		ast_update_use_count();
-	}
-	return tmp;
-}
-
-static struct ast_filestream *vox_rewrite(FILE *f, const char *comment)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&vox_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock vox list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		glistcnt++;
-		ast_mutex_unlock(&vox_lock);
-		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
-}
-
-static void vox_close(struct ast_filestream *s)
-{
-	if (ast_mutex_lock(&vox_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock vox list\n");
-		return;
-	}
-	glistcnt--;
-	ast_mutex_unlock(&vox_lock);
-	ast_update_use_count();
-	fclose(s->f);
-	free(s);
-	s = NULL;
-}
+#define BUF_SIZE	80		/* 80 bytes, 160 samples */
+#define VOX_SAMPLES	160
 
 static struct ast_frame *vox_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
+
 	/* Send a frame from the file to the appropriate channel */
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_ADPCM;
-	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.mallocd = 0;
-	s->fr.data = s->buf;
-	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1) {
+	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
+	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) < 1) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
 	}
-	s->fr.samples = res * 2;
+	*whennext = s->fr.samples = res * 2;
 	s->fr.datalen = res;
-	*whennext = s->fr.samples;
 	return &s->fr;
 }
 
-static int vox_write(struct ast_filestream *fs, struct ast_frame *f)
+static int vox_write(struct ast_filestream *s, struct ast_frame *f)
 {
 	int res;
 	if (f->frametype != AST_FRAME_VOICE) {
@@ -166,16 +78,11 @@ static int vox_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-ADPCM frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
+	if ((res = fwrite(f->data, 1, f->datalen, s->f)) != f->datalen) {
 			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 			return -1;
 	}
 	return 0;
-}
-
-static char *vox_getcomment(struct ast_filestream *s)
-{
-	return NULL;
 }
 
 static int vox_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
@@ -199,8 +106,7 @@ static int vox_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 	  offset = (offset > max)?max:offset;
 	  offset = (offset < min)?min:offset;
      }
-     fseeko(fs->f, offset, SEEK_SET);
-	 return ftello(fs->f);
+     return fseeko(fs->f, offset, SEEK_SET);
 }
 
 static int vox_trunc(struct ast_filestream *fs)
@@ -215,37 +121,40 @@ static off_t vox_tell(struct ast_filestream *fs)
      return offset; 
 }
 
+static struct ast_format_lock me = { .usecnt = -1 };
+
+static const struct ast_format vox_f = {
+	.name = "vox",
+	.exts = "vox",
+	.format = AST_FORMAT_ADPCM,
+	.write = vox_write,
+	.seek = vox_seek,
+	.trunc = vox_trunc,
+	.tell = vox_tell,
+	.read = vox_read,
+	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
+	.lockp = &me,
+};
+
 int load_module()
 {
-	return ast_format_register(name, exts, AST_FORMAT_ADPCM,
-								vox_open,
-								vox_rewrite,
-								vox_write,
-								vox_seek,
-								vox_trunc,
-								vox_tell,
-								vox_read,
-								vox_close,
-								vox_getcomment);
-								
-								
+	return ast_format_register(&vox_f);
 }
 
 int unload_module()
 {
-	return ast_format_unregister(name);
+	return ast_format_unregister(vox_f.name);
 }	
 
 int usecount()
 {
-	return glistcnt;
+	return me.usecnt;
 }
 
 char *description()
 {
-	return desc;
+	return "Dialogic VOX (ADPCM) File Format";
 }
-
 
 char *key()
 {

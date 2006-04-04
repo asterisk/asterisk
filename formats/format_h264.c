@@ -47,96 +47,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Some Ideas for this code came from makeh264e.c by Jeffrey Chilton */
 
 /* Portions of the conversion code are by guido@sienanet.it */
-
-struct ast_filestream {
-	void *reserved[AST_RESERVED_POINTERS];
-	/* Believe it or not, we must decode/recode to account for the
-	   weird MS format */
-	/* This is what a filestream means to us */
-	FILE *f; /* Descriptor */
+#define BUF_SIZE	4096	/* Two Real h264 Frames */
+struct h264_desc {
 	unsigned int lastts;
-	struct ast_frame fr;				/* Frame information */
-	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
-	char empty;							/* Empty character */
-	unsigned char h264[4096];				/* Two Real h264 Frames */
 };
 
-
-AST_MUTEX_DEFINE_STATIC(h264_lock);
-static int glistcnt = 0;
-
-static char *name = "h264";
-static char *desc = "Raw h264 data";
-static char *exts = "h264";
-
-static struct ast_filestream *h264_open(FILE *f)
+static int h264_open(struct ast_filestream *s)
 {
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
 	unsigned int ts;
 	int res;
-	if ((res = fread(&ts, 1, sizeof(ts), f)) < sizeof(ts)) {
+	if ((res = fread(&ts, 1, sizeof(ts), s->f)) < sizeof(ts)) {
 		ast_log(LOG_WARNING, "Empty file!\n");
-		return NULL;
+		return -1;
 	}
-		
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&h264_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock h264 list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->fr.data = tmp->h264;
-		tmp->fr.frametype = AST_FRAME_VIDEO;
-		tmp->fr.subclass = AST_FORMAT_H264;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
-		glistcnt++;
-		ast_mutex_unlock(&h264_lock);
-		ast_update_use_count();
-	}
-	return tmp;
-}
-
-static struct ast_filestream *h264_rewrite(FILE *f, const char *comment)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&h264_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock h264 list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		glistcnt++;
-		ast_mutex_unlock(&h264_lock);
-		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
-}
-
-static void h264_close(struct ast_filestream *s)
-{
-	if (ast_mutex_lock(&h264_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock h264 list\n");
-		return;
-	}
-	glistcnt--;
-	ast_mutex_unlock(&h264_lock);
-	ast_update_use_count();
-	fclose(s->f);
-	free(s);
-	s = NULL;
+	return 0;
 }
 
 static struct ast_frame *h264_read(struct ast_filestream *s, int *whennext)
@@ -145,80 +69,71 @@ static struct ast_frame *h264_read(struct ast_filestream *s, int *whennext)
 	int mark=0;
 	unsigned short len;
 	unsigned int ts;
+	struct h264_desc *fs = (struct h264_desc *)s->private;
+
 	/* Send a frame from the file to the appropriate channel */
+	if ((res = fread(&len, 1, sizeof(len), s->f)) < 1)
+		return NULL;
+	len = ntohs(len);
+	mark = (len & 0x8000) ? 1 : 0;
+	len &= 0x7fff;
+	if (len > BUF_SIZE) {
+		ast_log(LOG_WARNING, "Length %d is too long\n", len);
+		len = BUF_SIZE;	/* XXX truncate */
+	}
 	s->fr.frametype = AST_FRAME_VIDEO;
 	s->fr.subclass = AST_FORMAT_H264;
-	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.mallocd = 0;
-	s->fr.data = s->h264;
-	if ((res = fread(&len, 1, sizeof(len), s->f)) < 1) {
-		return NULL;
-	}
-	len = ntohs(len);
-	if (len & 0x8000) {
-		mark = 1;
-	}
-	len &= 0x7fff;
-	if (len > sizeof(s->h264)) {
-		ast_log(LOG_WARNING, "Length %d is too long\n", len);
-	}
-	if ((res = fread(s->h264, 1, len, s->f)) != len) {
+	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, len);
+	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d of %d) (%s)!\n", res, len, strerror(errno));
 		return NULL;
 	}
-	s->fr.samples = s->lastts;
+	s->fr.samples = fs->lastts;
 	s->fr.datalen = len;
 	s->fr.subclass |= mark;
 	s->fr.delivery.tv_sec = 0;
 	s->fr.delivery.tv_usec = 0;
 	if ((res = fread(&ts, 1, sizeof(ts), s->f)) == sizeof(ts)) {
-		s->lastts = ntohl(ts);
-		*whennext = s->lastts * 4/45;
+		fs->lastts = ntohl(ts);
+		*whennext = fs->lastts * 4/45;
 	} else
 		*whennext = 0;
 	return &s->fr;
 }
 
-static int h264_write(struct ast_filestream *fs, struct ast_frame *f)
+static int h264_write(struct ast_filestream *s, struct ast_frame *f)
 {
 	int res;
 	unsigned int ts;
 	unsigned short len;
-	int subclass;
-	int mark=0;
+	int mark;
+
 	if (f->frametype != AST_FRAME_VIDEO) {
 		ast_log(LOG_WARNING, "Asked to write non-video frame!\n");
 		return -1;
 	}
-	subclass = f->subclass;
-	if (subclass & 0x1)
-		mark=0x8000;
-	subclass &= ~0x1;
-	if (subclass != AST_FORMAT_H264) {
+	mark = (f->subclass & 0x1) ? 0x8000 : 0;
+	if ((f->subclass & ~0x1) != AST_FORMAT_H264) {
 		ast_log(LOG_WARNING, "Asked to write non-h264 frame (%d)!\n", f->subclass);
 		return -1;
 	}
 	ts = htonl(f->samples);
-	if ((res = fwrite(&ts, 1, sizeof(ts), fs->f)) != sizeof(ts)) {
-			ast_log(LOG_WARNING, "Bad write (%d/4): %s\n", res, strerror(errno));
-			return -1;
+	if ((res = fwrite(&ts, 1, sizeof(ts), s->f)) != sizeof(ts)) {
+		ast_log(LOG_WARNING, "Bad write (%d/4): %s\n", res, strerror(errno));
+		return -1;
 	}
 	len = htons(f->datalen | mark);
-	if ((res = fwrite(&len, 1, sizeof(len), fs->f)) != sizeof(len)) {
-			ast_log(LOG_WARNING, "Bad write (%d/2): %s\n", res, strerror(errno));
-			return -1;
+	if ((res = fwrite(&len, 1, sizeof(len), s->f)) != sizeof(len)) {
+		ast_log(LOG_WARNING, "Bad write (%d/2): %s\n", res, strerror(errno));
+		return -1;
 	}
-	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
-			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
-			return -1;
+	if ((res = fwrite(f->data, 1, f->datalen, s->f)) != f->datalen) {
+		ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
+		return -1;
 	}
 	return 0;
-}
-
-static char *h264_getcomment(struct ast_filestream *s)
-{
-	return NULL;
 }
 
 static int h264_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
@@ -237,43 +152,46 @@ static int h264_trunc(struct ast_filestream *fs)
 
 static off_t h264_tell(struct ast_filestream *fs)
 {
-	/* XXX This is totally bogus XXX */
-	off_t offset;
-	offset = ftell(fs->f);
-	return (offset/20)*160;
+	off_t offset = ftell(fs->f);
+	return offset; /* XXX totally bogus, needs fixing */
 }
+
+static struct ast_format_lock me = { .usecnt = -1 };
+
+static const struct ast_format h264_f = {
+	.name = "h264",
+	.exts = "h264",
+	.format = AST_FORMAT_H264,
+	.open = h264_open,
+	.write = h264_write,
+	.seek = h264_seek,
+	.trunc = h264_trunc,
+	.tell = h264_tell,
+	.read = h264_read,
+	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
+	.desc_size = sizeof(struct h264_desc),
+	.lockp = &me,
+};
 
 int load_module()
 {
-	return ast_format_register(name, exts, AST_FORMAT_H264,
-								h264_open,
-								h264_rewrite,
-								h264_write,
-								h264_seek,
-								h264_trunc,
-								h264_tell,
-								h264_read,
-								h264_close,
-								h264_getcomment);
-								
-								
+	return ast_format_register(&h264_f);
 }
 
 int unload_module()
 {
-	return ast_format_unregister(name);
+	return ast_format_unregister(h264_f.name);
 }	
 
 int usecount()
 {
-	return glistcnt;
+	return me.usecnt;
 }
 
 char *description()
 {
-	return desc;
+	return "Raw h264 data";
 }
-
 
 char *key()
 {

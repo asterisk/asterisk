@@ -47,42 +47,25 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/endian.h"
 #include "asterisk/alaw.h"
 
-#define BUF_SIZE 160		/* 160 samples */
+#define BUF_SIZE 160		/* 160 bytes, and same number of samples */
 
-/* #define REALTIME_WRITE */
+/* #define REALTIME_WRITE */	/* XXX does it work at all ? */
 
-struct ast_filestream {
-	void *reserved[AST_RESERVED_POINTERS];
-	/* Believe it or not, we must decode/recode to account for the
-	   weird MS format */
-	/* This is what a filestream means to us */
-	FILE *f; /* Descriptor */
-	struct ast_frame fr;				/* Frame information */
-	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
-	char empty;							/* Empty character */
-	unsigned char buf[BUF_SIZE];				/* Output Buffer */
+struct pcma_desc {
 #ifdef REALTIME_WRITE
 	unsigned long start_time;
 #endif
 };
 
-
-AST_MUTEX_DEFINE_STATIC(pcm_lock);
-static int glistcnt = 0;
-
-static char *name = "alaw";
-static char *desc = "Raw aLaw 8khz PCM Audio support";
-static char *exts = "alaw|al";
-
 static char alaw_silence[BUF_SIZE];
-
 
 #if 0
 /* Returns time in msec since system boot. */
-static unsigned long get_time(void)
+static unsigned long get_time(struct ast_filestream *s)
 {
 	struct tms buf;
 	clock_t cur;
+	unsigned long *res;
 
 	cur = times( &buf );
 	if( cur < 0 )
@@ -90,77 +73,26 @@ static unsigned long get_time(void)
 		ast_log( LOG_WARNING, "Cannot get current time\n" );
 		return 0;
 	}
-	return cur * 1000 / sysconf( _SC_CLK_TCK );
-}
-#endif
-
-static struct ast_filestream *pcm_open(FILE *f)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&pcm_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock pcm list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-		tmp->fr.data = tmp->buf;
-		tmp->fr.frametype = AST_FRAME_VOICE;
-		tmp->fr.subclass = AST_FORMAT_ALAW;
-		/* datalen will vary for each frame */
-		tmp->fr.src = name;
-		tmp->fr.mallocd = 0;
-#ifdef REALTIME_WRITE
-		tmp->start_time = get_time();
-#endif
-		glistcnt++;
-		ast_mutex_unlock(&pcm_lock);
-		ast_update_use_count();
+	res = cur * 1000 / sysconf( _SC_CLK_TCK );
+	if (s) {
+		struct pcma_desc *d = (struct pcma_filestream *)s->private;
+		d->start_time = res;
 	}
-	return tmp;
+	return res;
 }
-
-static struct ast_filestream *pcm_rewrite(FILE *f, const char *comment)
-{
-	/* We don't have any header to read or anything really, but
-	   if we did, it would go here.  We also might want to check
-	   and be sure it's a valid file.  */
-	struct ast_filestream *tmp;
-	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_mutex_lock(&pcm_lock)) {
-			ast_log(LOG_WARNING, "Unable to lock pcm list\n");
-			free(tmp);
-			return NULL;
-		}
-		tmp->f = f;
-#ifdef REALTIME_WRITE
-		tmp->start_time = get_time();
 #endif
-		glistcnt++;
-		ast_mutex_unlock(&pcm_lock);
-		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return tmp;
+
+static int pcm_open(struct ast_filestream *s)
+{
+#ifdef REALTIME_WRITE
+	get_time(s);
+#endif
+	return 0;
 }
 
-static void pcm_close(struct ast_filestream *s)
+static int pcm_rewrite(struct ast_filestream *s, const char *comment)
 {
-	if (ast_mutex_lock(&pcm_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock pcm list\n");
-		return;
-	}
-	glistcnt--;
-	ast_mutex_unlock(&pcm_lock);
-	ast_update_use_count();
-	fclose(s->f);
-	free(s);
-	s = NULL;
+	return pcm_open(s);
 }
 
 static struct ast_frame *pcm_read(struct ast_filestream *s, int *whennext)
@@ -170,17 +102,15 @@ static struct ast_frame *pcm_read(struct ast_filestream *s, int *whennext)
 
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_ALAW;
-	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.mallocd = 0;
-	s->fr.data = s->buf;
-	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1) {
+	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
+	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) < 1) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
 	}
-	s->fr.samples = res;
 	s->fr.datalen = res;
-	*whennext = s->fr.samples;
+	*whennext = s->fr.samples = res;
 	return &s->fr;
 }
 
@@ -191,6 +121,7 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 	unsigned long cur_time;
 	unsigned long fpos;
 	struct stat stat_buf;
+	struct pcma_filestream *s = (struct pcma_filestream *)fs->private;
 #endif
 
 	if (f->frametype != AST_FRAME_VOICE) {
@@ -204,7 +135,7 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 
 #ifdef REALTIME_WRITE
 	cur_time = get_time();
-	fpos = ( cur_time - fs->start_time ) * 8;	/* 8 bytes per msec */
+	fpos = ( cur_time - s->start_time ) * 8;	/* 8 bytes per msec */
 	/* Check if we have written to this position yet. If we have, then increment pos by one frame
 	*  for some degree of protection against receiving packets in the same clock tick.
 	*/
@@ -306,16 +237,28 @@ static int pcm_trunc(struct ast_filestream *fs)
 
 static off_t pcm_tell(struct ast_filestream *fs)
 {
-	off_t offset;
-	offset = ftello(fs->f);
-	return offset;
+	return ftello(fs->f);
 }
 
+static struct ast_format_lock me = { .usecnt = -1 };
 
-static char *pcm_getcomment(struct ast_filestream *s)
-{
-	return NULL;
-}
+static const struct ast_format alaw_f = {
+	.name = "alaw",
+	.exts = "alaw|al",
+	.format = AST_FORMAT_ALAW,
+	.open = pcm_open,
+	.rewrite = pcm_rewrite,
+	.write = pcm_write,
+	.seek = pcm_seek,
+	.trunc = pcm_trunc,
+	.tell = pcm_tell,
+	.read = pcm_read,
+	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
+	.lockp = &me,
+#ifdef	REALTIME_WRITE
+	.desc_size = sizeof(struct pcma_desc),
+#endif
+};
 
 int load_module()
 {
@@ -324,33 +267,23 @@ int load_module()
 	for (index = 0; index < (sizeof(alaw_silence) / sizeof(alaw_silence[0])); index++)
 		alaw_silence[index] = AST_LIN2A(0);
 
-	return ast_format_register(name, exts, AST_FORMAT_ALAW,
-				   pcm_open,
-				   pcm_rewrite,
-				   pcm_write,
-				   pcm_seek,
-				   pcm_trunc,
-				   pcm_tell,
-				   pcm_read,
-				   pcm_close,
-				   pcm_getcomment);
+	return ast_format_register(&alaw_f);
 }
 
 int unload_module()
 {
-	return ast_format_unregister(name);
+	return ast_format_unregister(alaw_f.name);
 }	
 
 int usecount()
 {
-	return glistcnt;
+	return me.usecnt;
 }
 
 char *description()
 {
-	return desc;
+	return "Raw aLaw 8khz PCM Audio support";
 }
-
 
 char *key()
 {

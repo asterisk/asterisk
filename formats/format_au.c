@@ -44,7 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/endian.h"
 
-#define BUF_SIZE		160
+#define BUF_SIZE		160	/* samples and 1 byte per sample */
 
 #define AU_HEADER_SIZE		24
 #define AU_HEADER(var)		u_int32_t var[6]
@@ -57,26 +57,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define AU_HDR_CHANNELS_OFF	5
 
 #define AU_ENC_8BIT_ULAW	1
-
-struct ast_filestream {
-	void *reserved[AST_RESERVED_POINTERS];
-	/* This is what a filestream means to us */
-	FILE *f; 				/* Descriptor */
-	struct ast_channel *owner;
-	struct ast_frame fr;			/* Frame information */
-	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
-	char empty;				/* Empty character */
-	short buf[BUF_SIZE];
-};
-
-
-AST_MUTEX_DEFINE_STATIC(au_lock);
-static int localusecnt = 0;
-
-static char *name = "au";
-static char *desc = "Sun Microsystems AU format (signed linear)";
-static char *exts = "au";
-
 
 #define AU_MAGIC 0x2e736e64
 #if __BYTE_ORDER == __BIG_ENDIAN
@@ -130,7 +110,7 @@ static int check_header(FILE *f)
 		return -1;
 	}
 	sample_rate = ltohl(header[AU_HDR_SAMPLE_RATE_OFF]);
-	if (sample_rate != 8000) {
+	if (sample_rate != DEFAULT_SAMPLE_RATE) {
 		ast_log(LOG_WARNING, "Sample rate can only be 8000 not %d\n", sample_rate);
 		return -1;
 	}
@@ -189,7 +169,7 @@ static int write_header(FILE *f)
 	header[AU_HDR_HDR_SIZE_OFF] = htoll(AU_HEADER_SIZE);
 	header[AU_HDR_DATA_SIZE_OFF] = 0;
 	header[AU_HDR_ENCODING_OFF] = htoll(AU_ENC_8BIT_ULAW);
-	header[AU_HDR_SAMPLE_RATE_OFF] = htoll(8000);
+	header[AU_HDR_SAMPLE_RATE_OFF] = htoll(DEFAULT_SAMPLE_RATE);
 	header[AU_HDR_CHANNELS_OFF] = htoll(1);
 
 	/* Write an au header, ignoring sizes which will be filled in later */
@@ -201,97 +181,36 @@ static int write_header(FILE *f)
 	return 0;
 }
 
-static struct ast_filestream *au_open(FILE *f)
+static int au_open(struct ast_filestream *s)
 {
-	struct ast_filestream *tmp;
-
-	if (!(tmp = malloc(sizeof(struct ast_filestream)))) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return NULL;
-	}
-
-	memset(tmp, 0, sizeof(struct ast_filestream));
-	if (check_header(f) < 0) {
-		free(tmp);
-		return NULL;
-	}
-	if (ast_mutex_lock(&au_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock au count\n");
-		free(tmp);
-		return NULL;
-	}
-	tmp->f = f;
-	tmp->fr.data = tmp->buf;
-	tmp->fr.frametype = AST_FRAME_VOICE;
-	tmp->fr.subclass = AST_FORMAT_ULAW;
-	/* datalen will vary for each frame */
-	tmp->fr.src = name;
-	tmp->fr.mallocd = 0;
-	localusecnt++;
-	ast_mutex_unlock(&au_lock);
-	ast_update_use_count();
-	return tmp;
+	if (check_header(s->f) < 0)
+		return -1;
+	return 0;
 }
 
-static struct ast_filestream *au_rewrite(FILE *f, const char *comment)
+static int au_rewrite(struct ast_filestream *s, const char *comment)
 {
-	struct ast_filestream *tmp;
-
-	if ((tmp = malloc(sizeof(struct ast_filestream))) == NULL) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return NULL;
-	}
-
-	memset(tmp, 0, sizeof(struct ast_filestream));
-	if (write_header(f)) {
-		free(tmp);
-		return NULL;
-	}
-	if (ast_mutex_lock(&au_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock au count\n");
-		free(tmp);
-		return NULL;
-	}
-	tmp->f = f;
-	localusecnt++;
-	ast_mutex_unlock(&au_lock);
-	ast_update_use_count();
-	return tmp;
-}
-
-static void au_close(struct ast_filestream *s)
-{
-	if (ast_mutex_lock(&au_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock au count\n");
-		return;
-	}
-	localusecnt--;
-	ast_mutex_unlock(&au_lock);
-	ast_update_use_count();
-	fclose(s->f);
-	free(s);
+	if (write_header(s->f))
+		return -1;
+	return 0;
 }
 
 static struct ast_frame *au_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
-	int delay;
 	/* Send a frame from the file to the appropriate channel */
 
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_ULAW;
-	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.mallocd = 0;
-	s->fr.data = s->buf;
-	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1) {
+	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
+	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) < 1) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
 	}
-	s->fr.samples = res;
+	*whennext = s->fr.samples = res;
 	s->fr.datalen = res;
-	delay = s->fr.samples;
-	*whennext = delay;
 	return &s->fr;
 }
 
@@ -308,8 +227,8 @@ static int au_write(struct ast_filestream *fs, struct ast_frame *f)
 		return -1;
 	}
 	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
-			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
-			return -1;
+		ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
+		return -1;
 	}
 	update_header(fs->f);
 	return 0;
@@ -348,44 +267,45 @@ static int au_trunc(struct ast_filestream *fs)
 
 static off_t au_tell(struct ast_filestream *fs)
 {
-	off_t offset;
-
-	offset = ftello(fs->f);
+	off_t offset = ftello(fs->f);
 	return offset - AU_HEADER_SIZE;
 }
 
-static char *au_getcomment(struct ast_filestream *s)
-{
-	return NULL;
-}
+static struct ast_format_lock me = { .usecnt = -1 };
+
+static const struct ast_format au_f = {
+	.name = "au",
+	.exts = "au",
+	.format = AST_FORMAT_ULAW,
+	.open = au_open,
+	.rewrite = au_rewrite,
+	.write = au_write,
+	.seek = au_seek,
+	.trunc = au_trunc,
+	.tell = au_tell,
+	.read = au_read,
+	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,	/* this many shorts */
+	.lockp = &me,
+};
 
 int load_module()
 {
-	return ast_format_register(name, exts, AST_FORMAT_ULAW,
-				   au_open,
-				   au_rewrite,
-				   au_write,
-				   au_seek,
-				   au_trunc,
-				   au_tell,
-				   au_read,
-				   au_close,
-				   au_getcomment);
+	return ast_format_register(&au_f);
 }
 
 int unload_module()
 {
-	return ast_format_unregister(name);
+	return ast_format_unregister(au_f.name);
 }
 
 int usecount()
 {
-	return localusecnt;
+	return me.usecnt;
 }
 
 char *description()
 {
-	return desc;
+	return "Sun Microsystems AU format (signed linear)";
 }
 
 char *key()
