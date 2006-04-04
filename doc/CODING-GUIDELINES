@@ -522,6 +522,19 @@ int len = 0;
 if (name && (len = strlen(name) + strlen(prefix) + strlen(postfix) + 3) && (newname = alloca(len)))
 	snprintf(newname, len, "%s/%s/%s", prefix, name, postfix);
 
+* Creating new manager events?
+------------------------------
+If you create new AMI events, please read manager.txt. Do not re-use
+existing headers for new purposes, but please re-use existing headers
+for the same type of data.
+
+Manager events that signal a status are required to have one
+event name, with a status header that shows the status.
+The old style, with one event named "ThisEventOn" and another named
+"ThisEventOff", is no longer approved.
+
+Check manager.txt for more information on manager and existing
+headers. Please update this file if you add new headers.
 
 -----------------------------------------------
 Welcome to the Asterisk development community!

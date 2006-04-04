@@ -296,3 +296,4 @@ Some standard AMI headers:
 
  ** Please try to re-use existing headers to simplify manager message parsing in clients.
 
+Read the CODING-GUIDELINES if you develop new manager commands or events.
