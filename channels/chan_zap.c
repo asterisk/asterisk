@@ -5655,10 +5655,10 @@ static void *ss_thread(void *data)
 				/* Do not disturb */
 				if (option_verbose > 2) {
 					ast_verbose(VERBOSE_PREFIX_3 "Enabled DND on channel %d\n", p->channel);
-					manager_event(EVENT_FLAG_SYSTEM, "DNDState",
-								"Channel: Zap/%d\r\n"
-								"Status: enabled\r\n", p->channel);
 				}
+				manager_event(EVENT_FLAG_SYSTEM, "DNDState",
+							"Channel: Zap/%d\r\n"
+							"Status: enabled\r\n", p->channel);
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				p->dnd = 1;
 				getforward = 0;
@@ -5666,12 +5666,11 @@ static void *ss_thread(void *data)
 				len = 0;
 			} else if (!strcmp(exten, "*79")) {
 				/* Do not disturb */
-				if (option_verbose > 2) {
+				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Disabled DND on channel %d\n", p->channel);
-					manager_event(EVENT_FLAG_SYSTEM, "DNDState",
+				manager_event(EVENT_FLAG_SYSTEM, "DNDState",
 								"Channel: Zap/%d\r\n"
 								"Status: disabled\r\n", p->channel);
-				}
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				p->dnd = 0;
 				getforward = 0;
