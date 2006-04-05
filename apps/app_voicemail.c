@@ -1753,11 +1753,11 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 			fprintf(p, "Subject: New message %d in mailbox %s\n", msgnum + 1, mailbox);
 		else
 			fprintf(p, "Subject: [PBX]: New message %d in mailbox %s\n", msgnum + 1, mailbox);
-		fprintf(p, "Message-ID: <Asterisk-%d-%d-%s-%d@%s>\n", msgnum, (unsigned int)rand(), mailbox, getpid(), host);
+		fprintf(p, "Message-ID: <Asterisk-%d-%d-%s-%d@%s>\n", msgnum, (unsigned int)ast_random(), mailbox, getpid(), host);
 		fprintf(p, "MIME-Version: 1.0\n");
 		if (attach_user_voicemail) {
 			/* Something unique. */
-			snprintf(bound, sizeof(bound), "voicemail_%d%s%d%d", msgnum, mailbox, getpid(), (unsigned int)rand());
+			snprintf(bound, sizeof(bound), "voicemail_%d%s%d%d", msgnum, mailbox, getpid(), (unsigned int)ast_random());
 
 			fprintf(p, "Content-Type: multipart/mixed; boundary=\"%s\"\n\n\n", bound);
 

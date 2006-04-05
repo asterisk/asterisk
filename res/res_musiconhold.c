@@ -208,7 +208,7 @@ static int ast_moh_files_next(struct ast_channel *chan)
 			}
 
 			if (ast_test_flag(state->class, MOH_RANDOMIZE))
-				state->pos = rand();
+				state->pos = ast_random();
 
 			/* check to see if this file's format can be opened */
 			if (ast_fileexists(state->class->filearray[state->pos], NULL, NULL) != -1)

@@ -143,7 +143,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 	char *tech, *resource;
 	char meetmeopts[80];
 	struct ast_flags flags = { 0 };
-	unsigned int confid = rand();
+	unsigned int confid = ast_random();
 	struct ast_app *app;
 	char *tmp;
 	int res=0;

@@ -794,7 +794,7 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struc
 		udptl->tx[i].buf_len = -1;
 	}
 
-	udptl->seqno = rand() & 0xffff;
+	udptl->seqno = ast_random() & 0xffff;
 	udptl->them.sin_family = AF_INET;
 	udptl->us.sin_family = AF_INET;
 
@@ -810,7 +810,7 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struc
 		setsockopt(udptl->fd, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
 #endif
 	/* Find us a place */
-	x = (rand()%(udptlend - udptlstart)) + udptlstart;
+	x = (ast_random() % (udptlend - udptlstart)) + udptlstart;
 	startplace = x;
 	for (;;) {
 		udptl->us.sin_port = htons(x);

@@ -5117,7 +5117,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			else
 #endif
 			if (i->channel == CHAN_PSEUDO)
-				ast_string_field_build(tmp, name, "Zap/pseudo-%d", rand());
+				ast_string_field_build(tmp, name, "Zap/pseudo-%d", ast_random());
 			else	
 				ast_string_field_build(tmp, name, "Zap/%d-%d", i->channel, y);
 			for (x=0;x<3;x++) {

@@ -1008,8 +1008,8 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 	rtp->them.sin_family = AF_INET;
 	rtp->us.sin_family = AF_INET;
 	rtp->s = rtp_socket();
-	rtp->ssrc = rand();
-	rtp->seqno = rand() & 0xffff;
+	rtp->ssrc = ast_random();
+	rtp->seqno = ast_random() & 0xffff;
 	if (rtp->s < 0) {
 		free(rtp);
 		ast_log(LOG_ERROR, "Unable to allocate socket: %s\n", strerror(errno));
@@ -1021,7 +1021,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 	}
 	
 	/* Select a random port number in the range of possible RTP */
-	x = (rand() % (rtpend-rtpstart)) + rtpstart;
+	x = (ast_random() % (rtpend-rtpstart)) + rtpstart;
 	x = x & ~1;
 	/* Save it for future references. */
 	startplace = x;

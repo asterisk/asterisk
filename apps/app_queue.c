@@ -1992,7 +1992,7 @@ static int calc_metric(struct ast_call_queue *q, struct member *mem, int pos, st
 		tmp->metric += mem->penalty * 1000000;
 		break;
 	case QUEUE_STRATEGY_RANDOM:
-		tmp->metric = rand() % 1000;
+		tmp->metric = ast_random() % 1000;
 		tmp->metric += mem->penalty * 1000000;
 		break;
 	case QUEUE_STRATEGY_FEWESTCALLS:
@@ -2241,7 +2241,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			else {
 				/* Last ditch effort -- no CDR, make up something */
 				char tmpid[256];
-				snprintf(tmpid, sizeof(tmpid), "chan-%x", rand());
+				snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
 				ast_monitor_start(which, qe->parent->monfmt, tmpid, 1 );
 			}
 			if (qe->parent->monjoin)

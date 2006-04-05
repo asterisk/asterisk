@@ -478,7 +478,7 @@ static struct local_pvt *local_alloc(char *data, int format)
 static struct ast_channel *local_new(struct local_pvt *p, int state)
 {
 	struct ast_channel *tmp, *tmp2;
-	int randnum = rand() & 0xffff;
+	int randnum = ast_random() & 0xffff;
 
 	tmp = ast_channel_alloc(1);
 	tmp2 = ast_channel_alloc(1);

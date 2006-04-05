@@ -924,7 +924,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 			tmp->rawreadformat = AST_FORMAT_SLINEAR;
 		}
 		if (p->pending)
-			ast_string_field_build(tmp, name, "Agent/P%s-%d", p->agent, rand() & 0xffff);
+			ast_string_field_build(tmp, name, "Agent/P%s-%d", p->agent, ast_random() & 0xffff);
 		else
 			ast_string_field_build(tmp, name, "Agent/%s", p->agent);
 		/* Safe, agentlock already held */

@@ -1674,7 +1674,7 @@ static int process_message(struct mansession *s, struct message *m)
 			authtype = astman_get_header(m, "AuthType");
 			if (!strcasecmp(authtype, "MD5")) {
 				if (ast_strlen_zero(s->challenge))
-					snprintf(s->challenge, sizeof(s->challenge), "%d", rand());
+					snprintf(s->challenge, sizeof(s->challenge), "%ld", ast_random());
 				ast_mutex_lock(&s->__lock);
 				astman_append(s, "Response: Success\r\n"
 						"%s"

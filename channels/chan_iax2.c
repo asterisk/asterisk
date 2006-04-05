@@ -1292,7 +1292,7 @@ static int try_firmware(char *s)
 		last++;
 	else
 		last = s;
-	snprintf(s2, strlen(s) + 100, "/var/tmp/%s-%ld", last, (unsigned long)rand());
+	snprintf(s2, strlen(s) + 100, "/var/tmp/%s-%ld", last, (unsigned long)ast_random());
 	res = stat(s, &stbuf);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Failed to stat '%s': %s\n", s, strerror(errno));
@@ -3249,7 +3249,7 @@ static int iax2_start_transfer(unsigned short callno0, unsigned short callno1)
 	int res;
 	struct iax_ie_data ied0;
 	struct iax_ie_data ied1;
-	unsigned int transferid = rand();
+	unsigned int transferid = (unsigned int)ast_random();
 	memset(&ied0, 0, sizeof(ied0));
 	iax_ie_append_addr(&ied0, IAX_IE_APPARENT_ADDR, &iaxs[callno1]->addr);
 	iax_ie_append_short(&ied0, IAX_IE_CALLNO, iaxs[callno1]->peercallno);
@@ -3790,9 +3790,9 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset)
 	ms = ast_tvdiff_ms(ast_tvnow(), p->rxcore);
 #ifdef IAXTESTS
 	if (test_jit) {
-		if (!test_jitpct || ((100.0 * rand() / (RAND_MAX + 1.0)) < test_jitpct)) {
-			jit = (int)((float)test_jit * rand() / (RAND_MAX + 1.0));
-			if ((int)(2.0 * rand() / (RAND_MAX + 1.0)))
+		if (!test_jitpct || ((100.0 * ast_random() / (RAND_MAX + 1.0)) < test_jitpct)) {
+			jit = (int)((float)test_jit * ast_random() / (RAND_MAX + 1.0));
+			if ((int)(2.0 * ast_random() / (RAND_MAX + 1.0)))
 				jit = -jit;
 			ms += jit;
 		}
@@ -5144,7 +5144,7 @@ static int authenticate_request(struct chan_iax2_pvt *p)
 	memset(&ied, 0, sizeof(ied));
 	iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
 	if (p->authmethods & (IAX_AUTH_MD5 | IAX_AUTH_RSA)) {
-		snprintf(p->challenge, sizeof(p->challenge), "%d", rand());
+		snprintf(p->challenge, sizeof(p->challenge), "%d", (int)ast_random());
 		iax_ie_append_str(&ied, IAX_IE_CHALLENGE, p->challenge);
 	}
 	if (p->encmethods)
@@ -5967,7 +5967,7 @@ static int registry_authrequest(char *name, int callno)
 		iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
 		if (p->authmethods & (IAX_AUTH_RSA | IAX_AUTH_MD5)) {
 			/* Build the challenge */
-			snprintf(iaxs[callno]->challenge, sizeof(iaxs[callno]->challenge), "%d", rand());
+			snprintf(iaxs[callno]->challenge, sizeof(iaxs[callno]->challenge), "%d", (int)ast_random());
 			iax_ie_append_str(&ied, IAX_IE_CHALLENGE, iaxs[callno]->challenge);
 		}
 		iax_ie_append_str(&ied, IAX_IE_USERNAME, name);
@@ -6515,7 +6515,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			ASTOBJ_CONTAINER_LINK_END(&idlelist, thread);
 			return 1;
 		}
-		if (test_losspct && ((100.0*rand()/(RAND_MAX+1.0)) < test_losspct)) { /* simulate random loss condition */
+		if (test_losspct && ((100.0 * ast_random() / (RAND_MAX + 1.0)) < test_losspct)) { /* simulate random loss condition */
 			ASTOBJ_CONTAINER_LINK_END(&idlelist, thread); 
 			return 1;
 		}

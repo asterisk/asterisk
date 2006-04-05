@@ -454,8 +454,6 @@ static struct ast_flags global_flags[2] = {{0}};	/*!< global SIP_ flags */
 
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
-AST_MUTEX_DEFINE_STATIC(rand_lock);			/*!< Lock for thread-safe random generator */
-
 /*! \brief Protect the SIP dialog list (of sip_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
 
@@ -704,7 +702,7 @@ static struct sip_pvt {
 	int callingpres;			/*!< Calling presentation */
 	int authtries;				/*!< Times we've tried to authenticate */
 	int expiry;				/*!< How long we take to expire */
-	int branch;				/*!< One random number */
+	long branch;				/*!< One random number */
 	char tag[11];				/*!< Another random number */
 	int sessionid;				/*!< SDP Session ID */
 	int sessionversion;			/*!< SDP Session Version */
@@ -1038,24 +1036,6 @@ static struct ast_rtp_protocol sip_rtp = {
 	get_codec: sip_get_codec,
 };
 
-
-/*!
-  \brief Thread-safe random number generator
-  \return a random number
-
-  This function uses a mutex lock to guarantee that no
-  two threads will receive the same random number.
- */
-static force_inline int thread_safe_rand(void)
-{
-	int val;
-
-	ast_mutex_lock(&rand_lock);
-	val = rand();
-	ast_mutex_unlock(&rand_lock);
-	
-	return val;
-}
 
 /*! \brief Find SIP method from header
  * Strictly speaking, SIP methods are case SENSITIVE, but we don't check 
@@ -2945,7 +2925,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	fmt = ast_best_codec(tmp->nativeformats);
 
 	if (title)
-		ast_string_field_build(tmp, name, "SIP/%s-%04x", title, thread_safe_rand() & 0xffff);
+		ast_string_field_build(tmp, name, "SIP/%s-%04lx", title, ast_random() & 0xffff);
 	else if (strchr(i->fromdomain,':'))
 		ast_string_field_build(tmp, name, "SIP/%s-%08x", strchr(i->fromdomain,':')+1, (int)(long)(i));
 	else
@@ -3197,12 +3177,12 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 /*! \brief Generate 32 byte random string for callid's etc */
 static char *generate_random_string(char *buf, size_t size)
 {
-	int val[4];
+	long val[4];
 	int x;
 
 	for (x=0; x<4; x++)
-		val[x] = thread_safe_rand();
-	snprintf(buf, size, "%08x%08x%08x%08x", val[0], val[1], val[2], val[3]);
+		val[x] = ast_random();
+	snprintf(buf, size, "%08lx%08lx%08lx%08lx", val[0], val[1], val[2], val[3]);
 
 	return buf;
 }
@@ -3233,7 +3213,7 @@ static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip
 /*! \brief Make our SIP dialog tag */
 static void make_our_tag(char *tagbuf, size_t len)
 {
-	snprintf(tagbuf, len, "as%08x", thread_safe_rand());
+	snprintf(tagbuf, len, "as%08lx", ast_random());
 }
 
 /*! \brief Allocate SIP_PVT structure and set defaults */
@@ -3276,7 +3256,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	ast_copy_flags(&p->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&p->flags[1], &global_flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 
-	p->branch = thread_safe_rand();	
+	p->branch = ast_random();	
 	make_our_tag(p->tag, sizeof(p->tag));
 	/* Start with 101 instead of 1 */
 	p->ocseq = 101;
@@ -4268,7 +4248,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	}
 	
 	if (newbranch) {
-		p->branch ^= thread_safe_rand();
+		p->branch ^= ast_random();
 		build_via(p);
 	}
 
@@ -5110,7 +5090,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 	req.method = sipmethod;
 	if (init) {
 		/* Bump branch even on initial requests */
-		p->branch ^= thread_safe_rand();
+		p->branch ^= ast_random();
 		build_via(p);
 		if (init > 1)
 			initreqprep(&req, p, sipmethod);
@@ -5682,7 +5662,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 		snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
 	ast_string_field_set(p, uri, addr);
 
-	p->branch ^= thread_safe_rand();
+	p->branch ^= ast_random();
 
 	memset(&req, 0, sizeof(req));
 	init_req(&req, sipmethod, addr);
@@ -5954,7 +5934,7 @@ static void reg_source_db(struct sip_peer *peer)
 		/* SIP isn't up yet, so schedule a poke only, pretty soon */
 		if (peer->pokeexpire > -1)
 			ast_sched_del(sched, peer->pokeexpire);
-		peer->pokeexpire = ast_sched_add(sched, thread_safe_rand() % 5000 + 1, sip_poke_peer_s, peer);
+		peer->pokeexpire = ast_sched_add(sched, ast_random() % 5000 + 1, sip_poke_peer_s, peer);
 	} else
 		sip_poke_peer(peer);
 	if (peer->expire > -1)
@@ -6412,7 +6392,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 		return 1;	/* Auth sent */
 	} else if (ast_strlen_zero(p->randdata) || ast_strlen_zero(authtoken)) {
 		/* We have no auth, so issue challenge and request authentication */
-		ast_string_field_build(p, randdata, "%08x", thread_safe_rand());	/* Create nonce for challenge */
+		ast_string_field_build(p, randdata, "%08lx", ast_random());	/* Create nonce for challenge */
 		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
 		/* Schedule auto destroy in 32 seconds */
 		sip_scheddestroy(p, 32000);
@@ -6502,7 +6482,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 		good_response = keys[K_RESP].s &&
 				!strncasecmp(keys[K_RESP].s, resp_hash, strlen(resp_hash));
 		if (wrongnonce) {
-			ast_string_field_build(p, randdata, "%08x", thread_safe_rand());
+			ast_string_field_build(p, randdata, "%08lx", ast_random());
 			if (good_response) {
 				if (sipdebug)
 					ast_log(LOG_NOTICE, "stale nonce received from '%s'\n", get_header(req, "To"));
@@ -9311,7 +9291,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	else
 		snprintf(uri, sizeof(uri), "sip:%s@%s",p->username, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
 
-	snprintf(cnonce, sizeof(cnonce), "%08x", thread_safe_rand());
+	snprintf(cnonce, sizeof(cnonce), "%08lx", ast_random());
 
  	/* Check if we have separate auth credentials */
  	if ((auth = find_realm_authentication(authl, p->realm))) {

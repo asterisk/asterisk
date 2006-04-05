@@ -440,7 +440,7 @@ static void reset_global_eid(void)
 static int get_trans_id(void)
 {
 	struct dundi_transaction *t;
-	int stid = (rand() % 32766) + 1;
+	int stid = (ast_random() % 32766) + 1;
 	int tid = stid;
 	do {
 		t = alltrans;
@@ -493,7 +493,7 @@ static void build_iv(unsigned char *iv)
 	int x;
 	fluffy = (unsigned int *)(iv);
 	for (x=0;x<4;x++)
-		fluffy[x] = rand();
+		fluffy[x] = ast_random();
 }
 
 struct dundi_query_state {
