@@ -25,6 +25,16 @@
  * \author Mark Spencer <markster@digium.com>
  *
  * \arg Funding provided by nic.at
+ *
+ * \par Enum standards
+ *
+ * - NAPTR records: http://ietf.nri.reston.va.us/rfc/rfc2915.txt
+ * - DNS SRV records: http://www.ietf.org/rfc/rfc2782.txt
+ * - ENUM http://www.ietf.org/rfc/rfc3761.txt
+ * - ENUM for H.323: http://www.ietf.org/rfc/rfc3762.txt
+ * - ENUM SIP: http://www.ietf.org/rfc/rfc3764.txt
+ * - IANA ENUM Services: http://www.iana.org/assignments/enum-services
+ *
  */
 
 #include <sys/types.h>
