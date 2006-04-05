@@ -28,6 +28,7 @@ HOST_CC=gcc
 ifeq ($(CROSS_COMPILE),)
   OSARCH=$(shell uname -s)
   OSREV=$(shell uname -r)
+  MARCH=$(shell uname -m)
 else
   OSARCH=$(CROSS_ARCH)
   OSREV=$(CROSS_REV)
@@ -397,8 +398,11 @@ ifeq ($(OSARCH),Darwin)
   AUDIO_LIBS=-framework CoreAudio
   ASTLINK=-Wl,-dynamic
   SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
-  OBJS+=poll.o
-  ASTCFLAGS+=-DPOLLCOMPAT
+  # Mac on Intel CoreDuo does not need poll compatibility layer
+  ifneq ($(MARCH),i386)
+    OBJS+=poll.o
+    ASTCFLAGS+=-DPOLLCOMPAT
+  endif
 else
 #These are used for all but Darwin
   ASTLINK=-Wl,-E 
