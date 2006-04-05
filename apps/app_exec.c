@@ -2,8 +2,9 @@
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (c) 2004 - 2005, Tilghman Lesher.  All rights reserved.
+ * Portions copyright (c) 2006, Philipp Dunkel.
  *
- * Tilghman Lesher <app_exec__v001@the-tilghman.com>
+ * Tilghman Lesher <app_exec__v002@the-tilghman.com>
  *
  * This code is released by the author with no restrictions on usage.
  *
@@ -19,7 +20,8 @@
  *
  * \brief Exec application
  *
- * \author Tilghman Lesher <app_exec__v001@the-tilghman.com>
+ * \author Tilghman Lesher <app_exec__v002@the-tilghman.com>
+ * \author Philipp Dunkel <philipp.dunkel@ebox.at>
  *
  * \ingroup applications
  */
@@ -43,18 +45,43 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Maximum length of any variable */
 #define MAXRESULT	1024
 
-static char *tdesc = "Executes applications";
+static char *tdesc = "Executes dialplan applications";
+
+/*! Note
+ *
+ * The key difference between these two apps is exit status.  In a
+ * nutshell, Exec tries to be transparent as possible, behaving
+ * in exactly the same way as if the application it calls was
+ * directly invoked from the dialplan.
+ *
+ * TryExec, on the other hand, provides a way to execute applications
+ * and catch any possible fatal error without actually fatally
+ * affecting the dialplan.
+ */
 
 static char *app_exec = "Exec";
-
-static char *exec_synopsis = "Executes internal application";
-
+static char *exec_synopsis = "Executes dialplan application";
 static char *exec_descrip =
 "Usage: Exec(appname(arguments))\n"
 "  Allows an arbitrary application to be invoked even when not\n"
+"hardcoded into the dialplan.  If the underlying application\n"
+"terminates the dialplan, or if the application cannot be found,\n"
+"Exec will terminate the dialplan.\n"
+"  To invoke external applications, see the application System.\n"
+"  If you would like to catch any error instead, see TryExec.\n";
+
+static char *app_tryexec = "TryExec";
+static char *tryexec_synopsis = "Executes dialplan application, always returning";
+static char *tryexec_descrip =
+"Usage: TryExec(appname(arguments))\n"
+"  Allows an arbitrary application to be invoked even when not\n"
 "hardcoded into the dialplan. To invoke external applications\n"
-"see the application System. Returns whatever value the\n"
-"app returns or a non-zero value if the app cannot be found.\n";
+"see the application System.  Always returns to the dialplan.\n"
+"The channel variable TRYSTATUS will be set to:\n"
+"    SUCCESS   if the application returned zero\n"
+"    FAILED    if the application returned non-zero\n"
+"    NOAPP     if the application was not found or was not specified\n"
+"    NOMEMORY  if there was not enough memory to execute.\n";
 
 LOCAL_USER_DECL;
 
@@ -62,12 +89,10 @@ static int exec_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
-	char *s, *appname, *endargs, args[MAXRESULT];
+	char *s, *appname, *endargs, args[MAXRESULT] = "";
 	struct ast_app *app;
 
 	LOCAL_USER_ADD(u);
-
-	memset(args, 0, MAXRESULT);
 
 	/* Check and parse arguments */
 	if (data) {
@@ -96,11 +121,51 @@ static int exec_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static int tryexec_exec(struct ast_channel *chan, void *data)
+{
+	int res=0;
+	struct localuser *u;
+	char *s, *appname, *endargs, args[MAXRESULT] = "";
+	struct ast_app *app;
+
+	LOCAL_USER_ADD(u);
+
+	/* Check and parse arguments */
+	if (data) {
+		if ((s = ast_strdupa(data))) {
+			appname = strsep(&s, "(");
+			if (s) {
+				endargs = strrchr(s, ')');
+				if (endargs)
+					*endargs = '\0';
+				pbx_substitute_variables_helper(chan, s, args, MAXRESULT - 1);
+			}
+			if (appname) {
+				app = pbx_findapp(appname);
+				if (app) {
+					res = pbx_exec(chan, app, args);
+					pbx_builtin_setvar_helper(chan, "TRYSTATUS", res ? "FAILED" : "SUCCESS");
+				} else {
+					ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
+					pbx_builtin_setvar_helper(chan, "TRYSTATUS", "NOAPP");
+				}
+			}
+		} else {
+			ast_log(LOG_ERROR, "Out of memory\n");
+			pbx_builtin_setvar_helper(chan, "TRYSTATUS", "NOMEMORY");
+		}
+	}
+
+	LOCAL_USER_REMOVE(u);
+	return 0;
+}
+
 int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app_exec);
+	res |= ast_unregister_application(app_tryexec);
 
 	STANDARD_HANGUP_LOCALUSERS;
 
@@ -109,7 +174,9 @@ int unload_module(void)
 
 int load_module(void)
 {
-	return ast_register_application(app_exec, exec_exec, exec_synopsis, exec_descrip);
+	int res = ast_register_application(app_exec, exec_exec, exec_synopsis, exec_descrip);
+	res |= ast_register_application(app_tryexec, tryexec_exec, tryexec_synopsis, tryexec_descrip);
+	return res;
 }
 
 char *description(void)
