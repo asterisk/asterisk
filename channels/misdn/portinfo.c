@@ -1,6 +1,7 @@
 
 
 #include "isdn_lib.h"
+#include "isdn_lib_intern.h"
 
 
 /*

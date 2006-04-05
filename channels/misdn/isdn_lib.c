@@ -563,6 +563,7 @@ void empty_bc(struct misdn_bchannel *bc)
 	bc->info_dad[0] = 0;
 	bc->display[0] = 0;
 	bc->infos_pending[0] = 0;
+	bc->cad[0] = 0;
 	bc->oad[0] = 0;
 	bc->dad[0] = 0;
 	bc->rad[0] = 0;
@@ -1362,6 +1363,23 @@ struct misdn_bchannel *find_bc_by_addr(unsigned long addr)
 	}
 
 	
+	return NULL;
+}
+
+
+struct misdn_bchannel *find_bc_by_channel(int port, int channel)
+{
+	struct misdn_stack* stack=find_stack_by_port(port);
+	int i;
+
+	if (!stack) return NULL;	
+	
+	for (i=0; i< stack->b_num; i++) {
+		if ( stack->bc[i].channel== channel ) {
+			return &stack->bc[i];
+		}
+	}
+		
 	return NULL;
 }
 
@@ -2763,16 +2781,17 @@ void misdn_lib_log_ies(struct misdn_bchannel *bc)
 
 	if (!stack) return;
 
-	cb_log(2, stack->port, " --> mode:%s cause:%d ocause:%d rad:%s\n", stack->nt?"NT":"TE", bc->cause, bc->out_cause, bc->rad);
+	cb_log(2, stack->port, " --> mode:%s cause:%d ocause:%d rad:%s cad:%s\n", stack->nt?"NT":"TE", bc->cause, bc->out_cause, bc->rad, bc->cad);
 	
 	cb_log(3, stack->port, " --> facility:%s out_facility:%s\n",fac2str(bc->fac_type),fac2str(bc->out_fac_type));
 	
 	cb_log(2, stack->port,
-	       " --> info_dad:%s onumplan:%c dnumplan:%c rnumplan:%c\n",
+	       " --> info_dad:%s onumplan:%c dnumplan:%c rnumplan:%c cpnnumplan:%c\n",
 	       bc->info_dad,
 	       bc->onumplan>=0?'0'+bc->onumplan:' ',
 	       bc->dnumplan>=0?'0'+bc->dnumplan:' ',
-	       bc->rnumplan>=0?'0'+bc->rnumplan:' '
+	       bc->rnumplan>=0?'0'+bc->rnumplan:' ',
+	       bc->cpnnumplan>=0?'0'+bc->cpnnumplan:' '
 		);
 	cb_log(3, stack->port, " --> screen:%d --> pres:%d\n",
 			bc->screen, bc->pres);
@@ -2951,34 +2970,39 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 int handle_err(msg_t *msg)
 {
 	iframe_t *frm = (iframe_t*) msg->data;
-	unsigned char buff[32];
 	
 	switch (frm->prim) {
 		case DL_DATA|INDICATION:
-			{
-			struct misdn_stack *stack=find_stack_by_port( (frm->addr&MASTER_ID_MASK) >> 8);
-			if (!stack) {
-				cb_log(-1,0,"BCHAN DATA without having a Chan Object (addr:%x) probably we died before closing..\n",frm->addr);
-				return 0;
-			}
-			cb_log(-1,stack->port,"BCHAN DATA without having a Chan Object (addr:%x) probably we died before closing..\n",frm->addr);
+		{
+			int port=(frm->addr&MASTER_ID_MASK) >> 8;
+			int channel=(frm->addr&CHILD_ID_MASK) >> 16;
 
-			if (stack->l1link)
-				misdn_lib_get_l1_down(stack);
-#if 0
-			iframe_t dact;
-			dact.prim = DL_RELEASE | REQUEST;
-			dact.addr = frm->addr | FLG_MSG_DOWN;
-			dact.dinfo = 0;
-			dact.len = 0;
-	
-			mISDN_write(glob_mgr->midev, &dact, mISDN_HEADER_LEN+dact.len, TIMEOUT_1SEC);
+			cb_log(3,0,"BCHAN DATA without BC: addr:%x port:%d channel:%d\n",frm->addr, port,channel);
+			
+			struct misdn_bchannel *bc=find_bc_by_channel( port , channel);
 
-			mISDN_write_frame(glob_mgr->midev, buff, frm->addr|FLG_MSG_DOWN, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
-#endif
-			free_msg(msg);
-			return 1;
+			if (!bc) {
+				struct misdn_stack *stack=find_stack_by_port( port );
+
+				if (!stack) {
+					cb_log(-1,0," --> stack not found\n");
+					free_msg(msg);
+					return 1;
+				}
+				
+				cb_log(-1,0," --> bc not found by channel\n");
+				if (stack->l2link)
+					misdn_lib_get_l2_down(stack);
+
+				if (stack->l1link)
+					misdn_lib_get_l1_down(stack);
+
+				free_msg(msg);
+				return 1;
 			}
+			
+			cb_log(3,port," --> BC in state:%s\n", bc_state2str(bc->bc_state));
+		}
 	}
 
 	return 0;

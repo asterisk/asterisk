@@ -18,9 +18,13 @@ all: chan_misdn_lib.a
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ $<
 
-
 chan_misdn_lib.a:	$(OBJS)
 	ar crv $@ $(OBJS)
 
+
+portinfo: portinfo.o
+	$(CC) -L/usr/lib -o $@ $^ -lisdnnet -lmISDN -lpthread
+
+
 clean: 
-	rm -rf *.a *.o *.so
+	rm -rf *.a *.o *.so portinfo

@@ -1687,6 +1687,12 @@ static int misdn_answer(struct ast_channel *ast)
 	}
 	
 	p->state = MISDN_CONNECTED;
+
+	if ( ast_strlen_zero(p->bc->cad) ) {
+		chan_misdn_log(2,p->bc->port," --> empty cad using dad\n");
+		ast_copy_string(p->bc->cad,p->bc->dad,sizeof(p->bc->cad));
+	}
+
 	misdn_lib_send_event( p->bc, EVENT_CONNECT);
 	start_bc_tones(p);
 	
@@ -2131,7 +2137,7 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 		case BCHAN_BRIDGED:
 			break;
 		default:
-		chan_misdn_log(5, ch->bc->port, "BC not active (nor bridged) droping: %d frames addr:%x\n",frame->samples,ch->bc->addr);
+		chan_misdn_log(5, ch->bc->port, "BC not active (nor bridged) droping: %d frames addr:%x exten:%s cid:%s ch->state:%s\n",frame->samples,ch->bc->addr, ast->exten, ast->cid.cid_num,misdn_get_ch_state( ch));
 		return 0;
 	}
 	
@@ -3493,7 +3499,21 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	}
 	break;
 	case EVENT_CONNECT:
+	{
 		misdn_lib_send_event(bc,EVENT_CONNECT_ACKNOWLEDGE);
+	
+		struct ast_channel *bridged=AST_BRIDGED_P(ch->ast);
+		
+		if (bridged && strcasecmp(bridged->tech->type,"mISDN")) {
+			struct chan_list *bridged_ch=MISDN_ASTERISK_TECH_PVT(bridged);
+
+			chan_misdn_log(1,bc->port," --> copying cpndialplan:%d and cad:%s to the A-Channel\n",bc->cpnnumplan,bc->cad);
+
+			bridged_ch->bc->cpnnumplan=bc->cpnnumplan;
+			ast_copy_string(bridged_ch->bc->cad,bc->cad,sizeof(bc->cad));
+		}
+	}
+
 	case EVENT_CONNECT_ACKNOWLEDGE:
 	{
 		ch->l3id=bc->l3_id;

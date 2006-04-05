@@ -279,6 +279,7 @@ struct misdn_bchannel {
 	unsigned char oad[32];
 	unsigned char rad[32];
 	unsigned char dad[32];
+	unsigned char cad[32];
 	unsigned char orig_dad[32];
 	unsigned char keypad[32];
 
