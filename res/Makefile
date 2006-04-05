@@ -43,15 +43,8 @@ else
   endif
 endif
 
-
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include $(CROSS_COMPILE_TARGET)/usr/include/pgsql $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql $(CROSS_COMPILE_TARGET)/opt/pgsql/include $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h),)
   MODS:=$(filter-out res_config_pgsql.so,$(MODS))
-endif
-
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/net-snmp/net-snmp-config.h),)
-  MODS:=$(filter-out res_snmp.so,$(MODS))
-else
-  SNMP_LDLIBS+=$(shell net-snmp-config --agent-libs)
 endif
 
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/net-snmp/net-snmp-config.h),)
@@ -63,6 +56,8 @@ endif
 ifeq (${WITH_SMDI},)
   MODS:=$(filter-out res_smdi.so,$(MODS))
 endif
+
+MLFLAGS=
 
 # Now, go find postgresql libraries
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql),)
@@ -87,7 +82,7 @@ endif
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/opt/pgsql/include),)
   CFLAGS+=-I$(CROSS_COMPILE_TARGET)/opt/pgsql/include
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET) /opt/pgsql/lib
+  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/opt/pgsql/lib
 endif
 
 ifneq ($(wilcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql),)
@@ -97,7 +92,6 @@ endif
 ifneq ($(wilcard $(CROSS_COMPILE_TARGET)/usr/lib/libpq.so),)
   MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib
 endif
-
 
 ifeq (${OSARCH},CYGWIN)
   CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
@@ -110,8 +104,6 @@ endif
 CRYPTO_LIBS=-lssl -lcrypto
 
 CFLAGS+=
-
-MLFLAGS=
 
 ifndef WITHOUT_ZAPTEL
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h),)
@@ -178,8 +170,6 @@ res_snmp.so: res_snmp.o snmp/agent.o
 
 res_config_pgsql.so: res_config_pgsql.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lpq -lz $(MLFLAGS)
-
-
 
 ifneq ($(wildcard .depend),)
   include .depend
