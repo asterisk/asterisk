@@ -4704,8 +4704,10 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 				} else {
 					if (ast_pbx_start(chan)) {
 						ast_log(LOG_ERROR, "Unable to start PBX on %s\n", chan->name);
-						if (channel)
+						if (channel) {
 							*channel = NULL;
+							ast_mutex_unlock(&chan->lock);
+						}
 						ast_hangup(chan);
 						res = -1;
 					} 
@@ -4721,13 +4723,15 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 						ast_cdr_failed(chan->cdr);
 				}
 			
-				if (channel)
+				if (channel) {
 					*channel = NULL;
+					ast_mutex_unlock(&chan->lock);
+				}
 				ast_hangup(chan);
 			}
 		}
 
-		if(res < 0) { /* the call failed for some reason */
+		if (res < 0) { /* the call failed for some reason */
 			if (*reason == 0) { /* if the call failed (not busy or no answer)
 				            * update the cdr with the failed message */
 				cdr_res = ast_pbx_outgoing_cdr_failed();
@@ -4783,8 +4787,10 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 		if (ast_pthread_create(&as->p, &attr, async_wait, as)) {
 			ast_log(LOG_WARNING, "Failed to start async wait\n");
 			free(as);
-			if (channel)
+			if (channel) {
 				*channel = NULL;
+				ast_mutex_unlock(&chan->lock);
+			}
 			ast_hangup(chan);
 			res = -1;
 			goto outgoing_exten_cleanup;
