@@ -99,15 +99,16 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 		context = NULL;
 	}
 
-	if (!(prio = ast_findlabel_extension(chan2, S_OR(context, chan2->context), S_OR(exten, chan2->exten),
-					     priority, chan2->cid.cid_num))) {
+	/* ast_findlabel_extension does not convert numeric priorities; it only does a lookup */
+	if (!(prio = atoi(priority)) && !(prio = ast_findlabel_extension(chan2, S_OR(context, chan2->context),
+									S_OR(exten, chan2->exten), priority, chan2->cid.cid_num))) {
 		ast_log(LOG_WARNING, "'%s' is not a known priority or label\n", priority);
 		goto chanquit;
 	}
 
-	ast_log(LOG_DEBUG, "Attempting async goto (%s) to %s\n", args.channel, args.label);
+	ast_log(LOG_DEBUG, "Attempting async goto (%s) to %s|%s|%d\n", args.channel, S_OR(context, chan2->context), S_OR(exten, chan2->exten), prio);
 
-	if (ast_async_goto_if_exists(chan2, context ? context : chan2->context, exten ? exten : chan2->exten, prio))
+	if (ast_async_goto_if_exists(chan2, S_OR(context, chan2->context), S_OR(exten, chan2->exten), prio))
 		ast_log(LOG_WARNING, "%s failed for %s\n", app, args.channel);
 	else
 		res = 0;
