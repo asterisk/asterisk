@@ -35,6 +35,9 @@
  * - ENUM SIP: http://www.ietf.org/rfc/rfc3764.txt
  * - IANA ENUM Services: http://www.iana.org/assignments/enum-services
  *
+ * \par Possible improvement
+ * \todo Implement a caching mechanism for multile enum lookups
+ * - See http://bugs.digium.com/view.php?id=6739
  */
 
 #include <sys/types.h>

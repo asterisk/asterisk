@@ -23,6 +23,10 @@
  * \brief DNS Support for Asterisk
  *
  * \author Thorsten Lockert <tholo@trollphone.org>
+ *
+ * \par Reference
+ * - DNR SRV records http://www.ietf.org/rfc/rfc2782.txt
+ *
  */
 
 #include <sys/types.h>
