@@ -33,33 +33,24 @@ extern "C" {
 #define AST_PBX_KEEP    0
 #define AST_PBX_REPLACE 1
 
-/*! Max length of an application */
-#define AST_MAX_APP	32
+#define AST_MAX_APP	32	/*!< Max length of an application */
 
-/*! Special return values from applications to the PBX { */
+/*! \brief Special return values from applications to the PBX { */
 #define AST_PBX_KEEPALIVE	10	/*!< Destroy the thread, but don't hang up the channel */
 #define AST_PBX_NO_HANGUP_PEER	11
 /*! } */
 
-/*! Special Priority for a hint */
-#define PRIORITY_HINT	-1
+#define PRIORITY_HINT	-1	/*!< Special Priority for a hint */
 
-/*! Extension states */
+/*! \brief Extension states */
 enum ast_extension_states {
-	/*! Extension removed */
-	AST_EXTENSION_REMOVED = -2,
-	/*! Extension hint removed */
-	AST_EXTENSION_DEACTIVATED = -1,
-	/*! No device INUSE or BUSY  */
-	AST_EXTENSION_NOT_INUSE = 0,
-	/*! One or more devices INUSE */
-	AST_EXTENSION_INUSE = 1 << 0,
-	/*! All devices BUSY */
-	AST_EXTENSION_BUSY = 1 << 1,
-	/*! All devices UNAVAILABLE/UNREGISTERED */
-	AST_EXTENSION_UNAVAILABLE = 1 << 2,
-	/*! All devices RINGING */
-	AST_EXTENSION_RINGING = 1 << 3,
+	AST_EXTENSION_REMOVED = -2,	/*!< Extension removed */
+	AST_EXTENSION_DEACTIVATED = -1,	/*!< Extension hint removed */
+	AST_EXTENSION_NOT_INUSE = 0,	/*!< No device INUSE or BUSY  */
+	AST_EXTENSION_INUSE = 1 << 0,	/*!< One or more devices INUSE */
+	AST_EXTENSION_BUSY = 1 << 1,	/*!< All devices BUSY */
+	AST_EXTENSION_UNAVAILABLE = 1 << 2, /*!< All devices UNAVAILABLE/UNREGISTERED */
+	AST_EXTENSION_RINGING = 1 << 3,	/*!< All devices RINGING */
 };
 
 
@@ -69,16 +60,17 @@ struct ast_include;
 struct ast_ignorepat;
 struct ast_sw;
 
+/*! \brief Typedef for devicestate and hint callbacks */
 typedef int (*ast_state_cb_type)(char *context, char* id, enum ast_extension_states state, void *data);
 
-/*! Data structure associated with a custom function */
+/*! \brief Data structure associated with a custom dialplan function */
 struct ast_custom_function {
-	const char *name;
-	const char *synopsis;
-	const char *desc;
-	const char *syntax;
-	int (*read)(struct ast_channel *, char *, char *, char *, size_t);
-	int (*write)(struct ast_channel *, char *, char *, const char *);
+	const char *name;		/*!< Name */
+	const char *synopsis;		/*!< Short description for "show functions" */
+	const char *desc;		/*!< Help text that explains it all */
+	const char *syntax;		/*!< Syntax description */
+	int (*read)(struct ast_channel *, char *, char *, char *, size_t);	/*!< Read function, if read is supported */
+	int (*write)(struct ast_channel *, char *, char *, const char *);	/*!< Write function, if write is supported */
 	struct ast_custom_function *next;
 };
 
@@ -86,11 +78,11 @@ struct ast_custom_function {
 typedef int (ast_switch_f)(struct ast_channel *chan, const char *context,
 	const char *exten, int priority, const char *callerid, const char *data);
 
-/*! Data structure associated with an asterisk switch */
+/*!< Data structure associated with an Asterisk switch */
 struct ast_switch {
 	struct ast_switch *next;	
-	const char *name;			/*! Name of the switch */
-	const char *description;		/*! Description of the switch */
+	const char *name;			/*!< Name of the switch */
+	const char *description;		/*!< Description of the switch */
 	
 	ast_switch_f *exists;
 	ast_switch_f *canmatch;
@@ -117,7 +109,7 @@ struct ast_pbx {
 
 
 /*!
- * \brief Reigster an alternative switch
+ * \brief Register an alternative dialplan switch
  *
  * \param sw switch to register
  *
@@ -281,7 +273,7 @@ int ast_add_extension2(struct ast_context *con, int replace, const char *extensi
 
 
 /*! 
- * \brief Reigster an application.
+ * \brief Register an application.
  *
  * \param app Short name of the application
  * \param execute a function callback to execute the application. It should return
