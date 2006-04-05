@@ -1416,6 +1416,27 @@ static int read_config(struct chan_list *ch, int orig) {
 		
 		
 	} else { /** ORIGINATOR MISDN **/
+	
+		misdn_cfg_get( port, MISDN_CFG_CPNDIALPLAN, &bc->cpnnumplan, sizeof(int));
+
+		switch (bc->cpnnumplan) {
+			case NUMPLAN_INTERNATIONAL:
+				chan_misdn_log(2, port, " --> CTON: International\n");
+				break;
+			case NUMPLAN_NATIONAL:
+				chan_misdn_log(2, port, " --> CTON: National\n");
+				break;
+			case NUMPLAN_SUBSCRIBER:
+				chan_misdn_log(2, port, " --> CTON: Subscriber\n");
+				break;
+			case NUMPLAN_UNKNOWN:
+				chan_misdn_log(2, port, " --> CTON: Unknown\n");
+				break;
+				/* Maybe we should cut off the prefix if present ? */
+			default:
+				chan_misdn_log(0, port, " --> !!!! Wrong dialplan setting, please see the misdn.conf sample file\n ");
+				break;
+		}
 		
 		char prefix[BUFFERSIZE+1]="";
 		switch( bc->onumplan ) {
