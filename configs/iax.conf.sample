@@ -123,19 +123,22 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; the jitter buffer can end up bigger than necessary.  If it ends up
 ; more than "maxexcessbuffer" bigger than needed, Asterisk will start
 ; gradually decreasing the amount of jitter buffering.
-; [This option is not applicable to, and ignored by the new jitterbuffer implementation]
+; 	This option is not applicable to, 
+;	and ignored by the new jitterbuffer implementation
 ;
 ; minexcessbuffer: Sets a desired mimimum amount of headroom in 
 ; the jitter buffer.  If Asterisk has less headroom than this, then
 ; it will start gradually increasing the amount of jitter buffering.
-; [This option is not applicable to, and ignored by the new jitterbuffer implementation]
+; 	This option is not applicable to, 
+;	and ignored by the new jitterbuffer implementation
 ;
 ; jittershrinkrate: when the jitter buffer is being gradually shrunk 
 ; (or enlarged), how many millisecs shall we take off per 20ms frame
 ; received?  Use a small number, or you will be able to hear it
 ; changing.  An example: if you set this to 2, then the jitter buffer
 ; size will change by 100 millisecs per second.
-; [This option is not applicable to, and ignored by the new jitterbuffer implementation]
+; 	This option is not applicable to, 
+;	and ignored by the new jitterbuffer implementation
 
 jitterbuffer=no
 forcejitterbuffer=no
@@ -246,25 +249,26 @@ autokill=yes
 ;
 ;codecpriority=host
 
-;rtcachefriends=yes		; Cache realtime friends by adding them to the internal list
-				; just like friends added from the config file only on a
-				; as-needed basis? (yes|no)
+;rtcachefriends=yes	; Cache realtime friends by adding them to the internal list
+			; just like friends added from the config file only on a
+			; as-needed basis? (yes|no)
 
-;rtupdate=yes			; Send registry updates to database using realtime? (yes|no)
-				; If set to yes, when a IAX2 peer registers successfully, the ip address,
-				; the origination port, the registration period, and the username of
-				; the peer will be set to database via realtime. If not present, defaults to 'yes'.
+;rtupdate=yes		; Send registry updates to database using realtime? (yes|no)
+			; If set to yes, when a IAX2 peer registers successfully,
+			; the ip address, the origination port, the registration period,
+			; and the username of the peer will be set to database via realtime.
+			; If not present, defaults to 'yes'.
 
-;rtautoclear=yes		; Auto-Expire friends created on the fly on the same schedule
-				; as if it had just registered? (yes|no|<seconds>)
-				; If set to yes, when the registration expires, the friend will vanish from
-				; the configuration until requested again. If set to an integer,
-				; friends expire within this number of seconds instead of the
-				; registration interval.
+;rtautoclear=yes	; Auto-Expire friends created on the fly on the same schedule
+			; as if it had just registered? (yes|no|<seconds>)
+			; If set to yes, when the registration expires, the friend will
+			; vanish from the configuration until requested again.
+			; If set to an integer, friends expire within this number of
+			; seconds instead of the registration interval.
 
-;rtignoreexpire=yes		; When reading a peer from Realtime, if the peer's registration
-				; has expired based on its registration interval, used the stored
-				; address information regardless. (yes|no)
+;rtignoreexpire=yes	; When reading a peer from Realtime, if the peer's registration
+			; has expired based on its registration interval, used the stored
+			; address information regardless. (yes|no)
 
 ; Guest sections for unauthenticated connection attempts.  Just specify an
 ; empty secret, or provide no secret section.
