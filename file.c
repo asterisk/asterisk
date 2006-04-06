@@ -355,11 +355,12 @@ enum file_action {
  *	unused for EXISTS and DELETE
  *	destination file name (const char *) for COPY and RENAME
  * 	struct ast_channel * for OPEN
+ * if fmt is NULL, OPEN will return the first matching entry,
+ * whereas other functions will run on all matching entries.
  */
 static int ast_filehelper(const char *filename, const void *arg2, const char *fmt, const enum file_action action)
 {
 	struct ast_format *f;
-	char *ext = NULL, *fn = NULL;
 	int res = (action == ACTION_EXISTS) ? 0 : -1;
 
 	if (AST_LIST_LOCK(&formats)) {
@@ -368,7 +369,7 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 	}
 	/* Check for a specific format */
 	AST_LIST_TRAVERSE(&formats, f, list) {
-		char *stringp;
+		char *stringp, *ext = NULL;
 
 		if (fmt && !exts_compare(f->exts, fmt))
 			continue;
@@ -377,10 +378,11 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 		 * The file must exist, and for OPEN, must match
 		 * one of the formats supported by the channel.
 		 */
-		stringp = ast_strdupa(f->exts);
+		stringp = ast_strdupa(f->exts);	/* this is in the stack so does not need to be freed */
 		while ( (ext = strsep(&stringp, "|")) ) {
 			struct stat st;
-			fn = build_filename(filename, ext);
+			char *fn = build_filename(filename, ext);
+
 			if (fn == NULL)
 				continue;
 
@@ -427,44 +429,42 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 					chan->stream = s;
 				else
 					chan->vstream = s;
+				break;
 			}
-			break;	/* found the file */
-		}
-		if (ext)
-			break;
-	}
-	if (ext) {	/* break out on a valid 'ext', so fn is also valid */
-		char *nfn;
+			switch (action) {
+			case ACTION_OPEN:
+				break;	/* will never get here */
 
-		switch (action) {
-		case ACTION_EXISTS:	/* return the matching format */
-			res |= f->format;
-			break;
+			case ACTION_EXISTS:	/* return the matching format */
+				res |= f->format;
+				break;
 
-		case ACTION_DELETE:
-			if ( (res = unlink(fn)) )
-				ast_log(LOG_WARNING, "unlink(%s) failed: %s\n", fn, strerror(errno));
-			break;
-		case ACTION_RENAME:
-		case ACTION_COPY:
-			nfn = build_filename((const char *)arg2, ext);
-			if (!nfn)
-				ast_log(LOG_WARNING, "Out of memory\n");
-			else {
-				res = action == ACTION_COPY ? copy(fn, nfn) : rename(fn, nfn);
-				if (res)
-					ast_log(LOG_WARNING, "%s(%s,%s) failed: %s\n",
-						action == ACTION_COPY ? "copy" : "rename",
-						 fn, nfn, strerror(errno));
-				free(nfn);
+			case ACTION_DELETE:
+				if ( (res = unlink(fn)) )
+					ast_log(LOG_WARNING, "unlink(%s) failed: %s\n", fn, strerror(errno));
+				break;
+
+			case ACTION_RENAME:
+			case ACTION_COPY: {
+				char *nfn = build_filename((const char *)arg2, ext);
+				if (!nfn)
+					ast_log(LOG_WARNING, "Out of memory\n");
+				else {
+					res = action == ACTION_COPY ? copy(fn, nfn) : rename(fn, nfn);
+					if (res)
+						ast_log(LOG_WARNING, "%s(%s,%s) failed: %s\n",
+							action == ACTION_COPY ? "copy" : "rename",
+							 fn, nfn, strerror(errno));
+					free(nfn);
+				}
+			    }
+				break;
+
+			default:
+				ast_log(LOG_WARNING, "Unknown helper %d\n", action);
 			}
-			break;
-		case ACTION_OPEN:	/* all done already! */
-			break;
-		default:
-			ast_log(LOG_WARNING, "Unknown helper %d\n", action);
+			free(fn);
 		}
-		free(fn);
 	}
 	AST_LIST_UNLOCK(&formats);
 	return res;
