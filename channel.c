@@ -1599,7 +1599,8 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	for (x=0; x<n; x++)
 		ast_clear_flag(c[x], AST_FLAG_BLOCKING);
 	if (res < 0) { /* Simulate a timeout if we were interrupted */
-		*ms = (errno != EINTR) ? -1 : 0;
+		if (errno != EINTR)
+			*ms = -1;
 		return NULL;
 	}
 	if (whentohangup) {   /* if we have a timeout, check who expired */
