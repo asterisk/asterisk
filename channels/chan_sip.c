@@ -949,6 +949,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest);
 static struct sip_peer *temp_peer(const char *name);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init);
 static void free_old_route(struct sip_route *route);
+static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod, char *digest, int digest_len);
 static int build_reply_digest(struct sip_pvt *p, int method, char *digest, int digest_len);
 static int update_call_counter(struct sip_pvt *fup, int event);
 static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int realtime);
@@ -9086,7 +9087,7 @@ static int sip_no_history(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  sip_no_debug: Disable SIP Debugging in CLI */
+/*! \brief Disable SIP Debugging in CLI */
 static int sip_no_debug(int fd, int argc, char *argv[])
 
 {
@@ -9097,9 +9098,8 @@ static int sip_no_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod, char *digest, int digest_len);
 
-/*! \brief  do_register_auth: Authenticate for outbound registration */
+/*! \brief Authenticate for outbound registration */
 static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader) 
 {
 	char digest[1024];
@@ -9120,7 +9120,7 @@ static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *he
 	return transmit_register(p->registry, SIP_REGISTER, digest, respheader); 
 }
 
-/*! \brief  do_proxy_auth: Add authentication on outbound SIP packet */
+/*! \brief Add authentication on outbound SIP packet */
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init) 
 {
 	char digest[1024];
@@ -9142,10 +9142,10 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *heade
 	return transmit_invite(p, sipmethod, sipmethod == SIP_INVITE, init); 
 }
 
-/*! \brief  reply_digest: reply to authentication for outbound registrations */
-/*      This is used for register= servers in sip.conf, SIP proxies we register
-        with  for receiving calls from.  */
-/*	Returns -1 if we have no auth */
+/*! \brief  reply to authentication for outbound registrations
+\return	Returns -1 if we have no auth 
+\note	This is used for register= servers in sip.conf, SIP proxies we register
+	with  for receiving calls from.  */
 static int reply_digest(struct sip_pvt *p, struct sip_request *req,
 	char *header, int sipmethod,  char *digest, int digest_len)
 {
@@ -9216,10 +9216,11 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req,
 	return build_reply_digest(p, sipmethod, digest, digest_len); 
 }
 
-/*! \brief  build_reply_digest:  Build reply digest */
-/*      Build digest challenge for authentication of peers (for registration) 
-	and users (for calls). Also used for authentication of CANCEL and BYE */
-/*	Returns -1 if we have no auth */
+/*! \brief  Build reply digest 
+\return	Returns -1 if we have no auth 
+\note	Build digest challenge for authentication of peers (for registration) 
+	and users (for calls). Also used for authentication of CANCEL and BYE 
+*/
 static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int digest_len)
 {
 	char a1[256];
@@ -9430,7 +9431,7 @@ static struct ast_custom_function sip_header_function = {
 	.read = func_header_read,
 };
 
-/*! \brief  function_check_sipdomain: Dial plan function to check if domain is local */
+/*! \brief  Dial plan function to check if domain is local */
 int func_check_sipdomain(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	if (ast_strlen_zero(data)) {
@@ -9455,7 +9456,7 @@ static struct ast_custom_function checksipdomain_function = {
 		"Check the domain= configuration in sip.conf\n",
 };
 
-/*! \brief  function_sippeer: ${SIPPEER()} Dialplan function - reads peer data */
+/*! \brief  ${SIPPEER()} Dialplan function - reads peer data */
 static int function_sippeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	struct sip_peer *peer;
@@ -9548,7 +9549,7 @@ struct ast_custom_function sippeer_function = {
 	"\n"
 };
 
-/*! \brief  function_sipchaninfo_read: ${SIPCHANINFO()} Dialplan function - reads sip channel data */
+/*! \brief ${SIPCHANINFO()} Dialplan function - reads sip channel data */
 int function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	struct sip_pvt *p;
@@ -9568,7 +9569,6 @@ int function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char *data, c
 		return -1;
 	}
 
-/* 	ast_verbose("function_sipchaninfo_read: %s\n", data); */
 	p = chan->tech_pvt;
 
 	/* If there is no private structure, this channel is no longer alive */
@@ -9613,7 +9613,7 @@ static struct ast_custom_function sipchaninfo_function = {
 	"- peername              The name of the peer.\n"
 };
 
-/*! \brief  parse_moved_contact: Parse 302 Moved temporalily response */
+/*! \brief Parse 302 Moved temporalily response */
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 {
 	char tmp[256];
@@ -9658,7 +9658,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 	}
 }
 
-/*! \brief  check_pendings: Check pending actions on SIP call */
+/*! \brief Check pending actions on SIP call */
 static void check_pendings(struct sip_pvt *p)
 {
 	/* Go ahead and send bye at this point */
@@ -9667,14 +9667,15 @@ static void check_pendings(struct sip_pvt *p)
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
 	} else if (ast_test_flag(&p->flags[0], SIP_NEEDREINVITE)) {
-		ast_log(LOG_DEBUG, "Sending pending reinvite on '%s'\n", p->callid);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Sending pending reinvite on '%s'\n", p->callid);
 		/* Didn't get to reinvite yet, so do it now */
 		transmit_reinvite_with_sdp(p);
 		ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
 	}
 }
 
-/*! \brief  handle_response_invite: Handle SIP response in dialogue */
+/*! \brief Handle SIP response in dialogue */
 static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
 {
 	int outgoing = ast_test_flag(&p->flags[0], SIP_OUTGOING);
@@ -9812,7 +9813,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	}
 }
 
-/*! \brief  handle_response_register: Handle responses on REGISTER to services */
+/*! \brief Handle responses on REGISTER to services */
 static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
 {
 	int expires, expires_ms;
@@ -9928,7 +9929,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 	return 1;
 }
 
-/*! \brief  handle_response_peerpoke: Handle qualification responses (OPTIONS) */
+/*! \brief Handle qualification responses (OPTIONS) */
 static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno, int sipmethod)
 {
 	struct sip_peer *peer;
@@ -9984,7 +9985,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
 	return 1;
 }
 
-/*! \brief  handle_response: Handle SIP response in dialogue */
+/*! \brief Handle SIP response in dialogue */
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
 {
 	char *msg, *c;
@@ -10292,7 +10293,8 @@ static void *sip_park_thread(void *stuff)
 	res = ast_park_call(chan1, chan2, 0, &ext);
 	/* Then hangup */
 	ast_hangup(chan2);
-	ast_log(LOG_DEBUG, "Parked on extension '%d'\n", ext);
+	if (option_debug > 1)
+		ast_log(LOG_DEBUG, "Parked on extension '%d'\n", ext);
 	return NULL;
 }
 
@@ -10437,7 +10439,7 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 	return 0;
 }
 
-/*! \brief  gettag: Get tag from packet */
+/*! \brief Get tag from packet */
 static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize) 
 {
 	char *thetag, *sep;
