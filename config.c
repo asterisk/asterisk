@@ -115,6 +115,8 @@ struct ast_variable *ast_variable_new(const char *name, const char *value)
 
 void ast_variable_append(struct ast_category *category, struct ast_variable *variable)
 {
+	if (!variable)
+		return;
 	if (category->last)
 		category->last->next = variable;
 	else
@@ -142,10 +144,7 @@ struct ast_variable *ast_variable_browse(const struct ast_config *config, const 
 	else
 		cat = ast_category_get(config, category);
 
-	if (cat)
-		return cat->root;
-	else
-		return NULL;
+	return (cat) ? cat->root : NULL;
 }
 
 char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *variable)
@@ -185,26 +184,27 @@ static struct ast_variable *variable_clone(const struct ast_variable *old)
  
 static void move_variables(struct ast_category *old, struct ast_category *new)
 {
-	struct ast_variable *var;
-	struct ast_variable *next;
-
-	next = old->root;
+	struct ast_variable *var = old->root;
 	old->root = NULL;
-	for (var = next; var; var = next) {
-		next = var->next;
+#if 1
+	/* we can just move the entire list in a single op */
+	ast_variable_append(new, var);
+#else
+	while (var) {
+		struct ast_variable *next = var->next;
 		var->next = NULL;
 		ast_variable_append(new, var);
+		var = next;
 	}
+#endif
 }
 
 struct ast_category *ast_category_new(const char *name) 
 {
 	struct ast_category *category;
 
-	if ((category = ast_calloc(1, sizeof(*category)))) {		
+	if ((category = ast_calloc(1, sizeof(*category))))
 		ast_copy_string(category->name, name, sizeof(category->name));
-	}
-
 	return category;
 }
 
@@ -212,6 +212,7 @@ static struct ast_category *category_get(const struct ast_config *config, const 
 {
 	struct ast_category *cat;
 
+	/* try exact match first, then case-insensitive match */
 	for (cat = config->root; cat; cat = cat->next) {
 		if (cat->name == category_name && (ignored || !cat->ignored))
 			return cat;
@@ -265,7 +266,7 @@ char *ast_category_browse(struct ast_config *config, const char *prev)
 	if (prev && config->last_browse && (config->last_browse->name == prev))
 		cat = config->last_browse->next;
 	else if (!prev && config->root)
-			cat = config->root;
+		cat = config->root;
 	else if (prev) {
 		for (cat = config->root; cat; cat = cat->next) {
 			if (cat->name == prev) {
@@ -287,10 +288,7 @@ char *ast_category_browse(struct ast_config *config, const char *prev)
 		cat = next_available_category(cat);
 
 	config->last_browse = cat;
-	if (cat)
-		return cat->name;
-	else
-		return NULL;
+	return (cat) ? cat->name : NULL;
 }
 
 struct ast_variable *ast_category_detach_variables(struct ast_category *cat)
@@ -312,23 +310,16 @@ static void inherit_category(struct ast_category *new, const struct ast_category
 {
 	struct ast_variable *var;
 
-	for (var = base->root; var; var = var->next) {
-		struct ast_variable *v;
-		
-		v = variable_clone(var);
-		if (v)
-			ast_variable_append(new, v);
-	}
+	for (var = base->root; var; var = var->next)
+		ast_variable_append(new, variable_clone(var));
 }
 
 struct ast_config *ast_config_new(void) 
 {
 	struct ast_config *config;
 
-	if ((config = ast_calloc(1, sizeof(*config)))) {
+	if ((config = ast_calloc(1, sizeof(*config))))
 		config->max_include_level = MAX_INCLUDE_LEVEL;
-	}
-
 	return config;
 }
 
