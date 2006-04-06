@@ -164,7 +164,8 @@ european=Europe/Copenhagen|'vm-received' a d b 'digits/at' HM
 ; attach=yes 		; Attach the voicemail to the notification email *NOT* the pager email
 ; saycid=yes 		; Say the caller id information before the message. If not described, 
 			;     or set to no, it will be in the envelope
-; cidinternalcontexts=intern	; Internal Context for Name Playback instead of extension digits when saying caller id.
+; cidinternalcontexts=intern	; Internal Context for Name Playback instead of 
+			; extension digits when saying caller id.
 ; sayduration=no 	; Turn on/off the duration information before the message. [ON by default]
 ; saydurationm=2        ; Specify the minimum duration to say. Default is 2 minutes
 ; dialout=fromvm 	; Context to dial out from [option 4 from the advanced menu]
@@ -183,8 +184,9 @@ sendvoicemail=yes	; Context to Send voicemail from [option 5 from the advanced m
 ; envelope=no 		; Turn on/off envelope playback before message playback. [ON by default] 
 			;     This does NOT affect option 3,3 from the advanced options menu
 ; delete=yes		; After notification, the voicemail is deleted from the server. [per-mailbox only]
-			;     This is intended for use with users who wish to receive their voicemail ONLY by email.
-			;     Note:  deletevoicemail is provided as an equivalent option for Realtime configuration.
+			;     This is intended for use with users who wish to receive their 
+			;     voicemail ONLY by email. Note:  "deletevoicemail" is provided as an
+			;     equivalent option for Realtime configuration.
 ; nextaftercmd=yes	; Skips to the next message after hitting 7 or 9 to delete/save current message.
 			;     [global option only at this time] 
 ; forcename=yes		; Forces a new user to record their name.  A new user is

@@ -46,17 +46,19 @@
 ;context=local
 ;host=dynamic
 ;dtmfmode=none		; DTMF Mode can be 'none', 'rfc2833', or 'inband' or
-				; 'hybrid' which starts in none and moves to inband.  Default is none.
+			; 'hybrid' which starts in none and moves to inband.  Default is none.
 ;slowsequence=yes	; The DPH100M does not follow MGCP standards for sequencing
 ;line => aaln/1
 
 ; known to work with wave7optics FTTH LMGs
 ;[192.168.1.20]
 ;accountcode	= 1000		; record this in cdr as account identification for billing
-;amaflags	= billing	; record this in cdr as flagged for 'billing', 'documentation', or 'omit'
+;amaflags	= billing	; record this in cdr as flagged for 'billing',
+				; 'documentation', or 'omit'
 ;context	= local
 ;host		= 192.168.1.20
-;wcardep	= aaln/*	; enables wildcard endpoint and sets it to 'aaln/*' another common format is '*'
+;wcardep	= aaln/*	; enables wildcard endpoint and sets it to 'aaln/*' 
+				; another common format is '*'
 ;callerid 	= "Duane Cox" <123>	; now lets setup line 1 using per endpoint configuration...
 ;callwaiting	= no
 ;callreturn	= yes

@@ -45,7 +45,8 @@ keepAlive=120
 ;callerid="Customer Support" <810-234-1212>
 ;mailbox=100
 ;context=inbound
-;linelabel="Support Line" ; Displays next to the line button on 7940's and 7960s
+;linelabel="Support Line"	; Displays next to the line 
+				; button on 7940's and 7960s
 ;line => 100
 ;callerid="John Chambers" <408-526-4000>
 ;context=did
