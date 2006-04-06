@@ -5369,22 +5369,21 @@ static int transmit_sip_request(struct sip_pvt *p,struct sip_request *req)
 	return send_request(p, req, 0, p->ocseq);
 }
 
-/*! \brief Notify a transferring party of the status of trasnfer
-\note   Apparently the draft SIP REFER structure was too simple, so it was decided that the
-	status of transfers also needed to be sent via NOTIFY instead of just the 202 Accepted
-	that had worked heretofore.
+/*! \brief Notify a transferring party of the status of transfer
  */
-static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
+static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *message)
 {
 	struct sip_request req;
-	char tmp[20];
+	char tmp[50];
 	reqprep(&req, p, SIP_NOTIFY, 0, 1);
 	snprintf(tmp, sizeof(tmp), "refer;id=%d", cseq);
 	add_header(&req, "Event", tmp);
 	add_header(&req, "Subscription-state", "terminated;reason=noresource");
 	add_header(&req, "Content-Type", "message/sipfrag;version=2.0");
+	add_header(&req, "Allow", ALLOWED_METHODS);
+	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
 
-	strcpy(tmp, "SIP/2.0 200 OK");
+	snprintf(tmp, sizeof(tmp), "SIP/2.0 %s\r\n", message);
 	add_header_contentLength(&req, strlen(tmp));
 	add_line(&req, tmp);
 
@@ -10809,7 +10808,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 				ast_set_flag(&p->flags[0], SIP_GOTREFER);	
 			}
 			transmit_response(p, "202 Accepted", req);
-			transmit_notify_with_sipfrag(p, seqno);
+			transmit_notify_with_sipfrag(p, seqno, "200 OK");
 			/* Always increment on a BYE */
 			if (!nobye) {
 				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
