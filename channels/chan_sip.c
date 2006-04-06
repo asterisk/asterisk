@@ -10810,11 +10810,13 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 
 		/* We have a succesful authentication, process the SDP portion if there is one */
-		if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
+		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp") ) {
 			if (process_sdp(p, req)) {
 				/* Unacceptable codecs */
 				transmit_response_reliable(p, "488 Not acceptable here", req);
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+				if (option_debug)
+					ast_log(LOG_DEBUG, "No compatible codecs for this SIP call.\n");
 				return -1;
 			}
 		} else {
@@ -10834,8 +10836,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* Check number of concurrent calls -vs- incoming limit HERE */
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Checking SIP call limits for device %s\n", p->username);
-		res = update_call_counter(p, INC_CALL_LIMIT);
-		if (res) {
+		if ((res = update_call_counter(p, INC_CALL_LIMIT))) {
 			if (res < 0) {
 				ast_log(LOG_NOTICE, "Failed to place call for user %s, too many calls\n", p->username);
 				transmit_response_reliable(p, "480 Temporarily Unavailable (Call limit) ", req);
@@ -10926,10 +10927,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					ast_mutex_lock(&p->lock);
 					c = NULL;
 				}
-			} else {
+			} else {	/* Pickup call in call group */
 				ast_mutex_unlock(&c->lock);
 				if (ast_pickup_call(c)) {
-					ast_log(LOG_NOTICE, "Nothing to pick up\n");
+					ast_log(LOG_NOTICE, "Nothing to pick up for %s\n", p->callid);
 					if (ignore)
 						transmit_response(p, "503 Unavailable", req);
 					else
@@ -10965,7 +10966,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			transmit_response(p, "100 Trying", req);
 		}
 	} else {
-		if (p && !ast_test_flag(&p->flags[0], SIP_NEEDDESTROY) && !ignore) {
+		if (p && !ast_test_flag(&p->flags[0], SIP_NEEDDESTROY)) {
 			if (!p->jointcapability) {
 				if (ignore)
 					transmit_response(p, "488 Not Acceptable Here (codec error)", req);
@@ -10973,7 +10974,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					transmit_response_reliable(p, "488 Not Acceptable Here (codec error)", req);
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			} else {
-				ast_log(LOG_NOTICE, "Unable to create/find channel\n");
+				ast_log(LOG_NOTICE, "Unable to create/find SIP channel for this INVITE\n");
 				if (ignore)
 					transmit_response(p, "503 Unavailable", req);
 				else
