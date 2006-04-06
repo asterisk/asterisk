@@ -15,23 +15,33 @@
 
 # Create OPTIONS variable
 OPTIONS=
+
 # If cross compiling, define these to suit
-# CROSS_COMPILE=/opt/montavista/pro/devkit/arm/xscale_be/bin/xscale_be-
-# CROSS_COMPILE_BIN=/opt/montavista/pro/devkit/arm/xscale_be/bin/
-# CROSS_COMPILE_TARGET=/opt/montavista/pro/devkit/arm/xscale_be/target
+#CROSS_COMPILE=/opt/montavista/pro/devkit/arm/xscale_be/bin/xscale_be-
+#CROSS_COMPILE_BIN=/opt/montavista/pro/devkit/arm/xscale_be/bin/
+#CROSS_COMPILE_TARGET=/opt/montavista/pro/devkit/arm/xscale_be/target
+#CROSS_ARCH=Linux
+#CROSS_PROC=arm
+#SUB_PROC=xscale # or maverick
+
+# Pentium Pro Optimize
+#PROC=i686
+
+# Pentium & VIA processors optimize
+#PROC=i586
+
+#PROC=k6
+#PROC=ppc
+
 CC=$(CROSS_COMPILE)gcc
 HOST_CC=gcc
-# CROSS_ARCH=Linux
-# CROSS_PROC=arm
-# SUB_PROC=xscale # or maverick
 
 ifeq ($(CROSS_COMPILE),)
   OSARCH=$(shell uname -s)
-  OSREV=$(shell uname -r)
-  MARCH=$(shell uname -m)
+  PROC?=$(shell uname -m)
 else
   OSARCH=$(CROSS_ARCH)
-  OSREV=$(CROSS_REV)
+  PROC=$(CROSS_PROC)
 endif
 
 PWD=$(shell pwd)
@@ -40,13 +50,13 @@ PWD=$(shell pwd)
 MAKETOPLEVEL?=$(MAKELEVEL)
 
 ifneq ($(findstring dont-optimize,$(MAKECMDGOALS)),dont-optimize)
-######### More GSM codec optimization
-######### Uncomment to enable MMXTM optimizations for x86 architecture CPU's
-######### which support MMX instructions.  This should be newer pentiums,
-######### ppro's, etc, as well as the AMD K6 and K7.  
+# More GSM codec optimization
+# Uncomment to enable MMXTM optimizations for x86 architecture CPU's
+# which support MMX instructions.  This should be newer pentiums,
+# ppro's, etc, as well as the AMD K6 and K7.  
 #K6OPT  = -DK6OPT
 
-#Tell gcc to optimize the code
+# Tell gcc to optimize the code
 OPTIMIZE+=-O6
 else
   # Stack backtraces, while useful for debugging, are incompatible with optimizations
@@ -55,14 +65,13 @@ else
   endif
 endif
 
-#Overwite config files on "make samples"
+# Overwite config files on "make samples"
 OVERWRITE=y
 
-#Include debug and macro symbols in the executables (-g) and profiling info (-pg)
+# Include debug and macro symbols in the executables (-g) and profiling info (-pg)
 DEBUG=-g3 #-pg
 
-#Set NOCRYPTO to yes if you do not want to have crypto support or 
-#dependencies
+# Set NOCRYPTO to yes if you do not want to have crypto support or dependencies
 #NOCRYPTO=yes
 
 # If you are running a radio application, define RADIO_RELAX so that the DTMF
@@ -71,14 +80,11 @@ DEBUG=-g3 #-pg
 
 # If you don't have a lot of memory (e.g. embedded Asterisk), define LOW_MEMORY
 # to reduce the size of certain static buffers
-
 #ifneq ($(CROSS_COMPILE),)
 #OPTIONS += -DLOW_MEMORY
 #endif
 
-#
 # Asterisk SMDI integration
-#
 WITH_SMDI = 1
 
 # Optional debugging parameters
@@ -102,7 +108,7 @@ INSTALL_PREFIX?=
 # Files are copied here temporarily during the install process
 # For example, make DESTDIR=/tmp/asterisk woud put things in
 # /tmp/asterisk/etc/asterisk
-# XXX watch out, put no spaces or comments after the value
+# !!! Watch out, put no spaces or comments after the value !!!
 DESTDIR?=
 #DESTDIR?=/tmp/asterisk
 
@@ -153,16 +159,7 @@ ASTCFLAGS=
 # Define this to use files larger than 2GB (useful for sound files longer than 37 hours and logfiles)
 ASTCFLAGS+=-D_FILE_OFFSET_BITS=64
 
-# Pentium Pro Optimize
-#PROC=i686
-
-# Pentium & VIA processors optimize
-#PROC=i586
-
-#PROC=k6
-#PROC=ppc
-
-#Uncomment this to use the older DSP routines
+# Uncomment this to use the older DSP routines
 #ASTCFLAGS+=-DOLD_DSP_ROUTINES
 
 # Determine by a grep 'DocumentRoot' of your httpd.conf file
@@ -185,12 +182,6 @@ ifneq ($(wildcard ~/.asterisk.makeopts),)
 endif
 
 ifeq ($(OSARCH),Linux)
-  ifeq ($(CROSS_COMPILE),)
-    PROC?=$(shell uname -m)
-  else
-    PROC=$(CROSS_PROC)
-  endif
-
   ifeq ($(PROC),x86_64)
     # You must have GCC 3.4 to use k8, otherwise use athlon
     PROC=k8
@@ -244,7 +235,6 @@ endif
 ASTOBJ=-o asterisk
 
 ifeq ($(findstring BSD,$(OSARCH)),BSD)
-  PROC=$(shell uname -m)
   ASTCFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
 
@@ -312,7 +302,6 @@ ifeq ($(findstring CYGWIN,$(OSARCH)),CYGWIN)
   ASTLINK=
   LIBS+=-lpthread -lncurses -lm -lresolv
   ASTSBINDIR=$(MODULES_DIR)
-  PROC=$(shell uname -m)
 endif
 
 ifndef WITHOUT_ZAPTEL
@@ -399,12 +388,12 @@ ifeq ($(OSARCH),Darwin)
   ASTLINK=-Wl,-dynamic
   SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
   # Mac on Intel CoreDuo does not need poll compatibility layer
-  ifneq ($(MARCH),i386)
+  ifneq ($(PROC),i386)
     OBJS+=poll.o
     ASTCFLAGS+=-DPOLLCOMPAT
   endif
 else
-#These are used for all but Darwin
+# These are used for all but Darwin
   ASTLINK=-Wl,-E 
   SOLINK=-shared -Xlinker -x
   ifeq ($(findstring BSD,$(OSARCH)),BSD)
@@ -967,11 +956,9 @@ uninstall: _uninstall
 	@echo " +            $(MAKE) uninstall-all             +"  
 	@echo " +-------------------------------------------+"  
 
-
 uninstall-all: _uninstall
 	rm -rf $(DESTDIR)$(ASTLIBDIR)
 	rm -rf $(DESTDIR)$(ASTVARLIBDIR)
 	rm -rf $(DESTDIR)$(ASTSPOOLDIR)
 	rm -rf $(DESTDIR)$(ASTETCDIR)
 	rm -rf $(DESTDIR)$(ASTLOGDIR)
-
