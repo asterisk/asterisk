@@ -1047,7 +1047,7 @@ static int find_sip_method(char *msg)
 	if (ast_strlen_zero(msg))
 		return 0;
 
-	for (i = 1; (i < (sizeof(sip_methods) / sizeof(sip_methods[0]))) && !res; i++) {
+	for (i = 1; i < (sizeof(sip_methods) / sizeof(sip_methods[0])) && !res; i++) {
 		if (!strcasecmp(sip_methods[i].text, msg)) 
 			res = sip_methods[i].id;
 	}
@@ -1057,10 +1057,8 @@ static int find_sip_method(char *msg)
 /*! \brief Parse supported header in incoming packet */
 static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 {
-	char *next = NULL;
-	char *sep = NULL;
+	char *next, *sep;
 	char *temp = ast_strdupa(supported);
-	int i;
 	unsigned int profile = 0;
 
 	if (ast_strlen_zero(supported) )
@@ -1069,29 +1067,24 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 	if (option_debug > 2 && sipdebug)
 		ast_log(LOG_DEBUG, "Begin: parsing SIP \"Supported: %s\"\n", supported);
 
-	next = temp;
-	while (next) {
-		char res=0;
-		if ( (sep = strchr(next, ',')) != NULL) {
-			*sep = '\0';
-			sep++;
-		}
-		while (*next == ' ')	/* Skip spaces */
-			next++;
+	for (next = temp; next; next = sep) {
+		int i, found = 0;
+		if ( (sep = strchr(next, ',')) != NULL)
+			*sep++ = '\0';
+		next = ast_skip_blanks(next);
 		if (option_debug > 2 && sipdebug)
 			ast_log(LOG_DEBUG, "Found SIP option: -%s-\n", next);
-		for (i=0; (i < (sizeof(sip_options) / sizeof(sip_options[0]))) && !res; i++) {
+		for (i=0; i < (sizeof(sip_options) / sizeof(sip_options[0])); i++) {
 			if (!strcasecmp(next, sip_options[i].text)) {
 				profile |= sip_options[i].id;
-				res = 1;
+				found = 1;
 				if (option_debug > 2 && sipdebug)
 					ast_log(LOG_DEBUG, "Matched SIP option: %s\n", next);
+				break;
 			}
 		}
-		if (!res) 
-			if (option_debug > 2 && sipdebug)
-				ast_log(LOG_DEBUG, "Found no match for SIP option: %s (Please file bug report!)\n", next);
-		next = sep;
+		if (!found && option_debug > 2 && sipdebug)
+			ast_log(LOG_DEBUG, "Found no match for SIP option: %s (Please file bug report!)\n", next);
 	}
 	if (pvt) {
 		pvt->sipoptions = profile;
@@ -1102,7 +1095,7 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 }
 
 /*! \brief See if we pass debug IP filter */
-static inline int sip_debug_test_addr(struct sockaddr_in *addr) 
+static inline int sip_debug_test_addr(const struct sockaddr_in *addr) 
 {
 	if (!sipdebug)
 		return 0;
@@ -1311,13 +1304,9 @@ static int retrans_pkt(void *data)
 		}
 	}
 	/* In any case, go ahead and remove the packet */
-	prev = NULL;
-	cur = pkt->owner->packets;
-	while(cur) {
+	for (prev = NULL, cur = pkt->owner->packets; cur; prev = cur, cur = cur->next) {
 		if (cur == pkt)
 			break;
-		prev = cur;
-		cur = cur->next;
 	}
 	if (cur) {
 		if (prev)
@@ -1441,8 +1430,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 	msg = sip_methods[sipmethod].text;
 
 	ast_mutex_lock(&p->lock);
-	cur = p->packets;
-	while(cur) {
+	for (cur = p->packets; cur; prev = cur, cur = cur->next) {
 		if ((cur->seqno == seqno) && ((ast_test_flag(cur, FLAG_RESPONSE)) == resp) &&
 			((ast_test_flag(cur, FLAG_RESPONSE)) || 
 			 (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33)))) {
@@ -1464,8 +1452,6 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			res = 0;
 			break;
 		}
-		prev = cur;
-		cur = cur->next;
 	}
 	ast_mutex_unlock(&p->lock);
 	if (option_debug)
@@ -1506,8 +1492,7 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 	int res = -1;
 	char *msg = sip_methods[sipmethod].text;
 
-	cur = p->packets;
-	while(cur) {
+	for (cur = p->packets; cur ; cur = cur->next) {
 		if ((cur->seqno == seqno) && ((ast_test_flag(cur, FLAG_RESPONSE)) == resp) &&
 			((ast_test_flag(cur, FLAG_RESPONSE)) || 
 			 (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33)))) {
@@ -1521,7 +1506,6 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			res = 0;
 			break;
 		}
-		cur = cur->next;
 	}
 	if (option_debug)
 		ast_log(LOG_DEBUG, "(Provisional) Stopping retransmission (but retaining packet) on '%s' %s %d: %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
@@ -1598,7 +1582,7 @@ static char *get_in_brackets(char *tmp)
 	char last_char;
 
 	parse = tmp;
-	while (1) {
+	for (;;) {
 		first_quote = strchr(parse, '"');
 		first_bracket = strchr(parse, '<');
 		if (first_quote && first_bracket && (first_quote < first_bracket)) {
@@ -2206,12 +2190,10 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	if (p->autokillid > -1)
 		ast_sched_del(sched, p->autokillid);
 
-	if (p->rtp) {
+	if (p->rtp)
 		ast_rtp_destroy(p->rtp);
-	}
-	if (p->vrtp) {
+	if (p->vrtp)
 		ast_rtp_destroy(p->vrtp);
-	}
 	if (p->route) {
 		free_old_route(p->route);
 		p->route = NULL;
@@ -2234,17 +2216,14 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	}
 	/* Clear history */
 	if (p->history) {
-		while(!AST_LIST_EMPTY(p->history)) {
-			struct sip_history *hist = AST_LIST_FIRST(p->history);
-			AST_LIST_REMOVE_HEAD(p->history, list);
+		struct sip_history *hist;
+		while( (hist = AST_LIST_REMOVE_HEAD(p->history, list)) )
 			free(hist);
-		}
 		free(p->history);
 		p->history = NULL;
 	}
 
-	cur = iflist;
-	while(cur) {
+	for (prev = NULL, cur = iflist; cur; prev = cur, cur = cur->next) {
 		if (cur == p) {
 			if (prev)
 				prev->next = cur->next;
@@ -2252,8 +2231,6 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 				iflist = cur->next;
 			break;
 		}
-		prev = cur;
-		cur = cur->next;
 	}
 	if (!cur) {
 		ast_log(LOG_WARNING, "Trying to destroy \"%s\", not found in dialog list?!?! \n", p->callid);
@@ -3354,8 +3331,8 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	}
 
 	ast_mutex_lock(&iflock);
-	p = iflist;
-	while(p) {	/* In pedantic, we do not want packets with bad syntax to be connected to a PVT */
+	for (p = iflist; p; p = p->next) {
+		/* In pedantic, we do not want packets with bad syntax to be connected to a PVT */
 		int found = FALSE;
 		if (req->method == SIP_REGISTER)
 			found = (!strcmp(p->callid, callid));
@@ -3387,7 +3364,6 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 			ast_mutex_unlock(&iflock);
 			return p;
 		}
-		p = p->next;
 	}
 	ast_mutex_unlock(&iflock);
 	p = sip_alloc(callid, sin, 1, intended_method);
@@ -3657,8 +3633,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			portno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			ast_rtp_pt_clear(p->rtp);
-			codecs = m + len;
-			while(!ast_strlen_zero(codecs)) {
+			for (codecs = m + len; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
 				if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
@@ -3666,7 +3641,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				if (debug)
 					ast_verbose("Found RTP audio format %d\n", codec);
 				ast_rtp_set_m_type(p->rtp, codec);
-				codecs = ast_skip_blanks(codecs + len);
 			}
 		}
 		if (p->vrtp)
@@ -3677,8 +3651,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_clear_flag(&p->flags[0], SIP_NOVIDEO);	
 			vportno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
-			codecs = m + len;
-			while(!ast_strlen_zero(codecs)) {
+			for (codecs = m + len; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
 				if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
@@ -3686,7 +3659,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				if (debug)
 					ast_verbose("Found RTP video format %d\n", codec);
 				ast_rtp_set_m_type(p->vrtp, codec);
-				codecs = ast_skip_blanks(codecs + len);
 			}
 		}
 		if (!found )
@@ -4062,12 +4034,14 @@ static void add_route(struct sip_request *req, struct sip_route *route)
 	char r[256], *p;
 	int n, rem = sizeof(r);
 
-	if (!route) return;
+	if (!route)
+		return;
 
 	p = r;
-	while (route) {
+	for (;route ; route = route->next) {
 		n = strlen(route->hop);
-		if ((n+3)>rem) break;
+		if ( n + 3 > rem)
+			break;
 		if (p != r) {
 			*p++ = ',';
 			--rem;
@@ -4076,7 +4050,6 @@ static void add_route(struct sip_request *req, struct sip_route *route)
 		ast_copy_string(p, route->hop, rem);  p += n;
 		*p++ = '>';
 		rem -= (n+2);
-		route = route->next;
 	}
 	*p = '\0';
 	add_header(req, "Route", r);
@@ -4794,7 +4767,8 @@ static int determine_firstline_parts( struct sip_request *req )
 			return -1;
 		}
 		/* XXX maybe trim_blanks() ? */
-		while( isspace( *(--e) ) ) {}
+		while( isspace( *(--e) ) )
+			;
 		if ( *e == '>' ) {
 			*e = '\0';
 		} else {
@@ -5142,11 +5116,8 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 						if (*headdup == '"')
 					 		headdup++;
 						if ((content = strchr(headdup, ':'))) {
-							*content = '\0';
-							content++;	/* Move pointer ahead */
-							/* Skip white space */
-							while (*content == ' ')
-						  		content++;
+							*content++ = '\0';
+							content = ast_skip_blanks(content); /* Skip white space */
 							/* Strip the ending " (if it's there) */
 					 		end = content + strlen(content) -1;	
 							if (*end == '"')
@@ -6192,10 +6163,8 @@ static void list_route(struct sip_route *route)
 		ast_verbose("list_route: no route\n");
 		return;
 	}
-	while (route) {
+	for (;route; route = route->next)
 		ast_verbose("list_route: hop: <%s>\n", route->hop);
-		route = route->next;
-	}
 }
 
 /*! \brief Build route list from Record-Route header */
@@ -6824,8 +6793,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(char *callid)
 	
 	/* Search interfaces and find the match */
 	ast_mutex_lock(&iflock);
-	sip_pvt_ptr = iflist;
-	while(sip_pvt_ptr) {
+	for (sip_pvt_ptr = iflist; sip_pvt_ptr ; sip_pvt_ptr = sip_pvt_ptr->next) {
 		if (!strcmp(sip_pvt_ptr->callid, callid)) {
 			/* Go ahead and lock it (and its owner) before returning */
 			ast_mutex_lock(&sip_pvt_ptr->lock);
@@ -6840,7 +6808,6 @@ static struct sip_pvt *get_sip_pvt_byid_locked(char *callid)
 			}
 			break;
 		}
-		sip_pvt_ptr = sip_pvt_ptr->next;
 	}
 	ast_mutex_unlock(&iflock);
 	return sip_pvt_ptr;
@@ -8190,11 +8157,9 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		}
 		ast_cli(fd, "  Secret       : %s\n", ast_strlen_zero(peer->secret)?"<Not set>":"<Set>");
 		ast_cli(fd, "  MD5Secret    : %s\n", ast_strlen_zero(peer->md5secret)?"<Not set>":"<Set>");
-		auth = peer->auth;
-		while(auth) {
+		for (auth = peer->auth; auth; auth = auth->next) {
 			ast_cli(fd, "  Realm-auth   : Realm %-15.15s User %-10.20s ", auth->realm, auth->username);
 			ast_cli(fd, "%s\n", !ast_strlen_zero(auth->secret)?"<Secret set>":(!ast_strlen_zero(auth->md5secret)?"<MD5secret set>" : "<Not set>"));
-			auth = auth->next;
 		}
 		ast_cli(fd, "  Context      : %s\n", peer->context);
 		ast_cli(fd, "  Subscr.Cont. : %s\n", S_OR(peer->subscribecontext, "<Not set>") );
@@ -8585,7 +8550,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 		ast_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Format", "Hold", "Last Message");
 	else 
 		ast_cli(fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type", "Mailbox");
-	while (cur) {
+	for (; cur; cur = cur->next) {
 		if (cur->subscribed == NONE && !subscriptions) {
 			ast_cli(fd, FORMAT, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), 
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")),
@@ -8609,7 +8574,6 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 );
 			numchans++;
 		}
-		cur = cur->next;
 	}
 	ast_mutex_unlock(&iflock);
 	if (!subscriptions)
@@ -8726,11 +8690,9 @@ static char *complete_sipnotify(const char *line, const char *word, int pos, int
 			return NULL;
 		
 		while ( (cat = ast_category_browse(notify_types, cat)) ) {
-			if (!strncasecmp(word, cat, wordlen)) {
-				if (++which > state) {
-					c = ast_strdup(cat);
-					break;
-				}
+			if (!strncasecmp(word, cat, wordlen) && ++which > state) {
+				c = ast_strdup(cat);
+				break;
 			}
 		}
 		return c;
@@ -12156,8 +12118,7 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
 	char authcopy[256];
 	char *username=NULL, *realm=NULL, *secret=NULL, *md5secret=NULL;
 	char *stringp;
-	struct sip_auth *auth;
-	struct sip_auth *b = NULL, *a = authlist;
+	struct sip_auth *a, *b, *auth;
 
 	if (ast_strlen_zero(configuration))
 		return authlist;
@@ -12169,10 +12130,8 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
 
 	username = stringp;
 	realm = strrchr(stringp, '@');
-	if (realm) {
-		*realm = '\0';
-		realm++;
-	}
+	if (realm)
+		*realm++ = '\0';
 	if (ast_strlen_zero(username) || ast_strlen_zero(realm)) {
 		ast_log(LOG_WARNING, "Format for authentication entry is user[:secret]@realm at line %d\n", lineno);
 		return authlist;
@@ -12196,15 +12155,13 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
 	if (md5secret)
 		ast_copy_string(auth->md5secret, md5secret, sizeof(auth->md5secret));
 
-	/* Add authentication to authl */
-	if (!authlist) {	/* No existing list */
-		return auth;
-	} 
-	while(a) {
-		b = a;
-		a = a->next;
-	}
-	b->next = auth;	/* Add structure add end of list */
+	/* find the end of the list */
+	for (b = NULL, a = authlist; a ; b = a, a = a->next)
+		;
+	if (b)
+		b->next = auth;	/* Add structure add end of list */
+	else
+		authlist = auth;
 
 	if (option_verbose > 2)
 		ast_verbose("Added authentication for realm %s\n", realm);
@@ -12952,13 +12909,10 @@ static int reload_config(enum channelreloadreason reason)
 	}
 	
 	/* Build list of authentication to various SIP realms, i.e. service providers */
- 	v = ast_variable_browse(cfg, "authentication");
- 	while(v) {
+ 	for (v = ast_variable_browse(cfg, "authentication"); v ; v = v->next) {
  		/* Format for authentication is auth = username:password@realm */
- 		if (!strcasecmp(v->name, "auth")) {
+ 		if (!strcasecmp(v->name, "auth"))
  			authl = add_realm_authentication(authl, v->value, v->lineno);
- 		}
- 		v = v->next;
  	}
 	
 	/* Load peers, users and friends */
@@ -13549,11 +13503,9 @@ int unload_module()
 
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
-		p = iflist;
-		while (p) {
+		for (p = iflist; p ; p = p->next) {
 			if (p->owner)
 				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-			p = p->next;
 		}
 		ast_mutex_unlock(&iflock);
 	} else {
