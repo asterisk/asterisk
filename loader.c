@@ -683,26 +683,20 @@ static struct module * __load_resource(const char *resource_name,
 	int res;
 	struct module *cur;
 	struct module_symbols *m, *m1;
-	int flags=RTLD_NOW;
+	int flags = RTLD_NOW;
 	unsigned char *key;
 	char tmp[80];
 
-	if (strncasecmp(resource_name, "res_", 4)) {
-#ifdef RTLD_GLOBAL
-		if (cfg) {
-			char *val;
-			if ((val = ast_variable_retrieve(cfg, "global", resource_name))
-					&& ast_true(val))
-				flags |= RTLD_GLOBAL;
-		}
+#ifndef RTLD_GLOBAL
+#define RTLD_GLOBAL	0	/* so it is a No-op */
 #endif
+	if (strncasecmp(resource_name, "res_", 4) && cfg) {
+		char *val = ast_variable_retrieve(cfg, "global", resource_name);
+		if (val && ast_true(val))
+			flags |= RTLD_GLOBAL;
 	} else {
 		/* Resource modules are always loaded global and lazy */
-#ifdef RTLD_GLOBAL
 		flags = (RTLD_GLOBAL | RTLD_LAZY);
-#else
-		flags = RTLD_LAZY;
-#endif
 	}
 	
 	if (AST_LIST_LOCK(&module_list))
@@ -722,16 +716,19 @@ static struct module * __load_resource(const char *resource_name,
 		ast_copy_string(fn, resource_name, sizeof(fn));
 	else
 		snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_MODULE_DIR, resource_name);
-#if 0
-	/* XXX test, open in a sane way */
+
+	/* open in a sane way */
 	cur->lib = dlopen(fn, RTLD_NOW | RTLD_LOCAL);
 	if (cur->lib == NULL) {
-		ast_log(LOG_WARNING, "test %s\n", dlerror());
-	} else
+		ast_log(LOG_WARNING, "cannot load %s %s\n", fn, dlerror());
+	} else if ( (m1 = find_symbol(cur, "mod_data", 0)) == NULL || m1->type == MOD_0) {
+		/* old-style module, close and reload with standard flags */
 		dlclose(cur->lib);
-#endif
+		cur->lib = NULL;
+	}
+	if (cur->lib == NULL)	/* try reopen with the old style */
+		cur->lib = dlopen(fn, flags);
 
-	cur->lib = dlopen(fn, flags);
 	if (!cur->lib) {
 		ast_log(LOG_WARNING, "%s\n", dlerror());
 		free(cur);
@@ -740,10 +737,10 @@ static struct module * __load_resource(const char *resource_name,
 	}
 	m1 = find_symbol(cur, "mod_data", 0);
 	if (m1 != NULL) {	/* new style module */
+		ast_log(LOG_WARNING, "new style %s (%d) loaded RTLD_LOCAL\n",
+			resource_name, m1->type);
 		errors = check_exported(cur);
 		*m = *m1;
-		if (m->type == MOD_2)
-			ast_log(LOG_WARNING, "new style %s, should unload and reload with RTLD_LOCAL\n", resource_name);
 	} else {
 		m->type = MOD_0;
 		m->load_module = find_symbol(cur, "load_module", 1);

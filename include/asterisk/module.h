@@ -34,12 +34,12 @@
 extern "C" {
 #endif
 
-#ifndef STATIC_MODULE
-#define STATIC_MODULE	/* empty - symbols are global */
-#else
+#ifdef STATIC_MODULE	/* symbols are static */
+#define _HAVE_STATIC_MODULE
 #undef STATIC_MODULE
 #define STATIC_MODULE	static /* symbols are static */
-#endif
+#else	/* !STATIC_MODULE, symbols are global */
+#define STATIC_MODULE	/* empty - symbols are global */
 
 /*! \note Every module should provide these functions */
 /*! 
@@ -53,7 +53,7 @@ extern "C" {
  * If the module is not loaded successfully, Asterisk will call its
  * unload_module() function.
  */
-STATIC_MODULE int load_module(void);
+int load_module(void);
 
 /*! 
  * \brief Cleanup all module structures, sockets, etc.
@@ -64,7 +64,7 @@ STATIC_MODULE int load_module(void);
  *
  * \return Zero on success, or non-zero on error.
  */
-STATIC_MODULE int unload_module(void);
+int unload_module(void);
 
 /*! 
  * \brief Provides a usecount.
@@ -76,13 +76,13 @@ STATIC_MODULE int unload_module(void);
  *
  * \return The module's usecount.
  */
-STATIC_MODULE int usecount(void);			/* How many channels provided by this module are in use? */
+int usecount(void);		/* How many channels provided by this module are in use? */
 
 /*! \brief Provides a description of the module.
  *
  * \return a short description of your module
  */
-STATIC_MODULE char *description(void);		/* Description of this module */
+char *description(void);		/* Description of this module */
 
 /*! 
  * \brief Returns the ASTERISK_GPL_KEY
@@ -99,7 +99,7 @@ STATIC_MODULE char *description(void);		/* Description of this module */
  *
  * \return ASTERISK_GPL_KEY
  */
-STATIC_MODULE char *key(void);		/* Return the below mentioned key, unmodified */
+char *key(void);		/* Return the below mentioned key, unmodified */
 
 /*! 
  * \brief Reload stuff.
@@ -109,7 +109,8 @@ STATIC_MODULE char *key(void);		/* Return the below mentioned key, unmodified */
  *
  * \return The return value is not used.
  */
-STATIC_MODULE int reload(void);		/* reload configs */
+int reload(void);		/* reload configs */
+#endif	/* !STATIC_MODULE case */
 
 /*! \brief The text the key() function should return. */
 #define ASTERISK_GPL_KEY \
@@ -506,6 +507,15 @@ struct symbol_entry {
 #define	MOD_FIELD(f)    . ## f = f
 #define	METHOD_BASE(_base, _name)       . ## _name = _base ## _name
 
+/*
+ * Each 'registerable' entity has a pointer in the
+ * struct ast_registry, which points to an array of objects of
+ * the same type. The ast_*_register() function will be able to
+ * derive the size of these entries.
+ */
+struct ast_registry {
+	struct ast_cli_entry *clis;
+};
 
 struct module_symbols {
         int (*load_module)(void);
@@ -520,22 +530,27 @@ struct module_symbols {
 		MOD_1,	/* old style, but symbols here */
 		MOD_2,	/* new style, exported symbols */
 	} type;
+	struct ast_registry *reg;
 	struct symbol_entry *exported_symbols;
 	struct symbol_entry *required_symbols;
 };
 
-#define STD_MOD(t, exp, req)				\
+#ifndef _HAVE_STATIC_MODULE
+#define STD_MOD(t, reload_fn, exp, req)
+#else
+#define STD_MOD(t, reload_fn, exp, req)			\
 struct module_symbols mod_data = {			\
         .load_module = load_module,			\
         .unload_module = unload_module,			\
         .description = description,			\
         .key = key,					\
-        .reload = reload,				\
+        .reload = reload_fn,				\
         .usecount = usecount,				\
 	.type = t,					\
 	.exported_symbols = exp,			\
 	.required_symbols = req				\
 };
+#endif /* _HAVE_STATIC_MODULE */
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
