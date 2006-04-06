@@ -58,8 +58,6 @@ static int parse_config(void);
 static int pgsql_reconnect(const char *database);
 static int realtime_pgsql_status(int fd, int argc, char **argv);
 
-STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 static char cli_realtime_pgsql_status_usage[] =
@@ -428,13 +426,10 @@ static struct ast_config *config_pgsql(const char *database, const char *table, 
 {
 	PGresult *result = NULL;
 	long num_rows;
-	struct ast_config *new;
-	struct ast_variable *cur_v, *new_v;
-	struct ast_category *cur_cat, *new_cat;
+	struct ast_variable *new_v;
+	struct ast_category *cur_cat = NULL;
 	char sql[250] = "";
 	char last[80] = "";
-	int cat_started = 0;
-	int var_started = 0;
 	int last_cat_metric = 0;
 
 	last[0] = '\0';
@@ -483,7 +478,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table, 
 	  int rowIndex=0;
 	  char** fieldnames=NULL;
 
-	  ast_log(LOG_DEBUG, "Postgresql RealTime: Found %d rows.\n", num_rows);
+	  ast_log(LOG_DEBUG, "Postgresql RealTime: Found %ld rows.\n", num_rows);
 	  
 	  fieldnames=malloc(numFields*sizeof(char*));
 	  if (!fieldnames) {
