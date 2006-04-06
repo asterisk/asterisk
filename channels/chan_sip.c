@@ -1418,7 +1418,7 @@ static int sip_cancel_destroy(struct sip_pvt *p)
 }
 
 /*! \brief Acknowledges receipt of a packet and stops retransmission */
-static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
+static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod, int reset)
 {
 	struct sip_pkt *cur, *prev = NULL;
 	int res = -1;
@@ -1447,7 +1447,8 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 					ast_log(LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
 				ast_sched_del(sched, cur->retransid);
 			}
-			free(cur);
+			if (!reset)
+				free(cur);
 			res = 0;
 			break;
 		}
@@ -1470,7 +1471,7 @@ static int __sip_pretend_ack(struct sip_pvt *p)
 		}
 		cur = p->packets;
 		if (cur->method)
-			__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), cur->method);
+			__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), cur->method, FALSE);
 		else {	/* Unknown packet type */
 			char *c;
 			char method[128];
@@ -1478,7 +1479,7 @@ static int __sip_pretend_ack(struct sip_pvt *p)
 			ast_copy_string(method, p->packets->data, sizeof(method));
 			c = ast_skip_blanks(method); /* XXX what ? */
 			*c = '\0';
-			__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), find_sip_method(method));
+			__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), find_sip_method(method), FALSE);
 		}
 	}
 	return 0;
@@ -10059,7 +10060,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	if ((resp >= 100) && (resp <= 199))
 		__sip_semi_ack(p, seqno, 0, sipmethod);
 	else
-		__sip_ack(p, seqno, 0, sipmethod);
+		__sip_ack(p, seqno, 0, sipmethod, resp == 491 ? TRUE : FALSE);
 
 	/* Get their tag if we haven't already */
 	if (ast_strlen_zero(p->theirtag) || (resp >= 200)) {
@@ -10171,6 +10172,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 491: /* Pending */
 			if (sipmethod == SIP_INVITE) {
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
+			} else {
+				ast_log(LOG_DEBUG, "Got 491 on %s, unspported. Call ID %s\n", sip_methods[sipmethod].text, p->callid);
 			}
 		case 501: /* Not Implemented */
 			if (sipmethod == SIP_INVITE) {
@@ -11575,7 +11578,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		/* Make sure we don't ignore this */
 		if (seqno == p->pendinginvite) {
 			p->pendinginvite = 0;
-			__sip_ack(p, seqno, FLAG_RESPONSE, 0);
+			__sip_ack(p, seqno, FLAG_RESPONSE, 0, FALSE);
 			if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
 				if (process_sdp(p, req))
 					return -1;
