@@ -1172,7 +1172,7 @@ static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 			} else
 				ast_log(LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
 		}
-		memcpy(us, &externip.sin_addr, sizeof(struct in_addr));
+		*us = externip.sin_addr;
 		if (option_debug) {
 			char iabuf[INET_ADDRSTRLEN];
 			ast_inet_ntoa(iabuf, sizeof(iabuf), *(struct in_addr *)&them->s_addr);
@@ -1180,7 +1180,7 @@ static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 			ast_log(LOG_DEBUG, "Target address %s is not local, substituting externip\n", iabuf);
 		}
 	} else if (bindaddr.sin_addr.s_addr)
-		memcpy(us, &bindaddr.sin_addr, sizeof(struct in_addr));
+		*us = bindaddr.sin_addr;
 	else
 		return ast_ouraddrfor(them, us);
 	return 0;
@@ -1896,16 +1896,8 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 {
 	if ((peer->addr.sin_addr.s_addr || peer->defaddr.sin_addr.s_addr) &&
 	    (!peer->maxms || ((peer->lastms >= 0)  && (peer->lastms <= peer->maxms)))) {
-		if (peer->addr.sin_addr.s_addr) {
-			r->sa.sin_family = peer->addr.sin_family;
-			r->sa.sin_addr = peer->addr.sin_addr;
-			r->sa.sin_port = peer->addr.sin_port;
-		} else {
-			r->sa.sin_family = peer->defaddr.sin_family;
-			r->sa.sin_addr = peer->defaddr.sin_addr;
-			r->sa.sin_port = peer->defaddr.sin_port;
-		}
-		memcpy(&r->recv, &r->sa, sizeof(r->recv));
+		r->sa = (peer->addr.sin_addr.s_addr) ? peer->addr : peer->defaddr;
+		r->recv = r->sa;
 	} else {
 		return -1;
 	}
@@ -2035,7 +2027,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 			ast_string_field_set(dialog, tohost, peer);
 			memcpy(&dialog->sa.sin_addr, hp->h_addr, sizeof(dialog->sa.sin_addr));
 			dialog->sa.sin_port = htons(portno);
-			memcpy(&dialog->recv, &dialog->sa, sizeof(dialog->recv));
+			dialog->recv = dialog->sa;
 			return 0;
 		} else {
 			ast_log(LOG_WARNING, "No such host: %s\n", peer);
@@ -3223,11 +3215,11 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	p->osptimelimit = 0;
 #endif	
 	if (sin) {
-		memcpy(&p->sa, sin, sizeof(p->sa));
+		p->sa = *sin;
 		if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
-			memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+			p->ourip = __ourip;
 	} else {
-		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+		p->ourip = __ourip;
 	}
 	
 	ast_copy_flags(&p->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
@@ -3265,7 +3257,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	if (useglobal_nat && sin) {
 		/* Setup NAT structure according to global settings if we have an address */
 		ast_copy_flags(&p->flags[0], &global_flags[0], SIP_NAT);
-		memcpy(&p->recv, sin, sizeof(p->recv));
+		p->recv = *sin;
 		if (p->rtp)
 			ast_rtp_setnat(p->rtp, ast_test_flag(&p->flags[0], SIP_NAT_ROUTE));
 		if (p->vrtp)
@@ -5597,7 +5589,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 		  internal network so we can register through nat
 		 */
 		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
-			memcpy(&p->ourip, &bindaddr.sin_addr, sizeof(p->ourip));
+			p->ourip = bindaddr.sin_addr;
 		build_contact(p);
 	}
 
@@ -5962,7 +5954,7 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 	} else
 		port = DEFAULT_SIP_PORT;
 
-	memcpy(&oldsin, &pvt->sa, sizeof(oldsin));
+	oldsin = pvt->sa;
 
 	if (!ast_test_flag(&pvt->flags[0], SIP_NAT_ROUTE)) {
 		/* XXX This could block for a long time XXX */
@@ -5978,7 +5970,7 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 	} else {
 		/* Don't trust the contact field.  Just use what they came to us
 		   with. */
-		memcpy(&pvt->sa, &pvt->recv, sizeof(pvt->sa));
+		pvt->sa = pvt->recv;
 	}
 	return 0;
 }
@@ -6086,7 +6078,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		port = atoi(pt);
 	} else
 		port = DEFAULT_SIP_PORT;
-	memcpy(&oldsin, &p->addr, sizeof(oldsin));
+	oldsin = p->addr;
 	if (!ast_test_flag(&p->flags[0], SIP_NAT_ROUTE)) {
 		/* XXX This could block for a long time XXX */
 		hp = ast_gethostbyname(n, &ahp);
@@ -6100,7 +6092,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	} else {
 		/* Don't trust the contact field.  Just use what they came to us
 		   with */
-		memcpy(&p->addr, &pvt->recv, sizeof(p->addr));
+		p->addr = pvt->recv;
 	}
 
 	if (c)	/* Overwrite the default username from config at registration */
@@ -8596,11 +8588,9 @@ static char *complete_sipch(const char *line, const char *word, int pos, int sta
 
 	ast_mutex_lock(&iflock);
 	for (cur = iflist; cur; cur = cur->next) {
-		if (!strncasecmp(word, cur->callid, wordlen)) {
-			if (++which > state) {
-				c = ast_strdup(cur->callid);
-				break;
-			}
+		if (!strncasecmp(word, cur->callid, wordlen) && ++which > state) {
+			c = ast_strdup(cur->callid);
+			break;
 		}
 	}
 	ast_mutex_unlock(&iflock);
@@ -8983,7 +8973,7 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 	if (peer) {
 		if (peer->addr.sin_addr.s_addr) {
 			debugaddr.sin_family = AF_INET;
-			memcpy(&debugaddr.sin_addr, &peer->addr.sin_addr, sizeof(debugaddr.sin_addr));
+			debugaddr.sin_addr = peer->addr.sin_addr;
 			debugaddr.sin_port = peer->addr.sin_port;
 			ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr), ntohs(debugaddr.sin_port));
 			ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
@@ -9064,7 +9054,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 		add_blank_header(&req);
 		/* Recalculate our side, and recalculate Call ID */
 		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
-			memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+			p->ourip = __ourip;
 		build_via(p);
 		build_callid_pvt(p);
 		ast_cli(fd, "Sending NOTIFY of type '%s' to '%s'\n", argv[2], argv[i]);
@@ -11441,7 +11431,7 @@ retrylock:
 			usleep(1);
 			goto retrylock;
 		}
-		memcpy(&p->recv, &sin, sizeof(p->recv));
+		p->recv = sin;
 		if (recordhistory) /* This is a response, note what it was for */
 			append_history(p, "Rx", "%s / %s", req.data, get_header(&req, "CSeq"));
 		nounlock = 0;
@@ -11495,7 +11485,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		}
 		/* Recalculate our side, and recalculate Call ID */
 		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
-			memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+			p->ourip = __ourip;
 		build_via(p);
 		build_callid_pvt(p);
 		/* Destroy this session after 32 secs */
@@ -11728,8 +11718,8 @@ static int sip_poke_peer(struct sip_peer *peer)
 	if (!(p = peer->call = sip_alloc(NULL, NULL, 0, SIP_OPTIONS)))
 		return -1;
 	
-	memcpy(&p->sa, &peer->addr, sizeof(p->sa));
-	memcpy(&p->recv, &peer->addr, sizeof(p->sa));
+	p->sa = peer->addr;
+	p->recv = peer->addr;
 	ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 
@@ -11748,7 +11738,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 
 	/* Recalculate our side, and recalculate Call ID */
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
-		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+		p->ourip = __ourip;
 	build_via(p);
 	build_callid_pvt(p);
 
@@ -11886,7 +11876,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 		ast_string_field_set(p, peername, ext);
 	/* Recalculate our side, and recalculate Call ID */
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
-		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+		p->ourip = __ourip;
 	build_via(p);
 	build_callid_pvt(p);
 	
