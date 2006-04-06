@@ -175,6 +175,7 @@ struct ast_app {
 	const char *synopsis;			/*!< Synopsis text for 'show applications' */
 	const char *description;		/*!< Description (help text) for 'show application <name>' */
 	struct ast_app *next;			/*!< Next app in list */
+	struct module *module;			/*!< Module this app belongs to */
 	char name[0];				/*!< Name of the application */
 };
 
@@ -491,8 +492,6 @@ int pbx_exec(struct ast_channel *c, 		/*!< Channel */
 	const char *saved_c_appl;
 	const char *saved_c_data;
 	
-	int (*execute)(struct ast_channel *chan, void *data) = app->execute; 
-
 	if (c->cdr)
 		ast_cdr_setapp(c->cdr, app->name, data);
 
@@ -501,11 +500,18 @@ int pbx_exec(struct ast_channel *c, 		/*!< Channel */
 	saved_c_data= c->data;
 
 	c->appl = app->name;
-	c->data = data;		
-	res = execute(c, data);
+	c->data = data;
+	/* XXX remember what to to when we have linked apps to modules */
+	if (app->module) {
+		/* XXX LOCAL_USER_ADD(app->module) */
+	}
+	res = app->execute(c, data);
+	if (app->module) {
+		/* XXX LOCAL_USER_REMOVE(app->module) */
+	}
 	/* restore channel values */
-	c->appl= saved_c_appl;
-	c->data= saved_c_data;
+	c->appl = saved_c_appl;
+	c->data = saved_c_data;
 	return res;
 }
 
@@ -1656,9 +1662,8 @@ static struct ast_exten *ast_hint_extension(struct ast_channel *c, const char *c
 /*! \brief  ast_extensions_state2: Check state of extension by using hints */
 static int ast_extension_state2(struct ast_exten *e)
 {
-	char hint[AST_MAX_EXTENSION] = "";    
+	char hint[AST_MAX_EXTENSION];
 	char *cur, *rest;
-	int res = -1;
 	int allunavailable = 1, allbusy = 1, allfree = 1;
 	int busy = 0, inuse = 0, ring = 0;
 
@@ -1667,15 +1672,9 @@ static int ast_extension_state2(struct ast_exten *e)
 
 	ast_copy_string(hint, ast_get_extension_app(e), sizeof(hint));
 
-	cur = hint;    	/* On or more devices separated with a & character */
-	do {
-		rest = strchr(cur, '&');
-		if (rest) {
-			*rest = 0;
-			rest++;
-		}
-	
-		res = ast_device_state(cur);
+	rest = hint;	/* One or more devices separated with a & character */
+	while ( (cur = strsep(&rest, "&")) ) {
+		int res = ast_device_state(cur);
 		switch (res) {
 		case AST_DEVICE_NOT_INUSE:
 			allunavailable = 0;
@@ -1706,8 +1705,7 @@ static int ast_extension_state2(struct ast_exten *e)
 			allbusy = 0;
 			allfree = 0;
 		}
-		cur = rest;
-	} while (cur);
+	}
 
 	if (!inuse && ring)
 		return AST_EXTENSION_RINGING;
@@ -1733,9 +1731,8 @@ const char *ast_extension_state2str(int extension_state)
 	int i;
 
 	for (i = 0; (i < (sizeof(extension_states) / sizeof(extension_states[0]))); i++) {
-		if (extension_states[i].extension_state == extension_state) {
+		if (extension_states[i].extension_state == extension_state)
 			return extension_states[i].text;
-		}
 	}
 	return "Unknown";	
 }
@@ -2021,17 +2018,15 @@ static int ast_remove_hint(struct ast_exten *e)
 /*! \brief  ast_get_hint: Get hint for channel */
 int ast_get_hint(char *hint, int hintsize, char *name, int namesize, struct ast_channel *c, const char *context, const char *exten)
 {
-	struct ast_exten *e;
-	void *tmp;
+	struct ast_exten *e = ast_hint_extension(c, context, exten);
 
-	e = ast_hint_extension(c, context, exten);
 	if (e) {
 		if (hint) 
-		    ast_copy_string(hint, ast_get_extension_app(e), hintsize);
+			ast_copy_string(hint, ast_get_extension_app(e), hintsize);
 		if (name) {
-			tmp = ast_get_extension_app_data(e);
+			const char *tmp = ast_get_extension_app_data(e);
 			if (tmp)
-				ast_copy_string(name, (char *) tmp, namesize);
+				ast_copy_string(name, tmp, namesize);
 		}
 		return -1;
 	}
@@ -2397,10 +2392,8 @@ int ast_active_calls(void)
 
 int pbx_set_autofallthrough(int newval)
 {
-	int oldval;
-	oldval = autofallthrough;
-	if (oldval != newval)
-		autofallthrough = newval;
+	int oldval = autofallthrough;
+	autofallthrough = newval;
 	return oldval;
 }
 
@@ -2580,7 +2573,8 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 {
 	struct ast_exten *exten, *prev_exten = NULL;
 
-	if (ast_mutex_lock(&con->lock)) return -1;
+	if (ast_mutex_lock(&con->lock))
+		return -1;
 
 	/* go through all extensions in context and search the right one ... */
 	exten = con->root;
@@ -5998,11 +5992,13 @@ static int __ast_goto_if_exists(struct ast_channel *chan, const char *context, c
 		return -3;
 }
 
-int ast_goto_if_exists(struct ast_channel *chan, const char* context, const char *exten, int priority) {
+int ast_goto_if_exists(struct ast_channel *chan, const char* context, const char *exten, int priority)
+{
 	return __ast_goto_if_exists(chan, context, exten, priority, 0);
 }
 
-int ast_async_goto_if_exists(struct ast_channel *chan, const char * context, const char *exten, int priority) {
+int ast_async_goto_if_exists(struct ast_channel *chan, const char * context, const char *exten, int priority)
+{
 	return __ast_goto_if_exists(chan, context, exten, priority, 1);
 }
 
