@@ -9812,6 +9812,58 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	}
 }
 
+/* \brief Handle SIP response in REFER transaction
+	We've sent a REFER, now handle responses to it 
+  */
+static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
+{
+	char *auth = "Proxy-Authenticate";
+	char *auth2 = "Proxy-Authorization";
+	char iabuf[INET_ADDRSTRLEN];
+
+	switch (resp) {
+	case 202:   /* Transfer accepted */
+		/* We need  to do something here */
+		/* The transferee is now sending INVITE to target */
+		/* Now wait for next message */
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Got 202 accepted on transfer\n");
+		/* We should hang along, waiting for NOTIFY's here */
+		/* (done in a separate function) */
+		break;
+
+	case 401:   /* Not www-authorized on SIP method */
+	case 407:   /* Proxy auth */
+		if (ast_strlen_zero(p->authname)) {
+			ast_log(LOG_WARNING, "Asked to authenticate REFER to %s:%d but we have no matching peer or realm auth!\n",
+				ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+		}
+		if (resp == 401) {
+			auth = "WWW-Authenticate";
+			auth2 = "Authorization";
+		}
+		if ((p->authtries > 1) || do_proxy_auth(p, req, auth, auth2, SIP_REFER, 0)) {
+			ast_log(LOG_NOTICE, "Failed to authenticate on REFER to '%s'\n", get_header(&p->initreq, "From"));
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+		}
+		break;
+
+
+	case 500:   /* Server error */
+	case 501:   /* Method not implemented */
+		/* Return to the current call onhold */
+		/* Status flag needed to be reset */
+		ast_log(LOG_NOTICE, "SIP transfer failed, call miserably fails. \n");
+		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+		break;
+	case 603:   /* Transfer declined */
+		ast_log(LOG_NOTICE, "SIP transfer declined, call fails. \n" );
+		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+		break;
+	}
+}
+
 /*! \brief Handle responses on REGISTER to services */
 static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
 {
@@ -10065,9 +10117,15 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
 			} 
 			break;
+		case 202:   /* Transfer accepted */
+			if (sipmethod == SIP_REFER) 
+				handle_response_refer(p, resp, rest, req, ignore, seqno);
+			break;
 		case 401: /* Not www-authorized on SIP method */
 			if (sipmethod == SIP_INVITE) {
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
+			} else if (sipmethod == SIP_REFER) {
+				handle_response_refer(p, resp, rest, req, ignore, seqno);
 			} else if (p->registry && sipmethod == SIP_REGISTER) {
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
 			} else {
@@ -10095,7 +10153,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 407: /* Proxy auth required */
 			if (sipmethod == SIP_INVITE) {
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
-			} else if (sipmethod == SIP_BYE || sipmethod == SIP_REFER) {
+			} else if (sipmethod == SIP_REFER) {
+				handle_response_refer(p, resp, rest, req, ignore, seqno);
+			} else if (sipmethod == SIP_BYE) {
 				if (ast_strlen_zero(p->authname))
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
 							msg, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
@@ -10117,9 +10177,17 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 501: /* Not Implemented */
 			if (sipmethod == SIP_INVITE) {
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
+			} else if (sipmethod == SIP_REFER) {
+				handle_response_refer(p, resp, rest, req, ignore, seqno);
 			} else
 				ast_log(LOG_WARNING, "Host '%s' does not implement '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), msg);
 			break;
+		case 603:	/* Declined transfer */
+			if (sipmethod == SIP_REFER) {
+				handle_response_refer(p, resp, rest, req, ignore, seqno);
+				break;
+			}
+			/* Fallthrough */
 		default:
 			if ((resp >= 300) && (resp < 700)) {
 				/* Fatal response */
@@ -10152,10 +10220,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					/* channel now destroyed - dec the inUse counter */
 					update_call_counter(p, DEC_CALL_LIMIT);
 					break;
-				case 482: /* SIP is incapable of performing a hairpin call, which
+				case 482: /*
+					\note SIP is incapable of performing a hairpin call, which
 					is yet another failure of not having a layer 2 (again, YAY
-							 IETF for thinking ahead).  So we treat this as a call
-							 forward and hope we end up at the right place... */
+					 IETF for thinking ahead).  So we treat this as a call
+					 forward and hope we end up at the right place... */
 					ast_log(LOG_DEBUG, "Hairpin detected, setting up call forward for what it's worth\n");
 					if (p->owner)
 						ast_string_field_build(p->owner, call_forward,
@@ -10167,6 +10236,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 410: /* Gone */
 				case 400: /* Bad Request */
 				case 500: /* Server error */
+					if (sipmethod == SIP_REFER) {
+						handle_response_refer(p, resp, rest, req, ignore, seqno);
+						break;
+					}
+					/* Fall through */
+				handle_response_refer(p, resp, rest, req, ignore, seqno);
 				case 503: /* Service Unavailable */
 					if (owner)
 						ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
@@ -10220,9 +10295,16 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* We successfully transmitted a message */
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			break;
+		case 202:   /* Transfer accepted */
+			if (sipmethod == SIP_REFER) {
+				handle_response_refer(p, resp, rest, req, ignore, seqno);
+			}
+		break;
 		case 401:	/* www-auth */
 		case 407:
-			if (sipmethod == SIP_BYE || sipmethod == SIP_REFER) {
+			if (sipmethod == SIP_REFER) {
+				handle_response_refer(p, resp, rest, req, ignore, seqno);
+			} else if (sipmethod == SIP_BYE) {
 				char *auth, *auth2;
 
 				if (resp == 407) {
@@ -10246,6 +10328,19 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
 			}
 			break;
+		case 501: /* Not Implemented */
+			if (sipmethod == SIP_INVITE) {
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
+			} else if (sipmethod == SIP_REFER) {
+				handle_response_refer(p, resp, rest, req, ignore, seqno);
+			}
+			break;
+		case 603:	/* Declined transfer */
+			if (sipmethod == SIP_REFER) {
+				handle_response_refer(p, resp, rest, req, ignore, seqno);
+				break;
+			}
+			/* Fallthrough */
 		default:	/* Errors without handlers */
 			if ((resp >= 100) && (resp < 200)) {
 				if (sipmethod == SIP_INVITE) {	/* re-invite */
