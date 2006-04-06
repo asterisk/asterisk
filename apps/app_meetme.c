@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -1697,17 +1697,19 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 			dynamic_pin[0] = '\0';
 	}
 
-	if (confflags && !cnf->chan &&
-	    !ast_test_flag(confflags, CONFFLAG_QUIET) &&
-	    ast_test_flag(confflags, CONFFLAG_INTROUSER)) {
-		ast_log(LOG_WARNING, "No Zap channel available for conference, user introduction disabled (is chan_zap loaded?)\n");
-		ast_clear_flag(confflags, CONFFLAG_INTROUSER);
-	}
-
-	if (confflags && !cnf->chan &&
-	    ast_test_flag(confflags, CONFFLAG_RECORDCONF)) {
-		ast_log(LOG_WARNING, "No Zap channel available for conference, conference recording disabled (is chan_zap loaded?)\n");
-		ast_clear_flag(confflags, CONFFLAG_RECORDCONF);
+	if (cnf) {
+		if (confflags && !cnf->chan &&
+		    !ast_test_flag(confflags, CONFFLAG_QUIET) &&
+		    ast_test_flag(confflags, CONFFLAG_INTROUSER)) {
+			ast_log(LOG_WARNING, "No Zap channel available for conference, user introduction disabled (is chan_zap loaded?)\n");
+			ast_clear_flag(confflags, CONFFLAG_INTROUSER);
+		}
+		
+		if (confflags && !cnf->chan &&
+		    ast_test_flag(confflags, CONFFLAG_RECORDCONF)) {
+			ast_log(LOG_WARNING, "No Zap channel available for conference, conference recording disabled (is chan_zap loaded?)\n");
+			ast_clear_flag(confflags, CONFFLAG_RECORDCONF);
+		}
 	}
 
 	return cnf;
