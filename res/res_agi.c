@@ -139,6 +139,7 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 	struct hostent *hp;
 	struct ast_hostent ahp;
 
+	/* agiusl is "agi://host.domain[:port][/script/name]" */
 	host = ast_strdupa(agiurl + 6);	/* Remove agi:// */
 	if (!host)
 		return -1;
@@ -197,7 +198,7 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 			return -1;
 		}
 	}
-
+	/* XXX in theory should check for partial writes... */
 	while (write(s, "agi_network: yes\n", strlen("agi_network: yes\n")) < 0) {
 		if (errno != EINTR) {
 			ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
@@ -379,10 +380,7 @@ static int handle_answer(struct ast_channel *chan, AGI *agi, int argc, char *arg
 		res = ast_answer(chan);
 	}
 	fdprintf(agi->fd, "200 result=%d\n", res);
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 static int handle_waitfordigit(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
@@ -395,10 +393,7 @@ static int handle_waitfordigit(struct ast_channel *chan, AGI *agi, int argc, cha
 		return RESULT_SHOWUSAGE;
 	res = ast_waitfordigit_full(chan, to, agi->audio, agi->ctrl);
 	fdprintf(agi->fd, "200 result=%d\n", res);
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 static int handle_sendtext(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
@@ -415,10 +410,7 @@ static int handle_sendtext(struct ast_channel *chan, AGI *agi, int argc, char *a
 	   before sending it to ast_sendtext --DUDE */
 	res = ast_sendtext(chan, argv[2]);
 	fdprintf(agi->fd, "200 result=%d\n", res);
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 static int handle_recvchar(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
@@ -487,10 +479,7 @@ static int handle_sendimage(struct ast_channel *chan, AGI *agi, int argc, char *
 	if (!ast_check_hangup(chan))
 		res = 0;
 	fdprintf(agi->fd, "200 result=%d\n", res);
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
@@ -532,10 +521,7 @@ static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc
 	
 	fdprintf(agi->fd, "200 result=%d\n", res);
 
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
@@ -545,9 +531,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	long sample_offset = 0;
 	long max_length;
 
-	if (argc < 4)
-		return RESULT_SHOWUSAGE;
-	if (argc > 5)
+	if (argc < 4 || argc > 5)
 		return RESULT_SHOWUSAGE;
 	if ((argc > 4) && (sscanf(argv[4], "%ld", &sample_offset) != 1))
 		return RESULT_SHOWUSAGE;
@@ -564,10 +548,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	res = ast_playstream(fs);
 	if (res) {
 		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
-		if (res >= 0)
-			return RESULT_SHOWUSAGE;
-		else
-			return RESULT_FAILURE;
+		return (res >= 0) ? RESULT_SHOWUSAGE : RESULT_FAILURE;
 	}
 	res = ast_waitstream_full(chan, argv[3], agi->audio, agi->ctrl);
 	/* this is to check for if ast_waitstream closed the stream, we probably are at
@@ -579,10 +560,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		return RESULT_SUCCESS;
 	}
 	fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 /* get option - really similar to the handle_streamfile, but with a timeout */
@@ -648,10 +626,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 	}
 
         fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
-        if (res >= 0)
-                return RESULT_SUCCESS;
-        else
-                return RESULT_FAILURE;
+	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 
@@ -672,10 +647,7 @@ static int handle_saynumber(struct ast_channel *chan, AGI *agi, int argc, char *
 	if (res == 1)
 		return RESULT_SUCCESS;
 	fdprintf(agi->fd, "200 result=%d\n", res);
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 static int handle_saydigits(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
@@ -692,10 +664,7 @@ static int handle_saydigits(struct ast_channel *chan, AGI *agi, int argc, char *
 	if (res == 1) /* New command */
 		return RESULT_SUCCESS;
 	fdprintf(agi->fd, "200 result=%d\n", res);
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 static int handle_sayalpha(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
@@ -709,10 +678,7 @@ static int handle_sayalpha(struct ast_channel *chan, AGI *agi, int argc, char *a
 	if (res == 1) /* New command */
 		return RESULT_SUCCESS;
 	fdprintf(agi->fd, "200 result=%d\n", res);
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 static int handle_saydate(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
@@ -727,10 +693,7 @@ static int handle_saydate(struct ast_channel *chan, AGI *agi, int argc, char *ar
 	if (res == 1)
 		return RESULT_SUCCESS;
 	fdprintf(agi->fd, "200 result=%d\n", res);
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 static int handle_saytime(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
@@ -760,6 +723,7 @@ static int handle_saydatetime(struct ast_channel *chan, AGI *agi, int argc, char
 	if (argc > 4) {
 		format = argv[4];
 	} else {
+		/* XXX this doesn't belong here, but in the 'say' module */
 		if (!strcasecmp(chan->language, "de")) {
 			format = "A dBY HMS";
 		} else {
@@ -792,10 +756,7 @@ static int handle_sayphonetic(struct ast_channel *chan, AGI *agi, int argc, char
 	if (res == 1) /* New command */
 		return RESULT_SUCCESS;
 	fdprintf(agi->fd, "200 result=%d\n", res);
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 static int handle_getdata(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
@@ -1257,11 +1218,7 @@ static int handle_dbput(struct ast_channel *chan, AGI *agi, int argc, char **arg
 	if (argc != 5)
 		return RESULT_SHOWUSAGE;
 	res = ast_db_put(argv[2], argv[3], argv[4]);
-	if (res) 
-		fdprintf(agi->fd, "200 result=0\n");
-	else
-		fdprintf(agi->fd, "200 result=1\n");
-
+	fdprintf(agi->fd, "200 result=%c\n", res ? '0' : '1');
 	return RESULT_SUCCESS;
 }
 
@@ -1272,11 +1229,7 @@ static int handle_dbdel(struct ast_channel *chan, AGI *agi, int argc, char **arg
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	res = ast_db_del(argv[2], argv[3]);
-	if (res) 
-		fdprintf(agi->fd, "200 result=0\n");
-	else
-		fdprintf(agi->fd, "200 result=1\n");
-
+	fdprintf(agi->fd, "200 result=%c\n", res ? '0' : '1');
 	return RESULT_SUCCESS;
 }
 
@@ -1290,10 +1243,7 @@ static int handle_dbdeltree(struct ast_channel *chan, AGI *agi, int argc, char *
 	else
 		res = ast_db_deltree(argv[2], NULL);
 
-	if (res) 
-		fdprintf(agi->fd, "200 result=0\n");
-	else
-		fdprintf(agi->fd, "200 result=1\n");
+	fdprintf(agi->fd, "200 result=%c\n", res ? '0' : '1');
 	return RESULT_SUCCESS;
 }
 
@@ -1337,15 +1287,10 @@ static int handle_noop(struct ast_channel *chan, AGI *agi, int arg, char *argv[]
 
 static int handle_setmusic(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-	if (!strncasecmp(argv[2],"on",2)) {
-		if (argc > 3)
-			ast_moh_start(chan, argv[3]);
-		else
-			ast_moh_start(chan, NULL);
-	}
-	if (!strncasecmp(argv[2],"off",3)) {
+	if (!strncasecmp(argv[2], "on", 2))
+		ast_moh_start(chan, argc > 3 ? argv[3] : NULL);
+	else if (!strncasecmp(argv[2], "off", 3))
 		ast_moh_stop(chan);
-	}
 	fdprintf(agi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
@@ -1906,7 +1851,8 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, i
 	return returnstatus;
 }
 
-static int handle_showagi(int fd, int argc, char *argv[]) {
+static int handle_showagi(int fd, int argc, char *argv[])
+{
 	struct agi_command *e;
 	char fullcmd[80];
 	if ((argc < 2))
@@ -1929,7 +1875,8 @@ static int handle_showagi(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static int handle_dumpagihtml(int fd, int argc, char *argv[]) {
+static int handle_dumpagihtml(int fd, int argc, char *argv[])
+{
 	struct agi_command *e;
 	char fullcmd[80];
 	int x;
