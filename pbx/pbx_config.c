@@ -30,6 +30,8 @@
 #include <ctype.h>
 #include <errno.h>
 
+#define STATIC_MODULE
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -1324,7 +1326,7 @@ static struct ast_cli_entry reload_extensions_cli =
 /*!
  * Standard module functions ...
  */
-int unload_module(void)
+STATIC_MODULE int unload_module(void)
 {
 	ast_cli_unregister(&context_add_extension_cli);
 	if (static_config && !write_protect_config)
@@ -1339,7 +1341,7 @@ int unload_module(void)
 	return 0;
 }
 
-static int pbx_load_module(void)
+static void pbx_load_config(const char *config_file)
 {
 	struct ast_config *cfg;
 	char *end;
@@ -1348,8 +1350,10 @@ static int pbx_load_module(void)
 	int lastpri = -2;
 	struct ast_context *con;
 
-	cfg = ast_config_load(config);
-	if (cfg) {
+	cfg = ast_config_load(config_file);
+	if (!cfg)
+		return;
+	{
 		struct ast_variable *v;
 		char *cxt;
 
@@ -1504,7 +1508,15 @@ static int pbx_load_module(void)
 		}
 		ast_config_destroy(cfg);
 	}
-	ast_merge_contexts_and_delete(&local_contexts,registrar);
+
+}
+
+static int pbx_load_module(void)
+{
+	struct ast_context *con;
+
+	pbx_load_config(config);
+	ast_merge_contexts_and_delete(&local_contexts, registrar);
 
 	for (con = NULL; (con = ast_walk_contexts(con));)
 		ast_context_verify_includes(con);
@@ -1514,7 +1526,7 @@ static int pbx_load_module(void)
 	return 0;
 }
 
-int load_module(void)
+STATIC_MODULE int load_module(void)
 {
 	if (pbx_load_module()) return -1;
  
@@ -1531,7 +1543,7 @@ int load_module(void)
 	return 0;
 }
 
-int reload(void)
+STATIC_MODULE int reload(void)
 {
 	ast_context_destroy(NULL, registrar);
 	if (clearglobalvars_config)
@@ -1540,17 +1552,19 @@ int reload(void)
 	return 0;
 }
 
-int usecount(void)
+STATIC_MODULE int usecount(void)
 {
 	return 0;
 }
 
-char *description(void)
+STATIC_MODULE char *description(void)
 {
 	return dtext;
 }
 
-char *key(void)
+STATIC_MODULE char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, reload, NULL, NULL);
