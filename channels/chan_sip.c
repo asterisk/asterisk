@@ -10553,6 +10553,145 @@ static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tag
 	return thetag;
 }
 
+/*! \brief Handle incoming notifications */
+static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, struct sockaddr_in *sin, int seqno, char *e)
+{
+	/* This is mostly a skeleton for future improvements */
+	/* Mostly created to return proper answers on notifications on outbound REFER's */
+	int res = 0;
+	char *event = get_header(req, "Event");
+	char *eventid = NULL;
+	char *sep;
+
+	if( (sep = strchr(event, ';')) ) {
+		*sep = '\0';
+		eventid = ++sep;
+	}
+	
+	if (option_debug > 1 && sipdebug)
+		ast_log(LOG_DEBUG, "Got NOTIFY Event: %s\n", event);
+
+	if (strcmp(event, "refer")) {
+		/* We don't understand this event. */
+		/* Here's room to implement incoming voicemail notifications :-) */
+		transmit_response(p, "489 Bad event", req);
+		if (!p->lastinvite) 
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		return -1;
+	} else {
+		/* Handle REFER notifications */
+
+		char buf[1024];
+		char *cmd, *code;
+		int respcode;
+		int success = TRUE;
+
+		/* EventID for each transfer... EventID is basically the REFER cseq 
+
+		 We are getting notifications on a call that we transfered
+		 We should hangup when we are getting a 200 OK in a sipfrag
+		 Check if we have an owner of this event */
+		
+		/* Check the content type */
+		if (strncasecmp(get_header(req, "Content-Type"), "message/sipfrag", strlen("message/sipfrag"))) {
+			/* We need a sipfrag */
+			transmit_response(p, "400 Bad request", req);
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			return -1;
+		}
+
+		/* Get the text of the attachment */
+		if (get_msg_text(buf, sizeof(buf), req)) {
+			ast_log(LOG_WARNING, "Unable to retrieve attachment from NOTIFY %s\n", p->callid);
+			transmit_response(p, "400 Bad request", req);
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			return -1;
+		}
+
+		/*
+		From the RFC...
+		A minimal, but complete, implementation can respond with a single
+   		NOTIFY containing either the body:
+      			SIP/2.0 100 Trying
+		
+   		if the subscription is pending, the body:
+      			SIP/2.0 200 OK
+   		if the reference was successful, the body:
+      			SIP/2.0 503 Service Unavailable
+   		if the reference failed, or the body:
+      			SIP/2.0 603 Declined
+
+   		if the REFER request was accepted before approval to follow the
+   		reference could be obtained and that approval was subsequently denied
+   		(see Section 2.4.7).
+		
+		If there are several REFERs in the same dialog, we need to
+		match the ID of the event header...
+		*/
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "* SIP Transfer NOTIFY Attachment: \n---%s\n---\n", buf);
+		cmd = buf;
+		while(*cmd && (*cmd < 33)) {	/* Skip white space */
+			cmd++;
+		}
+		code = cmd;
+		/* We are at SIP/2.0 */
+		while(*code && (*code > 32)) {	/* Search white space */
+			code++;
+		}
+		*code = '\0';
+		code++;
+		while(*code && (*code < 33)) {	/* Skip white space */
+			code++;
+		}
+		sep = code;
+		sep++;
+		while(*sep && (*sep > 32)) {	/* Search white space */
+			sep++;
+		}
+		*sep = '\0';
+		sep++;				/* Response string */
+		respcode = atoi(code);
+		switch (respcode) {
+		case 100:	/* Trying: */
+			/* Don't do anything yet */
+			break;
+		case 183:	/* Ringing: */
+			/* Don't do anything yet */
+			break;
+		case 200:	/* OK: The new call is up, hangup this call */
+			/* Hangup the call that we are replacing */
+			break;
+		case 301: /* Moved permenantly */
+		case 302: /* Moved temporarily */
+			/* Do we get the header in the packet in this case? */
+			success = FALSE;
+			break;
+		case 503:	/* Service Unavailable: The new call failed */
+				/* Cancel transfer, continue the call */
+			success = FALSE;
+			break;
+		case 603:	/* Declined: Not accepted */
+				/* Cancel transfer, continue the current call */
+			success = FALSE;
+			break;
+		}
+		if (!success) {
+			ast_log(LOG_NOTICE, "Transfer failed. Sorry. Nothing further to do with this call\n");
+		}
+		
+		/* Confirm that we received this packet */
+		transmit_response(p, "200 OK", req);
+		return res;
+	};
+
+	/* THis could be voicemail notification */
+	transmit_response(p, "200 OK", req);
+	if (!p->lastinvite) 
+		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+	return res;
+}
+
 /*! \brief Handle incoming OPTIONS request */
 static int handle_request_options(struct sip_pvt *p, struct sip_request *req, int debug)
 {
@@ -11428,11 +11567,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		}
 		break;
 	case SIP_NOTIFY:
-		/* XXX we get NOTIFY's from some servers. WHY?? Maybe we should
-			look into this someday XXX */
-		transmit_response(p, "200 OK", req);
-		if (!p->lastinvite) 
-			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		res = handle_request_notify(p, req, debug, ignore, sin, seqno, e);
 		break;
 	case SIP_ACK:
 		/* Make sure we don't ignore this */
