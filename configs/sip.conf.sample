@@ -25,7 +25,8 @@
 
 [general]
 context=default			; Default context for incoming calls
-;allowguest=no			; Allow or reject guest calls (default is yes, this can also be set to 'osp'
+;allowguest=no			; Allow or reject guest calls (default is yes, 
+				; this can also be set to 'osp'
 				; if asterisk was compiled with OSP support.)
 allowoverlap=no			; Disable overlap dialing support. (Default is yes)
 ;allowsubscribe=no		; Disable support for subscriptions. (Default is yes)
@@ -64,7 +65,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;tos_audio=ef                   ; Sets TOS for RTP audio packets.
 ;tos_video=af41                 ; Sets TOS for RTP video packets.
 
-;maxexpiry=3600			; Max length of incoming registrations/subscriptions we allow (seconds)
+;maxexpiry=3600			; Maximum allowed time of incoming registrations
+				; and subscriptions (seconds)
 ;minexpiry=60			; Minimum length of registrations/subscriptions (default 60)
 ;defaultexpiry=120		; Default length of incoming/outoing registration
 ;t1min=100			; Minimum roundtrip time for messages to monitored hosts
@@ -120,7 +122,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;maxcallbitrate=384		; Maximum bitrate for video calls (default 384 kb/s)
 				; Videosupport and maxcallbitrate is settable
 				; for peers and users as well
-;callevents=no			; generate manager events when sip ua performs events (e.g. hold)
+;callevents=no			; generate manager events when sip ua 
+				; performs events (e.g. hold)
 
 ;
 ; If regcontext is specified, Asterisk will dynamically create and destroy a
@@ -162,16 +165,16 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
   
 ;registertimeout=20		; retry registration calls every 20 seconds (default)
 ;registerattempts=10		; Number of registration attempts before we give up
-				; 0 = continue forever, hammering the other server until it 
-				; accepts the registration
+				; 0 = continue forever, hammering the other server
+				; until it accepts the registration
 				; Default is 0 tries, continue forever
 
 ;----------------------------------------- NAT SUPPORT ------------------------
 ; The externip, externhost and localnet settings are used if you use Asterisk
 ; behind a NAT device to communicate with services on the outside.
 
-;externip = 200.201.202.203	; Address that we're going to put in outbound SIP messages
-				; if we're behind a NAT
+;externip = 200.201.202.203	; Address that we're going to put in outbound SIP
+				; messages if we're behind a NAT
 
 				; The externip and localnet is used
 				; when registering and communicating with other proxies
@@ -183,8 +186,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; environments!  Use externip instead
 ;externrefresh=10		; How often to refresh externhost if 
 				; used
-				; You may add multiple local networks.  A reasonable set of defaults
-				; are:
+				; You may add multiple local networks.  A reasonable 
+				; set of defaults are:
 ;localnet=192.168.0.0/255.255.0.0; All RFC 1918 addresses are local networks
 ;localnet=10.0.0.0/255.0.0.0	; Also RFC1918
 ;localnet=172.16.0.0/12		; Another RFC1918 with CIDR notation
@@ -225,26 +228,27 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;rtupdate=yes			; Send registry updates to database using realtime? (yes|no)
 				; If set to yes, when a SIP UA registers successfully, the ip address,
 				; the origination port, the registration period, and the username of
-				; the UA will be set to database via realtime. If not present, defaults to 'yes'.
+				; the UA will be set to database via realtime. 
+				; If not present, defaults to 'yes'.
 ;rtautoclear=yes		; Auto-Expire friends created on the fly on the same schedule
 				; as if it had just registered? (yes|no|<seconds>)
-				; If set to yes, when the registration expires, the friend will vanish from
-				; the configuration until requested again. If set to an integer,
-				; friends expire within this number of seconds instead of the
-				; registration interval.
+				; If set to yes, when the registration expires, the friend will
+				; vanish from the configuration until requested again. If set
+				; to an integer, friends expire within this number of seconds
+				; instead of the registration interval.
 
 ;ignoreregexpire=yes		; Enabling this setting has two functions:
 				;
-				; For non-realtime peers, when their registration expires, the information
-				; will _not_ be removed from memory or the Asterisk database; if you attempt
-				; to place a call to the peer, the existing information will be used in spite
-				; of it having expired
+				; For non-realtime peers, when their registration expires, the
+				; information will _not_ be removed from memory or the Asterisk database
+				; if you attempt to place a call to the peer, the existing information
+				; will be used in spiteof it having expired
 				;
 				; For realtime peers, when the peer is retrieved from realtime storage,
 				; the registration information will be used regardless of whether
-				; it has expired or not; if it expires while the realtime peer is still in
-				; memory (due to caching or other reasons), the information will not be
-				; removed from realtime storage
+				; it has expired or not; if it expires while the realtime peer 
+				; is still in memory (due to caching or other reasons), the 
+				; information will not be removed from realtime storage
 
 ;----------------------------------------- SIP DOMAIN SUPPORT ------------------------
 ; Incoming INVITE and REFER messages can be matched against a list of 'allowed'
@@ -360,12 +364,14 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; since they are not stored in-memory
 
 ;------------------------------------------------------------------------------
-; Definitions of locally connected SIP phones
+; Definitions of locally connected SIP devices
 ;
 ; type = user	a device that authenticates to us by "from" field to place calls
 ; type = peer	a device we place calls to or that calls us and we match by host
 ; type = friend two configurations (peer+user) in one
 ;
+; For device names, we recommend using only a-z, numerics (0-9) and underscore
+; 
 ; For local phones, type=friend works most of the time
 ;
 ; If you have one-way audio, you propably have NAT problems. 
@@ -459,7 +465,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;type=friend
 ;secret=blah
 ;host=dynamic
-;insecure=port			; Allow matching of peer by IP address without matching port number
+;insecure=port			; Allow matching of peer by IP address without 
+				; matching port number
 ;insecure=invite		; Do not require authentication of incoming INVITEs
 ;insecure=port,invite		; (both)
 ;qualify=1000			; Consider it down if it's 1 second to reply
