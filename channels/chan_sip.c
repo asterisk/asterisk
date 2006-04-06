@@ -5705,7 +5705,8 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	char *of, *c;
 	char referto[256];
 
-	if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) 
+	/* Are we transfering an inbound or outbound call? */
+	if (ast_test_flag(&p->flags[0], SIP_OUTGOING))
 		of = get_header(&p->initreq, "To");
 	else
 		of = get_header(&p->initreq, "From");
@@ -5729,16 +5730,26 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 		snprintf(referto, sizeof(referto), "<sip:%s>", dest);
 	}
 
+	add_header(&req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
+
 	/* save in case we get 407 challenge */
 	ast_string_field_set(p, refer_to, referto);
 	ast_string_field_set(p, referred_by, p->our_contact);
 
 	reqprep(&req, p, SIP_REFER, 0, 1);
 	add_header(&req, "Refer-To", referto);
+	add_header(&req, "Allow", ALLOWED_METHODS);
+	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
 	if (!ast_strlen_zero(p->our_contact))
 		add_header(&req, "Referred-By", p->our_contact);
 	add_blank_header(&req);
 	return send_request(p, &req, 1, p->ocseq);
+
+	/*! \todo In theory, we should hang around and wait for a reply, before
+	returning to the dial plan here. Don't know really how that would
+	affect the transfer() app or the pbx, but, well, to make this
+	useful we should have a STATUS code on transfer().
+	*/
 }
 
 /*! \brief Send SIP INFO dtmf message, see Cisco documentation on cisco.com */
