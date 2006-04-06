@@ -1061,15 +1061,16 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 	char *next, *sep;
 	char *temp = ast_strdupa(supported);
 	unsigned int profile = 0;
+	int i, found;
 
-	if (ast_strlen_zero(supported) )
+	if (!pvt || ast_strlen_zero(supported) )
 		return 0;
 
 	if (option_debug > 2 && sipdebug)
 		ast_log(LOG_DEBUG, "Begin: parsing SIP \"Supported: %s\"\n", supported);
 
 	for (next = temp; next; next = sep) {
-		int i, found = 0;
+		found = FALSE;
 		if ( (sep = strchr(next, ',')) != NULL)
 			*sep++ = '\0';
 		next = ast_skip_blanks(next);
@@ -1078,7 +1079,7 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 		for (i=0; i < (sizeof(sip_options) / sizeof(sip_options[0])); i++) {
 			if (!strcasecmp(next, sip_options[i].text)) {
 				profile |= sip_options[i].id;
-				found = 1;
+				found = TRUE;
 				if (option_debug > 2 && sipdebug)
 					ast_log(LOG_DEBUG, "Matched SIP option: %s\n", next);
 				break;
@@ -1087,11 +1088,8 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 		if (!found && option_debug > 2 && sipdebug)
 			ast_log(LOG_DEBUG, "Found no match for SIP option: %s (Please file bug report!)\n", next);
 	}
-	if (pvt) {
-		pvt->sipoptions = profile;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "* SIP extension value: %d for call %s\n", profile, pvt->callid);
-	}
+
+	pvt->sipoptions = profile;
 	return profile;
 }
 
