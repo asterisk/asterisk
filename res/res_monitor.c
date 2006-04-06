@@ -31,6 +31,8 @@
 #include <sys/stat.h>
 #include <libgen.h>		/* dirname() */
 
+#define STATIC_MODULE
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -645,7 +647,7 @@ static int unpause_monitor_action(struct mansession *s, struct message *m)
 }
 	
 
-int load_module(void)
+STATIC_MODULE int load_module(void)
 {
 	ast_register_application("Monitor", start_monitor_exec, monitor_synopsis, monitor_descrip);
 	ast_register_application("StopMonitor", stop_monitor_exec, stopmonitor_synopsis, stopmonitor_descrip);
@@ -661,7 +663,7 @@ int load_module(void)
 	return 0;
 }
 
-int unload_module(void)
+STATIC_MODULE int unload_module(void)
 {
 	ast_unregister_application("Monitor");
 	ast_unregister_application("StopMonitor");
@@ -677,12 +679,12 @@ int unload_module(void)
 	return 0;
 }
 
-char *description(void)
+STATIC_MODULE char *description(void)
 {
 	return "Call Monitoring Resource";
 }
 
-int usecount(void)
+STATIC_MODULE int usecount(void)
 {
 	/* Never allow monitor to be unloaded because it will
 	   unresolve needed symbols in the channel */
@@ -695,7 +697,9 @@ int usecount(void)
 #endif
 }
 
-char *key()
+STATIC_MODULE char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_0, NULL, NULL, NULL);	/* MOD_0 because it exports some symbols */
