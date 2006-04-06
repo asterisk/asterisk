@@ -2,7 +2,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -75,8 +75,9 @@ static const char *descrip =
 "conference.  If the conference number is omitted, the user will be prompted\n"
 "to enter one.  User can exit the conference by hangup, or if the 'p' option\n"
 "is specified, by pressing '#'.\n"
-"Please note: A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING TO WORK!\n\n"
-
+"Please note: The Zaptel kernel modules and at least one hardware driver (or ztdummy)\n"
+"             must be present for conferencing to operate properly. In addition, the chan_zap\n"
+"             channel driver must be loaded for the 'i' and 'r' options to operate at all.\n\n"
 "The option string may contain zero or more of the following characters:\n"
 "      'a' -- set admin mode\n"
 "      'A' -- set marked mode\n"
@@ -1733,12 +1734,9 @@ bailoutandtrynormal:
 	return ret;
 }
 
-/*
-  This function looks for a conference via the RealTime module
-*/
-static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char *confno, int make, int dynamic, char *dynamic_pin, int refcount)
+static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char *confno, int make, int dynamic,
+						 char *dynamic_pin, int refcount, struct ast_flags *confflags)
 {
-
 	struct ast_variable *var;
 	struct ast_conference *cnf;
 
@@ -1778,11 +1776,27 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		cnf = build_conf(confno, pin ? pin : "", pinadmin ? pinadmin : "", make, dynamic, refcount);
 	}
 
+	if (cnf) {
+		if (confflags && !cnf->chan &&
+		    !ast_test_flag(confflags, CONFFLAG_QUIET) &&
+		    ast_test_flag(confflags, CONFFLAG_INTROUSER)) {
+			ast_log(LOG_WARNING, "No Zap channel available for conference, user introduction disabled (is chan_zap loaded?)\n");
+			ast_clear_flag(confflags, CONFFLAG_INTROUSER);
+		}
+		
+		if (confflags && !cnf->chan &&
+		    ast_test_flag(confflags, CONFFLAG_RECORDCONF)) {
+			ast_log(LOG_WARNING, "No Zap channel available for conference, conference recording disabled (is chan_zap loaded?)\n");
+			ast_clear_flag(confflags, CONFFLAG_RECORDCONF);
+		}
+	}
+
 	return cnf;
 }
 
 
-static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, int make, int dynamic, char *dynamic_pin, int refcount)
+static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, int make, int dynamic,
+					char *dynamic_pin, int refcount, struct ast_flags *confflags)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
@@ -1856,6 +1870,21 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 			dynamic_pin[0] = '\0';
 	}
 
+	if (cnf) {
+		if (confflags && !cnf->chan &&
+		    !ast_test_flag(confflags, CONFFLAG_QUIET) &&
+		    ast_test_flag(confflags, CONFFLAG_INTROUSER)) {
+			ast_log(LOG_WARNING, "No Zap channel available for conference, user introduction disabled (is chan_zap loaded?)\n");
+			ast_clear_flag(confflags, CONFFLAG_INTROUSER);
+		}
+		
+		if (confflags && !cnf->chan &&
+		    ast_test_flag(confflags, CONFFLAG_RECORDCONF)) {
+			ast_log(LOG_WARNING, "No Zap channel available for conference, conference recording disabled (is chan_zap loaded?)\n");
+			ast_clear_flag(confflags, CONFFLAG_RECORDCONF);
+		}
+	}
+
 	return cnf;
 }
 
@@ -1887,7 +1916,8 @@ static int count_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, localdata);
 	
-	conf = find_conf(chan, args.confno, 0, 0, NULL, 0);
+	conf = find_conf(chan, args.confno, 0, 0, NULL, 0, NULL);
+
 	if (conf)
 		count = conf->users;
 	else
@@ -2073,10 +2103,10 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		}
 		if (!ast_strlen_zero(confno)) {
 			/* Check the validity of the conference */
-			cnf = find_conf(chan, confno, 1, dynamic, the_pin, 1);
-			if (!cnf) {
-				cnf = find_conf_realtime(chan, confno, 1, dynamic, the_pin, 1);
-			}
+			cnf = find_conf(chan, confno, 1, dynamic, the_pin, 1, &confflags);
+			if (!cnf)
+				cnf = find_conf_realtime(chan, confno, 1, dynamic, the_pin, 1, &confflags);
+
 			if (!cnf) {
 				res = ast_streamfile(chan, "conf-invalid", chan->language);
 				if (!res)
