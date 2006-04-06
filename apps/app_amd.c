@@ -207,19 +207,8 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 
 	while ((ret = ast_waitfor(chan, totalAnalysisTime)))
 	{
-		if (ret < 0) {
-			/* No Frame: Called Party Must Have Dropped */
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "AMD: HANGUP\n");
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Got hangup\n");
-			strcpy(amdStatus , "HANGUP" );
-			strcpy(amdCause , "" );
-			break;
-		}
-		f = ast_read(chan);
-		if (!f ) {
-			/* No Frame: Called Party Must Have Dropped */
+		if (ret < 0 || !(f = ast_read(chan))) {
+			/* No Frame OR Error on ast_waitfor : Called Party Must Have Dropped */
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "AMD: HANGUP\n");
 			if (option_debug)
