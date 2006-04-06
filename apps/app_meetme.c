@@ -71,7 +71,7 @@ static const char *descrip =
 "one. \n"
 "User can exit the conference by hangup, or if the 'p' option is specified, by pressing '#'.\n"
 "Please note: The Zaptel kernel modules and at least one hardware driver (or ztdummy)\n"
-"             must be present for conferencing to operate properly. In additon, the chan_zap\n"
+"             must be present for conferencing to operate properly. In addition, the chan_zap\n"
 "             channel driver must be loaded for the 'i' and 'r' options to operate at all.\n\n"
 "The option string may contain zero or more of the following characters:\n"
 "      'a' -- set admin mode\n"
