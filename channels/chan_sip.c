@@ -10718,7 +10718,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, in
 static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, struct sockaddr_in *sin, int *recount, char *e)
 {
 	int res = 1;
-	struct ast_channel *c=NULL;
+	struct ast_channel *c=NULL;		/* New channel */
 	int gotdest;
 	char *supported;
 	char *required;
@@ -10730,6 +10730,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (supported)
 			parse_sip_options(p, supported);
 	}
+
+	/* Find out what they require */
 	required = get_header(req, "Required");
 	if (!ast_strlen_zero(required)) {
 		required_profile = parse_sip_options(NULL, required);
@@ -10766,17 +10768,18 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	}
 
 	if (!ignore) {
-		/* Use this as the basis */
-		if (debug)
-			ast_verbose("Using INVITE request as basis request - %s\n", p->callid);
 		sip_cancel_destroy(p);
-		/* This call is no longer outgoing if it ever was */
-		ast_clear_flag(&p->flags[0], SIP_OUTGOING);
+
 		/* This also counts as a pending invite */
 		p->pendinginvite = seqno;
-		copy_request(&p->initreq, req);
 		check_via(p, req);
-		if (p->owner) {
+
+		if (!p->owner) {	/* Not a re-invite */
+			/* Use this as the basis */
+			copy_request(&p->initreq, req);
+			if (debug)
+				ast_verbose("Using INVITE request as basis request - %s\n", p->callid);
+		} else {	/* Re-invite on existing call */
 			/* Handle SDP here if we already have an owner */
 			if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
 				if (process_sdp(p, req)) {
