@@ -2977,6 +2977,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	/* Set channel variables for this call from configuration */
 	for (v = i->chanvars ; v ; v = v->next)
 		pbx_builtin_setvar_helper(tmp,v->name,v->value);
+
+	append_history(i, "NewChan", "Channel %s - from %s", tmp->name, i->callid);
 				
 	return tmp;
 }
