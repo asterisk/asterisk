@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2005, Joshua Colp
  *
- * Joshua Colp <jcolp@asterlink.com>
+ * Joshua Colp <jcolp@digium.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
