@@ -28,6 +28,8 @@
 #include <sys/types.h>
 #include <stdlib.h>
 
+#define STATIC_MODULE
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -35,9 +37,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
-
-
-static char *tdesc = "Tell Asterisk to not maintain a CDR for the current call";
 
 static char *nocdr_descrip = 
 "  NoCDR(): This application will tell Asterisk not to maintain a CDR for the\n"
@@ -64,7 +63,7 @@ static int nocdr_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-int unload_module(void)
+STATIC_MODULE int unload_module(void)
 {
 	int res;
 
@@ -75,24 +74,26 @@ int unload_module(void)
 	return res;
 }
 
-int load_module(void)
+STATIC_MODULE int load_module(void)
 {
 	return ast_register_application(nocdr_app, nocdr_exec, nocdr_synopsis, nocdr_descrip);
 }
 
-char *description(void)
+STATIC_MODULE char *description(void)
 {
-	return tdesc;
+	return "Tell Asterisk to not maintain a CDR for the current call";
 }
 
-int usecount(void)
+STATIC_MODULE int usecount(void)
 {
 	int res;
 	STANDARD_USECOUNT(res);
 	return res;
 }
 
-char *key()
+STATIC_MODULE char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, NULL, NULL, NULL);
