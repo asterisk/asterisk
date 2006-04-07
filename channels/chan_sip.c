@@ -11552,13 +11552,16 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	}
 	p = sip_alloc(NULL, NULL, 0, SIP_INVITE);
 	if (!p) {
-		ast_log(LOG_WARNING, "Unable to build sip pvt data for '%s'\n", (char *)data);
+		ast_log(LOG_ERROR, "Unable to build sip pvt data for '%s' (Out of memory)\n", (char *)data);
+		*cause = AST_CAUSE_CONGESTION;
 		return NULL;
 	}
 
 	p->options = calloc(1, sizeof(*p->options));
 	if (!p->options) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+		sip_destroy(p);
+		ast_log(LOG_ERROR, "Unable to build option SIP data structure - Out of memory\n");
+		*cause = AST_CAUSE_CONGESTION;
 		return NULL;
 	}
 
