@@ -1521,7 +1521,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 	if (recordhistory) {
 		struct sip_request tmp;
 		parse_copy(&tmp, req);
-		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s", tmp.data, get_header(&tmp, "CSeq"));
+		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s - %s", tmp.data, get_header(&tmp, "CSeq"), sip_methods[req->method].text);
 	}
 	res = (reliable) ?
 		__sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
@@ -1546,7 +1546,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 	if (recordhistory) {
 		struct sip_request tmp;
 		parse_copy(&tmp, req);
-		append_history(p, reliable ? "TxReqRel" : "TxReq", "%s / %s", tmp.data, get_header(&tmp, "CSeq"));
+		append_history(p, reliable ? "TxReqRel" : "TxReq", "%s / %s - %s", tmp.data, get_header(&tmp, "CSeq"), sip_methods[req->method].text);
 	}
 	res = (reliable) ?
 		__sip_reliable_xmit(p, seqno, 0, req->data, req->len, (reliable > 1), req->method) :
@@ -11574,7 +11574,7 @@ retrylock:
 		}
 		p->recv = sin;
 		if (recordhistory) /* This is a response, note what it was for */
-			append_history(p, "Rx", "%s / %s", req.data, get_header(&req, "CSeq"));
+			append_history(p, "Rx", "%s / %s %s", req.data, get_header(&req, "CSeq"), req.rlPart2);
 		nounlock = 0;
 		if (handle_request(p, &req, &sin, &recount, &nounlock) == -1) {
 			/* Request failed */
