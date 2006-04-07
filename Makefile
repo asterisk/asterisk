@@ -124,35 +124,56 @@ BUSYDETECT+= #-DBUSYDETECT_TONEONLY
 # Don't use together with -DBUSYDETECT_TONEONLY
 BUSYDETECT+= #-DBUSYDETECT_COMPARE_TONE_AND_SILENCE
 
-ifneq ($(OSARCH),SunOS)
-  ASTLIBDIR=$(INSTALL_PREFIX)/usr/lib/asterisk
-  ASTVARLIBDIR=$(INSTALL_PREFIX)/var/lib/asterisk
-  ASTETCDIR=$(INSTALL_PREFIX)/etc/asterisk
-  ASTSPOOLDIR=$(INSTALL_PREFIX)/var/spool/asterisk
-  ASTLOGDIR=$(INSTALL_PREFIX)/var/log/asterisk
-  ASTHEADERDIR=$(INSTALL_PREFIX)/usr/include/asterisk
-  ASTCONFPATH=$(ASTETCDIR)/asterisk.conf
-  ASTBINDIR=$(INSTALL_PREFIX)/usr/bin
-  ASTSBINDIR=$(INSTALL_PREFIX)/usr/sbin
-  ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
-  ASTMANDIR=$(INSTALL_PREFIX)/usr/share/man
-  MODULES_DIR=$(ASTLIBDIR)/modules
-  AGI_DIR=$(ASTVARLIBDIR)/agi-bin
-else
+# Define standard directories for various platforms
+# These apply if they are not redefined in asterisk.conf 
+ifeq ($(OSARCH),SunOS)
+  ASTETCDIR=$(INSTALL_PREFIX)/etc/opt/asterisk
   ASTLIBDIR=$(INSTALL_PREFIX)/opt/asterisk/lib
   ASTVARLIBDIR=$(INSTALL_PREFIX)/var/opt/asterisk/lib
-  ASTETCDIR=$(INSTALL_PREFIX)/etc/opt/asterisk
   ASTSPOOLDIR=$(INSTALL_PREFIX)/var/opt/asterisk/spool
   ASTLOGDIR=$(INSTALL_PREFIX)/var/opt/asterisk/log
   ASTHEADERDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/include/asterisk
-  ASTCONFPATH=$(ASTETCDIR)/asterisk.conf
   ASTBINDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/bin
   ASTSBINDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/sbin
   ASTVARRUNDIR=$(INSTALL_PREFIX)/var/opt/asterisk/run
   ASTMANDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/share/man
-  MODULES_DIR=$(ASTLIBDIR)/modules
-  AGI_DIR=$(ASTVARLIBDIR)/agi-bin
+else
+ifeq ($(OSARCH),FreeBSD)
+  PREFIX?=/usr/local
+  ASTETCDIR=$(INSTALL_PREFIX)$(PREFIX)/etc/asterisk
+  ASTLIBDIR=$(INSTALL_PREFIX)$(PREFIX)/lib/asterisk
+  ASTVARLIBDIR=$(INSTALL_PREFIX)$(PREFIX)/share/asterisk
+  ASTSPOOLDIR=$(INSTALL_PREFIX)/var/spool/asterisk
+  ASTLOGDIR=$(INSTALL_PREFIX)/var/log/asterisk
+  ASTHEADERDIR=$(INSTALL_PREFIX)$(PREFIX)/include/asterisk
+  ASTBINDIR=$(INSTALL_PREFIX)$(PREFIX)/bin
+  ASTSBINDIR=$(INSTALL_PREFIX)$(PREFIX)/sbin
+  ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
+  ASTMANDIR=$(INSTALL_PREFIX)$(PREFIX)/man
+else
+  ASTETCDIR=$(INSTALL_PREFIX)/etc/asterisk
+  ASTLIBDIR=$(INSTALL_PREFIX)/usr/lib/asterisk
+  ASTVARLIBDIR=$(INSTALL_PREFIX)/var/lib/asterisk
+  ASTSPOOLDIR=$(INSTALL_PREFIX)/var/spool/asterisk
+  ASTLOGDIR=$(INSTALL_PREFIX)/var/log/asterisk
+  ASTHEADERDIR=$(INSTALL_PREFIX)/usr/include/asterisk
+  ASTBINDIR=$(INSTALL_PREFIX)/usr/bin
+  ASTSBINDIR=$(INSTALL_PREFIX)/usr/sbin
+  ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
+  ASTMANDIR=$(INSTALL_PREFIX)/usr/share/man
 endif
+endif
+
+# Asterisk.conf is located in ASTETCDIR or by using the -C flag
+# when starting Asterisk
+ASTCONFPATH=$(ASTETCDIR)/asterisk.conf
+MODULES_DIR=$(ASTLIBDIR)/modules
+AGI_DIR=$(ASTVARLIBDIR)/agi-bin
+
+# If you use Apache, you may determine by a grep 'DocumentRoot' of your httpd.conf file
+HTTP_DOCSDIR=/var/www/html
+# Determine by a grep 'ScriptAlias' of your Apache httpd.conf file
+HTTP_CGIDIR=/var/www/cgi-bin
 
 ASTCFLAGS=
 
@@ -161,11 +182,6 @@ ASTCFLAGS+=-D_FILE_OFFSET_BITS=64
 
 # Uncomment this to use the older DSP routines
 #ASTCFLAGS+=-DOLD_DSP_ROUTINES
-
-# Determine by a grep 'DocumentRoot' of your httpd.conf file
-HTTP_DOCSDIR=/var/www/html
-# Determine by a grep 'ScriptAlias' of your httpd.conf file
-HTTP_CGIDIR=/var/www/cgi-bin
 
 # If the file .asterisk.makeopts is present in your home directory, you can
 # include all of your favorite Makefile options so that every time you download
@@ -262,22 +278,6 @@ ifeq ($(OSARCH),FreeBSD)
     ASTCFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include/spandsp
   endif
   MPG123TARG=freebsd
-
-  # XXX FreeBSD paths
-  PREFIX?=/usr/local
-  ASTLIBDIR=$(INSTALL_PREFIX)$(PREFIX)/lib/asterisk
-  ASTVARLIBDIR=$(INSTALL_PREFIX)$(PREFIX)/share/asterisk
-  ASTETCDIR=$(INSTALL_PREFIX)$(PREFIX)/etc/asterisk
-  ASTSPOOLDIR=$(INSTALL_PREFIX)/var/spool/asterisk
-  ASTLOGDIR=$(INSTALL_PREFIX)/var/log/asterisk
-  ASTHEADERDIR=$(INSTALL_PREFIX)$(PREFIX)/include/asterisk
-  ASTCONFPATH=$(ASTETCDIR)/asterisk.conf
-  ASTBINDIR=$(INSTALL_PREFIX)$(PREFIX)/bin
-  ASTSBINDIR=$(INSTALL_PREFIX)$(PREFIX)/sbin
-  ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
-  ASTMANDIR=$(INSTALL_PREFIX)$(PREFIX)/man
-  # XXX end FreeBSD paths
-
 endif # FreeBSD
 
 ifeq ($(OSARCH),NetBSD)
