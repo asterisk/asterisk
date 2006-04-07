@@ -13514,7 +13514,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	if (!host) {
 		char *localtmp;
 		ast_copy_string(tmp, get_header(&p->initreq, "To"), sizeof(tmp));
-		if (!strlen(tmp)) {
+		if (ast_strlen_zero(tmp)) {
 			ast_log(LOG_ERROR, "Cannot retrieve the 'To' header from the original SIP request!\n");
 			return 0;
 		}
@@ -13525,7 +13525,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 			localtmp++;
 			/* This is okey because lhost and lport are as big as tmp */
 			sscanf(localtmp, "%[^<>:; ]:%[^<>:; ]", lhost, lport);
-			if (!strlen(lhost)) {
+			if (ast_strlen_zero(lhost)) {
 				ast_log(LOG_ERROR, "Can't find the host address\n");
 				return 0;
 			}
