@@ -1517,7 +1517,8 @@ static int read_config(struct chan_list *ch, int orig) {
 			ast->cid.cid_num=strdup(bc->oad);
 		}
 		
-		pbx_builtin_setvar_helper(ch->ast,"REDIRECTING_NUMBER",bc->rad);
+		if ( !ast_strlen_zero(bc->rad) ) 
+			ast->cid.cid_rdnis=strdup(nc->rad);
 	}
 	return 0;
 }
@@ -2245,8 +2246,8 @@ enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 		who = ast_waitfor_n(carr, 2, &to);
 
 		if (!who) {
-			ast_log(LOG_DEBUG,"misdn_bridge: empty read\n");
-			continue;
+			ast_log(LOG_DEBUG,"misdn_bridge: empty read, breaking out\n");
+			break;
 		}
 		f = ast_read(who);
     
