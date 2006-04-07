@@ -11574,7 +11574,7 @@ retrylock:
 		}
 		p->recv = sin;
 		if (recordhistory) /* This is a response, note what it was for */
-			append_history(p, "Rx", "%s / %s %s", req.data, get_header(&req, "CSeq"), req.rlPart2);
+			append_history(p, "Rx", "%s / %s / %s", req.data, get_header(&req, "CSeq"), req.rlPart2);
 		nounlock = 0;
 		if (handle_request(p, &req, &sin, &recount, &nounlock) == -1) {
 			/* Request failed */
