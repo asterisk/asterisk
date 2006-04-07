@@ -16,33 +16,111 @@
  * at the top of the source tree.
  */
 
-/*! \file
+/*! 
+ * \file
  * \brief OSP support (Open Settlement Protocol)
  */
 
 #ifndef _ASTERISK_OSP_H
 #define _ASTERISK_OSP_H
 
-#include "asterisk/channel.h"
-#include <netinet/in.h>
 #include <time.h>
+#include <netinet/in.h>
+
+#include "asterisk/channel.h"
+
+#define OSP_DEF_PROVIDER	((char*)"default")		/* Default provider context name */
+#define OSP_INVALID_HANDLE	((int)-1)				/* Invalid OSP handle, provider, transaction etc. */
+#define OSP_DEF_TIMELIMIT	((unsigned int)0)		/* Default duration limit, no limit */
+
+#define OSP_INTSTR_SIZE		((unsigned int)16)		/* Signed/unsigned int string buffer size */
+#define OSP_NORSTR_SIZE		((unsigned int)256)		/* Normal string buffer size */
+#define OSP_TOKSTR_SIZE		((unsigned int)4096)	/* Token string buffer size */
+
+#define OSP_APP_SUCCESS		((char*)"SUCCESS")		/* Return status, success */
+#define OSP_APP_FAILED		((char*)"FAILED")		/* Return status, failed */
+#define OSP_APP_ERROR		((char*)"ERROR")		/* Return status, error */
 
 struct ast_osp_result {
-	int handle;
-	int numresults;
+	int inhandle;
+	int outhandle;
+	unsigned int intimelimit;
+	unsigned int outtimelimit;
 	char tech[20];
-	char dest[256];
-	char token[4096];
+	char dest[OSP_NORSTR_SIZE];
+	char calling[OSP_NORSTR_SIZE];
+	char token[OSP_TOKSTR_SIZE];
+	int numresults;
 };
 
-/* Note: Channel will be auto-serviced if specified.  Returns -1 on hangup, 
-   0 if nothing found, or 1 if something is found */
-int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, char *callerid, struct ast_osp_result *result);
-
-int ast_osp_next(struct ast_osp_result *result, int cause);
-
-int ast_osp_terminate(int handle, int cause, time_t start, time_t duration);
-
-int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *timeout, const char *callerid, struct in_addr addr, const char *extension);
+/*!
+ * \brief OSP Increase Use Count function
+ */
+void ast_osp_adduse(void);
+/*!
+ * \brief OSP Decrease Use Count function
+ */
+void ast_osp_deluse(void);
+/*!
+ * \brief OSP Authentication function
+ * \param provider OSP provider context name
+ * \param transaction OSP transaction handle, output
+ * \param source Source of in_bound call
+ * \param calling Calling number
+ * \param called Called number
+ * \param token OSP token, may be empty
+ * \param timelimit Call duration limit, output
+ * \return 1 Authenricated, 0 Unauthenticated, -1 Error
+ */
+int ast_osp_auth(
+	const char* provider,		/* OSP provider context name */
+	int* transaction,			/* OSP transaction handle, output */
+	const char* source,			/* Source of in_bound call */
+	const char* calling,		/* Calling number */
+	const char* called,			/* Called number */
+	const char* token,			/* OSP token, may be empty */
+	unsigned int* timelimit		/* Call duration limit, output */
+);
+/*!
+ * \brief OSP Lookup function
+ * \param provider OSP provider context name
+ * \param srcdev Source device of out_bound call
+ * \param calling Calling number
+ * \param called Called number
+ * \param result Lookup results
+ * \return 1 Found , 0 No route, -1 Error
+ */
+int ast_osp_lookup(
+	const char* provider,			/* OSP provider conttext name */
+	const char* srcdev,				/* Source device of out_bound call */
+	const char* calling,			/* Calling number */
+	const char* called,				/* Called number */
+	struct ast_osp_result* result	/* OSP lookup results, in/output */
+);
+/*!
+ * \brief OSP Next function
+ * \param reason Last destination failure reason
+ * \param result Lookup results, in/output
+ * \return 1 Found , 0 No route, -1 Error
+ */
+int ast_osp_next(
+	int reason,						/* Last destination failure reason */
+	struct ast_osp_result *result	/* OSP lookup results, in/output */
+);
+/*!
+ * \brief OSP Finish function
+ * \param handle OSP in/out_bound transaction handle
+ * \param reason Last destination failure reason
+ * \param start Call start time
+ * \param duration Call duration
+ * \return 1 Success, 0 Failed, -1 Error
+ */
+int ast_osp_finish(
+	int handle,						/* OSP in/out_bound transaction handle */
+	int reason,						/* Last destination failure reason */
+	time_t start, 					/* Call start time */
+	time_t connect,					/* Call connect time */
+	time_t end						/* Call end time */
+);
 
 #endif /* _ASTERISK_OSP_H */

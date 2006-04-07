@@ -612,6 +612,7 @@ ${DBGETSTATUS}			* dbget()
 ${ENUMSTATUS}			* enumlookup()
 ${HASVMSTATUS}			* hasnewvoicemail()
 ${LOOKUPBLSTATUS}		* lookupblacklist()
+${OSPAUTHSTATUS}		* ospauth()
 ${OSPLOOKUPSTATUS}		* osplookup()
 ${OSPNEXTSTATUS}		* ospnext()
 ${OSPFINISHSTATUS}		* ospfinish()
@@ -754,14 +755,17 @@ ${MACRO_CONTEXT}	* The calling context
 ${MACRO_PRIORITY}	* The calling priority
 ${MACRO_OFFSET}		Offset to add to priority at return from macro
 
-If you compile with OSP support in the SIP channel, these
-variables are used:
+If you compile with OSP support, these variables are used:
 ---------------------------------------------------------
-${OSPHANDLE}		Handle from the OSP Library
-${OSPTECH}		OSP Technology from Library
-${OSPDEST}		OSP Destination from Library
-${OSPTOKEN}		OSP Token to use for call from Library
-${OSPRESULTS}		Number of OSP results
+${OSPINHANDLE}		OSP handle of in_bound call
+${OSPINTIMELIMIT}	Duration limit for in_bound call
+${OSPOUTHANDLE}		OSP handle of out_bound call
+${OSPTECH}			OSP technology 
+${OSPDEST}			OSP destination
+${OSPCALLING}		OSP calling number
+${OSPOUTTOKEN}		OSP token to use for out_bound call
+${OSPOUTTIMELIMIT}	Duration limit for out_bound call
+${OSPRESULTS}		Number of remained destinations
 
 ____________________________________
 CDR Variables

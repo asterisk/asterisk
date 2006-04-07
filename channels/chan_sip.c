@@ -93,10 +93,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/monitor.h"
 
-#ifdef OSP_SUPPORT
-#include "asterisk/astosp.h"
-#endif
-
 #ifndef FALSE
 #define FALSE	0
 #endif
@@ -506,7 +502,6 @@ struct sip_pkt;
 /*! \brief Parameters to the transmit_invite function */
 struct sip_invite_param {
 	const char *distinctive_ring;	/*!< Distinctive ring header */
-	const char *osptoken;		/*!< OSP token for this call */
 	int addsipheaders;	/*!< Add extra SIP headers */
 	const char *uri_options;	/*!< URI options to add to the URI */
 	const char *vxml_url;		/*!< VXML url for Cisco phones */
@@ -596,20 +591,14 @@ struct sip_auth {
 #define SIP_PROG_INBAND_NEVER	(0 << 24)
 #define SIP_PROG_INBAND_NO	(1 << 24)
 #define SIP_PROG_INBAND_YES	(2 << 24)
-/* Open Settlement Protocol authentication */
-#define SIP_OSPAUTH		(3 << 26)	/*!< four settings, uses two bits */
-#define SIP_OSPAUTH_NO		(0 << 26)
-#define SIP_OSPAUTH_GATEWAY	(1 << 26)
-#define SIP_OSPAUTH_PROXY	(2 << 26)
-#define SIP_OSPAUTH_EXCLUSIVE	(3 << 26)
-#define SIP_CALL_ONHOLD		(1 << 28)	/*!< Call states */
-#define SIP_CALL_LIMIT		(1 << 29)	/*!< Call limit enforced for this call */
-#define SIP_SENDRPID		(1 << 30)	/*!< Remote Party-ID Support */
-#define SIP_INC_COUNT		(1 << 31)	/*!< Did this connection increment the counter of in-use calls? */
+#define SIP_CALL_ONHOLD		(1 << 26)	/*!< Call states */
+#define SIP_CALL_LIMIT		(1 << 27)	/*!< Call limit enforced for this call */
+#define SIP_SENDRPID		(1 << 28)	/*!< Remote Party-ID Support */
+#define SIP_INC_COUNT		(1 << 29)	/*!< Did this connection increment the counter of in-use calls? */
 
 #define SIP_FLAGS_TO_COPY \
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
-	 SIP_PROG_INBAND | SIP_OSPAUTH | SIP_USECLIENTCODE | SIP_NAT | \
+	 SIP_PROG_INBAND | SIP_USECLIENTCODE | SIP_NAT | \
 	 SIP_USEREQPHONE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE)
 
 /* a new page of flags for peers */
@@ -721,11 +710,6 @@ static struct sip_pvt {
 	char lastmsg[256];			/*!< Last Message sent/received */
 	int amaflags;				/*!< AMA Flags */
 	int pendinginvite;			/*!< Any pending invite */
-#ifdef OSP_SUPPORT
-	int osphandle;				/*!< OSP Handle for call */
-	time_t ospstart;			/*!< OSP Start time */
-	unsigned int osptimelimit;		/*!< OSP call duration limit */
-#endif
 	struct sip_request initreq;		/*!< Initial request that opened the SIP dialog */
 	
 	int maxtime;				/*!< Max time for first response */
@@ -2066,9 +2050,6 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	int res;
 	struct sip_pvt *p;
-#ifdef OSP_SUPPORT
-	const char *osphandle = NULL;
-#endif	
 	struct varshead *headp;
 	struct ast_var_t *current;
 	
@@ -2093,29 +2074,10 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 			/* Check whether there is a variable with a name starting with SIPADDHEADER */
 			p->options->addsipheaders = 1;
 		}
-
-		
-#ifdef OSP_SUPPORT
-		else if (!p->options->osptoken && !strcasecmp(ast_var_name(current), "OSPTOKEN")) {
-			p->options->osptoken = ast_var_value(current);
-		} else if (!osphandle && !strcasecmp(ast_var_name(current), "OSPHANDLE")) {
-			osphandle = ast_var_value(current);
-		}
-#endif
 	}
 	
 	res = 0;
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
-#ifdef OSP_SUPPORT
-	if (!p->options->osptoken || !osphandle || (sscanf(osphandle, "%d", &p->osphandle) != 1)) {
-		/* Force Disable OSP support */
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Disabling OSP support for this call. osptoken = %s, osphandle = %s\n", p->options->osptoken, osphandle);
-		p->options->osptoken = NULL;
-		osphandle = NULL;
-		p->osphandle = -1;
-	}
-#endif
 	ast_log(LOG_DEBUG, "Outgoing Call for %s\n", p->username);
 	res = update_call_counter(p, INC_CALL_LIMIT);
 	if ( res != -1 ) {
@@ -2530,11 +2492,6 @@ static int sip_hangup(struct ast_channel *ast)
 		ast_log(LOG_DEBUG, "Hangup call %s, SIP callid %s)\n", ast->name, p->callid);
 
 	ast_mutex_lock(&p->lock);
-#ifdef OSP_SUPPORT
-	if ((p->osphandle > -1) && (ast->_state == AST_STATE_UP)) {
-		ast_osp_terminate(p->osphandle, AST_CAUSE_NORMAL, p->ospstart, time(NULL) - p->ospstart);
-	}
-#endif	
 	if (option_debug && sipdebug)
 		ast_log(LOG_DEBUG, "update_call_counter(%s) - decrement call limit counter on hangup\n", p->username);
 	update_call_counter(p, DEC_CALL_LIMIT);
@@ -2638,9 +2595,6 @@ static int sip_answer(struct ast_channel *ast)
 
 	ast_mutex_lock(&p->lock);
 	if (ast->_state != AST_STATE_UP) {
-#ifdef OSP_SUPPORT	
-		time(&p->ospstart);
-#endif
 		try_suggested_sip_codec(p);	
 
 		ast_setstate(ast, AST_STATE_UP);
@@ -2868,10 +2822,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	struct ast_variable *v = NULL;
 	int fmt;
 	int what;
-#ifdef OSP_SUPPORT
-	char iabuf[INET_ADDRSTRLEN];
-	char peer[MAXHOSTNAMELEN];
-#endif	
 	
 	ast_mutex_unlock(&i->lock);
 	/* Don't hold a sip pvt lock while we allocate a channel */
@@ -2961,10 +2911,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (!ast_strlen_zero(i->callid)) {
 		pbx_builtin_setvar_helper(tmp, "SIPCALLID", i->callid);
 	}
-#ifdef OSP_SUPPORT
-	snprintf(peer, sizeof(peer), "[%s]:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), i->sa.sin_addr), ntohs(i->sa.sin_port));
-	pbx_builtin_setvar_helper(tmp, "OSPPEER", peer);
-#endif
 	ast_setstate(tmp, state);
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {
@@ -3212,10 +3158,6 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 
 	if (intended_method != SIP_OPTIONS)	/* Peerpoke has it's own system */
 		p->timer_t1 = 500;	/* Default SIP retransmission timer T1 (RFC 3261) */
-#ifdef OSP_SUPPORT
-	p->osphandle = -1;
-	p->osptimelimit = 0;
-#endif	
 	if (sin) {
 		p->sa = *sin;
 		if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
@@ -5076,12 +5018,6 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		if (!ast_strlen_zero(p->referred_by))
 			add_header(&req, "Referred-By", p->referred_by);
 	}
-#ifdef OSP_SUPPORT
-	if ((req.method != SIP_OPTIONS) && p->options && !ast_strlen_zero(p->options->osptoken)) {
-		ast_log(LOG_DEBUG,"Adding OSP Token: %s\n", p->options->osptoken);
-		add_header(&req, "P-OSP-Auth-Token", p->options->osptoken);
-	}
-#endif
 	if (p->options && !ast_strlen_zero(p->options->distinctive_ring))
 	{
 		add_header(&req, "Alert-Info", p->options->distinctive_ring);
@@ -6286,21 +6222,6 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		list_route(p->route);
 }
 
-#ifdef OSP_SUPPORT
-/*! \brief Validate OSP token for user authorization */
-static int check_osptoken (struct sip_pvt *p, char *token)
-{
-	char tmp[80];
-
-	if (ast_osp_validate (NULL, token, &p->osphandle, &p->osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1) {
-		return -1;
-	} else {
-		snprintf (tmp, sizeof (tmp), "%d", p->osphandle);
-		pbx_builtin_setvar_helper (p->owner, "_OSPHANDLE", tmp);
-		return 0;
-	}
-}
-#endif
 
 /*! \brief  Check user authorization from peer definition 
 	Some actions, like REGISTER and INVITEs from peers require
@@ -6318,12 +6239,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 	const char *authtoken;
 
 	/* Always OK if no secret */
-	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret)
-#ifdef OSP_SUPPORT
-	    && !ast_test_flag(&p->flags[0], SIP_OSPAUTH)
-	    && global_allowguest != 2
-#endif
-		)
+	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret))
 		return 0;
 	if (sipmethod == SIP_REGISTER || sipmethod == SIP_SUBSCRIBE) {
 		/* On a REGISTER, we have to use 401 and its family of headers instead of 407 and its family
@@ -6333,38 +6249,6 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 		reqheader = "Authorization";
 		respheader = "WWW-Authenticate";
 	}
-#ifdef OSP_SUPPORT
-	else {
-		char *osptoken;
-		if (option_debug)
-			ast_log (LOG_DEBUG, "Checking OSP Authentication!\n");
-		osptoken = get_header (req, "P-OSP-Auth-Token");
-		switch (ast_test_flag(&p->flags[0], SIP_OSPAUTH)) {
-			case SIP_OSPAUTH_NO:
-				break;
-			case SIP_OSPAUTH_GATEWAY:
-				if (ast_strlen_zero(osptoken)) {
-					if (ast_strlen_zero(secret) && ast_strlen_zero (md5secret))
-						return 0;
-				} else {
-					return check_osptoken(p, osptoken);
-				}
-				break;
-			case SIP_OSPAUTH_PROXY:
-				if (ast_strlen_zero(osptoken))
-					return 0;
-				return check_osptoken(p, osptoken);
-				break;
-			case SIP_OSPAUTH_EXCLUSIVE:
-				if (ast_strlen_zero(osptoken))
-					return -1;
-				return check_osptoken(p, osptoken);
-				break;
-			default:
-				return -1;
-		}
- 	}
-#endif	
 	authtoken =  get_header(req, reqheader);	
 	if (ignore && !ast_strlen_zero(p->randdata) && ast_strlen_zero(authtoken)) {
 		/* This is a retransmitted invite/register/etc, don't reconstruct authentication
@@ -7447,12 +7331,6 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			/* do we allow guests? */
 			if (!global_allowguest)
 				res = -1;  /* we don't want any guests, authentication will fail */
-#ifdef OSP_SUPPORT			
-			else if (global_allowguest == 2) {
-				ast_copy_flags(&p->flags[0], &global_flags[0], SIP_OSPAUTH);
-				res = check_auth(p, req, "", "", "", sipmethod, uri, reliable, ignore); 
-			}
-#endif
 		}
 
 	}
@@ -8456,11 +8334,6 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  IP ToS SIP:             %s\n", ast_tos2str(global_tos_sip));
 	ast_cli(fd, "  IP ToS RTP audio:       %s\n", ast_tos2str(global_tos_audio));
 	ast_cli(fd, "  IP ToS RTP video:       %s\n", ast_tos2str(global_tos_video));
-#ifdef OSP_SUPPORT
-	ast_cli(fd, "  OSP Support:            Yes\n");
-#else
-	ast_cli(fd, "  OSP Support:            No\n");
-#endif
 	if (!realtimepeers && !realtimeusers)
 		ast_cli(fd, "  SIP realtime:           Disabled\n" );
 	else
@@ -9777,9 +9650,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		
 		if (!ignore && p->owner) {
 			if (p->owner->_state != AST_STATE_UP) {
-#ifdef OSP_SUPPORT	
-				time(&p->ospstart);
-#endif
 				ast_queue_control(p->owner, AST_CONTROL_ANSWER);
 			} else {	/* RE-invite */
 				ast_queue_frame(p->owner, &ast_null_frame);
@@ -10926,9 +10796,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	if (!ignore && p)
 		p->lastinvite = seqno;
 	if (c) {
-#ifdef OSP_SUPPORT
-		ast_channel_setwhentohangup (c, p->osptimelimit);
-#endif
 		switch(c->_state) {
 		case AST_STATE_DOWN:
 			transmit_response(p, "100 Trying", req);
@@ -12281,26 +12148,10 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 		else if (strcasecmp(v->value, "never"))
 			ast_set_flag(&flags[0], SIP_PROG_INBAND_NO);
   	} else if (!strcasecmp(v->name, "allowguest")) {
-#ifdef OSP_SUPPORT
-  		if (!strcasecmp(v->value, "osp"))
-			global_allowguest = 2;
-		else 
-#endif
 			if (ast_true(v->value)) 
 				global_allowguest = 1;
 			else
 				global_allowguest = 0;
-#ifdef OSP_SUPPORT
-	} else if (!strcasecmp(v->name, "ospauth")) {
-		ast_set_flag(&mask[0], SIP_OSPAUTH);
-		ast_clear_flag(&flags[0], SIP_OSPAUTH);
-		if (!strcasecmp(v->value, "proxy"))
-			ast_set_flag(&flags[0], SIP_OSPAUTH_PROXY);
-		else if (!strcasecmp(v->value, "gateway"))
-			ast_set_flag(&flags[0], SIP_OSPAUTH_GATEWAY);
-		else if(!strcasecmp (v->value, "exclusive"))
- 			ast_set_flag(&flags[0], SIP_OSPAUTH_EXCLUSIVE);
-#endif
 	} else if (!strcasecmp(v->name, "promiscredir")) {
 		ast_set_flag(&mask[0], SIP_PROMISCREDIR);
 		ast_set2_flag(&flags[0], ast_true(v->value), SIP_PROMISCREDIR);

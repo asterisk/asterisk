@@ -62,3 +62,11 @@
 ; Set the "source" for requesting authorization
 ;
 ;source=foo
+;
+; Set the authentication policy.  
+; 0 - NO 
+; 1 - YES
+; 2 - EXCLUSIVE
+; Default is 1, validate token but allow no token.
+;
+;authpolicy=1

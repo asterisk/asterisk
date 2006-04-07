@@ -29,6 +29,8 @@ Applications:
   "noanswer" will not work.  Use s or n.  Also there is a new feature i, for
   using indication tones, so typing in skip would give you unexpected results.
 
+* OSPAuth is added to authenticate OSP tokens in in_bound call setup messages.
+
 Variables:
 
 * The builtin variables ${CALLERID}, ${CALLERIDNAME}, ${CALLERIDNUM},
@@ -39,6 +41,10 @@ Variables:
 
 * The CDR-CSV variables uniqueid, userfield, and basing time on GMT are now 
   adjustable from cdr.conf, instead of recompiling.
+
+* OSP applications exports several new variables, ${OSPINHANDLE},
+  ${OSPOUTHANDLE}, ${OSPINTOKEN}, ${OSPOUTTOKEN}, ${OSPCALLING},
+  ${OSPINTIMELIMIT}, and ${OSPOUTTIMELIMIT}
 
 Functions:
 
@@ -65,6 +71,10 @@ The IAX2 channel:
 The SIP channel:
 
 * The "incominglimit" setting is replaced by the "call-limit" setting in sip.conf.
+
+* OSP support code is removed from SIP channel to OSP applications. ospauth 
+  option in sip.conf is removed to osp.conf as authpolicy. allowguest option
+  in sip.conf cannot be set as osp anymore. 
 
 Installation:
 
