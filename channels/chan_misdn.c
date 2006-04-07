@@ -2246,7 +2246,7 @@ enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 		who = ast_waitfor_n(carr, 2, &to);
 
 		if (!who) {
-			ast_log(LOG_DEBUG,"misdn_bridge: empty read, breaking out\n");
+			ast_log(LOG_NOTICE,"misdn_bridge: empty read, breaking out\n");
 			break;
 		}
 		f = ast_read(who);
