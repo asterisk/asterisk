@@ -5918,15 +5918,11 @@ static void reg_source_db(struct sip_peer *peer)
 	register_peer_exten(peer, TRUE);
 }
 
-/*! \brief Parse contact header for 200 OK on INVITE */
+/*! \brief Save contact header for 200 OK on INVITE */
 static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 {
 	char contact[250]; 
-	char *c, *n, *pt;
-	int port;
-	struct hostent *hp;
-	struct ast_hostent ahp;
-	struct sockaddr_in oldsin;
+	char *c;
 
 	/* Look for brackets */
 	ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
@@ -5937,28 +5933,54 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 
 	/* Save URI for later ACKs, BYE or RE-invites */
 	ast_string_field_set(pvt, okcontacturi, c);
-	
+
+	/* We should return false for URI:s we can't handle,
+		like sips:, tel:, mailto:,ldap: etc */
+	return TRUE;		
+}
+
+/*! \brief Change the other partys IP address based on given contact */
+static int set_address_from_contact(struct sip_pvt *pvt)
+{
+	struct hostent *hp;
+	struct ast_hostent ahp;
+	int port;
+	char *c, *host, *pt;
+	char *contact;
+
+
+	if (ast_test_flag(&pvt->flags[0], SIP_NAT_ROUTE)) {
+		/* NAT: Don't trust the contact field.  Just use what they came to us
+		   with. */
+		pvt->sa = pvt->recv;
+		return 0;
+	}
+
+
+	/* Work on a copy */
+	contact = ast_strdupa(pvt->fullcontact);
+
 	/* Make sure it's a SIP URL */
-	if (strncasecmp(c, "sip:", 4)) {
-		ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", c);
+	if (strncasecmp(contact, "sip:", 4)) {
+		ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", contact);
 	} else
-		c += 4;
+		contact += 4;
 
 	/* Ditch arguments */
-	n = strchr(c, ';');
-	if (n) 
-		*n = '\0';
+	host = strchr(contact, ';');
+	if (host) 
+		*host = '\0';
 
 	/* Grab host */
-	n = strchr(c, '@');
-	if (!n) {
-		n = c;
+	host = strchr(contact, '@');
+	if (!host) {	/* No username part */
+		host = contact;
 		c = NULL;
 	} else {
-		*n = '\0';
-		n++;
+		*host = '\0';
+		host++;
 	}
-	pt = strchr(n, ':');
+	pt = strchr(host, ':');
 	if (pt) {
 		*pt = '\0';
 		pt++;
@@ -5966,24 +5988,17 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 	} else
 		port = DEFAULT_SIP_PORT;
 
-	oldsin = pvt->sa;
-
-	if (!ast_test_flag(&pvt->flags[0], SIP_NAT_ROUTE)) {
-		/* XXX This could block for a long time XXX */
-		/* We should only do this if it's a name, not an IP */
-		hp = ast_gethostbyname(n, &ahp);
-		if (!hp)  {
-			ast_log(LOG_WARNING, "Invalid host '%s'\n", n);
-			return -1;
-		}
-		pvt->sa.sin_family = AF_INET;
-		memcpy(&pvt->sa.sin_addr, hp->h_addr, sizeof(pvt->sa.sin_addr));
-		pvt->sa.sin_port = htons(port);
-	} else {
-		/* Don't trust the contact field.  Just use what they came to us
-		   with. */
-		pvt->sa = pvt->recv;
+	/* XXX This could block for a long time XXX */
+	/* We should only do this if it's a name, not an IP */
+	hp = ast_gethostbyname(host, &ahp);
+	if (!hp)  {
+		ast_log(LOG_WARNING, "Invalid host name in Contact: (can't resolve in DNS) : '%s'\n", host);
+		return -1;
 	}
+	pvt->sa.sin_family = AF_INET;
+	memcpy(&pvt->sa.sin_addr, hp->h_addr, sizeof(pvt->sa.sin_addr));
+	pvt->sa.sin_port = htons(port);
+
 	return 0;
 }
 
@@ -9746,6 +9761,17 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		/* This is important when we have a SIP proxy between us and the phone */
 		if (outgoing) {
 			parse_ok_contact(p, req);
+			if(set_address_from_contact(p)) {
+				/* Bad contact - we don't know how to reach this device */
+				/* We need to ACK, but then send a bye */
+				/* OEJ: Possible issue that may need a check:
+					If we have a proxy route between us and the device,
+					should we care about resolving the contact
+					or should we just send it?
+				*/
+				if (!ignore)
+					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
+			} 
 
 			/* Save Record-Route for any later requests we make on this dialogue */
 			build_route(p, req, 1);
@@ -9761,9 +9787,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				ast_queue_frame(p->owner, &ast_null_frame);
 			}
 		} else {
-			 /* It's possible we're getting an ACK after we've tried to disconnect
+			 /* It's possible we're getting an 200 OK after we've tried to disconnect
 				  by sending CANCEL */
-			/* THIS NEEDS TO BE CHECKED: OEJ */
+			/* First send ACK, then send bye */
 			if (!ignore)
 				ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
 		}
@@ -10793,6 +10819,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			copy_request(&p->initreq, req);
 			if (debug)
 				ast_verbose("Using INVITE request as basis request - %s\n", p->callid);
+			parse_ok_contact(p, req);
 		} else {	/* Re-invite on existing call */
 			/* Handle SDP here if we already have an owner */
 			if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
