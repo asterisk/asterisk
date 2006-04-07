@@ -1518,7 +1518,7 @@ static int read_config(struct chan_list *ch, int orig) {
 		}
 		
 		if ( !ast_strlen_zero(bc->rad) ) 
-			ast->cid.cid_rdnis=strdup(nc->rad);
+			ast->cid.cid_rdnis=strdup(bc->rad);
 	}
 	return 0;
 }
