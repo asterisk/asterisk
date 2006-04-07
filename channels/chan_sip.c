@@ -3360,8 +3360,8 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		}
 	}
 	ast_mutex_unlock(&iflock);
-	p = sip_alloc(callid, sin, 1, intended_method);
-	if (p)
+	/* Allocate new call */
+	if ((p = sip_alloc(callid, sin, 1, intended_method)))
 		ast_mutex_lock(&p->lock);
 	return p;
 }
@@ -5531,9 +5531,8 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 			r->callid_valid = TRUE;
 		}
 		/* Allocate SIP packet for registration */
-		p=sip_alloc( r->callid, NULL, 0, SIP_REGISTER);
-		if (!p) {
-			ast_log(LOG_WARNING, "Unable to allocate registration call\n");
+		if (!(p = sip_alloc( r->callid, NULL, 0, SIP_REGISTER))) {
+			ast_log(LOG_WARNING, "Unable to allocate registration transaction (memory or socket error)\n");
 			return 0;
 		}
 		if (recordhistory)
@@ -9060,9 +9059,8 @@ static int sip_notify(int fd, int argc, char *argv[])
 		struct sip_request req;
 		struct ast_variable *var;
 
-		p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY);
-		if (!p) {
-			ast_log(LOG_WARNING, "Unable to build sip pvt data for notify\n");
+		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY))) {
+			ast_log(LOG_WARNING, "Unable to build sip pvt data for notify (memory/socket error)\n");
 			return RESULT_FAILURE;
 		}
 
@@ -11752,7 +11750,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		p = peer->mwipvt;
 	} else {
 		/* Build temporary dialog for this message */
-		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY)))
+		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY))) 
 			return -1;
 		if (create_addr_from_peer(p, peer)) {
 			/* Maybe they're not registered, etc. */
@@ -12120,7 +12118,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 		return NULL;
 	}
 	if (!(p = sip_alloc(NULL, NULL, 0, SIP_INVITE))) {
-		ast_log(LOG_ERROR, "Unable to build sip pvt data for '%s' (Out of memory)\n", (char *)data);
+		ast_log(LOG_ERROR, "Unable to build sip pvt data for '%s' (Out of memory or socket error)\n", (char *)data);
 		*cause = AST_CAUSE_SWITCH_CONGESTION;
 		return NULL;
 	}
