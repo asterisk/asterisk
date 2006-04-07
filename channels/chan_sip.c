@@ -12112,7 +12112,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	char *dest = data;
 
 	oldformat = format;
-	if ((format &= ((AST_FORMAT_MAX_AUDIO << 1) - 1))) {
+	if (!(format &= ((AST_FORMAT_MAX_AUDIO << 1) - 1))) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n", ast_getformatname(oldformat), ast_getformatname(global_capability));
 		*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;	/* Can't find codec to connect to host */
 		return NULL;
