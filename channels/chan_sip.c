@@ -12116,18 +12116,19 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	oldformat = format;
 	if ((format &= ((AST_FORMAT_MAX_AUDIO << 1) - 1))) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n", ast_getformatname(oldformat), ast_getformatname(global_capability));
+		*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;	/* Can't find codec to connect to host */
 		return NULL;
 	}
 	if (!(p = sip_alloc(NULL, NULL, 0, SIP_INVITE))) {
 		ast_log(LOG_ERROR, "Unable to build sip pvt data for '%s' (Out of memory)\n", (char *)data);
-		*cause = AST_CAUSE_CONGESTION;
+		*cause = AST_CAUSE_SWITCH_CONGESTION;
 		return NULL;
 	}
 
 	if (!(p->options = ast_calloc(1, sizeof(*p->options)))) {
 		sip_destroy(p);
 		ast_log(LOG_ERROR, "Unable to build option SIP data structure - Out of memory\n");
-		*cause = AST_CAUSE_CONGESTION;
+		*cause = AST_CAUSE_SWITCH_CONGESTION;
 		return NULL;
 	}
 
