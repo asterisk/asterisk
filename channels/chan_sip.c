@@ -2078,7 +2078,8 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	
 	res = 0;
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
-	ast_log(LOG_DEBUG, "Outgoing Call for %s\n", p->username);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Outgoing Call for %s\n", p->username);
 	res = update_call_counter(p, INC_CALL_LIMIT);
 	if ( res != -1 ) {
 		p->callingpres = ast->cid.cid_pres;
@@ -4731,6 +4732,8 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	if (sipdebug)
 		add_header(&req, "X-asterisk-info", "SIP re-invite (RTP bridge)");
+	if (recordhistory)
+		append_history(p, "%s", "Re-invite sent");
 	add_sdp(&req, p);
 	/* Use this as the basis */
 	copy_request(&p->initreq, &req);
@@ -10701,6 +10704,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				p->jointcapability = p->capability;
 				ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
 			}
+			if (recordhistory) /* This is a response, note what it was for */
+				append_history(p, "%s", "Re-invite received");
 		}
 	} else if (debug)
 		ast_verbose("Ignoring this INVITE request\n");
