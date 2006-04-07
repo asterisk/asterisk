@@ -1521,7 +1521,8 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 	if (recordhistory) {
 		struct sip_request tmp;
 		parse_copy(&tmp, req);
-		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s - %s", tmp.data, get_header(&tmp, "CSeq"), sip_methods[req->method].text);
+		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s - %s", tmp.data, get_header(&tmp, "CSeq"), 
+			tmp.method == SIP_RESPONSE ? tmp.rlPart2 : sip_methods[tmp.method].text);
 	}
 	res = (reliable) ?
 		__sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
@@ -1546,7 +1547,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 	if (recordhistory) {
 		struct sip_request tmp;
 		parse_copy(&tmp, req);
-		append_history(p, reliable ? "TxReqRel" : "TxReq", "%s / %s - %s", tmp.data, get_header(&tmp, "CSeq"), sip_methods[req->method].text);
+		append_history(p, reliable ? "TxReqRel" : "TxReq", "%s / %s - %s", tmp.data, get_header(&tmp, "CSeq"), sip_methods[tmp.method].text);
 	}
 	res = (reliable) ?
 		__sip_reliable_xmit(p, seqno, 0, req->data, req->len, (reliable > 1), req->method) :
@@ -9692,7 +9693,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	case 403: /* Forbidden */
 		/* First we ACK */
 		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
-		ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for INVITE to '%s'\n", get_header(&p->initreq, "From"));
+		ast_log(LOG_WARNING, "Received response: \"Forbidden\" from '%s'\n", get_header(&p->initreq, "From"));
 		if (!ignore && p->owner)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
