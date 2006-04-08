@@ -709,7 +709,7 @@ static int smdi_load(int reload)
 }
 
 
-char *description(void)
+const char *description(void)
 {
 	return (char *) tdesc;
 }
@@ -766,7 +766,7 @@ int usecount(void)
 	return res;
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

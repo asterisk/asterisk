@@ -570,7 +570,7 @@ int load_module(void)
 	return ast_register_application(app, chanspy_exec, synopsis, desc);
 }
 
-char *description(void)
+const char *description(void)
 {
 	return (char *) synopsis;
 }
@@ -582,7 +582,7 @@ int usecount(void)
 	return res;
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

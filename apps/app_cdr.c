@@ -79,7 +79,7 @@ STATIC_MODULE int load_module(void)
 	return ast_register_application(nocdr_app, nocdr_exec, nocdr_synopsis, nocdr_descrip);
 }
 
-STATIC_MODULE char *description(void)
+STATIC_MODULE const char *description(void)
 {
 	return "Tell Asterisk to not maintain a CDR for the current call";
 }
@@ -91,7 +91,7 @@ STATIC_MODULE int usecount(void)
 	return res;
 }
 
-STATIC_MODULE char *key(void)
+STATIC_MODULE const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

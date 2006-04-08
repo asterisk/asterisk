@@ -1273,12 +1273,12 @@ int usecount(void)
 	return 0;
 }
 
-char *description(void)
+const char *description(void)
 {
 	return dtext;
 }
 
-char *key(void)
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

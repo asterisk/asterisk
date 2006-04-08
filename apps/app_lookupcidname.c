@@ -99,8 +99,7 @@ load_module (void)
 				   descrip);
 }
 
-char *
-description (void)
+const char *description(void)
 {
   return tdesc;
 }
@@ -113,8 +112,7 @@ usecount (void)
   return res;
 }
 
-char *
-key ()
+const char *key()
 {
   return ASTERISK_GPL_KEY;
 }

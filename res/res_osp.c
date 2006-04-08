@@ -1086,7 +1086,7 @@ int unload_module(void)
 	return(0);
 }
 
-char *description(void)
+const char *description(void)
 {
 	return("Open Settlement Protocol Support");
 }
@@ -1096,7 +1096,7 @@ int usecount(void)
 	return(osp_usecount);
 }
 
-char *key()
+const char *key()
 {
 	return(ASTERISK_GPL_KEY);
 }

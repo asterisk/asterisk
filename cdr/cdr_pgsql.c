@@ -176,7 +176,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 	return 0;
 }
 
-char *description(void)
+const char *description(void)
 {
 	return desc;
 }
@@ -353,7 +353,7 @@ int usecount(void)
 	}
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

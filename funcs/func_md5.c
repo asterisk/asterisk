@@ -118,7 +118,7 @@ int load_module(void)
 		ast_custom_function_register(&checkmd5_function);
 }
 
-char *description(void)
+const char *description(void)
 {
 	return tdesc;
 }
@@ -128,7 +128,7 @@ int usecount(void)
 	return 0;
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

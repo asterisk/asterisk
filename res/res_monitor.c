@@ -679,7 +679,7 @@ STATIC_MODULE int unload_module(void)
 	return 0;
 }
 
-STATIC_MODULE char *description(void)
+STATIC_MODULE const char *description(void)
 {
 	return "Call Monitoring Resource";
 }
@@ -697,7 +697,7 @@ STATIC_MODULE int usecount(void)
 #endif
 }
 
-STATIC_MODULE char *key(void)
+STATIC_MODULE const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

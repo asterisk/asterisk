@@ -557,13 +557,13 @@ int usecount()
 	return me.usecnt;
 }
 
-char *description()
+const char *description()
 {
 	return "OGG/Vorbis audio";
 }
 
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

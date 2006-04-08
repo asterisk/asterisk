@@ -144,7 +144,7 @@ int load_module(void)
 	return ast_cli_register(&audio_convert_cli);
 }
 
-char *description(void)
+const const char *description(void)
 {
 	return desc;
 }
@@ -158,7 +158,7 @@ int usecount(void)
 	return res;
 }
 
-char *key()
+const const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

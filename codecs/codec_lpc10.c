@@ -321,7 +321,7 @@ int load_module(void)
 	return res;
 }
 
-char *description(void)
+const char *description(void)
 {
 	return "LPC10 2.4kbps (signed linear) Voice Coder";
 }
@@ -331,7 +331,7 @@ int usecount(void)
 	return me.usecnt;
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

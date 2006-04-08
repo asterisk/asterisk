@@ -532,12 +532,12 @@ int usecount()
 	return me.usecnt;
 }
 
-char *description()
+const char *description()
 {
 	return "Microsoft WAV format (8000hz Signed Linear)";
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

@@ -853,7 +853,7 @@ int load_module (void)
 	return res;
 }
 
-char *description (void)
+const char *description(void)
 {
 	return "ITU G.726-32kbps G726 Transcoder";
 }
@@ -863,7 +863,7 @@ int usecount (void)
 	return me.usecnt;
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

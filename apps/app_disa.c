@@ -392,7 +392,7 @@ int load_module(void)
 	return ast_register_application(app, disa_exec, synopsis, descrip);
 }
 
-char *description(void)
+const char *description(void)
 {
 	return tdesc;
 }
@@ -404,7 +404,7 @@ int usecount(void)
 	return res;
 }
 
-char *key(void)
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

@@ -518,7 +518,7 @@ int load_module(void)
 	return res;
 }
 
-char *description(void)
+const char *description(void)
 {
 	return "Speex/PCM16 (signed linear) Codec Translator";
 }
@@ -528,7 +528,7 @@ int usecount(void)
 	return me.usecnt;
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

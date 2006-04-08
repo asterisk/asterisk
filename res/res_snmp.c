@@ -128,12 +128,12 @@ int usecount(void)
     return 0;
 }
 
-char *key(void)
+const char *key(void)
 {
     return ASTERISK_GPL_KEY;
 }
 
-char *description(void)
+const char *description(void)
 {
     return MODULE_DESCRIPTION;
 }

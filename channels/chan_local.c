@@ -609,12 +609,12 @@ int usecount()
 	return usecnt;
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
 
-char *description()
+const char *description()
 {
 	return (char *) desc;
 }

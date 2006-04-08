@@ -2242,7 +2242,7 @@ int unload_module(void)
 	return ast_unregister_application(parkedcall);
 }
 
-char *description(void)
+const const char *description(void)
 {
 	return "Call Features Resource";
 }
@@ -2260,7 +2260,7 @@ int usecount(void)
 #endif
 }
 
-char *key()
+const const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

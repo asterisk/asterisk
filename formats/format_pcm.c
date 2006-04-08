@@ -487,12 +487,12 @@ int usecount()
 	return me.usecnt;
 }
 
-char *description()
+const char *description()
 {
 	return "Raw/Sun uLaw/ALaw 8khz Audio support (PCM,PCMA,AU)";
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

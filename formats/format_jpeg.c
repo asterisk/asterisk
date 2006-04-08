@@ -132,13 +132,13 @@ int usecount()
 	return 0;
 }
 
-char *description()
+const char *description()
 {
 	return desc;
 }
 
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

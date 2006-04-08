@@ -164,7 +164,7 @@ static int sqlite_log(struct ast_cdr *cdr)
 }
 
 
-char *description(void)
+const char *description(void)
 {
 	return desc;
 }
@@ -228,7 +228,7 @@ int usecount(void)
 	return 0;
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

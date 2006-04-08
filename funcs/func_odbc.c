@@ -656,7 +656,7 @@ int load_module(void)
 	return odbc_load_module();
 }
 
-char *description(void)
+const char *description(void)
 {
 	return tdesc;
 }
@@ -671,7 +671,7 @@ int usecount(void)
 	}
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

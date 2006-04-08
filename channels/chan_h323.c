@@ -2460,12 +2460,12 @@ int usecount()
 	return usecnt;
 }
 
-char *description()
+const char *description()
 {
 	return (char *) desc;
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

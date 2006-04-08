@@ -400,7 +400,7 @@ int reload(void)
 	return ind_load_module();
 }
 
-char *description(void)
+const const char *description(void)
 {
 	/* that the following cast is needed, is yuk! */
 	return (char*)dtext;
@@ -411,7 +411,7 @@ int usecount(void)
 	return 0;
 }
 
-char *key()
+const const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

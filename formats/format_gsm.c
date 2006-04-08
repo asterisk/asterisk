@@ -186,12 +186,12 @@ int usecount()
 	return me.usecnt;
 }
 
-char *description()
+const char *description()
 {
 	return "Raw GSM data";
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

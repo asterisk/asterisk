@@ -168,12 +168,12 @@ int usecount()
 	return me.usecnt;
 }
 
-char *description()
+const char *description()
 {
 	return "G.723.1 Simple Timestamp File Format";
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

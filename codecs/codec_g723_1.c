@@ -326,7 +326,7 @@ int load_module(void)
 	return res;
 }
 
-char *description(void)
+const char *description(void)
 {
 #ifdef ANNEX_B
 	return "Annex B (floating point) G.723.1/PCM16 Codec Translator";
@@ -341,7 +341,7 @@ int usecount(void)
 	return me.usecnt;
 }
 
-char *key(void)
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

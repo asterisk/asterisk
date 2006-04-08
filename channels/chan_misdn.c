@@ -3997,12 +3997,12 @@ int usecount(void)
 	return res;
 }
 
-char *description(void)
+const char *description(void)
 {
 	return desc;
 }
 
-char *key(void)
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

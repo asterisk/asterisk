@@ -111,7 +111,7 @@ int load_module(void)
 	return ast_register_application(app, echo_exec, synopsis, descrip);
 }
 
-char *description(void)
+const char *description(void)
 {
 	return tdesc;
 }
@@ -123,7 +123,7 @@ int usecount(void)
 	return res;
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

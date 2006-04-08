@@ -293,7 +293,7 @@ static void get_date(char *dateField, struct timeval tv)
 	}
 }
 
-char *description(void)
+const char *description(void)
 {
 	return desc;
 }
@@ -526,7 +526,7 @@ int usecount(void)
 	}
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

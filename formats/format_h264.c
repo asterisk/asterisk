@@ -188,12 +188,12 @@ int usecount()
 	return me.usecnt;
 }
 
-char *description()
+const char *description()
 {
 	return "Raw h264 data";
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

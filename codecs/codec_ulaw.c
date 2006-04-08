@@ -198,7 +198,7 @@ int load_module(void)
  * Return a description of this module.
  */
 
-char *description(void)
+const char *description(void)
 {
 	return "Mu-law Coder/Decoder";
 }
@@ -208,7 +208,7 @@ int usecount(void)
 	return me.usecnt;
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

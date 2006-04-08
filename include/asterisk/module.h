@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -82,7 +82,7 @@ int usecount(void);		/* How many channels provided by this module are in use? */
  *
  * \return a short description of your module
  */
-char *description(void);		/* Description of this module */
+const char *description(void);		/* Description of this module */
 
 /*! 
  * \brief Returns the ASTERISK_GPL_KEY
@@ -99,7 +99,7 @@ char *description(void);		/* Description of this module */
  *
  * \return ASTERISK_GPL_KEY
  */
-char *key(void);		/* Return the below mentioned key, unmodified */
+const char *key(void);		/* Return the below mentioned key, unmodified */
 
 /*! 
  * \brief Reload stuff.
@@ -518,13 +518,12 @@ struct ast_registry {
 };
 
 struct module_symbols {
-        int (*load_module)(void);
-        int (*unload_module)(void);
-        int (*usecount)(void);   
-        char *(*description)(void);
-        char *(*key)(void);
-        int (*reload)(void);
-
+	int (*load_module)(void);
+	int (*unload_module)(void);
+	int (*usecount)(void);   
+	const char *(*description)(void);
+	const char *(*key)(void);
+	int (*reload)(void);
 	enum module_type {
 		MOD_0,	/* old module style */
 		MOD_1,	/* old style, but symbols here */

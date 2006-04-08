@@ -1204,7 +1204,7 @@ int unload_module(void)
 	return -1;
 }
 
-char *description(void)
+const char *description(void)
 {
 	return "Music On Hold Resource";
 }
@@ -1222,7 +1222,7 @@ int usecount(void)
 #endif
 }
 
-char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

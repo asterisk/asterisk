@@ -359,7 +359,7 @@ STATIC_MODULE int load_module(void)
 	return ast_register_application(app, record_exec, synopsis, descrip);
 }
 
-STATIC_MODULE char *description(void)
+STATIC_MODULE const char *description(void)
 {
 	return tdesc;
 }
@@ -371,7 +371,7 @@ STATIC_MODULE int usecount(void)
 	return res;
 }
 
-STATIC_MODULE char *key(void)
+STATIC_MODULE const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
