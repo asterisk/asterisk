@@ -692,7 +692,6 @@ static int smdi_load(int reload)
 		} else {
 			ast_log(LOG_NOTICE, "Ignoring unknown option %s in %s\n", v->name, config_file);
 		}
-		v = v->next;
 	}
 	ast_config_destroy(conf);
 
