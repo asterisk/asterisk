@@ -114,12 +114,17 @@ int reload(void);		/* reload configs */
 
 /*! \brief The text the key() function should return. */
 #define ASTERISK_GPL_KEY \
-	"This paragraph is Copyright (C) 2000, Linux Support Services, Inc.  \
-In order for your module to load, it must return this key via a function \
-called \"key\".  Any code which includes this paragraph must be licensed under \
-the GNU General Public License version 2 or later (at your option).   Linux \
-Support Services, Inc. reserves the right to allow other parties to license \
-this paragraph under other terms as well."
+"This paragraph is copyright (c) 2006 by Digium, Inc. \
+In order for your module to load, it must return this \
+key via a function called \"key\".  Any code which \
+includes this paragraph must be licensed under the GNU \
+General Public License version 2 or later (at your \
+option).  In addition to Digium's general reservations \
+of rights, Digium expressly reserves the right to \
+allow other parties to license this paragraph under \
+different terms. Any use of Digium, Inc. trademarks or \
+logos (including \"Asterisk\" or \"Digium\") without \
+express written permission of Digium, Inc. is prohibited.\n"
 
 #define AST_MODULE_CONFIG "modules.conf" /*!< \brief Module configuration file */
 
