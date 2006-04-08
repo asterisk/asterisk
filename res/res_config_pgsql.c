@@ -673,7 +673,7 @@ int parse_config (void)
 	return 1;
 }
 
-char *description (void)
+const char *description(void)
 {
 	return res_config_pgsql_desc;
 }
@@ -689,7 +689,7 @@ int usecount (void)
 	return 0;
 }
 
-char *key ()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

@@ -603,7 +603,7 @@ int unload_module(void)
 	return -1;
 }
 
-const const char *description(void)
+const char *description(void)
 {
 	return "Cryptographic Digital Signatures";
 }
@@ -614,7 +614,7 @@ int usecount(void)
 	return 1;
 }
 
-const const char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

@@ -175,7 +175,7 @@ int load_module(void)
 	return ast_cli_register(&cli_orig);
 }
 
-const const char *description(void)
+const char *description(void)
 {
 	return tdesc;
 }
@@ -185,7 +185,7 @@ int usecount(void)
 	return 0;
 }
 
-const const char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }

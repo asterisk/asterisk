@@ -1125,7 +1125,7 @@ int unload_module(void)
 	return -1;
 }
 
-const const char *description(void)
+const char *description(void)
 {
 	return "ADSI Resource";
 }
@@ -1136,7 +1136,7 @@ int usecount(void)
 	return 1;
 }
 
-const const char *key()
+const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
