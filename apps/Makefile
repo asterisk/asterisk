@@ -59,7 +59,7 @@ clean-depend:
 	rm -f .depend
 
 clean: clean-depend
-	rm -f *.so *.o look
+	rm -f *.so *.o
 
 %.so : %.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
@@ -75,14 +75,10 @@ install: all
 
 uninstall:
 
-look:	look.c
-	$(CC) -pipe -O6 -g look.c -o look -lncurses
-
 ifeq (SunOS,$(shell uname))
 app_chanspy.so: app_chanspy.o
 	$(CC) $(SOLINK) -o $@ $< -lrt
 endif
-
 
 ifneq ($(wildcard .depend),)
  include .depend
