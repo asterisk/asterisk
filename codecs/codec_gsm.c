@@ -58,40 +58,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "slin_gsm_ex.h"
 #include "gsm_slin_ex.h"
 
-AST_MUTEX_DEFINE_STATIC(localuser_lock);
-static int localusecnt=0;
+#define BUFFER_SAMPLES	8000
+#define GSM_SAMPLES	160
+#define	GSM_FRAME_LEN	33
+#define	MSGSM_FRAME_LEN	65
 
-static char *tdesc = "GSM/PCM16 (signed linear) Codec Translator";
-
-static int useplc = 0;
-
-struct ast_translator_pvt {
+struct gsm_translator_pvt {	/* both gsm2lin and lin2gsm */
 	gsm gsm;
-	struct ast_frame f;
-	/* Space to build offset */
-	char offset[AST_FRIENDLY_OFFSET];
-	/* Buffer for our outgoing frame */
-	short outbuf[8000];
-	/* Enough to store a full second */
-	short buf[8000];
-	int tail;
-	plc_state_t plc;
+	int16_t buf[BUFFER_SAMPLES];	/* lin2gsm, temporary storage */
 };
 
-#define gsm_coder_pvt ast_translator_pvt
-
-static struct ast_translator_pvt *gsm_new(void)
+static void *gsm_new(struct ast_trans_pvt *pvt)
 {
-	struct gsm_coder_pvt *tmp;	
-	if ((tmp = ast_malloc(sizeof(*tmp)))) {
-		if (!(tmp->gsm = gsm_create())) {
-			free(tmp);
-			tmp = NULL;
-		}
-		tmp->tail = 0;
-		plc_init(&tmp->plc);
-		localusecnt++;
-	}
+	struct gsm_translator_pvt *tmp = pvt->pvt;
+	
+	if (!(tmp->gsm = gsm_create()))
+		return NULL;
 	return tmp;
 }
 
@@ -117,7 +99,7 @@ static struct ast_frame *gsmtolin_sample(void)
 	f.subclass = AST_FORMAT_GSM;
 	f.datalen = sizeof(gsm_slin_ex);
 	/* All frames are 20 ms long */
-	f.samples = 160;
+	f.samples = GSM_SAMPLES;
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
@@ -125,189 +107,151 @@ static struct ast_frame *gsmtolin_sample(void)
 	return &f;
 }
 
-static struct ast_frame *gsmtolin_frameout(struct ast_translator_pvt *tmp)
+/*! \brief decode and store in outbuf. */
+static int gsmtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	if (!tmp->tail)
-		return NULL;
-	/* Signed linear is no particular frame size, so just send whatever
-	   we have in the buffer in one lump sum */
-	tmp->f.frametype = AST_FRAME_VOICE;
-	tmp->f.subclass = AST_FORMAT_SLINEAR;
-	tmp->f.datalen = tmp->tail * 2;
-	/* Assume 8000 Hz */
-	tmp->f.samples = tmp->tail;
-	tmp->f.mallocd = 0;
-	tmp->f.offset = AST_FRIENDLY_OFFSET;
-	tmp->f.src = __PRETTY_FUNCTION__;
-	tmp->f.data = tmp->buf;
-	/* Reset tail pointer */
-	tmp->tail = 0;
-
-	return &tmp->f;	
-}
-
-static int gsmtolin_framein(struct ast_translator_pvt *tmp, struct ast_frame *f)
-{
-	/* Assuming there's space left, decode into the current buffer at
-	   the tail location.  Read in as many frames as there are */
+	struct gsm_translator_pvt *tmp = pvt->pvt;
 	int x;
-	unsigned char data[66];
-	int msgsm=0;
-	
-	if(f->datalen == 0) { /* perform PLC with nominal framesize of 20ms/160 samples */
-	      if((tmp->tail + 160) > sizeof(tmp->buf) / 2) {
-		  ast_log(LOG_WARNING, "Out of buffer space\n");
-		  return -1;
-	      }
-	      if(useplc) {
-		  plc_fillin(&tmp->plc, tmp->buf+tmp->tail, 160);
-		  tmp->tail += 160;
-	      }
-	      return 0;
-	}
+	int16_t *dst = (int16_t *)pvt->outbuf;
+	/* guess format from frame len. 65 for MSGSM, 33 for regular GSM */
+	int flen = (f->datalen % MSGSM_FRAME_LEN == 0) ?
+		MSGSM_FRAME_LEN : GSM_FRAME_LEN;
 
-	if ((f->datalen % 33) && (f->datalen % 65)) {
-		ast_log(LOG_WARNING, "Huh?  A GSM frame that isn't a multiple of 33 or 65 bytes long from %s (%d)?\n", f->src, f->datalen);
-		return -1;
-	}
-	
-	if (f->datalen % 65 == 0) 
-		msgsm = 1;
-		
-	for (x=0;x<f->datalen;x+=(msgsm ? 65 : 33)) {
-		if (msgsm) {
+	for (x=0; x < f->datalen; x += flen) {
+		unsigned char data[2 * GSM_FRAME_LEN];
+		char *src;
+		int len;
+		if (flen == MSGSM_FRAME_LEN) {
+			len = 2*GSM_SAMPLES;
+			src = data;
 			/* Translate MSGSM format to Real GSM format before feeding in */
+			/* XXX what's the point here! we should just work
+			 * on the full format.
+			 */
 			conv65(f->data + x, data);
-			if (tmp->tail + 320 < sizeof(tmp->buf)/2) {	
-				if (gsm_decode(tmp->gsm, data, tmp->buf + tmp->tail)) {
-					ast_log(LOG_WARNING, "Invalid GSM data (1)\n");
-					return -1;
-				}
-				tmp->tail+=160;
-				if (gsm_decode(tmp->gsm, data + 33, tmp->buf + tmp->tail)) {
-					ast_log(LOG_WARNING, "Invalid GSM data (2)\n");
-					return -1;
-				}
-				tmp->tail+=160;
-			} else {
-				ast_log(LOG_WARNING, "Out of (MS) buffer space\n");
-				return -1;
-			}
 		} else {
-			if (tmp->tail + 160 < sizeof(tmp->buf)/2) {	
-				if (gsm_decode(tmp->gsm, f->data + x, tmp->buf + tmp->tail)) {
-					ast_log(LOG_WARNING, "Invalid GSM data\n");
-					return -1;
-				}
-				tmp->tail+=160;
-			} else {
-				ast_log(LOG_WARNING, "Out of buffer space\n");
+			len = GSM_SAMPLES;
+			src = f->data + x;
+		}
+		/* XXX maybe we don't need to check */
+		if (pvt->samples + len > BUFFER_SAMPLES) {	
+			ast_log(LOG_WARNING, "Out of buffer space\n");
+			return -1;
+		}
+		if (gsm_decode(tmp->gsm, src, dst + pvt->samples)) {
+			ast_log(LOG_WARNING, "Invalid GSM data (1)\n");
+			return -1;
+		}
+		pvt->samples += GSM_SAMPLES;
+		pvt->datalen += 2 * GSM_SAMPLES;
+		if (flen == MSGSM_FRAME_LEN) {
+			if (gsm_decode(tmp->gsm, data + GSM_FRAME_LEN, dst + pvt->samples)) {
+				ast_log(LOG_WARNING, "Invalid GSM data (2)\n");
 				return -1;
 			}
+			pvt->samples += GSM_SAMPLES;
+			pvt->datalen += 2 * GSM_SAMPLES;
 		}
 	}
-
-	/* just add the last 20ms frame; there must have been at least one */
-	if(useplc) plc_rx(&tmp->plc, tmp->buf+tmp->tail-160, 160);
-
 	return 0;
 }
 
-static int lintogsm_framein(struct ast_translator_pvt *tmp, struct ast_frame *f)
+/*! \brief store samples into working buffer for later decode */
+static int lintogsm_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	/* Just add the frames to our stream */
+	struct gsm_translator_pvt *tmp = pvt->pvt;
+
 	/* XXX We should look at how old the rest of our stream is, and if it
 	   is too old, then we should overwrite it entirely, otherwise we can
 	   get artifacts of earlier talk that do not belong */
-	if (tmp->tail + f->datalen/2 < sizeof(tmp->buf) / 2) {
-		memcpy((tmp->buf + tmp->tail), f->data, f->datalen);
-		tmp->tail += f->datalen/2;
-	} else {
+	if (pvt->samples + f->samples > BUFFER_SAMPLES) {
 		ast_log(LOG_WARNING, "Out of buffer space\n");
 		return -1;
 	}
+	memcpy(tmp->buf + pvt->samples, f->data, f->datalen);
+	pvt->samples += f->samples;
 	return 0;
 }
 
-static struct ast_frame *lintogsm_frameout(struct ast_translator_pvt *tmp)
+/*! \brief encode and produce a frame */
+static struct ast_frame *lintogsm_frameout(struct ast_trans_pvt *pvt)
 {
-	int x=0;
+	struct gsm_translator_pvt *tmp = pvt->pvt;
+	int datalen = 0;
+	int samples = 0;
+
 	/* We can't work on anything less than a frame in size */
-	if (tmp->tail < 160)
+	if (pvt->samples < GSM_SAMPLES)
 		return NULL;
-	tmp->f.frametype = AST_FRAME_VOICE;
-	tmp->f.subclass = AST_FORMAT_GSM;
-	tmp->f.mallocd = 0;
-	tmp->f.offset = AST_FRIENDLY_OFFSET;
-	tmp->f.src = __PRETTY_FUNCTION__;
-	tmp->f.data = tmp->outbuf;
-	while(tmp->tail >= 160) {
-		if ((x+1) * 33 >= sizeof(tmp->outbuf)) {
-			ast_log(LOG_WARNING, "Out of buffer space\n");
-			break;
-		}
+	while (pvt->samples >= GSM_SAMPLES) {
 		/* Encode a frame of data */
-		gsm_encode(tmp->gsm, tmp->buf, ((gsm_byte *) tmp->outbuf) + (x * 33));
-		/* Assume 8000 Hz -- 20 ms */
-		tmp->tail -= 160;
+		gsm_encode(tmp->gsm, tmp->buf, (gsm_byte *)pvt->outbuf + datalen);
+		datalen += GSM_FRAME_LEN;
+		samples += GSM_SAMPLES;
+		pvt->samples -= GSM_SAMPLES;
 		/* Move the data at the end of the buffer to the front */
-		if (tmp->tail)
-			memmove(tmp->buf, tmp->buf + 160, tmp->tail * 2);
-		x++;
+		if (pvt->samples)
+			memmove(tmp->buf, tmp->buf + GSM_SAMPLES, pvt->samples * 2);
 	}
-	tmp->f.datalen = x * 33;
-	tmp->f.samples = x * 160;
-	return &tmp->f;	
+	return ast_trans_frameout(pvt, datalen, samples);
 }
 
-static void gsm_destroy_stuff(struct ast_translator_pvt *pvt)
+static void gsm_destroy_stuff(struct ast_trans_pvt *pvt)
 {
-	if (pvt->gsm)
-		gsm_destroy(pvt->gsm);
-	free(pvt);
-	localusecnt--;
+	struct gsm_translator_pvt *tmp = pvt->pvt;
+	if (tmp->gsm)
+		gsm_destroy(tmp->gsm);
 }
 
-static struct ast_translator gsmtolin =
-	{ "gsmtolin", 
-	   AST_FORMAT_GSM, AST_FORMAT_SLINEAR,
-	   gsm_new,
-	   gsmtolin_framein,
-	   gsmtolin_frameout,
-	   gsm_destroy_stuff,
-	   gsmtolin_sample
-	   };
+static struct ast_module_lock me = { .usecnt = -1 };
 
-static struct ast_translator lintogsm =
-	{ "lintogsm", 
-	   AST_FORMAT_SLINEAR, AST_FORMAT_GSM,
-	   gsm_new,
-	   lintogsm_framein,
-	   lintogsm_frameout,
-	   gsm_destroy_stuff,
-	   lintogsm_sample
-	   };
+static struct ast_translator gsmtolin = {
+	.name = "gsmtolin", 
+	.srcfmt = AST_FORMAT_GSM,
+	.dstfmt = AST_FORMAT_SLINEAR,
+	.newpvt = gsm_new,
+	.framein = gsmtolin_framein,
+	.destroy = gsm_destroy_stuff,
+	.sample = gsmtolin_sample,
+	.lockp = &me,
+	.buffer_samples = BUFFER_SAMPLES,
+	.buf_size = BUFFER_SAMPLES * 2,
+	.desc_size = sizeof (struct gsm_translator_pvt ),
+	.plc_samples = GSM_SAMPLES,
+};
+
+static struct ast_translator lintogsm = {
+	.name = "lintogsm", 
+	.srcfmt = AST_FORMAT_SLINEAR,
+	.dstfmt = AST_FORMAT_GSM,
+	.newpvt = gsm_new,
+	.framein = lintogsm_framein,
+	.frameout = lintogsm_frameout,
+	.destroy = gsm_destroy_stuff,
+	.sample = lintogsm_sample,
+	.lockp = &me,
+	.desc_size = sizeof (struct gsm_translator_pvt ),
+	.buf_size = (BUFFER_SAMPLES * GSM_FRAME_LEN + GSM_SAMPLES - 1)/GSM_SAMPLES,
+};
 
 
 static void parse_config(void)
 {
-	struct ast_config *cfg;
 	struct ast_variable *var;
-	if ((cfg = ast_config_load("codecs.conf"))) {
-		if ((var = ast_variable_browse(cfg, "plc"))) {
-			while (var) {
-			       if (!strcasecmp(var->name, "genericplc")) {
-				       useplc = ast_true(var->value) ? 1 : 0;
-				       if (option_verbose > 2)
-					       ast_verbose(VERBOSE_PREFIX_3 "codec_gsm: %susing generic PLC\n", useplc ? "" : "not ");
-			       }
-			       var = var->next;
-			}
-		}
-		ast_config_destroy(cfg);
+	struct ast_config *cfg = ast_config_load("codecs.conf");
+	if (!cfg)
+		return;
+	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
+	       if (!strcasecmp(var->name, "genericplc")) {
+		       gsmtolin.useplc = ast_true(var->value) ? 1 : 0;
+		       if (option_verbose > 2)
+			       ast_verbose(VERBOSE_PREFIX_3 "codec_gsm: %susing generic PLC\n", gsmtolin.useplc ? "" : "not ");
+	       }
 	}
+	ast_config_destroy(cfg);
 }
 
+/*! \brief standard module glue */
 int reload(void)
 {
 	parse_config();
@@ -317,13 +261,13 @@ int reload(void)
 int unload_module(void)
 {
 	int res;
-	ast_mutex_lock(&localuser_lock);
+	ast_mutex_lock(&me.lock);
 	res = ast_unregister_translator(&lintogsm);
 	if (!res)
 		res = ast_unregister_translator(&gsmtolin);
-	if (localusecnt)
+	if (me.usecnt)
 		res = -1;
-	ast_mutex_unlock(&localuser_lock);
+	ast_mutex_unlock(&me.lock);
 	return res;
 }
 
@@ -341,14 +285,12 @@ int load_module(void)
 
 char *description(void)
 {
-	return tdesc;
+	return "GSM/PCM16 (signed linear) Codec Translator";
 }
 
 int usecount(void)
 {
-	int res;
-	OLD_STANDARD_USECOUNT(res);
-	return res;
+	return me.usecnt;
 }
 
 char *key()

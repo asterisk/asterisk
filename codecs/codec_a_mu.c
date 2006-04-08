@@ -43,12 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ulaw.h"
 #include "asterisk/utils.h"
 
-#define BUFFER_SIZE   8096	/* size for the translation buffers */
-
-AST_MUTEX_DEFINE_STATIC(localuser_lock);
-static int localusecnt = 0;
-
-static char *tdesc = "A-law and Mulaw direct Coder/Decoder";
+#define BUFFER_SAMPLES   8000	/* size for the translation buffers */
 
 static unsigned char mu2a[256];
 static unsigned char a2mu[256];
@@ -57,146 +52,37 @@ static unsigned char a2mu[256];
 
 #include "ulaw_slin_ex.h"
 
-/*
- * Private workspace for translating signed linear signals to alaw.
- */
-
-struct alaw_encoder_pvt
+/*! \brief convert frame data and store into the buffer */
+static int alawtoulaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	struct ast_frame f;
-	char offset[AST_FRIENDLY_OFFSET];	/* Space to build offset */
-	unsigned char outbuf[BUFFER_SIZE];	/* Encoded alaw, two nibbles to a word */
-	int tail;
-};
-
-/*
- * Private workspace for translating laws.
- */
-
-struct ulaw_encoder_pvt
-{
-	struct ast_frame f;
-	char offset[AST_FRIENDLY_OFFSET];	/* Space to build offset */
-	unsigned char outbuf[BUFFER_SIZE];	/* Encoded ulaw values */
-	int tail;
-};
-
-static struct ast_translator_pvt *alawtoulaw_new(void)
-{
-	struct ulaw_encoder_pvt *tmp;
-	
-	if ((tmp = ast_calloc(1, sizeof(*tmp)))) {
-		tmp->tail = 0;
-		localusecnt++;
-		ast_update_use_count();
-	}
-
-	return (struct ast_translator_pvt *)tmp;
-}
-
-static struct ast_translator_pvt *ulawtoalaw_new(void)
-{
-	struct alaw_encoder_pvt *tmp;
-	
-	if ((tmp = ast_calloc(1, sizeof(*tmp)))) {
-		localusecnt++;
-		ast_update_use_count();
-		tmp->tail = 0;
-	}
-
-	return (struct ast_translator_pvt *)tmp;
-}
-
-static int alawtoulaw_framein(struct ast_translator_pvt *pvt, struct ast_frame *f)
-{
-	struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *)pvt;
 	int x;
-	unsigned char *b;
+	unsigned char *src = f->data;
+	unsigned char *dst = (unsigned char *)pvt->outbuf + pvt->samples;
 
-	if ((tmp->tail + f->datalen) > sizeof(tmp->outbuf)) {
-		ast_log(LOG_WARNING, "Out of buffer space\n");
-		return -1;
-	}
-
-	/* Reset ssindex and signal to frame's specified values */
-	b = f->data;
-	for (x=0;x<f->datalen;x++)
-		tmp->outbuf[tmp->tail + x] = a2mu[b[x]];
-
-	tmp->tail += f->datalen;
+	for ( x = 0 ; x < f->samples; x++)
+		dst[x] = a2mu[src[x]];
+	pvt->samples += f->samples;
+	pvt->datalen += f->datalen;
 	return 0;
 }
 
-static struct ast_frame *alawtoulaw_frameout(struct ast_translator_pvt *pvt)
+/*! \brief convert frame data and store into the buffer */
+static int ulawtoalaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *)pvt;
-
-	if (!tmp->tail)
-		return NULL;
-
-	tmp->f.frametype = AST_FRAME_VOICE;
-	tmp->f.subclass = AST_FORMAT_ULAW;
-	tmp->f.datalen = tmp->tail;
-	tmp->f.samples = tmp->tail;
-	tmp->f.mallocd = 0;
-	tmp->f.offset = AST_FRIENDLY_OFFSET;
-	tmp->f.src = __PRETTY_FUNCTION__;
-	tmp->f.data = tmp->outbuf;
-	tmp->tail = 0;
-	return &tmp->f;
-}
-
-static int ulawtoalaw_framein(struct ast_translator_pvt *pvt, struct ast_frame *f)
-{
-	struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *)pvt;
 	int x;
-	unsigned char *s;
-	if (tmp->tail + f->datalen >= sizeof(tmp->outbuf)) {
-		ast_log(LOG_WARNING, "Out of buffer space\n");
-		return -1;
-	}
-	s = f->data;
-	for (x=0;x<f->datalen;x++) 
-		tmp->outbuf[x+tmp->tail] = mu2a[s[x]];
-	tmp->tail += f->datalen;
+	unsigned char *src = f->data;
+	unsigned char *dst = (unsigned char *)pvt->outbuf + pvt->samples;
+
+	for ( x = 0 ; x < f->samples; x++)
+		dst[x] = mu2a[src[x]];
+	pvt->samples += f->samples;
+	pvt->datalen += f->datalen;
 	return 0;
 }
 
 /*
- * LinToalaw_FrameOut
- *  Convert a buffer of raw 16-bit signed linear PCM to a buffer
- *  of 4-bit alaw packed two to a byte (Big Endian).
- *
- * Results:
- *  Foo
- *
- * Side effects:
- *  Leftover inbuf data gets packed, tail gets updated.
+ * alawToLin_Sample. Just random data, somehow...
  */
-
-static struct ast_frame *ulawtoalaw_frameout(struct ast_translator_pvt *pvt)
-{
-	struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *)pvt;
-  
-	if (tmp->tail) {
-		tmp->f.frametype = AST_FRAME_VOICE;
-		tmp->f.subclass = AST_FORMAT_ALAW;
-		tmp->f.samples = tmp->tail;
-		tmp->f.mallocd = 0;
-		tmp->f.offset = AST_FRIENDLY_OFFSET;
-		tmp->f.src = __PRETTY_FUNCTION__;
-		tmp->f.data = tmp->outbuf;
-		tmp->f.datalen = tmp->tail;
-		tmp->tail = 0;
-		return &tmp->f;
-	} else
-		return NULL;
-}
-
-/*
- * alawToLin_Sample
- */
-
 static struct ast_frame *alawtoulaw_sample(void)
 {
 	static struct ast_frame f;
@@ -207,7 +93,7 @@ static struct ast_frame *alawtoulaw_sample(void)
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
-	f.data = ulaw_slin_ex;
+	f.data = ulaw_slin_ex; /* XXX what ? */
 	return &f;
 }
 
@@ -225,66 +111,41 @@ static struct ast_frame *ulawtoalaw_sample(void)
 	return &f;
 }
 
-/*
- * alaw_Destroy
- *  Destroys a private workspace.
- *
- * Results:
- *  It's gone!
- *
- * Side effects:
- *  None.
- */
-
-static void alaw_destroy(struct ast_translator_pvt *pvt)
-{
-	free(pvt);
-	localusecnt--;
-	ast_update_use_count();
-}
-
-/*
- * The complete translator for alawToLin.
- */
+static struct ast_module_lock me = { .usecnt = -1 };
 
 static struct ast_translator alawtoulaw = {
-	"alawtoulaw",
-	AST_FORMAT_ALAW,
-	AST_FORMAT_ULAW,
-	alawtoulaw_new,
-	alawtoulaw_framein,
-	alawtoulaw_frameout,
-	alaw_destroy,
-	/* NULL */
-	alawtoulaw_sample
+	.name = "alawtoulaw",
+	.srcfmt = AST_FORMAT_ALAW,
+	.dstfmt = AST_FORMAT_ULAW,
+	.framein = alawtoulaw_framein,
+	.sample = alawtoulaw_sample,
+	.buffer_samples = BUFFER_SAMPLES,
+	.buf_size = BUFFER_SAMPLES,
+	.lockp = &me,
 };
-
-/*
- * The complete translator for LinToalaw.
- */
 
 static struct ast_translator ulawtoalaw = {
-	"ulawtoalaw",
-	AST_FORMAT_ULAW,
-	AST_FORMAT_ALAW,
-	ulawtoalaw_new,
-	ulawtoalaw_framein,
-	ulawtoalaw_frameout,
-	alaw_destroy,
-	/* NULL */
-	ulawtoalaw_sample
+	.name = "ulawtoalaw",
+	.srcfmt = AST_FORMAT_ULAW,
+	.dstfmt = AST_FORMAT_ALAW,
+	.framein = ulawtoalaw_framein,
+	.sample = ulawtoalaw_sample,
+	.buffer_samples = BUFFER_SAMPLES,
+	.buf_size = BUFFER_SAMPLES,
+	.lockp = &me,
 };
+
+/*! \brief standard module glue */
 
 int unload_module(void)
 {
 	int res;
-	ast_mutex_lock(&localuser_lock);
+	ast_mutex_lock(&me.lock);
 	res = ast_unregister_translator(&ulawtoalaw);
-	if (!res)
-		res = ast_unregister_translator(&alawtoulaw);
-	if (localusecnt)
+	res |= ast_unregister_translator(&alawtoulaw);
+	if (me.usecnt)
 		res = -1;
-	ast_mutex_unlock(&localuser_lock);
+	ast_mutex_unlock(&me.lock);
 	return res;
 }
 
@@ -304,20 +165,14 @@ int load_module(void)
 	return res;
 }
 
-/*
- * Return a description of this module.
- */
-
 char *description(void)
 {
-	return tdesc;
+	return "A-law and Mulaw direct Coder/Decoder";
 }
 
 int usecount(void)
 {
-	int res;
-	OLD_STANDARD_USECOUNT(res);
-	return res;
+	return me.usecnt;
 }
 
 char *key()

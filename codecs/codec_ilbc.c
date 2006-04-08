@@ -54,49 +54,32 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define ILBC_MS 			30
 /* #define ILBC_MS			20 */
 
-AST_MUTEX_DEFINE_STATIC(localuser_lock);
-static int localusecnt=0;
+#define	ILBC_FRAME_LEN	50	/* apparently... */
+#define	ILBC_SAMPLES	240	/* 30ms at 8000 hz */
+#define	BUFFER_SAMPLES	8000
 
 static char *tdesc = "iLBC/PCM16 (signed linear) Codec Translator";
 
-struct ast_translator_pvt {
+struct ilbc_coder_pvt {
 	iLBC_Enc_Inst_t enc;
 	iLBC_Dec_Inst_t dec;
-	struct ast_frame f;
-	/* Space to build offset */
-	char offset[AST_FRIENDLY_OFFSET];
-	/* Buffer for our outgoing frame */
-	short outbuf[8000];
 	/* Enough to store a full second */
-	short buf[8000];
-	int tail;
+	int16_t buf[BUFFER_SAMPLES];
 };
 
-#define ilbc_coder_pvt ast_translator_pvt
-
-static struct ast_translator_pvt *lintoilbc_new(void)
+static void *lintoilbc_new(struct ast_trans_pvt *pvt)
 {
-	struct ilbc_coder_pvt *tmp;
-	if ((tmp = ast_malloc(sizeof(*tmp)))) {
-		/* Shut valgrind up */
-		memset(&tmp->enc, 0, sizeof(tmp->enc));
-		initEncode(&tmp->enc, ILBC_MS);
-		tmp->tail = 0;
-		localusecnt++;
-	}
+	struct ilbc_coder_pvt *tmp = pvt->pvt;
+
+	initEncode(&tmp->enc, ILBC_MS);
 	return tmp;
 }
 
-static struct ast_translator_pvt *ilbctolin_new(void)
+static void *ilbctolin_new(struct ast_trans_pvt *pvt)
 {
-	struct ilbc_coder_pvt *tmp;	
-	if ((tmp = ast_malloc(sizeof(*tmp)))) {
-		/* Shut valgrind up */
-		memset(&tmp->dec, 0, sizeof(tmp->dec));
-		initDecode(&tmp->dec, ILBC_MS, USE_ILBC_ENHANCER);
-		tmp->tail = 0;
-		localusecnt++;
-	}
+	struct ilbc_coder_pvt *tmp = pvt->pvt;
+
+	initDecode(&tmp->dec, ILBC_MS, USE_ILBC_ENHANCER);
 	return tmp;
 }
 
@@ -106,7 +89,6 @@ static struct ast_frame *lintoilbc_sample(void)
 	f.frametype = AST_FRAME_VOICE;
 	f.subclass = AST_FORMAT_SLINEAR;
 	f.datalen = sizeof(slin_ilbc_ex);
-	/* Assume 8000 Hz */
 	f.samples = sizeof(slin_ilbc_ex)/2;
 	f.mallocd = 0;
 	f.offset = 0;
@@ -122,7 +104,7 @@ static struct ast_frame *ilbctolin_sample(void)
 	f.subclass = AST_FORMAT_ILBC;
 	f.datalen = sizeof(ilbc_slin_ex);
 	/* All frames are 30 ms long */
-	f.samples = 240;
+	f.samples = ILBC_SAMPLES;
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
@@ -130,161 +112,120 @@ static struct ast_frame *ilbctolin_sample(void)
 	return &f;
 }
 
-static struct ast_frame *ilbctolin_frameout(struct ast_translator_pvt *tmp)
+/*! \brief decode a frame and store in outbuf */
+static int ilbctolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	if (!tmp->tail)
-		return NULL;
-	/* Signed linear is no particular frame size, so just send whatever
-	   we have in the buffer in one lump sum */
-	tmp->f.frametype = AST_FRAME_VOICE;
-	tmp->f.subclass = AST_FORMAT_SLINEAR;
-	tmp->f.datalen = tmp->tail * 2;
-	/* Assume 8000 Hz */
-	tmp->f.samples = tmp->tail;
-	tmp->f.mallocd = 0;
-	tmp->f.offset = AST_FRIENDLY_OFFSET;
-	tmp->f.src = __PRETTY_FUNCTION__;
-	tmp->f.data = tmp->buf;
-	/* Reset tail pointer */
-	tmp->tail = 0;
-
-	return &tmp->f;	
-}
-
-static int ilbctolin_framein(struct ast_translator_pvt *tmp, struct ast_frame *f)
-{
+	struct ilbc_coder_pvt *tmp = pvt->pvt;
+	int plc_mode = 1; /* 1 = normal data, 0 = plc */
 	/* Assuming there's space left, decode into the current buffer at
 	   the tail location.  Read in as many frames as there are */
 	int x,i;
-	float tmpf[240];
+	int16_t *dst = (int16_t *)pvt->outbuf;
+	float tmpf[ILBC_SAMPLES];
 
-	if (f->datalen == 0) { /* native PLC */
-		if (tmp->tail + 240 < sizeof(tmp->buf)/2) {	
-			iLBC_decode(tmpf, NULL, &tmp->dec, 0);
-			for (i=0;i<240;i++)
-				tmp->buf[tmp->tail + i] = tmpf[i];
-			tmp->tail+=240;
-		} else {
-			ast_log(LOG_WARNING, "Out of buffer space\n");
-			return -1;
-		}		
+	if (f->datalen == 0) { /* native PLC, set fake f->datalen and clear plc_mode */
+		f->datalen = ILBC_FRAME_LEN;
+		f->samples = ILBC_SAMPLES;
+		plc_mode = 0;	/* do native plc */
+		pvt->samples += ILBC_SAMPLES;
 	}
 
-	if (f->datalen % 50) {
+	if (f->datalen % ILBC_FRAME_LEN) {
 		ast_log(LOG_WARNING, "Huh?  An ilbc frame that isn't a multiple of 50 bytes long from %s (%d)?\n", f->src, f->datalen);
 		return -1;
 	}
 	
-	for (x=0;x<f->datalen;x+=50) {
-		if (tmp->tail + 240 < sizeof(tmp->buf)/2) {	
-			iLBC_decode(tmpf, f->data + x, &tmp->dec, 1);
-			for (i=0;i<240;i++)
-				tmp->buf[tmp->tail + i] = tmpf[i];
-			tmp->tail+=240;
-		} else {
+	for (x=0; x < f->datalen ; x += ILBC_FRAME_LEN) {
+		if (pvt->samples + ILBC_SAMPLES > BUFFER_SAMPLES) {	
 			ast_log(LOG_WARNING, "Out of buffer space\n");
 			return -1;
 		}		
+		iLBC_decode(tmpf, plc_mode ? f->data + x : NULL, &tmp->dec, plc_mode);
+		for ( i=0; i < ILBC_SAMPLES; i++)
+			dst[pvt->samples + i] = tmpf[i];
+		pvt->samples += ILBC_SAMPLES;
+		pvt->datalen += 2*ILBC_SAMPLES;
 	}
 	return 0;
 }
 
-static int lintoilbc_framein(struct ast_translator_pvt *tmp, struct ast_frame *f)
+/*! \brief store a frame into a temporary buffer, for later decoding */
+static int lintoilbc_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
+	struct ilbc_coder_pvt *tmp = pvt->pvt;
+
 	/* Just add the frames to our stream */
 	/* XXX We should look at how old the rest of our stream is, and if it
 	   is too old, then we should overwrite it entirely, otherwise we can
 	   get artifacts of earlier talk that do not belong */
-	if (tmp->tail + f->datalen/2 < sizeof(tmp->buf) / 2) {
-		memcpy((tmp->buf + tmp->tail), f->data, f->datalen);
-		tmp->tail += f->datalen/2;
-	} else {
-		ast_log(LOG_WARNING, "Out of buffer space\n");
-		return -1;
-	}
+	memcpy(tmp->buf + pvt->samples, f->data, f->datalen);
+	pvt->samples += f->samples;
 	return 0;
 }
 
-static struct ast_frame *lintoilbc_frameout(struct ast_translator_pvt *tmp)
+/*! \brief encode the temporary buffer and generate a frame */
+static struct ast_frame *lintoilbc_frameout(struct ast_trans_pvt *pvt)
 {
-	int x=0,i;
-	float tmpf[240];
+	struct ilbc_coder_pvt *tmp = pvt->pvt;
+	int datalen = 0;
+	int samples = 0;
+
 	/* We can't work on anything less than a frame in size */
-	if (tmp->tail < 240)
+	if (pvt->samples < ILBC_SAMPLES)
 		return NULL;
-	tmp->f.frametype = AST_FRAME_VOICE;
-	tmp->f.subclass = AST_FORMAT_ILBC;
-	tmp->f.mallocd = 0;
-	tmp->f.offset = AST_FRIENDLY_OFFSET;
-	tmp->f.src = __PRETTY_FUNCTION__;
-	tmp->f.data = tmp->outbuf;
-	while(tmp->tail >= 240) {
-		if ((x+1) * 50 >= sizeof(tmp->outbuf)) {
-			ast_log(LOG_WARNING, "Out of buffer space\n");
-			break;
-		}
-		for (i=0;i<240;i++)
-			tmpf[i] = tmp->buf[i];
+	while (pvt->samples >= ILBC_SAMPLES) {
+		float tmpf[ILBC_SAMPLES];
+		int i;
 		/* Encode a frame of data */
-		iLBC_encode(((unsigned char *)(tmp->outbuf)) + (x * 50), tmpf, &tmp->enc);
-		/* Assume 8000 Hz -- 20 ms */
-		tmp->tail -= 240;
+		for ( i = 0 ; i < ILBC_SAMPLES ; i++ )
+			tmpf[i] = tmp->buf[i];
+		iLBC_encode(pvt->outbuf + datalen, tmpf, &tmp->enc);
+		datalen += ILBC_FRAME_LEN;
+		samples += ILBC_SAMPLES;
+		pvt->samples -= ILBC_SAMPLES;
 		/* Move the data at the end of the buffer to the front */
-		if (tmp->tail)
-			memmove(tmp->buf, tmp->buf + 240, tmp->tail * 2);
-		x++;
+		if (pvt->samples)
+			memmove(tmp->buf, tmp->buf + ILBC_SAMPLES, pvt->samples * 2);
 	}
-	tmp->f.datalen = x * 50;
-	tmp->f.samples = x * 240;
-#if 0
-	{
-		static int fd = -1;
-		if (fd == -1) {
-			fd = open("ilbc.out", O_CREAT|O_TRUNC|O_WRONLY, 0666);
-			write(fd, tmp->f.data, tmp->f.datalen);
-			close(fd);
-		}
-	}
-#endif	
-	return &tmp->f;	
+	return ast_trans_frameout(pvt, datalen, samples);
 }
 
-static void ilbc_destroy_stuff(struct ast_translator_pvt *pvt)
-{
-	free(pvt);
-	localusecnt--;
-}
+static struct ast_module_lock me = { .usecnt = -1 };
 
-static struct ast_translator ilbctolin =
-	{ "ilbctolin", 
-	   AST_FORMAT_ILBC, AST_FORMAT_SLINEAR,
-	   ilbctolin_new,
-	   ilbctolin_framein,
-	   ilbctolin_frameout,
-	   ilbc_destroy_stuff,
-	   ilbctolin_sample
-	   };
+static struct ast_translator ilbctolin = {
+	.name = "ilbctolin", 
+	.srcfmt = AST_FORMAT_ILBC,
+	.dstfmt = AST_FORMAT_SLINEAR,
+	.newpvt = ilbctolin_new,
+	.framein = ilbctolin_framein,
+	.sample = ilbctolin_sample,
+	.desc_size = sizeof(struct ilbc_coder_pvt),
+	.buf_size = BUFFER_SAMPLES * 2,
+	.lockp = &me,
+};
 
-static struct ast_translator lintoilbc =
-	{ "lintoilbc", 
-	   AST_FORMAT_SLINEAR, AST_FORMAT_ILBC,
-	   lintoilbc_new,
-	   lintoilbc_framein,
-	   lintoilbc_frameout,
-	   ilbc_destroy_stuff,
-	   lintoilbc_sample
-	   };
+static struct ast_translator lintoilbc = {
+	.name = "lintoilbc", 
+	.srcfmt = AST_FORMAT_SLINEAR,
+	.dstfmt = AST_FORMAT_ILBC,
+	.newpvt = lintoilbc_new,
+	.framein = lintoilbc_framein,
+	.frameout = lintoilbc_frameout,
+	.sample = lintoilbc_sample,
+	.desc_size = sizeof(struct ilbc_coder_pvt),
+	.buf_size = (BUFFER_SAMPLES * ILBC_FRAME_LEN + ILBC_SAMPLES - 1) / ILBC_SAMPLES,
+	.lockp = &me,
+};
 
 int unload_module(void)
 {
 	int res;
-	ast_mutex_lock(&localuser_lock);
+	ast_mutex_lock(&me.lock);
 	res = ast_unregister_translator(&lintoilbc);
-	if (!res)
-		res = ast_unregister_translator(&ilbctolin);
-	if (localusecnt)
+	res |= ast_unregister_translator(&ilbctolin);
+	if (me.usecnt)
 		res = -1;
-	ast_mutex_unlock(&localuser_lock);
+	ast_mutex_unlock(&me.lock);
 	return res;
 }
 
@@ -306,9 +247,7 @@ char *description(void)
 
 int usecount(void)
 {
-	int res;
-	OLD_STANDARD_USECOUNT(res);
-	return res;
+	return me.usecnt;
 }
 
 char *key()

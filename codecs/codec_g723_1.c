@@ -74,14 +74,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "slin_g723_ex.h"
 #include "g723_slin_ex.h"
 
-AST_MUTEX_DEFINE_STATIC(localuser_lock);
-static int localusecnt=0;
-
-#ifdef ANNEX_B
-static char *tdesc = "Annex B (floating point) G.723.1/PCM16 Codec Translator";
-#else
-static char *tdesc = "Annex A (fixed point) G.723.1/PCM16 Codec Translator";
-#endif
+/* g723_1 has 240 samples per buffer.
+ * We want a buffer which is a multiple...
+ */
+#define	G723_SAMPLES	240
+#define	BUFFER_SAMPLES	8160	/* 240 * 34 */
 
 /* Globals */
 Flag UsePf = True;
@@ -92,37 +89,20 @@ enum Crate WrkRate = Rate63;
 
 struct g723_encoder_pvt {
 	struct cod_state cod;
-	struct ast_frame f;
-	/* Space to build offset */
-	char offset[AST_FRIENDLY_OFFSET];
-	/* Buffer for our outgoing frame */
-	char outbuf[8000];
-	/* Enough to store a full second */
-	short buf[8000];
-	int tail;
+	int16_t buf[BUFFER_SAMPLES];	/* input buffer */
 };
 
 struct g723_decoder_pvt {
 	struct dec_state dec;
-	struct ast_frame f;
-	/* Space to build offset */
-	char offset[AST_FRIENDLY_OFFSET];
-	/* Enough to store a full second */
-	short buf[8000];
-	int tail;
 };
 
-static struct ast_translator_pvt *g723tolin_new(void)
+static struct ast_trans_pvt *g723tolin_new(struct ast *pvt)
 {
-	struct g723_decoder_pvt *tmp;	
-	if ((tmp = ast_malloc(sizeof(*tmp)))) {
-		Init_Decod(&tmp->dec);
-	    Init_Dec_Cng(&tmp->dec);
-		tmp->tail = 0;
-		localusecnt++;
-		ast_update_use_count();
-	}
-	return (struct ast_translator_pvt *)tmp;
+	struct g723_decoder_pvt *tmp = pvt;
+
+	Init_Decod(&tmp->dec);
+	Init_Dec_Cng(&tmp->dec);
+	return tmp;
 }
 
 static struct ast_frame *lintog723_sample(void)
@@ -131,7 +111,6 @@ static struct ast_frame *lintog723_sample(void)
 	f.frametype = AST_FRAME_VOICE;
 	f.subclass = AST_FORMAT_SLINEAR;
 	f.datalen = sizeof(slin_g723_ex);
-	/* Assume 8000 Hz */
 	f.samples = sizeof(slin_g723_ex)/2;
 	f.mallocd = 0;
 	f.offset = 0;
@@ -155,53 +134,16 @@ static struct ast_frame *g723tolin_sample(void)
 	return &f;
 }
 
-static struct ast_translator_pvt *lintog723_new(void)
+static void *lintog723_new(void *pvt)
 {
-	struct g723_encoder_pvt *tmp;	
-	if ((tmp = ast_malloc(sizeof(*tmp)))) {
-		Init_Coder(&tmp->cod);
-	    /* Init Comfort Noise Functions */
-   		 if( UseVx ) {
-   	   		Init_Vad(&tmp->cod);
-        	Init_Cod_Cng(&tmp->cod);
-    	 }
-		localusecnt++;
-		ast_update_use_count();
-		tmp->tail = 0;
+	struct g723_encoder_pvt *tmp = pvt;
+	Init_Coder(&tmp->cod);
+	/* Init Comfort Noise Functions */
+	if( UseVx ) {
+		Init_Vad(&tmp->cod);
+		Init_Cod_Cng(&tmp->cod);
 	}
-	return (struct ast_translator_pvt *)tmp;
-}
-
-static struct ast_frame *g723tolin_frameout(struct ast_translator_pvt *pvt)
-{
-	struct g723_decoder_pvt *tmp = (struct g723_decoder_pvt *)pvt;
-	if (!tmp->tail)
-		return NULL;
-	/* Signed linear is no particular frame size, so just send whatever
-	   we have in the buffer in one lump sum */
-	tmp->f.frametype = AST_FRAME_VOICE;
-	tmp->f.subclass = AST_FORMAT_SLINEAR;
-	tmp->f.datalen = tmp->tail * 2;
-	/* Assume 8000 Hz */
-	tmp->f.samples = tmp->tail;
-	tmp->f.mallocd = 0;
-	tmp->f.offset = AST_FRIENDLY_OFFSET;
-	tmp->f.src = __PRETTY_FUNCTION__;
-	tmp->f.data = tmp->buf;
-	/* Reset tail pointer */
-	tmp->tail = 0;
-
-#if 0
-	/* Save the frames */
-	{ 
-		static int fd2 = -1;
-		if (fd2 == -1) {
-			fd2 = open("g723.example", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		}
-		write(fd2, tmp->f.data, tmp->f.datalen);
-	} 		
-#endif
-	return &tmp->f;	
+	return tmp;
 }
 
 static int g723_len(unsigned char buf)
@@ -225,19 +167,22 @@ static int g723_len(unsigned char buf)
 	return -1;
 }
 
-static int g723tolin_framein(struct ast_translator_pvt *pvt, struct ast_frame *f)
+static int g723tolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	struct g723_decoder_pvt *tmp = (struct g723_decoder_pvt *)pvt;
+	struct g723_decoder_pvt *tmp = pvt->pvt;
 	int len = 0;
 	int res;
+	int16_t *dst = pvt->outbuf;
 #ifdef  ANNEX_B
 	FLOAT tmpdata[Frame];
 	int x;
 #endif
+	unsigned char *src = f->data;
+
 	while(len < f->datalen) {
 		/* Assuming there's space left, decode into the current buffer at
 		   the tail location */
-		res = g723_len(((unsigned char *)f->data + len)[0]);
+		res = g723_len(src[len]);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Invalid data\n");
 			return -1;
@@ -246,145 +191,127 @@ static int g723tolin_framein(struct ast_translator_pvt *pvt, struct ast_frame *f
 			ast_log(LOG_WARNING, "Measured length exceeds frame length\n");
 			return -1;
 		}
-		if (tmp->tail + Frame < sizeof(tmp->buf)/2) {	
-#ifdef ANNEX_B
-			Decod(&tmp->dec, tmpdata, f->data + len, 0);
-			for (x=0;x<Frame;x++)
-				(tmp->buf + tmp->tail)[x] = (short)(tmpdata[x]); 
-#else
-			Decod(&tmp->dec, tmp->buf + tmp->tail, f->data + len, 0);
-#endif
-			tmp->tail+=Frame;
-		} else {
+		if (pvt->samples + Frame > BUFFER_SAMPLES) {	
 			ast_log(LOG_WARNING, "Out of buffer space\n");
 			return -1;
 		}
+#ifdef ANNEX_B
+		Decod(&tmp->dec, tmpdata, f->data + len, 0);
+		for (x=0;x<Frame;x++)
+			dst[pvt->samples + x] = (int16_t)(tmpdata[x]); 
+#else
+		Decod(&tmp->dec, dst + pvt->samples, f->data + len, 0);
+#endif
+		pvt->samples += Frame;
+		pvt->datalen += 2*Frame; /* 2 bytes/sample */
 		len += res;
 	}
 	return 0;
 }
 
-static int lintog723_framein(struct ast_translator_pvt *pvt, struct ast_frame *f)
+static int lintog723_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	/* Just add the frames to our stream */
 	/* XXX We should look at how old the rest of our stream is, and if it
 	   is too old, then we should overwrite it entirely, otherwise we can
 	   get artifacts of earlier talk that do not belong */
-	struct g723_encoder_pvt *tmp = (struct g723_encoder_pvt *)pvt;
-	if (tmp->tail + f->datalen/2 < sizeof(tmp->buf) / 2) {
-		memcpy(&tmp->buf[tmp->tail], f->data, f->datalen);
-		tmp->tail += f->datalen/2;
-	} else {
+	struct g723_encoder_pvt *tmp = pvt->pvt;
+
+	if (tmp->samples + f->samples > BUFFER_SAMPLES) {
 		ast_log(LOG_WARNING, "Out of buffer space\n");
 		return -1;
 	}
+	memcpy(&tmp->buf[pvt->samples], f->data, f->datalen);
+	pvt->samples += f->samples;
 	return 0;
 }
 
-static struct ast_frame *lintog723_frameout(struct ast_translator_pvt *pvt)
+static struct ast_frame *lintog723_frameout(void *pvt)
 {
 	struct g723_encoder_pvt *tmp = (struct g723_encoder_pvt *)pvt;
+	int samples = 0;	/* how many samples in buffer */
 #ifdef ANNEX_B
 	int x;
 	FLOAT tmpdata[Frame];
 #endif
-	int cnt=0;
+	int cnt = 0;	/* how many bytes so far */
+
 	/* We can't work on anything less than a frame in size */
-	if (tmp->tail < Frame)
+	if (pvt->samples < Frame)
 		return NULL;
-	tmp->f.frametype = AST_FRAME_VOICE;
-	tmp->f.subclass = AST_FORMAT_G723_1;
-	tmp->f.offset = AST_FRIENDLY_OFFSET;
-	tmp->f.src = __PRETTY_FUNCTION__;
-	tmp->f.samples = 0;
-	tmp->f.mallocd = 0;
-	while(tmp->tail >= Frame) {
+	while (pvt->samples >= Frame) {
 		/* Encode a frame of data */
-		if (cnt + 24 >= sizeof(tmp->outbuf)) {
+		/* at most 24 bytes/frame... */
+		if (cnt + 24 > pvt->buf_size) {
 			ast_log(LOG_WARNING, "Out of buffer space\n");
 			return NULL;
 		}
 #ifdef ANNEX_B
-		for (x=0;x<Frame;x++)
+		for ( x = 0; x < Frame ; x++)
 			tmpdata[x] = tmp->buf[x];
-		Coder(&tmp->cod, tmpdata, tmp->outbuf + cnt);
+		Coder(&tmp->cod, tmpdata, pvt->outbuf + cnt);
 #else
-		Coder(&tmp->cod, tmp->buf, tmp->outbuf + cnt);
+		Coder(&tmp->cod, tmp->buf, pvt->outbuf + cnt);
 #endif
 		/* Assume 8000 Hz */
-		tmp->f.samples += 240;
+		samples += G723_SAMPLES;
 		cnt += g723_len(tmp->outbuf[cnt]);
-		tmp->tail -= Frame;
+		pvt->samples -= Frame;
 		/* Move the data at the end of the buffer to the front */
-		if (tmp->tail)
-			memmove(tmp->buf, tmp->buf + Frame, tmp->tail * 2);
+		/* XXX inefficient... */
+		if (pvt->samples)
+			memmove(tmp->buf, tmp->buf + Frame, pvt->samples * 2);
 	}
-	tmp->f.datalen = cnt;
-	tmp->f.data = tmp->outbuf;
-#if 0
-	/* Save to a g723 sample output file... */
-	{ 
-		static int fd = -1;
-		int delay = htonl(30);
-		short size;
-		if (fd < 0)
-			fd = open("trans.g723", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		if (fd < 0)
-			ast_log(LOG_WARNING, "Unable to create demo\n");
-		write(fd, &delay, 4);
-		size = htons(tmp->f.datalen);
-		write(fd, &size, 2);
-		write(fd, tmp->f.data, tmp->f.datalen);
-	}
-#endif
-	return &tmp->f;	
+	return ast_trans_frameout(pvt, cnt, samples);
 }
 
-static void g723_destroy(struct ast_translator_pvt *pvt)
-{
-	free(pvt);
-	localusecnt--;
-	ast_update_use_count();
-}
+static struct ast_module_lock me = { .usecnt = -1 };
 
-static struct ast_translator g723tolin =
+static struct ast_translator g723tolin = {
+	.name =
 #ifdef ANNEX_B
-	{ "g723tolinb", 
+	"g723btolin", 
 #else
-	{ "g723tolin", 
+	"g723tolin", 
 #endif
-	   AST_FORMAT_G723_1, AST_FORMAT_SLINEAR,
-	   g723tolin_new,
-	   g723tolin_framein,
-	   g723tolin_frameout,
-	   g723_destroy,
-	   g723tolin_sample
-	   };
+	.srcfmt = AST_FORMAT_G723_1,
+	.dstfmt =  AST_FORMAT_SLINEAR,
+	.newpvt = g723tolin_new,
+	.framein = g723tolin_framein,
+	.sample = g723tolin_sample,
+	.desc_size = sizeof(struct ...),
+	.lockp = &me,
+};
 
-static struct ast_translator lintog723 =
+static struct ast_translator lintog723 = {
+	.name =
 #ifdef ANNEX_B
-	{ "lintog723b", 
+	"lintog723b", 
 #else
-	{ "lintog723", 
+	"lintog723", 
 #endif
-	   AST_FORMAT_SLINEAR, AST_FORMAT_G723_1,
-	   lintog723_new,
-	   lintog723_framein,
-	   lintog723_frameout,
-	   g723_destroy,
-	   lintog723_sample
-	   };
+	.srcfmt = AST_FORMAT_SLINEAR,
+	.dstfmt =  AST_FORMAT_G723_1,
+	.new = lintog723_new,
+	.framein = lintog723_framein,
+	.frameout = lintog723_frameout,
+	.destroy = g723_destroy,
+	.sample = lintog723_sample,
+	.lockp = &me,
+	.desc_size = sizeof(struct ...),
+};
+
+/*! \brief standard module glue */
 
 int unload_module(void)
 {
 	int res;
-	ast_mutex_lock(&localuser_lock);
+	ast_mutex_lock(&me.lock);
 	res = ast_unregister_translator(&lintog723);
-	if (!res)
-		res = ast_unregister_translator(&g723tolin);
-	if (localusecnt)
+	res |= ast_unregister_translator(&g723tolin);
+	if (me.usecnt)
 		res = -1;
-	ast_mutex_unlock(&localuser_lock);
+	ast_mutex_unlock(&me.lock);
 	return res;
 }
 
@@ -401,14 +328,17 @@ int load_module(void)
 
 char *description(void)
 {
-	return tdesc;
+#ifdef ANNEX_B
+	return "Annex B (floating point) G.723.1/PCM16 Codec Translator";
+#else
+	return "Annex A (fixed point) G.723.1/PCM16 Codec Translator";
+#endif
+
 }
 
 int usecount(void)
 {
-	int res;
-	OLD_STANDARD_USECOUNT(res);
-	return res;
+	return me.usecnt;
 }
 
 char *key(void)
