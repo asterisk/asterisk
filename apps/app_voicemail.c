@@ -1697,9 +1697,8 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 	ast_log(LOG_DEBUG, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, ast_test_flag((&globalflags), VM_ATTACH));
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
 	   command hangs */
-	p = vm_mkftemp(tmp);
-	if (p == NULL) {
-		ast_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
+	if ((p = vm_mkftemp(tmp)) == NULL) {
+		ast_log(LOG_WARNING, "Unable to launch '%s' (can't create temporary file)\n", mailcmd);
 		return -1;
 	} else {
 		gethostname(host, sizeof(host)-1);
@@ -1817,10 +1816,10 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	char tmp[80] = "/tmp/astmail-XXXXXX";
 	char tmp2[256];
 	struct tm tm;
-	FILE *p = vm_mkftemp(tmp);
+	FILE *p;
 
-	if (p == NULL) {
-		ast_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
+	if ((p = vm_mkftemp(tmp)) == NULL) {
+		ast_log(LOG_WARNING, "Unable to launch '%s' (can't create temporary file)\n", mailcmd);
 		return -1;
 	} else {
 		gethostname(host, sizeof(host)-1);
