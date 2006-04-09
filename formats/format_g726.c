@@ -137,7 +137,7 @@ static struct ast_frame *g726_read(struct ast_filestream *s, int *whennext)
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_G726;
 	s->fr.mallocd = 0;
-	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, frame_size[fs->rate]);
+	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, frame_size[fs->rate]);
 	s->fr.samples = 8 * FRAME_TIME;
 	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res)

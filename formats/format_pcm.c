@@ -95,7 +95,7 @@ static struct ast_frame *pcm_read(struct ast_filestream *s, int *whennext)
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = s->fmt->format;
 	s->fr.mallocd = 0;
-	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
+	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
 	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) < 1) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));

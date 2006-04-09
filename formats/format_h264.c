@@ -84,7 +84,7 @@ static struct ast_frame *h264_read(struct ast_filestream *s, int *whennext)
 	s->fr.frametype = AST_FRAME_VIDEO;
 	s->fr.subclass = AST_FORMAT_H264;
 	s->fr.mallocd = 0;
-	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, len);
+	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, len);
 	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d of %d) (%s)!\n", res, len, strerror(errno));

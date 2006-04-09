@@ -379,7 +379,7 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.samples = GSM_SAMPLES;
 	s->fr.mallocd = 0;
-	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, GSM_FRAME_SIZE);
+	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, GSM_FRAME_SIZE);
 	if (fs->secondhalf) {
 		/* Just return a frame based on the second GSM frame */
 		s->fr.data = (char *)s->fr.data + GSM_FRAME_SIZE;

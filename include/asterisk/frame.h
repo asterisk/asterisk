@@ -111,7 +111,15 @@ struct ast_frame {
 	struct ast_frame *next;			
 };
 
-#define	FR_SET_BUF(fr, _base, _ofs, _datalen)	\
+/*!
+ * Set the various field of a frame to point to a buffer.
+ * Typically you set the base address of the buffer, the offset as
+ * AST_FRIENDLY_OFFSET, and the datalen as the amount of bytes queued.
+ * The remaining things (to be done manually) is set the number of
+ * samples, which cannot be derived from the datalen unless you know
+ * the number of bits per sample.
+ */
+#define	AST_FRAME_SET_BUFFER(fr, _base, _ofs, _datalen)	\
 	{					\
 	(fr)->data = (char *)_base + (_ofs);	\
 	(fr)->offset = (_ofs);			\

@@ -436,7 +436,7 @@ static struct ast_frame *ogg_vorbis_read(struct ast_filestream *fs,
 	fs->fr.frametype = AST_FRAME_VOICE;
 	fs->fr.subclass = AST_FORMAT_SLINEAR;
 	fs->fr.mallocd = 0;
-	FR_SET_BUF(&fs->fr, fs->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
+	AST_FRAME_SET_BUFFER(&fs->fr, fs->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
 
 	while (samples_out != SAMPLES_MAX) {
 		float **pcm;

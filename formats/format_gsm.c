@@ -67,7 +67,7 @@ static struct ast_frame *gsm_read(struct ast_filestream *s, int *whennext)
 
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_GSM;
-	FR_SET_BUF(&(s->fr), s->buf, AST_FRIENDLY_OFFSET, GSM_FRAME_SIZE)
+	AST_FRAME_SET_BUFFER(&(s->fr), s->buf, AST_FRIENDLY_OFFSET, GSM_FRAME_SIZE)
 	s->fr.mallocd = 0;
 	if ((res = fread(s->fr.data, 1, GSM_FRAME_SIZE, s->f)) != GSM_FRAME_SIZE) {
 		if (res)

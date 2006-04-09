@@ -62,7 +62,7 @@ static struct ast_frame *g729_read(struct ast_filestream *s, int *whennext)
 	s->fr.subclass = AST_FORMAT_G729A;
 	s->fr.mallocd = 0;
 	s->fr.samples = G729A_SAMPLES;
-	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
+	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
 	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res && (res != 10))	/* XXX what for ? */
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));

@@ -369,7 +369,7 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_SLINEAR;
 	s->fr.mallocd = 0;
-	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, bytes);
+	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, bytes);
 	
 	if ( (res = fread(s->fr.data, 1, s->fr.datalen, s->f)) <= 0 ) {
 		if (res)

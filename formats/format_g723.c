@@ -76,7 +76,7 @@ static struct ast_frame *g723_read(struct ast_filestream *s, int *whennext)
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_G723_1;
 	s->fr.mallocd = 0;
-	FR_SET_BUF(&s->fr, s->buf, AST_FRIENDLY_OFFSET, size);
+	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, size);
 	if ((res = fread(s->fr.data, 1, s->fr.datalen, s->f)) != size) {
 		ast_log(LOG_WARNING, "Short read (%d of %d bytes) (%s)!\n", res, size, strerror(errno));
 		return NULL;
