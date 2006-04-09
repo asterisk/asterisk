@@ -46,11 +46,12 @@ static char *res_config_pgsql_desc = "Postgresql RealTime Configuration Driver";
 AST_MUTEX_DEFINE_STATIC(pgsql_lock);
 #define RES_CONFIG_PGSQL_CONF "res_pgsql.conf"
 PGconn*         pgsqlConn = NULL;
-static char   dbhost[50]="";
-static char   dbuser[50]="";
-static char   dbpass[50]="";
-static char   dbname[50]="";
-static char   dbsock[50]="";
+#define MAX_DB_OPTION_SIZE 64
+static char   dbhost[MAX_DB_OPTION_SIZE]="";
+static char   dbuser[MAX_DB_OPTION_SIZE]="";
+static char   dbpass[MAX_DB_OPTION_SIZE]="";
+static char   dbname[MAX_DB_OPTION_SIZE]="";
+static char   dbsock[MAX_DB_OPTION_SIZE]="";
 static int    dbport=5432;
 static time_t connect_time=0;
 
@@ -99,8 +100,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 
 	/* Create the first part of the query using the first parameter/value pairs we just extracted
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
-
-	if(!strchr(newparam, ' ')) op = " ="; else op = "";
+	op = strchr(newparam, ' ')?"":" =";
 
 	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s '%s'", table, newparam, op, newval);
 	while((newparam = va_arg(ap, const char *))) {
@@ -159,8 +159,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 	  }
 	  for(i = 0; i < numFields; i++)
 	    fieldnames[i]=PQfname(result,i);
-	  for(rowIndex=0;rowIndex<num_rows;rowIndex++)
-	    {
+	  for(rowIndex = 0; rowIndex < num_rows; rowIndex++)
 	      for(i = 0; i < numFields; i++) {
 		stringp = PQgetvalue(result,rowIndex,i);
 		while(stringp) {
@@ -177,7 +176,6 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 		  }
 		}
 	      }
-	    }
 	  free(fieldnames);
 	} else {                                
 		ast_log(LOG_WARNING, "Postgresql RealTime: Could not find any rows in table %s.\n", table);
@@ -698,10 +696,7 @@ static int pgsql_reconnect(const char *database)
 {
 	char my_database[50];
 
-	if(!database || ast_strlen_zero(database))
-		ast_copy_string(my_database, dbname, sizeof(my_database));
-	else
-		ast_copy_string(my_database, database, sizeof(my_database));
+	ast_copy_string(my_database, S_OR(database,dbname), sizeof(my_database));
 
 	/* mutex lock should have been locked before calling this function. */
 
