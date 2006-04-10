@@ -144,6 +144,26 @@ struct ast_generator {
 	int (*generate)(struct ast_channel *chan, void *data, int len, int samples);
 };
 
+/*! Structure for a data store type */
+struct ast_datastore_info {
+	/*! Type of data store */
+	const char *type;
+	/*! Destroy function */
+	void (*destroy)(void *data);
+};
+
+/*! Structure for a channel data store */
+struct ast_datastore {
+	/*! Unique data store identifier */
+	char *uid;
+	/*! Contained data */
+	void *data;
+	/*! Data store type information */
+	const struct ast_datastore_info *info;
+	/*! Used for easy linking */
+	AST_LIST_ENTRY(ast_datastore) list;
+};
+
 /*! Structure for all kinds of caller ID identifications */
 struct ast_callerid {
 	/*! Malloc'd Dialed Number Identifier */
@@ -423,6 +443,9 @@ struct ast_channel {
 	/*! Chan Spy stuff */
 	struct ast_channel_spy_list *spies;
 
+	/*! Data stores on the channel */
+	AST_LIST_HEAD(datastores, ast_datastore) datastores;
+
 	/*! For easy linking */
 	AST_LIST_ENTRY(ast_channel) chan_list;
 };
@@ -552,6 +575,21 @@ enum channelreloadreason {
 	CHANNEL_CLI_RELOAD,
 	CHANNEL_MANAGER_RELOAD,
 };
+
+/*! \brief Create a channel datastore structure */
+struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, char *uid);
+
+/*! \brief Free a channel datastore structure */
+int ast_channel_datastore_free(struct ast_datastore *datastore);
+
+/*! \brief Add a datastore to a channel */
+int ast_channel_datastore_add(struct ast_channel *chan, struct ast_datastore *datastore);
+
+/*! \brief Remove a datastore from a channel */
+int ast_channel_datastore_remove(struct ast_channel *chan, struct ast_datastore *datastore);
+
+/*! \brief Find a datastore on a channel */
+struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const struct ast_datastore_info *info, char *uid);
 
 /*! \brief Change the state of a channel */
 int ast_setstate(struct ast_channel *chan, int state);

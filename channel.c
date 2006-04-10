@@ -653,6 +653,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	headp = &tmp->varshead;
 	ast_mutex_init(&tmp->lock);
 	AST_LIST_HEAD_INIT_NOLOCK(headp);
+	AST_LIST_HEAD_INIT_NOLOCK(&tmp->datastores);
 	strcpy(tmp->context, "default");
 	ast_string_field_set(tmp, language, defaultlanguage);
 	strcpy(tmp->exten, "s");
@@ -928,6 +929,7 @@ void ast_channel_free(struct ast_channel *chan)
 	struct ast_var_t *vardata;
 	struct ast_frame *f, *fp;
 	struct varshead *headp;
+	struct ast_datastore *datastore = NULL;
 	char name[AST_CHANNEL_NAME];
 	
 	headp=&chan->varshead;
@@ -981,6 +983,18 @@ void ast_channel_free(struct ast_channel *chan)
 		ast_frfree(fp);
 	}
 	
+	/* Get rid of each of the data stores on the channel */
+	AST_LIST_LOCK(&chan->datastores);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->datastores, datastore, list) {
+		/* Remove from the list */
+		AST_LIST_REMOVE_CURRENT(&chan->datastores, list);
+		/* Free the data store */
+		ast_channel_datastore_free(datastore);
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&chan->datastores);
+	AST_LIST_HEAD_DESTROY(&chan->datastores);
+
 	/* loop over the variables list, freeing all data and deleting list items */
 	/* no need to lock the list, as the channel is already locked */
 	
@@ -992,6 +1006,111 @@ void ast_channel_free(struct ast_channel *chan)
 	AST_LIST_UNLOCK(&channels);
 
 	ast_device_state_changed_literal(name);
+}
+
+struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, char *uid)
+{
+	struct ast_datastore *datastore = NULL;
+
+	/* Make sure we at least have type so we can identify this */
+	if (info == NULL) {
+		return NULL;
+	}
+
+	/* Allocate memory for datastore and clear it */
+	datastore = ast_calloc(1, sizeof(*datastore));
+	if (datastore == NULL) {
+		return NULL;
+	}
+
+	datastore->info = info;
+
+	if (uid != NULL) {
+		datastore->uid = ast_strdup(uid);
+	}
+
+	return datastore;
+}
+
+int ast_channel_datastore_free(struct ast_datastore *datastore)
+{
+	int res = 0;
+
+	/* Using the destroy function (if present) destroy the data */
+	if (datastore->info->destroy != NULL && datastore->data != NULL) {
+		datastore->info->destroy(datastore->data);
+		datastore->data = NULL;
+	}
+
+	/* Free allocated UID memory */
+	if (datastore->uid != NULL) {
+		free(datastore->uid);
+		datastore->uid = NULL;
+	}
+
+	/* Finally free memory used by ourselves */
+	free(datastore);
+	datastore = NULL;
+
+	return res;
+}
+
+int ast_channel_datastore_add(struct ast_channel *chan, struct ast_datastore *datastore)
+{
+	int res = 0;
+
+	AST_LIST_LOCK(&chan->datastores);
+	AST_LIST_INSERT_HEAD(&chan->datastores, datastore, list);
+	AST_LIST_UNLOCK(&chan->datastores);
+
+	return res;
+}
+
+int ast_channel_datastore_remove(struct ast_channel *chan, struct ast_datastore *datastore)
+{
+	struct ast_datastore *datastore2 = NULL;
+	int res = -1;
+
+	/* Find our position and remove ourselves */
+	AST_LIST_LOCK(&chan->datastores);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->datastores, datastore2, list) {
+		if (datastore2 == datastore) {
+			AST_LIST_REMOVE_CURRENT(&chan->datastores, list);
+			res = 0;
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&chan->datastores);
+
+	return res;
+}
+
+struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const struct ast_datastore_info *info, char *uid)
+{
+	struct ast_datastore *datastore = NULL;
+	
+	if (info == NULL)
+		return NULL;
+
+	AST_LIST_LOCK(&chan->datastores);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->datastores, datastore, list) {
+		if (datastore->info == info) {
+			if (uid != NULL && datastore->uid != NULL) {
+				if (!strcasecmp(uid, datastore->uid)) {
+					/* Matched by type AND uid */
+					break;
+				}
+			} else {
+				/* Matched by type at least */
+				break;
+			}
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&chan->datastores);
+
+	return datastore;
 }
 
 int ast_channel_spy_add(struct ast_channel *chan, struct ast_channel_spy *spy)
@@ -3048,6 +3167,11 @@ int ast_do_masquerade(struct ast_channel *original)
 		if (x != AST_GENERATOR_FD)
 			original->fds[x] = clone->fds[x];
 	}
+	/* Move data stores over */
+	if (AST_LIST_FIRST(&clone->datastores))
+                AST_LIST_INSERT_TAIL(&original->datastores, AST_LIST_FIRST(&clone->datastores), list);
+	AST_LIST_HEAD_INIT_NOLOCK(&clone->datastores);
+
 	clone_variables(original, clone);
 	AST_LIST_HEAD_INIT_NOLOCK(&clone->varshead);
 	/* Presense of ADSI capable CPE follows clone */
