@@ -2918,26 +2918,20 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s"))
 		tmp->cid.cid_dnid = ast_strdup(i->exten);
 	tmp->priority = 1;
-	if (!ast_strlen_zero(i->uri)) {
+	if (!ast_strlen_zero(i->uri))
 		pbx_builtin_setvar_helper(tmp, "SIPURI", i->uri);
-	}
-	if (!ast_strlen_zero(i->domain)) {
+	if (!ast_strlen_zero(i->domain))
 		pbx_builtin_setvar_helper(tmp, "SIPDOMAIN", i->domain);
-	}
-	if (!ast_strlen_zero(i->useragent)) {
+	if (!ast_strlen_zero(i->useragent))
 		pbx_builtin_setvar_helper(tmp, "SIPUSERAGENT", i->useragent);
-	}
-	if (!ast_strlen_zero(i->callid)) {
+	if (!ast_strlen_zero(i->callid))
 		pbx_builtin_setvar_helper(tmp, "SIPCALLID", i->callid);
-	}
 	ast_setstate(tmp, state);
-	if (state != AST_STATE_DOWN) {
-		if (ast_pbx_start(tmp)) {
-			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
-			tmp->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
-			ast_hangup(tmp);
-			tmp = NULL;
-		}
+	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
+		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+		tmp->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+		ast_hangup(tmp);
+		tmp = NULL;
 	}
 	/* Set channel variables for this call from configuration */
 	for (v = i->chanvars ; v ; v = v->next)
@@ -2963,10 +2957,9 @@ static char *get_sdp(struct sip_request *req, char *name)
 {
 	int x;
 	int len = strlen(name);
-	char *r;
 
 	for (x = 0; x < req->lines; x++) {
-		r = get_sdp_by_line(req->line[x], name, len);
+		char *r = get_sdp_by_line(req->line[x], name, len);
 		if (r[0] != '\0')
 			return r;
 	}
@@ -2983,10 +2976,9 @@ static char* get_sdp_iterate(int* iterator,
 			     struct sip_request *req, char *name)
 {
 	int len = strlen(name);
-	char *r;
 
 	while (*iterator < req->lines) {
-		r = get_sdp_by_line(req->line[(*iterator)++], name, len);
+		char *r = get_sdp_by_line(req->line[(*iterator)++], name, len);
 		if (r[0] != '\0')
 			return r;
 	}
@@ -3274,11 +3266,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 			ast_set_flag(req, SIP_PKT_WITH_TOTAG);	/* Used in handle_request/response */
 		gettag(req, "From", fromtag, sizeof(fromtag));
 
-		if (req->method == SIP_RESPONSE)
-			tag = totag;
-		else
-			tag = fromtag;
-			
+		tag = (req->method == SIP_RESPONSE) ? totag : fromtag;
 
 		if (option_debug > 4 )
 			ast_log(LOG_DEBUG, "= Looking for  Call ID: %s (Checking %s) --From tag %s --To-tag %s  \n", callid, req->method==SIP_RESPONSE ? "To" : "From", fromtag, totag);
@@ -3342,10 +3330,8 @@ static int sip_register(char *value, int lineno)
 	stringp=copy;
 	username = stringp;
 	hostname = strrchr(stringp, '@');
-	if (hostname) {
-		*hostname = '\0';
-		hostname++;
-	}
+	if (hostname)
+		*hostname++ = '\0';
 	if (ast_strlen_zero(username) || ast_strlen_zero(hostname)) {
 		ast_log(LOG_WARNING, "Format for registration is user[:secret[:authuser]]@host[:port][/contact] at line %d\n", lineno);
 		return -1;
@@ -3407,7 +3393,7 @@ static int sip_register(char *value, int lineno)
 /*! \brief  Parse multiline SIP headers into one header
 	This is enabled if pedanticsipchecking is enabled */
 static int lws2sws(char *msgbuf, int len) 
-{ 
+{
 	int h = 0, t = 0; 
 	int lws = 0; 
 
