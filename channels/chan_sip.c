@@ -958,7 +958,7 @@ static int determine_firstline_parts(struct sip_request *req);
 static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEBUG at end of dialog, before destroying data */
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full);
-static const char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
+static const char *gettag(const struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
 static int find_sip_method(const char *msg);
 static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported);
 static void sip_destroy(struct sip_pvt *p);
@@ -1937,8 +1937,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	if (ast_strlen_zero(r->tohost)) {
 		char iabuf[INET_ADDRSTRLEN];
 
-		ast_inet_ntoa(iabuf, sizeof(iabuf),  peer->addr.sin_addr.s_addr ? peer->addr.sin_addr : peer->defaddr.sin_addr);
-
+		ast_inet_ntoa(iabuf, sizeof(iabuf),  r->sa.sin_addr);
 		ast_string_field_set(r, tohost, iabuf);
 	}
 	if (!ast_strlen_zero(peer->fromdomain))
@@ -1984,10 +1983,8 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 
 	ast_copy_string(peer, opeer, sizeof(peer));
 	port = strchr(peer, ':');
-	if (port) {
-		*port = '\0';
-		port++;
-	}
+	if (port)
+		*port++ = '\0';
 	dialog->sa.sin_family = AF_INET;
 	dialog->timer_t1 = 500; /* Default SIP retransmission timer T1 (RFC 3261) */
 	p = find_peer(peer, NULL, 1);
@@ -2002,10 +1999,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 			return -1;
 
 		hostn = peer;
-		if (port)
-			portno = atoi(port);
-		else
-			portno = DEFAULT_SIP_PORT;
+		portno = port ? atoi(port) : DEFAULT_SIP_PORT;
 		if (srvlookup) {
 			char service[MAXHOSTNAMELEN];
 			int tportno;
@@ -6107,12 +6101,12 @@ static void free_old_route(struct sip_route *route)
 /*! \brief List all routes - mostly for debugging */
 static void list_route(struct sip_route *route)
 {
-	if (!route) {
+	if (!route)
 		ast_verbose("list_route: no route\n");
-		return;
+	else {
+		for (;route; route = route->next)
+			ast_verbose("list_route: hop: <%s>\n", route->hop);
 	}
-	for (;route; route = route->next)
-		ast_verbose("list_route: hop: <%s>\n", route->hop);
 }
 
 /*! \brief Build route list from Record-Route header */
@@ -6783,18 +6777,12 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 		}
 	}
 	
-	if ((ptr = strchr(refer_to, '@')))	/* Skip domain (should be saved in SIPDOMAIN) */
-		*ptr = '\0';
-	if ((ptr = strchr(refer_to, ';'))) 
-		*ptr = '\0';
-	
-	if (referred_by) {
-		if ((ptr = strchr(referred_by, '@')))
-			*ptr = '\0';
-		if ((ptr = strchr(referred_by, ';'))) 
-			*ptr = '\0';
-	}
-	
+	/* strip domain and everything after ';' (domain should be saved in SIPDOMAIN) */
+	ptr = refer_to;
+	strsep(&ptr, "@;");	/* trim anything after @ or ; */
+	ptr = referred_by;
+	strsep(&ptr, "@;");	/* trim anything after @ or ;, NULL is ok */
+
 	if (sip_debug_test_pvt(sip_pvt)) {
 		ast_verbose("Transfer to %s in %s\n", refer_to, sip_pvt->context);
 		if (referred_by)
@@ -6934,14 +6922,14 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 }
 
 /*! \brief  Get caller id name from SIP headers */
-static char *get_calleridname(char *input, char *output, size_t outputsize)
+static char *get_calleridname(const char *input, char *output, size_t outputsize)
 {
-	char *end = strchr(input,'<');
-	char *tmp = strchr(input,'\"');
+	const char *end = strchr(input,'<');	/* first_bracket */
+	const char *tmp = strchr(input,'\"');	/* first quote */
 	int bytes = 0;
 	int maxbytes = outputsize - 1;
 
-	if (!end || end == input)
+	if (!end || end == input)	/* we require a part in brackets */
 		return NULL;
 
 	/* move away from "<" */
@@ -8484,7 +8472,7 @@ static char *complete_sipch(const char *line, const char *word, int pos, int sta
 }
 
 /*! \brief  complete_sip_peer: Do completion on peer name */
-static char *complete_sip_peer(const char *word, const int state, int flags2)
+static char *complete_sip_peer(const char *word, int state, int flags2)
 {
 	char *result = NULL;
 	int wordlen = strlen(word);
@@ -9142,7 +9130,6 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
  	}
 	if (ast_strlen_zero(username))	/* We have no authentication */
 		return -1;
- 
 
  	/* Calculate SIP digest response */
  	snprintf(a1,sizeof(a1),"%s:%s:%s", username, p->realm, secret);
@@ -10422,7 +10409,7 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 }
 
 /*! \brief Get tag from packet */
-static const char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize) 
+static const char *gettag(const struct sip_request *req, char *header, char *tagbuf, int tagbufsize) 
 {
 	const char *thetag;
 
