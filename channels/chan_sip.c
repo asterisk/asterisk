@@ -967,7 +967,7 @@ static void sip_destroy_user(struct sip_user *user);
 static void parse_request(struct sip_request *req);
 static const char *get_header(const struct sip_request *req, const char *name);
 static void copy_request(struct sip_request *dst,struct sip_request *src);
-static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req);
+static int transmit_response_reliable(struct sip_pvt *p, const char *msg, struct sip_request *req);
 static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, char *authheader);
 static int sip_poke_peer(struct sip_peer *peer);
 static int __sip_do_register(struct sip_registry *r);
@@ -2440,10 +2440,9 @@ static int hangup_sip2cause(int cause)
    31 normal unspecified                   480 Temporarily unavailable
 \endverbatim
 */
-static char *hangup_cause2sip(int cause)
+static const char *hangup_cause2sip(int cause)
 {
-	switch(cause)
-	{
+	switch (cause) {
 		case AST_CAUSE_UNALLOCATED:		/* 1 */
 		case AST_CAUSE_NO_ROUTE_DESTINATION:	/* 3 IAX2: Can't find extension in context */
 		case AST_CAUSE_NO_ROUTE_TRANSIT_NET:	/* 2 */
@@ -2552,10 +2551,10 @@ static int sip_hangup(struct ast_channel *ast)
 					update_call_counter(p, INC_CALL_LIMIT);
 				}
 			} else {	/* Incoming call, not up */
-				char *res;
-				if (ast->hangupcause && ((res = hangup_cause2sip(ast->hangupcause)))) {
+				const char *res;
+				if (ast->hangupcause && (res = hangup_cause2sip(ast->hangupcause)))
 					transmit_response_reliable(p, res, &p->initreq);
-				} else 
+				else 
 					transmit_response_reliable(p, "603 Declined", &p->initreq);
 			}
 		} else {	/* Call is in UP state, send BYE */
@@ -3983,14 +3982,15 @@ static void add_route(struct sip_request *req, struct sip_route *route)
 	p = r;
 	for (;route ; route = route->next) {
 		n = strlen(route->hop);
-		if ( n + 3 > rem)
+		if (rem < n+3) /* we need room for ",<route>" */
 			break;
-		if (p != r) {
+		if (p != r) {	/* add a separator after fist route */
 			*p++ = ',';
 			--rem;
 		}
 		*p++ = '<';
-		ast_copy_string(p, route->hop, rem);  p += n;
+		ast_copy_string(p, route->hop, rem); /* cannot fail */
+		p += n;
 		*p++ = '>';
 		rem -= (n+2);
 	}
@@ -4029,6 +4029,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	if (hn > sizeof(hostname)) 
 		hn = sizeof(hostname);
 	ast_copy_string(hostname, h, hn);
+	/* XXX bug here if string has been trimmed to sizeof(hostname) */
 	h += hn - 1;
 
 	/* Is "port" present? if not default to DEFAULT_SIP_PORT */
@@ -4115,10 +4116,8 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->theirtag);
 		else if (p->tag && !ast_test_flag(&p->flags[0], SIP_OUTGOING))
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->tag);
-		else {
+		else
 			ast_copy_string(newto, ot, sizeof(newto));
-			newto[sizeof(newto) - 1] = '\0';
-		}
 		ot = newto;
 	}
 	add_header(resp, "To", ot);
@@ -4247,7 +4246,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 }
 
 /*! \brief Base transmit response function */
-static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req, enum xmittype reliable)
+static int __transmit_response(struct sip_pvt *p, const char *msg, struct sip_request *req, enum xmittype reliable)
 {
 	struct sip_request resp;
 	int seqno = 0;
@@ -4286,7 +4285,7 @@ static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg
 /*! \brief Transmit response, Make sure you get an ACK
 	This is only used for responses to INVITEs, where we need to make sure we get an ACK
 */
-static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req)
+static int transmit_response_reliable(struct sip_pvt *p, const char *msg, struct sip_request *req)
 {
 	return __transmit_response(p, msg, req, XMIT_CRITICAL);
 }
@@ -5107,10 +5106,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 
 	switch (state) {
 	case (AST_EXTENSION_RINGING | AST_EXTENSION_INUSE):
-		if (global_notifyringing)
-			statestring = "early";
-		else
-			statestring = "confirmed";
+		statestring = (global_notifyringing) ? "early" : "confirmed";
 		local_state = NOTIFY_INUSE;
 		pidfstate = "busy";
 		pidfnote = "Ringing";
@@ -5272,7 +5268,8 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	add_header(&req, "Content-Type", default_notifymime);
 
 	ast_build_string(&t, &maxbytes, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
-	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n", !ast_strlen_zero(vmexten) ? vmexten : default_vmexten, S_OR(p->fromdomain, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip)));
+	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n",
+		S_OR(vmexten, default_vmexten), S_OR(p->fromdomain, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip)));
 	ast_build_string(&t, &maxbytes, "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
 	if (p->subscribed) {
 		if (p->expiry)
@@ -5423,7 +5420,7 @@ static int sip_reg_timeout(void *data)
 		r->call = NULL;
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		/* Pretend to ACK anything just in case */
-		__sip_pretend_ack(p);
+		__sip_pretend_ack(p); /* XXX we need p locked, not sure we have */
 	}
 	/* If we have a limit, stop registration and give up */
 	if (global_regattempts_max && (r->regattempts > global_regattempts_max)) {
@@ -5654,9 +5651,9 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	ast_copy_string(from, of, sizeof(from));
 	of = get_in_brackets(from);
 	ast_string_field_set(p, from, of);
-	if (strncmp(of, "sip:", 4)) {
+	if (strncmp(of, "sip:", 4))
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
-	} else
+	else
 		of += 4;
 	/* Get just the username part */
 	if ((c = strchr(dest, '@')))
@@ -5899,6 +5896,7 @@ static int set_address_from_contact(struct sip_pvt *pvt)
 	/* Work on a copy */
 	contact = ast_strdupa(pvt->fullcontact);
 
+	/* XXX this code is repeated all over */
 	/* Make sure it's a SIP URL */
 	if (strncasecmp(contact, "sip:", 4)) {
 		ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", contact);
@@ -6088,9 +6086,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	useragent = get_header(req, "User-Agent");
 	if (useragent && strcasecmp(useragent, p->useragent)) {
 		ast_copy_string(p->useragent, useragent, sizeof(p->useragent));
-		if (option_verbose > 3) {
+		if (option_verbose > 3)
 			ast_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n",p->useragent,p->name);  
-		}
 	}
 	return PARSE_REGISTER_UPDATE;
 }
@@ -6367,11 +6364,12 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 
 			/* Schedule auto destroy in 32 seconds */
 			sip_scheddestroy(p, 32000);
-			return 1;	/* Challenge sent */
+			return 1;	/* XXX should it be -1 ? */
 		} 
 		if (good_response) /* Auth is OK */
 			return 0;
 
+		/* XXX is this needed ? */
 		/* Ok, we have a bad username/secret pair */
 		/* Challenge again, and again, and again */
 		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
@@ -6573,9 +6571,8 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 		return -1;
 	}
 	c += 4;
-	if ((a = strchr(c, '@')) || (a = strchr(c, ';'))) {
-		*a = '\0';
-	}
+	a = c;
+	strsep(&a, "@;");	/* trim anything after @ or ; */
 	if (sip_debug_test_pvt(p))
 		ast_verbose("RDNIS is %s\n", c);
 	ast_string_field_set(p, rdnis, c);
@@ -6983,7 +6980,7 @@ static char *get_calleridname(char *input, char *output, size_t outputsize)
  *	Returns true if number should be restricted (privacy setting found)
  *	output is set to NULL if no number found
  */
-static int get_rpid_num(const char *input,char *output, int maxlen)
+static int get_rpid_num(const char *input, char *output, int maxlen)
 {
 	char *start;
 	char *end;
@@ -7041,6 +7038,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	ast_copy_string(from, get_header(req, "From"), sizeof(from));	/* XXX bug in original code, overwrote string */
 	if (pedanticsipchecking)
 		ast_uri_decode(from);
+	/* XXX here tries to map the username for invite things */
 	memset(calleridname, 0, sizeof(calleridname));
 	get_calleridname(from, calleridname, sizeof(calleridname));
 	if (calleridname[0])
@@ -7272,6 +7270,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				if (!ast_strlen_zero(peer->username)) {
 					ast_string_field_set(p, username, peer->username);
 					/* Use the default username for authentication on outbound calls */
+					/* XXX this takes the name from the caller... can we override ? */
 					ast_string_field_set(p, authname, peer->username);
 				}
 				if (!ast_strlen_zero(peer->cid_num) && !ast_strlen_zero(p->cid_num)) {
@@ -7553,7 +7552,7 @@ static int manager_sip_show_peers( struct mansession *s, struct message *m )
 	int total = 0;
 
 	if (!ast_strlen_zero(id))
-		snprintf(idtext,256,"ActionID: %s\r\n",id);
+		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
 
 	astman_send_ack(s, m, "Peer status list will follow");
 	/* List the peers in separate manager events */
@@ -7596,7 +7595,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 	if (s) {	/* Manager - get ActionID */
 		id = astman_get_header(m,"ActionID");
 		if (!ast_strlen_zero(id))
-			snprintf(idtext,256,"ActionID: %s\r\n",id);
+			snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
 	}
 
 	switch (argc) {
@@ -9926,6 +9925,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
 }
 
 /*! \brief Handle SIP response in dialogue */
+/* XXX only called by handle_request */
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
 {
 	struct ast_channel *owner;
@@ -11284,6 +11284,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, i
 
 /*! \brief Handle incoming SIP requests (methods) 
 \note	This is where all incoming requests go first   */
+/* called with p and p->owner locked */
 static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount, int *nounlock)
 {
 	/* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
@@ -11540,9 +11541,10 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	/* Process request, with netlock held */
 retrylock:
 	ast_mutex_lock(&netlock);
-	p = find_call(&req, &sin, req.method);
+	p = find_call(&req, &sin, req.method);	/* returns p locked */
 	if (p) {
 		/* Go ahead and lock the owner if it has one -- we may need it */
+		/* becaues this is deadlock-prone, we need to try and unlock if failed */
 		if (p->owner && ast_mutex_trylock(&p->owner->lock)) {
 			ast_log(LOG_DEBUG, "Failed to grab lock, trying again...\n");
 			ast_mutex_unlock(&p->lock);
@@ -12291,7 +12293,7 @@ static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, con
 		if (!strcasecmp(a->realm, realm))
 			break;
 	}
-	
+
 	return a;
 }
 
@@ -12502,6 +12504,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	if (peer->chanvars) {
 		ast_variables_destroy(peer->chanvars);
 		peer->chanvars = NULL;
+		/* XXX should unregister ? */
 	}
 	for (; v; v = v->next) {
 		if (handle_common_options(&peerflags[0], &mask[0], v))
@@ -12642,8 +12645,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			/* Set peer channel variable */
 			varname = ast_strdupa(v->value);
 			if (varname && (varval = strchr(varname,'='))) {
-				*varval = '\0';
-				varval++;
+				*varval++ = '\0';
 				if ((tmpvar = ast_variable_new(varname, varval))) {
 					tmpvar->next = peer->chanvars;
 					peer->chanvars = tmpvar;
@@ -13207,8 +13209,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		}
 	}
 	/* Reset lastrtprx timer */
-	time(&p->lastrtprx);
-	time(&p->lastrtptx);
+	p->lastrtprx = p->lastrtptx = time(NULL);
 	ast_mutex_unlock(&p->lock);
 	return 0;
 }
