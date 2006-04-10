@@ -2067,7 +2067,6 @@ static struct ast_frame  *misdn_read(struct ast_channel *ast)
 
 	if (!len) {
 		chan_misdn_log(4,tmp->bc->port,"misdn_read: ZERO READ\n");
-
 		tmp->frame.frametype = AST_FRAME_NULL;
 		tmp->frame.subclass = 0;
 		return &tmp->frame;
@@ -2885,7 +2884,7 @@ static void release_chan(struct misdn_bchannel *bc) {
 			close(ch->pipe[0]);
 			close(ch->pipe[1]);
 			
-			if (ast && MISDN_ASTERISK_PVT(ast)) {
+			if (ast && MISDN_ASTERISK_TECH_PVT(ast)) {
 				chan_misdn_log(1, bc->port, "* RELEASING CHANNEL pid:%d ctx:%s dad:%s oad:%s state: %s\n",bc?bc->pid:-1, ast->context, ast->exten,AST_CID_P(ast),misdn_get_ch_state(ch));
 				chan_misdn_log(3, bc->port, " --> * State Down\n");
 				/* copy cause */

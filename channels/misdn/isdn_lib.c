@@ -1474,7 +1474,8 @@ int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
 	switch (frm->prim) {
 	case CC_NEW_CR|INDICATION:
 		cb_log(7, stack->port, " --> lib: NEW_CR Ind with l3id:%x on this port.\n",frm->dinfo);
-		handle_new_process(stack, frm); 
+		if (handle_new_process(stack, frm) <0) 
+			return -1;
 		return 1;
 	case CC_NEW_CR|CONFIRM:
 		return 1;
@@ -2306,8 +2307,13 @@ int handle_frm(msg_t *msg)
 
 	{
 		struct misdn_bchannel *bc;
+		int ret=handle_cr(stack, frm);
 
-		if(handle_cr(stack, frm)) {
+		if (ret<0) {
+			cb_log(3,stack?stack->port:0,"handle_frm: handle_cr <0 prim:%x addr:%x\n", frm->prim, frm->addr);
+		}
+
+		if(ret) {
 			free_msg(msg);
 			return 1;
 		}
