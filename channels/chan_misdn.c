@@ -3556,7 +3556,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 		send_cause2ast(ch->ast,bc);
 
-		if (misdn_inband_avail(bc) && ch->state != MISDN_CONNECTED) {
+		if ( ch->orginator==ORG_AST && !bc->nt && misdn_inband_avail(bc) && ch->state != MISDN_CONNECTED) {
 			/* If there's inband information available (e.g. a
 			   recorded message saying what was wrong with the
 			   dialled number, or perhaps even giving an
@@ -3588,7 +3588,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		*/
 		
 		misdn_lib_send_event(bc,EVENT_RELEASE);
-		
 	}
 	break;
 	
