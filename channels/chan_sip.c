@@ -482,12 +482,11 @@ struct sip_request {
 	int len;		/*!< Length */
 	int headers;		/*!< # of SIP Headers */
 	int method;		/*!< Method of this request */
-	char *header[SIP_MAX_HEADERS];
 	int lines;		/*!< SDP Content */
+	unsigned int flags;	/*!< SIP_PKT Flags for this packet */
+	char *header[SIP_MAX_HEADERS];
 	char *line[SIP_MAX_LINES];
 	char data[SIP_MAX_PACKET];
-	int debug;		/*!< Debug flag for this packet */
-	unsigned int flags;	/*!< SIP_PKT Flags for this packet */
 };
 
 /*! \brief structure used in transfers */
@@ -10156,8 +10155,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	} else {	
 		/* Responses to OUTGOING SIP requests on INCOMING calls 
 		   get handled here. As well as out-of-call message responses */
-		if (req->debug)
-			ast_verbose("SIP Response message for INCOMING dialog %s arrived\n", msg);
 		if (resp == 200) {
 			/* Tags in early session is replaced by the tag in 200 OK, which is 
 		  	the final reply to our INVITE */
