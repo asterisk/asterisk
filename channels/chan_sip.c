@@ -938,7 +938,7 @@ struct ast_config *notify_types;		/*!< The list of manual NOTIFY types we know h
 /*---------------------------- Forward declarations of functions in chan_sip.c */
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, enum xmittype reliable);
-static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, struct sip_request *req, char *unsupported);
+static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *unsupported);
 static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *rand, enum xmittype reliable, const char *header, int stale);
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
@@ -983,14 +983,14 @@ static int determine_firstline_parts(struct sip_request *req);
 static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEBUG at end of dialog, before destroying data */
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full);
-static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
+static const char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
 static int find_sip_method(const char *msg);
 static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported);
 static void sip_destroy(struct sip_pvt *p);
 static void sip_destroy_peer(struct sip_peer *peer);
 static void sip_destroy_user(struct sip_user *user);
 static void parse_request(struct sip_request *req);
-static char *get_header(struct sip_request *req, const char *name);
+static const char *get_header(struct sip_request *req, const char *name);
 static void copy_request(struct sip_request *dst,struct sip_request *src);
 static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, char *authheader);
@@ -3014,7 +3014,7 @@ static char *find_alias(const char *name, char *_default)
 	return _default;
 }
 
-static char *__get_header(struct sip_request *req, const char *name, int *start)
+static const char *__get_header(struct sip_request *req, const char *name, int *start)
 {
 	int pass;
 
@@ -3050,7 +3050,7 @@ static char *__get_header(struct sip_request *req, const char *name, int *start)
 }
 
 /*! \brief Get header from SIP request */
-static char *get_header(struct sip_request *req, const char *name)
+static const char *get_header(struct sip_request *req, const char *name)
 {
 	int start = 0;
 	return __get_header(req, name, &start);
@@ -3268,12 +3268,10 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method)
 {
 	struct sip_pvt *p;
-	char *callid;
 	char *tag = "";
 	char totag[128];
 	char fromtag[128];
-
-	callid = get_header(req, "Call-ID");
+	const char *callid = get_header(req, "Call-ID");
 
 	if (pedanticsipchecking) {
 		/* In principle Call-ID's uniquely identify a call, but with a forking SIP proxy
@@ -3897,6 +3895,7 @@ static int add_line(struct sip_request *req, const char *line)
 static int copy_header(struct sip_request *req, struct sip_request *orig, char *field)
 {
 	const char *tmp = get_header(orig, field);
+
 	if (!ast_strlen_zero(tmp)) /* Add what we're responding to */
 		return add_header(req, field, tmp);
 	ast_log(LOG_NOTICE, "No field '%s' present to copy\n", field);
@@ -3910,6 +3909,7 @@ static int copy_all_header(struct sip_request *req, struct sip_request *orig, ch
 	int copied = 0;
 	for (;;) {
 		const char *tmp = __get_header(orig, field, &start);
+
 		if (ast_strlen_zero(tmp))
 			break;
 		/* Add what we're responding to */
@@ -3934,6 +3934,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 
 	for (;;) {
 		const char *oh = __get_header(orig, field, &start);
+
 		if (ast_strlen_zero(oh))
 			break;
 
@@ -4111,7 +4112,8 @@ static int init_req(struct sip_request *req, int sipmethod, const char *recip)
 /*! \brief Prepare SIP response packet */
 static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg, struct sip_request *req)
 {
-	char newto[256], *ot;
+	char newto[256];
+	const char *ot;
 
 	memset(resp, 0, sizeof(*resp));
 	init_resp(resp, msg, req);
@@ -4165,7 +4167,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	char newto[256];
 	const char *c;
 	char *n;
-	char *ot, *of;
+	const char *ot, *of;
 	int is_strict = FALSE;		/*!< Strict routing flag */
 
 	memset(req, 0, sizeof(struct sip_request));
@@ -4286,7 +4288,7 @@ static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *r
 }
 
 /*! \brief Transmit response, no retransmits */
-static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, struct sip_request *req, char *unsupported) 
+static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *unsupported) 
 {
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
@@ -5654,7 +5656,8 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 {
 	struct sip_request req;
 	char from[256];
-	char *of, *c;
+	const char *of;
+	char *c;
 	char referto[256];
 
 	/* Are we transfering an inbound or outbound call? */
@@ -5964,11 +5967,11 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	char contact[80]; 
 	char data[256];
 	char iabuf[INET_ADDRSTRLEN];
-	char *expires = get_header(req, "Expires");
+	const char *expires = get_header(req, "Expires");
 	int expiry = atoi(expires);
 	char *c, *n, *pt;
 	int port;
-	char *useragent;
+	const char *useragent;
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	struct sockaddr_in oldsin;
@@ -6135,7 +6138,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	struct sip_route *thishop, *head, *tail;
 	int start = 0;
 	int len;
-	char *rr, *contact, *c;
+	const char *rr, *contact, *c;
 
 	/* Once a persistant route is set, don't fool with it */
 	if (p->route && p->route_persistant) {
@@ -6157,7 +6160,8 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	for (;;) {
 		/* Each Record-Route header */
 		rr = __get_header(req, "Record-Route", &start);
-		if (*rr == '\0') break;
+		if (*rr == '\0')
+			break;
 		for (;;) {
 			/* Each route entry */
 			/* Find < */
@@ -6726,7 +6730,10 @@ static struct sip_pvt *get_sip_pvt_byid_locked(char *callid)
 static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_req)
 {
 
-	char *p_refer_to = NULL, *p_referred_by = NULL, *h_refer_to = NULL, *h_referred_by = NULL, *h_contact = NULL;
+	const char *p_refer_to = NULL;
+	const char *h_contact = NULL;
+	const char *p_referred_by = NULL;
+	char *h_refer_to = NULL, *h_referred_by = NULL;
 	char *replace_callid = "", *refer_to = NULL, *referred_by = NULL, *ptr = NULL;
 	struct sip_request *req = NULL;
 	struct sip_pvt *sip_pvt_ptr = NULL;
@@ -6748,9 +6755,8 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 		ast_log(LOG_WARNING, "No Referrred-By Header That's not illegal\n");
 		return -1;
 	} else {
-		if (pedanticsipchecking) {
+		if (pedanticsipchecking)
 			ast_uri_decode(h_referred_by);
-		}
 		referred_by = get_in_brackets(h_referred_by);
 	}
 	h_contact = get_header(req, "Contact");
@@ -6991,7 +6997,7 @@ static char *get_calleridname(char *input, char *output, size_t outputsize)
  *	Returns true if number should be restricted (privacy setting found)
  *	output is set to NULL if no number found
  */
-static int get_rpid_num(char *input,char *output, int maxlen)
+static int get_rpid_num(const char *input,char *output, int maxlen)
 {
 	char *start;
 	char *end;
@@ -7029,8 +7035,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 {
 	struct sip_user *user = NULL;
 	struct sip_peer *peer;
-	char *of, from[256], *c;
-	char *rpid, rpid_num[50];
+	char from[256], *c;
+	char *of;
+	char rpid_num[50];
+	const char *rpid;
 	char iabuf[INET_ADDRSTRLEN];
 	int res = 0;
 	char *t;
@@ -7044,12 +7052,9 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	while (*t && *t > 32 && *t != ';')
 		t++;
 	*t = '\0';
-	of = get_header(req, "From");
+	ast_copy_string(from, get_header(req, "From"), sizeof(from));	/* XXX bug in original code, overwrote string */
 	if (pedanticsipchecking)
-		ast_uri_decode(of);
-
-	ast_copy_string(from, of, sizeof(from));
-	
+		ast_uri_decode(from);
 	memset(calleridname, 0, sizeof(calleridname));
 	get_calleridname(from, calleridname, sizeof(calleridname));
 	if (calleridname[0])
@@ -7058,7 +7063,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	rpid = get_header(req, "Remote-Party-ID");
 	memset(rpid_num, 0, sizeof(rpid_num));
 	if (!ast_strlen_zero(rpid)) 
-		p->callingpres = get_rpid_num(rpid,rpid_num, sizeof(rpid_num));
+		p->callingpres = get_rpid_num(rpid, rpid_num, sizeof(rpid_num));
 
 	of = get_in_brackets(from);
 	if (ast_strlen_zero(p->exten)) {
@@ -7375,9 +7380,8 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 {
 	char buf[1024];
 	struct ast_frame f;
-	char *content_type;
+	const char *content_type = get_header(req, "Content-Type");
 
-	content_type = get_header(req, "Content-Type");
 	if (strcmp(content_type, "text/plain")) { /* No text/plain attachment */
 		transmit_response(p, "415 Unsupported Media Type", req); /* Good enough, or? */
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
@@ -8737,10 +8741,9 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 {
 	char buf[1024];
 	unsigned int event;
-	char *c;
-	
+	const char *c = get_header(req, "Content-Type");
+
 	/* Need to check the media/type */
-	c = get_header(req, "Content-Type");
 	if (!strcasecmp(c, "application/dtmf-relay") ||
 	    !strcasecmp(c, "application/vnd.nortelnetworks.digits")) {
 
@@ -9280,7 +9283,7 @@ static char show_settings_usage[] =
 int func_header_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len) 
 {
 	struct sip_pvt *p;
-	char *content;
+	const char *content;
 	
  	if (!data) {
 		ast_log(LOG_WARNING, "This function requires a header name.\n");
@@ -9837,8 +9840,8 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		   expires headers, so check those first */
 		expires = 0;
 		if (!ast_strlen_zero(get_header(req, "Contact"))) {
-			char *contact = NULL;
-			char *tmptmp = NULL;
+			const char *contact = NULL;
+			const char *tmptmp = NULL;
 			int start = 0;
 			for(;;) {
 				contact = __get_header(req, "Contact", &start);
@@ -9939,14 +9942,13 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
 /*! \brief Handle SIP response in dialogue */
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
 {
-	char *msg, *c;
 	struct ast_channel *owner;
 	char iabuf[INET_ADDRSTRLEN];
 	int sipmethod;
 	int res = 1;
+	const char *c = get_header(req, "Cseq");
+	const char *msg = strchr(c, ' ');
 
-	c = get_header(req, "Cseq");
-	msg = strchr(c, ' ');
 	if (!msg)
 		msg = "";
 	else
@@ -10434,9 +10436,9 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 }
 
 /*! \brief Get tag from packet */
-static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize) 
+static const char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize) 
 {
-	char *thetag, *sep;
+	const char *thetag;
 
 	if (!tagbuf)
 		return NULL;
@@ -10444,13 +10446,14 @@ static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tag
 	thetag = get_header(req, header);
 	thetag = strcasestr(thetag, ";tag=");
 	if (thetag) {
+		char *sep;
 		thetag += 5;
 		ast_copy_string(tagbuf, thetag, tagbufsize);
 		sep = strchr(tagbuf, ';');
 		if (sep)
 			*sep = '\0';
 	}
-	return thetag;
+	return thetag;	/* XXX maybe this should be tagbuf instead ? */
 }
 
 /*! \brief Handle incoming notifications */
@@ -10459,11 +10462,11 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, int
 	/* This is mostly a skeleton for future improvements */
 	/* Mostly created to return proper answers on notifications on outbound REFER's */
 	int res = 0;
-	char *event = get_header(req, "Event");
+	const char *event = get_header(req, "Event");
 	char *eventid = NULL;
 	char *sep;
 
-	if( (sep = strchr(event, ';')) ) {
+	if( (sep = strchr(event, ';')) ) {	/* XXX bug here - overwriting string ? */
 		*sep = '\0';
 		eventid = ++sep;
 	}
@@ -10620,13 +10623,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	int res = 1;
 	struct ast_channel *c=NULL;		/* New channel */
 	int gotdest;
-	char *supported;
-	char *required;
+	const char *required;
 	unsigned int required_profile = 0;
 
 	/* Find out what they support */
 	if (!p->sipoptions) {
-		supported = get_header(req, "Supported");
+		const char *supported = get_header(req, "Supported");
 		if (supported)
 			parse_sip_options(p, supported);
 	}
@@ -11054,8 +11056,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	int res = 0;
 	int firststate = AST_EXTENSION_REMOVED;
 	struct sip_peer *authpeer = NULL;
-	char *event = get_header(req, "Event");	/* Get Event package name */
-	char *accept = get_header(req, "Accept");
+	const char *event = get_header(req, "Event");	/* Get Event package name */
+	const char *accept = get_header(req, "Accept");
 	char *eventparam;
 	int resubscribe = (p->subscribed != NONE);
 
@@ -11301,9 +11303,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	/* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
 	   relatively static */
 	struct sip_request resp;
-	char *cmd;
-	char *cseq;
-	char *useragent;
+	const char *cmd;
+	const char *cseq;
+	const char *useragent;
 	int seqno;
 	int len;
 	int ignore=0;
