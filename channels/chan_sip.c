@@ -9990,51 +9990,53 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY); 
 					}
 				}
-			} else if (sipmethod == SIP_INVITE) {
+			} else if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
-			} else if (sipmethod == SIP_REGISTER) {
+			else if (sipmethod == SIP_REGISTER)
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
-			} 
 			break;
 		case 202:   /* Transfer accepted */
 			if (sipmethod == SIP_REFER) 
 				handle_response_refer(p, resp, rest, req, ignore, seqno);
 			break;
 		case 401: /* Not www-authorized on SIP method */
-			if (sipmethod == SIP_INVITE) {
+			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
-			} else if (sipmethod == SIP_REFER) {
+			else if (sipmethod == SIP_REFER)
 				handle_response_refer(p, resp, rest, req, ignore, seqno);
-			} else if (p->registry && sipmethod == SIP_REGISTER) {
+			else if (p->registry && sipmethod == SIP_REGISTER)
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
-			} else {
+			else {
 				ast_log(LOG_WARNING, "Got authentication request (401) on unknown %s to '%s'\n", sip_methods[sipmethod].text, get_header(req, "To"));
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			}
 			break;
 		case 403: /* Forbidden - we failed authentication */
-			if (sipmethod == SIP_INVITE) {
+			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
-			} else if (p->registry && sipmethod == SIP_REGISTER) {
+			else if (p->registry && sipmethod == SIP_REGISTER) 
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
-			} else {
-				ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for %s\n", msg);
+			else {
+				ast_log(LOG_WARNING, "Forbidden - maybe wrong password on authentication for %s\n", msg);
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			}
 			break;
 		case 404: /* Not found */
-			if (p->registry && sipmethod == SIP_REGISTER) {
+			if (p->registry && sipmethod == SIP_REGISTER)
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
-			} else if (sipmethod == SIP_INVITE) {
+			else if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
-			} else if (owner)
+			else if (owner)
 				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 			break;
 		case 407: /* Proxy auth required */
-			if (sipmethod == SIP_INVITE) {
+			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
-			} else if (sipmethod == SIP_REFER) {
+			else if (sipmethod == SIP_REFER)
 				handle_response_refer(p, resp, rest, req, ignore, seqno);
-			} else if (sipmethod == SIP_BYE) {
+			else if (p->registry && sipmethod == SIP_REGISTER)
+				res = handle_response_register(p, resp, rest, req, ignore, seqno);
+			else if (sipmethod == SIP_BYE) {
 				if (ast_strlen_zero(p->authname))
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
 							msg, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
@@ -10043,24 +10045,24 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					ast_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 				}
-			} else if (p->registry && sipmethod == SIP_REGISTER) {
-				res = handle_response_register(p, resp, rest, req, ignore, seqno);
 			} else	/* We can't handle this, giving up in a bad way */
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 
 			break;
 		case 491: /* Pending */
-			if (sipmethod == SIP_INVITE) {
+			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
-			} else {
+			else {
 				ast_log(LOG_DEBUG, "Got 491 on %s, unspported. Call ID %s\n", sip_methods[sipmethod].text, p->callid);
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			}
+			break;
 		case 501: /* Not Implemented */
-			if (sipmethod == SIP_INVITE) {
+			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
-			} else if (sipmethod == SIP_REFER) {
+			else if (sipmethod == SIP_REFER)
 				handle_response_refer(p, resp, rest, req, ignore, seqno);
-			} else
+			else
 				ast_log(LOG_WARNING, "Host '%s' does not implement '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), msg);
 			break;
 		case 603:	/* Declined transfer */
