@@ -101,7 +101,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define TRUE 1
 #endif
 
- 
 #define VIDEO_CODEC_MASK	0x1fc0000 /*!< Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO */
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST		0x02
@@ -322,7 +321,7 @@ static const struct cfsip_options {
 	int id;			/*!< Bitmap ID */
 	int supported;		/*!< Supported by Asterisk ? */
 	char * const text;	/*!< Text id, as in standard */
-} sip_options[] = {
+} sip_options[] = {	/* XXX used in 3 places */
 	/* Replaces: header for transfer */
 	{ SIP_OPT_REPLACES,	SUPPORTED,	"replaces" },	
 	/* RFC3262: PRACK 100% reliability */
@@ -788,6 +787,7 @@ struct sip_user {
 };
 
 /*! \brief Structure for SIP peer data, we place calls to peers if registered  or fixed IP address (host) */
+/* XXX field 'name' must be first otherwise sip_addrcmp() will fail */
 struct sip_peer {
 	ASTOBJ_COMPONENTS(struct sip_peer);	/*!< name, refcount, objflags,  object pointers */
 					/*!< peer->name is the unique name of this object */
@@ -966,8 +966,8 @@ static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEB
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full);
 static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
-static int find_sip_method(char *msg);
-static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported);
+static int find_sip_method(const char *msg);
+static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported);
 static void sip_destroy(struct sip_pvt *p);
 static void sip_destroy_peer(struct sip_peer *peer);
 static void sip_destroy_user(struct sip_user *user);
@@ -1023,25 +1023,36 @@ static struct ast_rtp_protocol sip_rtp = {
 };
 
 
-/*! \brief Find SIP method from header
- * Strictly speaking, SIP methods are case SENSITIVE, but we don't check 
- * following Jon Postel's rule: Be gentle in what you accept, strict with what you send */
-static int find_sip_method(char *msg)
+/*! \brief returns true if 'name' (with optional trailing whitespace)
+ * matches the sip method 'id'.
+ * Strictly speaking, SIP methods are case SENSITIVE, but we do
+ * a case-insensitive comparison to be more tolerant.
+ */
+static int method_match(enum sipmethod id, const char *name)
+{
+	int len = strlen(sip_methods[id].text);
+	int l_name = name ? strlen(name) : 0;
+	/* true if the string is long enough, and ends with whitespace, and matches */
+	return (l_name >= len && name[len] < 33 &&
+		!strncasecmp(sip_methods[id].text, name, len));
+}
+
+/*! \brief  find_sip_method: Find SIP method from header */
+static int find_sip_method(const char *msg)
 {
 	int i, res = 0;
 	
 	if (ast_strlen_zero(msg))
 		return 0;
-
 	for (i = 1; i < (sizeof(sip_methods) / sizeof(sip_methods[0])) && !res; i++) {
-		if (!strcasecmp(sip_methods[i].text, msg)) 
+		if (method_match(i, msg))
 			res = sip_methods[i].id;
 	}
 	return res;
 }
 
 /*! \brief Parse supported header in incoming packet */
-static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
+static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported)
 {
 	char *next, *sep;
 	char *temp = ast_strdupa(supported);
@@ -1092,29 +1103,35 @@ static inline int sip_debug_test_addr(const struct sockaddr_in *addr)
 	return 1;
 }
 
+/* The real destination address for a write */
+static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p)
+{
+	return ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_ROUTE ? &p->recv : &p->sa;
+}
+
+static const char *sip_nat_mode(const struct sip_pvt *p)
+{
+	return ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_ROUTE ? "NAT" : "no NAT";
+}
+
 /*! \brief Test PVT for debugging output */
 static inline int sip_debug_test_pvt(struct sip_pvt *p) 
 {
 	if (!sipdebug)
 		return 0;
-	return sip_debug_test_addr(ast_test_flag(&p->flags[0], SIP_NAT_ROUTE) ? &p->recv : &p->sa);
+	return sip_debug_test_addr(sip_real_dst(p));
 }
-
 
 /*! \brief Transmit SIP message */
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
 	int res;
 	char iabuf[INET_ADDRSTRLEN];
+	const struct sockaddr_in *dst = sip_real_dst(p);
+	res=sendto(sipsock, data, len, 0, (const struct sockaddr *)dst, sizeof(struct sockaddr_in));
 
-	if (ast_test_flag(&p->flags[0], SIP_NAT_ROUTE))
-		res=sendto(sipsock, data, len, 0, (struct sockaddr *)&p->recv, sizeof(struct sockaddr_in));
-	else
-		res=sendto(sipsock, data, len, 0, (struct sockaddr *)&p->sa, sizeof(struct sockaddr_in));
-
-	if (res != len) {
-		ast_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s:%d returned %d: %s\n", data, len, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), res, strerror(errno));
-	}
+	if (res != len)
+		ast_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s:%d returned %d: %s\n", data, len, ast_inet_ntoa(iabuf, sizeof(iabuf), dst->sin_addr), ntohs(dst->sin_port), res, strerror(errno));
 	return res;
 }
 
@@ -6843,17 +6860,14 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 	if (!req)
 		req = &p->initreq;
 	ast_copy_string(tmp, get_header(req, "Also"), sizeof(tmp));
-	
 	c = get_in_brackets(tmp);
 	if (strncmp(c, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
 		return -1;
 	}
 	c += 4;
-	if ((a = strchr(c, '@')))
-		*a = '\0';
-	if ((a = strchr(c, ';'))) 
-		*a = '\0';
+	a = c;
+	strsep(&a, "@;");	/* trim anything after @ or ; */
 	
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Looking for %s in %s\n", c, p->context);
@@ -6916,8 +6930,8 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 		p->sa.sin_port = htons(pt ? atoi(pt) : DEFAULT_SIP_PORT);
 
 		if (sip_debug_test_pvt(p)) {
-			c = (ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_ROUTE) ? "NAT" : "non-NAT";
-			ast_verbose("Sending to %s : %d (%s)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), c);
+			const struct sockaddr_in *dst = sip_real_dst(p);
+			ast_verbose("Sending to %s : %d (%s)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), dst->sin_addr), ntohs(dst->sin_port), sip_nat_mode(p));
 		}
 	}
 	return 0;
