@@ -161,10 +161,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 
 		ast_log(LOG_DEBUG, "Postgresql RealTime: Found %d rows.\n", num_rows);
 
-		fieldnames = malloc(numFields * sizeof(char *));
-		if (!fieldnames) {
-			/* If I can't alloc memory at this point, why bother doing anything else? */
-			ast_log(LOG_WARNING, "Out of memory!\n");
+		if (!(fieldnames = ast_calloc(1, numFields * sizeof(char *)))) {
 			ast_mutex_unlock(&pgsql_lock);
 			PQclear(result);
 			return NULL;
@@ -223,12 +220,8 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 
 	memset(&ra, 0, sizeof(ra));
 
-	cfg = ast_config_new();
-	if (!cfg) {
-		/* If I can't alloc memory at this point, why bother doing anything else? */
-		ast_log(LOG_WARNING, "Out of memory!\n");
+	if (!(cfg = ast_config_new()))
 		return NULL;
-	}
 
 	/* Get the first parameter and first value in our list of passed paramater/value pairs */
 	newparam = va_arg(ap, const char *);
@@ -314,10 +307,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 
 		ast_log(LOG_DEBUG, "Postgresql RealTime: Found %d rows.\n", num_rows);
 
-		fieldnames = malloc(numFields * sizeof(char *));
-		if (!fieldnames) {
-			/* If I can't alloc memory at this point, why bother doing anything else? */
-			ast_log(LOG_WARNING, "Out of memory!\n");
+		if (!(fieldnames = ast_calloc(1, numFields * sizeof(char *)))) {
 			ast_mutex_unlock(&pgsql_lock);
 			PQclear(result);
 			return NULL;
@@ -510,10 +500,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 
 		ast_log(LOG_DEBUG, "Postgresql RealTime: Found %ld rows.\n", num_rows);
 
-		fieldnames = malloc(numFields * sizeof(char *));
-		if (!fieldnames) {
-			/* If I can't alloc memory at this point, why bother doing anything else? */
-			ast_log(LOG_WARNING, "Out of memory!\n");
+		if (!(fieldnames = ast_calloc(1, numFields * sizeof(char *)))) {
 			ast_mutex_unlock(&pgsql_lock);
 			PQclear(result);
 			return NULL;
@@ -751,36 +738,31 @@ static int pgsql_reconnect(const char *database)
 			+ strlen(dbuser)
 			+ strlen(dbpass)
 			+ strlen(my_database);
-		connInfo = malloc(size);
-		if (!connInfo) {
-			ast_log(LOG_WARNING,
-					"Postgresql RealTime: Insufficient memory to allocate Pgsql resource.\n");
+		
+		if (!(connInfo = ast_malloc(size)))
 			return 0;
-		} else {
-			sprintf(connInfo, "host=%s port=%d dbname=%s user=%s password=%s",
+		
+		sprintf(connInfo, "host=%s port=%d dbname=%s user=%s password=%s",
 					dbhost, dbport, my_database, dbuser, dbpass);
-			ast_log(LOG_DEBUG, "%u connInfo=%s\n", size, connInfo);
-			pgsqlConn = PQconnectdb(connInfo);
-			ast_log(LOG_DEBUG, "%u connInfo=%s\n", size, connInfo);
-			free(connInfo);
-			connInfo = NULL;
-			ast_log(LOG_DEBUG, "pgsqlConn=%p\n", pgsqlConn);
-			if (pgsqlConn) {
-				ast_log(LOG_DEBUG,
-						"Postgresql RealTime: Successfully connected to database.\n");
-				connect_time = time(NULL);
-				return 1;
-			} else {
-				ast_log(LOG_ERROR,
-						"Postgresql RealTime: Failed to connect database server %s on %s. Check debug for more info.\n",
-						dbname, dbhost);
-				ast_log(LOG_DEBUG, "Postgresql RealTime: Cannot Connect: %s\n",
-						PQresultErrorMessage(NULL));
-				return 0;
-			}
+		ast_log(LOG_DEBUG, "%u connInfo=%s\n", size, connInfo);
+		pgsqlConn = PQconnectdb(connInfo);
+		ast_log(LOG_DEBUG, "%u connInfo=%s\n", size, connInfo);
+		free(connInfo);
+		connInfo = NULL;
+		ast_log(LOG_DEBUG, "pgsqlConn=%p\n", pgsqlConn);
+		if (pgsqlConn) {
+			ast_log(LOG_DEBUG, "Postgresql RealTime: Successfully connected to database.\n");
+			connect_time = time(NULL);
+			return 1;
+		} else {
+			ast_log(LOG_ERROR,
+					"Postgresql RealTime: Failed to connect database server %s on %s. Check debug for more info.\n",
+					dbname, dbhost);
+			ast_log(LOG_DEBUG, "Postgresql RealTime: Cannot Connect: %s\n",
+					PQresultErrorMessage(NULL));
+			return 0;
 		}
 	} else {
-
 		ast_log(LOG_DEBUG, "Postgresql RealTime: Everything is fine.\n");
 		return 1;
 	}
