@@ -71,6 +71,7 @@ int unsetenv(const char *name);
 #endif
 #endif /* __CYGWIN__ */
 
+#define HAVE_ASPRINTF
 #define HAVE_VASPRINTF
 #define HAVE_STRTOQ
 
@@ -89,6 +90,7 @@ int unsetenv(const char *name);
 #endif
 
 #ifdef SOLARIS
+#undef HAVE_ASPRINTF
 #undef HAVE_VASPRINTF
 #undef HAVE_STRTOQ
 #endif
