@@ -489,6 +489,25 @@ struct sip_request {
 	char data[SIP_MAX_PACKET];
 };
 
+/*
+ * A sip packet is stored into the data[] buffer, with the header followed
+ * by an empty line and the body of the message.
+ * On outgoing packets, data is accumulated in data[] with len reflecting
+ * the next available byte, headers and lines count the number of lines
+ * in both parts. There are no '\0' in data[0..len-1].
+ *
+ * On received packet, the input read from the socket is copied into data[],
+ * len is set and the string is NUL-terminated. Then a parser fills up
+ * the other fields -header[] and line[] to point to the lines of the
+ * message, rlPart1 and rlPart2 parse the first lnie as below:
+ *
+ * Requests have in the first line	METHOD URI SIP/2.0
+ *	rlPart1 = method; rlPart2 = uri;
+ * Responses have in the first line	SIP/2.0 code description
+ *	rlPart1 = SIP/2.0; rlPart2 = code + description;
+ *
+ */
+
 /*! \brief structure used in transfers */
 struct sip_dual {
 	struct ast_channel *chan1;
@@ -1345,7 +1364,6 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
 	if (fatal)
 		ast_set_flag(pkt, FLAG_FATAL);
-
 	if (pkt->timer_t1)
 		siptimer_a = pkt->timer_t1 * 2;
 
@@ -1492,16 +1510,14 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 {
 	struct sip_pkt *cur;
 	int res = -1;
-	char *msg = sip_methods[sipmethod].text;
 
-	for (cur = p->packets; cur ; cur = cur->next) {
-		if ((cur->seqno == seqno) && ((ast_test_flag(cur, FLAG_RESPONSE)) == resp) &&
-			((ast_test_flag(cur, FLAG_RESPONSE)) || 
-			 (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33)))) {
+	for (cur = p->packets; cur; cur = cur->next) {
+		if (cur->seqno == seqno && ast_test_flag(cur, FLAG_RESPONSE) == resp &&
+			(ast_test_flag(cur, FLAG_RESPONSE) || method_match(sipmethod, cur->data))) {
 			/* this is our baby */
 			if (cur->retransid > -1) {
 				if (option_debug > 3 && sipdebug)
-					ast_log(LOG_DEBUG, "*** SIP TIMER: Cancelling retransmission #%d - %s (got response)\n", cur->retransid, msg);
+					ast_log(LOG_DEBUG, "*** SIP TIMER: Cancelling retransmission #%d - %s (got response)\n", cur->retransid, sip_methods[sipmethod].text);
 				ast_sched_del(sched, cur->retransid);
 			}
 			cur->retransid = -1;
@@ -1642,6 +1658,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 	char ipaddr[20];
 	char regseconds[20];
 	time_t nowtime;
+	const char *fc = fullcontact ? "fullcontact" : NULL;
 	
 	time(&nowtime);
 	nowtime += expirey;
@@ -1649,10 +1666,9 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 	ast_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
 	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
 	
-	if (fullcontact)
-		ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, "username", username, "fullcontact", fullcontact, NULL);
-	else
-		ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, "username", username, NULL);
+	ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr,
+		"port", port, "regseconds", regseconds,
+		"username", username, fc, fullcontact, NULL); /* note fc _can_ be NULL */
 }
 
 /*! \brief Automatically add peer extension to dial plan */
@@ -1895,6 +1911,8 @@ static struct sip_user *find_user(const char *name, int realtime)
 /*! \brief Create address structure from peer reference */
 static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 {
+	int natflags;
+
 	if ((peer->addr.sin_addr.s_addr || peer->defaddr.sin_addr.s_addr) &&
 	    (!peer->maxms || ((peer->lastms >= 0)  && (peer->lastms <= peer->maxms)))) {
 		r->sa = (peer->addr.sin_addr.s_addr) ? peer->addr : peer->defaddr;
@@ -1911,15 +1929,16 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 		r->vrtp = NULL;
 	}
 	r->prefs = peer->prefs;
+	natflags = ast_test_flag(&r->flags[0], SIP_NAT) & SIP_NAT_ROUTE;
 	if (r->rtp) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(&r->flags[0], SIP_NAT) & SIP_NAT_ROUTE));
-		ast_rtp_setnat(r->rtp, (ast_test_flag(&r->flags[0], SIP_NAT) & SIP_NAT_ROUTE));
+			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", natflags);
+		ast_rtp_setnat(r->rtp, natflags);
 	}
 	if (r->vrtp) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (ast_test_flag(&r->flags[0], SIP_NAT) & SIP_NAT_ROUTE));
-		ast_rtp_setnat(r->vrtp, (ast_test_flag(&r->flags[0], SIP_NAT) & SIP_NAT_ROUTE));
+			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", natflags);
+		ast_rtp_setnat(r->vrtp, natflags);
 	}
 	ast_string_field_set(r, peername, peer->username);
 	ast_string_field_set(r, authname, peer->username);
@@ -2048,6 +2067,7 @@ static int auto_congest(void *nothing)
 	ast_mutex_lock(&p->lock);
 	p->initid = -1;
 	if (p->owner) {
+		/* XXX fails on possible deadlock */
 		if (!ast_mutex_trylock(&p->owner->lock)) {
 			ast_log(LOG_NOTICE, "Auto-congesting %s\n", p->owner->name);
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
@@ -2214,9 +2234,8 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	/* remove all current packets in this dialog */
 	while((cp = p->packets)) {
 		p->packets = p->packets->next;
-		if (cp->retransid > -1) {
+		if (cp->retransid > -1)
 			ast_sched_del(sched, cp->retransid);
-		}
 		free(cp);
 	}
 	if (p->chanvars) {
@@ -2685,16 +2704,18 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
         Basically update any ->owner links */
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
+	int ret = -1;
 	struct sip_pvt *p = newchan->tech_pvt;
+
 	ast_mutex_lock(&p->lock);
-	if (p->owner != oldchan) {
+	if (p->owner != oldchan)
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
-		ast_mutex_unlock(&p->lock);
-		return -1;
+	else {
+		p->owner = newchan;
+		ret = 0;
 	}
-	p->owner = newchan;
 	ast_mutex_unlock(&p->lock);
-	return 0;
+	return ret;
 }
 
 /*! \brief Send DTMF character on SIP channel
