@@ -990,7 +990,7 @@ static void sip_destroy(struct sip_pvt *p);
 static void sip_destroy_peer(struct sip_peer *peer);
 static void sip_destroy_user(struct sip_user *user);
 static void parse_request(struct sip_request *req);
-static const char *get_header(struct sip_request *req, const char *name);
+static const char *get_header(const struct sip_request *req, const char *name);
 static void copy_request(struct sip_request *dst,struct sip_request *src);
 static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, char *authheader);
@@ -2963,23 +2963,22 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 }
 
 /*! \brief Reads one line of SIP message body */
-static char* get_sdp_by_line(char* line, char *name, int nameLen)
+static const char* get_sdp_by_line(const char* line, const char *name, int nameLen)
 {
-	if (strncasecmp(line, name, nameLen) == 0 && line[nameLen] == '=') {
+	if (strncasecmp(line, name, nameLen) == 0 && line[nameLen] == '=')
 		return ast_skip_blanks(line + nameLen + 1);
-	}
 	return "";
 }
 
 /*! \brief Gets all kind of SIP message bodies, including SDP,
    but the name wrongly applies _only_ sdp */
-static char *get_sdp(struct sip_request *req, char *name) 
+static const char *get_sdp(struct sip_request *req, char *name) 
 {
 	int x;
 	int len = strlen(name);
 
 	for (x = 0; x < req->lines; x++) {
-		char *r = get_sdp_by_line(req->line[x], name, len);
+		const char *r = get_sdp_by_line(req->line[x], name, len);
 		if (r[0] != '\0')
 			return r;
 	}
@@ -2992,13 +2991,13 @@ static void sdpLineNum_iterator_init(int* iterator)
 	*iterator = 0;
 }
 
-static char* get_sdp_iterate(int* iterator,
+static const char* get_sdp_iterate(int* iterator,
 			     struct sip_request *req, char *name)
 {
 	int len = strlen(name);
 
 	while (*iterator < req->lines) {
-		char *r = get_sdp_by_line(req->line[(*iterator)++], name, len);
+		const char *r = get_sdp_by_line(req->line[(*iterator)++], name, len);
 		if (r[0] != '\0')
 			return r;
 	}
@@ -3014,7 +3013,7 @@ static char *find_alias(const char *name, char *_default)
 	return _default;
 }
 
-static const char *__get_header(struct sip_request *req, const char *name, int *start)
+static const char *__get_header(const struct sip_request *req, const char *name, int *start)
 {
 	int pass;
 
@@ -3050,7 +3049,7 @@ static const char *__get_header(struct sip_request *req, const char *name, int *
 }
 
 /*! \brief Get header from SIP request */
-static const char *get_header(struct sip_request *req, const char *name)
+static const char *get_header(const struct sip_request *req, const char *name)
 {
 	int start = 0;
 	return __get_header(req, name, &start);
@@ -3528,9 +3527,9 @@ static void parse_request(struct sip_request *req)
 /*! \brief Process SIP SDP and activate RTP channels*/
 static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 {
-	char *m;
-	char *c;
-	char *a;
+	const char *m;
+	const char *c;
+	const char *a;
 	char host[258];
 	char iabuf[INET_ADDRSTRLEN];
 	int len = -1;
@@ -3539,7 +3538,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int peercapability, peernoncodeccapability;
 	int vpeercapability=0, vpeernoncodeccapability=0;
 	struct sockaddr_in sin;
-	char *codecs;
+	const char *codecs;
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	int codec;
