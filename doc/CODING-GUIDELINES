@@ -77,7 +77,7 @@ $ cvs diff -urN <mycodefile>.c
 Roughly, Asterisk code formatting guidelines are generally equivalent to the 
 following:
 
-# indent -i4 -ts4 -br -brs -cdw -lp -ce -nbfda -npcs -nprs -npsl -nbbo -saf -sai -saw -cs -ln90 foo.c
+# indent -i4 -ts4 -br -brs -cdw -lp -ce -nbfda -npcs -nprs -npsl -nbbo -saf -sai -saw -cs -l90 foo.c
 
 this means in verbose:
  -i4:    indent level 4
