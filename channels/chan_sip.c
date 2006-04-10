@@ -1405,10 +1405,11 @@ static int sip_scheddestroy(struct sip_pvt *p, int ms)
 /*! \brief Cancel destruction of SIP dialog */
 static int sip_cancel_destroy(struct sip_pvt *p)
 {
-	if (p->autokillid > -1)
+	if (p->autokillid > -1) {
 		ast_sched_del(sched, p->autokillid);
-	append_history(p, "CancelDestroy", "");
-	p->autokillid = -1;
+		append_history(p, "CancelDestroy", "");
+		p->autokillid = -1;
+	}
 	return 0;
 }
 
@@ -9561,10 +9562,12 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 
 	switch (resp) {
 	case 100:	/* Trying */
-		sip_cancel_destroy(p);
+		if (!ignore)
+			sip_cancel_destroy(p);
 		break;
 	case 180:	/* 180 Ringing */
-		sip_cancel_destroy(p);
+		if (!ignore)
+			sip_cancel_destroy(p);
 		if (!ignore && p->owner) {
 			ast_queue_control(p->owner, AST_CONTROL_RINGING);
 			if (p->owner->_state != AST_STATE_UP)
@@ -9579,7 +9582,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		}
 		break;
 	case 183:	/* Session progress */
-		sip_cancel_destroy(p);
+		if (!ignore)
+			sip_cancel_destroy(p);
 		/* Ignore 183 Session progress without SDP */
 		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
 			process_sdp(p, req);
@@ -9590,11 +9594,11 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		}
 		break;
 	case 200:	/* 200 OK on invite - someone's answering our call */
-		sip_cancel_destroy(p);
+		if (!ignore)
+			sip_cancel_destroy(p);
 		p->authtries = 0;
-		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
+		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) 
 			process_sdp(p, req);
-		}
 
 		/* Parse contact header for continued conversation */
 		/* When we get 200 OK, we know which device (and IP) to contact for this call */
@@ -10221,8 +10225,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			/* Fallthrough */
 		default:	/* Errors without handlers */
 			if ((resp >= 100) && (resp < 200)) {
-				if (sipmethod == SIP_INVITE) {	/* re-invite */
-					sip_cancel_destroy(p);
+				if (sipmethod == SIP_INVITE) { 	/* re-invite */
+					if (!ignore)
+						sip_cancel_destroy(p);
 				}
 			}
 			if ((resp >= 300) && (resp < 700)) {
