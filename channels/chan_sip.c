@@ -4730,7 +4730,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 	if (sipdebug)
 		add_header(&req, "X-asterisk-info", "SIP re-invite (RTP bridge)");
 	if (recordhistory)
-		append_history(p, "%s", "Re-invite sent");
+		append_history(p, "ReInv", "Re-invite sent");
 	add_sdp(&req, p);
 	/* Use this as the basis */
 	copy_request(&p->initreq, &req);
@@ -10151,6 +10151,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	} else {	
 		/* Responses to OUTGOING SIP requests on INCOMING calls 
 		   get handled here. As well as out-of-call message responses */
+		if (ast_test_flag(req, SIP_PKT_DEBUG))
+			ast_verbose("SIP Response message for INCOMING dialog %s arrived\n", msg);
+
 		if (resp == 200) {
 			/* Tags in early session is replaced by the tag in 200 OK, which is 
 		  	the final reply to our INVITE */
