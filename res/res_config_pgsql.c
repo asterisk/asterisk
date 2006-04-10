@@ -317,11 +317,8 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 
 		for (rowIndex = 0; rowIndex < num_rows; rowIndex++) {
 			var = NULL;
-			cat = ast_category_new("");
-			if (!cat) {
-				ast_log(LOG_WARNING, "Out of memory!\n");
+			if (!(cat = ast_category_new("")))
 				continue;
-			}
 			for (i = 0; i < numFields; i++) {
 				stringp = PQgetvalue(result, rowIndex, i);
 				while (stringp) {
@@ -524,10 +521,8 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 
 			if (strcmp(last, field_category) || last_cat_metric != atoi(field_cat_metric)) {
 				cur_cat = ast_category_new(field_category);
-				if (!cur_cat) {
-					ast_log(LOG_WARNING, "Out of memory!\n");
+				if (!cur_cat)
 					break;
-				}
 				strcpy(last, field_category);
 				last_cat_metric = atoi(field_cat_metric);
 				ast_category_append(cfg, cur_cat);
