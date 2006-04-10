@@ -262,31 +262,6 @@ static const struct  cfsip_methods {
 	{ SIP_PUBLISH,	 NO_RTP, "PUBLISH" }
 };
 
-/*! \brief Structure for conversion between compressed SIP and "normal" SIP */
-static const struct cfalias {
-	char * const fullname;
-	char * const shortname;
-} aliases[] = {
-	{ "Content-Type", "c" },
-	{ "Content-Encoding", "e" },
-	{ "From", "f" },
-	{ "Call-ID", "i" },
-	{ "Contact", "m" },
-	{ "Content-Length", "l" },
-	{ "Subject", "s" },
-	{ "To", "t" },
-	{ "Supported", "k" },
-	{ "Refer-To", "r" },
-	{ "Referred-By", "b" },
-	{ "Allow-Events", "u" },
-	{ "Event", "o" },
-	{ "Via", "v" },
-	{ "Accept-Contact", "a" },
-	{ "Reject-Contact", "j" },
-	{ "Request-Disposition", "d" },
-	{ "Session-Expires", "x" },
-};
-
 /*!  Define SIP option tags, used in Require: and Supported: headers 
  	We need to be aware of these properties in the phones to use 
 	the replace: header. We should not do that without knowing
@@ -2970,42 +2945,57 @@ static const char* get_sdp_by_line(const char* line, const char *name, int nameL
 	return "";
 }
 
-/*! \brief Gets all kind of SIP message bodies, including SDP,
+/*! \brief get_sdp_iterate: lookup 'name' in the request starting
+ * at the 'start' line. Returns the matching line, and 'start'
+ * is updated with the next line number.
+ */
+static const char* get_sdp_iterate(int* start,
+			     struct sip_request *req, const char *name)
+{
+	int len = strlen(name);
+
+	while (*start < req->lines) {
+		const char *r = get_sdp_by_line(req->line[(*start)++], name, len);
+		if (r[0] != '\0')
+			return r;
+	}
+	return "";
+}
+
+/*! \brief  get_sdp: Gets all kind of SIP message bodies, including SDP,
    but the name wrongly applies _only_ sdp */
-static const char *get_sdp(struct sip_request *req, char *name) 
+static const char *get_sdp(struct sip_request *req, const char *name) 
 {
-	int x;
-	int len = strlen(name);
-
-	for (x = 0; x < req->lines; x++) {
-		const char *r = get_sdp_by_line(req->line[x], name, len);
-		if (r[0] != '\0')
-			return r;
-	}
-	return "";
+	int dummy = 0;
+	return get_sdp_iterate(&dummy, req, name);
 }
 
-
-static void sdpLineNum_iterator_init(int* iterator) 
+static const char *find_alias(const char *name, const char *_default)
 {
-	*iterator = 0;
-}
-
-static const char* get_sdp_iterate(int* iterator,
-			     struct sip_request *req, char *name)
-{
-	int len = strlen(name);
-
-	while (*iterator < req->lines) {
-		const char *r = get_sdp_by_line(req->line[(*iterator)++], name, len);
-		if (r[0] != '\0')
-			return r;
-	}
-	return "";
-}
-
-static char *find_alias(const char *name, char *_default)
-{
+	/*! \brief Structure for conversion between compressed SIP and "normal" SIP */
+	static const struct cfalias {
+		char * const fullname;
+		char * const shortname;
+	} aliases[] = {
+		{ "Content-Type", "c" },
+		{ "Content-Encoding", "e" },
+		{ "From", "f" },
+		{ "Call-ID", "i" },
+		{ "Contact", "m" },
+		{ "Content-Length", "l" },
+		{ "Subject", "s" },
+		{ "To", "t" },
+		{ "Supported", "k" },
+		{ "Refer-To", "r" },
+		{ "Referred-By", "b" },
+		{ "Allow-Events", "u" },
+		{ "Event", "o" },
+		{ "Via", "v" },
+		{ "Accept-Contact",      "a" },
+		{ "Reject-Contact",      "j" },
+		{ "Request-Disposition", "d" },
+		{ "Session-Expires",     "x" },
+	};
 	int x;
 	for (x=0;x<sizeof(aliases) / sizeof(aliases[0]); x++) 
 		if (!strcasecmp(aliases[x].fullname, name))
@@ -3228,13 +3218,15 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	}
 
 	if (useglobal_nat && sin) {
+		int natflags;
 		/* Setup NAT structure according to global settings if we have an address */
 		ast_copy_flags(&p->flags[0], &global_flags[0], SIP_NAT);
 		p->recv = *sin;
+		natflags = ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_ROUTE;
 		if (p->rtp)
-			ast_rtp_setnat(p->rtp, ast_test_flag(&p->flags[0], SIP_NAT_ROUTE));
+			ast_rtp_setnat(p->rtp, natflags);
 		if (p->vrtp)
-			ast_rtp_setnat(p->vrtp, ast_test_flag(&p->flags[0], SIP_NAT_ROUTE));
+			ast_rtp_setnat(p->vrtp, natflags);
 	}
 
 	if (p->method != SIP_REGISTER)
@@ -3267,7 +3259,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method)
 {
 	struct sip_pvt *p;
-	char *tag = "";
+	char *tag = "";	/* note, tag is never NULL */
 	char totag[128];
 	char fromtag[128];
 	const char *callid = get_header(req, "Call-ID");
@@ -3564,7 +3556,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		return -1;
 	}
 	m = get_sdp(req, "m");
-	sdpLineNum_iterator_init(&destiterator);
+	destiterator = 0;
 	c = get_sdp_iterate(&destiterator, req, "c");
 	if (ast_strlen_zero(m) || ast_strlen_zero(c)) {
 		ast_log(LOG_WARNING, "Insufficient information for SDP (m = '%s', c = '%s')\n", m, c);
@@ -3580,7 +3572,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		ast_log(LOG_WARNING, "Unable to lookup host in c= line, '%s'\n", c);
 		return -1;
 	}
-	sdpLineNum_iterator_init(&iterator);
+	iterator = 0;
 	ast_set_flag(&p->flags[0], SIP_NOVIDEO);	
 	while ((m = get_sdp_iterate(&iterator, req, "m"))[0] != '\0') {
 		int found = 0;
@@ -3679,7 +3671,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	/* Next, scan through each "a=rtpmap:" line, noting each
 	 * specified RTP payload type (with corresponding MIME subtype):
 	 */
-	sdpLineNum_iterator_init(&iterator);
+	iterator = 0;
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
 		char* mimeSubtype = ast_strdupa(a); /* ensures we have enough space */
 		if (!strcasecmp(a, "sendonly")) {
@@ -3804,8 +3796,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 /*! \brief Add header to SIP message */
 static int add_header(struct sip_request *req, const char *var, const char *value)
 {
-	int x = 0;
-
 	if (req->headers == SIP_MAX_HEADERS) {
 		ast_log(LOG_WARNING, "Out of SIP header space\n");
 		return -1;
@@ -3823,11 +3813,8 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 
 	req->header[req->headers] = req->data + req->len;
 
-	if (compactheaders) {
-		for (x = 0; x < (sizeof(aliases) / sizeof(aliases[0])); x++)
-			if (!strcasecmp(aliases[x].fullname, var))
-				var = aliases[x].shortname;
-	}
+	if (compactheaders)
+		var = find_alias(var, var);
 
 	snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", var, value);
 	req->len += strlen(req->header[req->headers]);
