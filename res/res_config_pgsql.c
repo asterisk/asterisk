@@ -651,17 +651,17 @@ int parse_config(void)
 		if (!(s = ast_variable_retrieve(config, "general", "dbuser"))) {
 			ast_log(LOG_WARNING,
 					"Postgresql RealTime: No database user found, using 'asterisk' as default.\n");
-			strncpy(dbuser, "asterisk", sizeof(dbuser) - 1);
+			strcpy(dbuser, "asterisk");
 		} else {
-			strncpy(dbuser, s, sizeof(dbuser) - 1);
+			ast_copy_string(dbuser, s, sizeof(dbuser));
 		}
 
 		if (!(s = ast_variable_retrieve(config, "general", "dbpass"))) {
 			ast_log(LOG_WARNING,
 					"Postgresql RealTime: No database password found, using 'asterisk' as default.\n");
-			strncpy(dbpass, "asterisk", sizeof(dbpass) - 1);
+			strcpy(dbpass, "asterisk");
 		} else {
-			strncpy(dbpass, s, sizeof(dbpass) - 1);
+			ast_copy_string(dbpass, s, sizeof(dbpass));
 		}
 
 		if (!(s = ast_variable_retrieve(config, "general", "dbhost"))) {
@@ -669,15 +669,15 @@ int parse_config(void)
 					"Postgresql RealTime: No database host found, using localhost via socket.\n");
 			dbhost[0] = '\0';
 		} else {
-			strncpy(dbhost, s, sizeof(dbhost) - 1);
+			ast_copy_string(dbhost, s, sizeof(dbhost));
 		}
 
 		if (!(s = ast_variable_retrieve(config, "general", "dbname"))) {
 			ast_log(LOG_WARNING,
 					"Postgresql RealTime: No database name found, using 'asterisk' as default.\n");
-			strncpy(dbname, "asterisk", sizeof(dbname) - 1);
+			strcpy(dbname, "asterisk");
 		} else {
-			strncpy(dbname, s, sizeof(dbname) - 1);
+			ast_copy_string(dbname, s, sizeof(dbname));
 		}
 
 		if (!(s = ast_variable_retrieve(config, "general", "dbport"))) {
@@ -691,9 +691,9 @@ int parse_config(void)
 		if (dbhost && !(s = ast_variable_retrieve(config, "general", "dbsock"))) {
 			ast_log(LOG_WARNING,
 					"Postgresql RealTime: No database socket found, using '/tmp/pgsql.sock' as default.\n");
-			strncpy(dbsock, "/tmp/pgsql.sock", sizeof(dbsock) - 1);
+			strcpy(dbsock, "/tmp/pgsql.sock");
 		} else {
-			strncpy(dbsock, s, sizeof(dbsock) - 1);
+			ast_copy_string(dbsock, s, sizeof(dbsock));
 		}
 	}
 	ast_config_destroy(config);
