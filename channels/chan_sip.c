@@ -2674,13 +2674,20 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	int ret = -1;
-	struct sip_pvt *p = newchan->tech_pvt;
+	struct sip_pvt *p;
+
+	if (!newchan || !newchan->tech_pvt) {
+		ast_log(LOG_WARNING, "No SIP tech_pvt! Fixup of %s failed.\n", oldchan->name);
+		return -1;
+	}
+	p = newchan->tech_pvt;
 
 	ast_mutex_lock(&p->lock);
 	if (p->owner != oldchan)
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
 	else {
 		p->owner = newchan;
+		append_history(p, "Masq", "Old channel: %s\n", oldchan->name);
 		ret = 0;
 	}
 	ast_mutex_unlock(&p->lock);
