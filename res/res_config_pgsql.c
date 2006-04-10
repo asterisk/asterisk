@@ -159,7 +159,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 	  }
 	  for(i = 0; i < numFields; i++)
 	    fieldnames[i]=PQfname(result,i);
-	  for(rowIndex = 0; rowIndex < num_rows; rowIndex++)
+	  for(rowIndex = 0; rowIndex < num_rows; rowIndex++) {
 	      for(i = 0; i < numFields; i++) {
 		stringp = PQgetvalue(result,rowIndex,i);
 		while(stringp) {
@@ -176,6 +176,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 		  }
 		}
 	      }
+	  }
 	  free(fieldnames);
 	} else {                                
 		ast_log(LOG_WARNING, "Postgresql RealTime: Could not find any rows in table %s.\n", table);
