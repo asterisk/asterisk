@@ -2018,11 +2018,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	struct member *cur;
 	struct callattempt *outgoing=NULL; /* the queue we are building */
 	int to;
-	char restofit[AST_MAX_EXTENSION];
 	char oldexten[AST_MAX_EXTENSION]="";
 	char oldcontext[AST_MAX_CONTEXT]="";
 	char queuename[256]="";
-	char *newnum;
 	struct ast_channel *peer;
 	struct ast_channel *which;
 	struct callattempt *lpeer;
@@ -2103,14 +2101,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		tmp->oldstatus = cur->status;
 		tmp->lastcall = cur->lastcall;
 		ast_copy_string(tmp->interface, cur->interface, sizeof(tmp->interface));
-		/* If we're dialing by extension, look at the extension to know what to dial */
-		if ((newnum = strstr(tmp->interface, "/BYEXTENSION"))) {
-			newnum++;
-			strncpy(restofit, newnum + strlen("BYEXTENSION"), sizeof(restofit) - 1);
-			snprintf(newnum, sizeof(tmp->interface) - (newnum - tmp->interface), "%s%s", qe->chan->exten, restofit);
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Dialing by extension %s\n", tmp->interface);
-		}
 		/* Special case: If we ring everyone, go ahead and ring them, otherwise
 		   just calculate their metric for the appropriate strategy */
 		if (!calc_metric(qe->parent, cur, x++, qe, tmp)) {

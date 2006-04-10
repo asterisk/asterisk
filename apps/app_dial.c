@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -747,10 +747,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	int numnochan = 0;
 	int cause;
 	char numsubst[AST_MAX_EXTENSION];
-	char restofit[AST_MAX_EXTENSION];
 	char cidname[AST_MAX_EXTENSION];
 	char toast[80];
-	char *newnum;
 	char *l;
 	int privdb_val=0;
 	unsigned int calldurationlimit=0;
@@ -1007,14 +1005,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_set2_flag(tmp, args.url, DIAL_NOFORWARDHTML);	
 		}
 		ast_copy_string(numsubst, number, sizeof(numsubst));
-		/* If we're dialing by extension, look at the extension to know what to dial */
-		if ((newnum = strstr(numsubst, "BYEXTENSION"))) {
-			/* strlen("BYEXTENSION") == 11 */
-			ast_copy_string(restofit, newnum + 11, sizeof(restofit));
-			snprintf(newnum, sizeof(numsubst) - (newnum - numsubst), "%s%s", chan->exten,restofit);
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Dialing by extension %s\n", numsubst);
-		}
 		/* Request the peer */
 		tmp->chan = ast_request(tech, chan->nativeformats, numsubst, &cause);
 		if (!tmp->chan) {

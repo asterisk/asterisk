@@ -6040,7 +6040,7 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
 		pri++;
 	}
 	if (sscanf(pri, "%d", &ipri) != 1) {
-		if ((ipri = ast_findlabel_extension(chan, context ? context : chan->context, (exten && strcasecmp(exten, "BYEXTENSION")) ? exten : chan->exten, 
+		if ((ipri = ast_findlabel_extension(chan, context ? context : chan->context, exten ? exten : chan->exten, 
 			pri, chan->cid.cid_num)) < 1) {
 			ast_log(LOG_WARNING, "Priority '%s' must be a number > 0, or valid label\n", pri);
 			return -1;
@@ -6048,9 +6048,6 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
 			mode = 0;
 	} 
 	/* At this point we have a priority and maybe an extension and a context */
-
-	if (exten && !strcasecmp(exten, "BYEXTENSION"))
-		exten = NULL;
 
 	if (mode) 
 		ipri = chan->priority + (ipri * mode);

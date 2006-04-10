@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -164,9 +164,9 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	}
 	/* At this point we have a priority and maybe an extension and a context */
 	chan->priority = atoi(priority);
-	if(exten && strcasecmp(exten, "BYEXTENSION"))
+	if (exten)
 		strncpy(chan->exten, exten, sizeof(chan->exten)-1);
-	if(context)
+	if (context)
 		strncpy(chan->context, context, sizeof(chan->context)-1);
 	} else {  /* increment the priority by default*/
 		chan->priority++;

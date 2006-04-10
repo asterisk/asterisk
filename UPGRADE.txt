@@ -1,6 +1,11 @@
 Information for Upgrading From Previous Asterisk Releases
 =========================================================
 
+PBX Core:
+
+* The (very old and undocumented) ability to use BYEXTENSION for dialing
+  instead of ${EXTEN} has been removed.
+
 Command Line Interface:
 
 * 'show channels concise', designed to be used by applications that will parse
