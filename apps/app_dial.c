@@ -841,6 +841,21 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_log(LOG_WARNING, "Dial does not accept L(%s), hanging up.\n", limit_str);
 			LOCAL_USER_REMOVE(u);
 			return -1;
+		} else if (play_warning > timelimit) {
+			/* If the first warning is requested _after_ the entire call would end,
+			   and no warning frequency is requested, then turn off the warning. If
+			   a warning frequency is requested, reduce the 'first warning' time by
+			   that frequency until it falls within the call's total time limit.
+			*/
+
+			if (!warning_freq) {
+				play_warning = 0;
+			} else {
+				while (play_warning > timelimit)
+					play_warning -= warning_freq;
+				if (play_warning < 1)
+					play_warning = warning_freq = 0;
+			}
 		}
 
 		var = pbx_builtin_getvar_helper(chan,"LIMIT_PLAYAUDIO_CALLER");
