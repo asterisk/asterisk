@@ -984,16 +984,10 @@ void ast_channel_free(struct ast_channel *chan)
 	}
 	
 	/* Get rid of each of the data stores on the channel */
-	AST_LIST_LOCK(&chan->datastores);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->datastores, datastore, list) {
-		/* Remove from the list */
-		AST_LIST_REMOVE_CURRENT(&chan->datastores, list);
+	while ((datastore = AST_LIST_REMOVE_HEAD(&chan->datastores, entry)))
 		/* Free the data store */
 		ast_channel_datastore_free(datastore);
-	}
-	AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&chan->datastores);
-	AST_LIST_HEAD_DESTROY(&chan->datastores);
+	AST_LIST_HEAD_INIT_NOLOCK(&chan->datastores);
 
 	/* loop over the variables list, freeing all data and deleting list items */
 	/* no need to lock the list, as the channel is already locked */
@@ -1059,9 +1053,7 @@ int ast_channel_datastore_add(struct ast_channel *chan, struct ast_datastore *da
 {
 	int res = 0;
 
-	AST_LIST_LOCK(&chan->datastores);
-	AST_LIST_INSERT_HEAD(&chan->datastores, datastore, list);
-	AST_LIST_UNLOCK(&chan->datastores);
+	AST_LIST_INSERT_HEAD(&chan->datastores, datastore, entry);
 
 	return res;
 }
@@ -1072,16 +1064,14 @@ int ast_channel_datastore_remove(struct ast_channel *chan, struct ast_datastore 
 	int res = -1;
 
 	/* Find our position and remove ourselves */
-	AST_LIST_LOCK(&chan->datastores);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->datastores, datastore2, list) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->datastores, datastore2, entry) {
 		if (datastore2 == datastore) {
-			AST_LIST_REMOVE_CURRENT(&chan->datastores, list);
+			AST_LIST_REMOVE_CURRENT(&chan->datastores, entry);
 			res = 0;
 			break;
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&chan->datastores);
 
 	return res;
 }
@@ -1093,8 +1083,7 @@ struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const
 	if (info == NULL)
 		return NULL;
 
-	AST_LIST_LOCK(&chan->datastores);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->datastores, datastore, list) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->datastores, datastore, entry) {
 		if (datastore->info == info) {
 			if (uid != NULL && datastore->uid != NULL) {
 				if (!strcasecmp(uid, datastore->uid)) {
@@ -1108,7 +1097,6 @@ struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&chan->datastores);
 
 	return datastore;
 }
@@ -3169,7 +3157,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	}
 	/* Move data stores over */
 	if (AST_LIST_FIRST(&clone->datastores))
-                AST_LIST_INSERT_TAIL(&original->datastores, AST_LIST_FIRST(&clone->datastores), list);
+                AST_LIST_INSERT_TAIL(&original->datastores, AST_LIST_FIRST(&clone->datastores), entry);
 	AST_LIST_HEAD_INIT_NOLOCK(&clone->datastores);
 
 	clone_variables(original, clone);

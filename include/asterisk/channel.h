@@ -161,7 +161,7 @@ struct ast_datastore {
 	/*! Data store type information */
 	const struct ast_datastore_info *info;
 	/*! Used for easy linking */
-	AST_LIST_ENTRY(ast_datastore) list;
+	AST_LIST_ENTRY(ast_datastore) entry;
 };
 
 /*! Structure for all kinds of caller ID identifications */
@@ -444,7 +444,7 @@ struct ast_channel {
 	struct ast_channel_spy_list *spies;
 
 	/*! Data stores on the channel */
-	AST_LIST_HEAD(datastores, ast_datastore) datastores;
+	AST_LIST_HEAD_NOLOCK(datastores, ast_datastore) datastores;
 
 	/*! For easy linking */
 	AST_LIST_ENTRY(ast_channel) chan_list;
