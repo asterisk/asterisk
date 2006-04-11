@@ -71,4 +71,4 @@ apps.txt		About application development
 model.txt		About the call model in Asterisk (old)
 modules.txt		How Asterisk modules work
 datastores.txt		About channel data stores
-speecrec.txt		The Generic Speech Recognition API
+speechrec.txt		The Generic Speech Recognition API
