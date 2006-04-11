@@ -102,7 +102,7 @@
 
 #ifdef DEBUG_THREADS
 
-#define __ast_mutex_logger(...) { if (canlog) ast_log(LOG_ERROR, __VA_ARGS__); else fprintf(stderr, __VA_ARGS__); }
+#define __ast_mutex_logger(...)  do { if (canlog) ast_log(LOG_ERROR, __VA_ARGS__); else fprintf(stderr, __VA_ARGS__); } while (0)
 
 #ifdef THREAD_CRASH
 #define DO_THREAD_CRASH do { *((int *)(0)) = 1; } while(0)
@@ -141,7 +141,7 @@ static inline int __ast_pthread_mutex_init_attr(const char *filename, int lineno
 		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is already initialized.\n",
 				   filename, lineno, func, mutex_name);
 		__ast_mutex_logger("%s line %d (%s): Error: previously initialization of mutex '%s'.\n",
-				   t->file, t->lineno, t->func, mutex_name);
+				   t->file[0], t->lineno[0], t->func[0], mutex_name);
 #ifdef THREAD_CRASH
 		DO_THREAD_CRASH;
 #endif
@@ -168,6 +168,7 @@ static inline int __ast_pthread_mutex_init(const char *filename, int lineno, con
 
 	return __ast_pthread_mutex_init_attr(filename, lineno, func, mutex_name, t, &attr);
 }
+#define ast_mutex_init(pmutex) __ast_pthread_mutex_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
 
 static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, const char *func,
 						const char *mutex_name, ast_mutex_t *t)
@@ -251,7 +252,7 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE)
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
-		ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
+		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
 				 filename, lineno, func, mutex_name);
 #endif
 		ast_mutex_init(t);
@@ -525,7 +526,6 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 	return res;
 }
 
-#define ast_mutex_init(pmutex) __ast_pthread_mutex_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
 #define ast_mutex_destroy(a) __ast_pthread_mutex_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 #define ast_mutex_lock(a) __ast_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 #define ast_mutex_unlock(a) __ast_pthread_mutex_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
