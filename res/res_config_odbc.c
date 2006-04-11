@@ -48,8 +48,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/res_odbc.h"
 #include "asterisk/utils.h"
 
-static char *tdesc = "ODBC Configuration";
-
 LOCAL_USER_DECL;
 
 static struct ast_variable *realtime_odbc(const char *database, const char *table, va_list ap)
@@ -527,7 +525,8 @@ int load_module (void)
 
 const char *description(void)
 {
-	return tdesc;
+	return "ODBC Configuration";
+
 }
 
 int usecount (void)
@@ -536,7 +535,7 @@ int usecount (void)
 	return 1;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

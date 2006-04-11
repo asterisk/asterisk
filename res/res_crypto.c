@@ -614,7 +614,7 @@ int usecount(void)
 	return 1;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

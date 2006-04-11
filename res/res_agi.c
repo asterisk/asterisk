@@ -71,8 +71,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Recycle some stuff from the CLI interface */
 #define fdprintf agi_debug_cli
 
-static char *tdesc = "Asterisk Gateway Interface (AGI)";
-
 static char *app = "AGI";
 
 static char *eapp = "EAGI";
@@ -2053,7 +2051,8 @@ int load_module(void)
 
 const char *description(void)
 {
-	return tdesc;
+	return "Asterisk Gateway Interface (AGI)";
+
 }
 
 int usecount(void)
@@ -2063,7 +2062,7 @@ int usecount(void)
 	return res;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

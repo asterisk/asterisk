@@ -41,8 +41,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 STANDARD_USECOUNT_DECL;
 
-static char *desc = "File format conversion CLI command";
-
 /*! \brief Split the filename to basename and extension */
 static int split_ext(char *filename, char **name, char **ext)
 {
@@ -146,19 +144,18 @@ int load_module(void)
 
 const char *description(void)
 {
-	return desc;
+	return "File format conversion CLI command";
+
 }
 
 int usecount(void)
 {
 	int res;
-	
 	STANDARD_USECOUNT(res);
-
 	return res;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

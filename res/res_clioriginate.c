@@ -44,8 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 
 STANDARD_USECOUNT_DECL;
 
-static char *tdesc = "Call origination from the CLI";
-
 static char orig_help[] = 
 "  There are two ways to use this command. A call can be originated between a\n"
 "channel and a specific application, or between a channel and an extension in\n"
@@ -177,7 +175,8 @@ int load_module(void)
 
 const char *description(void)
 {
-	return tdesc;
+	return "Call origination from the CLI";
+
 }
 
 int usecount(void)
@@ -185,7 +184,7 @@ int usecount(void)
 	return 0;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

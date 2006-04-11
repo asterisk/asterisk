@@ -41,8 +41,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/cli.h"
 
-static char *res_config_pgsql_desc = "Postgresql RealTime Configuration Driver";
-
 AST_MUTEX_DEFINE_STATIC(pgsql_lock);
 
 #define RES_CONFIG_PGSQL_CONF "res_pgsql.conf"
@@ -695,7 +693,8 @@ int parse_config(void)
 
 const char *description(void)
 {
-	return res_config_pgsql_desc;
+	return "Postgresql RealTime Configuration Driver";
+
 }
 
 int usecount(void)
@@ -709,7 +708,7 @@ int usecount(void)
 	return 0;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
