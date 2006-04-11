@@ -44,8 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/options.h"
 
-static const char *tdesc = "Control Playback Application";
-
 static const char *app = "ControlPlayback";
 
 static const char *synopsis = "Play a file with fast forward and rewind";
@@ -174,7 +172,7 @@ int load_module(void)
 
 const char *description(void)
 {
-	return (char *) tdesc;
+	return "Control Playback Application";
 }
 
 int usecount(void)
@@ -185,7 +183,7 @@ int usecount(void)
 	return res;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

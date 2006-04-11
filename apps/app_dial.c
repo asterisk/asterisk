@@ -61,8 +61,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/privacy.h"
 #include "asterisk/stringfields.h"
 
-static char *tdesc = "Dialing Application";
-
 static char *app = "Dial";
 
 static char *synopsis = "Place a call and connect to the current channel";
@@ -1730,7 +1728,8 @@ STATIC_MODULE int load_module(void)
 
 STATIC_MODULE const char *description(void)
 {
-	return tdesc;
+	return "Dialing Application";
+
 }
 
 STATIC_MODULE int usecount(void)

@@ -35,7 +35,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 
 
-static char *tdesc = "Answering Machine Detection Application";
 static char *app = "AMD";
 static char *synopsis = "Attempts to detect answering machines";
 static char *descrip =
@@ -413,7 +412,7 @@ int reload(void)
 
 const char *description(void)
 {
-	return tdesc;
+	return "Answering Machine Detection Application";
 }
 
 int usecount(void)
@@ -423,7 +422,7 @@ int usecount(void)
 	return res;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

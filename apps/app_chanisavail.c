@@ -48,8 +48,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/devicestate.h"
 #include "asterisk/options.h"
 
-static char *tdesc = "Check channel availability";
-
 static char *app = "ChanIsAvail";
 
 static char *synopsis = "Check channel availability";
@@ -175,7 +173,7 @@ int load_module(void)
 
 const char *description(void)
 {
-	return tdesc;
+	return "Check channel availability";
 }
 
 int usecount(void)
@@ -185,7 +183,7 @@ int usecount(void)
 	return res;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

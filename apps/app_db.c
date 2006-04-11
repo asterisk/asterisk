@@ -48,8 +48,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/options.h"
 
-static char *tdesc = "Database Access Functions";
-
 static char *d_descrip =
 "  DBdel(family/key): This applicaiton will delete a key from the Asterisk\n"
 "database.\n";
@@ -169,7 +167,7 @@ int load_module(void)
 
 const char *description(void)
 {
-	return tdesc;
+	return "Database Access Functions";
 }
 
 int usecount(void)
@@ -179,7 +177,7 @@ int usecount(void)
 	return res;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

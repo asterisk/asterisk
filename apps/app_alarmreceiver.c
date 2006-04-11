@@ -68,8 +68,6 @@ struct event_node{
 
 typedef struct event_node event_node_t;
 
-static char *tdesc = "Alarm Receiver for Asterisk";
-
 static char *app = "AlarmReceiver";
 
 static char *synopsis = "Provide support for receving alarm reports from a burglar or fire alarm panel";
@@ -839,7 +837,7 @@ int load_module(void)
 
 const char *description(void)
 {
-	return tdesc;
+	return "Alarm Receiver for Asterisk";
 }
 
 int usecount(void)
@@ -849,7 +847,7 @@ int usecount(void)
 	return res;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

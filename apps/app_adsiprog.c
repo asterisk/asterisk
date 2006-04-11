@@ -49,8 +49,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 
-static char *tdesc = "Asterisk ADSI Programming Application";
-
 static char *app = "ADSIProg";
 
 static char *synopsis = "Load Asterisk ADSI Scripts into phone";
@@ -1588,7 +1586,7 @@ int load_module(void)
 
 const char *description(void)
 {
-	return tdesc;
+	return "Asterisk ADSI Programming Application";
 }
 
 int usecount(void)
@@ -1598,7 +1596,7 @@ int usecount(void)
 	return res;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

@@ -62,7 +62,6 @@ AST_APP_OPTIONS(auth_app_options, {
 	AST_APP_OPTION('r', OPT_REMOVE),
 });
 
-static char *tdesc = "Authentication Application";
 
 static char *app = "Authenticate";
 
@@ -254,7 +253,7 @@ int load_module(void)
 
 const char *description(void)
 {
-	return tdesc;
+	return "Authentication Application";
 }
 
 int usecount(void)
@@ -264,7 +263,7 @@ int usecount(void)
 	return res;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
