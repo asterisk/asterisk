@@ -2495,7 +2495,7 @@ int handle_mgmt(msg_t *msg)
 
 	if ( (frm->addr == 0) && (frm->prim == (MGR_DELLAYER|CONFIRM)) ) {
 		cb_log(2, 0, "MGMT: DELLAYER|CONFIRM Addr: 0 !\n") ;
-		free(msg);
+		free_msg(msg);
 		return 1;
 	}
 	
@@ -2505,7 +2505,7 @@ int handle_mgmt(msg_t *msg)
 		if (frm->prim == (MGR_DELLAYER|CONFIRM)) {
 			cb_log(2, 0, "MGMT: DELLAYER|CONFIRM Addr: %x !\n",
 					frm->addr) ;
-			free(msg);
+			free_msg(msg);
 			return 1;
 		}
 		
