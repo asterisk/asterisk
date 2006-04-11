@@ -1271,7 +1271,6 @@ static void queue_frame_to_spies(struct ast_channel *chan, struct ast_frame *f, 
 	struct ast_frame *translated_frame = NULL;
 	struct ast_channel_spy *spy;
 	struct ast_channel_spy_queue *queue;
-	struct ast_channel_spy_queue *other_queue;
 	struct channel_spy_trans *trans;
 	struct ast_frame *last;
 
@@ -1333,48 +1332,42 @@ static void queue_frame_to_spies(struct ast_channel *chan, struct ast_frame *f, 
 
 		if (queue->samples > SPY_QUEUE_SAMPLE_LIMIT) {
 			if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE) {
-				other_queue = (dir == SPY_WRITE) ? &spy->read_queue : &spy->write_queue;
-
-				if (other_queue->samples == 0) {
-					switch (ast_test_flag(spy, CHANSPY_TRIGGER_MODE)) {
-					case CHANSPY_TRIGGER_READ:
-						if (dir == SPY_WRITE) {
-							ast_set_flag(spy, CHANSPY_TRIGGER_WRITE);
-							ast_clear_flag(spy, CHANSPY_TRIGGER_READ);
-							if (option_debug)
-								ast_log(LOG_DEBUG, "Switching spy '%s' on '%s' to write-trigger mode\n",
-									spy->type, chan->name);
-						}
-						break;
-					case CHANSPY_TRIGGER_WRITE:
-						if (dir == SPY_READ) {
-							ast_set_flag(spy, CHANSPY_TRIGGER_READ);
-							ast_clear_flag(spy, CHANSPY_TRIGGER_WRITE);
-							if (option_debug)
-								ast_log(LOG_DEBUG, "Switching spy '%s' on '%s' to read-trigger mode\n",
-									spy->type, chan->name);
-						}
-						break;
+				switch (ast_test_flag(spy, CHANSPY_TRIGGER_MODE)) {
+				case CHANSPY_TRIGGER_READ:
+					if (dir == SPY_WRITE) {
+						ast_set_flag(spy, CHANSPY_TRIGGER_WRITE);
+						ast_clear_flag(spy, CHANSPY_TRIGGER_READ);
+						if (option_debug)
+							ast_log(LOG_DEBUG, "Switching spy '%s' on '%s' to write-trigger mode\n",
+								spy->type, chan->name);
 					}
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Triggering queue flush for spy '%s' on '%s'\n",
-							spy->type, chan->name);
-					ast_set_flag(spy, CHANSPY_TRIGGER_FLUSH);
-					ast_cond_signal(&spy->trigger);
-					ast_mutex_unlock(&spy->lock);
-					continue;
+					break;
+				case CHANSPY_TRIGGER_WRITE:
+					if (dir == SPY_READ) {
+						ast_set_flag(spy, CHANSPY_TRIGGER_READ);
+						ast_clear_flag(spy, CHANSPY_TRIGGER_WRITE);
+						if (option_debug)
+							ast_log(LOG_DEBUG, "Switching spy '%s' on '%s' to read-trigger mode\n",
+								spy->type, chan->name);
+					}
+					break;
 				}
-			}
-
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Spy '%s' on channel '%s' %s queue too long, dropping frames\n",
-					spy->type, chan->name, (dir == SPY_READ) ? "read" : "write");
-			while (queue->samples > SPY_QUEUE_SAMPLE_LIMIT) {
-				struct ast_frame *drop = queue->head;
-
-				queue->samples -= drop->samples;
-				queue->head = drop->next;
-				ast_frfree(drop);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Triggering queue flush for spy '%s' on '%s'\n",
+						spy->type, chan->name);
+				ast_set_flag(spy, CHANSPY_TRIGGER_FLUSH);
+				ast_cond_signal(&spy->trigger);
+			} else {
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Spy '%s' on channel '%s' %s queue too long, dropping frames\n",
+						spy->type, chan->name, (dir == SPY_READ) ? "read" : "write");
+				while (queue->samples > SPY_QUEUE_SAMPLE_LIMIT) {
+					struct ast_frame *drop = queue->head;
+					
+					queue->samples -= drop->samples;
+					queue->head = drop->next;
+					ast_frfree(drop);
+				}
 			}
 		} else {
 			switch (ast_test_flag(spy, CHANSPY_TRIGGER_MODE)) {
