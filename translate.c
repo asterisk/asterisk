@@ -486,7 +486,7 @@ static int show_translation(int fd, int argc, char *argv[])
 	for (x = -1; x < SHOW_TRANS; x++) {
 		char line[80];
 		char *buf = line;
-		int left = sizeof(line) - 1;	/* one initial space */
+		size_t left = sizeof(line) - 1;	/* one initial space */
 		/* next 2 lines run faster than using ast_build_string() */
 		*buf++ = ' ';
 		*buf = '\0';
