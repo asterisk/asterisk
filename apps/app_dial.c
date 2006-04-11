@@ -304,6 +304,8 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 			ast_cdr_failed(chan->cdr); \
 		numnochan++; \
 		break; \
+	case AST_CAUSE_NORMAL_CLEARING: \
+		break; \
 	default: \
 		numnochan++; \
 		break; \
