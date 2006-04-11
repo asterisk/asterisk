@@ -439,6 +439,7 @@ struct {								\
 		if ((head)->last == (elm))				\
 			(head)->last = curelm;				\
 	}								\
+        (elm)->field.next = NULL;                                       \
 } while (0)
 
 #endif /* _ASTERISK_LINKEDLISTS_H */
