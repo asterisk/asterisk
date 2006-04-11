@@ -260,20 +260,6 @@ int ast_module_reload(const char *name);
  */
 char *ast_module_helper(const char *line, const char *word, int pos, int state, int rpos, int needsreload);
 
-/*! 
- * \brief Register a function to be executed before Asterisk exits.
- * \param func The callback function to use.
- *
- * \return Zero on success, -1 on error.
- */
-int ast_register_atexit(void (*func)(void));
-
-/*! 
- * \brief Unregister a function registered with ast_register_atexit().
- * \param func The callback function to unregister.
- */
-void ast_unregister_atexit(void (*func)(void));
-
 /*!
  * \brief Given a function address, find the corresponding module.
  * This is required as a workaround to the fact that we do not

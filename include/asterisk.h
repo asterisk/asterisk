@@ -72,6 +72,20 @@ void dnsmgr_start_refresh(void);
 int dnsmgr_reload(void);
 
 /*!
+ * \brief Register a function to be executed before Asterisk exits.
+ * \param func The callback function to use.
+ * 
+ * \return Zero on success, -1 on error.
+ */
+int ast_register_atexit(void (*func)(void));
+ 
+/*!
+ * \brief Unregister a function registered with ast_register_atexit().
+ * \param func The callback function to unregister.
+ */
+void ast_unregister_atexit(void (*func)(void));
+
+/*!
  * \brief Register the version of a source code file with the core.
  * \param file the source file name
  * \param version the version string (typically a CVS revision keyword string)
