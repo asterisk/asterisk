@@ -8502,7 +8502,7 @@ static char *complete_sip_peer(const char *word, int state, int flags2)
 	ASTOBJ_CONTAINER_TRAVERSE(&peerl, !result, do {
 		/* locking of the object is not required because only the name and flags are being compared */
 		if (!strncasecmp(word, iterator->name, wordlen) &&
-				ast_test_flag(&iterator->flags[1], flags2) &&
+				(!flags2 || ast_test_flag(&iterator->flags[1], flags2)) &&
 				++which > state)
 			result = ast_strdup(iterator->name);
 	} while(0) );
