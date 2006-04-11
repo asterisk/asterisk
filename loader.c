@@ -100,12 +100,7 @@ struct module {
 
 	enum st_t state;
 	int export_refcount;	/* how many users of exported symbols */
-
-	ast_mutex_t mtx;	/* XXX use yet ? */
-	struct localuser *lu;
-	int localusecnt;
 };
-
 
 struct loadupdate {
 	AST_LIST_ENTRY(loadupdate) next;
