@@ -38,6 +38,8 @@
  *  \arg \ref AstVar
  *  \arg \ref AstENUM : The IETF way to redirect from phone numbers to VoIP calls
  *  \arg \ref AstHTTP
+ *  \arg \ref AstSpeech
+ *  \arg \ref DataStores
  *  \arg \ref ConfigFiles
  *  \arg \ref SoundFiles included in the Asterisk distribution
  *  \arg \ref AstCREDITS : A Thank You to contributors
@@ -71,6 +73,16 @@
 /*! \page AstDebug Debugging
  *  \section debug Debugging
  *  \verbinclude backtrace.txt
+ */
+
+/*! \page AstSpeech The Generic Speech Recognition API
+ *  \section debug The Generic Speech Recognition API
+ *  \verbinclude speechrec.txt
+ */
+
+/*! \page DataStores Channel Data Stores
+ *  \section debug Channel Data Stores
+ *  \verbinclude datastores.txt
  */
 
 /*! \page AstAMI AMI - The Manager Interface
