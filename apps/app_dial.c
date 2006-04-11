@@ -732,12 +732,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 
 static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags *peerflags)
 {
-	int res=-1;
+	int res = -1;
 	struct localuser *u;
 	char *tech, *number, *rest, *cur;
 	char privcid[256];
 	char privintro[1024];
-	struct dial_localuser *outgoing=NULL, *tmp;
+	struct dial_localuser *outgoing = NULL, *tmp;
 	struct ast_channel *peer;
 	int to;
 	int numbusy = 0;
@@ -748,20 +748,20 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	char cidname[AST_MAX_EXTENSION];
 	char toast[80];
 	char *l;
-	int privdb_val=0;
-	unsigned int calldurationlimit=0;
+	int privdb_val = 0;
+	unsigned int calldurationlimit = 0;
 	struct ast_bridge_config config;
 	long timelimit = 0;
 	long play_warning = 0;
-	long warning_freq=0;
-	const char *warning_sound=NULL;
-	const char *end_sound=NULL;
-	const char *start_sound=NULL;
-	char *dtmfcalled=NULL, *dtmfcalling=NULL;
+	long warning_freq = 0;
+	const char *warning_sound = NULL;
+	const char *end_sound = NULL;
+	const char *start_sound = NULL;
+	char *dtmfcalled = NULL, *dtmfcalling = NULL;
 	const char *var;
 	char status[256];
-	int play_to_caller=0,play_to_callee=0;
-	int sentringing=0, moh=0;
+	int play_to_caller = 0, play_to_callee = 0;
+	int sentringing = 0, moh = 0;
 	const char *outbound_group = NULL;
 	const char *macro_result = NULL;
 	char *macro_transfer_dest = NULL;
@@ -808,8 +808,13 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 	if (ast_test_flag(&opts, OPT_DURATION_STOP) && !ast_strlen_zero(opt_args[OPT_ARG_DURATION_STOP])) {
 		calldurationlimit = atoi(opt_args[OPT_ARG_DURATION_STOP]);
+		if (!calldurationlimit) {
+			ast_log(LOG_WARNING, "Dial does not accept S(%s), hanging up.\n", opt_args[OPT_ARG_DURATION_STOP]);
+			LOCAL_USER_REMOVE(u);
+			return -1;
+		}
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n", calldurationlimit);			
+			ast_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n", calldurationlimit);
 	}
 
 	if (ast_test_flag(&opts, OPT_SENDDTMF) && !ast_strlen_zero(opt_args[OPT_ARG_SENDDTMF])) {
@@ -833,8 +838,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			warning_freq = atol(warnfreq_str);
 
 		if (!timelimit) {
-			timelimit = play_to_caller = play_to_callee = play_warning = warning_freq = 0;
-			warning_sound = NULL;
+			ast_log(LOG_WARNING, "Dial does not accept L(%s), hanging up.\n", limit_str);
+			LOCAL_USER_REMOVE(u);
+			return -1;
 		}
 
 		var = pbx_builtin_getvar_helper(chan,"LIMIT_PLAYAUDIO_CALLER");
@@ -844,33 +850,35 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		play_to_callee = var ? ast_true(var) : 0;
 		
 		if (!play_to_caller && !play_to_callee)
-			play_to_caller=1;
+			play_to_caller = 1;
 		
 		var = pbx_builtin_getvar_helper(chan,"LIMIT_WARNING_FILE");
-		warning_sound = var ? var : "timeleft";
+		warning_sound = (!ast_strlen_zero(var)) ? var : "timeleft";
 		
 		var = pbx_builtin_getvar_helper(chan,"LIMIT_TIMEOUT_FILE");
-		end_sound = var ? var : NULL;
+		end_sound = (!ast_strlen_zero(var)) ? var : NULL;
 		
 		var = pbx_builtin_getvar_helper(chan,"LIMIT_CONNECT_FILE");
-		start_sound = var ? var : NULL;
+		start_sound = (!ast_strlen_zero(var)) ? var : NULL;
 
 		/* undo effect of S(x) in case they are both used */
-		calldurationlimit = 0; 
-		/* more efficient do it like S(x) does since no advanced opts*/
-		if (!play_warning && !start_sound && !end_sound && timelimit) { 
-			calldurationlimit = timelimit/1000;
+		calldurationlimit = 0;
+		/* more efficient to do it like S(x) does since no advanced opts */
+		if (!play_warning && !start_sound && !end_sound && timelimit) {
+			calldurationlimit = timelimit / 1000;
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n", calldurationlimit);
 			timelimit = play_to_caller = play_to_callee = play_warning = warning_freq = 0;
 		} else if (option_verbose > 2) {
 			ast_verbose(VERBOSE_PREFIX_3 "Limit Data for this call:\n");
-			ast_verbose(VERBOSE_PREFIX_3 "- timelimit     = %ld\n", timelimit);
-			ast_verbose(VERBOSE_PREFIX_3 "- play_warning  = %ld\n", play_warning);
-			ast_verbose(VERBOSE_PREFIX_3 "- play_to_caller= %s\n", play_to_caller ? "yes" : "no");
-			ast_verbose(VERBOSE_PREFIX_3 "- play_to_callee= %s\n", play_to_callee ? "yes" : "no");
-			ast_verbose(VERBOSE_PREFIX_3 "- warning_freq  = %ld\n", warning_freq);
-			ast_verbose(VERBOSE_PREFIX_3 "- start_sound   = %s\n", start_sound ? start_sound : "UNDEF");
-			ast_verbose(VERBOSE_PREFIX_3 "- warning_sound = %s\n", warning_sound ? warning_sound : "UNDEF");
-			ast_verbose(VERBOSE_PREFIX_3 "- end_sound     = %s\n", end_sound ? end_sound : "UNDEF");
+			ast_verbose(VERBOSE_PREFIX_4 "timelimit      = %ld\n", timelimit);
+			ast_verbose(VERBOSE_PREFIX_4 "play_warning   = %ld\n", play_warning);
+			ast_verbose(VERBOSE_PREFIX_4 "play_to_caller = %s\n", play_to_caller ? "yes" : "no");
+			ast_verbose(VERBOSE_PREFIX_4 "play_to_callee = %s\n", play_to_callee ? "yes" : "no");
+			ast_verbose(VERBOSE_PREFIX_4 "warning_freq   = %ld\n", warning_freq);
+			ast_verbose(VERBOSE_PREFIX_4 "start_sound    = %s\n", start_sound);
+			ast_verbose(VERBOSE_PREFIX_4 "warning_sound  = %s\n", warning_sound);
+			ast_verbose(VERBOSE_PREFIX_4 "end_sound      = %s\n", end_sound);
 		}
 	}
 
