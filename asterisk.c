@@ -597,6 +597,8 @@ static void *listener(void *unused)
 					consoles[x].fd = s;
 					if (ast_pthread_create(&consoles[x].t, &attr, netconsole, &consoles[x])) {
 						ast_log(LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
+						close(consoles[x].p[0]);
+						close(consoles[x].p[1]);
 						consoles[x].fd = -1;
 						fdprint(s, "Server failed to spawn thread\n");
 						close(s);
