@@ -3298,7 +3298,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 				cmd = 't';
 		 }
 	}
-	if (cmd == 't')
+	if (cmd == 't' || cmd == 'S')
 		cmd = 0;
 	return cmd;
 }
