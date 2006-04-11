@@ -65,8 +65,10 @@ static char *descrip =
 "                   extension that the user has selected, or when jumping to the\n"
 "                   'o' or 'a' extension.\n\n"
 "  Options:\n"
+"    e - In addition to the name, also read the extension number to the\n"
+"        caller before presenting dialing options.\n"
 "    f - Allow the caller to enter the first name of a user in the directory\n"
-"        instead of using the last name.\n"; 
+"        instead of using the last name.\n";
 
 /* For simplicity, I'm keeping the format compatible with the voicemail config,
    but i'm open to suggestions for isolating it */
@@ -152,7 +154,7 @@ static char *convert(char *lastname)
  *           '1' for selected entry from directory
  *           '*' for skipped entry from directory
  */
-static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dialcontext, char *ext, char *name) {
+static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dialcontext, char *ext, char *name, int readext) {
 	int res = 0;
 	int loop = 3;
 	char fn[256];
@@ -172,15 +174,38 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 			res = ast_waitstream(chan, AST_DIGIT_ANY);
 		}
 		ast_stopstream(chan);
+		/* If Option 'e' was specified, also read the extension number with the name */
+		if (readext) {
+			res = ast_streamfile(chan, "vm-extension", chan->language);
+			if (!res) {
+				res = ast_waitstream(chan, AST_DIGIT_ANY);
+			}
+			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
+		}
 	} else if (ast_fileexists(fn2, NULL, chan->language) > 0) {
 		res = ast_streamfile(chan, fn2, chan->language);
 		if (!res) {
 			res = ast_waitstream(chan, AST_DIGIT_ANY);
 		}
 		ast_stopstream(chan);
+		/* If Option 'e' was specified, also read the extension number with the name */
+		if (readext) {
+			res = ast_streamfile(chan, "vm-extension", chan->language);
+			if (!res) {
+				res = ast_waitstream(chan, AST_DIGIT_ANY);
+			}
+			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
+		}
 	} else {
 		res = ast_say_character_str(chan, S_OR(name, ext),
 					AST_DIGIT_ANY, chan->language);
+		if (!ast_strlen_zero(name) && readext) {
+			res = ast_streamfile(chan, "vm-extension", chan->language);
+			if (!res) {
+				res = ast_waitstream(chan, AST_DIGIT_ANY);
+			}
+			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
+		}
 	}
 
 	while (loop) {
@@ -289,7 +314,7 @@ static struct ast_config *realtime_directory(char *context)
 	return cfg;
 }
 
-static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *context, char *dialcontext, char digit, int last)
+static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *context, char *dialcontext, char digit, int last, int readext)
 {
 	/* Read in the first three digits..  "digit" is the first digit, already read */
 	char ext[NUMDIGITS + 1];
@@ -368,7 +393,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 
 			if (v) {
 				/* We have a match -- play a greeting if they have it */
-				res = play_mailbox_owner(chan, context, dialcontext, v->name, name);
+				res = play_mailbox_owner(chan, context, dialcontext, v->name, name, readext);
 				switch (res) {
 					case -1:
 						/* user pressed '1' but extension does not exist, or
@@ -415,6 +440,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	struct ast_config *cfg;
 	int last = 1;
+	int readext = 0;
 	char *dirintro, *parse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(vmcontext);
@@ -439,6 +465,8 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	if (args.options) {
 		if (strchr(args.options, 'f'))
 			last = 0;
+		if (strchr(args.options, 'e'))
+			readext = 1;
 	}
 
 	if (ast_strlen_zero(args.dialcontext))	
@@ -473,7 +501,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		if (!res)
 			res = ast_waitfordigit(chan, 5000);
 		if (res > 0) {
-			res = do_directory(chan, cfg, args.vmcontext, args.dialcontext, res, last);
+			res = do_directory(chan, cfg, args.vmcontext, args.dialcontext, res, last, readext);
 			if (res > 0) {
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
 				ast_stopstream(chan);
