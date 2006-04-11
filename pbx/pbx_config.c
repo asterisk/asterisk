@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -1535,7 +1535,6 @@ STATIC_MODULE int load_module(void)
 
 STATIC_MODULE int reload(void)
 {
-	ast_context_destroy(NULL, registrar);
 	if (clearglobalvars_config)
 		pbx_builtin_clear_globals();
 	pbx_load_module();
