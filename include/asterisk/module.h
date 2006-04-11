@@ -260,14 +260,6 @@ int ast_module_reload(const char *name);
  */
 char *ast_module_helper(const char *line, const char *word, int pos, int state, int rpos, int needsreload);
 
-/*!
- * \brief Given a function address, find the corresponding module.
- * This is required as a workaround to the fact that we do not
- * have a module argument to the load_module() function.
- * Hopefully the performance implications are small.
- */
-struct module *ast_find_module(int (*load_fn)(void));
-
 /* Local user routines keep track of which channels are using a given module
    resource.  They can help make removing modules safer, particularly if
    they're in use at the time they have been requested to be removed */

@@ -569,24 +569,6 @@ char *ast_module_helper(const char *line, const char *word, int pos, int state, 
 	return ret;
 }
 
-/*!
- * \brief Given a function address, find the corresponding module.
- * This is required as a workaround to the fact that we do not
- * have a module argument to the load_module() function.
- * Hopefully the performance implications are small.
- */
-struct module *ast_find_module(int (*load_fn)(void))
-{
-	struct module *cur;
-	AST_LIST_LOCK(&module_list);
-	AST_LIST_TRAVERSE(&module_list, cur, next) {
-		if (cur->cb.load_module == load_fn)
-			break;
-	}
-	AST_LIST_UNLOCK(&module_list);
-	return cur;
-}
-
 int ast_module_reload(const char *name)
 {
 	struct module *cur;
