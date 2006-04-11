@@ -847,7 +847,6 @@ static struct iax2_thread *find_idle_thread(void)
 	thread = AST_LIST_FIRST(&idle_list);
 	if (thread != NULL) {
 		AST_LIST_REMOVE(&idle_list, thread, list);
-		thread->list.next = NULL;
 	}
 	AST_LIST_UNLOCK(&idle_list);
 
@@ -857,7 +856,6 @@ static struct iax2_thread *find_idle_thread(void)
 		thread = AST_LIST_FIRST(&dynamic_list);
 		if (thread != NULL) {
 			AST_LIST_REMOVE(&dynamic_list, thread, list);
-			thread->list.next = NULL;
 		}
 		/* Make sure we absolutely have a thread... if not, try to make one if allowed */
 		if (thread == NULL && iaxmaxthreadcount > iaxdynamicthreadcount) {
@@ -8024,7 +8022,6 @@ static void *iax2_process_thread(void *data)
 		/* Now... remove ourselves from the active list, and return to the idle list */
 		AST_LIST_LOCK(&active_list);
 		AST_LIST_REMOVE(&active_list, thread, list);
-		thread->list.next = NULL;
 		AST_LIST_UNLOCK(&active_list);
 
 		/* Go back into our respective list */
