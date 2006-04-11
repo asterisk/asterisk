@@ -73,7 +73,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*************************************
  * Skinny/Asterisk Protocol Settings *
  *************************************/
-static const char desc[] = "Skinny Client Control Protocol (Skinny)";
 static const char tdesc[] = "Skinny Client Control Protocol (Skinny)";
 static const char config[] = "skinny.conf";
 
@@ -3228,7 +3227,7 @@ static int reload_config(void)
 	return 0;
 }
 
-void delete_devices(void)
+static void delete_devices(void)
 {
 	struct skinny_device *d, *dlast;
 	struct skinny_line *l, *llast;
@@ -3366,12 +3365,12 @@ int usecount()
 	return usecnt;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
-const char *description()
+const char *description(void)
 {
-	return (char *) desc;
+	return "Skinny Client Control Protocol (Skinny)";
 }
