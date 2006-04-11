@@ -8882,11 +8882,12 @@ static int sip_do_debug(int fd, int argc, char *argv[])
 	if (argc != 2) {
 		if (argc != 4) 
 			return RESULT_SHOWUSAGE;
-		else if (strncmp(argv[2], "ip\0", 3) == 0)
+		else if (strncmp(argv[2], "ip", 3) == 0)
 			return sip_do_debug_ip(fd, argc, argv);
-		else if (strncmp(argv[2], "peer\0", 5) == 0)
+		else if (strncmp(argv[2], "peer", 5) == 0)
 			return sip_do_debug_peer(fd, argc, argv);
-		else return RESULT_SHOWUSAGE;
+		else
+			return RESULT_SHOWUSAGE;
 	}
 	ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
 	memset(&debugaddr, 0, sizeof(debugaddr));
