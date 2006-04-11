@@ -1186,7 +1186,8 @@ static int action_status(struct mansession *s, struct message *m)
 			"Event: Status\r\n"
 			"Privilege: Call\r\n"
 			"Channel: %s\r\n"
-			"CallerID: %s\r\n"
+			"CallerID: %s\r\n"		/* This parameter is deprecated and will be removed post-1.4 */
+			"CallerIDNum: %s\r\n"
 			"CallerIDName: %s\r\n"
 			"Account: %s\r\n"
 			"State: %s\r\n"
@@ -1200,6 +1201,7 @@ static int action_status(struct mansession *s, struct message *m)
 			"\r\n",
 			c->name, 
 			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
+			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
 			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
 			c->accountcode,
 			ast_state2str(c->_state), c->context,
@@ -1209,7 +1211,8 @@ static int action_status(struct mansession *s, struct message *m)
 			"Event: Status\r\n"
 			"Privilege: Call\r\n"
 			"Channel: %s\r\n"
-			"CallerID: %s\r\n"
+			"CallerID: %s\r\n"		/* This parameter is deprecated and will be removed post-1.4 */
+			"CallerIDNum: %s\r\n"
 			"CallerIDName: %s\r\n"
 			"Account: %s\r\n"
 			"State: %s\r\n"
@@ -1218,6 +1221,7 @@ static int action_status(struct mansession *s, struct message *m)
 			"%s"
 			"\r\n",
 			c->name, 
+			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
 			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
 			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
 			c->accountcode,
@@ -1347,10 +1351,12 @@ static void *fast_originate(void *data)
 		"Exten: %s\r\n"
 		"Reason: %d\r\n"
 		"Uniqueid: %s\r\n"
-		"CallerID: %s\r\n"
+		"CallerID: %s\r\n"		/* This parameter is deprecated and will be removed post-1.4 */
+		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n",
 		in->idtext, in->tech, in->data, in->context, in->exten, reason, 
 		chan ? chan->uniqueid : "<null>",
+		in->cid_num ? in->cid_num : "<unknown>",
 		in->cid_num ? in->cid_num : "<unknown>",
 		in->cid_name ? in->cid_name : "<unknown>"
 		);

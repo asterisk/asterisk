@@ -36,6 +36,15 @@ Applications:
 
 * OSPAuth is added to authenticate OSP tokens in in_bound call setup messages.
 
+Manager:
+
+* After executing the 'status' manager action, the "Status" manager events
+  included the header "CallerID:" which was actually only the CallerID number,
+  and not the full CallerID string.  This header has been renamed to
+  "CallerIDNum".  For compatibility purposes, the CallerID parameter will remain
+  until after the release of 1.4, when it will be removed.  Please use the time
+  during the 1.4 release to make this transition.
+
 Variables:
 
 * The builtin variables ${CALLERID}, ${CALLERIDNAME}, ${CALLERIDNUM},
