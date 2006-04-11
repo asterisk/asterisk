@@ -170,6 +170,8 @@ forcejitterbuffer=no
 ; IAX helper threads
 ; Establishes the number of iax helper threads to handle I/O.
 ; iaxthreadcount = 10
+; Establishes the number of extra dynamic threads that may be spawned to handle I/O
+; iaxmaxthreadcount = 100
 ;
 ; We can register with another IAX server to let him know where we are
 ; in case we have a dynamic IP address for example
