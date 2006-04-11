@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -827,6 +827,21 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if (!timelimit) {
 			timelimit = play_to_caller = play_to_callee = play_warning = warning_freq = 0;
 			warning_sound = NULL;
+		} else if (play_warning > timelimit) {
+			/* If the first warning is requested _after_ the entire call would end,
+			   and no warning frequency is requested, then turn off the warning. If
+			   a warning frequency is requested, reduce the 'first warning' time by
+			   that frequency until it falls within the call's total time limit.
+			*/
+
+			if (!warning_freq) {
+				play_warning = 0;
+			} else {
+				while (play_warning > timelimit)
+					play_warning -= warning_freq;
+				if (play_warning < 1)
+					play_warning = warning_freq = 0;
+			}
 		}
 
 		var = pbx_builtin_getvar_helper(chan,"LIMIT_PLAYAUDIO_CALLER");
