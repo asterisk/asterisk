@@ -551,7 +551,6 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 	struct ast_dsp *sildet=NULL;   	/* silence detector dsp */
 	int totalsilence = 0;
 	int dspsilence = 0;
-	int gotsilence = 0;		/* did we timeout for silence? */
 	int rfmt=0;
 	struct ast_silence_generator *silgen = NULL;
 
@@ -674,7 +673,7 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 						if (option_verbose > 2)
 							ast_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
 						ast_frfree(f);
-						gotsilence = 1;
+						res = 'S';
 						outmsg=2;
 						break;
 					}
@@ -778,7 +777,6 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 	struct ast_dsp *sildet;   	/* silence detector dsp */
 	int totalsilence = 0;
 	int dspsilence = 0;
-	int gotsilence = 0;		/* did we timeout for silence? */
 	int rfmt=0;	
 	char prependfile[80];
 	
@@ -897,7 +895,7 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 					if (option_verbose > 2) 
 						ast_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
 					ast_frfree(f);
-					gotsilence = 1;
+					res = 'S';
 					outmsg=2;
 					break;
 					}
