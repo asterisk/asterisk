@@ -418,11 +418,11 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 
 	(*query)->acf = calloc(1, sizeof(struct ast_custom_function));
 	if ((*query)->acf) {
-		asprintf(&((*query)->acf->name), "ODBC_%s", catg);
-		asprintf(&((*query)->acf->syntax), "ODBC_%s(<arg1>[...[,<argN>]])", catg);
+		asprintf((char **)&((*query)->acf->name), "ODBC_%s", catg);
+		asprintf((char **)&((*query)->acf->syntax), "ODBC_%s(<arg1>[...[,<argN>]])", catg);
 		(*query)->acf->synopsis = "Runs the referenced query with the specified arguments";
 		if (!ast_strlen_zero((*query)->sql_read) && !ast_strlen_zero((*query)->sql_write)) {
-			asprintf(&((*query)->acf->desc),
+			asprintf((char **)&((*query)->acf->desc),
 						"Runs the following query, as defined in func_odbc.conf, performing\n"
 					   	"substitution of the arguments into the query as specified by ${ARG1},\n"
 						"${ARG2}, ... ${ARGn}.  When setting the function, the values are provided\n"
@@ -431,13 +431,13 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 						(*query)->sql_read,
 						(*query)->sql_write);
 		} else if (!ast_strlen_zero((*query)->sql_read)) {
-			asprintf(&((*query)->acf->desc),
+			asprintf((char **)&((*query)->acf->desc),
 						"Runs the following query, as defined in func_odbc.conf, performing\n"
 					   	"substitution of the arguments into the query as specified by ${ARG1},\n"
 						"${ARG2}, ... ${ARGn}.  This function may only be read, not set.\n\nSQL:\n%s\n",
 						(*query)->sql_read);
 		} else if (!ast_strlen_zero((*query)->sql_write)) {
-			asprintf(&((*query)->acf->desc),
+			asprintf((char **)&((*query)->acf->desc),
 						"Runs the following query, as defined in func_odbc.conf, performing\n"
 					   	"substitution of the arguments into the query as specified by ${ARG1},\n"
 						"${ARG2}, ... ${ARGn}.  The values are provided either in whole as\n"
@@ -472,11 +472,11 @@ static int free_acf_query(struct acf_odbc_query *query)
 	if (query) {
 		if (query->acf) {
 			if (query->acf->name)
-				free(query->acf->name);
+				free((char *)query->acf->name);
 			if (query->acf->syntax)
-				free(query->acf->syntax);
+				free((char *)query->acf->syntax);
 			if (query->acf->desc)
-				free(query->acf->desc);
+				free((char *)query->acf->desc);
 			free(query->acf);
 		}
 		free(query);
