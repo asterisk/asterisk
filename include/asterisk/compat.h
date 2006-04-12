@@ -86,6 +86,10 @@ int unsetenv(const char *name);
 #define HAVE_STRNLEN
 #endif
 
+#ifdef __Darwin__
+#include <inttypes.h>
+#endif
+
 #ifdef __FreeBSD__
 #include <sys/types.h>
 #endif
