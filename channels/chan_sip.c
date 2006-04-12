@@ -539,9 +539,10 @@ struct sip_request {
 
 /*! \brief structure used in transfers */
 struct sip_dual {
-	struct ast_channel *chan1;
-	struct ast_channel *chan2;
-	struct sip_request req;
+	struct ast_channel *chan1;	/*!< First channel involved */
+	struct ast_channel *chan2;	/*!< Second channel involved */
+	struct sip_request req;		/*!< Request that caused the transfer (REFER) */
+	int seqno;			/*!< Sequence number */
 };
 
 struct sip_pkt;
@@ -555,6 +556,8 @@ struct sip_invite_param {
 	char *auth;			/*!< Authentication */
 	char *authheader;		/*!< Auth header */
 	enum sip_auth_type auth_type;	/*!< Authentication type */
+	const char *replaces;		/*!< Replaces header for call transfers */
+	int transfer;			/*!< Flag - is this Invite part of a SIP transfer? (invite/replaces) */
 };
 
 /*! \brief Structure to save routing information for a SIP session */
@@ -676,6 +679,34 @@ struct sip_auth {
 #define sipdebug		ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG)
 #define sipdebug_config		ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONFIG)
 #define sipdebug_console	ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE)
+
+/*! \brief Parameters to know status of transfer */
+enum referstatus {
+	REFER_IDLE,		/*!< No REFER is in progress */
+	REFER_SENT,		/*!< Sent REFER to transferee */
+	REFER_RECEIVED,		/*!< Received REFER from transferer */
+	REFER_CONFIRMED,	/*!< Refer confirmed with a 100 TRYING */
+	REFER_ACCEPTED,		/*!< Accepted by transferee */
+	REFER_RINGING,		/*!< Target Ringing */
+	REFER_200OK,		/*!< Answered by transfer target */
+	REFER_FAILED,		/*!< REFER declined - go on */
+	REFER_NOAUTH		/*!< We had no auth for REFER */
+};
+
+static const struct c_referstatusstring {
+	enum referstatus status;
+	char *text;
+} referstatusstrings[] = {
+	{ REFER_IDLE,		"<none>" },
+	{ REFER_SENT,		"Request sent" },
+	{ REFER_RECEIVED,	"Request received" },
+	{ REFER_ACCEPTED,	"Accepted" },
+	{ REFER_RINGING,	"Target ringing" },
+	{ REFER_200OK,		"Done" },
+	{ REFER_FAILED,		"Failed" },
+	{ REFER_NOAUTH,		"Failed - auth failure" }
+} ;
+
 
 /*! \brief sip_pvt: PVT structures are used for each SIP dialog, ie. a call, a registration, a subscribe  */
 static struct sip_pvt {
@@ -1082,6 +1113,19 @@ static struct ast_rtp_protocol sip_rtp = {
 	set_rtp_peer: sip_set_rtp_peer,
 	get_codec: sip_get_codec,
 };
+
+/*! \brief Convert transfer status to string */
+static char *referstatus2str(enum referstatus rstatus)
+{
+	int i = (sizeof(referstatusstrings) / sizeof(referstatusstrings[0]));
+	int x;
+
+	for (x = 0; x < i; x++) {
+		if (referstatusstrings[x].status ==  rstatus)
+			return (char *) referstatusstrings[x].text;
+	}
+	return "";
+}
 
 
 /*! \brief returns true if 'name' (with optional trailing whitespace)
@@ -4806,8 +4850,9 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 		reqprep(&req, p, SIP_INVITE, 0, 1);
 	
 	add_header(&req, "Allow", ALLOWED_METHODS);
+	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
 	if (sipdebug)
-		add_header(&req, "X-asterisk-info", "SIP re-invite (RTP bridge)");
+		add_header(&req, "X-asterisk-Info", "SIP re-invite (External RTP bridge)");
 	if (recordhistory)
 		append_history(p, "ReInv", "Re-invite sent");
 	add_sdp(&req, p);
@@ -5102,6 +5147,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		add_header(&req, "Alert-Info", p->options->distinctive_ring);
 	}
 	add_header(&req, "Allow", ALLOWED_METHODS);
+	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
 	if (p->options && p->options->addsipheaders ) {
 		struct ast_channel *ast;
 		struct varshead *headp = NULL;
@@ -6669,6 +6715,10 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	uri = get_in_brackets(tmp);
 	
 	ast_copy_string(tmpf, get_header(req, "From"), sizeof(tmpf));
+	if (pedanticsipchecking) {
+		ast_uri_decode(tmp);
+		ast_uri_decode(tmpf);
+	}
 
 	from = get_in_brackets(tmpf);
 	
