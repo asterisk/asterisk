@@ -57,9 +57,9 @@ tag-format <lumenvox/1.0>;
 
 root $company_directory;
 
-$josh = Joshua Colp:"6066";
-$mark = Mark Spencer:"4569";
-$kevin = Kevin Fleming:"2567";
+$josh = (Joshua | Josh) [Colp]:"6066";
+$mark = Mark [Spencer] | Markster:"4569";
+$kevin = Kevin [Fleming]:"2567";
 
 $company_directory = ($josh | $mark | $kevin) { $ = parseInt($$) };
 
