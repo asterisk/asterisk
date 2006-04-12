@@ -3927,29 +3927,29 @@ static int copy_all_header(struct sip_request *req, struct sip_request *orig, ch
 	Received: RFC 3261, rport RFC 3581 */
 static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct sip_request *orig, char *field)
 {
-	char tmp[256], *end;
-	int start = 0;
 	int copied = 0;
-	char iabuf[INET_ADDRSTRLEN];
+	int start = 0;
 
 	for (;;) {
+		char new[256];
 		const char *oh = __get_header(orig, field, &start);
 
 		if (ast_strlen_zero(oh))
 			break;
 
-			/* XXX reindent next block */
 			if (!copied) {	/* Only check for empty rport in topmost via header */
+				char iabuf[INET_ADDRSTRLEN];
 				char *rport;
-				char new[256];
 
 				/* Find ;rport;  (empty request) */
 				rport = strstr(oh, ";rport");
 				if (rport && *(rport+6) == '=') 
 					rport = NULL;		/* We already have a parameter to rport */
 
-				if (rport && (ast_test_flag(&p->flags[0], SIP_NAT) == SIP_NAT_ALWAYS)) {
+				if (rport && ast_test_flag(&p->flags[0], SIP_NAT) == SIP_NAT_ALWAYS) {
 					/* We need to add received port - rport */
+					char tmp[256], *end;
+
 					ast_copy_string(tmp, oh, sizeof(tmp));
 
 					rport = strstr(tmp, ";rport");
@@ -3966,16 +3966,17 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 					/* Whoo hoo!  Now we can indicate port address translation too!  Just
 					   another RFC (RFC3581). I'll leave the original comments in for
 					   posterity.  */
-					snprintf(new, sizeof(new), "%s;received=%s;rport=%d", tmp, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
+					snprintf(new, sizeof(new), "%s;received=%s;rport=%d",
+						tmp, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr),
+						ntohs(p->recv.sin_port));
 				} else {
 					/* We should *always* add a received to the topmost via */
-					snprintf(new, sizeof(new), "%s;received=%s", oh, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
+					snprintf(new, sizeof(new), "%s;received=%s",
+						oh, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
 				}
-				add_header(req, field, new);
-			} else {
-				/* Add the following via headers untouched */
-				add_header(req, field, oh);
-			}
+				oh = new;	/* the header to copy */
+			}  /* else add the following via headers untouched */
+			add_header(req, field, oh);
 			copied++;
 	}
 	if (!copied) {
