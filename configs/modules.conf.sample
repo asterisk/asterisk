@@ -18,6 +18,9 @@ autoload=yes
 ;preload => res_odbc.so
 ;preload => res_config_odbc.so
 ;
+; Uncomment the following if you wish to use the Speech Recognition API
+;preload => res_speech.so
+;
 ; If you want, load the GTK console right away.  
 ; Don't load the KDE console since
 ; it's not as sophisticated right now.

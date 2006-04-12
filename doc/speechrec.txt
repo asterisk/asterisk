@@ -1,5 +1,7 @@
 Generic Speech Recognition API
 
+*** NOTE:  To use the API, you must laod the res_speech.so module before any connectors.  For your convenience, there is a preload line commented out in the modules.conf sample file. ***
+
 Dialplan Applications:
 
 The dialplan API is based around a single speech utilities application file, which exports many applications to be used for speech recognition. These include an application to prepare for speech recognition, activate a grammar, and play back a sound file while waiting for the person to speak. Using a combination of these applications you can easily make a dialplan use speech recognition without worrying about what speech recognition engine is being used.
