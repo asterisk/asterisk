@@ -1,6 +1,6 @@
 Generic Speech Recognition API
 
-*** NOTE:  To use the API, you must laod the res_speech.so module before any connectors.  For your convenience, there is a preload line commented out in the modules.conf sample file. ***
+*** NOTE:  To use the API, you must load the res_speech.so module before any connectors.  For your convenience, there is a preload line commented out in the modules.conf sample file. ***
 
 Dialplan Applications:
 
