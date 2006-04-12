@@ -350,6 +350,8 @@ static const struct cfsip_options {
 } sip_options[] = {	/* XXX used in 3 places */
 	/* Replaces: header for transfer */
 	{ SIP_OPT_REPLACES,	SUPPORTED,	"replaces" },	
+	/* One version of Polycom firmware has the wrong label */
+	{ SIP_OPT_REPLACES,	SUPPORTED,	"replace" },	
 	/* RFC3262: PRACK 100% reliability */
 	{ SIP_OPT_100REL,	NOT_SUPPORTED,	"100rel" },	
 	/* SIP Session Timers */
@@ -8167,9 +8169,13 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  Def. Username: %s\n", peer->username);
 		ast_cli(fd, "  SIP Options  : ");
 		if (peer->sipoptions) {
+			int lastoption = -1;
 			for (x=0 ; (x < (sizeof(sip_options) / sizeof(sip_options[0]))); x++) {
-				if (peer->sipoptions & sip_options[x].id)
-					ast_cli(fd, "%s ", sip_options[x].text);
+				if (sip_options[x].id != lastoption) {
+					if (peer->sipoptions & sip_options[x].id)
+						ast_cli(fd, "%s ", sip_options[x].text);
+					lastoption = x;
+				}
 			}
 		} else
 			ast_cli(fd, "(none)");
