@@ -203,6 +203,15 @@ static int usecnt = 0;
 #define RTP 	1
 #define NO_RTP	0
 
+/*! \brief Authorization scheme for call transfers 
+\note Not a bitfield flag, since there are plans for other modes,
+	like "only allow transfers for authenticated devices" */
+enum transfermodes {
+	TRANSFER_OPENFORALL, 		/*!< Allow all SIP transfers */
+	TRANSFER_CLOSED,		/*!< Allow no SIP transfers */
+};
+
+
 /* Do _NOT_ make any changes to this enum, or the array following it;
    if you think you are doing the right thing, you are probably
    not doing the right thing. If you think there are changes
@@ -450,6 +459,7 @@ static char global_useragent[AST_MAX_EXTENSION];	/*!< Useragent for the SIP chan
 static int allow_external_domains;	/*!< Accept calls to external SIP domains? */
 static int global_callevents;		/*!< Whether we send manager events or not */
 static int global_t1min;		/*!< T1 roundtrip time minimum */
+enum transfermodes global_allowtransfer;	/*! SIP Refer restriction scheme */
 
 /*! \brief Codecs that we support by default: */
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
@@ -756,6 +766,7 @@ static struct sip_pvt {
 	int rtptimeout;				/*!< RTP timeout time */
 	int rtpholdtimeout;			/*!< RTP timeout when on hold */
 	int rtpkeepalive;			/*!< Send RTP packets for keepalive */
+	enum transfermodes allowtransfer;	/*! SIP Refer restriction scheme */
 	enum subscriptiontype subscribed;	/*!< Is this dialog a subscription?  */
 	int stateid;
 	int laststate;				/*!< Last known extension state */
@@ -817,6 +828,7 @@ struct sip_user {
 	int capability;			/*!< Codec capability */
 	int inUse;			/*!< Number of calls in use */
 	int call_limit;			/*!< Limit of concurrent calls */
+	enum transfermodes allowtransfer;	/*! SIP Refer restriction scheme */
 	struct ast_ha *ha;		/*!< ACL setting */
 	struct ast_variable *chanvars;	/*!< Variables to set for channel created by user */
 	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
@@ -845,6 +857,7 @@ struct sip_peer {
 	int callingpres;		/*!< Calling id presentation */
 	int inUse;			/*!< Number of calls in use */
 	int call_limit;			/*!< Limit of concurrent calls */
+	enum transfermodes allowtransfer;	/*! SIP Refer restriction scheme */
 	char vmexten[AST_MAX_EXTENSION]; /*!< Dialplan extension for MWI notify message*/
 	char mailbox[AST_MAX_EXTENSION]; /*!< Mailbox setting for MWI checks */
 	char language[MAX_LANGUAGE];	/*!<  Default language for prompts */
@@ -2001,6 +2014,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	r->maxtime = peer->maxms;
 	r->callgroup = peer->callgroup;
 	r->pickupgroup = peer->pickupgroup;
+	r->allowtransfer = peer->allowtransfer;
 	/* Set timer T1 to RTT for this peer (if known by qualify=) */
 	/* Minimum is settable or default to 100 ms */
 	if (peer->maxms && peer->lastms)
@@ -3293,6 +3307,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	/* Assign default music on hold class */
 	ast_string_field_set(p, musicclass, default_musicclass);
 	p->capability = global_capability;
+	p->allowtransfer = global_allowtransfer;
 	if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
 	    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
 		p->noncodeccapability |= AST_RTP_DTMF;
@@ -7210,6 +7225,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			ast_string_field_set(p, accountcode, user->accountcode);
 			ast_string_field_set(p, language, user->language);
 			ast_string_field_set(p, musicclass, user->musicclass);
+			p->allowtransfer = user->allowtransfer;
 			p->amaflags = user->amaflags;
 			p->callgroup = user->callgroup;
 			p->pickupgroup = user->pickupgroup;
@@ -7493,6 +7509,16 @@ static int sip_show_inuse(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
+}
+
+/*! \brief Convert transfer mode to text string */
+static char *transfermode2str(enum transfermodes mode)
+{
+	if (mode == TRANSFER_OPENFORALL)
+		return "open";
+	else if (mode == TRANSFER_CLOSED)
+		return "closed";
+	return "strict";
 }
 
 /*! \brief  Convert NAT setting to text string */
@@ -8100,6 +8126,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		if (!ast_strlen_zero(peer->accountcode))
 			ast_cli(fd, "  Accountcode  : %s\n", peer->accountcode);
 		ast_cli(fd, "  AMA flags    : %s\n", ast_cdr_flags2str(peer->amaflags));
+		ast_cli(fd, "  Transfer mode: %s\n", transfermode2str(peer->allowtransfer));
 		ast_cli(fd, "  CallingPres  : %s\n", ast_describe_caller_presentation(peer->callingpres));
 		if (!ast_strlen_zero(peer->fromuser))
 			ast_cli(fd, "  FromUser     : %s\n", peer->fromuser);
@@ -8189,6 +8216,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		astman_append(s, "Pickupgroup: ");
 		print_group(fd, peer->pickupgroup, 1);
 		astman_append(s, "VoiceMailbox: %s\r\n", peer->mailbox);
+		astman_append(s, "TransferMode: %s\r\n", transfermode2str(peer->allowtransfer));
 		astman_append(s, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
 		astman_append(s, "Call limit: %d\r\n", peer->call_limit);
 		astman_append(s, "MaxCallBR: %dkbps\r\n", peer->maxcallbitrate);
@@ -8275,6 +8303,7 @@ static int sip_show_user(int fd, int argc, char *argv[])
 		if (!ast_strlen_zero(user->accountcode))
 			ast_cli(fd, "  Accountcode  : %s\n", user->accountcode);
 		ast_cli(fd, "  AMA flags    : %s\n", ast_cdr_flags2str(user->amaflags));
+		ast_cli(fd, "  Transfer mode: %s\n", transfermode2str(user->allowtransfer));
 		ast_cli(fd, "  CallingPres  : %s\n", ast_describe_caller_presentation(user->callingpres));
 		ast_cli(fd, "  Call limit   : %d\n", user->call_limit);
 		ast_cli(fd, "  Callgroup    : ");
@@ -8395,6 +8424,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Outbound reg. timeout:  %d secs\n", global_reg_timeout);
 	ast_cli(fd, "  Outbound reg. attempts: %d\n", global_regattempts_max);
 	ast_cli(fd, "  Notify ringing state:   %s\n", global_notifyringing ? "Yes" : "No");
+	ast_cli(fd, "  SIP Transfer mode:      %s\n", transfermode2str(global_allowtransfer));
 	ast_cli(fd, "  Max Call Bitrate:       %dkbps\r\n", default_maxcallbitrate);
 	ast_cli(fd, "\nDefault Settings:\n");
 	ast_cli(fd, "-----------------\n");
@@ -8672,6 +8702,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Format                  %s\n", ast_getformatname(cur->owner ? cur->owner->nativeformats : 0) );
 			ast_cli(fd, "  Theoretical Address:    %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), ntohs(cur->sa.sin_port));
 			ast_cli(fd, "  Received Address:       %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->recv.sin_addr), ntohs(cur->recv.sin_port));
+			ast_cli(fd, "  SIP Transfer mode:      %s\n", transfermode2str(cur->allowtransfer));
 			ast_cli(fd, "  NAT Support:            %s\n", nat2str(ast_test_flag(&cur->flags[0], SIP_NAT)));
 			ast_cli(fd, "  Audio IP:               %s %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->redirip.sin_addr.s_addr ? cur->redirip.sin_addr : cur->ourip), cur->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)" );
 			ast_cli(fd, "  Our Tag:                %s\n", cur->tag);
@@ -10933,6 +10964,30 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "SIP call transfer received for call %s (REFER)!\n", p->callid);
+
+	/* Check if transfer is allowed from this device */
+	if (p->allowtransfer == TRANSFER_CLOSED ) {
+		/* Transfer not allowed, decline */
+		transmit_response(p, "603 Declined (policy)", req);
+		append_history(p, "Xfer", "Refer failed. Allowtransfer == closed.");
+		/* Do not destroy SIP session */
+		return 0;
+	}
+
+	if (!p->owner) {
+		/* This is a REFER outside of an existing SIP dialog */
+		/* We can't handle that, so decline it */
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Call %s: Declined REFER, outside of dialog...\n", p->callid);
+		transmit_response(p, "603 Declined (No dialog)", req);
+		if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
+			append_history(p, "Xfer", "Refer failed. Outside of dialog.");
+			ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		}
+		return 0;
+	}	
+
 	if (ast_strlen_zero(p->context))
 		ast_string_field_set(p, context, default_context);
 	res = get_refer_info(p, req);
@@ -10945,7 +11000,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		transmit_response_with_allow(p, "404 Not Found", req, 1);
 	else {
 		int nobye = 0;
-		if (!ignore) {
+		if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
 			if (p->refer_call) {
 				ast_log(LOG_DEBUG,"202 Accepted (supervised)\n");
 				attempt_transfer(p, p->refer_call);
@@ -12377,6 +12432,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	ast_copy_flags(&user->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&user->flags[1], &global_flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 	user->capability = global_capability;
+	user->allowtransfer = global_allowtransfer;
 	user->prefs = default_prefs;
 	/* set default context */
 	strcpy(user->context, default_context);
@@ -12402,6 +12458,8 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 		} else if (!strcasecmp(v->name, "permit") ||
 				   !strcasecmp(v->name, "deny")) {
 			user->ha = ast_append_ha(v->name, v->value, user->ha);
+		} else if (!strcasecmp(v->name, "allowtransfer")) {
+			user->allowtransfer = ast_true(v->value) ? TRANSFER_OPENFORALL : TRANSFER_CLOSED;
 		} else if (!strcasecmp(v->name, "secret")) {
 			ast_copy_string(user->secret, v->value, sizeof(user->secret)); 
 		} else if (!strcasecmp(v->name, "md5secret")) {
@@ -12475,6 +12533,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->rtptimeout = global_rtptimeout;
 	peer->rtpholdtimeout = global_rtpholdtimeout;
 	peer->rtpkeepalive = global_rtpkeepalive;
+	peer->allowtransfer = global_allowtransfer;
 	strcpy(peer->vmexten, default_vmexten);
 	peer->secret[0] = '\0';
 	peer->md5secret[0] = '\0';
@@ -12677,6 +12736,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			ast_copy_string(peer->vmexten, v->value, sizeof(peer->vmexten));
 		} else if (!strcasecmp(v->name, "callgroup")) {
 			peer->callgroup = ast_get_group(v->value);
+		} else if (!strcasecmp(v->name, "allowtransfer")) {
+			peer->allowtransfer = ast_true(v->value) ? TRANSFER_OPENFORALL : TRANSFER_CLOSED;
 		} else if (!strcasecmp(v->name, "pickupgroup")) {
 			peer->pickupgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "allow")) {
@@ -12821,6 +12882,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_rtptimeout = 0;
 	global_rtpholdtimeout = 0;
 	global_rtpkeepalive = 0;
+	global_allowtransfer = TRANSFER_OPENFORALL;	/* Merrily accept all transfers by default */
 	global_rtautoclear = 120;
 	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE);	/* Default for peers, users: TRUE */
 	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP);		/* Default for peers, users: TRUE */
@@ -12862,7 +12924,10 @@ static int reload_config(enum channelreloadreason reason)
 			ast_copy_string(global_realm, v->value, sizeof(global_realm));
 		} else if (!strcasecmp(v->name, "useragent")) {
 			ast_copy_string(global_useragent, v->value, sizeof(global_useragent));
-			ast_log(LOG_DEBUG, "Setting SIP channel User-Agent Name to %s\n", global_useragent);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Setting SIP channel User-Agent Name to %s\n", global_useragent);
+		} else if (!strcasecmp(v->name, "allowtransfer")) {
+			global_allowtransfer = ast_true(v->value) ? TRANSFER_OPENFORALL : TRANSFER_CLOSED;
 		} else if (!strcasecmp(v->name, "rtcachefriends")) {
 			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_RTCACHEFRIENDS);	
 		} else if (!strcasecmp(v->name, "rtupdate")) {
