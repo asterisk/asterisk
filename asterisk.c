@@ -409,7 +409,6 @@ rdtsc(void)
 }
 #endif
 #else	/* supply a dummy function on other platforms */
-xxx
 static __inline u_int64_t
 rdtsc(void)
 {
