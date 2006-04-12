@@ -56,6 +56,23 @@
 #ifndef _ASTERISK_LOCK_H
 #define _ASTERISK_LOCK_H
 
+/* internal macro to profile mutexes. Only computes the delay on
+ * non-blocking calls.
+ */
+#ifndef	HAVE_MTX_PROFILE
+#define	__MTX_PROF	/* nothing */
+#else
+#define	__MTX_PROF	{			\
+	int i;					\
+	/* profile only non-blocking events */	\
+	ast_mark(mtx_prof, 1);			\
+	i = pthread_mutex_trylock(pmutex);	\
+	ast_mark(mtx_prof, 0);			\
+	if (!i)					\
+		return i;			\
+	}
+#endif	/* HAVE_MTX_PROFILE */
+
 #include <pthread.h>
 #include <netdb.h>
 #include <time.h>
@@ -75,7 +92,7 @@
 #endif
 
 #ifdef BSD
-#ifdef __GNUC__
+#if 0 && defined( __GNUC__)
 #define AST_MUTEX_INIT_W_CONSTRUCTORS
 #else
 #define AST_MUTEX_INIT_ON_FIRST_USE
@@ -264,7 +281,13 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 		time_t seconds = time(NULL);
 		time_t current;
 		do {
+#ifdef	HAVE_MTX_PROFILE
+			ast_mark(mtx_prof, 1);
+#endif
 			res = pthread_mutex_trylock(&t->mutex);
+#ifdef	HAVE_MTX_PROFILE
+			ast_mark(mtx_prof, 0);
+#endif
 			if (res == EBUSY) {
 				current = time(NULL);
 				if ((current - seconds) && (!((current - seconds) % 5))) {
@@ -279,6 +302,12 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 		} while (res == EBUSY);
 	}
 #else
+#ifdef	HAVE_MTX_PROFILE
+	ast_mark(mtx_prof, 1);
+	res = pthread_mutex_trylock(&t->mutex);
+	ast_mark(mtx_prof, 0);
+	if (res)
+#endif
 	res = pthread_mutex_lock(&t->mutex);
 #endif /* DETECT_DEADLOCKS */
 
@@ -581,6 +610,7 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 
 static inline int ast_mutex_lock(ast_mutex_t *pmutex)
 {
+	__MTX_PROF
 	return pthread_mutex_lock(pmutex);
 }
 
@@ -601,8 +631,10 @@ static inline int ast_mutex_lock(ast_mutex_t *pmutex)
 {
 	if (*pmutex == (ast_mutex_t)AST_MUTEX_KIND)
 		ast_mutex_init(pmutex);
+	__MTX_PROF
 	return pthread_mutex_lock(pmutex);
 }
+
 static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
 {
 	if (*pmutex == (ast_mutex_t)AST_MUTEX_KIND)
@@ -616,6 +648,7 @@ static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
 
 static inline int ast_mutex_lock(ast_mutex_t *pmutex)
 {
+	__MTX_PROF
 	return pthread_mutex_lock(pmutex);
 }
 

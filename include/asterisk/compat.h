@@ -80,6 +80,7 @@ int unsetenv(const char *name);
 #endif
 
 #ifdef __linux__
+#include <inttypes.h>
 #define HAVE_STRCASESTR
 #define HAVE_STRNDUP
 #define HAVE_STRNLEN

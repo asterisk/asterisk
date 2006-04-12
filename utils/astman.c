@@ -84,6 +84,25 @@ void ast_unregister_file_version(const char *file)
 {
 }
 
+int ast_add_profile(const char *, uint64_t scale);
+int ast_add_profile(const char *s, uint64_t scale)
+{
+	return -1;
+}
+
+int64_t ast_profile(int, int64_t);
+int64_t ast_profile(int key, int64_t val)
+{
+	return 0;
+}
+int64_t ast_mark(int, int start1_stop0);
+int64_t ast_mark(int key, int start1_stop0)
+{
+	return 0;
+}
+
+/* end of dummy functions */
+
 static struct ast_chan *find_chan(char *name)
 {
 	struct ast_chan *chan;

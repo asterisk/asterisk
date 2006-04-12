@@ -509,8 +509,42 @@ int ast_utils_init(void)
 #undef pthread_create /* For ast_pthread_create function only */
 #endif /* !__linux__ */
 
-int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize)
+/*
+ * support for 'show threads'. The start routine is wrapped by
+ * dummy_start(), so that ast_register_thread() and
+ * ast_unregister_thread() know the thread identifier.
+ */
+struct thr_arg {
+	void *(*start_routine)(void *);
+	void *data;
+	char *name;
+};
+
+/*
+ * on OS/X, pthread_cleanup_push() and pthread_cleanup_pop()
+ * are odd macros which start and end a block, so they _must_ be
+ * used in pairs (the latter with a '1' argument to call the
+ * handler on exit.
+ * On BSD we don't need this, but we keep it for compatibility with the MAC.
+ */
+static void *dummy_start(void *data)
 {
+	void *ret;
+	struct thr_arg a = *((struct thr_arg *)data);	/* make a local copy */
+
+	free(data);
+	ast_register_thread(a.name);
+	pthread_cleanup_push(ast_unregister_thread, (void *)pthread_self());	/* on unregister */
+	ret = a.start_routine(a.data);
+	pthread_cleanup_pop(1);
+	return ret;
+}
+
+int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize,
+	const char *file, const char *caller, int line, const char *start_fn)
+{
+	struct thr_arg *a;
+
 	pthread_attr_t lattr;
 	if (!attr) {
 		pthread_attr_init(&lattr);
@@ -534,6 +568,17 @@ int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*st
 	errno = pthread_attr_setstacksize(attr, stacksize);
 	if (errno)
 		ast_log(LOG_WARNING, "pthread_attr_setstacksize returned non-zero: %s\n", strerror(errno));
+	a = ast_malloc(sizeof(*a));
+	if (!a)
+		ast_log(LOG_WARNING, "no memory, thread %s will not be listed\n", start_fn);
+	else {	/* remap parameters */
+		a->start_routine = start_routine;
+		a->data = data;
+		start_routine = dummy_start;
+		asprintf(&a->name, "%-20s started at [%5d] %s %s()",
+			start_fn, line, file, caller);
+		data = a;
+	}
 	return pthread_create(thread, attr, start_routine, data); /* We're in ast_pthread_create, so it's okay */
 }
 

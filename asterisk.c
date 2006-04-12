@@ -74,6 +74,9 @@
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
+#ifdef linux
+#include <sys/prctl.h>
+#endif
 #include <regex.h>
 
 #ifdef linux
@@ -270,6 +273,208 @@ void ast_unregister_file_version(const char *file)
 	AST_LIST_UNLOCK(&file_versions);
 	if (find)
 		free(find);
+}
+
+struct thread_list_t {
+	AST_LIST_ENTRY(thread_list_t) list;
+	char *name;
+	pthread_t id;
+};
+
+static AST_LIST_HEAD_STATIC(thread_list, thread_list_t);
+
+static char show_threads_help[] =
+"Usage: show threads\n"
+"       List threads currently active in the system.\n";
+
+void ast_register_thread(char *name)
+{ 
+	struct thread_list_t *new = ast_calloc(1, sizeof(*new));
+
+	if (!new)
+		return;
+	new->id = pthread_self();
+	new->name = name; /* this was a copy already */
+	AST_LIST_LOCK(&thread_list);
+	AST_LIST_INSERT_HEAD(&thread_list, new, list);
+	AST_LIST_UNLOCK(&thread_list);
+}
+
+void ast_unregister_thread(void *id)
+{
+	struct thread_list_t *x;
+
+	AST_LIST_LOCK(&thread_list);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&thread_list, x, list) {
+		if ((void *)x->id == id) {
+			AST_LIST_REMOVE_CURRENT(&thread_list, list);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&thread_list);
+	if (x) {
+		free(x->name);
+		free(x);
+	}
+}
+
+static int handle_show_threads(int fd, int argc, char *argv[])
+{
+	int count = 0;
+	struct thread_list_t *cur;
+
+	AST_LIST_LOCK(&thread_list);
+	AST_LIST_TRAVERSE(&thread_list, cur, list) {
+		ast_cli(fd, "%p %s\n", (void *)cur->id, cur->name);
+		count++;
+	}
+        AST_LIST_UNLOCK(&thread_list);
+	ast_cli(fd, "%d threads listed.\n", count);
+	return 0;
+}
+
+struct profile_entry {
+	const char *name;
+	uint64_t	scale;	/* if non-zero, values are scaled by this */
+	int64_t	mark;
+	int64_t	value;
+	int64_t	events;
+};
+
+struct profile_data {
+	int entries;
+	int max_size;
+	struct profile_entry e[0];
+};
+
+static struct profile_data *prof_data;
+
+/*
+ * allocates a counter with a given name and scale.
+ * Returns the identifier of the counter.
+ */
+int ast_add_profile(const char *name, uint64_t scale)
+{
+	int l = sizeof(struct profile_data);
+	int n = 10;	/* default entries */
+
+	if (prof_data == NULL) {
+		prof_data = ast_calloc(1, l + n*sizeof(struct profile_entry));
+		if (prof_data == NULL)
+			return -1;
+		prof_data->entries = 0;
+		prof_data->max_size = n;
+	}
+	if (prof_data->entries >= prof_data->max_size) {
+		void *p;
+		n = prof_data->max_size + 20;
+		p = ast_realloc(prof_data, l + n*sizeof(struct profile_entry));
+		if (p == NULL)
+			return -1;
+		prof_data = p;
+		prof_data->max_size = n;
+	}
+	n = prof_data->entries++;
+	prof_data->e[n].name = ast_strdup(name);
+	prof_data->e[n].value = 0;
+	prof_data->e[n].events = 0;
+	prof_data->e[n].mark = 0;
+	prof_data->e[n].scale = scale;
+	return n;
+}
+
+int64_t ast_profile(int i, int64_t delta)
+{
+	if (!prof_data || i < 0 || i > prof_data->entries)	/* invalid index */
+		return 0;
+	if (prof_data->e[i].scale > 1)
+		delta /= prof_data->e[i].scale;
+	prof_data->e[i].value += delta;
+	prof_data->e[i].events++;
+	return prof_data->e[i].value;
+}
+
+#if defined ( __i386__) && (defined(__FreeBSD__) || defined(linux))
+#if defined(__FreeBSD__)
+#include <machine/cpufunc.h>
+#elif defined(linux)
+static __inline u_int64_t
+rdtsc(void)
+{ 
+	uint64_t rv;
+
+	__asm __volatile(".byte 0x0f, 0x31" : "=A" (rv));
+	return (rv);
+}
+#endif
+#else	/* supply a dummy function on other platforms */
+xxx
+static __inline u_int64_t
+rdtsc(void)
+{
+	return 0;
+}
+#endif
+
+int64_t ast_mark(int i, int startstop)
+{
+	if (!prof_data || i < 0 || i > prof_data->entries) /* invalid index */
+		return 0;
+	if (startstop == 1)
+		prof_data->e[i].mark = rdtsc();
+	else {
+		prof_data->e[i].mark = (rdtsc() - prof_data->e[i].mark);
+		if (prof_data->e[i].scale > 1)
+			prof_data->e[i].mark /= prof_data->e[i].scale;
+		prof_data->e[i].value += prof_data->e[i].mark;
+		prof_data->e[i].events++;
+	}
+	return prof_data->e[i].mark;
+}
+
+static int handle_show_profile(int fd, int argc, char *argv[])
+{
+	int i, min, max;
+	char *search = NULL;
+
+	if (prof_data == NULL)
+		return 0;
+
+	min = 0;
+	max = prof_data->entries;
+	if  (argc >= 3) { /* specific entries */
+		if (isdigit(argv[2][0])) {
+			min = atoi(argv[2]);
+			if (argc == 4 && strcmp(argv[3], "-"))
+				max = atoi(argv[3]);
+		} else
+			search = argv[2];
+	}
+	if (max > prof_data->entries)
+		max = prof_data->entries;
+	if (!strcmp(argv[0], "clear")) {
+		for (i= min; i < max; i++) {
+			if (!search || strstr(prof_data->e[i].name, search)) {
+				prof_data->e[i].value = 0;
+				prof_data->e[i].events = 0;
+			}
+		}
+		return 0;
+	}
+	ast_cli(fd, "profile values (%d, allocated %d)\n-------------------\n",
+		prof_data->entries, prof_data->max_size);
+	for (i = min; i < max; i++) {
+		struct profile_entry *e = &prof_data->e[i];
+		if (!search || strstr(prof_data->e[i].name, search))
+		    ast_cli(fd, "%6d: [%8ld] %10ld %12lld %12lld %s\n",
+			i,
+			(long)e->scale,
+			(long)e->events, (long long)e->value,
+			(long long)(e->events ? e->value / e->events : e->value),
+			e->name);
+	}
+	return 0;
 }
 
 static char show_version_files_help[] = 
@@ -1231,6 +1436,12 @@ static struct ast_cli_entry core_cli[] = {
 #if !defined(LOW_MEMORY)
 	{ { "show", "version", "files", NULL }, handle_show_version_files,
 	  "Show versions of files used to build Asterisk", show_version_files_help, complete_show_version_files },
+	{ { "show", "threads", NULL }, handle_show_threads,
+	  "Show running threads", show_threads_help, NULL },
+	{ { "show", "profile", NULL }, handle_show_profile,
+	  "Show profiling info"},
+	{ { "clear", "profile", NULL }, handle_show_profile,
+	  "Clear profiling info"},
 #endif /* ! LOW_MEMORY */
 };
 

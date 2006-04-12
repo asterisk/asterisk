@@ -15,6 +15,8 @@
  * \brief Asterisk main include file. File version handling, generic pbx functions.
  */
 
+#include "asterisk/compat.h"
+
 #ifndef _ASTERISK_H
 #define _ASTERISK_H
 
@@ -108,6 +110,24 @@ void ast_register_file_version(const char *file, const char *version);
 void ast_unregister_file_version(const char *file);
 
 /*!
+ * \brief support for event profiling
+ * (note, this must be documented a lot more)
+ * ast_add_profile allocates a generic 'counter' with a given name,
+ * which can be shown with the command 'show profile <name>'
+ *
+ * The counter accumulates positive or negative values supplied by
+ * ast_add_profile(), dividing them by the 'scale' value passed in the
+ * create call, and also counts the number of 'events'.
+ * Values can also be taked by the TSC counter on ia32 architectures,
+ * in which case you can mark the start of an event calling ast_mark(id, 1)
+ * and then the end of the event with ast_mark(id, 0).
+ * For non-i386 architectures, these two calls return 0.
+ */
+int ast_add_profile(const char *, uint64_t scale);
+int64_t ast_profile(int, int64_t);
+int64_t ast_mark(int, int start1_stop0);
+
+/*!
  * \brief Register/unregister a source code file with the core.
  * \param file the source file name
  * \param version the version string (typically a CVS revision keyword string)
@@ -129,6 +149,20 @@ void ast_unregister_file_version(const char *file);
  * revision number.
  */
 #if defined(__GNUC__) && !defined(LOW_MEMORY)
+#ifdef MTX_PROFILE
+#define	HAVE_MTX_PROFILE	/* used in lock.h */
+#define ASTERISK_FILE_VERSION(file, version) \
+	static int mtx_prof = -1;       /* profile mutex */	\
+	static void __attribute__((constructor)) __register_file_version(void) \
+	{ \
+		mtx_prof = ast_add_profile("mtx_lock_" file, 0);	\
+		ast_register_file_version(file, version); \
+	} \
+	static void __attribute__((destructor)) __unregister_file_version(void) \
+	{ \
+		ast_unregister_file_version(file); \
+	}
+#else
 #define ASTERISK_FILE_VERSION(file, version) \
 	static void __attribute__((constructor)) __register_file_version(void) \
 	{ \
@@ -138,6 +172,7 @@ void ast_unregister_file_version(const char *file);
 	{ \
 		ast_unregister_file_version(file); \
 	}
+#endif
 #elif !defined(LOW_MEMORY) /* ! __GNUC__  && ! LOW_MEMORY*/
 #define ASTERISK_FILE_VERSION(file, x) static const char __file_version[] = x;
 #else /* LOW_MEMORY */
