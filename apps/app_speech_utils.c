@@ -368,6 +368,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 				} else {
 					time(&current);
 					if ((current-start) >= timeout) {
+						pbx_builtin_setvar_helper(chan, "SILENCE", "1");
 						done = 1;
 						break;
 					}
@@ -398,6 +399,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 		case AST_SPEECH_STATE_DONE:
 			/* Assume there will be no results by default */
 			pbx_builtin_setvar_helper(chan, "RESULTS", "0");
+			pbx_builtin_setvar_helper(chan, "SILENCE", "0");
 			/* Decoding is done and over... see if we have results */
 			results = ast_speech_results_get(speech);
 			if (results != NULL) {
