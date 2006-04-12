@@ -60,17 +60,19 @@
  * non-blocking calls.
  */
 #ifndef	HAVE_MTX_PROFILE
-#define	__MTX_PROF	/* nothing */
+#define	__MTX_PROF(a)	return pthread_mutex_lock((a))
 #else
-#define	__MTX_PROF	{			\
+#define	__MTX_PROF(a)	do {			\
 	int i;					\
 	/* profile only non-blocking events */	\
 	ast_mark(mtx_prof, 1);			\
-	i = pthread_mutex_trylock(pmutex);	\
+	i = pthread_mutex_trylock((a));		\
 	ast_mark(mtx_prof, 0);			\
 	if (!i)					\
 		return i;			\
-	}
+	else					\
+		return pthread_mutex_lock((a)); \
+	} while (0)
 #endif	/* HAVE_MTX_PROFILE */
 
 #include <pthread.h>
@@ -610,8 +612,7 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 
 static inline int ast_mutex_lock(ast_mutex_t *pmutex)
 {
-	__MTX_PROF
-	return pthread_mutex_lock(pmutex);
+	__MTX_PROF(pmutex);
 }
 
 static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
@@ -631,8 +632,7 @@ static inline int ast_mutex_lock(ast_mutex_t *pmutex)
 {
 	if (*pmutex == (ast_mutex_t)AST_MUTEX_KIND)
 		ast_mutex_init(pmutex);
-	__MTX_PROF
-	return pthread_mutex_lock(pmutex);
+	__MTX_PROF(pmutex);
 }
 
 static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
@@ -648,8 +648,7 @@ static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
 
 static inline int ast_mutex_lock(ast_mutex_t *pmutex)
 {
-	__MTX_PROF
-	return pthread_mutex_lock(pmutex);
+	__MTX_PROF(pmutex);
 }
 
 static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
