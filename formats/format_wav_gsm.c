@@ -226,7 +226,7 @@ static int update_header(FILE *f)
 	end = ftello(f);
 	/* in a gsm WAV, data starts 60 bytes in */
 	bytes = end - MSGSM_DATA_OFFSET;
-	samples = bytes / MSGSM_FRAME_SIZE * MSGSM_SAMPLES;
+	samples = htoll(bytes / MSGSM_FRAME_SIZE * MSGSM_SAMPLES);
 	datalen = htoll((bytes + 1) & ~0x1);
 	filelen = htoll(MSGSM_DATA_OFFSET - 8 + ((bytes + 1) & ~0x1));
 	if (cur < 0) {
