@@ -5604,7 +5604,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
-	char tmp[256];
+	char *tmp;
 	struct leave_vm_options leave_options;
 	struct ast_flags flags = { 0 };
 	char *opts[OPT_ARG_ARRAY_SIZE];
@@ -5621,7 +5621,12 @@ static int vm_exec(struct ast_channel *chan, void *data)
 		ast_answer(chan);
 
 	if (!ast_strlen_zero(data)) {
-		ast_copy_string(tmp, data, sizeof(tmp));
+		tmp = ast_strdupa((char *)data);
+		if (!tmp) {
+			ast_log(LOG_ERROR, "Out of memory\n");
+			LOCAL_USER_REMOVE(u);
+			return -1;
+		}
 		AST_STANDARD_APP_ARGS(args, tmp);
 		if (args.argc == 2) {
 			if (ast_app_parse_options(vm_app_options, &flags, opts, args.argv1)) {
@@ -5657,6 +5662,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 			}
 		}
 	} else {
+		char tmp[256];
 		res = ast_app_getdata(chan, "vm-whichbox", tmp, sizeof(tmp) - 1, 0);
 		if (res < 0) {
 			LOCAL_USER_REMOVE(u);
