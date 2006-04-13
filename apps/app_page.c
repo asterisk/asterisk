@@ -167,15 +167,15 @@ static int page_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
+	ast_copy_string(originator, chan->name, sizeof(originator));
+	if ((tmp = strchr(originator, '-')))
+		*tmp = '\0';
+
 	tmp = strsep(&options, "|");
 	if (options)
 		ast_app_parse_options(page_opts, &flags, NULL, options);
 
 	snprintf(meetmeopts, sizeof(meetmeopts), "%ud|%sqxdw", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m");
-
-	ast_copy_string(originator, chan->name, sizeof(originator));
-	if ((tmp = strchr(originator, '-')))
-		*tmp = '\0';
 
 	while ((tech = strsep(&tmp, "&"))) {
 		/* don't call the originating device */
