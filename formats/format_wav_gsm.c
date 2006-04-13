@@ -226,7 +226,7 @@ static int update_header(FILE *f)
 	end = ftello(f);
 	/* in a gsm WAV, data starts 60 bytes in */
 	bytes = end - MSGSM_DATA_OFFSET;
-	samples = bytes / GSM_FRAME_SIZE * MSGSM_SAMPLES;
+	samples = bytes / MSGSM_FRAME_SIZE * MSGSM_SAMPLES;
 	datalen = htoll((bytes + 1) & ~0x1);
 	filelen = htoll(MSGSM_DATA_OFFSET - 8 + ((bytes + 1) & ~0x1));
 	if (cur < 0) {
@@ -482,7 +482,7 @@ static int wav_write(struct ast_filestream *s, struct ast_frame *f)
 		} else {	/* raw msgsm data */
 			src = f->data + len;
 		}
-		if (src && (res = fwrite(src, 1, size, s->f)) != size) {
+		if (src && (res = fwrite(src, 1, MSGSM_FRAME_SIZE, s->f)) != MSGSM_FRAME_SIZE) {
 			ast_log(LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
 			return -1;
 		}
