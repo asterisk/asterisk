@@ -29,6 +29,7 @@ extern "C" {
 
 /* Speech structure flags */
 #define AST_SPEECH_QUIET (1 << 0) /* Quiet down output... they are talking */
+#define AST_SPEECH_SPOKE (1 << 1) /* Speaker did not speak */
 
 /* Speech structure states - in order of expected change */
 #define AST_SPEECH_STATE_NOT_READY 0 /* Not ready to accept audio */
@@ -50,6 +51,8 @@ struct ast_speech {
 	int format;
 	/*! Data for speech engine */
 	void *data;
+	/*! Cached results */
+	struct ast_speech_result *results;
 	/*! Pointer to the engine used by this speech structure */
 	struct ast_speech_engine *engine;
 };
@@ -87,7 +90,9 @@ struct ast_speech_result {
 	char *text;
 	/*! Result score */
 	int score;
-	/*! Next result (may not always be present) */
+	/*! Matched grammar */
+	char *grammar;
+	/*! List information */
 	struct ast_speech_result *next;
 };
 

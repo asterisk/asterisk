@@ -141,6 +141,10 @@ int ast_speech_results_free(struct ast_speech_result *result)
 			free(current_result->text);
 			current_result->text = NULL;
 		}
+		if (current_result->grammar != NULL) {
+			free(current_result->grammar);
+			current_result->grammar = NULL;
+		}
 		/* Move on and then free ourselves */
 		current_result = current_result->next;
 		free(prev_result);
@@ -153,6 +157,16 @@ int ast_speech_results_free(struct ast_speech_result *result)
 /*! \brief Start speech recognition on a speech structure */
 void ast_speech_start(struct ast_speech *speech)
 {
+
+	/* Clear any flags that may affect things */
+	ast_clear_flag(speech, AST_SPEECH_SPOKE);
+
+	/* If results are on the structure, free them since we are starting again */
+	if (speech->results != NULL) {
+		ast_speech_results_free(speech->results);
+		speech->results = NULL;
+	}
+
 	/* If the engine needs to start stuff up, do it */
 	if (speech->engine->start != NULL) {
 		speech->engine->start(speech);
@@ -201,6 +215,9 @@ struct ast_speech *ast_speech_new(char *engine_name, int format)
 	/* Initialize the lock */
 	ast_mutex_init(&new_speech->lock);
 
+	/* Make sure no results are present */
+	new_speech->results = NULL;
+
 	/* Copy over our engine pointer */
 	new_speech->engine = engine;
 
@@ -224,6 +241,12 @@ int ast_speech_destroy(struct ast_speech *speech)
 	/* Deinitialize the lock */
 	ast_mutex_destroy(&speech->lock);
 
+	/* If results exist on the speech structure, destroy them */
+	if (speech->results != NULL) {
+		ast_speech_results_free(speech->results);
+		speech->results = NULL;
+	}
+
 	/* If a processing sound is set - free the memory used by it */
 	if (speech->processing_sound != NULL) {
 		free(speech->processing_sound);
@@ -242,7 +265,14 @@ int ast_speech_change_state(struct ast_speech *speech, int state)
 {
 	int res = 0;
 
-	speech->state = state;
+	switch (state) {
+	case AST_SPEECH_STATE_WAIT:
+		/* The engine heard audio, so they spoke */
+		ast_set_flag(speech, AST_SPEECH_SPOKE);
+	default:
+		speech->state = state;
+		break;
+	}
 
 	return res;
 }

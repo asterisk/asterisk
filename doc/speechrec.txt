@@ -12,6 +12,14 @@ This application creates information to be used by all the other applications. I
 
 If an error occurs are you are not able to create an object, the variable ERROR will be set to 1. You can then exit your speech recognition specific context and play back an error message, or resort to a DTMF based IVR.
 
+SpeechLoadGrammar(Grammar Name|Path):
+
+Loads grammar locally on a channel. Note that the grammar is only available as long as the channel exists, and you must call SpeechUnloadGrammar before all is done or you may cause a memory leak. First argument is the grammar name that it will be loaded as and second argument is the path to the grammar.
+
+SpeechUnloadGrammar(Grammar Name):
+
+Unloads a locally loaded grammar and frees any memory used by it. The only argument is the name of the grammar to unload.
+
 SpeechActivateGrammar(Grammar Name):
 
 This activates the specified grammar to be recognized by the engine. A grammar tells the speech recognition engine what to recognize, and how to portray it back to you in the dialplan. The grammar name is the only argument to this application.
@@ -22,7 +30,7 @@ Tell the speech recognition engine that it should start trying to get results fr
 
 SpeechBackground(Sound File|Timeout):
 
-This application plays a sound file and waits for the person to speak. Once they start speaking playback of the file stops, and silence is heard. Once they stop talking the processing sound is played to indicate the speech recognition engine is working. Once results are available the application returns and results (score and text) are available as dialplan variables. The first text and score are ${TEXT0} AND ${SCORE0} while the second are ${TEXT1} and ${SCORE1}. This may change in the future, however, to use a dialplan function instead of dialplan variables. Note it is possible to have more then one result. The first argument is the sound file and the second is the timeout. Note the timeout will only start once the sound file has stopped playing. If the timeout is reached, then the variable SILENCE is set to 1 so that you will know that the person did not speak anything.
+This application plays a sound file and waits for the person to speak. Once they start speaking playback of the file stops, and silence is heard. Once they stop talking the processing sound is played to indicate the speech recognition engine is working. Note it is possible to have more then one result. The first argument is the sound file and the second is the timeout. Note the timeout will only start once the sound file has stopped playing.
 
 SpeechDeactivateGrammar(Grammar Name):
 
@@ -35,6 +43,34 @@ This changes the processing sound that SpeechBackground plays back when the spee
 SpeechDestroy():
 
 This destroys the information used by all the other speech recognition applications. If you call this application but end up wanting to recognize more speech, you must call SpeechCreate again before calling any other application. It takes no arguments.
+
+Getting Result Information:
+
+The speech recognition utilities module exports several dialplan functions that you can use to examine results.
+
+${SPEECH(status)}:
+
+Returns 1 if SpeechCreate has been called. This uses the same check that applications do to see if a speech object is setup. If it returns 0 then you know you can not use other speech applications.
+
+${SPEECH(spoke)}:
+
+Returns 1 if the speaker spoke something, or 0 if they were silent.
+
+${SPEECH(results)}:
+
+Returns the number of results that are available.
+
+${SPEECH_SCORE(result number)}:
+
+Returns the score of a result.
+
+${SPEECH_TEXT(result number)}:
+
+Returns the recognized text of a result.
+
+${SPEECH_GRAMMAR(result number)}:
+
+Returns the matched grammar of the result.
 
 Dialplan Flow:
 
@@ -74,7 +110,7 @@ exten => s,3,SpeechStart()
 exten => s,4,SpeechBackground(who-would-you-like-to-dial)
 exten => s,5,SpeechDeactivateGrammar(company-directory)
 exten => s,6,SpeechDestroy()
-exten => s,7,Goto(internal-extensions-${TEXT0})
+exten => s,7,Goto(internal-extensions-${SPEECH_TEXT(0)})
 
 Useful Dialplan Tidbits:
 
@@ -82,15 +118,15 @@ A simple macro that can be used for confirm of a result. Requires some sound fil
 
 [macro-speech-confirm]
 exten => s,1,SpeechActivateGrammar(yes_no)
-exten => s,2,Set(OLDTEXT0=${TEXT0})
+exten => s,2,Set(OLDTEXT0=${SPEECH_TEXT(0)})
 exten => s,3,Playback(heard)
 exten => s,4,Playback(${ARG1})
 exten => s,5,SpeechStart()
 exten => s,6,SpeechBackground(correct)
-exten => s,7,Set(CONFIRM=${TEXT0})
-exten => s,8,GotoIf($["${TEXT0}" = "1"]?9:10)
+exten => s,7,Set(CONFIRM=${SPEECH_TEXT(0)})
+exten => s,8,GotoIf($["${SPEECH_TEXT(0)}" = "1"]?9:10)
 exten => s,9,Set(CONFIRM=yes)
-exten => s,10,Set(${TEXT0}=${OLDTEXT0})
+exten => s,10,Set(${CONFIRMED}=${OLDTEXT0})
 exten => s,11,SpeechDeactivateGrammar(yes_no)
 
 C API
@@ -161,7 +197,9 @@ struct ast_speech_result {
         char *text;
         /*! Result score */
         int score;
-        /*! Next result (may not always be present) */
+        /*! Matched grammar */
+        char *grammar;
+        /*! List information */
         struct ast_speech_result *next;
 };
 
