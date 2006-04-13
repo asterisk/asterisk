@@ -1023,7 +1023,8 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 						*ret = workspace;
 					} else
 						*ret = NULL;
-				}
+				} else
+					goto icky;
 			} else if (!strcmp(var + 6, "ANI")) {
 				/* CALLERANI */
 				if (c->cid.cid_ani) {
