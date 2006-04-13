@@ -128,18 +128,17 @@ just do a Goto based on the result text.
 
 - Grammar: company-directory.gram
 
-	#ABNF 1.0;
-	language en-US;
-	mode voice;
-	tag-format <lumenvox/1.0>;
+#ABNF 1.0;
+language en-US;
+mode voice;
+tag-format <lumenvox/1.0>;
+root $company_directory;
 
-	root $company_directory;
+$josh = ((Joshua | Josh) [Colp]):"6066";
+$mark = (Mark [Spencer] | Markster):"4569";
+$kevin = (Kevin [Fleming]):"2567";
 
-	$josh = (Joshua | Josh) [Colp]:"6066";
-	$mark = Mark [Spencer] | Markster:"4569";
-	$kevin = Kevin [Fleming]:"2567";
-
-	$company_directory = ($josh | $mark | $kevin) { $ = parseInt($$) };
+$company_directory = ($josh | $mark | $kevin) { $ = $$ };
 
 - Dialplan logic
 
