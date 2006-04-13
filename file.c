@@ -132,7 +132,7 @@ int ast_format_unregister(const char *name)
 	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&formats);
 
-	if (tmp) {
+	if (!res) {
 		if (option_verbose > 1)
 			ast_verbose( VERBOSE_PREFIX_2 "Unregistered format %s\n", name);
 	} else
