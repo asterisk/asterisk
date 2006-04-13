@@ -134,6 +134,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/monitor.h"
+#include "asterisk/localtime.h"
 
 #ifndef FALSE
 #define FALSE	0
@@ -953,6 +954,7 @@ struct sip_registry {
 	int refresh;			/*!< How often to refresh */
 	struct sip_pvt *call;		/*!< create a sip_pvt structure for each outbound "registration dialog" in progress */
 	enum sipregistrystate regstate;	/*!< Registration state (see above) */
+	time_t regtime;		/*!< Last succesful registration time */
 	int callid_valid;		/*!< 0 means we haven't chosen callid for this registry yet. */
 	unsigned int ocseq;		/*!< Sequence number we got to for REGISTERs for this registry */
 	struct sockaddr_in us;		/*!< Who the server thinks we are */
@@ -8401,17 +8403,26 @@ static int sip_show_user(int fd, int argc, char *argv[])
 /*! \brief  Show SIP Registry (registrations with other SIP proxies */
 static int sip_show_registry(int fd, int argc, char *argv[])
 {
-#define FORMAT2 "%-30.30s  %-12.12s  %8.8s %-20.20s\n"
-#define FORMAT  "%-30.30s  %-12.12s  %8d %-20.20s\n"
+#define FORMAT2 "%-30.30s  %-12.12s  %8.8s %-20.20s %-25.25s\n"
+#define FORMAT  "%-30.30s  %-12.12s  %8d %-20.20s %-25.25s\n"
 	char host[80];
+	char tmpdat[256];
+	struct tm tm;
+
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_cli(fd, FORMAT2, "Host", "Username", "Refresh", "State");
+	ast_cli(fd, FORMAT2, "Host", "Username", "Refresh", "State", "Reg.Time");
 	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_RDLOCK(iterator);
 		snprintf(host, sizeof(host), "%s:%d", iterator->hostname, iterator->portno ? iterator->portno : DEFAULT_SIP_PORT);
-		ast_cli(fd, FORMAT, host, iterator->username, iterator->refresh, regstate2str(iterator->regstate));
+		if (iterator->regtime) {
+			ast_localtime(&iterator->regtime, &tm, NULL);
+			strftime(tmpdat, sizeof(tmpdat), "%a, %d %b %Y %T", &tm);
+		} else {
+			tmpdat[0] = 0;
+		}
+		ast_cli(fd, FORMAT, host, iterator->username, iterator->refresh, regstate2str(iterator->regstate), tmpdat);
 		ASTOBJ_UNLOCK(iterator);
 	} while(0));
 	return RESULT_SUCCESS;
@@ -9943,6 +9954,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		}
 
 		r->regstate = REG_STATE_REGISTERED;
+		r->regtime=time(NULL);			/* Reset time of last succesful registration */
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
 		r->regattempts = 0;
 		ast_log(LOG_DEBUG, "Registration successful\n");
