@@ -336,7 +336,7 @@ static int write_header(FILE *f)
 		return -1;
 	}
 	/* 32: Subchunk 1: Block align */
-	if (fwrite(&block_align, 1, 2, f) != 4) {
+	if (fwrite(&block_align, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
