@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -696,12 +696,12 @@ static struct module * __load_resource(const char *resource_name,
 
 	/* open in a sane way */
 	cur->lib = dlopen(fn, RTLD_NOW | RTLD_LOCAL);
-	if (cur->lib == NULL) {
-		ast_log(LOG_WARNING, "cannot load %s %s\n", fn, dlerror());
-	} else if ( (m1 = find_symbol(cur, "mod_data", 0)) == NULL || m1->type == MOD_0) {
+	if (cur->lib) {
+		if ((m1 = find_symbol(cur, "mod_data", 0)) == NULL || m1->type == MOD_0) {
 		/* old-style module, close and reload with standard flags */
-		dlclose(cur->lib);
-		cur->lib = NULL;
+			dlclose(cur->lib);
+			cur->lib = NULL;
+		}
 	}
 	if (cur->lib == NULL)	/* try reopen with the old style */
 		cur->lib = dlopen(fn, flags);
