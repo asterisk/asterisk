@@ -551,7 +551,7 @@ static int odbc_unload_module(void)
 	return 0;
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	int res = 0;
 	struct ast_config *cfg;
@@ -667,4 +667,4 @@ static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
-STD_MOD(MOD_1, NULL, NULL, NULL);
+STD_MOD(MOD_1, reload, NULL, NULL);

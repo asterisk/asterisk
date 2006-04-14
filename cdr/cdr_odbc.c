@@ -199,7 +199,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	return 0;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return desc;
 }
@@ -450,34 +450,25 @@ static int odbc_init(void)
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return odbc_load_module();
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	return odbc_unload_module();
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	odbc_unload_module();
 	return odbc_load_module();
 }
 
-int usecount(void)
-{
-	/* Simplistic use count */
-	if (ast_mutex_trylock(&odbc_lock)) {
-		return 1;
-	} else {
-		ast_mutex_unlock(&odbc_lock);
-		return 0;
-	}
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_0, reload, NULL, NULL);
