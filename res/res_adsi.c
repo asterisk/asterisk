@@ -428,7 +428,7 @@ int adsi_transmit_message(struct ast_channel *chan, unsigned char *msg, int msgl
 	return adsi_transmit_message_full(chan, msg, msglen, msgtype, 1);
 }
 
-static inline int ccopy(unsigned char *dst, unsigned char *src, int max)
+static inline int ccopy(unsigned char *dst, const unsigned char *src, int max)
 {
 	int x=0;
 	/* Carefully copy the requested data */
@@ -439,7 +439,7 @@ static inline int ccopy(unsigned char *dst, unsigned char *src, int max)
 	return x;
 }
 
-int adsi_load_soft_key(unsigned char *buf, int key, char *llabel, char *slabel, char *ret, int data)
+int adsi_load_soft_key(unsigned char *buf, int key, const char *llabel, const char *slabel, const char *ret, int data)
 {
 	int bytes=0;
 
@@ -453,13 +453,13 @@ int adsi_load_soft_key(unsigned char *buf, int key, char *llabel, char *slabel, 
 	buf[bytes++] = key;
 
 	/* Carefully copy long label */
-	bytes += ccopy(buf + bytes, (unsigned char *)llabel, 18);
+	bytes += ccopy(buf + bytes, (const unsigned char *)llabel, 18);
 
 	/* Place delimiter */
 	buf[bytes++] = 0xff;
 
 	/* Short label */
-	bytes += ccopy(buf + bytes, (unsigned char *)slabel, 7);
+	bytes += ccopy(buf + bytes, (const unsigned char *)slabel, 7);
 
 
 	/* If specified, copy return string */
@@ -469,7 +469,7 @@ int adsi_load_soft_key(unsigned char *buf, int key, char *llabel, char *slabel, 
 		if (data)
 			buf[bytes++] = ADSI_SWITCH_TO_DATA2;
 		/* Carefully copy return string */
-		bytes += ccopy(buf + bytes, (unsigned char *)ret, 20);
+		bytes += ccopy(buf + bytes, (const unsigned char *)ret, 20);
 
 	}
 	/* Replace parameter length */

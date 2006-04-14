@@ -769,7 +769,7 @@ static void vm_change_password_shell(struct ast_vm_user *vmu, char *newpassword)
 		ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
 }
 
-static int make_dir(char *dest, int len, char *context, char *ext, char *folder)
+static int make_dir(char *dest, int len, const char *context, const char *ext, const char *folder)
 {
 	return snprintf(dest, len, "%s%s/%s/%s", VM_SPOOL_DIR, context, ext, folder);
 }
@@ -786,7 +786,7 @@ static int make_file(char *dest, int len, char *dir, int num)
  * \param folder  String. Ignored if is null or empty string. 
  * \return 0 on failure, 1 on success.
  */
-static int create_dirpath(char *dest, int len, char *context, char *ext, char *folder)
+static int create_dirpath(char *dest, int len, const char *context, const char *ext, const char *folder)
 {
 	mode_t	mode = VOICEMAIL_DIR_MODE;
 
@@ -1929,10 +1929,7 @@ static int invent_message(struct ast_channel *chan, char *context, char *ext, in
 		if (res)
 			return res;
 	}
-	if (busy)
-		res = ast_streamfile(chan, "vm-isonphone", chan->language);
-	else
-		res = ast_streamfile(chan, "vm-isunavail", chan->language);
+	res = ast_streamfile(chan, busy ? "vm-isonphone" : "vm-isunavail", chan->language);
 	if (res)
 		return -1;
 	res = ast_waitstream(chan, ecodes);
@@ -1950,32 +1947,21 @@ static void free_zone(struct vm_zone *z)
 	free(z);
 }
 
-static char *mbox(int id)
+static const char *mbox(int id)
 {
-	switch(id) {
-	case 0:
-		return "INBOX";
-	case 1:
-		return "Old";
-	case 2:
-		return "Work";
-	case 3:
-		return "Family";
-	case 4:
-		return "Friends";
-	case 5:
-		return "Cust1";
-	case 6:
-		return "Cust2";
-	case 7:
-		return "Cust3";
-	case 8:
-		return "Cust4";
-	case 9:
-		return "Cust5";
-	default:
-		return "Unknown";
-	}
+	static const char *msgs[] = {
+		"INBOX",
+		"Old",
+		"Work",   
+		"Family",
+		"Friends",
+		"Cust1",
+		"Cust2",
+		"Cust3",
+		"Cust4",  
+		"Cust5",
+	};
+	return (id >= 0 && id < (sizeof(msgs)/sizeof(msgs[0]))) ? msgs[id] : "Unknown";
 }
 
 #ifdef USE_ODBC_STORAGE
@@ -2279,7 +2265,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt)
 {
 	char fromdir[256], todir[256], frompath[256], topath[256];
-	char *frombox = mbox(imbox);
+	const char *frombox = mbox(imbox);
 	int recipmsgnum;
 
 	ast_log(LOG_NOTICE, "Copying message from %s@%s to %s@%s\n", vmu->mailbox, vmu->context, recip->mailbox, recip->context);
@@ -2389,17 +2375,14 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	ext = tmp;
 	context = strchr(tmp, '@');
 	if (context) {
-		*context = '\0';
-		context++;
+		*context++ = '\0';
 		tmpptr = strchr(context, '&');
 	} else {
 		tmpptr = strchr(ext, '&');
 	}
 
-	if (tmpptr) {
-		*tmpptr = '\0';
-		tmpptr++;
-	}
+	if (tmpptr)
+		*tmpptr++ = '\0';
 
 	category = pbx_builtin_getvar_helper(chan, "VM_CATEGORY");
 
@@ -2693,7 +2676,7 @@ static int save_to_folder(struct ast_vm_user *vmu, char *dir, int msg, char *con
 	char sfn[256];
 	char dfn[256];
 	char ddir[256];
-	char *dbox = mbox(box);
+	const char *dbox = mbox(box);
 	int x;
  	make_file(sfn, sizeof(sfn), dir, msg);
 	create_dirpath(ddir, sizeof(ddir), context, username, dbox);
@@ -5899,26 +5882,20 @@ static char *complete_show_voicemail_users(const char *line, const char *word, i
 	int which = 0;
 	int wordlen;
 	struct ast_vm_user *vmu;
-	char *context = "";
+	const char *context = "";
 
 	/* 0 - show; 1 - voicemail; 2 - users; 3 - for; 4 - <context> */
 	if (pos > 4)
 		return NULL;
-	if (pos == 3) {
-		if (state == 0)
-			return strdup("for");
-		else
-			return NULL;
-	}
+	if (pos == 3)
+		return (state == 0) ? ast_strdup("for") : NULL;
 	wordlen = strlen(word);
 	AST_LIST_TRAVERSE(&users, vmu, list) {
 		if (!strncasecmp(word, vmu->context, wordlen)) {
-			if (context && strcmp(context, vmu->context)) {
-				if (++which > state) {
-					return strdup(vmu->context);
-				}
-				context = vmu->context;
-			}
+			if (context && strcmp(context, vmu->context) && ++which > state)
+				return ast_strdup(vmu->context);
+			/* ignore repeated contexts ? */
+			context = vmu->context;
 		}
 	}
 	return NULL;
@@ -5980,7 +5957,7 @@ static int load_config(void)
 		ast_set_flag(cur, VM_ALLOCED);	
 		free_user(cur);
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 	zcur = zones;
 	while (zcur) {
 		zl = zcur;

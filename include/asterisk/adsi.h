@@ -309,7 +309,7 @@ int adsi_set_line(unsigned char *buf, int page, int line);
  * Returns number of bytes added to buffer or -1 on error.
  *
  */
-int adsi_load_soft_key(unsigned char *buf, int key, char *llabel, char *slabel, char *ret, int data);
+int adsi_load_soft_key(unsigned char *buf, int key, const char *llabel, const char *slabel, const char *ret, int data);
 
 /*! Set which soft keys should be displayed */
 /*!
