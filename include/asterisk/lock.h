@@ -94,7 +94,7 @@
 #endif
 
 #ifdef BSD
-#if 0 && defined( __GNUC__)
+#if 1 && defined( __GNUC__)
 #define AST_MUTEX_INIT_W_CONSTRUCTORS
 #else
 #define AST_MUTEX_INIT_ON_FIRST_USE
