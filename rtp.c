@@ -783,15 +783,9 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src)
 
 	/* Get audio and video interface (if native bridge is possible) */
 	destp = destpr->get_rtp_info(dest);
-	if (destpr->get_vrtp_info)
-		vdestp = destpr->get_vrtp_info(dest);
-	else
-		vdestp = NULL;
+	vdestp = (destpr->get_vrtp_info) ? destpr->get_vrtp_info(dest) : NULL;
 	srcp = srcpr->get_rtp_info(src);
-	if (srcpr->get_vrtp_info)
-		vsrcp = srcpr->get_vrtp_info(src);
-	else
-		vsrcp = NULL;
+	vsrcp = (srcpr->get_vrtp_info) ? srcpr->get_vrtp_info(src) : NULL;
 
 	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
 	if (!destp || !srcp) {
@@ -832,13 +826,13 @@ void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
 	int i;
 
 	if (pt < 0 || pt > MAX_RTP_PT) 
-			return; /* bogus payload type */
+		return; /* bogus payload type */
 
 	for (i = 0; i < sizeof mimeTypes/sizeof mimeTypes[0]; ++i) {
 		if (strcasecmp(mimeSubtype, mimeTypes[i].subtype) == 0 &&
 		     strcasecmp(mimeType, mimeTypes[i].type) == 0) {
 			rtp->current_RTP_PT[pt] = mimeTypes[i].payloadType;
-		return;
+			return;
 		}
 	}
 } 
@@ -916,9 +910,8 @@ char* ast_rtp_lookup_mime_subtype(const int isAstFormat, const int code)
 	int i;
 
 	for (i = 0; i < sizeof mimeTypes/sizeof mimeTypes[0]; ++i) {
-	if (mimeTypes[i].payloadType.code == code && mimeTypes[i].payloadType.isAstFormat == isAstFormat) {
-      		return mimeTypes[i].subtype;
-		}
+		if (mimeTypes[i].payloadType.code == code && mimeTypes[i].payloadType.isAstFormat == isAstFormat)
+			return mimeTypes[i].subtype;
 	}
 	return "";
 }
@@ -1119,7 +1112,7 @@ void ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
 
 void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us)
 {
-	memcpy(us, &rtp->us, sizeof(rtp->us));
+	*us = rtp->us;
 }
 
 void ast_rtp_stop(struct ast_rtp *rtp)
@@ -1563,7 +1556,7 @@ int ast_rtp_proto_register(struct ast_rtp_protocol *proto)
 enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms)
 {
 	struct ast_frame *f;
-	struct ast_channel *who, *cs[3];
+	struct ast_channel *who, *other, *cs[3];
 	struct ast_rtp *p0, *p1;		/* Audio RTP Channels */
 	struct ast_rtp *vp0, *vp1;		/* Video RTP channels */
 	struct ast_rtp_protocol *pr0, *pr1;
@@ -1615,15 +1608,9 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 
 	/* Get audio and video interface (if native bridge is possible) */
 	p0 = pr0->get_rtp_info(c0);
-	if (pr0->get_vrtp_info)
-		vp0 = pr0->get_vrtp_info(c0);
-	else
-		vp0 = NULL;
+	vp0 = pr0->get_vrtp_info ? pr0->get_vrtp_info(c0) : NULL;
 	p1 = pr1->get_rtp_info(c1);
-	if (pr1->get_vrtp_info)
-		vp1 = pr1->get_vrtp_info(c1);
-	else
-		vp1 = NULL;
+	vp1 = pr1->get_vrtp_info ? pr1->get_vrtp_info(c1) : NULL;
 
 	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
 	if (!p0 || !p1) {
@@ -1633,14 +1620,8 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 		return AST_BRIDGE_FAILED_NOWARN;
 	}
 	/* Get codecs from both sides */
-	if (pr0->get_codec)
-		codec0 = pr0->get_codec(c0);
-	else
-		codec0 = 0;
-	if (pr1->get_codec)
-		codec1 = pr1->get_codec(c1);
-	else
-		codec1 = 0;
+	codec0 = pr0->get_codec ? pr0->get_codec(c0) : 0;
+	codec1 = pr1->get_codec ? pr1->get_codec(c1) : 0;
 	if (pr0->get_codec && pr1->get_codec) {
 		/* Hey, we can't do reinvite if both parties speak different codecs */
 		if (!(codec0 & codec1)) {
@@ -1751,9 +1732,11 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 			continue;
 		}
 		f = ast_read(who);
+		other = (who == c0) ? c1 : c0; /* the other channel */
 		if (!f || ((f->frametype == AST_FRAME_DTMF) &&
 				   (((who == c0) && (flags & AST_BRIDGE_DTMF_CHANNEL_0)) || 
 			       ((who == c1) && (flags & AST_BRIDGE_DTMF_CHANNEL_1))))) {
+			/* breaking out of the bridge. */
 			*fo = f;
 			*rc = who;
 			if (option_debug)
@@ -1770,7 +1753,7 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 		} else if ((f->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
 			if ((f->subclass == AST_CONTROL_HOLD) || (f->subclass == AST_CONTROL_UNHOLD) ||
 			    (f->subclass == AST_CONTROL_VIDUPDATE)) {
-				ast_indicate(who == c0 ? c1 : c0, f->subclass);
+				ast_indicate(other, f->subclass);
 				ast_frfree(f);
 			} else {
 				*fo = f;
@@ -1783,11 +1766,7 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 				(f->frametype == AST_FRAME_VOICE) || 
 				(f->frametype == AST_FRAME_VIDEO)) {
 				/* Forward voice or DTMF frames if they happen upon us */
-				if (who == c0) {
-					ast_write(c1, f);
-				} else if (who == c1) {
-					ast_write(c0, f);
-				}
+				ast_write(other, f);
 			}
 			ast_frfree(f);
 		}
