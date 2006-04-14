@@ -98,13 +98,12 @@ struct ast_timing {
 	unsigned int minmask[24];		/*!< Mask for minute */
 };
 
-int ast_build_timing(struct ast_timing *i, char *info);
-int ast_check_timing(struct ast_timing *i);
+int ast_build_timing(struct ast_timing *i, const char *info);
+int ast_check_timing(const struct ast_timing *i);
 
 struct ast_pbx {
-        int dtimeout;                                   /*!< Timeout between digits (seconds) */
-        int rtimeout;                                   /*!< Timeout for response
-							   (seconds) */
+	int dtimeout;				/*!< Timeout between digits (seconds) */
+	int rtimeout;				/*!< Timeout for response (seconds) */
 };
 
 

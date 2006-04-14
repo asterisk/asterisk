@@ -3809,7 +3809,7 @@ static char *months[] =
 	NULL,
 };
 
-int ast_build_timing(struct ast_timing *i, char *info_in)
+int ast_build_timing(struct ast_timing *i, const char *info_in)
 {
 	char info_save[256];
 	char *info;
@@ -3835,7 +3835,7 @@ int ast_build_timing(struct ast_timing *i, char *info_in)
 	return 1;
 }
 
-int ast_check_timing(struct ast_timing *i)
+int ast_check_timing(const struct ast_timing *i)
 {
 	struct tm tm;
 	time_t t = time(NULL);
