@@ -704,13 +704,11 @@ static struct module * __load_resource(const char *resource_name,
 
 	/* open in a sane way */
 	cur->lib = dlopen(fn, RTLD_NOW | RTLD_LOCAL);
-	if (cur->lib) {
-		if ((m = find_symbol(cur, "mod_data", 0)) == NULL ||
-			(m->flags & MOD_MASK) == MOD_0) {
+	if (cur->lib &&
+		    ((m = find_symbol(cur, "mod_data", 0)) == NULL || (m->flags & MOD_MASK) == MOD_0)) {
 		/* old-style module, close and reload with standard flags */
-			dlclose(cur->lib);
-			cur->lib = NULL;
-		}
+		dlclose(cur->lib);
+		cur->lib = NULL;
 		m = NULL;
 	}
 	if (cur->lib == NULL)	/* try reopen with the old style */
