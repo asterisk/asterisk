@@ -2441,10 +2441,11 @@ int ast_context_remove_include2(struct ast_context *con, const char *include, co
 {
 	struct ast_include *i, *pi = NULL;
 
-	if (ast_mutex_lock(&con->lock)) return -1;
+	if (ast_mutex_lock(&con->lock))
+		return -1;
 
 	/* walk includes */
-	for (i = con->includes; i; i = i->next) {
+	for (i = con->includes; i; pi = i, i = i->next) {
 		/* find our include */
 		if (!strcmp(i->name, include) && 
 			(!registrar || !strcmp(i->registrar, registrar))) {
@@ -2458,7 +2459,6 @@ int ast_context_remove_include2(struct ast_context *con, const char *include, co
 			ast_mutex_unlock(&con->lock);
 			return 0;
 		}
-		pi = i;
 	}
 
 	/* we can't find the right include */
@@ -2509,7 +2509,7 @@ int ast_context_remove_switch2(struct ast_context *con, const char *sw, const ch
 	if (ast_mutex_lock(&con->lock)) return -1;
 
 	/* walk switchs */
-	for (i = con->alts; i; i = i->next) {
+	for (i = con->alts; i; pi = i, i = i->next) {
 		/* find our switch */
 		if (!strcmp(i->name, sw) && !strcmp(i->data, data) && 
 			(!registrar || !strcmp(i->registrar, registrar))) {
@@ -2523,7 +2523,6 @@ int ast_context_remove_switch2(struct ast_context *con, const char *sw, const ch
 			ast_mutex_unlock(&con->lock);
 			return 0;
 		}
-		pi = i;
 	}
 
 	/* we can't find the right switch */
@@ -2731,10 +2730,9 @@ int ast_register_switch(struct ast_switch *sw)
 		ast_log(LOG_ERROR, "Unable to lock switch lock\n");
 		return -1;
 	}
-	for (tmp = switches; tmp; tmp = tmp->next) {
+	for (tmp = switches; tmp; prev = tmp, tmp = tmp->next) {
 		if (!strcasecmp(tmp->name, sw->name))
 			break;
-		prev = tmp;
 	}
 	if (tmp) {	
 		ast_mutex_unlock(&switchlock);
@@ -2757,7 +2755,7 @@ void ast_unregister_switch(struct ast_switch *sw)
 		ast_log(LOG_ERROR, "Unable to lock switch lock\n");
 		return;
 	}
-	for (tmp = switches; tmp; tmp = tmp->next) {
+	for (tmp = switches; tmp; prev = tmp, tmp = tmp->next) {
 		if (tmp == sw) {
 			if (prev)
 				prev->next = tmp->next;
@@ -2766,7 +2764,6 @@ void ast_unregister_switch(struct ast_switch *sw)
 			tmp->next = NULL;
 			break;			
 		}
-		prev = tmp;
 	}
 	ast_mutex_unlock(&switchlock);
 }
@@ -2975,9 +2972,8 @@ static int handle_show_switches(int fd, int argc, char *argv[])
 		ast_log(LOG_ERROR, "Unable to lock switches\n");
 		return -1;
 	}
-	for (sw = switches; sw; sw = sw->next) {
+	for (sw = switches; sw; sw = sw->next)
 		ast_cli(fd, "%s: %s\n", sw->name, sw->description);
-	}
 	ast_mutex_unlock(&switchlock);
 	return RESULT_SUCCESS;
 }
@@ -3292,12 +3288,7 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 	}
 	ast_unlock_contexts();
 
-	if (dpc->total_exten == old_total_exten) {
-		/* Nothing new under the sun */
-		return -1;
-	} else {
-		return res;
-	}
+	return (dpc->total_exten == old_total_exten) ? -1 : res;
 }
 
 static int handle_show_dialplan(int fd, int argc, char *argv[])
@@ -3426,7 +3417,7 @@ int ast_unregister_application(const char *app)
 		ast_log(LOG_ERROR, "Unable to lock application list\n");
 		return -1;
 	}
-	for (tmp = apps; tmp; tmp = tmp->next) {
+	for (tmp = apps; tmp; tmpl = tmp, tmp = tmp->next) {
 		if (!strcasecmp(app, tmp->name)) {
 			if (tmpl)
 				tmpl->next = tmp->next;
@@ -3438,7 +3429,6 @@ int ast_unregister_application(const char *app)
 			ast_mutex_unlock(&applock);
 			return 0;
 		}
-		tmpl = tmp;
 	}
 	ast_mutex_unlock(&applock);
 	return -1;
