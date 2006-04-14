@@ -1063,41 +1063,46 @@ static int osp_show(int fd, int argc, char *argv[])
 	return(RESULT_SUCCESS);
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	osp_load();
 	ast_cli_register(&osp_cli);
-	return(0);
+	return 0;
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	ast_cli_unregister(&osp_cli);
 	osp_unload();
 	osp_load();
 	ast_cli_register(&osp_cli);
-	return(0);
+	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	ast_cli_unregister(&osp_cli);
 	osp_unload();
-	return(0);
+	return 0;
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return("Open Settlement Protocol Support");
+	return "Open Settlement Protocol Support";
 }
 
+#if 0
+/* XXX usecount handling still needs to be fixed.
+ */
 int usecount(void)
 {
 	return(osp_usecount);
 }
+#endif
 
-const char *key()
+static const char *key(void)
 {
-	return(ASTERISK_GPL_KEY);
+	return ASTERISK_GPL_KEY;
 }
 
+STD_MOD(MOD_0, reload, NULL, NULL)
