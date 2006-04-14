@@ -44,7 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Maximum length of any variable */
 #define MAXRESULT	1024
 
-static char *tdesc = "Cut out information from a string";
 
 LOCAL_USER_DECL;
 
@@ -56,13 +55,12 @@ struct sortable_keys {
 static int sort_subroutine(const void *arg1, const void *arg2)
 {
 	const struct sortable_keys *one=arg1, *two=arg2;
-	if (one->value < two->value) {
+	if (one->value < two->value)
 		return -1;
-	} else if (one->value == two->value) {
+	else if (one->value == two->value)
 		return 0;
-	} else {
+	else
 		return 1;
-	}
 }
 
 #define ERROR_NOARG	(-1)
@@ -77,23 +75,20 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 
 	memset(buffer, 0, buflen);
 
-	if (!data) {
+	if (!data)
 		return ERROR_NOARG;
-	}
 
 	if (!(strings = ast_strdupa(data)))
 		return ERROR_NOMEM;
 
 	for (ptrkey = strings; *ptrkey; ptrkey++) {
-		if (*ptrkey == '|') {
+		if (*ptrkey == '|')
 			count++;
-		}
 	}
 
 	sortable_keys = alloca(count * sizeof(struct sortable_keys));
-	if (!sortable_keys) {
+	if (!sortable_keys)
 		return ERROR_NOMEM;
-	}
 
 	memset(sortable_keys, 0, count * sizeof(struct sortable_keys));
 
@@ -105,8 +100,7 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 			count--;
 			continue;
 		}
-		*ptrvalue = '\0';
-		ptrvalue++;
+		*ptrvalue++ = '\0';
 		sortable_keys[count2].key = ptrkey;
 		sscanf(ptrvalue, "%f", &sortable_keys[count2].value);
 		count2++;
@@ -158,10 +152,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 			return ERROR_NOMEM;
 		}
 
-		if (args.delimiter[0])
-			d = args.delimiter[0];
-		else
-			d = '-';
+		d = args.delimiter[0] ? args.delimiter[0] : '-';
 
 		/* String form of the delimiter, for use with strsep(3) */
 		snprintf(ds, sizeof(ds), "%c", d);
@@ -170,7 +161,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 
 		if (tmp2) {
 			int curfieldnum = 1;
-			while ((tmp2 != NULL) && (args.field != NULL)) {
+			while (tmp2 != NULL && args.field != NULL) {
 				char *nextgroup = strsep(&(args.field), "&");
 				int num1 = 0, num2 = MAXRESULT;
 				char trashchar;
@@ -192,31 +183,29 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 
 				/* Get to start, if any */
 				if (num1 > 0) {
-					while ((tmp2 != (char *)NULL + 1) && (curfieldnum < num1)) {
+					while (tmp2 != (char *)NULL + 1 && curfieldnum < num1) {
 						tmp2 = index(tmp2, d) + 1;
 						curfieldnum++;
 					}
 				}
 
 				/* Most frequent problem is the expectation of reordering fields */
-				if ((num1 > 0) && (curfieldnum > num1)) {
+				if ((num1 > 0) && (curfieldnum > num1))
 					ast_log(LOG_WARNING, "We're already past the field you wanted?\n");
-				}
 
 				/* Re-null tmp2 if we added 1 to NULL */
 				if (tmp2 == (char *)NULL + 1)
 					tmp2 = NULL;
 
 				/* Output fields until we either run out of fields or num2 is reached */
-				while ((tmp2 != NULL) && (curfieldnum <= num2)) {
+				while (tmp2 != NULL && curfieldnum <= num2) {
 					char *tmp3 = strsep(&tmp2, ds);
 					int curlen = strlen(buffer);
 
-					if (curlen) {
+					if (curlen)
 						snprintf(buffer + curlen, buflen - curlen, "%c%s", d, tmp3);
-					} else {
+					else
 						snprintf(buffer, buflen, "%s", tmp3);
-					}
 
 					curfieldnum++;
 				}
@@ -327,7 +316,7 @@ static int load_module(void *mod)
 
 static const char *description(void)
 {
-	return tdesc;
+	return "Cut out information from a string";
 }
 
 static const char *key(void)
