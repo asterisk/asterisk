@@ -709,11 +709,7 @@ static int usecount(void)
 	return 0;
 }
 
-<<<<<<< .mine
 static const char *key(void)
-=======
-const char *key(void)
->>>>>>> .r19220
 {
 	return ASTERISK_GPL_KEY;
 }
