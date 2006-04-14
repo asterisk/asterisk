@@ -176,16 +176,14 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 		/* If Option 'e' was specified, also read the extension number with the name */
 		if (readext) {
 			res = ast_streamfile(chan, "vm-extension", chan->language);
-			if (!res) {
+			if (!res)
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
-			}
 			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
 		}
 	} else if (ast_fileexists(fn2, NULL, chan->language) > 0) {
 		res = ast_streamfile(chan, fn2, chan->language);
-		if (!res) {
+		if (!res)
 			res = ast_waitstream(chan, AST_DIGIT_ANY);
-		}
 		ast_stopstream(chan);
 		/* If Option 'e' was specified, also read the extension number with the name */
 		if (readext) {
@@ -200,23 +198,19 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 					AST_DIGIT_ANY, chan->language);
 		if (!ast_strlen_zero(name) && readext) {
 			res = ast_streamfile(chan, "vm-extension", chan->language);
-			if (!res) {
+			if (!res)
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
-			}
 			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
 		}
 	}
 
 	while (loop) {
-		if (!res) {
+		if (!res)
 			res = ast_streamfile(chan, "dir-instr", chan->language);
-		}
-		if (!res) {
+		if (!res)
 			res = ast_waitstream(chan, AST_DIGIT_ANY);
-		}
-		if (!res) {
+		if (!res)
 			res = ast_waitfordigit(chan, 3000);
-		}
 		ast_stopstream(chan);
 	
 		if (res > -1) {
@@ -294,8 +288,8 @@ static struct ast_config *realtime_directory(char *context)
 		ast_category_append(cfg, cat);
 	}
 
-	mailbox = ast_category_browse(rtdata, NULL);
-	while (mailbox) {
+	mailbox = NULL;
+	while ( (mailbox = ast_category_browse(rtdata, mailbox)) ) {
 		fullname = ast_variable_retrieve(rtdata, mailbox, "fullname");
 		hidefromdir = ast_variable_retrieve(rtdata, mailbox, "hidefromdir");
 		snprintf(tmp, sizeof(tmp), "no-password,%s,hidefromdir=%s",
@@ -306,7 +300,6 @@ static struct ast_config *realtime_directory(char *context)
 			ast_variable_append(cat, var);
 		else
 			ast_log(LOG_WARNING, "Out of memory adding mailbox '%s'\n", mailbox);
-		mailbox = ast_category_browse(rtdata, mailbox);
 	}
 	ast_config_destroy(rtdata);
 
@@ -420,10 +413,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 		}
 
 		if (lastuserchoice != '1') {
-			if (found) 
-				res = ast_streamfile(chan, "dir-nomore", chan->language);
-			else
-				res = ast_streamfile(chan, "dir-nomatch", chan->language);
+			res = ast_streamfile(chan, found ? "dir-nomore" : "dir-nomatch", chan->language);
 			if (!res)
 				res = 1;
 			return res;
@@ -481,12 +471,8 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	dirintro = ast_variable_retrieve(cfg, args.vmcontext, "directoryintro");
 	if (ast_strlen_zero(dirintro))
 		dirintro = ast_variable_retrieve(cfg, "general", "directoryintro");
-	if (ast_strlen_zero(dirintro)) {
-		if (last)
-			dirintro = "dir-intro";	
-		else
-			dirintro = "dir-intro-fn";
-	}
+	if (ast_strlen_zero(dirintro))
+		dirintro = last ? "dir-intro" : "dir-intro-fn";
 
 	if (chan->_state != AST_STATE_UP) 
 		res = ast_answer(chan);
@@ -504,9 +490,8 @@ static int directory_exec(struct ast_channel *chan, void *data)
 			if (res > 0) {
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
 				ast_stopstream(chan);
-				if (res >= 0) {
+				if (res >= 0)
 					continue;
-				}
 			}
 		}
 		break;
