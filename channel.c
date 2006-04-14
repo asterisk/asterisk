@@ -1735,7 +1735,7 @@ struct ast_channel *ast_waitfor_n(struct ast_channel **c, int n, int *ms)
 
 int ast_waitfor(struct ast_channel *c, int ms)
 {
-	int oldms = ms;
+	int oldms = ms;	/* -1 if no timeout */
 
 	ast_waitfor_nandfds(&c, 1, NULL, 0, NULL, NULL, &ms);
 	if ((ms < 0) && (oldms < 0))
@@ -1743,6 +1743,7 @@ int ast_waitfor(struct ast_channel *c, int ms)
 	return ms;
 }
 
+/* XXX never to be called with ms = -1 */
 int ast_waitfordigit(struct ast_channel *c, int ms)
 {
 	/* XXX Should I be merged with waitfordigit_full XXX */
@@ -1889,9 +1890,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	
 	/* Read and ignore anything on the alertpipe, but read only
 	   one sizeof(blah) per frame that we send from it */
-	if (chan->alertpipe[0] > -1) {
+	if (chan->alertpipe[0] > -1)
 		read(chan->alertpipe[0], &blah, sizeof(blah));
-	}
 #ifdef ZAPTEL_OPTIMIZATIONS
 	if (chan->timingfd > -1 && chan->fdno == AST_TIMING_FD && ast_test_flag(chan, AST_FLAG_EXCEPTION)) {
 		ast_clear_flag(chan, AST_FLAG_EXCEPTION);
@@ -1902,14 +1902,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			blah = ZT_EVENT_TIMER_EXPIRED;
 
 		if (blah == ZT_EVENT_TIMER_PING) {
-#if 0
-			ast_log(LOG_NOTICE, "Oooh, there's a PING!\n");
-#endif			
 			if (!chan->readq || !chan->readq->next) {
 				/* Acknowledge PONG unless we need it again */
-#if 0
-				ast_log(LOG_NOTICE, "Sending a PONG!\n");
-#endif				
 				if (ioctl(chan->timingfd, ZT_TIMERPONG, &blah)) {
 					ast_log(LOG_WARNING, "Failed to pong timer on '%s': %s\n", chan->name, strerror(errno));
 				}
@@ -1952,7 +1946,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		chan->readq = f->next;
 		f->next = NULL;
 		/* Interpret hangup and return NULL */
-		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
+		if (f->frametype == AST_FRAME_CONTROL && f->subclass == AST_CONTROL_HANGUP) {
 			ast_frfree(f);
 			f = NULL;
 		}
@@ -2734,7 +2728,7 @@ int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int fti
 		return -1;
 	if (!len)
 		return -1;
-	do {
+	for (;;) {
 		if (c->stream) {
 			d = ast_waitstream(c, AST_DIGIT_ANY);
 			ast_stopstream(c);
@@ -2757,7 +2751,7 @@ int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int fti
 			return 0;
 		}
 		to = timeout;
-	} while(1);
+	}
 	/* Never reached */
 	return 0;
 }
@@ -2773,7 +2767,7 @@ int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, in
 		return -1;
 	if (!len)
 		return -1;
-	do {
+	for (;;) {
 		if (c->stream) {
 			d = ast_waitstream_full(c, AST_DIGIT_ANY, audiofd, ctrlfd);
 			ast_stopstream(c);
@@ -2800,16 +2794,14 @@ int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, in
 			return 0;
 		}
 		to = timeout;
-	} while(1);
+	}
 	/* Never reached */
 	return 0;
 }
 
 int ast_channel_supports_html(struct ast_channel *chan)
 {
-	if (chan->tech->send_html)
-		return 1;
-	return 0;
+	return (chan->tech->send_html) ? 1 : 0;
 }
 
 int ast_channel_sendhtml(struct ast_channel *chan, int subclass, const char *data, int datalen)
@@ -2821,9 +2813,7 @@ int ast_channel_sendhtml(struct ast_channel *chan, int subclass, const char *dat
 
 int ast_channel_sendurl(struct ast_channel *chan, const char *url)
 {
-	if (chan->tech->send_html)
-		return chan->tech->send_html(chan, AST_HTML_URL, url, strlen(url) + 1);
-	return -1;
+	return ast_channel_sendhtml(chan, AST_HTML_URL, url, strlen(url) + 1);
 }
 
 int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *peer)
@@ -2878,7 +2868,6 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 
 int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clone)
 {
-	struct ast_frame null = { AST_FRAME_NULL, };
 	int res = -1;
 
 	if (original == clone) {
@@ -2902,8 +2891,8 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 	} else {
 		original->masq = clone;
 		clone->masqr = original;
-		ast_queue_frame(original, &null);
-		ast_queue_frame(clone, &null);
+		ast_queue_frame(original, &ast_null_frame);
+		ast_queue_frame(clone, &ast_null_frame);
 		ast_log(LOG_DEBUG, "Done planning to masquerade channel %s into the structure of %s\n", clone->name, original->name);
 		res = 0;
 	}
@@ -3338,12 +3327,12 @@ static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, 
 		ast_streamfile(chan, "vm-youhave", chan->language);
 		ast_waitstream(chan, "");
 		if (min) {
-			ast_say_number(chan, min, AST_DIGIT_ANY, chan->language, (char *) NULL);
+			ast_say_number(chan, min, AST_DIGIT_ANY, chan->language, NULL);
 			ast_streamfile(chan, "queue-minutes", chan->language);
 			ast_waitstream(chan, "");
 		}
 		if (sec) {
-			ast_say_number(chan, sec, AST_DIGIT_ANY, chan->language, (char *) NULL);
+			ast_say_number(chan, sec, AST_DIGIT_ANY, chan->language, NULL);
 			ast_streamfile(chan, "queue-seconds", chan->language);
 			ast_waitstream(chan, "");
 		}
@@ -3742,9 +3731,8 @@ static void tonepair_release(struct ast_channel *chan, void *params)
 {
 	struct tonepair_state *ts = params;
 
-	if (chan) {
+	if (chan)
 		ast_set_write_format(chan, ts->origwfmt);
-	}
 	free(ts);
 }
 
