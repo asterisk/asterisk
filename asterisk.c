@@ -548,11 +548,9 @@ static char *complete_show_version_files(const char *line, const char *word, int
 
 	AST_LIST_LOCK(&file_versions);
 	AST_LIST_TRAVERSE(&file_versions, find, list) {
-		if (!strncasecmp(word, find->file, matchlen)) {
-			if (++which > state) {
-				ret = strdup(find->file);
-				break;
-			}
+		if (!strncasecmp(word, find->file, matchlen) && ++which > state) {
+			ret = ast_strdup(find->file);
+			break;
 		}
 	}
 	AST_LIST_UNLOCK(&file_versions);
