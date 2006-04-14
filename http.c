@@ -632,7 +632,7 @@ static int handle_show_http(int fd, int argc, char *argv[])
 {
 	char iabuf[INET_ADDRSTRLEN];
 	struct ast_http_uri *urih;
-	if (argc != 2)
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, "HTTP Server Status:\n");
 	ast_cli(fd, "Prefix: %s\n", prefix);
