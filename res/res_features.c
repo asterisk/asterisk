@@ -142,8 +142,6 @@ AST_MUTEX_DEFINE_STATIC(parking_lock);
 
 static pthread_t parking_thread;
 
-LOCAL_USER_DECL;
-
 char *ast_parking_ext(void)
 {
 	return parking_ext;
@@ -2201,14 +2199,16 @@ static int load_config(void)
 	return ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, NULL, parkcall, strdup(""), FREE, registrar);
 }
 
-int reload(void) {
+static int reload(void *mod)
+{
 	return load_config();
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 	
+	__mod_desc = mod;
 	AST_LIST_HEAD_INIT(&feature_list);
 	memset(parking_ext, 0, sizeof(parking_ext));
 	memset(parking_con, 0, sizeof(parking_con));
@@ -2230,7 +2230,7 @@ int load_module(void)
 }
 
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 
@@ -2242,25 +2242,14 @@ int unload_module(void)
 	return ast_unregister_application(parkedcall);
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Call Features Resource";
 }
 
-int usecount(void)
-{
-	/* Never allow parking to be unloaded because it will
-	   unresolve needed symbols in the dialer */
-#if 0
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-#else
-	return 1;
-#endif
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_0 | NO_UNLOAD, reload, NULL, NULL);

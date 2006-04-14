@@ -41,7 +41,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/options.h"
 #include "asterisk/speech.h"
 
-static char *tdesc = "Generic Speech Recognition API";
 
 static AST_LIST_HEAD_STATIC(engines, ast_speech_engine);
 static struct ast_speech_engine *default_engine = NULL;
@@ -337,13 +336,13 @@ int ast_speech_unregister(char *engine_name)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	/* We can not be unloaded */
 	return -1;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res = 0;
 
@@ -353,24 +352,14 @@ int load_module(void)
 	return res;
 }
 
-int reload(void)
+static const char *description(void)
 {
-	return 0;
+	return "Generic Speech Recognition API";
 }
 
-const char *description(void)
-{
-	return tdesc;
-}
-
-int usecount(void)
-{
-	int res = 0;
-
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_0 | NO_USECOUNT | NO_UNLOAD, NULL, NULL, NULL);

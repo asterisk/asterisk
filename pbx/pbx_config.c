@@ -30,8 +30,6 @@
 #include <ctype.h>
 #include <errno.h>
 
-#define STATIC_MODULE
-
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -53,7 +51,6 @@ static void FREE(void *ptr)
 #define FREE free
 #endif
 
-static char *dtext = "Text Extension Configuration";
 static char *config = "extensions.conf";
 static char *registrar = "pbx_config";
 
@@ -1326,7 +1323,7 @@ static struct ast_cli_entry reload_extensions_cli =
 /*!
  * Standard module functions ...
  */
-STATIC_MODULE int unload_module(void)
+static int unload_module(void *mod)
 {
 	ast_cli_unregister(&context_add_extension_cli);
 	if (static_config && !write_protect_config)
@@ -1515,7 +1512,7 @@ static int pbx_load_module(void)
 	return 0;
 }
 
-STATIC_MODULE int load_module(void)
+static int load_module(void *mod)
 {
 	if (pbx_load_module())
 		return -1;
@@ -1533,7 +1530,7 @@ STATIC_MODULE int load_module(void)
 	return 0;
 }
 
-STATIC_MODULE int reload(void)
+static int reload(void *mod)
 {
 	if (clearglobalvars_config)
 		pbx_builtin_clear_globals();
@@ -1541,19 +1538,15 @@ STATIC_MODULE int reload(void)
 	return 0;
 }
 
-STATIC_MODULE int usecount(void)
+static const char *description(void)
 {
-	return 0;
+	return "Text Extension Configuration";
 }
 
-STATIC_MODULE const char *description(void)
-{
-	return dtext;
-}
-
-STATIC_MODULE const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
-STD_MOD(MOD_1, reload, NULL, NULL);
+/* XXX really no usecount ? */
+STD_MOD(MOD_1 | NO_USECOUNT, reload, NULL, NULL);

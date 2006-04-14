@@ -58,8 +58,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define FESTIVAL_CONFIG "festival.conf"
 
-static char *tdesc = "Simple Festival Interface";
-
 static char *app = "Festival";
 
 static char *synopsis = "Say text to the user";
@@ -501,7 +499,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -512,25 +510,20 @@ int unload_module(void)
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
-	
 	return ast_register_application(app, festival_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "Simple Festival Interface";
+
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

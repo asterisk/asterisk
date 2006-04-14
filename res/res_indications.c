@@ -50,7 +50,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 
 /* Globals */
-static const char dtext[] = "Indications Configuration";
 static const char config[] = "indications.conf";
 
 /*
@@ -364,7 +363,7 @@ static struct ast_cli_entry show_indications_cli =
 /*
  * Standard module functions ...
  */
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	/* remove the registed indications... */
 	ast_unregister_indication_country(NULL);
@@ -379,9 +378,10 @@ int unload_module(void)
 }
 
 
-int load_module(void)
+static int load_module(void *mod)
 {
-	if (ind_load_module()) return -1;
+	if (ind_load_module())
+		return -1;
  
 	ast_cli_register(&add_indication_cli);
 	ast_cli_register(&remove_indication_cli);
@@ -392,7 +392,7 @@ int load_module(void)
 	return 0;
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	/* remove the registed indications... */
 	ast_unregister_indication_country(NULL);
@@ -400,18 +400,14 @@ int reload(void)
 	return ind_load_module();
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	/* that the following cast is needed, is yuk! */
-	return (char*)dtext;
+	return "Indications Configuration";
 }
 
-int usecount(void)
-{
-	return 0;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_0 | NO_USECOUNT, reload, NULL, NULL);

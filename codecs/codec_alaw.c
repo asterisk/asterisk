@@ -109,8 +109,6 @@ static struct ast_frame *lintoalaw_sample(void)
 	return &f;
 }
 
-static struct ast_module_lock me = { .usecnt = -1 };
-
 static struct ast_translator alawtolin = {
 	.name = "alawtolin",
 	.srcfmt = AST_FORMAT_ALAW,
@@ -120,7 +118,6 @@ static struct ast_translator alawtolin = {
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
 	.plc_samples = 160,
-	.lockp = &me,
 };
 
 static struct ast_translator lintoalaw = {
@@ -131,7 +128,6 @@ static struct ast_translator lintoalaw = {
 	.sample = lintoalaw_sample,
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES,
-	.lockp = &me,
 };
 
 static void parse_config(void)
@@ -152,47 +148,40 @@ static void parse_config(void)
 
 /*! \brief standard module stuff */
 
-int reload(void)
+static int reload(void *mod)
 {
 	parse_config();
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
-	ast_mutex_lock(&me.lock);
 	res = ast_unregister_translator(&lintoalaw);
 	res |= ast_unregister_translator(&alawtolin);
-	if (me.usecnt)
-		res = -1;
-	ast_mutex_unlock(&me.lock);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 	parse_config();
-	res = ast_register_translator(&alawtolin);
+	res = ast_register_translator(&alawtolin, mod);
 	if (!res)
-		res = ast_register_translator(&lintoalaw);
+		res = ast_register_translator(&lintoalaw, mod);
 	else
 		ast_unregister_translator(&alawtolin);
 	return res;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "A-law Coder/Decoder";
 }
 
-int usecount(void)
-{
-	return me.usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, reload, NULL, NULL);

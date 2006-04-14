@@ -106,7 +106,6 @@ static void odbc_init(void)
 	}
 }
 
-static char *tdesc = "ODBC Resource";
 /* internal stuff */
 
 SQLHSTMT odbc_prepare_and_execute(odbc_obj *obj, SQLHSTMT (*prepare_cb)(odbc_obj *obj, void *data), void *data)
@@ -578,7 +577,7 @@ odbc_status odbc_obj_connect(odbc_obj *obj)
 
 LOCAL_USER_DECL;
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 	odbc_destroy();
@@ -589,7 +588,7 @@ int unload_module(void)
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	odbc_init();
 	load_odbc_config();
@@ -600,19 +599,14 @@ int load_module(void)
 	return 0;
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "ODBC Resource";
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_0, NULL, NULL, NULL);

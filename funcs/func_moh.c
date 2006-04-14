@@ -74,27 +74,24 @@ static struct ast_custom_function moh_function = {
 
 static char *tdesc = "Music-on-hold dialplan function";
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	return ast_custom_function_unregister(&moh_function);
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_custom_function_register(&moh_function);
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return tdesc;
 }
 
-int usecount(void)
-{
-	return 0;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);

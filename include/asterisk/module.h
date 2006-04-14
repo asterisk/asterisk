@@ -26,7 +26,11 @@
 #ifndef _ASTERISK_MODULE_H
 #define _ASTERISK_MODULE_H
 
-#include "asterisk/linkedlists.h"	/* XXX needed here */
+#ifdef STATIC_MODULE
+#error STATIC_MODULE should not be defined
+#endif
+#define STATIC_MODULE --- this is an error
+#define	LOCAL_USER_DECL	/* --- this is an error --- */
 
 #include "asterisk/utils.h"
 
@@ -34,83 +38,6 @@
 extern "C" {
 #endif
 
-#ifdef STATIC_MODULE	/* symbols are static */
-#define _HAVE_STATIC_MODULE
-#undef STATIC_MODULE
-#define STATIC_MODULE	static /* symbols are static */
-#else	/* !STATIC_MODULE, symbols are global */
-#define STATIC_MODULE	/* empty - symbols are global */
-
-/*! \note Every module should provide these functions */
-/*! 
- * \brief Initialize the module.
- * 
- * This function is called at module load time.  Put all code in here
- * that needs to set up your module's hardware, software, registrations,
- * etc.
- *
- * \return This function should return 0 on success and non-zero on failure.
- * If the module is not loaded successfully, Asterisk will call its
- * unload_module() function.
- */
-int load_module(void);
-
-/*! 
- * \brief Cleanup all module structures, sockets, etc.
- *
- * This is called at exit.  Any registrations and memory allocations need to be
- * unregistered and free'd here.  Nothing else will do these for you (until
- * exit).
- *
- * \return Zero on success, or non-zero on error.
- */
-int unload_module(void);
-
-/*! 
- * \brief Provides a usecount.
- *
- * This function will be called by various parts of asterisk.  Basically, all
- * it has to do is to return a usecount when called.  You will need to maintain
- * your usecount within the module somewhere.  The usecount should be how many
- * channels provided by this module are in use.
- *
- * \return The module's usecount.
- */
-int usecount(void);		/* How many channels provided by this module are in use? */
-
-/*! \brief Provides a description of the module.
- *
- * \return a short description of your module
- */
-const char *description(void);		/* Description of this module */
-
-/*! 
- * \brief Returns the ASTERISK_GPL_KEY
- *
- * This returns the ASTERISK_GPL_KEY, signifiying that you agree to the terms of
- * the GPL stated in the ASTERISK_GPL_KEY.  Your module will not load if it does
- * not return the EXACT message:
- *
- * \code
- * char *key(void) {
- *         return ASTERISK_GPL_KEY;
- * }
- * \endcode
- *
- * \return ASTERISK_GPL_KEY
- */
-const char *key(void);		/* Return the below mentioned key, unmodified */
-
-/*! 
- * \brief Reload stuff.
- *
- * This function is where any reload routines take place.  Re-read config files,
- * change signalling, whatever is appropriate on a reload.
- *
- * \return The return value is not used.
- */
-int reload(void);		/* reload configs */
-#endif	/* !STATIC_MODULE case */
 
 /*! \brief The text the key() function should return. */
 #define ASTERISK_GPL_KEY \
@@ -128,32 +55,12 @@ express written permission of Digium, Inc. is prohibited.\n"
 
 #define AST_MODULE_CONFIG "modules.conf" /*!< \brief Module configuration file */
 
-/*! 
- * \brief Softly unload a module.
- *
- * This flag signals ast_unload_resource() to unload a module only if it is not
- * in use, according to the module's usecount.
- */
-#define AST_FORCE_SOFT 0
-
-/*! 
- * \brief Firmly unload a module.
- *
- * This flag signals ast_unload_resource() to attempt to unload a module even
- * if it is in use.  It will attempt to use the module's unload_module
- * function.
- */
-#define AST_FORCE_FIRM 1
-
-/*! 
- * \brief Unconditionally unload a module.
- *
- * This flag signals ast_unload_resource() to first attempt to unload a module
- * using the module's unload_module function, then if that fails to unload the
- * module using dlclose.  The module will be unloaded even if it is still in
- * use.  Use of this flag is not recommended.
- */
-#define AST_FORCE_HARD 2
+enum unload_mode {
+	AST_FORCE_SOFT = 0, /*! Softly unload a module, only if not in use */
+	AST_FORCE_FIRM = 1, /*! Firmly unload a module, even if in use */
+	AST_FORCE_HARD = 2, /*! as FIRM, plus dlclose() on the module. Not recommended
+				as it may cause crashes */
+};
 
 /*! 
  * \brief Load a module.
@@ -180,7 +87,7 @@ int ast_load_resource(const char *resource_name);
  *
  * \return Zero on success, -1 on error.
  */
-int ast_unload_resource(const char *resource_name, int force);
+int ast_unload_resource(const char *resource_name, enum unload_mode);
 
 /*! 
  * \brief Notify when usecount has been changed.
@@ -227,22 +134,6 @@ int ast_loader_register(int (*updater)(void));
 int ast_loader_unregister(int (*updater)(void));
 
 /*! 
- * \brief Reload asterisk modules.
- * \param name the name of the module to reload
- *
- * This function reloads the specified module, or if no modules are specified,
- * it will reload all loaded modules.
- *
- * \note Modules are reloaded using their reload() functions, not unloading
- * them and loading them again.
- *
- * \return Zero if the specified module was not found, 1 if the module was
- * found but cannot be reloaded, -1 if a reload operation is already in
- * progress, and 2 if the specfied module was found and reloaded.
- */
-int ast_module_reload(const char *name);
-
-/*! 
  * \brief Match modules names for the Asterisk cli.
  * \param line Unused by this function, but this should be the line we are
  *        matching.
@@ -265,114 +156,19 @@ char *ast_module_helper(const char *line, const char *word, int pos, int state, 
    they're in use at the time they have been requested to be removed */
 
 struct localuser {
+	struct localuser *next;
 	struct ast_channel *chan;
-	AST_LIST_ENTRY(localuser) next;
 };
 
-/*! \brief structure used for lock and refcount of module users.
- * \note The mutex protects the usecnt field and whatever needs to be
- * protected (typically, a list of struct localuser).
- * As a trick, if usecnt is initialized with -1,
- * ast_format_register will init the mutex for you.
- */
-struct ast_module_lock {
-	ast_mutex_t lock;
-	AST_LIST_HEAD_NOLOCK(localuser_head, localuser) u;
-	int usecnt;	/* number of active clients */
-};
+struct module_symbols;	/* forward declaration */
+struct localuser *ast_localuser_add(struct module_symbols *, struct ast_channel *);
+void ast_localuser_remove(struct module_symbols *, struct localuser *);
+void ast_hangup_localusers(struct module_symbols *);
 
-struct localuser *ast_localuser_add(struct ast_module_lock *m, struct ast_channel *chan);
-void ast_localuser_remove(struct ast_module_lock *m, struct localuser *u);
-void ast_hangup_localusers(struct ast_module_lock *m);
-
-/*! 
- * \brief create a localuser mutex and several other variables used for keeping the
- * use count.
- *
- * <b>Sample Usage:</b>
- * \code
- * LOCAL_USER_DECL;
- * \endcode
- */
-#define LOCAL_USER_DECL					\
-	static struct ast_module_lock me = {		\
-		.u = AST_LIST_HEAD_NOLOCK_INIT_VALUE,	\
-		.usecnt = 0,				\
-		.lock = AST_MUTEX_INIT_VALUE }
-
-#define STANDARD_USECOUNT_DECL LOCAL_USER_DECL	/* XXX lock remains unused */
-
-/*! \brief run 'x' protected by lock, then call ast_update_use_count() */
-#define __MOD_PROTECT(x) do {			\
-	ast_mutex_lock(&me.lock);		\
-	x;					\
-	ast_mutex_unlock(&me.lock);		\
-	ast_update_use_count();			\
-	} while (0)
-
-#define STANDARD_INCREMENT_USECOUNT __MOD_PROTECT(me.usecnt++)
-#define STANDARD_DECREMENT_USECOUNT __MOD_PROTECT(me.usecnt--)
-
-/*! 
- * \brief Add a localuser.
- * \param u a pointer to a localuser struct
- *
- * This macro adds a localuser to the list of users and increments the
- * usecount.  It expects a variable named \p chan of type \p ast_channel in the
- * current scope.
- *
- * \note This function dynamically allocates memory.  If this operation fails
- * it will cause your function to return -1 to the caller.
- */
-#define LOCAL_USER_ADD(u) do {			\
-	u = ast_localuser_add(&me, chan);	\
-	if (!u)					\
-		return -1;			\
-	} while (0)
-
-/*! 
- * \brief Remove a localuser.
- * \param u the user to add, should be of type struct localuser
- *
- * This macro removes a localuser from the list of users and decrements the
- * usecount.
- */
-#define LOCAL_USER_REMOVE(u) ast_localuser_remove(&me, u)
-
-/*! 
- * \brief Hangup all localusers.
- *
- * This macro hangs up on all current localusers and sets the usecount to zero
- * when finished.
- */
-#define STANDARD_HANGUP_LOCALUSERS ast_hangup_localusers(&me)
-
-/*!
- * \brief Set the specfied integer to the current usecount.
- * \param res the integer variable to set.
- *
- * This macro sets the specfied integer variable to the local usecount.
- *
- * <b>Sample Usage:</b>
- * \code
- * int usecount(void)
- * {
- *    int res;
- *    STANDARD_USECOUNT(res);
- *    return res;
- * }
- * \endcode
- */
-#define STANDARD_USECOUNT(res) do { res = me.usecnt; } while (0)
-
-/*! \brief Old usecount macro
- * \note XXX The following macro is deprecated, and only used by modules
- * in codecs/ and a few other places which do their own manipulation
- * of the usecount variable.
- * Its use is supposed to be gradually phased away as those modules
- * are updated to use the standard mechanism.
- */
-#define OLD_STANDARD_USECOUNT(res) do { res = localusecnt; } while (0)
+/* XXX deprecated macros, only for backward compatibility */
+#define	LOCAL_USER_ADD(u) do { u = ast_localuser_add(__mod_desc, chan); } while (0)
+#define	LOCAL_USER_REMOVE(u) ast_localuser_remove(__mod_desc, u)
+#define	STANDARD_HANGUP_LOCALUSERS ast_hangup_localusers(__mod_desc)
 
 /*! \page ModMngmnt The Asterisk Module management interface
  * \par The following is part of the new module management code.
@@ -388,7 +184,7 @@ void ast_hangup_localusers(struct ast_module_lock *m);
  *
  * Functions should be added with MOD_FUNC(name),
  * data structures with MOD_DATA(_name).
- * The array in turn is referenced by struct module_symbol.
+ * The array in turn is referenced by struct module_symbols.
  * (Typically, a module will export only a single symbol, which points
  * to a record containing all the methods. This is the API of the module,
  * and should be known to the module's clients as well.
@@ -403,7 +199,7 @@ void ast_hangup_localusers(struct ast_module_lock *m);
  * to figure out if there is a mismatch (not terribly useful because most
  * objects are a single word, but still... )
  * The symbol can be added to the array with MOD_WANT(symbol) macro.
- * required_symbols is also pointed by through struct module_symbol.
+ * required_symbols is also pointed by through struct module_symbols.
  *
  * Typically, the whole interface exported by a module should be
  * in a single structure named after the module, as follows.
@@ -501,25 +297,50 @@ struct ast_registry {
 };
 
 struct module_symbols {
-	int (*load_module)(void);
-	int (*unload_module)(void);
-	int (*usecount)(void);   
-	const char *(*description)(void);
-	const char *(*key)(void);
-	int (*reload)(void);
-	enum module_type {
-		MOD_0,	/* old module style */
-		MOD_1,	/* old style, but symbols here */
-		MOD_2,	/* new style, exported symbols */
-	} type;
-	struct ast_registry *reg;
+	/* load, reload and unload receive as argument a pointer to a module descriptor
+	 * to be stored locally and used for local calls and so on.
+	 * They all return 0 on success, non zero (-1) on failure.
+	 */
+
+	int (*load_module)(void *);	/* register stuff etc. Optional. */
+
+	int (*reload)(void *);	/* reload config etc. Optional. */
+
+	int (*unload_module)(void *);	/* unload. called with the module locked */
+
+	const char *(*description)(void);	/* textual id of the module. */
+
+	/*! 
+	 * This returns the ASTERISK_GPL_KEY, signifiying that you agree to the terms of
+	 * the GPL stated in the ASTERISK_GPL_KEY.  Your module will not load if it does
+	 * not return the EXACT message:
+	 */
+	const char *(*key)(void);	/*! the asterisk key */
+
+	enum module_flags {
+		MOD_0 = 0x0,	/* old module style */
+		MOD_1 = 0x1,	/* old style, but symbols here */
+		MOD_2 = 0x2,	/* new style, exported symbols */
+		MOD_MASK = 0xf,	/* mask for module types */
+		NO_USECOUNT = 0x10,	/* do not track usecount */
+		NO_UNLOAD = 0x20,	/* only forced unload allowed */
+		DO_LOCALUSERS = 0x40,	/* track localusers */
+	} flags;
+	/* the following two fields should go in the astobj. */
+	ast_mutex_t lock;		
+	int usecnt;	/* number of active clients */
+
+	/* list of clients */
+	struct localuser *lu_head;
+	struct ast_registry *reg;		/* list of things to register. */
 	struct symbol_entry *exported_symbols;
 	struct symbol_entry *required_symbols;
 };
 
-#ifndef _HAVE_STATIC_MODULE
-#define STD_MOD(t, reload_fn, exp, req)
-#else
+#ifndef MOD_LOADER	/* the loader does not use these */
+struct module_symbols mod_data;	/* forward declaration */
+static struct module_symbols *__mod_desc __attribute__ ((__unused__)) = &mod_data; /* used by localuser */
+
 #define STD_MOD(t, reload_fn, exp, req)			\
 struct module_symbols mod_data = {			\
         .load_module = load_module,			\
@@ -527,12 +348,13 @@ struct module_symbols mod_data = {			\
         .description = description,			\
         .key = key,					\
         .reload = reload_fn,				\
-        .usecount = usecount,				\
-	.type = t,					\
+	.flags = t,					\
 	.exported_symbols = exp,			\
 	.required_symbols = req				\
 };
-#endif /* _HAVE_STATIC_MODULE */
+
+#define	STD_MOD1	STD_MOD(MOD_1, NULL, NULL, NULL)
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

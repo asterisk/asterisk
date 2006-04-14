@@ -148,14 +148,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief Signaling types that need to use MF detection should be placed in this macro */
 #define NEED_MFDETECT(p) (((p)->sig == SIG_FEATDMF) || ((p)->sig == SIG_FEATDMF_TA) || ((p)->sig == SIG_E911) || ((p)->sig == SIG_FGC_CAMA) || ((p)->sig == SIG_FGC_CAMAMF) || ((p)->sig == SIG_FEATB)) 
 
-static const char desc[] = "Zapata Telephony"
-#ifdef ZAPATA_PRI
-               " w/PRI"
-#endif
-#ifdef ZAPATA_R2
-               " w/R2"
-#endif
-;
 
 static const char tdesc[] = "Zapata Telephony Driver"
 #ifdef ZAPATA_PRI
@@ -10367,7 +10359,7 @@ static int __unload_module(void)
 	return 0;
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 #ifdef ZAPATA_PRI		
 	int y;
@@ -11225,7 +11217,7 @@ static int setup_zap(int reload)
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 
@@ -11374,7 +11366,7 @@ static int zt_sendtext(struct ast_channel *c, const char *text)
 }
 
 
-int reload(void)
+static int reload(void *mod)
 {
 	int res = 0;
 
@@ -11386,18 +11378,20 @@ int reload(void)
 	return 0;
 }
 
-int usecount()
+static const char *description(void)
 {
-	return usecnt;
+	return "Zapata Telephony"
+#ifdef ZAPATA_PRI
+               " w/PRI"
+#endif
+#ifdef ZAPATA_R2
+               " w/R2"
+#endif
+	;
 }
 
-const char *description()
-{
-	return (char *) desc;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
-
+STD_MOD(MOD_1, reload, NULL, NULL);

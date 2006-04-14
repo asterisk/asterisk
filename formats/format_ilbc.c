@@ -132,8 +132,6 @@ static off_t ilbc_tell(struct ast_filestream *fs)
 	return (offset/ILBC_BUF_SIZE)*ILBC_SAMPLES;
 }
 
-static struct ast_format_lock me = { .usecnt = -1 };
-
 static const struct ast_format ilbc_f = {
 	.name = "iLBC",
 	.exts = "ilbc",
@@ -144,31 +142,27 @@ static const struct ast_format ilbc_f = {
 	.tell = ilbc_tell,
 	.read = ilbc_read,
 	.buf_size = ILBC_BUF_SIZE + AST_FRIENDLY_OFFSET,
-	.lockp = &me,
+	.module = &mod_data, /* XXX */
 };
 
-int load_module()
+static int load_module(void *mod)
 {
 	return ast_format_register(&ilbc_f);
 }
 
-
-int unload_module()
+static int unload_module(void *mod)
 {
 	return ast_format_unregister(ilbc_f.name);
 }	
 
-int usecount()
-{
-	return me.usecnt;
-}
-
-const char *description()
+static const char *description(void)
 {
 	return "Raw iLBC data";
 }
 
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

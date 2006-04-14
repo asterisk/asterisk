@@ -46,8 +46,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/app.h"
 
-static const char *tdesc = "Send Text Applications";
-
 static const char *app = "SendText";
 
 static const char *synopsis = "Send a Text Message";
@@ -118,7 +116,7 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 	
@@ -129,26 +127,19 @@ int unload_module(void)
 	return res;	
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_register_application(app, sendtext_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return (char *) tdesc;
+	return "Send Text Applications";
 }
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

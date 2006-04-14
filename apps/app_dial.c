@@ -35,7 +35,6 @@
 #include <sys/signal.h>
 #include <netinet/in.h>
 
-#define STATIC_MODULE
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -1729,7 +1728,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 
 }
 
-STATIC_MODULE int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -1741,30 +1740,24 @@ STATIC_MODULE int unload_module(void)
 	return res;
 }
 
-STATIC_MODULE int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 
+	__mod_desc = mod;
 	res = ast_register_application(app, dial_exec, synopsis, descrip);
 	res |= ast_register_application(rapp, retrydial_exec, rsynopsis, rdescrip);
 	
 	return res;
 }
 
-STATIC_MODULE const char *description(void)
+static const char *description(void)
 {
 	return "Dialing Application";
 
 }
 
-STATIC_MODULE int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-STATIC_MODULE const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

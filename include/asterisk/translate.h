@@ -33,7 +33,7 @@ extern "C" {
 #include "asterisk/frame.h"
 #include "asterisk/plc.h"
 #include "asterisk/linkedlists.h"
-#include "asterisk/module.h"
+// XXX #include "asterisk/module.h"
 #endif
 
 struct ast_trans_pvt;	/* declared below */
@@ -98,7 +98,7 @@ struct ast_translator {
 	int plc_samples;	/* set to the plc block size if used, 0 otherwise */
 	int useplc;		/* current status of plc, changed at runtime */
 
-	struct ast_module_lock *lockp;
+	void *module;		/* opaque reference to the parent module */
 
 	int cost;		/*! Cost in milliseconds for encoding/decoding 1 second of sound */
 	AST_LIST_ENTRY(ast_translator) list;	/*! link field */
@@ -147,7 +147,7 @@ struct ast_trans_pvt;
  * This registers a codec translator with asterisk
  * Returns 0 on success, -1 on failure
  */
-int ast_register_translator(struct ast_translator *t);
+int ast_register_translator(struct ast_translator *t, void *module);
 
 /*!
  * \brief Unregister a translator

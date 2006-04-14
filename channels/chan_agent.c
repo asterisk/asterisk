@@ -73,7 +73,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/monitor.h"
 #include "asterisk/stringfields.h"
 
-static const char desc[] = "Agent Proxy Channel";
 static const char tdesc[] = "Call Agent Proxy Channel";
 static const char config[] = "agents.conf";
 
@@ -162,9 +161,6 @@ static int autologoffunavail = 0;
 
 static int maxlogintries = 3;
 static char agentgoodbye[AST_MAX_FILENAME_LEN] = "vm-goodbye";
-
-static int usecnt =0;
-AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 static int recordagentcalls = 0;
 static char recordformat[AST_MAX_BUF] = "";
@@ -727,9 +723,8 @@ static int agent_hangup(struct ast_channel *ast)
 	 * as in apps/app_chanisavail.c:chanavail_exec()
 	 */
 
-	ast_mutex_lock(&usecnt_lock);
-	usecnt--;
-	ast_mutex_unlock(&usecnt_lock);
+	ast_atomic_fetchadd_int(&__mod_desc->usecnt, -1);
+	/* XXX do we need ast_update_use_count(); */
 
 	ast_log(LOG_DEBUG, "Hangup called for state %s\n", ast_state2str(ast->_state));
 	if (p->start && (ast->_state != AST_STATE_UP)) {
@@ -931,9 +926,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		ast_setstate(tmp, state);
 		tmp->tech_pvt = p;
 		p->owner = tmp;
-		ast_mutex_lock(&usecnt_lock);
-		usecnt++;
-		ast_mutex_unlock(&usecnt_lock);
+		ast_atomic_fetchadd_int(&__mod_desc->usecnt, +1);
 		ast_update_use_count();
 		tmp->priority = 1;
 		/* Wake up and wait for other applications (by definition the login app)
@@ -1650,8 +1643,6 @@ static struct ast_cli_entry cli_show_agents = {
 static struct ast_cli_entry cli_agent_logoff = {
 	{ "agent", "logoff", NULL }, agent_logoff_cmd, 
 	"Sets an agent offline", agent_logoff_usage, complete_agent_logoff_cmd };
-
-LOCAL_USER_DECL;
 
 /*!
  * \brief Log in agent application.
@@ -2484,8 +2475,9 @@ struct ast_custom_function agent_function = {
  *
  * @returns int Always 0.
  */
-int load_module()
+static int load_module(void *mod)
 {
+	__mod_desc = mod;
 	/* Make sure we can register our agent channel type */
 	if (ast_channel_register(&agent_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Agent'\n");
@@ -2511,7 +2503,7 @@ int load_module()
 	return 0;
 }
 
-int reload()
+static int reload(void *mod)
 {
 	read_agent_config();
 	if (persistent_agents)
@@ -2519,7 +2511,7 @@ int reload()
 	return 0;
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	struct agent_pvt *p;
 	/* First, take us out of the channel loop */
@@ -2553,18 +2545,14 @@ int unload_module()
 	return 0;
 }
 
-int usecount()
-{
-	return usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
-const char *description()
+static const char *description(void)
 {
-	return (char *) desc;
+	return "Agent Proxy Channel";
 }
 
+STD_MOD(MOD_0, reload, NULL, NULL);

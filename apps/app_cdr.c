@@ -28,8 +28,6 @@
 #include <sys/types.h>
 #include <stdlib.h>
 
-#define STATIC_MODULE
-
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -63,7 +61,7 @@ static int nocdr_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-STATIC_MODULE int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -74,24 +72,17 @@ STATIC_MODULE int unload_module(void)
 	return res;
 }
 
-STATIC_MODULE int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_register_application(nocdr_app, nocdr_exec, nocdr_synopsis, nocdr_descrip);
 }
 
-STATIC_MODULE const char *description(void)
+static const char *description(void)
 {
 	return "Tell Asterisk to not maintain a CDR for the current call";
 }
 
-STATIC_MODULE int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-STATIC_MODULE const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

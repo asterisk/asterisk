@@ -118,15 +118,12 @@ static struct ast_frame *lintoulaw_sample(void)
  * \brief The complete translator for ulawToLin.
  */
 
-static struct ast_module_lock me = { .usecnt = -1 };
-
 static struct ast_translator ulawtolin = {
 	.name = "ulawtolin",
 	.srcfmt = AST_FORMAT_ULAW,
 	.dstfmt = AST_FORMAT_SLINEAR,
 	.framein = ulawtolin_framein,
 	.sample = ulawtolin_sample,
-	.lockp = &me,
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
 	.plc_samples = 160,
@@ -142,7 +139,6 @@ static struct ast_translator lintoulaw = {
 	.dstfmt = AST_FORMAT_ULAW,
 	.framein = lintoulaw_framein,
 	.sample = lintoulaw_sample,
-	.lockp = &me,
 	.buf_size = BUFFER_SAMPLES,
 	.buffer_samples = BUFFER_SAMPLES,
 };
@@ -163,32 +159,27 @@ static void parse_config(void)
 	ast_config_destroy(cfg);
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	parse_config();
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
-	ast_mutex_lock(&me.lock);
 	res = ast_unregister_translator(&lintoulaw);
-	if (!res)
-		res = ast_unregister_translator(&ulawtolin);
-	if (me.usecnt)
-		res = -1;
-	ast_mutex_unlock(&me.lock);
+	res |= ast_unregister_translator(&ulawtolin);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 	parse_config();
-	res = ast_register_translator(&ulawtolin);
+	res = ast_register_translator(&ulawtolin, mod);
 	if (!res)
-		res = ast_register_translator(&lintoulaw);
+		res = ast_register_translator(&lintoulaw, mod);
 	else
 		ast_unregister_translator(&ulawtolin);
 	return res;
@@ -198,17 +189,14 @@ int load_module(void)
  * Return a description of this module.
  */
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Mu-law Coder/Decoder";
 }
 
-int usecount(void)
-{
-	return me.usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, reload, NULL, NULL);

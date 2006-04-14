@@ -78,31 +78,27 @@ static struct ast_custom_function base64_decode_function = {
 	.read = base64_decode,
 };
 
-static char *tdesc = "base64 encode/decode dialplan functions";
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	return ast_custom_function_unregister(&base64_encode_function) |
 		ast_custom_function_unregister(&base64_decode_function);
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_custom_function_register(&base64_encode_function) |
 		ast_custom_function_register(&base64_decode_function);
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "base64 encode/decode dialplan functions";
 }
 
-int usecount(void)
-{
-	return 0;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);

@@ -48,7 +48,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Message expiry time in milliseconds */
 #define SMDI_MSG_EXPIRY_TIME	30000 /* 30 seconds */
 
-static const char tdesc[] = "Asterisk Simplified Message Desk Interface (SMDI) Module";
 static const char config_file[] = "smdi.conf";
 
 static void ast_smdi_md_message_push(struct ast_smdi_interface *iface, struct ast_smdi_md_message *msg);
@@ -57,9 +56,7 @@ static void ast_smdi_mwi_message_push(struct ast_smdi_interface *iface, struct a
 static void *smdi_read(void *iface_p);
 static int smdi_load(int reload);
 
-/* Use count stuff */
-
-LOCAL_USER_DECL;
+struct module_symbols *me;	/* initialized in load_module() */
 
 /*! \brief SMDI interface container. */
 struct ast_smdi_interface_container {
@@ -504,7 +501,7 @@ void ast_smdi_interface_destroy(struct ast_smdi_interface *iface)
 	ASTOBJ_CONTAINER_DESTROY(&iface->mwi_q);
 	free(iface);
 
-	STANDARD_DECREMENT_USECOUNT;
+	ast_atomic_fetchadd_int(&me->usecnt, -1);
 }
 
 /*!
@@ -688,7 +685,7 @@ static int smdi_load(int reload)
 
 			ASTOBJ_CONTAINER_LINK(&smdi_ifaces, iface);
 			ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
-			STANDARD_INCREMENT_USECOUNT;
+			ast_atomic_fetchadd_int(&me->usecnt, +1);
 		} else {
 			ast_log(LOG_NOTICE, "Ignoring unknown option %s in %s\n", v->name, config_file);
 		}
@@ -709,15 +706,16 @@ static int smdi_load(int reload)
 }
 
 
-const char *description(void)
+static const char *description(void)
 {
-	return (char *) tdesc;
+	return "Asterisk Simplified Message Desk Interface (SMDI) Module";
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 
+	me = mod;
 	/* initialize our containers */
 	memset(&smdi_ifaces, 0, sizeof(smdi_ifaces));
 	ASTOBJ_CONTAINER_INIT(&smdi_ifaces);
@@ -733,7 +731,7 @@ int load_module(void)
 		return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	/* this destructor stops any running smdi_read threads */
 	ASTOBJ_CONTAINER_DESTROYALL(&smdi_ifaces, ast_smdi_interface_destroy);
@@ -742,7 +740,7 @@ int unload_module(void)
 	return 0;
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	int res;
 
@@ -757,16 +755,9 @@ int reload(void)
 		return 0;
 }
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_0, reload, NULL, NULL);

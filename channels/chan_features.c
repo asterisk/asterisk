@@ -63,7 +63,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/stringfields.h"
 
-static const char desc[] = "Feature Proxy Channel";
 static const char tdesc[] = "Feature Proxy Channel Driver";
 
 static int usecnt =0;
@@ -535,7 +534,7 @@ static struct ast_cli_entry cli_show_features = {
 	{ "feature", "show", "channels", NULL }, features_show, 
 	"Show status of feature channels", show_features_usage, NULL };
 
-int load_module()
+static int load_module(void *mod)
 {
 	/* Make sure we can register our sip channel type */
 	if (ast_channel_register(&features_tech)) {
@@ -546,12 +545,7 @@ int load_module()
 	return 0;
 }
 
-int reload()
-{
-	return 0;
-}
-
-int unload_module()
+static int unload_module(void *mod)
 {
 	struct feature_pvt *p;
 	
@@ -574,18 +568,15 @@ int unload_module()
 	return 0;
 }
 
-int usecount()
-{
-	return usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
-const char *description()
+static const char *description(void)
 {
-	return (char *) desc;
+	return "Feature Proxy Channel";
 }
+
+STD_MOD(MOD_1, NULL, NULL, NULL);
 

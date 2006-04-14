@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MOD_LOADER	/* prevent some module-specific stuff from being compiled */
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -94,7 +95,7 @@ enum st_t {  /* possible states of a module */
  */
 struct module {
 	AST_LIST_ENTRY(module) next;
-	struct module_symbols cb;
+	struct module_symbols *cb;
 	void *lib;		/* the shared lib */
 	char resource[256];
 
@@ -118,43 +119,53 @@ AST_MUTEX_DEFINE_STATIC(reloadlock);
  * the extra function call will be totally negligible in all cases.
  */
 
-struct localuser *ast_localuser_add(struct ast_module_lock *m,
+struct localuser *ast_localuser_add(struct module_symbols *me,
 	struct ast_channel *chan)
 {
 	struct localuser *u = ast_calloc(1, sizeof(*u));
 	if (u == NULL)
 		return NULL;
 	u->chan = chan;
-	ast_mutex_lock(&m->lock);
-	AST_LIST_INSERT_HEAD(&m->u, u, next);
-	m->usecnt++;
-	ast_mutex_unlock(&m->lock);
+	ast_mutex_lock(&me->lock);
+	u->next = me->lu_head;
+	me->lu_head = u;
+	ast_mutex_unlock(&me->lock);
+	ast_atomic_fetchadd_int(&me->usecnt, +1);
 	ast_update_use_count();
 	return u;
 }
 
-void ast_localuser_remove(struct ast_module_lock *m, struct localuser *u)
+void ast_localuser_remove(struct module_symbols *me, struct localuser *u)
 {
-	ast_mutex_lock(&m->lock);
-	AST_LIST_REMOVE(&m->u, u, next);
-	m->usecnt--;
+	struct localuser *x, *prev = NULL;
+	ast_mutex_lock(&me->lock);
+	/* unlink from the list */
+	for (x = me->lu_head; x; prev = x, x = x->next) {
+		if (x == u) {
+			if (prev)
+				prev->next = x->next;
+			else
+				me->lu_head = x->next;
+			break;
+		}
+	}
+	ast_mutex_unlock(&me->lock);
+	ast_atomic_fetchadd_int(&me->usecnt, -1);
 	free(u);
-	ast_mutex_unlock(&m->lock);
 	ast_update_use_count();
 }
 
-void ast_hangup_localusers(struct ast_module_lock *m)
+void ast_hangup_localusers(struct module_symbols *me)
 {
-	struct localuser *u;
-	ast_mutex_lock(&m->lock);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&m->u, u, next) {
+	struct localuser *u, *next;
+	ast_mutex_lock(&me->lock);
+	for (u = me->lu_head; u; u = next) {
+		next = u->next;
 		ast_softhangup(u->chan, AST_SOFTHANGUP_APPUNLOAD);
+		ast_atomic_fetchadd_int(&me->usecnt, -1);
 		free(u);
-		AST_LIST_REMOVE_CURRENT(&m->u, next);
 	}
-	AST_LIST_TRAVERSE_SAFE_END
-	m->usecnt = 0;
-	ast_mutex_unlock(&m->lock);
+	ast_mutex_unlock(&me->lock);
         ast_update_use_count();
 }
 
@@ -169,8 +180,7 @@ void ast_hangup_localusers(struct ast_module_lock *m)
  *       RTLD_GLOBAL to make symbols visible to other modules, and
  *       to avoid load failures due to cross dependencies.
  *
- * MOD_1 almost as above, but the generic callbacks are all into a
- *       a structure, mod_data. Same load requirements as above.
+ * MOD_1 The generic callbacks are all into a structure, mod_data.
  *
  * MOD_2 this is the 'new style' format for modules. The module must
  *       explictly declare which simbols are exported and which
@@ -221,7 +231,7 @@ static void *module_symbol_helper(const char *name,
 		struct symbol_entry *es;
 		if (delta > 0 && m->state == MS_FAILED)
 			continue; /* cannot 'get' a symbol from a failed module */
-		for (es = m->cb.exported_symbols; ret == NULL && es && es->name; es++) {
+		for (es = m->cb->exported_symbols; ret == NULL && es && es->name; es++) {
 			if (!strcmp(es->name, name)) {
 				ret = es->value;
 				m->export_refcount += delta;
@@ -256,7 +266,7 @@ static void release_module(struct module *m)
 {
 	struct symbol_entry *s;
 
-	for (s = m->cb.required_symbols; s && s->name != NULL; s++) {
+	for (s = m->cb->required_symbols; s && s->name != NULL; s++) {
 		if (s->value != NULL) {
 			release_module_symbol(s->name);
 			s->value = NULL;
@@ -268,7 +278,7 @@ static void release_module(struct module *m)
 /*! \brief check that no NULL symbols are exported  - the algorithms rely on that. */
 static int check_exported(struct module *m)
 {
-	struct symbol_entry *es = m->cb.exported_symbols;
+	struct symbol_entry *es = m->cb->exported_symbols;
 	int errors = 0;
 
 	if (es == NULL)
@@ -311,7 +321,7 @@ static int resolve(struct module *m)
 	 * resolve and verify symbols, and downgrade as appropriate.
 	 */
 	m->state = MS_CANLOAD;
-	for (s = m->cb.required_symbols; s && s->name != NULL; s++) {
+	for (s = m->cb->required_symbols; s && s->name != NULL; s++) {
 		void **p = (void **)(s->value);
 
 		if (*p == NULL)		/* symbol not resolved yet */
@@ -369,11 +379,11 @@ static int fixup(const char *caller)
 			new++;
 		/* print some debugging info for new modules */
 		if (m->state == MS_NEW &&
-		    (m->cb.exported_symbols || m->cb.required_symbols))
+		    (m->cb->exported_symbols || m->cb->required_symbols))
 			ast_log(LOG_NOTICE,
 			    "module %-30s exports %p requires %p state %s(%d)\n",
-				m->resource, m->cb.exported_symbols,
-				m->cb.required_symbols,
+				m->resource, m->cb->exported_symbols,
+				m->cb->required_symbols,
 				st_name(m->state), m->state);
 	}
 	ast_log(LOG_DEBUG, "---- fixup (%s): %d modules, %d new ---\n",
@@ -388,7 +398,7 @@ static int fixup(const char *caller)
 			if (m->state != MS_CANLOAD)	/* for now, done with this module */
 				continue;
 			/* try to run the load routine */
-			if (m->cb.load_module()) { /* error */
+			if (m->cb->load_module(m)) { /* error */
 				ast_log(LOG_WARNING, "load_module %s fail\n",
 					m->resource);
 				release_module(m); /* and set to MS_FAIL */
@@ -498,7 +508,7 @@ static int verify_key(const unsigned char *key)
 	return -1;
 }
 
-int ast_unload_resource(const char *resource_name, int force)
+int ast_unload_resource(const char *resource_name, enum unload_mode force)
 {
 	struct module *cur;
 	int res = -1;
@@ -506,11 +516,11 @@ int ast_unload_resource(const char *resource_name, int force)
 	if (AST_LIST_LOCK(&module_list)) /* XXX should fail here ? */
 		ast_log(LOG_WARNING, "Failed to lock\n");
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&module_list, cur, next) {
-		struct module_symbols *m = &cur->cb;
+		struct module_symbols *m = cur->cb;
 		
 		if (strcasecmp(cur->resource, resource_name))	/* not us */
 			continue;
-		if ((res = m->usecount()) > 0)  {
+		if (m->usecnt > 0 || m->flags & NO_UNLOAD)  {
 			if (force) 
 				ast_log(LOG_WARNING, "Warning:  Forcing removal of module %s with use count %d\n", resource_name, res);
 			else {
@@ -519,7 +529,8 @@ int ast_unload_resource(const char *resource_name, int force)
 				break;
 			}
 		}
-		res = m->unload_module();
+		ast_hangup_localusers(m);
+		res = m->unload_module(m);
 		if (res) {
 			ast_log(LOG_WARNING, "Firm unload failed for %s\n", resource_name);
 			if (force <= AST_FORCE_FIRM) {
@@ -553,7 +564,7 @@ char *ast_module_helper(const char *line, const char *word, int pos, int state, 
 		return NULL;
 	AST_LIST_LOCK(&module_list);
 	AST_LIST_TRAVERSE(&module_list, cur, next) {
-		if (!strncasecmp(word, cur->resource, l) && (cur->cb.reload || !needsreload) &&
+		if (!strncasecmp(word, cur->resource, l) && (cur->cb->reload || !needsreload) &&
 				++which > state) {
 			ret = strdup(cur->resource);
 			break;
@@ -574,7 +585,6 @@ int ast_module_reload(const char *name)
 	struct module *cur;
 	int res = 0; /* return value. 0 = not found, others, see below */
 	int i, oldversion;
-	int (*reload)(void);
 
 	if (ast_mutex_trylock(&reloadlock)) {
 		ast_verbose("The previous reload command didn't finish yet\n");
@@ -592,11 +602,10 @@ int ast_module_reload(const char *name)
 	AST_LIST_LOCK(&module_list);
 	oldversion = modlistver;
 	AST_LIST_TRAVERSE(&module_list, cur, next) {
-		struct module_symbols *m = &cur->cb;
+		struct module_symbols *m = cur->cb;
 		if (name && strcasecmp(name, cur->resource))	/* not ours */
 			continue;
-		reload = m->reload;
-		if (!reload) {	/* cannot be reloaded */
+		if (!m->reload) {	/* cannot be reloaded */
 			if (res < 1)	/* store result if possible */
 				res = 1;	/* 1 = no reload() method */
 			continue;
@@ -606,7 +615,7 @@ int ast_module_reload(const char *name)
 		res = 2;
 		if (option_verbose > 2) 
 			ast_verbose(VERBOSE_PREFIX_3 "Reloading module '%s' (%s)\n", cur->resource, m->description());
-		reload();
+		m->reload(m);
 		AST_LIST_LOCK(&module_list);
 		if (oldversion != modlistver) /* something changed, abort */
 			break;
@@ -659,7 +668,7 @@ static struct module * __load_resource(const char *resource_name,
 	int errors=0;
 	int res;
 	struct module *cur;
-	struct module_symbols *m, *m1;
+	struct module_symbols *m = NULL;
 	int flags = RTLD_NOW;
 	unsigned char *key;
 	char tmp[80];
@@ -687,7 +696,6 @@ static struct module * __load_resource(const char *resource_name,
 		AST_LIST_UNLOCK(&module_list);
 		return NULL;
 	}
-	m = &cur->cb;
 	ast_copy_string(cur->resource, resource_name, sizeof(cur->resource));
 	if (resource_name[0] == '/')
 		ast_copy_string(fn, resource_name, sizeof(fn));
@@ -697,11 +705,13 @@ static struct module * __load_resource(const char *resource_name,
 	/* open in a sane way */
 	cur->lib = dlopen(fn, RTLD_NOW | RTLD_LOCAL);
 	if (cur->lib) {
-		if ((m1 = find_symbol(cur, "mod_data", 0)) == NULL || m1->type == MOD_0) {
+		if ((m = find_symbol(cur, "mod_data", 0)) == NULL ||
+			(m->flags & MOD_MASK) == MOD_0) {
 		/* old-style module, close and reload with standard flags */
 			dlclose(cur->lib);
 			cur->lib = NULL;
 		}
+		m = NULL;
 	}
 	if (cur->lib == NULL)	/* try reopen with the old style */
 		cur->lib = dlopen(fn, flags);
@@ -712,26 +722,21 @@ static struct module * __load_resource(const char *resource_name,
 		AST_LIST_UNLOCK(&module_list);
 		return NULL;
 	}
-	m1 = find_symbol(cur, "mod_data", 0);
-	if (m1 != NULL) {	/* new style module */
-		ast_log(LOG_WARNING, "new style %s (%d) loaded RTLD_LOCAL\n",
-			resource_name, m1->type);
+	if (m == NULL)	/* MOD_0 modules may still have a mod_data entry */
+		m = find_symbol(cur, "mod_data", 0);
+	if (m != NULL) {	/* new style module */
+		ast_log(LOG_WARNING, "new style %s (0x%x) loaded RTLD_LOCAL\n",
+			resource_name, m->flags);
+		cur->cb = m;	/* use the mod_data from the module itself */
 		errors = check_exported(cur);
-		*m = *m1;
 	} else {
-		m->type = MOD_0;
-		m->load_module = find_symbol(cur, "load_module", 1);
-		m->unload_module = find_symbol(cur, "unload_module", 1);
-		m->usecount = find_symbol(cur, "usecount", 1);
-		m->description = find_symbol(cur, "description", 1);
-		m->key = find_symbol(cur, "key", 1);
-		m->reload = find_symbol(cur, "reload", 0);
+		ast_log(LOG_WARNING, "misstng mod_data for %s\n",
+			resource_name);
+		errors++;
 	}
 	if (!m->load_module)
 		errors++;
-	if (!m->unload_module)
-		errors++;
-	if (!m->usecount)
+	if (!m->unload_module && !(m->flags & NO_UNLOAD) )
 		errors++;
 	if (!m->description)
 		errors++;
@@ -753,6 +758,10 @@ static struct module * __load_resource(const char *resource_name,
 		AST_LIST_UNLOCK(&module_list);
 		return NULL;
 	}
+	/* init mutex and usecount */
+	ast_mutex_init(&cur->cb->lock);
+	cur->cb->lu_head = NULL;
+
 	if (!ast_fully_booted) {
 		if (option_verbose) 
 			ast_verbose( " => (%s)\n", term_color(tmp, m->description(), COLOR_BROWN, COLOR_BLACK, sizeof(tmp)));
@@ -768,7 +777,7 @@ static struct module * __load_resource(const char *resource_name,
   	   so reload commands will be issued in same order modules were loaded */
 	
 	modlistver++;
-	if (m->type == MOD_2) {
+	if ( (m->flags & MOD_MASK) == MOD_2) {
 		ast_log(LOG_WARNING, "new-style module %s, deferring load()\n",
 			resource_name);
 		cur->state = MS_NEW;
@@ -777,7 +786,7 @@ static struct module * __load_resource(const char *resource_name,
 	/* XXX make sure the usecount is 1 before releasing the lock */
 	AST_LIST_UNLOCK(&module_list);
 	
-	if (cur->state == MS_CANLOAD && (res = m->load_module())) {
+	if (cur->state == MS_CANLOAD && (res = m->load_module(m))) {
 		ast_log(LOG_WARNING, "%s: load_module failed, returning %d\n", resource_name, res);
 		ast_unload_resource(resource_name, 0);
 		return NULL;
@@ -808,22 +817,22 @@ int ast_load_resource(const char *resource_name)
 }	
 
 #if 0
-+/*
-+ * load a single module (API call).
-+ * (recursive calls from load_module() succeed.
-+ */
-+int ast_load_resource(const char *resource_name)
-+{
-+       struct module *m;
-+       int ret;
-+
-+       ast_mutex_lock(&modlock);
-+       m = __load_resource(resource_name, 0);
-+       fixup(resource_name);
-+       ret = (m->state == MS_FAILED) ? -1 : 0;
-+       ast_mutex_unlock(&modlock);
-+       return ret;
-+}
+/*
+ * load a single module (API call).
+ * (recursive calls from load_module() succeed.
+ */
+int ast_load_resource(const char *resource_name)
+{
+       struct module *m;
+       int ret;
+
+       ast_mutex_lock(&modlock);
+       m = __load_resource(resource_name, 0);
+       fixup(resource_name);
+       ret = (m->state == MS_FAILED) ? -1 : 0;
+       ast_mutex_unlock(&modlock);
+       return ret;
+}
 #endif
 
 /*! \brief if enabled, log and output on console the module's name, and try load it */
@@ -947,13 +956,15 @@ done:
 	return 0;
 }
 
+#include <errno.h>	/* for errno... */
+
 void ast_update_use_count(void)
 {
 	/* Notify any module monitors that the use count for a 
 	   resource has changed */
 	struct loadupdate *m;
 	if (AST_LIST_LOCK(&module_list))
-		ast_log(LOG_WARNING, "Failed to lock\n");
+		ast_log(LOG_WARNING, "Failed to lock, errno %d\n", errno);
 	AST_LIST_TRAVERSE(&updaters, m, next)
 		m->updater();
 	AST_LIST_UNLOCK(&module_list);
@@ -968,8 +979,9 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
 
 	if (ast_mutex_trylock(&module_list.lock))
 		unlock = 0;
-	AST_LIST_TRAVERSE(&module_list, cur, next)
-		total_mod_loaded += modentry(cur->resource, cur->cb.description(), cur->cb.usecount(), like);
+	AST_LIST_TRAVERSE(&module_list, cur, next) {
+		total_mod_loaded += modentry(cur->resource, cur->cb->description(), cur->cb->usecnt, like);
+	}
 	if (unlock)
 		AST_LIST_UNLOCK(&module_list);
 

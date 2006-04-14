@@ -265,8 +265,6 @@ static struct ast_frame *lintog723_frameout(void *pvt)
 	return ast_trans_frameout(pvt, cnt, samples);
 }
 
-static struct ast_module_lock me = { .usecnt = -1 };
-
 static struct ast_translator g723tolin = {
 	.name =
 #ifdef ANNEX_B
@@ -280,7 +278,6 @@ static struct ast_translator g723tolin = {
 	.framein = g723tolin_framein,
 	.sample = g723tolin_sample,
 	.desc_size = sizeof(struct ...),
-	.lockp = &me,
 };
 
 static struct ast_translator lintog723 = {
@@ -297,36 +294,31 @@ static struct ast_translator lintog723 = {
 	.frameout = lintog723_frameout,
 	.destroy = g723_destroy,
 	.sample = lintog723_sample,
-	.lockp = &me,
 	.desc_size = sizeof(struct ...),
 };
 
 /*! \brief standard module glue */
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
-	ast_mutex_lock(&me.lock);
 	res = ast_unregister_translator(&lintog723);
 	res |= ast_unregister_translator(&g723tolin);
-	if (me.usecnt)
-		res = -1;
-	ast_mutex_unlock(&me.lock);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
-	res=ast_register_translator(&g723tolin);
+	res=ast_register_translator(&g723tolin, mod);
 	if (!res) 
-		res=ast_register_translator(&lintog723);
+		res=ast_register_translator(&lintog723, mod);
 	else
 		ast_unregister_translator(&g723tolin);
 	return res;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 #ifdef ANNEX_B
 	return "Annex B (floating point) G.723.1/PCM16 Codec Translator";
@@ -336,12 +328,9 @@ const char *description(void)
 
 }
 
-int usecount(void)
-{
-	return me.usecnt;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, reload, NULL, NULL);

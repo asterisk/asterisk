@@ -44,7 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define STACKVAR	"~GOSUB~STACK~"
 
-static const char *tdesc = "Stack Routines";
 
 static const char *app_gosub = "Gosub";
 static const char *app_gosubif = "GosubIf";
@@ -152,7 +151,7 @@ static int gosubif_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	ast_unregister_application(app_return);
 	ast_unregister_application(app_pop);
@@ -164,7 +163,7 @@ int unload_module(void)
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	ast_register_application(app_pop, pop_exec, pop_synopsis, pop_descrip);
 	ast_register_application(app_return, return_exec, return_synopsis, return_descrip);
@@ -174,21 +173,14 @@ int load_module(void)
 	return 0;
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return (char *) tdesc;
+	return "Stack Routines";
 }
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

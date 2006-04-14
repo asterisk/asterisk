@@ -42,7 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 /*! The timeout for originated calls, in seconds */
 #define TIMEOUT 30
 
-STANDARD_USECOUNT_DECL;
+static struct module_symbols *me;
 
 static char orig_help[] = 
 "  There are two ways to use this command. A call can be originated between a\n"
@@ -132,7 +132,7 @@ static int handle_orig(int fd, int argc, char *argv[])
 	if (ast_strlen_zero(argv[1]) || ast_strlen_zero(argv[2]))
 		return RESULT_SHOWUSAGE;
 
-	STANDARD_INCREMENT_USECOUNT;
+	ast_atomic_fetchadd_int(&me->usecnt, +1);
 
 	if (!strcasecmp("application", argv[2])) {
 		res = orig_app(argv[1], argv[3], argv[4]);	
@@ -141,7 +141,7 @@ static int handle_orig(int fd, int argc, char *argv[])
 	} else
 		res = RESULT_SHOWUSAGE;
 
-	STANDARD_DECREMENT_USECOUNT;
+	ast_atomic_fetchadd_int(&me->usecnt, -1);
 
 	return res;
 }
@@ -154,38 +154,32 @@ static char *complete_orig(const char *line, const char *word, int pos, int stat
 	if (pos != 2)
 		return NULL;
 
-	STANDARD_INCREMENT_USECOUNT;
-
+	ast_atomic_fetchadd_int(&me->usecnt, +1);
 	ret = ast_cli_complete(word, choices, state);
-
-	STANDARD_DECREMENT_USECOUNT;
+	ast_atomic_fetchadd_int(&me->usecnt, -1);
 
 	return ret;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	return ast_cli_unregister(&cli_orig);
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
+	me = mod;
 	return ast_cli_register(&cli_orig);
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Call origination from the CLI";
-
 }
 
-int usecount(void)
-{
-	return 0;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
+STD_MOD(MOD_0 | NO_USECOUNT, NULL, NULL, NULL);

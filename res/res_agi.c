@@ -95,7 +95,7 @@ static char *descrip =
 
 static int agidebug = 0;
 
-LOCAL_USER_DECL;
+struct module_symbols *me;
 
 #define TONE_BLOCK_SIZE 200
 
@@ -1952,7 +1952,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 		argv[argc++] = stringp;
 	argv[argc] = NULL;
 
-	LOCAL_USER_ADD(u);
+	u = ast_localuser_add(me, chan);
 #if 0
 	 /* Answer if need be */
         if (chan->_state != AST_STATE_UP) {
@@ -1972,7 +1972,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 		if (efd > -1)
 			close(efd);
 	}
-	LOCAL_USER_REMOVE(u);
+	ast_localuser_remove(me, u);
 	return res;
 }
 
@@ -2026,9 +2026,9 @@ static struct ast_cli_entry showagi =
 static struct ast_cli_entry dumpagihtml = 
 { { "dump", "agihtml", NULL }, handle_dumpagihtml, "Dumps a list of agi command in html format", dumpagihtml_help };
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_hangup_localusers(mod);
 	ast_cli_unregister(&showagi);
 	ast_cli_unregister(&dumpagihtml);
 	ast_cli_unregister(&cli_debug);
@@ -2038,8 +2038,9 @@ int unload_module(void)
 	return ast_unregister_application(app);
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
+	me = mod;
 	ast_cli_register(&showagi);
 	ast_cli_register(&dumpagihtml);
 	ast_cli_register(&cli_debug);
@@ -2049,21 +2050,14 @@ int load_module(void)
 	return ast_register_application(app, agi_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Asterisk Gateway Interface (AGI)";
-
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
+STD_MOD(MOD_0, NULL, NULL, NULL);

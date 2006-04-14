@@ -1303,12 +1303,12 @@ static int __unload_module(void)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	return __unload_module();
 }
 
-int load_module()
+static int load_module(void *mod)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
@@ -1415,17 +1415,14 @@ int load_module()
 	return 0;
 }
 
-int usecount()
-{
-	return usecnt;
-}
-
-const char *description()
+static const char *description(void)
 {
 	return (char *) desc;
 }
 
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

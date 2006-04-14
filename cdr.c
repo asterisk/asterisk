@@ -53,7 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sched.h"
 #include "asterisk/config.h"
 #include "asterisk/cli.h"
-#include "asterisk/module.h"
+// XXX #include "asterisk/module.h"
 #include "asterisk/stringfields.h"
 
 /*! Default AMA flag for billing records (CDR's) */

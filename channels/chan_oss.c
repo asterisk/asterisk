@@ -1462,7 +1462,7 @@ error:
 	return NULL;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int i;
 	struct ast_config *cfg;
@@ -1497,7 +1497,7 @@ int load_module(void)
 }
 
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	struct chan_oss_pvt *o;
 
@@ -1521,17 +1521,14 @@ int unload_module()
 	return 0;
 }
 
-const char *description()
+static const char *description(void)
 {
 	return (char *)oss_tech.description;
 }
 
-int usecount()
-{
-	return usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, NULL, NULL, NULL);

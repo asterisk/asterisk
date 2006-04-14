@@ -523,8 +523,6 @@ static off_t ogg_vorbis_tell(struct ast_filestream *s)
 	return -1;
 }
 
-static struct ast_format_lock me = { .usecnt = -1 };
-
 static const struct ast_format vorbis_f = {
 	.name = "ogg_vorbis",
 	.exts = "ogg",
@@ -539,31 +537,27 @@ static const struct ast_format vorbis_f = {
 	.close = ogg_vorbis_close,
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 	.desc_size = sizeof(struct vorbis_desc),
-	.lockp = &me,
+	.module = &mod_data, /* XXX */
 };
 
-int load_module()
+static int load_module(void *mod)
 {
 	return ast_format_register(&vorbis_f);
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	return ast_format_unregister(vorbis_f.name);
 }
 
-int usecount()
-{
-	return me.usecnt;
-}
-
-const char *description()
+static const char *description(void)
 {
 	return "OGG/Vorbis audio";
 }
 
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

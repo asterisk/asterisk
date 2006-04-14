@@ -59,8 +59,6 @@ static char *descrip =
 "  ADSIProg(script): This application programs an ADSI Phone with the given\n"
 "script. If nothing is specified, the default script (asterisk.adsi) is used.\n";
 
-LOCAL_USER_DECL;
-
 struct adsi_event {
 	int id;
 	char *name;
@@ -1568,35 +1566,32 @@ static int adsi_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
+	STANDARD_HANGUP_LOCALUSERS;
+
 	res = ast_unregister_application(app);	
 	
-	STANDARD_HANGUP_LOCALUSERS;
 
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
+	__mod_desc = mod;
 	return ast_register_application(app, adsi_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Asterisk ADSI Programming Application";
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, NULL, NULL, NULL);

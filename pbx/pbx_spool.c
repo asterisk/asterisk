@@ -53,7 +53,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * The spool file contains a header 
  */
 
-static char *tdesc = "Outgoing Spool Support";
 static char qdir[255];
 
 struct outgoing {
@@ -404,12 +403,12 @@ static void *scan_thread(void *unused)
 	return NULL;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	return -1;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	pthread_t thread;
 	pthread_attr_t attr;
@@ -428,17 +427,14 @@ int load_module(void)
 	return 0;
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "Outgoing Spool Support";
 }
 
-int usecount(void)
-{
-	return 1;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1 | NO_USECOUNT | NO_UNLOAD, NULL, NULL, NULL);

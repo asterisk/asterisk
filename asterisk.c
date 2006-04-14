@@ -101,7 +101,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ulaw.h"
 #include "asterisk/alaw.h"
 #include "asterisk/callerid.h"
-#include "asterisk/module.h"
+// XXX #include "asterisk/module.h"
 #include "asterisk/image.h"
 #include "asterisk/tdd.h"
 #include "asterisk/term.h"

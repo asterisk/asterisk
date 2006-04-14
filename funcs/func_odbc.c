@@ -646,32 +646,25 @@ reload_out:
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	return odbc_unload_module();
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return odbc_load_module();
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return tdesc;
 }
 
-int usecount(void)
-{
-	if (! ast_mutex_trylock(&query_lock)) {
-		ast_mutex_unlock(&query_lock);
-		return 0;
-	} else {
-		return 1;
-	}
-}
+/* XXX need to revise usecount - set if query_lock is set */
 
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+STD_MOD(MOD_1, NULL, NULL, NULL);

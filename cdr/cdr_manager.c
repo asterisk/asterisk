@@ -135,18 +135,18 @@ static int manager_log(struct ast_cdr *cdr)
 	return 0;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return desc;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	ast_cdr_unregister(name);
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 
@@ -161,18 +161,15 @@ int load_module(void)
 	return res;
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	loadconfigurationfile();
 	return 0;
 }
 
-int usecount(void)
-{
-	return 0;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1 | NO_USECOUNT, reload, NULL, NULL);

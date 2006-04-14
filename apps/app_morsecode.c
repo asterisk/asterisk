@@ -162,7 +162,7 @@ static int morsecode_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -173,24 +173,19 @@ int unload_module(void)
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_register_application(app_morsecode, morsecode_exec, morsecode_synopsis, morsecode_descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return tdesc;
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

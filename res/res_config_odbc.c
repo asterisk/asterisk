@@ -506,16 +506,16 @@ static struct ast_config_engine odbc_engine = {
 	.update_func = update_odbc
 };
 
-int unload_module (void)
+static int unload_module (void *mod)
 {
+	ast_hangup_localusers(mod);
 	ast_config_engine_deregister(&odbc_engine);
 	if (option_verbose)
 		ast_verbose("res_config_odbc unloaded.\n");
-	STANDARD_HANGUP_LOCALUSERS;
 	return 0;
 }
 
-int load_module (void)
+static int load_module (void *mod)
 {
 	ast_config_engine_register(&odbc_engine);
 	if (option_verbose)
@@ -523,19 +523,14 @@ int load_module (void)
 	return 0;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "ODBC Configuration";
-
 }
 
-int usecount (void)
-{
-	/* never unload a config module */
-	return 1;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_0 | NO_USECOUNT | NO_UNLOAD, NULL, NULL, NULL);

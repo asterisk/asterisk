@@ -190,8 +190,6 @@ static off_t g726_tell(struct ast_filestream *fs)
 	return -1;
 }
 
-static struct ast_format_lock me = { .usecnt = -1 };
-
 static const struct ast_format f[] = {
 	{
 		.name = "g726-40",
@@ -206,7 +204,7 @@ static const struct ast_format f[] = {
 		.read = g726_read,
 		.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 		.desc_size = sizeof(struct g726_desc),
-		.lockp = &me,
+		.module = &mod_data, /* XXX */
 	},
 	{
 		.name = "g726-32",
@@ -221,7 +219,7 @@ static const struct ast_format f[] = {
 		.read = g726_read,
 		.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 		.desc_size = sizeof(struct g726_desc),
-		.lockp = &me,
+		.module = &mod_data, /* XXX */
 	},
 	{
 		.name = "g726-24",
@@ -236,7 +234,7 @@ static const struct ast_format f[] = {
 		.read = g726_read,
 		.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 		.desc_size = sizeof(struct g726_desc),
-		.lockp = &me,
+		.module = &mod_data, /* XXX */
 	},
 	{
 		.name = "g726-16",
@@ -251,7 +249,7 @@ static const struct ast_format f[] = {
 		.read = g726_read,
 		.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 		.desc_size = sizeof(struct g726_desc),
-		.lockp = &me,
+		.module = &mod_data, /* XXX */
 	},
 	{	.format = 0 }	/* terminator */
 };
@@ -259,7 +257,7 @@ static const struct ast_format f[] = {
 /*
  * Module interface (load_module, unload_module, usecount, description, key)
  */
-int load_module()
+static int load_module(void *mod)
 {
 	int i;
 
@@ -272,7 +270,7 @@ int load_module()
 	return 0;
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	int i;
 
@@ -283,18 +281,14 @@ int unload_module()
 	return(0);
 }	
 
-int usecount()
-{
-	return me.usecnt;
-}
-
-const char *description()
+static const char *description(void)
 {
 	return "Raw G.726 (16/24/32/40kbps) data";
 }
 
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
+STD_MOD1;

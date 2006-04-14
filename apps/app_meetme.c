@@ -60,7 +60,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/ulaw.h"
 
-static const char *tdesc = "MeetMe conference bridge";
 
 static const char *app = "MeetMe";
 static const char *app2 = "MeetMeCount";
@@ -2425,7 +2424,7 @@ static void load_config(void)
 	ast_config_destroy(cfg);
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 	
@@ -2440,7 +2439,7 @@ int unload_module(void)
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 
@@ -2455,29 +2454,21 @@ int load_module(void)
 	return res;
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	load_config();
 
 	return 0;
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return (char *) tdesc;
+	return "MeetMe conference bridge";
 }
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
  
+STD_MOD(MOD_1, reload, NULL, NULL);

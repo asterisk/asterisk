@@ -29,8 +29,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#define	STATIC_MODULE
-
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -46,7 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/options.h"
 
-static char *tdesc = "Trivial Record Application";
 
 static char *app = "Record";
 
@@ -343,7 +340,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-STATIC_MODULE int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -354,26 +351,19 @@ STATIC_MODULE int unload_module(void)
 	return res;	
 }
 
-STATIC_MODULE int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_register_application(app, record_exec, synopsis, descrip);
 }
 
-STATIC_MODULE const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "Trivial Record Application";
 }
 
-STATIC_MODULE int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-STATIC_MODULE const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
-STD_MOD(MOD_1, NULL, NULL, NULL);
+STD_MOD1;

@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/cli.h"
 #include "asterisk/linkedlists.h"
+#define	MOD_LOADER
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
 #include "asterisk/channel.h"

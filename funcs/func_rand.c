@@ -94,29 +94,27 @@ static struct ast_custom_function acf_rand = {
 
 static char *tdesc = "Random number dialplan function";
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	ast_custom_function_unregister(&acf_rand);
 
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_custom_function_register(&acf_rand);
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return tdesc;
 }
 
-int usecount(void)
-{
-	return 0;
-}
 
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);

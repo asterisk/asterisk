@@ -190,8 +190,6 @@ static struct ast_frame *lintoilbc_frameout(struct ast_trans_pvt *pvt)
 	return ast_trans_frameout(pvt, datalen, samples);
 }
 
-static struct ast_module_lock me = { .usecnt = -1 };
-
 static struct ast_translator ilbctolin = {
 	.name = "ilbctolin", 
 	.srcfmt = AST_FORMAT_ILBC,
@@ -201,7 +199,6 @@ static struct ast_translator ilbctolin = {
 	.sample = ilbctolin_sample,
 	.desc_size = sizeof(struct ilbc_coder_pvt),
 	.buf_size = BUFFER_SAMPLES * 2,
-	.lockp = &me,
 };
 
 static struct ast_translator lintoilbc = {
@@ -214,43 +211,35 @@ static struct ast_translator lintoilbc = {
 	.sample = lintoilbc_sample,
 	.desc_size = sizeof(struct ilbc_coder_pvt),
 	.buf_size = (BUFFER_SAMPLES * ILBC_FRAME_LEN + ILBC_SAMPLES - 1) / ILBC_SAMPLES,
-	.lockp = &me,
 };
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
-	ast_mutex_lock(&me.lock);
 	res = ast_unregister_translator(&lintoilbc);
 	res |= ast_unregister_translator(&ilbctolin);
-	if (me.usecnt)
-		res = -1;
-	ast_mutex_unlock(&me.lock);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
-	res=ast_register_translator(&ilbctolin);
+	res = ast_register_translator(&ilbctolin, mod);
 	if (!res) 
-		res=ast_register_translator(&lintoilbc);
+		res=ast_register_translator(&lintoilbc, mod);
 	else
 		ast_unregister_translator(&ilbctolin);
 	return res;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return tdesc;
 }
 
-int usecount(void)
-{
-	return me.usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, NULL, NULL, NULL);

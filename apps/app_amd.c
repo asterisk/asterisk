@@ -72,9 +72,6 @@ static char *descrip =
 "               MAXWORDS-<%d wordsCount>-<%d maximumNumberOfWords>\n"
 "               LONGGREETING-<%d voiceDuration>-<%d greeting>\n";
 
-
-LOCAL_USER_DECL;
-
 #define STATE_IN_WORD       1
 #define STATE_IN_SILENCE    2
 
@@ -392,38 +389,33 @@ static void load_config(void)
 	return;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 	return ast_unregister_application(app);
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
+	__mod_desc = mod;
 	load_config();
 	return ast_register_application(app, amd_exec, synopsis, descrip);
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	load_config();
 	return 0;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Answering Machine Detection Application";
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
+STD_MOD(MOD_1, reload, NULL, NULL);

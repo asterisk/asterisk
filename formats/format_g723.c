@@ -138,8 +138,6 @@ static off_t g723_tell(struct ast_filestream *fs)
 	return -1;
 }
 
-static struct ast_format_lock me = { .usecnt = -1 };
-
 static const struct ast_format g723_1_f = {
 	.name = "g723sf",
 	.exts = "g723|g723sf",
@@ -150,30 +148,27 @@ static const struct ast_format g723_1_f = {
 	.tell =	g723_tell,
 	.read =	g723_read,
 	.buf_size = G723_MAX_SIZE + AST_FRIENDLY_OFFSET,
-	.lockp = &me,
+	.module = &mod_data, /* XXX */
 };
 
-int load_module()
+static int load_module(void *mod)
 {
 	return ast_format_register(&g723_1_f);
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	return ast_format_unregister(g723_1_f.name);
 }	
 
-int usecount()
-{
-	return me.usecnt;
-}
-
-const char *description()
+static const char *description(void)
 {
 	return "G.723.1 Simple Timestamp File Format";
 }
 
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

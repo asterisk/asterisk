@@ -116,8 +116,6 @@ static off_t slinear_tell(struct ast_filestream *fs)
 	return ftello(fs->f) / 2;
 }
 
-static struct ast_format_lock me = { .usecnt = -1 };
-
 static const struct ast_format slin_f = {
 	.name = "sln",
 	.exts = "sln|raw",
@@ -128,30 +126,27 @@ static const struct ast_format slin_f = {
 	.tell = slinear_tell,
 	.read = slinear_read,
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
-	.lockp = &me,
+	.module = &mod_data, /* XXX */
 };
 
-int load_module()
+static int load_module(void *mod)
 {
 	return ast_format_register(&slin_f);
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	return ast_format_unregister(slin_f.name);
 }	
 
-int usecount()
-{
-	return me.usecnt;
-}
-
-const char *description()
+static const char *description(void)
 {
 	return "Raw Signed Linear Audio support (SLN)";
 }
 
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

@@ -47,8 +47,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 LOCAL_USER_DECL;
 
-static const char *tdesc = "Transfer";
-
 static const char *app = "Transfer";
 
 static const char *synopsis = "Transfer caller to remote extension";
@@ -144,7 +142,7 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -155,26 +153,19 @@ int unload_module(void)
 	return res;	
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_register_application(app, transfer_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return (char *) tdesc;
+	return "Transfer";
 }
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

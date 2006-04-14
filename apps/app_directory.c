@@ -45,7 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
-static char *tdesc = "Extension Directory";
 static char *app = "Directory";
 
 static char *synopsis = "Provide directory of voicemail extensions";
@@ -517,35 +516,27 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
-
 	res = ast_unregister_application(app);
-
-	STANDARD_HANGUP_LOCALUSERS;
-
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
+	__mod_desc = mod;
 	return ast_register_application(app, directory_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "Extension Directory";
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

@@ -541,8 +541,6 @@ static off_t wav_tell(struct ast_filestream *fs)
 	return (offset - MSGSM_DATA_OFFSET)/MSGSM_FRAME_SIZE*MSGSM_SAMPLES;
 }
 
-static struct ast_format_lock me = { .usecnt = -1 };
-
 static const struct ast_format wav49_f = {
 	.name = "wav49",
 	.exts = "WAV|wav49",
@@ -557,30 +555,27 @@ static const struct ast_format wav49_f = {
 	.close = wav_close,
 	.buf_size = 2*GSM_FRAME_SIZE + AST_FRIENDLY_OFFSET,
 	.desc_size = sizeof(struct wavg_desc),
-	.lockp = &me,
+	.module = &mod_data, /* XXX */
 };
 
-int load_module()
+static int load_module(void *mod)
 {
 	return ast_format_register(&wav49_f);
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	return ast_format_unregister(wav49_f.name);
 }	
 
-int usecount()
-{
-	return me.usecnt;
-}
-
-const char *description()
+static const char *description(void)
 {
 	return "Microsoft WAV format (Proprietary GSM)";
 }
 
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

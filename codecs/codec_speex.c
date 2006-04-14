@@ -337,8 +337,6 @@ static void lintospeex_destroy(struct ast_trans_pvt *arg)
 	speex_bits_destroy(&pvt->bits);
 }
 
-static struct ast_module_lock me = { .usecnt = -1 };
-
 static struct ast_translator speextolin = {
 	.name = "speextolin", 
 	.srcfmt = AST_FORMAT_SPEEX,
@@ -350,7 +348,6 @@ static struct ast_translator speextolin = {
 	.desc_size = sizeof(struct speex_coder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
-	.lockp = &me,
 };
 
 static struct ast_translator lintospeex = {
@@ -365,9 +362,7 @@ static struct ast_translator lintospeex = {
 	.desc_size = sizeof(struct speex_coder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2, /* XXX maybe a lot less ? */
-	.lockp = &me,
 };
-
 
 static void parse_config(void) 
 {
@@ -479,7 +474,7 @@ static void parse_config(void)
 	ast_config_destroy(cfg);
 }
 
-int reload(void) 
+static int reload(void *mod) 
 {
 	/*
 	 * XXX reloading while there are active sessions is
@@ -487,48 +482,40 @@ int reload(void)
 	 * wouldn't work anymore...
 	 * maybe we shuld do a standard hangup localusers ?
 	 */
-	ast_mutex_lock(&me.lock);
+	ast_mutex_lock(&__mod_desc->lock);
 	parse_config();
-	ast_mutex_lock(&me.lock);
+	ast_mutex_lock(&__mod_desc->lock);
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
-	ast_mutex_lock(&me.lock);
 	res = ast_unregister_translator(&lintospeex);
-	if (!res)
-		res = ast_unregister_translator(&speextolin);
-	if (me.usecnt)
-		res = -1;
-	ast_mutex_unlock(&me.lock);
+	res |= ast_unregister_translator(&speextolin);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 	parse_config();
-	res=ast_register_translator(&speextolin);
+	res=ast_register_translator(&speextolin, mod);
 	if (!res) 
-		res=ast_register_translator(&lintospeex);
+		res=ast_register_translator(&lintospeex, mod);
 	else
 		ast_unregister_translator(&speextolin);
 	return res;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Speex/PCM16 (signed linear) Codec Translator";
 }
 
-int usecount(void)
-{
-	return me.usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, reload, NULL, NULL);

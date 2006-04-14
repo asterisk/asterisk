@@ -120,7 +120,7 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -131,26 +131,20 @@ int unload_module(void)
 	return res;	
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
+	__mod_desc = mod;
 	return ast_register_application(app, asyncgoto_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Channel Redirect";
 }
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

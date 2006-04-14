@@ -42,7 +42,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cdr.h"
 #include "asterisk/module.h"
 
-static char *tdesc = "Fork The CDR into 2 separate entities.";
 static char *app = "ForkCDR";
 static char *synopsis = 
 "Forks the Call Data Record";
@@ -98,7 +97,7 @@ static int forkcdr_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -109,24 +108,19 @@ int unload_module(void)
 	return res;	
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_register_application(app, forkcdr_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "Fork The CDR into 2 separate entities.";
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

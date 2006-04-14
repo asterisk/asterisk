@@ -97,8 +97,6 @@ static char time_stamp_format[128] = {"%a %b %d, %Y @ %H:%M:%S %Z"};
 	
 static char event_file[14] = "/event-XXXXXX";
 
-LOCAL_USER_DECL;
-
 /*
 * Attempt to access a database variable and increment it,
 * provided that the user defined db-family in alarmreceiver.conf
@@ -818,7 +816,7 @@ static int load_config(void)
 */
 
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -829,25 +827,21 @@ int unload_module(void)
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
+	__mod_desc = mod;
 	load_config();
 	return ast_register_application(app, alarmreceiver_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Alarm Receiver for Asterisk";
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

@@ -51,6 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/pbx.h"
 #include "asterisk/linkedlists.h"
+#define	MOD_LOADER
 #include "asterisk/module.h"	/* ast_update_use_count() */
 
 /*
@@ -69,8 +70,8 @@ int ast_format_register(const struct ast_format *f)
 {
 	struct ast_format *tmp;
 
-	if (f->lockp == NULL) {
-		ast_log(LOG_WARNING, "Missing lock pointer, you need to supply one\n");
+	if (f->module == NULL) {
+		ast_log(LOG_WARNING, "Missing module pointer, you need to supply one\n");
 		return -1;
 	}
 	if (AST_LIST_LOCK(&formats)) {
@@ -101,10 +102,6 @@ int ast_format_register(const struct ast_format *f)
 	}
 	
 	memset(&tmp->list, 0, sizeof(tmp->list));
-	if (tmp->lockp->usecnt < 0) {
-		ast_mutex_init(&tmp->lockp->lock);
-		tmp->lockp->usecnt = 0;
-	}
 
 	AST_LIST_INSERT_HEAD(&formats, tmp, list);
 	AST_LIST_UNLOCK(&formats);
@@ -319,12 +316,7 @@ static int fn_wrapper(struct ast_filestream *s, const char *comment, enum wrap_f
                 ast_log(LOG_WARNING, "Unable to rewrite format %s\n", f->name);
 	else {
 		/* preliminary checks succeed. update usecount */
-		if (ast_mutex_lock(&f->lockp->lock)) {
-			ast_log(LOG_WARNING, "Unable to lock format %s\n", f->name);
-			return -1;
-		}
-		f->lockp->usecnt++;
-        	ast_mutex_unlock(&f->lockp->lock);
+		ast_atomic_fetchadd_int(&f->module->usecnt, +1);
 		ret = 0;
 		ast_update_use_count();
 	}
@@ -749,13 +741,8 @@ int ast_closestream(struct ast_filestream *f)
 	fclose(f->f);
 	if (f->vfs)
 		ast_closestream(f->vfs);
-	if (ast_mutex_lock(&f->fmt->lockp->lock)) {
-		ast_log(LOG_WARNING, "Unable to lock format %s\n", f->fmt->name);
-	} else {
-		f->fmt->lockp->usecnt--;
-		ast_mutex_unlock(&f->fmt->lockp->lock);
-		ast_update_use_count();
-	}
+	ast_atomic_fetchadd_int(&f->fmt->module->usecnt, -1);
+	ast_update_use_count();
 	free(f);
 	return 0;
 }

@@ -302,7 +302,7 @@ out:
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 	
@@ -313,24 +313,19 @@ int unload_module(void)
 	return res;	
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_register_application(app, conf_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return tdesc;
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

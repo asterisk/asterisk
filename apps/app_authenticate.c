@@ -91,8 +91,6 @@ static char *descrip =
 "         Defaults to 0 - no limit - wait for the user press the '#' key.\n"
 ;
 
-LOCAL_USER_DECL;
-
 static int auth_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
@@ -235,35 +233,31 @@ static int auth_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
+	STANDARD_HANGUP_LOCALUSERS;
+
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
 	
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_register_application(app, auth_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Authentication Application";
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, NULL, NULL, NULL);

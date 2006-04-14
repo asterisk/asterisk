@@ -43,8 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/utils.h"
 
-static char *tdesc = "Digital Milliwatt (mu-law) Test Application";
-
 static char *app = "Milliwatt";
 
 static char *synopsis = "Generate a Constant 1000Hz tone at 0dbm (mu-law)";
@@ -140,7 +138,7 @@ static int milliwatt_exec(struct ast_channel *chan, void *data)
 	return -1;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -151,24 +149,19 @@ int unload_module(void)
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_register_application(app, milliwatt_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "Digital Milliwatt (mu-law) Test Application";
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

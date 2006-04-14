@@ -152,7 +152,6 @@ static int nochecksums = 0;
 
 static struct ast_codec_pref prefs;
 
-static const char desc[] = "Inter Asterisk eXchange (Ver 2)";
 static const char tdesc[] = "Inter Asterisk eXchange Driver (Ver 2)";
 
 static char context[80] = "default";
@@ -9358,7 +9357,7 @@ static int iax2_reload(int fd, int argc, char *argv[])
 	return reload_config();
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	return reload_config();
 }
@@ -10054,7 +10053,7 @@ static int __unload_module(void)
 	return 0;
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	ast_mutex_destroy(&iaxq.lock);
 	ast_mutex_destroy(&userl.lock);
@@ -10066,7 +10065,7 @@ int unload_module()
 
 
 /*! \brief Load IAX2 module, load configuraiton ---*/
-int load_module(void)
+static int load_module(void *mod)
 {
 	char *config = "iax.conf";
 	int res = 0;
@@ -10158,17 +10157,14 @@ int load_module(void)
 	return res;
 }
 
-const char *description()
+static const char *description(void)
 {
-	return (char *) desc;
+	return "Inter Asterisk eXchange (Ver 2)";
 }
 
-int usecount()
-{
-	return usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, reload, NULL, NULL);

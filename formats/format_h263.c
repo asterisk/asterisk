@@ -163,8 +163,6 @@ static off_t h263_tell(struct ast_filestream *fs)
 	return offset;	/* XXX totally bogus, needs fixing */
 }
 
-static struct ast_format_lock me = { .usecnt = -1 };
-
 static const struct ast_format h263_f = {
 	.name = "h263",
 	.exts = "h264",
@@ -177,30 +175,27 @@ static const struct ast_format h263_f = {
 	.read = h263_read,
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 	.desc_size = sizeof(struct h263_desc),
-	.lockp = &me,
+	.module = &mod_data,	/* XXX */
 };
 
-int load_module()
+static int load_module(void *mod)
 {
 	return ast_format_register(&h263_f);
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	return ast_format_unregister(h263_f.name);
 }	
 
-int usecount()
-{
-	return me.usecnt;
-}
-
-const char *description()
+static const char *description(void)
 {
 	return "Raw h263 data";
 }
 
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

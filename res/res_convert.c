@@ -39,7 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/file.h"
 
-STANDARD_USECOUNT_DECL;
+struct module_symbols *me;
 
 /*! \brief Split the filename to basename and extension */
 static int split_ext(char *filename, char **name, char **ext)
@@ -65,7 +65,7 @@ static int cli_audio_convert(int fd, int argc, char *argv[])
 	char *file_in = NULL, *file_out = NULL;
 	char *name_in, *ext_in, *name_out, *ext_out;
 	
-	STANDARD_INCREMENT_USECOUNT;
+	ast_atomic_fetchadd_int(&me->usecnt, +1);
 	
 	if (argc != 3 || ast_strlen_zero(argv[1]) || ast_strlen_zero(argv[2])) {
 		ret = RESULT_SHOWUSAGE;
@@ -116,7 +116,7 @@ fail_out:
 	if (fs_in) 
 		ast_closestream(fs_in);
 
-	STANDARD_DECREMENT_USECOUNT;
+	ast_atomic_fetchadd_int(&me->usecnt, -1);
 	
 	return ret;
 }
@@ -132,31 +132,25 @@ static struct ast_cli_entry audio_convert_cli={
 	{ "convert" , NULL }, cli_audio_convert, "Convert audio files", usage_audio_convert
 };
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	return ast_cli_unregister(&audio_convert_cli);
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
+	me = mod;
 	return ast_cli_register(&audio_convert_cli);
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "File format conversion CLI command";
-
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
+STD_MOD1;

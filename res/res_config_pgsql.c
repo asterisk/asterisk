@@ -547,7 +547,7 @@ static struct ast_config_engine pgsql_engine = {
 	.update_func = update_pgsql
 };
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	parse_config();
 
@@ -571,7 +571,7 @@ int load_module(void)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	/* Aquire control before doing anything to the module itself. */
 	ast_mutex_lock(&pgsql_lock);
@@ -594,7 +594,7 @@ int unload_module(void)
 	return 0;
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	/* Aquire control before doing anything to the module itself. */
 	ast_mutex_lock(&pgsql_lock);
@@ -691,14 +691,15 @@ int parse_config(void)
 	return 1;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Postgresql RealTime Configuration Driver";
 
 }
 
-int usecount(void)
+static int usecount(void)
 {
+	/* XXX check this... */
 	/* Try and get a lock. If unsuccessful, than that means another thread is using the pgsql object. */
 	if (ast_mutex_trylock(&pgsql_lock)) {
 		ast_log(LOG_DEBUG, "Postgresql RealTime: Module usage count is 1.\n");
@@ -708,10 +709,16 @@ int usecount(void)
 	return 0;
 }
 
+<<<<<<< .mine
+static const char *key(void)
+=======
 const char *key(void)
+>>>>>>> .r19220
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_0, NULL, NULL, NULL);
 
 static int pgsql_reconnect(const char *database)
 {

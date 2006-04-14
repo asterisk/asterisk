@@ -156,8 +156,6 @@ static off_t h264_tell(struct ast_filestream *fs)
 	return offset; /* XXX totally bogus, needs fixing */
 }
 
-static struct ast_format_lock me = { .usecnt = -1 };
-
 static const struct ast_format h264_f = {
 	.name = "h264",
 	.exts = "h264",
@@ -170,30 +168,27 @@ static const struct ast_format h264_f = {
 	.read = h264_read,
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 	.desc_size = sizeof(struct h264_desc),
-	.lockp = &me,
+	.module = &mod_data,	/* XXX */
 };
 
-int load_module()
+static int load_module(void *mod)
 {
 	return ast_format_register(&h264_f);
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	return ast_format_unregister(h264_f.name);
 }	
 
-int usecount()
-{
-	return me.usecnt;
-}
-
-const char *description()
+static const char *description(void)
 {
 	return "Raw h264 data";
 }
 
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

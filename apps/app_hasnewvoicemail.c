@@ -53,7 +53,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/options.h"
 
-static char *tdesc = "Indicator for whether a voice mailbox has messages in a given folder.";
 static char *app_hasvoicemail = "HasVoicemail";
 static char *hasvoicemail_synopsis = "Conditionally branches to priority + 101 with the right options set";
 static char *hasvoicemail_descrip =
@@ -219,7 +218,7 @@ struct ast_custom_function acf_vmcount = {
 	.read = acf_vmcount_exec,
 };
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 	
@@ -232,7 +231,7 @@ int unload_module(void)
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 
@@ -243,19 +242,14 @@ int load_module(void)
 	return res;
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "Indicator for whether a voice mailbox has messages in a given folder.";
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

@@ -61,7 +61,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define EXT_DATA_SIZE 256
 
-static char *tdesc = "Realtime Switch";
 
 /* Realtime switch looks up extensions in the supplied realtime table.
 
@@ -246,30 +245,26 @@ static struct ast_switch realtime_switch =
         matchmore:              realtime_matchmore,
 };
 
-const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "Realtime Switch";
 }
 
-int usecount(void)
-{
-	return 1;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	ast_unregister_switch(&realtime_switch);
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	ast_register_switch(&realtime_switch);
 	return 0;
 }
 
+STD_MOD(MOD_1 | NO_USECOUNT | NO_UNLOAD, NULL, NULL, NULL);

@@ -111,8 +111,6 @@ static struct ast_frame *ulawtoalaw_sample(void)
 	return &f;
 }
 
-static struct ast_module_lock me = { .usecnt = -1 };
-
 static struct ast_translator alawtoulaw = {
 	.name = "alawtoulaw",
 	.srcfmt = AST_FORMAT_ALAW,
@@ -121,7 +119,6 @@ static struct ast_translator alawtoulaw = {
 	.sample = alawtoulaw_sample,
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES,
-	.lockp = &me,
 };
 
 static struct ast_translator ulawtoalaw = {
@@ -132,24 +129,19 @@ static struct ast_translator ulawtoalaw = {
 	.sample = ulawtoalaw_sample,
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES,
-	.lockp = &me,
 };
 
 /*! \brief standard module glue */
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
-	ast_mutex_lock(&me.lock);
 	res = ast_unregister_translator(&ulawtoalaw);
 	res |= ast_unregister_translator(&alawtoulaw);
-	if (me.usecnt)
-		res = -1;
-	ast_mutex_unlock(&me.lock);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 	int x;
@@ -157,25 +149,22 @@ int load_module(void)
 		mu2a[x] = AST_LIN2A(AST_MULAW(x));
 		a2mu[x] = AST_LIN2MU(AST_ALAW(x));
 	}
-	res = ast_register_translator(&alawtoulaw);
+	res = ast_register_translator(&alawtoulaw, mod);
 	if (!res)
-		res = ast_register_translator(&ulawtoalaw);
+		res = ast_register_translator(&ulawtoalaw, mod);
 	else
 		ast_unregister_translator(&alawtoulaw);
 	return res;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "A-law and Mulaw direct Coder/Decoder";
 }
 
-int usecount(void)
-{
-	return me.usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, NULL, NULL, NULL);

@@ -137,7 +137,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define INADDR_NONE (in_addr_t)(-1)
 #endif
 
-static const char desc[] = "Media Gateway Control Protocol (MGCP)";
 static const char tdesc[] = "Media Gateway Control Protocol (MGCP)";
 static const char config[] = "mgcp.conf";
 
@@ -242,8 +241,6 @@ static int amaflags = 0;
 
 static int adsi = 0;
 
-static int usecnt =0;
-AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 /* SC: transaction id should always be positive */
 static unsigned int oseq;
 
@@ -1057,9 +1054,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 	}
 
 	/* SC: Decrement use count */
-	ast_mutex_lock(&usecnt_lock);
-	usecnt--;
-	ast_mutex_unlock(&usecnt_lock);
+	ast_atomic_fetchadd_int(&__mod_desc->usecnt, -1);
 	ast_update_use_count();
 	/* SC: Decrement use count */
 
@@ -1480,9 +1475,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		if (i->amaflags)
 			tmp->amaflags = i->amaflags;
 		sub->owner = tmp;
-		ast_mutex_lock(&usecnt_lock);
-		usecnt++;
-		ast_mutex_unlock(&usecnt_lock);
+		ast_atomic_fetchadd_int(&__mod_desc->usecnt, +1);
 		ast_update_use_count();
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
@@ -4323,10 +4316,11 @@ static int reload_config(void)
 }
 
 /*! \brief  load_module: PBX load module - initialization ---*/
-int load_module()
+static int load_module(void *mod)
 {
 	int res;
 
+	__mod_desc = mod;
 	sched = sched_context_create();
 	if (!sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
@@ -4377,13 +4371,13 @@ static int mgcp_reload(int fd, int argc, char *argv[])
 	return 0;
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	mgcp_reload(0, 0, NULL);
 	return 0;
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	struct mgcp_endpoint *e;
 	struct mgcp_gateway *g;
@@ -4455,17 +4449,14 @@ int unload_module()
 	return 0;
 }
 
-int usecount()
-{
-	return usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
-const char *description()
+static const char *description(void)
 {
-	return (char *) desc;
+	return "Media Gateway Control Protocol (MGCP)";
 }
+
+STD_MOD(MOD_1, reload, NULL, NULL);

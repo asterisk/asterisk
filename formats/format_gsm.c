@@ -156,8 +156,6 @@ static off_t gsm_tell(struct ast_filestream *fs)
 	return (offset/GSM_FRAME_SIZE)*GSM_SAMPLES;
 }
 
-static struct ast_format_lock me = { .usecnt = -1 };
-
 static const struct ast_format gsm_f = {
 	.name = "gsm",
 	.exts = "gsm",
@@ -168,30 +166,27 @@ static const struct ast_format gsm_f = {
 	.tell =	gsm_tell,
 	.read =	gsm_read,
 	.buf_size = 2*GSM_FRAME_SIZE + AST_FRIENDLY_OFFSET,	/* 2 gsm frames */
-	.lockp = &me,
+	.module = &mod_data,	/* XXX */
 };
 
-int load_module()
+static int load_module(void *mod)
 {
 	return ast_format_register(&gsm_f);
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	return ast_format_unregister(gsm_f.name);
 }	
 
-int usecount()
-{
-	return me.usecnt;
-}
-
-const char *description()
+static const char *description(void)
 {
 	return "Raw GSM data";
 }
 
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

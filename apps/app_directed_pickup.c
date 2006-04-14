@@ -42,7 +42,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 
-static const char *tdesc = "Directed Call Pickup Application";
 static const char *app = "Pickup";
 static const char *synopsis = "Directed Call Pickup";
 static const char *descrip =
@@ -134,37 +133,29 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 	
-	STANDARD_HANGUP_LOCALUSERS;
-
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
+	__mod_desc = mod;
 	return ast_register_application(app, pickup_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return (char *) tdesc;
+	return "Directed Call Pickup Application";
 }
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, NULL, NULL, NULL);

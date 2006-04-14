@@ -6389,12 +6389,12 @@ static int load_config(void)
 	}
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	return(load_config());
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 	
@@ -6411,7 +6411,7 @@ int unload_module(void)
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 	res = ast_register_application(app, vm_exec, synopsis_vm, descrip_vm);
@@ -6441,11 +6441,6 @@ int load_module(void)
 #endif
 
 	return res;
-}
-
-const char *description(void)
-{
-	return tdesc;
 }
 
 static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num, char *outgoing_context) 
@@ -6860,18 +6855,16 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  	if (cmd == 't')
  		cmd = 0;
  	return cmd;
- }
+}
  
-
-int usecount(void)
+static const char *description(void)
 {
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
+	return tdesc;
 }
 
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
+STD_MOD(MOD_1, reload, NULL, NULL);

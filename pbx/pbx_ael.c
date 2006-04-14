@@ -71,7 +71,6 @@ static void FREE(void *ptr)
 
 static int aeldebug = 0;
 
-static char *dtext = "Asterisk Extension Language Compiler";
 static char *config = "extensions.ael";
 static char *registrar = "pbx_ael";
 
@@ -1248,7 +1247,7 @@ static struct ast_cli_entry  ael_cli[] = {
 /*
  * Standard module functions ...
  */
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	ast_context_destroy(NULL, registrar);
 	ast_cli_unregister_multiple(ael_cli, sizeof(ael_cli)/ sizeof(ael_cli[0]));
@@ -1256,29 +1255,26 @@ int unload_module(void)
 }
 
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	ast_cli_register_multiple(ael_cli, sizeof(ael_cli)/ sizeof(ael_cli[0]));
 	return (pbx_load_module());
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	ast_context_destroy(NULL, registrar);
 	return pbx_load_module();
 }
 
-int usecount(void)
+static const char *description(void)
 {
-	return 0;
+	return "Asterisk Extension Language Compiler";
 }
 
-const char *description(void)
-{
-	return dtext;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1 | NO_USECOUNT, reload, NULL, NULL);

@@ -13675,7 +13675,7 @@ static int sip_reload(int fd, int argc, char *argv[])
 }
 
 /*! \brief  reload: Part of Asterisk module interface */
-int reload(void)
+static int reload(void *mod)
 {
 	return sip_reload(0, 0, NULL);
 }
@@ -13711,7 +13711,7 @@ static struct ast_cli_entry  my_clis[] = {
 };
 
 /*! \brief  load_module: PBX load module - initialization */
-int load_module()
+static int load_module(void *mod)
 {
 	ASTOBJ_CONTAINER_INIT(&userl);	/* User object list */
 	ASTOBJ_CONTAINER_INIT(&peerl);	/* Peer object list */
@@ -13766,7 +13766,7 @@ int load_module()
 	return 0;
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	struct sip_pvt *p, *pl;
 	
@@ -13852,19 +13852,14 @@ int unload_module()
 	return 0;
 }
 
-int usecount()
-{
-	return usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
-const char *description()
+static const char *description(void)
 {
 	return (char *) desc;
 }
 
-
+STD_MOD(MOD_1, reload, NULL, NULL);

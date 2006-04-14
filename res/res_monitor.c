@@ -31,8 +31,6 @@
 #include <sys/stat.h>
 #include <libgen.h>		/* dirname() */
 
-#define STATIC_MODULE
-
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -647,7 +645,7 @@ static int unpause_monitor_action(struct mansession *s, struct message *m)
 }
 	
 
-STATIC_MODULE int load_module(void)
+static int load_module(void *mod)
 {
 	ast_register_application("Monitor", start_monitor_exec, monitor_synopsis, monitor_descrip);
 	ast_register_application("StopMonitor", stop_monitor_exec, stopmonitor_synopsis, stopmonitor_descrip);
@@ -663,7 +661,7 @@ STATIC_MODULE int load_module(void)
 	return 0;
 }
 
-STATIC_MODULE int unload_module(void)
+static int unload_module(void *mod)
 {
 	ast_unregister_application("Monitor");
 	ast_unregister_application("StopMonitor");
@@ -679,27 +677,14 @@ STATIC_MODULE int unload_module(void)
 	return 0;
 }
 
-STATIC_MODULE const char *description(void)
+static const char *description(void)
 {
 	return "Call Monitoring Resource";
 }
 
-STATIC_MODULE int usecount(void)
-{
-	/* Never allow monitor to be unloaded because it will
-	   unresolve needed symbols in the channel */
-#if 0
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-#else
-	return 1;
-#endif
-}
-
-STATIC_MODULE const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
-STD_MOD(MOD_0, NULL, NULL, NULL);	/* MOD_0 because it exports some symbols */
+STD_MOD(MOD_0 | NO_USECOUNT | NO_UNLOAD, NULL, NULL, NULL);	/* MOD_0 because it exports some symbols */

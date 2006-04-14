@@ -61,11 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/stringfields.h"
 
-static const char desc[] = "Local Proxy Channel";
 static const char tdesc[] = "Local Proxy Channel Driver";
-
-static int usecnt =0;
-AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 #define IS_OUTBOUND(a,b) (a == b->chan ? 1 : 0)
 
@@ -395,9 +391,7 @@ static int local_hangup(struct ast_channel *ast)
 		p->owner = NULL;
 	ast->tech_pvt = NULL;
 	
-	ast_mutex_lock(&usecnt_lock);
-	usecnt--;
-	ast_mutex_unlock(&usecnt_lock);
+	ast_atomic_fetchadd_int(&__mod_desc->usecnt, -1);
 	
 	if (!p->owner && !p->chan) {
 		/* Okay, done with the private part now, too. */
@@ -510,9 +504,7 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 	tmp2->tech_pvt = p;
 	p->owner = tmp;
 	p->chan = tmp2;
-	ast_mutex_lock(&usecnt_lock);
-	usecnt += 2;	/* we allocate 2 new channels */
-	ast_mutex_unlock(&usecnt_lock);
+	ast_atomic_fetchadd_int(&__mod_desc->usecnt, +2);	/* we allocate 2 new channels */
 	ast_update_use_count();
 	ast_copy_string(tmp->context, p->context, sizeof(tmp->context));
 	ast_copy_string(tmp2->context, p->context, sizeof(tmp2->context));
@@ -564,8 +556,10 @@ static struct ast_cli_entry cli_show_locals = {
 	"Show status of local channels", show_locals_usage, NULL };
 
 /*! \brief Load module into PBX, register channel */
-int load_module()
+static int load_module(void *mod)
 {
+	__mod_desc = mod;
+
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&local_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Local'\n");
@@ -575,14 +569,8 @@ int load_module()
 	return 0;
 }
 
-/*! \brief Reload module */
-int reload()
-{
-	return 0;
-}
-
 /*! \brief Unload the local proxy channel from Asterisk */
-int unload_module()
+static int unload_module(void *mod)
 {
 	struct local_pvt *p;
 
@@ -604,18 +592,14 @@ int unload_module()
 	return 0;
 }
 
-int usecount()
-{
-	return usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
-const char *description()
+static const char *description(void)
 {
-	return (char *) desc;
+	return "Local Proxy Channel";
 }
 
+STD_MOD(MOD_1, NULL, NULL, NULL);

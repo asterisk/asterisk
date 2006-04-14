@@ -43,7 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 
-static char *tdesc = "Trivial skeleton Application";
 static char *app = "Skel";
 static char *synopsis = 
 "Skeleton application.";
@@ -119,44 +118,26 @@ static int app_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
-
 	res = ast_unregister_application(app);
-
-	STANDARD_HANGUP_LOCALUSERS;
-
 	return res;	
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_register_application(app, app_exec, synopsis, descrip);
 }
 
-int reload(void)
+static const char *description(void)
 {
-	/* This function will be called if a 'reload' is requested */
-
-	return 0;
+	return "Trivial skeleton Application";
 }
 
-const char *description(void)
-{
-	return tdesc;
-}
-
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

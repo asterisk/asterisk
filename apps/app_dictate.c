@@ -46,7 +46,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 
-static char *tdesc = "Virtual Dictation Machine";
 static char *app = "Dictate";
 static char *synopsis = "Virtual Dictation Machine";
 static char *desc = "  Dictate([<base_dir>[|<filename>]])\n"
@@ -336,36 +335,27 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
-
 	res = ast_unregister_application(app);
-	
-	STANDARD_HANGUP_LOCALUSERS;
-	
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
+	__mod_desc = mod;
 	return ast_register_application(app, dictate_exec, synopsis, desc);
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "Virtual Dictation Machine";
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
+STD_MOD(MOD_1, NULL, NULL, NULL);

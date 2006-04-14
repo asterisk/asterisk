@@ -74,16 +74,32 @@ void dnsmgr_start_refresh(void);
 int dnsmgr_reload(void);
 
 /*!
+ * \brief Reload asterisk modules.
+ * \param name the name of the module to reload
+ *
+ * This function reloads the specified module, or if no modules are specified,
+ * it will reload all loaded modules.
+ *
+ * \note Modules are reloaded using their reload() functions, not unloading
+ * them and loading them again.
+ * 
+ * \return Zero if the specified module was not found, 1 if the module was
+ * found but cannot be reloaded, -1 if a reload operation is already in
+ * progress, and 2 if the specfied module was found and reloaded.
+ */
+int ast_module_reload(const char *name);
+
+/*!
  * \brief Register a function to be executed before Asterisk exits.
  * \param func The callback function to use.
- * 
+ *
  * \return Zero on success, -1 on error.
  */
 int ast_register_atexit(void (*func)(void));
- 
-/*!
+
+/*!   
  * \brief Unregister a function registered with ast_register_atexit().
- * \param func The callback function to unregister.
+ * \param func The callback function to unregister.   
  */
 void ast_unregister_atexit(void (*func)(void));
 

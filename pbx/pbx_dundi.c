@@ -77,7 +77,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 extern char ast_config_AST_KEY_DIR[];
 
-static char *tdesc = "Distributed Universal Number Discovery (DUNDi)";
 
 #define DUNDI_MODEL_INBOUND		(1 << 0)
 #define DUNDI_MODEL_OUTBOUND	(1 << 1)
@@ -4603,7 +4602,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 
@@ -4629,19 +4628,20 @@ int unload_module(void)
 	return 0;
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	struct sockaddr_in sin;
 	set_config("dundi.conf",&sin);
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res = 0;
 	struct sockaddr_in sin;
 	char iabuf[INET_ADDRSTRLEN];
-	
+
+	__mod_desc = mod;
 	dundi_set_output(dundi_debug_output);
 	dundi_set_error(dundi_error_output);
 	
@@ -4709,21 +4709,14 @@ int load_module(void)
 	return res;
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "Distributed Universal Number Discovery (DUNDi)";
 }
 
-int usecount(void)
-{
-	int res;
-	/* XXX DUNDi cannot be unloaded XXX */
-	return 1;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1 | NO_USECOUNT | NO_UNLOAD, reload, NULL, NULL);

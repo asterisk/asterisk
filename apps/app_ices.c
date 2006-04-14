@@ -50,8 +50,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define ICES "/usr/bin/ices"
 #define LOCAL_ICES "/usr/local/bin/ices"
 
-static char *tdesc = "Encode and Stream via icecast and ices";
-
 static char *app = "ICES";
 
 static char *synopsis = "Encode and stream using 'ices'";
@@ -191,7 +189,7 @@ static int ices_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -202,24 +200,19 @@ int unload_module(void)
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_register_application(app, ices_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "Encode and Stream via icecast and ices";
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

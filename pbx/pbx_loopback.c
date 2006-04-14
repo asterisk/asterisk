@@ -52,7 +52,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/crypto.h"
 #include "asterisk/astdb.h"
 
-static char *tdesc = "Loopback Switch";
 
 /* Loopback switch substitutes ${EXTEN}, ${CONTEXT}, and ${PRIORITY} into
    the data passed to it to try to get a string of the form:
@@ -169,30 +168,27 @@ static struct ast_switch loopback_switch =
         matchmore:              loopback_matchmore,
 };
 
-const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "Loopback Switch";
 }
 
-int usecount(void)
-{
-	return 1;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	ast_unregister_switch(&loopback_switch);
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	ast_register_switch(&loopback_switch);
 	return 0;
 }
 
+/* XXX really no unload ? */
+STD_MOD(MOD_1 | NO_USECOUNT | NO_UNLOAD, NULL, NULL, NULL);

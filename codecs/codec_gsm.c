@@ -203,8 +203,6 @@ static void gsm_destroy_stuff(struct ast_trans_pvt *pvt)
 		gsm_destroy(tmp->gsm);
 }
 
-static struct ast_module_lock me = { .usecnt = -1 };
-
 static struct ast_translator gsmtolin = {
 	.name = "gsmtolin", 
 	.srcfmt = AST_FORMAT_GSM,
@@ -213,7 +211,6 @@ static struct ast_translator gsmtolin = {
 	.framein = gsmtolin_framein,
 	.destroy = gsm_destroy_stuff,
 	.sample = gsmtolin_sample,
-	.lockp = &me,
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
 	.desc_size = sizeof (struct gsm_translator_pvt ),
@@ -229,7 +226,6 @@ static struct ast_translator lintogsm = {
 	.frameout = lintogsm_frameout,
 	.destroy = gsm_destroy_stuff,
 	.sample = lintogsm_sample,
-	.lockp = &me,
 	.desc_size = sizeof (struct gsm_translator_pvt ),
 	.buf_size = (BUFFER_SAMPLES * GSM_FRAME_LEN + GSM_SAMPLES - 1)/GSM_SAMPLES,
 };
@@ -252,48 +248,41 @@ static void parse_config(void)
 }
 
 /*! \brief standard module glue */
-int reload(void)
+static int reload(void *mod)
 {
 	parse_config();
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
-	ast_mutex_lock(&me.lock);
 	res = ast_unregister_translator(&lintogsm);
 	if (!res)
 		res = ast_unregister_translator(&gsmtolin);
-	if (me.usecnt)
-		res = -1;
-	ast_mutex_unlock(&me.lock);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 	parse_config();
-	res=ast_register_translator(&gsmtolin);
+	res = ast_register_translator(&gsmtolin, mod);
 	if (!res) 
-		res=ast_register_translator(&lintogsm);
+		res=ast_register_translator(&lintogsm, mod);
 	else
 		ast_unregister_translator(&gsmtolin);
 	return res;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "GSM/PCM16 (signed linear) Codec Translator";
 }
 
-int usecount(void)
-{
-	return me.usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, reload, NULL, NULL);

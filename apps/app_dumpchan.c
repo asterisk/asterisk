@@ -46,7 +46,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 
-static char *tdesc = "Dump Info About The Calling Channel";
 static char *app = "DumpChan";
 static char *synopsis = "Dump Info About The Calling Channel";
 static char *desc = 
@@ -157,7 +156,7 @@ static int dumpchan_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -168,25 +167,19 @@ int unload_module(void)
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_register_application(app, dumpchan_exec, synopsis, desc);
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return tdesc;
+	return "Dump Info About The Calling Channel";
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
+STD_MOD1;

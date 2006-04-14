@@ -115,30 +115,25 @@ static struct ast_imager jpeg_format = {
 	jpeg_write_image,
 };
 
-int load_module()
+static int load_module(void *mod)
 {
 	return ast_image_register(&jpeg_format);
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	ast_image_unregister(&jpeg_format);
 	return 0;
 }	
 
-int usecount()
-{
-	/* We never really have any users */
-	return 0;
-}
-
-const char *description()
+static const char *description(void)
 {
 	return desc;
 }
 
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);

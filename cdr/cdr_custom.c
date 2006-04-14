@@ -137,12 +137,12 @@ static int custom_log(struct ast_cdr *cdr)
 	return 0;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return desc;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	if (mf)
 		fclose(mf);
@@ -150,7 +150,7 @@ int unload_module(void)
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res = 0;
 
@@ -164,17 +164,15 @@ int load_module(void)
 	return res;
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	return load_config(1);
 }
 
-int usecount(void)
-{
-	return 0;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1 | NO_USECOUNT, reload, NULL, NULL);
+

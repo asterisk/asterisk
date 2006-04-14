@@ -414,8 +414,6 @@ static off_t au_tell(struct ast_filestream *fs)
 	return offset - AU_HEADER_SIZE;
 }
 
-static struct ast_format_lock me = { .usecnt = -1 };
-
 static const struct ast_format alaw_f = {
 	.name = "alaw",
 	.exts = "alaw|al",
@@ -426,7 +424,7 @@ static const struct ast_format alaw_f = {
 	.tell = pcm_tell,
 	.read = pcm_read,
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
-	.lockp = &me,
+	.module = &mod_data, /* XXX */
 #ifdef REALTIME_WRITE
 	.open = pcma_open,
 	.rewrite = pcma_rewrite,
@@ -444,7 +442,7 @@ static const struct ast_format pcm_f = {
 	.tell = pcm_tell,
 	.read = pcm_read,
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
-	.lockp = &me,
+	.module = &mod_data, /* XXX */
 };
 
 static const struct ast_format au_f = {
@@ -459,10 +457,10 @@ static const struct ast_format au_f = {
 	.tell = au_tell,
 	.read = pcm_read,
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,	/* this many shorts */
-	.lockp = &me,
+	.module = &mod_data, /* XXX */
 };
 
-int load_module()
+static int load_module(void *mod)
 {
 	int index;
 
@@ -476,23 +474,20 @@ int load_module()
 		|| ast_format_register(&au_f);
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 	return ast_format_unregister(pcm_f.name) || ast_format_unregister(alaw_f.name)
 		|| ast_format_unregister(au_f.name);
 }	
 
-int usecount()
-{
-	return me.usecnt;
-}
-
-const char *description()
+static const char *description(void)
 {
 	return "Raw/Sun uLaw/ALaw 8khz Audio support (PCM,PCMA,AU)";
 }
 
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

@@ -57,7 +57,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
 
-static const char *tdesc = "Mixed Audio Monitoring Application";
 static const char *app = "MixMonitor";
 static const char *synopsis = "Record a call and mix the audio during the recording";
 static const char *desc = ""
@@ -88,7 +87,7 @@ static const char *stop_desc = ""
 "on the current channel.\n"
 "";
 
-LOCAL_USER_DECL;
+struct module_symbols *me;
 
 static const char *mixmonitor_spy_type = "MixMonitor";
 
@@ -169,7 +168,7 @@ static void *mixmonitor_thread(void *obj)
 	struct ast_frame *f;
 	char post_process[1024] = "";
 	
-	STANDARD_INCREMENT_USECOUNT;
+	ast_atomic_fetchadd_int(&__mod_desc->usecnt, +1);
 
 	name = ast_strdupa(mixmonitor->chan->name);
 
@@ -282,7 +281,7 @@ out2:
 out:
 	free(mixmonitor);
 
-	STANDARD_DECREMENT_USECOUNT;
+	ast_atomic_fetchadd_int(&__mod_desc->usecnt, -1);
 
 	return NULL;
 }
@@ -461,7 +460,7 @@ static struct ast_cli_entry cli_mixmonitor = {
 	complete_mixmonitor_cli
 };
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -474,7 +473,7 @@ int unload_module(void)
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 
@@ -485,21 +484,14 @@ int load_module(void)
 	return res;
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return (char *) tdesc;
+	return "Mixed Audio Monitoring Application";
 }
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

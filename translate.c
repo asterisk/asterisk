@@ -31,6 +31,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#define MOD_LOADER	/* not really a module */
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -39,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"
 #include "asterisk/translate.h"
+#include "asterisk/module.h"
 #include "asterisk/options.h"
 #include "asterisk/frame.h"
 #include "asterisk/sched.h"
@@ -94,6 +96,8 @@ static void *newpvt(struct ast_translator *t)
 	int len;
 	int useplc = t->plc_samples > 0 && t->useplc;	/* cache, because it can change on the fly */
 	char *ofs;
+	struct module_symbols *ms = t->module;
+
 	/*
 	 * compute the required size adding private descriptor,
 	 * plc, buffer, AST_FRIENDLY_OFFSET.
@@ -123,9 +127,7 @@ static void *newpvt(struct ast_translator *t)
 		free(pvt);
 		return NULL;
 	}
-	ast_mutex_lock(&t->lockp->lock);
-	t->lockp->usecnt++;
-	ast_mutex_unlock(&t->lockp->lock);
+	ast_atomic_fetchadd_int(&ms->usecnt, +1);
 	ast_update_use_count();
 	return pvt;
 }
@@ -133,13 +135,12 @@ static void *newpvt(struct ast_translator *t)
 static void destroy(struct ast_trans_pvt *pvt)
 {
 	struct ast_translator *t = pvt->t;
+	struct module_symbols *ms = t->module;
 
 	if (t->destroy)
 		t->destroy(pvt);
 	free(pvt);
-	ast_mutex_lock(&t->lockp->lock);
-	t->lockp->usecnt--;
-	ast_mutex_unlock(&t->lockp->lock);
+	ast_atomic_fetchadd_int(&ms->usecnt, -1);
 	ast_update_use_count();
 }
 
@@ -519,14 +520,15 @@ static char show_trans_usage[] =
 static struct ast_cli_entry show_trans =
 { { "show", "translation", NULL }, show_translation, "Display translation matrix", show_trans_usage };
 
-int ast_register_translator(struct ast_translator *t)
+int ast_register_translator(struct ast_translator *t, void *module)
 {
 	static int added_cli = 0;
 
-	if (t->lockp == NULL) {
-		ast_log(LOG_WARNING, "Missing lock pointer, you need to supply one\n");
+	if (module == NULL) {
+		ast_log(LOG_WARNING, "Missing module pointer, you need to supply one\n");
 		return -1;
 	}
+	t->module = module;
 	if (t->buf_size == 0) {
 		ast_log(LOG_WARNING, "empty buf size, you need to supply one\n");
 		return -1;
@@ -560,10 +562,6 @@ int ast_register_translator(struct ast_translator *t)
 		struct _test_align { void *a, *b; } p;
 		int align = (char *)&p.b - (char *)&p.a;
 		t->buf_size = ((t->buf_size + align - 1)/align)*align;
-	}
-	if (t->lockp->usecnt < 0) {	/* XXX need to initialize the lock */
-		ast_mutex_init(&t->lockp->lock);
-		t->lockp->usecnt = 0;
 	}
 	if (t->frameout == NULL)
 		t->frameout = default_frameout;

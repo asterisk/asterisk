@@ -3852,7 +3852,7 @@ static struct ast_cli_entry cli_remove_queue_member = {
 	{ "remove", "queue", "member", NULL }, handle_remove_queue_member,
 	"Removes a channel from a specified queue", rqm_cmd_usage, complete_remove_queue_member };
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -3880,7 +3880,7 @@ int unload_module(void)
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 	
@@ -3912,26 +3912,21 @@ int load_module(void)
 	return res;
 }
 
-
-int reload(void)
+static int reload(void *mod)
 {
 	reload_queues();
 	return 0;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return tdesc;
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, reload, NULL, NULL);
+

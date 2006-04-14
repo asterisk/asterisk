@@ -240,8 +240,6 @@ static void lpc10_destroy(struct ast_trans_pvt *arg)
 	free(pvt->lpc10.enc);
 }
 
-static struct ast_module_lock me = { .usecnt = -1 };
-
 static struct ast_translator lpc10tolin = {
 	.name = "lpc10tolin", 
 	.srcfmt = AST_FORMAT_LPC10,
@@ -250,7 +248,6 @@ static struct ast_translator lpc10tolin = {
 	.framein = lpc10tolin_framein,
 	.destroy = lpc10_destroy,
 	.sample = lpc10tolin_sample,
-	.lockp = &me,
 	.desc_size = sizeof(struct lpc10_coder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.plc_samples = LPC10_SAMPLES_PER_FRAME,
@@ -266,7 +263,6 @@ static struct ast_translator lintolpc10 = {
 	.frameout = lintolpc10_frameout,
 	.destroy = lpc10_destroy,
 	.sample = lintolpc10_sample,
-	.lockp = &me,
 	.desc_size = sizeof(struct lpc10_coder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = LPC10_BYTES_IN_COMPRESSED_FRAME * (1 + BUFFER_SAMPLES / LPC10_SAMPLES_PER_FRAME),
@@ -289,49 +285,41 @@ static void parse_config(void)
 	ast_config_destroy(cfg);
 }
 
-int reload(void)
+static int reload(void *mod)
 {
         parse_config();
         return 0;
 }
 
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
-	ast_mutex_lock(&me.lock);
 	res = ast_unregister_translator(&lintolpc10);
-	if (!res)
-		res = ast_unregister_translator(&lpc10tolin);
-	if (me.usecnt)
-		res = -1;
-	ast_mutex_unlock(&me.lock);
+	res |= ast_unregister_translator(&lpc10tolin);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 	parse_config();
-	res=ast_register_translator(&lpc10tolin);
+	res=ast_register_translator(&lpc10tolin, mod);
 	if (!res) 
-		res=ast_register_translator(&lintolpc10);
+		res=ast_register_translator(&lintolpc10, mod);
 	else
 		ast_unregister_translator(&lpc10tolin);
 	return res;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "LPC10 2.4kbps (signed linear) Voice Coder";
 }
 
-int usecount(void)
-{
-	return me.usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, reload, NULL, NULL);

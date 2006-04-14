@@ -143,41 +143,35 @@ static int del_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int retval;
 
 	retval = ast_unregister_application(dt_app);
 	retval |= ast_unregister_application(d_app);
 
-	STANDARD_HANGUP_LOCALUSERS;
-
 	return retval;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int retval;
 
+	__mod_desc = mod;
 	retval = ast_register_application(d_app, del_exec, d_synopsis, d_descrip);
 	retval |= ast_register_application(dt_app, deltree_exec, dt_synopsis, dt_descrip);
 	
 	return retval;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Database Access Functions";
 }
 
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, NULL, NULL, NULL);

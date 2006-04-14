@@ -106,7 +106,7 @@ struct ast_format {
 	int buf_size;			/*! size of frame buffer, if any, aligned to 8 bytes. */
 	int desc_size;			/*! size of private descriptor, if any */
 
-	struct ast_format_lock *lockp;
+	struct module_symbols *module;
 };
 
 /*

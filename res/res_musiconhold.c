@@ -1164,7 +1164,7 @@ static int init_classes(int reload)
 	return 1;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 
@@ -1191,7 +1191,7 @@ int load_module(void)
 	return 0;
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	if (init_classes(1))
 		ast_install_music_functions(local_ast_moh_start, local_ast_moh_stop, local_ast_moh_cleanup);
@@ -1199,30 +1199,19 @@ int reload(void)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	return -1;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Music On Hold Resource";
 }
 
-int usecount(void)
-{
-	/* Never allow Music On Hold to be unloaded
-	   unresolve needed symbols in the dialer */
-#if 0
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-#else
-	return 1;
-#endif
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_0 | NO_USECOUNT | NO_UNLOAD, reload, NULL, NULL);

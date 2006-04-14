@@ -581,13 +581,13 @@ static int crypto_init(void)
 	return 0;
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	crypto_load(-1, -1);
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	crypto_init();
 	if (ast_opt_init_keys)
@@ -597,24 +597,19 @@ int load_module(void)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	/* Can't unload this once we're loaded */
 	return -1;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Cryptographic Digital Signatures";
 }
 
-int usecount(void)
-{
-	/* We should never be unloaded */
-	return 1;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+STD_MOD(MOD_0 | NO_USECOUNT | NO_UNLOAD, reload, NULL, NULL);

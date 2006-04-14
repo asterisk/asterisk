@@ -27,6 +27,7 @@
  * \ingroup codecs
  */
 
+
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -326,8 +327,6 @@ static struct ast_frame *lintoadpcm_sample(void)
 	return &f;
 }
 
-struct ast_module_lock me = { .usecnt = -1 };
-
 static struct ast_translator adpcmtolin = {
 	.name = "adpcmtolin",
 	.srcfmt = AST_FORMAT_ADPCM,
@@ -338,7 +337,6 @@ static struct ast_translator adpcmtolin = {
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
 	.plc_samples = 160,
-	.lockp = &me,
 };
 
 static struct ast_translator lintoadpcm = {
@@ -351,7 +349,6 @@ static struct ast_translator lintoadpcm = {
 	.desc_size = sizeof (struct adpcm_encoder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES/ 2,	/* 2 samples per byte */
-	.lockp = &me,
 };
 
 static void parse_config(void)
@@ -371,47 +368,40 @@ static void parse_config(void)
 }
 
 /*! \brief standard module glue */
-int reload(void)
+static int reload(void *mod)
 {
 	parse_config();
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
-	ast_mutex_lock(&me.lock);
 	res = ast_unregister_translator(&lintoadpcm);
 	res |= ast_unregister_translator(&adpcmtolin);
-	if (me.usecnt)
-		res = -1;
-	ast_mutex_unlock(&me.lock);
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 	parse_config();
-	res = ast_register_translator(&adpcmtolin);
+	res = ast_register_translator(&adpcmtolin, mod);
 	if (!res)
-		res = ast_register_translator(&lintoadpcm);
+		res = ast_register_translator(&lintoadpcm, mod);
 	else
 		ast_unregister_translator(&adpcmtolin);
 	return res;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Adaptive Differential PCM Coder/Decoder";
 }
 
-int usecount(void)
-{
-	return me.usecnt;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_1, reload, NULL, NULL);

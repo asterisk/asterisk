@@ -45,8 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/chanvars.h"
 #include "asterisk/utils.h"
 
-static const char *tdesc = "Page Multiple Phones";
-
 static const char *app_page= "Page";
 
 static const char *page_synopsis = "Pages phones";
@@ -205,7 +203,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 	return -1;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -216,26 +214,19 @@ int unload_module(void)
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return ast_register_application(app_page, page_exec, page_synopsis, page_descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
-	return (char *) tdesc;
+	return "Page Multiple Phones";
 }
 
-int usecount(void)
-{
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD1;

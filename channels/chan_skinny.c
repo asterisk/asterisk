@@ -3259,7 +3259,7 @@ static void delete_devices(void)
 	ast_mutex_unlock(&devicelock);
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	delete_devices();
 	reload_config();
@@ -3268,7 +3268,7 @@ int reload(void)
 }
 
 
-int load_module()
+static int load_module(void *mod)
 {
 	int res = 0;
 
@@ -3305,7 +3305,7 @@ int load_module()
 	return res;
 }
 
-int unload_module()
+static int unload_module(void *mod)
 {
 #if 0
 	struct skinny_session *session, s;
@@ -3360,17 +3360,14 @@ int unload_module()
 	return -1;
 }
 
-int usecount()
-{
-	return usecnt;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return "Skinny Client Control Protocol (Skinny)";
 }
+
+STD_MOD(MOD_1, reload, NULL, NULL);

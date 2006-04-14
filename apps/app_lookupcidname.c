@@ -80,8 +80,7 @@ lookupcidname_exec (struct ast_channel *chan, void *data)
   return 0;
 }
 
-int
-unload_module (void)
+static int unload_module(void *mod)
 {
 	int res;
 
@@ -92,27 +91,19 @@ unload_module (void)
 	return res;
 }
 
-int
-load_module (void)
+static int load_module(void *mod)
 {
-  return ast_register_application (app, lookupcidname_exec, synopsis,
-				   descrip);
+	return ast_register_application (app, lookupcidname_exec, synopsis, descrip);
 }
 
-const char *description(void)
+static const char *description(void)
 {
-  return tdesc;
+	return tdesc;
 }
 
-int
-usecount (void)
+static const char *key(void)
 {
-  int res;
-  STANDARD_USECOUNT (res);
-  return res;
+	return ASTERISK_GPL_KEY;
 }
 
-const char *key()
-{
-  return ASTERISK_GPL_KEY;
-}
+STD_MOD1;
