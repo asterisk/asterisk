@@ -6307,10 +6307,10 @@ static int load_config(void)
 			ast_copy_string(emailtitle,s,sizeof(emailtitle));
 		}
 		if ((s=ast_variable_retrieve(cfg, "general", "emailsubject")))
-			emailsubject = strdup(s);
+			emailsubject = ast_strdup(s);
 		if ((s=ast_variable_retrieve(cfg, "general", "emailbody"))) {
 			char *tmpread, *tmpwrite;
-			emailbody = strdup(s);
+			emailbody = ast_strdup(s);
 
 			/* substitute strings \t and \n into the apropriate characters */
 			tmpread = tmpwrite = emailbody;
@@ -6332,10 +6332,10 @@ static int load_config(void)
                        }
                }
                if ((s=ast_variable_retrieve(cfg, "general", "pagersubject")))
-                       pagersubject = strdup(s);
+                       pagersubject = ast_strdup(s);
                if ((s=ast_variable_retrieve(cfg, "general", "pagerbody"))) {
                        char *tmpread, *tmpwrite;
-                       pagerbody = strdup(s);
+                       pagerbody = ast_strdup(s);
 
                        /* substitute strings \t and \n into the apropriate characters */
                        tmpread = tmpwrite = pagerbody;
