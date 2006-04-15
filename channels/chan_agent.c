@@ -156,6 +156,7 @@ static ast_group_t group;
 static int autologoff;
 static int wrapuptime;
 static int ackcall;
+static int endcall;
 static int multiplelogin = 1;
 static int autologoffunavail = 0;
 
@@ -498,7 +499,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
  				p->acknowledged = 1;
  				ast_frfree(f);
  				f = &answer_frame;
- 			} else if (f->subclass == '*') {
+ 			} else if (f->subclass == '*' && endcall) {
  				/* terminates call */
  				ast_frfree(f);
  				f = NULL;
@@ -988,6 +989,7 @@ static int read_agent_config(void)
 	autologoff = 0;
 	wrapuptime = 0;
 	ackcall = 0;
+	endcall = 1;
 	cfg = ast_config_load(config);
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "No agent configuration found -- agent support disabled\n");
@@ -1032,6 +1034,8 @@ static int read_agent_config(void)
 				ackcall = 1;
 			else
 				ackcall = 0;
+		} else if (!strcasecmp(v->name, "endcall")) {
+			endcall = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "wrapuptime")) {
 			wrapuptime = atoi(v->value);
 			if (wrapuptime < 0)

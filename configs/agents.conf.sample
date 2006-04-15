@@ -41,6 +41,11 @@ persistentagents=yes
 ;
 ;ackcall=no
 ;
+; Define endcall to allow an agent to hangup a call by '*'.
+; Default is "yes". Set this to "no" to ignore '*'. 
+;
+;endcall=yes
+;
 ; Define wrapuptime.  This is the minimum amount of time when
 ; after disconnecting before the caller can receive a new call
 ; note this is in milliseconds.
