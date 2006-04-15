@@ -508,6 +508,24 @@ acceptance  = 425/125,0/125
 holdinga    = !425*24/500,!0/500                     ; followed by holdingb
 holdingb    = !425/500,!0/2500
 
+[th]
+description = Thailand
+ringcadence = 1000,4000
+; Reference: http://www.itu.int/ITU-T/inr/forms/files/tones-0203.pdf
+dial = 400*50
+busy = 400/500,0/500
+ring = 420/1000,0/5000
+congestion = 400/300,0/300
+callwaiting = 1000/400,10000/400,1000/400
+; DIALRECALL - not specified - use special dial tone instead.
+dialrecall = 400*50/400,0/100,400*50/400,0/100
+; RECORDTONE - not specified
+record = 1400/500,0/15000
+; INFO - specified as an announcement - use special information tones instead
+info = 950/330,1400/330,1800/330
+; STUTTER - not specified
+stutter = !400/200,!0/200,!400/600,!0/200,!400/200,!0/200,!400/600,!0/200,!400/200,!0/200,!400/600,!0/200,!400/200,!0/200,!400/600,!0/200,400
+
 [uk]
 description = United Kingdom
 ringcadence = 400,200,400,2000
