@@ -237,6 +237,7 @@ struct ast_vm_user {
 	char dialout[80];
 	char uniqueid[20];		/*!< Unique integer identifier */
 	char exit[80];
+	char attachfmt[20];		/*!< Attachment format */
 	unsigned int flags;		/*!< VM_ flags */	
 	int saydurationm;
 	int maxmsg;			/*!< Maximum number of msgs per folder for this mailbox */
@@ -451,7 +452,9 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 {
 	int x;
 	if (!strcasecmp(var, "attach")) {
-		ast_set2_flag(vmu, ast_true(value), VM_ATTACH);	
+		ast_set2_flag(vmu, ast_true(value), VM_ATTACH);
+	} else if (!strcasecmp(var, "attachfmt")) {
+		ast_copy_string(vmu->attachfmt, value, sizeof(vmu->attachfmt));
 	} else if (!strcasecmp(var, "serveremail")) {
 		ast_copy_string(vmu->serveremail, value, sizeof(vmu->serveremail));
 	} else if (!strcasecmp(var, "language")) {
@@ -3291,6 +3294,10 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	make_dir(todir, sizeof(todir), vmu->context, vmu->mailbox, "INBOX");
 	make_file(fn, sizeof(fn), todir, msgnum);
 	snprintf(ext_context, sizeof(ext_context), "%s@%s", vmu->mailbox, vmu->context);
+
+	if (!ast_strlen_zero(vmu->attachfmt)) {
+		fmt = vmu->attachfmt;
+	}
 
 	/* Attach only the first format */
 	if ((fmt = ast_strdupa(fmt))) {

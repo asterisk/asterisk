@@ -162,6 +162,11 @@ european=Europe/Copenhagen|'vm-received' a d b 'digits/at' HM
 ; 
 ; tz=central 		; Timezone from zonemessages above.  Irrelevant if envelope=no.
 ; attach=yes 		; Attach the voicemail to the notification email *NOT* the pager email
+; attachfmt=wav49	; Which format to attach to the email.  Normally this is the
+			; first format specified in the format parameter above, but this
+			; option lets you customize the format sent to particular mailboxes.
+			; Useful if Windows users want wav49, but Linux users want gsm.
+			; [per-mailbox only]
 ; saycid=yes 		; Say the caller id information before the message. If not described, 
 			;     or set to no, it will be in the envelope
 ; cidinternalcontexts=intern	; Internal Context for Name Playback instead of 
