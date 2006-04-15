@@ -1530,7 +1530,7 @@ static void reload_firmware(void)
 		cur = cur->next;
 	}
 	/* Now that we've freed them, load the new ones */
-	snprintf(dir, sizeof(dir), "%s/firmware/iax", (char *)ast_config_AST_VAR_DIR);
+	snprintf(dir, sizeof(dir), "%s/firmware/iax", (char *)ast_config_AST_DATA_DIR);
 	fwd = opendir(dir);
 	if (fwd) {
 		while((de = readdir(fwd))) {

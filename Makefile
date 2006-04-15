@@ -682,18 +682,18 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-csv
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-custom
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/keys
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/keys
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/firmware
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/firmware/iax
 	mkdir -p $(DESTDIR)$(ASTMANDIR)/man8
-	$(INSTALL) -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
-	$(INSTALL) -m 644 keys/freeworlddialup.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
+	$(INSTALL) -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTDATADIR)/keys
+	$(INSTALL) -m 644 keys/freeworlddialup.pub $(DESTDIR)$(ASTDATADIR)/keys
 	$(INSTALL) -m 644 asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
 	$(INSTALL) -m 644 contrib/scripts/astgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
 	$(INSTALL) -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(ASTMANDIR)/man8
 	$(INSTALL) -m 644 contrib/scripts/safe_asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
 	if [ -d contrib/firmware/iax ]; then \
-		$(INSTALL) -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax/iaxy.bin; \
+		$(INSTALL) -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTDATADIR)/firmware/iax/iaxy.bin; \
 	else \
 		echo "You need to do cvs update -d not just cvs update" ; \
 	fi 
@@ -942,7 +942,7 @@ _uninstall:
 	rm -f $(DESTDIR)$(ASTSBINDIR)/autosupport
 	rm -rf $(DESTDIR)$(ASTHEADERDIR)
 	rm -rf $(DESTDIR)$(ASTDATADIR)/sounds
-	rm -rf $(DESTDIR)$(ASTVARLIBDIR)/firmware
+	rm -rf $(DESTDIR)$(ASTDATADIR)/firmware
 	rm -rf $(DESTDIR)$(ASTMANDIR)/man8
 	for x in $(SUBDIRS); do $(MAKE) -C $$x uninstall || exit 1 ; done
 
