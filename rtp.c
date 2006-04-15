@@ -432,7 +432,6 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	char iabuf[INET_ADDRSTRLEN];
 	unsigned int timestamp;
 	unsigned int *rtpheader;
-	static struct ast_frame *f;
 	struct rtpPayloadType rtpPT;
 	
 	len = sizeof(sin);
@@ -464,7 +463,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		/* Send to whoever sent to us */
 		if ((rtp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
 		    (rtp->them.sin_port != sin.sin_port)) {
-			memcpy(&rtp->them, &sin, sizeof(rtp->them));
+			rtp->them = sin;
 			rtp->rxseqno = 0;
 			ast_set_flag(rtp, FLAG_NAT_ACTIVE);
 			if (option_debug || rtpdebug)
@@ -509,6 +508,8 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
    	rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
 	if (!rtpPT.isAstFormat) {
+		struct ast_frame *f = NULL;
+
 		/* This is special in-band data that's not one of our codecs */
 		if (rtpPT.code == AST_RTP_DTMF) {
 			/* It's special -- rfc2833 process it */
@@ -530,41 +531,23 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
 				f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno);
 				rtp->lasteventseqn = seqno;
-			} else
-				f = NULL;
-			if (f)
-				return f;
-			else
-				return &ast_null_frame;
+			}
 		} else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
 			/* It's really special -- process it the Cisco way */
 			if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
 				f = process_cisco_dtmf(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 				rtp->lasteventseqn = seqno;
-			} else 
-				f = NULL;
-			if (f) 
-				return f; 
-			else 
-				return &ast_null_frame;
+			}
 		} else if (rtpPT.code == AST_RTP_CN) {
 			/* Comfort Noise */
 			f = process_rfc3389(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
-			if (f) 
-				return f; 
-			else 
-				return &ast_null_frame;
 		} else {
 			ast_log(LOG_NOTICE, "Unknown RTP codec %d received from '%s'\n", payloadtype, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
-			return &ast_null_frame;
 		}
+		return f ? f : &ast_null_frame;
 	}
-	rtp->f.subclass = rtpPT.code;
-	if (rtp->f.subclass < AST_FORMAT_MAX_AUDIO)
-		rtp->f.frametype = AST_FRAME_VOICE;
-	else
-		rtp->f.frametype = AST_FRAME_VIDEO;
-	rtp->lastrxformat = rtp->f.subclass;
+	rtp->lastrxformat = rtp->f.subclass = rtpPT.code;
+	rtp->f.frametype = (rtp->f.subclass < AST_FORMAT_MAX_AUDIO) ? AST_FRAME_VOICE : AST_FRAME_VIDEO;
 
 	if (!rtp->lastrxts)
 		rtp->lastrxts = timestamp;
