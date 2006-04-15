@@ -4187,3 +4187,127 @@ const char *channelreloadreason2txt(enum channelreloadreason reason)
 		return "MANAGERRELOAD (Channel module reload by manager)";
 	}
 };
+
+#ifdef DEBUG_CHANNEL_LOCKS
+
+/*! \brief Unlock AST channel (and print debugging output) 
+\note You need to enable DEBUG_CHANNEL_LOCKS for this function
+*/
+int ast_channel_unlock(struct ast_channel *chan)
+{
+	int res = 0;
+	if (option_debug > 2) 
+		ast_log(LOG_DEBUG, "::::==== Unlocking AST channel %s\n", chan->name);
+	
+	if (!chan) {
+		ast_log(LOG_DEBUG, "::::==== Unlocking non-existing channel \n");
+		return 0;
+	}
+
+	res = ast_mutex_unlock(&chan->lock);
+
+	if (option_debug > 2) {
+		/* Try to find counter if possible on your platform 
+			I've only found out how to do this on Linux
+			DEBUG_THREADS changes the lock structure
+		*/
+#ifdef __linux__
+		int count = 0;
+#ifdef DEBUG_THREADS
+		if ((count = chan->lock.mutex.__m_count))
+#else
+		if ((count = chan->lock.__m_count))
+#endif
+			ast_log(LOG_DEBUG, ":::=== Still have %d locks (recursive)\n", count);
+#endif
+		if (!res)
+			ast_log(LOG_DEBUG, "::::==== Channel %s was unlocked\n", chan->name);
+			if (res == EINVAL) {
+				ast_log(LOG_DEBUG, "::::==== Channel %s had no lock by this thread. Failed unlocking\n", chan->name);
+			}
+		}
+		if (res == EPERM) {
+			/* We had no lock, so okay any way*/
+			if (option_debug > 3)
+				ast_log(LOG_DEBUG, "::::==== Channel %s was not locked at all \n", chan->name);
+		res = 0;
+	}
+	return res;
+}
+
+/*! \brief Lock AST channel (and print debugging output)
+\note You need to enable DEBUG_CHANNEL_LOCKS for this function */
+int ast_channel_lock(struct ast_channel *chan)
+{
+	int res;
+
+	if (option_debug > 3)
+		ast_log(LOG_DEBUG, "====:::: Locking AST channel %s\n", chan->name);
+
+	res = ast_mutex_lock(&chan->lock);
+
+	if (option_debug > 3) {
+#ifdef __linux__
+		int count = 0;
+#ifdef DEBUG_THREADS
+		if ((count = chan->lock.mutex.__m_count))
+#else
+		if ((count = chan->lock.__m_count))
+#endif
+			ast_log(LOG_DEBUG, ":::=== Now have %d locks (recursive)\n", count);
+#endif
+		if (!res)
+			ast_log(LOG_DEBUG, "::::==== Channel %s was locked\n", chan->name);
+		if (res == EDEADLK) {
+		/* We had no lock, so okey any way */
+		if (option_debug > 3)
+			ast_log(LOG_DEBUG, "::::==== Channel %s was not locked by us. Lock would cause deadlock.\n", chan->name);
+		}
+		if (res == EINVAL) {
+			if (option_debug > 3)
+				ast_log(LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
+		}
+	}
+	return res;
+}
+
+/*! \brief Lock AST channel (and print debugging output)
+\note	You need to enable DEBUG_CHANNEL_LOCKS for this function */
+int __ast_channel_trylock(struct ast_channel *chan)
+{
+	int res;
+
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "====:::: Trying to lock AST channel %s\n", chan->name);
+
+	res = ast_mutex_trylock(&chan->lock);
+
+	if (option_debug > 2) {
+#ifdef __linux__
+		int count = 0;
+#ifdef DEBUG_THREADS
+		if ((count = chan->lock.mutex.__m_count))
+#else
+		if ((count = chan->lock.__m_count))
+#endif
+			ast_log(LOG_DEBUG, ":::=== Now have %d locks (recursive)\n", count);
+#endif
+		if (!res)
+			ast_log(LOG_DEBUG, "::::==== Channel %s was locked\n", chan->name);
+		if (res == EBUSY) {
+			/* We failed to lock */
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "::::==== Channel %s failed to lock. Not waiting around...\n", chan->name);
+		}
+		if (res == EDEADLK) {
+			/* We had no lock, so okey any way*/
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "::::==== Channel %s was not locked. Lock would cause deadlock.\n", chan->name);
+		}
+		if (res == EINVAL && option_debug > 2)
+			ast_log(LOG_DEBUG, "::::==== Channel %s lock failed. No mutex.\n", chan->name);
+	}
+	return res;
+}
+
+#endif

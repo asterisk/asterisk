@@ -1344,7 +1344,7 @@ static int retrans_pkt(void *data)
 	int reschedule = DEFAULT_RETRANS;
 
 	/* Lock channel */
-	ast_mutex_lock(&pkt->owner->lock);
+	ast_channel_lock(&pkt->owner);
 
 	if (pkt->retrans < MAX_RETRANS) {
 		pkt->retrans++;
@@ -1381,7 +1381,7 @@ static int retrans_pkt(void *data)
 
 		append_history(pkt->owner, "ReTx", "%d %s", reschedule, pkt->data);
 		__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
-		ast_mutex_unlock(&pkt->owner->lock);
+		ast_channel_unlock(&pkt->owner);
 		return  reschedule;
 	} 
 	/* Too many retries */

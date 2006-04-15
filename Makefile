@@ -90,6 +90,10 @@ WITH_SMDI = 1
 # Optional debugging parameters
 DEBUG_THREADS = #-DDUMP_SCHEDULER #-DDEBUG_SCHEDULER #-DDEBUG_THREADS #-DDO_CRASH #-DDETECT_DEADLOCKS
 
+# If you want to debug channel locking, try this (depends on code using
+# ast_channel_lock and companions to work)
+DEBUG_THREADS += #-DDEBUG_CHANNEL_LOCKS
+
 # Uncomment next one to enable ast_frame tracing (for debugging)
 TRACE_FRAMES = #-DTRACE_FRAMES
 
