@@ -2024,8 +2024,7 @@ static int load_config(void)
 
 	cfg = ast_config_load("features.conf");
 	if (cfg) {
-		var = ast_variable_browse(cfg, "general");
-		while(var) {
+		for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
 			if (!strcasecmp(var->name, "parkext")) {
 				ast_copy_string(parking_ext, var->value, sizeof(parking_ext));
 			} else if (!strcasecmp(var->name, "context")) {
@@ -2074,40 +2073,41 @@ static int load_config(void)
 			} else if (!strcasecmp(var->name, "pickupexten")) {
 				ast_copy_string(pickup_ext, var->value, sizeof(pickup_ext));
 			}
-			var = var->next;
 		}
 
 		unmap_features();
-		var = ast_variable_browse(cfg, "featuremap");
-		while(var) {
+		for (var = ast_variable_browse(cfg, "featuremap"); var; var = var->next) {
 			if (remap_feature(var->name, var->value))
 				ast_log(LOG_NOTICE, "Unknown feature '%s'\n", var->name);
-			var = var->next;
 		}
 
 		/* Map a key combination to an application*/
 		ast_unregister_features();
-		var = ast_variable_browse(cfg, "applicationmap");
-		while(var) {
-			char *tmp_val=strdup(var->value);
+		for (var = ast_variable_browse(cfg, "applicationmap"); var; var = var->next) {
+			char *tmp_val = ast_strdup(var->value);
 			char *exten, *party=NULL, *app=NULL, *app_args=NULL; 
 
 			if (!tmp_val) { 
-				ast_log(LOG_ERROR, "res_features: strdup failed");
+				/* XXX No memory. We should probably break, but at least we do not
+				 * insist on this entry or we could be stuck in an
+				 * infinite loop.
+				 */
 				continue;
 			}
-			
 
-			exten=strsep(&tmp_val,",");
-			if (exten) party=strsep(&tmp_val,",");
-			if (party) app=strsep(&tmp_val,",");
+			/* strsep() sets the argument to NULL if match not found, and it
+			 * is safe to use it with a NULL argument, so we don't check
+			 * between calls.
+			 */
+			exten = strsep(&tmp_val,",");
+			party = strsep(&tmp_val,",");
+			app = strsep(&tmp_val,",");
+			app_args = strsep(&tmp_val,",");
 
-			if (app) app_args=strsep(&tmp_val,",");
-
-			if (!(app && strlen(app)) || !(exten && strlen(exten)) || !(party && strlen(party)) || !(var->name && strlen(var->name))) {
+			/* XXX var_name or app_args ? */
+			if (ast_strlen_zero(app) || ast_strlen_zero(exten) || ast_strlen_zero(party) || ast_strlen_zero(var->name)) {
 				ast_log(LOG_NOTICE, "Please check the feature Mapping Syntax, either extension, name, or app aren't provided %s %s %s %s\n",app,exten,party,var->name);
 				free(tmp_val);
-				var = var->next;
 				continue;
 			}
 
@@ -2120,7 +2120,6 @@ static int load_config(void)
 					
 					if (!(feature = ast_calloc(1, sizeof(*feature)))) {
 						free(tmp_val);
-						var = var->next;
 						continue;					
 					}
 				}
@@ -2143,15 +2142,14 @@ static int load_config(void)
 					ast_set_flag(feature,AST_FEATURE_FLAG_CALLEE);
 				else {
 					ast_log(LOG_NOTICE, "Invalid party specification for feature '%s', must be caller, or callee\n", var->name);
-					var = var->next;
 					continue;
 				}
 
 				ast_register_feature(feature);
 				
-				if (option_verbose >=1) ast_verbose(VERBOSE_PREFIX_2 "Mapping Feature '%s' to app '%s' with code '%s'\n", var->name, app, exten);  
+				if (option_verbose >=1)
+					ast_verbose(VERBOSE_PREFIX_2 "Mapping Feature '%s' to app '%s' with code '%s'\n", var->name, app, exten);  
 			}
-			var = var->next;
 		}	 
 	}
 	ast_config_destroy(cfg);
@@ -2162,11 +2160,9 @@ static int load_config(void)
 		ast_log(LOG_DEBUG, "Removed old parking extension %s@%s\n", old_parking_ext, old_parking_con);
 	}
 	
-	if (!(con = ast_context_find(parking_con))) {
-		if (!(con = ast_context_create(NULL, parking_con, registrar))) {
-			ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
-			return -1;
-		}
+	if (!(con = ast_context_find(parking_con)) && !(con = ast_context_create(NULL, parking_con, registrar))) {
+		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
+		return -1;
 	}
 	return ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, NULL, parkcall, strdup(""), FREE, registrar);
 }
