@@ -1408,7 +1408,7 @@ int ast_hangup(struct ast_channel *chan)
 
 	/* Don't actually hang up a channel that will masquerade as someone else, or
 	   if someone is going to masquerade as us */
-	ast_mutex_lock(&chan->lock);
+	ast_channel_lock(chan);
 
 	detach_spies(chan);		/* get rid of spies */
 
@@ -1419,14 +1419,14 @@ int ast_hangup(struct ast_channel *chan)
 
 	if (chan->masq) {
 		ast_log(LOG_WARNING, "%s getting hung up, but someone is trying to masq into us?!?\n", chan->name);
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 		return 0;
 	}
 	/* If this channel is one which will be masqueraded into something,
 	   mark it as a zombie already, so we know to free it later */
 	if (chan->masqr) {
 		ast_set_flag(chan, AST_FLAG_ZOMBIE);
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 		return 0;
 	}
 	free_translation(chan);
@@ -1464,7 +1464,7 @@ int ast_hangup(struct ast_channel *chan)
 			ast_log(LOG_DEBUG, "Hanging up zombie '%s'\n", chan->name);
 	}
 			
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 	manager_event(EVENT_FLAG_CALL, "Hangup",
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
@@ -1482,7 +1482,7 @@ int ast_hangup(struct ast_channel *chan)
 int ast_answer(struct ast_channel *chan)
 {
 	int res = 0;
-	ast_mutex_lock(&chan->lock);
+	ast_channel_lock(chan);
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
 		ast_mutex_unlock(&chan->lock);
@@ -1496,7 +1496,7 @@ int ast_answer(struct ast_channel *chan)
 		ast_setstate(chan, AST_STATE_UP);
 		if (chan->cdr)
 			ast_cdr_answer(chan->cdr);
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 		return res;
 		break;
 	case AST_STATE_UP:
@@ -1504,7 +1504,7 @@ int ast_answer(struct ast_channel *chan)
 			ast_cdr_answer(chan->cdr);
 		break;
 	}
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 	return 0;
 }
 
@@ -1546,7 +1546,7 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 {
 	int res = 0;
 
-	ast_mutex_lock(&chan->lock);
+	ast_channel_lock(chan);
 
 	if (chan->generatordata) {
 		if (chan->generator && chan->generator->release)
@@ -1564,7 +1564,7 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 		chan->generator = gen;
 	}
 
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 
 	return res;
 }
@@ -1609,12 +1609,12 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	
 	/* Perform any pending masquerades */
 	for (x=0; x < n; x++) {
-		ast_mutex_lock(&c[x]->lock);
+		ast_channel_lock(c[x]);
 		if (c[x]->masq) {
 			if (ast_do_masquerade(c[x])) {
 				ast_log(LOG_WARNING, "Masquerade failed\n");
 				*ms = -1;
-				ast_mutex_unlock(&c[x]->lock);
+				ast_channel_unlock(c[x]);
 				return NULL;
 			}
 		}
@@ -1625,13 +1625,13 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 			if (diff < 1) {
 				/* Should already be hungup */
 				c[x]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
-				ast_mutex_unlock(&c[x]->lock);
+				ast_channel_unlock(c[x]);
 				return c[x];
 			}
 			if (!whentohangup || (diff < whentohangup))
 				whentohangup = diff;
 		}
-		ast_mutex_unlock(&c[x]->lock);
+		ast_channel_unlock(c[x]);
 	}
 	/* Wait full interval */
 	rms = *ms;
@@ -1858,14 +1858,14 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	void *data;
 	int res;
 #endif
-	ast_mutex_lock(&chan->lock);
+	ast_channel_lock(chan);
 	if (chan->masq) {
 		if (ast_do_masquerade(chan)) {
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
 			f = NULL;
 		} else
 			f =  &ast_null_frame;
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 		return f;
 	}
 
@@ -1873,7 +1873,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
 		if (chan->generator)
 			ast_deactivate_generator(chan);
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 		return NULL;
 	}
 	prestate = chan->_state;
@@ -1884,7 +1884,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		chan->dtmff.subclass = chan->dtmfq[0];
 		/* Drop first digit */
 		memmove(chan->dtmfq, chan->dtmfq + 1, sizeof(chan->dtmfq) - 1);
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 		return &chan->dtmff;
 	}
 	
@@ -1912,7 +1912,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			ioctl(chan->timingfd, ZT_TIMERACK, &blah);
 			func = chan->timingfunc;
 			data = chan->timingdata;
-			ast_mutex_unlock(&chan->lock);
+			ast_channel_unlock(chan);
 			if (func) {
 #if 0
 				ast_log(LOG_DEBUG, "Calling private function\n");
@@ -1920,10 +1920,10 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				func(data);
 			} else {
 				blah = 0;
-				ast_mutex_lock(&chan->lock);
+				ast_channel_lock(chan);
 				ioctl(chan->timingfd, ZT_TIMERCONFIG, &blah);
 				chan->timingdata = NULL;
-				ast_mutex_unlock(&chan->lock);
+				ast_channel_unlock(chan);
 			}
 			return &ast_null_frame;
 		} else
@@ -2313,28 +2313,28 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	int res = -1;
 	struct ast_frame *f = NULL;
 	/* Stop if we're a zombie or need a soft hangup */
-	ast_mutex_lock(&chan->lock);
+	ast_channel_lock(chan);
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan))  {
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 		return -1;
 	}
 	/* Handle any pending masquerades */
 	if (chan->masq) {
 		if (ast_do_masquerade(chan)) {
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
-			ast_mutex_unlock(&chan->lock);
+			ast_channel_unlock(chan);
 			return -1;
 		}
 	}
 	if (chan->masqr) {
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 		return 0;
 	}
 	if (chan->generatordata) {
 		if (ast_test_flag(chan, AST_FLAG_WRITE_INT))
 			ast_deactivate_generator(chan);
 		else {
-			ast_mutex_unlock(&chan->lock);
+			ast_channel_unlock(chan);
 			return 0;
 		}
 	}
@@ -2361,9 +2361,9 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		break;
 	case AST_FRAME_DTMF:
 		ast_clear_flag(chan, AST_FLAG_BLOCKING);
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 		res = do_senddigit(chan,fr->subclass);
-		ast_mutex_lock(&chan->lock);
+		ast_channel_lock(chan);
 		CHECK_BLOCKING(chan);
 		break;
 	case AST_FRAME_TEXT:
@@ -2439,7 +2439,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		else
 			chan->fout++;
 	}
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 	return res;
 }
 
@@ -2468,7 +2468,7 @@ static int set_format(struct ast_channel *chan, int fmt, int *rawformat, int *fo
 	}
 	
 	/* Now we have a good choice for both. */
-	ast_mutex_lock(&chan->lock);
+	ast_channel_lock(chan);
 	*rawformat = native;
 	/* User perspective is fmt */
 	*format = fmt;
@@ -2482,7 +2482,7 @@ static int set_format(struct ast_channel *chan, int fmt, int *rawformat, int *fo
 	else
 		/* writing */
 		*trans = ast_translator_build_path(*rawformat, *format);
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Set channel %s to %s format %s\n", chan->name,
 			direction ? "write" : "read", ast_getformatname(fmt));
@@ -3015,9 +3015,10 @@ int ast_do_masquerade(struct ast_channel *original)
 	   while the features are nice, the cost is very high in terms of pure nastiness. XXX */
 
 	/* We need the clone's lock, too */
-	ast_mutex_lock(&clone->lock);
+	ast_channel_lock(clone);
 
-	ast_log(LOG_DEBUG, "Got clone lock for masquerade on '%s' at %p\n", clone->name, &clone->lock);
+	if (option_debug > 1)
+		ast_log(LOG_DEBUG, "Got clone lock for masquerade on '%s' at %p\n", clone->name, &clone->lock);
 
 	/* Having remembered the original read/write formats, we turn off any translation on either
 	   one */
@@ -3116,7 +3117,7 @@ int ast_do_masquerade(struct ast_channel *original)
 		res = clone->tech->hangup(clone);
 	if (res) {
 		ast_log(LOG_WARNING, "Hangup failed!  Strange things may happen!\n");
-		ast_mutex_unlock(&clone->lock);
+		ast_channel_unlock(clone);
 		return -1;
 	}
 	
@@ -3181,7 +3182,8 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* Copy the music class */
 	ast_string_field_set(original, musicclass, clone->musicclass);
 
-	ast_log(LOG_DEBUG, "Putting channel %s in %d/%d formats\n", original->name, wformat, rformat);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Putting channel %s in %d/%d formats\n", original->name, wformat, rformat);
 
 	/* Okay.  Last thing is to let the channel driver know about all this mess, so he
 	   can fix up everything as best as possible */
@@ -3190,7 +3192,7 @@ int ast_do_masquerade(struct ast_channel *original)
 		if (res) {
 			ast_log(LOG_WARNING, "Channel for type '%s' could not fixup channel %s\n",
 				original->tech->type, original->name);
-			ast_mutex_unlock(&clone->lock);
+			ast_channel_unlock(clone);
 			return -1;
 		}
 	} else
@@ -3201,8 +3203,9 @@ int ast_do_masquerade(struct ast_channel *original)
 	   a zombie so nothing tries to touch it.  If it's already been marked as a
 	   zombie, then free it now (since it already is considered invalid). */
 	if (ast_test_flag(clone, AST_FLAG_ZOMBIE)) {
-		ast_log(LOG_DEBUG, "Destroying channel clone '%s'\n", clone->name);
-		ast_mutex_unlock(&clone->lock);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Destroying channel clone '%s'\n", clone->name);
+		ast_channel_unlock(clone);
 		manager_event(EVENT_FLAG_CALL, "Hangup",
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
@@ -3218,13 +3221,14 @@ int ast_do_masquerade(struct ast_channel *original)
 		ast_log(LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
 		ast_set_flag(clone, AST_FLAG_ZOMBIE);
 		ast_queue_frame(clone, &ast_null_frame);
-		ast_mutex_unlock(&clone->lock);
+		ast_channel_unlock(clone);
 	}
 	
 	/* Signal any blocker */
 	if (ast_test_flag(original, AST_FLAG_BLOCKING))
 		pthread_kill(original->blocker, SIGURG);
-	ast_log(LOG_DEBUG, "Done Masquerading %s (%d)\n", original->name, original->_state);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Done Masquerading %s (%d)\n", original->name, original->_state);
 	return 0;
 }
 

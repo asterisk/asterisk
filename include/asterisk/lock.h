@@ -764,13 +764,27 @@ AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 #ifndef DEBUG_CHANNEL_LOCKS
 /*! \brief Lock a channel. If DEBUG_CHANNEL_LOCKS is defined 
 	in the Makefile, print relevant output for debugging */
-#define ast_channel_lock(x)		ast_mutex_lock(x->lock);
+#define ast_channel_lock(x)		ast_mutex_lock(&x->lock)
 /*! \brief Unlock a channel. If DEBUG_CHANNEL_LOCKS is defined 
 	in the Makefile, print relevant output for debugging */
-#define ast_channel_unlock(x)		ast_mutex_unlock(x->lock);
+#define ast_channel_unlock(x)		ast_mutex_unlock(&x->lock)
 /*! \brief Try locking a channel. If DEBUG_CHANNEL_LOCKS is defined 
 	in the Makefile, print relevant output for debugging */
-#define ast_channel_trylock(x)		ast_mutex_trylock(x->lock);
+#define ast_channel_trylock(x)		ast_mutex_trylock(&x->lock)
+#else
+
+/*! \brief Lock AST channel (and print debugging output)
+\note You need to enable DEBUG_CHANNEL_LOCKS for this function */
+int ast_channel_lock(struct ast_channel *chan);
+
+/*! \brief Unlock AST channel (and print debugging output)
+\note You need to enable DEBUG_CHANNEL_LOCKS for this function
+*/
+int ast_channel_unlock(struct ast_channel *chan);
+
+/*! \brief Lock AST channel (and print debugging output)
+\note   You need to enable DEBUG_CHANNEL_LOCKS for this function */
+int __ast_channel_trylock(struct ast_channel *chan);
 #endif
 
 #endif /* _ASTERISK_LOCK_H */
