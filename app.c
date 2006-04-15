@@ -414,7 +414,7 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 		if (filename[0] == '/') 
 			ast_copy_string(tmpf, filename, sizeof(tmpf));
 		else
-			snprintf(tmpf, sizeof(tmpf), "%s/%s/%s", (char *)ast_config_AST_VAR_DIR, "sounds", filename);
+			snprintf(tmpf, sizeof(tmpf), "%s/%s/%s", (char *)ast_config_AST_DATA_DIR, "sounds", filename);
 		fd = open(tmpf, O_RDONLY);
 		if (fd < 0){
 			ast_log(LOG_WARNING, "Unable to open file '%s': %s\n", tmpf, strerror(errno));

@@ -261,7 +261,7 @@ static char *build_filename(const char *filename, const char *ext)
 		asprintf(&fn, "%s.%s", filename, ext);
 	else
 		asprintf(&fn, "%s/sounds/%s.%s",
-			ast_config_AST_VAR_DIR, filename, ext);
+			ast_config_AST_DATA_DIR, filename, ext);
 	return fn;
 }
 

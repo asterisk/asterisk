@@ -103,9 +103,9 @@ static void make_filename(char *buf, int len, char *filename, const char *prefla
 			snprintf(buf, len, "%s.%s", filename, ext);
 	} else {
 		if (!ast_strlen_zero(preflang))
-			snprintf(buf, len, "%s/%s/%s-%s.%s", ast_config_AST_VAR_DIR, "images", filename, preflang, ext);
+			snprintf(buf, len, "%s/%s/%s-%s.%s", ast_config_AST_DATA_DIR, "images", filename, preflang, ext);
 		else
-			snprintf(buf, len, "%s/%s/%s.%s", ast_config_AST_VAR_DIR, "images", filename, ext);
+			snprintf(buf, len, "%s/%s/%s.%s", ast_config_AST_DATA_DIR, "images", filename, ext);
 	}
 }
 

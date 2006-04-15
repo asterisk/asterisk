@@ -281,6 +281,7 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		setenv("AST_SPOOL_DIR", ast_config_AST_SPOOL_DIR, 1);
 		setenv("AST_MONITOR_DIR", ast_config_AST_MONITOR_DIR, 1);
 		setenv("AST_VAR_DIR", ast_config_AST_VAR_DIR, 1);
+		setenv("AST_DATA_DIR", ast_config_AST_DATA_DIR, 1);
 		setenv("AST_LOG_DIR", ast_config_AST_LOG_DIR, 1);
 		setenv("AST_AGI_DIR", ast_config_AST_AGI_DIR, 1);
 		setenv("AST_KEY_DIR", ast_config_AST_KEY_DIR, 1);

@@ -206,6 +206,7 @@ char ast_config_AST_MODULE_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_SPOOL_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_MONITOR_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_VAR_DIR[AST_CONFIG_MAX_PATH];
+char ast_config_AST_DATA_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_LOG_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_AGI_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_DB[AST_CONFIG_MAX_PATH];
@@ -2081,6 +2082,7 @@ static void ast_readconfig(void)
 	ast_copy_string(ast_config_AST_MODULE_DIR, AST_MODULE_DIR, sizeof(ast_config_AST_MODULE_DIR));
  	snprintf(ast_config_AST_MONITOR_DIR, sizeof(ast_config_AST_MONITOR_DIR) - 1, "%s/monitor", ast_config_AST_SPOOL_DIR);
 	ast_copy_string(ast_config_AST_VAR_DIR, AST_VAR_DIR, sizeof(ast_config_AST_VAR_DIR));
+	ast_copy_string(ast_config_AST_DATA_DIR, AST_DATA_DIR, sizeof(ast_config_AST_DATA_DIR));
 	ast_copy_string(ast_config_AST_LOG_DIR, AST_LOG_DIR, sizeof(ast_config_AST_LOG_DIR));
 	ast_copy_string(ast_config_AST_AGI_DIR, AST_AGI_DIR, sizeof(ast_config_AST_AGI_DIR));
 	ast_copy_string(ast_config_AST_DB, AST_DB, sizeof(ast_config_AST_DB));
@@ -2117,6 +2119,8 @@ static void ast_readconfig(void)
 			ast_copy_string(ast_config_AST_VAR_DIR, v->value, sizeof(ast_config_AST_VAR_DIR));
 			snprintf(ast_config_AST_DB, sizeof(ast_config_AST_DB), "%s/astdb", v->value);
 			snprintf(ast_config_AST_KEY_DIR, sizeof(ast_config_AST_KEY_DIR), "%s/keys", v->value);
+		} else if (!strcasecmp(v->name, "astdatadir")) {
+			ast_copy_string(ast_config_AST_DATA_DIR, v->value, sizeof(ast_config_AST_DATA_DIR));
 		} else if (!strcasecmp(v->name, "astlogdir")) {
 			ast_copy_string(ast_config_AST_LOG_DIR, v->value, sizeof(ast_config_AST_LOG_DIR));
 		} else if (!strcasecmp(v->name, "astagidir")) {

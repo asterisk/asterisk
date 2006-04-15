@@ -34,6 +34,7 @@ extern char ast_config_AST_MODULE_DIR[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_SPOOL_DIR[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_MONITOR_DIR[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_VAR_DIR[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_DATA_DIR[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_LOG_DIR[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_AGI_DIR[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_DB[AST_CONFIG_MAX_PATH];

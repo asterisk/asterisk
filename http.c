@@ -125,12 +125,12 @@ static char *static_callback(struct sockaddr_in *req, const char *uri, struct as
 	mtype=ftype2mtype(ftype, wkspace, sizeof(wkspace));
 	
 	/* Cap maximum length */
-	len = strlen(uri) + strlen(ast_config_AST_VAR_DIR) + strlen("/static-http/") + 5;
+	len = strlen(uri) + strlen(ast_config_AST_DATA_DIR) + strlen("/static-http/") + 5;
 	if (len > 1024)
 		goto out403;
 		
 	path = alloca(len);
-	sprintf(path, "%s/static-http/%s", ast_config_AST_VAR_DIR, uri);
+	sprintf(path, "%s/static-http/%s", ast_config_AST_DATA_DIR, uri);
 	if (stat(path, &st))
 		goto out404;
 	if (S_ISDIR(st.st_mode))

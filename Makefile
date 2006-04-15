@@ -167,12 +167,13 @@ else
   ASTMANDIR=$(INSTALL_PREFIX)/usr/share/man
 endif
 endif
+ASTDATADIR?=$(ASTVARLIBDIR)
 
 # Asterisk.conf is located in ASTETCDIR or by using the -C flag
 # when starting Asterisk
 ASTCONFPATH=$(ASTETCDIR)/asterisk.conf
 MODULES_DIR=$(ASTLIBDIR)/modules
-AGI_DIR=$(ASTVARLIBDIR)/agi-bin
+AGI_DIR=$(ASTDATADIR)/agi-bin
 
 # If you use Apache, you may determine by a grep 'DocumentRoot' of your httpd.conf file
 HTTP_DOCSDIR=/var/www/html
@@ -566,42 +567,42 @@ datafiles: all
 	# Should static HTTP be installed during make samples or even with its own target ala
 	# webvoicemail?  There are portions here that *could* be customized but might also be
 	# improved a lot.  I'll put it here for now.
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/static-http
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/static-http
 	for x in static-http/*; do \
-		install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/static-http ; \
+		install -m 644 $$x $(DESTDIR)$(ASTDATADIR)/static-http ; \
 	done
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/priv-callerintros
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds/digits
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds/priv-callerintros
 	for x in sounds/digits/*.gsm; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits ; \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/sounds/digits ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
 		fi; \
 	done
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/dictate
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds/dictate
 	for x in sounds/dictate/*.gsm; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/dictate ; \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/sounds/dictate ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
 		fi; \
 	done
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/letters
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds/letters
 	for x in sounds/letters/*.gsm; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/letters ; \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/sounds/letters ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
 		fi; \
 	done
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/phonetic
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds/phonetic
 	for x in sounds/phonetic/*.gsm; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/phonetic ; \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/sounds/phonetic ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
@@ -609,16 +610,16 @@ datafiles: all
 	done
 	for x in sounds/demo-* sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-* sounds/auth-* sounds/privacy-* sounds/queue-* sounds/spy-* sounds/priv-* sounds/screen-* sounds/hello-*; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/sounds ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
 		fi; \
 	done
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/mohmp3
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/images
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/mohmp3
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/images
 	for x in images/*.jpg; do \
-		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/images ; \
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/images ; \
 	done
 	mkdir -p $(DESTDIR)$(AGI_DIR)
 
@@ -678,7 +679,7 @@ bininstall: all
 	if [ -n "$(OLDHEADERS)" ]; then \
 		rm -f $(addprefix $(DESTDIR)$(ASTHEADERDIR)/,$(OLDHEADERS)) ;\
 	fi
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-csv
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-custom
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/keys
@@ -779,6 +780,7 @@ samples: adsi
 		echo "astetcdir => $(ASTETCDIR)" ; \
 		echo "astmoddir => $(MODULES_DIR)" ; \
 		echo "astvarlibdir => $(ASTVARLIBDIR)" ; \
+		echo "astdatadir => $(ASTDATADIR)" ; \
 		echo "astagidir => $(AGI_DIR)" ; \
 		echo "astspooldir => $(ASTSPOOLDIR)" ; \
 		echo "astrundir => $(ASTVARRUNDIR)" ; \
@@ -796,28 +798,28 @@ samples: adsi
 	else \
 		echo "Skipping asterisk.conf creation"; \
 	fi
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds ; \
 	for x in sounds/demo-*; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/sounds ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
 		fi; \
 	done
-	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
+	mkdir -p $(DESTDIR)$(ASTDATADIR)/mohmp3 ; \
 	for x in sounds/*.mp3; do \
-		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/mohmp3 ; \
 	done
-	rm -f $(DESTDIR)$(ASTVARLIBDIR)/mohmp3/sample-hold.mp3
+	rm -f $(DESTDIR)$(ASTDATADIR)/mohmp3/sample-hold.mp3
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX
 	:> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/unavail.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isunavail; do \
-		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/$$x.gsm >> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/unavail.gsm ; \
+		cat $(DESTDIR)$(ASTDATADIR)/sounds/$$x.gsm >> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/unavail.gsm ; \
 	done
 	:> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/busy.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isonphone; do \
-		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/$$x.gsm >> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/busy.gsm ; \
+		cat $(DESTDIR)$(ASTDATADIR)/sounds/$$x.gsm >> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/busy.gsm ; \
 	done
 
 webvmail:
@@ -939,7 +941,7 @@ _uninstall:
 	rm -f $(DESTDIR)$(ASTSBINDIR)/astgenkey
 	rm -f $(DESTDIR)$(ASTSBINDIR)/autosupport
 	rm -rf $(DESTDIR)$(ASTHEADERDIR)
-	rm -rf $(DESTDIR)$(ASTVARLIBDIR)/sounds
+	rm -rf $(DESTDIR)$(ASTDATADIR)/sounds
 	rm -rf $(DESTDIR)$(ASTVARLIBDIR)/firmware
 	rm -rf $(DESTDIR)$(ASTMANDIR)/man8
 	for x in $(SUBDIRS); do $(MAKE) -C $$x uninstall || exit 1 ; done
@@ -961,6 +963,7 @@ uninstall: _uninstall
 uninstall-all: _uninstall
 	rm -rf $(DESTDIR)$(ASTLIBDIR)
 	rm -rf $(DESTDIR)$(ASTVARLIBDIR)
+	rm -rf $(DESTDIR)$(ASTDATADIR)
 	rm -rf $(DESTDIR)$(ASTSPOOLDIR)
 	rm -rf $(DESTDIR)$(ASTETCDIR)
 	rm -rf $(DESTDIR)$(ASTLOGDIR)
