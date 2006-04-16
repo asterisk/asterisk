@@ -1905,9 +1905,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	if (chan->fds[AST_GENERATOR_FD] > -1 && chan->fdno == AST_GENERATOR_FD) {
 		void *tmp = chan->generatordata;
 		chan->generatordata = NULL;     /* reset to let ast_write get through */
-		/* XXX don't we miss an ast_channel_unlock(chan); here ? */
 		chan->generator->generate(chan, tmp, -1, -1);
 		chan->generatordata = tmp;
+		ast_channel_unlock(chan);
 		return &ast_null_frame;
 	}
 
