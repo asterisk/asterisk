@@ -3943,8 +3943,6 @@ struct ast_frame *ast_channel_spy_read_frame(struct ast_channel_spy *spy, unsign
 			result = spy->read_queue.head;
 			spy->read_queue.head = NULL;
 			spy->read_queue.samples = 0;
-			ast_clear_flag(spy, CHANSPY_TRIGGER_FLUSH);
-			return result;
 		} else {
 			if (ast_test_flag(spy, CHANSPY_WRITE_VOLADJUST)) {
 				for (result = spy->write_queue.head; result; result = result->next)
@@ -3953,9 +3951,9 @@ struct ast_frame *ast_channel_spy_read_frame(struct ast_channel_spy *spy, unsign
 			result = spy->write_queue.head;
 			spy->write_queue.head = NULL;
 			spy->write_queue.samples = 0;
-			ast_clear_flag(spy, CHANSPY_TRIGGER_FLUSH);
-			return result;
 		}
+		ast_clear_flag(spy, CHANSPY_TRIGGER_FLUSH);
+		return result;
 	}
 
 	if ((spy->read_queue.samples < samples) || (spy->write_queue.samples < samples))
