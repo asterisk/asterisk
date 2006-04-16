@@ -3465,10 +3465,10 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			if (time_left_ms < to)
 				to = time_left_ms;
 
-			if (time_left_ms <= 0) {
-				if (caller_warning && config->end_sound)
+			if (time_left_ms <= 0 && config->end_sound) {
+				if (caller_warning)
 					bridge_playfile(c0, c1, config->end_sound, 0);
-				if (callee_warning && config->end_sound)
+				if (callee_warning)
 					bridge_playfile(c1, c0, config->end_sound, 0);
 				*fo = NULL;
 				if (who)
@@ -3478,14 +3478,12 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			}
 			
 			if (!to) {
-				if (time_left_ms >= 5000) {
-					/* force the time left to round up if appropriate */
-					if (caller_warning && config->warning_sound && config->play_warning)
-						bridge_playfile(c0, c1, config->warning_sound,
-								(time_left_ms + 500) / 1000);
-					if (callee_warning && config->warning_sound && config->play_warning)
-						bridge_playfile(c1, c0, config->warning_sound,
-								(time_left_ms + 500) / 1000);
+				if (time_left_ms >= 5000 && config->warning_sound && config->play_warning) {
+					int t = (time_left_ms + 500) / 1000; /* round to nearest second */
+					if (caller_warning)
+						bridge_playfile(c0, c1, config->warning_sound, t);
+					if (callee_warning)
+						bridge_playfile(c1, c0, config->warning_sound, t);
 				}
 				if (config->warning_freq) {
 					nexteventts = ast_tvadd(nexteventts, ast_samp2tv(config->warning_freq, 1000));
