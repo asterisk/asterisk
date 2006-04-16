@@ -1025,7 +1025,6 @@ static int handle_show_functions(int fd, int argc, char *argv[])
 {
 	struct ast_custom_function *acf;
 	int count_acf = 0;
-	int print_acf = 0;
 	int like = 0;
 
 	if (argc == 4 && (!strcmp(argv[2], "like")) ) {
@@ -1037,18 +1036,8 @@ static int handle_show_functions(int fd, int argc, char *argv[])
 	ast_cli(fd, "%s Custom Functions:\n--------------------------------------------------------------------------------\n", like ? "Matching" : "Installed");
 	
 	for (acf = acf_root ; acf; acf = acf->next) {
-		print_acf = 0;
-		if (like) {
-			if (strstr(acf->name, argv[3])) {
-				print_acf = 1;
-				count_acf++;
-			}
-		} else {
-			print_acf = 1;
+		if (!like || strstr(acf->name, argv[3])) {
 			count_acf++;
-		} 
-
-		if (print_acf) {
 			ast_cli(fd, "%-20.20s  %-35.35s  %s\n", acf->name, acf->syntax, acf->synopsis);
 		}
 	}
@@ -1067,7 +1056,8 @@ static int handle_show_function(int fd, int argc, char *argv[])
 	char stxtitle[40], *syntax = NULL;
 	int synopsis_size, description_size, syntax_size;
 
-	if (argc < 3) return RESULT_SHOWUSAGE;
+	if (argc < 3)
+		return RESULT_SHOWUSAGE;
 
 	if (!(acf = ast_custom_function_find(argv[2]))) {
 		ast_cli(fd, "No function by that name registered.\n");
@@ -1159,7 +1149,7 @@ struct ast_custom_function* ast_custom_function_find(const char *name)
 
 int ast_custom_function_unregister(struct ast_custom_function *acf) 
 {
-	struct ast_custom_function *acfptr, *lastacf = NULL;
+	struct ast_custom_function *cur, *prev = NULL;
 	int res = -1;
 
 	if (!acf)
@@ -1171,22 +1161,20 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
 		return -1;
 	}
 
-	for (acfptr = acf_root; acfptr; acfptr = acfptr->next) {
-		if (acfptr == acf) {
-			if (lastacf) {
-				lastacf->next = acf->next;
-			} else {
+	for (cur = acf_root; cur; prev = cur, cur = cur->next) {
+		if (cur == acf) {
+			if (prev)
+				prev->next = acf->next;
+			else
 				acf_root = acf->next;
-			}
 			res = 0;
 			break;
 		}
-		lastacf = acfptr;
 	}
 
 	ast_mutex_unlock(&acflock);
 
-	if (!res && (option_verbose > 1))
+	if (!res && option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Unregistered custom function %s\n", acf->name);
 
 	return res;
