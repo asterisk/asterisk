@@ -1054,7 +1054,6 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 	struct ast_channel *chan;
 	struct ast_channel *monitor_chans[2];
 	struct ast_channel *active_channel;
-	struct ast_frame *f = NULL;
 	int res = 0, ready = 0;
 	
 	if ((chan = ast_request(type, format, data, &cause))) {
@@ -1081,6 +1080,8 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 			started = ast_tvnow();
 			to = timeout;
 			while (!ast_check_hangup(caller) && timeout && (chan->_state != AST_STATE_UP)) {
+				struct ast_frame *f = NULL;
+
 				monitor_chans[0] = caller;
 				monitor_chans[1] = chan;
 				active_channel = ast_waitfor_n(monitor_chans, 2, &to);
@@ -1092,9 +1093,8 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 					break; /*doh! timeout*/
 				}
 
-				if (!active_channel) {
+				if (!active_channel)
 					continue;
-				}
 
 				if (chan && (chan == active_channel)){
 					f = ast_read(chan);
@@ -1162,10 +1162,9 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 						}
 					}
 				}
-				if (f) {
+				if (f)
 					ast_frfree(f);
-				}
-			}
+			} /* end while */
 		} else
 			ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
 	} else {
@@ -1371,7 +1370,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			}
 		}
 		/* check for '*', if we find it it's time to disconnect */
-		if (f && f->frametype == AST_FRAME_DTMF) {
+		if (f->frametype == AST_FRAME_DTMF) {
 			char *featurecode;
 			int sense;
 
