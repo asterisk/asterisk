@@ -1815,23 +1815,24 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	int blah;
 	int prestate;
 
+	/* this function is very long so make sure there is only one return
+	 * point at the end (there is only one exception to this).
+	 */
 	ast_channel_lock(chan);
 	if (chan->masq) {
 		if (ast_do_masquerade(chan)) {
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
-			f = NULL;
-		} else
+		} else {
 			f =  &ast_null_frame;
-		ast_channel_unlock(chan);
-		return f;
+		}
+		goto done;
 	}
 
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
 		if (chan->generator)
 			ast_deactivate_generator(chan);
-		ast_channel_unlock(chan);
-		return NULL;
+		goto done;
 	}
 	prestate = chan->_state;
 
@@ -1839,16 +1840,17 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		/* We have DTMF that has been deferred.  Return it now */
 		chan->dtmff.frametype = AST_FRAME_DTMF;
 		chan->dtmff.subclass = chan->dtmfq[0];
-		/* Drop first digit */
+		/* Drop first digit from the buffer */
 		memmove(chan->dtmfq, chan->dtmfq + 1, sizeof(chan->dtmfq) - 1);
-		ast_channel_unlock(chan);
-		return &chan->dtmff;
+		f = &chan->dtmff;
+		goto done;
 	}
 	
 	/* Read and ignore anything on the alertpipe, but read only
 	   one sizeof(blah) per frame that we send from it */
 	if (chan->alertpipe[0] > -1)
 		read(chan->alertpipe[0], &blah, sizeof(blah));
+
 #ifdef ZAPTEL_OPTIMIZATIONS
 	if (chan->timingfd > -1 && chan->fdno == AST_TIMING_FD && ast_test_flag(chan, AST_FLAG_EXCEPTION)) {
 		int res;
@@ -1881,20 +1883,22 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				chan->timingdata = NULL;
 				ast_channel_unlock(chan);
 			}
+			/* cannot 'goto done' because the channel is already unlocked */
 			return &ast_null_frame;
 		} else
 			ast_log(LOG_NOTICE, "No/unknown event '%d' on timer for '%s'?\n", blah, chan->name);
 	} else
 #endif
-	/* Check for AST_GENERATOR_FD if not null.  If so, call generator with -1
-	   arguments now so it can do whatever it needs to. */
 	if (chan->fds[AST_GENERATOR_FD] > -1 && chan->fdno == AST_GENERATOR_FD) {
+		/* if the AST_GENERATOR_FD is set, call the generator with args
+		 * set to -1 so it can do whatever it needs to.
+		 */
 		void *tmp = chan->generatordata;
 		chan->generatordata = NULL;     /* reset to let ast_write get through */
 		chan->generator->generate(chan, tmp, -1, -1);
 		chan->generatordata = tmp;
-		ast_channel_unlock(chan);
-		return &ast_null_frame;
+		f = &ast_null_frame;
+		goto done;
 	}
 
 	/* Check for pending read queue */
@@ -2006,9 +2010,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				/* Run generator sitting on the line if timing device not available
 				* and synchronous generation of outgoing frames is necessary       */
 				if (chan->generatordata &&  !ast_internal_timing_enabled(chan)) {
-					void *tmp;
+					void *tmp = chan->generatordata;
 					int res;
-					int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
 
 					if (chan->timingfunc) {
 						if (option_debug > 1)
@@ -2016,10 +2019,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 						ast_settimeout(chan, 0, NULL, NULL);
 					}
 
-					tmp = chan->generatordata;
-					chan->generatordata = NULL;
-					generate = chan->generator->generate;
-					res = generate(chan, tmp, f->datalen, f->samples);
+					chan->generatordata = NULL;	/* reset, to let writes go through */
+					res = chan->generator->generate(chan, tmp, f->datalen, f->samples);
 					chan->generatordata = tmp;
 					if (res) {
 						if (option_debug > 1)
@@ -2053,8 +2054,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		chan->fin &= 0x80000000;
 	else
 		chan->fin++;
-	ast_mutex_unlock(&chan->lock);
 
+done:
+	ast_mutex_unlock(&chan->lock);
 	return f;
 }
 
