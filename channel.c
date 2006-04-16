@@ -1891,7 +1891,6 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				func(data);
 			} else {
 				blah = 0;
-				ast_channel_lock(chan);
 				ioctl(chan->timingfd, ZT_TIMERCONFIG, &blah);
 				chan->timingdata = NULL;
 				ast_channel_unlock(chan);
