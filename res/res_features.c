@@ -1269,7 +1269,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	if (ast_answer(chan))
 		return -1;
 	peer->appl = "Bridged Call";
-	peer->data = (char *) chan->name;
+	peer->data = chan->name;
 
 	/* copy the userfield from the B-leg to A-leg if applicable */
 	if (chan->cdr && peer->cdr && !ast_strlen_zero(peer->cdr->userfield)) {
@@ -1365,7 +1365,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			else if (f->subclass == AST_CONTROL_OPTION) {
 				aoh = f->data;
 				/* Forward option Requests */
-				if (aoh && (aoh->flag == AST_OPTION_FLAG_REQUEST))
+				if (aoh && aoh->flag == AST_OPTION_FLAG_REQUEST)
 					ast_channel_setoption(other, ntohs(aoh->option), aoh->data, f->datalen - sizeof(struct ast_option_header), 0);
 			}
 		}
@@ -1435,7 +1435,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 /*! \brief Take care of parked calls and unpark them if needed */
 static void *do_parking_thread(void *ignore)
 {
-	fd_set rfds, efds;
+	fd_set rfds, efds;	/* results from previous select, to be preserved across loops. */
 	FD_ZERO(&rfds);
 	FD_ZERO(&efds);
 
@@ -1443,26 +1443,21 @@ static void *do_parking_thread(void *ignore)
 		struct parkeduser *pu, *pl, *pt = NULL;
 		int ms = -1;	/* select timeout, uninitialized */
 		int max = -1;	/* max fd, none there yet */
-		fd_set nrfds, nefds;
-
-		struct timeval tv;
-		char exten[AST_MAX_EXTENSION];
-		char *peername,*cp;
-
+		fd_set nrfds, nefds;	/* args for the next select */
 		FD_ZERO(&nrfds);
 		FD_ZERO(&nefds);
 
 		ast_mutex_lock(&parking_lock);
 		pl = NULL;
 		pu = parkinglot;
+		/* navigate the list with prev-cur pointers to support removals */
 		while(pu) {
 			struct ast_channel *chan = pu->chan;	/* shorthand */
 			int tms;        /* timeout for this item */
 			int x;          /* fd index in channel */
 			struct ast_context *con;
 
-			if (pu->notquiteyet) {
-				/* Pretend this one isn't here yet */
+			if (pu->notquiteyet) { /* Pretend this one isn't here yet */
 				pl = pu;
 				pu = pu->next;
 				continue;
@@ -1474,8 +1469,8 @@ static void *do_parking_thread(void *ignore)
 				ast_indicate(chan, AST_CONTROL_UNHOLD);
 				/* Get chan, exten from derived kludge */
 				if (pu->peername[0]) {
-					peername = ast_strdupa(pu->peername);
-					cp = strrchr(peername, '-');
+					char *peername = ast_strdupa(pu->peername);
+					char *cp = strrchr(peername, '-');
 					if (cp) 
 						*cp = 0;
 					con = ast_context_find(parking_con_dial);
@@ -1523,18 +1518,19 @@ static void *do_parking_thread(void *ignore)
 				pu = pu->next;
 				con = ast_context_find(parking_con);
 				if (con) {
+					char exten[AST_MAX_EXTENSION];
 					snprintf(exten, sizeof(exten), "%d", pt->parkingnum);
 					if (ast_context_remove_extension2(con, exten, 1, NULL))
 						ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
 				} else
 					ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 				free(pt);
-			} else {
+			} else {	/* still within parking time, process descriptors */
 				for (x = 0; x < AST_MAX_FDS; x++) {
 					struct ast_frame *f;
 
-					if (chan->fds[x] < 0 || (!FD_ISSET(chan->fds[x], &rfds) && !FD_ISSET(chan->fds[x], &efds)))
-						continue;
+					if (chan->fds[x] == -1 || (!FD_ISSET(chan->fds[x], &rfds) && !FD_ISSET(chan->fds[x], &efds)))
+						continue;	/* nothing on this descriptor */
 
 					if (FD_ISSET(chan->fds[x], &efds))
 						ast_set_flag(chan, AST_FLAG_EXCEPTION);
@@ -1543,7 +1539,7 @@ static void *do_parking_thread(void *ignore)
 					chan->fdno = x;
 					/* See if they need servicing */
 					f = ast_read(chan);
-					if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass ==  AST_CONTROL_HANGUP))) {
+					if (!f || (f->frametype == AST_FRAME_CONTROL && f->subclass ==  AST_CONTROL_HANGUP)) {
 						if (f)
 							ast_frfree(f);
 						manager_event(EVENT_FLAG_CALL, "ParkedCallGiveUp",
@@ -1569,6 +1565,7 @@ static void *do_parking_thread(void *ignore)
 						pu = pu->next;
 						con = ast_context_find(parking_con);
 						if (con) {
+							char exten[AST_MAX_EXTENSION];
 							snprintf(exten, sizeof(exten), "%d", pt->parkingnum);
 							if (ast_context_remove_extension2(con, exten, 1, NULL))
 								ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
@@ -1589,8 +1586,7 @@ static void *do_parking_thread(void *ignore)
 
 				} /* end for */
 				if (x >= AST_MAX_FDS) {
-std:					for (x=0; x<AST_MAX_FDS; x++) {
-						/* Keep this one for next one */
+std:					for (x=0; x<AST_MAX_FDS; x++) {	/* mark fds for next round */
 						if (chan->fds[x] > -1) {
 							FD_SET(chan->fds[x], &nrfds);
 							FD_SET(chan->fds[x], &nefds);
@@ -1598,8 +1594,8 @@ std:					for (x=0; x<AST_MAX_FDS; x++) {
 								max = chan->fds[x];
 						}
 					}
-					/* Keep track of our longest wait */
-					if ((tms < ms) || (ms < 0))
+					/* Keep track of our shortest wait */
+					if (tms < ms || ms < 0)
 						ms = tms;
 					pl = pu;
 					pu = pu->next;
@@ -1609,9 +1605,11 @@ std:					for (x=0; x<AST_MAX_FDS; x++) {
 		ast_mutex_unlock(&parking_lock);
 		rfds = nrfds;
 		efds = nefds;
-		tv = ast_samp2tv(ms, 1000);
-		/* Wait for something to happen */
-		ast_select(max + 1, &rfds, NULL, &efds, (ms > -1) ? &tv : NULL);
+		{
+			struct timeval tv = ast_samp2tv(ms, 1000);
+			/* Wait for something to happen */
+			ast_select(max + 1, &rfds, NULL, &efds, (ms > -1) ? &tv : NULL);
+		}
 		pthread_testcancel();
 	}
 	return NULL;	/* Never reached */
@@ -1646,7 +1644,6 @@ static int park_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	struct ast_channel *peer=NULL;
 	struct parkeduser *pu, *pl=NULL;
-	char exten[AST_MAX_EXTENSION];
 	struct ast_context *con;
 	int park;
 	int dres;
@@ -1676,6 +1673,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		peer = pu->chan;
 		con = ast_context_find(parking_con);
 		if (con) {
+			char exten[AST_MAX_EXTENSION];
 			snprintf(exten, sizeof(exten), "%d", pu->parkingnum);
 			if (ast_context_remove_extension2(con, exten, 1, NULL))
 				ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
@@ -1696,47 +1694,37 @@ static int park_exec(struct ast_channel *chan, void *data)
 		free(pu);
 	}
 	/* JK02: it helps to answer the channel if not already up */
-	if (chan->_state != AST_STATE_UP) {
+	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
-	}
 
 	if (peer) {
 		/* Play a courtesy to the source(s) configured to prefix the bridge connecting */
 		
 		if (!ast_strlen_zero(courtesytone)) {
+			int error = 0;
+			ast_moh_stop(peer);
+			ast_indicate(peer, AST_CONTROL_UNHOLD);
 			if (parkedplay == 0) {
-				if (!ast_streamfile(chan, courtesytone, chan->language)) {
-					if (ast_waitstream(chan, "") < 0) {
-						ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
-						ast_hangup(peer);
-						return -1;
-					}
+				if (stream_and_wait(chan, courtesytone, chan->language, ""))
+					error = 1;
+			} else if (parkedplay == 2) {
+				if (!ast_streamfile(chan, courtesytone, chan->language) &&
+						!ast_streamfile(peer, courtesytone, chan->language)) {
+					/* XXX we would like to wait on both! */
+					res = ast_waitstream(chan, "");
+					if (res >= 0)
+						res = ast_waitstream(peer, "");
+					if (res < 0)
+						error = 1;
 				}
-				ast_moh_stop(peer);
-				ast_indicate(peer, AST_CONTROL_UNHOLD);
-			} else {
-				ast_moh_stop(peer);
-				ast_indicate(peer, AST_CONTROL_UNHOLD);
-				if (parkedplay == 2) {
-					if (!ast_streamfile(chan, courtesytone, chan->language) && !ast_streamfile(peer, courtesytone, chan->language)) {
-						res = ast_waitstream(chan, "");
-						if (res >= 0)
-							res = ast_waitstream(peer, "");
-						if (res < 0) {
-							ast_log(LOG_WARNING, "Failed to play courtesy tones!\n");
-							ast_hangup(peer);
-							return -1;
-						}
-					}
-				} else if (parkedplay == 1) {
-					if (!ast_streamfile(peer, courtesytone, chan->language)) {
-						if (ast_waitstream(peer, "") < 0) {
-							ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
-							ast_hangup(peer);
-							return -1;
-						}
-					}
-				}
+			} else if (parkedplay == 1) {
+				if (stream_and_wait(peer, courtesytone, chan->language, ""))
+				error = 1;
+                        }
+			if (error) {
+				ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+				ast_hangup(peer);
+				return -1;
 			}
 		}
  
