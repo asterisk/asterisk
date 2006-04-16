@@ -3277,7 +3277,6 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 	/* Copy voice back and forth between the two channels. */
 	struct ast_channel *cs[3];
 	struct ast_frame *f;
-	struct ast_channel *who = NULL;
 	enum ast_bridge_result res = AST_BRIDGE_COMPLETE;
 	int o0nativeformats;
 	int o1nativeformats;
@@ -3296,6 +3295,8 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 	watch_c1_dtmf = config->flags & AST_BRIDGE_DTMF_CHANNEL_1;
 
 	for (;;) {
+		struct ast_channel *who, *other;
+
 		if ((c0->tech_pvt != pvt0) || (c1->tech_pvt != pvt1) ||
 		    (o0nativeformats != c0->nativeformats) ||
 		    (o1nativeformats != c1->nativeformats)) {
@@ -3333,10 +3334,12 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			break;
 		}
 
+		other = (who == c0) ? c1 : c0; /* the 'other' channel */
+
 		if ((f->frametype == AST_FRAME_CONTROL) && !(config->flags & AST_BRIDGE_IGNORE_SIGS)) {
 			if ((f->subclass == AST_CONTROL_HOLD) || (f->subclass == AST_CONTROL_UNHOLD) ||
 			    (f->subclass == AST_CONTROL_VIDUPDATE)) {
-				ast_indicate(who == c0 ? c1 : c0, f->subclass);
+				ast_indicate(other, f->subclass);
 			} else {
 				*fo = f;
 				*rc = who;
@@ -3354,28 +3357,20 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 		    (f->frametype == AST_FRAME_MODEM) ||
 #endif
 		    (f->frametype == AST_FRAME_TEXT)) {
-			if (f->frametype == AST_FRAME_DTMF) {
-				if (((who == c0) && watch_c0_dtmf) ||
-				    ((who == c1) && watch_c1_dtmf)) {
-					*rc = who;
-					*fo = f;
-					res = AST_BRIDGE_COMPLETE;
-					ast_log(LOG_DEBUG, "Got DTMF on channel (%s)\n", who->name);
-					break;
-				} else {
-					goto tackygoto;
-				}
-			} else {
-#if 0
-				ast_log(LOG_DEBUG, "Read from %s\n", who->name);
-				if (who == last)
-					ast_log(LOG_DEBUG, "Servicing channel %s twice in a row?\n", last->name);
-				last = who;
-#endif
-tackygoto:
-				ast_write((who == c0) ? c1 : c0, f);
+			/* monitored dtmf causes exit from bridge */
+			int monitored_source = (who == c0) ? watch_c0_dtmf : watch_c1_dtmf;
+
+			if (f->frametype == AST_FRAME_DTMF && monitored_source) {
+				*fo = f;
+				*rc = who;
+				res = AST_BRIDGE_COMPLETE;
+				ast_log(LOG_DEBUG, "Got DTMF on channel (%s)\n", who->name);
+				break;
 			}
+			/* other frames go to the other side */
+			ast_write(other, f);
 		}
+		/* XXX do we want to pass on also frames not matched above ? */
 		ast_frfree(f);
 
 		/* Swap who gets priority */
