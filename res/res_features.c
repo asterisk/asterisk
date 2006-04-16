@@ -1622,7 +1622,6 @@ static int park_exec(struct ast_channel *chan, void *data)
 	struct parkeduser *pu, *pl=NULL;
 	struct ast_context *con;
 	int park;
-	int dres;
 	struct ast_bridge_config config;
 
 	if (!data) {
@@ -1682,7 +1681,6 @@ static int park_exec(struct ast_channel *chan, void *data)
 			ast_indicate(peer, AST_CONTROL_UNHOLD);
 			if (parkedplay == 0) {
 				error = stream_and_wait(chan, courtesytone, chan->language, "");
-					error = 1;
 			} else if (parkedplay == 1) {
 				error = stream_and_wait(peer, courtesytone, chan->language, "");
 			} else if (parkedplay == 2) {
@@ -1729,13 +1727,8 @@ static int park_exec(struct ast_channel *chan, void *data)
 		return res;
 	} else {
 		/* XXX Play a message XXX */
-		dres = ast_streamfile(chan, "pbx-invalidpark", chan->language);
-		if (!dres)
-	    		dres = ast_waitstream(chan, "");
-		else {
+		if (stream_and_wait(chan, "pbx-invalidpark", chan->language, ""))
 			ast_log(LOG_WARNING, "ast_streamfile of %s failed on %s\n", "pbx-invalidpark", chan->name);
-			dres = 0;
-		}
 		if (option_verbose > 2) 
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s tried to talk to nonexistent parked call %d\n", chan->name, park);
 		res = -1;
@@ -1809,9 +1802,9 @@ static int handle_parkedcalls(int fd, int argc, char *argv[])
 
 		numparked++;
 	}
+	ast_mutex_unlock(&parking_lock);
 	ast_cli(fd, "%d parked call%s.\n", numparked, (numparked != 1) ? "s" : "");
 
-	ast_mutex_unlock(&parking_lock);
 
 	return RESULT_SUCCESS;
 }
