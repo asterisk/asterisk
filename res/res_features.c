@@ -573,38 +573,25 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	memset(xferto, 0, sizeof(xferto));
 	
 	/* Transfer */
-	if ((res=ast_streamfile(transferer, "pbx-transfer", transferer->language))) {
-		ast_moh_stop(transferee);
-		ast_autoservice_stop(transferee);
-		ast_indicate(transferee, AST_CONTROL_UNHOLD);
-		return res;
-	}
-	if ((res=ast_waitstream(transferer, AST_DIGIT_ANY)) < 0) {
-		ast_moh_stop(transferee);
-		ast_autoservice_stop(transferee);
-		ast_indicate(transferee, AST_CONTROL_UNHOLD);
-		return res;
-	} else if (res > 0) {
-		/* If they've typed a digit already, handle it */
+	res = stream_and_wait(transferer, "pbx-transfer", transferer->language, AST_DIGIT_ANY);
+	if (res < 0) {
+		finishup(transferee);
+		return -1; /* error ? */
+	} else if (res > 0) {	/* If they've typed a digit already, handle it */
 		xferto[0] = (char) res;
 	}
 
 	ast_stopstream(transferer);
 	res = ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout);
-	if (res < 0) {
-		ast_moh_stop(transferee);
-		ast_autoservice_stop(transferee);
-		ast_indicate(transferee, AST_CONTROL_UNHOLD);
+	if (res < 0) {  /* hangup, would be 0 for invalid and 1 for valid */
+		finishup(transferee);
 		return res;
 	}
 	if (!strcmp(xferto, ast_parking_ext())) {
-		ast_moh_stop(transferee);
-
-		res = ast_autoservice_stop(transferee);
-		ast_indicate(transferee, AST_CONTROL_UNHOLD);
+		res = finishup(transferee);
 		if (res)
 			res = -1;
-		else if (!ast_park_call(transferee, transferer, 0, NULL)) {
+		else if (!ast_park_call(transferee, transferer, 0, NULL)) {	/* success */
 			/* We return non-zero, but tell the PBX not to hang the channel when
 			   the thread dies -- We have to be careful now though.  We are responsible for 
 			   hanging up the channel, else it will never be hung up! */
@@ -617,9 +604,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	} else if (ast_exists_extension(transferee, transferer_real_context, xferto, 1, transferer->cid.cid_num)) {
 		pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
 		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
-		ast_moh_stop(transferee);
-		res=ast_autoservice_stop(transferee);
-		ast_indicate(transferee, AST_CONTROL_UNHOLD);
+		res=finishup(transferee);
 		if (!transferee->pbx) {
 			/* Doh!  Use our handy async_goto functions */
 			if (option_verbose > 2) 
@@ -638,21 +623,12 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		if (option_verbose > 2)	
 			ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context '%s'\n", xferto, transferer_real_context);
 	}
-	if (!ast_strlen_zero(xferfailsound))
-		res = ast_streamfile(transferer, xferfailsound, transferee->language);
-	else
-		res = 0;
-	if (res) {
-		ast_moh_stop(transferee);
-		ast_autoservice_stop(transferee);
-		ast_indicate(transferee, AST_CONTROL_UNHOLD);
-		return res;
+	if (stream_and_wait(transferer, xferfailsound, transferee->language, AST_DIGIT_ANY) < 0 ) {
+		finishup(transferee);
+		return -1;
 	}
-	res = ast_waitstream(transferer, AST_DIGIT_ANY);
 	ast_stopstream(transferer);
-	ast_moh_stop(transferee);
-	res = ast_autoservice_stop(transferee);
-	ast_indicate(transferee, AST_CONTROL_UNHOLD);
+	res = finishup(transferee);
 	if (res) {
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Hungup during autoservice stop on '%s'\n", transferee->name);
@@ -1507,7 +1483,7 @@ static void *do_parking_thread(void *ignore)
 				/* Start up the PBX, or hang them up */
 				if (ast_pbx_start(chan))  {
 					ast_log(LOG_WARNING, "Unable to restart the PBX for user on '%s', hanging them up...\n", chan->name);
-					ast_hangup(pu->chan);
+					ast_hangup(chan);
 				}
 				/* And take them out of the parking lot */
 				if (pl) 
@@ -1705,8 +1681,10 @@ static int park_exec(struct ast_channel *chan, void *data)
 			ast_moh_stop(peer);
 			ast_indicate(peer, AST_CONTROL_UNHOLD);
 			if (parkedplay == 0) {
-				if (stream_and_wait(chan, courtesytone, chan->language, ""))
+				error = stream_and_wait(chan, courtesytone, chan->language, "");
 					error = 1;
+			} else if (parkedplay == 1) {
+				error = stream_and_wait(peer, courtesytone, chan->language, "");
 			} else if (parkedplay == 2) {
 				if (!ast_streamfile(chan, courtesytone, chan->language) &&
 						!ast_streamfile(peer, courtesytone, chan->language)) {
@@ -1717,9 +1695,6 @@ static int park_exec(struct ast_channel *chan, void *data)
 					if (res < 0)
 						error = 1;
 				}
-			} else if (parkedplay == 1) {
-				if (stream_and_wait(peer, courtesytone, chan->language, ""))
-				error = 1;
                         }
 			if (error) {
 				ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
@@ -1862,9 +1837,8 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 
         ast_mutex_lock(&parking_lock);
 
-        cur=parkinglot;
-        while(cur) {
-			astman_append(s, "Event: ParkedCall\r\n"
+	for (cur=parkinglot; cur; cur = cur->next) {
+		astman_append(s, "Event: ParkedCall\r\n"
 			"Exten: %d\r\n"
 			"Channel: %s\r\n"
 			"From: %s\r\n"
@@ -1878,14 +1852,12 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 			,(cur->chan->cid.cid_num ? cur->chan->cid.cid_num : "")
 			,(cur->chan->cid.cid_name ? cur->chan->cid.cid_name : "")
 			,idText);
-
-            cur = cur->next;
         }
 
 	astman_append(s,
-	"Event: ParkedCallsComplete\r\n"
-	"%s"
-	"\r\n",idText);
+		"Event: ParkedCallsComplete\r\n"
+		"%s"
+		"\r\n",idText);
 
         ast_mutex_unlock(&parking_lock);
 
