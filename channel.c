@@ -793,60 +793,48 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 					       const char *context, const char *exten)
 {
 	const char *msg = prev ? "deadlock" : "initial deadlock";
-	int retries, done;
+	int retries;
 	struct ast_channel *c;
 
 	for (retries = 0; retries < 10; retries++) {
+		int done;
 		AST_LIST_LOCK(&channels);
 		AST_LIST_TRAVERSE(&channels, c, chan_list) {
-			if (!prev) {
-				/* want head of list */
-				if (!name && !exten)
-					break;
-				if (name) {
-					/* want match by full name */
-					if (!namelen) {
-						if (!strcasecmp(c->name, name))
-							break;
-						else
-							continue;
-					}
-					/* want match by name prefix */
-					if (!strncasecmp(c->name, name, namelen))
-						break;
-				} else if (exten) {
-					/* want match by context and exten */
-					if (context && (strcasecmp(c->context, context) &&
-							strcasecmp(c->macrocontext, context)))
-						continue;
-					/* match by exten */
-					if (strcasecmp(c->exten, exten) &&
-					    strcasecmp(c->macroexten, exten))
-						continue;
-					else
-						break;
-				}
-			} else if (c == prev) { /* found, return c->next */
+			if (prev) {	/* look for next item */
+				if (c != prev)	/* not this one */
+					continue;
+				/* found, prepare to return c->next */
 				c = AST_LIST_NEXT(c, chan_list);
-				break;
+			} else if (name) { /* want match by name */
+				if ( (!namelen && strcasecmp(c->name, name)) ||
+				     (namelen && strncasecmp(c->name, name, namelen)) )
+					continue;	/* name match failed */
+			} else if (exten) {
+				if (context && strcasecmp(c->context, context) &&
+						strcasecmp(c->macrocontext, context))
+					continue;	/* context match failed */
+				if (strcasecmp(c->exten, exten) &&
+						strcasecmp(c->macroexten, exten))
+					continue;	/* exten match failed */
 			}
+			/* if we get here, c points to the desired record */
+			break;
 		}
 		/* exit if chan not found or mutex acquired successfully */
-		done = (c == NULL) || (ast_mutex_trylock(&c->lock) == 0);
-		/* this is slightly unsafe, as we _should_ hold the lock to access c->name */
-		if (!done && c)
-			ast_log(LOG_DEBUG, "Avoiding %s for '%s'\n", msg, c->name);
+		done = c == NULL || ast_mutex_trylock(&c->lock) == 0;
+		if (!done)
+			ast_log(LOG_DEBUG, "Avoiding %s for channel '%p'\n", msg, c);
 		AST_LIST_UNLOCK(&channels);
 		if (done)
 			return c;
-		usleep(1);
+		usleep(1);	/* give other threads a chance before retrying */
 	}
 	/*
  	 * c is surely not null, but we don't have the lock so cannot
 	 * access c->name
 	 */
-	ast_log(LOG_WARNING, "Avoided %s for '%p', %d retries!\n",
-		msg, c, retries);
+	ast_log(LOG_WARNING, "Failure, could not lock '%p' after %d retries!\n",
+		c, retries);
 
 	return NULL;
 }
