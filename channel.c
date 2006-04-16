@@ -1769,19 +1769,18 @@ int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), 
 
 int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 {
-	struct ast_frame *f;
-	struct ast_channel *rchan;
-	int outfd;
-	int res;
 
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(c, AST_FLAG_ZOMBIE) || ast_check_hangup(c))
 		return -1;
 	/* Wait for a digit, no more than ms milliseconds total. */
-	while(ms) {
+	while (ms) {
+		struct ast_channel *rchan;
+		int outfd;
+
 		errno = 0;
 		rchan = ast_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
-		if ((!rchan) && (outfd < 0) && (ms)) {
+		if (!rchan && outfd < 0 && ms) {
 			if (errno == 0 || errno == EINTR)
 				continue;
 			ast_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
@@ -1790,10 +1789,10 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 			/* The FD we were watching has something waiting */
 			return 1;
 		} else if (rchan) {
-			f = ast_read(c);
-			if(!f) {
+			int res;
+			struct ast_frame *f = ast_read(c);
+			if (!f)
 				return -1;
-			}
 
 			switch(f->frametype) {
 			case AST_FRAME_DTMF:
@@ -2699,9 +2698,8 @@ int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int fti
 
 int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, int ftimeout, char *enders, int audiofd, int ctrlfd)
 {
-	int pos=0;
+	int pos = 0;	/* index in the buffer where we accumulate digits */
 	int to = ftimeout;
-	int d;
 
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(c, AST_FLAG_ZOMBIE) || ast_check_hangup(c))
@@ -2709,6 +2707,7 @@ int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, in
 	if (!len)
 		return -1;
 	for (;;) {
+		int d;
 		if (c->stream) {
 			d = ast_waitstream_full(c, AST_DIGIT_ANY, audiofd, ctrlfd);
 			ast_stopstream(c);
