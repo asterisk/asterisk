@@ -2463,101 +2463,100 @@ int ast_set_write_format(struct ast_channel *chan, int fmt)
 
 struct ast_channel *__ast_request_and_dial(const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, struct outgoing_helper *oh)
 {
-	int state = 0;
+	int dummy_outstate;
 	int cause = 0;
 	struct ast_channel *chan;
-	struct ast_frame *f;
 	int res = 0;
 	
-	chan = ast_request(type, format, data, &cause);
-	if (chan) {
-		if (oh) {
-			if (oh->vars)	
-				ast_set_variables(chan, oh->vars);
-			if (oh->cid_num && *oh->cid_num && oh->cid_name && *oh->cid_name)
-				ast_set_callerid(chan, oh->cid_num, oh->cid_name, oh->cid_num);
-			if (oh->parent_channel)
-				ast_channel_inherit_variables(oh->parent_channel, chan);
-			if (oh->account)
-				ast_cdr_setaccount(chan, oh->account);	
-		}
-		ast_set_callerid(chan, cid_num, cid_name, cid_num);
-
-		if (!ast_call(chan, data, 0)) {
-			res = 1;	/* in case chan->_state is already AST_STATE_UP */
-			while (timeout && (chan->_state != AST_STATE_UP)) {
-				res = ast_waitfor(chan, timeout);
-				if (res < 0) {
-					/* Something not cool, or timed out */
-					break;
-				}
-				/* If done, break out */
-				if (!res)
-					break;
-				if (timeout > -1)
-					timeout = res;
-				f = ast_read(chan);
-				if (!f) {
-					state = AST_CONTROL_HANGUP;
-					res = 0;
-					break;
-				}
-				if (f->frametype == AST_FRAME_CONTROL) {
-					if (f->subclass == AST_CONTROL_RINGING)
-						state = AST_CONTROL_RINGING;
-					else if ((f->subclass == AST_CONTROL_BUSY) || (f->subclass == AST_CONTROL_CONGESTION)) {
-						state = f->subclass;
-						ast_frfree(f);
-						break;
-					} else if (f->subclass == AST_CONTROL_ANSWER) {
-						state = f->subclass;
-						ast_frfree(f);
-						break;
-					} else if (f->subclass == AST_CONTROL_PROGRESS) {
-						/* Ignore */
-					} else if (f->subclass == -1) {
-						/* Ignore -- just stopping indications */
-					} else {
-						ast_log(LOG_NOTICE, "Don't know what to do with control frame %d\n", f->subclass);
-					}
-				}
-				ast_frfree(f);
-			}
-		} else
-			ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
-	} else {
-		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
-		switch(cause) {
-		case AST_CAUSE_BUSY:
-			state = AST_CONTROL_BUSY;
-			break;
-		case AST_CAUSE_CONGESTION:
-			state = AST_CONTROL_CONGESTION;
-			break;
-		}
-	}
-	if (chan) {
-		/* Final fixups */
-		if (oh) {
-			if (oh->context && *oh->context)
-				ast_copy_string(chan->context, oh->context, sizeof(chan->context));
-			if (oh->exten && *oh->exten)
-				ast_copy_string(chan->exten, oh->exten, sizeof(chan->exten));
-			if (oh->priority)	
-				chan->priority = oh->priority;
-		}
-		if (chan->_state == AST_STATE_UP)
-			state = AST_CONTROL_ANSWER;
-	}
 	if (outstate)
-		*outstate = state;
-	if (chan && res <= 0) {
-		if (!chan->cdr && (chan->cdr = ast_cdr_alloc())) {
-			ast_cdr_init(chan->cdr, chan);
+		*outstate = 0;
+	else
+		outstate = &dummy_outstate;	/* make outstate always a valid pointer */
+
+	chan = ast_request(type, format, data, &cause);
+	if (!chan) {
+		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
+		/* compute error and return */
+		if (cause == AST_CAUSE_BUSY)
+			*outstate = AST_CONTROL_BUSY;
+		else if (cause == AST_CAUSE_CONGESTION)
+			*outstate = AST_CONTROL_CONGESTION;
+		return NULL;
+	}
+
+	if (oh) {
+		if (oh->vars)	
+			ast_set_variables(chan, oh->vars);
+		/* XXX why is this necessary, for the parent_channel perhaps ? */
+		if (!ast_strlen_zero(oh->cid_num) && !ast_strlen_zero(oh->cid_name))
+			ast_set_callerid(chan, oh->cid_num, oh->cid_name, oh->cid_num);
+		if (oh->parent_channel)
+			ast_channel_inherit_variables(oh->parent_channel, chan);
+		if (oh->account)
+			ast_cdr_setaccount(chan, oh->account);	
+	}
+	ast_set_callerid(chan, cid_num, cid_name, cid_num);
+
+	if (ast_call(chan, data, 0)) {	/* ast_call failed... */
+		ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
+	} else {
+		res = 1;	/* mark success in case chan->_state is already AST_STATE_UP */
+		while (timeout && chan->_state != AST_STATE_UP) {
+			struct ast_frame *f;
+			res = ast_waitfor(chan, timeout);
+			if (res <= 0) /* error, timeout, or done */
+				break;
+			if (timeout > -1)
+				timeout = res;
+			f = ast_read(chan);
+			if (!f) {
+				*outstate = AST_CONTROL_HANGUP;
+				res = 0;
+				break;
+			}
+			if (f->frametype == AST_FRAME_CONTROL) {
+				switch (f->subclass) {
+				case AST_CONTROL_RINGING:	/* record but keep going */
+					*outstate = f->subclass;
+					break;
+
+				case AST_CONTROL_BUSY:
+				case AST_CONTROL_CONGESTION:
+				case AST_CONTROL_ANSWER:
+					*outstate = f->subclass;
+					timeout = 0;		/* trick to force exit from the while() */
+					break;
+
+				case AST_CONTROL_PROGRESS:	/* Ignore */
+				case -1:			/* Ignore -- just stopping indications */
+					break;
+
+				default:
+					ast_log(LOG_NOTICE, "Don't know what to do with control frame %d\n", f->subclass);
+				}
+			}
+			ast_frfree(f);
 		}
+	}
+
+	/* Final fixups */
+	if (oh) {
+		if (!ast_strlen_zero(oh->context))
+			ast_copy_string(chan->context, oh->context, sizeof(chan->context));
+		if (!ast_strlen_zero(oh->exten))
+			ast_copy_string(chan->exten, oh->exten, sizeof(chan->exten));
+		if (oh->priority)	
+			chan->priority = oh->priority;
+	}
+	if (chan->_state == AST_STATE_UP)
+		*outstate = AST_CONTROL_ANSWER;
+
+	if (res <= 0) {
+		if (!chan->cdr && (chan->cdr = ast_cdr_alloc()))
+			ast_cdr_init(chan->cdr, chan);
 		if (chan->cdr) {
 			char tmp[256];
-			snprintf(tmp, 256, "%s/%s", type, (char *)data);
+			snprintf(tmp, sizeof(tmp), "%s/%s", type, (char *)data);
 			ast_cdr_setapp(chan->cdr,"Dial",tmp);
 			ast_cdr_update(chan);
 			ast_cdr_start(chan->cdr);
