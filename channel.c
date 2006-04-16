@@ -1825,14 +1825,10 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 
 static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 {
-	struct ast_frame *f = NULL;
+	struct ast_frame *f = NULL;	/* the return value */
 	int blah;
 	int prestate;
-#ifdef ZAPTEL_OPTIMIZATIONS
-	int (*func)(void *);
-	void *data;
-	int res;
-#endif
+
 	ast_channel_lock(chan);
 	if (chan->masq) {
 		if (ast_do_masquerade(chan)) {
@@ -1869,6 +1865,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		read(chan->alertpipe[0], &blah, sizeof(blah));
 #ifdef ZAPTEL_OPTIMIZATIONS
 	if (chan->timingfd > -1 && chan->fdno == AST_TIMING_FD && ast_test_flag(chan, AST_FLAG_EXCEPTION)) {
+		int res;
+
 		ast_clear_flag(chan, AST_FLAG_EXCEPTION);
 		blah = -1;
 		/* IF we can't get event, assume it's an expired as-per the old interface */
@@ -1885,13 +1883,11 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			}
 		} else if (blah == ZT_EVENT_TIMER_EXPIRED) {
 			ioctl(chan->timingfd, ZT_TIMERACK, &blah);
-			func = chan->timingfunc;
-			data = chan->timingdata;
-			ast_channel_unlock(chan);
-			if (func) {
-#if 0
-				ast_log(LOG_DEBUG, "Calling private function\n");
-#endif			
+			if (chan->timingfunc) {
+				/* save a copy of func/data before unlocking the channel */
+				int (*func)(void *) = chan->timingfunc;
+				void *data = chan->timingdata;
+				ast_channel_unlock(chan);
 				func(data);
 			} else {
 				blah = 0;
@@ -1910,6 +1906,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	if (chan->fds[AST_GENERATOR_FD] > -1 && chan->fdno == AST_GENERATOR_FD) {
 		void *tmp = chan->generatordata;
 		chan->generatordata = NULL;     /* reset to let ast_write get through */
+		/* XXX don't we miss an ast_channel_unlock(chan); here ? */
 		chan->generator->generate(chan, tmp, -1, -1);
 		chan->generatordata = tmp;
 		return &ast_null_frame;
