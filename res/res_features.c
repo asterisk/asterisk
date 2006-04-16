@@ -565,8 +565,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 
 	set_peers(&transferer, &transferee, peer, chan, sense);
 	transferer_real_context = real_ctx(transferer, transferee);
-	/* Start autoservice on chan while we talk
-	   to the originator */
+	/* Start autoservice on chan while we talk to the originator */
 	ast_indicate(transferee, AST_CONTROL_HOLD);
 	ast_autoservice_start(transferee);
 	ast_moh_start(transferee, NULL);
@@ -680,8 +679,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	ast_log(LOG_DEBUG, "Executing Attended Transfer %s, %s (sense=%d) XXX\n", chan->name, peer->name, sense);
 	set_peers(&transferer, &transferee, peer, chan, sense);
         transferer_real_context = real_ctx(transferer, transferee);
-	/* Start autoservice on chan while we talk
-	   to the originator */
+	/* Start autoservice on chan while we talk to the originator */
 	ast_indicate(transferee, AST_CONTROL_HOLD);
 	ast_autoservice_start(transferee);
 	ast_moh_start(transferee, NULL);
@@ -1459,6 +1457,7 @@ static void *do_parking_thread(void *ignore)
 		pl = NULL;
 		pu = parkinglot;
 		while(pu) {
+			struct ast_channel *chan = pu->chan;	/* shorthand */
 			int tms;        /* timeout for this item */
 			int x;          /* fd index in channel */
 			struct ast_context *con;
@@ -1472,8 +1471,8 @@ static void *do_parking_thread(void *ignore)
 			tms = ast_tvdiff_ms(ast_tvnow(), pu->start);
 			if (tms > pu->parkingtime) {
 				/* Stop music on hold */
-				ast_moh_stop(pu->chan);
-				ast_indicate(pu->chan, AST_CONTROL_UNHOLD);
+				ast_moh_stop(chan);
+				ast_indicate(chan, AST_CONTROL_UNHOLD);
 				/* Get chan, exten from derived kludge */
 				if (pu->peername[0]) {
 					peername = ast_strdupa(pu->peername);
@@ -1492,16 +1491,11 @@ static void *do_parking_thread(void *ignore)
 						snprintf(returnexten, sizeof(returnexten), "%s||t", peername);
 						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(returnexten), FREE, registrar);
 					}
-					ast_copy_string(pu->chan->exten, peername, sizeof(pu->chan->exten));
-					ast_copy_string(pu->chan->context, parking_con_dial, sizeof(pu->chan->context));
-					pu->chan->priority = 1;
-
+					set_c_e_p(chan, parking_con_dial, peername, 1);
 				} else {
 					/* They've been waiting too long, send them back to where they came.  Theoretically they
 					   should have their original extensions and such, but we copy to be on the safe side */
-					ast_copy_string(pu->chan->exten, pu->exten, sizeof(pu->chan->exten));
-					ast_copy_string(pu->chan->context, pu->context, sizeof(pu->chan->context));
-					pu->chan->priority = pu->priority;
+					set_c_e_p(chan, pu->context, pu->exten, pu->priority);
 				}
 
 				manager_event(EVENT_FLAG_CALL, "ParkedCallTimeOut",
@@ -1509,16 +1503,16 @@ static void *do_parking_thread(void *ignore)
 					"Channel: %s\r\n"
 					"CallerID: %s\r\n"
 					"CallerIDName: %s\r\n"
-					,pu->parkingnum, pu->chan->name
-					,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
-					,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
+					,pu->parkingnum, chan->name
+					,(chan->cid.cid_num ? chan->cid.cid_num : "<unknown>")
+					,(chan->cid.cid_name ? chan->cid.cid_name : "<unknown>")
 					);
 
 				if (option_verbose > 1) 
-					ast_verbose(VERBOSE_PREFIX_2 "Timeout for %s parked on %d. Returning to %s,%s,%d\n", pu->chan->name, pu->parkingnum, pu->chan->context, pu->chan->exten, pu->chan->priority);
+					ast_verbose(VERBOSE_PREFIX_2 "Timeout for %s parked on %d. Returning to %s,%s,%d\n", chan->name, pu->parkingnum, chan->context, chan->exten, chan->priority);
 				/* Start up the PBX, or hang them up */
-				if (ast_pbx_start(pu->chan))  {
-					ast_log(LOG_WARNING, "Unable to restart the PBX for user on '%s', hanging them up...\n", pu->chan->name);
+				if (ast_pbx_start(chan))  {
+					ast_log(LOG_WARNING, "Unable to restart the PBX for user on '%s', hanging them up...\n", chan->name);
 					ast_hangup(pu->chan);
 				}
 				/* And take them out of the parking lot */
@@ -1540,16 +1534,16 @@ static void *do_parking_thread(void *ignore)
 				for (x = 0; x < AST_MAX_FDS; x++) {
 					struct ast_frame *f;
 
-					if (pu->chan->fds[x] < 0 || (!FD_ISSET(pu->chan->fds[x], &rfds) && !FD_ISSET(pu->chan->fds[x], &efds)))
+					if (chan->fds[x] < 0 || (!FD_ISSET(chan->fds[x], &rfds) && !FD_ISSET(chan->fds[x], &efds)))
 						continue;
 
-					if (FD_ISSET(pu->chan->fds[x], &efds))
-						ast_set_flag(pu->chan, AST_FLAG_EXCEPTION);
+					if (FD_ISSET(chan->fds[x], &efds))
+						ast_set_flag(chan, AST_FLAG_EXCEPTION);
 					else
-						ast_clear_flag(pu->chan, AST_FLAG_EXCEPTION);
-					pu->chan->fdno = x;
+						ast_clear_flag(chan, AST_FLAG_EXCEPTION);
+					chan->fdno = x;
 					/* See if they need servicing */
-					f = ast_read(pu->chan);
+					f = ast_read(chan);
 					if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass ==  AST_CONTROL_HANGUP))) {
 						if (f)
 							ast_frfree(f);
@@ -1558,15 +1552,15 @@ static void *do_parking_thread(void *ignore)
 							"Channel: %s\r\n"
 							"CallerID: %s\r\n"
 							"CallerIDName: %s\r\n"
-							,pu->parkingnum, pu->chan->name
-							,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
-							,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
+							,pu->parkingnum, chan->name
+							,(chan->cid.cid_num ? chan->cid.cid_num : "<unknown>")
+							,(chan->cid.cid_name ? chan->cid.cid_name : "<unknown>")
 							);
 
 						/* There's a problem, hang them up*/
 						if (option_verbose > 1) 
-							ast_verbose(VERBOSE_PREFIX_2 "%s got tired of being parked\n", pu->chan->name);
-						ast_hangup(pu->chan);
+							ast_verbose(VERBOSE_PREFIX_2 "%s got tired of being parked\n", chan->name);
+						ast_hangup(chan);
 						/* And take them out of the parking lot */
 						if (pl) 
 							pl->next = pu->next;
@@ -1586,9 +1580,9 @@ static void *do_parking_thread(void *ignore)
 					} else {
 						/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
 						ast_frfree(f);
-						if (pu->moh_trys < 3 && !pu->chan->generatordata) {
+						if (pu->moh_trys < 3 && !chan->generatordata) {
 							ast_log(LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
-							ast_moh_start(pu->chan, NULL);
+							ast_moh_start(chan, NULL);
 							pu->moh_trys++;
 						}
 						goto std;	/* XXX Ick: jumping into an else statement??? XXX */
@@ -1598,11 +1592,11 @@ static void *do_parking_thread(void *ignore)
 				if (x >= AST_MAX_FDS) {
 std:					for (x=0; x<AST_MAX_FDS; x++) {
 						/* Keep this one for next one */
-						if (pu->chan->fds[x] > -1) {
-							FD_SET(pu->chan->fds[x], &nrfds);
-							FD_SET(pu->chan->fds[x], &nefds);
-							if (pu->chan->fds[x] > max)
-								max = pu->chan->fds[x];
+						if (chan->fds[x] > -1) {
+							FD_SET(chan->fds[x], &nrfds);
+							FD_SET(chan->fds[x], &nefds);
+							if (chan->fds[x] > max)
+								max = chan->fds[x];
 						}
 					}
 					/* Keep track of our longest wait */
