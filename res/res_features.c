@@ -1423,29 +1423,31 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 /*! \brief Take care of parked calls and unpark them if needed */
 static void *do_parking_thread(void *ignore)
 {
-	int ms, tms, max;
-	struct parkeduser *pu, *pl, *pt = NULL;
-	struct timeval tv;
-	struct ast_frame *f;
-	char exten[AST_MAX_EXTENSION];
-	char *peername,*cp;
-	char returnexten[AST_MAX_EXTENSION];
-	struct ast_context *con;
-	int x;
 	fd_set rfds, efds;
-	fd_set nrfds, nefds;
 	FD_ZERO(&rfds);
 	FD_ZERO(&efds);
 
 	for (;;) {
-		ms = -1;
-		max = -1;
+		struct parkeduser *pu, *pl, *pt = NULL;
+		int ms = -1;	/* select timeout, uninitialized */
+		int max = -1;	/* max fd, none there yet */
+		fd_set nrfds, nefds;
+
+		struct timeval tv;
+		char exten[AST_MAX_EXTENSION];
+		char *peername,*cp;
+
+		FD_ZERO(&nrfds);
+		FD_ZERO(&nefds);
+
 		ast_mutex_lock(&parking_lock);
 		pl = NULL;
 		pu = parkinglot;
-		FD_ZERO(&nrfds);
-		FD_ZERO(&nefds);
 		while(pu) {
+			int tms;        /* timeout for this item */
+			int x;          /* fd index in channel */
+			struct ast_context *con;
+
 			if (pu->notquiteyet) {
 				/* Pretend this one isn't here yet */
 				pl = pu;
@@ -1471,6 +1473,7 @@ static void *do_parking_thread(void *ignore)
 						}
 					}
 					if (con) {
+						char returnexten[AST_MAX_EXTENSION];
 						snprintf(returnexten, sizeof(returnexten), "%s||t", peername);
 						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(returnexten), FREE, registrar);
 					}
@@ -1520,7 +1523,12 @@ static void *do_parking_thread(void *ignore)
 				free(pt);
 			} else {
 				for (x = 0; x < AST_MAX_FDS; x++) {
-					if ((pu->chan->fds[x] > -1) && (FD_ISSET(pu->chan->fds[x], &rfds) || FD_ISSET(pu->chan->fds[x], &efds))) {
+					struct ast_frame *f;
+
+					if (pu->chan->fds[x] < 0 || (!FD_ISSET(pu->chan->fds[x], &rfds) && !FD_ISSET(pu->chan->fds[x], &efds)))
+						continue;
+
+						/* XXX reindent next block */
 						if (FD_ISSET(pu->chan->fds[x], &efds))
 							ast_set_flag(pu->chan, AST_FLAG_EXCEPTION);
 						else
@@ -1571,7 +1579,7 @@ static void *do_parking_thread(void *ignore)
 							}
 							goto std;	/* XXX Ick: jumping into an else statement??? XXX */
 						}
-					}
+
 				} /* end for */
 				if (x >= AST_MAX_FDS) {
 std:					for (x=0; x<AST_MAX_FDS; x++) {
@@ -1824,13 +1832,11 @@ static int handle_parkedcalls(int fd, int argc, char *argv[])
 
 	ast_mutex_lock(&parking_lock);
 
-	cur = parkinglot;
-	while(cur) {
+	for (cur = parkinglot; cur; cur = cur->next) {
 		ast_cli(fd, "%4d %25s (%-15s %-12s %-4d) %6lds\n"
 			,cur->parkingnum, cur->chan->name, cur->context, cur->exten
 			,cur->priority, cur->start.tv_sec + (cur->parkingtime/1000) - time(NULL));
 
-		cur = cur->next;
 		numparked++;
 	}
 	ast_cli(fd, "%d parked call%s.\n", numparked, (numparked != 1) ? "s" : "");
