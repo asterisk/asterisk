@@ -1496,8 +1496,6 @@ int ast_answer(struct ast_channel *chan)
 		ast_setstate(chan, AST_STATE_UP);
 		if (chan->cdr)
 			ast_cdr_answer(chan->cdr);
-		ast_channel_unlock(chan);
-		return res;
 		break;
 	case AST_STATE_UP:
 		if (chan->cdr)
@@ -1505,7 +1503,7 @@ int ast_answer(struct ast_channel *chan)
 		break;
 	}
 	ast_channel_unlock(chan);
-	return 0;
+	return res;
 }
 
 void ast_deactivate_generator(struct ast_channel *chan)
