@@ -1933,12 +1933,10 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			}
 			/* Clear the exception flag */
 			ast_clear_flag(chan, AST_FLAG_EXCEPTION);
-		} else {
-			if (chan->tech->read)
-				f = chan->tech->read(chan);
-			else
-				ast_log(LOG_WARNING, "No read routine on channel %s\n", chan->name);
-		}
+		} else if (chan->tech->read)
+			f = chan->tech->read(chan);
+		else
+			ast_log(LOG_WARNING, "No read routine on channel %s\n", chan->name);
 	}
 
 	if (f) {
@@ -2017,10 +2015,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					}
 				}
 
-				if (chan->readtrans) {
-					if (!(f = ast_translate(chan->readtrans, f, 1)))
-						f = &ast_null_frame;
-				}
+				if (chan->readtrans && (f = ast_translate(chan->readtrans, f, 1)) == NULL)
+					f = &ast_null_frame;
 
 				/* Run generator sitting on the line if timing device not available
 				* and synchronous generation of outgoing frames is necessary       */
@@ -2113,7 +2109,9 @@ int ast_indicate(struct ast_channel *chan, int condition)
 		 * Device does not support (that) indication, lets fake
 		 * it by doing our own tone generation. (PM2002)
 		 */
-		if (condition >= 0) {
+		if (condition < 0)
+			ast_playtones_stop(chan);
+		else {
 			const struct tone_zone_sound *ts = NULL;
 			switch (condition) {
 			case AST_CONTROL_RINGING:
@@ -2146,7 +2144,6 @@ int ast_indicate(struct ast_channel *chan, int condition)
 				res = -1;
 			}
 		}
-		else ast_playtones_stop(chan);
 	}
 	return res;
 }
@@ -2284,6 +2281,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 {
 	int res = -1;
 	struct ast_frame *f = NULL;
+
 	/* Stop if we're a zombie or need a soft hangup */
 	ast_channel_lock(chan);
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan))  {
@@ -2291,12 +2289,10 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		return -1;
 	}
 	/* Handle any pending masquerades */
-	if (chan->masq) {
-		if (ast_do_masquerade(chan)) {
-			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
-			ast_channel_unlock(chan);
-			return -1;
-		}
+	if (chan->masq && ast_do_masquerade(chan)) {
+		ast_log(LOG_WARNING, "Failed to perform masquerade\n");
+		ast_channel_unlock(chan);
+		return -1;
 	}
 	if (chan->masqr) {
 		ast_channel_unlock(chan);
@@ -2320,16 +2316,12 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		ast_log(LOG_WARNING, "Don't know how to handle control frames yet\n");
 		break;
 	case AST_FRAME_DTMF_BEGIN:
-		if (chan->tech->send_digit_begin)
-			res = chan->tech->send_digit_begin(chan, fr->subclass);
-		else
-			res = 0;
+		res = (chan->tech->send_digit_begin == NULL) ? 0 :
+			chan->tech->send_digit_begin(chan, fr->subclass);
 		break;
 	case AST_FRAME_DTMF_END:
-		if (chan->tech->send_digit_end)
-			res = chan->tech->send_digit_end(chan);
-		else
-			res = 0;
+		res = (chan->tech->send_digit_end == NULL) ? 0 :
+			chan->tech->send_digit_end(chan);
 		break;
 	case AST_FRAME_DTMF:
 		ast_clear_flag(chan, AST_FLAG_BLOCKING);
@@ -2339,33 +2331,32 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		CHECK_BLOCKING(chan);
 		break;
 	case AST_FRAME_TEXT:
-		if (chan->tech->send_text)
-			res = chan->tech->send_text(chan, (char *) fr->data);
-		else
-			res = 0;
+		res = (chan->tech->send_text == NULL) ? 0 :
+			chan->tech->send_text(chan, (char *) fr->data);
 		break;
 	case AST_FRAME_HTML:
-		if (chan->tech->send_html)
-			res = chan->tech->send_html(chan, fr->subclass, (char *) fr->data, fr->datalen);
-		else
-			res = 0;
+		res = (chan->tech->send_html == NULL) ? 0 :
+			chan->tech->send_html(chan, fr->subclass, (char *) fr->data, fr->datalen);
 		break;
 	case AST_FRAME_VIDEO:
 		/* XXX Handle translation of video codecs one day XXX */
-		if (chan->tech->write_video)
-			res = chan->tech->write_video(chan, fr);
-		else
-			res = 0;
+		res = (chan->tech->write_video == NULL) ? 0 :
+			chan->tech->write_video(chan, fr);
 		break;
 	case AST_FRAME_VOICE:
-		if (chan->tech->write) {
+		if (chan->tech->write == NULL)
+			break;
+
+			/* XXX need to reindent this block */
 			/* Bypass translator if we're writing format in the raw write format.  This
 			   allows mixing of native / non-native formats */
 			if (fr->subclass == chan->rawwriteformat)
 				f = fr;
 			else
 				f = (chan->writetrans) ? ast_translate(chan->writetrans, fr, 0) : fr;
-			if (f) {
+			if (f == NULL) {
+				res = 0;
+			} else {
 				if (chan->spies)
 					queue_frame_to_spies(chan, f, SPY_WRITE);
 
@@ -2394,12 +2385,11 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				}
 
 				res = chan->tech->write(chan, f);
-			} else
-				res = 0;
-		}
+			}
+		break;	
 	}
 
-	if (f && (f != fr))
+	if (f && f != fr)
 		ast_frfree(f);
 	ast_clear_flag(chan, AST_FLAG_BLOCKING);
 	/* Consider a write failure to force a soft hangup */
