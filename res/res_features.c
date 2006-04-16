@@ -239,8 +239,6 @@ static void ast_bridge_call_thread_launch(void *data)
 	pthread_setschedparam(thread, SCHED_RR, &sched);
 }
 
-
-
 static int adsi_announce_park(struct ast_channel *chan, int parkingnum)
 {
 	int res;
@@ -463,12 +461,10 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	if (!ast_strlen_zero(courtesytone)) {
 		if (ast_autoservice_start(callee_chan))
 			return -1;
-		if (!ast_streamfile(caller_chan, courtesytone, caller_chan->language)) {
-			if (ast_waitstream(caller_chan, "") < 0) {
-				ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
-				ast_autoservice_stop(callee_chan);
-				return -1;
-			}
+		if (stream_and_wait(caller_chan, courtesytone, caller_chan->language, "")) {
+			ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+			ast_autoservice_stop(callee_chan);
+			return -1;
 		}
 		if (ast_autoservice_stop(callee_chan))
 			return -1;
@@ -672,10 +668,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	res = ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout);
 	if (!res) {
 		ast_log(LOG_WARNING, "Did not read data.\n");
-		res = ast_streamfile(transferer, "beeperr", transferer->language);
-		if (ast_waitstream(transferer, "") < 0) {
+		if (stream_and_wait(transferer, "beeperr", transferer->language, ""))
 			return -1;
-		}
 	} else {
 		cid_num = transferer->cid.cid_num;
 		cid_name = transferer->cid.cid_name;
@@ -700,11 +694,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 						ast_frfree(f);
 						f = NULL;
 					}
-					if (!ast_strlen_zero(xfersound) && !ast_streamfile(transferer, xfersound, transferer->language)) {
-						if (ast_waitstream(transferer, "") < 0) {
-							ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
-						}
-					}
+					if (stream_and_wait(transferer, xfersound, transferer->language, ""))
+						ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
 					finishup(transferee);
 					transferer->_softhangup = 0;
 					return FEATURE_RETURN_SUCCESS;
@@ -760,10 +751,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 					tobj->peer = newchan;
 					tobj->bconfig = *config;
 	
-					if (!ast_strlen_zero(xfersound) && !ast_streamfile(newchan, xfersound, newchan->language) &&
-							ast_waitstream(newchan, "") < 0) {
+					if (stream_and_wait(newchan, xfersound, newchan->language, ""))
 						ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
-					}
 					ast_bridge_call_thread_launch(tobj);
 				} else {
 					ast_hangup(xferchan);
@@ -774,21 +763,16 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			} else {
 				finishup(transferee);
 				/* any reason besides user requested cancel and busy triggers the failed sound */
-				if (outstate != AST_CONTROL_UNHOLD && outstate != AST_CONTROL_BUSY && !ast_strlen_zero(xferfailsound)) {
-					res = ast_streamfile(transferer, xferfailsound, transferer->language);
-					if (!res && (ast_waitstream(transferer, "") < 0)) {
-						return -1;
-					}
-				}
+				if (outstate != AST_CONTROL_UNHOLD && outstate != AST_CONTROL_BUSY &&
+						stream_and_wait(transferer, xferfailsound, transferer->language, ""))
+					return -1;
 				return FEATURE_RETURN_SUCCESS;
 			}
 		} else {
 			ast_log(LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
 			finishup(transferee);
-			res = ast_streamfile(transferer, "beeperr", transferer->language);
-			if (!res && (ast_waitstream(transferer, "") < 0)) {
+			if (stream_and_wait(transferer, "beeperr", transferer->language, ""))
 				return -1;
-			}
 		}
 	}
 	finishup(transferee);
