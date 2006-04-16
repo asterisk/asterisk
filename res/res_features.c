@@ -560,7 +560,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	struct ast_channel *transferer;
 	struct ast_channel *transferee;
 	const char *transferer_real_context;
-	char newext[256];
+	char xferto[256];
 	int res;
 
 	set_peers(&transferer, &transferee, peer, chan, sense);
@@ -570,7 +570,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	ast_autoservice_start(transferee);
 	ast_moh_start(transferee, NULL);
 
-	memset(newext, 0, sizeof(newext));
+	memset(xferto, 0, sizeof(xferto));
 	
 	/* Transfer */
 	if ((res=ast_streamfile(transferer, "pbx-transfer", transferer->language))) {
@@ -586,18 +586,18 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		return res;
 	} else if (res > 0) {
 		/* If they've typed a digit already, handle it */
-		newext[0] = (char) res;
+		xferto[0] = (char) res;
 	}
 
 	ast_stopstream(transferer);
-	res = ast_app_dtget(transferer, transferer_real_context, newext, sizeof(newext), 100, transferdigittimeout);
+	res = ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout);
 	if (res < 0) {
 		ast_moh_stop(transferee);
 		ast_autoservice_stop(transferee);
 		ast_indicate(transferee, AST_CONTROL_UNHOLD);
 		return res;
 	}
-	if (!strcmp(newext, ast_parking_ext())) {
+	if (!strcmp(xferto, ast_parking_ext())) {
 		ast_moh_stop(transferee);
 
 		res = ast_autoservice_stop(transferee);
@@ -614,7 +614,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			ast_log(LOG_WARNING, "Unable to park call %s\n", transferee->name);
 		}
 		/* XXX Maybe we should have another message here instead of invalid extension XXX */
-	} else if (ast_exists_extension(transferee, transferer_real_context, newext, 1, transferer->cid.cid_num)) {
+	} else if (ast_exists_extension(transferee, transferer_real_context, xferto, 1, transferer->cid.cid_num)) {
 		pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
 		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
 		ast_moh_stop(transferee);
@@ -624,19 +624,19 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			/* Doh!  Use our handy async_goto functions */
 			if (option_verbose > 2) 
 				ast_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n"
-								,transferee->name, newext, transferer_real_context);
-			if (ast_async_goto(transferee, transferer_real_context, newext, 1))
+								,transferee->name, xferto, transferer_real_context);
+			if (ast_async_goto(transferee, transferer_real_context, xferto, 1))
 				ast_log(LOG_WARNING, "Async goto failed :-(\n");
 			res = -1;
 		} else {
 			/* Set the channel's new extension, since it exists, using transferer context */
-			set_c_e_p(transferee, transferer_real_context, newext, 0);
+			set_c_e_p(transferee, transferer_real_context, xferto, 0);
 		}
 		check_goto_on_transfer(transferer);
 		return res;
 	} else {
 		if (option_verbose > 2)	
-			ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context '%s'\n", newext, transferer_real_context);
+			ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context '%s'\n", xferto, transferer_real_context);
 	}
 	if (!ast_strlen_zero(xferfailsound))
 		res = ast_streamfile(transferer, xferfailsound, transferee->language);
