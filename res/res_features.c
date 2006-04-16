@@ -406,6 +406,39 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 #define FEATURE_SENSE_CHAN	(1 << 0)
 #define FEATURE_SENSE_PEER	(1 << 1)
 
+/*
+ * if the file name is non-empty, try to play it.
+ * Return 0 if success, -1 if error, digit if interrupted by a digit.
+ * If digits == "" then we can simply check for non-zero.
+ *
+ * XXX there are probably many replicas of this function in the source tree,
+ * that should be merged.
+ */
+static int stream_and_wait(struct ast_channel *chan, const char *file, const char *language, const char *digits)
+{
+	int res = 0;
+	if (!ast_strlen_zero(file)) {
+		res =  ast_streamfile(chan, file, language);
+		if (!res)
+			res = ast_waitstream(chan, digits);
+	}
+	return res;
+}
+ 
+/*
+ * set caller and callee according to the direction
+ */
+static void set_peers(struct ast_channel **caller, struct ast_channel **callee,
+	struct ast_channel *peer, struct ast_channel *chan, int sense)
+{
+	if (sense == FEATURE_SENSE_PEER) {
+		*caller = peer;
+		*callee = chan;
+	} else {
+		*callee = peer;
+		*caller = chan;
+	}
+}
 
 static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
@@ -414,15 +447,6 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	size_t len;
 	struct ast_channel *caller_chan = NULL, *callee_chan = NULL;
 
-
-	if(sense == 2) {
-		caller_chan = peer;
-		callee_chan = chan;
-	} else {
-		callee_chan = peer;
-		caller_chan = chan;
-	}
-	
 	if (!monitor_ok) {
 		ast_log(LOG_ERROR,"Cannot record the call. The monitor application is disabled.\n");
 		return -1;
@@ -433,6 +457,9 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 		ast_log(LOG_ERROR,"Cannot record the call. The monitor application is disabled.\n");
 		return -1;
 	}
+
+	set_peers(&caller_chan, &callee_chan, peer, chan, sense);
+
 	if (!ast_strlen_zero(courtesytone)) {
 		if (ast_autoservice_start(callee_chan))
 			return -1;
@@ -506,6 +533,28 @@ static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer
 	return FEATURE_RETURN_HANGUP;
 }
 
+static int finishup(struct ast_channel *chan)
+{
+        int res;
+  
+        ast_moh_stop(chan);
+        res = ast_autoservice_stop(chan);
+        ast_indicate(chan, AST_CONTROL_UNHOLD);
+        return res;
+}
+
+static const char *real_ctx(struct ast_channel *transferer, struct ast_channel *transferee)
+{
+        const char *s = pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT");
+        if (ast_strlen_zero(s))
+                s = pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT");
+        if (ast_strlen_zero(s)) /* Use the non-macro context to transfer the call XXX ? */
+                s = transferer->macrocontext;
+        if (ast_strlen_zero(s))
+                s = transferer->context;
+        return s;  
+}
+
 static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
 	struct ast_channel *transferer;
@@ -514,21 +563,8 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	char newext[256];
 	int res;
 
-	if (sense == FEATURE_SENSE_PEER) {
-		transferer = peer;
-		transferee = chan;
-	} else {
-		transferer = chan;
-		transferee = peer;
-	}
-	if (!(transferer_real_context = pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
-	   !(transferer_real_context = pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
-		/* Use the non-macro context to transfer the call */
-		if (!ast_strlen_zero(transferer->macrocontext))
-			transferer_real_context = transferer->macrocontext;
-		else
-			transferer_real_context = transferer->context;
-	}
+	set_peers(&transferer, &transferee, peer, chan, sense);
+	transferer_real_context = real_ctx(transferer, transferee);
 	/* Start autoservice on chan while we talk
 	   to the originator */
 	ast_indicate(transferee, AST_CONTROL_HOLD);
@@ -642,21 +678,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	struct ast_bridge_thread_obj *tobj;
 
 	ast_log(LOG_DEBUG, "Executing Attended Transfer %s, %s (sense=%d) XXX\n", chan->name, peer->name, sense);
-	if (sense == FEATURE_SENSE_PEER) {
-		transferer = peer;
-		transferee = chan;
-	} else {
-		transferer = chan;
-		transferee = peer;
-	}
-	if (!(transferer_real_context=pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
-	   !(transferer_real_context=pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
-		/* Use the non-macro context to transfer the call */
-		if (!ast_strlen_zero(transferer->macrocontext))
-			transferer_real_context = transferer->macrocontext;
-		else
-			transferer_real_context = transferer->context;
-	}
+	set_peers(&transferer, &transferee, peer, chan, sense);
+        transferer_real_context = real_ctx(transferer, transferee);
 	/* Start autoservice on chan while we talk
 	   to the originator */
 	ast_indicate(transferee, AST_CONTROL_HOLD);
@@ -664,21 +687,13 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	ast_moh_start(transferee, NULL);
 	memset(xferto, 0, sizeof(xferto));
 	/* Transfer */
-	if ((res = ast_streamfile(transferer, "pbx-transfer", transferer->language))) {
-		ast_moh_stop(transferee);
-		ast_autoservice_stop(transferee);
-		ast_indicate(transferee, AST_CONTROL_UNHOLD);
-		return res;
-	}
-	if ((res=ast_waitstream(transferer, AST_DIGIT_ANY)) < 0) {
-		ast_moh_stop(transferee);
-		ast_autoservice_stop(transferee);
-		ast_indicate(transferee, AST_CONTROL_UNHOLD);
-		return res;
-	} else if(res > 0) {
-		/* If they've typed a digit already, handle it */
-		xferto[0] = (char) res;
-	}
+	res = stream_and_wait(transferer, "pbx-transfer", transferer->language, AST_DIGIT_ANY);
+       if (res < 0) {
+                finishup(transferee);
+                return res;
+        } else if (res > 0) /* If they've typed a digit already, handle it */
+                xferto[0] = (char) res;
+
 	if ((ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout))) {
 		cid_num = transferer->cid.cid_num;
 		cid_name = transferer->cid.cid_name;
