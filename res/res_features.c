@@ -662,13 +662,21 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	memset(xferto, 0, sizeof(xferto));
 	/* Transfer */
 	res = stream_and_wait(transferer, "pbx-transfer", transferer->language, AST_DIGIT_ANY);
-       if (res < 0) {
-                finishup(transferee);
-                return res;
-        } else if (res > 0) /* If they've typed a digit already, handle it */
-                xferto[0] = (char) res;
+	if (res < 0) {
+		finishup(transferee);
+		return res;
+	} else if (res > 0) /* If they've typed a digit already, handle it */
+		xferto[0] = (char) res;
 
-	if ((ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout))) {
+	/* this is specific of atxfer */
+	res = ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout);
+	if (!res) {
+		ast_log(LOG_WARNING, "Did not read data.\n");
+		res = ast_streamfile(transferer, "beeperr", transferer->language);
+		if (ast_waitstream(transferer, "") < 0) {
+			return -1;
+		}
+	} else {
 		cid_num = transferer->cid.cid_num;
 		cid_name = transferer->cid.cid_name;
 		if (ast_exists_extension(transferer, transferer_real_context,xferto, 1, cid_num)) {
@@ -697,9 +705,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 							ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
 						}
 					}
-					ast_moh_stop(transferee);
-					ast_autoservice_stop(transferee);
-					ast_indicate(transferee, AST_CONTROL_UNHOLD);
+					finishup(transferee);
 					transferer->_softhangup = 0;
 					return FEATURE_RETURN_SUCCESS;
 				}
@@ -766,9 +772,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				return -1;
 				
 			} else {
-				ast_moh_stop(transferee);
-				ast_autoservice_stop(transferee);
-				ast_indicate(transferee, AST_CONTROL_UNHOLD);
+				finishup(transferee);
 				/* any reason besides user requested cancel and busy triggers the failed sound */
 				if (outstate != AST_CONTROL_UNHOLD && outstate != AST_CONTROL_BUSY && !ast_strlen_zero(xferfailsound)) {
 					res = ast_streamfile(transferer, xferfailsound, transferer->language);
@@ -780,24 +784,14 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			}
 		} else {
 			ast_log(LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
-			ast_moh_stop(transferee);
-			ast_autoservice_stop(transferee);
-			ast_indicate(transferee, AST_CONTROL_UNHOLD);
+			finishup(transferee);
 			res = ast_streamfile(transferer, "beeperr", transferer->language);
 			if (!res && (ast_waitstream(transferer, "") < 0)) {
 				return -1;
 			}
 		}
-	}  else {
-		ast_log(LOG_WARNING, "Did not read data.\n");
-		res = ast_streamfile(transferer, "beeperr", transferer->language);
-		if (ast_waitstream(transferer, "") < 0) {
-			return -1;
-		}
 	}
-	ast_moh_stop(transferee);
-	ast_autoservice_stop(transferee);
-	ast_indicate(transferee, AST_CONTROL_UNHOLD);
+	finishup(transferee);
 
 	return FEATURE_RETURN_SUCCESS;
 }
