@@ -1746,31 +1746,7 @@ int ast_waitfor(struct ast_channel *c, int ms)
 /* XXX never to be called with ms = -1 */
 int ast_waitfordigit(struct ast_channel *c, int ms)
 {
-	/* XXX Should I be merged with waitfordigit_full XXX */
-	struct ast_frame *f;
-	int result = 0;
-
-	/* Stop if we're a zombie or need a soft hangup */
-	if (ast_test_flag(c, AST_FLAG_ZOMBIE) || ast_check_hangup(c))
-		return -1;
-
-	/* Wait for a digit, no more than ms milliseconds total. */
-	while(ms && !result) {
-		ms = ast_waitfor(c, ms);
-		if (ms < 0) /* Error */
-			result = -1;
-		else if (ms > 0) {
-			/* Read something */
-			f = ast_read(c);
-			if (f) {
-				if (f->frametype == AST_FRAME_DTMF)
-					result = f->subclass;
-				ast_frfree(f);
-			} else
-				result = -1;
-		}
-	}
-	return result;
+	return ast_waitfordigit_full(c, ms, -1, -1);
 }
 
 int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), void *data)
@@ -2718,42 +2694,7 @@ int ast_transfer(struct ast_channel *chan, char *dest)
 
 int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int ftimeout, char *enders)
 {
-	int pos=0;
-	int to = ftimeout;
-	int d;
-
-	/* XXX Merge with full version? XXX */
-	/* Stop if we're a zombie or need a soft hangup */
-	if (ast_test_flag(c, AST_FLAG_ZOMBIE) || ast_check_hangup(c))
-		return -1;
-	if (!len)
-		return -1;
-	for (;;) {
-		if (c->stream) {
-			d = ast_waitstream(c, AST_DIGIT_ANY);
-			ast_stopstream(c);
-			usleep(1000);
-			if (!d)
-				d = ast_waitfordigit(c, to);
-		} else {
-			d = ast_waitfordigit(c, to);
-		}
-		if (d < 0)
-			return -1;
-		if (d == 0) {
-			s[pos]='\0';
-			return 1;
-		}
-		if (!strchr(enders, d))
-			s[pos++] = d;
-		if (strchr(enders, d) || (pos >= len)) {
-			s[pos]='\0';
-			return 0;
-		}
-		to = timeout;
-	}
-	/* Never reached */
-	return 0;
+	return ast_readstring_full(c, s, len, timeout, ftimeout, enders, -1, -1);
 }
 
 int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, int ftimeout, char *enders, int audiofd, int ctrlfd)
