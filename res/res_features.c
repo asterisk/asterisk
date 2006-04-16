@@ -159,6 +159,14 @@ struct ast_bridge_thread_obj
 	struct ast_channel *peer;
 };
 
+/* store context, priority and extension */
+static void set_c_e_p(struct ast_channel *chan, const char *ctx, const char *ext, int pri)
+{
+	ast_copy_string(chan->context, ctx, sizeof(chan->context));
+	ast_copy_string(chan->exten, ext, sizeof(chan->exten));
+	chan->priority = pri;
+}
+
 static void check_goto_on_transfer(struct ast_channel *chan) 
 {
 	struct ast_channel *xferchan;
@@ -212,7 +220,7 @@ static void *ast_bridge_call_thread(void *data)
 	ast_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
 	ast_hangup(tobj->chan);
 	ast_hangup(tobj->peer);
-	tobj->chan = tobj->peer = NULL;
+	bzero(tobj, sizeof(*tobj)); /* XXX for safety */
 	free(tobj);
 	return NULL;
 }
@@ -372,9 +380,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 		ast_channel_masquerade(chan, rchan);
 
 		/* Setup the extensions and such */
-		ast_copy_string(chan->context, rchan->context, sizeof(chan->context));
-		ast_copy_string(chan->exten, rchan->exten, sizeof(chan->exten));
-		chan->priority = rchan->priority;
+		set_c_e_p(chan, rchan->context, rchan->exten, rchan->priority);
 
 		/* Make the masq execute */
 		f = ast_read(chan);
@@ -589,9 +595,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			res = -1;
 		} else {
 			/* Set the channel's new extension, since it exists, using transferer context */
-			ast_copy_string(transferee->exten, newext, sizeof(transferee->exten));
-			ast_copy_string(transferee->context, transferer_real_context, sizeof(transferee->context));
-			transferee->priority = 0;
+			set_c_e_p(transferee, transferer_real_context, newext, 0);
 		}
 		check_goto_on_transfer(transferer);
 		return res;
