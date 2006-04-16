@@ -6807,17 +6807,44 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	return -1;
 }
 
-/*! \brief Lock interface lock and find matching pvt lock  */
-static struct sip_pvt *get_sip_pvt_byid_locked(char *callid) 
+/*! \brief Lock interface lock and find matching pvt lock  
+	- Their tag is fromtag, our tag is to-tag
+	- This means that in some transactions, totag needs to be their tag :-)
+	  depending upon the direction
+*/
+static struct sip_pvt *get_sip_pvt_byid_locked(char *callid, char *totag, char *fromtag) 
 {
 	struct sip_pvt *sip_pvt_ptr = NULL;
 	
 	/* Search interfaces and find the match */
 	ast_mutex_lock(&iflock);
-	for (sip_pvt_ptr = iflist; sip_pvt_ptr ; sip_pvt_ptr = sip_pvt_ptr->next) {
+
+	if (option_debug > 3 && totag)
+		ast_log(LOG_DEBUG, "Looking for callid %s (fromtag %s totag %s)\n", callid, fromtag ? fromtag : "<no fromtag>", totag ? totag : "<no totag>");
+
+	for (sip_pvt_ptr = iflist; sip_pvt_ptr; sip_pvt_ptr = sip_pvt_ptr->next) {
 		if (!strcmp(sip_pvt_ptr->callid, callid)) {
+			int match = 1;
+			char *ourtag = sip_pvt_ptr->tag;
+
 			/* Go ahead and lock it (and its owner) before returning */
 			ast_mutex_lock(&sip_pvt_ptr->lock);
+
+			/* Check if tags match. If not, this is not the call we want
+			   (With a forking SIP proxy, several call legs share the
+			   call id, but have different tags)
+			*/
+			if (pedanticsipchecking && (strcmp(fromtag, sip_pvt_ptr->theirtag) || strcmp(totag, ourtag)))
+				match = 0;
+
+			if (!match) {
+				ast_mutex_unlock(&sip_pvt_ptr->lock);
+				break;
+			}
+
+			if (option_debug > 3 && totag)				 
+				ast_log(LOG_DEBUG, "Matched %s call - their tag is %s Our tag is %s\n", ast_test_flag(&sip_pvt_ptr->flags[0], SIP_OUTGOING) ? "OUTGOING": "INCOMING", sip_pvt_ptr->theirtag, sip_pvt_ptr->tag);
+
 			if (sip_pvt_ptr->owner) {
 				while(ast_channel_trylock(sip_pvt_ptr->owner)) {
 					ast_mutex_unlock(&sip_pvt_ptr->lock);
@@ -6831,6 +6858,8 @@ static struct sip_pvt *get_sip_pvt_byid_locked(char *callid)
 		}
 	}
 	ast_mutex_unlock(&iflock);
+	if (option_debug > 3 && !sip_pvt_ptr)
+		ast_log(LOG_DEBUG, "Found no match for callid %s to-tag %s from-tag %s\n", callid, totag, fromtag);
 	return sip_pvt_ptr;
 }
 
@@ -6921,13 +6950,13 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 	}
 	if (!ast_strlen_zero(replace_callid)) {	
 		/* This is a supervised transfer */
-		ast_log(LOG_DEBUG,"Assigning Replace-Call-ID Info %s to REPLACE_CALL_ID\n",replace_callid);
+		ast_log(LOG_DEBUG,"Assigning Replace-Call-ID Info %s to REPLACE_CALL_ID\n", replace_callid);
 		
 		ast_string_field_free(sip_pvt, refer_to);
 		ast_string_field_free(sip_pvt, referred_by);
 		ast_string_field_free(sip_pvt, refer_contact);
 		sip_pvt->refer_call = NULL;
-		if ((sip_pvt_ptr = get_sip_pvt_byid_locked(replace_callid))) {
+		if ((sip_pvt_ptr = get_sip_pvt_byid_locked(replace_callid, NULL, NULL))) {
 			sip_pvt->refer_call = sip_pvt_ptr;
 			if (sip_pvt->refer_call == sip_pvt) {
 				ast_log(LOG_NOTICE, "Supervised transfer attempted to transfer into same call id (%s == %s)!\n", replace_callid, sip_pvt->callid);

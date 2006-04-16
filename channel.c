@@ -4217,7 +4217,7 @@ int ast_channel_lock(struct ast_channel *chan)
 
 /*! \brief Lock AST channel (and print debugging output)
 \note	You need to enable DEBUG_CHANNEL_LOCKS for this function */
-int __ast_channel_trylock(struct ast_channel *chan)
+int ast_channel_trylock(struct ast_channel *chan)
 {
 	int res;
 
