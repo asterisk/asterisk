@@ -1528,57 +1528,56 @@ static void *do_parking_thread(void *ignore)
 					if (pu->chan->fds[x] < 0 || (!FD_ISSET(pu->chan->fds[x], &rfds) && !FD_ISSET(pu->chan->fds[x], &efds)))
 						continue;
 
-						/* XXX reindent next block */
-						if (FD_ISSET(pu->chan->fds[x], &efds))
-							ast_set_flag(pu->chan, AST_FLAG_EXCEPTION);
-						else
-							ast_clear_flag(pu->chan, AST_FLAG_EXCEPTION);
-						pu->chan->fdno = x;
-						/* See if they need servicing */
-						f = ast_read(pu->chan);
-						if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass ==  AST_CONTROL_HANGUP))) {
-							if (f)
-								ast_frfree(f);
-							manager_event(EVENT_FLAG_CALL, "ParkedCallGiveUp",
-								"Exten: %d\r\n"
-								"Channel: %s\r\n"
-								"CallerID: %s\r\n"
-								"CallerIDName: %s\r\n"
-								,pu->parkingnum, pu->chan->name
-								,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
-								,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
-								);
-
-							/* There's a problem, hang them up*/
-							if (option_verbose > 1) 
-								ast_verbose(VERBOSE_PREFIX_2 "%s got tired of being parked\n", pu->chan->name);
-							ast_hangup(pu->chan);
-							/* And take them out of the parking lot */
-							if (pl) 
-								pl->next = pu->next;
-							else
-								parkinglot = pu->next;
-							pt = pu;
-							pu = pu->next;
-							con = ast_context_find(parking_con);
-							if (con) {
-								snprintf(exten, sizeof(exten), "%d", pt->parkingnum);
-								if (ast_context_remove_extension2(con, exten, 1, NULL))
-									ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
-							} else
-								ast_log(LOG_WARNING, "Whoa, no parking context?\n");
-							free(pt);
-							break;
-						} else {
-							/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
+					if (FD_ISSET(pu->chan->fds[x], &efds))
+						ast_set_flag(pu->chan, AST_FLAG_EXCEPTION);
+					else
+						ast_clear_flag(pu->chan, AST_FLAG_EXCEPTION);
+					pu->chan->fdno = x;
+					/* See if they need servicing */
+					f = ast_read(pu->chan);
+					if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass ==  AST_CONTROL_HANGUP))) {
+						if (f)
 							ast_frfree(f);
-							if (pu->moh_trys < 3 && !pu->chan->generatordata) {
-								ast_log(LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
-								ast_moh_start(pu->chan, NULL);
-								pu->moh_trys++;
-							}
-							goto std;	/* XXX Ick: jumping into an else statement??? XXX */
+						manager_event(EVENT_FLAG_CALL, "ParkedCallGiveUp",
+							"Exten: %d\r\n"
+							"Channel: %s\r\n"
+							"CallerID: %s\r\n"
+							"CallerIDName: %s\r\n"
+							,pu->parkingnum, pu->chan->name
+							,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
+							,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
+							);
+
+						/* There's a problem, hang them up*/
+						if (option_verbose > 1) 
+							ast_verbose(VERBOSE_PREFIX_2 "%s got tired of being parked\n", pu->chan->name);
+						ast_hangup(pu->chan);
+						/* And take them out of the parking lot */
+						if (pl) 
+							pl->next = pu->next;
+						else
+							parkinglot = pu->next;
+						pt = pu;
+						pu = pu->next;
+						con = ast_context_find(parking_con);
+						if (con) {
+							snprintf(exten, sizeof(exten), "%d", pt->parkingnum);
+							if (ast_context_remove_extension2(con, exten, 1, NULL))
+								ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
+						} else
+							ast_log(LOG_WARNING, "Whoa, no parking context?\n");
+						free(pt);
+						break;
+					} else {
+						/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
+						ast_frfree(f);
+						if (pu->moh_trys < 3 && !pu->chan->generatordata) {
+							ast_log(LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
+							ast_moh_start(pu->chan, NULL);
+							pu->moh_trys++;
 						}
+						goto std;	/* XXX Ick: jumping into an else statement??? XXX */
+					}
 
 				} /* end for */
 				if (x >= AST_MAX_FDS) {
