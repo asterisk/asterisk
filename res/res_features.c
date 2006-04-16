@@ -642,8 +642,6 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	struct ast_bridge_config bconfig;
 	const char *transferer_real_context;
 	char xferto[256],dialstr[265];
-	char *cid_num;
-	char *cid_name;
 	int res;
 	struct ast_frame *f = NULL;
 	struct ast_bridge_thread_obj *tobj;
@@ -666,18 +664,37 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 	/* this is specific of atxfer */
 	res = ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout);
-	if (!res) {
+        if (res < 0) {  /* hangup, would be 0 for invalid and 1 for valid */
+                finishup(transferee);
+                return res;
+        }
+	if (res == 0) {
 		ast_log(LOG_WARNING, "Did not read data.\n");
+		finishup(transferee);
 		if (stream_and_wait(transferer, "beeperr", transferer->language, ""))
 			return -1;
-	} else {
-		cid_num = transferer->cid.cid_num;
-		cid_name = transferer->cid.cid_name;
-		if (ast_exists_extension(transferer, transferer_real_context,xferto, 1, cid_num)) {
+		return FEATURE_RETURN_SUCCESS;
+	}
+	/* valid extension, res == 1 */
+	{
+		if (!ast_exists_extension(transferer, transferer_real_context,xferto, 1, transferer->cid.cid_num)) {
+			ast_log(LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
+			finishup(transferee);
+			if (stream_and_wait(transferer, "beeperr", transferer->language, ""))
+				return -1;
+		} else {
 			snprintf(dialstr, sizeof(dialstr), "%s@%s/n", xferto, transferer_real_context);
-			newchan = ast_feature_request_and_dial(transferer, "Local", ast_best_codec(transferer->nativeformats), dialstr, 15000, &outstate, cid_num, cid_name);
+			newchan = ast_feature_request_and_dial(transferer, "Local", ast_best_codec(transferer->nativeformats), dialstr, 15000, &outstate, transferer->cid.cid_num, transferer->cid.cid_name);
 			ast_indicate(transferer, -1);
-			if (newchan) {
+			if (!newchan) {
+				finishup(transferee);
+				/* any reason besides user requested cancel and busy triggers the failed sound */
+				if (outstate != AST_CONTROL_UNHOLD && outstate != AST_CONTROL_BUSY &&
+						stream_and_wait(transferer, xferfailsound, transferer->language, ""))
+					return -1;
+				return FEATURE_RETURN_SUCCESS;
+			}
+			{
 				res = ast_channel_make_compatible(transferer, newchan);
 				if (res < 0) {
 					ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", transferer->name, newchan->name);
@@ -760,19 +777,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				}
 				return -1;
 				
-			} else {
-				finishup(transferee);
-				/* any reason besides user requested cancel and busy triggers the failed sound */
-				if (outstate != AST_CONTROL_UNHOLD && outstate != AST_CONTROL_BUSY &&
-						stream_and_wait(transferer, xferfailsound, transferer->language, ""))
-					return -1;
-				return FEATURE_RETURN_SUCCESS;
 			}
-		} else {
-			ast_log(LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
-			finishup(transferee);
-			if (stream_and_wait(transferer, "beeperr", transferer->language, ""))
-				return -1;
 		}
 	}
 	finishup(transferee);
