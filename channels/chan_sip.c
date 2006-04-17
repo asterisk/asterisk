@@ -1129,6 +1129,22 @@ static char *referstatus2str(enum referstatus rstatus)
 	return "";
 }
 
+/*! \brief Initialize the initital request packet in the pvt structure.
+ 	This packet is used for creating replies and future requests in
+	a dialog */
+void initialize_initreq(struct sip_pvt *p, struct sip_request *req)
+{
+	if (p->initreq.headers) {
+		ast_log(LOG_WARNING, "Initializing already initialized SIP dialog??? %s\n", p->callid);
+		return;
+	}
+	/* Use this as the basis */
+	copy_request(&p->initreq, req);
+	parse_request(&p->initreq);
+	if (ast_test_flag(req, SIP_PKT_DEBUG))
+		ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+}
+
 
 /*! \brief returns true if 'name' (with optional trailing whitespace)
  * matches the sip method 'id'.
@@ -3380,6 +3396,12 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	char totag[128];
 	char fromtag[128];
 	const char *callid = get_header(req, "Call-ID");
+	const char *from = get_header(req, "From");
+	const char *to = get_header(req, "To");
+	const char *cseq = get_header(req, "Cseq");
+
+	if (!callid || !to || !from || !cseq)		/* Call-ID, to, from and Cseq are required by RFC 3261. (Max-forwards and via too - ignored now) */
+		return NULL;	/* Invalid packet */
 
 	if (pedanticsipchecking) {
 		/* In principle Call-ID's uniquely identify a call, but with a forking SIP proxy
@@ -3562,7 +3584,9 @@ static int lws2sws(char *msgbuf, int len)
 	return t; 
 }
 
-/*! \brief Parse a SIP message */
+/*! \brief Parse a SIP message 
+	\note this function is used both on incoming and outgoing packets
+*/
 static void parse_request(struct sip_request *req)
 {
 	/* Divide fields by NULL's */
@@ -4859,10 +4883,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 		append_history(p, "ReInv", "Re-invite sent");
 	add_sdp(&req, p);
 	/* Use this as the basis */
-	copy_request(&p->initreq, &req);
-	parse_request(&p->initreq);
-	if (sip_debug_test_pvt(p))
-		ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+	initialize_initreq(p, &req);
 	p->lastinvite = p->ocseq;
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 	return send_request(p, &req, 1, p->ocseq);
@@ -5196,13 +5217,8 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		add_blank_header(&req);
 	}
 
-	if (!p->initreq.headers) {
-		/* Use this as the basis */
-		copy_request(&p->initreq, &req);
-		parse_request(&p->initreq);
-		if (sip_debug_test_pvt(p))
-			ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
-	}
+	if (!p->initreq.headers)
+		initialize_initreq(p, &req);
 	p->lastinvite = p->ocseq;
 	return send_request(p, &req, init ? 2 : 1, p->ocseq);
 }
@@ -5405,29 +5421,16 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	add_header_contentLength(&req, strlen(tmp));
 	add_line(&req, tmp);
 
-	if (!p->initreq.headers) { /* Use this as the basis */
-		copy_request(&p->initreq, &req);
-		parse_request(&p->initreq);
-		if (sip_debug_test_pvt(p))
-			ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
-		determine_firstline_parts(&p->initreq);
-	}
-
+	if (!p->initreq.headers) 
+		initialize_initreq(p, &req);
 	return send_request(p, &req, 1, p->ocseq);
 }
 
 /*! \brief Transmit SIP request */
 static int transmit_sip_request(struct sip_pvt *p,struct sip_request *req)
 {
-	if (!p->initreq.headers) {
-		/* Use this as the basis */
-		copy_request(&p->initreq, req);
-		parse_request(&p->initreq);
-		if (sip_debug_test_pvt(p))
-			ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
-		determine_firstline_parts(&p->initreq);
-	}
-
+	if (!p->initreq.headers) 
+		initialize_initreq(p, req);
 	return send_request(p, req, 0, p->ocseq);
 }
 
@@ -5449,14 +5452,9 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *messa
 	add_header_contentLength(&req, strlen(tmp));
 	add_line(&req, tmp);
 
-	if (!p->initreq.headers) {
-		/* Use this as the basis */
-		copy_request(&p->initreq, &req);
-		parse_request(&p->initreq);
-		if (sip_debug_test_pvt(p))
-			ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
-		determine_firstline_parts(&p->initreq);
-	}
+	
+	if (!p->initreq.headers)
+		initialize_initreq(p, &req);
 
 	return send_request(p, &req, 1, p->ocseq);
 }
@@ -5732,12 +5730,10 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	add_header(&req, "Event", "registration");
 	add_header_contentLength(&req, 0);
 	add_blank_header(&req);
-	copy_request(&p->initreq, &req);
-	parse_request(&p->initreq);
-	if (sip_debug_test_pvt(p)) {
+
+	initialize_initreq(p, &req);
+	if (sip_debug_test_pvt(p))
 		ast_verbose("REGISTER %d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
-	}
-	determine_firstline_parts(&p->initreq);
 	r->regstate = auth ? REG_STATE_AUTHSENT : REG_STATE_REGSENT;
 	r->regattempts++;	/* Another attempt */
 	if (option_debug > 3)
@@ -11720,18 +11716,18 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 			ast_log(LOG_WARNING, "Recv error: %s\n", strerror(errno));
 		return 1;
 	}
-	if (res == sizeof(req.data)) {
+	if (option_debug && res == sizeof(req.data))
 		ast_log(LOG_DEBUG, "Received packet exceeds buffer. Data is possibly lost\n");
-	}
+
 	req.data[res] = '\0';
 	req.len = res;
-	if(sip_debug_test_addr(&sin))
+	if(sip_debug_test_addr(&sin))	/* Set the debug flag early on packet level */
 		ast_set_flag(&req, SIP_PKT_DEBUG);
 	if (pedanticsipchecking)
 		req.len = lws2sws(req.data, req.len);	/* Fix multiline headers */
-	if (ast_test_flag(&req, SIP_PKT_DEBUG)) {
+	if (ast_test_flag(&req, SIP_PKT_DEBUG))
 		ast_verbose("\n<-- SIP read from %s:%d: \n%s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), req.data);
-	}
+
 	parse_request(&req);
 	req.method = find_sip_method(req.rlPart1);
 	if (ast_test_flag(&req, SIP_PKT_DEBUG)) {
@@ -11755,7 +11751,8 @@ retrylock:
 		/* Go ahead and lock the owner if it has one -- we may need it */
 		/* becaues this is deadlock-prone, we need to try and unlock if failed */
 		if (p->owner && ast_channel_trylock(p->owner)) {
-			ast_log(LOG_DEBUG, "Failed to grab lock, trying again...\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Failed to grab lock, trying again...\n");
 			ast_mutex_unlock(&p->lock);
 			ast_mutex_unlock(&netlock);
 			/* Sleep infintismly short amount of time */
@@ -11763,17 +11760,21 @@ retrylock:
 			goto retrylock;
 		}
 		p->recv = sin;
-		if (recordhistory) /* This is a response, note what it was for */
+		if (recordhistory) /* This is a request or response, note what it was for */
 			append_history(p, "Rx", "%s / %s / %s", req.data, get_header(&req, "CSeq"), req.rlPart2);
 		nounlock = 0;
 		if (handle_request(p, &req, &sin, &recount, &nounlock) == -1) {
 			/* Request failed */
-			ast_log(LOG_DEBUG, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
 		}
 		
 		if (p->owner && !nounlock)
 			ast_channel_unlock(p->owner);
 		ast_mutex_unlock(&p->lock);
+	} else {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Invalid SIP message - rejected , bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
 	}
 	ast_mutex_unlock(&netlock);
 	if (recount)
