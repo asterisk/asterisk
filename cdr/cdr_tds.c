@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2004 - 2005, Digium, Inc.
+ * Copyright (C) 2004 - 2006, Digium, Inc.
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -293,7 +293,7 @@ static void get_date(char *dateField, struct timeval tv)
 	}
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return desc;
 }
@@ -499,34 +499,25 @@ static int tds_load_module(void)
 	return res;
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	tds_unload_module();
 	return tds_load_module();
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return tds_load_module();
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	return tds_unload_module();
 }
 
-int usecount(void)
-{
-	/* Simplistic use count */
-	if (ast_mutex_trylock(&tds_lock)) {
-		return 1;
-	} else {
-		ast_mutex_unlock(&tds_lock);
-		return 0;
-	}
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_0, reload, NULL, NULL);

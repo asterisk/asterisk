@@ -164,12 +164,12 @@ static int sqlite_log(struct ast_cdr *cdr)
 }
 
 
-const char *description(void)
+static const char *description(void)
 {
 	return desc;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	if (db)
 		sqlite_close(db);
@@ -177,7 +177,7 @@ int unload_module(void)
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	char *zErr;
 	char fn[PATH_MAX];
@@ -218,17 +218,14 @@ err:
 	return -1;
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	return 0;
 }
 
-int usecount(void)
-{
-	return 0;
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_0, reload, NULL, NULL);

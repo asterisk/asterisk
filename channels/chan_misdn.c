@@ -3827,6 +3827,51 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 static int g_config_initialized=0;
 
+int unload_module(void)
+{
+	/* First, take us out of the channel loop */
+	ast_log(LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
+	
+	if (!g_config_initialized) return 0;
+	
+	ast_cli_unregister(&cli_send_display);
+	
+	ast_cli_unregister(&cli_send_cd);
+	
+	ast_cli_unregister(&cli_send_digit);
+	ast_cli_unregister(&cli_toggle_echocancel);
+	ast_cli_unregister(&cli_set_tics);
+  
+	ast_cli_unregister(&cli_show_cls);
+	ast_cli_unregister(&cli_show_cl);
+	ast_cli_unregister(&cli_show_config);
+	ast_cli_unregister(&cli_show_port);
+	ast_cli_unregister(&cli_show_stacks);
+	ast_cli_unregister(&cli_restart_port);
+	ast_cli_unregister(&cli_port_up);
+	ast_cli_unregister(&cli_port_down);
+	ast_cli_unregister(&cli_set_debug);
+	ast_cli_unregister(&cli_set_crypt_debug);
+	ast_cli_unregister(&cli_reload);
+	/* ast_unregister_application("misdn_crypt"); */
+	ast_unregister_application("misdn_set_opt");
+	ast_unregister_application("misdn_facility");
+  
+	ast_channel_unregister(&misdn_tech);
+
+
+	free_robin_list();
+	misdn_cfg_destroy();
+	misdn_lib_destroy();
+  
+	if (misdn_debug)
+		free(misdn_debug);
+	if (misdn_debug_only)
+		free(misdn_debug_only);
+	
+	return 0;
+}
+
 int load_module(void)
 {
 	int i;
@@ -3933,51 +3978,6 @@ int load_module(void)
 }
 
 
-
-int unload_module(void)
-{
-	/* First, take us out of the channel loop */
-	ast_log(LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
-	
-	if (!g_config_initialized) return 0;
-	
-	ast_cli_unregister(&cli_send_display);
-	
-	ast_cli_unregister(&cli_send_cd);
-	
-	ast_cli_unregister(&cli_send_digit);
-	ast_cli_unregister(&cli_toggle_echocancel);
-	ast_cli_unregister(&cli_set_tics);
-  
-	ast_cli_unregister(&cli_show_cls);
-	ast_cli_unregister(&cli_show_cl);
-	ast_cli_unregister(&cli_show_config);
-	ast_cli_unregister(&cli_show_port);
-	ast_cli_unregister(&cli_show_stacks);
-	ast_cli_unregister(&cli_restart_port);
-	ast_cli_unregister(&cli_port_up);
-	ast_cli_unregister(&cli_port_down);
-	ast_cli_unregister(&cli_set_debug);
-	ast_cli_unregister(&cli_set_crypt_debug);
-	ast_cli_unregister(&cli_reload);
-	/* ast_unregister_application("misdn_crypt"); */
-	ast_unregister_application("misdn_set_opt");
-	ast_unregister_application("misdn_facility");
-  
-	ast_channel_unregister(&misdn_tech);
-
-
-	free_robin_list();
-	misdn_cfg_destroy();
-	misdn_lib_destroy();
-  
-	if (misdn_debug)
-		free(misdn_debug);
-	if (misdn_debug_only)
-		free(misdn_debug_only);
-	
-	return 0;
-}
 
 int reload(void)
 {

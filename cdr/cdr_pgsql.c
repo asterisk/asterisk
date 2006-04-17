@@ -176,7 +176,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 	return 0;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return desc;
 }
@@ -326,34 +326,25 @@ static int my_load_module(void)
 	return res;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	return my_load_module();
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	return my_unload_module();
 }
 
-int reload(void)
+static int reload(void *mod)
 {
 	my_unload_module();
 	return my_load_module();
 }
 
-int usecount(void)
-{
-	/* To be able to unload the module */
-	if ( ast_mutex_trylock(&pgsql_lock) ) {
-		return 1;
-	} else {
-		ast_mutex_unlock(&pgsql_lock);
-		return 0;
-	}
-}
-
-const char *key()
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_0, reload, NULL, NULL);

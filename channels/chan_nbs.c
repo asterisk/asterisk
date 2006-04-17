@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -297,7 +297,7 @@ int unload_module(void)
 	return __unload_module();
 }
 
-int load_module()
+int load_module(void)
 {
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&nbs_tech)) {
@@ -308,17 +308,17 @@ int load_module()
 	return 0;
 }
 
-int usecount()
+int usecount(void)
 {
 	return usecnt;
 }
 
-const char *description()
+const char *description(void)
 {
 	return (char *) desc;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

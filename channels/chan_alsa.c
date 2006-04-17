@@ -1042,7 +1042,7 @@ static struct ast_cli_entry myclis[] = {
 	{ { "autoanswer", NULL }, console_autoanswer, "Sets/displays autoanswer", autoanswer_usage, autoanswer_complete }
 };
 
-int load_module()
+int load_module(void)
 {
 	int res;
 	int x;
@@ -1103,7 +1103,7 @@ int load_module()
 
 
 
-int unload_module()
+int unload_module(void)
 {
 	int x;
 	
@@ -1125,17 +1125,17 @@ int unload_module()
 	return 0;
 }
 
-const char *description()
+const char *description(void)
 {
 	return (char *) desc;
 }
 
-int usecount()
+int usecount(void)
 {
 	return usecnt;
 }
 
-const char *key()
+const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
