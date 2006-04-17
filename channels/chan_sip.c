@@ -4314,6 +4314,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 	copy_header(resp, req, "CSeq");
 	add_header(resp, "User-Agent", global_useragent);
 	add_header(resp, "Allow", ALLOWED_METHODS);
+	add_header(resp, "Supported", SUPPORTED_EXTENSIONS);
 	if (msg[0] == '2' && (p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
 		/* For registration responses, we also need expiry and
 		   contact info */
@@ -4448,8 +4449,12 @@ static int __transmit_response(struct sip_pvt *p, const char *msg, struct sip_re
 	add_header_contentLength(&resp, 0);
 	/* If we are cancelling an incoming invite for some reason, add information
 		about the reason why we are doing this in clear text */
-	if (msg[0] != '1' && p->owner && p->owner->hangupcause) {
+	if (p->method == SIP_INVITE && msg[0] != '1' && p->owner && p->owner->hangupcause) {
+		char buf[10];
+
 		add_header(&resp, "X-Asterisk-HangupCause", ast_cause2str(p->owner->hangupcause));
+		snprintf(buf, sizeof(buf), "%d", p->owner->hangupcause);
+		add_header(&resp, "X-Asterisk-HangupCauseCode", buf);
 	}
 	add_blank_header(&resp);
 	return send_response(p, &resp, reliable, seqno);
@@ -5905,10 +5910,12 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 	}
 	/* If we are hanging up and know a cause for that, send it in clear text to make
 		debugging easier. */
-	if (sipmethod == SIP_BYE) {
-		if (p->owner && p->owner->hangupcause)	{
-			add_header(&resp, "X-Asterisk-HangupCause", ast_cause2str(p->owner->hangupcause));
-		}
+	if (sipmethod == SIP_BYE && p->owner && p->owner->hangupcause)	{
+		char buf[10];
+
+		add_header(&resp, "X-Asterisk-HangupCause", ast_cause2str(p->owner->hangupcause));
+		snprintf(buf, sizeof(buf), "%d", p->owner->hangupcause);
+		add_header(&resp, "X-Asterisk-HangupCauseCode", buf);
 	}
 
 	add_header_contentLength(&resp, 0);
