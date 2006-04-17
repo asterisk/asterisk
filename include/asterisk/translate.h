@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -145,7 +145,7 @@ struct ast_trans_pvt;
  * \brief Register a translator
  * \param t populated ast_translator structure
  * This registers a codec translator with asterisk
- * Returns 0 on success, -1 on failure
+ * \return 0 on success, -1 on failure
  */
 int ast_register_translator(struct ast_translator *t, void *module);
 
@@ -153,7 +153,7 @@ int ast_register_translator(struct ast_translator *t, void *module);
  * \brief Unregister a translator
  * \param t translator to unregister
  * Unregisters the given tranlator
- * Returns 0 on success, -1 on failure
+ * \return 0 on success, -1 on failure
  */
 int ast_unregister_translator(struct ast_translator *t);
 
@@ -171,7 +171,7 @@ int ast_translator_best_choice(int *dsts, int *srcs);
  * \param dest destination format
  * \param source source format
  * Build a path (possibly NULL) from source to dest 
- * Returns ast_trans_pvt on success, NULL on failure
+ * \return ast_trans_pvt on success, NULL on failure
  * */
 struct ast_trans_pvt *ast_translator_build_path(int dest, int source);
 
@@ -189,9 +189,17 @@ void ast_translator_free_path(struct ast_trans_pvt *tr);
  * \param consume Whether or not to free the original frame
  * Apply an input frame into the translator and receive zero or one output frames.  Consume
  * determines whether the original frame should be freed
- * Returns an ast_frame of the new translation format on success, NULL on failure
+ * \return an ast_frame of the new translation format on success, NULL on failure
  */
 struct ast_frame *ast_translate(struct ast_trans_pvt *tr, struct ast_frame *f, int consume);
+
+/*!
+ * \brief Returns the number of steps required to convert from 'src' to 'dest'.
+ * \param dest Destination format
+ * \param src Source format
+ * \return the number of translation steps required, or -1 if no path is available
+ */
+unsigned int ast_translate_path_steps(unsigned int dest, unsigned int src);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

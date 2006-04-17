@@ -62,6 +62,8 @@ struct translator_path {
  * indicates the total cost of translation and the first step.
  * The full path can be reconstricted iterating on the matrix
  * until step->dstfmt == desired_format.
+ *
+ * Array indexes are 'src' and 'dest', in that order.
  */
 static struct translator_path tr_matrix[MAX_FORMAT][MAX_FORMAT];
 
@@ -650,4 +652,12 @@ int ast_translator_best_choice(int *dst, int *srcs)
 		}
 		return best;
 	}
+}
+
+unsigned int ast_translate_path_steps(unsigned int dest, unsigned int src)
+{
+	if (!tr_matrix[src][dest].step)
+		return -1;
+	else
+		return tr_matrix[src][dest].multistep;
 }
