@@ -708,6 +708,24 @@ static const struct c_referstatusstring {
 	{ REFER_NOAUTH,		"Failed - auth failure" }
 } ;
 
+/*! \brief Structure to handle SIP transfers. Dynamically allocated when needed  */
+/* OEJ: Should be moved to string fields */
+struct sip_refer {
+	char refer_to[AST_MAX_EXTENSION];		/*!< Place to store REFER-TO extension */
+	char refer_to_domain[AST_MAX_EXTENSION];	/*!< Place to store REFER-TO domain */
+	char refer_to_urioption[AST_MAX_EXTENSION];	/*!< Place to store REFER-TO uri options */
+	char refer_to_context[AST_MAX_EXTENSION];	/*!< Place to store REFER-TO context */
+	char referred_by[AST_MAX_EXTENSION];		/*!< Place to store REFERRED-BY extension */
+	char referred_by_name[AST_MAX_EXTENSION];	/*!< Place to store REFERRED-BY extension */
+	char refer_contact[AST_MAX_EXTENSION];		/*!< Place to store Contact info from a REFER extension */
+	char replaces_callid[BUFSIZ];			/*!< Replace info */
+	char replaces_callid_totag[BUFSIZ/2];		/*!< Replace info */
+	char replaces_callid_fromtag[BUFSIZ/2];		/*!< Replace info */
+	struct sip_pvt *refer_call;			/*!< Call we are referring */
+	int attendedtransfer;				/*!< Attended or blind transfer? */
+	int localtransfer;				/*!< Transfer to local domain? */
+	enum referstatus status;			/*!< REFER status */
+};
 
 /*! \brief sip_pvt: PVT structures are used for each SIP dialog, ie. a call, a registration, a subscribe  */
 static struct sip_pvt {
@@ -806,6 +824,7 @@ static struct sip_pvt {
 	int laststate;				/*!< SUBSCRIBE: Last known extension state */
 	int dialogver;				/*!< SUBSCRIBE: Version for subscription dialog-info */
 	
+	struct sip_refer *refer;		/*!< REFER: SIP transfer data structure */
 	struct ast_dsp *vad;			/*!< Voice Activation Detection dsp */
 	
 	struct sip_peer *relatedpeer;		/*!< If this dialog is related to a peer, which one 
@@ -2184,8 +2203,6 @@ static int auto_congest(void *nothing)
 }
 
 
-
-
 /*! \brief Initiate SIP call from PBX 
  *      used from the dial() application      */
 static int sip_call(struct ast_channel *ast, char *dest, int timeout)
@@ -2194,7 +2211,8 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	struct sip_pvt *p;
 	struct varshead *headp;
 	struct ast_var_t *current;
-	
+	const char *referer = NULL;   /* SIP refererer */	
+
 	p = ast->tech_pvt;
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "sip_call called on %s, neither down nor reserved\n", ast->name);
@@ -2215,13 +2233,36 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		} else if (!p->options->addsipheaders && !strncasecmp(ast_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER"))) {
 			/* Check whether there is a variable with a name starting with SIPADDHEADER */
 			p->options->addsipheaders = 1;
+		} else if (!strcasecmp(ast_var_name(current),"SIPTRANSFER")) {
+			/* This is a transfered call */
+			p->options->transfer = 1;
+		} else if (!strcasecmp(ast_var_name(current),"SIPTRANSFER_REFERER")) {
+			/* This is the referer */
+			referer = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current),"SIPTRANSFER_REPLACES")) {
+			/* We're replacing a call. */
+			p->options->replaces = ast_var_value(current);
 		}
 	}
 	
 	res = 0;
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
+
+	if (p->options->transfer) {
+		char buf[BUFSIZ/2];
+
+		if (referer) {
+			if (sipdebug && option_debug > 2)
+				ast_log(LOG_DEBUG, "Call for %s transfered by %s\n", p->username, referer);
+			snprintf(buf, sizeof(buf)-1, "-> %s (via %s)", p->cid_name, referer);
+		} else {
+			snprintf(buf, sizeof(buf)-1, "-> %s", p->cid_name);
+		}
+		ast_string_field_set(p, cid_name, buf);
+	} 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Outgoing Call for %s\n", p->username);
+
 	res = update_call_counter(p, INC_CALL_LIMIT);
 	if ( res != -1 ) {
 		p->callingpres = ast->cid.cid_pres;
@@ -5751,6 +5792,12 @@ static int transmit_message_with_text(struct sip_pvt *p, const char *text)
 	reqprep(&req, p, SIP_MESSAGE, 0, 1);
 	add_text(&req, text);
 	return send_request(p, &req, 1, p->ocseq);
+}
+
+/*! \brief Allocate SIP refer structure */
+int sip_refer_allocate(struct sip_pvt *p) {
+   p->refer = ast_calloc(1, sizeof(struct sip_refer)); 
+   return p->refer ? 1 : 0;
 }
 
 /*! \brief Transmit SIP REFER message */
