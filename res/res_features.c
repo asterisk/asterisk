@@ -138,7 +138,7 @@ struct parkeduser {
 
 static struct parkeduser *parkinglot;
 
-AST_MUTEX_DEFINE_STATIC(parking_lock);	/* protects all static variables above */
+AST_MUTEX_DEFINE_STATIC(parking_lock);	/*!< protects all static variables above */
 
 static pthread_t parking_thread;
 
@@ -159,10 +159,10 @@ struct ast_bridge_thread_obj
 	struct ast_channel *peer;
 };
 
-/* store context, priority and extension */
-static void set_c_e_p(struct ast_channel *chan, const char *ctx, const char *ext, int pri)
+/*! \brief store context, priority and extension */
+static void set_c_e_p(struct ast_channel *chan, const char *context, const char *ext, int pri)
 {
-	ast_copy_string(chan->context, ctx, sizeof(chan->context));
+	ast_copy_string(chan->context, context, sizeof(chan->context));
 	ast_copy_string(chan->exten, ext, sizeof(chan->exten));
 	chan->priority = pri;
 }
@@ -220,7 +220,7 @@ static void *ast_bridge_call_thread(void *data)
 	ast_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
 	ast_hangup(tobj->chan);
 	ast_hangup(tobj->peer);
-	bzero(tobj, sizeof(*tobj)); /* XXX for safety */
+	bzero(tobj, sizeof(*tobj)); /*! \todo XXX for safety */
 	free(tobj);
 	return NULL;
 }
@@ -408,8 +408,9 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
  * if the file name is non-empty, try to play it.
  * Return 0 if success, -1 if error, digit if interrupted by a digit.
  * If digits == "" then we can simply check for non-zero.
- *
- * XXX there are probably many replicas of this function in the source tree,
+ */
+/*
+ *! \todo XXX there are probably many replicas of this function in the source tree,
  * that should be merged.
  */
 static int stream_and_wait(struct ast_channel *chan, const char *file, const char *language, const char *digits)
@@ -596,7 +597,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		} else {
 			ast_log(LOG_WARNING, "Unable to park call %s\n", transferee->name);
 		}
-		/* XXX Maybe we should have another message here instead of invalid extension XXX */
+		/*! \todo XXX Maybe we should have another message here instead of invalid extension XXX */
 	} else if (ast_exists_extension(transferee, transferer_real_context, xferto, 1, transferer->cid.cid_num)) {
 		pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
 		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
@@ -646,7 +647,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	struct ast_frame *f = NULL;
 	struct ast_bridge_thread_obj *tobj;
 
-	ast_log(LOG_DEBUG, "Executing Attended Transfer %s, %s (sense=%d) XXX\n", chan->name, peer->name, sense);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Executing Attended Transfer %s, %s (sense=%d) \n", chan->name, peer->name, sense);
 	set_peers(&transferer, &transferee, peer, chan, sense);
         transferer_real_context = real_ctx(transferer, transferee);
 	/* Start autoservice on chan while we talk to the originator */
@@ -883,7 +885,7 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 		return -2;
 	}
 	
-	return FEATURE_RETURN_SUCCESS;	/* XXX should probably return res */
+	return FEATURE_RETURN_SUCCESS;	/*! \todo XXX should probably return res */
 }
 
 static void unmap_features(void)
@@ -921,7 +923,8 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);	
 	else
 		ast_copy_flags(&features, &(config->features_callee), AST_FLAGS_ALL);	
-	ast_log(LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features.flags);
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features.flags);
 
 	for (x=0; x < FEATURES_COUNT; x++) {
 		if ((ast_test_flag(&features, builtin_features[x].feature_mask)) &&
@@ -1004,7 +1007,7 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 	}
 }
 
-/* XXX this is very similar to the code in channel.c */
+/*! \todo XXX Check - this is very similar to the code in channel.c */
 static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *caller, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name)
 {
 	int state = 0;
@@ -1258,7 +1261,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				   activated, but that's no excuse to keep things going 
 				   indefinitely! */
 				if (backup_config.feature_timer && ((backup_config.feature_timer -= diff) <= 0)) {
-					ast_log(LOG_DEBUG, "Timed out, realtime this time!\n");
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Timed out, realtime this time!\n");
 					config->feature_timer = 0;
 					who = chan;
 					if (f)
@@ -1268,7 +1272,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				} else if (config->feature_timer <= 0) {
 					/* Not *really* out of time, just out of time for
 					   digits to come in for features. */
-					ast_log(LOG_DEBUG, "Timed out for feature!\n");
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Timed out for feature!\n");
 					if (!ast_strlen_zero(peer_featurecode)) {
 						ast_dtmf_stream(chan, peer, peer_featurecode, 0);
 						memset(peer_featurecode, 0, sizeof(peer_featurecode));
@@ -1342,8 +1347,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				sense = FEATURE_SENSE_PEER;
 				featurecode = peer_featurecode;
 			}
-			/* append the event to featurecode. we rely on the string being zero-filled, and
-			 * not overflowing it. XXX how do we guarantee the latter ?
+			/*! append the event to featurecode. we rely on the string being zero-filled, and
+			 * not overflowing it. 
+			 * \todo XXX how do we guarantee the latter ?
 			 */
 			featurecode[strlen(featurecode)] = f->subclass;
 			config->feature_timer = backup_config.feature_timer;
@@ -1382,7 +1388,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					config->firstpass = 0;
 				}
 				config->feature_timer = featuredigittimeout;
-				ast_log(LOG_DEBUG, "Set time limit to %ld\n", config->feature_timer);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Set time limit to %ld\n", config->feature_timer);
 			}
 		}
 		if (f)
@@ -1533,14 +1540,15 @@ static void *do_parking_thread(void *ignore)
 						free(pt);
 						break;
 					} else {
-						/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
+						/*! \todo XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
 						ast_frfree(f);
 						if (pu->moh_trys < 3 && !chan->generatordata) {
-							ast_log(LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
+							if (option_debug)
+								ast_log(LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
 							ast_moh_start(chan, NULL);
 							pu->moh_trys++;
 						}
-						goto std;	/* XXX Ick: jumping into an else statement??? XXX */
+						goto std;	/*! \todo XXX Ick: jumping into an else statement??? XXX */
 					}
 
 				} /* end for */
@@ -1669,7 +1677,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 			} else if (parkedplay == 2) {
 				if (!ast_streamfile(chan, courtesytone, chan->language) &&
 						!ast_streamfile(peer, courtesytone, chan->language)) {
-					/* XXX we would like to wait on both! */
+					/*! \todo XXX we would like to wait on both! */
 					res = ast_waitstream(chan, "");
 					if (res >= 0)
 						res = ast_waitstream(peer, "");
@@ -1709,7 +1717,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 			ast_hangup(peer);
 		return res;
 	} else {
-		/* XXX Play a message XXX */
+		/*! \todo XXX Play a message XXX */
 		if (stream_and_wait(chan, "pbx-invalidpark", chan->language, ""))
 			ast_log(LOG_WARNING, "ast_streamfile of %s failed on %s\n", "pbx-invalidpark", chan->name);
 		if (option_verbose > 2) 
@@ -2033,7 +2041,7 @@ static int load_config(void)
 			char *exten, *party=NULL, *app=NULL, *app_args=NULL; 
 
 			if (!tmp_val) { 
-				/* XXX No memory. We should probably break, but at least we do not
+				/*! \todo XXX No memory. We should probably break, but at least we do not
 				 * insist on this entry or we could be stuck in an
 				 * infinite loop.
 				 */
@@ -2049,7 +2057,7 @@ static int load_config(void)
 			app = strsep(&tmp_val,",");
 			app_args = strsep(&tmp_val,",");
 
-			/* XXX var_name or app_args ? */
+			/*! \todo XXX var_name or app_args ? */
 			if (ast_strlen_zero(app) || ast_strlen_zero(exten) || ast_strlen_zero(party) || ast_strlen_zero(var->name)) {
 				ast_log(LOG_NOTICE, "Please check the feature Mapping Syntax, either extension, name, or app aren't provided %s %s %s %s\n",app,exten,party,var->name);
 				free(tmp_val);
@@ -2102,7 +2110,8 @@ static int load_config(void)
 	/* Remove the old parking extension */
 	if (!ast_strlen_zero(old_parking_con) && (con = ast_context_find(old_parking_con)))	{
 		ast_context_remove_extension2(con, old_parking_ext, 1, registrar);
-		ast_log(LOG_DEBUG, "Removed old parking extension %s@%s\n", old_parking_ext, old_parking_con);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Removed old parking extension %s@%s\n", old_parking_ext, old_parking_con);
 	}
 	
 	if (!(con = ast_context_find(parking_con)) && !(con = ast_context_create(NULL, parking_con, registrar))) {
