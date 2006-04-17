@@ -801,10 +801,10 @@ static struct sip_pvt {
 	int rtpholdtimeout;			/*!< RTP timeout when on hold */
 	int rtpkeepalive;			/*!< Send RTP packets for keepalive */
 	enum transfermodes allowtransfer;	/*! SIP Refer restriction scheme */
-	enum subscriptiontype subscribed;	/*!< Is this dialog a subscription?  */
-	int stateid;
-	int laststate;				/*!< Last known extension state */
-	int dialogver;
+	enum subscriptiontype subscribed;	/*!< SUBSCRIBE: Is this dialog a subscription?  */
+	int stateid;				/*!< SUBSCRIBE: ID for devicestate subscriptions */
+	int laststate;				/*!< SUBSCRIBE: Last known extension state */
+	int dialogver;				/*!< SUBSCRIBE: Version for subscription dialog-info */
 	
 	struct ast_dsp *vad;			/*!< Voice Activation Detection dsp */
 	
@@ -815,7 +815,7 @@ static struct sip_pvt {
 	struct ast_rtp *vrtp;			/*!< Video RTP session */
 	struct sip_pkt *packets;		/*!< Packets scheduled for re-transmission */
 	struct sip_history_head *history;	/*!< History of this SIP dialog */
-	struct ast_variable *chanvars;		/*!< Channel variables to set for call */
+	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
 	struct sip_pvt *next;			/*!< Next dialog in chain */
 	struct sip_invite_param *options;	/*!< Options for INVITE */
 } *iflist = NULL;
