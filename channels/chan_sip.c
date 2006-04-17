@@ -2859,11 +2859,12 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	p = newchan->tech_pvt;
 
 	ast_mutex_lock(&p->lock);
+	append_history(p, "Masq", "Old channel: %s\n", oldchan->name);
+	append_history(p, "Masq (cont)", "...new owner: %s\n", p->owner->name);
 	if (p->owner != oldchan)
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
 	else {
 		p->owner = newchan;
-		append_history(p, "Masq", "Old channel: %s\n", oldchan->name);
 		ret = 0;
 	}
 	ast_mutex_unlock(&p->lock);
