@@ -32,6 +32,8 @@
  * \todo SIP over TCP
  * \todo SIP over TLS
  * \todo Better support of forking
+ * \todo VIA branch tag transaction checking
+ * \todo Transaction support
  *
  * \ingroup channel_drivers
  *
@@ -187,6 +189,9 @@ static int expiry = DEFAULT_EXPIRY;
 
 #define DEFAULT_RETRANS		1000		/*!< How frequently to retransmit Default: 2 * 500 ms in RFC 3261 */
 #define MAX_RETRANS		6		/*!< Try only 6 times for retransmissions, a total of 7 transmissions */
+#define SIP_TRANS_TIMEOUT	32000		/*!< SIP request timeout (rfc 3261) 64*T1 
+						\todo Use known T1 for timeout (peerpoke)
+						*/
 #define MAX_AUTHTRIES		3		/*!< Try authentication three times, then fail */
 
 #define SIP_MAX_HEADERS		64			/*!< Max amount of SIP headers to read */
@@ -2271,6 +2276,8 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		if (p->maxtime) {
 			/* Initialize auto-congest time */
 			p->initid = ast_sched_add(sched, p->maxtime * 4, auto_congest, p);
+		} else {
+			p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, p);
 		}
 	}
 	return res;
@@ -2715,7 +2722,7 @@ static int sip_hangup(struct ast_channel *ast)
 				   INVITE, but do set an autodestruct just in case we never get it. */
 				ast_clear_flag(&locflags, SIP_NEEDDESTROY);
 
-				sip_scheddestroy(p, 32000);
+				sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 				if ( p->initid != -1 ) {
 					/* channel still up - reverse dec of inUse counter
 					   only if the channel is not auto-congested */
@@ -6439,7 +6446,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 			   retransmission should get it */
 			transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
 			/* Schedule auto destroy in 32 seconds (according to RFC 3261) */
-			sip_scheddestroy(p, 32000);
+			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 		}
 		return 1;	/* Auth sent */
 	} else if (ast_strlen_zero(p->randdata) || ast_strlen_zero(authtoken)) {
@@ -6447,7 +6454,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 		ast_string_field_build(p, randdata, "%08lx", ast_random());	/* Create nonce for challenge */
 		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
 		/* Schedule auto destroy in 32 seconds */
-		sip_scheddestroy(p, 32000);
+		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 		return 1;	/* Auth sent */
 	} else {	/* We have auth, so check it */
 		/* Whoever came up with the authentication section of SIP can suck my %&#$&* for not putting
@@ -6548,7 +6555,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 			}
 
 			/* Schedule auto destroy in 32 seconds */
-			sip_scheddestroy(p, 32000);
+			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 			return 1;	/* XXX should it be -1 ? */
 		} 
 		if (good_response) /* Auth is OK */
@@ -6558,7 +6565,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 		/* Ok, we have a bad username/secret pair */
 		/* Challenge again, and again, and again */
 		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
-		sip_scheddestroy(p, 32000);
+		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 		return 1;		/* Challenge sent */
 
 	}
@@ -6576,7 +6583,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 	case AST_EXTENSION_REMOVED:	/* Extension is gone */
 		if (p->autokillid > -1)
 			sip_cancel_destroy(p);	/* Remove subscription expiry for renewals */
-		sip_scheddestroy(p, 15000);	/* Delete subscription in 15 secs */
+		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);	/* Delete subscription in 32 secs */
 		ast_verbose(VERBOSE_PREFIX_2 "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == AST_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
 		p->stateid = -1;
 		p->subscribed = NONE;
@@ -9181,7 +9188,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 		build_callid_pvt(p);
 		ast_cli(fd, "Sending NOTIFY of type '%s' to '%s'\n", argv[2], argv[i]);
 		transmit_sip_request(p, &req);
-		sip_scheddestroy(p, 15000);
+		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 	}
 
 	return RESULT_SUCCESS;
@@ -9813,6 +9820,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		return;
 	}
 
+	/* Acknowledge sequence number - This only happens on INVITE from SIP-call */
+	if (p->initid > -1) {
+		/* Don't auto congest anymore since we've gotten something useful back */
+		ast_sched_del(sched, p->initid);
+		p->initid = -1;
+	}
+
 	switch (resp) {
 	case 100:	/* Trying */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE))
@@ -10059,7 +10073,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		r->call = NULL;
 		p->registry = NULL;
 		/* Let this one hang around until we have all the responses */
-		sip_scheddestroy(p, 32000);
+		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 		/* ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	*/
 
 		/* set us up for re-registering */
@@ -10210,12 +10224,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 
 		res = handle_response_peerpoke(p, resp, rest, req, ignore, seqno, sipmethod);
 	} else if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
-		/* Acknowledge sequence number */
-		if (p->initid > -1) {
-			/* Don't auto congest anymore since we've gotten something useful back */
-			ast_sched_del(sched, p->initid);
-			p->initid = -1;
-		}
 		switch(resp) {
 		case 100:	/* 100 Trying */
 			if (sipmethod == SIP_INVITE) 
@@ -11888,7 +11896,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		build_via(p);
 		build_callid_pvt(p);
 		/* Destroy this session after 32 secs */
-		sip_scheddestroy(p, 32000);
+		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 	}
 	/* Send MWI */
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
