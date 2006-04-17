@@ -823,9 +823,9 @@ static struct sip_pvt {
 #define FLAG_RESPONSE (1 << 0)
 #define FLAG_FATAL (1 << 1)
 
-/*! \brief sip packet - read in sipsock_read(), transmitted in send_request() */
+/*! \brief sip packet - raw format for outbound packets that are sent or scheduled for transmission */
 struct sip_pkt {
-	struct sip_pkt *next;			/*!< Next packet */
+	struct sip_pkt *next;			/*!< Next packet in linked list */
 	int retrans;				/*!< Retransmission number */
 	int method;				/*!< SIP method for this packet */
 	int seqno;				/*!< Sequence number */
@@ -4874,10 +4874,8 @@ static int determine_firstline_parts( struct sip_request *req )
 static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 {
 	struct sip_request req;
-	if (ast_test_flag(&p->flags[0], SIP_REINVITE_UPDATE))
-		reqprep(&req, p, SIP_UPDATE, 0, 1);
-	else 
-		reqprep(&req, p, SIP_INVITE, 0, 1);
+
+	reqprep(&req, p, ast_test_flag(&p->flags[0], SIP_REINVITE_UPDATE) ?  SIP_UPDATE : SIP_INVITE, 0, 1);
 	
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
