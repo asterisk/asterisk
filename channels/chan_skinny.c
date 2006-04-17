@@ -121,10 +121,10 @@ typedef unsigned int	UINT32;
  * Protocol Messages *
  *********************/
 /* message types */
-#define	KEEP_ALIVE_MESSAGE 0x0000
+#define KEEP_ALIVE_MESSAGE 0x0000
 /* no additional struct */
 
-#define	REGISTER_MESSAGE 0x0001
+#define REGISTER_MESSAGE 0x0001
 typedef struct register_message {
 	char name[16];
 	int userId;
@@ -150,7 +150,7 @@ typedef struct stimulus_message {
 #define OFFHOOK_MESSAGE 0x0006
 #define ONHOOK_MESSAGE 0x0007
 
-#define	CAPABILITIES_RES_MESSAGE 0x0010
+#define CAPABILITIES_RES_MESSAGE 0x0010
 typedef struct station_capabilities {
 	int codec;
 	int frames;
@@ -170,30 +170,30 @@ typedef struct speed_dial_stat_req_message {
 	int speedDialNumber;
 } speed_dial_stat_req_message;
 
-#define	LINE_STATE_REQ_MESSAGE 0x000B
+#define LINE_STATE_REQ_MESSAGE 0x000B
 typedef struct line_state_req_message {
 	int lineNumber;
 } line_state_req_message;
 
-#define	TIME_DATE_REQ_MESSAGE 0x000D
-#define	VERSION_REQ_MESSAGE 0x000F
+#define TIME_DATE_REQ_MESSAGE 0x000D
 #define BUTTON_TEMPLATE_REQ_MESSAGE 0x000E
+#define VERSION_REQ_MESSAGE 0x000F
 #define SERVER_REQUEST_MESSAGE 0x0012
 #define ALARM_MESSAGE 0x0020
 
-#define OPEN_RECIEVE_CHANNEL_ACK_MESSAGE 0x0022
-typedef struct open_recieve_channel_ack_message {
+#define OPEN_RECEIVE_CHANNEL_ACK_MESSAGE 0x0022
+typedef struct open_receive_channel_ack_message {
 	int status;
 	char ipAddr[4];
 	int port;
 	int passThruId;
-} open_recieve_channel_ack_message;
+} open_receive_channel_ack_message;
 
-#define	SOFT_KEY_SET_REQ_MESSAGE 0x0025
+#define SOFT_KEY_SET_REQ_MESSAGE 0x0025
 #define UNREGISTER_MESSAGE 0x0027
-#define	SOFT_KEY_TEMPLATE_REQ_MESSAGE 0x0028
+#define SOFT_KEY_TEMPLATE_REQ_MESSAGE 0x0028
 
-#define	REGISTER_ACK_MESSAGE 0x0081
+#define REGISTER_ACK_MESSAGE 0x0081
 typedef struct register_ack_message {
 	int keepAlive;
 	char dateTemplate[6];
@@ -202,7 +202,7 @@ typedef struct register_ack_message {
 	char res2[4];
 } register_ack_message;
 
-#define	START_TONE_MESSAGE 0x0082
+#define START_TONE_MESSAGE 0x0082
 typedef struct start_tone_message {
 	int tone;
 } start_tone_message;
@@ -290,31 +290,6 @@ typedef struct definetimedate_message {
 	int milliseconds;
 	int timestamp;
 } definetimedate_message;
-
-#define DISPLAYTEXT_MESSAGE 0x0099
-typedef struct displaytext_message {
-	char text[40];
-} displaytext_message;
-
-#define CLEAR_DISPLAY_MESSAGE 0x009A
-
-#define	REGISTER_REJ_MESSAGE 0x009D
-typedef struct register_rej_message {
-	char errMsg[33];
-} register_rej_message;
-
-#define CAPABILITIES_REQ_MESSAGE 0x009B
-
-#define SERVER_RES_MESSAGE 0x009E
-typedef struct server_identifier {
-	char serverName[48];
-} server_identifier;
-
-typedef struct server_res_message {
-	server_identifier server[5];
-	int serverListenPort[5];
-	int serverIpAddr[5];
-} server_res_message;
 
 #define BUTTON_TEMPLATE_RES_MESSAGE 0x0097
 
@@ -477,30 +452,54 @@ typedef struct button_template_res_message {
 	button_definition definition[42];
 } button_template_res_message;
 
-#define	VERSION_RES_MESSAGE 0x0098
+#define VERSION_RES_MESSAGE 0x0098
 typedef struct version_res_message {
 	char version[16];
 } version_res_message;
 
-#define	KEEP_ALIVE_ACK_MESSAGE 0x0100
+#define DISPLAYTEXT_MESSAGE 0x0099
+typedef struct displaytext_message {
+	char text[40];
+} displaytext_message;
 
-#define OPEN_RECIEVE_CHANNEL_MESSAGE 0x0105
-typedef struct open_recieve_channel_message {
+#define CLEAR_DISPLAY_MESSAGE 0x009A
+#define CAPABILITIES_REQ_MESSAGE 0x009B
+
+#define REGISTER_REJ_MESSAGE 0x009D
+typedef struct register_rej_message {
+	char errMsg[33];
+} register_rej_message;
+
+#define SERVER_RES_MESSAGE 0x009E
+typedef struct server_identifier {
+	char serverName[48];
+} server_identifier;
+
+typedef struct server_res_message {
+	server_identifier server[5];
+	int serverListenPort[5];
+	int serverIpAddr[5];
+} server_res_message;
+
+#define KEEP_ALIVE_ACK_MESSAGE 0x0100
+
+#define OPEN_RECEIVE_CHANNEL_MESSAGE 0x0105
+typedef struct open_receive_channel_message {
 	int conferenceId;
 	int partyId;
 	int packets;
 	int capability;
 	int echo;
 	int bitrate;
-} open_recieve_channel_message;
+} open_receive_channel_message;
 
-#define CLOSE_RECIEVE_CHANNEL_MESSAGE 0x0106
-typedef struct close_recieve_channel_message {
+#define CLOSE_RECEIVE_CHANNEL_MESSAGE 0x0106
+typedef struct close_receive_channel_message {
 	int conferenceId;
 	int partyId;
-} close_recieve_channel_message;
+} close_receive_channel_message;
 
-#define	SOFT_KEY_TEMPLATE_RES_MESSAGE 0x0108
+#define SOFT_KEY_TEMPLATE_RES_MESSAGE 0x0108
 
 typedef struct soft_key_template_definition {
 	char softKeyLabel[16];
@@ -535,7 +534,7 @@ typedef struct soft_key_template {
 	soft_key_template_definition softKeyTemplateDefinition[32];
 } soft_key_template;
 
-#define	SOFT_KEY_SET_RES_MESSAGE 0x0109
+#define SOFT_KEY_SET_RES_MESSAGE 0x0109
 static const char *soft_key_set_hack = {
 	"\x01\x02\x05\x03\x09\x0a\x0b\x10\x11\x12\x04\x0e\x0d\x00\x00\x00"
 	"\x2d\x01\x2e\x01\x31\x01\x2f\x01\x35\x01\x36\x01\x37\x01\x3c\x01"
@@ -660,9 +659,9 @@ typedef struct {
 		call_info_message callinfo;
 		start_media_transmission_message startmedia;
 		stop_media_transmission_message stopmedia;
-		open_recieve_channel_message openrecievechannel;
-		open_recieve_channel_ack_message openrecievechannelack;
-		close_recieve_channel_message closerecievechannel;
+		open_receive_channel_message openreceivechannel;
+		open_receive_channel_ack_message openreceivechannelack;
+		close_receive_channel_message closereceivechannel;
 		display_notify_message displaynotify;
 		dialed_number_message dialednumber;
 	} data;
@@ -1056,10 +1055,10 @@ static void transmit_callstate(struct skinnysession *s, int instance, int state,
 		req->data.activatecallplane.lineInstance = 0;
 		transmit_response(s, req);
 		memset(req, 0, memsize);
-		req->len = htolel(sizeof(close_recieve_channel_message)+4);
-		req->e = htolel(CLOSE_RECIEVE_CHANNEL_MESSAGE);
-		req->data.closerecievechannel.conferenceId = 0;
-		req->data.closerecievechannel.partyId = 0;
+		req->len = htolel(sizeof(close_receive_channel_message)+4);
+		req->e = htolel(CLOSE_RECEIVE_CHANNEL_MESSAGE);
+		req->data.closereceivechannel.conferenceId = 0;
+		req->data.closereceivechannel.partyId = 0;
 		transmit_response(s, req);
 		memset(req, 0, memsize);
 		req->len = htolel(sizeof(stop_media_transmission_message)+4);
@@ -1106,19 +1105,19 @@ static void transmit_connect(struct skinnysession *s)
 	skinny_req *req;
 	struct skinny_line *l = s->device->lines;
 
-	req = req_alloc(sizeof(struct open_recieve_channel_message));
+	req = req_alloc(sizeof(struct open_receive_channel_message));
 	if (!req) {
 		ast_log(LOG_ERROR, "Unable to allocate skinny_request, this is bad\n");
 		return;
 	}
-	req->len = htolel(sizeof(struct open_recieve_channel_message));
-	req->e = htolel(OPEN_RECIEVE_CHANNEL_MESSAGE);
-	req->data.openrecievechannel.conferenceId = 0;
-	req->data.openrecievechannel.partyId = 0;
-	req->data.openrecievechannel.packets = htolel(20);
-	req->data.openrecievechannel.capability = htolel(convert_cap(l->capability));
-	req->data.openrecievechannel.echo = 0;
-	req->data.openrecievechannel.bitrate = 0;
+	req->len = htolel(sizeof(struct open_receive_channel_message));
+	req->e = htolel(OPEN_RECEIVE_CHANNEL_MESSAGE);
+	req->data.openreceivechannel.conferenceId = 0;
+	req->data.openreceivechannel.partyId = 0;
+	req->data.openreceivechannel.packets = htolel(20);
+	req->data.openreceivechannel.capability = htolel(convert_cap(l->capability));
+	req->data.openreceivechannel.echo = 0;
+	req->data.openreceivechannel.bitrate = 0;
 	transmit_response(s, req);
 }
 
@@ -2397,43 +2396,43 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 			   and dirty redial, feeding the frames we last got into the queue
 			   function */
 			if (skinnydebug) {
-				ast_verbose("Recieved Stimulus: Redial(%d)\n", stimulusInstance);
+				ast_verbose("Received Stimulus: Redial(%d)\n", stimulusInstance);
 			}
 			break;
 		case STIMULUS_SPEEDDIAL:
 			if (skinnydebug) {
-				ast_verbose("Recieved Stimulus: SpeedDial(%d)\n", stimulusInstance);
+				ast_verbose("Received Stimulus: SpeedDial(%d)\n", stimulusInstance);
 			}
 			break;
 		case STIMULUS_HOLD:
 			/* start moh? set RTP to 0.0.0.0? */
 			if (skinnydebug) {
-				ast_verbose("Recieved Stimulus: Hold(%d)\n", stimulusInstance);
+				ast_verbose("Received Stimulus: Hold(%d)\n", stimulusInstance);
 			}
 			break;
 		case STIMULUS_TRANSFER:
 			if (skinnydebug) {
-				ast_verbose("Recieved Stimulus: Transfer(%d)\n", stimulusInstance);
+				ast_verbose("Received Stimulus: Transfer(%d)\n", stimulusInstance);
 			}
 			transmit_tone(s, SKINNY_DIALTONE);
 			/* XXX figure out how to transfer */
 			break;
 		case STIMULUS_CONFERENCE:
 			if (skinnydebug) {
-				ast_verbose("Recieved Stimulus: Transfer(%d)\n", stimulusInstance);
+				ast_verbose("Received Stimulus: Transfer(%d)\n", stimulusInstance);
 			}
 			transmit_tone(s, SKINNY_DIALTONE);
 			/* XXX determine the best way to pull off a conference.  Meetme? */
 			break;
 		case STIMULUS_VOICEMAIL:
 			if (skinnydebug) {
-				ast_verbose("Recieved Stimulus: Voicemail(%d)\n", stimulusInstance);
+				ast_verbose("Received Stimulus: Voicemail(%d)\n", stimulusInstance);
 			}
 			/* XXX Find and dial voicemail extension */
 			break;
 		case STIMULUS_CALLPARK:
 			if (skinnydebug) {
-				ast_verbose("Recieved Stimulus: Park Call(%d)\n", stimulusInstance);
+				ast_verbose("Received Stimulus: Park Call(%d)\n", stimulusInstance);
 			}
 			/* XXX Park the call */
 			break;
@@ -2460,18 +2459,18 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		case STIMULUS_FORWARDNOANSWER:
 			/* Gonna be fun, not */
 			if (skinnydebug) {
-				ast_verbose("Recieved Stimulus: Forward (%d)\n", stimulusInstance);
+				ast_verbose("Received Stimulus: Forward (%d)\n", stimulusInstance);
 			}
 			break;
 		case STIMULUS_DISPLAY:
 			/* Not sure what this is */
 			if (skinnydebug) {
-				ast_verbose("Recieved Stimulus: Display(%d)\n", stimulusInstance);
+				ast_verbose("Received Stimulus: Display(%d)\n", stimulusInstance);
 			}
 			break;
 		case STIMULUS_LINE:
 			if (skinnydebug) {
-				ast_verbose("Recieved Stimulus: Line(%d)\n", stimulusInstance);
+				ast_verbose("Received Stimulus: Line(%d)\n", stimulusInstance);
 			}
 			sub = find_subchannel_by_line(s->device->lines);
 			/* turn the speaker on */
@@ -2496,7 +2495,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		break;
 	case SERVER_REQUEST_MESSAGE:
 		if (skinnydebug) {
-			ast_verbose("Recieved Server Request\n");
+			ast_verbose("Received Server Request\n");
 		}
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = htolel(sizeof(server_res_message)+4);
@@ -2566,7 +2565,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		break;
 	case SOFT_KEY_TEMPLATE_REQ_MESSAGE:
 		if (skinnydebug) {
-			ast_verbose("Recieved SoftKey Template Request\n");
+			ast_verbose("Received SoftKey Template Request\n");
 		}
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = htolel(sizeof(soft_key_template)+4);
@@ -2775,18 +2774,18 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 			}
 		}
 		break;
-	case OPEN_RECIEVE_CHANNEL_ACK_MESSAGE:
+	case OPEN_RECEIVE_CHANNEL_ACK_MESSAGE:
 		if (skinnydebug) {
-			ast_verbose("Recieved Open Recieve Channel Ack\n");
+			ast_verbose("Received Open Receive Channel Ack\n");
 		}
-		status = letohl(req->data.openrecievechannelack.status);
+		status = letohl(req->data.openreceivechannelack.status);
 		if (status) {
-			ast_log(LOG_ERROR, "Open Recieve Channel Failure\n");
+			ast_log(LOG_ERROR, "Open Receive Channel Failure\n");
 			break;
 		}
 		/* ENDIAN */
-		memcpy(addr, req->data.openrecievechannelack.ipAddr, sizeof(addr));
-		port = htolel(req->data.openrecievechannelack.port);
+		memcpy(addr, req->data.openreceivechannelack.ipAddr, sizeof(addr));
+		port = htolel(req->data.openreceivechannelack.port);
 		sin.sin_family = AF_INET;
 		/* I smell endian problems */
 		memcpy(&sin.sin_addr, addr, sizeof(sin.sin_addr));
