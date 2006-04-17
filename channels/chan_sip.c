@@ -1078,6 +1078,7 @@ static int handle_request_message(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, char *e);
 static void handle_request_info(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_options(struct sip_pvt *p, struct sip_request *req);
+static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 
 /*----- RTP interface functions */
 static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active);
@@ -9728,7 +9729,7 @@ static void check_pendings(struct sip_pvt *p)
 }
 
 /*! \brief Handle SIP response in dialogue */
-static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
+static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno)
 {
 	int outgoing = ast_test_flag(&p->flags[0], SIP_OUTGOING);
 	
@@ -9747,39 +9748,39 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 
 	switch (resp) {
 	case 100:	/* Trying */
-		if (!ignore)
+		if (!ast_test_flag(req, SIP_PKT_IGNORE))
 			sip_cancel_destroy(p);
 		break;
 	case 180:	/* 180 Ringing */
-		if (!ignore)
+		if (!ast_test_flag(req, SIP_PKT_IGNORE))
 			sip_cancel_destroy(p);
-		if (!ignore && p->owner) {
+		if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
 			ast_queue_control(p->owner, AST_CONTROL_RINGING);
 			if (p->owner->_state != AST_STATE_UP)
 				ast_setstate(p->owner, AST_STATE_RINGING);
 		}
 		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
 			process_sdp(p, req);
-			if (!ignore && p->owner) {
+			if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
 				/* Queue a progress frame only if we have SDP in 180 */
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
 			}
 		}
 		break;
 	case 183:	/* Session progress */
-		if (!ignore)
+		if (!ast_test_flag(req, SIP_PKT_IGNORE))
 			sip_cancel_destroy(p);
 		/* Ignore 183 Session progress without SDP */
 		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
 			process_sdp(p, req);
-			if (!ignore && p->owner) {
+			if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
 				/* Queue a progress frame */
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
 			}
 		}
 		break;
 	case 200:	/* 200 OK on invite - someone's answering our call */
-		if (!ignore)
+		if (!ast_test_flag(req, SIP_PKT_IGNORE))
 			sip_cancel_destroy(p);
 		p->authtries = 0;
 		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) 
@@ -9798,7 +9799,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 					should we care about resolving the contact
 					or should we just send it?
 				*/
-				if (!ignore)
+				if (!ast_test_flag(req, SIP_PKT_IGNORE))
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
 			} 
 
@@ -9806,7 +9807,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			build_route(p, req, 1);
 		}
 		
-		if (!ignore && p->owner) {
+		if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
 			if (p->owner->_state != AST_STATE_UP) {
 				ast_queue_control(p->owner, AST_CONTROL_ANSWER);
 			} else {	/* RE-invite */
@@ -9816,7 +9817,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			 /* It's possible we're getting an 200 OK after we've tried to disconnect
 				  by sending CANCEL */
 			/* First send ACK, then send bye */
-			if (!ignore)
+			if (!ast_test_flag(req, SIP_PKT_IGNORE))
 				ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
 		}
 		/* If I understand this right, the branch is different for a non-200 ACK only */
@@ -9832,7 +9833,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 
 		/* Then we AUTH */
 		ast_string_field_free(p, theirtag);	/* forget their old tag, so we don't match tags when getting response */
-		if (!ignore) {
+		if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
 			char *authenticate = (resp == 401 ? "WWW-Authenticate" : "Proxy-Authenticate");
 			char *authorization = (resp == 401 ? "Authorization" : "Proxy-Authorization");
 			if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, authenticate, authorization, SIP_INVITE, 1)) {
@@ -9848,14 +9849,14 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		/* First we ACK */
 		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
 		ast_log(LOG_WARNING, "Received response: \"Forbidden\" from '%s'\n", get_header(&p->initreq, "From"));
-		if (!ignore && p->owner)
+		if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
 		break;
 	case 404: /* Not found */
 		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
-		if (p->owner && !ignore)
+		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
 		break;
@@ -10151,15 +10152,15 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		switch(resp) {
 		case 100:	/* 100 Trying */
 			if (sipmethod == SIP_INVITE) 
-				handle_response_invite(p, resp, rest, req, ignore, seqno);
+				handle_response_invite(p, resp, rest, req, seqno);
 			break;
 		case 183:	/* 183 Session Progress */
 			if (sipmethod == SIP_INVITE) 
-				handle_response_invite(p, resp, rest, req, ignore, seqno);
+				handle_response_invite(p, resp, rest, req, seqno);
 			break;
 		case 180:	/* 180 Ringing */
 			if (sipmethod == SIP_INVITE) 
-				handle_response_invite(p, resp, rest, req, ignore, seqno);
+				handle_response_invite(p, resp, rest, req, seqno);
 			break;
 		case 200:	/* 200 OK */
 			p->authtries = 0;	/* Reset authentication counter */
@@ -10177,7 +10178,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					}
 				}
 			} else if (sipmethod == SIP_INVITE)
-				handle_response_invite(p, resp, rest, req, ignore, seqno);
+				handle_response_invite(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_REGISTER)
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
 			break;
@@ -10187,7 +10188,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 401: /* Not www-authorized on SIP method */
 			if (sipmethod == SIP_INVITE)
-				handle_response_invite(p, resp, rest, req, ignore, seqno);
+				handle_response_invite(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_REFER)
 				handle_response_refer(p, resp, rest, req, ignore, seqno);
 			else if (p->registry && sipmethod == SIP_REGISTER)
@@ -10199,7 +10200,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 403: /* Forbidden - we failed authentication */
 			if (sipmethod == SIP_INVITE)
-				handle_response_invite(p, resp, rest, req, ignore, seqno);
+				handle_response_invite(p, resp, rest, req, seqno);
 			else if (p->registry && sipmethod == SIP_REGISTER) 
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
 			else {
@@ -10211,13 +10212,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (p->registry && sipmethod == SIP_REGISTER)
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
 			else if (sipmethod == SIP_INVITE)
-				handle_response_invite(p, resp, rest, req, ignore, seqno);
+				handle_response_invite(p, resp, rest, req, seqno);
 			else if (owner)
 				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 			break;
 		case 407: /* Proxy auth required */
 			if (sipmethod == SIP_INVITE)
-				handle_response_invite(p, resp, rest, req, ignore, seqno);
+				handle_response_invite(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_REFER)
 				handle_response_refer(p, resp, rest, req, ignore, seqno);
 			else if (p->registry && sipmethod == SIP_REGISTER)
@@ -10237,7 +10238,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 491: /* Pending */
 			if (sipmethod == SIP_INVITE)
-				handle_response_invite(p, resp, rest, req, ignore, seqno);
+				handle_response_invite(p, resp, rest, req, seqno);
 			else {
 				ast_log(LOG_DEBUG, "Got 491 on %s, unspported. Call ID %s\n", sip_methods[sipmethod].text, p->callid);
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
@@ -10245,7 +10246,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 501: /* Not Implemented */
 			if (sipmethod == SIP_INVITE)
-				handle_response_invite(p, resp, rest, req, ignore, seqno);
+				handle_response_invite(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_REFER)
 				handle_response_refer(p, resp, rest, req, ignore, seqno);
 			else
@@ -10358,7 +10359,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		switch(resp) {
 		case 200:
 			if (sipmethod == SIP_INVITE) {
-				handle_response_invite(p, resp, rest, req, ignore, seqno);
+				handle_response_invite(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_CANCEL) {
 				ast_log(LOG_DEBUG, "Got 200 OK on CANCEL\n");
 				/* Wait for 487, then destroy */
@@ -10375,7 +10376,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (sipmethod == SIP_REFER)
 				handle_response_refer(p, resp, rest, req, ignore, seqno);
 			else if (sipmethod == SIP_INVITE) 
-				handle_response_invite(p, resp, rest, req, ignore, seqno);
+				handle_response_invite(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_BYE) {
 				char *auth, *auth2;
 
@@ -10390,12 +10391,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 481:	/* Call leg does not exist */
 			if (sipmethod == SIP_INVITE) {
 				/* Re-invite failed */
-				handle_response_invite(p, resp, rest, req, ignore, seqno);
+				handle_response_invite(p, resp, rest, req, seqno);
 			}
 			break;
 		case 501: /* Not Implemented */
 			if (sipmethod == SIP_INVITE) 
-				handle_response_invite(p, resp, rest, req, ignore, seqno);
+				handle_response_invite(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_REFER) 
 				handle_response_refer(p, resp, rest, req, ignore, seqno);
 			break;
