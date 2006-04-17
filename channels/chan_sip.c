@@ -5209,13 +5209,24 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		add_header(&req, p->options->authheader, p->options->auth);
 	append_date(&req);
 	if (sipmethod == SIP_REFER) {	/* Call transfer */
-		if (!ast_strlen_zero(p->refer_to))
-			add_header(&req, "Refer-To", p->refer_to);
-		if (!ast_strlen_zero(p->referred_by))
-			add_header(&req, "Referred-By", p->referred_by);
+		if (p->refer) {
+			char buf[BUFSIZ];
+			if (!ast_strlen_zero(p->refer->refer_to))
+				add_header(&req, "Refer-To", p->refer->refer_to);
+			if (!ast_strlen_zero(p->refer->referred_by)) {
+				sprintf(buf, "%s <%s>", p->refer->referred_by_name, p->refer->referred_by);
+				add_header(&req, "Referred-By", buf);
+			}
+		}
 	}
-	if (p->options && !ast_strlen_zero(p->options->distinctive_ring))
-	{
+	/* This new INVITE is part of an attended transfer. Make sure that the
+	other end knows and replace the current call with this new call */
+	if (p->options && p->options->replaces && !ast_strlen_zero(p->options->replaces)) {
+		add_header(&req, "Replaces", p->options->replaces);
+		add_header(&req, "Required", "replaces");
+	}
+
+	if (p->options && !ast_strlen_zero(p->options->distinctive_ring)) {
 		add_header(&req, "Alert-Info", p->options->distinctive_ring);
 	}
 	add_header(&req, "Allow", ALLOWED_METHODS);
