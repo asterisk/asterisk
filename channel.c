@@ -2746,7 +2746,8 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 	   transcoding is needed; if desired, force transcode path
 	   to use SLINEAR between channels, but only if there is
 	   no direct conversion available */
-	if ((src != dst) && ast_opt_transcode_via_slin && ast_translate_path_steps(dst, src))
+	if ((src != dst) && ast_opt_transcode_via_slin &&
+	    (ast_translate_path_steps(dst, src) != 1))
 		dst = AST_FORMAT_SLINEAR;
 	if (ast_set_read_format(chan, dst) < 0) {
 		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", chan->name, dst);
@@ -2769,7 +2770,8 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 	   transcoding is needed; if desired, force transcode path
 	   to use SLINEAR between channels, but only if there is
 	   no direct conversion available */
-	if ((src != dst) && ast_opt_transcode_via_slin && ast_translate_path_steps(dst, src))
+	if ((src != dst) && ast_opt_transcode_via_slin &&
+	    (ast_translate_path_steps(dst, src) != 1))
 		dst = AST_FORMAT_SLINEAR;
 	if (ast_set_read_format(peer, dst) < 0) {
 		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", peer->name, dst);

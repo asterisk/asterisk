@@ -659,5 +659,5 @@ unsigned int ast_translate_path_steps(unsigned int dest, unsigned int src)
 	if (!tr_matrix[src][dest].step)
 		return -1;
 	else
-		return tr_matrix[src][dest].multistep;
+		return tr_matrix[src][dest].multistep + 1;
 }
