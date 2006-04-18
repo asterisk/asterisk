@@ -5396,8 +5396,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
  */
 static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 {
-	int res;
-	res = ast_parseable_goto(chan, (const char *) data);
+	int res = ast_parseable_goto(chan, (const char *) data);
 	if (!res && (option_verbose > 2))
 		ast_verbose( VERBOSE_PREFIX_3 "Goto (%s,%s,%d)\n", chan->context,chan->exten, chan->priority+1);
 	return res;
@@ -5560,8 +5559,7 @@ int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 	for (x = 0; x < argc; x++) {
 		name = argv[x];
 		if ((value = strchr(name, '='))) {
-			*value = '\0';
-			value++;
+			*value++ = '\0';
 			pbx_builtin_setvar_helper((global) ? NULL : chan, name, value);
 		} else
 			ast_log(LOG_WARNING, "Ignoring entry '%s' with no = (and not last 'options' entry)\n", name);
@@ -5574,25 +5572,21 @@ int pbx_builtin_importvar(struct ast_channel *chan, void *data)
 {
 	char *name;
 	char *value;
-	char *stringp=NULL;
 	char *channel;
-	struct ast_channel *chan2;
 	char tmp[VAR_BUF_SIZE]="";
-	char *s;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
 		return 0;
 	}
 
-	stringp = ast_strdupa(data);
-	name = strsep(&stringp,"=");
-	channel = strsep(&stringp,"|"); 
-	value = strsep(&stringp,"\0");
-	if (channel && value && name) {
-		chan2 = ast_get_channel_by_name_locked(channel);
+	value = ast_strdupa(data);
+	name = strsep(&value,"=");
+	channel = strsep(&value,"|"); 
+	if (channel && value && name) { /*! \todo XXX should do !ast_strlen_zero(..) of the args ? */
+		struct ast_channel *chan2 = ast_get_channel_by_name_locked(channel);
 		if (chan2) {
-			s = alloca(strlen(value) + 4);
+			char *s = alloca(strlen(value) + 4);
 			if (s) {
 				sprintf(s, "${%s}", value);
 				pbx_substitute_variables_helper(chan2, s, tmp, sizeof(tmp) - 1);
@@ -5605,22 +5599,20 @@ int pbx_builtin_importvar(struct ast_channel *chan, void *data)
 	return(0);
 }
 
+/*! \todo XXX overwrites data ? */
 static int pbx_builtin_setglobalvar(struct ast_channel *chan, void *data)
 {
 	char *name;
-	char *value;
-	char *stringp = NULL;
+	char *stringp = data;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
 		return 0;
 	}
 
-	stringp = data;
 	name = strsep(&stringp, "=");
-	value = strsep(&stringp, "\0"); 
-
-	pbx_builtin_setvar_helper(NULL, name, value);
+	/*! \todo XXX watch out, leading whitespace ? */
+	pbx_builtin_setvar_helper(NULL, name, stringp);
 
 	return(0);
 }
@@ -5629,7 +5621,6 @@ static int pbx_builtin_noop(struct ast_channel *chan, void *data)
 {
 	return 0;
 }
-
 
 void pbx_builtin_clear_globals(void)
 {
@@ -5643,27 +5634,17 @@ void pbx_builtin_clear_globals(void)
 
 int pbx_checkcondition(char *condition) 
 {
-	if (condition) {
-		if (*condition == '\0') {
-			/* Empty strings are false */
-			return 0;
-		} else if (*condition >= '0' && *condition <= '9') {
-			/* Numbers are evaluated for truth */
-			return atoi(condition);
-		} else {
-			/* Strings are true */
-			return 1;
-		}
-	} else {
-		/* NULL is also false */
+	if (ast_strlen_zero(condition))	/* NULL or empty strings are false */
 		return 0;
-	}
+	else if (*condition >= '0' && *condition <= '9')	/* Numbers are evaluated for truth */
+		return atoi(condition);
+	else	/* Strings are true */
+		return 1;
 }
 
 static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 {
 	char *condition, *branch1, *branch2, *branch;
-	char *s;
 	int rc;
 	char *stringp=NULL;
 
@@ -5672,8 +5653,7 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	
-	s = ast_strdupa(data);
-	stringp = s;
+	stringp = ast_strdupa(data);
 	condition = strsep(&stringp,"?");
 	branch1 = strsep(&stringp,":");
 	branch2 = strsep(&stringp,"");
@@ -5691,18 +5671,15 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)
 {
-	int res = 0;
 	char tmp[256];
-	char *number = (char *) NULL;
-	char *options = (char *) NULL;
+	char *number = tmp;
+	char *options;
 
-	
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SayNumber requires an argument (number)\n");
 		return -1;
 	}
-	ast_copy_string(tmp, (char *) data, sizeof(tmp));
-	number=tmp;
+	ast_copy_string(tmp, data, sizeof(tmp));
 	strsep(&number, "|");
 	options = strsep(&number, "|");
 	if (options) { 
@@ -5712,7 +5689,7 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)
 			return -1;
 		}
 	}
-	return res = ast_say_number(chan, atoi((char *) tmp), "", chan->language, options);
+	return ast_say_number(chan, atoi(tmp), "", chan->language, options);
 }
 
 static int pbx_builtin_saydigits(struct ast_channel *chan, void *data)
@@ -5982,9 +5959,8 @@ int ast_async_goto_if_exists(struct ast_channel *chan, const char * context, con
 
 int ast_parseable_goto(struct ast_channel *chan, const char *goto_string) 
 {
-	char *s;
 	char *exten, *pri, *context;
-	char *stringp=NULL;
+	char *stringp;
 	int ipri;
 	int mode = 0;
 
@@ -5992,23 +5968,18 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
 		ast_log(LOG_WARNING, "Goto requires an argument (optional context|optional extension|priority)\n");
 		return -1;
 	}
-	s = ast_strdupa(goto_string);
-	stringp=s;
-	context = strsep(&stringp, "|");
+	stringp = ast_strdupa(goto_string);
+	context = strsep(&stringp, "|");	/* guaranteed non-null */
 	exten = strsep(&stringp, "|");
-	if (!exten) {
-		/* Only a priority in this one */
+	pri = strsep(&stringp, "|");
+	if (!exten) {	/* Only a priority in this one */
 		pri = context;
 		exten = NULL;
 		context = NULL;
-	} else {
-		pri = strsep(&stringp, "|");
-		if (!pri) {
-			/* Only an extension and priority in this one */
-			pri = exten;
-			exten = context;
-			context = NULL;
-		}
+	} else if (!pri) {	/* Only an extension and priority in this one */
+		pri = exten;
+		exten = context;
+		context = NULL;
 	}
 	if (*pri == '+') {
 		mode = 1;
