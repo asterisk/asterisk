@@ -1343,9 +1343,11 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 			needsub = 0;
 
 			/* Find the end of it */
-			while(brackets && *vare) {
+			while (brackets && *vare) {
 				if ((vare[0] == '$') && (vare[1] == '{')) {
 					needsub++;
+					brackets++;
+				} else if (vare[0] == '{') {
 					brackets++;
 				} else if (vare[0] == '}') {
 					brackets--;
