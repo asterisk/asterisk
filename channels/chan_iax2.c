@@ -3337,7 +3337,7 @@ static void unlock_both(unsigned short callno0, unsigned short callno1)
 static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms)
 {
 	struct ast_channel *cs[3];
-	struct ast_channel *who;
+	struct ast_channel *who, *other;
 	int to = -1;
 	int res = -1;
 	int transferstarted=0;
@@ -3443,49 +3443,27 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 			res =  AST_BRIDGE_COMPLETE;
 			break;
 		}
+		other = (who == c0) ? c1 : c0;  /* the 'other' channel */
 		if ((f->frametype == AST_FRAME_VOICE) ||
 		    (f->frametype == AST_FRAME_TEXT) ||
 		    (f->frametype == AST_FRAME_VIDEO) || 
 		    (f->frametype == AST_FRAME_IMAGE) ||
 		    (f->frametype == AST_FRAME_DTMF)) {
-			if ((f->frametype == AST_FRAME_DTMF) && 
-			    (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))) {
-				if ((who == c0)) {
-					if  ((flags & AST_BRIDGE_DTMF_CHANNEL_0)) {
-						*rc = c0;
-						*fo = f;
-						res = AST_BRIDGE_COMPLETE;
-						/* Remove from native mode */
-						break;
-					} else 
-						goto tackygoto;
-				} else
-				if ((who == c1)) {
-					if (flags & AST_BRIDGE_DTMF_CHANNEL_1) {
-						*rc = c1;
-						*fo = f;
-						res =  AST_BRIDGE_COMPLETE;
-						break;
-					} else
-						goto tackygoto;
-				}
-			} else {
-#if 0
-				if (iaxdebug && option_debug)
-					ast_log(LOG_DEBUG, "Read from %s\n", who->name);
-				if (who == last) 
-					ast_log(LOG_DEBUG, "Servicing channel %s twice in a row?\n", last->name);
-				last = who;
-#endif
-tackygoto:
-				if (who == c0) 
-					ast_write(c1, f);
-				else 
-					ast_write(c0, f);
+			/* monitored dtmf take out of the bridge.
+			 * check if we monitor the specific source.
+			 */
+			int monitored_source = (who == c0) ? AST_BRIDGE_DTMF_CHANNEL_0 : AST_BRIDGE_DTMF_CHANNEL_1;
+			if (f->frametype == AST_FRAME_DTMF && (flags & monitored_source)) {
+				*rc = who;
+				*fo = f;
+				res = AST_BRIDGE_COMPLETE;
+				/* Remove from native mode */
+				break;
 			}
-			ast_frfree(f);
-		} else
-			ast_frfree(f);
+			/* everything else goes to the other side */
+			ast_write(other, f);
+		}
+		ast_frfree(f);
 		/* Swap who gets priority */
 		cs[2] = cs[0];
 		cs[0] = cs[1];
