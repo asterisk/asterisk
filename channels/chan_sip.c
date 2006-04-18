@@ -11097,7 +11097,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			transmit_response(p, "180 Ringing", req);
 			break;
 		case AST_STATE_UP:
-			transmit_response_with_sdp(p, "200 OK", req, 1);
+			transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE);
 			break;
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle INVITE in state %d\n", c->_state);
