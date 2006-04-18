@@ -82,10 +82,10 @@ static int random_exec(struct ast_channel *chan, void *data)
 
 	if (!deprecated) {
 		deprecated = 1;
-		ast_log(LOG_WARNING, "Random is deprecated in Asterisk 1.3 or later.  Replace with GotoIf($[${RAND(0,99)} + %d >= 100]?%s)\n", probint, s);
+		ast_log(LOG_WARNING, "Random is deprecated in Asterisk 1.4.  Replace with GotoIf($[${RAND(0,99)} + %d >= 100]?%s)\n", probint, s);
 	}
 
-	if ((ast_random() % 100) + probint > 100) {
+	if ((ast_random() % 100) + probint >= 100) {
 		res = ast_parseable_goto(chan, s);
 		if (option_verbose > 2)
 			ast_verbose( VERBOSE_PREFIX_3 "Random branches to (%s,%s,%d)\n",
