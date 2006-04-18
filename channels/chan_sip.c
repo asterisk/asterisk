@@ -2340,6 +2340,8 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 		ast_rtp_destroy(p->rtp);
 	if (p->vrtp)
 		ast_rtp_destroy(p->vrtp);
+	if (p->refer)
+		free(p->refer);
 	if (p->route) {
 		free_old_route(p->route);
 		p->route = NULL;
@@ -5821,8 +5823,8 @@ static int transmit_message_with_text(struct sip_pvt *p, const char *text)
 
 /*! \brief Allocate SIP refer structure */
 int sip_refer_allocate(struct sip_pvt *p) {
-   p->refer = ast_calloc(1, sizeof(struct sip_refer)); 
-   return p->refer ? 1 : 0;
+	p->refer = ast_calloc(1, sizeof(struct sip_refer)); 
+	return p->refer ? 1 : 0;
 }
 
 /*! \brief Transmit SIP REFER message */
@@ -5833,12 +5835,23 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	const char *of;
 	char *c;
 	char referto[256];
+	char *ttag, *ftag;
+	char *theirtag = ast_strdupa(p->theirtag);
 
-	/* Are we transfering an inbound or outbound call? */
-	if (ast_test_flag(&p->flags[0], SIP_OUTGOING))
+	if (option_debug || sipdebug)
+		ast_log(LOG_DEBUG, "SIP transfer of %s to %s\n", p->callid, dest);
+
+	/* Are we transfering an inbound or outbound call ? */
+	if (ast_test_flag(&p->flags[0], SIP_OUTGOING))  {
 		of = get_header(&p->initreq, "To");
-	else
+		ttag = theirtag;
+		ftag = p->tag;
+	} else {
 		of = get_header(&p->initreq, "From");
+		ftag = theirtag;
+		ttag = p->tag;
+	}
+
 	ast_copy_string(from, of, sizeof(from));
 	of = get_in_brackets(from);
 	ast_string_field_set(p, from, of);
@@ -5851,17 +5864,18 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 		c = NULL;
 	else if ((c = strchr(of, '@')))
 		*c++ = '\0';
-	if (c) {
+	if (c) 
 		snprintf(referto, sizeof(referto), "<sip:%s@%s>", dest, c);
-	} else {
+	else
 		snprintf(referto, sizeof(referto), "<sip:%s>", dest);
-	}
 
 	add_header(&req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 
 	/* save in case we get 407 challenge */
-	ast_string_field_set(p, refer_to, referto);
-	ast_string_field_set(p, referred_by, p->our_contact);
+	sip_refer_allocate(p);
+	ast_copy_string(p->refer->refer_to, referto, sizeof(p->refer->refer_to));
+	ast_copy_string(p->refer->referred_by, p->our_contact, sizeof(p->refer->referred_by));
+	p->refer->status = REFER_SENT;   /* Set refer status */
 
 	reqprep(&req, p, SIP_REFER, 0, 1);
 	add_header(&req, "Refer-To", referto);
@@ -5870,7 +5884,10 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	if (!ast_strlen_zero(p->our_contact))
 		add_header(&req, "Referred-By", p->our_contact);
 	add_blank_header(&req);
+
 	return send_request(p, &req, 1, p->ocseq);
+	/* We should propably wait for a NOTIFY here until we ack the transfer */
+	/* Maybe fork a new thread and wait for a STATUS of REFER_200OK on the refer status before returning to app_transfer */
 
 	/*! \todo In theory, we should hang around and wait for a reply, before
 	returning to the dial plan here. Don't know really how that would
@@ -5878,6 +5895,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	useful we should have a STATUS code on transfer().
 	*/
 }
+
 
 /*! \brief Send SIP INFO dtmf message, see Cisco documentation on cisco.com */
 static int transmit_info_with_digit(struct sip_pvt *p, char digit)
