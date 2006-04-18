@@ -5505,19 +5505,25 @@ static int transmit_sip_request(struct sip_pvt *p,struct sip_request *req)
 	return send_request(p, req, 0, p->ocseq);
 }
 
-/*! \brief Notify a transferring party of the status of transfer
- */
-static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *message)
+/*! \brief Notify a transferring party of the status of transfer */
+static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *message, int terminate)
 {
 	struct sip_request req;
-	char tmp[50];
+	char tmp[BUFSIZ/2];
+
 	reqprep(&req, p, SIP_NOTIFY, 0, 1);
 	snprintf(tmp, sizeof(tmp), "refer;id=%d", cseq);
 	add_header(&req, "Event", tmp);
-	add_header(&req, "Subscription-state", "terminated;reason=noresource");
+	if (terminate)
+		add_header(&req, "Subscription-state", "terminated;reason=noresource");
 	add_header(&req, "Content-Type", "message/sipfrag;version=2.0");
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
+
+	snprintf(tmp, sizeof(tmp), "SIP/2.0 %s\r\n", message);
+	add_header_contentLength(&req, strlen(tmp));
+	add_line(&req, tmp);
+
 
 	snprintf(tmp, sizeof(tmp), "SIP/2.0 %s\r\n", message);
 	add_header_contentLength(&req, strlen(tmp));
@@ -10566,85 +10572,124 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 /*! \brief Park SIP call support function */
 static void *sip_park_thread(void *stuff)
 {
-	struct ast_channel *chan1, *chan2;
+	struct ast_channel *transferee, *transferer;	/* Chan1: The transferee, Chan2: The transferer */
 	struct sip_dual *d;
 	struct sip_request req;
 	int ext;
 	int res;
+
 	d = stuff;
-	chan1 = d->chan1;
-	chan2 = d->chan2;
+	transferee = d->chan1;
+	transferer = d->chan2;
 	copy_request(&req, &d->req);
 	free(d);
-	ast_channel_lock(chan1);
-	ast_do_masquerade(chan1);
-	ast_channel_unlock(chan1);
-	res = ast_park_call(chan1, chan2, 0, &ext);
-	/* Then hangup */
-	ast_hangup(chan2);
-	if (option_debug > 1)
-		ast_log(LOG_DEBUG, "Parked on extension '%d'\n", ext);
+	ast_channel_lock(transferee);
+	if (ast_do_masquerade(transferee)) {
+		ast_log(LOG_WARNING, "Masquerade failed.\n");
+		transmit_response(transferer->tech_pvt, "503 Internal error", &req);
+		ast_channel_unlock(transferee);
+		return NULL;
+	} 
+	ast_channel_unlock(transferee);
+
+	res = ast_park_call(transferee, transferer, 0, &ext);
+
+#ifdef WHEN_WE_KNOW_THAT_THE_CLIENT_SUPPORTS_MESSAGE
+	if (!res) {
+		transmit_message_with_text(transferer->tech_pvt, "Unable to park call.\n");
+	} else {
+		/* Then tell the transferer what happened */
+		sprintf(buf, "Call parked on extension '%d'", ext);
+		transmit_message_with_text(transferer->tech_pvt, buf);
+	}
+#endif
+
+	/* Any way back to the current call??? */
+	transmit_response(transferer->tech_pvt, "202 Accepted", &req);
+	if (!res)	{
+		/* Transfer succeeded */
+		transmit_notify_with_sipfrag(transferer->tech_pvt, d->seqno, "200 OK", 1);
+		transferer->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+		ast_hangup(transferer); /* This will cause a BYE */
+		if (option_debug)
+			ast_log(LOG_DEBUG, "SIP Call parked on extension '%d'\n", ext);
+	} else {
+		transmit_notify_with_sipfrag(transferer->tech_pvt, d->seqno, "503 Service Unavailable", 1);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "SIP Call parked failed \n");
+		/* Do not hangup call */
+	}
 	return NULL;
 }
 
 /*! \brief Park a call */
-static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct sip_request *req)
+static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct sip_request *req, int seqno)
 {
 	struct sip_dual *d;
-	struct ast_channel *chan1m, *chan2m;
+	struct ast_channel *transferee, *transferer;
+		/* Chan2m: The transferer, chan1m: The transferee */
 	pthread_t th;
-	chan1m = ast_channel_alloc(0);
-	chan2m = ast_channel_alloc(0);
-	if ((!chan2m) || (!chan1m)) {
-		if (chan1m) {
-			chan1m->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
-			ast_hangup(chan1m);
+
+	transferee = ast_channel_alloc(0);
+	transferer = ast_channel_alloc(0);
+	if ((!transferer) || (!transferee)) {
+		if (transferee) {
+			transferee->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+			ast_hangup(transferee);
 		}
-		if (chan2m) {
-			chan2m->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
-			ast_hangup(chan2m);
+		if (transferer) {
+			transferer->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+			ast_hangup(transferer);
 		}
 		return -1;
 	}
-	ast_string_field_build(chan1m, name, "Parking/%s", chan1->name);
+	ast_string_field_build(transferee, name,  "Parking/%s", chan1->name);
+
 	/* Make formats okay */
-	chan1m->readformat = chan1->readformat;
-	chan1m->writeformat = chan1->writeformat;
-	ast_channel_masquerade(chan1m, chan1);
+	transferee->readformat = chan1->readformat;
+	transferee->writeformat = chan1->writeformat;
+	ast_channel_masquerade(transferee, chan1);
+
 	/* Setup the extensions and such */
-	ast_copy_string(chan1m->context, chan1->context, sizeof(chan1m->context));
-	ast_copy_string(chan1m->exten, chan1->exten, sizeof(chan1m->exten));
-	chan1m->priority = chan1->priority;
+	ast_copy_string(transferee->context, chan1->context, sizeof(transferee->context));
+	ast_copy_string(transferee->exten, chan1->exten, sizeof(transferee->exten));
+	transferee->priority = chan1->priority;
 		
 	/* We make a clone of the peer channel too, so we can play
 	   back the announcement */
-	ast_string_field_build(chan2m, name, "SIPPeer/%s",chan2->name);
+	ast_string_field_build(transferer, name, "SIPPeer/%s", chan2->name);
+
 	/* Make formats okay */
-	chan2m->readformat = chan2->readformat;
-	chan2m->writeformat = chan2->writeformat;
-	ast_channel_masquerade(chan2m, chan2);
+	transferer->readformat = chan2->readformat;
+	transferer->writeformat = chan2->writeformat;
+	ast_channel_masquerade(transferer, chan2);
+
 	/* Setup the extensions and such */
-	ast_copy_string(chan2m->context, chan2->context, sizeof(chan2m->context));
-	ast_copy_string(chan2m->exten, chan2->exten, sizeof(chan2m->exten));
-	chan2m->priority = chan2->priority;
-	ast_channel_lock(chan2m);
-	if (ast_do_masquerade(chan2m)) {
+	ast_copy_string(transferer->context, chan2->context, sizeof(transferer->context));
+	ast_copy_string(transferer->exten, chan2->exten, sizeof(transferer->exten));
+	transferer->priority = chan2->priority;
+
+	ast_channel_lock(transferer);
+	if (ast_do_masquerade(transferer)) {
 		ast_log(LOG_WARNING, "Masquerade failed :(\n");
-		ast_channel_unlock(chan2m);
-		chan2m->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
-		ast_hangup(chan2m);
+		ast_channel_unlock(transferer);
+		transferer->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+		ast_hangup(transferer);
 		return -1;
 	}
-	ast_channel_unlock(chan2m);
+	ast_channel_unlock(transferer);
 	if ((d = ast_calloc(1, sizeof(*d)))) {
 		/* Save original request for followup */
 		copy_request(&d->req, req);
-		d->chan1 = chan1m;
-		d->chan2 = chan2m;
-		if (!ast_pthread_create(&th, NULL, sip_park_thread, d))
+		d->chan1 = transferee;	/* Transferee */
+		d->chan2 = transferer;	/* Transferer */
+		d->seqno = seqno;
+		if (!ast_pthread_create(&th, NULL, sip_park_thread, d)) {
+			free(d);
 			return 0;
+		}
 		free(d);
-	}
+	} 
 	return -1;
 }
 
@@ -11245,7 +11290,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 							    be accessible after the transfer! */
 							*nounlock = 1;
 							ast_channel_unlock(c);
-							sip_park(transfer_to, c, req);
+							sip_park(transfer_to, c, req, seqno);
 							nobye = 1;
 						} else {
 							/* Must release c's lock now, because it will not longer
@@ -11262,7 +11307,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 				ast_set_flag(&p->flags[0], SIP_GOTREFER);	
 			}
 			transmit_response(p, "202 Accepted", req);
-			transmit_notify_with_sipfrag(p, seqno, "200 OK");
+			transmit_notify_with_sipfrag(p, seqno, "200 OK", 1);
 			/* Always increment on a BYE */
 			if (!nobye) {
 				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
