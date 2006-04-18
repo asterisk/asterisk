@@ -2790,7 +2790,7 @@ static int sip_answer(struct ast_channel *ast)
 		ast_setstate(ast, AST_STATE_UP);
 		if (option_debug)
 			ast_log(LOG_DEBUG, "SIP answering channel: %s\n", ast->name);
-		res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_RELIABLE);
+		res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
 	}
 	ast_mutex_unlock(&p->lock);
 	return res;
@@ -11097,7 +11097,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			transmit_response(p, "180 Ringing", req);
 			break;
 		case AST_STATE_UP:
-			transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE);
+			transmit_response_with_sdp(p, "200 OK", req, XMIT_CRITICAL);
 			break;
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle INVITE in state %d\n", c->_state);
