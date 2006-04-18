@@ -3461,10 +3461,10 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			if (time_left_ms < to)
 				to = time_left_ms;
 
-			if (time_left_ms <= 0 && config->end_sound) {
-				if (caller_warning)
+			if (time_left_ms <= 0) {
+				if (caller_warning && config->end_sound)
 					bridge_playfile(c0, c1, config->end_sound, 0);
-				if (callee_warning)
+				if (callee_warning && config->end_sound)
 					bridge_playfile(c1, c0, config->end_sound, 0);
 				*fo = NULL;
 				if (who)
