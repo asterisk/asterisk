@@ -8682,10 +8682,12 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 {
 #define FORMAT3 "%-15.15s  %-10.10s  %-11.11s  %-15.15s  %-13.13s  %-15.15s %-10.10s\n"
 #define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-4.4s  %-7.7s  %-15.15s\n"
-#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-4.4s  %-3.3s %-3.3s  %-15.15s\n"
+#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-4.4s  %-3.3s %-3.3s  %-15.15s %-10.10s\n"
 	struct sip_pvt *cur;
 	char iabuf[INET_ADDRSTRLEN];
 	int numchans = 0;
+	char *referstatus = NULL;
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&iflock);
@@ -8695,6 +8697,10 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 	else 
 		ast_cli(fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type", "Mailbox");
 	for (; cur; cur = cur->next) {
+		referstatus = "";
+		if (cur->refer) { /* SIP transfer in progress */
+			referstatus = referstatus2str(cur->refer->status);
+		}
 		if (cur->subscribed == NONE && !subscriptions) {
 			ast_cli(fd, FORMAT, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), 
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")),
@@ -8703,7 +8709,9 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 				ast_getformatname(cur->owner ? cur->owner->nativeformats : 0), 
 				ast_test_flag(&cur->flags[0], SIP_CALL_ONHOLD) ? "Yes" : "No",
 				ast_test_flag(&cur->flags[0], SIP_NEEDDESTROY) ? "(d)" : "",
-				cur->lastmsg );
+				cur->lastmsg ,
+				referstatus
+			);
 			numchans++;
 		}
 		if (cur->subscribed != NONE && subscriptions) {
