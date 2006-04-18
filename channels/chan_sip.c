@@ -1107,6 +1107,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req);
 /*------Response handling functions */
 static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
+static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_request *req);
 
 /*----- RTP interface functions */
 static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active);
@@ -10155,7 +10156,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 }
 
 /*! \brief Handle qualification responses (OPTIONS) */
-static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno, int sipmethod)
+static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_request *req)
 {
 	struct sip_peer *peer;
 	int pingtime;
@@ -10197,8 +10198,6 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
 
 		if (peer->pokeexpire > -1)
 			ast_sched_del(sched, peer->pokeexpire);
-		if (sipmethod == SIP_INVITE)	/* Does this really happen? */
-			transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 
 		/* Try again eventually */
@@ -10249,7 +10248,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		   Well, as long as it's not a 100 response...  since we might
 		   need to hang around for something more "definitive" */
 
-		res = handle_response_peerpoke(p, resp, rest, req, ignore, seqno, sipmethod);
+		res = handle_response_peerpoke(p, resp, req);
 	} else if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 		switch(resp) {
 		case 100:	/* 100 Trying */
