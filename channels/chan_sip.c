@@ -10268,6 +10268,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (sipmethod == SIP_MESSAGE) {
 				/* We successfully transmitted a message */
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			} else if (sipmethod == SIP_INVITE) {
+				handle_response_invite(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_NOTIFY) {
 				/* They got the notify, this is the end */
 				if (p->owner) {
@@ -10278,9 +10280,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY); 
 					}
 				}
-			} else if (sipmethod == SIP_INVITE)
-				handle_response_invite(p, resp, rest, req, seqno);
-			else if (sipmethod == SIP_REGISTER)
+			} else if (sipmethod == SIP_REGISTER)
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
 			break;
 		case 202:   /* Transfer accepted */
@@ -10336,6 +10336,35 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			} else	/* We can't handle this, giving up in a bad way */
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 
+			break;
+		case 481: /* Call leg does not exist */
+			if (sipmethod == SIP_INVITE) {
+				/* First we ACK */
+				transmit_request(p, SIP_ACK, seqno, 0, 0);
+					ast_log(LOG_WARNING, "INVITE with REPLACEs failed to '%s'\n", get_header(&p->initreq, "From"));
+				if (owner)
+					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+				sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+			} else if (sipmethod == SIP_REFER) {
+				/* A transfer with Replaces did not work */
+				/* OEJ: We should Set flag, cancel the REFER, go back
+				to original call - but right now we can't */
+				ast_log(LOG_WARNING, "Remote host can't match request %s to call '%s'. Giving up.\n", sip_methods[sipmethod].text, p->callid);
+				if (owner)
+					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+			} else if (sipmethod == SIP_BYE) {
+				/* The other side has no transaction to bye,
+				just assume it's all right then */
+				ast_log(LOG_WARNING, "Remote host can't match request %s to call '%s'. Giving up.\n", sip_methods[sipmethod].text, p->callid);
+			} else if (sipmethod == SIP_CANCEL) {
+				/* The other side has no transaction to cancel,
+				just assume it's all right then */
+				ast_log(LOG_WARNING, "Remote host can't match request %s to call '%s'. Giving up.\n", sip_methods[sipmethod].text, p->callid);
+			} else {
+				ast_log(LOG_WARNING, "Remote host can't match request %s to call '%s'. Giving up.\n", sip_methods[sipmethod].text, p->callid);
+				/* Guessing that this is not an important request */
+			}
 			break;
 		case 491: /* Pending */
 			if (sipmethod == SIP_INVITE)
