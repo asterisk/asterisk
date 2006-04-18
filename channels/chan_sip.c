@@ -753,6 +753,7 @@ static struct sip_pvt {
 		AST_STRING_FIELD(exten);	/*!< Extension where to start */
 		AST_STRING_FIELD(context);	/*!< Context for this call */
 		AST_STRING_FIELD(subscribecontext); /*!< Subscribecontext */
+		AST_STRING_FIELD(subscribeuri); /*!< Subscribecontext */
 		AST_STRING_FIELD(fromdomain);	/*!< Domain to show in the from field */
 		AST_STRING_FIELD(fromuser);	/*!< User to show in the user field */
 		AST_STRING_FIELD(fromname);	/*!< Name to show in the user field */
@@ -8692,7 +8693,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")), 
 			   	cur->callid,
 				/* the 'complete' exten/context is hidden in the refer_to field for subscriptions */
-				cur->subscribed == MWI_NOTIFICATION ? "--" : cur->refer_to,
+				cur->subscribed == MWI_NOTIFICATION ? "--" : cur->subscribeuri,
 				cur->subscribed == MWI_NOTIFICATION ? "<none>" : ast_extension_state2str(cur->laststate), 
 				subscription_type2str(cur->subscribed),
 				cur->subscribed == MWI_NOTIFICATION ? (cur->relatedpeer ? cur->relatedpeer->mailbox : "<none>") : "<none>"
@@ -11498,7 +11499,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				transmit_state_notify(p, firststate, 1);	/* Send first notification */
 				append_history(p, "Subscribestatus", "%s", ast_extension_state2str(firststate));
 				/* hide the 'complete' exten/context in the refer_to field for later display */
-				ast_string_field_build(p, refer_to, "%s@%s", p->exten, p->context);
+				ast_string_field_build(p, subscribeuri, "%s@%s", p->exten, p->context);
 
 				/* remove any old subscription from this peer for the same exten/context,
 			   	as the peer has obviously forgotten about it and it's wasteful to wait
