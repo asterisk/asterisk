@@ -444,7 +444,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	char *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL, *touch_filename = NULL;
 	int x = 0;
 	size_t len;
-	struct ast_channel *caller_chan = NULL, *callee_chan = NULL;
+	struct ast_channel *caller_chan, *callee_chan;
 
 	if (!monitor_ok) {
 		ast_log(LOG_ERROR,"Cannot record the call. The monitor application is disabled.\n");
@@ -574,9 +574,9 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	if (res < 0) {
 		finishup(transferee);
 		return -1; /* error ? */
-	} else if (res > 0) {	/* If they've typed a digit already, handle it */
-		xferto[0] = (char) res;
 	}
+	if (res > 0)	/* If they've typed a digit already, handle it */
+		xferto[0] = (char) res;
 
 	ast_stopstream(transferer);
 	res = ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout);
@@ -634,18 +634,31 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	return FEATURE_RETURN_SUCCESS;
 }
 
+static int check_compat(struct ast_channel *c, struct ast_channel *newchan)
+{
+	if (ast_channel_make_compatible(c, newchan) < 0) {
+		ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n",
+			c->name, newchan->name);
+		ast_hangup(newchan);
+		return -1;
+	}
+	return 0;
+}
+
 static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
 	struct ast_channel *transferer;
 	struct ast_channel *transferee;
-	struct ast_channel *newchan, *xferchan=NULL;
-	int outstate=0;
-	struct ast_bridge_config bconfig;
 	const char *transferer_real_context;
-	char xferto[256],dialstr[265];
+	char xferto[256];
 	int res;
-	struct ast_frame *f = NULL;
+	int outstate=0;
+	struct ast_channel *newchan;
+	struct ast_channel *xferchan;
 	struct ast_bridge_thread_obj *tobj;
+	struct ast_bridge_config bconfig;
+	struct ast_frame *f;
+	int l;
 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Executing Attended Transfer %s, %s (sense=%d) \n", chan->name, peer->name, sense);
@@ -661,7 +674,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	if (res < 0) {
 		finishup(transferee);
 		return res;
-	} else if (res > 0) /* If they've typed a digit already, handle it */
+	}
+	if (res > 0) /* If they've typed a digit already, handle it */
 		xferto[0] = (char) res;
 
 	/* this is specific of atxfer */
@@ -677,114 +691,95 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			return -1;
 		return FEATURE_RETURN_SUCCESS;
 	}
+
 	/* valid extension, res == 1 */
-	{
-		if (!ast_exists_extension(transferer, transferer_real_context,xferto, 1, transferer->cid.cid_num)) {
-			ast_log(LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
-			finishup(transferee);
-			if (stream_and_wait(transferer, "beeperr", transferer->language, ""))
-				return -1;
-		} else {
-			snprintf(dialstr, sizeof(dialstr), "%s@%s/n", xferto, transferer_real_context);
-			newchan = ast_feature_request_and_dial(transferer, "Local", ast_best_codec(transferer->nativeformats), dialstr, 15000, &outstate, transferer->cid.cid_num, transferer->cid.cid_name);
-			ast_indicate(transferer, -1);
-			if (!newchan) {
-				finishup(transferee);
-				/* any reason besides user requested cancel and busy triggers the failed sound */
-				if (outstate != AST_CONTROL_UNHOLD && outstate != AST_CONTROL_BUSY &&
-						stream_and_wait(transferer, xferfailsound, transferer->language, ""))
-					return -1;
-				return FEATURE_RETURN_SUCCESS;
-			}
-			{
-				res = ast_channel_make_compatible(transferer, newchan);
-				if (res < 0) {
-					ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", transferer->name, newchan->name);
-					ast_hangup(newchan);
-					return -1;
-				}
-				memset(&bconfig,0,sizeof(struct ast_bridge_config));
-				ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
-				ast_set_flag(&(bconfig.features_callee), AST_FEATURE_DISCONNECT);
-				res = ast_bridge_call(transferer,newchan,&bconfig);
-				if (newchan->_softhangup || newchan->_state != AST_STATE_UP || !transferer->_softhangup) {
-					ast_hangup(newchan);
-					if (f) {
-						ast_frfree(f);
-						f = NULL;
-					}
-					if (stream_and_wait(transferer, xfersound, transferer->language, ""))
-						ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
-					finishup(transferee);
-					transferer->_softhangup = 0;
-					return FEATURE_RETURN_SUCCESS;
-				}
-				
-				res = ast_channel_make_compatible(transferee, newchan);
-				if (res < 0) {
-					ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", transferee->name, newchan->name);
-					ast_hangup(newchan);
-					return -1;
-				}
-				
-				
-				ast_moh_stop(transferee);
-				
-				if ((ast_autoservice_stop(transferee) < 0)
-				   || (ast_waitfordigit(transferee, 100) < 0)
-				   || (ast_waitfordigit(newchan, 100) < 0) 
-				   || ast_check_hangup(transferee) 
-				   || ast_check_hangup(newchan)) {
-					ast_hangup(newchan);
-					res = -1;
-					return -1;
-				}
-
-				if ((xferchan = ast_channel_alloc(0))) {
-					ast_string_field_build(xferchan, name, "Transfered/%s", transferee->name);
-					/* Make formats okay */
-					xferchan->readformat = transferee->readformat;
-					xferchan->writeformat = transferee->writeformat;
-					ast_channel_masquerade(xferchan, transferee);
-					ast_explicit_goto(xferchan, transferee->context, transferee->exten, transferee->priority);
-					xferchan->_state = AST_STATE_UP;
-					ast_clear_flag(xferchan, AST_FLAGS_ALL);	
-					xferchan->_softhangup = 0;
-
-					if ((f = ast_read(xferchan))) {
-						ast_frfree(f);
-						f = NULL;
-					}
-					
-				} else {
-					ast_hangup(newchan);
-					return -1;
-				}
-
-				newchan->_state = AST_STATE_UP;
-				ast_clear_flag(newchan, AST_FLAGS_ALL);	
-				newchan->_softhangup = 0;
-				
-				if ((tobj = ast_calloc(1, sizeof(*tobj)))) {
-					tobj->chan = xferchan;
-					tobj->peer = newchan;
-					tobj->bconfig = *config;
-	
-					if (stream_and_wait(newchan, xfersound, newchan->language, ""))
-						ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
-					ast_bridge_call_thread_launch(tobj);
-				} else {
-					ast_hangup(xferchan);
-					ast_hangup(newchan);
-				}
-				return -1;
-				
-			}
-		}
+	if (!ast_exists_extension(transferer, transferer_real_context, xferto, 1, transferer->cid.cid_num)) {
+		ast_log(LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
+		finishup(transferee);
+		if (stream_and_wait(transferer, "beeperr", transferer->language, ""))
+			return -1;
+		return FEATURE_RETURN_SUCCESS;
 	}
-	finishup(transferee);
 
-	return FEATURE_RETURN_SUCCESS;
+	l = strlen(xferto);
+	snprintf(xferto + l, sizeof(xferto) - l, "@%s/n", transferer_real_context);	/* append context */
+	newchan = ast_feature_request_and_dial(transferer, "Local", ast_best_codec(transferer->nativeformats),
+		xferto, 15000, &outstate, transferer->cid.cid_num, transferer->cid.cid_name);
+	ast_indicate(transferer, -1);
+	if (!newchan) {
+		finishup(transferee);
+		/* any reason besides user requested cancel and busy triggers the failed sound */
+		if (outstate != AST_CONTROL_UNHOLD && outstate != AST_CONTROL_BUSY &&
+				stream_and_wait(transferer, xferfailsound, transferer->language, ""))
+			return -1;
+		return FEATURE_RETURN_SUCCESS;
+	}
+
+	if (check_compat(transferer, newchan))
+		return -1;
+	memset(&bconfig,0,sizeof(struct ast_bridge_config));
+	ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
+	ast_set_flag(&(bconfig.features_callee), AST_FEATURE_DISCONNECT);
+	res = ast_bridge_call(transferer, newchan, &bconfig);
+	if (newchan->_softhangup || newchan->_state != AST_STATE_UP || !transferer->_softhangup) {
+		ast_hangup(newchan);
+		if (stream_and_wait(transferer, xfersound, transferer->language, ""))
+			ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+		finishup(transferee);
+		transferer->_softhangup = 0;
+		return FEATURE_RETURN_SUCCESS;
+	}
+	
+	if (check_compat(transferee, newchan))
+		return -1;
+
+	ast_moh_stop(transferee);
+	
+	if ((ast_autoservice_stop(transferee) < 0)
+	   || (ast_waitfordigit(transferee, 100) < 0)
+	   || (ast_waitfordigit(newchan, 100) < 0) 
+	   || ast_check_hangup(transferee) 
+	   || ast_check_hangup(newchan)) {
+		ast_hangup(newchan);
+		return -1;
+	}
+
+	xferchan = ast_channel_alloc(0);
+	if (!xferchan) {
+		ast_hangup(newchan);
+		return -1;
+	}
+	ast_string_field_build(xferchan, name, "Transfered/%s", transferee->name);
+	/* Make formats okay */
+	xferchan->readformat = transferee->readformat;
+	xferchan->writeformat = transferee->writeformat;
+	ast_channel_masquerade(xferchan, transferee);
+	ast_explicit_goto(xferchan, transferee->context, transferee->exten, transferee->priority);
+	xferchan->_state = AST_STATE_UP;
+	ast_clear_flag(xferchan, AST_FLAGS_ALL);	
+	xferchan->_softhangup = 0;
+
+	if ((f = ast_read(xferchan)))
+		ast_frfree(f);
+
+	newchan->_state = AST_STATE_UP;
+	ast_clear_flag(newchan, AST_FLAGS_ALL);	
+	newchan->_softhangup = 0;
+
+	tobj = ast_calloc(1, sizeof(struct ast_bridge_thread_obj));
+	if (!tobj) {
+		ast_hangup(xferchan);
+		ast_hangup(newchan);
+		return -1;
+	}
+	tobj->chan = xferchan;
+	tobj->peer = newchan;
+	tobj->bconfig = *config;
+
+	if (stream_and_wait(newchan, xfersound, newchan->language, ""))
+		ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+	ast_bridge_call_thread_launch(tobj);
+	return -1;	/* XXX meaning the channel is bridged ? */
 }
 
 
