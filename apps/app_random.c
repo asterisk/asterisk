@@ -82,7 +82,7 @@ static int random_exec(struct ast_channel *chan, void *data)
 	if ((!prob) || (sscanf(prob, "%d", &probint) != 1))
 		probint = 0;
 
-	if ((random() % 100) + probint > 100) {
+	if ((random() % 100) + probint >= 100) {
 		res = ast_parseable_goto(chan, s);
 		if (option_verbose > 2)
 			ast_verbose( VERBOSE_PREFIX_3 "Random branches to (%s,%s,%d)\n",
