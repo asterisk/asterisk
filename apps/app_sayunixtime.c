@@ -89,8 +89,6 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	args.format = "c";		/* default datetime */
-
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	ast_get_time_t(args.timeval, &unixtime, time(NULL), NULL);
