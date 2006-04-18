@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -165,7 +165,7 @@ static off_t h263_tell(struct ast_filestream *fs)
 
 static const struct ast_format h263_f = {
 	.name = "h263",
-	.exts = "h264",
+	.exts = "h263",
 	.format = AST_FORMAT_H263,
 	.open = h263_open,
 	.write = h263_write,
