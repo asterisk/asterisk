@@ -65,8 +65,10 @@ struct ast_trans_pvt;	/* declared below */
  */
 struct ast_translator {
 	const char name[80];		/*! Name of translator */
-	int srcfmt;			/*! Source format (note: bit position) */
-	int dstfmt;			/*! Destination format (note: bit position) */
+	int srcfmt;			/*! Source format (note: bit position,
+					  converted to index during registration) */
+	int dstfmt;			/*! Destination format (note: bit position,
+					  converted to index during registration) */
 
 	/*! initialize private data associated with the translator */
 	void *(*newpvt)(struct ast_trans_pvt *);

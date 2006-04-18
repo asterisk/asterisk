@@ -400,6 +400,7 @@ static void rebuild_matrix(int samples)
 		ast_log(LOG_DEBUG, "Resetting translation matrix\n");
 
 	bzero(tr_matrix, sizeof(tr_matrix));
+
 	/* first, compute all direct costs */
 	AST_LIST_TRAVERSE(&translators, t, list) {
 		x = t->srcfmt;
@@ -413,6 +414,7 @@ static void rebuild_matrix(int samples)
 			tr_matrix[x][z].cost = t->cost;
 		}
 	}
+
 	/*
 	 * For each triple x, y, z of distinct formats, check if there is
 	 * a path from x to z through y which is cheaper than what is
@@ -656,6 +658,9 @@ int ast_translator_best_choice(int *dst, int *srcs)
 
 unsigned int ast_translate_path_steps(unsigned int dest, unsigned int src)
 {
+	/* convert bitwise format numbers into array indices */
+	src = powerof(src);
+	dest = powerof(dest);
 	if (!tr_matrix[src][dest].step)
 		return -1;
 	else
