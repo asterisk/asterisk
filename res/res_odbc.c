@@ -49,66 +49,30 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/lock.h"
 #include "asterisk/res_odbc.h"
-#define MAX_ODBC_HANDLES 25
 
-struct odbc_list
+struct odbc_class
 {
+	AST_LIST_ENTRY(odbc_class) list;
 	char name[80];
-	odbc_obj *obj;
-	int used;
+	char dsn[80];
+	char username[80];
+	char password[80];
+	SQLHENV env;
+	unsigned int haspool:1;         /* Boolean - TDS databases need this */
+	unsigned int limit:10;          /* Gives a limit of 1023 maximum */
+	unsigned int count:10;          /* Running count of pooled connections */
+	unsigned int delme:1;			/* Purge the class */
+	AST_LIST_HEAD(, odbc_obj) odbc_obj;
 };
 
-static struct odbc_list ODBC_REGISTRY[MAX_ODBC_HANDLES];
+AST_LIST_HEAD_STATIC(odbc_list, odbc_class);
+
+static odbc_status odbc_obj_connect(struct odbc_obj *obj);
+static odbc_status odbc_obj_disconnect(struct odbc_obj *obj);
+static int odbc_register_class(struct odbc_class *class, int connect);
 
 
-static void odbc_destroy(void)
-{
-	int x = 0;
-
-	for (x = 0; x < MAX_ODBC_HANDLES; x++) {
-		if (ODBC_REGISTRY[x].obj) {
-			destroy_odbc_obj(&ODBC_REGISTRY[x].obj);
-			ODBC_REGISTRY[x].obj = NULL;
-		}
-	}
-}
-
-static odbc_obj *odbc_read(struct odbc_list *registry, const char *name)
-{
-	int x = 0;
-	for (x = 0; x < MAX_ODBC_HANDLES; x++) {
-		if (registry[x].used && !strcmp(registry[x].name, name)) {
-			return registry[x].obj;
-		}
-	}
-	return NULL;
-}
-
-static int odbc_write(struct odbc_list *registry, char *name, odbc_obj *obj)
-{
-	int x = 0;
-	for (x = 0; x < MAX_ODBC_HANDLES; x++) {
-		if (!registry[x].used) {
-			ast_copy_string(registry[x].name, name, sizeof(registry[x].name));
-			registry[x].obj = obj;
-			registry[x].used = 1;
-			return 1;
-		}
-	}
-	return 0;
-}
-
-static void odbc_init(void)
-{
-	int x = 0;
-	for (x = 0; x < MAX_ODBC_HANDLES; x++) {
-		memset(&ODBC_REGISTRY[x], 0, sizeof(struct odbc_list));
-	}
-}
-
-/* internal stuff */
-
-SQLHSTMT odbc_prepare_and_execute(odbc_obj *obj, SQLHSTMT (*prepare_cb)(odbc_obj *obj, void *data), void *data)
+SQLHSTMT odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(struct odbc_obj *obj, void *data), void *data)
 {
 	int res = 0, i, attempt;
 	SQLINTEGER nativeerror=0, numfields=0;
@@ -142,9 +106,12 @@ SQLHSTMT odbc_prepare_and_execute(odbc_obj *obj, SQLHSTMT (*prepare_cb)(odbc_obj
 				ast_log(LOG_WARNING, "SQL Execute error %d! Attempting a reconnect...\n", res);
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 
-				ast_mutex_lock(&obj->lock);
 				obj->up = 0;
-				ast_mutex_unlock(&obj->lock);
+				/*
+				 * While this isn't the best way to try to correct an error, this won't automatically
+				 * fail when the statement handle invalidates.
+				 */
+				/* XXX Actually, it might, if we're using a non-pooled connection. Possible race here. XXX */
 				odbc_obj_disconnect(obj);
 				odbc_obj_connect(obj);
 				continue;
@@ -156,7 +123,7 @@ SQLHSTMT odbc_prepare_and_execute(odbc_obj *obj, SQLHSTMT (*prepare_cb)(odbc_obj
 	return stmt;
 }
 
-int odbc_smart_execute(odbc_obj *obj, SQLHSTMT stmt) 
+int odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt) 
 {
 	int res = 0, i;
 	SQLINTEGER nativeerror=0, numfields=0;
@@ -176,7 +143,14 @@ int odbc_smart_execute(odbc_obj *obj, SQLHSTMT stmt)
 				}
 			}
 		}
-/*
+#if 0
+		/* This is a really bad method of trying to correct a dead connection.  It
+		 * only ever really worked with MySQL.  It will not work with any other
+		 * database, since most databases prepare their statements on the server,
+		 * and if you disconnect, you invalidate the statement handle.  Hence, if
+		 * you disconnect, you're going to fail anyway, whether you try to execute
+		 * a second time or not.
+		 */
 		ast_log(LOG_WARNING, "SQL Execute error %d! Attempting a reconnect...\n", res);
 		ast_mutex_lock(&obj->lock);
 		obj->up = 0;
@@ -184,58 +158,38 @@ int odbc_smart_execute(odbc_obj *obj, SQLHSTMT stmt)
 		odbc_obj_disconnect(obj);
 		odbc_obj_connect(obj);
 		res = SQLExecute(stmt);
-*/
+#endif
 	}
 	
 	return res;
 }
 
 
-int odbc_smart_direct_execute(odbc_obj *obj, SQLHSTMT stmt, char *sql) 
-{
-	int res = 0;
-
-	res = SQLExecDirect (stmt, (unsigned char *)sql, SQL_NTS);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Execute error! Attempting a reconnect...\n");
-		ast_mutex_lock(&obj->lock);
-		obj->up = 0;
-		ast_mutex_unlock(&obj->lock);
-		odbc_obj_disconnect(obj);
-		odbc_obj_connect(obj);
-		res = SQLExecDirect (stmt, (unsigned char *)sql, SQL_NTS);
-	}
-	
-	return res;
-}
-
-int odbc_sanity_check(odbc_obj *obj) 
+int odbc_sanity_check(struct odbc_obj *obj) 
 {
 	char *test_sql = "select 1";
 	SQLHSTMT stmt;
 	int res = 0;
 
-	ast_mutex_lock(&obj->lock);
-	if(obj->up) { /* so you say... let's make sure */
-		res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
+	if (obj->up) {
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			obj->up = 0; /* Liar!*/
+			obj->up = 0;
 		} else {
 			res = SQLPrepare(stmt, (unsigned char *)test_sql, SQL_NTS);
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				obj->up = 0; /* Liar!*/
+				obj->up = 0;
 			} else {
 				res = SQLExecute(stmt);
 				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-					obj->up = 0; /* Liar!*/
+					obj->up = 0;
 				}
 			}
 		}
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	}
-	ast_mutex_unlock(&obj->lock);
 
-	if(!obj->up) { /* Try to reconnect! */
+	if (!obj->up) { /* Try to reconnect! */
 		ast_log(LOG_WARNING, "Connection is down attempting to reconnect...\n");
 		odbc_obj_disconnect(obj);
 		odbc_obj_connect(obj);
@@ -249,325 +203,305 @@ static int load_odbc_config(void)
 	struct ast_config *config;
 	struct ast_variable *v;
 	char *cat, *dsn, *username, *password;
-	int enabled;
-	int connect = 0;
-	char *env_var;
+	int enabled, pooling, limit;
+	int connect = 0, res = 0;
 
-	odbc_obj *obj;
+	struct odbc_class *new;
 
 	config = ast_config_load(cfg);
 	if (config) {
 		for (cat = ast_category_browse(config, NULL); cat; cat=ast_category_browse(config, cat)) {
-			if (!strcmp(cat, "ENV")) {
+			if (!strcasecmp(cat, "ENV")) {
 				for (v = ast_variable_browse(config, cat); v; v = v->next) {
-					env_var = malloc(strlen(v->name) + strlen(v->value) + 2);
-					if (env_var) {
-						sprintf(env_var, "%s=%s", v->name, v->value);
-						ast_log(LOG_NOTICE, "Adding ENV var: %s=%s\n", v->name, v->value);
-						putenv(env_var);
-						free(env_var);
+					setenv(v->name, v->value, 1);
+					ast_log(LOG_NOTICE, "Adding ENV var: %s=%s\n", v->name, v->value);
+				}
+			} else {
+				/* Reset all to defaults for each class of odbc connections */
+				dsn = username = password = NULL;
+				enabled = 1;
+				connect = 0;
+				pooling = 0;
+				limit = 0;
+				for (v = ast_variable_browse(config, cat); v; v = v->next) {
+					if (!strcasecmp(v->name, "pooling")) {
+						pooling = 1;
+					} else if (!strcasecmp(v->name, "limit")) {
+						sscanf(v->value, "%d", &limit);
+						if (ast_true(v->value) && !limit) {
+							ast_log(LOG_WARNING, "Limit should be a number, not a boolean: '%s'.  Setting limit to 1023 for ODBC class '%s'.\n", v->value, cat);
+							limit = 1023;
+						} else if (ast_false(v->value)) {
+							ast_log(LOG_WARNING, "Limit should be a number, not a boolean: '%s'.  Disabling ODBC class '%s'.\n", v->value, cat);
+							enabled = 0;
+							break;
+						}
+					} else if (!strcasecmp(v->name, "enabled")) {
+						enabled = ast_true(v->value);
+					} else if (!strcasecmp(v->name, "pre-connect")) {
+						connect = ast_true(v->value);
+					} else if (!strcasecmp(v->name, "dsn")) {
+						dsn = v->value;
+					} else if (!strcasecmp(v->name, "username")) {
+						username = v->value;
+					} else if (!strcasecmp(v->name, "password")) {
+						password = v->value;
 					}
 				}
 
-			cat = ast_category_browse(config, cat);
-			}
+				if (enabled && !ast_strlen_zero(dsn)) {
+					new = ast_calloc(1, sizeof(*new));
 
-			dsn = username = password = NULL;
-			enabled = 1;
-			connect = 0;
-			for (v = ast_variable_browse(config, cat); v; v = v->next) {
-				if (!strcmp(v->name, "enabled"))
-					enabled = ast_true(v->value);
-				if (!strcmp(v->name, "pre-connect"))
-					connect = ast_true(v->value);
-				if (!strcmp(v->name, "dsn"))
-					dsn = v->value;
-				if (!strcmp(v->name, "username"))
-					username = v->value;
-				if (!strcmp(v->name, "password"))
-					password = v->value;
-			}
-
-			if (enabled && dsn) {
-				obj = new_odbc_obj(cat, dsn, username, password);
-				if (obj) {
-					register_odbc_obj(cat, obj);
-					ast_log(LOG_NOTICE, "registered database handle '%s' dsn->[%s]\n", cat, obj->dsn);
-					if (connect) {
-						odbc_obj_connect(obj);
+					if (!new) {
+						ast_log(LOG_ERROR, "Memory error while loading configuration.\n");
+						res = -1;
+						break;
 					}
-				} else {
-					ast_log(LOG_WARNING, "Addition of obj %s failed.\n", cat);
-				}
 
+					if (cat)
+						ast_copy_string(new->name, cat, sizeof(new->name));
+					if (dsn)
+						ast_copy_string(new->dsn, dsn, sizeof(new->dsn));
+					if (username)
+						ast_copy_string(new->username, username, sizeof(new->username));
+					if (password)
+						ast_copy_string(new->password, password, sizeof(new->password));
+
+					SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &new->env);
+					res = SQLSetEnvAttr(new->env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
+
+					if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+						ast_log(LOG_WARNING, "res_odbc: Error SetEnv\n");
+						SQLFreeHandle(SQL_HANDLE_ENV, new->env);
+						return res;
+					}
+
+					if (pooling) {
+						new->haspool = pooling;
+						if (limit) {
+							new->limit = limit;
+						} else {
+							ast_log(LOG_WARNING, "Pooling without also setting a limit is pointless.  Changing limit from 0 to 5.\n");
+							new->limit = 5;
+						}
+					}
+
+					odbc_register_class(new, connect);
+					ast_log(LOG_NOTICE, "Registered ODBC class '%s' dsn->[%s]\n", cat, dsn);
+				}
 			}
 		}
 		ast_config_destroy(config);
 	}
-	return 0;
-}
-
-int odbc_dump_fd(int fd, odbc_obj *obj)
-{
-	/* make sure the connection is up before we lie to our master.*/
-	odbc_sanity_check(obj);
-	ast_cli(fd, "Name: %s\nDSN: %s\nConnected: %s\n\n", obj->name, obj->dsn, obj->up ? "yes" : "no");
-	return 0;
-}
-
-static int odbc_connect_usage(int fd)
-{
-	ast_cli(fd, "usage odbc connect <DSN>\n");
-	return 0;
-}
-
-static int odbc_disconnect_usage(int fd)
-{
-	ast_cli(fd, "usage odbc disconnect <DSN>\n");
-	return 0;
+	return res;
 }
 
 static int odbc_show_command(int fd, int argc, char **argv)
 {
-	odbc_obj *obj;
-	int x = 0;
-	
+	struct odbc_class *class;
+	struct odbc_obj *current;
+
 	if (!strcmp(argv[1], "show")) {
-		if (!argv[2] || (argv[2] && !strcmp(argv[2], "all"))) {
-			for (x = 0; x < MAX_ODBC_HANDLES; x++) {
-				if (!ODBC_REGISTRY[x].used)
-					break;
-				if (ODBC_REGISTRY[x].obj)
-					odbc_dump_fd(fd, ODBC_REGISTRY[x].obj);
+		AST_LIST_LOCK(&odbc_list);
+		AST_LIST_TRAVERSE(&odbc_list, class, list) {
+			if ((argc == 2) || (argc == 3 && !strcmp(argv[2], "all")) || (!strcmp(argv[2], class->name))) {
+				int count = 0;
+				ast_cli(fd, "Name: %s\nDSN: %s\n", class->name, class->dsn);
+
+				if (class->haspool) {
+					ast_cli(fd, "Pooled: yes\nLimit: %d\nConnections in use: %d\n", class->limit, class->count);
+
+					AST_LIST_TRAVERSE(&(class->odbc_obj), current, list) {
+						ast_cli(fd, "  Connection %d: %s", ++count, current->up && odbc_sanity_check(current) ? "connected" : "disconnected");
+					}
+				} else {
+					/* Should only ever be one of these */
+					AST_LIST_TRAVERSE(&(class->odbc_obj), current, list) {
+						ast_cli(fd, "Pooled: no\nConnected: %s\n", current->up && odbc_sanity_check(current) ? "yes" : "no");
+					}
+				}
+
+				ast_cli(fd, "\n");
 			}
-		} else {
-			obj = odbc_read(ODBC_REGISTRY, argv[2]);
-			if (obj)
-				odbc_dump_fd(fd, obj);
 		}
+		AST_LIST_UNLOCK(&odbc_list);
 	}
 	return 0;
 }
-
-static int odbc_disconnect_command(int fd, int argc, char **argv)
-{
-	odbc_obj *obj;
-	if (!strcmp(argv[1], "disconnect")) {
-		if (!argv[2])
-			return odbc_disconnect_usage(fd);
-
-		obj = odbc_read(ODBC_REGISTRY, argv[2]);
-		if (obj) {
-			odbc_obj_disconnect(obj);
-		}
-	} 
-	return 0;
-}
-
-static int odbc_connect_command(int fd, int argc, char **argv)
-{
-	odbc_obj *obj;
-	if (!argv[1])
-		return odbc_connect_usage(fd);
-
-	if (!strcmp(argv[1], "connect") || !strcmp(argv[1], "disconnect")) {
-		if (!argv[2])
-			return odbc_connect_usage(fd);
-
-		obj = odbc_read(ODBC_REGISTRY, argv[2]);
-		if (obj) {
-			odbc_obj_connect(obj);
-		}
-	}
-	return 0;
-}
-
-
-static char connect_usage[] =
-"Usage: odbc connect <DSN>\n"
-"       Connect to ODBC DSN\n";
-
-static char disconnect_usage[] =
-"Usage: odbc connect <DSN>\n"
-"       Disconnect from ODBC DSN\n";
 
 static char show_usage[] =
-"Usage: odbc show {DSN}\n"
-"       Show ODBC {DSN}\n"
-"       Specifying DSN will show that DSN else, all DSNs are shown\n";
-
-static struct ast_cli_entry odbc_connect_struct =
-        { { "odbc", "connect", NULL }, odbc_connect_command, "Connect to ODBC DSN", connect_usage };
-
-
-static struct ast_cli_entry odbc_disconnect_struct =
-        { { "odbc", "disconnect", NULL }, odbc_disconnect_command, "Disconnect from ODBC DSN", disconnect_usage };
+"Usage: odbc show [<class>]\n"
+"       List settings of a particular ODBC class.\n"
+"       or, if not specified, all classes.\n";
 
 static struct ast_cli_entry odbc_show_struct =
         { { "odbc", "show", NULL }, odbc_show_command, "Show ODBC DSN(s)", show_usage };
 
-/* api calls */
-
-int register_odbc_obj(char *name, odbc_obj *obj)
+static int odbc_register_class(struct odbc_class *class, int connect)
 {
-	if (obj != NULL)
-		return odbc_write(ODBC_REGISTRY, name, obj);
-	return 0;
+	struct odbc_obj *obj;
+	if (class) {
+		AST_LIST_LOCK(&odbc_list);
+		AST_LIST_INSERT_HEAD(&odbc_list, class, list);
+		AST_LIST_UNLOCK(&odbc_list);
+
+		if (connect) {
+			/* Request and release builds a connection */
+			obj = odbc_request_obj(class->name, 0);
+			odbc_release_obj(obj);
+		}
+
+		return 0;
+	} else {
+		ast_log(LOG_WARNING, "Attempted to register a NULL class?\n");
+		return -1;
+	}
 }
 
-odbc_obj *fetch_odbc_obj(const char *name, int check)
+void odbc_release_obj(struct odbc_obj *obj)
 {
-	odbc_obj *obj = NULL;
-	if((obj = (odbc_obj *) odbc_read(ODBC_REGISTRY, name))) {
-		if(check)
-			odbc_sanity_check(obj);
+	/* For pooled connections, this frees the connection to be
+	 * reused.  For non-pooled connections, it does nothing. */
+	obj->used = 0;
+}
+
+struct odbc_obj *odbc_request_obj(const char *name, int check)
+{
+	struct odbc_obj *obj = NULL;
+	struct odbc_class *class;
+
+	AST_LIST_LOCK(&odbc_list);
+	AST_LIST_TRAVERSE(&odbc_list, class, list) {
+		if (!strcmp(class->name, name))
+			break;
+	}
+	AST_LIST_UNLOCK(&odbc_list);
+
+	if (!class)
+		return NULL;
+
+	AST_LIST_LOCK(&class->odbc_obj);
+	if (class->haspool) {
+		/* Recycle connections before building another */
+		AST_LIST_TRAVERSE(&class->odbc_obj, obj, list) {
+			if (! obj->used) {
+				obj->used = 1;
+				break;
+			}
+		}
+
+		if (!obj && (class->count < class->limit)) {
+			class->count++;
+			obj = ast_calloc(1, sizeof(*obj));
+			if (!obj) {
+				ast_log(LOG_ERROR, "Out of memory\n");
+				AST_LIST_UNLOCK(&class->odbc_obj);
+				return NULL;
+			}
+			ast_mutex_init(&obj->lock);
+			obj->parent = class;
+			odbc_obj_connect(obj);
+			AST_LIST_INSERT_TAIL(&class->odbc_obj, obj, list);
+		}
+	} else {
+		/* Non-pooled connection: multiple modules can use the same connection. */
+		AST_LIST_TRAVERSE(&class->odbc_obj, obj, list) {
+			/* Non-pooled connection: if there is an entry, return it */
+			break;
+		}
+
+		if (!obj) {
+			/* No entry: build one */
+			obj = ast_calloc(1, sizeof(*obj));
+			if (!obj) {
+				ast_log(LOG_ERROR, "Out of memory\n");
+				AST_LIST_UNLOCK(&class->odbc_obj);
+				return NULL;
+			}
+			ast_mutex_init(&obj->lock);
+			obj->parent = class;
+			if (odbc_obj_connect(obj) == ODBC_FAIL) {
+				ast_log(LOG_WARNING, "Failed to connect\n");
+				ast_mutex_destroy(&obj->lock);
+				free(obj);
+			} else {
+				AST_LIST_INSERT_HEAD(&class->odbc_obj, obj, list);
+			}
+		}
+	}
+	AST_LIST_UNLOCK(&class->odbc_obj);
+
+	if (obj && check) {
+		odbc_sanity_check(obj);
 	}
 	return obj;
 }
 
-odbc_obj *new_odbc_obj(char *name, char *dsn, char *username, char *password)
-{
-	static odbc_obj *new;
-
-	if (!(new = calloc(1, sizeof(*new))) || 
-	    !(new->name = malloc(strlen(name) + 1)) || 
-	    !(new->dsn = malloc(strlen(dsn) + 1)))
-	    	goto cleanup;
-
-	if (username) {
-		if (!(new->username = malloc(strlen(username) + 1)))
-			goto cleanup;
-		strcpy(new->username, username);
-	}
-
-	if (password) {
-		if (!(new->password = malloc(strlen(password) + 1)))
-			goto cleanup;
-		strcpy(new->password, password);
-	}
-
-	strcpy(new->name, name);
-	strcpy(new->dsn, dsn);
-	new->env = SQL_NULL_HANDLE;
-	new->up = 0;
-	ast_mutex_init(&new->lock);
-	return new;
-
-cleanup:
-	if (new) {
-		free(new->name);
-		free(new->dsn);
-		free(new->username);
-		free(new->password);
-
-		free(new);	
-	}
-
-	return NULL;
-}
-
-void destroy_odbc_obj(odbc_obj **obj)
-{
-	odbc_obj_disconnect(*obj);
-
-	ast_mutex_lock(&(*obj)->lock);
-	SQLFreeHandle(SQL_HANDLE_STMT, (*obj)->stmt);
-	SQLFreeHandle(SQL_HANDLE_DBC, (*obj)->con);
-	SQLFreeHandle(SQL_HANDLE_ENV, (*obj)->env);
-
-	free((*obj)->name);
-	free((*obj)->dsn);
-	if ((*obj)->username)
-		free((*obj)->username);
-	if ((*obj)->password)
-		free((*obj)->password);
-	ast_mutex_unlock(&(*obj)->lock);
-	ast_mutex_destroy(&(*obj)->lock);
-	free(*obj);
-}
-
-odbc_status odbc_obj_disconnect(odbc_obj *obj)
+static odbc_status odbc_obj_disconnect(struct odbc_obj *obj)
 {
 	int res;
 	ast_mutex_lock(&obj->lock);
 
 	res = SQLDisconnect(obj->con);
 
-
 	if (res == ODBC_SUCCESS) {
-		ast_log(LOG_WARNING, "res_odbc: disconnected %d from %s [%s]\n", res, obj->name, obj->dsn);
+		ast_log(LOG_WARNING, "res_odbc: disconnected %d from %s [%s]\n", res, obj->parent->name, obj->parent->dsn);
 	} else {
 		ast_log(LOG_WARNING, "res_odbc: %s [%s] already disconnected\n",
-		obj->name, obj->dsn);
+		obj->parent->name, obj->parent->dsn);
 	}
 	obj->up = 0;
 	ast_mutex_unlock(&obj->lock);
 	return ODBC_SUCCESS;
 }
 
-odbc_status odbc_obj_connect(odbc_obj *obj)
+static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 {
 	int res;
 	SQLINTEGER err;
 	short int mlen;
 	unsigned char msg[200], stat[10];
-
+#ifdef NEEDTRACE
+	SQLINTEGER enable = 1;
+	char *tracefile = "/tmp/odbc.trace";
+#endif
 	ast_mutex_lock(&obj->lock);
 
-	if (obj->env == SQL_NULL_HANDLE) {
-		res = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &obj->env);
+	res = SQLAllocHandle(SQL_HANDLE_DBC, obj->parent->env, &obj->con);
 
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			if (option_verbose > 3)
-				ast_log(LOG_WARNING, "res_odbc: Error AllocHandle\n");
-			ast_mutex_unlock(&obj->lock);
-			return ODBC_FAIL;
-		}
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 
-		res = SQLSetEnvAttr(obj->env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
+		ast_log(LOG_WARNING, "res_odbc: Error AllocHDB %d\n", res);
+		SQLFreeHandle(SQL_HANDLE_ENV, obj->parent->env);
 
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			if (option_verbose > 3)
-				ast_log(LOG_WARNING, "res_odbc: Error SetEnv\n");
-			SQLFreeHandle(SQL_HANDLE_ENV, obj->env);
-			ast_mutex_unlock(&obj->lock);
-			return ODBC_FAIL;
-		}
-
-		res = SQLAllocHandle(SQL_HANDLE_DBC, obj->env, &obj->con);
-
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-
-			if (option_verbose > 3)
-				ast_log(LOG_WARNING, "res_odbc: Error AllocHDB %d\n", res);
-			SQLFreeHandle(SQL_HANDLE_ENV, obj->env);
-
-			ast_mutex_unlock(&obj->lock);
-			return ODBC_FAIL;
-		}
-		SQLSetConnectAttr(obj->con, SQL_LOGIN_TIMEOUT, (SQLPOINTER *) 10, 0);
+		ast_mutex_unlock(&obj->lock);
+		return ODBC_FAIL;
 	}
-	if(obj->up) {
+	SQLSetConnectAttr(obj->con, SQL_LOGIN_TIMEOUT, (SQLPOINTER *) 10, 0);
+#ifdef NEEDTRACE
+	SQLSetConnectAttr(obj->con, SQL_ATTR_TRACE, &enable, SQL_IS_INTEGER);
+	SQLSetConnectAttr(obj->con, SQL_ATTR_TRACEFILE, tracefile, strlen(tracefile));
+#endif
+
+	if (obj->up) {
 		odbc_obj_disconnect(obj);
-		ast_log(LOG_NOTICE,"Re-connecting %s\n", obj->name);
+		ast_log(LOG_NOTICE, "Re-connecting %s\n", obj->parent->name);
+	} else {
+		ast_log(LOG_NOTICE, "Connecting %s\n", obj->parent->name);
 	}
-
-	ast_log(LOG_NOTICE, "Connecting %s\n", obj->name);
 
 	res = SQLConnect(obj->con,
-		   (SQLCHAR *) obj->dsn, SQL_NTS,
-		   (SQLCHAR *) obj->username, SQL_NTS,
-		   (SQLCHAR *) obj->password, SQL_NTS);
+		   (SQLCHAR *) obj->parent->dsn, SQL_NTS,
+		   (SQLCHAR *) obj->parent->username, SQL_NTS,
+		   (SQLCHAR *) obj->parent->password, SQL_NTS);
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, stat, &err, msg, 100, &mlen);
-		SQLFreeHandle(SQL_HANDLE_ENV, obj->env);
 		ast_mutex_unlock(&obj->lock);
 		ast_log(LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%d %s\n", res, (int)err, msg);
 		return ODBC_FAIL;
 	} else {
-
-		ast_log(LOG_NOTICE, "res_odbc: Connected to %s [%s]\n", obj->name, obj->dsn);
+		ast_log(LOG_NOTICE, "res_odbc: Connected to %s [%s]\n", obj->parent->name, obj->parent->dsn);
 		obj->up = 1;
 	}
 
@@ -577,23 +511,159 @@ odbc_status odbc_obj_connect(odbc_obj *obj)
 
 LOCAL_USER_DECL;
 
+static int reload(void *mod)
+{
+	static char *cfg = "res_odbc.conf";
+	struct ast_config *config;
+	struct ast_variable *v;
+	char *cat, *dsn, *username, *password;
+	int enabled, pooling, limit;
+	int connect = 0, res = 0;
+
+	struct odbc_class *new, *class;
+	struct odbc_obj *current;
+
+	/* First, mark all to be purged */
+	AST_LIST_LOCK(&odbc_list);
+	AST_LIST_TRAVERSE(&odbc_list, class, list) {
+		class->delme = 1;
+	}
+
+	config = ast_config_load(cfg);
+	if (config) {
+		for (cat = ast_category_browse(config, NULL); cat; cat=ast_category_browse(config, cat)) {
+			if (!strcasecmp(cat, "ENV")) {
+				for (v = ast_variable_browse(config, cat); v; v = v->next) {
+					setenv(v->name, v->value, 1);
+					ast_log(LOG_NOTICE, "Adding ENV var: %s=%s\n", v->name, v->value);
+				}
+			} else {
+				/* Reset all to defaults for each class of odbc connections */
+				dsn = username = password = NULL;
+				enabled = 1;
+				connect = 0;
+				pooling = 0;
+				limit = 0;
+				for (v = ast_variable_browse(config, cat); v; v = v->next) {
+					if (!strcasecmp(v->name, "pooling")) {
+						pooling = 1;
+					} else if (!strcasecmp(v->name, "limit")) {
+						sscanf(v->value, "%d", &limit);
+						if (ast_true(v->value) && !limit) {
+							ast_log(LOG_WARNING, "Limit should be a number, not a boolean: '%s'.  Setting limit to 1023 for ODBC class '%s'.\n", v->value, cat);
+							limit = 1023;
+						} else if (ast_false(v->value)) {
+							ast_log(LOG_WARNING, "Limit should be a number, not a boolean: '%s'.  Disabling ODBC class '%s'.\n", v->value, cat);
+							enabled = 0;
+							break;
+						}
+					} else if (!strcasecmp(v->name, "enabled")) {
+						enabled = ast_true(v->value);
+					} else if (!strcasecmp(v->name, "pre-connect")) {
+						connect = ast_true(v->value);
+					} else if (!strcasecmp(v->name, "dsn")) {
+						dsn = v->value;
+					} else if (!strcasecmp(v->name, "username")) {
+						username = v->value;
+					} else if (!strcasecmp(v->name, "password")) {
+						password = v->value;
+					}
+				}
+
+				if (enabled && !ast_strlen_zero(dsn)) {
+					/* First, check the list to see if it already exists */
+					AST_LIST_TRAVERSE(&odbc_list, class, list) {
+						if (!strcmp(class->name, cat)) {
+							class->delme = 0;
+							break;
+						}
+					}
+
+					if (class) {
+						new = class;
+					} else {
+						new = ast_calloc(1, sizeof(*new));
+					}
+
+					if (!new) {
+						ast_log(LOG_ERROR, "Memory error while loading configuration.\n");
+						res = -1;
+						break;
+					}
+
+					if (cat)
+						ast_copy_string(new->name, cat, sizeof(new->name));
+					if (dsn)
+						ast_copy_string(new->dsn, dsn, sizeof(new->dsn));
+					if (username)
+						ast_copy_string(new->username, username, sizeof(new->username));
+					if (password)
+						ast_copy_string(new->password, password, sizeof(new->password));
+
+					if (!class) {
+						SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &new->env);
+						res = SQLSetEnvAttr(new->env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
+
+						if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+							ast_log(LOG_WARNING, "res_odbc: Error SetEnv\n");
+							SQLFreeHandle(SQL_HANDLE_ENV, new->env);
+							AST_LIST_UNLOCK(&odbc_list);
+							return res;
+						}
+					}
+
+					if (pooling) {
+						new->haspool = pooling;
+						if (limit) {
+							new->limit = limit;
+						} else {
+							ast_log(LOG_WARNING, "Pooling without also setting a limit is pointless.  Changing limit from 0 to 5.\n");
+							new->limit = 5;
+						}
+					}
+
+					if (class) {
+						ast_log(LOG_NOTICE, "Refreshing ODBC class '%s' dsn->[%s]\n", cat, dsn);
+					} else {
+						odbc_register_class(new, connect);
+						ast_log(LOG_NOTICE, "Registered ODBC class '%s' dsn->[%s]\n", cat, dsn);
+					}
+				}
+			}
+		}
+		ast_config_destroy(config);
+	}
+
+	/* Purge classes that we know can go away (pooled with 0, only) */
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&odbc_list, class, list) {
+		if (class->delme && class->haspool && class->count == 0) {
+			AST_LIST_TRAVERSE_SAFE_BEGIN(&(class->odbc_obj), current, list) {
+				AST_LIST_REMOVE_CURRENT(&(class->odbc_obj), list);
+				odbc_obj_disconnect(current);
+				ast_mutex_destroy(&current->lock);
+				free(current);
+			}
+			AST_LIST_TRAVERSE_SAFE_END;
+
+			AST_LIST_REMOVE_CURRENT(&odbc_list, list);
+			free(class);
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&odbc_list);
+
+	return 0;
+}
+
 static int unload_module(void *mod)
 {
-	STANDARD_HANGUP_LOCALUSERS;
-	odbc_destroy();
-	ast_cli_unregister(&odbc_disconnect_struct);
-	ast_cli_unregister(&odbc_connect_struct);
-	ast_cli_unregister(&odbc_show_struct);
-	ast_log(LOG_NOTICE, "res_odbc unloaded.\n");
-	return 0;
+	/* Prohibit unloading */
+	return -1;
 }
 
 static int load_module(void *mod)
 {
-	odbc_init();
 	load_odbc_config();
-	ast_cli_register(&odbc_disconnect_struct);
-	ast_cli_register(&odbc_connect_struct);
 	ast_cli_register(&odbc_show_struct);
 	ast_log(LOG_NOTICE, "res_odbc loaded.\n");
 	return 0;
@@ -609,4 +679,4 @@ static const char *key(void)
 	return ASTERISK_GPL_KEY;
 }
 
-STD_MOD(MOD_0, NULL, NULL, NULL);
+STD_MOD(MOD_0, reload, NULL, NULL);

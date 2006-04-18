@@ -77,7 +77,7 @@ static void acf_odbc_error(SQLHSTMT stmt, int res)
  */
 static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const char *value)
 {
-	odbc_obj *obj;
+	struct odbc_obj *obj;
 	struct acf_odbc_query *query;
 	char *t, *arg, buf[2048]="", varname[15];
 	int res, argcount=0, valcount=0, i, retry=0;
@@ -104,10 +104,10 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 		return -1;
 	}
 
-	obj = fetch_odbc_obj(query->dsn, 0);
+	obj = odbc_request_obj(query->dsn, 0);
 
 	if (!obj) {
-		ast_log(LOG_ERROR, "No such DSN registered: %s (check res_odbc.conf)\n", query->dsn);
+		ast_log(LOG_ERROR, "No such DSN registered (or out of connections): %s (check res_odbc.conf)\n", query->dsn);
 		ast_mutex_unlock(&query_lock);
 		return -1;
 	}
@@ -204,9 +204,9 @@ retry_write:
 			}
 		}
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-		odbc_obj_disconnect(obj);
+		odbc_release_obj(obj);
 		/* All handles are now invalid (after a disconnect), so we gotta redo all handles */
-		odbc_obj_connect(obj);
+		obj = odbc_request_obj("asterisk", 1);
 		if (!retry) {
 			retry = 1;
 			goto retry_write;
@@ -235,7 +235,7 @@ retry_write:
 
 static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf, size_t len)
 {
-	odbc_obj *obj;
+	struct odbc_obj *obj;
 	struct acf_odbc_query *query;
 	char *arg, sql[2048] = "", varname[15];
 	int count=0, res, x;
@@ -260,10 +260,10 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 		return -1;
 	}
 
-	obj = fetch_odbc_obj(query->dsn, 0);
+	obj = odbc_request_obj(query->dsn, 0);
 
 	if (!obj) {
-		ast_log(LOG_ERROR, "No such DSN registered: %s (check res_odbc.conf)\n", query->dsn);
+		ast_log(LOG_ERROR, "No such DSN registered (or out of connections): %s (check res_odbc.conf)\n", query->dsn);
 		ast_mutex_unlock(&query_lock);
 		return -1;
 	}
@@ -331,7 +331,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 		goto acf_out;
 	}
 
-	for (x=0; x<colcount; x++) {
+	for (x = 0; x < colcount; x++) {
 		int buflen, coldatalen;
 		char coldata[256];
 

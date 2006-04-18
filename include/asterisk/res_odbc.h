@@ -3,9 +3,11 @@
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  * Copyright (C) 2004 - 2005, Anthony Minessale II
+ * Copyright (C) 2006, Tilghman Lesher
  *
  * Mark Spencer <markster@digium.com>
  * Anthony Minessale <anthmct@yahoo.com>
+ * Tilghman Lesher <res_odbc_200603@the-tilghman.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -29,34 +31,66 @@
 #include <sqlext.h>
 #include <sqltypes.h>
 
-typedef struct odbc_obj odbc_obj;
-
-typedef enum { ODBC_SUCCESS=0,ODBC_FAIL=-1} odbc_status;
+typedef enum { ODBC_SUCCESS=0, ODBC_FAIL=-1} odbc_status;
 
 struct odbc_obj {
-	char *name;
-	char *dsn;
-	char *username;
-	char *password;
-	SQLHENV  env;                   /* ODBC Environment */
-	SQLHDBC  con;                   /* ODBC Connection Handle */
-	SQLHSTMT stmt;                  /* ODBC Statement Handle */
 	ast_mutex_t lock;
-	int up;
-
+	SQLHDBC  con;                   /* ODBC Connection Handle */
+	struct odbc_class *parent;      /* Information about the connection is protected */
+	unsigned int used:1;
+	unsigned int up:1;
+	AST_LIST_ENTRY(odbc_obj) list;
 };
 
 /* functions */
-odbc_obj *new_odbc_obj(char *name,char *dsn,char *username, char *password);
-odbc_status odbc_obj_connect(odbc_obj *obj);
-odbc_status odbc_obj_disconnect(odbc_obj *obj);
-void destroy_odbc_obj(odbc_obj **obj);
-int register_odbc_obj(char *name,odbc_obj *obj);
-odbc_obj *fetch_odbc_obj(const char *name, int check);
-int odbc_dump_fd(int fd,odbc_obj *obj);
-int odbc_sanity_check(odbc_obj *obj);
-SQLHSTMT odbc_prepare_and_execute(odbc_obj *obj, SQLHSTMT (*prepare_cb)(odbc_obj *obj, void *data), void *data);
-int odbc_smart_execute(odbc_obj *obj, SQLHSTMT stmt);
-int odbc_smart_direct_execute(odbc_obj *obj, SQLHSTMT stmt, char *sql);
+
+/*! \brief Executes a prepared statement handle
+ * \param obj The non-NULL result of odbc_request_obj()
+ * \param stmt The prepared statement handle
+ * \return Returns 0 on success or -1 on failure
+ *
+ * This function was originally designed simply to execute a prepared
+ * statement handle and to retry if the initial execution failed.
+ * Unfortunately, it did this by disconnecting and reconnecting the database
+ * handle which on most databases causes the statement handle to become
+ * invalid.  Therefore, this method has been deprecated in favor of
+ * odbc_prepare_and_execute() which allows the statement to be prepared
+ * multiple times, if necessary, in case of a loss of connection.
+ *
+ * This function really only ever worked with MySQL, where the statement handle is
+ * not prepared on the server.  If you are not using MySQL, you should avoid it.
+ */
+int odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt); /* DEPRECATED */
+
+/*! \brief Retrieves a connected ODBC object
+ * \param name The name of the ODBC class for which a connection is needed.
+ * \param check Whether to ensure that a connection is valid before returning the handle.  Usually unnecessary.
+ * \return Returns an ODBC object or NULL if there is no connection available with the requested name.
+ *
+ * Connection classes may, in fact, contain multiple connection handles.  If
+ * the connection is pooled, then each connection will be dedicated to the
+ * thread which requests it.  Note that all connections should be released
+ * when the thread is done by calling odbc_release_obj(), below.
+ */
+struct odbc_obj *odbc_request_obj(const char *name, int check);
+
+/*! \brief Releases an ODBC object previously allocated by odbc_request_obj()
+ * \param obj The ODBC object
+ */
+void odbc_release_obj(struct odbc_obj *obj);
+
+/*! \brief Checks an ODBC object to ensure it is still connected
+ * \param obj The ODBC object
+ * \return Returns 0 if connected, -1 otherwise.
+ */
+int odbc_sanity_check(struct odbc_obj *obj);
+
+/*! \brief Prepares, executes, and returns the resulting statement handle.
+ * \param obj The ODBC object
+ * \param prepare_cb A function callback, which, when called, should return a statement handle prepared, with any necessary parameters or result columns bound.
+ * \param data A parameter to be passed to the prepare_cb parameter function, indicating which statement handle is to be prepared.
+ * \return Returns a statement handle or NULL on error.
+ */
+SQLHSTMT odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(struct odbc_obj *obj, void *data), void *data);
 
 #endif /* _ASTERISK_RES_ODBC_H */
