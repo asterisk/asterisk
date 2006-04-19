@@ -2386,6 +2386,25 @@ int pbx_set_autofallthrough(int newval)
 	return oldval;
 }
 
+/* lookup for a context with a given name,
+ * return with conlock held if found, NULL if not found
+ */
+static struct ast_context *find_context_locked(const char *context)
+{
+	struct ast_context *c = NULL;
+	if (ast_lock_contexts()) {
+		errno = EBUSY;
+		return NULL;
+	}
+	while ( (c = ast_walk_contexts(c)) ) {
+		if (!strcmp(ast_get_context_name(c), context))
+			return c;
+	}
+	ast_unlock_contexts();
+	errno = ENOENT;
+	return NULL;
+}
+
 /*
  * This function locks contexts list by &conlist, search for the right context
  * structure, leave context list locked and call ast_context_remove_include2
@@ -2462,24 +2481,14 @@ int ast_context_remove_include2(struct ast_context *con, const char *include, co
  */
 int ast_context_remove_switch(const char *context, const char *sw, const char *data, const char *registrar)
 {
-	struct ast_context *c = NULL;
 	int ret = -1; /* default error return */
+	struct ast_context *c = find_context_locked(context);
 
-	if (ast_lock_contexts())
-		return -1;
-
-	/* walk contexts and search for the right one ...*/
-	while ( (c = ast_walk_contexts(c)) ) {
-		/* we found one ... */
-		if (!strcmp(ast_get_context_name(c), context)) {
-			/* remove switch from this context ... */	
-			ret = ast_context_remove_switch2(c, sw, data, registrar);
-			break;
-		}
+	if (c) {
+		/* remove switch from this context ... */	
+		ret = ast_context_remove_switch2(c, sw, data, registrar);
+		ast_unlock_contexts();
 	}
-
-	/* found or error */
-	ast_unlock_contexts();
 	return ret;
 }
 
@@ -2494,29 +2503,27 @@ int ast_context_remove_switch(const char *context, const char *sw, const char *d
 int ast_context_remove_switch2(struct ast_context *con, const char *sw, const char *data, const char *registrar)
 {
 	struct ast_sw *i, *pi = NULL;
+	int ret = -1;
 
-	if (ast_mutex_lock(&con->lock)) return -1;
+	if (ast_mutex_lock(&con->lock))
+		return -1;
 
 	/* walk switchs */
 	for (i = con->alts; i; pi = i, i = i->next) {
-		/* find our switch */
 		if (!strcmp(i->name, sw) && !strcmp(i->data, data) && 
 			(!registrar || !strcmp(i->registrar, registrar))) {
-			/* remove from list */
+			/* found, remove from list */
 			if (pi)
 				pi->next = i->next;
 			else
 				con->alts = i->next;
-			/* free switch and return */
-			free(i);
-			ast_mutex_unlock(&con->lock);
-			return 0;
+			free(i); /* free switch and return */
+			ret = 0;
+			break;
 		}
 	}
-
-	/* we can't find the right switch */
 	ast_mutex_unlock(&con->lock);
-	return -1;
+	return ret;
 }
 
 /*
@@ -2526,24 +2533,13 @@ int ast_context_remove_switch2(struct ast_context *con, const char *sw, const ch
  */
 int ast_context_remove_extension(const char *context, const char *extension, int priority, const char *registrar)
 {
-	struct ast_context *c = NULL;
 	int ret = -1; /* default error return */
+	struct ast_context *c = find_context_locked(context);
 
-	if (ast_lock_contexts())
-		return -1;
-
-	/* walk contexts ... */
-	while ( (c = ast_walk_contexts(c)) ) {
-		/* ... search for the right one ... */
-		if (!strcmp(ast_get_context_name(c), context)) {
-			/* ... remove extension ... */
-			ret = ast_context_remove_extension2(c, extension, priority,
-				registrar);
-			break;
-		}
+	if (c) { /* ... remove extension ... */
+		ret = ast_context_remove_extension2(c, extension, priority, registrar);
+		ast_unlock_contexts();
 	}
-	/* found or error */
-	ast_unlock_contexts();
 	return ret;
 }
 
@@ -2712,6 +2708,10 @@ int ast_register_application(const char *app, int (*execute)(struct ast_channel 
 	return 0;
 }
 
+/*
+ * Append to the list. We don't have a tail pointer because we need
+ * to scan the list anyways to check for duplicates during insertion.
+ */
 int ast_register_switch(struct ast_switch *sw)
 {
 	struct ast_switch *tmp, *prev=NULL;
@@ -3582,28 +3582,14 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
  */
 int ast_context_add_include(const char *context, const char *include, const char *registrar)
 {
-	struct ast_context *c = NULL;
+	int ret = -1;
+	struct ast_context *c = find_context_locked(context);
 
-	if (ast_lock_contexts()) {
-		errno = EBUSY;
-		return -1;
+	if (c) {
+		ret = ast_context_add_include2(c, include, registrar);
+		ast_unlock_contexts();
 	}
-
-	/* walk contexts ... */
-	while ( (c = ast_walk_contexts(c)) ) {
-		/* ... search for the right one ... */
-		if (!strcmp(ast_get_context_name(c), context)) {
-			int ret = ast_context_add_include2(c, include, registrar);
-			/* ... unlock contexts list and return */
-			ast_unlock_contexts();
-			return ret;
-		}
-	}
-
-	/* we can't find the right context */
-	ast_unlock_contexts();
-	errno = ENOENT;
-	return -1;
+	return ret;
 }
 
 /*! \brief Helper for get_range.
@@ -4035,24 +4021,14 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
  */
 int ast_context_remove_ignorepat(const char *context, const char *ignorepat, const char *registrar)
 {
-	struct ast_context *c = NULL;
+	int ret = -1;
+	struct ast_context *c = find_context_locked(context);
 
-	if (ast_lock_contexts()) {
-		errno = EBUSY;
-		return -1;
+	if (c) {
+		ret = ast_context_remove_ignorepat2(c, ignorepat, registrar);
+		ast_unlock_contexts();
 	}
-
-	while ( (c = ast_walk_contexts(c)) ) {
-		if (!strcmp(ast_get_context_name(c), context)) {
-			int ret = ast_context_remove_ignorepat2(c, ignorepat, registrar);
-			ast_unlock_contexts();
-			return ret;
-		}
-	}
-
-	ast_unlock_contexts();
-	errno = ENOENT;
-	return -1;
+	return ret;
 }
 
 int ast_context_remove_ignorepat2(struct ast_context *con, const char *ignorepat, const char *registrar)
@@ -4089,26 +4065,17 @@ int ast_context_remove_ignorepat2(struct ast_context *con, const char *ignorepat
  * EBUSY - can't lock
  * ENOENT - there is no existence of context
  */
-int ast_context_add_ignorepat(const char *con, const char *value, const char *registrar)
+int ast_context_add_ignorepat(const char *context, const char *value, const char *registrar)
 {
-	struct ast_context *c = NULL;
+	int ret = -1;
+	struct ast_context *c = find_context_locked(context);
 
-	if (ast_lock_contexts()) {
-		errno = EBUSY;
-		return -1;
+	if (c) {
+		ret = ast_context_add_ignorepat2(c, value, registrar);
+		ast_unlock_contexts();
 	}
 
-	while ( (c = ast_walk_contexts(c)) ) {
-		if (!strcmp(ast_get_context_name(c), con)) {
-			int ret = ast_context_add_ignorepat2(c, value, registrar);
-			ast_unlock_contexts();
-			return ret;
-		} 
-	}
-
-	ast_unlock_contexts();
-	errno = ENOENT;
-	return -1;
+	return ret;
 }
 
 int ast_context_add_ignorepat2(struct ast_context *con, const char *value, const char *registrar)
@@ -4164,28 +4131,20 @@ int ast_ignore_pattern(const char *context, const char *pattern)
  * ENOENT  - no existence of context
  *
  */
-int ast_add_extension(const char *context, int replace, const char *extension, int priority, const char *label, const char *callerid,
+int ast_add_extension(const char *context, int replace, const char *extension,
+	int priority, const char *label, const char *callerid,
 	const char *application, void *data, void (*datad)(void *), const char *registrar)
 {
-	struct ast_context *c = NULL;
+	int ret = -1;
+	struct ast_context *c = find_context_locked(context);
 
-	if (ast_lock_contexts()) {
-		errno = EBUSY;
-		return -1;
+	if (c) {
+		ret = ast_add_extension2(c, replace, extension, priority, label, callerid,
+			application, data, datad, registrar);
+		ast_unlock_contexts();
 	}
 
-	while ( (c = ast_walk_contexts(c)) ) {
-		if (!strcmp(context, ast_get_context_name(c))) {
-			int ret = ast_add_extension2(c, replace, extension, priority, label, callerid,
-				application, data, datad, registrar);
-			ast_unlock_contexts();
-			return ret;
-		}
-	}
-
-	ast_unlock_contexts();
-	errno = ENOENT;
-	return -1;
+	return ret;
 }
 
 int ast_explicit_goto(struct ast_channel *chan, const char *context, const char *exten, int priority)
@@ -4269,6 +4228,7 @@ int ast_async_goto_by_name(const char *channame, const char *context, const char
 	return res;
 }
 
+/*! \brief copy a string skipping whitespace */
 static int ext_strncpy(char *dst, const char *src, int len)
 {
 	int count=0;
