@@ -1238,7 +1238,15 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				res2 = ast_play_and_wait(peer, "vm-sorry");
 			}
 
-			switch(res2) {
+			if (ast_test_flag(&opts, OPT_MUSICBACK)) {
+				ast_moh_stop(chan);
+			} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
+				ast_indicate(chan, -1);
+				sentringing=0;
+			}
+			ast_autoservice_stop(chan);
+
+			switch (res2) {
 			case '1':
 				if( ast_test_flag(&opts, OPT_PRIVACY) ) {
 					if (option_verbose > 2)
@@ -1254,13 +1262,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 							     opt_args[OPT_ARG_PRIVACY], privcid);
 					ast_privacy_set(opt_args[OPT_ARG_PRIVACY], privcid, AST_PRIVACY_DENY);
 				}
-				if (ast_test_flag(&opts, OPT_MUSICBACK)) {
-					ast_moh_stop(chan);
-				} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
-					ast_indicate(chan, -1);
-					sentringing=0;
-				}
-				res2 = ast_autoservice_stop(chan);
 				ast_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
 				res=0;
 				goto out;
@@ -1274,13 +1275,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_copy_string(status, "TORTURE", sizeof(status));
 				
 				res = 0;
-				if (ast_test_flag(&opts, OPT_MUSICBACK)) {
-					ast_moh_stop(chan);
-				} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
-					ast_indicate(chan, -1);
-					sentringing=0;
-				}
-				res2 = ast_autoservice_stop(chan);
 				ast_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
 				goto out; /* Is this right? */
 			case '4':
@@ -1293,13 +1287,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 				ast_copy_string(status, "DONTCALL", sizeof(status));
 				res = 0;
-				if (ast_test_flag(&opts, OPT_MUSICBACK)) {
-					ast_moh_stop(chan);
-				} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
-					ast_indicate(chan, -1);
-					sentringing=0;
-				}
-				res2 = ast_autoservice_stop(chan);
 				ast_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
 				goto out; /* Is this right? */
 			case '5':
@@ -1308,13 +1295,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 						ast_verbose(VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to ALLOW\n",
 							     opt_args[OPT_ARG_PRIVACY], privcid);
 					ast_privacy_set(opt_args[OPT_ARG_PRIVACY], privcid, AST_PRIVACY_ALLOW);
-					if (ast_test_flag(&opts, OPT_MUSICBACK)) {
-						ast_moh_stop(chan);
-					} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
-						ast_indicate(chan, -1);
-						sentringing=0;
-					}
-					res2 = ast_autoservice_stop(chan);
 					ast_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
 					res=0;
 					goto out;
@@ -1325,30 +1305,15 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 					  or,... put 'em thru to voicemail. */
 				/* since the callee may have hung up, let's do the voicemail thing, no database decision */
 				ast_log(LOG_NOTICE, "privacy: no valid response from the callee. Sending the caller to voicemail, the callee isn't responding\n");
-				if (ast_test_flag(&opts, OPT_MUSICBACK)) {
-					ast_moh_stop(chan);
-				} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
-					ast_indicate(chan, -1);
-					sentringing=0;
-				}
-				res2 = ast_autoservice_stop(chan);
 				ast_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
 				res=0;
 				goto out;
 			}
-			/* XXX we only reach this point in case '1', but all other cases are
-			 * also doing the same thing inline, so probably this code should
-			 * be done once before the switch() above.
-			 */
-			if (ast_test_flag(&opts, OPT_MUSICBACK)) {
-				ast_moh_stop(chan);
-			} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
-				ast_indicate(chan, -1);
-				sentringing=0;
-			}
-			res2 = ast_autoservice_stop(chan);
-			/* ---- */
 
+			/* XXX once again, this path is only taken in the case '1', so it could be
+			 * moved there, although i am not really sure that this is correct - maybe
+			 * the check applies to other cases as well.
+			 */
 			/* if the intro is NOCALLERID, then there's no reason to leave it on disk, it'll 
 			   just clog things up, and it's not useful information, not being tied to a CID */
 			if( strncmp(privcid,"NOCALLERID",10) == 0 || ast_test_flag(&opts, OPT_SCREEN_NOINTRO) ) {
