@@ -1393,6 +1393,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 		if (ast_test_flag(&opts, OPT_CALLEE_MACRO) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_MACRO])) {
 			struct ast_app *theapp;
+			const char *macro_result;
 
 			res = ast_autoservice_start(chan);
 			if (res) {
@@ -1417,9 +1418,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				res = -1;
 			}
 
-			if (!res) {
-				const char *macro_result;
-				if ((macro_result = pbx_builtin_getvar_helper(peer, "MACRO_RESULT"))) {
+			if (!res && (macro_result = pbx_builtin_getvar_helper(peer, "MACRO_RESULT"))) {
 					char *macro_transfer_dest;
 
 					if (!strcasecmp(macro_result, "BUSY")) {
@@ -1431,13 +1430,11 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 						} else
 							ast_set_flag(peerflags, OPT_GO_ON);
 						res = -1;
-					}
-					else if (!strcasecmp(macro_result, "CONGESTION") || !strcasecmp(macro_result, "CHANUNAVAIL")) {
+					} else if (!strcasecmp(macro_result, "CONGESTION") || !strcasecmp(macro_result, "CHANUNAVAIL")) {
 						ast_copy_string(status, macro_result, sizeof(status));
 						ast_set_flag(peerflags, OPT_GO_ON);	
 						res = -1;
-					}
-					else if (!strcasecmp(macro_result, "CONTINUE")) {
+					} else if (!strcasecmp(macro_result, "CONTINUE")) {
 						/* hangup peer and keep chan alive assuming the macro has changed 
 						   the context / exten / priority or perhaps 
 						   the next priority in the current exten is desired.
@@ -1457,7 +1454,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 						}
 					}
-				}
 			}
 		}
 
