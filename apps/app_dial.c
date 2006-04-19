@@ -714,7 +714,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	int cause;
 	char numsubst[AST_MAX_EXTENSION];
 	char cidname[AST_MAX_EXTENSION];
-	char toast[80];
 	char *l;
 	int privdb_val = 0;
 	unsigned int calldurationlimit = 0;
@@ -1034,22 +1033,18 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		tmp->chan->appl = "AppDial";
 		tmp->chan->data = "(Outgoing Line)";
 		tmp->chan->whentohangup = 0;
+
 		if (tmp->chan->cid.cid_num)
 			free(tmp->chan->cid.cid_num);
-		tmp->chan->cid.cid_num = NULL;
+		tmp->chan->cid.cid_num = ast_strdup(chan->cid.cid_num);
+
 		if (tmp->chan->cid.cid_name)
 			free(tmp->chan->cid.cid_name);
-		tmp->chan->cid.cid_name = NULL;
+		tmp->chan->cid.cid_name = ast_strdup(chan->cid.cid_name);
+
 		if (tmp->chan->cid.cid_ani)
 			free(tmp->chan->cid.cid_ani);
-		tmp->chan->cid.cid_ani = NULL;
-
-		if (chan->cid.cid_num) 
-			tmp->chan->cid.cid_num = strdup(chan->cid.cid_num);
-		if (chan->cid.cid_name) 
-			tmp->chan->cid.cid_name = strdup(chan->cid.cid_name);
-		if (chan->cid.cid_ani) 
-			tmp->chan->cid.cid_ani = strdup(chan->cid.cid_ani);
+		tmp->chan->cid.cid_ani = ast_strdup(chan->cid.cid_ani);
 		
 		/* Copy language from incoming to outgoing */
 		ast_string_field_set(tmp->chan, language, chan->language);
@@ -1057,8 +1052,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		tmp->chan->cdrflags = chan->cdrflags;
 		if (ast_strlen_zero(tmp->chan->musicclass))
 			ast_string_field_set(tmp->chan, musicclass, chan->musicclass);
-		if (chan->cid.cid_rdnis)
-			tmp->chan->cid.cid_rdnis = strdup(chan->cid.cid_rdnis);
+		/* XXX don't we free previous values ? */
+		tmp->chan->cid.cid_rdnis = ast_strdup(chan->cid.cid_rdnis);
 		/* Pass callingpres setting */
 		tmp->chan->cid.cid_pres = chan->cid.cid_pres;
 		/* Pass type of number */
@@ -1511,15 +1506,20 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 			res = ast_bridge_call(chan,peer,&config);
 			time(&end_time);
-			snprintf(toast, sizeof(toast), "%ld", (long)(end_time - answer_time));
-			pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", toast);
-			
+			{
+				char toast[80];
+				snprintf(toast, sizeof(toast), "%ld", (long)(end_time - answer_time));
+				pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", toast);
+			}
 		} else {
 			time(&end_time);
 			res = -1;
 		}
-		snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
-		pbx_builtin_setvar_helper(chan, "DIALEDTIME", toast);
+		{
+			char toast[80];
+			snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
+			pbx_builtin_setvar_helper(chan, "DIALEDTIME", toast);
+		}
 		
 		if (res != AST_PBX_NO_HANGUP_PEER) {
 			if (!chan->_softhangup)
