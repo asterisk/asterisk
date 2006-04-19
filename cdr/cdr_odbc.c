@@ -78,12 +78,17 @@ static SQLHENV	ODBC_env = SQL_NULL_HANDLE;	/* global ODBC Environment */
 static SQLHDBC	ODBC_con;			/* global ODBC Connection Handle */
 static SQLHSTMT	ODBC_stmt;			/* global ODBC Statement Handle */
 
+static void odbc_disconnect(void)
+{
+	SQLDisconnect(ODBC_con);
+	SQLFreeHandle(SQL_HANDLE_DBC, ODBC_con);
+	SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
+	connected = 0;
+}
+
 static int odbc_log(struct ast_cdr *cdr)
 {
-	SQLINTEGER ODBC_err;
-	short int ODBC_mlen;
 	int ODBC_res;
-	char ODBC_msg[200], ODBC_stat[10];
 	char sqlcmd[2048] = "", timestr[128];
 	int res = 0;
 	struct tm tm;
@@ -111,7 +116,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	if (!connected) {
 		res = odbc_init();
 		if (res < 0) {
-			connected = 0;
+			odbc_disconnect();
 			ast_mutex_unlock(&odbc_lock);
 			return 0;
 		}				
@@ -122,9 +127,8 @@ static int odbc_log(struct ast_cdr *cdr)
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Failure in AllocStatement %d\n", ODBC_res);
-		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, (unsigned char *)ODBC_stat, &ODBC_err, (unsigned char *)ODBC_msg, 100, &ODBC_mlen);
-		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);	
-		connected = 0;
+		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
+		odbc_disconnect();
 		ast_mutex_unlock(&odbc_lock);
 		return 0;
 	}
@@ -138,9 +142,8 @@ static int odbc_log(struct ast_cdr *cdr)
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error in PREPARE %d\n", ODBC_res);
-		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, (unsigned char *)ODBC_stat, &ODBC_err, (unsigned char *)ODBC_msg, 100, &ODBC_mlen);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
-		connected = 0;
+		odbc_disconnect();
 		ast_mutex_unlock(&odbc_lock);
 		return 0;
 	}
@@ -173,13 +176,14 @@ static int odbc_log(struct ast_cdr *cdr)
 		if (res < 0) {
 			if (option_verbose > 10)		
 				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
-			res = odbc_init();
 			if (option_verbose > 10)
 				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Reconnecting to dsn %s\n", dsn);
+			SQLDisconnect(ODBC_con);
+			res = odbc_init();
 			if (res < 0) {
 				if (option_verbose > 10)
 					ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: %s has gone away!\n", dsn);
-				connected = 0;
+				odbc_disconnect();
 			} else {
 				if (option_verbose > 10)
 					ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Trying Query again!\n");
@@ -211,10 +215,7 @@ static int odbc_unload_module(void)
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Disconnecting from %s\n", dsn);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
-		SQLDisconnect(ODBC_con);
-		SQLFreeHandle(SQL_HANDLE_DBC, ODBC_con);
-		SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
-		connected = 0;
+		odbc_disconnect();
 	}
 	if (dsn) {
 		if (option_verbose > 10)
@@ -383,7 +384,7 @@ static int odbc_do_query(void)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error in Query %d\n", ODBC_res);
 		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, (unsigned char *)ODBC_stat, &ODBC_err, (unsigned char *)ODBC_msg, 100, &ODBC_mlen);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
-		connected = 0;
+		odbc_disconnect();
 		return -1;
 	} else {
 		if (option_verbose > 10)
@@ -395,10 +396,7 @@ static int odbc_do_query(void)
 
 static int odbc_init(void)
 {
-	SQLINTEGER ODBC_err;
-	short int ODBC_mlen;
 	int ODBC_res;
-	char ODBC_msg[200], ODBC_stat[10];
 
 	if (ODBC_env == SQL_NULL_HANDLE || connected == 0) {
 		ODBC_res = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &ODBC_env);
@@ -438,7 +436,7 @@ static int odbc_init(void)
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error SQLConnect %d\n", ODBC_res);
-		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, (unsigned char *)ODBC_stat, &ODBC_err, (unsigned char *)ODBC_msg, 100, &ODBC_mlen);
+		SQLFreeHandle(SQL_HANDLE_DBC, ODBC_con);
 		SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
 		connected = 0;
 		return -1;
