@@ -266,7 +266,7 @@ long int ast_random(void);
 	_ast_malloc((len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
-void *_ast_malloc(size_t len, const char *file, int lineno, const char *func),
+void * __attribute__((malloc)) _ast_malloc(size_t len, const char *file, int lineno, const char *func),
 {
 	void *p;
 
@@ -291,7 +291,7 @@ void *_ast_malloc(size_t len, const char *file, int lineno, const char *func),
 	_ast_calloc((num), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
-void *_ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func),
+void * __attribute__((malloc)) _ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func),
 {
 	void *p;
 
@@ -316,7 +316,7 @@ void *_ast_calloc(size_t num, size_t len, const char *file, int lineno, const ch
 	_ast_realloc((p), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
-void *_ast_realloc(void *p, size_t len, const char *file, int lineno, const char *func),
+void * __attribute__((malloc)) _ast_realloc(void *p, size_t len, const char *file, int lineno, const char *func),
 {
 	void *newp;
 
@@ -345,7 +345,7 @@ void *_ast_realloc(void *p, size_t len, const char *file, int lineno, const char
 	_ast_strdup((str), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
-char *_ast_strdup(const char *str, const char *file, int lineno, const char *func),
+char * __attribute__((malloc)) _ast_strdup(const char *str, const char *file, int lineno, const char *func),
 {
 	char *newstr = NULL;
 
@@ -376,7 +376,7 @@ char *_ast_strdup(const char *str, const char *file, int lineno, const char *fun
 	_ast_strndup((str), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
-char *_ast_strndup(const char *str, size_t len, const char *file, int lineno, const char *func),
+char * __attribute__((malloc)) _ast_strndup(const char *str, size_t len, const char *file, int lineno, const char *func),
 {
 	char *newstr = NULL;
 
