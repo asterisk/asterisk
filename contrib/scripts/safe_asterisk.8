@@ -40,6 +40,13 @@ safe_asterisk runs in that directory, rather than in / as usual.
 If core files were generated there, they may be 
 .RE
 
+.B /etc/asterisk/startup.d
+.RS
+Files in this directory will be 'source'd by the safe_asterisk script before
+it starts Asterisk proper, allowing them to set additional environment variables
+or run any other steps that are needed for your system.
+.RE
+
 .SH BUGS
 While showing the output on a console is useful, using screen(1) as 
 the terminal may be better.

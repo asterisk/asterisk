@@ -94,9 +94,17 @@ if [ ! -w ${DUMPDROP} ]; then
 	exit 1
 fi
 
-#launch_asterisk()
-#{
-#}
+#
+# Run scripts to set any environment variables or do any other system-specific setup needed
+#
+
+if [ -d /etc/asterisk/startup.d ]; then
+	for script in /etc/asterisk/startup.d/*.sh; do
+		if [ -x ${script} ]; then
+			source ${script}
+		fi
+	done
+fi
 
 run_asterisk()
 {
