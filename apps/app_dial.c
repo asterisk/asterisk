@@ -334,24 +334,12 @@ static int onedigit_goto(struct ast_channel *chan, const char *context, char ext
 }
 
 
-static char *get_cid_name(char *name, int namelen, struct ast_channel *chan)
+static const char *get_cid_name(char *name, int namelen, struct ast_channel *chan)
 {
-	char *context;
-	char *exten;
-	if (!ast_strlen_zero(chan->macrocontext))
-		context = chan->macrocontext;
-	else
-		context = chan->context;
+	const char *context = S_OR(chan->macrocontext, chan->context);
+	const char *exten = S_OR(chan->macroexten, chan->exten);
 
-	if (!ast_strlen_zero(chan->macroexten))
-		exten = chan->macroexten;
-	else
-		exten = chan->exten;
-
-	if (ast_get_hint(NULL, 0, name, namelen, chan, context, exten))
-		return name;
-	else
-		return "";
+	return ast_get_hint(NULL, 0, name, namelen, chan, context, exten) ? name : "";
 }
 
 static void senddialevent(struct ast_channel *src, struct ast_channel *dst)
@@ -424,7 +412,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 			return NULL;
 		}
 		winner = ast_waitfor_n(watchers, pos, to);
-		o = outgoing;
 		for (o = outgoing; o; o = o->next) {
 			struct ast_frame *f;
 			struct ast_channel *c = o->chan;
