@@ -2417,29 +2417,15 @@ static struct ast_context *find_context_locked(const char *context)
  */
 int ast_context_remove_include(const char *context, const char *include, const char *registrar)
 {
-	struct ast_context *c = NULL;
+	int ret = -1;
+	struct ast_context *c = find_context_locked(context);
 
-	if (ast_lock_contexts())
-		return -1;
-
-	/* walk contexts and search for the right one ...*/
-	while ( (c = ast_walk_contexts(c)) ) {
-		/* we found one ... */
-		if (!strcmp(ast_get_context_name(c), context)) {
-			int ret;
-			/* remove include from this context ... */	
-			ret = ast_context_remove_include2(c, include, registrar);
-
-			ast_unlock_contexts();
-
-			/* ... return results */
-			return ret;
-		}
+	if (c) {
+		/* found, remove include from this context ... */
+		ret = ast_context_remove_include2(c, include, registrar);
+		ast_unlock_contexts();
 	}
-
-	/* we can't find the right one context */
-	ast_unlock_contexts();
-	return -1;
+	return ret;
 }
 
 /*
@@ -5101,10 +5087,7 @@ static int pbx_builtin_resetcdr(struct ast_channel *chan, void *data)
 static int pbx_builtin_setamaflags(struct ast_channel *chan, void *data)
 {
 	/* Copy the AMA Flags as specified */
-	if (data)
-		ast_cdr_setamaflags(chan, data);
-	else
-		ast_cdr_setamaflags(chan, "");
+	ast_cdr_setamaflags(chan, data ? data : "");
 	return 0;
 }
 
@@ -5359,7 +5342,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
  */
 static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 {
-	int res = ast_parseable_goto(chan, (const char *) data);
+	int res = ast_parseable_goto(chan, data);
 	if (!res && (option_verbose > 2))
 		ast_verbose( VERBOSE_PREFIX_3 "Goto (%s,%s,%d)\n", chan->context,chan->exten, chan->priority+1);
 	return res;
@@ -5601,7 +5584,7 @@ int pbx_checkcondition(char *condition)
 		return 0;
 	else if (*condition >= '0' && *condition <= '9')	/* Numbers are evaluated for truth */
 		return atoi(condition);
-	else	/* Strings are true */
+	else	/* Strings are true -- XXX maybe use ast_true() ? */
 		return 1;
 }
 
@@ -5609,7 +5592,7 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 {
 	char *condition, *branch1, *branch2, *branch;
 	int rc;
-	char *stringp=NULL;
+	char *stringp;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Ignoring, since there is no variable to check\n");
@@ -5900,12 +5883,14 @@ static int __ast_goto_if_exists(struct ast_channel *chan, const char *context, c
 	if (!chan)
 		return -2;
 
+	if (context == NULL)
+		context = chan->context;
+	if (exten == NULL)
+		exten = chan->exten;
+
 	goto_func = (async) ? ast_async_goto : ast_explicit_goto;
-	if (ast_exists_extension(chan, context ? context : chan->context,
-				 exten ? exten : chan->exten, priority,
-				 chan->cid.cid_num))
-		return goto_func(chan, context ? context : chan->context,
-				 exten ? exten : chan->exten, priority);
+	if (ast_exists_extension(chan, context, exten, priority, chan->cid.cid_num))
+		return goto_func(chan, context, exten, priority);
 	else 
 		return -3;
 }
