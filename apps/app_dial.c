@@ -608,21 +608,21 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
 				}
-			} else if (single && (f->frametype == AST_FRAME_VOICE) && 
-						!(ast_test_flag(outgoing, OPT_RINGBACK|OPT_MUSICBACK))) {
-				if (ast_write(in, f)) 
-					ast_log(LOG_WARNING, "Unable to forward voice frame\n");
-			} else if (single && (f->frametype == AST_FRAME_IMAGE) && 
-						!(ast_test_flag(outgoing, OPT_RINGBACK|OPT_MUSICBACK))) {
-				if (ast_write(in, f))
-					ast_log(LOG_WARNING, "Unable to forward image\n");
-			} else if (single && (f->frametype == AST_FRAME_TEXT) && 
-						!(ast_test_flag(outgoing, OPT_RINGBACK|OPT_MUSICBACK))) {
-				if (ast_write(in, f))
-					ast_log(LOG_WARNING, "Unable to send text\n");
-			} else if (single && (f->frametype == AST_FRAME_HTML) && !ast_test_flag(outgoing, DIAL_NOFORWARDHTML)) {
-				if(ast_channel_sendhtml(in, f->subclass, f->data, f->datalen) == -1)
-					ast_log(LOG_WARNING, "Unable to send URL\n");
+			} else if (single) {
+				/* XXX are we sure the logic is correct ? or we should just switch on f->frametype ? */
+				if (f->frametype == AST_FRAME_VOICE && !ast_test_flag(outgoing, OPT_RINGBACK|OPT_MUSICBACK)) {
+					if (ast_write(in, f)) 
+						ast_log(LOG_WARNING, "Unable to forward voice frame\n");
+				} else if (f->frametype == AST_FRAME_IMAGE && !ast_test_flag(outgoing, OPT_RINGBACK|OPT_MUSICBACK)) {
+					if (ast_write(in, f))
+						ast_log(LOG_WARNING, "Unable to forward image\n");
+				} else if (f->frametype == AST_FRAME_TEXT && !ast_test_flag(outgoing, OPT_RINGBACK|OPT_MUSICBACK)) {
+					if (ast_write(in, f))
+						ast_log(LOG_WARNING, "Unable to send text\n");
+				} else if (f->frametype == AST_FRAME_HTML && !ast_test_flag(outgoing, DIAL_NOFORWARDHTML)) {
+					if (ast_channel_sendhtml(in, f->subclass, f->data, f->datalen) == -1)
+						ast_log(LOG_WARNING, "Unable to send URL\n");
+				}
 			}
 			ast_frfree(f);
 		} /* end for */
