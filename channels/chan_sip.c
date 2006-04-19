@@ -11867,7 +11867,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 }
 
 /*! \brief Read data from SIP socket
-\note Successful messages is connected to SIP call and forwarded to handle_request() */
+\return 1 on error, 0 on success
+\note Successful messages is connected to SIP call and forwarded to handle_request() 
+*/
 static int sipsock_read(int *id, int fd, short events, void *ignore)
 {
 	struct sip_request req;
