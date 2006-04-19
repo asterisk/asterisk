@@ -255,7 +255,7 @@ static const struct cfsubscription_types {
 	{ CPIM_PIDF_XML,   "presence", "application/cpim-pidf+xml",   "cpim-pidf+xml" },  /* RFC 3863 */
 	{ PIDF_XML,        "presence", "application/pidf+xml",        "pidf+xml" },       /* RFC 3863 */
 	{ XPIDF_XML,       "presence", "application/xpidf+xml",       "xpidf+xml" },       /* Pre-RFC 3863 with MS additions */
-	{ MWI_NOTIFICATION,	"message-summary", "application/simple-message-summary", "mwi" } /* Mailbox notification */
+	{ MWI_NOTIFICATION,	"message-summary", "application/simple-message-summary", "mwi" } /* RFC 3842: Mailbox notification */
 };
 
 enum sipmethod {
