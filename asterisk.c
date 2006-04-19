@@ -156,6 +156,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  */
 /*! @{ */
 
+extern int ast_language_is_prefix;	/* XXX move to some header */
+
 struct ast_flags ast_options = { AST_DEFAULT_OPTIONS };
 
 int option_verbose = 0;				/*!< Verbosity level */
@@ -2131,6 +2133,8 @@ static void ast_readconfig(void)
 			ast_copy_string(ast_config_AST_RUN_DIR, v->value, sizeof(ast_config_AST_RUN_DIR));
 		} else if (!strcasecmp(v->name, "astmoddir")) {
 			ast_copy_string(ast_config_AST_MODULE_DIR, v->value, sizeof(ast_config_AST_MODULE_DIR));
+		} else if (!strcasecmp(v->name, "languageprefix")) {
+			ast_language_is_prefix = ast_true(v->value);
 		}
 		v = v->next;
 	}
