@@ -702,9 +702,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 {
 	int res = -1;
 	struct localuser *u;
-	char *tech, *number, *rest, *cur;
-	char privcid[256];
-	char privintro[1024];
+	char *rest, *cur;
 	struct dial_localuser *outgoing = NULL, *tmp;
 	struct ast_channel *peer;
 	int to;
@@ -714,10 +712,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	int cause;
 	char numsubst[AST_MAX_EXTENSION];
 	char cidname[AST_MAX_EXTENSION];
-	char *l;
 	int privdb_val = 0;
 	unsigned int calldurationlimit = 0;
-	struct ast_bridge_config config;
 	long timelimit = 0;
 	long play_warning = 0;
 	long warning_freq = 0;
@@ -730,11 +726,11 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	int play_to_caller = 0, play_to_callee = 0;
 	int sentringing = 0, moh = 0;
 	const char *outbound_group = NULL;
-	const char *macro_result = NULL;
-	char *macro_transfer_dest = NULL;
 	int digit = 0, result = 0;
-	time_t start_time, answer_time, end_time;
+	time_t start_time;
 	struct ast_app *app = NULL;
+	char privintro[1024];
+	char privcid[256];
 
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
@@ -828,13 +824,13 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			play_to_caller = 1;
 		
 		var = pbx_builtin_getvar_helper(chan,"LIMIT_WARNING_FILE");
-		warning_sound = (!ast_strlen_zero(var)) ? var : "timeleft";
+		warning_sound = S_OR(var, "timeleft");
 		
 		var = pbx_builtin_getvar_helper(chan,"LIMIT_TIMEOUT_FILE");
-		end_sound = (!ast_strlen_zero(var)) ? var : NULL;
+		end_sound = S_OR(var, NULL);	/* XXX not much of a point in doing this! */
 		
 		var = pbx_builtin_getvar_helper(chan,"LIMIT_CONNECT_FILE");
-		start_sound = (!ast_strlen_zero(var)) ? var : NULL;
+		start_sound = S_OR(var, NULL);	/* XXX not much of a point in doing this! */
 
 		/* undo effect of S(x) in case they are both used */
 		calldurationlimit = 0;
@@ -863,8 +859,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		opt_args[OPT_ARG_PRIVACY] = ast_strdupa(chan->exten);
 	if (ast_test_flag(&opts, OPT_PRIVACY) || ast_test_flag(&opts, OPT_SCREENING)) {
 		char callerid[60];
-
-		l = chan->cid.cid_num;
+		char *l = chan->cid.cid_num;	/* XXX watch out, we are overwriting it */
 		if (!ast_strlen_zero(l)) {
 			ast_shrink_phone_number(l);
 			if( ast_test_flag(&opts, OPT_PRIVACY) ) {
@@ -961,8 +956,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	rest = args.peers;
 	while ((cur = strsep(&rest, "&")) ) {
 		/* Get a technology/[device:]number pair */
-		number = cur;
-		tech = strsep(&number, "/");
+		char *number = cur;
+		char *tech = strsep(&number, "/");
 		if (!number) {
 			ast_log(LOG_WARNING, "Dial argument takes format (technology/[device:]number1)\n");
 			goto out;
@@ -1140,7 +1135,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			res = 0;
 		}
 	} else {
-		time(&answer_time);
+		const char *number;
+		time_t end_time, answer_time = time(NULL);
+
 		strcpy(status, "ANSWER");
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the 
@@ -1153,7 +1150,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if (peer->name)
 			pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", peer->name);
 
-		number = (char *)pbx_builtin_getvar_helper(peer, "DIALEDPEERNUMBER");
+		number = pbx_builtin_getvar_helper(peer, "DIALEDPEERNUMBER");
 		if (!number)
 			number = numsubst;
 		pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", number);
@@ -1403,7 +1400,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 
 			if (!res) {
+				const char *macro_result;
 				if ((macro_result = pbx_builtin_getvar_helper(peer, "MACRO_RESULT"))) {
+					char *macro_transfer_dest;
+
 					if (!strcasecmp(macro_result, "BUSY")) {
 						ast_copy_string(status, macro_result, sizeof(status));
 						if (ast_opt_priority_jumping || ast_test_flag(&opts, OPT_PRIORITY_JUMP)) {
@@ -1463,6 +1463,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 		
 		if (!res) {
+			struct ast_bridge_config config;
+
 			memset(&config,0,sizeof(struct ast_bridge_config));
 			if (play_to_caller)
 				ast_set_flag(&(config.features_caller), AST_FEATURE_PLAY_WARNING);
