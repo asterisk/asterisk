@@ -2052,6 +2052,13 @@ int ast_spawn_extension(struct ast_channel *c, const char *context, const char *
 	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_SPAWN);
 }
 
+/* helper function to set extension and priority */
+static void set_ext_pri(struct ast_channel *c, const char *exten, int pri)
+{
+	ast_copy_string(c->exten, exten, sizeof(c->exten));
+	c->priority = pri;
+}
+
 static int __ast_pbx_run(struct ast_channel *c)
 {
 	int firstpass = 1;
@@ -2090,16 +2097,19 @@ static int __ast_pbx_run(struct ast_channel *c)
 		/* If not successful fall back to 's' */
 		if (option_verbose > 1)
 			ast_verbose( VERBOSE_PREFIX_2 "Starting %s at %s,%s,%d failed so falling back to exten 's'\n", c->name, c->context, c->exten, c->priority);
-		ast_copy_string(c->exten, "s", sizeof(c->exten));
+		/* XXX the original code used the existing priority in the call to
+		 * ast_exists_extension(), and reset it to 1 afterwards.
+		 * I believe the correct thing is to set it to 1 immediately.
+		 */
+		set_ext_pri(c, "s", 1);
 		if (!ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
 			/* JK02: And finally back to default if everything else failed */
 			if (option_verbose > 1)
 				ast_verbose( VERBOSE_PREFIX_2 "Starting %s at %s,%s,%d still failed so falling back to context 'default'\n", c->name, c->context, c->exten, c->priority);
 			ast_copy_string(c->context, "default", sizeof(c->context));
 		}
-		c->priority = 1;
 	}
-	if (c->cdr && !c->cdr->start.tv_sec && !c->cdr->start.tv_usec)
+	if (c->cdr && ast_tvzero(c->cdr->start))
 		ast_cdr_start(c->cdr);
 	for (;;) {
 		pos = 0;
@@ -2144,11 +2154,10 @@ static int __ast_pbx_run(struct ast_channel *c)
 					goto out;
 				}
 			}
-			if ((c->_softhangup == AST_SOFTHANGUP_TIMEOUT) && (ast_exists_extension(c,c->context,"T",1,c->cid.cid_num))) {
-				ast_copy_string(c->exten, "T", sizeof(c->exten));
+			if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT && ast_exists_extension(c,c->context,"T",1,c->cid.cid_num)) {
+				set_ext_pri(c, "T", 0); /* 0 will become 1 with the c->priority++; at the end */
 				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
 				c->whentohangup = 0;
-				c->priority = 0;
 				c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
 			} else if (c->_softhangup) {
 				ast_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
@@ -2159,13 +2168,14 @@ static int __ast_pbx_run(struct ast_channel *c)
 			c->priority++;
 		}
 		if (!ast_exists_extension(c, c->context, c->exten, 1, c->cid.cid_num)) {
-			/* It's not a valid extension anymore */
+			/* If there is no match at priority 1, it is not a valid extension anymore.
+			 * Try to continue at "i", 1 or exit if the latter does not exist.
+			 */
 			if (ast_exists_extension(c, c->context, "i", 1, c->cid.cid_num)) {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Sent into invalid extension '%s' in context '%s' on %s\n", c->exten, c->context, c->name);
 				pbx_builtin_setvar_helper(c, "INVALID_EXTEN", c->exten);
-				ast_copy_string(c->exten, "i", sizeof(c->exten));
-				c->priority = 1;
+				set_ext_pri(c, "i", 1);
 			} else {
 				ast_log(LOG_WARNING, "Channel '%s' sent into invalid extension '%s' in context '%s', but no invalid handler\n",
 					c->name, c->exten, c->context);
@@ -2201,8 +2211,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 				}
 				if (ast_exists_extension(c, c->context, exten, 1, c->cid.cid_num)) {
 					/* Prepare the next cycle */
-					ast_copy_string(c->exten, exten, sizeof(c->exten));
-					c->priority = 1;
+					set_ext_pri(c, exten, 1);
 				} else {
 					/* No such extension */
 					if (!ast_strlen_zero(exten)) {
@@ -2211,8 +2220,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "Invalid extension '%s' in context '%s' on %s\n", exten, c->context, c->name);
 							pbx_builtin_setvar_helper(c, "INVALID_EXTEN", exten);
-							ast_copy_string(c->exten, "i", sizeof(c->exten));
-							c->priority = 1;
+							set_ext_pri(c, "i", 1);
 						} else {
 							ast_log(LOG_WARNING, "Invalid extension '%s', but no rule 'i' in context '%s'\n", exten, c->context);
 							goto out;
@@ -2222,8 +2230,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 						if (ast_exists_extension(c, c->context, "t", 1, c->cid.cid_num)) {
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "Timeout on %s\n", c->name);
-							ast_copy_string(c->exten, "t", sizeof(c->exten));
-							c->priority = 1;
+							set_ext_pri(c, "t", 1);
 						} else {
 							ast_log(LOG_WARNING, "Timeout, but no rule 't' in context '%s'\n", c->context);
 							goto out;
@@ -2259,9 +2266,7 @@ out:
 	if ((res != AST_PBX_KEEPALIVE) && ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num)) {
 		if (c->cdr && ast_opt_end_cdr_before_h_exten)
 			ast_cdr_end(c->cdr);
-		c->exten[0] = 'h';
-		c->exten[1] = '\0';
-		c->priority = 1;
+		set_ext_pri(c, "h", 1);
 		while(ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
 			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num))) {
 				/* Something bad happened, or a hangup has been requested. */
@@ -4682,8 +4687,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 					ast_string_field_set(chan, name, "OutgoingSpoolFailed");
 					if (!ast_strlen_zero(context))
 						ast_copy_string(chan->context, context, sizeof(chan->context));
-					ast_copy_string(chan->exten, "failed", sizeof(chan->exten));
-					chan->priority = 1;
+					set_ext_pri(chan, "failed", 1);
 					ast_set_variables(chan, vars);
 					if (account)
 						ast_cdr_setaccount(chan, account);
@@ -4709,8 +4713,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 		}
 		as->chan = chan;
 		ast_copy_string(as->context, context, sizeof(as->context));
-		ast_copy_string(as->exten,  exten, sizeof(as->exten));
-		as->priority = priority;
+		set_ext_pri(as->chan,  exten, priority);
 		as->timeout = timeout;
 		ast_set_variables(chan, vars);
 		if (account)
@@ -5250,8 +5253,7 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 		} else if (ast_exists_extension(chan, chan->context, "t", 1, chan->cid.cid_num)) {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Timeout on %s, going to 't'\n", chan->name);
-			ast_copy_string(chan->exten, "t", sizeof(chan->exten));
-			chan->priority = 0;
+			set_ext_pri(chan, "t", 0); /* XXX is the 0 correct ? */
 		} else {
 			ast_log(LOG_WARNING, "Timeout but no rule 't' in context '%s'\n", chan->context);
 			res = -1;
