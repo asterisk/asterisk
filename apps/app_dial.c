@@ -434,195 +434,195 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 			if (c != winner)
 				continue;
 			if (!ast_strlen_zero(c->call_forward)) {
-					char tmpchan[256];
-					char *stuff;
-					char *tech;
-					const char *forward_context;
+				char tmpchan[256];
+				char *stuff;
+				char *tech;
+				const char *forward_context;
 
-					ast_copy_string(tmpchan, c->call_forward, sizeof(tmpchan));
-					if ((stuff = strchr(tmpchan, '/'))) {
-						*stuff++ = '\0';
-						tech = tmpchan;
+				ast_copy_string(tmpchan, c->call_forward, sizeof(tmpchan));
+				if ((stuff = strchr(tmpchan, '/'))) {
+					*stuff++ = '\0';
+					tech = tmpchan;
+				} else {
+					forward_context = pbx_builtin_getvar_helper(c, "FORWARD_CONTEXT");
+					snprintf(tmpchan, sizeof(tmpchan), "%s@%s", c->call_forward, forward_context ? forward_context : c->context);
+					stuff = tmpchan;
+					tech = "Local";
+				}
+				/* Before processing channel, go ahead and check for forwarding */
+				o->forwards++;
+				if (o->forwards < AST_MAX_FORWARDS) {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, c->name);
+					/* Setup parameters */
+					c = o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
+					if (!c)
+						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+				} else {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", c->name);
+					cause = AST_CAUSE_CONGESTION;
+					c = o->chan = NULL;
+				}
+				if (!c) {
+					ast_clear_flag(o, DIAL_STILLGOING);	
+					HANDLE_CAUSE(cause, in);
+				} else {
+					ast_rtp_make_compatible(c, in);
+					if (c->cid.cid_num)
+						free(c->cid.cid_num);
+					c->cid.cid_num = NULL;
+					if (c->cid.cid_name)
+						free(c->cid.cid_name);
+					c->cid.cid_name = NULL;
+
+					if (ast_test_flag(o, OPT_FORCECLID)) {
+						c->cid.cid_num = ast_strdup(S_OR(in->macroexten, in->exten));
+						ast_string_field_set(c, accountcode, winner->accountcode);
+						c->cdrflags = winner->cdrflags;
 					} else {
-						forward_context = pbx_builtin_getvar_helper(c, "FORWARD_CONTEXT");
-						snprintf(tmpchan, sizeof(tmpchan), "%s@%s", c->call_forward, forward_context ? forward_context : c->context);
-						stuff = tmpchan;
-						tech = "Local";
+						c->cid.cid_num = ast_strdup(in->cid.cid_num);
+						c->cid.cid_name = ast_strdup(in->cid.cid_name);
+						ast_string_field_set(c, accountcode, in->accountcode);
+						c->cdrflags = in->cdrflags;
 					}
-					/* Before processing channel, go ahead and check for forwarding */
-					o->forwards++;
-					if (o->forwards < AST_MAX_FORWARDS) {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, c->name);
-						/* Setup parameters */
-						c = o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
-						if (!c)
-							ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
-					} else {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", c->name);
-						cause = AST_CAUSE_CONGESTION;
-						c = o->chan = NULL;
+
+					if (in->cid.cid_ani) {
+						if (c->cid.cid_ani)
+							free(c->cid.cid_ani);
+						c->cid.cid_ani = ast_strdup(in->cid.cid_ani);
 					}
-					if (!c) {
+					if (c->cid.cid_rdnis) 
+						free(c->cid.cid_rdnis);
+					c->cid.cid_rdnis = ast_strdup(S_OR(in->macroexten, in->exten));
+					if (ast_call(c, tmpchan, 0)) {
+						ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
 						ast_clear_flag(o, DIAL_STILLGOING);	
-						HANDLE_CAUSE(cause, in);
+						ast_hangup(c);
+						c = o->chan = NULL;
+						numnochan++;
 					} else {
-						ast_rtp_make_compatible(c, in);
-						if (c->cid.cid_num)
-							free(c->cid.cid_num);
-						c->cid.cid_num = NULL;
-						if (c->cid.cid_name)
-							free(c->cid.cid_name);
-						c->cid.cid_name = NULL;
-
-						if (ast_test_flag(o, OPT_FORCECLID)) {
-							c->cid.cid_num = ast_strdup(S_OR(in->macroexten, in->exten));
-							ast_string_field_set(c, accountcode, winner->accountcode);
-							c->cdrflags = winner->cdrflags;
-						} else {
-							c->cid.cid_num = ast_strdup(in->cid.cid_num);
-							c->cid.cid_name = ast_strdup(in->cid.cid_name);
-							ast_string_field_set(c, accountcode, in->accountcode);
-							c->cdrflags = in->cdrflags;
-						}
-
-						if (in->cid.cid_ani) {
-							if (c->cid.cid_ani)
-								free(c->cid.cid_ani);
-							c->cid.cid_ani = ast_strdup(in->cid.cid_ani);
-						}
-						if (c->cid.cid_rdnis) 
-							free(c->cid.cid_rdnis);
-						c->cid.cid_rdnis = ast_strdup(S_OR(in->macroexten, in->exten));
-						if (ast_call(c, tmpchan, 0)) {
-							ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
-							ast_clear_flag(o, DIAL_STILLGOING);	
-							ast_hangup(c);
-							c = o->chan = NULL;
-							numnochan++;
-						} else {
-							senddialevent(in, c);
-							/* After calling, set callerid to extension */
-							if (!ast_test_flag(peerflags, OPT_ORIGINAL_CLID))
-								ast_set_callerid(c, S_OR(in->macroexten, in->exten), get_cid_name(cidname, sizeof(cidname), in), NULL);
-						}
+						senddialevent(in, c);
+						/* After calling, set callerid to extension */
+						if (!ast_test_flag(peerflags, OPT_ORIGINAL_CLID))
+							ast_set_callerid(c, S_OR(in->macroexten, in->exten), get_cid_name(cidname, sizeof(cidname), in), NULL);
 					}
-					/* Hangup the original channel now, in case we needed it */
-					ast_hangup(winner);
-					continue;
+				}
+				/* Hangup the original channel now, in case we needed it */
+				ast_hangup(winner);
+				continue;
 			}
 			f = ast_read(winner);
 			if (!f) {
+				in->hangupcause = c->hangupcause;
+				ast_hangup(c);
+				c = o->chan = NULL;
+				ast_clear_flag(o, DIAL_STILLGOING);
+				HANDLE_CAUSE(in->hangupcause, in);
+				continue;
+			}
+			if (f->frametype == AST_FRAME_CONTROL) {
+				switch(f->subclass) {
+				case AST_CONTROL_ANSWER:
+					/* This is our guy if someone answered. */
+					if (!peer) {
+						if (option_verbose > 2)
+							ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", c->name, in->name);
+						peer = c;
+						ast_copy_flags(peerflags, o,
+							       OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
+							       OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
+							       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
+							       DIAL_NOFORWARDHTML);
+					}
+					/* If call has been answered, then the eventual hangup is likely to be normal hangup */
+					in->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+					c->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+					break;
+				case AST_CONTROL_BUSY:
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "%s is busy\n", c->name);
+					in->hangupcause = c->hangupcause;
+					ast_hangup(c);
+					c = o->chan = NULL;
+					ast_clear_flag(o, DIAL_STILLGOING);	
+					HANDLE_CAUSE(AST_CAUSE_BUSY, in);
+					break;
+				case AST_CONTROL_CONGESTION:
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "%s is circuit-busy\n", c->name);
 					in->hangupcause = c->hangupcause;
 					ast_hangup(c);
 					c = o->chan = NULL;
 					ast_clear_flag(o, DIAL_STILLGOING);
-					HANDLE_CAUSE(in->hangupcause, in);
-					continue;
-			}
-			if (f->frametype == AST_FRAME_CONTROL) {
-						switch(f->subclass) {
-						case AST_CONTROL_ANSWER:
-							/* This is our guy if someone answered. */
-							if (!peer) {
-								if (option_verbose > 2)
-									ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", c->name, in->name);
-								peer = c;
-								ast_copy_flags(peerflags, o,
-									       OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
-									       OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
-									       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
-									       DIAL_NOFORWARDHTML);
-							}
-							/* If call has been answered, then the eventual hangup is likely to be normal hangup */
-							in->hangupcause = AST_CAUSE_NORMAL_CLEARING;
-							c->hangupcause = AST_CAUSE_NORMAL_CLEARING;
-							break;
-						case AST_CONTROL_BUSY:
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "%s is busy\n", c->name);
-							in->hangupcause = c->hangupcause;
-							ast_hangup(c);
-							c = o->chan = NULL;
-							ast_clear_flag(o, DIAL_STILLGOING);	
-							HANDLE_CAUSE(AST_CAUSE_BUSY, in);
-							break;
-						case AST_CONTROL_CONGESTION:
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "%s is circuit-busy\n", c->name);
-							in->hangupcause = c->hangupcause;
-							ast_hangup(c);
-							c = o->chan = NULL;
-							ast_clear_flag(o, DIAL_STILLGOING);
-							HANDLE_CAUSE(AST_CAUSE_CONGESTION, in);
-							break;
-						case AST_CONTROL_RINGING:
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "%s is ringing\n", c->name);
-							if (!(*sentringing) && !ast_test_flag(outgoing, OPT_MUSICBACK)) {
-								ast_indicate(in, AST_CONTROL_RINGING);
-								(*sentringing)++;
-							}
-							break;
-						case AST_CONTROL_PROGRESS:
-							if (option_verbose > 2)
-								ast_verbose (VERBOSE_PREFIX_3 "%s is making progress passing it to %s\n", c->name, in->name);
-							if (!ast_test_flag(outgoing, OPT_RINGBACK))
-								ast_indicate(in, AST_CONTROL_PROGRESS);
-							break;
-						case AST_CONTROL_VIDUPDATE:
-							if (option_verbose > 2)
-								ast_verbose (VERBOSE_PREFIX_3 "%s requested a video update, passing it to %s\n", c->name, in->name);
-							ast_indicate(in, AST_CONTROL_VIDUPDATE);
-							break;
-						case AST_CONTROL_PROCEEDING:
-							if (option_verbose > 2)
-								ast_verbose (VERBOSE_PREFIX_3 "%s is proceeding passing it to %s\n", c->name, in->name);
-							if (!ast_test_flag(outgoing, OPT_RINGBACK))
-								ast_indicate(in, AST_CONTROL_PROCEEDING);
-							break;
-						case AST_CONTROL_HOLD:
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Call on %s placed on hold\n", c->name);
-							ast_indicate(in, AST_CONTROL_HOLD);
-							break;
-						case AST_CONTROL_UNHOLD:
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Call on %s left from hold\n", c->name);
-							ast_indicate(in, AST_CONTROL_UNHOLD);
-							break;
-						case AST_CONTROL_OFFHOOK:
-						case AST_CONTROL_FLASH:
-							/* Ignore going off hook and flash */
-							break;
-						case -1:
-							if (!ast_test_flag(outgoing, OPT_RINGBACK | OPT_MUSICBACK)) {
-								if (option_verbose > 2)
-									ast_verbose(VERBOSE_PREFIX_3 "%s stopped sounds\n", c->name);
-								ast_indicate(in, -1);
-								(*sentringing) = 0;
-							}
-							break;
-						default:
-							if (option_debug)
-								ast_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
-						}
+					HANDLE_CAUSE(AST_CAUSE_CONGESTION, in);
+					break;
+				case AST_CONTROL_RINGING:
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "%s is ringing\n", c->name);
+					if (!(*sentringing) && !ast_test_flag(outgoing, OPT_MUSICBACK)) {
+						ast_indicate(in, AST_CONTROL_RINGING);
+						(*sentringing)++;
+					}
+					break;
+				case AST_CONTROL_PROGRESS:
+					if (option_verbose > 2)
+						ast_verbose (VERBOSE_PREFIX_3 "%s is making progress passing it to %s\n", c->name, in->name);
+					if (!ast_test_flag(outgoing, OPT_RINGBACK))
+						ast_indicate(in, AST_CONTROL_PROGRESS);
+					break;
+				case AST_CONTROL_VIDUPDATE:
+					if (option_verbose > 2)
+						ast_verbose (VERBOSE_PREFIX_3 "%s requested a video update, passing it to %s\n", c->name, in->name);
+					ast_indicate(in, AST_CONTROL_VIDUPDATE);
+					break;
+				case AST_CONTROL_PROCEEDING:
+					if (option_verbose > 2)
+						ast_verbose (VERBOSE_PREFIX_3 "%s is proceeding passing it to %s\n", c->name, in->name);
+					if (!ast_test_flag(outgoing, OPT_RINGBACK))
+						ast_indicate(in, AST_CONTROL_PROCEEDING);
+					break;
+				case AST_CONTROL_HOLD:
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Call on %s placed on hold\n", c->name);
+					ast_indicate(in, AST_CONTROL_HOLD);
+					break;
+				case AST_CONTROL_UNHOLD:
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Call on %s left from hold\n", c->name);
+					ast_indicate(in, AST_CONTROL_UNHOLD);
+					break;
+				case AST_CONTROL_OFFHOOK:
+				case AST_CONTROL_FLASH:
+					/* Ignore going off hook and flash */
+					break;
+				case -1:
+					if (!ast_test_flag(outgoing, OPT_RINGBACK | OPT_MUSICBACK)) {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "%s stopped sounds\n", c->name);
+						ast_indicate(in, -1);
+						(*sentringing) = 0;
+					}
+					break;
+				default:
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
+				}
 			} else if (single && (f->frametype == AST_FRAME_VOICE) && 
-								!(ast_test_flag(outgoing, OPT_RINGBACK|OPT_MUSICBACK))) {
-						if (ast_write(in, f)) 
-							ast_log(LOG_WARNING, "Unable to forward voice frame\n");
+						!(ast_test_flag(outgoing, OPT_RINGBACK|OPT_MUSICBACK))) {
+				if (ast_write(in, f)) 
+					ast_log(LOG_WARNING, "Unable to forward voice frame\n");
 			} else if (single && (f->frametype == AST_FRAME_IMAGE) && 
-								!(ast_test_flag(outgoing, OPT_RINGBACK|OPT_MUSICBACK))) {
-						if (ast_write(in, f))
-							ast_log(LOG_WARNING, "Unable to forward image\n");
+						!(ast_test_flag(outgoing, OPT_RINGBACK|OPT_MUSICBACK))) {
+				if (ast_write(in, f))
+					ast_log(LOG_WARNING, "Unable to forward image\n");
 			} else if (single && (f->frametype == AST_FRAME_TEXT) && 
-								!(ast_test_flag(outgoing, OPT_RINGBACK|OPT_MUSICBACK))) {
-						if (ast_write(in, f))
-							ast_log(LOG_WARNING, "Unable to send text\n");
+						!(ast_test_flag(outgoing, OPT_RINGBACK|OPT_MUSICBACK))) {
+				if (ast_write(in, f))
+					ast_log(LOG_WARNING, "Unable to send text\n");
 			} else if (single && (f->frametype == AST_FRAME_HTML) && !ast_test_flag(outgoing, DIAL_NOFORWARDHTML)) {
-						if(ast_channel_sendhtml(in, f->subclass, f->data, f->datalen) == -1)
-							ast_log(LOG_WARNING, "Unable to send URL\n");
+				if(ast_channel_sendhtml(in, f->subclass, f->data, f->datalen) == -1)
+					ast_log(LOG_WARNING, "Unable to send URL\n");
 			}
 			ast_frfree(f);
 		} /* end for */
