@@ -1157,10 +1157,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
  				ast_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", args.url);
  			ast_channel_sendurl( peer, args.url );
  		}
-		if (ast_test_flag(&opts, OPT_PRIVACY) || ast_test_flag(&opts, OPT_SCREENING)) {
-			int res2;
-			int loopcount = 0;
-			if( privdb_val == AST_PRIVACY_UNKNOWN ) {
+		if ( (ast_test_flag(&opts, OPT_PRIVACY) || ast_test_flag(&opts, OPT_SCREENING)) && privdb_val == AST_PRIVACY_UNKNOWN) {
+				int res2;
+				int loopcount = 0;
 
 				/* Get the user's intro, store it in priv-callerintros/$CID, 
 				   unless it is already there-- this should be done before the 
@@ -1340,7 +1339,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 					else if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
 				}
-			}
 		}
 		if (!ast_test_flag(&opts, OPT_ANNOUNCE) || ast_strlen_zero(opt_args[OPT_ARG_ANNOUNCE])) {
 			res = 0;
