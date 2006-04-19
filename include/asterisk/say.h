@@ -33,11 +33,16 @@ extern "C" {
 #endif
 
 /*! \brief
- * All ast_say_* functions are implemented as function pointers,
+ * The basic ast_say_* functions are implemented as function pointers,
  * initialized to the function say_stub() which simply returns an error.
- * An implementation of these functions (e.g. say.c, if available, or
+ * Other interfaces, declared here as regular functions, are simply
+ * wrappers around the basic functions.
+ *
+ * An implementation of the basic ast_say functions (e.g. from say.c or from
  * a dynamically loaded module) will just have to reassign the pointers
  * to the relevant functions to override the previous implementation.
+ *
+ * \todo XXX
  * As the conversion from the old implementation of say.c to the new
  * implementation will be completed, and the API suitably reworked by
  * removing redundant functions and/or arguments, this mechanism may be
@@ -70,7 +75,8 @@ static int say_stub(struct ast_channel *chan, ...)
  * Vocally says a number on a given channel
  * Returns 0 on success, DTMF digit on interrupt, -1 on failure
  */
-SAY_EXTERN int (*ast_say_number)(struct ast_channel *chan, int num, const char *ints, const char *lang, const char *options) SAY_INIT(ast_say_number);
+int ast_say_number(struct ast_channel *chan, int num,
+	const char *ints, const char *lang, const char *options);
 
 /* Same as above with audiofd for received audio and returns 1 on ctrlfd being readable */
 SAY_EXTERN int (* ast_say_number_full)(struct ast_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd) SAY_INIT(ast_say_number_full);
@@ -85,7 +91,9 @@ SAY_EXTERN int (* ast_say_number_full)(struct ast_channel *chan, int num, const 
  * especially useful for dates and messages. says 'last' if num equals to INT_MAX
  * Returns 0 on success, DTMF digit on interrupt, -1 on failure
  */
-SAY_EXTERN int (* ast_say_enumeration)(struct ast_channel *chan, int num, const char *ints, const char *lang, const char *options) SAY_INIT(ast_say_enumeration);
+int ast_say_enumeration(struct ast_channel *chan, int num,
+	const char *ints, const char *lang, const char *options);
+
 SAY_EXTERN int (* ast_say_enumeration_full)(struct ast_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd) SAY_INIT(ast_say_enumeration_full);
 
 /* says digits
@@ -96,8 +104,11 @@ SAY_EXTERN int (* ast_say_enumeration_full)(struct ast_channel *chan, int num, c
  * Vocally says digits of a given number
  * Returns 0 on success, dtmf if interrupted, -1 on failure
  */
-SAY_EXTERN int (*ast_say_digits)(struct ast_channel *chan, int num, const char *ints, const char *lang) SAY_INIT(ast_say_digits);
-SAY_EXTERN int (*ast_say_digits_full)(struct ast_channel *chan, int num, const char *ints, const char *lang, int audiofd, int ctrlfd) SAY_INIT(ast_say_digits_full);
+int ast_say_digits(struct ast_channel *chan, int num,
+	const char *ints, const char *lang);
+
+int ast_say_digits_full(struct ast_channel *chan, int num,
+	const char *ints, const char *lang, int audiofd, int ctrlfd);
 
 /* says digits of a string
  * \param chan channel to act upon
@@ -107,7 +118,9 @@ SAY_EXTERN int (*ast_say_digits_full)(struct ast_channel *chan, int num, const c
  * Vocally says the digits of a given string
  * Returns 0 on success, dtmf if interrupted, -1 on failure
  */
-SAY_EXTERN int (* ast_say_digit_str)(struct ast_channel *chan, const char *num, const char *ints, const char *lang) SAY_INIT(ast_say_digit_str);
+int ast_say_digit_str(struct ast_channel *chan, const char *num,
+	const char *ints, const char *lang);
+
 SAY_EXTERN int (* ast_say_digit_str_full)(struct ast_channel *chan, const char *num, const char *ints, const char *lang, int audiofd, int ctrlfd) SAY_INIT(ast_say_digit_str_full);
 
 /*
@@ -115,9 +128,18 @@ SAY_EXTERN int (* ast_say_digit_str_full)(struct ast_channel *chan, const char *
  * defining the format to use
  */
 SAY_EXTERN int (* ast_say_full)(struct ast_channel *chan, const char *num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd) SAY_INIT(ast_say_full);
-SAY_EXTERN int (* ast_say_character_str)(struct ast_channel *chan, const char *num, const char *ints, const char *lang) SAY_INIT(ast_say_character_str);
+
+/*
+ * other function to pronounce character and phonetic strings
+ */
+int ast_say_character_str(struct ast_channel *chan, const char *num,
+	const char *ints, const char *lang);
+
 SAY_EXTERN int (* ast_say_character_str_full)(struct ast_channel *chan, const char *num, const char *ints, const char *lang, int audiofd, int ctrlfd) SAY_INIT(ast_say_character_str_full);
-SAY_EXTERN int (* ast_say_phonetic_str)(struct ast_channel *chan, const char *num, const char *ints, const char *lang) SAY_INIT(ast_say_phonetic_str);
+
+int ast_say_phonetic_str(struct ast_channel *chan, const char *num,
+	const char *ints, const char *lang);
+
 SAY_EXTERN int (* ast_say_phonetic_str_full)(struct ast_channel *chan, const char *num, const char *ints, const char *lang, int audiofd, int ctrlfd) SAY_INIT(ast_say_phonetic_str_full);
 
 SAY_EXTERN int (* ast_say_datetime)(struct ast_channel *chan, time_t t, const char *ints, const char *lang) SAY_INIT(ast_say_datetime);

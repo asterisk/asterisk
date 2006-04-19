@@ -4219,3 +4219,58 @@ int ast_channel_trylock(struct ast_channel *chan)
 }
 
 #endif
+
+/*
+ * Wrappers for various ast_say_*() functions that call the full version
+ * of the same functions.
+ * The proper place would be say.c, but that file is optional and one
+ * must be able to build asterisk even without it (using a loadable 'say'
+ * implementation that only supplies the 'full' version of the functions.
+ */
+
+int ast_say_number(struct ast_channel *chan, int num,
+	const char *ints, const char *language, const char *options)
+{
+        return ast_say_number_full(chan, num, ints, language, options, -1, -1);
+}
+
+int ast_say_enumeration(struct ast_channel *chan, int num,
+	const char *ints, const char *language, const char *options)
+{
+        return ast_say_enumeration_full(chan, num, ints, language, options, -1, -1);
+}
+
+int ast_say_digits(struct ast_channel *chan, int num,
+	const char *ints, const char *lang)
+{
+        return ast_say_digits_full(chan, num, ints, lang, -1, -1);
+}
+
+int ast_say_digit_str(struct ast_channel *chan, const char *str,
+	const char *ints, const char *lang)
+{
+        return ast_say_digit_str_full(chan, str, ints, lang, -1, -1);
+}
+
+int ast_say_character_str(struct ast_channel *chan, const char *str,
+	const char *ints, const char *lang)
+{
+        return ast_say_character_str_full(chan, str, ints, lang, -1, -1);
+}
+
+int ast_say_phonetic_str(struct ast_channel *chan, const char *str,
+	const char *ints, const char *lang)
+{
+        return ast_say_phonetic_str_full(chan, str, ints, lang, -1, -1);
+}
+
+int ast_say_digits_full(struct ast_channel *chan, int num,
+	const char *ints, const char *lang, int audiofd, int ctrlfd)
+{
+        char buf[256];
+
+        snprintf(buf, sizeof(buf), "%d", num);
+        return ast_say_digit_str_full(chan, buf, ints, lang, audiofd, ctrlfd);
+}
+
+/* end of file */

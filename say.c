@@ -132,11 +132,6 @@ static int say_character_str_full(struct ast_channel *chan, const char *str, con
 	return res;
 }
 
-static int say_character_str(struct ast_channel *chan, const char *str, const char *ints, const char *lang)
-{
-	return ast_say_character_str_full(chan, str, ints, lang, -1, -1);
-}
-
 static int say_phonetic_str_full(struct ast_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
 {
 	const char *fn;
@@ -211,11 +206,6 @@ static int say_phonetic_str_full(struct ast_channel *chan, const char *str, cons
 	return res;
 }
 
-static int say_phonetic_str(struct ast_channel *chan, const char *str, const char *ints, const char *lang)
-{
-	return ast_say_phonetic_str_full(chan, str, ints, lang, -1, -1);
-}
-
 static int say_digit_str_full(struct ast_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
 {
 	const char *fn;
@@ -260,24 +250,6 @@ static int say_digit_str_full(struct ast_channel *chan, const char *str, const c
 	}
 
 	return res;
-}
-
-static int say_digit_str(struct ast_channel *chan, const char *str, const char *ints, const char *lang)
-{
-	return ast_say_digit_str_full(chan, str, ints, lang, -1, -1);
-}
-
-static int say_digits_full(struct ast_channel *chan, int num, const char *ints, const char *lang, int audiofd, int ctrlfd)
-{
-	char fn2[256];
-
-	snprintf(fn2, sizeof(fn2), "%d", num);
-	return ast_say_digit_str_full(chan, fn2, ints, lang, audiofd, ctrlfd);
-}
-
-static int say_digits(struct ast_channel *chan, int num, const char *ints, const char *lang)
-{
-	return ast_say_digits_full(chan, num, ints, lang, -1, -1);
 }
 
 /* Forward declarations */
@@ -454,12 +426,6 @@ static int say_number_full(struct ast_channel *chan, int num, const char *ints, 
 
 	/* Default to english */
 	return(ast_say_number_full_en(chan, num, ints, language, audiofd, ctrlfd));
-}
-
-/*! \brief  ast_say_number: call language-specific functions without file descriptors */
-static int say_number(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options)
-{
-	return(ast_say_number_full(chan, num, ints, language, options, -1, -1));
 }
 
 /*! \brief  ast_say_number_full_en: English syntax */
@@ -2286,12 +2252,6 @@ static int say_enumeration_full(struct ast_channel *chan, int num, const char *i
 	
 	/* Default to english */
 	return(ast_say_enumeration_full_en(chan, num, ints, language, audiofd, ctrlfd));
-}
-
-/*! \brief  ast_say_enumeration: call language-specific functions without file descriptors */
-static int say_enumeration(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options)
-{
-	return(ast_say_enumeration_full(chan, num, ints, language, options, -1, -1));
 }
 
 /*! \brief  ast_say_enumeration_full_en: English syntax */
@@ -6201,17 +6161,10 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
  */
 static void __attribute__((constructor)) __say_init(void)
 {
-	ast_say_number = say_number;
 	ast_say_number_full = say_number_full;
-	ast_say_enumeration = say_enumeration;
 	ast_say_enumeration_full = say_enumeration_full;
-	ast_say_digits = say_digits;
-	ast_say_digits_full = say_digits_full;
-	ast_say_digit_str = say_digit_str;
 	ast_say_digit_str_full = say_digit_str_full;
-	ast_say_character_str = say_character_str;
 	ast_say_character_str_full = say_character_str_full;
-	ast_say_phonetic_str = say_phonetic_str;
 	ast_say_phonetic_str_full = say_phonetic_str_full;
 	ast_say_datetime = say_datetime;
 	ast_say_time = say_time;
