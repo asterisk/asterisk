@@ -358,21 +358,14 @@ static void senddialevent(struct ast_channel *src, struct ast_channel *dst)
 
 static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_localuser *outgoing, int *to, struct ast_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int priority_jump, int *result)
 {
-	struct dial_localuser *o;
 	int numbusy = busystart;
 	int numcongestion = congestionstart;
 	int numnochan = nochanstart;
 	int prestart = busystart + congestionstart + nochanstart;
-	int cause;
 	int orig = *to;
 	struct ast_channel *peer = NULL;
-	struct ast_channel *watchers[AST_MAX_WATCHERS];
-	int single;
-	struct ast_channel *winner;
-	const char *context = NULL;
-	char cidname[AST_MAX_EXTENSION];
-
-	single = (outgoing && !outgoing->next && !ast_test_flag(outgoing, OPT_MUSICBACK | OPT_RINGBACK));
+	/* single is set if only one destination is enabled */
+	int single = outgoing && !outgoing->next && !ast_test_flag(outgoing, OPT_MUSICBACK | OPT_RINGBACK);
 	
 	if (single) {
 		/* Turn off hold music, etc */
@@ -383,8 +376,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 	
 	
 	while (*to && !peer) {
+		struct dial_localuser *o;
 		int pos = 0;	/* how many channels do we handle */
 		int numlines = prestart;
+		struct ast_channel *winner;
+		struct ast_channel *watchers[AST_MAX_WATCHERS];
+
 		watchers[pos++] = in;
 		for (o = outgoing; o; o = o->next) {
 			/* Keep track of important channels */
@@ -437,14 +434,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 				char tmpchan[256];
 				char *stuff;
 				char *tech;
-				const char *forward_context;
+				int cause;
 
 				ast_copy_string(tmpchan, c->call_forward, sizeof(tmpchan));
 				if ((stuff = strchr(tmpchan, '/'))) {
 					*stuff++ = '\0';
 					tech = tmpchan;
 				} else {
-					forward_context = pbx_builtin_getvar_helper(c, "FORWARD_CONTEXT");
+					const char *forward_context = pbx_builtin_getvar_helper(c, "FORWARD_CONTEXT");
 					snprintf(tmpchan, sizeof(tmpchan), "%s@%s", c->call_forward, forward_context ? forward_context : c->context);
 					stuff = tmpchan;
 					tech = "Local";
@@ -504,8 +501,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 					} else {
 						senddialevent(in, c);
 						/* After calling, set callerid to extension */
-						if (!ast_test_flag(peerflags, OPT_ORIGINAL_CLID))
+						if (!ast_test_flag(peerflags, OPT_ORIGINAL_CLID)) {
+							char cidname[AST_MAX_EXTENSION];
 							ast_set_callerid(c, S_OR(in->macroexten, in->exten), get_cid_name(cidname, sizeof(cidname), in), NULL);
+						}
 					}
 				}
 				/* Hangup the original channel now, in case we needed it */
@@ -645,7 +644,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 
 			if (f && (f->frametype == AST_FRAME_DTMF)) {
 				if (ast_test_flag(peerflags, OPT_DTMF_EXIT)) {
-					context = pbx_builtin_getvar_helper(in, "EXITCONTEXT");
+					const char *context = pbx_builtin_getvar_helper(in, "EXITCONTEXT");
 					if (onedigit_goto(in, context, (char) f->subclass, 1)) {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
