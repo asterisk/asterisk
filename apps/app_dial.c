@@ -703,7 +703,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	int res = -1;
 	struct localuser *u;
 	char *rest, *cur;
-	struct dial_localuser *outgoing = NULL, *tmp;
+	struct dial_localuser *outgoing = NULL;
 	struct ast_channel *peer;
 	int to;
 	int numbusy = 0;
@@ -721,17 +721,14 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	const char *end_sound = NULL;
 	const char *start_sound = NULL;
 	char *dtmfcalled = NULL, *dtmfcalling = NULL;
-	const char *var;
 	char status[256];
 	int play_to_caller = 0, play_to_callee = 0;
 	int sentringing = 0, moh = 0;
 	const char *outbound_group = NULL;
-	int digit = 0, result = 0;
+	int result = 0;
 	time_t start_time;
-	struct ast_app *app = NULL;
 	char privintro[1024];
 	char privcid[256];
-
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(peers);
@@ -774,18 +771,17 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	}
 
 	if (ast_test_flag(&opts, OPT_SENDDTMF) && !ast_strlen_zero(opt_args[OPT_ARG_SENDDTMF])) {
-		parse = opt_args[OPT_ARG_SENDDTMF];
-		dtmfcalled = strsep(&parse, ":");
-		dtmfcalling = parse;
+		dtmfcalling = opt_args[OPT_ARG_SENDDTMF];
+		dtmfcalled = strsep(&dtmfcalling, ":");
 	}
 
 	if (ast_test_flag(&opts, OPT_DURATION_LIMIT) && !ast_strlen_zero(opt_args[OPT_ARG_DURATION_LIMIT])) {
 		char *limit_str, *warning_str, *warnfreq_str;
+		const char *var;
 
-		parse = opt_args[OPT_ARG_DURATION_LIMIT];
-		limit_str = strsep(&parse, ":");
-		warning_str = strsep(&parse, ":");
-		warnfreq_str = parse;
+		warnfreq_str = opt_args[OPT_ARG_DURATION_LIMIT];
+		limit_str = strsep(&warnfreq_str, ":");
+		warning_str = strsep(&warnfreq_str, ":");
 
 		timelimit = atol(limit_str);
 		if (warning_str)
@@ -955,6 +951,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	/* loop through the list of dial destinations */
 	rest = args.peers;
 	while ((cur = strsep(&rest, "&")) ) {
+		struct dial_localuser *tmp;
 		/* Get a technology/[device:]number pair */
 		char *number = cur;
 		char *tech = strsep(&number, "/");
@@ -1134,6 +1131,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		} else { /* Nobody answered, next please? */
 			res = 0;
 		}
+		/* almost done, although the 'else' block is 400 lines */
 	} else {
 		const char *number;
 		time_t end_time, answer_time = time(NULL);
@@ -1347,6 +1345,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if (!ast_test_flag(&opts, OPT_ANNOUNCE) || ast_strlen_zero(opt_args[OPT_ARG_ANNOUNCE])) {
 			res = 0;
 		} else {
+			int digit = 0;
 			/* Start autoservice on the other chan */
 			res = ast_autoservice_start(chan);
 			/* Now Stream the File */
@@ -1376,17 +1375,19 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 
 		if (ast_test_flag(&opts, OPT_CALLEE_MACRO) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_MACRO])) {
+			struct ast_app *theapp;
+
 			res = ast_autoservice_start(chan);
 			if (res) {
 				ast_log(LOG_ERROR, "Unable to start autoservice on calling channel\n");
 				res = -1;
 			}
 
-			app = pbx_findapp("Macro");
+			theapp = pbx_findapp("Macro");
 
-			if (app && !res) {
+			if (theapp && !res) {	/* XXX why check res here ? */
 				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_MACRO]);
-				res = pbx_exec(peer, app, opt_args[OPT_ARG_CALLEE_MACRO]);
+				res = pbx_exec(peer, theapp, opt_args[OPT_ARG_CALLEE_MACRO]);
 				ast_log(LOG_DEBUG, "Macro exited with status %d\n", res);
 				res = 0;
 			} else {
@@ -1445,10 +1446,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 		if (!res) {
 			if (calldurationlimit > 0) {
-				time_t now;
-
-				time(&now);
-				chan->whentohangup = now + calldurationlimit;
+				chan->whentohangup = time(NULL) + calldurationlimit;
 			}
 			if (!ast_strlen_zero(dtmfcalled)) { 
 				if (option_verbose > 2)
@@ -1503,8 +1501,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", chan->name, peer->name);
 				ast_hangup(peer);
-				LOCAL_USER_REMOVE(u);
-				return -1;
+				res = -1;
+				goto done;
 			}
 			res = ast_bridge_call(chan,peer,&config);
 			time(&end_time);
