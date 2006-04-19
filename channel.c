@@ -401,7 +401,7 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 		}
 	}
 	
-	if (!(chan = ast_malloc(sizeof(*chan)))) {
+	if (!(chan = ast_calloc(1, sizeof(*chan)))) {
 		AST_LIST_UNLOCK(&channels);
 		return -1;
 	}
@@ -2083,15 +2083,15 @@ int ast_indicate(struct ast_channel *chan, int condition)
 {
 	int res = -1;
 
-	ast_mutex_lock(&chan->lock);
+	ast_channel_lock(chan);
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 		return -1;
 	}
 	if (chan->tech->indicate)
 		res = chan->tech->indicate(chan, condition);
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 	if (!chan->tech->indicate || res) {
 		/*
 		 * Device does not support (that) indication, lets fake
@@ -2333,7 +2333,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		break;
 	case AST_FRAME_VOICE:
 		if (chan->tech->write == NULL)
-			break;
+			break;	/*! \todo XXX should return 0 maybe ? */
 
 		/* Bypass translator if we're writing format in the raw write format.  This
 		   allows mixing of native / non-native formats */
@@ -4014,7 +4014,6 @@ static void silence_generator_release(struct ast_channel *chan, void *data)
 static int silence_generator_generate(struct ast_channel *chan, void *data, int len, int samples)
 {
 	short buf[samples];
-	int x;
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_SLINEAR,
@@ -4022,13 +4021,9 @@ static int silence_generator_generate(struct ast_channel *chan, void *data, int 
 		.samples = samples,
 		.datalen = sizeof(buf),
 	};
-
-	for (x = 0; x < samples; x++)
-		buf[x] = 0;
-
+	memset(buf, 0, sizeof(buf));
 	if (ast_write(chan, &frame))
 		return -1;
-
 	return 0;
 }
 
