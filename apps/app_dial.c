@@ -1171,175 +1171,89 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
  			ast_channel_sendurl( peer, args.url );
  		}
 		if ( (ast_test_flag(&opts, OPT_PRIVACY) || ast_test_flag(&opts, OPT_SCREENING)) && privdb_val == AST_PRIVACY_UNKNOWN) {
-				int res2;
-				int loopcount = 0;
+			int res2;
+			int loopcount = 0;
 
-				/* Get the user's intro, store it in priv-callerintros/$CID, 
-				   unless it is already there-- this should be done before the 
-				   call is actually dialed  */
+			/* Get the user's intro, store it in priv-callerintros/$CID, 
+			   unless it is already there-- this should be done before the 
+			   call is actually dialed  */
 
-				/* all ring indications and moh for the caller has been halted as soon as the 
-				   target extension was picked up. We are going to have to kill some
-				   time and make the caller believe the peer hasn't picked up yet */
+			/* all ring indications and moh for the caller has been halted as soon as the 
+			   target extension was picked up. We are going to have to kill some
+			   time and make the caller believe the peer hasn't picked up yet */
 
-				if (ast_test_flag(&opts, OPT_MUSICBACK) && !ast_strlen_zero(opt_args[OPT_ARG_MUSICBACK])) {
-					ast_indicate(chan, -1);
-					ast_moh_start(chan, opt_args[OPT_ARG_MUSICBACK]);
-				} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
-					ast_indicate(chan, AST_CONTROL_RINGING);
-					sentringing++;
-				}
+			if (ast_test_flag(&opts, OPT_MUSICBACK) && !ast_strlen_zero(opt_args[OPT_ARG_MUSICBACK])) {
+				ast_indicate(chan, -1);
+				ast_moh_start(chan, opt_args[OPT_ARG_MUSICBACK]);
+			} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
+				ast_indicate(chan, AST_CONTROL_RINGING);
+				sentringing++;
+			}
 
-				/* Start autoservice on the other chan ?? */
-				res2 = ast_autoservice_start(chan);
-				/* Now Stream the File */
-				for (loopcount = 0; loopcount < 3; loopcount++) {
-						if (res2 && loopcount == 0)	/* error in ast_autoservice_start() */
-							break;
-						if (!res2)	/* on timeout, play the message again */
-							res2 = ast_play_and_wait(peer,"priv-callpending");
-						if (!valid_priv_reply(&opts, res2))
-							res2 = 0;
-						
-						/* priv-callpending script: 
-						   "I have a caller waiting, who introduces themselves as:"
-						*/
-						if (!res2)
-							res2 = ast_play_and_wait(peer,privintro);
-						if (!valid_priv_reply(&opts, res2))
-							res2 = 0;
-						/* now get input from the called party, as to their choice */
-						if( !res2 ) {
-							/* XXX can we have both, or they are mutually exclusive ? */
-							if( ast_test_flag(&opts, OPT_PRIVACY) )
-								res2 = ast_play_and_wait(peer,"priv-callee-options");
-							if( ast_test_flag(&opts, OPT_SCREENING) )
-								res2 = ast_play_and_wait(peer,"screen-callee-options");
-						}
-						/*! \page DialPrivacy Dial Privacy scripts
-						\par priv-callee-options script:
-							"Dial 1 if you wish this caller to reach you directly in the future,
-								and immediately connect to their incoming call
-							 Dial 2 if you wish to send this caller to voicemail now and 
-								forevermore.
-							 Dial 3 to send this caller to the torture menus, now and forevermore.
-							 Dial 4 to send this caller to a simple "go away" menu, now and forevermore.
-							 Dial 5 to allow this caller to come straight thru to you in the future,
-								but right now, just this once, send them to voicemail."
-						\par screen-callee-options script:
-							"Dial 1 if you wish to immediately connect to the incoming call
-							 Dial 2 if you wish to send this caller to voicemail.
-							 Dial 3 to send this caller to the torture menus.
-							 Dial 4 to send this caller to a simple "go away" menu.
-						*/
-						if (valid_priv_reply(&opts, res2))
-							break;
-						/* invalid option */
-						res2 = ast_play_and_wait(peer, "vm-sorry");
-				}
-
-				switch(res2) {
-				case '1':
-					if( ast_test_flag(&opts, OPT_PRIVACY) ) {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to ALLOW\n",
-								     opt_args[OPT_ARG_PRIVACY], privcid);
-						ast_privacy_set(opt_args[OPT_ARG_PRIVACY], privcid, AST_PRIVACY_ALLOW);
-					}
+			/* Start autoservice on the other chan ?? */
+			res2 = ast_autoservice_start(chan);
+			/* Now Stream the File */
+			for (loopcount = 0; loopcount < 3; loopcount++) {
+				if (res2 && loopcount == 0)	/* error in ast_autoservice_start() */
 					break;
-				case '2':
-					if( ast_test_flag(&opts, OPT_PRIVACY) ) {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to DENY\n",
-								     opt_args[OPT_ARG_PRIVACY], privcid);
-						ast_privacy_set(opt_args[OPT_ARG_PRIVACY], privcid, AST_PRIVACY_DENY);
-					}
-					if (ast_test_flag(&opts, OPT_MUSICBACK)) {
-						ast_moh_stop(chan);
-					} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
-						ast_indicate(chan, -1);
-						sentringing=0;
-					}
-					res2 = ast_autoservice_stop(chan);
-					ast_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
-					res=0;
-					goto out;
-				case '3':
-					if( ast_test_flag(&opts, OPT_PRIVACY) ) {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to TORTURE\n",
-								     opt_args[OPT_ARG_PRIVACY], privcid);
-						ast_privacy_set(opt_args[OPT_ARG_PRIVACY], privcid, AST_PRIVACY_TORTURE);
-					}
-					ast_copy_string(status, "TORTURE", sizeof(status));
-					
-					res = 0;
-					if (ast_test_flag(&opts, OPT_MUSICBACK)) {
-						ast_moh_stop(chan);
-					} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
-						ast_indicate(chan, -1);
-						sentringing=0;
-					}
-					res2 = ast_autoservice_stop(chan);
-					ast_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
-					goto out; /* Is this right? */
-				case '4':
-					if( ast_test_flag(&opts, OPT_PRIVACY) ) {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to KILL\n",
-								     opt_args[OPT_ARG_PRIVACY], privcid);
-						ast_privacy_set(opt_args[OPT_ARG_PRIVACY], privcid, AST_PRIVACY_KILL);
-					}
-
-					ast_copy_string(status, "DONTCALL", sizeof(status));
-					res = 0;
-					if (ast_test_flag(&opts, OPT_MUSICBACK)) {
-						ast_moh_stop(chan);
-					} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
-						ast_indicate(chan, -1);
-						sentringing=0;
-					}
-					res2 = ast_autoservice_stop(chan);
-					ast_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
-					goto out; /* Is this right? */
-				case '5':
-					if( ast_test_flag(&opts, OPT_PRIVACY) ) {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to ALLOW\n",
-								     opt_args[OPT_ARG_PRIVACY], privcid);
-						ast_privacy_set(opt_args[OPT_ARG_PRIVACY], privcid, AST_PRIVACY_ALLOW);
-						if (ast_test_flag(&opts, OPT_MUSICBACK)) {
-							ast_moh_stop(chan);
-						} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
-							ast_indicate(chan, -1);
-							sentringing=0;
-						}
-						res2 = ast_autoservice_stop(chan);
-						ast_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
-						res=0;
-						goto out;
-					} /* if not privacy, then 5 is the same as "default" case */
-				default:	/* bad input or -1 if failure to start autoservice */
-					/* well, if the user messes up, ... he had his chance... What Is The Best Thing To Do?  */
-					/* well, there seems basically two choices. Just patch the caller thru immediately,
-				                  or,... put 'em thru to voicemail. */
-					/* since the callee may have hung up, let's do the voicemail thing, no database decision */
-					ast_log(LOG_NOTICE, "privacy: no valid response from the callee. Sending the caller to voicemail, the callee isn't responding\n");
-					if (ast_test_flag(&opts, OPT_MUSICBACK)) {
-						ast_moh_stop(chan);
-					} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
-						ast_indicate(chan, -1);
-						sentringing=0;
-					}
-					res2 = ast_autoservice_stop(chan);
-					ast_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
-					res=0;
-					goto out;
+				if (!res2)	/* on timeout, play the message again */
+					res2 = ast_play_and_wait(peer,"priv-callpending");
+				if (!valid_priv_reply(&opts, res2))
+					res2 = 0;
+				
+				/* priv-callpending script: 
+				   "I have a caller waiting, who introduces themselves as:"
+				*/
+				if (!res2)
+					res2 = ast_play_and_wait(peer,privintro);
+				if (!valid_priv_reply(&opts, res2))
+					res2 = 0;
+				/* now get input from the called party, as to their choice */
+				if( !res2 ) {
+					/* XXX can we have both, or they are mutually exclusive ? */
+					if( ast_test_flag(&opts, OPT_PRIVACY) )
+						res2 = ast_play_and_wait(peer,"priv-callee-options");
+					if( ast_test_flag(&opts, OPT_SCREENING) )
+						res2 = ast_play_and_wait(peer,"screen-callee-options");
 				}
-				/* XXX we only reach this point in case '1', but all other cases are
-				 * also doing the same thing inline, so probably this code should
-				 * be done once before the switch() above.
-				 */
+				/*! \page DialPrivacy Dial Privacy scripts
+				\par priv-callee-options script:
+					"Dial 1 if you wish this caller to reach you directly in the future,
+						and immediately connect to their incoming call
+					 Dial 2 if you wish to send this caller to voicemail now and 
+						forevermore.
+					 Dial 3 to send this caller to the torture menus, now and forevermore.
+					 Dial 4 to send this caller to a simple "go away" menu, now and forevermore.
+					 Dial 5 to allow this caller to come straight thru to you in the future,
+						but right now, just this once, send them to voicemail."
+				\par screen-callee-options script:
+					"Dial 1 if you wish to immediately connect to the incoming call
+					 Dial 2 if you wish to send this caller to voicemail.
+					 Dial 3 to send this caller to the torture menus.
+					 Dial 4 to send this caller to a simple "go away" menu.
+				*/
+				if (valid_priv_reply(&opts, res2))
+					break;
+				/* invalid option */
+				res2 = ast_play_and_wait(peer, "vm-sorry");
+			}
+
+			switch(res2) {
+			case '1':
+				if( ast_test_flag(&opts, OPT_PRIVACY) ) {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to ALLOW\n",
+							     opt_args[OPT_ARG_PRIVACY], privcid);
+					ast_privacy_set(opt_args[OPT_ARG_PRIVACY], privcid, AST_PRIVACY_ALLOW);
+				}
+				break;
+			case '2':
+				if( ast_test_flag(&opts, OPT_PRIVACY) ) {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to DENY\n",
+							     opt_args[OPT_ARG_PRIVACY], privcid);
+					ast_privacy_set(opt_args[OPT_ARG_PRIVACY], privcid, AST_PRIVACY_DENY);
+				}
 				if (ast_test_flag(&opts, OPT_MUSICBACK)) {
 					ast_moh_stop(chan);
 				} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
@@ -1347,17 +1261,103 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 					sentringing=0;
 				}
 				res2 = ast_autoservice_stop(chan);
-				/* ---- */
-
-				/* if the intro is NOCALLERID, then there's no reason to leave it on disk, it'll 
-				   just clog things up, and it's not useful information, not being tied to a CID */
-				if( strncmp(privcid,"NOCALLERID",10) == 0 || ast_test_flag(&opts, OPT_SCREEN_NOINTRO) ) {
-					ast_filedelete(privintro, NULL);
-					if( ast_fileexists(privintro, NULL, NULL ) > 0 )
-						ast_log(LOG_NOTICE, "privacy: ast_filedelete didn't do its job on %s\n", privintro);
-					else if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
+				ast_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
+				res=0;
+				goto out;
+			case '3':
+				if( ast_test_flag(&opts, OPT_PRIVACY) ) {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to TORTURE\n",
+							     opt_args[OPT_ARG_PRIVACY], privcid);
+					ast_privacy_set(opt_args[OPT_ARG_PRIVACY], privcid, AST_PRIVACY_TORTURE);
 				}
+				ast_copy_string(status, "TORTURE", sizeof(status));
+				
+				res = 0;
+				if (ast_test_flag(&opts, OPT_MUSICBACK)) {
+					ast_moh_stop(chan);
+				} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
+					ast_indicate(chan, -1);
+					sentringing=0;
+				}
+				res2 = ast_autoservice_stop(chan);
+				ast_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
+				goto out; /* Is this right? */
+			case '4':
+				if( ast_test_flag(&opts, OPT_PRIVACY) ) {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to KILL\n",
+							     opt_args[OPT_ARG_PRIVACY], privcid);
+					ast_privacy_set(opt_args[OPT_ARG_PRIVACY], privcid, AST_PRIVACY_KILL);
+				}
+
+				ast_copy_string(status, "DONTCALL", sizeof(status));
+				res = 0;
+				if (ast_test_flag(&opts, OPT_MUSICBACK)) {
+					ast_moh_stop(chan);
+				} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
+					ast_indicate(chan, -1);
+					sentringing=0;
+				}
+				res2 = ast_autoservice_stop(chan);
+				ast_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
+				goto out; /* Is this right? */
+			case '5':
+				if( ast_test_flag(&opts, OPT_PRIVACY) ) {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to ALLOW\n",
+							     opt_args[OPT_ARG_PRIVACY], privcid);
+					ast_privacy_set(opt_args[OPT_ARG_PRIVACY], privcid, AST_PRIVACY_ALLOW);
+					if (ast_test_flag(&opts, OPT_MUSICBACK)) {
+						ast_moh_stop(chan);
+					} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
+						ast_indicate(chan, -1);
+						sentringing=0;
+					}
+					res2 = ast_autoservice_stop(chan);
+					ast_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
+					res=0;
+					goto out;
+				} /* if not privacy, then 5 is the same as "default" case */
+			default:	/* bad input or -1 if failure to start autoservice */
+				/* well, if the user messes up, ... he had his chance... What Is The Best Thing To Do?  */
+				/* well, there seems basically two choices. Just patch the caller thru immediately,
+					  or,... put 'em thru to voicemail. */
+				/* since the callee may have hung up, let's do the voicemail thing, no database decision */
+				ast_log(LOG_NOTICE, "privacy: no valid response from the callee. Sending the caller to voicemail, the callee isn't responding\n");
+				if (ast_test_flag(&opts, OPT_MUSICBACK)) {
+					ast_moh_stop(chan);
+				} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
+					ast_indicate(chan, -1);
+					sentringing=0;
+				}
+				res2 = ast_autoservice_stop(chan);
+				ast_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
+				res=0;
+				goto out;
+			}
+			/* XXX we only reach this point in case '1', but all other cases are
+			 * also doing the same thing inline, so probably this code should
+			 * be done once before the switch() above.
+			 */
+			if (ast_test_flag(&opts, OPT_MUSICBACK)) {
+				ast_moh_stop(chan);
+			} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
+				ast_indicate(chan, -1);
+				sentringing=0;
+			}
+			res2 = ast_autoservice_stop(chan);
+			/* ---- */
+
+			/* if the intro is NOCALLERID, then there's no reason to leave it on disk, it'll 
+			   just clog things up, and it's not useful information, not being tied to a CID */
+			if( strncmp(privcid,"NOCALLERID",10) == 0 || ast_test_flag(&opts, OPT_SCREEN_NOINTRO) ) {
+				ast_filedelete(privintro, NULL);
+				if( ast_fileexists(privintro, NULL, NULL ) > 0 )
+					ast_log(LOG_NOTICE, "privacy: ast_filedelete didn't do its job on %s\n", privintro);
+				else if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
+			}
 		}
 		if (!ast_test_flag(&opts, OPT_ANNOUNCE) || ast_strlen_zero(opt_args[OPT_ARG_ANNOUNCE])) {
 			res = 0;
