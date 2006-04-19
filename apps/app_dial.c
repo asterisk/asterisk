@@ -698,6 +698,19 @@ static void replace_macro_delimiter(char *s)
 			*s = '|';
 }
 
+
+/* returns true if there is a valid privacy reply */
+static int valid_priv_reply(struct ast_flags *opts, int res)
+{
+	if (res < '1')
+		return 0;
+	if (ast_test_flag(opts, OPT_PRIVACY) && res <= '5')
+		return 1;
+	if (ast_test_flag(opts, OPT_SCREENING) && res <= '4')
+		return 1;
+	return 0;
+}
+
 static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags *peerflags)
 {
 	int res = -1;
@@ -1180,11 +1193,12 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				/* Start autoservice on the other chan ?? */
 				res2 = ast_autoservice_start(chan);
 				/* Now Stream the File */
-				if (!res2) {
-					do {
-						if (!res2)
+				for (loopcount = 0; loopcount < 3; loopcount++) {
+						if (res2 && loopcount == 0)	/* error in ast_autoservice_start() */
+							break;
+						if (!res2)	/* on timeout, play the message again */
 							res2 = ast_play_and_wait(peer,"priv-callpending");
-						if( res2 < '1' || (ast_test_flag(&opts, OPT_PRIVACY) && res2>'5') || (ast_test_flag(&opts, OPT_SCREENING) && res2 > '4') ) /* uh, interrupting with a bad answer is ... ignorable! */
+						if (!valid_priv_reply(&opts, res2))
 							res2 = 0;
 						
 						/* priv-callpending script: 
@@ -1192,10 +1206,11 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 						*/
 						if (!res2)
 							res2 = ast_play_and_wait(peer,privintro);
-						if( res2 < '1' || (ast_test_flag(&opts, OPT_PRIVACY) && res2>'5') || (ast_test_flag(&opts, OPT_SCREENING) && res2 > '4') ) /* uh, interrupting with a bad answer is ... ignorable! */
+						if (!valid_priv_reply(&opts, res2))
 							res2 = 0;
 						/* now get input from the called party, as to their choice */
 						if( !res2 ) {
+							/* XXX can we have both, or they are mutually exclusive ? */
 							if( ast_test_flag(&opts, OPT_PRIVACY) )
 								res2 = ast_play_and_wait(peer,"priv-callee-options");
 							if( ast_test_flag(&opts, OPT_SCREENING) )
@@ -1207,22 +1222,20 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 								and immediately connect to their incoming call
 							 Dial 2 if you wish to send this caller to voicemail now and 
 								forevermore.
-							 Dial 3 to send this callerr to the torture menus, now and forevermore.
+							 Dial 3 to send this caller to the torture menus, now and forevermore.
 							 Dial 4 to send this caller to a simple "go away" menu, now and forevermore.
 							 Dial 5 to allow this caller to come straight thru to you in the future,
 								but right now, just this once, send them to voicemail."
 						\par screen-callee-options script:
 							"Dial 1 if you wish to immediately connect to the incoming call
 							 Dial 2 if you wish to send this caller to voicemail.
-							 Dial 3 to send this callerr to the torture menus.
+							 Dial 3 to send this caller to the torture menus.
 							 Dial 4 to send this caller to a simple "go away" menu.
 						*/
-						if(!res2 || res2 < '1' || (ast_test_flag(&opts, OPT_PRIVACY) && res2 > '5') || (ast_test_flag(&opts, OPT_SCREENING) && res2 > '4') ) {
-							/* invalid option */
-							res2 = ast_play_and_wait(peer, "vm-sorry");
-						}
-						loopcount++; /* give the callee a couple chances to make a choice */
-					} while( (!res2 || res2 < '1' || (ast_test_flag(&opts, OPT_PRIVACY) && res2 > '5') || (ast_test_flag(&opts, OPT_SCREENING) && res2 > '4')) && loopcount < 2 );
+						if (valid_priv_reply(&opts, res2))
+							break;
+						/* invalid option */
+						res2 = ast_play_and_wait(peer, "vm-sorry");
 				}
 
 				switch(res2) {
@@ -1306,7 +1319,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 						res=0;
 						goto out;
 					} /* if not privacy, then 5 is the same as "default" case */
-				default:
+				default:	/* bad input or -1 if failure to start autoservice */
 					/* well, if the user messes up, ... he had his chance... What Is The Best Thing To Do?  */
 					/* well, there seems basically two choices. Just patch the caller thru immediately,
 				                  or,... put 'em thru to voicemail. */
@@ -1323,6 +1336,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 					res=0;
 					goto out;
 				}
+				/* XXX we only reach this point in case '1', but all other cases are
+				 * also doing the same thing inline, so probably this code should
+				 * be done once before the switch() above.
+				 */
 				if (ast_test_flag(&opts, OPT_MUSICBACK)) {
 					ast_moh_stop(chan);
 				} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
@@ -1330,6 +1347,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 					sentringing=0;
 				}
 				res2 = ast_autoservice_stop(chan);
+				/* ---- */
+
 				/* if the intro is NOCALLERID, then there's no reason to leave it on disk, it'll 
 				   just clog things up, and it's not useful information, not being tied to a CID */
 				if( strncmp(privcid,"NOCALLERID",10) == 0 || ast_test_flag(&opts, OPT_SCREEN_NOINTRO) ) {
