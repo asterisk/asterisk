@@ -146,10 +146,8 @@ struct ast_generator {
 
 /*! Structure for a data store type */
 struct ast_datastore_info {
-	/*! Type of data store */
-	const char *type;
-	/*! Destroy function */
-	void (*destroy)(void *data);
+	const char *type;		/*! Type of data store */
+	void (*destroy)(void *data);	/*! Destroy function */
 };
 
 /*! Structure for a channel data store */
@@ -164,26 +162,21 @@ struct ast_datastore {
 	AST_LIST_ENTRY(ast_datastore) entry;
 };
 
-/*! Structure for all kinds of caller ID identifications */
+/*! Structure for all kinds of caller ID identifications.
+ * All string fields here are malloc'ed, so they need to be
+ * freed when the structure is deleted.
+ * Also, NULL and "" must be considered equivalent.
+ */
 struct ast_callerid {
-	/*! Malloc'd Dialed Number Identifier */
-	char *cid_dnid;				
-	/*! Malloc'd Caller Number */
-	char *cid_num;
-	/*! Malloc'd Caller Name */
-	char *cid_name;
-	/*! Malloc'd ANI */
-	char *cid_ani;			
-	/*! Malloc'd RDNIS */
-	char *cid_rdnis;
-	/*! Callerid presentation/screening */
-	int cid_pres;
-	/*! Callerid ANI 2 (Info digits) */
-	int cid_ani2;
-	/*! Callerid Type of Number */
-	int cid_ton;
-	/*! Callerid Transit Network Select */
-	int cid_tns;
+	char *cid_dnid;		/*! Malloc'd Dialed Number Identifier */
+	char *cid_num;		/*! Malloc'd Caller Number */
+	char *cid_name;		/*! Malloc'd Caller Name */
+	char *cid_ani;		/*! Malloc'd ANI */
+	char *cid_rdnis;	/*! Malloc'd RDNIS */
+	int cid_pres;		/*! Callerid presentation/screening */
+	int cid_ani2;		/*! Callerid ANI 2 (Info digits) */
+	int cid_ton;		/*! Callerid Type of Number */
+	int cid_tns;		/*! Callerid Transit Network Select */
 };
 
 /*! Structure to describe a channel "technology", ie a channel driver 
