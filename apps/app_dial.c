@@ -344,6 +344,7 @@ static const char *get_cid_name(char *name, int namelen, struct ast_channel *cha
 
 static void senddialevent(struct ast_channel *src, struct ast_channel *dst)
 {
+	/* XXX do we need also CallerIDnum ? */
 	manager_event(EVENT_FLAG_CALL, "Dial", 
 			   "Source: %s\r\n"
 			   "Destination: %s\r\n"
@@ -351,8 +352,8 @@ static void senddialevent(struct ast_channel *src, struct ast_channel *dst)
 			   "CallerIDName: %s\r\n"
 			   "SrcUniqueID: %s\r\n"
 			   "DestUniqueID: %s\r\n",
-			   src->name, dst->name, src->cid.cid_num ? src->cid.cid_num : "<unknown>",
-			   src->cid.cid_name ? src->cid.cid_name : "<unknown>", src->uniqueid,
+			   src->name, dst->name, S_OR(src->cid.cid_num, "<unknown>"),
+			   S_OR(src->cid.cid_name, "<unknown>"), src->uniqueid,
 			   dst->uniqueid);
 }
 
