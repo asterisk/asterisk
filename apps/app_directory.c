@@ -168,47 +168,32 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 		(char *)ast_config_AST_SPOOL_DIR, ext);
 
 	if (ast_fileexists(fn, NULL, chan->language) > 0) {
-		res = ast_streamfile(chan, fn, chan->language);
-		if (!res) {
-			res = ast_waitstream(chan, AST_DIGIT_ANY);
-		}
+		res = ast_stream_and_wait(chan, fn, chan->language, AST_DIGIT_ANY);
 		ast_stopstream(chan);
 		/* If Option 'e' was specified, also read the extension number with the name */
 		if (readext) {
-			res = ast_streamfile(chan, "vm-extension", chan->language);
-			if (!res)
-				res = ast_waitstream(chan, AST_DIGIT_ANY);
+			ast_stream_and_wait(chan, "vm-extension", chan->language, AST_DIGIT_ANY);
 			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
 		}
 	} else if (ast_fileexists(fn2, NULL, chan->language) > 0) {
-		res = ast_streamfile(chan, fn2, chan->language);
-		if (!res)
-			res = ast_waitstream(chan, AST_DIGIT_ANY);
+		res = ast_stream_and_wait(chan, fn2, chan->language, AST_DIGIT_ANY);
 		ast_stopstream(chan);
 		/* If Option 'e' was specified, also read the extension number with the name */
 		if (readext) {
-			res = ast_streamfile(chan, "vm-extension", chan->language);
-			if (!res) {
-				res = ast_waitstream(chan, AST_DIGIT_ANY);
-			}
+			ast_stream_and_wait(chan, "vm-extension", chan->language, AST_DIGIT_ANY);
 			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
 		}
 	} else {
-		res = ast_say_character_str(chan, S_OR(name, ext),
-					AST_DIGIT_ANY, chan->language);
+		res = ast_say_character_str(chan, S_OR(name, ext), AST_DIGIT_ANY, chan->language);
 		if (!ast_strlen_zero(name) && readext) {
-			res = ast_streamfile(chan, "vm-extension", chan->language);
-			if (!res)
-				res = ast_waitstream(chan, AST_DIGIT_ANY);
+			ast_stream_and_wait(chan, "vm-extension", chan->language, AST_DIGIT_ANY);
 			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
 		}
 	}
 
 	while (loop) {
 		if (!res)
-			res = ast_streamfile(chan, "dir-instr", chan->language);
-		if (!res)
-			res = ast_waitstream(chan, AST_DIGIT_ANY);
+			res = ast_stream_and_wait(chan, "dir-instr", chan->language, AST_DIGIT_ANY);
 		if (!res)
 			res = ast_waitfordigit(chan, 3000);
 		ast_stopstream(chan);
@@ -479,9 +464,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 
 	for (;;) {
 		if (!res)
-			res = ast_streamfile(chan, dirintro, chan->language);
-		if (!res)
-			res = ast_waitstream(chan, AST_DIGIT_ANY);
+			res = ast_stream_and_wait(chan, dirintro, chan->language, AST_DIGIT_ANY);
 		ast_stopstream(chan);
 		if (!res)
 			res = ast_waitfordigit(chan, 5000);
