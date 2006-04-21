@@ -940,7 +940,7 @@ static struct skinny_subchannel *find_subchannel_by_line(struct skinny_line *l)
 	return sub;
 }
 
-static struct skinny_subchannel *find_subchannel_by_name(char *dest)
+static struct skinny_subchannel *find_subchannel_by_name(const char *dest)
 {
 	struct skinny_line *l;
 	struct skinny_device *d;
@@ -948,34 +948,29 @@ static struct skinny_subchannel *find_subchannel_by_name(char *dest)
 	char *at;
 	char *device;
 
-	strncpy(line, dest, sizeof(line) - 1);
+	ast_copy_string(line, dest, sizeof(line));
 	at = strchr(line, '@');
 	if (!at) {
 		ast_log(LOG_NOTICE, "Device '%s' has no @ (at) sign!\n", dest);
 		return NULL;
 	}
-	*at = '\0';
-	at++;
+	*at++ = '\0';
 	device = at;
 	ast_mutex_lock(&devicelock);
-	d = devices;
-	while(d) {
+	for (d = devices; d; d = d->next) {
 		if (!strcasecmp(d->name, device)) {
 			if (skinnydebug) {
 				ast_verbose("Found device: %s\n", d->name);
 			}
 			/* Found the device */
-			l = d->lines;
-			while (l) {
+			for (l = d->lines; l; l = l->next) {
 				/* Search for the right line */
 				if (!strcasecmp(l->name, line)) {
 					ast_mutex_unlock(&devicelock);
 					return l->sub;
 				}
-				l = l->next;
 			}
 		}
-		d = d->next;
 	}
 	/* Device not found */
 	ast_mutex_unlock(&devicelock);
@@ -1205,16 +1200,19 @@ static void transmit_displaymessage(struct skinnysession *s, char *text)
 
 	if (text == 0) {
 		req = req_alloc(4);
-		req->len = htolel(4);
-		req->e = htolel(CLEAR_DISPLAY_MESSAGE);
+		if (req) {
+			req->len = htolel(4);
+			req->e = htolel(CLEAR_DISPLAY_MESSAGE);
+		}
 	} else {
 		req = req_alloc(sizeof(struct displaytext_message));
-
-		strncpy(req->data.displaytext.text, text, sizeof(req->data.displaytext.text)-1);
-		req->len = htolel(sizeof(displaytext_message) + 4);
-		req->e = htolel(DISPLAYTEXT_MESSAGE);
-		if (skinnydebug) {
-			ast_verbose("Displaying message '%s'\n", req->data.displaytext.text);
+		if (req) {
+			ast_copy_string(req->data.displaytext.text, text, sizeof(req->data.displaytext.text));
+			req->len = htolel(sizeof(displaytext_message) + 4);
+			req->e = htolel(DISPLAYTEXT_MESSAGE);
+			if (skinnydebug) {
+				ast_verbose("Displaying message '%s'\n", req->data.displaytext.text);
+			}
 		}
 	}
 
@@ -1238,7 +1236,7 @@ static void transmit_displaynotify(struct skinnysession *s, char *text, int t)
 
 	req->e = htolel(DISPLAY_NOTIFY_MESSAGE);
 	req->len = htolel(sizeof(display_notify_message) + 4);
-	strncpy(req->data.displaynotify.displayMessage, text, sizeof(req->data.displaynotify.displayMessage)-1);
+	ast_copy_string(req->data.displaynotify.displayMessage, text, sizeof(req->data.displaynotify.displayMessage));
 	req->data.displaynotify.displayTimeout = htolel(t);
 
 	if (skinnydebug) {
@@ -1261,7 +1259,7 @@ static void transmit_displaypromptstatus(struct skinnysession *s, char *text, in
 
 	req->e = htolel(DISPLAY_PROMPT_STATUS_MESSAGE);
 	req->len = htolel(sizeof(display_prompt_status_message) + 4);
-	strncpy(req->data.displaypromptstatus.promptMessage, text, sizeof(req->data.displaypromptstatus.promptMessage)-1);
+	ast_copy_string(req->data.displaypromptstatus.promptMessage, text, sizeof(req->data.displaypromptstatus.promptMessage));
 	req->data.displaypromptstatus.messageTimeout = htolel(t);
 	req->data.displaypromptstatus.lineInstance = htolel(instance);
 	req->data.displaypromptstatus.callReference = htolel(callid);
@@ -1286,7 +1284,7 @@ static void transmit_dialednumber(struct skinnysession *s, char *text, int insta
 
 	req->e = htolel(DIALED_NUMBER_MESSAGE);
 	req->len = htolel(sizeof(dialed_number_message) + 4);
-	strncpy(req->data.dialednumber.dialedNumber, text, sizeof(req->data.dialednumber.dialedNumber)-1);
+	ast_copy_string(req->data.dialednumber.dialedNumber, text, sizeof(req->data.dialednumber.dialedNumber));
 	req->data.dialednumber.lineInstance = htolel(instance);
 	req->data.dialednumber.callReference = htolel(callid);
 
@@ -1487,7 +1485,7 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 	d = malloc(sizeof(struct skinny_device));
 	if (d) {
 		memset(d, 0, sizeof(struct skinny_device));
-		strncpy(d->name, cat, sizeof(d->name) - 1);
+		ast_copy_string(d->name, cat, sizeof(d->name));
 		while(v) {
 			if (!strcasecmp(v->name, "host")) {
 				if (ast_get_ip(&d->addr, v->value)) {
@@ -1649,8 +1647,7 @@ static int skinny_register(skinny_req *req, struct skinnysession *s)
 	struct skinny_device *d;
 
 	ast_mutex_lock(&devicelock);
-	d = devices;
-	while (d) {
+	for (d = devices; d; d = d->next) {
 		if (!strcasecmp(req->data.reg.name, d->id)
 				&& ast_apply_ha(d->ha, &(s->sin))) {
 			s->device = d;
@@ -1662,13 +1659,9 @@ static int skinny_register(skinny_req *req, struct skinnysession *s)
 			d->session = s;
 			break;
 		}
-		d = d->next;
 	}
 	ast_mutex_unlock(&devicelock);
-	if (!d) {
-		return 0;
-	}
-	return 1;
+	return d ? 1 : 0;
 }
 
 static void start_rtp(struct skinny_subchannel *sub)
@@ -1950,20 +1943,21 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 		char ciddisplay[41];
 		char *work;
 		size_t size = sizeof(ciddisplay);
+		int l = strlen(ast->cid.cid_num);
 
 		/* For now, we'll assume that if it is 10 numbers, it is a standard NANPA number */
-		if (strlen(ast->cid.cid_num) == 10) {
+		if (l == 10) {
 			ast_build_string(&work, &size, "(xxx)xxx-xxxx      %s",
 					 ast->cid.cid_name ? ast->cid.cid_name : "");
 			memcpy(&ciddisplay[1], ast->cid.cid_num, 3);
 			memcpy(&ciddisplay[5], &ast->cid.cid_num[3], 3);
 			memcpy(&ciddisplay[9], &ast->cid.cid_num[6], 4);
 		} else {
-			if (strlen(ast->cid.cid_num) < 41) {
+			if (l < sizeof(ciddisplay)) {
 				ast_build_string(&work, &size, "%s -- %s", ast->cid.cid_num,
-						 ast->cid.cid_name ? ast->cid.cid_name : "");
+						 S_OR(ast->cid.cid_name, ""));
 			} else {
-				strncpy(ciddisplay, "Number too long!", 15);
+				strncpy(ciddisplay, "Number too long!", 15);	/* XXX what is magic in 15 ? */
 			}
 		}
 		if (skinnydebug) {
@@ -2284,14 +2278,10 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 		tmp->callgroup = l->callgroup;
 		tmp->pickupgroup = l->pickupgroup;
 		ast_string_field_set(tmp, call_forward, l->call_forward);
-		strncpy(tmp->context, l->context, sizeof(tmp->context)-1);
-		strncpy(tmp->exten,l->exten, sizeof(tmp->exten)-1);
-		if (!ast_strlen_zero(l->cid_num)) {
-			tmp->cid.cid_num = strdup(l->cid_num);
-		}
-		if (!ast_strlen_zero(l->cid_name)) {
-			tmp->cid.cid_name = strdup(l->cid_name);
-		}
+		ast_copy_string(tmp->context, l->context, sizeof(tmp->context));
+		ast_copy_string(tmp->exten, l->exten, sizeof(tmp->exten));
+		tmp->cid.cid_num = ast_strdup(l->cid_num);
+		tmp->cid.cid_name = ast_strdup(l->cid_name);
 		tmp->priority = 1;
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 
@@ -2367,7 +2357,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		req->data.regack.res[0] = '0';
 		req->data.regack.res[1] = '\0';
 		req->data.regack.keepAlive = htolel(keep_alive);
-		strncpy(req->data.regack.dateTemplate, date_format, sizeof(req->data.regack.dateTemplate) - 1);
+		ast_copy_string(req->data.regack.dateTemplate, date_format, sizeof(req->data.regack.dateTemplate));
 		req->data.regack.res2[0] = '0';
 		req->data.regack.res2[1] = '\0';
 		req->data.regack.secondaryKeepAlive = htolel(keep_alive);
@@ -3059,7 +3049,7 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
 		return NULL;
 	}
-	strncpy(tmp, dest, sizeof(tmp) - 1);
+	ast_copy_string(tmp, dest, sizeof(tmp));
 	if (ast_strlen_zero(tmp)) {
 		ast_log(LOG_NOTICE, "Skinny channels require a device\n");
 		return NULL;
