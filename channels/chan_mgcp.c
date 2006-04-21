@@ -1480,12 +1480,10 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
 		ast_string_field_set(tmp, call_forward, i->call_forward);
-		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
-		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
-		if (!ast_strlen_zero(i->cid_num))
-			tmp->cid.cid_num = strdup(i->cid_num);
-		if (!ast_strlen_zero(i->cid_name))
-			tmp->cid.cid_name = strdup(i->cid_name);
+		ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
+		ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
+		tmp->cid.cid_num = ast_strdup(i->cid_num);
+		tmp->cid.cid_name = ast_strdup(i->cid_name);
 		if (!i->adsi)
 			tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 		tmp->priority = 1;
@@ -1603,14 +1601,13 @@ static struct mgcp_subchannel *find_subchannel_and_lock(char *name, int msgid, s
 	char *at = NULL, *c;
 	int found = 0;
 	if (name) {
-		strncpy(tmp, name, sizeof(tmp) - 1);
+		ast_copy_string(tmp, name, sizeof(tmp));
 		at = strchr(tmp, '@');
 		if (!at) {
 			ast_log(LOG_NOTICE, "Endpoint '%s' has no at sign!\n", name);
 			return NULL;
 		}
-		*at = '\0';
-		at++;
+		*at++ = '\0';
 	}
 	ast_mutex_lock(&gatelock);
 	if (at && (at[0] == '[')) {
@@ -2198,7 +2195,7 @@ static int transmit_notify_request(struct mgcp_subchannel *sub, char *tone)
 		ast_verbose(VERBOSE_PREFIX_3 "MGCP Asked to indicate tone: %s on  %s@%s-%d in cxmode: %s\n", 
 			tone, p->name, p->parent->name, sub->id, mgcp_cxmodes[sub->cxmode]);
 	}
-	strncpy(p->curtone, tone, sizeof(p->curtone) - 1);
+	ast_copy_string(p->curtone, tone, sizeof(p->curtone));
 	reqprep(&resp, p, "RQNT");
 	add_header(&resp, "X", p->rqnt_ident); /* SC */
 	switch (p->hookstate) {
@@ -2237,11 +2234,11 @@ static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, ch
 		l = "";
 
 	/* Keep track of last callerid for blacklist and callreturn */
-	strncpy(p->lastcallerid, l, sizeof(p->lastcallerid) - 1);
+	ast_copy_string(p->lastcallerid, l, sizeof(p->lastcallerid));
 
 	snprintf(tone2, sizeof(tone2), "%s,L/ci(%02d/%02d/%02d/%02d,%s,%s)", tone, 
 		tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, l, n);
-	strncpy(p->curtone, tone, sizeof(p->curtone) - 1);
+	ast_copy_string(p->curtone, tone, sizeof(p->curtone));
 	reqprep(&resp, p, "RQNT");
 	add_header(&resp, "X", p->rqnt_ident); /* SC */
 	switch (p->hookstate) {
@@ -2501,7 +2498,7 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 								ast_log(LOG_WARNING, "Subchannel already has a cxident. sub->cxident: %s requested %s\n", sub->cxident, c);
 							}
 						}
-						strncpy(sub->cxident, c, sizeof(sub->cxident) - 1);
+						ast_copy_string(sub->cxident, c, sizeof(sub->cxident));
 						if (sub->tmpdest.sin_addr.s_addr) {
 							transmit_modify_with_sdp(sub, NULL, 0);
 						}
@@ -2651,7 +2648,7 @@ static void *mgcp_ss(void *data)
 			if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
 				if (getforward) {
 					/* Record this as the forwarding extension */
-					strncpy(p->call_forward, exten, sizeof(p->call_forward) - 1); 
+					ast_copy_string(p->call_forward, exten, sizeof(p->call_forward)); 
 					if (option_verbose > 2) {
 						ast_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %s\n", 
 							p->call_forward, chan->name);
@@ -2672,21 +2669,21 @@ static void *mgcp_ss(void *data)
 				} else {
 					/*res = tone_zone_play_tone(p->subs[index].zfd, -1);*/
 					ast_indicate(chan, -1);
-					strncpy(chan->exten, exten, sizeof(chan->exten)-1);
+					ast_copy_string(chan->exten, exten, sizeof(chan->exten));
 					if (!ast_strlen_zero(p->cid_num)) {
 						if (!p->hidecallerid) {
 							/* SC: free existing chan->callerid */
 							if (chan->cid.cid_num)
 								free(chan->cid.cid_num);
-							chan->cid.cid_num = strdup(p->cid_num);
+							chan->cid.cid_num = ast_strdup(p->cid_num);
 							/* SC: free existing chan->callerid */
 							if (chan->cid.cid_name)
 								free(chan->cid.cid_name);
-							chan->cid.cid_name = strdup(p->cid_name);
+							chan->cid.cid_name = ast_strdup(p->cid_name);
 						}
 						if (chan->cid.cid_ani)
 							free(chan->cid.cid_ani);
-						chan->cid.cid_ani = strdup(p->cid_num);
+						chan->cid.cid_ani = ast_strdup(p->cid_num);
 					}
 					ast_setstate(chan, AST_STATE_RING);
 					/*zt_enable_ec(p);*/
@@ -2877,7 +2874,7 @@ static void *mgcp_ss(void *data)
 			break;
 	}
 	if (ast_exists_extension(chan, chan->context, exten, 1, chan->callerid)) {
-		strncpy(chan->exten, exten, sizeof(chan->exten) - 1);
+		ast_copy_string(chan->exten, exten, sizeof(chan->exten)1);
 		if (!p->rtp) {
 			start_rtp(p);
 		}
@@ -3562,7 +3559,7 @@ static struct ast_channel *mgcp_request(const char *type, int format, void *data
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
 		return NULL;
 	}
-	strncpy(tmp, dest, sizeof(tmp) - 1);
+	ast_copy_string(tmp, dest, sizeof(tmp));
 	if (ast_strlen_zero(tmp)) {
 		ast_log(LOG_NOTICE, "MGCP Channels require an endpoint\n");
 		return NULL;
@@ -3636,7 +3633,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 			gw->expire = -1;
 			gw->retransid = -1; /* SC */
 			ast_mutex_init(&gw->msgs_lock);
-			strncpy(gw->name, cat, sizeof(gw->name) - 1);
+			ast_copy_string(gw->name, cat, sizeof(gw->name));
 			/* SC: check if the name is numeric ip */
 			if ((strchr(gw->name, '.')) && inet_addr(gw->name) != INADDR_NONE)
 				gw->isnamedottedip = 1;
