@@ -4731,6 +4731,7 @@ struct app_tmp {
 	pthread_t t;
 };
 
+/*! \brief run the application and free the descriptor once done */
 static void *ast_pbx_run_app(void *data)
 {
 	struct app_tmp *tmp = data;
@@ -4750,7 +4751,6 @@ static void *ast_pbx_run_app(void *data)
 int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **locked_channel)
 {
 	struct ast_channel *chan;
-	struct async_stat *as;
 	struct app_tmp *tmp;
 	int res = -1, cdr_res = -1;
 	struct outgoing_helper oh;
@@ -4790,7 +4790,10 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 				res = 0;
 				if (option_verbose > 3)
 					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was answered.\n", chan->name);
-				if ((tmp = ast_calloc(1, sizeof(*tmp)))) {
+				tmp = ast_calloc(1, sizeof(*tmp));
+				if (!tmp)
+					res = -1;
+				else {
 					ast_copy_string(tmp->app, app, sizeof(tmp->app));
 					if (appdata)
 						ast_copy_string(tmp->data, appdata, sizeof(tmp->data));
@@ -4816,8 +4819,6 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 								*locked_channel = chan;
 						}
 					}
-				} else {
-					res = -1;
 				}
 			} else {
 				if (option_verbose > 3)
@@ -4844,6 +4845,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 		}
 
 	} else {
+		struct async_stat *as;
 		if (!(as = ast_calloc(1, sizeof(*as)))) {
 			res = -1;
 			goto outgoing_app_cleanup;
