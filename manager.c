@@ -1200,9 +1200,9 @@ static int action_status(struct mansession *s, struct message *m)
 			"%s"
 			"\r\n",
 			c->name, 
-			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
-			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
-			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
+			S_OR(c->cid.cid_num, "<unknown>"), 
+			S_OR(c->cid.cid_num, "<unknown>"), 
+			S_OR(c->cid.cid_name, "<unknown>"), 
 			c->accountcode,
 			ast_state2str(c->_state), c->context,
 			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, idText);
@@ -1221,9 +1221,9 @@ static int action_status(struct mansession *s, struct message *m)
 			"%s"
 			"\r\n",
 			c->name, 
-			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
-			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
-			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
+			S_OR(c->cid.cid_num, "<unknown>"), 
+			S_OR(c->cid.cid_num, "<unknown>"), 
+			S_OR(c->cid.cid_name, "<unknown>"), 
 			c->accountcode,
 			ast_state2str(c->_state), bridge, c->uniqueid, idText);
 		}
@@ -1356,9 +1356,9 @@ static void *fast_originate(void *data)
 		"CallerIDName: %s\r\n",
 		in->idtext, in->tech, in->data, in->context, in->exten, reason, 
 		chan ? chan->uniqueid : "<null>",
-		in->cid_num ? in->cid_num : "<unknown>",
-		in->cid_num ? in->cid_num : "<unknown>",
-		in->cid_name ? in->cid_name : "<unknown>"
+		S_OR(in->cid_num, "<unknown>"),
+		S_OR(in->cid_num, "<unknown>"),
+		S_OR(in->cid_name, "<unknown>")
 		);
 
 	/* Locked by ast_pbx_outgoing_exten or ast_pbx_outgoing_app */
