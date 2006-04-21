@@ -626,7 +626,6 @@ static int handle_debuglevel(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-#define	DEBUGCHAN_FLAG	0x80000000
 /* XXX todo: merge next two functions!!! */
 static int handle_debugchan(int fd, int argc, char *argv[])
 {
@@ -756,8 +755,10 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		ast_getformatname_multiple(nf, sizeof(nf), c->nativeformats), 
 		ast_getformatname_multiple(wf, sizeof(wf), c->writeformat), 
 		ast_getformatname_multiple(rf, sizeof(rf), c->readformat),
-		c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
-		c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)c->whentohangup,
+		c->fds[0],
+		c->fin & ~DEBUGCHAN_FLAG, (c->fin & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
+		c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
+		(long)c->whentohangup,
 		cdrtime, c->_bridge ? c->_bridge->name : "<none>", ast_bridged_channel(c) ? ast_bridged_channel(c)->name : "<none>", 
 		c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
 		( c-> data ? S_OR(c->data, "(Empty)") : "(None)"),

@@ -403,9 +403,13 @@ struct ast_channel {
 	unsigned long insmpl;
 	unsigned long outsmpl;
 
-	/* Frames in/out counters */
+	/* Frames in/out counters. The high bit is a debug mask, so
+	 * the counter is only in the remaining bits
+	 */
 	unsigned int fin;
 	unsigned int fout;
+#define	DEBUGCHAN_FLAG  0x80000000
+#define	FRAMECOUNT_INC(x)	( ((x) & DEBUGCHAN_FLAG) | ((x++) & ~DEBUGCHAN_FLAG) )
 
 	/* Why is the channel hanged up */
 	int hangupcause;

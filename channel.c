@@ -2049,12 +2049,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	}
 
 	/* High bit prints debugging */
-	if (chan->fin & 0x80000000)
+	if (chan->fin & DEBUGCHAN_FLAG)
 		ast_frame_dump(chan->name, f, "<<");
-	if ((chan->fin & 0x7fffffff) == 0x7fffffff)
-		chan->fin &= 0x80000000;
-	else
-		chan->fin++;
+	chan->fin = FRAMECOUNT_INC(chan->fin);
 
 done:
 	ast_mutex_unlock(&chan->lock);
@@ -2272,30 +2269,28 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 
 	/* Stop if we're a zombie or need a soft hangup */
 	ast_channel_lock(chan);
-	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan))  {
-		ast_channel_unlock(chan);
-		return -1;
-	}
+	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan))
+		goto done;
+
 	/* Handle any pending masquerades */
 	if (chan->masq && ast_do_masquerade(chan)) {
 		ast_log(LOG_WARNING, "Failed to perform masquerade\n");
-		ast_channel_unlock(chan);
-		return -1;
+		goto done;
 	}
 	if (chan->masqr) {
-		ast_channel_unlock(chan);
-		return 0;
+		res = 0;	/* XXX explain, why 0 ? */
+		goto done;
 	}
 	if (chan->generatordata) {
 		if (ast_test_flag(chan, AST_FLAG_WRITE_INT))
 			ast_deactivate_generator(chan);
 		else {
-			ast_channel_unlock(chan);
-			return 0;
+			res = 0;	/* XXX explain, why 0 ? */
+			goto done;
 		}
 	}
 	/* High bit prints debugging */
-	if (chan->fout & 0x80000000)
+	if (chan->fout & DEBUGCHAN_FLAG)
 		ast_frame_dump(chan->name, fr, ">>");
 	CHECK_BLOCKING(chan);
 	switch(fr->frametype) {
@@ -2348,6 +2343,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				queue_frame_to_spies(chan, f, SPY_WRITE);
 
 			if (chan->monitor && chan->monitor->write_stream) {
+				/* XXX must explain this code */
 #ifndef MONITOR_CONSTANT_DELAY
 				int jump = chan->insmpl - chan->outsmpl - 4 * f->samples;
 				if (jump >= 0) {
@@ -2383,11 +2379,9 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	if (res < 0)
 		chan->_softhangup |= AST_SOFTHANGUP_DEV;
 	else {
-		if ((chan->fout & 0x7fffffff) == 0x7fffffff)
-			chan->fout &= 0x80000000;
-		else
-			chan->fout++;
+		chan->fout = FRAMECOUNT_INC(chan->fout);
 	}
+done:
 	ast_channel_unlock(chan);
 	return res;
 }
