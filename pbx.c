@@ -4157,9 +4157,10 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 		/* In order to do it when the channel doesn't really exist within
 		   the PBX, we have to make a new channel, masquerade, and start the PBX
 		   at the new location */
-		struct ast_channel *tmpchan;
-		tmpchan = ast_channel_alloc(0);
-		if (tmpchan) {
+		struct ast_channel *tmpchan = ast_channel_alloc(0);
+		if (!tmpchan)
+			res = -1;
+		else {
 			ast_string_field_build(tmpchan, name, "AsyncGoto/%s", chan->name);
 			ast_setstate(tmpchan, chan->_state);
 			/* Make formats okay */
@@ -4167,9 +4168,7 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 			tmpchan->writeformat = chan->writeformat;
 			/* Setup proper location */
 			ast_explicit_goto(tmpchan,
-					  S_OR(context, chan->context),
-					  S_OR(exten, chan->exten),
-					  priority);
+				S_OR(context, chan->context), S_OR(exten, chan->exten), priority);
 
 			/* Masquerade into temp channel */
 			ast_channel_masquerade(tmpchan, chan);
@@ -4184,8 +4183,6 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 				ast_hangup(tmpchan);
 				res = -1;
 			}
-		} else {
-			res = -1;
 		}
 	}
 	ast_mutex_unlock(&chan->lock);
@@ -4288,7 +4285,7 @@ int ast_add_extension2(struct ast_context *con,
 	if (callerid)
 		length += strlen(callerid) + 1;
 	else
-		length ++;
+		length ++;	/* just the '\0' */
 
 	/* Be optimistic:  Build the extension structure first */
 	if (datad == NULL)
