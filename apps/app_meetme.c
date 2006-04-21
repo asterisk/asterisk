@@ -666,8 +666,8 @@ static int conf_cmd(int fd, int argc, char **argv) {
 
 			ast_cli(fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %02d:%02d:%02d\n",
 				user->user_no,
-				user->chan->cid.cid_num ? user->chan->cid.cid_num : "<unknown>",
-				user->chan->cid.cid_name ? user->chan->cid.cid_name : "<no name>",
+				S_OR(user->chan->cid.cid_num, "<unknown>"),
+				S_OR(user->chan->cid.cid_name, "<no name>"),
 				user->chan->name,
 				user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
 				user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
@@ -1675,12 +1675,11 @@ bailoutandtrynormal:
 		        "CIDnum: %s\r\n"
 			"CIDname: %s\r\n"
 		        "Duration: %02d:%02d:%02d\r\n",
-			 chan->name, chan->uniqueid, conf->confno, 
-			  user->user_no,
-			  user->chan->cid.cid_num ? user->chan->cid.cid_num :
-		         "<unknown>",
-		         user->chan->cid.cid_name ? user->chan->cid.cid_name :
-		          "<no name>", hr, min, sec);
+			chan->name, chan->uniqueid, conf->confno, 
+			user->user_no,
+			S_OR(user->chan->cid.cid_num, "<unknown>"),
+		        S_OR(user->chan->cid.cid_name, "<no name>"),
+			hr, min, sec);
 
 		conf->users--;
 		conf->refcount--;
