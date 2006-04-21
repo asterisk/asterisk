@@ -1035,11 +1035,12 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 		ast_copy_string(qe->context, q->context, sizeof(qe->context));
 		q->count++;
 		res = 0;
+		/* XXX missing CalledIDnum ? */
 		manager_event(EVENT_FLAG_CALL, "Join", 
 			      "Channel: %s\r\nCallerID: %s\r\nCallerIDName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\nUniqueid: %s\r\n",
 			      qe->chan->name, 
-			      qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown",
-			      qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
+			      S_OR(qe->chan->cid.cid_num, "unknown"), /* XXX somewhere else it is <unknown> */
+			      S_OR(qe->chan->cid.cid_name, "unknown"),
 			      q->name, qe->pos, q->count, qe->chan->uniqueid );
 #if 0
 ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
@@ -1433,15 +1434,12 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	tmp->chan->whentohangup = 0;
 	if (tmp->chan->cid.cid_num)
 		free(tmp->chan->cid.cid_num);
-	tmp->chan->cid.cid_num = NULL;
+	tmp->chan->cid.cid_num = ast_strdup(qe->chan->cid.cid_num);
 	if (tmp->chan->cid.cid_name)
 		free(tmp->chan->cid.cid_name);
-	tmp->chan->cid.cid_name = NULL;
+	tmp->chan->cid.cid_name = ast_strdup(qe->chan->cid.cid_name);
 	if (tmp->chan->cid.cid_ani)
 		free(tmp->chan->cid.cid_ani);
-	tmp->chan->cid.cid_ani = NULL;
-	tmp->chan->cid.cid_num = ast_strdup(qe->chan->cid.cid_num);
-	tmp->chan->cid.cid_name = ast_strdup(qe->chan->cid.cid_name);
 	tmp->chan->cid.cid_ani = ast_strdup(qe->chan->cid.cid_ani);
 
 	/* Inherit specially named variables from parent channel */
@@ -1472,8 +1470,8 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 						"Extension: %s\r\n"
 						"Priority: %d\r\n",
 						tmp->interface, qe->chan->name,
-						tmp->chan->cid.cid_num ? tmp->chan->cid.cid_num : "unknown",
-						tmp->chan->cid.cid_name ? tmp->chan->cid.cid_name : "unknown",
+						S_OR(tmp->chan->cid.cid_num, "unknown"),
+						S_OR(tmp->chan->cid.cid_name, "unknown"),
 						qe->chan->context, qe->chan->exten, qe->chan->priority);
 		}
 		if (option_verbose > 2)
@@ -1737,8 +1735,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						}
 						if (o->chan->cid.cid_rdnis) 
 							free(o->chan->cid.cid_rdnis);
-						o->chan->cid.cid_rdnis =
-								ast_strdup(S_OR(in->macroexten, in->exten));
+						o->chan->cid.cid_rdnis = ast_strdup(S_OR(in->macroexten, in->exten));
 						if (ast_call(o->chan, tmpchan, 0)) {
 							ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
 							do_hang(o);
@@ -2929,8 +2926,8 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	qe.last_periodic_announce_time = time(NULL);
 	qe.last_periodic_announce_sound = 0;
 	if (!join_queue(args.queuename, &qe, &reason)) {
-		ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", args.url ? args.url : "",
-			      chan->cid.cid_num ? chan->cid.cid_num : "");
+		ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", S_OR(args.url, ""),
+			      S_OR(chan->cid.cid_num, ""));
 check_turns:
 		if (ringing) {
 			ast_indicate(chan, AST_CONTROL_RINGING);
@@ -3568,10 +3565,10 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 					"Wait: %ld\r\n"
 					"%s"
 					"\r\n", 
-						q->name, pos++, qe->chan->name, 
-						qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown",
-						qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
-						(long)(now - qe->start), idText);
+					q->name, pos++, qe->chan->name, 
+					S_OR(qe->chan->cid.cid_num, "unknown"),
+					S_OR(qe->chan->cid.cid_name, "unknown"),
+					(long)(now - qe->start), idText);
 			}
 		}
 		ast_mutex_unlock(&q->lock);
