@@ -364,33 +364,25 @@ static int spawn_mp3(struct mohclass *class)
 			argv[argc++] = "8192";
 		
 		/* Look for extra arguments and add them to the list */
-		strncpy(xargs, class->args, sizeof(xargs) - 1);
+		ast_copy_string(xargs, class->args, sizeof(xargs));
 		argptr = xargs;
 		while (!ast_strlen_zero(argptr)) {
 			argv[argc++] = argptr;
-			argptr = strchr(argptr, ',');
-			if (argptr) {
-				*argptr = '\0';
-				argptr++;
-			}
+			strsep(&argptr, ",");
 		}
 	} else  {
 		/* Format arguments for argv vector */
-		strncpy(xargs, class->args, sizeof(xargs) - 1);
+		ast_copy_string(xargs, class->args, sizeof(xargs));
 		argptr = xargs;
 		while (!ast_strlen_zero(argptr)) {
 			argv[argc++] = argptr;
-			argptr = strchr(argptr, ' ');
-			if (argptr) {
-				*argptr = '\0';
-				argptr++;
-			}
+			strsep(&argptr, " ");
 		}
 	}
 
 
 	if (strstr(class->dir,"http://") || strstr(class->dir,"HTTP://")) {
-		strncpy(fns[files], class->dir, sizeof(fns[files]) - 1);
+		ast_copy_string(fns[files], class->dir, sizeof(fns[files]));
 		argv[argc++] = fns[files];
 		files++;
 	} else if (dir) {
@@ -400,7 +392,7 @@ static int spawn_mp3(struct mohclass *class)
 			      (!strcasecmp(de->d_name + strlen(de->d_name) - 4, ".raw") || 
 			       !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".sln"))) ||
 			     !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".mp3"))) {
-				strncpy(fns[files], de->d_name, sizeof(fns[files]) - 1);
+				ast_copy_string(fns[files], de->d_name, sizeof(fns[files]));
 				argv[argc++] = fns[files];
 				files++;
 			}
