@@ -1042,9 +1042,9 @@ static void init_state(void)
 
 	for (x=0;x<ADSI_MAX_INTRO;x++)
 		aligns[x] = ADSI_JUST_CENT;
-	strncpy(intro[0], "Welcome to the", sizeof(intro[0]) - 1);
-	strncpy(intro[1], "Asterisk", sizeof(intro[1]) - 1);
-	strncpy(intro[2], "Open Source PBX", sizeof(intro[2]) - 1);
+	ast_copy_string(intro[0], "Welcome to the", sizeof(intro[0]));
+	ast_copy_string(intro[1], "Asterisk", sizeof(intro[1]));
+	ast_copy_string(intro[2], "Open Source PBX", sizeof(intro[2]));
 	total = 3;
 	speeds = 0;
 	for (x=3;x<ADSI_MAX_INTRO;x++)
@@ -1063,43 +1063,36 @@ static void adsi_load(void)
 	conf = ast_config_load("adsi.conf");
 	if (conf) {
 		x=0;
-		v = ast_variable_browse(conf, "intro");
-		while(v) {
+		for (v = ast_variable_browse(conf, "intro"); v; v = v->next) {
 			if (!strcasecmp(v->name, "alignment"))
 				alignment = str2align(v->value);
 			else if (!strcasecmp(v->name, "greeting")) {
 				if (x < ADSI_MAX_INTRO) {
 					aligns[x] = alignment;
-					strncpy(intro[x], v->value, sizeof(intro[x]) - 1);
-					intro[x][sizeof(intro[x]) - 1] = '\0';
+					ast_copy_string(intro[x], v->value, sizeof(intro[x]));
 					x++;
 				}
 			} else if (!strcasecmp(v->name, "maxretries")) {
 				if (atoi(v->value) > 0)
 					maxretries = atoi(v->value);
 			}
-			v = v->next;
 		}
-		v = ast_variable_browse(conf, "speeddial");
 		if (x)
 			total = x;
 		x = 0;
-		while(v) {
-			char *stringp=NULL;
-			stringp=v->value;
+		for (v = ast_variable_browse(conf, "speeddial"); v; v = v->next) {
+			char *stringp = v->value;
 			name = strsep(&stringp, ",");
 			sname = strsep(&stringp, ",");
 			if (!sname) 
 				sname = name;
 			if (x < ADSI_MAX_SPEED_DIAL) {
 				/* Up to 20 digits */
-				strncpy(speeddial[x][0], v->name, sizeof(speeddial[x][0]) - 1);
+				ast_copy_string(speeddial[x][0], v->name, sizeof(speeddial[x][0]));
 				strncpy(speeddial[x][1], name, 18);
 				strncpy(speeddial[x][2], sname, 7);
 				x++;
 			}
-			v = v->next;
-				
 		}
 		if (x)
 			speeds = x;
