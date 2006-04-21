@@ -3903,28 +3903,14 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
  */
 int ast_context_add_switch(const char *context, const char *sw, const char *data, int eval, const char *registrar)
 {
-	struct ast_context *c = NULL;
+	int ret = -1;
+	struct ast_context *c = find_context_locked(context);
 
-	if (ast_lock_contexts()) {
-		errno = EBUSY;
-		return -1;
+	if (c) { /* found, add switch to this context */
+		ret = ast_context_add_switch2(c, sw, data, eval, registrar);
+		ast_unlock_contexts();
 	}
-
-	/* walk contexts ... */
-	while ( (c = ast_walk_contexts(c)) ) {
-		/* ... search for the right one ... */
-		if (!strcmp(ast_get_context_name(c), context)) {
-			int ret = ast_context_add_switch2(c, sw, data, eval, registrar);
-			/* ... unlock contexts list and return */
-			ast_unlock_contexts();
-			return ret;
-		}
-	}
-
-	/* we can't find the right context */
-	ast_unlock_contexts();
-	errno = ENOENT;
-	return -1;
+	return ret;
 }
 
 /*
