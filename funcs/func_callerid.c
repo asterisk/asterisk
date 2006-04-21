@@ -42,6 +42,7 @@ static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 {
 	char *opt = data;
 
+	/* XXX we are not always clearing the buffer. Is this correct ? */
 	if (strchr(opt, '|')) {
 		char name[80], num[80];
 
@@ -62,8 +63,8 @@ static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 	} else {
 		if (!strncasecmp("all", data, 3)) {
 			snprintf(buf, len, "\"%s\" <%s>",
-				 chan->cid.cid_name ? chan->cid.cid_name : "",
-				 chan->cid.cid_num ? chan->cid.cid_num : "");
+				 S_OR(chan->cid.cid_name, ""),
+				 S_OR(chan->cid.cid_num, ""));
 		} else if (!strncasecmp("name", data, 4)) {
 			if (chan->cid.cid_name) {
 				ast_copy_string(buf, chan->cid.cid_name, len);
@@ -116,12 +117,12 @@ static int callerid_write(struct ast_channel *chan, char *cmd, char *data,
 		/* do we need to lock chan here? */
 		if (chan->cid.cid_dnid)
 			free(chan->cid.cid_dnid);
-		chan->cid.cid_dnid = ast_strlen_zero(value) ? NULL : strdup(value);
+		chan->cid.cid_dnid = ast_strdup(value);
 	} else if (!strncasecmp("rdnis", data, 5)) {
 		/* do we need to lock chan here? */
 		if (chan->cid.cid_rdnis)
 			free(chan->cid.cid_rdnis);
-		chan->cid.cid_rdnis = ast_strlen_zero(value) ? NULL : strdup(value);
+		chan->cid.cid_rdnis = ast_strdup(value);
 	} else {
 		ast_log(LOG_ERROR, "Unknown callerid data type.\n");
 	}
