@@ -446,13 +446,13 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 		if (concise) {
 			ast_cli(fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
 			        c->appl ? c->appl : "(None)", c->data ? c->data : "",
-			        c->cid.cid_num ? c->cid.cid_num : "",
+			        S_OR(c->cid.cid_num, ""),
 			        c->accountcode ? c->accountcode : "", c->amaflags, 
 			        durbuf, bc ? bc->name : "(None)");
 		} else if (verbose) {
 			ast_cli(fd, VERBOSE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
 			        c->appl ? c->appl : "(None)", c->data ? S_OR(c->data, "(Empty)" ): "(None)",
-			        c->cid.cid_num ? c->cid.cid_num : "", durbuf,
+			        S_OR(c->cid.cid_num, ""), durbuf,
 			        c->accountcode ? c->accountcode : "", bc ? bc->name : "(None)");
 		} else {
 			if (!ast_strlen_zero(c->context) && !ast_strlen_zero(c->exten)) 
@@ -750,9 +750,9 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		"           Data: %s\n"
 		"    Blocking in: %s\n",
 		c->name, c->tech->type, c->uniqueid,
-		(c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
-		(c->cid.cid_name ? c->cid.cid_name : "(N/A)"),
-		(c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, 
+		S_OR(c->cid.cid_num, "(N/A)"),
+		S_OR(c->cid.cid_name, "(N/A)"),
+		S_OR(c->cid.cid_dnid, "(N/A)"), ast_state2str(c->_state), c->_state, c->rings, 
 		ast_getformatname_multiple(nf, sizeof(nf), c->nativeformats), 
 		ast_getformatname_multiple(wf, sizeof(wf), c->writeformat), 
 		ast_getformatname_multiple(rf, sizeof(rf), c->readformat),
