@@ -427,7 +427,7 @@ static int local_hangup(struct ast_channel *ast)
 }
 
 /*! \brief Create a call structure */
-static struct local_pvt *local_alloc(char *data, int format)
+static struct local_pvt *local_alloc(const char *data, int format)
 {
 	struct local_pvt *tmp;
 	char *c;
@@ -437,21 +437,17 @@ static struct local_pvt *local_alloc(char *data, int format)
 		return NULL;
 	
 	ast_mutex_init(&tmp->lock);
-	strncpy(tmp->exten, data, sizeof(tmp->exten) - 1);
+	ast_copy_string(tmp->exten, data, sizeof(tmp->exten));
 	opts = strchr(tmp->exten, '/');
 	if (opts) {
-		*opts='\0';
-		opts++;
+		*opts++ = '\0';
 		if (strchr(opts, 'n'))
 			tmp->nooptimization = 1;
 	}
 	c = strchr(tmp->exten, '@');
-	if (c) {
-		*c = '\0';
-		c++;
-		strncpy(tmp->context, c, sizeof(tmp->context) - 1);
-	} else
-		strncpy(tmp->context, "default", sizeof(tmp->context) - 1);
+	if (c)
+		*c++ = '\0';
+	ast_copy_string(tmp->context, c ? c : "default", sizeof(tmp->context));
 	tmp->reqformat = format;
 	if (!ast_exists_extension(NULL, tmp->context, tmp->exten, 1, NULL)) {
 		ast_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->exten, tmp->context);
