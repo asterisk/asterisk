@@ -2091,6 +2091,7 @@ static int load_config(void)
 				}
 
 				ast_register_feature(feature);
+				/* XXX do we need to free it if mallocd ? */
 				
 				if (option_verbose >=1)
 					ast_verbose(VERBOSE_PREFIX_2 "Mapping Feature '%s' to app '%s' with code '%s'\n", var->name, app, exten);  
