@@ -162,6 +162,14 @@ int ast_format_unregister(const char *name);
  */
 int ast_streamfile(struct ast_channel *c, const char *filename, const char *preflang);
 
+/*
+ * if the file name is non-empty, try to play it.
+ * Return 0 if success, -1 if error, digit if interrupted by a digit.
+ * If digits == "" then we can simply check for non-zero.
+ */
+int ast_stream_and_wait(struct ast_channel *chan, const char *file,
+	const char *language, const char *digits);
+
 /*! Stops a stream */
 /*!
  * \param c The channel you wish to stop playback on

@@ -405,26 +405,6 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 #define FEATURE_SENSE_PEER	(1 << 1)
 
 /*
- * if the file name is non-empty, try to play it.
- * Return 0 if success, -1 if error, digit if interrupted by a digit.
- * If digits == "" then we can simply check for non-zero.
- */
-/*
- *! \todo XXX there are probably many replicas of this function in the source tree,
- * that should be merged.
- */
-static int stream_and_wait(struct ast_channel *chan, const char *file, const char *language, const char *digits)
-{
-	int res = 0;
-	if (!ast_strlen_zero(file)) {
-		res =  ast_streamfile(chan, file, language);
-		if (!res)
-			res = ast_waitstream(chan, digits);
-	}
-	return res;
-}
- 
-/*
  * set caller and callee according to the direction
  */
 static void set_peers(struct ast_channel **caller, struct ast_channel **callee,
@@ -462,7 +442,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	if (!ast_strlen_zero(courtesytone)) {
 		if (ast_autoservice_start(callee_chan))
 			return -1;
-		if (stream_and_wait(caller_chan, courtesytone, caller_chan->language, "")) {
+		if (ast_stream_and_wait(caller_chan, courtesytone, caller_chan->language, "")) {
 			ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
 			ast_autoservice_stop(callee_chan);
 			return -1;
@@ -570,7 +550,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	memset(xferto, 0, sizeof(xferto));
 	
 	/* Transfer */
-	res = stream_and_wait(transferer, "pbx-transfer", transferer->language, AST_DIGIT_ANY);
+	res = ast_stream_and_wait(transferer, "pbx-transfer", transferer->language, AST_DIGIT_ANY);
 	if (res < 0) {
 		finishup(transferee);
 		return -1; /* error ? */
@@ -620,7 +600,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		if (option_verbose > 2)	
 			ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context '%s'\n", xferto, transferer_real_context);
 	}
-	if (stream_and_wait(transferer, xferfailsound, transferee->language, AST_DIGIT_ANY) < 0 ) {
+	if (ast_stream_and_wait(transferer, xferfailsound, transferee->language, AST_DIGIT_ANY) < 0 ) {
 		finishup(transferee);
 		return -1;
 	}
@@ -670,7 +650,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	ast_moh_start(transferee, NULL);
 	memset(xferto, 0, sizeof(xferto));
 	/* Transfer */
-	res = stream_and_wait(transferer, "pbx-transfer", transferer->language, AST_DIGIT_ANY);
+	res = ast_stream_and_wait(transferer, "pbx-transfer", transferer->language, AST_DIGIT_ANY);
 	if (res < 0) {
 		finishup(transferee);
 		return res;
@@ -687,7 +667,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	if (res == 0) {
 		ast_log(LOG_WARNING, "Did not read data.\n");
 		finishup(transferee);
-		if (stream_and_wait(transferer, "beeperr", transferer->language, ""))
+		if (ast_stream_and_wait(transferer, "beeperr", transferer->language, ""))
 			return -1;
 		return FEATURE_RETURN_SUCCESS;
 	}
@@ -696,7 +676,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	if (!ast_exists_extension(transferer, transferer_real_context, xferto, 1, transferer->cid.cid_num)) {
 		ast_log(LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
 		finishup(transferee);
-		if (stream_and_wait(transferer, "beeperr", transferer->language, ""))
+		if (ast_stream_and_wait(transferer, "beeperr", transferer->language, ""))
 			return -1;
 		return FEATURE_RETURN_SUCCESS;
 	}
@@ -710,7 +690,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		finishup(transferee);
 		/* any reason besides user requested cancel and busy triggers the failed sound */
 		if (outstate != AST_CONTROL_UNHOLD && outstate != AST_CONTROL_BUSY &&
-				stream_and_wait(transferer, xferfailsound, transferer->language, ""))
+				ast_stream_and_wait(transferer, xferfailsound, transferer->language, ""))
 			return -1;
 		return FEATURE_RETURN_SUCCESS;
 	}
@@ -723,7 +703,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	res = ast_bridge_call(transferer, newchan, &bconfig);
 	if (newchan->_softhangup || newchan->_state != AST_STATE_UP || !transferer->_softhangup) {
 		ast_hangup(newchan);
-		if (stream_and_wait(transferer, xfersound, transferer->language, ""))
+		if (ast_stream_and_wait(transferer, xfersound, transferer->language, ""))
 			ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
 		finishup(transferee);
 		transferer->_softhangup = 0;
@@ -776,7 +756,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	tobj->peer = newchan;
 	tobj->bconfig = *config;
 
-	if (stream_and_wait(newchan, xfersound, newchan->language, ""))
+	if (ast_stream_and_wait(newchan, xfersound, newchan->language, ""))
 		ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
 	ast_bridge_call_thread_launch(tobj);
 	return -1;	/* XXX meaning the channel is bridged ? */
@@ -1663,9 +1643,9 @@ static int park_exec(struct ast_channel *chan, void *data)
 			ast_moh_stop(peer);
 			ast_indicate(peer, AST_CONTROL_UNHOLD);
 			if (parkedplay == 0) {
-				error = stream_and_wait(chan, courtesytone, chan->language, "");
+				error = ast_stream_and_wait(chan, courtesytone, chan->language, "");
 			} else if (parkedplay == 1) {
-				error = stream_and_wait(peer, courtesytone, chan->language, "");
+				error = ast_stream_and_wait(peer, courtesytone, chan->language, "");
 			} else if (parkedplay == 2) {
 				if (!ast_streamfile(chan, courtesytone, chan->language) &&
 						!ast_streamfile(peer, courtesytone, chan->language)) {
@@ -1710,7 +1690,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		return res;
 	} else {
 		/*! \todo XXX Play a message XXX */
-		if (stream_and_wait(chan, "pbx-invalidpark", chan->language, ""))
+		if (ast_stream_and_wait(chan, "pbx-invalidpark", chan->language, ""))
 			ast_log(LOG_WARNING, "ast_streamfile of %s failed on %s\n", "pbx-invalidpark", chan->name);
 		if (option_verbose > 2) 
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s tried to talk to nonexistent parked call %d\n", chan->name, park);

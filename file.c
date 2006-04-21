@@ -1101,6 +1101,23 @@ int ast_waitstream_exten(struct ast_channel *c, const char *context)
 		-1, -1, context);
 }
 
+/*
+ * if the file name is non-empty, try to play it.
+ * Return 0 if success, -1 if error, digit if interrupted by a digit.
+ * If digits == "" then we can simply check for non-zero.
+ */
+int ast_stream_and_wait(struct ast_channel *chan, const char *file,
+	const char *language, const char *digits)
+{
+        int res = 0;
+        if (!ast_strlen_zero(file)) {
+                res =  ast_streamfile(chan, file, language);
+                if (!res)
+                        res = ast_waitstream(chan, digits);
+        }
+        return res;
+} 
+
 static int show_file_formats(int fd, int argc, char *argv[])
 {
 #define FORMAT "%-10s %-10s %-20s\n"
