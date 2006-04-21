@@ -328,11 +328,11 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		"From: %s\r\n"
 		"Timeout: %ld\r\n"
 		"CallerID: %s\r\n"
-		"CallerIDName: %s\r\n"
-		,pu->parkingnum, pu->chan->name, peer ? peer->name : ""
-		,(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL)
-		,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
-		,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
+		"CallerIDName: %s\r\n",
+		pu->parkingnum, pu->chan->name, peer ? peer->name : "",
+		(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL),
+		S_OR(pu->chan->cid.cid_num, "<unknown>"),
+		S_OR(pu->chan->cid.cid_name, "<unknown>")
 		);
 
 	if (peer) {
@@ -495,13 +495,13 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 			snprintf(touch_filename, len, "auto-%ld-%s", (long)time(NULL), touch_monitor);
 			snprintf(args, len, "%s|%s|m", (touch_format) ? touch_format : "wav", touch_filename);
 		} else {
-			caller_chan_id = ast_strdupa(caller_chan->cid.cid_num ? caller_chan->cid.cid_num : caller_chan->name);
-			callee_chan_id = ast_strdupa(callee_chan->cid.cid_num ? callee_chan->cid.cid_num : callee_chan->name);
+			caller_chan_id = ast_strdupa(S_OR(caller_chan->cid.cid_num, caller_chan->name));
+			callee_chan_id = ast_strdupa(S_OR(callee_chan->cid.cid_num, callee_chan->name));
 			len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
 			args = alloca(len);
 			touch_filename = alloca(len);
 			snprintf(touch_filename, len, "auto-%ld-%s-%s", (long)time(NULL), caller_chan_id, callee_chan_id);
-			snprintf(args, len, "%s|%s|m", (touch_format) ? touch_format : "wav", touch_filename);
+			snprintf(args, len, "%s|%s|m", S_OR(touch_format, "wav"), touch_filename);
 		}
 
 		for( x = 0; x < strlen(args); x++) {
@@ -1457,10 +1457,10 @@ static void *do_parking_thread(void *ignore)
 					"Exten: %d\r\n"
 					"Channel: %s\r\n"
 					"CallerID: %s\r\n"
-					"CallerIDName: %s\r\n"
-					,pu->parkingnum, chan->name
-					,(chan->cid.cid_num ? chan->cid.cid_num : "<unknown>")
-					,(chan->cid.cid_name ? chan->cid.cid_name : "<unknown>")
+					"CallerIDName: %s\r\n",
+					pu->parkingnum, chan->name,
+					S_OR(chan->cid.cid_num, "<unknown>"),
+					S_OR(chan->cid.cid_name, "<unknown>")
 					);
 
 				if (option_verbose > 1) 
@@ -1507,10 +1507,10 @@ static void *do_parking_thread(void *ignore)
 							"Exten: %d\r\n"
 							"Channel: %s\r\n"
 							"CallerID: %s\r\n"
-							"CallerIDName: %s\r\n"
-							,pu->parkingnum, chan->name
-							,(chan->cid.cid_num ? chan->cid.cid_num : "<unknown>")
-							,(chan->cid.cid_name ? chan->cid.cid_name : "<unknown>")
+							"CallerIDName: %s\r\n",
+							pu->parkingnum, chan->name,
+							S_OR(chan->cid.cid_num, "<unknown>"),
+							S_OR(chan->cid.cid_name, "<unknown>")
 							);
 
 						/* There's a problem, hang them up*/
@@ -1646,10 +1646,10 @@ static int park_exec(struct ast_channel *chan, void *data)
 			"Channel: %s\r\n"
 			"From: %s\r\n"
 			"CallerID: %s\r\n"
-			"CallerIDName: %s\r\n"
-			,pu->parkingnum, pu->chan->name, chan->name
-			,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
-			,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
+			"CallerIDName: %s\r\n",
+			pu->parkingnum, pu->chan->name, chan->name,
+			S_OR(pu->chan->cid.cid_num, "<unknown>"),
+			S_OR(pu->chan->cid.cid_name, "<unknown>")
 			);
 
 		free(pu);
@@ -1825,12 +1825,12 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 			"CallerID: %s\r\n"
 			"CallerIDName: %s\r\n"
 			"%s"
-			"\r\n"
-                        ,cur->parkingnum, cur->chan->name, cur->peername
-                        ,(long)cur->start.tv_sec + (long)(cur->parkingtime/1000) - (long)time(NULL)
-			,(cur->chan->cid.cid_num ? cur->chan->cid.cid_num : "")
-			,(cur->chan->cid.cid_name ? cur->chan->cid.cid_name : "")
-			,idText);
+			"\r\n",
+                        cur->parkingnum, cur->chan->name, cur->peername,
+                        (long)cur->start.tv_sec + (long)(cur->parkingtime/1000) - (long)time(NULL),
+			S_OR(cur->chan->cid.cid_num, ""),	/* XXX in other places it is <unknown> */
+			S_OR(cur->chan->cid.cid_name, ""),
+			idText);
         }
 
 	astman_append(s,
