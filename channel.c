@@ -3230,24 +3230,20 @@ static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, 
 	}
 	
 	if (!strcmp(sound,"timeleft")) {	/* Queue support */
-		ast_streamfile(chan, "vm-youhave", chan->language);
-		ast_waitstream(chan, "");
+		ast_stream_and_wait(chan, "vm-youhave", chan->language, "");
 		if (min) {
 			ast_say_number(chan, min, AST_DIGIT_ANY, chan->language, NULL);
-			ast_streamfile(chan, "queue-minutes", chan->language);
-			ast_waitstream(chan, "");
+			ast_stream_and_wait(chan, "queue-minutes", chan->language, "");
 		}
 		if (sec) {
 			ast_say_number(chan, sec, AST_DIGIT_ANY, chan->language, NULL);
-			ast_streamfile(chan, "queue-seconds", chan->language);
-			ast_waitstream(chan, "");
+			ast_stream_and_wait(chan, "queue-seconds", chan->language, "");
 		}
 	} else {
-		ast_streamfile(chan, sound, chan->language);
-		ast_waitstream(chan, "");
+		ast_stream_and_wait(chan, sound, chan->language, "");
 	}
 
-	check = ast_autoservice_stop(peer);
+	ast_autoservice_stop(peer);
 }
 
 static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct ast_channel *c1,

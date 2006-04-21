@@ -155,10 +155,7 @@ int ast_app_getvoice(struct ast_channel *c, char *dest, char *dstfmt, char *prom
 	struct ast_dsp *sildet;
 	/* Play prompt if requested */
 	if (prompt) {
-		res = ast_streamfile(c, prompt, c->language);
-		if (res < 0)
-			return res;
-		res = ast_waitstream(c,"");
+		res = ast_stream_and_wait(c, prompt, c->language, "");
 		if (res < 0)
 			return res;
 	}
@@ -573,9 +570,7 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 	if (playfile) {
 		d = ast_play_and_wait(chan, playfile);
 		if (d > -1)
-			d = ast_streamfile(chan, "beep",chan->language);
-		if (!d)
-			d = ast_waitstream(chan,"");
+			d = ast_stream_and_wait(chan, "beep", chan->language, "");
 		if (d < 0)
 			return -1;
 	}
@@ -749,8 +744,7 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 	}
 	if (outmsg > 1) {
 		/* Let them know recording is stopped */
-		if(!ast_streamfile(chan, "auth-thankyou", chan->language))
-			ast_waitstream(chan, "");
+		ast_stream_and_wait(chan, "auth-thankyou", chan->language, "");
 	}
 	if (sildet)
 		ast_dsp_free(sildet);
@@ -794,9 +788,7 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 		if (!beep)
 			d = ast_play_and_wait(chan, playfile);
 		if (d > -1)
-			d = ast_streamfile(chan, "beep",chan->language);
-		if (!d)
-			d = ast_waitstream(chan,"");
+			d = ast_stream_and_wait(chan, "beep",chan->language, "");
 		if (d < 0)
 			return -1;
 	}
@@ -981,8 +973,7 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 	}
 	if (outmsg > 1) {
 		/* Let them know it worked */
-		ast_streamfile(chan, "auth-thankyou", chan->language);
-		ast_waitstream(chan, "");
+		ast_stream_and_wait(chan, "auth-thankyou", chan->language, "");
 	}	
 	return res;
 }
@@ -1205,16 +1196,14 @@ int ast_record_review(struct ast_channel *chan, const char *playfile, const char
 				cmd = '3';
 				break;
 			} else {
-				ast_streamfile(chan, "vm-msgsaved", chan->language);
-				ast_waitstream(chan, "");
+				ast_stream_and_wait(chan, "vm-msgsaved", chan->language, "");
 				cmd = 't';
 				return res;
 			}
 		case '2':
 			/* Review */
 			ast_verbose(VERBOSE_PREFIX_3 "Reviewing the recording\n");
-			ast_streamfile(chan, recordfile, chan->language);
-			cmd = ast_waitstream(chan, AST_DIGIT_ANY);
+			cmd = ast_stream_and_wait(chan, recordfile, chan->language, AST_DIGIT_ANY);
 			break;
 		case '3':
 			message_exists = 0;
@@ -1300,19 +1289,15 @@ static int ivr_dispatch(struct ast_channel *chan, struct ast_ivr_option *option,
 	case AST_ACTION_NOOP:
 		return 0;
 	case AST_ACTION_BACKGROUND:
-		res = ast_streamfile(chan, (char *)option->adata, chan->language);
-		if (!res) {
-			res = ast_waitstream(chan, AST_DIGIT_ANY);
-		} else {
+		res = ast_stream_and_wait(chan, (char *)option->adata, chan->language, AST_DIGIT_ANY);
+		if (res < 0) {
 			ast_log(LOG_NOTICE, "Unable to find file '%s'!\n", (char *)option->adata);
 			res = 0;
 		}
 		return res;
 	case AST_ACTION_PLAYBACK:
-		res = ast_streamfile(chan, (char *)option->adata, chan->language);
-		if (!res) {
-			res = ast_waitstream(chan, "");
-		} else {
+		res = ast_stream_and_wait(chan, (char *)option->adata, chan->language, "");
+		if (res < 0) {
 			ast_log(LOG_NOTICE, "Unable to find file '%s'!\n", (char *)option->adata);
 			res = 0;
 		}
@@ -1341,7 +1326,8 @@ static int ivr_dispatch(struct ast_channel *chan, struct ast_ivr_option *option,
 		c = ast_strdupa(option->adata);
 		if (c) {
 			while((n = strsep(&c, ";")))
-				if ((res = ast_streamfile(chan, n, chan->language)) || (res = ast_waitstream(chan, (option->action == AST_ACTION_BACKLIST) ? AST_DIGIT_ANY : "")))
+				if ((res = ast_stream_and_wait(chan, n, chan->language,
+						(option->action == AST_ACTION_BACKLIST) ? AST_DIGIT_ANY : "")))
 					break;
 			ast_stopstream(chan);
 		}
