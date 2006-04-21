@@ -536,35 +536,37 @@ void ast_cdr_setapp(struct ast_cdr *cdr, char *app, char *data)
 	}
 }
 
+/* set cid info for one record */
+static void set_one_cid(struct ast_cdr *cdr, struct ast_channel *c)
+{
+	/* Grab source from ANI or normal Caller*ID */
+	const char *num = S_OR(c->cid.cid_ani, c->cid.cid_num);
+	
+	if (!ast_strlen_zero(c->cid.cid_name)) {
+		if (!ast_strlen_zero(num))	/* both name and number */
+			snprintf(cdr->clid, sizeof(cdr->clid), "\"%s\" <%s>", c->cid.cid_name, num);
+		else				/* only name */
+			ast_copy_string(cdr->clid, c->cid.cid_name, sizeof(cdr->clid));
+	} else if (!ast_strlen_zero(num)) {	/* only number */
+		ast_copy_string(cdr->clid, num, sizeof(cdr->clid));
+	} else {				/* nothing known */
+		cdr->clid[0] = '\0';
+	}
+	ast_copy_string(cdr->src, S_OR(num, ""), sizeof(cdr->src));
+
+}
 int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *c)
 {
-	char tmp[AST_MAX_EXTENSION] = "";
-
 	for (; cdr; cdr = cdr->next) {
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			/* Grab source from ANI or normal Caller*ID */
-			char *num = c->cid.cid_ani ? c->cid.cid_ani : c->cid.cid_num; /* XXX ast_strlen_zero ? */
-			
-			if (c->cid.cid_name && num)
-				snprintf(tmp, sizeof(tmp), "\"%s\" <%s>", c->cid.cid_name, num);
-			else if (c->cid.cid_name)
-				ast_copy_string(tmp, c->cid.cid_name, sizeof(tmp));
-			else if (num)
-				ast_copy_string(tmp, num, sizeof(tmp));
-			ast_copy_string(cdr->clid, tmp, sizeof(cdr->clid));
-			ast_copy_string(cdr->src, num ? num : "", sizeof(cdr->src));
-		}
+		if (ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+			set_one_cid(cdr, c);
 	}
-
 	return 0;
 }
-
 
 int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 {
 	char *chan;
-	char *num;
-	char tmp[AST_MAX_EXTENSION] = "";
 
 	for ( ; cdr ; cdr = cdr->next) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
@@ -572,17 +574,7 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 			if (!ast_strlen_zero(cdr->channel)) 
 				ast_log(LOG_WARNING, "CDR already initialized on '%s'\n", chan); 
 			ast_copy_string(cdr->channel, c->name, sizeof(cdr->channel));
-			/* Grab source from ANI or normal Caller*ID */
-			num = c->cid.cid_ani ? c->cid.cid_ani : c->cid.cid_num;
-			
-			if (c->cid.cid_name && num)
-				snprintf(tmp, sizeof(tmp), "\"%s\" <%s>", c->cid.cid_name, num);
-			else if (c->cid.cid_name)
-				ast_copy_string(tmp, c->cid.cid_name, sizeof(tmp));
-			else if (num)
-				ast_copy_string(tmp, num, sizeof(tmp));
-			ast_copy_string(cdr->clid, tmp, sizeof(cdr->clid));
-			ast_copy_string(cdr->src, num ? num : "", sizeof(cdr->src));
+			set_one_cid(cdr, c);
 
 			cdr->disposition = (c->_state == AST_STATE_UP) ?  AST_CDR_ANSWERED : AST_CDR_NOANSWER;
 			cdr->amaflags = c->amaflags ? c->amaflags :  ast_default_amaflags;
@@ -608,10 +600,7 @@ void ast_cdr_end(struct ast_cdr *cdr)
 			cdr->disposition = AST_CDR_FAILED;
 		} else
 			cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec;
-		if (!ast_tvzero(cdr->answer))
-			cdr->billsec = cdr->end.tv_sec - cdr->answer.tv_sec;
-		else
-			cdr->billsec = 0;
+		cdr->billsec = ast_tvzero(cdr->answer) ? 0 : cdr->end.tv_sec - cdr->answer.tv_sec;
 	}
 }
 
@@ -697,21 +686,10 @@ int ast_cdr_appenduserfield(struct ast_channel *chan, const char *userfield)
 int ast_cdr_update(struct ast_channel *c)
 {
 	struct ast_cdr *cdr = c->cdr;
-	char *num;
-	char tmp[AST_MAX_EXTENSION] = "";
 
 	for ( ; cdr ; cdr = cdr->next) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			num = c->cid.cid_ani ? c->cid.cid_ani : c->cid.cid_num;
-			
-			if (c->cid.cid_name && num)
-				snprintf(tmp, sizeof(tmp), "\"%s\" <%s>", c->cid.cid_name, num);
-			else if (c->cid.cid_name)
-				ast_copy_string(tmp, c->cid.cid_name, sizeof(tmp));
-			else if (num)
-				ast_copy_string(tmp, num, sizeof(tmp));
-			ast_copy_string(cdr->clid, tmp, sizeof(cdr->clid));
-			ast_copy_string(cdr->src, num ? num : "", sizeof(cdr->src));
+			set_one_cid(cdr, c);
 
 			/* Copy account code et-al */	
 			ast_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
