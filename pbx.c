@@ -5119,49 +5119,43 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
  */
 static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 {
-	int res = 0;
-	char *ptr1, *ptr2;
+	char *s, *appname;
 	struct ast_timing timing;
 	struct ast_app *app;
-	const char *usage = "ExecIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?<appname>[|<appargs>]";
+	static const char *usage = "ExecIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?<appname>[|<appargs>]";
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "%s\n", usage);	
 		return -1;
 	}
 
-	if (!(ptr1 = ast_strdupa(data)))
+	if (!(appname = ast_strdupa(data)))
 		return -1;
 
-	ptr2 = ptr1;
-	/* Separate the Application data ptr1 is the time spec ptr2 is the app|data */
-	strsep(&ptr2,"?");
-	if(!ast_build_timing(&timing, ptr1)) {
-		ast_log(LOG_WARNING, "Invalid Time Spec: %s\nCorrect usage: %s\n", ptr1, usage);
-		res = -1;
+	s = strsep(&appname,"?");	/* Separate the timerange and application name/data */
+	if (!appname) {	/* missing application */
+		ast_log(LOG_WARNING, "%s\n", usage);
+		return -1;
 	}
-		
-	if (!res && ast_check_timing(&timing)) {
-		if (!ptr2) {
-			ast_log(LOG_WARNING, "%s\n", usage);
-		}
 
-		/* ptr2 is now the app name 
-		   we're done with ptr1 now so recycle it and use it to point to the app args */
-		if((ptr1 = strchr(ptr2, '|'))) {
-			*ptr1 = '\0';
-			ptr1++;
-		}
-		
-		if ((app = pbx_findapp(ptr2))) {
-			res = pbx_exec(chan, app, ptr1 ? ptr1 : "");
-		} else {
-			ast_log(LOG_WARNING, "Cannot locate application %s\n", ptr2);
-			res = -1;
-		}
+	if (!ast_build_timing(&timing, s)) {
+		ast_log(LOG_WARNING, "Invalid Time Spec: %s\nCorrect usage: %s\n", s, usage);
+		return -1;
 	}
-	
-	return res;
+		
+	if (!ast_check_timing(&timing))	/* outside the valid time window, just return */
+		return 0;
+
+	/* now split appname|appargs */
+	if ((s = strchr(appname, '|')))
+		*s++ = '\0';
+		
+	if ((app = pbx_findapp(appname))) {
+		return pbx_exec(chan, app, S_OR(s, ""));
+	} else {
+		ast_log(LOG_WARNING, "Cannot locate application %s\n", appname);
+		return -1;
+	}
 }
 
 /*!
