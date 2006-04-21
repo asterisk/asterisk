@@ -412,11 +412,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	int i = 0;
 	int z = 0;
 
-	if (number[0] == 'n') {
-		strncpy(naptrinput, number+1, sizeof(naptrinput));
-	} else {
-		strncpy(naptrinput, number, sizeof(naptrinput));
-	}
+	ast_copy_string(naptrinput, number[0] == 'n' ? number+1 : number, sizeof(naptrinput));
 
 	context.naptrinput = naptrinput;	/* The number */
 	context.dst = dst;			/* Return string */
@@ -487,11 +483,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		} else {
 			s = s->next;
 		}
-		if (suffix != NULL) {
-			strncpy(tmp + newpos, suffix, sizeof(tmp) - newpos - 1);
-		} else if (s) {
-			strncpy(tmp + newpos, s->toplev, sizeof(tmp) - newpos - 1);
-		}
+		ast_copy_string(tmp + newpos, suffix ? suffix : s->toplev, sizeof(tmp) - newpos);
 		ast_mutex_unlock(&enumlock);
 		if (!s)
 			break;
@@ -600,7 +592,7 @@ int ast_get_txt(struct ast_channel *chan, const char *number, char *dst, int dst
 			s = s->next;
 		}
 		if (s) {
-			strncpy(tmp + newpos, s->toplev, sizeof(tmp) - newpos - 1);
+			ast_copy_string(tmp + newpos, s->toplev, sizeof(tmp) - newpos);
 		}
 		ast_mutex_unlock(&enumlock);
 		if (!s)
