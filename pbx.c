@@ -5240,7 +5240,6 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 static int pbx_builtin_background(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	char *front = NULL, *back = NULL;
 	struct ast_flags flags = {0};
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
@@ -5283,43 +5282,33 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	}
 
 	if (!res) {
-		/* Stop anything playing */
-		ast_stopstream(chan);
-		/* Stream a file */
-		front = args.filename;
-		while(!res && front) {
-			if((back = strchr(front, '&'))) {
-				*back = '\0';
-				back++;
-			}
-			res = ast_streamfile(chan, front, args.lang);
-			if (!res) {
-				if (ast_test_flag(&flags, BACKGROUND_PLAYBACK)) {
-					res = ast_waitstream(chan, "");
-				} else {
-					if (ast_test_flag(&flags, BACKGROUND_MATCHEXTEN)) {
-						res = ast_waitstream_exten(chan, args.context);
-					} else {
-						res = ast_waitstream(chan, AST_DIGIT_ANY);
-					}
-				}
-				ast_stopstream(chan);
-			} else {
+		char *back = args.filename;
+		char *front;
+		ast_stopstream(chan);		/* Stop anything playing */
+		/* Stream the list of files */
+		while (!res && (front = strsep(&back, "&")) ) {
+			if ( (res = ast_streamfile(chan, front, args.lang)) ) {
 				ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char*)data);
 				res = 0;
 				break;
 			}
-			front = back;
+			if (ast_test_flag(&flags, BACKGROUND_PLAYBACK)) {
+				res = ast_waitstream(chan, "");
+			} else if (ast_test_flag(&flags, BACKGROUND_MATCHEXTEN)) {
+				res = ast_waitstream_exten(chan, args.context);
+			} else {
+				res = ast_waitstream(chan, AST_DIGIT_ANY);
+			}
+			ast_stopstream(chan);
 		}
 	}
 	if (args.context != chan->context && res) {
 		snprintf(chan->exten, sizeof(chan->exten), "%c", res);
 		ast_copy_string(chan->context, args.context, sizeof(chan->context));
 		chan->priority = 0;
-		return 0;
-	} else {
-		return res;
+		res = 0;
 	}
+	return res;
 }
 
 /*! Goto
