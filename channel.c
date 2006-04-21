@@ -2610,8 +2610,8 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 				      "CallerIDName: %s\r\n"
 				      "Uniqueid: %s\r\n",
 				      c->name, ast_state2str(c->_state),
-				      c->cid.cid_num ? c->cid.cid_num : "<unknown>",
-				      c->cid.cid_name ? c->cid.cid_name : "<unknown>",
+				      S_OR(c->cid.cid_num, "<unknown>"),
+				      S_OR(c->cid.cid_name, "<unknown>"),
 				      c->uniqueid);
 		}
 		return c;
@@ -3155,26 +3155,17 @@ void ast_set_callerid(struct ast_channel *chan, const char *callerid, const char
 	if (callerid) {
 		if (chan->cid.cid_num)
 			free(chan->cid.cid_num);
-		if (ast_strlen_zero(callerid))
-			chan->cid.cid_num = NULL;
-		else
-			chan->cid.cid_num = strdup(callerid);
+		chan->cid.cid_num = ast_strdup(callerid);
 	}
 	if (calleridname) {
 		if (chan->cid.cid_name)
 			free(chan->cid.cid_name);
-		if (ast_strlen_zero(calleridname))
-			chan->cid.cid_name = NULL;
-		else
-			chan->cid.cid_name = strdup(calleridname);
+		chan->cid.cid_name = ast_strdup(calleridname);
 	}
 	if (ani) {
 		if (chan->cid.cid_ani)
 			free(chan->cid.cid_ani);
-		if (ast_strlen_zero(ani))
-			chan->cid.cid_ani = NULL;
-		else
-			chan->cid.cid_ani = strdup(ani);
+		chan->cid.cid_ani = ast_strdup(ani);
 	}
 	if (chan->cdr)
 		ast_cdr_setcid(chan->cdr, chan);
@@ -3184,10 +3175,9 @@ void ast_set_callerid(struct ast_channel *chan, const char *callerid, const char
 				"CallerIDName: %s\r\n"
 				"Uniqueid: %s\r\n"
 				"CID-CallingPres: %d (%s)\r\n",
-				chan->name, chan->cid.cid_num ?
-					chan->cid.cid_num : "<Unknown>",
-				chan->cid.cid_name ?
-				chan->cid.cid_name : "<Unknown>",
+				chan->name,
+				S_OR(chan->cid.cid_num, "<Unknown>"),
+				S_OR(chan->cid.cid_name, "<Unknown>"),
 				chan->uniqueid,
 				chan->cid.cid_pres,
 				ast_describe_caller_presentation(chan->cid.cid_pres)
@@ -3211,8 +3201,8 @@ int ast_setstate(struct ast_channel *chan, int state)
 		      "CallerIDName: %s\r\n"
 		      "Uniqueid: %s\r\n",
 		      chan->name, ast_state2str(chan->_state),
-		      chan->cid.cid_num ? chan->cid.cid_num : "<unknown>",
-		      chan->cid.cid_name ? chan->cid.cid_name : "<unknown>",
+		      S_OR(chan->cid.cid_num, "<unknown>"),
+		      S_OR(chan->cid.cid_name, "<unknown>"),
 		      chan->uniqueid);
 
 	return 0;
@@ -3430,7 +3420,8 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	/* Keep track of bridge */
 	c0->_bridge = c1;
 	c1->_bridge = c0;
-	
+
+	/* \todo  XXX here should check that cid_num is not NULL */
 	manager_event(EVENT_FLAG_CALL, "Link",
 		      "Channel1: %s\r\n"
 		      "Channel2: %s\r\n"
@@ -3524,6 +3515,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			ast_set_flag(c0, AST_FLAG_NBRIDGE);
 			ast_set_flag(c1, AST_FLAG_NBRIDGE);
 			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, to)) == AST_BRIDGE_COMPLETE) {
+				/* \todo  XXX here should check that cid_num is not NULL */
 				manager_event(EVENT_FLAG_CALL, "Unlink",
 					      "Channel1: %s\r\n"
 					      "Channel2: %s\r\n"
@@ -3567,6 +3559,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		    !(c0->generator || c1->generator)) {
 			if (ast_channel_make_compatible(c0, c1)) {
 				ast_log(LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
+				/* \todo  XXX here should check that cid_num is not NULL */
                                 manager_event(EVENT_FLAG_CALL, "Unlink",
 					      "Channel1: %s\r\n"
 					      "Channel2: %s\r\n"
@@ -3588,6 +3581,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	c0->_bridge = NULL;
 	c1->_bridge = NULL;
 
+	/* \todo  XXX here should check that cid_num is not NULL */
 	manager_event(EVENT_FLAG_CALL, "Unlink",
 		      "Channel1: %s\r\n"
 		      "Channel2: %s\r\n"
