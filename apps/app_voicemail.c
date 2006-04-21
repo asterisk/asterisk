@@ -1909,12 +1909,7 @@ static int invent_message(struct ast_channel *chan, char *context, char *ext, in
 	snprintf(fn, sizeof(fn), "%s%s/%s/greet", VM_SPOOL_DIR, context, ext);
 	RETRIEVE(fn, -1);
 	if (ast_fileexists(fn, NULL, NULL) > 0) {
-		res = ast_streamfile(chan, fn, chan->language);
-		if (res) {
-			DISPOSE(fn, -1);
-			return -1;
-		}
-		res = ast_waitstream(chan, ecodes);
+		res = ast_stream_and_wait(chan, fn, chan->language, ecodes);
 		if (res) {
 			DISPOSE(fn, -1);
 			return res;
@@ -1922,20 +1917,14 @@ static int invent_message(struct ast_channel *chan, char *context, char *ext, in
 	} else {
 		/* Dispose just in case */
 		DISPOSE(fn, -1);
-		res = ast_streamfile(chan, "vm-theperson", chan->language);
-		if (res)
-			return -1;
-		res = ast_waitstream(chan, ecodes);
+		res = ast_stream_and_wait(chan, "vm-theperson", chan->language, ecodes);
 		if (res)
 			return res;
 		res = ast_say_digit_str(chan, ext, ecodes, chan->language);
 		if (res)
 			return res;
 	}
-	res = ast_streamfile(chan, busy ? "vm-isonphone" : "vm-isunavail", chan->language);
-	if (res)
-		return -1;
-	res = ast_waitstream(chan, ecodes);
+	res = ast_stream_and_wait(chan, busy ? "vm-isonphone" : "vm-isunavail", chan->language, ecodes);
 	return res;
 }
 
@@ -2459,9 +2448,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		res = 0;
 	}
 	if (!res && !ast_test_flag(options, OPT_SILENT)) {
-		res = ast_streamfile(chan, INTRO, chan->language);
-		if (!res)
-			res = ast_waitstream(chan, ecodes);
+		res = ast_stream_and_wait(chan, INTRO, chan->language, ecodes);
 		if (res == '#') {
 			ast_set_flag(options, OPT_SILENT);
 			res = 0;
@@ -2536,9 +2523,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		/* Now play the beep once we have the message number for our next message. */
 		if (res >= 0) {
 			/* Unless we're *really* silent, try to send the beep */
-			res = ast_streamfile(chan, "beep", chan->language);
-			if (!res)
-				res = ast_waitstream(chan, "");
+			res = ast_stream_and_wait(chan, "beep", chan->language, "");
 		}
 		if (msgnum < vmu->maxmsg) {
 			/* assign a variable with the name of the voicemail file */	  
@@ -2624,9 +2609,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "SUCCESS");
 		} else {
 			ast_unlock_path(dir);
-			res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
-			if (!res)
-				res = ast_waitstream(chan, "");
+			res = ast_stream_and_wait(chan, "vm-mailboxfull", chan->language, "");
 			ast_log(LOG_WARNING, "No more messages possible\n");
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 		}
@@ -3574,10 +3557,8 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 static int wait_file2(struct ast_channel *chan, struct vm_state *vms, char *file)
 {
 	int res;
-	if ((res = ast_streamfile(chan, file, chan->language))) 
+	if ((res = ast_stream_and_wait(chan, file, chan->language, AST_DIGIT_ANY)) < 0) 
 		ast_log(LOG_WARNING, "Unable to play message %s\n", file); 
-	if (!res)
-		res = ast_waitstream(chan, AST_DIGIT_ANY);
 	return res;
 }
 
@@ -3694,8 +3675,7 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 							ast_verbose(VERBOSE_PREFIX_3 "Playing envelope info: CID number '%s' matches mailbox number, playing recorded name\n", callerid);
 						if (!callback)
 							res = wait_file2(chan, vms, "vm-from");
-						res = ast_streamfile(chan, prefile, chan->language) > -1;
-						res = ast_waitstream(chan, "");
+						res = ast_stream_and_wait(chan, prefile, chan->language, "");
 					} else {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Playing envelope info: message from '%s'\n", callerid);
@@ -6691,8 +6671,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  				/* Otherwise 1 is to save the existing message */
  				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Saving message as is\n");
- 				ast_streamfile(chan, "vm-msgsaved", chan->language);
- 				ast_waitstream(chan, "");
+ 				ast_stream_and_wait(chan, "vm-msgsaved", chan->language, "");
 				STORE(recordfile, vmu->mailbox, vmu->context, -1);
 				DISPOSE(recordfile, -1);
  				cmd = 't';
@@ -6702,8 +6681,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  			/* Review */
  			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Reviewing the message\n");
- 			ast_streamfile(chan, recordfile, chan->language);
- 			cmd = ast_waitstream(chan, AST_DIGIT_ANY);
+ 			cmd = ast_stream_and_wait(chan, recordfile, chan->language, AST_DIGIT_ANY);
  			break;
  		case '3':
  			message_exists = 0;
