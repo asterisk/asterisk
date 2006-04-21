@@ -1057,6 +1057,9 @@ void ast_channel_spy_remove(struct ast_channel *chan, struct ast_channel_spy *sp
 		ast_frfree(f);
 	}
 
+	/* Release all threads waiting on this trigger prior to destroying it */
+	ast_cond_broadcast(&spy->trigger);
+
 	if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE)
 		ast_cond_destroy(&spy->trigger);
 
@@ -1088,7 +1091,7 @@ static void detach_spies(struct ast_channel *chan)
 		if (spy->status == CHANSPY_RUNNING)
 			spy->status = CHANSPY_DONE;
 		if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE)
-			ast_cond_signal(&spy->trigger);
+			ast_cond_broadcast(&spy->trigger);
 		ast_mutex_unlock(&spy->lock);
 	}
 
