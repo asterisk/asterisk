@@ -21,6 +21,7 @@
 ;	datetime	for dates and times
 ;	char		for character strings
 ;	phonetic	for phonetic strings
+;	digit		for digit strings
 ;
 ; but others can be used at will.
 ;
@@ -65,65 +66,85 @@
 ; case insensitive, so you must use [X] [N] [Z] .. if you
 ; want exact match.
 
+; We start with the basic rules that might be more-or-less
+; language-independent
+
+[digit-base](!)		; base rule for digit strings
+			; XXX incomplete yet
+    _digit:[0-9] => digits/${SAY}
+    _digit:[-] => letters/dash
+    _digit:[*] => letters/star
+    _digit:[@] => letters/at
+    _digit:[0-9]. => digit:${SAY:0:1}, digit:${SAY:1}
+
+[date-base](!)		; base rules for dates and times
+    ; the 'SAY' variable contains YYYYMMDDHHmm.ss-dow-doy
+    ; these rule map the strftime attributes.
+    _date:Y:. => num:${SAY:0:4}	; year, 19xx
+    _date:[Bb]:. => digits/mon-$[${SAY:4:2}-1]	; month name, 0..11
+    _date:[Aa]:. => digits/day-${SAY:16:1}	; day of week
+    _date:[de]:. => num:${SAY:6:2}		; day of month
+    _date:[hH]:. => num:${SAY:8:2}		; hour
+    _date:[I]:. => num:$[${SAY:8:2} % 12]	; hour 0-12
+    _date:[M]:. => num:${SAY:10:2}		; minute
+    ; XXX too bad the '?' function does not remove the quotes
+    ; _date:[pP]:. => digits/$[ ${SAY:10:2} > 12 ? "p-m" :: "a-m"]	; am pm
+    _date:[pP]:. => digits/p-m	; am pm
+    _date:[S]:. => num:${SAY:13:2}		; seconds
+
 [en-base](!)
-_[n]um:0. => num:${SAY:1}
-_[n]um:X => digits/${SAY}
-_[n]um:1X => digits/${SAY}
-_[n]um:[2-9]0 =>  digits/${SAY}
-_[n]um:[2-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
-_[n]um:XXX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
+    _[n]um:0. => num:${SAY:1}
+    _[n]um:X => digits/${SAY}
+    _[n]um:1X => digits/${SAY}
+    _[n]um:[2-9]0 =>  digits/${SAY}
+    _[n]um:[2-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
+    _[n]um:XXX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
 
-_[n]um:XXXX => num:${SAY:0:1}, digits/thousand, num:${SAY:1}
-_[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
-_[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:3}
+    _[n]um:XXXX => num:${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
+    _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:3}
 
-_[n]um:XXXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
-_[n]um:XXXXXXXX => num:${SAY:0:2}, digits/million, num:${SAY:2}
-_[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/million, num:${SAY:3}
+    _[n]um:XXXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/million, num:${SAY:2}
+    _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/million, num:${SAY:3}
 
-_[n]um:XXXXXXXXXX => num:${SAY:0:1}, digits/billion, num:${SAY:1}
-_[n]um:XXXXXXXXXXX => num:${SAY:0:2}, digits/billion, num:${SAY:2}
-_[n]um:XXXXXXXXXXXX => num:${SAY:0:3}, digits/billion, num:${SAY:3}
+    _[n]um:XXXXXXXXXX => num:${SAY:0:1}, digits/billion, num:${SAY:1}
+    _[n]um:XXXXXXXXXXX => num:${SAY:0:2}, digits/billion, num:${SAY:2}
+    _[n]um:XXXXXXXXXXXX => num:${SAY:0:3}, digits/billion, num:${SAY:3}
 
-; enumeration
-_e[n]um:X => digits/h-${SAY}
-_e[n]um:1X => digits/h-${SAY}
-_e[n]um:[2-9]0 => digits/h-${SAY}
-_e[n]um:[2-9][1-9] => num:${SAY:0:1}0, digits/h-${SAY:1}
-_e[n]um:[1-9]XX => num:${SAY:0:1}, digits/hundred, enum:${SAY:1}
+    ; enumeration
+    _e[n]um:X => digits/h-${SAY}
+    _e[n]um:1X => digits/h-${SAY}
+    _e[n]um:[2-9]0 => digits/h-${SAY}
+    _e[n]um:[2-9][1-9] => num:${SAY:0:1}0, digits/h-${SAY:1}
+    _e[n]um:[1-9]XX => num:${SAY:0:1}, digits/hundred, enum:${SAY:1}
 
-[en](en-base)
+[it](digit-base,date-base)
+    _[n]um:0. => num:${SAY:1}
+    _[n]um:X => digits/${SAY}
+    _[n]um:1X => digits/${SAY}
+    _[n]um:[2-9]0 =>  digits/${SAY}
+    _[n]um:[2-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
+    _[n]um:1XX => digits/hundred, num:${SAY:1}
+    _[n]um:[2-9]1XX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
 
-[it]
-_[n]um:0. => num:${SAY:1}
-_[n]um:X => digits/${SAY}
-_[n]um:1X => digits/${SAY}
-_[n]um:[2-9]0 =>  digits/${SAY}
-_[n]um:[2-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
-_[n]um:1XX => digits/hundred, num:${SAY:1}
-_[n]um:[2-9]1XX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
+    _[n]um:1XXX => digits/thousand, num:${SAY:1}
+    _[n]um:[2-9]XXX => num:${SAY:0:1}, digits/thousands, num:${SAY:1}
+    _[n]um:XXXXX => num:${SAY:0:2}, digits/thousands, num:${SAY:2}
+    _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousands, num:${SAY:3}
 
-_[n]um:1XXX => digits/thousand, num:${SAY:1}
-_[n]um:[2-9]XXX => num:${SAY:0:1}, digits/thousands, num:${SAY:1}
-_[n]um:XXXXX => num:${SAY:0:2}, digits/thousands, num:${SAY:2}
-_[n]um:XXXXXX => num:${SAY:0:3}, digits/thousands, num:${SAY:3}
+    _[n]um:1XXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:[2-9]XXXXXX => num:${SAY:0:1}, digits/millions, num:${SAY:1}
+    _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/millions, num:${SAY:2}
+    _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/millions, num:${SAY:3}
 
-_[n]um:1XXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
-_[n]um:[2-9]XXXXXX => num:${SAY:0:1}, digits/millions, num:${SAY:1}
-_[n]um:XXXXXXXX => num:${SAY:0:2}, digits/millions, num:${SAY:2}
-_[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/millions, num:${SAY:3}
+    _datetime::. => date:AdBY 'digits/at' IMp:${SAY}
+    _date::. => date:AdBY:${SAY}
+    _time::. => date:IMp:${SAY}
 
-; YYYYMMDDHHmm.ss-dow-doy
-_datetime::. => date:AdBY 'digits/at' IMp:${SAY}
-_date::. => date:AdBY:${SAY}
-_time::. => date:IMp:${SAY}
-_date:Y:. => num:${SAY:0:4}	; year, 19xx
-_date:[Bb]:. => digits/mon-$[${SAY:4:2}-1]	; month name, 0..11
-_date:[Aa]:. => digits/day-${SAY:16:1}	; day of week
-_date:[de]:. => num:${SAY:6:2}		; day of month
-_date:[hH]:. => num:${SAY:8:2}		; hour
-_date:[I]:. => num:$[${SAY:8:2} % 12]	; hour 0-12
-_date:[M]:. => num:${SAY:10:2}		; minute
-; _date:[pP]:. => digits/$[ ${SAY:10:2} > 12 ? "p-m" :: "a-m"]	; am pm
-_date:[pP]:. => digits/p-m	; am pm
-_date:[S]:. => num:${SAY:13:2}		; seconds
+[en](en-base,date-base,digit-base)
+    _datetime::. => date:AdBY 'digits/at' IMp:${SAY}
+    _date::. => date:AdBY:${SAY}
+    _time::. => date:IMp:${SAY}
+
+
