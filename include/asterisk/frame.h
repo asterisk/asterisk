@@ -321,6 +321,14 @@ extern struct ast_frame ast_null_frame;
 */
 #define AST_OPTION_RXGAIN		6
 
+/* set channel into "Operator Services" mode */
+#define	AST_OPTION_OPRMODE		7
+
+struct oprmode {
+	struct ast_channel *peer;
+	int mode;
+} ;
+
 struct ast_option_header {
 	/* Always keep in network byte order */
 #if __BYTE_ORDER == __BIG_ENDIAN

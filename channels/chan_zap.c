@@ -543,6 +543,8 @@ static struct zt_pvt {
 	int sig;					/*!< Signalling style */
 	int radio;					/*!< radio type */
 	int outsigmod;					/*!< Outbound Signalling style (modifier) */
+	int oprmode;					/*!< "Operator Services" mode */
+	struct zt_pvt *oprpeer;				/*!< "Operator Services" peer tech_pvt ptr */
 	float rxgain;
 	float txgain;
 	int tonezone;					/*!< tone zone for this chan, or -1 for default */
@@ -1771,7 +1773,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		return -1;
 	}
 	p->dialednone = 0;
-	if (p->radio)  /* if a radio channel, up immediately */
+	if ((p->radio || (p->oprmode < 0)))  /* if a radio channel, up immediately */
 	{
 		/* Special pseudo -- automatically up */
 		ast_setstate(ast, AST_STATE_UP); 
@@ -2616,7 +2618,7 @@ static int zt_hangup(struct ast_channel *ast)
 				ast_log(LOG_DEBUG, "Hanging up channel %d, offhook = %d\n", p->channel, par.rxisoffhook);
 #endif
 				/* If they're off hook, try playing congestion */
-				if ((par.rxisoffhook) && (!p->radio))
+				if ((par.rxisoffhook) && (!(p->radio || (p->oprmode < 0))))
 					tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 				else
 					tone_zone_play_tone(p->subs[SUB_REAL].zfd, -1);
@@ -2676,6 +2678,7 @@ static int zt_hangup(struct ast_channel *ast)
 
 	p->callwaitingrepeat = 0;
 	p->cidcwexpire = 0;
+	p->oprmode = 0;
 	ast->tech_pvt = NULL;
 	ast_mutex_unlock(&p->lock);
 	ast_mutex_lock(&usecnt_lock);
@@ -2717,7 +2720,7 @@ static int zt_answer(struct ast_channel *ast)
 	if (index < 0)
 		index = SUB_REAL;
 	/* nothing to do if a radio channel */
-	if (p->radio) {
+	if ((p->radio || (p->oprmode < 0))) {
 		ast_mutex_unlock(&p->lock);
 		return 0;
 	}
@@ -2803,7 +2806,9 @@ static int zt_setoption(struct ast_channel *chan, int option, void *data, int da
 	signed char *scp;
 	int x;
 	int index;
-	struct zt_pvt *p = chan->tech_pvt;
+	struct zt_pvt *p = chan->tech_pvt,*pp;
+	struct oprmode *oprmode;
+	
 
 	/* all supported options require data */
 	if (!data || (datalen < 1)) {
@@ -2938,6 +2943,22 @@ static int zt_setoption(struct ast_channel *chan, int option, void *data, int da
 		}
 		if (ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &x) == -1)
 			ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d\n", p->channel, x);
+		break;
+	case AST_OPTION_OPRMODE:  /* Operator services mode */
+		oprmode = (struct oprmode *) data;
+		pp = oprmode->peer->tech_pvt;
+		p->oprmode = pp->oprmode = 0;
+		/* setup peers */
+		p->oprpeer = pp;
+		pp->oprpeer = p;
+		/* setup modes, if any */
+		if (oprmode->mode) 
+		{
+			pp->oprmode = oprmode->mode;
+			p->oprmode = -oprmode->mode;
+		}
+		ast_log(LOG_DEBUG, "Set Operator Services mode, value: %d on %s/%s\n",
+			oprmode->mode, chan->name,oprmode->peer->name);;
 		break;
 	}
 	errno = 0;
@@ -3685,7 +3706,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			break;	
 		case ZT_EVENT_DIALCOMPLETE:
 			if (p->inalarm) break;
-			if (p->radio) break;
+			if ((p->radio || (p->oprmode < 0))) break;
 			if (ioctl(p->subs[index].zfd,ZT_DIALING,&x) == -1) {
 				ast_log(LOG_DEBUG, "ZT_DIALING ioctl failed on %s\n",ast->name);
 				return NULL;
@@ -3758,6 +3779,19 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			if (p->radio) {
 				p->subs[index].f.frametype = AST_FRAME_CONTROL;
 				p->subs[index].f.subclass = AST_CONTROL_RADIO_UNKEY;
+				break;
+			}
+			if (p->oprmode < 0)
+			{
+				if (p->oprmode != -1) break;
+				if ((p->sig == SIG_FXOLS) || (p->sig == SIG_FXOKS) || (p->sig == SIG_FXOGS))
+				{
+					/* Make sure it starts ringing */
+					zt_set_hook(p->subs[SUB_REAL].zfd, ZT_RINGOFF);
+					zt_set_hook(p->subs[SUB_REAL].zfd, ZT_RING);
+					save_conference(p->oprpeer);
+					tone_zone_play_tone(p->oprpeer->subs[SUB_REAL].zfd, ZT_TONE_RINGTONE);
+				}
 				break;
 			}
 			switch(p->sig) {
@@ -3869,11 +3903,23 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			break;
 		case ZT_EVENT_RINGOFFHOOK:
 			if (p->inalarm) break;
-			if (p->radio) {
+			if (p->oprmode < 0)
+			{
+				if ((p->sig == SIG_FXOLS) || (p->sig == SIG_FXOKS) || (p->sig == SIG_FXOGS))
+				{
+					/* Make sure it stops ringing */
+					zt_set_hook(p->subs[SUB_REAL].zfd, ZT_RINGOFF);
+					tone_zone_play_tone(p->oprpeer->subs[SUB_REAL].zfd, -1);
+					restore_conference(p->oprpeer);
+				}
+				break;
+			}
+			if (p->radio)
+			{
 				p->subs[index].f.frametype = AST_FRAME_CONTROL;
 				p->subs[index].f.subclass = AST_CONTROL_RADIO_KEY;
 				break;
-			}
+ 			}
 			/* for E911, its supposed to wait for offhook then dial
 			   the second half of the dial string */
 			if (((mysig == SIG_E911) || (mysig == SIG_FGC_CAMA) || (mysig == SIG_FGC_CAMAMF)) && (ast->_state == AST_STATE_DIALING_OFFHOOK)) {
@@ -4038,7 +4084,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 #endif			
 		case ZT_EVENT_RINGEROFF:
 			if (p->inalarm) break;
-			if (p->radio) break;
+			if ((p->radio || (p->oprmode < 0))) break;
 			ast->rings++;
 			if ((ast->rings > p->cidrings) && (p->cidspill)) {
 				ast_log(LOG_WARNING, "Didn't finish Caller-ID spill.  Cancelling.\n");
@@ -4065,6 +4111,24 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		case ZT_EVENT_WINKFLASH:
 			if (p->inalarm) break;
 			if (p->radio) break;
+			if (p->oprmode < 0) break;
+			if (p->oprmode > 1)
+			{
+				struct zt_params par;
+
+				if (ioctl(p->oprpeer->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &par) != -1)
+				{
+					if (!par.rxisoffhook)
+					{
+						/* Make sure it stops ringing */
+						zt_set_hook(p->oprpeer->subs[SUB_REAL].zfd, ZT_RINGOFF);
+						zt_set_hook(p->oprpeer->subs[SUB_REAL].zfd, ZT_RING);
+						save_conference(p);
+						tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_RINGTONE);
+					}
+				}
+				break;
+			}
 			/* Remember last time we got a flash-hook */
 			gettimeofday(&p->flashtime, NULL);
 			switch(mysig) {
@@ -4267,7 +4331,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			break;
 		case ZT_EVENT_HOOKCOMPLETE:
 			if (p->inalarm) break;
-			if (p->radio) break;
+			if ((p->radio || (p->oprmode < 0))) break;
 			switch(mysig) {
 			case SIG_FXSLS:  /* only interesting for FXS */
 			case SIG_FXSGS:
@@ -4375,7 +4439,7 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 	p->subs[index].f.data = NULL;
 	
 	
-	if ((!p->owner) && (!p->radio)) {
+	if ((!p->owner) && (!(p->radio || (p->oprmode < 0)))) {
 		/* If nobody owns us, absorb the event appropriately, otherwise
 		   we loop indefinitely.  This occurs when, during call waiting, the
 		   other end hangs up our channel so that it no longer exists, but we
@@ -4446,7 +4510,7 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 		f = &p->subs[index].f;
 		return f;
 	}
-	if (!p->radio) ast_log(LOG_DEBUG, "Exception on %d, channel %d\n", ast->fds[0],p->channel);
+	if (!(p->radio || (p->oprmode < 0))) ast_log(LOG_DEBUG, "Exception on %d, channel %d\n", ast->fds[0],p->channel);
 	/* If it's not us, return NULL immediately */
 	if (ast != p->owner) {
 		ast_log(LOG_WARNING, "We're %s, not %s\n", ast->name, p->owner->name);
@@ -4487,7 +4551,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		return NULL;
 	}
 	
-	if (p->radio && p->inalarm) return NULL;
+	if ((p->radio || (p->oprmode < 0)) && p->inalarm) return NULL;
 
 	p->subs[index].f.frametype = AST_FRAME_NULL;
 	p->subs[index].f.datalen = 0;
@@ -4500,7 +4564,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	p->subs[index].f.data = NULL;
 	
 	/* make sure it sends initial key state as first frame */
-	if (p->radio && (!p->firstradio))
+	if ((p->radio || (p->oprmode < 0)) && (!p->firstradio))
 	{
 		ZT_PARAMS ps;
 
@@ -7539,7 +7603,7 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 				return 1;
 		}
 #endif
-		if (!p->radio)
+		if (!(p->radio || (p->oprmode < 0)))
 		{
 			if (!p->sig || (p->sig == SIG_FXSLS))
 				return 1;

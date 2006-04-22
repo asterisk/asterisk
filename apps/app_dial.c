@@ -154,6 +154,16 @@ static char *descrip =
 "    o    - Specify that the CallerID that was present on the *calling* channel\n"
 "           be set as the CallerID on the *called* channel. This was the\n"
 "           behavior of Asterisk 1.0 and earlier.\n"
+"    O([x]) - \"Operator Services\" mode (Zaptel channel to Zaptel channel\n"
+"             only, if specified on non-Zaptel interface, it will be ignored).\n"
+"             When the destination answers (presumably an operator services\n"
+"             station), the originator no longer has control of their line.\n"
+"             They may hang up, but the switch will not release their line\n"
+"             until the destination party hangs up (the operator). Specified\n"
+"             without an arg, or with 1 as an arg, the originator hanging up\n"
+"             will cause the phone to ring back immediately. With a 2 specified,\n"
+"             when the \"operator\" flashes the trunk, it will ring their phone\n"
+"             back.\n"
 "    p    - This option enables screening mode. This is basically Privacy mode\n"
 "           without memory.\n"
 "    P([x]) - Enable privacy mode. Use 'x' as the family/key in the database if\n"
@@ -213,6 +223,7 @@ enum {
 	OPT_CALLEE_MONITOR =	(1 << 21),
 	OPT_CALLER_MONITOR =	(1 << 22),
 	OPT_GOTO =		(1 << 23),
+	OPT_OPERMODE = 		(1 << 24),
 } dial_exec_option_flags;
 
 #define DIAL_STILLGOING			(1 << 30)
@@ -227,6 +238,7 @@ enum {
 	OPT_ARG_CALLEE_MACRO,
 	OPT_ARG_PRIVACY,
 	OPT_ARG_DURATION_STOP,
+	OPT_ARG_OPERMODE,
 	/* note: this entry _MUST_ be the last one in the enum */
 	OPT_ARG_ARRAY_SIZE,
 } dial_exec_option_args;
@@ -247,6 +259,7 @@ AST_APP_OPTIONS(dial_exec_options, {
 	AST_APP_OPTION_ARG('M', OPT_CALLEE_MACRO, OPT_ARG_CALLEE_MACRO),
 	AST_APP_OPTION('n', OPT_SCREEN_NOINTRO),
 	AST_APP_OPTION('N', OPT_SCREEN_NOCLID),
+	AST_APP_OPTION_ARG('O', OPT_OPERMODE,OPT_ARG_OPERMODE),
 	AST_APP_OPTION('o', OPT_ORIGINAL_CLID),
 	AST_APP_OPTION('p', OPT_SCREENING),
 	AST_APP_OPTION_ARG('P', OPT_PRIVACY, OPT_ARG_PRIVACY),
@@ -744,6 +757,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	char privintro[1024];
 	char privcid[256];
 	char *parse;
+	int opermode = 0;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(peers);
 			     AST_APP_ARG(timeout);
@@ -772,6 +786,14 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	if (ast_strlen_zero(args.peers)) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology/number)\n");
 		goto done;
+	}
+
+	if (ast_test_flag(&opts, OPT_OPERMODE)) {
+		if (ast_strlen_zero(opt_args[OPT_ARG_OPERMODE]))
+			opermode = 1;
+		else opermode = atoi(opt_args[OPT_ARG_OPERMODE]);
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "Setting operator services mode to %d.\n", opermode);
 	}
 
 	if (ast_test_flag(&opts, OPT_DURATION_STOP) && !ast_strlen_zero(opt_args[OPT_ARG_DURATION_STOP])) {
@@ -1482,6 +1504,17 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_hangup(peer);
 				res = -1;
 				goto done;
+			}
+			if (opermode && (!strncmp(chan->name,"Zap",3)) &&
+				(!strncmp(peer->name,"Zap",3)))
+			{
+				struct oprmode oprmode;
+
+				oprmode.peer = peer;
+				oprmode.mode = opermode;
+
+				ast_channel_setoption(chan,
+					AST_OPTION_OPRMODE,&oprmode,sizeof(struct oprmode),0);
 			}
 			res = ast_bridge_call(chan,peer,&config);
 			time(&end_time);
