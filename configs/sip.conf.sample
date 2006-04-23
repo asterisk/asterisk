@@ -56,7 +56,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Default is yes
 ;autodomain=yes			; Turn this on to have Asterisk add local host
 				; name and local IP to domain list.
-;pedantic=yes			; Enable slow, pedantic checking for Pingtel
+;pedantic=yes			; Enable checking of tags in headers, 
+				; international character conversions in URIs
 				; and multiline formatted headers for strict
 				; SIP compatibility (defaults to "no")
 

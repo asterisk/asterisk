@@ -61,6 +61,8 @@
  * if it's a response to an outbound request, it's sent to handle_response().
  * If it is a request, handle_request sends it to one of a list of functions
  * depending on the request type - INVITE, OPTIONS, REFER, BYE, CANCEL etc
+ * sipsock_read locks the ast_channel if it exists (an active call) and
+ * unlocks it after we have processed the SIP message.
  *
  * A new INVITE is sent to handle_request_invite(), that will end up
  * starting a new channel in the PBX, the new channel after that executing
@@ -11867,6 +11869,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 }
 
 /*! \brief Read data from SIP socket
+\note sipsock_read locks the owner channel while we are processing the SIP message
 \return 1 on error, 0 on success
 \note Successful messages is connected to SIP call and forwarded to handle_request() 
 */
@@ -11924,6 +11927,8 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	/* Process request, with netlock held */
 retrylock:
 	ast_mutex_lock(&netlock);
+
+	/* Find the active SIP dialog or create a new one */
 	p = find_call(&req, &sin, req.method);	/* returns p locked */
 	if (p) {
 		/* Go ahead and lock the owner if it has one -- we may need it */
