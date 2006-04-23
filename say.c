@@ -2910,10 +2910,6 @@ int ast_say_date_pt(struct ast_channel *chan, time_t t, const char *ints, const 
 
 static int say_date_with_format(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
-	/* If no format is given, use default english format */
-	if (format == NULL)
-		format = "ABdY 'digits/at' IMp";
-
 	if (!strcasecmp(lang, "en") ) {	/* English syntax */
 		return(ast_say_date_with_format_en(chan, time, ints, lang, format, timezone));
 	} else if (!strcasecmp(lang, "da") ) {	/* Danish syntax */
@@ -2948,6 +2944,9 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 	struct tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
+
+	if (format == NULL)
+		format = "ABdY 'digits/at' IMp";
 
 	ast_localtime(&time,&tm,timezone);
 
@@ -3188,6 +3187,9 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
+	if (!format)
+		format = "A dBY HMS";
+
 	ast_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
@@ -3318,7 +3320,7 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 						/* Yesterday */
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "AdBY", timezone);
+						res = ast_say_date_with_format_da(chan, time, ints, lang, "AdBY", timezone);
 					}
 				}
 				break;
@@ -3345,14 +3347,14 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
-						res = ast_say_date_with_format(chan, time, ints, lang, "A", timezone);
+						res = ast_say_date_with_format_da(chan, time, ints, lang, "A", timezone);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "AdBY", timezone);
+						res = ast_say_date_with_format_da(chan, time, ints, lang, "AdBY", timezone);
 					}
 				}
 				break;
 			case 'R':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HM", timezone);
+				res = ast_say_date_with_format_da(chan, time, ints, lang, "HM", timezone);
 				break;
 			case 'S':
 				/* Seconds */
@@ -3365,7 +3367,7 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 				}
 				break;
 			case 'T':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+				res = ast_say_date_with_format_da(chan, time, ints, lang, "HMS", timezone);
 				break;
 			case ' ':
 			case '	':
@@ -3389,6 +3391,9 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 	struct tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
+
+	if (!format)
+		format = "A dBY HMS";
 
 	ast_localtime(&time,&tm,timezone);
 
@@ -3518,7 +3523,7 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 						/* Yesterday */
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "AdBY", timezone);
+						res = ast_say_date_with_format_de(chan, time, ints, lang, "AdBY", timezone);
 					}
 				}
 				break;
@@ -3545,14 +3550,14 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
-						res = ast_say_date_with_format(chan, time, ints, lang, "A", timezone);
+						res = ast_say_date_with_format_de(chan, time, ints, lang, "A", timezone);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "AdBY", timezone);
+						res = ast_say_date_with_format_de(chan, time, ints, lang, "AdBY", timezone);
 					}
 				}
 				break;
 			case 'R':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HM", timezone);
+				res = ast_say_date_with_format_de(chan, time, ints, lang, "HM", timezone);
 				break;
 			case 'S':
 				/* Seconds */
@@ -3565,7 +3570,7 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				}
 				break;
 			case 'T':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+				res = ast_say_date_with_format_de(chan, time, ints, lang, "HMS", timezone);
 				break;
 			case ' ':
 			case '	':
@@ -3616,6 +3621,9 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 	struct tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
+
+	if (!format)
+		format = IL_DATE_STR_FULL;
 
 	ast_localtime(&time,&tm,timezone);
 
@@ -3748,7 +3756,7 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 				}
 				break;
 			case 'R':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HM", timezone);
+				res = ast_say_date_with_format_he(chan, time, ints, lang, "HM", timezone);
 				break;
 			case 'S': /* Seconds */
 				res = ast_say_number_full_he(chan, tm.tm_sec,
@@ -3756,19 +3764,19 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 				);
 				break;
 			case 'T':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+				res = ast_say_date_with_format_he(chan, time, ints, lang, "HMS", timezone);
 				break;
 			/* c, x, and X seem useful for testing. Not sure
                          * if thiey're good for the general public */
-                        case 'c':
+			case 'c':
 				res = ast_say_date_with_format_he(chan, time, 
                                     ints, lang, IL_DATE_STR_FULL, timezone);
 				break;
-                        case 'x':
+			case 'x':
 				res = ast_say_date_with_format_he(chan, time, 
                                     ints, lang, IL_DATE_STR, timezone);
 				break;
-                        case 'X': /* Currently not locale-dependent...*/
+			case 'X': /* Currently not locale-dependent...*/
 				res = ast_say_date_with_format_he(chan, time, 
                                     ints, lang, IL_TIME_STR, timezone);
 				break;
@@ -3795,6 +3803,9 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 	struct tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
+
+	if (format == NULL)
+		format = "'digits/es-el' Ad 'digits/es-de' B 'digits/es-de' Y 'digits/at' IMp";
 
 	ast_localtime(&time,&tm,timezone);
 
@@ -3889,7 +3900,7 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 						/* Yesterday */
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "'digits/es-el' Ad 'digits/es-de' B 'digits/es-de' Y", timezone);
+						res = ast_say_date_with_format_es(chan, time, ints, lang, "'digits/es-el' Ad 'digits/es-de' B 'digits/es-de' Y", timezone);
 					}
 				}
 				break;
@@ -3917,14 +3928,14 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
-						res = ast_say_date_with_format(chan, time, ints, lang, "A", timezone);
+						res = ast_say_date_with_format_es(chan, time, ints, lang, "A", timezone);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "'digits/es-el' Ad 'digits/es-de' B 'digits/es-de' Y", timezone);
+						res = ast_say_date_with_format_es(chan, time, ints, lang, "'digits/es-el' Ad 'digits/es-de' B 'digits/es-de' Y", timezone);
 					}
 				}
 				break;
 			case 'R':
-				res = ast_say_date_with_format(chan, time, ints, lang, "H 'digits/y' M", timezone);
+				res = ast_say_date_with_format_es(chan, time, ints, lang, "H 'digits/y' M", timezone);
 				break;
 			case 'S':
 				/* Seconds */
@@ -3956,7 +3967,7 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 				}
 				break;
 			case 'T':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+				res = ast_say_date_with_format_es(chan, time, ints, lang, "HMS", timezone);
 				break;
 			case ' ':
 			case '	':
@@ -3982,6 +3993,9 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 	struct tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
+
+	if (format == NULL)
+		format = "AdBY 'digits/at' IMp";
 
 	ast_localtime(&time,&tm,timezone);
 
@@ -4115,7 +4129,7 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 						/* Yesterday */
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "AdBY", timezone);
+						res = ast_say_date_with_format_fr(chan, time, ints, lang, "AdBY", timezone);
 					}
 				}
 				break;
@@ -4142,14 +4156,14 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
-						res = ast_say_date_with_format(chan, time, ints, lang, "A", timezone);
+						res = ast_say_date_with_format_fr(chan, time, ints, lang, "A", timezone);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "AdBY", timezone);
+						res = ast_say_date_with_format_fr(chan, time, ints, lang, "AdBY", timezone);
 					}
 				}
 				break;
 			case 'R':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HM", timezone);
+				res = ast_say_date_with_format_fr(chan, time, ints, lang, "HM", timezone);
 				break;
 			case 'S':
 				/* Seconds */
@@ -4159,7 +4173,7 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 				}
 				break;
 			case 'T':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+				res = ast_say_date_with_format_fr(chan, time, ints, lang, "HMS", timezone);
 				break;
 			case ' ':
 			case '	':
@@ -4182,6 +4196,9 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 	struct tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
+
+	if (format == NULL)
+		format = "AdB 'digits/at' IMp";
 
 	ast_localtime(&time,&tm,timezone);
 
@@ -4325,7 +4342,7 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 						/* Yesterday */
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "AdB", timezone);
+						res = ast_say_date_with_format_it(chan, time, ints, lang, "AdB", timezone);
 					}
 				}
 				break;
@@ -4349,14 +4366,14 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
-						res = ast_say_date_with_format(chan, time, ints, lang, "A", timezone);
+						res = ast_say_date_with_format_it(chan, time, ints, lang, "A", timezone);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "AdB", timezone);
+						res = ast_say_date_with_format_it(chan, time, ints, lang, "AdB", timezone);
 					}
 				}
 				break;
 			case 'R':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HM", timezone);
+				res = ast_say_date_with_format_it(chan, time, ints, lang, "HM", timezone);
 	        	break;
 			case 'S':
 				/* Seconds */
@@ -4388,7 +4405,7 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 				}
 		        break;
 			case 'T':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+				res = ast_say_date_with_format_it(chan, time, ints, lang, "HMS", timezone);
 				break;
 			case ' ':
 			case '	':
@@ -4412,6 +4429,9 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 	struct tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
+
+	if (format == NULL)
+		format = "ABdY 'digits/at' IMp";
 
 	ast_localtime(&time,&tm,timezone);
 
@@ -4555,7 +4575,7 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 						/* Yesterday */
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "ABdY", timezone);
+						res = ast_say_date_with_format_nl(chan, time, ints, lang, "ABdY", timezone);
 					}
 				}
 				break;
@@ -4579,14 +4599,14 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
-						res = ast_say_date_with_format(chan, time, ints, lang, "A", timezone);
+						res = ast_say_date_with_format_nl(chan, time, ints, lang, "A", timezone);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "ABdY", timezone);
+						res = ast_say_date_with_format_nl(chan, time, ints, lang, "ABdY", timezone);
 					}
 				}
 				break;
 			case 'R':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HM", timezone);
+				res = ast_say_date_with_format_nl(chan, time, ints, lang, "HM", timezone);
 				break;
 			case 'S':
 				/* Seconds */
@@ -4618,7 +4638,7 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 				}
 				break;
 			case 'T':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+				res = ast_say_date_with_format_nl(chan, time, ints, lang, "HMS", timezone);
 				break;
 			case ' ':
 			case '	':
@@ -4642,6 +4662,9 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 	struct tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
+
+	if (format == NULL)
+		format = "Ad 'digits/pt-de' B 'digits/pt-de' Y 'digits/at' IMp";
 
 	ast_localtime(&time,&tm,timezone);
 
@@ -4772,7 +4795,7 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 						/* Yesterday */
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "Ad 'digits/pt-de' B 'digits/pt-de' Y", timezone);
+						res = ast_say_date_with_format_pt(chan, time, ints, lang, "Ad 'digits/pt-de' B 'digits/pt-de' Y", timezone);
 					}
 				}
 				break;
@@ -4799,14 +4822,14 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
-						res = ast_say_date_with_format(chan, time, ints, lang, "A", timezone);
+						res = ast_say_date_with_format_pt(chan, time, ints, lang, "A", timezone);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "Ad 'digits/pt-de' B 'digits/pt-de' Y", timezone);
+						res = ast_say_date_with_format_pt(chan, time, ints, lang, "Ad 'digits/pt-de' B 'digits/pt-de' Y", timezone);
 					}
 				}
 				break;
 			case 'R':
-				res = ast_say_date_with_format(chan, time, ints, lang, "H 'digits/pt-e' M", timezone);
+				res = ast_say_date_with_format_pt(chan, time, ints, lang, "H 'digits/pt-e' M", timezone);
 				break;
 			case 'S':
 				/* Seconds */
@@ -4838,7 +4861,7 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 				}
 				break;
 			case 'T':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+				res = ast_say_date_with_format_pt(chan, time, ints, lang, "HMS", timezone);
 				break;
 			case ' ':
 			case '	':
@@ -4862,6 +4885,9 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 	struct tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
+
+	if (format == NULL)
+		format = "YBdA 'digits/at' HM";
 
 	ast_localtime(&time,&tm,timezone);
 
@@ -5050,7 +5076,7 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 						/* Yesterday */
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "YBdA", timezone);
+						res = ast_say_date_with_format_tw(chan, time, ints, lang, "YBdA", timezone);
 					}
 				}
 				break;
@@ -5077,14 +5103,14 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
-						res = ast_say_date_with_format(chan, time, ints, lang, "A", timezone);
+						res = ast_say_date_with_format_tw(chan, time, ints, lang, "A", timezone);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "YBdA", timezone);
+						res = ast_say_date_with_format_tw(chan, time, ints, lang, "YBdA", timezone);
 					}
 				}
 				break;
 			case 'R':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HM", timezone);
+				res = ast_say_date_with_format_tw(chan, time, ints, lang, "HM", timezone);
 				break;
 			case 'S':
 				/* Seconds */
@@ -5107,7 +5133,7 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 				}
 				break;
 			case 'T':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+				res = ast_say_date_with_format_tw(chan, time, ints, lang, "HMS", timezone);
 				break;
 			case ' ':
 			case '	':
@@ -5990,7 +6016,10 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 	struct tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
-	
+
+	if (!format)
+		format = "AdBY 'digits/at' IMp";
+
 	ast_localtime(&time,&tm,timezone);
 	
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
@@ -6091,7 +6120,7 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 					/* Yesterday */
 					res = wait_file(chan,ints, "digits/yesterday",lang);
 				} else {
-					res = ast_say_date_with_format(chan, time, ints, lang, "AdBY", timezone);
+					res = ast_say_date_with_format_gr(chan, time, ints, lang, "AdBY", timezone);
 				}
 			}
 			break;
@@ -6118,14 +6147,14 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 					res = wait_file(chan,ints, "digits/yesterday",lang);
 				} else if (beg_today - 86400 * 6 < time) {
 					/* Within the last week */
-					res = ast_say_date_with_format(chan, time, ints, lang, "A", timezone);
+					res = ast_say_date_with_format_gr(chan, time, ints, lang, "A", timezone);
 				} else {
-					res = ast_say_date_with_format(chan, time, ints, lang, "AdBY", timezone);
+					res = ast_say_date_with_format_gr(chan, time, ints, lang, "AdBY", timezone);
 				}
 			}
 			break;
 		case 'R':
-			res = ast_say_date_with_format(chan, time, ints, lang, "HM", timezone);
+			res = ast_say_date_with_format_gr(chan, time, ints, lang, "HM", timezone);
 			break;
 		case 'S':
 			/* Seconds */
@@ -6138,7 +6167,7 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 			res = wait_file(chan,ints,nextmsg,lang);
 			break;
 		case 'T':
-			res = ast_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+			res = ast_say_date_with_format_gr(chan, time, ints, lang, "HMS", timezone);
 			break;
 		case ' ':
 		case '	':
