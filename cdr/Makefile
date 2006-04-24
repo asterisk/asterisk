@@ -61,6 +61,11 @@ endif
 
 MLFLAGS=
 
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/freetds),)
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/freetds
+  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib/postgresql
+endif
+
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql),)
   CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/postgresql
   MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib/postgresql
