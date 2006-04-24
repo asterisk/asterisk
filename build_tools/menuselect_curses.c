@@ -37,8 +37,9 @@
 #define MENU_TITLE1	"*************************************"
 #define MENU_TITLE2	"*     Asterisk Module Selection     *"
 #define MENU_TITLE3	"*************************************"
+#define MENU_HELP	"Press 'h' for help."
 
-#define TITLE_HEIGHT	5
+#define TITLE_HEIGHT	7
 
 #define MIN_X		80
 #define MIN_Y		20
@@ -199,6 +200,7 @@ int run_category_menu(WINDOW *menu, int cat_num)
 			/* XXX Move up the list by PAGE_OFFSET */
 			break;
 		case KEY_LEFT:
+		case 27:	/* Esc key */
 			return 0;
 		case KEY_RIGHT:
 		case KEY_ENTER:
@@ -236,8 +238,8 @@ void draw_title_window(WINDOW *title)
 	waddstr(title, MENU_TITLE2);
 	wmove(title, 3, (max_x / 2) - (strlen(MENU_TITLE3) / 2));
 	waddstr(title, MENU_TITLE3);
-	wmove(title, 0, 0);
-	waddstr(title, "Press 'h' for help");
+	wmove(title, 5, (max_x / 2) - (strlen(MENU_HELP) / 2));
+	waddstr(title, MENU_HELP);
 	wrefresh(title);
 }
 
@@ -298,11 +300,11 @@ int run_menu(void)
 		default:
 			break;	
 		}
-		if (c == 'q') {
+		if (c == 'q' || c == 'Q' || c == 27) {
 			res = -1;
 			break;
 		}
-		if (c == 'x')
+		if (c == 'x' || c == 'X' || c == 's' || c == 'S')
 			break;	
 		draw_main_menu(menu, curopt);
 	}
