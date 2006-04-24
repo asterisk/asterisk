@@ -443,7 +443,7 @@ include/autoconfig.h: configure
 	@echo "**** The configure script was just executed, so 'make' needs to be"
 	@echo "**** restarted."
 	@echo "****"
-	@echo exit 1
+	@exit 1
 
 makeopts: configure
 	@CFLAGS="" ./configure
@@ -451,7 +451,7 @@ makeopts: configure
 	@echo "**** The configure script was just executed, so 'make' needs to be"
 	@echo "**** restarted."
 	@echo "****"
-	@echo exit 1
+	@exit 1
 
 menuselect.makeopts: build_tools/menuselect makeopts.xml
 	@build_tools/menuselect --check-deps ${GLOBAL_MAKEOPTS} ${USER_MAKEOPTS} $@
