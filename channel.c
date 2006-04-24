@@ -32,7 +32,9 @@
 #include <unistd.h>
 #include <math.h>			/* For PI */
 
-#ifdef ZAPTEL_OPTIMIZATIONS
+#include "asterisk.h"
+
+#ifdef HAVE_ZAPTEL
 #include <sys/ioctl.h>
 #ifdef __linux__
 #include <linux/zaptel.h>
@@ -43,8 +45,6 @@
 #error "You need newer zaptel!  Please cvs update zaptel"
 #endif
 #endif
-
-#include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
@@ -605,7 +605,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	for (x=0; x<AST_MAX_FDS - 2; x++)
 		tmp->fds[x] = -1;
 
-#ifdef ZAPTEL_OPTIMIZATIONS
+#ifdef HAVE_ZAPTEL
 	tmp->timingfd = open("/dev/zap/timer", O_RDWR);
 	if (tmp->timingfd > -1) {
 		/* Check if timing interface supports new
@@ -714,7 +714,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 		if (write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
 			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
 				chan->name, f->frametype, f->subclass, qlen, strerror(errno));
-#ifdef ZAPTEL_OPTIMIZATIONS
+#ifdef HAVE_ZAPTEL
 	} else if (chan->timingfd > -1) {
 		ioctl(chan->timingfd, ZT_TIMERPING, &blah);
 #endif				
@@ -1739,7 +1739,7 @@ int ast_waitfordigit(struct ast_channel *c, int ms)
 int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), void *data)
 {
 	int res = -1;
-#ifdef ZAPTEL_OPTIMIZATIONS
+#ifdef HAVE_ZAPTEL
 	if (c->timingfd > -1) {
 		if (!func) {
 			samples = 0;
@@ -1852,7 +1852,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	if (chan->alertpipe[0] > -1)
 		read(chan->alertpipe[0], &blah, sizeof(blah));
 
-#ifdef ZAPTEL_OPTIMIZATIONS
+#ifdef HAVE_ZAPTEL
 	if (chan->timingfd > -1 && chan->fdno == AST_TIMING_FD && ast_test_flag(chan, AST_FLAG_EXCEPTION)) {
 		int res;
 

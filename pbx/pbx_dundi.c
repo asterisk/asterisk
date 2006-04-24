@@ -22,6 +22,10 @@
  *
  */
 
+/*** MODULEINFO
+	<depend>zlib</depend>
+ ***/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -4720,3 +4724,4 @@ static const char *key(void)
 }
 
 STD_MOD(MOD_1 | NO_USECOUNT | NO_UNLOAD, reload, NULL, NULL);
+

@@ -25,6 +25,10 @@
  * \ingroup applications
  */
  
+/*** MODULEINFO
+	<depend>zaptel</depend>
+ ***/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -132,3 +136,4 @@ static const char *key(void)
 }
 
 STD_MOD1;
+

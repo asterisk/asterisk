@@ -11,31 +11,7 @@
 # the GNU General Public License
 #
 
-MODS:=$(patsubst %.c,%.so,$(wildcard cdr_*.c))
-
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
-  MODS:=$(filter-out cdr_odbc.so,$(MODS))
-endif
-
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include $(CROSS_COMPILE_TARGET)/usr/include/pgsql $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql $(CROSS_COMPILE_TARGET)/opt/pgsql/include $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h),)
-  MODS:=$(filter-out cdr_pgsql.so,$(MODS))
-endif
-
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/sqlite.h),)
-  MODS:=$(filter-out cdr_sqlite.so,$(MODS))
-endif
-
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/tds.h $(CROSS_COMPILE_TARGET)/usr/local/include/tds.h $(CROSS_COMPILE_TARGET)/usr/include/freetds/tds.h),)
-  MODS:=$(filter-out cdr_tds.so,$(MODS))
-  NOTDS=1
-endif
-
-ifeq (${OSARCH},CYGWIN)
-  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-  CYGSOLIB=-L.. -L. -lasterisk.dll
-else
-  CFLAGS+=-fPIC
-endif
+MODS:=$(filter-out $(MENUSELECT_CDR),$(patsubst %.c,%.so,$(wildcard cdr_*.c)))
 
 #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
 #This works for even old (2.96) versions of gcc and provides a small boost either way.
@@ -47,7 +23,7 @@ ifeq ($(PROC),sparc64)
   CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
 endif
 
-ifeq (${NOTDS},)
+ifneq ($(TDS_LIB),)
   ifeq ($(shell grep -s TDS_VERSION_NO $(CROSS_COMPILE_TARGET)/usr/include/tdsver.h $(CROSS_COMPILE_TARGET)/usr/local/include/tdsver.h $(CROSS_COMPILE_TARGET)/usr/include/freetds/tdsver.h | grep -c 0.63),1)
     CFLAGS += -DFREETDS_0_63
   else
@@ -57,46 +33,6 @@ ifeq (${NOTDS},)
       CFLAGS += -DFREETDS_PRE_0_62
     endif
   endif
-endif
-
-MLFLAGS=
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/freetds),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/freetds
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib/postgresql
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/postgresql
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib/postgresql
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/pgsql/include
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/local/pgsql/lib
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/pgsql),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/pgsql
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib/pgsql
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include/pgsql
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib/pgsql
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/opt/pgsql/include),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/opt/pgsql/include
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET) /opt/pgsql/lib
-endif
-
-ifneq ($(wilcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/postgresql
-endif
-
-ifneq ($(wilcard $(CROSS_COMPILE_TARGET)/usr/lib/libpq.so),)
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib
 endif
 
 all: depend $(MODS)
@@ -113,23 +49,35 @@ clean: clean-depend
 	rm -f *.so *.o
 
 %.so : %.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
+	$(CC) $(SOLINK) -o $@ $<
+
+cdr_odbc.so: cdr_odbc.o
+	$(CC) $(SOLINK) -o $@ $< $(ODBC_LIB)
+
+cdr_odbc.o: cdr_odbc.c
+	$(CC) -c -o $@ $(CFLAGS) $(ODBC_INCLUDE) $<
+
+cdr_tds.so: cdr_tds.o
+	$(CC) $(SOLINK) -o $@ $< $(TDS_LIB)
+
+cdr_tds.o: cdr_tds.c
+	$(CC) -c -o $@ $(CFLAGS) $(TDS_INCLUDE) $<
+
+cdr_pgsql.so: cdr_pgsql.o
+	$(CC) $(SOLINK) -o $@ $< $(PGSQL_LIB)
+
+cdr_pgsql.o: cdr_pgsql.c
+	$(CC) -c -o $@ $(CFLAGS) $(PGSQL_INCLUDE) $<
+
+cdr_sqlite.so: cdr_sqlite.o
+	$(CC) $(SOLINK) -o $@ $< $(SQLITE_LIB)
+
+cdr_sqlite.o: cdr_sqlite.c
+	$(CC) -c -o $@ $(CFLAGS) $(SQLITE_INCLUDE) $<
 
 ifneq ($(wildcard .depend),)
   include .depend
 endif
-
-cdr_odbc.so: cdr_odbc.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lodbc $(MLFLAGS)
-
-cdr_tds.so: cdr_tds.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -ltds $(MLFLAGS)
-
-cdr_pgsql.so: cdr_pgsql.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lpq -lz $(MLFLAGS)
-
-cdr_sqlite.so: cdr_sqlite.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lsqlite $(MLFLAGS)
 
 depend: .depend
 

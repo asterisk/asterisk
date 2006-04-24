@@ -11,37 +11,10 @@
 # the GNU General Public License
 #
 
-MODS:=$(patsubst %.c,%.so,$(wildcard app_*.c))
+MODS:=$(filter-out $(MENUSELECT_APPS),$(patsubst %.c,%.so,$(wildcard app_*.c)))
 
-#
-# Experimental things
-#
-MODS:=$(filter-out app_ivrdemo.so,$(MODS))
-MODS:=$(filter-out app_skel.so,$(MODS))
-MODS:=$(filter-out app_rpt.so,$(MODS))
-
-ifndef WITHOUT_ZAPTEL
-ZAPAVAIL:=$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)
-endif
-
-ifeq (${ZAPAVAIL},)
-  MODS:=$(filter-out app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so app_page.so,$(MODS))
-endif
-
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/osp/osp.h $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h),)
-  MODS:=$(filter-out app_osplookup.so,$(MODS))
-endif
-
-ifneq (${WITH_SMDI},)
+ifneq ($(WITH_SMDI),)
   CFLAGS+=-DWITH_SMDI
-endif
-
-ifeq (${OSARCH},CYGWIN)
-  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-  CYGSOLIB=-L.. -L. -L../res -lasterisk.dll -lres_features.so -lres_adsi.so -lres_monitor.so
-  MODS:=$(filter-out app_sms.so,$(MODS))
-else
-  CFLAGS+=-fPIC
 endif
 
 # If you have UnixODBC you can use ODBC voicemail
@@ -61,11 +34,14 @@ clean-depend:
 clean: clean-depend
 	rm -f *.so *.o
 
-%.so : %.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
+%.so: %.o
+	$(CC) $(SOLINK) -o $@ $<
 
-app_rpt.so : app_rpt.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -ltonezone
+app_rpt.so: app_rpt.o
+	$(CC) $(SOLINK) -o $@ $< $(ZAPTEL_LIB)
+
+app_rpt.o: app_rpt.c
+	$(CC) $(SOLINK) -o $@ $< $(ZAPTEL_INCLUDE) 
 
 install: all
 	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done

@@ -11,6 +11,10 @@
  * the GNU General Public License
  */
 
+/*** MODULEINFO
+	<depend>qt</depend>
+ ***/
+
 #include "pbx_kdeconsole.moc"
 
 KAsteriskConsole::KAsteriskConsole() : KTMainWindow()

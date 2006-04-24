@@ -17,7 +17,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <asterisk/compat.h>
+
+#include "asterisk.h"
+
+#include "asterisk/compat.h"
 
 #define AUDIO_FILENO (STDERR_FILENO + 1)
 

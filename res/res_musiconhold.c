@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -25,6 +25,10 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
+/*** MODULEINFO
+	<conflict>win32</conflict>
+ ***/
+
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -37,19 +41,20 @@
 #include <netinet/in.h>
 #include <sys/stat.h>
 #include <dirent.h>
-#ifdef ZAPATA_MOH
-#ifdef __linux__
-#include <linux/zaptel.h>
-#else
-#include <zaptel.h>
-#endif /* __linux__ */
-#endif
 #include <unistd.h>
 #include <sys/ioctl.h>
 
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#ifdef HAVE_ZAPTEL
+#ifdef __linux__
+#include <linux/zaptel.h>
+#else
+#include <zaptel.h>
+#endif /* __linux__ */
+#endif
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -796,7 +801,7 @@ static int moh_scan_files(struct mohclass *class) {
 
 static int moh_register(struct mohclass *moh, int reload)
 {
-#ifdef ZAPATA_MOH
+#ifdef HAVE_ZAPTEL
 	int x;
 #endif
 	ast_mutex_lock(&moh_lock);
@@ -834,7 +839,7 @@ static int moh_register(struct mohclass *moh, int reload)
 			ast_set_flag(moh, MOH_QUIET);
 		
 		moh->srcfd = -1;
-#ifdef ZAPATA_MOH
+#ifdef HAVE_ZAPTEL
 		/* Open /dev/zap/pseudo for timing...  Is
 		   there a better, yet reliable way to do this? */
 		moh->pseudofd = open("/dev/zap/pseudo", O_RDONLY);
@@ -1228,3 +1233,4 @@ static const char *key(void)
 }
 
 STD_MOD(MOD_0 | NO_USECOUNT | NO_UNLOAD, reload, NULL, NULL);
+

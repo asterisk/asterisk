@@ -55,6 +55,10 @@ CREATE TABLE [dbo].[cdr] (
 
 */
 
+/*** MODULEINFO
+	<depend>freetds</depend>
+ ***/
+
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>

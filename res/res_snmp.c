@@ -14,6 +14,10 @@
  * \author Thorsten Lockert <tholo@voop.as>
  */
 
+/*** MODULEINFO
+	<defaultenabled>no</defaultenabled>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")

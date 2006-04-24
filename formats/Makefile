@@ -11,25 +11,9 @@
 # the GNU General Public License
 #
 
-MODS:=$(patsubst %.c,%.so,$(wildcard format_*.c))
-
-# OGG/Vorbis format
-# (on FreeBSD is in /usr/local/include/...
-
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/vorbis/codec.h),)
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/vorbis/codec.h),)
-  MODS:=$(filter-out format_ogg_vorbis.so,$(MODS))
-endif
-endif
+MODS:=$(filter-out $(MENUSELECT_FORMATS),$(patsubst %.c,%.so,$(wildcard format_*.c)))
 
 GSMLIB=../codecs/gsm/lib/libgsm.a
-
-ifeq (${OSARCH},CYGWIN)
-  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-  CYGSOLIB=-L.. -L. -lasterisk.dll
-else
-  CFLAGS+=-fPIC
-endif
 
 all: depend $(MODS)
 
@@ -40,17 +24,17 @@ clean: clean-depend
 	rm -f *.so *.o
 
 %.so : %.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
+	$(CC) $(SOLINK) -o $@ $<
 
 ifneq ($(wildcard .depend),)
   include .depend
 endif
 
-format_mp3.so : format_mp3.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lm
-
 format_ogg_vorbis.so : format_ogg_vorbis.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -logg -lvorbis -lvorbisenc -lm
+	$(CC) $(SOLINK) -o $@ $< $(OGG_LIB) $(VORBIS_LIB)
+
+format_ogg_vorbis.o: format_ogg_vorbis.c
+	$(CC) -c -o $@ $(CFLAGS) $(OGG_INCLUDE) $(VORBIS_INCLUDE) $<
 
 install: all
 	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done

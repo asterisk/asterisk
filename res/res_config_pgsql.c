@@ -22,6 +22,10 @@
  * \arg http://www.postgresql.org
  */
 
+/*** MODULEINFO
+	<depend>pgsql</depend>
+ ***/
+
 #include <stdlib.h>
 #include <string.h>
 #include <libpq-fe.h>			/* PostgreSQL */

@@ -23,6 +23,10 @@
  * \author Mark Spencer <markster@digium.com> 
  */
 
+/*** MODULEINFO
+	<depend>ssl</depend>
+ ***/
+
 #include <sys/types.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -612,4 +616,6 @@ static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
 STD_MOD(MOD_0 | NO_USECOUNT | NO_UNLOAD, reload, NULL, NULL);
+

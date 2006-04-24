@@ -11,31 +11,17 @@
 # the GNU General Public License
 #
 
-MODS:=$(patsubst %.c,%.so,$(wildcard func_*.c))
+MODS:=$(filter-out $(MENUSELECT_FUNCS),$(patsubst %.c,%.so,$(wildcard func_*.c)))
 
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
-  MODS:=$(filter-out func_odbc.so,$(MODS))
-endif
-
+# TODO This check needs to be handled with autoconf
 ifeq ($(OSARCH),SunOS)
-ifneq ($(shell if [ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]; then echo "OK" ; fi),)
-  CURLLIBS:=$(shell $(CROSS_COMPILE_BIN)curl-config --libs)
-endif
+  ifeq ($(shell if [ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]; then echo "OK" ; fi),)
+    MODS:=$(filter-out func_curl.so,$(MODS))
+  endif
 else
-ifneq ($(shell if [[ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]]; then echo "OK" ; fi),)
-  CURLLIBS:=$(shell $(CROSS_COMPILE_BIN)curl-config --libs)
-endif
-endif
-
-ifeq (${CURLLIBS},)
-  MODS:=$(filter-out func_curl.so,$(MODS))
-endif
-
-ifeq (${OSARCH},CYGWIN)
-  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-  CYGSOLIB=-L.. -L. -lasterisk.dll
-else
-  CFLAGS+=-fPIC
+  ifeq ($(shell if [[ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]]; then echo "OK" ; fi),)
+    MODS:=$(filter-out func_curl.so,$(MODS)) 
+  endif
 endif
 
 all: $(MODS)
@@ -47,13 +33,19 @@ clean: clean-depend
 	rm -f *.so *.o
 
 %.so : %.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
+	$(CC) $(SOLINK) -o $@ $<
 
 func_curl.so: func_curl.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(CURLLIBS)
+	$(CC) $(SOLINK) -o $@ $< $(CURL_LIB)
+
+func_curl.o: func_curl.c
+	$(CC) -c -o $@ $(CFLAGS) $(CURL_INCLUDE) $<
 
 func_odbc.so: func_odbc.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lodbc
+	$(CC) $(SOLINK) -o $@ $< $(ODBC_LIB)
+
+func_odbc.o: func_odbc.c
+	$(CC) -c -o $@ $(CFLAGS) $(ODBC_INCLUDE) $<
 
 install: all
 	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done

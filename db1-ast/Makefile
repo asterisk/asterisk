@@ -13,6 +13,10 @@ PROC=ultrasparc
 CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
 endif
 
+ifeq ($(OSARCH),Darwin)
+  OSARCH_DEFINE+=-D__Darwin__
+endif
+
 LIBDBSO=libdb.so.$(SOVER)
 PROG=	db_dump185
 OBJ1=	hash.o hash_bigkey.o hash_buf.o hash_func.o hash_log2.o hash_page.o \
@@ -58,7 +62,7 @@ endif
 db_dump185.o: db_dump185.c
 	$(CL) -o $@ $<
 %.o: hash/%.c
-	$(CL) -Ihash -o $@ $<
+	$(CL) -Ihash $(OSARCH_DEFINE) -o $@ $<
 %.os: hash/%.c
 	$(CL) -Ihash -fPIC -o $@ $<
 %.o: btree/%.c

@@ -1,0 +1,23 @@
+	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" force_clean_on_change="yes">
+		<member name="-DDEBUG_SCHEDULER">
+		</member>
+		<member name="-DDEBUG_THREADS">
+		</member>
+		<member name="-DDETECT_DEADLOCKS">
+		</member>
+		<member name="-DDUMP_SCHEDULER">
+		</member>
+		<member name="-DLOW_MEMORY">
+		</member>
+		<member name="-DMALLOC_DEBUG">
+		</member>
+		<member name="-DRADIO_RELAX">
+		</member>
+		<member name="-DTRACE_FRAMES">
+		</member>
+		<member name="-DMTX_PROFILE">
+		</member>
+		<member name="-DT38_SUPPORT">
+			<defaultenabled>yes</defaultenabled>
+		</member>
+	</category>

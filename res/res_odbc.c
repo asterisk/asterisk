@@ -19,7 +19,6 @@
  * at the top of the source tree.
  */
 
-
 /*! \file
  *
  * \brief ODBC resource manager
@@ -29,6 +28,10 @@
  *
  * \arg See also: \ref cdr_odbc
  */
+
+/*** MODULEINFO
+	<depend>unixodbc</depend>
+ ***/
 
 #include <stdio.h>
 #include <stdlib.h>

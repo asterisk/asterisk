@@ -1,0 +1,10 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: Mini-XML
+Description: Lightweight XML support library
+Version: @VERSION@
+Libs: @PC_LIBS@
+Cflags: @PC_CFLAGS@

@@ -1,6 +1,38 @@
 Information for Upgrading From Previous Asterisk Releases
 =========================================================
 
+Build Process (configure script):
+
+Asterisk now uses an autoconf-generated configuration script to learn how it
+should build itself for your system. As it is a standard script, running:
+
+$ ./configure --help
+
+will show you all the options available. This script can be used to tell the
+build process what libraries you have on your system (if it cannot find them
+automatically), which libraries you wish to have ignored even though they may
+be present, etc.
+
+You must run the configure script before Asterisk will build, although it will
+attempt to automatically run it for you with no options specified; for most users,
+that will result in a similar build to what they would have had before the
+configure script was added to the build process (except for having to run 'make'
+again after the configure script is run). Note that the configure script does NOT
+need to be re-run just to rebuild Asterisk; you only need to re-run it when your
+system configuration changes or you wish to build Asterisk with different options.
+
+Build Process (module selection):
+
+The Asterisk source tree now includes a basic module selection and build option
+selection tool called 'menuselect'. Run 'make menuselect' to make your choices.
+In this tool, you can disable building of modules that you don't care about,
+turn on/off global options for the build and see which modules will not (and cannot)
+be built because your system does not have the required external dependencies
+installed.
+
+(TODO: document where 'global' and 'per-user' menuselect input files should go
+and what they need to contain)
+
 PBX Core:
 
 * The (very old and undocumented) ability to use BYEXTENSION for dialing

@@ -1164,7 +1164,7 @@ static char *referstatus2str(enum referstatus rstatus)
 /*! \brief Initialize the initital request packet in the pvt structure.
  	This packet is used for creating replies and future requests in
 	a dialog */
-void initialize_initreq(struct sip_pvt *p, struct sip_request *req)
+static void initialize_initreq(struct sip_pvt *p, struct sip_request *req)
 {
 	if (p->initreq.headers) {
 		ast_log(LOG_WARNING, "Initializing already initialized SIP dialog??? %s\n", p->callid);
@@ -5832,7 +5832,8 @@ static int transmit_message_with_text(struct sip_pvt *p, const char *text)
 }
 
 /*! \brief Allocate SIP refer structure */
-int sip_refer_allocate(struct sip_pvt *p) {
+static int sip_refer_allocate(struct sip_pvt *p)
+{
 	p->refer = ast_calloc(1, sizeof(struct sip_refer)); 
 	return p->refer ? 1 : 0;
 }
@@ -9550,7 +9551,7 @@ static char show_settings_usage[] =
 
 
 /*! \brief  func_header_read: Read SIP header (dialplan function) */
-int func_header_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len) 
+static int func_header_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len) 
 {
 	struct sip_pvt *p;
 	const char *content;
@@ -9596,7 +9597,7 @@ static struct ast_custom_function sip_header_function = {
 };
 
 /*! \brief  Dial plan function to check if domain is local */
-int func_check_sipdomain(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int func_check_sipdomain(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "CHECKSIPDOMAIN requires an argument - A domain name\n");
@@ -9714,7 +9715,7 @@ struct ast_custom_function sippeer_function = {
 };
 
 /*! \brief ${SIPCHANINFO()} Dialplan function - reads sip channel data */
-int function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static int function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	struct sip_pvt *p;
 	char iabuf[INET_ADDRSTRLEN];

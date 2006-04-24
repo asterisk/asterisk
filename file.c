@@ -618,14 +618,14 @@ static int ast_readaudio_callback(void *data)
 			if (fr)
 				ast_log(LOG_WARNING, "Failed to write frame\n");
 			s->owner->streamid = -1;
-#ifdef ZAPTEL_OPTIMIZATIONS
+#ifdef HAVE_ZAPTEL
 			ast_settimeout(s->owner, 0, NULL, NULL);
 #endif			
 			return 0;
 		}
 	}
 	if (whennext != s->lasttimeout) {
-#ifdef ZAPTEL_OPTIMIZATIONS
+#ifdef HAVE_ZAPTEL
 		if (s->owner->timingfd > -1)
 			ast_settimeout(s->owner, whennext, ast_readaudio_callback, s);
 		else
@@ -710,7 +710,7 @@ int ast_closestream(struct ast_filestream *f)
 			if (f->owner->streamid > -1)
 				ast_sched_del(f->owner->sched, f->owner->streamid);
 			f->owner->streamid = -1;
-#ifdef ZAPTEL_OPTIMIZATIONS
+#ifdef HAVE_ZAPTEL
 			ast_settimeout(f->owner, 0, NULL, NULL);
 #endif			
 		} else {

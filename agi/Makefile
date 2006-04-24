@@ -3,7 +3,7 @@
 # 
 # Makefile for AGI-related stuff
 #
-# Copyright (C) 1999-2005, Digium
+# Copyright (C) 1999-2006, Digium
 #
 # Mark Spencer <markster@digium.com>
 #
@@ -12,8 +12,6 @@
 #
 
 AGIS=agi-test.agi eagi-test eagi-sphinx-test jukebox.agi
-
-CFLAGS+=-DNO_AST_MM
 
 LIBS=
 ifeq ($(OSARCH),SunOS)
@@ -30,10 +28,10 @@ uninstall:
 	for x in $(AGIS); do rm -f $(DESTDIR)$(AGI_DIR)/$$x ; done
 
 eagi-test: eagi-test.o
-	$(CC) $(CFLAGS) -o eagi-test eagi-test.o $(LIBS)
+	$(CC) $(CFLAGS) -include ../include/autoconfig.h -o eagi-test eagi-test.o $(LIBS)
 
 eagi-sphinx-test: eagi-sphinx-test.o
-	$(CC) $(CFLAGS) -o eagi-sphinx-test eagi-sphinx-test.o $(LIBS) 
+	$(CC) $(CFLAGS) -include ../include/autoconfig.h -o eagi-sphinx-test eagi-sphinx-test.o $(LIBS) 
 
 clean-depend:
 	rm -f .depend

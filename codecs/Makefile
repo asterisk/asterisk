@@ -11,14 +11,7 @@
 # the GNU General Public License
 #
 
-MODS:=$(patsubst %.c,%.so,$(wildcard codec_*.c))
-
-ifeq (${OSARCH},CYGWIN)
-  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-  CYGSOLIB=-L.. -L. -lasterisk.dll
-else
-  CFLAGS+=-fPIC
-endif
+MODS:=$(filter-out $(MENUSELECT_CODECS),$(patsubst %.c,%.so,$(wildcard codec_*.c)))
 
 ifeq ($(wildcard g723.1/coder.c),)
   MODS:=$(filter-out codec_g723_1.so,$(MODS))
@@ -31,31 +24,10 @@ ifneq ($(wildcard g723.1b/coder2.c),)
   LIBG723B=g723.1b/libg723b.a
 endif
 
-SPEEX_PATH:=/usr/local/include /usr/include /usr/include/speex /usr/local/include/speex
-SPEEX_SYSTEM_HEADERS:=$(firstword $(wildcard $(SPEEX_PATH:%=$(CROSS_COMPILE_TARGET)%/speex.h)))
-ifeq (${SPEEX_SYSTEM_HEADERS},)
-  MODS:=$(filter-out codec_speex.so,$(MODS))
-else
-  CFLAGS+=-I$(subst /speex.h,,${SPEEX_SYSTEM_HEADERS})
-  LIBSPEEX=-lspeex -lm
-endif
-
 ifeq ($(wildcard ilbc/iLBC_decode.h),)
   MODS:=$(filter-out codec_ilbc.so,$(MODS))
 else
   LIBILBC=ilbc/libilbc.a
-endif
-
-LIBGSM_PATH:=/usr/local/include /usr/include
-LIBGSM_SYSTEM_HEADERS:=$(firstword $(wildcard $(LIBGSM_PATH:%=$(CROSS_COMPILE_TARGET)%/gsm/gsm.h)))
-ifneq ($(LIBGSM_SYSTEM_HEADERS),)
-  LIBGSM=-lgsm
-  LIBGSMT=
-  CFLAGS+=-DUSE_EXTERNAL_GSM_LIB
-else
-  LIBGSM=gsm/lib/libgsm.a
-  LIBGSMT=$(LIBGSM)
-  CFLAGS+=-I.
 endif
 
 LIBLPC10=lpc10/liblpc10.a
@@ -74,43 +46,57 @@ clean: clean-depend
 	$(MAKE) -C ilbc clean
 
 $(LIBG723):
-	$(MAKE) -C g723.1 all
+	CFLAGS="$(ASTCFLAGS)" $(MAKE) -C g723.1 all
 
-$(LIBGSM):
-	$(MAKE) -C gsm lib/libgsm.a
+gsm/lib/libgsm.a:
+	CFLAGS="$(ASTCFLAGS) -I." $(MAKE) -C gsm lib/libgsm.a
 
 $(LIBG723B):
-	$(MAKE) -C g723.1b all
+	CFLAGS="$(ASTCFLAGS)" $(MAKE) -C g723.1b all
 
 $(LIBLPC10):
-	$(MAKE) -C lpc10 all
+	CFLAGS="$(ASTCFLAGS)" $(MAKE) -C lpc10 all
 
 $(LIBILBC):
-	$(MAKE) -C ilbc all
+	CFLAGS="$(ASTCFLAGS)" $(MAKE) -C ilbc all
 
 codec_ilbc.so: codec_ilbc.o $(LIBILBC)
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBILBC)
+	$(CC) $(SOLINK) -o $@ $< $(LIBILBC)
 
 codec_g723_1.so : codec_g723_1.o $(LIBG723)
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBG723)
+	$(CC) $(SOLINK) -o $@ $< $(LIBG723)
 
 codec_g723_1b.o : codec_g723_1.c
 	$(CC) -c -o $@ $(CFLAGS) -DANNEX_B -Dsingle $<
 
 codec_g723_1b.so : codec_g723_1b.o $(LIBG723B)
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBG723B) -lm
+	$(CC) $(SOLINK) -o $@ $< $(LIBG723B) -lm
 
-codec_gsm.so: codec_gsm.o $(LIBGSMT) 
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBGSM)
+ifeq ($(GSM_LIB),internal)
+codec_gsm.o: codec_gsm.c
+	$(CC) -c -o $@ $(CFLAGS) -Igsm/inc $<
+
+codec_gsm.so: codec_gsm.o gsm/lib/libgsm.a
+	$(CC) $(SOLINK) -o $@ $< gsm/lib/libgsm.a
+else
+codec_gsm.o: codec_gsm.c
+	$(CC) -c -o $@ $(CFLAGS) $(GSM_INCLUDE) $<
+
+codec_gsm.so: codec_gsm.o
+	$(CC) $(SOLINK) -o $@ $< $(GSM_LIB)
+endif
+
+codec_speex.o: codec_speex.c
+	$(CC) -c -o $@ $(CFLAGS) $(SPEEX_INCLUDE) $<
 
 codec_speex.so: codec_speex.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBSPEEX)
+	$(CC) $(SOLINK) -o $@ $< $(SPEEX_LIB)
 
 codec_lpc10.so: codec_lpc10.o $(LIBLPC10)
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBLPC10) -lm
+	$(CC) $(SOLINK) -o $@ $< $(LIBLPC10) -lm
 
 %.so : %.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
+	$(CC) $(SOLINK) -o $@ $<
 
 ifneq ($(wildcard .depend),)
   include .depend

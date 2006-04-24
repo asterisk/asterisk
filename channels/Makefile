@@ -7,30 +7,21 @@
 #
 # Mark Spencer <markster@digium.com>
 #
-# Edited By Belgarath <> Aug 28 2004
-# Added bare bones ultrasparc-linux support.
-#
 # This program is free software, distributed under the terms of
 # the GNU General Public License
 #
 
-MODS:=$(patsubst %.c,%.so,$(wildcard chan_*.c))
+MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(patsubst %.c,%.so,$(wildcard chan_*.c)))
 
-ifeq (${OSARCH},OpenBSD)
+ifeq ($(OSARCH),OpenBSD)
   PTLIB=-lpt_OpenBSD_x86_r
   H323LIB=-lh323_OpenBSD_x86_r
 endif
 
-ifeq (${OSARCH},Linux)
+ifeq ($(OSARCH),Linux)
   PTLIB=-lpt_linux_x86_r
   H323LIB=-lh323_linux_x86_r
   CHANH323LIB=-ldl
-endif
-
-ifeq (${OSARCH},CYGWIN)
-  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-  CYGSOLIB=-L.. -L. -L../res -lasterisk.dll -lres_features.so
-  CYG_CHAN_AGENT=-lres_monitor.so
 endif
 
 ifeq ($(PROC),sparc64)
@@ -38,36 +29,23 @@ ifeq ($(PROC),sparc64)
   CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
 endif
 
-ifeq (${OSARCH},FreeBSD)
+ifeq ($(OSARCH),FreeBSD)
   PTLIB=-lpt_FreeBSD_x86_r
   H323LIB=-lh323_FreeBSD_x86_r
   CHANH323LIB=-pthread
 endif
 
-ifeq (${OSARCH},NetBSD)
+ifeq ($(OSARCH),NetBSD)
   PTLIB=-lpt_NetBSD_x86_r
   H323LIB=-lh323_NetBSD_x86_r
 endif
 
-ifeq (${OSARCH},Darwin)
-  MODS:=$(filter-out chan_oss.so,$(MODS))
-endif
-
-ifeq (${OSARCH},SunOS)
-  MODS:=$(filter-out chan_oss.so,$(MODS))
+ifeq ($(OSARCH),SunOS)
   SOLINK+=-lrt
 endif
 
-ifeq (${OSARCH},CYGWIN)
-  MODS:=$(filter-out chan_oss.so,$(MODS))
-endif
-
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/ixjuser.h $(CROSS_COMPILE_TARGET)/usr/local/include/ixjuser.h),)
-  MODS:=$(filter-out chan_phone.so,$(MODS))
-endif
-
-ifeq (${WITH_SMDI},1)
-CFLAGS+=-DWITH_SMDI
+ifeq ($(WITH_SMDI),1)
+  CFLAGS+=-DWITH_SMDI
 endif
 
 ifeq ($(wildcard h323/libchanh323.a),)
@@ -78,67 +56,6 @@ ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/mISDNuser/mISDNlib.h),)
   MODS:=$(filter-out chan_misdn.so,$(MODS))
 else
   CFLAGS+=-Imisdn 
-endif
-
-CFLAGS+=-Wno-missing-prototypes -Wno-missing-declarations
-
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/alsa/asoundlib.h),)
-  MODS:=$(filter-out chan_alsa.so,$(MODS))
-endif
-
-ifndef WITHOUT_PRI
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libpri.so.1 $(CROSS_COMPILE_TARGET)/usr/local/lib/libpri.so.1),)
-  CFLAGS+=-DZAPATA_PRI
-  ZAPPRI=-lpri
-endif
-endif # WITHOUT_PRI
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libmfcr2.so.1 $(CROSS_COMPILE_TARGET)/usr/local/lib/libmfcr2.so.1),)
-  CFLAGS+=-DZAPATA_R2
-  ZAPR2=-lmfcr2
-endif
-
-ALSA_SRC=chan_alsa.c
-
-ifneq ($(wildcard alsa-monitor.h),)
-  CFLAGS+=-DALSA_MONITOR
-  ALSA_SRC+=alsa-monitor.h
-endif
-
-ifndef WITHOUT_ZAPTEL
-ZAPAVAIL:=$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)
-endif
-
-ifeq (${ZAPAVAIL},)
-  MODS:=$(filter-out chan_zap.so,$(MODS))
-else
-  ifeq (${OSARCH},NetBSD)
-    SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/pkg/lib
-  endif
-  ifeq (${OSARCH},FreeBSD)
-    SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
-  endif
-  CFLAGS+=-DIAX_TRUNKING
-endif
-
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/vpbapi.h),)
-  MODS:=$(filter-out chan_vpb.so,$(MODS))
-else
-  CFLAGS+=-DLINUX
-endif
-
-CFLAGS+=-DCRYPTO
-
-ifneq ($(OSARCH),CYGWIN)
-  CFLAGS+=-fPIC
-endif
-
-CFLAGS+=#-DVOFRDUMPER
-
-ZAPDIR=/usr/lib
-
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/nbs.h),)
-  MODS:=$(filter-out chan_nbs.so,$(MODS))
 endif
 
 ifndef OPENH323DIR
@@ -159,7 +76,7 @@ clean: clean-depend
 	rm -f busy.h ringtone.h gentone gentone-ulaw
 
 %.so : %.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} ${LIBS}
+	$(CC) $(SOLINK) -o $@ $<
 
 ifneq ($(wildcard .depend),)
   include .depend
@@ -187,39 +104,35 @@ ringtone.h: gentone
 
 chan_oss.o: chan_oss.c busy.h ringtone.h
 
-chan_alsa.o: chan_alsa.c busy.h ringtone.h
-
-ifeq (${OSARCH},OpenBSD)
+ifeq ($(OSARCH),OpenBSD)
 chan_oss.so: chan_oss.o
 	$(CC) $(SOLINK) -o $@ chan_oss.o -lossaudio
 endif
-ifeq (${OSARCH},NetBSD)
+ifeq ($(OSARCH),NetBSD)
 chan_oss.so: chan_oss.o
 	$(CC) $(SOLINK) -o $@ chan_oss.o -lossaudio
 endif
 
 chan_iax2.so: chan_iax2.o iax2-parser.o iax2-provision.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} chan_iax2.o iax2-parser.o iax2-provision.o ${CYGSOLIB}
-
-chan_zap.o: chan_zap.c
-	$(CC) -c $(CFLAGS) -o chan_zap.o chan_zap.c
+	$(CC) $(SOLINK) -o $@ $< iax2-parser.o iax2-provision.o
 
 chan_zap.so: chan_zap.o
-	$(CC) $(SOLINK) -o $@ $<  $(ZAPPRI) $(ZAPR2) -ltonezone
+	$(CC) $(SOLINK) -o $@ $< $(PRI_LIB) $(MFCR2_LIB) $(ZAPTEL_LIB)
 
-chan_sip.so: chan_sip.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} chan_sip.o ${CYGSOLIB}
-
-chan_agent.so: chan_agent.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} chan_agent.o ${CYGSOLIB} ${CYG_CHAN_AGENT}
-
-chan_alsa.o: $(ALSA_SRC)
+chan_zap.o: chan_zap.c
+	$(CC) -c -o $@ $(CFLAGS) $(ZAPTEL_INCLUDE) $<
 
 chan_alsa.so: chan_alsa.o
-	$(CC) $(SOLINK) -o $@ $< -lasound -lm -ldl
+	$(CC) $(SOLINK) -o $@ $< $(ASOUND_LIB)
+
+chan_alsa.o: chan_alsa.c busy.h ringtone.h
+	$(CC) -c -o $@ $(CFLAGS) $(ASOUND_INCLUDE) $<
 
 chan_nbs.so: chan_nbs.o
-	$(CC) $(SOLINK) -o $@ $< -lnbs
+	$(CC) $(SOLINK) -o $@ $< $(NBS_LIB)
+
+chan_nbs.o: chan_nbs.c
+	$(CC) -c -o $@ $(CFLAGS) $(NBS_INCLUDE) $<
 
 chan_vpb.o: chan_vpb.c
 	$(CXX) -c $(CFLAGS:-Werror=) -o $@ chan_vpb.c
@@ -227,7 +140,7 @@ chan_vpb.o: chan_vpb.c
 chan_vpb.so: chan_vpb.o
 	 $(CXX) $(SOLINK) -o $@ $< -lvpb -lpthread -lm -ldl
 
-ifeq (${OSARCH},Linux)
+ifeq ($(OSARCH),Linux)
 chan_h323.so: chan_h323.o h323/libchanh323.a h323/Makefile.ast
 	$(CC) $(SOLINK) $(H323LDFLAGS) -o $@ $< h323/libchanh323.a $(H323LDLIBS) -lstdc++
 else

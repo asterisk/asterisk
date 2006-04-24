@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  * 
- * Copyright (C) 1999-2005, Mark Spencer
+ * Copyright (C) 1999-2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -15,6 +15,18 @@
 
 #ifndef _COMPAT_H
 #define _COMPAT_H
+
+#ifndef HAVE_STRSEP
+char* strsep(char** str, const char* delims);
+#endif
+
+#ifndef HAVE_SETENV
+int setenv(const char *name, const char *value, int overwrite);
+#endif
+
+#ifndef HAVE_UNSETENV
+int unsetenv(const char *name);
+#endif
 
 #ifdef SOLARIS
 #define __BEGIN_DECLS
@@ -56,9 +68,6 @@ typedef unsigned short	u_int16_t;
 typedef unsigned int	u_int32_t;
 #endif
 
-char* strsep(char** str, const char* delims);
-int setenv(const char *name, const char *value, int overwrite);
-int unsetenv(const char *name);
 #endif /* SOLARIS */
 
 #ifdef __CYGWIN__
@@ -71,19 +80,8 @@ int unsetenv(const char *name);
 #endif
 #endif /* __CYGWIN__ */
 
-#define HAVE_ASPRINTF
-#define HAVE_VASPRINTF
-#define HAVE_STRTOQ
-
-#ifdef _BSD_SOURCE
-#define HAVE_GETLOADAVG
-#endif
-
 #ifdef __linux__
 #include <inttypes.h>
-#define HAVE_STRCASESTR
-#define HAVE_STRNDUP
-#define HAVE_STRNLEN
 #endif
 
 #ifdef __Darwin__
@@ -94,14 +92,7 @@ int unsetenv(const char *name);
 #include <sys/types.h>
 #endif
 
-#ifdef SOLARIS
-#undef HAVE_ASPRINTF
-#undef HAVE_VASPRINTF
-#undef HAVE_STRTOQ
-#endif
-
 #ifdef __CYGWIN__
-#undef HAVE_STRTOQ
 typedef unsigned long long uint64_t;
 #endif
 

@@ -11,25 +11,10 @@
 # the GNU General Public License
 #
 
-MODS:=$(patsubst %.c,%.so,$(wildcard res_*.c))
+MODS:=$(filter-out $(MENUSELECT_RES),$(patsubst %.c,%.so,$(wildcard res_*.c)))
 
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
-  MODS:=$(filter-out res_odbc.so,$(MODS))
-  MODS:=$(filter-out res_config_odbc.so,$(MODS))
-else
-  ifeq (${OSARCH},FreeBSD)
-    MODS:=$(filter-out $(shell if test ${BSDVERSION} -lt 500000 ; then echo "res_config_odbc.so"; fi),$(MODS))
-  endif
-endif
-
-ifeq ($(NOCRYPTO),yes)
-  MODS:=$(filter-out res_crypto.so,$(MODS))
-  MODS:=$(filter-out res_osp.so,$(MODS))
-endif
-
-OSPLIB:=$(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libosptk.a $(CROSS_COMPILE_TARGET)/usr/local/lib/libosptk.a)
-ifeq (${OSPLIB},)
-  MODS:=$(filter-out res_osp.so,$(MODS))
+ifeq ($(OSARCH),FreeBSD)
+  MODS:=$(filter-out $(shell if test ${BSDVERSION} -lt 500000 ; then echo "res_config_odbc.so"; fi),$(MODS))
 endif
 
 # NETsnmp has some difficulties on some platforms (conflict with unload_module)
@@ -43,82 +28,17 @@ else
   endif
 endif
 
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include $(CROSS_COMPILE_TARGET)/usr/include/pgsql $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql $(CROSS_COMPILE_TARGET)/opt/pgsql/include $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h),)
-  MODS:=$(filter-out res_config_pgsql.so,$(MODS))
-endif
-
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/net-snmp/net-snmp-config.h),)
   MODS:=$(filter-out res_snmp.so,$(MODS))
 else
   SNMP_LDLIBS+=$(shell net-snmp-config --agent-libs)
 endif
 
-ifeq (${WITH_SMDI},)
-  MODS:=$(filter-out res_smdi.so,$(MODS))
-endif
-
-MLFLAGS=
-
-# Now, go find postgresql libraries
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/postgresql
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib/postgresql
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/pgsql/include
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/local/pgsql/lib
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/pgsql),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/pgsql
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib/pgsql
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include/pgsql
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib/pgsql
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/opt/pgsql/include),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/opt/pgsql/include
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/opt/pgsql/lib
-endif
-
-ifneq ($(wilcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql),)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/postgresql
-endif
-
-ifneq ($(wilcard $(CROSS_COMPILE_TARGET)/usr/lib/libpq.so),)
-  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib
-endif
-
-ifeq (${OSARCH},CYGWIN)
-  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-  CYGSOLIB=-L.. -L. -lasterisk.dll
-  CYG_RES_CONFIG_ODBC_LIB=-lres_odbc.so
-  CYG_RES_FEATURES_LIB=-lres_adsi.so -lres_monitor.so
-  MODS:=$(filter-out res_musiconhold.so,$(MODS))
-endif
-
-CRYPTO_LIBS=-lssl -lcrypto
-
-CFLAGS+=
-
-ifndef WITHOUT_ZAPTEL
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h),)
-  CFLAGS+=-DZAPATA_MOH
-endif
-endif # WITHOUT_ZAPTEL
 
 #
 # Work around buggy RedHat 9.0
 #
-ifeq (${OSARCH},CYGWIN)
 CFLAGS+=-DOPENSSL_NO_KRB5
-else
-CFLAGS+=-DOPENSSL_NO_KRB5 -fPIC
-endif
 
 all: depend $(MODS)
 
@@ -142,7 +62,10 @@ install: all
 uninstall:
 
 res_crypto.so: res_crypto.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(CRYPTO_LIBS)
+	$(CC) $(SOLINK) -o $@ $< $(SSL_LIB)
+
+res_crypto.o: res_crypto.c
+	$(CC) -c -o $@ $(CFLAGS) $(SSL_INCLUDE) $<
 
 clean-depend:
 	rm -f .depend
@@ -151,25 +74,31 @@ clean: clean-depend
 	rm -f *.so *.o
 
 res_odbc.so: res_odbc.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lodbc
+	$(CC) $(SOLINK) -o $@ $< $(ODBC_LIB) 
 
-res_osp.so: res_osp.o $(OSPLIB)
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(OSPLIB) $(CRYPTO_LIBS)
+res_odbc.o: res_odbc.c
+	$(CC) -c -o $@ $(CFLAGS) $(ODBC_INCLUDE) $<
+
+res_osp.so: res_osp.o
+	$(CC) $(SOLINK) -o $@ $< $(OSPTK_LIB)
+
+res_osp.o: res_osp.c
+	$(CC) -c -o $@ $(CFLAGS) $(OSPTK_INCLUDE) $<
 
 %.so : %.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
+	$(CC) -o $@ $(SOLINK) $<
 
-res_features.so: res_features.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} ${CYG_RES_FEATURES_LIB}
-
-res_config_odbc.so: res_config_odbc.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} ${CYG_RES_CONFIG_ODBC_LIB}
+res_config_odbc.o: res_config_odbc.c
+	$(CC) -c -o $@ $(CFLAGS) $(ODBC_INCLUDE) $<
 
 res_snmp.so: res_snmp.o snmp/agent.o
-	$(CC) $(SOLINK) ${SNMP_LDFLAGS} -o $@ ${CYGSOLINK} res_snmp.o snmp/agent.o ${CYGSOLIB} ${SNMP_LDLIBS}
+	$(CC) $(SOLINK) $(SNMP_LDFLAGS) -o $@ $< snmp/agent.o $(SNMP_LDLIBS)
 
 res_config_pgsql.so: res_config_pgsql.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lpq -lz $(MLFLAGS)
+	$(CC) $(SOLINK) -o $@ $< $(PGSQL_LIB)
+
+res_config_pgsql.o: res_config_pgsql.c
+	$(CC) -c -o $@ $(CFLAGS) $(PGSQL_INCLUDE) $<
 
 ifneq ($(wildcard .depend),)
   include .depend

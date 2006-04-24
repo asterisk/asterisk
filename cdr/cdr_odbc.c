@@ -28,6 +28,10 @@
  * \ingroup cdr_drivers
  */
 
+/*** MODULEINFO
+	<depend>unixodbc</depend>
+ ***/
+
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>

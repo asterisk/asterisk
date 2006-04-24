@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -25,9 +25,14 @@
  * \arg See also: \ref app_osplookup.c
  */
 
+/*** MODULEINFO
+	<depend>libosptk</depend>
+	<depend>ssl</depend>
+ ***/
+
 #include <sys/types.h>
-#include <osp.h>
-#include <osputils.h>
+#include <osp/osp.h>
+#include <osp/osputils.h>
 #include <openssl/err.h>
 #include <stdio.h>
 #include <dirent.h>
@@ -1106,3 +1111,5 @@ static const char *key(void)
 }
 
 STD_MOD(MOD_0, reload, NULL, NULL)
+
+

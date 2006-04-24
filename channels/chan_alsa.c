@@ -27,6 +27,9 @@
  * \ingroup channel_drivers
  */
 
+/*** MODULEINFO
+	<depend>asound</depend>
+ ***/
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -1042,7 +1045,7 @@ static struct ast_cli_entry myclis[] = {
 	{ { "autoanswer", NULL }, console_autoanswer, "Sets/displays autoanswer", autoanswer_usage, autoanswer_complete }
 };
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int res;
 	int x;
@@ -1101,9 +1104,7 @@ int load_module(void)
 	return 0;
 }
 
-
-
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	int x;
 	
@@ -1125,17 +1126,14 @@ int unload_module(void)
 	return 0;
 }
 
-const char *description(void)
+static const char *description(void)
 {
 	return (char *) desc;
 }
 
-int usecount(void)
-{
-	return usecnt;
-}
-
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
+STD_MOD(MOD_0, NULL, NULL, NULL);

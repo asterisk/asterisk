@@ -1,0 +1,114 @@
+#
+# "$Id$"
+#
+# EPM software list file for Mini-XML, a small XML library.
+#
+# Copyright 2003-2005 by Michael Sweet.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License as published by the Free Software Foundation; either
+# version 2, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+# Directories...
+$prefix=@prefix@
+$exec_prefix=@exec_prefix@
+$bindir=@bindir@
+$docdir=@docdir@
+$includedir=@includedir@
+$libdir=@libdir@
+$mandir=@mandir@
+$srcdir=@srcdir@
+
+$PICFLAG=@PICFLAG@
+
+# Product information
+%product mxml
+%copyright 2003-2005 by Michael Sweet
+%vendor Michael Sweet
+%license ${srcdir}/COPYING
+%readme ${srcdir}/README
+%version @VERSION@
+
+%description <<EOF
+Mini-XML is a small XML parsing library that you can use to read
+XML and XML-like data files in your application without
+requiring large non-standard libraries.  Mini-XML provides the
+following functionality:
+
+    - Reading of UTF-8 and UTF-16 and writing of UTF-8 encoded
+      XML files and strings.
+    - Data is stored in a linked-list tree structure, preserving
+      the XML data hierarchy.
+    - Supports arbitrary element names, attributes, and
+      attribute values with no preset limits, just available
+      memory.
+    - Supports integer, real, opaque ("cdata"), and text data
+      types in "leaf" nodes.
+    - Functions for creating and managing trees of data.
+    - "Find" and "walk" functions for easily locating and
+      navigating trees of data.
+
+Mini-XML doesn't do validation or other types of processing on
+the data based upon schema files or other sources of definition
+information, nor does it support character entities other than
+those required by the XML specification.
+EOF
+
+# Manpage extensions...
+$CAT1EXT=@CAT1EXT@
+$CAT3EXT=@CAT3EXT@
+$MAN1EXT=@MAN1EXT@
+$MAN3EXT=@MAN3EXT@
+
+# Executables
+f 0555 root sys ${bindir}/mxmldoc mxmldoc
+
+# Header files
+f 0444 root sys ${includedir}/mxml.h mxml.h
+
+# Libraries
+%if $PICFLAG
+%system hpux
+f 0555 root sys ${libdir}/libmxml.sl.1 libmxml.sl.1
+l 0555 root sys ${libdir}/libmxml.sl libmxml.sl.1
+
+%system dylib
+f 0555 root sys ${libdir}/libmxml.1.dylib libmxml.1.dylib
+l 0555 root sys ${libdir}/libmxml.dylib libmxml.1.dylib
+
+%system freebsd irix linux netbsd openbsd solaris tru64
+f 0555 root sys ${libdir}/libmxml.so.1.0 libmxml.so.1.0
+l 0555 root sys ${libdir}/libmxml.sl.1 libmxml.sl.1.0
+l 0555 root sys ${libdir}/libmxml.sl libmxml.sl.1.0
+
+%system all
+%endif
+
+f 0444 root sys ${libdir}/libmxml.a libmxml.a
+
+# pkg-config info
+f 0444 root sys $(libdir)/pkgconfig/mxml.pc mxml.pc
+
+# Documentation
+f 0444 root sys ${docdir}/README $srcdir/README
+f 0444 root sys ${docdir}/COPYING $srcdir/COPYING
+f 0444 root sys ${docdir}/CHANGES $srcdir/CHANGES
+f 0444 root sys ${docdir}/mxml.html $srcdir/doc/mxml.html
+f 0444 root sys ${docdir}/mxml.pdf $srcdir/doc/mxml.pdf
+
+# Man pages
+f 0444 root sys ${mandir}/cat1/mxmldoc.$CAT1EXT $srcdir/mxmldoc.$CAT1EXT
+f 0444 root sys ${mandir}/man1/mxmldoc.$MAN1EXT $srcdir/mxmldoc.man
+f 0444 root sys ${mandir}/cat3/mxml.$CAT3EXT $srcdir/mxml.$CAT3EXT
+f 0444 root sys ${mandir}/man3/mxml.$MAN3EXT $srcdir/mxml.man
+
+#
+# End of "$Id$".
+#

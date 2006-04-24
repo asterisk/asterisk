@@ -21,6 +21,11 @@
  * \ingroup formats
  */
 
+/*** MODULEINFO
+	<depend>libvorbis</depend>
+	<depend>ogg</depend>
+ ***/
+
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -561,3 +566,4 @@ static const char *key(void)
 }
 
 STD_MOD1;
+

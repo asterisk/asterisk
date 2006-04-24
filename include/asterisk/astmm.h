@@ -20,7 +20,6 @@
  * \brief Asterisk memory usage debugging
  */
 
-#ifndef NO_AST_MM
 #ifndef _ASTERISK_ASTMM_H
 #define _ASTERISK_ASTMM_H
 
@@ -81,4 +80,3 @@ void __ast_mm_init(void);
 #else
 #error "NEVER INCLUDE astmm.h DIRECTLY!!"
 #endif /* _ASTERISK_ASTMM_H */
-#endif

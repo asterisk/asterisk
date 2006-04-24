@@ -25,6 +25,11 @@
  * \ingroup applications
  */
 
+/*** MODULEINFO
+	<depend>libosptk</depend>
+	<depend>ssl</depend>
+ ***/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -637,3 +642,5 @@ static const char *key(void)
 }
 
 STD_MOD1;
+
+

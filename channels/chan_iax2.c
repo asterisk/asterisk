@@ -49,7 +49,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <regex.h>
-#ifdef IAX_TRUNKING
+
+#include "asterisk.h"
+
+#ifdef HAVE_ZAPTEL
 #include <sys/ioctl.h>
 #ifdef __linux__
 #include <linux/zaptel.h>
@@ -57,8 +60,6 @@
 #include <zaptel.h>
 #endif /* __linux__ */
 #endif
-
-#include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
@@ -9006,7 +9007,7 @@ static void prune_peers(void){
 
 static void set_timing(void)
 {
-#ifdef IAX_TRUNKING
+#ifdef HAVE_ZAPTEL
 	int bs = trunkfreq * 8;
 	if (timingfd > -1) {
 		if (
@@ -10059,7 +10060,7 @@ static int load_module(void *mod)
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
 #endif
 	
-#ifdef IAX_TRUNKING
+#ifdef HAVE_ZAPTEL
 #ifdef ZT_TIMERACK
 	timingfd = open("/dev/zap/timer", O_RDWR);
 	if (timingfd < 0)

@@ -26,8 +26,13 @@
 #include <errno.h>
 #include <regex.h>
 #include <limits.h>
-#include <asterisk/ast_expr.h>
-#include <asterisk/logger.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include "asterisk/ast_expr.h"
+#include "asterisk/logger.h"
 
 #if defined(LONG_LONG_MIN) && !defined(QUAD_MIN)
 #define QUAD_MIN LONG_LONG_MIN

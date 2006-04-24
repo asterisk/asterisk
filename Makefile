@@ -49,7 +49,7 @@ PWD=$(shell pwd)
 # Remember the MAKELEVEL at the top
 MAKETOPLEVEL?=$(MAKELEVEL)
 
-ifneq ($(findstring dont-optimize,$(MAKECMDGOALS)),dont-optimize)
+ifeq ($(findstring dont-optimize,$(MAKECMDGOALS)),)
 # More GSM codec optimization
 # Uncomment to enable MMXTM optimizations for x86 architecture CPU's
 # which support MMX instructions.  This should be newer pentiums,
@@ -96,13 +96,6 @@ DEBUG_THREADS += #-DDEBUG_CHANNEL_LOCKS
 
 # Uncomment next one to enable ast_frame tracing (for debugging)
 TRACE_FRAMES = #-DTRACE_FRAMES
-
-# Uncomment next one to enable malloc debugging
-# You can view malloc debugging with:
-#   *CLI> show memory allocations [filename]
-#   *CLI> show memory summary [filename]
-#
-MALLOC_DEBUG = #-include $(PWD)/include/asterisk/astmm.h
 
 # Where to install asterisk after compiling
 # Default -> leave empty
@@ -182,25 +175,38 @@ HTTP_CGIDIR=/var/www/cgi-bin
 
 ASTCFLAGS=
 
-# Define this to use files larger than 2GB (useful for sound files longer than 37 hours and logfiles)
-ASTCFLAGS+=-D_FILE_OFFSET_BITS=64
-
 # Uncomment this to use the older DSP routines
 #ASTCFLAGS+=-DOLD_DSP_ROUTINES
 
 # If the file .asterisk.makeopts is present in your home directory, you can
-# include all of your favorite Makefile options so that every time you download
-# a new version of Asterisk, you don't have to edit the makefile to set them. 
-# The file, /etc/asterisk.makeopts will also be included, but can be overridden
+# include all of your favorite menuselect options so that every time you download
+# a new version of Asterisk, you don't have to run menuselect to set them. 
+# The file /etc/asterisk.makeopts will also be included but can be overridden
 # by the file in your home directory.
 
-ifneq ($(wildcard /etc/asterisk.makeopts),)
-  include /etc/asterisk.makeopts
+GLOBAL_MAKEOPTS=$(wildcard /etc/asterisk.makeopts)
+USER_MAKEOPTS=$(wildcard ~/.asterisk.makeopts)
+
+ifneq ($(wildcard menuselect.makeopts),)
+  include menuselect.makeopts
 endif
 
-ifneq ($(wildcard ~/.asterisk.makeopts),)
-  include ~/.asterisk.makeopts
+ifneq ($(wildcard makeopts),)
+  include makeopts
 endif
+
+ASTCFLAGS+=$(MENUSELECT_CFLAGS)
+TOPDIR_CFLAGS=-include include/autoconfig.h
+MOD_SUBDIR_CFLAGS=-include ../include/autoconfig.h
+
+#   *CLI> show memory allocations [filename]
+#   *CLI> show memory summary [filename]
+ifneq ($(findstring -DMALLOC_DEBUG,$(ASTCFLAGS)),)
+  TOPDIR_CFLAGS+=-include include/asterisk/astmm.h
+  MOD_SUBDIR_CFLAGS+=-include ../include/asterisk/astmm.h
+endif
+
+MOD_SUBDIR_CFLAGS+=-fPIC
 
 ifeq ($(OSARCH),Linux)
   ifeq ($(PROC),x86_64)
@@ -247,9 +253,13 @@ ifeq ($(OSARCH),SunOS)
 endif
 
 INCLUDE+=-Iinclude -I../include
-ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
+ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) #-DMAKE_VALGRIND_HAPPY
 ASTCFLAGS+=$(OPTIMIZE)
-ASTCFLAGS+=# -Werror -Wunused
+
+ifeq ($(AST_DEVMODE),yes)
+  ASTCFLAGS+=-Werror -Wunused
+endif
+
 ifeq ($(shell gcc -v 2>&1 | grep 'gcc version' | cut -f3 -d' ' | cut -f1 -d.),4)
 ASTCFLAGS+= -Wno-pointer-sign
 endif
@@ -265,14 +275,6 @@ endif
 
 ifeq ($(PROC),ppc)
   ASTCFLAGS+=-fsigned-char
-endif
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/osp/osp.h),)
-  ASTCFLAGS+=-DOSP_SUPPORT -I$(CROSS_COMPILE_TARGET)/usr/local/include/osp
-else
-  ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h),)
-    ASTCFLAGS+=-DOSP_SUPPORT -I$(CROSS_COMPILE_TARGET)/usr/include/osp
-  endif
 endif
 
 ifeq ($(OSARCH),FreeBSD)
@@ -300,27 +302,11 @@ ifeq ($(OSARCH),SunOS)
   INCLUDE+=-Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
 endif
 
-ifeq ($(findstring CYGWIN,$(OSARCH)),CYGWIN)
-  CYGLOADER=cygwin_a
-  OSARCH=CYGWIN
-  ASTOBJ=-shared -o asterisk.dll -Wl,--out-implib=libasterisk.dll.a -Wl,--export-all-symbols
-  ASTLINK=
-  LIBS+=-lpthread -lncurses -lm -lresolv
-  ASTSBINDIR=$(MODULES_DIR)
-endif
-
-ifndef WITHOUT_ZAPTEL
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/pkg/include/zaptel.h),)
-  ASTCFLAGS+=-DZAPTEL_OPTIMIZATIONS
-endif
-
-endif # WITHOUT_ZAPTEL
-
 LIBEDIT=editline/libedit.a
 
+ASTERISKVERSION:=$(shell build_tools/make_version .)
+
 ifneq ($(wildcard .version),)
-  ASTERISKVERSION:=$(shell cat .version)
   ASTERISKVERSIONNUM:=$(shell awk -F. '{printf "%02d%02d%02d", $$1, $$2, $$3}' .version)
   RPMVERSION:=$(shell sed 's/[-\/:]/_/g' .version)
 else
@@ -332,11 +318,9 @@ endif
 # showing the branch they are made from
 ifneq ($(wildcard .svnrevision),)
   ASTERISKVERSIONNUM=999999
-  ASTERISKVERSION:=SVN-$(shell cat .svnbranch)-r$(shell cat .svnrevision)
 else
   ifneq ($(wildcard .svn),)
     ASTERISKVERSIONNUM=999999
-    ASTERISKVERSION=SVN-$(shell build_tools/make_svn_branch_name)
   endif
 endif
 
@@ -345,11 +329,12 @@ ASTCFLAGS+= $(TRACE_FRAMES)
 ASTCFLAGS+= $(MALLOC_DEBUG)
 ASTCFLAGS+= $(BUSYDETECT)
 ASTCFLAGS+= $(OPTIONS)
-ifneq ($(findstring dont-optimize,$(MAKECMDGOALS)),dont-optimize)
+ifeq ($(findstring dont-optimize,$(MAKECMDGOALS)),)
 ASTCFLAGS+= -fomit-frame-pointer 
 endif
 
-SUBDIRS=res channels pbx apps codecs formats agi cdr funcs utils stdtime
+MOD_SUBDIRS=res channels pbx apps codecs formats cdr funcs
+SUBDIRS:=$(MOD_SUBDIRS) utils stdtime agi
 
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o pbx.o cli.o md5.o term.o \
@@ -426,11 +411,11 @@ ifeq ($(OSARCH),SunOS)
 endif
 
 ifeq ($(MAKETOPLEVEL),$(MAKELEVEL))
-  CFLAGS+=$(ASTCFLAGS)
+  CFLAGS+=$(ASTCFLAGS) $(TOPDIR_CFLAGS)
 endif
 
 # This is used when generating the doxygen documentation
-ifneq ($(wildcard /usr/local/bin/dot)$(wildcard /usr/bin/dot),)
+ifneq ($(DOT),:)
   HAVEDOT=yes
 else
   HAVEDOT=no
@@ -438,18 +423,38 @@ endif
 
 INSTALL=install
 
-CFLAGS+=-DT38_SUPPORT
-
 _all: all
 	@echo " +--------- Asterisk Build Complete ---------+"  
 	@echo " + Asterisk has successfully been built, but +"  
 	@echo " + cannot be run before being installed by   +"  
 	@echo " + running:                                  +"  
 	@echo " +                                           +"
-	@echo " +               $(MAKE) install                +"  
+	@echo " +               make install                +"  
 	@echo " +-------------------------------------------+"  
 
-all: cleantest depend asterisk subdirs 
+all: include/autoconfig.h menuselect.makeopts cleantest depend asterisk subdirs
+
+configure:
+	-@./bootstrap.sh
+
+include/autoconfig.h: configure
+	@CFLAGS="" ./configure
+	@echo "****"
+	@echo "**** The configure script was just executed, so 'make' needs to be"
+	@echo "**** restarted."
+	@echo "****"
+	@echo exit 1
+
+makeopts: configure
+	@CFLAGS="" ./configure
+	@echo "****"
+	@echo "**** The configure script was just executed, so 'make' needs to be"
+	@echo "**** restarted."
+	@echo "****"
+	@echo exit 1
+
+menuselect.makeopts: build_tools/menuselect makeopts.xml
+	@build_tools/menuselect --check-deps ${GLOBAL_MAKEOPTS} ${USER_MAKEOPTS} $@
 
 #ifneq ($(wildcard tags),)
 ctags: tags
@@ -459,16 +464,14 @@ ifneq ($(wildcard TAGS),)
 all: TAGS
 endif
 
-noclean: depend asterisk subdirs
-
 editline/config.h:
 	cd editline && unset CFLAGS LIBS && ./configure ; \
 
-editline/libedit.a: FORCE
+editline/libedit.a:
 	cd editline && unset CFLAGS LIBS && test -f config.h || ./configure
 	$(MAKE) -C editline libedit.a
 
-db1-ast/libdb1.a: FORCE
+db1-ast/libdb1.a:
 	$(MAKE) -C db1-ast libdb1.a
 
 ifneq ($(wildcard .depend),)
@@ -511,27 +514,24 @@ asterisk.html: asterisk.sgml
 asterisk.txt: asterisk.sgml
 	docbook2txt asterisk.sgml
 
-defaults.h: FORCE
+defaults.h: makeopts
 	build_tools/make_defaults_h > $@.tmp
 	if cmp -s $@.tmp $@ ; then echo ; else \
 		mv $@.tmp $@ ; \
 	fi
 	rm -f $@.tmp
 
-include/asterisk/version.h: FORCE
+include/asterisk/version.h:
 	build_tools/make_version_h > $@.tmp
 	if cmp -s $@.tmp $@ ; then echo; else \
 		mv $@.tmp $@ ; \
 	fi
 	rm -f $@.tmp
 
-stdtime/libtime.a: FORCE
-	$(MAKE) -C stdtime libtime.a
+stdtime/libtime.a:
+	CFLAGS="$(ASTCFLAGS) $(MOD_SUBDIR_CFLAGS)" $(MAKE) -C stdtime libtime.a
 
-cygwin_a:
-	$(MAKE) -C cygwin all
-
-asterisk: $(CYGLOADER) editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
+asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
 	build_tools/make_build_h > include/asterisk/build.h.tmp
 	if cmp -s include/asterisk/build.h.tmp include/asterisk/build.h ; then echo ; else \
 		mv include/asterisk/build.h.tmp include/asterisk/build.h ; \
@@ -544,7 +544,9 @@ muted: muted.o
 	$(CC) $(AUDIO_LIBS) -o muted muted.o
 
 subdirs: 
-	for x in $(SUBDIRS); do $(MAKE) -C $$x || exit 1 ; done
+	for x in $(MOD_SUBDIRS); do CFLAGS="$(ASTCFLAGS) $(MOD_SUBDIR_CFLAGS)" $(MAKE) -C $$x || exit 1 ; done
+	CFLAGS="$(ASTCFLAGS)" $(MAKE) -C utils
+	CFLAGS="$(ASTCFLAGS) -include ../include/autoconfig.h" $(MAKE) -C agi
 
 clean-depend:
 	for x in $(SUBDIRS); do $(MAKE) -C $$x clean-depend || exit 1 ; done
@@ -562,11 +564,18 @@ clean: clean-depend
 	$(MAKE) -C db1-ast clean
 	$(MAKE) -C stdtime clean
 
+dist-clean: clean
+	rm -f menuselect.makeopts makeopts makeopts.xml
+	rm -f config.log config.status
+	rm -f include/autoconfig.h
+	$(MAKE) -C mxml clean
+	$(MAKE) -C build_tools dist-clean
+
 datafiles: all
 	if [ x`$(ID) -un` = xroot ]; then sh build_tools/mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
-	# Should static HTTP be installed during make samples or even with its own target ala
-	# webvoicemail?  There are portions here that *could* be customized but might also be
-	# improved a lot.  I'll put it here for now.
+# Should static HTTP be installed during make samples or even with its own target ala
+# webvoicemail?  There are portions here that *could* be customized but might also be
+# improved a lot.  I'll put it here for now.
 	mkdir -p $(DESTDIR)$(ASTDATADIR)/static-http
 	for x in static-http/*; do \
 		install -m 644 $$x $(DESTDIR)$(ASTDATADIR)/static-http ; \
@@ -664,7 +673,6 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/meetme
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/monitor
 	if [ -f asterisk ]; then $(INSTALL) -m 755 asterisk $(DESTDIR)$(ASTSBINDIR)/; fi
-	if [ -f cygwin/asterisk.exe ]; then $(INSTALL) -m 755 cygwin/asterisk.exe $(DESTDIR)$(ASTSBINDIR)/; fi
 	if [ -f asterisk.dll ]; then $(INSTALL) -m 755 asterisk.dll $(DESTDIR)$(ASTSBINDIR)/; fi
 	ln -sf asterisk $(DESTDIR)$(ASTSBINDIR)/rasterisk
 	$(INSTALL) -m 755 contrib/scripts/astgenkey $(DESTDIR)$(ASTSBINDIR)/
@@ -887,7 +895,7 @@ valgrind: dont-optimize
 depend: include/asterisk/version.h .depend defaults.h 
 	for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
 
-.depend: include/asterisk/version.h
+.depend: include/asterisk/version.h defaults.h
 	build_tools/mkdep $(CFLAGS) $(wildcard *.c)
 
 .tags-depend:
@@ -928,7 +936,6 @@ env:
 # If the cleancount has been changed, force a make clean.
 # .cleancount is the global clean count, and .lastclean is the 
 # last clean count we had
-# We can avoid this by making noclean
 
 cleantest:
 	if cmp -s .cleancount .lastclean ; then echo ; else \
@@ -967,3 +974,17 @@ uninstall-all: _uninstall
 	rm -rf $(DESTDIR)$(ASTSPOOLDIR)
 	rm -rf $(DESTDIR)$(ASTETCDIR)
 	rm -rf $(DESTDIR)$(ASTLOGDIR)
+
+menuselect: build_tools/menuselect makeopts.xml
+	-@build_tools/menuselect ${GLOBAL_MAKEOPTS} ${USER_MAKEOPTS} menuselect.makeopts && echo "menuselect changes saved!" || echo "menuselect changes NOT saved!"
+
+build_tools/menuselect: build_tools/menuselect.c build_tools/menuselect.h mxml/libmxml.a
+	$(MAKE) -C build_tools menuselect
+
+mxml/libmxml.a:
+	@cd mxml && unset CFLAGS && test -f config.h || ./configure
+	$(MAKE) -C mxml libmxml.a
+
+makeopts.xml: $(foreach dir,$(MOD_SUBDIRS),$(dir)/*.c) build_tools/cflags.xml
+	@echo "Generating list of available modules ..."
+	@build_tools/prep_moduledeps > $@

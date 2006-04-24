@@ -1,0 +1,12 @@
+*.bck
+*.bak
+Makefile
+autom4te*.cache
+config.cache
+config.h
+config.log
+config.status
+libmxml.a
+mxml.list
+mxmldoc
+testmxml

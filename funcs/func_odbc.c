@@ -24,6 +24,10 @@
  * \author Tilghman Lesher <func_odbc__200508@the-tilghman.com>
  */
 
+/*** MODULEINFO
+	<depend>unixodbc</depend>
+ ***/
+
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -667,4 +671,6 @@ static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
 STD_MOD(MOD_1, reload, NULL, NULL);
+

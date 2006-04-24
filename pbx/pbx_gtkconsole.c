@@ -22,13 +22,10 @@
  * 
  */
 
-/* 
- * I know this might seem somewhat pointless in its current phase, but one
- * of the most important parts of this module is demonstrate that modules
- * can require other external libraries and still be loaded (in this
- * case, a host of libraries involving gtk), so long as they are properly
- * linked (see the Makefile)
- */
+/*** MODULEINFO
+	<depend>gtk</depend>
+	<defaultenabled>no</defaultenabled>
+ ***/
 
 #include <sys/types.h>
 #include <stdlib.h>
@@ -516,3 +513,4 @@ const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+

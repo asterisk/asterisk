@@ -28,6 +28,10 @@
  * \ingroup functions
  */
  
+/*** MODULEINFO
+	<depend>curl</depend>
+ ***/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -186,3 +190,4 @@ static const char *key(void)
 }
 
 STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);
+

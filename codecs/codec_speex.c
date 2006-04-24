@@ -27,13 +27,17 @@
  * \ingroup codecs
  */
 
+/*** MODULEINFO
+	<depend>libspeex</depend>
+ ***/
+
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <string.h>
 #include <stdio.h>
-#include <speex.h>
+#include <speex/speex.h>
 
 /* We require a post 1.1.8 version of Speex to enable preprocessing
    and better type handling */   
@@ -519,3 +523,4 @@ static const char *key(void)
 }
 
 STD_MOD(MOD_1, reload, NULL, NULL);
+

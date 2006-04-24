@@ -1,8 +1,6 @@
 ARCH=$(PROC)
 CFLAGS+=-Wall -O3 -funroll-loops
-ifneq (${OSARCH},CYGWIN)
 CFLAGS += -fPIC
-endif
 LIB=libilbc.a
 
 OBJS= anaFilter.o iCBSearch.o packing.o \

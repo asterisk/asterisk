@@ -29,6 +29,9 @@
  * \ingroup channel_drivers
  */
 
+/*** MODULEINFO
+	<depend>vpbapi</depend>
+ ***/
 
 extern "C" {
 
@@ -3055,3 +3058,5 @@ const char *key()
  }
 #endif
 /**/
+
+

@@ -1267,9 +1267,14 @@ static yyconst yy_state_type yy_NUL_trans[50] =
 #include <errno.h>
 #include <regex.h>
 #include <limits.h>
-#include <asterisk/ast_expr.h>
-#include <asterisk/logger.h>
-#include <asterisk/strings.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include "asterisk/ast_expr.h"
+#include "asterisk/logger.h"
+#include "asterisk/strings.h"
 
 enum valtype {
 	AST_EXPR_integer, AST_EXPR_numeric_string, AST_EXPR_string

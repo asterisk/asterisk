@@ -7,7 +7,7 @@
 # Verify those options with main Makefile
 STDCCFLAGS	+= -DNDEBUG
 STDCCFLAGS	+= $(shell grep ^DEBUG_THREADS ../../Makefile | sed -e "s/^DEBUG_THREADS[ 	]*=//" -e "s/\([^\#]*\)\#.*/\1/")
-STDCCFLAGS	+= -I../../include
+STDCCFLAGS	+= -I../../include -include autoconfig.h
 STDCCFLAGS	+= -Wmissing-prototypes
 STDCCFLAGS	+= -fPIC
 #OPTCCFLAGS	+=

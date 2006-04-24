@@ -25,6 +25,10 @@
  * \ingroup applications
  */
 
+/*** MODULEINFO
+	<depend>zaptel</depend>
+ ***/
+
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #ifdef __linux__
@@ -267,3 +271,4 @@ static const char *key(void)
 }
 
 STD_MOD1;
+

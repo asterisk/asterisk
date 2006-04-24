@@ -25,6 +25,10 @@
  * \ingroup channel_drivers
  */
 
+/*** MODULEINFO
+	<depend>ixjuser</depend>
+ ***/
+
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -1426,3 +1430,5 @@ static const char *key(void)
 }
 
 STD_MOD1;
+
+

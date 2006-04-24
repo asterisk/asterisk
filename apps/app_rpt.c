@@ -95,6 +95,11 @@
  *
 */
 
+/*** MODULEINFO
+	<depend>zaptel</depend>
+	<defaultenabled>no</defaultenabled>
+ ***/
+
 /* The following is JUST GROSS!! There is some soft of underlying problem,
    probably in channel_iax2.c, that causes an IAX2 connection to sometimes
    stop transmitting randomly. We have been working for weeks to try to
@@ -7063,3 +7068,4 @@ static const char *key(void)
 }
 
 STD_MOD1;
+

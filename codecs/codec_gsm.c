@@ -26,6 +26,10 @@
  * \ingroup codecs
  */
 
+/*** MODULEINFO
+	<depend>libgsm</depend>
+ ***/
+
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -46,11 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
 
-#ifdef USE_EXTERNAL_GSM_LIB
-#include <gsm/gsm.h>
-#else
-#include "gsm/inc/gsm.h"
-#endif
+#include "gsm.h"
 
 #include "../formats/msgsm.h"
 

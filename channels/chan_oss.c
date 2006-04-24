@@ -32,6 +32,10 @@
  * \ingroup channel_drivers
  */
 
+/*** MODULEINFO
+	<depend>osssound</depend>
+ ***/
+
 #include <stdio.h>
 #include <ctype.h>	/* for isalnum */
 #include <math.h>	/* exp and log */
@@ -1532,3 +1536,5 @@ static const char *key(void)
 }
 
 STD_MOD(MOD_1, NULL, NULL, NULL);
+
+

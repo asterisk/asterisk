@@ -33,6 +33,10 @@
  * \ingroup channel_drivers
  */
 
+/*** MODULEINFO
+	<depend>h323</depend>
+ ***/
+
 #include <sys/socket.h>
 #include <sys/signal.h>
 #include <sys/param.h>
@@ -2469,3 +2473,4 @@ const char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
+

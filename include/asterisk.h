@@ -3,7 +3,7 @@
  *
  * General Definitions for Asterisk top level program
  * 
- * Copyright (C) 1999-2005, Mark Spencer
+ * Copyright (C) 1999-2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -15,10 +15,10 @@
  * \brief Asterisk main include file. File version handling, generic pbx functions.
  */
 
-#include "asterisk/compat.h"
-
 #ifndef _ASTERISK_H
 #define _ASTERISK_H
+
+#include "asterisk/compat.h"
 
 #define DEFAULT_LANGUAGE "en"
 

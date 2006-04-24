@@ -257,15 +257,11 @@ static const char misdn_type[] = "mISDN";
 
 static int tracing = 0 ;
 
-static int usecnt=0;
-
 static char **misdn_key_vector=NULL;
 static int misdn_key_vector_size=0;
 
 /* Only alaw and mulaw is allowed for now */
 static int prefformat =  AST_FORMAT_ALAW ; /*  AST_FORMAT_SLINEAR ;  AST_FORMAT_ULAW | */
-
-static ast_mutex_t usecnt_lock; 
 
 static int *misdn_debug;
 static int *misdn_debug_only;
@@ -620,7 +616,7 @@ static char *misdn_get_ch_state(struct chan_list *p)
 
 
 
-void reload_config(void)
+static void reload_config(void)
 {
 	int i, cfg_debug;
 	chan_misdn_log(-1, 0, "Dynamic Crypting Activation is not support during reload at the moment\n");
@@ -1190,7 +1186,7 @@ static int update_config (struct chan_list *ch, int orig)
 
 
 
-void config_jitterbuffer(struct chan_list *ch)
+static void config_jitterbuffer(struct chan_list *ch)
 {
 	struct misdn_bchannel *bc=ch->bc;
 	int len=ch->jb_len, threshold=ch->jb_upper_threshold;
@@ -2188,7 +2184,7 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 
 
 
-enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
+static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 				      struct ast_channel *c1, int flags,
 				      struct ast_frame **fo,
 				      struct ast_channel **rc,
@@ -2517,7 +2513,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 }
 
 
-int misdn_send_text (struct ast_channel *chan, const char *text)
+static int misdn_send_text (struct ast_channel *chan, const char *text)
 {
 	struct chan_list *tmp=chan->tech_pvt;
 	
@@ -3827,7 +3823,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 static int g_config_initialized=0;
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
 	/* First, take us out of the channel loop */
 	ast_log(LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
@@ -3872,7 +3868,7 @@ int unload_module(void)
 	return 0;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
 	int i;
 	
@@ -3927,7 +3923,7 @@ int load_module(void)
 	{
 		if (ast_channel_register(&misdn_tech)) {
 			ast_log(LOG_ERROR, "Unable to register channel class %s\n", misdn_type);
-			unload_module();
+			unload_module(mod);
 			return -1;
 		}
 	}
@@ -3979,28 +3975,19 @@ int load_module(void)
 
 
 
-int reload(void)
+static int reload(void *mod)
 {
 	reload_config();
 
 	return 0;
 }
 
-int usecount(void)
-{
-	int res;
-	ast_mutex_lock(&usecnt_lock);
-	res = usecnt;
-	ast_mutex_unlock(&usecnt_lock);
-	return res;
-}
-
-const char *description(void)
+static const char *description(void)
 {
 	return desc;
 }
 
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
@@ -4480,4 +4467,4 @@ void chan_misdn_log(int level, int port, char *tmpl, ...)
 	}
 }
 
-
+STD_MOD(MOD_0, reload, NULL, NULL);

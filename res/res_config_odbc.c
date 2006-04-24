@@ -28,6 +28,10 @@
  * \arg http://www.unixodbc.org
  */
 
+/*** MODULEINFO
+	<depend>unixodbc</depend>
+ ***/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

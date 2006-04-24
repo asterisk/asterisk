@@ -31,6 +31,10 @@
  * \ingroup cdr_drivers
  */
 
+/*** MODULEINFO
+	<depend>sqlite</depend>
+ ***/
+
 #include <sys/types.h>
 
 #include <unistd.h>

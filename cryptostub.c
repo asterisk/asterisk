@@ -26,6 +26,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+#include "asterisk.h"
+
 #include "asterisk/crypto.h"
 #include "asterisk/logger.h"
 

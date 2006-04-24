@@ -25,6 +25,10 @@
  * \ingroup channel_drivers
  */
 
+/*** MODULEINFO
+	<depend>nbs</depend>
+ ***/
+
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -322,3 +326,4 @@ const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+

@@ -11,7 +11,10 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/select.h>
-#include <asterisk/compat.h>
+
+#include "asterisk.h"
+
+#include "asterisk/compat.h"
 
 #define AUDIO_FILENO (STDERR_FILENO + 1)
 

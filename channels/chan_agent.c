@@ -2390,7 +2390,7 @@ static int agent_devicestate(void *data)
 	return res;
 }
 
-struct agent_pvt *find_agent(char *agentid)
+static struct agent_pvt *find_agent(char *agentid)
 {
 	struct agent_pvt *cur;
 
