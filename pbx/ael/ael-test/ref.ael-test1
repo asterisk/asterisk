@@ -1,0 +1,11 @@
+Executed ast_register_file_version();
+LOG: lev:2 file:pbx_ael.c  line:3428 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:pbx_ael.c  line:3435 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:3438 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:3 file:pbx_ael.c  line:891 func: check_dow  Warning: file ./extensions.ael, line 67-67: The day (m0n) must be one of 'sun', 'mon', 'tue', 'wed', 'thu', 'fri', or 'sat'!
+LOG: lev:3 file:pbx_ael.c  line:849 func: check_timerange  Warning: file ./extensions.ael, line 78-78: The end time (25:00) is out of range!
+LOG: lev:2 file:pbx_ael.c  line:3441 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:3443 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:3446 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:3449 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:261 func: main  5 contexts, 13 extensions, 156 priorities

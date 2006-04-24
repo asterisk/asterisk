@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
+#include <unistd.h>
 #include <ctype.h>
 #if !defined(SOLARIS) && !defined(__CYGWIN__)
 #include <err.h>
@@ -51,6 +52,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define YYPARSE_PARAM parseio
 #define YYLEX_PARAM ((struct parse_io *)parseio)->scanner
 #define YYERROR_VERBOSE 1
+extern char extra_error_message[4095];
+extern int extra_error_message_supplied;
 
 enum valtype {
 	AST_EXPR_integer, AST_EXPR_numeric_string, AST_EXPR_string
@@ -129,12 +132,7 @@ int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *);
    some useful info about the error. Not as easy as it looks, but it
    is possible. */
 #define ast_yyerror(x) ast_yyerror(x,&yyloc,parseio)
-#define DESTROY(x) { \
-if ((x)->type == AST_EXPR_numeric_string || (x)->type == AST_EXPR_string) \
-	free((x)->u.s); \
-	(x)->u.s = 0; \
-	free(x); \
-}
+#define DESTROY(x) {if((x)->type == AST_EXPR_numeric_string || (x)->type == AST_EXPR_string) free((x)->u.s); (x)->u.s = 0; free(x);}
 %}
  
 %pure-parser
@@ -165,6 +163,11 @@ extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 %token <val> TOKEN
 %type <val> start expr
 
+
+%destructor {  free_value($$); }  expr TOKEN TOK_COND TOK_COLONCOLON TOK_OR TOK_AND TOK_EQ 
+                                 TOK_GT TOK_LT TOK_GE TOK_LE TOK_NE TOK_PLUS TOK_MINUS TOK_MULT TOK_DIV TOK_MOD TOK_COMPL TOK_COLON TOK_EQTILDE 
+                                 TOK_RP TOK_LP
+
 %%
 
 start: expr { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
@@ -175,6 +178,11 @@ start: expr { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(st
 				  ((struct parse_io *)parseio)->val->u.s = $1->u.s; 
 			  free($1);
 			}
+	| {/* nothing */ ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
+              ((struct parse_io *)parseio)->val->type = AST_EXPR_string;
+			  ((struct parse_io *)parseio)->val->u.s = strdup(""); 
+			}
+
 	;
 
 expr:	TOKEN   { $$= $1;}
@@ -427,11 +435,40 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
 int main(int argc,char **argv) {
 	char s[4096];
+	char out[4096];
+	FILE *infile;
 	
-	if (ast_expr(argv[1], s, sizeof(s)))
-		printf("=====%s======\n",s);
+	if( !argv[1] )
+		exit(20);
+	
+	if( access(argv[1],F_OK)== 0 )
+	{
+		int ret;
+		
+		infile = fopen(argv[1],"r");
+		if( !infile )
+		{
+			printf("Sorry, couldn't open %s for reading!\n", argv[1]);
+			exit(10);
+		}
+		while( fgets(s,sizeof(s),infile) )
+		{
+			if( s[strlen(s)-1] == '\n' )
+				s[strlen(s)-1] = 0;
+			
+			ret = ast_expr(s, out, sizeof(out));
+			printf("Expression: %s    Result: [%d] '%s'\n",
+				   s, ret, out);
+		}
+		fclose(infile);
+	}
 	else
-		printf("No result\n");
+	{
+		if (ast_expr(argv[1], s, sizeof(s)))
+			printf("=====%s======\n",s);
+		else
+			printf("No result\n");
+	}
 }
 
 #endif
@@ -655,7 +692,8 @@ op_plus (struct val *a, struct val *b)
 	struct val *r;
 
 	if (!to_integer (a)) {
-		ast_log(LOG_WARNING,"non-numeric argument\n");
+		if( !extra_error_message_supplied )
+			ast_log(LOG_WARNING,"non-numeric argument\n");
 		if (!to_integer (b)) {
 			free_value(a);
 			free_value(b);
@@ -698,7 +736,8 @@ op_minus (struct val *a, struct val *b)
 	struct val *r;
 
 	if (!to_integer (a)) {
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		if( !extra_error_message_supplied )
+			ast_log(LOG_WARNING, "non-numeric argument\n");
 		if (!to_integer (b)) {
 			free_value(a);
 			free_value(b);
@@ -710,7 +749,8 @@ op_minus (struct val *a, struct val *b)
 			return (r);
 		}
 	} else if (!to_integer(b)) {
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		if( !extra_error_message_supplied )
+			ast_log(LOG_WARNING, "non-numeric argument\n");
 		free_value(b);
 		return (a);
 	}
@@ -731,7 +771,8 @@ op_negate (struct val *a)
 
 	if (!to_integer (a) ) {
 		free_value(a);
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		if( !extra_error_message_supplied )
+			ast_log(LOG_WARNING, "non-numeric argument\n");
 		return make_integer(0);
 	}
 
@@ -813,7 +854,8 @@ op_times (struct val *a, struct val *b)
 	if (!to_integer (a) || !to_integer (b)) {
 		free_value(a);
 		free_value(b);
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		if( !extra_error_message_supplied )
+			ast_log(LOG_WARNING, "non-numeric argument\n");
 		return(make_integer(0));
 	}
 
@@ -845,12 +887,14 @@ op_div (struct val *a, struct val *b)
 	if (!to_integer (a)) {
 		free_value(a);
 		free_value(b);
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		if( !extra_error_message_supplied )
+			ast_log(LOG_WARNING, "non-numeric argument\n");
 		return make_integer(0);
 	} else if (!to_integer (b)) {
 		free_value(a);
 		free_value(b);
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		if( !extra_error_message_supplied )
+			ast_log(LOG_WARNING, "non-numeric argument\n");
 		return make_integer(INT_MAX);
 	}
 
@@ -876,7 +920,8 @@ op_rem (struct val *a, struct val *b)
 	struct val *r;
 
 	if (!to_integer (a) || !to_integer (b)) {
-		ast_log(LOG_WARNING, "non-numeric argument\n");
+		if( !extra_error_message_supplied )
+			ast_log(LOG_WARNING, "non-numeric argument\n");
 		free_value(a);
 		free_value(b);
 		return make_integer(0);

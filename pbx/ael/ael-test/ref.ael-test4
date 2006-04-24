@@ -1,0 +1,15 @@
+Executed ast_register_file_version();
+LOG: lev:2 file:pbx_ael.c  line:3428 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:pbx_ael.c  line:3435 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
+LOG: lev:2 file:ael.flex  line:467 func: ael_yylex    --Read in included file ./apptest.ael2, 3474 chars
+LOG: lev:3 file:ael.y  line:405 func: ael_yyparse  ==== File: ./apptest.ael2, Line 46, Cols: 8-11: Suggestion: Use the goto statement instead of the Goto() application call in AEL.
+LOG: lev:2 file:pbx_ael.c  line:3438 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:3 file:pbx_ael.c  line:2081 func: check_pval_item  Warning: file ./apptest.ael2, line 35-35: application call to EndWhile needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pbx_ael.c  line:2081 func: check_pval_item  Warning: file ./apptest.ael2, line 37-37: application call to ExecIf needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:4 file:pbx_ael.c  line:1100 func: check_goto  Error: file ./apptest.ael2, line 46-46: goto:  no context cont could be found that matches the goto target!
+LOG: lev:3 file:pbx_ael.c  line:2081 func: check_pval_item  Warning: file ./apptest.ael2, line 47-47: application call to GotoIf needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pbx_ael.c  line:2081 func: check_pval_item  Warning: file ./apptest.ael2, line 48-48: application call to GotoIfTime needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pbx_ael.c  line:2081 func: check_pval_item  Warning: file ./apptest.ael2, line 85-85: application call to Random needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:3 file:pbx_ael.c  line:2081 func: check_pval_item  Warning: file ./apptest.ael2, line 141-141: application call to While needs to be re-written using AEL if, while, goto, etc. keywords instead!
+LOG: lev:4 file:pbx_ael.c  line:3451 func: pbx_load_module  Sorry, but 0 syntax errors and 1 semantic errors were detected. It doesn't make sense to compile.
+LOG: lev:4 file:ael2_parse  line:261 func: main  0 contexts, 0 extensions, 0 priorities

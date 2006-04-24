@@ -76,7 +76,7 @@ Olle E. Johansson - SIP RFC compliance, documentation and testing, testing, test
 Steve Kann - new jitter buffer for IAX2
 	stevek@stevek.com
 Constantine Filin - major contributions to the Asterisk Realtime Architecture
-Steve Murphy - privacy support
+Steve Murphy - privacy support, $[ ] parser upgrade, AEL2 parser upgrade
 Claude Patry - bug fixes, feature enhancements, and bug marshalling
 	cpatry@gmail.com
 

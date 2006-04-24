@@ -48,6 +48,23 @@ pbx_dundi.so: pbx_dundi.o dundi-parser.o
 pbx_dundi.o: pbx_dundi.c
 	$(CC) -c -o $@ $(CFLAGS) $(Z_INCLUDE) $<
 
+pbx_ael.o: ael/aelflex.o ael/aelbison.o ../include/asterisk/ael_structs.h
+
+pbx_ael.so: pbx_ael.o ael/aelbison.o ael/aelflex.o
+	$(CC) $(SOLINK) -o $@ pbx_ael.o ael/aelbison.o ael/aelflex.o
+
+ael/aelflex.o: ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h
+	$(CC) $(CFLAGS) -c -o ael/aelflex.o ael/ael_lex.c
+
+ael/aelbison.o: ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h
+	$(CC) $(CFLAGS) -c -o ael/aelbison.o ael/ael.tab.c
+
+ael/ael_lex.c: ael/ael.flex
+	(cd ael; flex ael.flex)
+
+ael/ael.tab.c ael/ael.tab.h: ael/ael.y
+	(cd ael; bison -v -d ael.y)
+
 %.moc : %.h
 	$(MOC) $< -o $@
 

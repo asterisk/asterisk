@@ -1,0 +1,18 @@
+Executed ast_register_file_version();
+LOG: lev:2 file:pbx_ael.c  line:3428 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:pbx_ael.c  line:3435 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
+LOG: lev:2 file:ael.flex  line:467 func: ael_yylex    --Read in included file ./include1.ael2, 78 chars
+LOG: lev:2 file:ael.flex  line:467 func: ael_yylex    --Read in included file ./include2.ael2, 98 chars
+LOG: lev:2 file:ael.flex  line:467 func: ael_yylex    --Read in included file ./include3.ael2, 57 chars
+LOG: lev:2 file:ael.flex  line:467 func: ael_yylex    --Read in included file ./include5.ael2, 56 chars
+LOG: lev:2 file:ael.flex  line:467 func: ael_yylex    --Read in included file ./include4.ael2, 87 chars
+LOG: lev:2 file:ael.flex  line:467 func: ael_yylex    --Read in included file /etc/asterisk/telemarket_torture.ael2, 28036 chars
+LOG: lev:2 file:pbx_ael.c  line:3438 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:3 file:pbx_ael.c  line:2186 func: check_pval_item  Warning: file ./extensions.ael, line 5-5: expression Console/dsp has operators, but no variables. Interesting...
+LOG: lev:3 file:pbx_ael.c  line:2186 func: check_pval_item  Warning: file ./extensions.ael, line 8-8: expression "Joe-Worker" has operators, but no variables. Interesting...
+LOG: lev:3 file:pbx_ael.c  line:2186 func: check_pval_item  Warning: file ./extensions.ael, line 10-10: expression Zap/6  has operators, but no variables. Interesting...
+LOG: lev:2 file:pbx_ael.c  line:3441 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:3443 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:3446 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:3449 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:261 func: main  172 contexts, 858 extensions, 2326 priorities

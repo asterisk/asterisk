@@ -1,0 +1,14 @@
+#!/bin/bash
+
+for i in ael-test*; do
+	echo -n Test: $i..................
+	(cd $i; ../../../../utils/aelparse -n -d | grep -v -i 'seconds' > ../res.$i)
+	if (diff -q res.$i ref.$i > /dev/null 2>&1 ) then
+		echo PASSED
+		rm res.$i
+	else
+		echo %%%%%%FAILED%%%%%%
+		diff -u ref.$i res.$i
+	fi
+
+done

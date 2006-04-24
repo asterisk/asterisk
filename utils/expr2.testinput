@@ -1,0 +1,92 @@
+2 + 2
+      2     +       2            
+
+2 - 4
+4 - 2
+-4 - -2
+4 + 2 * 8
+(4 + 2) * 8
+4 + (2 * 8)
+4 + (2 * 8) ? 3 :: 6
+4 + 8 / 2
+4 + 8 / 3
+(4+8) / 3
+4 + 8 % 3
+4 + 9 % 3
+(4+9) %3
+(4+8) %3
+(4+9) %3
+(4+8) %3
+(4+9) % 3
+(4+8) % 3
+(4+9) % 3
+(4+8) % 3
+(4+9)% 3
+(4+8)% 3
+(4+9)% 3
+(4+8)% 3
+4 & 4
+0 & 4
+0 & 0
+2 | 0
+2 | 4
+0 | 0
+!0 | 0
+!4 | 0
+4 | !0
+!4 | !0
+3 < 4
+4 < 3
+3 > 4
+4 > 3
+3 = 3
+3 = 4
+3 != 3
+3 != 4
+3 >= 4
+3 >= 3
+4 >= 3
+3 <= 4
+4 <= 3
+4 <= 4
+3 > 4 & 4 < 3
+4 > 3 & 3 < 4
+x = x
+y = x
+x != y
+x != x
+"Something interesting" =~ interesting
+"Something interesting" =~ Something
+"Something interesting" : Something
+"Something interesting" : interesting
+"Something interesting" =~ "interesting"
+"Something interesting" =~ "Something"
+"Something interesting" : "Something"
+"Something interesting" : "interesting"
+"Something interesting" =~ (interesting)
+"Something interesting" =~ (Something)
+"Something interesting" : (Something)
+"Something interesting" : (interesting)
+"Something interesting" =~ "\(interesting\)"
+"Something interesting" =~ "\(Something\)"
+"Something interesting" : "\(Something\)"
+"Something interesting" : "\(interesting\)"
+"011043567857575" : "011\(..\)"
+"9011043567857575" : "011\(..\)"
+"011043567857575" =~ "011\(..\)"
+"9011043567857575" =~ "011\(..\)"
+"Something interesting" =~ (interesting)
+"Something interesting" =~ (Something)
+"Something interesting" : (Something)
+"Something interesting" : (interesting)
+"Something interesting" =~ "(interesting)"
+"Something interesting" =~ "(Something)"
+"Something interesting" : "(Something)"
+"Something interesting" : "(interesting)"
+"011043567857575" : "011(..)"
+"9011043567857575" : "011(..)"
+"011043567857575" =~ "011(..)"
+"9011043567857575" =~ "011(..)"
+3
+something
+043

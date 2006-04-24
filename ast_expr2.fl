@@ -19,7 +19,7 @@
 
 /*! \file
  *
- * \brief Dialplan Expression Parser
+ * \brief Dialplan Expression Lexical Scanner
  */
 
 #include <sys/types.h>
@@ -73,6 +73,7 @@ struct parse_io
 void ast_yyset_column(int column_no, yyscan_t yyscanner);
 int ast_yyget_column(yyscan_t yyscanner);
 static int curlycount = 0;
+static char *expr2_token_subst(char *mess);
 %}
 
 %option prefix="ast_yy"
@@ -89,6 +90,10 @@ static int curlycount = 0;
 \|	{ SET_COLUMNS; SET_STRING; return TOK_OR;}
 \&	{ SET_COLUMNS; SET_STRING; return TOK_AND;}
 \=	{ SET_COLUMNS; SET_STRING; return TOK_EQ;}
+\|\|	{ SET_COLUMNS; SET_STRING; return TOK_OR;}
+\&\&	{ SET_COLUMNS; SET_STRING; return TOK_AND;}
+\=\=	{ SET_COLUMNS; SET_STRING; return TOK_EQ;}
+\=~	{ SET_COLUMNS; SET_STRING; return TOK_EQTILDE;}
 \>	{ SET_COLUMNS; SET_STRING; return TOK_GT;}
 \<	{ SET_COLUMNS; SET_STRING; return TOK_LT;}
 \>\=	{ SET_COLUMNS; SET_STRING; return TOK_GE;}
@@ -100,6 +105,7 @@ static int curlycount = 0;
 \/	{ SET_COLUMNS; SET_STRING; return TOK_DIV;}
 \%	{ SET_COLUMNS; SET_STRING; return TOK_MOD;}
 \?	{ SET_COLUMNS; SET_STRING; return TOK_COND;}
+\!	{ SET_COLUMNS; SET_STRING; return TOK_COMPL;}
 \:	{ SET_COLUMNS; SET_STRING; return TOK_COLON;}
 \:\:	{ SET_COLUMNS; SET_STRING; return TOK_COLONCOLON;}
 \(	{ SET_COLUMNS; SET_STRING; return TOK_LP;}
@@ -114,14 +120,15 @@ static int curlycount = 0;
 [0-9]+		{   SET_COLUMNS;  /* the original behavior of the expression parser was to bring in numbers as a numeric string */
 				SET_NUMERIC_STRING;
 				return TOKEN;}
-[a-zA-Z0-9,.';\\_^%$#@!]+	{SET_COLUMNS; SET_STRING; return TOKEN;}
+
+[a-zA-Z0-9,.';\\_^$#@]+	{SET_COLUMNS; SET_STRING; return TOKEN;}
 
 <var>[^{}]*\}  {curlycount--; if(curlycount < 0){ BEGIN(trail);  yymore();} else {  yymore();}}
 <var>[^{}]*\{  {curlycount++; yymore();  }
 <trail>[^-\t\r \n$():?%/+=*<>!|&]* {BEGIN(0); SET_COLUMNS; SET_STRING; return TOKEN;}
 <trail>[-\t\r \n$():?%/+=*<>!|&]        {char c = yytext[yyleng-1]; BEGIN(0); unput(c); SET_COLUMNS; SET_STRING; return TOKEN;}
 <trail>\$\{            {curlycount = 0; BEGIN(var); yymore();  }
-<trail><<EOF>>		{BEGIN(0); SET_COLUMNS; SET_STRING; return TOKEN; /* actually, if an expr is only a variable ref, this could happen a LOT */}
+<trail><<EOF>>		{BEGIN(0); SET_COLUMNS; SET_STRING; return TOKEN; /*actually, if an expr is only a variable ref, this could happen a LOT */}
 
 %%
 
@@ -175,16 +182,129 @@ int ast_expr(char *expr, char *buf, int length)
 	return return_value;
 }
 
+
+char extra_error_message[4095];
+int extra_error_message_supplied = 0;
+void  ast_expr_register_extra_error_info(char *message);
+void  ast_expr_clear_extra_error_info(void);
+
+void  ast_expr_register_extra_error_info(char *message)
+{
+       extra_error_message_supplied=1;
+       strcpy(extra_error_message, message);
+}
+
+void  ast_expr_clear_extra_error_info(void)
+{
+       extra_error_message_supplied=0;
+       extra_error_message[0] = 0;
+}
+
+static char *expr2_token_equivs1[] = 
+{
+	"TOKEN",
+	"TOK_COND",
+	"TOK_COLONCOLON",
+	"TOK_OR",
+	"TOK_AND",
+	"TOK_EQ",
+	"TOK_GT",
+	"TOK_LT",
+	"TOK_GE",
+	"TOK_LE",
+	"TOK_NE",
+	"TOK_PLUS",
+	"TOK_MINUS",
+	"TOK_MULT",
+	"TOK_DIV",
+	"TOK_MOD",
+	"TOK_COMPL",
+	"TOK_COLON",
+	"TOK_EQTILDE",
+	"TOK_RP",
+	"TOK_LP"
+};
+
+static char *expr2_token_equivs2[] = 
+{
+	"<token>",
+	"?",
+	"::",
+	"|",
+	"&",
+	"=",
+	">",
+	"<",
+	">=",
+	"<=",
+	"!=",
+	"+",
+	"-",
+	"*",
+	"/",
+	"%",
+	"!",
+	":",
+	"=~",
+	")",
+	"("
+};
+
+
+static char *expr2_token_subst(char *mess)
+{
+	/* calc a length, malloc, fill, and return; yyerror had better free it! */
+	int len=0,i;
+	char *p;
+	char *res, *s,*t;
+	int expr2_token_equivs_entries = sizeof(expr2_token_equivs1)/sizeof(char*);
+
+	for (p=mess; *p; p++) {
+		for (i=0; i<expr2_token_equivs_entries; i++) {
+			if ( strncmp(p,expr2_token_equivs1[i],strlen(expr2_token_equivs1[i])) == 0 )
+			{
+				len+=strlen(expr2_token_equivs2[i])+2;
+				p += strlen(expr2_token_equivs1[i])-1;
+				break;
+			}
+		}
+		len++;
+	}
+	res = (char*)malloc(len+1);
+	res[0] = 0;
+	s = res;
+	for (p=mess; *p;) {
+		int found = 0;
+		for (i=0; i<expr2_token_equivs_entries; i++) {
+			if ( strncmp(p,expr2_token_equivs1[i],strlen(expr2_token_equivs1[i])) == 0 ) {
+				*s++ = '\'';
+				for (t=expr2_token_equivs2[i]; *t;) {
+					*s++ = *t++;
+				}
+				*s++ = '\'';
+				p += strlen(expr2_token_equivs1[i]);
+				found = 1;
+				break;
+			}
+		}
+		if( !found )
+			*s++ = *p++;
+	}
+	*s++ = 0;
+	return res;
+}
+
 int ast_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 {	
 	struct yyguts_t * yyg = (struct yyguts_t*)(parseio->scanner);
 	char spacebuf[8000]; /* best safe than sorry */
 	char spacebuf2[8000]; /* best safe than sorry */
 	int i=0;
+	char *s2 = expr2_token_subst((char *)s);
 	spacebuf[0] = 0;
 	
 	for(i=0;i< (int)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);i++) spacebuf2[i] = ' ';  /* uh... assuming yyg is defined, then I can use the yycolumn macro,
-													which is the same thing as... get this:
+																								which is the same thing as... get this:
 													yyg->yy_buffer_stack[yyg->yy_buffer_stack_top]->yy_bs_column
 													I was tempted to just use yy_buf_pos in the STATE, but..., well:
 														a. the yy_buf_pos is the current position in the buffer, which
@@ -199,14 +319,15 @@ int ast_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 
 #ifdef STANDALONE3
 	/* easier to read in the standalone version */
-	printf("ast_yyerror(): syntax error: %s; Input:\n%s\n%s\n",  
-			s, parseio->string,spacebuf2);
+	printf("ast_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",  
+			(extra_error_message_supplied?extra_error_message:""), s2, parseio->string,spacebuf2);
 #else
-	ast_log(LOG_WARNING,"ast_yyerror(): syntax error: %s; Input:\n%s\n%s\n",  
-			s, parseio->string,spacebuf2);
+	ast_log(LOG_WARNING,"ast_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",  
+			(extra_error_message_supplied?extra_error_message:""), s2, parseio->string,spacebuf2);
 #endif
 #ifndef STANDALONE
 	ast_log(LOG_WARNING,"If you have questions, please refer to doc/channelvariables.txt in the asterisk source.\n");
 #endif
+	free(s2);
 	return(0);
 }
