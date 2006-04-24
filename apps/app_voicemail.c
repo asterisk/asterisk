@@ -5577,6 +5577,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 	char *tmp;
 	struct leave_vm_options leave_options;
 	struct ast_flags flags = { 0 };
+	static int deprecate_warning = 0;
 	char *opts[OPT_ARG_ARRAY_SIZE];
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(argv0);
@@ -5617,18 +5618,29 @@ static int vm_exec(struct ast_channel *chan, void *data)
 			}
 		} else {
 			/* old style options parsing */
+			int old = 0;
+			char *orig_argv0 = args.argv0;
 			while (*(args.argv0)) {
-				if (*(args.argv0) == 's')
+				if (*(args.argv0) == 's') {
+					old = 1;
 					ast_set_flag(&leave_options, OPT_SILENT);
-				else if (*(args.argv0) == 'b')
+				} else if (*(args.argv0) == 'b') {
+					old = 1;
 					ast_set_flag(&leave_options, OPT_BUSY_GREETING);
-				else if (*(args.argv0) == 'u')
+				} else if (*(args.argv0) == 'u') {
+					old = 1;
 					ast_set_flag(&leave_options, OPT_UNAVAIL_GREETING);
-				else if (*(args.argv0) == 'j')
+				} else if (*(args.argv0) == 'j') {
+					old = 1;
 					ast_set_flag(&leave_options, OPT_PRIORITY_JUMP);
-				else 
+				} else
 					break;
 				(args.argv0)++;
+			}
+			if (!deprecate_warning && old) {
+				deprecate_warning = 1;
+				ast_log(LOG_WARNING, "Prefixing the mailbox with an option is deprecated ('%s').\n", orig_argv0);
+				ast_log(LOG_WARNING, "Please move all leading options to the second argument.\n");
 			}
 		}
 	} else {
