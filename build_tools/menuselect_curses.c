@@ -237,6 +237,7 @@ void draw_title_window(WINDOW *title)
 	wmove(title, 3, (max_x / 2) - (strlen(MENU_TITLE3) / 2));
 	waddstr(title, MENU_TITLE3);
 	wmove(title, 0, 0);
+	waddstr(title, "Press 'h' for help");
 	wrefresh(title);
 }
 
