@@ -38,19 +38,26 @@ if test "${USE_$1}" != "no"; then
 	 fi
       fi
       if test "x${$4_HEADER_FOUND}" = "x0" ; then
-        echo " ***"
-        echo " *** It appears that you do not have the $5 development package installed."
-        echo " *** Please install it to include $5 support, or re-run configure"
-        echo " *** with the argument --without-$1"
-        exit 1
+         if test ! -z "${$1_MANDATORY}" ;
+         then
+            echo " ***"
+            echo " *** It appears that you do not have the $1 development package installed."
+            echo " *** Please install it to include $5 support, or re-run configure"
+            echo " *** without explicitly specifying --with-$1"
+            exit 1
+         fi
+         $1_LIB=""
+         $1_INCLUDE=""
+         PBX_LIB$1=0
+      else
+         PBX_LIB$1=1
       fi
-      PBX_LIB$1=1 
    elif test ! -z "${$1_MANDATORY}";
    then
       echo "***"
       echo "*** The $5 installation on this system appears to be broken."
       echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-$1"
+      echo "*** without explicity specifying --with-$1"
       exit 1
    fi
 fi
