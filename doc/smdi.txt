@@ -26,7 +26,7 @@ behave as a message desk.
 exten => _XXXXXXX,1,VoiceMail(${EXTEN}|${SMDI_VM_TYPE})
 exten => _XXXXXXX,n,Hangup
 
-exten => s,1,VoiceMailMain(${CALLERIDNUM})
+exten => s,1,VoiceMailMain(${CALLERID(num)})
 exten => s,n,Hangup
 
 The ${SMDI_VM_TYPE} variable will be set to u, b, or nothing depending on the
