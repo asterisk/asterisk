@@ -161,6 +161,7 @@ AST_EXT_LIB([asound], [snd_spcm_init], [alsa/asoundlib.h], [ALSA], [Advanced Lin
 AST_EXT_LIB([curses], [initscr], [curses.h], [CURSES], [curses], [])
 AST_EXT_LIB([mfcr2], [mfcr2_MakeCall], [libmfcr2.h], [MFCR2], [MFCR2])
 AST_EXT_LIB([nbs], [nbs_setup], [nbs.h], [NBS], [Network Broadcast Sound])
+AST_EXT_LIB([ncurses], [initscr], [curses.h], [NCURSES], [ncurses], [])
 AST_EXT_LIB([newt], [newtBell], [newt.h], [NEWT], [newt])
 AST_EXT_LIB([odbc], [SQLConnect], [sql.h], [UNIXODBC], [unixODBC])
 AST_EXT_LIB([ogg], [ogg_sync_init], [], [OGG], [OGG])
