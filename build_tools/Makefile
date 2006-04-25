@@ -1,4 +1,4 @@
-MENUSELECT_OBJS=menuselect.o menuselect_curses.o ../strcompat.o
+MENUSELECT_OBJS=menuselect.o menuselect_curses.o
 MENUSELECT_CFLAGS=-g -c -D_GNU_SOURCE -I../ -I../include/
 MENUSELECT_LIBS=../mxml/libmxml.a
 
@@ -11,7 +11,7 @@ else
 endif
 
 menuselect: $(MENUSELECT_OBJS)
-	$(CC) -g -o $@ $(MENUSELECT_OBJS) $(MENUSELECT_LIBS)
+	$(CC) -g -o $@ ../strcompat.o $(MENUSELECT_OBJS) $(MENUSELECT_LIBS)
 
 menuselect.o: menuselect.c menuselect.h
 	$(CC) -o $@ $(MENUSELECT_CFLAGS) $<
