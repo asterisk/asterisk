@@ -22,8 +22,10 @@ then
 	autoheader259
 	automake19 --add-missing --copy 2>/dev/null
 else
-	export AUTOCONF_VERSION=2.59
-	export AUTOMAKE_VERSION=1.9
+	AUTOCONF_VERSION=2.59
+	AUTOMAKE_VERSION=1.9
+	export AUTOCONF_VERSION
+	export AUTOMAKE_VERSION
 
 	check_for_app autoconf
 	check_for_app autoheader
