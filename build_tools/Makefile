@@ -1,4 +1,4 @@
-MENUSELECT_OBJS=menuselect.o menuselect_curses.o
+MENUSELECT_OBJS=menuselect.o menuselect_curses.o ../strcompat.o
 MENUSELECT_CFLAGS=-g -c -D_GNU_SOURCE -I../ -I../include/
 MENUSELECT_LIBS=../mxml/libmxml.a $(CURSES_LIB)
 

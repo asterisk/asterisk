@@ -978,7 +978,7 @@ uninstall-all: _uninstall
 menuselect: build_tools/menuselect makeopts.xml
 	-@build_tools/menuselect ${GLOBAL_MAKEOPTS} ${USER_MAKEOPTS} menuselect.makeopts && echo "menuselect changes saved!" || echo "menuselect changes NOT saved!"
 
-build_tools/menuselect: build_tools/menuselect.c build_tools/menuselect_curses.c build_tools/menuselect.h mxml/libmxml.a include/autoconfig.h
+build_tools/menuselect: build_tools/menuselect.c build_tools/menuselect_curses.c build_tools/menuselect.h include/autoconfig.h strcompat.o mxml/libmxml.a
 	$(MAKE) -C build_tools menuselect
 
 mxml/libmxml.a:
