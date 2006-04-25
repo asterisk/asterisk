@@ -7,9 +7,6 @@ describing Asterisk dial plans.
 The current version was written by Steve Murphy, and is a rewrite of 
 the original version.
 
-AEL is considered an EXPERIMENTAL Version. (yet is being
-used in the field with success)
-
 This new version further extends AEL, and
 provides more flexible syntax, better error messages, and some missing
 functionality.
