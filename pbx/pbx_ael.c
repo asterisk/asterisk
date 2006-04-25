@@ -1080,8 +1080,9 @@ static void check_goto(pval *item)
 								struct pval *that_other_context = find_context(incl_context);
 								if (that_other_context) {
 									struct pval *context_save = current_context;
+									struct pval *x3;
 									current_context = that_other_context;
-									struct pval *x3 = find_label_in_current_context((char *)item->u1.list->next->u1.str, (char *)item->u1.list->next->next->u1.str);
+									x3 = find_label_in_current_context((char *)item->u1.list->next->u1.str, (char *)item->u1.list->next->next->u1.str);
 									current_context = context_save;
 									if (x3) {
 										found = x3;
@@ -1549,8 +1550,9 @@ struct pval *find_label_in_current_context(char *exten, char *label)
 				struct pval *that_context = find_context(incl_context);
 				if (that_context) {
 					struct pval *context_save = current_context;
+					struct pval *x3;
 					current_context = that_context;
-					struct pval *x3 = find_label_in_current_context(exten, label);
+					x3 = find_label_in_current_context(exten, label);
 					current_context = context_save;
 					if (x3) {
 						return x3;
