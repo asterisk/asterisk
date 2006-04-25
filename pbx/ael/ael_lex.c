@@ -661,7 +661,7 @@ static yyconst flex_int16_t yy_chk[553] =
 
 #include "asterisk.h"
 #include "asterisk/logger.h"
-#include "ael.tab.h"
+#include "ael/ael.tab.h"
 #include "asterisk/ael_structs.h"
 
 static char pbcstack[400];
