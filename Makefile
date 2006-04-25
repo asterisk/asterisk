@@ -982,7 +982,7 @@ build_tools/menuselect: build_tools/menuselect.c build_tools/menuselect_curses.c
 	$(MAKE) -C build_tools menuselect
 
 mxml/libmxml.a:
-	@cd mxml && unset CFLAGS && test -f config.h || ./configure
+	@cd mxml && unset CFLAGS LIBS && test -f config.h || ./configure
 	$(MAKE) -C mxml libmxml.a
 
 makeopts.xml: $(foreach dir,$(MOD_SUBDIRS),$(dir)/*.c) build_tools/cflags.xml
