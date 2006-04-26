@@ -34,9 +34,9 @@ static int pbcpos = 0;
 
 static int parencount = 0;
 static int commaout = 0;
-int my_lineno = 1;
-int my_col = 0;
-char *my_file = 0;
+static int my_lineno = 1;
+static int my_col = 0;
+static char *my_file = 0;
 char *prev_word;
 #define MAX_INCLUDE_DEPTH 50
 
@@ -53,8 +53,8 @@ struct stackelement {
 	int colno;
 	YY_BUFFER_STATE bufstate;
 };
-struct stackelement  include_stack[MAX_INCLUDE_DEPTH];
-int include_stack_index = 0;
+static struct stackelement  include_stack[MAX_INCLUDE_DEPTH];
+static int include_stack_index = 0;
 
 %}
 
