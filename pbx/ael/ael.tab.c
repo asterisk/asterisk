@@ -153,7 +153,7 @@
 #line 1 "ael.y"
 
 /*
- * Asterisk -- An open source telephony toolkit. 
+ * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 2006, Digium, Inc.
  *
@@ -172,7 +172,7 @@
 /*! \file
  *
  * \brief Bison Grammar description of AEL2.
- * 
+ *
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -193,7 +193,7 @@ int ael_is_funcname(char *name);
 #endif
  static char *ael_token_subst(char *mess);
  extern char *prev_word;
- 
+
 
 
 /* Enabling traces.  */
@@ -247,7 +247,7 @@ typedef struct YYLTYPE
 	/* declaring these AFTER the union makes things a lot simpler! */
 void yyerror(YYLTYPE *locp, struct parse_io *parseio, char const *s);
 int ael_yylex (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , void * yyscanner);
-	
+
 
 
 /* Line 219 of yacc.c.  */
@@ -1818,7 +1818,7 @@ yyreduce:
 
   case 4:
 #line 130 "ael.y"
-    {if ( (yyvsp[-1].pval) && (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[-1].pval); linku1((yyval.pval),(yyvsp[0].pval));} 
+    {if ( (yyvsp[-1].pval) && (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[-1].pval); linku1((yyval.pval),(yyvsp[0].pval));}
 						 else if ( (yyvsp[-1].pval) ) {(yyval.pval)=(yyvsp[-1].pval);}
 						 else if ( (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[0].pval);} ;}
     break;
@@ -1890,7 +1890,7 @@ yyreduce:
 
   case 18:
 #line 152 "ael.y"
-    {(yyval.pval)=npval(PV_MACRO,(yylsp[-7]).first_line,(yylsp[0]).last_line, (yylsp[-7]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_MACRO,(yylsp[-7]).first_line,(yylsp[0]).last_line, (yylsp[-7]).first_column, (yylsp[0]).last_column);
 																	 (yyval.pval)->u1.str = (yyvsp[-6].str); (yyval.pval)->u2.arglist = (yyvsp[-4].pval); (yyval.pval)->u3.macro_statements = (yyvsp[-1].pval); ;}
     break;
 
@@ -1971,9 +1971,9 @@ yyreduce:
 
   case 34:
 #line 178 "ael.y"
-    { if ( (yyvsp[-1].pval) && (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[-1].pval); linku1((yyval.pval),(yyvsp[0].pval));} 
-						 else if ( (yyvsp[-1].pval) ) {(yyval.pval)=(yyvsp[-1].pval);}
-						 else if ( (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[0].pval);} ;}
+    { if ( (yyvsp[-1].pval) && (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[-1].pval); linku1((yyval.pval),(yyvsp[0].pval));}
+				else if ( (yyvsp[-1].pval) ) {(yyval.pval)=(yyvsp[-1].pval);}
+				else if ( (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[0].pval);} ;}
     break;
 
   case 35:
@@ -2058,7 +2058,7 @@ yyreduce:
 
   case 51:
 #line 205 "ael.y"
-    {if ( (yyvsp[-1].pval) && (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[-1].pval); linku1((yyval.pval),(yyvsp[0].pval));} 
+    {if ( (yyvsp[-1].pval) && (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[-1].pval); linku1((yyval.pval),(yyvsp[0].pval));}
 						 else if ( (yyvsp[-1].pval) ) {(yyval.pval)=(yyvsp[-1].pval);}
 						 else if ( (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[0].pval);} ;}
     break;
@@ -2090,8 +2090,8 @@ yyreduce:
 
   case 57:
 #line 217 "ael.y"
-    { (yyval.pval)= npval(PV_IFTIME,(yylsp[-13]).first_line,(yylsp[-9]).last_line, (yylsp[-13]).first_column, (yylsp[-9]).last_column); 
-					(yyval.pval)->u1.list = npval(PV_WORD,(yylsp[-11]).first_line,(yylsp[-11]).last_line, (yylsp[-11]).first_column, (yylsp[-11]).last_column); 
+    { (yyval.pval)= npval(PV_IFTIME,(yylsp[-13]).first_line,(yylsp[-9]).last_line, (yylsp[-13]).first_column, (yylsp[-9]).last_column);
+					(yyval.pval)->u1.list = npval(PV_WORD,(yylsp[-11]).first_line,(yylsp[-11]).last_line, (yylsp[-11]).first_column, (yylsp[-11]).last_column);
 					(yyval.pval)->u1.list->u1.str = (char*)malloc(strlen((yyvsp[-11].str))+strlen((yyvsp[-9].str))+strlen((yyvsp[-7].str))+4);
 					strcpy((yyval.pval)->u1.list->u1.str,(yyvsp[-11].str));
 					strcat((yyval.pval)->u1.list->u1.str,":");
@@ -2101,27 +2101,27 @@ yyreduce:
 					free((yyvsp[-11].str));
 					free((yyvsp[-9].str));
 					free((yyvsp[-7].str));
-					(yyval.pval)->u1.list->next = npval(PV_WORD,(yylsp[-5]).first_line,(yylsp[-5]).last_line, (yylsp[-5]).first_column, (yylsp[-5]).last_column); 
-					(yyval.pval)->u1.list->next->u1.str = (yyvsp[-5].str); 
-					(yyval.pval)->u1.list->next->next = npval(PV_WORD,(yylsp[-3]).first_line,(yylsp[-3]).last_line, (yylsp[-3]).first_column, (yylsp[-3]).last_column); 
-					(yyval.pval)->u1.list->next->next->u1.str = (yyvsp[-3].str); 
-					(yyval.pval)->u1.list->next->next->next = npval(PV_WORD,(yylsp[-1]).first_line,(yylsp[-1]).last_line, (yylsp[-1]).first_column, (yylsp[-1]).last_column); 
-					(yyval.pval)->u1.list->next->next->next->u1.str = (yyvsp[-1].str); 
+					(yyval.pval)->u1.list->next = npval(PV_WORD,(yylsp[-5]).first_line,(yylsp[-5]).last_line, (yylsp[-5]).first_column, (yylsp[-5]).last_column);
+					(yyval.pval)->u1.list->next->u1.str = (yyvsp[-5].str);
+					(yyval.pval)->u1.list->next->next = npval(PV_WORD,(yylsp[-3]).first_line,(yylsp[-3]).last_line, (yylsp[-3]).first_column, (yylsp[-3]).last_column);
+					(yyval.pval)->u1.list->next->next->u1.str = (yyvsp[-3].str);
+					(yyval.pval)->u1.list->next->next->next = npval(PV_WORD,(yylsp[-1]).first_line,(yylsp[-1]).last_line, (yylsp[-1]).first_column, (yylsp[-1]).last_column);
+					(yyval.pval)->u1.list->next->next->next->u1.str = (yyvsp[-1].str);
 					prev_word = 0;
 		;}
     break;
 
   case 58:
 #line 236 "ael.y"
-    { (yyval.pval)= npval(PV_IFTIME,(yylsp[-9]).first_line,(yylsp[-5]).last_line, (yylsp[-9]).first_column, (yylsp[-5]).last_column); 
-					(yyval.pval)->u1.list = npval(PV_WORD,(yylsp[-7]).first_line,(yylsp[-7]).last_line, (yylsp[-7]).first_column, (yylsp[-7]).last_column); 
+    { (yyval.pval)= npval(PV_IFTIME,(yylsp[-9]).first_line,(yylsp[-5]).last_line, (yylsp[-9]).first_column, (yylsp[-5]).last_column);
+					(yyval.pval)->u1.list = npval(PV_WORD,(yylsp[-7]).first_line,(yylsp[-7]).last_line, (yylsp[-7]).first_column, (yylsp[-7]).last_column);
 					(yyval.pval)->u1.list->u1.str = (yyvsp[-7].str);
-					(yyval.pval)->u1.list->next = npval(PV_WORD,(yylsp[-5]).first_line,(yylsp[-5]).last_line, (yylsp[-5]).first_column, (yylsp[-5]).last_column); 
-					(yyval.pval)->u1.list->next->u1.str = (yyvsp[-5].str); 
-					(yyval.pval)->u1.list->next->next = npval(PV_WORD,(yylsp[-3]).first_line,(yylsp[-3]).last_line, (yylsp[-3]).first_column, (yylsp[-3]).last_column); 
-					(yyval.pval)->u1.list->next->next->u1.str = (yyvsp[-3].str); 
-					(yyval.pval)->u1.list->next->next->next = npval(PV_WORD,(yylsp[-1]).first_line,(yylsp[-1]).last_line, (yylsp[-1]).first_column, (yylsp[-1]).last_column); 
-					(yyval.pval)->u1.list->next->next->next->u1.str = (yyvsp[-1].str); 
+					(yyval.pval)->u1.list->next = npval(PV_WORD,(yylsp[-5]).first_line,(yylsp[-5]).last_line, (yylsp[-5]).first_column, (yylsp[-5]).last_column);
+					(yyval.pval)->u1.list->next->u1.str = (yyvsp[-5].str);
+					(yyval.pval)->u1.list->next->next = npval(PV_WORD,(yylsp[-3]).first_line,(yylsp[-3]).last_line, (yylsp[-3]).first_column, (yylsp[-3]).last_column);
+					(yyval.pval)->u1.list->next->next->u1.str = (yyvsp[-3].str);
+					(yyval.pval)->u1.list->next->next->next = npval(PV_WORD,(yylsp[-1]).first_line,(yylsp[-1]).last_line, (yylsp[-1]).first_column, (yylsp[-1]).last_column);
+					(yyval.pval)->u1.list->next->next->next->u1.str = (yyvsp[-1].str);
 					prev_word = 0;
 		;}
     break;
@@ -2189,7 +2189,7 @@ yyreduce:
 
   case 71:
 #line 275 "ael.y"
-    {(yyval.pval)=npval(PV_VARDEC,(yylsp[-4]).first_line,(yylsp[0]).last_line, (yylsp[-4]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_VARDEC,(yylsp[-4]).first_line,(yylsp[0]).last_line, (yylsp[-4]).first_column, (yylsp[0]).last_column);
 				(yyval.pval)->u1.str = (yyvsp[-4].str); (yyval.pval)->u2.val = (yyvsp[-1].str); ;}
     break;
 
@@ -2225,7 +2225,7 @@ yyreduce:
 
   case 78:
 #line 283 "ael.y"
-    { (yyval.pval)=npval(PV_FOR,(yylsp[-11]).first_line,(yylsp[0]).last_line, (yylsp[-11]).first_column, (yylsp[0]).last_column); 
+    { (yyval.pval)=npval(PV_FOR,(yylsp[-11]).first_line,(yylsp[0]).last_line, (yylsp[-11]).first_column, (yylsp[0]).last_column);
 						(yyval.pval)->u1.for_init = (yyvsp[-8].str); (yyval.pval)->u2.for_test=(yyvsp[-5].str); (yyval.pval)->u3.for_inc = (yyvsp[-2].str); (yyval.pval)->u4.for_statements = (yyvsp[0].pval);;}
     break;
 
@@ -2236,7 +2236,7 @@ yyreduce:
 
   case 80:
 #line 286 "ael.y"
-    {(yyval.pval)=npval(PV_WHILE,(yylsp[-5]).first_line,(yylsp[0]).last_line, (yylsp[-5]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_WHILE,(yylsp[-5]).first_line,(yylsp[0]).last_line, (yylsp[-5]).first_column, (yylsp[0]).last_column);
 					(yyval.pval)->u1.str = (yyvsp[-2].str); (yyval.pval)->u2.statements = (yyvsp[0].pval); ;}
     break;
 
@@ -2262,7 +2262,7 @@ yyreduce:
 
   case 85:
 #line 292 "ael.y"
-    { (yyval.pval)= npval(PV_APPLICATION_CALL,(yylsp[-1]).first_line,(yylsp[0]).last_line, (yylsp[-1]).first_column, (yylsp[0]).last_column); 
+    { (yyval.pval)= npval(PV_APPLICATION_CALL,(yylsp[-1]).first_line,(yylsp[0]).last_line, (yylsp[-1]).first_column, (yylsp[0]).last_column);
 																						(yyval.pval)->u1.str = (yyvsp[-1].str);;}
     break;
 
@@ -2277,7 +2277,7 @@ yyreduce:
                           char *bufx;
 						  int tot=0;
 						  pval *pptr;
-						  
+
                           (yyval.pval) = npval(PV_VARDEC,(yylsp[-4]).first_line,(yylsp[0]).last_line, (yylsp[-4]).first_column, (yylsp[0]).last_column);
 						  (yyval.pval)->u2.val=(yyvsp[-1].str);
 						  /* rebuild the original string-- this is not an app call, it's an unwrapped vardec, with a func call on the LHS */
@@ -2299,7 +2299,7 @@ yyreduce:
 						  strcat(bufx,")");
 #ifdef AAL_ARGCHECK
 						  if ( !ael_is_funcname((yyvsp[-4].pval)->u1.str) )
-                              ast_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Function call? The name %s is not in my internal list of function names\n", 
+                              ast_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Function call? The name %s is not in my internal list of function names\n",
 									  my_file, (yylsp[-4]).first_line, (yylsp[-4]).first_column, (yylsp[-4]).last_column, (yyvsp[-4].pval)->u1.str);
 #endif
 						  (yyval.pval)->u1.str = bufx;
@@ -2365,101 +2365,101 @@ yyreduce:
 
   case 99:
 #line 340 "ael.y"
-    {(yyval.pval)=npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column); 
-					(yyval.pval)->u1.str = (yyvsp[-2].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column);
+					(yyval.pval)->u1.str = (yyvsp[-2].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
 					(yyval.pval)->next->u1.str = (yyvsp[0].str);;}
     break;
 
   case 100:
 #line 343 "ael.y"
-    {(yyval.pval)=npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column); 
-					(yyval.pval)->u1.str = (yyvsp[-2].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column);
+					(yyval.pval)->u1.str = (yyvsp[-2].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
 					(yyval.pval)->next->u1.str = (yyvsp[0].str);;}
     break;
 
   case 101:
 #line 346 "ael.y"
-    {(yyval.pval)=npval(PV_WORD,(yylsp[-4]).first_line,(yylsp[-4]).last_line, (yylsp[-4]).first_column, (yylsp[-4]).last_column); 
-					(yyval.pval)->u1.str = (yyvsp[-4].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column); 
-					(yyval.pval)->next->u1.str = (yyvsp[-2].str); 
-					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_WORD,(yylsp[-4]).first_line,(yylsp[-4]).last_line, (yylsp[-4]).first_column, (yylsp[-4]).last_column);
+					(yyval.pval)->u1.str = (yyvsp[-4].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column);
+					(yyval.pval)->next->u1.str = (yyvsp[-2].str);
+					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
 					(yyval.pval)->next->next->u1.str = (yyvsp[0].str); ;}
     break;
 
   case 102:
 #line 351 "ael.y"
-    {(yyval.pval)=npval(PV_WORD,(yylsp[-4]).first_line,(yylsp[-4]).last_line, (yylsp[-4]).first_column, (yylsp[-4]).last_column); 
-					(yyval.pval)->u1.str = (yyvsp[-4].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column); 
-					(yyval.pval)->next->u1.str = (yyvsp[-2].str); 
-					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_WORD,(yylsp[-4]).first_line,(yylsp[-4]).last_line, (yylsp[-4]).first_column, (yylsp[-4]).last_column);
+					(yyval.pval)->u1.str = (yyvsp[-4].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column);
+					(yyval.pval)->next->u1.str = (yyvsp[-2].str);
+					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
 					(yyval.pval)->next->next->u1.str = (yyvsp[0].str); ;}
     break;
 
   case 103:
 #line 356 "ael.y"
-    {(yyval.pval)=npval(PV_WORD,(yylsp[-4]).first_line,(yylsp[-4]).last_line, (yylsp[-4]).first_column, (yylsp[-4]).last_column); 
-					(yyval.pval)->u1.str = strdup("default"); (yyval.pval)->next = npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column); 
-					(yyval.pval)->next->u1.str = (yyvsp[-2].str); 
-					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_WORD,(yylsp[-4]).first_line,(yylsp[-4]).last_line, (yylsp[-4]).first_column, (yylsp[-4]).last_column);
+					(yyval.pval)->u1.str = strdup("default"); (yyval.pval)->next = npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column);
+					(yyval.pval)->next->u1.str = (yyvsp[-2].str);
+					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
 					(yyval.pval)->next->next->u1.str = (yyvsp[0].str); ;}
     break;
 
   case 104:
 #line 361 "ael.y"
-    {(yyval.pval)=npval(PV_WORD,(yylsp[-4]).first_line,(yylsp[-4]).last_line, (yylsp[-4]).first_column, (yylsp[-4]).last_column); 
-					(yyval.pval)->u1.str = strdup("default"); (yyval.pval)->next = npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column); 
-					(yyval.pval)->next->u1.str = (yyvsp[-2].str); 
-					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_WORD,(yylsp[-4]).first_line,(yylsp[-4]).last_line, (yylsp[-4]).first_column, (yylsp[-4]).last_column);
+					(yyval.pval)->u1.str = strdup("default"); (yyval.pval)->next = npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column);
+					(yyval.pval)->next->u1.str = (yyvsp[-2].str);
+					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
 					(yyval.pval)->next->next->u1.str = (yyvsp[0].str); ;}
     break;
 
   case 105:
 #line 368 "ael.y"
-    {(yyval.pval)=npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
-					(yyval.pval)->u1.str = (yyvsp[0].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
+					(yyval.pval)->u1.str = (yyvsp[0].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
 					(yyval.pval)->next->u1.str = strdup("1");;}
     break;
 
   case 106:
 #line 371 "ael.y"
-    {(yyval.pval)=npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column); 
-					(yyval.pval)->u1.str = (yyvsp[-2].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column);
+					(yyval.pval)->u1.str = (yyvsp[-2].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
 					(yyval.pval)->next->u1.str = (yyvsp[0].str);;}
     break;
 
   case 107:
 #line 374 "ael.y"
-    {(yyval.pval)=npval(PV_WORD,(yylsp[-4]).first_line,(yylsp[-4]).last_line, (yylsp[-4]).first_column, (yylsp[-4]).last_column); 
-					(yyval.pval)->u1.str = (yyvsp[0].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column); 
-					(yyval.pval)->next->u1.str = (yyvsp[-4].str); 
-					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_WORD,(yylsp[-4]).first_line,(yylsp[-4]).last_line, (yylsp[-4]).first_column, (yylsp[-4]).last_column);
+					(yyval.pval)->u1.str = (yyvsp[0].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column);
+					(yyval.pval)->next->u1.str = (yyvsp[-4].str);
+					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
 					(yyval.pval)->next->next->u1.str = (yyvsp[-2].str); ;}
     break;
 
   case 108:
 #line 379 "ael.y"
-    {(yyval.pval)=npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column); 
-					(yyval.pval)->u1.str = (yyvsp[0].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
-					(yyval.pval)->next->u1.str = (yyvsp[-2].str); 
-					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column);
+					(yyval.pval)->u1.str = (yyvsp[0].str); (yyval.pval)->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
+					(yyval.pval)->next->u1.str = (yyvsp[-2].str);
+					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
 					(yyval.pval)->next->next->u1.str = strdup("1"); ;}
     break;
 
   case 109:
 #line 384 "ael.y"
-    {(yyval.pval)=npval(PV_WORD,(yylsp[-4]).first_line,(yylsp[-4]).last_line, (yylsp[-4]).first_column, (yylsp[-4]).last_column); 
-					(yyval.pval)->u1.str = strdup("default"); (yyval.pval)->next = npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column); 
-					(yyval.pval)->next->u1.str = (yyvsp[-4].str); 
-					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_WORD,(yylsp[-4]).first_line,(yylsp[-4]).last_line, (yylsp[-4]).first_column, (yylsp[-4]).last_column);
+					(yyval.pval)->u1.str = strdup("default"); (yyval.pval)->next = npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column);
+					(yyval.pval)->next->u1.str = (yyvsp[-4].str);
+					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
 					(yyval.pval)->next->next->u1.str = (yyvsp[-2].str); ;}
     break;
 
   case 110:
 #line 389 "ael.y"
-    {(yyval.pval)=npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column); 
-					(yyval.pval)->u1.str = strdup("default"); (yyval.pval)->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
-					(yyval.pval)->next->u1.str = (yyvsp[-2].str); 
-					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column); 
+    {(yyval.pval)=npval(PV_WORD,(yylsp[-2]).first_line,(yylsp[-2]).last_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column);
+					(yyval.pval)->u1.str = strdup("default"); (yyval.pval)->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
+					(yyval.pval)->next->u1.str = (yyvsp[-2].str);
+					(yyval.pval)->next->next = npval(PV_WORD,(yylsp[0]).first_line,(yylsp[0]).last_line, (yylsp[0]).first_column, (yylsp[0]).last_column);
 					(yyval.pval)->next->next->u1.str = strdup("1"); ;}
     break;
 
@@ -2470,7 +2470,7 @@ yyreduce:
 
   case 112:
 #line 397 "ael.y"
-    {(yyval.pval)= npval(PV_MACRO_CALL,(yylsp[-4]).first_line,(yylsp[-3]).last_line, (yylsp[-4]).first_column, (yylsp[-3]).last_column); 
+    {(yyval.pval)= npval(PV_MACRO_CALL,(yylsp[-4]).first_line,(yylsp[-3]).last_line, (yylsp[-4]).first_column, (yylsp[-3]).last_column);
 			(yyval.pval)->u1.str = (yyvsp[-4].str); (yyval.pval)->u2.arglist = (yyvsp[-1].pval);;}
     break;
 
@@ -2491,7 +2491,7 @@ yyreduce:
 																							free((yyvsp[-2].str)); /* won't be using this */
 																							ast_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Suggestion: Use the goto statement instead of the Goto() application call in AEL.\n", my_file, (yylsp[-2]).first_line, (yylsp[-2]).first_column, (yylsp[-2]).last_column );
 																						} else
-																							(yyval.pval)= npval(PV_APPLICATION_CALL,(yylsp[-2]).first_line,(yylsp[0]).last_line, (yylsp[-2]).first_column, (yylsp[0]).last_column); 
+																							(yyval.pval)= npval(PV_APPLICATION_CALL,(yylsp[-2]).first_line,(yylsp[0]).last_line, (yylsp[-2]).first_column, (yylsp[0]).last_column);
 																						(yyval.pval)->u1.str = (yyvsp[-2].str); ;}
     break;
 
@@ -2537,7 +2537,7 @@ yyreduce:
 
   case 123:
 #line 427 "ael.y"
-    { if ( (yyvsp[-1].pval) && (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[-1].pval); linku1((yyval.pval),(yyvsp[0].pval));} 
+    { if ( (yyvsp[-1].pval) && (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[-1].pval); linku1((yyval.pval),(yyvsp[0].pval));}
 						 else if ( (yyvsp[-1].pval) ) {(yyval.pval)=(yyvsp[-1].pval);}
 						 else if ( (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[0].pval);} ;}
     break;
@@ -2579,7 +2579,7 @@ yyreduce:
 
   case 131:
 #line 441 "ael.y"
-    { if ( (yyvsp[-1].pval) && (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[-1].pval); linku1((yyval.pval),(yyvsp[0].pval));} 
+    { if ( (yyvsp[-1].pval) && (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[-1].pval); linku1((yyval.pval),(yyvsp[0].pval));}
 						 else if ( (yyvsp[-1].pval) ) {(yyval.pval)=(yyvsp[-1].pval);}
 						 else if ( (yyvsp[0].pval) ) {(yyval.pval)=(yyvsp[0].pval);} ;}
     break;
@@ -2637,9 +2637,9 @@ yyreduce:
   case 142:
 #line 464 "ael.y"
     {
-                    (yyval.pval)=npval(PV_WORD,(yylsp[-13]).first_line,(yylsp[-12]).last_line, (yylsp[-13]).first_column, (yylsp[-12]).last_column); 
+                    (yyval.pval)=npval(PV_WORD,(yylsp[-13]).first_line,(yylsp[-12]).last_line, (yylsp[-13]).first_column, (yylsp[-12]).last_column);
                     (yyval.pval)->u1.str = (yyvsp[-13].str);
-					(yyval.pval)->u2.arglist = npval(PV_WORD,(yylsp[-11]).first_line,(yylsp[-7]).last_line, (yylsp[-11]).first_column, (yylsp[-7]).last_column); 
+					(yyval.pval)->u2.arglist = npval(PV_WORD,(yylsp[-11]).first_line,(yylsp[-7]).last_line, (yylsp[-11]).first_column, (yylsp[-7]).last_column);
 					(yyval.pval)->u2.arglist->u1.str = (char*)malloc(strlen((yyvsp[-11].str))+strlen((yyvsp[-9].str))+strlen((yyvsp[-7].str))+4);
 					strcpy((yyval.pval)->u2.arglist->u1.str,(yyvsp[-11].str));
 					strcat((yyval.pval)->u2.arglist->u1.str,":");
@@ -2649,12 +2649,12 @@ yyreduce:
 					free((yyvsp[-11].str));
 					free((yyvsp[-9].str));
 					free((yyvsp[-7].str));
-					(yyval.pval)->u2.arglist->next = npval(PV_WORD,(yylsp[-5]).first_line,(yylsp[-5]).last_line, (yylsp[-5]).first_column, (yylsp[-5]).last_column); 
-					(yyval.pval)->u2.arglist->next->u1.str = (yyvsp[-5].str); 
-					(yyval.pval)->u2.arglist->next->next = npval(PV_WORD,(yylsp[-3]).first_line,(yylsp[-3]).last_line, (yylsp[-3]).first_column, (yylsp[-3]).last_column); 
-					(yyval.pval)->u2.arglist->next->next->u1.str = (yyvsp[-3].str); 
-					(yyval.pval)->u2.arglist->next->next->next = npval(PV_WORD,(yylsp[-1]).first_line,(yylsp[-1]).last_line, (yylsp[-1]).first_column, (yylsp[-1]).last_column); 
-					(yyval.pval)->u2.arglist->next->next->next->u1.str = (yyvsp[-1].str); 
+					(yyval.pval)->u2.arglist->next = npval(PV_WORD,(yylsp[-5]).first_line,(yylsp[-5]).last_line, (yylsp[-5]).first_column, (yylsp[-5]).last_column);
+					(yyval.pval)->u2.arglist->next->u1.str = (yyvsp[-5].str);
+					(yyval.pval)->u2.arglist->next->next = npval(PV_WORD,(yylsp[-3]).first_line,(yylsp[-3]).last_line, (yylsp[-3]).first_column, (yylsp[-3]).last_column);
+					(yyval.pval)->u2.arglist->next->next->u1.str = (yyvsp[-3].str);
+					(yyval.pval)->u2.arglist->next->next->next = npval(PV_WORD,(yylsp[-1]).first_line,(yylsp[-1]).last_line, (yylsp[-1]).first_column, (yylsp[-1]).last_column);
+					(yyval.pval)->u2.arglist->next->next->next->u1.str = (yyvsp[-1].str);
 					prev_word=0;
 			;}
     break;
@@ -2662,16 +2662,16 @@ yyreduce:
   case 143:
 #line 485 "ael.y"
     {
-                    (yyval.pval)=npval(PV_WORD,(yylsp[-9]).first_line,(yylsp[-8]).last_line, (yylsp[-9]).first_column, (yylsp[-8]).last_column); 
+                    (yyval.pval)=npval(PV_WORD,(yylsp[-9]).first_line,(yylsp[-8]).last_line, (yylsp[-9]).first_column, (yylsp[-8]).last_column);
                     (yyval.pval)->u1.str = (yyvsp[-9].str);
-					(yyval.pval)->u2.arglist = npval(PV_WORD,(yylsp[-7]).first_line,(yylsp[-7]).last_line, (yylsp[-7]).first_column, (yylsp[-7]).last_column); 
+					(yyval.pval)->u2.arglist = npval(PV_WORD,(yylsp[-7]).first_line,(yylsp[-7]).last_line, (yylsp[-7]).first_column, (yylsp[-7]).last_column);
 					(yyval.pval)->u2.arglist->u1.str = (yyvsp[-7].str);
-					(yyval.pval)->u2.arglist->next = npval(PV_WORD,(yylsp[-5]).first_line,(yylsp[-5]).last_line, (yylsp[-5]).first_column, (yylsp[-5]).last_column); 
-					(yyval.pval)->u2.arglist->next->u1.str = (yyvsp[-5].str); 
-					(yyval.pval)->u2.arglist->next->next = npval(PV_WORD,(yylsp[-3]).first_line,(yylsp[-3]).last_line, (yylsp[-3]).first_column, (yylsp[-3]).last_column); 
-					(yyval.pval)->u2.arglist->next->next->u1.str = (yyvsp[-3].str); 
-					(yyval.pval)->u2.arglist->next->next->next = npval(PV_WORD,(yylsp[-1]).first_line,(yylsp[-1]).last_line, (yylsp[-1]).first_column, (yylsp[-1]).last_column); 
-					(yyval.pval)->u2.arglist->next->next->next->u1.str = (yyvsp[-1].str); 
+					(yyval.pval)->u2.arglist->next = npval(PV_WORD,(yylsp[-5]).first_line,(yylsp[-5]).last_line, (yylsp[-5]).first_column, (yylsp[-5]).last_column);
+					(yyval.pval)->u2.arglist->next->u1.str = (yyvsp[-5].str);
+					(yyval.pval)->u2.arglist->next->next = npval(PV_WORD,(yylsp[-3]).first_line,(yylsp[-3]).last_line, (yylsp[-3]).first_column, (yylsp[-3]).last_column);
+					(yyval.pval)->u2.arglist->next->next->u1.str = (yyvsp[-3].str);
+					(yyval.pval)->u2.arglist->next->next->next = npval(PV_WORD,(yylsp[-1]).first_line,(yylsp[-1]).last_line, (yylsp[-1]).first_column, (yylsp[-1]).last_column);
+					(yyval.pval)->u2.arglist->next->next->next->u1.str = (yyvsp[-1].str);
 					prev_word=0;
 			;}
     break;
@@ -2683,9 +2683,9 @@ yyreduce:
 
   case 145:
 #line 499 "ael.y"
-    {pval *z = npval(PV_WORD,(yylsp[-13]).first_line,(yylsp[-12]).last_line, (yylsp[-13]).first_column, (yylsp[-12]).last_column); 
+    {pval *z = npval(PV_WORD,(yylsp[-13]).first_line,(yylsp[-12]).last_line, (yylsp[-13]).first_column, (yylsp[-12]).last_column);
 					(yyval.pval)=(yyvsp[-14].pval); z->u1.str = (yyvsp[-13].str); linku1((yyval.pval),z);
-					z->u2.arglist = npval(PV_WORD,(yylsp[-11]).first_line,(yylsp[-11]).last_line, (yylsp[-11]).first_column, (yylsp[-11]).last_column); 
+					z->u2.arglist = npval(PV_WORD,(yylsp[-11]).first_line,(yylsp[-11]).last_line, (yylsp[-11]).first_column, (yylsp[-11]).last_column);
 					(yyval.pval)->u2.arglist->u1.str = (char*)malloc(strlen((yyvsp[-11].str))+strlen((yyvsp[-9].str))+strlen((yyvsp[-7].str))+4);
 					strcpy((yyval.pval)->u2.arglist->u1.str,(yyvsp[-11].str));
 					strcat((yyval.pval)->u2.arglist->u1.str,":");
@@ -2695,12 +2695,12 @@ yyreduce:
 					free((yyvsp[-11].str));
 					free((yyvsp[-9].str));
 					free((yyvsp[-7].str));
-					z->u2.arglist->next = npval(PV_WORD,(yylsp[-5]).first_line,(yylsp[-5]).last_line, (yylsp[-5]).first_column, (yylsp[-5]).last_column); 
-					z->u2.arglist->next->u1.str = (yyvsp[-5].str); 
-					z->u2.arglist->next->next = npval(PV_WORD,(yylsp[-3]).first_line,(yylsp[-3]).last_line, (yylsp[-3]).first_column, (yylsp[-3]).last_column); 
-					z->u2.arglist->next->next->u1.str = (yyvsp[-3].str); 
-					z->u2.arglist->next->next->next = npval(PV_WORD,(yylsp[-1]).first_line,(yylsp[-1]).last_line, (yylsp[-1]).first_column, (yylsp[-1]).last_column); 
-					z->u2.arglist->next->next->next->u1.str = (yyvsp[-1].str); 
+					z->u2.arglist->next = npval(PV_WORD,(yylsp[-5]).first_line,(yylsp[-5]).last_line, (yylsp[-5]).first_column, (yylsp[-5]).last_column);
+					z->u2.arglist->next->u1.str = (yyvsp[-5].str);
+					z->u2.arglist->next->next = npval(PV_WORD,(yylsp[-3]).first_line,(yylsp[-3]).last_line, (yylsp[-3]).first_column, (yylsp[-3]).last_column);
+					z->u2.arglist->next->next->u1.str = (yyvsp[-3].str);
+					z->u2.arglist->next->next->next = npval(PV_WORD,(yylsp[-1]).first_line,(yylsp[-1]).last_line, (yylsp[-1]).first_column, (yylsp[-1]).last_column);
+					z->u2.arglist->next->next->next->u1.str = (yyvsp[-1].str);
 					prev_word=0;
 			;}
     break;
@@ -3029,7 +3029,7 @@ yyreturn:
 #line 544 "ael.y"
 
 
-static char *token_equivs1[] = 
+static char *token_equivs1[] =
 {
 	"AMPER",
 	"AT",
@@ -3038,15 +3038,15 @@ static char *token_equivs1[] =
 	"COMMA",
 	"EQ",
 	"EXTENMARK",
-	"KW_BREAK", 
-	"KW_CASE", 
-	"KW_CATCH", 
+	"KW_BREAK",
+	"KW_CASE",
+	"KW_CATCH",
 	"KW_CONTEXT",
-	"KW_CONTINUE", 
-	"KW_DEFAULT", 
+	"KW_CONTINUE",
+	"KW_DEFAULT",
 	"KW_ELSE",
 	"KW_ESWITCHES",
-	"KW_FOR", 
+	"KW_FOR",
 	"KW_GLOBALS",
 	"KW_GOTO",
 	"KW_HINT",
@@ -3056,12 +3056,12 @@ static char *token_equivs1[] =
 	"KW_INCLUDES"
 	"KW_JUMP",
 	"KW_MACRO",
-	"KW_PATTERN", 
-	"KW_REGEXTEN", 
-	"KW_RETURN", 
-	"KW_SWITCHES", 
+	"KW_PATTERN",
+	"KW_REGEXTEN",
+	"KW_RETURN",
+	"KW_SWITCHES",
 	"KW_SWITCH",
-	"KW_WHILE", 
+	"KW_WHILE",
 	"LC",
 	"LP",
 	"RC",
@@ -3069,7 +3069,7 @@ static char *token_equivs1[] =
 	"SEMI",
 };
 
-static char *token_equivs2[] = 
+static char *token_equivs2[] =
 {
 	"&",
 	"@",
@@ -3078,15 +3078,15 @@ static char *token_equivs2[] =
 	",",
 	"=",
 	"=>",
-	"break", 
-	"case", 
-	"catch", 
+	"break",
+	"case",
+	"catch",
 	"context",
-	"continue", 
-	"default", 
+	"continue",
+	"default",
 	"else",
 	"eswitches",
-	"for", 
+	"for",
 	"globals",
 	"goto",
 	"hint",
@@ -3096,12 +3096,12 @@ static char *token_equivs2[] =
 	"includes"
 	"jump",
 	"macro",
-	"pattern", 
-	"regexten", 
-	"return", 
-	"switches", 
+	"pattern",
+	"regexten",
+	"return",
+	"switches",
 	"switch",
-	"while", 
+	"while",
 	"{",
 	"(",
 	"}",
