@@ -29,7 +29,7 @@
 #include "ael/ael.tab.h"
 #include "asterisk/ael_structs.h"
 
-static char pbcstack[400];
+static char pbcstack[400];	/* XXX missing size checks */
 static int pbcpos = 0;
 
 static int parencount = 0;
@@ -45,7 +45,7 @@ void ael_yyset_column (int  column_no , yyscan_t yyscanner);
 int ael_yyparse (struct parse_io *);
 static void pbcpush(char x);
 static int pbcpop(char x);
-static void pbcwhere(char *text, int *line, int *col );
+static void pbcwhere(const char *text, int *line, int *col );
 
 struct stackelement {
 	char *fname;
@@ -563,7 +563,10 @@ static int c_prevword(void)
 }
 #endif
 
-static void pbcwhere(char *text, int *line, int *col )
+/* compute the total number of lines and columns in the text
+ * passed as argument.
+ */
+static void pbcwhere(const char *text, int *line, int *col )
 {
 	int loc_line = 0;
 	int loc_col = 0;
