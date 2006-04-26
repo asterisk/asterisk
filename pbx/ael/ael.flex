@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief Flex scanner description of tokens used in AEL2 .
- * 
+ *
  */#include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -52,12 +52,11 @@ static int pbcpop(char x);
 static void pbcwhere(char *text, int *line, int *col );
 static int c_prevword(void);
 
-struct stackelement
-{
-     char *fname;
-	 int lineno;
-     int colno;
-	 YY_BUFFER_STATE bufstate;
+struct stackelement {
+	char *fname;
+	int lineno;
+	int colno;
+	YY_BUFFER_STATE bufstate;
 };
 struct stackelement  include_stack[MAX_INCLUDE_DEPTH];
 int include_stack_index = 0;
@@ -120,352 +119,384 @@ includes	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_colum
 [	]+	{/* nothing */ int wid = 8-(my_col%8); my_col+=wid;}
 
 [-a-zA-Z0-9'"_/.\<\>\*\+!$#\[\]][-a-zA-Z0-9'"_/.!\*\+\<\>\{\}$#\[\]]*	{
-                                               yylloc->first_line = yylloc->last_line = my_lineno;yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col; /* set up the ptr */
-                                               yylval->str = strdup(yytext);  
-                                               /* printf("\nGot WORD %s[%d][%d:%d]\n", yylval->str, my_lineno ,yylloc->first_column,yylloc->last_column );  */
-                                               my_col+=yyleng; 
-                                               prev_word = yylval->str;
-                                               return word;
-                                        }
+		yylloc->first_line = yylloc->last_line = my_lineno;
+		yylloc->last_column=my_col+yyleng-1;
+		yylloc->first_column=my_col; /* set up the ptr */
+		my_col+=yyleng;
+		yylval->str = strdup(yytext);
+		/* printf("\nGot WORD %s[%d][%d:%d]\n", yylval->str, my_lineno ,yylloc->first_column,yylloc->last_column );  */
+		prev_word = yylval->str;
+		return word;
+	}
 
-<paren>[^()\[\]\{\}]*\)	{yylloc->first_line = my_lineno; yylloc->first_column=my_col; 
-                         if ( pbcpop(')') ) {
-                             /* error */
-                             int l4,c4;
-                             pbcwhere(yytext, &l4, &c4);
-                             ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression: %s !\n", my_file, my_lineno+l4, c4, yytext);
-                             BEGIN(0);
-                             yylloc->last_line = my_lineno+l4;
-                             yylloc->last_column=c4; 
-                             my_col=c4;
-                             my_lineno += l4;
-		                     yylval->str = strdup(yytext);
-                             prev_word = 0;
-                             return word;
-                         }
-                 parencount--;
-                 if ( parencount >= 0) {
-                   yymore();
-                 } else { 
-                   int l4,c4;
-                   pbcwhere(yytext, &l4, &c4);
-                   yylloc->last_line = my_lineno+l4;
-				   yylloc->last_column=c4; 
-                   yylval->str = strdup(yytext); 
-                   *(yylval->str+strlen(yylval->str)-1)=0;
-                   /* printf("Got paren word %s\n", yylval->str); */ 
-                   unput(')'); 
-	               my_col=c4;
-                   my_lineno += l4;
-                   BEGIN(0); 
-                   return word;
-                 } 
-                }
+<paren>[^()\[\]\{\}]*\)	{
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		if ( pbcpop(')') ) {
+			/* error */
+			int l4,c4;
+			pbcwhere(yytext, &l4, &c4);
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression: %s !\n", my_file, my_lineno+l4, c4, yytext);
+			BEGIN(0);
+			yylloc->last_line = my_lineno+l4;
+			yylloc->last_column=c4;
+			my_col=c4;
+			my_lineno += l4;
+			yylval->str = strdup(yytext);
+			prev_word = 0;
+			return word;
+		}
+		parencount--;
+		if ( parencount >= 0) {
+			yymore();
+		} else {
+			int l4,c4;
+			pbcwhere(yytext, &l4, &c4);
+			yylloc->last_line = my_lineno+l4;
+			yylloc->last_column=c4;
+			yylval->str = strdup(yytext);
+			*(yylval->str+strlen(yylval->str)-1)=0;
+			/* printf("Got paren word %s\n", yylval->str); */
+			unput(')');
+			my_col=c4;
+			my_lineno += l4;
+			BEGIN(0);
+			return word;
+		}
+	}
 
-<paren>[^()\[\]\{\}]*\(	{yylloc->first_line = my_lineno; yylloc->first_column=my_col; 
-                  parencount++; pbcpush('(');
-                  yymore();
-                 }
+<paren>[^()\[\]\{\}]*\(	{
+		yylloc->first_line = my_lineno; yylloc->first_column=my_col;
+		parencount++;
+		pbcpush('(');
+		yymore();
+	}
+
 <paren>[^()\[\]\{\}]*\[	{yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('['); }
-<paren>[^()\[\]\{\}]*\]	{yylloc->first_line = my_lineno;yylloc->first_column=my_col; 
-                         if ( pbcpop(']') ) {
-                             /* error */
-                             int l4,c4;
-                             pbcwhere(yytext, &l4, &c4);
-                             ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ']' in expression!\n", my_file, my_lineno+l4, c4);
-                             BEGIN(0);
-                             yylloc->last_line = my_lineno+l4;
-                             yylloc->last_column=c4; 
-                             my_col=c4;
-                             my_lineno += l4;
-		                     yylval->str = strdup(yytext);
-                             return word;
-                         }
-                         yymore();
-                        }
+
+<paren>[^()\[\]\{\}]*\]	{
+		yylloc->first_line = my_lineno;yylloc->first_column=my_col;
+		if ( pbcpop(']') ) {
+			/* error */
+			int l4,c4;
+			pbcwhere(yytext, &l4, &c4);
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ']' in expression!\n", my_file, my_lineno+l4, c4);
+			BEGIN(0);
+			yylloc->last_line = my_lineno+l4;
+			yylloc->last_column=c4;
+			my_col=c4;
+			my_lineno += l4;
+			yylval->str = strdup(yytext);
+			return word;
+		}
+		yymore();
+	}
+
 <paren>[^()\[\]\{\}]*\{	{yylloc->first_line = my_lineno;yylloc->first_column=my_col;  yymore(); pbcpush('{'); }
-<paren>[^()\[\]\{\}]*\}	{yylloc->first_line = my_lineno;
-                         yylloc->first_column=my_col; 
-                         if ( pbcpop('}') ) {
-                             /* error */
-                             int l4,c4;
-                             pbcwhere(yytext, &l4, &c4);
-                             ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '}' in expression!\n", my_file, my_lineno+l4, c4);
-                             BEGIN(0);
-                             yylloc->last_line = my_lineno+l4;
-                             yylloc->last_column=c4; 
-                             my_col=c4;
-                             my_lineno += l4;
-		                     yylval->str = strdup(yytext);
-                             return word;
-                         }
-                         yymore();
-                        }
+
+<paren>[^()\[\]\{\}]*\}	{
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		if ( pbcpop('}') ) {
+			/* error */
+			int l4,c4;
+			pbcwhere(yytext, &l4, &c4);
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '}' in expression!\n", my_file, my_lineno+l4, c4);
+			BEGIN(0);
+			yylloc->last_line = my_lineno+l4;
+			yylloc->last_column=c4;
+			my_col=c4;
+			my_lineno += l4;
+			yylval->str = strdup(yytext);
+			return word;
+		}
+		yymore();
+	}
+
+<argg>[^(),\{\}\[\]]*\)	{
+		/* printf("ARGG:%s\n",yytext); */
+		int linecount = 0;
+		int colcount = my_col;
+		char *pt = yytext;
+
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		if ( pbcpop(')') ) {
+			/* error */
+			int l4,c4;
+			pbcwhere(yytext, &l4, &c4);
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression!\n", my_file, my_lineno+l4, c4);
+			BEGIN(0);
+			yylloc->last_line = my_lineno+l4;
+			yylloc->last_column=c4;
+			my_col=c4;
+			my_lineno += l4;
+			yylval->str = strdup(yytext);
+			return word;
+		}
 
 
-<argg>[^(),\{\}\[\]]*\)	{/* printf("ARGG:%s\n",yytext); */
-					int linecount = 0;
-                    int colcount = my_col;
-					char *pt = yytext;
+		while (*pt) {
+			if (*pt == '\n') {
+				linecount++;
+				colcount=0;
+			}
+			pt++;
+			colcount++;
+		}
+		yylloc->last_line = my_lineno+linecount;
+		yylloc->last_column=colcount;
+		parencount--;
+		if( parencount >= 0){
+			yymore();
+		} else {
+			yylval->str = strdup(yytext);
+			if(yyleng > 1 )
+				*(yylval->str+yyleng-1)=0;
+			/* printf("Got argg word '%s'\n", yylval->str);  */
+			BEGIN(0);
+			if ( !strcmp(yylval->str,")") ) {
+				free(yylval->str);
+				yylval->str = 0;
+				my_col+=1;
+				return RP;
+			} else {
+				unput(')');
+				my_col=colcount;
+				my_lineno+=linecount;
+				return word;
+			}
+		}
+	}
 
-					yylloc->first_line = my_lineno;
-                    yylloc->first_column=my_col; 
-                         if ( pbcpop(')') ) {
-                             /* error */
-                             int l4,c4;
-                             pbcwhere(yytext, &l4, &c4);
-                             ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression!\n", my_file, my_lineno+l4, c4);
-                             BEGIN(0);
-                             yylloc->last_line = my_lineno+l4;
-                             yylloc->last_column=c4; 
-                             my_col=c4;
-                             my_lineno += l4;
-		                     yylval->str = strdup(yytext);
-                             return word;
-                         }
-                   
+<argg>[^(),\{\}\[\]]*\(	  {
+		/* printf("ARGG:%s\n",yytext); */
+		/* printf("GOT AN LP!!!\n"); */
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		parencount++;
+		pbcpush('(');
+		yymore();
+	}
 
-					while (*pt) {
-                       if (*pt == '\n') {
-                           linecount++;
-                           colcount=0;
-                       }
-                       pt++;
-                       colcount++;
-                    }
-                    yylloc->last_line = my_lineno+linecount;
-                    yylloc->last_column=colcount; 
-                    parencount--;
-                    if( parencount >= 0){ 
-                        yymore(); 
-                    } else { 
-                        yylval->str = strdup(yytext); 
-					   if(yyleng > 1 ) 
-                              *(yylval->str+yyleng-1)=0;
-                       /* printf("Got argg word '%s'\n", yylval->str);  */
-                       BEGIN(0); 
-                       if ( !strcmp(yylval->str,")") ) { 
-                             free(yylval->str); 
-                             yylval->str = 0; 
-                             my_col+=1;
-                             return RP;  
-                       } else {
-                             unput(')');
-                             my_col=colcount;
-							 my_lineno+=linecount;
-                             return word;
-                       }
-                    } 
-                }
-<argg>[^(),\{\}\[\]]*\(	  { /* printf("ARGG:%s\n",yytext); */
-                      /* printf("GOT AN LP!!!\n"); */
-                      yylloc->first_line = my_lineno;
-                      yylloc->first_column=my_col; 
-                      parencount++; 
-                      pbcpush('(');
-                      yymore();
-                  }
+<argg>[^(),\{\}\[\]]*\,	{
+		/* printf("ARGG:%s\n",yytext); */
+		if( parencount != 0) {
+			/* printf("Folding in a comma!\n"); */
+			yymore();
+		} else  {
+			/* printf("got a comma!\n\n");  */
+			int linecount = 0;
+			int colcount = my_col;
+			char *pt;
 
-<argg>[^(),\{\}\[\]]*\,	{  /* printf("ARGG:%s\n",yytext); */
-                  if( parencount != 0) { 
-					/* printf("Folding in a comma!\n"); */ 
-					yymore();
-				  } else  { 
-                     /* printf("got a comma!\n\n");  */
-					 int linecount = 0;
-                     int colcount = my_col;
-					 char *pt;
-
-					 pt = yytext;
-					 while (*pt) {
-                        if ( *pt == '\n' ) {
-                           linecount++;
-                           colcount=0;
-                        }
-                        pt++;
-                        colcount++;
-                     }
-                     yylloc->first_line = my_lineno; 
-                     yylloc->last_line = my_lineno+linecount; 
-                     yylloc->last_column=colcount; 
-                     yylloc->first_column=my_col;
-                     if( !commaout ) { 
-						if( !strcmp(yytext,"," ) ) 
-							{commaout = 0; my_col+=1; return COMMA;} 
-						yylval->str = strdup(yytext); /* printf("Got argg2 word %s\n", yylval->str); */ 
-						unput(','); 
-						commaout = 1; 
-						if(yyleng > 1 ) 
-							*(yylval->str+yyleng-1)=0;
-                        my_lineno+=linecount;
-						my_col=colcount;
-						return word;
-					 } else {
-                            commaout = 0;
-							my_col+=1;
-							return COMMA;
-						}
-                   }
+			pt = yytext;
+			while (*pt) {
+				if ( *pt == '\n' ) {
+					linecount++;
+					colcount=0;
 				}
-
-<argg>[^(),\{\}\[\]]*\{	{/*printf("ARGG:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; pbcpush('{'); yymore();  }
-<argg>[^(),\{\}\[\]]*\}	{/*printf("ARGG:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; 
-                         if ( pbcpop('}') ) {
-                             /* error */
-                             int l4,c4;
-                             pbcwhere(yytext, &l4, &c4);
-                             ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '}' in expression!\n", my_file, my_lineno+l4, my_col+c4);
-                             BEGIN(0);
-                             yylloc->last_line = my_lineno+l4;
-                             yylloc->last_column=my_col+c4; 
-                             my_col=c4;
-                             my_lineno += l4;
-		                     yylval->str = strdup(yytext);
-                             return word;
-                         }
-                         yymore();
+				pt++;
+				colcount++;
+			}
+			yylloc->first_line = my_lineno;
+			yylloc->last_line = my_lineno+linecount;
+			yylloc->last_column=colcount;
+			yylloc->first_column=my_col;
+			if( !commaout ) {
+				if( !strcmp(yytext,"," ) ) {
+					commaout = 0;
+					my_col+=1;
+					return COMMA;
 				}
+				yylval->str = strdup(yytext); /* printf("Got argg2 word %s\n", yylval->str); */
+				unput(',');
+				commaout = 1;
+				if(yyleng > 1 )
+				*(yylval->str+yyleng-1)=0;
+				my_lineno+=linecount;
+				my_col=colcount;
+				return word;
+			} else {
+				commaout = 0;
+				my_col+=1;
+				return COMMA;
+			}
+		}
+	}
+
+<argg>[^(),\{\}\[\]]*\{	{
+		/*printf("ARGG:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		pbcpush('{'); yymore();
+	}
+
+<argg>[^(),\{\}\[\]]*\}	{
+		/*printf("ARGG:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
+		if ( pbcpop('}') ) {
+			/* error */
+			int l4,c4;
+			pbcwhere(yytext, &l4, &c4);
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '}' in expression!\n", my_file, my_lineno+l4, my_col+c4);
+			BEGIN(0);
+			yylloc->last_line = my_lineno+l4;
+			yylloc->last_column=my_col+c4;
+			my_col=c4;
+			my_lineno += l4;
+			yylval->str = strdup(yytext);
+			return word;
+		}
+		yymore();
+	}
+
 <argg>[^(),\{\}\[\]]*\[	{/*printf("ARGG:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('['); }
-<argg>[^(),\{\}\[\]]*\]	{/*printf("ARGG:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; 
-                         if ( pbcpop(']') ) {
-                             /* error */
-                             int l4,c4;
-                             pbcwhere(yytext, &l4, &c4);
-                             ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ']' in expression!\n", my_file, my_lineno+l4, c4);
-                             BEGIN(0);
-                             yylloc->last_line = my_lineno+l4;
-                             yylloc->last_column=c4; 
-                             my_col=c4;
-                             my_lineno += l4;
-		                     yylval->str = strdup(yytext);
-                             return word;
-                         }
-                         yymore();
-				}
 
+<argg>[^(),\{\}\[\]]*\]	{/*printf("ARGG:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
+		if ( pbcpop(']') ) {
+			/* error */
+			int l4,c4;
+			pbcwhere(yytext, &l4, &c4);
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ']' in expression!\n", my_file, my_lineno+l4, c4);
+			BEGIN(0);
+			yylloc->last_line = my_lineno+l4;
+			yylloc->last_column=c4;
+			my_col=c4;
+			my_lineno += l4;
+			yylval->str = strdup(yytext);
+			return word;
+		}
+		yymore();
+	}
 
 <semic>[^;()\{\}\[\]]*\[	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('['); }
-<semic>[^;()\{\}\[\]]*\]	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; 
-                         if ( pbcpop(']') ) {
-                             /* error */
-                             int l4,c4;
-                             pbcwhere(yytext, &l4, &c4);
-                             ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ']' in expression!\n", my_file, my_lineno+l4, c4);
-                             BEGIN(0);
-                             yylloc->last_line = my_lineno+l4;
-                             yylloc->last_column=c4; 
-                             my_col=c4;
-                             my_lineno += l4;
-		                     yylval->str = strdup(yytext);
-                             return word;
-                         }
-                         yymore();}
+
+<semic>[^;()\{\}\[\]]*\]	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
+		if ( pbcpop(']') ) {
+			/* error */
+			int l4,c4;
+			pbcwhere(yytext, &l4, &c4);
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ']' in expression!\n", my_file, my_lineno+l4, c4);
+			BEGIN(0);
+			yylloc->last_line = my_lineno+l4;
+			yylloc->last_column=c4;
+			my_col=c4;
+			my_lineno += l4;
+			yylval->str = strdup(yytext);
+			return word;
+		}
+		yymore();
+	}
+
 <semic>[^;()\{\}\[\]]*\{	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('{');}
-<semic>[^;()\{\}\[\]]*\}	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; 
-                         if ( pbcpop('}') ) {
-                             /* error */
-                             int l4,c4;
-                             pbcwhere(yytext, &l4, &c4);
-                             ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '}' in expression!\n", my_file, my_lineno+l4, my_col+c4);
-                             BEGIN(0);
-                             yylloc->last_line = my_lineno+l4;
-                             yylloc->last_column=my_col+c4; 
-                             my_col=c4;
-                             my_lineno += l4;
-		                     yylval->str = strdup(yytext);
-                             return word;
-                         }
-                         yymore();}
+
+<semic>[^;()\{\}\[\]]*\}	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
+		if ( pbcpop('}') ) {
+			/* error */
+			int l4,c4;
+			pbcwhere(yytext, &l4, &c4);
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '}' in expression!\n", my_file, my_lineno+l4, my_col+c4);
+			BEGIN(0);
+			yylloc->last_line = my_lineno+l4;
+			yylloc->last_column=my_col+c4;
+			my_col=c4;
+			my_lineno += l4;
+			yylval->str = strdup(yytext);
+			return word;
+		}
+		yymore();
+	}
+
 <semic>[^;()\{\}\[\]]*\(	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('(');}
-<semic>[^;()\{\}\[\]]*\)	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; 
-                         if ( pbcpop(')') ) {
-                             /* error */
-                             int l4,c4;
-                             pbcwhere(yytext, &l4, &c4);
-                             ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression!\n", my_file, my_lineno+l4, my_col+c4);
-                             BEGIN(0);
-                             yylloc->last_line = my_lineno+l4;
-                             yylloc->last_column=my_col+c4; 
-                             my_col=c4;
-                             my_lineno += l4;
-		                     yylval->str = strdup(yytext);
-                             return word;
-                         }
-                         yymore();}
+
+<semic>[^;()\{\}\[\]]*\)	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
+		if ( pbcpop(')') ) {
+			/* error */
+			int l4,c4;
+			pbcwhere(yytext, &l4, &c4);
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression!\n", my_file, my_lineno+l4, my_col+c4);
+			BEGIN(0);
+			yylloc->last_line = my_lineno+l4;
+			yylloc->last_column=my_col+c4;
+			my_col=c4;
+			my_lineno += l4;
+			yylval->str = strdup(yytext);
+			return word;
+		}
+		yymore();
+	}
+
 <semic>[^;()\{\}\[\]]*;	{
-					int linecount = 0;
-                    int colcount = my_col;
-					char *pt = yytext;
-					while (*pt) {
-                       if ( *pt == '\n' ) {
-                           linecount++;
-                           colcount=0;
-                       }
-                       pt++;
-                       colcount++;
-                    }
-                    yylloc->first_line = my_lineno; 
-					yylloc->last_line = my_lineno+linecount; 
-					yylloc->last_column=colcount; 
-					yylloc->first_column=my_col;
-                    yylval->str = strdup(yytext);
-                    if(yyleng > 1)
-                      *(yylval->str+yyleng-1)=0;
-                    /* printf("Got semic word %s\n", yylval->str); */
-                    unput(';');
-                    BEGIN(0);
-                    my_col=colcount;
-                    my_lineno += linecount;
-                    return word;
-                }
+		int linecount = 0;
+		int colcount = my_col;
+		char *pt = yytext;
+		while (*pt) {
+			if ( *pt == '\n' ) {
+				linecount++;
+				colcount=0;
+			}
+			pt++;
+			colcount++;
+		}
+		yylloc->first_line = my_lineno;
+		yylloc->last_line = my_lineno+linecount;
+		yylloc->last_column=colcount;
+		yylloc->first_column=my_col;
+		yylval->str = strdup(yytext);
+		if(yyleng > 1)
+			*(yylval->str+yyleng-1)=0;
+		/* printf("Got semic word %s\n", yylval->str); */
+		unput(';');
+		BEGIN(0);
+		my_col=colcount;
+		my_lineno += linecount;
+		return word;
+	}
 
 \#include[ \t]+\"[^\"]+\" {
-                     FILE *in1;
-					 char fnamebuf[1024],*p1,*p2;
-                     if ( include_stack_index >= MAX_INCLUDE_DEPTH ) {
-						ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Includes nested too deeply! Wow!!! How did you do that?\n", my_file, my_lineno, my_col);
-                     } else {
-                         p1 = strchr(yytext,'"');
-                         p2 = strrchr(yytext,'"');
-                         if ( (int)(p2-p1) > 1023 ) {
-							ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Filename is incredibly way too long (%d chars!). Inclusion ignored!\n", my_file, my_lineno, my_col, yyleng - 10);
-        	             } else {
-								int i;
-								int found = 0;
-								strncpy(fnamebuf,p1,p2-p1);
-								fnamebuf[p2-p1] = 0;
-								for (i=0; i<include_stack_index; i++) {
-									if ( !strcmp(fnamebuf,include_stack[i].fname )) {
-										ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Nice Try!!! But %s has already been included (perhaps by another file), and would cause an infinite loop of file inclusions!!! Include directive ignored\n", 
-												my_file, my_lineno, my_col, fnamebuf);
-										found=1;
-										break;
-									}
-								}
-								if( !found )
-								{
-                                	*p2 = 0;
-                                    /* relative vs. absolute */
-                                    if ( *(p1+1) != '/' )
-                                    {
-                                        strcpy(fnamebuf,ast_config_AST_CONFIG_DIR);
-										strcat(fnamebuf,"/");
-										strcat(fnamebuf,p1+1);
-                                    }
-                                    else
-                                	    strcpy(fnamebuf,p1+1);
-		                        	in1 = fopen( fnamebuf, "r" );
-                                	if ( ! in1 ) {
+		FILE *in1;
+		char fnamebuf[1024],*p1,*p2;
+		if ( include_stack_index >= MAX_INCLUDE_DEPTH ) {
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Includes nested too deeply! Wow!!! How did you do that?\n", my_file, my_lineno, my_col);
+		} else {
+			p1 = strchr(yytext,'"');
+			p2 = strrchr(yytext,'"');
+			if ( (int)(p2-p1) > 1023 ) {
+				ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Filename is incredibly way too long (%d chars!). Inclusion ignored!\n", my_file, my_lineno, my_col, yyleng - 10);
+			} else {
+				int i;
+				int found = 0;
+				strncpy(fnamebuf,p1,p2-p1);
+				fnamebuf[p2-p1] = 0;
+				for (i=0; i<include_stack_index; i++) {
+					if ( !strcmp(fnamebuf,include_stack[i].fname )) {
+						ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Nice Try!!! But %s has already been included (perhaps by another file), and would cause an infinite loop of file inclusions!!! Include directive ignored\n",
+							my_file, my_lineno, my_col, fnamebuf);
+						found=1;
+						break;
+					}
+				}
+				if ( !found ) {
+					*p2 = 0;
+					/* relative vs. absolute */
+					if ( *(p1+1) != '/' ) {
+						strcpy(fnamebuf,ast_config_AST_CONFIG_DIR);
+						strcat(fnamebuf,"/");
+						strcat(fnamebuf,p1+1);
+					} else
+						strcpy(fnamebuf,p1+1);
+					in1 = fopen( fnamebuf, "r" );
+					if ( ! in1 ) {
 						ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Couldn't find the include file: %s; ignoring the Include directive!\n", my_file, my_lineno, my_col, fnamebuf);
-                                	} else {
+					} else {
 						char *buffer;
-	                             	 	struct stat stats;
-	                            		stat(fnamebuf, &stats);
-	                             		buffer = (char*)malloc(stats.st_size+1);
-	                             		fread(buffer, 1, stats.st_size, in1);
+						struct stat stats;
+						stat(fnamebuf, &stats);
+						buffer = (char*)malloc(stats.st_size+1);
+						fread(buffer, 1, stats.st_size, in1);
 						buffer[stats.st_size] = 0;
 						ast_log(LOG_NOTICE,"  --Read in included file %s, %d chars\n",fnamebuf, (int)stats.st_size);
-	                                	fclose(in1);
+						fclose(in1);
 
 						include_stack[include_stack_index].fname = my_file;
 						my_file = strdup(fnamebuf);
@@ -473,30 +504,29 @@ includes	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_colum
 						include_stack[include_stack_index].colno = my_col+yyleng;
 						include_stack[include_stack_index++].bufstate = YY_CURRENT_BUFFER;
 
-	                                	yy_switch_to_buffer(ael_yy_scan_string (buffer ,yyscanner),yyscanner);
-                                    		free(buffer);
-                                  	  	my_lineno = 1;
-                                    		my_col = 1;
-                                    		BEGIN(INITIAL);
-                                	}
-                                }
-                         }
-                     }
-                 }
+						yy_switch_to_buffer(ael_yy_scan_string (buffer ,yyscanner),yyscanner);
+						free(buffer);
+						my_lineno = 1;
+						my_col = 1;
+						BEGIN(INITIAL);
+					}
+				}
+			}
+		}
+	}
 
-<<EOF>>  {
-                 if ( --include_stack_index < 0 ) {
-                 	    yyterminate();
-                     } else {
-						 free(my_file);
-                         yy_delete_buffer( YY_CURRENT_BUFFER, yyscanner );
-                         yy_switch_to_buffer(include_stack[include_stack_index].bufstate, yyscanner );
-                         my_lineno = include_stack[include_stack_index].lineno;
-                         my_col    = include_stack[include_stack_index].colno;
-                         my_file   = include_stack[include_stack_index].fname;
-                     }
-          }
-
+<<EOF>>		{
+		if ( --include_stack_index < 0 ) {
+			yyterminate();
+		} else {
+			free(my_file);
+			yy_delete_buffer( YY_CURRENT_BUFFER, yyscanner );
+			yy_switch_to_buffer(include_stack[include_stack_index].bufstate, yyscanner );
+			my_lineno = include_stack[include_stack_index].lineno;
+			my_col    = include_stack[include_stack_index].colno;
+			my_file   = include_stack[include_stack_index].fname;
+		}
+	}
 
 %%
 
@@ -513,25 +543,24 @@ static int pbcpop(char x)
 		pbcpos--;
 		return 0;
 	}
-	else
-		return 1; /* error */
+	return 1; /* error */
 }
 
 static int c_prevword(void)
 {
-    char *c = prev_word;
+	char *c = prev_word;
 	int ret = 0;
 	while ( c && *c ) {
-        switch (*c) {
-            case '{': pbcpush('{');break;
-            case '}': ret = pbcpop('}');break;
-            case '[':pbcpush('[');break;
-            case ']':ret = pbcpop(']');break;
-            case '(':pbcpush('(');break;
-            case ')':ret = pbcpop(')'); break;
-        }
-        if( ret )
-            return 1;
+		switch (*c) {
+		case '{': pbcpush('{');break;
+		case '}': ret = pbcpop('}');break;
+		case '[':pbcpush('[');break;
+		case ']':ret = pbcpop(']');break;
+		case '(':pbcpush('(');break;
+		case ')':ret = pbcpop(')'); break;
+		}
+		if( ret )
+			return 1;
 		c++;
 	}
 	return 0;
@@ -540,18 +569,18 @@ static int c_prevword(void)
 static void pbcwhere(char *text, int *line, int *col )
 {
 	int loc_line = 0;
-    int loc_col = 0;
+	int loc_col = 0;
 	while ( *text ) {
-       if ( *text == '\n' ) {
-             loc_line++;
-             loc_col = 1;
-       } else {
-             loc_col++;
-       }
-       text++;
-    }
+		if ( *text == '\n' ) {
+			loc_line++;
+			loc_col = 1;
+		} else {
+			loc_col++;
+		}
+		text++;
+	}
 	*line = loc_line;
-    *col = loc_col;
+	*col = loc_col;
 }
 
 void reset_parencount(yyscan_t yyscanner )
@@ -613,7 +642,7 @@ struct pval *ael2_parse(char *filename, int *errors)
 	fread(buffer, 1, stats.st_size, fin);
 	buffer[stats.st_size]=0;
 	fclose(fin);
-	
+
 	ael_yy_scan_string (buffer ,io->scanner);
 	ael_yyset_lineno(1 , io->scanner);
 
