@@ -52,7 +52,7 @@ static char *exec_desc =
 "Usage:  ExecIF (<expr>|<app>|<data>)\n"
 "If <expr> is true, execute and return the result of <app>(<data>).\n"
 "If <expr> is true, but <app> is not found, then the application\n"
-"will return a non-zero value.";
+"will return a non-zero value.\n";
 static char *exec_synopsis = "Conditional exec";
 
 static char *start_app = "While";
@@ -61,15 +61,27 @@ static char *start_desc =
 "Start a While Loop.  Execution will return to this point when\n"
 "EndWhile is called until expr is no longer true.\n";
 
-static char *start_synopsis = "Start A While Loop";
+static char *start_synopsis = "Start a while loop";
 
 
 static char *stop_app = "EndWhile";
 static char *stop_desc = 
 "Usage:  EndWhile()\n"
-"Return to the previous called While\n\n";
+"Return to the previous called While\n";
 
-static char *stop_synopsis = "End A While Loop";
+static char *stop_synopsis = "End a while loop";
+
+static char *exit_app = "ExitWhile";
+static char *exit_desc =
+"Usage:  ExitWhile()\n"
+"Exits a While loop, whether or not the conditional has been satisfied.\n";
+static char *exit_synopsis = "End a While loop";
+
+static char *continue_app = "ContinueWhile";
+static char *continue_desc =
+"Usage:  ContinueWhile()\n"
+"Returns to the top of the while loop and re-evaluates the conditional.\n";
+static char *continue_synopsis = "Restart a While loop";
 
 static char *tdesc = "While Loops and Conditional Execution";
 
@@ -265,7 +277,7 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 	}
 	
 
-	if (!end && !ast_true(condition)) {
+	if ((!end && !ast_true(condition)) || (end == 2)) {
 		/* Condition Met (clean up helper vars) */
 		const char *goto_str;
 		pbx_builtin_setvar_helper(chan, varname, NULL);
@@ -324,6 +336,28 @@ static int while_end_exec(struct ast_channel *chan, void *data) {
 	return _while_exec(chan, data, 1);
 }
 
+static int while_exit_exec(struct ast_channel *chan, void *data) {
+	return _while_exec(chan, data, 2);
+}
+
+static int while_continue_exec(struct ast_channel *chan, void *data)
+{
+	int x;
+	const char *prefix = "WHILE", *while_pri=NULL;
+
+	for (x = 0; ; x++) {
+		const char *tmp = get_index(chan, prefix, x);
+		if (tmp)
+			while_pri = tmp;
+		else
+			break;
+	}
+
+	if (while_pri)
+		ast_parseable_goto(chan, while_pri);
+
+	return 0;
+}
 
 static int unload_module(void *mod)
 {
@@ -332,6 +366,8 @@ static int unload_module(void *mod)
 	res = ast_unregister_application(start_app);
 	res |= ast_unregister_application(exec_app);
 	res |= ast_unregister_application(stop_app);
+	res |= ast_unregister_application(exit_app);
+	res |= ast_unregister_application(continue_app);
 
 	STANDARD_HANGUP_LOCALUSERS;
 
@@ -345,6 +381,8 @@ static int load_module(void *mod)
 	res = ast_register_application(start_app, while_start_exec, start_synopsis, start_desc);
 	res |= ast_register_application(exec_app, execif_exec, exec_synopsis, exec_desc);
 	res |= ast_register_application(stop_app, while_end_exec, stop_synopsis, stop_desc);
+	res |= ast_register_application(exit_app, while_exit_exec, exit_synopsis, exit_desc);
+	res |= ast_register_application(continue_app, while_continue_exec, continue_synopsis, continue_desc);
 
 	return res;
 }
