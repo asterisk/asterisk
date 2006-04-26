@@ -272,6 +272,10 @@ size_t strnlen(const char *, size_t);
 int vasprintf(char **strp, const char *fmt, va_list ap);
 #endif
 
+#if !defined(HAVE_ASPRINTF) && !defined(__AST_DEBUG_MALLOC) 
+int asprintf(char **str, const char *fmt, ...);
+#endif
+
 #ifndef HAVE_STRTOQ
 uint64_t strtoq(const char *nptr, char **endptr, int base);
 #endif
