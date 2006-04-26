@@ -3458,8 +3458,8 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		/* start optimistic */
 		valid_extensions = 1;
 		while (s) {
-			/* find_user is going to malloc since we have a NULL as first argument */
-			if ((receiver = find_user(NULL, context, s))) {
+			/* Don't forward to ourselves.  find_user is going to malloc since we have a NULL as first argument */
+			if (strcmp(s,sender->mailbox) && (receiver = find_user(NULL, context, s))) {
 				if (!extensions)
 					vmtmp = extensions = receiver;
 				else {
