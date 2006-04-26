@@ -882,9 +882,12 @@ void parse_facility (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *
 	printf("Parsing FACILITY Msg\n"); 
 #endif
 
+#ifdef FACILITY_DECODE
 	{
 		fac_dec(facility->FACILITY, qi, &bc->fac_type, &bc->fac, bc);
 	}
+#endif	
+
 }
 
 msg_t *build_facility (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
