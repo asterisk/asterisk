@@ -3145,7 +3145,6 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, char *cmd,
 	int count = 0;
 	struct ast_call_queue *q;
 	struct localuser *lu;
-	struct member *m;
 
 	buf[0] = '\0';
 	
