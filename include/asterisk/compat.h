@@ -43,6 +43,7 @@ int unsetenv(const char *name);
 #include <sys/stat.h>
 #include <signal.h>
 #include <netinet/in.h>
+#include <dat/dat_platform_specific.h>
 
 #ifndef BYTE_ORDER
 #define LITTLE_ENDIAN	1234
