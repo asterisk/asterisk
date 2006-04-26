@@ -29,6 +29,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <regex.h>
+#include <sys/stat.h>
 
 #include "asterisk.h"
 
@@ -124,9 +125,9 @@ static pval *current_extension;
 static const char *description(void);
 static const char *key(void);
 
-static char *match_context;
-static char *match_exten;
-static char *match_label;
+static const char *match_context;
+static const char *match_exten;
+static const char *match_label;
 static int in_abstract_context;
 static int count_labels; /* true, put matcher in label counting mode */
 static int label_count;  /* labels are only meant to be counted in a context or exten */
@@ -138,15 +139,20 @@ static void check_dow(pval *DOW);
 static void check_day(pval *DAY);
 static void check_month(pval *MON);
 static void check_expr2_input(pval *expr, char *str);
-static int extension_matches(pval *here, char *exten, char *pattern);
+static int extension_matches(pval *here, const char *exten, const char *pattern);
 static void check_goto(pval *item);
 static void find_pval_goto_item(pval *item, int lev);
 static void find_pval_gotos(pval *item, int lev);
 
+static struct pval *find_label_in_current_context(char *exten, char *label);
+static void print_pval_list(FILE *fin, pval *item, int depth);
+
+static struct pval *find_label_in_current_extension(const char *label);
+static struct pval *find_label_in_current_db(const char *context, const char *exten, const char *label);
 
 /* PRETTY PRINTER FOR AEL:  ============================================================================= */
 
-void print_pval(FILE *fin, pval *item, int depth)
+static void print_pval(FILE *fin, pval *item, int depth)
 {
 	int i;
 	pval *lp;
@@ -400,7 +406,7 @@ void print_pval(FILE *fin, pval *item, int depth)
 	}
 }
 
-void print_pval_list(FILE *fin, pval *item, int depth)
+static void print_pval_list(FILE *fin, pval *item, int depth)
 {
 	pval *i;
 	
@@ -409,7 +415,8 @@ void print_pval_list(FILE *fin, pval *item, int depth)
 	}
 }
 
-void ael2_print(char *fname, pval *tree)
+#if 0
+static void ael2_print(char *fname, pval *tree)
 {
 	FILE *fin = fopen(fname,"w");
 	if ( !fin ) {
@@ -419,6 +426,7 @@ void ael2_print(char *fname, pval *tree)
 	print_pval_list(fin, tree, 0);
 	fclose(fin);
 }
+#endif
 
 
 /* EMPTY TEMPLATE FUNCS FOR AEL TRAVERSAL:  ============================================================================= */
@@ -677,7 +685,7 @@ void traverse_pval_template(pval *item, int depth) /* depth comes in handy for a
 
 
 
-static int extension_matches(pval *here, char *exten, char *pattern)
+static int extension_matches(pval *here, const char *exten, const char *pattern)
 {
 	int err1;
 	regex_t preg;
@@ -688,7 +696,8 @@ static int extension_matches(pval *here, char *exten, char *pattern)
 	
 	if ( pattern[0] == '_' ) {
 		char reg1[2000];
-		char *p,*r=reg1;
+		const char *p;
+		char *r = reg1;
 		
 		if ( strlen(pattern)*5 >= 2000 ) /* safety valve */ {
 			ast_log(LOG_ERROR,"Error: The pattern %s is way too big. Pattern matching cancelled.\n",
@@ -1511,7 +1520,7 @@ struct pval *match_pval(pval *item)
 	return 0;
 }
 
-
+#if 0
 int count_labels_in_current_context(char *label)
 {
 	label_count = 0;
@@ -1521,6 +1530,7 @@ int count_labels_in_current_context(char *label)
 	
 	return label_count;
 }
+#endif
 
 struct pval *find_label_in_current_context(char *exten, char *label)
 {
@@ -1564,7 +1574,7 @@ struct pval *find_label_in_current_context(char *exten, char *label)
 	return 0;
 }
 
-struct pval *find_label_in_current_extension(char *label)
+static struct pval *find_label_in_current_extension(const char *label)
 {
 	/* printf("  --- Got args %s\n", label); */
 	count_labels = 0;
@@ -1577,7 +1587,7 @@ struct pval *find_label_in_current_extension(char *label)
 	return match_pval(current_extension->u2.statements);
 }
 
-struct pval *find_label_in_current_db(char *context, char *exten, char *label)
+static struct pval *find_label_in_current_db(const char *context, const char *exten, const char *label)
 {
 	/* printf("  --- Got args %s, %s, %s\n", context, exten, label); */
 	count_labels = 0;
@@ -2408,7 +2418,7 @@ void check_pval(pval *item, struct argapp *apps)
 	}
 }
 
-void ael2_semantic_check(pval *item, int *arg_errs, int *arg_warns, int *arg_notes)
+static void ael2_semantic_check(pval *item, int *arg_errs, int *arg_warns, int *arg_notes)
 {
 	
 #ifdef AAL_ARGCHECK

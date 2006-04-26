@@ -1,3 +1,6 @@
+#ifndef _ASTERISK_AEL_STRUCTS_H
+#define _ASTERISK_AEL_STRUCTS_H
+
 #if !defined(SOLARIS) && !defined(__CYGWIN__)
 #include <err.h>
 #else
@@ -113,6 +116,7 @@ struct pval
 
 typedef struct pval pval;
 
+#if 0
 pval *npval(pvaltype type, int first_line, int last_line, int first_column, int last_column);
 void linku1(pval *head, pval *tail);
 void print_pval_list(FILE *f, pval *item, int depth);
@@ -122,9 +126,13 @@ struct pval *find_label_in_current_context(char *exten, char *label);
 struct pval *find_label_in_current_extension(char *label);
 int count_labels_in_current_context(char *label);
 struct pval *find_label_in_current_db(char *context, char *exten, char *label);
-struct pval *ael2_parse(char *fname, int *errs);
-void destroy_pval(pval *item);
 void ael2_print(char *fname, pval *tree);
+#endif
+struct pval *ael2_parse(char *fname, int *errs);	/* in ael.flex */
+void destroy_pval(pval *item);
+
+extern char *prev_word;	/* in ael.flex */
+
 #ifndef YY_TYPEDEF_YY_SCANNER_T
 #define YY_TYPEDEF_YY_SCANNER_T
 typedef void* yyscan_t;
@@ -175,4 +183,4 @@ struct ael_extension
 	int return_needed;
 };
 
-
+#endif /* _ASTERISK_AEL_STRUCTS_H */

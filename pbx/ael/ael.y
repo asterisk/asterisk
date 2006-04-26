@@ -27,9 +27,13 @@
 #include "asterisk/logger.h"
 #include "asterisk/ael_structs.h"
 
-extern void reset_parencount(yyscan_t yyscanner);
-extern void reset_semicount(yyscan_t yyscanner);
-extern void reset_argcount(yyscan_t yyscanner );
+static pval *npval(pvaltype type, int first_line, int last_line,
+	int first_column, int last_column);
+static void linku1(pval *head, pval *tail);
+
+void reset_parencount(yyscan_t yyscanner);
+void reset_semicount(yyscan_t yyscanner);
+void reset_argcount(yyscan_t yyscanner );
 
 #define YYLEX_PARAM ((struct parse_io *)parseio)->scanner
 #define YYERROR_VERBOSE 1
@@ -38,8 +42,7 @@ extern char *my_file;
 #ifdef AAL_ARGCHECK
 int ael_is_funcname(char *name);
 #endif
- static char *ael_token_subst(char *mess);
- extern char *prev_word;
+static char *ael_token_subst(char *mess);
 
 %}
 
@@ -679,7 +682,7 @@ void yyerror(YYLTYPE *locp, struct parse_io *parseio,  char const *s)
 	parseio->syntax_error_count++;
 }
 
-struct pval *npval(pvaltype type,int first_line, int last_line, int first_column, int last_column)
+static struct pval *npval(pvaltype type,int first_line, int last_line, int first_column, int last_column)
 {
 	extern char *my_file;
 	pval *z = (pval *)calloc(sizeof(struct pval),1);
@@ -692,14 +695,14 @@ struct pval *npval(pvaltype type,int first_line, int last_line, int first_column
 	return z;
 }
 
-void linku1(pval *head, pval *tail)
+/* append second element to the list in the first one */
+static void linku1(pval *head, pval *tail)
 {
 	if (!head->next) {
 		head->next = tail;
-		head->u1_last = tail;
 	} else {
 		head->u1_last->next = tail;
-		head->u1_last = tail;
 	}
+	head->u1_last = tail;
 }
 

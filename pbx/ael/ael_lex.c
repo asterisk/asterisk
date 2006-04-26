@@ -675,17 +675,12 @@ char *my_file = 0;
 char *prev_word;
 #define MAX_INCLUDE_DEPTH 50
 
-void reset_parencount(yyscan_t yyscanner );
-void reset_semicount(yyscan_t yyscanner );
-void reset_argcount(yyscan_t yyscanner );
-struct pval *ael2_parse(char *filename, int *errors);
 int ael_yyget_column  (yyscan_t yyscanner);
 void ael_yyset_column (int  column_no , yyscan_t yyscanner);
 int ael_yyparse (struct parse_io *);
 static void pbcpush(char x);
 static int pbcpop(char x);
 static void pbcwhere(char *text, int *line, int *col );
-static int c_prevword(void);
 
 struct stackelement {
 	char *fname;
@@ -698,7 +693,7 @@ int include_stack_index = 0;
 
 
 /* %option yylineno I've tried hard, but haven't been able to use this */
-#line 702 "ael_lex.c"
+#line 697 "ael_lex.c"
 
 #define INITIAL 0
 #define paren 1
@@ -938,9 +933,9 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 76 "ael.flex"
+#line 71 "ael.flex"
 
-#line 944 "ael_lex.c"
+#line 939 "ael_lex.c"
 
     yylval = yylval_param;
 
@@ -1031,218 +1026,218 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 77 "ael.flex"
+#line 72 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return LC;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 78 "ael.flex"
+#line 73 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return RC;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 79 "ael.flex"
+#line 74 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return LP;}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 80 "ael.flex"
+#line 75 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return RP;}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 81 "ael.flex"
+#line 76 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return SEMI;}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 82 "ael.flex"
+#line 77 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return EQ;}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 83 "ael.flex"
+#line 78 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return COMMA;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 84 "ael.flex"
+#line 79 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return COLON;}
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 85 "ael.flex"
+#line 80 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return AMPER;}
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 86 "ael.flex"
+#line 81 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return BAR;}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 87 "ael.flex"
+#line 82 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return EXTENMARK;}
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 88 "ael.flex"
+#line 83 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return AT;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 89 "ael.flex"
+#line 84 "ael.flex"
 {/*comment*/}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 90 "ael.flex"
+#line 85 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_CONTEXT;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 91 "ael.flex"
+#line 86 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_ABSTRACT;}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 92 "ael.flex"
+#line 87 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_MACRO;};
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 93 "ael.flex"
+#line 88 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_GLOBALS;}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 94 "ael.flex"
+#line 89 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_IGNOREPAT;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 95 "ael.flex"
+#line 90 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_SWITCH;}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 96 "ael.flex"
+#line 91 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_IF;}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 97 "ael.flex"
+#line 92 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_IFTIME;}
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 98 "ael.flex"
+#line 93 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_RANDOM;}
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 99 "ael.flex"
+#line 94 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_REGEXTEN;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 100 "ael.flex"
+#line 95 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_HINT;}
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 101 "ael.flex"
+#line 96 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_ELSE;}
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 102 "ael.flex"
+#line 97 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_GOTO;}
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 103 "ael.flex"
+#line 98 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_JUMP;}
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 104 "ael.flex"
+#line 99 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_RETURN;}
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 105 "ael.flex"
+#line 100 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_BREAK;}
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 106 "ael.flex"
+#line 101 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_CONTINUE;}
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 107 "ael.flex"
+#line 102 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_FOR;}
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 108 "ael.flex"
+#line 103 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_WHILE;}
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 109 "ael.flex"
+#line 104 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_CASE;}
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 110 "ael.flex"
+#line 105 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_DEFAULT;}
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 111 "ael.flex"
+#line 106 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_PATTERN;}
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 112 "ael.flex"
+#line 107 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_CATCH;}
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 113 "ael.flex"
+#line 108 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_SWITCHES;}
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 114 "ael.flex"
+#line 109 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_ESWITCHES;}
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 115 "ael.flex"
+#line 110 "ael.flex"
 {yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_INCLUDES;}
 	YY_BREAK
 case 40:
 /* rule 40 can match eol */
 YY_RULE_SETUP
-#line 117 "ael.flex"
+#line 112 "ael.flex"
 {my_lineno++;my_col=0;}
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 118 "ael.flex"
+#line 113 "ael.flex"
 {/* nothing */ my_col+=yyleng;}
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 119 "ael.flex"
+#line 114 "ael.flex"
 {/* nothing */ int wid = 8-(my_col%8); my_col+=wid;}
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 121 "ael.flex"
+#line 116 "ael.flex"
 {
 		yylloc->first_line = yylloc->last_line = my_lineno;
 		yylloc->last_column=my_col+yyleng-1;
@@ -1257,7 +1252,7 @@ YY_RULE_SETUP
 case 44:
 /* rule 44 can match eol */
 YY_RULE_SETUP
-#line 132 "ael.flex"
+#line 127 "ael.flex"
 {
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
@@ -1297,7 +1292,7 @@ YY_RULE_SETUP
 case 45:
 /* rule 45 can match eol */
 YY_RULE_SETUP
-#line 168 "ael.flex"
+#line 163 "ael.flex"
 {
 		yylloc->first_line = my_lineno; yylloc->first_column=my_col;
 		parencount++;
@@ -1308,13 +1303,13 @@ YY_RULE_SETUP
 case 46:
 /* rule 46 can match eol */
 YY_RULE_SETUP
-#line 175 "ael.flex"
+#line 170 "ael.flex"
 {yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('['); }
 	YY_BREAK
 case 47:
 /* rule 47 can match eol */
 YY_RULE_SETUP
-#line 177 "ael.flex"
+#line 172 "ael.flex"
 {
 		yylloc->first_line = my_lineno;yylloc->first_column=my_col;
 		if ( pbcpop(']') ) {
@@ -1336,13 +1331,13 @@ YY_RULE_SETUP
 case 48:
 /* rule 48 can match eol */
 YY_RULE_SETUP
-#line 195 "ael.flex"
+#line 190 "ael.flex"
 {yylloc->first_line = my_lineno;yylloc->first_column=my_col;  yymore(); pbcpush('{'); }
 	YY_BREAK
 case 49:
 /* rule 49 can match eol */
 YY_RULE_SETUP
-#line 197 "ael.flex"
+#line 192 "ael.flex"
 {
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
@@ -1365,7 +1360,7 @@ YY_RULE_SETUP
 case 50:
 /* rule 50 can match eol */
 YY_RULE_SETUP
-#line 216 "ael.flex"
+#line 211 "ael.flex"
 {
 		/* printf("ARGG:%s\n",yytext); */
 		int linecount = 0;
@@ -1425,7 +1420,7 @@ YY_RULE_SETUP
 case 51:
 /* rule 51 can match eol */
 YY_RULE_SETUP
-#line 272 "ael.flex"
+#line 267 "ael.flex"
 {
 		/* printf("ARGG:%s\n",yytext); */
 		/* printf("GOT AN LP!!!\n"); */
@@ -1439,7 +1434,7 @@ YY_RULE_SETUP
 case 52:
 /* rule 52 can match eol */
 YY_RULE_SETUP
-#line 282 "ael.flex"
+#line 277 "ael.flex"
 {
 		/* printf("ARGG:%s\n",yytext); */
 		if( parencount != 0) {
@@ -1489,7 +1484,7 @@ YY_RULE_SETUP
 case 53:
 /* rule 53 can match eol */
 YY_RULE_SETUP
-#line 328 "ael.flex"
+#line 323 "ael.flex"
 {
 		/*printf("ARGG:%s\n",yytext);*/
 		yylloc->first_line = my_lineno;
@@ -1500,7 +1495,7 @@ YY_RULE_SETUP
 case 54:
 /* rule 54 can match eol */
 YY_RULE_SETUP
-#line 335 "ael.flex"
+#line 330 "ael.flex"
 {
 		/*printf("ARGG:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
 		if ( pbcpop('}') ) {
@@ -1522,13 +1517,13 @@ YY_RULE_SETUP
 case 55:
 /* rule 55 can match eol */
 YY_RULE_SETUP
-#line 353 "ael.flex"
+#line 348 "ael.flex"
 {/*printf("ARGG:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('['); }
 	YY_BREAK
 case 56:
 /* rule 56 can match eol */
 YY_RULE_SETUP
-#line 355 "ael.flex"
+#line 350 "ael.flex"
 {/*printf("ARGG:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
 		if ( pbcpop(']') ) {
 			/* error */
@@ -1549,13 +1544,13 @@ YY_RULE_SETUP
 case 57:
 /* rule 57 can match eol */
 YY_RULE_SETUP
-#line 372 "ael.flex"
+#line 367 "ael.flex"
 {/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('['); }
 	YY_BREAK
 case 58:
 /* rule 58 can match eol */
 YY_RULE_SETUP
-#line 374 "ael.flex"
+#line 369 "ael.flex"
 {/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
 		if ( pbcpop(']') ) {
 			/* error */
@@ -1576,13 +1571,13 @@ YY_RULE_SETUP
 case 59:
 /* rule 59 can match eol */
 YY_RULE_SETUP
-#line 391 "ael.flex"
+#line 386 "ael.flex"
 {/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('{');}
 	YY_BREAK
 case 60:
 /* rule 60 can match eol */
 YY_RULE_SETUP
-#line 393 "ael.flex"
+#line 388 "ael.flex"
 {/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
 		if ( pbcpop('}') ) {
 			/* error */
@@ -1603,13 +1598,13 @@ YY_RULE_SETUP
 case 61:
 /* rule 61 can match eol */
 YY_RULE_SETUP
-#line 410 "ael.flex"
+#line 405 "ael.flex"
 {/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('(');}
 	YY_BREAK
 case 62:
 /* rule 62 can match eol */
 YY_RULE_SETUP
-#line 412 "ael.flex"
+#line 407 "ael.flex"
 {/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
 		if ( pbcpop(')') ) {
 			/* error */
@@ -1630,7 +1625,7 @@ YY_RULE_SETUP
 case 63:
 /* rule 63 can match eol */
 YY_RULE_SETUP
-#line 429 "ael.flex"
+#line 424 "ael.flex"
 {
 		int linecount = 0;
 		int colcount = my_col;
@@ -1661,7 +1656,7 @@ YY_RULE_SETUP
 case 64:
 /* rule 64 can match eol */
 YY_RULE_SETUP
-#line 456 "ael.flex"
+#line 451 "ael.flex"
 {
 		FILE *in1;
 		char fnamebuf[1024],*p1,*p2;
@@ -1728,7 +1723,7 @@ case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(paren):
 case YY_STATE_EOF(semic):
 case YY_STATE_EOF(argg):
-#line 518 "ael.flex"
+#line 513 "ael.flex"
 {
 		if ( --include_stack_index < 0 ) {
 			yyterminate();
@@ -1744,10 +1739,10 @@ case YY_STATE_EOF(argg):
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 531 "ael.flex"
+#line 526 "ael.flex"
 ECHO;
 	YY_BREAK
-#line 1751 "ael_lex.c"
+#line 1746 "ael_lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2877,7 +2872,7 @@ void ael_yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 531 "ael.flex"
+#line 526 "ael.flex"
 
 
 
@@ -2897,6 +2892,7 @@ static int pbcpop(char x)
 	return 1; /* error */
 }
 
+#if 0
 static int c_prevword(void)
 {
 	char *c = prev_word;
@@ -2916,6 +2912,7 @@ static int c_prevword(void)
 	}
 	return 0;
 }
+#endif
 
 static void pbcwhere(char *text, int *line, int *col )
 {
@@ -2934,7 +2931,8 @@ static void pbcwhere(char *text, int *line, int *col )
 	*col = loc_col;
 }
 
-void reset_parencount(yyscan_t yyscanner )
+#if 0
+static void reset_parencount(yyscan_t yyscanner )
 {
 	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	parencount = 0;
@@ -2944,14 +2942,14 @@ void reset_parencount(yyscan_t yyscanner )
 	BEGIN(paren);
 }
 
-void reset_semicount(yyscan_t yyscanner )
+static void reset_semicount(yyscan_t yyscanner )
 {
 	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	pbcpos = 0;
 	BEGIN(semic);
 }
 
-void reset_argcount(yyscan_t yyscanner )
+static void reset_argcount(yyscan_t yyscanner )
 {
 	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	parencount = 0;
@@ -2962,7 +2960,9 @@ void reset_argcount(yyscan_t yyscanner )
 	BEGIN(argg);
 }
 
+#endif
 
+/* used elsewhere, but some local vars */
 struct pval *ael2_parse(char *filename, int *errors)
 {
 	struct pval *pval;
