@@ -56,6 +56,12 @@ struct stackelement {
 static struct stackelement  include_stack[MAX_INCLUDE_DEPTH];
 static int include_stack_index = 0;
 
+#define	STORE_POS do {							\
+		yylloc->first_line = yylloc->last_line = my_lineno;	\
+		yylloc->last_column=my_col+yyleng-1;			\
+		yylloc->first_column=my_col;				\
+		my_col+=yyleng;						\
+	} while (0)
 %}
 
 %x paren semic argg
@@ -69,55 +75,52 @@ static int include_stack_index = 0;
 %option noyywrap
 
 %%
-\{	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return LC;}
-\}	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return RC;}
-\(	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return LP;}
-\)	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return RP;}
-\;	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return SEMI;}
-\=	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return EQ;}
-\,	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return COMMA;}
-\:	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return COLON;}
-\&	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return AMPER;}
-\|	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return BAR;}
-\=\>	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return EXTENMARK;}
-\@	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return AT;}
-\/\/[^\n]*  {/*comment*/}
-context	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_CONTEXT;}
-abstract	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_ABSTRACT;}
-macro	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_MACRO;};
-globals	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_GLOBALS;}
-ignorepat	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_IGNOREPAT;}
-switch	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_SWITCH;}
-if	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_IF;}
-ifTime	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_IFTIME;}
-random	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_RANDOM;}
-regexten	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_REGEXTEN;}
-hint	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_HINT;}
-else	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_ELSE;}
-goto	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_GOTO;}
-jump	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_JUMP;}
-return	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_RETURN;}
-break	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_BREAK;}
-continue	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_CONTINUE;}
-for	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_FOR;}
-while	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_WHILE;}
-case	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_CASE;}
-default	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_DEFAULT;}
-pattern	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_PATTERN;}
-catch	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_CATCH;}
-switches	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_SWITCHES;}
-eswitches	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_ESWITCHES;}
-includes	{yylloc->first_line = yylloc->last_line = my_lineno; yylloc->last_column=my_col+yyleng-1; yylloc->first_column=my_col;my_col+=yyleng;return KW_INCLUDES;}
+\{		{ STORE_POS; return LC;}
+\}		{ STORE_POS; return RC;}
+\(		{ STORE_POS; return LP;}
+\)		{ STORE_POS; return RP;}
+\;		{ STORE_POS; return SEMI;}
+\=		{ STORE_POS; return EQ;}
+\,		{ STORE_POS; return COMMA;}
+\:		{ STORE_POS; return COLON;}
+\&		{ STORE_POS; return AMPER;}
+\|		{ STORE_POS; return BAR;}
+\=\>		{ STORE_POS; return EXTENMARK;}
+\@		{ STORE_POS; return AT;}
+\/\/[^\n]*	{/*comment*/}
+context		{ STORE_POS; return KW_CONTEXT;}
+abstract	{ STORE_POS; return KW_ABSTRACT;}
+macro		{ STORE_POS; return KW_MACRO;};
+globals		{ STORE_POS; return KW_GLOBALS;}
+ignorepat	{ STORE_POS; return KW_IGNOREPAT;}
+switch		{ STORE_POS; return KW_SWITCH;}
+if		{ STORE_POS; return KW_IF;}
+ifTime		{ STORE_POS; return KW_IFTIME;}
+random		{ STORE_POS; return KW_RANDOM;}
+regexten	{ STORE_POS; return KW_REGEXTEN;}
+hint		{ STORE_POS; return KW_HINT;}
+else		{ STORE_POS; return KW_ELSE;}
+goto		{ STORE_POS; return KW_GOTO;}
+jump		{ STORE_POS; return KW_JUMP;}
+return		{ STORE_POS; return KW_RETURN;}
+break		{ STORE_POS; return KW_BREAK;}
+continue	{ STORE_POS; return KW_CONTINUE;}
+for		{ STORE_POS; return KW_FOR;}
+while		{ STORE_POS; return KW_WHILE;}
+case		{ STORE_POS; return KW_CASE;}
+default		{ STORE_POS; return KW_DEFAULT;}
+pattern		{ STORE_POS; return KW_PATTERN;}
+catch		{ STORE_POS; return KW_CATCH;}
+switches	{ STORE_POS; return KW_SWITCHES;}
+eswitches	{ STORE_POS; return KW_ESWITCHES;}
+includes	{ STORE_POS; return KW_INCLUDES;}
 
 \n		{my_lineno++;my_col=0;}
 [ ]+	{/* nothing */ my_col+=yyleng;}
 [	]+	{/* nothing */ int wid = 8-(my_col%8); my_col+=wid;}
 
 [-a-zA-Z0-9'"_/.\<\>\*\+!$#\[\]][-a-zA-Z0-9'"_/.!\*\+\<\>\{\}$#\[\]]*	{
-		yylloc->first_line = yylloc->last_line = my_lineno;
-		yylloc->last_column=my_col+yyleng-1;
-		yylloc->first_column=my_col; /* set up the ptr */
-		my_col+=yyleng;
+		STORE_POS;
 		yylval->str = strdup(yytext);
 		/* printf("\nGot WORD %s[%d][%d:%d]\n", yylval->str, my_lineno ,yylloc->first_column,yylloc->last_column );  */
 		prev_word = yylval->str;
