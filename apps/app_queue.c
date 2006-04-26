@@ -3132,7 +3132,47 @@ static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, c
 			}
 		}
 		ast_mutex_unlock(&q->lock);
+	} else
+		ast_log(LOG_WARNING, "queue %s was not found\n", data);
+
+	snprintf(buf, len, "%d", count);
+	LOCAL_USER_REMOVE(lu);
+	return 0;
+}
+
+static int queue_function_queuewaitingcount(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	int count = 0;
+	struct ast_call_queue *q;
+	struct localuser *lu;
+	struct member *m;
+
+	buf[0] = '\0';
+	
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_ERROR, "%s requires an argument: queuename\n", cmd);
+		return -1;
 	}
+
+	LOCAL_USER_ADD(lu);
+	
+	AST_LIST_LOCK(&queues);
+
+	/* Find the right queue */
+	AST_LIST_TRAVERSE(&queues, q, list) {
+		if (!strcasecmp(q->name, data)) {
+			ast_mutex_lock(&q->lock);
+			break;
+		}
+	}
+
+	AST_LIST_UNLOCK(&queues);
+
+	if (q) {
+		count = q->count;
+		ast_mutex_unlock(&q->lock);
+	} else
+		ast_log(LOG_WARNING, "queue %s was not found\n", data);
 
 	snprintf(buf, len, "%d", count);
 	LOCAL_USER_REMOVE(lu);
@@ -3184,7 +3224,8 @@ static int queue_function_queuememberlist(struct ast_channel *chan, char *cmd, c
 			}
 		}
 		ast_mutex_unlock(&q->lock);
-	}
+	} else
+		ast_log(LOG_WARNING, "queue %s was not found\n", data);
 
 	/* We should already be terminated, but let's make sure. */
 	buf[len - 1] = '\0';
@@ -3209,6 +3250,15 @@ static struct ast_custom_function queuemembercount_function = {
 	.desc =
 "Returns the number of members currently associated with the specified queue.\n",
 	.read = queue_function_qac,
+};
+
+static struct ast_custom_function queuewaitingcount_function = {
+	.name = "QUEUE_WAITING_COUNT",
+	.synopsis = "Count number of calls currently waiting in a queue",
+	.syntax = "QUEUE_WAITING_COUNT(<queuename>)",
+	.desc = 
+"Returns the number of callers currently waiting in the specified queue.\n",
+	.read = queue_function_queuewaitingcount,
 };
 
 static struct ast_custom_function queuememberlist_function = {
@@ -3870,6 +3920,7 @@ static int unload_module(void *mod)
 	res |= ast_custom_function_unregister(&queueagentcount_function);
 	res |= ast_custom_function_unregister(&queuemembercount_function);
 	res |= ast_custom_function_unregister(&queuememberlist_function);
+	res |= ast_custom_function_unregister(&queuewaitingcount_function);
 	res |= ast_unregister_application(app);
 
 	STANDARD_HANGUP_LOCALUSERS;
@@ -3899,6 +3950,7 @@ static int load_module(void *mod)
 	res |= ast_custom_function_register(&queueagentcount_function);
 	res |= ast_custom_function_register(&queuemembercount_function);
 	res |= ast_custom_function_register(&queuememberlist_function);
+	res |= ast_custom_function_register(&queuewaitingcount_function);
 
 	if (!res) {	
 		reload_queues();
