@@ -394,41 +394,42 @@ statement : LC statements RC {$$=npval(PV_STATEMENTBLOCK,@1.first_line,@3.last_l
 	| switch_head case_statements RC {$$=$1; $$->u2.statements = $2;$$->endline = @3.last_line; $$->endcol = @3.last_column;}
 	| AMPER macro_call SEMI {$$ = $2;$$->endline = @2.last_line; $$->endcol = @2.last_column;}
 	| application_call SEMI { $$ = $1;$$->endline = @2.last_line; $$->endcol = @2.last_column;}
-	| word SEMI { $$= npval(PV_APPLICATION_CALL,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
-																						$$->u1.str = $1;}
+	| word SEMI {
+		$$= npval(PV_APPLICATION_CALL,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
+		$$->u1.str = $1;}
 	| application_call EQ {reset_semicount(parseio->scanner);} word SEMI {
-			char *bufx;
-			int tot=0;
-			pval *pptr;
-			$$ = npval(PV_VARDEC,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
-			$$->u2.val=$4;
-			/* rebuild the original string-- this is not an app call, it's an unwrapped vardec, with a func call on the LHS */
-                        /* string to big to fit in the buffer? */
-			tot+=strlen($1->u1.str);
-			for(pptr=$1->u2.arglist;pptr;pptr=pptr->next) {
-				tot+=strlen(pptr->u1.str);
-				tot++; /* for a sep like a comma */
-			}
-			tot+=4; /* for safety */
-			bufx = (char *)malloc(tot);
-			strcpy(bufx,$1->u1.str);
-			strcat(bufx,"(");
-			/* XXX need to advance the pointer or the loop is very inefficient */
-			for (pptr=$1->u2.arglist;pptr;pptr=pptr->next) {
-				if ( pptr != $1->u2.arglist )
-					strcat(bufx,",");
-				strcat(bufx,pptr->u1.str);
-			}
-			strcat(bufx,")");
-#ifdef AAL_ARGCHECK
-			if ( !ael_is_funcname($1->u1.str) )
-                        	ast_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Function call? The name %s is not in my internal list of function names\n",
-					my_file, @1.first_line, @1.first_column, @1.last_column, $1->u1.str);
-#endif
-			$$->u1.str = bufx;
-			destroy_pval($1); /* the app call it is not, get rid of that chain */
-			prev_word = 0;
+		char *bufx;
+		int tot=0;
+		pval *pptr;
+		$$ = npval(PV_VARDEC,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
+		$$->u2.val=$4;
+		/* rebuild the original string-- this is not an app call, it's an unwrapped vardec, with a func call on the LHS */
+		/* string to big to fit in the buffer? */
+		tot+=strlen($1->u1.str);
+		for(pptr=$1->u2.arglist;pptr;pptr=pptr->next) {
+			tot+=strlen(pptr->u1.str);
+			tot++; /* for a sep like a comma */
 		}
+		tot+=4; /* for safety */
+		bufx = (char *)malloc(tot);
+		strcpy(bufx,$1->u1.str);
+		strcat(bufx,"(");
+		/* XXX need to advance the pointer or the loop is very inefficient */
+		for (pptr=$1->u2.arglist;pptr;pptr=pptr->next) {
+			if ( pptr != $1->u2.arglist )
+				strcat(bufx,",");
+			strcat(bufx,pptr->u1.str);
+		}
+		strcat(bufx,")");
+#ifdef AAL_ARGCHECK
+		if ( !ael_is_funcname($1->u1.str) )
+			ast_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Function call? The name %s is not in my internal list of function names\n",
+				my_file, @1.first_line, @1.first_column, @1.last_column, $1->u1.str);
+#endif
+		$$->u1.str = bufx;
+		destroy_pval($1); /* the app call it is not, get rid of that chain */
+		prev_word = 0;
+	}
 	| KW_BREAK SEMI { $$ = npval(PV_BREAK,@1.first_line,@2.last_line, @1.first_column, @2.last_column);}
 	| KW_RETURN SEMI {$$ = npval(PV_RETURN,@1.first_line,@2.last_line, @1.first_column, @2.last_column);}
 	| KW_CONTINUE SEMI {$$ = npval(PV_CONTINUE,@1.first_line,@2.last_line, @1.first_column, @2.last_column);}
@@ -453,62 +454,63 @@ target : goto_word { $$ = npval(PV_WORD,@1.first_line,@1.last_line, @1.first_col
 		$$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
 		$$->next->u1.str = $3;}
 	| goto_word BAR goto_word BAR goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
-					$$->u1.str = $1; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->next->u1.str = $3;
-					$$->next->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
-					$$->next->next->u1.str = $5; }
+		$$->u1.str = $1; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->next->u1.str = $3;
+		$$->next->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
+		$$->next->next->u1.str = $5; }
 	| goto_word COMMA goto_word COMMA goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
-					$$->u1.str = $1; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->next->u1.str = $3;
-					$$->next->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
-					$$->next->next->u1.str = $5; }
+		$$->u1.str = $1; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->next->u1.str = $3;
+		$$->next->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
+		$$->next->next->u1.str = $5; }
 	| KW_DEFAULT BAR goto_word BAR goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
-					$$->u1.str = strdup("default"); $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->next->u1.str = $3;
-					$$->next->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
-					$$->next->next->u1.str = $5; }
+		$$->u1.str = strdup("default"); $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->next->u1.str = $3;
+		$$->next->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
+		$$->next->next->u1.str = $5; }
 	| KW_DEFAULT COMMA goto_word COMMA goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
-					$$->u1.str = strdup("default"); $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->next->u1.str = $3;
-					$$->next->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
-					$$->next->next->u1.str = $5; }
+		$$->u1.str = strdup("default"); $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->next->u1.str = $3;
+		$$->next->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
+		$$->next->next->u1.str = $5; }
 	;
 
 jumptarget : goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
-					$$->u1.str = $1; $$->next = npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
-					$$->next->u1.str = strdup("1");}  /*  jump extension[,priority][@context] */
+		$$->u1.str = $1; $$->next = npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
+		$$->next->u1.str = strdup("1");}  /*  jump extension[,priority][@context] */
 	| goto_word COMMA goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
-					$$->u1.str = $1; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->next->u1.str = $3;}
+		$$->u1.str = $1; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->next->u1.str = $3;}
 	| goto_word COMMA word AT word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
-					$$->u1.str = $5; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->next->u1.str = $1;
-					$$->next->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
-					$$->next->next->u1.str = $3; }
+		$$->u1.str = $5; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->next->u1.str = $1;
+		$$->next->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
+		$$->next->next->u1.str = $3; }
 	| goto_word AT goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
-					$$->u1.str = $3; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->next->u1.str = $1;
-					$$->next->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->next->next->u1.str = strdup("1"); }
+		$$->u1.str = $3; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->next->u1.str = $1;
+		$$->next->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->next->next->u1.str = strdup("1"); }
 	| goto_word COMMA word AT KW_DEFAULT {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
-					$$->u1.str = strdup("default"); $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->next->u1.str = $1;
-					$$->next->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
-					$$->next->next->u1.str = $3; }
+		$$->u1.str = strdup("default"); $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->next->u1.str = $1;
+		$$->next->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
+		$$->next->next->u1.str = $3; }
 	| goto_word AT KW_DEFAULT {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
-					$$->u1.str = strdup("default"); $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->next->u1.str = $1;
-					$$->next->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->next->next->u1.str = strdup("1"); }
+		$$->u1.str = strdup("default"); $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->next->u1.str = $1;
+		$$->next->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->next->next->u1.str = strdup("1"); }
 	;
 
 macro_call : word LP {reset_argcount(parseio->scanner);} eval_arglist RP
-			{$$= npval(PV_MACRO_CALL,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
-			$$->u1.str = $1; $$->u2.arglist = $4;}
+		{$$= npval(PV_MACRO_CALL,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
+		$$->u1.str = $1; $$->u2.arglist = $4;}
 	| word LP RP {$$= npval(PV_MACRO_CALL,@1.first_line,@3.last_line, @1.first_column, @3.last_column); $$->u1.str = $1; }
 	;
 
-application_call_head: word {reset_argcount(parseio->scanner);} LP  {if (strcasecmp($1,"goto") == 0) {
+application_call_head: word {reset_argcount(parseio->scanner);} LP  {
+		if (strcasecmp($1,"goto") == 0) {
 			$$= npval(PV_GOTO,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
 			free($1); /* won't be using this */
 			ast_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Suggestion: Use the goto statement instead of the Goto() application call in AEL.\n", my_file, @1.first_line, @1.first_column, @1.last_column );
@@ -571,63 +573,63 @@ switchlist : word SEMI {$$=npval(PV_WORD,@1.first_line,@2.last_line, @1.first_co
 
 includeslist : includedname SEMI {$$=npval(PV_WORD,@1.first_line,@2.last_line, @1.first_column, @2.last_column); $$->u1.str = $1;}
 	| includedname BAR word3_list COLON word3_list COLON word3_list BAR word3_list BAR word3_list BAR word3_list SEMI {
-                    $$=npval(PV_WORD,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
-                    $$->u1.str = $1;
-					$$->u2.arglist = npval(PV_WORD,@3.first_line,@7.last_line, @3.first_column, @7.last_column);
-					asprintf( &($$->u2.arglist->u1.str), "%s:%s:%s", $3, $5, $7);
-					free($3);
-					free($5);
-					free($7);
-					$$->u2.arglist->next = npval(PV_WORD,@9.first_line,@9.last_line, @9.first_column, @9.last_column);
-					$$->u2.arglist->next->u1.str = $9;
-					$$->u2.arglist->next->next = npval(PV_WORD,@11.first_line,@11.last_line, @11.first_column, @11.last_column);
-					$$->u2.arglist->next->next->u1.str = $11;
-					$$->u2.arglist->next->next->next = npval(PV_WORD,@13.first_line,@13.last_line, @13.first_column, @13.last_column);
-					$$->u2.arglist->next->next->next->u1.str = $13;
-					prev_word=0;
-			}
+		$$=npval(PV_WORD,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
+		$$->u1.str = $1;
+		$$->u2.arglist = npval(PV_WORD,@3.first_line,@7.last_line, @3.first_column, @7.last_column);
+		asprintf( &($$->u2.arglist->u1.str), "%s:%s:%s", $3, $5, $7);
+		free($3);
+		free($5);
+		free($7);
+		$$->u2.arglist->next = npval(PV_WORD,@9.first_line,@9.last_line, @9.first_column, @9.last_column);
+		$$->u2.arglist->next->u1.str = $9;
+		$$->u2.arglist->next->next = npval(PV_WORD,@11.first_line,@11.last_line, @11.first_column, @11.last_column);
+		$$->u2.arglist->next->next->u1.str = $11;
+		$$->u2.arglist->next->next->next = npval(PV_WORD,@13.first_line,@13.last_line, @13.first_column, @13.last_column);
+		$$->u2.arglist->next->next->next->u1.str = $13;
+		prev_word=0;
+	}
 	| includedname BAR word BAR word3_list BAR word3_list BAR word3_list SEMI {
-                    $$=npval(PV_WORD,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
-                    $$->u1.str = $1;
-					$$->u2.arglist = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->u2.arglist->u1.str = $3;
-					$$->u2.arglist->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
-					$$->u2.arglist->next->u1.str = $5;
-					$$->u2.arglist->next->next = npval(PV_WORD,@7.first_line,@7.last_line, @7.first_column, @7.last_column);
-					$$->u2.arglist->next->next->u1.str = $7;
-					$$->u2.arglist->next->next->next = npval(PV_WORD,@9.first_line,@9.last_line, @9.first_column, @9.last_column);
-					$$->u2.arglist->next->next->next->u1.str = $9;
-					prev_word=0;
-			}
+		$$=npval(PV_WORD,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
+		$$->u1.str = $1;
+		$$->u2.arglist = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->u2.arglist->u1.str = $3;
+		$$->u2.arglist->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
+		$$->u2.arglist->next->u1.str = $5;
+		$$->u2.arglist->next->next = npval(PV_WORD,@7.first_line,@7.last_line, @7.first_column, @7.last_column);
+		$$->u2.arglist->next->next->u1.str = $7;
+		$$->u2.arglist->next->next->next = npval(PV_WORD,@9.first_line,@9.last_line, @9.first_column, @9.last_column);
+		$$->u2.arglist->next->next->next->u1.str = $9;
+		prev_word=0;
+	}
 	| includeslist includedname SEMI {pval *z = npval(PV_WORD,@2.first_line,@3.last_line, @2.first_column, @3.last_column); $$=$1; z->u1.str = $2; linku1($$,z); }
 	| includeslist includedname BAR word3_list COLON word3_list COLON word3_list BAR word3_list BAR word3_list BAR word3_list SEMI {pval *z = npval(PV_WORD,@2.first_line,@3.last_line, @2.first_column, @3.last_column);
-					$$=$1; z->u1.str = $2; linku1($$,z);
-					z->u2.arglist = npval(PV_WORD,@4.first_line,@4.last_line, @4.first_column, @4.last_column);
-					asprintf( &($$->u2.arglist->u1.str), "%s:%s:%s", $4, $6, $8);
-					free($4);
-					free($6);
-					free($8);
-					z->u2.arglist->next = npval(PV_WORD,@10.first_line,@10.last_line, @10.first_column, @10.last_column);
-					z->u2.arglist->next->u1.str = $10;
-					z->u2.arglist->next->next = npval(PV_WORD,@12.first_line,@12.last_line, @12.first_column, @12.last_column);
-					z->u2.arglist->next->next->u1.str = $12;
-					z->u2.arglist->next->next->next = npval(PV_WORD,@14.first_line,@14.last_line, @14.first_column, @14.last_column);
-					z->u2.arglist->next->next->next->u1.str = $14;
-					prev_word=0;
-			}
+		$$=$1; z->u1.str = $2; linku1($$,z);
+		z->u2.arglist = npval(PV_WORD,@4.first_line,@4.last_line, @4.first_column, @4.last_column);
+		asprintf( &($$->u2.arglist->u1.str), "%s:%s:%s", $4, $6, $8);
+		free($4);
+		free($6);
+		free($8);
+		z->u2.arglist->next = npval(PV_WORD,@10.first_line,@10.last_line, @10.first_column, @10.last_column);
+		z->u2.arglist->next->u1.str = $10;
+		z->u2.arglist->next->next = npval(PV_WORD,@12.first_line,@12.last_line, @12.first_column, @12.last_column);
+		z->u2.arglist->next->next->u1.str = $12;
+		z->u2.arglist->next->next->next = npval(PV_WORD,@14.first_line,@14.last_line, @14.first_column, @14.last_column);
+		z->u2.arglist->next->next->next->u1.str = $14;
+		prev_word=0;
+	}
 	| includeslist includedname BAR word BAR word3_list BAR word3_list BAR word3_list SEMI
-                   {pval *z = npval(PV_WORD,@2.first_line,@2.last_line, @2.first_column, @3.last_column);
-					$$=$1; z->u1.str = $2; linku1($$,z);
-					z->u2.arglist = npval(PV_WORD,@4.first_line,@4.last_line, @4.first_column, @4.last_column);
-					$$->u2.arglist->u1.str = $4;
-					z->u2.arglist->next = npval(PV_WORD,@6.first_line,@6.last_line, @6.first_column, @6.last_column);
-					z->u2.arglist->next->u1.str = $6;
-					z->u2.arglist->next->next = npval(PV_WORD,@8.first_line,@8.last_line, @8.first_column, @8.last_column);
-					z->u2.arglist->next->next->u1.str = $8;
-					z->u2.arglist->next->next->next = npval(PV_WORD,@10.first_line,@10.last_line, @10.first_column, @10.last_column);
-					z->u2.arglist->next->next->next->u1.str = $10;
-					prev_word=0;
-			}
+		{pval *z = npval(PV_WORD,@2.first_line,@2.last_line, @2.first_column, @3.last_column);
+		$$=$1; z->u1.str = $2; linku1($$,z);
+		z->u2.arglist = npval(PV_WORD,@4.first_line,@4.last_line, @4.first_column, @4.last_column);
+		$$->u2.arglist->u1.str = $4;
+		z->u2.arglist->next = npval(PV_WORD,@6.first_line,@6.last_line, @6.first_column, @6.last_column);
+		z->u2.arglist->next->u1.str = $6;
+		z->u2.arglist->next->next = npval(PV_WORD,@8.first_line,@8.last_line, @8.first_column, @8.last_column);
+		z->u2.arglist->next->next->u1.str = $8;
+		z->u2.arglist->next->next->next = npval(PV_WORD,@10.first_line,@10.last_line, @10.first_column, @10.last_column);
+		z->u2.arglist->next->next->next->u1.str = $10;
+		prev_word=0;
+	}
 	| includeslist error {$$=$1;}
 	;
 
