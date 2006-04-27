@@ -74,7 +74,14 @@ static int include_stack_index = 0;
 /* %option yylineno I've tried hard, but haven't been able to use this */
 %option noyywrap
 
+NOPARENS	[^()\[\]\{\}]*
+
+NOARGG		[^(),\{\}\[\]]*
+
+NOSEMIC		[^;()\{\}\[\]]*
+
 %%
+
 \{		{ STORE_POS; return LC;}
 \}		{ STORE_POS; return RC;}
 \(		{ STORE_POS; return LP;}
@@ -122,12 +129,13 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 [-a-zA-Z0-9'"_/.\<\>\*\+!$#\[\]][-a-zA-Z0-9'"_/.!\*\+\<\>\{\}$#\[\]]*	{
 		STORE_POS;
 		yylval->str = strdup(yytext);
-		/* printf("\nGot WORD %s[%d][%d:%d]\n", yylval->str, my_lineno ,yylloc->first_column,yylloc->last_column );  */
+		/* printf("\nGot WORD %s[%d][%d:%d]\n",
+			yylval->str, my_lineno ,yylloc->first_column,yylloc->last_column );  */
 		prev_word = yylval->str;
 		return word;
 	}
 
-<paren>[^()\[\]\{\}]*\)	{
+<paren>{NOPARENS}\)	{
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
 		if ( pbcpop(')') ) {
@@ -163,22 +171,30 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		}
 	}
 
-<paren>[^()\[\]\{\}]*\(	{
-		yylloc->first_line = my_lineno; yylloc->first_column=my_col;
+<paren>{NOPARENS}\(	{
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
 		parencount++;
 		pbcpush('(');
 		yymore();
 	}
 
-<paren>[^()\[\]\{\}]*\[	{yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('['); }
+<paren>{NOPARENS}\[	{
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		pbcpush('[');
+		yymore();
+	}
 
-<paren>[^()\[\]\{\}]*\]	{
-		yylloc->first_line = my_lineno;yylloc->first_column=my_col;
+<paren>{NOPARENS}\]	{
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
 		if ( pbcpop(']') ) {
 			/* error */
 			int l4,c4;
 			pbcwhere(yytext, &l4, &c4);
-			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ']' in expression!\n", my_file, my_lineno+l4, c4);
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ']' in expression!\n",
+				my_file, my_lineno+l4, c4);
 			BEGIN(0);
 			yylloc->last_line = my_lineno+l4;
 			yylloc->last_column=c4;
@@ -190,16 +206,22 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
-<paren>[^()\[\]\{\}]*\{	{yylloc->first_line = my_lineno;yylloc->first_column=my_col;  yymore(); pbcpush('{'); }
+<paren>{NOPARENS}\{	{
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		pbcpush('{');
+		yymore();
+	}
 
-<paren>[^()\[\]\{\}]*\}	{
+<paren>{NOPARENS}\}	{
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
 		if ( pbcpop('}') ) {
 			/* error */
 			int l4,c4;
 			pbcwhere(yytext, &l4, &c4);
-			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '}' in expression!\n", my_file, my_lineno+l4, c4);
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '}' in expression!\n",
+				my_file, my_lineno+l4, c4);
 			BEGIN(0);
 			yylloc->last_line = my_lineno+l4;
 			yylloc->last_column=c4;
@@ -211,7 +233,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
-<argg>[^(),\{\}\[\]]*\)	{
+<argg>{NOARGG}\)	{
 		/* printf("ARGG:%s\n",yytext); */
 		int linecount = 0;
 		int colcount = my_col;
@@ -267,7 +289,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		}
 	}
 
-<argg>[^(),\{\}\[\]]*\(	  {
+<argg>{NOARGG}\(	  {
 		/* printf("ARGG:%s\n",yytext); */
 		/* printf("GOT AN LP!!!\n"); */
 		yylloc->first_line = my_lineno;
@@ -277,7 +299,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
-<argg>[^(),\{\}\[\]]*\,	{
+<argg>{NOARGG}\,	{
 		/* printf("ARGG:%s\n",yytext); */
 		if( parencount != 0) {
 			/* printf("Folding in a comma!\n"); */
@@ -323,14 +345,15 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		}
 	}
 
-<argg>[^(),\{\}\[\]]*\{	{
+<argg>{NOARGG}\{	{
 		/*printf("ARGG:%s\n",yytext);*/
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
-		pbcpush('{'); yymore();
+		pbcpush('{');
+		yymore();
 	}
 
-<argg>[^(),\{\}\[\]]*\}	{
+<argg>{NOARGG}\}	{
 		/*printf("ARGG:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
 		if ( pbcpop('}') ) {
 			/* error */
@@ -348,9 +371,18 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
-<argg>[^(),\{\}\[\]]*\[	{/*printf("ARGG:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('['); }
+<argg>{NOARGG}\[	{
+		/*printf("ARGG:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		pbcpush('[');
+		yymore();
+	}
 
-<argg>[^(),\{\}\[\]]*\]	{/*printf("ARGG:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
+<argg>{NOARGG}\]	{
+		/*printf("ARGG:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
 		if ( pbcpop(']') ) {
 			/* error */
 			int l4,c4;
@@ -367,9 +399,18 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
-<semic>[^;()\{\}\[\]]*\[	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('['); }
+<semic>{NOSEMIC}\[	{
+		/*printf("SEMIC:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		yymore();
+		pbcpush('[');
+		}
 
-<semic>[^;()\{\}\[\]]*\]	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
+<semic>{NOSEMIC}\]	{
+		/*printf("SEMIC:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
 		if ( pbcpop(']') ) {
 			/* error */
 			int l4,c4;
@@ -386,9 +427,18 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
-<semic>[^;()\{\}\[\]]*\{	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('{');}
+<semic>{NOSEMIC}\{	{
+		/*printf("SEMIC:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		pbcpush('{');
+		yymore();
+	}
 
-<semic>[^;()\{\}\[\]]*\}	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
+<semic>{NOSEMIC}\}	{
+		/*printf("SEMIC:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
 		if ( pbcpop('}') ) {
 			/* error */
 			int l4,c4;
@@ -405,9 +455,18 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
-<semic>[^;()\{\}\[\]]*\(	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col; yymore(); pbcpush('(');}
+<semic>{NOSEMIC}\(	{
+		/*printf("SEMIC:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		pbcpush('(');
+		yymore();
+	}
 
-<semic>[^;()\{\}\[\]]*\)	{/*printf("SEMIC:%s\n",yytext);*/yylloc->first_line = my_lineno;yylloc->first_column=my_col;
+<semic>{NOSEMIC}\)	{
+		/*printf("SEMIC:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
 		if ( pbcpop(')') ) {
 			/* error */
 			int l4,c4;
@@ -424,7 +483,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
-<semic>[^;()\{\}\[\]]*;	{
+<semic>{NOSEMIC};	{
 		int linecount = 0;
 		int colcount = my_col;
 		char *pt = yytext;
