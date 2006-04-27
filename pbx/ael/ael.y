@@ -162,44 +162,37 @@ context : KW_CONTEXT word LC elements RC {
 		$$->u1.str = $2;
 		$$->u2.statements = $4; }
 	| KW_CONTEXT word LC RC /* empty context OK */ {
-		$$ = npval(PV_CONTEXT, @1.first_line, @4.last_line,
-			@1.first_column, @4.last_column);
+		$$ = npval2(PV_CONTEXT, &@1, &@4);
 		$$->u1.str = $2; }
 	| KW_CONTEXT KW_DEFAULT LC elements RC {
-		$$ = npval(PV_CONTEXT, @1.first_line, @5.last_line,
-			@1.first_column, @5.last_column);
+		$$ = npval2(PV_CONTEXT, &@1, &@5);
 		$$->u1.str = strdup("default");
 		$$->u2.statements = $4; }
 	| KW_CONTEXT KW_DEFAULT LC RC /* empty context OK */ {
-		$$ = npval(PV_CONTEXT, @1.first_line, @4.last_line,
-			@1.first_column, @4.last_column);
+		$$ = npval2(PV_CONTEXT, &@1, &@4);
 		$$->u1.str = strdup("default"); }
 	| KW_ABSTRACT KW_CONTEXT word LC elements RC {
-		$$ = npval(PV_CONTEXT, @1.first_line, @6.last_line,
-			@1.first_column, @6.last_column);
+		$$ = npval2(PV_CONTEXT, &@1, &@6);
 		$$->u1.str = $3;
 		$$->u2.statements = $5;
 		$$->u3.abstract = 1; }
 	| KW_ABSTRACT KW_CONTEXT word LC RC /* empty context OK */ {
-		$$ = npval(PV_CONTEXT, @1.first_line, @5.last_line,
-			@1.first_column, @5.last_column);
+		$$ = npval2(PV_CONTEXT, &@1, &@5);
 		$$->u1.str = $3;
 		$$->u3.abstract = 1; }
 	| KW_ABSTRACT KW_CONTEXT KW_DEFAULT LC elements RC  {
-		$$ = npval(PV_CONTEXT, @1.first_line, @6.last_line,
-			@1.first_column, @6.last_column);
+		$$ = npval2(PV_CONTEXT, &@1, &@6);
 		$$->u1.str = strdup("default");
 		$$->u2.statements = $5;
 		$$->u3.abstract = 1; }
 	| KW_ABSTRACT KW_CONTEXT KW_DEFAULT LC RC /* empty context OK */ {
-		$$ = npval(PV_CONTEXT, @1.first_line, @5.last_line,
-			@1.first_column, @5.last_column);
+		$$ = npval2(PV_CONTEXT, &@1, &@5);
 		$$->u1.str = strdup("default");
 		$$->u3.abstract = 1; }
 	;
 
 macro : KW_MACRO word LP arglist RP LC macro_statements RC {
-		$$=npval(PV_MACRO,@1.first_line,@8.last_line, @1.first_column, @8.last_column);
+		$$ = npval2(PV_MACRO, &@1, &@8);
 		$$->u1.str = $2; $$->u2.arglist = $4; $$->u3.macro_statements = $7; }
 	| KW_MACRO word LP arglist RP LC  RC {
 		$$=npval(PV_MACRO,@1.first_line,@7.last_line, @1.first_column, @7.last_column);
@@ -589,11 +582,12 @@ jumptarget : goto_word {
 	;
 
 macro_call : word LP {reset_argcount(parseio->scanner);} eval_arglist RP {
-		$$= npval(PV_MACRO_CALL,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
+		/* XXX original code had @2 but i think we need @5 */
+		$$ = npval2(PV_MACRO_CALL, &@1, &@5);
 		$$->u1.str = $1;
 		$$->u2.arglist = $4;}
 	| word LP RP {
-		$$= npval(PV_MACRO_CALL,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
+		$$= npval2(PV_MACRO_CALL, &@1, &@3);
 		$$->u1.str = $1; }
 	;
 
@@ -739,10 +733,10 @@ includedname : word { $$ = $1;}
 	;
 
 includes : KW_INCLUDES LC includeslist RC {
-		$$= npval(PV_INCLUDES,@1.first_line,@4.last_line, @1.first_column, @4.last_column);
+		$$ = npval2(PV_INCLUDES, &@1, &@4);
 		$$->u1.list = $3;}
 	| KW_INCLUDES LC RC {
-		$$= npval(PV_INCLUDES,@1.first_line,@3.last_line, @1.first_column, @3.last_column);}
+		$$ = npval2(PV_INCLUDES, &@1, &@3);}
 	;
 
 
