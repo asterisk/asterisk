@@ -34,8 +34,8 @@ static int pbcpos = 0;
 
 static int parencount = 0;
 static int commaout = 0;
-static int my_lineno = 1;
-static int my_col = 0;
+static int my_lineno = 1;	/* current line in the source */
+static int my_col = 0;		/* current column in the source */
 char *my_file = 0;	/* used also in the bison code */
 char *prev_word;
 #define MAX_INCLUDE_DEPTH 50
@@ -56,10 +56,17 @@ struct stackelement {
 static struct stackelement  include_stack[MAX_INCLUDE_DEPTH];
 static int include_stack_index = 0;
 
+/*
+ * if we use the @n feature of bison, we must supply the start/end
+ * location of tokens in the structure pointed by yylloc.
+ * Simple tokens are just assumed to be on the same line, so
+ * the line number is constant, and the column is incremented
+ * by the length of the token.
+ */
 #define	STORE_POS do {							\
 		yylloc->first_line = yylloc->last_line = my_lineno;	\
-		yylloc->last_column=my_col+yyleng-1;			\
 		yylloc->first_column=my_col;				\
+		yylloc->last_column=my_col+yyleng-1;			\
 		my_col+=yyleng;						\
 	} while (0)
 %}
@@ -129,8 +136,6 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 [-a-zA-Z0-9'"_/.\<\>\*\+!$#\[\]][-a-zA-Z0-9'"_/.!\*\+\<\>\{\}$#\[\]]*	{
 		STORE_POS;
 		yylval->str = strdup(yytext);
-		/* printf("\nGot WORD %s[%d][%d:%d]\n",
-			yylval->str, my_lineno ,yylloc->first_column,yylloc->last_column );  */
 		prev_word = yylval->str;
 		return word;
 	}
