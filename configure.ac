@@ -302,7 +302,10 @@ PBX_H323=0
 AC_CHECK_HEADER([h323.h], [PBX_H323=1], [])
 AC_SUBST(PBX_H323)
 
-AC_CHECK_HEADER([linux/ixjuser.h], [PBX_IXJUSER=1],[PBX_IXJUSER=0])
+PBX_IXJUSER=0
+AC_CHECK_HEADER([linux/ixjuser.h], [
+   AC_CHECK_HEADER([linux/telephony.h], [
+      AC_CHECK_HEADER([linux/version.h], [PBX_IXJUSER=1])])])
 AC_SUBST(PBX_IXJUSER)
 
 AC_ARG_WITH([vpb], AC_HELP_STRING([--with-vpb=PATH],[use vpb files in PATH]),[
