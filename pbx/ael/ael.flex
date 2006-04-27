@@ -69,6 +69,17 @@ static int include_stack_index = 0;
 		yylloc->last_column=my_col+yyleng-1;			\
 		my_col+=yyleng;						\
 	} while (0)
+
+#define	STORE_START do {				\
+		yylloc->first_line = my_lineno;		\
+		yylloc->first_column=my_col;		\
+	} while (0)
+
+#define	STORE_END do {					\
+		pbcwhere(yytext, &my_lineno, &my_col);	\
+		yylloc->last_line = my_lineno;		\
+		yylloc->last_column = my_col;		\
+	} while (0)
 %}
 
 %x paren semic argg
@@ -144,14 +155,11 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 
 
 <paren>{NOPARENS}\)	{
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
+		STORE_START;
 		if ( pbcpop(')') ) {	/* error */
-			pbcwhere(yytext, &my_lineno, &my_col);
+			STORE_END;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression: %s !\n", my_file, my_lineno, my_col, yytext);
 			BEGIN(0);
-			yylloc->last_line = my_lineno;
-			yylloc->last_column = my_col;
 			yylval->str = strdup(yytext);
 			prev_word = 0;
 			return word;
@@ -160,9 +168,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		if ( parencount >= 0) {
 			yymore();
 		} else {
-			pbcwhere(yytext, &my_lineno, &my_col);
-			yylloc->last_line = my_lineno;
-			yylloc->last_column = my_col;
+			STORE_END;
 			yylval->str = strdup(yytext);
 			*(yylval->str+strlen(yylval->str)-1)=0;
 			/* printf("Got paren word %s\n", yylval->str); */
@@ -174,8 +180,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 
 <paren>{NOPARENS}[\(\[\{]	{
 		char c = yytext[yyleng-1];
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
+		STORE_START;
 		if (c == '(')
 			parencount++;
 		pbcpush(c);
@@ -184,15 +189,12 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 
 <paren>{NOPARENS}[\]\}]	{
 		char c = yytext[yyleng-1];
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
+		STORE_START;
 		if ( pbcpop(c))  { /* error */
-			pbcwhere(yytext, &my_lineno, &my_col);
+			STORE_END;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n",
 				my_file, my_lineno, my_col, c);
 			BEGIN(0);
-			yylloc->last_line = my_lineno;
-			yylloc->last_column = my_col;
 			yylval->str = strdup(yytext);
 			return word;
 		}
@@ -203,8 +205,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		char c = yytext[yyleng-1];
 		/* printf("ARGG:%s\n",yytext); */
 		/* printf("GOT AN LP!!!\n"); */
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
+		STORE_START;
 		if (c == '(')
 			parencount++;
 		pbcpush(c);
@@ -213,21 +214,16 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 
 <argg>{NOARGG}\)	{
 		/* printf("ARGG:%s\n",yytext); */
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
+		STORE_START;
 		if ( pbcpop(')') ) { /* error */
-			pbcwhere(yytext, &my_lineno, &my_col);
+			STORE_END;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression!\n", my_file, my_lineno, my_col);
 			BEGIN(0);
-			yylloc->last_line = my_lineno;
-			yylloc->last_column = my_col;
 			yylval->str = strdup(yytext);
 			return word;
 		}
 
-		pbcwhere(yytext, &my_lineno, &my_col);
-		yylloc->last_line = my_lineno;
-		yylloc->last_column = my_col;
+		STORE_END;
 		parencount--;
 		if( parencount >= 0){
 			yymore();
@@ -256,11 +252,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			yymore();
 		} else  {
 			/* printf("got a comma!\n\n");  */
-			yylloc->first_line = my_lineno;
-			yylloc->first_column=my_col;
-			pbcwhere(yytext, &my_lineno, &my_col);
-			yylloc->last_line = my_lineno;
-			yylloc->last_column = my_col;
+			STORE_START;
+			STORE_END;
 			if( !commaout ) {
 				if( !strcmp(yytext,"," ) ) {
 					commaout = 0;
@@ -285,14 +278,11 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 <argg>{NOARGG}[\]\}]	{
 		char c = yytext[yyleng-1];
 		/*printf("ARGG:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
+		STORE_START;
 		if ( pbcpop(c) ) { /* error */
-			pbcwhere(yytext, &my_lineno, &my_col);
+			STORE_END;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n", my_file, my_lineno, my_col, c);
 			BEGIN(0);
-			yylloc->last_line = my_lineno;
-			yylloc->last_column = my_col;
 			yylval->str = strdup(yytext);
 			return word;
 		}
@@ -304,8 +294,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 <semic>{NOSEMIC}[\(\[\{]	{
 		char c = yytext[yyleng-1];
 		/*printf("SEMIC:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
+		STORE_START;
 		yymore();
 		pbcpush(c);
 		}
@@ -313,14 +302,11 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 <semic>{NOSEMIC}[\)\]\}]	{
 		char c = yytext[yyleng-1];
 		/*printf("SEMIC:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
+		STORE_START;
 		if ( pbcpop(c) ) { /* error */
-			pbcwhere(yytext, &my_lineno, &my_col);
+			STORE_END;
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n", my_file, my_lineno, my_col, c);
 			BEGIN(0);
-			yylloc->last_line = my_lineno;
-			yylloc->last_column= my_col;
 			yylval->str = strdup(yytext);
 			return word;
 		}
@@ -328,11 +314,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 	}
 
 <semic>{NOSEMIC};	{
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		pbcwhere(yytext, &my_lineno, &my_col);
-		yylloc->last_line = my_lineno;
-		yylloc->last_column=my_col;;
+		STORE_START;
+		STORE_END;
 		yylval->str = strdup(yytext);
 		if(yyleng > 1)
 			*(yylval->str+yyleng-1)=0;
