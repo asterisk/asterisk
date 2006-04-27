@@ -2899,7 +2899,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	queuetimeoutstr = info_ptr;
 
 	/* set the expire time based on the supplied timeout; */
-	if (queuetimeoutstr)
+	if (!ast_strlen_zero(queuetimeoutstr))
 		qe.expire = qe.start + atoi(queuetimeoutstr);
 	else
 		qe.expire = 0;
