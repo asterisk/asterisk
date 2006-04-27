@@ -9315,7 +9315,7 @@ static void *pri_dchannel(void *vpri)
 					ast_log(LOG_WARNING, "Received SETUP_ACKNOWLEDGE on unconfigured channel %d/%d span %d\n", 
 						PRI_SPAN(e->setup_ack.channel), PRI_CHANNEL(e->setup_ack.channel), pri->span);
 				} else {
-					chanpos = pri_fixup_principle(pri, chanpos, e->ring.call);
+					chanpos = pri_fixup_principle(pri, chanpos, e->setup_ack.call);
 					if (chanpos > -1) {
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						pri->pvts[chanpos]->setup_ack = 1;
