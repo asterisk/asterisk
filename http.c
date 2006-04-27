@@ -493,9 +493,6 @@ static void *http_root(void *data)
 				close(ser->fd);
 				free(ser);
 			}
-		} else {
-			close(ser->fd);
-			free(ser);
 		}
 	}
 	return NULL;
