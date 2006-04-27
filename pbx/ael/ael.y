@@ -344,16 +344,47 @@ iftime_head : KW_IFTIME LP word3_list COLON word3_list COLON word3_list
    and merge the words back together. */
 
 word_list : word { $$ = $1;}
-	| word word { $$ = (char*)malloc(strlen($1)+strlen($2)+1); strcpy($$, $1); strcat($$, $2);  free($1); free($2);prev_word = $$;}
+	| word word {
+		$$ = (char*)malloc(strlen($1)+strlen($2)+1);
+		strcpy($$, $1);
+		strcat($$, $2);
+		free($1);
+		free($2);
+		prev_word = $$;}
 	;
 word3_list : word { $$ = $1;}
-	| word word { $$ = (char*)malloc(strlen($1)+strlen($2)+1); strcpy($$, $1); strcat($$, $2);  free($1); free($2);prev_word = $$;}
-	| word word word { $$ = (char*)malloc(strlen($1)+strlen($2)+strlen($3)+1); strcpy($$, $1); strcat($$, $2);  strcat($$, $3);  free($1); free($2); free($3);prev_word=$$;}
+	| word word {
+		$$ = (char*)malloc(strlen($1)+strlen($2)+1);
+		strcpy($$, $1);
+		strcat($$, $2);
+		free($1);
+		free($2);
+		prev_word = $$;}
+	| word word word {
+		$$ = (char*)malloc(strlen($1)+strlen($2)+strlen($3)+1);
+		strcpy($$, $1);
+		strcat($$, $2);
+		strcat($$, $3);
+		free($1);
+		free($2);
+		free($3);
+		prev_word=$$;}
 	;
 
 goto_word : word { $$ = $1;}
-	| word word { $$ = (char*)malloc(strlen($1)+strlen($2)+1); strcpy($$, $1); strcat($$, $2);  free($1); free($2);}
-	| word COLON word { $$ = (char*)malloc(strlen($1)+strlen($3)+2); strcpy($$, $1); strcat($$,":"); strcat($$, $3);  free($1); free($3);}
+	| word word {
+		$$ = (char*)malloc(strlen($1)+strlen($2)+1);
+		strcpy($$, $1);
+		strcat($$, $2);
+		free($1);
+		free($2);}
+	| word COLON word {
+		$$ = (char*)malloc(strlen($1)+strlen($3)+2);
+		strcpy($$, $1);
+		strcat($$,":");
+		strcat($$, $3);
+		free($1);
+		free($3);}
 	;
 
 switch_head : KW_SWITCH LP { reset_parencount(parseio->scanner); } word RP  LC
