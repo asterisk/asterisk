@@ -194,29 +194,15 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
-<argg>{NOARGG}\(	  {
+<argg>{NOARGG}[\(\[\{]	  {
+		char c = yytext[yyleng-1];
 		/* printf("ARGG:%s\n",yytext); */
 		/* printf("GOT AN LP!!!\n"); */
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
-		parencount++;
-		pbcpush('(');
-		yymore();
-	}
-
-<argg>{NOARGG}\[	{
-		/*printf("ARGG:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		pbcpush('[');
-		yymore();
-	}
-
-<argg>{NOARGG}\{	{
-		/*printf("ARGG:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		pbcpush('{');
+		if (c == '(')
+			parencount++;
+		pbcpush(c);
 		yymore();
 	}
 
@@ -326,29 +312,14 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 
 
 
-<semic>{NOSEMIC}\[	{
+<semic>{NOSEMIC}[\(\[\{]	{
+		char c = yytext[yyleng-1];
 		/*printf("SEMIC:%s\n",yytext);*/
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
 		yymore();
-		pbcpush('[');
+		pbcpush(c);
 		}
-
-<semic>{NOSEMIC}\{	{
-		/*printf("SEMIC:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		pbcpush('{');
-		yymore();
-	}
-
-<semic>{NOSEMIC}\(	{
-		/*printf("SEMIC:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		pbcpush('(');
-		yymore();
-	}
 
 <semic>{NOSEMIC}\]	{
 		/*printf("SEMIC:%s\n",yytext);*/
