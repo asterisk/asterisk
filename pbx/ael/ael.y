@@ -306,12 +306,7 @@ iftime_head : KW_IFTIME LP word3_list COLON word3_list COLON word3_list
 		BAR word3_list BAR word3_list BAR word3_list RP {
 		$$= npval(PV_IFTIME,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
 		$$->u1.list = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-		$$->u1.list->u1.str = (char*)malloc(strlen($3)+strlen($5)+strlen($7)+4);
-		strcpy($$->u1.list->u1.str,$3);
-		strcat($$->u1.list->u1.str,":");
-		strcat($$->u1.list->u1.str,$5);
-		strcat($$->u1.list->u1.str,":");
-		strcat($$->u1.list->u1.str,$7);
+		asprintf(&($$->u1.list->u1.str), "%s:%s:%s", $3, $5, $7);
 		free($3);
 		free($5);
 		free($7);
@@ -345,26 +340,19 @@ iftime_head : KW_IFTIME LP word3_list COLON word3_list COLON word3_list
 
 word_list : word { $$ = $1;}
 	| word word {
-		$$ = (char*)malloc(strlen($1)+strlen($2)+1);
-		strcpy($$, $1);
-		strcat($$, $2);
+		asprintf(&($$), "%s%s", $1, $2);
 		free($1);
 		free($2);
 		prev_word = $$;}
 	;
 word3_list : word { $$ = $1;}
 	| word word {
-		$$ = (char*)malloc(strlen($1)+strlen($2)+1);
-		strcpy($$, $1);
-		strcat($$, $2);
+		asprintf(&($$), "%s%s", $1, $2);
 		free($1);
 		free($2);
 		prev_word = $$;}
 	| word word word {
-		$$ = (char*)malloc(strlen($1)+strlen($2)+strlen($3)+1);
-		strcpy($$, $1);
-		strcat($$, $2);
-		strcat($$, $3);
+		asprintf(&($$), "%s%s%s", $1, $2, $3);
 		free($1);
 		free($2);
 		free($3);
@@ -373,16 +361,11 @@ word3_list : word { $$ = $1;}
 
 goto_word : word { $$ = $1;}
 	| word word {
-		$$ = (char*)malloc(strlen($1)+strlen($2)+1);
-		strcpy($$, $1);
-		strcat($$, $2);
+		asprintf(&($$), "%s%s", $1, $2);
 		free($1);
 		free($2);}
 	| word COLON word {
-		$$ = (char*)malloc(strlen($1)+strlen($3)+2);
-		strcpy($$, $1);
-		strcat($$,":");
-		strcat($$, $3);
+		asprintf(&($$), "%s:%s", $1, $3);
 		free($1);
 		free($3);}
 	;
@@ -430,6 +413,7 @@ statement : LC statements RC {$$=npval(PV_STATEMENTBLOCK,@1.first_line,@3.last_l
 			bufx = (char *)malloc(tot);
 			strcpy(bufx,$1->u1.str);
 			strcat(bufx,"(");
+			/* XXX need to advance the pointer or the loop is very inefficient */
 			for (pptr=$1->u2.arglist;pptr;pptr=pptr->next) {
 				if ( pptr != $1->u2.arglist )
 					strcat(bufx,",");
@@ -590,12 +574,7 @@ includeslist : includedname SEMI {$$=npval(PV_WORD,@1.first_line,@2.last_line, @
                     $$=npval(PV_WORD,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
                     $$->u1.str = $1;
 					$$->u2.arglist = npval(PV_WORD,@3.first_line,@7.last_line, @3.first_column, @7.last_column);
-					$$->u2.arglist->u1.str = (char*)malloc(strlen($3)+strlen($5)+strlen($7)+4);
-					strcpy($$->u2.arglist->u1.str,$3);
-					strcat($$->u2.arglist->u1.str,":");
-					strcat($$->u2.arglist->u1.str,$5);
-					strcat($$->u2.arglist->u1.str,":");
-					strcat($$->u2.arglist->u1.str,$7);
+					asprintf( &($$->u2.arglist->u1.str), "%s:%s:%s", $3, $5, $7);
 					free($3);
 					free($5);
 					free($7);
@@ -624,12 +603,7 @@ includeslist : includedname SEMI {$$=npval(PV_WORD,@1.first_line,@2.last_line, @
 	| includeslist includedname BAR word3_list COLON word3_list COLON word3_list BAR word3_list BAR word3_list BAR word3_list SEMI {pval *z = npval(PV_WORD,@2.first_line,@3.last_line, @2.first_column, @3.last_column);
 					$$=$1; z->u1.str = $2; linku1($$,z);
 					z->u2.arglist = npval(PV_WORD,@4.first_line,@4.last_line, @4.first_column, @4.last_column);
-					$$->u2.arglist->u1.str = (char*)malloc(strlen($4)+strlen($6)+strlen($8)+4);
-					strcpy($$->u2.arglist->u1.str,$4);
-					strcat($$->u2.arglist->u1.str,":");
-					strcat($$->u2.arglist->u1.str,$6);
-					strcat($$->u2.arglist->u1.str,":");
-					strcat($$->u2.arglist->u1.str,$8);
+					asprintf( &($$->u2.arglist->u1.str), "%s:%s:%s", $4, $6, $8);
 					free($4);
 					free($6);
 					free($8);
