@@ -2872,9 +2872,7 @@ static int pbcpop(char x)
 	return 1; /* error */
 }
 
-/* used by the bison code */
-int c_prevword(void);
-int c_prevword(void)
+static int c_prevword(void)
 {
 	char *c = prev_word;
 	int ret = 0;
