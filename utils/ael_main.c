@@ -6,17 +6,15 @@
 #include <ctype.h>
 #if !defined(SOLARIS) && !defined(__CYGWIN__)
 #include <err.h>
-#else
-#define quad_t int64_t
 #endif
 #include <errno.h>
 #include <regex.h>
 #include <limits.h>
-#include <asterisk/ast_expr.h>
-#include <asterisk/logger.h>
-#include <asterisk/module.h>
-#include <asterisk/channel.h>
-#include <asterisk/app.h>
+#include "asterisk/ast_expr.h"
+#include "asterisk/logger.h"
+#include "asterisk/module.h"
+#include "asterisk/channel.h"
+#include "asterisk/app.h"
 #include "asterisk/ael_structs.h"
 #define AST_CONFIG_MAX_PATH 255
 

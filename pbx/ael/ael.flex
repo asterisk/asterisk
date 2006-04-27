@@ -36,7 +36,7 @@ static int parencount = 0;
 static int commaout = 0;
 static int my_lineno = 1;
 static int my_col = 0;
-static char *my_file = 0;
+char *my_file = 0;	/* used also in the bison code */
 char *prev_word;
 #define MAX_INCLUDE_DEPTH 50
 
@@ -544,8 +544,9 @@ static int pbcpop(char x)
 	return 1; /* error */
 }
 
-#if 0
-static int c_prevword(void)
+/* used by the bison code */
+int c_prevword(void);
+int c_prevword(void)
 {
 	char *c = prev_word;
 	int ret = 0;
@@ -564,7 +565,6 @@ static int c_prevword(void)
 	}
 	return 0;
 }
-#endif
 
 /* compute the total number of lines and columns in the text
  * passed as argument.
@@ -586,8 +586,9 @@ static void pbcwhere(const char *text, int *line, int *col )
 	*col = loc_col;
 }
 
-#if 0
-static void reset_parencount(yyscan_t yyscanner )
+/* used by the bison code */
+void reset_parencount(yyscan_t yyscanner );
+void reset_parencount(yyscan_t yyscanner )
 {
 	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	parencount = 0;
@@ -597,14 +598,18 @@ static void reset_parencount(yyscan_t yyscanner )
 	BEGIN(paren);
 }
 
-static void reset_semicount(yyscan_t yyscanner )
+/* used by the bison code */
+void reset_semicount(yyscan_t yyscanner );
+void reset_semicount(yyscan_t yyscanner )
 {
 	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	pbcpos = 0;
 	BEGIN(semic);
 }
 
-static void reset_argcount(yyscan_t yyscanner )
+/* used by the bison code */
+void reset_argcount(yyscan_t yyscanner );
+void reset_argcount(yyscan_t yyscanner )
 {
 	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	parencount = 0;
@@ -614,8 +619,6 @@ static void reset_argcount(yyscan_t yyscanner )
 	c_prevword();
 	BEGIN(argg);
 }
-
-#endif
 
 /* used elsewhere, but some local vars */
 struct pval *ael2_parse(char *filename, int *errors)

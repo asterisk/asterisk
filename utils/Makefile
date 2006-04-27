@@ -14,7 +14,7 @@
 #
 # Don't use ast mm routines
 #
-UTILS:=astman smsq stereorize streamplayer
+UTILS:=astman smsq stereorize streamplayer aelparse
 
 ifeq (${OSARCH},SunOS)
   SOL=../strcompat.o
@@ -70,7 +70,7 @@ aelparse : ../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ../pbx/pbx_ael.o ael_main.
 	$(CC) $(CFLAGS) -g -o aelparse ../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ael_main.o ../pbx/pbx_ael.o ../ast_expr2f.o ../ast_expr2.o
 
 ael_main.o : ael_main.c ../include/asterisk/ael_structs.h
-	$(CC) $(CFLAGS) -c -g -o ael_main.o ael_main.c
+	$(CC) $(CFLAGS) -include ../include/autoconfig.h -c -g -o ael_main.o ael_main.c
 
 ael_main1.o : ael_main.c ../include/asterisk/ael_structs.h
 	$(CC) $(CFLAGS) -c -g  -o ael_main1.o ael_main.c
