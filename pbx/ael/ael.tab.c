@@ -2109,7 +2109,7 @@ yyreduce:
   case 47:
 #line 269 "ael.y"
     {
-		(yyval.pval) = npval(PV_EXTENSION,(yylsp[-3]).first_line,(yylsp[-1]).last_line, (yylsp[-3]).first_column, (yylsp[0]).last_column);
+		(yyval.pval) = npval(PV_EXTENSION,(yylsp[-3]).first_line,(yylsp[0]).last_line, (yylsp[-3]).first_column, (yylsp[0]).last_column);
 		(yyval.pval)->u1.str = (yyvsp[-2].str);
 		(yyval.pval)->u2.statements = (yyvsp[0].pval);
 		(yyval.pval)->u4.regexten=1;;}
@@ -2127,7 +2127,7 @@ yyreduce:
   case 49:
 #line 279 "ael.y"
     {
-		(yyval.pval) = npval(PV_EXTENSION,(yylsp[-7]).first_line,(yylsp[-4]).last_line, (yylsp[-7]).first_column, (yylsp[0]).last_column);
+		(yyval.pval) = npval(PV_EXTENSION,(yylsp[-7]).first_line,(yylsp[0]).last_line, (yylsp[-7]).first_column, (yylsp[0]).last_column);
 		(yyval.pval)->u1.str = (yyvsp[-2].str);
 		(yyval.pval)->u2.statements = (yyvsp[0].pval);
 		(yyval.pval)->u4.regexten=1;
@@ -3327,7 +3327,8 @@ void yyerror(YYLTYPE *locp, struct parse_io *parseio,  char const *s)
 	parseio->syntax_error_count++;
 }
 
-static struct pval *npval(pvaltype type,int first_line, int last_line, int first_column, int last_column)
+static struct pval *npval(pvaltype type, int first_line, int last_line,
+	int first_column, int last_column)
 {
 	extern char *my_file;
 	pval *z = (pval *)calloc(sizeof(struct pval),1);

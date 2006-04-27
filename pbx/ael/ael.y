@@ -267,7 +267,7 @@ extension : word EXTENMARK statement {
 		$$->u1.str = $1;
 		$$->u2.statements = $3; }
 	| KW_REGEXTEN word EXTENMARK statement {
-		$$ = npval(PV_EXTENSION,@1.first_line,@3.last_line, @1.first_column, @4.last_column);
+		$$ = npval(PV_EXTENSION,@1.first_line,@4.last_line, @1.first_column, @4.last_column);
 		$$->u1.str = $2;
 		$$->u2.statements = $4;
 		$$->u4.regexten=1;}
@@ -277,7 +277,7 @@ extension : word EXTENMARK statement {
 		$$->u2.statements = $7;
 		$$->u3.hints = $3;}
 	| KW_REGEXTEN KW_HINT LP word3_list RP word EXTENMARK statement {
-		$$ = npval(PV_EXTENSION,@1.first_line,@4.last_line, @1.first_column, @8.last_column);
+		$$ = npval(PV_EXTENSION,@1.first_line,@8.last_line, @1.first_column, @8.last_column);
 		$$->u1.str = $6;
 		$$->u2.statements = $8;
 		$$->u4.regexten=1;
@@ -839,7 +839,8 @@ void yyerror(YYLTYPE *locp, struct parse_io *parseio,  char const *s)
 	parseio->syntax_error_count++;
 }
 
-static struct pval *npval(pvaltype type,int first_line, int last_line, int first_column, int last_column)
+static struct pval *npval(pvaltype type, int first_line, int last_line,
+	int first_column, int last_column)
 {
 	extern char *my_file;
 	pval *z = (pval *)calloc(sizeof(struct pval),1);
