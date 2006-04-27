@@ -13,6 +13,8 @@
 		</member>
 		<member name="-DRADIO_RELAX">
 		</member>
+		<member name="-DSTACK_BACKTRACES">
+		</member>
 		<member name="-DTRACE_FRAMES">
 		</member>
 		<member name="-DMTX_PROFILE">
