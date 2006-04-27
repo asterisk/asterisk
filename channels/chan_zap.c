@@ -386,7 +386,7 @@ static inline int zt_wait_event(int fd)
 	return j;
 }
 
-/*! Chunk size to read -- we use 20ms chunks to make things happy.  */   
+/*! Chunk size to read -- we use 20ms chunks to make things happy.  */
 #define READ_SIZE 160
 
 #define MASK_AVAIL		(1 << 0)	/*!< Channel available for PRI use */
@@ -9844,6 +9844,47 @@ static int zap_destroy_channel(int fd, int argc, char **argv)
 	return RESULT_FAILURE;
 }
 
+static int setup_zap(int reload);
+static int zap_restart(void)
+{
+	if (option_verbose > 0)
+		ast_verbose(VERBOSE_PREFIX_1 "Destroying channels and reloading zaptel configuration.\n");
+	while (iflist) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Destroying zaptel channel no. %d\n", iflist->channel);
+		/* Also updates iflist: */
+		destroy_channel(NULL, iflist, 1);
+	}
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Channels destroyed. Now re-reading config.\n");
+	if (setup_zap(0) != 0) {
+		ast_log(LOG_WARNING, "Reload channels from zap config failed!\n");
+		return 1;
+	}
+	return 0;
+}
+
+static int zap_restart_cmd(int fd, int argc, char **argv)
+{
+	if (argc != 2) {
+		return RESULT_SHOWUSAGE;
+	}
+
+	if (zap_restart() != 0)
+		return RESULT_FAILURE;
+	return RESULT_SUCCESS;
+}
+
+static int action_zaprestart(struct mansession *s, struct message *m)
+{
+	if (zap_restart() != 0) {
+		astman_send_error(s, m, "Failed rereading zaptel configuration");
+		return 1;
+	}
+	astman_send_ack(s, m, "ZapRestart: Success");
+	return 0;
+}
+
 static int zap_show_channels(int fd, int argc, char **argv)
 {
 #define FORMAT "%7s %-10.10s %-15.15s %-10.10s %-20.20s\n"
@@ -10153,6 +10194,13 @@ static char destroy_channel_usage[] =
 	"Usage: zap destroy channel <chan num>\n"
 	"	DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.  Immediately removes a given channel, whether it is in use or not\n";
 
+static char zap_restart_usage[] =
+	"Usage: zap restart\n"
+	"	Restarts the zaptel channels: destroys them all and then\n"
+	"	re-reads them from zapata.conf.\n"
+	"	Note that this will STOP any running CALL on zaptel channels.\n"
+	"";
+
 static struct ast_cli_entry zap_cli[] = {
 	{ { "zap", "show", "cadences", NULL }, handle_zap_show_cadences,
 	  "List cadences", zap_show_cadences_help },
@@ -10162,6 +10210,8 @@ static struct ast_cli_entry zap_cli[] = {
 	  "Show information on a channel", show_channel_usage },
 	{ {"zap", "destroy", "channel", NULL}, zap_destroy_channel,
 	  "Destroy a channel", destroy_channel_usage },
+	{ {"zap", "restart", NULL}, zap_restart_cmd,
+	  "Fully restart zaptel channels", zap_restart_usage },
 	{ {"zap", "show", "status", NULL}, zap_show_status,
 	  "Show all Zaptel cards status", zap_show_status_usage },
 };
@@ -11332,6 +11382,7 @@ static int load_module(void *mod)
 	ast_manager_register( "ZapDNDon", 0, action_zapdndon, "Toggle Zap channel Do Not Disturb status ON" );
 	ast_manager_register( "ZapDNDoff", 0, action_zapdndoff, "Toggle Zap channel Do Not Disturb status OFF" );
 	ast_manager_register("ZapShowChannels", 0, action_zapshowchannels, "Show status zapata channels");
+	ast_manager_register("ZapRestart", 0, action_zaprestart, "Fully Restart zaptel channels (terminates calls)");
 
 	return res;
 }
