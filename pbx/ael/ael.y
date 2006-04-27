@@ -91,9 +91,7 @@ static pval *npval2(pvaltype type, YYLTYPE *first, YYLTYPE *last);
 %type <pval>target jumptarget
 %type <pval>statement
 %type <pval>switch_head
-%type <str>word_list goto_word
-%type <str>word3_list
-%type <str>includedname
+
 %type <pval>if_head
 %type <pval>random_head
 %type <pval>iftime_head
@@ -112,22 +110,48 @@ static pval *npval2(pvaltype type, YYLTYPE *first, YYLTYPE *last);
 %type <pval>objects
 %type <pval>file
 
-/* OPTIONS */
-%locations
-%pure-parser
+%type <str>goto_word
+%type <str>word_list
+%type <str>word3_list
+%type <str>includedname
+
+/*
+ * OPTIONS
+ */
+
+%locations	/* track source location using @n variables (yylloc in flex) */
+%pure-parser	/* pass yylval and yylloc as arguments to yylex(). */
 %name-prefix="ael_yy"
-/* the following option does two things:
-    it adds the locp arg to the yyerror
-    and it adds the NULL to the yyerrr arg list, and calls yyerror with NULL for that arg.
-    You can't get the locp arg without the NULL arg, don't ask me why. */
+/*
+ * add an additional argument, parseio, to yyparse(),
+ * which is then accessible in the grammar actions
+ */
 %parse-param {struct parse_io *parseio}
+
 /* there will be two shift/reduce conflicts, they involve the if statement, where a single statement occurs not wrapped in curlies in the "true" section
    the default action to shift will attach the else to the preceeding if. */
 %expect 5
 %error-verbose
-%destructor { if (yymsg[0] != 'C') {destroy_pval($$); prev_word=0;} else {printf("Cleanup destructor called for pvals\n");} } includes includeslist switchlist eswitches switches macro_statement macro_statements case_statement case_statements eval_arglist application_call
-                                application_call_head macro_call target jumptarget statement switch_head if_head random_head iftime_head statements extension ignorepat element
-                                elements arglist global_statement global_statements globals macro context object objects
+
+/*
+ * declare destructors for objects.
+ * The former is for pval, the latter for strings.
+ */
+%destructor {
+		if (yymsg[0] != 'C') {
+			destroy_pval($$);
+			prev_word=0;
+		} else {
+			printf("Cleanup destructor called for pvals\n");
+		}
+	}	includes includeslist switchlist eswitches switches
+		macro_statement macro_statements case_statement case_statements
+		eval_arglist application_call application_call_head
+		macro_call target jumptarget statement switch_head
+		if_head random_head iftime_head statements extension
+		ignorepat element elements arglist global_statement
+		global_statements globals macro context object objects
+
 %destructor { free($$);}  word word_list goto_word word3_list includedname
 
 
