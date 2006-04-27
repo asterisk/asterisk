@@ -372,14 +372,14 @@ static yyconst flex_int16_t yy_accept[226] =
         8,    5,    6,   12,   43,   43,   43,   43,   43,   43,
        43,   43,   43,   43,   43,   43,   43,   43,   43,    1,
        10,    2,   65,   45,   44,   46,   47,   48,   49,   65,
-       61,   62,   63,   57,   58,   59,   60,   65,   51,   50,
-       52,   55,   56,   53,   54,   42,   41,   43,   43,   13,
+       59,   62,   63,   57,   60,   58,   61,   65,   50,   53,
+       54,   51,   56,   52,   55,   42,   41,   43,   43,   13,
        11,   43,   43,   43,   43,   43,   43,   43,   43,   43,
        43,   43,   20,   43,   43,   43,   43,   43,   43,   43,
        43,   43,    0,   45,   44,   46,   47,   48,   49,    0,
 
-       61,   62,   63,   57,   58,   59,   60,    0,   51,   50,
-       52,   55,   56,   53,   54,   43,   13,   13,   43,   43,
+       59,   62,   63,   57,   60,   58,   61,    0,   50,   53,
+       54,   51,   56,   52,   55,   43,   13,   13,   43,   43,
        43,   43,   43,   43,   43,   43,   31,   43,   43,   43,
        43,   43,   43,   43,   43,   43,   43,   43,   43,   43,
        43,   43,   43,   43,   33,   43,   43,   43,   25,   43,
@@ -1257,7 +1257,7 @@ YY_RULE_SETUP
 case 44:
 /* rule 44 can match eol */
 YY_RULE_SETUP
-#line 138 "ael.flex"
+#line 141 "ael.flex"
 {
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
@@ -1290,7 +1290,7 @@ YY_RULE_SETUP
 case 45:
 /* rule 45 can match eol */
 YY_RULE_SETUP
-#line 167 "ael.flex"
+#line 170 "ael.flex"
 {
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
@@ -1302,7 +1302,7 @@ YY_RULE_SETUP
 case 46:
 /* rule 46 can match eol */
 YY_RULE_SETUP
-#line 175 "ael.flex"
+#line 178 "ael.flex"
 {
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
@@ -1313,7 +1313,7 @@ YY_RULE_SETUP
 case 47:
 /* rule 47 can match eol */
 YY_RULE_SETUP
-#line 182 "ael.flex"
+#line 185 "ael.flex"
 {
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
@@ -1333,7 +1333,7 @@ YY_RULE_SETUP
 case 48:
 /* rule 48 can match eol */
 YY_RULE_SETUP
-#line 198 "ael.flex"
+#line 201 "ael.flex"
 {
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
@@ -1344,7 +1344,7 @@ YY_RULE_SETUP
 case 49:
 /* rule 49 can match eol */
 YY_RULE_SETUP
-#line 205 "ael.flex"
+#line 208 "ael.flex"
 {
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
@@ -1364,7 +1364,45 @@ YY_RULE_SETUP
 case 50:
 /* rule 50 can match eol */
 YY_RULE_SETUP
-#line 221 "ael.flex"
+#line 227 "ael.flex"
+{
+		/* printf("ARGG:%s\n",yytext); */
+		/* printf("GOT AN LP!!!\n"); */
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		parencount++;
+		pbcpush('(');
+		yymore();
+	}
+	YY_BREAK
+case 51:
+/* rule 51 can match eol */
+YY_RULE_SETUP
+#line 237 "ael.flex"
+{
+		/*printf("ARGG:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		pbcpush('[');
+		yymore();
+	}
+	YY_BREAK
+case 52:
+/* rule 52 can match eol */
+YY_RULE_SETUP
+#line 245 "ael.flex"
+{
+		/*printf("ARGG:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		pbcpush('{');
+		yymore();
+	}
+	YY_BREAK
+case 53:
+/* rule 53 can match eol */
+YY_RULE_SETUP
+#line 253 "ael.flex"
 {
 		/* printf("ARGG:%s\n",yytext); */
 		yylloc->first_line = my_lineno;
@@ -1403,24 +1441,10 @@ YY_RULE_SETUP
 		}
 	}
 	YY_BREAK
-case 51:
-/* rule 51 can match eol */
+case 54:
+/* rule 54 can match eol */
 YY_RULE_SETUP
-#line 259 "ael.flex"
-{
-		/* printf("ARGG:%s\n",yytext); */
-		/* printf("GOT AN LP!!!\n"); */
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		parencount++;
-		pbcpush('(');
-		yymore();
-	}
-	YY_BREAK
-case 52:
-/* rule 52 can match eol */
-YY_RULE_SETUP
-#line 269 "ael.flex"
+#line 291 "ael.flex"
 {
 		/* printf("ARGG:%s\n",yytext); */
 		if( parencount != 0) {
@@ -1454,22 +1478,10 @@ YY_RULE_SETUP
 		}
 	}
 	YY_BREAK
-case 53:
-/* rule 53 can match eol */
+case 55:
+/* rule 55 can match eol */
 YY_RULE_SETUP
-#line 302 "ael.flex"
-{
-		/*printf("ARGG:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		pbcpush('{');
-		yymore();
-	}
-	YY_BREAK
-case 54:
-/* rule 54 can match eol */
-YY_RULE_SETUP
-#line 310 "ael.flex"
+#line 324 "ael.flex"
 {
 		/*printf("ARGG:%s\n",yytext);*/
 		yylloc->first_line = my_lineno;
@@ -1486,22 +1498,10 @@ YY_RULE_SETUP
 		yymore();
 	}
 	YY_BREAK
-case 55:
-/* rule 55 can match eol */
-YY_RULE_SETUP
-#line 326 "ael.flex"
-{
-		/*printf("ARGG:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		pbcpush('[');
-		yymore();
-	}
-	YY_BREAK
 case 56:
 /* rule 56 can match eol */
 YY_RULE_SETUP
-#line 334 "ael.flex"
+#line 340 "ael.flex"
 {
 		/*printf("ARGG:%s\n",yytext);*/
 		yylloc->first_line = my_lineno;
@@ -1521,7 +1521,7 @@ YY_RULE_SETUP
 case 57:
 /* rule 57 can match eol */
 YY_RULE_SETUP
-#line 350 "ael.flex"
+#line 359 "ael.flex"
 {
 		/*printf("SEMIC:%s\n",yytext);*/
 		yylloc->first_line = my_lineno;
@@ -1533,7 +1533,31 @@ YY_RULE_SETUP
 case 58:
 /* rule 58 can match eol */
 YY_RULE_SETUP
-#line 358 "ael.flex"
+#line 367 "ael.flex"
+{
+		/*printf("SEMIC:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		pbcpush('{');
+		yymore();
+	}
+	YY_BREAK
+case 59:
+/* rule 59 can match eol */
+YY_RULE_SETUP
+#line 375 "ael.flex"
+{
+		/*printf("SEMIC:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		pbcpush('(');
+		yymore();
+	}
+	YY_BREAK
+case 60:
+/* rule 60 can match eol */
+YY_RULE_SETUP
+#line 383 "ael.flex"
 {
 		/*printf("SEMIC:%s\n",yytext);*/
 		yylloc->first_line = my_lineno;
@@ -1550,22 +1574,10 @@ YY_RULE_SETUP
 		yymore();
 	}
 	YY_BREAK
-case 59:
-/* rule 59 can match eol */
+case 61:
+/* rule 61 can match eol */
 YY_RULE_SETUP
-#line 374 "ael.flex"
-{
-		/*printf("SEMIC:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		pbcpush('{');
-		yymore();
-	}
-	YY_BREAK
-case 60:
-/* rule 60 can match eol */
-YY_RULE_SETUP
-#line 382 "ael.flex"
+#line 399 "ael.flex"
 {
 		/*printf("SEMIC:%s\n",yytext);*/
 		yylloc->first_line = my_lineno;
@@ -1582,22 +1594,10 @@ YY_RULE_SETUP
 		yymore();
 	}
 	YY_BREAK
-case 61:
-/* rule 61 can match eol */
-YY_RULE_SETUP
-#line 398 "ael.flex"
-{
-		/*printf("SEMIC:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		pbcpush('(');
-		yymore();
-	}
-	YY_BREAK
 case 62:
 /* rule 62 can match eol */
 YY_RULE_SETUP
-#line 406 "ael.flex"
+#line 415 "ael.flex"
 {
 		/*printf("SEMIC:%s\n",yytext);*/
 		yylloc->first_line = my_lineno;
@@ -1617,7 +1617,7 @@ YY_RULE_SETUP
 case 63:
 /* rule 63 can match eol */
 YY_RULE_SETUP
-#line 422 "ael.flex"
+#line 431 "ael.flex"
 {
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
@@ -1636,7 +1636,7 @@ YY_RULE_SETUP
 case 64:
 /* rule 64 can match eol */
 YY_RULE_SETUP
-#line 437 "ael.flex"
+#line 446 "ael.flex"
 {
 		FILE *in1;
 		char fnamebuf[1024],*p1,*p2;
@@ -1703,7 +1703,7 @@ case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(paren):
 case YY_STATE_EOF(semic):
 case YY_STATE_EOF(argg):
-#line 499 "ael.flex"
+#line 508 "ael.flex"
 {
 		if ( --include_stack_index < 0 ) {
 			yyterminate();
@@ -1719,7 +1719,7 @@ case YY_STATE_EOF(argg):
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 512 "ael.flex"
+#line 521 "ael.flex"
 ECHO;
 	YY_BREAK
 #line 1726 "ael_lex.c"
@@ -2852,7 +2852,7 @@ void ael_yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 512 "ael.flex"
+#line 521 "ael.flex"
 
 
 

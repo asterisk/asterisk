@@ -135,6 +135,9 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		return word;
 	}
 
+
+
+
 <paren>{NOPARENS}\)	{
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
@@ -218,6 +221,35 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
+
+
+
+<argg>{NOARGG}\(	  {
+		/* printf("ARGG:%s\n",yytext); */
+		/* printf("GOT AN LP!!!\n"); */
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		parencount++;
+		pbcpush('(');
+		yymore();
+	}
+
+<argg>{NOARGG}\[	{
+		/*printf("ARGG:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		pbcpush('[');
+		yymore();
+	}
+
+<argg>{NOARGG}\{	{
+		/*printf("ARGG:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		pbcpush('{');
+		yymore();
+	}
+
 <argg>{NOARGG}\)	{
 		/* printf("ARGG:%s\n",yytext); */
 		yylloc->first_line = my_lineno;
@@ -256,16 +288,6 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		}
 	}
 
-<argg>{NOARGG}\(	  {
-		/* printf("ARGG:%s\n",yytext); */
-		/* printf("GOT AN LP!!!\n"); */
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		parencount++;
-		pbcpush('(');
-		yymore();
-	}
-
 <argg>{NOARGG}\,	{
 		/* printf("ARGG:%s\n",yytext); */
 		if( parencount != 0) {
@@ -299,14 +321,6 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		}
 	}
 
-<argg>{NOARGG}\{	{
-		/*printf("ARGG:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		pbcpush('{');
-		yymore();
-	}
-
 <argg>{NOARGG}\}	{
 		/*printf("ARGG:%s\n",yytext);*/
 		yylloc->first_line = my_lineno;
@@ -320,14 +334,6 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			yylval->str = strdup(yytext);
 			return word;
 		}
-		yymore();
-	}
-
-<argg>{NOARGG}\[	{
-		/*printf("ARGG:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		pbcpush('[');
 		yymore();
 	}
 
@@ -347,6 +353,9 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
+
+
+
 <semic>{NOSEMIC}\[	{
 		/*printf("SEMIC:%s\n",yytext);*/
 		yylloc->first_line = my_lineno;
@@ -354,6 +363,22 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 		pbcpush('[');
 		}
+
+<semic>{NOSEMIC}\{	{
+		/*printf("SEMIC:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		pbcpush('{');
+		yymore();
+	}
+
+<semic>{NOSEMIC}\(	{
+		/*printf("SEMIC:%s\n",yytext);*/
+		yylloc->first_line = my_lineno;
+		yylloc->first_column=my_col;
+		pbcpush('(');
+		yymore();
+	}
 
 <semic>{NOSEMIC}\]	{
 		/*printf("SEMIC:%s\n",yytext);*/
@@ -371,14 +396,6 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
-<semic>{NOSEMIC}\{	{
-		/*printf("SEMIC:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		pbcpush('{');
-		yymore();
-	}
-
 <semic>{NOSEMIC}\}	{
 		/*printf("SEMIC:%s\n",yytext);*/
 		yylloc->first_line = my_lineno;
@@ -392,14 +409,6 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			yylval->str = strdup(yytext);
 			return word;
 		}
-		yymore();
-	}
-
-<semic>{NOSEMIC}\(	{
-		/*printf("SEMIC:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		pbcpush('(');
 		yymore();
 	}
 
