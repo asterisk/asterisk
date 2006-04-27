@@ -29,30 +29,51 @@
 #include "ael/ael.tab.h"
 #include "asterisk/ael_structs.h"
 
+/*
+ * A stack to keep track of matching brackets ( [ { } ] )
+ */
 static char pbcstack[400];	/* XXX missing size checks */
 static int pbcpos = 0;
 
 static int parencount = 0;
 static int commaout = 0;
+
+/*
+ * current line, column and filename, updated as we read the input.
+ */
 static int my_lineno = 1;	/* current line in the source */
 static int my_col = 0;		/* current column in the source */
-char *my_file = 0;	/* used also in the bison code */
-char *prev_word;
+char *my_file = 0;		/* used also in the bison code */
+char *prev_word;		/* XXX document it */
+
 #define MAX_INCLUDE_DEPTH 50
 
+/*
+ * flex is not too smart, and generates global functions
+ * without prototypes so the compiler may complain.
+ * To avoid that, we declare the prototypes here,
+ * even though these functions are not used.
+ */
 int ael_yyget_column  (yyscan_t yyscanner);
 void ael_yyset_column (int  column_no , yyscan_t yyscanner);
+
 int ael_yyparse (struct parse_io *);
 static void pbcpush(char x);
 static int pbcpop(char x);
 static void pbcwhere(const char *text, int *line, int *col );
 
+/*
+ * A stack to process include files.
+ * As we switch into the new file we need to store the previous
+ * state to restore it later.
+ */
 struct stackelement {
 	char *fname;
 	int lineno;
 	int colno;
 	YY_BUFFER_STATE bufstate;
 };
+
 static struct stackelement  include_stack[MAX_INCLUDE_DEPTH];
 static int include_stack_index = 0;
 
@@ -82,15 +103,28 @@ static int include_stack_index = 0;
 	} while (0)
 %}
 
+/* %x describes the contexts we have: paren, semic and argg, plus INITIAL */
 %x paren semic argg
+
+/* prefix used for various globally-visible functions and variables.
+ * This renames also yywrap, but since we do not use it, we just
+ * add option noyywrap to remove it.
+ */
 %option prefix="ael_yy"
+%option noyywrap
+
+/* option batch gives a bit more performance if we are using it in
+ * a non-interactive mode. We probably don't care much.
+ */
 %option batch
+
+/* filename to be used instead of lex.yy.c */
 %option outfile="ael_lex.c"
+
 %option reentrant
 %option bison-bridge
 %option bison-locations
 /* %option yylineno I've tried hard, but haven't been able to use this */
-%option noyywrap
 
 NOPARENS	[^()\[\]\{\}]*
 
