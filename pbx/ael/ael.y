@@ -382,11 +382,11 @@ statement : LC statements RC {
 		$$ = npval2(PV_STATEMENTBLOCK, &@1, &@3);
 		$$->u1.list = $2; }
 	| word EQ {reset_semicount(parseio->scanner);} word SEMI {
-		$$=npval(PV_VARDEC,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
+		$$ = npval2(PV_VARDEC, &@1, &@5);
 		$$->u1.str = $1;
 		$$->u2.val = $4; }
 	| KW_GOTO target SEMI {
-		$$=npval(PV_GOTO,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
+		$$ = npval2(PV_GOTO, &@1, &@3);
 		$$->u1.list = $2;}
 	| KW_JUMP jumptarget SEMI {
 		$$=npval(PV_GOTO,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
@@ -636,12 +636,26 @@ case_statements: case_statement {$$=$1;}
 	;
 
 case_statement: KW_CASE word COLON statements {
-		$$ = npval(PV_CASE,@1.first_line,@3.last_line, @1.first_column, @3.last_column); $$->u1.str = $2; $$->u2.statements = $4;}
-	| KW_DEFAULT COLON statements {$$ = npval(PV_DEFAULT,@1.first_line,@3.last_line, @1.first_column, @3.last_column); $$->u1.str = 0; $$->u2.statements = $3;}
-	| KW_PATTERN word COLON statements {$$ = npval(PV_PATTERN,@1.first_line,@3.last_line, @1.first_column, @3.last_column); $$->u1.str = $2; $$->u2.statements = $4;}
-	| KW_CASE word COLON {$$ = npval(PV_CASE,@1.first_line,@3.last_line, @1.first_column, @3.last_column); $$->u1.str = $2;}
-	| KW_DEFAULT COLON {$$ = npval(PV_DEFAULT,@1.first_line,@2.last_line, @1.first_column, @2.last_column); $$->u1.str = 0;}
-	| KW_PATTERN word COLON  {$$ = npval(PV_PATTERN,@1.first_line,@3.last_line, @1.first_column, @3.last_column); $$->u1.str = $2;}
+		$$ = npval2(PV_CASE, &@1, &@3); /* XXX 3 or 4 ? */
+		$$->u1.str = $2;
+		$$->u2.statements = $4;}
+	| KW_DEFAULT COLON statements {
+		$$ = npval2(PV_DEFAULT, &@1, &@3);
+		$$->u1.str = NULL;
+		$$->u2.statements = $3;}
+	| KW_PATTERN word COLON statements {
+		$$ = npval2(PV_PATTERN, &@1, &@4); /* XXX@3 or @4 ? */
+		$$->u1.str = $2;
+		$$->u2.statements = $4;}
+	| KW_CASE word COLON {
+		$$ = npval2(PV_CASE, &@1, &@3);
+		$$->u1.str = $2;}
+	| KW_DEFAULT COLON {
+		$$ = npval2(PV_DEFAULT, &@1, &@2);
+		$$->u1.str = NULL;}
+	| KW_PATTERN word COLON  {
+		$$ = npval2(PV_PATTERN, &@1, &@3);
+		$$->u1.str = $2;}
 	;
 
 macro_statements: macro_statement {$$ = $1;}
