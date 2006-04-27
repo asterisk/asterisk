@@ -20,8 +20,7 @@ esac
 PBX_LIB$1=0
 
 if test "${USE_$1}" != "no"; then	
-   AC_CHECK_LIB([$1], [$2], AC_DEFINE_UNQUOTED([HAVE_$4], 1,
-   [Define to indicate the $5 library]), [], -L${$1_DIR}/lib $6)
+   AC_CHECK_LIB([$1], [$2], [], [], -L${$1_DIR}/lib $6)
 
    if test "${ac_cv_lib_$1_$2}" = "yes"; then
       $1_LIB="-l$1 $6"
@@ -51,6 +50,7 @@ if test "${USE_$1}" != "no"; then
          PBX_LIB$1=0
       else
          PBX_LIB$1=1
+         AC_DEFINE_UNQUOTED([HAVE_$4], 1, [Define to indicate the $5 library])
       fi
    elif test ! -z "${$1_MANDATORY}";
    then
