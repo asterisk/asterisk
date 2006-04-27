@@ -92,7 +92,8 @@ static const char *descrip =
 "      'D' -- dynamically add conference, prompting for a PIN\n"
 "      'e' -- select an empty conference\n"
 "      'E' -- select an empty pinless conference\n"
-"      'i' -- announce user join/leave\n"
+"      'i' -- announce user join/leave with review\n"
+"      'I' -- announce user join/leave without review\n"
 "      'm' -- set monitor only mode (Listen only, no talking)\n"
 "      'M' -- enable music on hold when the conference has a single caller\n"
 "      'o' -- set talker optimization - treats talkers who aren't speaking as\n"
@@ -253,7 +254,7 @@ static void *recordthread(void *args);
 #define CONFFLAG_ANNOUNCEUSERCOUNT (1 << 22)	/* If set, when user joins the conference, they will be told the number of users that are already in */
 #define CONFFLAG_OPTIMIZETALKER (1 << 23)	/* If set, treats talking users as muted users */
 #define CONFFLAG_NOONLYPERSON (1 << 24)		/* If set, won't speak the extra prompt when the first person enters the conference */
-
+#define CONFFLAG_INTROUSERNOREVIEW (1 << 25) /* If set, user will be asked to record name on entry of conference without review */
 
 AST_APP_OPTIONS(meetme_opts, {
 	AST_APP_OPTION('A', CONFFLAG_MARKEDUSER ),
@@ -265,6 +266,7 @@ AST_APP_OPTIONS(meetme_opts, {
 	AST_APP_OPTION('E', CONFFLAG_EMPTYNOPIN ),
 	AST_APP_OPTION('e', CONFFLAG_EMPTY ),
 	AST_APP_OPTION('i', CONFFLAG_INTROUSER ),
+	AST_APP_OPTION('I', CONFFLAG_INTROUSERNOREVIEW ),
 	AST_APP_OPTION('M', CONFFLAG_MOH ),
 	AST_APP_OPTION('m', CONFFLAG_MONITOR ),
 	AST_APP_OPTION('o', CONFFLAG_OPTIMIZETALKER ),
@@ -951,11 +953,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			ast_copy_string(exitcontext, chan->context, sizeof(exitcontext));
 	}
 
-	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER)) {
+	if (!(confflags & CONFFLAG_QUIET) && ((confflags & CONFFLAG_INTROUSER) || (confflags & CONFFLAG_INTROUSERNOREVIEW))) {
 		snprintf(user->namerecloc, sizeof(user->namerecloc),
 			 "%s/meetme/meetme-username-%s-%d", ast_config_AST_SPOOL_DIR,
 			 conf->confno, user->user_no);
-		res = ast_record_review(chan, "vm-rec-name", user->namerecloc, 10, "sln", &duration, NULL);
+		if (confflags & CONFFLAG_INTROUSERNOREVIEW)
+			res = ast_play_and_record(chan, "vm-rec-name", user->namerecloc, 10, "sln", &duration, 128, 0, NULL);
+		else
+			res = ast_record_review(chan, "vm-rec-name", user->namerecloc, 10, "sln", &duration, NULL);
 		if (res == -1)
 			goto outrun;
 	}
@@ -1088,7 +1093,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 	ast_mutex_lock(&conf->playlock);
 
-	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER) && conf->users > 1) {
+	if (!(confflags & CONFFLAG_QUIET) && ((confflags & CONFFLAG_INTROUSER) || (confflags & CONFFLAG_INTROUSERNOREVIEW)) && conf->users > 1) {
 		if (conf->chan && ast_fileexists(user->namerecloc, NULL, NULL)) {
 			if (!ast_streamfile(conf->chan, user->namerecloc, chan->language))
 				ast_waitstream(conf->chan, "");
@@ -1646,7 +1651,7 @@ bailoutandtrynormal:
 	if (!(confflags & CONFFLAG_QUIET) && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN))
 		conf_play(chan, conf, LEAVE);
 
-	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER)) {
+	if (!(confflags & CONFFLAG_QUIET) && ((confflags & CONFFLAG_INTROUSER) || (confflags & CONFFLAG_INTROUSERNOREVIEW))) {
 		if (ast_fileexists(user->namerecloc, NULL, NULL)) {
 			if ((conf->chan) && (conf->users > 1)) {
 				if (!ast_streamfile(conf->chan, user->namerecloc, chan->language))
