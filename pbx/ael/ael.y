@@ -130,9 +130,17 @@ file : objects  { $$ = parseio->pval = $1; }
 	;
 
 objects : object {$$=$1;}
-	| objects object {if ( $1 && $2 ) {$$=$1; linku1($$,$2);}
-						 else if ( $1 ) {$$=$1;}
-						 else if ( $2 ) {$$=$2;} }
+	| objects object
+		{
+			if ( $1 && $2 ) {
+				$$=$1;
+				linku1($$,$2);
+			} else if ( $1 ) {
+				$$=$1;
+			} else if ( $2 ) {
+				$$=$2;
+			}
+		}
 	| objects error {$$=$1;}
 	;
 
@@ -142,14 +150,46 @@ object : context {$$=$1;}
 	| SEMI  {$$=0;/* allow older docs to be read */}
 	;
 
-context : KW_CONTEXT word LC elements RC {$$=npval(PV_CONTEXT,@1.first_line,@5.last_line, @1.first_column, @5.last_column); $$->u1.str = $2; $$->u2.statements = $4; }
-	| KW_CONTEXT word LC RC /* empty context OK */ {$$=npval(PV_CONTEXT,@1.first_line,@4.last_line, @1.first_column, @4.last_column); $$->u1.str = $2; }
-	| KW_CONTEXT KW_DEFAULT LC elements RC  {$$=npval(PV_CONTEXT,@1.first_line,@5.last_line, @1.first_column, @5.last_column); $$->u1.str = strdup("default"); $$->u2.statements = $4; }
-	| KW_CONTEXT KW_DEFAULT LC RC /* empty context OK */ {$$=npval(PV_CONTEXT,@1.first_line,@4.last_line, @1.first_column, @4.last_column); $$->u1.str = strdup("default"); }
-	| KW_ABSTRACT KW_CONTEXT word LC elements RC {$$=npval(PV_CONTEXT,@1.first_line,@6.last_line, @1.first_column, @6.last_column); $$->u1.str = $3; $$->u2.statements = $5;  $$->u3.abstract = 1;}
-	| KW_ABSTRACT KW_CONTEXT word LC RC /* empty context OK */ {$$=npval(PV_CONTEXT,@1.first_line,@5.last_line, @1.first_column, @5.last_column); $$->u1.str = $3; $$->u3.abstract = 1; }
-	| KW_ABSTRACT KW_CONTEXT KW_DEFAULT LC elements RC  {$$=npval(PV_CONTEXT,@1.first_line,@6.last_line, @1.first_column, @6.last_column); $$->u1.str = strdup("default"); $$->u2.statements = $5; $$->u3.abstract = 1; }
-	| KW_ABSTRACT KW_CONTEXT KW_DEFAULT LC RC /* empty context OK */ {$$=npval(PV_CONTEXT,@1.first_line,@5.last_line, @1.first_column, @5.last_column); $$->u1.str = strdup("default"); $$->u3.abstract = 1; }
+context : KW_CONTEXT word LC elements RC {
+		$$ = npval(PV_CONTEXT, @1.first_line, @5.last_line,
+			@1.first_column, @5.last_column);
+		$$->u1.str = $2;
+		$$->u2.statements = $4; }
+	| KW_CONTEXT word LC RC /* empty context OK */ {
+		$$ = npval(PV_CONTEXT, @1.first_line, @4.last_line,
+			@1.first_column, @4.last_column);
+		$$->u1.str = $2; }
+	| KW_CONTEXT KW_DEFAULT LC elements RC {
+		$$ = npval(PV_CONTEXT, @1.first_line, @5.last_line,
+			@1.first_column, @5.last_column);
+		$$->u1.str = strdup("default");
+		$$->u2.statements = $4; }
+	| KW_CONTEXT KW_DEFAULT LC RC /* empty context OK */ {
+		$$ = npval(PV_CONTEXT, @1.first_line, @4.last_line,
+			@1.first_column, @4.last_column);
+		$$->u1.str = strdup("default"); }
+	| KW_ABSTRACT KW_CONTEXT word LC elements RC {
+		$$ = npval(PV_CONTEXT, @1.first_line, @6.last_line,
+			@1.first_column, @6.last_column);
+		$$->u1.str = $3;
+		$$->u2.statements = $5;
+		$$->u3.abstract = 1; }
+	| KW_ABSTRACT KW_CONTEXT word LC RC /* empty context OK */ {
+		$$ = npval(PV_CONTEXT, @1.first_line, @5.last_line,
+			@1.first_column, @5.last_column);
+		$$->u1.str = $3;
+		$$->u3.abstract = 1; }
+	| KW_ABSTRACT KW_CONTEXT KW_DEFAULT LC elements RC  {
+		$$ = npval(PV_CONTEXT, @1.first_line, @6.last_line,
+			@1.first_column, @6.last_column);
+		$$->u1.str = strdup("default");
+		$$->u2.statements = $5;
+		$$->u3.abstract = 1; }
+	| KW_ABSTRACT KW_CONTEXT KW_DEFAULT LC RC /* empty context OK */ {
+		$$ = npval(PV_CONTEXT, @1.first_line, @5.last_line,
+			@1.first_column, @5.last_column);
+		$$->u1.str = strdup("default");
+		$$->u3.abstract = 1; }
 	;
 
 macro : KW_MACRO word LP arglist RP LC macro_statements RC {$$=npval(PV_MACRO,@1.first_line,@8.last_line, @1.first_column, @8.last_column);
