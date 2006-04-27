@@ -203,8 +203,6 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 
 <argg>{NOARGG}[\(\[\{]	  {
 		char c = yytext[yyleng-1];
-		/* printf("ARGG:%s\n",yytext); */
-		/* printf("GOT AN LP!!!\n"); */
 		STORE_START;
 		if (c == '(')
 			parencount++;
@@ -213,7 +211,6 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 	}
 
 <argg>{NOARGG}\)	{
-		/* printf("ARGG:%s\n",yytext); */
 		STORE_START;
 		if ( pbcpop(')') ) { /* error */
 			STORE_END;
@@ -231,7 +228,6 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			yylval->str = strdup(yytext);
 			if(yyleng > 1 )
 				*(yylval->str+yyleng-1)=0;
-			/* printf("Got argg word '%s'\n", yylval->str);  */
 			BEGIN(0);
 			if ( !strcmp(yylval->str,")") ) {
 				free(yylval->str);
@@ -246,12 +242,10 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 	}
 
 <argg>{NOARGG}\,	{
-		/* printf("ARGG:%s\n",yytext); */
 		if( parencount != 0) {
 			/* printf("Folding in a comma!\n"); */
 			yymore();
 		} else  {
-			/* printf("got a comma!\n\n");  */
 			STORE_START;
 			STORE_END;
 			if( !commaout ) {
@@ -277,7 +271,6 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 
 <argg>{NOARGG}[\]\}]	{
 		char c = yytext[yyleng-1];
-		/*printf("ARGG:%s\n",yytext);*/
 		STORE_START;
 		if ( pbcpop(c) ) { /* error */
 			STORE_END;
@@ -293,15 +286,13 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 
 <semic>{NOSEMIC}[\(\[\{]	{
 		char c = yytext[yyleng-1];
-		/*printf("SEMIC:%s\n",yytext);*/
 		STORE_START;
 		yymore();
 		pbcpush(c);
-		}
+	}
 
 <semic>{NOSEMIC}[\)\]\}]	{
 		char c = yytext[yyleng-1];
-		/*printf("SEMIC:%s\n",yytext);*/
 		STORE_START;
 		if ( pbcpop(c) ) { /* error */
 			STORE_END;
@@ -319,7 +310,6 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yylval->str = strdup(yytext);
 		if(yyleng > 1)
 			*(yylval->str+yyleng-1)=0;
-		/* printf("Got semic word %s\n", yylval->str); */
 		unput(';');
 		BEGIN(0);
 		return word;

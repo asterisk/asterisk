@@ -1329,8 +1329,6 @@ YY_RULE_SETUP
 #line 204 "ael.flex"
 {
 		char c = yytext[yyleng-1];
-		/* printf("ARGG:%s\n",yytext); */
-		/* printf("GOT AN LP!!!\n"); */
 		STORE_START;
 		if (c == '(')
 			parencount++;
@@ -1341,9 +1339,8 @@ YY_RULE_SETUP
 case 48:
 /* rule 48 can match eol */
 YY_RULE_SETUP
-#line 215 "ael.flex"
+#line 213 "ael.flex"
 {
-		/* printf("ARGG:%s\n",yytext); */
 		STORE_START;
 		if ( pbcpop(')') ) { /* error */
 			STORE_END;
@@ -1361,7 +1358,6 @@ YY_RULE_SETUP
 			yylval->str = strdup(yytext);
 			if(yyleng > 1 )
 				*(yylval->str+yyleng-1)=0;
-			/* printf("Got argg word '%s'\n", yylval->str);  */
 			BEGIN(0);
 			if ( !strcmp(yylval->str,")") ) {
 				free(yylval->str);
@@ -1378,14 +1374,12 @@ YY_RULE_SETUP
 case 49:
 /* rule 49 can match eol */
 YY_RULE_SETUP
-#line 248 "ael.flex"
+#line 244 "ael.flex"
 {
-		/* printf("ARGG:%s\n",yytext); */
 		if( parencount != 0) {
 			/* printf("Folding in a comma!\n"); */
 			yymore();
 		} else  {
-			/* printf("got a comma!\n\n");  */
 			STORE_START;
 			STORE_END;
 			if( !commaout ) {
@@ -1412,10 +1406,9 @@ YY_RULE_SETUP
 case 50:
 /* rule 50 can match eol */
 YY_RULE_SETUP
-#line 278 "ael.flex"
+#line 272 "ael.flex"
 {
 		char c = yytext[yyleng-1];
-		/*printf("ARGG:%s\n",yytext);*/
 		STORE_START;
 		if ( pbcpop(c) ) { /* error */
 			STORE_END;
@@ -1430,22 +1423,20 @@ YY_RULE_SETUP
 case 51:
 /* rule 51 can match eol */
 YY_RULE_SETUP
-#line 294 "ael.flex"
+#line 287 "ael.flex"
 {
 		char c = yytext[yyleng-1];
-		/*printf("SEMIC:%s\n",yytext);*/
 		STORE_START;
 		yymore();
 		pbcpush(c);
-		}
+	}
 	YY_BREAK
 case 52:
 /* rule 52 can match eol */
 YY_RULE_SETUP
-#line 302 "ael.flex"
+#line 294 "ael.flex"
 {
 		char c = yytext[yyleng-1];
-		/*printf("SEMIC:%s\n",yytext);*/
 		STORE_START;
 		if ( pbcpop(c) ) { /* error */
 			STORE_END;
@@ -1460,14 +1451,13 @@ YY_RULE_SETUP
 case 53:
 /* rule 53 can match eol */
 YY_RULE_SETUP
-#line 316 "ael.flex"
+#line 307 "ael.flex"
 {
 		STORE_START;
 		STORE_END;
 		yylval->str = strdup(yytext);
 		if(yyleng > 1)
 			*(yylval->str+yyleng-1)=0;
-		/* printf("Got semic word %s\n", yylval->str); */
 		unput(';');
 		BEGIN(0);
 		return word;
@@ -1476,7 +1466,7 @@ YY_RULE_SETUP
 case 54:
 /* rule 54 can match eol */
 YY_RULE_SETUP
-#line 328 "ael.flex"
+#line 318 "ael.flex"
 {
 		FILE *in1;
 		char fnamebuf[1024],*p1,*p2;
@@ -1543,7 +1533,7 @@ case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(paren):
 case YY_STATE_EOF(semic):
 case YY_STATE_EOF(argg):
-#line 390 "ael.flex"
+#line 380 "ael.flex"
 {
 		if ( --include_stack_index < 0 ) {
 			yyterminate();
@@ -1559,10 +1549,10 @@ case YY_STATE_EOF(argg):
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 403 "ael.flex"
+#line 393 "ael.flex"
 ECHO;
 	YY_BREAK
-#line 1566 "ael_lex.c"
+#line 1556 "ael_lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2692,7 +2682,7 @@ void ael_yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 403 "ael.flex"
+#line 393 "ael.flex"
 
 
 
