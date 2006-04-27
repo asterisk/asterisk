@@ -28,8 +28,10 @@
 #include "asterisk/utils.h"		/* ast_calloc() */
 #include "asterisk/ael_structs.h"
 
+/* create a new object with start-end marker */
 static pval *npval(pvaltype type, int first_line, int last_line,
 	int first_column, int last_column);
+
 static void linku1(pval *head, pval *tail);
 
 void reset_parencount(yyscan_t yyscanner);
@@ -58,6 +60,10 @@ static char *ael_token_subst(char *mess);
 void yyerror(YYLTYPE *locp, struct parse_io *parseio, char const *s);
 int ael_yylex (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , void * yyscanner);
 
+/* create a new object with start-end marker, simplified interface.
+ * Must be declared here because YYLTYPE is not known before
+ */
+static pval *npval2(pvaltype type, YYLTYPE *first, YYLTYPE *last);
 %}
 
 
@@ -152,8 +158,7 @@ object : context {$$=$1;}
 	;
 
 context : KW_CONTEXT word LC elements RC {
-		$$ = npval(PV_CONTEXT, @1.first_line, @5.last_line,
-			@1.first_column, @5.last_column);
+		$$ = npval2(PV_CONTEXT, &@1, &@5);
 		$$->u1.str = $2;
 		$$->u2.statements = $4; }
 	| KW_CONTEXT word LC RC /* empty context OK */ {
@@ -376,8 +381,11 @@ switch_head : KW_SWITCH LP { reset_parencount(parseio->scanner); } word RP  LC {
 		$$->u1.str = $4; }
 	;
 
+/*
+ * Definition of a statememt in our language
+ */
 statement : LC statements RC {
-		$$=npval(PV_STATEMENTBLOCK,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
+		$$ = npval2(PV_STATEMENTBLOCK, &@1, &@3);
 		$$->u1.list = $2; }
 	| word EQ {reset_semicount(parseio->scanner);} word SEMI {
 		$$=npval(PV_VARDEC,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
@@ -888,6 +896,12 @@ static struct pval *npval(pvaltype type, int first_line, int last_line,
 	z->endcol = last_column;
 	z->filename = strdup(my_file);
 	return z;
+}
+
+static struct pval *npval2(pvaltype type, YYLTYPE *first, YYLTYPE *last)
+{
+	return npval(type, first->first_line, last->last_line,
+			first->first_column, last->last_column);
 }
 
 /* append second element to the list in the first one */
