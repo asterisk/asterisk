@@ -136,15 +136,11 @@ static pval *npval2(pvaltype type, YYLTYPE *first, YYLTYPE *last);
 /*
  * declare destructors for objects.
  * The former is for pval, the latter for strings.
+ * NOTE: we must not have a destructor for a 'file' object.
  */
 %destructor {
-		/* XXX i think the destructor must be called always */
-		if (1 /* yymsg[0] != 'C' */) {
-			destroy_pval($$);
-			prev_word=0;
-		} else {
-			printf("Cleanup destructor called for pvals\n");
-		}
+		destroy_pval($$);
+		prev_word=0;
 	}	includes includeslist switchlist eswitches switches
 		macro_statement macro_statements case_statement case_statements
 		eval_arglist application_call application_call_head

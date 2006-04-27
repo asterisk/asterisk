@@ -1,4 +1,3 @@
-%{
 /*
  * Asterisk -- An open source telephony toolkit.
  *
@@ -20,7 +19,44 @@
  *
  * \brief Flex scanner description of tokens used in AEL2 .
  *
- */#include <sys/types.h>
+ */
+
+/*
+ * Start with flex options:
+ *
+ * %x describes the contexts we have: paren, semic and argg, plus INITIAL
+ */
+%x paren semic argg
+
+/* prefix used for various globally-visible functions and variables.
+ * This renames also yywrap, but since we do not use it, we just
+ * add option noyywrap to remove it.
+ */
+%option prefix="ael_yy"
+%option noyywrap
+
+/* batch gives a bit more performance if we are using it in
+ * a non-interactive mode. We probably don't care much.
+ */
+%option batch
+
+/* outfile is the filename to be used instead of lex.yy.c */
+%option outfile="ael_lex.c"
+
+/*
+ * These are not supported in flex 2.5.4, but we need them
+ * at the moment:
+ * reentrant produces a thread-safe parser. Not 100% sure that
+ * we require it, though.
+ * bison-bridge passes an additional yylval argument to yylex().
+ * bison-locations is probably not needed.
+ */
+%option reentrant
+%option bison-bridge
+%option bison-locations
+
+%{
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -60,7 +96,6 @@ void ael_yyset_column (int  column_no , yyscan_t yyscanner);
 int ael_yyparse (struct parse_io *);
 static void pbcpush(char x);
 static int pbcpop(char x);
-static void pbcwhere(const char *text, int *line, int *col );
 
 /*
  * A stack to process include files.
@@ -84,6 +119,27 @@ static int include_stack_index = 0;
  * the line number is constant, and the column is incremented
  * by the length of the token.
  */
+#ifdef FLEX_BETA	/* set for 2.5.33 */
+
+/* compute the total number of lines and columns in the text
+ * passed as argument.
+ */
+static void pbcwhere(const char *text, int *line, int *col )
+{
+	int loc_line = *line;
+	int loc_col = *col;
+	char c;
+	while ( (c = *text++) ) {
+		if ( c == '\n' ) {
+			loc_line++;
+			loc_col = 0;
+		}
+		loc_col++;
+	}
+	*line = loc_line;
+	*col = loc_col;
+}
+
 #define	STORE_POS do {							\
 		yylloc->first_line = yylloc->last_line = my_lineno;	\
 		yylloc->first_column=my_col;				\
@@ -101,30 +157,13 @@ static int include_stack_index = 0;
 		yylloc->last_line = my_lineno;		\
 		yylloc->last_column = my_col;		\
 	} while (0)
+#else
+#define	STORE_POS
+#define	STORE_START
+#define	STORE_END
+#endif
 %}
 
-/* %x describes the contexts we have: paren, semic and argg, plus INITIAL */
-%x paren semic argg
-
-/* prefix used for various globally-visible functions and variables.
- * This renames also yywrap, but since we do not use it, we just
- * add option noyywrap to remove it.
- */
-%option prefix="ael_yy"
-%option noyywrap
-
-/* option batch gives a bit more performance if we are using it in
- * a non-interactive mode. We probably don't care much.
- */
-%option batch
-
-/* filename to be used instead of lex.yy.c */
-%option outfile="ael_lex.c"
-
-%option reentrant
-%option bison-bridge
-%option bison-locations
-/* %option yylineno I've tried hard, but haven't been able to use this */
 
 NOPARENS	[^()\[\]\{\}]*
 
@@ -466,24 +505,6 @@ static int c_prevword(void)
 	return 0;
 }
 
-/* compute the total number of lines and columns in the text
- * passed as argument.
- */
-static void pbcwhere(const char *text, int *line, int *col )
-{
-	int loc_line = *line;
-	int loc_col = *col;
-	char c;
-	while ( (c = *text++) ) {
-		if ( c == '\n' ) {
-			loc_line++;
-			loc_col = 0;
-		}
-		loc_col++;
-	}
-	*line = loc_line;
-	*col = loc_col;
-}
 
 /* used by the bison code */
 void reset_parencount(yyscan_t yyscanner );
