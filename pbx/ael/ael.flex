@@ -277,13 +277,14 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		}
 	}
 
-<argg>{NOARGG}\}	{
+<argg>{NOARGG}[\]\}]	{
+		char c = yytext[yyleng-1];
 		/*printf("ARGG:%s\n",yytext);*/
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
-		if ( pbcpop('}') ) { /* error */
+		if ( pbcpop(c) ) { /* error */
 			pbcwhere(yytext, &my_lineno, &my_col);
-			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '}' in expression!\n", my_file, my_lineno, my_col);
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n", my_file, my_lineno, my_col, c);
 			BEGIN(0);
 			yylloc->last_line = my_lineno;
 			yylloc->last_column = my_col;
@@ -292,23 +293,6 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		}
 		yymore();
 	}
-
-<argg>{NOARGG}\]	{
-		/*printf("ARGG:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		if ( pbcpop(']') ) { /* error */
-			pbcwhere(yytext, &my_lineno, &my_col);
-			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ']' in expression!\n", my_file, my_lineno, my_col);
-			BEGIN(0);
-			yylloc->last_line = my_lineno;
-			yylloc->last_column = my_col;
-			yylval->str = strdup(yytext);
-			return word;
-		}
-		yymore();
-	}
-
 
 
 
@@ -321,48 +305,17 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		pbcpush(c);
 		}
 
-<semic>{NOSEMIC}\]	{
+<semic>{NOSEMIC}[\)\]\}]	{
+		char c = yytext[yyleng-1];
 		/*printf("SEMIC:%s\n",yytext);*/
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
-		if ( pbcpop(']') ) { /* error */
+		if ( pbcpop(c) ) { /* error */
 			pbcwhere(yytext, &my_lineno, &my_col);
-			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ']' in expression!\n", my_file, my_lineno, my_col);
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n", my_file, my_lineno, my_col, c);
 			BEGIN(0);
 			yylloc->last_line = my_lineno;
 			yylloc->last_column= my_col;
-			yylval->str = strdup(yytext);
-			return word;
-		}
-		yymore();
-	}
-
-<semic>{NOSEMIC}\}	{
-		/*printf("SEMIC:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		if ( pbcpop('}') ) { /* error */
-			pbcwhere(yytext, &my_lineno, &my_col);
-			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '}' in expression!\n", my_file, my_lineno, my_col);
-			BEGIN(0);
-			yylloc->last_line = my_lineno;
-			yylloc->last_column=my_col;
-			yylval->str = strdup(yytext);
-			return word;
-		}
-		yymore();
-	}
-
-<semic>{NOSEMIC}\)	{
-		/*printf("SEMIC:%s\n",yytext);*/
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		if ( pbcpop(')') ) { /* error */
-			pbcwhere(yytext, &my_lineno, &my_col);
-			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ')' in expression!\n", my_file, my_lineno, my_col);
-			BEGIN(0);
-			yylloc->last_line = my_lineno;
-			yylloc->last_column=my_col;
 			yylval->str = strdup(yytext);
 			return word;
 		}
