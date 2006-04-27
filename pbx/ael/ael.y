@@ -192,15 +192,26 @@ context : KW_CONTEXT word LC elements RC {
 		$$->u3.abstract = 1; }
 	;
 
-macro : KW_MACRO word LP arglist RP LC macro_statements RC {$$=npval(PV_MACRO,@1.first_line,@8.last_line, @1.first_column, @8.last_column);
-																	 $$->u1.str = $2; $$->u2.arglist = $4; $$->u3.macro_statements = $7; }
-	| KW_MACRO word LP arglist RP LC  RC {$$=npval(PV_MACRO,@1.first_line,@7.last_line, @1.first_column, @7.last_column); $$->u1.str = $2; $$->u2.arglist = $4; }
-	| KW_MACRO word LP RP LC macro_statements RC {$$=npval(PV_MACRO,@1.first_line,@7.last_line, @1.first_column, @7.last_column); $$->u1.str = $2; $$->u3.macro_statements = $6; }
-	| KW_MACRO word LP RP LC  RC {$$=npval(PV_MACRO,@1.first_line,@6.last_line, @1.first_column, @6.last_column); $$->u1.str = $2; /* pretty empty! */ }
+macro : KW_MACRO word LP arglist RP LC macro_statements RC {
+		$$=npval(PV_MACRO,@1.first_line,@8.last_line, @1.first_column, @8.last_column);
+		$$->u1.str = $2; $$->u2.arglist = $4; $$->u3.macro_statements = $7; }
+	| KW_MACRO word LP arglist RP LC  RC {
+		$$=npval(PV_MACRO,@1.first_line,@7.last_line, @1.first_column, @7.last_column);
+		$$->u1.str = $2; $$->u2.arglist = $4; }
+	| KW_MACRO word LP RP LC macro_statements RC {
+		$$=npval(PV_MACRO,@1.first_line,@7.last_line, @1.first_column, @7.last_column);
+		$$->u1.str = $2; $$->u3.macro_statements = $6; }
+	| KW_MACRO word LP RP LC  RC {
+		$$=npval(PV_MACRO,@1.first_line,@6.last_line, @1.first_column, @6.last_column);
+		$$->u1.str = $2; /* pretty empty! */ }
 	;
 
-globals : KW_GLOBALS LC global_statements RC {$$=npval(PV_GLOBALS,@1.first_line,@4.last_line, @1.first_column, @4.last_column); $$->u1.statements = $3;}
-	| KW_GLOBALS LC RC /* empty global is OK */ {$$=npval(PV_GLOBALS,@1.first_line,@3.last_line, @1.first_column, @3.last_column); /* and that's all */ }
+globals : KW_GLOBALS LC global_statements RC {
+		$$=npval(PV_GLOBALS,@1.first_line,@4.last_line, @1.first_column, @4.last_column);
+		$$->u1.statements = $3;}
+	| KW_GLOBALS LC RC /* empty global is OK */ {
+		$$=npval(PV_GLOBALS,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
+		/* and that's all */ }
 	;
 
 global_statements : global_statement {$$=$1;}
@@ -208,11 +219,20 @@ global_statements : global_statement {$$=$1;}
 	| global_statements error {$$=$1;}
 	;
 
-global_statement : word EQ { reset_semicount(parseio->scanner); }  word SEMI {$$=npval(PV_VARDEC,@1.first_line,@5.last_line, @1.first_column, @5.last_column); $$->u1.str = $1;$$->u2.val = $4; }
+global_statement : word EQ { reset_semicount(parseio->scanner); }  word SEMI {
+		$$=npval(PV_VARDEC,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
+		$$->u1.str = $1;
+		$$->u2.val = $4; }
 	;
 
-arglist : word {$$= npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column); $$->u1.str = $1; }
-	| arglist COMMA word {pval *z = npval(PV_WORD,@1.first_line,@3.last_line, @1.first_column, @3.last_column); z->u1.str = $3; $$=$1; linku1($$,z); }
+arglist : word {
+		$$= npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
+		$$->u1.str = $1; }
+	| arglist COMMA word {
+		pval *z = npval(PV_WORD,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
+		z->u1.str = $3;
+		$$=$1;
+		linku1($$,z); }
 	| arglist error {$$=$1;}
 	;
 
@@ -229,18 +249,39 @@ element : extension {$$=$1;}
 	| switches {$$=$1;}
 	| eswitches {$$=$1;}
 	| ignorepat {$$=$1;}
-	| word EQ { reset_semicount(parseio->scanner); } word SEMI {$$=npval(PV_VARDEC,@1.first_line,@5.last_line, @1.first_column, @5.last_column); $$->u1.str = $1;$$->u2.val = $4; }
+	| word EQ { reset_semicount(parseio->scanner); } word SEMI {
+		$$=npval(PV_VARDEC,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
+		$$->u1.str = $1;
+		$$->u2.val = $4; }
 	| word error {free($1); $$=0;}
 	| SEMI  {$$=0;/* allow older docs to be read */}
 	;
 
-ignorepat : KW_IGNOREPAT EXTENMARK word SEMI { $$=npval(PV_IGNOREPAT,@1.first_line,@4.last_line, @1.first_column, @4.last_column); $$->u1.str = $3;}
+ignorepat : KW_IGNOREPAT EXTENMARK word SEMI {
+		$$=npval(PV_IGNOREPAT,@1.first_line,@4.last_line, @1.first_column, @4.last_column);
+		$$->u1.str = $3;}
 	;
 
-extension : word EXTENMARK statement {$$ = npval(PV_EXTENSION,@1.first_line,@3.last_line, @1.first_column, @3.last_column); $$->u1.str = $1; $$->u2.statements = $3; }
-		  | KW_REGEXTEN word EXTENMARK statement {$$ = npval(PV_EXTENSION,@1.first_line,@3.last_line, @1.first_column, @4.last_column); $$->u1.str = $2; $$->u2.statements = $4; $$->u4.regexten=1;}
-		  | KW_HINT LP word3_list RP word EXTENMARK statement {$$ = npval(PV_EXTENSION,@1.first_line,@7.last_line, @1.first_column, @7.last_column); $$->u1.str = $5; $$->u2.statements = $7; $$->u3.hints = $3;}
-		  | KW_REGEXTEN KW_HINT LP word3_list RP word EXTENMARK statement {$$ = npval(PV_EXTENSION,@1.first_line,@4.last_line, @1.first_column, @8.last_column); $$->u1.str = $6; $$->u2.statements = $8; $$->u4.regexten=1;$$->u3.hints = $4;}
+extension : word EXTENMARK statement {
+		$$ = npval(PV_EXTENSION,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
+		$$->u1.str = $1;
+		$$->u2.statements = $3; }
+	| KW_REGEXTEN word EXTENMARK statement {
+		$$ = npval(PV_EXTENSION,@1.first_line,@3.last_line, @1.first_column, @4.last_column);
+		$$->u1.str = $2;
+		$$->u2.statements = $4;
+		$$->u4.regexten=1;}
+	| KW_HINT LP word3_list RP word EXTENMARK statement {
+		$$ = npval(PV_EXTENSION,@1.first_line,@7.last_line, @1.first_column, @7.last_column);
+		$$->u1.str = $5;
+		$$->u2.statements = $7;
+		$$->u3.hints = $3;}
+	| KW_REGEXTEN KW_HINT LP word3_list RP word EXTENMARK statement {
+		$$ = npval(PV_EXTENSION,@1.first_line,@4.last_line, @1.first_column, @8.last_column);
+		$$->u1.str = $6;
+		$$->u2.statements = $8;
+		$$->u4.regexten=1;
+		$$->u3.hints = $4;}
 
 	;
 
@@ -251,42 +292,49 @@ statements : statement {$$=$1;}
 	| statements error {$$=$1;}
 	;
 
-if_head : KW_IF LP { reset_parencount(parseio->scanner); }  word_list RP { $$= npval(PV_IF,@1.first_line,@5.last_line, @1.first_column, @5.last_column); $$->u1.str = $4; }
-		;
+if_head : KW_IF LP { reset_parencount(parseio->scanner); }  word_list RP {
+		$$= npval(PV_IF,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
+		$$->u1.str = $4; }
+	;
 
-random_head : KW_RANDOM LP { reset_parencount(parseio->scanner); } word_list RP { $$= npval(PV_RANDOM,@1.first_line,@5.last_line, @1.first_column, @5.last_column); $$->u1.str=$4;}
-		;
+random_head : KW_RANDOM LP { reset_parencount(parseio->scanner); } word_list RP {
+		$$= npval(PV_RANDOM,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
+		$$->u1.str=$4;}
+	;
 
-iftime_head : KW_IFTIME LP word3_list COLON word3_list COLON word3_list BAR word3_list BAR word3_list BAR word3_list RP { $$= npval(PV_IFTIME,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
-					$$->u1.list = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->u1.list->u1.str = (char*)malloc(strlen($3)+strlen($5)+strlen($7)+4);
-					strcpy($$->u1.list->u1.str,$3);
-					strcat($$->u1.list->u1.str,":");
-					strcat($$->u1.list->u1.str,$5);
-					strcat($$->u1.list->u1.str,":");
-					strcat($$->u1.list->u1.str,$7);
-					free($3);
-					free($5);
-					free($7);
-					$$->u1.list->next = npval(PV_WORD,@9.first_line,@9.last_line, @9.first_column, @9.last_column);
-					$$->u1.list->next->u1.str = $9;
-					$$->u1.list->next->next = npval(PV_WORD,@11.first_line,@11.last_line, @11.first_column, @11.last_column);
-					$$->u1.list->next->next->u1.str = $11;
-					$$->u1.list->next->next->next = npval(PV_WORD,@13.first_line,@13.last_line, @13.first_column, @13.last_column);
-					$$->u1.list->next->next->next->u1.str = $13;
-					prev_word = 0;
-		}
-		| KW_IFTIME LP word BAR word3_list BAR word3_list BAR word3_list RP { $$= npval(PV_IFTIME,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
-					$$->u1.list = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->u1.list->u1.str = $3;
-					$$->u1.list->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
-					$$->u1.list->next->u1.str = $5;
-					$$->u1.list->next->next = npval(PV_WORD,@7.first_line,@7.last_line, @7.first_column, @7.last_column);
-					$$->u1.list->next->next->u1.str = $7;
-					$$->u1.list->next->next->next = npval(PV_WORD,@9.first_line,@9.last_line, @9.first_column, @9.last_column);
-					$$->u1.list->next->next->next->u1.str = $9;
-					prev_word = 0;
-		}
+iftime_head : KW_IFTIME LP word3_list COLON word3_list COLON word3_list
+		BAR word3_list BAR word3_list BAR word3_list RP {
+		$$= npval(PV_IFTIME,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
+		$$->u1.list = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->u1.list->u1.str = (char*)malloc(strlen($3)+strlen($5)+strlen($7)+4);
+		strcpy($$->u1.list->u1.str,$3);
+		strcat($$->u1.list->u1.str,":");
+		strcat($$->u1.list->u1.str,$5);
+		strcat($$->u1.list->u1.str,":");
+		strcat($$->u1.list->u1.str,$7);
+		free($3);
+		free($5);
+		free($7);
+		$$->u1.list->next = npval(PV_WORD,@9.first_line,@9.last_line, @9.first_column, @9.last_column);
+		$$->u1.list->next->u1.str = $9;
+		$$->u1.list->next->next = npval(PV_WORD,@11.first_line,@11.last_line, @11.first_column, @11.last_column);
+		$$->u1.list->next->next->u1.str = $11;
+		$$->u1.list->next->next->next = npval(PV_WORD,@13.first_line,@13.last_line, @13.first_column, @13.last_column);
+		$$->u1.list->next->next->next->u1.str = $13;
+		prev_word = 0;
+	}
+	| KW_IFTIME LP word BAR word3_list BAR word3_list BAR word3_list RP {
+		$$= npval(PV_IFTIME,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
+		$$->u1.list = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->u1.list->u1.str = $3;
+		$$->u1.list->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
+		$$->u1.list->next->u1.str = $5;
+		$$->u1.list->next->next = npval(PV_WORD,@7.first_line,@7.last_line, @7.first_column, @7.last_column);
+		$$->u1.list->next->next->u1.str = $7;
+		$$->u1.list->next->next->next = npval(PV_WORD,@9.first_line,@9.last_line, @9.first_column, @9.last_column);
+		$$->u1.list->next->next->next->u1.str = $9;
+		prev_word = 0;
+	}
 
 	;
 
