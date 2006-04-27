@@ -138,7 +138,8 @@ static pval *npval2(pvaltype type, YYLTYPE *first, YYLTYPE *last);
  * The former is for pval, the latter for strings.
  */
 %destructor {
-		if (yymsg[0] != 'C') {
+		/* XXX i think the destructor must be called always */
+		if (1 /* yymsg[0] != 'C' */) {
 			destroy_pval($$);
 			prev_word=0;
 		} else {
