@@ -383,38 +383,37 @@ statement : LC statements RC {$$=npval(PV_STATEMENTBLOCK,@1.first_line,@3.last_l
 	| word SEMI { $$= npval(PV_APPLICATION_CALL,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
 																						$$->u1.str = $1;}
 	| application_call EQ {reset_semicount(parseio->scanner);} word SEMI {
-                          char *bufx;
-						  int tot=0;
-						  pval *pptr;
-
-                          $$ = npval(PV_VARDEC,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
-						  $$->u2.val=$4;
-						  /* rebuild the original string-- this is not an app call, it's an unwrapped vardec, with a func call on the LHS */
-                          /* string to big to fit in the buffer? */
-						  tot+=strlen($1->u1.str);
-						  for(pptr=$1->u2.arglist;pptr;pptr=pptr->next) {
-							  tot+=strlen(pptr->u1.str);
-							  tot++; /* for a sep like a comma */
-						  }
-						  tot+=4; /* for safety */
-						  bufx = (char *)malloc(tot);
-						  strcpy(bufx,$1->u1.str);
-						  strcat(bufx,"(");
-						  for (pptr=$1->u2.arglist;pptr;pptr=pptr->next) {
-							  if ( pptr != $1->u2.arglist )
-								  strcat(bufx,",");
-							  strcat(bufx,pptr->u1.str);
-						  }
-						  strcat(bufx,")");
+			char *bufx;
+			int tot=0;
+			pval *pptr;
+			$$ = npval(PV_VARDEC,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
+			$$->u2.val=$4;
+			/* rebuild the original string-- this is not an app call, it's an unwrapped vardec, with a func call on the LHS */
+                        /* string to big to fit in the buffer? */
+			tot+=strlen($1->u1.str);
+			for(pptr=$1->u2.arglist;pptr;pptr=pptr->next) {
+				tot+=strlen(pptr->u1.str);
+				tot++; /* for a sep like a comma */
+			}
+			tot+=4; /* for safety */
+			bufx = (char *)malloc(tot);
+			strcpy(bufx,$1->u1.str);
+			strcat(bufx,"(");
+			for (pptr=$1->u2.arglist;pptr;pptr=pptr->next) {
+				if ( pptr != $1->u2.arglist )
+					strcat(bufx,",");
+				strcat(bufx,pptr->u1.str);
+			}
+			strcat(bufx,")");
 #ifdef AAL_ARGCHECK
-						  if ( !ael_is_funcname($1->u1.str) )
-                              ast_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Function call? The name %s is not in my internal list of function names\n",
-									  my_file, @1.first_line, @1.first_column, @1.last_column, $1->u1.str);
+			if ( !ael_is_funcname($1->u1.str) )
+                        	ast_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Function call? The name %s is not in my internal list of function names\n",
+					my_file, @1.first_line, @1.first_column, @1.last_column, $1->u1.str);
 #endif
-						  $$->u1.str = bufx;
-						  destroy_pval($1); /* the app call it is not, get rid of that chain */
-						  prev_word = 0;
-                       }
+			$$->u1.str = bufx;
+			destroy_pval($1); /* the app call it is not, get rid of that chain */
+			prev_word = 0;
+		}
 	| KW_BREAK SEMI { $$ = npval(PV_BREAK,@1.first_line,@2.last_line, @1.first_column, @2.last_column);}
 	| KW_RETURN SEMI {$$ = npval(PV_RETURN,@1.first_line,@2.last_line, @1.first_column, @2.last_column);}
 	| KW_CONTINUE SEMI {$$ = npval(PV_CONTINUE,@1.first_line,@2.last_line, @1.first_column, @2.last_column);}
@@ -428,12 +427,16 @@ statement : LC statements RC {$$=npval(PV_STATEMENTBLOCK,@1.first_line,@3.last_l
 	;
 
 target : goto_word { $$ = npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column); $$->u1.str = $1;}
-	| goto_word BAR goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
-					$$->u1.str = $1; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->next->u1.str = $3;}
-	| goto_word COMMA goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
-					$$->u1.str = $1; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
-					$$->next->u1.str = $3;}
+	| goto_word BAR goto_word {
+		$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
+		$$->u1.str = $1;
+		$$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->next->u1.str = $3;}
+	| goto_word COMMA goto_word {
+		$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
+		$$->u1.str = $1;
+		$$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$->next->u1.str = $3;}
 	| goto_word BAR goto_word BAR goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
 					$$->u1.str = $1; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
 					$$->next->u1.str = $3;
@@ -459,30 +462,30 @@ target : goto_word { $$ = npval(PV_WORD,@1.first_line,@1.last_line, @1.first_col
 jumptarget : goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
 					$$->u1.str = $1; $$->next = npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
 					$$->next->u1.str = strdup("1");}  /*  jump extension[,priority][@context] */
-		| goto_word COMMA goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
+	| goto_word COMMA goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
 					$$->u1.str = $1; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
 					$$->next->u1.str = $3;}
-		| goto_word COMMA word AT word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
+	| goto_word COMMA word AT word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
 					$$->u1.str = $5; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
 					$$->next->u1.str = $1;
 					$$->next->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
 					$$->next->next->u1.str = $3; }
-		| goto_word AT goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
+	| goto_word AT goto_word {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
 					$$->u1.str = $3; $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
 					$$->next->u1.str = $1;
 					$$->next->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
 					$$->next->next->u1.str = strdup("1"); }
-		| goto_word COMMA word AT KW_DEFAULT {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
+	| goto_word COMMA word AT KW_DEFAULT {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
 					$$->u1.str = strdup("default"); $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
 					$$->next->u1.str = $1;
 					$$->next->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
 					$$->next->next->u1.str = $3; }
-		| goto_word AT KW_DEFAULT {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
+	| goto_word AT KW_DEFAULT {$$=npval(PV_WORD,@1.first_line,@1.last_line, @1.first_column, @1.last_column);
 					$$->u1.str = strdup("default"); $$->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
 					$$->next->u1.str = $1;
 					$$->next->next = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
 					$$->next->next->u1.str = strdup("1"); }
-		;
+	;
 
 macro_call : word LP {reset_argcount(parseio->scanner);} eval_arglist RP
 			{$$= npval(PV_MACRO_CALL,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
@@ -491,12 +494,12 @@ macro_call : word LP {reset_argcount(parseio->scanner);} eval_arglist RP
 	;
 
 application_call_head: word {reset_argcount(parseio->scanner);} LP  {if (strcasecmp($1,"goto") == 0) {
-																							$$= npval(PV_GOTO,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
-																							free($1); /* won't be using this */
-																							ast_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Suggestion: Use the goto statement instead of the Goto() application call in AEL.\n", my_file, @1.first_line, @1.first_column, @1.last_column );
-																						} else
-																							$$= npval(PV_APPLICATION_CALL,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
-																						$$->u1.str = $1; }
+			$$= npval(PV_GOTO,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
+			free($1); /* won't be using this */
+			ast_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Suggestion: Use the goto statement instead of the Goto() application call in AEL.\n", my_file, @1.first_line, @1.first_column, @1.last_column );
+		} else
+			$$= npval(PV_APPLICATION_CALL,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
+		$$->u1.str = $1; }
 	;
 
 application_call : application_call_head eval_arglist RP {$$ = $1;
@@ -624,11 +627,14 @@ includeslist : includedname SEMI {$$=npval(PV_WORD,@1.first_line,@2.last_line, @
 	;
 
 includedname : word { $$ = $1;}
-			| KW_DEFAULT {$$=strdup("default");}
-			;
+	| KW_DEFAULT {$$=strdup("default");}
+	;
 
-includes : KW_INCLUDES LC includeslist RC {$$= npval(PV_INCLUDES,@1.first_line,@4.last_line, @1.first_column, @4.last_column); $$->u1.list = $3;}
-	| KW_INCLUDES LC RC  {$$= npval(PV_INCLUDES,@1.first_line,@3.last_line, @1.first_column, @3.last_column);}
+includes : KW_INCLUDES LC includeslist RC {
+		$$= npval(PV_INCLUDES,@1.first_line,@4.last_line, @1.first_column, @4.last_column);
+		$$->u1.list = $3;}
+	| KW_INCLUDES LC RC {
+		$$= npval(PV_INCLUDES,@1.first_line,@3.last_line, @1.first_column, @3.last_column);}
 	;
 
 
