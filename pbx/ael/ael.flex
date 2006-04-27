@@ -318,61 +318,61 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 \#include[ \t]+\"[^\"]+\" {
 		FILE *in1;
 		char fnamebuf[1024],*p1,*p2;
+		int error = 1;	/* don't use the file if set */
+		p1 = strchr(yytext,'"');
+		p2 = strrchr(yytext,'"');
 		if ( include_stack_index >= MAX_INCLUDE_DEPTH ) {
 			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Includes nested too deeply! Wow!!! How did you do that?\n", my_file, my_lineno, my_col);
+		} else if ( (int)(p2-p1) > sizeof(fnamebuf) - 1 ) {
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Filename is incredibly way too long (%d chars!). Inclusion ignored!\n", my_file, my_lineno, my_col, yyleng - 10);
 		} else {
-			p1 = strchr(yytext,'"');
-			p2 = strrchr(yytext,'"');
-			if ( (int)(p2-p1) > 1023 ) {
-				ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Filename is incredibly way too long (%d chars!). Inclusion ignored!\n", my_file, my_lineno, my_col, yyleng - 10);
+			int i;
+			strncpy(fnamebuf, p1, p2-p1);
+			fnamebuf[p2-p1] = 0;
+			for (i=0; i<include_stack_index; i++) {
+				if ( !strcmp(fnamebuf,include_stack[i].fname )) {
+					ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Nice Try!!! But %s has already been included (perhaps by another file), and would cause an infinite loop of file inclusions!!! Include directive ignored\n",
+						my_file, my_lineno, my_col, fnamebuf);
+					break;
+				}
+			}
+			if (i == include_stack_index)
+				error = 0;	/* we can use this file */
+		}
+		if ( !error ) {	/* valid file name */
+			*p2 = 0;
+			/* relative vs. absolute */
+			if ( *(p1+1) != '/' ) {
+				/* XXX must check overflows */
+				strcpy(fnamebuf,ast_config_AST_CONFIG_DIR);
+				strcat(fnamebuf,"/");
+				strcat(fnamebuf,p1+1);
+			} else
+				strcpy(fnamebuf,p1+1);
+			in1 = fopen( fnamebuf, "r" );
+			if ( ! in1 ) {
+				ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Couldn't find the include file: %s; ignoring the Include directive!\n", my_file, my_lineno, my_col, fnamebuf);
 			} else {
-				int i;
-				int found = 0;
-				strncpy(fnamebuf,p1,p2-p1);
-				fnamebuf[p2-p1] = 0;
-				for (i=0; i<include_stack_index; i++) {
-					if ( !strcmp(fnamebuf,include_stack[i].fname )) {
-						ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Nice Try!!! But %s has already been included (perhaps by another file), and would cause an infinite loop of file inclusions!!! Include directive ignored\n",
-							my_file, my_lineno, my_col, fnamebuf);
-						found=1;
-						break;
-					}
-				}
-				if ( !found ) {
-					*p2 = 0;
-					/* relative vs. absolute */
-					if ( *(p1+1) != '/' ) {
-						strcpy(fnamebuf,ast_config_AST_CONFIG_DIR);
-						strcat(fnamebuf,"/");
-						strcat(fnamebuf,p1+1);
-					} else
-						strcpy(fnamebuf,p1+1);
-					in1 = fopen( fnamebuf, "r" );
-					if ( ! in1 ) {
-						ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Couldn't find the include file: %s; ignoring the Include directive!\n", my_file, my_lineno, my_col, fnamebuf);
-					} else {
-						char *buffer;
-						struct stat stats;
-						stat(fnamebuf, &stats);
-						buffer = (char*)malloc(stats.st_size+1);
-						fread(buffer, 1, stats.st_size, in1);
-						buffer[stats.st_size] = 0;
-						ast_log(LOG_NOTICE,"  --Read in included file %s, %d chars\n",fnamebuf, (int)stats.st_size);
-						fclose(in1);
+				char *buffer;
+				struct stat stats;
+				stat(fnamebuf, &stats);
+				buffer = (char*)malloc(stats.st_size+1);
+				fread(buffer, 1, stats.st_size, in1);
+				buffer[stats.st_size] = 0;
+				ast_log(LOG_NOTICE,"  --Read in included file %s, %d chars\n",fnamebuf, (int)stats.st_size);
+				fclose(in1);
 
-						include_stack[include_stack_index].fname = my_file;
-						my_file = strdup(fnamebuf);
-						include_stack[include_stack_index].lineno = my_lineno;
-						include_stack[include_stack_index].colno = my_col+yyleng;
-						include_stack[include_stack_index++].bufstate = YY_CURRENT_BUFFER;
+				include_stack[include_stack_index].fname = my_file;
+				my_file = strdup(fnamebuf);
+				include_stack[include_stack_index].lineno = my_lineno;
+				include_stack[include_stack_index].colno = my_col+yyleng;
+				include_stack[include_stack_index++].bufstate = YY_CURRENT_BUFFER;
 
-						yy_switch_to_buffer(ael_yy_scan_string (buffer ,yyscanner),yyscanner);
-						free(buffer);
-						my_lineno = 1;
-						my_col = 1;
-						BEGIN(INITIAL);
-					}
-				}
+				yy_switch_to_buffer(ael_yy_scan_string (buffer ,yyscanner),yyscanner);
+				free(buffer);
+				my_lineno = 1;
+				my_col = 1;
+				BEGIN(INITIAL);
 			}
 		}
 	}
