@@ -167,28 +167,24 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		}
 	}
 
-<paren>{NOPARENS}\(	{
+<paren>{NOPARENS}[\(\[\{]	{
+		char c = yytext[yyleng-1];
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
-		parencount++;
-		pbcpush('(');
+		if (c == '(')
+			parencount++;
+		pbcpush(c);
 		yymore();
 	}
 
-<paren>{NOPARENS}\[	{
+<paren>{NOPARENS}[\]\}]	{
+		char c = yytext[yyleng-1];
 		yylloc->first_line = my_lineno;
 		yylloc->first_column=my_col;
-		pbcpush('[');
-		yymore();
-	}
-
-<paren>{NOPARENS}\]	{
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		if ( pbcpop(']') ) { /* error */
+		if ( pbcpop(c))  { /* error */
 			pbcwhere(yytext, &my_lineno, &my_col);
-			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched ']' in expression!\n",
-				my_file, my_lineno, my_col);
+			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '%c' in expression!\n",
+				my_file, my_lineno, my_col, c);
 			BEGIN(0);
 			yylloc->last_line = my_lineno;
 			yylloc->last_column = my_col;
@@ -197,32 +193,6 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		}
 		yymore();
 	}
-
-<paren>{NOPARENS}\{	{
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		pbcpush('{');
-		yymore();
-	}
-
-<paren>{NOPARENS}\}	{
-		yylloc->first_line = my_lineno;
-		yylloc->first_column=my_col;
-		if ( pbcpop('}') ) { /* error */
-			pbcwhere(yytext, &my_lineno, &my_col);
-			ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Mismatched '}' in expression!\n",
-				my_file, my_lineno, my_col);
-			BEGIN(0);
-			yylloc->last_line = my_lineno;
-			yylloc->last_column = my_col;
-			yylval->str = strdup(yytext);
-			return word;
-		}
-		yymore();
-	}
-
-
-
 
 <argg>{NOARGG}\(	  {
 		/* printf("ARGG:%s\n",yytext); */
@@ -539,18 +509,22 @@ static int pbcpop(char x)
 static int c_prevword(void)
 {
 	char *c = prev_word;
-	int ret = 0;
-	while ( c && *c ) {
+	if (c == NULL)
+		return 0;
+	while ( *c ) {
 		switch (*c) {
-		case '{': pbcpush('{');break;
-		case '}': ret = pbcpop('}');break;
-		case '[':pbcpush('[');break;
-		case ']':ret = pbcpop(']');break;
-		case '(':pbcpush('(');break;
-		case ')':ret = pbcpop(')'); break;
+		case '{':
+		case '[':
+		case '(':
+			pbcpush(*c);
+			break;
+		case '}':
+		case ']':
+		case ')':
+			if (pbcpop(*c))
+				return 1;
+			break;
 		}
-		if( ret )
-			return 1;
 		c++;
 	}
 	return 0;
