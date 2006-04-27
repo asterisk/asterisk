@@ -370,30 +370,56 @@ goto_word : word { $$ = $1;}
 		free($3);}
 	;
 
-switch_head : KW_SWITCH LP { reset_parencount(parseio->scanner); } word RP  LC
-					{$$=npval(PV_SWITCH,@1.first_line,@6.last_line, @1.first_column, @6.last_column);
-						$$->u1.str = $4; }
+switch_head : KW_SWITCH LP { reset_parencount(parseio->scanner); } word RP  LC {
+		$$=npval(PV_SWITCH,@1.first_line,@6.last_line, @1.first_column, @6.last_column);
+		$$->u1.str = $4; }
 	;
 
-statement : LC statements RC {$$=npval(PV_STATEMENTBLOCK,@1.first_line,@3.last_line, @1.first_column, @3.last_column); $$->u1.list = $2; }
-	| word EQ {reset_semicount(parseio->scanner);} word SEMI
-			{$$=npval(PV_VARDEC,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
-				$$->u1.str = $1; $$->u2.val = $4; }
-	| KW_GOTO target SEMI {$$=npval(PV_GOTO,@1.first_line,@3.last_line, @1.first_column, @3.last_column); $$->u1.list = $2;}
-	| KW_JUMP jumptarget SEMI {$$=npval(PV_GOTO,@1.first_line,@3.last_line, @1.first_column, @3.last_column); $$->u1.list = $2;}
-	| word COLON {$$=npval(PV_LABEL,@1.first_line,@2.last_line, @1.first_column, @2.last_column); $$->u1.str = $1; }
+statement : LC statements RC {
+		$$=npval(PV_STATEMENTBLOCK,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
+		$$->u1.list = $2; }
+	| word EQ {reset_semicount(parseio->scanner);} word SEMI {
+		$$=npval(PV_VARDEC,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
+		$$->u1.str = $1;
+		$$->u2.val = $4; }
+	| KW_GOTO target SEMI {
+		$$=npval(PV_GOTO,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
+		$$->u1.list = $2;}
+	| KW_JUMP jumptarget SEMI {
+		$$=npval(PV_GOTO,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
+		$$->u1.list = $2;}
+	| word COLON {
+		$$=npval(PV_LABEL,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
+		$$->u1.str = $1; }
 	| KW_FOR LP {reset_semicount(parseio->scanner);} word SEMI
 			{reset_semicount(parseio->scanner);} word SEMI
-			{reset_parencount(parseio->scanner);} word RP statement
-				{ $$=npval(PV_FOR,@1.first_line,@12.last_line, @1.first_column, @12.last_column);
-						$$->u1.for_init = $4; $$->u2.for_test=$7; $$->u3.for_inc = $10; $$->u4.for_statements = $12;}
-	| KW_WHILE LP {reset_parencount(parseio->scanner);} word RP statement
-			{$$=npval(PV_WHILE,@1.first_line,@6.last_line, @1.first_column, @6.last_column);
-					$$->u1.str = $4; $$->u2.statements = $6; }
-	| switch_head RC /* empty list OK */ {$$=$1;$$->endline = @2.last_line; $$->endcol = @2.last_column;}
-	| switch_head case_statements RC {$$=$1; $$->u2.statements = $2;$$->endline = @3.last_line; $$->endcol = @3.last_column;}
-	| AMPER macro_call SEMI {$$ = $2;$$->endline = @2.last_line; $$->endcol = @2.last_column;}
-	| application_call SEMI { $$ = $1;$$->endline = @2.last_line; $$->endcol = @2.last_column;}
+			{reset_parencount(parseio->scanner);} word RP statement {
+		$$=npval(PV_FOR,@1.first_line,@12.last_line, @1.first_column, @12.last_column);
+		$$->u1.for_init = $4;
+		$$->u2.for_test=$7;
+		$$->u3.for_inc = $10;
+		$$->u4.for_statements = $12;}
+	| KW_WHILE LP {reset_parencount(parseio->scanner);} word RP statement {
+		$$=npval(PV_WHILE,@1.first_line,@6.last_line, @1.first_column, @6.last_column);
+		$$->u1.str = $4;
+		$$->u2.statements = $6; }
+	| switch_head RC /* empty list OK */ {
+		$$=$1;
+		$$->endline = @2.last_line;
+		$$->endcol = @2.last_column;}
+	| switch_head case_statements RC {
+		$$=$1;
+		$$->u2.statements = $2;
+		$$->endline = @3.last_line;
+		$$->endcol = @3.last_column;}
+	| AMPER macro_call SEMI {
+		$$ = $2;
+		$$->endline = @2.last_line;
+		$$->endcol = @2.last_column;}
+	| application_call SEMI {
+		$$ = $1;
+		$$->endline = @2.last_line;
+		$$->endcol = @2.last_column;}
 	| word SEMI {
 		$$= npval(PV_APPLICATION_CALL,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
 		$$->u1.str = $1;}
@@ -430,15 +456,45 @@ statement : LC statements RC {$$=npval(PV_STATEMENTBLOCK,@1.first_line,@3.last_l
 		destroy_pval($1); /* the app call it is not, get rid of that chain */
 		prev_word = 0;
 	}
-	| KW_BREAK SEMI { $$ = npval(PV_BREAK,@1.first_line,@2.last_line, @1.first_column, @2.last_column);}
-	| KW_RETURN SEMI {$$ = npval(PV_RETURN,@1.first_line,@2.last_line, @1.first_column, @2.last_column);}
-	| KW_CONTINUE SEMI {$$ = npval(PV_CONTINUE,@1.first_line,@2.last_line, @1.first_column, @2.last_column);}
-	| random_head statement {$$=$1; $$->u2.statements = $2;$$->endline = @2.last_line; $$->endcol = @2.last_column;}
-	| random_head statement KW_ELSE statement {$$=$1; $$->u2.statements = $2;$$->endline = @2.last_line; $$->endcol = @2.last_column; $$->u3.else_statements = $4;}
-	| if_head statement {$$=$1; $$->u2.statements = $2;$$->endline = @2.last_line; $$->endcol = @2.last_column;}
-	| if_head statement KW_ELSE statement {$$=$1; $$->u2.statements = $2;$$->endline = @2.last_line; $$->endcol = @2.last_column; $$->u3.else_statements = $4;}
-	| iftime_head statement {$$=$1; $$->u2.statements = $2;$$->endline = @2.last_line; $$->endcol = @2.last_column;}
-	| iftime_head statement KW_ELSE statement {$$=$1; $$->u2.statements = $2;$$->endline = @2.last_line; $$->endcol = @2.last_column; $$->u3.else_statements = $4;}
+	| KW_BREAK SEMI {
+		$$ = npval(PV_BREAK,@1.first_line,@2.last_line, @1.first_column, @2.last_column);}
+	| KW_RETURN SEMI {
+		$$ = npval(PV_RETURN,@1.first_line,@2.last_line, @1.first_column, @2.last_column);}
+	| KW_CONTINUE SEMI {
+		$$ = npval(PV_CONTINUE,@1.first_line,@2.last_line, @1.first_column, @2.last_column);}
+	| random_head statement {
+		$$=$1;
+		$$->u2.statements = $2;
+		$$->endline = @2.last_line;
+		$$->endcol = @2.last_column;}
+	| random_head statement KW_ELSE statement {
+		$$=$1;
+		$$->u2.statements = $2;
+		$$->endline = @2.last_line;
+		$$->endcol = @2.last_column;
+		$$->u3.else_statements = $4;}
+	| if_head statement {
+		$$=$1;
+		$$->u2.statements = $2;
+		$$->endline = @2.last_line;
+		$$->endcol = @2.last_column;}
+	| if_head statement KW_ELSE statement {
+		$$=$1;
+		$$->u2.statements = $2;
+		$$->endline = @2.last_line;
+		$$->endcol = @2.last_column;
+		$$->u3.else_statements = $4;}
+	| iftime_head statement {
+		$$=$1;
+		$$->u2.statements = $2;
+		$$->endline = @2.last_line;
+		$$->endcol = @2.last_column;}
+	| iftime_head statement KW_ELSE statement {
+		$$=$1;
+		$$->u2.statements = $2;
+		$$->endline = @2.last_line;
+		$$->endcol = @2.last_column;
+		$$->u3.else_statements = $4;}
 	| SEMI { $$=0; }
 	;
 
