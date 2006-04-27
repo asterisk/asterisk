@@ -29,7 +29,7 @@ debug=0
 ;
 ; default value: [not set]
 ;
-;tracefile=/var/log/misdn.trace
+;tracefile=/var/log/asterisk/misdn.log
 
 
 ; set to yes if you want mISDN_dsp to bridge the calls in HW

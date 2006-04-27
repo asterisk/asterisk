@@ -121,7 +121,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 static const struct misdn_cfg_spec gen_spec[] = {
 	{ "debug", MISDN_GEN_DEBUG, MISDN_CTYPE_INT, "0", NONE },
 	{ "misdn_init", MISDN_GEN_MISDN_INIT, MISDN_CTYPE_STR, "/etc/misdn-init.conf", NONE },
-	{ "tracefile", MISDN_GEN_TRACEFILE, MISDN_CTYPE_STR, "/var/log/misdn.trace", NONE },
+	{ "tracefile", MISDN_GEN_TRACEFILE, MISDN_CTYPE_STR, "/var/log/asterisk/misdn.log", NONE },
 	{ "bridging", MISDN_GEN_BRIDGING, MISDN_CTYPE_BOOL, "yes", NONE },
 	{ "stop_tone_after_first_digit", MISDN_GEN_STOP_TONE, MISDN_CTYPE_BOOL, "yes", NONE },
 	{ "append_digits2exten", MISDN_GEN_APPEND_DIGITS2EXTEN, MISDN_CTYPE_BOOL, "yes", NONE },
