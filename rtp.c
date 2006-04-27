@@ -739,11 +739,11 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src)
 	struct ast_rtp *vdestp, *vsrcp;		/* Video RTP channels */
 	struct ast_rtp_protocol *destpr, *srcpr;
 	/* Lock channels */
-	ast_mutex_lock(&dest->lock);
-	while(ast_mutex_trylock(&src->lock)) {
-		ast_mutex_unlock(&dest->lock);
+	ast_channel_lock(dest);
+	while(ast_channel_trylock(src)) {
+		ast_channel_unlock(dest);
 		usleep(1);
-		ast_mutex_lock(&dest->lock);
+		ast_channel_lock(dest);
 	}
 
 	/* Find channel driver interfaces */
@@ -752,15 +752,15 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src)
 	if (!destpr) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", dest->name);
-		ast_mutex_unlock(&dest->lock);
-		ast_mutex_unlock(&src->lock);
+		ast_channel_unlock(dest);
+		ast_channel_unlock(src);
 		return 0;
 	}
 	if (!srcpr) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", src->name);
-		ast_mutex_unlock(&dest->lock);
-		ast_mutex_unlock(&src->lock);
+		ast_channel_unlock(dest);
+		ast_channel_unlock(src);
 		return 0;
 	}
 
@@ -773,15 +773,15 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src)
 	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
 	if (!destp || !srcp) {
 		/* Somebody doesn't want to play... */
-		ast_mutex_unlock(&dest->lock);
-		ast_mutex_unlock(&src->lock);
+		ast_channel_unlock(dest);
+		ast_channel_unlock(src);
 		return 0;
 	}
 	ast_rtp_pt_copy(destp, srcp);
 	if (vdestp && vsrcp)
 		ast_rtp_pt_copy(vdestp, vsrcp);
-	ast_mutex_unlock(&dest->lock);
-	ast_mutex_unlock(&src->lock);
+	ast_channel_unlock(dest);
+	ast_channel_unlock(src);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Seeded SDP of '%s' with that of '%s'\n", dest->name, src->name);
 	return 1;
@@ -1562,11 +1562,11 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 		return AST_BRIDGE_FAILED_NOWARN;
 
 	/* Lock channels */
-	ast_mutex_lock(&c0->lock);
-	while(ast_mutex_trylock(&c1->lock)) {
-		ast_mutex_unlock(&c0->lock);
+	ast_channel_lock(c0);
+	while(ast_channel_trylock(c1)) {
+		ast_channel_unlock(c0);
 		usleep(1);
-		ast_mutex_lock(&c0->lock);
+		ast_channel_lock(c0);
 	}
 
 	/* Find channel driver interfaces */
@@ -1574,14 +1574,14 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	pr1 = get_proto(c1);
 	if (!pr0) {
 		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
 		return AST_BRIDGE_FAILED;
 	}
 	if (!pr1) {
 		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
 		return AST_BRIDGE_FAILED;
 	}
 
@@ -1598,8 +1598,8 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
 	if (!p0 || !p1) {
 		/* Somebody doesn't want to play... */
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
 		return AST_BRIDGE_FAILED_NOWARN;
 	}
 	/* Get codecs from both sides */
@@ -1610,8 +1610,8 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 		if (!(codec0 & codec1)) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Channel codec0 = %d is not codec1 = %d, cannot native bridge in RTP.\n", codec0, codec1);
-			ast_mutex_unlock(&c0->lock);
-			ast_mutex_unlock(&c1->lock);
+			ast_channel_unlock(c0);
+			ast_channel_unlock(c1);
 			return AST_BRIDGE_FAILED_NOWARN;
 		}
 	}
@@ -1637,8 +1637,8 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 		if (vp0)
 			ast_rtp_get_peer(vp0, &vac0);
 	}
-	ast_mutex_unlock(&c0->lock);
-	ast_mutex_unlock(&c1->lock);
+	ast_channel_unlock(c0);
+	ast_channel_unlock(c1);
 	/* External RTP Bridge up, now loop and see if something happes that force us to take the
 		media back to Asterisk */
 	cs[0] = c0;
