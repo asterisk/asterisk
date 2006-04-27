@@ -249,7 +249,7 @@ element : extension {$$=$1;}
 	| eswitches {$$=$1;}
 	| ignorepat {$$=$1;}
 	| word EQ { reset_semicount(parseio->scanner); } word SEMI {
-		$$=npval(PV_VARDEC,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
+		$$ = npval2(PV_VARDEC, &@1, &@5);
 		$$->u1.str = $1;
 		$$->u2.val = $4; }
 	| word error {free($1); $$=0;}
@@ -257,7 +257,7 @@ element : extension {$$=$1;}
 	;
 
 ignorepat : KW_IGNOREPAT EXTENMARK word SEMI {
-		$$=npval(PV_IGNOREPAT,@1.first_line,@4.last_line, @1.first_column, @4.last_column);
+		$$ = npval2(PV_IGNOREPAT, &@1, &@4);
 		$$->u1.str = $3;}
 	;
 
@@ -303,29 +303,29 @@ random_head : KW_RANDOM LP { reset_parencount(parseio->scanner); } word_list RP 
 
 iftime_head : KW_IFTIME LP word3_list COLON word3_list COLON word3_list
 		BAR word3_list BAR word3_list BAR word3_list RP {
-		$$= npval(PV_IFTIME,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
-		$$->u1.list = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$ = npval2(PV_IFTIME, &@1, &@5); /* XXX really @5 or more ? */
+		$$->u1.list = npval2(PV_WORD, &@3, &@3);
 		asprintf(&($$->u1.list->u1.str), "%s:%s:%s", $3, $5, $7);
 		free($3);
 		free($5);
 		free($7);
-		$$->u1.list->next = npval(PV_WORD,@9.first_line,@9.last_line, @9.first_column, @9.last_column);
+		$$->u1.list->next = npval2(PV_WORD, &@9, &@9);
 		$$->u1.list->next->u1.str = $9;
-		$$->u1.list->next->next = npval(PV_WORD,@11.first_line,@11.last_line, @11.first_column, @11.last_column);
+		$$->u1.list->next->next = npval2(PV_WORD, &@11, &@11);
 		$$->u1.list->next->next->u1.str = $11;
-		$$->u1.list->next->next->next = npval(PV_WORD,@13.first_line,@13.last_line, @13.first_column, @13.last_column);
+		$$->u1.list->next->next->next = npval2(PV_WORD, &@13, &@13);
 		$$->u1.list->next->next->next->u1.str = $13;
 		prev_word = 0;
 	}
 	| KW_IFTIME LP word BAR word3_list BAR word3_list BAR word3_list RP {
-		$$= npval(PV_IFTIME,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
-		$$->u1.list = npval(PV_WORD,@3.first_line,@3.last_line, @3.first_column, @3.last_column);
+		$$ = npval2(PV_IFTIME, &@1, &@5); /* XXX @5 or greater ? */
+		$$->u1.list = npval2(PV_WORD, &@3, &@3);
 		$$->u1.list->u1.str = $3;
-		$$->u1.list->next = npval(PV_WORD,@5.first_line,@5.last_line, @5.first_column, @5.last_column);
+		$$->u1.list->next = npval2(PV_WORD, &@5, &@5);
 		$$->u1.list->next->u1.str = $5;
-		$$->u1.list->next->next = npval(PV_WORD,@7.first_line,@7.last_line, @7.first_column, @7.last_column);
+		$$->u1.list->next->next = npval2(PV_WORD, &@7, &@7);
 		$$->u1.list->next->next->u1.str = $7;
-		$$->u1.list->next->next->next = npval(PV_WORD,@9.first_line,@9.last_line, @9.first_column, @9.last_column);
+		$$->u1.list->next->next->next = npval2(PV_WORD, &@9, &@9);
 		$$->u1.list->next->next->next->u1.str = $9;
 		prev_word = 0;
 	}
@@ -344,6 +344,7 @@ word_list : word { $$ = $1;}
 		free($2);
 		prev_word = $$;}
 	;
+
 word3_list : word { $$ = $1;}
 	| word word {
 		asprintf(&($$), "%s%s", $1, $2);
