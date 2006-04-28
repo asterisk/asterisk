@@ -694,7 +694,7 @@ static int commaout = 0;
  * current line, column and filename, updated as we read the input.
  */
 static int my_lineno = 1;	/* current line in the source */
-static int my_col = 0;		/* current column in the source */
+static int my_col = 1;		/* current column in the source */
 char *my_file = 0;		/* used also in the bison code */
 char *prev_word;		/* XXX document it */
 
@@ -771,7 +771,7 @@ static void pbcwhere(const char *text, int *line, int *col )
 #define	STORE_END do {					\
 		pbcwhere(yytext, &my_lineno, &my_col);	\
 		yylloc->last_line = my_lineno;		\
-		yylloc->last_column = my_col;		\
+		yylloc->last_column = my_col - 1;	\
 	} while (0)
 #else
 #define	STORE_POS
@@ -1365,7 +1365,7 @@ YY_RULE_SETUP
 #line 254 "ael.flex"
 {
 		char c = yytext[yyleng-1];
-		STORE_START;
+		// STORE_START;
 		if (c == '(')
 			parencount++;
 		pbcpush(c);
@@ -1417,11 +1417,11 @@ YY_RULE_SETUP
 			return word;
 		}
 
-		STORE_END;
 		parencount--;
 		if( parencount >= 0){
 			yymore();
 		} else {
+			STORE_END;
 			yylval->str = strdup(yytext);
 			if(yyleng > 1 )
 				*(yylval->str+yyleng-1)=0;
