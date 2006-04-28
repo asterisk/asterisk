@@ -216,22 +216,22 @@ macro : KW_MACRO word LP arglist RP LC macro_statements RC {
 		$$ = npval2(PV_MACRO, &@1, &@8);
 		$$->u1.str = $2; $$->u2.arglist = $4; $$->u3.macro_statements = $7; }
 	| KW_MACRO word LP arglist RP LC  RC {
-		$$=npval(PV_MACRO,@1.first_line,@7.last_line, @1.first_column, @7.last_column);
+		$$ = npval2(PV_MACRO, &@1, &@7);
 		$$->u1.str = $2; $$->u2.arglist = $4; }
 	| KW_MACRO word LP RP LC macro_statements RC {
-		$$=npval(PV_MACRO,@1.first_line,@7.last_line, @1.first_column, @7.last_column);
-		$$->u1.str = $2; $$->u3.macro_statements = $6; }
+		$$ = npval2(PV_MACRO, &@1, &@7);
+		$$->u1.str = $2;
+		$$->u3.macro_statements = $6; }
 	| KW_MACRO word LP RP LC  RC {
-		$$=npval(PV_MACRO,@1.first_line,@6.last_line, @1.first_column, @6.last_column);
-		$$->u1.str = $2; /* pretty empty! */ }
+		$$ = npval2(PV_MACRO, &@1, &@6);
+		$$->u1.str = $2; }
 	;
 
 globals : KW_GLOBALS LC global_statements RC {
-		$$=npval(PV_GLOBALS,@1.first_line,@4.last_line, @1.first_column, @4.last_column);
+		$$ = npval2(PV_GLOBALS, &@1, &@4);
 		$$->u1.statements = $3;}
-	| KW_GLOBALS LC RC /* empty global is OK */ {
-		$$=npval(PV_GLOBALS,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
-		/* and that's all */ }
+	| KW_GLOBALS LC RC { /* empty globals is OK */
+		$$ = npval2(PV_GLOBALS, &@1, &@3); }
 	;
 
 global_statements : global_statement {$$=$1;}
@@ -240,7 +240,7 @@ global_statements : global_statement {$$=$1;}
 	;
 
 global_statement : word EQ { reset_semicount(parseio->scanner); }  word SEMI {
-		$$=npval(PV_VARDEC,@1.first_line,@5.last_line, @1.first_column, @5.last_column);
+		$$ = npval2(PV_VARDEC, &@1, &@5);
 		$$->u1.str = $1;
 		$$->u2.val = $4; }
 	;

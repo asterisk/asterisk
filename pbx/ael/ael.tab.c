@@ -563,7 +563,7 @@ static const unsigned short int yyrline[] =
 {
        0,   157,   157,   160,   161,   172,   175,   176,   177,   178,
      181,   185,   188,   192,   195,   200,   204,   209,   215,   218,
-     221,   224,   229,   232,   237,   238,   239,   242,   242,   248,
+     221,   225,   230,   233,   237,   238,   239,   242,   242,   248,
      251,   256,   259,   260,   261,   264,   267,   268,   269,   270,
      271,   272,   272,   276,   277,   280,   285,   289,   294,   299,
      308,   309,   312,   315,   315,   320,   320,   325,   341,   361,
@@ -2038,36 +2038,36 @@ yyreduce:
   case 19:
 #line 218 "ael.y"
     {
-		(yyval.pval)=npval(PV_MACRO,(yylsp[-6]).first_line,(yylsp[0]).last_line, (yylsp[-6]).first_column, (yylsp[0]).last_column);
+		(yyval.pval) = npval2(PV_MACRO, &(yylsp[-6]), &(yylsp[0]));
 		(yyval.pval)->u1.str = (yyvsp[-5].str); (yyval.pval)->u2.arglist = (yyvsp[-3].pval); ;}
     break;
 
   case 20:
 #line 221 "ael.y"
     {
-		(yyval.pval)=npval(PV_MACRO,(yylsp[-6]).first_line,(yylsp[0]).last_line, (yylsp[-6]).first_column, (yylsp[0]).last_column);
-		(yyval.pval)->u1.str = (yyvsp[-5].str); (yyval.pval)->u3.macro_statements = (yyvsp[-1].pval); ;}
+		(yyval.pval) = npval2(PV_MACRO, &(yylsp[-6]), &(yylsp[0]));
+		(yyval.pval)->u1.str = (yyvsp[-5].str);
+		(yyval.pval)->u3.macro_statements = (yyvsp[-1].pval); ;}
     break;
 
   case 21:
-#line 224 "ael.y"
+#line 225 "ael.y"
     {
-		(yyval.pval)=npval(PV_MACRO,(yylsp[-5]).first_line,(yylsp[0]).last_line, (yylsp[-5]).first_column, (yylsp[0]).last_column);
-		(yyval.pval)->u1.str = (yyvsp[-4].str); /* pretty empty! */ ;}
+		(yyval.pval) = npval2(PV_MACRO, &(yylsp[-5]), &(yylsp[0]));
+		(yyval.pval)->u1.str = (yyvsp[-4].str); ;}
     break;
 
   case 22:
-#line 229 "ael.y"
+#line 230 "ael.y"
     {
-		(yyval.pval)=npval(PV_GLOBALS,(yylsp[-3]).first_line,(yylsp[0]).last_line, (yylsp[-3]).first_column, (yylsp[0]).last_column);
+		(yyval.pval) = npval2(PV_GLOBALS, &(yylsp[-3]), &(yylsp[0]));
 		(yyval.pval)->u1.statements = (yyvsp[-1].pval);;}
     break;
 
   case 23:
-#line 232 "ael.y"
-    {
-		(yyval.pval)=npval(PV_GLOBALS,(yylsp[-2]).first_line,(yylsp[0]).last_line, (yylsp[-2]).first_column, (yylsp[0]).last_column);
-		/* and that's all */ ;}
+#line 233 "ael.y"
+    { /* empty globals is OK */
+		(yyval.pval) = npval2(PV_GLOBALS, &(yylsp[-2]), &(yylsp[0])); ;}
     break;
 
   case 24:
@@ -2093,7 +2093,7 @@ yyreduce:
   case 28:
 #line 242 "ael.y"
     {
-		(yyval.pval)=npval(PV_VARDEC,(yylsp[-4]).first_line,(yylsp[0]).last_line, (yylsp[-4]).first_column, (yylsp[0]).last_column);
+		(yyval.pval) = npval2(PV_VARDEC, &(yylsp[-4]), &(yylsp[0]));
 		(yyval.pval)->u1.str = (yyvsp[-4].str);
 		(yyval.pval)->u2.val = (yyvsp[-1].str); ;}
     break;
