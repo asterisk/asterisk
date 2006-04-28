@@ -130,11 +130,13 @@ static void pbcwhere(const char *text, int *line, int *col )
 	int loc_col = *col;
 	char c;
 	while ( (c = *text++) ) {
-		if ( c == '\n' ) {
+		if ( c == '\t' ) {
+			loc_col += 8 - (loc_col % 8);
+		} else if ( c == '\n' ) {
 			loc_line++;
-			loc_col = 0;
-		}
-		loc_col++;
+			loc_col = 1;
+		} else
+			loc_col++;
 	}
 	*line = loc_line;
 	*col = loc_col;
@@ -157,10 +159,12 @@ static void pbcwhere(const char *text, int *line, int *col )
 		yylloc->last_line = my_lineno;		\
 		yylloc->last_column = my_col - 1;	\
 	} while (0)
+#define STORE_LOC do { STORE_START; STORE_END } while (0)
 #else
 #define	STORE_POS
 #define	STORE_START
 #define	STORE_END
+#define	STORE_LOC
 #endif
 %}
 
