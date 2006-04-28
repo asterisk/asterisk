@@ -185,7 +185,7 @@
 static pval *npval(pvaltype type, int first_line, int last_line,
 	int first_column, int last_column);
 
-static void linku1(pval *head, pval *tail);
+static pval * linku1(pval *head, pval *tail);
 
 void reset_parencount(yyscan_t yyscanner);
 void reset_semicount(yyscan_t yyscanner);
@@ -3521,14 +3521,17 @@ static struct pval *npval2(pvaltype type, YYLTYPE *first, YYLTYPE *last)
 }
 
 /* append second element to the list in the first one */
-static void linku1(pval *head, pval *tail)
+static pval * linku1(pval *head, pval *tail)
 {
+	if (!head)
+		return tail;
 	if (!head->next) {
 		head->next = tail;
 	} else {
 		head->u1_last->next = tail;
 	}
 	head->u1_last = tail;
+	return head;
 }
 
 

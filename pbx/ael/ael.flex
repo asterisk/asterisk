@@ -213,9 +213,9 @@ switches	{ STORE_POS; return KW_SWITCHES;}
 eswitches	{ STORE_POS; return KW_ESWITCHES;}
 includes	{ STORE_POS; return KW_INCLUDES;}
 
-\n		{ my_lineno++; my_col = 0; }
+\n		{ my_lineno++; my_col = 1; }
 [ ]+		{ my_col += yyleng; }
-[\t]+		{ my_col += 8-(my_col%8); }
+[\t]+		{ my_col += (yyleng*8)-(my_col%8); }
 
 [-a-zA-Z0-9'"_/.\<\>\*\+!$#\[\]][-a-zA-Z0-9'"_/.!\*\+\<\>\{\}$#\[\]]*	{
 		STORE_POS;

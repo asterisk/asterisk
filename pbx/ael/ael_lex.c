@@ -1309,7 +1309,7 @@ case 40:
 /* rule 40 can match eol */
 YY_RULE_SETUP
 #line 216 "ael.flex"
-{ my_lineno++; my_col = 0; }
+{ my_lineno++; my_col = 1; }
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
@@ -1319,7 +1319,7 @@ YY_RULE_SETUP
 case 42:
 YY_RULE_SETUP
 #line 218 "ael.flex"
-{ my_col += 8-(my_col%8); }
+{ my_col += (yyleng*8)-(my_col%8); }
 	YY_BREAK
 case 43:
 YY_RULE_SETUP

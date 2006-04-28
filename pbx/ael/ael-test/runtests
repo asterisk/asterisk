@@ -1,9 +1,12 @@
 #!/bin/bash
-
+ORIG=`mktemp /tmp/mytest.XXXXXX`
+NEW=`mktemp /tmp/mytest.XXXXXX`
 for i in ael-test*; do
 	echo -n Test: $i..................
 	(cd $i; ../../../../utils/aelparse -n -d | grep -v -i 'seconds' > ../res.$i)
-	if (diff -q res.$i ref.$i > /dev/null 2>&1 ) then
+	sed 's/line:[0-9]*//; /^Executed.*/d' < res.$i > $NEW
+	sed 's/line:[0-9]*//; /^Executed.*/d' < ref.$i > $ORIG
+	if (diff -q $NEW $ORIG > /dev/null 2>&1 ) then
 		echo PASSED
 		rm res.$i
 	else
@@ -12,3 +15,4 @@ for i in ael-test*; do
 	fi
 
 done
+rm $NEW $ORIG
