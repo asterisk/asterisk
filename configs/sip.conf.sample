@@ -473,6 +473,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;qualify=1000			; Consider it down if it's 1 second to reply
 				; Helps with NAT session
 				; qualify=yes uses default value
+;
+; Call group and Pickup group should be in the range from 0 to 63
+;
 ;callgroup=1,3-4		; We are in caller groups 1,3,4
 ;pickupgroup=1,3-5		; We can do call pick-p for call group 1,3,4,5
 ;defaultip=192.168.0.60		; IP address to use if peer has not registred

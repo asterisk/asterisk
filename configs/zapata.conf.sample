@@ -354,7 +354,7 @@ group=1
 ; Ring groups (a.k.a. call groups) and pickup groups.  If a phone is ringing
 ; and it is a member of a group which is one of your pickup groups, then
 ; you can answer it by picking up and dialing *8#.  For simple offices, just
-; make these both the same
+; make these both the same.  Groups range from 0 to 63.
 ;
 callgroup=1
 pickupgroup=1

@@ -233,6 +233,7 @@ incoming_early_audio=no
 ; Pickup and Callgroup
 ;
 ; deafult values: not set = 0
+; range: 0-63
 ;
 ;callgroup=1
 ;pickupgroup=1
