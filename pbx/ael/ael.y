@@ -410,21 +410,21 @@ statement : LC statements RC {
 		$$ = npval2(PV_GOTO, &@1, &@3);
 		$$->u1.list = $2;}
 	| KW_JUMP jumptarget SEMI {
-		$$=npval(PV_GOTO,@1.first_line,@3.last_line, @1.first_column, @3.last_column);
+		$$ = npval2(PV_GOTO, &@1, &@3);
 		$$->u1.list = $2;}
 	| word COLON {
-		$$=npval(PV_LABEL,@1.first_line,@2.last_line, @1.first_column, @2.last_column);
+		$$ = npval2(PV_LABEL, &@1, &@2);
 		$$->u1.str = $1; }
 	| KW_FOR LP {reset_semicount(parseio->scanner);} word SEMI
 			{reset_semicount(parseio->scanner);} word SEMI
 			{reset_parencount(parseio->scanner);} word RP statement {
-		$$=npval(PV_FOR,@1.first_line,@12.last_line, @1.first_column, @12.last_column);
+		$$ = npval2(PV_FOR, &@1, &@12);
 		$$->u1.for_init = $4;
 		$$->u2.for_test=$7;
 		$$->u3.for_inc = $10;
 		$$->u4.for_statements = $12;}
 	| KW_WHILE LP {reset_parencount(parseio->scanner);} word RP statement {
-		$$=npval(PV_WHILE,@1.first_line,@6.last_line, @1.first_column, @6.last_column);
+		$$ = npval2(PV_WHILE, &@1, &@6);
 		$$->u1.str = $4;
 		$$->u2.statements = $6; }
 	| switch_head RC /* empty list OK */ {
@@ -686,19 +686,31 @@ macro_statements: macro_statement {$$ = $1;}
 	;
 
 macro_statement : statement {$$=$1;}
-	| KW_CATCH word LC statements RC {$$=npval(PV_CATCH,@1.first_line,@5.last_line, @1.first_column, @5.last_column); $$->u1.str = $2; $$->u2.statements = $4;}
+	| KW_CATCH word LC statements RC {
+		$$ = npval2(PV_CATCH, &@1, &@5);
+		$$->u1.str = $2;
+		$$->u2.statements = $4;}
 	;
 
-switches : KW_SWITCHES LC switchlist RC {$$= npval(PV_SWITCHES,@1.first_line,@4.last_line, @1.first_column, @4.last_column); $$->u1.list = $3; }
-	| KW_SWITCHES LC RC /* empty switch list OK */ {$$= npval(PV_SWITCHES,@1.first_line,@3.last_line, @1.first_column, @3.last_column);}
+switches : KW_SWITCHES LC switchlist RC {
+		$$ = npval2(PV_SWITCHES, &@1, &@4);
+		$$->u1.list = $3; }
+	| KW_SWITCHES LC RC /* empty switch list OK */ {
+		$$ = npval2(PV_SWITCHES, &@1, &@3); }
 	;
 
 eswitches : KW_ESWITCHES LC switchlist RC {$$= npval(PV_ESWITCHES,@1.first_line,@4.last_line, @1.first_column, @4.last_column); $$->u1.list = $3; }
 	| KW_ESWITCHES LC  RC /* empty switch list OK */ {$$= npval(PV_ESWITCHES,@1.first_line,@3.last_line, @1.first_column, @3.last_column); } /* if there's nothing to declare, why include it? */
 	;
 
-switchlist : word SEMI {$$=npval(PV_WORD,@1.first_line,@2.last_line, @1.first_column, @2.last_column); $$->u1.str = $1;}
-	| switchlist word SEMI {pval *z = npval(PV_WORD,@2.first_line,@3.last_line, @2.first_column, @3.last_column); $$=$1; z->u1.str = $2; linku1($$,z); }
+switchlist : word SEMI {
+		$$ = npval2(PV_WORD, &@1, &@2);
+		$$->u1.str = $1;}
+	| switchlist word SEMI {
+		pval *z = npval2(PV_WORD, &@2, &@3);
+		z->u1.str = $2;
+		$$=$1;
+		linku1($$,z); }
 	| switchlist error {$$=$1;}
 	;
 
@@ -732,7 +744,11 @@ includeslist : includedname SEMI {$$=npval(PV_WORD,@1.first_line,@2.last_line, @
 		$$->u2.arglist->next->next->next->u1.str = $9;
 		prev_word=0;
 	}
-	| includeslist includedname SEMI {pval *z = npval(PV_WORD,@2.first_line,@3.last_line, @2.first_column, @3.last_column); $$=$1; z->u1.str = $2; linku1($$,z); }
+	| includeslist includedname SEMI {
+		pval *z = npval2(PV_WORD, &@2, &@3); /* XXX don't we need @1-@4 ?*/
+		$$=$1;
+		z->u1.str = $2;
+		linku1($$,z); }
 	| includeslist includedname BAR word3_list COLON word3_list COLON word3_list BAR word3_list BAR word3_list BAR word3_list SEMI {pval *z = npval(PV_WORD,@2.first_line,@3.last_line, @2.first_column, @3.last_column);
 		$$=$1; z->u1.str = $2; linku1($$,z);
 		z->u2.arglist = npval(PV_WORD,@4.first_line,@4.last_line, @4.first_column, @4.last_column);
