@@ -153,30 +153,25 @@ static char *convert(char *lastname)
  *           '1' for selected entry from directory
  *           '*' for skipped entry from directory
  */
-static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dialcontext, char *ext, char *name, int readext) {
+static int play_mailbox_owner(struct ast_channel *chan, char *context,
+		char *dialcontext, char *ext, char *name, int readext)
+{
 	int res = 0;
-	int loop = 3;
+	int loop;
 	char fn[256];
-	char fn2[256];
 
 	/* Check for the VoiceMail2 greeting first */
 	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/greet",
-		(char *)ast_config_AST_SPOOL_DIR, context, ext);
+		ast_config_AST_SPOOL_DIR, context, ext);
 
-	/* Otherwise, check for an old-style Voicemail greeting */
-	snprintf(fn2, sizeof(fn2), "%s/vm/%s/greet",
-		(char *)ast_config_AST_SPOOL_DIR, ext);
+	if (ast_fileexists(fn, NULL, chan->language) <= 0) {
+		/* no file, check for an old-style Voicemail greeting */
+		snprintf(fn, sizeof(fn), "%s/vm/%s/greet",
+			ast_config_AST_SPOOL_DIR, ext);
+	}
 
 	if (ast_fileexists(fn, NULL, chan->language) > 0) {
 		res = ast_stream_and_wait(chan, fn, chan->language, AST_DIGIT_ANY);
-		ast_stopstream(chan);
-		/* If Option 'e' was specified, also read the extension number with the name */
-		if (readext) {
-			ast_stream_and_wait(chan, "vm-extension", chan->language, AST_DIGIT_ANY);
-			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
-		}
-	} else if (ast_fileexists(fn2, NULL, chan->language) > 0) {
-		res = ast_stream_and_wait(chan, fn2, chan->language, AST_DIGIT_ANY);
 		ast_stopstream(chan);
 		/* If Option 'e' was specified, also read the extension number with the name */
 		if (readext) {
@@ -191,44 +186,31 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 		}
 	}
 
-	while (loop) {
+	for (loop = 3 ; loop > 0; loop--) {
 		if (!res)
 			res = ast_stream_and_wait(chan, "dir-instr", chan->language, AST_DIGIT_ANY);
 		if (!res)
 			res = ast_waitfordigit(chan, 3000);
 		ast_stopstream(chan);
 	
-		if (res > -1) {
-			switch (res) {
-				case '1':
-					/* Name selected */
-					loop = 0;
-					if (ast_goto_if_exists(chan, dialcontext, ext, 1)) {
-						ast_log(LOG_WARNING,
-							"Can't find extension '%s' in context '%s'.  "
-							"Did you pass the wrong context to Directory?\n",
-							ext, dialcontext);
-						res = -1;
-					}
-					break;
-	
-				case '*':   
-					/* Skip to next match in list */
-					loop = 0;
-					break;
-	
-				default:
-					/* Not '1', or '*', so decrement number of tries */
-					res = 0;
-					loop--;
-					break;
-			} /* end switch */
-		} /* end if */
-		else {
-			/* User hungup, so jump out now */
-			loop = 0;
+		if (res < 0) /* User hungup, so jump out now */
+			break;
+		if (res == '1') {	/* Name selected */
+			if (ast_goto_if_exists(chan, dialcontext, ext, 1)) {
+				ast_log(LOG_WARNING,
+					"Can't find extension '%s' in context '%s'.  "
+					"Did you pass the wrong context to Directory?\n",
+					ext, dialcontext);
+				res = -1;
+			}
+			break;
 		}
-	} /* end while */
+		if (res == '*') /* Skip to next match in list */
+			break;
+
+		/* Not '1', or '*', so decrement number of tries */
+		res = 0;
+	}
 
 	return(res);
 }
