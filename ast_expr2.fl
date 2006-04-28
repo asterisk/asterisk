@@ -59,9 +59,23 @@ struct val {
 
 #include "ast_expr2.h" /* the o/p of the bison on ast_expr2.y */
 
-#define SET_COLUMNS yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);yylloc_param->last_column = yylloc_param->last_column + yyleng - 1; yylloc_param->first_line = yylloc_param->last_line = 1
-#define SET_STRING yylval_param->val = (struct val *)calloc(sizeof(struct val),1); yylval_param->val->type = AST_EXPR_string; yylval_param->val->u.s = strdup(yytext);
-#define SET_NUMERIC_STRING yylval_param->val = (struct val *)calloc(sizeof(struct val),1); yylval_param->val->type = AST_EXPR_numeric_string; yylval_param->val->u.s = strdup(yytext);
+#define SET_COLUMNS	do {		\
+	yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf); \
+	yylloc_param->last_column += yyleng - 1; \
+	yylloc_param->first_line = yylloc_param->last_line = 1; \
+	} while (0)
+
+#define SET_STRING	do {		\
+	yylval_param->val = calloc(1, sizeof(struct val));	\
+	yylval_param->val->type = AST_EXPR_string;		\
+	yylval_param->val->u.s = strdup(yytext);		\
+	} while (0)
+
+#define SET_NUMERIC_STRING	do {	\
+	yylval_param->val = calloc(1, sizeof(struct val));	\
+	yylval_param->val->type = AST_EXPR_numeric_string;	\
+	yylval_param->val->u.s = strdup(yytext);	\
+	} while (0)
 
 struct parse_io
 {
@@ -110,25 +124,81 @@ static char *expr2_token_subst(char *mess);
 \:\:	{ SET_COLUMNS; SET_STRING; return TOK_COLONCOLON;}
 \(	{ SET_COLUMNS; SET_STRING; return TOK_LP;}
 \)	{ SET_COLUMNS; SET_STRING; return TOK_RP;}
-\$\{   {/* gather the contents of ${} expressions, with trailing stuff, into a single TOKEN. They are much more complex now than they used to be */
-                       curlycount = 0; BEGIN(var); yymore();}
+\$\{	{
+		/* gather the contents of ${} expressions, with trailing stuff,
+		 * into a single TOKEN.
+		 * They are much more complex now than they used to be
+		 */
+		curlycount = 0;
+		BEGIN(var);
+		yymore();
+	}
 
-[ 	\r]		{}
-\"[^"]*\"   {SET_COLUMNS; SET_STRING; return TOKEN;}
+[ \t\r]		{}
+\"[^"]*\"	{SET_COLUMNS; SET_STRING; return TOKEN;}
 
-[\n]	{/* what to do with eol */}
-[0-9]+		{   SET_COLUMNS;  /* the original behavior of the expression parser was to bring in numbers as a numeric string */
-				SET_NUMERIC_STRING;
-				return TOKEN;}
+[\n]		{/* what to do with eol */}
+[0-9]+		{
+		SET_COLUMNS;
+		/* the original behavior of the expression parser was
+		 * to bring in numbers as a numeric string
+		 */
+		SET_NUMERIC_STRING;
+		return TOKEN;
+	}
 
-[a-zA-Z0-9,.';\\_^$#@]+	{SET_COLUMNS; SET_STRING; return TOKEN;}
+[a-zA-Z0-9,.';\\_^$#@]+	{
+		SET_COLUMNS;
+		SET_STRING;
+		return TOKEN;
+	}
 
-<var>[^{}]*\}  {curlycount--; if(curlycount < 0){ BEGIN(trail);  yymore();} else {  yymore();}}
-<var>[^{}]*\{  {curlycount++; yymore();  }
-<trail>[^-\t\r \n$():?%/+=*<>!|&]* {BEGIN(0); SET_COLUMNS; SET_STRING; return TOKEN;}
-<trail>[-\t\r \n$():?%/+=*<>!|&]        {char c = yytext[yyleng-1]; BEGIN(0); unput(c); SET_COLUMNS; SET_STRING; return TOKEN;}
-<trail>\$\{            {curlycount = 0; BEGIN(var); yymore();  }
-<trail><<EOF>>		{BEGIN(0); SET_COLUMNS; SET_STRING; return TOKEN; /*actually, if an expr is only a variable ref, this could happen a LOT */}
+
+<var>[^{}]*\}	{
+		curlycount--;
+		if (curlycount < 0) {
+			BEGIN(trail);
+			yymore();
+		} else {
+			yymore();
+		}
+	}
+	
+<var>[^{}]*\{	{
+		curlycount++;
+		yymore();
+	}
+	
+
+<trail>[^-\t\r \n$():?%/+=*<>!|&]*	{
+		BEGIN(0);
+		SET_COLUMNS;
+		SET_STRING;
+		return TOKEN;
+	}
+	
+<trail>[-\t\r \n$():?%/+=*<>!|&]	{
+		char c = yytext[yyleng-1];
+		BEGIN(0);
+		unput(c);
+		SET_COLUMNS;
+		SET_STRING;
+		return TOKEN;
+	}
+	
+<trail>\$\{	{
+		curlycount = 0;
+		BEGIN(var);
+		yymore();
+	}
+	
+<trail><<EOF>>	{
+		BEGIN(0);
+		SET_COLUMNS;
+		SET_STRING;
+		return TOKEN;
+		/*actually, if an expr is only a variable ref, this could happen a LOT */
+	}
 
 %%
 

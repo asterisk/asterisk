@@ -9,7 +9,7 @@
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 31
+#define YY_FLEX_SUBMINOR_VERSION 33
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
@@ -31,7 +31,15 @@
 
 /* C99 systems have <inttypes.h>. Non-C99 systems may or may not. */
 
-#if defined __STDC_VERSION__ && __STDC_VERSION__ >= 199901L
+#if __STDC_VERSION__ >= 199901L
+
+/* C99 says to define __STDC_LIMIT_MACROS before including stdint.h,
+ * if you want the limit (max/min) macros for int types. 
+ */
+#ifndef __STDC_LIMIT_MACROS
+#define __STDC_LIMIT_MACROS 1
+#endif
+
 #include <inttypes.h>
 typedef int8_t flex_int8_t;
 typedef uint8_t flex_uint8_t;
@@ -153,6 +161,10 @@ int ast_yylex_init (yyscan_t* scanner);
 #ifndef YY_BUF_SIZE
 #define YY_BUF_SIZE 16384
 #endif
+
+/* The state buf must be large enough to hold one state per character in the main buffer.
+ */
+#define YY_STATE_BUF_SIZE   ((YY_BUF_SIZE + 2) * sizeof(yy_state_type))
 
 #ifndef YY_TYPEDEF_YY_BUFFER_STATE
 #define YY_TYPEDEF_YY_BUFFER_STATE
@@ -1379,9 +1391,23 @@ struct val {
 
 #include "ast_expr2.h" /* the o/p of the bison on ast_expr2.y */
 
-#define SET_COLUMNS yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);yylloc_param->last_column = yylloc_param->last_column + yyleng - 1; yylloc_param->first_line = yylloc_param->last_line = 1
-#define SET_STRING yylval_param->val = (struct val *)calloc(sizeof(struct val),1); yylval_param->val->type = AST_EXPR_string; yylval_param->val->u.s = strdup(yytext);
-#define SET_NUMERIC_STRING yylval_param->val = (struct val *)calloc(sizeof(struct val),1); yylval_param->val->type = AST_EXPR_numeric_string; yylval_param->val->u.s = strdup(yytext);
+#define SET_COLUMNS	do {		\
+	yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf); \
+	yylloc_param->last_column += yyleng - 1; \
+	yylloc_param->first_line = yylloc_param->last_line = 1; \
+	} while (0)
+
+#define SET_STRING	do {		\
+	yylval_param->val = calloc(1, sizeof(struct val));	\
+	yylval_param->val->type = AST_EXPR_string;		\
+	yylval_param->val->u.s = strdup(yytext);		\
+	} while (0)
+
+#define SET_NUMERIC_STRING	do {	\
+	yylval_param->val = calloc(1, sizeof(struct val));	\
+	yylval_param->val->type = AST_EXPR_numeric_string;	\
+	yylval_param->val->u.s = strdup(yytext);	\
+	} while (0)
 
 struct parse_io
 {
@@ -1395,17 +1421,19 @@ int ast_yyget_column(yyscan_t yyscanner);
 static int curlycount = 0;
 static char *expr2_token_subst(char *mess);
 
-#line 1394 "ast_expr2f.c"
+#line 1425 "ast_expr2f.c"
 
 #define INITIAL 0
 #define var 1
 #define trail 2
 
+#ifndef YY_NO_UNISTD_H
 /* Special case for "unistd.h", since it is non-ANSI. We include it way
  * down here because we want the user's section 1 to have been scanned first.
  * The user has a chance to override it with an option.
  */
 #include <unistd.h>
+#endif
 
 #ifndef YY_EXTRA_TYPE
 #define YY_EXTRA_TYPE void *
@@ -1448,6 +1476,8 @@ struct yyguts_t
     YYLTYPE * yylloc_r;
 
     }; /* end struct yyguts_t */
+
+static int yy_init_globals (yyscan_t yyscanner );
 
     /* This must go here because YYSTYPE and YYLTYPE are included
      * from bison output in section 1.*/
@@ -1583,9 +1613,11 @@ static int input (yyscan_t yyscanner );
 #ifndef YY_DECL
 #define YY_DECL_IS_OURS 1
 
-extern int ast_yylex (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yyscanner);
+extern int ast_yylex \
+               (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yyscanner);
 
-#define YY_DECL int ast_yylex (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
+#define YY_DECL int ast_yylex \
+               (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
 #endif /* !YY_DECL */
 
 /* Code executed at the beginning of each rule, after yytext and yyleng
@@ -1612,18 +1644,18 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 83 "ast_expr2.fl"
+#line 102 "ast_expr2.fl"
 
 
-#line 1614 "ast_expr2f.c"
+#line 1651 "ast_expr2f.c"
 
     yylval = yylval_param;
 
     yylloc = yylloc_param;
 
-	if ( yyg->yy_init )
+	if ( !yyg->yy_init )
 		{
-		yyg->yy_init = 0;
+		yyg->yy_init = 1;
 
 #ifdef YY_USER_INIT
 		YY_USER_INIT;
@@ -1698,192 +1730,241 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 85 "ast_expr2.fl"
+#line 104 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_OR;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 86 "ast_expr2.fl"
+#line 105 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_AND;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 87 "ast_expr2.fl"
+#line 106 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_EQ;}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 88 "ast_expr2.fl"
+#line 107 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_OR;}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 89 "ast_expr2.fl"
+#line 108 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_AND;}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 90 "ast_expr2.fl"
+#line 109 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_EQ;}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 91 "ast_expr2.fl"
+#line 110 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_EQTILDE;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 92 "ast_expr2.fl"
+#line 111 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_GT;}
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 93 "ast_expr2.fl"
+#line 112 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_LT;}
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 94 "ast_expr2.fl"
+#line 113 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_GE;}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 95 "ast_expr2.fl"
+#line 114 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_LE;}
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 96 "ast_expr2.fl"
+#line 115 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_NE;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 97 "ast_expr2.fl"
+#line 116 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_PLUS;}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 98 "ast_expr2.fl"
+#line 117 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_MINUS;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 99 "ast_expr2.fl"
+#line 118 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_MULT;}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 100 "ast_expr2.fl"
+#line 119 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_DIV;}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 101 "ast_expr2.fl"
+#line 120 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_MOD;}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 102 "ast_expr2.fl"
+#line 121 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COND;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 103 "ast_expr2.fl"
+#line 122 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COMPL;}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 104 "ast_expr2.fl"
+#line 123 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COLON;}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 105 "ast_expr2.fl"
+#line 124 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COLONCOLON;}
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 106 "ast_expr2.fl"
+#line 125 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_LP;}
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 107 "ast_expr2.fl"
+#line 126 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_RP;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 108 "ast_expr2.fl"
-{/* gather the contents of ${} expressions, with trailing stuff, into a single TOKEN. They are much more complex now than they used to be */
-                       curlycount = 0; BEGIN(var); yymore();}
+#line 127 "ast_expr2.fl"
+{
+		/* gather the contents of ${} expressions, with trailing stuff,
+		 * into a single TOKEN.
+		 * They are much more complex now than they used to be
+		 */
+		curlycount = 0;
+		BEGIN(var);
+		yymore();
+	}
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 111 "ast_expr2.fl"
+#line 137 "ast_expr2.fl"
 {}
 	YY_BREAK
 case 26:
 /* rule 26 can match eol */
 YY_RULE_SETUP
-#line 112 "ast_expr2.fl"
+#line 138 "ast_expr2.fl"
 {SET_COLUMNS; SET_STRING; return TOKEN;}
 	YY_BREAK
 case 27:
 /* rule 27 can match eol */
 YY_RULE_SETUP
-#line 114 "ast_expr2.fl"
+#line 140 "ast_expr2.fl"
 {/* what to do with eol */}
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 115 "ast_expr2.fl"
-{   SET_COLUMNS;  /* the original behavior of the expression parser was to bring in numbers as a numeric string */
-				SET_NUMERIC_STRING;
-				return TOKEN;}
+#line 141 "ast_expr2.fl"
+{
+		SET_COLUMNS;
+		/* the original behavior of the expression parser was
+		 * to bring in numbers as a numeric string
+		 */
+		SET_NUMERIC_STRING;
+		return TOKEN;
+	}
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 119 "ast_expr2.fl"
-{SET_COLUMNS; SET_STRING; return TOKEN;}
+#line 150 "ast_expr2.fl"
+{
+		SET_COLUMNS;
+		SET_STRING;
+		return TOKEN;
+	}
 	YY_BREAK
 case 30:
 /* rule 30 can match eol */
 YY_RULE_SETUP
-#line 121 "ast_expr2.fl"
-{curlycount--; if(curlycount < 0){ BEGIN(trail);  yymore();} else {  yymore();}}
+#line 157 "ast_expr2.fl"
+{
+		curlycount--;
+		if (curlycount < 0) {
+			BEGIN(trail);
+			yymore();
+		} else {
+			yymore();
+		}
+	}
 	YY_BREAK
 case 31:
 /* rule 31 can match eol */
 YY_RULE_SETUP
-#line 122 "ast_expr2.fl"
-{curlycount++; yymore();  }
+#line 167 "ast_expr2.fl"
+{
+		curlycount++;
+		yymore();
+	}
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 123 "ast_expr2.fl"
-{BEGIN(0); SET_COLUMNS; SET_STRING; return TOKEN;}
+#line 173 "ast_expr2.fl"
+{
+		BEGIN(0);
+		SET_COLUMNS;
+		SET_STRING;
+		return TOKEN;
+	}
 	YY_BREAK
 case 33:
 /* rule 33 can match eol */
 YY_RULE_SETUP
-#line 124 "ast_expr2.fl"
-{char c = yytext[yyleng-1]; BEGIN(0); unput(c); SET_COLUMNS; SET_STRING; return TOKEN;}
+#line 180 "ast_expr2.fl"
+{
+		char c = yytext[yyleng-1];
+		BEGIN(0);
+		unput(c);
+		SET_COLUMNS;
+		SET_STRING;
+		return TOKEN;
+	}
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 125 "ast_expr2.fl"
-{curlycount = 0; BEGIN(var); yymore();  }
+#line 189 "ast_expr2.fl"
+{
+		curlycount = 0;
+		BEGIN(var);
+		yymore();
+	}
 	YY_BREAK
 case YY_STATE_EOF(trail):
-#line 126 "ast_expr2.fl"
-{BEGIN(0); SET_COLUMNS; SET_STRING; return TOKEN; /*actually, if an expr is only a variable ref, this could happen a LOT */}
+#line 195 "ast_expr2.fl"
+{
+		BEGIN(0);
+		SET_COLUMNS;
+		SET_STRING;
+		return TOKEN;
+		/*actually, if an expr is only a variable ref, this could happen a LOT */
+	}
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 128 "ast_expr2.fl"
+#line 203 "ast_expr2.fl"
 ECHO;
 	YY_BREAK
-#line 1882 "ast_expr2f.c"
+#line 1968 "ast_expr2f.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(var):
 	yyterminate();
@@ -2071,7 +2152,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 	else
 		{
-			size_t num_to_read =
+			int num_to_read =
 			YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
 
 		while ( num_to_read <= 0 )
@@ -2185,7 +2266,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
     static yy_state_type yy_try_NUL_trans  (yy_state_type yy_current_state , yyscan_t yyscanner)
 {
 	register int yy_is_jam;
-    struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+    struct yyguts_t * yyg = (struct yyguts_t*)yyscanner; /* This var may be unused depending upon options. */
 	register char *yy_cp = yyg->yy_c_buf_p;
 
 	yy_current_state = yy_NUL_trans[yy_current_state];
@@ -2625,16 +2706,16 @@ YY_BUFFER_STATE ast_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yys
 
 /** Setup the input buffer state to scan a string. The next call to ast_yylex() will
  * scan from a @e copy of @a str.
- * @param str a NUL-terminated string to scan
+ * @param yystr a NUL-terminated string to scan
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  * @note If you want to scan bytes that may contain NUL values, then use
  *       ast_yy_scan_bytes() instead.
  */
-YY_BUFFER_STATE ast_yy_scan_string (yyconst char * str , yyscan_t yyscanner)
+YY_BUFFER_STATE ast_yy_scan_string (yyconst char * yystr , yyscan_t yyscanner)
 {
     
-	return ast_yy_scan_bytes(str,strlen(str) ,yyscanner);
+	return ast_yy_scan_bytes(yystr,strlen(yystr) ,yyscanner);
 }
 
 /** Setup the input buffer state to scan the given bytes. The next call to ast_yylex() will
@@ -2644,7 +2725,7 @@ YY_BUFFER_STATE ast_yy_scan_string (yyconst char * str , yyscan_t yyscanner)
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  */
-YY_BUFFER_STATE ast_yy_scan_bytes  (yyconst char * bytes, int  len , yyscan_t yyscanner)
+YY_BUFFER_STATE ast_yy_scan_bytes  (yyconst char * yybytes, int  _yybytes_len , yyscan_t yyscanner)
 {
 	YY_BUFFER_STATE b;
 	char *buf;
@@ -2652,15 +2733,15 @@ YY_BUFFER_STATE ast_yy_scan_bytes  (yyconst char * bytes, int  len , yyscan_t yy
 	int i;
     
 	/* Get memory for full buffer, including space for trailing EOB's. */
-	n = len + 2;
+	n = _yybytes_len + 2;
 	buf = (char *) ast_yyalloc(n ,yyscanner );
 	if ( ! buf )
 		YY_FATAL_ERROR( "out of dynamic memory in ast_yy_scan_bytes()" );
 
-	for ( i = 0; i < len; ++i )
-		buf[i] = bytes[i];
+	for ( i = 0; i < _yybytes_len; ++i )
+		buf[i] = yybytes[i];
 
-	buf[len] = buf[len+1] = YY_END_OF_BUFFER_CHAR;
+	buf[_yybytes_len] = buf[_yybytes_len+1] = YY_END_OF_BUFFER_CHAR;
 
 	b = ast_yy_scan_buffer(buf,n ,yyscanner);
 	if ( ! b )
@@ -2871,37 +2952,6 @@ void ast_yyset_lloc (YYLTYPE *  yylloc_param , yyscan_t yyscanner)
     yylloc = yylloc_param;
 }
     
-static int yy_init_globals (yyscan_t yyscanner)
-{
-    struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
-    /* Initialization is the same as for the non-reentrant scanner.
-       This function is called once per scanner lifetime. */
-
-    yyg->yy_buffer_stack = 0;
-    yyg->yy_buffer_stack_top = 0;
-    yyg->yy_buffer_stack_max = 0;
-    yyg->yy_c_buf_p = (char *) 0;
-    yyg->yy_init = 1;
-    yyg->yy_start = 0;
-    yyg->yy_start_stack_ptr = 0;
-    yyg->yy_start_stack_depth = 0;
-    yyg->yy_start_stack = (int *) 0;
-
-/* Defined in main.c */
-#ifdef YY_STDINIT
-    yyin = stdin;
-    yyout = stdout;
-#else
-    yyin = (FILE *) 0;
-    yyout = (FILE *) 0;
-#endif
-
-    /* For future reference: Set errno on error, since we are called by
-     * ast_yylex_init()
-     */
-    return 0;
-}
-
 /* User-visible API */
 
 /* ast_yylex_init is special because it creates the scanner itself, so it is
@@ -2924,9 +2974,43 @@ int ast_yylex_init(yyscan_t* ptr_yy_globals)
         return 1;
     }
 
-    memset(*ptr_yy_globals,0,sizeof(struct yyguts_t));
+    /* By setting to 0xAA, we expose bugs in yy_init_globals. Leave at 0x00 for releases. */
+    memset(*ptr_yy_globals,0x00,sizeof(struct yyguts_t));
 
     return yy_init_globals ( *ptr_yy_globals );
+}
+
+static int yy_init_globals (yyscan_t yyscanner)
+{
+    struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+    /* Initialization is the same as for the non-reentrant scanner.
+     * This function is called from ast_yylex_destroy(), so don't allocate here.
+     */
+
+    yyg->yy_buffer_stack = 0;
+    yyg->yy_buffer_stack_top = 0;
+    yyg->yy_buffer_stack_max = 0;
+    yyg->yy_c_buf_p = (char *) 0;
+    yyg->yy_init = 0;
+    yyg->yy_start = 0;
+
+    yyg->yy_start_stack_ptr = 0;
+    yyg->yy_start_stack_depth = 0;
+    yyg->yy_start_stack =  NULL;
+
+/* Defined in main.c */
+#ifdef YY_STDINIT
+    yyin = stdin;
+    yyout = stdout;
+#else
+    yyin = (FILE *) 0;
+    yyout = (FILE *) 0;
+#endif
+
+    /* For future reference: Set errno on error, since we are called by
+     * ast_yylex_init()
+     */
+    return 0;
 }
 
 /* ast_yylex_destroy is for both reentrant and non-reentrant scanners. */
@@ -2949,8 +3033,13 @@ int ast_yylex_destroy  (yyscan_t yyscanner)
         ast_yyfree(yyg->yy_start_stack ,yyscanner );
         yyg->yy_start_stack = NULL;
 
+    /* Reset the globals. This is important in a non-reentrant scanner so the next time
+     * ast_yylex() is called, initialization will occur. */
+    yy_init_globals( yyscanner);
+
     /* Destroy the main struct (reentrant only). */
     ast_yyfree ( yyscanner , yyscanner );
+    yyscanner = NULL;
     return 0;
 }
 
@@ -2962,7 +3051,6 @@ int ast_yylex_destroy  (yyscan_t yyscanner)
 static void yy_flex_strncpy (char* s1, yyconst char * s2, int n , yyscan_t yyscanner)
 {
 	register int i;
-    struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	for ( i = 0; i < n; ++i )
 		s1[i] = s2[i];
 }
@@ -2972,7 +3060,6 @@ static void yy_flex_strncpy (char* s1, yyconst char * s2, int n , yyscan_t yysca
 static int yy_flex_strlen (yyconst char * s , yyscan_t yyscanner)
 {
 	register int n;
-    struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	for ( n = 0; s[n]; ++n )
 		;
 
@@ -3004,19 +3091,7 @@ void ast_yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#undef YY_NEW_FILE
-#undef YY_FLUSH_BUFFER
-#undef yy_set_bol
-#undef yy_new_buffer
-#undef yy_set_interactive
-#undef yytext_ptr
-#undef YY_DO_BEFORE_ACTION
-
-#ifdef YY_DECL_IS_OURS
-#undef YY_DECL_IS_OURS
-#undef YY_DECL
-#endif
-#line 128 "ast_expr2.fl"
+#line 203 "ast_expr2.fl"
 
 
 
