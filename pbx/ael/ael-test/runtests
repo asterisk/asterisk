@@ -1,17 +1,23 @@
 #!/bin/bash
 ORIG=`mktemp /tmp/mytest.XXXXXX`
 NEW=`mktemp /tmp/mytest.XXXXXX`
+
+do_filter() {
+	sed 's/line:[0-9]*//; /^Executed.*/d; s/column=[0-9]*/ /; s/Cols: [0-9]*-[0-9]*/___/'
+}
+
 for i in ael-test*; do
 	echo -n Test: $i..................
 	(cd $i; ../../../../utils/aelparse -n -d | grep -v -i 'seconds' > ../res.$i)
-	sed 's/line:[0-9]*//; /^Executed.*/d' < res.$i > $NEW
-	sed 's/line:[0-9]*//; /^Executed.*/d' < ref.$i > $ORIG
+	do_filter < res.$i > $NEW
+	do_filter < ref.$i > $ORIG
 	if (diff -q $NEW $ORIG > /dev/null 2>&1 ) then
 		echo PASSED
 		rm res.$i
 	else
 		echo %%%%%%FAILED%%%%%%
-		diff -u ref.$i res.$i
+		# diff -u ref.$i res.$i
+		diff -u $ORIG $NEW
 	fi
 
 done
