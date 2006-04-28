@@ -25,7 +25,7 @@ process_dir cdr cdr CDR "Call Detail Recording"
 process_dir channels chan CHANNELS "Channel Drivers"
 process_dir codecs codec CODECS "Codec Translators"
 process_dir formats format FORMATS "Format Interpreters"
-process_dir funcs func FUNCS "Diaplan Functions"
+process_dir funcs func FUNCS "Dialplan Functions"
 process_dir pbx pbx PBX "PBX Modules"
 process_dir res res RES "Resource Modules"
 cat build_tools/cflags.xml
