@@ -8384,6 +8384,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd,"\n");
 		ASTOBJ_UNREF(peer,sip_destroy_peer);
 	} else  if (peer && type == 1) { /* manager listing */
+		char buf[256];
 		astman_append(s, "Channeltype: SIP\r\n");
 		astman_append(s, "ObjectName: %s\r\n", peer->name);
 		astman_append(s, "ChanObjectType: peer\r\n");
@@ -8400,9 +8401,9 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		if (!ast_strlen_zero(peer->fromdomain))
 			astman_append(s, "SIP-FromDomain: %s\r\n", peer->fromdomain);
 		astman_append(s, "Callgroup: ");
-		print_group(fd, peer->callgroup, 1);
+		astman_append(s, "%s\r\n", ast_print_group(buf, sizeof(buf), peer->callgroup));
 		astman_append(s, "Pickupgroup: ");
-		print_group(fd, peer->pickupgroup, 1);
+		astman_append(s, "%s\r\n", ast_print_group(buf, sizeof(buf), peer->pickupgroup));
 		astman_append(s, "VoiceMailbox: %s\r\n", peer->mailbox);
 		astman_append(s, "TransferMode: %s\r\n", transfermode2str(peer->allowtransfer));
 		astman_append(s, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
