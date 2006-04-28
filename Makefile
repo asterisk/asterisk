@@ -564,6 +564,8 @@ clean: clean-depend
 	$(MAKE) -C db1-ast clean
 	$(MAKE) -C stdtime clean
 
+distclean: dist-clean
+
 dist-clean: clean
 	rm -f menuselect.makeopts makeopts makeopts.xml
 	rm -f config.log config.status
