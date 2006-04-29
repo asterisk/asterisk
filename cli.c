@@ -51,14 +51,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* For rl_filename_completion */
 #include "editline/readline/readline.h"
 /* For module directory */
-#include "asterisk/version.h"
-
-extern const char *ast_build_hostname;
-extern const char *ast_build_kernel;
-extern const char *ast_build_machine;
-extern const char *ast_build_os;
-extern const char *ast_build_date;
-extern const char *ast_build_user;
 
 extern unsigned long global_fin, global_fout;
 	
@@ -292,10 +284,6 @@ static char modlist_help[] =
 "Usage: show modules [like keyword]\n"
 "       Shows Asterisk modules currently in use, and usage statistics.\n";
 
-static char version_help[] =
-"Usage: show version\n"
-"       Shows Asterisk version information.\n";
-
 static char uptime_help[] =
 "Usage: show uptime [seconds]\n"
 "       Shows Asterisk uptime information.\n"
@@ -389,16 +377,6 @@ static int handle_modlist(int fd, int argc, char *argv[])
 }
 #undef MODLIST_FORMAT
 #undef MODLIST_FORMAT2
-
-static int handle_version(int fd, int argc, char *argv[])
-{
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
-	ast_cli(fd, "Asterisk %s built by %s @ %s on a %s running %s on %s\n",
-		ASTERISK_VERSION, ast_build_user, ast_build_hostname,
-		ast_build_machine, ast_build_os, ast_build_date);
-	return RESULT_SUCCESS;
-}
 
 static int handle_chanlist(int fd, int argc, char *argv[])
 {
@@ -941,7 +919,6 @@ static struct ast_cli_entry builtins[] = {
 	{ { "show", "modules", NULL }, handle_modlist, "List modules and info", modlist_help },
 	{ { "show", "modules", "like", NULL }, handle_modlist, "List modules and info", modlist_help, complete_mod_4 },
  	{ { "show", "uptime", NULL }, handle_showuptime, "Show uptime information", uptime_help },
-	{ { "show", "version", NULL }, handle_version, "Display version info", version_help },
 	{ { "soft", "hangup", NULL }, handle_softhangup, "Request a hangup on a given channel", softhangup_help, complete_ch_3 },
 	{ { "unload", NULL }, handle_unload, "Unload a dynamic module by name", unload_help, complete_fn },
 	{ { NULL }, NULL, NULL, NULL }

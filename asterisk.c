@@ -224,6 +224,13 @@ char ast_config_AST_CTL_GROUP[AST_CONFIG_MAX_PATH] = "\0";
 char ast_config_AST_CTL[AST_CONFIG_MAX_PATH] = "asterisk.ctl";
 char ast_config_AST_SYSTEM_NAME[20] = "";
 
+extern const char *ast_build_hostname;
+extern const char *ast_build_kernel;
+extern const char *ast_build_machine;
+extern const char *ast_build_os;
+extern const char *ast_build_date;
+extern const char *ast_build_user;
+
 static char *_argv[256];
 static int shuttingdown = 0;
 static int restartnow = 0;
@@ -1271,6 +1278,20 @@ static char show_license_help[] =
 "Usage: show license\n"
 "	Shows the license(s) for this copy of Asterisk.\n";
 
+static char version_help[] =
+"Usage: show version\n"
+"       Shows Asterisk version information.\n";
+
+static int handle_version(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	ast_cli(fd, "Asterisk %s built by %s @ %s on a %s running %s on %s\n",
+		ASTERISK_VERSION, ast_build_user, ast_build_hostname,
+		ast_build_machine, ast_build_os, ast_build_date);
+	return RESULT_SUCCESS;
+}
+
 #if 0
 static int handle_quit(int fd, int argc, char *argv[])
 {
@@ -1431,6 +1452,8 @@ static struct ast_cli_entry core_cli[] = {
 	  "Show the warranty (if any) for this copy of Asterisk", show_warranty_help },
 	{ { "show", "license", NULL }, show_license,
 	  "Show the license(s) for this copy of Asterisk", show_license_help },
+	{ { "show", "version", NULL }, handle_version, 
+	  "Display version info", version_help },
 	{ { "!", NULL }, handle_bang,
 	  "Execute a shell command", bang_help },
 #if !defined(LOW_MEMORY)
