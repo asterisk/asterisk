@@ -245,10 +245,10 @@ struct ast_vm_user {
 };
 
 struct vm_zone {
+	AST_LIST_ENTRY(vm_zone) list;
 	char name[80];
 	char timezone[80];
 	char msg_format[512];
-	struct vm_zone *next;
 };
 
 struct vm_state {
@@ -388,8 +388,7 @@ static char *app3 = "MailboxExists";
 static char *app4 = "VMAuthenticate";
 
 static AST_LIST_HEAD_STATIC(users, ast_vm_user);
-struct vm_zone *zones = NULL;
-struct vm_zone *zonesl = NULL;
+static AST_LIST_HEAD_STATIC(zones, vm_zone);
 static int maxsilence;
 static int maxmsg;
 static int silencethreshold = 128;
@@ -1655,9 +1654,12 @@ static const struct tm *vmu_tm(const struct ast_vm_user *vmu, struct tm *tm)
 	/* Does this user have a timezone specified? */
 	if (!ast_strlen_zero(vmu->zonetag)) {
 		/* Find the zone in the list */
-		for (z = zones; z ; z = z->next)
+		AST_LIST_LOCK(&zones);
+		AST_LIST_TRAVERSE(&zones, z, list) {
 			if (!strcmp(z->name, vmu->zonetag))
 				break;
+		}
+		AST_LIST_UNLOCK(&zones);
 	}
 	ast_localtime(&t, tm, z ? z->timezone : NULL);
 	return tm;
@@ -3592,12 +3594,14 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 	if (!ast_strlen_zero(vmu->zonetag)) {
 		/* Find the zone in the list */
 		struct vm_zone *z;
-		for (z = zones; z; z = z->next) {
+		AST_LIST_LOCK(&zones);
+		AST_LIST_TRAVERSE(&zones, z, list) {
 			if (!strcmp(z->name, vmu->zonetag)) {
 				the_zone = z;
 				break;
 			}
 		}
+		AST_LIST_UNLOCK(&zones);
 	}
 
 /* No internal variable parsing for now, so we'll comment it out for the time being */
@@ -5858,22 +5862,26 @@ static int handle_show_voicemail_users(int fd, int argc, char *argv[])
 
 static int handle_show_voicemail_zones(int fd, int argc, char *argv[])
 {
-	struct vm_zone *zone = zones;
+	struct vm_zone *zone;
 	char *output_format = "%-15s %-20s %-45s\n";
+	int res = RESULT_SUCCESS;
 
-	if (argc != 3) return RESULT_SHOWUSAGE;
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
 
-	if (zone) {
+	AST_LIST_LOCK(&zones);
+	if (!AST_LIST_EMPTY(&zones)) {
 		ast_cli(fd, output_format, "Zone", "Timezone", "Message Format");
-		while (zone) {
+		AST_LIST_TRAVERSE(&zones, zone, list) {
 			ast_cli(fd, output_format, zone->name, zone->timezone, zone->msg_format);
-			zone = zone->next;
 		}
 	} else {
 		ast_cli(fd, "There are no voicemail zones currently defined\n");
-		return RESULT_FAILURE;
+		res = RESULT_FAILURE;
 	}
-	return RESULT_SUCCESS;
+	AST_LIST_UNLOCK(&zones);
+
+	return res;
 }
 
 static char *complete_show_voicemail_users(const char *line, const char *word, int pos, int state)
@@ -5913,7 +5921,7 @@ static struct ast_cli_entry show_voicemail_zones_cli =
 static int load_config(void)
 {
 	struct ast_vm_user *cur;
-	struct vm_zone *zcur, *zl;
+	struct vm_zone *zcur;
 	struct ast_config *cfg;
 	char *cat;
 	struct ast_variable *var;
@@ -5950,21 +5958,18 @@ static int load_config(void)
 	int tmpadsi[4];
 
 	cfg = ast_config_load(VOICEMAIL_CONFIG);
+
 	AST_LIST_LOCK(&users);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&users, cur, list) {
-		AST_LIST_REMOVE_CURRENT(&users, list);
+	while ((cur = AST_LIST_REMOVE_HEAD(&users, list))) {
 		ast_set_flag(cur, VM_ALLOCED);	
 		free_user(cur);
 	}
-	AST_LIST_TRAVERSE_SAFE_END;
-	zcur = zones;
-	while (zcur) {
-		zl = zcur;
-		zcur = zcur->next;
-		free_zone(zl);
-	}
-	zones = NULL;
-	zonesl = NULL;
+
+	AST_LIST_LOCK(&zones);
+	while ((zcur = AST_LIST_REMOVE_HEAD(&zones, list))) 
+		free_zone(zcur);
+	AST_LIST_UNLOCK(&zones);
+
 	memset(ext_pass_cmd, 0, sizeof(ext_pass_cmd));
 
 	if (cfg) {
@@ -6232,14 +6237,9 @@ static int load_config(void)
 									ast_copy_string(z->name, var->name, sizeof(z->name));
 									ast_copy_string(z->timezone, timezone, sizeof(z->timezone));
 									ast_copy_string(z->msg_format, msg_format, sizeof(z->msg_format));
-									z->next = NULL;
-									if (zones) {
-										zonesl->next = z;
-										zonesl = z;
-									} else {
-										zones = z;
-										zonesl = z;
-									}
+									AST_LIST_LOCK(&zones);
+									AST_LIST_INSERT_HEAD(&zones, z, list);
+									AST_LIST_UNLOCK(&zones);
 								} else {
 									ast_log(LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
 									free(z);
