@@ -1042,7 +1042,7 @@ int ast_app_group_get_count(const char *group, const char *category)
  		test = pbx_builtin_getvar_helper(chan, cat);
 		if (test && !strcasecmp(test, group))
  			count++;
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 	}
 
 	return count;
@@ -1072,7 +1072,7 @@ int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 		test = pbx_builtin_getvar_helper(chan, cat);
 		if (test && !regexec(&regexbuf, test, 0, NULL, 0))
 			count++;
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 	}
 
 	regfree(&regexbuf);

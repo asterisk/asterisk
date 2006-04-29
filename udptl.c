@@ -996,24 +996,24 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	void *pvt1;
 	int to;
 	
-	ast_mutex_lock(&c0->lock);
-	while (ast_mutex_trylock(&c1->lock)) {
-		ast_mutex_unlock(&c0->lock);
+	ast_channel_lock(c0);
+	while (ast_channel_trylock(c1)) {
+		ast_channel_unlock(c0);
 		usleep(1);
-		ast_mutex_lock(&c0->lock);
+		ast_channel_lock(c0);
 	}
 	pr0 = get_proto(c0);
 	pr1 = get_proto(c1);
 	if (!pr0) {
 		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
 		return -1;
 	}
 	if (!pr1) {
 		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
 		return -1;
 	}
 	pvt0 = c0->tech_pvt;
@@ -1022,8 +1022,8 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	p1 = pr1->get_udptl_info(c1);
 	if (!p0 || !p1) {
 		/* Somebody doesn't want to play... */
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
 		return -2;
 	}
 	if (pr0->set_udptl_peer(c0, p1)) {
@@ -1038,8 +1038,8 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		/* Store UDPTL peer */
 		ast_udptl_get_peer(p0, &ac0);
 	}
-	ast_mutex_unlock(&c0->lock);
-	ast_mutex_unlock(&c1->lock);
+	ast_channel_unlock(c0);
+	ast_channel_unlock(c1);
 	cs[0] = c0;
 	cs[1] = c1;
 	cs[2] = NULL;

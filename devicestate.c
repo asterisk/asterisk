@@ -101,7 +101,7 @@ int ast_parse_device_state(const char *device)
 	else
 		res = AST_DEVICE_INUSE;
 	
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 
 	return res;
 }

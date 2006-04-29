@@ -444,7 +444,7 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 			ast_cli(fd, FORMAT_STRING, c->name, locbuf, ast_state2str(c->_state), appdata);
 		}
 		numchans++;
-		ast_mutex_unlock(&c->lock);
+		ast_channel_unlock(c);
 	}
 	if (!concise) {
 		ast_cli(fd, "%d active channel%s\n", numchans, ESS(numchans));
@@ -505,7 +505,7 @@ static int handle_softhangup(int fd, int argc, char *argv[])
 	if (c) {
 		ast_cli(fd, "Requested Hangup on channel '%s'\n", c->name);
 		ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
-		ast_mutex_unlock(&c->lock);
+		ast_channel_unlock(c);
 	} else
 		ast_cli(fd, "%s is not a known channel\n", argv[2]);
 	return RESULT_SUCCESS;
@@ -630,7 +630,7 @@ static int handle_debugchan(int fd, int argc, char *argv[])
 			c->fout |= DEBUGCHAN_FLAG;
 			ast_cli(fd, "Debugging enabled on channel %s\n", c->name);
 		}
-		ast_mutex_unlock(&c->lock);
+		ast_channel_unlock(c);
 		if (!is_all)
 			break;
 		c = ast_channel_walk_locked(c);
@@ -662,7 +662,7 @@ static int handle_nodebugchan(int fd, int argc, char *argv[])
 			c->fout &= ~DEBUGCHAN_FLAG;
 			ast_cli(fd, "Debugging disabled on channel %s\n", c->name);
 		}
-		ast_mutex_unlock(&c->lock);
+		ast_channel_unlock(c);
 		if (!is_all)
 			break;
 		c = ast_channel_walk_locked(c);
@@ -747,7 +747,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	if(c->cdr && ast_cdr_serialize_variables(c->cdr,buf, sizeof(buf), '=', '\n', 1))
 		ast_cli(fd,"  CDR Variables:\n%s\n",buf);
 	
-	ast_mutex_unlock(&c->lock);
+	ast_channel_unlock(c);
 	return RESULT_SUCCESS;
 }
 
@@ -790,7 +790,7 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
 	while (ret == &notfound && (c = ast_channel_walk_locked(c))) {
 		if (!strncasecmp(word, c->name, wordlen) && ++which > state)
 			ret = ast_strdup(c->name);
-		ast_mutex_unlock(&c->lock);
+		ast_channel_unlock(c);
 	}
 	return ret == &notfound ? NULL : ret;
 }
@@ -874,7 +874,7 @@ static int group_show_channels(int fd, int argc, char *argv[])
 			}
 		}
 		numchans++;
-		ast_mutex_unlock(&c->lock);
+		ast_channel_unlock(c);
 	}
 
 	if (havepattern)

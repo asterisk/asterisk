@@ -211,7 +211,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 			ast_log(LOG_WARNING, "Could not create file %s\n",
 						monitor->read_filename);
 			free(monitor);
-			ast_mutex_unlock(&chan->lock);
+			ast_channel_unlock(chan);
 			return -1;
 		}
 		if (ast_fileexists(monitor->write_filename, NULL, NULL) > 0) {
@@ -224,7 +224,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 						monitor->write_filename);
 			ast_closestream(monitor->read_stream);
 			free(monitor);
-			ast_mutex_unlock(&chan->lock);
+			ast_channel_unlock(chan);
 			return -1;
 		}
 		chan->monitor = monitor;
@@ -492,7 +492,7 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 		/* No filename base specified, default to channel name as per CLI */		
 		if (!(fname = ast_strdup(c->name))) {
 			astman_send_error(s, m, "Could not start monitoring channel");
-			ast_mutex_unlock(&c->lock);
+			ast_channel_unlock(c);
 			return 0;
 		}
 		/* Channels have the format technology/channel_name - have to replace that /  */
@@ -503,7 +503,7 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 	if (ast_monitor_start(c, format, fname, 1)) {
 		if (ast_monitor_change_fname(c, fname, 1)) {
 			astman_send_error(s, m, "Could not start monitoring channel");
-			ast_mutex_unlock(&c->lock);
+			ast_channel_unlock(c);
 			return 0;
 		}
 	}
@@ -512,7 +512,7 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 		ast_monitor_setjoinfiles(c, 1);
 	}
 
-	ast_mutex_unlock(&c->lock);
+	ast_channel_unlock(c);
 	astman_send_ack(s, m, "Started monitoring channel");
 	return 0;
 }
@@ -537,7 +537,7 @@ static int stop_monitor_action(struct mansession *s, struct message *m)
 		return 0;
 	}
 	res = ast_monitor_stop(c, 1);
-	ast_mutex_unlock(&c->lock);
+	ast_channel_unlock(c);
 	if (res) {
 		astman_send_error(s, m, "Could not stop monitoring channel");
 		return 0;
@@ -574,10 +574,10 @@ static int change_monitor_action(struct mansession *s, struct message *m)
 	}
 	if (ast_monitor_change_fname(c, fname, 1)) {
 		astman_send_error(s, m, "Could not change monitored filename of channel");
-		ast_mutex_unlock(&c->lock);
+		ast_channel_unlock(c);
 		return 0;
 	}
-	ast_mutex_unlock(&c->lock);
+	ast_channel_unlock(c);
 	astman_send_ack(s, m, "Changed monitor filename");
 	return 0;
 }
@@ -617,7 +617,7 @@ static int do_pause_or_unpause(struct mansession *s, struct message *m, int acti
 	else
 		ast_monitor_unpause(c);
 	
-	ast_mutex_unlock(&c->lock);
+	ast_channel_unlock(c);
 	astman_send_ack(s, m, "Paused monitoring of the channel");
 	return 0;	
 }

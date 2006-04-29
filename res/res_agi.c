@@ -1025,7 +1025,7 @@ static int handle_hangup(struct ast_channel *chan, AGI *agi, int argc, char **ar
 			/* we have a matching channel */
 			ast_softhangup(c,AST_SOFTHANGUP_EXPLICIT);
 			fdprintf(agi->fd, "200 result=1\n");
-			ast_mutex_unlock(&c->lock);
+			ast_channel_unlock(c);
 			return RESULT_SUCCESS;
 		}
 		/* if we get this far no channel name matched the argument given */
@@ -1093,7 +1093,7 @@ static int handle_channelstatus(struct ast_channel *chan, AGI *agi, int argc, ch
 		c = ast_get_channel_by_name_locked(argv[2]);
 		if (c) {
 			fdprintf(agi->fd, "200 result=%d\n", c->_state);
-			ast_mutex_unlock(&c->lock);
+			ast_channel_unlock(c);
 			return RESULT_SUCCESS;
 		}
 		/* if we get this far no channel name matched the argument given */
@@ -1155,7 +1155,7 @@ static int handle_getvariablefull(struct ast_channel *chan, AGI *agi, int argc, 
 		fdprintf(agi->fd, "200 result=0\n");
 	}
 	if (chan2 && (chan2 != chan))
-		ast_mutex_unlock(&chan2->lock);
+		ast_channel_unlock(chan2);
 	return RESULT_SUCCESS;
 }
 

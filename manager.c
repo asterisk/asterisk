@@ -1053,7 +1053,7 @@ static int action_hangup(struct mansession *s, struct message *m)
 		return 0;
 	}
 	ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
-	ast_mutex_unlock(&c->lock);
+	ast_channel_unlock(c);
 	astman_send_ack(s, m, "Channel Hungup");
 	return 0;
 }
@@ -1093,7 +1093,7 @@ static int action_setvar(struct mansession *s, struct message *m)
 	pbx_builtin_setvar_helper(c, varname, varval);
 	  
 	if (c)
-		ast_mutex_unlock(&c->lock);
+		ast_channel_unlock(c);
 
 	astman_send_ack(s, m, "Variable Set");	
 
@@ -1136,7 +1136,7 @@ static int action_getvar(struct mansession *s, struct message *m)
 	}
 
 	if (c)
-		ast_mutex_unlock(&c->lock);
+		ast_channel_unlock(c);
 	astman_append(s, "Response: Success\r\n"
 		"Variable: %s\r\nValue: %s\r\n", varname, varval);
 	if (!ast_strlen_zero(id))
@@ -1227,7 +1227,7 @@ static int action_status(struct mansession *s, struct message *m)
 			c->accountcode,
 			ast_state2str(c->_state), bridge, c->uniqueid, idText);
 		}
-		ast_mutex_unlock(&c->lock);
+		ast_channel_unlock(c);
 		if (!all)
 			break;
 		c = ast_channel_walk_locked(c);
@@ -1297,9 +1297,9 @@ static int action_redirect(struct mansession *s, struct message *m)
 	} else
 		astman_send_error(s, m, "Redirect failed");
 	if (chan)
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 	if (chan2)
-		ast_mutex_unlock(&chan2->lock);
+		ast_channel_unlock(chan2);
 	return 0;
 }
 
@@ -1363,7 +1363,7 @@ static void *fast_originate(void *data)
 
 	/* Locked by ast_pbx_outgoing_exten or ast_pbx_outgoing_app */
 	if (chan)
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 	free(in);
 	return NULL;
 }
@@ -1626,7 +1626,7 @@ static int action_timeout(struct mansession *s, struct message *m)
 		return 0;
 	}
 	ast_channel_setwhentohangup(c, timeout);
-	ast_mutex_unlock(&c->lock);
+	ast_channel_unlock(c);
 	astman_send_ack(s, m, "Timeout Set");
 	return 0;
 }

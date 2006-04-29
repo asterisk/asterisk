@@ -1859,7 +1859,7 @@ static int manager_park(struct mansession *s, struct message *m)
 	if (!ch2) {
 		snprintf(buf, sizeof(buf), "Channel does not exist: %s", channel2);
 		astman_send_error(s, m, buf);
-		ast_mutex_unlock(&ch1->lock);
+		ast_channel_unlock(ch1);
 		return 0;
 	}
 
@@ -1875,8 +1875,8 @@ static int manager_park(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Park failure");
 	}
 
-	ast_mutex_unlock(&ch1->lock);
-	ast_mutex_unlock(&ch2->lock);
+	ast_channel_unlock(ch1);
+	ast_channel_unlock(ch2);
 
 	return 0;
 }
@@ -1895,7 +1895,7 @@ int ast_pickup_call(struct ast_channel *chan)
 			 (cur->_state == AST_STATE_RING))) {
 			 	break;
 		}
-		ast_mutex_unlock(&cur->lock);
+		ast_channel_unlock(cur);
 	}
 	if (cur) {
 		if (option_debug)
@@ -1909,7 +1909,7 @@ int ast_pickup_call(struct ast_channel *chan)
 		res = ast_channel_masquerade(cur, chan);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
-		ast_mutex_unlock(&cur->lock);
+		ast_channel_unlock(cur);
 	} else	{
 		if (option_debug)
 			ast_log(LOG_DEBUG, "No call pickup possible...\n");

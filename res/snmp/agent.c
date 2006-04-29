@@ -216,7 +216,7 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
     for (chan = ast_channel_walk_locked(NULL);
 		 chan && i;
 		 chan = ast_channel_walk_locked(chan), i--)
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
     if (chan == NULL)
 		return NULL;
 	*var_len = sizeof(long_ret);
@@ -513,7 +513,7 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = NULL;
 		break;
     }
-    ast_mutex_unlock(&chan->lock);
+    ast_channel_unlock(chan);
     return ret;
 }
 
@@ -583,7 +583,7 @@ static u_char *ast_var_channel_types_table(struct variable *vp, oid *name, size_
 	case ASTCHANTYPECHANNELS:
 		long_ret = 0;
 		for (chan = ast_channel_walk_locked(NULL); chan; chan = ast_channel_walk_locked(chan)) {
-			ast_mutex_unlock(&chan->lock);
+			ast_channel_unlock(chan);
 			if (chan->tech == tech)
 				long_ret++;
 		}
