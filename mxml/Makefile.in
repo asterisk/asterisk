@@ -213,18 +213,7 @@ epm:	all
 # autoconf stuff...
 #
 
-Makefile:	configure Makefile.in
-	if test -f config.status; then \
-		./config.status --recheck; \
-		./config.status; \
-	else \
-		./configure; \
-	fi
-	touch config.h
-
-
-configure:	configure.in
-	autoconf
+Makefile:	Makefile.in
 	if test -f config.status; then \
 		./config.status --recheck; \
 		./config.status; \
