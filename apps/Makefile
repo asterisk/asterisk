@@ -37,6 +37,12 @@ clean: clean-depend
 %.so: %.o
 	$(CC) $(SOLINK) -o $@ $<
 
+app_rpt.so: app_rpt.o
+	$(CC) $(SOLINK) -o $@ $< $(ZAPTEL_LIB)
+
+app_rpt.o: app_rpt.c
+	$(CC) $(SOLINK) -o $@ $< $(ZAPTEL_INCLUDE)
+
 install: all
 	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 	rm -f $(DESTDIR)$(MODULES_DIR)/app_cut.so
