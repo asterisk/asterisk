@@ -70,6 +70,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/cli.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/linkedlists.h"
 
 #define MAX_MOHFILES 512
 #define MAX_MOHFILE_LEN 128
@@ -139,24 +140,23 @@ struct mohclass {
 	int pid;		/* PID of mpg123 */
 	time_t start;
 	pthread_t thread;
-	struct mohdata *members;
 	/* Source of audio */
 	int srcfd;
 	/* FD for timing source */
 	int pseudofd;
-	struct mohclass *next;
+	AST_LIST_HEAD_NOLOCK(, mohdata) members;
+	AST_LIST_ENTRY(mohclass) list;
 };
 
 struct mohdata {
 	int pipe[2];
 	int origwfmt;
 	struct mohclass *parent;
-	struct mohdata *next;
+	struct ast_frame f;
+	AST_LIST_ENTRY(mohdata) list;
 };
 
-static struct mohclass *mohclasses;
-
-AST_MUTEX_DEFINE_STATIC(moh_lock);
+AST_LIST_HEAD_STATIC(mohclasses, mohclass);
 
 #define LOCAL_MPG_123 "/usr/local/bin/mpg123"
 #define MPG_123 "/usr/bin/mpg123"
@@ -165,18 +165,16 @@ AST_MUTEX_DEFINE_STATIC(moh_lock);
 
 static void ast_moh_free_class(struct mohclass **class) 
 {
-	struct mohdata *members, *mtmp;
+	struct mohdata *member;
 	
-	members = (*class)->members;
-	while(members) {
-		mtmp = members;
-		members = members->next;
-		free(mtmp);
-	}
+	while ((member = AST_LIST_REMOVE_HEAD(&((*class)->members), list)))
+		free(member);
+	
 	if ((*class)->thread) {
 		pthread_cancel((*class)->thread);
 		(*class)->thread = 0;
 	}
+
 	free(*class);
 	*class = NULL;
 }
@@ -515,7 +513,7 @@ static void *monmp3thread(void *data)
 			}
 			res = 8 * MOH_MS_INTERVAL;	/* 8 samples per millisecond */
 		}
-		if (!class->members)
+		if (AST_LIST_EMPTY(&class->members))
 			continue;
 		/* Read mp3 audio */
 		len = ast_codec_get_len(class->format, res);
@@ -538,16 +536,15 @@ static void *monmp3thread(void *data)
 			continue;
 		}
 		pthread_testcancel();
-		ast_mutex_lock(&moh_lock);
-		moh = class->members;
-		while (moh) {
+		AST_LIST_LOCK(&mohclasses);
+		AST_LIST_TRAVERSE(&class->members, moh, list) {
 			/* Write data */
-			if ((res = write(moh->pipe[1], sbuf, res2)) != res2) 
+			if ((res = write(moh->pipe[1], sbuf, res2)) != res2) {
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Only wrote %d of %d bytes to pipe\n", res, res2);
-			moh = moh->next;
+			}
 		}
-		ast_mutex_unlock(&moh_lock);
+		AST_LIST_UNLOCK(&mohclasses);
 	}
 	return NULL;
 }
@@ -607,60 +604,58 @@ static int moh4_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+/*! \note This function should be called with the mohclasses list locked */
 static struct mohclass *get_mohbyname(const char *name)
 {
-	struct mohclass *moh;
-	moh = mohclasses;
-	while (moh) {
+	struct mohclass *moh = NULL;
+
+	AST_LIST_TRAVERSE(&mohclasses, moh, list) {
 		if (!strcasecmp(name, moh->name))
-			return moh;
-		moh = moh->next;
+			break;
 	}
-	return NULL;
+
+	return moh;
 }
 
 static struct mohdata *mohalloc(struct mohclass *cl)
 {
 	struct mohdata *moh;
 	long flags;	
+	
 	if (!(moh = ast_calloc(1, sizeof(*moh))))
 		return NULL;
+	
 	if (pipe(moh->pipe)) {
 		ast_log(LOG_WARNING, "Failed to create pipe: %s\n", strerror(errno));
 		free(moh);
 		return NULL;
 	}
+
 	/* Make entirely non-blocking */
 	flags = fcntl(moh->pipe[0], F_GETFL);
 	fcntl(moh->pipe[0], F_SETFL, flags | O_NONBLOCK);
 	flags = fcntl(moh->pipe[1], F_GETFL);
 	fcntl(moh->pipe[1], F_SETFL, flags | O_NONBLOCK);
+
+	moh->f.frametype = AST_FRAME_VOICE;
+	moh->f.subclass = cl->format;
+	moh->f.offset = AST_FRIENDLY_OFFSET;
+
 	moh->parent = cl;
-	moh->next = cl->members;
-	cl->members = moh;
+	AST_LIST_INSERT_HEAD(&cl->members, moh, list);
+	
 	return moh;
 }
 
 static void moh_release(struct ast_channel *chan, void *data)
 {
-	struct mohdata *moh = data, *prev, *cur;
+	struct mohdata *moh = data;
 	int oldwfmt;
-	ast_mutex_lock(&moh_lock);
-	/* Unlink */
-	prev = NULL;
-	cur = moh->parent->members;
-	while (cur) {
-		if (cur == moh) {
-			if (prev)
-				prev->next = cur->next;
-			else
-				moh->parent->members = cur->next;
-			break;
-		}
-		prev = cur;
-		cur = cur->next;
-	}
-	ast_mutex_unlock(&moh_lock);
+
+	AST_LIST_LOCK(&mohclasses);
+	AST_LIST_REMOVE(&moh->parent->members, moh, list);	
+	AST_LIST_UNLOCK(&mohclasses);
+	
 	close(moh->pipe[0]);
 	close(moh->pipe[1]);
 	oldwfmt = moh->origwfmt;
@@ -693,7 +688,6 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 
 static int moh_generate(struct ast_channel *chan, void *data, int len, int samples)
 {
-	struct ast_frame f;
 	struct mohdata *moh = data;
 	short buf[1280 + AST_FRIENDLY_OFFSET / 2];
 	int res;
@@ -708,25 +702,14 @@ static int moh_generate(struct ast_channel *chan, void *data, int len, int sampl
 		len = sizeof(buf) - AST_FRIENDLY_OFFSET;
 	}
 	res = read(moh->pipe[0], buf + AST_FRIENDLY_OFFSET/2, len);
-#if 0
-	if (res != len) {
-		ast_log(LOG_WARNING, "Read only %d of %d bytes: %s\n", res, len, strerror(errno));
-	}
-#endif
 	if (res <= 0)
 		return 0;
 
-	memset(&f, 0, sizeof(f));
-	
-	f.frametype = AST_FRAME_VOICE;
-	f.subclass = moh->parent->format;
-	f.mallocd = 0;
-	f.datalen = res;
-	f.data = buf + AST_FRIENDLY_OFFSET / 2;
-	f.offset = AST_FRIENDLY_OFFSET;
-	f.samples = ast_codec_get_samples(&f);
+	moh->f.datalen = res;
+	moh->f.data = buf + AST_FRIENDLY_OFFSET / 2;
+	moh->f.samples = ast_codec_get_samples(&moh->f);
 
-	if (ast_write(chan, &f) < 0) {
+	if (ast_write(chan, &moh->f) < 0) {
 		ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
 		return -1;
 	}
@@ -804,7 +787,7 @@ static int moh_register(struct mohclass *moh, int reload)
 #ifdef HAVE_ZAPTEL
 	int x;
 #endif
-	ast_mutex_lock(&moh_lock);
+	AST_LIST_LOCK(&mohclasses);
 	if (get_mohbyname(moh->name)) {
 		if (reload) {
 			ast_log(LOG_DEBUG, "Music on Hold class '%s' left alone from initial load.\n", moh->name);
@@ -812,10 +795,10 @@ static int moh_register(struct mohclass *moh, int reload)
 			ast_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
 		}
 		free(moh);	
-		ast_mutex_unlock(&moh_lock);
+		AST_LIST_UNLOCK(&mohclasses);
 		return -1;
 	}
-	ast_mutex_unlock(&moh_lock);
+	AST_LIST_UNLOCK(&mohclasses);
 
 	time(&moh->start);
 	moh->start -= respawn_time;
@@ -864,10 +847,11 @@ static int moh_register(struct mohclass *moh, int reload)
 		ast_moh_free_class(&moh);
 		return -1;
 	}
-	ast_mutex_lock(&moh_lock);
-	moh->next = mohclasses;
-	mohclasses = moh;
-	ast_mutex_unlock(&moh_lock);
+
+	AST_LIST_LOCK(&mohclasses);
+	AST_LIST_INSERT_HEAD(&mohclasses, moh, list);
+	AST_LIST_UNLOCK(&mohclasses);
+	
 	return 0;
 }
 
@@ -887,9 +871,9 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *class)
 		class = chan->musicclass;
 	if (ast_strlen_zero(class))
 		class = "default";
-	ast_mutex_lock(&moh_lock);
+	AST_LIST_LOCK(&mohclasses);
 	mohclass = get_mohbyname(class);
-	ast_mutex_unlock(&moh_lock);
+	AST_LIST_UNLOCK(&mohclasses);
 
 	if (!mohclass) {
 		ast_log(LOG_WARNING, "No class: %s\n", (char *)class);
@@ -1060,16 +1044,15 @@ static int load_moh_classes(int reload)
 
 static void ast_moh_destroy(void)
 {
-	struct mohclass *moh, *tmp;
+	struct mohclass *moh;
 	char buff[8192];
-	int bytes, tbytes=0, stime = 0, pid = 0;
+	int bytes, tbytes = 0, stime = 0, pid = 0;
 
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Destroying musiconhold processes\n");
-	ast_mutex_lock(&moh_lock);
-	moh = mohclasses;
 
-	while (moh) {
+	AST_LIST_LOCK(&mohclasses);
+	while ((moh = AST_LIST_REMOVE_HEAD(&mohclasses, list))) {
 		if (moh->pid) {
 			ast_log(LOG_DEBUG, "killing %d!\n", moh->pid);
 			stime = time(NULL) + 2;
@@ -1083,18 +1066,14 @@ static void ast_moh_destroy(void)
 			kill(pid, SIGTERM);
 			usleep(100000);
 			kill(pid, SIGKILL);
-			while ((ast_wait_for_input(moh->srcfd, 100) > 0) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime) {
+			while ((ast_wait_for_input(moh->srcfd, 100) > 0) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime)
 				tbytes = tbytes + bytes;
-			}
 			ast_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
 			close(moh->srcfd);
 		}
-		tmp = moh;
-		moh = moh->next;
-		ast_moh_free_class(&tmp);
+		ast_moh_free_class(&moh);
 	}
-	mohclasses = NULL;
-	ast_mutex_unlock(&moh_lock);
+	AST_LIST_UNLOCK(&mohclasses);
 }
 
 static void moh_on_off(int on)
@@ -1108,7 +1087,7 @@ static void moh_on_off(int on)
 			else
 				ast_deactivate_generator(chan);
 		}
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 	}
 }
 
@@ -1129,8 +1108,8 @@ static int cli_files_show(int fd, int argc, char *argv[])
 	int i;
 	struct mohclass *class;
 
-	ast_mutex_lock(&moh_lock);
-	for (class = mohclasses; class; class = class->next) {
+	AST_LIST_LOCK(&mohclasses);
+	AST_LIST_TRAVERSE(&mohclasses, class, list) {
 		if (!class->total_files)
 			continue;
 
@@ -1138,7 +1117,7 @@ static int cli_files_show(int fd, int argc, char *argv[])
 		for (i = 0; i < class->total_files; i++)
 			ast_cli(fd, "\tFile: %s\n", class->filearray[i]);
 	}
-	ast_mutex_unlock(&moh_lock);
+	AST_LIST_UNLOCK(&mohclasses);
 
 	return 0;
 }
@@ -1147,8 +1126,8 @@ static int moh_classes_show(int fd, int argc, char *argv[])
 {
 	struct mohclass *class;
 
-	ast_mutex_lock(&moh_lock);
-	for (class = mohclasses; class; class = class->next) {
+	AST_LIST_LOCK(&mohclasses);
+	AST_LIST_TRAVERSE(&mohclasses, class, list) {
 		ast_cli(fd, "Class: %s\n", class->name);
 		ast_cli(fd, "\tMode: %s\n", S_OR(class->mode,"<none>"));
 		ast_cli(fd, "\tDirectory: %s\n", S_OR(class->dir, "<none>"));
@@ -1156,7 +1135,7 @@ static int moh_classes_show(int fd, int argc, char *argv[])
 			ast_cli(fd, "\tApplication: %s\n", S_OR(class->args, "<none>"));
 		ast_cli(fd, "\tFormat: %s\n", ast_getformatname(class->format));
 	}
-	ast_mutex_unlock(&moh_lock);
+	AST_LIST_UNLOCK(&mohclasses);
 
 	return 0;
 }
@@ -1173,12 +1152,14 @@ static int init_classes(int reload)
     
 	if (!load_moh_classes(reload)) 		/* Load classes from config */
 		return 0;			/* Return if nothing is found */
-	moh = mohclasses;
-	while (moh) {
+
+	AST_LIST_LOCK(&mohclasses);
+	AST_LIST_TRAVERSE(&mohclasses, moh, list) {
 		if (moh->total_files)
 			moh_scan_files(moh);
-		moh = moh->next;
 	}
+	AST_LIST_UNLOCK(&mohclasses);
+
 	return 1;
 }
 
