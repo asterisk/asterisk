@@ -718,7 +718,7 @@ static const char *key(void)
 	return ASTERISK_GPL_KEY;
 }
 
-STD_MOD(MOD_0, NULL, NULL, NULL);
+STD_MOD(MOD_0, reload, NULL, NULL);
 
 static int pgsql_reconnect(const char *database)
 {
