@@ -68,7 +68,7 @@ AC_SUBST([PBX_LIB$1])
 
 
 AC_DEFUN(
-[AST_CHECK_GNU_MAKE], [ AC_CACHE_CHECK( for GNU make, GNU_MAKE,
+[AST_CHECK_GNU_MAKE], [AC_CACHE_CHECK(for GNU make, GNU_MAKE,
    GNU_MAKE='Not Found' ;
    for a in make gmake gnumake ; do
       if test -z "$a" ; then continue ; fi ;
@@ -83,4 +83,19 @@ if test  "x$GNU_MAKE" = "xNot Found"  ; then
    exit 1
 fi
 AC_SUBST([GNU_MAKE])
-] )
+])
+
+AC_DEFUN(
+[AST_C_ATTRIBUTE],
+[AC_CACHE_CHECK([for $1 attribute support],
+                [ac_cv_attribute_$1],
+                AC_COMPILE_IFELSE(
+                   AC_LANG_PROGRAM(
+                       [[static void foo(void) __attribute__ (($1));xyz]],
+                       []),
+                   have_attribute_$1=1, have_attribute_$1=0)
+               )
+ if test "$have_attribute_$1" = "1"; then
+    AC_DEFINE_UNQUOTED([HAVE_ATTRIBUTE_$1], 1, [Define to indicate the compiler supports __attribute__ (($1))])
+ fi
+])

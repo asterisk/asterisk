@@ -57,7 +57,7 @@ astman: astman.o ../md5.o
 stereorize: stereorize.o frame.o
 	$(CC) $(CFLAGS) -o stereorize stereorize.o frame.o -lm
 
-.PHONY: ../ast_expr2.o ../ast_expr2f.o ../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ../pbx/pbx_ael.o
+.PHONY: ../ast_expr2.c ../ast_expr2f.c ../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ../pbx/pbx_ael.o
 
 ast_expr2.o: ../ast_expr2.c
 	gcc  $(CFLAGS) -include ../include/autoconfig.h -c -o $@ $<
