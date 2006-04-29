@@ -74,6 +74,7 @@ struct misdn_stack {
 	int procids[0x100+1];
 
 	msg_queue_t downqueue;
+	msg_queue_t upqueue;
 	int busy;
   
 	int port;

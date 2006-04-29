@@ -802,6 +802,8 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 		free_chan = find_free_chan_in_stack(stack, bc->channel_preselected?bc->channel:0);
 		if (!free_chan) return -1;
 		bc->channel=free_chan;
+		
+		cb_log(0,stack->port, " -->  found channel: %d\n",free_chan);
     
 		for (i=0; i <= MAXPROCS; i++)
 			if (stack->procids[i]==0) break;
@@ -833,6 +835,7 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 			free_chan = find_free_chan_in_stack(stack, bc->channel_preselected?bc->channel:0);
 			if (!free_chan) return -1;
 			bc->channel=free_chan;
+			cb_log(0,stack->port, " -->  found channel: %d\n",free_chan);
 		} else {
 			/* other phones could have made a call also on this port (ptmp) */
 			bc->channel=0xff;
@@ -1107,6 +1110,7 @@ struct misdn_stack* stack_init( int midev, int port, int ptp )
 	stack->pri=0;
   
 	msg_queue_init(&stack->downqueue);
+	msg_queue_init(&stack->upqueue);
   
 	/* query port's requirements */
 	ret = mISDN_get_stack_info(midev, port, buff, sizeof(buff));
@@ -2072,11 +2076,18 @@ int handle_bchan(msg_t *msg)
 		
 	case MGR_SETSTACK| INDICATION:
 		cb_log(2, stack->port, "BCHAN: MGR_SETSTACK|IND \n");
-		
+
+	AGAIN:
 		bc->addr = mISDN_get_layerid(stack->midev, bc->b_stid, bc->layer);
 		if (!bc->addr) {
-			cb_log(0,stack->port,"$$$ Get Layer (%d) Id Error: %s\n",bc->layer,strerror(errno));
 
+			if (errno == EAGAIN) {
+				usleep(1000);
+				goto AGAIN;
+			}
+			
+			cb_log(0,stack->port,"$$$ Get Layer (%d) Id Error: %s\n",bc->layer,strerror(errno));
+			
 			/* we kill the channel later, when we received some
 			   data. */
 			bc->addr= frm->addr;
@@ -2587,16 +2598,29 @@ msg_t *fetch_msg(int midev)
 	FD_SET(midev,&rdfs);
   
 	mISDN_select(FD_SETSIZE, &rdfs, NULL, NULL, NULL);
+	//select(FD_SETSIZE, &rdfs, NULL, NULL, NULL);
   
 	if (FD_ISSET(midev, &rdfs)) {
-    
-		r=mISDN_read(midev,msg->data,MAX_MSG_SIZE,0);
+
+	AGAIN:
+		r=mISDN_read(midev,msg->data,MAX_MSG_SIZE, 5000);
 		msg->len=r;
     
 		if (r==0) {
 			free_msg(msg); /* danger, cauz usualy freeing in main_loop */
 			printf ("Got empty Msg?\n");
 			return NULL;
+		}
+
+		if (r<0) {
+			if (errno == EAGAIN) {
+				/*we wait for mISDN here*/
+				cb_log(-1,0,"mISDN_read wants us to wait\n");
+				usleep(5000);
+				goto AGAIN;
+			}
+			
+			cb_log(-1,0,"mISDN_read returned :%d error:%s (%d)\n",r,strerror(errno),errno); 
 		}
 
 		return msg;
@@ -2976,6 +3000,22 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 int handle_err(msg_t *msg)
 {
 	iframe_t *frm = (iframe_t*) msg->data;
+
+
+	if (!frm->addr) {
+		static int cnt=0;
+		if (!cnt)
+			cb_log(0,0,"mISDN Msg without Address pr:%x dinfo:%x\n",frm->prim,frm->dinfo);
+		cnt++;
+		if (cnt>100) {
+			cb_log(0,0,"mISDN Msg without Address pr:%x dinfo:%x (already more than 100 of them)\n",frm->prim,frm->dinfo);
+			cnt=0;
+		}
+		
+		free_msg(msg);
+		return 1;
+		
+	}
 	
 	switch (frm->prim) {
 		case DL_DATA|INDICATION:
@@ -2983,7 +3023,13 @@ int handle_err(msg_t *msg)
 			int port=(frm->addr&MASTER_ID_MASK) >> 8;
 			int channel=(frm->addr&CHILD_ID_MASK) >> 16;
 
-			cb_log(3,0,"BCHAN DATA without BC: addr:%x port:%d channel:%d\n",frm->addr, port,channel);
+			/*we flush the read buffer here*/
+			
+			cb_log(9,0,"BCHAN DATA without BC: addr:%x port:%d channel:%d\n",frm->addr, port,channel);
+			
+			free_msg(msg) ; 
+			return 1;
+			
 			
 			struct misdn_bchannel *bc=find_bc_by_channel( port , channel);
 
@@ -3015,11 +3061,28 @@ int handle_err(msg_t *msg)
 }
 
 
+int queue_l2l3(msg_t *msg) {
+	iframe_t *frm= (iframe_t*)msg->data;
+	struct misdn_stack *stack;
+	int err=0;
+
+	stack=find_stack_by_addr( frm->addr );
+
+	
+	if (!stack) {
+		return 0;
+	}
+
+	msg_queue_tail(&stack->upqueue, msg);
+	sem_post(&glob_mgr->new_msg);
+	return 1;
+}
+
 int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 {  
 
 	if (frm->dinfo==(signed long)0xffffffff && frm->prim==(PH_DATA|CONFIRM)) {
-		printf("SERIOUS BUG, dinfo == 0xffffffff, prim == PH_DATA | CONFIRM !!!!\n");
+		cb_log(0,0,"SERIOUS BUG, dinfo == 0xffffffff, prim == PH_DATA | CONFIRM !!!!\n");
 	}
 
 	if ( ((frm->addr | ISDN_PID_BCHANNEL_BIT )>> 28 ) == 0x5) {
@@ -3039,21 +3102,17 @@ int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 	/* Its important to handle l1 AFTER l2  */
 	if (handle_l1(msg)) 
 		return 0 ;
-	
-	
-	/** Handle L2/3 Signalling after bchans **/ 
-	if (handle_frm_nt(msg)) 
-		return 0 ;
-	
-	if (handle_frm(msg)) 
-		return 0 ;
+
+	/* The L2/L3 will be queued */
+	if (queue_l2l3(msg))
+		return 0;
 
 	if (handle_err(msg)) 
 		return 0 ;
-	
+
 	cb_log(-1, 0, "Unhandled Message: prim %x len %d from addr %x, dinfo %x on this port.\n",frm->prim, frm->len, frm->addr, frm->dinfo);		
-   
 	free_msg(msg);
+	
 
 	return 0;
 }
@@ -3200,6 +3259,24 @@ void manager_event_handler(void *arg)
 		for (stack=glob_mgr->stack_list;
 		     stack;
 		     stack=stack->next ) { 
+
+			while ( (msg=msg_dequeue(&stack->upqueue)) ) {
+				int res=0;
+				/** Handle L2/3 Signalling after bchans **/ 
+				if (!handle_frm_nt(msg)) {
+					/* Maybe it's TE */
+					if (!handle_frm(msg)) {
+						/* wow none! */
+						cb_log(-1,stack->port,"Wow we've got a strange issue while dequeueing a Frame\n");
+					}
+				}
+			}
+
+			/* Here we should check if we really want to 
+				send all the messages we've queued, lets 
+				assume we've queued a Disconnect, but 
+				received it already from the other side!*/
+		     
 			while ( (msg=msg_dequeue(&stack->downqueue)) ) {
 				if (stack->nt ) {
 					if (stack->nst.manager_l3(&stack->nst, msg))
@@ -3208,6 +3285,7 @@ void manager_event_handler(void *arg)
 				} else {
 					iframe_t *frm = (iframe_t *)msg->data;
 					struct misdn_bchannel *bc = find_bc_by_l3id(stack, frm->dinfo);
+					cb_log(0,stack->port,"Sending msg, prim:%x addr:%x dinfo:%x\n",frm->prim,frm->addr,frm->dinfo);
 					if (bc) send_msg(glob_mgr->midev, bc, msg);
 				}
 			}

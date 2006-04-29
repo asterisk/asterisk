@@ -183,6 +183,9 @@ struct chan_list {
 
 	char context[BUFFERSIZE];
 
+	int zero_read_cnt;
+	int dropped_frame_cnt;
+
 	const struct tone_zone_sound *ts;
 	
 	struct chan_list *peer;
@@ -749,7 +752,7 @@ static int misdn_set_tics (int fd, int argc, char *argv[])
 static int misdn_show_stacks (int fd, int argc, char *argv[])
 {
 	int port;
-	
+
 	ast_cli(fd, "BEGIN STACK_LIST:\n");
 
 	for (port=misdn_cfg_get_next_port(0); port > 0;
@@ -927,7 +930,7 @@ static char *complete_ch_helper(const char *line, const char *word, int pos, int
 		c = ast_channel_walk_locked(c);
 	}
 	if (c) {
-		ret = strdup(c->name);
+		ret = ast_strdupa(c->name);
 		ast_mutex_unlock(&c->lock);
 	} else
 		ret = NULL;
@@ -946,12 +949,12 @@ static char *complete_debug_port (const char *line, const char *word, int pos, i
 
 	switch (pos) {
 	case 4: if (*word == 'p')
-				return strdup("port");
+				return ast_strdupa("port");
 			else if (*word == 'o')
-				return strdup("only");
+				return ast_strdupa("only");
 			break;
 	case 6: if (*word == 'o')
-				return strdup("only");
+				return ast_strdupa("only");
 			break;
 	}
 	return NULL;
@@ -1504,17 +1507,13 @@ static int read_config(struct chan_list *ch, int orig) {
 		if ( strcmp(bc->dad,ast->exten)) {
 			ast_copy_string(ast->exten, bc->dad, sizeof(ast->exten));
 		}
-		if ( ast->cid.cid_num && strcmp(ast->cid.cid_num, bc->oad)) {
-			free(ast->cid.cid_num);
-			ast->cid.cid_num=NULL;
-			
-		}
+		
 		if ( !ast->cid.cid_num) {
-			ast->cid.cid_num=strdup(bc->oad);
+			ast_set_callerid(ast, bc->oad, NULL, bc->oad);
 		}
 		
 		if ( !ast_strlen_zero(bc->rad) ) 
-			ast->cid.cid_rdnis=strdup(bc->rad);
+			ast->cid.cid_rdnis=ast_strdupa(bc->rad);
 	}
 	return 0;
 }
@@ -2062,10 +2061,20 @@ static struct ast_frame  *misdn_read(struct ast_channel *ast)
 	len = misdn_ibuf_usedcount(tmp->bc->astbuf);
 
 	if (!len) {
-		chan_misdn_log(4,tmp->bc->port,"misdn_read: ZERO READ\n");
+		struct ast_frame *frame;
+		if(!tmp->zero_read_cnt)
+			chan_misdn_log(4,tmp->bc->port,"misdn_read: ZERO READ\n");
+		tmp->zero_read_cnt++;
+
+		if (tmp->zero_read_cnt > 5000) {
+			chan_misdn_log(4,tmp->bc->port,"misdn_read: ZERO READ counted > 5000 times\n");
+			tmp->zero_read_cnt=0;
+
+		}
 		tmp->frame.frametype = AST_FRAME_NULL;
 		tmp->frame.subclass = 0;
-		return &tmp->frame;
+		frame=ast_frisolate(&tmp->frame);
+		return frame;
 	}
 
 	/*shrinken len if necessary, we transmit at maximum 4k*/
@@ -2154,7 +2163,16 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 		case BCHAN_BRIDGED:
 			break;
 		default:
-		chan_misdn_log(5, ch->bc->port, "BC not active (nor bridged) droping: %d frames addr:%x exten:%s cid:%s ch->state:%s\n",frame->samples,ch->bc->addr, ast->exten, ast->cid.cid_num,misdn_get_ch_state( ch));
+		if (!ch->dropped_frame_cnt)
+			chan_misdn_log(5, ch->bc->port, "BC not active (nor bridged) droping: %d frames addr:%x exten:%s cid:%s ch->state:%s bc_state:%d\n",frame->samples,ch->bc->addr, ast->exten, ast->cid.cid_num,misdn_get_ch_state( ch), ch->bc->bc_state);
+		
+		ch->dropped_frame_cnt++;
+		if (ch->dropped_frame_cnt > 100) {
+			ch->dropped_frame_cnt=0;
+			chan_misdn_log(5, ch->bc->port, "BC not active (nor bridged) droping: %d frames addr:%x  dropped > 100 frames!\n",frame->samples,ch->bc->addr);
+
+		}
+
 		return 0;
 	}
 	
@@ -2262,10 +2280,6 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 			ast_write(c0,f);
 		}
     
-	}
-  
-	if (bridging) {
-		misdn_lib_split_bridge(ch1->bc,ch2->bc);
 	}
   
 	return 0;
@@ -2612,10 +2626,9 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 			char *cid_name, *cid_num;
       
 			ast_callerid_parse(callerid, &cid_name, &cid_num);
-			if (cid_name)
-				tmp->cid.cid_name=strdup(cid_name);
-			if (cid_num)
-				tmp->cid.cid_num=strdup(cid_num);
+			ast_set_callerid(tmp, cid_num,cid_name,cid_num);
+		} else {
+			ast_set_callerid(tmp, NULL,NULL,NULL);
 		}
 
 		{
