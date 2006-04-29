@@ -20,7 +20,7 @@ esac
 PBX_LIB$1=0
 
 if test "${USE_$1}" != "no"; then	
-   AC_CHECK_LIB([$1], [$2], [], [], -L${$1_DIR}/lib $6)
+   AC_CHECK_LIB([$1], [$2], [:], [], -L${$1_DIR}/lib $6)
 
    if test "${ac_cv_lib_$1_$2}" = "yes"; then
       $1_LIB="-l$1 $6"
