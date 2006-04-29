@@ -57,16 +57,18 @@ astman: astman.o ../md5.o
 stereorize: stereorize.o frame.o
 	$(CC) $(CFLAGS) -o stereorize stereorize.o frame.o -lm
 
+.PHONY:	../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ../pbx/pbx_ael.o
+
 ast_expr2.o: ../ast_expr2.c
-	gcc -g -c -o $@ $<
+	gcc  $(CFLAGS) -include ../include/autoconfig.h -c -o $@ $<
 
 ast_expr2f.o: ../ast_expr2f.c
-	gcc -g -c -DSTANDALONE -o $@ $<
+	gcc  $(CFLAGS) -include ../include/autoconfig.h -c -DSTANDALONE -o $@ $<
 
 check_expr: check_expr.c ast_expr2.o ast_expr2f.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-aelparse : ../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ../pbx/pbx_ael.o ael_main.o ../ast_expr2f.o ../ast_expr2.o
+aelparse : ../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ../pbx/pbx_ael.o ael_main.o ast_expr2f.o ast_expr2.o
 	$(CC) $(CFLAGS) -g -o aelparse ../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ael_main.o ../pbx/pbx_ael.o ../ast_expr2f.o ../ast_expr2.o
 
 ael_main.o : ael_main.c ../include/asterisk/ael_structs.h
