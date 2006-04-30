@@ -4181,133 +4181,133 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 			AST_LIST_UNLOCK(&peers);
 			return;
 		}
-			peer->registerid = -1;
-			peer->registerexpire = -1;
-			peer->qualifyid = -1;
-			peer->addr.sin_family = AF_INET;
-			peer->addr.sin_port = htons(DUNDI_PORT);
-			populate_addr(peer, eid);
-			AST_LIST_INSERT_HEAD(&peers, peer, list);
-	}
-		peer->dead = 0;
-		peer->eid = *eid;
-		peer->us_eid = global_eid;
-		destroy_permissions(peer->permit);
-		destroy_permissions(peer->include);
-		peer->permit = NULL;
-		peer->include = NULL;
-		if (peer->registerid > -1)
-			ast_sched_del(sched, peer->registerid);
 		peer->registerid = -1;
-		while(v) {
-			if (!strcasecmp(v->name, "inkey")) {
-				ast_copy_string(peer->inkey, v->value, sizeof(peer->inkey));
-			} else if (!strcasecmp(v->name, "outkey")) {
-				ast_copy_string(peer->outkey, v->value, sizeof(peer->outkey));
-			} else if (!strcasecmp(v->name, "host")) {
-				if (!strcasecmp(v->value, "dynamic")) {
-					peer->dynamic = 1;
+		peer->registerexpire = -1;
+		peer->qualifyid = -1;
+		peer->addr.sin_family = AF_INET;
+		peer->addr.sin_port = htons(DUNDI_PORT);
+		populate_addr(peer, eid);
+		AST_LIST_INSERT_HEAD(&peers, peer, list);
+	}
+	peer->dead = 0;
+	peer->eid = *eid;
+	peer->us_eid = global_eid;
+	destroy_permissions(peer->permit);
+	destroy_permissions(peer->include);
+	peer->permit = NULL;
+	peer->include = NULL;
+	if (peer->registerid > -1)
+		ast_sched_del(sched, peer->registerid);
+	peer->registerid = -1;
+	while(v) {
+		if (!strcasecmp(v->name, "inkey")) {
+			ast_copy_string(peer->inkey, v->value, sizeof(peer->inkey));
+		} else if (!strcasecmp(v->name, "outkey")) {
+			ast_copy_string(peer->outkey, v->value, sizeof(peer->outkey));
+		} else if (!strcasecmp(v->name, "host")) {
+			if (!strcasecmp(v->value, "dynamic")) {
+				peer->dynamic = 1;
+			} else {
+				hp = ast_gethostbyname(v->value, &he);
+				if (hp) {
+					memcpy(&peer->addr.sin_addr, hp->h_addr, sizeof(peer->addr.sin_addr));
+					peer->dynamic = 0;
 				} else {
-					hp = ast_gethostbyname(v->value, &he);
-					if (hp) {
-						memcpy(&peer->addr.sin_addr, hp->h_addr, sizeof(peer->addr.sin_addr));
-						peer->dynamic = 0;
-					} else {
-						ast_log(LOG_WARNING, "Unable to find host '%s' at line %d\n", v->value, v->lineno);
-						peer->dead = 1;
-					}
-				}
-			} else if (!strcasecmp(v->name, "ustothem")) {
-				if (!dundi_str_to_eid(&testeid, v->value))
-					peer->us_eid = testeid;
-				else
-					ast_log(LOG_WARNING, "'%s' is not a valid DUNDi Entity Identifier at line %d\n", v->value, v->lineno);
-			} else if (!strcasecmp(v->name, "include")) {
-				peer->include = append_permission(peer->include, v->value, 1);
-			} else if (!strcasecmp(v->name, "permit")) {
-				peer->permit = append_permission(peer->permit, v->value, 1);
-			} else if (!strcasecmp(v->name, "noinclude")) {
-				peer->include = append_permission(peer->include, v->value, 0);
-			} else if (!strcasecmp(v->name, "deny")) {
-				peer->permit = append_permission(peer->permit, v->value, 0);
-			} else if (!strcasecmp(v->name, "register")) {
-				needregister = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "order")) {
-				if (!strcasecmp(v->value, "primary"))
-					peer->order = 0;
-				else if (!strcasecmp(v->value, "secondary"))
-					peer->order = 1;
-				else if (!strcasecmp(v->value, "tertiary"))
-					peer->order = 2;
-				else if (!strcasecmp(v->value, "quartiary"))
-					peer->order = 3;
-				else {
-					ast_log(LOG_WARNING, "'%s' is not a valid order, should be primary, secondary, tertiary or quartiary at line %d\n", v->value, v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "qualify")) {
-				if (!strcasecmp(v->value, "no")) {
-					peer->maxms = 0;
-				} else if (!strcasecmp(v->value, "yes")) {
-					peer->maxms = DEFAULT_MAXMS;
-				} else if (sscanf(v->value, "%d", &peer->maxms) != 1) {
-					ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of dundi.conf\n", 
-						dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), v->lineno);
-					peer->maxms = 0;
-				}
-			} else if (!strcasecmp(v->name, "model")) {
-				if (!strcasecmp(v->value, "inbound"))
-					peer->model = DUNDI_MODEL_INBOUND;
-				else if (!strcasecmp(v->value, "outbound")) 
-					peer->model = DUNDI_MODEL_OUTBOUND;
-				else if (!strcasecmp(v->value, "symmetric"))
-					peer->model = DUNDI_MODEL_SYMMETRIC;
-				else if (!strcasecmp(v->value, "none"))
-					peer->model = 0;
-				else {
-					ast_log(LOG_WARNING, "Unknown model '%s', should be 'none', 'outbound', 'inbound', or 'symmetric' at line %d\n", 
-						v->value, v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "precache")) {
-				if (!strcasecmp(v->value, "inbound"))
-					peer->pcmodel = DUNDI_MODEL_INBOUND;
-				else if (!strcasecmp(v->value, "outbound")) 
-					peer->pcmodel = DUNDI_MODEL_OUTBOUND;
-				else if (!strcasecmp(v->value, "symmetric"))
-					peer->pcmodel = DUNDI_MODEL_SYMMETRIC;
-				else if (!strcasecmp(v->value, "none"))
-					peer->pcmodel = 0;
-				else {
-					ast_log(LOG_WARNING, "Unknown pcmodel '%s', should be 'none', 'outbound', 'inbound', or 'symmetric' at line %d\n", 
-						v->value, v->lineno);
+					ast_log(LOG_WARNING, "Unable to find host '%s' at line %d\n", v->value, v->lineno);
+					peer->dead = 1;
 				}
 			}
-			v = v->next;
-		}
-		(*globalpcmode) |= peer->pcmodel;
-		if (!peer->model && !peer->pcmodel) {
-			ast_log(LOG_WARNING, "Peer '%s' lacks a model or pcmodel, discarding!\n", 
-				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
-			peer->dead = 1;
-		} else if ((peer->model & DUNDI_MODEL_INBOUND) && (peer->pcmodel & DUNDI_MODEL_OUTBOUND)) {
-			ast_log(LOG_WARNING, "Peer '%s' may not be both inbound/symmetric model and outbound/symmetric precache model, discarding!\n", 
-				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
-			peer->dead = 1;
-		} else if ((peer->model & DUNDI_MODEL_OUTBOUND) && (peer->pcmodel & DUNDI_MODEL_INBOUND)) {
-			ast_log(LOG_WARNING, "Peer '%s' may not be both outbound/symmetric model and inbound/symmetric precache model, discarding!\n", 
-				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
-			peer->dead = 1;
-		} else if (peer->include && !(peer->model & DUNDI_MODEL_OUTBOUND) && !(peer->pcmodel & DUNDI_MODEL_INBOUND)) {
-			ast_log(LOG_WARNING, "Peer '%s' is supposed to be included in outbound searches but isn't an outbound peer or inbound precache!\n", 
-				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
-		} else if (peer->permit && !(peer->model & DUNDI_MODEL_INBOUND) && !(peer->pcmodel & DUNDI_MODEL_OUTBOUND)) {
-			ast_log(LOG_WARNING, "Peer '%s' is supposed to have permission for some inbound searches but isn't an inbound peer or outbound precache!\n", 
-				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
-		} else { 
-			if (needregister) {
-				peer->registerid = ast_sched_add(sched, 2000, do_register, peer);
+		} else if (!strcasecmp(v->name, "ustothem")) {
+			if (!dundi_str_to_eid(&testeid, v->value))
+				peer->us_eid = testeid;
+			else
+				ast_log(LOG_WARNING, "'%s' is not a valid DUNDi Entity Identifier at line %d\n", v->value, v->lineno);
+		} else if (!strcasecmp(v->name, "include")) {
+			peer->include = append_permission(peer->include, v->value, 1);
+		} else if (!strcasecmp(v->name, "permit")) {
+			peer->permit = append_permission(peer->permit, v->value, 1);
+		} else if (!strcasecmp(v->name, "noinclude")) {
+			peer->include = append_permission(peer->include, v->value, 0);
+		} else if (!strcasecmp(v->name, "deny")) {
+			peer->permit = append_permission(peer->permit, v->value, 0);
+		} else if (!strcasecmp(v->name, "register")) {
+			needregister = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "order")) {
+			if (!strcasecmp(v->value, "primary"))
+				peer->order = 0;
+			else if (!strcasecmp(v->value, "secondary"))
+				peer->order = 1;
+			else if (!strcasecmp(v->value, "tertiary"))
+				peer->order = 2;
+			else if (!strcasecmp(v->value, "quartiary"))
+				peer->order = 3;
+			else {
+				ast_log(LOG_WARNING, "'%s' is not a valid order, should be primary, secondary, tertiary or quartiary at line %d\n", v->value, v->lineno);
 			}
-			qualify_peer(peer, 1);
+		} else if (!strcasecmp(v->name, "qualify")) {
+			if (!strcasecmp(v->value, "no")) {
+				peer->maxms = 0;
+			} else if (!strcasecmp(v->value, "yes")) {
+				peer->maxms = DEFAULT_MAXMS;
+			} else if (sscanf(v->value, "%d", &peer->maxms) != 1) {
+				ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of dundi.conf\n", 
+					dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), v->lineno);
+				peer->maxms = 0;
+			}
+		} else if (!strcasecmp(v->name, "model")) {
+			if (!strcasecmp(v->value, "inbound"))
+				peer->model = DUNDI_MODEL_INBOUND;
+			else if (!strcasecmp(v->value, "outbound")) 
+				peer->model = DUNDI_MODEL_OUTBOUND;
+			else if (!strcasecmp(v->value, "symmetric"))
+				peer->model = DUNDI_MODEL_SYMMETRIC;
+			else if (!strcasecmp(v->value, "none"))
+				peer->model = 0;
+			else {
+				ast_log(LOG_WARNING, "Unknown model '%s', should be 'none', 'outbound', 'inbound', or 'symmetric' at line %d\n", 
+					v->value, v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "precache")) {
+			if (!strcasecmp(v->value, "inbound"))
+				peer->pcmodel = DUNDI_MODEL_INBOUND;
+			else if (!strcasecmp(v->value, "outbound")) 
+				peer->pcmodel = DUNDI_MODEL_OUTBOUND;
+			else if (!strcasecmp(v->value, "symmetric"))
+				peer->pcmodel = DUNDI_MODEL_SYMMETRIC;
+			else if (!strcasecmp(v->value, "none"))
+				peer->pcmodel = 0;
+			else {
+				ast_log(LOG_WARNING, "Unknown pcmodel '%s', should be 'none', 'outbound', 'inbound', or 'symmetric' at line %d\n", 
+					v->value, v->lineno);
+			}
 		}
+		v = v->next;
+	}
+	(*globalpcmode) |= peer->pcmodel;
+	if (!peer->model && !peer->pcmodel) {
+		ast_log(LOG_WARNING, "Peer '%s' lacks a model or pcmodel, discarding!\n", 
+			dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+		peer->dead = 1;
+	} else if ((peer->model & DUNDI_MODEL_INBOUND) && (peer->pcmodel & DUNDI_MODEL_OUTBOUND)) {
+		ast_log(LOG_WARNING, "Peer '%s' may not be both inbound/symmetric model and outbound/symmetric precache model, discarding!\n", 
+			dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+		peer->dead = 1;
+	} else if ((peer->model & DUNDI_MODEL_OUTBOUND) && (peer->pcmodel & DUNDI_MODEL_INBOUND)) {
+		ast_log(LOG_WARNING, "Peer '%s' may not be both outbound/symmetric model and inbound/symmetric precache model, discarding!\n", 
+			dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+		peer->dead = 1;
+	} else if (peer->include && !(peer->model & DUNDI_MODEL_OUTBOUND) && !(peer->pcmodel & DUNDI_MODEL_INBOUND)) {
+		ast_log(LOG_WARNING, "Peer '%s' is supposed to be included in outbound searches but isn't an outbound peer or inbound precache!\n", 
+			dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+	} else if (peer->permit && !(peer->model & DUNDI_MODEL_INBOUND) && !(peer->pcmodel & DUNDI_MODEL_OUTBOUND)) {
+		ast_log(LOG_WARNING, "Peer '%s' is supposed to have permission for some inbound searches but isn't an inbound peer or outbound precache!\n", 
+			dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+	} else { 
+		if (needregister) {
+			peer->registerid = ast_sched_add(sched, 2000, do_register, peer);
+		}
+		qualify_peer(peer, 1);
+	}
 	AST_LIST_UNLOCK(&peers);
 }
 
