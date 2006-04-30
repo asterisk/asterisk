@@ -669,11 +669,9 @@ macro_statement : statement {$$=$1;}
 		$$->u2.statements = $4;}
 	;
 
-switches : KW_SWITCHES LC switchlist RC {
-		$$ = npval2(PV_SWITCHES, &@1, &@4);
-		$$->u1.list = $3; }
-	| KW_SWITCHES LC RC /* empty switch list OK */ {
-		$$ = npval2(PV_SWITCHES, &@1, &@3); }
+switches : KW_SWITCHES switchlist_block {
+		$$ = npval2(PV_SWITCHES, &@1, &@2);
+		$$->u1.list = $2; }
 	;
 
 eswitches : KW_ESWITCHES switchlist_block {
