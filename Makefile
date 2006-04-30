@@ -464,10 +464,10 @@ all: TAGS
 endif
 
 editline/config.h:
-	cd editline && unset CFLAGS LIBS && ./configure ; \
+	cd editline && unset CFLAGS LIBS && CFLAGS="$(OPTIMIZE)" ./configure ; \
 
 editline/libedit.a:
-	cd editline && unset CFLAGS LIBS && test -f config.h || ./configure
+	cd editline && unset CFLAGS LIBS && test -f config.h || CFLAGS="$(OPTIMIZE)" ./configure
 	$(MAKE) -C editline libedit.a
 
 db1-ast/libdb1.a:
