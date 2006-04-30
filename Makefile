@@ -580,7 +580,7 @@ datafiles: all
 # improved a lot.  I'll put it here for now.
 	mkdir -p $(DESTDIR)$(ASTDATADIR)/static-http
 	for x in static-http/*; do \
-		install -m 644 $$x $(DESTDIR)$(ASTDATADIR)/static-http ; \
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/static-http ; \
 	done
 	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds/digits
 	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds/priv-callerintros
