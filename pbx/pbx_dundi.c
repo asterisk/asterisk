@@ -86,16 +86,16 @@ extern char ast_config_AST_KEY_DIR[];
 #define DUNDI_MODEL_OUTBOUND	(1 << 1)
 #define DUNDI_MODEL_SYMMETRIC	(DUNDI_MODEL_INBOUND | DUNDI_MODEL_OUTBOUND)
 
-/* Keep times of last 10 lookups */
+/*! Keep times of last 10 lookups */
 #define DUNDI_TIMING_HISTORY	10
 
-#define FLAG_ISREG		(1 << 0)		/* Transaction is register request */
-#define FLAG_DEAD		(1 << 1)		/* Transaction is dead */
-#define FLAG_FINAL		(1 << 2)		/* Transaction has final message sent */
-#define FLAG_ISQUAL		(1 << 3)		/* Transaction is a qualification */
-#define FLAG_ENCRYPT	(1 << 4)		/* Transaction is encrypted wiht ECX/DCX */
-#define FLAG_SENDFULLKEY	(1 << 5)		/* Send full key on transaction */
-#define FLAG_STOREHIST	(1 << 6)		/* Record historic performance */
+#define FLAG_ISREG       (1 << 0)   /*!< Transaction is register request */
+#define FLAG_DEAD        (1 << 1)   /*!< Transaction is dead */
+#define FLAG_FINAL       (1 << 2)   /*!< Transaction has final message sent */
+#define FLAG_ISQUAL      (1 << 3)   /*!< Transaction is a qualification */
+#define FLAG_ENCRYPT     (1 << 4)   /*!< Transaction is encrypted wiht ECX/DCX */
+#define FLAG_SENDFULLKEY (1 << 5)   /*!< Send full key on transaction */
+#define FLAG_STOREHIST   (1 << 6)   /*!< Record historic performance */
 
 #define DUNDI_FLAG_INTERNAL_NOPARTIAL (1 << 17)
 
@@ -166,31 +166,31 @@ struct dundi_precache_queue {
 struct dundi_request;
 
 struct dundi_transaction {
-	struct sockaddr_in addr;	/* Other end of transaction */
-	struct timeval start;		/* When this transaction was created */
+	struct sockaddr_in addr;               /*!< Other end of transaction */
+	struct timeval start;                  /*!< When this transaction was created */
 	dundi_eid eids[DUNDI_MAX_STACK + 1];
-	int eidcount;				/* Number of eids in eids */
-	dundi_eid us_eid;			/* Our EID, to them */
-	dundi_eid them_eid;			/* Their EID, to us */
-	aes_encrypt_ctx	ecx;		/* AES 128 Encryption context */
-	aes_decrypt_ctx	dcx;		/* AES 128 Decryption context */
-	unsigned int flags;				/* Has final packet been sent */
-	int ttl;					/* Remaining TTL for queries on this one */
-	int thread;					/* We have a calling thread */
-	int retranstimer;			/* How long to wait before retransmissions */
-	int autokillid;				/* ID to kill connection if answer doesn't come back fast enough */
-	int autokilltimeout;		/* Recommended timeout for autokill */
-	unsigned short strans;		/* Our transaction identifier */
-	unsigned short dtrans;		/* Their transaction identifer */
-	unsigned char iseqno;		/* Next expected received seqno */
-	unsigned char oiseqno;		/* Last received incoming seqno */
-	unsigned char oseqno;		/* Next transmitted seqno */
-	unsigned char aseqno;		/* Last acknowledge seqno */
-	struct dundi_packet *packets;	/* Packets to be retransmitted */
-	struct dundi_packet *lasttrans;	/* Last transmitted / ACK'd packet */
-	struct dundi_transaction *next;	/* Next with respect to the parent */
-	struct dundi_request *parent;	/* Parent request (if there is one) */
-	struct dundi_transaction *allnext; /* Next with respect to all DUNDi transactions */
+	int eidcount;                          /*!< Number of eids in eids */
+	dundi_eid us_eid;                      /*!< Our EID, to them */
+	dundi_eid them_eid;                    /*!< Their EID, to us */
+	aes_encrypt_ctx	ecx;                   /*!< AES 128 Encryption context */
+	aes_decrypt_ctx	dcx;                   /*!< AES 128 Decryption context */
+	unsigned int flags;                    /*!< Has final packet been sent */
+	int ttl;                               /*!< Remaining TTL for queries on this one */
+	int thread;                            /*!< We have a calling thread */
+	int retranstimer;                      /*!< How long to wait before retransmissions */
+	int autokillid;                        /*!< ID to kill connection if answer doesn't come back fast enough */
+	int autokilltimeout;                   /*!< Recommended timeout for autokill */
+	unsigned short strans;                 /*!< Our transaction identifier */
+	unsigned short dtrans;                 /*!< Their transaction identifer */
+	unsigned char iseqno;                  /*!< Next expected received seqno */
+	unsigned char oiseqno;                 /*!< Last received incoming seqno */
+	unsigned char oseqno;                  /*!< Next transmitted seqno */
+	unsigned char aseqno;                  /*!< Last acknowledge seqno */
+	struct dundi_packet *packets;          /*!< Packets to be retransmitted */
+	struct dundi_packet *lasttrans;        /*!< Last transmitted / ACK'd packet */
+	struct dundi_transaction *next;        /*!< Next with respect to the parent */
+	struct dundi_request *parent;          /*!< Parent request (if there is one) */
+	struct dundi_transaction *allnext;     /*!< Next with respect to all DUNDi transactions */
 } *alltrans;
 
 struct dundi_request {
@@ -206,8 +206,8 @@ struct dundi_request {
 	int expiration;
 	int cbypass;
 	int pfds[2];
-	unsigned long crc32;							/* CRC-32 of all but root EID's in avoid list */
-	struct dundi_transaction *trans;	/* Transactions */
+	unsigned long crc32;                   /*!< CRC-32 of all but root EID's in avoid list */
+	struct dundi_transaction *trans;       /*!< Transactions */
 	struct dundi_request *next;
 } *requests;
 
