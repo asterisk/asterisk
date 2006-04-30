@@ -73,9 +73,6 @@
 #error "You need newer libpri"
 #endif
 #endif
-#ifdef HAVE_MFCR2
-#include <libmfcr2.h>
-#endif
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
@@ -157,9 +154,6 @@ static const char tdesc[] = "Zapata Telephony Driver"
 #ifdef HAVE_LIBPRI
                " w/PRI"
 #endif
-#ifdef HAVE_MFCR2
-               " w/R2"
-#endif
 ;
 
 static const char config[] = "zapata.conf";
@@ -180,7 +174,6 @@ static const char config[] = "zapata.conf";
 #define SIG_FXOGS	ZT_SIG_FXOGS
 #define SIG_FXOKS	ZT_SIG_FXOKS
 #define SIG_PRI		ZT_SIG_CLEAR
-#define SIG_R2		ZT_SIG_CAS
 #define	SIG_SF		ZT_SIG_SF
 #define SIG_SFWINK 	(0x0100000 | ZT_SIG_SF)
 #define SIG_SF_FEATD	(0x0200000 | ZT_SIG_SF)
@@ -400,11 +393,6 @@ static inline int zt_wait_event(int fd)
 
 struct zt_pvt;
 
-
-#ifdef HAVE_MFCR2
-static int r2prot = -1;
-#endif
-
 static int ringt_base = DEFAULT_RINGT;
 
 #ifdef HAVE_LIBPRI
@@ -608,11 +596,6 @@ static struct zt_pvt {
 	unsigned int resetting:1;
 	unsigned int setup_ack:1;
 #endif
-#if defined(HAVE_MFCR2)
-	unsigned int hasr2call:1;
-	unsigned int r2blocked:1;
-	unsigned int sigchecked:1;
-#endif
 #ifdef WITH_SMDI
 	unsigned int use_smdi:1;		/* Whether to use SMDI on this channel */
 	struct ast_smdi_interface *smdi_iface;	/* The serial port to listen for SMDI data on */
@@ -697,10 +680,6 @@ static struct zt_pvt {
 	q931_call *call;
 	int prioffset;
 	int logicalspan;
-#endif	
-#ifdef HAVE_MFCR2
-	int r2prot;
-	mfcr2_t *r2;
 #endif	
 	int polarity;
 	int dsp_features;
@@ -1132,22 +1111,6 @@ static char *dialplan2str(int dialplan)
 }
 #endif
 
-#ifdef HAVE_MFCR2
-static int str2r2prot(char *swtype)
-{
-	 if (!strcasecmp(swtype, "ar"))
-		  return MFCR2_PROT_ARGENTINA;
-	 /*endif*/
-	 if (!strcasecmp(swtype, "cn"))
-		  return MFCR2_PROT_CHINA;
-	 /*endif*/
-	 if (!strcasecmp(swtype, "kr"))
-		  return MFCR2_PROT_KOREA;
-	 /*endif*/
-	 return -1;
-}
-#endif
-
 static char *zap_sig2str(int sig)
 {
 	static char buf[256];
@@ -1186,8 +1149,6 @@ static char *zap_sig2str(int sig)
 		return "FXO Kewlstart";
 	case SIG_PRI:
 		return "PRI Signalling";
-	case SIG_R2:
-		return "R2 Signalling";
 	case SIG_SF:
 		return "SF (Tone) Signalling Immediate";
 	case SIG_SFWINK:
@@ -2596,18 +2557,7 @@ static int zt_hangup(struct ast_channel *ast)
 			}
 		}
 #endif
-#ifdef HAVE_MFCR2
-		if (p->sig == SIG_R2) {
-			if (p->hasr2call) {
-				mfcr2_DropCall(p->r2, NULL, UC_NORMAL_CLEARING);
-				p->hasr2call = 0;
-				res = 0;
-			} else
-				res = 0;
-
-		}
-#endif
-		if (p->sig && (p->sig != SIG_PRI) && (p->sig != SIG_R2))
+		if (p->sig && (p->sig != SIG_PRI))
 			res = zt_set_hook(p->subs[SUB_REAL].zfd, ZT_ONHOOK);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to hangup line %s\n", ast->name);
@@ -2786,13 +2736,6 @@ static int zt_answer(struct ast_channel *ast)
 		}
 		break;
 #endif
-#ifdef HAVE_MFCR2
-	case SIG_R2:
-		res = mfcr2_AnswerCall(p->r2, NULL);
-		if (res)
-			ast_log(LOG_WARNING, "R2 Answer call failed :( on %s\n", ast->name);
-		break;
-#endif			
 	case 0:
 		ast_mutex_unlock(&p->lock);
 		return 0;
@@ -3499,78 +3442,6 @@ static int attempt_transfer(struct zt_pvt *p)
 	return 0;
 }
 
-#ifdef HAVE_MFCR2
-static struct ast_frame *handle_r2_event(struct zt_pvt *p, mfcr2_event_t *e, int index)
-{
-	struct ast_frame *f;
-	f = &p->subs[index].f;
-	if (!p->r2) {
-		ast_log(LOG_WARNING, "Huh?  No R2 structure :(\n");
-		return NULL;
-	}
-	switch(e->e) {
-	case MFCR2_EVENT_BLOCKED:
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Channel %d blocked\n", p->channel);
-		break;
-	case MFCR2_EVENT_UNBLOCKED:
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Channel %d unblocked\n", p->channel);
-		break;
-	case MFCR2_EVENT_CONFIG_ERR:
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Config error on channel %d\n", p->channel);
-		break;
-	case MFCR2_EVENT_RING:
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Ring on channel %d\n", p->channel);
-		break;
-	case MFCR2_EVENT_HANGUP:
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Hangup on channel %d\n", p->channel);
-		break;
-	case MFCR2_EVENT_RINGING:
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Ringing on channel %d\n", p->channel);
-		break;
-	case MFCR2_EVENT_ANSWER:
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Answer on channel %d\n", p->channel);
-		break;
-	case MFCR2_EVENT_HANGUP_ACK:
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Hangup ACK on channel %d\n", p->channel);
-		break;
-	case MFCR2_EVENT_IDLE:
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Idle on channel %d\n", p->channel);
-		break;
-	default:
-		ast_log(LOG_WARNING, "Unknown MFC/R2 event %d\n", e->e);
-		break;
-	}
-	return f;
-}
-
-static mfcr2_event_t *r2_get_event_bits(struct zt_pvt *p)
-{
-	int x;
-	int res;
-	mfcr2_event_t *e;
-	res = ioctl(p->subs[SUB_REAL].zfd, ZT_GETRXBITS, &x);
-	if (res) {
-		ast_log(LOG_WARNING, "Unable to check received bits\n");
-		return NULL;
-	}
-	if (!p->r2) {
-		ast_log(LOG_WARNING, "Odd, no R2 structure on channel %d\n", p->channel);
-		return NULL;
-	}
-	e = mfcr2_cas_signaling_event(p->r2, x);
-	return e;
-}
-#endif
-
 static int check_for_conference(struct zt_pvt *p)
 {
 	ZT_CONFINFO ci;
@@ -3690,18 +3561,6 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			break;
 #endif
 		case ZT_EVENT_BITSCHANGED:
-			if (p->sig == SIG_R2) {
-#ifdef HAVE_MFCR2
-				struct ast_frame  *f = &p->subs[index].f;
-				mfcr2_event_t *e;
-				e = r2_get_event_bits(p);
-				if (e)
-					f = handle_r2_event(p, e, index);
-				return f;
-#else				
-				break;
-#endif
-			}
 			ast_log(LOG_WARNING, "Recieved bits changed on %s signalling?\n", sig2str(p->sig));
 		case ZT_EVENT_PULSE_START:
 			/* Stop tone if there's a pulse start and the PBX isn't started */
@@ -6450,50 +6309,6 @@ lax);
 	return NULL;
 }
 
-#ifdef HAVE_MFCR2
-static int handle_init_r2_event(struct zt_pvt *i, mfcr2_event_t *e)
-{
-	struct ast_channel *chan;
-	
-	switch(e->e) {
-	case MFCR2_EVENT_UNBLOCKED:
-		i->r2blocked = 0;
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "R2 Channel %d unblocked\n", i->channel);
-		break;
-	case MFCR2_EVENT_BLOCKED:
-		i->r2blocked = 1;
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "R2 Channel %d unblocked\n", i->channel);
-		break;
-	case MFCR2_EVENT_IDLE:
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "R2 Channel %d idle\n", i->channel);
-		break;
-	case MFCR2_EVENT_RINGING:
-			/* This is what Asterisk refers to as a "RING" event. For some reason they're reversed in
-			   Steve's code */
-			/* Check for callerid, digits, etc */
-			i->hasr2call = 1;
-			chan = zt_new(i, AST_STATE_RING, 0, SUB_REAL, 0, 0);
-			if (!chan) {
-				ast_log(LOG_WARNING, "Unable to create channel for channel %d\n", i->channel);
-				mfcr2_DropCall(i->r2, NULL, UC_NETWORK_CONGESTION);
-				i->hasr2call = 0;
-			}
-			if (ast_pbx_start(chan)) {
-				ast_log(LOG_WARNING, "Unable to start PBX on channel %s\n", chan->name);
-				ast_hangup(chan);
-			}
-			break;
-	default:
-		ast_log(LOG_WARNING, "Don't know how to handle initial R2 event %s on channel %d\n", mfcr2_event2str(e->e), i->channel);	
-		return -1;
-	}
-	return 0;
-}
-#endif
-
 static int handle_init_event(struct zt_pvt *i, int event)
 {
 	int res;
@@ -6506,16 +6321,6 @@ static int handle_init_event(struct zt_pvt *i, int event)
 	switch(event) {
 	case ZT_EVENT_NONE:
 	case ZT_EVENT_BITSCHANGED:
-		if (i->radio) break;
-#ifdef HAVE_MFCR2
-		if (i->r2) {
-			mfcr2_event_t *e;
-			e = r2_get_event_bits(i);
-			i->sigchecked = 1;
-			if (e)
-				handle_init_r2_event(i, e);
-		}
-#endif		
 		break;
 	case ZT_EVENT_WINKFLASH:
 	case ZT_EVENT_RINGOFFHOOK:
@@ -6743,11 +6548,7 @@ static void *do_monitor(void *data)
 					pfds[count].events = POLLPRI;
 					pfds[count].revents = 0;
 					/* Message waiting or r2 channels also get watched for reading */
-#ifdef HAVE_MFCR2
-					if (i->cidspill || i->r2)
-#else					
 					if (i->cidspill)
-#endif					
 						pfds[count].events |= POLLIN;
 					count++;
 				}
@@ -6844,22 +6645,6 @@ static void *do_monitor(void *data)
 						i = i->next;
 						continue;
 					}
-#ifdef HAVE_MFCR2
-					if (i->r2) {
-						/* If it's R2 signalled, we always have to check for events */
-						mfcr2_event_t *e;
-						e = mfcr2_check_event(i->r2);
-						if (e)
-							handle_init_r2_event(i, e);
-						else {
-							e = mfcr2_schedule_run(i->r2);
-							if (e)
-								handle_init_r2_event(i, e);
-						}
-						i = i->next;
-						continue;
-					}
-#endif
 					if (!i->cidspill) {
 						ast_log(LOG_WARNING, "Whoa....  I'm reading but have no cidspill (%d)...\n", i->subs[SUB_REAL].zfd);
 						i = i->next;
@@ -6893,12 +6678,7 @@ static void *do_monitor(void *data)
 					handle_init_event(i, res);
 					ast_mutex_lock(&iflock);	
 				}
-#ifdef HAVE_MFCR2
-				if ((pollres & POLLPRI) || (i->r2 && !i->sigchecked)) 
-#else				
-				if (pollres & POLLPRI) 
-#endif				
-				{
+				if (pollres & POLLPRI) {
 					if (i->owner || i->subs[SUB_REAL].owner) {
 #ifdef HAVE_LIBPRI
 						if (!i->pri)
@@ -7293,26 +7073,6 @@ static struct zt_pvt *mkintf(int channel, int signalling, int outsignalling, int
 				tmp->prioffset = 0;
 			}
 #endif
-#ifdef HAVE_MFCR2
-			if (signalling == SIG_R2) {
-				if (r2prot < 0) {
-					ast_log(LOG_WARNING, "R2 Country not specified for channel %d -- Assuming China\n", tmp->channel);
-					tmp->r2prot = MFCR2_PROT_CHINA;
-				} else
-					tmp->r2prot = r2prot;
-				tmp->r2 = mfcr2_new(tmp->subs[SUB_REAL].zfd, tmp->r2prot, 1);
-				if (!tmp->r2) {
-					ast_log(LOG_WARNING, "Unable to create r2 call :(\n");
-					zt_close(tmp->subs[SUB_REAL].zfd);
-					destroy_zt_pvt(&tmp);
-					return NULL;
-				}
-			} else {
-				if (tmp->r2) 
-					mfcr2_free(tmp->r2);
-				tmp->r2 = NULL;
-			}
-#endif
 		} else {
 			signalling = tmp->sig;
 			radio = tmp->radio;
@@ -7484,7 +7244,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int outsignalling, int
 				ast_dsp_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
 			update_conf(tmp);
 			if (!here) {
-				if ((signalling != SIG_PRI) && (signalling != SIG_R2))
+				if (signalling != SIG_PRI)
 					/* Hang it up to be sure it's good */
 					zt_set_hook(tmp->subs[SUB_REAL].zfd, ZT_ONHOOK);
 			}
@@ -7593,15 +7353,6 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 		/* Trust PRI */
 		if (p->pri) {
 			if (p->resetting || p->call)
-				return 0;
-			else
-				return 1;
-		}
-#endif
-#ifdef HAVE_MFCR2
-		/* Trust R2 as well */
-		if (p->r2) {
-			if (p->hasr2call || p->r2blocked)
 				return 0;
 			else
 				return 1;
@@ -9742,85 +9493,6 @@ static struct ast_cli_entry zap_pri_cli[] = {
 
 #endif /* HAVE_LIBPRI */
 
-
-#ifdef HAVE_MFCR2
-static int handle_r2_no_debug(int fd, int argc, char *argv[])
-{
-	int chan;
-	struct zt_pvt *tmp = NULL;;
-	if (argc < 5)
-		return RESULT_SHOWUSAGE;
-	chan = atoi(argv[4]);
-	if ((chan < 1) || (chan > NUM_SPANS)) {
-		ast_cli(fd, "Invalid channel %s.  Should be a number greater than 0\n", argv[4]);
-		return RESULT_SUCCESS;
-	}
-	tmp = iflist;
-	while(tmp) {
-		if (tmp->channel == chan) {
-			if (tmp->r2) {
-				mfcr2_set_debug(tmp->r2, 0);
-				ast_cli(fd, "Disabled R2 debugging on channel %d\n", chan);
-				return RESULT_SUCCESS;
-			}
-			break;
-		}
-		tmp = tmp->next;
-	}
-	if (tmp) 
-		ast_cli(fd, "No R2 running on channel %d\n", chan);
-	else
-		ast_cli(fd, "No such zap channel %d\n", chan);
-	return RESULT_SUCCESS;
-}
-
-static int handle_r2_debug(int fd, int argc, char *argv[])
-{
-	int chan;
-	struct zt_pvt *tmp = NULL;;
-	if (argc < 4) {
-		return RESULT_SHOWUSAGE;
-	}
-	chan = atoi(argv[3]);
-	if ((chan < 1) || (chan > NUM_SPANS)) {
-		ast_cli(fd, "Invalid channel %s.  Should be a number greater than 0\n", argv[3]);
-		return RESULT_SUCCESS;
-	}
-	tmp = iflist;
-	while(tmp) {
-		if (tmp->channel == chan) {
-			if (tmp->r2) {
-				mfcr2_set_debug(tmp->r2, 0xFFFFFFFF);
-				ast_cli(fd, "Enabled R2 debugging on channel %d\n", chan);
-				return RESULT_SUCCESS;
-			}
-			break;
-		}
-		tmp = tmp->next;
-	}
-	if (tmp) 
-		ast_cli(fd, "No R2 running on channel %d\n", chan);
-	else
-		ast_cli(fd, "No such zap channel %d\n", chan);
-	return RESULT_SUCCESS;
-}
-static char r2_debug_help[] = 
-	"Usage: r2 debug channel <channel>\n"
-	"       Enables R2 protocol level debugging on a given channel\n";
-	
-static char r2_no_debug_help[] = 
-	"Usage: r2 no debug channel <channel>\n"
-	"       Enables R2 protocol level debugging on a given channel\n";
-
-static struct ast_cli_entry zap_r2_cli[] = {
-	{ { "r2", "debug", "channel", NULL }, handle_r2_debug,
-	  "Enables R2 debugging on a channel", r2_debug_help },
-	{ { "r2", "no", "debug", "channel", NULL }, handle_r2_no_debug,
-	  "Disables R2 debugging on a channel", r2_no_debug_help },
-};
-
-#endif
-
 static int zap_destroy_channel(int fd, int argc, char **argv)
 {
 	int channel = 0;
@@ -10047,16 +9719,6 @@ static int zap_show_channel(int fd, int argc, char **argv)
 					ast_cli(fd, "PRI Logical Span: Implicit\n");
 			}
 				
-#endif
-#ifdef HAVE_MFCR2
-			if (tmp->r2) {
-				ast_cli(fd, "R2 Flags: ");
-				if (tmp->r2blocked)
-					ast_cli(fd, "Blocked ");
-				if (tmp->hasr2call)
-					ast_cli(fd, "Call ");
-				ast_cli(fd, "\n");
-			}
 #endif
 			memset(&ci, 0, sizeof(ci));
 			ps.channo = tmp->channel;
@@ -10405,9 +10067,6 @@ static int __unload_module(void)
 	}
 	ast_cli_unregister_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(zap_pri_cli[0]));
 	ast_unregister_application(zap_send_keypad_facility_app);
-#endif
-#ifdef HAVE_MFCR2
-	ast_cli_unregister_multiple(zap_r2_cli, sizeof(zap_r2_cli) / sizeof(zap_r2_cli[0]));
 #endif
 	ast_cli_unregister_multiple(zap_cli, sizeof(zap_cli) / sizeof(zap_cli[0]));
 	ast_manager_unregister( "ZapDialOffhook" );
@@ -10982,11 +10641,6 @@ static int setup_zap(int reload)
 					cur_radio = 0;
 					pritype = PRI_CPE;
 #endif
-#ifdef HAVE_MFCR2
-				} else if (!strcasecmp(v->value, "r2")) {
-					cur_signalling = SIG_R2;
-					cur_radio = 0;
-#endif			
 				} else {
 					ast_log(LOG_ERROR, "Unknown signalling method '%s'\n", v->value);
 				}
@@ -11026,13 +10680,6 @@ static int setup_zap(int reload)
 				} else {
 					ast_log(LOG_ERROR, "Unknown signalling method '%s'\n", v->value);
 				}
-#ifdef HAVE_MFCR2
-			} else if (!strcasecmp(v->name, "r2country")) {
-				r2prot = str2r2prot(v->value);
-				if (r2prot < 0) {
-					ast_log(LOG_WARNING, "Unknown R2 Country '%s' at line %d.\n", v->value, v->lineno);
-				}
-#endif
 #ifdef HAVE_LIBPRI
 			} else if (!strcasecmp(v->name, "pridialplan")) {
 				if (!strcasecmp(v->value, "national")) {
@@ -11370,9 +11017,6 @@ static int load_module(void *mod)
 	ast_string_field_set(&inuse, name, "GR-303InUse");
 	ast_cli_register_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(zap_pri_cli[0]));
 #endif	
-#ifdef HAVE_MFCR2
-	ast_cli_register_multiple(zap_r2_cli, sizeof(zap_r2_cli) / sizeof(zap_r2_cli[0]));
-#endif	
 	ast_cli_register_multiple(zap_cli, sizeof(zap_cli) / sizeof(zap_cli[0]));
 	
 	memset(round_robin, 0, sizeof(round_robin));
@@ -11503,9 +11147,6 @@ static const char *description(void)
 	return "Zapata Telephony"
 #ifdef ZAPATA_PRI
                " w/PRI"
-#endif
-#ifdef ZAPATA_R2
-               " w/R2"
 #endif
 	;
 }

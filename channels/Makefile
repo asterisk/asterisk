@@ -117,7 +117,7 @@ chan_iax2.so: chan_iax2.o iax2-parser.o iax2-provision.o
 	$(CC) $(SOLINK) -o $@ $< iax2-parser.o iax2-provision.o
 
 chan_zap.so: chan_zap.o
-	$(CC) $(SOLINK) -o $@ $< $(PRI_LIB) $(MFCR2_LIB) $(ZAPTEL_LIB)
+	$(CC) $(SOLINK) -o $@ $< $(PRI_LIB) $(ZAPTEL_LIB)
 
 chan_zap.o: chan_zap.c
 	$(CC) -c -o $@ $(CFLAGS) $(ZAPTEL_INCLUDE) $<

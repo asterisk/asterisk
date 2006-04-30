@@ -159,7 +159,6 @@ AC_SUBST(AST_DEVMODE)
 
 AST_EXT_LIB([asound], [snd_spcm_init], [alsa/asoundlib.h], [ALSA], [Advanced Linux Sound Architecture], [-lm -ldl])
 AST_EXT_LIB([curses], [initscr], [curses.h], [CURSES], [curses], [])
-AST_EXT_LIB([mfcr2], [mfcr2_MakeCall], [libmfcr2.h], [MFCR2], [MFCR2])
 AST_EXT_LIB([nbs], [nbs_connect], [nbs.h], [NBS], [Network Broadcast Sound])
 AST_EXT_LIB([ncurses], [initscr], [curses.h], [NCURSES], [ncurses], [])
 AST_EXT_LIB([newt], [newtBell], [newt.h], [NEWT], [newt])
