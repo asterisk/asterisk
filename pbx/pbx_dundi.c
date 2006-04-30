@@ -4177,8 +4177,10 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 	}
 	if (!peer) {
 		/* Add us into the list */
-		peer = ast_calloc(1, sizeof(*peer));
-		if (peer) {
+		if (!(peer = ast_calloc(1, sizeof(*peer)))) {
+			AST_LIST_UNLOCK(&peers);
+			return;
+		}
 			peer->registerid = -1;
 			peer->registerexpire = -1;
 			peer->qualifyid = -1;
@@ -4186,9 +4188,7 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 			peer->addr.sin_port = htons(DUNDI_PORT);
 			populate_addr(peer, eid);
 			AST_LIST_INSERT_HEAD(&peers, peer, list);
-		}
 	}
-	if (peer) {
 		peer->dead = 0;
 		peer->eid = *eid;
 		peer->us_eid = global_eid;
@@ -4308,7 +4308,6 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 			}
 			qualify_peer(peer, 1);
 		}
-	}
 	AST_LIST_UNLOCK(&peers);
 }
 
