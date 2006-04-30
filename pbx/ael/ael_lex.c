@@ -2781,7 +2781,19 @@ static int c_prevword(void)
 }
 
 
-/* used by the bison code */
+/*
+ * The following three functions, reset_*, are used in the bison
+ * code to switch context. As a consequence, we need to
+ * declare them global and add a prototype so that the
+ * compiler does not complain.
+ *
+ * NOTE: yyg is declared because it is used in the BEGIN macros,
+ * though that should be hidden as the macro changes
+ * depending on the flex options that we use - in particular,
+ * %reentrant changes the way the macro is declared;
+ * without %reentrant, BEGIN uses yystart instead of yyg
+ */
+
 void reset_parencount(yyscan_t yyscanner );
 void reset_parencount(yyscan_t yyscanner )
 {
@@ -2793,7 +2805,6 @@ void reset_parencount(yyscan_t yyscanner )
 	BEGIN(paren);
 }
 
-/* used by the bison code */
 void reset_semicount(yyscan_t yyscanner );
 void reset_semicount(yyscan_t yyscanner )
 {
@@ -2802,7 +2813,6 @@ void reset_semicount(yyscan_t yyscanner )
 	BEGIN(semic);
 }
 
-/* used by the bison code */
 void reset_argcount(yyscan_t yyscanner );
 void reset_argcount(yyscan_t yyscanner )
 {
