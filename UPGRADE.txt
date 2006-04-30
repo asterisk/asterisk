@@ -122,6 +122,11 @@ The SIP channel:
   option in sip.conf is removed to osp.conf as authpolicy. allowguest option
   in sip.conf cannot be set as osp anymore. 
 
+The Zap channel:
+
+* Support for MFC/R2 has been removed, as it has not been functional for some time
+  and it has no maintainer.
+
 Installation:
 
 * On BSD systems, the installation directories have changed to more "FreeBSDish" directories. On startup, Asterisk will look for the main configuration in /usr/local/etc/asterisk/asterisk.conf
