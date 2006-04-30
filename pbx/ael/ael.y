@@ -209,24 +209,6 @@ context : KW_CONTEXT word_or_default LC elements RC {
 		$$ = npval2(PV_CONTEXT, &@1, &@5);
 		$$->u1.str = $3;
 		$$->u3.abstract = 1; }
-/*
-	| KW_CONTEXT KW_DEFAULT LC elements RC {
-		$$ = npval2(PV_CONTEXT, &@1, &@5);
-		$$->u1.str = strdup("default");
-		$$->u2.statements = $4; }
-	| KW_CONTEXT KW_DEFAULT LC RC {
-		$$ = npval2(PV_CONTEXT, &@1, &@4);
-		$$->u1.str = strdup("default"); }
-	| KW_ABSTRACT KW_CONTEXT KW_DEFAULT LC elements RC  {
-		$$ = npval2(PV_CONTEXT, &@1, &@6);
-		$$->u1.str = strdup("default");
-		$$->u2.statements = $5;
-		$$->u3.abstract = 1; }
-	| KW_ABSTRACT KW_CONTEXT KW_DEFAULT LC RC {
-		$$ = npval2(PV_CONTEXT, &@1, &@5);
-		$$->u1.str = strdup("default");
-		$$->u3.abstract = 1; }
-*/
 	;
 
 macro : KW_MACRO word LP arglist RP LC macro_statements RC {
@@ -495,38 +477,14 @@ statement : LC statements RC {
 		$$ = update_last($1, &@2); /* XXX probably @3... */
 		$$->u2.statements = $2;
 		$$->u3.else_statements = $3;}
-/*
-	| random_head statement KW_ELSE statement {
-		$$=$1;
-		$$->u2.statements = $2;
-		$$->endline = @2.last_line;
-		$$->endcol = @2.last_column;
-		$$->u3.else_statements = $4;}
-*/
 	| if_head statement opt_else {
 		$$ = update_last($1, &@2); /* XXX probably @3... */
 		$$->u2.statements = $2;
 		$$->u3.else_statements = $3;}
-/*
-	| if_head statement KW_ELSE statement {
-		$$=$1;
-		$$->u2.statements = $2;
-		$$->endline = @2.last_line;
-		$$->endcol = @2.last_column;
-	$$->u3.else_statements = $4;}
-*/
 	| iftime_head statement opt_else {
 		$$ = update_last($1, &@2); /* XXX probably @3... */
 		$$->u2.statements = $2;
 		$$->u3.else_statements = $3;}
-/*
-	| iftime_head statement KW_ELSE statement {
-		$$=$1;
-		$$->u2.statements = $2;
-		$$->endline = @2.last_line;
-		$$->endcol = @2.last_column;
-		$$->u3.else_statements = $4;}
-*/
 	| SEMI { $$=0; }
 	;
 
@@ -663,13 +621,6 @@ eval_arglist :  word_list {
 		$$ = $1;
 		linku1($1,z);
 		z->u1.str = $3;}
-/*
-	| eval_arglist COMMA {
-		pval *z = npval2(PV_WORD, &@2, &@2);
-		$$ = $1;
-		linku1($1,z);
-		z->u1.str = strdup("");}
-*/
 	;
 
 case_statements: case_statement {$$=$1;}
