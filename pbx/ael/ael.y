@@ -73,6 +73,8 @@ static pval *npval2(pvaltype type, YYLTYPE *first, YYLTYPE *last);
 %token KW_FOR KW_WHILE KW_CASE KW_PATTERN KW_DEFAULT KW_CATCH KW_SWITCHES KW_ESWITCHES
 %token KW_INCLUDES
 
+%right BAR COMMA
+
 %token <str> word
 
 %type <pval>includes
@@ -109,6 +111,11 @@ static pval *npval2(pvaltype type, YYLTYPE *first, YYLTYPE *last);
 %type <pval>object
 %type <pval>objects
 %type <pval>file
+/* XXX lr changes */
+%type <pval>opt_else
+
+%type <str>opt_word
+%type <str>word_or_default
 
 %type <str>goto_word
 %type <str>word_list
@@ -148,8 +155,9 @@ static pval *npval2(pvaltype type, YYLTYPE *first, YYLTYPE *last);
 		if_head random_head iftime_head statements extension
 		ignorepat element elements arglist global_statement
 		global_statements globals macro context object objects
+		opt_else
 
-%destructor { free($$);}  word word_list goto_word word3_list includedname
+%destructor { free($$);}  word word_list goto_word word3_list includedname opt_word word_or_default
 
 
 %%
@@ -178,38 +186,44 @@ object : context {$$=$1;}
 	| SEMI  {$$=0;/* allow older docs to be read */}
 	;
 
-context : KW_CONTEXT word LC elements RC {
+word_or_default : word { $$ = $1; }
+	| KW_DEFAULT { $$ = strdup("default"); }
+	;
+
+context : KW_CONTEXT word_or_default LC elements RC {
 		$$ = npval2(PV_CONTEXT, &@1, &@5);
 		$$->u1.str = $2;
 		$$->u2.statements = $4; }
-	| KW_CONTEXT word LC RC /* empty context OK */ {
+	| KW_CONTEXT word_or_default LC RC /* empty context OK */ {
 		$$ = npval2(PV_CONTEXT, &@1, &@4);
 		$$->u1.str = $2; }
-	| KW_CONTEXT KW_DEFAULT LC elements RC {
-		$$ = npval2(PV_CONTEXT, &@1, &@5);
-		$$->u1.str = strdup("default");
-		$$->u2.statements = $4; }
-	| KW_CONTEXT KW_DEFAULT LC RC /* empty context OK */ {
-		$$ = npval2(PV_CONTEXT, &@1, &@4);
-		$$->u1.str = strdup("default"); }
-	| KW_ABSTRACT KW_CONTEXT word LC elements RC {
+	| KW_ABSTRACT KW_CONTEXT word_or_default LC elements RC {
 		$$ = npval2(PV_CONTEXT, &@1, &@6);
 		$$->u1.str = $3;
 		$$->u2.statements = $5;
 		$$->u3.abstract = 1; }
-	| KW_ABSTRACT KW_CONTEXT word LC RC /* empty context OK */ {
+	| KW_ABSTRACT KW_CONTEXT word_or_default LC RC /* empty context OK */ {
 		$$ = npval2(PV_CONTEXT, &@1, &@5);
 		$$->u1.str = $3;
 		$$->u3.abstract = 1; }
+/*
+	| KW_CONTEXT KW_DEFAULT LC elements RC {
+		$$ = npval2(PV_CONTEXT, &@1, &@5);
+		$$->u1.str = strdup("default");
+		$$->u2.statements = $4; }
+	| KW_CONTEXT KW_DEFAULT LC RC {
+		$$ = npval2(PV_CONTEXT, &@1, &@4);
+		$$->u1.str = strdup("default"); }
 	| KW_ABSTRACT KW_CONTEXT KW_DEFAULT LC elements RC  {
 		$$ = npval2(PV_CONTEXT, &@1, &@6);
 		$$->u1.str = strdup("default");
 		$$->u2.statements = $5;
 		$$->u3.abstract = 1; }
-	| KW_ABSTRACT KW_CONTEXT KW_DEFAULT LC RC /* empty context OK */ {
+	| KW_ABSTRACT KW_CONTEXT KW_DEFAULT LC RC {
 		$$ = npval2(PV_CONTEXT, &@1, &@5);
 		$$->u1.str = strdup("default");
 		$$->u3.abstract = 1; }
+*/
 	;
 
 macro : KW_MACRO word LP arglist RP LC macro_statements RC {
@@ -251,8 +265,7 @@ arglist : word {
 	| arglist COMMA word {
 		pval *z = npval2(PV_WORD, &@1, &@3);
 		z->u1.str = $3;
-		$$=$1;
-		linku1($$,z); }
+		$$ = linku1($1,z); }
 	| arglist error {$$=$1;}
 	;
 
@@ -483,41 +496,56 @@ statement : LC statements RC {
 	| KW_BREAK SEMI { $$ = npval2(PV_BREAK, &@1, &@2); }
 	| KW_RETURN SEMI { $$ = npval2(PV_RETURN, &@1, &@2); }
 	| KW_CONTINUE SEMI { $$ = npval2(PV_CONTINUE, &@1, &@2); }
-	| random_head statement {
+	| random_head statement opt_else {
 		$$=$1;
 		$$->u2.statements = $2;
 		$$->endline = @2.last_line;
+		$$->u3.else_statements = $3;
 		$$->endcol = @2.last_column;}
+/*
 	| random_head statement KW_ELSE statement {
 		$$=$1;
 		$$->u2.statements = $2;
 		$$->endline = @2.last_line;
 		$$->endcol = @2.last_column;
 		$$->u3.else_statements = $4;}
-	| if_head statement {
+*/
+	| if_head statement opt_else {
 		$$=$1;
 		$$->u2.statements = $2;
 		$$->endline = @2.last_line;
+		$$->u3.else_statements = $3;
 		$$->endcol = @2.last_column;}
+/*
 	| if_head statement KW_ELSE statement {
 		$$=$1;
 		$$->u2.statements = $2;
 		$$->endline = @2.last_line;
 		$$->endcol = @2.last_column;
-		$$->u3.else_statements = $4;}
-	| iftime_head statement {
+	$$->u3.else_statements = $4;}
+*/
+	| iftime_head statement opt_else {
 		$$=$1;
 		$$->u2.statements = $2;
 		$$->endline = @2.last_line;
+		$$->u3.else_statements = $3;
 		$$->endcol = @2.last_column;}
+/*
 	| iftime_head statement KW_ELSE statement {
 		$$=$1;
 		$$->u2.statements = $2;
 		$$->endline = @2.last_line;
 		$$->endcol = @2.last_column;
 		$$->u3.else_statements = $4;}
+*/
 	| SEMI { $$=0; }
 	;
+
+opt_else : KW_ELSE statement { $$ = $2; }
+	| { $$ = NULL ; }
+
+/* XXX unused */
+bar_or_comma: BAR | COMMA ;
 
 target : goto_word { $$ = npval2(PV_WORD, &@1, &@1);
 		$$->u1.str = $1;}
@@ -630,22 +658,28 @@ application_call : application_call_head eval_arglist RP {$$ = $1;
 	| application_call_head RP {$$=$1;$$->endline = @2.last_line; $$->endcol = @2.last_column;}
 	;
 
+opt_word : word { $$ = $1 }
+	| { $$ = strdup(""); }
+	;
+
 eval_arglist :  word_list { 
 		$$= npval2(PV_WORD, &@1, &@1);
 		$$->u1.str = $1;}
 	| /*nothing! */   {
 		$$= npval(PV_WORD,0/*@1.first_line*/,0/*@1.last_line*/,0/* @1.first_column*/, 0/*@1.last_column*/);
 		$$->u1.str = strdup(""); }
-	| eval_arglist COMMA  word {
+	| eval_arglist COMMA  opt_word {
 		pval *z = npval2(PV_WORD, &@3, &@3);
 		$$ = $1;
 		linku1($1,z);
 		z->u1.str = $3;}
+/*
 	| eval_arglist COMMA {
 		pval *z = npval2(PV_WORD, &@2, &@2);
 		$$ = $1;
 		linku1($1,z);
 		z->u1.str = strdup("");}
+*/
 	;
 
 case_statements: case_statement {$$=$1;}
@@ -749,7 +783,7 @@ includeslist : includedname SEMI {
 		prev_word=0;
 	}
 	| includeslist includedname SEMI {
-		pval *z = npval2(PV_WORD, &@2, &@3); /* XXX don't we need @1-@4 ?*/
+		pval *z = npval2(PV_WORD, &@2, &@3); /* XXX don't we need @1-@3 ?*/
 		$$=$1;
 		z->u1.str = $2;
 		linku1($$,z); }
@@ -774,9 +808,10 @@ includeslist : includedname SEMI {
 	| includeslist includedname BAR word BAR word3_list BAR word3_list BAR word3_list SEMI {
 		pval *z = npval2(PV_WORD, &@2, &@3);
 		$$=$1;
-		z->u1.str = $2; linku1($$,z);
-		z->u2.arglist = npval2(PV_WORD, &@4, &@4);
+		linku1($$,z);
 		$$->u2.arglist->u1.str = $4;
+		z->u1.str = $2;
+		z->u2.arglist = npval2(PV_WORD, &@4, &@4);	/* XXX is this correct ? */
 		z->u2.arglist->next = npval2(PV_WORD, &@6, &@6);
 		z->u2.arglist->next->u1.str = $6;
 		z->u2.arglist->next->next = npval2(PV_WORD, &@8, &@8);
