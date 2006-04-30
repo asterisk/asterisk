@@ -163,32 +163,32 @@ struct dundi_precache_queue {
 struct dundi_request;
 
 struct dundi_transaction {
-	struct sockaddr_in addr;               /*!< Other end of transaction */
-	struct timeval start;                  /*!< When this transaction was created */
+	struct sockaddr_in addr;                       /*!< Other end of transaction */
+	struct timeval start;                          /*!< When this transaction was created */
 	dundi_eid eids[DUNDI_MAX_STACK + 1];
-	int eidcount;                          /*!< Number of eids in eids */
-	dundi_eid us_eid;                      /*!< Our EID, to them */
-	dundi_eid them_eid;                    /*!< Their EID, to us */
-	aes_encrypt_ctx	ecx;                   /*!< AES 128 Encryption context */
-	aes_decrypt_ctx	dcx;                   /*!< AES 128 Decryption context */
-	unsigned int flags;                    /*!< Has final packet been sent */
-	int ttl;                               /*!< Remaining TTL for queries on this one */
-	int thread;                            /*!< We have a calling thread */
-	int retranstimer;                      /*!< How long to wait before retransmissions */
-	int autokillid;                        /*!< ID to kill connection if answer doesn't come back fast enough */
-	int autokilltimeout;                   /*!< Recommended timeout for autokill */
-	unsigned short strans;                 /*!< Our transaction identifier */
-	unsigned short dtrans;                 /*!< Their transaction identifer */
-	unsigned char iseqno;                  /*!< Next expected received seqno */
-	unsigned char oiseqno;                 /*!< Last received incoming seqno */
-	unsigned char oseqno;                  /*!< Next transmitted seqno */
-	unsigned char aseqno;                  /*!< Last acknowledge seqno */
-	struct dundi_packet *packets;          /*!< Packets to be retransmitted */
-	struct dundi_packet *lasttrans;        /*!< Last transmitted / ACK'd packet */
-	struct dundi_transaction *next;        /*!< Next with respect to the parent */
-	struct dundi_request *parent;          /*!< Parent request (if there is one) */
-	struct dundi_transaction *allnext;     /*!< Next with respect to all DUNDi transactions */
-} *alltrans;
+	int eidcount;                                  /*!< Number of eids in eids */
+	dundi_eid us_eid;                              /*!< Our EID, to them */
+	dundi_eid them_eid;                            /*!< Their EID, to us */
+	aes_encrypt_ctx	ecx;                           /*!< AES 128 Encryption context */
+	aes_decrypt_ctx	dcx;                           /*!< AES 128 Decryption context */
+	unsigned int flags;                            /*!< Has final packet been sent */
+	int ttl;                                       /*!< Remaining TTL for queries on this one */
+	int thread;                                    /*!< We have a calling thread */
+	int retranstimer;                              /*!< How long to wait before retransmissions */
+	int autokillid;                                /*!< ID to kill connection if answer doesn't come back fast enough */
+	int autokilltimeout;                           /*!< Recommended timeout for autokill */
+	unsigned short strans;                         /*!< Our transaction identifier */
+	unsigned short dtrans;                         /*!< Their transaction identifer */
+	unsigned char iseqno;                          /*!< Next expected received seqno */
+	unsigned char oiseqno;                         /*!< Last received incoming seqno */
+	unsigned char oseqno;                          /*!< Next transmitted seqno */
+	unsigned char aseqno;                          /*!< Last acknowledge seqno */
+	struct dundi_packet *packets;                  /*!< Packets to be retransmitted */
+	struct dundi_packet *lasttrans;                /*!< Last transmitted / ACK'd packet */
+	struct dundi_request *parent;                  /*!< Parent request (if there is one) */
+	AST_LIST_ENTRY(dundi_transaction) parentlist;  /*!< Next with respect to the parent */
+	AST_LIST_ENTRY(dundi_transaction) all;         /*!< Next with respect to all DUNDi transactions */
+};
 
 struct dundi_request {
 	char dcontext[AST_MAX_EXTENSION];
@@ -203,8 +203,8 @@ struct dundi_request {
 	int expiration;
 	int cbypass;
 	int pfds[2];
-	unsigned long crc32;                   /*!< CRC-32 of all but root EID's in avoid list */
-	struct dundi_transaction *trans;       /*!< Transactions */
+	unsigned long crc32;                              /*!< CRC-32 of all but root EID's in avoid list */
+	AST_LIST_HEAD_NOLOCK(, dundi_transaction) trans;  /*!< Transactions */
 	AST_LIST_ENTRY(dundi_request) list;
 };
 
@@ -249,7 +249,6 @@ struct dundi_peer {
 	int avgms;
 	struct dundi_transaction *regtrans;    /*!< Registration transaction */
 	struct dundi_transaction *qualtrans;   /*!< Qualify transaction */
-	struct dundi_transaction *keypending;
 	int model;                             /*!< Pull model */
 	int pcmodel;                           /*!< Push/precache model */
 	int dynamic;                           /*!< Are we dynamic? */
@@ -262,6 +261,7 @@ struct dundi_peer {
 AST_LIST_HEAD_STATIC(peers, dundi_peer);
 AST_LIST_HEAD_NOLOCK_STATIC(mappings, dundi_mapping);
 AST_LIST_HEAD_NOLOCK_STATIC(requests, dundi_request);
+AST_LIST_HEAD_NOLOCK_STATIC(alltrans, dundi_transaction);
 
 static struct dundi_precache_queue *pcq;
 
@@ -324,10 +324,10 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 static struct dundi_transaction *create_transaction(struct dundi_peer *p);
 static struct dundi_transaction *find_transaction(struct dundi_hdr *hdr, struct sockaddr_in *sin)
 {
-	/* Look for an exact match first */
 	struct dundi_transaction *trans;
-	trans = alltrans;
-	while(trans) {
+
+	/* Look for an exact match first */
+	AST_LIST_TRAVERSE(&alltrans, trans, all) {
 		if (!inaddrcmp(&trans->addr, sin) && 
 		     ((trans->strans == (ntohs(hdr->dtrans) & 32767)) /* Matches our destination */ ||
 			  ((trans->dtrans == (ntohs(hdr->strans) & 32767)) && (!hdr->dtrans))) /* We match their destination */) {
@@ -335,7 +335,6 @@ static struct dundi_transaction *find_transaction(struct dundi_hdr *hdr, struct 
 				  trans->dtrans = ntohs(hdr->strans) & 32767;
 			  break;
 		}
-		trans = trans->allnext;
 	}
 	if (!trans) {
 		switch(hdr->cmdresp & 0x7f) {
@@ -445,17 +444,17 @@ static int get_trans_id(void)
 	struct dundi_transaction *t;
 	int stid = (ast_random() % 32766) + 1;
 	int tid = stid;
+
 	do {
-		t = alltrans;
-		while(t) {
+		AST_LIST_TRAVERSE(&alltrans, t, all) {
 			if (t->strans == tid) 
 				break;
-			t = t->allnext;
 		}
 		if (!t)
 			return tid;
 		tid = (tid % 32766) + 1;
 	} while (tid != stid);
+
 	return 0;
 }
 
@@ -2400,7 +2399,6 @@ static int dundi_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "Model:   %s\n", model2str(peer->model));
 		ast_cli(fd, "Host:    %s\n", peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "<Unspecified>");
 		ast_cli(fd, "Dynamic: %s\n", peer->dynamic ? "yes" : "no");
-		ast_cli(fd, "KeyPend: %s\n", peer->keypending ? "yes" : "no");
 		ast_cli(fd, "Reg:     %s\n", peer->registerid < 0 ? "No" : "Yes");
 		ast_cli(fd, "In Key:  %s\n", ast_strlen_zero(peer->inkey) ? "<None>" : peer->inkey);
 		ast_cli(fd, "Out Key: %s\n", ast_strlen_zero(peer->outkey) ? "<None>" : peer->outkey);
@@ -2532,9 +2530,9 @@ static int dundi_show_trans(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	AST_LIST_LOCK(&peers);
 	ast_cli(fd, FORMAT2, "Remote", "Src", "Dst", "Tx", "Rx", "Ack");
-	for (trans = alltrans;trans;trans = trans->allnext) {
-			ast_cli(fd, FORMAT, ast_inet_ntoa(iabuf, sizeof(iabuf), trans->addr.sin_addr), 
-					ntohs(trans->addr.sin_port), trans->strans, trans->dtrans, trans->oseqno, trans->iseqno, trans->aseqno);
+	AST_LIST_TRAVERSE(&alltrans, trans, all) {
+		ast_cli(fd, FORMAT, ast_inet_ntoa(iabuf, sizeof(iabuf), trans->addr.sin_addr), 
+			ntohs(trans->addr.sin_port), trans->strans, trans->dtrans, trans->oseqno, trans->iseqno, trans->aseqno);
 	}
 	AST_LIST_UNLOCK(&peers);
 	return RESULT_SUCCESS;
@@ -2767,8 +2765,7 @@ static struct dundi_transaction *create_transaction(struct dundi_peer *p)
 				ast_set_flag(trans, FLAG_SENDFULLKEY);
 		}
 		trans->strans = tid;
-		trans->allnext = alltrans;
-		alltrans = trans;
+		AST_LIST_INSERT_HEAD(&alltrans, trans, all);
 	}
 	return trans;
 }
@@ -2820,7 +2817,6 @@ static void destroy_packet(struct dundi_packet *pack, int needfree)
 
 static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 {
-	struct dundi_transaction *cur, *prev;
 	struct dundi_peer *peer;
 	int ms;
 	int x;
@@ -2830,8 +2826,6 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 		AST_LIST_TRAVERSE(&peers, peer, list) {
 			if (peer->regtrans == trans)
 				peer->regtrans = NULL;
-			if (peer->keypending == trans)
-				peer->keypending = NULL;
 			if (peer->qualtrans == trans) {
 				if (fromtimeout) {
 					if (peer->lastms > -1)
@@ -2882,20 +2876,8 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 	}
 	if (trans->parent) {
 		/* Unlink from parent if appropriate */
-		prev = NULL;
-		cur = trans->parent->trans;
-		while(cur) {
-			if (cur == trans) {
-				if (prev)
-					prev->next = trans->next;
-				else
-					trans->parent->trans = trans->next;
-				break;
-			}
-			prev = cur;
-			cur = cur->next;
-		}
-		if (!trans->parent->trans) {
+		AST_LIST_REMOVE(&trans->parent->trans, trans, parentlist);
+		if (AST_LIST_EMPTY(&trans->parent->trans)) {
 			/* Wake up sleeper */
 			if (trans->parent->pfds[1] > -1) {
 				write(trans->parent->pfds[1], "killa!", 6);
@@ -2903,19 +2885,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 		}
 	}
 	/* Unlink from all trans */
-	prev = NULL;
-	cur = alltrans;
-	while(cur) {
-		if (cur == trans) {
-			if (prev)
-				prev->allnext = trans->allnext;
-			else
-				alltrans = trans->allnext;
-			break;
-		}
-		prev = cur;
-		cur = cur->allnext;
-	}
+	AST_LIST_REMOVE(&alltrans, trans, all);
 	destroy_packets(trans->packets);
 	destroy_packets(trans->lasttrans);
 	trans->packets = NULL;
@@ -3177,10 +3147,8 @@ static int discover_transactions(struct dundi_request *dr)
 {
 	struct dundi_transaction *trans;
 	AST_LIST_LOCK(&peers);
-	trans = dr->trans;
-	while(trans) {
+	AST_LIST_TRAVERSE(&dr->trans, trans, parentlist) {
 		dundi_discover(trans);
-		trans = trans->next;
 	}
 	AST_LIST_UNLOCK(&peers);
 	return 0;
@@ -3188,51 +3156,49 @@ static int discover_transactions(struct dundi_request *dr)
 
 static int precache_transactions(struct dundi_request *dr, struct dundi_mapping *maps, int mapcount, int *expiration, int *foundanswers)
 {
-	struct dundi_transaction *trans, *transn;
+	struct dundi_transaction *trans;
+
 	/* Mark all as "in thread" so they don't disappear */
 	AST_LIST_LOCK(&peers);
-	trans = dr->trans;
-	while(trans) {
+	AST_LIST_TRAVERSE(&dr->trans, trans, parentlist) {
 		if (trans->thread)
 			ast_log(LOG_WARNING, "This shouldn't happen, really...\n");
 		trans->thread = 1;
-		trans = trans->next;
 	}
 	AST_LIST_UNLOCK(&peers);
 
-	trans = dr->trans;
-	while(trans) {
+	AST_LIST_TRAVERSE(&dr->trans, trans, parentlist) {
 		if (!ast_test_flag(trans, FLAG_DEAD))
 			precache_trans(trans, maps, mapcount, expiration, foundanswers);
-		trans = trans->next;
 	}
 
 	/* Cleanup any that got destroyed in the mean time */
 	AST_LIST_LOCK(&peers);
-	trans = dr->trans;
-	while(trans) {
-		transn = trans->next;
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&dr->trans, trans, parentlist) {
 		trans->thread = 0;
 		if (ast_test_flag(trans, FLAG_DEAD)) {
 			ast_log(LOG_DEBUG, "Our transaction went away!\n");
+			/* This is going to remove the transaction from the dundi_request's list, as well
+			 * as the global transactions list */
 			destroy_trans(trans, 0);
 		}
-		trans = transn;
 	}
+	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&peers);
+
 	return 0;
 }
 
 static int query_transactions(struct dundi_request *dr)
 {
 	struct dundi_transaction *trans;
+
 	AST_LIST_LOCK(&peers);
-	trans = dr->trans;
-	while(trans) {
+	AST_LIST_TRAVERSE(&dr->trans, trans, parentlist) {
 		dundi_query(trans);
-		trans = trans->next;
 	}
 	AST_LIST_UNLOCK(&peers);
+
 	return 0;
 }
 
@@ -3245,9 +3211,9 @@ static int optimize_transactions(struct dundi_request *dr, int order)
 	dundi_eid tmp;
 	int x;
 	int needpush;
+
 	AST_LIST_LOCK(&peers);
-	trans = dr->trans;
-	while(trans) {
+	AST_LIST_TRAVERSE(&dr->trans, trans, parentlist) {
 		/* Pop off the true root */
 		if (trans->eidcount) {
 			tmp = trans->eids[--trans->eidcount];
@@ -3286,9 +3252,9 @@ static int optimize_transactions(struct dundi_request *dr, int order)
 		/* If necessary, push the true root back on the end */
 		if (needpush)
 			trans->eids[trans->eidcount++] = tmp;
-		trans = trans->next;
 	}
 	AST_LIST_UNLOCK(&peers);
+
 	return 0;
 }
 
@@ -3298,6 +3264,7 @@ static int append_transaction(struct dundi_request *dr, struct dundi_peer *p, in
 	int x;
 	char eid_str[20];
 	char eid_str2[20];
+
 	/* Ignore if not registered */
 	if (!p->addr.sin_addr.s_addr)
 		return 0;
@@ -3310,40 +3277,39 @@ static int append_transaction(struct dundi_request *dr, struct dundi_peer *p, in
 	trans = create_transaction(p);
 	if (!trans)
 		return -1;
-	trans->next = dr->trans;
 	trans->parent = dr;
 	trans->ttl = ttl;
-	for (x=0;avoid[x] && (x <DUNDI_MAX_STACK);x++)
+	for (x = 0; avoid[x] && (x < DUNDI_MAX_STACK); x++)
 		trans->eids[x] = *avoid[x];
 	trans->eidcount = x;
-	dr->trans = trans;
+	AST_LIST_INSERT_HEAD(&dr->trans, trans, parentlist);
+	
 	return 0;
 }
 
 static void cancel_request(struct dundi_request *dr)
 {
-	struct dundi_transaction *trans, *next;
+	struct dundi_transaction *trans;
 
 	AST_LIST_LOCK(&peers);
-	trans = dr->trans;
-	
-	while(trans) {
-		next = trans->next;
+	while ((trans = AST_LIST_REMOVE_HEAD(&dr->trans, parentlist))) {
 		/* Orphan transaction from request */
 		trans->parent = NULL;
-		trans->next = NULL;
 		/* Send final cancel */
 		dundi_send(trans, DUNDI_COMMAND_CANCEL, 0, 1, NULL);
-		trans = next;
 	}
 	AST_LIST_UNLOCK(&peers);
 }
 
 static void abort_request(struct dundi_request *dr)
 {
+	struct dundi_transaction *trans;
+
 	AST_LIST_LOCK(&peers);
-	while(dr->trans) 
-		destroy_trans(dr->trans, 0);
+	while ((trans = AST_LIST_FIRST(&dr->trans))) {
+		/* This will remove the transaction from the list */
+		destroy_trans(trans, 0);
+	}
 	AST_LIST_UNLOCK(&peers);
 }
 
@@ -3539,7 +3505,7 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 		skipped = 0;
 		foundcache = 0;
 		build_transactions(&dr, ttl, order, &foundcache, &skipped, blockempty, cbypass, modeselect, skip, avoid, direct);
-	} while (skipped && !foundcache && !dr.trans);
+	} while (skipped && !foundcache && AST_LIST_EMPTY(&dr.trans));
 	/* If no TTL, abort and return 0 now after setting TTL expired hint.  Couldn't
 	   do this earlier because we didn't know if we were going to have transactions
 	   or not. */
@@ -3558,7 +3524,7 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 	discover_transactions(&dr);
 	/* Wait for transaction to come back */
 	start = ast_tvnow();
-	while(dr.trans && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms) && (!chan || !chan->_softhangup)) {
+	while (!AST_LIST_EMPTY(&dr.trans) && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms) && (!chan || !chan->_softhangup)) {
 		ms = 100;
 		ast_waitfor_n_fd(dr.pfds, 1, &ms, NULL);
 	}
@@ -3710,7 +3676,7 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 			ast_log(LOG_NOTICE, "Weird, expiration = %d, but need to precache for %s@%s?!\n", dr.expiration, dr.number, dr.dcontext);
 	}
 	start = ast_tvnow();
-	while(dr.trans && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms)) {
+	while (!AST_LIST_EMPTY(&dr.trans) && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms)) {
 		if (dr.pfds[0] > -1) {
 			ms = 100;
 			ast_waitfor_n_fd(dr.pfds, 1, &ms, NULL);
@@ -3772,7 +3738,7 @@ static int dundi_query_eid_internal(struct dundi_entity_info *dei, const char *d
 	query_transactions(&dr);
 	/* Wait for transaction to come back */
 	start = ast_tvnow();
-	while(dr.trans && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms))
+	while (!AST_LIST_EMPTY(&dr.trans) && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms))
 		usleep(1);
 	res = dr.respcount;
 	return res;
@@ -3889,8 +3855,6 @@ static void destroy_peer(struct dundi_peer *peer)
 		ast_sched_del(sched, peer->registerid);
 	if (peer->regtrans)
 		destroy_trans(peer->regtrans, 0);
-	if (peer->keypending)
-		destroy_trans(peer->keypending, 0);
 	if (peer->qualifyid > -1)
 		ast_sched_del(sched, peer->qualifyid);
 	destroy_permissions(peer->permit);
