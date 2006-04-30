@@ -184,7 +184,6 @@ ifeq ($(OSARCH),Linux)
     # You must have GCC 3.4 to use k8, otherwise use athlon
     PROC=k8
     #PROC=athlon
-    OPTIONS+=-m64
   endif
 
   ifeq ($(PROC),sparc64)
@@ -205,9 +204,9 @@ ifeq ($(OSARCH),Linux)
       OPTIONS+=-fsigned-char -mcpu=ep9312
     else
       ifeq ($(SUB_PROC),xscale)
-        OPTIONS+=-fsigned-char -msoft-float -mcpu=xscale
+        OPTIONS+=-fsigned-char -mcpu=xscale
       else
-        OPTIONS+=-fsigned-char -msoft-float 
+        OPTIONS+=-fsigned-char 
       endif
     endif
   endif
