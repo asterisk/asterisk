@@ -3995,13 +3995,11 @@ static void build_mapping(char *name, char *value)
 				break;
 		}
 		if (!map) {
-			map = ast_calloc(1, sizeof(*map));
-			if (map) {
-				AST_LIST_INSERT_HEAD(&mappings, map, list);
-				map->dead = 1;
-			}
+			if (!(map = ast_calloc(1, sizeof(*map))))
+				return;
+			AST_LIST_INSERT_HEAD(&mappings, map, list);
+			map->dead = 1;
 		}
-		if (map) {
 			map->options = 0;
 			memset(fields, 0, sizeof(fields));
 			x = 0;
@@ -4046,7 +4044,6 @@ static void build_mapping(char *name, char *value)
 				}
 			} else 
 				ast_log(LOG_WARNING, "Expected at least %d arguments in map, but got only %d\n", 4, x);
-		}
 	}
 }
 
