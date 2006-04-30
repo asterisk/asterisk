@@ -10,7 +10,7 @@ endif
 #Added support for UltraSparc - Belgarath
 ifeq ($(ARCH),sparc64)
 PROC=ultrasparc
-CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
+CFLAGS += -mtune=$(PROC) -pipe -fomit-frame-pointer -mcpu=v8
 endif
 
 LIBDBSO=libdb.so.$(SOVER)
