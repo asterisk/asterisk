@@ -32,7 +32,7 @@ endif
 #the default as we now have a better instruction set to work with. - Belgarath
 ifeq ($(PROC),sparc64)
  PROC=ultrasparc
-  CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
+  CFLAGS += -mtune=$(PROC) -pipe -fomit-frame-pointer -mcpu=v8
 endif
 
 #
