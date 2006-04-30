@@ -517,6 +517,7 @@ target : goto_word { $$ = nword($1, &@1); }
 		$$->next->next = nword($5, &@5); }
 	;
 
+/* XXX please document the form of jumptarget */
 jumptarget : goto_word {
 		$$ = nword($1, &@1);
 		$$->next = nword(strdup("1"), &@1); }  /*  jump extension[,priority][@context] */
@@ -525,7 +526,7 @@ jumptarget : goto_word {
 		$$->next = nword($3, &@3); }
 	| goto_word COMMA word AT word {
 		$$ = npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = $5;
+		$$->u1.str = $5;	/* XXX must check this */
 		$$->next = npval2(PV_WORD, &@3, &@3);
 		$$->next->u1.str = $1;
 		$$->next->next = npval2(PV_WORD, &@5, &@5);
@@ -587,17 +588,14 @@ opt_word : word { $$ = $1 }
 	| { $$ = strdup(""); }
 	;
 
-eval_arglist :  word_list { 
-		$$= npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = $1;}
+eval_arglist :  word_list { $$ = nword($1, &@1); }
 	| /*nothing! */   {
 		$$= npval(PV_WORD,0/*@1.first_line*/,0/*@1.last_line*/,0/* @1.first_column*/, 0/*@1.last_column*/);
 		$$->u1.str = strdup(""); }
 	| eval_arglist COMMA  opt_word {
-		pval *z = npval2(PV_WORD, &@3, &@3);
+		pval *z = nword($3, &@3);
 		$$ = $1;
-		linku1($1,z);
-		z->u1.str = $3;}
+		linku1($1,z); }
 	;
 
 case_statements: case_statement {$$=$1;}
@@ -679,25 +677,18 @@ includeslist : includedname SEMI {
 		free($3);
 		free($5);
 		free($7);
-		$$->u2.arglist->next = npval2(PV_WORD, &@9, &@9);
-		$$->u2.arglist->next->u1.str = $9;
-		$$->u2.arglist->next->next = npval2(PV_WORD, &@11, &@11);
-		$$->u2.arglist->next->next->u1.str = $11;
-		$$->u2.arglist->next->next->next = npval2(PV_WORD, &@13, &@13);
-		$$->u2.arglist->next->next->next->u1.str = $13;
+		$$->u2.arglist->next = nword($9, &@9);
+		$$->u2.arglist->next->next = nword($11, &@11);
+		$$->u2.arglist->next->next->next = nword($13, &@13);
 		prev_word=0;
 	}
 	| includedname BAR word BAR word3_list BAR word3_list BAR word3_list SEMI {
 		$$ = npval2(PV_WORD, &@1, &@2);
 		$$->u1.str = $1;
-		$$->u2.arglist = npval2(PV_WORD, &@3, &@3);
-		$$->u2.arglist->u1.str = $3;
-		$$->u2.arglist->next = npval2(PV_WORD, &@5, &@5);
-		$$->u2.arglist->next->u1.str = $5;
-		$$->u2.arglist->next->next = npval2(PV_WORD, &@7, &@7);
-		$$->u2.arglist->next->next->u1.str = $7;
-		$$->u2.arglist->next->next->next = npval2(PV_WORD, &@9, &@9);
-		$$->u2.arglist->next->next->next->u1.str = $9;
+		$$->u2.arglist = nword($3, &@3);
+		$$->u2.arglist->next = nword($5, &@5);
+		$$->u2.arglist->next->next = nword($7, &@7);
+		$$->u2.arglist->next->next->next = nword($9, &@9);
 		prev_word=0;
 	}
 	| includeslist includedname SEMI {
@@ -715,27 +706,21 @@ includeslist : includedname SEMI {
 		free($4);
 		free($6);
 		free($8);
-		z->u2.arglist->next = npval2(PV_WORD, &@10, &@10);
-		z->u2.arglist->next->u1.str = $10;
-		z->u2.arglist->next->next = npval2(PV_WORD, &@12, &@12);
-		z->u2.arglist->next->next->u1.str = $12;
-		z->u2.arglist->next->next->next = npval2(PV_WORD, &@14, &@14);
-		z->u2.arglist->next->next->next->u1.str = $14;
+		z->u2.arglist->next = nword($10, &@10);
+		z->u2.arglist->next->next = nword($12, &@12);
+		z->u2.arglist->next->next->next = nword($14, &@14);
 		prev_word=0;
 	}
 	| includeslist includedname BAR word BAR word3_list BAR word3_list BAR word3_list SEMI {
 		pval *z = npval2(PV_WORD, &@2, &@3);
 		$$=$1;
 		linku1($$,z);
-		$$->u2.arglist->u1.str = $4;
+		$$->u2.arglist->u1.str = $4;			/* XXX maybe too early ? */
 		z->u1.str = $2;
 		z->u2.arglist = npval2(PV_WORD, &@4, &@4);	/* XXX is this correct ? */
-		z->u2.arglist->next = npval2(PV_WORD, &@6, &@6);
-		z->u2.arglist->next->u1.str = $6;
-		z->u2.arglist->next->next = npval2(PV_WORD, &@8, &@8);
-		z->u2.arglist->next->next->u1.str = $8;
-		z->u2.arglist->next->next->next = npval2(PV_WORD, &@10, &@10);
-		z->u2.arglist->next->next->next->u1.str = $10;
+		z->u2.arglist->next = nword($6, &@6);
+		z->u2.arglist->next->next = nword($8, &@8);
+		z->u2.arglist->next->next->next = nword($10, &@10);
 		prev_word=0;
 	}
 	| includeslist error {$$=$1;}
