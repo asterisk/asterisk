@@ -686,6 +686,8 @@ static yyconst flex_int16_t yy_chk[553] =
  */
 static char pbcstack[400];	/* XXX missing size checks */
 static int pbcpos = 0;
+static void pbcpush(char x);
+static int pbcpop(char x);
 
 static int parencount = 0;
 static int commaout = 0;
@@ -710,8 +712,6 @@ int ael_yyget_column  (yyscan_t yyscanner);
 void ael_yyset_column (int  column_no , yyscan_t yyscanner);
 
 int ael_yyparse (struct parse_io *);
-static void pbcpush(char x);
-static int pbcpop(char x);
 
 /*
  * A stack to process include files.
@@ -1348,8 +1348,7 @@ YY_RULE_SETUP
 		} else {
 			STORE_LOC;
 			yylval->str = strdup(yytext);
-			*(yylval->str+strlen(yylval->str)-1)=0;
-			/* printf("Got paren word %s\n", yylval->str); */
+			yylval->str[strlen(yylval->str)-1] = '\0'; /* trim trailing ')' */
 			unput(')');
 			BEGIN(0);
 			return word;
@@ -1359,7 +1358,7 @@ YY_RULE_SETUP
 case 45:
 /* rule 45 can match eol */
 YY_RULE_SETUP
-#line 251 "ael.flex"
+#line 250 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if (c == '(')
@@ -1371,7 +1370,7 @@ YY_RULE_SETUP
 case 46:
 /* rule 46 can match eol */
 YY_RULE_SETUP
-#line 259 "ael.flex"
+#line 258 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c))  { /* error */
@@ -1388,7 +1387,7 @@ YY_RULE_SETUP
 case 47:
 /* rule 47 can match eol */
 YY_RULE_SETUP
-#line 272 "ael.flex"
+#line 271 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if (c == '(')
@@ -1400,7 +1399,7 @@ YY_RULE_SETUP
 case 48:
 /* rule 48 can match eol */
 YY_RULE_SETUP
-#line 280 "ael.flex"
+#line 279 "ael.flex"
 {
 		if ( pbcpop(')') ) { /* error */
 			STORE_LOC;
@@ -1417,7 +1416,7 @@ YY_RULE_SETUP
 			STORE_LOC;
 			yylval->str = strdup(yytext);
 			if(yyleng > 1 )
-				*(yylval->str+yyleng-1)=0;
+				yylval->str[yyleng-1] = '\0'; /* trim trailing ')' */
 			BEGIN(0);
 			if ( !strcmp(yylval->str,")") ) {
 				free(yylval->str);
@@ -1434,7 +1433,7 @@ YY_RULE_SETUP
 case 49:
 /* rule 49 can match eol */
 YY_RULE_SETUP
-#line 310 "ael.flex"
+#line 309 "ael.flex"
 {
 		if( parencount != 0) { /* printf("Folding in a comma!\n"); */
 			yymore();
@@ -1464,7 +1463,7 @@ YY_RULE_SETUP
 case 50:
 /* rule 50 can match eol */
 YY_RULE_SETUP
-#line 336 "ael.flex"
+#line 335 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c) ) { /* error */
@@ -1480,7 +1479,7 @@ YY_RULE_SETUP
 case 51:
 /* rule 51 can match eol */
 YY_RULE_SETUP
-#line 350 "ael.flex"
+#line 349 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		yymore();
@@ -1490,7 +1489,7 @@ YY_RULE_SETUP
 case 52:
 /* rule 52 can match eol */
 YY_RULE_SETUP
-#line 356 "ael.flex"
+#line 355 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c) ) { /* error */
@@ -1506,7 +1505,7 @@ YY_RULE_SETUP
 case 53:
 /* rule 53 can match eol */
 YY_RULE_SETUP
-#line 368 "ael.flex"
+#line 367 "ael.flex"
 {
 		STORE_LOC;
 		yylval->str = strdup(yytext);
@@ -1520,7 +1519,7 @@ YY_RULE_SETUP
 case 54:
 /* rule 54 can match eol */
 YY_RULE_SETUP
-#line 378 "ael.flex"
+#line 377 "ael.flex"
 {
 		FILE *in1;
 		char fnamebuf[1024],*p1,*p2;
@@ -1587,7 +1586,7 @@ case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(paren):
 case YY_STATE_EOF(semic):
 case YY_STATE_EOF(argg):
-#line 440 "ael.flex"
+#line 439 "ael.flex"
 {
 		if ( --include_stack_index < 0 ) {
 			yyterminate();
@@ -1603,10 +1602,10 @@ case YY_STATE_EOF(argg):
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 453 "ael.flex"
+#line 452 "ael.flex"
 ECHO;
 	YY_BREAK
-#line 1610 "ael_lex.c"
+#line 1609 "ael_lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2736,7 +2735,7 @@ void ael_yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 453 "ael.flex"
+#line 452 "ael.flex"
 
 
 

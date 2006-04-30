@@ -70,6 +70,8 @@
  */
 static char pbcstack[400];	/* XXX missing size checks */
 static int pbcpos = 0;
+static void pbcpush(char x);
+static int pbcpop(char x);
 
 static int parencount = 0;
 static int commaout = 0;
@@ -94,8 +96,6 @@ int ael_yyget_column  (yyscan_t yyscanner);
 void ael_yyset_column (int  column_no , yyscan_t yyscanner);
 
 int ael_yyparse (struct parse_io *);
-static void pbcpush(char x);
-static int pbcpop(char x);
 
 /*
  * A stack to process include files.
@@ -240,8 +240,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		} else {
 			STORE_LOC;
 			yylval->str = strdup(yytext);
-			*(yylval->str+strlen(yylval->str)-1)=0;
-			/* printf("Got paren word %s\n", yylval->str); */
+			yylval->str[strlen(yylval->str)-1] = '\0'; /* trim trailing ')' */
 			unput(')');
 			BEGIN(0);
 			return word;
@@ -293,7 +292,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			STORE_LOC;
 			yylval->str = strdup(yytext);
 			if(yyleng > 1 )
-				*(yylval->str+yyleng-1)=0;
+				yylval->str[yyleng-1] = '\0'; /* trim trailing ')' */
 			BEGIN(0);
 			if ( !strcmp(yylval->str,")") ) {
 				free(yylval->str);
