@@ -34,12 +34,6 @@ else
   SNMP_LDLIBS+=$(shell net-snmp-config --agent-libs)
 endif
 
-
-#
-# Work around buggy RedHat 9.0
-#
-CFLAGS+=-DOPENSSL_NO_KRB5
-
 all: depend $(MODS)
 
 install: all
