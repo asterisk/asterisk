@@ -208,8 +208,8 @@ struct dundi_request {
 	int pfds[2];
 	unsigned long crc32;                   /*!< CRC-32 of all but root EID's in avoid list */
 	struct dundi_transaction *trans;       /*!< Transactions */
-	struct dundi_request *next;
-} *requests;
+	AST_LIST_ENTRY(dundi_request) list;
+};
 
 struct dundi_mapping {
 	char dcontext[AST_MAX_EXTENSION];
@@ -264,6 +264,7 @@ struct dundi_peer {
 
 AST_LIST_HEAD_STATIC(peers, dundi_peer);
 AST_LIST_HEAD_NOLOCK_STATIC(mappings, dundi_mapping);
+AST_LIST_HEAD_NOLOCK_STATIC(requests, dundi_request);
 
 static struct dundi_precache_queue *pcq;
 
@@ -2566,9 +2567,9 @@ static int dundi_show_requests(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	AST_LIST_LOCK(&peers);
 	ast_cli(fd, FORMAT2, "Number", "Context", "Root", "Max", "Rsp");
-	for (req = requests;req;req = req->next) {
-			ast_cli(fd, FORMAT, req->number, req->dcontext,
-						dundi_eid_zero(&req->root_eid) ? "<unspecified>" : dundi_eid_to_str(eidstr, sizeof(eidstr), &req->root_eid), req->maxcount, req->respcount);
+	AST_LIST_TRAVERSE(&requests, req, list) {
+		ast_cli(fd, FORMAT, req->number, req->dcontext,
+			dundi_eid_zero(&req->root_eid) ? "<unspecified>" : dundi_eid_to_str(eidstr, sizeof(eidstr), &req->root_eid), req->maxcount, req->respcount);
 	}
 	AST_LIST_UNLOCK(&peers);
 	return RESULT_SUCCESS;
@@ -3412,28 +3413,25 @@ static int register_request(struct dundi_request *dr, struct dundi_request **pen
 	int res=0;
 	char eid_str[20];
 	AST_LIST_LOCK(&peers);
-	cur = requests;
-	while(cur) {
+	AST_LIST_TRAVERSE(&requests, cur, list) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Checking '%s@%s' vs '%s@%s'\n", cur->dcontext, cur->number,
 				dr->dcontext, dr->number);
 		if (!strcasecmp(cur->dcontext, dr->dcontext) &&
 		    !strcasecmp(cur->number, dr->number) &&
-			(!dundi_eid_cmp(&cur->root_eid, &dr->root_eid) || (cur->crc32 == dr->crc32))) {
-				ast_log(LOG_DEBUG, "Found existing query for '%s@%s' for '%s' crc '%08lx'\n", 
-					cur->dcontext, cur->number, dundi_eid_to_str(eid_str, sizeof(eid_str), &cur->root_eid), cur->crc32);
-				*pending = cur;
+		    (!dundi_eid_cmp(&cur->root_eid, &dr->root_eid) || (cur->crc32 == dr->crc32))) {
+			ast_log(LOG_DEBUG, "Found existing query for '%s@%s' for '%s' crc '%08lx'\n", 
+				cur->dcontext, cur->number, dundi_eid_to_str(eid_str, sizeof(eid_str), &cur->root_eid), cur->crc32);
+			*pending = cur;
 			res = 1;
 			break;
 		}
-		cur = cur->next;
 	}
 	if (!res) {
 		ast_log(LOG_DEBUG, "Registering request for '%s@%s' on behalf of '%s' crc '%08lx'\n", 
 				dr->number, dr->dcontext, dundi_eid_to_str(eid_str, sizeof(eid_str), &dr->root_eid), dr->crc32);
 		/* Go ahead and link us in since nobody else is searching for this */
-		dr->next = requests;
-		requests = dr;
+		AST_LIST_INSERT_HEAD(&requests, dr, list);
 		*pending = NULL;
 	}
 	AST_LIST_UNLOCK(&peers);
@@ -3442,39 +3440,23 @@ static int register_request(struct dundi_request *dr, struct dundi_request **pen
 
 static void unregister_request(struct dundi_request *dr)
 {
-	struct dundi_request *cur, *prev;
 	AST_LIST_LOCK(&peers);
-	prev = NULL;
-	cur = requests;
-	while(cur) {
-		if (cur == dr) {
-			if (prev)
-				prev->next = cur->next;
-			else
-				requests = cur->next;
-			break;
-		}
-		prev = cur;
-		cur = cur->next;
-	}
+	AST_LIST_REMOVE(&requests, dr, list);
 	AST_LIST_UNLOCK(&peers);
 }
 
 static int check_request(struct dundi_request *dr)
 {
 	struct dundi_request *cur;
-	int res = 0;
+
 	AST_LIST_LOCK(&peers);
-	cur = requests;
-	while(cur) {
-		if (cur == dr) {
-			res = 1;
+	AST_LIST_TRAVERSE(&requests, cur, list) {
+		if (cur == dr)
 			break;
-		}
-		cur = cur->next;
 	}
 	AST_LIST_UNLOCK(&peers);
-	return res;
+	
+	return cur ? 1 : 0;
 }
 
 static unsigned long avoid_crc32(dundi_eid *avoid[])
