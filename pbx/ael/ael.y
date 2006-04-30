@@ -28,10 +28,6 @@
 #include "asterisk/utils.h"		/* ast_calloc() */
 #include "asterisk/ael_structs.h"
 
-/* create a new object with start-end marker */
-static pval *npval(pvaltype type, int first_line, int last_line,
-	int first_column, int last_column);
-
 static pval * linku1(pval *head, pval *tail);
 
 void reset_parencount(yyscan_t yyscanner);
@@ -61,10 +57,17 @@ static char *ael_token_subst(char *mess);
 void yyerror(YYLTYPE *locp, struct parse_io *parseio, char const *s);
 int ael_yylex (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , void * yyscanner);
 
+/* create a new object with start-end marker */
+static pval *npval(pvaltype type, int first_line, int last_line,
+	int first_column, int last_column);
+
 /* create a new object with start-end marker, simplified interface.
  * Must be declared here because YYLTYPE is not known before
  */
 static pval *npval2(pvaltype type, YYLTYPE *first, YYLTYPE *last);
+
+/* another frontend for npval, this time for a string */
+static pval *nword(char *string, YYLTYPE *pos);
 
 /* update end position of an object, return the object */
 static pval *update_last(pval *, YYLTYPE *);
@@ -244,9 +247,7 @@ global_statement : word EQ { reset_semicount(parseio->scanner); }  word SEMI {
 		$$->u2.val = $4; }
 	;
 
-arglist : word {
-		$$= npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = $1; }
+arglist : word { $$= nword($1, &@1); }
 	| arglist COMMA word {
 		pval *z = npval2(PV_WORD, &@1, &@3);
 		z->u1.str = $3;
@@ -332,24 +333,17 @@ iftime_head : KW_IFTIME LP word3_list COLON word3_list COLON word3_list
 		free($3);
 		free($5);
 		free($7);
-		$$->u1.list->next = npval2(PV_WORD, &@9, &@9);
-		$$->u1.list->next->u1.str = $9;
-		$$->u1.list->next->next = npval2(PV_WORD, &@11, &@11);
-		$$->u1.list->next->next->u1.str = $11;
-		$$->u1.list->next->next->next = npval2(PV_WORD, &@13, &@13);
-		$$->u1.list->next->next->next->u1.str = $13;
+		$$->u1.list->next = nword($9, &@9);
+		$$->u1.list->next->next = nword($11, &@11);
+		$$->u1.list->next->next->next = nword($13, &@13);
 		prev_word = 0;
 	}
 	| KW_IFTIME LP word BAR word3_list BAR word3_list BAR word3_list RP {
 		$$ = npval2(PV_IFTIME, &@1, &@5); /* XXX @5 or greater ? */
-		$$->u1.list = npval2(PV_WORD, &@3, &@3);
-		$$->u1.list->u1.str = $3;
-		$$->u1.list->next = npval2(PV_WORD, &@5, &@5);
-		$$->u1.list->next->u1.str = $5;
-		$$->u1.list->next->next = npval2(PV_WORD, &@7, &@7);
-		$$->u1.list->next->next->u1.str = $7;
-		$$->u1.list->next->next->next = npval2(PV_WORD, &@9, &@9);
-		$$->u1.list->next->next->next->u1.str = $9;
+		$$->u1.list = nword($3, &@3);
+		$$->u1.list->next = nword($5, &@5);
+		$$->u1.list->next->next = nword($7, &@7);
+		$$->u1.list->next->next->next = nword($9, &@9);
 		prev_word = 0;
 	}
 
@@ -498,58 +492,37 @@ opt_else : KW_ELSE statement { $$ = $2; }
 /* XXX unused */
 bar_or_comma: BAR | COMMA ;
 
-target : goto_word { $$ = npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = $1;}
+target : goto_word { $$ = nword($1, &@1); }
 	| goto_word BAR goto_word {
-		$$ = npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = $1;
-		$$->next = npval2(PV_WORD, &@3, &@3);
-		$$->next->u1.str = $3;}
+		$$ = nword($1, &@1);
+		$$->next = nword($3, &@3); }
 	| goto_word COMMA goto_word {
-		$$ = npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = $1;
-		$$->next = npval2(PV_WORD, &@3, &@3);
-		$$->next->u1.str = $3;}
+		$$ = nword($1, &@1);
+		$$->next = nword($3, &@3); }
 	| goto_word BAR goto_word BAR goto_word {
-		$$ = npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = $1;
-		$$->next = npval2(PV_WORD, &@3, &@3);
-		$$->next->u1.str = $3;
-		$$->next->next = npval2(PV_WORD, &@5, &@5);
-		$$->next->next->u1.str = $5; }
+		$$ = nword($1, &@1);
+		$$->next = nword($3, &@3);
+		$$->next->next = nword($5, &@5); }
 	| goto_word COMMA goto_word COMMA goto_word {
-		$$ = npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = $1;
-		$$->next = npval2(PV_WORD, &@3, &@3);
-		$$->next->u1.str = $3;
-		$$->next->next = npval2(PV_WORD, &@5, &@5);
-		$$->next->next->u1.str = $5; }
+		$$ = nword($1, &@1);
+		$$->next = nword($3, &@3);
+		$$->next->next = nword($5, &@5); }
 	| KW_DEFAULT BAR goto_word BAR goto_word {
-		$$ = npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = strdup("default");
-		$$->next = npval2(PV_WORD, &@3, &@3);
-		$$->next->u1.str = $3;
-		$$->next->next = npval2(PV_WORD, &@5, &@5);
-		$$->next->next->u1.str = $5; }
+		$$ = nword(strdup("default"), &@1);
+		$$->next = nword($3, &@3);
+		$$->next->next = nword($5, &@5); }
 	| KW_DEFAULT COMMA goto_word COMMA goto_word {
-		$$ = npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = strdup("default");
-		$$->next = npval2(PV_WORD, &@3, &@3);
-		$$->next->u1.str = $3;
-		$$->next->next = npval2(PV_WORD, &@5, &@5);
-		$$->next->next->u1.str = $5; }
+		$$ = nword(strdup("default"), &@1);
+		$$->next = nword($3, &@3);
+		$$->next->next = nword($5, &@5); }
 	;
 
 jumptarget : goto_word {
-		$$ = npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = $1;
-		$$->next = npval2(PV_WORD, &@1, &@1); /* XXX not really @1 */
-		$$->next->u1.str = strdup("1");}  /*  jump extension[,priority][@context] */
+		$$ = nword($1, &@1);
+		$$->next = nword(strdup("1"), &@1); }  /*  jump extension[,priority][@context] */
 	| goto_word COMMA goto_word {
-		$$ = npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = $1;
-		$$->next = npval2(PV_WORD, &@3, &@3);
-		$$->next->u1.str = $3;}
+		$$ = nword($1, &@1);
+		$$->next = nword($3, &@3); }
 	| goto_word COMMA word AT word {
 		$$ = npval2(PV_WORD, &@1, &@1);
 		$$->u1.str = $5;
@@ -943,6 +916,15 @@ static struct pval *update_last(pval *obj, YYLTYPE *last)
 	obj->endline = last->last_line;
 	obj->endcol = last->last_column;
 	return obj;
+}
+
+/* frontend for npval to create a PV_WORD string from the given token */
+static pval *nword(char *string, YYLTYPE *pos)
+{
+	pval *p = npval2(PV_WORD, pos, pos);
+	if (p)
+		p->u1.str = string;
+	return p;
 }
 
 /* append second element to the list in the first one */
