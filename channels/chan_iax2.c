@@ -5062,10 +5062,10 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	}
 	ast_mutex_unlock(&userl.lock);
 	user = best;
-	if (!user && !ast_strlen_zero(iaxs[callno]->username) && (strlen(iaxs[callno]->username) < 128)) {
+	if (!user && !ast_strlen_zero(iaxs[callno]->username)) {
 		user = realtime_user(iaxs[callno]->username);
 		if (user && !ast_strlen_zero(iaxs[callno]->context) &&			/* No context specified */
-			     !apply_context(user->contexts, iaxs[callno]->context)) {			/* Context is permitted */
+		    !apply_context(user->contexts, iaxs[callno]->context)) {		/* Context is permitted */
 			destroy_user(user);
 			user = NULL;
 		}
