@@ -196,8 +196,9 @@ ifneq ($(wildcard makeopts),)
 endif
 
 ASTCFLAGS+=$(MENUSELECT_CFLAGS)
-TOPDIR_CFLAGS=-include include/autoconfig.h
-MOD_SUBDIR_CFLAGS=-include ../include/autoconfig.h
+TOPDIR_CFLAGS=-include include/autoconfig.h -Iinclude
+MOD_SUBDIR_CFLAGS=-include ../include/autoconfig.h -I../include -I..
+OTHER_SUBDIR_CFLAGS=-include ../include/autoconfig.h -I../include -I..
 
 #   *CLI> show memory allocations [filename]
 #   *CLI> show memory summary [filename]
@@ -252,7 +253,6 @@ ifeq ($(OSARCH),SunOS)
   ID=/usr/xpg4/bin/id
 endif
 
-INCLUDE+=-Iinclude -I../include -I..
 ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) #-DMAKE_VALGRIND_HAPPY
 ASTCFLAGS+=$(OPTIMIZE)
 
@@ -545,8 +545,8 @@ muted: muted.o
 
 subdirs: 
 	for x in $(MOD_SUBDIRS); do CFLAGS="$(ASTCFLAGS) $(MOD_SUBDIR_CFLAGS)" $(MAKE) -C $$x || exit 1 ; done
-	CFLAGS="$(ASTCFLAGS)" $(MAKE) -C utils
-	CFLAGS="$(ASTCFLAGS) -include ../include/autoconfig.h" $(MAKE) -C agi
+	CFLAGS="$(ASTCFLAGS) $(OTHER_SUBDIR_CFLAGS)" $(MAKE) -C utils
+	CFLAGS="$(ASTCFLAGS) $(OTHER_SUBDIR_CFLAGS)" $(MAKE) -C agi
 
 clean-depend:
 	for x in $(SUBDIRS); do $(MAKE) -C $$x clean-depend || exit 1 ; done

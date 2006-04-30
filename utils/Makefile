@@ -49,10 +49,10 @@ clean: clean-depend
 	rm -f ast_expr2.o ast_expr2f.o
 
 astman.o: astman.c
-	$(CC) $(CFLAGS) -include ../include/autoconfig.h -c -o $@ $<
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 astman: astman.o ../md5.o
-	$(CC) -D_GNU_SOURCE -o $@ $< ../md5.o -lnewt
+	$(CC) $(CFLAGS) -o $@ $< ../md5.o -lnewt
 
 stereorize: stereorize.o frame.o
 	$(CC) $(CFLAGS) -o stereorize stereorize.o frame.o -lm
@@ -60,10 +60,10 @@ stereorize: stereorize.o frame.o
 .PHONY: ../ast_expr2.c ../ast_expr2f.c ../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ../pbx/pbx_ael.o
 
 ast_expr2.o: ../ast_expr2.c
-	gcc  $(CFLAGS) -include ../include/autoconfig.h -c -o $@ $<
+	gcc  $(CFLAGS) -c -o $@ $<
 
 ast_expr2f.o: ../ast_expr2f.c
-	gcc  $(CFLAGS) -include ../include/autoconfig.h -c -DSTANDALONE -o $@ $<
+	gcc  $(CFLAGS) -c -DSTANDALONE -o $@ $<
 
 check_expr: check_expr.c ast_expr2.o ast_expr2f.o
 	$(CC) $(CFLAGS) -o $@ $^
@@ -72,7 +72,7 @@ aelparse : ../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ../pbx/pbx_ael.o ael_main.
 	$(CC) $(CFLAGS) -g -o aelparse ../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ael_main.o ../pbx/pbx_ael.o ../ast_expr2f.o ../ast_expr2.o
 
 ael_main.o : ael_main.c ../include/asterisk/ael_structs.h
-	$(CC) $(CFLAGS) -include ../include/autoconfig.h -c -g -o ael_main.o ael_main.c
+	$(CC) $(CFLAGS) -c -g -o ael_main.o ael_main.c
 
 ael_main1.o : ael_main.c ../include/asterisk/ael_structs.h
 	$(CC) $(CFLAGS) -c -g  -o ael_main1.o ael_main.c
@@ -85,7 +85,7 @@ testexpr2s: ../ast_expr2f.c ../ast_expr2.c ../ast_expr2.h
 	./testexpr2s expr2.testinput
 
 smsq.o: smsq.c
-	$(CC) $(CFLAGS) -include ../include/autoconfig.h -c -o $@ $<
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 smsq: smsq.o
 	$(CC) $(CFLAGS) -o smsq ${SOL} smsq.o -lpopt

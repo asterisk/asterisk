@@ -59,10 +59,10 @@ ael/aelflex.o: ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h
 ael/aelbison.o: ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h
 	$(CC) $(CFLAGS) -I. -c -o ael/aelbison.o ael/ael.tab.c
 
-ael/ael_lex.c: ael/ael.flex
+ael/ael_lex.c:
 	(cd ael; flex ael.flex)
 
-ael/ael.tab.c ael/ael.tab.h: ael/ael.y
+ael/ael.tab.c ael/ael.tab.h:
 	(cd ael; bison -v -d ael.y)
 
 %.moc : %.h
