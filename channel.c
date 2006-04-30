@@ -3330,9 +3330,7 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 		    (f->frametype == AST_FRAME_VIDEO) ||
 		    (f->frametype == AST_FRAME_IMAGE) ||
 		    (f->frametype == AST_FRAME_HTML) ||
-#if defined(T38_SUPPORT)
 		    (f->frametype == AST_FRAME_MODEM) ||
-#endif
 		    (f->frametype == AST_FRAME_TEXT)) {
 			/* monitored dtmf causes exit from bridge */
 			int monitored_source = (who == c0) ? watch_c0_dtmf : watch_c1_dtmf;
