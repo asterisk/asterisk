@@ -3988,64 +3988,64 @@ static void build_mapping(char *name, char *value)
 	if (!(t = ast_strdupa(value)))
 		return;
 		
-		AST_LIST_TRAVERSE(&mappings, map, list) {
-			/* Find a double match */
-			if (!strcasecmp(map->dcontext, name) && 
-				(!strncasecmp(map->lcontext, value, strlen(map->lcontext)) && 
-				  (!value[strlen(map->lcontext)] || 
-				   (value[strlen(map->lcontext)] == ','))))
-				break;
+	AST_LIST_TRAVERSE(&mappings, map, list) {
+		/* Find a double match */
+		if (!strcasecmp(map->dcontext, name) && 
+			(!strncasecmp(map->lcontext, value, strlen(map->lcontext)) && 
+			  (!value[strlen(map->lcontext)] || 
+			   (value[strlen(map->lcontext)] == ','))))
+			break;
+	}
+	if (!map) {
+		if (!(map = ast_calloc(1, sizeof(*map))))
+			return;
+		AST_LIST_INSERT_HEAD(&mappings, map, list);
+		map->dead = 1;
+	}
+	map->options = 0;
+	memset(fields, 0, sizeof(fields));
+	x = 0;
+	while (t && x < MAX_OPTS) {
+		fields[x++] = t;
+		t = strchr(t, ',');
+		if (t) {
+			*t = '\0';
+			t++;
 		}
-		if (!map) {
-			if (!(map = ast_calloc(1, sizeof(*map))))
-				return;
-			AST_LIST_INSERT_HEAD(&mappings, map, list);
-			map->dead = 1;
+	} /* Russell was here, arrrr! */
+	if ((x == 1) && ast_strlen_zero(fields[0])) {
+		/* Placeholder mapping */
+		ast_copy_string(map->dcontext, name, sizeof(map->dcontext));
+		map->dead = 0;
+	} else if (x >= 4) {
+		ast_copy_string(map->dcontext, name, sizeof(map->dcontext));
+		ast_copy_string(map->lcontext, fields[0], sizeof(map->lcontext));
+		if ((sscanf(fields[1], "%d", &map->weight) == 1) && (map->weight >= 0) && (map->weight < 60000)) {
+			ast_copy_string(map->dest, fields[3], sizeof(map->dest));
+			if ((map->tech = str2tech(fields[2]))) {
+				map->dead = 0;
+			}
+		} else {
+			ast_log(LOG_WARNING, "Invalid weight '%s' specified, deleting entry '%s/%s'\n", fields[1], map->dcontext, map->lcontext);
 		}
-		map->options = 0;
-		memset(fields, 0, sizeof(fields));
-		x = 0;
-		while (t && x < MAX_OPTS) {
-			fields[x++] = t;
-			t = strchr(t, ',');
-			if (t) {
-				*t = '\0';
-				t++;
-			}
-		} /* Russell was here, arrrr! */
-		if ((x == 1) && ast_strlen_zero(fields[0])) {
-			/* Placeholder mapping */
-			ast_copy_string(map->dcontext, name, sizeof(map->dcontext));
-			map->dead = 0;
-		} else if (x >= 4) {
-			ast_copy_string(map->dcontext, name, sizeof(map->dcontext));
-			ast_copy_string(map->lcontext, fields[0], sizeof(map->lcontext));
-			if ((sscanf(fields[1], "%d", &map->weight) == 1) && (map->weight >= 0) && (map->weight < 60000)) {
-				ast_copy_string(map->dest, fields[3], sizeof(map->dest));
-				if ((map->tech = str2tech(fields[2]))) {
-					map->dead = 0;
-				}
-			} else {
-				ast_log(LOG_WARNING, "Invalid weight '%s' specified, deleting entry '%s/%s'\n", fields[1], map->dcontext, map->lcontext);
-			}
-			for (y = 4;y < x; y++) {
-				if (!strcasecmp(fields[y], "nounsolicited"))
-					map->options |= DUNDI_FLAG_NOUNSOLICITED;
-				else if (!strcasecmp(fields[y], "nocomunsolicit"))
-					map->options |= DUNDI_FLAG_NOCOMUNSOLICIT;
-				else if (!strcasecmp(fields[y], "residential"))
-					map->options |= DUNDI_FLAG_RESIDENTIAL;
-				else if (!strcasecmp(fields[y], "commercial"))
-					map->options |= DUNDI_FLAG_COMMERCIAL;
-				else if (!strcasecmp(fields[y], "mobile"))
-					map->options |= DUNDI_FLAG_MOBILE;
-				else if (!strcasecmp(fields[y], "nopartial"))
-					map->options |= DUNDI_FLAG_INTERNAL_NOPARTIAL;
-				else
-					ast_log(LOG_WARNING, "Don't know anything about option '%s'\n", fields[y]);
-			}
-		} else 
-			ast_log(LOG_WARNING, "Expected at least %d arguments in map, but got only %d\n", 4, x);
+		for (y = 4;y < x; y++) {
+			if (!strcasecmp(fields[y], "nounsolicited"))
+				map->options |= DUNDI_FLAG_NOUNSOLICITED;
+			else if (!strcasecmp(fields[y], "nocomunsolicit"))
+				map->options |= DUNDI_FLAG_NOCOMUNSOLICIT;
+			else if (!strcasecmp(fields[y], "residential"))
+				map->options |= DUNDI_FLAG_RESIDENTIAL;
+			else if (!strcasecmp(fields[y], "commercial"))
+				map->options |= DUNDI_FLAG_COMMERCIAL;
+			else if (!strcasecmp(fields[y], "mobile"))
+				map->options |= DUNDI_FLAG_MOBILE;
+			else if (!strcasecmp(fields[y], "nopartial"))
+				map->options |= DUNDI_FLAG_INTERNAL_NOPARTIAL;
+			else
+				ast_log(LOG_WARNING, "Don't know anything about option '%s'\n", fields[y]);
+		}
+	} else 
+		ast_log(LOG_WARNING, "Expected at least %d arguments in map, but got only %d\n", 4, x);
 }
 
 /* \note Called with the peers list already locked */
