@@ -3984,8 +3984,10 @@ static void build_mapping(char *name, char *value)
 	struct dundi_mapping *map;
 	int x;
 	int y;
-	t = ast_strdupa(value);
-	if (t) {
+
+	if (!(t = ast_strdupa(value)))
+		return;
+		
 		AST_LIST_TRAVERSE(&mappings, map, list) {
 			/* Find a double match */
 			if (!strcasecmp(map->dcontext, name) && 
@@ -4044,7 +4046,6 @@ static void build_mapping(char *name, char *value)
 			}
 		} else 
 			ast_log(LOG_WARNING, "Expected at least %d arguments in map, but got only %d\n", 4, x);
-	}
 }
 
 /* \note Called with the peers list already locked */
