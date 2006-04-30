@@ -117,11 +117,12 @@
 #if ! defined (YYSTYPE) && ! defined (YYSTYPE_IS_DECLARED)
 #line 53 "ael.y"
 typedef union YYSTYPE {
-	char *str;
-	struct pval *pval;
+	int	intval;		/* integer value, typically flags */
+	char	*str;		/* strings */
+	struct pval *pval;	/* full objects */
 } YYSTYPE;
 /* Line 1447 of yacc.c.  */
-#line 125 "ael.tab.h"
+#line 126 "ael.tab.h"
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
 # define YYSTYPE_IS_TRIVIAL 1

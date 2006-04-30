@@ -51,8 +51,9 @@ static char *ael_token_subst(char *mess);
 
 
 %union {
-	char *str;
-	struct pval *pval;
+	int	intval;		/* integer value, typically flags */
+	char	*str;		/* strings */
+	struct pval *pval;	/* full objects */
 }
 
 %{
@@ -117,6 +118,7 @@ static pval *update_last(pval *, YYLTYPE *);
 /* XXX lr changes */
 %type <pval>opt_else
 %type <pval>elements_block
+%type <pval>switchlist_block
 
 %type <str>opt_word
 %type <str>word_or_default
@@ -125,6 +127,8 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <str>word_list
 %type <str>word3_list
 %type <str>includedname
+
+%type <intval>opt_abstract
 
 /*
  * OPTIONS
@@ -160,7 +164,7 @@ static pval *update_last(pval *, YYLTYPE *);
 		ignorepat element elements arglist global_statement
 		global_statements globals macro context object objects
 		opt_else
-		elements_block
+		elements_block switchlist_block
 
 %destructor { free($$);}  word word_list goto_word word3_list includedname opt_word word_or_default
 
@@ -195,15 +199,16 @@ word_or_default : word { $$ = $1; }
 	| KW_DEFAULT { $$ = strdup("default"); }
 	;
 
-context : KW_CONTEXT word_or_default elements_block {
-		$$ = npval2(PV_CONTEXT, &@1, &@3);
-		$$->u1.str = $2;
-		$$->u2.statements = $3; }
-	| KW_ABSTRACT KW_CONTEXT word_or_default elements_block {
+context : opt_abstract KW_CONTEXT word_or_default elements_block {
 		$$ = npval2(PV_CONTEXT, &@1, &@4);
 		$$->u1.str = $3;
 		$$->u2.statements = $4;
-		$$->u3.abstract = 1; }
+		$$->u3.abstract = $1; }
+	;
+
+/* optional "abstract" keyword */
+opt_abstract: KW_ABSTRACT { $$ = 1; }
+	| /* nothing */ { $$ = 0; }
 	;
 
 macro : KW_MACRO word LP arglist RP LC macro_statements RC {
@@ -671,11 +676,13 @@ switches : KW_SWITCHES LC switchlist RC {
 		$$ = npval2(PV_SWITCHES, &@1, &@3); }
 	;
 
-eswitches : KW_ESWITCHES LC switchlist RC {
-		$$ = npval2(PV_ESWITCHES, &@1, &@4);
-		$$->u1.list = $3; }
-	| KW_ESWITCHES LC  RC { /* empty switch list OK */
-		$$ = npval2(PV_ESWITCHES, &@1, &@3); } /* if there's nothing to declare, why include it? */
+eswitches : KW_ESWITCHES switchlist_block {
+		$$ = npval2(PV_ESWITCHES, &@1, &@2);
+		$$->u1.list = $2; }
+	;
+
+switchlist_block : LC switchlist RC { $$ = $2; }
+	| LC RC { $$ = NULL; }
 	;
 
 switchlist : word SEMI {
