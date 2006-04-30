@@ -103,15 +103,10 @@ ringtone.h: gentone
 	./gentone ringtone 440 480
 
 chan_oss.o: chan_oss.c busy.h ringtone.h
+	$(CC) -c -o $@ $(CFLAGS) $(OSSAUDIO_INCLUDE) $<
 
-ifeq ($(OSARCH),OpenBSD)
 chan_oss.so: chan_oss.o
-	$(CC) $(SOLINK) -o $@ chan_oss.o -lossaudio
-endif
-ifeq ($(OSARCH),NetBSD)
-chan_oss.so: chan_oss.o
-	$(CC) $(SOLINK) -o $@ chan_oss.o -lossaudio
-endif
+	$(CC) $(SOLINK) -o $@ chan_oss.o $(OSSAUDIO_LIB)
 
 chan_iax2.so: chan_iax2.o iax2-parser.o iax2-provision.o
 	$(CC) $(SOLINK) -o $@ $< iax2-parser.o iax2-provision.o

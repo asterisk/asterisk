@@ -174,13 +174,24 @@ AST_EXT_LIB([tds], [tds_version], [tds.h], [FREETDS], [FreeTDS])
 AST_EXT_LIB([vorbis], [vorbis_info_init], [vorbis/codec.h], [VORBIS], [Vorbis], [-lm -lvorbisenc])
 AST_EXT_LIB([z], [compress], [zlib.h], [ZLIB], [zlib])
 
+PBX_LIBossaudio=0
 if test "x${PBX_OSTYPE}" = "xLinux" ; then
-   AST_EXT_LIB([ossaudio], [oss_ioctl_mixer], [linux/soundcard.h], [OSS], [Open Sound System])
+   AC_CHECK_HEADER([linux/soundcard.h],
+                   [PBX_LIBossaudio=1
+		    AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
+		  ])
 elif test "x${PBX_OSTYPE}" = "xFreeBSD" ; then
-   AST_EXT_LIB([ossaudio], [oss_ioctl_mixer], [sys/soundcard.h], [OSS], [Open Sound System])
-else
+   AC_CHECK_HEADER([sys/soundcard.h],
+                   [PBX_LIBossaudio=1
+		    AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
+		  ])
+elif test "x${PBX_OSTYPE}" = "xOpenBSD" ; then
+   AST_EXT_LIB([ossaudio], [oss_ioctl_mixer], [soundcard.h], [OSS], [Open Sound System])
+elif test "x${PBX_OSTYPE}" = "xNetBSD" ; then
    AST_EXT_LIB([ossaudio], [oss_ioctl_mixer], [soundcard.h], [OSS], [Open Sound System])
 fi
+
+AC_SUBST([PBX_LIBossaudio])
 
 if test "x${PBX_OSTYPE}" = "xLinux" ; then
    AST_EXT_LIB([tonezone], [tone_zone_find], [linux/zaptel.h], [ZAPTEL], [Zaptel])

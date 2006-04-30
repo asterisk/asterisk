@@ -33,7 +33,7 @@
  */
 
 /*** MODULEINFO
-	<depend>osssound</depend>
+	<depend>ossaudio</depend>
  ***/
 
 #include <stdio.h>
