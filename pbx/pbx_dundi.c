@@ -211,7 +211,7 @@ struct dundi_request {
 	struct dundi_request *next;
 } *requests;
 
-static struct dundi_mapping {
+struct dundi_mapping {
 	char dcontext[AST_MAX_EXTENSION];
 	char lcontext[AST_MAX_EXTENSION];
 	int weight;
@@ -219,8 +219,8 @@ static struct dundi_mapping {
 	int tech;
 	int dead;
 	char dest[AST_MAX_EXTENSION];
-	struct dundi_mapping *next;
-} *mappings = NULL;
+	AST_LIST_ENTRY(dundi_mapping) list;
+};
 
 struct dundi_peer {
 	dundi_eid eid;
@@ -263,6 +263,7 @@ struct dundi_peer {
 };
 
 AST_LIST_HEAD_STATIC(peers, dundi_peer);
+AST_LIST_HEAD_NOLOCK_STATIC(mappings, dundi_mapping);
 
 static struct dundi_precache_queue *pcq;
 
@@ -953,11 +954,9 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 	totallen = sizeof(struct dundi_query_state);
 	/* Count matching map entries */
 	mapcount = 0;
-	cur = mappings;
-	while(cur) {
+	AST_LIST_TRAVERSE(&mappings, cur, list) {
 		if (!strcasecmp(cur->dcontext, ccontext))
 			mapcount++;
-		cur = cur->next;
 	}
 	
 	/* If no maps, return -1 immediately */
@@ -996,16 +995,14 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 		/* Append mappings */
 		x = 0;
 		st->maps = (struct dundi_mapping *)s;
-		cur = mappings;
-		while(cur) {
+		AST_LIST_TRAVERSE(&mappings, cur, list) {
 			if (!strcasecmp(cur->dcontext, ccontext)) {
 				if (x < mapcount) {
 					st->maps[x] = *cur;
-					st->maps[x].next = NULL;
+					st->maps[x].list.next = NULL;
 					x++;
 				}
 			}
-			cur = cur->next;
 		}
 		st->nummaps = mapcount;
 		ast_log(LOG_DEBUG, "Forwarding precache for '%s@%s'!\n", ies->called_number, ies->called_context);
@@ -1039,19 +1036,16 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 	struct dundi_ie_data ied;
 	char *s;
 	struct dundi_mapping *cur;
-	int mapcount;
+	int mapcount = 0;
 	int skipfirst = 0;
 	
 	pthread_t lookupthread;
 	pthread_attr_t attr;
 	totallen = sizeof(struct dundi_query_state);
 	/* Count matching map entries */
-	mapcount = 0;
-	cur = mappings;
-	while(cur) {
+	AST_LIST_TRAVERSE(&mappings, cur, list) {
 		if (!strcasecmp(cur->dcontext, ccontext))
 			mapcount++;
-		cur = cur->next;
 	}
 	/* If no maps, return -1 immediately */
 	if (!mapcount)
@@ -1088,16 +1082,14 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 		/* Append mappings */
 		x = 0;
 		st->maps = (struct dundi_mapping *)s;
-		cur = mappings;
-		while(cur) {
+		AST_LIST_TRAVERSE(&mappings, cur, list) {
 			if (!strcasecmp(cur->dcontext, ccontext)) {
 				if (x < mapcount) {
 					st->maps[x] = *cur;
-					st->maps[x].next = NULL;
+					st->maps[x].list.next = NULL;
 					x++;
 				}
 			}
-			cur = cur->next;
 		}
 		st->nummaps = mapcount;
 		ast_log(LOG_DEBUG, "Answering query for '%s@%s'!\n", ies->called_number, ies->called_context);
@@ -2596,10 +2588,10 @@ static int dundi_show_mappings(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	AST_LIST_LOCK(&peers);
 	ast_cli(fd, FORMAT2, "DUNDi Cntxt", "Weight", "Local Cntxt", "Options", "Tech", "Destination");
-	for (map = mappings;map;map = map->next) {
-			ast_cli(fd, FORMAT, map->dcontext, map->weight, 
-			                    ast_strlen_zero(map->lcontext) ? "<none>" : map->lcontext, 
-								dundi_flags2str(fs, sizeof(fs), map->options), tech2str(map->tech), map->dest);
+	AST_LIST_TRAVERSE(&mappings, map, list) {
+		ast_cli(fd, FORMAT, map->dcontext, map->weight, 
+			ast_strlen_zero(map->lcontext) ? "<none>" : map->lcontext, 
+			dundi_flags2str(fs, sizeof(fs), map->options), tech2str(map->tech), map->dest);
 	}
 	AST_LIST_UNLOCK(&peers);
 	return RESULT_SUCCESS;
@@ -3662,17 +3654,17 @@ static void dundi_precache_full(void)
 	struct dundi_mapping *cur;
 	struct ast_context *con;
 	struct ast_exten *e;
-	cur = mappings;
-	while(cur) {
+
+	AST_LIST_TRAVERSE(&mappings, cur, list) {
 		ast_log(LOG_NOTICE, "Should precache context '%s'\n", cur->dcontext);
 		ast_lock_contexts();
 		con = ast_walk_contexts(NULL);
-		while(con) {
+		while (con) {
 			if (!strcasecmp(cur->lcontext, ast_get_context_name(con))) {
 				/* Found the match, now queue them all up */
 				ast_lock_context(con);
 				e = ast_walk_context_extensions(con, NULL);
-				while(e) {
+				while (e) {
 					reschedule_precache(ast_get_extension_name(e), cur->dcontext, 0);
 					e = ast_walk_context_extensions(con, e);
 				}
@@ -3681,7 +3673,6 @@ static void dundi_precache_full(void)
 			con = ast_walk_contexts(con);
 		}
 		ast_unlock_contexts();
-		cur = cur->next;
 	}
 }
 
@@ -3691,8 +3682,8 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 	struct dundi_hint_metadata hmd;
 	struct dundi_result dr2[MAX_RESULTS];
 	struct timeval start;
-	struct dundi_mapping *maps=NULL, *cur;
-	int nummaps;
+	struct dundi_mapping *maps = NULL, *cur;
+	int nummaps = 0;
 	int foundanswers;
 	int foundcache, skipped, ttlms, ms;
 	if (!context)
@@ -3700,22 +3691,17 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 	ast_log(LOG_DEBUG, "Precache internal (%s@%s)!\n", number, context);
 
 	AST_LIST_LOCK(&peers);
-	nummaps = 0;
-	cur = mappings;
-	while(cur) {
+	AST_LIST_TRAVERSE(&mappings, cur, list) {
 		if (!strcasecmp(cur->dcontext, context))
 			nummaps++;
-		cur = cur->next;
 	}
 	if (nummaps) {
-		maps = alloca(nummaps * sizeof(struct dundi_mapping));
+		maps = alloca(nummaps * sizeof(*maps));
 		nummaps = 0;
 		if (maps) {
-			cur = mappings;
-			while(cur) {
+			AST_LIST_TRAVERSE(&mappings, cur, list) {
 				if (!strcasecmp(cur->dcontext, context))
 					maps[nummaps++] = *cur;
-				cur = cur->next;
 			}
 		}
 	}
@@ -3900,11 +3886,10 @@ static void mark_peers(void)
 static void mark_mappings(void)
 {
 	struct dundi_mapping *map;
+	
 	AST_LIST_LOCK(&peers);
-	map = mappings;
-	while(map) {
+	AST_LIST_TRAVERSE(&mappings, map, list) {
 		map->dead = 1;
-		map = map->next;
 	}
 	AST_LIST_UNLOCK(&peers);
 }
@@ -3956,22 +3941,16 @@ static void prune_peers(void)
 
 static void prune_mappings(void)
 {
-	struct dundi_mapping *map, *prev, *next;
+	struct dundi_mapping *map;
+
 	AST_LIST_LOCK(&peers);
-	map = mappings;
-	prev = NULL;
-	while(map) {
-		next = map->next;
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&mappings, map, list) {
 		if (map->dead) {
-			if (prev)
-				prev->next = map->next;
-			else
-				mappings = map->next;
+			AST_LIST_REMOVE_CURRENT(&mappings, list);
 			destroy_map(map);
-		} else
-			prev = map;
-		map = next;
+		}
 	}
+	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&peers);
 }
 
@@ -4007,22 +3986,18 @@ static void build_mapping(char *name, char *value)
 	int y;
 	t = ast_strdupa(value);
 	if (t) {
-		map = mappings;
-		while(map) {
+		AST_LIST_TRAVERSE(&mappings, map, list) {
 			/* Find a double match */
 			if (!strcasecmp(map->dcontext, name) && 
 				(!strncasecmp(map->lcontext, value, strlen(map->lcontext)) && 
 				  (!value[strlen(map->lcontext)] || 
 				   (value[strlen(map->lcontext)] == ','))))
 				break;
-			map = map->next;
 		}
 		if (!map) {
-			map = malloc(sizeof(struct dundi_mapping));
+			map = ast_calloc(1, sizeof(*map));
 			if (map) {
-				memset(map, 0, sizeof(struct dundi_mapping));
-				map->next = mappings;
-				mappings = map;
+				AST_LIST_INSERT_HEAD(&mappings, map, list);
 				map->dead = 1;
 			}
 		}
