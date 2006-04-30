@@ -2179,6 +2179,9 @@ static void ast_readconfig(void)
 		/* Disable forking (-f at startup) */
 		} else if (!strcasecmp(v->name, "nofork")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_NO_FORK);
+		/* Always fork, even if verbose or debug are enabled (-F at startup) */
+		} else if (!strcasecmp(v->name, "alwaysfork")) {
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_ALWAYS_FORK);
 		/* Run quietly (-q at startup ) */
 		} else if (!strcasecmp(v->name, "quiet")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_QUIET);
@@ -2289,6 +2292,9 @@ int main(int argc, char *argv[])
 	/* Check for options */
 	while ((c = getopt(argc, argv, "tThfdvVqprRgciInx:U:G:C:L:M:")) != -1) {
 		switch (c) {
+		case 'F':
+			ast_set_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK);
+			break;
 		case 'd':
 			option_debug++;
 			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK);
@@ -2364,6 +2370,11 @@ int main(int argc, char *argv[])
 		case '?':
 			exit(1);
 		}
+	}
+
+	if (ast_opt_always_fork && (ast_opt_remote || ast_opt_console)) {
+		ast_log(LOG_WARNING, "'alwaysfork' is not compatible with console or remote console mode; ignored\n");
+		ast_clear_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK);
 	}
 
 	/* For remote connections, change the name of the remote connection.
@@ -2506,7 +2517,7 @@ int main(int argc, char *argv[])
 	} else
 		ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
 
-	if (!option_verbose && !option_debug && !ast_opt_no_fork && !ast_opt_console) {
+	if (ast_opt_always_fork || !ast_opt_no_fork) {
 		daemon(0, 0);
 		/* Blindly re-write pid file since we are forking */
 		unlink(ast_config_AST_PID);

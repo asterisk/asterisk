@@ -1087,7 +1087,7 @@ static int do_reload(void)
 				batchtime = cfg_time;
 		}
 		if ((end_before_h_value = ast_variable_retrieve(config, "general", "endbeforehexten")))
-			ast_set2_flag(&ast_options, ast_true(end_before_h_value), AST_OPT_END_CDR_BEFORE_H_EXTEN);
+			ast_set2_flag(&ast_options, ast_true(end_before_h_value), AST_OPT_FLAG_END_CDR_BEFORE_H_EXTEN);
 	}
 
 	if (enabled && !batchmode) {

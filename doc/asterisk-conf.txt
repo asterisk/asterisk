@@ -42,6 +42,7 @@ astlogdir => /var/log/asterisk
 verbose = 0					; Verbosity level for logging (-v)
 debug = 3					; Debug: "No" or value (1-4)
 nofork=yes | no					; Background execution disabled (-f)
+alwaysfork=yes | no				; Always background, even with -v or -d (-F)
 console= yes | no				; Console mode (-c)
 highpriority = yes | no				; Execute with high priority (-p)
 initcrypto = yes | no				; Initialize crypto at startup (-i)
