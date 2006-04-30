@@ -201,9 +201,9 @@ ifeq ($(OSARCH),Linux)
       OPTIONS+=-fsigned-char -mcpu=ep9312
     else
       ifeq ($(SUB_PROC),xscale)
-        OPTIONS+=-fsigned-char -msoft-float -mcpu=xscale
+        OPTIONS+=-fsigned-char -mcpu=xscale
       else
-        OPTIONS+=-fsigned-char -msoft-float 
+        OPTIONS+=-fsigned-char 
       endif
     endif
   endif
