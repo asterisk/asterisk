@@ -252,7 +252,7 @@ ifeq ($(OSARCH),SunOS)
   ID=/usr/xpg4/bin/id
 endif
 
-INCLUDE+=-Iinclude -I../include
+INCLUDE+=-Iinclude -I../include -I..
 ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) #-DMAKE_VALGRIND_HAPPY
 ASTCFLAGS+=$(OPTIMIZE)
 
