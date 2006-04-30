@@ -564,7 +564,10 @@ macro_call : word LP {reset_argcount(parseio->scanner);} eval_arglist RP {
 		$$->u1.str = $1; }
 	;
 
-application_call_head: word {reset_argcount(parseio->scanner);} LP  {
+/* XXX application_call_head must be revised. Having 'word LP { ...'
+ * just as above should work fine, however it gives a different result.
+ */
+application_call_head: word LP {reset_argcount(parseio->scanner);} {
 		if (strcasecmp($1,"goto") == 0) {
 			$$= npval2(PV_GOTO, &@1, &@3);
 			free($1); /* won't be using this */
