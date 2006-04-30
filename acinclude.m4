@@ -84,18 +84,3 @@ if test  "x$GNU_MAKE" = "xNot Found"  ; then
 fi
 AC_SUBST([GNU_MAKE])
 ])
-
-AC_DEFUN(
-[AST_C_ATTRIBUTE],
-[AC_CACHE_CHECK([for $1 attribute support],
-                [ac_cv_attribute_$1],
-                AC_COMPILE_IFELSE(
-                   AC_LANG_PROGRAM(
-                       [[static void foo(void) __attribute__ (($1));xyz]],
-                       []),
-                   have_attribute_$1=1, have_attribute_$1=0)
-               )
- if test "$have_attribute_$1" = "1"; then
-    AC_DEFINE_UNQUOTED([HAVE_ATTRIBUTE_$1], 1, [Define to indicate the compiler supports __attribute__ (($1))])
- fi
-])

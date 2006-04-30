@@ -614,9 +614,6 @@ AC_HEADER_TIME
 AC_STRUCT_TM
 AC_C_VOLATILE
 AC_CHECK_TYPES([ptrdiff_t])
-AST_C_ATTRIBUTE([malloc])
-AST_C_ATTRIBUTE([printf])
-AST_C_ATTRIBUTE([mallocx])
 
 # Checks for library functions.
 AC_FUNC_CHOWN
