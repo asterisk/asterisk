@@ -222,9 +222,9 @@ static struct dundi_mapping {
 	struct dundi_mapping *next;
 } *mappings = NULL;
 
-static struct dundi_peer {
+struct dundi_peer {
 	dundi_eid eid;
-	struct sockaddr_in addr;	/* Address of DUNDi peer */
+	struct sockaddr_in addr;               /*!< Address of DUNDi peer */
 	struct permission *permit;
 	struct permission *include;
 	struct permission *precachesend;
@@ -237,34 +237,35 @@ static struct dundi_peer {
 	int qualifyid;
 	int sentfullkey;
 	int order;
-	unsigned char txenckey[256]; /* Transmitted encrypted key + sig */
-	unsigned char rxenckey[256]; /* Cache received encrypted key + sig */
-	unsigned long us_keycrc32;	/* CRC-32 of our key */
-	aes_encrypt_ctx	us_ecx;		/* Cached AES 128 Encryption context */
-	aes_decrypt_ctx	us_dcx;		/* Cached AES 128 Decryption context */
-	unsigned long them_keycrc32;/* CRC-32 of our key */
-	aes_encrypt_ctx	them_ecx;	/* Cached AES 128 Encryption context */
-	aes_decrypt_ctx	them_dcx;	/* Cached AES 128 Decryption context */
-	time_t keyexpire;			/* When to expire/recreate key */
+	unsigned char txenckey[256];           /*!< Transmitted encrypted key + sig */
+	unsigned char rxenckey[256];           /*!< Cache received encrypted key + sig */
+	unsigned long us_keycrc32;             /*!< CRC-32 of our key */
+	aes_encrypt_ctx	us_ecx;                /*!< Cached AES 128 Encryption context */
+	aes_decrypt_ctx	us_dcx;	               /*!< Cached AES 128 Decryption context */
+	unsigned long them_keycrc32;           /*!< CRC-32 of our key */
+	aes_encrypt_ctx	them_ecx;              /*!< Cached AES 128 Encryption context */
+	aes_decrypt_ctx	them_dcx;              /*!< Cached AES 128 Decryption context */
+	time_t keyexpire;                      /*!< When to expire/recreate key */
 	int registerexpire;
 	int lookuptimes[DUNDI_TIMING_HISTORY];
 	char *lookups[DUNDI_TIMING_HISTORY];
 	int avgms;
-	struct dundi_transaction *regtrans;	/* Registration transaction */
-	struct dundi_transaction *qualtrans;	/* Qualify transaction */
+	struct dundi_transaction *regtrans;    /*!< Registration transaction */
+	struct dundi_transaction *qualtrans;   /*!< Qualify transaction */
 	struct dundi_transaction *keypending;
-	int model;					/* Pull model */
-	int pcmodel;				/* Push/precache model */
-	int dynamic;				/* Are we dynamic? */
-	int lastms;					/* Last measured latency */
-	int maxms;					/* Max permissible latency */
-	struct timeval qualtx;		/* Time of transmit */
-	struct dundi_peer *next;
-} *peers;
+	int model;                             /*!< Pull model */
+	int pcmodel;                           /*!< Push/precache model */
+	int dynamic;                           /*!< Are we dynamic? */
+	int lastms;                            /*!< Last measured latency */
+	int maxms;                             /*!< Max permissible latency */
+	struct timeval qualtx;                 /*!< Time of transmit */
+	AST_LIST_ENTRY(dundi_peer) list;
+};
+
+AST_LIST_HEAD_STATIC(peers, dundi_peer);
 
 static struct dundi_precache_queue *pcq;
 
-AST_MUTEX_DEFINE_STATIC(peerlock);
 AST_MUTEX_DEFINE_STATIC(pclock);
 
 static int dundi_xmit(struct dundi_packet *pack);
@@ -477,16 +478,17 @@ static int reset_transaction(struct dundi_transaction *trans)
 
 static struct dundi_peer *find_peer(dundi_eid *eid)
 {
-	struct dundi_peer *cur;
+	struct dundi_peer *cur = NULL;
+
 	if (!eid)
 		eid = &empty_eid;
-	cur = peers;
-	while(cur) {
+	
+	AST_LIST_TRAVERSE(&peers, cur, list) {
 		if (!dundi_eid_cmp(&cur->eid,eid))
-			return cur;
-		cur = cur->next;
+			break;
 	}
-	return NULL;
+
+	return cur;
 }
 
 static void build_iv(unsigned char *iv)
@@ -627,7 +629,7 @@ static void *dundi_lookup_thread(void *data)
 				dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_DUPLICATE, "Duplicate Request Pending");
 		}
 	}
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	/* Truncate if "don't ask" isn't present */
 	if (!ast_test_flag_nonstd(&hmd, DUNDI_HINT_DONT_ASK))
 		hmd.exten[0] = '\0';
@@ -647,7 +649,7 @@ static void *dundi_lookup_thread(void *data)
 		dundi_send(st->trans, DUNDI_COMMAND_DPRESPONSE, 0, 1, &ied);
 		st->trans->thread = 0;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	free(st);
 	return NULL;	
 }
@@ -666,7 +668,7 @@ static void *dundi_precache_thread(void *data)
 	/* Now produce precache */
 	dundi_precache_internal(st->called_context, st->called_number, st->ttl, st->eids);
 
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	/* Truncate if "don't ask" isn't present */
 	if (!ast_test_flag_nonstd(&hmd, DUNDI_HINT_DONT_ASK))
 		hmd.exten[0] = '\0';
@@ -678,7 +680,7 @@ static void *dundi_precache_thread(void *data)
 		dundi_send(st->trans, DUNDI_COMMAND_PRECACHERP, 0, 1, &ied);
 		st->trans->thread = 0;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	free(st);
 	return NULL;	
 }
@@ -713,7 +715,7 @@ static void *dundi_query_thread(void *data)
 		/* If we do not have a canonical result, keep looking */
 		res = dundi_query_eid_internal(&dei, st->called_context, &st->reqeid, &hmd, st->ttl, 1, st->eids);
 	}
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	if (ast_test_flag(st->trans, FLAG_DEAD)) {
 		ast_log(LOG_DEBUG, "Our transaction went away!\n");
 		st->trans->thread = 0;
@@ -734,7 +736,7 @@ static void *dundi_query_thread(void *data)
 		dundi_send(st->trans, DUNDI_COMMAND_EIDRESPONSE, 0, 1, &ied);
 		st->trans->thread = 0;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	free(st);
 	return NULL;	
 }
@@ -1269,11 +1271,11 @@ static void apply_peer(struct dundi_transaction *trans, struct dundi_peer *p)
 		trans->autokilltimeout = global_autokilltimeout;
 }
 
+/*! \note Called with the peers list already locked */
 static int do_register_expire(void *data)
 {
 	struct dundi_peer *peer = data;
 	char eid_str[20];
-	/* Called with peerlock already held */
 	ast_log(LOG_DEBUG, "Register expired for '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 	peer->registerexpire = -1;
 	peer->lastms = 0;
@@ -1989,9 +1991,9 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	h = (struct dundi_hdr *)buf;
 	if (dundidebug)
 		dundi_showframe(h, 1, &sin, res - sizeof(struct dundi_hdr));
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	handle_frame(h, &sin, res - sizeof(struct dundi_hdr));
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	return 1;
 }
 
@@ -2092,9 +2094,9 @@ static void *network_thread(void *ignore)
 			res = 1000;
 		res = ast_io_wait(io, res);
 		if (res >= 0) {
-			ast_mutex_lock(&peerlock);
+			AST_LIST_LOCK(&peers);
 			ast_sched_runq(sched);
-			ast_mutex_unlock(&peerlock);
+			AST_LIST_UNLOCK(&peers);
 		}
 		check_password();
 	}
@@ -2162,7 +2164,7 @@ static int dundi_do_store_history(int fd, int argc, char *argv[])
 
 static int dundi_flush(int fd, int argc, char *argv[])
 {
-	int stats=0;
+	int stats = 0;
 	if ((argc < 2) || (argc > 3))
 		return RESULT_SHOWUSAGE;
 	if (argc > 2) {
@@ -2175,19 +2177,17 @@ static int dundi_flush(int fd, int argc, char *argv[])
 		/* Flush statistics */
 		struct dundi_peer *p;
 		int x;
-		ast_mutex_lock(&peerlock);
-		p = peers;
-		while(p) {
-			for (x=0;x<DUNDI_TIMING_HISTORY;x++) {
+		AST_LIST_LOCK(&peers);
+		AST_LIST_TRAVERSE(&peers, p, list) {
+			for (x = 0;x < DUNDI_TIMING_HISTORY; x++) {
 				if (p->lookups[x])
 					free(p->lookups[x]);
 				p->lookups[x] = NULL;
 				p->lookuptimes[x] = 0;
 			}
 			p->avgms = 0;
-			p = p->next;
 		}
-		ast_mutex_unlock(&peerlock);
+		AST_LIST_UNLOCK(&peers);
 	} else {
 		ast_db_deltree("dundi/cache", NULL);
 		ast_cli(fd, "DUNDi Cache Flushed\n");
@@ -2236,14 +2236,14 @@ static char *complete_peer_helper(const char *line, const char *word, int pos, i
 
 	if (pos != rpos)
 		return NULL;
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	len = strlen(word);
-	for (p = peers; !ret && p; p = p->next) {
+	AST_LIST_TRAVERSE(&peers, p, list) {
 		const char *s = dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid);
 		if (!strncasecmp(word, s, len) && ++which > state)
 			ret = ast_strdup(s);
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	return ret;
 }
 
@@ -2384,12 +2384,10 @@ static int dundi_show_peer(int fd, int argc, char *argv[])
 	
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&peerlock);
-	peer = peers;
-	while(peer) {
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE(&peers, peer, list) {
 		if (!strcasecmp(dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), argv[3]))
 			break;
-		peer = peer->next;
 	}
 	if (peer) {
 		switch(peer->order) {
@@ -2445,7 +2443,7 @@ static int dundi_show_peer(int fd, int argc, char *argv[])
 			ast_cli(fd, "Average query time: %d ms\n", peer->avgms);
 	} else
 		ast_cli(fd, "No such peer '%s'\n", argv[3]);
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	return RESULT_SUCCESS;
 }
 
@@ -2471,9 +2469,9 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
 		} else
 			return RESULT_SHOWUSAGE;
  	}
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	ast_cli(fd, FORMAT2, "EID", "Host", "Model", "AvgTime", "Status");
-	for (peer = peers;peer;peer = peer->next) {
+	AST_LIST_TRAVERSE(&peers, peer, list) {
 		char status[20];
 		int print_line = -1;
 		char srch[2000];
@@ -2528,7 +2526,7 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
 		}
 	}
 	ast_cli(fd, "%d dundi peers [%d online, %d offline, %d unmonitored]\n", total_peers, online_peers, offline_peers, unmonitored_peers);
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -2542,13 +2540,13 @@ static int dundi_show_trans(int fd, int argc, char *argv[])
 	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	ast_cli(fd, FORMAT2, "Remote", "Src", "Dst", "Tx", "Rx", "Ack");
 	for (trans = alltrans;trans;trans = trans->allnext) {
 			ast_cli(fd, FORMAT, ast_inet_ntoa(iabuf, sizeof(iabuf), trans->addr.sin_addr), 
 					ntohs(trans->addr.sin_port), trans->strans, trans->dtrans, trans->oseqno, trans->iseqno, trans->aseqno);
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -2559,9 +2557,9 @@ static int dundi_show_entityid(int fd, int argc, char *argv[])
 	char eid_str[20];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid);
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	ast_cli(fd, "Global EID for this system is '%s'\n", eid_str);
 	return RESULT_SUCCESS;
 }
@@ -2574,13 +2572,13 @@ static int dundi_show_requests(int fd, int argc, char *argv[])
 	char eidstr[20];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	ast_cli(fd, FORMAT2, "Number", "Context", "Root", "Max", "Rsp");
 	for (req = requests;req;req = req->next) {
 			ast_cli(fd, FORMAT, req->number, req->dcontext,
 						dundi_eid_zero(&req->root_eid) ? "<unspecified>" : dundi_eid_to_str(eidstr, sizeof(eidstr), &req->root_eid), req->maxcount, req->respcount);
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -2596,14 +2594,14 @@ static int dundi_show_mappings(int fd, int argc, char *argv[])
 	char fs[256];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	ast_cli(fd, FORMAT2, "DUNDi Cntxt", "Weight", "Local Cntxt", "Options", "Tech", "Destination");
 	for (map = mappings;map;map = map->next) {
 			ast_cli(fd, FORMAT, map->dcontext, map->weight, 
 			                    ast_strlen_zero(map->lcontext) ? "<none>" : map->lcontext, 
 								dundi_flags2str(fs, sizeof(fs), map->options), tech2str(map->tech), map->dest);
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -2839,8 +2837,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 	int cnt;
 	char eid_str[20];
 	if (ast_test_flag(trans, FLAG_ISREG | FLAG_ISQUAL | FLAG_STOREHIST)) {
-		peer = peers;
-		while (peer) {
+		AST_LIST_TRAVERSE(&peers, peer, list) {
 			if (peer->regtrans == trans)
 				peer->regtrans = NULL;
 			if (peer->keypending == trans)
@@ -2891,7 +2888,6 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 					}
 				}
 			}
-			peer = peer->next;
 		}
 	}
 	if (trans->parent) {
@@ -2949,7 +2945,7 @@ static int dundi_rexmit(void *data)
 	struct dundi_packet *pack;
 	char iabuf[INET_ADDRSTRLEN];
 	int res;
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	pack = data;
 	if (pack->retrans < 1) {
 		pack->retransid = -1;
@@ -2965,7 +2961,7 @@ static int dundi_rexmit(void *data)
 		dundi_xmit(pack);
 		res = 1;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	return res;
 }
 
@@ -3060,9 +3056,8 @@ static void dundi_ie_append_eid_appropriately(struct dundi_ie_data *ied, char *c
 		dundi_ie_append_eid(ied, DUNDI_IE_EID_DIRECT, eid);
 		return;
 	}
-	ast_mutex_lock(&peerlock);
-	p = peers;
-	while(p) {
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE(&peers, p, list) {
 		if (!dundi_eid_cmp(&p->eid, eid)) {
 			if (has_permission(p->include, context))
 				dundi_ie_append_eid(ied, DUNDI_IE_EID_DIRECT, eid);
@@ -3070,11 +3065,10 @@ static void dundi_ie_append_eid_appropriately(struct dundi_ie_data *ied, char *c
 				dundi_ie_append_eid(ied, DUNDI_IE_EID, eid);
 			break;
 		}
-		p = p->next;
 	}
 	if (!p)
 		dundi_ie_append_eid(ied, DUNDI_IE_EID, eid);
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 }
 
 static int dundi_discover(struct dundi_transaction *trans)
@@ -3192,13 +3186,13 @@ static int dundi_query(struct dundi_transaction *trans)
 static int discover_transactions(struct dundi_request *dr)
 {
 	struct dundi_transaction *trans;
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	trans = dr->trans;
 	while(trans) {
 		dundi_discover(trans);
 		trans = trans->next;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	return 0;
 }
 
@@ -3206,7 +3200,7 @@ static int precache_transactions(struct dundi_request *dr, struct dundi_mapping 
 {
 	struct dundi_transaction *trans, *transn;
 	/* Mark all as "in thread" so they don't disappear */
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	trans = dr->trans;
 	while(trans) {
 		if (trans->thread)
@@ -3214,7 +3208,7 @@ static int precache_transactions(struct dundi_request *dr, struct dundi_mapping 
 		trans->thread = 1;
 		trans = trans->next;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 
 	trans = dr->trans;
 	while(trans) {
@@ -3224,7 +3218,7 @@ static int precache_transactions(struct dundi_request *dr, struct dundi_mapping 
 	}
 
 	/* Cleanup any that got destroyed in the mean time */
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	trans = dr->trans;
 	while(trans) {
 		transn = trans->next;
@@ -3235,20 +3229,20 @@ static int precache_transactions(struct dundi_request *dr, struct dundi_mapping 
 		}
 		trans = transn;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	return 0;
 }
 
 static int query_transactions(struct dundi_request *dr)
 {
 	struct dundi_transaction *trans;
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	trans = dr->trans;
 	while(trans) {
 		dundi_query(trans);
 		trans = trans->next;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	return 0;
 }
 
@@ -3261,7 +3255,7 @@ static int optimize_transactions(struct dundi_request *dr, int order)
 	dundi_eid tmp;
 	int x;
 	int needpush;
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	trans = dr->trans;
 	while(trans) {
 		/* Pop off the true root */
@@ -3273,8 +3267,7 @@ static int optimize_transactions(struct dundi_request *dr, int order)
 			needpush = 0;
 		}
 
-		peer = peers;
-		while(peer) {
+		AST_LIST_TRAVERSE(&peers, peer, list) {
 			if (has_permission(peer->include, dr->dcontext) && 
 			    dundi_eid_cmp(&peer->eid, &trans->them_eid) &&
 				(peer->order <= order)) {
@@ -3299,14 +3292,13 @@ static int optimize_transactions(struct dundi_request *dr, int order)
 					}
 				}
 			}
-			peer = peer->next;
 		}
 		/* If necessary, push the true root back on the end */
 		if (needpush)
 			trans->eids[trans->eidcount++] = tmp;
 		trans = trans->next;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	return 0;
 }
 
@@ -3342,7 +3334,7 @@ static void cancel_request(struct dundi_request *dr)
 {
 	struct dundi_transaction *trans, *next;
 
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	trans = dr->trans;
 	
 	while(trans) {
@@ -3354,15 +3346,15 @@ static void cancel_request(struct dundi_request *dr)
 		dundi_send(trans, DUNDI_COMMAND_CANCEL, 0, 1, NULL);
 		trans = next;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 }
 
 static void abort_request(struct dundi_request *dr)
 {
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	while(dr->trans) 
 		destroy_trans(dr->trans, 0);
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 }
 
 static void build_transactions(struct dundi_request *dr, int ttl, int order, int *foundcache, int *skipped, int blockempty, int nocache, int modeselect, dundi_eid *skip, dundi_eid *avoid[], int directs[])
@@ -3373,9 +3365,8 @@ static void build_transactions(struct dundi_request *dr, int ttl, int order, int
 	int pass;
 	int allowconnect;
 	char eid_str[20];
-	ast_mutex_lock(&peerlock);
-	p = peers;
-	while(p) {
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE(&peers, p, list) {
 		if (modeselect == 1) {
 			/* Send the precache to push upstreams only! */
 			pass = has_permission(p->permit, dr->dcontext) && (p->pcmodel & DUNDI_MODEL_OUTBOUND);
@@ -3419,9 +3410,8 @@ static void build_transactions(struct dundi_request *dr, int ttl, int order, int
 			} else if (!*skipped || (p->order < *skipped))
 				*skipped = p->order;
 		}
-		p = p->next;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 }
 
 static int register_request(struct dundi_request *dr, struct dundi_request **pending)
@@ -3429,7 +3419,7 @@ static int register_request(struct dundi_request *dr, struct dundi_request **pen
 	struct dundi_request *cur;
 	int res=0;
 	char eid_str[20];
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	cur = requests;
 	while(cur) {
 		if (option_debug)
@@ -3454,14 +3444,14 @@ static int register_request(struct dundi_request *dr, struct dundi_request **pen
 		requests = dr;
 		*pending = NULL;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	return res;
 }
 
 static void unregister_request(struct dundi_request *dr)
 {
 	struct dundi_request *cur, *prev;
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	prev = NULL;
 	cur = requests;
 	while(cur) {
@@ -3475,14 +3465,14 @@ static void unregister_request(struct dundi_request *dr)
 		prev = cur;
 		cur = cur->next;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 }
 
 static int check_request(struct dundi_request *dr)
 {
 	struct dundi_request *cur;
 	int res = 0;
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	cur = requests;
 	while(cur) {
 		if (cur == dr) {
@@ -3491,7 +3481,7 @@ static int check_request(struct dundi_request *dr)
 		}
 		cur = cur->next;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	return res;
 }
 
@@ -3709,7 +3699,7 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 		context = "e164";
 	ast_log(LOG_DEBUG, "Precache internal (%s@%s)!\n", number, context);
 
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	nummaps = 0;
 	cur = mappings;
 	while(cur) {
@@ -3729,7 +3719,7 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 			}
 		}
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	if (!nummaps || !maps)
 		return -1;
 	ttlms = DUNDI_FLUFF_TIME + ttl * DUNDI_TTL_TIME;
@@ -3900,25 +3890,23 @@ static struct ast_custom_function dundi_function = {
 static void mark_peers(void)
 {
 	struct dundi_peer *peer;
-	ast_mutex_lock(&peerlock);
-	peer = peers;
-	while(peer) {
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE(&peers, peer, list) {
 		peer->dead = 1;
-		peer = peer->next;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 }
 
 static void mark_mappings(void)
 {
 	struct dundi_mapping *map;
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	map = mappings;
 	while(map) {
 		map->dead = 1;
 		map = map->next;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 }
 
 static void destroy_permissions(struct permission *p)
@@ -3953,29 +3941,23 @@ static void destroy_map(struct dundi_mapping *map)
 
 static void prune_peers(void)
 {
-	struct dundi_peer *peer, *prev, *next;
-	ast_mutex_lock(&peerlock);
-	peer = peers;
-	prev = NULL;
-	while(peer) {
-		next = peer->next;
+	struct dundi_peer *peer;
+
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&peers, peer, list) {
 		if (peer->dead) {
-			if (prev)
-				prev->next = peer->next;
-			else
-				peers = peer->next;
+			AST_LIST_REMOVE_CURRENT(&peers, list);
 			destroy_peer(peer);
-		} else
-			prev = peer;
-		peer = next;
+		}
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&peers);
 }
 
 static void prune_mappings(void)
 {
 	struct dundi_mapping *map, *prev, *next;
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	map = mappings;
 	prev = NULL;
 	while(map) {
@@ -3990,7 +3972,7 @@ static void prune_mappings(void)
 			prev = map;
 		map = next;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 }
 
 static struct permission *append_permission(struct permission *p, char *s, int allow)
@@ -4093,13 +4075,13 @@ static void build_mapping(char *name, char *value)
 	}
 }
 
+/* \note Called with the peers list already locked */
 static int do_register(void *data)
 {
 	struct dundi_ie_data ied;
 	struct dundi_peer *peer = data;
 	char eid_str[20];
 	char eid_str2[20];
-	/* Called with peerlock already held */
 	ast_log(LOG_DEBUG, "Register us as '%s' to '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->us_eid), dundi_eid_to_str(eid_str2, sizeof(eid_str2), &peer->eid));
 	peer->registerid = ast_sched_add(sched, default_expiration * 1000, do_register, data);
 	/* Destroy old transaction if there is one */
@@ -4187,27 +4169,23 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 	int needregister=0;
 	char eid_str[20];
 
-	ast_mutex_lock(&peerlock);
-	peer = peers;
-	while(peer) {
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE(&peers, peer, list) {
 		if (!dundi_eid_cmp(&peer->eid, eid)) {	
 			break;
 		}
-		peer = peer->next;
 	}
 	if (!peer) {
 		/* Add us into the list */
-		peer = malloc(sizeof(struct dundi_peer));
+		peer = ast_calloc(1, sizeof(*peer));
 		if (peer) {
-			memset(peer, 0, sizeof(struct dundi_peer));
 			peer->registerid = -1;
 			peer->registerexpire = -1;
 			peer->qualifyid = -1;
 			peer->addr.sin_family = AF_INET;
 			peer->addr.sin_port = htons(DUNDI_PORT);
 			populate_addr(peer, eid);
-			peer->next = peers;
-			peers = peer;
+			AST_LIST_INSERT_HEAD(&peers, peer, list);
 		}
 	}
 	if (peer) {
@@ -4331,7 +4309,7 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 			qualify_peer(peer, 1);
 		}
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 }
 
 static int dundi_helper(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *data, int flag)
@@ -4484,7 +4462,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 			ast_log(LOG_WARNING, "Unable to look up host '%s'\n", hn);
 	} else
 		ast_log(LOG_WARNING, "Unable to get host name!\n");
-	ast_mutex_lock(&peerlock);
+	AST_LIST_LOCK(&peers);
 	reset_global_eid();
 	global_storehistory = 0;
 	ast_copy_string(secretpath, "dundi", sizeof(secretpath));
@@ -4576,7 +4554,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 		}
 		v = v->next;
 	}
-	ast_mutex_unlock(&peerlock);
+	AST_LIST_UNLOCK(&peers);
 	mark_mappings();
 	v = ast_variable_browse(cfg, "mappings");
 	while(v) {
