@@ -116,6 +116,7 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <pval>file
 /* XXX lr changes */
 %type <pval>opt_else
+%type <pval>elements_block
 
 %type <str>opt_word
 %type <str>word_or_default
@@ -159,6 +160,7 @@ static pval *update_last(pval *, YYLTYPE *);
 		ignorepat element elements arglist global_statement
 		global_statements globals macro context object objects
 		opt_else
+		elements_block
 
 %destructor { free($$);}  word word_list goto_word word3_list includedname opt_word word_or_default
 
@@ -193,21 +195,14 @@ word_or_default : word { $$ = $1; }
 	| KW_DEFAULT { $$ = strdup("default"); }
 	;
 
-context : KW_CONTEXT word_or_default LC elements RC {
-		$$ = npval2(PV_CONTEXT, &@1, &@5);
+context : KW_CONTEXT word_or_default elements_block {
+		$$ = npval2(PV_CONTEXT, &@1, &@3);
 		$$->u1.str = $2;
-		$$->u2.statements = $4; }
-	| KW_CONTEXT word_or_default LC RC /* empty context OK */ {
+		$$->u2.statements = $3; }
+	| KW_ABSTRACT KW_CONTEXT word_or_default elements_block {
 		$$ = npval2(PV_CONTEXT, &@1, &@4);
-		$$->u1.str = $2; }
-	| KW_ABSTRACT KW_CONTEXT word_or_default LC elements RC {
-		$$ = npval2(PV_CONTEXT, &@1, &@6);
 		$$->u1.str = $3;
-		$$->u2.statements = $5;
-		$$->u3.abstract = 1; }
-	| KW_ABSTRACT KW_CONTEXT word_or_default LC RC /* empty context OK */ {
-		$$ = npval2(PV_CONTEXT, &@1, &@5);
-		$$->u1.str = $3;
+		$$->u2.statements = $4;
 		$$->u3.abstract = 1; }
 	;
 
@@ -252,6 +247,10 @@ arglist : word {
 		z->u1.str = $3;
 		$$ = linku1($1,z); }
 	| arglist error {$$=$1;}
+	;
+
+elements_block : LC RC	{ $$ = NULL; }
+	| LC elements RC { $$ = $2; }
 	;
 
 elements : element { $$=$1;}

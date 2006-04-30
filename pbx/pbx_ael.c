@@ -3554,6 +3554,11 @@ STD_MOD(MOD_1 | NO_USECOUNT, reload, NULL, NULL);
 
 void destroy_pval_item(pval *item)
 {
+	if (item == NULL) {
+		ast_log(LOG_WARNING, "null item\n");
+		return;
+	}
+
 	if (item->filename)
 		free(item->filename);
 	
