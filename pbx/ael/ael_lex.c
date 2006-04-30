@@ -1348,7 +1348,7 @@ YY_RULE_SETUP
 		} else {
 			STORE_LOC;
 			yylval->str = strdup(yytext);
-			yylval->str[strlen(yylval->str)-1] = '\0'; /* trim trailing ')' */
+			yylval->str[yyleng-1] = '\0'; /* trim trailing ')' */
 			unput(')');
 			BEGIN(0);
 			return word;
@@ -1414,26 +1414,20 @@ YY_RULE_SETUP
 			yymore();
 		} else {
 			STORE_LOC;
-			yylval->str = strdup(yytext);
-			if(yyleng > 1 )
-				yylval->str[yyleng-1] = '\0'; /* trim trailing ')' */
 			BEGIN(0);
-			if ( !strcmp(yylval->str,")") ) {
-				free(yylval->str);
-				yylval->str = 0;
-				my_col++; /* XXX why ? */
+			if ( !strcmp(yytext, ")") )
 				return RP;
-			} else {
-				unput(')');
-				return word;
-			}
+			yylval->str = strdup(yytext);
+			yylval->str[yyleng-1] = '\0'; /* trim trailing ')' */
+			unput(')');
+			return word;
 		}
 	}
 	YY_BREAK
 case 49:
 /* rule 49 can match eol */
 YY_RULE_SETUP
-#line 309 "ael.flex"
+#line 303 "ael.flex"
 {
 		if( parencount != 0) { /* printf("Folding in a comma!\n"); */
 			yymore();
@@ -1449,8 +1443,7 @@ YY_RULE_SETUP
 				/* printf("Got argg2 word %s\n", yylval->str); */
 				unput(',');
 				commaout = 1;
-				if (yyleng > 1 )
-					*(yylval->str+yyleng-1)=0;
+				yylval->str[yyleng-1] = '\0';
 				return word;
 			} else {
 				commaout = 0;
@@ -1463,7 +1456,7 @@ YY_RULE_SETUP
 case 50:
 /* rule 50 can match eol */
 YY_RULE_SETUP
-#line 335 "ael.flex"
+#line 328 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c) ) { /* error */
@@ -1479,7 +1472,7 @@ YY_RULE_SETUP
 case 51:
 /* rule 51 can match eol */
 YY_RULE_SETUP
-#line 349 "ael.flex"
+#line 342 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		yymore();
@@ -1489,7 +1482,7 @@ YY_RULE_SETUP
 case 52:
 /* rule 52 can match eol */
 YY_RULE_SETUP
-#line 355 "ael.flex"
+#line 348 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c) ) { /* error */
@@ -1505,7 +1498,7 @@ YY_RULE_SETUP
 case 53:
 /* rule 53 can match eol */
 YY_RULE_SETUP
-#line 367 "ael.flex"
+#line 360 "ael.flex"
 {
 		STORE_LOC;
 		yylval->str = strdup(yytext);
@@ -1519,7 +1512,7 @@ YY_RULE_SETUP
 case 54:
 /* rule 54 can match eol */
 YY_RULE_SETUP
-#line 377 "ael.flex"
+#line 370 "ael.flex"
 {
 		FILE *in1;
 		char fnamebuf[1024],*p1,*p2;
@@ -1586,7 +1579,7 @@ case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(paren):
 case YY_STATE_EOF(semic):
 case YY_STATE_EOF(argg):
-#line 439 "ael.flex"
+#line 432 "ael.flex"
 {
 		if ( --include_stack_index < 0 ) {
 			yyterminate();
@@ -1602,10 +1595,10 @@ case YY_STATE_EOF(argg):
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 452 "ael.flex"
+#line 445 "ael.flex"
 ECHO;
 	YY_BREAK
-#line 1609 "ael_lex.c"
+#line 1602 "ael_lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2735,7 +2728,7 @@ void ael_yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 452 "ael.flex"
+#line 445 "ael.flex"
 
 
 

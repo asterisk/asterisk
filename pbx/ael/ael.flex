@@ -240,7 +240,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		} else {
 			STORE_LOC;
 			yylval->str = strdup(yytext);
-			yylval->str[strlen(yylval->str)-1] = '\0'; /* trim trailing ')' */
+			yylval->str[yyleng-1] = '\0'; /* trim trailing ')' */
 			unput(')');
 			BEGIN(0);
 			return word;
@@ -290,19 +290,13 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			yymore();
 		} else {
 			STORE_LOC;
-			yylval->str = strdup(yytext);
-			if(yyleng > 1 )
-				yylval->str[yyleng-1] = '\0'; /* trim trailing ')' */
 			BEGIN(0);
-			if ( !strcmp(yylval->str,")") ) {
-				free(yylval->str);
-				yylval->str = 0;
-				my_col++; /* XXX why ? */
+			if ( !strcmp(yytext, ")") )
 				return RP;
-			} else {
-				unput(')');
-				return word;
-			}
+			yylval->str = strdup(yytext);
+			yylval->str[yyleng-1] = '\0'; /* trim trailing ')' */
+			unput(')');
+			return word;
 		}
 	}
 
@@ -321,8 +315,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 				/* printf("Got argg2 word %s\n", yylval->str); */
 				unput(',');
 				commaout = 1;
-				if (yyleng > 1 )
-					*(yylval->str+yyleng-1)=0;
+				yylval->str[yyleng-1] = '\0';
 				return word;
 			} else {
 				commaout = 0;
