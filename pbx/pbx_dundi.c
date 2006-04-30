@@ -4199,7 +4199,7 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 	if (peer->registerid > -1)
 		ast_sched_del(sched, peer->registerid);
 	peer->registerid = -1;
-	while(v) {
+	for (; v; v = v->next) {
 		if (!strcasecmp(v->name, "inkey")) {
 			ast_copy_string(peer->inkey, v->value, sizeof(peer->inkey));
 		} else if (!strcasecmp(v->name, "outkey")) {
@@ -4281,7 +4281,6 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 					v->value, v->lineno);
 			}
 		}
-		v = v->next;
 	}
 	(*globalpcmode) |= peer->pcmodel;
 	if (!peer->model && !peer->pcmodel) {
