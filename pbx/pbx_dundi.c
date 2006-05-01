@@ -139,8 +139,8 @@ struct permission {
 };
 
 struct dundi_packet {
+	AST_LIST_ENTRY(dundi_packet) list;
 	struct dundi_hdr *h;
-	struct dundi_packet *next;
 	int datalen;
 	struct dundi_transaction *parent;
 	int retransid;
@@ -183,8 +183,8 @@ struct dundi_transaction {
 	unsigned char oiseqno;                         /*!< Last received incoming seqno */
 	unsigned char oseqno;                          /*!< Next transmitted seqno */
 	unsigned char aseqno;                          /*!< Last acknowledge seqno */
-	struct dundi_packet *packets;                  /*!< Packets to be retransmitted */
-	struct dundi_packet *lasttrans;                /*!< Last transmitted / ACK'd packet */
+	AST_LIST_HEAD_NOLOCK(packetlist, dundi_packet) packets;  /*!< Packets to be retransmitted */
+	struct packetlist lasttrans;                   /*!< Last transmitted / ACK'd packet */
 	struct dundi_request *parent;                  /*!< Parent request (if there is one) */
 	AST_LIST_ENTRY(dundi_transaction) parentlist;  /*!< Next with respect to the parent */
 	AST_LIST_ENTRY(dundi_transaction) all;         /*!< Next with respect to all DUNDi transactions */
@@ -1793,7 +1793,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 			dundi_send(trans, DUNDI_COMMAND_CANCEL, 0, 1, NULL);
 		break;
 	case DUNDI_COMMAND_ENCREJ:
-		if ((ast_test_flag(trans, FLAG_SENDFULLKEY)) || !trans->lasttrans || !(peer = find_peer(&trans->them_eid))) {
+		if ((ast_test_flag(trans, FLAG_SENDFULLKEY)) || AST_LIST_EMPTY(&trans->lasttrans) || !(peer = find_peer(&trans->them_eid))) {
 			/* No really, it's over at this point */
 			if (!final) 
 				dundi_send(trans, DUNDI_COMMAND_CANCEL, 0, 1, NULL);
@@ -1810,7 +1810,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 					hdr->cmdresp &= 0x7f;
 					/* Parse the message we transmitted */
 					memset(&ies, 0, sizeof(ies));
-					dundi_parse_ies(&ies, trans->lasttrans->h->ies, trans->lasttrans->datalen - sizeof(struct dundi_hdr));
+					dundi_parse_ies(&ies, (AST_LIST_FIRST(&trans->lasttrans))->h->ies, (AST_LIST_FIRST(&trans->lasttrans))->datalen - sizeof(struct dundi_hdr));
 					/* Reconstruct outgoing encrypted packet */
 					memset(&ied, 0, sizeof(ied));
 					dundi_ie_append_eid(&ied, DUNDI_IE_EID, &trans->us_eid);
@@ -1818,7 +1818,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 					dundi_ie_append_raw(&ied, DUNDI_IE_SIGNATURE, peer->txenckey + 128, 128);
 					if (ies.encblock) 
 						dundi_ie_append_encdata(&ied, DUNDI_IE_ENCDATA, ies.encblock->iv, ies.encblock->encdata, ies.enclen);
-					dundi_send(trans, DUNDI_COMMAND_ENCRYPT, 0, trans->lasttrans->h->cmdresp & 0x80, &ied);
+					dundi_send(trans, DUNDI_COMMAND_ENCRYPT, 0, (AST_LIST_FIRST(&trans->lasttrans))->h->cmdresp & 0x80, &ied);
 					peer->sentfullkey = 1;
 				}
 			}
@@ -1877,39 +1877,38 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 }
 
 static void destroy_packet(struct dundi_packet *pack, int needfree);
-static void destroy_packets(struct dundi_packet *p)
+static void destroy_packets(struct packetlist *p)
 {
-	struct dundi_packet *prev;
-	while(p) {
-		prev = p;
-		p = p->next;
-		if (prev->retransid > -1)
-			ast_sched_del(sched, prev->retransid);
-		free(prev);
+	struct dundi_packet *pack;
+	
+	while ((pack = AST_LIST_REMOVE_HEAD(p, list))) {
+		if (pack->retransid > -1)
+			ast_sched_del(sched, pack->retransid);
+		free(pack);
 	}
 }
 
 
 static int ack_trans(struct dundi_transaction *trans, int iseqno)
 {
-	/* Ack transmitted packet corresponding to iseqno */
 	struct dundi_packet *pack;
-	pack = trans->packets;
-	while(pack) {
+
+	/* Ack transmitted packet corresponding to iseqno */
+	AST_LIST_TRAVERSE(&trans->packets, pack, list) {
 		if ((pack->h->oseqno + 1) % 255 == iseqno) {
 			destroy_packet(pack, 0);
-			if (trans->lasttrans) {
+			if (!AST_LIST_EMPTY(&trans->lasttrans)) {
 				ast_log(LOG_WARNING, "Whoa, there was still a last trans?\n");
-				destroy_packets(trans->lasttrans);
+				destroy_packets(&trans->lasttrans);
 			}
-			trans->lasttrans = pack;
+			AST_LIST_INSERT_HEAD(&trans->lasttrans, pack, list);
 			if (trans->autokillid > -1)
 				ast_sched_del(sched, trans->autokillid);
 			trans->autokillid = -1;
 			return 1;
 		}
-		pack = pack->next;
 	}
+
 	return 0;
 }
 
@@ -1939,8 +1938,7 @@ static int handle_frame(struct dundi_hdr *h, struct sockaddr_in *sin, int datale
 			trans->aseqno = trans->iseqno;
 		}
 		/* Delete any saved last transmissions */
-		destroy_packets(trans->lasttrans);
-		trans->lasttrans = NULL;
+		destroy_packets(&trans->lasttrans);
 		if (h->cmdresp & 0x80) {
 			/* Final -- destroy now */
 			destroy_trans(trans, 0);
@@ -2788,30 +2786,14 @@ static int dundi_xmit(struct dundi_packet *pack)
 
 static void destroy_packet(struct dundi_packet *pack, int needfree)
 {
-	struct dundi_packet *prev, *cur;
-	if (pack->parent) {
-		prev = NULL;
-		cur = pack->parent->packets;
-		while(cur) {
-			if (cur == pack) {
-				if (prev)
-					prev->next = cur->next;
-				else
-					pack->parent->packets = cur->next;
-				break;
-			}
-			prev = cur;
-			cur = cur->next;
-		}
-	}
+	if (pack->parent)
+		AST_LIST_REMOVE(&pack->parent->packets, pack, list);
 	if (pack->retransid > -1)
 		ast_sched_del(sched, pack->retransid);
 	if (needfree)
 		free(pack);
-	else {
+	else
 		pack->retransid = -1;
-		pack->next = NULL;
-	}
 }
 
 static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
@@ -2885,10 +2867,8 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 	}
 	/* Unlink from all trans */
 	AST_LIST_REMOVE(&alltrans, trans, all);
-	destroy_packets(trans->packets);
-	destroy_packets(trans->lasttrans);
-	trans->packets = NULL;
-	trans->lasttrans = NULL;
+	destroy_packets(&trans->packets);
+	destroy_packets(&trans->lasttrans);
 	if (trans->autokillid > -1)
 		ast_sched_del(sched, trans->autokillid);
 	trans->autokillid = -1;
@@ -2941,8 +2921,7 @@ static int dundi_send(struct dundi_transaction *trans, int cmdresp, int flags, i
 		if (cmdresp != DUNDI_COMMAND_ACK) {
 			pack->retransid = ast_sched_add(sched, trans->retranstimer, dundi_rexmit, pack);
 			pack->retrans = DUNDI_DEFAULT_RETRANS - 1;
-			pack->next = trans->packets;
-			trans->packets = pack;
+			AST_LIST_INSERT_HEAD(&trans->packets, pack, list);
 		}
 		pack->parent = trans;
 		pack->h->strans = htons(trans->strans);
