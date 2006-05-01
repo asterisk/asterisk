@@ -258,3 +258,42 @@ int main(int argc, char **argv)
 	
     return 0;
 }
+
+/*
+ * XXX the code below is replicated here from utils.c, because
+ * the #define AST_API_MODULE references functions that are
+ * not available on all platforms.
+ * We hit the problem with strndup (which in turn uses strnlen),
+ * but it is possible that there are more of these issues.
+ *
+ * When utils.c is properly split and functions become available
+ * through a library, this file will just link to the library and
+ * the problem will go away together with the code below.
+ */
+#ifndef HAVE_STRNLEN
+size_t strnlen(const char *s, size_t n)
+{
+        size_t len;   
+
+        for (len=0; len < n; len++)
+                if (s[len] == '\0')
+                        break;
+
+        return len;
+}
+#endif /* !HAVE_STRNLEN */
+
+#if !defined(HAVE_STRNDUP) && !defined(__AST_DEBUG_MALLOC)
+char *strndup(const char *s, size_t n)
+{
+        size_t len = strnlen(s, n);
+        char *new = malloc(len + 1);
+
+        if (!new)
+                return NULL;
+
+        new[len] = '\0';
+        return memcpy(new, s, len);
+}
+#endif /* !defined(HAVE_STRNDUP) && !defined(__AST_DEBUG_MALLOC) */
+
