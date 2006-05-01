@@ -3504,13 +3504,13 @@ static int ael2_reload(int fd, int argc, char *argv[])
 	return (pbx_load_module());
 }
 
-static struct ast_cli_entry  ael2_cli[] = {
-	{ { "ael2", "reload", NULL }, ael2_reload, "Reload AEL configuration"},
-	{ { "ael2", "debug", "read", NULL }, ael2_debug_read, "Enable AEL read debug (does nothing)"},
-	{ { "ael2", "debug", "tokens", NULL }, ael2_debug_tokens, "Enable AEL tokens debug (does nothing)"},
-	{ { "ael2", "debug", "macros", NULL }, ael2_debug_macros, "Enable AEL macros debug (does nothing)"},
-	{ { "ael2", "debug", "contexts", NULL }, ael2_debug_contexts, "Enable AEL contexts debug (does nothing)"},
-	{ { "ael2", "no", "debug", NULL }, ael2_no_debug, "Disable AEL debug messages"},
+static struct ast_cli_entry  ael_cli[] = {
+	{ { "ael", "reload", NULL }, ael2_reload, "Reload AEL configuration"},
+	{ { "ael", "debug", "read", NULL }, ael2_debug_read, "Enable AEL read debug (does nothing)"},
+	{ { "ael", "debug", "tokens", NULL }, ael2_debug_tokens, "Enable AEL tokens debug (does nothing)"},
+	{ { "ael", "debug", "macros", NULL }, ael2_debug_macros, "Enable AEL macros debug (does nothing)"},
+	{ { "ael", "debug", "contexts", NULL }, ael2_debug_contexts, "Enable AEL contexts debug (does nothing)"},
+	{ { "ael", "no", "debug", NULL }, ael2_no_debug, "Disable AEL debug messages"},
 };
 
 /*
@@ -3519,14 +3519,14 @@ static struct ast_cli_entry  ael2_cli[] = {
 static int unload_module(void *mod)
 {
 	ast_context_destroy(NULL, registrar);
-	ast_cli_unregister_multiple(ael2_cli, sizeof(ael2_cli)/ sizeof(ael2_cli[0]));
+	ast_cli_unregister_multiple(ael_cli, sizeof(ael_cli)/ sizeof(ael_cli[0]));
 	return 0;
 }
 
 
 static int load_module(void *mod)
 {
-	ast_cli_register_multiple(ael2_cli, sizeof(ael2_cli)/ sizeof(ael2_cli[0]));
+	ast_cli_register_multiple(ael_cli, sizeof(ael_cli)/ sizeof(ael_cli[0]));
 	return (pbx_load_module());
 }
 
