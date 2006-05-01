@@ -74,7 +74,6 @@ static void pbcpush(char x);
 static int pbcpop(char x);
 
 static int parencount = 0;
-static int commaout = 0;
 
 /*
  * current line, column and filename, updated as we read the input.
@@ -320,23 +319,12 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			yymore();
 		} else  {
 			STORE_LOC;
-			if( !commaout ) {
-				if( !strcmp(yytext,"," ) ) {
-					commaout = 0;
-					my_col+=1;
-					return COMMA;
-				}
-				yylval->str = strdup(yytext);
-				/* printf("Got argg2 word %s\n", yylval->str); */
-				unput(',');
-				commaout = 1;
-				yylval->str[yyleng-1] = '\0';
-				return word;
-			} else {
-				commaout = 0;
-				my_col+=1;
+			if( !strcmp(yytext,"," ) )
 				return COMMA;
-			}
+			yylval->str = strdup(yytext);
+			yylval->str[yyleng-1] = '\0';
+			unput(',');
+			return word;
 		}
 	}
 
@@ -540,7 +528,6 @@ void reset_argcount(yyscan_t yyscanner )
 	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	parencount = 0;
 	pbcpos = 0;
-	commaout = 0;
 	pbcpush('(');	/* push '(' so the last pcbpop (parencount= -1) will succeed */
 	c_prevword();
 	BEGIN(argg);
