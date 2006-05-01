@@ -132,8 +132,9 @@ static char cursecret[80];
 static char ipaddr[80];
 static time_t rotatetime;
 static dundi_eid empty_eid = { { 0, 0, 0, 0, 0, 0 } };
+
 struct permission {
-	struct permission *next;
+	AST_LIST_ENTRY(permission) list;
 	int allow;
 	char name[0];
 };
@@ -222,10 +223,8 @@ struct dundi_mapping {
 struct dundi_peer {
 	dundi_eid eid;
 	struct sockaddr_in addr;               /*!< Address of DUNDi peer */
-	struct permission *permit;
-	struct permission *include;
-	struct permission *precachesend;
-	struct permission *precachereceive;
+	AST_LIST_HEAD_NOLOCK(permissionlist, permission) permit;
+	struct permissionlist include;
 	dundi_eid us_eid;
 	char inkey[80];
 	char outkey[80];
@@ -277,14 +276,16 @@ static void dundi_error_output(const char *data)
 	ast_log(LOG_WARNING, "%s", data);
 }
 
-static int has_permission(struct permission *ps, char *cont)
+static int has_permission(struct permissionlist *permlist, char *cont)
 {
-	int res=0;
-	while(ps) {
-		if (!strcasecmp(ps->name, "all") || !strcasecmp(ps->name, cont))
-			res = ps->allow;
-		ps = ps->next;
+	struct permission *perm;
+	int res = 0;
+
+	AST_LIST_TRAVERSE(permlist, perm, list) {
+		if (!strcasecmp(perm->name, "all") || !strcasecmp(perm->name, cont))
+			res = perm->allow;
 	}
+
 	return res;
 }
 
@@ -1550,7 +1551,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 						dundi_send(trans, resp, 0, 1, &ied);
 					} else if ((cmd == DUNDI_COMMAND_DPDISCOVER) && 
 					           (peer->model & DUNDI_MODEL_INBOUND) && 
-							   has_permission(peer->permit, ies.called_context)) {
+							   has_permission(&peer->permit, ies.called_context)) {
 						res = dundi_answer_query(trans, &ies, ies.called_context);
 						if (res < 0) {
 							/* There is no such dundi context */
@@ -1559,7 +1560,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 						}
 					} else if ((cmd = DUNDI_COMMAND_PRECACHERQ) && 
 					           (peer->pcmodel & DUNDI_MODEL_INBOUND) && 
-							   has_permission(peer->include, ies.called_context)) {
+							   has_permission(&peer->include, ies.called_context)) {
 						res = dundi_prop_precache(trans, &ies, ies.called_context);
 						if (res < 0) {
 							/* There is no such dundi context */
@@ -2398,24 +2399,16 @@ static int dundi_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "Reg:     %s\n", peer->registerid < 0 ? "No" : "Yes");
 		ast_cli(fd, "In Key:  %s\n", ast_strlen_zero(peer->inkey) ? "<None>" : peer->inkey);
 		ast_cli(fd, "Out Key: %s\n", ast_strlen_zero(peer->outkey) ? "<None>" : peer->outkey);
-		if (peer->include) {
+		if (!AST_LIST_EMPTY(&peer->include))
 			ast_cli(fd, "Include logic%s:\n", peer->model & DUNDI_MODEL_OUTBOUND ? "" : " (IGNORED)");
-		}
-		p = peer->include;
-		while(p) {
+		AST_LIST_TRAVERSE(&peer->include, p, list)
 			ast_cli(fd, "-- %s %s\n", p->allow ? "include" : "do not include", p->name);
-			p = p->next;
-		}
-		if (peer->permit) {
+		if (!AST_LIST_EMPTY(&peer->permit))
 			ast_cli(fd, "Query logic%s:\n", peer->model & DUNDI_MODEL_INBOUND ? "" : " (IGNORED)");
-		}
-		p = peer->permit;
-		while(p) {
+		AST_LIST_TRAVERSE(&peer->permit, p, list)
 			ast_cli(fd, "-- %s %s\n", p->allow ? "permit" : "deny", p->name);
-			p = p->next;
-		}
 		cnt = 0;
-		for (x=0;x<DUNDI_TIMING_HISTORY;x++) {
+		for (x = 0;x < DUNDI_TIMING_HISTORY; x++) {
 			if (peer->lookups[x]) {
 				if (!cnt)
 					ast_cli(fd, "Last few query times:\n");
@@ -2997,7 +2990,7 @@ static void dundi_ie_append_eid_appropriately(struct dundi_ie_data *ied, char *c
 	AST_LIST_LOCK(&peers);
 	AST_LIST_TRAVERSE(&peers, p, list) {
 		if (!dundi_eid_cmp(&p->eid, eid)) {
-			if (has_permission(p->include, context))
+			if (has_permission(&p->include, context))
 				dundi_ie_append_eid(ied, DUNDI_IE_EID_DIRECT, eid);
 			else
 				dundi_ie_append_eid(ied, DUNDI_IE_EID, eid);
@@ -3202,7 +3195,7 @@ static int optimize_transactions(struct dundi_request *dr, int order)
 		}
 
 		AST_LIST_TRAVERSE(&peers, peer, list) {
-			if (has_permission(peer->include, dr->dcontext) && 
+			if (has_permission(&peer->include, dr->dcontext) && 
 			    dundi_eid_cmp(&peer->eid, &trans->them_eid) &&
 				(peer->order <= order)) {
 				/* For each other transaction, make sure we don't
@@ -3303,11 +3296,11 @@ static void build_transactions(struct dundi_request *dr, int ttl, int order, int
 	AST_LIST_TRAVERSE(&peers, p, list) {
 		if (modeselect == 1) {
 			/* Send the precache to push upstreams only! */
-			pass = has_permission(p->permit, dr->dcontext) && (p->pcmodel & DUNDI_MODEL_OUTBOUND);
+			pass = has_permission(&p->permit, dr->dcontext) && (p->pcmodel & DUNDI_MODEL_OUTBOUND);
 			allowconnect = 1;
 		} else {
 			/* Normal lookup / EID query */
-			pass = has_permission(p->include, dr->dcontext);
+			pass = has_permission(&p->include, dr->dcontext);
 			allowconnect = p->model & DUNDI_MODEL_OUTBOUND;
 		}
 		if (skip) {
@@ -3809,14 +3802,12 @@ static void mark_mappings(void)
 	AST_LIST_UNLOCK(&peers);
 }
 
-static void destroy_permissions(struct permission *p)
+static void destroy_permissions(struct permissionlist *permlist)
 {
-	struct permission *prev;
-	while(p) {
-		prev = p;
-		p = p->next;
-		free(prev);
-	}
+	struct permission *perm;
+
+	while ((perm = AST_LIST_REMOVE_HEAD(permlist, list)))
+		free(perm);
 }
 
 static void destroy_peer(struct dundi_peer *peer)
@@ -3827,8 +3818,8 @@ static void destroy_peer(struct dundi_peer *peer)
 		destroy_trans(peer->regtrans, 0);
 	if (peer->qualifyid > -1)
 		ast_sched_del(sched, peer->qualifyid);
-	destroy_permissions(peer->permit);
-	destroy_permissions(peer->include);
+	destroy_permissions(&peer->permit);
+	destroy_permissions(&peer->include);
 	free(peer);
 }
 
@@ -3867,26 +3858,17 @@ static void prune_mappings(void)
 	AST_LIST_UNLOCK(&peers);
 }
 
-static struct permission *append_permission(struct permission *p, char *s, int allow)
+static void append_permission(struct permissionlist *permlist, char *s, int allow)
 {
-	struct permission *start;
-	start = p;
-	if (p) {
-		while(p->next)
-			p = p->next;
-	}
-	if (p) {
-		p->next = malloc(sizeof(struct permission) + strlen(s) + 1);
-		p = p->next;
-	} else {
-		p = malloc(sizeof(struct permission) + strlen(s) + 1);
-	}
-	if (p) {
-		memset(p, 0, sizeof(struct permission));
-		memcpy(p->name, s, strlen(s) + 1);
-		p->allow = allow;
-	}
-	return start ? start : p;
+	struct permission *perm;
+
+	if (!(perm = ast_calloc(1, sizeof(*perm) + strlen(s) + 1)))
+		return;
+
+	strcpy(perm->name, s);
+	perm->allow = allow;
+
+	AST_LIST_INSERT_TAIL(permlist, perm, list);
 }
 
 #define MAX_OPTS 128
@@ -4078,10 +4060,8 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 	peer->dead = 0;
 	peer->eid = *eid;
 	peer->us_eid = global_eid;
-	destroy_permissions(peer->permit);
-	destroy_permissions(peer->include);
-	peer->permit = NULL;
-	peer->include = NULL;
+	destroy_permissions(&peer->permit);
+	destroy_permissions(&peer->include);
 	if (peer->registerid > -1)
 		ast_sched_del(sched, peer->registerid);
 	peer->registerid = -1;
@@ -4109,13 +4089,13 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 			else
 				ast_log(LOG_WARNING, "'%s' is not a valid DUNDi Entity Identifier at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "include")) {
-			peer->include = append_permission(peer->include, v->value, 1);
+			append_permission(&peer->include, v->value, 1);
 		} else if (!strcasecmp(v->name, "permit")) {
-			peer->permit = append_permission(peer->permit, v->value, 1);
+			append_permission(&peer->permit, v->value, 1);
 		} else if (!strcasecmp(v->name, "noinclude")) {
-			peer->include = append_permission(peer->include, v->value, 0);
+			append_permission(&peer->include, v->value, 0);
 		} else if (!strcasecmp(v->name, "deny")) {
-			peer->permit = append_permission(peer->permit, v->value, 0);
+			append_permission(&peer->permit, v->value, 0);
 		} else if (!strcasecmp(v->name, "register")) {
 			needregister = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "order")) {
@@ -4181,10 +4161,10 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 		ast_log(LOG_WARNING, "Peer '%s' may not be both outbound/symmetric model and inbound/symmetric precache model, discarding!\n", 
 			dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		peer->dead = 1;
-	} else if (peer->include && !(peer->model & DUNDI_MODEL_OUTBOUND) && !(peer->pcmodel & DUNDI_MODEL_INBOUND)) {
+	} else if (!AST_LIST_EMPTY(&peer->include) && !(peer->model & DUNDI_MODEL_OUTBOUND) && !(peer->pcmodel & DUNDI_MODEL_INBOUND)) {
 		ast_log(LOG_WARNING, "Peer '%s' is supposed to be included in outbound searches but isn't an outbound peer or inbound precache!\n", 
 			dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
-	} else if (peer->permit && !(peer->model & DUNDI_MODEL_INBOUND) && !(peer->pcmodel & DUNDI_MODEL_OUTBOUND)) {
+	} else if (!AST_LIST_EMPTY(&peer->permit) && !(peer->model & DUNDI_MODEL_INBOUND) && !(peer->pcmodel & DUNDI_MODEL_OUTBOUND)) {
 		ast_log(LOG_WARNING, "Peer '%s' is supposed to have permission for some inbound searches but isn't an inbound peer or outbound precache!\n", 
 			dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 	} else { 
