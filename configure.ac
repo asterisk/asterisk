@@ -308,14 +308,15 @@ AC_SUBST([pq_INCLUDE])
 AC_SUBST([pq_LIB])
 AC_SUBST([PBX_LIBpq])
 
-PBX_H323=0
-AC_CHECK_HEADER([h323.h], [PBX_H323=1], [])
+AC_CHECK_HEADER([h323.h], [PBX_H323=1], [PBX_H323=0])
 AC_SUBST(PBX_H323)
 
-PBX_IXJUSER=0
-AC_CHECK_HEADER([linux/ixjuser.h], [
-   AC_CHECK_HEADER([linux/telephony.h], [
-      AC_CHECK_HEADER([linux/version.h], [PBX_IXJUSER=1])])])
+AC_CHECK_HEADER([linux/ixjuser.h], [PBX_IXJUSER=1], [PBX_IXJUSER=0], [
+				   #include <linux/version.h>
+				   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+				   #include <linux/compiler.h>
+				   #endif
+				   ])
 AC_SUBST(PBX_IXJUSER)
 
 AC_ARG_WITH([vpb], AC_HELP_STRING([--with-vpb=PATH],[use vpb files in PATH]),[
