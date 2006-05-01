@@ -930,7 +930,7 @@ static char *complete_ch_helper(const char *line, const char *word, int pos, int
 		c = ast_channel_walk_locked(c);
 	}
 	if (c) {
-		ret = ast_strdupa(c->name);
+		ret = strdup(c->name);
 		ast_mutex_unlock(&c->lock);
 	} else
 		ret = NULL;
@@ -949,12 +949,12 @@ static char *complete_debug_port (const char *line, const char *word, int pos, i
 
 	switch (pos) {
 	case 4: if (*word == 'p')
-				return ast_strdupa("port");
+				return strdup("port");
 			else if (*word == 'o')
-				return ast_strdupa("only");
+				return strdup("only");
 			break;
 	case 6: if (*word == 'o')
-				return ast_strdupa("only");
+				return strdup("only");
 			break;
 	}
 	return NULL;
@@ -1512,8 +1512,11 @@ static int read_config(struct chan_list *ch, int orig) {
 			ast_set_callerid(ast, bc->oad, NULL, bc->oad);
 		}
 		
-		if ( !ast_strlen_zero(bc->rad) ) 
-			ast->cid.cid_rdnis=ast_strdupa(bc->rad);
+		if ( !ast_strlen_zero(bc->rad) ) {
+			if (ast->cid.cid_rdnis)
+				free(ast->cid.cid_rdnis);
+			ast->cid.cid_rdnis = strdup(bc->rad);
+		}
 	}
 	return 0;
 }
