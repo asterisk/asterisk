@@ -569,12 +569,13 @@ macro_call : word LP {reset_argcount(parseio->scanner);} eval_arglist RP {
  */
 application_call_head: word LP {reset_argcount(parseio->scanner);} {
 		if (strcasecmp($1,"goto") == 0) {
-			$$= npval2(PV_GOTO, &@1, &@3);
+			$$ = npval2(PV_GOTO, &@1, &@2);
 			free($1); /* won't be using this */
 			ast_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Suggestion: Use the goto statement instead of the Goto() application call in AEL.\n", my_file, @1.first_line, @1.first_column, @1.last_column );
-		} else
-			$$= npval2(PV_APPLICATION_CALL, &@1, &@3);
-		$$->u1.str = $1; }
+		} else {
+			$$= npval2(PV_APPLICATION_CALL, &@1, &@2);
+			$$->u1.str = $1;
+		} }
 	;
 
 application_call : application_call_head eval_arglist RP {
