@@ -1172,10 +1172,12 @@ static int handle_show_functions(int fd, int argc, char *argv[])
 	int count_acf = 0;
 
 	ast_cli(fd, "Installed Custom Functions:\n--------------------------------------------------------------------------------\n");
+	ast_mutex_lock(&acflock);
 	for (acf = acf_root ; acf; acf = acf->next) {
 		ast_cli(fd, "%-20.20s  %-35.35s  %s\n", acf->name, acf->syntax, acf->synopsis);
 		count_acf++;
 	}
+	ast_mutex_unlock(&acflock);
 	ast_cli(fd, "%d custom functions installed.\n", count_acf);
 	return 0;
 }
