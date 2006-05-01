@@ -244,8 +244,7 @@ static int autofallthrough = 0;
 AST_MUTEX_DEFINE_STATIC(maxcalllock);
 static int countcalls = 0;
 
-AST_MUTEX_DEFINE_STATIC(acflock); 		/*!< Lock for the custom function list */
-static struct ast_custom_function *acf_root = NULL;
+AST_LIST_HEAD_STATIC(acf_root, ast_custom_function);
 
 /*! \brief Declaration of builtin applications */
 static struct pbx_builtin {
@@ -1032,17 +1031,19 @@ static int handle_show_functions(int fd, int argc, char *argv[])
 	}
 
 	ast_cli(fd, "%s Custom Functions:\n--------------------------------------------------------------------------------\n", like ? "Matching" : "Installed");
-	
-	for (acf = acf_root ; acf; acf = acf->next) {
+
+	AST_LIST_LOCK(&acf_root);
+	AST_LIST_TRAVERSE(&acf_root, acf, acflist) {
 		if (!like || strstr(acf->name, argv[3])) {
 			count_acf++;
 			ast_cli(fd, "%-20.20s  %-35.35s  %s\n", acf->name, acf->syntax, acf->synopsis);
 		}
 	}
+	AST_LIST_UNLOCK(&acf_root);
 
 	ast_cli(fd, "%d %scustom functions installed.\n", count_acf, like ? "matching " : "");
 
-	return 0;
+	return RESULT_SUCCESS;
 }
 
 static int handle_show_function(int fd, int argc, char *argv[])
@@ -1108,121 +1109,82 @@ static char *complete_show_function(const char *line, const char *word, int pos,
 	int which = 0;
 	int wordlen = strlen(word);
 
-	/* try to lock functions list ... */
-	if (ast_mutex_lock(&acflock)) {
-		ast_log(LOG_ERROR, "Unable to lock function list\n");
-		return NULL;
-	}
-
 	/* case-insensitive for convenience in this 'complete' function */
- 	for (acf = acf_root; acf && !ret; acf = acf->next) {
- 		if (!strncasecmp(word, acf->name, wordlen) && ++which > state)
+	AST_LIST_LOCK(&acf_root);
+	AST_LIST_TRAVERSE(&acf_root, acf, acflist) {
+ 		if (!strncasecmp(word, acf->name, wordlen) && ++which > state) {
  			ret = strdup(acf->name);
+			break;
+		}
 	}
-
-	ast_mutex_unlock(&acflock);
+	AST_LIST_UNLOCK(&acf_root);
 
 	return ret; 
 }
 
-struct ast_custom_function* ast_custom_function_find(const char *name) 
+struct ast_custom_function *ast_custom_function_find(const char *name) 
 {
-	struct ast_custom_function *acfptr;
+	struct ast_custom_function *acf = NULL;
 
-	/* try to lock functions list ... */
-	if (ast_mutex_lock(&acflock)) {
-		ast_log(LOG_ERROR, "Unable to lock function list\n");
-		return NULL;
-	}
-
-	for (acfptr = acf_root; acfptr; acfptr = acfptr->next) {
-		if (!strcmp(name, acfptr->name))
+	AST_LIST_LOCK(&acf_root);
+	AST_LIST_TRAVERSE(&acf_root, acf, acflist) {
+		if (!strcmp(name, acf->name))
 			break;
 	}
-
-	ast_mutex_unlock(&acflock);
+	AST_LIST_UNLOCK(&acf_root);
 	
-	return acfptr;
+	return acf;
 }
 
 int ast_custom_function_unregister(struct ast_custom_function *acf) 
 {
-	struct ast_custom_function *cur, *prev = NULL;
-	int res = -1;
+	struct ast_custom_function *cur;
 
 	if (!acf)
 		return -1;
 
-	/* try to lock functions list ... */
-	if (ast_mutex_lock(&acflock)) {
-		ast_log(LOG_ERROR, "Unable to lock function list\n");
-		return -1;
-	}
-
-	for (cur = acf_root; cur; prev = cur, cur = cur->next) {
+	AST_LIST_LOCK(&acf_root);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&acf_root, cur, acflist) {
 		if (cur == acf) {
-			if (prev)
-				prev->next = acf->next;
-			else
-				acf_root = acf->next;
-			res = 0;
+			AST_LIST_REMOVE_CURRENT(&acf_root, acflist);
+			if (option_verbose > 1)
+				ast_verbose(VERBOSE_PREFIX_2 "Unregistered custom function %s\n", acf->name);
 			break;
 		}
 	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&acf_root);		
 
-	ast_mutex_unlock(&acflock);
-
-	if (!res && option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Unregistered custom function %s\n", acf->name);
-
-	return res;
+	return acf ? 0 : -1;
 }
 
 int ast_custom_function_register(struct ast_custom_function *acf) 
 {
-	struct ast_custom_function *cur, *last = NULL;
-	int found = 0;
+	struct ast_custom_function *cur;
 
 	if (!acf)
 		return -1;
 
-	/* try to lock functions list ... */
-	if (ast_mutex_lock(&acflock)) {
-		ast_log(LOG_ERROR, "Unable to lock function list. Failed registering function %s\n", acf->name);
-		return -1;
-	}
+	AST_LIST_LOCK(&acf_root);
 
 	if (ast_custom_function_find(acf->name)) {
 		ast_log(LOG_ERROR, "Function %s already registered.\n", acf->name);
-		ast_mutex_unlock(&acflock);
+		AST_LIST_UNLOCK(&acf_root);
 		return -1;
 	}
 
-	for (cur = acf_root; cur; cur = cur->next) {
-		if (strcmp(acf->name, cur->name) < 0) {
-			found = 1;
-			if (last) {
-				acf->next = cur;
-				last->next = acf;
-			} else {
-				acf->next = acf_root;
-				acf_root = acf;
-			}
+	/* Store in alphabetical order */
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&acf_root, cur, acflist) {
+		if (strcasecmp(acf->name, cur->name) < 0) {
+			AST_LIST_INSERT_BEFORE_CURRENT(&acf_root, acf, acflist);	
 			break;
 		}
-		last = cur;
 	}
+	AST_LIST_TRAVERSE_SAFE_END
+	if (!cur)
+		AST_LIST_INSERT_TAIL(&acf_root, acf, acflist);
 
-	/* Wasn't before anything else, put it at the end */
-	if (!found) {
-		if (last)
-			last->next = acf;
-		else
-			acf_root = acf;
-		acf->next = NULL;
-	}
-
-	ast_mutex_unlock(&acflock);
+	AST_LIST_UNLOCK(&acf_root);
 
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Registered custom function %s\n", acf->name);
@@ -2650,7 +2612,7 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 /*! \brief Dynamically register a new dial plan application */
 int ast_register_application(const char *app, int (*execute)(struct ast_channel *, void *), const char *synopsis, const char *description)
 {
-	struct ast_app *tmp, *prev = NULL;
+	struct ast_app *tmp, *cur = NULL;
 	char tmps[80];
 	int length;
 
@@ -2676,14 +2638,14 @@ int ast_register_application(const char *app, int (*execute)(struct ast_channel 
 	tmp->description = description;
 
 	/* Store in alphabetical order */
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&apps, prev, list) {
-		if (strcasecmp(tmp->name, prev->name) < 0) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&apps, cur, list) {
+		if (strcasecmp(tmp->name, cur->name) < 0) {
 			AST_LIST_INSERT_BEFORE_CURRENT(&apps, tmp, list);	
 			break;
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END
-	if (!prev)
+	if (!cur)
 		AST_LIST_INSERT_TAIL(&apps, tmp, list);
 
 	if (option_verbose > 1)

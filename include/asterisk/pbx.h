@@ -71,7 +71,7 @@ struct ast_custom_function {
 	const char *syntax;		/*!< Syntax description */
 	int (*read)(struct ast_channel *, char *, char *, char *, size_t);	/*!< Read function, if read is supported */
 	int (*write)(struct ast_channel *, char *, char *, const char *);	/*!< Write function, if write is supported */
-	struct ast_custom_function *next;
+	AST_LIST_ENTRY(ast_custom_function) acflist;
 };
 
 /*! \brief All switch functions have the same interface, so define a type for them */
