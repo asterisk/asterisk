@@ -56,7 +56,7 @@ AST_MUTEX_DEFINE_STATIC(modlock);
 #define ALL_DONE(u, ret) LOCAL_USER_REMOVE(u); return ret;
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
 
-static const char *synopsis = "Listen to the audio of an active channel\n";
+static const char *synopsis = "Listen to the audio of an active channel";
 static const char *app = "ChanSpy";
 static const char *desc = 
 "  ChanSpy([chanprefix][|options]): This application is used to listen to the\n"
