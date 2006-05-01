@@ -174,7 +174,7 @@ struct ast_app {
 	int (*execute)(struct ast_channel *chan, void *data);
 	const char *synopsis;			/*!< Synopsis text for 'show applications' */
 	const char *description;		/*!< Description (help text) for 'show application <name>' */
-	struct ast_app *next;			/*!< Next app in list */
+	AST_LIST_ENTRY(ast_app) list;		/*!< Next app in list */
 	struct module *module;			/*!< Module this app belongs to */
 	char name[0];				/*!< Name of the application */
 };
@@ -464,8 +464,8 @@ static struct pbx_builtin {
 
 static struct ast_context *contexts = NULL;
 AST_MUTEX_DEFINE_STATIC(conlock); 		/*!< Lock for the ast_context list */
-static struct ast_app *apps = NULL;
-AST_MUTEX_DEFINE_STATIC(applock); 		/*!< Lock for the application list */
+
+AST_LIST_HEAD_STATIC(apps, ast_app);
 
 struct ast_switch *switches = NULL;
 AST_MUTEX_DEFINE_STATIC(switchlock);		/*!< Lock for switches */
@@ -531,15 +531,13 @@ struct ast_app *pbx_findapp(const char *app)
 {
 	struct ast_app *tmp;
 
-	if (ast_mutex_lock(&applock)) {
-		ast_log(LOG_WARNING, "Unable to obtain application lock\n");
-		return NULL;
-	}
-	for (tmp = apps; tmp; tmp = tmp->next) {
+	AST_LIST_LOCK(&apps);
+	AST_LIST_TRAVERSE(&apps, tmp, list) {
 		if (!strcasecmp(tmp->name, app))
 			break;
 	}
-	ast_mutex_unlock(&applock);
+	AST_LIST_UNLOCK(&apps);	
+	
 	return tmp;
 }
 
@@ -2652,25 +2650,23 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 /*! \brief Dynamically register a new dial plan application */
 int ast_register_application(const char *app, int (*execute)(struct ast_channel *, void *), const char *synopsis, const char *description)
 {
-	struct ast_app *tmp, *prev, *cur;
+	struct ast_app *tmp, *prev = NULL;
 	char tmps[80];
 	int length;
-	length = sizeof(struct ast_app);
-	length += strlen(app) + 1;
-	if (ast_mutex_lock(&applock)) {
-		ast_log(LOG_ERROR, "Unable to lock application list\n");
-		return -1;
-	}
-	for (tmp = apps; tmp; tmp = tmp->next) {
+
+	AST_LIST_LOCK(&apps);
+	AST_LIST_TRAVERSE(&apps, tmp, list) {
 		if (!strcasecmp(app, tmp->name)) {
 			ast_log(LOG_WARNING, "Already have an application '%s'\n", app);
-			ast_mutex_unlock(&applock);
+			AST_LIST_UNLOCK(&apps);
 			return -1;
 		}
 	}
 	
+	length = sizeof(*tmp) + strlen(app) + 1;
+	
 	if (!(tmp = ast_calloc(1, length))) {
-		ast_mutex_unlock(&applock);
+		AST_LIST_UNLOCK(&apps);
 		return -1;
 	}
 
@@ -2678,24 +2674,23 @@ int ast_register_application(const char *app, int (*execute)(struct ast_channel 
 	tmp->execute = execute;
 	tmp->synopsis = synopsis;
 	tmp->description = description;
+
 	/* Store in alphabetical order */
-	prev = NULL;
-	for (cur = apps; cur; cur = cur->next) {
-		if (strcasecmp(tmp->name, cur->name) < 0)
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&apps, prev, list) {
+		if (strcasecmp(tmp->name, prev->name) < 0) {
+			AST_LIST_INSERT_BEFORE_CURRENT(&apps, tmp, list);	
 			break;
-		prev = cur;
+		}
 	}
-	if (prev) {
-		tmp->next = prev->next;
-		prev->next = tmp;
-	} else {
-		tmp->next = apps;
-		apps = tmp;
-	}
-	
+	AST_LIST_TRAVERSE_SAFE_END
+	if (!prev)
+		AST_LIST_INSERT_TAIL(&apps, tmp, list);
+
 	if (option_verbose > 1)
 		ast_verbose( VERBOSE_PREFIX_2 "Registered application '%s'\n", term_color(tmps, tmp->name, COLOR_BRCYAN, 0, sizeof(tmps)));
-	ast_mutex_unlock(&applock);
+
+	AST_LIST_UNLOCK(&apps);
+
 	return 0;
 }
 
@@ -2811,19 +2806,13 @@ static char *complete_show_application(const char *line, const char *word, int p
 	int which = 0;
 	int wordlen = strlen(word);
 
-	/* try to lock applications list ... */
-	if (ast_mutex_lock(&applock)) {
-		ast_log(LOG_ERROR, "Unable to lock application list\n");
-		return NULL;
-	}
-
 	/* return the n-th [partial] matching entry */
-	for (a = apps; a && !ret; a = a->next) {
+	AST_LIST_LOCK(&apps);
+	AST_LIST_TRAVERSE(&apps, a, list) {
 		if (!strncasecmp(word, a->name, wordlen) && ++which > state)
 			ret = strdup(a->name);
 	}
-
-	ast_mutex_unlock(&applock);
+	AST_LIST_UNLOCK(&apps);
 
 	return ret; 
 }
@@ -2833,16 +2822,12 @@ static int handle_show_application(int fd, int argc, char *argv[])
 	struct ast_app *a;
 	int app, no_registered_app = 1;
 
-	if (argc < 3) return RESULT_SHOWUSAGE;
-
-	/* try to lock applications list ... */
-	if (ast_mutex_lock(&applock)) {
-		ast_log(LOG_ERROR, "Unable to lock application list\n");
-		return -1;
-	}
+	if (argc < 3)
+		return RESULT_SHOWUSAGE;
 
 	/* ... go through all applications ... */
-	for (a = apps; a; a = a->next) {
+	AST_LIST_LOCK(&apps);
+	AST_LIST_TRAVERSE(&apps, a, list) {
 		/* ... compare this application name with all arguments given
 		 * to 'show application' command ... */
 		for (app = 2; app < argc; app++) {
@@ -2891,8 +2876,7 @@ static int handle_show_application(int fd, int argc, char *argv[])
 			}
 		}
 	}
-
-	ast_mutex_unlock(&applock);
+	AST_LIST_UNLOCK(&apps);
 
 	/* we found at least one app? no? */
 	if (no_registered_app) {
@@ -2968,16 +2952,11 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 	int total_match = 0; 	/* Number of matches in like clause */
 	int total_apps = 0; 	/* Number of apps registered */
 	
-	/* try to lock applications list ... */
-	if (ast_mutex_lock(&applock)) {
-		ast_log(LOG_ERROR, "Unable to lock application list\n");
-		return -1;
-	}
+	AST_LIST_LOCK(&apps);
 
-	/* ... have we got at least one application (first)? no? */
-	if (!apps) {
+	if (AST_LIST_EMPTY(&apps)) {
 		ast_cli(fd, "There are no registered applications\n");
-		ast_mutex_unlock(&applock);
+		AST_LIST_UNLOCK(&apps);
 		return -1;
 	}
 
@@ -2995,10 +2974,8 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 		ast_cli(fd, "    -= Matching Asterisk Applications =-\n");
 	}
 
-	/* ... go through all applications ... */
-	for (a = apps; a; a = a->next) {
-		/* ... show informations about applications ... */
-		int printapp=0;
+	AST_LIST_TRAVERSE(&apps, a, list) {
+		int printapp = 0;
 		total_apps++;
 		if (like) {
 			if (strcasestr(a->name, argv[3])) {
@@ -3031,9 +3008,8 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 	} else {
 		ast_cli(fd, "    -= %d Applications Matching =-\n",total_match);
 	}
-	
-	/* ... unlock and return */
-	ast_mutex_unlock(&applock);
+
+	AST_LIST_UNLOCK(&apps);
 
 	return RESULT_SUCCESS;
 }
@@ -3392,26 +3368,22 @@ static struct ast_cli_entry pbx_cli[] = {
 
 int ast_unregister_application(const char *app) 
 {
-	struct ast_app *tmp, *tmpl = NULL;
-	if (ast_mutex_lock(&applock)) {
-		ast_log(LOG_ERROR, "Unable to lock application list\n");
-		return -1;
-	}
-	for (tmp = apps; tmp; tmpl = tmp, tmp = tmp->next) {
+	struct ast_app *tmp;
+
+	AST_LIST_LOCK(&apps);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&apps, tmp, list) {
 		if (!strcasecmp(app, tmp->name)) {
-			if (tmpl)
-				tmpl->next = tmp->next;
-			else
-				apps = tmp->next;
+			AST_LIST_REMOVE_CURRENT(&apps, list);
 			if (option_verbose > 1)
 				ast_verbose( VERBOSE_PREFIX_2 "Unregistered application '%s'\n", tmp->name);
 			free(tmp);
-			ast_mutex_unlock(&applock);
-			return 0;
+			break;
 		}
 	}
-	ast_mutex_unlock(&applock);
-	return -1;
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&apps);
+	
+	return tmp ? 0 : -1;
 }
 
 struct ast_context *ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar)
