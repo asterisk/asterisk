@@ -10,12 +10,22 @@
 #include <errno.h>
 #include <regex.h>
 #include <limits.h>
+
+/* ast_copy_string */
+#define AST_API_MODULE
+#include "asterisk/strings.h"
+
+/* ensure that _ast_calloc works */
+#define AST_API_MODULE 
+#include "asterisk/utils.h"
+
 #include "asterisk/ast_expr.h"
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/app.h"
 #include "asterisk/ael_structs.h"
+
 #define AST_CONFIG_MAX_PATH 255
 
 int conts=0, extens=0, priors=0;
@@ -51,18 +61,6 @@ static int use_curr_dir = 0;
 struct ast_app *pbx_findapp(const char *app)
 {
 	return (struct ast_app*)1; /* so as not to trigger an error */
-}
-
-
-void ast_copy_string(char *dst, const char *src, size_t size)
-{
-        while (*src && size) {
-                *dst++ = *src++;
-                size--;
-        }
-        if (__builtin_expect(!size, 0))
-                dst--;
-        *dst = '\0';
 }
 
 void ast_cli_register_multiple(void)
