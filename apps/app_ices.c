@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
+#include "asterisk/options.h"
 
 #define ICES "/usr/bin/ices"
 #define LOCAL_ICES "/usr/local/bin/ices"
@@ -72,6 +73,8 @@ static int icesencode(char *filename, int fd)
 		ast_log(LOG_WARNING, "Fork failed\n");
 	if (res)
 		return res;
+	if (option_highpriority)
+		ast_set_priority(0);
 	dup2(fd, STDIN_FILENO);
 	for (x=STDERR_FILENO + 1;x<256;x++) {
 		if ((x != STDIN_FILENO) && (x != STDOUT_FILENO))
