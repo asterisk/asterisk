@@ -319,6 +319,8 @@ AC_CHECK_HEADER([linux/ixjuser.h], [PBX_IXJUSER=1], [PBX_IXJUSER=0], [
 				   ])
 AC_SUBST(PBX_IXJUSER)
 
+AC_LANG_PUSH(C++)
+
 AC_ARG_WITH([vpb], AC_HELP_STRING([--with-vpb=PATH],[use vpb files in PATH]),[
 case ${withval} in
      n|no)
@@ -335,12 +337,17 @@ esac
 ])
 if test "${USE_VPB}" != "no"; then
    echo -n "checking for vpb_open in -lvpb..."
-   saved_ldflags="${LDFLAGS}"
-   LDFLAGS="${LDFLAGS} -L${VPB_DIR} -lvpb"
+   saved_libs="${LIBS}"
+   saved_cppflags="${CPPFLAGS}"
+   if test "x${VPB_DIR}" != "x" ; then
+      LIBS="${LIBS} -L${VPB_DIR}/lib"
+      CPPFLAGS="${CPPFLAGS} -I${VPB_DIR}/include"
+   fi
+   LIBS="${LIBS} -lvpb -lpthread"
    AC_LINK_IFELSE(
 	[
 	AC_LANG_PROGRAM(
-	[#include "${VPB_DIR}vpbapi.h"],
+	[#include <vpbapi.h>],
 	[int q = vpb_open(0,0);])
 	],
 	[	AC_MSG_RESULT(yes) 
@@ -350,15 +357,15 @@ if test "${USE_VPB}" != "no"; then
 		ac_cv_lib_vpb_vpb_open="no" 
 	]
 	)
-	LDFLAGS="${saved_ldflags}"
-
-	PBX_LIBvpb=0
-	if test "${ac_cv_lib_vpb_vpb_open}" = "yes"; then
+   LIBS="${saved_libs}"
+   CPPFLAGS="${saved_cppflags}"
+   PBX_LIBvpb=0
+   if test "${ac_cv_lib_vpb_vpb_open}" = "yes"; then
 	VPB_LIB="-lvpb"
 	if test "${VPB_DIR}" != ""; then
-	VPB_LIB="-L${VPB_DIR}/lib ${VPB_LIB}"
-	VPB_INCLUDE="-I${VPB_DIR}/include"
-	AC_SUBST([VPB_INCLUDE])
+	   VPB_LIB="-L${VPB_DIR}/lib ${VPB_LIB}"
+	   VPB_INCLUDE="-I${VPB_DIR}/include"
+	   AC_SUBST([VPB_INCLUDE])
 	fi
 	AC_SUBST([VPB_LIB])
 	PBX_LIBvpb=1
@@ -373,9 +380,6 @@ if test "${USE_VPB}" != "no"; then
    fi
 fi
 AC_SUBST([PBX_LIBvpb])
-
-
-AC_LANG_PUSH(C++)
 
 AC_ARG_WITH([qt], AC_HELP_STRING([--with-qt=PATH],[use Qt files in PATH]),[
 case ${withval} in
