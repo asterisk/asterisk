@@ -53,7 +53,7 @@ static char *descrip = "This application is a template to build other applicatio
 #define OPTION_C	(1 << 2)	/* Option C(str) */
 #define OPTION_NULL	(1 << 3)	/* Dummy Termination */
 
-AST_DECLARE_OPTIONS(app_opts,{
+AST_APP_OPTIONS(app_opts,{
 	['a'] = { OPTION_A },
 	['b'] = { OPTION_B, 1 },
 	['c'] = { OPTION_C, 2 }
@@ -95,7 +95,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	if ((argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		dummy = argv[0];
 		options = argv[1];
-		ast_parseoptions(app_opts, &flags, opts, options);
+		ast_app_parse_options(app_opts, &flags, opts, options);
 	}
 
 	if (!ast_strlen_zero(dummy)) 
