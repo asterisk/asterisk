@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
+#include "asterisk/options.h"
 
 #define FESTIVAL_CONFIG "festival.conf"
 
@@ -136,6 +137,9 @@ static int send_waveform_to_fd(char *waveform, int length, int fd) {
                 if (x != fd)
                         close(x);
         }
+	if (option_highpriority)
+		ast_set_priority(0);
+
 /*IAS */
 #ifdef __PPC__  
 	for( x=0; x<length; x+=2)
