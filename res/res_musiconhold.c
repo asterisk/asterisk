@@ -436,6 +436,10 @@ static int spawn_mp3(struct mohclass *class)
 	}
 	if (!class->pid) {
 		int x;
+
+		if (ast_opt_high_priority)
+			ast_set_priority(0);
+
 		close(fds[0]);
 		/* Stdout goes to pipe */
 		dup2(fds[1], STDOUT_FILENO);

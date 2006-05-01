@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
+#include "asterisk/options.h"
 
 #define LOCAL_NBSCAT "/usr/local/bin/nbscat8k"
 #define NBSCAT "/usr/bin/nbscat8k"
@@ -75,6 +76,9 @@ static int NBScatplay(int fd)
 		ast_log(LOG_WARNING, "Fork failed\n");
 	if (res)
 		return res;
+	if (ast_opt_high_priority)
+		ast_set_priority(0);
+
 	dup2(fd, STDOUT_FILENO);
 	for (x=0;x<256;x++) {
 		if (x != STDOUT_FILENO)

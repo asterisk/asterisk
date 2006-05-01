@@ -635,6 +635,8 @@ int ast_safe_system(const char *s)
 	pid = fork();
 
 	if (pid == 0) {
+		if (ast_opt_high_priority)
+			ast_set_priority(0);
 		/* Close file descriptors and launch system command */
 		for (x = STDERR_FILENO + 1; x < 4096; x++)
 			close(x);
