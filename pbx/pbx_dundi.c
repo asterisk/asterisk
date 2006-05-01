@@ -154,7 +154,7 @@ struct dundi_hint_metadata {
 };
 
 struct dundi_precache_queue {
-	struct dundi_precache_queue *next;
+	AST_LIST_ENTRY(dundi_precache_queue) list;
 	char *context;
 	time_t expiration;
 	char number[0];
@@ -259,13 +259,10 @@ struct dundi_peer {
 };
 
 AST_LIST_HEAD_STATIC(peers, dundi_peer);
+AST_LIST_HEAD_STATIC(pcq, dundi_precache_queue);
 AST_LIST_HEAD_NOLOCK_STATIC(mappings, dundi_mapping);
 AST_LIST_HEAD_NOLOCK_STATIC(requests, dundi_request);
 AST_LIST_HEAD_NOLOCK_STATIC(alltrans, dundi_transaction);
-
-static struct dundi_precache_queue *pcq;
-
-AST_MUTEX_DEFINE_STATIC(pclock);
 
 static int dundi_xmit(struct dundi_packet *pack);
 
@@ -2099,30 +2096,31 @@ static void *process_precache(void *ign)
 	char context[256];
 	char number[256];
 	int run;
+
 	for (;;) {
 		time(&now);
 		run = 0;
-		ast_mutex_lock(&pclock);
-		if (pcq) {
-			if (!pcq->expiration) {
+		AST_LIST_LOCK(&pcq);
+		if ((qe = AST_LIST_FIRST(&pcq))) {
+			if (!qe->expiration) {
 				/* Gone...  Remove... */
-				qe = pcq;
-				pcq = pcq->next;
+				AST_LIST_REMOVE_HEAD(&pcq, list);
 				free(qe);
-			} else if (pcq->expiration < now) {
+			} else if (qe->expiration < now) {
 				/* Process this entry */
-				pcq->expiration = 0;
-				ast_copy_string(context, pcq->context, sizeof(context));
-				ast_copy_string(number, pcq->number, sizeof(number));
+				qe->expiration = 0;
+				ast_copy_string(context, qe->context, sizeof(context));
+				ast_copy_string(number, qe->number, sizeof(number));
 				run = 1;
 			}
 		}
-		ast_mutex_unlock(&pclock);
+		AST_LIST_UNLOCK(&pcq);
 		if (run) {
 			dundi_precache(context, number);
 		} else
 			sleep(1);
 	}
+
 	return NULL;
 }
 
@@ -2606,9 +2604,9 @@ static int dundi_show_precache(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	time(&now);
-	ast_mutex_lock(&pclock);
 	ast_cli(fd, FORMAT2, "Number", "Context", "Expiration");
-	for (qe = pcq;qe;qe = qe->next) {
+	AST_LIST_LOCK(&pcq);
+	AST_LIST_TRAVERSE(&pcq, qe, list) {
 		s = qe->expiration - now;
 		h = s / 3600;
 		s = s % 3600;
@@ -2616,7 +2614,8 @@ static int dundi_show_precache(int fd, int argc, char *argv[])
 		s = s % 60;
 		ast_cli(fd, FORMAT, qe->number, qe->context, h,m,s);
 	}
-	ast_mutex_unlock(&pclock);
+	AST_LIST_UNLOCK(&pcq);
+	
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -3553,45 +3552,37 @@ int dundi_lookup(struct dundi_result *result, int maxret, struct ast_channel *ch
 static void reschedule_precache(const char *number, const char *context, int expiration)
 {
 	int len;
-	struct dundi_precache_queue *qe, *prev=NULL;
-	ast_mutex_lock(&pclock);
-	qe = pcq;
-	while(qe) {
+	struct dundi_precache_queue *qe, *prev;
+
+	AST_LIST_LOCK(&pcq);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&pcq, qe, list) {
 		if (!strcmp(number, qe->number) && !strcasecmp(context, qe->context)) {
-			if (prev)
-				prev->next = qe->next;
-			else
-				pcq = qe->next;
-			qe->next = NULL;
+			AST_LIST_REMOVE_CURRENT(&pcq, list);
 			break;
 		}
-		prev = qe;
-		qe = qe->next;
-	};
+	}
+	AST_LIST_TRAVERSE_SAFE_END
 	if (!qe) {
-		len = sizeof(struct dundi_precache_queue);
+		len = sizeof(*qe);
 		len += strlen(number) + 1;
 		len += strlen(context) + 1;
-		qe = malloc(len);
-		if (qe) {
-			memset(qe, 0, len);
-			strcpy(qe->number, number);
-			qe->context = qe->number + strlen(number) + 1;
-			strcpy(qe->context, context);
+		if (!(qe = ast_calloc(1, len))) {
+			AST_LIST_UNLOCK(&pcq);
+			return;
 		}
+		strcpy(qe->number, number);
+		qe->context = qe->number + strlen(number) + 1;
+		strcpy(qe->context, context);
 	}
 	time(&qe->expiration);
 	qe->expiration += expiration;
-	prev = pcq;
-	if (prev) {
-		while(prev->next && (prev->next->expiration <= qe->expiration))
-			prev = prev->next;
-		qe->next = prev->next;
-		prev->next = qe;
+	if ((prev = AST_LIST_FIRST(&pcq))) {
+		while (AST_LIST_NEXT(prev, list) && ((AST_LIST_NEXT(prev, list))->expiration <= qe->expiration))
+			prev = AST_LIST_NEXT(prev, list);
+		AST_LIST_INSERT_AFTER(&pcq, prev, qe, list);
 	} else
-		pcq = qe;
-	ast_mutex_unlock(&pclock);
-	
+		AST_LIST_INSERT_HEAD(&pcq, qe, list);
+	AST_LIST_UNLOCK(&pcq);
 }
 
 static void dundi_precache_full(void)
