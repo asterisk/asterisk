@@ -1329,10 +1329,17 @@ YY_RULE_SETUP
 		return word;
 	}
 	YY_BREAK
+/*
+	 * context used for arguments of if_head, random_head, switch_head,
+	 * for (last statement), while (XXX why not iftime_head ?).
+	 * End with the matching parentheses.
+	 * A comma at the top level is valid here, unlike in argg where it
+	 * is an argument separator so it must be returned as a token.
+	 */
 case 44:
 /* rule 44 can match eol */
 YY_RULE_SETUP
-#line 228 "ael.flex"
+#line 234 "ael.flex"
 {
 		if ( pbcpop(')') ) {	/* error */
 			STORE_LOC;
@@ -1358,7 +1365,7 @@ YY_RULE_SETUP
 case 45:
 /* rule 45 can match eol */
 YY_RULE_SETUP
-#line 250 "ael.flex"
+#line 256 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if (c == '(')
@@ -1370,7 +1377,7 @@ YY_RULE_SETUP
 case 46:
 /* rule 46 can match eol */
 YY_RULE_SETUP
-#line 258 "ael.flex"
+#line 264 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c))  { /* error */
@@ -1384,10 +1391,18 @@ YY_RULE_SETUP
 		yymore();
 	}
 	YY_BREAK
+/*
+	 * handlers for arguments to a macro or application calls.
+	 * We enter this context when we find the initial '(' and
+	 * stay here until we close all matching parentheses,
+	 * and find the comma (argument separator) or the closing ')'
+	 * of the (external) call, which happens when parencount == 0
+	 * before the decrement.
+	 */
 case 47:
 /* rule 47 can match eol */
 YY_RULE_SETUP
-#line 271 "ael.flex"
+#line 286 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if (c == '(')
@@ -1399,7 +1414,7 @@ YY_RULE_SETUP
 case 48:
 /* rule 48 can match eol */
 YY_RULE_SETUP
-#line 279 "ael.flex"
+#line 294 "ael.flex"
 {
 		if ( pbcpop(')') ) { /* error */
 			STORE_LOC;
@@ -1427,7 +1442,7 @@ YY_RULE_SETUP
 case 49:
 /* rule 49 can match eol */
 YY_RULE_SETUP
-#line 303 "ael.flex"
+#line 318 "ael.flex"
 {
 		if( parencount != 0) { /* printf("Folding in a comma!\n"); */
 			yymore();
@@ -1456,7 +1471,7 @@ YY_RULE_SETUP
 case 50:
 /* rule 50 can match eol */
 YY_RULE_SETUP
-#line 328 "ael.flex"
+#line 343 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c) ) { /* error */
@@ -1469,10 +1484,15 @@ YY_RULE_SETUP
 		yymore();
 	}
 	YY_BREAK
+/*
+	 * context used to find tokens in the right hand side of assignments,
+	 * or in the first and second operand of a 'for'. As above, match
+	 * commas and use ';' as a separator (hence return it as a separate token).
+	 */
 case 51:
 /* rule 51 can match eol */
 YY_RULE_SETUP
-#line 342 "ael.flex"
+#line 360 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		yymore();
@@ -1482,7 +1502,7 @@ YY_RULE_SETUP
 case 52:
 /* rule 52 can match eol */
 YY_RULE_SETUP
-#line 348 "ael.flex"
+#line 366 "ael.flex"
 {
 		char c = yytext[yyleng-1];
 		if ( pbcpop(c) ) { /* error */
@@ -1498,10 +1518,11 @@ YY_RULE_SETUP
 case 53:
 /* rule 53 can match eol */
 YY_RULE_SETUP
-#line 360 "ael.flex"
+#line 378 "ael.flex"
 {
 		STORE_LOC;
 		yylval->str = strdup(yytext);
+		/* XXX maybe the truncation should be unconditional ? */
 		if(yyleng > 1)
 			*(yylval->str+yyleng-1)=0;
 		unput(';');
@@ -1512,7 +1533,7 @@ YY_RULE_SETUP
 case 54:
 /* rule 54 can match eol */
 YY_RULE_SETUP
-#line 370 "ael.flex"
+#line 389 "ael.flex"
 {
 		FILE *in1;
 		char fnamebuf[1024],*p1,*p2;
@@ -1579,7 +1600,7 @@ case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(paren):
 case YY_STATE_EOF(semic):
 case YY_STATE_EOF(argg):
-#line 432 "ael.flex"
+#line 451 "ael.flex"
 {
 		if ( --include_stack_index < 0 ) {
 			yyterminate();
@@ -1595,10 +1616,10 @@ case YY_STATE_EOF(argg):
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 445 "ael.flex"
+#line 464 "ael.flex"
 ECHO;
 	YY_BREAK
-#line 1602 "ael_lex.c"
+#line 1623 "ael_lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2728,7 +2749,7 @@ void ael_yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 445 "ael.flex"
+#line 464 "ael.flex"
 
 
 
@@ -2792,7 +2813,7 @@ void reset_parencount(yyscan_t yyscanner )
 	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	parencount = 0;
 	pbcpos = 0;
-	pbcpush('(');
+	pbcpush('(');	/* push '(' so the last pcbpop (parencount= -1) will succeed */
 	c_prevword();
 	BEGIN(paren);
 }
@@ -2812,7 +2833,7 @@ void reset_argcount(yyscan_t yyscanner )
 	parencount = 0;
 	pbcpos = 0;
 	commaout = 0;
-	pbcpush('(');
+	pbcpush('(');	/* push '(' so the last pcbpop (parencount= -1) will succeed */
 	c_prevword();
 	BEGIN(argg);
 }

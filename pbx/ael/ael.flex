@@ -224,7 +224,13 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 
 
 
-
+	/*
+	 * context used for arguments of if_head, random_head, switch_head,
+	 * for (last statement), while (XXX why not iftime_head ?).
+	 * End with the matching parentheses.
+	 * A comma at the top level is valid here, unlike in argg where it
+	 * is an argument separator so it must be returned as a token.
+	 */
 <paren>{NOPARENS}\)	{
 		if ( pbcpop(')') ) {	/* error */
 			STORE_LOC;
@@ -268,6 +274,15 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
+
+	/*
+	 * handlers for arguments to a macro or application calls.
+	 * We enter this context when we find the initial '(' and
+	 * stay here until we close all matching parentheses,
+	 * and find the comma (argument separator) or the closing ')'
+	 * of the (external) call, which happens when parencount == 0
+	 * before the decrement.
+	 */
 <argg>{NOARGG}[\(\[\{]	  {
 		char c = yytext[yyleng-1];
 		if (c == '(')
@@ -337,8 +352,11 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
-
-
+	/*
+	 * context used to find tokens in the right hand side of assignments,
+	 * or in the first and second operand of a 'for'. As above, match
+	 * commas and use ';' as a separator (hence return it as a separate token).
+	 */
 <semic>{NOSEMIC}[\(\[\{]	{
 		char c = yytext[yyleng-1];
 		yymore();
@@ -360,6 +378,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 <semic>{NOSEMIC};	{
 		STORE_LOC;
 		yylval->str = strdup(yytext);
+		/* XXX maybe the truncation should be unconditional ? */
 		if(yyleng > 1)
 			*(yylval->str+yyleng-1)=0;
 		unput(';');
@@ -504,7 +523,7 @@ void reset_parencount(yyscan_t yyscanner )
 	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	parencount = 0;
 	pbcpos = 0;
-	pbcpush('(');
+	pbcpush('(');	/* push '(' so the last pcbpop (parencount= -1) will succeed */
 	c_prevword();
 	BEGIN(paren);
 }
@@ -524,7 +543,7 @@ void reset_argcount(yyscan_t yyscanner )
 	parencount = 0;
 	pbcpos = 0;
 	commaout = 0;
-	pbcpush('(');
+	pbcpush('(');	/* push '(' so the last pcbpop (parencount= -1) will succeed */
 	c_prevword();
 	BEGIN(argg);
 }
