@@ -168,7 +168,7 @@ static int speech_score(struct ast_channel *chan, char *cmd, char *data,
 
 static struct ast_custom_function speech_score_function = {
         .name = "SPEECH_SCORE",
-        .synopsis = "Gets the confidence score of a result.\n",
+        .synopsis = "Gets the confidence score of a result.",
         .syntax = "SPEECH_SCORE(result number)",
         .desc =
         "Gets the confidence score of a result.\n",
@@ -194,7 +194,7 @@ static int speech_text(struct ast_channel *chan, char *cmd, char *data,
 
 static struct ast_custom_function speech_text_function = {
         .name = "SPEECH_TEXT",
-        .synopsis = "Gets the recognized text of a result.\n",
+        .synopsis = "Gets the recognized text of a result.",
         .syntax = "SPEECH_TEXT(result number)",
         .desc =
         "Gets the recognized text of a result.\n",
