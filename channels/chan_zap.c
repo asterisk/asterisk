@@ -941,15 +941,6 @@ static int zt_setlinear(int zfd, int linear)
 }
 
 
-static int zt_setlaw(int zfd, int law)
-{
-	int res;
-	res = ioctl(zfd, ZT_SETLAW, &law);
-	if (res)
-		return res;
-	return 0;
-}
-
 static int alloc_sub(struct zt_pvt *p, int x)
 {
 	ZT_BUFFERINFO bi;
@@ -8046,6 +8037,15 @@ static void apply_plan_to_number(char *buf, size_t size, const struct zt_pri *pr
 		snprintf(buf, size, "%s", number);
 		break;
 	}
+}
+
+static int zt_setlaw(int zfd, int law)
+{
+	int res;
+	res = ioctl(zfd, ZT_SETLAW, &law);
+	if (res)
+		return res;
+	return 0;
 }
 
 static void *pri_dchannel(void *vpri)
