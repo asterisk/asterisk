@@ -175,27 +175,26 @@ AST_EXT_LIB([vorbis], [vorbis_info_init], [vorbis/codec.h], [VORBIS], [Vorbis], 
 AST_EXT_LIB([z], [compress], [zlib.h], [ZLIB], [zlib])
 
 PBX_LIBossaudio=0
-if test "x${PBX_OSTYPE}" = "xLinux" ; then
-   AC_CHECK_HEADER([linux/soundcard.h],
-                   [PBX_LIBossaudio=1
-		    AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
-		  ])
-elif test "x${PBX_OSTYPE}" = "xFreeBSD" ; then
+AC_CHECK_HEADER([linux/soundcard.h],
+	        [
+		PBX_LIBossaudio=1
+                AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
+		])
+if test "$PBX_LIBossaudio" = "0"; then
    AC_CHECK_HEADER([sys/soundcard.h],
-                   [PBX_LIBossaudio=1
-		    AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
-		  ])
-elif test "x${PBX_OSTYPE}" = "xOpenBSD" ; then
-   AST_EXT_LIB([ossaudio], [oss_ioctl_mixer], [soundcard.h], [OSS], [Open Sound System])
-elif test "x${PBX_OSTYPE}" = "xNetBSD" ; then
+                   [
+		   PBX_LIBossaudio=1
+		   AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
+		   ])
+fi
+if test "$PBX_LIBossaudio" = "0"; then
    AST_EXT_LIB([ossaudio], [oss_ioctl_mixer], [soundcard.h], [OSS], [Open Sound System])
 fi
 
 AC_SUBST([PBX_LIBossaudio])
 
-if test "x${PBX_OSTYPE}" = "xLinux" ; then
-   AST_EXT_LIB([tonezone], [tone_zone_find], [linux/zaptel.h], [ZAPTEL], [Zaptel])
-else
+AST_EXT_LIB([tonezone], [tone_zone_find], [linux/zaptel.h], [ZAPTEL], [Zaptel])
+if test "$PBX_LIBtonezone" = "0"; then
    AST_EXT_LIB([tonezone], [tone_zone_find], [zaptel.h], [ZAPTEL], [Zaptel], [-lm])
 fi
 
@@ -222,12 +221,16 @@ PBX_LIBgsm=0
 
 if test "${USE_GSM}" != "no"; then
    if test "${GSM_SYSTEM}" = "yes"; then
+      libdir=""
+      if test "x${GSM_DIR}" != "x"; then
+         libdir="-L${GSM_DIR}/lib"
+      fi
       AC_CHECK_LIB([gsm], [gsm_create], AC_DEFINE_UNQUOTED([HAVE_GSM], 1,
-      [Define to indicate the GSM library]), [], -L${GSM_DIR}/lib)
+      [Define to indicate the GSM library]), [], ${libdir})
       if test "${ac_cv_lib_gsm_gsm_create}" = "yes"; then
 	 gsm_LIB="-lgsm"
 	 if test "x${GSM_DIR}" != "x"; then
-	    gsm_LIB="-L${GSM_DIR}/lib ${gsm_LIB}"
+	    gsm_LIB="${libdir} ${gsm_LIB}"
 	    gsm_INCLUDE="-I${GSM_DIR}/include"
 	 fi
 	 PBX_LIBgsm=1
@@ -339,7 +342,7 @@ if test "${USE_VPB}" != "no"; then
    echo -n "checking for vpb_open in -lvpb..."
    saved_libs="${LIBS}"
    saved_cppflags="${CPPFLAGS}"
-   if test "x${VPB_DIR}" != "x" ; then
+   if test "x${VPB_DIR}" != "x"; then
       LIBS="${LIBS} -L${VPB_DIR}/lib"
       CPPFLAGS="${CPPFLAGS} -I${VPB_DIR}/include"
    fi
@@ -399,50 +402,63 @@ esac
 PBX_QT=0
 if test "${USE_QT}" != "no"; then
    echo -n "checking for QDate in -lqt..."
-   saved_ldflags="${LDFLAGS}"
-   LDFLAGS="${LDFLAGS} -L${QT_DIR}/lib -lqt"
+   saved_libs="${LIBS}"
+   saved_cppflags="${CPPFLAGS}"
+   if test "x${QT_DIR}" != "x"; then
+      LIBS="${LIBS} -L${QT_DIR}/lib"
+      CPPFLAGS="${CPPFLAGS} -I${QT_DIR}/include"
+   fi
+   LIBS="${LIBS} -lqt"
    qtlib="qt"
-	AC_LINK_IFELSE(
+   AC_LINK_IFELSE(
 	[
 		AC_LANG_PROGRAM(
-		[#include "${QT_DIR}include/qdatetime.h"],
+		[#include <qt3/qdatetime.h>],
 		[QDate date();])
 	],
 	[ac_cv_lib_qt_qt_date="yes"],
 	[ac_cv_lib_qt_qt_date="no"])
-		
-	if test "${ac_cv_lib_qt_qt_date}" = "no"; then
-		qtlib="qt-mt"	
-   	LDFLAGS="${saved_ldflags} -L${QT_DIR}/lib -lqt-mt"
-		AC_LINK_IFELSE(
+   LIBS="${saved_libs}"
+   CPPFLAGS="${saved_cppflags}"
+	
+   if test "${ac_cv_lib_qt_qt_date}" = "no"; then
+      saved_libs="${LIBS}"
+      saved_cppflags="${CPPFLAGS}"
+      if test "x${QT_DIR}" != "x"; then
+      	 LIBS="${LIBS} -L${QT_DIR}/lib"
+	 CPPFLAGS="${CPPFLAGS} -I${QT_DIR}/include"
+      fi
+      LIBS="${LIBS} -lqt-mt"
+      qtlib="qt-mt"	
+      AC_LINK_IFELSE(
 		[
 			AC_LANG_PROGRAM(
-			[#include "${QT_DIR}include/qdatetime.h"],
+			[#include <qt3/qdatetime.h>],
 			[QDate date();])
 		],
 		[ac_cv_lib_qt_qt_date="yes"],
 		[ac_cv_lib_qt_qt_date="no"])
-	fi	
+      LIBS="${saved_libs}"
+      CPPFLAGS="${saved_cppflags}"
+   fi	
+
+   if test "${ac_cv_lib_qt_qt_date}" = "yes"; then
+      AC_MSG_RESULT(yes) 
+   else
+      AC_MSG_RESULT(no) 
+   fi
 	
-	LDFLAGS="${saved_ldflags}"
-	
-	if test "${ac_cv_lib_qt_qt_date}" = "yes"; then
-		AC_MSG_RESULT(yes) 
-	else
-		AC_MSG_RESULT(no) 
-	fi
-	
-	if test "${ac_cv_lib_qt_qt_date}" = "yes"; then
-		QT_LIB="-l${qtlib}"
-		if test "${QT_DIR}" != ""; then
-			QT_LIB="-L${QT_DIR}/lib ${QT_LIB}"
-			QT_INCLUDE="-I${QT_DIR}/include"
-			AC_SUBST([QT_INCLUDE])
-		fi
-		AC_SUBST([QT_LIB])
-		PBX_QT=1
-		AC_DEFINE([HAVE_LIBQT], 1, [Define if your system has the Qt library])
-		AC_PATH_TOOL(QTMOC, moc, No)
+   if test "${ac_cv_lib_qt_qt_date}" = "yes"; then
+      QT_LIB="-l${qtlib}"
+      if test "${QT_DIR}" != ""; then
+      	 QT_LIB="-L${QT_DIR}/lib ${QT_LIB}"
+	 QT_INCLUDE="-I${QT_DIR}/include"
+	 AC_SUBST([QT_INCLUDE])
+      fi
+      AC_SUBST([QT_LIB])
+      PBX_QT=1
+      AC_DEFINE([HAVE_LIBQT], 1, [Define if your system has the Qt library])
+      AC_PATH_TOOL(QTMOC, moc, No)
    elif test ! -z "${QT_MANDATORY}"; 
    then
       echo "***"
@@ -453,9 +469,6 @@ if test "${USE_QT}" != "no"; then
    fi
 fi
 AC_SUBST([PBX_QT])
-
-
-
 
 AC_ARG_WITH([kde], AC_HELP_STRING([--with-kde=PATH],[use KDE files in PATH]),[
 case ${withval} in
