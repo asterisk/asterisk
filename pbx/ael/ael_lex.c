@@ -1522,9 +1522,7 @@ YY_RULE_SETUP
 {
 		STORE_LOC;
 		yylval->str = strdup(yytext);
-		/* XXX maybe the truncation should be unconditional ? */
-		if(yyleng > 1)
-			*(yylval->str+yyleng-1)=0;
+		yylval->str[yyleng-1] = '\0';
 		unput(';');
 		BEGIN(0);
 		return word;
@@ -1533,7 +1531,7 @@ YY_RULE_SETUP
 case 54:
 /* rule 54 can match eol */
 YY_RULE_SETUP
-#line 389 "ael.flex"
+#line 387 "ael.flex"
 {
 		FILE *in1;
 		char fnamebuf[1024],*p1,*p2;
@@ -1600,7 +1598,7 @@ case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(paren):
 case YY_STATE_EOF(semic):
 case YY_STATE_EOF(argg):
-#line 451 "ael.flex"
+#line 449 "ael.flex"
 {
 		if ( --include_stack_index < 0 ) {
 			yyterminate();
@@ -1616,10 +1614,10 @@ case YY_STATE_EOF(argg):
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 464 "ael.flex"
+#line 462 "ael.flex"
 ECHO;
 	YY_BREAK
-#line 1623 "ael_lex.c"
+#line 1621 "ael_lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2749,7 +2747,7 @@ void ael_yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 464 "ael.flex"
+#line 462 "ael.flex"
 
 
 

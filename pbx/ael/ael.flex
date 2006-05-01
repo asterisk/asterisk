@@ -378,9 +378,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 <semic>{NOSEMIC};	{
 		STORE_LOC;
 		yylval->str = strdup(yytext);
-		/* XXX maybe the truncation should be unconditional ? */
-		if(yyleng > 1)
-			*(yylval->str+yyleng-1)=0;
+		yylval->str[yyleng-1] = '\0';
 		unput(';');
 		BEGIN(0);
 		return word;
