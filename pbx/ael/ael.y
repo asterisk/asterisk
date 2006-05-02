@@ -488,7 +488,7 @@ jumptarget : goto_word {			/* ext, 1 */
 	| goto_word COMMA goto_word {		/* ext, pri */
 		$$ = nword($1, &@1);
 		$$->next = nword($3, &@3); }
-	| goto_word COMMA word AT word {	/* context, ext, pri */
+	| goto_word COMMA word AT context_name {	/* context, ext, pri */
 		$$ = nword($5, &@5);
 		$$->next = nword($1, &@1);
 		$$->next->next = nword($3, &@3); }
@@ -496,10 +496,6 @@ jumptarget : goto_word {			/* ext, 1 */
 		$$ = nword($3, &@3);
 		$$->next = nword($1, &@1);
 		$$->next->next = nword(strdup("1"), &@3); }
-	| goto_word COMMA word AT KW_DEFAULT {	/* default, ext, pri */
-		$$ = nword(strdup("default"), &@1);
-		$$->next = nword($1, &@1);
-		$$->next->next = nword($3, &@3); }
 	| goto_word AT KW_DEFAULT {		/* default, ext, 1 */
 		$$ = nword(strdup("default"), &@1);
 		$$->next = nword($1, &@3);
