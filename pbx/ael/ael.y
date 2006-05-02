@@ -129,6 +129,7 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <str>goto_word
 %type <str>word_list
 %type <str>word3_list
+%type <str>test_expr
 
 %type <intval>opt_abstract
 
@@ -171,6 +172,7 @@ static pval *update_last(pval *, YYLTYPE *);
 
 %destructor { free($$);}  word word_list goto_word word3_list opt_word context_name
 		timerange
+		test_expr
 
 
 %%
@@ -309,13 +311,18 @@ timespec : timerange BAR word3_list BAR word3_list BAR word3_list {
 		$$->u1.list->next->next = nword($7, &@7); }
 	;
 
+/* expression used in if, random, while, switch */
+test_expr : LP { reset_parencount(parseio->scanner); }  word_list RP {
+		$$ = $3; }
+	;
+
 /* 'if' like statements: if, iftime, random */
-if_like_head : KW_IF LP { reset_parencount(parseio->scanner); }  word_list RP {
-		$$= npval2(PV_IF, &@1, &@5);
-		$$->u1.str = $4; }
-	|  KW_RANDOM LP { reset_parencount(parseio->scanner); } word_list RP {
-		$$ = npval2(PV_RANDOM, &@1, &@5);
-		$$->u1.str=$4;}
+if_like_head : KW_IF test_expr {
+		$$= npval2(PV_IF, &@1, &@2);
+		$$->u1.str = $2; }
+	|  KW_RANDOM test_expr {
+		$$ = npval2(PV_RANDOM, &@1, &@2);
+		$$->u1.str=$2;}
 	| KW_IFTIME LP timespec RP {
 		$$ = npval2(PV_IFTIME, &@1, &@4);
 		$$->u1.list = $3;
@@ -360,9 +367,9 @@ goto_word : word { $$ = $1;}
 		free($3);}
 	;
 
-switch_head : KW_SWITCH LP { reset_parencount(parseio->scanner); } word RP  LC {
-		$$ = npval2(PV_SWITCH, &@1, &@6);
-		$$->u1.str = $4; }
+switch_head : KW_SWITCH test_expr LC {
+		$$ = npval2(PV_SWITCH, &@1, &@3);
+		$$->u1.str = $2; }
 	;
 
 /*
@@ -386,16 +393,16 @@ statement : LC statements RC {
 		$$->u1.str = $1; }
 	| KW_FOR LP {reset_semicount(parseio->scanner);} word SEMI
 			{reset_semicount(parseio->scanner);} word SEMI
-			{reset_parencount(parseio->scanner);} word RP statement {
+			{reset_parencount(parseio->scanner);} word RP statement { /* XXX word_list maybe ? */
 		$$ = npval2(PV_FOR, &@1, &@12);
 		$$->u1.for_init = $4;
 		$$->u2.for_test=$7;
 		$$->u3.for_inc = $10;
 		$$->u4.for_statements = $12;}
-	| KW_WHILE LP {reset_parencount(parseio->scanner);} word RP statement {
-		$$ = npval2(PV_WHILE, &@1, &@6);
-		$$->u1.str = $4;
-		$$->u2.statements = $6; }
+	| KW_WHILE test_expr statement {
+		$$ = npval2(PV_WHILE, &@1, &@3);
+		$$->u1.str = $2;
+		$$->u2.statements = $3; }
 	| switch_head RC /* empty list OK */ {
 		$$ = update_last($1, &@2); }
 	| switch_head case_statements RC {
