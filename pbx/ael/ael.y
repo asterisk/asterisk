@@ -120,6 +120,7 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <pval>elements_block
 %type <pval>switchlist_block
 %type <pval>timespec
+%type <pval>included_entry
 
 %type <str>opt_word
 %type <str>word_or_default
@@ -166,7 +167,7 @@ static pval *update_last(pval *, YYLTYPE *);
 		global_statements globals macro context object objects
 		opt_else
 		elements_block switchlist_block
-		timespec
+		timespec included_entry
 
 %destructor { free($$);}  word word_list goto_word word3_list opt_word word_or_default
 		timerange
@@ -617,17 +618,17 @@ switchlist : word SEMI { $$ = nword($1, &@1); }
 	| switchlist error {$$=$1;}
 	;
 
-includeslist : word_or_default SEMI { $$ = nword($1, &@1); }
+
+included_entry : word_or_default SEMI { $$ = nword($1, &@1); }
 	| word_or_default BAR timespec SEMI {
 		$$ = nword($1, &@1);
 		$$->u2.arglist = $3;
-		prev_word=0; }
-	| includeslist word_or_default SEMI { $$ = linku1($1, nword($2, &@2)); }
-	| includeslist word_or_default BAR timespec SEMI {
-		pval *z = nword($2, &@2);
-		z->u2.arglist = $4;
-		$$ = linku1($1, z);
-		prev_word=0; }
+		prev_word=0; /* XXX sure ? */ }
+	;
+
+/* list of ';' separated context names followed by optional timespec */
+includeslist : included_entry { $$ = $1; }
+	| includeslist included_entry { $$ = linku1($1, $2); }
 	| includeslist error {$$=$1;}
 	;
 
