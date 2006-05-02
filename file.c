@@ -143,6 +143,7 @@ int ast_stopstream(struct ast_channel *tmp)
 	/* Stop a running stream if there is one */
 	if (tmp->stream) {
 		ast_closestream(tmp->stream);
+		tmp->stream = NULL;
 		if (tmp->oldwriteformat && ast_set_write_format(tmp, tmp->oldwriteformat))
 			ast_log(LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
 	}
