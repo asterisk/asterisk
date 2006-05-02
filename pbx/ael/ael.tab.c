@@ -3366,7 +3366,6 @@ void yyerror(YYLTYPE *locp, struct parse_io *parseio,  char const *s)
 static struct pval *npval(pvaltype type, int first_line, int last_line,
 	int first_column, int last_column)
 {
-	extern char *my_file;
 	pval *z = calloc(1, sizeof(struct pval));
 	z->type = type;
 	z->startline = first_line;
