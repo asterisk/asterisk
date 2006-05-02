@@ -238,8 +238,7 @@ global_statement : word EQ { reset_semicount(parseio->scanner); }  word SEMI {
 
 arglist : word { $$= nword($1, &@1); }
 	| arglist COMMA word {
-		pval *z = npval2(PV_WORD, &@1, &@3);
-		z->u1.str = $3;
+		pval *z = nword($3, &@3);
 		$$ = linku1($1, z); }
 	| arglist error {$$=$1;}
 	;
@@ -312,8 +311,8 @@ random_head : KW_RANDOM LP { reset_parencount(parseio->scanner); } word_list RP 
 
 iftime_head : KW_IFTIME LP word3_list COLON word3_list COLON word3_list
 		BAR word3_list BAR word3_list BAR word3_list RP {
-		$$ = npval2(PV_IFTIME, &@1, &@5); /* XXX really @5 or more ? */
-		$$->u1.list = npval2(PV_WORD, &@3, &@3);
+		$$ = npval2(PV_IFTIME, &@1, &@1);
+		$$->u1.list = npval2(PV_WORD, &@3, &@7);
 		asprintf(&($$->u1.list->u1.str), "%s:%s:%s", $3, $5, $7);
 		free($3);
 		free($5);
@@ -509,34 +508,22 @@ jumptarget : goto_word {
 	| goto_word COMMA goto_word {
 		$$ = nword($1, &@1);
 		$$->next = nword($3, &@3); }
-	| goto_word COMMA word AT word {
-		$$ = npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = $5;	/* XXX must check this */
-		$$->next = npval2(PV_WORD, &@3, &@3);
-		$$->next->u1.str = $1;
-		$$->next->next = npval2(PV_WORD, &@5, &@5);
-		$$->next->next->u1.str = $3; }
+	| goto_word COMMA word AT word {	/* XXX they are stored in a different order */
+		$$ = nword($5, &@5);
+		$$->next = nword($1, &@1);
+		$$->next->next = nword($3, &@3); }
 	| goto_word AT goto_word {
-		$$ = npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = $3;
-		$$->next = npval2(PV_WORD, &@3, &@3);
-		$$->next->u1.str = $1;
-		$$->next->next = npval2(PV_WORD, &@3, &@3);
-		$$->next->next->u1.str = strdup("1"); }
+		$$ = nword($3, &@3);
+		$$->next = nword($1, &@1);
+		$$->next->next = nword(strdup("1"), &@3); }
 	| goto_word COMMA word AT KW_DEFAULT {
-		$$ = npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = strdup("default");
-		$$->next = npval2(PV_WORD, &@3, &@3);
-		$$->next->u1.str = $1;
-		$$->next->next = npval2(PV_WORD, &@5, &@5);
-		$$->next->next->u1.str = $3; }
+		$$ = nword(strdup("default"), &@1);
+		$$->next = nword($1, &@1);
+		$$->next->next = nword($3, &@3); }
 	| goto_word AT KW_DEFAULT {
-		$$ = npval2(PV_WORD, &@1, &@1);
-		$$->u1.str = strdup("default");
-		$$->next = npval2(PV_WORD, &@3, &@3);
-		$$->next->u1.str = $1;
-		$$->next->next = npval2(PV_WORD, &@3, &@3);
-		$$->next->next->u1.str = strdup("1"); }
+		$$ = nword(strdup("default"), &@1);
+		$$->next = nword($1, &@3);
+		$$->next->next = nword( strdup("1"), &@3); }
 	;
 
 macro_call : word LP {reset_argcount(parseio->scanner);} eval_arglist RP {
@@ -638,23 +625,17 @@ switchlist_block : LC switchlist RC { $$ = $2; }
 	| LC RC { $$ = NULL; }
 	;
 
-switchlist : word SEMI {
-		$$ = npval2(PV_WORD, &@1, &@2);
-		$$->u1.str = $1;}
+switchlist : word SEMI { $$ = nword($1, &@1); }
 	| switchlist word SEMI {
-		pval *z = npval2(PV_WORD, &@2, &@3);
-		z->u1.str = $2;
+		pval *z = nword($2, &@2);
 		$$ = linku1($1, z); }
 	| switchlist error {$$=$1;}
 	;
 
-includeslist : includedname SEMI {
-		$$ = npval2(PV_WORD, &@1, &@2);
-		$$->u1.str = $1;}
+includeslist : includedname SEMI { $$ = nword($1, &@1); }
 	| includedname BAR word3_list COLON word3_list COLON word3_list
 			BAR word3_list BAR word3_list BAR word3_list SEMI {
-		$$ = npval2(PV_WORD, &@1, &@2);
-		$$->u1.str = $1;
+		$$ = nword($1, &@1);
 		$$->u2.arglist = npval2(PV_WORD, &@3, &@7);
 		asprintf( &($$->u2.arglist->u1.str), "%s:%s:%s", $3, $5, $7);
 		free($3);
@@ -666,8 +647,7 @@ includeslist : includedname SEMI {
 		prev_word=0;
 	}
 	| includedname BAR word BAR word3_list BAR word3_list BAR word3_list SEMI {
-		$$ = npval2(PV_WORD, &@1, &@2);
-		$$->u1.str = $1;
+		$$ = nword($1, &@1);
 		$$->u2.arglist = nword($3, &@3);
 		$$->u2.arglist->next = nword($5, &@5);
 		$$->u2.arglist->next->next = nword($7, &@7);
@@ -675,15 +655,13 @@ includeslist : includedname SEMI {
 		prev_word=0;
 	}
 	| includeslist includedname SEMI {
-		pval *z = npval2(PV_WORD, &@2, &@3); /* XXX don't we need @1-@3 ?*/
-		z->u1.str = $2;
+		pval *z = nword($2, &@2);
 		$$ = linku1($1, z); }
 	| includeslist includedname BAR word3_list COLON word3_list COLON word3_list
 			BAR word3_list BAR word3_list BAR word3_list SEMI {
-		pval *z = npval2(PV_WORD, &@2, &@3);
-		z->u1.str = $2;
+		pval *z = nword($2, &@2);
 		$$ = linku1($1, z);
-		z->u2.arglist = npval2(PV_WORD, &@4, &@4);
+		z->u2.arglist = npval2(PV_WORD, &@4, &@8);
 		asprintf( &($$->u2.arglist->u1.str), "%s:%s:%s", $4, $6, $8);
 		free($4);
 		free($6);
