@@ -257,11 +257,11 @@ struct dundi_peer {
 	AST_LIST_ENTRY(dundi_peer) list;
 };
 
-AST_LIST_HEAD_STATIC(peers, dundi_peer);
-AST_LIST_HEAD_STATIC(pcq, dundi_precache_queue);
-AST_LIST_HEAD_NOLOCK_STATIC(mappings, dundi_mapping);
-AST_LIST_HEAD_NOLOCK_STATIC(requests, dundi_request);
-AST_LIST_HEAD_NOLOCK_STATIC(alltrans, dundi_transaction);
+static AST_LIST_HEAD_STATIC(peers, dundi_peer);
+static AST_LIST_HEAD_STATIC(pcq, dundi_precache_queue);
+static AST_LIST_HEAD_NOLOCK_STATIC(mappings, dundi_mapping);
+static AST_LIST_HEAD_NOLOCK_STATIC(requests, dundi_request);
+static AST_LIST_HEAD_NOLOCK_STATIC(alltrans, dundi_transaction);
 
 static int dundi_xmit(struct dundi_packet *pack);
 

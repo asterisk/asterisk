@@ -244,7 +244,7 @@ static int autofallthrough = 0;
 AST_MUTEX_DEFINE_STATIC(maxcalllock);
 static int countcalls = 0;
 
-AST_LIST_HEAD_STATIC(acf_root, ast_custom_function);
+static AST_LIST_HEAD_STATIC(acf_root, ast_custom_function);
 
 /*! \brief Declaration of builtin applications */
 static struct pbx_builtin {
@@ -464,7 +464,7 @@ static struct pbx_builtin {
 static struct ast_context *contexts = NULL;
 AST_MUTEX_DEFINE_STATIC(conlock); 		/*!< Lock for the ast_context list */
 
-AST_LIST_HEAD_STATIC(apps, ast_app);
+static AST_LIST_HEAD_STATIC(apps, ast_app);
 
 struct ast_switch *switches = NULL;
 AST_MUTEX_DEFINE_STATIC(switchlock);		/*!< Lock for switches */
