@@ -189,13 +189,21 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 		}
 		
 		/*Got a number, play sounds and send them on their way*/
-		if ((retries < maxretries) && !res ) {
+		if ((retries < maxretries) && res >= 0 ) {
 			res = ast_streamfile(chan, "privacy-thankyou", chan->language);
 			if (!res)
 				res = ast_waitstream(chan, "");
-			ast_set_callerid (chan, phone, "Privacy Manager", NULL);
-			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID to %s\n",phone);
+
+			ast_set_callerid (chan, phone, "Privacy Manager", NULL); 
+
+			/* Clear the unavailable presence bit so if it came in on PRI
+			 * the caller id will now be passed out to other channels
+			 */
+			chan->cid.cid_pres &= (AST_PRES_UNAVAILABLE ^ 0xFF);
+
+			if (option_verbose > 2) {
+				ast_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID to %s, callerpres to %d\n",phone,chan->cid.cid_pres);
+			}
 			pbx_builtin_setvar_helper(chan, "PRIVACYMGRSTATUS", "SUCCESS");
 		} else {
 			if (priority_jump || ast_opt_priority_jumping)	
