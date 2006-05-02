@@ -122,6 +122,7 @@ static pval *update_last(pval *, YYLTYPE *);
 
 %type <str>opt_word
 %type <str>word_or_default
+%type <str>timerange
 
 %type <str>goto_word
 %type <str>word_list
@@ -166,6 +167,7 @@ static pval *update_last(pval *, YYLTYPE *);
 		elements_block switchlist_block
 
 %destructor { free($$);}  word word_list goto_word word3_list opt_word word_or_default
+		timerange
 
 
 %%
@@ -294,6 +296,17 @@ statements : statement {$$=$1;}
 	| statements error {$$=$1;}
 	;
 
+/* hh:mm-hh:mm, due to the way the parser works we do not
+ * detect the '-' but only the ':' as separator
+ */
+timerange: word3_list COLON word3_list COLON word3_list {
+		asprintf(&$$, "%s:%s:%s", $1, $3, $5);
+		free($1);
+		free($3);
+		free($5); }
+	| word { $$ = $1; }
+	;
+
 /* 'if' like statements: if, iftime, random */
 if_like_head : KW_IF LP { reset_parencount(parseio->scanner); }  word_list RP {
 		$$= npval2(PV_IF, &@1, &@5);
@@ -301,20 +314,7 @@ if_like_head : KW_IF LP { reset_parencount(parseio->scanner); }  word_list RP {
 	|  KW_RANDOM LP { reset_parencount(parseio->scanner); } word_list RP {
 		$$ = npval2(PV_RANDOM, &@1, &@5);
 		$$->u1.str=$4;}
-	| KW_IFTIME LP word3_list COLON word3_list COLON word3_list
-		BAR word3_list BAR word3_list BAR word3_list RP {
-		$$ = npval2(PV_IFTIME, &@1, &@1);
-		$$->u1.list = npval2(PV_WORD, &@3, &@7);
-		asprintf(&($$->u1.list->u1.str), "%s:%s:%s", $3, $5, $7);
-		free($3);
-		free($5);
-		free($7);
-		$$->u1.list->next = nword($9, &@9);
-		$$->u1.list->next->next = nword($11, &@11);
-		$$->u1.list->next->next->next = nword($13, &@13);
-		prev_word = 0;
-	}
-	| KW_IFTIME LP word BAR word3_list BAR word3_list BAR word3_list RP {
+	| KW_IFTIME LP timerange BAR word3_list BAR word3_list BAR word3_list RP {
 		$$ = npval2(PV_IFTIME, &@1, &@5); /* XXX @5 or greater ? */
 		$$->u1.list = nword($3, &@3);
 		$$->u1.list->next = nword($5, &@5);
@@ -613,20 +613,7 @@ switchlist : word SEMI { $$ = nword($1, &@1); }
 	;
 
 includeslist : word_or_default SEMI { $$ = nword($1, &@1); }
-	| word_or_default BAR word3_list COLON word3_list COLON word3_list
-			BAR word3_list BAR word3_list BAR word3_list SEMI {
-		$$ = nword($1, &@1);
-		$$->u2.arglist = npval2(PV_WORD, &@3, &@7);
-		asprintf( &($$->u2.arglist->u1.str), "%s:%s:%s", $3, $5, $7);
-		free($3);
-		free($5);
-		free($7);
-		$$->u2.arglist->next = nword($9, &@9);
-		$$->u2.arglist->next->next = nword($11, &@11);
-		$$->u2.arglist->next->next->next = nword($13, &@13);
-		prev_word=0;
-	}
-	| word_or_default BAR word BAR word3_list BAR word3_list BAR word3_list SEMI {
+	| word_or_default BAR timerange BAR word3_list BAR word3_list BAR word3_list SEMI {
 		$$ = nword($1, &@1);
 		$$->u2.arglist = nword($3, &@3);
 		$$->u2.arglist->next = nword($5, &@5);
@@ -635,26 +622,10 @@ includeslist : word_or_default SEMI { $$ = nword($1, &@1); }
 		prev_word=0;
 	}
 	| includeslist word_or_default SEMI { $$ = linku1($1, nword($2, &@2)); }
-	| includeslist word_or_default BAR word3_list COLON word3_list COLON word3_list
-			BAR word3_list BAR word3_list BAR word3_list SEMI {
+	| includeslist word_or_default BAR timerange BAR word3_list BAR word3_list BAR word3_list SEMI {
 		pval *z = nword($2, &@2);
 		$$ = linku1($1, z);
-		z->u2.arglist = npval2(PV_WORD, &@4, &@8);
-		asprintf( &($$->u2.arglist->u1.str), "%s:%s:%s", $4, $6, $8);
-		free($4);
-		free($6);
-		free($8);
-		z->u2.arglist->next = nword($10, &@10);
-		z->u2.arglist->next->next = nword($12, &@12);
-		z->u2.arglist->next->next->next = nword($14, &@14);
-		prev_word=0;
-	}
-	| includeslist word_or_default BAR word BAR word3_list BAR word3_list BAR word3_list SEMI {
-		pval *z = npval2(PV_WORD, &@2, &@3);
-		$$ = linku1($1, z);
-		$$->u2.arglist->u1.str = $4;			/* XXX maybe too early ? */
-		z->u1.str = $2;
-		z->u2.arglist = npval2(PV_WORD, &@4, &@4);	/* XXX is this correct ? */
+		z->u2.arglist = nword($4, &@4);
 		z->u2.arglist->next = nword($6, &@6);
 		z->u2.arglist->next->next = nword($8, &@8);
 		z->u2.arglist->next->next->next = nword($10, &@10);
