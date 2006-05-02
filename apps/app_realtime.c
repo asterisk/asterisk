@@ -140,6 +140,8 @@ static int realtime_update_exec(struct ast_channel *chan, void *data)
 	int res = 0, count = 0;
 	char countc[13];
 
+        ast_log(LOG_WARNING, "The RealTimeUpdate application has been deprecated in favor of the REALTIME dialplan function.\n");
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR,"Invalid input: usage %s\n",UUSAGE);
 		return -1;
@@ -185,6 +187,8 @@ static int realtime_exec(struct ast_channel *chan, void *data)
 	char countc[13];
 	size_t len;
 		
+        ast_log(LOG_WARNING, "The RealTime application has been deprecated in favor of the REALTIME dialplan function.\n");
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR,"Invalid input: usage %s\n",USAGE);
 		return -1;

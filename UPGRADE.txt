@@ -115,6 +115,11 @@ Functions:
 * The ENUMLOOKUP() function with the 'c' option (for counting the number of records),
   but the lookup fails to match any records, the returned value will now be "0" instead of blank.
 
+* The REALTIME() function is now available in version 1.4 and app_realtime has
+  been deprecated in favor of the new function. app_realtime will be removed
+  completely with the version 1.6 release so please take the time between
+  releases to make any necessary changes
+
 The IAX2 channel:
 
 * The "mailboxdetail" option has been deprecated.  Previously, if this option
