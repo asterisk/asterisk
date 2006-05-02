@@ -100,9 +100,7 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <pval>statement
 %type <pval>switch_head
 
-%type <pval>if_head
-%type <pval>random_head
-%type <pval>iftime_head
+%type <pval>if_like_head
 %type <pval>statements
 %type <pval>extension
 %type <pval>ignorepat
@@ -161,7 +159,7 @@ static pval *update_last(pval *, YYLTYPE *);
 		macro_statement macro_statements case_statement case_statements
 		eval_arglist application_call application_call_head
 		macro_call target jumptarget statement switch_head
-		if_head random_head iftime_head statements extension
+		if_like_head statements extension
 		ignorepat element elements arglist global_statement
 		global_statements globals macro context object objects
 		opt_else
@@ -296,17 +294,14 @@ statements : statement {$$=$1;}
 	| statements error {$$=$1;}
 	;
 
-if_head : KW_IF LP { reset_parencount(parseio->scanner); }  word_list RP {
+/* 'if' like statements: if, iftime, random */
+if_like_head : KW_IF LP { reset_parencount(parseio->scanner); }  word_list RP {
 		$$= npval2(PV_IF, &@1, &@5);
 		$$->u1.str = $4; }
-	;
-
-random_head : KW_RANDOM LP { reset_parencount(parseio->scanner); } word_list RP {
+	|  KW_RANDOM LP { reset_parencount(parseio->scanner); } word_list RP {
 		$$ = npval2(PV_RANDOM, &@1, &@5);
 		$$->u1.str=$4;}
-	;
-
-iftime_head : KW_IFTIME LP word3_list COLON word3_list COLON word3_list
+	| KW_IFTIME LP word3_list COLON word3_list COLON word3_list
 		BAR word3_list BAR word3_list BAR word3_list RP {
 		$$ = npval2(PV_IFTIME, &@1, &@1);
 		$$->u1.list = npval2(PV_WORD, &@3, &@7);
@@ -452,16 +447,8 @@ statement : LC statements RC {
 	| KW_BREAK SEMI { $$ = npval2(PV_BREAK, &@1, &@2); }
 	| KW_RETURN SEMI { $$ = npval2(PV_RETURN, &@1, &@2); }
 	| KW_CONTINUE SEMI { $$ = npval2(PV_CONTINUE, &@1, &@2); }
-	| random_head statement opt_else {
-		$$ = update_last($1, &@2); /* XXX probably @3... */
-		$$->u2.statements = $2;
-		$$->u3.else_statements = $3;}
-	| if_head statement opt_else {
-		$$ = update_last($1, &@2); /* XXX probably @3... */
-		$$->u2.statements = $2;
-		$$->u3.else_statements = $3;}
-	| iftime_head statement opt_else {
-		$$ = update_last($1, &@2); /* XXX probably @3... */
+	| if_like_head statement opt_else {
+		$$ = update_last($1, &@2);
 		$$->u2.statements = $2;
 		$$->u3.else_statements = $3;}
 	| SEMI { $$=0; }
