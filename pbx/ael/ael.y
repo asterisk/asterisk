@@ -119,6 +119,7 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <pval>opt_else
 %type <pval>elements_block
 %type <pval>switchlist_block
+%type <pval>timespec
 
 %type <str>opt_word
 %type <str>word_or_default
@@ -165,6 +166,7 @@ static pval *update_last(pval *, YYLTYPE *);
 		global_statements globals macro context object objects
 		opt_else
 		elements_block switchlist_block
+		timespec
 
 %destructor { free($$);}  word word_list goto_word word3_list opt_word word_or_default
 		timerange
@@ -307,6 +309,14 @@ timerange: word3_list COLON word3_list COLON word3_list {
 	| word { $$ = $1; }
 	;
 
+/* full time specification range|dow|*|* */
+timespec : timerange BAR word3_list BAR word3_list BAR word3_list {
+		$$ = nword($1, &@1);
+		$$->u1.list = nword($3, &@3);
+		$$->u1.list->next = nword($5, &@5);
+		$$->u1.list->next->next = nword($7, &@7); }
+	;
+
 /* 'if' like statements: if, iftime, random */
 if_like_head : KW_IF LP { reset_parencount(parseio->scanner); }  word_list RP {
 		$$= npval2(PV_IF, &@1, &@5);
@@ -314,15 +324,10 @@ if_like_head : KW_IF LP { reset_parencount(parseio->scanner); }  word_list RP {
 	|  KW_RANDOM LP { reset_parencount(parseio->scanner); } word_list RP {
 		$$ = npval2(PV_RANDOM, &@1, &@5);
 		$$->u1.str=$4;}
-	| KW_IFTIME LP timerange BAR word3_list BAR word3_list BAR word3_list RP {
-		$$ = npval2(PV_IFTIME, &@1, &@5); /* XXX @5 or greater ? */
-		$$->u1.list = nword($3, &@3);
-		$$->u1.list->next = nword($5, &@5);
-		$$->u1.list->next->next = nword($7, &@7);
-		$$->u1.list->next->next->next = nword($9, &@9);
-		prev_word = 0;
-	}
-
+	| KW_IFTIME LP timespec RP {
+		$$ = npval2(PV_IFTIME, &@1, &@4);
+		$$->u1.list = $3;
+		prev_word = 0; }
 	;
 
 /* word_list is a hack to fix a problem with context switching between bison and flex;
@@ -613,24 +618,16 @@ switchlist : word SEMI { $$ = nword($1, &@1); }
 	;
 
 includeslist : word_or_default SEMI { $$ = nword($1, &@1); }
-	| word_or_default BAR timerange BAR word3_list BAR word3_list BAR word3_list SEMI {
+	| word_or_default BAR timespec SEMI {
 		$$ = nword($1, &@1);
-		$$->u2.arglist = nword($3, &@3);
-		$$->u2.arglist->next = nword($5, &@5);
-		$$->u2.arglist->next->next = nword($7, &@7);
-		$$->u2.arglist->next->next->next = nword($9, &@9);
-		prev_word=0;
-	}
+		$$->u2.arglist = $3;
+		prev_word=0; }
 	| includeslist word_or_default SEMI { $$ = linku1($1, nword($2, &@2)); }
-	| includeslist word_or_default BAR timerange BAR word3_list BAR word3_list BAR word3_list SEMI {
+	| includeslist word_or_default BAR timespec SEMI {
 		pval *z = nword($2, &@2);
+		z->u2.arglist = $4;
 		$$ = linku1($1, z);
-		z->u2.arglist = nword($4, &@4);
-		z->u2.arglist->next = nword($6, &@6);
-		z->u2.arglist->next->next = nword($8, &@8);
-		z->u2.arglist->next->next->next = nword($10, &@10);
-		prev_word=0;
-	}
+		prev_word=0; }
 	| includeslist error {$$=$1;}
 	;
 
