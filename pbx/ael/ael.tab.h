@@ -115,7 +115,7 @@
 
 
 #if ! defined (YYSTYPE) && ! defined (YYSTYPE_IS_DECLARED)
-#line 49 "ael.y"
+#line 48 "ael.y"
 typedef union YYSTYPE {
 	int	intval;		/* integer value, typically flags */
 	char	*str;		/* strings */

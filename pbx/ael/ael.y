@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "asterisk/logger.h"
-#include "asterisk/utils.h"		/* ast_calloc() */
 #include "asterisk/ael_structs.h"
 
 static pval * linku1(pval *head, pval *tail);
@@ -449,7 +448,7 @@ statement : LC statements RC {
 			tot++; /* for a sep like a comma */
 		}
 		tot+=4; /* for safety */
-		bufx = ast_calloc(1, tot);
+		bufx = calloc(1, tot);
 		strcpy(bufx,$1->u1.str);
 		strcat(bufx,"(");
 		/* XXX need to advance the pointer or the loop is very inefficient */
@@ -844,7 +843,7 @@ static char *ael_token_subst(char *mess)
 		}
 		len++;
 	}
-	res = ast_calloc(1, len+1);
+	res = calloc(1, len+1);
 	res[0] = 0;
 	s = res;
 	for (p=mess; *p;) {
@@ -884,7 +883,7 @@ static struct pval *npval(pvaltype type, int first_line, int last_line,
 	int first_column, int last_column)
 {
 	extern char *my_file;
-	pval *z = ast_calloc(1, sizeof(struct pval));
+	pval *z = calloc(1, sizeof(struct pval));
 	z->type = type;
 	z->startline = first_line;
 	z->endline = last_line;
