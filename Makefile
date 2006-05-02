@@ -891,7 +891,7 @@ config:
 		$(INSTALL) -m 755 init.asterisk /etc/init.d/asterisk; \
 	fi 
 
-dont-optimize: install
+dont-optimize: _all
 
 valgrind: dont-optimize
 
