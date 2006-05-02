@@ -184,10 +184,13 @@ int ast_format_unregister(const char *name)
 int ast_stopstream(struct ast_channel *tmp)
 {
 	/* Stop a running stream if there is one */
-	if (tmp->vstream)
+	if (tmp->vstream) {
 		ast_closestream(tmp->vstream);
+		tmp->vstream = NULL;
+	}
 	if (tmp->stream) {
 		ast_closestream(tmp->stream);
+		tmp->stream = NULL;
 		if (tmp->oldwriteformat && ast_set_write_format(tmp, tmp->oldwriteformat))
 			ast_log(LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
 	}
