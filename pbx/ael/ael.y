@@ -236,10 +236,8 @@ global_statement : word EQ { reset_semicount(parseio->scanner); }  word SEMI {
 		$$->u2.val = $4; }
 	;
 
-arglist : word { $$= nword($1, &@1); }
-	| arglist COMMA word {
-		pval *z = nword($3, &@3);
-		$$ = linku1($1, z); }
+arglist : word { $$ = nword($1, &@1); }
+	| arglist COMMA word { $$ = linku1($1, nword($3, &@3)); }
 	| arglist error {$$=$1;}
 	;
 
@@ -568,9 +566,7 @@ eval_arglist :  word_list { $$ = nword($1, &@1); }
 	| /*nothing! */   {
 		$$= npval(PV_WORD,0/*@1.first_line*/,0/*@1.last_line*/,0/* @1.first_column*/, 0/*@1.last_column*/);
 		$$->u1.str = strdup(""); }
-	| eval_arglist COMMA  opt_word {
-		pval *z = nword($3, &@3);
-		$$ = linku1($1, z); }
+	| eval_arglist COMMA  opt_word { $$ = linku1($1, nword($3, &@3)); }
 	;
 
 case_statements: case_statement {$$=$1;}
@@ -626,9 +622,7 @@ switchlist_block : LC switchlist RC { $$ = $2; }
 	;
 
 switchlist : word SEMI { $$ = nword($1, &@1); }
-	| switchlist word SEMI {
-		pval *z = nword($2, &@2);
-		$$ = linku1($1, z); }
+	| switchlist word SEMI { $$ = linku1($1, nword($2, &@2)); }
 	| switchlist error {$$=$1;}
 	;
 
@@ -654,9 +648,7 @@ includeslist : includedname SEMI { $$ = nword($1, &@1); }
 		$$->u2.arglist->next->next->next = nword($9, &@9);
 		prev_word=0;
 	}
-	| includeslist includedname SEMI {
-		pval *z = nword($2, &@2);
-		$$ = linku1($1, z); }
+	| includeslist includedname SEMI { $$ = linku1($1, nword($2, &@2)); }
 	| includeslist includedname BAR word3_list COLON word3_list COLON word3_list
 			BAR word3_list BAR word3_list BAR word3_list SEMI {
 		pval *z = nword($2, &@2);
