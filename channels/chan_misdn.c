@@ -2074,8 +2074,16 @@ static struct ast_frame  *misdn_read(struct ast_channel *ast)
 			tmp->zero_read_cnt=0;
 
 		}
-		tmp->frame.frametype = AST_FRAME_NULL;
-		tmp->frame.subclass = 0;
+
+               /*faking Voice Frame*/
+		tmp->frame.frametype = AST_FRAME_VOICE;
+		tmp->frame.subclass = AST_FORMAT_ALAW;
+		memset(tmp->ast_rd_buf,0,128);
+		tmp->frame.data = tmp->ast_rd_buf ;
+		tmp->frame.mallocd =0 ;
+		tmp->frame.datalen = 128;
+		tmp->frame.samples = 128;
+
 		frame=ast_frisolate(&tmp->frame);
 		return frame;
 	}
