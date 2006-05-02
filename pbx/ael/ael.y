@@ -107,7 +107,7 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <pval>element
 %type <pval>elements
 %type <pval>arglist
-%type <pval>global_statement
+%type <pval>assignment
 %type <pval>global_statements
 %type <pval>globals
 %type <pval>macro
@@ -164,7 +164,7 @@ static pval *update_last(pval *, YYLTYPE *);
 		eval_arglist application_call application_call_head
 		macro_call target jumptarget statement switch_head
 		if_like_head statements extension
-		ignorepat element elements arglist global_statement
+		ignorepat element elements arglist assignment
 		global_statements globals macro context object objects
 		opt_else
 		elements_block switchlist_block
@@ -219,12 +219,12 @@ globals : KW_GLOBALS LC global_statements RC {
 		$$ = npval2(PV_GLOBALS, &@1, &@3); }
 	;
 
-global_statements : global_statement {$$=$1;}
-	| global_statements global_statement {$$ = linku1($1, $2); }
+global_statements : assignment {$$=$1;}
+	| global_statements assignment {$$ = linku1($1, $2); }
 	| global_statements error {$$=$1;}
 	;
 
-global_statement : word EQ { reset_semicount(parseio->scanner); }  word SEMI {
+assignment : word EQ { reset_semicount(parseio->scanner); }  word SEMI {
 		$$ = npval2(PV_VARDEC, &@1, &@5);
 		$$->u1.str = $1;
 		$$->u2.val = $4; }
@@ -251,10 +251,7 @@ element : extension {$$=$1;}
 	| switches {$$=$1;}
 	| eswitches {$$=$1;}
 	| ignorepat {$$=$1;}
-	| word EQ { reset_semicount(parseio->scanner); } word SEMI {
-		$$ = npval2(PV_VARDEC, &@1, &@5);
-		$$->u1.str = $1;
-		$$->u2.val = $4; }
+	| assignment {$$=$1;}
 	| word error {free($1); $$=0;}
 	| SEMI  {$$=0;/* allow older docs to be read */}
 	;
@@ -490,25 +487,25 @@ target : goto_word { $$ = nword($1, &@1); }
 	;
 
 /* XXX please document the form of jumptarget */
-jumptarget : goto_word {
+jumptarget : goto_word {			/* ext, 1 */
 		$$ = nword($1, &@1);
 		$$->next = nword(strdup("1"), &@1); }  /*  jump extension[,priority][@context] */
-	| goto_word COMMA goto_word {
+	| goto_word COMMA goto_word {		/* ext, pri */
 		$$ = nword($1, &@1);
 		$$->next = nword($3, &@3); }
-	| goto_word COMMA word AT word {	/* XXX they are stored in a different order */
+	| goto_word COMMA word AT word {	/* context, ext, pri */
 		$$ = nword($5, &@5);
 		$$->next = nword($1, &@1);
 		$$->next->next = nword($3, &@3); }
-	| goto_word AT goto_word {
+	| goto_word AT goto_word {		/* context, ext, 1 */
 		$$ = nword($3, &@3);
 		$$->next = nword($1, &@1);
 		$$->next->next = nword(strdup("1"), &@3); }
-	| goto_word COMMA word AT KW_DEFAULT {
+	| goto_word COMMA word AT KW_DEFAULT {	/* default, ext, pri */
 		$$ = nword(strdup("default"), &@1);
 		$$->next = nword($1, &@1);
 		$$->next->next = nword($3, &@3); }
-	| goto_word AT KW_DEFAULT {
+	| goto_word AT KW_DEFAULT {		/* default, ext, 1 */
 		$$ = nword(strdup("default"), &@1);
 		$$->next = nword($1, &@3);
 		$$->next->next = nword( strdup("1"), &@3); }
