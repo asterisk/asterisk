@@ -128,7 +128,6 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <str>goto_word
 %type <str>word_list
 %type <str>word3_list
-%type <str>includedname
 
 %type <intval>opt_abstract
 
@@ -168,7 +167,7 @@ static pval *update_last(pval *, YYLTYPE *);
 		opt_else
 		elements_block switchlist_block
 
-%destructor { free($$);}  word word_list goto_word word3_list includedname opt_word word_or_default
+%destructor { free($$);}  word word_list goto_word word3_list opt_word word_or_default
 
 
 %%
@@ -198,7 +197,7 @@ context : opt_abstract KW_CONTEXT word_or_default elements_block {
 		$$->u3.abstract = $1; }
 	;
 
-/* optional "abstract" keyword */
+/* optional "abstract" keyword  XXX there is no regression test for this */
 opt_abstract: KW_ABSTRACT { $$ = 1; }
 	| /* nothing */ { $$ = 0; }
 	;
@@ -626,8 +625,8 @@ switchlist : word SEMI { $$ = nword($1, &@1); }
 	| switchlist error {$$=$1;}
 	;
 
-includeslist : includedname SEMI { $$ = nword($1, &@1); }
-	| includedname BAR word3_list COLON word3_list COLON word3_list
+includeslist : word_or_default SEMI { $$ = nword($1, &@1); }
+	| word_or_default BAR word3_list COLON word3_list COLON word3_list
 			BAR word3_list BAR word3_list BAR word3_list SEMI {
 		$$ = nword($1, &@1);
 		$$->u2.arglist = npval2(PV_WORD, &@3, &@7);
@@ -640,7 +639,7 @@ includeslist : includedname SEMI { $$ = nword($1, &@1); }
 		$$->u2.arglist->next->next->next = nword($13, &@13);
 		prev_word=0;
 	}
-	| includedname BAR word BAR word3_list BAR word3_list BAR word3_list SEMI {
+	| word_or_default BAR word BAR word3_list BAR word3_list BAR word3_list SEMI {
 		$$ = nword($1, &@1);
 		$$->u2.arglist = nword($3, &@3);
 		$$->u2.arglist->next = nword($5, &@5);
@@ -648,8 +647,8 @@ includeslist : includedname SEMI { $$ = nword($1, &@1); }
 		$$->u2.arglist->next->next->next = nword($9, &@9);
 		prev_word=0;
 	}
-	| includeslist includedname SEMI { $$ = linku1($1, nword($2, &@2)); }
-	| includeslist includedname BAR word3_list COLON word3_list COLON word3_list
+	| includeslist word_or_default SEMI { $$ = linku1($1, nword($2, &@2)); }
+	| includeslist word_or_default BAR word3_list COLON word3_list COLON word3_list
 			BAR word3_list BAR word3_list BAR word3_list SEMI {
 		pval *z = nword($2, &@2);
 		$$ = linku1($1, z);
@@ -663,7 +662,7 @@ includeslist : includedname SEMI { $$ = nword($1, &@1); }
 		z->u2.arglist->next->next->next = nword($14, &@14);
 		prev_word=0;
 	}
-	| includeslist includedname BAR word BAR word3_list BAR word3_list BAR word3_list SEMI {
+	| includeslist word_or_default BAR word BAR word3_list BAR word3_list BAR word3_list SEMI {
 		pval *z = npval2(PV_WORD, &@2, &@3);
 		$$ = linku1($1, z);
 		$$->u2.arglist->u1.str = $4;			/* XXX maybe too early ? */
@@ -675,10 +674,6 @@ includeslist : includedname SEMI { $$ = nword($1, &@1); }
 		prev_word=0;
 	}
 	| includeslist error {$$=$1;}
-	;
-
-includedname : word { $$ = $1;}
-	| KW_DEFAULT {$$=strdup("default");}
 	;
 
 includes : KW_INCLUDES LC includeslist RC {
