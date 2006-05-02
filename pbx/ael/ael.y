@@ -211,13 +211,6 @@ macro : KW_MACRO word LP arglist RP LC macro_statements RC {
 	| KW_MACRO word LP arglist RP LC  RC {
 		$$ = npval2(PV_MACRO, &@1, &@7);
 		$$->u1.str = $2; $$->u2.arglist = $4; }
-	| KW_MACRO word LP RP LC macro_statements RC {
-		$$ = npval2(PV_MACRO, &@1, &@7);
-		$$->u1.str = $2;
-		$$->u3.macro_statements = $6; }
-	| KW_MACRO word LP RP LC  RC {
-		$$ = npval2(PV_MACRO, &@1, &@6);
-		$$->u1.str = $2; }
 	;
 
 globals : KW_GLOBALS LC global_statements RC {
@@ -238,7 +231,8 @@ global_statement : word EQ { reset_semicount(parseio->scanner); }  word SEMI {
 		$$->u2.val = $4; }
 	;
 
-arglist : word { $$ = nword($1, &@1); }
+arglist : /* empty */ { $$ = NULL; }
+	| word { $$ = nword($1, &@1); }
 	| arglist COMMA word { $$ = linku1($1, nword($3, &@3)); }
 	| arglist error {$$=$1;}
 	;
