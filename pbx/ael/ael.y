@@ -397,8 +397,6 @@ statement : LC statements RC {
 		$$ = npval2(PV_WHILE, &@1, &@3);
 		$$->u1.str = $2;
 		$$->u2.statements = $3; }
-	| switch_head RC /* empty list OK */ {
-		$$ = update_last($1, &@2); }
 	| switch_head case_statements RC {
 		$$ = update_last($1, &@3);
 		$$->u2.statements = $2;}
@@ -553,7 +551,8 @@ eval_arglist :  word_list { $$ = nword($1, &@1); }
 	| eval_arglist COMMA  opt_word { $$ = linku1($1, nword($3, &@3)); }
 	;
 
-case_statements: case_statement {$$=$1;}
+case_statements: /* empty */ { $$ = NULL; }
+	| case_statement {$$=$1;}
 	| case_statements case_statement { $$ = linku1($1, $2); }
 	;
 
