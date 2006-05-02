@@ -303,9 +303,9 @@ timerange: word3_list COLON word3_list COLON word3_list {
 /* full time specification range|dow|*|* */
 timespec : timerange BAR word3_list BAR word3_list BAR word3_list {
 		$$ = nword($1, &@1);
-		$$->u1.list = nword($3, &@3);
-		$$->u1.list->next = nword($5, &@5);
-		$$->u1.list->next->next = nword($7, &@7); }
+		$$->next = nword($3, &@3);
+		$$->next->next = nword($5, &@5);
+		$$->next->next->next = nword($7, &@7); }
 	;
 
 /* expression used in if, random, while, switch */

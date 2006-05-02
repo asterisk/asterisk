@@ -2158,9 +2158,9 @@ yyreduce:
 #line 304 "ael.y"
     {
 		(yyval.pval) = nword((yyvsp[-6].str), &(yylsp[-6]));
-		(yyval.pval)->u1.list = nword((yyvsp[-4].str), &(yylsp[-4]));
-		(yyval.pval)->u1.list->next = nword((yyvsp[-2].str), &(yylsp[-2]));
-		(yyval.pval)->u1.list->next->next = nword((yyvsp[0].str), &(yylsp[0])); ;}
+		(yyval.pval)->next = nword((yyvsp[-4].str), &(yylsp[-4]));
+		(yyval.pval)->next->next = nword((yyvsp[-2].str), &(yylsp[-2]));
+		(yyval.pval)->next->next->next = nword((yyvsp[0].str), &(yylsp[0])); ;}
     break;
 
   case 52:
