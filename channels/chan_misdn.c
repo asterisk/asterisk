@@ -1508,9 +1508,7 @@ static int read_config(struct chan_list *ch, int orig) {
 			ast_copy_string(ast->exten, bc->dad, sizeof(ast->exten));
 		}
 		
-		if ( !ast->cid.cid_num) {
-			ast_set_callerid(ast, bc->oad, NULL, bc->oad);
-		}
+		ast_set_callerid(ast, bc->oad, NULL, bc->oad);
 		
 		if ( !ast_strlen_zero(bc->rad) ) {
 			if (ast->cid.cid_rdnis)
