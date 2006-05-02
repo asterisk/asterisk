@@ -68,6 +68,11 @@ Applications:
 
 * OSPAuth is added to authenticate OSP tokens in in_bound call setup messages.
 
+* The CONNECT event in the queue_log from app_queue now has a second field 
+  in addition to the holdtime field. It contains the unique ID of the 
+  queue member channel that is taking the call. This is useful when trying 
+  to link recording filenames back to a particular call from the queue.  
+
 Manager:
 
 * After executing the 'status' manager action, the "Status" manager events
@@ -76,6 +81,11 @@ Manager:
   "CallerIDNum".  For compatibility purposes, the CallerID parameter will remain
   until after the release of 1.4, when it will be removed.  Please use the time
   during the 1.4 release to make this transition.
+
+* The AgentConnect event now has an additional field called "BridgedChannel" 
+  which contains the unique ID of the queue member channel that is taking the 
+  call. This is useful when trying to link recording filenames back to 
+  a particular call from the queue.
 
 Variables:
 

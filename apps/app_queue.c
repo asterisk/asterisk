@@ -2241,16 +2241,17 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	 			ast_log(LOG_DEBUG, "app_queue: sendurl=%s.\n", url);
  			ast_channel_sendurl(peer, url);
  		}
-		ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "CONNECT", "%ld", (long)time(NULL) - qe->start);
+		ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "CONNECT", "%ld|%s", (long)time(NULL) - qe->start, peer->uniqueid);
 		if (qe->parent->eventwhencalled)
 			manager_event(EVENT_FLAG_AGENT, "AgentConnect",
 				      "Queue: %s\r\n"
 				      "Uniqueid: %s\r\n"
 				      "Channel: %s\r\n"
 				      "Member: %s\r\n"
-				      "Holdtime: %ld\r\n",
+				      "Holdtime: %ld\r\n"
+				      "BridgedChannel: %s\r\n",
 				      queuename, qe->chan->uniqueid, peer->name, member->interface,
-				      (long)time(NULL) - qe->start);
+				      (long)time(NULL) - qe->start,peer->uniqueid);
 		ast_copy_string(oldcontext, qe->chan->context, sizeof(oldcontext));
 		ast_copy_string(oldexten, qe->chan->exten, sizeof(oldexten));
 		time(&callstart);

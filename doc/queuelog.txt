@@ -50,9 +50,12 @@ origposition.
 CONFIGRELOAD
 The configuration has been reloaded (e.g. with asterisk -rx reload)
 
-CONNECT(holdtime)
+CONNECT(holdtime|bridgedchanneluniqueid)
 The caller was connected to an agent.  Hold time represents the amount
-of time the caller was on hold.
+of time the caller was on hold. The bridged channel unique ID contains
+the unique ID of the queue member channel that is taking the call. This
+is useful when trying to link recording filenames to a particular
+call in the queue.
 
 ENTERQUEUE(url|callerid)
 A call has entered the queue.  URL (if specified) and Caller*ID are placed
