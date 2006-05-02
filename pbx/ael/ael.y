@@ -375,10 +375,7 @@ switch_head : KW_SWITCH test_expr LC {
 statement : LC statements RC {
 		$$ = npval2(PV_STATEMENTBLOCK, &@1, &@3);
 		$$->u1.list = $2; }
-	| word EQ {reset_semicount(parseio->scanner);} word SEMI {
-		$$ = npval2(PV_VARDEC, &@1, &@5);
-		$$->u1.str = $1;
-		$$->u2.val = $4; }
+	| assignment { $$ = $1; }
 	| KW_GOTO target SEMI {
 		$$ = npval2(PV_GOTO, &@1, &@3);
 		$$->u1.list = $2;}
