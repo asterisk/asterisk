@@ -179,14 +179,7 @@ file : objects  { $$ = parseio->pval = $1; }
 objects : object {$$=$1;}
 	| objects object
 		{
-			if ( $1 && $2 ) {
-				$$=$1;
-				linku1($$,$2);
-			} else if ( $1 ) {
-				$$=$1;
-			} else if ( $2 ) {
-				$$=$2;
-			}
+			$$ = linku1($1, $2);
 		}
 	| objects error {$$=$1;}
 	;
@@ -920,12 +913,13 @@ static pval * linku1(pval *head, pval *tail)
 {
 	if (!head)
 		return tail;
-	if (!head->next) {
-		head->next = tail;
-	} else {
-		head->u1_last->next = tail;
+	if (tail) {
+		if (!head->next) {
+			head->next = tail;
+		} else {
+			head->u1_last->next = tail;
+		}
+		head->u1_last = tail;
 	}
-	head->u1_last = tail;
 	return head;
 }
-
