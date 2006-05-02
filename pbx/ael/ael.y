@@ -123,7 +123,7 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <pval>included_entry
 
 %type <str>opt_word
-%type <str>word_or_default
+%type <str>context_name
 %type <str>timerange
 
 %type <str>goto_word
@@ -169,7 +169,7 @@ static pval *update_last(pval *, YYLTYPE *);
 		elements_block switchlist_block
 		timespec included_entry
 
-%destructor { free($$);}  word word_list goto_word word3_list opt_word word_or_default
+%destructor { free($$);}  word word_list goto_word word3_list opt_word context_name
 		timerange
 
 
@@ -189,11 +189,11 @@ object : context {$$=$1;}
 	| SEMI  {$$=0;/* allow older docs to be read */}
 	;
 
-word_or_default : word { $$ = $1; }
+context_name : word { $$ = $1; }
 	| KW_DEFAULT { $$ = strdup("default"); }
 	;
 
-context : opt_abstract KW_CONTEXT word_or_default elements_block {
+context : opt_abstract KW_CONTEXT context_name elements_block {
 		$$ = npval2(PV_CONTEXT, &@1, &@4);
 		$$->u1.str = $3;
 		$$->u2.statements = $4;
@@ -618,9 +618,8 @@ switchlist : word SEMI { $$ = nword($1, &@1); }
 	| switchlist error {$$=$1;}
 	;
 
-
-included_entry : word_or_default SEMI { $$ = nword($1, &@1); }
-	| word_or_default BAR timespec SEMI {
+included_entry : context_name SEMI { $$ = nword($1, &@1); }
+	| context_name BAR timespec SEMI {
 		$$ = nword($1, &@1);
 		$$->u2.arglist = $3;
 		prev_word=0; /* XXX sure ? */ }

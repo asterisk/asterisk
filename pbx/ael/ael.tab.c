@@ -569,7 +569,7 @@ static const unsigned short int yyrline[] =
      519,   524,   532,   532,   543,   550,   553,   554,   557,   558,
      561,   564,   565,   568,   572,   576,   580,   583,   586,   591,
      592,   595,   596,   602,   607,   612,   613,   616,   617,   618,
-     622,   623,   630,   631,   632,   635,   638
+     621,   622,   629,   630,   631,   634,   637
 };
 #endif
 
@@ -585,17 +585,17 @@ static const char *const yytname[] =
   "KW_RETURN", "KW_BREAK", "KW_CONTINUE", "KW_REGEXTEN", "KW_HINT",
   "KW_FOR", "KW_WHILE", "KW_CASE", "KW_PATTERN", "KW_DEFAULT", "KW_CATCH",
   "KW_SWITCHES", "KW_ESWITCHES", "KW_INCLUDES", "word", "$accept", "file",
-  "objects", "object", "word_or_default", "context", "opt_abstract",
-  "macro", "globals", "global_statements", "global_statement", "@1",
-  "arglist", "elements_block", "elements", "element", "@2", "ignorepat",
-  "extension", "statements", "timerange", "timespec", "if_like_head", "@3",
-  "@4", "word_list", "word3_list", "goto_word", "switch_head", "@5",
-  "statement", "@6", "@7", "@8", "@9", "@10", "@11", "opt_else", "target",
-  "jumptarget", "macro_call", "@12", "application_call_head", "@13",
-  "application_call", "opt_word", "eval_arglist", "case_statements",
-  "case_statement", "macro_statements", "macro_statement", "switches",
-  "eswitches", "switchlist_block", "switchlist", "included_entry",
-  "includeslist", "includes", 0
+  "objects", "object", "context_name", "context", "opt_abstract", "macro",
+  "globals", "global_statements", "global_statement", "@1", "arglist",
+  "elements_block", "elements", "element", "@2", "ignorepat", "extension",
+  "statements", "timerange", "timespec", "if_like_head", "@3", "@4",
+  "word_list", "word3_list", "goto_word", "switch_head", "@5", "statement",
+  "@6", "@7", "@8", "@9", "@10", "@11", "opt_else", "target", "jumptarget",
+  "macro_call", "@12", "application_call_head", "@13", "application_call",
+  "opt_word", "eval_arglist", "case_statements", "case_statement",
+  "macro_statements", "macro_statement", "switches", "eswitches",
+  "switchlist_block", "switchlist", "included_entry", "includeslist",
+  "includes", 0
 };
 #endif
 
@@ -1277,7 +1277,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp)
 	};
 #line 1279 "ael.tab.c"
         break;
-      case 46: /* "word_or_default" */
+      case 46: /* "context_name" */
 #line 172 "ael.y"
         { free((yyvaluep->str));};
 #line 1284 "ael.tab.c"
@@ -2797,12 +2797,12 @@ yyreduce:
     break;
 
   case 140:
-#line 622 "ael.y"
+#line 621 "ael.y"
     { (yyval.pval) = nword((yyvsp[-1].str), &(yylsp[-1])); ;}
     break;
 
   case 141:
-#line 623 "ael.y"
+#line 622 "ael.y"
     {
 		(yyval.pval) = nword((yyvsp[-3].str), &(yylsp[-3]));
 		(yyval.pval)->u2.arglist = (yyvsp[-1].pval);
@@ -2810,29 +2810,29 @@ yyreduce:
     break;
 
   case 142:
-#line 630 "ael.y"
+#line 629 "ael.y"
     { (yyval.pval) = (yyvsp[0].pval); ;}
     break;
 
   case 143:
-#line 631 "ael.y"
+#line 630 "ael.y"
     { (yyval.pval) = linku1((yyvsp[-1].pval), (yyvsp[0].pval)); ;}
     break;
 
   case 144:
-#line 632 "ael.y"
+#line 631 "ael.y"
     {(yyval.pval)=(yyvsp[-1].pval);;}
     break;
 
   case 145:
-#line 635 "ael.y"
+#line 634 "ael.y"
     {
 		(yyval.pval) = npval2(PV_INCLUDES, &(yylsp[-3]), &(yylsp[0]));
 		(yyval.pval)->u1.list = (yyvsp[-1].pval);;}
     break;
 
   case 146:
-#line 638 "ael.y"
+#line 637 "ael.y"
     {
 		(yyval.pval) = npval2(PV_INCLUDES, &(yylsp[-2]), &(yylsp[0]));;}
     break;
@@ -3117,7 +3117,7 @@ yyreturn:
 }
 
 
-#line 643 "ael.y"
+#line 642 "ael.y"
 
 
 static char *token_equivs1[] =
