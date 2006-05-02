@@ -29,7 +29,6 @@ context=default			; Default context for incoming calls
 				; this can also be set to 'osp'
 				; if asterisk was compiled with OSP support.)
 allowoverlap=no			; Disable overlap dialing support. (Default is yes)
-;allowsubscribe=no		; Disable support for subscriptions. (Default is yes)
 ;realm=mydomain.tld		; Realm for digest authentication
 				; defaults to "asterisk"
 				; Realms MUST be globally unique according to RFC 3261
@@ -114,10 +113,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;compactheaders = yes		; send compact sip headers.
 ;sipdebug = yes			; Turn on SIP debugging by default, from
 				; the moment the channel loads this configuration
-;subscribecontext = default	; Set a specific context for SUBSCRIBE requests
-				; Useful to limit subscriptions to local extensions
-				; Settable per peer/user also
-;notifyringing = yes		; Notify subscriptions on RINGING state
 ;
 ;videosupport=yes		; Turn on support for SIP video
 ;maxcallbitrate=384		; Maximum bitrate for video calls (default 384 kb/s)
@@ -126,6 +121,18 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;callevents=no			; generate manager events when sip ua 
 				; performs events (e.g. hold)
 
+;--------------------------- STATUS NOTIFICATIONS (SUBSCRIPTIONS) ---------
+; You can subscribe to the status of extensions with a "hint" priority
+; (See extensions.conf.sample for examples)
+; chan_sip support two major formats for notifications: dialog-info and SIMPLE 
+; Note: Subscriptions does not work if you have a realtime dialplan and use the
+; realtime switch.
+;
+;allowsubscribe=no		; Disable support for subscriptions. (Default is yes)
+;subscribecontext = default	; Set a specific context for SUBSCRIBE requests
+				; Useful to limit subscriptions to local extensions
+				; Settable per peer/user also
+;notifyringing = yes		; Notify subscriptions on RINGING state
 ;
 ; If regcontext is specified, Asterisk will dynamically create and destroy a
 ; NoOp priority 1 extension for a given peer who registers or unregisters with

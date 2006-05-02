@@ -79,7 +79,7 @@ int ast_device_state_changed(const char *fmt, ...)
 
 
 /*! \brief Tells Asterisk the State for Device is changed 
- * \param device devicename like a dialstrin
+ * \param device devicename like a dialstring
  * Asterisk polls the new extensionstates and calls the registered
  * callbacks for the changed extensions
  * Returns 0 on success, -1 on failure

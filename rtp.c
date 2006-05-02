@@ -23,7 +23,7 @@
  *
  * \author Mark Spencer <markster@digium.com>
  * 
- * \note RTP is deffined in RFC 3550.
+ * \note RTP is defined in RFC 3550.
  */
 
 #include <stdio.h>
