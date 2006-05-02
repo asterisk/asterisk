@@ -177,10 +177,7 @@ file : objects  { $$ = parseio->pval = $1; }
 	;
 
 objects : object {$$=$1;}
-	| objects object
-		{
-			$$ = linku1($1, $2);
-		}
+	| objects object { $$ = linku1($1, $2); }
 	| objects error {$$=$1;}
 	;
 
@@ -229,7 +226,7 @@ globals : KW_GLOBALS LC global_statements RC {
 	;
 
 global_statements : global_statement {$$=$1;}
-	| global_statements global_statement {$$=$1; linku1($$,$2);}
+	| global_statements global_statement {$$ = linku1($1, $2); }
 	| global_statements error {$$=$1;}
 	;
 
@@ -243,7 +240,7 @@ arglist : word { $$= nword($1, &@1); }
 	| arglist COMMA word {
 		pval *z = npval2(PV_WORD, &@1, &@3);
 		z->u1.str = $3;
-		$$ = linku1($1,z); }
+		$$ = linku1($1, z); }
 	| arglist error {$$=$1;}
 	;
 
@@ -253,9 +250,7 @@ elements_block : LC RC	{ $$ = NULL; }
 
 elements : element { $$=$1;}
 	| error {$$=0;}
-	| elements element { if ( $1 && $2 ) {$$=$1; linku1($$,$2);}
-				else if ( $1 ) {$$=$1;}
-				else if ( $2 ) {$$=$2;} }
+	| elements element { $$ = linku1($1, $2); }
 	| elements error   { $$=$1;}
 	;
 
@@ -301,9 +296,7 @@ extension : word EXTENMARK statement {
 	;
 
 statements : statement {$$=$1;}
-	| statements statement {if ( $1 && $2 ) {$$=$1; linku1($$,$2);}
-						 else if ( $1 ) {$$=$1;}
-						 else if ( $2 ) {$$=$2;} }
+	| statements statement { $$ = linku1($1, $2); }
 	| statements error {$$=$1;}
 	;
 
@@ -590,14 +583,11 @@ eval_arglist :  word_list { $$ = nword($1, &@1); }
 		$$->u1.str = strdup(""); }
 	| eval_arglist COMMA  opt_word {
 		pval *z = nword($3, &@3);
-		$$ = $1;
-		linku1($1,z); }
+		$$ = linku1($1, z); }
 	;
 
 case_statements: case_statement {$$=$1;}
-	| case_statements case_statement { if ( $1 && $2 ) {$$=$1; linku1($$,$2);}
-						 else if ( $1 ) {$$=$1;}
-						 else if ( $2 ) {$$=$2;} }
+	| case_statements case_statement { $$ = linku1($1, $2); }
 	;
 
 case_statement: KW_CASE word COLON statements {
@@ -624,9 +614,7 @@ case_statement: KW_CASE word COLON statements {
 	;
 
 macro_statements: macro_statement {$$ = $1;}
-	| macro_statements macro_statement { if ( $1 && $2 ) {$$=$1; linku1($$,$2);}
-						 else if ( $1 ) {$$=$1;}
-						 else if ( $2 ) {$$=$2;} }
+	| macro_statements macro_statement { $$ = linku1($1, $2); }
 	;
 
 macro_statement : statement {$$=$1;}
@@ -656,8 +644,7 @@ switchlist : word SEMI {
 	| switchlist word SEMI {
 		pval *z = npval2(PV_WORD, &@2, &@3);
 		z->u1.str = $2;
-		$$=$1;
-		linku1($$,z); }
+		$$ = linku1($1, z); }
 	| switchlist error {$$=$1;}
 	;
 
@@ -689,14 +676,13 @@ includeslist : includedname SEMI {
 	}
 	| includeslist includedname SEMI {
 		pval *z = npval2(PV_WORD, &@2, &@3); /* XXX don't we need @1-@3 ?*/
-		$$=$1;
 		z->u1.str = $2;
-		linku1($$,z); }
+		$$ = linku1($1, z); }
 	| includeslist includedname BAR word3_list COLON word3_list COLON word3_list
 			BAR word3_list BAR word3_list BAR word3_list SEMI {
 		pval *z = npval2(PV_WORD, &@2, &@3);
-		$$=$1; z->u1.str = $2;
-		linku1($$,z);
+		z->u1.str = $2;
+		$$ = linku1($1, z);
 		z->u2.arglist = npval2(PV_WORD, &@4, &@4);
 		asprintf( &($$->u2.arglist->u1.str), "%s:%s:%s", $4, $6, $8);
 		free($4);
@@ -709,8 +695,7 @@ includeslist : includedname SEMI {
 	}
 	| includeslist includedname BAR word BAR word3_list BAR word3_list BAR word3_list SEMI {
 		pval *z = npval2(PV_WORD, &@2, &@3);
-		$$=$1;
-		linku1($$,z);
+		$$ = linku1($1, z);
 		$$->u2.arglist->u1.str = $4;			/* XXX maybe too early ? */
 		z->u1.str = $2;
 		z->u2.arglist = npval2(PV_WORD, &@4, &@4);	/* XXX is this correct ? */
