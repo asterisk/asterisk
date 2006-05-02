@@ -208,9 +208,6 @@ opt_abstract: KW_ABSTRACT { $$ = 1; }
 macro : KW_MACRO word LP arglist RP LC macro_statements RC {
 		$$ = npval2(PV_MACRO, &@1, &@8);
 		$$->u1.str = $2; $$->u2.arglist = $4; $$->u3.macro_statements = $7; }
-	| KW_MACRO word LP arglist RP LC  RC {
-		$$ = npval2(PV_MACRO, &@1, &@7);
-		$$->u1.str = $2; $$->u2.arglist = $4; }
 	;
 
 globals : KW_GLOBALS LC global_statements RC {
@@ -582,7 +579,8 @@ case_statement: KW_CASE word COLON statements {
 		$$->u1.str = $2;}
 	;
 
-macro_statements: macro_statement {$$ = $1;}
+macro_statements: /* empty */ { $$ = NULL; }
+	| macro_statement {$$ = $1;}
 	| macro_statements macro_statement { $$ = linku1($1, $2); }
 	;
 
