@@ -1033,7 +1033,6 @@ int ast_channel_datastore_free(struct ast_datastore *datastore)
 
 	/* Finally free memory used by ourselves */
 	free(datastore);
-	datastore = NULL;
 
 	return res;
 }
