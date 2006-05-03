@@ -308,8 +308,8 @@ struct iax2_user {
 	struct ast_codec_pref prefs;
 	struct ast_ha *ha;
 	struct iax2_context *contexts;
-	struct iax2_user *next;
 	struct ast_variable *vars;
+	AST_LIST_ENTRY(iax2_user) entry;
 };
 
 struct iax2_peer {
@@ -357,7 +357,7 @@ struct iax2_peer {
 	int smoothing;					/*!< Sample over how many units to determine historic ms */
 	
 	struct ast_ha *ha;
-	struct iax2_peer *next;
+	AST_LIST_ENTRY(iax2_peer) entry;
 };
 
 #define IAX2_TRUNK_PREFACE (sizeof(struct iax_frame) + sizeof(struct ast_iax2_meta_hdr) + sizeof(struct ast_iax2_meta_trunk_hdr))
@@ -628,15 +628,9 @@ static struct ast_iax2_queue {
 	ast_mutex_t lock;
 } iaxq;
 
-static struct ast_user_list {
-	struct iax2_user *users;
-	ast_mutex_t lock;
-} userl;
+static AST_LIST_HEAD_STATIC(users, iax2_user);
 
-static struct ast_peer_list {
-	struct iax2_peer *peers;
-	ast_mutex_t lock;
-} peerl;
+static AST_LIST_HEAD_STATIC(peers, iax2_peer);
 
 static struct ast_firmware_list {
 	struct iax_firmware *wares;
@@ -1009,14 +1003,18 @@ static int uncompress_subclass(unsigned char csub)
 
 static struct iax2_peer *find_peer(const char *name, int realtime) 
 {
-	struct iax2_peer *peer;
-	ast_mutex_lock(&peerl.lock);
-	for(peer = peerl.peers; peer; peer = peer->next) {
+	struct iax2_peer *peer = NULL;
+
+	/* Grab peer from linked list */
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE(&peers, peer, entry) {
 		if (!strcasecmp(peer->name, name)) {
 			break;
 		}
 	}
-	ast_mutex_unlock(&peerl.lock);
+	AST_LIST_UNLOCK(&peers);
+
+	/* Now go for realtime if applicable */
 	if(!peer && realtime)
 		peer = realtime_peer(name, NULL);
 	return peer;
@@ -1024,23 +1022,21 @@ static struct iax2_peer *find_peer(const char *name, int realtime)
 
 static int iax2_getpeername(struct sockaddr_in sin, char *host, int len, int lockpeer)
 {
-	struct iax2_peer *peer;
+	struct iax2_peer *peer = NULL;
 	int res = 0;
 
 	if (lockpeer)
-		ast_mutex_lock(&peerl.lock);
-	peer = peerl.peers;
-	while (peer) {
+		AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE(&peers, peer, entry) {
 		if ((peer->addr.sin_addr.s_addr == sin.sin_addr.s_addr) &&
-				(peer->addr.sin_port == sin.sin_port)) {
-					ast_copy_string(host, peer->name, len);
-					res = 1;
-					break;
+		    (peer->addr.sin_port == sin.sin_port)) {
+			ast_copy_string(host, peer->name, len);
+			res = 1;
+			break;
 		}
-		peer = peer->next;
 	}
 	if (lockpeer)
-		ast_mutex_unlock(&peerl.lock);
+		AST_LIST_UNLOCK(&peers);
 	if (!peer) {
 		peer = realtime_peer(NULL, &sin);
 		if (peer) {
@@ -2134,20 +2130,20 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 static char *complete_iax2_show_peer(const char *line, const char *word, int pos, int state)
 {
 	int which = 0;
-	struct iax2_peer *p;
+	struct iax2_peer *p = NULL;
 	char *res = NULL;
 	int wordlen = strlen(word);
 
 	/* 0 - iax2; 1 - show; 2 - peer; 3 - <peername> */
 	if (pos == 3) {
-		ast_mutex_lock(&peerl.lock);
-		for (p = peerl.peers ; p ; p = p->next) {
+		AST_LIST_LOCK(&peers);
+		AST_LIST_TRAVERSE(&peers, p, entry) {
 			if (!strncasecmp(p->name, word, wordlen) && ++which > state) {
 				res = ast_strdup(p->name);
 				break;
 			}
 		}
-		ast_mutex_unlock(&peerl.lock);
+		AST_LIST_UNLOCK(&peers);
 	}
 
 	return res;
@@ -2304,66 +2300,75 @@ static void unwrap_timestamp(struct iax_frame *fr)
 #ifdef NEWJB
 static int get_from_jb(void *p);
 
-static void update_jbsched(struct chan_iax2_pvt *pvt) {
-    int when;
-
-    when = ast_tvdiff_ms(ast_tvnow(), pvt->rxcore);
-
-    /*    fprintf(stderr, "now = %d, next=%d\n", when, jb_next(pvt->jb)); */
-
-    when = jb_next(pvt->jb) - when;
-    /*   fprintf(stderr, "when = %d\n", when); */
-
-    if(pvt->jbid > -1) ast_sched_del(sched, pvt->jbid);
-
-    if(when <= 0) {
-      /* XXX should really just empty until when > 0.. */
-      when = 1;
-    }
-
-    pvt->jbid = ast_sched_add(sched, when, get_from_jb, (void *)pvt);
-
-    /* Signal scheduler thread */
-    signal_condition(&sched_lock, &sched_cond);
+static void update_jbsched(struct chan_iax2_pvt *pvt)
+{
+	int when;
+	
+	when = ast_tvdiff_ms(ast_tvnow(), pvt->rxcore);
+	
+	/*    fprintf(stderr, "now = %d, next=%d\n", when, jb_next(pvt->jb)); */
+	
+	when = jb_next(pvt->jb) - when;
+	/*   fprintf(stderr, "when = %d\n", when); */
+	
+	if(pvt->jbid > -1) ast_sched_del(sched, pvt->jbid);
+	
+	if(when <= 0) {
+		/* XXX should really just empty until when > 0.. */
+		when = 1;
+	}
+	
+	pvt->jbid = ast_sched_add(sched, when, get_from_jb, CALLNO_TO_PTR(pvt->callno));
+	
+	/* Signal scheduler thread */
+	signal_condition(&sched_lock, &sched_cond);
 }
 
 static void __get_from_jb(void *p) 
 {
-	/* make sure pvt is valid! */	
-    struct chan_iax2_pvt *pvt = p;
-    struct iax_frame *fr;
-    jb_frame frame;
-    int ret;
-    long now;
-    long next;
-    struct timeval tv;
+	int callno = PTR_TO_CALLNO(p);
+	struct chan_iax2_pvt *pvt = iaxs[callno];
+	struct iax_frame *fr;
+	jb_frame frame;
+	int ret;
+	long now;
+	long next;
+	struct timeval tv;
+	
+	/* Make sure we have a valid private structure before going on */
+	ast_mutex_lock(&iaxsl[callno]);
+	pvt = iaxs[callno];
+	if (!pvt) {
+		/* No go! */
+		ast_mutex_unlock(&iaxsl[callno]);
+		return;
+	}
 
-    ast_mutex_lock(&iaxsl[pvt->callno]);
-    /*  fprintf(stderr, "get_from_jb called\n"); */
-    pvt->jbid = -1;
-
-    gettimeofday(&tv,NULL);
-    /* round up a millisecond since ast_sched_runq does; */
-    /* prevents us from spinning while waiting for our now */
-    /* to catch up with runq's now */
-    tv.tv_usec += 1000;
-
-    now = ast_tvdiff_ms(tv, pvt->rxcore);
-
-    if(now >= (next = jb_next(pvt->jb))) {
+	/*  fprintf(stderr, "get_from_jb called\n"); */
+	pvt->jbid = -1;
+	
+	gettimeofday(&tv,NULL);
+	/* round up a millisecond since ast_sched_runq does; */
+	/* prevents us from spinning while waiting for our now */
+	/* to catch up with runq's now */
+	tv.tv_usec += 1000;
+	
+	now = ast_tvdiff_ms(tv, pvt->rxcore);
+	
+	if(now >= (next = jb_next(pvt->jb))) {
 		ret = jb_get(pvt->jb,&frame,now,ast_codec_interp_len(pvt->voiceformat));
 		switch(ret) {
 		case JB_OK:
 			/*if(frame.type == JB_TYPE_VOICE && next + 20 != jb_next(pvt->jb)) fprintf(stderr, "NEXT %ld is not %ld+20!\n", jb_next(pvt->jb), next); */
 			fr = frame.data;
 			__do_deliver(fr);
-		    break;
+			break;
 		case JB_INTERP:
-		    {
+		{
 			struct ast_frame af;
-	
+			
 			/*if(next + 20 != jb_next(pvt->jb)) fprintf(stderr, "NEXT %ld is not %ld+20!\n", jb_next(pvt->jb), next); */
-	
+			
 			/* create an interpolation frame */
 			/*fprintf(stderr, "Making Interpolation frame\n"); */
 			af.frametype = AST_FRAME_VOICE;
@@ -2375,28 +2380,28 @@ static void __get_from_jb(void *p)
 			af.data  = NULL;
 			af.delivery = ast_tvadd(pvt->rxcore, ast_samp2tv(next, 1000));
 			af.offset=AST_FRIENDLY_OFFSET;
-	
+			
 			/* queue the frame:  For consistency, we would call __do_deliver here, but __do_deliver wants an iax_frame,
 			 * which we'd need to malloc, and then it would free it.  That seems like a drag */
-			if (iaxs[pvt->callno] && !ast_test_flag(iaxs[pvt->callno], IAX_ALREADYGONE))
-				iax2_queue_frame(pvt->callno, &af);
-		    }
-		    break;
+			if (!ast_test_flag(iaxs[callno], IAX_ALREADYGONE))
+				iax2_queue_frame(callno, &af);
+		}
+		break;
 		case JB_DROP:
 			/*if(next != jb_next(pvt->jb)) fprintf(stderr, "NEXT %ld is not next %ld!\n", jb_next(pvt->jb), next); */
 			iax2_frame_free(frame.data);
-		    break;
+			break;
 		case JB_NOFRAME:
 		case JB_EMPTY:
 			/* do nothing */
-		    break;
+			break;
 		default:
 			/* shouldn't happen */
-		    break;
+			break;
 		}
-    }
-    update_jbsched(pvt);
-    ast_mutex_unlock(&iaxsl[pvt->callno]);
+	}
+	update_jbsched(pvt);
+	ast_mutex_unlock(&iaxsl[callno]);
 }
 
 static int get_from_jb(void *data)
@@ -2803,10 +2808,9 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 				ast_sched_del(sched, peer->expire);
 			peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_registry, peer);
 		}
-		ast_mutex_lock(&peerl.lock);
-		peer->next = peerl.peers;
-		peerl.peers = peer;
-		ast_mutex_unlock(&peerl.lock);
+		AST_LIST_LOCK(&peers);
+		AST_LIST_INSERT_HEAD(&peers, peer, entry);
+		AST_LIST_UNLOCK(&peers);
 		if (ast_test_flag(peer, IAX_DYNAMIC))
 			reg_source_db(peer);
 	} else {
@@ -2861,10 +2865,9 @@ static struct iax2_user *realtime_user(const char *username)
 
 	if (ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
 		ast_set_flag(user, IAX_RTCACHEFRIENDS);
-		ast_mutex_lock(&userl.lock);
- 		user->next = userl.users;
-		userl.users = user;
-		ast_mutex_unlock(&userl.lock);
+		AST_LIST_LOCK(&users);
+		AST_LIST_INSERT_HEAD(&users, user, entry);
+		AST_LIST_UNLOCK(&users);
 	} else {
 		ast_set_flag(user, IAX_TEMPONLY);	
 	}
@@ -3520,19 +3523,19 @@ static int iax2_write(struct ast_channel *c, struct ast_frame *f);
 
 static int iax2_getpeertrunk(struct sockaddr_in sin)
 {
-	struct iax2_peer *peer;
+	struct iax2_peer *peer = NULL;
 	int res = 0;
-	ast_mutex_lock(&peerl.lock);
-	peer = peerl.peers;
-	while(peer) {
+
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE(&peers, peer, entry) {
 		if ((peer->addr.sin_addr.s_addr == sin.sin_addr.s_addr) &&
-				(peer->addr.sin_port == sin.sin_port)) {
-					res = ast_test_flag(peer, IAX_TRUNK);
-					break;
+		    (peer->addr.sin_port == sin.sin_port)) {
+			res = ast_test_flag(peer, IAX_TRUNK);
+			break;
 		}
-		peer = peer->next;
 	}
-	ast_mutex_unlock(&peerl.lock);
+	AST_LIST_UNLOCK(&peers);
+
 	return res;
 }
 
@@ -4270,7 +4273,7 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 #define FORMAT "%-15.15s  %-20.20s  %-15.15s  %-15.15s  %-5.5s  %-5.10s\n"
 #define FORMAT2 "%-15.15s  %-20.20s  %-15.15d  %-15.15s  %-5.5s  %-5.10s\n"
 
-	struct iax2_user *user;
+	struct iax2_user *user = NULL;
 	char auth[90];
 	char *pstr = "";
 
@@ -4288,32 +4291,32 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	}
 
-	ast_mutex_lock(&userl.lock);
 	ast_cli(fd, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C","Codec Pref");
-	for(user=userl.users;user;user=user->next) {
+	AST_LIST_LOCK(&users);
+	AST_LIST_TRAVERSE(&users, user, entry) {
 		if (havepattern && regexec(&regexbuf, user->name, 0, NULL, 0))
 			continue;
-
+		
 		if (!ast_strlen_zero(user->secret)) {
   			ast_copy_string(auth,user->secret,sizeof(auth));
 		} else if (!ast_strlen_zero(user->inkeys)) {
   			snprintf(auth, sizeof(auth), "Key: %-15.15s ", user->inkeys);
  		} else
 			ast_copy_string(auth, "-no secret-", sizeof(auth));
-
+		
 		if(ast_test_flag(user,IAX_CODEC_NOCAP))
 			pstr = "REQ Only";
 		else if(ast_test_flag(user,IAX_CODEC_NOPREFS))
 			pstr = "Disabled";
 		else
 			pstr = ast_test_flag(user,IAX_CODEC_USER_FIRST) ? "Caller" : "Host";
-
+		
 		ast_cli(fd, FORMAT2, user->name, auth, user->authmethods, 
-				user->contexts ? user->contexts->context : context,
-				user->ha ? "Yes" : "No", pstr);
-
+			user->contexts ? user->contexts->context : context,
+			user->ha ? "Yes" : "No", pstr);
+		
 	}
-	ast_mutex_unlock(&userl.lock);
+	AST_LIST_UNLOCK(&users);
 
 	if (havepattern)
 		regfree(&regexbuf);
@@ -4335,7 +4338,7 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 #define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s  %s %-10s%s"
 #define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %s %-10s%s"
 
-	struct iax2_peer *peer;
+	struct iax2_peer *peer = NULL;
 	char name[256];
 	char iabuf[INET_ADDRSTRLEN];
 	int registeredonly=0;
@@ -4374,12 +4377,14 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 		return RESULT_SHOWUSAGE;
 	}
 
-	ast_mutex_lock(&peerl.lock);
+
 	if (s)
 		astman_append(s, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", term);
 	else
 		ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", term);
-	for (peer = peerl.peers;peer;peer = peer->next) {
+
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE(&peers, peer, entry) {
 		char nm[20];
 		char status[20];
 		char srch[2000];
@@ -4404,31 +4409,31 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 			unmonitored_peers++;
 		
 		ast_copy_string(nm, ast_inet_ntoa(iabuf, sizeof(iabuf), peer->mask), sizeof(nm));
-
+		
 		snprintf(srch, sizeof(srch), FORMAT, name, 
-					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
-					ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
-					nm,
-					ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
-					peer->encmethods ? "(E)" : "   ", status, term);
-
+			 peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
+			 ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
+			 nm,
+			 ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
+			 peer->encmethods ? "(E)" : "   ", status, term);
+		
 		if (s)
 			astman_append(s, FORMAT, name, 
-					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
-					ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
-					nm,
-					ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
-					peer->encmethods ? "(E)" : "   ", status, term);
+				      peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
+				      ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
+				      nm,
+				      ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
+				      peer->encmethods ? "(E)" : "   ", status, term);
 		else
 			ast_cli(fd, FORMAT, name, 
-					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
-					ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
-					nm,
-					ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
-					peer->encmethods ? "(E)" : "   ", status, term);
+				peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
+				ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
+				nm,
+				ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
+				peer->encmethods ? "(E)" : "   ", status, term);
 		total_peers++;
 	}
-	ast_mutex_unlock(&peerl.lock);
+	AST_LIST_UNLOCK(&peers);
 
 	if (s)
 		astman_append(s,"%d iax2 peers [%d online, %d offline, %d unmonitored]%s", total_peers, online_peers, offline_peers, unmonitored_peers, term);
@@ -4578,13 +4583,14 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 {
 #define FORMAT2 "%-20.20s  %-10.10s  %-20.20s %8.8s  %s\n"
 #define FORMAT "%-20.20s  %-10.10s  %-20.20s %8d  %s\n"
-	struct iax2_registry *reg;
+	struct iax2_registry *reg = NULL;
+
 	char host[80];
 	char perceived[80];
 	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&peerl.lock);
+	AST_LIST_LOCK(&peers);
 	ast_cli(fd, FORMAT2, "Host", "Username", "Perceived", "Refresh", "State");
 	for (reg = registrations;reg;reg = reg->next) {
 		snprintf(host, sizeof(host), "%s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), reg->addr.sin_addr), ntohs(reg->addr.sin_port));
@@ -4595,7 +4601,7 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 		ast_cli(fd, FORMAT, host, 
 					reg->username, perceived, reg->refresh, regstate2str(reg->regstate));
 	}
-	ast_mutex_unlock(&peerl.lock);
+	AST_LIST_UNLOCK(&peers);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -4959,7 +4965,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	/* Start pessimistic */
 	int res = -1;
 	int version = 2;
-	struct iax2_user *user, *best = NULL;
+	struct iax2_user *user = NULL, *best = NULL;
 	int bestscore = 0;
 	int gotcapability=0;
 	char iabuf[INET_ADDRSTRLEN];
@@ -5014,10 +5020,9 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), version);
 		return res;
 	}
-	ast_mutex_lock(&userl.lock);
 	/* Search the userlist for a compatible entry, and fill in the rest */
-	user = userl.users;
-	while(user) {
+	AST_LIST_LOCK(&users);
+	AST_LIST_TRAVERSE(&users, user, entry) {
 		if ((ast_strlen_zero(iaxs[callno]->username) ||				/* No username specified */
 			!strcmp(iaxs[callno]->username, user->name))	/* Or this username specified */
 			&& ast_apply_ha(user->ha, sin) 	/* Access is permitted from this IP */
@@ -5058,9 +5063,8 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 				}
 			}
 		}
-		user = user->next;	
 	}
-	ast_mutex_unlock(&userl.lock);
+	AST_LIST_UNLOCK(&users);
 	user = best;
 	if (!user && !ast_strlen_zero(iaxs[callno]->username)) {
 		user = realtime_user(iaxs[callno]->username);
@@ -5473,7 +5477,7 @@ static int authenticate(char *challenge, char *secret, char *keyn, int authmetho
 
 static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, struct iax_ies *ies, char *override, char *okey)
 {
-	struct iax2_peer *peer;
+	struct iax2_peer *peer = NULL;
 	/* Start pessimistic */
 	int res = -1;
 	int authmethods = 0;
@@ -5497,23 +5501,21 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 		/* Normal password authentication */
 		res = authenticate(p->challenge, override, okey, authmethods, &ied, sin, &p->ecx, &p->dcx);
 	} else {
-		ast_mutex_lock(&peerl.lock);
-		peer = peerl.peers;
-		while(peer) {
+		AST_LIST_LOCK(&peers);
+		AST_LIST_TRAVERSE(&peers, peer, entry) {
 			if ((ast_strlen_zero(p->peer) || !strcmp(p->peer, peer->name)) 
-								/* No peer specified at our end, or this is the peer */
-			 && (ast_strlen_zero(peer->username) || (!strcmp(peer->username, p->username)))
-			 					/* No username specified in peer rule, or this is the right username */
-			 && (!peer->addr.sin_addr.s_addr || ((sin->sin_addr.s_addr & peer->mask.s_addr) == (peer->addr.sin_addr.s_addr & peer->mask.s_addr)))
-			 					/* No specified host, or this is our host */
-			) {
+			    /* No peer specified at our end, or this is the peer */
+			    && (ast_strlen_zero(peer->username) || (!strcmp(peer->username, p->username)))
+			    /* No username specified in peer rule, or this is the right username */
+			    && (!peer->addr.sin_addr.s_addr || ((sin->sin_addr.s_addr & peer->mask.s_addr) == (peer->addr.sin_addr.s_addr & peer->mask.s_addr)))
+			    /* No specified host, or this is our host */
+				) {
 				res = authenticate(p->challenge, peer->secret, peer->outkey, authmethods, &ied, sin, &p->ecx, &p->dcx);
 				if (!res)
 					break;	
 			}
-			peer = peer->next;
 		}
-		ast_mutex_unlock(&peerl.lock);
+		AST_LIST_UNLOCK(&peers);
 		if (!peer) {
 			/* We checked our list and didn't find one.  It's unlikely, but possible, 
 			   that we're trying to authenticate *to* a realtime peer */
@@ -5830,7 +5832,25 @@ static void prune_peers(void);
 
 static void __expire_registry(void *data)
 {
-	struct iax2_peer *p = data;
+	char *name = data;
+	struct iax2_peer *p = NULL;
+
+	/* Go through and grab this peer... and if it needs to be removed... then do it */
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&peers, p, entry) {
+		if (!strcasecmp(p->name, name)) {
+			/* If we are set to auto clear then remove ourselves */
+			if (ast_test_flag(p, IAX_RTAUTOCLEAR))
+				AST_LIST_REMOVE_CURRENT(&peers, entry);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&peers);
+
+	/* Peer is already gone for whatever reason */
+	if (!p)
+		return;
 
 	ast_log(LOG_DEBUG, "Expiring registration for peer '%s'\n", p->name);
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", p->name);
@@ -5846,8 +5866,8 @@ static void __expire_registry(void *data)
 		iax2_regfunk(p->name, 0);
 
 	if (ast_test_flag(p, IAX_RTAUTOCLEAR)) {
-		ast_set_flag(p, IAX_DELME);
-		prune_peers();
+		/* We are already gone from the list, so we can just destroy ourselves */
+		destroy_peer(p);
 	}
 }
 
@@ -5893,7 +5913,7 @@ static void reg_source_db(struct iax2_peer *p)
 					if (p->expire > -1)
 						ast_sched_del(sched, p->expire);
 					ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
-					p->expire = ast_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p);
+					p->expire = ast_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p->name);
 					if (iax2_regfunk)
 						iax2_regfunk(p->name, 1);
 					register_peer_exten(p, 1);
@@ -5971,7 +5991,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 		p->expiry = refresh;
 	}
 	if (p->expiry && sin->sin_addr.s_addr)
-		p->expire = ast_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p);
+		p->expire = ast_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p->name);
 	iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
 	iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(p->zonetag));
 	if (sin->sin_addr.s_addr) {
@@ -6289,7 +6309,6 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		res = read(fd, buf, sizeof(buf));
 		if (res < 1) {
 			ast_log(LOG_WARNING, "Unable to read from timing fd\n");
-			ast_mutex_unlock(&peerl.lock);
 			return 1;
 		}
 	}
@@ -6553,7 +6572,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		thread->iofd = fd;
 		thread->iores = recvfrom(fd, thread->buf, sizeof(thread->buf), 0,(struct sockaddr *) &thread->iosin, &len);
 		if (thread->iores < 0) {
-			if (errno != ECONNREFUSED)
+			if (errno != ECONNREFUSED && errno != EAGAIN)
 				ast_log(LOG_WARNING, "Error: %s\n", strerror(errno));
 			handle_error();
 			AST_LIST_LOCK(&idle_list);
@@ -8554,21 +8573,17 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 /*! \brief Create peer structure based on configuration */
 static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, int temponly)
 {
-	struct iax2_peer *peer;
-	struct iax2_peer *prev;
+	struct iax2_peer *peer = NULL;
 	struct ast_ha *oldha = NULL;
 	int maskfound=0;
 	int found=0;
-	prev = NULL;
-	ast_mutex_lock(&peerl.lock);
+
+	AST_LIST_LOCK(&peers);
 	if (!temponly) {
-		peer = peerl.peers;
-		while(peer) {
+		AST_LIST_TRAVERSE(&peers, peer, entry) {
 			if (!strcmp(peer->name, name)) {	
 				break;
 			}
-			prev = peer;
-			peer = peer->next;
 		}
 	} else
 		peer = NULL;	
@@ -8576,15 +8591,10 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		found++;
 		oldha = peer->ha;
 		peer->ha = NULL;
-		/* Already in the list, remove it and it will be added back (or FREE'd) */
-		if (prev) {
-			prev->next = peer->next;
-		} else {
-			peerl.peers = peer->next;
-		}
-		ast_mutex_unlock(&peerl.lock);
+		AST_LIST_REMOVE(&peers, peer, entry);
+		AST_LIST_UNLOCK(&peers);
  	} else {
-		ast_mutex_unlock(&peerl.lock);
+		AST_LIST_UNLOCK(&peers);
 		if ((peer = ast_calloc(1, sizeof(*peer)))) {
 			peer->expire = -1;
 			peer->pokeexpire = -1;
@@ -8744,7 +8754,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 /*! \brief Create in-memory user structure from configuration */
 static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly)
 {
-	struct iax2_user *prev, *user;
+	struct iax2_user *user = NULL;
 	struct iax2_context *con, *conl = NULL;
 	struct ast_ha *oldha = NULL;
 	struct iax2_context *oldcon = NULL;
@@ -8752,16 +8762,12 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 	char *varname = NULL, *varval = NULL;
 	struct ast_variable *tmpvar = NULL;
 	
-	prev = NULL;
-	ast_mutex_lock(&userl.lock);
+	AST_LIST_LOCK(&users);
 	if (!temponly) {
-		user = userl.users;
-		while(user) {
+		AST_LIST_TRAVERSE(&users, user, entry) {
 			if (!strcmp(user->name, name)) {	
 				break;
 			}
-			prev = user;
-			user = user->next;
 		}
 	} else
 		user = NULL;
@@ -8772,14 +8778,10 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 		user->ha = NULL;
 		user->contexts = NULL;
 		/* Already in the list, remove it and it will be added back (or FREE'd) */
-		if (prev) {
-			prev->next = user->next;
-		} else {
-			userl.users = user->next;
-		}
-		ast_mutex_unlock(&userl.lock);
+		AST_LIST_REMOVE(&users, user, entry);
+		AST_LIST_UNLOCK(&users);
  	} else {
-		ast_mutex_unlock(&userl.lock);
+		AST_LIST_UNLOCK(&users);
 		/* This is going to memset'd to 0 in the next block */
 		user = ast_malloc(sizeof(*user));
 	}
@@ -8894,16 +8896,15 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 
 static void delete_users(void)
 {
-	struct iax2_user *user;
-	struct iax2_peer *peer;
+	struct iax2_user *user = NULL;
+	struct iax2_peer *peer = NULL;
 	struct iax2_registry *reg, *regl;
 
-	ast_mutex_lock(&userl.lock);
-	for (user=userl.users;user;) {
+	AST_LIST_LOCK(&users);
+	AST_LIST_TRAVERSE(&users, user, entry)
 		ast_set_flag(user, IAX_DELME);
-		user = user->next;
-	}
-	ast_mutex_unlock(&userl.lock);
+	AST_LIST_UNLOCK(&users);
+
 	for (reg = registrations;reg;) {
 		regl = reg;
 		reg = reg->next;
@@ -8922,13 +8923,12 @@ static void delete_users(void)
 		free(regl);
 	}
 	registrations = NULL;
-	ast_mutex_lock(&peerl.lock);
-	for (peer=peerl.peers;peer;) {
-		/* Assume all will be deleted, and we'll find out for sure later */
+
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE(&peers, peer, entry)
 		ast_set_flag(peer, IAX_DELME);
-		peer = peer->next;
-	}
-	ast_mutex_unlock(&peerl.lock);
+	AST_LIST_UNLOCK(&peers);
+
 }
 
 static void destroy_user(struct iax2_user *user)
@@ -8944,21 +8944,18 @@ static void destroy_user(struct iax2_user *user)
 
 static void prune_users(void)
 {
-	struct iax2_user *user, *usernext, *userlast = NULL;
-	ast_mutex_lock(&userl.lock);
-	for (user=userl.users;user;) {
-		usernext = user->next;
+	struct iax2_user *user = NULL;
+
+	AST_LIST_LOCK(&users);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&users, user, entry) {
 		if (ast_test_flag(user, IAX_DELME)) {
 			destroy_user(user);
-			if (userlast)
-				userlast->next = usernext;
-			else
-				userl.users = usernext;
-		} else
-			userlast = user;
-		user = usernext;
+			AST_LIST_REMOVE_CURRENT(&users, entry);
+		}
 	}
-	ast_mutex_unlock(&userl.lock);
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&users);
+
 }
 
 static void destroy_peer(struct iax2_peer *peer)
@@ -8987,22 +8984,17 @@ static void destroy_peer(struct iax2_peer *peer)
 
 static void prune_peers(void){
 	/* Prune peers who still are supposed to be deleted */
-	struct iax2_peer *peer, *peerlast, *peernext;
-	ast_mutex_lock(&peerl.lock);
-	peerlast = NULL;
-	for (peer=peerl.peers;peer;) {
-		peernext = peer->next;
+	struct iax2_peer *peer = NULL;
+
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&peers, peer, entry) {
 		if (ast_test_flag(peer, IAX_DELME)) {
 			destroy_peer(peer);
-			if (peerlast)
-				peerlast->next = peernext;
-			else
-				peerl.peers = peernext;
-		} else
-			peerlast = peer;
-		peer=peernext;
+			AST_LIST_REMOVE_CURRENT(&peers, entry);
+		}
 	}
-	ast_mutex_unlock(&peerl.lock);
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&peers);
 }
 
 static void set_timing(void)
@@ -9274,19 +9266,17 @@ static int set_config(char *config_file, int reload)
 				if (!strcasecmp(utype, "user") || !strcasecmp(utype, "friend")) {
 					user = build_user(cat, ast_variable_browse(cfg, cat), 0);
 					if (user) {
-						ast_mutex_lock(&userl.lock);
-						user->next = userl.users;
-						userl.users = user;
-						ast_mutex_unlock(&userl.lock);
+						AST_LIST_LOCK(&users);
+						AST_LIST_INSERT_HEAD(&users, user, entry);
+						AST_LIST_UNLOCK(&users);
 					}
 				}
 				if (!strcasecmp(utype, "peer") || !strcasecmp(utype, "friend")) {
 					peer = build_peer(cat, ast_variable_browse(cfg, cat), 0);
 					if (peer) {
-						ast_mutex_lock(&peerl.lock);
-						peer->next = peerl.peers;
-						peerl.peers = peer;
-						ast_mutex_unlock(&peerl.lock);
+						AST_LIST_LOCK(&peers);
+						AST_LIST_INSERT_HEAD(&peers, peer, entry);
+						AST_LIST_UNLOCK(&peers);
 						if (ast_test_flag(peer, IAX_DYNAMIC))
 							reg_source_db(peer);
 					}
@@ -9307,7 +9297,8 @@ static int reload_config(void)
 {
 	char *config = "iax.conf";
 	struct iax2_registry *reg;
-	struct iax2_peer *peer;
+	struct iax2_peer *peer = NULL;
+
 	ast_copy_string(accountcode, "", sizeof(accountcode));
 	ast_copy_string(language, "", sizeof(language));
 	amaflags = 0;
@@ -9322,12 +9313,13 @@ static int reload_config(void)
 	for (reg = registrations; reg; reg = reg->next)
 		iax2_do_register(reg);
 	/* Qualify hosts, too */
-	ast_mutex_lock(&peerl.lock);
-	for (peer = peerl.peers; peer; peer = peer->next)
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE(&peers, peer, entry)
 		iax2_poke_peer(peer, 0);
-	ast_mutex_unlock(&peerl.lock);
+	AST_LIST_UNLOCK(&peers);
 	reload_firmware();
 	iax_provision_reload();
+
 	return 0;
 }
 
@@ -10035,8 +10027,6 @@ static int __unload_module(void)
 static int unload_module(void *mod)
 {
 	ast_mutex_destroy(&iaxq.lock);
-	ast_mutex_destroy(&userl.lock);
-	ast_mutex_destroy(&peerl.lock);
 	ast_mutex_destroy(&waresl.lock);
 	ast_custom_function_unregister(&iaxpeer_function);
 	return __unload_module();
@@ -10049,8 +10039,8 @@ static int load_module(void *mod)
 	char *config = "iax.conf";
 	int res = 0;
 	int x;
-	struct iax2_registry *reg;
-	struct iax2_peer *peer;
+	struct iax2_registry *reg = NULL;
+	struct iax2_peer *peer = NULL;
 	
 	ast_custom_function_register(&iaxpeer_function);
 
@@ -10091,8 +10081,6 @@ static int load_module(void *mod)
 	ast_netsock_init(netsock);
 
 	ast_mutex_init(&iaxq.lock);
-	ast_mutex_init(&userl.lock);
-	ast_mutex_init(&peerl.lock);
 	ast_mutex_init(&waresl.lock);
 	
 	ast_cli_register_multiple(iax2_cli, sizeof(iax2_cli) / sizeof(iax2_cli[0]));
@@ -10124,13 +10112,13 @@ static int load_module(void *mod)
 
 	for (reg = registrations; reg; reg = reg->next)
 		iax2_do_register(reg);
-	ast_mutex_lock(&peerl.lock);
-	for (peer = peerl.peers; peer; peer = peer->next) {
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE(&peers, peer, entry) {
 		if (peer->sockfd < 0)
 			peer->sockfd = defaultsockfd;
 		iax2_poke_peer(peer, 0);
 	}
-	ast_mutex_unlock(&peerl.lock);
+	AST_LIST_UNLOCK(&peers);
 	reload_firmware();
 	iax_provision_reload();
 	return res;
