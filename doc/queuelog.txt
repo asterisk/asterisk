@@ -71,6 +71,11 @@ The caller was on hold too long and the timeout expired.
 QUEUESTART
 The queueing system has been started for the first time this session.
 
+RINGNOANSWER(ringtime)
+After trying for ringtime ms to connect to the available queue member,
+the attempt ended without the member picking up the call. Bad queue
+member!
+
 SYSCOMPAT
 A call was answered by an agent, but the call was dropped because the 
 channels were not compatible.

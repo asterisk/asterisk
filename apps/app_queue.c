@@ -1851,6 +1851,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 		if (!*to) {
 			if (option_verbose > 2)
 				ast_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);
+			ast_queue_log(qe->parent->name, qe->chan->uniqueid, on, "RINGNOANSWER", "%d", orig);
 			if (qe->parent->autopause) {
 				if (!set_member_paused(qe->parent->name, on, 1)) {
 					if (option_verbose > 2)
