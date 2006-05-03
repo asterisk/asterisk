@@ -558,8 +558,7 @@ case_statement: KW_CASE word COLON statements {
 	;
 
 macro_statements: /* empty */ { $$ = NULL; }
-	| macro_statement {$$ = $1;}
-	| macro_statements macro_statement { $$ = linku1($1, $2); }
+	| macro_statement macro_statements { $$ = linku1($1, $2); }
 	;
 
 macro_statement : statement {$$=$1;}
