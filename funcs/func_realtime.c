@@ -53,12 +53,10 @@ static char *tdesc = "Read/Write values from a RealTime repository";
 static int function_realtime_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 
-	struct ast_variable *var=NULL,*head=NULL;
+	struct ast_variable *var, *head;
         struct localuser *u;
 	char *results;
 	unsigned int resultslen=0;
-
-	LOCAL_USER_ADD(u);
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(family);
@@ -68,36 +66,31 @@ static int function_realtime_read(struct ast_channel *chan, char *cmd, char *dat
 		AST_APP_ARG(delim2);
 	);
 
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: REALTIME(family|fieldmatch[|value[|delim1[|delim2]]]) - missing argument!\n");
-		LOCAL_USER_REMOVE(u);
 		return -1;
-	} else
-		AST_STANDARD_APP_ARGS(args, data);
+	}
+	LOCAL_USER_ADD(u);
+	AST_STANDARD_APP_ARGS(args, data);
 
 	if (!args.delim1)
 		args.delim1 = "|";
 	if (!args.delim2)
 		args.delim2 = "=";
 
-	var = ast_load_realtime(args.family, args.fieldmatch, args.value, NULL);
+	head = ast_load_realtime(args.family, args.fieldmatch, args.value, NULL);
 
-	if (var) {
-		head = var;
-		while (var) {
-			resultslen += strlen(var->name) + strlen(var->value) + 2;
-			var = var->next;
-		}
-		var = head;
-		results = alloca(resultslen);
-		while (var) {
-			ast_build_string(&results, &resultslen, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
-			var = var->next;
-		}	
-	} else {
+	if (!head) {
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
+	for (var = head; var; var = var->next)
+		resultslen += strlen(var->name) + strlen(var->value) + 2;
+
+	results = alloca(resultslen);
+	for (var = head; var; var = var->next)
+		ast_build_string(&results, &resultslen, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
 	ast_copy_string(buf, results, len);
 
 	LOCAL_USER_REMOVE(u);
@@ -109,7 +102,6 @@ static int function_realtime_write(struct ast_channel *chan, char *cmd, char *da
         struct localuser *u;
 	int res = 0;
 
-	LOCAL_USER_ADD(u);
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(family);
@@ -120,10 +112,11 @@ static int function_realtime_write(struct ast_channel *chan, char *cmd, char *da
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: REALTIME(family|fieldmatch|value|newcol) - missing argument!\n");
-		LOCAL_USER_REMOVE(u);
 		return -1;
-	} else
-		AST_STANDARD_APP_ARGS(args, data);
+	}
+
+	LOCAL_USER_ADD(u);
+	AST_STANDARD_APP_ARGS(args, data);
 
 	res = ast_update_realtime(args.family, args.fieldmatch, args.value, args.field, (char *)value, NULL);
 
@@ -155,9 +148,7 @@ struct ast_custom_function realtime_function = {
 
 static int unload_module(void *mod)
 {
-        int res = 0;
-
-        res |= ast_custom_function_unregister(&realtime_function);
+        int res = ast_custom_function_unregister(&realtime_function);
 
 	STANDARD_HANGUP_LOCALUSERS;
 
@@ -166,9 +157,7 @@ static int unload_module(void *mod)
 
 static int load_module(void *mod)
 {
-        int res = 0;
-
-        res |= ast_custom_function_register(&realtime_function);
+        int res = ast_custom_function_register(&realtime_function);
 
         return res;
 }
