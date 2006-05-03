@@ -115,6 +115,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define EXPIRY_GUARD_PCT	0.20	/* Percentage of expires timeout to use when 
 					   below EXPIRY_GUARD_LIMIT */
 
+#define SIP_LEN_CONTACT		256
+
 static int max_expiry = DEFAULT_MAX_EXPIRY;
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
@@ -618,7 +620,7 @@ static struct sip_pvt {
 	char exten[AST_MAX_EXTENSION];		/*!< Extension where to start */
 	char refer_to[AST_MAX_EXTENSION];	/*!< Place to store REFER-TO extension */
 	char referred_by[AST_MAX_EXTENSION];	/*!< Place to store REFERRED-BY extension */
-	char refer_contact[AST_MAX_EXTENSION];	/*!< Place to store Contact info from a REFER extension */
+	char refer_contact[SIP_LEN_CONTACT];	/*!< Place to store Contact info from a REFER extension */
 	struct sip_pvt *refer_call;		/*!< Call we are referring */
 	struct sip_route *route;		/*!< Head of linked list of routing steps (fm Record-Route) */
 	int route_persistant;			/*!< Is this the "real" route? */
@@ -638,16 +640,16 @@ static struct sip_pvt {
 	char peername[256];			/*!< [peer] name, not set if [user] */
 	char authname[256];			/*!< Who we use for authentication */
 	char uri[256];				/*!< Original requested URI */
-	char okcontacturi[256];			/*!< URI from the 200 OK on INVITE */
+	char okcontacturi[SIP_LEN_CONTACT];	/*!< URI from the 200 OK on INVITE */
 	char peersecret[256];			/*!< Password */
 	char peermd5secret[256];
 	struct sip_auth *peerauth;		/*!< Realm authentication */
 	char cid_num[256];			/*!< Caller*ID */
 	char cid_name[256];			/*!< Caller*ID */
 	char via[256];				/*!< Via: header */
-	char fullcontact[128];			/*!< The Contact: that the UA registers with us */
+	char fullcontact[SIP_LEN_CONTACT];	/*!< The Contact: that the UA registers with us */
 	char accountcode[AST_MAX_ACCOUNT_CODE];	/*!< Account code */
-	char our_contact[256];			/*!< Our contact header */
+	char our_contact[SIP_LEN_CONTACT];	/*!< Our contact header */
 	char *rpid;				/*!< Our RPID header */
 	char *rpid_from;			/*!< Our RPID From header */
 	char realm[MAXHOSTNAMELEN];		/*!< Authorization realm */
@@ -755,7 +757,7 @@ struct sip_peer {
 	char regexten[AST_MAX_EXTENSION]; /*!< Extension to register (if regcontext is used) */
 	char fromuser[80];		/*!< From: user when calling this peer */
 	char fromdomain[MAXHOSTNAMELEN];	/*!< From: domain when calling this peer */
-	char fullcontact[256];		/*!< Contact registered with us (not in sip.conf) */
+	char fullcontact[SIP_LEN_CONTACT];	/*!< Contact registered with us (not in sip.conf) */
 	char cid_num[80];		/*!< Caller ID num */
 	char cid_name[80];		/*!< Caller ID name */
 	int callingpres;		/*!< Calling id presentation */
@@ -818,7 +820,7 @@ struct sip_registry {
 	char hostname[MAXHOSTNAMELEN];	/*!< Domain or host we register to */
 	char secret[80];		/*!< Password in clear text */	
 	char md5secret[80];		/*!< Password in md5 */
-	char contact[256];		/*!< Contact extension */
+	char contact[SIP_LEN_CONTACT];	/*!< Contact extension */
 	char random[80];
 	int expire;			/*!< Sched ID of expiration */
 	int regattempts;		/*!< Number of attempts (since the last success) */
@@ -4016,7 +4018,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 		snprintf(tmp, sizeof(tmp), "%d", p->expiry);
 		add_header(resp, "Expires", tmp);
 		if (p->expiry) {	/* Only add contact if we have an expiry time */
-			char contact[256];
+			char contact[SIP_LEN_CONTACT];
 			snprintf(contact, sizeof(contact), "%s;expires=%d", p->our_contact, p->expiry);
 			add_header(resp, "Contact", contact);	/* Not when we unregister */
 		}
@@ -5728,7 +5730,7 @@ static void reg_source_db(struct sip_peer *peer)
 /*! \brief  parse_ok_contact: Parse contact header for 200 OK on INVITE ---*/
 static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 {
-	char contact[250]; 
+	char contact[SIP_LEN_CONTACT]; 
 	char *c, *n, *pt;
 	int port;
 	struct hostent *hp;
@@ -5804,8 +5806,8 @@ enum parse_register_result {
 /*! \brief  parse_register_contact: Parse contact header and save registration ---*/
 static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_request *req)
 {
-	char contact[80]; 
-	char data[256];
+	char contact[BUFSIZ]; 
+	char data[BUFSIZ];
 	char iabuf[INET_ADDRSTRLEN];
 	char *expires = get_header(req, "Expires");
 	int expiry = atoi(expires);
