@@ -117,7 +117,6 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <pval>file
 /* XXX lr changes */
 %type <pval>opt_else
-%type <pval>elements_block
 %type <pval>timespec
 %type <pval>included_entry
 
@@ -166,7 +165,6 @@ static pval *update_last(pval *, YYLTYPE *);
 		ignorepat element elements arglist assignment
 		global_statements globals macro context object objects
 		opt_else
-		elements_block
 		timespec included_entry
 
 %destructor { free($$);}  word word_list goto_word word3_list opt_word context_name
@@ -194,10 +192,10 @@ context_name : word { $$ = $1; }
 	| KW_DEFAULT { $$ = strdup("default"); }
 	;
 
-context : opt_abstract KW_CONTEXT context_name elements_block {
-		$$ = npval2(PV_CONTEXT, &@1, &@4);
+context : opt_abstract KW_CONTEXT context_name LC elements RC {
+		$$ = npval2(PV_CONTEXT, &@1, &@6);
 		$$->u1.str = $3;
-		$$->u2.statements = $4;
+		$$->u2.statements = $5;
 		$$->u3.abstract = $1; }
 	;
 
@@ -231,9 +229,6 @@ arglist : /* empty */ { $$ = NULL; }
 	| word { $$ = nword($1, &@1); }
 	| arglist COMMA word { $$ = linku1($1, nword($3, &@3)); }
 	| arglist error {$$=$1;}
-	;
-
-elements_block : LC elements RC { $$ = $2; }
 	;
 
 elements : {$$=0;}
