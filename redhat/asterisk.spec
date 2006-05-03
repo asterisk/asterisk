@@ -39,6 +39,7 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 %attr(0755,root,root) %dir    /etc/asterisk
 %config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 %config(noreplace) %attr(0640,root,root) /etc/asterisk/*.adsi
+%config(noreplace) %attr(0640,root,root) /etc/asterisk/extensions.ael
 
 #
 # RedHat specific init script file
@@ -62,6 +63,7 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 %attr(0755,root,root)      /usr/sbin/autosupport
 %attr(0755,root,root)      /usr/sbin/smsq
 %attr(0755,root,root)      /usr/sbin/stereorize
+%attr(0755,root,root)      /usr/sbin/streamplayer
 
 #
 # CDR Locations
@@ -78,6 +80,8 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 %attr(0755,root,root) %dir /var/lib/asterisk
 %attr(0755,root,root) %dir /var/lib/asterisk/sounds
 %attr(0644,root,root)      /var/lib/asterisk/sounds/*.gsm
+%attr(0755,root,root) %dir /var/lib/asterisk/sounds/dictate
+%attr(0644,root,root)      /var/lib/asterisk/sounds/dictate/*.gsm
 %attr(0755,root,root) %dir /var/lib/asterisk/sounds/digits
 %attr(0644,root,root)      /var/lib/asterisk/sounds/digits/*.gsm
 %attr(0755,root,root) %dir /var/lib/asterisk/sounds/letters
@@ -95,7 +99,11 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 #
 # Man page
 #
-%attr(0644,root,root)      /usr/share/man/man8/asterisk.8.gz
+%attr(0644,root,root)      /usr/share/man/man8/asterisk.8
+%attr(0644,root,root)      /usr/share/man/man8/astgenkey.8
+%attr(0644,root,root)      /usr/share/man/man8/autosupport.8
+%attr(0644,root,root)      /usr/share/man/man8/safe_asterisk.8
+
 #
 # Firmware
 #
