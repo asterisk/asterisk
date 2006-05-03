@@ -61,7 +61,7 @@ static const char *page_descrip =
 "destroyed when the original caller leaves.  Valid options are:\n"
 "        d - full duplex audio\n"
 "	 q - quiet, do not play beep to caller\n"
-"	 r - record the page into a file -- you may want to first Set(MEETME_RECORDINGFILE=ReplayLastPage)\n";
+"        r - record the page into a file (see 'r' for app_meetme)\n";
 
 LOCAL_USER_DECL;
 
