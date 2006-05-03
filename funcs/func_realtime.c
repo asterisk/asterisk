@@ -52,11 +52,10 @@ static char *tdesc = "Read/Write values from a RealTime repository";
 
 static int function_realtime_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-
 	struct ast_variable *var, *head;
         struct localuser *u;
 	char *results;
-	unsigned int resultslen=0;
+	size_t resultslen = 0;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(family);
