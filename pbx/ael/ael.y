@@ -118,7 +118,6 @@ static pval *update_last(pval *, YYLTYPE *);
 /* XXX lr changes */
 %type <pval>opt_else
 %type <pval>elements_block
-%type <pval>switchlist_block
 %type <pval>timespec
 %type <pval>included_entry
 
@@ -167,7 +166,7 @@ static pval *update_last(pval *, YYLTYPE *);
 		ignorepat element elements arglist assignment
 		global_statements globals macro context object objects
 		opt_else
-		elements_block switchlist_block
+		elements_block
 		timespec included_entry
 
 %destructor { free($$);}  word word_list goto_word word3_list opt_word context_name
@@ -568,17 +567,14 @@ macro_statement : statement {$$=$1;}
 		$$->u2.statements = $4;}
 	;
 
-switches : KW_SWITCHES switchlist_block {
+switches : KW_SWITCHES LC switchlist RC {
 		$$ = npval2(PV_SWITCHES, &@1, &@2);
-		$$->u1.list = $2; }
+		$$->u1.list = $3; }
 	;
 
-eswitches : KW_ESWITCHES switchlist_block {
+eswitches : KW_ESWITCHES LC switchlist RC {
 		$$ = npval2(PV_ESWITCHES, &@1, &@2);
-		$$->u1.list = $2; }
-	;
-
-switchlist_block : LC switchlist RC { $$ = $2; }
+		$$->u1.list = $3; }
 	;
 
 switchlist : /* empty */ { $$ = NULL; }
