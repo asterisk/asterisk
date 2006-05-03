@@ -73,7 +73,7 @@ static const char *desc =
 "  Options:\n"
 "    b - Only spy on channels involved in a bridged call.\n"
 "    g(grp) - Match only channels where their ${SPYGROUP} variable is set to\n"
-"             'grp'.\n"
+"             contain 'grp' in an optional : delimited list.\n"
 "    q - Don't play a beep when beginning to spy on a channel.\n"
 "    r[(basename)] - Record the session to the monitor spool directory. An\n"
 "                    optional base for the filename may be specified. The\n"
@@ -414,7 +414,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 			spec = NULL;
 		}
 	}
-	
+
 	if (options) {
 		char *opts[OPT_ARG_ARRAY_SIZE];
 		ast_app_parse_options(chanspy_opts, &flags, opts, options);
@@ -471,18 +471,34 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 			if (peer != chan) {
 				const char *group = NULL;
 				int igrp = 1;
-
+				char *groups[25] = {0};
+				int num_groups = 0;
+				char *dup_group;
+				
 				if (peer == prev && !chosen) {
 					break;
 				}
 				chosen = 0;
-				group = pbx_builtin_getvar_helper(peer, "SPYGROUP");
+
 				if (mygroup) {
-					if (!group || strcmp(mygroup, group)) {
-						igrp = 0;
+					int x;
+
+					if ((group = pbx_builtin_getvar_helper(peer, "SPYGROUP"))) {
+						dup_group = ast_strdupa(group);
+						num_groups = ast_app_separate_args(dup_group, ':', groups, sizeof(groups) / sizeof(groups[0]));
 					}
+
+					igrp = 0;
+					if (num_groups) {
+						for (x = 0; x < num_groups; x++) {
+							if (!strcmp(mygroup, groups[x])) {
+								igrp = 1;
+								break;
+							}
+						}
+					} 
 				}
-				
+
 				if (igrp && (!spec || ((strlen(spec) <= strlen(peer->name) &&
 							!strncasecmp(peer->name, spec, strlen(spec)))))) {
 					if (peer && (!bronly || ast_bridged_channel(peer)) &&

@@ -755,6 +755,11 @@ ${MACRO_CONTEXT}	* The calling context
 ${MACRO_PRIORITY}	* The calling priority
 ${MACRO_OFFSET}		Offset to add to priority at return from macro
 
+The ChanSpy() application uses the following variables:
+---------------------------------------------------------
+${SPYGROUP}		* A ':' (colon) separated list of group names.
+			  (To be set on spied on channel and matched against the g(grp) option)
+
 If you compile with OSP support, these variables are used:
 ---------------------------------------------------------
 ${OSPINHANDLE}		OSP handle of in_bound call
