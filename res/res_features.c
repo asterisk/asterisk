@@ -1662,8 +1662,11 @@ static int park_exec(struct ast_channel *chan, void *data)
 				ast_hangup(peer);
 				return -1;
 			}
+		} else {
+			ast_moh_stop(peer);
+			ast_indicate(peer, AST_CONTROL_UNHOLD); 
 		}
- 
+
 		res = ast_channel_make_compatible(chan, peer);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, peer->name);
