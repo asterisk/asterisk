@@ -60,18 +60,21 @@ static const char *page_descrip =
 "caller is dumped into the conference as a speaker and the room is\n"
 "destroyed when the original caller leaves.  Valid options are:\n"
 "        d - full duplex audio\n"
-"	 q - quiet, do not play beep to caller\n";
+"	 q - quiet, do not play beep to caller\n"
+"	 r - record the page into a file -- you may want to first Set(MEETME_RECORDINGFILE=ReplayLastPage)\n";
 
 LOCAL_USER_DECL;
 
 enum {
 	PAGE_DUPLEX = (1 << 0),
 	PAGE_QUIET = (1 << 1),
+	PAGE_RECORD = (1 << 2),
 } page_opt_flags;
 
 AST_APP_OPTIONS(page_opts, {
 	AST_APP_OPTION('d', PAGE_DUPLEX),
 	AST_APP_OPTION('q', PAGE_QUIET),
+	AST_APP_OPTION('r', PAGE_RECORD),
 });
 
 struct calloutdata {
@@ -177,7 +180,8 @@ static int page_exec(struct ast_channel *chan, void *data)
 	if (options)
 		ast_app_parse_options(page_opts, &flags, NULL, options);
 
-	snprintf(meetmeopts, sizeof(meetmeopts), "%ud|%sqxdw", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m");
+	snprintf(meetmeopts, sizeof(meetmeopts), "%ud|%s%sqxdw", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m"),
+		(ast_test_flag(&flags, PAGE_RECORD) ? "r" : "") );
 
 	while ((tech = strsep(&tmp, "&"))) {
 		/* don't call the originating device */
@@ -198,7 +202,8 @@ static int page_exec(struct ast_channel *chan, void *data)
 			res = ast_waitstream(chan, "");
 	}
 	if (!res) {
-		snprintf(meetmeopts, sizeof(meetmeopts), "%ud|A%sqxd", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t");
+		snprintf(meetmeopts, sizeof(meetmeopts), "%ud|A%s%sqxd", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t"), 
+			(ast_test_flag(&flags, PAGE_RECORD) ? "r" : "") );
 		pbx_exec(chan, app, meetmeopts);
 	}
 
