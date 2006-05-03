@@ -1008,9 +1008,7 @@ struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_inf
 
 	datastore->info = info;
 
-	if (uid != NULL) {
-		datastore->uid = ast_strdup(uid);
-	}
+	datastore->uid = ast_strdup(uid);
 
 	return datastore;
 }
@@ -1483,12 +1481,10 @@ int ast_answer(struct ast_channel *chan)
 		if (chan->tech->answer)
 			res = chan->tech->answer(chan);
 		ast_setstate(chan, AST_STATE_UP);
-		if (chan->cdr)
-			ast_cdr_answer(chan->cdr);
+		ast_cdr_answer(chan->cdr);
 		break;
 	case AST_STATE_UP:
-		if (chan->cdr)
-			ast_cdr_answer(chan->cdr);
+		ast_cdr_answer(chan->cdr);
 		break;
 	}
 	ast_channel_unlock(chan);
@@ -3736,14 +3732,13 @@ int ast_tonepair(struct ast_channel *chan, int freq1, int freq2, int duration, i
 
 ast_group_t ast_get_group(char *s)
 {
-	char *copy;
 	char *piece;
-	char *c=NULL;
+	char *c;
 	int start=0, finish=0, x;
 	ast_group_t group = 0;
 
-	c = copy = ast_strdupa(s);
-	if (!copy)
+	c = ast_strdupa(s);
+	if (!c)
 		return 0;
 	
 	while ((piece = strsep(&c, ","))) {
