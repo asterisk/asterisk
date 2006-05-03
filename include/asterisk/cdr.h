@@ -166,6 +166,7 @@ void ast_cdr_start(struct ast_cdr *cdr);
 /*!
  * \param cdr the cdr you wish to associate with the call
  * Starts all CDR stuff necessary for doing CDR when answering a call
+ * NULL argument is just fine.
  */
 void ast_cdr_answer(struct ast_cdr *cdr);
 
