@@ -73,6 +73,26 @@ Applications:
   queue member channel that is taking the call. This is useful when trying 
   to link recording filenames back to a particular call from the queue.  
 
+* The old/current behavior of app_queue has a serial type behavior
+  in that the queue will make all waiting callers wait in the queue
+  even if there is more than one available member ready to take
+  calls until the head caller is connected with the member they
+  were trying to get to. The next waiting caller in line then
+  becomes the head caller, and they are then connected with the
+  next available member and all available members and waiting callers
+  waits while this happens. This cycle continues until there are
+  no more available members or waiting callers, whichever comes first.
+  The new behavior, enabled by setting autofill=yes in queues.conf
+  either at the [general] level to default for all queues or 
+  to set on a per-queue level, makes sure that when the waiting 
+  callers are connecting with available members in a parallel fashion 
+  until there are no more available members or no more waiting callers,
+  whichever comes first. This is probably more along the lines of how
+  one would expect a queue should work and in most cases, you will want 
+  to enable this new behavior. If you do not specify or comment out this 
+  option, it will default to "no" to keep backward compatability with the old 
+  behavior.
+
 Manager:
 
 * After executing the 'status' manager action, the "Status" manager events

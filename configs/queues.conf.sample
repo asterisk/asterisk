@@ -8,6 +8,25 @@
 ;    read into their recorded queues. Default is 'yes'.
 ;
 persistentmembers = yes
+; 
+; AutoFill Behavior
+;    The old/current behavior of the queue has a serial type behavior 
+;    in that the queue will make all waiting callers wait in the queue
+;    even if there is more than one available member ready to take
+;    calls until the head caller is connected with the member they 
+;    were trying to get to. The next waiting caller in line then
+;    becomes the head caller, and they are then connected with the
+;    next available member and all available members and waiting callers
+;    waits while this happens. The new behavior, enabled by setting
+;    autofill=yes makes sure that when the waiting callers are connecting
+;    with available members in a parallel fashion until there are
+;    no more available members or no more waiting callers. This is
+;    probably more along the lines of how a queue should work and 
+;    in most cases, you will want to enable this behavior. If you 
+;    do not specify or comment out this option, it will default to no
+;    to keep backward compatability with the old behavior.
+;
+autofill = yes
 ;
 ; Note that a timeout to fail out of a queue may be passed as part of
 ; an application call from extensions.conf:
@@ -73,11 +92,9 @@ persistentmembers = yes
 ;wrapuptime=15
 ;
 ; Autofill will follow queue strategy but push multiple calls through
-; at same time. WARNING: By setting this to yes, if you have a number
-; of calls waiting in queue, and only a single member becoming available
-; at a time, it is more than likely NOT going to be the caller that's
-; been waiting the longest that will get assigned to this newly available
-; queue member.
+; at same time until there are no more waiting callers or no more
+; available members. The per-queue setting of autofill allows you
+; to override the default setting on an individual queue level.
 ; 
 ;autofill=yes
 ;

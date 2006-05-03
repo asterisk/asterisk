@@ -234,6 +234,9 @@ static int queue_persistent_members = 0;
 /*! \brief queues.conf per-queue weight option */
 static int use_weight = 0;
 
+/*! \brief queues.conf [general] option */
+static int autofill_default = 0;
+
 enum queue_result {
 	QUEUE_UNKNOWN = 0,
 	QUEUE_TIMEOUT = 1,
@@ -575,6 +578,7 @@ static void init_queue(struct ast_call_queue *q)
 	q->roundingseconds = 0; /* Default - don't announce seconds */
 	q->servicelevel = 0;
 	q->ringinuse = 1;
+	q->autofill = autofill_default;
 	q->moh[0] = '\0';
 	q->announce[0] = '\0';
 	q->context[0] = '\0';
@@ -1860,25 +1864,75 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 	}
 
 	return peer;
+	
 }
 
 static int is_our_turn(struct queue_ent *qe)
 {
 	struct queue_ent *ch;
+	struct member *cur;
+	int avl = 0;
+	int idx = 0;
 	int res;
 
-	/* Atomically read the parent head -- does not need a lock */
-	ch = qe->parent->head;
-	/* If we are now at the top of the head, break out */
-	if ((ch == qe) || (qe->parent->autofill)) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
-		res = 1;
+	if (!qe->parent->autofill) {
+
+		/* Atomically read the parent head -- does not need a lock */
+		ch = qe->parent->head;
+		/* If we are now at the top of the head, break out */
+		if ((ch == qe) || (qe->parent->autofill)) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
+			res = 1;
+		} else {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "It's not our turn (%s).\n", qe->chan->name);
+			res = 0;
+		}	
+
 	} else {
+
+		/* This needs a lock. How many members are available to be served? */
+	
+		ast_mutex_lock(&qe->parent->lock);
+			
+		ch = qe->parent->head;
+		cur = qe->parent->members;
+	
+		while (cur) {
+			if (cur->status == 1) 
+				avl++;
+			cur = cur->next;
+		}
+
 		if (option_debug)
-			ast_log(LOG_DEBUG, "It's not our turn (%s).\n", qe->chan->name);
-		res = 0;
+			ast_log(LOG_DEBUG, "There are %d available members.\n", avl);
+	
+		if (qe->parent->strategy == 1) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Even though there are %d available members, the strategy is ringall so only the head call is allowed in!\n", avl);
+			avl = 1;
+		}
+	
+		while ((idx < avl) && (ch) && (ch != qe)) {
+			idx++;
+			ch = ch->next;			
+		}
+	
+		/* If the queue entry is within avl [the number of available members] calls from the top ... */
+		if (ch && idx < avl) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
+			res = 1;
+		} else {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "It's not our turn (%s).\n", qe->chan->name);
+			res = 0;
+		}
+		
+		ast_mutex_unlock(&qe->parent->lock);
 	}
+
 	return res;
 }
 
@@ -3302,6 +3356,9 @@ static void reload_queues(void)
 			queue_persistent_members = 0;
 			if ((general_val = ast_variable_retrieve(cfg, "general", "persistentmembers")))
 				queue_persistent_members = ast_true(general_val);
+			autofill_default = 0;
+			if ((general_val = ast_variable_retrieve(cfg, "general", "autofill")))
+				autofill_default = ast_true(general_val);
 		} else {	/* Define queue */
 			/* Look for an existing one */
 			AST_LIST_TRAVERSE(&queues, q, list) {
