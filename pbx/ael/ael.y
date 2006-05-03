@@ -121,6 +121,7 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <pval>switchlist_block
 %type <pval>timespec
 %type <pval>included_entry
+%type <pval>opt_statements
 
 %type <str>opt_word
 %type <str>context_name
@@ -169,6 +170,7 @@ static pval *update_last(pval *, YYLTYPE *);
 		opt_else
 		elements_block switchlist_block
 		timespec included_entry
+		opt_statements
 
 %destructor { free($$);}  word word_list goto_word word3_list opt_word context_name
 		timerange
@@ -547,27 +549,23 @@ case_statements: /* empty */ { $$ = NULL; }
 	| case_statements case_statement { $$ = linku1($1, $2); }
 	;
 
-case_statement: KW_CASE word COLON statements {
+/* statement in a switch body after a label */
+opt_statements : { $$ = NULL; }
+	| statements { $$ = $1; }
+	;
+
+case_statement: KW_CASE word COLON opt_statements {
 		$$ = npval2(PV_CASE, &@1, &@3); /* XXX 3 or 4 ? */
 		$$->u1.str = $2;
 		$$->u2.statements = $4;}
-	| KW_DEFAULT COLON statements {
+	| KW_DEFAULT COLON opt_statements {
 		$$ = npval2(PV_DEFAULT, &@1, &@3);
 		$$->u1.str = NULL;
 		$$->u2.statements = $3;}
-	| KW_PATTERN word COLON statements {
+	| KW_PATTERN word COLON opt_statements {
 		$$ = npval2(PV_PATTERN, &@1, &@4); /* XXX@3 or @4 ? */
 		$$->u1.str = $2;
 		$$->u2.statements = $4;}
-	| KW_CASE word COLON {
-		$$ = npval2(PV_CASE, &@1, &@3);
-		$$->u1.str = $2;}
-	| KW_DEFAULT COLON {
-		$$ = npval2(PV_DEFAULT, &@1, &@2);
-		$$->u1.str = NULL;}
-	| KW_PATTERN word COLON  {
-		$$ = npval2(PV_PATTERN, &@1, &@3);
-		$$->u1.str = $2;}
 	;
 
 macro_statements: /* empty */ { $$ = NULL; }
