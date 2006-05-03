@@ -4082,11 +4082,6 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 			case 'k':
 				/* 24-Hour */
 				res = ast_say_number(chan, tm.tm_hour, ints, lang, (char * ) NULL);
-				if (!res) {
-					if (format[offset] == 'H') {
-						res = wait_file(chan,ints, "digits/oclock",lang);
-					}
-				}
 				if (!res)
 					res = wait_file(chan,ints, "digits/oclock",lang);
 				break;
