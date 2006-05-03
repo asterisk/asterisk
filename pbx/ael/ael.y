@@ -98,7 +98,7 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <pval>macro_call
 %type <pval>target jumptarget
 %type <pval>statement
-%type <pval>switch_head
+%type <pval>switch_statement
 
 %type <pval>if_like_head
 %type <pval>statements
@@ -162,7 +162,7 @@ static pval *update_last(pval *, YYLTYPE *);
 	}	includes includeslist switchlist eswitches switches
 		macro_statement macro_statements case_statement case_statements
 		eval_arglist application_call application_call_head
-		macro_call target jumptarget statement switch_head
+		macro_call target jumptarget statement switch_statement
 		if_like_head statements extension
 		ignorepat element elements arglist assignment
 		global_statements globals macro context object objects
@@ -364,9 +364,10 @@ goto_word : word { $$ = $1;}
 		free($3);}
 	;
 
-switch_head : KW_SWITCH test_expr LC {
-		$$ = npval2(PV_SWITCH, &@1, &@3);
-		$$->u1.str = $2; }
+switch_statement : KW_SWITCH test_expr LC case_statements RC {
+		$$ = npval2(PV_SWITCH, &@1, &@5);
+		$$->u1.str = $2;
+		$$->u2.statements = $4;}
 	;
 
 /*
@@ -397,9 +398,7 @@ statement : LC statements RC {
 		$$ = npval2(PV_WHILE, &@1, &@3);
 		$$->u1.str = $2;
 		$$->u2.statements = $3; }
-	| switch_head case_statements RC {
-		$$ = update_last($1, &@3);
-		$$->u2.statements = $2;}
+	| switch_statement { $$ = $1; }
 	| AMPER macro_call SEMI {
 		$$ = update_last($2, &@2); }
 	| application_call SEMI {
