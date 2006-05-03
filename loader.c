@@ -728,7 +728,7 @@ static struct module * __load_resource(const char *resource_name,
 		cur->cb = m;	/* use the mod_data from the module itself */
 		errors = check_exported(cur);
 	} else {
-		ast_log(LOG_WARNING, "misstng mod_data for %s\n",
+		ast_log(LOG_WARNING, "missing mod_data for %s\n",
 			resource_name);
 		errors++;
 	}
