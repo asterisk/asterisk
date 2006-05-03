@@ -225,6 +225,7 @@ assignment : word EQ { reset_semicount(parseio->scanner); }  word SEMI {
 		$$->u2.val = $4; }
 	;
 
+/* XXX this matches missing arguments, is this desired ? */
 arglist : /* empty */ { $$ = NULL; }
 	| word { $$ = nword($1, &@1); }
 	| arglist COMMA word { $$ = linku1($1, nword($3, &@3)); }
@@ -475,7 +476,7 @@ target : goto_word { $$ = nword($1, &@1); }
 jumptarget : goto_word {			/* ext, 1 */
 		$$ = nword($1, &@1);
 		$$->next = nword(strdup("1"), &@1); }  /*  jump extension[,priority][@context] */
-	| goto_word COMMA goto_word {		/* ext, pri */
+	| goto_word COMMA word {		/* ext, pri */
 		$$ = nword($1, &@1);
 		$$->next = nword($3, &@3); }
 	| goto_word COMMA word AT context_name {	/* context, ext, pri */
