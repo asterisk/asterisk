@@ -579,11 +579,10 @@ eswitches : KW_ESWITCHES switchlist_block {
 	;
 
 switchlist_block : LC switchlist RC { $$ = $2; }
-	| LC RC { $$ = NULL; }
 	;
 
-switchlist : word SEMI { $$ = nword($1, &@1); }
-	| switchlist word SEMI { $$ = linku1($1, nword($2, &@2)); }
+switchlist : /* empty */ { $$ = NULL; }
+	| word SEMI switchlist { $$ = linku1(nword($1, &@1), $3); }
 	| switchlist error {$$=$1;}
 	;
 
