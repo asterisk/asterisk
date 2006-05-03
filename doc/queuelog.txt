@@ -61,6 +61,14 @@ ENTERQUEUE(url|callerid)
 A call has entered the queue.  URL (if specified) and Caller*ID are placed
 in the log.
 
+EXITEMPTY(position|origposition|waittime)
+The caller was exited from the queue forcefully because the queue had no
+reachable members and it's configured to do that to callers when there
+are no reachable members. The position is the caller's position in the
+queue when they hungup, the origposition is the original position the 
+caller was when they first entered the queue, and the waittime is how 
+long the call had been waiting in the queue at the time of disconnect.
+
 EXITWITHKEY(key|position)
 The caller elected to use a menu key to exit the queue.  The key and
 the caller's position in the queue are recorded.

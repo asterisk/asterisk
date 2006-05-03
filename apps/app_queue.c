@@ -1960,6 +1960,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		/* leave the queue if no agents, if enabled */
 		if (qe->parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
 			*reason = QUEUE_LEAVEEMPTY;
+			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long)time(NULL) - qe->start);
 			leave_queue(qe);
 			break;
 		}
@@ -1967,6 +1968,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		/* leave the queue if no reachable agents, if enabled */
 		if ((qe->parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
 			*reason = QUEUE_LEAVEUNAVAIL;
+			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long)time(NULL) - qe->start);
 			leave_queue(qe);
 			break;
 		}
@@ -2999,7 +3001,7 @@ check_turns:
 			if (res < 0) {
 				/* Record this abandoned call */
 				record_abandoned(&qe);
-				 ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
+				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
 				if (option_verbose > 2) {
 					ast_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s while waiting their turn\n", args.queuename);
 				}
