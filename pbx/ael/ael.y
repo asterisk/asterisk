@@ -217,12 +217,10 @@ macro : KW_MACRO word LP arglist RP LC macro_statements RC {
 globals : KW_GLOBALS LC global_statements RC {
 		$$ = npval2(PV_GLOBALS, &@1, &@4);
 		$$->u1.statements = $3;}
-	| KW_GLOBALS LC RC { /* empty globals is OK */
-		$$ = npval2(PV_GLOBALS, &@1, &@3); }
 	;
 
-global_statements : assignment {$$=$1;}
-	| global_statements assignment {$$ = linku1($1, $2); }
+global_statements : { $$ = NULL; }
+	| assignment global_statements {$$ = linku1($1, $2); }
 	| global_statements error {$$=$1;}
 	;
 
@@ -238,13 +236,11 @@ arglist : /* empty */ { $$ = NULL; }
 	| arglist error {$$=$1;}
 	;
 
-elements_block : LC RC	{ $$ = NULL; }
-	| LC elements RC { $$ = $2; }
+elements_block : LC elements RC { $$ = $2; }
 	;
 
-elements : element { $$=$1;}
-	| error {$$=0;}
-	| elements element { $$ = linku1($1, $2); }
+elements : {$$=0;}
+	| element elements { $$ = linku1($1, $2); }
 	| elements error   { $$=$1;}
 	;
 
@@ -599,16 +595,16 @@ switchlist : word SEMI { $$ = nword($1, &@1); }
 	| switchlist error {$$=$1;}
 	;
 
-included_entry : context_name SEMI { $$ = nword($1, &@1); }
-	| context_name BAR timespec SEMI {
+included_entry : context_name { $$ = nword($1, &@1); }
+	| context_name BAR timespec {
 		$$ = nword($1, &@1);
 		$$->u2.arglist = $3;
 		prev_word=0; /* XXX sure ? */ }
 	;
 
 /* list of ';' separated context names followed by optional timespec */
-includeslist : included_entry { $$ = $1; }
-	| includeslist included_entry { $$ = linku1($1, $2); }
+includeslist : included_entry SEMI { $$ = $1; }
+	| includeslist included_entry SEMI { $$ = linku1($1, $2); }
 	| includeslist error {$$=$1;}
 	;
 
