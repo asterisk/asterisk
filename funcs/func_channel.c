@@ -23,6 +23,7 @@
  */
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -93,6 +94,7 @@ static int func_channel_write(struct ast_channel *chan, char *function,
 			      char *data, const char *value)
 {
 	int ret = 0;
+	signed char gainset;
 
 	if (!strcasecmp(data, "language"))
 		locked_string_field_set(chan, language, value);
@@ -100,7 +102,13 @@ static int func_channel_write(struct ast_channel *chan, char *function,
 		locked_string_field_set(chan, musicclass, value);
 	else if (!strcasecmp(data, "callgroup"))
 		chan->callgroup = ast_get_group(data);
-	else if (!chan->tech->func_channel_write
+	else if (!strcasecmp(data, "txgain")) {
+		sscanf(value, "%hhd", &gainset);
+		ast_channel_setoption(chan, AST_OPTION_TXGAIN, &gainset, sizeof(gainset), 0);
+	} else if (!strcasecmp(data, "rxgain")) {
+		sscanf(value, "%hhd", &gainset);
+		ast_channel_setoption(chan, AST_OPTION_RXGAIN, &gainset, sizeof(gainset), 0);	
+	} else if (!chan->tech->func_channel_write
 		 || chan->tech->func_channel_write(chan, function, data, value)) {
 		ast_log(LOG_WARNING, "Unknown or unavailable item requested: '%s'\n",
 				data);
@@ -123,8 +131,10 @@ static struct ast_custom_function channel_function = {
 		"R/O	channeltype		technology used for channel\n"
 		"R/W	language 		language for sounds played\n"
 		"R/W	musicclass 		class (from musiconhold.conf) for hold music\n"
+		"R/W	rxgain			set rxgain level on channel drivers that support it\n"
 		"R/O	state			state for channel\n"
 		"R/O	tonezone 		zone for indications played\n"
+		"R/W	txgain			set txgain level on channel drivers that support it\n"
 		"R/O	videonativeformat 	format used natively for video\n"
 		"\n"
 		"Additional items may be available from the channel driver providing\n"

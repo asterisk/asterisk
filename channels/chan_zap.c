@@ -698,6 +698,7 @@ struct ast_frame *zt_exception(struct ast_channel *ast);
 static int zt_indicate(struct ast_channel *chan, int condition);
 static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int zt_setoption(struct ast_channel *chan, int option, void *data, int datalen);
+static int zt_func_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len); 
 
 static const struct ast_channel_tech zap_tech = {
 	.type = "Zap",
@@ -716,6 +717,7 @@ static const struct ast_channel_tech zap_tech = {
 	.indicate = zt_indicate,
 	.fixup = zt_fixup,
 	.setoption = zt_setoption,
+	.func_channel_read = zt_func_read,
 };
 
 #ifdef HAVE_LIBPRI
@@ -2903,6 +2905,25 @@ static int zt_setoption(struct ast_channel *chan, int option, void *data, int da
 
 	return 0;
 }
+
+static int zt_func_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len)
+{
+	struct zt_pvt *p = chan->tech_pvt;
+	
+	if (!strcasecmp(data, "rxgain")) {
+		ast_mutex_lock(&p->lock);
+		snprintf(buf, len, "%f", p->rxgain);
+		ast_mutex_unlock(&p->lock);	
+	} else if (!strcasecmp(data, "txgain")) {
+		ast_mutex_lock(&p->lock);
+		snprintf(buf, len, "%f", p->txgain);
+		ast_mutex_unlock(&p->lock);	
+	} else {
+		ast_copy_string(buf, "", len);
+	}
+	return 0;
+}
+
 
 static void zt_unlink(struct zt_pvt *slave, struct zt_pvt *master, int needlock)
 {
