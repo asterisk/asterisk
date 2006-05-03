@@ -128,6 +128,7 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <str>word_list
 %type <str>word3_list
 %type <str>test_expr
+%type <str>opt_pri
 
 %type <intval>opt_abstract
 
@@ -170,6 +171,7 @@ static pval *update_last(pval *, YYLTYPE *);
 %destructor { free($$);}  word word_list goto_word word3_list opt_word context_name
 		timerange
 		test_expr
+		opt_pri
 
 
 %%
@@ -301,8 +303,7 @@ timespec : timerange BAR word3_list BAR word3_list BAR word3_list {
 	;
 
 /* expression used in if, random, while, switch */
-test_expr : LP { reset_parencount(parseio->scanner); }  word_list RP {
-		$$ = $3; }
+test_expr : LP { reset_parencount(parseio->scanner); }  word_list RP { $$ = $3; }
 	;
 
 /* 'if' like statements: if, iftime, random */
@@ -391,10 +392,8 @@ statement : LC statements RC {
 		$$->u1.str = $2;
 		$$->u2.statements = $3; }
 	| switch_statement { $$ = $1; }
-	| AMPER macro_call SEMI {
-		$$ = update_last($2, &@2); }
-	| application_call SEMI {
-		$$ = update_last($1, &@2); }
+	| AMPER macro_call SEMI { $$ = update_last($2, &@2); }
+	| application_call SEMI { $$ = update_last($1, &@2); }
 	| word SEMI {
 		$$= npval2(PV_APPLICATION_CALL, &@1, &@2);
 		$$->u1.str = $1;}
@@ -472,21 +471,18 @@ target : goto_word { $$ = nword($1, &@1); }
 		$$->next->next = nword($5, &@5); }
 	;
 
+opt_pri : /* empty */ { $$ = strdup("1"); }
+	| COMMA word { $$ = $2; }
+	;
+
 /* XXX please document the form of jumptarget */
-jumptarget : goto_word {			/* ext, 1 */
+jumptarget : goto_word opt_pri {			/* ext[, pri] default 1 */
 		$$ = nword($1, &@1);
-		$$->next = nword(strdup("1"), &@1); }  /*  jump extension[,priority][@context] */
-	| goto_word COMMA word {		/* ext, pri */
-		$$ = nword($1, &@1);
-		$$->next = nword($3, &@3); }
-	| goto_word COMMA word AT context_name {	/* context, ext, pri */
-		$$ = nword($5, &@5);
+		$$->next = nword($2, &@2); }  /*  jump extension[,priority][@context] */
+	| goto_word opt_pri AT context_name {	/* context, ext, pri */
+		$$ = nword($4, &@4);
 		$$->next = nword($1, &@1);
-		$$->next->next = nword($3, &@3); }
-	| goto_word AT context_name {		/* context, ext, 1 */
-		$$ = nword($3, &@3);
-		$$->next = nword($1, &@1);
-		$$->next->next = nword(strdup("1"), &@3); }
+		$$->next->next = nword($2, &@2); }
 	;
 
 macro_call : word LP {reset_argcount(parseio->scanner);} eval_arglist RP {
