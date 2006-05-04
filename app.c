@@ -781,8 +781,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	if (rfmt && ast_set_read_format(chan, rfmt)) {
 		ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(rfmt), chan->name);
 	}
-	if (outmsg > 1) {
-		/* Let them know it worked */
+	if (outmsg == 2) {
 		ast_stream_and_wait(chan, "auth-thankyou", chan->language, "");
 	}	
 	if (sildet)
