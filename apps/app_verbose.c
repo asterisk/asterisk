@@ -63,7 +63,7 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 	if (data) {
 		vtext = ast_strdupa((char *)data);
 		if (vtext) {
-			char *tmp = strsep(&vtext, "|,");
+			char *tmp = strsep(&vtext, "|");
 			if (vtext) {
 				if (sscanf(tmp, "%d", &vsize) != 1) {
 					vsize = 0;
