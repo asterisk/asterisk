@@ -101,6 +101,9 @@ Parameters: Channel, Exten, Context, Priority, Timeout,
 Command: Ping
 Parameters: None
 
+Command: PlayDTMF
+Parameters: Channel, Digit
+
 Command: Redirect
 Parameters: Channel, ExtraChannel, Exten, Context, Priority
 

@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
+#include "asterisk/manager.h"
 
 static char *tdesc = "Send DTMF digits Application";
 
@@ -93,11 +94,39 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static char mandescr_playdtmf[] =
+"Description: Plays a dtmf digit on the specified channel.\n"
+"Variables: (all are required)\n"
+"	Channel: Channel name to send digit to\n"
+"	Digit: The dtmf digit to play\n";
+
+static int manager_play_dtmf(struct mansession *s, struct message *m)
+{
+	char *channel, *digit;
+
+	channel = astman_get_header(m, "Channel");
+	digit = astman_get_header(m, "Digit");
+	struct ast_channel *chan = ast_get_channel_by_name_locked(channel);
+	if (chan == NULL) {
+		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+	if (digit == NULL) {
+		astman_send_error(s, m, "No digit specified");
+		return 0;
+	}
+	ast_senddigit(chan, *digit);
+	ast_mutex_unlock(&chan->lock);
+	astman_send_ack(s, m, "DTMF successfully queued");
+	return 0;
+}
+
 static int unload_module(void *mod)
 {
 	int res;
 
 	res = ast_unregister_application(app);
+	res |= ast_manager_unregister("PlayDTMF");
 
 	STANDARD_HANGUP_LOCALUSERS;
 
@@ -106,6 +135,7 @@ static int unload_module(void *mod)
 
 static int load_module(void *mod)
 {
+	ast_manager_register2( "PlayDTMF", EVENT_FLAG_CALL, manager_play_dtmf, "Play DTMF signal on a specific channel.", mandescr_playdtmf );
 	return ast_register_application(app, senddtmf_exec, synopsis, descrip);
 }
 
