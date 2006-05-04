@@ -298,7 +298,8 @@ struct member {
 	int status;			/*!< Status of queue member */
 	int paused;			/*!< Are we paused (not accepting calls)? */
 	time_t lastcall;		/*!< When last successful call was hungup */
-	int dead;			/*!< Used to detect members deleted in realtime */
+	unsigned int dead:1;			/*!< Used to detect members deleted in realtime */
+	unsigned int delme:1;		/*!< Flag to delete entry on reload */
 	struct member *next;		/*!< Next member */
 };
 
@@ -3161,7 +3162,7 @@ static void reload_queues(void)
 	struct ast_config *cfg;
 	char *cat, *tmp;
 	struct ast_variable *var;
-	struct member *prev, *cur;
+	struct member *prev, *cur, *newm;
 	int new;
 	char *general_val = NULL;
 	char interface[80];
@@ -3209,15 +3210,13 @@ static void reload_queues(void)
 				/* Re-initialize the queue, and clear statistics */
 				init_queue(q);
 				clear_queue(q);
-				free_members(q, 0);
-				prev = q->members;
-				if (prev) {
-					/* find the end of any dynamic members */
-					while(prev->next)
-						prev = prev->next;
+				for (cur = q->members; cur; cur = cur->next) {
+					if (!cur->dynamic) {
+						cur->delme = 1;
+					}
 				}
 				var = ast_variable_browse(cfg, cat);
-				while(var) {
+				while (var) {
 					if (!strcasecmp(var->name, "member")) {
 						/* Add a new member */
 						ast_copy_string(interface, var->value, sizeof(interface));
@@ -3230,18 +3229,51 @@ static void reload_queues(void)
 							}
 						} else
 							penalty = 0;
-						cur = create_queue_member(interface, penalty, 0);
+
+						/* Find the old position in the list */
+						for (prev = NULL, cur = q->members; cur; prev = cur, cur = cur->next) {
+							if (!strcmp(cur->interface, interface)) {
+								break;
+							}
+						}
+
+						newm = create_queue_member(interface, penalty, cur ? cur->paused : 0);
+
 						if (cur) {
-							if (prev)
-								prev->next = cur;
-							else
-								q->members = cur;
-							prev = cur;
+							/* Delete it now */
+							newm->next = cur->next;
+							if (prev) {
+								prev->next = newm;
+							} else {
+								q->members = newm;
+							}
+							free(cur);
+						} else {
+							newm->next = q->members;
+							q->members = newm;
 						}
 					} else {
 						queue_set_param(q, var->name, var->value, var->lineno, 1);
 					}
 					var = var->next;
+				}
+
+				/* Free remaining members marked as delme */
+				for (prev = NULL, newm = NULL, cur = q->members; cur; prev = cur, cur = cur->next) {
+					if (newm) {
+						free(newm);
+						newm = NULL;
+					}
+
+					if (cur->delme) {
+						if (prev) {
+							prev->next = cur->next;
+							newm = cur;
+						} else {
+							q->members = cur->next;
+							newm = cur;
+						}
+					}
 				}
 				if (!new) 
 					ast_mutex_unlock(&q->lock);
