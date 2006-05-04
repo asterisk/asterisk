@@ -535,22 +535,21 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn)
 static int global_silence_threshold = 128;
 static int global_maxsilence = 0;
 
-int ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int silencethreshold, int maxsilence, const char *path)
+static int __ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int beep, int silencethreshold, int maxsilence, const char *path, int prepend)
 {
-	int d;
+	int d = 0;
 	char *fmts;
 	char comment[256];
 	int x, fmtcnt=1, res=-1,outmsg=0;
-	struct ast_frame *f;
 	struct ast_filestream *others[MAX_OTHER_FORMATS];
 	char *sfmt[MAX_OTHER_FORMATS];
 	char *stringp=NULL;
 	time_t start, end;
 	struct ast_dsp *sildet=NULL;   	/* silence detector dsp */
 	int totalsilence = 0;
-	int dspsilence = 0;
 	int rfmt=0;
 	struct ast_silence_generator *silgen = NULL;
+	char prependfile[80];
 
 	if (silencethreshold < 0)
 		silencethreshold = global_silence_threshold;
@@ -567,12 +566,18 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 	ast_log(LOG_DEBUG,"play_and_record: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
 	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
 
-	if (playfile) {
-		d = ast_play_and_wait(chan, playfile);
+	if (playfile || beep) {
+		if (!beep)
+			d = ast_play_and_wait(chan, playfile);
 		if (d > -1)
 			d = ast_stream_and_wait(chan, "beep", chan->language, "");
 		if (d < 0)
 			return -1;
+	}
+
+	if (prepend) {
+		ast_copy_string(prependfile, recordfile, sizeof(prependfile));	
+		strncat(prependfile, "-prepend", sizeof(prependfile) - strlen(prependfile) - 1);
 	}
 
 	fmts = ast_strdupa(fmt);
@@ -593,8 +598,9 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 	time(&start);
 	end=start;  /* pre-initialize end to be same as start in case we never get into loop */
 	for (x=0;x<fmtcnt;x++) {
-		others[x] = ast_writefile(recordfile, sfmt[x], comment, O_TRUNC, 0, 0700);
-		ast_verbose( VERBOSE_PREFIX_3 "x=%d, open writing:  %s format: %s, %p\n", x, recordfile, sfmt[x], others[x]);
+		others[x] = ast_writefile(prepend ? prependfile : recordfile, sfmt[x], comment, O_TRUNC, 0, 0700);
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "x=%d, open writing:  %s format: %s, %p\n", x, prepend ? prependfile : recordfile, sfmt[x], others[x]);
 
 		if (!others[x]) {
 			break;
@@ -620,16 +626,18 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 		}
 	}
 
-	/* Request a video update */
-	ast_indicate(chan, AST_CONTROL_VIDUPDATE);
+	if (!prepend) {
+		/* Request a video update */
+		ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 
-	if (ast_opt_transmit_silence)
-		silgen = ast_channel_start_silence_generator(chan);
+		if (ast_opt_transmit_silence)
+			silgen = ast_channel_start_silence_generator(chan);
+	}
 
 	if (x == fmtcnt) {
-	/* Loop forever, writing the packets we read to the writer(s), until
-	   we read a # or get a hangup */
-		f = NULL;
+		/* Loop forever, writing the packets we read to the writer(s), until
+		   we read a digit or get a hangup */
+		struct ast_frame *f;
 		for(;;) {
 		 	res = ast_waitfor(chan, 2000);
 			if (!res) {
@@ -652,12 +660,14 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 			if (f->frametype == AST_FRAME_VOICE) {
 				/* write each format */
 				for (x=0;x<fmtcnt;x++) {
+					if (prepend && !others[x])
+						break;
 					res = ast_writestream(others[x], f);
 				}
 
 				/* Silence Detection */
 				if (maxsilence > 0) {
-					dspsilence = 0;
+					int dspsilence = 0;
 					ast_dsp_silence(sildet, f, &dspsilence);
 					if (dspsilence)
 						totalsilence = dspsilence;
@@ -668,7 +678,6 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 						/* Ended happily with silence */
 						if (option_verbose > 2)
 							ast_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
-						ast_frfree(f);
 						res = 'S';
 						outmsg=2;
 						break;
@@ -677,19 +686,25 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 				/* Exit on any error */
 				if (res) {
 					ast_log(LOG_WARNING, "Error writing frame\n");
-					ast_frfree(f);
 					break;
 				}
 			} else if (f->frametype == AST_FRAME_VIDEO) {
 				/* Write only once */
 				ast_writestream(others[0], f);
 			} else if (f->frametype == AST_FRAME_DTMF) {
+				if (prepend) {
+				/* stop recording with any digit */
+					if (option_verbose > 2) 
+						ast_verbose(VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
+					res = 't';
+					outmsg = 2;
+					break;
+				}
 				if (f->subclass == '#') {
 					if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
 					res = '#';
 					outmsg = 2;
-					ast_frfree(f);
 					break;
 				}
 				if (f->subclass == '0') {
@@ -698,7 +713,6 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 						ast_verbose(VERBOSE_PREFIX_3 "User cancelled by pressing %c\n", f->subclass);
 					res = '0';
 					outmsg = 0;
-					ast_frfree(f);
 					break;
 				}
 			}
@@ -707,264 +721,60 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 				if (maxtime < (end - start)) {
 					if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "Took too long, cutting it short...\n");
-					outmsg = 2;
 					res = 't';
-					ast_frfree(f);
+					outmsg = 2;
 					break;
 				}
 			}
 			ast_frfree(f);
 		}
-		if (end == start) time(&end);
 		if (!f) {
 			if (option_verbose > 2)
 				ast_verbose( VERBOSE_PREFIX_3 "User hung up\n");
 			res = -1;
 			outmsg=1;
-		}
-	} else {
-		ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", recordfile, sfmt[x]);
-	}
-
-	if (silgen)
-		ast_channel_stop_silence_generator(chan, silgen);
-
-	*duration = end - start;
-
-	for (x=0;x<fmtcnt;x++) {
-		if (!others[x])
-			break;
-		if (res > 0)
-			ast_stream_rewind(others[x], totalsilence ? totalsilence-200 : 200);
-		ast_truncstream(others[x]);
-		ast_closestream(others[x]);
-	}
-	if (rfmt && ast_set_read_format(chan, rfmt)) {
-		ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(rfmt), chan->name);
-	}
-	if (outmsg > 1) {
-		/* Let them know recording is stopped */
-		ast_stream_and_wait(chan, "auth-thankyou", chan->language, "");
-	}
-	if (sildet)
-		ast_dsp_free(sildet);
-	return res;
-}
-
-int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence)
-{
-	int d = 0;
-	char *fmts;
-	char comment[256];
-	int x, fmtcnt=1, res=-1,outmsg=0;
-	struct ast_frame *f;
-	struct ast_filestream *others[MAX_OTHER_FORMATS];
-	struct ast_filestream *realfiles[MAX_OTHER_FORMATS];
-	char *sfmt[MAX_OTHER_FORMATS];
-	char *stringp=NULL;
-	time_t start, end;
-	struct ast_dsp *sildet;   	/* silence detector dsp */
-	int totalsilence = 0;
-	int dspsilence = 0;
-	int rfmt=0;	
-	char prependfile[80];
-	
-	if (silencethreshold < 0)
-		silencethreshold = global_silence_threshold;
-
-	if (maxsilence < 0)
-		maxsilence = global_maxsilence;
-
-	/* barf if no pointer passed to store duration in */
-	if (duration == NULL) {
-		ast_log(LOG_WARNING, "Error play_and_prepend called without duration pointer\n");
-		return -1;
-	}
-
-	ast_log(LOG_DEBUG,"play_and_prepend: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
-	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
-
-	if (playfile || beep) {	
-		if (!beep)
-			d = ast_play_and_wait(chan, playfile);
-		if (d > -1)
-			d = ast_stream_and_wait(chan, "beep",chan->language, "");
-		if (d < 0)
-			return -1;
-	}
-	ast_copy_string(prependfile, recordfile, sizeof(prependfile));	
-	strncat(prependfile, "-prepend", sizeof(prependfile) - strlen(prependfile) - 1);
-			
-	fmts = ast_strdupa(fmt);
-	
-	stringp=fmts;
-	strsep(&stringp, "|");
-	ast_log(LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);	
-	sfmt[0] = ast_strdupa(fmts);
-	
-	while((fmt = strsep(&stringp, "|"))) {
-		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
-			ast_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app.c\n");
-			break;
-		}
-		sfmt[fmtcnt++] = ast_strdupa(fmt);
-	}
-
-	time(&start);
-	end=start;  /* pre-initialize end to be same as start in case we never get into loop */
-	for (x=0;x<fmtcnt;x++) {
-		others[x] = ast_writefile(prependfile, sfmt[x], comment, O_TRUNC, 0, 0700);
-		ast_verbose( VERBOSE_PREFIX_3 "x=%d, open writing:  %s format: %s, %p\n", x, prependfile, sfmt[x], others[x]);
-		if (!others[x]) {
-			break;
-		}
-	}
-	
-	sildet = ast_dsp_new(); /* Create the silence detector */
-	if (!sildet) {
-		ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
-		return -1;
-	}
-	ast_dsp_set_threshold(sildet, silencethreshold);
-
-	if (maxsilence > 0) {
-		rfmt = chan->readformat;
-		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
-		if (res < 0) {
-			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
-			ast_dsp_free(sildet);
-			return -1;
-		}
-	}
-						
-	if (x == fmtcnt) {
-	/* Loop forever, writing the packets we read to the writer(s), until
-	   we read a # or get a hangup */
-		f = NULL;
-		for(;;) {
-		 	res = ast_waitfor(chan, 2000);
-			if (!res) {
-				ast_log(LOG_DEBUG, "One waitfor failed, trying another\n");
-				/* Try one more time in case of masq */
-			 	res = ast_waitfor(chan, 2000);
-				if (!res) {
-					ast_log(LOG_WARNING, "No audio available on %s??\n", chan->name);
-					res = -1;
-				}
-			}
-			
-			if (res < 0) {
-				f = NULL;
-				break;
-			}
-			f = ast_read(chan);
-			if (!f)
-				break;
-			if (f->frametype == AST_FRAME_VOICE) {
-				/* write each format */
-				for (x=0;x<fmtcnt;x++) {
-					if (!others[x])
-						break;
-					res = ast_writestream(others[x], f);
-				}
-				
-				/* Silence Detection */
-				if (maxsilence > 0) {
-					dspsilence = 0;
-					ast_dsp_silence(sildet, f, &dspsilence);
-					if (dspsilence)
-						totalsilence = dspsilence;
-					else
-						totalsilence = 0;
-					
-					if (totalsilence > maxsilence) {
-					/* Ended happily with silence */
-					if (option_verbose > 2) 
-						ast_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
-					ast_frfree(f);
-					res = 'S';
-					outmsg=2;
-					break;
-					}
-				}
-				/* Exit on any error */
-				if (res) {
-					ast_log(LOG_WARNING, "Error writing frame\n");
-					ast_frfree(f);
-					break;
-				}
-			} else if (f->frametype == AST_FRAME_VIDEO) {
-				/* Write only once */
-				ast_writestream(others[0], f);
-			} else if (f->frametype == AST_FRAME_DTMF) {
-				/* stop recording with any digit */
-				if (option_verbose > 2) 
-					ast_verbose( VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
-				res = 't';
-				outmsg = 2;
-				ast_frfree(f);
-				break;
-			}
-			if (maxtime) {
-				time(&end);
-				if (maxtime < (end - start)) {
-					if (option_verbose > 2)
-						ast_verbose( VERBOSE_PREFIX_3 "Took too long, cutting it short...\n");
-					res = 't';
-					outmsg=2;
-					ast_frfree(f);
-					break;
-				}
-			}
+		} else {
 			ast_frfree(f);
 		}
 		if (end == start) time(&end);
-		if (!f) {
-			if (option_verbose > 2) 
-				ast_verbose( VERBOSE_PREFIX_3 "User hung up\n");
-			res = -1;
-			outmsg=1;
-#if 0
-			/* delete all the prepend files */
-			for (x=0;x<fmtcnt;x++) {
-				if (!others[x])
-					break;
-				ast_closestream(others[x]);
-				ast_filedelete(prependfile, sfmt[x]);
-			}
-#endif
-		}
 	} else {
-		ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", prependfile, sfmt[x]); 
+		ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", recordfile, sfmt[x]);
 	}
-	ast_dsp_free(sildet);
+	if (!prepend) {
+		if (silgen)
+			ast_channel_stop_silence_generator(chan, silgen);
+	}
 	*duration = end - start;
-#if 0
-	if (outmsg > 1) {
-#else
-	if (outmsg) {
-#endif
+	if (!prepend) {
+		for (x=0;x<fmtcnt;x++) {
+			if (!others[x])
+				break;
+			if (res > 0)
+				ast_stream_rewind(others[x], totalsilence ? totalsilence-200 : 200);
+			ast_truncstream(others[x]);
+			ast_closestream(others[x]);
+		}
+	}
+	if (prepend && outmsg) {
+		struct ast_filestream *realfiles[MAX_OTHER_FORMATS];
 		struct ast_frame *fr;
 		for (x=0;x<fmtcnt;x++) {
 			snprintf(comment, sizeof(comment), "Opening the real file %s.%s\n", recordfile, sfmt[x]);
 			realfiles[x] = ast_readfile(recordfile, sfmt[x], comment, O_RDONLY, 0, 0);
 			if (!others[x] || !realfiles[x])
 				break;
-			if (totalsilence)
-				ast_stream_rewind(others[x], totalsilence-200);
-			else
-				ast_stream_rewind(others[x], 200);
+			ast_stream_rewind(others[x], totalsilence ? totalsilence-200 : 200);
 			ast_truncstream(others[x]);
 			/* add the original file too */
 			while ((fr = ast_readframe(realfiles[x]))) {
 				ast_writestream(others[x],fr);
+				ast_frfree(fr);
 			}
 			ast_closestream(others[x]);
 			ast_closestream(realfiles[x]);
 			ast_filerename(prependfile, recordfile, sfmt[x]);
-#if 0
-			ast_verbose("Recording Format: sfmts=%s, prependfile %s, recordfile %s\n", sfmt[x],prependfile,recordfile);
-#endif
+			if (option_verbose > 3)
+				ast_verbose(VERBOSE_PREFIX_4 "Recording Format: sfmts=%s, prependfile %s, recordfile %s\n", sfmt[x], prependfile, recordfile);
 			ast_filedelete(prependfile, sfmt[x]);
 		}
 	}
@@ -975,7 +785,19 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 		/* Let them know it worked */
 		ast_stream_and_wait(chan, "auth-thankyou", chan->language, "");
 	}	
+	if (sildet)
+		ast_dsp_free(sildet);
 	return res;
+}
+
+int ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int silencethreshold, int maxsilence, const char *path)
+{
+	return __ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, 0, silencethreshold, maxsilence, path, 0);
+}
+
+int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence)
+{
+	return __ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, beep, silencethreshold, maxsilence, NULL, 1);
 }
 
 /* Channel group core functions */
