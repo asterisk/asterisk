@@ -5480,7 +5480,7 @@ void pbx_builtin_clear_globals(void)
 	ast_mutex_unlock(&globalslock);
 }
 
-int pbx_checkcondition(char *condition) 
+int pbx_checkcondition(const char *condition) 
 {
 	if (ast_strlen_zero(condition))	/* NULL or empty strings are false */
 		return 0;

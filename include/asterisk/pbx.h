@@ -693,7 +693,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **locked_channel);
 
 /* Evaluate a condition for non-falseness and return a boolean */
-int pbx_checkcondition(char *condition);
+int pbx_checkcondition(const char *condition);
 
 /* Functions for returning values from structures */
 const char *ast_get_context_name(struct ast_context *con);
