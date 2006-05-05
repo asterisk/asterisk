@@ -81,8 +81,6 @@ struct manager_action {
 	struct manager_action *next;
 };
 
-int ast_carefulwrite(int fd, char *s, int len, int timeoutms);
-
 /* External routines may register/unregister manager callbacks this way */
 #define ast_manager_register(a, b, c, d) ast_manager_register2(a, b, c, d, NULL)
 

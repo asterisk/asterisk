@@ -591,6 +591,34 @@ int ast_wait_for_input(int fd, int ms)
 	return poll(pfd, 1, ms);
 }
 
+int ast_carefulwrite(int fd, char *s, int len, int timeoutms) 
+{
+	/* Try to write string, but wait no more than ms milliseconds
+	   before timing out */
+	int res = 0;
+	struct pollfd fds[1];
+	while (len) {
+		res = write(fd, s, len);
+		if ((res < 0) && (errno != EAGAIN)) {
+			return -1;
+		}
+		if (res < 0)
+			res = 0;
+		len -= res;
+		s += res;
+		res = 0;
+		if (len) {
+			fds[0].fd = fd;
+			fds[0].events = POLLOUT;
+			/* Wait until writable again */
+			res = poll(fds, 1, timeoutms);
+			if (res < 1)
+				return -1;
+		}
+	}
+	return res;
+}
+
 char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
 {
 	char *e;

@@ -217,6 +217,17 @@ const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
 int ast_utils_init(void);
 int ast_wait_for_input(int fd, int ms);
 
+/*! ast_carefulwrite
+	\brief Try to write string, but wait no more than ms milliseconds
+	before timing out.
+
+	\note If you are calling ast_carefulwrite, it is assumed that you are calling
+	it on a file descriptor that _DOES_ have NONBLOCK set.  This way,
+	there is only one system call made to do a write, unless we actually
+	have a need to wait.  This way, we get better performance.
+*/
+int ast_carefulwrite(int fd, char *s, int len, int timeoutms);
+
 /*! Compares the source address and port of two sockaddr_in */
 static force_inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockaddr_in *sin2)
 {

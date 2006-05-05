@@ -59,7 +59,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/dsp.h"
 #include "asterisk/musiconhold.h"
-#include "asterisk/manager.h"
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 #include "asterisk/strings.h"

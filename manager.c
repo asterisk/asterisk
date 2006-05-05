@@ -168,38 +168,6 @@ static struct mansession {
 static struct manager_action *first_action = NULL;
 AST_MUTEX_DEFINE_STATIC(actionlock);
 
-/*! If you are calling ast_carefulwrite, it is assumed that you are calling
-   it on a file descriptor that _DOES_ have NONBLOCK set.  This way,
-   there is only one system call made to do a write, unless we actually
-   have a need to wait.  This way, we get better performance. */
-int ast_carefulwrite(int fd, char *s, int len, int timeoutms) 
-{
-	/* Try to write string, but wait no more than ms milliseconds
-	   before timing out */
-	int res = 0;
-	struct pollfd fds[1];
-	while (len) {
-		res = write(fd, s, len);
-		if ((res < 0) && (errno != EAGAIN)) {
-			return -1;
-		}
-		if (res < 0)
-			res = 0;
-		len -= res;
-		s += res;
-		res = 0;
-		if (len) {
-			fds[0].fd = fd;
-			fds[0].events = POLLOUT;
-			/* Wait until writable again */
-			res = poll(fds, 1, timeoutms);
-			if (res < 1)
-				return -1;
-		}
-	}
-	return res;
-}
-
 /*! authority_to_str: Convert authority code to string with serveral options */
 static char *authority_to_str(int authority, char *res, int reslen)
 {
