@@ -23,6 +23,7 @@ enum misdn_cfg_elements {
 	/* port config items */
 	MISDN_CFG_FIRST = 0,
 	MISDN_CFG_GROUPNAME,           /* char[] */
+	MISDN_CFG_FAR_ALERTING,        /* int (bool) */
 	MISDN_CFG_RXGAIN,              /* int */
 	MISDN_CFG_TXGAIN,              /* int */
 	MISDN_CFG_TE_CHOOSE_CHANNEL,   /* int (bool) */

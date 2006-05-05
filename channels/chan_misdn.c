@@ -112,6 +112,7 @@ enum tone_e {
 	TONE_NONE=0,
 	TONE_DIAL,
 	TONE_ALERTING,
+	TONE_FAR_ALERTING,
 	TONE_BUSY,
 	TONE_CUSTOM,
 	TONE_FILE
@@ -185,6 +186,8 @@ struct chan_list {
 
 	int zero_read_cnt;
 	int dropped_frame_cnt;
+
+	int far_alerting;
 
 	const struct tone_zone_sound *ts;
 	
@@ -1263,6 +1266,8 @@ static int read_config(struct chan_list *ch, int orig) {
 
 	misdn_cfg_get( port, MISDN_CFG_NEED_MORE_INFOS, &bc->need_more_infos, sizeof(int));
 	
+	misdn_cfg_get( port, MISDN_CFG_FAR_ALERTING, &ch->far_alerting, sizeof(int));
+	
 	int hdlc=0;
 	misdn_cfg_get( port, MISDN_CFG_HDLC, &hdlc, sizeof(int));
 	
@@ -1705,6 +1710,8 @@ static int misdn_answer(struct ast_channel *ast)
 	}
 	
 	p->state = MISDN_CONNECTED;
+	misdn_lib_echo(p->bc,0);
+	tone_indicate(p, TONE_NONE);
 
 	if ( ast_strlen_zero(p->bc->cad) ) {
 		chan_misdn_log(2,p->bc->port," --> empty cad using dad\n");
@@ -2058,7 +2065,6 @@ static struct ast_frame  *misdn_read(struct ast_channel *ast)
 	
 	read(tmp->pipe[0],blah,sizeof(blah));
 	
-	
 	len = misdn_ibuf_usedcount(tmp->bc->astbuf);
 
 	if (!len) {
@@ -2141,7 +2147,7 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 	if ( !(frame->subclass & prefformat)) {
 		
 		chan_misdn_log(-1, ch->bc->port, "Got Unsupported Frame with Format:%d\n", frame->subclass);
-		return -1;
+		return 0;
 	}
 	
 
@@ -2184,7 +2190,7 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 
 		return 0;
 	}
-	
+
 	chan_misdn_log(9, ch->bc->port, "Sending :%d bytes 2 MISDN\n",frame->samples);
 	/*if speech flip bits*/
 	if ( misdn_cap_is_speech(ch->bc->capability) )
@@ -2317,6 +2323,13 @@ static int tone_indicate( struct chan_list *cl, enum tone_e tone)
 		chan_misdn_log(2,cl->bc->port," --> Ring\n");
 		ts=ast_get_indication_tone(ast->zone,"ring");
 		misdn_lib_tone_generator_stop(cl->bc);
+		break;
+	case TONE_FAR_ALERTING:
+	/* VERY UGLY HACK, BECAUSE CHAN_SIP DOES NOT GENERATE TONES */
+		chan_misdn_log(2,cl->bc->port," --> Ring\n");
+		ts=ast_get_indication_tone(ast->zone,"ring");
+		misdn_lib_tone_generator_start(cl->bc);
+		misdn_lib_echo(cl->bc,1);
 		break;
 	case TONE_BUSY:
 		chan_misdn_log(2,cl->bc->port," --> Busy\n");
@@ -2611,7 +2624,9 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		tmp->nativeformats = prefformat;
 
 		tmp->readformat = format;
+		tmp->rawreadformat = format;
 		tmp->writeformat = format;
+		tmp->rawwriteformat = format;
     
 		tmp->tech_pvt = chlist;
 		
@@ -3533,7 +3548,15 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		cb_log(1,bc->port,"Set State Ringing\n");
 		
 		if ( misdn_cap_is_speech(bc->capability) && misdn_inband_avail(bc)) {
+			cb_log(1,bc->port,"Starting Tones, we have inband Data\n");
 			start_bc_tones(ch);
+		} else {
+			cb_log(1,bc->port,"We have no inband Data, the other end must create ringing\n");
+			if (ch->far_alerting) {
+				cb_log(1,bc->port,"The other end can not do ringing eh ?.. we must do all ourself..");
+				start_bc_tones(ch);
+				tone_indicate(ch, TONE_FAR_ALERTING);
+			}
 		}
 	}
 	break;
@@ -3543,6 +3566,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	
 		struct ast_channel *bridged=AST_BRIDGED_P(ch->ast);
 		
+		misdn_lib_echo(bc,0);
+		tone_indicate(ch, TONE_NONE);
+
 		if (bridged && strcasecmp(bridged->tech->type,"mISDN")) {
 			struct chan_list *bridged_ch=MISDN_ASTERISK_TECH_PVT(bridged);
 

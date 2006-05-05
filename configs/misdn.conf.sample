@@ -108,6 +108,12 @@ musicclass=default
 ; 
 senddtmf=yes
 
+;
+; If we should generate Ringing for chan_sip and others
+;
+far_alerting=no
+
+
 ; Prefixes for national and international, those are put before the 
 ; oad if an according dialplan is set by the other end. 
 ;

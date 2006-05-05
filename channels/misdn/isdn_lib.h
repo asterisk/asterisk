@@ -392,6 +392,8 @@ void misdn_lib_setup_bc(struct misdn_bchannel *bc);
 void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2);
 void misdn_lib_split_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2);
 
+void misdn_lib_echo(struct misdn_bchannel *bc, int onoff);
+
 unsigned char * flip_buf_bits ( unsigned char * buf , int len);
 
 int misdn_lib_is_ptp(int port);

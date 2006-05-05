@@ -3064,8 +3064,6 @@ int handle_err(msg_t *msg)
 int queue_l2l3(msg_t *msg) {
 	iframe_t *frm= (iframe_t*)msg->data;
 	struct misdn_stack *stack;
-	int err=0;
-
 	stack=find_stack_by_addr( frm->addr );
 
 	
@@ -3261,7 +3259,6 @@ void manager_event_handler(void *arg)
 		     stack=stack->next ) { 
 
 			while ( (msg=msg_dequeue(&stack->upqueue)) ) {
-				int res=0;
 				/** Handle L2/3 Signalling after bchans **/ 
 				if (!handle_frm_nt(msg)) {
 					/* Maybe it's TE */
@@ -3848,3 +3845,13 @@ void misdn_lib_split_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel 
 	}
 	
 }
+
+
+
+void misdn_lib_echo(struct misdn_bchannel *bc, int onoff)
+{
+	cb_log(1,bc->port, " --> ECHO %s\n", onoff?"ON":"OFF");
+	manager_ph_control(bc, onoff?CMX_ECHO_ON:CMX_ECHO_OFF, 0);
+}
+
+
