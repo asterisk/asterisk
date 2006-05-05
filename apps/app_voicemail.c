@@ -120,7 +120,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define VM_DELETE		(1 << 12)
 #define VM_ALLOCED		(1 << 13)
 #define VM_SEARCH		(1 << 14)
-
+#define VM_TEMPGREETWARN	(1 << 15)	/*!< Remind user tempgreeting is set */
 #define ERROR_LOCK_PATH		-100
 
 enum {
@@ -467,7 +467,9 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 	} else if (!strcasecmp(var,"sendvoicemail")){
 		ast_set2_flag(vmu, ast_true(value), VM_SVMAIL);	
 	} else if (!strcasecmp(var, "review")){
-		ast_set2_flag(vmu, ast_true(value), VM_REVIEW);	
+		ast_set2_flag(vmu, ast_true(value), VM_REVIEW);
+	} else if (!strcasecmp(var, "tempgreetwarn")){
+		ast_set2_flag(vmu, ast_true(value), VM_TEMPGREETWARN);	
 	} else if (!strcasecmp(var, "operator")){
 		ast_set2_flag(vmu, ast_true(value), VM_OPERATOR);	
 	} else if (!strcasecmp(var, "envelope")){
@@ -4058,10 +4060,19 @@ static int vm_intro_gr(struct ast_channel *chan, struct vm_state *vms)
 }
 	
 /* Default English syntax */
-static int vm_intro_en(struct ast_channel *chan,struct vm_state *vms)
-{
-	/* Introduce messages they have */
+static int vm_intro_en(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
+ {
 	int res;
+	char prefile[256]="";
+
+	/* Notify the user that the temp greeting is set and give them the option to remove it */
+	snprintf(prefile, sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
+	if (ast_test_flag(vmu, VM_TEMPGREETWARN)) {
+		if (ast_fileexists(prefile, NULL, NULL) > 0)
+			res = ast_play_and_wait(chan, "vm-tempgreetactive");
+	}
+
+	/* Introduce messages they have */
 	res = ast_play_and_wait(chan, "vm-youhave");
 	if (!res) {
 		if (vms->newmessages) {
@@ -4616,7 +4627,7 @@ static int vm_intro_ru(struct ast_channel *chan,struct vm_state *vms)
 }
 
 
-static int vm_intro(struct ast_channel *chan,struct vm_state *vms)
+static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
 {
 	/* Play voicemail intro - syntax is different for different languages */
 	if (!strcasecmp(chan->language, "de")) {	/* GERMAN syntax */
@@ -4642,7 +4653,7 @@ static int vm_intro(struct ast_channel *chan,struct vm_state *vms)
 	} else if (!strcasecmp(chan->language, "ru")) {   /* RUSSIAN syntax */
 		return vm_intro_ru(chan, vms);
 	} else {					/* Default to ENGLISH */
-		return vm_intro_en(chan, vms);
+		return vm_intro_en(chan, vmu, vms);
 	}
 }
 
@@ -5343,7 +5354,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	if (play_auto) {
 		cmd = '1';
 	} else {
-		cmd = vm_intro(chan, &vms);
+		cmd = vm_intro(chan, vmu, &vms);
 	}
 
 	vms.repeats = 0;
@@ -5998,6 +6009,7 @@ static int load_config(void)
 	char *send_voicemail;
 	char *astcallop;
 	char *astreview;
+	char *asttempgreetwarn;
 	char *astskipcmd;
 	char *asthearenv;
 	char *astsaydurationinfo;
@@ -6208,6 +6220,15 @@ static int load_config(void)
 			astreview = "no";
 		}
 		ast_set2_flag((&globalflags), ast_true(astreview), VM_REVIEW);	
+
+		/*Temperary greeting reminder */
+		if (!(asttempgreetwarn = ast_variable_retrieve(cfg, "general", "tempgreetwarn"))) {
+			ast_log(LOG_DEBUG, "VM Temperary Greeting Reminder Option disabled globally\n");
+			asttempgreetwarn = "no";
+		} else {
+			ast_log(LOG_DEBUG, "VM Temperary Greeting Reminder Option enabled globally\n");
+		}
+		ast_set2_flag((&globalflags), ast_true(asttempgreetwarn), VM_TEMPGREETWARN);
 
 		if (!(astcallop = ast_variable_retrieve(cfg, "general", "operator"))){
 			ast_log(LOG_DEBUG,"VM Operator break disabled globally\n");

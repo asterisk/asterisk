@@ -220,6 +220,8 @@
 
 %vm-sorry.gsm%I'm sorry I did not understand your response.
 
+%vm-tempgreetactive.gsm%Your temporary greeting is currently active
+
 %vm-tempgreeting.gsm%press 1 to record your temporary greeting
 
 %vm-tempgreeting2.gsm%press 1 to record your temporary greeting, or press 2 to erase your temporary greeting

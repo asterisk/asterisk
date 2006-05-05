@@ -201,7 +201,7 @@ sendvoicemail=yes	; Context to Send voicemail from [option 5 from the advanced m
 			;     greetings.  The default is "no".
 ; hidefromdir=yes	; Hide this mailbox from the directory produced by app_directory
 			;     The default is "no".
-
+;tempgreetwarn=yes	; Remind the user that their temporary greeting is set
 
 [default]
 ; Define maximum number of messages per folder for partcular context.
