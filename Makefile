@@ -884,12 +884,30 @@ mpg123:
 	$(MAKE) -C mpg123-0.59r $(MPG123TARG)
 
 config:
-	if [ -d /etc/rc.d/init.d ]; then \
-		$(INSTALL) -m 755 contrib/init.d/rc.redhat.asterisk /etc/rc.d/init.d/asterisk; \
-		/sbin/chkconfig --add asterisk; \
-	elif [ -d /etc/init.d ]; then \
-		$(INSTALL) -m 755 init.asterisk /etc/init.d/asterisk; \
-	fi 
+	@if [ "${OSARCH}" = "Linux" ]; then \
+		if [ -f /etc/redhat-release -o -f /etc/fedora-release ]; then \
+			$(INSTALL) -m 755 contrib/init.d/rc.redhat.asterisk /etc/rc.d/init.d/asterisk; \
+			/sbin/chkconfig --add asterisk; \
+		elif [ -f /etc/debian_version ]; then \
+			$(INSTALL) -m 755 contrib/init.d/rc.debian.asterisk /etc/init.d/asterisk; \
+			/usr/sbin/update-rc.d asterisk start 10 2 3 4 5 . stop 91 2 3 4 5 .; \
+		elif [ -f /etc/gentoo-release ]; then \
+			$(INSTALL) -m 755 contrib/init.d/rc.gentoo.asterisk /etc/init.d/asterisk; \
+			/sbin/rc-update add asterisk default; \
+		elif [ -f /etc/mandrake-release ]; then \
+			$(INSTALL) -m 755 contrib/init.d/rc.mandrake.asterisk /etc/rc.d/init.d/asterisk; \
+			/sbin/chkconfig --add asterisk; \
+		elif [ -f /etc/SuSE-release -o -f /etc/novell-release ]; then \
+			$(INSTALL) -m 755 contrib/init.d/rc.suse.asterisk /etc/init.d/asterisk; \
+			/sbin/chkconfig --add asterisk; \
+		elif [ -f /etc/slackware-version ]; then \
+			echo "Slackware is not currently supported, although an init script does exist for it." \
+		else \
+			echo "We could not install init scripts for your distribution."; \
+		fi \
+	else \
+		echo "We could not install init scripts for your operating system."; \
+	fi
 
 dont-optimize: _all
 
