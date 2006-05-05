@@ -13,6 +13,18 @@ an optional requested extension (otherwise "s" will be used), and
 username specified in the peer's iax.conf.  If the user is not specified,
 the peer will select one.
 
+The peer uses a score to determine the best user entry to match against if
+one is not specified:
+
+1. User entry last specified in iax.conf (this is the baseline).
+2. User entry with secret specified and ACL specified.
+3. User entry with no secret specified and no ACL specified.
+4. User entry with no secret specified and ACL specified.
+5. User entry matched via username.
+
+The higher the score the better it is with 5 being an exact match and the maximum
+score possible.
+
 Protocol and rationale:
 =======================
 IAX is a simple, low overhead and low bandwidth VoIP protocol designed to 
