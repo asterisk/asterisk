@@ -111,7 +111,7 @@ static int execif_exec(struct ast_channel *chan, void *data) {
 		} else
 			mydata = "";
 
-		if (ast_true(expr)) { 
+		if (pbx_checkcondition(expr)) { 
 			if ((app = pbx_findapp(myapp))) {
 				res = pbx_exec(chan, app, mydata);
 			} else {
@@ -277,12 +277,12 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 	}
 	
 
-	if ((!end && !ast_true(condition)) || (end == 2)) {
+	if ((!end && !pbx_check_condition(condition)) || (end == 2)) {
 		/* Condition Met (clean up helper vars) */
 		const char *goto_str;
 		pbx_builtin_setvar_helper(chan, varname, NULL);
 		pbx_builtin_setvar_helper(chan, my_name, NULL);
-        snprintf(end_varname,VAR_SIZE,"END_%s",varname);
+		snprintf(end_varname,VAR_SIZE,"END_%s",varname);
 		if ((goto_str=pbx_builtin_getvar_helper(chan, end_varname))) {
 			pbx_builtin_setvar_helper(chan, end_varname, NULL);
 			ast_parseable_goto(chan, goto_str);
