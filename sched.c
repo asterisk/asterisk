@@ -24,7 +24,10 @@
  */
 
 #ifdef DEBUG_SCHEDULER
-#define DEBUG(a) DEBUG_M(a)
+#define DEBUG(a) do { \
+	if (option_debug) \
+		DEBUG_M(a) \
+	} while (0)
 #else
 #define DEBUG(a) 
 #endif
@@ -45,6 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/options.h"
 
 /* Determine if a is sooner than b */
 #define SOONER(a,b) (((b).tv_sec > (a).tv_sec) || \
@@ -227,6 +231,7 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
 		tmp->data = data;
 		tmp->resched = when;
 		tmp->variable = variable;
+		tmp->when = ast_tv(0, 0);
 		if (sched_settime(&tmp->when, when)) {
 			sched_release(con, tmp);
 		} else {
@@ -236,7 +241,8 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
 	}
 #ifdef DUMP_SCHEDULER
 	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
-	ast_sched_dump(con);
+	if (option_debug)
+		ast_sched_dump(con);
 #endif
 	ast_mutex_unlock(&con->lock);
 	return res;
@@ -272,7 +278,8 @@ int ast_sched_del(struct sched_context *con, int id)
 
 #ifdef DUMP_SCHEDULER
 	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
-	ast_sched_dump(con);
+	if (option_debug)
+		ast_sched_dump(con);
 #endif
 	ast_mutex_unlock(&con->lock);
 
@@ -287,7 +294,7 @@ int ast_sched_del(struct sched_context *con, int id)
 	return 0;
 }
 
-/*! \brief Dump the contents of the scheduler to stderr */
+/*! \brief Dump the contents of the scheduler to LOG_DEBUG */
 void ast_sched_dump(const struct sched_context *con)
 {
 	struct sched *q;
