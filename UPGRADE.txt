@@ -93,6 +93,10 @@ Applications:
   option, it will default to "no" to keep backward compatability with the old 
   behavior.
 
+* The app_queue application now has the ability to use MixMonitor to 
+  record conversations queue members are having with queue callers. Please
+  see configs/queues.conf.sample for more information on this option.
+
 * ast_play_and_record would attempt to cancel the recording if a DTMF
   '0' was received.  This behavior was not documented in most of the
   applications that used ast_play_and_record and the return codes from

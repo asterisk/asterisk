@@ -28,6 +28,20 @@ persistentmembers = yes
 ;
 autofill = yes
 ;
+; Monitor Type
+;    By setting monitor-type = MixMonitor, when specifying monitor-format
+;    to enable recording of queue member conversations, app_queue will
+;    now use the new MixMonitor application instead of Monitor so 
+;    the concept of "joining/mixing" the in/out files now goes away
+;    when this is enabled. You can set the default type for all queues
+;    here, and then also change monitor-type for individual queues within
+;    queue by using the same configuation parameter within a queue 
+;    configuration block. If you do not specify or comment out this option,
+;    it will default to the old 'Monitor' behavior to keep backward
+;    compatibility. 
+;
+monitor-type = MixMonitor
+;
 ; Note that a timeout to fail out of a queue may be passed as part of
 ; an application call from extensions.conf:
 ; Queue(queuename|[options]|[optionalurl]|[announceoverride]|[timeout])
@@ -161,7 +175,7 @@ autofill = yes
 			;       ("All reps busy / wait for next")
 ;periodic-announce = queue-periodic-announce
 ;
-; Calls may be recorded using Asterisk's monitor resource
+; Calls may be recorded using Asterisk's monitor/MixMonitor resource
 ; This can be enabled from within the Queue application, starting recording
 ; when the call is actually picked up; thus, only successful calls are
 ; recorded, and you are not recording while people are listening to MOH.
@@ -172,7 +186,23 @@ autofill = yes
 ;    Set(MONITOR_FILENAME=foo)
 ; Otherwise it will use MONITOR_FILENAME=${UNIQUEID}
 ;
+; Pick any one valid extension for monitor format recording. If you leave
+; monitor-format commented out, it will not record calls.
+;
 ; monitor-format = gsm|wav|wav49
+;
+; Monitor Type
+;    By setting monitor-type = MixMonitor, when specifying monitor-format
+;    to enable recording of queue member conversations, app_queue will
+;    now use the new MixMonitor application instead of Monitor so
+;    the concept of "joining/mixing" the in/out files now goes away
+;    when this is enabled. If you do not specify or comment out this option,
+;    it will default to the old 'Monitor' behavior to keep backward
+;    compatibility.
+;
+; monitor-type = MixMonitor
+;
+; ----------------------- TYPE MONITOR OPTIONS --------------------------------
 ;
 ; If you wish to have the two files joined together when the call ends, set this
 ; to yes.
@@ -186,6 +216,30 @@ autofill = yes
 ; no     - callers cannot join a queue with no members
 ; strict - callers cannot join a queue with no members or only unavailable
 ;          members
+;
+; ----------------------- TYPE MIXMONITOR OPTIONS -----------------------------
+;
+;
+; You can specify the options supplied to MixMonitor by calling
+;   Set(MONITOR_OPTIONS=av(<x>)V(<x>)W(<x>))
+; The 'b' option for MixMonitor (only save audio to the file while bridged) is 
+; implied.
+;
+; You can specify a post recording command to be executed after the end of
+; recording by calling
+;   Set(MONITOR_EXEC=mv /var/spool/asterisk/monitor/^{MONITOR_FILENAME} /tmp/^{MONITOR_FILENAME})
+;
+; The command specified within the contents of MONITOR_EXEC will be executed when
+; the recording is over. Any strings matching ^{X} will be unescaped to ${X} and
+; all variables will be evaluated just prior to recording being started.
+;
+; The contents of MONITOR_FILENAME will also be unescaped from ^{X} to ${X} and
+; all variables will be evaluated just prior to recording being started.
+;
+;
+;
+;
+;
 ;
 ; joinempty = yes
 ;

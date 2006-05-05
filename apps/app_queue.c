@@ -239,6 +239,9 @@ static int use_weight = 0;
 /*! \brief queues.conf [general] option */
 static int autofill_default = 0;
 
+/*! \brief queues.conf [general] option */
+static int montype_default = 0;
+
 enum queue_result {
 	QUEUE_UNKNOWN = 0,
 	QUEUE_TIMEOUT = 1,
@@ -348,6 +351,7 @@ struct ast_call_queue {
 	int servicelevel;               /*!< seconds setting for servicelevel*/
 	int callscompletedinsl;         /*!< Number of calls answered with servicelevel*/
 	char monfmt[8];                 /*!< Format to use when recording calls */
+	int montype;			/*!< Monitor type  Monitor vs. MixMonitor */
 	char sound_next[80];            /*!< Sound file: "Your call is now first in line" (def. queue-youarenext) */
 	char sound_thereare[80];        /*!< Sound file: "There are currently" (def. queue-thereare) */
 	char sound_calls[80];           /*!< Sound file: "calls waiting to speak to a representative." (def. queue-callswaiting)*/
@@ -584,6 +588,7 @@ static void init_queue(struct ast_call_queue *q)
 	q->ringinuse = 1;
 	q->setinterfacevar = 0;
 	q->autofill = autofill_default;
+	q->montype = montype_default;
 	q->moh[0] = '\0';
 	q->announce[0] = '\0';
 	q->context[0] = '\0';
@@ -711,6 +716,9 @@ static void queue_set_param(struct ast_call_queue *q, const char *param, const c
 		q->wrapuptime = atoi(val);
 	} else if (!strcasecmp(param, "autofill")) {
 		q->autofill = ast_true(val);
+	} else if (!strcasecmp(param, "monitor-type")) {
+		if (!strcasecmp(val, "mixmonitor"))
+			q->montype = 1;
 	} else if (!strcasecmp(param, "autopause")) {
 		q->autopause = ast_true(val);
 	} else if (!strcasecmp(param, "maxlen")) {
@@ -1251,9 +1259,8 @@ static void leave_queue(struct queue_ent *qe)
 			manager_event(EVENT_FLAG_CALL, "Leave",
 				"Channel: %s\r\nQueue: %s\r\nCount: %d\r\n",
 				qe->chan->name, q->name,  q->count);
-#if 0
-ast_log(LOG_NOTICE, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name );
-#endif
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name );
 			/* Take us out of the queue */
 			if (prev)
 				prev->next = cur->next;
@@ -2098,6 +2105,15 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	char nondataquality = 1;
 	char *agiexec = NULL;
 	int ret = 0;
+	const char *monitorfilename;
+	const char *monitor_exec;
+	const char *monitor_options;
+	char tmpid[256], tmpid2[256];
+	char meid[1024], meid2[1024];
+	char mixmonargs[1512];
+	struct ast_app *mixmonapp = NULL;
+	char *p;
+
 
 	memset(&bridge_config, 0, sizeof(bridge_config));
 	time(&now);
@@ -2283,23 +2299,89 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 		/* Begin Monitoring */
 		if (qe->parent->monfmt && *qe->parent->monfmt) {
-			const char *monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME");
-			if (pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC") || pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC_ARGS"))
-				which = qe->chan;
-			else
-				which = peer;
-			if (monitorfilename)
-				ast_monitor_start(which, qe->parent->monfmt, monitorfilename, 1 );
-			else if (qe->chan->cdr) 
-				ast_monitor_start(which, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1 );
-			else {
-				/* Last ditch effort -- no CDR, make up something */
-				char tmpid[256];
-				snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
-				ast_monitor_start(which, qe->parent->monfmt, tmpid, 1 );
+			if (!qe->parent->montype) {
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Starting Monitor as requested.\n");
+				monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME");
+				if (pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC") || pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC_ARGS"))
+					which = qe->chan;
+				else
+					which = peer;
+				if (monitorfilename)
+					ast_monitor_start(which, qe->parent->monfmt, monitorfilename, 1 );
+				else if (qe->chan->cdr) 
+					ast_monitor_start(which, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1 );
+				else {
+					/* Last ditch effort -- no CDR, make up something */
+					snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
+					ast_monitor_start(which, qe->parent->monfmt, tmpid, 1 );
+				}
+				if (qe->parent->monjoin)
+					ast_monitor_setjoinfiles(which, 1);
+			} else {
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Starting MixMonitor as requested.\n");
+				monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME");
+				if (!monitorfilename) {
+					if (qe->chan->cdr)
+						ast_copy_string(tmpid, qe->chan->cdr->uniqueid, sizeof(tmpid)-1);
+					else 
+						snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
+				} else {
+					ast_copy_string(tmpid2, monitorfilename, sizeof(tmpid2)-1);
+					for (p = tmpid2; *p ; p++) {
+						if (*p == '^' && *(p+1) == '{') {
+							*p = '$';
+						}
+					}
+
+					pbx_substitute_variables_helper(qe->chan, tmpid2, tmpid, sizeof(tmpid) - 1);
+				}
+
+				monitor_exec = pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC");
+				monitor_options = pbx_builtin_getvar_helper(qe->chan, "MONITOR_OPTIONS");
+
+				if (monitor_exec) {
+					ast_copy_string(meid2, monitor_exec, sizeof(meid2)-1);
+					for (p = meid2; *p ; p++) {
+						if (*p == '^' && *(p+1) == '{') {
+							*p = '$';
+						}
+					}
+					pbx_substitute_variables_helper(qe->chan, meid2, meid, sizeof(meid) - 1);
+				} 
+	
+				snprintf(tmpid2, sizeof(tmpid2)-1, "%s.%s", tmpid, qe->parent->monfmt);
+
+				mixmonapp = pbx_findapp("MixMonitor");
+
+				if (strchr(tmpid2, '|')) {
+					ast_log(LOG_WARNING, "monitor-format (in queues.conf) and MONITOR_FILENAME cannot contain a '|'! Not recording.\n");
+					mixmonapp = NULL;
+				}
+				
+				if (strchr(monitor_options, '|')) {
+					ast_log(LOG_WARNING, "MONITOR_OPTIONS cannot contain a '|'! Not recording.\n");
+					mixmonapp = NULL;
+				}
+
+				if (mixmonapp) {
+					if (!ast_strlen_zero(monitor_exec) && !ast_strlen_zero(monitor_options)) 
+						snprintf(mixmonargs, sizeof(mixmonargs)-1, "%s|b%s|%s", tmpid2, monitor_options, monitor_exec);
+					else if (!ast_strlen_zero(monitor_options)) 
+						snprintf(mixmonargs, sizeof(mixmonargs)-1, "%s|b%s", tmpid2, monitor_options);
+					else 
+						snprintf(mixmonargs, sizeof(mixmonargs)-1, "%s|b", tmpid2);
+						
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Arguments being passed to MixMonitor: %s\n", mixmonargs);
+
+					ret = pbx_exec(qe->chan, mixmonapp, mixmonargs);
+
+				} else
+					ast_log(LOG_WARNING, "Asked to run MixMonitor on this call, but cannot find the MixMonitor app!\n");
+
 			}
-			if (qe->parent->monjoin)
-				ast_monitor_setjoinfiles(which, 1);
 		}
 		/* Drop out of the queue at this point, to prepare for next caller */
 		leave_queue(qe);			
@@ -3386,6 +3468,10 @@ static void reload_queues(void)
 			autofill_default = 0;
 			if ((general_val = ast_variable_retrieve(cfg, "general", "autofill")))
 				autofill_default = ast_true(general_val);
+			montype_default = 0;
+			if ((general_val = ast_variable_retrieve(cfg, "general", "monitor-type")))
+				if (!strcasecmp(general_val, "mixmonitor"))
+					montype_default = 1;
 		} else {	/* Define queue */
 			/* Look for an existing one */
 			AST_LIST_TRAVERSE(&queues, q, list) {
