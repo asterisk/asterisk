@@ -669,13 +669,9 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 		char *user = NULL, *pass = NULL, *rest = NULL, *comment = NULL, *tmpctx = NULL, *tmpctxend = NULL;
 
 		/* Read in the line */
-		fgets(inbuf, sizeof(inbuf), configin);
-		linenum++;
-
-		if (ast_strlen_zero(inbuf)) {
-			fprintf(configout, "\n");
+		if (fgets(inbuf, sizeof(inbuf), configin) == NULL)
 			continue;
-		}
+		linenum++;
 
 		/* Make a backup of it */
 		ast_copy_string(orig, inbuf, sizeof(orig));
@@ -2409,6 +2405,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	int duration = 0;
 	int ausemacro = 0;
 	int ousemacro = 0;
+	int ouseexten = 0;
 	char date[256];
 	char dir[256];
 	char fn[256];
@@ -2464,14 +2461,20 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	create_dirpath(dir, sizeof(dir), vmu->context, ext, "INBOX");
 
 	/* Check current or macro-calling context for special extensions */
-	if (!ast_strlen_zero(vmu->exit)) {
-		if (ast_exists_extension(chan, vmu->exit, "o", 1, chan->cid.cid_num))
+	if (ast_test_flag(vmu, VM_OPERATOR)) {
+		if (!ast_strlen_zero(vmu->exit)) {
+			if (ast_exists_extension(chan, vmu->exit, "o", 1, chan->cid.cid_num)) {
+				strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
+				ouseexten = 1;
+			}
+		} else if (ast_exists_extension(chan, chan->context, "o", 1, chan->cid.cid_num)) {
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
-	} else if (ast_exists_extension(chan, chan->context, "o", 1, chan->cid.cid_num))
-		strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
-	else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "o", 1, chan->cid.cid_num)) {
-		strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
-		ousemacro = 1;
+			ouseexten = 1;
+		}
+		else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "o", 1, chan->cid.cid_num)) {
+			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
+			ousemacro = 1;
+		}
 	}
 
 	if (!ast_strlen_zero(vmu->exit)) {
@@ -2531,10 +2534,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
 		return 0;
 	}
+
 	/* Check for a '0' here */
 	if (res == '0') {
 	transfer:
-		if (ast_test_flag(vmu, VM_OPERATOR)) {
+		if(ouseexten || ousemacro) {
 			chan->exten[0] = 'o';
 			chan->exten[1] = '\0';
 			if (!ast_strlen_zero(vmu->exit)) {
@@ -2546,12 +2550,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			chan->priority = 0;
 			free_user(vmu);
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
-			return 0;
-		} else {
-			ast_play_and_wait(chan, "vm-sorry");
-			pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
-			return 0;
 		}
+		return 0;
 	}
 	if (res < 0) {
 		free_user(vmu);
@@ -5387,7 +5387,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			while ((cmd > -1) && (cmd != 't') && (cmd != '#')) {
 				switch(cmd) {
 				case '1': /* Reply */
-					if (vms.lastmsg > -1) {
+					if (vms.lastmsg > -1 && !vms.starting) {
 						cmd = advanced_options(chan, vmu, &vms, vms.curmsg, 1, record_gain);
 						if (cmd == ERROR_LOCK_PATH) {
 							res = cmd;
@@ -5398,9 +5398,9 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 					cmd = 't';
 					break;
 				case '2': /* Callback */
-					if (option_verbose > 2)
+					if (option_verbose > 2 && !vms.starting)
 						ast_verbose( VERBOSE_PREFIX_3 "Callback Requested\n");
-					if (!ast_strlen_zero(vmu->callback) && vms.lastmsg > -1) {
+					if (!ast_strlen_zero(vmu->callback) && vms.lastmsg > -1 && !vms.starting) {
 						cmd = advanced_options(chan, vmu, &vms, vms.curmsg, 2, record_gain);
 						if (cmd == 9) {
 							silentexit = 1;
@@ -5415,7 +5415,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 					cmd = 't';
 					break;
 				case '3': /* Envelope */
-					if (vms.lastmsg > -1) {
+					if (vms.lastmsg > -1 && !vms.starting) {
 						cmd = advanced_options(chan, vmu, &vms, vms.curmsg, 3, record_gain);
 						if (cmd == ERROR_LOCK_PATH) {
 							res = cmd;
@@ -6581,6 +6581,9 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 			res = play_message_datetime(chan, vmu, origtime, filename);
 		if (!res)
 			res = play_message_callerid(chan, vms, cid, context, 0);
+
+		res = 't';
+
 	} else if (option == 2) { /* Call back */
 
 		if (!ast_strlen_zero(cid)) {
@@ -6725,6 +6728,9 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  	int recorded = 0;
  	int message_exists = 0;
 	signed char zero_gain = 0;
+	char *acceptdtmf = "#";
+	char *canceldtmf = "";
+
  	/* Note that urgent and private are for flagging messages as such in the future */
  
 	/* barf if no pointer passed to store duration in */
@@ -6776,7 +6782,9 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  			/* After an attempt has been made to record message, we have to take care of INTRO and beep for incoming messages, but not for greetings */
 			if (record_gain)
 				ast_channel_setoption(chan, AST_OPTION_RXGAIN, &record_gain, sizeof(record_gain), 0);
-			cmd = ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, silencethreshold, maxsilence, unlockdir);
+			if (ast_test_flag(vmu, VM_OPERATOR))
+				canceldtmf = "0";
+			cmd = ast_play_and_record_full(chan, playfile, recordfile, maxtime, fmt, duration, silencethreshold, maxsilence, unlockdir, acceptdtmf, canceldtmf);
 			if (record_gain)
 				ast_channel_setoption(chan, AST_OPTION_RXGAIN, &zero_gain, sizeof(zero_gain), 0);
  			if (cmd == -1) {
@@ -6839,6 +6847,10 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  				return 1;
 #endif
  		case '0':
+			if(!ast_test_flag(vmu, VM_OPERATOR)) {
+ 				cmd = ast_play_and_wait(chan, "vm-sorry");
+ 				break;
+			}
 			if (message_exists || recorded) {
 				cmd = ast_play_and_wait(chan, "vm-saveoper");
 				if (!cmd)

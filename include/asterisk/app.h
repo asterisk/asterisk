@@ -140,6 +140,8 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file, const cha
 /*! Play a stream and wait for a digit, returning the digit that was pressed */
 int ast_play_and_wait(struct ast_channel *chan, const char *fn);
 
+int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int silencethreshold, int maxsilence_ms, const char *path, const char *acceptdtmf, const char *canceldtmf);
+
 /*! Record a file for a max amount of time (in seconds), in a given list of formats separated by '|', outputting the duration of the recording, and with a maximum 
  \n
  permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults. 
