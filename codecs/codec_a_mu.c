@@ -55,28 +55,30 @@ static unsigned char a2mu[256];
 /*! \brief convert frame data and store into the buffer */
 static int alawtoulaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	int x;
+	int i;
+	int in_samples = f->samples;
 	unsigned char *src = f->data;
 	unsigned char *dst = (unsigned char *)pvt->outbuf + pvt->samples;
 
-	for ( x = 0 ; x < f->samples; x++)
-		dst[x] = a2mu[src[x]];
-	pvt->samples += f->samples;
-	pvt->datalen += f->datalen;
+	for (i = 0; i < in_samples; i++)
+		*dst++ = a2mu[*src++];
+	pvt->samples += in_samples;
+	pvt->datalen += in_samples;
 	return 0;
 }
 
 /*! \brief convert frame data and store into the buffer */
 static int ulawtoalaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	int x;
+	int i;
+	int in_samples = f->samples;
 	unsigned char *src = f->data;
 	unsigned char *dst = (unsigned char *)pvt->outbuf + pvt->samples;
 
-	for ( x = 0 ; x < f->samples; x++)
-		dst[x] = mu2a[src[x]];
-	pvt->samples += f->samples;
-	pvt->datalen += f->datalen;
+	for (i = 0; i < in_samples; i++)
+		*dst++ = mu2a[*src++];
+	pvt->samples += in_samples;
+	pvt->datalen += in_samples;
 	return 0;
 }
 

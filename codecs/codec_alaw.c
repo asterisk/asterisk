@@ -57,25 +57,29 @@ static int alawtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	int i;
 	unsigned char *src = f->data;
 	int16_t *dst = (int16_t *)pvt->outbuf;
+	int in_samples = f->samples;
+	int out_samples = pvt->samples;
+	
+	for (i = 0; i < in_samples; i++)
+		dst[out_samples++] = AST_ALAW(src[i]);
 
-	for ( i = 0; i < f->samples; i++)
-		dst[pvt->samples + i] = AST_ALAW(src[i]);
-	pvt->samples += f->samples;
-	pvt->datalen += 2*f->samples;	/* 2 bytes/sample */
+	pvt->samples = out_samples;
+	pvt->datalen += in_samples * 2;	/* 2 bytes/sample */
 	return 0;
 }
 
 /*! \brief convert and store input samples in output buffer */
 static int lintoalaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	int x;
+	int i;
 	char *dst = pvt->outbuf + pvt->samples;
 	int16_t *src = f->data;
+	int in_samples = f->samples;
 
-	for ( x = 0; x < f->samples; x++) 
-		*dst++ = AST_LIN2A(src[x]);
-	pvt->samples += f->samples;
-	pvt->datalen += f->samples;	/* 1 byte/sample */
+	for (i = 0; i < in_samples; i++) 
+		*dst++ = AST_LIN2A(src[i]);
+	pvt->samples += in_samples;
+	pvt->datalen += in_samples;	/* 1 byte/sample */
 	return 0;
 }
 

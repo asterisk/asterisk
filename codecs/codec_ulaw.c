@@ -57,13 +57,15 @@ static int ulawtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	int i;
 	unsigned char *src = f->data;
 	int16_t *dst = (int16_t *)pvt->outbuf;
+	int in_samples = f->samples;
+	int out_samples = pvt->samples;
 
 	/* convert and copy in outbuf */
-	for (i=0;  i<f->samples; i++)
-		dst[pvt->samples + i] = AST_MULAW(src[i]);
+	for (i = 0; i < in_samples; i++)
+		dst[out_samples++] = AST_MULAW(src[i]);
 
-	pvt->samples += f->samples;
-	pvt->datalen += 2 * f->samples;
+	pvt->samples = out_samples;
+	pvt->datalen += in_samples * 2;	/* 2 bytes/sample */
 	return 0;
 }
 
@@ -71,12 +73,14 @@ static int ulawtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 static int lintoulaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	int i;
+	char *dst = pvt->outbuf + pvt->samples;
 	int16_t *src = f->data;
+	int in_samples = f->samples;
 
-	for (i=0 ; i < f->samples; i++) 
-		pvt->outbuf[pvt->samples + i] = AST_LIN2MU(src[i]);
-	pvt->samples += f->samples;
-	pvt->datalen += f->samples;	/* 1 byte/sample */
+	for (i = 0; i < in_samples; i++) 
+		*dst++ = AST_LIN2MU(src[i]);
+	pvt->samples += in_samples;
+	pvt->datalen += in_samples;	/* 1 byte/sample */
 	return 0;
 }
 
@@ -147,7 +151,7 @@ static void parse_config(void)
 {
 	struct ast_variable *var;
 	struct ast_config *cfg = ast_config_load("codecs.conf");
-	if (cfg == NULL)
+	if (!cfg)
 		return;
 	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
 		if (!strcasecmp(var->name, "genericplc")) {
