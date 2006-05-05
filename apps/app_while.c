@@ -103,7 +103,7 @@ static int execif_exec(struct ast_channel *chan, void *data) {
 		} else
 			mydata = "";
 
-		if (ast_true(expr)) { 
+		if (pbx_checkcondition(expr)) { 
 			if ((app = pbx_findapp(myapp))) {
 				res = pbx_exec(chan, app, mydata, 1);
 			} else {
@@ -269,7 +269,7 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 	}
 	
 
-	if (!end && !ast_true(condition)) {
+	if (!end && !pbx_check_condition(condition)) {
 		/* Condition Met (clean up helper vars) */
 		pbx_builtin_setvar_helper(chan, varname, NULL);
 		pbx_builtin_setvar_helper(chan, my_name, NULL);
