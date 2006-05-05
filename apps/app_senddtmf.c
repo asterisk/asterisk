@@ -84,7 +84,7 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 		timeout = atoi(to);
 	}
 		
-	if(timeout <= 0)
+	if (timeout <= 0)
 		timeout = 250;
 
 	res = ast_dtmf_stream(chan,NULL,digits,timeout);
@@ -102,22 +102,26 @@ static char mandescr_playdtmf[] =
 
 static int manager_play_dtmf(struct mansession *s, struct message *m)
 {
-	char *channel, *digit;
-
-	channel = astman_get_header(m, "Channel");
-	digit = astman_get_header(m, "Digit");
+	char *channel = astman_get_header(m, "Channel");
+	char *digit = astman_get_header(m, "Digit");
 	struct ast_channel *chan = ast_get_channel_by_name_locked(channel);
-	if (chan == NULL) {
-		astman_send_error(s, m, "No such channel");
+	
+	if (!chan) {
+		astman_send_error(s, m, "Channel not specified");
+		ast_mutex_unlock(&chan->lock);
 		return 0;
 	}
-	if (digit == NULL) {
+	if (!digit) {
 		astman_send_error(s, m, "No digit specified");
+		ast_mutex_unlock(&chan->lock);
 		return 0;
 	}
+
 	ast_senddigit(chan, *digit);
+
 	ast_mutex_unlock(&chan->lock);
 	astman_send_ack(s, m, "DTMF successfully queued");
+	
 	return 0;
 }
 
@@ -135,8 +139,12 @@ static int unload_module(void *mod)
 
 static int load_module(void *mod)
 {
-	ast_manager_register2( "PlayDTMF", EVENT_FLAG_CALL, manager_play_dtmf, "Play DTMF signal on a specific channel.", mandescr_playdtmf );
-	return ast_register_application(app, senddtmf_exec, synopsis, descrip);
+	int res;
+
+	res = ast_manager_register2( "PlayDTMF", EVENT_FLAG_CALL, manager_play_dtmf, "Play DTMF signal on a specific channel.", mandescr_playdtmf );
+	res |= ast_register_application(app, senddtmf_exec, synopsis, descrip);
+
+	return res;
 }
 
 static const char *description(void)
