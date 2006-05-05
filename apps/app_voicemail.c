@@ -4060,17 +4060,9 @@ static int vm_intro_gr(struct ast_channel *chan, struct vm_state *vms)
 }
 	
 /* Default English syntax */
-static int vm_intro_en(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
- {
+static int vm_intro_en(struct ast_channel *chan, struct vm_state *vms)
+{
 	int res;
-	char prefile[256]="";
-
-	/* Notify the user that the temp greeting is set and give them the option to remove it */
-	snprintf(prefile, sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
-	if (ast_test_flag(vmu, VM_TEMPGREETWARN)) {
-		if (ast_fileexists(prefile, NULL, NULL) > 0)
-			res = ast_play_and_wait(chan, "vm-tempgreetactive");
-	}
 
 	/* Introduce messages they have */
 	res = ast_play_and_wait(chan, "vm-youhave");
@@ -4629,6 +4621,15 @@ static int vm_intro_ru(struct ast_channel *chan,struct vm_state *vms)
 
 static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
 {
+	char prefile[256];
+	
+	/* Notify the user that the temp greeting is set and give them the option to remove it */
+	snprintf(prefile, sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
+	if (ast_test_flag(vmu, VM_TEMPGREETWARN)) {
+		if (ast_fileexists(prefile, NULL, NULL) > 0)
+			ast_play_and_wait(chan, "vm-tempgreetactive");
+	}
+
 	/* Play voicemail intro - syntax is different for different languages */
 	if (!strcasecmp(chan->language, "de")) {	/* GERMAN syntax */
 		return vm_intro_de(chan, vms);
@@ -4653,7 +4654,7 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 	} else if (!strcasecmp(chan->language, "ru")) {   /* RUSSIAN syntax */
 		return vm_intro_ru(chan, vms);
 	} else {					/* Default to ENGLISH */
-		return vm_intro_en(chan, vmu, vms);
+		return vm_intro_en(chan, vms);
 	}
 }
 
