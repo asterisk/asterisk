@@ -44,29 +44,30 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
+#include "asterisk/linkedlists.h"
 
 /* Determine if a is sooner than b */
 #define SOONER(a,b) (((b).tv_sec > (a).tv_sec) || \
 					 (((b).tv_sec == (a).tv_sec) && ((b).tv_usec > (a).tv_usec)))
 
 struct sched {
-	struct sched *next;		/*!< Next event in the list */
-	int id; 			/*!< ID number of event */
-	struct timeval when;		/*!< Absolute time event should take place */
-	int resched;			/*!< When to reschedule */
-	int variable;			/*!< Use return value from callback to reschedule */
-	void *data; 			/*!< Data */
-	ast_sched_cb callback;		/*!< Callback */
+	AST_LIST_ENTRY(sched) list;
+	int id;                       /*!< ID number of event */
+	struct timeval when;          /*!< Absolute time event should take place */
+	int resched;                  /*!< When to reschedule */
+	int variable;                 /*!< Use return value from callback to reschedule */
+	void *data;                   /*!< Data */
+	ast_sched_cb callback;        /*!< Callback */
 };
 
 struct sched_context {
 	ast_mutex_t lock;
-	int eventcnt;			/*!< Number of events processed */
-	int schedcnt;			/*!< Number of outstanding schedule events */
- 	struct sched *schedq;		/*!< Schedule entry and main queue */
+	int eventcnt;                           /*!< Number of events processed */
+	int schedcnt;                           /*!< Number of outstanding schedule events */
+ 	AST_LIST_HEAD_NOLOCK(, sched) schedq;   /*!< Schedule entry and main queue */
 
 #ifdef SCHED_MAX_CACHE
-	struct sched *schedc;		/*!< Cache of unused schedule structures and how many */
+	AST_LIST_HEAD_NOLOCK(, sched) schedc;   /*!< Cache of unused schedule structures and how many */
 	int schedccnt;
 #endif
 };
@@ -86,24 +87,20 @@ struct sched_context *sched_context_create(void)
 
 void sched_context_destroy(struct sched_context *con)
 {
-	struct sched *s, *sl;
+	struct sched *s;
+
 	ast_mutex_lock(&con->lock);
+
 #ifdef SCHED_MAX_CACHE
 	/* Eliminate the cache */
-	s = con->schedc;
-	while(s) {
-		sl = s;
-		s = s->next;
-		free(sl);
-	}
+	while ((s = AST_LIST_REMOVE_HEAD(&con->schedc, list)))
+		free(s);
 #endif
+
 	/* And the queue */
-	s = con->schedq;
-	while(s) {
-		sl = s;
-		s = s->next;
-		free(sl);
-	}
+	while ((s = AST_LIST_REMOVE_HEAD(&con->schedq, list)))
+		free(s);
+	
 	/* And the context */
 	ast_mutex_unlock(&con->lock);
 	ast_mutex_destroy(&con->lock);
@@ -112,19 +109,19 @@ void sched_context_destroy(struct sched_context *con)
 
 static struct sched *sched_alloc(struct sched_context *con)
 {
+	struct sched *tmp;
+
 	/*
 	 * We keep a small cache of schedule entries
 	 * to minimize the number of necessary malloc()'s
 	 */
-	struct sched *tmp;
 #ifdef SCHED_MAX_CACHE
-	if (con->schedc) {
-		tmp = con->schedc;
-		con->schedc = con->schedc->next;
+	if ((tmp = AST_LIST_REMOVE_HEAD(&con->schedc, list)))
 		con->schedccnt--;
-	} else
+	else
 #endif
-		tmp = malloc(sizeof(struct sched));
+		tmp = ast_calloc(1, sizeof(*tmp));
+
 	return tmp;
 }
 
@@ -137,8 +134,7 @@ static void sched_release(struct sched_context *con, struct sched *tmp)
 
 #ifdef SCHED_MAX_CACHE	 
 	if (con->schedccnt < SCHED_MAX_CACHE) {
-		tmp->next = con->schedc;
-		con->schedc = tmp;
+		AST_LIST_INSERT_HEAD(&con->schedc, tmp, list);
 		con->schedccnt++;
 	} else
 #endif
@@ -152,18 +148,20 @@ static void sched_release(struct sched_context *con, struct sched *tmp)
 int ast_sched_wait(struct sched_context *con)
 {
 	int ms;
+
 	DEBUG(ast_log(LOG_DEBUG, "ast_sched_wait()\n"));
+
 	ast_mutex_lock(&con->lock);
-	if (!con->schedq) {
+	if (AST_LIST_EMPTY(&con->schedq)) {
 		ms = -1;
 	} else {
-		ms = ast_tvdiff_ms(con->schedq->when, ast_tvnow());
+		ms = ast_tvdiff_ms(AST_LIST_FIRST(&con->schedq)->when, ast_tvnow());
 		if (ms < 0)
 			ms = 0;
 	}
 	ast_mutex_unlock(&con->lock);
+
 	return ms;
-	
 }
 
 
@@ -175,20 +173,18 @@ int ast_sched_wait(struct sched_context *con)
 static void schedule(struct sched_context *con, struct sched *s)
 {
 	 
-	struct sched *last=NULL;
-	struct sched *current=con->schedq;
-	while(current) {
-		if (SOONER(s->when, current->when))
+	struct sched *cur = NULL;
+	
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&con->schedq, cur, list) {
+		if (SOONER(s->when, cur->when)) {
+			AST_LIST_INSERT_BEFORE_CURRENT(&con->schedq, s, list);
 			break;
-		last = current;
-		current = current->next;
+		}
 	}
-	/* Insert this event into the schedule */
-	s->next = current;
-	if (last) 
-		last->next = s;
-	else
-		con->schedq = s;
+	AST_LIST_TRAVERSE_SAFE_END
+	if (!cur)
+		AST_LIST_INSERT_TAIL(&con->schedq, s, list);
+	
 	con->schedcnt++;
 }
 
@@ -231,7 +227,6 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
 		tmp->data = data;
 		tmp->resched = when;
 		tmp->variable = variable;
-		tmp->when = ast_tv(0, 0);
 		if (sched_settime(&tmp->when, when)) {
 			sched_release(con, tmp);
 		} else {
@@ -260,44 +255,41 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, vo
  */
 int ast_sched_del(struct sched_context *con, int id)
 {
-	struct sched *last=NULL, *s;
+	struct sched  *s;
+
 	DEBUG(ast_log(LOG_DEBUG, "ast_sched_del()\n"));
+	
 	ast_mutex_lock(&con->lock);
-	s = con->schedq;
-	while(s) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&con->schedq, s, list) {
 		if (s->id == id) {
-			if (last)
-				last->next = s->next;
-			else
-				con->schedq = s->next;
+			AST_LIST_REMOVE_CURRENT(&con->schedq, list);
 			con->schedcnt--;
 			sched_release(con, s);
 			break;
 		}
-		last = s;
-		s = s->next;
 	}
+	AST_LIST_TRAVERSE_SAFE_END
+
 #ifdef DUMP_SCHEDULER
 	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
 	ast_sched_dump(con);
 #endif
 	ast_mutex_unlock(&con->lock);
+
 	if (!s) {
 		ast_log(LOG_NOTICE, "Attempted to delete nonexistent schedule entry %d!\n", id);
 #ifdef DO_CRASH
 		CRASH;
 #endif
 		return -1;
-	} else
-		return 0;
+	}
+	
+	return 0;
 }
 
+/*! \brief Dump the contents of the scheduler to stderr */
 void ast_sched_dump(const struct sched_context *con)
 {
-	/*
-	 * Dump the contents of the scheduler to
-	 * stderr
-	 */
 	struct sched *q;
 	struct timeval tv = ast_tvnow();
 #ifdef SCHED_MAX_CACHE
@@ -309,7 +301,7 @@ void ast_sched_dump(const struct sched_context *con)
 	ast_log(LOG_DEBUG, "=============================================================\n");
 	ast_log(LOG_DEBUG, "|ID    Callback          Data              Time  (sec:ms)   |\n");
 	ast_log(LOG_DEBUG, "+-----+-----------------+-----------------+-----------------+\n");
- 	for (q = con->schedq; q; q = q->next) {
+	AST_LIST_TRAVERSE(&con->schedq, q, list) {
  		struct timeval delta =  ast_tvsub(q->when, tv);
 
 		ast_log(LOG_DEBUG, "|%.4d | %-15p | %-15p | %.6ld : %.6ld |\n", 
@@ -336,7 +328,7 @@ int ast_sched_runq(struct sched_context *con)
 		
 	ast_mutex_lock(&con->lock);
 	for(;;) {
-		if (!con->schedq)
+		if (AST_LIST_EMPTY(&con->schedq))
 			break;
 		
 		/* schedule all events which are going to expire within 1ms.
@@ -345,9 +337,8 @@ int ast_sched_runq(struct sched_context *con)
 		 * close together.
 		 */
 		tv = ast_tvadd(ast_tvnow(), ast_tv(0, 1000));
-		if (SOONER(con->schedq->when, tv)) {
-			current = con->schedq;
-			con->schedq = con->schedq->next;
+		if (SOONER(AST_LIST_FIRST(&con->schedq)->when, tv)) {
+			current = AST_LIST_REMOVE_HEAD(&con->schedq, list);
 			con->schedcnt--;
 
 			/*
@@ -391,15 +382,16 @@ long ast_sched_when(struct sched_context *con,int id)
 	DEBUG(ast_log(LOG_DEBUG, "ast_sched_when()\n"));
 
 	ast_mutex_lock(&con->lock);
-	for (s = con->schedq; s; s = s->next) {
+	AST_LIST_TRAVERSE(&con->schedq, s, list) {
 		if (s->id == id)
 			break;
 	}
-	secs=-1;
-	if (s!=NULL) {
+	secs = -1;
+	if (s) {
 		struct timeval now = ast_tvnow();
 		secs = s->when.tv_sec - now.tv_sec;
 	}
 	ast_mutex_unlock(&con->lock);
+	
 	return secs;
 }
