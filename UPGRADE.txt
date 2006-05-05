@@ -93,6 +93,16 @@ Applications:
   option, it will default to "no" to keep backward compatability with the old 
   behavior.
 
+* ast_play_and_record would attempt to cancel the recording if a DTMF
+  '0' was received.  This behavior was not documented in most of the
+  applications that used ast_play_and_record and the return codes from
+  ast_play_and_record weren't checked for properly.
+  ast_play_and_record has been changed so that '0' no longer cancels a
+  recording.  If you want to allow DTMF digits to cancel an
+  in-progress recording use ast_play_and_record_full which allows you
+  to specify which DTMF digits can be used to accept a recording and
+  which digits can be used to cancel a recording.
+
 Manager:
 
 * After executing the 'status' manager action, the "Status" manager events
