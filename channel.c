@@ -834,7 +834,7 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
  	 * c is surely not null, but we don't have the lock so cannot
 	 * access c->name
 	 */
-	ast_log(LOG_WARNING, "Failure, could not lock '%p' after %d retries!\n",
+	ast_log(LOG_DEBUG, "Failure, could not lock '%p' after %d retries!\n",
 		c, retries);
 
 	return NULL;
