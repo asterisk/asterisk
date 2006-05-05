@@ -277,7 +277,7 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 	}
 	
 
-	if ((!end && !pbx_check_condition(condition)) || (end == 2)) {
+	if ((!end && !pbx_checkcondition((char *) condition)) || (end == 2)) {
 		/* Condition Met (clean up helper vars) */
 		const char *goto_str;
 		pbx_builtin_setvar_helper(chan, varname, NULL);
