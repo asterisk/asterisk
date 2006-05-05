@@ -1233,7 +1233,6 @@ void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int rem
   */
 void connection_made(unsigned call_reference, const char *token)
 {
-	struct ast_channel *c = NULL;
 	struct oh323_pvt *pvt;
 
 	if (h323debug)
@@ -1435,7 +1434,6 @@ int setup_outgoing_call(call_details_t *cd)
   */
 void chan_ringing(unsigned call_reference, const char *token)
 {
-	struct ast_channel *c = NULL;
 	struct oh323_pvt *pvt;
 
 	if (h323debug)
@@ -2281,7 +2279,7 @@ static char *convertcap(int cap)
 	}
 }
 
-static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
+static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active)
 {
 	/* XXX Deal with Video */
 	struct oh323_pvt *pvt;
@@ -2310,7 +2308,7 @@ static struct ast_rtp_protocol oh323_rtp = {
 	.type = type,
 	.get_rtp_info = oh323_get_rtp_peer,
 	.get_vrtp_info = oh323_get_vrtp_peer,
-	.set_rtp_peer=  oh323_set_rtp_peer,
+	.set_rtp_peer = oh323_set_rtp_peer,
 };
 
 int load_module()
