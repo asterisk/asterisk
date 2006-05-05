@@ -781,7 +781,7 @@ size_t strnlen(const char *s, size_t n)
 char *strndup(const char *s, size_t n)
 {
 	size_t len = strnlen(s, n);
-	char *new = malloc(len + 1);
+	char *new = ast_malloc(len + 1);
 
 	if (!new)
 		return NULL;
@@ -802,7 +802,7 @@ int vasprintf(char **strp, const char *fmt, va_list ap)
 	va_copy(ap2, ap);
 	size = vsnprintf(&s, 1, fmt, ap2);
 	va_end(ap2);
-	*strp = malloc(size + 1);
+	*strp = ast_malloc(size + 1);
 	if (!*strp)
 		return -1;
 	vsnprintf(*strp, size + 1, fmt, ap);
