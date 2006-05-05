@@ -98,7 +98,7 @@ autofill = yes
 ; 
 ;autofill=yes
 ;
-; Autopause will pause a queue member if the y fail to answer a call
+; Autopause will pause a queue member if they fail to answer a call
 ;
 ;autopause=yes
 ;
@@ -106,6 +106,12 @@ autofill = yes
 ;
 ;maxlen = 0
 ;
+; If set to yes, just prior to the caller being bridged with a queue member 
+; the MEMBERINTERFACE variable will be set with the interface name (eg. Agent/1234)
+; of the queue member that was chosen and is now connected to be bridged with
+; the caller
+;
+;setinterfacevar=no
 ;
 ; How often to announce queue position and/or estimated 
 ; holdtime to caller (0=off)

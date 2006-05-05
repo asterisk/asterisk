@@ -129,7 +129,7 @@ static char *app = "Queue";
 static char *synopsis = "Queue a call for a call queue";
 
 static char *descrip =
-"  Queue(queuename[|options[|URL][|announceoverride][|timeout]]):\n"
+"  Queue(queuename[|options[|URL][|announceoverride][|timeout][|AGI]):\n"
 "Queues an incoming call in a particular call queue as defined in queues.conf.\n"
 "This application will return to the dialplan if the queue does not exist, or\n"
 "any of the join options cause the caller to not enter the queue.\n"
@@ -148,6 +148,8 @@ static char *descrip =
 "up by another user.\n"
 "  The optional URL will be sent to the called party if the channel supports\n"
 "it.\n"
+"  The optional AGI parameter will setup an AGI script to be executed on the \n"
+"calling party's channel once they are connected to a queue member.\n"
 "  The timeout will cause the queue to fail out after a specified number of\n"
 "seconds, checked between each queues.conf 'timeout' and 'retry' cycle.\n"
 "  This application sets the following channel variable upon completion:\n"
@@ -329,6 +331,7 @@ struct ast_call_queue {
 	unsigned int eventwhencalled:1;
 	unsigned int leavewhenempty:2;
 	unsigned int ringinuse:1;
+	unsigned int setinterfacevar:1;
 	unsigned int reportholdtime:1;
 	unsigned int wrapped:1;
 	unsigned int timeoutrestart:1;
@@ -579,6 +582,7 @@ static void init_queue(struct ast_call_queue *q)
 	q->roundingseconds = 0; /* Default - don't announce seconds */
 	q->servicelevel = 0;
 	q->ringinuse = 1;
+	q->setinterfacevar = 0;
 	q->autofill = autofill_default;
 	q->moh[0] = '\0';
 	q->announce[0] = '\0';
@@ -633,6 +637,8 @@ static void queue_set_param(struct ast_call_queue *q, const char *param, const c
 			q->timeout = DEFAULT_TIMEOUT;
 	} else if (!strcasecmp(param, "ringinuse")) {
 		q->ringinuse = ast_true(val);
+	} else if (!strcasecmp(param, "setinterfacevar")) {
+		q->setinterfacevar = ast_true(val);
 	} else if (!strcasecmp(param, "monitor-join")) {
 		q->monjoin = ast_true(val);
 	} else if (!strcasecmp(param, "monitor-format")) {
@@ -2068,7 +2074,7 @@ static int calc_metric(struct ast_call_queue *q, struct member *mem, int pos, st
 	return 0;
 }
 
-static int try_calling(struct queue_ent *qe, const char *options, char *announceoverride, const char *url, int *go_on)
+static int try_calling(struct queue_ent *qe, const char *options, char *announceoverride, const char *url, int *go_on, const char *agi)
 {
 	struct member *cur;
 	struct callattempt *outgoing=NULL; /* the queue we are building */
@@ -2080,6 +2086,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	struct ast_channel *which;
 	struct callattempt *lpeer;
 	struct member *member;
+	struct ast_app *app;
 	int res = 0, bridge = 0;
 	int numbusies = 0;
 	int x=0;
@@ -2089,6 +2096,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	time_t now = time(NULL);
 	struct ast_bridge_config bridge_config;
 	char nondataquality = 1;
+	char *agiexec = NULL;
+	int ret = 0;
 
 	memset(&bridge_config, 0, sizeof(bridge_config));
 	time(&now);
@@ -2299,6 +2308,18 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	 			ast_log(LOG_DEBUG, "app_queue: sendurl=%s.\n", url);
  			ast_channel_sendurl(peer, url);
  		}
+		if (qe->parent->setinterfacevar)
+				pbx_builtin_setvar_helper(qe->chan, "MEMBERINTERFACE", member->interface);
+		if (!ast_strlen_zero(agi)) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "app_queue: agi=%s.\n", agi);
+			app = pbx_findapp("agi");
+			if (app) {
+				agiexec = ast_strdupa(agi);
+				ret = pbx_exec(qe->chan, app, agiexec);
+			} else 
+				ast_log(LOG_WARNING, "Asked to execute an AGI on this channel, but could not find application (agi)!\n");
+		}
 		ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "CONNECT", "%ld|%s", (long)time(NULL) - qe->start, peer->uniqueid);
 		if (qe->parent->eventwhencalled)
 			manager_event(EVENT_FLAG_AGENT, "AgentConnect",
@@ -2909,6 +2930,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 		 AST_APP_ARG(url);
 		 AST_APP_ARG(announceoverride);
 		 AST_APP_ARG(queuetimeoutstr);
+		 AST_APP_ARG(agi);
 	);
 	
 	/* Our queue entry */
@@ -3057,7 +3079,7 @@ check_turns:
 				}
 
 				/* Try calling all queue members for 'timeout' seconds */
-				res = try_calling(&qe, args.options, args.announceoverride, args.url, &go_on);
+				res = try_calling(&qe, args.options, args.announceoverride, args.url, &go_on, args.agi);
 
 				if (res) {
 					if (res < 0) {
