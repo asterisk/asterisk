@@ -83,6 +83,14 @@ static char *tryexec_descrip =
 "    NOAPP     if the application was not found or was not specified\n"
 "    NOMEMORY  if there was not enough memory to execute.\n";
 
+static char *app_execif = "ExecIf";
+static char *execif_synopsis = "Executes dialplan application, conditionally";
+static char *execif_descrip = 
+"Usage:  ExecIF (<expr>|<app>|<data>)\n"
+"If <expr> is true, execute and return the result of <app>(<data>).\n"
+"If <expr> is true, but <app> is not found, then the application\n"
+"will return a non-zero value.\n";
+
 LOCAL_USER_DECL;
 
 static int exec_exec(struct ast_channel *chan, void *data)
@@ -160,12 +168,54 @@ static int tryexec_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+static int execif_exec(struct ast_channel *chan, void *data) {
+	int res=0;
+	struct localuser *u;
+	char *myapp = NULL;
+	char *mydata = NULL;
+	char *expr = NULL;
+	struct ast_app *app = NULL;
+
+	LOCAL_USER_ADD(u);
+
+	if (!(expr = ast_strdupa(data))) {
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
+	if ((myapp = strchr(expr,'|'))) {
+		*myapp = '\0';
+		myapp++;
+		if ((mydata = strchr(myapp,'|'))) {
+			*mydata = '\0';
+			mydata++;
+		} else
+			mydata = "";
+
+		if (pbx_checkcondition(expr)) { 
+			if ((app = pbx_findapp(myapp))) {
+				res = pbx_exec(chan, app, mydata);
+			} else {
+				ast_log(LOG_WARNING, "Count not find application! (%s)\n", myapp);
+				res = -1;
+			}
+		}
+	} else {
+		ast_log(LOG_ERROR,"Invalid Syntax.\n");
+		res = -1;
+	}
+		
+	LOCAL_USER_REMOVE(u);
+	return res;
+}
+
 static int unload_module(void *mod)
 {
 	int res;
 
 	res = ast_unregister_application(app_exec);
 	res |= ast_unregister_application(app_tryexec);
+	res |= ast_unregister_application(app_execif);
 
 	STANDARD_HANGUP_LOCALUSERS;
 
@@ -176,6 +226,7 @@ static int load_module(void *mod)
 {
 	int res = ast_register_application(app_exec, exec_exec, exec_synopsis, exec_descrip);
 	res |= ast_register_application(app_tryexec, tryexec_exec, tryexec_synopsis, tryexec_descrip);
+	res |= ast_register_application(app_execif, execif_exec, execif_synopsis, execif_descrip);
 	return res;
 }
 

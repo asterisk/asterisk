@@ -18,7 +18,7 @@
 
 /*! \file
  *
- * \brief While Loop and ExecIf Implementations
+ * \brief While Loop Implementation
  *
  * \author Anthony Minessale <anthmct@yahoo.com>
  * 
@@ -46,14 +46,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define ALL_DONE(u,ret) {LOCAL_USER_REMOVE(u); return ret;}
 
-
-static char *exec_app = "ExecIf";
-static char *exec_desc = 
-"Usage:  ExecIF (<expr>|<app>|<data>)\n"
-"If <expr> is true, execute and return the result of <app>(<data>).\n"
-"If <expr> is true, but <app> is not found, then the application\n"
-"will return a non-zero value.\n";
-static char *exec_synopsis = "Conditional exec";
 
 static char *start_app = "While";
 static char *start_desc = 
@@ -86,46 +78,6 @@ static char *continue_synopsis = "Restart a While loop";
 static char *tdesc = "While Loops and Conditional Execution";
 
 LOCAL_USER_DECL;
-
-static int execif_exec(struct ast_channel *chan, void *data) {
-	int res=0;
-	struct localuser *u;
-	char *myapp = NULL;
-	char *mydata = NULL;
-	char *expr = NULL;
-	struct ast_app *app = NULL;
-
-	LOCAL_USER_ADD(u);
-
-	if (!(expr = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-
-	if ((myapp = strchr(expr,'|'))) {
-		*myapp = '\0';
-		myapp++;
-		if ((mydata = strchr(myapp,'|'))) {
-			*mydata = '\0';
-			mydata++;
-		} else
-			mydata = "";
-
-		if (pbx_checkcondition(expr)) { 
-			if ((app = pbx_findapp(myapp))) {
-				res = pbx_exec(chan, app, mydata);
-			} else {
-				ast_log(LOG_WARNING, "Count not find application! (%s)\n", myapp);
-				res = -1;
-			}
-		}
-	} else {
-		ast_log(LOG_ERROR,"Invalid Syntax.\n");
-		res = -1;
-	}
-		
-	ALL_DONE(u,res);
-}
 
 #define VAR_SIZE 64
 
@@ -364,7 +316,6 @@ static int unload_module(void *mod)
 	int res;
 	
 	res = ast_unregister_application(start_app);
-	res |= ast_unregister_application(exec_app);
 	res |= ast_unregister_application(stop_app);
 	res |= ast_unregister_application(exit_app);
 	res |= ast_unregister_application(continue_app);
@@ -379,7 +330,6 @@ static int load_module(void *mod)
 	int res;
 
 	res = ast_register_application(start_app, while_start_exec, start_synopsis, start_desc);
-	res |= ast_register_application(exec_app, execif_exec, exec_synopsis, exec_desc);
 	res |= ast_register_application(stop_app, while_end_exec, stop_synopsis, stop_desc);
 	res |= ast_register_application(exit_app, while_exit_exec, exit_synopsis, exit_desc);
 	res |= ast_register_application(continue_app, while_continue_exec, continue_synopsis, continue_desc);
