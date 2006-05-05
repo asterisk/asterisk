@@ -537,7 +537,7 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn)
 static int global_silence_threshold = 128;
 static int global_maxsilence = 0;
 
-int ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int silencethreshold, int maxsilence, const char *path)
+int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int silencethreshold, int maxsilence, const char *path, const char *acceptdtmf, const char *canceldtmf)
 {
 	int d;
 	char *fmts;
@@ -688,19 +688,18 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 				/* Write only once */
 				ast_writestream(others[0], f);
 			} else if (f->frametype == AST_FRAME_DTMF) {
-				if (f->subclass == '#') {
+				if (strchr(acceptdtmf, f->subclass)) {
 					if (option_verbose > 2)
-						ast_verbose( VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
-					res = '#';
+						ast_verbose(VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
+					res = f->subclass;
 					outmsg = 2;
 					ast_frfree(f);
 					break;
 				}
-				if (f->subclass == '0') {
-				/* Check for a '0' during message recording also, in case caller wants operator */
+				if (strchr(canceldtmf, f->subclass)) {
 					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "User cancelled by pressing %c\n", f->subclass);
-					res = '0';
+						ast_verbose(VERBOSE_PREFIX_3 "User cancelled message by pressing %c\n", f->subclass);
+					res = f->subclass;
 					outmsg = 0;
 					ast_frfree(f);
 					break;
@@ -760,6 +759,14 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 	if (sildet)
 		ast_dsp_free(sildet);
 	return res;
+}
+
+static char default_acceptdtmf[] = "#";
+static char default_canceldtmf[] = "0";
+
+int ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int silencethreshold, int maxsilence, const char *path)
+{
+	return ast_play_and_record_full(chan, playfile, recordfile, maxtime, fmt, duration, silencethreshold, maxsilence, path, default_acceptdtmf, default_canceldtmf);
 }
 
 int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence)
