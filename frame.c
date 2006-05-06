@@ -304,37 +304,41 @@ void ast_frfree(struct ast_frame *fr)
 struct ast_frame *ast_frisolate(struct ast_frame *fr)
 {
 	struct ast_frame *out;
+	void *newdata;
+	
 	if (!(fr->mallocd & AST_MALLOCD_HDR)) {
 		/* Allocate a new header if needed */
-		if (!(out = ast_frame_header_new())) {
+		if (!(out = ast_frame_header_new()))
 			return NULL;
-		}
 		out->frametype = fr->frametype;
 		out->subclass = fr->subclass;
 		out->datalen = fr->datalen;
 		out->samples = fr->samples;
 		out->offset = fr->offset;
-		out->src = NULL;
 		out->data = fr->data;
-	} else {
+	} else
 		out = fr;
-	}
+	
 	if (!(fr->mallocd & AST_MALLOCD_SRC)) {
 		if (fr->src)
 			out->src = strdup(fr->src);
 	} else
 		out->src = fr->src;
+	
 	if (!(fr->mallocd & AST_MALLOCD_DATA))  {
-		if (!(out->data = ast_malloc(fr->datalen + AST_FRIENDLY_OFFSET))) {
+		if (!(newdata = ast_malloc(fr->datalen + AST_FRIENDLY_OFFSET))) {
 			free(out);
 			return NULL;
 		}
-		out->data += AST_FRIENDLY_OFFSET;
+		newdata += AST_FRIENDLY_OFFSET;
 		out->offset = AST_FRIENDLY_OFFSET;
 		out->datalen = fr->datalen;
-		memcpy(out->data, fr->data, fr->datalen);
+		memcpy(newdata, fr->data, fr->datalen);
+		out->data = newdata;
 	}
+
 	out->mallocd = AST_MALLOCD_HDR | AST_MALLOCD_SRC | AST_MALLOCD_DATA;
+	
 	return out;
 }
 
