@@ -6431,11 +6431,17 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		i->inalarm = 0;
 		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", i->channel);
 		break;
+               manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
+                                                       "Channel: %d\r\n", i->channel);
 	case ZT_EVENT_ALARM:
 		i->inalarm = 1;
 		res = get_alarms(i);
 		ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", i->channel, alarm2str(res));
 		/* fall thru intentionally */
+               manager_event(EVENT_FLAG_SYSTEM, "Alarm",
+                                                       "Alarm: %s\r\n"
+                                                       "Channel: %d\r\n",
+                                                       alarm2str(res), i->channel);
 	case ZT_EVENT_ONHOOK:
 		if (i->radio) break;
 		/* Back on hook.  Hang up. */
