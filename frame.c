@@ -304,6 +304,8 @@ void ast_frfree(struct ast_frame *fr)
 struct ast_frame *ast_frisolate(struct ast_frame *fr)
 {
 	struct ast_frame *out;
+	void *newdata;
+
 	if (!(fr->mallocd & AST_MALLOCD_HDR)) {
 		/* Allocate a new header if needed */
 		out = ast_frame_header_new();
@@ -318,27 +320,30 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 		out->offset = fr->offset;
 		out->src = NULL;
 		out->data = fr->data;
-	} else {
+	} else
 		out = fr;
-	}
+	
 	if (!(fr->mallocd & AST_MALLOCD_SRC)) {
 		if (fr->src)
 			out->src = strdup(fr->src);
-	} else
-		out->src = fr->src;
+	}
+	
 	if (!(fr->mallocd & AST_MALLOCD_DATA))  {
-		out->data = malloc(fr->datalen + AST_FRIENDLY_OFFSET);
-		if (!out->data) {
+		newdata = malloc(fr->datalen + AST_FRIENDLY_OFFSET);
+		if (!newdata) {
 			free(out);
 			ast_log(LOG_WARNING, "Out of memory\n");
 			return NULL;
 		}
-		out->data += AST_FRIENDLY_OFFSET;
+		newdata += AST_FRIENDLY_OFFSET;
 		out->offset = AST_FRIENDLY_OFFSET;
 		out->datalen = fr->datalen;
-		memcpy(out->data, fr->data, fr->datalen);
+		memcpy(newdata, fr->data, fr->datalen);
+		out->data = newdata;
 	}
+
 	out->mallocd = AST_MALLOCD_HDR | AST_MALLOCD_SRC | AST_MALLOCD_DATA;
+	
 	return out;
 }
 
