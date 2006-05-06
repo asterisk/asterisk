@@ -34,4 +34,5 @@ read=SELECT COUNT(*) FROM exgirlfriends WHERE callerid='${SQL_ESC(${ARG1})}'
 dsn=mysql1
 read=SELECT location FROM presence WHERE id='${SQL_ESC(${ARG1})}'
 write=UPDATE presence SET location='${SQL_ESC(${VAL1})}' WHERE id='${SQL_ESC(${ARG1})}'
+;prefix=OFFICE		; Changes this function from ODBC_PRESENCE to OFFICE_PRESENCE
 
