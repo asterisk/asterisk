@@ -326,7 +326,8 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 	if (!(fr->mallocd & AST_MALLOCD_SRC)) {
 		if (fr->src)
 			out->src = strdup(fr->src);
-	}
+	} else
+		out->src = fr->src;
 	
 	if (!(fr->mallocd & AST_MALLOCD_DATA))  {
 		newdata = malloc(fr->datalen + AST_FRIENDLY_OFFSET);
