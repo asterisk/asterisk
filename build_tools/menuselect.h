@@ -19,7 +19,7 @@
 /*!
  * \file
  *
- * \brief defaults for menuselect
+ * \brief public data structures and defaults for menuselect
  *
  */
 
@@ -37,6 +37,8 @@ struct conflict;
 struct member {
 	/*! What will be sent to the makeopts file */
 	const char *name;
+	/*! Default setting */
+	const char *defaultenabled;
 	/*! This module is currently selected */
 	int enabled;
 	/*! This module has failed dependencies */

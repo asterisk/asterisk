@@ -72,46 +72,34 @@ struct tree {
 };
 
 /*! The list of trees from makeopts.xml files */
-AST_LIST_HEAD_NOLOCK_STATIC(trees, tree);
+static AST_LIST_HEAD_NOLOCK_STATIC(trees, tree);
 
-const char * const makeopts_files[] = {
+static const char * const makeopts_files[] = {
 	"makeopts.xml"
 };
 
-char *output_makeopts = OUTPUT_MAKEOPTS_DEFAULT;
+static char *output_makeopts = OUTPUT_MAKEOPTS_DEFAULT;
 
 /*! This is set to 1 if menuselect.makeopts pre-existed the execution of this app */
-int existing_config = 0;
+static int existing_config = 0;
 
 /*! This is set when the --check-deps argument is provided. */
-int check_deps = 0;
+static int check_deps = 0;
 
 /*! Force a clean of the source tree */
-int force_clean = 0;
+static int force_clean = 0;
 
-int add_category(struct category *cat);
-int add_member(struct member *mem, struct category *cat);
-int parse_makeopts_xml(const char *makeopts_xml);
-int process_deps(void);
-int build_member_list(void);
-void mark_as_present(const char *member, const char *category);
-int parse_existing_config(const char *infile);
-int generate_makeopts_file(void);
-void free_member_list(void);
-void free_trees(void);
-
-/*! \brief a wrapper for calloc() that generates an error message if the allocation fails */
-static inline void *my_calloc(size_t num, size_t len)
-{
-	void *tmp;
-
-	tmp = calloc(num, len);
-	
-	if (!tmp)
-		fprintf(stderr, "Memory allocation error!\n");
-
-	return tmp;
-}
+static int add_category(struct category *cat);
+static int add_member(struct member *mem, struct category *cat);
+static int parse_makeopts_xml(const char *makeopts_xml);
+static int process_deps(void);
+static int build_member_list(void);
+static void mark_as_present(const char *member, const char *category);
+static void process_prev_failed_deps(char *buf);
+static int parse_existing_config(const char *infile);
+static int generate_makeopts_file(void);
+static void free_member_list(void);
+static void free_trees(void);
 
 /*! \brief return a pointer to the first non-whitespace character */
 static inline char *skip_blanks(char *str)
@@ -126,7 +114,7 @@ static inline char *skip_blanks(char *str)
 }
 
 /*! \brief Add a category to the category list, ensuring that there are no duplicates */
-int add_category(struct category *cat)
+static int add_category(struct category *cat)
 {
 	struct category *tmp;
 
@@ -142,7 +130,7 @@ int add_category(struct category *cat)
 }
 
 /*! \brief Add a member to the member list of a category, ensuring that there are no duplicates */
-int add_member(struct member *mem, struct category *cat)
+static int add_member(struct member *mem, struct category *cat)
 {
 	struct member *tmp;
 
@@ -158,7 +146,7 @@ int add_member(struct member *mem, struct category *cat)
 }
 
 /*! \brief Parse an input makeopts file */
-int parse_makeopts_xml(const char *makeopts_xml)
+static int parse_makeopts_xml(const char *makeopts_xml)
 {
 	FILE *f;
 	struct category *cat;
@@ -177,7 +165,7 @@ int parse_makeopts_xml(const char *makeopts_xml)
 		return -1;
 	}
 
-	if (!(tree = my_calloc(1, sizeof(*tree)))) {
+	if (!(tree = calloc(1, sizeof(*tree)))) {
 		fclose(f);
 		return -1;
 	}
@@ -195,7 +183,7 @@ int parse_makeopts_xml(const char *makeopts_xml)
 	     cur;
 	     cur = mxmlFindElement(cur, menu, "category", NULL, NULL, MXML_DESCEND))
 	{
-		if (!(cat = my_calloc(1, sizeof(*cat))))
+		if (!(cat = calloc(1, sizeof(*cat))))
 			return -1;
 
 		cat->name = mxmlElementGetAttr(cur, "name");
@@ -214,29 +202,23 @@ int parse_makeopts_xml(const char *makeopts_xml)
 		     cur2;
 		     cur2 = mxmlFindElement(cur2, cur, "member", NULL, NULL, MXML_DESCEND))
 		{
-			if (!(mem = my_calloc(1, sizeof(*mem))))
+			if (!(mem = calloc(1, sizeof(*mem))))
 				return -1;
 			
-			if (!cat->positive_output)
-				mem->enabled = 1; /* Enabled by default */
-
 			mem->name = mxmlElementGetAttr(cur2, "name");
-			
+		
+			if (!cat->positive_output)
+				mem->enabled = 1;
+	
 			cur3 = mxmlFindElement(cur2, cur2, "defaultenabled", NULL, NULL, MXML_DESCEND);
-			if (cur3 && cur3->child) {
-				if (!strcasecmp("no", cur3->child->value.opaque))
-					mem->enabled = 0;
-				else if (!strcasecmp("yes", cur3->child->value.opaque))
-					mem->enabled = 1;
-				else
-					fprintf(stderr, "Invalid value '%s' for <defaultenabled> !\n", cur3->child->value.opaque);
-			}
+			if (cur3 && cur3->child)
+				mem->defaultenabled = cur3->child->value.opaque;
 			
 			for (cur3 = mxmlFindElement(cur2, cur2, "depend", NULL, NULL, MXML_DESCEND);
 			     cur3 && cur3->child;
 			     cur3 = mxmlFindElement(cur3, cur2, "depend", NULL, NULL, MXML_DESCEND))
 			{
-				if (!(dep = my_calloc(1, sizeof(*dep))))
+				if (!(dep = calloc(1, sizeof(*dep))))
 					return -1;
 				if (!strlen_zero(cur3->child->value.opaque)) {
 					dep->name = cur3->child->value.opaque;
@@ -249,7 +231,7 @@ int parse_makeopts_xml(const char *makeopts_xml)
 			     cur3 && cur3->child;
 			     cur3 = mxmlFindElement(cur3, cur2, "conflict", NULL, NULL, MXML_DESCEND))
 			{
-				if (!(cnf = my_calloc(1, sizeof(*cnf))))
+				if (!(cnf = calloc(1, sizeof(*cnf))))
 					return -1;
 				if (!strlen_zero(cur3->child->value.opaque)) {
 					cnf->name = cur3->child->value.opaque;
@@ -269,7 +251,7 @@ int parse_makeopts_xml(const char *makeopts_xml)
 }
 
 /*! \brief Process dependencies against the input dependencies file */
-int process_deps(void)
+static int process_deps(void)
 {
 	struct category *cat;
 	struct member *mem;
@@ -297,7 +279,7 @@ int process_deps(void)
 		strsep(&p, "=");
 		if (!p)
 			continue;
-		if (!(dep_file = my_calloc(1, sizeof(*dep_file))))
+		if (!(dep_file = calloc(1, sizeof(*dep_file))))
 			break;
 		strncpy(dep_file->name, buf, sizeof(dep_file->name) - 1);
 		dep_file->met = atoi(p);
@@ -321,20 +303,6 @@ int process_deps(void)
 				if (mem->depsfailed)
 					break; /* This dependency is not met, so we can stop now */
 			}
-			if (mem->depsfailed) {
-				if (check_deps && existing_config && mem->enabled) {
-					/* Config already existed, but this module was not disabled.
-					 * However, according to our current list of dependencies that
-					 * have been met, this can not be built. */
-					res = -1;
-					fprintf(stderr, "\nThe existing menuselect.makeopts did not specify that %s should not be built\n", mem->name);
-					fprintf(stderr, "However, menuselect-deps indicates that dependencies for this module have not\n");
-					fprintf(stderr, "been met.  So, either remove the existing menuselect.makeopts file, or run\n");
-					fprintf(stderr, "'make menuselect' to generate a file that is correct.\n\n");
-					goto deps_file_free;
-				}
-				mem->enabled = 0; /* Automatically disable it if dependencies not met */
-			}
 		}
 	}
 
@@ -353,24 +321,8 @@ int process_deps(void)
 				if (mem->conflictsfailed)
 					break; /* This conflict was found, so we can stop now */
 			}
-			if (mem->conflictsfailed) {
-				if (check_deps && existing_config && mem->enabled) {
-					/* Config already existed, but this module was not disabled.
-					 * However, according to our current list of conflicts that
-					 * exist, this can not be built. */
-					res = -1;
-					fprintf(stderr, "\nThe existing menuselect.makeopts did not specify that %s should not be built\n", mem->name);
-					fprintf(stderr, "However, menuselect-deps indicates that conflicts for this module exist.\n");
-					fprintf(stderr, "So, either remove the existing menuselect.makeopts file, or run\n");
-					fprintf(stderr, "'make menuselect' to generate a file that is correct.\n\n");
-					goto deps_file_free;
-				}
-				mem->enabled = 0; /* Automatically disable it if conflicts exist */
-			}
 		}
 	}
-
-deps_file_free:
 
 	/* Free the dependency list we built from the file */
 	while ((dep_file = AST_LIST_REMOVE_HEAD(&deps_file, list)))
@@ -380,7 +332,7 @@ deps_file_free:
 }
 
 /*! \brief Iterate through all of the input makeopts files and call the parse function on them */
-int build_member_list(void)
+static int build_member_list(void)
 {
 	int i;
 	int res = -1;
@@ -396,7 +348,7 @@ int build_member_list(void)
 }
 
 /*! \brief Given the string representation of a member and category, mark it as present in a given input file */
-void mark_as_present(const char *member, const char *category)
+static void mark_as_present(const char *member, const char *category)
 {
 	struct category *cat;
 	struct member *mem;
@@ -437,8 +389,45 @@ void toggle_enabled(struct category *cat, int index)
 	}
 }
 
+/*! \brief Process a previously failed dependency
+ *
+ * If a module was previously disabled because of a failed dependency
+ * or a conflict, and not because the user selected it to be that way,
+ * then it needs to be re-enabled by default if the problem is no longer present.
+ */
+static void process_prev_failed_deps(char *buf)
+{
+	const char *cat_name, *mem_name;
+	struct category *cat;
+	struct member *mem;
+
+	cat_name = strsep(&buf, "=");
+	mem_name = strsep(&buf, "\n");
+
+	if (!cat_name || !mem_name)
+		return;
+
+	AST_LIST_TRAVERSE(&categories, cat, list) {
+		if (strcasecmp(cat->name, cat_name))
+			continue;
+		AST_LIST_TRAVERSE(&cat->members, mem, list) {
+			if (strcasecmp(mem->name, mem_name))
+				continue;
+
+			if (!mem->depsfailed && !mem->conflictsfailed)
+				mem->enabled = 1;			
+	
+			break;
+		}
+		break;	
+	}
+
+	if (!cat || !mem)
+		fprintf(stderr, "Unable to find '%s' in category '%s'\n", mem_name, cat_name);
+}
+
 /*! \brief Parse an existing output makeopts file and enable members previously selected */
-int parse_existing_config(const char *infile)
+static int parse_existing_config(const char *infile)
 {
 	FILE *f;
 	char buf[2048];
@@ -474,13 +463,18 @@ int parse_existing_config(const char *infile)
 			fprintf(stderr, "Invalid string in '%s' at line '%d'!\n", output_makeopts, lineno);
 			continue;
 		}
-
+		
 		parse = skip_blanks(parse);
+	
+		if (!strcasecmp(category, "MENUSELECT_DEPSFAILED")) {
+			process_prev_failed_deps(parse);
+			continue;
+		}
+	
 		while ((member = strsep(&parse, " \n"))) {
 			member = skip_blanks(member);
 			if (strlen_zero(member))
 				continue;
-
 			mark_as_present(member, category);
 		}
 	}
@@ -491,7 +485,7 @@ int parse_existing_config(const char *infile)
 }
 
 /*! \brief Create the output makeopts file that results from the user's selections */
-int generate_makeopts_file(void)
+static int generate_makeopts_file(void)
 {
 	FILE *f;
 	struct category *cat;
@@ -513,6 +507,14 @@ int generate_makeopts_file(void)
 		fprintf(f, "\n");
 	}
 
+	/* Output which members were disabled because of failed dependencies or conflicts */
+	AST_LIST_TRAVERSE(&categories, cat, list) {
+		AST_LIST_TRAVERSE(&cat->members, mem, list) {
+			if (mem->depsfailed || mem->conflictsfailed)
+				fprintf(f, "MENUSELECT_DEPSFAILED=%s=%s\n", cat->name, mem->name);
+		}
+	}
+
 	fclose(f);
 
 	return 0;
@@ -520,7 +522,7 @@ int generate_makeopts_file(void)
 
 #ifdef MENUSELECT_DEBUG
 /*! \brief Print out all of the information contained in our tree */
-void dump_member_list(void)
+static void dump_member_list(void)
 {
 	struct category *cat;
 	struct member *mem;
@@ -545,7 +547,7 @@ void dump_member_list(void)
 #endif
 
 /*! \brief Free all categories and their members */
-void free_member_list(void)
+static void free_member_list(void)
 {
 	struct category *cat;
 	struct member *mem;
@@ -565,7 +567,7 @@ void free_member_list(void)
 }
 
 /*! \brief Free all of the XML trees */
-void free_trees(void)
+static void free_trees(void)
 {
 	struct tree *tree;
 
@@ -608,6 +610,52 @@ int count_members(struct category *cat)
 	return count;		
 }
 
+/*! \brief Make sure an existing menuselect.makeopts disabled everything it should have */
+static int sanity_check(void)
+{
+	struct category *cat;
+	struct member *mem;
+
+	AST_LIST_TRAVERSE(&categories, cat, list) {
+		AST_LIST_TRAVERSE(&cat->members, mem, list) {
+			if ((mem->depsfailed || mem->conflictsfailed) && mem->enabled) {
+				fprintf(stderr, "\n***********************************************************\n"
+				                "  The existing menuselect.makeopts file did not specify    \n"
+				                "  that '%s' should not be included.  However, either some  \n"
+				                "  dependencies for this module were not found or a         \n"
+				                "  conflict exists.                                         \n"
+				                "                                                           \n"
+				                "  Either run 'make menuselect' or remove the existing      \n"
+				                "  menuselect.makeopts file to resolve this issue.          \n"
+						"***********************************************************\n\n", mem->name);
+				return -1;
+			}
+		}
+	}
+}
+
+/* \brief Set the forced default values if they exist */
+static void process_defaults(void)
+{
+	struct category *cat;
+	struct member *mem;
+
+	AST_LIST_TRAVERSE(&categories, cat, list) {
+		AST_LIST_TRAVERSE(&cat->members, mem, list) {
+			if (!mem->defaultenabled)
+				continue;
+			
+			if (!strcasecmp(mem->defaultenabled, "yes"))
+				mem->enabled = 1;
+			else if (!strcasecmp(mem->defaultenabled, "no"))
+				mem->enabled = 0;
+			else
+				fprintf(stderr, "Invalid defaultenabled value for '%s' in category '%s'\n", mem->name, cat->name);	
+		}
+	}
+
+}
+
 int main(int argc, char *argv[])
 {
 	int res = 0;
@@ -616,7 +664,10 @@ int main(int argc, char *argv[])
 	/* Parse the input XML files to build the list of available options */
 	if ((res = build_member_list()))
 		exit(res);
-
+	
+	/* Process module dependencies */
+	res = process_deps();
+	
 	/* The --check-deps option is used to ask this application to check to
 	 * see if that an existing menuselect.makeopts file contails all of the
 	 * modules that have dependencies that have not been met.  If this
@@ -629,16 +680,19 @@ int main(int argc, char *argv[])
 			res = parse_existing_config(argv[x]);
 			if (!res && !strcasecmp(argv[x], OUTPUT_MAKEOPTS_DEFAULT))
 				existing_config = 1;
+			res = 0;
 		}
 	}
-
-	/* Process module dependencies */
-	res = process_deps();
 
 #ifdef MENUSELECT_DEBUG
 	/* Dump the list produced by parsing the various input files */
 	dump_member_list();
 #endif
+
+	if (!existing_config)
+		process_defaults();
+	else if (check_deps)
+		res = sanity_check();
 
 	/* Run the menu to let the user enable/disable options */
 	if (!check_deps && !res)
@@ -664,6 +718,9 @@ int main(int argc, char *argv[])
 		res = -1;
 	}
 
+	/* In some cases, such as modifying the CFLAGS for the build,
+	 * a "make clean" needs to be forced.  Removing the .lastclean 
+	 * file does this. */
 	if (force_clean)
 		unlink(".lastclean");
 
