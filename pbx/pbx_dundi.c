@@ -758,9 +758,8 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 	}
 	totallen = sizeof(struct dundi_query_state);
 	totallen += (ies->eidcount - skipfirst) * sizeof(dundi_eid);
-	st = malloc(totallen);
+	st = ast_calloc(1, totallen);
 	if (st) {
-		memset(st, 0, totallen);
 		ast_copy_string(st->called_context, ies->called_context, sizeof(st->called_context));
 		memcpy(&st->reqeid, ies->reqeid, sizeof(st->reqeid));
 		st->trans = trans;
@@ -970,9 +969,8 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 	/* Prepare to run a query and then propagate that as necessary */
 	totallen += mapcount * sizeof(struct dundi_mapping);
 	totallen += (ies->eidcount - skipfirst) * sizeof(dundi_eid);
-	st = malloc(totallen);
+	st = ast_calloc(1, totallen);
 	if (st) {
-		memset(st, 0, totallen);
 		ast_copy_string(st->called_context, ies->called_context, sizeof(st->called_context));
 		ast_copy_string(st->called_number, ies->called_number, sizeof(st->called_number));
 		st->trans = trans;
@@ -1057,9 +1055,8 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 
 	totallen += mapcount * sizeof(struct dundi_mapping);
 	totallen += (ies->eidcount - skipfirst) * sizeof(dundi_eid);
-	st = malloc(totallen);
+	st = ast_calloc(1, totallen);
 	if (st) {
-		memset(st, 0, totallen);
 		ast_copy_string(st->called_context, ies->called_context, sizeof(st->called_context));
 		ast_copy_string(st->called_number, ies->called_number, sizeof(st->called_number));
 		st->trans = trans;
@@ -2740,9 +2737,8 @@ static struct dundi_transaction *create_transaction(struct dundi_peer *p)
 	tid = get_trans_id();
 	if (tid < 1)
 		return NULL;
-	trans = malloc(sizeof(struct dundi_transaction));
+	trans = ast_calloc(1, sizeof(*trans));
 	if (trans) {
-		memset(trans, 0, sizeof(struct dundi_transaction));
 		if (global_storehistory) {
 			trans->start = ast_tvnow();
 			ast_set_flag(trans, FLAG_STOREHIST);
@@ -2835,7 +2831,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 							}
 						}
 						peer->lookuptimes[0] = ast_tvdiff_ms(ast_tvnow(), trans->start);
-						peer->lookups[0] = malloc(strlen(trans->parent->number) + strlen(trans->parent->dcontext) + 2);
+						peer->lookups[0] = ast_malloc(strlen(trans->parent->number) + strlen(trans->parent->dcontext) + 2);
 						if (peer->lookups[0]) {
 							sprintf(peer->lookups[0], "%s@%s", trans->parent->number, trans->parent->dcontext);
 							peer->avgms += peer->lookuptimes[0];
@@ -2907,9 +2903,8 @@ static int dundi_send(struct dundi_transaction *trans, int cmdresp, int flags, i
 	/* Reserve enough space for encryption */
 	if (ast_test_flag(trans, FLAG_ENCRYPT))
 		len += 384;
-	pack = malloc(len);
+	pack = ast_calloc(1, len);
 	if (pack) {
-		memset(pack, 0, len);
 		pack->h = (struct dundi_hdr *)(pack->data);
 		if (cmdresp != DUNDI_COMMAND_ACK) {
 			pack->retransid = ast_sched_add(sched, trans->retranstimer, dundi_rexmit, pack);
