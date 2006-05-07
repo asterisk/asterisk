@@ -1,4 +1,23 @@
-/* Compatibility functions for strsep and strtoq missing on Solaris */
+/*
+ * Asterisk -- An open source telephony toolkit.
+ *
+ * Copyright (C) 1999 - 2006, Digium, Inc.
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*! \file
+ *
+ * \brief Compatibility functions for strsep and strtoq missing on Solaris 
+ */
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -8,26 +27,28 @@
 #include "asterisk/compat.h"
 
 #ifndef HAVE_STRSEP
-char* strsep(char** str, const char* delims)
+char *strsep(char **str, const char *delims)
 {
-    char* token;
+    char *token;
 
-    if (*str==NULL) {
+    if (!*str) {
         /* No more tokens */
         return NULL;
     }
 
-    token=*str;
-    while (**str!='\0') {
-        if (strchr(delims,**str)!=NULL) {
-            **str='\0';
+    token = *str;
+    while (**str != '\0') {
+        if (strchr(delims, **str)) {
+            **str = '\0';
             (*str)++;
             return token;
         }
         (*str)++;
     }
+
     /* There is no other token */
-    *str=NULL;
+    *str = NULL;
+
     return token;
 }
 #endif
