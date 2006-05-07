@@ -2150,9 +2150,12 @@ static int conf_exec(struct ast_channel *chan, void *data)
 								break;
 							} else {
 								/* Pin invalid */
-								res = ast_streamfile(chan, "conf-invalidpin", chan->language);
-								if (!res)
-									ast_waitstream(chan, AST_DIGIT_ANY);
+								if (!ast_streamfile(chan, "conf-invalidpin", chan->language))
+									res = ast_waitstream(chan, AST_DIGIT_ANY);
+								else {
+									ast_log(LOG_WARNING, "Couldn't play invalid pin msg!\n");
+									break;
+								}
 								if (res < 0) {
 									AST_LIST_LOCK(&confs);
 									cnf->refcount--;
