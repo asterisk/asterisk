@@ -2529,6 +2529,7 @@ int main(int argc, char *argv[])
 			fclose(f);
 		} else
 			ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
+		ast_mainpid = getpid();
 	}
 
 	/* Test recursive mutex locking. */
