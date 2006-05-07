@@ -7,7 +7,7 @@
 	var logoffs = new Object;
 	var channels = new Object;
 	var pongs = new Object;
-	var loggedon = 0;
+	var loggedon = -1;
 	var selectedchan = null;
 	var hungupchan = "";
 	var transferedchan = "";
@@ -15,7 +15,7 @@
 	var demo = new Object;
 	
 	function loggedOn() {
-		if (loggedon)
+		if (loggedon == 1)
 			return;
 		loggedon = 1;
 		updateButtons();
@@ -29,7 +29,7 @@
 	}
 
 	function loggedOff() {
-		if (!loggedon)
+		if (loggedon == 0)
 			return;
 		loggedon = 0;
 		selectedchan = null;

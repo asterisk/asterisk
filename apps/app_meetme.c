@@ -1,4 +1,3 @@
-
 /*
  * Asterisk -- An open source telephony toolkit.
  *
