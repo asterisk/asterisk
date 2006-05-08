@@ -171,8 +171,25 @@ AST_EXT_LIB([speex], [speex_encode], [speex/speex.h], [SPEEX], [Speex], [-lm])
 AST_EXT_LIB([sqlite], [sqlite_exec], [sqlite.h], [SQLITE], [SQLite])
 AST_EXT_LIB([ssl], [ssl2_connect], [openssl/ssl.h], [OPENSSL], [OpenSSL], [-lcrypto])
 AST_EXT_LIB([tds], [tds_version], [tds.h], [FREETDS], [FreeTDS])
+AST_EXT_LIB([termcap], [tgetent], [], [TERMCAP], [Termcap])
+AST_EXT_LIB([tinfo], [tgetent], [], [TINFO], [Term Info])
 AST_EXT_LIB([vorbis], [vorbis_info_init], [vorbis/codec.h], [VORBIS], [Vorbis], [-lm -lvorbisenc])
 AST_EXT_LIB([z], [compress], [zlib.h], [ZLIB], [zlib])
+
+EDITLINE_LIBS=""
+if test "x$termcap_LIB" != "x" ; then
+  EDITLINE_LIBS="$termcap_LIB"
+elif test "x$tinfo_LIB" != "x" ; then
+  EDITLINE_LIBS="$tinfo_LIB"
+elif test "x$curses_LIB" != "x" ; then
+  EDITLINE_LIBS="$curses_LIB"
+elif test "x$ncurses_LIB" != "x" ; then
+  EDITLINE_LIBS="$ncurses_LIB"
+else
+  echo "*** termcap support not found"
+  exit 1
+fi
+AC_SUBST(EDITLINE_LIBS)
 
 PBX_LIBossaudio=0
 AC_CHECK_HEADER([linux/soundcard.h],
@@ -339,7 +356,7 @@ case ${withval} in
 esac
 ])
 if test "${USE_VPB}" != "no"; then
-   echo -n "checking for vpb_open in -lvpb..."
+   echo -n "checking for vpb_open in -lvpb... "
    saved_libs="${LIBS}"
    saved_cppflags="${CPPFLAGS}"
    if test "x${VPB_DIR}" != "x"; then
@@ -401,7 +418,7 @@ esac
 
 PBX_QT=0
 if test "${USE_QT}" != "no"; then
-   echo -n "checking for QDate in -lqt..."
+   echo -n "checking for QDate in -lqt... "
    saved_libs="${LIBS}"
    saved_cppflags="${CPPFLAGS}"
    if test "x${QT_DIR}" != "x"; then
@@ -487,7 +504,7 @@ esac
 
 PBX_KDE=0
 if test "${USE_KDE}" != "no"; then
-   echo -n "checking for crashHandler in -lkdecore..."
+   echo -n "checking for crashHandler in -lkdecore... "
    saved_ldflags="${LDFLAGS}"
    LDFLAGS="-I${KDE_DIR}/include ${LDFLAGS} -L${KDE_DIR}/lib -lkdecore"
 	AC_LINK_IFELSE(
@@ -566,7 +583,7 @@ case ${withval} in
 esac
 ])
 if test "${USE_PWLIB}" != "no"; then
-	echo -n "checking for existence of pwlib..."
+	echo -n "checking for existence of pwlib... "
 	
 	saved_ldflags="${LDFLAGS}"
 	LDFLAGS="${LDFLAGS} -L${PWLIB_DIR} -l${PLATFORM_PTLIB}"
@@ -696,7 +713,7 @@ echo
 
 echo "Package configured for: "
 echo " OS type  : $PBX_OSTYPE"
-echo " host cpu : $host_cpu"
+echo " Host CPU : $host_cpu"
 if test "x${crossCompile}" = xYes; then
    echo ""
    echo " Cross Compilation = YES"
