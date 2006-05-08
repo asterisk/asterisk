@@ -1698,35 +1698,35 @@ void ast_hint_state_changed(const char *device)
 	AST_LIST_TRAVERSE(&hints, hint, list) {
 		struct ast_state_cb *cblist;
 		char buf[AST_MAX_EXTENSION];
-		char *parse;
+		char *parse = buf;
 		char *cur;
 		int state;
 
 		ast_copy_string(buf, ast_get_extension_app(hint->exten), sizeof(buf));
-		parse = buf;
-		for (cur = strsep(&parse, "&"); cur; cur = strsep(&parse, "&")) {
-			if (strcasecmp(cur, device))
-				continue;
-
-			/* Get device state for this hint */
-			state = ast_extension_state2(hint->exten);
-			
-			if ((state == -1) || (state == hint->laststate))
-				continue;
-
-			/* Device state changed since last check - notify the watchers */
-			
-			/* For general callbacks */
-			for (cblist = statecbs; cblist; cblist = cblist->next)
-				cblist->callback(hint->exten->parent->name, hint->exten->exten, state, cblist->data);
-			
-			/* For extension callbacks */
-			for (cblist = hint->callbacks; cblist; cblist = cblist->next)
-				cblist->callback(hint->exten->parent->name, hint->exten->exten, state, cblist->data);
-			
-			hint->laststate = state;
-			break;
+		while ( (cur = strsep(&parse, "&")) ) {
+			if (!strcasecmp(cur, device))
+				break;
 		}
+		if (!cur)
+			continue;
+
+		/* Get device state for this hint */
+		state = ast_extension_state2(hint->exten);
+			
+		if ((state == -1) || (state == hint->laststate))
+			continue;
+
+		/* Device state changed since last check - notify the watchers */
+			
+		/* For general callbacks */
+		for (cblist = statecbs; cblist; cblist = cblist->next)
+			cblist->callback(hint->exten->parent->name, hint->exten->exten, state, cblist->data);
+		
+		/* For extension callbacks */
+		for (cblist = hint->callbacks; cblist; cblist = cblist->next)
+			cblist->callback(hint->exten->parent->name, hint->exten->exten, state, cblist->data);
+			
+		hint->laststate = state;
 	}
 
 	AST_LIST_UNLOCK(&hints);
@@ -3952,16 +3952,15 @@ int ast_context_add_ignorepat2(struct ast_context *con, const char *value, const
 
 int ast_ignore_pattern(const char *context, const char *pattern)
 {
-	struct ast_context *con;
-	struct ast_ignorepat *pat;
-
-	con = ast_context_find(context);
+	struct ast_context *con = ast_context_find(context);
 	if (con) {
+		struct ast_ignorepat *pat;
 		for (pat = con->ignorepats; pat; pat = pat->next) {
 			if (ast_extension_match(pat->pattern, pattern))
 				return 1;
 		}
 	} 
+
 	return 0;
 }
 
@@ -4011,8 +4010,7 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 
 	ast_channel_lock(chan);
 
-	if (chan->pbx) {
-		/* This channel is currently in the PBX */
+	if (chan->pbx) { /* This channel is currently in the PBX */
 		ast_explicit_goto(chan, context, exten, priority);
 		ast_softhangup_nolock(chan, AST_SOFTHANGUP_ASYNCGOTO);
 	} else {
