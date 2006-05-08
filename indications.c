@@ -412,13 +412,12 @@ struct tone_zone_sound *ast_get_indication_tone(const struct tone_zone *zone, co
 	struct tone_zone_sound *ts;
 
 	/* we need some tonezone, pick the first */
-	if (!zone) {
-		if (current_tonezone)
-			return current_tonezone; /* default country? */
-		if (tone_zones)
-			return tone_zones; /* any country? */
-		return 0; /* not a single country insight */
-	}
+	if (zone == NULL && current_tonezone)
+		zone = current_tonezone;	/* default country? */
+	if (zone == NULL && tone_zones)
+		zone = tone_zones;		/* any country? */
+	if (zone == NULL)
+		return 0;	/* not a single country insight */
 
 	if (ast_mutex_lock(&tzlock)) {
 		ast_log(LOG_WARNING, "Unable to lock tone_zones list\n");
