@@ -1185,7 +1185,7 @@ static int say_position(struct queue_ent *qe)
  	qe->last_pos = now;
 	qe->last_pos_said = qe->pos;
 	/* Don't restart music on hold if we're about to exit the caller from the queue */
-	if (!res)
+	if (res)
 		ast_moh_start(qe->chan, qe->moh);
 
 	return res;
