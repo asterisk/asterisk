@@ -57,7 +57,13 @@ astman: astman.o ../md5.o
 stereorize: stereorize.o frame.o
 	$(CC) $(CFLAGS) -o stereorize stereorize.o frame.o -lm
 
-.PHONY: ../ast_expr2.c ../ast_expr2f.c ../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ../pbx/pbx_ael.o
+.PHONY: ../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ../pbx/pbx_ael.o
+
+../ast_expr2.c:
+	bison -o $@ -d --name-prefix=ast_yy ../ast_expr2.y
+
+../ast_expr2f.c:
+	flex -o $@ --full ../ast_expr2.fl
 
 ast_expr2.o: ../ast_expr2.c
 	gcc  $(CFLAGS) -c -o $@ $<
