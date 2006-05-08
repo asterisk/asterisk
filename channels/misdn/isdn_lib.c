@@ -2358,6 +2358,8 @@ int handle_frm(msg_t *msg)
 					/* I think we should send CC_RELEASE_CR, but am not sure*/
 					empty_chan_in_stack(stack, bc->channel);
 					empty_bc(bc);
+					bc_state_change(bc,BCHAN_CLEANED);
+
 					cb_log(-1, stack->port, "GOT IGNORE SETUP\n");
 
 					
