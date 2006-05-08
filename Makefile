@@ -431,12 +431,12 @@ _all: all
 	@echo " +               make install                +"  
 	@echo " +-------------------------------------------+"  
 
-all: include/autoconfig.h menuselect.makeopts cleantest depend asterisk subdirs
+all: config.status menuselect.makeopts cleantest depend asterisk subdirs
 
 configure:
 	-@./bootstrap.sh
 
-include/autoconfig.h: configure
+config.status: configure
 	@CFLAGS="" ./configure
 	@echo "****"
 	@echo "**** The configure script was just executed, so 'make' needs to be"
