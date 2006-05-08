@@ -1631,9 +1631,69 @@ static int agents_show(int fd, int argc, char **argv)
 	return RESULT_SUCCESS;
 }
 
+
+static int agents_show_online(int fd, int argc, char **argv)
+{
+	struct agent_pvt *p;
+	char username[AST_MAX_BUF];
+	char location[AST_MAX_BUF] = "";
+	char talkingto[AST_MAX_BUF] = "";
+	char moh[AST_MAX_BUF];
+	int count_agents = 0;           /* Number of agents configured */
+	int online_agents = 0;          /* Number of online agents */
+	int agent_status = 0;           /* 0 means offline, 1 means online */
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	AST_LIST_LOCK(&agents);
+	AST_LIST_TRAVERSE(&agents, p, list) {
+		agent_status = 0;       /* reset it to offline */
+		ast_mutex_lock(&p->lock);
+		if (!ast_strlen_zero(p->name))
+			snprintf(username, sizeof(username), "(%s) ", p->name);
+		else
+			username[0] = '\0';
+		if (p->chan) {
+			snprintf(location, sizeof(location), "logged in on %s", p->chan->name);
+			if (p->owner && ast_bridged_channel(p->owner)) {
+				snprintf(talkingto, sizeof(talkingto), " talking to %s", ast_bridged_channel(p->owner)->name);
+			} else {
+				strcpy(talkingto, " is idle");
+			}
+			agent_status = 1;
+			online_agents++;
+		} else if (!ast_strlen_zero(p->loginchan)) {
+			snprintf(location, sizeof(location) - 20, "available at '%s'", p->loginchan);
+			talkingto[0] = '\0';
+			agent_status = 1;
+			online_agents++;
+			if (p->acknowledged)
+				strncat(location, " (Confirmed)", sizeof(location) - strlen(location) - 1);
+		}
+		if (!ast_strlen_zero(p->moh))
+			snprintf(moh, sizeof(moh), " (musiconhold is '%s')", p->moh);
+		if (agent_status)
+			ast_cli(fd, "%-12.12s %s%s%s%s\n", p->agent, username, location, talkingto, moh);
+		count_agents++;
+		ast_mutex_unlock(&p->lock);
+	}
+	AST_LIST_UNLOCK(&agents);
+	if ( !count_agents ) 
+		ast_cli(fd, "No Agents are configured in %s\n",config);
+	else
+		ast_cli(fd, "%d agents online\n",online_agents);
+	ast_cli(fd, "\n");
+	return RESULT_SUCCESS;
+}
+
+
+
 static char show_agents_usage[] = 
 "Usage: show agents\n"
 "       Provides summary information on agents.\n";
+
+static char show_agents_online_usage[] =
+"Usage: show agents\n"
+"	Provides a list of all online agents.\n";
 
 static char agent_logoff_usage[] =
 "Usage: agent logoff <channel> [soft]\n"
@@ -1643,6 +1703,10 @@ static char agent_logoff_usage[] =
 static struct ast_cli_entry cli_show_agents = {
 	{ "show", "agents", NULL }, agents_show, 
 	"Show status of agents", show_agents_usage, NULL };
+
+static struct ast_cli_entry cli_show_agents_online = {
+	{ "show", "agents", "online" }, agents_show_online,
+	"Show all online agents", show_agents_online_usage, NULL };
 
 static struct ast_cli_entry cli_agent_logoff = {
 	{ "agent", "logoff", NULL }, agent_logoff_cmd, 
@@ -2497,6 +2561,7 @@ static int load_module(void *mod)
 	ast_manager_register2("AgentCallbackLogin", EVENT_FLAG_AGENT, action_agent_callback_login, "Sets an agent as logged in by callback", mandescr_agent_callback_login);
 	/* CLI Commands */
 	ast_cli_register(&cli_show_agents);
+	ast_cli_register(&cli_show_agents_online);
 	ast_cli_register(&cli_agent_logoff);
 	/* Dialplan Functions */
 	ast_custom_function_register(&agent_function);
@@ -2523,6 +2588,7 @@ static int unload_module(void *mod)
 	ast_custom_function_unregister(&agent_function);	
 	/* Unregister CLI commands */
 	ast_cli_unregister(&cli_show_agents);
+	ast_cli_unregister(&cli_show_agents_online);
 	ast_cli_unregister(&cli_agent_logoff);
 	/* Unregister dialplan applications */
 	ast_unregister_application(app);
