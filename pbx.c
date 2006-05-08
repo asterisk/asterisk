@@ -4766,63 +4766,56 @@ static void destroy_exten(struct ast_exten *e)
 void __ast_context_destroy(struct ast_context *con, const char *registrar)
 {
 	struct ast_context *tmp, *tmpl=NULL;
-	struct ast_include *tmpi, *tmpil= NULL;
+	struct ast_include *tmpi;
 	struct ast_sw *sw;
 	struct ast_exten *e, *el, *en;
-	struct ast_ignorepat *ipi, *ipl = NULL;
+	struct ast_ignorepat *ipi;
 
 	ast_mutex_lock(&conlock);
-	tmp = contexts;
-	while(tmp) {
-		if (((tmp->name && con && con->name && !strcasecmp(tmp->name, con->name)) || !con) &&
-		    (!registrar || !strcasecmp(registrar, tmp->registrar))) {
-			/* Okay, let's lock the structure to be sure nobody else
-			   is searching through it. */
-			ast_mutex_lock(&tmp->lock);
-			if (tmpl)
-				tmpl->next = tmp->next;
-			else
-				contexts = tmp->next;
-			/* Okay, now we're safe to let it go -- in a sense, we were
-			   ready to let it go as soon as we locked it. */
-			ast_mutex_unlock(&tmp->lock);
-			for (tmpi = tmp->includes; tmpi; ) {
-				/* Free includes */
-				tmpil = tmpi;
-				tmpi = tmpi->next;
-				free(tmpil);
-			}
-			for (ipi = tmp->ignorepats; ipi; ) {
-				/* Free ignorepats */
-				ipl = ipi;
-				ipi = ipi->next;
-				free(ipl);
-			}
-			while ((sw = AST_LIST_REMOVE_HEAD(&tmp->alts, list)))
-				free(sw);
-			for (e = tmp->root; e;) {
-				for (en = e->peer; en;) {
-					el = en;
-					en = en->peer;
-					destroy_exten(el);
-				}
-				el = e;
-				e = e->next;
+	for (tmp = contexts; tmp; ) {
+		struct ast_context *next;	/* next starting point */
+		for (; tmp; tmpl = tmp, tmp = tmp->next) {
+			if ( (!registrar || !strcasecmp(registrar, tmp->registrar)) &&
+			     (!con || !strcasecmp(tmp->name, con->name)) )
+				break;	/* found it */
+		}
+		if (!tmp)	/* not found, we are done */
+			break;
+		ast_mutex_lock(&tmp->lock);
+		next = tmp->next;
+		if (tmpl)
+			tmpl->next = next;
+		else
+			contexts = next;
+		/* Okay, now we're safe to let it go -- in a sense, we were
+		   ready to let it go as soon as we locked it. */
+		ast_mutex_unlock(&tmp->lock);
+		for (tmpi = tmp->includes; tmpi; ) { /* Free includes */
+			struct ast_include *tmpil = tmpi;
+			tmpi = tmpi->next;
+			free(tmpil);
+		}
+		for (ipi = tmp->ignorepats; ipi; ) { /* Free ignorepats */
+			struct ast_ignorepat *ipl = ipi;
+			ipi = ipi->next;
+			free(ipl);
+		}
+		while ((sw = AST_LIST_REMOVE_HEAD(&tmp->alts, list)))
+			free(sw);
+		for (e = tmp->root; e;) {
+			for (en = e->peer; en;) {
+				el = en;
+				en = en->peer;
 				destroy_exten(el);
 			}
-			ast_mutex_destroy(&tmp->lock);
-			free(tmp);
-			if (!con) {
-				/* Might need to get another one -- restart */
-				tmp = contexts;
-				tmpl = NULL;
-				tmpil = NULL;
-				continue;
-			}
-			break;
+			el = e;
+			e = e->next;
+			destroy_exten(el);
 		}
-		tmpl = tmp;
-		tmp = tmp->next;
+		ast_mutex_destroy(&tmp->lock);
+		free(tmp);
+		/* if we have a specific match, we are done, otherwise continue */
+		tmp = con ? NULL : next;
 	}
 	ast_mutex_unlock(&conlock);
 }
@@ -5016,14 +5009,14 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Invalid Time Spec: %s\nCorrect usage: %s\n", s, usage);
 		return -1;
 	}
-		
+
 	if (!ast_check_timing(&timing))	/* outside the valid time window, just return */
 		return 0;
 
 	/* now split appname|appargs */
 	if ((s = strchr(appname, '|')))
 		*s++ = '\0';
-		
+
 	if ((app = pbx_findapp(appname))) {
 		return pbx_exec(chan, app, S_OR(s, ""));
 	} else {
