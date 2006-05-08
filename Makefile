@@ -410,7 +410,7 @@ ifeq ($(OSARCH),SunOS)
 endif
 
 ifeq ($(MAKETOPLEVEL),$(MAKELEVEL))
-  CFLAGS+=$(ASTCFLAGS) $(TOPDIR_CFLAGS)
+  CFLAGS+=$(TOPDIR_CFLAGS) $(ASTCFLAGS)
 endif
 
 # This is used when generating the doxygen documentation
