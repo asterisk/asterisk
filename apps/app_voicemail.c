@@ -3359,7 +3359,11 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	snprintf(ext_context, sizeof(ext_context), "%s@%s", vmu->mailbox, vmu->context);
 
 	if (!ast_strlen_zero(vmu->attachfmt)) {
-		fmt = vmu->attachfmt;
+		if (strstr(fmt, vmu->attachfmt)) {
+			fmt = vmu->attachfmt;
+		} else {
+			ast_log(LOG_WARNING, "Attachment format '%s' is not one of the recorded formats '%s'.  Falling back to default format for '%s@%s'.\n", vmu->attachfmt, fmt, vmu->mailbox, vmu->context);
+		}
 	}
 
 	/* Attach only the first format */
