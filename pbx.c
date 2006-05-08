@@ -2396,15 +2396,14 @@ int ast_context_remove_include(const char *context, const char *include, const c
 int ast_context_remove_include2(struct ast_context *con, const char *include, const char *registrar)
 {
 	struct ast_include *i, *pi = NULL;
+	int ret = -1;
 
-	if (ast_mutex_lock(&con->lock))
-		return -1;
+	ast_mutex_lock(&con->lock);
 
-	/* walk includes */
+	/* find our include */
 	for (i = con->includes; i; pi = i, i = i->next) {
-		/* find our include */
 		if (!strcmp(i->name, include) && 
-			(!registrar || !strcmp(i->registrar, registrar))) {
+				(!registrar || !strcmp(i->registrar, registrar))) {
 			/* remove from list */
 			if (pi)
 				pi->next = i->next;
@@ -2412,14 +2411,13 @@ int ast_context_remove_include2(struct ast_context *con, const char *include, co
 				con->includes = i->next;
 			/* free include and return */
 			free(i);
-			ast_mutex_unlock(&con->lock);
-			return 0;
+			ret = 0;
+			break;
 		}
 	}
 
-	/* we can't find the right include */
 	ast_mutex_unlock(&con->lock);
-	return -1;
+	return ret;
 }
 
 /*!
@@ -2997,7 +2995,22 @@ struct dialplan_counters {
 	int extension_existence;
 };
 
-static int show_dialplan_helper(int fd, char *context, char *exten, struct dialplan_counters *dpc, struct ast_include *rinclude, int includecount, char *includes[])
+/*! \brief helper function to print an extension */
+static void print_ext(struct ast_exten *e, char * buf, int buflen)
+{
+	int prio = ast_get_extension_priority(e);
+	if (prio == PRIORITY_HINT) {
+		snprintf(buf, buflen, "hint: %s",
+			ast_get_extension_app(e));
+	} else {
+		snprintf(buf, buflen, "%d. %s(%s)",
+			prio, ast_get_extension_app(e),
+			(char *)ast_get_extension_app_data(e));
+	}
+}
+
+/* XXX not verified */
+static int show_dialplan_helper(int fd, const char *context, const char *exten, struct dialplan_counters *dpc, struct ast_include *rinclude, int includecount, char *includes[])   
 {
 	struct ast_context *c = NULL;
 	int res = 0, old_total_exten = dpc->total_exten;
@@ -3006,168 +3019,139 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 
 	/* walk all contexts ... */
 	while ( (c = ast_walk_contexts(c)) ) {
-		/* show this context? */
-		if (!context ||
-			!strcmp(ast_get_context_name(c), context)) {
-			/* XXX re-indent this block */
-				struct ast_exten *e;
-				struct ast_include *i;
-				struct ast_ignorepat *ip;
-				struct ast_sw *sw;
-				char buf[256], buf2[256];
-				int context_info_printed = 0;
+		struct ast_exten *e;
+		struct ast_include *i;
+		struct ast_ignorepat *ip;
+		char buf[256], buf2[256];
+		int context_info_printed = 0;
 
-			dpc->context_existence = 1;
-			ast_lock_context(c);
+		if (context && strcmp(ast_get_context_name(c), context))
+			continue;	/* skip this one, name doesn't match */
 
-				/* are we looking for exten too? if yes, we print context
-				 * if we our extension only
-				 */
-				if (!exten) {
-					dpc->total_context++;
+		dpc->context_existence = 1;
+
+		ast_lock_context(c);
+
+		/* are we looking for exten too? if yes, we print context
+		 * only if we find our extension.
+		 * Otherwise print context even if empty ?
+		 * XXX i am not sure how the rinclude is handled.
+		 * I think it ought to go inside.
+		 */
+		if (!exten) {
+			dpc->total_context++;
+			ast_cli(fd, "[ Context '%s' created by '%s' ]\n",
+				ast_get_context_name(c), ast_get_context_registrar(c));
+			context_info_printed = 1;
+		}
+
+		/* walk extensions ... */
+		e = NULL;
+		while ( (e = ast_walk_context_extensions(c, e)) ) {
+			struct ast_exten *p;
+
+			if (exten && !ast_extension_match(ast_get_extension_name(e), exten))
+				continue;	/* skip, extension match failed */
+
+			dpc->extension_existence = 1;
+
+			/* may we print context info? */	
+			if (!context_info_printed) {
+				dpc->total_context++;
+				if (rinclude) { /* TODO Print more info about rinclude */
+					ast_cli(fd, "[ Included context '%s' created by '%s' ]\n",
+						ast_get_context_name(c), ast_get_context_registrar(c));
+				} else {
 					ast_cli(fd, "[ Context '%s' created by '%s' ]\n",
 						ast_get_context_name(c), ast_get_context_registrar(c));
-					context_info_printed = 1;
 				}
+				context_info_printed = 1;
+			}
+			dpc->total_prio++;
 
-				/* walk extensions ... */
-				for (e = ast_walk_context_extensions(c, NULL); e; e = ast_walk_context_extensions(c, e)) {
-					struct ast_exten *p;
-					int prio;
+			/* write extension name and first peer */	
+			snprintf(buf, sizeof(buf), "'%s' =>", ast_get_extension_name(e));
 
-					/* looking for extension? is this our extension? */
-					if (exten &&
-						!ast_extension_match(ast_get_extension_name(e), exten))
-					{
-						/* we are looking for extension and it's not our
- 						 * extension, so skip to next extension */
-						continue;
-					}
+			print_ext(e, buf2, sizeof(buf2));
 
-					dpc->extension_existence = 1;
+			ast_cli(fd, "  %-17s %-45s [%s]\n", buf, buf2,
+				ast_get_extension_registrar(e));
 
-					/* may we print context info? */	
-					if (!context_info_printed) {
-						dpc->total_context++;
-						if (rinclude) {
-							/* TODO Print more info about rinclude */
-							ast_cli(fd, "[ Included context '%s' created by '%s' ]\n",
-								ast_get_context_name(c),
-								ast_get_context_registrar(c));
-						} else {
-							ast_cli(fd, "[ Context '%s' created by '%s' ]\n",
-								ast_get_context_name(c),
-								ast_get_context_registrar(c));
-						}
-						context_info_printed = 1;
-					}
-					dpc->total_prio++;
+			dpc->total_exten++;
+			/* walk next extension peers */
+			p = e;	/* skip the first one, we already got it */
+			while ( (p = ast_walk_extension_priorities(e, p)) ) {
+				const char *el = ast_get_extension_label(p);
+				dpc->total_prio++;
+				if (el)
+					snprintf(buf, sizeof(buf), "   [%s]", el);
+				else
+					buf[0] = '\0';
+				print_ext(p, buf2, sizeof(buf2));
 
-					/* write extension name and first peer */	
-					bzero(buf, sizeof(buf));		
-					snprintf(buf, sizeof(buf), "'%s' =>",
-						ast_get_extension_name(e));
-
-					prio = ast_get_extension_priority(e);
-					if (prio == PRIORITY_HINT) {
-						snprintf(buf2, sizeof(buf2),
-							"hint: %s",
-							ast_get_extension_app(e));
-					} else {
-						snprintf(buf2, sizeof(buf2),
-							"%d. %s(%s)",
-							prio,
-							ast_get_extension_app(e),
-							(char *)ast_get_extension_app_data(e));
-					}
-
-					ast_cli(fd, "  %-17s %-45s [%s]\n", buf, buf2,
-						ast_get_extension_registrar(e));
-
-					dpc->total_exten++;
-					/* walk next extension peers */
-					for (p=ast_walk_extension_priorities(e, e); p; p=ast_walk_extension_priorities(e, p)) {
-						dpc->total_prio++;
-						bzero((void *)buf2, sizeof(buf2));
-						bzero((void *)buf, sizeof(buf));
-						if (ast_get_extension_label(p))
-							snprintf(buf, sizeof(buf), "   [%s]", ast_get_extension_label(p));
-						prio = ast_get_extension_priority(p);
-						if (prio == PRIORITY_HINT) {
-							snprintf(buf2, sizeof(buf2),
-								"hint: %s",
-								ast_get_extension_app(p));
-						} else {
-							snprintf(buf2, sizeof(buf2),
-								"%d. %s(%s)",
-								prio,
-								ast_get_extension_app(p),
-								(char *)ast_get_extension_app_data(p));
-						}
-
-						ast_cli(fd,"  %-17s %-45s [%s]\n",
-							buf, buf2,
-							ast_get_extension_registrar(p));
-					}
-				}
-
-				/* walk included and write info ... */
-				for (i = ast_walk_context_includes(c, NULL); i; i = ast_walk_context_includes(c, i)) {
-					bzero(buf, sizeof(buf));
-					snprintf(buf, sizeof(buf), "'%s'",
-						ast_get_include_name(i));
-					if (exten) {
-						/* Check all includes for the requested extension */
-						if (includecount >= AST_PBX_MAX_STACK) {
-							ast_log(LOG_NOTICE, "Maximum include depth exceeded!\n");
-						} else {
-							int dupe=0;
-							int x;
-							for (x=0;x<includecount;x++) {
-								if (!strcasecmp(includes[x], ast_get_include_name(i))) {
-									dupe++;
-									break;
-								}
-							}
-							if (!dupe) {
-								includes[includecount] = (char *)ast_get_include_name(i);
-								show_dialplan_helper(fd, (char *)ast_get_include_name(i), exten, dpc, i, includecount + 1, includes);
-							} else {
-								ast_log(LOG_WARNING, "Avoiding circular include of %s within %s\n", ast_get_include_name(i), context);
-							}
-						}
-					} else {
-						ast_cli(fd, "  Include =>        %-45s [%s]\n",
-							buf, ast_get_include_registrar(i));
-					}
-				}
-
-				/* walk ignore patterns and write info ... */
-				for (ip = ast_walk_context_ignorepats(c, NULL); ip; ip = ast_walk_context_ignorepats(c, ip)) {
-					const char *ipname = ast_get_ignorepat_name(ip);
-					char ignorepat[AST_MAX_EXTENSION];
-					snprintf(buf, sizeof(buf), "'%s'", ipname);
-					snprintf(ignorepat, sizeof(ignorepat), "_%s.", ipname);
-					if ((!exten) || ast_extension_match(ignorepat, exten)) {
-						ast_cli(fd, "  Ignore pattern => %-45s [%s]\n",
-							buf, ast_get_ignorepat_registrar(ip));
-					}
-				}
-				if (!rinclude) {
-					for (sw = ast_walk_context_switches(c, NULL); sw; sw = ast_walk_context_switches(c, sw)) {
-						snprintf(buf, sizeof(buf), "'%s/%s'",
-							ast_get_switch_name(sw),
-							ast_get_switch_data(sw));
-						ast_cli(fd, "  Alt. Switch =>    %-45s [%s]\n",
-							buf, ast_get_switch_registrar(sw));	
-					}
-				}
-	
-				ast_unlock_context(c);
-
-				/* if we print something in context, make an empty line */
-				if (context_info_printed) ast_cli(fd, "\r\n");
+				ast_cli(fd,"  %-17s %-45s [%s]\n", buf, buf2,
+					ast_get_extension_registrar(p));
+			}
 		}
+
+		/* walk included and write info ... */
+		i = NULL;
+		while ( (i = ast_walk_context_includes(c, i)) ) {
+			snprintf(buf, sizeof(buf), "'%s'", ast_get_include_name(i));
+			if (exten) {
+				/* Check all includes for the requested extension */
+				if (includecount >= AST_PBX_MAX_STACK) {
+					ast_log(LOG_NOTICE, "Maximum include depth exceeded!\n");
+				} else {
+					int dupe=0;
+					int x;
+					for (x=0;x<includecount;x++) {
+						if (!strcasecmp(includes[x], ast_get_include_name(i))) {
+							dupe++;
+							break;
+						}
+					}
+					if (!dupe) {
+						includes[includecount] = (char *)ast_get_include_name(i);
+						show_dialplan_helper(fd, ast_get_include_name(i), exten, dpc, i, includecount + 1, includes);
+					} else {
+						ast_log(LOG_WARNING, "Avoiding circular include of %s within %s\n", ast_get_include_name(i), context);
+					}
+				}
+			} else {
+				ast_cli(fd, "  Include =>        %-45s [%s]\n",
+					buf, ast_get_include_registrar(i));
+			}
+		}
+
+		/* walk ignore patterns and write info ... */
+		ip = NULL;
+		while ( (ip = ast_walk_context_ignorepats(c, ip)) ) {
+			const char *ipname = ast_get_ignorepat_name(ip);
+			char ignorepat[AST_MAX_EXTENSION];
+			snprintf(buf, sizeof(buf), "'%s'", ipname);
+			snprintf(ignorepat, sizeof(ignorepat), "_%s.", ipname);
+			if (!exten || ast_extension_match(ignorepat, exten)) {
+				ast_cli(fd, "  Ignore pattern => %-45s [%s]\n",
+					buf, ast_get_ignorepat_registrar(ip));
+			}
+		}
+		if (!rinclude) {
+			struct ast_sw *sw = NULL;
+			while ( (sw = ast_walk_context_switches(c, sw)) ) {
+				snprintf(buf, sizeof(buf), "'%s/%s'",
+					ast_get_switch_name(sw),
+					ast_get_switch_data(sw));
+				ast_cli(fd, "  Alt. Switch =>    %-45s [%s]\n",
+					buf, ast_get_switch_registrar(sw));	
+			}
+		}
+
+		ast_unlock_context(c);
+
+		/* if we print something in context, make an empty line */
+		if (context_info_printed)
+			ast_cli(fd, "\r\n");
 	}
 	ast_unlock_contexts();
 
@@ -3179,6 +3163,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 	char *exten = NULL, *context = NULL;
 	/* Variables used for different counters */
 	struct dialplan_counters counters;
+
 	char *incstack[AST_PBX_MAX_STACK];
 	memset(&counters, 0, sizeof(counters));
 
