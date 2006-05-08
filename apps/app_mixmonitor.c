@@ -410,13 +410,9 @@ static int stop_mixmonitor_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	if (!ast_mutex_lock(&chan->lock)) {
-		ast_channel_spy_stop_by_type(chan, mixmonitor_spy_type);
-		ast_mutex_unlock(&chan->lock);
-	} else {
-		ast_log(LOG_WARNING, "Could not lock %s to stop MixMonitor on it\n", 
-				chan->name);
-	}
+	ast_mutex_lock(&chan->lock);
+	ast_channel_spy_stop_by_type(chan, mixmonitor_spy_type);
+	ast_mutex_unlock(&chan->lock);
 
 	LOCAL_USER_REMOVE(u);
 
