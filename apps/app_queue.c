@@ -1184,7 +1184,9 @@ static int say_position(struct queue_ent *qe)
 	/* Set our last_pos indicators */
  	qe->last_pos = now;
 	qe->last_pos_said = qe->pos;
-	ast_moh_start(qe->chan, qe->moh);
+	/* Don't restart music on hold if we're about to exit the caller from the queue */
+	if (!res)
+		ast_moh_start(qe->chan, qe->moh);
 
 	return res;
 }
@@ -2989,7 +2991,7 @@ check_turns:
 					/* Make a position announcement, if enabled */
 					if (qe.parent->announcefrequency && !ringing)
 						res = say_position(&qe);
-					if (res && valid_exit(&qe, res)) {
+					if (res) {
 						ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
 						break;
 					}
