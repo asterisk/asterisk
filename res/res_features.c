@@ -742,7 +742,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 					}
 					if (!ast_strlen_zero(xfersound) && !ast_streamfile(transferer, xfersound, transferer->language)) {
 						if (ast_waitstream(transferer, "") < 0) {
-							ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+							ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
 						}
 					}
 					ast_moh_stop(transferee);
@@ -806,7 +806,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	
 					if (!ast_strlen_zero(xfersound) && !ast_streamfile(newchan, xfersound, newchan->language)) {
 						if (ast_waitstream(newchan, "") < 0) {
-							ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+							ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
 						}
 					}
 					ast_bridge_call_thread_launch(tobj);
