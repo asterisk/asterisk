@@ -114,7 +114,7 @@ extern char defaultlanguage[];
 
 extern time_t ast_startuptime;
 extern time_t ast_lastreloadtime;
-extern int ast_mainpid;
+extern pid_t ast_mainpid;
 
 extern char record_cache_dir[AST_CACHE_DIR_LEN];
 extern char debug_filename[AST_FILENAME_MAX];

@@ -66,7 +66,7 @@ struct outgoing {
 	/* How long to wait for an answer */
 	int waittime;
 	/* PID which is currently calling */
-	int callingpid;
+	long callingpid;
 	
 	/* What to connect to outgoing */
 	char tech[256];
@@ -193,7 +193,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 				} else if (!strcasecmp(buf, "retry")) {
 					o->retries++;
 				} else if (!strcasecmp(buf, "startretry")) {
-					if (sscanf(c, "%d", &o->callingpid) != 1) {
+					if (sscanf(c, "%ld", &o->callingpid) != 1) {
 						ast_log(LOG_WARNING, "Unable to retrieve calling PID!\n");
 						o->callingpid = 0;
 					}

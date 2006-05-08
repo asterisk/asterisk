@@ -722,7 +722,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	if (logfiles.event_log && level == __LOG_EVENT) {
 		va_start(ap, fmt);
 
-		fprintf(eventlog, "%s asterisk[%d]: ", date, getpid());
+		fprintf(eventlog, "%s asterisk[%ld]: ", date, (long)getpid());
 		vfprintf(eventlog, fmt, ap);
 		fflush(eventlog);
 

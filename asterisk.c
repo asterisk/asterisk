@@ -171,7 +171,7 @@ char debug_filename[AST_FILENAME_MAX] = "";
 
 static int ast_socket = -1;		/*!< UNIX Socket for allowing remote control */
 static int ast_consock = -1;		/*!< UNIX Socket for controlling another asterisk */
-int ast_mainpid;
+pid_t ast_mainpid;
 struct console {
 	int fd;				/*!< File descriptor */
 	int p[2];			/*!< Pipe */
@@ -722,7 +722,7 @@ static void *netconsole(void *vconsole)
 	
 	if (gethostname(hostname, sizeof(hostname)-1))
 		ast_copy_string(hostname, "<Unknown>", sizeof(hostname));
-	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, ast_mainpid, ASTERISK_VERSION);
+	snprintf(tmp, sizeof(tmp), "%s/%ld/%s\n", hostname, (long)ast_mainpid, ASTERISK_VERSION);
 	fdprint(con->fd, tmp);
 	for(;;) {
 		fds[0].fd = con->fd;
@@ -2514,22 +2514,22 @@ int main(int argc, char *argv[])
 	unlink(ast_config_AST_PID);
 	f = fopen(ast_config_AST_PID, "w");
 	if (f) {
-		fprintf(f, "%d\n", (int)getpid());
+		fprintf(f, "%ld\n", (long)getpid());
 		fclose(f);
 	} else
 		ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
 
 	if (ast_opt_always_fork || !ast_opt_no_fork) {
 		daemon(0, 0);
+		ast_mainpid = getpid();
 		/* Blindly re-write pid file since we are forking */
 		unlink(ast_config_AST_PID);
 		f = fopen(ast_config_AST_PID, "w");
 		if (f) {
-			fprintf(f, "%d\n", (int)getpid());
+			fprintf(f, "%ld\n", (long)ast_mainpid);
 			fclose(f);
 		} else
 			ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
-		ast_mainpid = getpid();
 	}
 
 	/* Test recursive mutex locking. */
@@ -2656,7 +2656,7 @@ int main(int argc, char *argv[])
 		/* Register our quit function */
 		char title[256];
 		set_icon("Asterisk");
-		snprintf(title, sizeof(title), "Asterisk Console on '%s' (pid %d)", hostname, ast_mainpid);
+		snprintf(title, sizeof(title), "Asterisk Console on '%s' (pid %ld)", hostname, (long)ast_mainpid);
 		set_title(title);
 
 		for (;;) {
