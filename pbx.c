@@ -716,7 +716,12 @@ static int matchcid(const char *cidpattern, const char *callerid)
 	return ast_extension_match(cidpattern, callerid);
 }
 
-static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast_context *bypass, const char *context, const char *exten, int priority, const char *label, const char *callerid, int action, char *incstack[], int *stacklen, int *status, struct ast_switch **swo, char **data, const char **foundcontext)
+static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
+	struct ast_context *bypass,
+	const char *context, const char *exten, int priority,
+	const char *label, const char *callerid, int action,
+	char *incstack[], int *stacklen, int *status, struct ast_switch **swo,
+	char **data, const char **foundcontext)
 {
 	int x, res;
 	struct ast_context *tmp;
@@ -724,6 +729,8 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 	struct ast_include *i;
 	struct ast_sw *sw;
 	struct ast_switch *asw;
+
+	struct ast_exten *earlymatch = NULL;
 
 	/* Initialize status if appropriate */
 	if (!*stacklen) {
@@ -741,14 +748,17 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 		if (!strcasecmp(incstack[x], context))
 			return NULL;
 	}
-	if (bypass)
+	if (bypass)	/* bypass means we only look there */
 		tmp = bypass;
-	else
-		tmp = contexts;
-	for (; tmp; tmp = tmp->next) {
-		/* Match context */
-		if (bypass || !strcmp(tmp->name, context)) {
-			struct ast_exten *earlymatch = NULL;
+	else {	/* look in contexts */
+		for (tmp = contexts; tmp; tmp = tmp->next) {
+			if (!strcmp(tmp->name, context))
+				break;
+		}
+		if (!tmp)
+			return NULL;
+	}
+			/* XXX fix indentation */
 
 			if (*status < STATUS_NO_EXTENSION)
 				*status = STATUS_NO_EXTENSION;
@@ -828,9 +838,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 						return NULL;
 				}
 			}
-			break;
-		}
-	}
+
 	return NULL;
 }
 
@@ -878,6 +886,7 @@ static char *substring(const char *value, int offset, int length, char *workspac
 
 	ast_copy_string(workspace, value, workspace_len); /* always make a copy */
 
+	/* Quick check if no need to do anything */
 	if (offset == 0 && length < 0)	/* take the whole string */
 		return ret;
 
