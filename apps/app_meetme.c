@@ -2289,6 +2289,11 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 			case 77: /* M: Mute */ 
 				if (user) {
 					user->adminflags |= ADMINFLAG_MUTED;
+					manager_event(EVENT_FLAG_CALL, "MeetmeMute",
+						"Status: on"
+						"Meetme: %s\r\n"
+						"Usernum: %d\r\n",
+						cnf->confno, user->user_no);
 				} else {
 					ast_log(LOG_NOTICE, "Specified User not found!\n");
 				}
@@ -2308,6 +2313,11 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 			case 109: /* m: Unmute */ 
 				if (user && (user->adminflags & ADMINFLAG_MUTED)) {
 					user->adminflags ^= ADMINFLAG_MUTED;
+					manager_event(EVENT_FLAG_CALL, "MeetmeMute",
+						"Status: off"
+						"Meetme: %s\r\n"
+						"Usernum: %d\r\n",
+						cnf->confno, user->user_no);
 				} else {
 					ast_log(LOG_NOTICE, "Specified User not found or he muted himself!\n");
 				}
