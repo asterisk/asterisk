@@ -5486,7 +5486,7 @@ int pbx_checkcondition(const char *condition)
 		return 0;
 	else if (*condition >= '0' && *condition <= '9')	/* Numbers are evaluated for truth */
 		return atoi(condition);
-	else	/* Strings are true -- XXX maybe use ast_true() ? */
+	else	/* Strings are true */
 		return 1;
 }
 
