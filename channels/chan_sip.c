@@ -6802,49 +6802,60 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 	return 0;
 }
 
-/*! \brief Find out who the call is for */
+/*! \brief Find out who the call is for 
+	We use the INVITE uri to find out
+*/
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 {
 	char tmp[256] = "", *uri, *a;
-	char tmpf[256], *from;
+	char tmpf[256] = "", *from;
 	struct sip_request *req;
 	char *colon;
 	
 	req = oreq;
 	if (!req)
 		req = &p->initreq;
+
+	/* Find the request URI */
 	if (req->rlPart2)
 		ast_copy_string(tmp, req->rlPart2, sizeof(tmp));
 	uri = get_in_brackets(tmp);
 	
-	ast_copy_string(tmpf, get_header(req, "From"), sizeof(tmpf));
-	if (pedanticsipchecking) {
+	if (pedanticsipchecking)
 		ast_uri_decode(tmp);
-		ast_uri_decode(tmpf);
-	}
 
-	from = get_in_brackets(tmpf);
-	
 	if (strncmp(uri, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", uri);
 		return -1;
 	}
 	uri += 4;
+
+	/* Now find the From: caller ID and name */
+	ast_copy_string(tmpf, get_header(req, "From"), sizeof(tmpf));
+	if (!ast_strlen_zero(tmpf)) {
+		if (pedanticsipchecking)
+			ast_uri_decode(tmpf);
+		from = get_in_brackets(tmpf);
+	} else {
+		from = NULL;
+	}
+	
 	if (!ast_strlen_zero(from)) {
 		if (strncmp(from, "sip:", 4)) {
 			ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", from);
 			return -1;
 		}
 		from += 4;
-	} else
-		from = NULL;
-
-	if (pedanticsipchecking) {
-		ast_uri_decode(uri);
-		ast_uri_decode(from);
+		if ((a = strchr(from, ';')))
+			*a = '\0';
+		if ((a = strchr(from, '@'))) {
+			*a = '\0';
+			ast_string_field_set(p, fromdomain, a + 1);
+		} else
+			ast_string_field_set(p, fromdomain, from);
 	}
 
-	/* Skip any options */
+	/* Skip any options and find the domain */
 	if ((a = strchr(uri, ';')))
 		*a = '\0';
 
@@ -6879,19 +6890,12 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 			ast_string_field_set(p, context, domain_context);
 	}
 
-	if (from) {
-		if ((a = strchr(from, ';')))
-			*a = '\0';
-		if ((a = strchr(from, '@'))) {
-			*a = '\0';
-			ast_string_field_set(p, fromdomain, a + 1);
-		} else
-			ast_string_field_set(p, fromdomain, from);
-	}
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Looking for %s in %s (domain %s)\n", uri, p->context, p->domain);
 
-	/* Return 0 if we have a matching extension */
+	/* Check the dialplan for the username part of the request URI,
+	   the domain will be stored in the SIPDOMAIN variable
+		Return 0 if we have a matching extension */
 	if (ast_exists_extension(NULL, p->context, uri, 1, from) ||
 		!strcmp(uri, ast_pickup_ext())) {
 		if (!oreq)
@@ -6899,9 +6903,10 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		return 0;
 	}
 
-	/* Return 1 for overlap dialling support */
-	if (ast_canmatch_extension(NULL, p->context, uri, 1, from) ||
-	    !strncmp(uri, ast_pickup_ext(),strlen(uri))) {
+	/* Return 1 for pickup extension or overlap dialling support (if we support it) */
+	if((ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP) && 
+ 	    ast_canmatch_extension(NULL, p->context, uri, 1, from)) ||
+	    !strncmp(uri, ast_pickup_ext(), strlen(uri))) {
 		return 1;
 	}
 	
