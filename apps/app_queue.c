@@ -3828,12 +3828,13 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 		}
 		ast_mutex_unlock(&q->lock);
 	}
-	AST_LIST_UNLOCK(&queues);
 
 	astman_append(s,
 		"Event: QueueStatusComplete\r\n"
 		"%s"
 		"\r\n",idText);
+
+	AST_LIST_UNLOCK(&queues);
 
 
 	return RESULT_SUCCESS;
