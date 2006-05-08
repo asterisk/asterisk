@@ -2186,8 +2186,7 @@ static int do_senddigit(struct ast_channel *chan, char digit)
 
 	if (chan->tech->send_digit)
 		res = chan->tech->send_digit(chan, digit);
-	if (!(chan->tech->send_digit && chan->tech->send_digit_begin) ||
-	    res) {
+	if (res) {
 		/*
 		 * Device does not support DTMF tones, lets fake
 		 * it by doing our own generation. (PM2002)
