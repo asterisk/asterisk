@@ -133,9 +133,9 @@ static void stopmon(struct ast_channel *chan, struct ast_channel_spy *spy)
 	if (!chan)
 		return;
 
-	ast_mutex_lock(&chan->lock);
+	ast_channel_lock(chan);
 	ast_channel_spy_remove(chan, spy);
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 }
 
 static int startmon(struct ast_channel *chan, struct ast_channel_spy *spy) 
@@ -146,9 +146,9 @@ static int startmon(struct ast_channel *chan, struct ast_channel_spy *spy)
 	if (!chan)
 		return -1;
 
-	ast_mutex_lock(&chan->lock);
+	ast_channel_lock(chan);
 	res = ast_channel_spy_add(chan, spy);
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 		
 	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan)))
 		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);	
@@ -410,9 +410,9 @@ static int stop_mixmonitor_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	ast_mutex_lock(&chan->lock);
+	ast_channel_lock(chan);
 	ast_channel_spy_stop_by_type(chan, mixmonitor_spy_type);
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 
 	LOCAL_USER_REMOVE(u);
 
@@ -436,7 +436,7 @@ static int mixmonitor_cli(int fd, int argc, char **argv)
 	else if (!strcasecmp(argv[1], "stop"))
 		ast_channel_spy_stop_by_type(chan, mixmonitor_spy_type);
 
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 
 	return RESULT_SUCCESS;
 }
