@@ -1810,8 +1810,8 @@ int ast_extension_state_add(const char *context, const char *exten,
 /*! \brief  ast_extension_state_del: Remove a watcher from the callback list */
 int ast_extension_state_del(int id, ast_state_cb_type callback)
 {
-	struct ast_hint *hint;
-	struct ast_state_cb *cblist, *cbprev;
+	struct ast_state_cb **p_cur = NULL;	/* address of pointer to us */
+	int ret = -1;
 
 	if (!id && !callback)
 		return -1;
@@ -1819,49 +1819,30 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 	AST_LIST_LOCK(&hints);
 
 	/* id is zero is a callback without extension */
-	if (!id) {
-		cbprev = NULL;
-		for (cblist = statecbs; cblist; cblist = cblist->next) {
-	 		if (cblist->callback == callback) {
-				if (!cbprev)
-		    			statecbs = cblist->next;
-				else
-		    			cbprev->next = cblist->next;
-
-				free(cblist);
-
-	        		AST_LIST_UNLOCK(&hints);
-				return 0;
-	    		}
-	    		cbprev = cblist;
+	if (!id) {	/* id == 0 is a callback without extension */
+		for (p_cur = &statecbs; *p_cur; p_cur = &(*p_cur)->next) {
+	 		if ((*p_cur)->callback == callback)
+				break;
 		}
-
-		AST_LIST_UNLOCK(&hints);
-		return -1;
-	}
-
-	/* id greater than zero is a callback with extension */
-	/* Find the callback based on ID */
-	AST_LIST_TRAVERSE(&hints, hint, list) {
-		cbprev = NULL;
-		for (cblist = hint->callbacks; cblist; cblist = cblist->next) {
-	    		if (cblist->id==id) {
-				if (!cbprev)
-		    			hint->callbacks = cblist->next;		
-				else
-		    			cbprev->next = cblist->next;
-		
-				free(cblist);
-		
-				AST_LIST_UNLOCK(&hints);
-				return 0;		
-	    		}		
-	    		cbprev = cblist;				
+	} else { /* callback with extension, find the callback based on ID */
+		struct ast_hint *hint;
+		AST_LIST_TRAVERSE(&hints, hint, list) {
+			for (p_cur = &hint->callbacks; *p_cur; p_cur = &(*p_cur)->next) {
+	    			if ((*p_cur)->id == id)
+					break;
+			}
+			if (*p_cur)	/* found in the inner loop */
+				break;
 		}
 	}
-
+	if (p_cur && *p_cur) {
+		struct ast_state_cb *cur = *p_cur;
+		*p_cur = cur->next;
+		free(cur);
+		ret = 0;
+	}
 	AST_LIST_UNLOCK(&hints);
-	return -1;
+	return ret;
 }
 
 /*! \brief  ast_add_hint: Add hint to hint list, check initial extension state */
@@ -2022,8 +2003,11 @@ static int __ast_pbx_run(struct ast_channel *c)
 	int autoloopflag;
 
 	/* A little initial setup here */
-	if (c->pbx)
+	if (c->pbx) {
 		ast_log(LOG_WARNING, "%s already has PBX structure??\n", c->name);
+		/* XXX and now what ? */
+		free(c->pbx);
+	}
 	if (!(c->pbx = ast_calloc(1, sizeof(*c->pbx))))
 		return -1;
 	if (c->amaflags) {
@@ -2041,7 +2025,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 	c->pbx->rtimeout = 10;
 	c->pbx->dtimeout = 5;
 
-	autoloopflag = ast_test_flag(c, AST_FLAG_IN_AUTOLOOP);
+	autoloopflag = ast_test_flag(c, AST_FLAG_IN_AUTOLOOP);	/* save value to restore at the end */
 	ast_set_flag(c, AST_FLAG_IN_AUTOLOOP);
 
 	/* Start by trying whatever the channel is set to */
