@@ -5237,7 +5237,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 	other end knows and replace the current call with this new call */
 	if (p->options && p->options->replaces && !ast_strlen_zero(p->options->replaces)) {
 		add_header(&req, "Replaces", p->options->replaces);
-		add_header(&req, "Required", "replaces");
+		add_header(&req, "Require", "replaces");
 	}
 
 	if (p->options && !ast_strlen_zero(p->options->distinctive_ring)) {
@@ -10987,7 +10987,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	}
 
 	/* Find out what they require */
-	required = get_header(req, "Required");
+	required = get_header(req, "Require");
 	if (!ast_strlen_zero(required)) {
 		required_profile = parse_sip_options(NULL, required);
 		if (required_profile) { 	/* They require something */
@@ -11809,7 +11809,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			if (!ast_test_flag(req, SIP_PKT_IGNORE) && req->method == SIP_INVITE) {
 				transmit_response_reliable(p, "481 Call/Transaction Does Not Exist", req);
 				/* Will cease to exist after ACK */
-			} else {
+			} else if (req->method != SIP_ACK) {
 				transmit_response(p, "481 Call/Transaction Does Not Exist", req);
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 			}
