@@ -3000,9 +3000,6 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 		/* show this context? */
 		if (!context ||
 			!strcmp(ast_get_context_name(c), context)) {
-			dpc->context_existence = 1;
-
-			ast_lock_context(c);
 			/* XXX re-indent this block */
 				struct ast_exten *e;
 				struct ast_include *i;
@@ -3010,6 +3007,9 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 				struct ast_sw *sw;
 				char buf[256], buf2[256];
 				int context_info_printed = 0;
+
+			dpc->context_existence = 1;
+			ast_lock_context(c);
 
 				/* are we looking for exten too? if yes, we print context
 				 * if we our extension only
@@ -4105,15 +4105,35 @@ static void null_datad(void *foo)
 {
 }
 
-/*
+/*! \brief
+ * Main interface to add extensions to the list for out context.
+ *
+ * We sort extensions in order of matching preference, so that we can
+ * stop the search as soon as we find a suitable match.
+ * This ordering also takes care of wildcards such as '.' (meaning
+ * "one or more of any character") and '!' (which is 'earlymatch',
+ * meaning "zero or more of any character" but also impacts the
+ * return value from CANMATCH and EARLYMATCH.
+ * 
+ * The extension match rules defined in the devmeeting 2006.05.05 are
+ * quite simple: WE SELECT THE LONGEST MATCH.
+ * In detail, "longest" means the number of matched characters in
+ * the extension. In case of ties (e.g. _XXX and 333) in the length
+ * of a pattern, we give priority to entries with the smallest cardinality
+ * (e.g, [5-9] comes before [2-8] before the former has only 5 elements,
+ * while the latter has 7, etc.
+ * In case of same cardinality, the first element in the range counts.
+ * If we still have a tie, any final '!' will make this as a possibly
+ * less specific pattern.
+ *
  * EBUSY - can't lock
  * EEXIST - extension with the same priority exist and no replace is set
  *
  */
 int ast_add_extension2(struct ast_context *con,
-					  int replace, const char *extension, int priority, const char *label, const char *callerid,
-					  const char *application, void *data, void (*datad)(void *),
-					  const char *registrar)
+	int replace, const char *extension, int priority, const char *label, const char *callerid,
+	const char *application, void *data, void (*datad)(void *),
+	const char *registrar)
 {
 
 #define LOG do { 	if (option_debug) {\
