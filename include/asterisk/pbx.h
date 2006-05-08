@@ -25,6 +25,7 @@
 
 #include "asterisk/sched.h"
 #include "asterisk/channel.h"
+#include "asterisk/linkedlists.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -80,7 +81,7 @@ typedef int (ast_switch_f)(struct ast_channel *chan, const char *context,
 
 /*!< Data structure associated with an Asterisk switch */
 struct ast_switch {
-	struct ast_switch *next;	
+	AST_LIST_ENTRY(ast_switch) list;
 	const char *name;			/*!< Name of the switch */
 	const char *description;		/*!< Description of the switch */
 	

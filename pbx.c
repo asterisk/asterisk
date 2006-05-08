@@ -144,7 +144,7 @@ struct ast_sw {
 	const char *registrar;			/*!< Registrar */
 	char *data;				/*!< Data load */
 	int eval;
-	struct ast_sw *next;			/*!< Link them together */
+	AST_LIST_ENTRY(ast_sw) list;
 	char *tmpdata;
 	char stuff[0];
 };
@@ -164,7 +164,7 @@ struct ast_context {
 	struct ast_include *includes;		/*!< Include other contexts */
 	struct ast_ignorepat *ignorepats;	/*!< Patterns for which to continue playing dialtone */
 	const char *registrar;			/*!< Registrar */
-	struct ast_sw *alts;			/*!< Alternative switches */
+	AST_LIST_HEAD_NOLOCK(, ast_sw) alts;	/*!< Alternative switches */
 	char name[0];				/*!< Name of the context */
 };
 
@@ -466,8 +466,7 @@ AST_MUTEX_DEFINE_STATIC(conlock); 		/*!< Lock for the ast_context list */
 
 static AST_LIST_HEAD_STATIC(apps, ast_app);
 
-struct ast_switch *switches = NULL;
-AST_MUTEX_DEFINE_STATIC(switchlock);		/*!< Lock for switches */
+static AST_LIST_HEAD_STATIC(switches, ast_switch);
 
 static int stateid = 1;
 /* WARNING:
@@ -544,15 +543,13 @@ static struct ast_switch *pbx_findswitch(const char *sw)
 {
 	struct ast_switch *asw;
 
-	if (ast_mutex_lock(&switchlock)) {
-		ast_log(LOG_WARNING, "Unable to obtain application lock\n");
-		return NULL;
-	}
-	for (asw = switches; asw; asw = asw->next) {
+	AST_LIST_LOCK(&switches);
+	AST_LIST_TRAVERSE(&switches, asw, list) {
 		if (!strcasecmp(asw->name, sw))
 			break;
 	}
-	ast_mutex_unlock(&switchlock);
+	AST_LIST_UNLOCK(&switches);
+
 	return asw;
 }
 
@@ -797,7 +794,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 				return NULL;
 			}
 			/* Check alternative switches */
-			for (sw = tmp->alts; sw; sw = sw->next) {
+			AST_LIST_TRAVERSE(&tmp->alts, sw, list) {
 				if ((asw = pbx_findswitch(sw->name))) {
 					/* Substitute variables now */
 					if (sw->eval) 
@@ -1466,13 +1463,8 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 	char atmp[80];
 	char atmp2[EXT_DATA_SIZE+100];
 
-	if (ast_mutex_lock(&conlock)) {
-		ast_log(LOG_WARNING, "Unable to obtain lock\n");
-		if ((action == HELPER_EXISTS) || (action == HELPER_CANMATCH) || (action == HELPER_MATCHMORE))
-			return 0;
-		else
-			return -1;
-	}
+	ast_mutex_lock(&conlock);
+
 	e = pbx_find_extension(c, con, context, exten, priority, label, callerid, action, incstack, &stacklen, &status, &sw, &data, &foundcontext);
 	if (e) {
 		switch(action) {
@@ -1599,12 +1591,10 @@ static struct ast_exten *ast_hint_extension(struct ast_channel *c, const char *c
 	char *incstack[AST_PBX_MAX_STACK];
 	int stacklen = 0;
 
-	if (ast_mutex_lock(&conlock)) {
-		ast_log(LOG_WARNING, "Unable to obtain lock\n");
-		return NULL;
-	}
+	ast_mutex_lock(&conlock);
 	e = pbx_find_extension(c, NULL, context, exten, PRIORITY_HINT, NULL, "", HELPER_EXISTS, incstack, &stacklen, &status, &sw, &data, &foundcontext);
-	ast_mutex_unlock(&conlock);	
+	ast_mutex_unlock(&conlock);
+
 	return e;
 }
 
@@ -2357,16 +2347,14 @@ int pbx_set_autofallthrough(int newval)
 static struct ast_context *find_context_locked(const char *context)
 {
 	struct ast_context *c = NULL;
-	if (ast_lock_contexts()) {
-		errno = EBUSY;
-		return NULL;
-	}
+
+	ast_lock_contexts();
 	while ( (c = ast_walk_contexts(c)) ) {
 		if (!strcmp(ast_get_context_name(c), context))
 			return c;
 	}
 	ast_unlock_contexts();
-	errno = ENOENT;
+
 	return NULL;
 }
 
@@ -2453,27 +2441,26 @@ int ast_context_remove_switch(const char *context, const char *sw, const char *d
  */
 int ast_context_remove_switch2(struct ast_context *con, const char *sw, const char *data, const char *registrar)
 {
-	struct ast_sw *i, *pi = NULL;
+	struct ast_sw *i;
 	int ret = -1;
 
-	if (ast_mutex_lock(&con->lock))
-		return -1;
+	ast_mutex_lock(&con->lock);
 
-	/* walk switchs */
-	for (i = con->alts; i; pi = i, i = i->next) {
+	/* walk switches */
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&con->alts, i, list) {
 		if (!strcmp(i->name, sw) && !strcmp(i->data, data) && 
 			(!registrar || !strcmp(i->registrar, registrar))) {
 			/* found, remove from list */
-			if (pi)
-				pi->next = i->next;
-			else
-				con->alts = i->next;
+			AST_LIST_REMOVE_CURRENT(&con->alts, list);
 			free(i); /* free switch and return */
 			ret = 0;
 			break;
 		}
 	}
+	AST_LIST_TRAVERSE_SAFE_END
+
 	ast_mutex_unlock(&con->lock);
+
 	return ret;
 }
 
@@ -2508,8 +2495,7 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 {
 	struct ast_exten *exten, *prev_exten = NULL;
 
-	if (ast_mutex_lock(&con->lock))
-		return -1;
+	ast_mutex_lock(&con->lock);
 
 	/* go through all extensions in context and search the right one ... */
 	exten = con->root;
@@ -2662,47 +2648,27 @@ int ast_register_application(const char *app, int (*execute)(struct ast_channel 
  */
 int ast_register_switch(struct ast_switch *sw)
 {
-	struct ast_switch *tmp, *prev=NULL;
-	if (ast_mutex_lock(&switchlock)) {
-		ast_log(LOG_ERROR, "Unable to lock switch lock\n");
-		return -1;
+	struct ast_switch *tmp;
+
+	AST_LIST_LOCK(&switches);
+	AST_LIST_TRAVERSE(&switches, tmp, list) {
+		if (!strcasecmp(tmp->name, sw->name)) {
+			AST_LIST_UNLOCK(&switches);
+			ast_log(LOG_WARNING, "Switch '%s' already found\n", sw->name);
+			return -1;
+		}
 	}
-	for (tmp = switches; tmp; prev = tmp, tmp = tmp->next) {
-		if (!strcasecmp(tmp->name, sw->name))
-			break;
-	}
-	if (tmp) {	
-		ast_mutex_unlock(&switchlock);
-		ast_log(LOG_WARNING, "Switch '%s' already found\n", sw->name);
-		return -1;
-	}
-	sw->next = NULL;
-	if (prev) 
-		prev->next = sw;
-	else
-		switches = sw;
-	ast_mutex_unlock(&switchlock);
+	AST_LIST_INSERT_TAIL(&switches, sw, list);
+	AST_LIST_UNLOCK(&switches);
+	
 	return 0;
 }
 
 void ast_unregister_switch(struct ast_switch *sw)
 {
-	struct ast_switch *tmp, *prev=NULL;
-	if (ast_mutex_lock(&switchlock)) {
-		ast_log(LOG_ERROR, "Unable to lock switch lock\n");
-		return;
-	}
-	for (tmp = switches; tmp; prev = tmp, tmp = tmp->next) {
-		if (tmp == sw) {
-			if (prev)
-				prev->next = tmp->next;
-			else
-				switches = tmp->next;
-			tmp->next = NULL;
-			break;			
-		}
-	}
-	ast_mutex_unlock(&switchlock);
+	AST_LIST_LOCK(&switches);
+	AST_LIST_REMOVE(&switches, sw, list);
+	AST_LIST_UNLOCK(&switches);
 }
 
 /*
@@ -2863,10 +2829,7 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 	}
 	/* ... we have hints ... */
 	ast_cli(fd, "\n    -= Registered Asterisk Dial Plan Hints =-\n");
-	if (AST_LIST_LOCK(&hints)) {
-		ast_log(LOG_ERROR, "Unable to lock hints\n");
-		return -1;
-	}
+	AST_LIST_LOCK(&hints);
 	AST_LIST_TRAVERSE(&hints, hint, list) {
 		watchers = 0;
 		for (watcher = hint->callbacks; watcher; watcher = watcher->next)
@@ -2888,19 +2851,21 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 static int handle_show_switches(int fd, int argc, char *argv[])
 {
 	struct ast_switch *sw;
-	if (!switches) {
+
+	AST_LIST_LOCK(&switches);
+	
+	if (AST_LIST_EMPTY(&switches)) {
+		AST_LIST_UNLOCK(&switches);
 		ast_cli(fd, "There are no registered alternative switches\n");
 		return RESULT_SUCCESS;
 	}
-	/* ... we have applications ... */
+
 	ast_cli(fd, "\n    -= Registered Asterisk Alternative Switches =-\n");
-	if (ast_mutex_lock(&switchlock)) {
-		ast_log(LOG_ERROR, "Unable to lock switches\n");
-		return -1;
-	}
-	for (sw = switches; sw; sw = sw->next)
+	AST_LIST_TRAVERSE(&switches, sw, list)
 		ast_cli(fd, "%s: %s\n", sw->name, sw->description);
-	ast_mutex_unlock(&switchlock);
+
+	AST_LIST_UNLOCK(&switches);
+
 	return RESULT_SUCCESS;
 }
 
@@ -2998,11 +2963,7 @@ static char *complete_show_dialplan_context(const char *line, const char *word, 
 	if (pos != 2)
 		return NULL;
 
-	/* try to lock contexts list ... */
-	if (ast_lock_contexts()) {
-		ast_log(LOG_ERROR, "Unable to lock context list\n");
-		return NULL;
-	}
+	ast_lock_contexts();
 
 	wordlen = strlen(word);
 
@@ -3014,8 +2975,8 @@ static char *complete_show_dialplan_context(const char *line, const char *word, 
 		}
 	}
 
-	/* ... unlock and return */
 	ast_unlock_contexts();
+
 	return ret;
 }
 
@@ -3032,11 +2993,7 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 	struct ast_context *c = NULL;
 	int res = 0, old_total_exten = dpc->total_exten;
 
-	/* try to lock contexts */
-	if (ast_lock_contexts()) {
-		ast_log(LOG_WARNING, "Failed to lock contexts list\n");
-		return -1;
-	}
+	ast_lock_contexts();
 
 	/* walk all contexts ... */
 	while ( (c = ast_walk_contexts(c)) ) {
@@ -3045,8 +3002,8 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 			!strcmp(ast_get_context_name(c), context)) {
 			dpc->context_existence = 1;
 
-			/* try to lock context before walking in ... */
-			if (!ast_lock_context(c)) {
+			ast_lock_context(c);
+			/* XXX re-indent this block */
 				struct ast_exten *e;
 				struct ast_include *i;
 				struct ast_ignorepat *ip;
@@ -3201,7 +3158,6 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 
 				/* if we print something in context, make an empty line */
 				if (context_info_printed) ast_cli(fd, "\r\n");
-			}
 		}
 	}
 	ast_unlock_contexts();
@@ -3800,12 +3756,7 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 	new_include->next      = NULL;
 	new_include->registrar = registrar;
 
-	/* ... try to lock this context ... */
-	if (ast_mutex_lock(&con->lock)) {
-		free(new_include);
-		errno = EBUSY;
-		return -1;
-	}
+	ast_mutex_lock(&con->lock);
 
 	/* ... go to last include and check if context is already included too... */
 	for (i = con->includes; i; i = i->next) {
@@ -3858,7 +3809,7 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 	const char *data, int eval, const char *registrar)
 {
 	struct ast_sw *new_sw;
-	struct ast_sw *i, *il = NULL; /* sw, sw_last */
+	struct ast_sw *i;
 	int length;
 	char *p;
 	
@@ -3892,35 +3843,28 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 	}
 	if (eval) 
 		new_sw->tmpdata = p;
-	new_sw->next      = NULL;
 	new_sw->eval	  = eval;
 	new_sw->registrar = registrar;
 
 	/* ... try to lock this context ... */
-	if (ast_mutex_lock(&con->lock)) {
-		free(new_sw);
-		errno = EBUSY;
-		return -1;
-	}
+	ast_mutex_lock(&con->lock);
 
 	/* ... go to last sw and check if context is already swd too... */
-	for (i = con->alts; i; i = i->next) {
+	AST_LIST_TRAVERSE(&con->alts, i, list) {
 		if (!strcasecmp(i->name, new_sw->name) && !strcasecmp(i->data, new_sw->data)) {
 			free(new_sw);
 			ast_mutex_unlock(&con->lock);
 			errno = EEXIST;
 			return -1;
 		}
-		il = i;
 	}
 
 	/* ... sw new context into context list, unlock, return */
-	if (il)
-		il->next = new_sw;
-	else
-		con->alts = new_sw;
+	AST_LIST_INSERT_TAIL(&con->alts, new_sw, list);
+	
 	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Including switch '%s/%s' in context '%s'\n", new_sw->name, new_sw->data, ast_get_context_name(con)); 
+		ast_verbose(VERBOSE_PREFIX_3 "Including switch '%s/%s' in context '%s'\n", new_sw->name, new_sw->data, ast_get_context_name(con));
+
 	ast_mutex_unlock(&con->lock);
 
 	return 0;
@@ -3946,10 +3890,7 @@ int ast_context_remove_ignorepat2(struct ast_context *con, const char *ignorepat
 {
 	struct ast_ignorepat *ip, *ipl = NULL;
 
-	if (ast_mutex_lock(&con->lock)) {
-		errno = EBUSY;
-		return -1;
-	}
+	ast_mutex_lock(&con->lock);
 
 	for (ip = con->ignorepats; ip; ip = ip->next) {
 		if (!strcmp(ip->pattern, ignorepat) &&
@@ -4252,14 +4193,7 @@ int ast_add_extension2(struct ast_context *con,
 	tmp->datad = datad;
 	tmp->registrar = registrar;
 	
-	if (ast_mutex_lock(&con->lock)) {
-		free(tmp);
-		/* And properly destroy the data */
-		datad(data);
-		ast_log(LOG_WARNING, "Failed to lock context '%s'\n", con->name);
-		errno = EBUSY;
-		return -1;
-	}
+	ast_mutex_lock(&con->lock);
 	for (e = con->root; e; e = e->next) {
 		/* Make sure patterns are always last! */
 		if ((e->exten[0] != '_') && (extension[0] == '_'))
@@ -4819,7 +4753,7 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 {
 	struct ast_context *tmp, *tmpl=NULL;
 	struct ast_include *tmpi, *tmpil= NULL;
-	struct ast_sw *sw, *swl= NULL;
+	struct ast_sw *sw;
 	struct ast_exten *e, *el, *en;
 	struct ast_ignorepat *ipi, *ipl = NULL;
 
@@ -4830,10 +4764,7 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 		    (!registrar || !strcasecmp(registrar, tmp->registrar))) {
 			/* Okay, let's lock the structure to be sure nobody else
 			   is searching through it. */
-			if (ast_mutex_lock(&tmp->lock)) {
-				ast_log(LOG_WARNING, "Unable to lock context lock\n");
-				break;
-			}
+			ast_mutex_lock(&tmp->lock);
 			if (tmpl)
 				tmpl->next = tmp->next;
 			else
@@ -4853,13 +4784,8 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 				ipi = ipi->next;
 				free(ipl);
 			}
-			for (sw = tmp->alts; sw; ) {
-				/* Free switches */
-				swl = sw;
-				sw = sw->next;
-				free(swl);
-				swl = sw;
-			}
+			while ((sw = AST_LIST_REMOVE_HEAD(&tmp->alts, list)))
+				free(sw);
 			for (e = tmp->root; e;) {
 				for (en = e->peer; en;) {
 					el = en;
@@ -5734,9 +5660,9 @@ struct ast_sw *ast_walk_context_switches(struct ast_context *con,
 	struct ast_sw *sw)
 {
 	if (!sw)
-		return con ? con->alts : NULL;
+		return con ? AST_LIST_FIRST(&con->alts) : NULL;
 	else
-		return sw->next;
+		return AST_LIST_NEXT(sw, list);
 }
 
 struct ast_exten *ast_walk_extension_priorities(struct ast_exten *exten,
