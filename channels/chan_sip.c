@@ -10269,7 +10269,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (supported)
 			parse_sip_options(p, supported);
 	}
-	required = get_header(req, "Required");
+	required = get_header(req, "Require");
 	if (!ast_strlen_zero(required)) {
 		required_profile = parse_sip_options(NULL, required);
 		if (required_profile) { 	/* They require something */
@@ -11018,7 +11018,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			if (!ignore && req->method == SIP_INVITE) {
 				transmit_response_reliable(p, "481 Call/Transaction Does Not Exist", req, 1);
 				/* Will cease to exist after ACK */
-			} else {
+			} else if (req->method != SIP_ACK) {
 				transmit_response(p, "481 Call/Transaction Does Not Exist", req);
 				ast_set_flag(p, SIP_NEEDDESTROY);
 			}
