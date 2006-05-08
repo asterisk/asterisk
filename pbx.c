@@ -758,86 +758,85 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		if (!tmp)
 			return NULL;
 	}
-			/* XXX fix indentation */
 
-			if (*status < STATUS_NO_EXTENSION)
-				*status = STATUS_NO_EXTENSION;
-			for (eroot = tmp->root; eroot; eroot = eroot->next) {
-				int match = 0;
-				/* Match extension */
-				if ((((action != HELPER_MATCHMORE) && ast_extension_match(eroot->exten, exten)) ||
-				     ((action == HELPER_CANMATCH) && (ast_extension_close(eroot->exten, exten, 0))) ||
-				     ((action == HELPER_MATCHMORE) && (match = ast_extension_close(eroot->exten, exten, 1)))) &&
-				     (!eroot->matchcid || matchcid(eroot->cidmatch, callerid))) {
+	if (*status < STATUS_NO_EXTENSION)
+		*status = STATUS_NO_EXTENSION;
+	for (eroot = tmp->root; eroot; eroot = eroot->next) {
+		int match = 0;
+		/* Match extension */
+		if ((((action != HELPER_MATCHMORE) && ast_extension_match(eroot->exten, exten)) ||
+		     ((action == HELPER_CANMATCH) && (ast_extension_close(eroot->exten, exten, 0))) ||
+		     ((action == HELPER_MATCHMORE) && (match = ast_extension_close(eroot->exten, exten, 1)))) &&
+		     (!eroot->matchcid || matchcid(eroot->cidmatch, callerid))) {
 
-					if (action == HELPER_MATCHMORE && match == 2 && !earlymatch) {
-						/* It matched an extension ending in a '!' wildcard
-						   So ignore it for now, unless there's a better match */
-						earlymatch = eroot;
-					} else {
-						if (*status < STATUS_NO_PRIORITY)
-							*status = STATUS_NO_PRIORITY;
-						for (e = eroot; e; e = e->peer) {
-							/* Match priority */
-							if (action == HELPER_FINDLABEL) {
-								if (*status < STATUS_NO_LABEL)
-									*status = STATUS_NO_LABEL;
-							 	if (label && e->label && !strcmp(label, e->label)) {
-									*status = STATUS_SUCCESS;
-									*foundcontext = context;
-									return e;
-								}
-							} else if (e->priority == priority) {
-								*status = STATUS_SUCCESS;
-								*foundcontext = context;
-								return e;
-							}
+			if (action == HELPER_MATCHMORE && match == 2 && !earlymatch) {
+				/* It matched an extension ending in a '!' wildcard
+				   So ignore it for now, unless there's a better match */
+				earlymatch = eroot;
+			} else {
+				if (*status < STATUS_NO_PRIORITY)
+					*status = STATUS_NO_PRIORITY;
+				for (e = eroot; e; e = e->peer) {
+					/* Match priority */
+					if (action == HELPER_FINDLABEL) {
+						if (*status < STATUS_NO_LABEL)
+							*status = STATUS_NO_LABEL;
+						if (label && e->label && !strcmp(label, e->label)) {
+							*status = STATUS_SUCCESS;
+							*foundcontext = context;
+							return e;
 						}
+					} else if (e->priority == priority) {
+						*status = STATUS_SUCCESS;
+						*foundcontext = context;
+						return e;
 					}
 				}
 			}
-			if (earlymatch) {
-				/* Bizarre logic for HELPER_MATCHMORE. We return zero to break out 
-				   of the loop waiting for more digits, and _then_ match (normally)
-				   the extension we ended up with. We got an early-matching wildcard
-				   pattern, so return NULL to break out of the loop. */
+		}
+	}
+	if (earlymatch) {
+		/* Bizarre logic for HELPER_MATCHMORE. We return zero to break out 
+		   of the loop waiting for more digits, and _then_ match (normally)
+		   the extension we ended up with. We got an early-matching wildcard
+		   pattern, so return NULL to break out of the loop. */
+		return NULL;
+	}
+	/* Check alternative switches */
+	AST_LIST_TRAVERSE(&tmp->alts, sw, list) {
+		if ((asw = pbx_findswitch(sw->name))) {
+			/* Substitute variables now */
+			if (sw->eval) 
+				pbx_substitute_variables_helper(chan, sw->data, sw->tmpdata, SWITCH_DATA_LENGTH - 1);
+			if (action == HELPER_CANMATCH)
+				res = asw->canmatch ? asw->canmatch(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
+			else if (action == HELPER_MATCHMORE)
+				res = asw->matchmore ? asw->matchmore(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
+			else
+				res = asw->exists ? asw->exists(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
+			if (res) {
+				/* Got a match */
+				*swo = asw;
+				*data = sw->eval ? sw->tmpdata : sw->data;
+				*foundcontext = context;
 				return NULL;
 			}
-			/* Check alternative switches */
-			AST_LIST_TRAVERSE(&tmp->alts, sw, list) {
-				if ((asw = pbx_findswitch(sw->name))) {
-					/* Substitute variables now */
-					if (sw->eval) 
-						pbx_substitute_variables_helper(chan, sw->data, sw->tmpdata, SWITCH_DATA_LENGTH - 1);
-					if (action == HELPER_CANMATCH)
-						res = asw->canmatch ? asw->canmatch(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
-					else if (action == HELPER_MATCHMORE)
-						res = asw->matchmore ? asw->matchmore(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
-					else
-						res = asw->exists ? asw->exists(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
-					if (res) {
-						/* Got a match */
-						*swo = asw;
-						*data = sw->eval ? sw->tmpdata : sw->data;
-						*foundcontext = context;
-						return NULL;
-					}
-				} else {
-					ast_log(LOG_WARNING, "No such switch '%s'\n", sw->name);
-				}
-			}
-			/* Setup the stack */
-			incstack[*stacklen] = tmp->name;
-			(*stacklen)++;
-			/* Now try any includes we have in this context */
-			for (i = tmp->includes; i; i = i->next) {
-				if (include_valid(i)) {
-					if ((e = pbx_find_extension(chan, bypass, i->rname, exten, priority, label, callerid, action, incstack, stacklen, status, swo, data, foundcontext))) 
-						return e;
-					if (*swo) 
-						return NULL;
-				}
-			}
+		} else {
+			ast_log(LOG_WARNING, "No such switch '%s'\n", sw->name);
+		}
+	}
+	/* Setup the stack */
+	incstack[*stacklen] = tmp->name;
+	(*stacklen)++;
+	/* Now try any includes we have in this context */
+	for (i = tmp->includes; i; i = i->next) {
+		if (include_valid(i)) {
+			if ((e = pbx_find_extension(chan, bypass, i->rname, exten, priority, label, callerid, action, incstack, stacklen, status, swo, data, foundcontext))) 
+				return e;
+			if (*swo) 
+				return NULL;
+		}
+	}
 
 	return NULL;
 }
