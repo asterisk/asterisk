@@ -1259,7 +1259,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 	/* Substitutes variables into cp2, based on string cp1, and assuming cp2 to be
 	   zero-filled */
 	whereweare=tmp=cp1;
-	while(!ast_strlen_zero(whereweare) && count) {
+	while (!ast_strlen_zero(whereweare) && count) {
 		/* Assume we're copying the whole remaining string */
 		pos = strlen(whereweare);
 		nextvar = NULL;
@@ -1691,15 +1691,16 @@ int ast_extension_state(struct ast_channel *c, const char *context, const char *
 void ast_hint_state_changed(const char *device)
 {
 	struct ast_hint *hint;
-	struct ast_state_cb *cblist;
-	char buf[AST_MAX_EXTENSION];
-	char *parse;
-	char *cur;
-	int state;
 
 	AST_LIST_LOCK(&hints);
 
 	AST_LIST_TRAVERSE(&hints, hint, list) {
+		struct ast_state_cb *cblist;
+		char buf[AST_MAX_EXTENSION];
+		char *parse;
+		char *cur;
+		int state;
+
 		ast_copy_string(buf, ast_get_extension_app(hint->exten), sizeof(buf));
 		parse = buf;
 		for (cur = strsep(&parse, "&"); cur; cur = strsep(&parse, "&")) {
