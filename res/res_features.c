@@ -704,7 +704,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	if (newchan->_softhangup || newchan->_state != AST_STATE_UP || !transferer->_softhangup) {
 		ast_hangup(newchan);
 		if (ast_stream_and_wait(transferer, xfersound, transferer->language, ""))
-			ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+			ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
 		finishup(transferee);
 		transferer->_softhangup = 0;
 		return FEATURE_RETURN_SUCCESS;
@@ -757,7 +757,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	tobj->bconfig = *config;
 
 	if (ast_stream_and_wait(newchan, xfersound, newchan->language, ""))
-		ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+		ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
 	ast_bridge_call_thread_launch(tobj);
 	return -1;	/* XXX meaning the channel is bridged ? */
 }
