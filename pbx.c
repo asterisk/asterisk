@@ -1197,58 +1197,51 @@ int ast_custom_function_register(struct ast_custom_function *acf)
 	return 0;
 }
 
-int ast_func_read(struct ast_channel *chan, char *function, char *workspace, size_t len)
+/*! \brief return a pointer to the arguments of the function,
+ * and terminates the function name with '\0'
+ */
+static char *func_args(char *function)
 {
-	char *args = NULL, *p;
-	struct ast_custom_function *acfptr;
+	char *args = strchr(function, '(');
 
-	if ((args = strchr(function, '('))) {
+	if (!args)
+		ast_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
+	else {
+		char *p;
 		*args++ = '\0';
-		if ((p = strrchr(args, ')')))
+		if ((p = strrchr(args, ')')) )
 			*p = '\0';
 		else
 			ast_log(LOG_WARNING, "Can't find trailing parenthesis?\n");
-	} else {
-		ast_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
 	}
+	return args;
+}
 
-	if ((acfptr = ast_custom_function_find(function))) {
-		/* run the custom function */
-		if (acfptr->read)
-			return acfptr->read(chan, function, args, workspace, len);
-		else
-			ast_log(LOG_ERROR, "Function %s cannot be read\n", function);
-	} else {
+int ast_func_read(struct ast_channel *chan, char *function, char *workspace, size_t len)
+{
+	char *args = func_args(function);
+	struct ast_custom_function *acfptr = ast_custom_function_find(function);
+
+	if (acfptr == NULL)
 		ast_log(LOG_ERROR, "Function %s not registered\n", function);
-	}
-
+	else if (!acfptr->read)
+		ast_log(LOG_ERROR, "Function %s cannot be read\n", function);
+	else
+		return acfptr->read(chan, function, args, workspace, len);
 	return -1;
 }
 
 int ast_func_write(struct ast_channel *chan, char *function, const char *value)
 {
-	char *args = NULL, *p;
-	struct ast_custom_function *acfptr;
+	char *args = func_args(function);
+	struct ast_custom_function *acfptr = ast_custom_function_find(function);
 
-	if ((args = strchr(function, '('))) {
-		*args++ = '\0';
-		if ((p = strrchr(args, ')')))
-			*p = '\0';
-		else
-			ast_log(LOG_WARNING, "Can't find trailing parenthesis?\n");
-	} else {
-		ast_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
-	}
-
-	if ((acfptr = ast_custom_function_find(function))) {
-		/* run the custom function */
-		if (acfptr->write)
-			return acfptr->write(chan, function, args, value);
-		else
-			ast_log(LOG_ERROR, "Function %s is read-only, it cannot be written to\n", function);
-	} else {
+	if (acfptr == NULL)
 		ast_log(LOG_ERROR, "Function %s not registered\n", function);
-	}
+	else if (!acfptr->write)
+		ast_log(LOG_ERROR, "Function %s cannot be written to\n", function);
+	else
+		return acfptr->write(chan, function, args, value);
 
 	return -1;
 }
