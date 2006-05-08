@@ -543,16 +543,16 @@ muted: muted.o
 	$(CC) $(AUDIO_LIBS) -o muted muted.o
 
 subdirs: 
-	for x in $(MOD_SUBDIRS); do CFLAGS="$(ASTCFLAGS) $(MOD_SUBDIR_CFLAGS)" $(MAKE) -C $$x || exit 1 ; done
-	CFLAGS="$(ASTCFLAGS) $(OTHER_SUBDIR_CFLAGS)" $(MAKE) -C utils
-	CFLAGS="$(ASTCFLAGS) $(OTHER_SUBDIR_CFLAGS)" $(MAKE) -C agi
+	@for x in $(MOD_SUBDIRS); do CFLAGS="$(ASTCFLAGS) $(MOD_SUBDIR_CFLAGS)" $(MAKE) -C $$x || exit 1 ; done
+	@CFLAGS="$(ASTCFLAGS) $(OTHER_SUBDIR_CFLAGS)" $(MAKE) -C utils
+	@CFLAGS="$(ASTCFLAGS) $(OTHER_SUBDIR_CFLAGS)" $(MAKE) -C agi
 
 clean-depend:
-	for x in $(SUBDIRS); do $(MAKE) -C $$x clean-depend || exit 1 ; done
+	@for x in $(SUBDIRS); do $(MAKE) -C $$x clean-depend || exit 1 ; done
 	rm -f .depend .tags-depend
 
 clean: clean-depend
-	for x in $(SUBDIRS); do $(MAKE) -C $$x clean || exit 1 ; done
+	@for x in $(SUBDIRS); do $(MAKE) -C $$x clean || exit 1 ; done
 	rm -f *.o *.so asterisk
 	rm -f defaults.h
 	rm -f include/asterisk/build.h
@@ -708,7 +708,7 @@ bininstall: all
 	if [ -f mpg123-0.59r/mpg123 ]; then $(MAKE) -C mpg123-0.59r install; fi
 
 install-subdirs:
-	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
+	@for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
 
 NEWMODS=$(notdir $(wildcard */*.so))
 OLDMODS=$(filter-out $(NEWMODS),$(notdir $(wildcard $(DESTDIR)$(MODULES_DIR)/*.so)))
@@ -914,7 +914,7 @@ dont-optimize: _all
 valgrind: dont-optimize
 
 depend: include/asterisk/version.h .depend defaults.h 
-	for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
+	@for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
 
 .depend: include/asterisk/version.h defaults.h
 	build_tools/mkdep $(CFLAGS) $(wildcard *.c)
