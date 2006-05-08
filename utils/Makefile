@@ -29,6 +29,10 @@ ifeq ($(NEWT_LIB),)
   UTILS:=$(filter-out astman,$(UTILS))
 endif
 
+ifneq ($(filter pbx_ael.so,$(MENUSELECT_PBX)),)
+  UTILS:=$(filter-out aelparse,$(UTILS))
+endif
+
 all: depend $(UTILS)
 
 install:
