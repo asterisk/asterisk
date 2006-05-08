@@ -1056,6 +1056,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 					return -1;
 				case AST_CONTROL_RINGING:
 				case AST_CONTROL_ANSWER:
+				case AST_CONTROL_VIDUPDATE:
 					/* Unimportant */
 					break;
 				default:
