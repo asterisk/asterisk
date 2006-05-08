@@ -29,6 +29,8 @@ context=default			; Default context for incoming calls
 				; this can also be set to 'osp'
 				; if asterisk was compiled with OSP support.)
 allowoverlap=no			; Disable overlap dialing support. (Default is yes)
+;allowtransfer=no		; Disable all transfers (unless enabled in peers or users)
+				; Default is enabled
 ;realm=mydomain.tld		; Realm for digest authentication
 				; defaults to "asterisk"
 				; Realms MUST be globally unique according to RFC 3261
@@ -334,6 +336,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; restrictcid		      restrictcid
 ; allowoverlap		      allowoverlap
 ; allowsubscribe	      allowsubscribe
+; allowtransfer	      	      allowtransfer
 ; subscribecontext	      subscribecontext
 ; videosupport		      videosupport
 ; maxcallbitrate	      maxcallbitrate
