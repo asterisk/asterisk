@@ -528,7 +528,7 @@ include/asterisk/version.h:
 	rm -f $@.tmp
 
 stdtime/libtime.a:
-	CFLAGS="$(ASTCFLAGS) $(MOD_SUBDIR_CFLAGS)" $(MAKE) -C stdtime libtime.a
+	CFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" $(MAKE) -C stdtime libtime.a
 
 asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
 	build_tools/make_build_h > include/asterisk/build.h.tmp
@@ -543,9 +543,9 @@ muted: muted.o
 	$(CC) $(AUDIO_LIBS) -o muted muted.o
 
 subdirs: 
-	@for x in $(MOD_SUBDIRS); do CFLAGS="$(ASTCFLAGS) $(MOD_SUBDIR_CFLAGS)" $(MAKE) -C $$x || exit 1 ; done
-	@CFLAGS="$(ASTCFLAGS) $(OTHER_SUBDIR_CFLAGS)" $(MAKE) -C utils
-	@CFLAGS="$(ASTCFLAGS) $(OTHER_SUBDIR_CFLAGS)" $(MAKE) -C agi
+	@for x in $(MOD_SUBDIRS); do CFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" $(MAKE) -C $$x || exit 1 ; done
+	@CFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" $(MAKE) -C utils
+	@CFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" $(MAKE) -C agi
 
 clean-depend:
 	@for x in $(SUBDIRS); do $(MAKE) -C $$x clean-depend || exit 1 ; done
