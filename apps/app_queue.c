@@ -2365,13 +2365,14 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					mixmonapp = NULL;
 				}
 
+				if (!monitor_options)
+					monitor_options = ast_strdupa("");
+
 				if (mixmonapp) {
 					if (!ast_strlen_zero(monitor_exec) && !ast_strlen_zero(monitor_options)) 
 						snprintf(mixmonargs, sizeof(mixmonargs)-1, "%s|b%s|%s", tmpid2, monitor_options, monitor_exec);
-					else if (!ast_strlen_zero(monitor_options)) 
-						snprintf(mixmonargs, sizeof(mixmonargs)-1, "%s|b%s", tmpid2, monitor_options);
 					else 
-						snprintf(mixmonargs, sizeof(mixmonargs)-1, "%s|b", tmpid2);
+						snprintf(mixmonargs, sizeof(mixmonargs)-1, "%s|b%s", tmpid2, monitor_options);
 						
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Arguments being passed to MixMonitor: %s\n", mixmonargs);
