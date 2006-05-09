@@ -50,22 +50,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 AST_MUTEX_DEFINE_STATIC(monitorlock);
 
-#define LOCK_IF_NEEDED(lock, needed)								\
-	do {															\
-		if (needed) {												\
-			if (ast_mutex_lock(lock)) {								\
-				ast_log(LOG_WARNING, "Unable to lock channel\n");	\
-				return -1;											\
-			}														\
-		}															\
+#define LOCK_IF_NEEDED(lock, needed) do { \
+	if (needed) \
+		ast_mutex_lock(lock); \
 	} while(0)
 
-#define UNLOCK_IF_NEEDED(lock, needed)			\
-	do {										\
-		if (needed) {							\
-			ast_mutex_unlock(lock);				\
-		}										\
-	} while(0)									\
+#define UNLOCK_IF_NEEDED(lock, needed) do { \
+	if (needed) \
+		ast_mutex_unlock(lock); \
+	} while (0)
 
 static unsigned long seq = 0;
 
