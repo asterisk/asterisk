@@ -561,6 +561,127 @@ static void pbx_destroy(struct ast_pbx *p)
 }
 
 /*!
+ * \brief helper functions to sort extensions and patterns in the desired way,
+ * so that more specific patterns appear first.
+ *
+ * ext_cmp1 compares individual characters (or sets of), returning
+ * an int where bits 0-7 are the ASCII code of the first char in the set,
+ * while bit 8-15 are the cardinality of the set minus 1.
+ * This way more specific patterns (smaller cardinality) appear first.
+ * Wildcards have a special value, so that we can directly compare them to
+ * sets by subtracting the two values. In particular:
+ * 	0x000xx		one character, xx
+ * 	0x0yyxx		yy character set starting with xx
+ * 	0x10000		'.' (one or more of anything)
+ * 	0x20000		'!' (zero or more of anything)
+ * 	0x30000		NUL (end of string)
+ * 	0x40000		error in set.
+ * The pointer to the string is advanced according to needs.
+ * NOTES:
+ *	1. the empty set is equivalent to NUL.
+ *	2. given that a full set has always 0 as the first element,
+ *	   we could encode the special cases as 0xffXX where XX
+ *	   is 1, 2, 3, 4 as used above.
+ */
+static int ext_cmp1(const char **p)
+{
+	uint32_t chars[8];
+	int c, cmin = 0xff, count = 0;
+	const char *end;
+
+	/* load, sign extend and advance pointer until we find
+	 * a valid character.
+	 */
+	while ( (c = *(*p)++) && (c == ' ' || c == '-') )
+		;	/* ignore some characters */
+
+	/* always return unless we have a set of chars */
+	switch (c) {
+	default:	/* ordinary character */
+		return 0x0000 | (c & 0xff);
+
+	case 'N':	/* 2..9 */
+		return 0x0700 | '2' ;
+
+	case 'X':	/* 0..9 */
+		return 0x0900 | '0';
+
+	case 'Z':	/* 1..9 */
+		return 0x0800 | '1';
+
+	case '.':	/* wildcard */
+		return 0x10000;
+
+	case '!':	/* earlymatch */
+		return 0x20000;	/* less specific than NULL */
+
+	case '\0':	/* empty string */
+		*p = NULL;
+		return 0x30000;
+
+	case '[':	/* pattern */
+		break;
+	}
+	/* locate end of set */
+	end = strchr(*p, ']');	
+
+	if (end == NULL) {
+		ast_log(LOG_WARNING, "Wrong usage of [] in the extension\n");
+		return 0x40000;	/* XXX make this entry go last... */
+	}
+
+	bzero(chars, sizeof(chars));	/* clear all chars in the set */
+	for (; *p < end  ; (*p)++) {
+		unsigned char c1, c2;	/* first-last char in range */
+		c1 = (unsigned char)((*p)[0]);
+		if (*p + 2 < end && (*p)[1] == '-') { /* this is a range */
+			c2 = (unsigned char)((*p)[2]);
+			*p += 2;	/* skip a total of 3 chars */
+		} else			/* individual character */
+			c2 = c1;
+		if (c1 < cmin)
+			cmin = c1;
+		for (; c1 <= c2; c1++) {
+			uint32_t mask = 1 << (c1 % 32);
+			if ( (chars[ c1 / 32 ] & mask) == 0)
+				count += 0x100;
+			chars[ c1 / 32 ] |= mask;
+		}
+	}
+	(*p)++;
+	return count == 0 ? 0x30000 : (count | cmin);
+}
+
+/*!
+ * \brief the full routine to compare extensions in rules.
+ */
+static int ext_cmp(const char *a, const char *b)
+{
+	/* make sure non-patterns come first.
+	 * If a is not a pattern, it either comes first or
+	 * we use strcmp to compare the strings.
+	 */
+	int ret = 0;
+
+	if (a[0] != '_')
+		return (b[0] == '_') ? -1 : strcmp(a, b);
+
+	/* Now we know a is a pattern; if b is not, a comes first */
+	if (b[0] != '_')
+		return 1;
+#if 0	/* old mode for ext matching */
+	return strcmp(a, b);
+#endif
+	/* ok we need full pattern sorting routine */
+	while (!ret && a && b)
+		ret = ext_cmp1(&a) - ext_cmp1(&b);
+	if (ret == 0)
+		return 0;
+	else
+		return (ret > 0) ? 1 : -1;
+}
+
+/*!
  * When looking up extensions, we can have different requests
  * identified by the 'action' argument, as follows.
  * Note that the coding is such that the low 4 bits are the
@@ -4162,10 +4283,10 @@ int ast_add_extension2(struct ast_context *con,
 	} } while(0)
 
 	/*
-	 * This is a fairly complex routine.  Different extensions are kept
-	 * in order by the extension number.  Then, extensions of different
-	 * priorities (same extension) are kept in a list, according to the
-	 * peer pointer.
+	 * Sort extensions (or patterns) according to the rules indicated above.
+	 * These are implemented by the function ext_cmp()).
+	 * All priorities for the same ext/pattern/cid are kept in a list,
+	 * using the 'peer' field  as a link field..
 	 */
 	struct ast_exten *tmp, *e, *el = NULL;
 	int res;
@@ -4226,14 +4347,7 @@ int ast_add_extension2(struct ast_context *con,
 
 	ast_mutex_lock(&con->lock);
 	for (e = con->root; e; el = e, e = e->next) {   /* scan the extension list */
-		/* XXX should use ext_cmp() to sort patterns correctly */
-		/* almost strcmp, but make sure patterns are always last! */
-		if (e->exten[0] != '_' && extension[0] == '_')
-			res = -1;
-		else if (e->exten[0] == '_' && extension[0] != '_')
-			res = 1;
-		else
-			res= strcmp(e->exten, extension);
+		res = ext_cmp(e->exten, extension);
 		if (res == 0) { /* extension match, now look at cidmatch */
 			if (!e->matchcid && !tmp->matchcid)
 				res = 0;
@@ -4257,7 +4371,10 @@ int ast_add_extension2(struct ast_context *con,
 			}
 			return ret;
 	}
-	/* ok found the insertion place, right before 'e' (if any) */
+	/*
+	 * not an exact match, this is the first entry with this pattern,
+	 * so insert in the main list right before 'e' (if any)
+	 */
 	tmp->next = e;
 	if (el)
 		el->next = tmp;
