@@ -700,21 +700,30 @@ struct ast_context *ast_context_find(const char *name)
 
 static int matchcid(const char *cidpattern, const char *callerid)
 {
-	int failresult;
-	
 	/* If the Caller*ID pattern is empty, then we're matching NO Caller*ID, so
 	   failing to get a number should count as a match, otherwise not */
 
-	if (!ast_strlen_zero(cidpattern))
-		failresult = 0;
-	else
-		failresult = 1;
-
-	if (!callerid)
-		return failresult;
+	if (ast_strlen_zero(callerid))
+		return ast_strlen_zero(cidpattern) ? 1 : 0;
 
 	return ast_extension_match(cidpattern, callerid);
 }
+
+/* request and result for pbx_find_extension */
+struct pbx_find_info {
+#if 0
+	const char *context;
+	const char *exten;
+	int priority;
+#endif
+
+	char *incstack[AST_PBX_MAX_STACK];      /* filled during the search */
+	int stacklen;                   /* modified during the search */
+	int status;                     /* set on return */
+	struct ast_switch *swo;         /* set on return */
+	const char *data;               /* set on return */
+	const char *foundcontext;       /* set on return */
+};
 
 static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	struct ast_context *bypass,
