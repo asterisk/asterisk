@@ -701,15 +701,12 @@ int ast_extension_close(const char *pattern, const char *data, int needmore)
 
 struct ast_context *ast_context_find(const char *name)
 {
-	struct ast_context *tmp;
+	struct ast_context *tmp = NULL;
 	ast_mutex_lock(&conlock);
-	if (name) {
-		for (tmp = contexts; tmp; tmp = tmp->next) {
-			if (!strcasecmp(name, tmp->name))
-				break;
-		}
-	} else
-		tmp = contexts;
+	while ( (tmp = ast_walk_contexts(tmp)) ) {
+		if (!name || !strcasecmp(name, tmp->name))
+			break;
+	}
 	ast_mutex_unlock(&conlock);
 	return tmp;
 }
@@ -780,7 +777,8 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	if (bypass)	/* bypass means we only look there */
 		tmp = bypass;
 	else {	/* look in contexts */
-		for (tmp = contexts; tmp; tmp = tmp->next) {
+		tmp = NULL;
+		while ((tmp = ast_walk_contexts(tmp)) ) {
 			if (!strcmp(tmp->name, context))
 				break;
 		}
@@ -4952,8 +4950,8 @@ static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 	int ms;
 
 	/* Wait for "n" seconds */
-	if (data && atof((char *)data)) {
-		ms = atof((char *)data) * 1000;
+	if (data && atof(data)) {
+		ms = atof(data) * 1000;
 		return ast_safe_sleep(chan, ms);
 	}
 	return 0;
@@ -5398,7 +5396,7 @@ static int pbx_builtin_saydigits(struct ast_channel *chan, void *data)
 	int res = 0;
 
 	if (data)
-		res = ast_say_digit_str(chan, (char *)data, "", chan->language);
+		res = ast_say_digit_str(chan, data, "", chan->language);
 	return res;
 }
 
@@ -5407,7 +5405,7 @@ static int pbx_builtin_saycharacters(struct ast_channel *chan, void *data)
 	int res = 0;
 
 	if (data)
-		res = ast_say_character_str(chan, (char *)data, "", chan->language);
+		res = ast_say_character_str(chan, data, "", chan->language);
 	return res;
 }
 
@@ -5416,7 +5414,7 @@ static int pbx_builtin_sayphonetic(struct ast_channel *chan, void *data)
 	int res = 0;
 
 	if (data)
-		res = ast_say_phonetic_str(chan, (char *)data, "", chan->language);
+		res = ast_say_phonetic_str(chan, data, "", chan->language);
 	return res;
 }
 
