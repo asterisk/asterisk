@@ -210,9 +210,10 @@ fi
 
 AC_SUBST([PBX_LIBossaudio])
 
-AST_EXT_LIB([tonezone], [tone_zone_find], [linux/zaptel.h], [ZAPTEL], [Zaptel])
-if test "$PBX_LIBtonezone" = "0"; then
-   AST_EXT_LIB([tonezone], [tone_zone_find], [zaptel.h], [ZAPTEL], [Zaptel], [-lm])
+if test "${PBX_OSTYPE}" = "Linux" ; then
+  AST_EXT_LIB([tonezone], [tone_zone_find], [linux/zaptel.h], [ZAPTEL], [Zaptel])
+else
+  AST_EXT_LIB([tonezone], [tone_zone_find], [zaptel.h], [ZAPTEL], [Zaptel], [-lm])
 fi
 
 GSM_INTERNAL="yes"
