@@ -305,6 +305,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	char *data;	
 	char *intstr;
 	struct ast_config *cfg;
+	char *newfestivalcommand;
 
 	if (ast_strlen_zero(vdata)) {
 		ast_log(LOG_WARNING, "festival requires an argument (text)\n");
@@ -337,6 +338,22 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	}
 	if (!(festivalcommand = ast_variable_retrieve(cfg, "general", "festivalcommand"))) {
 		festivalcommand = "(tts_textasterisk \"%s\" 'file)(quit)\n";
+	} else { /* This else parses the festivalcommand that we're sent from the config file for \n's, etc */
+		int i, j;
+		newfestivalcommand = alloca(strlen(festivalcommand) + 1);
+
+		for (i = 0, j = 0; i < strlen(festivalcommand); i++) {
+			if (festivalcommand[i] == '\\' && festivalcommand[i + 1] == 'n') {
+				newfestivalcommand[j++] = '\n';
+				i++;
+			} else if (festivalcommand[i] == '\\') {
+				newfestivalcommand[j++] = festivalcommand[i + 1];
+				i++;
+			} else
+				newfestivalcommand[j++] = festivalcommand[i];
+		}
+		newfestivalcommand[j] = '\0';
+		festivalcommand = newfestivalcommand;
 	}
 	
 	if (!(data = ast_strdupa(vdata))) {
