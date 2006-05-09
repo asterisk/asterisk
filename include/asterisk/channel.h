@@ -605,9 +605,28 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f);
 /*! \brief Queue a hangup frame */
 int ast_queue_hangup(struct ast_channel *chan);
 
-/*! \brief Queue a control frame */
-int ast_queue_control(struct ast_channel *chan, int control);
+/*!
+  \brief Queue a control frame with payload
+  \param chan channel to queue frame onto
+  \param control type of control frame
+  \return zero on success, non-zero on failure
+*/
+int ast_queue_control(struct ast_channel *chan, enum ast_control_frame_type control);
 
+/*!
+  \brief Queue a control frame with payload
+  \param chan channel to queue frame onto
+  \param control type of control frame
+  \param data pointer to payload data to be included in frame
+  \param datalen number of bytes of payload data
+  \return zero on success, non-zero on failure
+
+  The supplied payload data is copied into the frame, so the caller's copy
+  is not modified nor freed, and the resulting frame will retain a copy of
+  the data even if the caller frees their local copy.
+*/
+int ast_queue_control_data(struct ast_channel *chan, enum ast_control_frame_type control,
+			   const void *data, size_t datalen);
 
 /*! \brief Change channel name */
 void ast_change_name(struct ast_channel *chan, char *newname);

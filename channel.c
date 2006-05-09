@@ -738,10 +738,25 @@ int ast_queue_hangup(struct ast_channel *chan)
 }
 
 /*! \brief Queue a control frame */
-int ast_queue_control(struct ast_channel *chan, int control)
+int ast_queue_control(struct ast_channel *chan, enum ast_control_frame_type control)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, };
+
 	f.subclass = control;
+
+	return ast_queue_frame(chan, &f);
+}
+
+/*! \brief Queue a control frame with payload */
+int ast_queue_control_data(struct ast_channel *chan, enum ast_control_frame_type control,
+			   const void *data, size_t datalen)
+{
+	struct ast_frame f = { AST_FRAME_CONTROL, };
+
+	f.subclass = control;
+	f.data = (void *) data;
+	f.datalen = datalen;
+
 	return ast_queue_frame(chan, &f);
 }
 
