@@ -31,10 +31,10 @@
 extern "C" {
 #endif
 
+#define AST_MAX_APP	32	/*!< Max length of an application */
+
 #define AST_PBX_KEEP    0
 #define AST_PBX_REPLACE 1
-
-#define AST_MAX_APP	32	/*!< Max length of an application */
 
 /*! \brief Special return values from applications to the PBX { */
 #define AST_PBX_KEEPALIVE	10	/*!< Destroy the thread, but don't hang up the channel */
