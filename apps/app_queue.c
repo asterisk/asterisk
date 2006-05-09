@@ -1925,7 +1925,7 @@ static int is_our_turn(struct queue_ent *qe)
 		if (option_debug)
 			ast_log(LOG_DEBUG, "There are %d available members.\n", avl);
 	
-		if (qe->parent->strategy == 1) {
+		if (qe->parent->strategy == 0) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Even though there are %d available members, the strategy is ringall so only the head call is allowed in!\n", avl);
 			avl = 1;
