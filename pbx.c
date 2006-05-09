@@ -2995,7 +2995,7 @@ static void print_ext(struct ast_exten *e, char * buf, int buflen)
 }
 
 /* XXX not verified */
-static int show_dialplan_helper(int fd, const char *context, const char *exten, struct dialplan_counters *dpc, struct ast_include *rinclude, int includecount, char *includes[])
+static int show_dialplan_helper(int fd, const char *context, const char *exten, struct dialplan_counters *dpc, struct ast_include *rinclude, int includecount, const char *includes[])
 {
 	struct ast_context *c = NULL;
 	int res = 0, old_total_exten = dpc->total_exten;
@@ -3097,7 +3097,7 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 						}
 					}
 					if (!dupe) {
-						includes[includecount] = (char *)ast_get_include_name(i);
+						includes[includecount] = ast_get_include_name(i);
 						show_dialplan_helper(fd, ast_get_include_name(i), exten, dpc, i, includecount + 1, includes);
 					} else {
 						ast_log(LOG_WARNING, "Avoiding circular include of %s within %s\n", ast_get_include_name(i), context);
@@ -3149,7 +3149,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 	/* Variables used for different counters */
 	struct dialplan_counters counters;
 
-	char *incstack[AST_PBX_MAX_STACK];
+	const char *incstack[AST_PBX_MAX_STACK];
 	memset(&counters, 0, sizeof(counters));
 
 	if (argc != 2 && argc != 3)
@@ -5038,8 +5038,8 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 		ast_moh_start(chan, opts[0]);
 
 	/* Wait for "n" seconds */
-	if (args.timeout && atof((char *)args.timeout))
-		 ms = atof((char *)args.timeout) * 1000;
+	if (args.timeout && atof(args.timeout))
+		 ms = atof(args.timeout) * 1000;
 	else if (chan->pbx)
 		ms = chan->pbx->rtimeout * 1000;
 	else
@@ -5089,7 +5089,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (!args.lang)
-		args.lang = (char *) chan->language;
+		args.lang = (char *)chan->language;	/* XXX this is const */
 
 	if (!args.context)
 		args.context = chan->context;
