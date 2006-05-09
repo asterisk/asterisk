@@ -422,15 +422,21 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 		}
 		if (concise) {
 			ast_cli(fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
-			        c->appl ? c->appl : "(None)", c->data ? c->data : "",
+			        c->appl ? c->appl : "(None)",
+				S_OR(c->data, ""),	/* XXX different from verbose ? */
 			        S_OR(c->cid.cid_num, ""),
-			        c->accountcode ? c->accountcode : "", c->amaflags, 
-			        durbuf, bc ? bc->name : "(None)");
+			        S_OR(c->accountcode, ""),
+				c->amaflags, 
+			        durbuf,
+				bc ? bc->name : "(None)");
 		} else if (verbose) {
 			ast_cli(fd, VERBOSE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
-			        c->appl ? c->appl : "(None)", c->data ? S_OR(c->data, "(Empty)" ): "(None)",
-			        S_OR(c->cid.cid_num, ""), durbuf,
-			        c->accountcode ? c->accountcode : "", bc ? bc->name : "(None)");
+			        c->appl ? c->appl : "(None)",
+				c->data ? S_OR(c->data, "(Empty)" ): "(None)",
+			        S_OR(c->cid.cid_num, ""),
+				durbuf,
+			        S_OR(c->accountcode, ""),
+				bc ? bc->name : "(None)");
 		} else {
 			if (!ast_strlen_zero(c->context) && !ast_strlen_zero(c->exten)) 
 				snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", c->exten, c->context, c->priority);
