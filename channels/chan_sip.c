@@ -12786,10 +12786,14 @@ static char *app_sipgetheader = "SIPGetHeader";
 static char *synopsis_sipgetheader = "Get a SIP header from an incoming call";
  
 static char *descrip_sipgetheader = ""
-"  SIPGetHeader(var=headername): \n"
+"  SIPGetHeader(var=headername[|options]): \n"
 "Sets a channel variable to the content of a SIP header\n"
-"Skips to priority+101 if header does not exist\n"
-"Otherwise returns 0\n";
+"  Options:\n"
+"    j - Jump to priority n+101 if the requested header isn't found.\n"
+"  This application sets the following channel variable upon completion:\n"
+"      SIPGETSTATUS - This variable will contain the status of the attempt\n"
+"                     FOUND | NOTFOUND\n"
+"  This application has been deprecated in favor of the SIP_HEADER function.\n";
 
 /*! \brief  sip_dtmfmode: change the DTMFmode for a SIP call (application) ---*/
 static int sip_dtmfmode(struct ast_channel *chan, void *data)
@@ -12875,9 +12879,10 @@ static int sip_addheader(struct ast_channel *chan, void *data)
 /*! \brief  sip_getheader: Get a SIP header (dialplan app) ---*/
 static int sip_getheader(struct ast_channel *chan, void *data)
 {
+	char *argv, *varname = NULL, *header = NULL, *content, *options = NULL;
 	static int dep_warning = 0;
 	struct sip_pvt *p;
-	char *argv, *varname = NULL, *header = NULL, *content;
+	int priority_jump = 0;
 	
 	if (!dep_warning) {
 		ast_log(LOG_WARNING, "SIPGetHeader is deprecated, use the SIP_HEADER function instead.\n");
@@ -12890,14 +12895,25 @@ static int sip_getheader(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	if (strchr (argv, '=') ) {	/* Pick out argumenet */
+	if (strchr (argv, '=') ) {	/* Pick out argument */
 		varname = strsep (&argv, "=");
-		header = strsep (&argv, "\0");
+		if (strchr(argv, '|')) {
+			header = strsep (&argv, "|");
+			options = strsep (&argv, "\0");
+		} else {
+			header = strsep (&argv, "\0");
+		}
+
 	}
 
 	if (!varname || !header) {
-		ast_log(LOG_DEBUG, "SipGetHeader: Ignoring command, Syntax error in argument\n");
+		ast_log(LOG_DEBUG, "SIPGetHeader: Ignoring command, Syntax error in argument\n");
 		return 0;
+	}
+
+	if (options) {
+		if (strchr(options, 'j'))
+			priority_jump = 1;
 	}
 
 	ast_mutex_lock(&chan->lock);
@@ -12911,9 +12927,16 @@ static int sip_getheader(struct ast_channel *chan, void *data)
 	content = get_header(&p->initreq, header);	/* Get the header */
 	if (!ast_strlen_zero(content)) {
 		pbx_builtin_setvar_helper(chan, varname, content);
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "SIPGetHeader: set variable %s to %s\n", varname, content);
+		pbx_builtin_setvar_helper(chan, "SIPGETSTATUS", "FOUND");
 	} else {
 		ast_log(LOG_WARNING,"SIP Header %s not found for channel variable %s\n", header, varname);
-		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		if (priority_jump || option_priority_jumping) {
+			/* Goto priority n+101 if it exists, where n is the current priority number */
+			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		}
+		pbx_builtin_setvar_helper(chan, "SIPGETSTATUS", "NOTFOUND");
 	}
 	
 	ast_mutex_unlock(&chan->lock);
