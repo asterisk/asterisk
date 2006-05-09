@@ -13588,6 +13588,7 @@ static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
 static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active)
 {
 	struct sip_pvt *p;
+	int changed = 0;
 
 	p = chan->tech_pvt;
 	if (!p) 
@@ -13598,17 +13599,23 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		ast_mutex_unlock(&p->lock);
 		return 0;
 	}
-	if (rtp)
-		ast_rtp_get_peer(rtp, &p->redirip);
+	if (rtp) 
+		changed |= ast_rtp_get_peer(rtp, &p->redirip);
 	else
 		memset(&p->redirip, 0, sizeof(p->redirip));
 	if (vrtp)
-		ast_rtp_get_peer(vrtp, &p->vredirip);
+		changed |= ast_rtp_get_peer(vrtp, &p->vredirip);
 	else
 		memset(&p->vredirip, 0, sizeof(p->vredirip));
-	p->redircodecs = codecs;
-	if (!ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
-		if (!p->pendinginvite) {
+	if (p->redircodecs != codecs) {
+		p->redircodecs = codecs;
+		changed = 1;
+	}
+	if (changed && !ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
+		if (chan->_state != AST_STATE_UP) {
+				char iabuf[INET_ADDRSTRLEN];
+				ast_log(LOG_DEBUG, "Early media setting SIP '%s' - Sending early media to %s\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));
+		} else if (!p->pendinginvite) {
 			if (option_debug > 2) {
 				char iabuf[INET_ADDRSTRLEN];
 				ast_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));

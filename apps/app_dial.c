@@ -482,7 +482,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 					ast_clear_flag(o, DIAL_STILLGOING);	
 					HANDLE_CAUSE(cause, in);
 				} else {
-					ast_rtp_make_compatible(c, in);
+					ast_rtp_make_compatible(c, in, single);
 					if (c->cid.cid_num)
 						free(c->cid.cid_num);
 					c->cid.cid_num = NULL;
@@ -550,6 +550,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 							       OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
 							       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
 							       DIAL_NOFORWARDHTML);
+						/* Setup early media if appropriate */
+						ast_rtp_early_media(in, peer);
 					}
 					/* If call has been answered, then the eventual hangup is likely to be normal hangup */
 					in->hangupcause = AST_CAUSE_NORMAL_CLEARING;
@@ -576,6 +578,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 				case AST_CONTROL_RINGING:
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "%s is ringing\n", c->name);
+					/* Setup early media if appropriate */
+					if (single)
+						ast_rtp_early_media(in, c);
 					if (!(*sentringing) && !ast_test_flag(outgoing, OPT_MUSICBACK)) {
 						ast_indicate(in, AST_CONTROL_RINGING);
 						(*sentringing)++;
@@ -584,6 +589,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 				case AST_CONTROL_PROGRESS:
 					if (option_verbose > 2)
 						ast_verbose (VERBOSE_PREFIX_3 "%s is making progress passing it to %s\n", c->name, in->name);
+					/* Setup early media if appropriate */
+					if (single)
+						ast_rtp_early_media(in, c);
 					if (!ast_test_flag(outgoing, OPT_RINGBACK))
 						ast_indicate(in, AST_CONTROL_PROGRESS);
 					break;
@@ -595,6 +603,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 				case AST_CONTROL_PROCEEDING:
 					if (option_verbose > 2)
 						ast_verbose (VERBOSE_PREFIX_3 "%s is proceeding passing it to %s\n", c->name, in->name);
+					if (single)
+						ast_rtp_early_media(in, c);
 					if (!ast_test_flag(outgoing, OPT_RINGBACK))
 						ast_indicate(in, AST_CONTROL_PROCEEDING);
 					break;
@@ -1056,7 +1066,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 
 		/* Setup outgoing SDP to match incoming one */
-		ast_rtp_make_compatible(tmp->chan, chan);
+		ast_rtp_make_compatible(tmp->chan, chan, !outgoing && !rest);
 		
 		/* Inherit specially named variables from parent channel */
 		ast_channel_inherit_variables(chan, tmp->chan);
@@ -1550,6 +1560,7 @@ out:
 		sentringing = 0;
 		ast_indicate(chan, -1);
 	}
+	ast_rtp_early_media(chan, NULL);
 	hanguptree(outgoing, NULL);
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
 	if (option_debug)

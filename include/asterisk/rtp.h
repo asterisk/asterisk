@@ -97,7 +97,8 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 
 void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
 
-void ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
+/* Copies from rtp to them and returns 1 if there was a change or 0 if it was already the same */
+int ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
 
 void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us);
 
@@ -154,7 +155,9 @@ int ast_rtp_proto_register(struct ast_rtp_protocol *proto);
 
 void ast_rtp_proto_unregister(struct ast_rtp_protocol *proto);
 
-int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src);
+int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, int media);
+
+int ast_rtp_early_media(struct ast_channel *dest, struct ast_channel *src);
 
 void ast_rtp_stop(struct ast_rtp *rtp);
 
