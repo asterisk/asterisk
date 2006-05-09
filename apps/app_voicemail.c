@@ -562,6 +562,7 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 					apply_option(retval, tmp->name, tmp->value);
 				tmp = tmp->next;
 			} 
+			ast_variables_destroy(var);
 		} else { 
 			if (!ivm) 
 				free(retval);
