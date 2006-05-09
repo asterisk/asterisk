@@ -434,9 +434,6 @@ _all: all
 
 all: config.status menuselect.makeopts cleantest depend asterisk subdirs
 
-configure:
-	-@./bootstrap.sh
-
 config.status: configure
 	@CFLAGS="" ./configure
 	@echo "****"
