@@ -1734,8 +1734,8 @@ void ast_hint_state_changed(const char *device)
 		/* For extension callbacks */
 		for (cblist = hint->callbacks; cblist; cblist = cblist->next)
 			cblist->callback(hint->exten->parent->name, hint->exten->exten, state, cblist->data);
-			
-		hint->laststate = state;
+
+		hint->laststate = state;	/* record we saw the change */
 	}
 
 	AST_LIST_UNLOCK(&hints);
@@ -1827,7 +1827,6 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 
 	AST_LIST_LOCK(&hints);
 
-	/* id is zero is a callback without extension */
 	if (!id) {	/* id == 0 is a callback without extension */
 		for (p_cur = &statecbs; *p_cur; p_cur = &(*p_cur)->next) {
 	 		if ((*p_cur)->callback == callback)
@@ -1837,7 +1836,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 		struct ast_hint *hint;
 		AST_LIST_TRAVERSE(&hints, hint, list) {
 			for (p_cur = &hint->callbacks; *p_cur; p_cur = &(*p_cur)->next) {
-	    			if ((*p_cur)->id == id)
+				if ((*p_cur)->id == id)
 					break;
 			}
 			if (*p_cur)	/* found in the inner loop */
@@ -3158,30 +3157,20 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 
 	/* we obtain [exten@]context? if yes, split them ... */
 	if (argc == 3) {
-		char *splitter = ast_strdupa(argv[2]);
-		/* is there a '@' character? */
-		if (splitter && strchr(argv[2], '@')) {
-			/* yes, split into exten & context ... */
-			exten   = strsep(&splitter, "@");
-			context = splitter;
-
-			/* check for length and change to NULL if ast_strlen_zero() */
+		if (strchr(argv[2], '@')) {	/* split into exten & context */
+			context = ast_strdupa(argv[2]);
+			exten = strsep(&context, "@");
+			/* change empty strings to NULL */
 			if (ast_strlen_zero(exten))
 				exten = NULL;
-			if (ast_strlen_zero(context))
-				context = NULL;
-			show_dialplan_helper(fd, context, exten, &counters, NULL, 0, incstack);
-		} else {
-			/* no '@' char, only context given */
+		} else { /* no '@' char, only context given */
 			context = argv[2];
-			if (ast_strlen_zero(context))
-				context = NULL;
-			show_dialplan_helper(fd, context, exten, &counters, NULL, 0, incstack);
 		}
-	} else {
-		/* Show complete dial plan */
-		show_dialplan_helper(fd, NULL, NULL, &counters, NULL, 0, incstack);
+		if (ast_strlen_zero(context))
+			context = NULL;
 	}
+	/* else Show complete dial plan, context and exten are NULL */
+	show_dialplan_helper(fd, context, exten, &counters, NULL, 0, incstack);
 
 	/* check for input failure and throw some error messages */
 	if (context && !counters.context_existence) {
@@ -3338,6 +3327,7 @@ struct store_hint {
 
 AST_LIST_HEAD(store_hints, store_hint);
 
+/* XXX this does not check that multiple contexts are merged */
 void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char *registrar)
 {
 	struct ast_context *tmp, *lasttmp = NULL;
@@ -3718,7 +3708,6 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 	/* allocate new include structure ... */
 	if (!(new_include = ast_calloc(1, length)))
 		return -1;
-	
 	/* Fill in this structure. Use 'p' for assignments, as the fields
 	 * in the structure are 'const char *'
 	 */
@@ -3807,7 +3796,6 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 	/* allocate new sw structure ... */
 	if (!(new_sw = ast_calloc(1, length)))
 		return -1;
-	
 	/* ... fill in this structure ... */
 	p = new_sw->stuff;
 	new_sw->name = p;
@@ -3906,7 +3894,6 @@ int ast_context_add_ignorepat(const char *context, const char *value, const char
 		ret = ast_context_add_ignorepat2(c, value, registrar);
 		ast_unlock_contexts();
 	}
-
 	return ret;
 }
 
@@ -3974,7 +3961,6 @@ int ast_add_extension(const char *context, int replace, const char *extension,
 			application, data, datad, registrar);
 		ast_unlock_contexts();
 	}
-
 	return ret;
 }
 
@@ -4165,7 +4151,7 @@ int ast_add_extension2(struct ast_context *con,
 		datad = null_datad;
 	if (!(tmp = ast_calloc(1, length)))
 		return -1;
-		
+
 	/* use p as dst in assignments, as the fields are const char * */
 	p = tmp->stuff;
 	if (label) {
@@ -4389,7 +4375,6 @@ static void *async_wait(void *data)
 				chan = NULL;
 			}
 		}
-			
 	}
 	free(as);
 	if (chan)
