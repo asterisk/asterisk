@@ -517,12 +517,6 @@ int pbx_exec(struct ast_channel *c, 		/*!< Channel */
 /*! Go no deeper than this through includes (not counting loops) */
 #define AST_PBX_MAX_STACK	128
 
-#define HELPER_EXISTS 0
-#define HELPER_SPAWN 1
-#define HELPER_CANMATCH 3
-#define HELPER_MATCHMORE 4
-#define HELPER_FINDLABEL 5
-
 /*! \brief Find application handle in linked list
  */
 struct ast_app *pbx_findapp(const char *app)
@@ -566,115 +560,143 @@ static void pbx_destroy(struct ast_pbx *p)
 	free(p);
 }
 
-#define EXTENSION_MATCH_CORE(data,pattern,match) {\
-	/* All patterns begin with _ */\
-	if (pattern[0] != '_') \
-		return 0;\
-	/* Start optimistic */\
-	match=1;\
-	pattern++;\
-	while(match && *data && *pattern && (*pattern != '/')) {\
-		while (*data == '-' && (*(data+1) != '\0')) data++;\
-		switch(toupper(*pattern)) {\
-		case '[': \
-		{\
-			int i,border=0;\
-			char *where;\
-			match=0;\
-			pattern++;\
-			where=strchr(pattern,']');\
-			if (where)\
-				border=(int)(where-pattern);\
-			if (!where || border > strlen(pattern)) {\
-				ast_log(LOG_WARNING, "Wrong usage of [] in the extension\n");\
-				return match;\
-			}\
-			for (i=0; i<border; i++) {\
-				int res=0;\
-				if (i+2<border)\
-					if (pattern[i+1]=='-') {\
-						if (*data >= pattern[i] && *data <= pattern[i+2]) {\
-							res=1;\
-						} else {\
-							i+=2;\
-							continue;\
-						}\
-					}\
-				if (res==1 || *data==pattern[i]) {\
-					match = 1;\
-					break;\
-				}\
-			}\
-			pattern+=border;\
-			break;\
-		}\
-		case 'N':\
-			if ((*data < '2') || (*data > '9'))\
-				match=0;\
-			break;\
-		case 'X':\
-			if ((*data < '0') || (*data > '9'))\
-				match = 0;\
-			break;\
-		case 'Z':\
-			if ((*data < '1') || (*data > '9'))\
-				match = 0;\
-			break;\
-		case '.':\
-			/* Must match */\
-			return 1;\
-		case '!':\
-			/* Early match */\
-			return 2;\
-		case ' ':\
-		case '-':\
-			/* Ignore these characters */\
-			data--;\
-			break;\
-		default:\
-			if (*data != *pattern)\
-				match =0;\
-		}\
-		data++;\
-		pattern++;\
-	}\
-	/* If we ran off the end of the data and the pattern ends in '!', match */\
-	if (match && !*data && (*pattern == '!'))\
-		return 2;\
+/*!
+ * When looking up extensions, we can have different requests
+ * identified by the 'action' argument, as follows.
+ * Note that the coding is such that the low 4 bits are the
+ * third argument to extension_match_core.
+ */
+enum ext_match_t {
+	E_MATCHMORE = 	0x00,	/* extension can match but only with more 'digits' */
+	E_CANMATCH =	0x01,	/* extension can match with or without more 'digits' */
+	E_MATCH =	0x02,	/* extension is an exact match */
+	E_MATCH_MASK =	0x03,	/* mask for the argument to extension_match_core() */
+	E_SPAWN =	0x12,	/* want to spawn an extension. Requires exact match */
+	E_FINDLABEL =	0x22	/* returns the priority for a given label. Requires exact match */
+};
+
+/*
+ * Internal function for ast_extension_{match|close}
+ * return 0 on no-match, 1 on match, 2 on early match.
+ * mode is as follows:
+ *	E_MATCH		success only on exact match
+ *	E_MATCHMORE	success only on partial match (i.e. leftover digits in pattern)
+ *	E_CANMATCH	either of the above.
+ */
+static int _extension_match_core(const char *pattern, const char *data, enum ext_match_t mode)
+{
+	mode &= E_MATCH_MASK;	/* only consider the relevant bits */
+
+	if (pattern[0] != '_') { /* not a pattern, try exact or partial match */
+		int ld = strlen(data), lp = strlen(pattern);
+
+		if (lp < ld)		/* pattern too short, cannot match */
+			return 0;
+		/* depending on the mode, accept full or partial match or both */
+		if (mode == E_MATCH)
+			return !strcmp(pattern, data); /* 1 on match, 0 on fail */
+		if (ld == 0 || !strncasecmp(pattern, data, ld)) /* partial or full match */
+			return (mode == E_MATCHMORE) ? lp > ld : 1; /* XXX should consider '!' and '/' ? */
+		else
+			return 0;
+	}
+	pattern++; /* skip leading _ */
+	while (*data && *pattern && *pattern != '/') {
+		const char *end;
+
+		if (*data == '-') { /* skip '-' in data (just a separator) */
+			data++;
+			continue;
+		}
+		switch (toupper(*pattern)) {
+		case '[':	/* a range */
+			end = strchr(pattern+1, ']'); /* XXX should deal with escapes ? */
+			if (end == NULL) {
+				ast_log(LOG_WARNING, "Wrong usage of [] in the extension\n");
+				return 0;	/* unconditional failure */
+			}
+			for (pattern++; pattern != end; pattern++) {
+				if (pattern+2 < end && pattern[1] == '-') { /* this is a range */
+					if (*data >= pattern[0] && *data <= pattern[2])
+						break;	/* match found */
+					else {
+						pattern += 2; /* skip a total of 3 chars */
+						continue;
+					}
+				} else if (*data == pattern[0])
+					break;	/* match found */
+			}
+			if (pattern == end)
+				return 0;
+			pattern = end;	/* skip and continue */
+			break;
+		case 'N':
+			if (*data < '2' || *data > '9')
+				return 0;
+			break;
+		case 'X':
+			if (*data < '0' || *data > '9')
+				return 0;
+			break;
+		case 'Z':
+			if (*data < '1' || *data > '9')
+				return 0;
+			break;
+		case '.':	/* Must match, even with more digits */
+			return 1;
+		case '!':	/* Early match */
+			return 2;
+		case ' ':
+		case '-':	/* Ignore these in patterns */
+			data--; /* compensate the final data++ */
+			break;
+		default:
+			if (*data != *pattern)
+				return 0;
+		}
+		data++;
+		pattern++;
+	}
+	if (*data)			/* data longer than pattern, no match */
+		return 0;
+	/*
+	 * match so far, but ran off the end of the data.
+	 * Depending on what is next, determine match or not.
+	 */
+	if (*pattern == '\0' || *pattern == '/')	/* exact match */
+		return (mode == E_MATCHMORE) ? 0 : 1;	/* this is a failure for E_MATCHMORE */
+	else if (*pattern == '!')			/* early match */
+		return 2;
+	else						/* partial match */
+		return (mode == E_MATCH) ? 0 : 1;	/* this is a failure for E_MATCH */
+}
+
+/*
+ * Wrapper around _extension_match_core() to do performance measurement
+ * using the profiling code.
+ */
+static int extension_match_core(const char *pattern, const char *data, enum ext_match_t mode)
+{
+	int i;
+	static int prof_id = -2;	/* marker for 'unallocated' id */
+	if (prof_id == -2)
+		prof_id = ast_add_profile("ext_match", 0);
+	ast_mark(prof_id, 1);
+	i = _extension_match_core(pattern, data, mode);
+	ast_mark(prof_id, 0);
+	return i;
 }
 
 int ast_extension_match(const char *pattern, const char *data)
 {
-	int match;
-	/* If they're the same return */
-	if (!strcmp(pattern, data))
-		return 1;
-	EXTENSION_MATCH_CORE(data,pattern,match);
-	/* Must be at the end of both */
-	if (*data || (*pattern && (*pattern != '/')))
-		match = 0;
-	return match;
+	return extension_match_core(pattern, data, E_MATCH);
 }
 
 int ast_extension_close(const char *pattern, const char *data, int needmore)
 {
-	int match;
-	/* If "data" is longer, it can'be a subset of pattern unless
-	   pattern is a pattern match */
-	if ((strlen(pattern) < strlen(data)) && (pattern[0] != '_'))
-		return 0;
-
-	if ((ast_strlen_zero((char *)data) || !strncasecmp(pattern, data, strlen(data))) &&
-		(!needmore || (strlen(pattern) > strlen(data)))) {
-		return 1;
-	}
-	EXTENSION_MATCH_CORE(data,pattern,match);
-	/* If there's more or we don't care about more, or if it's a possible early match,
-	   return non-zero; otherwise it's a miss */
-	if (!needmore || *pattern || match == 2) {
-		return match;
-	} else
-		return 0;
+	if (needmore != E_MATCHMORE && needmore != E_CANMATCH)
+		ast_log(LOG_WARNING, "invalid argument %d\n", needmore);
+	return extension_match_core(pattern, data, needmore);
 }
 
 struct ast_context *ast_context_find(const char *name)
@@ -726,35 +748,33 @@ struct pbx_find_info {
 };
 
 static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
-	struct ast_context *bypass,
+	struct ast_context *bypass, struct pbx_find_info *q,
 	const char *context, const char *exten, int priority,
-	const char *label, const char *callerid, int action,
-	char *incstack[], int *stacklen, int *status, struct ast_switch **swo,
-	char **data, const char **foundcontext)
+	const char *label, const char *callerid, enum ext_match_t action)
 {
 	int x, res;
 	struct ast_context *tmp;
 	struct ast_exten *e, *eroot;
 	struct ast_include *i;
 	struct ast_sw *sw;
-	struct ast_switch *asw;
 
 	struct ast_exten *earlymatch = NULL;
 
 	/* Initialize status if appropriate */
-	if (!*stacklen) {
-		*status = STATUS_NO_CONTEXT;
-		*swo = NULL;
-		*data = NULL;
+	if (q->stacklen == 0) {
+		q->status = STATUS_NO_CONTEXT;
+		q->swo = NULL;
+		q->data = NULL;
+		q->foundcontext = NULL;
 	}
 	/* Check for stack overflow */
-	if (*stacklen >= AST_PBX_MAX_STACK) {
+	if (q->stacklen >= AST_PBX_MAX_STACK) {
 		ast_log(LOG_WARNING, "Maximum PBX stack exceeded\n");
 		return NULL;
 	}
 	/* Check first to see if we've already been checked */
-	for (x = 0; x < *stacklen; x++) {
-		if (!strcasecmp(incstack[x], context))
+	for (x = 0; x < q->stacklen; x++) {
+		if (!strcasecmp(q->incstack[x], context))
 			return NULL;
 	}
 	if (bypass)	/* bypass means we only look there */
@@ -767,37 +787,37 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		if (!tmp)
 			return NULL;
 	}
-
-	if (*status < STATUS_NO_EXTENSION)
-		*status = STATUS_NO_EXTENSION;
+	if (q->status < STATUS_NO_EXTENSION)
+		q->status = STATUS_NO_EXTENSION;
 	for (eroot = tmp->root; eroot; eroot = eroot->next) {
-		int match = 0;
+		int match;
 		/* Match extension */
-		if ((((action != HELPER_MATCHMORE) && ast_extension_match(eroot->exten, exten)) ||
-		     ((action == HELPER_CANMATCH) && (ast_extension_close(eroot->exten, exten, 0))) ||
-		     ((action == HELPER_MATCHMORE) && (match = ast_extension_close(eroot->exten, exten, 1)))) &&
+		if ( (match = extension_match_core(eroot->exten, exten, action)) &&
 		     (!eroot->matchcid || matchcid(eroot->cidmatch, callerid))) {
 
-			if (action == HELPER_MATCHMORE && match == 2 && !earlymatch) {
+			if (action == E_MATCHMORE && match == 2 && !earlymatch) {
+				/* XXX not sure the logic is correct here.
+				 * we should go in irrespective of earlymatch
+				 */
 				/* It matched an extension ending in a '!' wildcard
 				   So ignore it for now, unless there's a better match */
 				earlymatch = eroot;
 			} else {
-				if (*status < STATUS_NO_PRIORITY)
-					*status = STATUS_NO_PRIORITY;
+				if (q->status < STATUS_NO_PRIORITY)
+					q->status = STATUS_NO_PRIORITY;
 				for (e = eroot; e; e = e->peer) {
 					/* Match priority */
-					if (action == HELPER_FINDLABEL) {
-						if (*status < STATUS_NO_LABEL)
-							*status = STATUS_NO_LABEL;
+					if (action == E_FINDLABEL) {
+						if (q->status < STATUS_NO_LABEL)
+							q->status = STATUS_NO_LABEL;
 						if (label && e->label && !strcmp(label, e->label)) {
-							*status = STATUS_SUCCESS;
-							*foundcontext = context;
+							q->status = STATUS_SUCCESS;
+							q->foundcontext = context;
 							return e;
 						}
 					} else if (e->priority == priority) {
-						*status = STATUS_SUCCESS;
-						*foundcontext = context;
+						q->status = STATUS_SUCCESS;
+						q->foundcontext = context;
 						return e;
 					}
 				}
@@ -805,7 +825,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		}
 	}
 	if (earlymatch) {
-		/* Bizarre logic for HELPER_MATCHMORE. We return zero to break out
+		/* Bizarre logic for E_MATCHMORE. We return zero to break out
 		   of the loop waiting for more digits, and _then_ match (normally)
 		   the extension we ended up with. We got an early-matching wildcard
 		   pattern, so return NULL to break out of the loop. */
@@ -813,40 +833,45 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	}
 	/* Check alternative switches */
 	AST_LIST_TRAVERSE(&tmp->alts, sw, list) {
-		if ((asw = pbx_findswitch(sw->name))) {
-			/* Substitute variables now */
-			if (sw->eval)
-				pbx_substitute_variables_helper(chan, sw->data, sw->tmpdata, SWITCH_DATA_LENGTH - 1);
-			if (action == HELPER_CANMATCH)
-				res = asw->canmatch ? asw->canmatch(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
-			else if (action == HELPER_MATCHMORE)
-				res = asw->matchmore ? asw->matchmore(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
-			else
-				res = asw->exists ? asw->exists(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
-			if (res) {
-				/* Got a match */
-				*swo = asw;
-				*data = sw->eval ? sw->tmpdata : sw->data;
-				*foundcontext = context;
-				return NULL;
-			}
-		} else {
+		struct ast_switch *asw = pbx_findswitch(sw->name);
+		ast_switch_f *aswf = NULL;
+		char *datap;
+
+		if (!asw) {
 			ast_log(LOG_WARNING, "No such switch '%s'\n", sw->name);
+			continue;
+		}
+		/* Substitute variables now */
+		if (sw->eval)
+			pbx_substitute_variables_helper(chan, sw->data, sw->tmpdata, SWITCH_DATA_LENGTH - 1);
+
+		/* equivalent of extension_match_core() at the switch level */
+		if (action == E_CANMATCH)
+			aswf = asw->canmatch;
+		else if (action == E_MATCHMORE)
+			aswf = asw->matchmore;
+		else
+			aswf = asw->exists;
+		datap = sw->eval ? sw->tmpdata : sw->data;
+		res = !aswf ? 0 : aswf(chan, context, exten, priority, callerid, datap);
+		if (res) {	/* Got a match */
+			q->swo = asw;
+			q->data = datap;
+			q->foundcontext = context;
+			/* XXX keep status = STATUS_NO_CONTEXT ? */
+			return NULL;
 		}
 	}
-	/* Setup the stack */
-	incstack[*stacklen] = tmp->name;
-	(*stacklen)++;
+	q->incstack[q->stacklen++] = tmp->name;	/* Setup the stack */
 	/* Now try any includes we have in this context */
 	for (i = tmp->includes; i; i = i->next) {
 		if (include_valid(i)) {
-			if ((e = pbx_find_extension(chan, bypass, i->rname, exten, priority, label, callerid, action, incstack, stacklen, status, swo, data, foundcontext)))
+			if ((e = pbx_find_extension(chan, bypass, q, i->rname, exten, priority, label, callerid, action)))
 				return e;
-			if (*swo)
+			if (q->swo)
 				return NULL;
 		}
 	}
-
 	return NULL;
 }
 
@@ -1257,6 +1282,8 @@ int ast_func_write(struct ast_channel *chan, char *function, const char *value)
 
 static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count)
 {
+	/* Substitutes variables into cp2, based on string cp1, and assuming cp2 to be
+	   zero-filled */
 	char *cp4;
 	const char *tmp, *whereweare;
 	int length, offset, offset2, isfunction;
@@ -1266,8 +1293,6 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 	char *vars, *vare;
 	int pos, brackets, needsub, len;
 
-	/* Substitutes variables into cp2, based on string cp1, and assuming cp2 to be
-	   zero-filled */
 	whereweare=tmp=cp1;
 	while (!ast_strlen_zero(whereweare) && count) {
 		/* Assume we're copying the whole remaining string */
@@ -1455,65 +1480,69 @@ static void pbx_substitute_variables(char *passdata, int datalen, struct ast_cha
 	pbx_substitute_variables_helper(c, e->data, passdata, datalen - 1);
 }
 
-static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, const char *context, const char *exten, int priority, const char *label, const char *callerid, int action)
+/*! \brief The return value depends on the action:
+ *
+ * E_MATCH, E_CANMATCH, E_MATCHMORE require a real match,
+ *	and return 0 on failure, -1 on match;
+ * E_FINDLABEL maps the label to a priority, and returns
+ *	the priority on success, ... XXX
+ * E_SPAWN, spawn an application,
+ *	and return 0 on success, -1 on failure.
+ */
+static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
+	const char *context, const char *exten, int priority,
+	const char *label, const char *callerid, enum ext_match_t action)
 {
 	struct ast_exten *e;
 	struct ast_app *app;
-	struct ast_switch *sw;
-	char *data;
-	const char *foundcontext=NULL;
 	int res;
-	int status = 0;
-	char *incstack[AST_PBX_MAX_STACK];
+	struct pbx_find_info q = { .stacklen = 0 }; /* the rest is reset in pbx_find_extension */
 	char passdata[EXT_DATA_SIZE];
-	int stacklen = 0;
-	char tmp[80];
-	char tmp2[80];
-	char tmp3[EXT_DATA_SIZE];
-	char atmp[80];
-	char atmp2[EXT_DATA_SIZE+100];
+
+	int matching_action = (action == E_MATCH || action == E_CANMATCH || action == E_MATCHMORE);
 
 	ast_mutex_lock(&conlock);
-
-	e = pbx_find_extension(c, con, context, exten, priority, label, callerid, action, incstack, &stacklen, &status, &sw, &data, &foundcontext);
+	e = pbx_find_extension(c, con, &q, context, exten, priority, label, callerid, action);
 	if (e) {
-		switch(action) {
-		case HELPER_CANMATCH:
+		if (matching_action) {
 			ast_mutex_unlock(&conlock);
-			return -1;
-		case HELPER_EXISTS:
-			ast_mutex_unlock(&conlock);
-			return -1;
-		case HELPER_FINDLABEL:
+			return -1;	/* success, we found it */
+		} else if (action == E_FINDLABEL) { /* map the label to a priority */
 			res = e->priority;
 			ast_mutex_unlock(&conlock);
-			return res;
-		case HELPER_MATCHMORE:
-			ast_mutex_unlock(&conlock);
-			return -1;
-		case HELPER_SPAWN:
+			return res;	/* the priority we were looking for */
+		} else {	/* spawn */
 			app = pbx_findapp(e->app);
 			ast_mutex_unlock(&conlock);
-			if (app) {
-				if (c->context != context)
-					ast_copy_string(c->context, context, sizeof(c->context));
-				if (c->exten != exten)
-					ast_copy_string(c->exten, exten, sizeof(c->exten));
-				c->priority = priority;
-				pbx_substitute_variables(passdata, sizeof(passdata), c, e);
-				if (option_debug) {
-						ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
-						snprintf(atmp, 80, "STACK-%s-%s-%d", context, exten, priority);
-						snprintf(atmp2, EXT_DATA_SIZE+100, "%s(\"%s\", \"%s\") %s", app->name, c->name, passdata, "in new stack");
-						pbx_builtin_setvar_helper(c, atmp, atmp2);
-				}
-				if (option_verbose > 2)
-						ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\") %s\n",
-								term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
-								term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
-								term_color(tmp3, passdata, COLOR_BRMAGENTA, 0, sizeof(tmp3)),
-								"in new stack");
-				manager_event(EVENT_FLAG_CALL, "Newexten",
+			if (!app) {
+				ast_log(LOG_WARNING, "No application '%s' for extension (%s, %s, %d)\n", e->app, context, exten, priority);
+				return -1;
+			}
+			if (c->context != context)
+				ast_copy_string(c->context, context, sizeof(c->context));
+			if (c->exten != exten)
+				ast_copy_string(c->exten, exten, sizeof(c->exten));
+			c->priority = priority;
+			pbx_substitute_variables(passdata, sizeof(passdata), c, e);
+			if (option_debug) {
+				char atmp[80];
+				char atmp2[EXT_DATA_SIZE+100];
+				ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
+				snprintf(atmp, sizeof(atmp), "STACK-%s-%s-%d", context, exten, priority);
+				snprintf(atmp2, sizeof(atmp2), "%s(\"%s\", \"%s\") %s",
+					app->name, c->name, passdata, "in new stack");
+				pbx_builtin_setvar_helper(c, atmp, atmp2);
+			}
+			if (option_verbose > 2) {
+				char tmp[80], tmp2[80], tmp3[EXT_DATA_SIZE];
+				ast_verbose( VERBOSE_PREFIX_3 "Executing [%s:%d] %s(\"%s\", \"%s\") %s\n",
+					context, priority,
+					term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
+					term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
+					term_color(tmp3, passdata, COLOR_BRMAGENTA, 0, sizeof(tmp3)),
+					"in new stack");
+			}
+			manager_event(EVENT_FLAG_CALL, "Newexten",
 					"Channel: %s\r\n"
 					"Context: %s\r\n"
 					"Extension: %s\r\n"
@@ -1522,56 +1551,32 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 					"AppData: %s\r\n"
 					"Uniqueid: %s\r\n",
 					c->name, c->context, c->exten, c->priority, app->name, passdata, c->uniqueid);
-				res = pbx_exec(c, app, passdata);
-				return res;
-			} else {
-				ast_log(LOG_WARNING, "No application '%s' for extension (%s, %s, %d)\n", e->app, context, exten, priority);
-				return -1;
-			}
-		default:
-			ast_log(LOG_WARNING, "Huh (%d)?\n", action);
-			return -1;
+			return pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
 		}
-	} else if (sw) {
-		switch(action) {
-		case HELPER_CANMATCH:
-			ast_mutex_unlock(&conlock);
+	} else if (q.swo) {	/* not found here, but in another switch */
+		ast_mutex_unlock(&conlock);
+		if (matching_action)
 			return -1;
-		case HELPER_EXISTS:
-			ast_mutex_unlock(&conlock);
-			return -1;
-		case HELPER_MATCHMORE:
-			ast_mutex_unlock(&conlock);
-			return -1;
-		case HELPER_FINDLABEL:
-			ast_mutex_unlock(&conlock);
-			return -1;
-		case HELPER_SPAWN:
-			ast_mutex_unlock(&conlock);
-			if (sw->exec)
-				res = sw->exec(c, foundcontext ? foundcontext : context, exten, priority, callerid, data);
-			else {
-				ast_log(LOG_WARNING, "No execution engine for switch %s\n", sw->name);
+		else {
+			if (!q.swo->exec) {
+				ast_log(LOG_WARNING, "No execution engine for switch %s\n", q.swo->name);
 				res = -1;
 			}
-			return res;
-		default:
-			ast_log(LOG_WARNING, "Huh (%d)?\n", action);
-			return -1;
+			return q.swo->exec(c, q.foundcontext ? q.foundcontext : context, exten, priority, callerid, q.data);
 		}
-	} else {
+	} else {	/* not found anywhere, see what happened */
 		ast_mutex_unlock(&conlock);
-		switch(status) {
+		switch (q.status) {
 		case STATUS_NO_CONTEXT:
-			if ((action != HELPER_EXISTS) && (action != HELPER_MATCHMORE))
+			if (!matching_action)
 				ast_log(LOG_NOTICE, "Cannot find extension context '%s'\n", context);
 			break;
 		case STATUS_NO_EXTENSION:
-			if ((action != HELPER_EXISTS) && (action !=  HELPER_CANMATCH) && (action != HELPER_MATCHMORE))
+			if (!matching_action)
 				ast_log(LOG_NOTICE, "Cannot find extension '%s' in context '%s'\n", exten, context);
 			break;
 		case STATUS_NO_PRIORITY:
-			if ((action != HELPER_EXISTS) && (action !=  HELPER_CANMATCH) && (action != HELPER_MATCHMORE))
+			if (!matching_action)
 				ast_log(LOG_NOTICE, "No such priority %d in extension '%s' in context '%s'\n", priority, exten, context);
 			break;
 		case STATUS_NO_LABEL:
@@ -1582,27 +1587,18 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 			ast_log(LOG_DEBUG, "Shouldn't happen!\n");
 		}
 
-		if ((action != HELPER_EXISTS) && (action != HELPER_CANMATCH) && (action != HELPER_MATCHMORE))
-			return -1;
-		else
-			return 0;
+		return (matching_action) ? 0 : -1;
 	}
-
 }
 
 /*! \brief  ast_hint_extension: Find hint for given extension in context */
 static struct ast_exten *ast_hint_extension(struct ast_channel *c, const char *context, const char *exten)
 {
 	struct ast_exten *e;
-	struct ast_switch *sw;
-	char *data;
-	const char *foundcontext = NULL;
-	int status = 0;
-	char *incstack[AST_PBX_MAX_STACK];
-	int stacklen = 0;
+	struct pbx_find_info q = { .stacklen = 0 }; /* the rest is set in pbx_find_context */
 
 	ast_mutex_lock(&conlock);
-	e = pbx_find_extension(c, NULL, context, exten, PRIORITY_HINT, NULL, "", HELPER_EXISTS, incstack, &stacklen, &status, &sw, &data, &foundcontext);
+	e = pbx_find_extension(c, NULL, &q, context, exten, PRIORITY_HINT, NULL, "", E_MATCH);
 	ast_mutex_unlock(&conlock);
 
 	return e;
@@ -1965,32 +1961,32 @@ int ast_get_hint(char *hint, int hintsize, char *name, int namesize, struct ast_
 
 int ast_exists_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid)
 {
-	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_EXISTS);
+	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, E_MATCH);
 }
 
 int ast_findlabel_extension(struct ast_channel *c, const char *context, const char *exten, const char *label, const char *callerid)
 {
-	return pbx_extension_helper(c, NULL, context, exten, 0, label, callerid, HELPER_FINDLABEL);
+	return pbx_extension_helper(c, NULL, context, exten, 0, label, callerid, E_FINDLABEL);
 }
 
 int ast_findlabel_extension2(struct ast_channel *c, struct ast_context *con, const char *exten, const char *label, const char *callerid)
 {
-	return pbx_extension_helper(c, con, NULL, exten, 0, label, callerid, HELPER_FINDLABEL);
+	return pbx_extension_helper(c, con, NULL, exten, 0, label, callerid, E_FINDLABEL);
 }
 
 int ast_canmatch_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid)
 {
-	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_CANMATCH);
+	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, E_CANMATCH);
 }
 
 int ast_matchmore_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid)
 {
-	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_MATCHMORE);
+	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, E_MATCHMORE);
 }
 
 int ast_spawn_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid)
 {
-	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_SPAWN);
+	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, E_SPAWN);
 }
 
 /* helper function to set extension and priority */
@@ -2000,15 +1996,42 @@ static void set_ext_pri(struct ast_channel *c, const char *exten, int pri)
 	c->priority = pri;
 }
 
+/*!
+ * \brief collect digits from the channel into the buffer,
+ * return -1 on error, 0 on timeout or done.
+ */
+static int collect_digits(struct ast_channel *c, int waittime, char *buf, int buflen, int pos)
+{
+	int digit;
+
+	buf[pos] = '\0';	/* make sure it is properly terminated */
+	while (ast_matchmore_extension(c, c->context, buf, 1, c->cid.cid_num)) {
+		/* As long as we're willing to wait, and as long as it's not defined,
+		   keep reading digits until we can't possibly get a right answer anymore.  */
+		digit = ast_waitfordigit(c, waittime * 1000);
+		if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
+			c->_softhangup = 0;
+		} else {
+			if (!digit)	/* No entry */
+				break;
+			if (digit < 0)	/* Error, maybe a  hangup */
+				return -1;
+			if (pos < buflen - 1) {	/* XXX maybe error otherwise ? */
+				buf[pos++] = digit;
+				buf[pos] = '\0';
+			}
+			waittime = c->pbx->dtimeout;
+		}
+	}
+	return 0;
+}
+
 static int __ast_pbx_run(struct ast_channel *c)
 {
-	int firstpass = 1;
-	int digit;
-	char exten[256];
-	int pos;
-	int waittime;
-	int res=0;
+	int found = 0;	/* set if we find at least one match */
+	int res = 0;
 	int autoloopflag;
+	int error = 0;		/* set an error conditions */
 
 	/* A little initial setup here */
 	if (c->pbx) {
@@ -2056,46 +2079,43 @@ static int __ast_pbx_run(struct ast_channel *c)
 	if (c->cdr && ast_tvzero(c->cdr->start))
 		ast_cdr_start(c->cdr);
 	for (;;) {
-		pos = 0;
-		digit = 0;
+		char dst_exten[256];	/* buffer to accumulate digits */
+		int pos = 0;		/* XXX should check bounds */
+		int digit = 0;
+
+		/* loop on priorities in this context/exten */
 		while (ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
-			memset(exten, 0, sizeof(exten));
+			found = 1;
 			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num))) {
 				/* Something bad happened, or a hangup has been requested. */
-				if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||
-					(res == '*') || (res == '#')) {
+				if (strchr("0123456789ABCDEF*#", res)) {
 					ast_log(LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
-					memset(exten, 0, sizeof(exten));
 					pos = 0;
-					exten[pos++] = digit = res;
+					dst_exten[pos++] = digit = res;
+					dst_exten[pos] = '\0';
 					break;
 				}
-				switch(res) {
-				case AST_PBX_KEEPALIVE:
+				if (res == AST_PBX_KEEPALIVE) {
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
 					else if (option_verbose > 1)
 						ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
-					goto out;
+					error = 1;
 					break;
-				default:
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-					else if (option_verbose > 1)
-						ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-					if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
-						c->_softhangup =0;
-						break;
-					}
-					/* atimeout */
-					if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
-						break;
-					}
-
-					if (c->cdr) {
+				}
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+				else if (option_verbose > 1)
+					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+				if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
+					c->_softhangup =0;
+				} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
+					/* atimeout, nothing bad */
+				} else {
+					if (c->cdr)
 						ast_cdr_update(c);
-					}
-					goto out;
+					error = 1;
+					break;
 				}
 			}
 			if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT && ast_exists_extension(c,c->context,"T",1,c->cid.cid_num)) {
@@ -2106,11 +2126,16 @@ static int __ast_pbx_run(struct ast_channel *c)
 			} else if (c->_softhangup) {
 				ast_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
 					c->exten, c->priority);
-				goto out;
+				error = 1;
+				break;
 			}
-			firstpass = 0;
 			c->priority++;
-		}
+		} /* end while  - from here on we can use 'break' to go out */
+		if (error)
+			break;
+
+		/* XXX we get here on non-existing extension or a keypress or hangup ? */
+
 		if (!ast_exists_extension(c, c->context, c->exten, 1, c->cid.cid_num)) {
 			/* If there is no match at priority 1, it is not a valid extension anymore.
 			 * Try to continue at "i", 1 or exit if the latter does not exist.
@@ -2123,73 +2148,20 @@ static int __ast_pbx_run(struct ast_channel *c)
 			} else {
 				ast_log(LOG_WARNING, "Channel '%s' sent into invalid extension '%s' in context '%s', but no invalid handler\n",
 					c->name, c->exten, c->context);
-				goto out;
+				error = 1; /* we know what to do with it */
+				break;
 			}
 		} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
 			/* If we get this far with AST_SOFTHANGUP_TIMEOUT, then we know that the "T" extension is next. */
 			c->_softhangup = 0;
-		} else {
-			/* Done, wait for an extension */
-			waittime = 0;
+		} else {	/* keypress received, get more digits for a full extension */
+			int waittime = 0;
 			if (digit)
 				waittime = c->pbx->dtimeout;
 			else if (!autofallthrough)
 				waittime = c->pbx->rtimeout;
-			if (waittime) {
-				while (ast_matchmore_extension(c, c->context, exten, 1, c->cid.cid_num)) {
-					/* As long as we're willing to wait, and as long as it's not defined,
-					   keep reading digits until we can't possibly get a right answer anymore.  */
-					digit = ast_waitfordigit(c, waittime * 1000);
-					if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
-						c->_softhangup = 0;
-					} else {
-						if (!digit)
-							/* No entry */
-							break;
-						if (digit < 0)
-							/* Error, maybe a  hangup */
-							goto out;
-						exten[pos++] = digit;
-						waittime = c->pbx->dtimeout;
-					}
-				}
-				if (ast_exists_extension(c, c->context, exten, 1, c->cid.cid_num)) {
-					/* Prepare the next cycle */
-					set_ext_pri(c, exten, 1);
-				} else {
-					/* No such extension */
-					if (!ast_strlen_zero(exten)) {
-						/* An invalid extension */
-						if (ast_exists_extension(c, c->context, "i", 1, c->cid.cid_num)) {
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "Invalid extension '%s' in context '%s' on %s\n", exten, c->context, c->name);
-							pbx_builtin_setvar_helper(c, "INVALID_EXTEN", exten);
-							set_ext_pri(c, "i", 1);
-						} else {
-							ast_log(LOG_WARNING, "Invalid extension '%s', but no rule 'i' in context '%s'\n", exten, c->context);
-							goto out;
-						}
-					} else {
-						/* A simple timeout */
-						if (ast_exists_extension(c, c->context, "t", 1, c->cid.cid_num)) {
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "Timeout on %s\n", c->name);
-							set_ext_pri(c, "t", 1);
-						} else {
-							ast_log(LOG_WARNING, "Timeout, but no rule 't' in context '%s'\n", c->context);
-							goto out;
-						}
-					}
-				}
-				if (c->cdr) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_2 "CDR updated on %s\n",c->name);
-					ast_cdr_update(c);
-			    }
-			} else {
-				const char *status;
-
-				status = pbx_builtin_getvar_helper(c, "DIALSTATUS");
+			if (!waittime) {
+				const char *status = pbx_builtin_getvar_helper(c, "DIALSTATUS");
 				if (!status)
 					status = "UNKNOWN";
 				if (option_verbose > 2)
@@ -2200,13 +2172,50 @@ static int __ast_pbx_run(struct ast_channel *c)
 					res = pbx_builtin_congestion(c, "10");
 				else if (!strcasecmp(status, "BUSY"))
 					res = pbx_builtin_busy(c, "10");
-				goto out;
+				error = 1; /* XXX disable message */
+				break;	/* exit from the 'for' loop */
+			}
+
+			if (collect_digits(c, waittime, dst_exten, sizeof(dst_exten), pos))
+				break;
+			if (ast_exists_extension(c, c->context, dst_exten, 1, c->cid.cid_num)) /* Prepare the next cycle */
+				set_ext_pri(c, dst_exten, 1);
+			else {
+				/* No such extension */
+				if (!ast_strlen_zero(dst_exten)) {
+					/* An invalid extension */
+					if (ast_exists_extension(c, c->context, "i", 1, c->cid.cid_num)) {
+						if (option_verbose > 2)
+							ast_verbose( VERBOSE_PREFIX_3 "Invalid extension '%s' in context '%s' on %s\n", dst_exten, c->context, c->name);
+						pbx_builtin_setvar_helper(c, "INVALID_EXTEN", dst_exten);
+						set_ext_pri(c, "i", 1);
+					} else {
+						ast_log(LOG_WARNING, "Invalid extension '%s', but no rule 'i' in context '%s'\n", dst_exten, c->context);
+						found = 1; /* XXX disable message */
+						break;
+					}
+				} else {
+					/* A simple timeout */
+					if (ast_exists_extension(c, c->context, "t", 1, c->cid.cid_num)) {
+						if (option_verbose > 2)
+							ast_verbose( VERBOSE_PREFIX_3 "Timeout on %s\n", c->name);
+						set_ext_pri(c, "t", 1);
+					} else {
+						ast_log(LOG_WARNING, "Timeout, but no rule 't' in context '%s'\n", c->context);
+						found = 1; /* XXX disable message */
+						break;
+					}
+				}
+			}
+			if (c->cdr) {
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_2 "CDR updated on %s\n",c->name);
+				ast_cdr_update(c);
 			}
 		}
 	}
-	if (firstpass)
+	if (!found && !error)
 		ast_log(LOG_WARNING, "Don't know what to do with '%s'\n", c->name);
-out:
 	if ((res != AST_PBX_KEEPALIVE) && ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num)) {
 		if (c->cdr && ast_opt_end_cdr_before_h_exten)
 			ast_cdr_end(c->cdr);
@@ -2264,6 +2273,16 @@ static void decrease_call_count(void)
 	if (countcalls > 0)
 		countcalls--;
 	ast_mutex_unlock(&maxcalllock);
+}
+
+static void destroy_exten(struct ast_exten *e)
+{
+	if (e->priority == PRIORITY_HINT)
+		ast_remove_hint(e);
+
+	if (e->datad)
+		e->datad(e->data);
+	free(e);
 }
 
 static void *pbx_thread(void *data)
@@ -2486,104 +2505,72 @@ int ast_context_remove_extension(const char *context, const char *extension, int
 int ast_context_remove_extension2(struct ast_context *con, const char *extension, int priority, const char *registrar)
 {
 	struct ast_exten *exten, *prev_exten = NULL;
+	struct ast_exten *peer;
 
 	ast_mutex_lock(&con->lock);
 
-	/* go through all extensions in context and search the right one ... */
-	exten = con->root;
-	while (exten) {
-
-		/* look for right extension */
+	/* scan the extension list to find matching extension-registrar */
+	for (exten = con->root; exten; prev_exten = exten, exten = exten->next) {
 		if (!strcmp(exten->exten, extension) &&
-			(!registrar || !strcmp(exten->registrar, registrar))) {
-			struct ast_exten *peer;
-
-			/* should we free all peers in this extension? (priority == 0)? */
-			if (priority == 0) {
-				/* remove this extension from context list */
-				if (prev_exten)
-					prev_exten->next = exten->next;
-				else
-					con->root = exten->next;
-
-				/* fire out all peers */
-				peer = exten;
-				while (peer) {
-					exten = peer->peer;
-
-					if (!peer->priority==PRIORITY_HINT)
-					    ast_remove_hint(peer);
-
-					peer->datad(peer->data);
-					free(peer);
-
-					peer = exten;
-				}
-
-				ast_mutex_unlock(&con->lock);
-				return 0;
-			} else {
-				/* remove only extension with exten->priority == priority */
-				struct ast_exten *previous_peer = NULL;
-
-				peer = exten;
-				while (peer) {
-					/* is this our extension? */
-					if (peer->priority == priority &&
-						(!registrar || !strcmp(peer->registrar, registrar) )) {
-						/* we are first priority extension? */
-						if (!previous_peer) {
-							/* exists previous extension here? */
-							if (prev_exten) {
-								/* yes, so we must change next pointer in
-								 * previous connection to next peer
-								 */
-								if (peer->peer) {
-									prev_exten->next = peer->peer;
-									peer->peer->next = exten->next;
-								} else
-									prev_exten->next = exten->next;
-							} else {
-								/* no previous extension, we are first
-								 * extension, so change con->root ...
-								 */
-								if (peer->peer)
-									con->root = peer->peer;
-								else
-									con->root = exten->next;
-							}
-						} else {
-							/* we are not first priority in extension */
-							previous_peer->peer = peer->peer;
-						}
-
-						/* now, free whole priority extension */
-						if (peer->priority==PRIORITY_HINT)
-						    ast_remove_hint(peer);
-						peer->datad(peer->data);
-						free(peer);
-
-						ast_mutex_unlock(&con->lock);
-						return 0;
-					} else {
-						/* this is not right extension, skip to next peer */
-						previous_peer = peer;
-						peer = peer->peer;
-					}
-				}
-
-				ast_mutex_unlock(&con->lock);
-				return -1;
-			}
-		}
-
-		prev_exten = exten;
-		exten = exten->next;
+			(!registrar || !strcmp(exten->registrar, registrar)))
+			break;
+	}
+	if (!exten) {
+		/* we can't find right extension */
+		ast_mutex_unlock(&con->lock);
+		return -1;
 	}
 
-	/* we can't find right extension */
+	/* should we free all peers in this extension? (priority == 0)? */
+	if (priority == 0) {
+		/* remove this extension from context list */
+		if (prev_exten)
+			prev_exten->next = exten->next;
+		else
+			con->root = exten->next;
+
+		/* fire out all peers */
+		while ( (peer = exten) ) {
+			exten = peer->peer; /* prepare for next entry */
+			destroy_exten(peer);
+		}
+	} else {
+		/* scan the priority list to remove extension with exten->priority == priority */
+		struct ast_exten *previous_peer = NULL;
+
+		for (peer = exten; peer; previous_peer = peer, peer = peer->peer) {
+			if (peer->priority == priority &&
+					(!registrar || !strcmp(peer->registrar, registrar) ))
+				break; /* found our priority */
+		}
+		if (!peer) { /* not found */
+			ast_mutex_unlock(&con->lock);
+			return -1;
+		}
+		/* we are first priority extension? */
+		if (!previous_peer) {
+			/*
+			 * We are first in the priority chain, so must update the extension chain.
+			 * The next node is either the next priority or the next extension
+			 */
+			struct ast_exten *next_node = peer->peer ? peer->peer : peer->next;
+
+			if (!prev_exten)	/* change the root... */
+				con->root = next_node;
+			else
+				prev_exten->next = next_node; /* unlink */
+			if (peer->peer)	/* XXX update the new head of the pri list */
+				peer->peer->next = peer->next;
+		} else { /* easy, we are not first priority in extension */
+			previous_peer->peer = peer->peer;
+		}
+
+		/* now, free whole priority extension */
+		destroy_exten(peer);
+		/* XXX should we return -1 ? */
+	}
 	ast_mutex_unlock(&con->lock);
-	return -1;
+	return 0;
 }
 
 
@@ -3370,13 +3357,17 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 
 	tmp = *extcontexts;
 	if (registrar) {
+		/* XXX remove previous contexts from same registrar */
+		ast_log(LOG_WARNING, "must remove any reg %s\n", registrar);
 		__ast_context_destroy(NULL,registrar);
 		while (tmp) {
 			lasttmp = tmp;
 			tmp = tmp->next;
 		}
 	} else {
+		/* XXX remove contexts with the same name */
 		while (tmp) {
+			ast_log(LOG_WARNING, "must remove %s  reg %s\n", tmp->name, tmp->registrar);
 			__ast_context_destroy(tmp,tmp->registrar);
 			lasttmp = tmp;
 			tmp = tmp->next;
@@ -4069,6 +4060,64 @@ static void null_datad(void *foo)
 {
 }
 
+/*! \brief add the extension in the priority chain */
+static int add_pri(struct ast_context *con, struct ast_exten *tmp,
+	struct ast_exten *el, struct ast_exten *e, int replace)
+{
+	struct ast_exten *ep;
+
+	for (ep = NULL; e ; ep = e, e = e->peer) {
+		if (e->priority >= tmp->priority)
+			break;
+	}
+	if (!e) {	/* go at the end, and ep is surely set because the list is not empty */
+		ep->peer = tmp;
+		return 0;	/* success */
+	}
+	if (e->priority == tmp->priority) {
+		/* Can't have something exactly the same.  Is this a
+		   replacement?  If so, replace, otherwise, bonk. */
+		if (!replace) {
+			ast_log(LOG_WARNING, "Unable to register extension '%s', priority %d in '%s', already in use\n", tmp->exten, tmp->priority, con->name);
+			tmp->datad(tmp->data);
+			free(tmp);
+			return -1;
+		}
+		/* we are replacing e, so copy the link fields and then update
+		 * whoever pointed to e to point to us
+		 */
+		tmp->next = e->next;	/* not meaningful if we are not first in the peer list */
+		tmp->peer = e->peer;	/* always meaningful */
+		if (ep)			/* We're in the peer list, just insert ourselves */
+			ep->peer = tmp;
+		else if (el)		/* We're the first extension. Take over e's functions */
+			el->next = tmp;
+		else			/* We're the very first extension.  */
+			con->root = tmp;
+		if (tmp->priority == PRIORITY_HINT)
+			ast_change_hint(e,tmp);
+		/* Destroy the old one */
+		e->datad(e->data);
+		free(e);
+	} else {	/* Slip ourselves in just before e */
+		tmp->peer = e;
+		tmp->next = e->next;	/* extension chain, or NULL if e is not the first extension */
+		if (ep)			/* Easy enough, we're just in the peer list */
+			ep->peer = tmp;
+		else {			/* we are the first in some peer list, so link in the ext list */
+			if (el)
+				el->next = tmp;	/* in the middle... */
+			else
+				con->root = tmp; /* ... or at the head */
+			e->next = NULL;	/* e is no more at the head, so e->next must be reset */
+		}
+		/* And immediately return success. */
+		if (tmp->priority == PRIORITY_HINT)
+			 ast_add_hint(tmp);
+	}
+	return 0;
+}
+
 /*! \brief
  * Main interface to add extensions to the list for out context.
  *
@@ -4120,7 +4169,7 @@ int ast_add_extension2(struct ast_context *con,
 	 * priorities (same extension) are kept in a list, according to the
 	 * peer pointer.
 	 */
-	struct ast_exten *tmp, *e, *el = NULL, *ep = NULL;
+	struct ast_exten *tmp, *e, *el = NULL;
 	int res;
 	int length;
 	char *p;
@@ -4197,113 +4246,21 @@ int ast_add_extension2(struct ast_context *con,
 			else
 				res = strcasecmp(e->cidmatch, tmp->cidmatch);
 		}
-		if (res == 0) {
-			/* We have an exact match, now we find where we are
-			   and be sure there's no duplicates */
-			while(e) {
-				if (e->priority == tmp->priority) {
-					/* Can't have something exactly the same.  Is this a
-					   replacement?  If so, replace, otherwise, bonk. */
-					if (replace) {
-						if (ep) {
-							/* We're in the peer list, insert ourselves */
-							ep->peer = tmp;
-							tmp->peer = e->peer;
-						} else if (el) {
-							/* We're the first extension. Take over e's functions */
-							el->next = tmp;
-							tmp->next = e->next;
-							tmp->peer = e->peer;
-						} else {
-							/* We're the very first extension.  */
-							con->root = tmp;
-							tmp->next = e->next;
-							tmp->peer = e->peer;
-						}
-						if (tmp->priority == PRIORITY_HINT)
-						    ast_change_hint(e,tmp);
-						/* Destroy the old one */
-						e->datad(e->data);
-						free(e);
-						ast_mutex_unlock(&con->lock);
-						if (tmp->priority == PRIORITY_HINT)
-						    ast_change_hint(e, tmp);
-						/* And immediately return success. */
-						LOG;
-						return 0;
-					} else {
-						ast_log(LOG_WARNING, "Unable to register extension '%s', priority %d in '%s', already in use\n", tmp->exten, tmp->priority, con->name);
-						tmp->datad(tmp->data);
-						free(tmp);
-						ast_mutex_unlock(&con->lock);
-						errno = EEXIST;
-						return -1;
-					}
-				} else if (e->priority > tmp->priority) {
-					/* Slip ourselves in just before e */
-					if (ep) {
-						/* Easy enough, we're just in the peer list */
-						ep->peer = tmp;
-						tmp->peer = e;
-					} else if (el) {
-						/* We're the first extension in this peer list */
-						el->next = tmp;
-						tmp->next = e->next;
-						e->next = NULL;
-						tmp->peer = e;
-					} else {
-						/* We're the very first extension altogether */
-						tmp->next = con->root->next;
-						/* Con->root must always exist or we couldn't get here */
-						tmp->peer = con->root;
-						con->root = tmp;
-					}
-					ast_mutex_unlock(&con->lock);
-
-					/* And immediately return success. */
-					if (tmp->priority == PRIORITY_HINT)
-						 ast_add_hint(tmp);
-
-					LOG;
-					return 0;
-				}
-				ep = e;
-				e = e->peer;
-			}
-			/* If we make it here, then it's time for us to go at the very end.
-			   ep *must* be defined or we couldn't have gotten here. */
-			ep->peer = tmp;
-			ast_mutex_unlock(&con->lock);
-			if (tmp->priority == PRIORITY_HINT)
-				ast_add_hint(tmp);
-
-			/* And immediately return success. */
-			LOG;
-			return 0;
-
-		} else if (res > 0) {
-			/* Insert ourselves just before 'e'.  We're the first extension of
-			   this kind */
-			tmp->next = e;
-			if (el) {
-				/* We're in the list somewhere */
-				el->next = tmp;
-			} else {
-				/* We're at the top of the list */
-				con->root = tmp;
-			}
-			ast_mutex_unlock(&con->lock);
-			if (tmp->priority == PRIORITY_HINT)
-				ast_add_hint(tmp);
-
-			/* And immediately return success. */
-			LOG;
-			return 0;
-		}
-
-		el = e;
+		if (res >= 0)
+			break;
 	}
-	/* If we fall all the way through to here, then we need to be on the end. */
+	if (e && res == 0) { /* exact match, insert in the pri chain */
+			int ret = add_pri(con, tmp, el, e, replace);
+			ast_mutex_unlock(&con->lock);
+			if (ret < 0)
+				errno = EEXIST;
+			else {
+				LOG;
+			}
+			return ret;
+	}
+	/* ok found the insertion place, right before 'e' (if any) */
+	tmp->next = e;
 	if (el)
 		el->next = tmp;
 	else
@@ -4723,16 +4680,6 @@ outgoing_app_cleanup:
 	return res;
 }
 
-static void destroy_exten(struct ast_exten *e)
-{
-	if (e->priority == PRIORITY_HINT)
-		ast_remove_hint(e);
-
-	if (e->datad)
-		e->datad(e->data);
-	free(e);
-}
-
 void __ast_context_destroy(struct ast_context *con, const char *registrar)
 {
 	struct ast_context *tmp, *tmpl=NULL;
@@ -4745,6 +4692,7 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 	for (tmp = contexts; tmp; ) {
 		struct ast_context *next;	/* next starting point */
 		for (; tmp; tmpl = tmp, tmp = tmp->next) {
+			ast_log(LOG_WARNING, "check ctx %s %s\n", tmp->name, tmp->registrar);
 			if ( (!registrar || !strcasecmp(registrar, tmp->registrar)) &&
 			     (!con || !strcasecmp(tmp->name, con->name)) )
 				break;	/* found it */
@@ -4752,6 +4700,7 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 		if (!tmp)	/* not found, we are done */
 			break;
 		ast_mutex_lock(&tmp->lock);
+		ast_log(LOG_WARNING, "delete ctx %s %s\n", tmp->name, tmp->registrar);
 		next = tmp->next;
 		if (tmpl)
 			tmpl->next = next;
@@ -5246,6 +5195,7 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 	struct varshead *headp;
 	const char *nametail = name;
 
+	/* XXX may need locking on the channel ? */
 	if (name[strlen(name)-1] == ')') {
 		char *function = ast_strdupa(name);
 
