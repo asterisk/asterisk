@@ -4183,15 +4183,16 @@ int ast_add_extension2(struct ast_context *con,
 	tmp->registrar = registrar;
 	
 	ast_mutex_lock(&con->lock);
-	for (e = con->root; e; e = e->next) {
-		/* Make sure patterns are always last! */
-		if ((e->exten[0] != '_') && (extension[0] == '_'))
+	for (e = con->root; e; el = e, e = e->next) {   /* scan the extension list */
+		/* XXX should use ext_cmp() to sort patterns correctly */
+		/* almost strcmp, but make sure patterns are always last! */
+		if (e->exten[0] != '_' && extension[0] == '_')
 			res = -1;
-		else if ((e->exten[0] == '_') && (extension[0] != '_'))
+		else if (e->exten[0] == '_' && extension[0] != '_')
 			res = 1;
 		else
 			res= strcmp(e->exten, extension);
-		if (!res) {
+		if (res == 0) { /* extension match, now look at cidmatch */
 			if (!e->matchcid && !tmp->matchcid)
 				res = 0;
 			else if (tmp->matchcid && !e->matchcid)
