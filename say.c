@@ -4656,13 +4656,13 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 }
 
 /* Polish syntax */
-int ast_say_date_with_format_pl(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
+int ast_say_date_with_format_pl(struct ast_channel *chan, time_t thetime, const char *ints, const char *lang, const char *format, const char *timezone)
 {
 	struct tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
-	ast_localtime(&time,&tm,timezone);
+	ast_localtime(&thetime, &tm, timezone);
 
 	for (offset = 0 ; format[offset] != '\0' ; offset++) {
 		int remainder;
@@ -4780,53 +4780,51 @@ int ast_say_date_with_format_pl(struct ast_channel *chan, time_t time, const cha
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or AdBY */
 				{
-					struct timeval now;
+					time_t tv_sec = time(NULL);
 					struct tm tmnow;
 					time_t beg_today;
 
-					gettimeofday(&now, NULL);
-					ast_localtime(&now.tv_sec,&tmnow, timezone);
+					ast_localtime(&tv_sec,&tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
-					if (beg_today < time) {
+					beg_today = tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					if (beg_today < thetime) {
 						/* Today */
 						res = wait_file(chan, ints, "digits/today", lang);
-					} else if (beg_today - 86400 < time) {
+					} else if (beg_today - 86400 < thetime) {
 						/* Yesterday */
 						res = wait_file(chan, ints, "digits/yesterday", lang);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "AdBY", timezone);
+						res = ast_say_date_with_format(chan, thetime, ints, lang, "AdBY", timezone);
 					}
 				}
 				break;
 			case 'q':
 				/* Shorthand for "" (today), "Yesterday", A (weekday), or AdBY */
 				{
-					struct timeval now;
+					time_t tv_sec = time(NULL);
 					struct tm tmnow;
 					time_t beg_today;
 
-					gettimeofday(&now, NULL);
-					ast_localtime(&now.tv_sec, &tmnow, timezone);
+					ast_localtime(&tv_sec, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
-					if (beg_today < time) {
+					beg_today = tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					if (beg_today < thetime) {
 						/* Today */
-					} else if ((beg_today - 86400) < time) {
+					} else if ((beg_today - 86400) < thetime) {
 						/* Yesterday */
 						res = wait_file(chan, ints, "digits/yesterday", lang);
-					} else if (beg_today - 86400 * 6 < time) {
+					} else if (beg_today - 86400 * 6 < thetime) {
 						/* Within the last week */
-						res = ast_say_date_with_format(chan, time, ints, lang, "A", timezone);
+						res = ast_say_date_with_format(chan, thetime, ints, lang, "A", timezone);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "AdBY", timezone);
+						res = ast_say_date_with_format(chan, thetime, ints, lang, "AdBY", timezone);
 					}
 				}
 				break;
 			case 'R':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HM", timezone);
+				res = ast_say_date_with_format(chan, thetime, ints, lang, "HM", timezone);
 				break;
 			case 'S':
 				/* Seconds */
@@ -4852,7 +4850,7 @@ int ast_say_date_with_format_pl(struct ast_channel *chan, time_t time, const cha
 				}
 				break;
 			case 'T':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+				res = ast_say_date_with_format(chan, thetime, ints, lang, "HMS", timezone);
 				break;
 			case ' ':
 			case '	':
