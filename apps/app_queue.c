@@ -93,12 +93,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/devicestate.h"
 #include "asterisk/stringfields.h"
 
-#define QUEUE_STRATEGY_RINGALL		0
-#define QUEUE_STRATEGY_ROUNDROBIN	1
-#define QUEUE_STRATEGY_LEASTRECENT	2
-#define QUEUE_STRATEGY_FEWESTCALLS	3
-#define QUEUE_STRATEGY_RANDOM		4
-#define QUEUE_STRATEGY_RRMEMORY		5
+enum {
+	QUEUE_STRATEGY_RINGALL = 0,
+	QUEUE_STRATEGY_ROUNDROBIN,
+	QUEUE_STRATEGY_LEASTRECENT,
+	QUEUE_STRATEGY_FEWESTCALLS,
+	QUEUE_STRATEGY_RANDOM,
+	QUEUE_STRATEGY_RRMEMORY
+};
 
 static struct strategy {
 	int strategy;
@@ -732,7 +734,7 @@ static void queue_set_param(struct ast_call_queue *q, const char *param, const c
 		if (q->strategy < 0) {
 			ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
 				val, q->name);
-			q->strategy = 0;
+			q->strategy = QUEUE_STRATEGY_RINGALL;
 		}
 	} else if (!strcasecmp(param, "joinempty")) {
 		if (!strcasecmp(val, "strict"))
@@ -1526,7 +1528,7 @@ static int ring_one(struct queue_ent *qe, struct callattempt *outgoing, int *bus
 				ast_log(LOG_DEBUG, "Nobody left to try ringing in queue\n");
 			break;
 		}
-		if (!qe->parent->strategy) {
+		if (qe->parent->strategy == QUEUE_STRATEGY_RINGALL) {
 			struct callattempt *cur;
 			/* Ring everyone who shares this best metric (for ringall) */
 			for (cur = outgoing; cur; cur = cur->q_next) {
@@ -1686,7 +1688,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				numlines++;
 			}
 			if (pos > 1 /* found */ || !stillgoing /* nobody listening */ ||
-					 qe->parent->strategy /* ring would not be delivered */)
+					 (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) /* ring would not be delivered */)
 				break;
 			/* On "ringall" strategy we only move to the next penalty level
 			   when *all* ringing phones are done in the current penalty level */
@@ -1784,7 +1786,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							if (in->cdr)
 								ast_cdr_busy(in->cdr);
 							do_hang(o);
-							if (qe->parent->strategy) {
+							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								if (qe->parent->timeoutrestart)
 									*to = orig;
 								ring_one(qe, outgoing, &numbusies);
@@ -1797,7 +1799,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							if (in->cdr)
 								ast_cdr_busy(in->cdr);
 							do_hang(o);
-							if (qe->parent->strategy) {
+							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								if (qe->parent->timeoutrestart)
 									*to = orig;
 								ring_one(qe, outgoing, &numbusies);
@@ -1824,7 +1826,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					ast_frfree(f);
 				} else {
 					do_hang(o);
-					if (qe->parent->strategy) {
+					if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 						if (qe->parent->timeoutrestart)
 							*to = orig;
 						ring_one(qe, outgoing, &numbusies);
@@ -1925,7 +1927,7 @@ static int is_our_turn(struct queue_ent *qe)
 		if (option_debug)
 			ast_log(LOG_DEBUG, "There are %d available members.\n", avl);
 	
-		if (qe->parent->strategy == 0) {
+		if (qe->parent->strategy == QUEUE_STRATEGY_RINGALL) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Even though there are %d available members, the strategy is ringall so only the head call is allowed in!\n", avl);
 			avl = 1;
