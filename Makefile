@@ -405,6 +405,7 @@ endif
 ifeq ($(OSARCH),SunOS)
   LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
   OBJS+=strcompat.o
+  MENUSELECT_OBJS+=strcompat.o
   ASTLINK=
   SOLINK=-shared -fpic -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
 endif
@@ -999,7 +1000,7 @@ uninstall-all: _uninstall
 menuselect: build_tools/menuselect makeopts.xml
 	-@build_tools/menuselect ${GLOBAL_MAKEOPTS} ${USER_MAKEOPTS} menuselect.makeopts && echo "menuselect changes saved!" || echo "menuselect changes NOT saved!"
 
-build_tools/menuselect: build_tools/menuselect.c build_tools/menuselect_curses.c build_tools/menuselect.h include/autoconfig.h strcompat.o mxml/libmxml.a
+build_tools/menuselect: build_tools/menuselect.c build_tools/menuselect_curses.c build_tools/menuselect.h include/autoconfig.h mxml/libmxml.a $(MENUSELECT_OBJS)
 	$(MAKE) -C build_tools menuselect
 
 mxml/libmxml.a:

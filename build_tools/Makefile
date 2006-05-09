@@ -2,6 +2,10 @@ MENUSELECT_OBJS=menuselect.o menuselect_curses.o
 MENUSELECT_CFLAGS=-g -c -D_GNU_SOURCE -I../ -I../include/
 MENUSELECT_LIBS=../mxml/libmxml.a
 
+ifeq ($(OSARCH),SunOS)
+  MENUSELECT_OBJS+=../strcompat.o
+endif
+
 ifneq ($(NCURSES_LIB),)
   MENUSELECT_LIBS+=$(NCURSES_LIB)
   MENUSELECT_INCLUDE=$(NCURSES_INCLUDE)
@@ -11,7 +15,7 @@ else
 endif
 
 menuselect: $(MENUSELECT_OBJS)
-	$(CC) -g -o $@ ../strcompat.o $(MENUSELECT_OBJS) $(MENUSELECT_LIBS)
+	$(CC) -g -o $@ $(MENUSELECT_OBJS) $(MENUSELECT_LIBS)
 
 menuselect.o: menuselect.c menuselect.h
 	$(CC) -o $@ $(MENUSELECT_CFLAGS) $<
