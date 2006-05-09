@@ -1904,6 +1904,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		chan->readq = f->next;
 		f->next = NULL;
 		/* Interpret hangup and return NULL */
+		/* XXX why not the same for frames from the channel ? */
 		if (f->frametype == AST_FRAME_CONTROL && f->subclass == AST_CONTROL_HANGUP) {
 			ast_frfree(f);
 			f = NULL;
@@ -1978,6 +1979,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					queue_frame_to_spies(chan, f, SPY_READ);
 				
 				if (chan->monitor && chan->monitor->read_stream ) {
+					/* XXX what does this do ? */
 #ifndef MONITOR_CONSTANT_DELAY
 					int jump = chan->outsmpl - chan->insmpl - 4 * f->samples;
 					if (jump >= 0) {
