@@ -112,7 +112,8 @@ int ast_osp_next(
  * \param handle OSP in/out_bound transaction handle
  * \param reason Last destination failure reason
  * \param start Call start time
- * \param duration Call duration
+ * \param connect Call connect time
+ * \param end Call end time
  * \return 1 Success, 0 Failed, -1 Error
  */
 int ast_osp_finish(

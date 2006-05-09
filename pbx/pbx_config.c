@@ -191,7 +191,7 @@ static int partial_match(const char *s, const char *word, int len)
 	return (len == 0 || !strncmp(s, word, len));
 }
 
-/*! \brief split extension@context in two parts, return -1 on error.
+/*! \brief split extension\@context in two parts, return -1 on error.
  * The return string is malloc'ed and pointed by *ext
  */
 static int split_ec(const char *src, char **ext, char ** const ctx)

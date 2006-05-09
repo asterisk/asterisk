@@ -173,7 +173,7 @@ struct ast_context {
 struct ast_app {
 	int (*execute)(struct ast_channel *chan, void *data);
 	const char *synopsis;			/*!< Synopsis text for 'show applications' */
-	const char *description;		/*!< Description (help text) for 'show application <name>' */
+	const char *description;		/*!< Description (help text) for 'show application &lt;name&gt;' */
 	AST_LIST_ENTRY(ast_app) list;		/*!< Next app in list */
 	struct module *module;			/*!< Module this app belongs to */
 	char name[0];				/*!< Name of the application */
@@ -1230,7 +1230,7 @@ int ast_custom_function_register(struct ast_custom_function *acf)
 }
 
 /*! \brief return a pointer to the arguments of the function,
- * and terminates the function name with '\0'
+ * and terminates the function name with '\\0'
  */
 static char *func_args(char *function)
 {

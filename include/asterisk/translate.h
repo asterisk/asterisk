@@ -146,6 +146,7 @@ struct ast_trans_pvt;
 /*!
  * \brief Register a translator
  * \param t populated ast_translator structure
+ * \param module handle to the module that owns this translator
  * This registers a codec translator with asterisk
  * \return 0 on success, -1 on failure
  */

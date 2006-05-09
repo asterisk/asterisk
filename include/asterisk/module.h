@@ -77,8 +77,7 @@ int ast_load_resource(const char *resource_name);
 /*! 
  * \brief Unloads a module.
  * \param resource_name The name of the module to unload.
- * \param force The force flag.  This should be set using one of the AST_FORCE*
- *        flags.
+ * \param unload_mode The force flag. This should be set using one of the AST_FORCE flags.
  *
  * This function unloads a module.  It will only unload modules that are not in
  * use (usecount not zero), unless #AST_FORCE_FIRM or #AST_FORCE_HARD is 
@@ -177,9 +176,8 @@ void ast_hangup_localusers(struct module_symbols *);
  * whose functions are exported through fields of a "struct module_symbol";
  *
  * Modules exporting extra symbols (data or functions), should list
- * them into an array of struct symbol_entry: \r
+ * them into an array of struct symbol_entry:
  *     struct symbol_entry exported_symbols[]
- * \r
  * of symbols, with a NULL name on the last entry
  *
  * Functions should be added with MOD_FUNC(name),

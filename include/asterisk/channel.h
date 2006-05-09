@@ -625,6 +625,13 @@ int ast_queue_control(struct ast_channel *chan, enum ast_control_frame_type cont
   The supplied payload data is copied into the frame, so the caller's copy
   is not modified nor freed, and the resulting frame will retain a copy of
   the data even if the caller frees their local copy.
+
+  \note This method should be treated as a 'network transport'; in other
+  words, your frames may be transferred across an IAX2 channel to another
+  system, which may be a different endianness than yours. Because of this,
+  you should ensure that either your frames will never be expected to work
+  across systems, or that you always put your payload data into 'network byte
+  order' before calling this function.
 */
 int ast_queue_control_data(struct ast_channel *chan, enum ast_control_frame_type control,
 			   const void *data, size_t datalen);

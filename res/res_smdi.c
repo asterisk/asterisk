@@ -150,7 +150,7 @@ int ast_smdi_mwi_unset(struct ast_smdi_interface *iface, const char *mailbox)
 /*!
  * \brief Put an SMDI message back in the front of the queue.
  * \param iface a pointer to the interface to use.
- * \param msg a pointer to the message to use.
+ * \param md_msg a pointer to the message to use.
  *
  * This function puts a message back in the front of the specified queue.  It
  * should be used if a message was popped but is not going to be processed for
@@ -164,7 +164,7 @@ void ast_smdi_md_message_putback(struct ast_smdi_interface *iface, struct ast_sm
 /*!
  * \brief Put an SMDI message back in the front of the queue.
  * \param iface a pointer to the interface to use.
- * \param msg a pointer to the message to use.
+ * \param mwi_msg a pointer to the message to use.
  *
  * This function puts a message back in the front of the specified queue.  It
  * should be used if a message was popped but is not going to be processed for
@@ -326,7 +326,7 @@ extern struct ast_smdi_interface *ast_smdi_interface_find(const char *iface_name
 
 /*! \brief Read an SMDI message.
  *
- * \param iface the SMDI interface to read from.
+ * \param iface_p the SMDI interface to read from.
  *
  * This function loops and reads from and SMDI interface.  It must be stopped
  * using pthread_cancel().

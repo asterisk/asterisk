@@ -241,24 +241,24 @@ extern struct ast_frame ast_null_frame;
 #define AST_FORMAT_VIDEO_MASK   (((1 << 25)-1) & ~(AST_FORMAT_AUDIO_MASK))
 
 enum ast_control_frame_type {
-	AST_CONTROL_HANGUP = 1,		/*! Other end has hungup */
-	AST_CONTROL_RING = 2,		/*! Local ring */
-	AST_CONTROL_RINGING = 3,	/*! Remote end is ringing */
-	AST_CONTROL_ANSWER = 4,		/*! Remote end has answered */
-	AST_CONTROL_BUSY = 5,		/*! Remote end is busy */
-	AST_CONTROL_TAKEOFFHOOK = 6,	/*! Make it go off hook */
-	AST_CONTROL_OFFHOOK = 7,	/*! Line is off hook */
-	AST_CONTROL_CONGESTION = 8,	/*! Congestion (circuits busy) */
-	AST_CONTROL_FLASH = 9,		/*! Flash hook */
-	AST_CONTROL_WINK = 10,		/*! Wink */
-	AST_CONTROL_OPTION = 11,	/*! Set a low-level option */
-	AST_CONTROL_RADIO_KEY = 12,	/*! Key Radio */
-	AST_CONTROL_RADIO_UNKEY = 13,	/*! Un-Key Radio */
-	AST_CONTROL_PROGRESS = 14,	/*! Indicate PROGRESS */
-	AST_CONTROL_PROCEEDING = 15,	/*! Indicate CALL PROCEEDING */
-	AST_CONTROL_HOLD = 16,		/*! Indicate call is placed on hold */
-	AST_CONTROL_UNHOLD = 17,	/*! Indicate call is left from hold */
-	AST_CONTROL_VIDUPDATE = 18,	/*! Indicate video frame update */
+	AST_CONTROL_HANGUP = 1,		/*!< Other end has hungup */
+	AST_CONTROL_RING = 2,		/*!< Local ring */
+	AST_CONTROL_RINGING = 3,	/*!< Remote end is ringing */
+	AST_CONTROL_ANSWER = 4,		/*!< Remote end has answered */
+	AST_CONTROL_BUSY = 5,		/*!< Remote end is busy */
+	AST_CONTROL_TAKEOFFHOOK = 6,	/*!< Make it go off hook */
+	AST_CONTROL_OFFHOOK = 7,	/*!< Line is off hook */
+	AST_CONTROL_CONGESTION = 8,	/*!< Congestion (circuits busy) */
+	AST_CONTROL_FLASH = 9,		/*!< Flash hook */
+	AST_CONTROL_WINK = 10,		/*!< Wink */
+	AST_CONTROL_OPTION = 11,	/*!< Set a low-level option */
+	AST_CONTROL_RADIO_KEY = 12,	/*!< Key Radio */
+	AST_CONTROL_RADIO_UNKEY = 13,	/*!< Un-Key Radio */
+	AST_CONTROL_PROGRESS = 14,	/*!< Indicate PROGRESS */
+	AST_CONTROL_PROCEEDING = 15,	/*!< Indicate CALL PROCEEDING */
+	AST_CONTROL_HOLD = 16,		/*!< Indicate call is placed on hold */
+	AST_CONTROL_UNHOLD = 17,	/*!< Indicate call is left from hold */
+	AST_CONTROL_VIDUPDATE = 18,	/*!< Indicate video frame update */
 };
 
 #define AST_SMOOTHER_FLAG_G729		(1 << 0)
