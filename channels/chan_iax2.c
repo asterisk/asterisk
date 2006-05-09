@@ -775,38 +775,36 @@ static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS];
 static ast_mutex_t iaxsl[IAX_MAX_CALLS];
 static struct timeval lastused[IAX_MAX_CALLS];
 
-
+static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
+static int expire_registry(void *data);
+static int iax2_answer(struct ast_channel *c);
+static int iax2_call(struct ast_channel *c, char *dest, int timeout);
+static int iax2_devicestate(void *data);
+static int iax2_digit(struct ast_channel *c, char digit);
+static int iax2_do_register(struct iax2_registry *reg);
+static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan);
+static int iax2_hangup(struct ast_channel *c);
+static int iax2_indicate(struct ast_channel *c, int condition);
+static int iax2_poke_peer(struct iax2_peer *peer, int heldcall);
+static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const char *template, int force);
+static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned int ts, int seqno, int now, int transfer, int final);
+static int iax2_sendhtml(struct ast_channel *c, int subclass, const char *data, int datalen);
+static int iax2_sendimage(struct ast_channel *c, struct ast_frame *img);
+static int iax2_sendtext(struct ast_channel *c, const char *text);
+static int iax2_setoption(struct ast_channel *c, int option, void *data, int datalen);
+static int iax2_transfer(struct ast_channel *c, const char *dest);
+static int iax2_write(struct ast_channel *c, struct ast_frame *f);
 static int send_command(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
-static int send_command_locked(unsigned short callno, char, int, unsigned int, const unsigned char *, int, int);
-static int send_command_immediate(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
 static int send_command_final(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
+static int send_command_immediate(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
+static int send_command_locked(unsigned short callno, char, int, unsigned int, const unsigned char *, int, int);
 static int send_command_transfer(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int);
+static struct ast_channel *iax2_request(const char *type, int format, void *data, int *cause);
+static struct ast_frame *iax2_read(struct ast_channel *c);
 static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, int temponly);
 static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly);
 static void destroy_user(struct iax2_user *user);
-static int expire_registry(void *data);
-static int iax2_write(struct ast_channel *c, struct ast_frame *f);
-static int iax2_do_register(struct iax2_registry *reg);
 static void prune_peers(void);
-static int iax2_poke_peer(struct iax2_peer *peer, int heldcall);
-static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const char *template, int force);
-
-static struct ast_channel *iax2_request(const char *type, int format, void *data, int *cause);
-static int iax2_devicestate(void *data);
-static int iax2_digit(struct ast_channel *c, char digit);
-static int iax2_sendtext(struct ast_channel *c, const char *text);
-static int iax2_sendimage(struct ast_channel *c, struct ast_frame *img);
-static int iax2_sendhtml(struct ast_channel *c, int subclass, const char *data, int datalen);
-static int iax2_call(struct ast_channel *c, char *dest, int timeout);
-static int iax2_hangup(struct ast_channel *c);
-static int iax2_answer(struct ast_channel *c);
-static struct ast_frame *iax2_read(struct ast_channel *c);
-static int iax2_write(struct ast_channel *c, struct ast_frame *f);
-static int iax2_indicate(struct ast_channel *c, int condition);
-static int iax2_setoption(struct ast_channel *c, int option, void *data, int datalen);
-static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
-static int iax2_transfer(struct ast_channel *c, const char *dest);
-static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan);
 
 static const struct ast_channel_tech iax2_tech = {
 	.type = "IAX2",
@@ -1562,8 +1560,6 @@ static void reload_firmware(void)
 	}
 	ast_mutex_unlock(&waresl.lock);
 }
-
-static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned int ts, int seqno, int now, int transfer, int final);
 
 static int __do_deliver(void *data)
 {
@@ -3518,9 +3514,6 @@ static int iax2_transfer(struct ast_channel *c, const char *dest)
 	return send_command_locked(callno, AST_FRAME_IAX, IAX_COMMAND_TRANSFER, 0, ied.buf, ied.pos, -1);
 }
 	
-
-static int iax2_write(struct ast_channel *c, struct ast_frame *f);
-
 static int iax2_getpeertrunk(struct sockaddr_in sin)
 {
 	struct iax2_peer *peer = NULL;
@@ -4262,8 +4255,6 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	}
 	return res;
 }
-
-
 
 static int iax2_show_users(int fd, int argc, char *argv[])
 {
