@@ -1167,8 +1167,7 @@ static char *referstatus2str(enum referstatus rstatus)
 static void initialize_initreq(struct sip_pvt *p, struct sip_request *req)
 {
 	if (p->initreq.headers) {
-		ast_log(LOG_WARNING, "Initializing already initialized SIP dialog??? %s\n", p->callid);
-		return;
+		ast_log(LOG_DEBUG, "Initializing already initialized SIP dialog %s (presumably reinvite)\n", p->callid);
 	}
 	/* Use this as the basis */
 	copy_request(&p->initreq, req);
