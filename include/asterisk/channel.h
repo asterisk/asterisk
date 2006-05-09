@@ -466,6 +466,7 @@ struct ast_channel {
 						   so when ->priority is set, it will get incremented before
 						   finding the next priority to run
 						*/
+#define AST_FLAG_OUTGOING (1 << 10) /*! Is this call outgoing */
 /* @} */
 
 #define AST_FEATURE_PLAY_WARNING	(1 << 0)
