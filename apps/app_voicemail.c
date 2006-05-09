@@ -2047,7 +2047,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 			odbc_release_obj(obj);
 			goto yuck;
 		}
-		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir LIKE '%%%s/%s/%s'", odbc_table, context, tmp, "INBOX");
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, tmp, "INBOX");
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -2085,7 +2085,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 			odbc_release_obj(obj);
 			goto yuck;
 		}
-		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir like '%%%s/%s/%s'", odbc_table, context, tmp, "Old");
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, tmp, "Old");
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -2158,7 +2158,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 			odbc_release_obj(obj);
                         goto yuck;
                 }
-		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir like '%%%s/%s/%s'", odbc_table, context, tmp, "INBOX");
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, tmp, "INBOX");
                 res = SQLPrepare(stmt, sql, SQL_NTS);
                 if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {  
                         ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -2235,7 +2235,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 		context++;
 	} else
 		context = "default";
-	snprintf(fn, sizeof(fn), "%s/%s/%s/%s", VM_SPOOL_DIR, context, tmp, folder);
+	snprintf(fn, sizeof(fn), "%s%s/%s/%s", VM_SPOOL_DIR, context, tmp, folder);
 	dir = opendir(fn);
 	if (!dir)
 		return 0;
@@ -2293,7 +2293,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	} else
 		context = "default";
 	if (newmsgs) {
-		snprintf(fn, sizeof(fn), "%s/%s/%s/INBOX", VM_SPOOL_DIR, context, tmp);
+		snprintf(fn, sizeof(fn), "%s%s/%s/INBOX", VM_SPOOL_DIR, context, tmp);
 		dir = opendir(fn);
 		if (dir) {
 			while ((de = readdir(dir))) {
@@ -2306,7 +2306,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		}
 	}
 	if (oldmsgs) {
-		snprintf(fn, sizeof(fn), "%s/%s/%s/Old", VM_SPOOL_DIR, context, tmp);
+		snprintf(fn, sizeof(fn), "%s%s/%s/Old", VM_SPOOL_DIR, context, tmp);
 		dir = opendir(fn);
 		if (dir) {
 			while ((de = readdir(dir))) {
