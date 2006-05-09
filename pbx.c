@@ -4950,8 +4950,8 @@ static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 	int ms;
 
 	/* Wait for "n" seconds */
-	if (data && atof(data)) {
-		ms = atof(data) * 1000;
+	if (data && (ms = atof(data)) > 0) {
+		ms *= 1000;
 		return ast_safe_sleep(chan, ms);
 	}
 	return 0;
@@ -4985,8 +4985,8 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 		ast_moh_start(chan, opts[0]);
 
 	/* Wait for "n" seconds */
-	if (args.timeout && atof(args.timeout))
-		 ms = atof(args.timeout) * 1000;
+	if (args.timeout && (ms = atof(args.timeout)) > 0)
+		 ms *= 1000;
 	else if (chan->pbx)
 		ms = chan->pbx->rtimeout * 1000;
 	else
