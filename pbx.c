@@ -3358,7 +3358,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	tmp = *extcontexts;
 	if (registrar) {
 		/* XXX remove previous contexts from same registrar */
-		ast_log(LOG_WARNING, "must remove any reg %s\n", registrar);
+		ast_log(LOG_DEBUG, "must remove any reg %s\n", registrar);
 		__ast_context_destroy(NULL,registrar);
 		while (tmp) {
 			lasttmp = tmp;
@@ -4692,7 +4692,7 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 	for (tmp = contexts; tmp; ) {
 		struct ast_context *next;	/* next starting point */
 		for (; tmp; tmpl = tmp, tmp = tmp->next) {
-			ast_log(LOG_WARNING, "check ctx %s %s\n", tmp->name, tmp->registrar);
+			ast_log(LOG_DEBUG, "check ctx %s %s\n", tmp->name, tmp->registrar);
 			if ( (!registrar || !strcasecmp(registrar, tmp->registrar)) &&
 			     (!con || !strcasecmp(tmp->name, con->name)) )
 				break;	/* found it */
@@ -4700,7 +4700,7 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 		if (!tmp)	/* not found, we are done */
 			break;
 		ast_mutex_lock(&tmp->lock);
-		ast_log(LOG_WARNING, "delete ctx %s %s\n", tmp->name, tmp->registrar);
+		ast_log(LOG_DEBUG, "delete ctx %s %s\n", tmp->name, tmp->registrar);
 		next = tmp->next;
 		if (tmpl)
 			tmpl->next = next;
