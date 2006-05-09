@@ -149,7 +149,7 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
 		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
 
-	ns = malloc(sizeof(struct ast_netsock));
+	ns = ast_calloc(1, sizeof(struct ast_netsock));
 	if (ns) {
 		/* Establish I/O callback for socket read */
 		ioref = ast_io_add(ioc, netsocket, callback, AST_IO_IN, ns);
