@@ -1,5 +1,31 @@
 #!/bin/sh
 
+get_description() {
+	x=${1}
+	TDESC=`cat $x | grep -e *tdesc | cut -f 2 -d '"'`
+	if [ "$TDESC" = "" ]; then
+		TDESC=`cat $x | grep -A 2 -e *description | grep -e '\"'  | cut -f 2 -d '"'` 
+	fi
+	if [ "$TDESC" = "" ]; then
+		TDESC=`cat $x | grep -e MODULE_DESCRIPTION | grep -v return | cut -f 2 -d '"'`
+	fi
+	if [ "$TDESC" = "" ]; then
+		TDESC=`cat $x | grep -e tdesc\\\[\\\] | cut -f 2 -d '"'`
+	fi
+	if [ "$TDESC" = "" ]; then
+		TDESC=`cat $x | grep -e desc\\\[\\\] | grep -v description | cut -f 2 -d '"'`
+	fi
+	if [ "$TDESC" = "" ]; then
+		TDESC=`cat $x | grep -e *desc | grep -v descrip | cut -f 2 -d '"'`
+	fi
+	if [ "$TDESC" = "" ]; then
+		TDESC=`cat $x | grep -e *dtext | grep static | cut -f 2 -d '"'`
+	fi
+	if [ "$TDESC" = "" ]; then
+		TDESC=`cat $x | grep -A 2 -e *synopsis | grep -e '\"'  | cut -f 2 -d '"'` 
+	fi
+}
+
 process_dir() {
 	dir=${1}
 	prefix=${2}_
@@ -10,7 +36,9 @@ process_dir() {
 	for file in ${dir}/${prefix}*.c
 	do
 		fname=${file##${dir}/}
-		echo -e "\t\t<member name=\"${fname%%.c}.so\">"
+		get_description ${file}
+		desc=${TDESC}
+		echo -e "\t\t<member name=\"${fname%%.c}.so\" displayname=\"${desc}\">"
 		awk -f build_tools/get_moduledeps ${file}
 		echo -e "\t\t</member>"
 	done
