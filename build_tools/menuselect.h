@@ -37,6 +37,8 @@ struct conflict;
 struct member {
 	/*! What will be sent to the makeopts file */
 	const char *name;
+	/*! Display name if known */
+	const char *displayname;
 	/*! Default setting */
 	const char *defaultenabled;
 	/*! This module is currently selected */

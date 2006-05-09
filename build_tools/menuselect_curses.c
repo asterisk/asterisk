@@ -128,6 +128,7 @@ void draw_category_menu(WINDOW *menu, struct category *cat, int start, int end, 
 	int j = 0;
 	struct member *mem;
 	char buf[64];
+	char *desc = NULL;
 
 	wclear(menu);
 
@@ -142,11 +143,17 @@ void draw_category_menu(WINDOW *menu, struct category *cat, int start, int end, 
 			snprintf(buf, sizeof(buf), "XXX %d.%s %s", i, i < 10 ? " " : "", mem->name);
 		else
 			snprintf(buf, sizeof(buf), "[%s] %d.%s %s", mem->enabled ? "*" : " ", i, i < 10 ? " " : "", mem->name);
+		if (curopt + 1== i)
+			desc = mem->displayname;
 		waddstr(menu, buf);
 		if (i == end)
 			break;
 	}
 
+	if (desc) {
+		wmove(menu, end - start + 2, max_x / 2 - 16);
+		waddstr(menu, desc);
+	}
 	wmove(menu, curopt - start, max_x / 2 - 9);
 
 	wrefresh(menu);
@@ -157,7 +164,7 @@ int run_category_menu(WINDOW *menu, int cat_num)
 	struct category *cat;
 	int i = 0;
 	int start = 0;
-	int end = max_y - TITLE_HEIGHT - 2;
+	int end = max_y - TITLE_HEIGHT - 6;
 	int c;
 	int curopt = 0;
 	int maxopt;

@@ -202,7 +202,7 @@ static int expiry = DEFAULT_EXPIRY;
 
 #define	INITIAL_CSEQ		101	/*!< our initial sip sequence number */
 
-static const char desc[] = "Session Initiation Protocol (SIP)";
+static const char tdesc[] = "Session Initiation Protocol (SIP)";
 static const char config[] = "sip.conf";
 static const char notify_config[] = "sip_notify.conf";
 static int usecnt = 0;
@@ -14084,7 +14084,7 @@ static const char *key(void)
 
 static const char *description(void)
 {
-	return (char *) desc;
+	return (char *) tdesc;
 }
 
 STD_MOD(MOD_1, reload, NULL, NULL);

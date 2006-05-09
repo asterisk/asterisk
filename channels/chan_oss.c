@@ -375,10 +375,11 @@ static int oss_call(struct ast_channel *c, char *dest, int timeout);
 static int oss_write(struct ast_channel *chan, struct ast_frame *f);
 static int oss_indicate(struct ast_channel *chan, int cond);
 static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+static char tdesc[] = "OSS Console Channel Driver";
 
 static const struct ast_channel_tech oss_tech = {
 	.type =	"Console",
-	.description =	"OSS Console Channel Driver",
+	.description =	tdesc,
 	.capabilities =	AST_FORMAT_SLINEAR,
 	.requester = oss_request,
 	.send_digit = oss_digit,

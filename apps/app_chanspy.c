@@ -56,7 +56,7 @@ AST_MUTEX_DEFINE_STATIC(modlock);
 #define ALL_DONE(u, ret) LOCAL_USER_REMOVE(u); return ret;
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
 
-static const char *synopsis = "Listen to the audio of an active channel";
+static const char *tdesc = "Listen to the audio of an active channel";
 static const char *app = "ChanSpy";
 static const char *desc = 
 "  ChanSpy([chanprefix][|options]): This application is used to listen to the\n"
@@ -584,12 +584,12 @@ static int unload_module(void *mod)
 static int load_module(void *mod)
 {
 	__mod_desc = mod;
-	return ast_register_application(app, chanspy_exec, synopsis, desc);
+	return ast_register_application(app, chanspy_exec, tdesc, desc);
 }
 
 static const char *description(void)
 {
-	return (char *) synopsis;
+	return (char *) tdesc;
 }
 
 static const char *key(void)

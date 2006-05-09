@@ -206,6 +206,7 @@ static int parse_makeopts_xml(const char *makeopts_xml)
 				return -1;
 			
 			mem->name = mxmlElementGetAttr(cur2, "name");
+			mem->displayname = mxmlElementGetAttr(cur2, "displayname");
 		
 			if (!cat->positive_output)
 				mem->enabled = 1;
