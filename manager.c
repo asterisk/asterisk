@@ -1312,7 +1312,7 @@ static void *fast_originate(void *data)
 	
 	/* Tell the manager what happened with the channel */
 	manager_event(EVENT_FLAG_CALL,
-		res ? "OriginateSuccess" : "OriginateFailure",
+		res ? "OriginateFailure" : "OriginateSuccess",
 		"%s"
 		"Channel: %s/%s\r\n"
 		"Context: %s\r\n"
