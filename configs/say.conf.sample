@@ -27,7 +27,7 @@
 ;
 ; Processing occurs as follows:
 ; If the format is empty, or there is no format, the entire
-; string is matched agains one of the pattern on the left hand side.
+; string is matched against one of the pattern on the left hand side.
 ; On the first match, the various comma-separated components on the right
 ; hand side are pronounced, as follows:
 ; + a component starting with a prefix: (i.e. with a ':' in it)
@@ -147,4 +147,25 @@
     _date::. => date:AdBY:${SAY}
     _time::. => date:IMp:${SAY}
 
+
+[de](date-base,digit-base)
+    _[n]um:0. => num:${SAY:1}
+    _[n]um:X => digits/${SAY}
+    _[n]um:1X => digits/${SAY}
+    _[n]um:[2-9]0 => digits/${SAY}
+    _[n]um:[2-9][2-9] => digits/${SAY:1}-and, digits/${SAY:0:1}0
+    _[n]um:1XX => digits/ein, digits/hundred, num:${SAY:1}
+    _[n]um:[2-9]XX => digits/${SAY:0:1}, digits/hundred, num:${SAY:1}
+    _[n]um:1XXX => digits/ein, digits/thousand, num:${SAY:1}
+    _[n]um:[2-9]XXX => digits/${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
+    _[n]um:X00XXX => digits/${SAY:0:1}, digits/hundred, digits/thousand, num:${SAY:3}
+    _[n]um:XXXXXX => digits/${SAY:0:1}, digits/hundred, num:${SAY:1}
+    _[n]um:1XXXXXX => digits/eine, digits/million, num:${SAY:1}
+    _[n]um:[2-9]XXXXXX => digits/${SAY:0:1}, digits/millions, num:${SAY:1}
+    _[n]um:XXXXXXXX => num:${SAY:0:1}, digits/millions, num:${SAY:2}
+
+    _datetime::. => date:AdBY 'digits/at' IMp:${SAY}
+    _date::. => date:AdBY:${SAY}
+    _time::. => date:IMp:${SAY}
 
