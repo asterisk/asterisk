@@ -479,7 +479,7 @@ ifneq ($(wildcard .tags-depend),)
   include .tags-depend
 endif
 
-ast_expr2.c:
+ast_expr2.c ast_expr2.h:
 	bison -o $@ -d --name-prefix=ast_yy ast_expr2.y
 
 ast_expr2f.c:
