@@ -4363,14 +4363,14 @@ int ast_add_extension2(struct ast_context *con,
 			break;
 	}
 	if (e && res == 0) { /* exact match, insert in the pri chain */
-			int ret = add_pri(con, tmp, el, e, replace);
-			ast_mutex_unlock(&con->lock);
-			if (ret < 0)
-				errno = EEXIST;
-			else {
-				LOG;
-			}
-			return ret;
+		int ret = add_pri(con, tmp, el, e, replace);
+		ast_mutex_unlock(&con->lock);
+		if (ret < 0)
+			errno = EEXIST;
+		else {
+			LOG;
+		}
+		return ret;
 	}
 	/*
 	 * not an exact match, this is the first entry with this pattern,
