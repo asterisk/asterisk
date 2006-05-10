@@ -6192,7 +6192,7 @@ static int load_config(void)
 
 	AST_LIST_LOCK(&users);
 	while ((cur = AST_LIST_REMOVE_HEAD(&users, list))) {
-		ast_set_flag(cur, VM_ALLOCED);	
+		ast_set_flag(cur, VM_ALLOCED);
 		free_user(cur);
 	}
 
@@ -6752,16 +6752,17 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	if (!strncasecmp("macro",context,5)) /* Macro names in contexts are useless for our needs */
 		context = ast_variable_retrieve(msg_cfg, "message","macrocontext");
 
-	if (option == 3) {
-
+	switch (option) {
+	case 3:
 		if (!res)
 			res = play_message_datetime(chan, vmu, origtime, filename);
 		if (!res)
 			res = play_message_callerid(chan, vms, cid, context, 0);
 
 		res = 't';
+		break;
 
-	} else if (option == 2) { /* Call back */
+	case 2:	/* Call back */
 
 		if (!ast_strlen_zero(cid)) {
 			ast_callerid_parse(cid, &name, &num);
@@ -6843,9 +6844,9 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 						res = -1;
 				}
 			}
+		break;
 
-	}
-	else if (option == 1) { /* Reply */
+	case 1:	/* Reply */
 		/* Send reply directly to sender */
 		if (!ast_strlen_zero(cid)) {
 			ast_callerid_parse(cid, &name, &num);
@@ -6881,6 +6882,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 			} 
 			res = 0;
 		}
+		break;
 	}
 
 	ast_config_destroy(msg_cfg);
