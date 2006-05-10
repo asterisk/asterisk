@@ -40,15 +40,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #define locked_copy_string(chan, dest, source, len) \
 	do { \
-		ast_mutex_lock(&chan->lock); \
+		ast_channel_lock(chan); \
 		ast_copy_string(dest, source, len); \
-		ast_mutex_unlock(&chan->lock); \
+		ast_channel_unlock(chan); \
 	} while (0)
 #define locked_string_field_set(chan, field, source) \
 	do { \
-		ast_mutex_lock(&chan->lock); \
+		ast_channel_lock(chan); \
 		ast_string_field_set(chan, field, source); \
-		ast_mutex_unlock(&chan->lock); \
+		ast_channel_unlock(chan); \
 	} while (0)
 
 static int func_channel_read(struct ast_channel *chan, char *function,

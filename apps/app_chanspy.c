@@ -198,9 +198,9 @@ static int start_spying(struct ast_channel *chan, struct ast_channel *spychan, s
 
 	ast_log(LOG_NOTICE, "Attaching %s to %s\n", spychan->name, chan->name);
 
-	ast_mutex_lock(&chan->lock);
+	ast_channel_lock(chan);
 	res = ast_channel_spy_add(chan, spy);
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 
 	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan))) {
 		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);	
@@ -219,9 +219,9 @@ static void stop_spying(struct ast_channel *chan, struct ast_channel_spy *spy)
 	if (!chan)
 		return;
 
-	ast_mutex_lock(&chan->lock);
+	ast_channel_lock(chan);
 	ast_channel_spy_remove(chan, spy);
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 };
 
 /* Map 'volume' levels from -4 through +4 into

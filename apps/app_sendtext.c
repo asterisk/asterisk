@@ -93,9 +93,9 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 			priority_jump = 1;
 	}
 
-	ast_mutex_lock(&chan->lock);
+	ast_channel_lock(chan);
 	if (!chan->tech->send_text) {
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 		/* Does not support transport */
 		if (priority_jump || ast_opt_priority_jumping)
 			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
@@ -103,7 +103,7 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	status = "FAILURE";
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 	res = ast_sendtext(chan, args.text);
 	if (!res)
 		status = "SUCCESS";
