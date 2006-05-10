@@ -85,11 +85,7 @@ static void ast_netsock_destroy(struct ast_netsock *netsock)
 
 struct ast_netsock_list *ast_netsock_list_alloc(void)
 {
-	struct ast_netsock_list *res;
-
-	res = calloc(1, sizeof(*res));
-
-	return res;
+	return ast_calloc(1, sizeof(struct ast_netsock_list));
 }
 
 int ast_netsock_init(struct ast_netsock_list *list)
@@ -149,27 +145,24 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
 		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
 
-	ns = ast_calloc(1, sizeof(struct ast_netsock));
-	if (ns) {
-		/* Establish I/O callback for socket read */
-		ioref = ast_io_add(ioc, netsocket, callback, AST_IO_IN, ns);
-		if (!ioref) {
-			ast_log(LOG_WARNING, "Out of memory!\n");
-			close(netsocket);
-			free(ns);
-			return NULL;
-		}	
-		ASTOBJ_INIT(ns);
-		ns->ioref = ioref;
-		ns->ioc = ioc;
-		ns->sockfd = netsocket;
-		ns->data = data;
-		memcpy(&ns->bindaddr, bindaddr, sizeof(ns->bindaddr));
-		ASTOBJ_CONTAINER_LINK(list, ns);
-	} else {
-		ast_log(LOG_WARNING, "Out of memory!\n");
+	if (!(ns = ast_calloc(1, sizeof(struct ast_netsock)))) {
 		close(netsocket);
+		return NULL;
 	}
+	
+	/* Establish I/O callback for socket read */
+	if (!(ioref = ast_io_add(ioc, netsocket, callback, AST_IO_IN, ns))) {
+		close(netsocket);
+		free(ns);
+		return NULL;
+	}	
+	ASTOBJ_INIT(ns);
+	ns->ioref = ioref;
+	ns->ioc = ioc;
+	ns->sockfd = netsocket;
+	ns->data = data;
+	memcpy(&ns->bindaddr, bindaddr, sizeof(ns->bindaddr));
+	ASTOBJ_CONTAINER_LINK(list, ns);
 
 	return ns;
 }
