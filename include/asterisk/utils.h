@@ -102,6 +102,14 @@ extern unsigned int __unsigned_int_flags_dummy;
 						(p)->flags &= ~(flag); \
 					} while (0)
 
+#define ast_set_flags_to(p,flag,value)	do { \
+					typeof ((p)->flags) __p = (p)->flags; \
+					typeof (__unsigned_int_flags_dummy) __x = 0; \
+					(void) (&__p == &__x); \
+					(p)->flags &= ~(flag); \
+					(p)->flags |= (value); \
+					} while (0)
+
 /* Non-type checking variations for non-unsigned int flags.  You
    should only use non-unsigned int flags where required by 
    protocol etc and if you know what you're doing :)  */

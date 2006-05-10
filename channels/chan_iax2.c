@@ -282,7 +282,8 @@ enum {
 	IAX_RTAUTOCLEAR = 	(1 << 19), 	/*!< erase me on expire */ 
 	IAX_FORCEJITTERBUF =	(1 << 20),	/*!< Force jitterbuffer, even when bridged to a channel that can take jitter */ 
 	IAX_RTIGNOREREGEXPIRE =	(1 << 21),	/*!< When using realtime, ignore registration expiration */
-	IAX_TRUNKTIMESTAMPS =	(1 << 22)	/*!< Send trunk timestamps */
+	IAX_TRUNKTIMESTAMPS =	(1 << 22),	/*!< Send trunk timestamps */
+	IAX_TRANSFERMEDIA = 	(1 << 23)   /*!< When doing IAX2 transfers, transfer media only */
 } iax2_flags;
 
 static int global_rtautoclear = 120;
@@ -406,7 +407,13 @@ enum iax_transfer_state {
 	TRANSFER_BEGIN,
 	TRANSFER_READY,
 	TRANSFER_RELEASED,
-	TRANSFER_PASSTHROUGH
+	TRANSFER_PASSTHROUGH,
+	TRANSFER_MBEGIN,
+	TRANSFER_MREADY,
+	TRANSFER_MRELEASED,
+	TRANSFER_MPASSTHROUGH,
+	TRANSFER_MEDIA,
+	TRANSFER_MEDIAPASS
 };
 
 struct iax2_registry {
@@ -1258,7 +1265,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			iaxs[x]->pingid = ast_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
 			iaxs[x]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			iaxs[x]->amaflags = amaflags;
-			ast_copy_flags(iaxs[x], (&globalflags), IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
+			ast_copy_flags(iaxs[x], (&globalflags), IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
 			ast_copy_string(iaxs[x]->accountcode, accountcode, sizeof(iaxs[x]->accountcode));
 		} else {
 			ast_log(LOG_WARNING, "Out of resources\n");
@@ -2944,7 +2951,7 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 		return -1;
 	}
 
-	ast_copy_flags(cai, peer, IAX_SENDANI | IAX_TRUNK | IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
+	ast_copy_flags(cai, peer, IAX_SENDANI | IAX_TRUNK | IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
 	cai->maxtime = peer->maxms;
 	cai->capability = peer->capability;
 	cai->encmethods = peer->encmethods;
@@ -3291,7 +3298,7 @@ static struct ast_frame *iax2_read(struct ast_channel *c)
 	return &ast_null_frame;
 }
 
-static int iax2_start_transfer(unsigned short callno0, unsigned short callno1)
+static int iax2_start_transfer(unsigned short callno0, unsigned short callno1, int mediaonly)
 {
 	int res;
 	struct iax_ie_data ied0;
@@ -3313,8 +3320,8 @@ static int iax2_start_transfer(unsigned short callno0, unsigned short callno1)
 	res = send_command(iaxs[callno1], AST_FRAME_IAX, IAX_COMMAND_TXREQ, 0, ied1.buf, ied1.pos, -1);
 	if (res)
 		return -1;
-	iaxs[callno0]->transferring = TRANSFER_BEGIN;
-	iaxs[callno1]->transferring = TRANSFER_BEGIN;
+	iaxs[callno0]->transferring = mediaonly ? TRANSFER_MBEGIN : TRANSFER_BEGIN;
+	iaxs[callno1]->transferring = mediaonly ? TRANSFER_MBEGIN : TRANSFER_BEGIN;
 	return 0;
 }
 
@@ -3391,10 +3398,10 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 			return AST_BRIDGE_FAILED_NOWARN;
 		}
 		/* check if transfered and if we really want native bridging */
-		if (!transferstarted && !ast_test_flag(iaxs[callno0], IAX_NOTRANSFER) && !ast_test_flag(iaxs[callno1], IAX_NOTRANSFER) && 
-		!(flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))) {
+		if (!transferstarted && !ast_test_flag(iaxs[callno0], IAX_NOTRANSFER) && !ast_test_flag(iaxs[callno1], IAX_NOTRANSFER)) {
 			/* Try the transfer */
-			if (iax2_start_transfer(callno0, callno1))
+			if (iax2_start_transfer(callno0, callno1, (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1)) ||
+							ast_test_flag(iaxs[callno0], IAX_TRANSFERMEDIA) | ast_test_flag(iaxs[callno1], IAX_TRANSFERMEDIA)))
 				ast_log(LOG_WARNING, "Unable to start the transfer\n");
 			transferstarted = 1;
 		}
@@ -4123,7 +4130,9 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	    return 0;
 
 
-	if ((ast_test_flag(pvt, IAX_TRUNK) || ((fts & 0xFFFF0000L) == (lastsent & 0xFFFF0000L)))
+	if ((ast_test_flag(pvt, IAX_TRUNK) || 
+			(((fts & 0xFFFF0000L) == (lastsent & 0xFFFF0000L)) ||
+			((fts & 0xFFFF0000L) == ((lastsent + 0x10000) & 0xFFFF0000L))))
 		/* High two bytes are the same on timestamp, or sending on a trunk */ &&
 	    (f->frametype == AST_FRAME_VOICE) 
 		/* is a voice frame */ &&
@@ -4244,6 +4253,8 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 			fr->datalen = fr->af.datalen + sizeof(struct ast_iax2_mini_hdr);
 			fr->data = mh;
 			fr->retries = -1;
+			if (pvt->transferring == TRANSFER_MEDIAPASS)
+				fr->transfer = 1;
 			if (ast_test_flag(pvt, IAX_ENCRYPTED)) {
 				if (ast_test_flag(pvt, IAX_KEYPOPULATED)) {
 					encrypt_frame(&pvt->ecx, (struct ast_iax2_full_hdr *)mh, pvt->semirand, &fr->datalen);
@@ -5116,7 +5127,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			iaxs[callno]->amaflags = user->amaflags;
 		if (!ast_strlen_zero(user->language))
 			ast_copy_string(iaxs[callno]->language, user->language, sizeof(iaxs[callno]->language));
-		ast_copy_flags(iaxs[callno], user, IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
+		ast_copy_flags(iaxs[callno], user, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
 		/* Keep this check last */
 		if (!ast_strlen_zero(user->dbsecret)) {
 			char *family, *key=NULL;
@@ -7761,32 +7772,53 @@ retryowner2:
 				}
 				break;
 			case IAX_COMMAND_TXREADY:
-				if (iaxs[fr.callno]->transferring == TRANSFER_BEGIN) {
-					iaxs[fr.callno]->transferring = TRANSFER_READY;
+				if ((iaxs[fr.callno]->transferring == TRANSFER_BEGIN) ||
+				    (iaxs[fr.callno]->transferring == TRANSFER_MBEGIN)) {
+					if (iaxs[fr.callno]->transferring == TRANSFER_MBEGIN)
+						iaxs[fr.callno]->transferring = TRANSFER_MREADY;
+					else
+						iaxs[fr.callno]->transferring = TRANSFER_READY;
 					if (option_verbose > 2) 
 						ast_verbose(VERBOSE_PREFIX_3 "Channel '%s' ready to transfer\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>");
 					if (iaxs[fr.callno]->bridgecallno) {
-						if (iaxs[iaxs[fr.callno]->bridgecallno]->transferring == TRANSFER_READY) {
-							if (option_verbose > 2) 
-								ast_verbose(VERBOSE_PREFIX_3 "Releasing %s and %s\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>",
+						if ((iaxs[iaxs[fr.callno]->bridgecallno]->transferring == TRANSFER_READY) ||
+						    (iaxs[iaxs[fr.callno]->bridgecallno]->transferring == TRANSFER_MREADY)) {
+							/* They're both ready, now release them. */
+							if (iaxs[fr.callno]->transferring == TRANSFER_MREADY) {
+								if (option_verbose > 2) 
+									ast_verbose(VERBOSE_PREFIX_3 "Attempting media bridge of %s and %s\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>",
 										iaxs[iaxs[fr.callno]->bridgecallno]->owner ? iaxs[iaxs[fr.callno]->bridgecallno]->owner->name : "<Unknown>");
 
-							/* They're both ready, now release them. */
-							iaxs[iaxs[fr.callno]->bridgecallno]->transferring = TRANSFER_RELEASED;
-							iaxs[fr.callno]->transferring = TRANSFER_RELEASED;
-							ast_set_flag(iaxs[iaxs[fr.callno]->bridgecallno], IAX_ALREADYGONE);
-							ast_set_flag(iaxs[fr.callno], IAX_ALREADYGONE);
+								iaxs[iaxs[fr.callno]->bridgecallno]->transferring = TRANSFER_MEDIA;
+								iaxs[fr.callno]->transferring = TRANSFER_MEDIA;
 
-							/* Stop doing lag & ping requests */
-							stop_stuff(fr.callno);
-							stop_stuff(iaxs[fr.callno]->bridgecallno);
+								memset(&ied0, 0, sizeof(ied0));
+								memset(&ied1, 0, sizeof(ied1));
+								iax_ie_append_short(&ied0, IAX_IE_CALLNO, iaxs[iaxs[fr.callno]->bridgecallno]->peercallno);
+								iax_ie_append_short(&ied1, IAX_IE_CALLNO, iaxs[fr.callno]->peercallno);
+								send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_TXMEDIA, 0, ied0.buf, ied0.pos, -1);
+								send_command(iaxs[iaxs[fr.callno]->bridgecallno], AST_FRAME_IAX, IAX_COMMAND_TXMEDIA, 0, ied1.buf, ied1.pos, -1);
+							} else {
+								if (option_verbose > 2) 
+									ast_verbose(VERBOSE_PREFIX_3 "Releasing %s and %s\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>",
+										iaxs[iaxs[fr.callno]->bridgecallno]->owner ? iaxs[iaxs[fr.callno]->bridgecallno]->owner->name : "<Unknown>");
 
-							memset(&ied0, 0, sizeof(ied0));
-							memset(&ied1, 0, sizeof(ied1));
-							iax_ie_append_short(&ied0, IAX_IE_CALLNO, iaxs[iaxs[fr.callno]->bridgecallno]->peercallno);
-							iax_ie_append_short(&ied1, IAX_IE_CALLNO, iaxs[fr.callno]->peercallno);
-							send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_TXREL, 0, ied0.buf, ied0.pos, -1);
-							send_command(iaxs[iaxs[fr.callno]->bridgecallno], AST_FRAME_IAX, IAX_COMMAND_TXREL, 0, ied1.buf, ied1.pos, -1);
+								iaxs[iaxs[fr.callno]->bridgecallno]->transferring = TRANSFER_RELEASED;
+								iaxs[fr.callno]->transferring = TRANSFER_RELEASED;
+								ast_set_flag(iaxs[iaxs[fr.callno]->bridgecallno], IAX_ALREADYGONE);
+								ast_set_flag(iaxs[fr.callno], IAX_ALREADYGONE);
+
+								/* Stop doing lag & ping requests */
+								stop_stuff(fr.callno);
+								stop_stuff(iaxs[fr.callno]->bridgecallno);
+
+								memset(&ied0, 0, sizeof(ied0));
+								memset(&ied1, 0, sizeof(ied1));
+								iax_ie_append_short(&ied0, IAX_IE_CALLNO, iaxs[iaxs[fr.callno]->bridgecallno]->peercallno);
+								iax_ie_append_short(&ied1, IAX_IE_CALLNO, iaxs[fr.callno]->peercallno);
+								send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_TXREL, 0, ied0.buf, ied0.pos, -1);
+								send_command(iaxs[iaxs[fr.callno]->bridgecallno], AST_FRAME_IAX, IAX_COMMAND_TXREL, 0, ied1.buf, ied1.pos, -1);
+							}
 
 						}
 					}
@@ -7804,6 +7836,12 @@ retryowner2:
 				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				complete_transfer(fr.callno, &ies);
 				stop_stuff(fr.callno);	/* for attended transfer to work with libiax */
+				break;	
+			case IAX_COMMAND_TXMEDIA:
+				if (iaxs[fr.callno]->transferring == TRANSFER_READY) {
+					/* Start sending our media to the transfer address, but otherwise leave the call as-is */
+					iaxs[fr.callno]->transferring = TRANSFER_MEDIAPASS;
+				}
 				break;	
 			case IAX_COMMAND_DPREP:
 				complete_dpreply(iaxs[fr.callno], &ies);
@@ -8279,7 +8317,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	memset(&cai, 0, sizeof(cai));
 	cai.capability = iax2_capability;
 
-	ast_copy_flags(&cai, &globalflags, IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
+	ast_copy_flags(&cai, &globalflags, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
 
 	if (!pds.peer) {
 		ast_log(LOG_WARNING, "No peer given\n");
@@ -8306,7 +8344,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	ast_mutex_lock(&iaxsl[callno]);
 
 	/* If this is a trunk, update it now */
-	ast_copy_flags(iaxs[callno], &cai, IAX_TRUNK | IAX_SENDANI | IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
+	ast_copy_flags(iaxs[callno], &cai, IAX_TRUNK | IAX_SENDANI | IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
 	if (ast_test_flag(&cai, IAX_TRUNK))
 		callno = make_trunk(callno, 1);
 	iaxs[callno]->maxtime = cai.maxtime;
@@ -8630,7 +8668,16 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 			} else if (!strcasecmp(v->name, "encryption")) {
 				peer->encmethods = get_encrypt_methods(v->value);
 			} else if (!strcasecmp(v->name, "notransfer")) {
+				ast_log(LOG_NOTICE, "The option 'notransfer' is deprecated in favor of 'transfer' which has options 'yes', 'no', and 'mediaonly'\n");
+				ast_clear_flag(peer, IAX_TRANSFERMEDIA);	
 				ast_set2_flag(peer, ast_true(v->value), IAX_NOTRANSFER);	
+			} else if (!strcasecmp(v->name, "transfer")) {
+				if (!strcasecmp(v->value, "mediaonly")) {
+					ast_set_flags_to(peer, IAX_NOTRANSFER|IAX_TRANSFERMEDIA, IAX_TRANSFERMEDIA);	
+				} else if (ast_true(v->value)) {
+					ast_set_flags_to(peer, IAX_NOTRANSFER|IAX_TRANSFERMEDIA, 0);
+				} else 
+					ast_set_flags_to(peer, IAX_NOTRANSFER|IAX_TRANSFERMEDIA, IAX_NOTRANSFER);
 			} else if (!strcasecmp(v->name, "jitterbuffer")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_USEJITTERBUF);	
 			} else if (!strcasecmp(v->name, "forcejitterbuffer")) {
@@ -8823,7 +8870,16 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 			} else if (!strcasecmp(v->name, "encryption")) {
 				user->encmethods = get_encrypt_methods(v->value);
 			} else if (!strcasecmp(v->name, "notransfer")) {
+				ast_log(LOG_NOTICE, "The option 'notransfer' is deprecated in favor of 'transfer' which has options 'yes', 'no', and 'mediaonly'\n");
+				ast_clear_flag(user, IAX_TRANSFERMEDIA);	
 				ast_set2_flag(user, ast_true(v->value), IAX_NOTRANSFER);	
+			} else if (!strcasecmp(v->name, "transfer")) {
+				if (!strcasecmp(v->value, "mediaonly")) {
+					ast_set_flags_to(user, IAX_NOTRANSFER|IAX_TRANSFERMEDIA, IAX_TRANSFERMEDIA);	
+				} else if (ast_true(v->value)) {
+					ast_set_flags_to(user, IAX_NOTRANSFER|IAX_TRANSFERMEDIA, 0);
+				} else 
+					ast_set_flags_to(user, IAX_NOTRANSFER|IAX_TRANSFERMEDIA, IAX_NOTRANSFER);
 			} else if (!strcasecmp(v->name, "codecpriority")) {
 				if(!strcasecmp(v->value, "caller"))
 					ast_set_flag(user, IAX_CODEC_USER_FIRST);
@@ -9144,9 +9200,18 @@ static int set_config(char *config_file, int reload)
 			authdebug = ast_true(v->value);
 		else if (!strcasecmp(v->name, "encryption"))
 			iax2_encryption = get_encrypt_methods(v->value);
-		else if (!strcasecmp(v->name, "notransfer"))
+		else if (!strcasecmp(v->name, "notransfer")) {
+			ast_log(LOG_NOTICE, "The option 'notransfer' is deprecated in favor of 'transfer' which has options 'yes', 'no', and 'mediaonly'\n");
+			ast_clear_flag((&globalflags), IAX_TRANSFERMEDIA);	
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_NOTRANSFER);	
-		else if (!strcasecmp(v->name, "codecpriority")) {
+		} else if (!strcasecmp(v->name, "transfer")) {
+			if (!strcasecmp(v->value, "mediaonly")) {
+				ast_set_flags_to((&globalflags), IAX_NOTRANSFER|IAX_TRANSFERMEDIA, IAX_TRANSFERMEDIA);	
+			} else if (ast_true(v->value)) {
+				ast_set_flags_to((&globalflags), IAX_NOTRANSFER|IAX_TRANSFERMEDIA, 0);
+			} else 
+				ast_set_flags_to((&globalflags), IAX_NOTRANSFER|IAX_TRANSFERMEDIA, IAX_NOTRANSFER);
+		} else if (!strcasecmp(v->name, "codecpriority")) {
 			if(!strcasecmp(v->value, "caller"))
 				ast_set_flag((&globalflags), IAX_CODEC_USER_FIRST);
 			else if(!strcasecmp(v->value, "disabled"))
@@ -9295,6 +9360,7 @@ static int reload_config(void)
 	amaflags = 0;
 	delayreject = 0;
 	ast_clear_flag((&globalflags), IAX_NOTRANSFER);	
+	ast_clear_flag((&globalflags), IAX_TRANSFERMEDIA);	
 	ast_clear_flag((&globalflags), IAX_USEJITTERBUF);	
 	ast_clear_flag((&globalflags), IAX_FORCEJITTERBUF);	
 	delete_users();

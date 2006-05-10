@@ -67,6 +67,7 @@
 #define IAX_COMMAND_PROVISION	35	/* Provision device */
 #define IAX_COMMAND_FWDOWNL	36	/* Download firmware */
 #define IAX_COMMAND_FWDATA	37	/* Firmware Data */
+#define IAX_COMMAND_TXMEDIA 38  /* Transfer media only */
 
 #define IAX_DEFAULT_REG_EXPIRE  60	/* By default require re-registration once per minute */
 

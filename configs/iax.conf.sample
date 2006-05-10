@@ -343,7 +343,9 @@ inkeys=freeworlddialup
 ;secret=markpasswd
 ;setvar=foo=bar
 ;dbsecret=mysecrets/place	; Secrets can be stored in astdb, too
-;notransfer=yes		; Disable IAX native transfer
+;transfer=no		; Disable IAX native transfer
+;transfer=mediaonly	; When doing IAX native transfers, transfer 
+			; only media stream
 ;jitterbuffer=yes	; Override global setting an enable jitter buffer
 ;			; for this user
 ;callerid="Mark Spencer" <(256) 428-6275>
