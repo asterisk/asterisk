@@ -12153,10 +12153,7 @@ static int restart_monitor(void)
 	/* If we're supposed to be stopped -- stay stopped */
 	if (monitor_thread == AST_PTHREADT_STOP)
 		return 0;
-	if (ast_mutex_lock(&monlock)) {
-		ast_log(LOG_WARNING, "Unable to lock monitor\n");
-		return -1;
-	}
+	ast_mutex_lock(&monlock);
 	if (monitor_thread == pthread_self()) {
 		ast_mutex_unlock(&monlock);
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
@@ -13994,51 +13991,39 @@ static int unload_module(void *mod)
 	ast_manager_unregister("SIPpeers");
 	ast_manager_unregister("SIPshowpeer");
 
-	if (!ast_mutex_lock(&iflock)) {
-		/* Hangup all interfaces if they have an owner */
-		for (p = iflist; p ; p = p->next) {
-			if (p->owner)
-				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-		}
-		ast_mutex_unlock(&iflock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the interface list\n");
-		return -1;
+	ast_mutex_lock(&iflock);
+	/* Hangup all interfaces if they have an owner */
+	for (p = iflist; p ; p = p->next) {
+		if (p->owner)
+			ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
 	}
+	ast_mutex_unlock(&iflock);
 
-	if (!ast_mutex_lock(&monlock)) {
-		if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP)) {
-			pthread_cancel(monitor_thread);
-			pthread_kill(monitor_thread, SIGURG);
-			pthread_join(monitor_thread, NULL);
-		}
-		monitor_thread = AST_PTHREADT_STOP;
-		ast_mutex_unlock(&monlock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
+	ast_mutex_lock(&monlock);
+	if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP)) {
+		pthread_cancel(monitor_thread);
+		pthread_kill(monitor_thread, SIGURG);
+		pthread_join(monitor_thread, NULL);
 	}
+	monitor_thread = AST_PTHREADT_STOP;
+	ast_mutex_unlock(&monlock);
 
-	if (!ast_mutex_lock(&iflock)) {
-		/* Destroy all the interfaces and free their memory */
-		p = iflist;
-		while (p) {
-			pl = p;
-			p = p->next;
-			/* Free associated memory */
-			ast_mutex_destroy(&pl->lock);
-			if (pl->chanvars) {
-				ast_variables_destroy(pl->chanvars);
-				pl->chanvars = NULL;
-			}
-			free(pl);
+	ast_mutex_lock(&iflock);
+	/* Destroy all the interfaces and free their memory */
+	p = iflist;
+	while (p) {
+		pl = p;
+		p = p->next;
+		/* Free associated memory */
+		ast_mutex_destroy(&pl->lock);
+		if (pl->chanvars) {
+			ast_variables_destroy(pl->chanvars);
+			pl->chanvars = NULL;
 		}
-		iflist = NULL;
-		ast_mutex_unlock(&iflock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the interface list\n");
-		return -1;
+		free(pl);
 	}
+	iflist = NULL;
+	ast_mutex_unlock(&iflock);
 
 	/* Free memory for local network address mask */
 	ast_free_ha(localaddr);

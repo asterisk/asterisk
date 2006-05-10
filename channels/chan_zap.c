@@ -6539,10 +6539,7 @@ static void *do_monitor(void *data)
 #endif
 	for(;;) {
 		/* Lock the interface list */
-		if (ast_mutex_lock(&iflock)) {
-			ast_log(LOG_ERROR, "Unable to grab interface lock\n");
-			return NULL;
-		}
+		ast_mutex_lock(&iflock);
 		if (!pfds || (lastalloc != ifcount)) {
 			if (pfds)
 				free(pfds);
@@ -6588,10 +6585,7 @@ static void *do_monitor(void *data)
 		}
 		/* Alright, lock the interface list again, and let's look and see what has
 		   happened */
-		if (ast_mutex_lock(&iflock)) {
-			ast_log(LOG_WARNING, "Unable to lock the interface list\n");
-			continue;
-		}
+		ast_mutex_lock(&iflock);
 		found = 0;
 		spoint = 0;
 		lastpass = thispass;
@@ -6731,10 +6725,7 @@ static int restart_monitor(void)
 	/* If we're supposed to be stopped -- stay stopped */
 	if (monitor_thread == AST_PTHREADT_STOP)
 		return 0;
-	if (ast_mutex_lock(&monlock)) {
-		ast_log(LOG_WARNING, "Unable to lock monitor\n");
-		return -1;
-	}
+	ast_mutex_lock(&monlock);
 	if (monitor_thread == pthread_self()) {
 		ast_mutex_unlock(&monlock);
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
@@ -7609,10 +7600,7 @@ static struct ast_channel *zt_request(const char *type, int format, void *data, 
 		}
 	}
 	/* Search for an unowned channel */
-	if (ast_mutex_lock(lock)) {
-		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
-		return NULL;
-	}
+	ast_mutex_lock(lock);
 	exit = p;
 	while(p && !tmp) {
 		if (roundrobin)
@@ -10103,57 +10091,45 @@ static int __unload_module(void)
 	ast_manager_unregister( "ZapDNDon" );
 	ast_manager_unregister("ZapShowChannels");
 	ast_channel_unregister(&zap_tech);
-	if (!ast_mutex_lock(&iflock)) {
-		/* Hangup all interfaces if they have an owner */
-		p = iflist;
-		while(p) {
-			if (p->owner)
-				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-			p = p->next;
-		}
-		ast_mutex_unlock(&iflock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
+	ast_mutex_lock(&iflock);
+	/* Hangup all interfaces if they have an owner */
+	p = iflist;
+	while(p) {
+		if (p->owner)
+			ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
+		p = p->next;
 	}
-	if (!ast_mutex_lock(&monlock)) {
-		if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP) && (monitor_thread != AST_PTHREADT_NULL)) {
-			pthread_cancel(monitor_thread);
-			pthread_kill(monitor_thread, SIGURG);
-			pthread_join(monitor_thread, NULL);
-		}
-		monitor_thread = AST_PTHREADT_STOP;
-		ast_mutex_unlock(&monlock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
+	ast_mutex_unlock(&iflock);
+	ast_mutex_lock(&monlock);
+	if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP) && (monitor_thread != AST_PTHREADT_NULL)) {
+		pthread_cancel(monitor_thread);
+		pthread_kill(monitor_thread, SIGURG);
+		pthread_join(monitor_thread, NULL);
 	}
+	monitor_thread = AST_PTHREADT_STOP;
+	ast_mutex_unlock(&monlock);
 
-	if (!ast_mutex_lock(&iflock)) {
-		/* Destroy all the interfaces and free their memory */
-		p = iflist;
-		while(p) {
-			/* Free any callerid */
-			if (p->cidspill)
-				free(p->cidspill);
-			/* Close the zapata thingy */
-			if (p->subs[SUB_REAL].zfd > -1)
-				zt_close(p->subs[SUB_REAL].zfd);
-			pl = p;
-			p = p->next;
-			x++;
-			/* Free associated memory */
-			if(pl)
-				destroy_zt_pvt(&pl);
-			ast_verbose(VERBOSE_PREFIX_3 "Unregistered channel %d\n", x);
-		}
-		iflist = NULL;
-		ifcount = 0;
-		ast_mutex_unlock(&iflock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
+	ast_mutex_lock(&iflock);
+	/* Destroy all the interfaces and free their memory */
+	p = iflist;
+	while(p) {
+		/* Free any callerid */
+		if (p->cidspill)
+			free(p->cidspill);
+		/* Close the zapata thingy */
+		if (p->subs[SUB_REAL].zfd > -1)
+			zt_close(p->subs[SUB_REAL].zfd);
+		pl = p;
+		p = p->next;
+		x++;
+		/* Free associated memory */
+		if(pl)
+			destroy_zt_pvt(&pl);
+		ast_verbose(VERBOSE_PREFIX_3 "Unregistered channel %d\n", x);
 	}
+	iflist = NULL;
+	ifcount = 0;
+	ast_mutex_unlock(&iflock);
 #ifdef HAVE_LIBPRI		
 	for(i=0;i<NUM_SPANS;i++) {
 		if (pris[i].master && (pris[i].master != AST_PTHREADT_NULL))
@@ -10204,11 +10180,8 @@ static int setup_zap(int reload)
 	}
 	
 
-	if (ast_mutex_lock(&iflock)) {
-		/* It's a little silly to lock it, but we mind as well just to be sure */
-		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
-		return -1;
-	}
+	/* It's a little silly to lock it, but we mind as well just to be sure */
+	ast_mutex_lock(&iflock);
 #ifdef HAVE_LIBPRI
 	if (!reload) {
 		/* Process trunkgroups first */
