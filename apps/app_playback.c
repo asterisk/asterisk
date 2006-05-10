@@ -451,6 +451,16 @@ done:
 	return res;
 }
 
+static int reload(void *mod)
+{
+	if (say_cfg) {
+		ast_config_destroy(say_cfg);
+		ast_log(LOG_NOTICE, "Reloading say.conf\n");
+	}
+	say_cfg = ast_config_load("say.conf");
+	return 0;
+}
+
 static int unload_module(void *mod)
 {
 	int res;
@@ -464,6 +474,7 @@ static int unload_module(void *mod)
 
 static int load_module(void *mod)
 {
+	reload(mod);
         ast_cli_register_multiple(myclis, sizeof(myclis)/sizeof(struct ast_cli_entry));
 	return ast_register_application(app, playback_exec, synopsis, descrip);
 }
@@ -478,4 +489,4 @@ static const char *key(void)
 	return ASTERISK_GPL_KEY;
 }
 
-STD_MOD1;
+STD_MOD(MOD_1,reload,NULL,NULL);
