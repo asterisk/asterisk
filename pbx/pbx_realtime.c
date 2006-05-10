@@ -76,28 +76,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 */
 
 
-#define REALTIME_COMMON(mode)				\
-	const char *ctx = NULL;				\
-	char *table;					\
-	int res = -1;					\
-	struct ast_variable *var=NULL;			\
-	char *buf = ast_strdupa(data);			\
-	if (buf) {					\
-		char *opts = strchr(buf, '/');		\
-		if (opts)				\
-			*opts++ = '\0';			\
-		else					\
-			opts="";			\
-		table = strchr(buf, '@');		\
-		if (table) {				\
-			*table++ = '\0';		\
-			ctx = buf;			\
-		}					\
-		ctx = S_OR(ctx, context);		\
-		table = S_OR(table, "extensions");	\
-		var = realtime_switch_common(table, ctx, exten, priority, mode); \
-	}
-
 static struct ast_variable *realtime_switch_common(const char *table, const char *context, const char *exten, int priority, int mode)
 {
 	struct ast_variable *var;
@@ -151,38 +129,58 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 	return var;
 }
 
+static struct ast_variable *realtime_common(const char *context, const char *exten, int priority, const char *data, int mode)
+{
+	const char *ctx = NULL;
+	char *table;
+	struct ast_variable *var=NULL;
+	char *buf = ast_strdupa(data);
+	if (buf) {
+		char *opts = strchr(buf, '/');
+		if (opts)
+			*opts++ = '\0';
+		table = strchr(buf, '@');
+		if (table) {
+			*table++ = '\0';
+			ctx = buf;
+		}
+		ctx = S_OR(ctx, context);
+		table = S_OR(table, "extensions");
+		var = realtime_switch_common(table, ctx, exten, priority, mode);
+	}
+	return var;
+}
+
 static int realtime_exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	REALTIME_COMMON(MODE_MATCH);
-	if (var)
+	struct ast_variable *var = realtime_common(context, exten, priority, data, MODE_MATCH);
+	if (var) {
 		ast_variables_destroy(var);
-	if (var)
-		res = 1;
-	return res > 0 ? res : 0;
+		return 1;
+	}
+	return 0;
 }
 
 static int realtime_canmatch(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	REALTIME_COMMON(MODE_CANMATCH);
-	if (var)
+	struct ast_variable *var = realtime_common(context, exten, priority, data, MODE_CANMATCH);
+	if (var) {
 		ast_variables_destroy(var);
-	if (var)
-		res = 1;
-	return res > 0 ? res : 0;
+		return 1;
+	}
+	return 0;
 }
 
 static int realtime_exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	char app[256];
-	char appdata[512]="";
-	char *tmp="";
-	char tmp1[80];
-	char tmp2[80];
-	char tmp3[EXT_DATA_SIZE];
-	struct ast_app *a;
-	struct ast_variable *v;
-	REALTIME_COMMON(MODE_MATCH);
+	int res = -1;
+	struct ast_variable *var = realtime_common(context, exten, priority, data, MODE_MATCH);
+
 	if (var) {
+		char *tmp="";
+		char app[256];
+		struct ast_variable *v;
+
 		for (v = var; v ; v = v->next) {
 			if (!strcasecmp(v->name, "app"))
 				strncpy(app, v->value, sizeof(app) -1 );
@@ -191,16 +189,21 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 		}
 		ast_variables_destroy(var);
 		if (!ast_strlen_zero(app)) {
-			a = pbx_findapp(app);
+			struct ast_app *a = pbx_findapp(app);
 			if (a) {
+				char appdata[512]="";
+				char tmp1[80];
+				char tmp2[80];
+				char tmp3[EXT_DATA_SIZE];
+
 				if(!ast_strlen_zero(tmp))
-				   pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata) - 1);
-                if (option_verbose > 2)
+					pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata) - 1);
+				if (option_verbose > 2)
 					ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\")\n",
-								 term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
-								 term_color(tmp2, chan->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
-								 term_color(tmp3, (!ast_strlen_zero(appdata) ? (char *)appdata : ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
-                manager_event(EVENT_FLAG_CALL, "Newexten",
+						 term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
+						 term_color(tmp2, chan->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
+						 term_color(tmp3, S_OR(appdata, ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
+				manager_event(EVENT_FLAG_CALL, "Newexten",
 							  "Channel: %s\r\n"
 							  "Context: %s\r\n"
 							  "Extension: %s\r\n"
@@ -220,12 +223,12 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 
 static int realtime_matchmore(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	REALTIME_COMMON(MODE_MATCHMORE);
-	if (var)
+	struct ast_variable *var = realtime_common(context, exten, priority, data, MODE_MATCHMORE);
+	if (var) {
 		ast_variables_destroy(var);
-	if (var)
-		res = 1;
-	return res > 0 ? res : 0;
+		return 1;
+	}
+	return 0;
 }
 
 static struct ast_switch realtime_switch =
