@@ -726,6 +726,5 @@ int main(int argc, char *argv[])
 	if (force_clean)
 		unlink(".lastclean");
 
-	fprintf(stderr, "\nmenuselect about to exit with res %d\n", res);
 	exit(res);
 }

@@ -143,9 +143,11 @@ void draw_category_menu(WINDOW *menu, struct category *cat, int start, int end, 
 			snprintf(buf, sizeof(buf), "XXX %d.%s %s", i, i < 10 ? " " : "", mem->name);
 		else
 			snprintf(buf, sizeof(buf), "[%s] %d.%s %s", mem->enabled ? "*" : " ", i, i < 10 ? " " : "", mem->name);
-		if (curopt + 1== i)
-			desc = mem->displayname;
 		waddstr(menu, buf);
+		
+		if (curopt + 1 == i)
+			desc = mem->displayname;
+
 		if (i == end)
 			break;
 	}
@@ -227,7 +229,7 @@ int run_category_menu(WINDOW *menu, int cat_num)
 		default:
 			break;	
 		}
-		if (c == 'x' || c == 'q')
+		if (c == 'x' || c == 'X' || c == 'Q' || c == 'q')
 			break;	
 		draw_category_menu(menu, cat, start, end, curopt);
 	}
