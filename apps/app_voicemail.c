@@ -6764,7 +6764,9 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 
 	case 2:	/* Call back */
 
-		if (!ast_strlen_zero(cid)) {
+		if (ast_strlen_zero(cid))
+			break;
+
 			ast_callerid_parse(cid, &name, &num);
 			while ((res > -1) && (res != 't')) {
 				switch(res) {
@@ -6835,20 +6837,21 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 							retries++;
 						if (retries > 3)
 							res = 't';
-							break; 
+						break; 
 
-						}
+					}
 					if (res == 't')
 						res = 0;
 					else if (res == '*')
 						res = -1;
 				}
-			}
 		break;
 
 	case 1:	/* Reply */
 		/* Send reply directly to sender */
-		if (!ast_strlen_zero(cid)) {
+		if (ast_strlen_zero(cid))
+			break;
+
 			ast_callerid_parse(cid, &name, &num);
 			if (!num) {
 				if (option_verbose > 2)
@@ -6881,7 +6884,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 				}
 			} 
 			res = 0;
-		}
+
 		break;
 	}
 
