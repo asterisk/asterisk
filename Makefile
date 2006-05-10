@@ -512,18 +512,18 @@ asterisk.txt: asterisk.sgml
 	docbook2txt asterisk.sgml
 
 defaults.h: makeopts
-	build_tools/make_defaults_h > $@.tmp
-	if cmp -s $@.tmp $@ ; then echo ; else \
+	@build_tools/make_defaults_h > $@.tmp
+	@if cmp -s $@.tmp $@ ; then echo ; else \
 		mv $@.tmp $@ ; \
 	fi
-	rm -f $@.tmp
+	@rm -f $@.tmp
 
 include/asterisk/version.h:
-	build_tools/make_version_h > $@.tmp
-	if cmp -s $@.tmp $@ ; then echo; else \
+	@build_tools/make_version_h > $@.tmp
+	@if cmp -s $@.tmp $@ ; then echo; else \
 		mv $@.tmp $@ ; \
 	fi
-	rm -f $@.tmp
+	@rm -f $@.tmp
 
 stdtime/libtime.a:
 	CFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" $(MAKE) -C stdtime libtime.a
@@ -957,7 +957,7 @@ env:
 # last clean count we had
 
 cleantest:
-	if cmp -s .cleancount .lastclean ; then echo ; else \
+	@if cmp -s .cleancount .lastclean ; then echo ; else \
 		$(MAKE) clean; cp -f .cleancount .lastclean;\
 	fi
 
