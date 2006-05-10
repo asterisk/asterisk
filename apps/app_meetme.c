@@ -647,9 +647,11 @@ static int conf_cmd(int fd, int argc, char **argv) {
 			strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
 		}	
 	} else if(strcmp(argv[1], "list") == 0) {
+		int concise = ( 4 == argc && ( !strcasecmp(argv[3], "concise") ) );
 		/* List all the users in a conference */
 		if (AST_LIST_EMPTY(&confs)) {
-			ast_cli(fd, "No active conferences.\n");
+			if ( !concise )
+				ast_cli(fd, "No active conferences.\n");
 			return RESULT_SUCCESS;	
 		}
 		/* Find the right conference */
@@ -658,7 +660,8 @@ static int conf_cmd(int fd, int argc, char **argv) {
 				break;
 		}
 		if (!cnf) {
-			ast_cli(fd, "No such conference: %s.\n",argv[2]);
+			if ( !concise )
+				ast_cli(fd, "No such conference: %s.\n",argv[2]);
 			return RESULT_SUCCESS;
 		}
 		/* Show all the users */
@@ -667,19 +670,30 @@ static int conf_cmd(int fd, int argc, char **argv) {
 			hr = (now - user->jointime) / 3600;
 			min = ((now - user->jointime) % 3600) / 60;
 			sec = (now - user->jointime) % 60;
-
-
-			ast_cli(fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %02d:%02d:%02d\n",
-				user->user_no,
-				S_OR(user->chan->cid.cid_num, "<unknown>"),
-				S_OR(user->chan->cid.cid_name, "<no name>"),
-				user->chan->name,
-				user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
-				user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
-				user->adminflags & ADMINFLAG_MUTED ? "(Admn Muted)" : "",
-				istalking(user->talking), hr, min, sec);
+			if ( !concise )
+				ast_cli(fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %02d:%02d:%02d\n",
+					user->user_no,
+					S_OR(user->chan->cid.cid_num, "<unknown>"),
+					S_OR(user->chan->cid.cid_name, "<no name>"),
+					user->chan->name,
+					user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
+					user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
+					user->adminflags & ADMINFLAG_MUTED ? "(Admn Muted)" : "",
+					istalking(user->talking), hr, min, sec);
+			else 
+				ast_cli(fd, "%d!%s!%s!%s!%s!%s!%s!%d!%02d:%02d:%02d\n",
+					user->user_no,
+					S_OR(user->chan->cid.cid_num, ""),
+					S_OR(user->chan->cid.cid_name, ""),
+					user->chan->name,
+					user->userflags  & CONFFLAG_ADMIN   ? "1" : "",
+					user->userflags  & CONFFLAG_MONITOR ? "1" : "",
+					user->adminflags & ADMINFLAG_MUTED  ? "1" : "",
+					user->talking, hr, min, sec);
+			
 		}
-		ast_cli(fd,"%d users in that conference.\n",cnf->users);
+		if ( !concise )
+			ast_cli(fd,"%d users in that conference.\n",cnf->users);
 
 		return RESULT_SUCCESS;
 	} else 
@@ -745,14 +759,15 @@ static char *complete_confcmd(const char *line, const char *word, int pos, int s
 			}
 			AST_LIST_UNLOCK(&confs);
 			return usr ? strdup(usrno) : NULL;
-		}
+		} else if ( strstr(line, "list") && ( 0 == state ) )
+			return strdup("concise");
 	}
 
 	return NULL;
 }
 	
 static char conf_usage[] =
-"Usage: meetme  (un)lock|(un)mute|kick|list <confno> <usernumber>\n"
+"Usage: meetme  (un)lock|(un)mute|kick|list [concise] <confno> <usernumber>\n"
 "       Executes a command for the conference or on a conferee\n";
 
 static struct ast_cli_entry cli_conf = {
