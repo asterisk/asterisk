@@ -98,10 +98,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "iax2.h"
 #include "iax2-parser.h"
 #include "iax2-provision.h"
-
-/* Define NEWJB to use the new channel independent jitterbuffer,
- * otherwise, use the old jitterbuffer */
-#define NEWJB
+#include "../jitterbuf.h"
 
 /* Define SCHED_MULTITHREADED to run the scheduler in a special
    multithreaded mode. */
@@ -110,10 +107,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Define DEBUG_SCHED_MULTITHREADED to keep track of where each
    thread is actually doing. */
 #define DEBUG_SCHED_MULTITHREAD
-
-#ifdef NEWJB
-#include "../jitterbuf.h"
-#endif
 
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST 0x02
@@ -166,11 +159,8 @@ static int lagrq_time = 10;
 static int maxtrunkcall = TRUNK_CALL_START;
 static int maxnontrunkcall = 1;
 static int maxjitterbuffer=1000;
-#ifdef NEWJB
 static int resyncthreshold=1000;
 static int maxjitterinterps=10;
-#endif
-static int jittershrinkrate=2;
 static int trunkfreq = 20;
 static int authdebug = 1;
 static int autokill = 0;
@@ -219,8 +209,6 @@ static	struct io_context *io;
 static	struct sched_context *sched;
 
 static int iax2_capability = IAX_CAPABILITY_FULLBANDWIDTH;
-
-static int iax2_dropcount = DEFAULT_DROP;
 
 static int iaxdebug = 0;
 
@@ -447,11 +435,6 @@ static struct iax2_registry *registrations;
 /* If consecutive voice frame timestamps jump by more than this many milliseconds, then jitter buffer will resync */
 #define TS_GAP_FOR_JB_RESYNC	5000
 
-/* If we have more than this much excess real jitter buffer, shrink it. */
-static int max_jitter_buffer = MAX_JITTER_BUFFER;
-/* If we have less than this much excess real jitter buffer, enlarge it. */
-static int min_jitter_buffer = MIN_JITTER_BUFFER;
-
 static int iaxthreadcount = DEFAULT_THREAD_COUNT;
 static int iaxmaxthreadcount = DEFAULT_MAX_THREAD_COUNT;
 static int iaxdynamicthreadcount = 0;
@@ -506,21 +489,10 @@ struct chan_iax2_pvt {
 	struct timeval offset;
 	/*! timeval that we base our delivery on */
 	struct timeval rxcore;
-#ifdef NEWJB
 	/*! The jitterbuffer */
         jitterbuf *jb;
 	/*! active jb read scheduler id */
         int jbid;                       
-#else
-	/*! Historical delivery time */
-	int history[MEMORY_SIZE];
-	/*! Current base jitterbuffer */
-	int jitterbuffer;
-	/*! Current jitter measure */
-	int jitter;
-	/*! Historic jitter value */
-	int historicjitter;
-#endif
 	/*! LAG */
 	int lag;
 	/*! Error, as discovered by the manager */
@@ -738,7 +710,6 @@ static void iax_error_output(const char *data)
 	ast_log(LOG_WARNING, "%s", data);
 }
 
-#ifdef NEWJB
 static void jb_error_output(const char *fmt, ...)
 {
 	va_list args;
@@ -774,8 +745,6 @@ static void jb_debug_output(const char *fmt, ...)
 
 	ast_verbose(buf);
 }
-#endif
-
 
 /* XXX We probably should use a mutex when working with this XXX */
 static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS];
@@ -1058,6 +1027,7 @@ static int iax2_getpeername(struct sockaddr_in sin, char *host, int len, int loc
 static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, const char *host)
 {
 	struct chan_iax2_pvt *tmp;
+	jb_conf jbconf;
 
 	if (!(tmp = ast_calloc(1, sizeof(*tmp))))
 		return NULL;
@@ -1075,18 +1045,14 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, cons
 	/* ast_copy_string(tmp->context, context, sizeof(tmp->context)); */
 	ast_copy_string(tmp->exten, "s", sizeof(tmp->exten));
 	ast_copy_string(tmp->host, host, sizeof(tmp->host));
-#ifdef NEWJB
-	{
-		jb_conf jbconf;
 
-		tmp->jb = jb_new();
-		tmp->jbid = -1;
-		jbconf.max_jitterbuf = maxjitterbuffer;
-		jbconf.resync_threshold = resyncthreshold;
-		jbconf.max_contig_interp = maxjitterinterps;
-		jb_setconf(tmp->jb,&jbconf);
-	}
-#endif
+	tmp->jb = jb_new();
+	tmp->jbid = -1;
+	jbconf.max_jitterbuf = maxjitterbuffer;
+	jbconf.resync_threshold = resyncthreshold;
+	jbconf.max_contig_interp = maxjitterinterps;
+	jb_setconf(tmp->jb,&jbconf);
+
 	return tmp;
 }
 
@@ -1582,28 +1548,6 @@ static int __do_deliver(void *data)
 	return 0;
 }
 
-#ifndef NEWJB
-static int __real_do_deliver(void *data)
-{
-	/* Locking version of __do_deliver */
-	struct iax_frame *fr = data;
-	int callno = fr->callno;
-	int res;
-	ast_mutex_lock(&iaxsl[callno]);
-	res = __do_deliver(data);
-	ast_mutex_unlock(&iaxsl[callno]);
-	return res;
-}
-static int do_deliver(void *data)
-{
-#ifdef SCHED_MULTITHREADED
-	if (schedule_action(__do_deliver, data))
-#endif		
-		__real_do_deliver(data);
-	return 0;
-}
-#endif /* NEWJB */
-
 static int handle_error(void)
 {
 	/* XXX Ideally we should figure out why an error occured and then abort those
@@ -1703,11 +1647,9 @@ static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 	if (pvt->initid > -1)
 		ast_sched_del(sched, pvt->initid);
 	pvt->initid = -1;
-#ifdef NEWJB
 	if (pvt->jbid > -1)
 		ast_sched_del(sched, pvt->jbid);
 	pvt->jbid = -1;
-#endif
 }
 
 static int iax2_predestroy(int callno)
@@ -1798,18 +1740,15 @@ retry:
 		if (pvt->reg)
 			pvt->reg->callno = 0;
 		if (!owner) {
+			jb_frame frame;
 			if (pvt->vars) {
-				ast_variables_destroy(pvt->vars);
-				pvt->vars = NULL;
+			    ast_variables_destroy(pvt->vars);
+			    pvt->vars = NULL;
 			}
-#ifdef NEWJB
- 			{
-                            jb_frame frame;
-                            while(jb_getall(pvt->jb,&frame) == JB_OK)
+
+			while (jb_getall(pvt->jb, &frame) == JB_OK)
 				iax2_frame_free(frame.data);
-                            jb_destroy(pvt->jb);
-                        }
-#endif
+			jb_destroy(pvt->jb);
 			free(pvt);
 		}
 	}
@@ -1938,43 +1877,6 @@ static int attempt_transmit(void *data)
 		__attempt_transmit(data);
 	return 0;
 }
-
-static int iax2_set_jitter(int fd, int argc, char *argv[])
-{
-#ifdef NEWJB
-	ast_cli(fd, "sorry, this command is deprecated\n");
-	return RESULT_SUCCESS;
-#else
-	if ((argc != 4) && (argc != 5))
-		return RESULT_SHOWUSAGE;
-	if (argc == 4) {
-		max_jitter_buffer = atoi(argv[3]);
-		if (max_jitter_buffer < 0)
-			max_jitter_buffer = 0;
-	} else {
-		if (argc == 5) {
-			int callno = atoi(argv[3]);
-			if ((callno >= 0) && (callno < IAX_MAX_CALLS)) {
-				if (iaxs[callno]) {
-					iaxs[callno]->jitterbuffer = atoi(argv[4]);
-					if (iaxs[callno]->jitterbuffer < 0)
-						iaxs[callno]->jitterbuffer = 0;
-				} else
-					ast_cli(fd, "No such call '%d'\n", callno);
-			} else
-				ast_cli(fd, "%d is not a valid call number\n", callno);
-		}
-	}
-	return RESULT_SUCCESS;
-#endif
-}
-
-static char jitter_usage[] = 
-"Usage: iax set jitter [callid] <value>\n"
-"       If used with a callid, it sets the jitter buffer to the given static\n"
-"value (until its next calculation).  If used without a callid, the value is used\n"
-"to establish the maximum excess jitter buffer that is permitted before the jitter\n"
-"buffer size is reduced.";
 
 static int iax2_prune_realtime(int fd, int argc, char *argv[])
 {
@@ -2300,7 +2202,6 @@ static void unwrap_timestamp(struct iax_frame *fr)
 	}
 }
 
-#ifdef NEWJB
 static int get_from_jb(void *p);
 
 static void update_jbsched(struct chan_iax2_pvt *pvt)
@@ -2415,80 +2316,16 @@ static int get_from_jb(void *data)
 		__get_from_jb(data);
 	return 0;
 }
-#endif
 
-/* while we transition from the old JB to the new one, we can either make two schedule_delivery functions, or 
- * make preprocessor swiss-cheese out of this one.  I'm not sure which is less revolting.. */
 static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtrunk, unsigned int *tsout)
 {
-#ifdef NEWJB
 	int type, len;
 	int ret;
 	int needfree = 0;
-#else
-	int x;
-	int ms;
-	int delay;
-	unsigned int orig_ts;
-	int drops[MEMORY_SIZE];
-	int min, max=0, prevjitterbuffer, maxone=0,y,z, match;
-
-	/* Remember current jitterbuffer so we can log any change */
-	prevjitterbuffer = iaxs[fr->callno]->jitterbuffer;
-	/* Similarly for the frame timestamp */
-	orig_ts = fr->ts;
-#endif
-
-#if 0
-	if (option_debug && iaxdebug)
-		ast_log(LOG_DEBUG, "schedule_delivery: ts=%d, last=%d, update=%d\n",
-				fr->ts, iaxs[fr->callno]->last, updatehistory);
-#endif
 
 	/* Attempt to recover wrapped timestamps */
 	unwrap_timestamp(fr);
 	
-	if (updatehistory) {
-#ifndef NEWJB
-
-		/* Attempt to spot a change of timebase on timestamps coming from the other side
-		   We detect by noticing a jump in consecutive timestamps that can't reasonably be explained
-		   by network jitter or reordering.  Sometimes, also, the peer stops sending us frames
-		   for a while - in this case this code might also resync us.  But that's not a bad thing.
-		   Be careful of non-voice frames which are timestamped differently (especially ACKS!)
-		   [that's why we only do this when updatehistory is true]
-		*/
-		x = fr->ts - iaxs[fr->callno]->last;
-		if (x > TS_GAP_FOR_JB_RESYNC || x < -TS_GAP_FOR_JB_RESYNC) {
-			if (option_debug && iaxdebug)
-				ast_log(LOG_DEBUG, "schedule_delivery: call=%d: TS jumped.  resyncing rxcore (ts=%d, last=%d)\n",
-							fr->callno, fr->ts, iaxs[fr->callno]->last);
-			/* zap rxcore - calc_rxstamp will make a new one based on this frame */
-			iaxs[fr->callno]->rxcore = ast_tv(0, 0);
-			/* wipe "last" if stamps have jumped backwards */
-			if (x<0)
-				iaxs[fr->callno]->last = 0;
-			/* should we also empty history? */
-		}
-		/* ms is a measure of the "lateness" of the frame relative to the "reference"
-		   frame we received.  (initially the very first, but also see code just above here).
-		   Understand that "ms" can easily be -ve if lag improves since the reference frame.
-		   Called by IAX thread, with iaxsl lock held. */
-		ms = calc_rxstamp(iaxs[fr->callno], fr->ts) - fr->ts;
-	
-		/* Rotate our history queue of "lateness".  Don't worry about those initial
-		   zeros because the first entry will always be zero */
-		for (x=0;x<MEMORY_SIZE - 1;x++) 
-			iaxs[fr->callno]->history[x] = iaxs[fr->callno]->history[x+1];
-		/* Add a history entry for this one */
-		iaxs[fr->callno]->history[x] = ms;
-#endif
-	}
-#ifndef NEWJB
-	else
-		ms = 0;
-#endif
-
 
 	/* delivery time is sender's sent timestamp converted back into absolute time according to our clock */
 	if ( !fromtrunk && !ast_tvzero(iaxs[fr->callno]->rxcore))
@@ -2500,40 +2337,6 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 		fr->af.delivery = ast_tv(0,0);
 	}
 
-#ifndef NEWJB
-	/* Initialize the minimum to reasonable values.  It's too much
-	   work to do the same for the maximum, repeatedly */
-	min=iaxs[fr->callno]->history[0];
-	for (z=0;z < iax2_dropcount + 1;z++) {
-		/* Start very optimistic ;-) */
-		max=-999999999;
-		for (x=0;x<MEMORY_SIZE;x++) {
-			if (max < iaxs[fr->callno]->history[x]) {
-				/* We have a candidate new maximum value.  Make
-				   sure it's not in our drop list */
-				match = 0;
-				for (y=0;!match && (y<z);y++)
-					match |= (drops[y] == x);
-				if (!match) {
-					/* It's not in our list, use it as the new maximum */
-					max = iaxs[fr->callno]->history[x];
-					maxone = x;
-				}
-				
-			}
-			if (!z) {
-				/* On our first pass, find the minimum too */
-				if (min > iaxs[fr->callno]->history[x])
-					min = iaxs[fr->callno]->history[x];
-			}
-		}
-#if 1
-		drops[z] = maxone;
-#endif
-	}
-#endif
-
-#ifdef NEWJB
 	type = JB_TYPE_CONTROL;
 	len = 0;
 
@@ -2574,9 +2377,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 			*tsout = fr->ts;
 		__do_deliver(fr);
 		return -1;
-
 	}
-
 
 	/* insert into jitterbuffer */
 	/* TODO: Perhaps we could act immediately if it's not droppable and late */
@@ -2587,88 +2388,6 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 	} else if (ret == JB_SCHED) {
 		update_jbsched(iaxs[fr->callno]);
 	}
-#else
-	/* Just for reference, keep the "jitter" value, the difference between the
-	   earliest and the latest. */
-	if (max >= min)
-		iaxs[fr->callno]->jitter = max - min;	
-	
-	/* IIR filter for keeping track of historic jitter, but always increase
-	   historic jitter immediately for increase */
-	
-	if (iaxs[fr->callno]->jitter > iaxs[fr->callno]->historicjitter )
-		iaxs[fr->callno]->historicjitter = iaxs[fr->callno]->jitter;
-	else
-		iaxs[fr->callno]->historicjitter = GAMMA * (double)iaxs[fr->callno]->jitter + (1-GAMMA) * 
-			iaxs[fr->callno]->historicjitter;
-
-	/* If our jitter buffer is too big (by a significant margin), then we slowly
-	   shrink it to avoid letting the change be perceived */
-	if (max < iaxs[fr->callno]->jitterbuffer - max_jitter_buffer)
-		iaxs[fr->callno]->jitterbuffer -= jittershrinkrate;
-
-	/* If our jitter buffer headroom is too small (by a significant margin), then we slowly enlarge it */
-	/* min_jitter_buffer should be SMALLER than max_jitter_buffer - leaving a "no mans land"
-	   in between - otherwise the jitterbuffer size will hunt up and down causing unnecessary
-	   disruption.  Set maxexcessbuffer to say 150msec, minexcessbuffer to say 50 */
-	if (max > iaxs[fr->callno]->jitterbuffer - min_jitter_buffer)
-		iaxs[fr->callno]->jitterbuffer += jittershrinkrate;
-
-	/* If our jitter buffer is smaller than our maximum delay, grow the jitter
-	   buffer immediately to accomodate it (and a little more).  */
-	if (max > iaxs[fr->callno]->jitterbuffer)
-		iaxs[fr->callno]->jitterbuffer = max 
-			/* + ((float)iaxs[fr->callno]->jitter) * 0.1 */;
-
-	/* update "min", just for RRs and stats */
-	iaxs[fr->callno]->min = min; 
-
-	/* Subtract the lateness from our jitter buffer to know how long to wait
-	   before sending our packet.  */
-	delay = iaxs[fr->callno]->jitterbuffer - ms;
-
-	/* Whatever happens, no frame waits longer than maxjitterbuffer */
-	if (delay > maxjitterbuffer)
-		delay = maxjitterbuffer;
-	
-	/* If jitter buffer is disabled then just pretend the frame is "right on time" */
-	/* If frame came from trunk, also don't do any delay */
-	if ( (!ast_test_flag(iaxs[fr->callno], IAX_USEJITTERBUF)) || fromtrunk )
-		delay = 0;
-
-	if (option_debug && iaxdebug) {
-		/* Log jitter stats for possible offline analysis */
-		ast_log(LOG_DEBUG, "Jitter: call=%d ts=%d orig=%d last=%d %s: min=%d max=%d jb=%d %+d lateness=%d jbdelay=%d jitter=%d historic=%d\n",
-					fr->callno, fr->ts, orig_ts, iaxs[fr->callno]->last,
-					(fr->af.frametype == AST_FRAME_VOICE) ? "VOICE" : "CONTROL",
-					min, max, iaxs[fr->callno]->jitterbuffer,
-					iaxs[fr->callno]->jitterbuffer - prevjitterbuffer,
-					ms, delay,
-					iaxs[fr->callno]->jitter, iaxs[fr->callno]->historicjitter);
-	}
-
-	if (delay < 1) {
-		/* Don't deliver it more than 4 ms late */
-		if ((delay > -4) || (fr->af.frametype != AST_FRAME_VOICE)) {
-			if (option_debug && iaxdebug)
-				ast_log(LOG_DEBUG, "schedule_delivery: Delivering immediately (Calculated delay is %d)\n", delay);
-			if (tsout)
-				*tsout = fr->ts;
-			__do_deliver(fr);
-			return -1;
-		} else {
-			if (option_debug && iaxdebug)
-				ast_log(LOG_DEBUG, "schedule_delivery: Dropping voice packet since %dms delay is too old\n", delay);
-			iaxs[fr->callno]->frames_dropped++;
-			needfree++;
-		}
-	} else {
-		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "schedule_delivery: Scheduling delivery in %d ms\n", delay);
-		fr->retrans = ast_sched_add(sched, delay, do_deliver, fr);
-		signal_condition(&sched_lock, &sched_cond);
-	}
-#endif
 	if (tsout)
 		*tsout = fr->ts;
 	if (needfree) {
@@ -4607,21 +4326,6 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
-#ifndef NEWJB
-static int jitterbufsize(struct chan_iax2_pvt *pvt) {
-	int min, i;
-	min = 99999999;
-	for (i=0; i<MEMORY_SIZE; i++) {
-		if (pvt->history[i] < min)
-			min = pvt->history[i];
-	}
-	if (pvt->jitterbuffer - min > maxjitterbuffer)
-		return maxjitterbuffer;
-	else
-		return pvt->jitterbuffer - min;
-}
-#endif
-
 static int iax2_show_channels(int fd, int argc, char *argv[])
 {
 #define FORMAT2 "%-20.20s  %-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %-6.6s  %s\n"
@@ -4650,7 +4354,6 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 #endif
 			{
 				int lag, jitter, localdelay;
-#ifdef NEWJB
 				jb_info jbinfo;
 
 				if(ast_test_flag(iaxs[x], IAX_USEJITTERBUF)) {
@@ -4661,10 +4364,6 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 					jitter = -1;
 					localdelay = 0;
 				}
-#else
-				jitter = iaxs[x]->jitter;
-				localdelay = ast_test_flag(iaxs[x], IAX_USEJITTERBUF) ? jitterbufsize(iaxs[x]) : 0;
-#endif
 				lag = iaxs[x]->remote_rr.delay;
 				ast_cli(fd, FORMAT,
 						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
@@ -4716,7 +4415,6 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 			{
 				int localjitter, localdelay, locallost, locallosspct, localdropped, localooo;
 				char *fmt;
-#ifdef NEWJB
 				jb_info jbinfo;
 
 				if(ast_test_flag(iaxs[x], IAX_USEJITTERBUF)) {
@@ -4735,17 +4433,6 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 					localdropped = 0;
 					localooo = -1;
 				}
-#else
-				localjitter = iaxs[x]->jitter;
-				if(ast_test_flag(iaxs[x], IAX_USEJITTERBUF)) 
-				{
-					localdelay = jitterbufsize(iaxs[x]);
-					localdropped = iaxs[x]->frames_dropped;
-				} else {
-					localdelay = localdropped = 0;
-				}
-				locallost = locallosspct = localooo = -1;
-#endif
 				if (limit_fmt)
 					fmt = "%-25.25s %4d %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d\n";
 				else
@@ -4830,9 +4517,7 @@ static int iax2_do_jb_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-#ifdef NEWJB
 	jb_setoutput(jb_error_output, jb_warning_output, jb_debug_output);
-#endif
 	ast_cli(fd, "IAX2 Jitterbuffer Debugging Enabled\n");
 	return RESULT_SUCCESS;
 }
@@ -4859,10 +4544,8 @@ static int iax2_no_jb_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-#ifdef NEWJB
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
 	jb_debug_output("\n");
-#endif
 	ast_cli(fd, "IAX2 Jitterbuffer Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
@@ -5639,6 +5322,7 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 	int peercallno = 0;
 	struct chan_iax2_pvt *pvt = iaxs[callno];
 	struct iax_frame *cur;
+	jb_frame frame;
 
 	if (ies->callno)
 		peercallno = ies->callno;
@@ -5663,20 +5347,10 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 	pvt->transfercallno = -1;
 	memset(&pvt->rxcore, 0, sizeof(pvt->rxcore));
 	memset(&pvt->offset, 0, sizeof(pvt->offset));
-#ifdef NEWJB
-	{	/* reset jitterbuffer */
-	    	jb_frame frame;
-            	while(jb_getall(pvt->jb,&frame) == JB_OK)
-                	iax2_frame_free(frame.data);
-
-		jb_reset(pvt->jb);
-	}
-#else
-	memset(&pvt->history, 0, sizeof(pvt->history));
-	pvt->jitterbuffer = 0;
-	pvt->jitter = 0;
-	pvt->historicjitter = 0;
-#endif
+	/* reset jitterbuffer */
+	while(jb_getall(pvt->jb,&frame) == JB_OK)
+		iax2_frame_free(frame.data);
+	jb_reset(pvt->jb);
 	pvt->lag = 0;
 	pvt->last = 0;
 	pvt->lastsent = 0;
@@ -6519,7 +6193,6 @@ static int check_provisioning(struct sockaddr_in *sin, int sockfd, char *si, uns
 
 static void construct_rr(struct chan_iax2_pvt *pvt, struct iax_ie_data *iep) 
 {
-#ifdef NEWJB
 	jb_info stats;
 	jb_getinfo(pvt->jb, &stats);
 	
@@ -6532,18 +6205,6 @@ static void construct_rr(struct chan_iax2_pvt *pvt, struct iax_ie_data *iep)
 	iax_ie_append_short(iep,IAX_IE_RR_DELAY, stats.current - stats.min);
 	iax_ie_append_int(iep,IAX_IE_RR_DROPPED, stats.frames_dropped);
 	iax_ie_append_int(iep,IAX_IE_RR_OOO, stats.frames_ooo);
-#else
-	memset(iep, 0, sizeof(*iep));
-	iax_ie_append_int(iep,IAX_IE_RR_JITTER, pvt->jitter);
-	iax_ie_append_int(iep,IAX_IE_RR_PKTS, pvt->frames_received);
-	if(!ast_test_flag(pvt, IAX_USEJITTERBUF)) 
-		iax_ie_append_short(iep,IAX_IE_RR_DELAY, 0);
-	else
-		iax_ie_append_short(iep,IAX_IE_RR_DELAY, pvt->jitterbuffer - pvt->min);
-	iax_ie_append_int(iep,IAX_IE_RR_DROPPED, pvt->frames_dropped);
-	/* don't know, don't send! iax_ie_append_int(&ied,IAX_IE_RR_OOO, 0); */
-	/* don't know, don't send! iax_ie_append_int(&ied,IAX_IE_RR_LOSS, 0); */
-#endif
 }
 
 static void save_rr(struct iax_frame *fr, struct iax_ies *ies) 
@@ -9154,22 +8815,12 @@ static int set_config(char *config_file, int reload)
 		}
 		else if (!strcasecmp(v->name, "maxjitterbuffer")) 
 			maxjitterbuffer = atoi(v->value);
-#ifdef NEWJB
 		else if (!strcasecmp(v->name, "resyncthreshold")) 
 			resyncthreshold = atoi(v->value);
 		else if (!strcasecmp(v->name, "maxjitterinterps")) 
 			maxjitterinterps = atoi(v->value);
-#endif
-		else if (!strcasecmp(v->name, "jittershrinkrate")) 
-			jittershrinkrate = atoi(v->value);
-		else if (!strcasecmp(v->name, "maxexcessbuffer")) 
-			max_jitter_buffer = atoi(v->value);
-		else if (!strcasecmp(v->name, "minexcessbuffer")) 
-			min_jitter_buffer = atoi(v->value);
 		else if (!strcasecmp(v->name, "lagrqtime")) 
 			lagrq_time = atoi(v->value);
-		else if (!strcasecmp(v->name, "dropcount")) 
-			iax2_dropcount = atoi(v->value);
 		else if (!strcasecmp(v->name, "maxregexpire")) 
 			max_reg_expire = atoi(v->value);
 		else if (!strcasecmp(v->name, "minregexpire")) 
@@ -9968,8 +9619,6 @@ static char iax2_test_jitter_usage[] =
 #endif /* IAXTESTS */
 
 static struct ast_cli_entry iax2_cli[] = {
-	{ { "iax2", "set", "jitter", NULL }, iax2_set_jitter,
-	  "Sets IAX jitter buffer", jitter_usage },
 	{ { "iax2", "show", "stats", NULL }, iax2_show_stats,
 	  "Display IAX statistics", show_stats_usage },
 	{ { "iax2", "show", "cache", NULL }, iax2_show_cache,
@@ -10099,9 +9748,7 @@ static int load_module(void *mod)
 
 	iax_set_output(iax_debug_output);
 	iax_set_error(iax_error_output);
-#ifdef NEWJB
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
-#endif
 	
 #ifdef HAVE_ZAPTEL
 #ifdef ZT_TIMERACK

@@ -75,12 +75,6 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; The jitter buffer's function is to compensate for varying
 ; network delay.
 ;
-; There are presently two jitterbuffer implementations available for Asterisk
-; and chan_iax2; the classic and the new, channel/application independent
-; implementation.  These are controlled at compile-time.  The new jitterbuffer
-; additionally has support for PLC which greatly improves quality as the
-; jitterbuffer adapts size, and in compensating for lost packets.
-;
 ; All the jitter buffer settings except dropcount are in milliseconds.
 ; The jitter buffer works for INCOMING audio - the outbound audio
 ; will be dejittered by the jitter buffer at the other end.
@@ -93,12 +87,6 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; can each handle this.  However, some endpoints may have poor jitterbuffers 
 ; themselves, so this option will force * to always jitterbuffer, even in this
 ; case.
-; [This option presently applies only to the new jitterbuffer implementation]
-;
-; dropcount: the jitter buffer is sized such that no more than "dropcount"
-; frames would have been "too late" over the last 2 seconds.
-; Set to a small number.  "3" represents 1.5% of frames dropped
-; [This option is not applicable to, and ignored by the new jitterbuffer implementation]
 ;
 ; maxjitterbuffer: a maximum size for the jitter buffer.
 ; Setting a reasonable maximum here will prevent the call delay
@@ -111,35 +99,13 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; change in delay is measured as twice the measured jitter plus this resync
 ; threshold.
 ; Resyncing can be disabled by setting this parameter to -1.
-; [This option presently applies only to the new jitterbuffer implementation]
 ;
 ; maxjitterinterps: the maximum number of interpolation frames the jitterbuffer
 ; should return in a row. Since some clients do not send CNG/DTX frames to
 ; indicate silence, the jitterbuffer will assume silence has begun after
 ; returning this many interpolations. This prevents interpolating throughout
 ; a long silence.
-; [This option presently applies only to the new jitterbuffer implementation]
 ;
-; maxexcessbuffer: If conditions improve after a period of high jitter,
-; the jitter buffer can end up bigger than necessary.  If it ends up
-; more than "maxexcessbuffer" bigger than needed, Asterisk will start
-; gradually decreasing the amount of jitter buffering.
-; 	This option is not applicable to, 
-;	and ignored by the new jitterbuffer implementation
-;
-; minexcessbuffer: Sets a desired mimimum amount of headroom in 
-; the jitter buffer.  If Asterisk has less headroom than this, then
-; it will start gradually increasing the amount of jitter buffering.
-; 	This option is not applicable to, 
-;	and ignored by the new jitterbuffer implementation
-;
-; jittershrinkrate: when the jitter buffer is being gradually shrunk 
-; (or enlarged), how many millisecs shall we take off per 20ms frame
-; received?  Use a small number, or you will be able to hear it
-; changing.  An example: if you set this to 2, then the jitter buffer
-; size will change by 100 millisecs per second.
-; 	This option is not applicable to, 
-;	and ignored by the new jitterbuffer implementation
 
 jitterbuffer=no
 forcejitterbuffer=no
