@@ -569,6 +569,12 @@ static void pbx_destroy(struct ast_pbx *p)
  *		a pattern.
  *	!	zero or more of anything. Also impacts the result of CANMATCH
  *		and MATCHMORE. Only allowed at the end of a pattern.
+ *		In the core routine, ! causes a match with a return code of 2.
+ *		In turn, depending on the search mode: (XXX check if it is implemented)
+ *		- E_MATCH retuns 1 (does match)
+ *		- E_MATCHMORE returns 0 (no match)
+ *		- E_CANMATCH returns 1 (does match)
+ *
  *	/	should not appear as it is considered the separator of the CID info.
  *		XXX at the moment we may stop on this char.
  *
@@ -939,22 +945,25 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	}
 	if (q->status < STATUS_NO_EXTENSION)
 		q->status = STATUS_NO_EXTENSION;
-	for (eroot = tmp->root; eroot; eroot = eroot->next) {
-		int match;
-		/* Match extension */
-		if ( (match = extension_match_core(eroot->exten, exten, action)) &&
-		     (!eroot->matchcid || matchcid(eroot->cidmatch, callerid))) {
 
-			if (action == E_MATCHMORE && match == 2 && !earlymatch) {
-				/* XXX not sure the logic is correct here.
-				 * we should go in irrespective of earlymatch
+	/* scan the list trying to match extension and CID */
+	for (eroot = tmp->root; eroot; eroot = eroot->next) {
+		int match = extension_match_core(eroot->exten, exten, action);
+		/* 0 on fail, 1 on match, 2 on earlymatch */
+
+		if (match && (!eroot->matchcid || matchcid(eroot->cidmatch, callerid))) {
+			if (match == 2 && action == E_MATCHMORE && !earlymatch) {
+				/* Match an extension ending in '!'.
+				 * As far as I can tell the decision in this case is final
+				 * and we should just return NULL to mark failure
+				 * (and get rid of the earlymatch variable and the associated
+				 * processing outside the loop).
 				 */
-				/* It matched an extension ending in a '!' wildcard
-				   So ignore it for now, unless there's a better match */
 				earlymatch = eroot;
 			} else {
 				if (q->status < STATUS_NO_PRIORITY)
 					q->status = STATUS_NO_PRIORITY;
+				/* now look for the right priority */
 				for (e = eroot; e; e = e->peer) {
 					/* Match priority */
 					if (action == E_FINDLABEL) {
@@ -1000,7 +1009,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 			aswf = asw->canmatch;
 		else if (action == E_MATCHMORE)
 			aswf = asw->matchmore;
-		else
+		else /* action == E_MATCH */
 			aswf = asw->exists;
 		datap = sw->eval ? sw->tmpdata : sw->data;
 		res = !aswf ? 0 : aswf(chan, context, exten, priority, callerid, datap);
