@@ -204,7 +204,7 @@ static int oh323_hangup(struct ast_channel *c);
 static int oh323_answer(struct ast_channel *c);
 static struct ast_frame *oh323_read(struct ast_channel *c);
 static int oh323_write(struct ast_channel *c, struct ast_frame *frame);
-static int oh323_indicate(struct ast_channel *c, int condition);
+static int oh323_indicate(struct ast_channel *c, int condition, const void *data, size_t datalen);
 static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
 static const struct ast_channel_tech oh323_tech = {
@@ -625,7 +625,7 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 	return res;
 }
 
-static int oh323_indicate(struct ast_channel *c, int condition)
+static int oh323_indicate(struct ast_channel *c, int condition, const void *data, size_t datalen)
 {
 
 	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
