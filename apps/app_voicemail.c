@@ -6767,84 +6767,84 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 		if (ast_strlen_zero(cid))
 			break;
 
-			ast_callerid_parse(cid, &name, &num);
-			while ((res > -1) && (res != 't')) {
-				switch(res) {
-					case '1':
-						if (num) {
-							/* Dial the CID number */
-							res = dialout(chan, vmu, num, vmu->callback);
-							if (res)
-								return 9;
-						} else {
-							res = '2';
-						}
-						break;
-
-					case '2':
-						/* Want to enter a different number, can only do this if there's a dialout context for this user */
-						if (!ast_strlen_zero(vmu->dialout)) {
-							res = dialout(chan, vmu, NULL, vmu->dialout);
-							if (res)
-								return 9;
-						} else {
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "Caller can not specify callback number - no dialout context available\n");
-							res = ast_play_and_wait(chan, "vm-sorry");
-						}
-						return res;
-					case '*':
-						res = 't';
-						break;
-					case '3':
-					case '4':
-					case '5':
-					case '6':
-					case '7':
-					case '8':
-					case '9':
-					case '0':
-
-						res = ast_play_and_wait(chan, "vm-sorry");
-						retries++;
-						break;
-					default:
-						if (num) {
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "Confirm CID number '%s' is number to use for callback\n", num);
-							res = ast_play_and_wait(chan, "vm-num-i-have");
-							if (!res)
-								res = play_message_callerid(chan, vms, num, vmu->context, 1);
-							if (!res)
-								res = ast_play_and_wait(chan, "vm-tocallnum");
-							/* Only prompt for a caller-specified number if there is a dialout context specified */
-							if (!ast_strlen_zero(vmu->dialout)) {
-								if (!res)
-									res = ast_play_and_wait(chan, "vm-calldiffnum");
-							}
-						} else {
-							res = ast_play_and_wait(chan, "vm-nonumber");
-							if (!ast_strlen_zero(vmu->dialout)) {
-								if (!res)
-									res = ast_play_and_wait(chan, "vm-toenternumber");
-							}
-						}
-						if (!res)
-							res = ast_play_and_wait(chan, "vm-star-cancel");
-						if (!res)
-							res = ast_waitfordigit(chan, 6000);
-						if (!res)
-							retries++;
-						if (retries > 3)
-							res = 't';
-						break; 
-
-					}
-					if (res == 't')
-						res = 0;
-					else if (res == '*')
-						res = -1;
+		ast_callerid_parse(cid, &name, &num);
+		while ((res > -1) && (res != 't')) {
+			switch(res) {
+			case '1':
+				if (num) {
+					/* Dial the CID number */
+					res = dialout(chan, vmu, num, vmu->callback);
+					if (res)
+						return 9;
+				} else {
+					res = '2';
 				}
+				break;
+
+			case '2':
+				/* Want to enter a different number, can only do this if there's a dialout context for this user */
+				if (!ast_strlen_zero(vmu->dialout)) {
+					res = dialout(chan, vmu, NULL, vmu->dialout);
+					if (res)
+						return 9;
+				} else {
+					if (option_verbose > 2)
+						ast_verbose( VERBOSE_PREFIX_3 "Caller can not specify callback number - no dialout context available\n");
+					res = ast_play_and_wait(chan, "vm-sorry");
+				}
+				return res;
+			case '*':
+				res = 't';
+				break;
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+			case '8':
+			case '9':
+			case '0':
+
+				res = ast_play_and_wait(chan, "vm-sorry");
+				retries++;
+				break;
+			default:
+				if (num) {
+					if (option_verbose > 2)
+						ast_verbose( VERBOSE_PREFIX_3 "Confirm CID number '%s' is number to use for callback\n", num);
+					res = ast_play_and_wait(chan, "vm-num-i-have");
+					if (!res)
+						res = play_message_callerid(chan, vms, num, vmu->context, 1);
+					if (!res)
+						res = ast_play_and_wait(chan, "vm-tocallnum");
+					/* Only prompt for a caller-specified number if there is a dialout context specified */
+					if (!ast_strlen_zero(vmu->dialout)) {
+						if (!res)
+							res = ast_play_and_wait(chan, "vm-calldiffnum");
+					}
+				} else {
+					res = ast_play_and_wait(chan, "vm-nonumber");
+					if (!ast_strlen_zero(vmu->dialout)) {
+						if (!res)
+							res = ast_play_and_wait(chan, "vm-toenternumber");
+					}
+				}
+				if (!res)
+					res = ast_play_and_wait(chan, "vm-star-cancel");
+				if (!res)
+					res = ast_waitfordigit(chan, 6000);
+				if (!res)
+					retries++;
+				if (retries > 3)
+					res = 't';
+				break; 
+
+			}
+			if (res == 't')
+				res = 0;
+			else if (res == '*')
+				res = -1;
+		}
 		break;
 
 	case 1:	/* Reply */
@@ -6852,38 +6852,38 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 		if (ast_strlen_zero(cid))
 			break;
 
-			ast_callerid_parse(cid, &name, &num);
-			if (!num) {
+		ast_callerid_parse(cid, &name, &num);
+		if (!num) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "No CID number available, no reply sent\n");
+			if (!res)
+				res = ast_play_and_wait(chan, "vm-nonumber");
+			return res;
+		} else {
+			if (find_user(NULL, vmu->context, num)) {
+				struct leave_vm_options leave_options;
+				char mailbox[AST_MAX_EXTENSION * 2 + 2];
+				snprintf(mailbox, sizeof(mailbox), "%s@%s", num, vmu->context);
+
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "No CID number available, no reply sent\n");
+					ast_verbose(VERBOSE_PREFIX_3 "Leaving voicemail for '%s' in context '%s'\n", num, vmu->context);
+				
+				memset(&leave_options, 0, sizeof(leave_options));
+				leave_options.record_gain = record_gain;
+				res = leave_voicemail(chan, mailbox, &leave_options);
 				if (!res)
-					res = ast_play_and_wait(chan, "vm-nonumber");
+					res = 't';
 				return res;
 			} else {
-				if (find_user(NULL, vmu->context, num)) {
-					struct leave_vm_options leave_options;
-					char mailbox[AST_MAX_EXTENSION * 2 + 2];
-					snprintf(mailbox, sizeof(mailbox), "%s@%s", num, vmu->context);
-
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Leaving voicemail for '%s' in context '%s'\n", num, vmu->context);
-					
-					memset(&leave_options, 0, sizeof(leave_options));
-					leave_options.record_gain = record_gain;
-					res = leave_voicemail(chan, mailbox, &leave_options);
-					if (!res)
-						res = 't';
-					return res;
-				} else {
-					/* Sender has no mailbox, can't reply */
-					if (option_verbose > 2)
-						ast_verbose( VERBOSE_PREFIX_3 "No mailbox number '%s' in context '%s', no reply sent\n", num, vmu->context);
-					ast_play_and_wait(chan, "vm-nobox");
-					res = 't';
-					return res;
-				}
-			} 
-			res = 0;
+				/* Sender has no mailbox, can't reply */
+				if (option_verbose > 2)
+					ast_verbose( VERBOSE_PREFIX_3 "No mailbox number '%s' in context '%s', no reply sent\n", num, vmu->context);
+				ast_play_and_wait(chan, "vm-nobox");
+				res = 't';
+				return res;
+			}
+		} 
+		res = 0;
 
 		break;
 	}
