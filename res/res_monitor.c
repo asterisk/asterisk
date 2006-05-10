@@ -52,12 +52,12 @@ AST_MUTEX_DEFINE_STATIC(monitorlock);
 
 #define LOCK_IF_NEEDED(lock, needed) do { \
 	if (needed) \
-		ast_mutex_lock(lock); \
+		ast_channel_lock(lock); \
 	} while(0)
 
 #define UNLOCK_IF_NEEDED(lock, needed) do { \
 	if (needed) \
-		ast_mutex_unlock(lock); \
+		ast_channel_unlock(lock); \
 	} while (0)
 
 static unsigned long seq = 0;
@@ -112,13 +112,13 @@ static char *unpausemonitor_descrip = "UnpauseMonitor\n"
 
 static int ast_monitor_set_state(struct ast_channel *chan, int state)
 {
-	LOCK_IF_NEEDED(&chan->lock, 1);
+	LOCK_IF_NEEDED(chan, 1);
 	if (!chan->monitor) {
-		UNLOCK_IF_NEEDED(&chan->lock, 1);
+		UNLOCK_IF_NEEDED(chan, 1);
 		return -1;
 	}
 	chan->monitor->state = state;
-	UNLOCK_IF_NEEDED(&chan->lock, 1);
+	UNLOCK_IF_NEEDED(chan, 1);
 	return 0;
 }
 
@@ -129,7 +129,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 	int res = 0;
 	char tmp[256];
 
-	LOCK_IF_NEEDED(&chan->lock, need_lock);
+	LOCK_IF_NEEDED(chan, need_lock);
 
 	if (!(chan->monitor)) {
 		struct ast_channel_monitor *monitor;
@@ -144,7 +144,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		}
 
 		if (!(monitor = ast_calloc(1, sizeof(*monitor)))) {
-			UNLOCK_IF_NEEDED(&chan->lock, need_lock);
+			UNLOCK_IF_NEEDED(chan, need_lock);
 			return -1;
 		}
 
@@ -226,7 +226,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		res = -1;
 	}
 
-	UNLOCK_IF_NEEDED(&chan->lock, need_lock);
+	UNLOCK_IF_NEEDED(chan, need_lock);
 
 	return res;
 }
@@ -236,7 +236,7 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 {
 	int delfiles = 0;
 
-	LOCK_IF_NEEDED(&chan->lock, need_lock);
+	LOCK_IF_NEEDED(chan, need_lock);
 
 	if (chan->monitor) {
 		char filename[ FILENAME_MAX ];
@@ -305,7 +305,7 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 		chan->monitor = NULL;
 	}
 
-	UNLOCK_IF_NEEDED(&chan->lock, need_lock);
+	UNLOCK_IF_NEEDED(chan, need_lock);
 
 	return 0;
 }
@@ -342,7 +342,7 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 		return -1;
 	}
 
-	LOCK_IF_NEEDED(&chan->lock, need_lock);
+	LOCK_IF_NEEDED(chan, need_lock);
 
 	if (chan->monitor) {
 		int directory = strchr(fname_base, '/') ? 1 : 0;
@@ -359,7 +359,7 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to %s, monitoring not started\n", chan->name, fname_base);
 	}
 
-	UNLOCK_IF_NEEDED(&chan->lock, need_lock);
+	UNLOCK_IF_NEEDED(chan, need_lock);
 
 	return 0;
 }
