@@ -3422,12 +3422,11 @@ int ast_unregister_application(const char *app)
 struct ast_context *ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar)
 {
 	struct ast_context *tmp, **local_contexts;
-	int length;
-	length = sizeof(struct ast_context);
-	length += strlen(name) + 1;
+	int length = sizeof(struct ast_context) + strlen(name) + 1;
+
 	if (!extcontexts) {
-		local_contexts = &contexts;
 		ast_mutex_lock(&conlock);
+		local_contexts = &contexts;
 	} else
 		local_contexts = extcontexts;
 
