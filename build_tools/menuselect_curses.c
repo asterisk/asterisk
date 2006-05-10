@@ -128,7 +128,7 @@ void draw_category_menu(WINDOW *menu, struct category *cat, int start, int end, 
 	int j = 0;
 	struct member *mem;
 	char buf[64];
-	char *desc = NULL;
+	const char *desc = NULL;
 
 	wclear(menu);
 
