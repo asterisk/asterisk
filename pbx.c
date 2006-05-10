@@ -4218,7 +4218,9 @@ static void null_datad(void *foo)
 {
 }
 
-/*! \brief add the extension in the priority chain */
+/*! \brief add the extension in the priority chain.
+ * returns 0 on success, -1 on failure
+ */
 static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 	struct ast_exten *el, struct ast_exten *e, int replace)
 {
@@ -4306,21 +4308,6 @@ int ast_add_extension2(struct ast_context *con,
 	const char *application, void *data, void (*datad)(void *),
 	const char *registrar)
 {
-
-#define LOG do { 	if (option_debug) {\
-		if (tmp->matchcid) { \
-			ast_log(LOG_DEBUG, "Added extension '%s' priority %d (CID match '%s') to %s\n", tmp->exten, tmp->priority, tmp->cidmatch, con->name); \
-		} else { \
-			ast_log(LOG_DEBUG, "Added extension '%s' priority %d to %s\n", tmp->exten, tmp->priority, con->name); \
-		} \
-	} else if (option_verbose > 2) { \
-		if (tmp->matchcid) { \
-			ast_verbose( VERBOSE_PREFIX_3 "Added extension '%s' priority %d (CID match '%s')to %s\n", tmp->exten, tmp->priority, tmp->cidmatch, con->name); \
-		} else {  \
-			ast_verbose( VERBOSE_PREFIX_3 "Added extension '%s' priority %d to %s\n", tmp->exten, tmp->priority, con->name); \
-		} \
-	} } while(0)
-
 	/*
 	 * Sort extensions (or patterns) according to the rules indicated above.
 	 * These are implemented by the function ext_cmp()).
@@ -4337,7 +4324,7 @@ int ast_add_extension2(struct ast_context *con,
 	   contains variable references, then expand them
 	*/
 	ast_mutex_lock(&globalslock);
-	if ((priority == PRIORITY_HINT) && AST_LIST_FIRST(&globals) && strstr(application, "${")) {
+	if (priority == PRIORITY_HINT && AST_LIST_FIRST(&globals) && strstr(application, "${")) {
 		pbx_substitute_variables_varshead(&globals, application, expand_buf, sizeof(expand_buf));
 		application = expand_buf;
 	}
@@ -4402,28 +4389,43 @@ int ast_add_extension2(struct ast_context *con,
 			break;
 	}
 	if (e && res == 0) { /* exact match, insert in the pri chain */
-		int ret = add_pri(con, tmp, el, e, replace);
+		res = add_pri(con, tmp, el, e, replace);
 		ast_mutex_unlock(&con->lock);
-		if (ret < 0)
-			errno = EEXIST;
-		else {
-			LOG;
+		if (res < 0) {
+			errno = EEXIST;	/* XXX do we care ? */
+			return 0; /* XXX should we return -1 maybe ? */
 		}
-		return ret;
+	} else {
+		/*
+		 * not an exact match, this is the first entry with this pattern,
+		 * so insert in the main list right before 'e' (if any)
+		 */
+		tmp->next = e;
+		if (el)
+			el->next = tmp;
+		else
+			con->root = tmp;
+		ast_mutex_unlock(&con->lock);
+		if (tmp->priority == PRIORITY_HINT)
+			ast_add_hint(tmp);
 	}
-	/*
-	 * not an exact match, this is the first entry with this pattern,
-	 * so insert in the main list right before 'e' (if any)
-	 */
-	tmp->next = e;
-	if (el)
-		el->next = tmp;
-	else
-		con->root = tmp;
-	ast_mutex_unlock(&con->lock);
-	if (tmp->priority == PRIORITY_HINT)
-		ast_add_hint(tmp);
-	LOG;
+	if (option_debug) {
+		if (tmp->matchcid) {
+			ast_log(LOG_DEBUG, "Added extension '%s' priority %d (CID match '%s') to %s\n",
+				tmp->exten, tmp->priority, tmp->cidmatch, con->name);
+		} else {
+			ast_log(LOG_DEBUG, "Added extension '%s' priority %d to %s\n",
+				tmp->exten, tmp->priority, con->name);
+		}
+	} else if (option_verbose > 2) {
+		if (tmp->matchcid) {
+			ast_verbose( VERBOSE_PREFIX_3 "Added extension '%s' priority %d (CID match '%s')to %s\n",
+				tmp->exten, tmp->priority, tmp->cidmatch, con->name);
+		} else {
+			ast_verbose( VERBOSE_PREFIX_3 "Added extension '%s' priority %d to %s\n",
+				tmp->exten, tmp->priority, con->name);
+		}
+	}
 	return 0;
 }
 
