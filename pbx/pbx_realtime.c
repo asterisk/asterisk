@@ -76,34 +76,27 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 */
 
 
-#define REALTIME_COMMON(mode) \
-	char *buf; \
-	char *opts; \
-	const char *cxt; \
-	char *table; \
-	int res=-1; \
-	struct ast_variable *var=NULL; \
-	buf = ast_strdupa(data); \
-	if (buf) { \
-		opts = strchr(buf, '/'); \
-		if (opts) { \
-			*opts='\0'; \
-			opts++; \
-		} else \
-			opts=""; \
-		table = strchr(buf, '@'); \
-		if (table) { \
-			*table = '\0'; \
-			table++;\
-			cxt = buf; \
-		} else cxt = NULL; \
-		if (ast_strlen_zero(cxt)) \
-			cxt = context;\
-		if (ast_strlen_zero(table)) \
-			table = "extensions"; \
-		var = realtime_switch_common(table, cxt, exten, priority, mode); \
-	} else \
-		res = -1; 
+#define REALTIME_COMMON(mode)				\
+	const char *ctx = NULL;				\
+	char *table;					\
+	int res = -1;					\
+	struct ast_variable *var=NULL;			\
+	char *buf = ast_strdupa(data);			\
+	if (buf) {					\
+		char *opts = strchr(buf, '/');		\
+		if (opts)				\
+			*opts++ = '\0';			\
+		else					\
+			opts="";			\
+		table = strchr(buf, '@');		\
+		if (table) {				\
+			*table++ = '\0';		\
+			ctx = buf;			\
+		}					\
+		ctx = S_OR(ctx, context);		\
+		table = S_OR(table, "extensions");	\
+		var = realtime_switch_common(table, ctx, exten, priority, mode); \
+	}
 
 static struct ast_variable *realtime_switch_common(const char *table, const char *context, const char *exten, int priority, int mode)
 {
@@ -161,7 +154,8 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 static int realtime_exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	REALTIME_COMMON(MODE_MATCH);
-	if (var) ast_variables_destroy(var);
+	if (var)
+		ast_variables_destroy(var);
 	if (var)
 		res = 1;
 	return res > 0 ? res : 0;
@@ -170,7 +164,8 @@ static int realtime_exists(struct ast_channel *chan, const char *context, const 
 static int realtime_canmatch(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	REALTIME_COMMON(MODE_CANMATCH);
-	if (var) ast_variables_destroy(var);
+	if (var)
+		ast_variables_destroy(var);
 	if (var)
 		res = 1;
 	return res > 0 ? res : 0;
@@ -188,13 +183,11 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 	struct ast_variable *v;
 	REALTIME_COMMON(MODE_MATCH);
 	if (var) {
-		v = var;
-		while(v) {
+		for (v = var; v ; v = v->next) {
 			if (!strcasecmp(v->name, "app"))
 				strncpy(app, v->value, sizeof(app) -1 );
 			else if (!strcasecmp(v->name, "appdata"))
 				tmp = ast_strdupa(v->value);
-			v = v->next;
 		}
 		ast_variables_destroy(var);
 		if (!ast_strlen_zero(app)) {
