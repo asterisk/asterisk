@@ -60,8 +60,7 @@ int setenv(const char *name, const char *value, int overwrite)
 	int buflen;
 
 	buflen = strlen(name) + strlen(value) + 2;
-	if (!(buf = alloca(buflen)))
- 		return -1;
+	buf = alloca(buflen);
 
 	if (!overwrite && getenv(name))
 		return 0;

@@ -89,12 +89,8 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 		LOCAL_USER_REMOVE(u);
 		pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
 		return 0;
-	} else {
-		if (!(parse = ast_strdupa(data))) {
-			LOCAL_USER_REMOVE(u);
-			return -1;
-		}
-	}
+	} else
+		parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 

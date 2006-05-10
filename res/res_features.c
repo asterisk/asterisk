@@ -174,26 +174,33 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 	char *x, *goto_on_transfer;
 	struct ast_frame *f;
 
-	if (!ast_strlen_zero(val) && (goto_on_transfer = ast_strdupa(val)) && (xferchan = ast_channel_alloc(0))) {
-		for (x = goto_on_transfer; x && *x; x++)
-			if (*x == '^')
-				*x = '|';
-		ast_string_field_set(xferchan, name, chan->name);
-		/* Make formats okay */
-		xferchan->readformat = chan->readformat;
-		xferchan->writeformat = chan->writeformat;
-		ast_channel_masquerade(xferchan, chan);
-		ast_parseable_goto(xferchan, goto_on_transfer);
-		xferchan->_state = AST_STATE_UP;
-		ast_clear_flag(xferchan, AST_FLAGS_ALL);	
-		xferchan->_softhangup = 0;
-		if ((f = ast_read(xferchan))) {
-			ast_frfree(f);
-			f = NULL;
-			ast_pbx_start(xferchan);
-		} else {
-			ast_hangup(xferchan);
-		}
+	if (ast_strlen_zero(val))
+		return;
+
+	goto_on_transfer = ast_strdupa(val);
+
+	if (!(xferchan = ast_channel_alloc(0)))
+		return;
+
+	for (x = goto_on_transfer; x && *x; x++) {
+		if (*x == '^')
+			*x = '|';
+	}
+	ast_string_field_set(xferchan, name, chan->name);
+	/* Make formats okay */
+	xferchan->readformat = chan->readformat;
+	xferchan->writeformat = chan->writeformat;
+	ast_channel_masquerade(xferchan, chan);
+	ast_parseable_goto(xferchan, goto_on_transfer);
+	xferchan->_state = AST_STATE_UP;
+	ast_clear_flag(xferchan, AST_FLAGS_ALL);	
+	xferchan->_softhangup = 0;
+	if ((f = ast_read(xferchan))) {
+		ast_frfree(f);
+		f = NULL;
+		ast_pbx_start(xferchan);
+	} else {
+		ast_hangup(xferchan);
 	}
 }
 
@@ -920,9 +927,6 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		char *tmp = ast_strdupa(dynamic_features);
 		char *tok;
 
-		if (!tmp)
-			return res;
-		
 		while ((tok = strsep(&tmp, "#")) != NULL) {
 			feature = find_feature(tok);
 			
@@ -966,11 +970,8 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 			char *tok;
 			struct ast_call_feature *feature;
 
-			if (!tmp)	/* no memory */
-				return;
-
 			/* while we have a feature */
-			while (NULL != (tok = strsep(&tmp, "#"))) {
+			while ((tok = strsep(&tmp, "#"))) {
 				if ((feature = find_feature(tok)) && ast_test_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF)) {
 					if (ast_test_flag(feature, AST_FEATURE_FLAG_CALLER))
 						ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
@@ -1191,11 +1192,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			src = peer;
 		if (monitor_app && src) {
 			char *tmp = ast_strdupa(monitor_exec);
-			if (tmp) {
-				pbx_exec(src, monitor_app, tmp);
-			} else {
-				ast_log(LOG_ERROR, "Monitor failed: out of memory\n");
-			}
+			pbx_exec(src, monitor_app, tmp);
 		}
 	}
 	

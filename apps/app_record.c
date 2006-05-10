@@ -113,10 +113,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	/* Yay for strsep being easy */
-	if (!(vdata = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	vdata = ast_strdupa(data);
 
 	p = vdata;
 	filename = strsep(&p, "|");

@@ -172,17 +172,13 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 			seq++;
 			ast_mutex_unlock(&monitorlock);
 
-			if((channel_name = ast_strdupa(chan->name))) {
-				while((p = strchr(channel_name, '/'))) {
-					*p = '-';
-				}
-				snprintf(monitor->filename_base, FILENAME_MAX, "%s/%d-%s",
-						 ast_config_AST_MONITOR_DIR, (int)time(NULL),channel_name);
-				monitor->filename_changed = 1;
-			} else {
-				ast_log(LOG_ERROR,"Failed to allocate Memory\n");
-				return -1;
+			channel_name = ast_strdupa(chan->name);
+			while ((p = strchr(channel_name, '/'))) {
+				*p = '-';
 			}
+			snprintf(monitor->filename_base, FILENAME_MAX, "%s/%d-%s",
+					 ast_config_AST_MONITOR_DIR, (int)time(NULL), channel_name);
+			monitor->filename_changed = 1;
 		}
 
 		monitor->stop = ast_monitor_stop;
@@ -416,15 +412,13 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 		   the following could give NULL results, but we check just to
 		   be pedantic. Reconstructing with checks for 'm' option does not
 		   work if we end up adding more options than 'm' in the future. */
-		delay = ast_strdupa((char*)data);
-		if (delay) {
-			options = strrchr(delay, '|');
-			if (options) {
-				arg = strchr(options, 'b');
-				if (arg) {
-					*arg = 'X';
-					pbx_builtin_setvar_helper(chan,"AUTO_MONITOR",delay);
-				}
+		delay = ast_strdupa(data);
+		options = strrchr(delay, '|');
+		if (options) {
+			arg = strchr(options, 'b');
+			if (arg) {
+				*arg = 'X';
+				pbx_builtin_setvar_helper(chan,"AUTO_MONITOR",delay);
 			}
 		}
 		return 0;

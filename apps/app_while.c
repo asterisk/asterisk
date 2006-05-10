@@ -202,9 +202,8 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 	snprintf(used_index, VAR_SIZE, "%d", used_index_i);
 	snprintf(new_index, VAR_SIZE, "%d", used_index_i + 1);
 	
-	if (!end) {
-		condition = ast_strdupa((char *) data);
-	}
+	if (!end)
+		condition = ast_strdupa(data);
 
 	size = strlen(chan->context) + strlen(chan->exten) + 32;
 	my_name = alloca(size);

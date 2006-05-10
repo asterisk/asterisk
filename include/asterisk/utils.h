@@ -437,12 +437,7 @@ char * __attribute__((malloc)) _ast_strndup(const char *str, size_t len, const c
 		const char *__old = (s);                                  \
 		size_t __len = strlen(__old) + 1;                         \
 		char *__new = __builtin_alloca(__len);                    \
-		if (__builtin_expect(!__new, 0))                          \
-			ast_log(LOG_ERROR, "Stack Allocation Error in"    \
-				"function '%s' at line '%d' of '%s'!\n",  \
-				__PRETTY_FUNCTION__, __LINE__, __FILE__); \
-		else                                                      \
-			memcpy (__new, __old, __len);                     \
+		memcpy (__new, __old, __len);                             \
 		__new;                                                    \
 	}))
 #endif

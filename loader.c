@@ -647,8 +647,7 @@ static void *find_symbol(struct module *m, const char *name, int verbose)
 
 	if (name[0] == '_')
 		name++;
-	if (!(n1 = alloca(strlen(name) + 2))) /* room for leading '_' and final '\0' */
-		return NULL;
+	n1 = alloca(strlen(name) + 2); /* room for leading '_' and final '\0' */
 	n1[0] = '_';
 	strcpy(n1+1, name);
 	s = dlsym(m->lib, n1+1);	/* try without '_' */

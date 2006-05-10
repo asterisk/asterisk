@@ -126,10 +126,7 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	if (!(input = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	input = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, input);
 

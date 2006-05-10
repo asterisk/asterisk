@@ -167,8 +167,6 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 		a->language = "en";     /* default */
 	ast_log(LOG_WARNING, "try <%s> in <%s>\n", s, a->language);
 	lang = ast_strdupa(a->language);
-	if (!lang)      /* no memory! */
-		return -1;
 	for (;;) {
 		for (v = ast_variable_browse(say_cfg, lang); v ; v = v->next) {
 			if (ast_extension_match(v->name, s)) {
@@ -401,8 +399,7 @@ static int playback_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if (!(tmp = ast_strdupa(data)))
-		return -1;	
+	tmp = ast_strdupa(data);
 
 	LOCAL_USER_ADD(u);
 	AST_STANDARD_APP_ARGS(args, tmp);

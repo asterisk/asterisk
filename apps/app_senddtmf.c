@@ -73,10 +73,7 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	if (!(digits = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	digits = ast_strdupa(data);
 
 	if ((to = strchr(digits,'|'))) {
 		*to = '\0';

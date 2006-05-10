@@ -84,8 +84,7 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 	if (!data)
 		return 0;
 
-	if (!(parse = ast_strdupa(data)))
-		return -1;
+	parse = ast_strdupa(data);
 
 	LOCAL_USER_ADD(u);
 

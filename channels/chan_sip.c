@@ -2088,12 +2088,10 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 		char *tmpcall;
 		char *c;
 		tmpcall = ast_strdupa(r->callid);
-		if (tmpcall) {
-			c = strchr(tmpcall, '@');
-			if (c) {
-				*c = '\0';
-				ast_string_field_build(r, callid, "%s@%s", tmpcall, peer->fromdomain);
-			}
+		c = strchr(tmpcall, '@');
+		if (c) {
+			*c = '\0';
+			ast_string_field_build(r, callid, "%s@%s", tmpcall, peer->fromdomain);
 		}
 	}
 	if (ast_strlen_zero(r->tohost)) {
@@ -6986,21 +6984,21 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 	if (!req)
 		req = &sip_pvt->initreq;
 
-	if (!( (p_refer_to = get_header(req, "Refer-To")) && (h_refer_to = ast_strdupa(p_refer_to)) )) {
+	if (!(p_refer_to = get_header(req, "Refer-To"))) {
 		ast_log(LOG_WARNING, "No Refer-To Header That's illegal\n");
 		return -1;
 	}
-
+	h_refer_to = ast_strdupa(p_refer_to);
 	refer_to = get_in_brackets(h_refer_to);
 
-	if (!( (p_referred_by = get_header(req, "Referred-By")) && (h_referred_by = ast_strdupa(p_referred_by)) )) {
-		ast_log(LOG_WARNING, "No Referrred-By Header That's not illegal\n");
+	if (!(p_referred_by = get_header(req, "Referred-By"))) {
+		ast_log(LOG_DEBUG, "No Referrred-By Header That's not illegal\n");
 		return -1;
-	} else {
-		if (pedanticsipchecking)
-			ast_uri_decode(h_referred_by);
-		referred_by = get_in_brackets(h_referred_by);
 	}
+	h_referred_by = ast_strdupa(p_referred_by);
+	if (pedanticsipchecking)
+		ast_uri_decode(h_referred_by);
+	referred_by = get_in_brackets(h_referred_by);
 	h_contact = get_header(req, "Contact");
 	
 	if (strncmp(refer_to, "sip:", 4)) {
@@ -7327,13 +7325,9 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		if ((c = strchr(of, ':')))
 			*c = '\0';
 		tmp = ast_strdupa(of);
-		if (tmp) {
-			if (ast_is_shrinkable_phonenumber(tmp))
-				ast_shrink_phone_number(tmp);
-			ast_string_field_set(p, cid_num, tmp);
-		} else {
-			ast_string_field_set(p, cid_num, of);
-		}
+		if (ast_is_shrinkable_phonenumber(tmp))
+			ast_shrink_phone_number(tmp);
+		ast_string_field_set(p, cid_num, tmp);
 	}
 	if (ast_strlen_zero(of))
 		return 0;
@@ -7359,13 +7353,9 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			if (*calleridname)
 				ast_string_field_set(p, cid_name, calleridname);
 			tmp = ast_strdupa(rpid_num);
-			if (tmp) {
-				if (ast_is_shrinkable_phonenumber(tmp))
-					ast_shrink_phone_number(tmp);
-				ast_string_field_set(p, cid_num, tmp);
-			} else {
-				ast_string_field_set(p, cid_num, rpid_num);
-			}
+			if (ast_is_shrinkable_phonenumber(tmp))
+				ast_shrink_phone_number(tmp);
+			ast_string_field_set(p, cid_num, tmp);
 		}
 
 		
@@ -7396,13 +7386,9 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				ast_string_field_set(p, context, user->context);
 			if (!ast_strlen_zero(user->cid_num) && !ast_strlen_zero(p->cid_num)) {
 				char *tmp = ast_strdupa(user->cid_num);
-				if (tmp) {
-					if (ast_is_shrinkable_phonenumber(tmp))
-						ast_shrink_phone_number(tmp);
-					ast_string_field_set(p, cid_num, tmp);
-				} else {
-					ast_string_field_set(p, cid_num, user->cid_num);
-				}
+				if (ast_is_shrinkable_phonenumber(tmp))
+					ast_shrink_phone_number(tmp);
+				ast_string_field_set(p, cid_num, tmp);
 			}
 			if (!ast_strlen_zero(user->cid_name) && !ast_strlen_zero(p->cid_num))
 				ast_string_field_set(p, cid_name, user->cid_name);
@@ -7473,13 +7459,9 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				char *tmp = ast_strdupa(rpid_num);
 				if (*calleridname)
 					ast_string_field_set(p, cid_name, calleridname);
-				if (tmp) {
-					if (ast_is_shrinkable_phonenumber(tmp))
-						ast_shrink_phone_number(tmp);
-					ast_string_field_set(p, cid_num, tmp);
-				} else {
-					ast_string_field_set(p, cid_num, rpid_num);
-				}
+				if (ast_is_shrinkable_phonenumber(tmp))
+					ast_shrink_phone_number(tmp);
+				ast_string_field_set(p, cid_num, tmp);
 			}
 			usenatroute = ast_test_flag(&p->flags[0], SIP_NAT_ROUTE);
 			if (p->rtp) {
@@ -7529,13 +7511,9 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				}
 				if (!ast_strlen_zero(peer->cid_num) && !ast_strlen_zero(p->cid_num)) {
 					char *tmp = ast_strdupa(peer->cid_num);
-					if (tmp) {
-						if (ast_is_shrinkable_phonenumber(tmp))
-							ast_shrink_phone_number(tmp);
-						ast_string_field_set(p, cid_num, tmp);
-					} else {
-						ast_string_field_set(p, cid_num, peer->cid_num);
-					}
+					if (ast_is_shrinkable_phonenumber(tmp))
+						ast_shrink_phone_number(tmp);
+					ast_string_field_set(p, cid_num, tmp);
 				}
 				if (!ast_strlen_zero(peer->cid_name) && !ast_strlen_zero(p->cid_name)) 
 					ast_string_field_set(p, cid_name, peer->cid_name);
@@ -12740,7 +12718,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			ast_copy_string(user->subscribecontext, v->value, sizeof(user->subscribecontext));
 		} else if (!strcasecmp(v->name, "setvar")) {
 			varname = ast_strdupa(v->value);
-			if (varname && (varval = strchr(varname,'='))) {
+			if ((varval = strchr(varname,'='))) {
 				*varval++ = '\0';
 				if ((tmpvar = ast_variable_new(varname, varval))) {
 					tmpvar->next = user->chanvars;
@@ -13054,7 +13032,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		} else if (!strcasecmp(v->name, "setvar")) {
 			/* Set peer channel variable */
 			varname = ast_strdupa(v->value);
-			if (varname && (varval = strchr(varname,'='))) {
+			if ((varval = strchr(varname, '='))) {
 				*varval++ = '\0';
 				if ((tmpvar = ast_variable_new(varname, varval))) {
 					tmpvar->next = peer->chanvars;
@@ -13746,8 +13724,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	char *extension, *host, *port;
 	char tmp[80];
 	
-	if (!(cdest = ast_strdupa(dest)))
-		return 0;
+	cdest = ast_strdupa(dest);
 	
 	extension = strsep(&cdest, "@");
 	host = strsep(&cdest, ":");
@@ -13776,11 +13753,9 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 				ast_log(LOG_ERROR, "Can't find the host address\n");
 				return 0;
 			}
-			if (!(host = ast_strdupa(lhost)))
-				return 0;
+			host = ast_strdupa(lhost);
 			if (!ast_strlen_zero(lport)) {
-				if (!(port = ast_strdupa(lport)))
-					return 0;
+				port = ast_strdupa(lport);
 			}
 		}
 	}

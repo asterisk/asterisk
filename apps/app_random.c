@@ -71,10 +71,7 @@ static int random_exec(struct ast_channel *chan, void *data)
 	
 	LOCAL_USER_ADD(u);
 
-	if (!(s = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	s = ast_strdupa(data);
 
 	prob = strsep(&s,":");
 	if ((!prob) || (sscanf(prob, "%d", &probint) != 1))

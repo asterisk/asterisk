@@ -115,10 +115,7 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 	
 	LOCAL_USER_ADD(u);
 	
-	if (!(tmp = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	tmp = ast_strdupa(data);
 	
 	opt = strchr(tmp, '|');
 	if (opt) {

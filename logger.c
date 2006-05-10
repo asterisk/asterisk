@@ -861,10 +861,7 @@ void ast_verbose(const char *fmt, ...)
 		time(&t);
 		localtime_r(&t, &tm);
 		strftime(date, sizeof(date), dateformat, &tm);
-		if ((datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1))) {
-			sprintf(datefmt, "[%s] %s", date, fmt);
-			fmt = datefmt;
-		}
+		datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
 	}
 
 	/* this lock is also protecting against multiple threads

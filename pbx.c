@@ -4989,8 +4989,7 @@ static int pbx_builtin_resetcdr(struct ast_channel *chan, void *data)
 	struct ast_flags flags = { 0 };
 
 	if (!ast_strlen_zero(data)) {
-		if (!(args = ast_strdupa(data)))
-			return -1;
+		args = ast_strdupa(data);
 		ast_app_parse_options(resetcdr_opts, &flags, NULL, args);
 	}
 
@@ -5034,16 +5033,15 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if ((s = ast_strdupa(data))) {
-		ts = s;
+	ts = s = ast_strdupa(data);
 
-		/* Separate the Goto path */
-		strsep(&ts,"?");
+	/* Separate the Goto path */
+	strsep(&ts,"?");
 
-		/* struct ast_include include contained garbage here, fixed by zeroing it on get_timerange */
-		if (ast_build_timing(&timing, s) && ast_check_timing(&timing))
-			res = pbx_builtin_goto(chan, (void *)ts);
-	}
+	/* struct ast_include include contained garbage here, fixed by zeroing it on get_timerange */
+	if (ast_build_timing(&timing, s) && ast_check_timing(&timing))
+		res = pbx_builtin_goto(chan, ts);
+	
 	return res;
 }
 
@@ -5062,8 +5060,7 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if (!(appname = ast_strdupa(data)))
-		return -1;
+	appname = ast_strdupa(data);
 
 	s = strsep(&appname,"?");	/* Separate the timerange and application name/data */
 	if (!appname) {	/* missing application */
@@ -5121,8 +5118,7 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 	);
 
 	if (!ast_strlen_zero(data)) {
-		if (!(parse = ast_strdupa(data)))
-			return -1;
+		parse = ast_strdupa(data);
 		AST_STANDARD_APP_ARGS(args, parse);
 	} else
 		memset(&args, 0, sizeof(args));
@@ -5179,8 +5175,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	if (ast_strlen_zero(data))
 		ast_log(LOG_WARNING, "Background requires an argument (filename)\n");
 
-	if (!(parse = ast_strdupa(data)))
-		return -1;
+	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 

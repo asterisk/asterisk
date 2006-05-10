@@ -107,8 +107,7 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 	
 	snprintf(dftbase, sizeof(dftbase), "%s/dictate", ast_config_AST_SPOOL_DIR);
 	if (!ast_strlen_zero(data)) {
-		if (!(parse = ast_strdupa(data)))
-			return -1;
+		parse = ast_strdupa(data);
 		AST_STANDARD_APP_ARGS(args, parse);
 	} else
 		args.argc = 0;

@@ -1597,11 +1597,8 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	} *fdmap;
 
 	sz = n * AST_MAX_FDS + nfds;
-	if (!(pfds = alloca(sizeof(*pfds) * sz)) || !(fdmap = alloca(sizeof(*fdmap) * sz))) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		*outfd = -1;
-		return NULL;
-	}
+	pfds = alloca(sizeof(*pfds) * sz);
+	fdmap = alloca(sizeof(*fdmap) * sz);
 
 	if (outfd)
 		*outfd = -99999;
@@ -3773,8 +3770,6 @@ ast_group_t ast_get_group(char *s)
 	ast_group_t group = 0;
 
 	c = ast_strdupa(s);
-	if (!c)
-		return 0;
 	
 	while ((piece = strsep(&c, ","))) {
 		if (sscanf(piece, "%d-%d", &start, &finish) == 2) {

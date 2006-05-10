@@ -80,8 +80,7 @@ static char *tryexec_descrip =
 "The channel variable TRYSTATUS will be set to:\n"
 "    SUCCESS   if the application returned zero\n"
 "    FAILED    if the application returned non-zero\n"
-"    NOAPP     if the application was not found or was not specified\n"
-"    NOMEMORY  if there was not enough memory to execute.\n";
+"    NOAPP     if the application was not found or was not specified\n";
 
 static char *app_execif = "ExecIf";
 static char *execif_synopsis = "Executes dialplan application, conditionally";
@@ -104,25 +103,23 @@ static int exec_exec(struct ast_channel *chan, void *data)
 
 	/* Check and parse arguments */
 	if (data) {
-		if ((s = ast_strdupa(data))) {
-			appname = strsep(&s, "(");
-			if (s) {
-				endargs = strrchr(s, ')');
-				if (endargs)
-					*endargs = '\0';
-				pbx_substitute_variables_helper(chan, s, args, MAXRESULT - 1);
+		s = ast_strdupa(data);
+		appname = strsep(&s, "(");
+		if (s) {
+			endargs = strrchr(s, ')');
+			if (endargs)
+				*endargs = '\0';
+			pbx_substitute_variables_helper(chan, s, args, MAXRESULT - 1);
+		}
+		if (appname) {
+			app = pbx_findapp(appname);
+			if (app) {
+				res = pbx_exec(chan, app, args);
+			} else {
+				ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
+				res = -1;
 			}
-			if (appname) {
-				app = pbx_findapp(appname);
-				if (app) {
-					res = pbx_exec(chan, app, args);
-				} else {
-					ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
-					res = -1;
-				}
-			}
-		} else
-			res = -1;
+		}
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -140,27 +137,23 @@ static int tryexec_exec(struct ast_channel *chan, void *data)
 
 	/* Check and parse arguments */
 	if (data) {
-		if ((s = ast_strdupa(data))) {
-			appname = strsep(&s, "(");
-			if (s) {
-				endargs = strrchr(s, ')');
-				if (endargs)
-					*endargs = '\0';
-				pbx_substitute_variables_helper(chan, s, args, MAXRESULT - 1);
+		s = ast_strdupa(data);
+		appname = strsep(&s, "(");
+		if (s) {
+			endargs = strrchr(s, ')');
+			if (endargs)
+				*endargs = '\0';
+			pbx_substitute_variables_helper(chan, s, args, MAXRESULT - 1);
+		}
+		if (appname) {
+			app = pbx_findapp(appname);
+			if (app) {
+				res = pbx_exec(chan, app, args);
+				pbx_builtin_setvar_helper(chan, "TRYSTATUS", res ? "FAILED" : "SUCCESS");
+			} else {
+				ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
+				pbx_builtin_setvar_helper(chan, "TRYSTATUS", "NOAPP");
 			}
-			if (appname) {
-				app = pbx_findapp(appname);
-				if (app) {
-					res = pbx_exec(chan, app, args);
-					pbx_builtin_setvar_helper(chan, "TRYSTATUS", res ? "FAILED" : "SUCCESS");
-				} else {
-					ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
-					pbx_builtin_setvar_helper(chan, "TRYSTATUS", "NOAPP");
-				}
-			}
-		} else {
-			ast_log(LOG_ERROR, "Out of memory\n");
-			pbx_builtin_setvar_helper(chan, "TRYSTATUS", "NOMEMORY");
 		}
 	}
 
@@ -178,10 +171,7 @@ static int execif_exec(struct ast_channel *chan, void *data) {
 
 	LOCAL_USER_ADD(u);
 
-	if (!(expr = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	expr = ast_strdupa(data);
 
 	if ((myapp = strchr(expr,'|'))) {
 		*myapp = '\0';

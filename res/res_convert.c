@@ -72,8 +72,8 @@ static int cli_audio_convert(int fd, int argc, char *argv[])
 		goto fail_out;	
 	}
 
-	if (!(file_in = ast_strdupa(argv[1])) || !(file_out = ast_strdupa(argv[2])))
-		goto fail_out;
+	file_in = ast_strdupa(argv[1]);
+	file_out = ast_strdupa(argv[2]);
 
 	if (split_ext(file_in, &name_in, &ext_in)) {
 		ast_cli(fd, "'%s' is an invalid filename!\n", argv[1]);

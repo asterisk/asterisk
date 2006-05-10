@@ -95,10 +95,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	/* Do our thing here */
 
 	/* We need to make a copy of the input string if we are going to modify it! */
-	if (!(parse = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 

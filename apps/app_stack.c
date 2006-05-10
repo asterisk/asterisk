@@ -130,8 +130,7 @@ static int gosubif_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	if (!(args = ast_strdupa(data)))
-		return -1;
+	args = ast_strdupa(data);
 
 	LOCAL_USER_ADD(u);
 

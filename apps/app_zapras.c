@@ -215,10 +215,7 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	if (!(args = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	args = ast_strdupa(data);
 	
 	/* Answer the channel if it's not up */
 	if (chan->_state != AST_STATE_UP)

@@ -138,8 +138,6 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 
 	/* agiusl is "agi://host.domain[:port][/script/name]" */
 	host = ast_strdupa(agiurl + 6);	/* Remove agi:// */
-	if (!host)
-		return -1;
 	/* Strip off any script name */
 	if ((c = strchr(host, '/'))) {
 		*c = '\0';

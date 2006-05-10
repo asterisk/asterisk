@@ -239,7 +239,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	}
 
 	initfield = ast_strdupa(newparam);
-	if (initfield && (op = strchr(initfield, ' '))) {
+	if ((op = strchr(initfield, ' '))) {
 		*op = '\0';
 	}
 

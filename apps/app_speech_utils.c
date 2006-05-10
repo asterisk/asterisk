@@ -327,8 +327,7 @@ static int speech_load(struct ast_channel *chan, void *data)
 	struct ast_speech *speech = find_speech(chan);
 	char *argv[2], *args = NULL, *name = NULL, *path = NULL;
 
-	if (!(args = ast_strdupa(data)))
-                return -1;
+	args = ast_strdupa(data);
 
 	LOCAL_USER_ADD(u);
 
@@ -504,8 +503,7 @@ static int speech_background(struct ast_channel *chan, void *data)
         struct ast_datastore *datastore = NULL;
         char *argv[2], *args = NULL, *filename = NULL, tmp[2] = "";
 
-        if (!(args = ast_strdupa(data)))
-                return -1;
+        args = ast_strdupa(data);
 
         LOCAL_USER_ADD(u);
 

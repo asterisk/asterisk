@@ -588,8 +588,7 @@ struct ast_variable *astman_get_variables(struct message *m)
 		if (strncasecmp("Variable: ", m->headers[x], varlen))
 			continue;
 
-		if (!(parse = ast_strdupa(m->headers[x] + varlen)))
-			return head;
+		parse = ast_strdupa(m->headers[x] + varlen);
 
 		AST_STANDARD_APP_ARGS(args, parse);
 		if (args.argc) {

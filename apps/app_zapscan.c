@@ -307,7 +307,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 	
-	desired_group = ast_strdupa((char *) data);
+	desired_group = ast_strdupa(data);
 	if(!ast_strlen_zero(desired_group)) {
 		ast_verbose(VERBOSE_PREFIX_3 "Scanning for group %s\n", desired_group);
 		search_group = 1;

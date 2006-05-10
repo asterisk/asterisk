@@ -2769,8 +2769,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if (!(parse = ast_strdupa(data)))
-		return -1;
+	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -2822,8 +2821,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if (!(parse = ast_strdupa(data))) 
-		return -1;
+	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -2877,8 +2875,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if (!(parse = ast_strdupa(data)))
-		return -1;
+	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -2942,8 +2939,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if (!(parse = ast_strdupa(data)))
-		return -1;
+	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -3029,10 +3025,6 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	}
 	
 	parse = ast_strdupa(data);
-	if (!parse) {
-		ast_log(LOG_ERROR, "Out of memory!\n");
-		return -1;
-	}
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	LOCAL_USER_ADD(lu);

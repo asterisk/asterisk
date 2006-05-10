@@ -523,7 +523,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	ast_log(LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);
 	sfmt[0] = ast_strdupa(fmts);
 
-	while((fmt = strsep(&stringp, "|"))) {
+	while ((fmt = strsep(&stringp, "|"))) {
 		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
 			ast_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app.c\n");
 			break;
@@ -1092,13 +1092,12 @@ static int ivr_dispatch(struct ast_channel *chan, struct ast_ivr_option *option,
 	case AST_ACTION_BACKLIST:
 		res = 0;
 		c = ast_strdupa(option->adata);
-		if (c) {
-			while((n = strsep(&c, ";")))
-				if ((res = ast_stream_and_wait(chan, n, chan->language,
-						(option->action == AST_ACTION_BACKLIST) ? AST_DIGIT_ANY : "")))
-					break;
-			ast_stopstream(chan);
+		while ((n = strsep(&c, ";"))) {
+			if ((res = ast_stream_and_wait(chan, n, chan->language,
+					(option->action == AST_ACTION_BACKLIST) ? AST_DIGIT_ANY : "")))
+				break;
 		}
+		ast_stopstream(chan);
 		return res;
 	default:
 		ast_log(LOG_NOTICE, "Unknown dispatch function %d, ignoring!\n", option->action);

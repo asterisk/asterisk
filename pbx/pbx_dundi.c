@@ -3875,8 +3875,7 @@ static void build_mapping(char *name, char *value)
 	int x;
 	int y;
 
-	if (!(t = ast_strdupa(value)))
-		return;
+	t = ast_strdupa(value);
 		
 	AST_LIST_TRAVERSE(&mappings, map, list) {
 		/* Find a double match */

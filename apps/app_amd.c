@@ -140,12 +140,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 		ast_log(LOG_NOTICE, "AMD using the default parameters.\n");
 	} else {
 		/* Some arguments have been passed. Lets parse them and overwrite the defaults. */
-		if (!(parse = ast_strdupa(data))) {
-			ast_log(LOG_WARNING, "Memory allocation failure\n");
-			pbx_builtin_setvar_helper(chan , "AMDSTATUS" , "" );
-			pbx_builtin_setvar_helper(chan , "AMDCAUSE" , "" );
-			return;
-		}
+		parse = ast_strdupa(data);
 
 		AST_STANDARD_APP_ARGS(args, parse);
 

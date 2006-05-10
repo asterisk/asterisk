@@ -213,10 +213,9 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 {
 	char *s, *data = ast_strdupa(playlst); /* cute */
 	struct playtones_def d = { vol, -1, 0, 1, NULL};
-	char *stringp=NULL;
+	char *stringp;
 	char *separator;
-	if (!data)
-		return -1;
+	
 	if (vol < 1)
 		d.vol = 7219; /* Default to -8db */
 

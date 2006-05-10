@@ -78,8 +78,7 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 	if (!data)
 		return ERROR_NOARG;
 
-	if (!(strings = ast_strdupa(data)))
-		return ERROR_NOMEM;
+	strings = ast_strdupa(data);
 
 	for (ptrkey = strings; *ptrkey; ptrkey++) {
 		if (*ptrkey == '|')
@@ -87,8 +86,6 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 	}
 
 	sortable_keys = alloca(count * sizeof(struct sortable_keys));
-	if (!sortable_keys)
-		return ERROR_NOMEM;
 
 	memset(sortable_keys, 0, count * sizeof(struct sortable_keys));
 
@@ -132,8 +129,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 
 	memset(buffer, 0, buflen); 
 	
-	if (!(parse = ast_strdupa(data)))
-		return ERROR_NOMEM;
+	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 

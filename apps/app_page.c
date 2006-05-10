@@ -167,10 +167,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 		return -1;
 	};
 
-	if (!(options = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	options = ast_strdupa(data);
 
 	ast_copy_string(originator, chan->name, sizeof(originator));
 	if ((tmp = strchr(originator, '-')))

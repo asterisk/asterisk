@@ -2969,12 +2969,10 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 		char *key = NULL;
 
 		family = ast_strdupa(peer->dbsecret);
-		if (family) {
-			key = strchr(family, '/');
-			if (key)
-				*key++ = '\0';
-		}
-		if (!family || !key || ast_db_get(family, key, cai->secret, sizeof(cai->secret))) {
+		key = strchr(family, '/');
+		if (key)
+			*key++ = '\0';
+		if (!key || ast_db_get(family, key, cai->secret, sizeof(cai->secret))) {
 			ast_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", peer->dbsecret);
 			if (ast_test_flag(peer, IAX_TEMPONLY))
 				destroy_peer(peer);
@@ -4078,7 +4076,7 @@ static int decrypt_frame(int callno, struct ast_iax2_full_hdr *fh, struct ast_fr
 		
 		tmppw = ast_strdupa(iaxs[callno]->secret);
 		stringp = tmppw;
-		while((tmppw = strsep(&stringp, ";"))) {
+		while ((tmppw = strsep(&stringp, ";"))) {
 			MD5Init(&md5);
 			MD5Update(&md5, (unsigned char *)iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
 			MD5Update(&md5, (unsigned char *)tmppw, strlen(tmppw));
@@ -5132,14 +5130,12 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		if (!ast_strlen_zero(user->dbsecret)) {
 			char *family, *key=NULL;
 			family = ast_strdupa(user->dbsecret);
-			if (family) {
-				key = strchr(family, '/');
-				if (key) {
-					*key = '\0';
-					key++;
-				}
+			key = strchr(family, '/');
+			if (key) {
+				*key = '\0';
+				key++;
 			}
-			if (!family || !key || ast_db_get(family, key, iaxs[callno]->secret, sizeof(iaxs[callno]->secret))) {
+			if (!key || ast_db_get(family, key, iaxs[callno]->secret, sizeof(iaxs[callno]->secret))) {
 				ast_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", user->dbsecret);
 				if (ast_test_flag(user, IAX_TEMPONLY)) {
 					destroy_user(user);

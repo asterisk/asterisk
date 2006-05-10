@@ -356,11 +356,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 		festivalcommand = newfestivalcommand;
 	}
 	
-	if (!(data = ast_strdupa(vdata))) {
-		ast_config_destroy(cfg);
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	data = ast_strdupa(vdata);
 
 	intstr = strchr(data, '|');
 	if (intstr) {	

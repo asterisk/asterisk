@@ -76,8 +76,7 @@ static int orig_app(int fd, const char *chan, const char *app, const char *appda
 	if (ast_strlen_zero(app))
 		return RESULT_SHOWUSAGE;
 
-	if (!(chandata = ast_strdupa(chan)))
-		return RESULT_FAILURE;
+	chandata = ast_strdupa(chan);
 	
 	chantech = strsep(&chandata, "/");
 	if (!chandata) {
@@ -98,8 +97,7 @@ static int orig_exten(int fd, const char *chan, const char *data)
 	char *context = NULL;
 	int reason = 0;
 
-	if (!(chandata = ast_strdupa(chan)))
-		return RESULT_FAILURE;
+	chandata = ast_strdupa(chan);
 	
 	chantech = strsep(&chandata, "/");
 	if (!chandata) {
@@ -108,8 +106,7 @@ static int orig_exten(int fd, const char *chan, const char *data)
 	}
 
 	if (!ast_strlen_zero(data)) {
-		if (!(context = ast_strdupa(data)))
-			return RESULT_FAILURE;
+		context = ast_strdupa(data);
 		exten = strsep(&context, "@");
 	}
 

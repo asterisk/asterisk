@@ -71,10 +71,7 @@ static int deltree_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	if (!(argv = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return 0;
-	}
+	argv = ast_strdupa(data);
 
 	if (strchr(argv, '/')) {
 		family = strsep(&argv, "/");
@@ -115,10 +112,7 @@ static int del_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	if (!(argv = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return 0;
-	}
+	argv = ast_strdupa(data);
 
 	if (strchr(argv, '/')) {
 		family = strsep(&argv, "/");

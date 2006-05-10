@@ -113,10 +113,7 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 
 		if (!ast_strlen_zero((char *)data))
 		{
-			if (!(parse = ast_strdupa(data))) {
-				LOCAL_USER_REMOVE(u);
-				return -1;
-			}
+			parse = ast_strdupa(data);
 			
 			AST_STANDARD_APP_ARGS(args, parse);
 

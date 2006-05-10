@@ -787,8 +787,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 	LOCAL_USER_ADD(u);
 
-	if (!(parse = ast_strdupa(data)))
-		goto done;
+	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -1596,8 +1595,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	if (!(announce = ast_strdupa(data)))
-		goto done;
+	announce = ast_strdupa(data);
 
 	memset(&peerflags, 0, sizeof(peerflags));
 

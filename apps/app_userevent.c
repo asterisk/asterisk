@@ -72,10 +72,7 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	if (!(info = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	info = ast_strdupa(data);
 
 	snprintf(eventname, sizeof(eventname), "UserEvent%s", info);
 	eventbody = strchr(eventname, '|');

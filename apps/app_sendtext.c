@@ -83,12 +83,8 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "SendText requires an argument (text[|options])\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
-	} else {
-		if (!(parse = ast_strdupa(data))) {
-			LOCAL_USER_REMOVE(u);
-			return -1;
-		}
-	}
+	} else
+		parse = ast_strdupa(data);
 	
 	AST_STANDARD_APP_ARGS(args, parse);
 

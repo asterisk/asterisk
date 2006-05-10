@@ -3368,25 +3368,24 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	}
 
 	/* Attach only the first format */
-	if ((fmt = ast_strdupa(fmt))) {
-		stringp = fmt;
-		strsep(&stringp, "|");
+	fmt = ast_strdupa(fmt);
+	stringp = fmt;
+	strsep(&stringp, "|");
 
-		if (!ast_strlen_zero(vmu->email)) {
-			int attach_user_voicemail = ast_test_flag((&globalflags), VM_ATTACH);
-			char *myserveremail = serveremail;
-			attach_user_voicemail = ast_test_flag(vmu, VM_ATTACH);
-			if (!ast_strlen_zero(vmu->serveremail))
-				myserveremail = vmu->serveremail;
-			sendmail(myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, fn, fmt, duration, attach_user_voicemail, category);
-		}
+	if (!ast_strlen_zero(vmu->email)) {
+		int attach_user_voicemail = ast_test_flag((&globalflags), VM_ATTACH);
+		char *myserveremail = serveremail;
+		attach_user_voicemail = ast_test_flag(vmu, VM_ATTACH);
+		if (!ast_strlen_zero(vmu->serveremail))
+			myserveremail = vmu->serveremail;
+		sendmail(myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, fn, fmt, duration, attach_user_voicemail, category);
+	}
 
-		if (!ast_strlen_zero(vmu->pager)) {
-			char *myserveremail = serveremail;
-			if (!ast_strlen_zero(vmu->serveremail))
-				myserveremail = vmu->serveremail;
-			sendpage(myserveremail, vmu->pager, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, duration, vmu, category);
-		}
+	if (!ast_strlen_zero(vmu->pager)) {
+		char *myserveremail = serveremail;
+		if (!ast_strlen_zero(vmu->serveremail))
+			myserveremail = vmu->serveremail;
+		sendpage(myserveremail, vmu->pager, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, duration, vmu, category);
 	}
 
 	if (ast_test_flag(vmu, VM_DELETE)) {
@@ -5356,10 +5355,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			AST_APP_ARG(argv1);
 		);
 				        
-		if (!(parse = ast_strdupa(data))) {
-			LOCAL_USER_REMOVE(u);
-			return -1;
-		}
+		parse = ast_strdupa(data);
 
 		AST_STANDARD_APP_ARGS(args, parse);
 
@@ -5826,12 +5822,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 		ast_answer(chan);
 
 	if (!ast_strlen_zero(data)) {
-		tmp = ast_strdupa((char *)data);
-		if (!tmp) {
-			ast_log(LOG_ERROR, "Out of memory\n");
-			LOCAL_USER_REMOVE(u);
-			return -1;
-		}
+		tmp = ast_strdupa(data);
 		AST_STANDARD_APP_ARGS(args, tmp);
 		if (args.argc == 2) {
 			if (ast_app_parse_options(vm_app_options, &flags, opts, args.argv1)) {
@@ -5958,10 +5949,7 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	if (!(box = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	box = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, box);
 
@@ -5998,8 +5986,7 @@ static int vmauthenticate(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	
 	if (s) {
-		if (!(s = ast_strdupa(s)))
-			return -1;
+		s = ast_strdupa(s);
 		user = strsep(&s, "|");
 		options = strsep(&s, "|");
 		if (user) {
@@ -6471,24 +6458,21 @@ static int load_config(void)
 						struct vm_zone *z;
 						if ((z = ast_malloc(sizeof(*z)))) {
 							char *msg_format, *timezone;
-							if ((msg_format = ast_strdupa(var->value))) {
-								timezone = strsep(&msg_format, "|");
-								if (msg_format) {
-									ast_copy_string(z->name, var->name, sizeof(z->name));
-									ast_copy_string(z->timezone, timezone, sizeof(z->timezone));
-									ast_copy_string(z->msg_format, msg_format, sizeof(z->msg_format));
-									AST_LIST_LOCK(&zones);
-									AST_LIST_INSERT_HEAD(&zones, z, list);
-									AST_LIST_UNLOCK(&zones);
-								} else {
-									ast_log(LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
-									free(z);
-								}
+							msg_format = ast_strdupa(var->value);
+							timezone = strsep(&msg_format, "|");
+							if (msg_format) {
+								ast_copy_string(z->name, var->name, sizeof(z->name));
+								ast_copy_string(z->timezone, timezone, sizeof(z->timezone));
+								ast_copy_string(z->msg_format, msg_format, sizeof(z->msg_format));
+								AST_LIST_LOCK(&zones);
+								AST_LIST_INSERT_HEAD(&zones, z, list);
+								AST_LIST_UNLOCK(&zones);
 							} else {
+								ast_log(LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
 								free(z);
-								return -1;
 							}
-						} else {						
+						} else {
+							free(z);
 							return -1;
 						}
 						var = var->next;

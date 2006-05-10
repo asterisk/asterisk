@@ -186,10 +186,6 @@ struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_co
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(defaultport);
 	tmp = ast_strdupa(bindinfo);
-	if (!tmp) {
-		ast_log(LOG_WARNING, "Out of memory!\n");
-		return NULL;
-	}
 
 	host = strsep(&tmp, ":");
 	port = tmp;

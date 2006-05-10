@@ -275,10 +275,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 		return -1;	
 	}
 
-	if (!(buf = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(lu);
-		return -1;
-	}
+	buf = ast_strdupa(data);
 
 	argc = ast_app_separate_args(buf, '|', argv, sizeof(argv) / sizeof(argv[0]));
 
