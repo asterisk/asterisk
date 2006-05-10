@@ -763,7 +763,7 @@ int ast_rtp_early_media(struct ast_channel *dest, struct ast_channel *src)
 	}
 	if (!srcpr) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", src->name);
+			ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", src ? src->name : "<unspecified>");
 		ast_channel_unlock(dest);
 		if (src)
 			ast_channel_unlock(src);
