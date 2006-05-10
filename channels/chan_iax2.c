@@ -791,7 +791,7 @@ static int iax2_digit(struct ast_channel *c, char digit);
 static int iax2_do_register(struct iax2_registry *reg);
 static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan);
 static int iax2_hangup(struct ast_channel *c);
-static int iax2_indicate(struct ast_channel *c, int condition);
+static int iax2_indicate(struct ast_channel *c, int condition, const void *data, size_t datalen);
 static int iax2_poke_peer(struct iax2_peer *peer, int heldcall);
 static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const char *template, int force);
 static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned int ts, int seqno, int now, int transfer, int final);
@@ -3493,12 +3493,12 @@ static int iax2_answer(struct ast_channel *c)
 	return send_command_locked(callno, AST_FRAME_CONTROL, AST_CONTROL_ANSWER, 0, NULL, 0, -1);
 }
 
-static int iax2_indicate(struct ast_channel *c, int condition)
+static int iax2_indicate(struct ast_channel *c, int condition, const void *data, size_t datalen)
 {
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	if (option_debug && iaxdebug)
 		ast_log(LOG_DEBUG, "Indicating condition %d\n", condition);
-	return send_command_locked(callno, AST_FRAME_CONTROL, condition, 0, NULL, 0, -1);
+	return send_command_locked(callno, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);
 }
 	
 static int iax2_transfer(struct ast_channel *c, const char *dest)

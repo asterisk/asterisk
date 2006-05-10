@@ -1060,7 +1060,7 @@ static int sip_hangup(struct ast_channel *ast);
 static int sip_answer(struct ast_channel *ast);
 static struct ast_frame *sip_read(struct ast_channel *ast);
 static int sip_write(struct ast_channel *ast, struct ast_frame *frame);
-static int sip_indicate(struct ast_channel *ast, int condition);
+static int sip_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen);
 static int sip_transfer(struct ast_channel *ast, const char *dest);
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int sip_senddigit(struct ast_channel *ast, char digit);
@@ -2927,7 +2927,7 @@ static int sip_transfer(struct ast_channel *ast, const char *dest)
    the indication - busy signal, congestion etc 
    \return -1 to force ast_indicate to send indication in audio, 0 if SIP can handle the indication by sending a message
 */
-static int sip_indicate(struct ast_channel *ast, int condition)
+static int sip_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
 	struct sip_pvt *p = ast->tech_pvt;
 	int res = 0;

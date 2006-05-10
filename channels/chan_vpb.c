@@ -349,7 +349,7 @@ static int vpb_answer(struct ast_channel *ast);
 static struct ast_frame *vpb_read(struct ast_channel *ast);
 static int vpb_write(struct ast_channel *ast, struct ast_frame *frame);
 static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
-static int vpb_indicate(struct ast_channel *ast, int condition);
+static int vpb_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen);
 static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
 static struct ast_channel_tech vpb_tech = {
@@ -1720,7 +1720,7 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 	return tmp;
 }
 
-static int vpb_indicate(struct ast_channel *ast, int condition)
+static int vpb_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt;
 	int res = 0;
@@ -1818,7 +1818,7 @@ static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 		else {
 			if (option_verbose > 3)
 				ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_fixup Calling vpb_indicate\n", p->dev);
-			vpb_indicate(newchan, AST_CONTROL_RINGING);
+			vpb_indicate(newchan, AST_CONTROL_RINGING, NULL, 0);
 		}
 	}
 

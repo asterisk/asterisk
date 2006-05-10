@@ -101,7 +101,7 @@ static int features_hangup(struct ast_channel *ast);
 static int features_answer(struct ast_channel *ast);
 static struct ast_frame *features_read(struct ast_channel *ast);
 static int features_write(struct ast_channel *ast, struct ast_frame *f);
-static int features_indicate(struct ast_channel *ast, int condition);
+static int features_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen);
 static int features_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
 static const struct ast_channel_tech features_tech = {
@@ -285,7 +285,7 @@ static int features_fixup(struct ast_channel *oldchan, struct ast_channel *newch
 	return 0;
 }
 
-static int features_indicate(struct ast_channel *ast, int condition)
+static int features_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
 	struct feature_pvt *p = ast->tech_pvt;
 	int res = -1;

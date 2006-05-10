@@ -494,7 +494,7 @@ static int mgcp_hangup(struct ast_channel *ast);
 static int mgcp_answer(struct ast_channel *ast);
 static struct ast_frame *mgcp_read(struct ast_channel *ast);
 static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame);
-static int mgcp_indicate(struct ast_channel *ast, int ind);
+static int mgcp_indicate(struct ast_channel *ast, int ind, const void *data, size_t datalen);
 static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int mgcp_senddigit(struct ast_channel *ast, char digit);
 static int mgcp_devicestate(void *data);
@@ -1401,7 +1401,7 @@ static char *control2str(int ind) {
 	return "UNKNOWN";
 }
 
-static int mgcp_indicate(struct ast_channel *ast, int ind)
+static int mgcp_indicate(struct ast_channel *ast, int ind, const void *data, size_t datalen)
 {
 	struct mgcp_subchannel *sub = ast->tech_pvt;
 	int res = 0;

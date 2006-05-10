@@ -695,7 +695,7 @@ static int zt_answer(struct ast_channel *ast);
 struct ast_frame *zt_read(struct ast_channel *ast);
 static int zt_write(struct ast_channel *ast, struct ast_frame *frame);
 struct ast_frame *zt_exception(struct ast_channel *ast);
-static int zt_indicate(struct ast_channel *chan, int condition);
+static int zt_indicate(struct ast_channel *chan, int condition, const void *data, size_t datalen);
 static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int zt_setoption(struct ast_channel *chan, int option, void *data, int datalen);
 static int zt_func_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len); 
@@ -3341,7 +3341,7 @@ static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 			p->subs[x].owner = newchan;
 		}
 	if (newchan->_state == AST_STATE_RINGING) 
-		zt_indicate(newchan, AST_CONTROL_RINGING);
+		zt_indicate(newchan, AST_CONTROL_RINGING, NULL, 0);
 	update_conf(p);
 	ast_mutex_unlock(&p->lock);
 	return 0;
@@ -4843,7 +4843,7 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 	return 0;
 }
 
-static int zt_indicate(struct ast_channel *chan, int condition)
+static int zt_indicate(struct ast_channel *chan, int condition, const void *data, size_t datalen)
 {
 	struct zt_pvt *p = chan->tech_pvt;
 	int res=-1;

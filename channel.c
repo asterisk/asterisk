@@ -2098,6 +2098,11 @@ struct ast_frame *ast_read_noaudio(struct ast_channel *chan)
 
 int ast_indicate(struct ast_channel *chan, int condition)
 {
+	return ast_indicate_data(chan, condition, NULL, 0);
+}
+
+int ast_indicate_data(struct ast_channel *chan, int condition, const void *data, size_t datalen)
+{
 	int res = -1;
 
 	ast_channel_lock(chan);
@@ -2107,7 +2112,7 @@ int ast_indicate(struct ast_channel *chan, int condition)
 		return -1;
 	}
 	if (chan->tech->indicate)
-		res = chan->tech->indicate(chan, condition);
+		res = chan->tech->indicate(chan, condition, data, datalen);
 	ast_channel_unlock(chan);
 	if (!chan->tech->indicate || res) {
 		/*
@@ -3334,16 +3339,21 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 		other = (who == c0) ? c1 : c0; /* the 'other' channel */
 
 		if ((f->frametype == AST_FRAME_CONTROL) && !(config->flags & AST_BRIDGE_IGNORE_SIGS)) {
-			if ((f->subclass == AST_CONTROL_HOLD) || (f->subclass == AST_CONTROL_UNHOLD) ||
-			    (f->subclass == AST_CONTROL_VIDUPDATE)) {
-				ast_indicate(other, f->subclass);
-			} else {
+			switch (f->subclass) {
+			case AST_CONTROL_HOLD:
+			case AST_CONTROL_UNHOLD:
+			case AST_CONTROL_VIDUPDATE:
+				ast_indicate_data(other, f->subclass, f->data, f->datalen);
+				break;
+			default:
 				*fo = f;
 				*rc = who;
 				res =  AST_BRIDGE_COMPLETE;
 				ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
 				break;
 			}
+			if (res == AST_BRIDGE_COMPLETE)
+				break;
 		}
 		if ((f->frametype == AST_FRAME_VOICE) ||
 		    (f->frametype == AST_FRAME_DTMF) ||

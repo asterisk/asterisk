@@ -901,7 +901,7 @@ static int skinny_hangup(struct ast_channel *ast);
 static int skinny_answer(struct ast_channel *ast);
 static struct ast_frame *skinny_read(struct ast_channel *ast);
 static int skinny_write(struct ast_channel *ast, struct ast_frame *frame);
-static int skinny_indicate(struct ast_channel *ast, int ind);
+static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, size_t datalen);
 static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int skinny_senddigit(struct ast_channel *ast, char digit);
 
@@ -2172,7 +2172,7 @@ static char *control2str(int ind) {
 }
 
 
-static int skinny_indicate(struct ast_channel *ast, int ind)
+static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, size_t datalen)
 {
 	struct skinny_subchannel *sub = ast->tech_pvt;
 	struct skinny_line *l = sub->parent;

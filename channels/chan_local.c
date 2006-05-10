@@ -72,7 +72,7 @@ static int local_hangup(struct ast_channel *ast);
 static int local_answer(struct ast_channel *ast);
 static struct ast_frame *local_read(struct ast_channel *ast);
 static int local_write(struct ast_channel *ast, struct ast_frame *f);
-static int local_indicate(struct ast_channel *ast, int condition);
+static int local_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen);
 static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int local_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen);
 
@@ -261,7 +261,7 @@ static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	return 0;
 }
 
-static int local_indicate(struct ast_channel *ast, int condition)
+static int local_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
 	struct local_pvt *p = ast->tech_pvt;
 	int res = -1;

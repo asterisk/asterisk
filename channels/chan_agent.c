@@ -248,7 +248,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast);
 static int agent_write(struct ast_channel *ast, struct ast_frame *f);
 static int agent_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen);
 static int agent_sendtext(struct ast_channel *ast, const char *text);
-static int agent_indicate(struct ast_channel *ast, int condition);
+static int agent_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen);
 static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge);
 static void set_agentbycallerid(const char *callerid, const char *agent);
@@ -586,7 +586,7 @@ static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	return 0;
 }
 
-static int agent_indicate(struct ast_channel *ast, int condition)
+static int agent_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
 	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;

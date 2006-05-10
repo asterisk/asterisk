@@ -183,7 +183,7 @@ static int alsa_answer(struct ast_channel *c);
 static struct ast_frame *alsa_read(struct ast_channel *chan);
 static int alsa_call(struct ast_channel *c, char *dest, int timeout);
 static int alsa_write(struct ast_channel *chan, struct ast_frame *f);
-static int alsa_indicate(struct ast_channel *chan, int cond);
+static int alsa_indicate(struct ast_channel *chan, int cond, const void *data, size_t datalen);
 static int alsa_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
 static const struct ast_channel_tech alsa_tech = {
@@ -750,7 +750,7 @@ static int alsa_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	return 0;
 }
 
-static int alsa_indicate(struct ast_channel *chan, int cond)
+static int alsa_indicate(struct ast_channel *chan, int cond, const void *data, size_t datalen)
 {
 	int res = 0;
 	ast_mutex_lock(&alsalock);

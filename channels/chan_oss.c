@@ -373,7 +373,7 @@ static int oss_answer(struct ast_channel *c);
 static struct ast_frame *oss_read(struct ast_channel *chan);
 static int oss_call(struct ast_channel *c, char *dest, int timeout);
 static int oss_write(struct ast_channel *chan, struct ast_frame *f);
-static int oss_indicate(struct ast_channel *chan, int cond);
+static int oss_indicate(struct ast_channel *chan, int cond, const void *data, size_t datalen);
 static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static char tdesc[] = "OSS Console Channel Driver";
 
@@ -901,7 +901,7 @@ static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	return 0;
 }
 
-static int oss_indicate(struct ast_channel *c, int cond)
+static int oss_indicate(struct ast_channel *c, int cond, const void *data, size_t datalen)
 {
 	struct chan_oss_pvt *o = c->tech_pvt;
 	int res;

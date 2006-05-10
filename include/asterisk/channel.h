@@ -250,7 +250,7 @@ struct ast_channel_tech {
 						struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 
 	/*! Indicate a particular condition (e.g. AST_CONTROL_BUSY or AST_CONTROL_RINGING or AST_CONTROL_CONGESTION */
-	int (* const indicate)(struct ast_channel *c, int condition);
+	int (* const indicate)(struct ast_channel *c, int condition, const void *data, size_t datalen);
 
 	/*! Fix up a channel:  If a channel is consumed, this is called.  Basically update any ->owner links */
 	int (* const fixup)(struct ast_channel *oldchan, struct ast_channel *newchan);
@@ -763,6 +763,16 @@ int ast_call(struct ast_channel *chan, char *addr, int timeout);
  * \return Returns 0 on success, -1 on failure
  */
 int ast_indicate(struct ast_channel *chan, int condition);
+
+/*! \brief Indicates condition of channel, with payload
+ * \note Indicate a condition such as AST_CONTROL_BUSY, AST_CONTROL_RINGING, or AST_CONTROL_CONGESTION on a channel
+ * \param chan channel to change the indication
+ * \param condition which condition to indicate on the channel
+ * \param data pointer to payload data
+ * \param datalen size of payload data
+ * \return Returns 0 on success, -1 on failure
+ */
+int ast_indicate_data(struct ast_channel *chan, int condition, const void *data, size_t datalen);
 
 /* Misc stuff ------------------------------------------------ */
 

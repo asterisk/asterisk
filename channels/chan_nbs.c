@@ -296,12 +296,12 @@ static int __unload_module(void)
 	return 0;
 }
 
-int unload_module(void)
+static int unload_module(void)
 {
 	return __unload_module();
 }
 
-int load_module(void)
+static int load_module(void)
 {
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&nbs_tech)) {

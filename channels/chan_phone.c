@@ -169,7 +169,7 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame);
 static struct ast_frame *phone_exception(struct ast_channel *ast);
 static int phone_send_text(struct ast_channel *ast, const char *text);
 static int phone_fixup(struct ast_channel *old, struct ast_channel *new);
-static int phone_indicate(struct ast_channel *chan, int condition);
+static int phone_indicate(struct ast_channel *chan, int condition, const void *data, size_t datalen);
 
 static const struct ast_channel_tech phone_tech = {
 	.type = "Phone",
@@ -206,7 +206,7 @@ static struct ast_channel_tech phone_tech_fxs = {
 
 static struct ast_channel_tech *cur_tech;
 
-static int phone_indicate(struct ast_channel *chan, int condition)
+static int phone_indicate(struct ast_channel *chan, int condition, const void *data, size_t datalen)
 {
 	struct phone_pvt *p = chan->tech_pvt;
 	int res=-1;
