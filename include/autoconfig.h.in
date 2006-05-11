@@ -1,5 +1,9 @@
 /* include/autoconfig.h.in.  Generated from configure.ac by autoheader.  */
 
+#ifndef MENUSELECT
+#include "asterisk/buildopts.h"
+#endif
+
 #ifndef _REENTRANT
 #define _REENTRANT
 #endif

@@ -1,0 +1,13 @@
+#!/bin/sh
+
+cat << END
+/*
+ * buildopts.h 
+ * Automatically generated
+ */
+
+END
+TMP=`grep MENUSELECT_CFLAGS menuselect.makeopts | sed s/MENUSELECT_CFLAGS\=//g`
+for x in ${TMP}; do
+     echo "#define ${x}"
+done

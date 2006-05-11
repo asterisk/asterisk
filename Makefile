@@ -195,7 +195,6 @@ ifneq ($(wildcard makeopts),)
   include makeopts
 endif
 
-ASTCFLAGS+=$(MENUSELECT_CFLAGS)
 TOPDIR_CFLAGS=-include include/autoconfig.h -Iinclude
 MOD_SUBDIR_CFLAGS=-include ../include/autoconfig.h -I../include -I..
 OTHER_SUBDIR_CFLAGS=-include ../include/autoconfig.h -I../include -I..
@@ -432,7 +431,7 @@ _all: all
 	@echo " +               make install                +"  
 	@echo " +-------------------------------------------+"  
 
-all: config.status menuselect.makeopts cleantest depend asterisk subdirs
+all: cleantest config.status menuselect.makeopts depend asterisk subdirs
 
 config.status: configure
 	@CFLAGS="" ./configure
@@ -525,10 +524,17 @@ include/asterisk/version.h:
 	fi
 	@rm -f $@.tmp
 
+include/asterisk/buildopts.h: menuselect.makeopts
+	@build_tools/make_buildopts_h > $@.tmp
+	@if cmp -s $@.tmp $@ ; then echo; else \
+		mv $@.tmp $@ ; \
+	fi
+	@rm -f $@.tmp
+
 stdtime/libtime.a:
 	CFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" $(MAKE) -C stdtime libtime.a
 
-asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
+asterisk: include/asterisk/buildopts.h editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
 	build_tools/make_build_h > include/asterisk/build.h.tmp
 	if cmp -s include/asterisk/build.h.tmp include/asterisk/build.h ; then echo ; else \
 		mv include/asterisk/build.h.tmp include/asterisk/build.h ; \
@@ -567,6 +573,7 @@ dist-clean: clean
 	rm -f menuselect.makeopts makeopts makeopts.xml
 	rm -f config.log config.status
 	rm -f include/autoconfig.h
+	rm -f include/asterisk/buildopts.h
 	$(MAKE) -C mxml clean
 	$(MAKE) -C build_tools dist-clean
 
@@ -862,7 +869,7 @@ spec:
 
 rpm: __rpm
 
-__rpm: include/asterisk/version.h spec
+__rpm: include/asterisk/version.h include/asterisk/buildopts.h spec
 	rm -rf /tmp/asterisk ; \
 	mkdir -p /tmp/asterisk/redhat/RPMS/i386 ; \
 	$(MAKE) DESTDIR=/tmp/asterisk install ; \
@@ -911,10 +918,10 @@ dont-optimize: _all
 
 valgrind: dont-optimize
 
-depend: include/asterisk/version.h .depend defaults.h 
+depend: include/asterisk/version.h include/asterisk/buildopts.h .depend defaults.h 
 	@for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
 
-.depend: include/asterisk/version.h defaults.h
+.depend: include/asterisk/version.h include/asterisk/buildopts.h defaults.h
 	build_tools/mkdep $(CFLAGS) $(wildcard *.c)
 
 .tags-depend:
@@ -958,7 +965,7 @@ env:
 
 cleantest:
 	@if cmp -s .cleancount .lastclean ; then echo ; else \
-		$(MAKE) clean; cp -f .cleancount .lastclean;\
+		$(MAKE) dist-clean; cp -f .cleancount .lastclean;\
 	fi
 
 _uninstall:

@@ -1,20 +1,20 @@
 	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" force_clean_on_change="yes">
-		<member name="-DDEBUG_SCHEDULER">
+		<member name="DEBUG_SCHEDULER">
 		</member>
-		<member name="-DDEBUG_THREADS">
+		<member name="DEBUG_THREADS">
 		</member>
-		<member name="-DDETECT_DEADLOCKS">
+		<member name="DETECT_DEADLOCKS">
 		</member>
-		<member name="-DDUMP_SCHEDULER">
+		<member name="DUMP_SCHEDULER">
 		</member>
-		<member name="-DLOW_MEMORY">
+		<member name="LOW_MEMORY">
 		</member>
-		<member name="-DMALLOC_DEBUG">
+		<member name="MALLOC_DEBUG">
 		</member>
-		<member name="-DRADIO_RELAX">
+		<member name="RADIO_RELAX">
 		</member>
-		<member name="-DTRACE_FRAMES">
+		<member name="TRACE_FRAMES">
 		</member>
-		<member name="-DMTX_PROFILE">
+		<member name="MTX_PROFILE">
 		</member>
 	</category>

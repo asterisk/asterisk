@@ -1,5 +1,5 @@
 MENUSELECT_OBJS=menuselect.o menuselect_curses.o
-MENUSELECT_CFLAGS=-g -c -D_GNU_SOURCE -I../ -I../include/
+MENUSELECT_CFLAGS=-g -c -D_GNU_SOURCE -DMENUSELECT -I../ -I../include/
 MENUSELECT_LIBS=../mxml/libmxml.a
 
 ifeq ($(OSARCH),SunOS)
