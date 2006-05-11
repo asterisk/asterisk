@@ -965,7 +965,7 @@ env:
 
 cleantest:
 	@if cmp -s .cleancount .lastclean ; then echo ; else \
-		$(MAKE) dist-clean; cp -f .cleancount .lastclean;\
+		$(MAKE) clean; cp -f .cleancount .lastclean;\
 	fi
 
 _uninstall:
