@@ -3276,7 +3276,7 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 	/* Copy voice back and forth between the two channels. */
 	struct ast_channel *cs[3];
 	struct ast_frame *f;
-	enum ast_bridge_result res = 0;
+	enum ast_bridge_result res = AST_BRIDGE_COMPLETE;
 	int o0nativeformats;
 	int o1nativeformats;
 	int watch_c0_dtmf;
@@ -3328,7 +3328,6 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 		if (!f) {
 			*fo = NULL;
 			*rc = who;
-			res = AST_BRIDGE_COMPLETE;
 			ast_log(LOG_DEBUG, "Didn't get a frame from channel: %s\n",who->name);
 			break;
 		}
@@ -3336,6 +3335,8 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 		other = (who == c0) ? c1 : c0; /* the 'other' channel */
 
 		if ((f->frametype == AST_FRAME_CONTROL) && !(config->flags & AST_BRIDGE_IGNORE_SIGS)) {
+			int bridge_exit = 0;
+
 			switch (f->subclass) {
 			case AST_CONTROL_HOLD:
 			case AST_CONTROL_UNHOLD:
@@ -3345,11 +3346,11 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			default:
 				*fo = f;
 				*rc = who;
-				res = AST_BRIDGE_COMPLETE;
+				bridge_exit = 1;
 				ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
 				break;
 			}
-			if (res == AST_BRIDGE_COMPLETE)
+			if (bridge_exit)
 				break;
 		}
 		if ((f->frametype == AST_FRAME_VOICE) ||
@@ -3365,7 +3366,6 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			if (f->frametype == AST_FRAME_DTMF && monitored_source) {
 				*fo = f;
 				*rc = who;
-				res = AST_BRIDGE_COMPLETE;
 				ast_log(LOG_DEBUG, "Got DTMF on channel (%s)\n", who->name);
 				break;
 			}
