@@ -1259,6 +1259,15 @@ static const struct ast_channel_tech sip_tech = {
 	.send_text = sip_sendtext,
 };
 
+/**--- some list management macros. **/
+ 
+#define UNLINK(element, head, prev) do {	\
+	if (prev)				\
+		(prev)->next = (element)->next;	\
+	else					\
+		(head) = (element)->next;	\
+	} while (0)
+
 /*! \brief Interface structure with callbacks used to connect to RTP module */
 static struct ast_rtp_protocol sip_rtp = {
 	type: "SIP",
@@ -1716,10 +1725,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod, int 
 				p->pendinginvite = 0;
 			}
 			/* this is our baby */
-			if (prev)
-				prev->next = cur->next;
-			else
-				p->packets = cur->next;
+			UNLINK(cur, p->packets, prev);
 			if (cur->retransid > -1) {
 				if (sipdebug && option_debug > 3)
 					ast_log(LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
@@ -2487,10 +2493,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 
 	for (prev = NULL, cur = iflist; cur; prev = cur, cur = cur->next) {
 		if (cur == p) {
-			if (prev)
-				prev->next = cur->next;
-			else
-				iflist = cur->next;
+			UNLINK(cur, iflist, prev);
 			break;
 		}
 	}
