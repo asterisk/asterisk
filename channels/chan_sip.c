@@ -1026,32 +1026,11 @@ static struct sockaddr_in debugaddr;
 
 struct ast_config *notify_types;		/*!< The list of manual NOTIFY types we know how to send */
 
-
-
 /*---------------------------- Forward declarations of functions in chan_sip.c */
-static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
-static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, enum xmittype reliable);
-static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *unsupported);
-static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *rand, enum xmittype reliable, const char *header, int stale);
-static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
-static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
-static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, int init);
-static int transmit_reinvite_with_sdp(struct sip_pvt *p);
-static int transmit_info_with_digit(struct sip_pvt *p, char digit);
-static int transmit_info_with_vidupdate(struct sip_pvt *p);
-static int transmit_message_with_text(struct sip_pvt *p, const char *text);
-static int transmit_refer(struct sip_pvt *p, const char *dest);
-static int sip_sipredirect(struct sip_pvt *p, const char *dest);
-static struct sip_peer *temp_peer(const char *name);
-static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init);
-static void free_old_route(struct sip_route *route);
-static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod, char *digest, int digest_len);
-static int build_reply_digest(struct sip_pvt *p, int method, char *digest, int digest_len);
-static int update_call_counter(struct sip_pvt *fup, int event);
-static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int realtime);
-static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime);
-static int sip_do_reload(enum channelreloadreason reason);
-static int expire_register(void *data);
+/*! \note Sorted up from start to build_rpid.... Will continue categorization in order to
+	split up chan_sip.c into several files  */
+
+/*--- PBX interface functions */
 static struct ast_channel *sip_request_call(const char *type, int format, void *data, int *cause);
 static int sip_devicestate(void *data);
 static int sip_sendtext(struct ast_channel *ast, const char *text);
@@ -1064,36 +1043,176 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 static int sip_transfer(struct ast_channel *ast, const char *dest);
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int sip_senddigit(struct ast_channel *ast, char digit);
+
+/*--- Transmitting responses and requests */
+static int __sip_xmit(struct sip_pvt *p, char *data, int len);
+static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal, int sipmethod);
+static int __transmit_response(struct sip_pvt *p, const char *msg, struct sip_request *req, enum xmittype reliable);
+static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
+static int transmit_response_reliable(struct sip_pvt *p, const char *msg, struct sip_request *req);
+static int transmit_response_with_date(struct sip_pvt *p, char *msg, struct sip_request *req);
+static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, enum xmittype reliable);
+static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *unsupported);
+static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *rand, enum xmittype reliable, const char *header, int stale);
+static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip_request *req, enum xmittype reliable);
+static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
+static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
+static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, int init);
+static int transmit_reinvite_with_sdp(struct sip_pvt *p);
+static int transmit_info_with_digit(struct sip_pvt *p, char digit);
+static int transmit_info_with_vidupdate(struct sip_pvt *p);
+static int transmit_message_with_text(struct sip_pvt *p, const char *text);
+static int transmit_refer(struct sip_pvt *p, const char *dest);
+static int transmit_state_notify(struct sip_pvt *p, int state, int full);
+static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, char *authheader);
+static int retrans_pkt(void *data);
+static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
+static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
+static void copy_request(struct sip_request *dst, struct sip_request *src);
+
+/*--- Dialog management */
+static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
+				 int useglobal_nat, const int intended_method);
+static int __sip_autodestruct(void *data);
+static int sip_scheddestroy(struct sip_pvt *p, int ms);
+static int sip_cancel_destroy(struct sip_pvt *p);
+static void sip_destroy(struct sip_pvt *p);
+static void __sip_destroy(struct sip_pvt *p, int lockowner);
+static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod, int reset);
+static int __sip_pretend_ack(struct sip_pvt *p);
+static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
+static int auto_congest(void *nothing);
+static int update_call_counter(struct sip_pvt *fup, int event);
+static int hangup_sip2cause(int cause);
+static const char *hangup_cause2sip(int cause);
+static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method);
+
+/*--- Codec handling / SDP */
+static void try_suggested_sip_codec(struct sip_pvt *p);
+static const char *get_sdp_by_line(const char* line, const char *name, int nameLen);
+static const char* get_sdp_iterate(int* start, struct sip_request *req, const char *name);
+static const char *get_sdp(struct sip_request *req, const char *name);
+static int process_sdp(struct sip_pvt *p, struct sip_request *req);
+static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
+			     char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
+			     int debug);
+static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_rate,
+				char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
+				int debug);
+static int add_sdp(struct sip_request *resp, struct sip_pvt *p);
+
+/*--- Authentication stuff */
+static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init);
+static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod, char *digest, int digest_len);
+static int build_reply_digest(struct sip_pvt *p, int method, char *digest, int digest_len);
 static int clear_realm_authentication(struct sip_auth *authlist);	/* Clear realm authentication list (at reload) */
 static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);	/* Add realm authentication in list */
 static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, const char *realm);	/* Find authentication for a specific realm */
 static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
 		const char *secret, const char *md5secret, int sipmethod,
 		char *uri, enum xmittype reliable, int ignore);
+
+/*--- Domain handling */
 static int check_sip_domain(const char *domain, char *context, size_t len); /* Check if domain is one of our local domains */
+
+static void free_old_route(struct sip_route *route);
+
+/*--- Misc functions */
+static int sip_do_reload(enum channelreloadreason reason);
+static int expire_register(void *data);
+static int sip_sipredirect(struct sip_pvt *p, const char *dest);
+static int restart_monitor(void);
+static int sip_send_mwi_to_peer(struct sip_peer *peer);
+static void sip_destroy(struct sip_pvt *p);
+static int sip_scheddestroy(struct sip_pvt *p, int ms);
+static int sip_addrcmp(char *name, struct sockaddr_in *sin);	/* Support for peer matching */
+
+/*--- CLI and manager command helpers */
+static const char *sip_nat_mode(const struct sip_pvt *p);
+
+/*--- Debugging */
+static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEBUG at end of dialog, before destroying data */
+static inline int sip_debug_test_addr(const struct sockaddr_in *addr);
+static inline int sip_debug_test_pvt(struct sip_pvt *p);
+static int append_history_full(struct sip_pvt *p, const char *fmt, ...);
+
+/*--- Device object handling */
+static struct sip_peer *temp_peer(const char *name);
+static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int realtime);
+static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime);
+static int update_call_counter(struct sip_pvt *fup, int event);
+static void sip_destroy_peer(struct sip_peer *peer);
+static void sip_destroy_user(struct sip_user *user);
+static int sip_poke_peer(struct sip_peer *peer);
+static void set_peer_defaults(struct sip_peer *peer);
+static struct sip_peer *temp_peer(const char *name);
+static void register_peer_exten(struct sip_peer *peer, int onoff);
+static void sip_destroy_peer(struct sip_peer *peer);
+static void sip_destroy_user(struct sip_user *user);
+static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime);
+static struct sip_user *find_user(const char *name, int realtime);
+/* Realtime device support */
+static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, int expirey);
+static struct sip_user *realtime_user(const char *username);
+static void update_peer(struct sip_peer *p, int expiry);
+static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *sin);
+
+/*--- Internal UA client handling (outbound registrations) */
+static int __sip_do_register(struct sip_registry *r);
+static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us);
+static void sip_registry_destroy(struct sip_registry *reg);
+static int sip_register(char *value, int lineno);
+
+/*--- Parsing SIP requests and responses */
 static void append_date(struct sip_request *req);	/* Append date to SIP packet */
 static int determine_firstline_parts(struct sip_request *req);
-static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEBUG at end of dialog, before destroying data */
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
-static int transmit_state_notify(struct sip_pvt *p, int state, int full);
 static const char *gettag(const struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
 static int find_sip_method(const char *msg);
 static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported);
-static void sip_destroy(struct sip_pvt *p);
-static void sip_destroy_peer(struct sip_peer *peer);
-static void sip_destroy_user(struct sip_user *user);
 static void parse_request(struct sip_request *req);
 static const char *get_header(const struct sip_request *req, const char *name);
 static void copy_request(struct sip_request *dst,struct sip_request *src);
-static int transmit_response_reliable(struct sip_pvt *p, const char *msg, struct sip_request *req);
-static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, char *authheader);
-static int sip_poke_peer(struct sip_peer *peer);
-static int __sip_do_register(struct sip_registry *r);
-static int restart_monitor(void);
-static void set_peer_defaults(struct sip_peer *peer);
-static struct sip_peer *temp_peer(const char *name);
-static int sip_send_mwi_to_peer(struct sip_peer *peer);
-static int sip_scheddestroy(struct sip_pvt *p, int ms);
+static char *referstatus2str(enum referstatus rstatus);
+static int method_match(enum sipmethod id, const char *name);
+static void parse_copy(struct sip_request *dst, struct sip_request *src);
+static char *get_in_brackets(char *tmp);
+static const char *find_alias(const char *name, const char *_default);
+static const char *__get_header(const struct sip_request *req, const char *name, int *start);
+static const char *get_header(const struct sip_request *req, const char *name);
+static int lws2sws(char *msgbuf, int len);
+static void extract_uri(struct sip_pvt *p, struct sip_request *req);
+
+/*--- Constructing requests and responses */
+static void initialize_initreq(struct sip_pvt *p, struct sip_request *req);
+static int init_req(struct sip_request *req, int sipmethod, const char *recip);
+static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, int seqno, int newbranch);
+static int init_resp(struct sip_request *req, const char *resp, struct sip_request *orig);
+static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg, struct sip_request *req);
+static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p);
+static void build_via(struct sip_pvt *p);
+static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer);
+static int create_addr(struct sip_pvt *dialog, const char *opeer);
+static char *generate_random_string(char *buf, size_t size);
+static void build_callid_pvt(struct sip_pvt *pvt);
+static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip, const char *fromdomain);
+static void make_our_tag(char *tagbuf, size_t len);
+static int add_header(struct sip_request *req, const char *var, const char *value);
+static int add_header_contentLength(struct sip_request *req, int len);
+static int add_blank_header(struct sip_request *req);
+static int add_line(struct sip_request *req, const char *line);
+static int add_text(struct sip_request *req, const char *text);
+static int add_digit(struct sip_request *req, char digit);
+static int add_vidupdate(struct sip_request *req);
+static void add_route(struct sip_request *req, struct sip_route *route);
+static int copy_header(struct sip_request *req, struct sip_request *orig, char *field);
+static int copy_all_header(struct sip_request *req, struct sip_request *orig, char *field);
+static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct sip_request *orig, char *field);
+static void set_destination(struct sip_pvt *p, char *uri);
+static void append_date(struct sip_request *req);
+static void build_contact(struct sip_pvt *p);
+static void build_rpid(struct sip_pvt *p);
 
 /*------Request handling functions */
 static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *recount, char *e);
@@ -1116,6 +1235,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 static struct ast_rtp *sip_get_rtp_peer(struct ast_channel *chan);
 static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan);
 static int sip_get_codec(struct ast_channel *chan);
+static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p);
 
 /*! \brief Definition of this channel for PBX channel registration */
 static const struct ast_channel_tech sip_tech = {
@@ -1258,12 +1378,13 @@ static inline int sip_debug_test_addr(const struct sockaddr_in *addr)
 	return 1;
 }
 
-/* The real destination address for a write */
+/*! \brief The real destination address for a write */
 static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p)
 {
 	return ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_ROUTE ? &p->recv : &p->sa;
 }
 
+/*! \brief Display SIP nat mode */
 static const char *sip_nat_mode(const struct sip_pvt *p)
 {
 	return ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_ROUTE ? "NAT" : "no NAT";
@@ -1383,7 +1504,7 @@ static int append_history_full(struct sip_pvt *p, const char *fmt, ...)
 	return 0;
 }
 
-/*! \brief Retransmit SIP message if no answer */
+/*! \brief Retransmit SIP message if no answer (Called from scheduler) */
 static int retrans_pkt(void *data)
 {
 	struct sip_pkt *pkt = data, *prev, *cur = NULL;
@@ -2310,7 +2431,7 @@ static void sip_registry_destroy(struct sip_registry *reg)
 	
 }
 
-/*! \brief Execute destrucion of SIP dialog structure, release memory */
+/*! \brief Execute destruction of SIP dialog structure, release memory */
 static void __sip_destroy(struct sip_pvt *p, int lockowner)
 {
 	struct sip_pvt *cur, *prev = NULL;
@@ -3127,7 +3248,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 }
 
 /*! \brief Reads one line of SIP message body */
-static const char* get_sdp_by_line(const char* line, const char *name, int nameLen)
+static const char *get_sdp_by_line(const char* line, const char *name, int nameLen)
 {
 	if (strncasecmp(line, name, nameLen) == 0 && line[nameLen] == '=')
 		return ast_skip_blanks(line + nameLen + 1);
@@ -3138,8 +3259,7 @@ static const char* get_sdp_by_line(const char* line, const char *name, int nameL
  * at the 'start' line. Returns the matching line, and 'start'
  * is updated with the next line number.
  */
-static const char* get_sdp_iterate(int* start,
-			     struct sip_request *req, const char *name)
+static const char* get_sdp_iterate(int* start, struct sip_request *req, const char *name)
 {
 	int len = strlen(name);
 
@@ -3159,6 +3279,7 @@ static const char *get_sdp(struct sip_request *req, const char *name)
 	return get_sdp_iterate(&dummy, req, name);
 }
 
+/*! \brief Find compressed SIP alias */
 static const char *find_alias(const char *name, const char *_default)
 {
 	/*! \brief Structure for conversion between compressed SIP and "normal" SIP */
@@ -3186,7 +3307,7 @@ static const char *find_alias(const char *name, const char *_default)
 		{ "Session-Expires",     "x" },
 	};
 	int x;
-	for (x=0;x<sizeof(aliases) / sizeof(aliases[0]); x++) 
+	for (x=0; x<sizeof(aliases) / sizeof(aliases[0]); x++) 
 		if (!strcasecmp(aliases[x].fullname, name))
 			return aliases[x].shortname;
 	return _default;
