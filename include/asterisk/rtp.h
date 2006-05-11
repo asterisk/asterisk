@@ -106,6 +106,8 @@ void ast_rtp_destroy(struct ast_rtp *rtp);
 
 void ast_rtp_reset(struct ast_rtp *rtp);
 
+void ast_rtp_stun_request(struct ast_rtp *rtp, struct sockaddr_in *suggestion, const char *username);
+
 void ast_rtp_set_callback(struct ast_rtp *rtp, ast_rtp_callback callback);
 
 void ast_rtp_set_data(struct ast_rtp *rtp, void *data);

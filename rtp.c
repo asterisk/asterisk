@@ -68,6 +68,7 @@ static int dtmftimeout = DEFAULT_DTMF_TIMEOUT;
 static int rtpstart = 0;		/*!< First port for RTP sessions (set in rtp.conf) */
 static int rtpend = 0;			/*!< Last port for RTP sessions (set in rtp.conf) */
 static int rtpdebug = 0;		/*!< Are we debugging? */
+static int stundebug = 0;		/*!< Are we debugging stun? */
 static struct sockaddr_in rtpdebugaddr;	/*!< Debug packets to/from this host */
 #ifdef SO_NO_CHECK
 static int nochecksums = 0;
@@ -142,6 +143,260 @@ struct ast_rtcp {
 	struct sockaddr_in us;		/*!< Socket representation of the local endpoint. */
 	struct sockaddr_in them;	/*!< Socket representation of the remote endpoint. */
 };
+
+
+typedef struct { unsigned int id[4]; } __attribute__((packed)) stun_trans_id;
+
+/* XXX Maybe stun belongs in another file if it ever has use outside of RTP */
+struct stun_header {
+	unsigned short msgtype;
+	unsigned short msglen;
+	stun_trans_id  id;
+	unsigned char ies[0];
+} __attribute__((packed));
+
+struct stun_attr {
+	unsigned short attr;
+	unsigned short len;
+	unsigned char value[0];
+} __attribute__((packed));
+
+struct stun_addr {
+	unsigned char unused;
+	unsigned char family;
+	unsigned short port;
+	unsigned int addr;
+} __attribute__((packed));
+
+#define STUN_IGNORE		(0)
+#define STUN_ACCEPT		(1)
+
+#define STUN_BINDREQ	0x0001
+#define STUN_BINDRESP	0x0101
+#define STUN_BINDERR	0x0111
+#define STUN_SECREQ		0x0002
+#define STUN_SECRESP	0x0102
+#define STUN_SECERR		0x0112
+
+#define STUN_MAPPED_ADDRESS		0x0001
+#define STUN_RESPONSE_ADDRESS	0x0002
+#define STUN_CHANGE_REQUEST		0x0003
+#define STUN_SOURCE_ADDRESS		0x0004
+#define STUN_CHANGED_ADDRESS	0x0005
+#define STUN_USERNAME			0x0006
+#define STUN_PASSWORD			0x0007
+#define STUN_MESSAGE_INTEGRITY	0x0008
+#define STUN_ERROR_CODE			0x0009
+#define STUN_UNKNOWN_ATTRIBUTES	0x000a
+#define STUN_REFLECTED_FROM		0x000b
+
+static const char *stun_msg2str(int msg)
+{
+	switch(msg) {
+	case STUN_BINDREQ:
+		return "Binding Request";
+	case STUN_BINDRESP:
+		return "Binding Response";
+	case STUN_BINDERR:
+		return "Binding Error Response";
+	case STUN_SECREQ:
+		return "Shared Secret Request";
+	case STUN_SECRESP:
+		return "Shared Secret Response";
+	case STUN_SECERR:
+		return "Shared Secret Error Response";
+	}
+	return "Non-RFC3489 Message";
+}
+
+static const char *stun_attr2str(int msg)
+{
+	switch(msg) {
+	case STUN_MAPPED_ADDRESS:
+		return "Mapped Address";
+	case STUN_RESPONSE_ADDRESS:
+		return "Response Address";
+	case STUN_CHANGE_REQUEST:
+		return "Change Request";
+	case STUN_SOURCE_ADDRESS:
+		return "Source Address";
+	case STUN_CHANGED_ADDRESS:
+		return "Changed Address";
+	case STUN_USERNAME:
+		return "Username";
+	case STUN_PASSWORD:
+		return "Password";
+	case STUN_MESSAGE_INTEGRITY:
+		return "Message Integrity";
+	case STUN_ERROR_CODE:
+		return "Error Code";
+	case STUN_UNKNOWN_ATTRIBUTES:
+		return "Unknown Attributes";
+	case STUN_REFLECTED_FROM:
+		return "Reflected From";
+	}
+	return "Non-RFC3489 Attribute";
+}
+
+struct stun_state {
+	unsigned char *username;
+	unsigned char *password;
+};
+
+static int stun_process_attr(struct stun_state *state, struct stun_attr *attr)
+{
+	if (stundebug)
+		ast_verbose("Found STUN Attribute %s (%04x), length %d\n",
+			stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr), ntohs(attr->len));
+	switch(ntohs(attr->attr)) {
+	case STUN_USERNAME:
+		state->username = (unsigned char *)(attr->value);
+		break;
+	case STUN_PASSWORD:
+		state->password = (unsigned char *)(attr->value);
+		break;
+	default:
+		if (stundebug)
+			ast_verbose("Ignoring STUN attribute %s (%04x), length %d\n", 
+				stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr), ntohs(attr->len));
+	}
+	return 0;
+}
+
+static void append_attr_string(struct stun_attr **attr, int attrval, const char *s, int *len, int *left)
+{
+	int size = sizeof(**attr) + strlen(s);
+	if (*left > size) {
+		(*attr)->attr = htons(attrval);
+		(*attr)->len = htons(strlen(s));
+		memcpy((*attr)->value, s, strlen(s));
+		(*attr) = (struct stun_attr *)((*attr)->value + strlen(s));
+		*len += size;
+		*left -= size;
+	}
+}
+
+static void append_attr_address(struct stun_attr **attr, int attrval, struct sockaddr_in *sin, int *len, int *left)
+{
+	int size = sizeof(**attr) + 8;
+	struct stun_addr *addr;
+	if (*left > size) {
+		(*attr)->attr = htons(attrval);
+		(*attr)->len = htons(8);
+		addr = (struct stun_addr *)((*attr)->value);
+		addr->unused = 0;
+		addr->family = 0x01;
+		addr->port = sin->sin_port;
+		addr->addr = sin->sin_addr.s_addr;
+		(*attr) = (struct stun_attr *)((*attr)->value + 8);
+		*len += size;
+		*left -= size;
+	}
+}
+
+static int stun_send(int s, struct sockaddr_in *dst, struct stun_header *resp)
+{
+	return sendto(s, resp, ntohs(resp->msglen) + sizeof(*resp), 0, dst, sizeof(*dst));
+}
+
+static void stun_req_id(struct stun_header *req)
+{
+	int x;
+	for (x=0;x<4;x++)
+		req->id.id[x] = ast_random();
+}
+
+void ast_rtp_stun_request(struct ast_rtp *rtp, struct sockaddr_in *suggestion, const char *username)
+{
+	struct stun_header *req;
+	unsigned char reqdata[1024];
+	int reqlen, reqleft;
+	struct stun_attr *attr;
+
+	req = (struct stun_header *)reqdata;
+	stun_req_id(req);
+	reqlen = 0;
+	reqleft = sizeof(reqdata) - sizeof(struct stun_header);
+	req->msgtype = 0;
+	req->msglen = 0;
+	attr = (struct stun_attr *)req->ies;
+	if (username)
+		append_attr_string(&attr, STUN_USERNAME, username, &reqlen, &reqleft);
+	req->msglen = htons(reqlen);
+	req->msgtype = htons(STUN_BINDREQ);
+	stun_send(rtp->s, suggestion, req);
+}
+
+static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *data, int len)
+{
+	struct stun_header *resp, *hdr = (struct stun_header *)data;
+	struct stun_attr *attr;
+	struct stun_state st;
+	int ret = STUN_IGNORE;	
+	unsigned char respdata[1024];
+	int resplen, respleft;
+	
+	if (len < sizeof(struct stun_header)) {
+		ast_log(LOG_DEBUG, "Runt STUN packet (only %d, wanting at least %d)\n", len, sizeof(struct stun_header));
+		return -1;
+	}
+	if (stundebug)
+		ast_verbose("STUN Packet, msg %s (%04x), length: %d\n", stun_msg2str(ntohs(hdr->msgtype)), ntohs(hdr->msgtype), ntohs(hdr->msglen));
+	if (ntohs(hdr->msglen) > len - sizeof(struct stun_header)) {
+		ast_log(LOG_DEBUG, "Scrambled STUN packet length (got %d, expecting %d)\n", ntohs(hdr->msglen), len - sizeof(struct stun_header));
+	} else
+		len = ntohs(hdr->msglen);
+	data += sizeof(struct stun_header);
+	memset(&st, 0, sizeof(st));
+	while(len) {
+		if (len < sizeof(struct stun_attr)) {
+			ast_log(LOG_DEBUG, "Runt Attribute (got %d, expecting %d)\n", len, sizeof(struct stun_attr));
+			break;
+		}
+		attr = (struct stun_attr *)data;
+		if (ntohs(attr->len) > len) {
+			ast_log(LOG_DEBUG, "Inconsistant Attribute (length %d exceeds remaining msg len %d)\n", ntohs(attr->len), len);
+			break;
+		}
+		if (stun_process_attr(&st, attr)) {
+			ast_log(LOG_DEBUG, "Failed to handle attribute %s (%04x)\n", stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr));
+			break;
+		}
+		/* Clear attribute in case previous entry was a string */
+		attr->attr = 0;
+		data += ntohs(attr->len) + sizeof(struct stun_attr);
+		len -= ntohs(attr->len) + sizeof(struct stun_attr);
+	}
+	/* Null terminate any string */
+	*data = '\0';
+	resp = (struct stun_header *)respdata;
+	resplen = 0;
+	respleft = sizeof(respdata) - sizeof(struct stun_header);
+	resp->id = hdr->id;
+	resp->msgtype = 0;
+	resp->msglen = 0;
+	attr = (struct stun_attr *)resp->ies;
+	if (!len) {
+		switch(ntohs(hdr->msgtype)) {
+		case STUN_BINDREQ:
+			if (stundebug)
+				ast_verbose("STUN Bind Request, username: %s\n", 
+					st.username ? (const char *)st.username : "<none>");
+			if (st.username)
+				append_attr_string(&attr, STUN_USERNAME, st.username, &resplen, &respleft);
+			append_attr_address(&attr, STUN_MAPPED_ADDRESS, src, &resplen, &respleft);
+			resp->msglen = htons(resplen);
+			resp->msgtype = htons(STUN_BINDRESP);
+			stun_send(s, src, resp);
+			ret = STUN_ACCEPT;
+			break;
+		default:
+			if (stundebug)
+				ast_verbose("Dunno what to do with STUN message %04x (%s)\n", ntohs(hdr->msgtype), stun_msg2str(ntohs(hdr->msgtype)));
+		}
+	}
+	return ret;
+}
 
 /*! \brief List of current sessions */
 static AST_LIST_HEAD_STATIC(protos, ast_rtp_protocol);
@@ -442,7 +697,6 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	res = recvfrom(rtp->s, rtp->rawdata + AST_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - AST_FRIENDLY_OFFSET,
 					0, (struct sockaddr *)&sin, &len);
 
-
 	rtpheader = (unsigned int *)(rtp->rawdata + AST_FRIENDLY_OFFSET);
 	if (res < 0) {
 		if (errno != EAGAIN)
@@ -456,6 +710,21 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		return &ast_null_frame;
 	}
 
+	/* Get fields */
+	seqno = ntohl(rtpheader[0]);
+
+	/* Check RTP version */
+	version = (seqno & 0xC0000000) >> 30;
+	if (!version) {
+		if ((stun_handle_packet(rtp->s, &sin, rtp->rawdata + AST_FRIENDLY_OFFSET, res) == STUN_ACCEPT) &&
+			(!rtp->them.sin_port && !rtp->them.sin_addr.s_addr)) {
+			memcpy(&rtp->them, &sin, sizeof(rtp->them));
+		}
+		return &ast_null_frame;
+	}
+
+	if (version != 2)
+		return &ast_null_frame;
 	/* Ignore if the other side hasn't been given an address
 	   yet.  */
 	if (!rtp->them.sin_addr.s_addr || !rtp->them.sin_port)
@@ -473,14 +742,6 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		}
 	}
 
-	/* Get fields */
-	seqno = ntohl(rtpheader[0]);
-
-	/* Check RTP version */
-	version = (seqno & 0xC0000000) >> 30;
-	if (version != 2)
-		return &ast_null_frame;
-	
 	payloadtype = (seqno & 0x7f0000) >> 16;
 	padding = seqno & (1 << 29);
 	mark = seqno & (1 << 23);
@@ -1912,6 +2173,26 @@ static int rtp_no_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int stun_do_debug(int fd, int argc, char *argv[])
+{
+	if(argc != 2) {
+		return RESULT_SHOWUSAGE;
+	}
+	stundebug = 1;
+	ast_cli(fd, "STUN Debugging Enabled\n");
+	return RESULT_SUCCESS;
+}
+   
+static int stun_no_debug(int fd, int argc, char *argv[])
+{
+	if(argc !=3)
+		return RESULT_SHOWUSAGE;
+	stundebug = 0;
+	ast_cli(fd,"STUN Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
+
+
 static char debug_usage[] =
   "Usage: rtp debug [ip host[:port]]\n"
   "       Enable dumping of all RTP packets to and from host.\n";
@@ -1919,6 +2200,15 @@ static char debug_usage[] =
 static char no_debug_usage[] =
   "Usage: rtp no debug\n"
   "       Disable all RTP debugging\n";
+
+static char stun_debug_usage[] =
+  "Usage: stun debug\n"
+  "       Enable STUN (Simple Traversal of UDP through NATs) debugging\n";
+
+static char stun_no_debug_usage[] =
+  "Usage: stun no debug\n"
+  "       Disable STUN debugging\n";
+
 
 static struct ast_cli_entry  cli_debug_ip =
 {{ "rtp", "debug", "ip", NULL } , rtp_do_debug, "Enable RTP debugging on IP", debug_usage };
@@ -1928,6 +2218,12 @@ static struct ast_cli_entry  cli_debug =
 
 static struct ast_cli_entry  cli_no_debug =
 {{ "rtp", "no", "debug", NULL } , rtp_no_debug, "Disable RTP debugging", no_debug_usage };
+
+static struct ast_cli_entry  cli_stun_debug =
+{{ "stun", "debug", NULL } , stun_do_debug, "Enable STUN debugging", stun_debug_usage };
+
+static struct ast_cli_entry  cli_stun_no_debug =
+{{ "stun", "no", "debug", NULL } , stun_no_debug, "Disable STUN debugging", stun_no_debug_usage };
 
 int ast_rtp_reload(void)
 {
@@ -1990,5 +2286,7 @@ void ast_rtp_init(void)
 	ast_cli_register(&cli_debug);
 	ast_cli_register(&cli_debug_ip);
 	ast_cli_register(&cli_no_debug);
+	ast_cli_register(&cli_stun_debug);
+	ast_cli_register(&cli_stun_no_debug);
 	ast_rtp_reload();
 }
