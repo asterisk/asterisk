@@ -4396,16 +4396,13 @@ static int init_resp(struct sip_request *resp, const char *msg)
 /*! \brief Initialize SIP request */
 static int init_req(struct sip_request *req, int sipmethod, const char *recip)
 {
-	/* Initialize a response */
-	if (req->headers || req->len) {
-		ast_log(LOG_WARNING, "Request already initialized?!?\n");
-		return -1;
-	}
-	req->header[req->headers] = req->data + req->len;
-	snprintf(req->header[req->headers], sizeof(req->data) - req->len, "%s %s SIP/2.0\r\n", sip_methods[sipmethod].text, recip);
-	req->len += strlen(req->header[req->headers]);
+	/* Initialize a request */
+	memset(req, 0, sizeof(*req));
+        req->method = sipmethod;
+	req->header[0] = req->data;
+	snprintf(req->header[0], sizeof(req->data), "%s %s SIP/2.0\r\n", sip_methods[sipmethod].text, recip);
+	req->len = strlen(req->header[0]);
 	req->headers++;
-	req->method = sipmethod;
 	return 0;
 }
 
@@ -5286,7 +5283,6 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		snprintf(to, sizeof(to), "<%s>", p->uri);
 	}
 	
-	memset(req, 0, sizeof(struct sip_request));
 	init_req(req, sipmethod, p->uri);
 	snprintf(tmp, sizeof(tmp), "%d %s", ++p->ocseq, sip_methods[sipmethod].text);
 
@@ -5874,7 +5870,6 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 
 	p->branch ^= ast_random();
 
-	memset(&req, 0, sizeof(req));
 	init_req(&req, sipmethod, addr);
 
 	/* Add to CSEQ */
