@@ -4111,6 +4111,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 /*! \brief Add header to SIP message */
 static int add_header(struct sip_request *req, const char *var, const char *value)
 {
+	int maxlen = sizeof(req->data) - 4 - req->len; /* 4 bytes are for two \r\n ? */
+
 	if (req->headers == SIP_MAX_HEADERS) {
 		ast_log(LOG_WARNING, "Out of SIP header space\n");
 		return -1;
@@ -4121,7 +4123,7 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 		return -1;
 	}
 
-	if (req->len >= sizeof(req->data) - 4) {
+	if (maxlen <= 0) {
 		ast_log(LOG_WARNING, "Out of space, can't add anymore (%s:%s)\n", var, value);
 		return -1;
 	}
@@ -4131,7 +4133,7 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 	if (compactheaders)
 		var = find_alias(var, var);
 
-	snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", var, value);
+	snprintf(req->header[req->headers], maxlen, "%s: %s\r\n", var, value);
 	req->len += strlen(req->header[req->headers]);
 	req->headers++;
 
