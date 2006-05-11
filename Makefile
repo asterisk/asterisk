@@ -69,7 +69,7 @@ endif
 OVERWRITE=y
 
 # Include debug and macro symbols in the executables (-g) and profiling info (-pg)
-DEBUG=-g3 #-pg
+DEBUG=-g3
 
 # Set NOCRYPTO to yes if you do not want to have crypto support or dependencies
 #NOCRYPTO=yes
@@ -85,17 +85,7 @@ DEBUG=-g3 #-pg
 #endif
 
 # Asterisk SMDI integration
-WITH_SMDI = 1
-
-# Optional debugging parameters
-DEBUG_THREADS = #-DDUMP_SCHEDULER #-DDEBUG_SCHEDULER #-DDEBUG_THREADS #-DDO_CRASH #-DDETECT_DEADLOCKS
-
-# If you want to debug channel locking, try this (depends on code using
-# ast_channel_lock and companions to work)
-DEBUG_THREADS += #-DDEBUG_CHANNEL_LOCKS
-
-# Uncomment next one to enable ast_frame tracing (for debugging)
-TRACE_FRAMES = #-DTRACE_FRAMES
+WITH_SMDI=1
 
 # Where to install asterisk after compiling
 # Default -> leave empty
@@ -110,16 +100,16 @@ DESTDIR?=
 #DESTDIR?=/tmp/asterisk
 
 # Original busydetect routine
-BUSYDETECT = #-DBUSYDETECT
+#BUSYDETECT = -DBUSYDETECT
 
 # Improved busydetect routine, comment the previous one if you use this one
-BUSYDETECT+= #-DBUSYDETECT_MARTIN 
+#BUSYDETECT+= -DBUSYDETECT_MARTIN 
 # Detect the busy signal looking only at tone lengths
 # For example if you have 3 beeps 100ms tone, 100ms silence separated by 500 ms of silence
-BUSYDETECT+= #-DBUSYDETECT_TONEONLY
+#BUSYDETECT+= -DBUSYDETECT_TONEONLY
 # Enforce the detection of busy signal (get rid of false hangups)
 # Don't use together with -DBUSYDETECT_TONEONLY
-BUSYDETECT+= #-DBUSYDETECT_COMPARE_TONE_AND_SILENCE
+#BUSYDETECT+= -DBUSYDETECT_COMPARE_TONE_AND_SILENCE
 
 # Define standard directories for various platforms
 # These apply if they are not redefined in asterisk.conf 
@@ -251,7 +241,7 @@ ifeq ($(OSARCH),SunOS)
   ID=/usr/xpg4/bin/id
 endif
 
-ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) #-DMAKE_VALGRIND_HAPPY
+ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE)
 ASTCFLAGS+=$(OPTIMIZE)
 
 ifeq ($(AST_DEVMODE),yes)
@@ -259,7 +249,7 @@ ifeq ($(AST_DEVMODE),yes)
 endif
 
 ifeq ($(shell gcc -v 2>&1 | grep 'gcc version' | cut -f3 -d' ' | cut -f1 -d.),4)
-ASTCFLAGS+= -Wno-pointer-sign
+ASTCFLAGS+=-Wno-pointer-sign
 endif
 ASTOBJ=-o asterisk
 
@@ -322,13 +312,9 @@ else
   endif
 endif
 
-ASTCFLAGS+= $(DEBUG_THREADS)
-ASTCFLAGS+= $(TRACE_FRAMES)
-ASTCFLAGS+= $(MALLOC_DEBUG)
-ASTCFLAGS+= $(BUSYDETECT)
-ASTCFLAGS+= $(OPTIONS)
+ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
 ifeq ($(findstring dont-optimize,$(MAKECMDGOALS)),)
-ASTCFLAGS+= -fomit-frame-pointer 
+ASTCFLAGS+=-fomit-frame-pointer 
 endif
 
 MOD_SUBDIRS=res channels pbx apps codecs formats cdr funcs
@@ -347,11 +333,11 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 # we need to link in the objects statically, not as a library, because
 # otherwise modules will not have them available if none of the static
 # objects use it.
-OBJS+= stdtime/localtime.o
+OBJS+=stdtime/localtime.o
 
 # At the moment say.o is an optional component which can be overridden
 # by a module.
-OBJS+= say.o
+OBJS+=say.o
 
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/sys/poll.h),)
   OBJS+= poll.o
