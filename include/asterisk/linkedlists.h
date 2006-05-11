@@ -363,6 +363,7 @@ struct {								\
 #define AST_LIST_HEAD_INIT(head) {					\
 	(head)->first = NULL;						\
 	(head)->last = NULL;						\
+	(head)->lock = AST_MUTEX_INIT_VALUE;				\
 	ast_mutex_init(&(head)->lock);					\
 }
 
