@@ -110,7 +110,7 @@ static int acf_if(struct ast_channel *chan, char *cmd, char *data, char *buf,
 	if (iffalse)
 		iffalse = ast_strip_quoted(iffalse, "\"", "\"");
 
-	ast_copy_string(buf, ast_true(expr) ? iftrue : iffalse, len);
+	ast_copy_string(buf, pbx_checkcondition(expr) ? iftrue : iffalse, len);
 
 	return 0;
 }
