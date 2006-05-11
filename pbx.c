@@ -950,7 +950,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		int match = extension_match_core(eroot->exten, exten, action);
 		/* 0 on fail, 1 on match, 2 on earlymatch */
 
-		if (!match || (eroot->matchcid && matchcid(eroot->cidmatch, callerid)))
+		if (!match || (eroot->matchcid && !matchcid(eroot->cidmatch, callerid)))
 			continue;	/* keep trying */
 		if (match == 2 && action == E_MATCHMORE) {
 			/* We match an extension ending in '!'.
