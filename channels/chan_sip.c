@@ -1188,7 +1188,7 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req);
 static void initialize_initreq(struct sip_pvt *p, struct sip_request *req);
 static int init_req(struct sip_request *req, int sipmethod, const char *recip);
 static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, int seqno, int newbranch);
-static int init_resp(struct sip_request *req, const char *resp, struct sip_request *orig);
+static int init_resp(struct sip_request *resp, const char *msg);
 static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg, struct sip_request *req);
 static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p);
 static void build_via(struct sip_pvt *p);
@@ -4381,18 +4381,15 @@ static void set_destination(struct sip_pvt *p, char *uri)
 }
 
 /*! \brief Initialize SIP response, based on SIP request */
-static int init_resp(struct sip_request *req, const char *resp, struct sip_request *orig)
+static int init_resp(struct sip_request *resp, const char *msg)
 {
 	/* Initialize a response */
-	if (req->headers || req->len) {
-		ast_log(LOG_WARNING, "Request already initialized?!?\n");
-		return -1;
-	}
-	req->method = SIP_RESPONSE;
-	req->header[req->headers] = req->data + req->len;
-	snprintf(req->header[req->headers], sizeof(req->data) - req->len, "SIP/2.0 %s\r\n", resp);
-	req->len += strlen(req->header[req->headers]);
-	req->headers++;
+	memset(resp, 0, sizeof(*resp));
+	resp->method = SIP_RESPONSE;
+	resp->header[0] = resp->data;
+	snprintf(resp->header[0], sizeof(resp->data), "SIP/2.0 %s\r\n", msg);
+	resp->len = strlen(resp->header[0]);
+	resp->headers++;
 	return 0;
 }
 
@@ -4419,8 +4416,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 	char newto[256];
 	const char *ot;
 
-	memset(resp, 0, sizeof(*resp));
-	init_resp(resp, msg, req);
+	init_resp(resp, msg);
 	copy_via_headers(p, resp, req, "Via");
 	if (msg[0] == '2')
 		copy_all_header(resp, req, "Record-Route");
