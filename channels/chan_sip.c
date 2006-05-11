@@ -1309,7 +1309,7 @@ static void initialize_initreq(struct sip_pvt *p, struct sip_request *req)
  * matches the sip method 'id'.
  * Strictly speaking, SIP methods are case SENSITIVE, but we do
  * a case-insensitive comparison to be more tolerant.
- * following Jon Postel's rule: Be gentle in what you accept, strict with what you send 
+ * following Jon Postel's rule: Be gentle in what you accept, strict with what you send
  */
 static int method_match(enum sipmethod id, const char *name)
 {
