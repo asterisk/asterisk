@@ -11436,6 +11436,14 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 		
 	check_via(p, req);
 	ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
+	
+	if (p->owner && p->owner->_state == AST_STATE_UP) {
+		/* This call is up, cancel is ignored, we need a bye */
+		transmit_response(p, "200 OK", req);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Got CANCEL on an answered call. Ignoring... \n");
+		return 0;
+	}
 	if (p->rtp) {
 		/* Immediately stop RTP */
 		ast_rtp_stop(p->rtp);
