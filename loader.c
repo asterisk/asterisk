@@ -722,8 +722,6 @@ static struct module * __load_resource(const char *resource_name,
 	if (m == NULL)	/* MOD_0 modules may still have a mod_data entry */
 		m = find_symbol(cur, "mod_data", 0);
 	if (m != NULL) {	/* new style module */
-		ast_log(LOG_WARNING, "new style %s (0x%x) loaded RTLD_LOCAL\n",
-			resource_name, m->flags);
 		cur->cb = m;	/* use the mod_data from the module itself */
 		errors = check_exported(cur);
 	} else {
