@@ -258,14 +258,14 @@ static int app_exec(struct ast_channel *chan, void *data)
 	FILE *child_commands = NULL;
 	FILE *child_errors = NULL;
 	FILE *child_events = NULL;
-	struct ivr_localuser foo, *u = &foo;
-
-	bzero(u, sizeof(*u));
+	struct ivr_localuser foo = {
+		.playlist = AST_LIST_HEAD_INIT_VALUE,
+		.finishlist = AST_LIST_HEAD_INIT_VALUE,
+	};
+	struct ivr_localuser *u = &foo;
 
 	LOCAL_USER_ADD(lu);
 	
-	AST_LIST_HEAD_INIT(&u->playlist);
-	AST_LIST_HEAD_INIT(&u->finishlist);
 	u->abort_current_sound = 0;
 	u->chan = chan;
 	

@@ -2597,19 +2597,16 @@ static int unload_module(void *mod)
 	ast_manager_unregister("AgentLogoff");
 	ast_manager_unregister("AgentCallbackLogin");
 	/* Unregister channel */
-	ast_channel_unregister(&agent_tech);
-	if (!AST_LIST_LOCK(&agents)) {
-		/* Hangup all interfaces if they have an owner */
-		AST_LIST_TRAVERSE(&agents, p, list) {
-			if (p->owner)
-				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-		}
-		AST_LIST_UNLOCK(&agents);
-		AST_LIST_HEAD_INIT(&agents);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
-	}		
+	AST_LIST_LOCK(&agents);
+	/* Hangup all interfaces if they have an owner */
+	while ((p = AST_LIST_REMOVE_HEAD(&agents, list))) {
+		if (p->owner)
+			ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
+		free(p);
+	}
+	AST_LIST_UNLOCK(&agents);
+	AST_LIST_HEAD_DESTROY(&agents);
+
 	return 0;
 }
 

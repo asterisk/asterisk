@@ -354,20 +354,6 @@ struct {								\
 #define AST_LIST_TRAVERSE_SAFE_END  }
 
 /*!
-  \brief Initializes a list head structure.
-  \param head This is a pointer to the list head structure
-
-  This macro initializes a list head structure by setting the head
-  entry to \a NULL (empty list) and recreating the embedded lock.
-*/
-#define AST_LIST_HEAD_INIT(head) {					\
-	(head)->first = NULL;						\
-	(head)->last = NULL;						\
-	(head)->lock = AST_MUTEX_INIT_VALUE;				\
-	ast_mutex_init(&(head)->lock);					\
-}
-
-/*!
   \brief Destroys a list head structure.
   \param head This is a pointer to the list head structure
 

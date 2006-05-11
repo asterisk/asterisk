@@ -3465,14 +3465,12 @@ AST_LIST_HEAD(store_hints, store_hint);
 void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char *registrar)
 {
 	struct ast_context *tmp, *lasttmp = NULL;
-	struct store_hints store;
+	struct store_hints store = AST_LIST_HEAD_INIT_VALUE;
 	struct store_hint *this;
 	struct ast_hint *hint;
 	struct ast_exten *exten;
 	int length;
 	struct ast_state_cb *thiscb, *prevcb;
-
-	AST_LIST_HEAD_INIT(&store);
 
 	/* it is very important that this function hold the hint list lock _and_ the conlock
 	   during its operation; not only do we need to ensure that the list of contexts
