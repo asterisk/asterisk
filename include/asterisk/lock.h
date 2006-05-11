@@ -571,10 +571,10 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 #else /* !DEBUG_THREADS */
 
 
-#define AST_MUTEX_INIT_VALUE	PTHREAD_MUTEX_INIT_VALUE
-
 
 typedef pthread_mutex_t ast_mutex_t;
+
+#define AST_MUTEX_INIT_VALUE	((ast_mutex_t)PTHREAD_MUTEX_INIT_VALUE)
 
 static inline int ast_mutex_init(ast_mutex_t *pmutex)
 {
