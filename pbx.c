@@ -945,37 +945,38 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		q->status = STATUS_NO_EXTENSION;
 
 	/* scan the list trying to match extension and CID */
-	for (eroot = tmp->root; eroot; eroot = eroot->next) {
+	eroot = NULL;
+	while ( (eroot = ast_walk_context_extensions(tmp, eroot)) ) {
 		int match = extension_match_core(eroot->exten, exten, action);
 		/* 0 on fail, 1 on match, 2 on earlymatch */
 
-		if (match && (!eroot->matchcid || matchcid(eroot->cidmatch, callerid))) {
-			if (match == 2 && action == E_MATCHMORE) {
-				/* We match an extension ending in '!'.
-				 * The decision in this case is final and is NULL (no match).
-				 */
-				return NULL;
-			} else {
-				if (q->status < STATUS_NO_PRIORITY)
-					q->status = STATUS_NO_PRIORITY;
-				/* now look for the right priority */
-				for (e = eroot; e; e = e->peer) {
-					/* Match priority */
-					if (action == E_FINDLABEL) {
-						if (q->status < STATUS_NO_LABEL)
-							q->status = STATUS_NO_LABEL;
-						if (label && e->label && !strcmp(label, e->label)) {
-							q->status = STATUS_SUCCESS;
-							q->foundcontext = context;
-							return e;
-						}
-					} else if (e->priority == priority) {
-						q->status = STATUS_SUCCESS;
-						q->foundcontext = context;
-						return e;
-					}
-				}
-			}
+		if (!match || (eroot->matchcid && matchcid(eroot->cidmatch, callerid)))
+			continue;	/* keep trying */
+		if (match == 2 && action == E_MATCHMORE) {
+			/* We match an extension ending in '!'.
+			 * The decision in this case is final and is NULL (no match).
+			 */
+			return NULL;
+		}
+		/* found entry, now look for the right priority */
+		if (q->status < STATUS_NO_PRIORITY)
+			q->status = STATUS_NO_PRIORITY;
+		e = NULL;
+		while ( (e = ast_walk_extension_priorities(eroot, e)) ) {
+			/* Match label or priority */
+			if (action == E_FINDLABEL) {
+				if (q->status < STATUS_NO_LABEL)
+					q->status = STATUS_NO_LABEL;
+				if (label && e->label && !strcmp(label, e->label))
+					break;	/* found it */
+			} else if (e->priority == priority) {
+				break;	/* found it */
+			} /* else keep searching */
+		}
+		if (e) {	/* found a valid match */
+			q->status = STATUS_SUCCESS;
+			q->foundcontext = context;
+			return e;
 		}
 	}
 	/* Check alternative switches */
