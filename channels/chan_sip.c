@@ -1796,11 +1796,22 @@ static void parse_copy(struct sip_request *dst, struct sip_request *src)
 	parse_request(dst);
 }
 
+/* add a blank line if no body */
+static void add_blank(struct sip_request *req)
+{
+	if (!req->lines) {
+		/* Add extra empty return. add_header() reserves 4 bytes so cannot be truncated */
+		snprintf(req->data + req->len, sizeof(req->data) - req->len, "\r\n");
+		req->len += strlen(req->data + req->len);
+	}
+}
+
 /*! \brief Transmit response on SIP request*/
 static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno)
 {
 	int res;
 
+	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
 		char iabuf[INET_ADDRSTRLEN];
 		if (ast_test_flag(&p->flags[0], SIP_NAT_ROUTE))
@@ -1827,6 +1838,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 {
 	int res;
 
+	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
 		char iabuf[INET_ADDRSTRLEN];
 		if (ast_test_flag(&p->flags[0], SIP_NAT_ROUTE))
@@ -4578,7 +4590,6 @@ static int __transmit_response(struct sip_pvt *p, const char *msg, struct sip_re
 		snprintf(buf, sizeof(buf), "%d", p->owner->hangupcause);
 		add_header(&resp, "X-Asterisk-HangupCauseCode", buf);
 	}
-	add_blank_header(&resp);
 	return send_response(p, &resp, reliable, seqno);
 }
 
@@ -4625,7 +4636,6 @@ static int transmit_response_with_date(struct sip_pvt *p, char *msg, struct sip_
 	respprep(&resp, p, msg, req);
 	append_date(&resp);
 	add_header_contentLength(&resp, 0);
-	add_blank_header(&resp);
 	return send_response(p, &resp, XMIT_UNRELIABLE, 0);
 }
 
@@ -4636,7 +4646,6 @@ static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip
 	respprep(&resp, p, msg, req);
 	add_header(&resp, "Accept", "application/sdp");
 	add_header_contentLength(&resp, 0);
-	add_blank_header(&resp);
 	return send_response(p, &resp, reliable, 0);
 }
 
@@ -4657,7 +4666,6 @@ static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, struc
 	respprep(&resp, p, msg, req);
 	add_header(&resp, header, tmp);
 	add_header_contentLength(&resp, 0);
-	add_blank_header(&resp);
 	return send_response(p, &resp, reliable, seqno);
 }
 
@@ -5395,7 +5403,6 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		add_sdp(&req, p);
 	} else {
 		add_header_contentLength(&req, 0);
-		add_blank_header(&req);
 	}
 
 	if (!p->initreq.headers)
@@ -5915,7 +5922,6 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	add_header(&req, "Contact", p->our_contact);
 	add_header(&req, "Event", "registration");
 	add_header_contentLength(&req, 0);
-	add_blank_header(&req);
 
 	initialize_initreq(p, &req);
 	if (sip_debug_test_pvt(p))
@@ -6000,7 +6006,6 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
 	if (!ast_strlen_zero(p->our_contact))
 		add_header(&req, "Referred-By", p->our_contact);
-	add_blank_header(&req);
 
 	return send_request(p, &req, 1, p->ocseq);
 	/* We should propably wait for a NOTIFY here until we ack the transfer */
@@ -6038,7 +6043,6 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, enum xm
 	struct sip_request resp;
 	reqprep(&resp, p, sipmethod, seqno, newbranch);
 	add_header_contentLength(&resp, 0);
-	add_blank_header(&resp);
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);
 }
 
@@ -6073,7 +6077,6 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 	}
 
 	add_header_contentLength(&resp, 0);
-	add_blank_header(&resp);
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);	
 }
 
