@@ -191,7 +191,7 @@ OTHER_SUBDIR_CFLAGS=-include ../include/autoconfig.h -I../include -I..
 
 #   *CLI> show memory allocations [filename]
 #   *CLI> show memory summary [filename]
-ifneq ($(findstring -DMALLOC_DEBUG,$(ASTCFLAGS)),)
+ifneq ($(findstring MALLOC_DEBUG,$(MENUSELECT_CFLAGS)),)
   TOPDIR_CFLAGS+=-include include/asterisk/astmm.h
   MOD_SUBDIR_CFLAGS+=-include ../include/asterisk/astmm.h
 endif
