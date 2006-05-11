@@ -2541,7 +2541,7 @@ static int hangup_sip2cause(int cause)
 		case 420:	/* Bad extension */
 			return AST_CAUSE_NO_ROUTE_DESTINATION;
 		case 480:	/* No answer */
-			return AST_CAUSE_FAILURE;
+			return AST_CAUSE_NO_ANSWER;
 		case 481:	/* No answer */
 			return AST_CAUSE_INTERWORKING;
 		case 482:	/* Loop detected */
