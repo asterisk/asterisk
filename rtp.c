@@ -296,7 +296,8 @@ static void append_attr_address(struct stun_attr **attr, int attrval, struct soc
 
 static int stun_send(int s, struct sockaddr_in *dst, struct stun_header *resp)
 {
-	return sendto(s, resp, ntohs(resp->msglen) + sizeof(*resp), 0, dst, sizeof(*dst));
+	return sendto(s, resp, ntohs(resp->msglen) + sizeof(*resp), 0,
+		(struct sockaddr *)dst, sizeof(*dst));
 }
 
 static void stun_req_id(struct stun_header *req)
