@@ -12821,6 +12821,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	ast_copy_flags(&user->flags[1], &global_flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 	user->capability = global_capability;
 	user->allowtransfer = global_allowtransfer;
+	user->maxcallbitrate = default_maxcallbitrate;
 	user->prefs = default_prefs;
 	/* set default context */
 	strcpy(user->context, default_context);
