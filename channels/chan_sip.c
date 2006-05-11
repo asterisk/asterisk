@@ -1199,7 +1199,6 @@ static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip
 static void make_our_tag(char *tagbuf, size_t len);
 static int add_header(struct sip_request *req, const char *var, const char *value);
 static int add_header_contentLength(struct sip_request *req, int len);
-static int add_blank_header(struct sip_request *req);
 static int add_line(struct sip_request *req, const char *line);
 static int add_text(struct sip_request *req, const char *text);
 static int add_digit(struct sip_request *req, char digit);
@@ -4158,28 +4157,6 @@ static int add_header_contentLength(struct sip_request *req, int len)
 
 	snprintf(clen, sizeof(clen), "%d", len);
 	return add_header(req, "Content-Length", clen);
-}
-
-/*! \brief Add blank header to SIP message */
-static int add_blank_header(struct sip_request *req)
-{
-	if (req->headers == SIP_MAX_HEADERS)  {
-		ast_log(LOG_WARNING, "Out of SIP header space\n");
-		return -1;
-	}
-	if (req->lines) {
-		ast_log(LOG_WARNING, "Can't add more headers when lines have been added\n");
-		return -1;
-	}
-	if (req->len >= sizeof(req->data) - 4) {
-		ast_log(LOG_WARNING, "Out of space, can't add anymore\n");
-		return -1;
-	}
-	req->header[req->headers] = req->data + req->len;
-	snprintf(req->header[req->headers], sizeof(req->data) - req->len, "\r\n");
-	req->len += strlen(req->header[req->headers]);
-	req->headers++;
-	return 0;	
 }
 
 /*! \brief Add content (not header) to SIP message */
@@ -9318,7 +9295,6 @@ static int sip_notify(int fd, int argc, char *argv[])
 		for (var = varlist; var; var = var->next)
 			add_header(&req, var->name, var->value);
 
-		add_blank_header(&req);
 		/* Recalculate our side, and recalculate Call ID */
 		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
 			p->ourip = __ourip;
