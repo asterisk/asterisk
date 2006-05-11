@@ -913,8 +913,6 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	struct ast_include *i;
 	struct ast_sw *sw;
 
-	struct ast_exten *earlymatch = NULL;
-
 	/* Initialize status if appropriate */
 	if (q->stacklen == 0) {
 		q->status = STATUS_NO_CONTEXT;
@@ -952,14 +950,11 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		/* 0 on fail, 1 on match, 2 on earlymatch */
 
 		if (match && (!eroot->matchcid || matchcid(eroot->cidmatch, callerid))) {
-			if (match == 2 && action == E_MATCHMORE && !earlymatch) {
-				/* Match an extension ending in '!'.
-				 * As far as I can tell the decision in this case is final
-				 * and we should just return NULL to mark failure
-				 * (and get rid of the earlymatch variable and the associated
-				 * processing outside the loop).
+			if (match == 2 && action == E_MATCHMORE) {
+				/* We match an extension ending in '!'.
+				 * The decision in this case is final and is NULL (no match).
 				 */
-				earlymatch = eroot;
+				return NULL;
 			} else {
 				if (q->status < STATUS_NO_PRIORITY)
 					q->status = STATUS_NO_PRIORITY;
@@ -982,13 +977,6 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 				}
 			}
 		}
-	}
-	if (earlymatch) {
-		/* Bizarre logic for E_MATCHMORE. We return zero to break out
-		   of the loop waiting for more digits, and _then_ match (normally)
-		   the extension we ended up with. We got an early-matching wildcard
-		   pattern, so return NULL to break out of the loop. */
-		return NULL;
 	}
 	/* Check alternative switches */
 	AST_LIST_TRAVERSE(&tmp->alts, sw, list) {
