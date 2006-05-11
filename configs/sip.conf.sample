@@ -32,7 +32,8 @@ allowoverlap=no			; Disable overlap dialing support. (Default is yes)
 ;allowtransfer=no		; Disable all transfers (unless enabled in peers or users)
 				; Default is enabled
 ;realm=mydomain.tld		; Realm for digest authentication
-				; defaults to "asterisk"
+				; defaults to "asterisk". If you set a system name in
+				; asterisk.conf, it defaults to that system name
 				; Realms MUST be globally unique according to RFC 3261
 				; Set this to your host name or domain name
 bindport=5060			; UDP Port to bind to (SIP standard port is 5060)

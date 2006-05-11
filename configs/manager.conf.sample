@@ -21,6 +21,7 @@
 ; default is 60 seconds.
 ;
 [general]
+displaysystemname = yes
 enabled = no
 ;webenabled = yes
 port = 5038

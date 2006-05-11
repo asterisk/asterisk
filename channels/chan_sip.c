@@ -13260,7 +13260,10 @@ static int reload_config(enum channelreloadreason reason)
 	global_allowsubscribe = FALSE;
 	ast_copy_string(global_useragent, DEFAULT_USERAGENT, sizeof(global_useragent));
 	ast_copy_string(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime));
-	ast_copy_string(global_realm, DEFAULT_REALM, sizeof(global_realm));
+	if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME))
+		ast_copy_string(global_realm, DEFAULT_REALM, sizeof(global_realm));
+	else
+		ast_copy_string(global_realm, ast_config_AST_SYSTEM_NAME, sizeof(global_realm));
 	ast_copy_string(default_callerid, DEFAULT_CALLERID, sizeof(default_callerid));
 	compactheaders = DEFAULT_COMPACTHEADERS;
 	global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;

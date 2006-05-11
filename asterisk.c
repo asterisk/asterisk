@@ -1644,6 +1644,9 @@ static char *cli_prompt(EditLine *el)
 					}
 					break;
 #endif
+				case 's': /* Asterisk system name (from asterisk.conf) */
+					strncat(p, ast_config_AST_SYSTEM_NAME, sizeof(prompt) - strlen(prompt) - 1);
+					break;
 				case 't': /* time */
 					memset(&tm, 0, sizeof(tm));
 					time(&ts);
