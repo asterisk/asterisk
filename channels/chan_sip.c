@@ -4970,50 +4970,41 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 }
 
 /*! \brief Parse first line of incoming SIP request */
-static int determine_firstline_parts( struct sip_request *req ) 
+static int determine_firstline_parts(struct sip_request *req) 
 {
-	char *e, *cmd;
-	int len;
-  
-	cmd = ast_skip_blanks(req->header[0]);
-	if (!*cmd)
+	char *e = ast_skip_blanks(req->header[0]);	/* there shouldn't be any */
+
+	if (!*e)
 		return -1;
-	req->rlPart1 = cmd;
-	e = ast_skip_nonblanks(cmd);
-	/* Get the command */
+	req->rlPart1 = e;	/* method or protocol */
+	e = ast_skip_nonblanks(e);
 	if (*e)
 		*e++ = '\0';
+	/* Get URI or status code */
 	e = ast_skip_blanks(e);
 	if ( !*e )
 		return -1;
+	ast_trim_blanks(e);
 
-	if ( !strcasecmp(cmd, "SIP/2.0") ) {
-		/* We have a response */
-		req->rlPart2 = e;
-		len = strlen( req->rlPart2 );
-		if ( len < 2 ) { 
+	if (!strcasecmp(req->rlPart1, "SIP/2.0") ) { /* We have a response */
+		if (strlen(e) < 3)	/* status code is 3 digits */
 			return -1;
-		}
-		ast_trim_blanks(e);
-	} else {
-		/* We have a request */
-		if ( *e == '<' ) { 
+		req->rlPart2 = e;
+	} else { /* We have a request */
+		if ( *e == '<' ) { /* XXX the spec says it must not be in <> ! */
+			ast_log(LOG_WARNING, "bogus uri in <> %s\n", e);
 			e++;
-			if ( !*e ) { 
+			if (!*e)
 				return -1; 
-			}  
 		}
 		req->rlPart2 = e;	/* URI */
-		if ( ( e= strrchr( req->rlPart2, 'S' ) ) == NULL ) {
+		e = ast_skip_nonblanks(e);
+		if (*e)
+			*e++ = '\0';
+		e = ast_skip_blanks(e);
+		if (strcasecmp(e, "SIP/2.0") ) {
+			ast_log(LOG_WARNING, "Bad request protocol %s\n", e);
 			return -1;
-		}
-		/* XXX maybe trim_blanks() ? */
-		while( isspace( *(--e) ) )
-			;
-		if ( *e == '>' ) {
-			*e = '\0';
-		} else {
-			*(++e)= '\0';
 		}
 	}
 	return 1;
