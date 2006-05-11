@@ -1738,27 +1738,20 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod, int 
 }
 
 /*! \brief Pretend to ack all packets */
+/* maybe the lock on p is not strictly necessary but there might be a race */
 static int __sip_pretend_ack(struct sip_pvt *p)
 {
 	struct sip_pkt *cur = NULL;
 
 	while (p->packets) {
+		int method;
 		if (cur == p->packets) {
 			ast_log(LOG_WARNING, "Have a packet that doesn't want to give up! %s\n", sip_methods[cur->method].text);
 			return -1;
 		}
 		cur = p->packets;
-		if (cur->method)
-			__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), cur->method, FALSE);
-		else {	/* Unknown packet type */
-			char *c;
-			char method[128];
-
-			ast_copy_string(method, p->packets->data, sizeof(method));
-			c = ast_skip_blanks(method); /* XXX what ? */
-			*c = '\0';
-			__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), find_sip_method(method), FALSE);
-		}
+		method = (cur->method) ? cur->method : find_sip_method(cur->data);
+		__sip_ack(p, cur->seqno, ast_test_flag(cur, FLAG_RESPONSE), method, FALSE);
 	}
 	return 0;
 }
