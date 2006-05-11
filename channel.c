@@ -3276,7 +3276,7 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 	/* Copy voice back and forth between the two channels. */
 	struct ast_channel *cs[3];
 	struct ast_frame *f;
-	enum ast_bridge_result res = AST_BRIDGE_COMPLETE;
+	enum ast_bridge_result res = 0;
 	int o0nativeformats;
 	int o1nativeformats;
 	int watch_c0_dtmf;
@@ -3345,7 +3345,7 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			default:
 				*fo = f;
 				*rc = who;
-				res =  AST_BRIDGE_COMPLETE;
+				res = AST_BRIDGE_COMPLETE;
 				ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
 				break;
 			}
