@@ -95,7 +95,7 @@ struct naptr {
 } __attribute__ ((__packed__));
 
 /*! \brief Parse NAPTR record information elements */
-static int parse_ie(char *data, int maxdatalen, char *src, int srclen)
+static int parse_ie(unsigned char *data, int maxdatalen, unsigned char *src, int srclen)
 {
 	int len, olen;
 
@@ -113,7 +113,7 @@ static int parse_ie(char *data, int maxdatalen, char *src, int srclen)
 }
 
 /*! \brief Parse DNS NAPTR record used in ENUM ---*/
-static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *answer, int len, char *naptrinput)
+static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize, unsigned char *answer, int len, unsigned char *naptrinput)
 {
 
 	char tech_return[80];
