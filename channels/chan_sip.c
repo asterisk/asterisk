@@ -2841,7 +2841,7 @@ static int sip_hangup(struct ast_channel *ast)
 				__sip_pretend_ack(p);
 
 				/* Send a new request: CANCEL */
-				transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, XMIT_RELIABLE, 0);
+				transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, XMIT_RELIABLE, FALSE);
 				/* Actually don't destroy us yet, wait for the 487 on our original 
 				   INVITE, but do set an autodestruct just in case we never get it. */
 				ast_clear_flag(&locflags, SIP_NEEDDESTROY);
@@ -9932,7 +9932,7 @@ static void check_pendings(struct sip_pvt *p)
 {
 	/* Go ahead and send bye at this point */
 	if (ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
-		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
+		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, TRUE);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
 	} else if (ast_test_flag(&p->flags[0], SIP_NEEDREINVITE)) {
@@ -10044,13 +10044,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
 		}
 		/* If I understand this right, the branch is different for a non-200 ACK only */
-		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 1);
+		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, TRUE);
 		check_pendings(p);
 		break;
 	case 407: /* Proxy authentication */
 	case 401: /* Www auth */
 		/* First we ACK */
-		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
+		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->options)
 			p->options->auth_type = (resp == 401 ? WWW_AUTH : PROXY_AUTH);
 
@@ -10070,7 +10070,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 	case 403: /* Forbidden */
 		/* First we ACK */
-		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
+		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		ast_log(LOG_WARNING, "Received response: \"Forbidden\" from '%s'\n", get_header(&p->initreq, "From"));
 		if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
@@ -10078,7 +10078,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
 		break;
 	case 404: /* Not found */
-		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
+		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
@@ -10086,7 +10086,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	case 481: /* Call leg does not exist */
 		/* Could be REFER or INVITE */
 		ast_log(LOG_WARNING, "Re-invite to non-existing call leg on other UA. SIP dialog '%s'. Giving up.\n", p->callid);
-		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
+		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		break;
 	case 491: /* Pending */
 		/* we have to wait a while, then retransmit */
@@ -10454,7 +10454,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 481: /* Call leg does not exist */
 			if (sipmethod == SIP_INVITE) {
 				/* First we ACK */
-				transmit_request(p, SIP_ACK, seqno, 0, 0);
+				transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 					ast_log(LOG_WARNING, "INVITE with REPLACEs failed to '%s'\n", get_header(&p->initreq, "From"));
 				if (owner)
 					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
@@ -10567,7 +10567,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				}
 				/* ACK on invite */
 				if (sipmethod == SIP_INVITE) 
-					transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, 0);
+					transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 				ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
 				if (!p->owner)
 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
@@ -11423,7 +11423,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			transmit_notify_with_sipfrag(p, seqno, "200 OK", 1);
 			/* Always increment on a BYE */
 			if (!nobye) {
-				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
+				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, TRUE);
 				ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
 			}
 		}
