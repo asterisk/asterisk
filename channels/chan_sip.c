@@ -6814,6 +6814,9 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 				switch (parse_register_contact(p, peer, req)) {
 				case PARSE_REGISTER_FAILED:
 					ast_log(LOG_WARNING, "Failed to parse contact info\n");
+					transmit_response_with_date(p, "400 Bad Request", req);
+					peer->lastmsgssent = -1;
+					res = 0;
 					break;
 				case PARSE_REGISTER_QUERY:
 					transmit_response_with_date(p, "200 OK", req);
@@ -6837,11 +6840,13 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		peer = temp_peer(name);
 		if (peer) {
 			ASTOBJ_CONTAINER_LINK(&peerl, peer);
-			peer->lastmsgssent = -1;
 			sip_cancel_destroy(p);
 			switch (parse_register_contact(p, peer, req)) {
 			case PARSE_REGISTER_FAILED:
 				ast_log(LOG_WARNING, "Failed to parse contact info\n");
+				transmit_response_with_date(p, "400 Bad Request", req);
+				peer->lastmsgssent = -1;
+				res = 0;
 				break;
 			case PARSE_REGISTER_QUERY:
 				transmit_response_with_date(p, "200 OK", req);
