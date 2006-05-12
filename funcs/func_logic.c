@@ -115,7 +115,7 @@ static char *builtin_function_if(struct ast_channel *chan, char *cmd, char *data
 	if (iffalse)
 		iffalse = ast_strip_quoted(iffalse, "\"", "\"");
 
-	if ((ret = ast_true(expr) ? iftrue : iffalse)) {
+	if ((ret = pbx_checkcondition(expr) ? iftrue : iffalse)) {
 		ast_copy_string(buf, ret, len);
 		ret = buf;
 	} 
