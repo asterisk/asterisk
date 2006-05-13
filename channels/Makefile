@@ -44,10 +44,6 @@ ifeq ($(OSARCH),SunOS)
   SOLINK+=-lrt
 endif
 
-ifeq ($(WITH_SMDI),1)
-  CFLAGS+=-DWITH_SMDI
-endif
-
 ifeq ($(wildcard h323/libchanh323.a),)
   MODS:=$(filter-out chan_h323.so,$(MODS))
 endif

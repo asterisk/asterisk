@@ -13,10 +13,6 @@
 
 MODS:=$(filter-out $(MENUSELECT_APPS),$(patsubst %.c,%.so,$(wildcard app_*.c)))
 
-ifneq ($(WITH_SMDI),)
-  CFLAGS+=-DWITH_SMDI
-endif
-
 # If you have UnixODBC you can use ODBC voicemail
 # storage
 #

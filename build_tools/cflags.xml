@@ -11,10 +11,13 @@
 		</member>
 		<member name="MALLOC_DEBUG" displayname="Keep Track of Memory Allocations">
 		</member>
+		<member name="MTX_PROFILE" displayname="Enable Code Profiling Using TSC Counters">
+		</member>
 		<member name="RADIO_RELAX" displayname="Relax DTMF for Radio Applications">
 		</member>
 		<member name="TRACE_FRAMES" displayname="Trace Frame Allocations">
 		</member>
-		<member name="MTX_PROFILE" displayname="Enable Code Profiling Using TSC Counters">
+		<member name="WITH_SMDI" displayname="Include SMDI Support">
+			<defaultenabled>yes</defaultenabled>
 		</member>
 	</category>
