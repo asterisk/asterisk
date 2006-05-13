@@ -24,18 +24,6 @@ OPTIONS=
 #CROSS_PROC=arm
 #SUB_PROC=xscale # or maverick
 
-# Pentium Pro Optimize
-#PROC=i686
-
-# Pentium & VIA processors optimize
-#PROC=i586
-
-#PROC=k6
-#PROC=ppc
-
-CC=$(CROSS_COMPILE)gcc
-HOST_CC=gcc
-
 ifeq ($(CROSS_COMPILE),)
   OSARCH=$(shell uname -s)
   PROC?=$(shell uname -m)
@@ -71,25 +59,8 @@ OVERWRITE=y
 # Include debug and macro symbols in the executables (-g) and profiling info (-pg)
 DEBUG=-g3
 
-# Set NOCRYPTO to yes if you do not want to have crypto support or dependencies
-#NOCRYPTO=yes
-
-# If you are running a radio application, define RADIO_RELAX so that the DTMF
-# will be received more reliably
-#OPTIONS += -DRADIO_RELAX
-
-# If you don't have a lot of memory (e.g. embedded Asterisk), define LOW_MEMORY
-# to reduce the size of certain static buffers
-#ifneq ($(CROSS_COMPILE),)
-#OPTIONS += -DLOW_MEMORY
-#endif
-
 # Asterisk SMDI integration
 WITH_SMDI=1
-
-# Where to install asterisk after compiling
-# Default -> leave empty
-INSTALL_PREFIX?=
 
 # Staging directory
 # Files are copied here temporarily during the install process
