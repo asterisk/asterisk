@@ -152,8 +152,6 @@ struct ast_conference {
 	int zapconf;				/* Zaptel Conf # */
 	int users;				/* Number of active users */
 	int markedusers;			/* Number of marked users */
-	struct ast_conf_user *firstuser;	/* Pointer to the first user struct */
-	struct ast_conf_user *lastuser;		/* Pointer to the last user struct */
 	time_t start;				/* Start time (s) */
 	int refcount;				/* reference count of usage */
 	unsigned int recording:2;				/* recording status */
@@ -168,6 +166,7 @@ struct ast_conference {
 	struct ast_frame *transframe[32];
 	struct ast_frame *origframe;
 	struct ast_trans_pvt *transpath[32];
+	AST_LIST_HEAD_NOLOCK(, ast_conf_user) userlist;
 	AST_LIST_ENTRY(ast_conference) list;
 };
 
@@ -180,8 +179,6 @@ struct volume {
 
 struct ast_conf_user {
 	int user_no;				/* User Number */
-	struct ast_conf_user *prevuser;		/* Pointer to the previous user */
-	struct ast_conf_user *nextuser;		/* Pointer to the next user */
 	int userflags;				/* Flags as set in the conference */
 	int adminflags;				/* Flags set by the Admin */
 	struct ast_channel *chan;		/* Connected channel */
@@ -192,6 +189,7 @@ struct ast_conf_user {
 	time_t jointime;			/* Time the user joined the conference */
 	struct volume talk;
 	struct volume listen;
+	AST_LIST_ENTRY(ast_conf_user) list;
 };
 
 static int audio_buffers;			/* The number of audio buffers to be allocated on pseudo channels
@@ -532,9 +530,6 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 			cnf->start = time(NULL);
 			cnf->zapconf = ztc.confno;
 			cnf->isdynamic = dynamic ? 1 : 0;
-			cnf->firstuser = NULL;
-			cnf->lastuser = NULL;
-			cnf->locked = 0;
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
 			AST_LIST_INSERT_HEAD(&confs, cnf, list);
@@ -665,7 +660,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 			return RESULT_SUCCESS;
 		}
 		/* Show all the users */
-		for (user = cnf->firstuser; user; user = user->nextuser){
+		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
 			now = time(NULL);
 			hr = (now - user->jointime) / 3600;
 			min = ((now - user->jointime) % 3600) / 60;
@@ -751,7 +746,7 @@ static char *complete_confcmd(const char *line, const char *word, int pos, int s
 
 			if (cnf) {
 				/* Search for the user */
-				for (usr = cnf->firstuser; usr; usr = usr->nextuser) {
+				AST_LIST_TRAVERSE(&cnf->userlist, usr, list) {
 					snprintf(usrno, sizeof(usrno), "%d", usr->user_no);
 					if (!strncasecmp(word, usrno, len) && ++which > state)
 						break;
@@ -928,24 +923,13 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		conf->markedusers++;
       
    	ast_mutex_lock(&conf->playlock);
-	if (!conf->firstuser) {
-		/* Fill the first new User struct */
+
+	if (AST_LIST_EMPTY(&conf->userlist))
 		user->user_no = 1;
-		conf->firstuser = user;
-		conf->lastuser = user;
-	} else {
-		/* Fill the new user struct */	
-		user->user_no = conf->lastuser->user_no + 1; 
-		user->prevuser = conf->lastuser;
-		if (conf->lastuser->nextuser) {
-			ast_log(LOG_WARNING, "Error in User Management!\n");
-			ast_mutex_unlock(&conf->playlock);
-			goto outrun;
-		} else {
-			conf->lastuser->nextuser = user;
-			conf->lastuser = user;
-		}
-	}
+	else
+		user->user_no = AST_LIST_LAST(&conf->userlist)->user_no + 1;
+
+	AST_LIST_INSERT_TAIL(&conf->userlist, user, list);
 
 	user->chan = chan;
 	user->userflags = confflags;
@@ -1480,7 +1464,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 								break;
 							case '3': /* Eject last user */
 								menu_active = 0;
-								usr = conf->lastuser;
+								usr = AST_LIST_LAST(&conf->userlist);
 								if ((usr->chan->name == chan->name)||(usr->userflags & CONFFLAG_ADMIN)) {
 									if(!ast_streamfile(chan, "conf-errormenu", chan->language))
 										ast_waitstream(chan, "");
@@ -1711,39 +1695,12 @@ bailoutandtrynormal:
 		ast_update_realtime("meetme", "confno", conf->confno, "members", members, NULL);
 		if (confflags & CONFFLAG_MARKEDUSER) 
 			conf->markedusers--;
-		if (!conf->users) {
+		if (AST_LIST_EMPTY(&conf->userlist)) {
 			/* close this one when no more users and no references*/
-			if (!conf->refcount){
+			if (!conf->refcount)
 				conf_free(conf);
-			}
 		} else {
-			/* Remove the user struct */ 
-			if (user == conf->firstuser) {
-				if (user->nextuser) {
-					/* There is another entry */
-					user->nextuser->prevuser = NULL;
-				} else {
-					/* We are the only entry */
-					conf->lastuser = NULL;
-				}
-				/* In either case */
-				conf->firstuser = user->nextuser;
-			} else if (user == conf->lastuser){
-				if (user->prevuser)
-					user->prevuser->nextuser = NULL;
-				else
-					ast_log(LOG_ERROR, "Bad bad bad!  We're the last, not the first, but nobody before us??\n");
-				conf->lastuser = user->prevuser;
-			} else {
-				if (user->nextuser)
-					user->nextuser->prevuser = user->prevuser;
-				else
-					ast_log(LOG_ERROR, "Bad! Bad! Bad! user->nextuser is NULL but we're not the end!\n");
-				if (user->prevuser)
-					user->prevuser->nextuser = user->nextuser;
-				else
-					ast_log(LOG_ERROR, "Bad! Bad! Bad! user->prevuser is NULL but we're not the beginning!\n");
-			}
+			AST_LIST_REMOVE(&conf->userlist, user, list);
 		}
 		/* Return the number of seconds the user was in the conf */
 		snprintf(meetmesecs, sizeof(meetmesecs), "%d", (int) (time(NULL) - user->jointime));
@@ -2221,18 +2178,16 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static struct ast_conf_user* find_user(struct ast_conference *conf, char *callerident) 
+static struct ast_conf_user *find_user(struct ast_conference *conf, char *callerident) 
 {
 	struct ast_conf_user *user = NULL;
 	int cid;
 	
 	sscanf(callerident, "%i", &cid);
 	if (conf && callerident) {
-		user = conf->firstuser;
-		while (user) {
+		AST_LIST_TRAVERSE(&conf->userlist, user, list) {
 			if (cid == user->user_no)
 				return user;
-			user = user->nextuser;
 		}
 	}
 	return NULL;
@@ -2282,23 +2237,15 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 			case 108: /* l: Unlock */ 
 				cnf->locked = 0;
 				break;
-			case 75: /* K: kick all users*/
-				user = cnf->firstuser;
-				while(user) {
+			case 75: /* K: kick all users */
+				AST_LIST_TRAVERSE(&cnf->userlist, user, list)
 					user->adminflags |= ADMINFLAG_KICKME;
-					if (user->nextuser) {
-						user = user->nextuser;
-					} else {
-						break;
-					}
-				}
 				break;
 			case 101: /* e: Eject last user*/
-				user = cnf->lastuser;
-				if (!(user->userflags & CONFFLAG_ADMIN)) {
+				user = AST_LIST_LAST(&cnf->userlist);
+				if (!(user->userflags & CONFFLAG_ADMIN))
 					user->adminflags |= ADMINFLAG_KICKME;
-					break;
-				} else
+				else
 					ast_log(LOG_NOTICE, "Not kicking last user, is an Admin!\n");
 				break;
 			case 77: /* M: Mute */ 
@@ -2314,15 +2261,9 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 				}
 				break;
 			case 78: /* N: Mute all users */
-				user = cnf->firstuser;
-				while(user) {
-					if (user && !(user->userflags & CONFFLAG_ADMIN))
+				AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
+					if (!(user->userflags & CONFFLAG_ADMIN))
 						user->adminflags |= ADMINFLAG_MUTED;
-					if (user->nextuser) {
-						user = user->nextuser;
-					} else {
-						break;
-					}
 				}
 				break;					
 			case 109: /* m: Unmute */ 
@@ -2337,25 +2278,15 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 					ast_log(LOG_NOTICE, "Specified User not found or he muted himself!\n");
 				}
 				break;
-			case  110: /* n: Unmute all users */
-				user = cnf->firstuser;
-				while(user) {
-					if (user && (user-> adminflags & ADMINFLAG_MUTED)) {
-						user->adminflags ^= ADMINFLAG_MUTED;
-					}
-					if (user->nextuser) {
-						user = user->nextuser;
-					} else {
-						break;
-					}
-				}
+			case 110: /* n: Unmute all users */
+				AST_LIST_TRAVERSE(&cnf->userlist, user, list)
+					user->adminflags &= ~ADMINFLAG_MUTED;
 				break;
 			case 107: /* k: Kick user */ 
-				if (user) {
+				if (user)
 					user->adminflags |= ADMINFLAG_KICKME;
-				} else {
+				else
 					ast_log(LOG_NOTICE, "Specified User not found!");
-				}
 				break;
 			}
 		} else {
