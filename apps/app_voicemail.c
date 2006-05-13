@@ -898,7 +898,7 @@ static int retrieve_file(char *dir, int msgnum)
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
-		fd = open(full_fn, O_RDWR | O_CREAT | O_TRUNC);
+		fd = open(full_fn, O_RDWR | O_CREAT | O_TRUNC, 0770);
 		if (fd < 0) {
 			ast_log(LOG_WARNING, "Failed to write '%s': %s\n", full_fn, strerror(errno));
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
@@ -925,13 +925,13 @@ static int retrieve_file(char *dir, int msgnum)
 			if (!strcasecmp(coltitle, "recording")) {
 				res = SQLGetData(stmt, x + 1, SQL_BINARY, NULL, 0, &colsize);
 				fdlen = colsize;
-				fd = open(full_fn, O_RDWR | O_TRUNC | O_CREAT, 0770);
 				if (fd > -1) {
 					char tmp[1]="";
 					lseek(fd, fdlen - 1, SEEK_SET);
 					if (write(fd, tmp, 1) != 1) {
 						close(fd);
 						fd = -1;
+						continue;
 					}
 					if (fd > -1)
 						fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
