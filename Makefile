@@ -241,7 +241,7 @@ ifeq ($(OSARCH),SunOS)
   ID=/usr/xpg4/bin/id
 endif
 
-ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE)
+ASTCFLAGS+=-pipe -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
 ASTCFLAGS+=$(OPTIMIZE)
 
 ifeq ($(AST_DEVMODE),yes)
@@ -276,8 +276,7 @@ ifeq ($(OSARCH),FreeBSD)
 endif # FreeBSD
 
 ifeq ($(OSARCH),NetBSD)
-  ASTCFLAGS+=-pthread
-  INCLUDE+=-I$(CROSS_COMPILE_TARGET)/usr/pkg/include
+  AST_CFLAGS+=-pthread -I$(CROSS_COMPILE_TARGET)/usr/pkg/include
   MPG123TARG=netbsd
 endif
 
@@ -286,8 +285,7 @@ ifeq ($(OSARCH),OpenBSD)
 endif
 
 ifeq ($(OSARCH),SunOS)
-  ASTCFLAGS+=-Wcast-align -DSOLARIS
-  INCLUDE+=-Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
+  ASTCFLAGS+=-Wcast-align -DSOLARIS -Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
 endif
 
 LIBEDIT=editline/libedit.a
@@ -314,7 +312,7 @@ endif
 
 ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
 ifeq ($(findstring dont-optimize,$(MAKECMDGOALS)),)
-ASTCFLAGS+=-fomit-frame-pointer 
+ASTCFLAGS+=-fomit-frame-pointer
 endif
 
 MOD_SUBDIRS=res channels pbx apps codecs formats cdr funcs
