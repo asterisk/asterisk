@@ -512,6 +512,12 @@ static int speech_background(struct ast_channel *chan, void *data)
                 return -1;
         }
 
+	/* If channel is not already answered, then answer it */
+	if (chan->_state != AST_STATE_UP && ast_answer(chan)) {
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
         /* Record old read format */
         oldreadformat = chan->readformat;
 
