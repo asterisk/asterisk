@@ -65,7 +65,7 @@ static char *descrip =
 "  RESTRICTED_DIGITAL : 0x09 - Restricted digital information\n"
 "  3K1AUDIO           : 0x10 - 3.1kHz Audio (fax calls)\n"
 "  DIGITAL_W_TONES    : 0x11 - Unrestricted digital information with tones/announcements\n"
-"  VIDEO              : 0x18 - Video:\n"
+"  VIDEO              : 0x18 - Video\n"
 "\n"
 ;
 
