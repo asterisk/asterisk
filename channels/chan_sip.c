@@ -4743,6 +4743,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	char c[256];
 	char t[256];
 	char b[256];
+	char hold[256];
 	char m_audio[256];
 	char m_video[256];
 	char a_audio[1024];
@@ -4821,6 +4822,11 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	ast_build_string(&m_audio_next, &m_audio_left, "m=audio %d RTP/AVP", ntohs(dest.sin_port));
 	ast_build_string(&m_video_next, &m_video_left, "m=video %d RTP/AVP", ntohs(vdest.sin_port));
+
+	if (ast_test_flag(&p->flags[0], SIP_CALL_ONHOLD))
+		sprintf(hold, "a=recvonly");
+	else
+		sprintf(hold, "a=sendrecv");
 
 	/* Prefer the codec we were requested to use, first, no matter what */
 	if (capability & p->prefcodec) {
@@ -4902,11 +4908,11 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	ast_build_string(&m_audio_next, &m_audio_left, "\r\n");
 	ast_build_string(&m_video_next, &m_video_left, "\r\n");
 
-	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m_audio) + strlen(a_audio);
+	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m_audio) + strlen(a_audio) + strlen(hold);
 	if ((p->vrtp) &&
 	    (!ast_test_flag(&p->flags[0], SIP_NOVIDEO)) &&
 	    (capability & VIDEO_CODEC_MASK)) /* only if video response is appropriate */
-		len += strlen(m_video) + strlen(a_video) + strlen(b);
+		len += strlen(m_video) + strlen(a_video) + strlen(b) + strlen(hold);
 
 	add_header(resp, "Content-Type", "application/sdp");
 	add_header_contentLength(resp, len);
@@ -4921,11 +4927,13 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	add_line(resp, t);
 	add_line(resp, m_audio);
 	add_line(resp, a_audio);
+	add_line(resp, hold);
 	if ((p->vrtp) &&
 	    (!ast_test_flag(&p->flags[0], SIP_NOVIDEO)) &&
 	    (capability & VIDEO_CODEC_MASK)) { /* only if video response is appropriate */
 		add_line(resp, m_video);
 		add_line(resp, a_video);
+		add_line(resp, hold);
 	}
 
 	/* Update lastrtprx when we send our SDP */
