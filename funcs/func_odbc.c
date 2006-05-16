@@ -81,9 +81,14 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 {
 	struct odbc_obj *obj;
 	struct acf_odbc_query *query;
-	char *t, *arg, buf[2048]="", varname[15];
-	int res, argcount=0, valcount=0, i, retry=0;
-	struct ast_channel *ast;
+	char *t, buf[2048]="", varname[15];
+	int res, i, retry=0;
+	AST_DECLARE_APP_ARGS(values,
+		AST_APP_ARG(field)[100];
+	);
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(field)[100];
+	);
 	SQLHSTMT stmt;
 	SQLINTEGER nativeerror=0, numfields=0, rows=0;
 	SQLSMALLINT diagbytes=0;
@@ -123,52 +128,37 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 		return -1;
 	}
 
-	/* XXX You might be tempted to change this section into using
-	 * pbx_builtin_pushvar_helper().  However, note that if you try
-	 * to set a NULL (like for VALUE), then nothing gets set, and the
-	 * value doesn't get masked out.  Even worse, when you subsequently
-	 * try to remove the value you just set, you'll wind up unsetting
-	 * the previous value (which is wholly undesireable).  Hence, this
-	 * has to remain the way it is done here. XXX
-	 */
-
-	/* Save old arguments as variables in a fake channel */
-	ast = ast_channel_alloc(0);
-	while ((arg = strsep(&s, "|"))) {
-		argcount++;
-		snprintf(varname, sizeof(varname), "ARG%d", argcount);
-		pbx_builtin_setvar_helper(ast, varname, pbx_builtin_getvar_helper(chan, varname));
-		pbx_builtin_setvar_helper(chan, varname, arg);
+	AST_STANDARD_APP_ARGS(args, s);
+	for (i = 0; i < args.argc; i++) {
+		snprintf(varname, sizeof(varname), "ARG%d", i + 1);
+		pbx_builtin_pushvar_helper(chan, varname, args.field[i]);
 	}
 
 	/* Parse values, just like arguments */
-	while ((arg = strsep(&t, "|"))) {
-		valcount++;
-		snprintf(varname, sizeof(varname), "VAL%d", valcount);
-		pbx_builtin_setvar_helper(ast, varname, pbx_builtin_getvar_helper(chan, varname));
-		pbx_builtin_setvar_helper(chan, varname, arg);
+	/* Can't use the pipe, because app Set removes them */
+	AST_NONSTANDARD_APP_ARGS(values, t, ',');
+	for (i = 0; i < values.argc; i++) {
+		snprintf(varname, sizeof(varname), "VAL%d", i + 1);
+		pbx_builtin_pushvar_helper(chan, varname, values.field[i]);
 	}
 
-	/* Additionally set the value as a whole */
-	/* Note that pbx_builtin_setvar_helper will quite happily take a NULL for the 3rd argument */
-	pbx_builtin_setvar_helper(ast, "VALUE", pbx_builtin_getvar_helper(chan, "VALUE"));
-	pbx_builtin_setvar_helper(chan, "VALUE", value);
+	/* Additionally set the value as a whole (but push an empty string if value is NULL) */
+	pbx_builtin_pushvar_helper(chan, "VALUE", value ? value : "");
 
 	pbx_substitute_variables_helper(chan, query->sql_write, buf, sizeof(buf) - 1);
 
 	/* Restore prior values */
-	for (i=1; i<=argcount; i++) {
-		snprintf(varname, sizeof(varname), "ARG%d", argcount);
-		pbx_builtin_setvar_helper(chan, varname, pbx_builtin_getvar_helper(ast, varname));
+	for (i = 0; i < args.argc; i++) {
+		snprintf(varname, sizeof(varname), "ARG%d", i + 1);
+		pbx_builtin_setvar_helper(chan, varname, NULL);
 	}
 
-	for (i=1; i<=valcount; i++) {
-		snprintf(varname, sizeof(varname), "VAL%d", argcount);
-		pbx_builtin_setvar_helper(chan, varname, pbx_builtin_getvar_helper(ast, varname));
+	for (i = 0; i < values.argc; i++) {
+		snprintf(varname, sizeof(varname), "VAL%d", i + 1);
+		pbx_builtin_setvar_helper(chan, varname, NULL);
 	}
-	pbx_builtin_setvar_helper(chan, "VALUE", pbx_builtin_getvar_helper(ast, "VALUE"));
+	pbx_builtin_setvar_helper(chan, "VALUE", NULL);
 
-	ast_channel_free(ast);
 	AST_LIST_UNLOCK(&queries);
 
 retry_write:
@@ -239,8 +229,11 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 {
 	struct odbc_obj *obj;
 	struct acf_odbc_query *query;
-	char *arg, sql[2048] = "", varname[15];
-	int count=0, res, x, buflen = 0;
+	char sql[2048] = "", varname[15];
+	int res, x, buflen = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(field)[100];
+	);
 	SQLHSTMT stmt;
 	SQLSMALLINT colcount=0;
 	SQLINTEGER indicator;
@@ -275,18 +268,17 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	SQLSetConnectAttr(obj->con, SQL_ATTR_TRACEFILE, tracefile, strlen(tracefile));
 #endif
 
-	while ((arg = strsep(&s, "|"))) {
-		count++;
-		snprintf(varname, sizeof(varname), "ARG%d", count);
-		/* arg is by definition non-NULL, so this works, here */
-		pbx_builtin_pushvar_helper(chan, varname, arg);
+	AST_STANDARD_APP_ARGS(args, s);
+	for (x = 0; x < args.argc; x++) {
+		snprintf(varname, sizeof(varname), "ARG%d", x + 1);
+		pbx_builtin_pushvar_helper(chan, varname, args.field[x]);
 	}
 
 	pbx_substitute_variables_helper(chan, query->sql_read, sql, sizeof(sql) - 1);
 
 	/* Restore prior values */
-	for (x = 1; x <= count; x++) {
-		snprintf(varname, sizeof(varname), "ARG%d", x);
+	for (x = 0; x < args.argc; x++) {
+		snprintf(varname, sizeof(varname), "ARG%d", x + 1);
 		pbx_builtin_setvar_helper(chan, varname, NULL);
 	}
 
@@ -330,7 +322,8 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 		} else if (option_verbose > 3) {
 			ast_log(LOG_WARNING, "Error %d in FETCH [%s]\n", res, sql);
 		}
-		goto acf_out;
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		return 0;
 	}
 
 	for (x = 0; x < colcount; x++) {
@@ -369,7 +362,6 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	/* Trim trailing comma */
 	buf[buflen - 1] = '\0';
 
-acf_out:
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 	return 0;
 }
