@@ -2900,6 +2900,16 @@ static int zt_setoption(struct ast_channel *chan, int option, void *data, int da
 		ast_log(LOG_DEBUG, "Set Operator Services mode, value: %d on %s/%s\n",
 			oprmode->mode, chan->name,oprmode->peer->name);;
 		break;
+	case AST_OPTION_ECHOCAN:
+		cp = (char *) data;
+		if (*cp) {
+			ast_log(LOG_DEBUG, "Enabling echo cancelation on %s\n", chan->name);
+			zt_enable_ec(p);
+		} else {
+			ast_log(LOG_DEBUG, "Disabling echo cancelation on %s\n", chan->name);
+			zt_disable_ec(p);
+		}
+		break;
 	}
 	errno = 0;
 

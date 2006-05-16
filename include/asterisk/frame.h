@@ -303,6 +303,9 @@ enum ast_control_frame_type {
 /* set channel into "Operator Services" mode */
 #define	AST_OPTION_OPRMODE		7
 
+/*! Explicitly enable or disable echo cancelation for the given channel */
+#define	AST_OPTION_ECHOCAN		8
+
 struct oprmode {
 	struct ast_channel *peer;
 	int mode;
