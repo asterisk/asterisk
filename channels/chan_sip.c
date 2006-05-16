@@ -8955,6 +8955,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 	ast_mutex_lock(&iflock);
 	for (cur = iflist; cur; cur = cur->next) {
 		if (!strncasecmp(cur->callid, argv[3], len)) {
+			char formatbuf[BUFSIZ/2];
 			ast_cli(fd,"\n");
 			if (cur->subscribed != NONE)
 				ast_cli(fd, "  * Subscription (type: %s)\n", subscription_type2str(cur->subscribed));
@@ -8963,10 +8964,10 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Direction:              %s\n", ast_test_flag(&cur->flags[0], SIP_OUTGOING)?"Outgoing":"Incoming");
 			ast_cli(fd, "  Call-ID:                %s\n", cur->callid);
 			ast_cli(fd, "  Our Codec Capability:   %d\n", cur->capability);
-			ast_cli(fd, "  Non-Codec Capability:   %d\n", cur->noncodeccapability);
+			ast_cli(fd, "  Non-Codec Capability (DTMF):   %d\n", cur->noncodeccapability);
 			ast_cli(fd, "  Their Codec Capability:   %d\n", cur->peercapability);
 			ast_cli(fd, "  Joint Codec Capability:   %d\n", cur->jointcapability);
-			ast_cli(fd, "  Format                  %s\n", ast_getformatname(cur->owner ? cur->owner->nativeformats : 0) );
+			ast_cli(fd, "  Format                  %s\n", ast_getformatname_multiple(formatbuf, sizeof(formatbuf), cur->owner ? cur->owner->nativeformats : 0) );
 			ast_cli(fd, "  Theoretical Address:    %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), ntohs(cur->sa.sin_port));
 			ast_cli(fd, "  Received Address:       %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->recv.sin_addr), ntohs(cur->recv.sin_port));
 			ast_cli(fd, "  SIP Transfer mode:      %s\n", transfermode2str(cur->allowtransfer));
