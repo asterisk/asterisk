@@ -105,7 +105,8 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 		goto chanquit;
 	}
 
-	ast_log(LOG_DEBUG, "Attempting async goto (%s) to %s|%s|%d\n", args.channel, S_OR(context, chan2->context), S_OR(exten, chan2->exten), prio);
+	if (option_debug > 1)
+		ast_log(LOG_DEBUG, "Attempting async goto (%s) to %s|%s|%d\n", args.channel, S_OR(context, chan2->context), S_OR(exten, chan2->exten), prio);
 
 	if (ast_async_goto_if_exists(chan2, S_OR(context, chan2->context), S_OR(exten, chan2->exten), prio))
 		ast_log(LOG_WARNING, "%s failed for %s\n", app, args.channel);
