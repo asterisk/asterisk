@@ -99,7 +99,7 @@ static int cdr_write(struct ast_channel *chan, char *cmd, char *parse,
 	else if (!strcasecmp(args.variable, "userfield"))
 		ast_cdr_setuserfield(chan, value);
 	else if (!strcasecmp(args.variable, "amaflags"))
-		ast_cdr_setuserfield(chan, value);
+		ast_cdr_setamaflags(chan, value);
 	else if (chan->cdr)
 		ast_cdr_setvar(chan->cdr, args.variable, value, ast_test_flag(&flags, OPT_RECURSIVE));
 		/* No need to worry about the u flag, as all fields for which setting
