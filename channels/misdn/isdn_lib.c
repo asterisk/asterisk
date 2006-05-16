@@ -19,42 +19,6 @@ void misdn_join_conf(struct misdn_bchannel *bc, int conf_id);
 void misdn_split_conf(struct misdn_bchannel *bc, int conf_id);
 
 
-void misdn_free_ibuffer(void *ibuf)
-{
-	free_ibuffer((ibuffer_t*)ibuf);
-}
-
-
-void misdn_clear_ibuffer(void *ibuf)
-{
-	clear_ibuffer( (ibuffer_t*)ibuf);
-}
-
-void *misdn_init_ibuffer(int len)
-{
-	return init_ibuffer(len);
-}
-
-int misdn_ibuf_freecount(void *buf)
-{
-	return ibuf_freecount( (ibuffer_t*)buf);
-}
-
-int misdn_ibuf_usedcount(void *buf)
-{
-	return ibuf_usedcount( (ibuffer_t*)buf);
-}
-
-void misdn_ibuf_memcpy_r(char *to, void *buf, int len)
-{
-	ibuf_memcpy_r( to, (ibuffer_t*)buf, len);
-}
-
-void misdn_ibuf_memcpy_w(void *buf, char *from,  int len)
-{
-	ibuf_memcpy_w((ibuffer_t*)buf, from, len);
-}
-
 struct misdn_stack* get_misdn_stack( void );
 
 
@@ -196,7 +160,6 @@ int te_lib_init( void ) ; /* returns midev */
 void te_lib_destroy(int midev) ;
 struct misdn_bchannel *manager_find_bc_by_pid(int pid);
 struct misdn_bchannel *manager_find_bc_holded(struct misdn_bchannel* bc);
-unsigned char * manager_flip_buf_bits ( unsigned char * buf , int len);
 void manager_ph_control_block(struct misdn_bchannel *bc, long c1, void *c2, int c2_len);
 void manager_clean_bc(struct misdn_bchannel *bc );
 void manager_bchannel_setup (struct misdn_bchannel *bc);
@@ -2031,6 +1994,7 @@ void misdn_tx_jitter(struct misdn_bchannel *bc, int len)
 	jlen=cb_jb_empty(bc,&buf[mISDN_HEADER_LEN],len);
 	
 	if (jlen) {
+		flip_buf_bits( &buf[mISDN_HEADER_LEN], jlen);
 		
 		if (jlen < len) {
 			cb_log(5,bc->port,"Jitterbuffer Underrun.\n");
@@ -3586,8 +3550,10 @@ int misdn_lib_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len)
 	
 	frm->len = len;
 	memcpy(&buf[mISDN_HEADER_LEN], data,len);
-	
-	if ( ! misdn_cap_is_speech(bc->capability))
+		
+	if ( misdn_cap_is_speech(bc->capability) ) 
+		flip_buf_bits( &buf[mISDN_HEADER_LEN], len);
+	else
 		cb_log(6, stack->port, "Writing %d data bytes\n",len);
 	
 	cb_log(9, stack->port, "Writing %d bytes 2 mISDN\n",len);
