@@ -151,6 +151,9 @@ char *ast_rtp_lookup_mime_multiple(char *buf, int size, const int capability, co
 
 void ast_rtp_setnat(struct ast_rtp *rtp, int nat);
 
+/*! \brief Indicate whether this RTP session is carrying DTMF or not */
+void ast_rtp_setdtmf(struct ast_rtp *rtp, int dtmf);
+
 int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 
 int ast_rtp_proto_register(struct ast_rtp_protocol *proto);

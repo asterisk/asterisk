@@ -86,6 +86,7 @@ struct rtpPayloadType {
 #define FLAG_NAT_ACTIVE			(3 << 1)
 #define FLAG_NAT_INACTIVE		(0 << 1)
 #define FLAG_NAT_INACTIVE_NOWARN	(1 << 1)
+#define FLAG_HAS_DTMF			(1 << 3)
 
 /*! \brief RTP session description */
 struct ast_rtp {
@@ -432,6 +433,11 @@ void ast_rtp_set_callback(struct ast_rtp *rtp, ast_rtp_callback callback)
 void ast_rtp_setnat(struct ast_rtp *rtp, int nat)
 {
 	rtp->nat = nat;
+}
+
+void ast_rtp_setdtmf(struct ast_rtp *rtp, int dtmf)
+{
+	ast_set2_flag(rtp, dtmf ? 1 : 0, FLAG_HAS_DTMF);
 }
 
 static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
@@ -1344,6 +1350,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 	rtp->s = rtp_socket();
 	rtp->ssrc = ast_random();
 	rtp->seqno = ast_random() & 0xffff;
+	ast_set_flag(rtp, FLAG_HAS_DTMF);
 	if (rtp->s < 0) {
 		free(rtp);
 		ast_log(LOG_ERROR, "Unable to allocate socket: %s\n", strerror(errno));
@@ -1921,10 +1928,6 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	memset(&vac0, 0, sizeof(vac0));
 	memset(&vac1, 0, sizeof(vac1));
 
-	/* if need DTMF, cant native bridge */
-	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
-		return AST_BRIDGE_FAILED_NOWARN;
-
 	/* Lock channels */
 	ast_channel_lock(c0);
 	while(ast_channel_trylock(c1)) {
@@ -1966,6 +1969,25 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 		ast_channel_unlock(c1);
 		return AST_BRIDGE_FAILED_NOWARN;
 	}
+
+	if (ast_test_flag(p0, FLAG_HAS_DTMF) && (flags & AST_BRIDGE_DTMF_CHANNEL_0)) {
+		/* can't bridge, we are carrying DTMF for this channel and the bridge
+		   needs it
+		*/
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
+		return AST_BRIDGE_FAILED_NOWARN;
+	}
+
+	if (ast_test_flag(p1, FLAG_HAS_DTMF) && (flags & AST_BRIDGE_DTMF_CHANNEL_1)) {
+		/* can't bridge, we are carrying DTMF for this channel and the bridge
+		   needs it
+		*/
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
+		return AST_BRIDGE_FAILED_NOWARN;
+	}
+
 	/* Get codecs from both sides */
 	codec0 = pr0->get_codec ? pr0->get_codec(c0) : 0;
 	codec1 = pr1->get_codec ? pr1->get_codec(c1) : 0;

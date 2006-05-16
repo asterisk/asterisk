@@ -2195,6 +2195,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 		ast_rtp_destroy(r->vrtp);
 		r->vrtp = NULL;
 	}
+	ast_rtp_setdtmf(r->rtp, ast_test_flag(&r->flags[0], SIP_DTMF) != SIP_DTMF_INFO);
 	r->prefs = peer->prefs;
 	natflags = ast_test_flag(&r->flags[0], SIP_NAT) & SIP_NAT_ROUTE;
 	if (r->rtp) {
@@ -3524,9 +3525,12 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			free(p);
 			return NULL;
 		}
+		ast_rtp_setdtmf(p->rtp, ast_test_flag(&p->flags[0], SIP_DTMF) != SIP_DTMF_INFO);
 		ast_rtp_settos(p->rtp, global_tos_audio);
-		if (p->vrtp)
+		if (p->vrtp) {
 			ast_rtp_settos(p->vrtp, global_tos_video);
+			ast_rtp_setdtmf(p->vrtp, 0);
+		}
 		p->rtptimeout = global_rtptimeout;
 		p->rtpholdtimeout = global_rtpholdtimeout;
 		p->rtpkeepalive = global_rtpkeepalive;
@@ -11170,6 +11174,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		get_rdnis(p, NULL);			/* Get redirect information */
 		extract_uri(p, req);			/* Get the Contact URI */
 		build_contact(p);			/* Build our contact header */
+		ast_rtp_setdtmf(p->rtp, ast_test_flag(&p->flags[0], SIP_DTMF) != SIP_DTMF_INFO);
 
 		if (gotdest) {
 			if (gotdest == 1 && ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP)) {
