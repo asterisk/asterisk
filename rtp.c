@@ -174,21 +174,21 @@ struct stun_addr {
 #define STUN_BINDREQ	0x0001
 #define STUN_BINDRESP	0x0101
 #define STUN_BINDERR	0x0111
-#define STUN_SECREQ		0x0002
+#define STUN_SECREQ	0x0002
 #define STUN_SECRESP	0x0102
-#define STUN_SECERR		0x0112
+#define STUN_SECERR	0x0112
 
-#define STUN_MAPPED_ADDRESS		0x0001
+#define STUN_MAPPED_ADDRESS	0x0001
 #define STUN_RESPONSE_ADDRESS	0x0002
-#define STUN_CHANGE_REQUEST		0x0003
-#define STUN_SOURCE_ADDRESS		0x0004
+#define STUN_CHANGE_REQUEST	0x0003
+#define STUN_SOURCE_ADDRESS	0x0004
 #define STUN_CHANGED_ADDRESS	0x0005
-#define STUN_USERNAME			0x0006
-#define STUN_PASSWORD			0x0007
+#define STUN_USERNAME		0x0006
+#define STUN_PASSWORD		0x0007
 #define STUN_MESSAGE_INTEGRITY	0x0008
-#define STUN_ERROR_CODE			0x0009
+#define STUN_ERROR_CODE		0x0009
 #define STUN_UNKNOWN_ATTRIBUTES	0x000a
-#define STUN_REFLECTED_FROM		0x000b
+#define STUN_REFLECTED_FROM	0x000b
 
 static const char *stun_msg2str(int msg)
 {
@@ -338,29 +338,34 @@ static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *dat
 	int resplen, respleft;
 	
 	if (len < sizeof(struct stun_header)) {
-		ast_log(LOG_DEBUG, "Runt STUN packet (only %d, wanting at least %d)\n", len, sizeof(struct stun_header));
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Runt STUN packet (only %d, wanting at least %d)\n", len, sizeof(struct stun_header));
 		return -1;
 	}
 	if (stundebug)
 		ast_verbose("STUN Packet, msg %s (%04x), length: %d\n", stun_msg2str(ntohs(hdr->msgtype)), ntohs(hdr->msgtype), ntohs(hdr->msglen));
 	if (ntohs(hdr->msglen) > len - sizeof(struct stun_header)) {
-		ast_log(LOG_DEBUG, "Scrambled STUN packet length (got %d, expecting %d)\n", ntohs(hdr->msglen), len - sizeof(struct stun_header));
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Scrambled STUN packet length (got %d, expecting %d)\n", ntohs(hdr->msglen), len - sizeof(struct stun_header));
 	} else
 		len = ntohs(hdr->msglen);
 	data += sizeof(struct stun_header);
 	memset(&st, 0, sizeof(st));
 	while(len) {
 		if (len < sizeof(struct stun_attr)) {
-			ast_log(LOG_DEBUG, "Runt Attribute (got %d, expecting %d)\n", len, sizeof(struct stun_attr));
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Runt Attribute (got %d, expecting %d)\n", len, sizeof(struct stun_attr));
 			break;
 		}
 		attr = (struct stun_attr *)data;
 		if (ntohs(attr->len) > len) {
-			ast_log(LOG_DEBUG, "Inconsistant Attribute (length %d exceeds remaining msg len %d)\n", ntohs(attr->len), len);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Inconsistant Attribute (length %d exceeds remaining msg len %d)\n", ntohs(attr->len), len);
 			break;
 		}
 		if (stun_process_attr(&st, attr)) {
-			ast_log(LOG_DEBUG, "Failed to handle attribute %s (%04x)\n", stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr));
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Failed to handle attribute %s (%04x)\n", stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr));
 			break;
 		}
 		/* Clear attribute in case previous entry was a string */
