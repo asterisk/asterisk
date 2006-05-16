@@ -1955,9 +1955,11 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			if (f->subclass == AST_CONTROL_ANSWER) {
 				if (!ast_test_flag(chan, AST_FLAG_OUTGOING)) {
 					ast_log(LOG_DEBUG, "Ignoring answer on an inbound call!\n");
+					ast_frfree(f);
 					f = &ast_null_frame;
 				} else if (prestate == AST_STATE_UP) {
 					ast_log(LOG_DEBUG, "Dropping duplicate answer!\n");
+					ast_frfree(f);
 					f = &ast_null_frame;
 				} else {
 					/* Answer the CDR */
@@ -1973,6 +1975,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					chan->dtmfq[strlen(chan->dtmfq)] = f->subclass;
 				else
 					ast_log(LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
+				ast_frfree(f);
 				f = &ast_null_frame;
 			}
 			break;
