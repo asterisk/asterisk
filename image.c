@@ -205,7 +205,6 @@ struct ast_cli_entry show_images =
 
 int ast_image_init(void)
 {
-	ast_cli_register(&show_images);
-	return 0;
+	return ast_cli_register(&show_images);
 }
 
