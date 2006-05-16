@@ -5609,12 +5609,6 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *messa
 	add_header_contentLength(&req, strlen(tmp));
 	add_line(&req, tmp);
 
-
-	snprintf(tmp, sizeof(tmp), "SIP/2.0 %s\r\n", message);
-	add_header_contentLength(&req, strlen(tmp));
-	add_line(&req, tmp);
-
-	
 	if (!p->initreq.headers)
 		initialize_initreq(p, &req);
 
