@@ -525,7 +525,7 @@ struct sip_auth {
 #define SIP_REALTIME		(1 << 11)	/*!< Flag for realtime users */
 #define SIP_USECLIENTCODE	(1 << 12)	/*!< Trust X-ClientCode info message */
 #define SIP_OUTGOING		(1 << 13)	/*!< Is this an outgoing call? */
-#define SIP_SELFDESTRUCT	(1 << 14)	
+#define SIP_SELFDESTRUCT	(1 << 14)	/*!< This is an autocreated peer */
 #define SIP_DYNAMIC		(1 << 15)	/*!< Is this a dynamic peer? */
 /* --- Choices for DTMF support in SIP channel */
 #define SIP_DTMF		(3 << 16)	/*!< three settings, uses two bits */
@@ -5639,17 +5639,24 @@ static void destroy_association(struct sip_peer *peer)
 static int expire_register(void *data)
 {
 	struct sip_peer *peer = data;
+	
+	if (!peer)		/* Hmmm. We have no peer. Weird. */
+		return 0;
 
 	memset(&peer->addr, 0, sizeof(peer->addr));
 
 	destroy_association(peer);
 	
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
-	register_peer_exten(peer, 0);
+	register_peer_exten(peer, 0);	/* Remove regexten */
 	peer->expire = -1;
 	ast_device_state_changed("SIP/%s", peer->name);
+
+	/* Do we need to release this peer from memory? 
+		Only for realtime peers and autocreated peers
+	*/
 	if (ast_test_flag(peer, SIP_SELFDESTRUCT) || ast_test_flag((&peer->flags_page2), SIP_PAGE2_RTAUTOCLEAR)) {
-		peer = ASTOBJ_CONTAINER_UNLINK(&peerl, peer);
+		peer = ASTOBJ_CONTAINER_UNLINK(&peerl, peer);	/* Remove from peer list */
 		ASTOBJ_UNREF(peer, sip_destroy_peer);
 	}
 
