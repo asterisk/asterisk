@@ -1895,11 +1895,10 @@ static int is_our_turn(struct queue_ent *qe)
 	int res;
 
 	if (!qe->parent->autofill) {
-
 		/* Atomically read the parent head -- does not need a lock */
 		ch = qe->parent->head;
 		/* If we are now at the top of the head, break out */
-		if ((ch == qe) || (qe->parent->autofill)) {
+		if (ch == qe) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
 			res = 1;
