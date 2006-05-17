@@ -6070,19 +6070,26 @@ static void destroy_association(struct sip_peer *peer)
 static int expire_register(void *data)
 {
 	struct sip_peer *peer = data;
+	
+	if (!peer)		/* Hmmm. We have no peer. Weird. */
+		return 0;
 
 	memset(&peer->addr, 0, sizeof(peer->addr));
 
-	destroy_association(peer);
+	destroy_association(peer);	/* remove registration data from storage */
 	
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
-	register_peer_exten(peer, FALSE);
+	register_peer_exten(peer, FALSE);	/* Remove regexten */
 	peer->expire = -1;
 	ast_device_state_changed("SIP/%s", peer->name);
+
+	/* Do we need to release this peer from memory? 
+		Only for realtime peers and autocreated peers
+	*/
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SELFDESTRUCT) ||
 	    ast_test_flag(&peer->flags[1], SIP_PAGE2_RTAUTOCLEAR)) {
-		peer = ASTOBJ_CONTAINER_UNLINK(&peerl, peer);
-		ASTOBJ_UNREF(peer, sip_destroy_peer);
+		peer = ASTOBJ_CONTAINER_UNLINK(&peerl, peer);	/* Remove from peer list */
+		ASTOBJ_UNREF(peer, sip_destroy_peer);		/* Remove from memory */
 	}
 
 	return 0;
