@@ -2316,7 +2316,7 @@ static int stop_bc_tones(struct chan_list *cl)
 }
 
 
-static struct chan_list *init_chan_list(void)
+static struct chan_list *init_chan_list(int orig)
 {
 	struct chan_list *cl=malloc(sizeof(struct chan_list));
 	
@@ -2326,6 +2326,8 @@ static struct chan_list *init_chan_list(void)
 	}
 	
 	memset(cl,0,sizeof(struct chan_list));
+
+	cl->orginator=orig;
 	
 	return cl;
 	
@@ -2342,7 +2344,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	int channel=0, port=0;
 	struct misdn_bchannel *newbc = NULL;
 	
-	struct chan_list *cl=init_chan_list();
+	struct chan_list *cl=init_chan_list(ORG_AST);
 	
 	sprintf(buf,"%s/%s",misdn_type,(char*)data);
 	ast_copy_string(buf2,data, 128);
@@ -3171,7 +3173,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	print_bearer(bc);
     
 	{
-		struct chan_list *ch=init_chan_list();
+		struct chan_list *ch=init_chan_list(ORG_MISDN);
 		struct ast_channel *chan;
 
 		if (!ch) { chan_misdn_log(-1, bc->port, "cb_events: malloc for chan_list failed!\n"); return 0;}
@@ -3429,6 +3431,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 		send_cause2ast(ch->ast,bc);
 
+
+		chan_misdn_log(0,bc->port," org:%d nt:%d, inbandavail:%d state:%d\n", ch->orginator, bc->nt, misdn_inband_avail(bc), ch->state);
 		if ( ch->orginator==ORG_AST && !bc->nt && misdn_inband_avail(bc) && ch->state != MISDN_CONNECTED) {
 			/* If there's inband information available (e.g. a
 			   recorded message saying what was wrong with the
