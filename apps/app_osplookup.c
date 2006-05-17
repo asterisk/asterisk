@@ -216,31 +216,33 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 	cause = str2cause(args.cause);
 	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	result.handle = -1;
-	if (!ast_strlen_zero(temp) && (sscanf(temp, "%d", &result.handle) == 1) && (result.handle > -1)) {
-		temp = pbx_builtin_getvar_helper(chan, "OSPRESULTS");
-		if (ast_strlen_zero(temp) || (sscanf(temp, "%d", &result.numresults) != 1)) {
-			result.numresults = 0;
-		}
-		if ((res = ast_osp_next(&result, cause)) > 0) {
-			char tmp[80];
-			snprintf(tmp, sizeof(tmp), "%d", result.handle);
-			pbx_builtin_setvar_helper(chan, "_OSPHANDLE", tmp);
-			pbx_builtin_setvar_helper(chan, "_OSPTECH", result.tech);
-			pbx_builtin_setvar_helper(chan, "_OSPDEST", result.dest);
-			pbx_builtin_setvar_helper(chan, "_OSPTOKEN", result.token);
-			snprintf(tmp, sizeof(tmp), "%d", result.numresults);
-			pbx_builtin_setvar_helper(chan, "_OSPRESULTS", tmp);
-			pbx_builtin_setvar_helper(chan, "OSPNEXTSTATUS", "SUCCESS");
-		}
+	if (ast_strlen_zero(temp) || (sscanf(temp, "%d", &result.handle) != 1)) {
+		result.handle = -1;
+	}
+	temp = pbx_builtin_getvar_helper(chan, "OSPRESULTS");
+	if (ast_strlen_zero(temp) || (sscanf(temp, "%d", &result.numresults) != 1)) {
+		result.numresults = 0;
+	}
+	if ((res = ast_osp_next(&result, cause)) > 0) {
+		char tmp[80];
+		snprintf(tmp, sizeof(tmp), "%d", result.handle);
+		pbx_builtin_setvar_helper(chan, "_OSPHANDLE", tmp);
+		pbx_builtin_setvar_helper(chan, "_OSPTECH", result.tech);
+		pbx_builtin_setvar_helper(chan, "_OSPDEST", result.dest);
+		pbx_builtin_setvar_helper(chan, "_OSPTOKEN", result.token);
+		snprintf(tmp, sizeof(tmp), "%d", result.numresults);
+		pbx_builtin_setvar_helper(chan, "_OSPRESULTS", tmp);
+		pbx_builtin_setvar_helper(chan, "OSPNEXTSTATUS", "SUCCESS");
 	} else {
 		if (!res) {
 			if (result.handle < 0)
 				ast_log(LOG_NOTICE, "OSP Lookup Next failed for handle '%d'\n", result.handle);
 			else
 				ast_log(LOG_DEBUG, "No OSP handle specified\n");
-			pbx_builtin_setvar_helper(chan, "OSPNEXTSTATUS", "FAILED");	
 		} else
 			ast_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Next!\n", chan->name);
+
+		pbx_builtin_setvar_helper(chan, "OSPNEXTSTATUS", "FAILED");	
 	}
 	if (!res) {
 		/* Look for a "busy" place */
