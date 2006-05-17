@@ -4747,7 +4747,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	char c[256];
 	char t[256];
 	char b[256];
-	char hold[256];
+	char *hold;
 	char m_audio[256];
 	char m_video[256];
 	char a_audio[1024];
@@ -4828,9 +4828,9 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	ast_build_string(&m_video_next, &m_video_left, "m=video %d RTP/AVP", ntohs(vdest.sin_port));
 
 	if (ast_test_flag(&p->flags[0], SIP_CALL_ONHOLD))
-		sprintf(hold, "a=recvonly");
+		hold = "a=recvonly";
 	else
-		sprintf(hold, "a=sendrecv");
+		hold = "a=sendrecv";
 
 	/* Prefer the codec we were requested to use, first, no matter what */
 	if (capability & p->prefcodec) {
