@@ -471,6 +471,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
 						if (!o->chan)
 							ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+						else
+							ast_channel_inherit_variables(in, o->chan);
 					} else {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", o->chan->name);
@@ -1060,6 +1062,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				tmp->chan = ast_request(tech, chan->nativeformats, stuff, &cause);
 				if (!tmp->chan)
 					ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+				else
+					ast_channel_inherit_variables(chan, tmp->chan);
 			} else {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", tmp->chan->name);
