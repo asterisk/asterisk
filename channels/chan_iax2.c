@@ -476,7 +476,10 @@ struct chan_iax2_pvt {
 	int maxtime;
 	/*! Peer Address */
 	struct sockaddr_in addr;
+	/*! Actual used codec preferences */
 	struct ast_codec_pref prefs;
+	/*! Requested codec preferences */
+	struct ast_codec_pref rprefs;
 	/*! Our call number */
 	unsigned short callno;
 	/*! Peer callno */
@@ -4693,9 +4696,12 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	if (ies->version)
 		version = ies->version;
 
-	if(ies->codec_prefs)
+	/* Use provided preferences until told otherwise for actual preferences */
+	if(ies->codec_prefs) {
+		ast_codec_pref_convert(&iaxs[callno]->rprefs, ies->codec_prefs, 32, 0);
 		ast_codec_pref_convert(&iaxs[callno]->prefs, ies->codec_prefs, 32, 0);
-	
+	}
+
 	if (!gotcapability) 
 		iaxs[callno]->peercapability = iaxs[callno]->peerformat;
 	if (version > IAX_PROTO_VERSION) {
@@ -6297,7 +6303,7 @@ static int socket_process(struct iax2_thread *thread)
 	struct iax_frame *duped_fr;
 	char host_pref_buf[128];
 	char caller_pref_buf[128];
-	struct ast_codec_pref pref,rpref;
+	struct ast_codec_pref pref;
 	char *using_prefs = "mine";
 
 	dblbuf[0] = 0;	/* Keep GCC from whining */
@@ -6817,20 +6823,22 @@ retryowner:
 							strcpy(host_pref_buf, "disabled");
 						} else {
 							using_prefs = "mine";
-							if(ies.codec_prefs) {
-								ast_codec_pref_convert(&rpref, ies.codec_prefs, 32, 0);
+							/* If the information elements are in here... use them */
+							if (ies.codec_prefs)
+								ast_codec_pref_convert(&iaxs[fr.callno]->rprefs, ies.codec_prefs, 32, 0);
+							if (ast_codec_pref_index(&iaxs[fr.callno]->rprefs, 0)) {
 								/* If we are codec_first_choice we let the caller have the 1st shot at picking the codec.*/
 								if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
-									pref = rpref;
+									pref = iaxs[fr.callno]->rprefs;
 									using_prefs = "caller";
 								} else {
 									pref = iaxs[fr.callno]->prefs;
 								}
 							} else
 								pref = iaxs[fr.callno]->prefs;
-						
+							
 							format = ast_codec_choose(&pref, iaxs[fr.callno]->capability & iaxs[fr.callno]->peercapability, 0);
-							ast_codec_pref_string(&rpref, caller_pref_buf, sizeof(caller_pref_buf) - 1);
+							ast_codec_pref_string(&iaxs[fr.callno]->rprefs, caller_pref_buf, sizeof(caller_pref_buf) - 1);
 							ast_codec_pref_string(&iaxs[fr.callno]->prefs, host_pref_buf, sizeof(host_pref_buf) - 1);
 						}
 						if (!format) {
@@ -6861,12 +6869,12 @@ retryowner:
 										strcpy(host_pref_buf,"disabled");
 									} else {
 										using_prefs = "mine";
-										if(ies.codec_prefs) {
+										if (ast_codec_pref_index(&iaxs[fr.callno]->rprefs, 0)) {
 											/* Do the opposite of what we tried above. */
 											if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
 												pref = iaxs[fr.callno]->prefs;								
 											} else {
-												pref = rpref;
+												pref = iaxs[fr.callno]->rprefs;
 												using_prefs = "caller";
 											}
 											format = ast_codec_choose(&pref, iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability, 1);
@@ -7219,11 +7227,11 @@ retryowner2:
 						strcpy(host_pref_buf, "disabled");
 					} else {
 						using_prefs = "mine";
-						if(ies.codec_prefs) {
-							/* If we are codec_first_choice we let the caller have the 1st shot at picking the codec.*/
-							ast_codec_pref_convert(&rpref, ies.codec_prefs, 32, 0);
+						if (ies.codec_prefs)
+							ast_codec_pref_convert(&iaxs[fr.callno]->rprefs, ies.codec_prefs, 32, 0);
+						if (ast_codec_pref_index(&iaxs[fr.callno]->rprefs, 0)) {
 							if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
-								ast_codec_pref_convert(&pref, ies.codec_prefs, 32, 0);
+								pref = iaxs[fr.callno]->rprefs;
 								using_prefs = "caller";
 							} else {
 								pref = iaxs[fr.callno]->prefs;
@@ -7232,7 +7240,7 @@ retryowner2:
 							pref = iaxs[fr.callno]->prefs;
 					
 						format = ast_codec_choose(&pref, iaxs[fr.callno]->capability & iaxs[fr.callno]->peercapability, 0);
-						ast_codec_pref_string(&rpref, caller_pref_buf, sizeof(caller_pref_buf) - 1);
+						ast_codec_pref_string(&iaxs[fr.callno]->rprefs, caller_pref_buf, sizeof(caller_pref_buf) - 1);
 						ast_codec_pref_string(&iaxs[fr.callno]->prefs, host_pref_buf, sizeof(host_pref_buf) - 1);
 					}
 					if (!format) {
@@ -7266,12 +7274,12 @@ retryowner2:
 									strcpy(host_pref_buf,"disabled");
 								} else {
 									using_prefs = "mine";
-									if(ies.codec_prefs) {
+									if (ast_codec_pref_index(&iaxs[fr.callno]->rprefs, 0)) {
 										/* Do the opposite of what we tried above. */
 										if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
 											pref = iaxs[fr.callno]->prefs;						
 										} else {
-											pref = rpref;
+											pref = iaxs[fr.callno]->rprefs;
 											using_prefs = "caller";
 										}
 										format = ast_codec_choose(&pref, iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability, 1);
