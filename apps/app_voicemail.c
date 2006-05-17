@@ -5838,7 +5838,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
-			ast_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING);
+			ast_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING | OPT_PRIORITY_JUMP);
 			if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
 				int gain;
 
