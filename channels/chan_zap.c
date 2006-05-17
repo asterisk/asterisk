@@ -206,6 +206,7 @@ static char musicclass[MAX_MUSICCLASS] = "";
 static char progzone[10]= "";
 
 static int usedistinctiveringdetection = 0;
+static int distinctiveringaftercid = 0;
 
 static int transfertobusy = 1;
 
@@ -6246,6 +6247,59 @@ lax);
 							break;
 					}
 				}
+				if (res == 1) {
+					callerid_get(cs, &name, &number, &flags);
+					if (option_debug)
+						ast_log(LOG_DEBUG, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
+				}
+				if (distinctiveringaftercid == 1) {
+					/* Clear the current ring data array so we dont have old data in it. */
+					for (receivedRingT=0; receivedRingT < 3; receivedRingT++) {
+						curRingData[receivedRingT] = 0;
+					}
+					receivedRingT = 0;
+					if(option_verbose > 2)
+						ast_verbose( VERBOSE_PREFIX_3 "Detecting post-CID distinctive ring\n");
+					for(;;) {
+						i = ZT_IOMUX_READ | ZT_IOMUX_SIGEVENT;
+						if ((res = ioctl(p->subs[index].zfd, ZT_IOMUX, &i)))    {
+							ast_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
+							callerid_free(cs);
+							ast_hangup(chan);
+							return NULL;
+						}
+						if (i & ZT_IOMUX_SIGEVENT) {
+							res = zt_get_event(p->subs[index].zfd);
+							ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
+							res = 0;
+							/* Let us detect callerid when the telco uses distinctive ring */
+
+							curRingData[receivedRingT] = p->ringt;
+
+							if (p->ringt < p->ringt_base/2)
+								break;
+							++receivedRingT; /* Increment the ringT counter so we can match it against
+										values in zapata.conf for distinctive ring */
+						} else if (i & ZT_IOMUX_READ) {
+							res = read(p->subs[index].zfd, buf, sizeof(buf));
+							if (res < 0) {
+								if (errno != ELAST) {
+									ast_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
+									callerid_free(cs);
+									ast_hangup(chan);
+									return NULL;
+								}
+								break;
+							}
+						if (p->ringt)
+							p->ringt--;
+							if (p->ringt == 1) {
+								res = -1;
+								break;
+							}
+						}
+					}
+				}
 				if (p->usedistinctiveringdetection == 1) {
 					if(option_verbose > 2)
 						/* this only shows up if you have n of the dring patterns filled in */
@@ -6254,6 +6308,12 @@ lax);
 					for (counter=0; counter < 3; counter++) {
 						/* Check to see if the rings we received match any of the ones in zapata.conf for this
 						channel */
+						if(option_verbose > 2)
+							/* this only shows up if you have n of the dring patterns filled in */
+							ast_verbose( VERBOSE_PREFIX_3 "Checking %d,%d,%d\n",
+								p->drings.ringnum[counter].ring[0],
+								p->drings.ringnum[counter].ring[1],
+								p->drings.ringnum[counter].ring[2]);
 						distMatches = 0;
 						for (counter1=0; counter1 < 3; counter1++) {
 							if (curRingData[counter1] <= (p->drings.ringnum[counter].ring[counter1]+10) && curRingData[counter1] >=
@@ -6270,11 +6330,6 @@ lax);
 							break;
 						}
 					}
-				}
-				if (res == 1) {
-					callerid_get(cs, &name, &number, &flags);
-					if (option_debug)
-						ast_log(LOG_DEBUG, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
 				}
 				/* Restore linear mode (if appropriate) for Caller*ID processing */
 				zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
@@ -10354,6 +10409,9 @@ static int setup_zap(int reload)
 		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
 			if (ast_true(v->value))
 				usedistinctiveringdetection = 1;
+		} else if (!strcasecmp(v->name, "distinctiveringaftercid")) {
+			if (ast_true(v->value))
+				distinctiveringaftercid = 1;
 		} else if (!strcasecmp(v->name, "dring1context")) {
 			ast_copy_string(drings.ringContext[0].contextData,v->value,sizeof(drings.ringContext[0].contextData));
 		} else if (!strcasecmp(v->name, "dring2context")) {

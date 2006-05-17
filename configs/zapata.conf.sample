@@ -223,7 +223,8 @@ rxwink=300		; Atlas seems to use long (250ms) winks
 ; Whether or not to do distinctive ring detection on FXO lines
 ;
 ;usedistinctiveringdetection=yes
-
+;distinctiveringaftercid=yes	; enable dring detection after callerid for those countries like Australia
+				; where the ring cadence is changed *after* the callerid spill.
 ;
 ; Whether or not to use caller ID
 ;
