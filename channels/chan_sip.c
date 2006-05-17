@@ -6665,6 +6665,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 	struct sip_request *req = NULL;
 	struct sip_pvt *sip_pvt_ptr = NULL;
 	struct ast_channel *chan = NULL, *peer = NULL;
+	const char *transfercontext;
 
 	req = outgoing_req;
 
@@ -6741,8 +6742,12 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 			*ptr = '\0';
 	}
 	
+	transfercontext = pbx_builtin_getvar_helper(sip_pvt->owner, "TRANSFER_CONTEXT");
+	if (ast_strlen_zero(transfercontext))
+		transfercontext = sip_pvt->context;
+
 	if (sip_debug_test_pvt(sip_pvt)) {
-		ast_verbose("Transfer to %s in %s\n", refer_to, sip_pvt->context);
+		ast_verbose("Transfer to %s in %s\n", refer_to, transfercontext);
 		if (referred_by)
 			ast_verbose("Transfer from %s in %s\n", referred_by, sip_pvt->context);
 	}
@@ -6767,7 +6772,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 	    		  INVITE with a replaces header -anthm XXX */
 			/* The only way to find out is to use the dialplan - oej */
 		}
-	} else if (ast_exists_extension(NULL, sip_pvt->context, refer_to, 1, NULL) || !strcmp(refer_to, ast_parking_ext())) {
+	} else if (ast_exists_extension(NULL, transfercontext, refer_to, 1, NULL) || !strcmp(refer_to, ast_parking_ext())) {
 		/* This is an unsupervised transfer (blind transfer) */
 		
 		ast_log(LOG_DEBUG,"Unsupervised transfer to (Refer-To): %s\n", refer_to);
@@ -6786,7 +6791,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 			pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
 		}
 		return 0;
-	} else if (ast_canmatch_extension(NULL, sip_pvt->context, refer_to, 1, NULL)) {
+	} else if (ast_canmatch_extension(NULL, transfercontext, refer_to, 1, NULL)) {
 		return 1;
 	}
 
