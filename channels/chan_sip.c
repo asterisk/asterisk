@@ -9902,6 +9902,8 @@ static void check_pendings(struct sip_pvt *p)
 {
 	/* Go ahead and send bye at this point */
 	if (ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Sending pending bye on '%s'\n", p->callid);
 		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, TRUE);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
