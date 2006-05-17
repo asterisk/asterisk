@@ -2195,18 +2195,19 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 		ast_rtp_destroy(r->vrtp);
 		r->vrtp = NULL;
 	}
-	ast_rtp_setdtmf(r->rtp, ast_test_flag(&r->flags[0], SIP_DTMF) != SIP_DTMF_INFO);
 	r->prefs = peer->prefs;
 	natflags = ast_test_flag(&r->flags[0], SIP_NAT) & SIP_NAT_ROUTE;
 	if (r->rtp) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", natflags);
 		ast_rtp_setnat(r->rtp, natflags);
+		ast_rtp_setdtmf(r->rtp, ast_test_flag(&r->flags[0], SIP_DTMF) != SIP_DTMF_INFO);
 	}
 	if (r->vrtp) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", natflags);
 		ast_rtp_setnat(r->vrtp, natflags);
+		ast_rtp_setdtmf(r->vrtp, 0);
 	}
 	ast_string_field_set(r, peername, peer->username);
 	ast_string_field_set(r, authname, peer->username);
