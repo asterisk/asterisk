@@ -2006,7 +2006,7 @@ static char *mbox(int id)
 #ifdef USE_ODBC_STORAGE
 static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
-	int x = 0;
+	int x = -1;
 	int res;
 	SQLHSTMT stmt;
 	char sql[256];
@@ -2018,6 +2018,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
                 *newmsgs = 0;
         if (oldmsgs)
                 *oldmsgs = 0;
+
         /* If no mailbox, return immediately */
         if (ast_strlen_zero(mailbox))
                 return 0;
@@ -2099,7 +2100,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		}
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		*oldmsgs = atoi(rowdata);
-		x = 1;
+		x = 0;
 	} else
 		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 		
