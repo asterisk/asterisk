@@ -6826,12 +6826,13 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 					res = ast_play_and_wait(chan, "vm-star-cancel");
 				if (!res)
 					res = ast_waitfordigit(chan, 6000);
-				if (!res)
+				if (!res) {
 					retries++;
-				if (retries > 3)
-					res = 't';
+					if (retries > 3)
+						res = 't';
+				}
 				break; 
-
+				
 			}
 			if (res == 't')
 				res = 0;
@@ -6839,7 +6840,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 				res = -1;
 		}
 		break;
-
+		
 	case 1:	/* Reply */
 		/* Send reply directly to sender */
 		if (ast_strlen_zero(cid))
