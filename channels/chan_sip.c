@@ -1942,17 +1942,30 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 static void register_peer_exten(struct sip_peer *peer, int onoff)
 {
 	char multi[256];
-	char *stringp, *ext;
+	char *stringp, *ext, *context;
 	if (!ast_strlen_zero(global_regcontext)) {
 
 		ast_copy_string(multi, S_OR(peer->regexten, peer->name), sizeof(multi));
 		stringp = multi;
 		while((ext = strsep(&stringp, "&"))) {
+ 			if((context = strchr(ext, '@'))) {
+				context++;
+				if (!ast_context_find(context)) {
+					ast_log(LOG_WARNING, "Context %s must exist in regcontext!\n", context);
+					continue;
+				}
+				ext = strsep(&ext, "@");
+				if (onoff)
+					ast_add_extension(context, 1, ext, 1, NULL, NULL, "Noop",					  ast_strdup(peer->name), free, "SIP");
+				else
+					ast_context_remove_extension(context, ext, 1, NULL);
+			} else {
 			if (onoff)
 				ast_add_extension(global_regcontext, 1, ext, 1, NULL, NULL, "Noop",
 						  ast_strdup(peer->name), free, "SIP");
 			else
 				ast_context_remove_extension(global_regcontext, ext, 1, NULL);
+			}
 		}
 	}
 }
@@ -8105,6 +8118,32 @@ static const char *insecure2str(int port, int invite)
 		return "no";
 }
 
+/*! \brief cleanup_stale_contexts:  Destroy disused contexts between reloads
+	Only used in reload_config so the code for regcontext doesn't get ugly
+*/
+static void cleanup_stale_contexts(char *new, char *old)
+{
+	char *oldcontext, *newcontext, *stalecontext, *stringp, newlist[AST_MAX_CONTEXT];
+
+	while ((oldcontext = strsep(&old, "&"))) {
+		stalecontext = '\0';
+		ast_copy_string(newlist, new, sizeof(newlist));
+		stringp = newlist;
+		while ((newcontext = strsep(&stringp, "&"))) {
+			if (strcmp(newcontext, oldcontext) == 0) {
+				/* This is not the context you're looking for */
+				stalecontext = '\0';
+				break;
+			} else if (strcmp(newcontext, oldcontext)) {
+				stalecontext = oldcontext;
+			}
+			
+		}
+		if (stalecontext)
+			ast_context_destroy(ast_context_find(stalecontext), "SIP");
+	}
+}
+
 /*! \brief  sip_prune_realtime: Remove temporary realtime objects from memory (CLI) */
 static int sip_prune_realtime(int fd, int argc, char *argv[])
 {
@@ -13197,7 +13236,8 @@ static int reload_config(enum channelreloadreason reason)
 	struct sip_peer *peer;
 	struct sip_user *user;
 	struct ast_hostent ahp;
-	char *cat;
+	char *cat, *stringp, *context, *oldregcontext;
+	char newcontexts[AST_MAX_CONTEXT], oldcontexts[AST_MAX_CONTEXT];
 	struct hostent *hp;
 	int format;
 	char iabuf[INET_ADDRSTRLEN];
@@ -13216,6 +13256,10 @@ static int reload_config(enum channelreloadreason reason)
 		return -1;
 	}
 	
+	/* Initialize copy of current global_regcontext for later use in removing stale contexts */
+	ast_copy_string(oldcontexts, global_regcontext, sizeof(oldcontexts));
+	oldregcontext = oldcontexts;
+
 	/* Clear all flags before setting default values */
 	/* Preserve debugging settings for console */
 	ast_copy_flags(&debugflag, &global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
@@ -13361,10 +13405,16 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "language")) {
 			ast_copy_string(default_language, v->value, sizeof(default_language));
 		} else if (!strcasecmp(v->name, "regcontext")) {
+			ast_copy_string(newcontexts, v->value, sizeof(newcontexts));
+			stringp = newcontexts;
+			/* Let's remove any contexts that are no longer defined in regcontext */
+			cleanup_stale_contexts(stringp, oldregcontext);
+			/* Create contexts if they don't exist already */
+			while ((context = strsep(&stringp, "&"))) {
+				if (!ast_context_find(context))
+					ast_context_create(NULL, context,"SIP");
+			}
 			ast_copy_string(global_regcontext, v->value, sizeof(global_regcontext));
-			/* Create context if it doesn't exist already */
-			if (!ast_context_find(global_regcontext))
-				ast_context_create(NULL, global_regcontext, "SIP");
 		} else if (!strcasecmp(v->name, "callerid")) {
 			ast_copy_string(default_callerid, v->value, sizeof(default_callerid));
 		} else if (!strcasecmp(v->name, "fromdomain")) {

@@ -139,9 +139,12 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;
 ; If regcontext is specified, Asterisk will dynamically create and destroy a
 ; NoOp priority 1 extension for a given peer who registers or unregisters with
-; us.  The actual extension is the 'regexten' parameter of the registering
-; peer or its name if 'regexten' is not provided.  More than one regexten may
-; be supplied if they are separated by '&'.  Patterns may be used in regexten.
+; us.  Multiple contexts may be specified by separating them with '&'. The 
+; actual extension is the 'regexten' parameter of the registering peer or its
+; name if 'regexten' is not provided.  If more than one context is provided,
+; the context must be specified within regexten by appending the desired
+; context after '@'.  More than one regexten may be supplied if they are 
+; separated by '&'.  Patterns may be used in regexten.
 ;
 ;regcontext=sipregistrations
 ;
