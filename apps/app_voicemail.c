@@ -2127,76 +2127,73 @@ yuck:
 	return x;
 }
 
-static int has_voicemail(const char *mailbox, const char *folder)
+static int messagecount2(const char *context, const char *mailbox, const char *folder)
 {
-	struct odbc_obj *obj;
+	struct odbc_obj *obj = NULL;
 	int nummsgs = 0;
-        int res;
-        SQLHSTMT stmt;
-        char sql[256];
-        char rowdata[20];
-        char tmp[256]="";
-        char *context;
+	int res;
+	SQLHSTMT stmt = NULL;
+	char sql[256];
+	char rowdata[20];
 	if (!folder)
-                folder = "INBOX";
+		folder = "INBOX";
 	/* If no mailbox, return immediately */
-        if (ast_strlen_zero(mailbox))
-                return 0;
-
-	ast_copy_string(tmp, mailbox, sizeof(tmp));
-                        
-        context = strchr(tmp, '@');
-        if (context) {
-                *context = '\0';
-                context++;
-        } else
-                context = "default";
+	if (ast_strlen_zero(mailbox))
+		return 0;
 
 	obj = odbc_request_obj(odbc_database, 0);
-        if (obj) {
-                res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
-                if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-                        ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
-			odbc_release_obj(obj);
-                        goto yuck;
-                }
-		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, tmp, "INBOX");
-                res = SQLPrepare(stmt, sql, SQL_NTS);
-                if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {  
-                        ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
-                        SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			odbc_release_obj(obj);
-                        goto yuck;
-                }
-                res = odbc_smart_execute(obj, stmt);
-                if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-                        ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-                        SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			odbc_release_obj(obj);
-                        goto yuck;
-                }
-                res = SQLFetch(stmt);
-                if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-                        ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
-                        SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			odbc_release_obj(obj);
-                        goto yuck;
-                }
-                res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
-                if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-                        ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
-                        SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			odbc_release_obj(obj);
-                        goto yuck;
-                }
-                nummsgs = atoi(rowdata);
-                SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-		odbc_release_obj(obj);
-       } else
-                ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+	if (obj) {
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			goto yuck;
+		}
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, mailbox, folder);
+		res = SQLPrepare(stmt, sql, SQL_NTS);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {  
+			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = odbc_smart_execute(obj, stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLFetch(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		nummsgs = atoi(rowdata);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 
 yuck:
-	if (nummsgs>=1)
+	if (obj)
+		odbc_release_obj(obj);
+	return nummsgs;
+}
+
+static int has_voicemail(const char *mailbox, const char *folder)
+{
+	char *context, tmp[256];
+	ast_copy_string(tmp, mailbox, sizeof(tmp));
+	if ((context = strchr(tmp, '@')))
+		*context++ = '\0';
+	else
+		context = "default";
+
+	if (messagecount2(context, tmp, folder))
 		return 1;
 	else
 		return 0;
@@ -2204,7 +2201,7 @@ yuck:
 
 #else
 
-static int has_voicemail(const char *mailbox, const char *folder)
+static int __has_voicemail(const char *mailbox, const char *folder, int shortcircuit)
 {
 	DIR *dir;
 	struct dirent *de;
@@ -2212,7 +2209,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	char tmp[256]="";
 	char *mb, *cur;
 	char *context;
-	int ret;
+	int ret = 0;
 	if (!folder)
 		folder = "INBOX";
 	/* If no mailbox, return immediately */
@@ -2224,11 +2221,13 @@ static int has_voicemail(const char *mailbox, const char *folder)
 		ret = 0;
 		while((cur = strsep(&mb, ","))) {
 			if (!ast_strlen_zero(cur)) {
-				if (has_voicemail(cur, folder))
-					return 1; 
+				if ((ret += __has_voicemail(cur, folder, shortcircuit))) {
+					if (shortcircuit)
+						return 1; 
+				}
 			}
 		}
-		return 0;
+		return ret;
 	}
 	ast_copy_string(tmp, mailbox, sizeof(tmp));
 	context = strchr(tmp, '@');
@@ -2242,15 +2241,29 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	if (!dir)
 		return 0;
 	while ((de = readdir(dir))) {
-		if (!strncasecmp(de->d_name, "msg", 3))
-			break;
+		if (!strncasecmp(de->d_name, "msg", 3)) {
+			if (shortcircuit) {
+				ret = 1;
+				break;
+			} else if (!strncasecmp(de->d_name + 8, "txt", 3))
+				ret++;
+		}
 	}
 	closedir(dir);
-	if (de)
-		return 1;
-	return 0;
+	return ret;
 }
 
+static int has_voicemail(const char *mailbox, const char *folder)
+{
+	return __has_voicemail(mailbox, folder, 1);
+}
+
+static int messagecount2(const char *context, const char *mailbox, const char *folder)
+{
+	char tmp[256];
+	snprintf(tmp, sizeof(tmp), "%s@%s", mailbox, context);
+	return __has_voicemail(tmp, folder, 0);
+}
 
 static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
@@ -6641,7 +6654,7 @@ static int load_module(void *mod)
 	/* compute the location of the voicemail spool directory */
 	snprintf(VM_SPOOL_DIR, sizeof(VM_SPOOL_DIR), "%s/voicemail/", ast_config_AST_SPOOL_DIR);
 
-	ast_install_vm_functions(has_voicemail, messagecount);
+	ast_install_vm_functions(has_voicemail, messagecount, messagecount2);
 
 #if defined(USE_ODBC_STORAGE) && !defined(EXTENDED_ODBC_STORAGE)
 	ast_log(LOG_WARNING, "The current ODBC storage table format will be changed soon."

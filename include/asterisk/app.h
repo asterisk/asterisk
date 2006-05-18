@@ -100,7 +100,8 @@ int ast_app_getdata(struct ast_channel *c, char *prompt, char *s, int maxlen, in
 int ast_app_getdata_full(struct ast_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
 
 void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
-			      int (*messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs));
+			      int (*messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs),
+			      int (*messagecount2_func)(const char *context, const char *mailbox, const char *folder));
   
 void ast_uninstall_vm_functions(void);
 
@@ -109,6 +110,9 @@ int ast_app_has_voicemail(const char *mailbox, const char *folder);
 
 /*! Determine number of new/old messages in a mailbox */
 int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs);
+
+/*! Determine number of messages in a given mailbox and folder */
+int ast_app_messagecount2(const char *context, const char *mailbox, const char *folder);
 
 /*! Safely spawn an external program while closing file descriptors 
 	\note This replaces the \b system call in all Asterisk modules

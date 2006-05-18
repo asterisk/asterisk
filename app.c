@@ -146,18 +146,22 @@ int ast_app_getdata_full(struct ast_channel *c, char *prompt, char *s, int maxle
 
 static int (*ast_has_voicemail_func)(const char *mailbox, const char *folder) = NULL;
 static int (*ast_messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs) = NULL;
+static int (*ast_messagecount2_func)(const char *context, const char *mailbox, const char *folder) = NULL;
 
 void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
-			      int (*messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs))
+			      int (*messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs),
+			      int (*messagecount2_func)(const char *context, const char *mailbox, const char *folder))
 {
 	ast_has_voicemail_func = has_voicemail_func;
 	ast_messagecount_func = messagecount_func;
+	ast_messagecount2_func = messagecount2_func;
 }
 
 void ast_uninstall_vm_functions(void)
 {
 	ast_has_voicemail_func = NULL;
 	ast_messagecount_func = NULL;
+	ast_messagecount2_func = NULL;
 }
 
 int ast_app_has_voicemail(const char *mailbox, const char *folder)

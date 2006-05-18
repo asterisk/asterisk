@@ -79,26 +79,6 @@ static char *hasnewvoicemail_descrip =
 
 LOCAL_USER_DECL;
 
-static int hasvoicemail_internal(char *context, char *box, char *folder)
-{
-	char vmpath[256];
-	DIR *vmdir;
-	struct dirent *vment;
-	int count=0;
-
-	snprintf(vmpath,sizeof(vmpath), "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR, context, box, folder);
-	if ((vmdir = opendir(vmpath))) {
-		/* No matter what the format of VM, there will always be a .txt file for each message. */
-		while ((vment = readdir(vmdir))) {
-			if (!strncmp(vment->d_name + 7, ".txt", 4)) {
-				count++;
-			}
-		}
-		closedir(vmdir);
-	}
-	return count;
-}
-
 static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 {
 	struct localuser *u;
@@ -130,11 +110,10 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, input);
 
-	if ((vmbox = strsep(&args.vmbox, "@")))
-		if (!ast_strlen_zero(args.vmbox))
-			context = args.vmbox;
-	if (!vmbox)
-		vmbox = args.vmbox;
+	vmbox = strsep(&args.vmbox, "@");
+
+	if (!ast_strlen_zero(args.vmbox))
+		context = args.vmbox;
 
 	vmfolder = strchr(vmbox, '/');
 	if (vmfolder) {
@@ -149,7 +128,7 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 			priority_jump = 1;
 	}
 
-	vmcount = hasvoicemail_internal(context, vmbox, vmfolder);
+	vmcount = ast_app_messagecount2(context, vmbox, vmfolder);
 	/* Set the count in the channel variable */
 	if (varname) {
 		snprintf(tmp, sizeof(tmp), "%d", vmcount);
@@ -198,7 +177,7 @@ static int acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *argsstr, 
 		args.folder = "INBOX";
 	}
 
-	snprintf(buf, len, "%d", hasvoicemail_internal(context, args.vmbox, args.folder));
+	snprintf(buf, len, "%d", ast_app_messagecount2(context, args.vmbox, args.folder));
 
 	LOCAL_USER_REMOVE(u);
 	
