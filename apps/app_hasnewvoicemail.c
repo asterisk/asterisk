@@ -47,6 +47,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 #include "asterisk/options.h"
+#ifdef USE_ODBC_STORAGE
+#include "asterisk/res_odbc.h"
+
+static char odbc_database[80];
+static char odbc_table[80];
+#endif
 
 static char *tdesc = "Indicator for whether a voice mailbox has messages in a given folder.";
 static char *app_hasvoicemail = "HasVoicemail";
@@ -77,25 +83,93 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int hasvoicemail_internal(char *context, char *box, char *folder)
+#ifdef USE_ODBC_STORAGE
+static int hasvoicemail_internal(const char *context, const char *mailbox, const char *folder)
 {
-	char vmpath[256];
-	DIR *vmdir;
-	struct dirent *vment;
-	int count=0;
+	int nummsgs = 0;
+	int res;
+	SQLHSTMT stmt;
+	char sql[256];
+	char rowdata[20];
 
-	snprintf(vmpath,sizeof(vmpath), "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR, context, box, folder);
-	if ((vmdir = opendir(vmpath))) {
-		/* No matter what the format of VM, there will always be a .txt file for each message. */
-		while ((vment = readdir(vmdir))) {
-			if (!strncmp(vment->d_name + 7, ".txt", 4)) {
-				count++;
-			}
+	if (!folder)
+		folder = "INBOX";
+	/* If no mailbox, return immediately */
+	if (ast_strlen_zero(mailbox))
+		return 0;
+	if (ast_strlen_zero(context))
+		context = "default";
+
+	odbc_obj *obj;
+	obj = fetch_odbc_obj(odbc_database, 0);
+	if (obj) {
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			goto yuck;
 		}
-		closedir(vmdir);
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s/voicemail/%s/%s/%s'", odbc_table, ast_config_AST_SPOOL_DIR, context, mailbox, folder);
+		res = SQLPrepare(stmt, sql, SQL_NTS);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {  
+			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = odbc_smart_execute(obj, stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLFetch(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		nummsgs = atoi(rowdata);
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+
+yuck:
+	return nummsgs;
+}
+
+#else
+
+static int hasvoicemail_internal(const char *context, const char *mailbox, const char *folder)
+{
+	DIR *dir;
+	struct dirent *de;
+	char fn[256];
+	int count = 0;
+
+	if (ast_strlen_zero(folder))
+		folder = "INBOX";
+	if (ast_strlen_zero(context))
+		context = "default";
+	/* If no mailbox, return immediately */
+	if (ast_strlen_zero(mailbox))
+		return 0;
+	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/%s", ast_config_AST_SPOOL_DIR, context, mailbox, folder);
+	dir = opendir(fn);
+	if (!dir)
+		return 0;
+	while ((de = readdir(dir))) {
+		if (!strncasecmp(de->d_name, "msg", 3) && !strcasecmp(de->d_name + 8, "txt"))
+			count++;
 	}
+	closedir(dir);
 	return count;
 }
+#endif
 
 static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 {
@@ -222,6 +296,31 @@ struct ast_custom_function acf_vmcount = {
 	.read = acf_vmcount_exec,
 };
 
+static int load_config(void)
+{
+#ifdef USE_ODBC_STORAGE
+	struct ast_config *cfg;
+	char *tmp;
+	cfg = ast_config_load("voicemail.conf");
+	if (cfg) {
+		if (! (tmp = ast_variable_retrieve(cfg, "general", "odbcstorage")))
+			tmp = "asterisk";
+		ast_copy_string(odbc_database, tmp, sizeof(odbc_database));
+
+		if (! (tmp = ast_variable_retrieve(cfg, "general", "odbctable")))
+			tmp = "voicemessages";
+		ast_copy_string(odbc_table, tmp, sizeof(odbc_table));
+		ast_config_destroy(cfg);
+	}
+#endif
+	return 0;
+}
+
+int reload(void)
+{
+	return load_config();
+}
+
 int unload_module(void)
 {
 	int res;
@@ -238,7 +337,7 @@ int unload_module(void)
 int load_module(void)
 {
 	int res;
-
+	load_config();
 	res = ast_custom_function_register(&acf_vmcount);
 	res |= ast_register_application(app_hasvoicemail, hasvoicemail_exec, hasvoicemail_synopsis, hasvoicemail_descrip);
 	res |= ast_register_application(app_hasnewvoicemail, hasvoicemail_exec, hasnewvoicemail_synopsis, hasnewvoicemail_descrip);
