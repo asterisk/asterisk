@@ -3554,12 +3554,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	sdpLineNum_iterator_init(&iterator);
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
 		char* mimeSubtype = ast_strdupa(a); /* ensures we have enough space */
-		if (!strcasecmp(a, "sendonly")) {
-			sendonly=1;
+		if (!strcasecmp(a, "sendonly") || !strcasecmp(a, "inactive")) {
+			sendonly = 1;
 			continue;
 		}
 		if (!strcasecmp(a, "sendrecv")) {
-		  	sendonly=0;
+		  	sendonly = 0;
 		}
 		if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) continue;
 		if (debug)
