@@ -109,7 +109,6 @@ static const char *descrip =
 "      's' -- Present menu (user or admin) when '*' is received ('send' to menu)\n"
 "      't' -- set talk only mode. (Talk only, no listening)\n"
 "      'T' -- set talker detection (sent to manager interface and meetme list)\n"
-"      'v' -- video mode\n"
 "      'w' -- wait until the marked user enters the conference\n"
 "      'x' -- close the conference when last marked user exits\n"
 "      'X' -- allow user to exit the conference by entering a valid single\n"
@@ -233,7 +232,7 @@ static void *recordthread(void *args);
 #define CONFFLAG_STARMENU (1 << 4)		/* If set asterisk will provide a menu to the user when '*' is pressed */
 #define CONFFLAG_TALKER (1 << 5)		/* If set the use can only send audio to the conference */
 #define CONFFLAG_QUIET (1 << 6)			/* If set there will be no enter or leave sounds */
-#define CONFFLAG_VIDEO (1 << 7)			/* Set to enable video mode */
+#define CONFFLAG_ANNOUNCEUSERCOUNT (1 << 7)	/* If set, when user joins the conference, they will be told the number of users that are already in */
 #define CONFFLAG_AGI (1 << 8)			/* Set to run AGI Script in Background */
 #define CONFFLAG_MOH (1 << 9)			/* Set to have music on hold when user is alone in conference */
 #define CONFFLAG_MARKEDEXIT (1 << 10)		/* If set the MeetMe will return if all marked with this flag left */
@@ -248,10 +247,9 @@ static void *recordthread(void *args);
 #define CONFFLAG_EMPTY (1 << 19)
 #define CONFFLAG_EMPTYNOPIN (1 << 20)
 #define CONFFLAG_ALWAYSPROMPT (1 << 21)
-#define CONFFLAG_ANNOUNCEUSERCOUNT (1 << 22)	/* If set, when user joins the conference, they will be told the number of users that are already in */
-#define CONFFLAG_OPTIMIZETALKER (1 << 23)	/* If set, treats talking users as muted users */
-#define CONFFLAG_NOONLYPERSON (1 << 24)		/* If set, won't speak the extra prompt when the first person enters the conference */
-#define CONFFLAG_INTROUSERNOREVIEW (1 << 25) /* If set, user will be asked to record name on entry of conference without review */
+#define CONFFLAG_OPTIMIZETALKER (1 << 22)	/* If set, treats talking users as muted users */
+#define CONFFLAG_NOONLYPERSON (1 << 23)		/* If set, won't speak the extra prompt when the first person enters the conference */
+#define CONFFLAG_INTROUSERNOREVIEW (1 << 24)	/* If set, user will be asked to record name on entry of conference without review */
 
 AST_APP_OPTIONS(meetme_opts, {
 	AST_APP_OPTION('A', CONFFLAG_MARKEDUSER ),
