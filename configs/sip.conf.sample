@@ -223,12 +223,20 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;canreinvite=yes		; Asterisk by default tries to redirect the
 				; RTP media stream (audio) to go directly from
 				; the caller to the callee.  Some devices do not
-				; support this (especially if one of them is 
-				; behind a NAT).
+				; support this (especially if one of them is behind a NAT).
 				; The default setting is YES. If you have all clients
-				; behind a NAT, or for some other reason wants
-				; Asterisk to stay in the audio path,
-				; you may want to turn this off
+				; behind a NAT, or for some other reason wants Asterisk to
+				; stay in the audio path, you may want to turn this off.
+
+;canreinvite=nonat		; An additional option is to allow media path redirection
+				; (reinvite) but only when the peer where the media is being
+				; sent is known to not be behind a NAT (as the RTP core can
+				; determine it based on the apparent IP address the media
+				; arrives from).
+
+;canreinvite=update		; Yet a third option... use UPDATE for media path redirection,
+				; instead of INVITE. This can be combined with 'nonat', as
+				; 'canreinvite=update,nonat'. It implies 'yes'.
 
 ;----------------------------------------- REALTIME SUPPORT ------------------------
 ; For additional information on ARA, the Asterisk Realtime Architecture,

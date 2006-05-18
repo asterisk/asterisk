@@ -636,21 +636,22 @@ struct sip_auth {
 #define SIP_NAT_ROUTE		(2 << 18)	/*!< NAT Only ROUTE */
 #define SIP_NAT_ALWAYS		(3 << 18)	/*!< NAT Both ROUTE and RFC3581 */
 /* re-INVITE related settings */
-#define SIP_REINVITE		(3 << 20)	/*!< two bits used */
+#define SIP_REINVITE		(7 << 20)	/*!< three bits used */
 #define SIP_CAN_REINVITE	(1 << 20)	/*!< allow peers to be reinvited to send media directly p2p */
-#define SIP_REINVITE_UPDATE	(2 << 20)	/*!< use UPDATE (RFC3311) when reinviting this peer */
+#define SIP_CAN_REINVITE_NAT	(2 << 20)	/*!< allow media reinvite when new peer is behind NAT */
+#define SIP_REINVITE_UPDATE	(4 << 20)	/*!< use UPDATE (RFC3311) when reinviting this peer */
 /* "insecure" settings */
-#define SIP_INSECURE_PORT	(1 << 22)	/*!< don't require matching port for incoming requests */
-#define SIP_INSECURE_INVITE	(1 << 23)	/*!< don't require authentication for incoming INVITEs */
+#define SIP_INSECURE_PORT	(1 << 23)	/*!< don't require matching port for incoming requests */
+#define SIP_INSECURE_INVITE	(1 << 24)	/*!< don't require authentication for incoming INVITEs */
 /* Sending PROGRESS in-band settings */
-#define SIP_PROG_INBAND		(3 << 24)	/*!< three settings, uses two bits */
-#define SIP_PROG_INBAND_NEVER	(0 << 24)
-#define SIP_PROG_INBAND_NO	(1 << 24)
-#define SIP_PROG_INBAND_YES	(2 << 24)
-#define SIP_CALL_ONHOLD		(1 << 26)	/*!< Call states */
-#define SIP_CALL_LIMIT		(1 << 27)	/*!< Call limit enforced for this call */
-#define SIP_SENDRPID		(1 << 28)	/*!< Remote Party-ID Support */
-#define SIP_INC_COUNT		(1 << 29)	/*!< Did this connection increment the counter of in-use calls? */
+#define SIP_PROG_INBAND		(3 << 25)	/*!< three settings, uses two bits */
+#define SIP_PROG_INBAND_NEVER	(0 << 25)
+#define SIP_PROG_INBAND_NO	(1 << 25)
+#define SIP_PROG_INBAND_YES	(2 << 25)
+#define SIP_CALL_ONHOLD		(1 << 27)	/*!< Call states */
+#define SIP_CALL_LIMIT		(1 << 28)	/*!< Call limit enforced for this call */
+#define SIP_SENDRPID		(1 << 29)	/*!< Remote Party-ID Support */
+#define SIP_INC_COUNT		(1 << 30)	/*!< Did this connection increment the counter of in-use calls? */
 
 #define SIP_FLAGS_TO_COPY \
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
@@ -12612,10 +12613,24 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "canreinvite")) {
 		ast_set_flag(&mask[0], SIP_REINVITE);
 		ast_clear_flag(&flags[0], SIP_REINVITE);
-		if (!strcasecmp(v->value, "update"))
-			ast_set_flag(&flags[0], SIP_REINVITE_UPDATE | SIP_CAN_REINVITE);
-		else
-			ast_set2_flag(&flags[0], ast_true(v->value), SIP_CAN_REINVITE);
+		if (ast_true(v->value)) {
+			ast_set_flag(&flags[0], SIP_CAN_REINVITE | SIP_CAN_REINVITE_NAT);
+		} else if (!ast_false(v->value)) {
+			char buf[64];
+			char *word, *next = buf;
+
+			ast_copy_string(buf, v->value, sizeof(buf));
+			while ((word = strsep(&next, ","))) {
+				if (!strcasecmp(word, "update")) {
+					ast_set_flag(&flags[0], SIP_REINVITE_UPDATE | SIP_CAN_REINVITE);
+				} else if (!strcasecmp(word, "nonat")) {
+					ast_set_flag(&flags[0], SIP_CAN_REINVITE);
+					ast_clear_flag(&flags[0], SIP_CAN_REINVITE_NAT);
+				} else {
+					ast_log(LOG_WARNING, "Unknown canreinvite mode '%s' on line %d\n", v->value, v->lineno);
+				}
+			}
+		}
 	} else if (!strcasecmp(v->name, "insecure")) {
 		ast_set_flag(&mask[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
 		ast_clear_flag(&flags[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
@@ -13738,6 +13753,15 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		ast_mutex_unlock(&p->lock);
 		return 0;
 	}
+
+	/* if this peer cannot handle reinvites of the media stream to devices
+	   that are known to be behind a NAT, then stop the process now
+	*/
+	if (nat_active && !ast_test_flag(&p->flags[0], SIP_CAN_REINVITE_NAT)) {
+		ast_mutex_unlock(&p->lock);
+		return 0;
+	}
+
 	if (rtp) 
 		changed |= ast_rtp_get_peer(rtp, &p->redirip);
 	else
