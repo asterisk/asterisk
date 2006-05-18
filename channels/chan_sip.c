@@ -10045,7 +10045,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			} else if ((resp >= 100) && (resp < 200)) {
 				if (sipmethod == SIP_INVITE) {
 					sip_cancel_destroy(p);
-					if (!ast_strlen_zero(get_header(req, "Content-Type")))
+					if (find_sdp(req))
 						process_sdp(p, req);
 					if (p->owner) {
 						/* Queue a progress frame */
@@ -10425,7 +10425,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			return 0;
 		}
 		/* Process the SDP portion */
-		if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
+		if (find_sdp(req)) {
 			if (process_sdp(p, req)) {
 				transmit_response(p, "488 Not acceptable here", req);
 				ast_set_flag(p, SIP_NEEDDESTROY);	
@@ -11162,7 +11162,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if (seqno == p->pendinginvite) {
 			p->pendinginvite = 0;
 			__sip_ack(p, seqno, FLAG_RESPONSE, 0);
-			if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
+			if (find_sdp(req)) {
 				if (process_sdp(p, req))
 					return -1;
 			} 
