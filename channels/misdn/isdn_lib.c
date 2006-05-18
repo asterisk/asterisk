@@ -2581,7 +2581,7 @@ msg_t *fetch_msg(int midev)
 		if (r<0) {
 			if (errno == EAGAIN) {
 				/*we wait for mISDN here*/
-				cb_log(-1,0,"mISDN_read wants us to wait\n");
+				cb_log(4,0,"mISDN_read wants us to wait\n");
 				usleep(5000);
 				goto AGAIN;
 			}
