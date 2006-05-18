@@ -117,7 +117,7 @@ static void agi_debug_cli(int fd, char *fmt, ...)
 	} else {
 		if (agidebug)
 			ast_verbose("AGI Tx >> %s", stuff);
-		ast_carefulwrite(fd, stuff, strlen(stuff), 100);
+		ast_carefulwrite(fd, stuff, strlen(stuff), 100, NULL);
 		free(stuff);
 	}
 }
