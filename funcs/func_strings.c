@@ -204,6 +204,149 @@ static struct ast_custom_function array_function = {
 		"entire argument, since Set can take multiple arguments itself.\n",
 };
 
+static int acf_sprintf(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+#define SPRINTF_FLAG	0
+#define SPRINTF_WIDTH	1
+#define SPRINTF_PRECISION	2
+#define SPRINTF_LENGTH	3
+#define SPRINTF_CONVERSION	4
+	int i, state = -1, argcount = 0;
+	char *formatstart = NULL, *bufptr = buf;
+	char formatbuf[256] = "";
+	int tmpi;
+	double tmpd;
+	AST_DECLARE_APP_ARGS(arg,
+				AST_APP_ARG(format);
+				AST_APP_ARG(var)[100];
+	);
+
+	AST_STANDARD_APP_ARGS(arg, data);
+
+	/* Scan the format, converting each argument into the requisite format type. */
+	for (i = 0; arg.format[i]; i++) {
+		switch (state) {
+		case SPRINTF_FLAG:
+			if (strchr("#0- +'I", arg.format[i]))
+				break;
+			state = SPRINTF_WIDTH;
+		case SPRINTF_WIDTH:
+			if (arg.format[i] >= '0' && arg.format[i] <= '9')
+				break;
+
+			/* Next character must be a period to go into a precision */
+			if (arg.format[i] == '.') {
+				state = SPRINTF_PRECISION;
+			} else {
+				state = SPRINTF_LENGTH;
+				i--;
+			}
+			break;
+		case SPRINTF_PRECISION:
+			if (arg.format[i] >= '0' && arg.format[i] <= '9')
+				break;
+			state = SPRINTF_LENGTH;
+		case SPRINTF_LENGTH:
+			if (strchr("hl", arg.format[i])) {
+				if (arg.format[i + 1] == arg.format[i])
+					i++;
+				state = SPRINTF_CONVERSION;
+				break;
+			} else if (strchr("Lqjzt", arg.format[i]))
+				state = SPRINTF_CONVERSION;
+				break;
+			state = SPRINTF_CONVERSION;
+		case SPRINTF_CONVERSION:
+			if (strchr("diouxXc", arg.format[i])) {
+				/* Integer */
+
+				/* Isolate this format alone */
+				ast_copy_string(formatbuf, formatstart, sizeof(formatbuf));
+				formatbuf[&arg.format[i] - formatstart + 1] = '\0';
+
+				/* Convert the argument into the required type */
+				if (sscanf(arg.var[argcount++], "%i", &tmpi) != 1) {
+					ast_log(LOG_ERROR, "Argument '%s' is not an integer number for format '%s'\n", arg.var[argcount - 1], formatbuf);
+					goto sprintf_fail;
+				}
+
+				/* Format the argument */
+				snprintf(bufptr, buf + len - bufptr, formatbuf, tmpi);
+
+				/* Update the position of the next parameter to print */
+				bufptr = strchr(buf, '\0');
+			} else if (strchr("eEfFgGaA", arg.format[i])) {
+				/* Double */
+
+				/* Isolate this format alone */
+				ast_copy_string(formatbuf, formatstart, sizeof(formatbuf));
+				formatbuf[&arg.format[i] - formatstart + 1] = '\0';
+
+				/* Convert the argument into the required type */
+				if (sscanf(arg.var[argcount++], "%lf", &tmpd) != 1) {
+					ast_log(LOG_ERROR, "Argument '%s' is not a floating point number for format '%s'\n", arg.var[argcount - 1], formatbuf);
+					goto sprintf_fail;
+				}
+
+				/* Format the argument */
+				snprintf(bufptr, buf + len - bufptr, formatbuf, tmpd);
+
+				/* Update the position of the next parameter to print */
+				bufptr = strchr(buf, '\0');
+			} else if (arg.format[i] == 's') {
+				/* String */
+
+				/* Isolate this format alone */
+				ast_copy_string(formatbuf, formatstart, sizeof(formatbuf));
+				formatbuf[&arg.format[i] - formatstart + 1] = '\0';
+
+				/* Format the argument */
+				snprintf(bufptr, buf + len - bufptr, formatbuf, arg.var[argcount++]);
+
+				/* Update the position of the next parameter to print */
+				bufptr = strchr(buf, '\0');
+			} else if (arg.format[i] == '%') {
+				/* Literal data to copy */
+				*bufptr++ = arg.format[i];
+			} else {
+				/* Not supported */
+
+				/* Isolate this format alone */
+				ast_copy_string(formatbuf, formatstart, sizeof(formatbuf));
+				formatbuf[&arg.format[i] - formatstart + 1] = '\0';
+
+				ast_log(LOG_ERROR, "Format type not supported: '%s' with argument '%s'\n", formatbuf, arg.var[argcount++]);
+				goto sprintf_fail;
+			}
+			state = -1;
+			break;
+		default:
+			if (arg.format[i] == '%') {
+				state = SPRINTF_FLAG;
+				formatstart = &arg.format[i];
+				break;
+			} else {
+				/* Literal data to copy */
+				*bufptr++ = arg.format[i];
+			}
+		}
+	}
+	return 0;
+sprintf_fail:
+	return -1;
+}
+
+static struct ast_custom_function sprintf_function = {
+	.name = "SPRINTF",
+	.synopsis = "Format a variable according to a format string",
+	.syntax = "SPRINTF(<format>,<arg1>[,...<argN>])",
+	.read = acf_sprintf,
+	.desc =
+"Parses the format string specified and returns a string matching that format.\n"
+"Supports most options supported by sprintf(3).  Returns a shortened string if\n"
+"a format specifier is not recognized.\n",
+};
+
 static int quote(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	char *bufptr = buf, *dataptr = data;
@@ -438,6 +581,7 @@ static int unload_module(void *mod)
 	res |= ast_custom_function_unregister(&strptime_function);
 	res |= ast_custom_function_unregister(&eval_function);
 	res |= ast_custom_function_unregister(&keypadhash_function);
+	res |= ast_custom_function_unregister(&sprintf_function);
 
 	return res;
 }
@@ -456,6 +600,7 @@ static int load_module(void *mod)
 	res |= ast_custom_function_register(&strptime_function);
 	res |= ast_custom_function_register(&eval_function);
 	res |= ast_custom_function_register(&keypadhash_function);
+	res |= ast_custom_function_register(&sprintf_function);
 
 	return res;
 }
