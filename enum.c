@@ -95,27 +95,29 @@ struct naptr {
 } __attribute__ ((__packed__));
 
 /*! \brief Parse NAPTR record information elements */
-static int parse_ie(unsigned char *data, int maxdatalen, unsigned char *src, int srclen)
+static unsigned int parse_ie(char *data, unsigned int maxdatalen, char *src, unsigned int srclen)
 {
-	int len, olen;
+	unsigned int len, olen;
 
-	len = olen = (int)src[0];
+	len = olen = (unsigned int) src[0];
 	src++;
 	srclen--;
-	if (len > srclen || len < 0 ) {
+
+	if (len > srclen) {
 		ast_log(LOG_WARNING, "ENUM parsing failed: Wanted %d characters, got %d\n", len, srclen);
 		return -1;
 	}
+
 	if (len > maxdatalen)
 		len = maxdatalen;
 	memcpy(data, src, len);
+
 	return olen + 1;
 }
 
 /*! \brief Parse DNS NAPTR record used in ENUM ---*/
 static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize, unsigned char *answer, int len, unsigned char *naptrinput)
 {
-
 	char tech_return[80];
 	char *oanswer = answer;
 	char flags[512] = "";
