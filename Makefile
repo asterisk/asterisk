@@ -284,7 +284,8 @@ ASTCFLAGS+=-fomit-frame-pointer
 endif
 
 MOD_SUBDIRS=res channels pbx apps codecs formats cdr funcs
-SUBDIRS:=$(MOD_SUBDIRS) utils stdtime agi
+OTHER_SUBDIRS=utils stdtime agi
+SUBDIRS:=$(MOD_SUBDIRS) $(OTHER_SUBDIRS)
 
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o pbx.o cli.o md5.o term.o \
@@ -871,7 +872,8 @@ dont-optimize: _all
 valgrind: dont-optimize
 
 depend: include/asterisk/version.h include/asterisk/buildopts.h .depend defaults.h 
-	@for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
+	@for x in $(MOD_SUBDIRS); do CFLAGS="$(MOD_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $$x depend || exit 1 ; done
+	@for x in $(OTHER_SUBDIRS); do CFLAGS="$(OTHER_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $$x depend || exit 1 ; done
 
 .depend: include/asterisk/version.h include/asterisk/buildopts.h defaults.h
 	build_tools/mkdep $(CFLAGS) $(wildcard *.c)
