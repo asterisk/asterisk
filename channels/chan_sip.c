@@ -13752,8 +13752,8 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 	}
 	if (changed && !ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
 		if (chan->_state != AST_STATE_UP) {
-				char iabuf[INET_ADDRSTRLEN];
-				ast_log(LOG_DEBUG, "Early media setting SIP '%s' - Sending early media to %s\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));
+			char iabuf[INET_ADDRSTRLEN];
+			ast_log(LOG_DEBUG, "Early media setting SIP '%s' - Sending early media to %s\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));
 		} else if (!p->pendinginvite) {
 			if (option_debug > 2) {
 				char iabuf[INET_ADDRSTRLEN];
