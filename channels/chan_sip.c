@@ -454,11 +454,13 @@ struct sip_request {
 	int headers;		/*!< # of SIP Headers */
 	int method;		/*!< Method of this request */
 	char *header[SIP_MAX_HEADERS];
-	int lines;		/*!< SDP Content */
+	int lines;		/*!< Body Content */
 	char *line[SIP_MAX_LINES];
 	char data[SIP_MAX_PACKET];
 	int debug;		/*!< Debug flag for this packet */
 	unsigned int flags;	/*!< SIP_PKT Flags for this packet */
+	unsigned int sdp_start; /*!< the line number where the SDP begins */
+	unsigned int sdp_end;	/*!< the line number where the SDP ends */
 };
 
 struct sip_pkt;
@@ -2849,8 +2851,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	return tmp;
 }
 
-/*! \brief  get_sdp_by_line: Reads one line of SIP message body */
-static char* get_sdp_by_line(char* line, char *name, int nameLen)
+/*! \brief  get_body_by_line: Reads one line of message body */
+static char *get_body_by_line(char *line, char *name, int nameLen)
 {
 	if (strncasecmp(line, name, nameLen) == 0 && line[nameLen] == '=') {
 		return ast_skip_blanks(line + nameLen + 1);
@@ -2858,36 +2860,49 @@ static char* get_sdp_by_line(char* line, char *name, int nameLen)
 	return "";
 }
 
-/*! \brief  get_sdp: Gets all kind of SIP message bodies, including SDP,
-   but the name wrongly applies _only_ sdp */
+/*! \brief  get_sdp: get a specific line from the SDP */
 static char *get_sdp(struct sip_request *req, char *name) 
 {
 	int x;
 	int len = strlen(name);
 	char *r;
 
-	for (x=0; x<req->lines; x++) {
-		r = get_sdp_by_line(req->line[x], name, len);
+	for (x = req->sdp_start; x < req->sdp_end; x++) {
+		r = get_body_by_line(req->line[x], name, len);
 		if (r[0] != '\0')
 			return r;
 	}
 	return "";
 }
 
-
-static void sdpLineNum_iterator_init(int* iterator) 
+static void sdpLineNum_iterator_init(int *iterator, struct sip_request *req)
 {
-	*iterator = 0;
+	*iterator = req->sdp_start;
 }
 
-static char* get_sdp_iterate(int* iterator,
+static char *get_sdp_iterate(int *iterator,
 			     struct sip_request *req, char *name)
 {
 	int len = strlen(name);
 	char *r;
 
-	while (*iterator < req->lines) {
-		r = get_sdp_by_line(req->line[(*iterator)++], name, len);
+	while (*iterator < req->sdp_end) {
+		r = get_body_by_line(req->line[(*iterator)++], name, len);
+		if (r[0] != '\0')
+			return r;
+	}
+	return "";
+}
+
+/*! \brief  get_body: get a specific line from the message body */
+static char *get_body(struct sip_request *req, char *name) 
+{
+	int x;
+	int len = strlen(name);
+	char *r;
+
+	for (x = 0; x < req->lines; x++) {
+		r = get_body_by_line(req->line[x], name, len);
 		if (r[0] != '\0')
 			return r;
 	}
@@ -3390,6 +3405,68 @@ static void parse_request(struct sip_request *req)
 	determine_firstline_parts(req);
 }
 
+/*!
+  \brief Determine whether a SIP message contains an SDP in its body
+  \param req the SIP request to process
+  \return 1 if SDP found, 0 if not found
+
+  Also updates req->sdp_start and req->sdp_end to indicate where the SDP
+  lives in the message body.
+*/
+static int find_sdp(struct sip_request *req)
+{
+	char *content_type;
+	char *search;
+	char *boundary;
+	unsigned int x;
+
+	content_type = get_header(req, "Content-Type");
+
+	/* if the body contains only SDP, this is easy */
+	if (!strcasecmp(content_type, "application/sdp")) {
+		req->sdp_start = 0;
+		req->sdp_end = req->lines;
+		return 1;
+	}
+
+	/* if it's not multipart/mixed, there cannot be an SDP */
+	if (strncasecmp(content_type, "multipart/mixed", 15))
+		return 0;
+
+	/* if there is no boundary marker, it's invalid */
+	if (!(search = strcasestr(content_type, ";boundary=")))
+		return 0;
+
+	search += 10;
+
+	if (ast_strlen_zero(search))
+		return 0;
+
+	/* make a duplicate of the string, with two extra characters
+	   at the beginning */
+	boundary = ast_strdupa(search - 2);
+	boundary[0] = boundary[1] = '-';
+
+	/* search for the boundary marker, but stop when there are not enough
+	   lines left for it, the Content-Type header and at least one line of
+	   body */
+	for (x = 0; x < (req->lines - 2); x++) {
+		if (!strncasecmp(req->line[x], boundary, strlen(boundary)) &&
+		    !strcasecmp(req->line[x + 1], "Content-Type: application/sdp")) {
+			req->sdp_start = x + 2;
+			/* search for the end of the body part */
+			for ( ; x < req->lines; x++) {
+				if (!strncasecmp(req->line[x], boundary, strlen(boundary)))
+					break;
+			}
+			req->sdp_end = x;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 /*! \brief  process_sdp: Process SIP SDP and activate RTP channels---*/
 static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 {
@@ -3424,13 +3501,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	time(&p->lastrtprx);
 	time(&p->lastrtptx);
 
-	/* Get codec and RTP info from SDP */
-	if (strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
-		ast_log(LOG_NOTICE, "Content is '%s', not 'application/sdp'\n", get_header(req, "Content-Type"));
-		return -1;
-	}
 	m = get_sdp(req, "m");
-	sdpLineNum_iterator_init(&destiterator);
+	sdpLineNum_iterator_init(&destiterator, req);
 	c = get_sdp_iterate(&destiterator, req, "c");
 	if (ast_strlen_zero(m) || ast_strlen_zero(c)) {
 		ast_log(LOG_WARNING, "Insufficient information for SDP (m = '%s', c = '%s')\n", m, c);
@@ -3446,7 +3518,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		ast_log(LOG_WARNING, "Unable to lookup host in c= line, '%s'\n", c);
 		return -1;
 	}
-	sdpLineNum_iterator_init(&iterator);
+	sdpLineNum_iterator_init(&iterator, req);
 	ast_set_flag(p, SIP_NOVIDEO);	
 	while ((m = get_sdp_iterate(&iterator, req, "m"))[0] != '\0') {
 		int found = 0;
@@ -3551,7 +3623,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	/* Next, scan through each "a=rtpmap:" line, noting each
 	 * specified RTP payload type (with corresponding MIME subtype):
 	 */
-	sdpLineNum_iterator_init(&iterator);
+	sdpLineNum_iterator_init(&iterator, req);
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
 		char* mimeSubtype = ast_strdupa(a); /* ensures we have enough space */
 		if (!strcasecmp(a, "sendonly") || !strcasecmp(a, "inactive")) {
@@ -8632,7 +8704,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 	    !strcasecmp(get_header(req, "Content-Type"), "application/vnd.nortelnetworks.digits")) {
 
 		/* Try getting the "signal=" part */
-		if (ast_strlen_zero(c = get_sdp(req, "Signal")) && ast_strlen_zero(c = get_sdp(req, "d"))) {
+		if (ast_strlen_zero(c = get_body(req, "Signal")) && ast_strlen_zero(c = get_body(req, "d"))) {
 			ast_log(LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", p->callid);
 			transmit_response(p, "200 OK", req); /* Should return error */
 			return;
@@ -9494,7 +9566,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			if (p->owner->_state != AST_STATE_UP)
 				ast_setstate(p->owner, AST_STATE_RINGING);
 		}
-		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
+		if (find_sdp(req)) {
 			process_sdp(p, req);
 			if (!ignore && p->owner) {
 				/* Queue a progress frame only if we have SDP in 180 */
@@ -9505,7 +9577,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	case 183:	/* Session progress */
 		sip_cancel_destroy(p);
 		/* Ignore 183 Session progress without SDP */
-		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
+		if (find_sdp(req)) {
 			process_sdp(p, req);
 			if (!ignore && p->owner) {
 				/* Queue a progress frame */
@@ -9516,7 +9588,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	case 200:	/* 200 OK on invite - someone's answering our call */
 		sip_cancel_destroy(p);
 		p->authtries = 0;
-		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
+		if (find_sdp(req)) {
 			process_sdp(p, req);
 		}
 
@@ -10323,7 +10395,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		check_via(p, req);
 		if (p->owner) {
 			/* Handle SDP here if we already have an owner */
-			if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
+			if (find_sdp(req)) {
 				if (process_sdp(p, req)) {
 					transmit_response(p, "488 Not acceptable here", req);
 					if (!p->lastinvite)
