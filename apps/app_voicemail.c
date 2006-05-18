@@ -6520,20 +6520,21 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 							res = ast_play_and_wait(chan, "vm-star-cancel");
 						if (!res)
 							res = ast_waitfordigit(chan, 6000);
-						if (!res)
+						if (!res) {
 							retries++;
-						if (retries > 3)
-							res = 't';
-							break; 
-
+							if (retries > 3)
+								res = 't';
 						}
-					if (res == 't')
-						res = 0;
-					else if (res == '*')
-						res = -1;
+						break; 
+						
 				}
+				if (res == 't')
+					res = 0;
+				else if (res == '*')
+					res = -1;
 			}
-
+		}
+		
 	}
 	else if (option == 1) { /* Reply */
 		/* Send reply directly to sender */
