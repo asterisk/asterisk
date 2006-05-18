@@ -412,7 +412,7 @@ struct iax2_registry {
 	int expire;				/*!< Sched ID of expiration */
 	int refresh;				/*!< How often to refresh */
 	enum iax_reg_state regstate;
-	int messages;				/*!< Message count */
+	int messages;				/*!< Message count, low 8 bits = new, high 8 bits = old */
 	int callno;				/*!< Associated call number if applicable */
 	struct sockaddr_in us;			/*!< Who the server thinks we are */
 	struct iax2_registry *next;
@@ -5410,7 +5410,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 		return -1;
 	}
 	memcpy(&reg->us, &us, sizeof(reg->us));
-	reg->messages = ies->msgcount;
+	reg->messages = ies->msgcount & 0xffff;		/* only low 16 bits are used in the transmission of the IE */
 	/* always refresh the registration at the interval requested by the server
 	   we are registering to
 	*/
@@ -5420,12 +5420,12 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	reg->expire = ast_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 	if (inaddrcmp(&oldus, &reg->us) || (reg->messages != oldmsgs)) {
 		if (option_verbose > 2) {
-			if (reg->messages > 65534)
-				snprintf(msgstatus, sizeof(msgstatus), " with message(s) waiting\n");
+			if (reg->messages > 255)
+				snprintf(msgstatus, sizeof(msgstatus), " with %d new and %d old messages waiting", reg->messages & 0xff, reg->messages >> 8);
 			else if (reg->messages > 1)
-				snprintf(msgstatus, sizeof(msgstatus), " with %d messages waiting\n", reg->messages);
+				snprintf(msgstatus, sizeof(msgstatus), " with %d new messages waiting\n", reg->messages);
 			else if (reg->messages > 0)
-				snprintf(msgstatus, sizeof(msgstatus), " with 1 message waiting\n");
+				snprintf(msgstatus, sizeof(msgstatus), " with 1 new message waiting\n");
 			else
 				snprintf(msgstatus, sizeof(msgstatus), " with no messages waiting\n");
 			snprintf(ourip, sizeof(ourip), "%s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), reg->us.sin_addr), ntohs(reg->us.sin_port));
