@@ -76,6 +76,7 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f);
 static int local_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen);
 static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int local_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen);
+static int local_sendtext(struct ast_channel *ast, const char *text);
 static int local_devicestate(void *data);
 
 /* PBX interface structure for channel registration */
@@ -95,6 +96,7 @@ static const struct ast_channel_tech local_tech = {
 	.indicate = local_indicate,
 	.fixup = local_fixup,
 	.send_html = local_sendhtml,
+	.send_text = local_sendtext,
 	.devicestate = local_devicestate,
 };
 
@@ -314,6 +316,22 @@ static int local_digit(struct ast_channel *ast, char digit)
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass = digit;
+	res = local_queue_frame(p, isoutbound, &f, ast);
+	ast_mutex_unlock(&p->lock);
+	return res;
+}
+
+static int local_sendtext(struct ast_channel *ast, const char *text)
+{
+	struct local_pvt *p = ast->tech_pvt;
+	int res = -1;
+	struct ast_frame f = { AST_FRAME_TEXT, };
+	int isoutbound;
+
+	ast_mutex_lock(&p->lock);
+	isoutbound = IS_OUTBOUND(ast, p);
+	f.data = (char *) text;
+	f.datalen = strlen(text) + 1;
 	res = local_queue_frame(p, isoutbound, &f, ast);
 	ast_mutex_unlock(&p->lock);
 	return res;
