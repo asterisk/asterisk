@@ -10847,6 +10847,8 @@ static int setup_zap(int reload)
 						v->value, v->lineno);
 			} else if (!strcasecmp(v->name, "minunused")) {
 				minunused = atoi(v->value);
+			} else if (!strcasecmp(v->name, "minidle")) {
+				minidle = atoi(v->value); 
 			} else if (!strcasecmp(v->name, "idleext")) {
 				ast_copy_string(idleext, v->value, sizeof(idleext));
 			} else if (!strcasecmp(v->name, "idledial")) {
