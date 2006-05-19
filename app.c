@@ -196,6 +196,20 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	return 0;
 }
 
+int ast_app_messagecount2(const char *context, const char *mailbox, const char *folder)
+{
+	static int warned = 0;
+	if (ast_messagecount2_func)
+		return ast_messagecount2_func(context, mailbox, folder);
+
+	if (!warned && (option_verbose > 2)) {
+		warned++;
+		ast_verbose(VERBOSE_PREFIX_3 "Message count requested for mailbox %s@%s/%s but voicemail not loaded.\n", mailbox, context, folder);
+	}
+
+	return 0;
+}
+
 int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const char *digits, int between) 
 {
 	const char *ptr;
