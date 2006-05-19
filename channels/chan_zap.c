@@ -7802,7 +7802,6 @@ static int pri_find_principle(struct zt_pri *pri, int channel)
 	ZT_PARAMS param;
 	int principle = -1;
 	int explicit = PRI_EXPLICIT(channel);
-	span = PRI_SPAN(channel);
 	channel = PRI_CHANNEL(channel);
 
 	if (!explicit) {
@@ -8724,14 +8723,11 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Ringing requested on unconfigured channel %d/%d span %d\n", 
 						PRI_SPAN(e->ringing.channel), PRI_CHANNEL(e->ringing.channel), pri->span);
-					chanpos = -1;
-				}
-				if (chanpos > -1) {
+				} else {
 					chanpos = pri_fixup_principle(pri, chanpos, e->ringing.call);
 					if (chanpos < 0) {
 						ast_log(LOG_WARNING, "Ringing requested on channel %d/%d not in use on span %d\n", 
 							PRI_SPAN(e->ringing.channel), PRI_CHANNEL(e->ringing.channel), pri->span);
-						chanpos = -1;
 					} else {
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						if (ast_strlen_zero(pri->pvts[chanpos]->dop.dialstr)) {
@@ -8844,14 +8840,11 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Facility Name requested on unconfigured channel %d/%d span %d\n", 
 						PRI_SPAN(e->facname.channel), PRI_CHANNEL(e->facname.channel), pri->span);
-					chanpos = -1;
-				}
-				if (chanpos > -1) {
+				} else {
 					chanpos = pri_fixup_principle(pri, chanpos, e->facname.call);
 					if (chanpos < 0) {
 						ast_log(LOG_WARNING, "Facility Name requested on channel %d/%d not in use on span %d\n", 
 							PRI_SPAN(e->facname.channel), PRI_CHANNEL(e->facname.channel), pri->span);
-						chanpos = -1;
 					} else {
 						/* Re-use *69 field for PRI */
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
@@ -8868,14 +8861,11 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Answer on unconfigured channel %d/%d span %d\n", 
 						PRI_SPAN(e->answer.channel), PRI_CHANNEL(e->answer.channel), pri->span);
-					chanpos = -1;
-				}
-				if (chanpos > -1) {
+				} else {
 					chanpos = pri_fixup_principle(pri, chanpos, e->answer.call);
 					if (chanpos < 0) {
 						ast_log(LOG_WARNING, "Answer requested on channel %d/%d not in use on span %d\n", 
 							PRI_SPAN(e->answer.channel), PRI_CHANNEL(e->answer.channel), pri->span);
-						chanpos = -1;
 					} else {
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						/* Now we can do call progress detection */
@@ -8929,9 +8919,7 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Hangup requested on unconfigured channel %d/%d span %d\n", 
 						PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
-					chanpos = -1;
-				}
-				if (chanpos > -1) {
+				} else {
 					chanpos = pri_fixup_principle(pri, chanpos, e->hangup.call);
 					if (chanpos > -1) {
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
@@ -8999,9 +8987,7 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Hangup REQ requested on unconfigured channel %d/%d span %d\n", 
 						PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
-					chanpos = -1;
-				}
-				if (chanpos > -1) {
+				} else {
 					chanpos = pri_fixup_principle(pri, chanpos, e->hangup.call);
 					if (chanpos > -1) {
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
@@ -9059,9 +9045,7 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Hangup ACK requested on unconfigured channel number %d/%d span %d\n", 
 						PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
-					chanpos = -1;
-				}
-				if (chanpos > -1) {
+				} else {
 					chanpos = pri_fixup_principle(pri, chanpos, e->hangup.call);
 					if (chanpos > -1) {
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
@@ -9118,9 +9102,7 @@ static void *pri_dchannel(void *vpri)
 						ast_log(LOG_WARNING, "Restart ACK requested on strange channel %d/%d span %d\n", 
 							PRI_SPAN(e->restartack.channel), PRI_CHANNEL(e->restartack.channel), pri->span);
 					}
-					chanpos = -1;
-				}
-				if (chanpos > -1) {
+				} else {
 					if (pri->pvts[chanpos]) {
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						if (pri->pvts[chanpos]->realcall) 
