@@ -2236,7 +2236,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	char tmp[256], *tmp2 = tmp, *mbox, *context;
 	ast_copy_string(tmp, mailbox, sizeof(tmp));
 	while ((mbox = strsep(&tmp2, ","))) {
-		if ((context = strchr(tmp2, '@')))
+		if ((context = strchr(mbox, '@')))
 			*context++ = '\0';
 		else
 			context = "default";
