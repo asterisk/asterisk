@@ -53,6 +53,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * The spool file contains a header 
  */
 
+enum {
+	/*! Always delete the call file after a call succeeds or the
+	 * maximum number of retries is exceeded, even if the
+	 * modification time of the call file is in the future.
+	 */
+	SPOOL_FLAG_ALWAYS_DELETE = (1 << 0)
+};
+
 static char qdir[255];
 
 struct outgoing {
@@ -93,6 +101,9 @@ struct outgoing {
 	
 	/* Maximum length of call */
 	int maxlen;
+
+	/* options */
+	struct ast_flags options;
 };
 
 static void init_outgoing(struct outgoing *o)
@@ -101,6 +112,7 @@ static void init_outgoing(struct outgoing *o)
 	o->priority = 1;
 	o->retrytime = 300;
 	o->waittime = 45;
+	ast_set_flag(&o->options, SPOOL_FLAG_ALWAYS_DELETE);
 }
 
 static void free_outgoing(struct outgoing *o)
@@ -214,6 +226,8 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 						ast_log(LOG_WARNING, "Malformed \"%s\" argument.  Should be \"%s: variable=value\"\n", buf, buf);
 				} else if (!strcasecmp(buf, "account")) {
 					ast_copy_string(o->account, c, sizeof(o->account));
+				} else if (!strcasecmp(buf, "alwaysdelete")) {
+					ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_ALWAYS_DELETE);
 				} else {
 					ast_log(LOG_WARNING, "Unknown keyword '%s' at line %d of %s\n", buf, lineno, fn);
 				}
@@ -250,11 +264,23 @@ static void safe_append(struct outgoing *o, time_t now, char *s)
 	}
 }
 
+static void check_unlink(struct outgoing *o)
+{
+	if (ast_test_flag(&o->options, SPOOL_FLAG_ALWAYS_DELETE))
+		unlink(o->fn);
+	else {
+		struct stat current_file_status;
+	
+		if (!stat(o->fn, &current_file_status))
+			if (time(NULL) >= current_file_status.st_mtime)
+				unlink(o->fn);
+	}
+}
+
 static void *attempt_thread(void *data)
 {
 	struct outgoing *o = data;
 	int res, reason;
-	struct stat current_file_status;
 	if (!ast_strlen_zero(o->app)) {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Attempting call on %s/%s for application %s(%s) (Retry %d)\n", o->tech, o->dest, o->app, o->data, o->retries);
@@ -269,7 +295,7 @@ static void *attempt_thread(void *data)
 		if (o->retries >= o->maxretries + 1) {
 			/* Max retries exceeded */
 			ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
-			unlink(o->fn);
+			check_unlink(o);
 		} else {
 			/* Notate that the call is still active */
 			safe_append(o, time(NULL), "EndRetry");
@@ -277,10 +303,7 @@ static void *attempt_thread(void *data)
 	} else {
 		ast_log(LOG_NOTICE, "Call completed to %s/%s\n", o->tech, o->dest);
 		ast_log(LOG_EVENT, "Queued call to %s/%s completed\n", o->tech, o->dest);
-		if (!stat(o->fn, &current_file_status)) {
-			if (time(NULL) >= current_file_status.st_atime)
-				unlink(o->fn);
-		}
+		check_unlink(o);
 	}
 	free_outgoing(o);
 	return NULL;

@@ -50,6 +50,17 @@ Priority: 1
 #Account: mysuperfunaccountcode
 
 #
+# Normally, a call file is always deleted after the call is successful
+# or the maximum number of tries is reached even if the modification
+# time of the call file was changed during the call to be in the
+# future.  By Setting AlwaysDelete to No the modification time of the
+# call file will be checked after the call is completed or the maximum
+# number of retries is reached.  If the modification time is in the
+# future, the call file will not be deleted.
+#
+#AlwaysDelete: Yes
+
+#
 # You can set channel variables that will be passed to the channel.
 # This includes writable dialplan functions. To set a writable dialplan
 # function, the module containing this function *must* be loaded.
