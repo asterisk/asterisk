@@ -1133,11 +1133,12 @@ static int moh_classes_show(int fd, int argc, char *argv[])
 	AST_LIST_LOCK(&mohclasses);
 	AST_LIST_TRAVERSE(&mohclasses, class, list) {
 		ast_cli(fd, "Class: %s\n", class->name);
-		ast_cli(fd, "\tMode: %s\n", S_OR(class->mode,"<none>"));
+		ast_cli(fd, "\tMode: %s\n", S_OR(class->mode, "<none>"));
 		ast_cli(fd, "\tDirectory: %s\n", S_OR(class->dir, "<none>"));
 		if (ast_test_flag(class, MOH_CUSTOM))
 			ast_cli(fd, "\tApplication: %s\n", S_OR(class->args, "<none>"));
-		ast_cli(fd, "\tFormat: %s\n", ast_getformatname(class->format));
+		if (strcasecmp(class->mode, "files"))
+			ast_cli(fd, "\tFormat: %s\n", ast_getformatname(class->format));
 	}
 	AST_LIST_UNLOCK(&mohclasses);
 
