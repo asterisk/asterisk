@@ -1311,7 +1311,7 @@ static void do_housekeeping(struct skinnysession *s)
 		if (skinnydebug) {
 			ast_verbose("Checking for voicemail Skinny %s@%s\n", sub->parent->name, sub->parent->parent->name);
 		}
-		ast_app_messagecount(sub->parent->mailbox, &new, &old);
+		ast_app_inboxcount(sub->parent->mailbox, &new, &old);
 		if (skinnydebug) {
 			ast_verbose("Skinny %s@%s has voicemail!\n", sub->parent->name, sub->parent->parent->name);
 		}

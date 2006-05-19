@@ -12193,7 +12193,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	int newmsgs, oldmsgs;
 
 	/* Check for messages */
-	ast_app_messagecount(peer->mailbox, &newmsgs, &oldmsgs);
+	ast_app_inboxcount(peer->mailbox, &newmsgs, &oldmsgs);
 	
 	time(&peer->lastmsgcheck);
 	

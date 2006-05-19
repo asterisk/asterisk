@@ -1520,7 +1520,7 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
-	ast_app_messagecount(mailbox, &newmsgs, &oldmsgs);
+	ast_app_inboxcount(mailbox, &newmsgs, &oldmsgs);
 	if (!ast_strlen_zero(id)) {
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n",id);
 	}

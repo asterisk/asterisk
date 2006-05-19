@@ -2012,7 +2012,7 @@ static const char *mbox(int id)
 }
 
 #ifdef USE_ODBC_STORAGE
-static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
+static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
 	int x = -1;
 	int res;
@@ -2127,7 +2127,7 @@ yuck:
 	return x;
 }
 
-static int messagecount2(const char *context, const char *mailbox, const char *folder)
+static int messagecount(const char *context, const char *mailbox, const char *folder)
 {
 	struct odbc_obj *obj = NULL;
 	int nummsgs = 0;
@@ -2193,7 +2193,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	else
 		context = "default";
 
-	if (messagecount2(context, tmp, folder))
+	if (messagecount(context, tmp, folder))
 		return 1;
 	else
 		return 0;
@@ -2201,42 +2201,20 @@ static int has_voicemail(const char *mailbox, const char *folder)
 
 #else
 
-static int __has_voicemail(const char *mailbox, const char *folder, int shortcircuit)
+static int __has_voicemail(const char *context, const char *mailbox, const char *folder, int shortcircuit)
 {
 	DIR *dir;
 	struct dirent *de;
 	char fn[256];
-	char tmp[256]="";
-	char *mb, *cur;
-	char *context;
 	int ret = 0;
 	if (!folder)
 		folder = "INBOX";
 	/* If no mailbox, return immediately */
 	if (ast_strlen_zero(mailbox))
 		return 0;
-	if (strchr(mailbox, ',')) {
-		ast_copy_string(tmp, mailbox, sizeof(tmp));
-		mb = tmp;
-		ret = 0;
-		while((cur = strsep(&mb, ","))) {
-			if (!ast_strlen_zero(cur)) {
-				if ((ret += __has_voicemail(cur, folder, shortcircuit))) {
-					if (shortcircuit)
-						return 1; 
-				}
-			}
-		}
-		return ret;
-	}
-	ast_copy_string(tmp, mailbox, sizeof(tmp));
-	context = strchr(tmp, '@');
-	if (context) {
-		*context = '\0';
-		context++;
-	} else
+	if (!context)
 		context = "default";
-	snprintf(fn, sizeof(fn), "%s%s/%s/%s", VM_SPOOL_DIR, context, tmp, folder);
+	snprintf(fn, sizeof(fn), "%s%s/%s/%s", VM_SPOOL_DIR, context, mailbox, folder);
 	dir = opendir(fn);
 	if (!dir)
 		return 0;
@@ -2255,21 +2233,26 @@ static int __has_voicemail(const char *mailbox, const char *folder, int shortcir
 
 static int has_voicemail(const char *mailbox, const char *folder)
 {
-	return __has_voicemail(mailbox, folder, 1);
+	char tmp[256], *tmp2 = tmp, *mbox, *context;
+	ast_copy_string(tmp, mailbox, sizeof(tmp));
+	while ((mbox = strsep(&tmp2, ","))) {
+		if ((context = strchr(tmp2, '@')))
+			*context++ = '\0';
+		else
+			context = "default";
+		if (__has_voicemail(context, mbox, folder, 1))
+			return 1;
+	}
+	return 0;
 }
 
-static int messagecount2(const char *context, const char *mailbox, const char *folder)
+static int messagecount(const char *context, const char *mailbox, const char *folder)
 {
-	char tmp[256];
-	snprintf(tmp, sizeof(tmp), "%s@%s", mailbox, context);
-	return __has_voicemail(tmp, folder, 0);
+	return __has_voicemail(context, mailbox, folder, 0);
 }
 
-static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
+static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
-	DIR *dir;
-	struct dirent *de;
-	char fn[256];
 	char tmp[256];
 	char *context;
 
@@ -2288,7 +2271,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		mb = tmp;
 		while((cur = strsep(&mb, ", "))) {
 			if (!ast_strlen_zero(cur)) {
-				if (messagecount(cur, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
+				if (inboxcount(cur, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
 					return -1;
 				else {
 					if (newmsgs)
@@ -2307,32 +2290,10 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		context++;
 	} else
 		context = "default";
-	if (newmsgs) {
-		snprintf(fn, sizeof(fn), "%s%s/%s/INBOX", VM_SPOOL_DIR, context, tmp);
-		dir = opendir(fn);
-		if (dir) {
-			while ((de = readdir(dir))) {
-				if ((strlen(de->d_name) > 3) && !strncasecmp(de->d_name, "msg", 3) &&
-					!strcasecmp(de->d_name + strlen(de->d_name) - 3, "txt"))
-						(*newmsgs)++;
-					
-			}
-			closedir(dir);
-		}
-	}
-	if (oldmsgs) {
-		snprintf(fn, sizeof(fn), "%s%s/%s/Old", VM_SPOOL_DIR, context, tmp);
-		dir = opendir(fn);
-		if (dir) {
-			while ((de = readdir(dir))) {
-				if ((strlen(de->d_name) > 3) && !strncasecmp(de->d_name, "msg", 3) &&
-					!strcasecmp(de->d_name + strlen(de->d_name) - 3, "txt"))
-						(*oldmsgs)++;
-					
-			}
-			closedir(dir);
-		}
-	}
+	if (newmsgs)
+		*newmsgs = __has_voicemail(context, tmp, "INBOX", 0);
+	if (oldmsgs)
+		*oldmsgs = __has_voicemail(context, tmp, "Old", 0);
 	return 0;
 }
 
@@ -2410,7 +2371,7 @@ static void run_externnotify(char *context, char *extension)
 #else
 	if (!ast_strlen_zero(externnotify)) {
 #endif
-		if (messagecount(ext_context, &newvoicemails, &oldvoicemails)) {
+		if (inboxcount(ext_context, &newvoicemails, &oldvoicemails)) {
 			ast_log(LOG_ERROR, "Problem in calculating number of voicemail messages available for extension %s\n", extension);
 		} else {
 			snprintf(arguments, sizeof(arguments), "%s %s %s %d&", externnotify, context, extension, newvoicemails);
@@ -3417,7 +3378,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 
 	/* Leave voicemail for someone */
 	if (ast_app_has_voicemail(ext_context, NULL)) {
-		ast_app_messagecount(ext_context, &newmsgs, &oldmsgs);
+		ast_app_inboxcount(ext_context, &newmsgs, &oldmsgs);
 	}
 	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s@%s\r\nWaiting: %d\r\nNew: %d\r\nOld: %d\r\n", vmu->mailbox, vmu->context, ast_app_has_voicemail(ext_context, NULL), newmsgs, oldmsgs);
 	run_externnotify(vmu->context, vmu->mailbox);
@@ -6654,7 +6615,7 @@ static int load_module(void *mod)
 	/* compute the location of the voicemail spool directory */
 	snprintf(VM_SPOOL_DIR, sizeof(VM_SPOOL_DIR), "%s/voicemail/", ast_config_AST_SPOOL_DIR);
 
-	ast_install_vm_functions(has_voicemail, messagecount, messagecount2);
+	ast_install_vm_functions(has_voicemail, inboxcount, messagecount);
 
 #if defined(USE_ODBC_STORAGE) && !defined(EXTENDED_ODBC_STORAGE)
 	ast_log(LOG_WARNING, "The current ODBC storage table format will be changed soon."

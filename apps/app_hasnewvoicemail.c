@@ -128,7 +128,7 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 			priority_jump = 1;
 	}
 
-	vmcount = ast_app_messagecount2(context, vmbox, vmfolder);
+	vmcount = ast_app_messagecount(context, vmbox, vmfolder);
 	/* Set the count in the channel variable */
 	if (varname) {
 		snprintf(tmp, sizeof(tmp), "%d", vmcount);
@@ -177,7 +177,7 @@ static int acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *argsstr, 
 		args.folder = "INBOX";
 	}
 
-	snprintf(buf, len, "%d", ast_app_messagecount2(context, args.vmbox, args.folder));
+	snprintf(buf, len, "%d", ast_app_messagecount(context, args.vmbox, args.folder));
 
 	LOCAL_USER_REMOVE(u);
 	

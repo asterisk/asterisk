@@ -5677,7 +5677,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 		iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
 		if (!ast_strlen_zero(p->mailbox)) {
 			int new, old;
-			ast_app_messagecount(p->mailbox, &new, &old);
+			ast_app_inboxcount(p->mailbox, &new, &old);
 			if (new > 255)
 				new = 255;
 			if (old > 255)

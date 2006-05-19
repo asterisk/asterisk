@@ -145,23 +145,23 @@ int ast_app_getdata_full(struct ast_channel *c, char *prompt, char *s, int maxle
 }
 
 static int (*ast_has_voicemail_func)(const char *mailbox, const char *folder) = NULL;
-static int (*ast_messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs) = NULL;
-static int (*ast_messagecount2_func)(const char *context, const char *mailbox, const char *folder) = NULL;
+static int (*ast_inboxcount_func)(const char *mailbox, int *newmsgs, int *oldmsgs) = NULL;
+static int (*ast_messagecount_func)(const char *context, const char *mailbox, const char *folder) = NULL;
 
 void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
-			      int (*messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs),
-			      int (*messagecount2_func)(const char *context, const char *mailbox, const char *folder))
+			      int (*inboxcount_func)(const char *mailbox, int *newmsgs, int *oldmsgs),
+			      int (*messagecount_func)(const char *context, const char *mailbox, const char *folder))
 {
 	ast_has_voicemail_func = has_voicemail_func;
+	ast_inboxcount_func = inboxcount_func;
 	ast_messagecount_func = messagecount_func;
-	ast_messagecount2_func = messagecount2_func;
 }
 
 void ast_uninstall_vm_functions(void)
 {
 	ast_has_voicemail_func = NULL;
+	ast_inboxcount_func = NULL;
 	ast_messagecount_func = NULL;
-	ast_messagecount2_func = NULL;
 }
 
 int ast_app_has_voicemail(const char *mailbox, const char *folder)
@@ -178,15 +178,15 @@ int ast_app_has_voicemail(const char *mailbox, const char *folder)
 }
 
 
-int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
+int ast_app_inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
 	static int warned = 0;
 	if (newmsgs)
 		*newmsgs = 0;
 	if (oldmsgs)
 		*oldmsgs = 0;
-	if (ast_messagecount_func)
-		return ast_messagecount_func(mailbox, newmsgs, oldmsgs);
+	if (ast_inboxcount_func)
+		return ast_inboxcount_func(mailbox, newmsgs, oldmsgs);
 
 	if (!warned && (option_verbose > 2)) {
 		warned++;
@@ -196,11 +196,11 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	return 0;
 }
 
-int ast_app_messagecount2(const char *context, const char *mailbox, const char *folder)
+int ast_app_messagecount(const char *context, const char *mailbox, const char *folder)
 {
 	static int warned = 0;
-	if (ast_messagecount2_func)
-		return ast_messagecount2_func(context, mailbox, folder);
+	if (ast_messagecount_func)
+		return ast_messagecount_func(context, mailbox, folder);
 
 	if (!warned && (option_verbose > 2)) {
 		warned++;

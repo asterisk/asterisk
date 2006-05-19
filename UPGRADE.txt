@@ -107,6 +107,12 @@ Applications:
   to specify which DTMF digits can be used to accept a recording and
   which digits can be used to cancel a recording.
 
+* ast_app_messagecount has been renamed to ast_app_inboxcount.  There is now a
+  new ast_app_messagecount function which takes a single context/mailbox/folder
+  mailbox specification and returns the message count for that folder only.
+  This addresses the deficiency of not being able to count the number of
+  messages in folders other than INBOX and Old.
+
 Manager:
 
 * After executing the 'status' manager action, the "Status" manager events
