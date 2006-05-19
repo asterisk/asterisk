@@ -22,7 +22,26 @@ AC_CONFIG_HEADER(include/autoconfig.h)
 AC_COPYRIGHT("Asterisk")
 AC_REVISION($Revision$)
 
-AC_PREFIX_DEFAULT()
+case "${host}" in
+     *freebsd*)
+     ac_default_prefix=/usr/local
+     ;;
+     *)
+     ac_default_prefix=/usr
+     ;;
+esac
+
+if test ${sysconfdir} = '${prefix}/etc'; then
+   sysconfdir=/etc
+fi
+
+if test ${localstatedir} = '${prefix}/var'; then
+   localstatedir=/var
+fi
+
+if test ${mandir} = '${prefix}/man'; then
+   mandir=/usr/share/man
+fi
 
 ### ** Platform.
 AC_DEFINE_UNQUOTED(PBX_PLATFORM, "${host}",
@@ -251,16 +270,16 @@ PBX_LIBgsm=0
 
 if test "${USE_GSM}" != "no"; then
    if test "${GSM_SYSTEM}" = "yes"; then
-      libdir=""
+      gsmlibdir=""
       if test "x${GSM_DIR}" != "x"; then
-         libdir="-L${GSM_DIR}/lib"
+         gsmlibdir="-L${GSM_DIR}/lib"
       fi
       AC_CHECK_LIB([gsm], [gsm_create], AC_DEFINE_UNQUOTED([HAVE_GSM], 1,
-      [Define to indicate the GSM library]), [], ${libdir})
+      [Define to indicate the GSM library]), [], ${gsmlibdir})
       if test "${ac_cv_lib_gsm_gsm_create}" = "yes"; then
 	 gsm_LIB="-lgsm"
 	 if test "x${GSM_DIR}" != "x"; then
-	    gsm_LIB="${libdir} ${gsm_LIB}"
+	    gsm_LIB="${gsmlibdir} ${gsm_LIB}"
 	    gsm_INCLUDE="-I${GSM_DIR}/include"
 	 fi
 	 PBX_LIBgsm=1

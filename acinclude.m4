@@ -20,17 +20,17 @@ esac
 PBX_LIB$1=0
 
 if test "${USE_$1}" != "no"; then
-   libdir=""
+   pbxlibdir=""
    if test "x${$1_DIR}" != "x"; then
-      libdir="-L${$1_DIR}/lib"
+      pbxlibdir="-L${$1_DIR}/lib"
    fi
-   AC_CHECK_LIB([$1], [$2], [:], [], ${libdir} $6)
+   AC_CHECK_LIB([$1], [$2], [:], [], ${pbxlibdir} $6)
 
    if test "${ac_cv_lib_$1_$2}" = "yes"; then
       $1_LIB="-l$1 $6"
       $4_HEADER_FOUND="1"
       if test "x${$1_DIR}" != "x"; then
-         $1_LIB="${libdir} ${$1_LIB}"
+         $1_LIB="${pbxlibdir} ${$1_LIB}"
 	 $1_INCLUDE="-I${$1_DIR}/include"
 	 if test "x$3" != "x" ; then
 	    AC_CHECK_HEADER([${$1_DIR}/include/$3], [$4_HEADER_FOUND=1], [$4_HEADER_FOUND=0] )

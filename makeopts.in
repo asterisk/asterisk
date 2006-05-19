@@ -20,7 +20,20 @@ PROC=@PBX_CPU@
 OSARCH=@PBX_OSTYPE@
 OSREV=@PBX_OSREV@
 
-INSTALL_PREFIX=@prefix@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+bindir = @bindir@
+datadir = @datadir@
+includedir = @includedir@
+infodir = @infodir@
+libdir = @libdir@
+libexecdir = @libexecdir@
+localstatedir = @localstatedir@
+mandir = @mandir@
+sbindir = @sbindir@
+sharedstatedir = @sharedstatedir@
+sysconfdir = @sysconfdir@
 
 AST_DEVMODE=@AST_DEVMODE@
 

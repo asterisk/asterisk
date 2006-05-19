@@ -82,41 +82,27 @@ DESTDIR?=
 # Define standard directories for various platforms
 # These apply if they are not redefined in asterisk.conf 
 ifeq ($(OSARCH),SunOS)
-  ASTETCDIR=$(INSTALL_PREFIX)/etc/opt/asterisk
-  ASTLIBDIR=$(INSTALL_PREFIX)/opt/asterisk/lib
-  ASTVARLIBDIR=$(INSTALL_PREFIX)/var/opt/asterisk/lib
-  ASTSPOOLDIR=$(INSTALL_PREFIX)/var/opt/asterisk/spool
-  ASTLOGDIR=$(INSTALL_PREFIX)/var/opt/asterisk/log
-  ASTHEADERDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/include/asterisk
-  ASTBINDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/bin
-  ASTSBINDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/sbin
-  ASTVARRUNDIR=$(INSTALL_PREFIX)/var/opt/asterisk/run
-  ASTMANDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/share/man
+  ASTETCDIR=/etc/opt/asterisk
+  ASTLIBDIR=/opt/asterisk/lib
+  ASTVARLIBDIR=/var/opt/asterisk/lib
+  ASTSPOOLDIR=/var/opt/asterisk/spool
+  ASTLOGDIR=/var/opt/asterisk/log
+  ASTHEADERDIR=/opt/asterisk/usr/include/asterisk
+  ASTBINDIR=/opt/asterisk/usr/bin
+  ASTSBINDIR=/opt/asterisk/usr/sbin
+  ASTVARRUNDIR=/var/opt/asterisk/run
+  ASTMANDIR=/opt/asterisk/usr/share/man
 else
-ifeq ($(OSARCH),FreeBSD)
-  PREFIX?=/usr/local
-  ASTETCDIR=$(INSTALL_PREFIX)$(PREFIX)/etc/asterisk
-  ASTLIBDIR=$(INSTALL_PREFIX)$(PREFIX)/lib/asterisk
-  ASTVARLIBDIR=$(INSTALL_PREFIX)$(PREFIX)/share/asterisk
-  ASTSPOOLDIR=$(INSTALL_PREFIX)/var/spool/asterisk
-  ASTLOGDIR=$(INSTALL_PREFIX)/var/log/asterisk
-  ASTHEADERDIR=$(INSTALL_PREFIX)$(PREFIX)/include/asterisk
-  ASTBINDIR=$(INSTALL_PREFIX)$(PREFIX)/bin
-  ASTSBINDIR=$(INSTALL_PREFIX)$(PREFIX)/sbin
-  ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
-  ASTMANDIR=$(INSTALL_PREFIX)$(PREFIX)/man
-else
-  ASTETCDIR=$(INSTALL_PREFIX)/etc/asterisk
-  ASTLIBDIR=$(INSTALL_PREFIX)/usr/lib/asterisk
-  ASTVARLIBDIR=$(INSTALL_PREFIX)/var/lib/asterisk
-  ASTSPOOLDIR=$(INSTALL_PREFIX)/var/spool/asterisk
-  ASTLOGDIR=$(INSTALL_PREFIX)/var/log/asterisk
-  ASTHEADERDIR=$(INSTALL_PREFIX)/usr/include/asterisk
-  ASTBINDIR=$(INSTALL_PREFIX)/usr/bin
-  ASTSBINDIR=$(INSTALL_PREFIX)/usr/sbin
-  ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
-  ASTMANDIR=$(INSTALL_PREFIX)/usr/share/man
-endif
+  ASTETCDIR=$(sysconfdir)/asterisk
+  ASTLIBDIR=$(libdir)/asterisk
+  ASTVARLIBDIR=$(localstatedir)/lib/asterisk
+  ASTSPOOLDIR=$(localstatedir)/spool/asterisk
+  ASTLOGDIR=$(localstatedir)/log/asterisk
+  ASTHEADERDIR=$(includedir)/asterisk
+  ASTBINDIR=$(bindir)
+  ASTSBINDIR=$(sbindir)
+  ASTVARRUNDIR=$(localstatedir)/run
+  ASTMANDIR=$(mandir)
 endif
 ASTDATADIR?=$(ASTVARLIBDIR)
 
