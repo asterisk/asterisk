@@ -455,6 +455,8 @@ static enum queue_member_status get_member_status(const struct ast_call_queue *q
 		if (max_penalty && (member->penalty > max_penalty))
 			continue;
 
+		if (member->paused) continue;
+
 		switch (member->status) {
 		case AST_DEVICE_INVALID:
 			/* nothing to do */
