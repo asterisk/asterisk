@@ -5626,7 +5626,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 
 				case '5': /* Leave VoiceMail */
 					if (ast_test_flag(vmu, VM_SVMAIL)) {
-						cmd = forward_message(chan, context, vms.curdir, vms.curmsg, vmu, vmfmts, 1, record_gain);
+						cmd = forward_message(chan, vmu->context, vms.curdir, vms.curmsg, vmu, vmfmts, 1, record_gain);
 						if (cmd == ERROR_LOCK_PATH) {
 							res = cmd;
 							goto out;
@@ -5707,7 +5707,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	
 		case '8':
 			if (vms.lastmsg > -1) {
-				cmd = forward_message(chan, context, vms.curdir, vms.curmsg, vmu, vmfmts, 0, record_gain);
+				cmd = forward_message(chan, vmu->context, vms.curdir, vms.curmsg, vmu, vmfmts, 0, record_gain);
 				if (cmd == ERROR_LOCK_PATH) {
 					res = cmd;
 					goto out;
