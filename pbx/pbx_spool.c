@@ -254,6 +254,7 @@ static void *attempt_thread(void *data)
 {
 	struct outgoing *o = data;
 	int res, reason;
+	struct stat current_file_status;
 	if (!ast_strlen_zero(o->app)) {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Attempting call on %s/%s for application %s(%s) (Retry %d)\n", o->tech, o->dest, o->app, o->data, o->retries);
@@ -276,7 +277,10 @@ static void *attempt_thread(void *data)
 	} else {
 		ast_log(LOG_NOTICE, "Call completed to %s/%s\n", o->tech, o->dest);
 		ast_log(LOG_EVENT, "Queued call to %s/%s completed\n", o->tech, o->dest);
-		unlink(o->fn);
+		if (!stat(o->fn, &current_file_status)) {
+			if (time(NULL) >= current_file_status.st_atime)
+				unlink(o->fn);
+		}
 	}
 	free_outgoing(o);
 	return NULL;
