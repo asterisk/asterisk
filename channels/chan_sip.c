@@ -1954,12 +1954,13 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
  			if((context = strchr(ext, '@'))) {
 				context++;
 				if (!ast_context_find(context)) {
-					ast_log(LOG_WARNING, "Context %s must exist in regcontext!\n", context);
+					ast_log(LOG_WARNING, "Context %s must exist in regcontext= in sip.conf!\n", context);
 					continue;
 				}
 				ext = strsep(&ext, "@");
 				if (onoff)
-					ast_add_extension(context, 1, ext, 1, NULL, NULL, "Noop",					  ast_strdup(peer->name), free, "SIP");
+					ast_add_extension(context, 1, ext, 1, NULL, NULL, "Noop",
+						 ast_strdup(peer->name), free, "SIP");
 				else
 					ast_context_remove_extension(context, ext, 1, NULL);
 			} else {
