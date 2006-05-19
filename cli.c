@@ -1313,7 +1313,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 	int matchnum=0;
 	char *ret = NULL;
 	char matchstr[80] = "";
-	int tws;
+	int tws = 0;
 	char *dup = parse_args(text, &x, argv, sizeof(argv) / sizeof(argv[0]), &tws);
 
 	if (!dup)	/* error */
@@ -1321,9 +1321,12 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 	argindex = (!ast_strlen_zero(word) && x>0) ? x-1 : x;
 	/* rebuild the command, ignore tws */
 	ast_join(matchstr, sizeof(matchstr)-1, argv);
-	if (tws)
-		strcat(matchstr, " "); /* XXX */
 	matchlen = strlen(matchstr);
+	if (tws) {
+		strcat(matchstr, " "); /* XXX */
+		if (matchlen)
+			matchlen++;
+	}
 	if (lock)
 		AST_LIST_LOCK(&helpers);
 	while( !ret && (e = cli_next(&i)) ) {

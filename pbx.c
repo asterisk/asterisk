@@ -2864,8 +2864,10 @@ static char *complete_show_application(const char *line, const char *word, int p
 	/* return the n-th [partial] matching entry */
 	AST_LIST_LOCK(&apps);
 	AST_LIST_TRAVERSE(&apps, a, list) {
-		if (!strncasecmp(word, a->name, wordlen) && ++which > state)
+		if (!strncasecmp(word, a->name, wordlen) && ++which > state) {
 			ret = strdup(a->name);
+			break;
+		}
 	}
 	AST_LIST_UNLOCK(&apps);
 
