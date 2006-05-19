@@ -265,9 +265,6 @@ else
 endif
 
 ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
-ifeq ($(findstring dont-optimize,$(MAKECMDGOALS)),)
-ASTCFLAGS+=-fomit-frame-pointer
-endif
 
 MOD_SUBDIRS=res channels pbx apps codecs formats cdr funcs
 OTHER_SUBDIRS=utils stdtime agi
