@@ -11,9 +11,6 @@
 # the GNU General Public License
 #
 
-#
-# Don't use ast mm routines
-#
 UTILS:=astman smsq stereorize streamplayer aelparse
 
 ifeq (${OSARCH},SunOS)
@@ -76,8 +73,17 @@ ast_expr2f.o: ../ast_expr2f.c
 check_expr: check_expr.c ast_expr2.o ast_expr2f.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-aelparse : ../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ../pbx/pbx_ael.o ael_main.o ast_expr2f.o ast_expr2.o
-	$(CC) $(CFLAGS) -g -o aelparse ../pbx/ael/aelflex.o ../pbx/ael/aelbison.o ael_main.o ../pbx/pbx_ael.o ast_expr2f.o ast_expr2.o
+aelflex.o: ../pbx/ael/ael_lex.c ../include/asterisk/ael_structs.h ../pbx/ael/ael.tab.h
+	$(CC) $(CFLAGS) -I../pbx/ -c -o $@ $<
+
+aelbison.o: ../pbx/ael/ael.tab.c ../pbx/ael/ael.tab.h ../include/asterisk/ael_structs.h
+	$(CC) $(CFLAGS) -I../pbx/ -c -o $@ $<
+
+pbx_ael.o: ../pbx/pbx_ael.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+aelparse : aelflex.o aelbison.o pbx_ael.o ael_main.o ast_expr2f.o ast_expr2.o
+	$(CC) $(CFLAGS) -g -o aelparse aelflex.o aelbison.o ael_main.o pbx_ael.o ast_expr2f.o ast_expr2.o
 
 ael_main.o : ael_main.c ../include/asterisk/ael_structs.h
 	$(CC) $(CFLAGS) -c -g -o ael_main.o ael_main.c
