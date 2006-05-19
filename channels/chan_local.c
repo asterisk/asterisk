@@ -90,6 +90,7 @@ static const struct ast_channel_tech local_tech = {
 	.answer = local_answer,
 	.read = local_read,
 	.write = local_write,
+	.write_video = local_write,
 	.exception = local_read,
 	.indicate = local_indicate,
 	.fixup = local_fixup,
@@ -256,12 +257,13 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 	/* Just queue for delivery to the other side */
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
-	if (f && (f->frametype == AST_FRAME_VOICE)) 
+	if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO))
 		check_bridge(p, isoutbound);
 	if (!p->alreadymasqed)
 		res = local_queue_frame(p, isoutbound, f, ast);
 	else {
-		ast_log(LOG_DEBUG, "Not posting to queue since already masked on '%s'\n", ast->name);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Not posting to queue since already masked on '%s'\n", ast->name);
 		res = 0;
 	}
 	ast_mutex_unlock(&p->lock);
