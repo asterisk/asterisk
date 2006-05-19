@@ -431,6 +431,8 @@ static enum queue_member_status get_member_status(const struct ast_call_queue *q
 	enum queue_member_status result = QUEUE_NO_MEMBERS;
 
 	for (member = q->members; member; member = member->next) {
+		if (member->paused) continue;
+
 		switch (member->status) {
 		case AST_DEVICE_INVALID:
 			/* nothing to do */
