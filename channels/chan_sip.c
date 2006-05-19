@@ -10823,13 +10823,17 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			}
 			return 0;
 		}
-		/* Initialize the context if it hasn't been already */
+		gotdest = get_destination(p, NULL);
+		/* Initialize the context if it hasn't been already;
+		   note this is done _after_ handling any domain lookups,
+		   because the context specified there is for calls, not
+		   subscriptions
+		*/
 		if (!ast_strlen_zero(p->subscribecontext))
 			ast_copy_string(p->context, p->subscribecontext, sizeof(p->context));
 		else if (ast_strlen_zero(p->context))
 			strcpy(p->context, default_context);
 		/* Get destination right away */
-		gotdest = get_destination(p, NULL);
 		build_contact(p);
 		if (gotdest) {
 			if (gotdest < 0)
