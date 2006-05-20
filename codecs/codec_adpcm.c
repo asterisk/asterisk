@@ -239,13 +239,13 @@ struct adpcm_decoder_pvt {
 static int adpcmtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct adpcm_decoder_pvt *tmp = pvt->pvt;
-	int x;
+	int x = f->datalen;
 	unsigned char *src = f->data;
 	int16_t *dst = (int16_t *)pvt->outbuf + pvt->samples;
 
-	for (x=0; x < f->datalen; x++) {
-		*dst++ = decode((src[x] >> 4) & 0xf, &tmp->state);
-		*dst++ = decode(src[x] & 0x0f, &tmp->state);
+	while (x--) {
+		*dst++ = decode((*src >> 4) & 0xf, &tmp->state);
+		*dst++ = decode(*src++ & 0x0f, &tmp->state);
 	}
 	pvt->samples += f->samples;
 	pvt->datalen += 2*f->samples;
