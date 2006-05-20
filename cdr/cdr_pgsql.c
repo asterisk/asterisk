@@ -63,7 +63,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *desc = "PostgreSQL CDR Backend";
 static char *name = "pgsql";
 static char *config = "cdr_pgsql.conf";
-static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword = NULL, *pgdbsock = NULL, *pgdbport = NULL, *table = NULL;
+static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword = NULL, *pgdbport = NULL, *table = NULL;
 static int connected = 0;
 
 AST_MUTEX_DEFINE_STATIC(pgsql_lock);
@@ -195,8 +195,6 @@ static int my_unload_module(void)
 		free(pgdbname);
 	if (pgdbuser)
 		free(pgdbuser);
-	if (pgdbsock)
-		free(pgdbsock);
 	if (pgpassword)
 		free(pgpassword);
 	if (pgdbport)
@@ -233,8 +231,8 @@ static int process_my_load_module(struct ast_config *cfg)
 		return -1;
 
 	if (!(tmp = ast_variable_retrieve(cfg, "global", "user"))) {
-		ast_log(LOG_WARNING,"PostgreSQL database user not specified.  Assuming root\n");
-		tmp = "root";
+		ast_log(LOG_WARNING,"PostgreSQL database user not specified.  Assuming asterisk\n");
+		tmp = "asterisk";
 	}
 
 	if (!(pgdbuser = ast_strdup(tmp)))
