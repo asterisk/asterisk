@@ -2125,10 +2125,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 
 		cur = cur->next;
 	}
-	if (qe->parent->timeout)
-		to = qe->parent->timeout * 1000;
-	else
-		to = -1;
+ 	if (qe->expire && (!qe->parent->timeout || (qe->expire - now) <= qe->parent->timeout))
+ 		to = (qe->expire - now) * 1000;
+ 	else
+ 		to = (qe->parent->timeout) ? qe->parent->timeout * 1000 : -1;
 	ring_one(qe, outgoing, &numbusies);
 	ast_mutex_unlock(&qe->parent->lock);
 	if (use_weight) 
