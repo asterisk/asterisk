@@ -11215,8 +11215,9 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	}
 	if (res == sizeof(req.data)) {
 		ast_log(LOG_DEBUG, "Received packet exceeds buffer. Data is possibly lost\n");
-	}
-	req.data[res] = '\0';
+		req.data[sizeof(req.data) - 1] = '\0';
+	} else
+		req.data[res] = '\0';
 	req.len = res;
 	if(sip_debug_test_addr(&sin))
 		ast_set_flag(&req, SIP_PKT_DEBUG);
