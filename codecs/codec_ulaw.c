@@ -58,7 +58,6 @@ static int ulawtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	unsigned char *src = f->data;
 	int16_t *dst = (int16_t *)pvt->outbuf + pvt->samples;
 	int in_samples = f->samples;
-	int out_samples = pvt->samples;
 
 	/* convert and copy in outbuf */
 	while (i--)
