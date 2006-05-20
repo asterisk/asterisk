@@ -1178,25 +1178,24 @@ static void sms_messagetx(sms_t * h)
 static int sms_generate (struct ast_channel *chan, void *data, int len, int samples)
 {
 	struct ast_frame f = { 0 };
-	unsigned char waste[AST_FRIENDLY_OFFSET];
+#define MAXSAMPLES 800
 #ifdef OUTALAW
-	unsigned char buf[800];
+	unsigned char *buf;
 #else
-	signed short buf[800];
+	short *buf;
 #endif
+#define SAMPLE2LEN sizeof(*buf)
 	sms_t *h = data;
 	int i;
 
-	if (len > sizeof (buf)) {
-		ast_log (LOG_WARNING, "Only doing %d bytes (%d bytes requested)\n", (int)(sizeof (buf) / sizeof (signed short)), len);
-		len = sizeof (buf);
-#ifdef OUTALAW
-		samples = len;
-#else
-		samples = len / 2;
-#endif
+	if (samples > MAXSAMPLES) {
+		ast_log (LOG_WARNING, "Only doing %d samples (%d requested)\n",
+			 MAXSAMPLES, samples);
+		samples = MAXSAMPLES;
 	}
-	waste[0] = 0;					 /* make compiler happy */
+	len = samples * SAMPLE2LEN + AST_FRIENDLY_OFFSET;
+	buf = alloca(len);
+
 	f.frametype = AST_FRAME_VOICE;
 #ifdef OUTALAW
 	f.subclass = AST_FORMAT_ALAW;
@@ -1206,8 +1205,7 @@ static int sms_generate (struct ast_channel *chan, void *data, int len, int samp
 	f.datalen = samples * 2;
 #endif
 	f.offset = AST_FRIENDLY_OFFSET;
-	f.mallocd = 0;
-	f.data = buf;
+	f.data = buf + AST_FRIENDLY_OFFSET;
 	f.samples = samples;
 	f.src = "app_sms";
 	/* create a buffer containing the digital sms pattern */
