@@ -222,8 +222,8 @@ static int process_my_load_module(struct ast_config *cfg)
 
 	tmp = ast_variable_retrieve(cfg,"global","hostname");
 	if (tmp == NULL) {
-		ast_log(LOG_WARNING,"PostgreSQL server hostname not specified.  Assuming localhost\n");
-		tmp = "localhost";
+		ast_log(LOG_WARNING,"PostgreSQL server hostname not specified.  Assuming unix socket connection\n");
+		tmp = "";	/* connect via UNIX-socket by default */
 	}
 	pghostname = strdup(tmp);
 	if (pghostname == NULL) {
@@ -287,10 +287,11 @@ static int process_my_load_module(struct ast_config *cfg)
 	}
 
 	if (option_debug) {
-		ast_log(LOG_DEBUG, "cdr_pgsql: got hostname of %s\n", pghostname);
+	    	if (ast_strlen_zero(pghostname))
+			ast_log(LOG_DEBUG, "cdr_pgsql: using default unix socket\n");
+		else
+			ast_log(LOG_DEBUG, "cdr_pgsql: got hostname of %s\n", pghostname);
 		ast_log(LOG_DEBUG, "cdr_pgsql: got port of %s\n", pgdbport);
-		if (pgdbsock)
-			ast_log(LOG_DEBUG, "cdr_pgsql: got sock file of %s\n", pgdbsock);
 		ast_log(LOG_DEBUG, "cdr_pgsql: got user of %s\n", pgdbuser);
 		ast_log(LOG_DEBUG, "cdr_pgsql: got dbname of %s\n", pgdbname);
 		ast_log(LOG_DEBUG, "cdr_pgsql: got password of %s\n", pgpassword);
