@@ -209,82 +209,60 @@ static int my_unload_module(void)
 
 static int process_my_load_module(struct ast_config *cfg)
 {
-	int res;
 	struct ast_variable *var;
         char *pgerror;
 	char *tmp;
 
-	var = ast_variable_browse(cfg, "global");
-	if (!var) {
-		/* nothing configured */
+	if (!(var = ast_variable_browse(cfg, "global")))
 		return 0;
-	}
 
-	tmp = ast_variable_retrieve(cfg,"global","hostname");
-	if (tmp == NULL) {
+	if (!(tmp = ast_variable_retrieve(cfg,"global","hostname"))) {
 		ast_log(LOG_WARNING,"PostgreSQL server hostname not specified.  Assuming unix socket connection\n");
 		tmp = "";	/* connect via UNIX-socket by default */
 	}
-	pghostname = strdup(tmp);
-	if (pghostname == NULL) {
-		ast_log(LOG_ERROR,"Out of memory error.\n");
+	
+	if (!(pghostname = ast_strdup(tmp)))
 		return -1;
-	}
 
-	tmp = ast_variable_retrieve(cfg,"global","dbname");
-	if (tmp == NULL) {
+	if (!(tmp = ast_variable_retrieve(cfg, "global", "dbname"))) {
 		ast_log(LOG_WARNING,"PostgreSQL database not specified.  Assuming asterisk\n");
 		tmp = "asteriskcdrdb";
 	}
-	pgdbname = strdup(tmp);
-	if (pgdbname == NULL) {
-		ast_log(LOG_ERROR,"Out of memory error.\n");
-		return -1;
-	}
 
-	tmp = ast_variable_retrieve(cfg,"global","user");
-	if (tmp == NULL) {
+	if (!(pgdbname = ast_strdup(tmp)))
+		return -1;
+
+	if (!(tmp = ast_variable_retrieve(cfg, "global", "user"))) {
 		ast_log(LOG_WARNING,"PostgreSQL database user not specified.  Assuming root\n");
 		tmp = "root";
 	}
-	pgdbuser = strdup(tmp);
-	if (pgdbuser == NULL) {
-		ast_log(LOG_ERROR,"Out of memory error.\n");
-		return -1;
-	}
 
-	tmp = ast_variable_retrieve(cfg,"global","password");
-	if (tmp == NULL) {
+	if (!(pgdbuser = ast_strdup(tmp)))
+		return -1;
+
+	if (!(tmp = ast_variable_retrieve(cfg, "global", "password"))) {
 		ast_log(LOG_WARNING,"PostgreSQL database password not specified.  Assuming blank\n");
 		tmp = "";
 	}
-	pgpassword = strdup(tmp);
-	if (pgpassword == NULL) {
-		ast_log(LOG_ERROR,"Out of memory error.\n");
-		return -1;
-	}
 
-	tmp = ast_variable_retrieve(cfg,"global","port");
-	if (tmp == NULL) {
+	if (!(pgpassword = ast_strdup(tmp)))
+		return -1;
+
+	if (!(tmp = ast_variable_retrieve(cfg,"global","port"))) {
 		ast_log(LOG_WARNING,"PostgreSQL database port not specified.  Using default 5432.\n");
 		tmp = "5432";
 	}
-	pgdbport = strdup(tmp);
-	if (pgdbport == NULL) {
-		ast_log(LOG_ERROR,"Out of memory error.\n");
-		return -1;
-	}
 
-	tmp = ast_variable_retrieve(cfg,"global","table");
-	if (tmp == NULL) {
+	if (!(pgdbport = ast_strdup(tmp)))
+		return -1;
+
+	if (!(tmp = ast_variable_retrieve(cfg, "global", "table"))) {
 		ast_log(LOG_WARNING,"CDR table not specified.  Assuming cdr\n");
 		tmp = "cdr";
 	}
-	table = strdup(tmp);
-	if (table == NULL) {
-		ast_log(LOG_ERROR,"Out of memory error.\n");
+
+	if (!(table = ast_strdup(tmp)))
 		return -1;
-	}
 
 	if (option_debug) {
 	    	if (ast_strlen_zero(pghostname))
@@ -310,24 +288,22 @@ static int process_my_load_module(struct ast_config *cfg)
 		connected = 0;
 	}
 
-	res = ast_cdr_register(name, desc, pgsql_log);
-	if (res) {
-		ast_log(LOG_ERROR, "Unable to register PGSQL CDR handling\n");
-	}
-	return res;
+	return ast_cdr_register(name, desc, pgsql_log);
 }
 
 static int my_load_module(void)
 {
 	struct ast_config *cfg;
 	int res;
-	cfg = ast_config_load(config);
-	if (!cfg) {
+
+	if (!(cfg = ast_config_load(config))) {
 		ast_log(LOG_WARNING, "Unable to load config for PostgreSQL CDR's: %s\n", config);
 		return 0;
 	}
+
 	res = process_my_load_module(cfg);
 	ast_config_destroy(cfg);
+
 	return res;
 }
 
