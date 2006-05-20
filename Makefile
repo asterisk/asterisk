@@ -367,7 +367,7 @@ _all: all
 	@echo " +               make install                +"  
 	@echo " +-------------------------------------------+"  
 
-all: cleantest config.status menuselect.makeopts depend asterisk subdirs
+all: cleantest defaults.h config.status menuselect.makeopts depend asterisk subdirs
 
 config.status: configure
 	@CFLAGS="" ./configure
