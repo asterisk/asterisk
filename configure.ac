@@ -198,6 +198,7 @@ AST_EXT_LIB([ogg], [ogg_sync_init], [], [OGG], [OGG])
 AST_EXT_LIB([osptk], [OSPPCryptoDecrypt], [osp/osp.h], [OSPTK], [OSP Toolkit], [-lcrypto -lssl])
 AST_EXT_LIB([popt], [poptStrerror], [popt.h], [POPT], [popt])
 AST_EXT_LIB([pri], [pri_call], [libpri.h], [LIBPRI], [ISDN PRI])
+AST_EXT_LIB([radiusclient-ng], [rc_read_config], [radiusclient-ng.h], [RADIUSCLIENT], [Radius Client])
 AST_EXT_LIB([speex], [speex_encode], [speex/speex.h], [SPEEX], [Speex], [-lm])
 AST_EXT_LIB([sqlite], [sqlite_exec], [sqlite.h], [SQLITE], [SQLite])
 AST_EXT_LIB([ssl], [ssl2_connect], [openssl/ssl.h], [OPENSSL], [OpenSSL], [-lcrypto])
@@ -208,38 +209,38 @@ AST_EXT_LIB([vorbis], [vorbis_info_init], [vorbis/codec.h], [VORBIS], [Vorbis], 
 AST_EXT_LIB([z], [compress], [zlib.h], [ZLIB], [zlib])
 
 EDITLINE_LIBS=""
-if test "x$termcap_LIB" != "x" ; then
-  EDITLINE_LIBS="$termcap_LIB"
-elif test "x$tinfo_LIB" != "x" ; then
-  EDITLINE_LIBS="$tinfo_LIB"
-elif test "x$curses_LIB" != "x" ; then
-  EDITLINE_LIBS="$curses_LIB"
-elif test "x$ncurses_LIB" != "x" ; then
-  EDITLINE_LIBS="$ncurses_LIB"
+if test "x$TERMCAP_LIB" != "x" ; then
+  EDITLINE_LIBS="$TERMCAP_LIB"
+elif test "x$TINFO_LIB" != "x" ; then
+  EDITLINE_LIBS="$TINFO_LIB"
+elif test "x$CURSES_LIB" != "x" ; then
+  EDITLINE_LIBS="$CURSES_LIB"
+elif test "x$NCURSES_LIB" != "x" ; then
+  EDITLINE_LIBS="$NCURSES_LIB"
 else
   echo "*** termcap support not found"
   exit 1
 fi
 AC_SUBST(EDITLINE_LIBS)
 
-PBX_LIBossaudio=0
+PBX_LIBOSS=0
 AC_CHECK_HEADER([linux/soundcard.h],
 	        [
-		PBX_LIBossaudio=1
+		PBX_LIBOSS=1
                 AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
 		])
-if test "$PBX_LIBossaudio" = "0"; then
+if test "$PBX_LIBOSS" = "0"; then
    AC_CHECK_HEADER([sys/soundcard.h],
                    [
 		   PBX_LIBossaudio=1
 		   AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
 		   ])
 fi
-if test "$PBX_LIBossaudio" = "0"; then
+if test "$PBX_LIBOSS" = "0"; then
    AST_EXT_LIB([ossaudio], [oss_ioctl_mixer], [soundcard.h], [OSS], [Open Sound System])
 fi
 
-AC_SUBST([PBX_LIBossaudio])
+AC_SUBST([PBX_LIBOSS])
 
 if test "${PBX_OSTYPE}" = "Linux" ; then
   AST_EXT_LIB([tonezone], [tone_zone_find], [linux/zaptel.h], [ZAPTEL], [Zaptel])

@@ -166,6 +166,4 @@ PGSQL:
 
 SQLLITE:
 
--------------------------------------------------------------------------------
-
-08/02/2004 : Duane Cox <dcox@illicom.net> - added mssql information
+RADIUS:		See doc/radius.txt for more information on cdr_radius	

@@ -61,3 +61,11 @@
 ;loguniqueid=yes ;log uniqueid
 ;loguserfield=yes ;log user field
 
+;[radius]
+;usegmtime=yes ;log date/time in GMT
+;loguniqueid=yes ;log uniqueid
+;loguserfield=yes ;log user field
+; Set this to the location of the radiusclient-ng configuration file
+; The default is /etc/radiusclient-ng/radiusclient.conf
+;radiuscfg => /usr/local/etc/radiusclient-ng/radiusclient.conf
+

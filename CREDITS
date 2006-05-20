@@ -92,8 +92,9 @@ Brian M. Clapper - poll.c emulation
 Music provided by www.freeplaymusic.com
 
 === OTHER SOURCE CODE IN ASTERISK ===
-Asterisk uses libedit, the lightweight readline replacement from
-NetBSD. It is BSD-licensed and requires the following statement:
+Asterisk uses libedit, the lightweight readline replacement from NetBSD.
+The cdr_radius module uses libradiusclient-ng, which is also from NetBSD.
+They are BSD-licensed and require the following statement:
 
       This product includes software developed by the NetBSD
       Foundation, Inc. and its contributors.

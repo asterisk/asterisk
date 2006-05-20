@@ -5,35 +5,35 @@ AC_DEFUN([AST_EXT_LIB],
 AC_ARG_WITH([$1], AC_HELP_STRING([--with-$1=PATH],[use $5 files in PATH]),[
 case ${withval} in
      n|no)
-     USE_$1=no
+     USE_$4=no
      ;;
      y|ye|yes)
-     $1_MANDATORY="yes"
+     $4_MANDATORY="yes"
      ;;
      *)
-     $1_DIR="${withval}"
-     $1_MANDATORY="yes"
+     $4_DIR="${withval}"
+     $4_MANDATORY="yes"
      ;;
 esac
 ])
 
-PBX_LIB$1=0
+PBX_LIB$4=0
 
-if test "${USE_$1}" != "no"; then
+if test "${USE_$4}" != "no"; then
    pbxlibdir=""
-   if test "x${$1_DIR}" != "x"; then
+   if test "x${$4_DIR}" != "x"; then
       pbxlibdir="-L${$1_DIR}/lib"
    fi
-   AC_CHECK_LIB([$1], [$2], [:], [], ${pbxlibdir} $6)
+   AC_CHECK_LIB([$1], [$2], [AST_$4_FOUND=yes], [AST_$4_FOUND=no], ${pbxlibdir} $6)
 
-   if test "${ac_cv_lib_$1_$2}" = "yes"; then
-      $1_LIB="-l$1 $6"
+   if test "${AST_$4_FOUND}" = "yes"; then
+      $4_LIB="-l$1 $6"
       $4_HEADER_FOUND="1"
-      if test "x${$1_DIR}" != "x"; then
-         $1_LIB="${pbxlibdir} ${$1_LIB}"
-	 $1_INCLUDE="-I${$1_DIR}/include"
+      if test "x${$4_DIR}" != "x"; then
+         $4_LIB="${pbxlibdir} ${$4_LIB}"
+	 $4_INCLUDE="-I${$4_DIR}/include"
 	 if test "x$3" != "x" ; then
-	    AC_CHECK_HEADER([${$1_DIR}/include/$3], [$4_HEADER_FOUND=1], [$4_HEADER_FOUND=0] )
+	    AC_CHECK_HEADER([${$4_DIR}/include/$3], [$4_HEADER_FOUND=1], [$4_HEADER_FOUND=0] )
 	 fi
       else
 	 if test "x$3" != "x" ; then
@@ -41,7 +41,7 @@ if test "${USE_$1}" != "no"; then
 	 fi
       fi
       if test "x${$4_HEADER_FOUND}" = "x0" ; then
-         if test ! -z "${$1_MANDATORY}" ;
+         if test ! -z "${$4_MANDATORY}" ;
          then
             echo " ***"
             echo " *** It appears that you do not have the $1 development package installed."
@@ -49,14 +49,14 @@ if test "${USE_$1}" != "no"; then
             echo " *** without explicitly specifying --with-$1"
             exit 1
          fi
-         $1_LIB=""
-         $1_INCLUDE=""
-         PBX_LIB$1=0
+         $4_LIB=""
+         $4_INCLUDE=""
+         PBX_LIB$4=0
       else
-         PBX_LIB$1=1
+         PBX_LIB$4=1
          AC_DEFINE_UNQUOTED([HAVE_$4], 1, [Define to indicate the $5 library])
       fi
-   elif test ! -z "${$1_MANDATORY}";
+   elif test ! -z "${$4_MANDATORY}";
    then
       echo "***"
       echo "*** The $5 installation on this system appears to be broken."
@@ -65,9 +65,9 @@ if test "${USE_$1}" != "no"; then
       exit 1
    fi
 fi
-AC_SUBST([$1_LIB])
-AC_SUBST([$1_INCLUDE])
-AC_SUBST([PBX_LIB$1])
+AC_SUBST([$4_LIB])
+AC_SUBST([$4_INCLUDE])
+AC_SUBST([PBX_LIB$4])
 ])
 
 

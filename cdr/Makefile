@@ -75,6 +75,13 @@ cdr_sqlite.so: cdr_sqlite.o
 cdr_sqlite.o: cdr_sqlite.c
 	$(CC) -c -o $@ $(CFLAGS) $(SQLITE_INCLUDE) $<
 
+cdr_radius.so: cdr_radius.o
+	$(CC) $(SOLINK) -o $@ $< $(RADIUSCLIENT_LIB)
+
+cdr_radius.o: cdr_radius.c
+	$(CC) -c -o $@ $(CFLAGS) $(RADIUSCLIENT_INCLUDE) $<
+
+
 ifneq ($(wildcard .depend),)
   include .depend
 endif
