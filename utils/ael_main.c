@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <locale.h>
 #include <ctype.h>
@@ -12,10 +13,7 @@
 #include <limits.h>
 
 #include "asterisk/ast_expr.h"
-#include "asterisk/logger.h"
 #include "asterisk/module.h"
-#include "asterisk/channel.h"
-#include "asterisk/app.h"
 #include "asterisk/ael_structs.h"
 
 #define AST_CONFIG_MAX_PATH 255
@@ -25,6 +23,7 @@ char last_exten[18000];
 char ast_config_AST_CONFIG_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_VAR_DIR[AST_CONFIG_MAX_PATH];
 
+void ast_add_profile(void);
 void ast_cli_register_multiple(void);
 void ast_register_file_version(void);
 void ast_unregister_file_version(void);
@@ -52,6 +51,12 @@ static int use_curr_dir = 0;
 struct ast_app *pbx_findapp(const char *app)
 {
 	return (struct ast_app*)1; /* so as not to trigger an error */
+}
+
+void ast_add_profile(void)
+{
+	if (!no_comp)
+		printf("Executed ast_add_profile();\n");
 }
 
 void ast_cli_register_multiple(void)
