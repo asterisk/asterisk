@@ -1631,6 +1631,31 @@ static int process_events(struct mansession *s)
 	return ret;
 }
 
+static char mandescr_userevent[] =
+"Description: Send an event to manager sessions.\n"
+"Variables: (Names marked with * are required)\n"
+"       *UserEvent: EventStringToSend\n"
+"       Header1: Content1\n"
+"       HeaderN: ContentN\n";
+
+static int action_userevent(struct mansession *s, struct message *m)
+{
+	char *event = astman_get_header(m, "UserEvent");
+	char body[2048] = "";
+	int x, bodylen = 0;
+	for (x = 0; x < m->hdrcount; x++) {
+		if (strncasecmp("UserEvent:", m->headers[x], strlen("UserEvent:"))) {
+			ast_copy_string(body + bodylen, m->headers[x], sizeof(body) - bodylen - 3);
+			bodylen += strlen(m->headers[x]);
+			ast_copy_string(body + bodylen, "\r\n", 3);
+			bodylen += 2;
+		}
+	}
+
+	manager_event(EVENT_FLAG_USER, "UserEvent", "UserEvent: %s\r\n%s", event, body);
+	return 0;
+}
+
 static int process_message(struct mansession *s, struct message *m)
 {
 	char action[80] = "";
@@ -2327,6 +2352,7 @@ int init_manager(void)
 		ast_manager_register2("MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox", mandescr_mailboxstatus );
 		ast_manager_register2("MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count", mandescr_mailboxcount );
 		ast_manager_register2("ListCommands", 0, action_listcommands, "List available manager commands", mandescr_listcommands);
+		ast_manager_register2("UserEvent", EVENT_FLAG_USER, action_userevent, "Send an arbitrary event", mandescr_userevent);
 		ast_manager_register2("WaitEvent", 0, action_waitevent, "Wait for an event to occur", mandescr_waitevent);
 
 		ast_cli_register(&show_mancmd_cli);

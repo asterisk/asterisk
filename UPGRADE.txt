@@ -127,6 +127,11 @@ Manager:
   call. This is useful when trying to link recording filenames back to 
   a particular call from the queue.
 
+* app_userevent has been modified to always send Event: UserEvent with the
+  additional header UserEvent: <userspec>.  Also, the Channel and UniqueID
+  headers are not automatically sent, unless you specify them as separate
+  arguments.  Please see the application help for the new syntax.
+
 Variables:
 
 * The builtin variables ${CALLERID}, ${CALLERIDNAME}, ${CALLERIDNUM},
