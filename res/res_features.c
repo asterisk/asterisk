@@ -860,8 +860,12 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 	if (app) {
 		struct ast_channel *work = ast_test_flag(feature,AST_FEATURE_FLAG_CALLEE) ? peer : chan;
 		res = pbx_exec(work, app, feature->app_args);
-		if (res < 0)
-			return res; 
+		if (res == AST_PBX_KEEPALIVE)
+			return FEATURE_RETURN_PBX_KEEPALIVE;
+		else if (res == AST_PBX_NO_HANGUP_PEER)
+			return FEATURE_RETURN_NO_HANGUP_PEER;
+		else if (res)
+			return FEATURE_RETURN_SUCCESSBREAK;
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", feature->app);
 		return -2;
@@ -935,7 +939,10 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 				if (!strcmp(feature->exten, code)) {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 " Feature Found: %s exten: %s\n",feature->sname, tok);
-					res = feature->operation(chan, peer, config, code, sense);
+					if (sense == FEATURE_SENSE_CHAN)
+						res = feature->operation(chan, peer, config, code, sense);
+					else
+						res = feature->operation(peer, chan, config, code, sense);
 					break;
 				} else if (!strncmp(feature->exten, code, strlen(code))) {
 					res = FEATURE_RETURN_STOREDIGITS;
