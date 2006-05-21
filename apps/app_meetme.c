@@ -541,20 +541,6 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	return cnf;
 }
 
-static int confs_show(int fd, int argc, char **argv)
-{
-	ast_cli(fd, "Deprecated! Please use 'meetme' instead.\n");
-
-	return RESULT_SUCCESS;
-}
-
-static char show_confs_usage[] =
-"Deprecated! Please use 'meetme' instead.\n";
-
-static struct ast_cli_entry cli_show_confs = {
-	{ "show", "conferences", NULL }, confs_show,
-	"Show status of conferences", show_confs_usage, NULL };
-	
 static int conf_cmd(int fd, int argc, char **argv) {
 	/* Process the command */
 	struct ast_conference *cnf;
@@ -2392,8 +2378,7 @@ static int unload_module(void *mod)
 {
 	int res;
 	
-	res = ast_cli_unregister(&cli_show_confs);
-	res |= ast_cli_unregister(&cli_conf);
+	res = ast_cli_unregister(&cli_conf);
 	res |= ast_unregister_application(app3);
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(app);
@@ -2409,8 +2394,7 @@ static int load_module(void *mod)
 
 	load_config();
 
-	res = ast_cli_register(&cli_show_confs);
-	res |= ast_cli_register(&cli_conf);
+	res = ast_cli_register(&cli_conf);
 	res |= ast_register_application(app3, admin_exec, synopsis3, descrip3);
 	res |= ast_register_application(app2, count_exec, synopsis2, descrip2);
 	res |= ast_register_application(app, conf_exec, synopsis, descrip);
