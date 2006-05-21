@@ -63,6 +63,120 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/ulaw.h"
 
+#include "enter.h"
+#include "leave.h"
+
+LOCAL_USER_DECL;
+
+#define CONFIG_FILE_NAME "meetme.conf"
+
+/*! each buffer is 20ms, so this is 640ms total */
+#define DEFAULT_AUDIO_BUFFERS  32
+
+enum {
+	ADMINFLAG_MUTED =  (1 << 1), /*!< User is muted */
+	ADMINFLAG_KICKME = (1 << 2)  /*!< User has been kicked */
+};
+
+#define MEETME_DELAYDETECTTALK     300
+#define MEETME_DELAYDETECTENDTALK  1000
+
+#define AST_FRAME_BITS  32
+
+enum volume_action {
+	VOL_UP,
+	VOL_DOWN
+};
+
+enum entrance_sound {
+	ENTER,
+	LEAVE
+};
+
+enum recording_state {
+	MEETME_RECORD_OFF,
+	MEETME_RECORD_STARTED,
+	MEETME_RECORD_ACTIVE,
+	MEETME_RECORD_TERMINATE
+};
+
+#define CONF_SIZE  320
+
+enum {
+	/*! user has admin access on the conference */
+	CONFFLAG_ADMIN = (1 << 0),
+	/*! If set the user can only receive audio from the conference */
+	CONFFLAG_MONITOR = (1 << 1),
+	/*! If set asterisk will exit conference when '#' is pressed */
+	CONFFLAG_POUNDEXIT = (1 << 2),
+	/*! If set asterisk will provide a menu to the user when '*' is pressed */
+	CONFFLAG_STARMENU = (1 << 3),
+	/*! If set the use can only send audio to the conference */
+	CONFFLAG_TALKER = (1 << 4),
+	/*! If set there will be no enter or leave sounds */
+	CONFFLAG_QUIET = (1 << 5),
+	/*! If set, when user joins the conference, they will be told the number 
+	 *  of users that are already in */
+	CONFFLAG_ANNOUNCEUSERCOUNT = (1 << 6),
+	/*! Set to run AGI Script in Background */
+	CONFFLAG_AGI = (1 << 7),
+	/*! Set to have music on hold when user is alone in conference */
+	CONFFLAG_MOH = (1 << 8),
+	/*! If set the MeetMe will return if all marked with this flag left */
+	CONFFLAG_MARKEDEXIT = (1 << 9),
+	/*! If set, the MeetMe will wait until a marked user enters */
+	CONFFLAG_WAITMARKED = (1 << 10),
+	/*! If set, the MeetMe will exit to the specified context */
+	CONFFLAG_EXIT_CONTEXT = (1 << 11),
+	/*! If set, the user will be marked */
+	CONFFLAG_MARKEDUSER = (1 << 12),
+	/*! If set, user will be ask record name on entry of conference */
+	CONFFLAG_INTROUSER = (1 << 13),
+	/*! If set, the MeetMe will be recorded */
+	CONFFLAG_RECORDCONF = (1<< 14),
+	/*! If set, the user will be monitored if the user is talking or not */
+	CONFFLAG_MONITORTALKER = (1 << 15),
+	CONFFLAG_DYNAMIC = (1 << 16),
+	CONFFLAG_DYNAMICPIN = (1 << 17),
+	CONFFLAG_EMPTY = (1 << 18),
+	CONFFLAG_EMPTYNOPIN = (1 << 19),
+	CONFFLAG_ALWAYSPROMPT = (1 << 20),
+	/*! If set, treats talking users as muted users */
+	CONFFLAG_OPTIMIZETALKER = (1 << 21),
+	/*! If set, won't speak the extra prompt when the first person 
+	 *  enters the conference */
+	CONFFLAG_NOONLYPERSON = (1 << 22),
+	CONFFLAG_INTROUSERNOREVIEW = (1 << 23)
+	/*! If set, user will be asked to record name on entry of conference 
+	 *  without review */
+};
+
+AST_APP_OPTIONS(meetme_opts, {
+	AST_APP_OPTION('A', CONFFLAG_MARKEDUSER ),
+	AST_APP_OPTION('a', CONFFLAG_ADMIN ),
+	AST_APP_OPTION('b', CONFFLAG_AGI ),
+	AST_APP_OPTION('c', CONFFLAG_ANNOUNCEUSERCOUNT ),
+	AST_APP_OPTION('D', CONFFLAG_DYNAMICPIN ),
+	AST_APP_OPTION('d', CONFFLAG_DYNAMIC ),
+	AST_APP_OPTION('E', CONFFLAG_EMPTYNOPIN ),
+	AST_APP_OPTION('e', CONFFLAG_EMPTY ),
+	AST_APP_OPTION('i', CONFFLAG_INTROUSER ),
+	AST_APP_OPTION('I', CONFFLAG_INTROUSERNOREVIEW ),
+	AST_APP_OPTION('M', CONFFLAG_MOH ),
+	AST_APP_OPTION('m', CONFFLAG_MONITOR ),
+	AST_APP_OPTION('o', CONFFLAG_OPTIMIZETALKER ),
+	AST_APP_OPTION('P', CONFFLAG_ALWAYSPROMPT ),
+	AST_APP_OPTION('p', CONFFLAG_POUNDEXIT ),
+	AST_APP_OPTION('q', CONFFLAG_QUIET ),
+	AST_APP_OPTION('r', CONFFLAG_RECORDCONF ),
+	AST_APP_OPTION('s', CONFFLAG_STARMENU ),
+	AST_APP_OPTION('T', CONFFLAG_MONITORTALKER ),
+	AST_APP_OPTION('t', CONFFLAG_TALKER ),
+	AST_APP_OPTION('w', CONFFLAG_WAITMARKED ),
+	AST_APP_OPTION('X', CONFFLAG_EXIT_CONTEXT ),
+	AST_APP_OPTION('x', CONFFLAG_MARKEDEXIT ),
+	AST_APP_OPTION('1', CONFFLAG_NOONLYPERSON ),
+});
 
 static const char *app = "MeetMe";
 static const char *app2 = "MeetMeCount";
@@ -137,31 +251,27 @@ static const char *descrip3 =
 "      'N' -- Mute entire conference (except admin)\n"
 "";
 
-#define CONFIG_FILE_NAME "meetme.conf"
-
-LOCAL_USER_DECL;
-
 struct ast_conference {
-	ast_mutex_t playlock;				/* Conference specific lock (players) */
-	ast_mutex_t listenlock;				/* Conference specific lock (listeners) */
-	char confno[AST_MAX_EXTENSION];		/* Conference */
-	struct ast_channel *chan;		/* Announcements channel */
-	struct ast_channel *lchan;		/* Listen/Record channel */
-	int fd;					/* Announcements fd */
-	int zapconf;				/* Zaptel Conf # */
-	int users;				/* Number of active users */
-	int markedusers;			/* Number of marked users */
-	time_t start;				/* Start time (s) */
-	int refcount;				/* reference count of usage */
-	unsigned int recording:2;				/* recording status */
-	unsigned int isdynamic:1;				/* Created on the fly? */
-	unsigned int locked:1;				/* Is the conference locked? */
-	pthread_t recordthread;			/* thread for recording */
-	pthread_attr_t attr;			/* thread attribute */
-	const char *recordingfilename;		/* Filename to record the Conference into */
-	const char *recordingformat;			/* Format to record the Conference in */
-	char pin[AST_MAX_EXTENSION];		/* If protected by a PIN */
-	char pinadmin[AST_MAX_EXTENSION];	/* If protected by a admin PIN */
+	ast_mutex_t playlock;                   /*!< Conference specific lock (players) */
+	ast_mutex_t listenlock;                 /*!< Conference specific lock (listeners) */
+	char confno[AST_MAX_EXTENSION];         /*!< Conference */
+	struct ast_channel *chan;               /*!< Announcements channel */
+	struct ast_channel *lchan;              /*!< Listen/Record channel */
+	int fd;                                 /*!< Announcements fd */
+	int zapconf;                            /*!< Zaptel Conf # */
+	int users;                              /*!< Number of active users */
+	int markedusers;                        /*!< Number of marked users */
+	time_t start;                           /*!< Start time (s) */
+	int refcount;                           /*!< reference count of usage */
+	enum recording_state recording:2;               /*!< recording status */
+	unsigned int isdynamic:1;               /*!< Created on the fly? */
+	unsigned int locked:1;                  /*!< Is the conference locked? */
+	pthread_t recordthread;                 /*!< thread for recording */
+	pthread_attr_t attr;                    /*!< thread attribute */
+	const char *recordingfilename;          /*!< Filename to record the Conference into */
+	const char *recordingformat;            /*!< Format to record the Conference in */
+	char pin[AST_MAX_EXTENSION];            /*!< If protected by a PIN */
+	char pinadmin[AST_MAX_EXTENSION];       /*!< If protected by a admin PIN */
 	struct ast_frame *transframe[32];
 	struct ast_frame *origframe;
 	struct ast_trans_pvt *transpath[32];
@@ -172,111 +282,52 @@ struct ast_conference {
 static AST_LIST_HEAD_STATIC(confs, ast_conference);
 
 struct volume {
-	int desired;				/* Desired volume adjustment */
-	int actual;				/* Actual volume adjustment (for channels that can't adjust) */
+	int desired;                            /*!< Desired volume adjustment */
+	int actual;                             /*!< Actual volume adjustment (for channels that can't adjust) */
 };
 
 struct ast_conf_user {
-	int user_no;				/* User Number */
-	int userflags;				/* Flags as set in the conference */
-	int adminflags;				/* Flags set by the Admin */
-	struct ast_channel *chan;		/* Connected channel */
-	int talking;				/* Is user talking */
-	int zapchannel;				/* Is a Zaptel channel */
-	char usrvalue[50];			/* Custom User Value */
-	char namerecloc[AST_MAX_EXTENSION];	/* Name Recorded file Location */
-	time_t jointime;			/* Time the user joined the conference */
+	int user_no;                            /*!< User Number */
+	int userflags;                          /*!< Flags as set in the conference */
+	int adminflags;                         /*!< Flags set by the Admin */
+	struct ast_channel *chan;               /*!< Connected channel */
+	int talking;                            /*!< Is user talking */
+	int zapchannel;                         /*!< Is a Zaptel channel */
+	char usrvalue[50];                      /*!< Custom User Value */
+	char namerecloc[AST_MAX_EXTENSION];     /*!< Name Recorded file Location */
+	time_t jointime;                        /*!< Time the user joined the conference */
 	struct volume talk;
 	struct volume listen;
 	AST_LIST_ENTRY(ast_conf_user) list;
 };
 
-static int audio_buffers;			/* The number of audio buffers to be allocated on pseudo channels
-						   when in a conference
-						*/
+/*! The number of audio buffers to be allocated on pseudo channels
+ *  when in a conference */
+static int audio_buffers;
 
-#define DEFAULT_AUDIO_BUFFERS 32		/* each buffer is 20ms, so this is 640ms total */
-
-#define ADMINFLAG_MUTED (1 << 1)		/* User is muted */
-#define ADMINFLAG_KICKME (1 << 2)		/* User is kicked */
-#define MEETME_DELAYDETECTTALK 		300
-#define MEETME_DELAYDETECTENDTALK 	1000
-
-#define AST_FRAME_BITS 32
-
-enum volume_action {
-	VOL_UP,
-	VOL_DOWN,
+/*! Map 'volume' levels from -5 through +5 into
+ *  decibel (dB) settings for channel drivers
+ *  Note: these are not a straight linear-to-dB
+ *  conversion... the numbers have been modified
+ *  to give the user a better level of adjustability
+ */
+static signed char gain_map[] = {
+	-15,
+	-13,
+	-10,
+	-6,
+	0,
+	0,
+	0,
+	6,
+	10,
+	13,
+	15,
 };
 
+
 static int admin_exec(struct ast_channel *chan, void *data);
-
 static void *recordthread(void *args);
-
-#include "enter.h"
-#include "leave.h"
-
-#define ENTER	0
-#define LEAVE	1
-
-#define MEETME_RECORD_OFF	0
-#define MEETME_RECORD_STARTED	1
-#define MEETME_RECORD_ACTIVE	2
-#define MEETME_RECORD_TERMINATE	3
-
-#define CONF_SIZE 320
-
-#define CONFFLAG_ADMIN	(1 << 1)		/* If set the user has admin access on the conference */
-#define CONFFLAG_MONITOR (1 << 2)		/* If set the user can only receive audio from the conference */
-#define CONFFLAG_POUNDEXIT (1 << 3)		/* If set asterisk will exit conference when '#' is pressed */
-#define CONFFLAG_STARMENU (1 << 4)		/* If set asterisk will provide a menu to the user when '*' is pressed */
-#define CONFFLAG_TALKER (1 << 5)		/* If set the use can only send audio to the conference */
-#define CONFFLAG_QUIET (1 << 6)			/* If set there will be no enter or leave sounds */
-#define CONFFLAG_ANNOUNCEUSERCOUNT (1 << 7)	/* If set, when user joins the conference, they will be told the number of users that are already in */
-#define CONFFLAG_AGI (1 << 8)			/* Set to run AGI Script in Background */
-#define CONFFLAG_MOH (1 << 9)			/* Set to have music on hold when user is alone in conference */
-#define CONFFLAG_MARKEDEXIT (1 << 10)		/* If set the MeetMe will return if all marked with this flag left */
-#define CONFFLAG_WAITMARKED (1 << 11)		/* If set, the MeetMe will wait until a marked user enters */
-#define CONFFLAG_EXIT_CONTEXT (1 << 12)		/* If set, the MeetMe will exit to the specified context */
-#define CONFFLAG_MARKEDUSER (1 << 13)		/* If set, the user will be marked */
-#define CONFFLAG_INTROUSER (1 << 14)		/* If set, user will be ask record name on entry of conference */
-#define CONFFLAG_RECORDCONF (1<< 15)		/* If set, the MeetMe will be recorded */
-#define CONFFLAG_MONITORTALKER (1 << 16)	/* If set, the user will be monitored if the user is talking or not */
-#define CONFFLAG_DYNAMIC (1 << 17)
-#define CONFFLAG_DYNAMICPIN (1 << 18)
-#define CONFFLAG_EMPTY (1 << 19)
-#define CONFFLAG_EMPTYNOPIN (1 << 20)
-#define CONFFLAG_ALWAYSPROMPT (1 << 21)
-#define CONFFLAG_OPTIMIZETALKER (1 << 22)	/* If set, treats talking users as muted users */
-#define CONFFLAG_NOONLYPERSON (1 << 23)		/* If set, won't speak the extra prompt when the first person enters the conference */
-#define CONFFLAG_INTROUSERNOREVIEW (1 << 24)	/* If set, user will be asked to record name on entry of conference without review */
-
-AST_APP_OPTIONS(meetme_opts, {
-	AST_APP_OPTION('A', CONFFLAG_MARKEDUSER ),
-	AST_APP_OPTION('a', CONFFLAG_ADMIN ),
-	AST_APP_OPTION('b', CONFFLAG_AGI ),
-	AST_APP_OPTION('c', CONFFLAG_ANNOUNCEUSERCOUNT ),
-	AST_APP_OPTION('D', CONFFLAG_DYNAMICPIN ),
-	AST_APP_OPTION('d', CONFFLAG_DYNAMIC ),
-	AST_APP_OPTION('E', CONFFLAG_EMPTYNOPIN ),
-	AST_APP_OPTION('e', CONFFLAG_EMPTY ),
-	AST_APP_OPTION('i', CONFFLAG_INTROUSER ),
-	AST_APP_OPTION('I', CONFFLAG_INTROUSERNOREVIEW ),
-	AST_APP_OPTION('M', CONFFLAG_MOH ),
-	AST_APP_OPTION('m', CONFFLAG_MONITOR ),
-	AST_APP_OPTION('o', CONFFLAG_OPTIMIZETALKER ),
-	AST_APP_OPTION('P', CONFFLAG_ALWAYSPROMPT ),
-	AST_APP_OPTION('p', CONFFLAG_POUNDEXIT ),
-	AST_APP_OPTION('q', CONFFLAG_QUIET ),
-	AST_APP_OPTION('r', CONFFLAG_RECORDCONF ),
-	AST_APP_OPTION('s', CONFFLAG_STARMENU ),
-	AST_APP_OPTION('T', CONFFLAG_MONITORTALKER ),
-	AST_APP_OPTION('t', CONFFLAG_TALKER ),
-	AST_APP_OPTION('w', CONFFLAG_WAITMARKED ),
-	AST_APP_OPTION('X', CONFFLAG_EXIT_CONTEXT ),
-	AST_APP_OPTION('x', CONFFLAG_MARKEDEXIT ),
-	AST_APP_OPTION('1', CONFFLAG_NOONLYPERSON ),
-});
 
 static char *istalking(int x)
 {
@@ -314,26 +365,6 @@ static int careful_write(int fd, unsigned char *data, int len, int block)
 
 	return 0;
 }
-
-/* Map 'volume' levels from -5 through +5 into
-   decibel (dB) settings for channel drivers
-   Note: these are not a straight linear-to-dB
-   conversion... the numbers have been modified
-   to give the user a better level of adjustability
-*/
-static signed char gain_map[] = {
-	-15,
-	-13,
-	-10,
-	-6,
-	0,
-	0,
-	0,
-	6,
-	10,
-	13,
-	15,
-};
 
 static int set_talk_volume(struct ast_conf_user *user, int volume)
 {
@@ -426,7 +457,7 @@ static void reset_volumes(struct ast_conf_user *user)
 	ast_channel_setoption(user->chan, AST_OPTION_RXGAIN, &zero_volume, sizeof(zero_volume), 0);
 }
 
-static void conf_play(struct ast_channel *chan, struct ast_conference *conf, int sound)
+static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enum entrance_sound sound)
 {
 	unsigned char *data;
 	int len;
