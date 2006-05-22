@@ -1051,10 +1051,10 @@ static int sip_senddigit(struct ast_channel *ast, char digit);
 static int __sip_xmit(struct sip_pvt *p, char *data, int len);
 static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal, int sipmethod);
 static int __transmit_response(struct sip_pvt *p, const char *msg, struct sip_request *req, enum xmittype reliable);
-static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
+static int transmit_response(struct sip_pvt *p, const char *msg, struct sip_request *req);
 static int transmit_response_reliable(struct sip_pvt *p, const char *msg, struct sip_request *req);
-static int transmit_response_with_date(struct sip_pvt *p, char *msg, struct sip_request *req);
-static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, enum xmittype reliable);
+static int transmit_response_with_date(struct sip_pvt *p, const char *msg, struct sip_request *req);
+static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, struct sip_request *req, enum xmittype reliable);
 static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *unsupported);
 static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *rand, enum xmittype reliable, const char *header, int stale);
 static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip_request *req, enum xmittype reliable);
@@ -4660,7 +4660,7 @@ static int __transmit_response(struct sip_pvt *p, const char *msg, struct sip_re
 }
 
 /*! \brief Transmit response, no retransmits */
-static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req) 
+static int transmit_response(struct sip_pvt *p, const char *msg, struct sip_request *req) 
 {
 	return __transmit_response(p, msg, req, XMIT_UNRELIABLE);
 }
@@ -4696,7 +4696,7 @@ static void append_date(struct sip_request *req)
 }
 
 /*! \brief Append date and content length before transmitting response */
-static int transmit_response_with_date(struct sip_pvt *p, char *msg, struct sip_request *req)
+static int transmit_response_with_date(struct sip_pvt *p, const char *msg, struct sip_request *req)
 {
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
@@ -5048,7 +5048,7 @@ static void copy_request(struct sip_request *dst, const struct sip_request *src)
 }
 
 /*! \brief Used for 200 OK and 183 early media */
-static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, enum xmittype reliable)
+static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, struct sip_request *req, enum xmittype reliable)
 {
 	struct sip_request resp;
 	int seqno;
