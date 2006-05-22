@@ -20,7 +20,7 @@
  *
  * \brief Directed Call Pickup Support
  *
- * \author Joshua Colp <jcolp@asterlink.com>
+ * \author Joshua Colp <jcolp@digium.com>
  *
  * \ingroup applications
  */
@@ -42,12 +42,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 
+#define PICKUPMARK "PICKUPMARK"
+
 static const char *app = "Pickup";
 static const char *synopsis = "Directed Call Pickup";
 static const char *descrip =
 "  Pickup(extension[@context][&extension2@context...]): This application can pickup any ringing channel\n"
 "that is calling the specified extension. If no context is specified, the current\n"
-"context will be used.\n";
+"context will be used. If you use the special string \"PICKUPMARK\" for the context parameter, for example\n"
+"10@PICKUPMARK, this application tries to find a channel which has defined a channel variable with the same context\n"
+"as \"extension\".";
 
 LOCAL_USER_DECL;
 
@@ -58,6 +62,7 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 	struct ast_channel *origin = NULL, *target = NULL;
 	char *tmp = NULL, *exten = NULL, *context = NULL, *rest=data;
 	char workspace[256] = "";
+	const char *tmp2 = NULL;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Pickup requires an argument (extension) !\n");
@@ -77,8 +82,21 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 		if (context)
 			*context++ = '\0';
 
-		/* Find a channel to pickup */
-		origin = ast_get_channel_by_exten_locked(exten, context);
+		/* If the context is the pickup mark, iterate through all channels finding the right origin one */
+		if (!strcmp(context, PICKUPMARK)) {
+			while ((origin = ast_channel_walk_locked(origin))) {
+				if (origin) {
+					tmp2 = pbx_builtin_getvar_helper(origin, PICKUPMARK);
+					if (tmp2 && !strcmp(tmp2, exten))
+						break;
+					ast_mutex_unlock(&origin->lock);
+				}
+			}
+		} else {
+			/* Use the classic mode of searching */
+			origin = ast_get_channel_by_exten_locked(exten, context);
+		}
+
 		if (origin) {
 			ast_cdr_getvar(origin->cdr, "dstchannel", &tmp, workspace,
 					sizeof(workspace), 0, 0);
