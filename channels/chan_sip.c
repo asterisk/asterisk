@@ -1178,7 +1178,7 @@ static void parse_request(struct sip_request *req);
 static const char *get_header(const struct sip_request *req, const char *name);
 static char *referstatus2str(enum referstatus rstatus);
 static int method_match(enum sipmethod id, const char *name);
-static void parse_copy(struct sip_request *dst, struct sip_request *src);
+static void parse_copy(struct sip_request *dst, const struct sip_request *src);
 static char *get_in_brackets(char *tmp);
 static const char *find_alias(const char *name, const char *_default);
 static const char *__get_header(const struct sip_request *req, const char *name, int *start);
@@ -1790,7 +1790,7 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 
 
 /*! \brief Copy SIP request, parse it */
-static void parse_copy(struct sip_request *dst, struct sip_request *src)
+static void parse_copy(struct sip_request *dst, const struct sip_request *src)
 {
 	memset(dst, 0, sizeof(*dst));
 	memcpy(dst->data, src->data, sizeof(dst->data));
