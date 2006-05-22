@@ -53,11 +53,16 @@ static char *tdesc = "ODBC lookups";
 
 static char *config = "func_odbc.conf";
 
+enum {
+	OPT_ESCAPECOMMAS =	(1 << 0),
+} odbc_option_flags;
+
 struct acf_odbc_query {
 	AST_LIST_ENTRY(acf_odbc_query) list;
 	char dsn[30];
 	char sql_read[2048];
 	char sql_write[2048];
+	unsigned int flags;
 	struct ast_custom_function *acf;
 };
 
@@ -230,7 +235,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	struct odbc_obj *obj;
 	struct acf_odbc_query *query;
 	char sql[2048] = "", varname[15];
-	int res, x, buflen = 0;
+	int res, x, buflen = 0, escapecommas;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(field)[100];
 	);
@@ -281,6 +286,9 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 		snprintf(varname, sizeof(varname), "ARG%d", x + 1);
 		pbx_builtin_setvar_helper(chan, varname, NULL);
 	}
+
+	/* Save this flag, so we can release the lock */
+	escapecommas = ast_test_flag(query, OPT_ESCAPECOMMAS);
 
 	AST_LIST_UNLOCK(&queries);
 
@@ -345,7 +353,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 
 		/* Copy data, encoding '\' and ',' for the argument parser */
 		for (i = 0; i < sizeof(coldata); i++) {
-			if (coldata[i] == '\\' || coldata[i] == ',') {
+			if (escapecommas && (coldata[i] == '\\' || coldata[i] == ',')) {
 				buf[buflen++] = '\\';
 			}
 			buf[buflen++] = coldata[i];
@@ -418,6 +426,13 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 
 	if ((tmp = ast_variable_retrieve(cfg, catg, "write"))) {
 		ast_copy_string((*query)->sql_write, tmp, sizeof((*query)->sql_write));
+	}
+
+	/* Allow escaping of embedded commas in fields to be turned off */
+	ast_set_flag((*query), OPT_ESCAPECOMMAS);
+	if ((tmp = ast_variable_retrieve(cfg, catg, "escapecommas"))) {
+		if (ast_false(tmp))
+			ast_clear_flag((*query), OPT_ESCAPECOMMAS);
 	}
 
 	(*query)->acf = ast_calloc(1, sizeof(struct ast_custom_function));

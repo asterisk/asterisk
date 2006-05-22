@@ -35,4 +35,7 @@ dsn=mysql1
 read=SELECT location FROM presence WHERE id='${SQL_ESC(${ARG1})}'
 write=UPDATE presence SET location='${SQL_ESC(${VAL1})}' WHERE id='${SQL_ESC(${ARG1})}'
 ;prefix=OFFICE		; Changes this function from ODBC_PRESENCE to OFFICE_PRESENCE
+;escapecommas=no	; Normally, commas within a field are escaped such that each
+			; field may be separated into individual variables with ARRAY.
+			; This option turns that behavior off [default=yes].
 
