@@ -1694,14 +1694,14 @@ bailoutandtrynormal:
 			"Uniqueid: %s\r\n"
 			"Meetme: %s\r\n"
 			"Usernum: %d\r\n"
-		        "CIDnum: %s\r\n"
-			"CIDname: %s\r\n"
-		        "Duration: %02d:%02d:%02d\r\n",
+		        "CallerIDnum: %s\r\n"
+			"CallerIDname: %s\r\n"
+		        "Duration: %ld\r\n",
 			chan->name, chan->uniqueid, conf->confno, 
 			user->user_no,
 			S_OR(user->chan->cid.cid_num, "<unknown>"),
-		        S_OR(user->chan->cid.cid_name, "<no name>"),
-			hr, min, sec);
+			S_OR(user->chan->cid.cid_name, "<unknown>"),
+			(now - user->jointime));
 
 		conf->users--;
 		conf->refcount--;
