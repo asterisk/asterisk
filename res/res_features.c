@@ -641,7 +641,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context '%s'\n", newext, transferer_real_context);
 	}
 	if (!ast_strlen_zero(xferfailsound))
-		res = ast_streamfile(transferer, xferfailsound, transferee->language);
+		res = ast_streamfile(transferer, xferfailsound, transferer->language);
 	else
 		res = 0;
 	if (res) {
