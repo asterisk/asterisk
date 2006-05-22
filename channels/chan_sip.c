@@ -1946,32 +1946,32 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 {
 	char multi[256];
 	char *stringp, *ext, *context;
-	if (!ast_strlen_zero(global_regcontext)) {
+
+	/* XXX note that global_regcontext is both a global 'enable' flag and
+	 * the name of the global regexten context, if not specified
+	 * individually.
+	 */
+	if (ast_strlen_zero(global_regcontext))
+		return;
 
 		ast_copy_string(multi, S_OR(peer->regexten, peer->name), sizeof(multi));
 		stringp = multi;
-		while((ext = strsep(&stringp, "&"))) {
- 			if((context = strchr(ext, '@'))) {
-				context++;
+		while ((ext = strsep(&stringp, "&"))) {
+ 			if ((context = strchr(ext, '@'))) {
+				*context++ = '\0';	/* split ext@context */
 				if (!ast_context_find(context)) {
 					ast_log(LOG_WARNING, "Context %s must exist in regcontext= in sip.conf!\n", context);
 					continue;
 				}
-				ext = strsep(&ext, "@");
-				if (onoff)
-					ast_add_extension(context, 1, ext, 1, NULL, NULL, "Noop",
-						 ast_strdup(peer->name), free, "SIP");
-				else
-					ast_context_remove_extension(context, ext, 1, NULL);
 			} else {
-			if (onoff)
-				ast_add_extension(global_regcontext, 1, ext, 1, NULL, NULL, "Noop",
-						  ast_strdup(peer->name), free, "SIP");
-			else
-				ast_context_remove_extension(global_regcontext, ext, 1, NULL);
+				context = global_regcontext;
 			}
+			if (onoff)
+				ast_add_extension(context, 1, ext, 1, NULL, NULL, "Noop",
+					 ast_strdup(peer->name), free, "SIP");
+			else
+				ast_context_remove_extension(context, ext, 1, NULL);
 		}
-	}
 }
 
 /*! \brief Destroy peer object from memory */
