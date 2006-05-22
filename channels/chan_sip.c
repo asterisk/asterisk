@@ -4543,7 +4543,6 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	char tmp[80];
 	char newto[256];
 	const char *c;
-	char *n;
 	const char *ot, *of;
 	int is_strict = FALSE;		/*!< Strict routing flag */
 
@@ -4582,13 +4581,12 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	} else if (!ast_strlen_zero(p->uri)) {
 		c = p->uri;
 	} else {
+		char *n;
 		/* We have no URI, use To: or From:  header as URI (depending on direction) */
 		ast_copy_string(stripped, get_header(orig, (ast_test_flag(&p->flags[0], SIP_OUTGOING)) ? "To" : "From"),
 				sizeof(stripped));
-		c = get_in_brackets(stripped);
-		n = strchr(c, ';');
-		if (n)
-			*n = '\0';
+		n = get_in_brackets(stripped);
+		c = strsep(&n, ";");	/* trim ; and beyond */
 	}	
 	init_req(req, sipmethod, c);
 
@@ -5139,13 +5137,11 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 {
 	char stripped[256];
-	char *c, *n;
+	char *c;
 
 	ast_copy_string(stripped, get_header(req, "Contact"), sizeof(stripped));
 	c = get_in_brackets(stripped);
-	n = strchr(c, ';');
-	if (n)
-		*n = '\0';
+	c = strsep(&c, ";");	/* trim ; and beyond */
 	if (!ast_strlen_zero(c))
 		ast_string_field_set(p, uri, c);
 }
