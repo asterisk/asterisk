@@ -1263,8 +1263,8 @@ static void leave_queue(struct queue_ent *qe)
 
 			/* Take us out of the queue */
 			manager_event(EVENT_FLAG_CALL, "Leave",
-				"Channel: %s\r\nQueue: %s\r\nCount: %d\r\n",
-				qe->chan->name, q->name,  q->count);
+				"Channel: %s\r\nQueue: %s\r\nCount: %d\r\nUniqueid: %s\r\n",
+				qe->chan->name, q->name,  q->count, qe->chan->uniqueid);
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name );
 			/* Take us out of the queue */
