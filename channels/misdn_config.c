@@ -116,6 +116,9 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "jitterbuffer_upper_threshold", MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD, MISDN_CTYPE_INT, "0", NONE },
 	{ "callgroup", MISDN_CFG_CALLGROUP, MISDN_CTYPE_ASTGROUP, NO_DEFAULT, NONE },
 	{ "pickupgroup", MISDN_CFG_PICKUPGROUP, MISDN_CTYPE_ASTGROUP, NO_DEFAULT, NONE },
+	{ "max_incoming", MISDN_CFG_MAX_IN, MISDN_CTYPE_INT, "-1", NONE },
+	{ "max_outgoing", MISDN_CFG_MAX_OUT, MISDN_CTYPE_INT, "-1", NONE },
+	{ "l1_poll_timer", MISDN_CFG_L1_POLL, MISDN_CTYPE_INT, "-1", NONE },
 	{ "msns", MISDN_CFG_MSNS, MISDN_CTYPE_MSNLIST, NO_DEFAULT, NONE }
 };
 
@@ -772,3 +775,5 @@ void misdn_cfg_init (int this_max_ports)
 	misdn_cfg_unlock();
 	AST_DESTROY_CFG(cfg);
 }
+
+

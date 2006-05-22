@@ -55,6 +55,9 @@ enum misdn_cfg_elements {
 	MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD,              /* int */
 	MISDN_CFG_CALLGROUP,           /* ast_group_t */
 	MISDN_CFG_PICKUPGROUP,         /* ast_group_t */
+	MISDN_CFG_MAX_IN,              /* int */
+	MISDN_CFG_MAX_OUT,              /* int */
+	MISDN_CFG_L1_POLL,              /* int */
 	MISDN_CFG_MSNS,                /* char[] */
 	MISDN_CFG_PTP,                 /* int (bool) */
 	MISDN_CFG_LAST,
@@ -103,5 +106,10 @@ int misdn_cfg_get_next_port_spin(int port);
 int misdn_cfg_is_msn_valid(int port, char* msn);
 int misdn_cfg_is_port_valid(int port);
 int misdn_cfg_is_group_method(char *group, enum misdn_cfg_method meth);
+
+#if 0
+char *misdn_cfg_get_next_group(char *group);
+int misdn_cfg_get_next_port_in_group(int port, char *group);
+#endif
 
 #endif

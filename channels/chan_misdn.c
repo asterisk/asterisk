@@ -280,6 +280,10 @@ static int *misdn_debug;
 static int *misdn_debug_only;
 static int max_ports;
 
+static int *misdn_in_calls;
+static int *misdn_out_calls;
+
+
 struct chan_list dummy_cl;
 
 struct chan_list *cl_te=NULL;
@@ -310,6 +314,11 @@ int chan_misdn_jb_empty(struct misdn_bchannel *bc, char *buf, int len);
 
 
 void debug_numplan(int port, int numplan, char *type);
+
+
+int add_out_calls(int port);
+int add_in_calls(int port);
+
 
 /*************** Helpers *****************/
 
@@ -647,6 +656,39 @@ static void reload_config(void)
 		misdn_debug[i] = cfg_debug;
 		misdn_debug_only[i] = 0;
 	}
+
+#ifdef M_TIMER
+	if (misdn_sched) 
+		sched_context_destroy(misdn_sched);
+	
+	misdn_sched=sched_context_create();
+
+	if (!misdn_sched) {
+		ast_log(LOG_ERROR,"Couldn't create scheduler\n");
+		return -1;
+	}
+
+	/* Loop through all ports and find out which one should be 
+	 * watched regarding the l1 */
+	int port; 
+	int dotimer=0;
+	for (	port=misdn_cfg_get_next_port(0);
+		port>0;
+		port=misdn_cfg_get_next_port(port)) {
+		int l1timer;
+		misdn_cfg_get( port, MISDN_CFG_L1_TIMER, &l1timer, sizeof(l1timer));
+		if (l1timer>0) {
+			ast_sched_add(misdn_sched, l1timer*1000, l1_timer_cb, &port);
+			dotimer=1;
+;		}
+	}
+
+	if (dotimer) {
+		/*start timer thread*/
+		pthread_create( &misdn_timer, NULL, (void*)misdn_timerd, NULL);
+	}
+#endif
+
 }
 
 static int misdn_reload (int fd, int argc, char *argv[])
@@ -779,6 +821,24 @@ static int misdn_show_stacks (int fd, int argc, char *argv[])
 	return 0;
 
 }
+
+
+static int misdn_show_ports_stats (int fd, int argc, char *argv[])
+{
+	int port;
+
+	ast_cli(fd, "Port\tin_calls\tout_calls\n");
+	
+	for (port=misdn_cfg_get_next_port(0); port > 0;
+	     port=misdn_cfg_get_next_port(port)) {
+		ast_cli(fd,"%d\t%d\t\t%d\n",port,misdn_in_calls[port],misdn_out_calls[port]);
+	}
+	ast_cli(fd,"\n");
+	
+	return 0;
+
+}
+
 
 static int misdn_show_port (int fd, int argc, char *argv[])
 {
@@ -1076,6 +1136,14 @@ static struct ast_cli_entry cli_show_stacks =
   "Shows internal mISDN stack_list", 
   "Usage: misdn show stacks\n"
 };
+
+static struct ast_cli_entry cli_show_ports_stats =
+{ {"misdn","show","ports","stats", NULL},
+  misdn_show_ports_stats,
+  "Shows chan_misdns call statistics per port", 
+  "Usage: misdn show port stats\n"
+};
+
 
 static struct ast_cli_entry cli_show_port =
 { {"misdn","show","port", NULL},
@@ -1523,6 +1591,14 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	port=newbc->port;
 	strncpy(newbc->dad,ext,sizeof( newbc->dad));
 	strncpy(ast->exten,ext,sizeof(ast->exten));
+
+	int exceed;
+	if ((exceed=add_out_calls(port))) {
+		char tmp[16];
+		sprintf(tmp,"%d",exceed);
+		pbx_builtin_setvar_helper(ast,"MAX_OVERFLOW",tmp);
+		return -1;
+	}
 	
 	chan_misdn_log(1, port, "* CALL: %s\n",dest);
 	
@@ -2743,6 +2819,13 @@ static void release_chan(struct misdn_bchannel *bc) {
 			if (!bc->nojitter)
 				chan_misdn_log(5,bc->port,"Jitterbuffer already destroyed.\n");
 		}
+
+
+		if (ch->orginator == ORG_AST) {
+			misdn_out_calls[bc->port]--;
+		} else {
+			misdn_in_calls[bc->port]--;
+		}
 		
 		if (ch) {
 			
@@ -2972,6 +3055,40 @@ void export_ies(struct ast_channel *chan, struct misdn_bchannel *bc)
 }
 
 
+int add_in_calls(int port)
+{
+	int max_in_calls;
+	
+	misdn_cfg_get( port, MISDN_CFG_MAX_IN, &max_in_calls, sizeof(max_in_calls));
+
+	misdn_in_calls[port]++;
+
+	if (max_in_calls >=0 && max_in_calls<misdn_in_calls[port]) {
+		ast_log(LOG_NOTICE,"Marking Incoming Call on port[%d]\n",port);
+		return misdn_in_calls[port]-max_in_calls;
+	}
+	
+	return 0;
+}
+
+int add_out_calls(int port)
+{
+	int max_out_calls;
+	
+	misdn_cfg_get( port, MISDN_CFG_MAX_OUT, &max_out_calls, sizeof(max_out_calls));
+	
+
+	if (max_out_calls >=0 && max_out_calls<=misdn_out_calls[port]) {
+		ast_log(LOG_NOTICE,"Rejecting Outgoing Call on port[%d]\n",port);
+		return (misdn_out_calls[port]+1)-max_out_calls;
+	}
+
+	misdn_out_calls[port]++;
+	
+	return 0;
+}
+
+
 
 /************************************************************/
 /*  Receive Events from isdn_lib  here                     */
@@ -3169,12 +3286,14 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		chan_misdn_log(1, bc->port, " --> Ignoring Call, its not in our MSN List\n");
 		return RESPONSE_IGNORE_SETUP; /*  Ignore MSNs which are not in our List */
 	}
+
 	
 	print_bearer(bc);
     
 	{
 		struct chan_list *ch=init_chan_list(ORG_MISDN);
 		struct ast_channel *chan;
+		int exceed;
 
 		if (!ch) { chan_misdn_log(-1, bc->port, "cb_events: malloc for chan_list failed!\n"); return 0;}
 		
@@ -3185,6 +3304,12 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		chan=misdn_new(ch, AST_STATE_RESERVED,bc->dad, bc->oad, AST_FORMAT_ALAW, bc->port, bc->channel);
 		ch->ast = chan;
+
+		if ((exceed=add_in_calls(bc->port))) {
+			char tmp[16];
+			sprintf(tmp,"%d",exceed);
+			pbx_builtin_setvar_helper(chan,"MAX_OVERFLOW",tmp);
+		}
 
 		read_config(ch, ORG_MISDN);
 		
@@ -3679,6 +3804,21 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 /** TE STUFF END **/
 
+#ifdef M_TIMER
+/* timer thread */
+pthread_t misdn_timer;
+struct sched_context *misdn_sched;
+
+void misdn_timerd(void *arg)
+{
+
+	
+}
+
+
+/* timer thread end */
+#endif
+
 /******************************************
  *
  *   Asterisk Channel Endpoint END
@@ -3708,6 +3848,7 @@ static int unload_module(void *mod)
 	ast_cli_unregister(&cli_show_cl);
 	ast_cli_unregister(&cli_show_config);
 	ast_cli_unregister(&cli_show_port);
+	ast_cli_unregister(&cli_show_ports_stats);
 	ast_cli_unregister(&cli_show_stacks);
 	ast_cli_unregister(&cli_restart_port);
 	ast_cli_unregister(&cli_port_up);
@@ -3764,7 +3905,15 @@ static int load_module(void *mod)
 		if (strlen(tempbuf))
 			tracing = 1;
 	}
+	
+	misdn_in_calls = (int *)malloc(sizeof(int) * (max_ports+1));
+	misdn_out_calls = (int *)malloc(sizeof(int) * (max_ports+1));
 
+	for (i=1; i <= max_ports; i++) {
+		misdn_in_calls[i]=0;
+		misdn_out_calls[i]=0;
+	}
+	
 	ast_mutex_init(&cl_te_lock);
 	ast_mutex_init(&release_lock_mutex);
 
@@ -3805,6 +3954,7 @@ static int load_module(void *mod)
 	ast_cli_register(&cli_show_config);
 	ast_cli_register(&cli_show_port);
 	ast_cli_register(&cli_show_stacks);
+	ast_cli_register(&cli_show_ports_stats);
 
 	ast_cli_register(&cli_restart_port);
 	ast_cli_register(&cli_port_up);
@@ -3833,6 +3983,9 @@ static int load_module(void *mod)
 
 
 	misdn_cfg_get( 0, MISDN_GEN_TRACEFILE, global_tracefile, BUFFERSIZE);
+
+
+
 	
 	chan_misdn_log(0, 0, "-- mISDN Channel Driver Registred -- (BE AWARE THIS DRIVER IS EXPERIMENTAL!)\n");
 

@@ -300,6 +300,21 @@ jitterbuffer_upper_threshold=0
 ;
 hdlc=no
 
+
+;
+; defines the maximum amount of incoming calls per port for
+; this group. Calls which exceed the maximum will be marked with 
+; the channel varible MAX_OVERFLOW. It will contain the amount of 
+; overflowed calls
+;
+max_incoming=-1
+
+;
+; defines the maximum amount of outgoing calls per port for this group
+; exceeding calls will be rejected
+;
+max_outgoing=-1
+
 [intern]
 ; define your ports, e.g. 1,2 (depends on mISDN-driver loading order) 
 ports=1,2
