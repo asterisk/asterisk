@@ -62,7 +62,8 @@ static char *descrip =
 "     'n' : do not answer, but record anyway if line not yet answered\n"
 "     'q' : quiet (do not play a beep tone)\n"
 "     's' : skip recording if the line is not yet answered\n"
-"     't' : use alternate '*' terminator key instead of default '#'\n"
+"     't' : use alternate '*' terminator key (DTMF) instead of default '#'\n"
+"     'x' : ignore all terminator keys (DTMF) and keep recording until hangup\n"
 "\n"
 "If filename contains '%d', these characters will be replaced with a number\n"
 "incremented by one each time the file is recorded. \n\n"
@@ -167,6 +168,8 @@ static int record_exec(struct ast_channel *chan, void *data)
 				option_append = 1;
 			if (strchr(options, 't'))
 				terminator = '*';
+			if (strchr(options, 'x'))
+				terminator = 0;
 			if (strchr(options, 'q'))
 				option_quiet = 1;
 		}
