@@ -1,4 +1,6 @@
 	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" force_clean_on_change="yes">
+		<member name="DEBUG_CHANNEL_LOCKS" displayname="Debug Channel Locking">
+		</member>
 		<member name="DEBUG_SCHEDULER" displayname="Enable Scheduler Debugging Output">
 		</member>
 		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
