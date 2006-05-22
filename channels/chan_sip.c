@@ -1207,7 +1207,7 @@ static int add_text(struct sip_request *req, const char *text);
 static int add_digit(struct sip_request *req, char digit);
 static int add_vidupdate(struct sip_request *req);
 static void add_route(struct sip_request *req, struct sip_route *route);
-static int copy_header(struct sip_request *req, struct sip_request *orig, char *field);
+static int copy_header(struct sip_request *req, const struct sip_request *orig, const char *field);
 static int copy_all_header(struct sip_request *req, struct sip_request *orig, char *field);
 static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct sip_request *orig, char *field);
 static void set_destination(struct sip_pvt *p, char *uri);
@@ -4274,7 +4274,7 @@ static int add_line(struct sip_request *req, const char *line)
 }
 
 /*! \brief Copy one header field from one request to another */
-static int copy_header(struct sip_request *req, struct sip_request *orig, char *field)
+static int copy_header(struct sip_request *req, const struct sip_request *orig, const char *field)
 {
 	const char *tmp = get_header(orig, field);
 
