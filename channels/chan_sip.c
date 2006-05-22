@@ -2190,7 +2190,9 @@ static struct sip_user *find_user(const char *name, int realtime)
 	return u;
 }
 
-/*! \brief Create address structure from peer reference */
+/*! \brief Create address structure from peer reference.
+ *  return -1 on error, 0 on success.
+ */
 static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 {
 	int natflags;
@@ -2283,7 +2285,6 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	struct sip_peer *p;
-	int found=0;
 	char *port;
 	int portno;
 	char host[MAXHOSTNAMELEN], *hostn;
@@ -2298,14 +2299,10 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 	p = find_peer(peer, NULL, 1);
 
 	if (p) {
-		found++;
-		if (create_addr_from_peer(dialog, p))
-			ASTOBJ_UNREF(p, sip_destroy_peer);
-	}
-	if (!p) {
-		if (found)
-			return -1;
-
+		int res = create_addr_from_peer(dialog, p);
+		ASTOBJ_UNREF(p, sip_destroy_peer);
+		return res;
+	} else {
 		hostn = peer;
 		portno = port ? atoi(port) : DEFAULT_SIP_PORT;
 		if (srvlookup) {
@@ -2330,9 +2327,6 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 			ast_log(LOG_WARNING, "No such host: %s\n", peer);
 			return -1;
 		}
-	} else {
-		ASTOBJ_UNREF(p, sip_destroy_peer);
-		return 0;
 	}
 }
 
