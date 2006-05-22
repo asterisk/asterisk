@@ -5478,7 +5478,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 {
 	char tmp[4000], from[256], to[256];
-	char *t = tmp, *c, *a, *mfrom, *mto;
+	char *t = tmp, *c, *mfrom, *mto;
 	size_t maxbytes = sizeof(tmp);
 	struct sip_request req;
 	char hint[AST_MAX_EXTENSION];
@@ -5547,9 +5547,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
 		return -1;
 	}
-	if ((a = strchr(c, ';')))
-		*a = '\0';
-	mfrom = c;
+	mfrom = strsep(&c, ";");	/* trim ; and beyond */
 
 	ast_copy_string(to, get_header(&p->initreq, "To"), sizeof(to));
 	c = get_in_brackets(to);
@@ -5557,9 +5555,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
 		return -1;
 	}
-	if ((a = strchr(c, ';')))
-		*a = '\0';
-	mto = c;
+	mto = strsep(&c, ";");	/* trim ; and beyond */
 
 	reqprep(&req, p, SIP_NOTIFY, 0, 1);
 
@@ -6300,9 +6296,7 @@ static int set_address_from_contact(struct sip_pvt *pvt)
 
 	/* Ditch arguments */
 	/* XXX this code is replicated also shortly below */
-	host = strchr(contact, ';');
-	if (host) 
-		*host = '\0';
+	contact = strsep(&contact, ";");	/* trim ; and beyond */
 
 	/* Grab host */
 	host = strchr(contact, '@');
@@ -6358,9 +6352,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	if (ast_strlen_zero(expires)) {	/* No expires header */
 		expires = strcasestr(get_header(req, "Contact"), ";expires=");
 		if (expires) {
-			char *ptr;
-			if ((ptr = strchr(expires, ';')))
-				*ptr = '\0';
+			/* XXX bug here, we overwrite the string */
+			expires = strsep((char **)&expires, ";"); /* trim ; and beyond */
 			if (sscanf(expires + 9, "%d", &expiry) != 1)
 				expiry = default_expiry;
 		} else {
@@ -6370,11 +6363,9 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	}
 	/* Look for brackets */
 	ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
-	if (strchr(contact, '<') == NULL) {	/* No <, check for ; and strip it */
-		char *ptr = strchr(contact, ';');	/* This is Header options, not URI options */
-		if (ptr)
-			*ptr = '\0';
-	}
+	c = contact;
+	if (strchr(contact, '<') == NULL)	/* No <, check for ; and strip it */
+		strsep(&c, ";");	/* This is Header options, not URI options */
 	c = get_in_brackets(contact);
 
 	/* if they did not specify Contact: or Expires:, they are querying
@@ -6415,10 +6406,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	} else
 		c += 4;
 	/* Ditch q */
-	n = strchr(c, ';');
-	if (n) {
-		*n = '\0';
-	}
+	c = strsep(&c, ";");
 	/* Grab host */
 	n = strchr(c, '@');
 	if (!n) {
@@ -6825,10 +6813,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		ast_uri_decode(tmp);
 
 	c = get_in_brackets(tmp);
-	/* Ditch ;user=phone */
-	name = strchr(c, ';');
-	if (name)
-		*name = '\0';
+	c = strsep(&c, ";");	/* Ditch ;user=phone */
 
 	if (!strncmp(c, "sip:", 4)) {
 		name = c + 4;
@@ -7024,8 +7009,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 			return -1;
 		}
 		from += 4;
-		if ((a = strchr(from, ';')))
-			*a = '\0';
+		from = strsep(&from, ";");
 		if ((a = strchr(from, '@'))) {
 			*a = '\0';
 			ast_string_field_set(p, fromdomain, a + 1);
@@ -7034,8 +7018,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	}
 
 	/* Skip any options and find the domain */
-	if ((a = strchr(uri, ';')))
-		*a = '\0';
+	uri = strsep(&uri, ";");
 
 	/* Get the target domain */
 	if ((a = strchr(uri, '@'))) {
@@ -9973,9 +9956,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 
 	ast_copy_string(tmp, get_header(req, "Contact"), sizeof(tmp));
 	s = get_in_brackets(tmp);
-	e = strchr(s, ';');
-	if (e)
-		*e = '\0';
+	s = strsep(&s, ";");	/* strip ; and beyond */
 	if (ast_test_flag(&p->flags[0], SIP_PROMISCREDIR)) {
 		if (!strncasecmp(s, "sip:", 4))
 			s += 4;
@@ -10980,13 +10961,9 @@ static const char *gettag(const struct sip_request *req, char *header, char *tag
 	thetag = get_header(req, header);
 	thetag = strcasestr(thetag, ";tag=");
 	if (thetag) {
-		char *sep;
 		thetag += 5;
 		ast_copy_string(tagbuf, thetag, tagbufsize);
-		sep = strchr(tagbuf, ';');
-		if (sep)
-			*sep = '\0';
-		return tagbuf;
+		return strsep(&tagbuf, ";");
 	}
 	return NULL;
 }
@@ -11624,7 +11601,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	struct sip_peer *authpeer = NULL;
 	const char *event = get_header(req, "Event");	/* Get Event package name */
 	const char *accept = get_header(req, "Accept");
-	char *eventparam;
 	int resubscribe = (p->subscribed != NONE);
 
 	if (p->initreq.headers) {	
@@ -11666,8 +11642,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		ast_verbose("Ignoring this SUBSCRIBE request\n");
 
 	/* Find parameters to Event: header value and remove them for now */
-	if ((eventparam = strchr(event, ';')))
-		*eventparam++ = '\0';
+	event = strsep((char **)&event, ";");	/* XXX bug here, overwrite string */
 
 	/* Handle authentication if this is our first subscribe */
 	res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, &authpeer);
