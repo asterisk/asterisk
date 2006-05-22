@@ -1171,7 +1171,7 @@ static int sip_register(char *value, int lineno);
 static void append_date(struct sip_request *req);	/* Append date to SIP packet */
 static int determine_firstline_parts(struct sip_request *req);
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
-static const char *gettag(const struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
+static const char *gettag(const struct sip_request *req, const char *header, char *tagbuf, int tagbufsize);
 static int find_sip_method(const char *msg);
 static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported);
 static void parse_request(struct sip_request *req);
@@ -10951,7 +10951,7 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
  * \return Returns the pointer to the provided tag buffer,
  *         or NULL if the tag was not found.
  */
-static const char *gettag(const struct sip_request *req, char *header, char *tagbuf, int tagbufsize) 
+static const char *gettag(const struct sip_request *req, const char *header, char *tagbuf, int tagbufsize) 
 {
 	const char *thetag;
 
