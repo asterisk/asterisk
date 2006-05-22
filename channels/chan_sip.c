@@ -2027,25 +2027,23 @@ static void update_peer(struct sip_peer *p, int expiry)
  * \todo Consider adding check of port address when matching here to follow the same
  * 	algorithm as for static peers. Will we break anything by adding that?
 */
-static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *sin)
+static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_in *sin)
 {
-	struct sip_peer *peer = NULL;
-	struct ast_variable *var;
+	struct sip_peer *peer;
+	struct ast_variable *var = NULL;
 	struct ast_variable *tmp;
-	char *newpeername = (char *) peername;
 	char iabuf[80];
 
 	/* First check on peer name */
 	if (newpeername) 
-		var = ast_load_realtime("sippeers", "name", peername, NULL);
+		var = ast_load_realtime("sippeers", "name", newpeername, NULL);
 	else if (sin) {	/* Then check on IP address for dynamic peers */
 		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
 		var = ast_load_realtime("sippeers", "host", iabuf, NULL);	/* First check for fixed IP hosts */
 		if (!var)
 			var = ast_load_realtime("sippeers", "ipaddr", iabuf, NULL);	/* Then check for registred hosts */
 	
-	} else
-		return NULL;
+	}
 
 	if (!var)
 		return NULL;
