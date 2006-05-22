@@ -1549,11 +1549,12 @@ static int retrans_pkt(void *data)
  				ast_log(LOG_DEBUG, "** SIP timers: Rescheduling retransmission %d to %d ms (t1 %d ms (Retrans id #%d)) \n", pkt->retrans +1, siptimer_a, pkt->timer_t1, pkt->retransid);
  		} 
 
-		if (pkt->owner && sip_debug_test_pvt(pkt->owner)) {
-			if (ast_test_flag(&pkt->owner->flags[0], SIP_NAT_ROUTE))
-				ast_verbose("Retransmitting #%d (NAT) to %s:%d:\n%s\n---\n", pkt->retrans, ast_inet_ntoa(iabuf, sizeof(iabuf), pkt->owner->recv.sin_addr), ntohs(pkt->owner->recv.sin_port), pkt->data);
-			else
-				ast_verbose("Retransmitting #%d (no NAT) to %s:%d:\n%s\n---\n", pkt->retrans, ast_inet_ntoa(iabuf, sizeof(iabuf), pkt->owner->sa.sin_addr), ntohs(pkt->owner->sa.sin_port), pkt->data);
+		if (sip_debug_test_pvt(pkt->owner)) {
+			const struct sockaddr_in *dst = sip_real_dst(pkt->owner);
+			ast_verbose("Retransmitting #%d (%s) to %s:%d:\n%s\n---\n",
+				pkt->retrans, sip_nat_mode(pkt->owner),
+				ast_inet_ntoa(iabuf, sizeof(iabuf), dst->sin_addr),
+				ntohs(dst->sin_port), pkt->data);
 		}
 
 		append_history(pkt->owner, "ReTx", "%d %s", reschedule, pkt->data);
@@ -1815,10 +1816,12 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
 		char iabuf[INET_ADDRSTRLEN];
-		if (ast_test_flag(&p->flags[0], SIP_NAT_ROUTE))
-			ast_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port), req->data);
-		else
-			ast_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), req->data);
+		const struct sockaddr_in *dst = sip_real_dst(p);
+
+		ast_verbose("%sTransmitting (%s) to %s:%d:\n%s\n---\n",
+			reliable ? "Reliably " : "", sip_nat_mode(p),
+			ast_inet_ntoa(iabuf, sizeof(iabuf), dst->sin_addr),
+			ntohs(dst->sin_port), req->data);
 	}
 	if (recordhistory) {
 		struct sip_request tmp;
