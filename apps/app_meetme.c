@@ -688,7 +688,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 					user->chan->name,
 					user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
 					user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
-					user->adminflags & ADMINFLAG_MUTED ? "(Admn Muted)" : "",
+					user->adminflags & ADMINFLAG_MUTED ? "(Admin Muted)" : "",
 					istalking(user->talking), hr, min, sec);
 			else 
 				ast_cli(fd, "%d!%s!%s!%s!%s!%s!%s!%d!%02d:%02d:%02d\n",
