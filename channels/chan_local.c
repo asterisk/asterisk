@@ -369,7 +369,7 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	p->chan->cid.cid_name = ast_strdup(p->owner->cid.cid_name);
 	p->chan->cid.cid_rdnis = ast_strdup(p->owner->cid.cid_rdnis);
 	p->chan->cid.cid_ani = ast_strdup(p->owner->cid.cid_ani);
-
+	p->chan->cid.cid_pres = p->owner->cid.cid_pres;
 	ast_string_field_set(p->chan, language, p->owner->language);
 	ast_string_field_set(p->chan, accountcode, p->owner->accountcode);
 	p->chan->cdrflags = p->owner->cdrflags;
