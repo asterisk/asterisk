@@ -7100,10 +7100,10 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	- This means that in some transactions, totag needs to be their tag :-)
 	  depending upon the direction
 */
-static struct sip_pvt *get_sip_pvt_byid_locked(char *callid, char *totag, char *fromtag) 
+static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *totag, const char *fromtag) 
 {
-	struct sip_pvt *sip_pvt_ptr = NULL;
-	
+	struct sip_pvt *sip_pvt_ptr;
+
 	/* Search interfaces and find the match */
 	ast_mutex_lock(&iflock);
 
@@ -7131,16 +7131,15 @@ static struct sip_pvt *get_sip_pvt_byid_locked(char *callid, char *totag, char *
 			}
 
 			if (option_debug > 3 && totag)				 
-				ast_log(LOG_DEBUG, "Matched %s call - their tag is %s Our tag is %s\n", ast_test_flag(&sip_pvt_ptr->flags[0], SIP_OUTGOING) ? "OUTGOING": "INCOMING", sip_pvt_ptr->theirtag, sip_pvt_ptr->tag);
+				ast_log(LOG_DEBUG, "Matched %s call - their tag is %s Our tag is %s\n",
+					ast_test_flag(&sip_pvt_ptr->flags[0], SIP_OUTGOING) ? "OUTGOING": "INCOMING",
+					sip_pvt_ptr->theirtag, sip_pvt_ptr->tag);
 
-			if (sip_pvt_ptr->owner) {
-				while(ast_channel_trylock(sip_pvt_ptr->owner)) {
-					ast_mutex_unlock(&sip_pvt_ptr->lock);
-					usleep(1);
-					ast_mutex_lock(&sip_pvt_ptr->lock);
-					if (!sip_pvt_ptr->owner)
-						break;
-				}
+			/* deadlock avoidance... */
+			while (sip_pvt_ptr->owner && ast_mutex_trylock(&sip_pvt_ptr->owner->lock)) {
+				ast_mutex_unlock(&sip_pvt_ptr->lock);
+				usleep(1);
+				ast_mutex_lock(&sip_pvt_ptr->lock);
 			}
 			break;
 		}
