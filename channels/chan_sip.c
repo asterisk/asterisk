@@ -1071,7 +1071,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 static int retrans_pkt(void *data);
 static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
 static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
-static void copy_request(struct sip_request *dst, struct sip_request *src);
+static void copy_request(struct sip_request *dst, const struct sip_request *src);
 
 /*--- Dialog management */
 static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
@@ -5033,7 +5033,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 }
 
 /*! \brief copy SIP request (mostly used to save request for responses) */
-static void copy_request(struct sip_request *dst, struct sip_request *src)
+static void copy_request(struct sip_request *dst, const struct sip_request *src)
 {
 	long offset;
 	int x;
