@@ -1452,8 +1452,7 @@ static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 			struct ast_hostent ahp;
 			struct hostent *hp;
 
-			time(&externexpire);
-			externexpire += externrefresh;
+			externexpire = time(NULL) + externrefresh;
 			if ((hp = ast_gethostbyname(externhost, &ahp))) {
 				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
 			} else
@@ -1927,11 +1926,9 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 	char port[10];
 	char ipaddr[20];
 	char regseconds[20];
-	time_t nowtime;
+	time_t nowtime = time(NULL) + expirey;
 	const char *fc = fullcontact ? "fullcontact" : NULL;
 	
-	time(&nowtime);
-	nowtime += expirey;
 	snprintf(regseconds, sizeof(regseconds), "%d", (int)nowtime);	/* Expiration time */
 	ast_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
 	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
@@ -2959,8 +2956,8 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
 				}
-				time(&p->lastrtptx);
-				res =  ast_rtp_write(p->rtp, frame);
+				p->lastrtptx = time(NULL);
+				res = ast_rtp_write(p->rtp, frame);
 			}
 			ast_mutex_unlock(&p->lock);
 		}
@@ -2976,8 +2973,8 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
 				}
-				time(&p->lastrtptx);
-				res =  ast_rtp_write(p->vrtp, frame);
+				p->lastrtptx = time(NULL);
+				res = ast_rtp_write(p->vrtp, frame);
 			}
 			ast_mutex_unlock(&p->lock);
 		}
@@ -3452,7 +3449,7 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 
 	ast_mutex_lock(&p->lock);
 	fr = sip_rtp_read(ast, p);
-	time(&p->lastrtprx);
+	p->lastrtprx = time(NULL);
 	ast_mutex_unlock(&p->lock);
 	return fr;
 }
@@ -3968,8 +3965,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 
 	/* Update our last rtprx when we receive an SDP, too */
-	time(&p->lastrtprx);
-	time(&p->lastrtptx);
+	p->lastrtprx = p->lastrtptx = time(NULL); /* XXX why both ? */
 
 	m = get_sdp(req, "m");
 	destiterator = req->sdp_start;
@@ -5026,8 +5022,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 
 	/* Update lastrtprx when we send our SDP */
-	time(&p->lastrtprx);
-	time(&p->lastrtptx);
+	p->lastrtprx = p->lastrtptx = time(NULL); /* XXX why both ? */
 
 	return 0;
 }
@@ -10268,7 +10263,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		}
 
 		r->regstate = REG_STATE_REGISTERED;
-		r->regtime=time(NULL);			/* Reset time of last succesful registration */
+		r->regtime = time(NULL);		/* Reset time of last succesful registration */
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
 		r->regattempts = 0;
 		ast_log(LOG_DEBUG, "Registration successful\n");
@@ -12160,7 +12155,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	/* Check for messages */
 	ast_app_inboxcount(peer->mailbox, &newmsgs, &oldmsgs);
 	
-	time(&peer->lastmsgcheck);
+	peer->lastmsgcheck = time(NULL);
 	
 	/* Return now if it's the same thing we told them last time */
 	if (((newmsgs << 8) | (oldmsgs)) == peer->lastmsgssent) {
@@ -12199,17 +12194,15 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 /*! \brief Check whether peer needs a new MWI notification check */
 static int does_peer_need_mwi(struct sip_peer *peer)
 {
-	time_t t;
+	time_t t = time(NULL);
 
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SUBSCRIBEMWIONLY) &&
 	    !peer->mwipvt) {	/* We don't have a subscription */
-		time(&peer->lastmsgcheck);	/* Reset timer */
+		peer->lastmsgcheck = t;	/* Reset timer */
 		return FALSE;
 	}
 
-	time(&t);
-			
-	if (!ast_strlen_zero(peer->mailbox) && ((t - peer->lastmsgcheck) > global_mwitime)) 
+	if (!ast_strlen_zero(peer->mailbox) && (t - peer->lastmsgcheck) > global_mwitime)
 		return TRUE;
 
 	return FALSE;
@@ -12250,14 +12243,14 @@ static void *do_monitor(void *data)
 		/* Check for interfaces needing to be killed */
 		ast_mutex_lock(&iflock);
 restartsearch:		
-		time(&t);
+		t = time(NULL);
 		for (sip = iflist; sip; sip = sip->next) {
 			ast_mutex_lock(&sip->lock);
 			/* Check RTP timeouts and kill calls if we have a timeout set and do not get RTP */
 			if (sip->rtp && sip->owner && (sip->owner->_state == AST_STATE_UP) && !sip->redirip.sin_addr.s_addr) {
 				if (sip->lastrtptx && sip->rtpkeepalive && t > sip->lastrtptx + sip->rtpkeepalive) {
 					/* Need to send an empty RTP packet */
-					time(&sip->lastrtptx);
+					sip->lastrtptx = time(NULL);
 					ast_rtp_sendcng(sip->rtp, 0);
 				}
 				if (sip->lastrtprx && (sip->rtptimeout || sip->rtpholdtimeout) && t > sip->lastrtprx + sip->rtptimeout) {
@@ -12313,7 +12306,7 @@ restartsearch:
 		}
 
 		/* Send MWI notifications to peers - static and cached realtime peers */
-		time(&t);
+		t = time(NULL);
 		fastrestart = FALSE;
 		curpeernum = 0;
 		peer = NULL;
@@ -13262,9 +13255,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		}
 	}
 	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE) && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && realtime) {
-		time_t nowtime;
+		time_t nowtime = time(NULL);
 
-		time(&nowtime);
 		if ((nowtime - regseconds) > 0) {
 			destroy_association(peer);
 			memset(&peer->addr, 0, sizeof(peer->addr));
@@ -13543,7 +13535,7 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_WARNING, "Invalid address for externhost keyword: %s\n", externhost);
 			else
 				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
-			time(&externexpire);
+			externexpire = time(NULL);
 		} else if (!strcasecmp(v->name, "externrefresh")) {
 			if (sscanf(v->value, "%d", &externrefresh) != 1) {
 				ast_log(LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
