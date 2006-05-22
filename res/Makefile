@@ -73,6 +73,12 @@ res_odbc.so: res_odbc.o
 res_odbc.o: res_odbc.c
 	$(CC) -c -o $@ $(CFLAGS) $(ODBC_INCLUDE) $<
 
+res_jabber.o: res_jabber.c
+	$(CC) -c -o $@ $(CFLAGS) $(IKSEMEL_INCLUDE) $<
+
+res_jabber.so: res_jabber.o
+	$(CC) $(SOLINK) -o $@ $< $(IKSEMEL_LIB) 
+
 res_osp.so: res_osp.o
 	$(CC) $(SOLINK) -o $@ $< $(OSPTK_LIB)
 

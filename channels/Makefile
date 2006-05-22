@@ -131,6 +131,12 @@ chan_vpb.o: chan_vpb.c
 chan_vpb.so: chan_vpb.o
 	 $(CXX) $(SOLINK) -o $@ $< -lvpb -lpthread -lm -ldl
 
+chan_jingle.o: chan_jingle.c
+	$(CC) -c -o $@ $(CFLAGS) $(IKSEMEL_INCLUDE) $<
+
+chan_jingle.so: chan_jingle.o
+	$(CC) $(SOLINK) -o $@ $< $(IKSEMEL_LIB)
+
 ifeq ($(OSARCH),Linux)
 chan_h323.so: chan_h323.o h323/libchanh323.a h323/Makefile.ast
 	$(CC) $(SOLINK) $(H323LDFLAGS) -o $@ $< h323/libchanh323.a $(H323LDLIBS) -lstdc++

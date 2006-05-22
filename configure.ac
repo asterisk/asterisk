@@ -190,6 +190,7 @@ AC_SUBST(AST_DEVMODE)
 
 AST_EXT_LIB([asound], [snd_spcm_init], [alsa/asoundlib.h], [ALSA], [Advanced Linux Sound Architecture], [-lm -ldl])
 AST_EXT_LIB([curses], [initscr], [curses.h], [CURSES], [curses], [])
+AST_EXT_LIB([iksemel], [iks_start_sasl], [iksemel.h], [IKSEMEL], [Iksemel Jabber Library])
 AST_EXT_LIB([nbs], [nbs_connect], [nbs.h], [NBS], [Network Broadcast Sound])
 AST_EXT_LIB([ncurses], [initscr], [curses.h], [NCURSES], [ncurses], [])
 AST_EXT_LIB([newt], [newtBell], [newt.h], [NEWT], [newt])
