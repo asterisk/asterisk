@@ -1050,7 +1050,7 @@ static int sip_senddigit(struct ast_channel *ast, char digit);
 /*--- Transmitting responses and requests */
 static int __sip_xmit(struct sip_pvt *p, char *data, int len);
 static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal, int sipmethod);
-static int __transmit_response(struct sip_pvt *p, const char *msg, struct sip_request *req, enum xmittype reliable);
+static int __transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
 static int transmit_response(struct sip_pvt *p, const char *msg, struct sip_request *req);
 static int transmit_response_reliable(struct sip_pvt *p, const char *msg, struct sip_request *req);
 static int transmit_response_with_date(struct sip_pvt *p, const char *msg, struct sip_request *req);
@@ -1191,7 +1191,7 @@ static void initialize_initreq(struct sip_pvt *p, struct sip_request *req);
 static int init_req(struct sip_request *req, int sipmethod, const char *recip);
 static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, int seqno, int newbranch);
 static int init_resp(struct sip_request *resp, const char *msg);
-static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg, struct sip_request *req);
+static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg, const struct sip_request *req);
 static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p);
 static void build_via(struct sip_pvt *p);
 static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer);
@@ -1208,8 +1208,8 @@ static int add_digit(struct sip_request *req, char digit);
 static int add_vidupdate(struct sip_request *req);
 static void add_route(struct sip_request *req, struct sip_route *route);
 static int copy_header(struct sip_request *req, const struct sip_request *orig, const char *field);
-static int copy_all_header(struct sip_request *req, struct sip_request *orig, char *field);
-static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct sip_request *orig, char *field);
+static int copy_all_header(struct sip_request *req, const struct sip_request *orig, const char *field);
+static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const struct sip_request *orig, const char *field);
 static void set_destination(struct sip_pvt *p, char *uri);
 static void append_date(struct sip_request *req);
 static void build_contact(struct sip_pvt *p);
@@ -4285,7 +4285,7 @@ static int copy_header(struct sip_request *req, const struct sip_request *orig, 
 }
 
 /*! \brief Copy all headers from one request to another */
-static int copy_all_header(struct sip_request *req, struct sip_request *orig, char *field)
+static int copy_all_header(struct sip_request *req, const struct sip_request *orig, const char *field)
 {
 	int start = 0;
 	int copied = 0;
@@ -4307,7 +4307,7 @@ static int copy_all_header(struct sip_request *req, struct sip_request *orig, ch
 	add the port number (from our point of view) to that parameter.
 	We always add ;received=<ip address> to the topmost via header.
 	Received: RFC 3261, rport RFC 3581 */
-static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct sip_request *orig, char *field)
+static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const struct sip_request *orig, const char *field)
 {
 	int copied = 0;
 	int start = 0;
@@ -4489,7 +4489,7 @@ static int init_req(struct sip_request *req, int sipmethod, const char *recip)
 
 
 /*! \brief Prepare SIP response packet */
-static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg, struct sip_request *req)
+static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg, const struct sip_request *req)
 {
 	char newto[256];
 	const char *ot;
@@ -4636,7 +4636,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 }
 
 /*! \brief Base transmit response function */
-static int __transmit_response(struct sip_pvt *p, const char *msg, struct sip_request *req, enum xmittype reliable)
+static int __transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable)
 {
 	struct sip_request resp;
 	int seqno = 0;
