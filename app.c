@@ -549,8 +549,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 		sfmt[fmtcnt++] = ast_strdupa(fmt);
 	}
 
-	time(&start);
-	end = start;  /* pre-initialize end to be same as start in case we never get into loop */
+	end = start = time(NULL);  /* pre-initialize end to be same as start in case we never get into loop */
 	for (x = 0; x < fmtcnt; x++) {
 		others[x] = ast_writefile(prepend ? prependfile : recordfile, sfmt[x], comment, O_TRUNC, 0, 0700);
 		if (option_verbose > 2)
@@ -670,7 +669,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 				}
 			}
 			if (maxtime) {
-				time(&end);
+				end = time(NULL);
 				if (maxtime < (end - start)) {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Took too long, cutting it short...\n");
@@ -689,7 +688,8 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 		} else {
 			ast_frfree(f);
 		}
-		if (end == start) time(&end);
+		if (end == start)
+			end = time(NULL);
 	} else {
 		ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", recordfile, sfmt[x]);
 	}
@@ -931,7 +931,7 @@ enum AST_LOCK_RESULT ast_lock_path(const char *path)
 	close(fd);
 
 	snprintf(s, strlen(path) + 9, "%s/.lock", path);
-	time(&start);
+	start = time(NULL);
 	while (((res = link(fs, s)) < 0) && (errno == EEXIST) && (time(NULL) - start < 5))
 		usleep(1);
 	if (res) {
