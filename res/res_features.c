@@ -426,6 +426,37 @@ static void set_peers(struct ast_channel **caller, struct ast_channel **callee,
 	}
 }
 
+static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+{
+	struct ast_channel *parker;
+        struct ast_channel *parkee;
+
+	int res=0;
+	struct localuser *u;
+	LOCAL_USER_ADD(u);
+
+	set_peers(&parker, &parkee, peer, chan, sense);
+	/* Setup the exten/priority to be s/1 since we don't know
+	   where this call should return */
+	strcpy(chan->exten, "s");
+	chan->priority = 1;
+	if (chan->_state != AST_STATE_UP)
+		res = ast_answer(chan);
+	if (!res)
+		res = ast_safe_sleep(chan, 1000);
+	if (!res)
+		res = ast_park_call(parkee, parker, 0, NULL);
+	LOCAL_USER_REMOVE(u);
+	if (!res) {
+		if (sense == FEATURE_SENSE_CHAN)
+			res = AST_PBX_NO_HANGUP_PEER;
+		else
+			res = AST_PBX_KEEPALIVE;
+	}
+	return res;
+
+}
+
 static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
 	char *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL, *touch_filename = NULL;
@@ -779,6 +810,7 @@ struct ast_call_feature builtin_features[] =
 	{ AST_FEATURE_REDIRECT, "Attended Transfer", "atxfer", "", "", builtin_atxfer, AST_FEATURE_FLAG_NEEDSDTMF },
 	{ AST_FEATURE_AUTOMON, "One Touch Monitor", "automon", "", "", builtin_automonitor, AST_FEATURE_FLAG_NEEDSDTMF },
 	{ AST_FEATURE_DISCONNECT, "Disconnect Call", "disconnect", "*", "*", builtin_disconnect, AST_FEATURE_FLAG_NEEDSDTMF },
+	{ AST_FEATURE_PARKCALL, "Park Call", "parkcall", "", "", builtin_parkcall, AST_FEATURE_FLAG_NEEDSDTMF },
 };
 
 

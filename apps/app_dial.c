@@ -183,7 +183,11 @@ static char *descrip =
 "    w    - Allow the called party to enable recording of the call by sending\n"
 "           the DTMF sequence defined for one-touch recording in features.conf.\n"
 "    W    - Allow the calling party to enable recording of the call by sending\n"
-"           the DTMF sequence defined for one-touch recording in features.conf.\n";
+"           the DTMF sequence defined for one-touch recording in features.conf.\n"
+"    k    - Allow the called party to enable parking of the call by sending\n"
+"           the DTMF sequence defined for call parking in features.conf.\n"
+"    K    - Allow the calling party to enable parking of the call by sending\n"
+"           the DTMF sequence defined for call parking in features.conf.\n";
 
 /* RetryDial App by Anthony Minessale II <anthmct@yahoo.com> Jan/2005 */
 static char *rapp = "RetryDial";
@@ -227,6 +231,8 @@ enum {
 	OPT_CALLER_MONITOR =	(1 << 22),
 	OPT_GOTO =		(1 << 23),
 	OPT_OPERMODE = 		(1 << 24),
+	OPT_CALLEE_PARK =	(1 << 25),
+	OPT_CALLER_PARK =	(1 << 26),
 } dial_exec_option_flags;
 
 #define DIAL_STILLGOING			(1 << 30)
@@ -272,6 +278,8 @@ AST_APP_OPTIONS(dial_exec_options, {
 	AST_APP_OPTION('T', OPT_CALLER_TRANSFER),
 	AST_APP_OPTION('w', OPT_CALLEE_MONITOR),
 	AST_APP_OPTION('W', OPT_CALLER_MONITOR),
+	AST_APP_OPTION('k', OPT_CALLEE_PARK),
+	AST_APP_OPTION('K', OPT_CALLER_PARK),
 });
 
 /* We define a custom "local user" structure because we
@@ -441,6 +449,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 						       OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
 						       OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
 						       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
+						       OPT_CALLEE_PARK | OPT_CALLER_PARK |
 						       DIAL_NOFORWARDHTML);
 				}
 				continue;
@@ -551,6 +560,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 							       OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
 							       OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
 							       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
+							       OPT_CALLEE_PARK | OPT_CALLER_PARK |
 							       DIAL_NOFORWARDHTML);
 						/* Setup early media if appropriate */
 						ast_rtp_early_media(in, peer);
@@ -1016,6 +1026,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				       OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
 				       OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
 				       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
+				       OPT_CALLEE_PARK | OPT_CALLER_PARK |
 				       OPT_RINGBACK | OPT_MUSICBACK | OPT_FORCECLID);
 			ast_set2_flag(tmp, args.url, DIAL_NOFORWARDHTML);	
 		}
@@ -1497,6 +1508,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_set_flag(&(config.features_callee), AST_FEATURE_AUTOMON);
 			if (ast_test_flag(peerflags, OPT_CALLER_MONITOR)) 
 				ast_set_flag(&(config.features_caller), AST_FEATURE_AUTOMON);
+			if (ast_test_flag(peerflags, OPT_CALLEE_PARK))
+				ast_set_flag(&(config.features_callee), AST_FEATURE_PARKCALL);
+			if (ast_test_flag(peerflags, OPT_CALLER_PARK))
+				ast_set_flag(&(config.features_caller), AST_FEATURE_PARKCALL);
 
 			config.timelimit = timelimit;
 			config.play_warning = play_warning;
