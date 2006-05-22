@@ -627,7 +627,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 				user->chan->name,
 				user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
 				user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
-				user->adminflags & ADMINFLAG_MUTED ? "(Admn Muted)" : "",
+				user->adminflags & ADMINFLAG_MUTED ? "(Admin Muted)" : "",
 				istalking(user->talking));
 		ast_cli(fd,"%d users in that conference.\n",cnf->users);
 

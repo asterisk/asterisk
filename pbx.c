@@ -4064,7 +4064,7 @@ static unsigned int get_month(char *mon)
 	}
 	if (c) {
 		e = 0;
-		while((e < 12) && strcasecmp(mon, months[e])) e++;
+		while((e < 12) && strcasecmp(c, months[e])) e++;
 		if (e >= 12) {
 			ast_log(LOG_WARNING, "Invalid month '%s', assuming none\n", c);
 			return 0;
