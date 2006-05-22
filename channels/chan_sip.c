@@ -1051,13 +1051,13 @@ static int sip_senddigit(struct ast_channel *ast, char digit);
 static int __sip_xmit(struct sip_pvt *p, char *data, int len);
 static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal, int sipmethod);
 static int __transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
-static int transmit_response(struct sip_pvt *p, const char *msg, struct sip_request *req);
-static int transmit_response_reliable(struct sip_pvt *p, const char *msg, struct sip_request *req);
-static int transmit_response_with_date(struct sip_pvt *p, const char *msg, struct sip_request *req);
-static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, struct sip_request *req, enum xmittype reliable);
-static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *unsupported);
-static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *rand, enum xmittype reliable, const char *header, int stale);
-static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip_request *req, enum xmittype reliable);
+static int transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req);
+static int transmit_response_reliable(struct sip_pvt *p, const char *msg, const struct sip_request *req);
+static int transmit_response_with_date(struct sip_pvt *p, const char *msg, const struct sip_request *req);
+static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
+static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *unsupported);
+static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *rand, enum xmittype reliable, const char *header, int stale);
+static int transmit_response_with_allow(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, int init);
@@ -1067,7 +1067,7 @@ static int transmit_info_with_vidupdate(struct sip_pvt *p);
 static int transmit_message_with_text(struct sip_pvt *p, const char *text);
 static int transmit_refer(struct sip_pvt *p, const char *dest);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full);
-static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, char *authheader);
+static int transmit_register(struct sip_registry *r, int sipmethod, const char *auth, const char *authheader);
 static int retrans_pkt(void *data);
 static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
 static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
@@ -4660,13 +4660,13 @@ static int __transmit_response(struct sip_pvt *p, const char *msg, const struct 
 }
 
 /*! \brief Transmit response, no retransmits */
-static int transmit_response(struct sip_pvt *p, const char *msg, struct sip_request *req) 
+static int transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req) 
 {
 	return __transmit_response(p, msg, req, XMIT_UNRELIABLE);
 }
 
 /*! \brief Transmit response, no retransmits */
-static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *unsupported) 
+static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *unsupported) 
 {
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
@@ -4678,7 +4678,7 @@ static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg
 /*! \brief Transmit response, Make sure you get an ACK
 	This is only used for responses to INVITEs, where we need to make sure we get an ACK
 */
-static int transmit_response_reliable(struct sip_pvt *p, const char *msg, struct sip_request *req)
+static int transmit_response_reliable(struct sip_pvt *p, const char *msg, const struct sip_request *req)
 {
 	return __transmit_response(p, msg, req, XMIT_CRITICAL);
 }
@@ -4696,7 +4696,7 @@ static void append_date(struct sip_request *req)
 }
 
 /*! \brief Append date and content length before transmitting response */
-static int transmit_response_with_date(struct sip_pvt *p, const char *msg, struct sip_request *req)
+static int transmit_response_with_date(struct sip_pvt *p, const char *msg, const struct sip_request *req)
 {
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
@@ -4706,7 +4706,7 @@ static int transmit_response_with_date(struct sip_pvt *p, const char *msg, struc
 }
 
 /*! \brief Append Accept header, content length before transmitting response */
-static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip_request *req, enum xmittype reliable)
+static int transmit_response_with_allow(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable)
 {
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
@@ -4716,7 +4716,7 @@ static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip
 }
 
 /*! \brief Respond with authorization request */
-static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *randdata, enum xmittype reliable, const char *header, int stale)
+static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *randdata, enum xmittype reliable, const char *header, int stale)
 {
 	struct sip_request resp;
 	char tmp[256];
@@ -5048,7 +5048,7 @@ static void copy_request(struct sip_request *dst, const struct sip_request *src)
 }
 
 /*! \brief Used for 200 OK and 183 early media */
-static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, struct sip_request *req, enum xmittype reliable)
+static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable)
 {
 	struct sip_request resp;
 	int seqno;
@@ -5806,7 +5806,7 @@ static int sip_reg_timeout(void *data)
 }
 
 /*! \brief Transmit register to SIP proxy or UA */
-static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, char *authheader)
+static int transmit_register(struct sip_registry *r, int sipmethod, const char *auth, const char *authheader)
 {
 	struct sip_request req;
 	char from[256];
