@@ -26,6 +26,7 @@ clean-depend:
 
 clean: clean-depend
 	rm -f *.so *.o
+	rm -f ael/*.o
 
 pbx_gtkconsole.o: pbx_gtkconsole.c
 	$(CC) $(CFLAGS) $(GTK_FLAGS) -c -o $@ $<
