@@ -866,7 +866,7 @@ struct ast_call_feature builtin_features[] =
 };
 
 
-static AST_LIST_HEAD(feature_list,ast_call_feature) feature_list;
+static AST_LIST_HEAD_STATIC(feature_list,ast_call_feature);
 
 /* register new feature into feature_list*/
 void ast_register_feature(struct ast_call_feature *feature)
@@ -2145,7 +2145,6 @@ int load_module(void)
 {
 	int res;
 	
-	AST_LIST_HEAD_INIT(&feature_list);
 	memset(parking_ext, 0, sizeof(parking_ext));
 	memset(parking_con, 0, sizeof(parking_con));
 

@@ -3706,6 +3706,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	int length;
 	struct ast_state_cb *thiscb, *prevcb;
 
+	memset(&store, 0, sizeof(store));
 	AST_LIST_HEAD_INIT(&store);
 
 	/* it is very important that this function hold the hintlock _and_ the conlock
