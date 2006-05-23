@@ -1433,6 +1433,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				featurecode = peer_featurecode;
 			}
 			featurecode[strlen(featurecode)] = f->subclass;
+			/* Get rid of the frame before we start doing "stuff" with the channels */
+			ast_frfree(f);
+			f = NULL;
 			config->feature_timer = backup_config.feature_timer;
 			res = ast_feature_interpret(chan, peer, config, featurecode, sense);
 			switch(res) {
@@ -1445,10 +1448,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			}
 			if (res >= FEATURE_RETURN_PASSDIGITS) {
 				res = 0;
-			} else {
-				ast_frfree(f);
+			} else 
 				break;
-			}
 			hasfeatures = !ast_strlen_zero(chan_featurecode) || !ast_strlen_zero(peer_featurecode);
 			if (hadfeatures && !hasfeatures) {
 				/* Restore backup */
