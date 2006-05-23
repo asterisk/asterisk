@@ -10487,7 +10487,7 @@ static int setup_zap(int reload)
 				y = atoi(v->value);
 			} else
 				y = 0;
-			if ((y == 32) || (y == 64) || (y == 128) || (y == 256))
+			if ((y == 32) || (y == 64) || (y == 128) || (y == 256) || (y == 512) || (y == 1024))
 				echocancel = y;
 			else {
 				echocancel = ast_true(v->value);
