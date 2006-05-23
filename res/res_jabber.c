@@ -1861,9 +1861,6 @@ static int aji_test(int fd, int argc, char *argv[])
 	ASTOBJ_CONTAINER_TRAVERSE(&client->buddies, 1, {
 		ASTOBJ_RDLOCK(iterator);
 		ast_verbose("User: %s\n", iterator->name);
-		ast_verbose("User: %s\n", iterator->user);
-		ast_verbose("Pass: %s\n", iterator->pass);
-		ast_verbose("Host: %s\n", iterator->host);
 		for (resource = iterator->resources; resource; resource = resource->next) {
 			ast_verbose("Resource: %s\n", resource->resource);
 			if(resource->cap) {
