@@ -172,7 +172,7 @@ static int jingle_answer(struct ast_channel *ast);
 static int jingle_newcall(struct jingle *client, ikspak *pak);
 static struct ast_frame *jingle_read(struct ast_channel *ast);
 static int jingle_write(struct ast_channel *ast, struct ast_frame *f);
-static int jingle_indicate(struct ast_channel *ast, int condition);
+static int jingle_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen);
 static int jingle_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int jingle_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen);
 static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, const char *sid);
@@ -1167,7 +1167,7 @@ static int jingle_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 	return 0;
 }
 
-static int jingle_indicate(struct ast_channel *ast, int condition)
+static int jingle_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
 	ast_log(LOG_NOTICE, "XXX Implement jingle indicate XXX\n");
 
