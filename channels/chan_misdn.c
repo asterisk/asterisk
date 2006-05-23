@@ -3029,10 +3029,6 @@ void import_ies(struct ast_channel *chan, struct misdn_bchannel *bc)
 
 	tmp=pbx_builtin_getvar_helper(chan,"PRI_USER1");
 	if (tmp) bc->user1=atoi(tmp);
-	
-	tmp=pbx_builtin_getvar_helper(chan,"RDNIS");
-	if (tmp) ast_copy_string(bc->rad,tmp,sizeof(bc->rad));
-	
 }
 
 void export_ies(struct ast_channel *chan, struct misdn_bchannel *bc)
@@ -3040,18 +3036,18 @@ void export_ies(struct ast_channel *chan, struct misdn_bchannel *bc)
 	char tmp[32];
 	
 	sprintf(tmp,"%d",bc->mode);
-	pbx_builtin_setvar_helper(chan,"PRI_MODE",tmp);
+	pbx_builtin_setvar_helper(chan,"_PRI_MODE",tmp);
 
 	sprintf(tmp,"%d",bc->urate);
-	pbx_builtin_setvar_helper(chan,"PRI_URATE",tmp);
+	pbx_builtin_setvar_helper(chan,"_PRI_URATE",tmp);
 
 	sprintf(tmp,"%d",bc->rate);
-	pbx_builtin_setvar_helper(chan,"PRI_RATE",tmp);
+	pbx_builtin_setvar_helper(chan,"_PRI_RATE",tmp);
 	
 	sprintf(tmp,"%d",bc->user1);
-	pbx_builtin_setvar_helper(chan,"PRI_USER1",tmp);
+	pbx_builtin_setvar_helper(chan,"_PRI_USER1",tmp);
 	
-	pbx_builtin_setvar_helper(chan,"RDNIS",bc->rad);
+	pbx_builtin_setvar_helper(chan,"_RDNIS",bc->rad);
 }
 
 
@@ -3139,6 +3135,17 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 	case EVENT_NEW_L3ID:
 		ch->l3id=bc->l3_id;
+		ch->addr=bc->addr;
+
+		if (bc->nt) {
+			/* OK we've got the very new l3id so we can answer
+			   now */
+			start_bc_tones(ch);
+		
+			ch->state = MISDN_CONNECTED;
+			ast_queue_control(ch->ast, AST_CONTROL_ANSWER);
+
+		}
 		break;
 
 	case EVENT_NEW_BC:
@@ -3526,15 +3533,21 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		misdn_lib_echo(bc,0);
 		tone_indicate(ch, TONE_NONE);
 
-		if (bridged && strcasecmp(bridged->tech->type,"mISDN")) {
+		if (bridged && !strcasecmp(bridged->tech->type,"mISDN")) {
 			struct chan_list *bridged_ch=MISDN_ASTERISK_TECH_PVT(bridged);
 
 			chan_misdn_log(1,bc->port," --> copying cpndialplan:%d and cad:%s to the A-Channel\n",bc->cpnnumplan,bc->cad);
-
-			bridged_ch->bc->cpnnumplan=bc->cpnnumplan;
-			ast_copy_string(bridged_ch->bc->cad,bc->cad,sizeof(bc->cad));
+			if (bridged_ch) {
+				bridged_ch->bc->cpnnumplan=bc->cpnnumplan;
+				ast_copy_string(bridged_ch->bc->cad,bc->cad,sizeof(bc->cad));
+			}
 		}
 	}
+	
+	/*we answer when we've got our very new L3 ID from the NT stack */
+	if (bc->nt) break;
+	
+	/* notice that we don't break here!*/
 
 	case EVENT_CONNECT_ACKNOWLEDGE:
 	{
@@ -3557,7 +3570,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		send_cause2ast(ch->ast,bc);
 
 
-		chan_misdn_log(0,bc->port," org:%d nt:%d, inbandavail:%d state:%d\n", ch->orginator, bc->nt, misdn_inband_avail(bc), ch->state);
+		chan_misdn_log(3,bc->port," --> org:%d nt:%d, inbandavail:%d state:%d\n", ch->orginator, bc->nt, misdn_inband_avail(bc), ch->state);
 		if ( ch->orginator==ORG_AST && !bc->nt && misdn_inband_avail(bc) && ch->state != MISDN_CONNECTED) {
 			/* If there's inband information available (e.g. a
 			   recorded message saying what was wrong with the
@@ -3964,10 +3977,20 @@ static int load_module(void *mod)
 	ast_cli_register(&cli_reload);
 
   
-	ast_register_application("misdn_set_opt", misdn_set_opt_exec, "misdn_set_flags",
+	ast_register_application("misdn_set_opt", misdn_set_opt_exec, "misdn_set_opt",
 				 "misdn_set_opt(:<opt><optarg>:<opt><optarg>..):\n"
 				 "Sets mISDN opts. and optargs\n"
 				 "\n"
+				 "The available options are:\n"
+				 "    d - Send display text on called phone, text is the optparam\n"
+				 "    n - don't detect dtmf tones on called channel\n"
+				 "    h - make digital outgoing call\n" 
+				 "    c - make crypted outgoing call, param is keyindex\n"
+				 "    e - perform echo cancelation on this channel,\n"
+				 "        takes taps as arguments (32,64,128,256)\n"
+				 "    s - send Non Inband DTMF as inband\n"
+				 "   vr - rxgain control\n"
+				 "   vt - txgain control\n"
 		);
 
 	
@@ -3978,7 +4001,6 @@ static int load_module(void *mod)
 				 "Supported Facilities are:\n"
 				 "\n"
 				 "type=calldeflect args=Nr where to deflect\n"
-				 "\n"
 		);
 
 
