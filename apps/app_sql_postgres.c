@@ -132,7 +132,7 @@ struct ast_PGSQL_id {
 	AST_LIST_ENTRY(ast_PGSQL_id) entries;
 } *ast_PGSQL_id;
 
-AST_LIST_HEAD(PGSQLidshead,ast_PGSQL_id) PGSQLidshead;
+static AST_LIST_HEAD_STATIC(PGSQLidshead,ast_PGSQL_id);
 
 static void *find_identifier(int identifier,int identifier_type) {
 	struct PGSQLidshead *headp;
@@ -551,11 +551,6 @@ int unload_module(void)
 
 int load_module(void)
 {
-	struct PGSQLidshead *headp;
-	
-        headp=&PGSQLidshead;
-        
-	AST_LIST_HEAD_INIT(headp);
 	return ast_register_application(app, PGSQL_exec, synopsis, descrip);
 }
 

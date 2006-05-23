@@ -57,7 +57,7 @@ struct ast_dnsmgr_entry {
 	char name[1];
 };
 
-static AST_LIST_HEAD(entry_list, ast_dnsmgr_entry) entry_list;
+static AST_LIST_HEAD_STATIC(entry_list, ast_dnsmgr_entry);
 
 AST_MUTEX_DEFINE_STATIC(refresh_lock);
 
@@ -289,7 +289,6 @@ int dnsmgr_init(void)
 		ast_log(LOG_ERROR, "Unable to create schedule context.\n");
 		return -1;
 	}
-	AST_LIST_HEAD_INIT(&entry_list);
 	ast_cli_register(&cli_reload);
 	ast_cli_register(&cli_status);
 	return do_reload(1);
