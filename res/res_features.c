@@ -70,6 +70,7 @@ static void FREE(void *ptr)
 #define DEFAULT_PARK_TIME 45000
 #define DEFAULT_TRANSFER_DIGIT_TIMEOUT 3000
 #define DEFAULT_FEATURE_DIGIT_TIMEOUT 500
+#define DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER 15000
 
 #define AST_MAX_WATCHERS 256
 
@@ -95,6 +96,8 @@ static int adsipark;
 
 static int transferdigittimeout;
 static int featuredigittimeout;
+
+static int atxfernoanswertimeout;
 
 static char *registrar = "res_features";		/*!< Registrar for operations */
 
@@ -722,7 +725,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	l = strlen(xferto);
 	snprintf(xferto + l, sizeof(xferto) - l, "@%s/n", transferer_real_context);	/* append context */
 	newchan = ast_feature_request_and_dial(transferer, "Local", ast_best_codec(transferer->nativeformats),
-		xferto, 15000, &outstate, transferer->cid.cid_num, transferer->cid.cid_name);
+		xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name);
 	ast_indicate(transferer, -1);
 	if (!newchan) {
 		finishup(transferee);
@@ -1986,6 +1989,7 @@ static int load_config(void)
 
 	transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 	featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
+	atxfernoanswertimeout = DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER;
 
 	cfg = ast_config_load("features.conf");
 	if (cfg) {
@@ -2022,6 +2026,12 @@ static int load_config(void)
 					ast_log(LOG_WARNING, "%s is not a valid featuredigittimeout\n", var->value);
 					featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 				}
+			} else if (!strcasecmp(var->name, "atxfernoanswertimeout")) {
+				if ((sscanf(var->value, "%d", &atxfernoanswertimeout) != 1) || (atxfernoanswertimeout < 1)) {
+					ast_log(LOG_WARNING, "%s is not a valid atxfernoanswertimeout\n", var->value);
+					atxfernoanswertimeout = DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER;
+				} else
+					atxfernoanswertimeout = atxfernoanswertimeout * 1000;
 			} else if (!strcasecmp(var->name, "courtesytone")) {
 				ast_copy_string(courtesytone, var->value, sizeof(courtesytone));
 			}  else if (!strcasecmp(var->name, "parkedplay")) {
