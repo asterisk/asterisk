@@ -286,7 +286,6 @@ static iks *jabber_make_auth(iksid * id, const char *pass, const char *sid)
 		char sidpass[100];
 		snprintf(sidpass, sizeof(sidpass), "%s%s", sid, pass);
 		ast_sha1_hash(buf, sidpass);
-		ast_verbose("\n");
 		iks_insert_cdata(iks_insert(y, "digest"), buf, 0);
 	} else {
 		iks_insert_cdata(iks_insert(y, "password"), pass, 0);
@@ -820,7 +819,6 @@ static int aji_client_info_handler(void *data, ikspak *pak)
 
 	if (pak->subtype == IKS_TYPE_RESULT) {
 		if (iks_find_with_attrib(pak->query, "feature", "var", "http://www.google.com/xmpp/protocol/voice/v1")) {
-			ast_verbose("NO I AM JINGLECAPABLE!!!\n");
 			resource->cap->jingle = 1;
 		} else
 			resource->cap->jingle = 0;
@@ -1034,7 +1032,6 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 			tmp->status = status;
 			found = tmp;
 			if (status == 6) {	/* Sign off Destroy resource */
-				ast_verbose("KILL THE SIGN OFF!\n");
 				if (last && found->next) {
 					last->next = found->next;
 				} else if (!last) {
@@ -1149,38 +1146,39 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 				iks_delete(iq);
 		}
 	}
-	
-	switch (pak->subtype) {
-	case IKS_TYPE_AVAILABLE:
-		ast_verbose(VERBOSE_PREFIX_3 "JABBER: I am available ^_* %i\n", pak->subtype);
-		break;
-	case IKS_TYPE_UNAVAILABLE:
-		ast_verbose(VERBOSE_PREFIX_3 "JABBER: I am unavailable ^_* %i\n", pak->subtype);
-		break;
-	default:
-		ast_verbose(VERBOSE_PREFIX_3 "JABBER: Ohh sexy and the wrong type%i\n", pak->subtype);
-	}
-	switch (pak->show) {
-	case IKS_SHOW_UNAVAILABLE:
-		ast_verbose(VERBOSE_PREFIX_3 "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
-		break;
-	case IKS_SHOW_AVAILABLE:
-		ast_verbose(VERBOSE_PREFIX_3 "JABBER: type is available\n");
-		break;
-	case IKS_SHOW_CHAT:
-		ast_verbose(VERBOSE_PREFIX_3 "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
-		break;
-	case IKS_SHOW_AWAY:
-		ast_verbose(VERBOSE_PREFIX_3 "JABBER: type is away\n");
-		break;
-	case IKS_SHOW_XA:
-		ast_verbose(VERBOSE_PREFIX_3 "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
-		break;
-	case IKS_SHOW_DND:
-		ast_verbose(VERBOSE_PREFIX_3 "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
-		break;
-	default:
-		ast_verbose(VERBOSE_PREFIX_3 "JABBER: Kinky! how did that happen %i\n", pak->show);
+	if (option_verbose > 30) {
+		switch (pak->subtype) {
+		case IKS_TYPE_AVAILABLE:
+			ast_verbose(VERBOSE_PREFIX_3 "JABBER: I am available ^_* %i\n", pak->subtype);
+			break;
+		case IKS_TYPE_UNAVAILABLE:
+			ast_verbose(VERBOSE_PREFIX_3 "JABBER: I am unavailable ^_* %i\n", pak->subtype);
+			break;
+		default:
+			ast_verbose(VERBOSE_PREFIX_3 "JABBER: Ohh sexy and the wrong type%i\n", pak->subtype);
+		}
+		switch (pak->show) {
+		case IKS_SHOW_UNAVAILABLE:
+			ast_verbose(VERBOSE_PREFIX_3 "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+			break;
+		case IKS_SHOW_AVAILABLE:
+			ast_verbose(VERBOSE_PREFIX_3 "JABBER: type is available\n");
+			break;
+		case IKS_SHOW_CHAT:
+			ast_verbose(VERBOSE_PREFIX_3 "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+			break;
+		case IKS_SHOW_AWAY:
+			ast_verbose(VERBOSE_PREFIX_3 "JABBER: type is away\n");
+			break;
+		case IKS_SHOW_XA:
+			ast_verbose(VERBOSE_PREFIX_3 "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+			break;
+		case IKS_SHOW_DND:
+			ast_verbose(VERBOSE_PREFIX_3 "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+			break;
+		default:
+			ast_verbose(VERBOSE_PREFIX_3 "JABBER: Kinky! how did that happen %i\n", pak->show);
+		}
 	}
 }
 
@@ -1191,29 +1189,26 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
  */
 static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
 {
-	int res = 0;
-	switch (pak->subtype) {
-	case IKS_TYPE_SUBSCRIBE:
-		res = iks_send(client->p, iks_make_s10n(IKS_TYPE_SUBSCRIBED, iks_find_attrib(pak->x, "from"), "Asterisk has approved subscription"));
-		if (option_verbose > 30)
+	if(pak->subtype == IKS_TYPE_SUBSCRIBE)
+		iks_send(client->p, iks_make_s10n(IKS_TYPE_SUBSCRIBED, iks_find_attrib(pak->x, "from"), "Asterisk has approved subscription"));
+	if (option_verbose > 30) {
+		switch (pak->subtype) {
+		case IKS_TYPE_SUBSCRIBE:
 			ast_verbose(VERBOSE_PREFIX_3 "JABBER: This is a subcription of type %i\n", pak->subtype);
-		break;
-	case IKS_TYPE_SUBSCRIBED:
-		if (option_verbose > 30)
+			break;
+		case IKS_TYPE_SUBSCRIBED:
 			ast_verbose(VERBOSE_PREFIX_3 "JABBER: This is a subcription of type %i\n", pak->subtype);
-		break;
-	case IKS_TYPE_UNSUBSCRIBE:
-		if (option_verbose > 30)
+			break;
+		case IKS_TYPE_UNSUBSCRIBE:
 			ast_verbose(VERBOSE_PREFIX_3 "JABBER: This is a subcription of type %i\n", pak->subtype);
-		break;
-	case IKS_TYPE_UNSUBSCRIBED:
-		if (option_verbose > 30)
+			break;
+		case IKS_TYPE_UNSUBSCRIBED:
 			ast_verbose(VERBOSE_PREFIX_3 "JABBER: This is a subcription of type %i\n", pak->subtype);
-		break;
-	default:					/*IKS_TYPE_ERROR: */
-		if (option_verbose > 30)
+			break;
+		default:				/*IKS_TYPE_ERROR: */
 			ast_verbose(VERBOSE_PREFIX_3 "JABBER: This is a subcription of type %i\n", pak->subtype);
-		break;
+			break;
+		}
 	}
 }
 
@@ -1353,7 +1348,7 @@ static void *aji_recv_loop(void *data)
 		}
 
 		if (res != IKS_OK) {
-			ast_verbose("reconnecting %d\n", res);
+			if(option_verbose > 3) ast_verbose("JABBER: reconnecting %d\n", res);
 			aji_reconnect(client);
 			res = IKS_OK;
 		}
@@ -1904,7 +1899,6 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 	int flag = 0;
 	client = ASTOBJ_CONTAINER_FIND(&clients,label);
 	if(!client) {
-		ast_verbose("CLIENT NOT FOUND!\n");
 		flag = 1;
 		client = (struct aji_client *) malloc(sizeof(struct aji_client));
 		if(client) {
@@ -1936,7 +1930,6 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 	client->usesasl = 0;
 	if (flag) client->state = AJI_DISCONNECTED;
 	while (var) {
-		ast_verbose("var->value: %s\n",var->value);
 		if (!strcasecmp(var->name, "username"))
 			ast_copy_string(client->user, var->value, sizeof(client->user));
 		else if (!strcasecmp(var->name, "serverhost"))
@@ -1952,10 +1945,8 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 				client->component = AJI_COMPONENT;
 		} else if (!strcasecmp(var->name, "usetls")) {
 			client->usetls = (ast_false(var->value)) ? 0 : 1;
-			ast_verbose("USETLS = %d\n",client->usetls);
 		} else if (!strcasecmp(var->name, "usesasl")) {
 			client->usesasl = (ast_false(var->value)) ? 0 : 1;
-			ast_verbose("USESASL = %d\n",client->usesasl);
 		} else if (!strcasecmp(var->name, "forceoldssl"))
 			client->forcessl = (ast_false(var->value)) ? 0 : 1;
 		else if (!strcasecmp(var->name, "keepalive"))
