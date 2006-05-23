@@ -1334,25 +1334,23 @@ static void *aji_recv_loop(void *data)
 		if (res != IKS_OK) {
 			while(res != IKS_OK) {
 				if(option_verbose > 3) ast_verbose("JABBER: reconnecting.\n");
-				sleep(4);
 				res = aji_reconnect(client);
+				sleep(4);
 			}
 		}
 		res = iks_recv(client->p, 1);
 		client->timeout--;
 		if (res == IKS_HOOK) {
 			ast_log(LOG_WARNING, "JABBER: Got hook event.\n");
-			break;
 		} else if (res == IKS_NET_TLSFAIL) {
 			ast_log(LOG_WARNING, "JABBER:  Failure in tls.\n");
-			break;
 		} else if (client->timeout == 0 && client->state != AJI_CONNECTED) {
 			res = -1;
 			ast_log(LOG_WARNING, "JABBER:  Network Timeout\n");
 		} else if (res == IKS_NET_RWERR) {
 			ast_log(LOG_WARNING, "JABBER: socket read error\n");
 		}
-	} while (res == IKS_OK);
+	} while (client);
 	ASTOBJ_UNREF(client, aji_client_destroy);
 	return 0;
 }
