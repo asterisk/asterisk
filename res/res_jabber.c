@@ -2221,7 +2221,6 @@ static int load_module(void *mod)
 static int reload(void *mod)
 {
 	aji_reload();
-	ast_log(LOG_ERROR, "ooh reload magic!!!\n");
 	return 0;
 }
 
