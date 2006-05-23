@@ -57,7 +57,6 @@ enum misdn_cfg_elements {
 	MISDN_CFG_PICKUPGROUP,         /* ast_group_t */
 	MISDN_CFG_MAX_IN,              /* int */
 	MISDN_CFG_MAX_OUT,              /* int */
-	MISDN_CFG_L1_POLL,              /* int */
 	MISDN_CFG_MSNS,                /* char[] */
 	MISDN_CFG_PTP,                 /* int (bool) */
 	MISDN_CFG_LAST,
@@ -73,6 +72,7 @@ enum misdn_cfg_elements {
 	MISDN_GEN_DYNAMIC_CRYPT,       /* int (bool) */
 	MISDN_GEN_CRYPT_PREFIX,        /* char[] */
 	MISDN_GEN_CRYPT_KEYS,          /* char[] */
+	MISDN_GEN_L1_TIMEOUT,          /* int */
 	MISDN_GEN_LAST
 };
 

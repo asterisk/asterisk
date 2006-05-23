@@ -118,7 +118,6 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "pickupgroup", MISDN_CFG_PICKUPGROUP, MISDN_CTYPE_ASTGROUP, NO_DEFAULT, NONE },
 	{ "max_incoming", MISDN_CFG_MAX_IN, MISDN_CTYPE_INT, "-1", NONE },
 	{ "max_outgoing", MISDN_CFG_MAX_OUT, MISDN_CTYPE_INT, "-1", NONE },
-	{ "l1_poll_timer", MISDN_CFG_L1_POLL, MISDN_CTYPE_INT, "-1", NONE },
 	{ "msns", MISDN_CFG_MSNS, MISDN_CTYPE_MSNLIST, NO_DEFAULT, NONE }
 };
 
@@ -131,7 +130,9 @@ static const struct misdn_cfg_spec gen_spec[] = {
 	{ "append_digits2exten", MISDN_GEN_APPEND_DIGITS2EXTEN, MISDN_CTYPE_BOOL, "yes", NONE },
 	{ "dynamic_crypt", MISDN_GEN_DYNAMIC_CRYPT, MISDN_CTYPE_BOOL, "no", NONE },
 	{ "crypt_prefix", MISDN_GEN_CRYPT_PREFIX, MISDN_CTYPE_STR, NO_DEFAULT, NONE },
-	{ "crypt_keys", MISDN_GEN_CRYPT_KEYS, MISDN_CTYPE_STR, NO_DEFAULT, NONE }
+	{ "crypt_keys", MISDN_GEN_CRYPT_KEYS, MISDN_CTYPE_STR, NO_DEFAULT, NONE },
+	{ "l1watcher_timeout", MISDN_GEN_L1_TIMEOUT, MISDN_CTYPE_INT, "0", NONE }
+	
 };
 
 /* array of port configs, default is at position 0. */

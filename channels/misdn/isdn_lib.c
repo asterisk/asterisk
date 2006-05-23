@@ -93,9 +93,12 @@ struct misdn_lib {
 	int midev;
 	int midev_nt;
 
+	pthread_t l1watcher_thread;
 	pthread_t event_thread;
 	pthread_t event_handler_thread;
-  
+
+	int l1watcher_timeout;
+	
 	void *user_data;
 
 	msg_queue_t upqueue;
@@ -145,6 +148,7 @@ static struct misdn_lib *glob_mgr;
 unsigned char tone_425_flip[TONE_425_SIZE];
 unsigned char tone_silence_flip[TONE_SILENCE_SIZE];
 
+static void misdn_lib_isdn_l1watcher(void *arg);
 static void misdn_lib_isdn_event_catcher(void *arg);
 static int handle_event_nt(void *dat, void *arg);
 
@@ -2508,20 +2512,12 @@ int handle_mgmt(msg_t *msg)
 			break;
 		case SSTATUS_L1_DEACTIVATED:
 			cb_log(1, 0, "MGMT: SSTATUS: L1_DEACTIVATED \n");
-
-			/*reopen L1 if down*/
-			if (stack->l1link==2)
-				stack->l1link--;
-			else			
-				stack->l1link=0;
-			
+			stack->l1link=0;
 			break;
 
 		case SSTATUS_L2_ESTABLISHED:
 			cb_log(1, stack->port, "MGMT: SSTATUS: L2_ESTABLISH \n");
 			stack->l2link=1;
-			if ( !stack->ptp && !stack->nt )
-				stack->l1link=2;
 			break;
 			
 		case SSTATUS_L2_RELEASED:
@@ -2603,6 +2599,33 @@ msg_t *fetch_msg(int midev)
 	return NULL;
 }
 
+static void misdn_lib_isdn_l1watcher(void *arg)
+{
+	struct misdn_lib *mgr = arg;
+	struct misdn_stack *stack;
+
+	while (1) {
+		sleep(mgr->l1watcher_timeout);
+		
+		/* look out for l1 which are down
+		   and try to pull the up.
+
+		   We might even try to pull the l2 up in the
+		   ptp case.
+		*/
+		for (stack = mgr->stack_list;
+		     stack;
+		     stack = stack->next) {
+			cb_log(4,stack->port,"Checking L1 State\n");	
+			if (!stack->l1link) {
+				cb_log(4,stack->port,"L1 State Down, trying to get it up again\n");	
+				misdn_lib_get_short_status(stack);
+				misdn_lib_get_l1_up(stack); 
+				misdn_lib_get_l2_up(stack); 
+			}
+		}
+	}
+}
 
 static void misdn_lib_isdn_event_catcher(void *arg)
 {
@@ -3447,7 +3470,13 @@ int misdn_lib_init(char *portlist, struct misdn_lib_iface *iface, void *user_dat
 	pthread_create( &mgr->event_thread, NULL, (void*)misdn_lib_isdn_event_catcher, mgr);
   
 	cb_log(4, 0, "Event Catcher started\n");
-  
+
+	if (iface->l1watcher_timeout > 0) {
+		mgr->l1watcher_timeout=iface->l1watcher_timeout;
+		cb_log(4, 0, "Starting L1 watcher\n");
+		pthread_create( &mgr->l1watcher_thread, NULL, (void*)misdn_lib_isdn_l1watcher, mgr);
+	}
+	
 	global_state= MISDN_INITIALIZED; 
   
 	return (mgr == NULL);

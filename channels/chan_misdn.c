@@ -656,39 +656,6 @@ static void reload_config(void)
 		misdn_debug[i] = cfg_debug;
 		misdn_debug_only[i] = 0;
 	}
-
-#ifdef M_TIMER
-	if (misdn_sched) 
-		sched_context_destroy(misdn_sched);
-	
-	misdn_sched=sched_context_create();
-
-	if (!misdn_sched) {
-		ast_log(LOG_ERROR,"Couldn't create scheduler\n");
-		return -1;
-	}
-
-	/* Loop through all ports and find out which one should be 
-	 * watched regarding the l1 */
-	int port; 
-	int dotimer=0;
-	for (	port=misdn_cfg_get_next_port(0);
-		port>0;
-		port=misdn_cfg_get_next_port(port)) {
-		int l1timer;
-		misdn_cfg_get( port, MISDN_CFG_L1_TIMER, &l1timer, sizeof(l1timer));
-		if (l1timer>0) {
-			ast_sched_add(misdn_sched, l1timer*1000, l1_timer_cb, &port);
-			dotimer=1;
-;		}
-	}
-
-	if (dotimer) {
-		/*start timer thread*/
-		pthread_create( &misdn_timer, NULL, (void*)misdn_timerd, NULL);
-	}
-#endif
-
 }
 
 static int misdn_reload (int fd, int argc, char *argv[])
@@ -3817,21 +3784,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 /** TE STUFF END **/
 
-#ifdef M_TIMER
-/* timer thread */
-pthread_t misdn_timer;
-struct sched_context *misdn_sched;
-
-void misdn_timerd(void *arg)
-{
-
-	
-}
-
-
-/* timer thread end */
-#endif
-
 /******************************************
  *
  *   Asterisk Channel Endpoint END
@@ -3933,7 +3885,11 @@ static int load_module(void *mod)
 
 	misdn_cfg_update_ptp();
 	misdn_cfg_get_ports_string(ports);
-		
+
+
+	int l1watcher_timeout=0;
+	misdn_cfg_get( 0, MISDN_GEN_L1_TIMEOUT, &l1watcher_timeout, sizeof(int));
+	
 	if (strlen(ports))
 		chan_misdn_log(0, 0, "Got: %s from get_ports\n",ports);
 	
@@ -3942,7 +3898,9 @@ static int load_module(void *mod)
 			.cb_event = cb_events,
 			.cb_log = chan_misdn_log,
 			.cb_jb_empty = chan_misdn_jb_empty,
+			.l1watcher_timeout=l1watcher_timeout,
 		};
+		
 		if (misdn_lib_init(ports, &iface, NULL))
 			chan_misdn_log(0, 0, "No te ports initialized\n");
 	}
