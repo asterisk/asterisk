@@ -8089,6 +8089,7 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 		int res;
 
 		sin.sin_port = 0;
+		sin.sin_family = AF_INET;
 		res = check_srcaddr((struct sockaddr *) &sin, sizeof(sin));
 		if (res == 0) {
 			/* ip address valid. */
