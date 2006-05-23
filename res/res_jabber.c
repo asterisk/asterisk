@@ -1661,7 +1661,6 @@ static int aji_get_roster(struct aji_client *client)
  */
 static int aji_client_connect(void *data, ikspak *pak)
 {
-	ast_verbose("I SUCK!\n");
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
 	int res = 0;
 	if (client) {
