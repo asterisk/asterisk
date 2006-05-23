@@ -56,14 +56,15 @@ static unsigned char a2mu[256];
 static int alawtoulaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	int x = f->samples;
-	int in_samples = f->samples;
 	unsigned char *src = f->data;
 	unsigned char *dst = (unsigned char *)pvt->outbuf + pvt->samples;
 
+	pvt->samples += x;
+	pvt->datalen += x;
+
 	while (x--)
 		*dst++ = a2mu[*src++];
-	pvt->samples += in_samples;
-	pvt->datalen += in_samples;
+
 	return 0;
 }
 
@@ -71,14 +72,15 @@ static int alawtoulaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 static int ulawtoalaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	int x = f->samples;
-	int in_samples = f->samples;
 	unsigned char *src = f->data;
 	unsigned char *dst = (unsigned char *)pvt->outbuf + pvt->samples;
 
+	pvt->samples += x;
+	pvt->datalen += x;
+
 	while (x--)
 		*dst++ = mu2a[*src++];
-	pvt->samples += in_samples;
-	pvt->datalen += in_samples;
+
 	return 0;
 }
 
