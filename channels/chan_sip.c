@@ -11199,6 +11199,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	int nounlock;
 	int recount = 0;
 	char iabuf[INET_ADDRSTRLEN];
+	int lockretrycount = 0;
 
 	len = sizeof(sin);
 	memset(&req, 0, sizeof(req));
@@ -11253,7 +11254,15 @@ retrylock:
 			ast_mutex_unlock(&netlock);
 			/* Sleep infintismly short amount of time */
 			usleep(1);
-			goto retrylock;
+			lockretrycount++;
+			if (lockretrycount < 100)
+				goto retrylock;
+		}
+		if (lockretrycount > 100) {
+			ast_log(LOG_ERROR, "We could NOT get the channel lock for %s! \n", p->owner->name);
+			ast_log(LOG_ERROR, "SIP MESSAGE JUST IGNORED: %s \n", req.data);
+			ast_log(LOG_ERROR, "BAD! BAD! BAD!\n");
+			return 1;
 		}
 		memcpy(&p->recv, &sin, sizeof(p->recv));
 		if (recordhistory) {
