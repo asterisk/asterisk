@@ -1783,6 +1783,12 @@ static int ast_extension_state2(struct ast_exten *e)
 			allunavailable = 0;
 			allfree = 0;
 			break;
+		case AST_DEVICE_RINGINUSE:
+			inuse = 1;
+			ring = 1;
+			allunavailable = 0;
+			allfree = 0;
+			break;
 		case AST_DEVICE_BUSY:
 			allunavailable = 0;
 			allfree = 0;

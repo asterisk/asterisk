@@ -41,6 +41,8 @@ extern "C" {
 #define AST_DEVICE_UNAVAILABLE	5
 /*! Device is ringing */
 #define AST_DEVICE_RINGING	6
+/*! Device is ringing *and* in use */
+#define AST_DEVICE_RINGINUSE	7
 
 typedef int (*ast_devstate_cb_type)(const char *dev, int state, void *data);
 

@@ -510,7 +510,8 @@ static struct io_context *io;		/*!< The IO context */
 
 #define DEC_CALL_LIMIT	0
 #define INC_CALL_LIMIT	1
-
+#define DEC_CALL_RINGING 2
+#define INC_CALL_RINGING 3
 
 /*! \brief sip_request: The data grabbed from the UDP socket */
 struct sip_request {
@@ -675,7 +676,7 @@ struct sip_auth {
 #define SIP_PAGE2_ALLOWSUBSCRIBE	(1 << 10)	/*!< Allow subscriptions from this peer? */
 #define SIP_PAGE2_ALLOWOVERLAP		(1 << 11)	/*!< Allow overlap dialing ? */
 #define SIP_PAGE2_SUBSCRIBEMWIONLY	(1 << 12)	/*!< Only issue MWI notification if subscribed to */
-
+#define SIP_PAGE2_INC_RINGING		(1 << 13)	/*!< Did this connection increment the counter of in-use calls? */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT)
@@ -920,6 +921,7 @@ struct sip_peer {
 	char cid_name[80];		/*!< Caller ID name */
 	int callingpres;		/*!< Calling id presentation */
 	int inUse;			/*!< Number of calls in use */
+	int inRinging;			/*!< Number of calls ringing */
 	int call_limit;			/*!< Limit of concurrent calls */
 	enum transfermodes allowtransfer;	/*! SIP Refer restriction scheme */
 	char vmexten[AST_MAX_EXTENSION]; /*!< Dialplan extension for MWI notify message*/
@@ -2410,7 +2412,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Outgoing Call for %s\n", p->username);
 
-	res = update_call_counter(p, INC_CALL_LIMIT);
+	res = update_call_counter(p, INC_CALL_RINGING);
 	if ( res != -1 ) {
 		p->callingpres = ast->cid.cid_pres;
 		p->jointcapability = p->capability;
@@ -2560,7 +2562,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 static int update_call_counter(struct sip_pvt *fup, int event)
 {
 	char name[256];
-	int *inuse, *call_limit;
+	int *inuse, *call_limit, *inringing = NULL;
 	int outgoing = ast_test_flag(&fup->flags[0], SIP_OUTGOING);
 	struct sip_user *u = NULL;
 	struct sip_peer *p = NULL;
@@ -2589,6 +2591,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		if (p) {
 			inuse = &p->inUse;
 			call_limit = &p->call_limit;
+			inringing = &p->inRinging;
 			ast_copy_string(name, fup->peername, sizeof(name));
 		} else {
 			if (option_debug > 1)
@@ -2605,10 +2608,20 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 			} else {
 				*inuse = 0;
 			}
+			if (inringing) {
+				if (ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
+					if (*inringing > 0)
+						(*inringing)--;
+					else
+						ast_log(LOG_WARNING, "Inringing for peer '%s' < 0?\n", fup->peername);
+					ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
+				}
+			}
 			if (option_debug > 1 || sipdebug) {
 				ast_log(LOG_DEBUG, "Call %s %s '%s' removed from call limit %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
 			}
 			break;
+		case INC_CALL_RINGING:
 		case INC_CALL_LIMIT:
 			if (*call_limit > 0 ) {
 				if (*inuse >= *call_limit) {
@@ -2620,15 +2633,36 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 					return -1; 
 				}
 			}
+			if (inringing && (event == INC_CALL_RINGING)) {
+				if (!ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
+					(*inringing)++;
+					ast_set_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
+				}
+			}
+			/* Continue */
 			(*inuse)++;
 			ast_set_flag(&fup->flags[0], SIP_INC_COUNT);
 			if (option_debug > 1 || sipdebug) {
 				ast_log(LOG_DEBUG, "Call %s %s '%s' is %d out of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *inuse, *call_limit);
 			}
 			break;
+		case DEC_CALL_RINGING:
+			if (inringing) {
+				if (ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
+					if (*inringing > 0)
+						(*inringing)--;
+					else
+						ast_log(LOG_WARNING, "Inringing for peer '%s' < 0?\n", fup->peername);
+					ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
+				}
+			}
+			break;
+			break;
 		default:
 			ast_log(LOG_ERROR, "update_call_counter(%s, %d) called with no event!\n", name, event);
 	}
+	if (p)
+		ast_device_state_changed("SIP/%s", p->name);
 	if (u)
 		ASTOBJ_UNREF(u, sip_destroy_user);
 	else
@@ -7827,7 +7861,7 @@ static int sip_show_inuse(int fd, int argc, char *argv[]) {
 			snprintf(ilimits, sizeof(ilimits), "%d", iterator->call_limit);
 		else 
 			ast_copy_string(ilimits, "N/A", sizeof(ilimits));
-		snprintf(iused, sizeof(iused), "%d", iterator->inUse);
+		snprintf(iused, sizeof(iused), "%d/%d", iterator->inUse, iterator->inRinging);
 		if (showall || iterator->call_limit)
 			ast_cli(fd, FORMAT2, iterator->name, iused, ilimits);
 		ASTOBJ_UNLOCK(iterator);
@@ -10042,8 +10076,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			sip_cancel_destroy(p);
 		if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
 			ast_queue_control(p->owner, AST_CONTROL_RINGING);
-			if (p->owner->_state != AST_STATE_UP)
+			if (p->owner->_state != AST_STATE_UP) {
 				ast_setstate(p->owner, AST_STATE_RINGING);
+			}
 		}
 		if (find_sdp(req)) {
 			process_sdp(p, req);
@@ -10076,6 +10111,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		/* When we get 200 OK, we know which device (and IP) to contact for this call */
 		/* This is important when we have a SIP proxy between us and the phone */
 		if (outgoing) {
+			update_call_counter(p, DEC_CALL_RINGING);
 			parse_ok_contact(p, req);
 			if(set_address_from_contact(p)) {
 				/* Bad contact - we don't know how to reach this device */
@@ -12503,6 +12539,12 @@ static int sip_devicestate(void *data)
 					res = AST_DEVICE_INUSE;
 				else
 					res = AST_DEVICE_NOT_INUSE;
+				if (p->inRinging) {
+					if (p->inRinging == p->inUse)
+						res = AST_DEVICE_RINGING;
+					else
+						res = AST_DEVICE_RINGINUSE;
+				}
 			}
 		} else {
 			/* there is no address, it's unavailable */
