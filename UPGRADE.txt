@@ -97,6 +97,12 @@ Applications:
   record conversations queue members are having with queue callers. Please
   see configs/queues.conf.sample for more information on this option.
 
+* app_meetme: The 'm' option (monitor) is renamed to 'l' (listen only), and
+  the 'm' option now provides the functionality of "initially muted". 
+  In practice, most existing dialplans using the 'm' flag should not notice
+  any difference, unless the keypad menu is enabled, allowing the user 
+  to unmute themsleves.
+
 * ast_play_and_record would attempt to cancel the recording if a DTMF
   '0' was received.  This behavior was not documented in most of the
   applications that used ast_play_and_record and the return codes from
@@ -131,6 +137,12 @@ Manager:
   additional header UserEvent: <userspec>.  Also, the Channel and UniqueID
   headers are not automatically sent, unless you specify them as separate
   arguments.  Please see the application help for the new syntax.
+
+* app_meetme: Mute and Unmute events are now reported via the Manager API.
+  Native Manager API commands MeetMeMute and MeetMeUnmute are provided, which
+  are easier to use than "Action Command:". The MeetMeStopTalking event has
+  also been deprecated in favor of the already existing MeetmeTalking event
+  with a "Status" of "on" or "off" added.
 
 Variables:
 
