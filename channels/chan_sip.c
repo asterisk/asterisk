@@ -2594,7 +2594,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 			ast_copy_string(name, fup->peername, sizeof(name));
 		} else {
 			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "%s is not a local user, no call limit\n", name);
+				ast_log(LOG_DEBUG, "%s is not a local device, no call limit\n", name);
 			return 0;
 		}
 	}
@@ -2651,11 +2651,10 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 					if (*inringing > 0)
 						(*inringing)--;
 					else
-						ast_log(LOG_WARNING, "Inringing for peer '%s' < 0?\n", fup->peername);
+						ast_log(LOG_WARNING, "Inringing for peer '%s' < 0?\n", p->name);
 					ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
 				}
 			}
-			break;
 			break;
 		default:
 			ast_log(LOG_ERROR, "update_call_counter(%s, %d) called with no event!\n", name, event);
