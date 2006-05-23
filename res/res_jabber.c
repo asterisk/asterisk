@@ -436,7 +436,6 @@ static int aji_act_hook(void *data, int type, iks *node)
 
 	pak = iks_packet(node);
 
-
 	if (client->component == AJI_CLIENT) {
 		switch (type) {
 		case IKS_NODE_START:
@@ -1330,30 +1329,30 @@ int ast_aji_invite_chat(struct aji_client *client, char *user, char *room, char 
 static void *aji_recv_loop(void *data)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
-	int res = 0;
-	while (res == IKS_OK) {
+	int res = IKS_HOOK;
+	do {
+		if (res != IKS_OK) {
+			while(res != IKS_OK) {
+				if(option_verbose > 3) ast_verbose("JABBER: reconnecting.\n");
+				sleep(4);
+				res = aji_reconnect(client);
+			}
+		}
 		res = iks_recv(client->p, 1);
 		client->timeout--;
 		if (res == IKS_HOOK) {
 			ast_log(LOG_WARNING, "JABBER: Got hook event.\n");
 			break;
 		} else if (res == IKS_NET_TLSFAIL) {
-			ast_log(LOG_ERROR, "JABBER:  Failure in tls.\n");
+			ast_log(LOG_WARNING, "JABBER:  Failure in tls.\n");
 			break;
 		} else if (client->timeout == 0 && client->state != AJI_CONNECTED) {
 			res = -1;
 			ast_log(LOG_WARNING, "JABBER:  Network Timeout\n");
 		} else if (res == IKS_NET_RWERR) {
-			ast_log(LOG_ERROR, "JABBER: socket read error\n");
+			ast_log(LOG_WARNING, "JABBER: socket read error\n");
 		}
-
-		if (res != IKS_OK) {
-			if(option_verbose > 3) ast_verbose("JABBER: reconnecting %d\n", res);
-			aji_reconnect(client);
-			res = IKS_OK;
-		}
-
-	}
+	} while (res == IKS_OK);
 	ASTOBJ_UNREF(client, aji_client_destroy);
 	return 0;
 }
@@ -1688,14 +1687,13 @@ static int aji_client_initialize(struct aji_client *client)
 
 	if (connected == IKS_NET_NOCONN) {
 		ast_log(LOG_ERROR, "JABBER ERROR: No Connection\n");
-		return 0;
-	}
-	if (connected == IKS_NET_NODNS) {
+		return IKS_HOOK;
+	} else 	if (connected == IKS_NET_NODNS) {
 		ast_log(LOG_ERROR, "JABBER ERROR: No DNS\n");
-		return 0;
+		return IKS_HOOK;
 	} else
 		iks_recv(client->p, 30);
-	return 1;
+	return IKS_OK;
 }
 
 /*!
@@ -2164,8 +2162,7 @@ static void aji_reload()
 		ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
 			ASTOBJ_RDLOCK(iterator);
 			if(iterator->state == AJI_DISCONNECTED) {
-				res = aji_reconnect(iterator);
-				if (res != -1 && !iterator->thread)
+				if (!iterator->thread)
 					ast_pthread_create(&iterator->thread, NULL, aji_recv_loop, iterator);
 			} else if (iterator->state == AJI_CONNECTED) {
 				aji_get_roster(iterator);
