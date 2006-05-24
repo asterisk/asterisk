@@ -39,11 +39,14 @@ void set_channel(struct misdn_bchannel *bc, int channel) {
 			cb_log(0,bc->port,"We already have a channel (%d)\n", bc->channel);
 		} else {
 			bc->channel = channel;
+			cb_event(EVENT_NEW_CHANNEL,bc,NULL);
 		}
 	}
 	
-	if (channel > 0 && !bc->nt ) 
+	if (channel > 0 && !bc->nt ) {
 		bc->channel = channel;
+		cb_event(EVENT_NEW_CHANNEL,bc,NULL);
+	}
 }
 
 void parse_proceeding (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
@@ -1206,6 +1209,7 @@ char EVENT_CLEAN_INFO[] = "CLEAN_UP";
 char EVENT_DTMF_TONE_INFO[] = "DTMF_TONE";
 char EVENT_NEW_L3ID_INFO[] = "NEW_L3ID";
 char EVENT_NEW_BC_INFO[] = "NEW_BC";
+char EVENT_NEW_CHANNEL_INFO[] = "NEW_CHANNEL";
 char EVENT_BCHAN_DATA_INFO[] = "BCHAN_DATA";
 char EVENT_BCHAN_ACTIVATED_INFO[] = "BCHAN_ACTIVATED";
 char EVENT_TONE_GENERATE_INFO[] = "TONE_GENERATE";
@@ -1220,6 +1224,7 @@ char * isdn_get_info(struct isdn_msg msgs[], enum event_e event, int nt)
 	if (event == EVENT_DTMF_TONE) return EVENT_DTMF_TONE_INFO;
 	if (event == EVENT_NEW_L3ID) return EVENT_NEW_L3ID_INFO;
 	if (event == EVENT_NEW_BC) return EVENT_NEW_BC_INFO;
+	if (event == EVENT_NEW_CHANNEL) return EVENT_NEW_CHANNEL_INFO;
 	if (event == EVENT_BCHAN_DATA) return EVENT_BCHAN_DATA_INFO;
 	if (event == EVENT_BCHAN_ACTIVATED) return EVENT_BCHAN_ACTIVATED_INFO;
 	if (event == EVENT_TONE_GENERATE) return EVENT_TONE_GENERATE_INFO;

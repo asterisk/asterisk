@@ -2588,6 +2588,21 @@ static struct ast_channel_tech misdn_tech_wo_bridge = {
 
 static unsigned long glob_channel=0;
 
+static void update_name(struct ast_channel *tmp, int port, int c) 
+{
+	if (c<=0) {
+			c=glob_channel++;
+			ast_string_field_build(tmp, name, "%s/%d-u%d",
+				 misdn_type, port, c);
+	} else {
+			 ast_string_field_build(tmp, name, "%s/%d-%d",
+				 misdn_type, port, c);
+	}
+
+	chan_misdn_log(3,port," --> updating channel name to [%s]\n",tmp->name);
+	
+}
+
 static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char *exten, char *callerid, int format, int port, int c)
 {
 	struct ast_channel *tmp;
@@ -2597,16 +2612,8 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 	if (tmp) {
 		chan_misdn_log(2, 0, " --> * NEW CHANNEL dad:%s oad:%s\n",exten,callerid);
 		
-		
-		if (c<=0) {
-			c=glob_channel++;
-			ast_string_field_build(tmp, name, "%s/%d-u%d",
-				 misdn_type, port, c);
-		} else {
-			ast_string_field_build(tmp, name, "%s/%d-%d",
-				 misdn_type, port, c);
-		}
-		
+		update_name(tmp,port,c);
+	
 		tmp->nativeformats = prefformat;
 
 		tmp->readformat = format;
@@ -3099,10 +3106,13 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	
 	
 	switch (event) {
-
+		
 	case EVENT_BCHAN_ACTIVATED:
 		break;
 		
+	case EVENT_NEW_CHANNEL:
+		update_name(ch->ast,bc->port,bc->channel);
+		break;
 		
 	case EVENT_NEW_L3ID:
 		ch->l3id=bc->l3_id;
@@ -3421,6 +3431,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	case EVENT_SETUP_ACKNOWLEDGE:
 	{
 		ch->state = MISDN_CALLING_ACKNOWLEDGE;
+
+		if (bc->channel) 
+			update_name(ch->ast,bc->port,bc->channel);
+		
 		if (!ast_strlen_zero(bc->infos_pending)) {
 			/* TX Pending Infos */
 			

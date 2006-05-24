@@ -370,7 +370,7 @@ void dump_chan_list(struct misdn_stack *stack)
 
 
 
-static int find_free_chan_in_stack(struct misdn_stack *stack, int channel)
+static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchannel *bc, int channel)
 {
 	int i;
 
@@ -386,6 +386,8 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, int channel)
 			if (!stack->channels[i]) {
 				cb_log (4, stack->port, " --> found chan%s: %d\n", channel>=0?" (preselected)":"", i+1);
 				stack->channels[i] = 1;
+				bc->channel=i+1;
+				cb_event(EVENT_NEW_CHANNEL, bc, NULL);
 				return i+1;
 			}
 		}
@@ -772,9 +774,9 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 	int free_chan;
   
 	if (stack->nt) {
-		free_chan = find_free_chan_in_stack(stack, bc->channel_preselected?bc->channel:0);
+		free_chan = find_free_chan_in_stack(stack, bc, bc->channel_preselected?bc->channel:0);
 		if (!free_chan) return -1;
-		bc->channel=free_chan;
+		/*bc->channel=free_chan;*/
 		
 		cb_log(4,stack->port, " -->  found channel: %d\n",free_chan);
     
@@ -805,9 +807,9 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 	} else { 
 		if (stack->ptp || bc->te_choose_channel) {
 			/* we know exactly which channels are in use */
-			free_chan = find_free_chan_in_stack(stack, bc->channel_preselected?bc->channel:0);
+			free_chan = find_free_chan_in_stack(stack, bc, bc->channel_preselected?bc->channel:0);
 			if (!free_chan) return -1;
-			bc->channel=free_chan;
+			/*bc->channel=free_chan;*/
 			cb_log(0,stack->port, " -->  found channel: %d\n",free_chan);
 		} else {
 			/* other phones could have made a call also on this port (ptmp) */
@@ -1397,7 +1399,7 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 			
 		{
 			if (bc->channel == 0xff) {
-				bc->channel=find_free_chan_in_stack(stack, 0);
+				bc->channel=find_free_chan_in_stack(stack, bc,  0);
 				if (!bc->channel) {
 					cb_log(-1, stack->port, "Any Channel Requested, but we have no more!!\n");
 					break;
@@ -2877,7 +2879,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	case EVENT_RETRIEVE_ACKNOWLEDGE:
 		if (stack->nt) {
 			if (bc->channel <=0 ) { /*  else we have the channel already */
-				bc->channel = find_free_chan_in_stack(stack, 0);
+				bc->channel = find_free_chan_in_stack(stack, bc, 0);
 				if (!bc->channel) {
 					cb_log(-1, stack->port, " No free channel at the moment\n");
 					
