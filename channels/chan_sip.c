@@ -444,6 +444,7 @@ static struct ast_codec_pref default_prefs;		/*!< Default codec prefs */
 /* Global settings only apply to the channel */
 static int global_rtautoclear;
 static int global_notifyringing;	/*!< Send notifications on ringing */
+static int global_alwaysauthreject;	/*!< Send 401 Unauthorized for all failing requests */
 static int srvlookup;			/*!< SRV Lookup on or off. Default is off, RFC behavior is on */
 static int pedanticsipchecking;		/*!< Extra checking ?  Default off */
 static int autocreatepeer;		/*!< Auto creation of peers at registration? Default off. */
@@ -1031,6 +1032,16 @@ static struct sockaddr_in debugaddr;
 
 static struct ast_config *notify_types;		/*!< The list of manual NOTIFY types we know how to send */
 
+enum check_auth_result {
+	AUTH_SUCCESSFUL = 0,
+	AUTH_CHALLENGE_SENT = 1,
+	AUTH_SECRET_FAILED = -1,
+	AUTH_USERNAME_MISMATCH = -2,
+	AUTH_NOT_FOUND = -3,
+	AUTH_FAKE_AUTH = -4,
+	AUTH_UNKNOWN_DOMAIN = -5,
+};
+
 /*---------------------------- Forward declarations of functions in chan_sip.c */
 /*! \note Sorted up from start to build_rpid.... Will continue categorization in order to
 	split up chan_sip.c into several files  */
@@ -1114,9 +1125,9 @@ static int build_reply_digest(struct sip_pvt *p, int method, char *digest, int d
 static int clear_realm_authentication(struct sip_auth *authlist);	/* Clear realm authentication list (at reload) */
 static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);	/* Add realm authentication in list */
 static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, const char *realm);	/* Find authentication for a specific realm */
-static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
-		const char *secret, const char *md5secret, int sipmethod,
-		char *uri, enum xmittype reliable, int ignore);
+static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
+					 const char *secret, const char *md5secret, int sipmethod,
+					 char *uri, enum xmittype reliable, int ignore);
 
 /*--- Domain handling */
 static int check_sip_domain(const char *domain, char *context, size_t len); /* Check if domain is one of our local domains */
@@ -6635,12 +6646,11 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 /*! \brief  Check user authorization from peer definition 
 	Some actions, like REGISTER and INVITEs from peers require
 	authentication (if peer have secret set) 
-	\return -1 on Error, 0 on success, 1 on challenge sent
-	
+    \return 0 on success, non-zero on error
 */
-static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
-		      const char *secret, const char *md5secret, int sipmethod,
-		      char *uri, enum xmittype reliable, int ignore)
+static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
+					 const char *secret, const char *md5secret, int sipmethod,
+					 char *uri, enum xmittype reliable, int ignore)
 {
 	const char *response = "407 Proxy Authentication Required";
 	const char *reqheader = "Proxy-Authorization";
@@ -6649,7 +6659,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 
 	/* Always OK if no secret */
 	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret))
-		return 0;
+		return AUTH_SUCCESSFUL;
 	if (sipmethod == SIP_REGISTER || sipmethod == SIP_SUBSCRIBE) {
 		/* On a REGISTER, we have to use 401 and its family of headers instead of 407 and its family
 		   of headers -- GO SIP!  Whoo hoo!  Two things that do the same thing but are used in
@@ -6669,14 +6679,14 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 			/* Schedule auto destroy in 32 seconds (according to RFC 3261) */
 			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 		}
-		return 1;	/* Auth sent */
+		return AUTH_CHALLENGE_SENT;
 	} else if (ast_strlen_zero(p->randdata) || ast_strlen_zero(authtoken)) {
 		/* We have no auth, so issue challenge and request authentication */
 		ast_string_field_build(p, randdata, "%08lx", ast_random());	/* Create nonce for challenge */
 		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
 		/* Schedule auto destroy in 32 seconds */
 		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
-		return 1;	/* Auth sent */
+		return AUTH_CHALLENGE_SENT;
 	} else {	/* We have auth, so check it */
 		/* Whoever came up with the authentication section of SIP can suck my %&#$&* for not putting
 	   	an example in the spec of just what it is you're doing a hash on. */
@@ -6729,7 +6739,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 			ast_log(LOG_WARNING, "username mismatch, have <%s>, digest has <%s>\n",
 				username, keys[K_USER].s);
 			/* Oops, we're trying something here */
-			return -2;
+			return AUTH_USERNAME_MISMATCH;
 		}
 
 		/* Verify nonce from request matches our nonce.  If not, send 401 with new nonce */
@@ -6777,18 +6787,16 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 
 			/* Schedule auto destroy in 32 seconds */
 			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
-			return 1;	/* XXX should it be -1 ? */
+			return AUTH_CHALLENGE_SENT;
 		} 
-		if (good_response) /* Auth is OK */
-			return 0;
+		if (good_response)
+			return AUTH_SUCCESSFUL;
 
-		/* XXX is this needed ? */
 		/* Ok, we have a bad username/secret pair */
 		/* Challenge again, and again, and again */
 		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
 		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
-		return 1;		/* Challenge sent */
-
+		return AUTH_CHALLENGE_SENT;
 	}
 }
 
@@ -6821,10 +6829,20 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 	return 0;
 }
 
-/*! \brief Verify registration of user */
-static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct sip_request *req, char *uri)
+/*! \brief Send a fake 401 Unauthorized response when the administrator
+  wants to hide the names of local users/peers from fishers
+ */
+static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *req, int reliable)
 {
-	int res = -3;
+	ast_string_field_build(p, randdata, "%08lx", ast_random());	/* Create nonce for challenge */
+	transmit_response_with_auth(p, "401 Unauthorized", req, p->randdata, reliable, "WWW-Authenticate", 0);
+}
+
+/*! \brief Verify registration of user */
+static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr_in *sin,
+					      struct sip_request *req, char *uri)
+{
+	enum check_auth_result res = AUTH_NOT_FOUND;
 	struct sip_peer *peer;
 	char tmp[256];
 	char iabuf[INET_ADDRSTRLEN];
@@ -6861,7 +6879,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		if (!AST_LIST_EMPTY(&domain_list)) {
 			if (!check_sip_domain(domain, NULL, 0)) {
 				transmit_response(p, "404 Not found (unknown domain)", &p->initreq);
-				return -3;
+				return AUTH_UNKNOWN_DOMAIN;
 			}
 		}
 	}
@@ -6938,28 +6956,46 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	}
 	if (res < 0) {
 		switch (res) {
-		case -1:
+		case AUTH_SECRET_FAILED:
 			/* Wrong password in authentication. Go away, don't try again until you fixed it */
 			transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq);
 			break;
-		case -2:
+		case AUTH_USERNAME_MISMATCH:
 			/* Username and digest username does not match. 
 			   Asterisk uses the From: username for authentication. We need the
 			   users to use the same authentication user name until we support
 			   proper authentication by digest auth name */
 			transmit_response(p, "403 Authentication user name does not match account name", &p->initreq);
 			break;
-		case -3:
-			/* URI not found */
-			transmit_response(p, "404 Not found", &p->initreq);
-			/* Set res back to -2 because we don't want to return an invalid domain message. That check already happened up above. */
-			res = -2;
+		case AUTH_NOT_FOUND:
+			if (global_alwaysauthreject) {
+				transmit_fake_auth_response(p, &p->initreq, 1);
+			} else {
+				/* URI not found */
+				transmit_response(p, "404 Not found", &p->initreq);
+			}
+			break;
+		default:
 			break;
 		}
 		if (option_debug > 1) {
+			const char *reason = "";
+
+			switch (res) {
+			case AUTH_SECRET_FAILED:
+				reason = "Bad password";
+				break;
+			case AUTH_USERNAME_MISMATCH:
+				reason = "Bad digest user";
+				break;
+			case AUTH_NOT_FOUND:
+				reason = "Peer not found";
+				break;
+			default:
+				break;
+			}
 			ast_log(LOG_DEBUG, "SIP REGISTER attempt failed for %s : %s\n",
-				peer->name,
-				(res == -1) ? "Bad password" : ((res == -2 ) ? "Bad digest user" : "Peer not found"));
+				peer->name, reason);
 		}
 	}
 	if (peer)
@@ -7455,10 +7491,11 @@ static int get_rpid_num(const char *input, char *output, int maxlen)
 /*! \brief  Check if matching user or peer is defined 
  	Match user on From: user name and peer on IP/port
 	This is used on first invite (not re-invites) and subscribe requests 
-	\return 0 on success, -1 on failure, and 1 on challenge sent
-	-2 on authentication error from chedck_auth()
+    \return 0 on success, non-zero on failure
 */
-static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, enum xmittype reliable, struct sockaddr_in *sin, struct sip_peer **authpeer)
+static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_request *req,
+					      int sipmethod, char *uri, enum xmittype reliable,
+					      struct sockaddr_in *sin, struct sip_peer **authpeer)
 {
 	struct sip_user *user = NULL;
 	struct sip_peer *peer;
@@ -7467,7 +7504,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	char rpid_num[50];
 	const char *rpid;
 	char iabuf[INET_ADDRSTRLEN];
-	int res = 0;
+	enum check_auth_result res = AUTH_SUCCESSFUL;
 	char *t;
 	char calleridname[50];
 	int debug=sip_debug_test_addr(sin);
@@ -7523,7 +7560,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		ast_string_field_set(p, cid_num, tmp);
 	}
 	if (ast_strlen_zero(of))
-		return 0;
+		return AUTH_SUCCESSFUL;
 
 	if (!authpeer)	/* If we are looking for a peer, don't check the user objects (or realtime) */
 		user = find_user(of, 1);
@@ -7550,7 +7587,6 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				ast_shrink_phone_number(tmp);
 			ast_string_field_set(p, cid_num, tmp);
 		}
-
 		
 		usenatroute = ast_test_flag(&p->flags[0], SIP_NAT_ROUTE);
 
@@ -7742,8 +7778,12 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				ast_verbose("Found no matching peer or user for '%s:%d'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
 
 			/* do we allow guests? */
-			if (!global_allowguest)
-				res = -1;  /* we don't want any guests, authentication will fail */
+			if (!global_allowguest) {
+				if (global_alwaysauthreject)
+					res = AUTH_FAKE_AUTH; /* reject with fake authorization request */
+				else
+					res = AUTH_SECRET_FAILED; /* we don't want any guests, authentication will fail */
+			}
 		}
 
 	}
@@ -8789,6 +8829,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  URI user is phone no:   %s\n", ast_test_flag(&global_flags[0], SIP_USEREQPHONE) ? "Yes" : "No");
 	ast_cli(fd, "  Our auth realm          %s\n", global_realm);
 	ast_cli(fd, "  Realm. auth:            %s\n", authl ? "Yes": "No");
+ 	ast_cli(fd, "  Always auth rejects:    %s\n", global_alwaysauthreject ? "Yes" : "No");
 	ast_cli(fd, "  User Agent:             %s\n", global_useragent);
 	ast_cli(fd, "  MWI checking interval:  %d secs\n", global_mwitime);
 	ast_cli(fd, "  Reg. context:           %s\n", S_OR(global_regcontext, "(not set)"));
@@ -11248,11 +11289,16 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 		/* Handle authentication if this is our first invite */
 		res = check_user(p, req, SIP_INVITE, e, XMIT_RELIABLE, sin);
-		if (res > 0)	/* We have challenged the user for auth */
+		if (res == AUTH_CHALLENGE_SENT)
 			return 0; 
 		if (res < 0) { /* Something failed in authentication */
-			ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
-			transmit_response_reliable(p, "403 Forbidden", req);
+			if (res == AUTH_FAKE_AUTH) {
+				ast_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
+				transmit_fake_auth_response(p, req, 1);
+			} else {
+  				ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
+				transmit_response_reliable(p, "403 Forbidden", req);
+  			}
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 			ast_string_field_free(p, theirtag);
 			return 0;
@@ -11678,11 +11724,18 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 
 	/* Handle authentication if this is our first subscribe */
 	res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, &authpeer);
-	if (res) {
-		if (res < 0) {
+	/* if an authentication response was sent, we are done here */
+	if (res == AUTH_CHALLENGE_SENT)
+		return 0;
+	if (res < 0) {
+		if (res == AUTH_FAKE_AUTH) {
+			ast_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
+			transmit_fake_auth_response(p, req, 1);
+		} else {
 			ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
-			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			transmit_response_reliable(p, "403 Forbidden", req);
 		}
+		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		return 0;
 	}
 
@@ -11856,7 +11909,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 /*! \brief Handle incoming REGISTER request */
 static int handle_request_register(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, char *e)
 {
-	int res = 0;
+	enum check_auth_result res;
 	char iabuf[INET_ADDRSTRLEN];
 
 	/* Use this as the basis */
@@ -11864,12 +11917,33 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 		ast_verbose("Using latest REGISTER request as basis request\n");
 	copy_request(&p->initreq, req);
 	check_via(p, req);
-	if ((res = register_verify(p, sin, req, e)) < 0) 
-		ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n", get_header(req, "To"), ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), (res == -1) ? "Wrong password" : (res == -2 ? "Username/auth name mismatch" : "Not a local SIP domain"));
+	if ((res = register_verify(p, sin, req, e)) < 0) {
+		const char *reason = "";
+
+		switch (res) {
+		case AUTH_SECRET_FAILED:
+			reason = "Wrong password";
+			break;
+		case AUTH_USERNAME_MISMATCH:
+			reason = "Username/auth name mismatch";
+			break;
+		case AUTH_NOT_FOUND:
+			reason = "No matching peer found";
+			break;
+		case AUTH_UNKNOWN_DOMAIN:
+			reason = "Not a local domain";
+			break;
+		default:
+			break;
+		}
+		ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n",
+			get_header(req, "To"), ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr),
+			reason);
+	}
 	if (res < 1) {
 		/* Destroy the session, but keep us around for just a bit in case they don't
 		   get our 200 OK */
-		sip_scheddestroy(p, 15*1000);
+		sip_scheddestroy(p, 15000);
 	}
 	return res;
 }
@@ -13392,6 +13466,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_regcontext[0] = '\0';
 	expiry = DEFAULT_EXPIRY;
 	global_notifyringing = DEFAULT_NOTIFYRINGING;
+	global_alwaysauthreject = 0;
 	global_allowsubscribe = FALSE;
 	ast_copy_string(global_useragent, DEFAULT_USERAGENT, sizeof(global_useragent));
 	ast_copy_string(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime));
@@ -13503,6 +13578,8 @@ static int reload_config(enum channelreloadreason reason)
 			ast_copy_string(default_notifymime, v->value, sizeof(default_notifymime));
 		} else if (!strcasecmp(v->name, "notifyringing")) {
 			global_notifyringing = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "alwaysauthreject")) {
+			global_alwaysauthreject = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold")) {
 			ast_copy_string(default_musicclass, v->value, sizeof(default_musicclass));
 		} else if (!strcasecmp(v->name, "language")) {
