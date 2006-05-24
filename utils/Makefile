@@ -92,9 +92,9 @@ ael_main1.o : ael_main.c ../include/asterisk/ael_structs.h
 	$(CC) $(CFLAGS) -c -g  -o ael_main1.o ael_main.c
 
 testexpr2s: ../ast_expr2f.c ../ast_expr2.c ../ast_expr2.h
-	gcc -g -c -I../include -DSTANDALONE ../ast_expr2f.c -o ast_expr2f.o
-	gcc -g -c -I../include -DSTANDALONE ../ast_expr2.c -o ast_expr2.o
-	gcc -g -o testexpr2s ast_expr2f.o ast_expr2.o
+	$(CC) -g -c -I../include -DSTANDALONE ../ast_expr2f.c -o ast_expr2f.o
+	$(CC) -g -c -I../include -DSTANDALONE ../ast_expr2.c -o ast_expr2.o
+	$(CC) -g -o testexpr2s ast_expr2f.o ast_expr2.o
 	rm ast_expr2.o ast_expr2f.o 
 	./testexpr2s expr2.testinput
 
