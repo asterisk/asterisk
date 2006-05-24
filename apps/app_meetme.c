@@ -299,7 +299,7 @@ struct ast_conf_user {
 	int talking;                            /*!< Is user talking */
 	int zapchannel;                         /*!< Is a Zaptel channel */
 	char usrvalue[50];                      /*!< Custom User Value */
-	char namerecloc[AST_MAX_EXTENSION];     /*!< Name Recorded file Location */
+	char namerecloc[PATH_MAX];		/*!< Name Recorded file Location */
 	time_t jointime;                        /*!< Time the user joined the conference */
 	struct volume talk;
 	struct volume listen;
