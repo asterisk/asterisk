@@ -384,6 +384,7 @@ int reload_logger(int rotate)
 	FILE *myf;
 	int x, res = 0;
 
+	ast_mutex_lock(&msglist_lock);	/* to avoid deadlock */
 	ast_mutex_lock(&loglock);
 	if (eventlog) 
 		fclose(eventlog);
@@ -490,6 +491,7 @@ int reload_logger(int rotate)
 		}
 	}
 	ast_mutex_unlock(&loglock);
+	ast_mutex_unlock(&msglist_lock);
 
 	return res;
 }
