@@ -1616,6 +1616,7 @@ static int aji_reconnect(struct aji_client *client)
 
 	if (client->state)
 		client->state = AJI_DISCONNECTED;
+	client->timeout=20;
 	if (client->p)
 		iks_parser_reset(client->p);
 	if (client->authorized)
