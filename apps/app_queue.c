@@ -1181,13 +1181,16 @@ static int say_position(struct queue_ent *qe)
 		ast_verbose(VERBOSE_PREFIX_3 "Told %s in %s their queue position (which was %d)\n",
 			    qe->chan->name, qe->parent->name, qe->pos);
 	res = play_file(qe->chan, qe->parent->sound_thanks);
+	if (res && !valid_exit(qe, res))
+		res = 0;
 
  playout:
 	/* Set our last_pos indicators */
  	qe->last_pos = now;
 	qe->last_pos_said = qe->pos;
+
 	/* Don't restart music on hold if we're about to exit the caller from the queue */
-	if (res)
+	if (!res)
 		ast_moh_start(qe->chan, qe->moh);
 
 	return res;
@@ -1556,7 +1559,7 @@ static int background_file(struct queue_ent *qe, struct ast_channel *chan, char 
 	if (!res) {
 		/* Wait for a keypress */
 		res = ast_waitstream(chan, AST_DIGIT_ANY);
-		if (res <= 0 || !valid_exit(qe, res))
+		if (res < 0 || !valid_exit(qe, res))
 			res = 0;
 
 		/* Stop playback */
@@ -1594,8 +1597,9 @@ static int say_periodic_announcement(struct queue_ent *qe)
 	/* play the announcement */
 	res = background_file(qe, qe->chan, qe->parent->sound_periodicannounce);
 
-	/* Resume Music on Hold */
-	ast_moh_start(qe->chan, qe->moh);
+	/* Resume Music on Hold if the caller is going to stay in the queue */
+	if (!res)
+		ast_moh_start(qe->chan, qe->moh);
 
 	/* update last_periodic_announce_time */
 	qe->last_periodic_announce_time = now;
@@ -1920,18 +1924,17 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		}
 
 		/* Make a position announcement, if enabled */
-		if (qe->parent->announcefrequency && !ringing)
-			res = say_position(qe);
-		if (res)
+		if (qe->parent->announcefrequency && !ringing &&
+		    (res = say_position(qe)))
 			break;
 
 		/* Make a periodic announcement, if enabled */
-		if (qe->parent->periodicannouncefrequency && !ringing)
-			res = say_periodic_announcement(qe);
+		if (qe->parent->periodicannouncefrequency && !ringing &&
+		    (res = say_periodic_announcement(qe)))
+			break;
 
 		/* Wait a second before checking again */
-		if (!res) res = ast_waitfordigit(qe->chan, RECHECK * 1000);
-		if (res)
+		if ((res = ast_waitfordigit(qe->chan, RECHECK * 1000)))
 			break;
 	}
 	return res;
@@ -2230,7 +2233,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (res < 0) {
 			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "SYSCOMPAT", "%s", "");
 			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", qe->chan->name, peer->name);
-		record_abandoned(qe);
+			record_abandoned(qe);
 			ast_hangup(peer);
 			return -1;
 		}
@@ -2307,13 +2310,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					      (long)(time(NULL) - callstart));
 		}
 
-		if(bridge != AST_PBX_NO_HANGUP_PEER)
+		if (bridge != AST_PBX_NO_HANGUP_PEER)
 			ast_hangup(peer);
 		update_queue(qe->parent, member);
-		if (bridge == 0) 
-			res = 1; /* JDG: bridge successfull, leave app_queue */
-		else 
-			res = bridge; /* bridge error, stay in the queue */
+		res = bridge ? 0 : -1;
 	}	
 out:
 	hangupcalls(outgoing, NULL);
@@ -2991,9 +2991,8 @@ check_turns:
 
 				if (makeannouncement) {
 					/* Make a position announcement, if enabled */
-					if (qe.parent->announcefrequency && !ringing)
-						res = say_position(&qe);
-					if (res) {
+					if (qe.parent->announcefrequency && !ringing &&
+					    (res = say_position(&qe))) {
 						ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
 						break;
 					}
@@ -3002,10 +3001,8 @@ check_turns:
 				makeannouncement = 1;
 
 				/* Make a periodic announcement, if enabled */
-				if (qe.parent->periodicannouncefrequency && !ringing)
-					res = say_periodic_announcement(&qe);
-
-				if (res && valid_exit(&qe, res)) {
+				if (qe.parent->periodicannouncefrequency && !ringing &&
+				    (res = say_periodic_announcement(&qe))) {
 					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
 					break;
 				}
@@ -3018,8 +3015,9 @@ check_turns:
 							record_abandoned(&qe);
 							ast_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
 						}
-					} else if (res > 0)
+					} else if (valid_exit(&qe, res)) {
 						ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
+					}
 					break;
 				}
 
@@ -3082,7 +3080,7 @@ check_turns:
 				if (!is_our_turn(&qe)) {
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Darn priorities, going back in queue (%s)!\n",
-								qe.chan->name);
+							qe.chan->name);
 					goto check_turns;
 				}
 			}
