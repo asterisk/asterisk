@@ -349,6 +349,8 @@ static char default_notifymime[AST_MAX_EXTENSION] = DEFAULT_NOTIFYMIME;
 
 static int global_notifyringing = 1;	/*!< Send notifications on ringing */
 
+static int global_alwaysauthreject = 0;	/*!< Send 401 Unauthorized for all failing requests */
+
 static int default_qualify = 0;		/*!< Default Qualify= setting */
 
 static struct ast_flags global_flags = {0};		/*!< global SIP_ flags */
@@ -6428,6 +6430,15 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 	return 0;
 }
 
+/*! \brief Send a fake 401 Unauthorized response when the administrator
+  wants to hide the names of local users/peers from fishers
+*/
+static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *req, char *randdata, int randlen, int reliable)
+{
+	snprintf(randdata, randlen, "%08x", thread_safe_rand());
+	transmit_response_with_auth(p, "401 Unauthorized", req, randdata, reliable, "WWW-Authenticate", 0);
+}
+
 /*! \brief  register_verify: Verify registration of user */
 static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct sip_request *req, char *uri, int ignore)
 {
@@ -6559,8 +6570,12 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			transmit_response(p, "403 Authentication user name does not match account name", &p->initreq);
 			break;
 		case -3:
-			/* URI not found */
-			transmit_response(p, "404 Not found", &p->initreq);
+			if (global_alwaysauthreject) {
+				transmit_fake_auth_response(p, &p->initreq, p->randdata, sizeof(p->randdata), 1);
+			} else {
+				/* URI not found */
+				transmit_response(p, "404 Not found", &p->initreq);
+			}
 			/* Set res back to -2 because we don't want to return an invalid domain message. That check already happened up above. */
 			res = -2;
 			break;
@@ -7289,10 +7304,13 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				ast_verbose("Found no matching peer or user for '%s:%d'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
 
 			/* do we allow guests? */
-			if (!global_allowguest)
-				res = -1;  /* we don't want any guests, authentication will fail */
+			if (!global_allowguest) {
+				if (global_alwaysauthreject)
+					res = -4; /* reject with fake authorization request */
+				else
+					res = -1; /* we don't want any guests, authentication will fail */
 #ifdef OSP_SUPPORT			
-			else if (global_allowguest == 2) {
+			} else if (global_allowguest == 2) {
 				ast_copy_flags(p, &global_flags, SIP_OSPAUTH);
 				res = check_auth(p, req, p->randdata, sizeof(p->randdata), "", "", "", sipmethod, uri, reliable, ignore); 
 			}
@@ -8265,6 +8283,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  URI user is phone no:   %s\n", ast_test_flag(&global_flags, SIP_USEREQPHONE) ? "Yes" : "No");
 	ast_cli(fd, "  Our auth realm          %s\n", global_realm);
 	ast_cli(fd, "  Realm. auth:            %s\n", authl ? "Yes": "No");
+	ast_cli(fd, "  Always auth rejects:    %s\n", global_alwaysauthreject ? "Yes" : "No");
 	ast_cli(fd, "  User Agent:             %s\n", default_useragent);
 	ast_cli(fd, "  MWI checking interval:  %d secs\n", global_mwitime);
 	ast_cli(fd, "  Reg. context:           %s\n", ast_strlen_zero(regcontext) ? "(not set)" : regcontext);
@@ -10412,16 +10431,19 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	if (!p->lastinvite && !ignore && !p->owner) {
 		/* Handle authentication if this is our first invite */
 		res = check_user(p, req, SIP_INVITE, e, 1, sin, ignore);
-		if (res) {
-			if (res < 0) {
+		if (res < 0) {
+			if (res == -4) {
+				ast_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
+				transmit_fake_auth_response(p, req, p->randdata, sizeof(p->randdata), 1);
+			} else {
 				ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
 				if (ignore)
 					transmit_response(p, "403 Forbidden", req);
 				else
 					transmit_response_reliable(p, "403 Forbidden", req, 1);
-				ast_set_flag(p, SIP_NEEDDESTROY);	
-				p->theirtag[0] = '\0'; /* Forget their to-tag, we'll get a new one */
 			}
+			ast_set_flag(p, SIP_NEEDDESTROY);	
+			p->theirtag[0] = '\0'; /* Forget their to-tag, we'll get a new one */
 			return 0;
 		}
 		/* Process the SDP portion */
@@ -10816,11 +10838,18 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		}
 		/* Handle authentication if this is our first subscribe */
 		res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, ignore, mailbox, mailboxsize);
-		if (res) {
-			if (res < 0) {
+		if (res < 0) {
+			if (res == -4) {
+				ast_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
+				transmit_fake_auth_response(p, req, p->randdata, sizeof(p->randdata), 1);
+			} else {
 				ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
-				ast_set_flag(p, SIP_NEEDDESTROY);	
+				if (ignore)
+					transmit_response(p, "403 Forbidden", req);
+				else
+					transmit_response_reliable(p, "403 Forbidden", req, 1);
 			}
+			ast_set_flag(p, SIP_NEEDDESTROY);	
 			return 0;
 		}
 		gotdest = get_destination(p, NULL);
@@ -12444,6 +12473,7 @@ static int reload_config(void)
 	ast_copy_string(default_useragent, DEFAULT_USERAGENT, sizeof(default_useragent));
 	ast_copy_string(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime));
 	global_notifyringing = 1;
+	global_alwaysauthreject = 0;
 	ast_copy_string(global_realm, DEFAULT_REALM, sizeof(global_realm));
 	ast_copy_string(global_musicclass, "default", sizeof(global_musicclass));
 	ast_copy_string(default_callerid, DEFAULT_CALLERID, sizeof(default_callerid));
@@ -12543,6 +12573,8 @@ static int reload_config(void)
 			ast_copy_string(default_notifymime, v->value, sizeof(default_notifymime));
 		} else if (!strcasecmp(v->name, "notifyringing")) {
 			global_notifyringing = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "alwaysauthreject")) {
+			global_alwaysauthreject = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold")) {
 			ast_copy_string(global_musicclass, v->value, sizeof(global_musicclass));
 		} else if (!strcasecmp(v->name, "language")) {
