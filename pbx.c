@@ -296,7 +296,7 @@ static struct pbx_builtin {
 
 	{ "Congestion", pbx_builtin_congestion,
 	"Indicate the Congestion condition",
-	"  Congestion([timeout]): This application will indicate the congenstion\n"
+	"  Congestion([timeout]): This application will indicate the congestion\n"
 	"condition to the calling channel. If the optional timeout is specified, the\n"
 	"calling channel will be hung up after the specified number of seconds.\n"
 	"Otherwise, this application will wait until the calling channel hangs up.\n"
