@@ -132,6 +132,7 @@ enum misdn_chan_state {
 	MISDN_ALERTING, /*!<  when Alerting */
 	MISDN_BUSY, /*!<  when BUSY */
 	MISDN_CONNECTED, /*!<  when connected */
+	MISDN_PRECONNECTED, /*!<  when connected */
 	MISDN_DISCONNECTED, /*!<  when connected */
 	MISDN_BRIDGED, /*!<  when bridged */
 	MISDN_CLEANING, /*!< when hangup from * but we were connected before */
@@ -2980,7 +2981,6 @@ static void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel*bc) {
 	}
 }
 
-
 void import_ies(struct ast_channel *chan, struct misdn_bchannel *bc)
 {
 	const char *tmp;
@@ -2996,6 +2996,9 @@ void import_ies(struct ast_channel *chan, struct misdn_bchannel *bc)
 
 	tmp=pbx_builtin_getvar_helper(chan,"PRI_USER1");
 	if (tmp) bc->user1=atoi(tmp);
+
+	tmp=pbx_builtin_getvar_helper(chan,"PRI_PROGRESS_INDICATOR");
+	if (tmp) bc->progress_indicator=atoi(tmp);
 }
 
 void export_ies(struct ast_channel *chan, struct misdn_bchannel *bc)
@@ -3014,7 +3017,8 @@ void export_ies(struct ast_channel *chan, struct misdn_bchannel *bc)
 	sprintf(tmp,"%d",bc->user1);
 	pbx_builtin_setvar_helper(chan,"_PRI_USER1",tmp);
 	
-	pbx_builtin_setvar_helper(chan,"_RDNIS",bc->rad);
+	sprintf(tmp,"%d",bc->progress_indicator);
+	pbx_builtin_setvar_helper(chan,"_PRI_PROGRESS_INDICATOR",tmp);
 }
 
 
@@ -3104,7 +3108,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->l3id=bc->l3_id;
 		ch->addr=bc->addr;
 
-		if (bc->nt) {
+		if (bc->nt && ch->state == MISDN_PRECONNECTED ) {
 			/* OK we've got the very new l3id so we can answer
 			   now */
 			start_bc_tones(ch);
@@ -3512,7 +3516,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	}
 	
 	/*we answer when we've got our very new L3 ID from the NT stack */
-	if (bc->nt) break;
+	if (bc->nt) { 
+		ch->state=MISDN_PRECONNECTED;
+		break;
+	}
 	
 	/* notice that we don't break here!*/
 

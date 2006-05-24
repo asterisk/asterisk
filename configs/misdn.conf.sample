@@ -38,6 +38,20 @@ debug=0
 ;
 bridging=no
 
+
+;
+; watches the L1s of every port. If one l1 is down it tries to 
+; get it up. The timeout is given in seconds. with 0 as value it
+; does not watch the l1 at all
+; 
+; default value: 0
+;
+; this option is only read at loading time of chan_misdn, 
+; which means you need to unload and load chan_misdn to change the 
+; value, an asterisk restart should do the trick
+; 
+l1watcher_timeout=0
+
 ; stops dialtone after getting first digit on nt Port
 ;
 ; default value: yes
