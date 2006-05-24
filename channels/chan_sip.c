@@ -11281,7 +11281,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
 			}
 			if (recordhistory) /* This is a response, note what it was for */
-				append_history(p, "%s", "Re-invite received");
+				append_history(p, "ReInv", "Re-invite received");
 		}
 	} else if (debug)
 		ast_verbose("Ignoring this INVITE request\n");
