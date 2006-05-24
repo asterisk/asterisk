@@ -902,6 +902,9 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 			return RESULT_FAILURE;
 		}
 		
+		/* Request a video update */
+		ast_indicate(chan, AST_CONTROL_VIDUPDATE);
+	
 		chan->stream = fs;
 		ast_applystream(chan,fs);
 		/* really should have checks */
@@ -964,6 +967,9 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
                                                 break;
                                         }
                             	}
+				break;
+			case AST_FRAME_VIDEO:
+				ast_writestream(fs, f);
 				break;
 			}
 			ast_frfree(f);
