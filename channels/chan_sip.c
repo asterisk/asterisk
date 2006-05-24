@@ -10457,6 +10457,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	if (!p->lastinvite && !ignore && !p->owner) {
 		/* Handle authentication if this is our first invite */
 		res = check_user(p, req, SIP_INVITE, e, 1, sin, ignore);
+		/* if an authentication challenge was sent, we are done here */
+		if (res > 0)
+			return 0;
 		if (res < 0) {
 			if (res == -4) {
 				ast_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
@@ -10864,6 +10867,9 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		}
 		/* Handle authentication if this is our first subscribe */
 		res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, ignore, mailbox, mailboxsize);
+		/* if an authentication challenge was sent, we are done here */
+		if (res > 0)
+			return 0;
 		if (res < 0) {
 			if (res == -4) {
 				ast_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
