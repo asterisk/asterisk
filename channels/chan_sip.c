@@ -626,7 +626,7 @@ struct sip_auth {
 #define SIP_REALTIME		(1 << 11)	/*!< Flag for realtime users */
 #define SIP_USECLIENTCODE	(1 << 12)	/*!< Trust X-ClientCode info message */
 #define SIP_OUTGOING		(1 << 13)	/*!< Is this an outgoing call? */
-#define SIP_FREEBIT		(1 << 14)	/*!< Free for session-related use */
+#define SIP_CAN_BYE		(1 << 14)	/*!< Can we send BYE on this dialog? */
 #define SIP_FREEBIT3		(1 << 15)	/*!< Free for session-related use */
 #define SIP_DTMF		(3 << 16)	/*!< DTMF Support: four settings, uses two bits */
 #define SIP_DTMF_RFC2833	(0 << 16)	/*!< DTMF Support: RTP DTMF - "rfc2833" */
@@ -2900,13 +2900,18 @@ static int sip_hangup(struct ast_channel *ast)
 				/* stop retransmitting an INVITE that has not received a response */
 				__sip_pretend_ack(p);
 
-				/* Send a new request: CANCEL */
-				transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, XMIT_RELIABLE, FALSE);
-				/* Actually don't destroy us yet, wait for the 487 on our original 
-				   INVITE, but do set an autodestruct just in case we never get it. */
-				ast_clear_flag(&locflags, SIP_NEEDDESTROY);
+				/* if we can't send right now, mark it pending */
+				if (!ast_test_flag(&p->flags[0], SIP_CAN_BYE)) {
+					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
+				} else {
+					/* Send a new request: CANCEL */
+					transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, XMIT_RELIABLE, FALSE);
+					/* Actually don't destroy us yet, wait for the 487 on our original 
+					   INVITE, but do set an autodestruct just in case we never get it. */
+					ast_clear_flag(&locflags, SIP_NEEDDESTROY);
 
-				sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+					sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+				}
 				if ( p->initid != -1 ) {
 					/* channel still up - reverse dec of inUse counter
 					   only if the channel is not auto-congested */
@@ -10064,13 +10069,18 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 /*! \brief Check pending actions on SIP call */
 static void check_pendings(struct sip_pvt *p)
 {
-	/* Go ahead and send bye at this point */
 	if (ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Sending pending bye on '%s'\n", p->callid);
-		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, TRUE);
-		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-		ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
+		/* if we can't BYE, then this is really a pending CANCEL */
+		if (!ast_test_flag(&p->flags[0], SIP_CAN_BYE)) {
+			transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, 1, 0);
+			/* Actually don't destroy us yet, wait for the 487 on our original 
+			   INVITE, but do set an autodestruct just in case we never get it. */
+			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		} else {
+			transmit_request_with_auth(p, SIP_BYE, 0, 1, 1);
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
+		}
 	} else if (ast_test_flag(&p->flags[0], SIP_NEEDREINVITE)) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Sending pending reinvite on '%s'\n", p->callid);
@@ -10109,6 +10119,10 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	case 100:	/* Trying */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE))
 			sip_cancel_destroy(p);
+		/* must call check_pendings before setting CAN_BYE, so that
+		   if PENDINGBYE is set it will know to send CANCEL instead */
+		check_pendings(p);
+		ast_set_flag(&p->flags[0], SIP_CAN_BYE);
 		break;
 	case 180:	/* 180 Ringing */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE))
@@ -10126,6 +10140,10 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
 			}
 		}
+		/* must call check_pendings before setting CAN_BYE, so that
+		   if PENDINGBYE is set it will know to send CANCEL instead */
+		check_pendings(p);
+		ast_set_flag(&p->flags[0], SIP_CAN_BYE);
 		break;
 	case 183:	/* Session progress */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE))
@@ -10138,6 +10156,10 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
 			}
 		}
+		/* must call check_pendings before setting CAN_BYE, so that
+		   if PENDINGBYE is set it will know to send CANCEL instead */
+		check_pendings(p);
+		ast_set_flag(&p->flags[0], SIP_CAN_BYE);
 		break;
 	case 200:	/* 200 OK on invite - someone's answering our call */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE))
