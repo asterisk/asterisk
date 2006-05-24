@@ -7313,8 +7313,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			} else if (global_allowguest == 2) {
 				ast_copy_flags(p, &global_flags, SIP_OSPAUTH);
 				res = check_auth(p, req, p->randdata, sizeof(p->randdata), "", "", "", sipmethod, uri, reliable, ignore); 
-			}
 #endif
+			}
 		}
 
 	}
