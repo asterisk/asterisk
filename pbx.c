@@ -343,7 +343,9 @@ static struct pbx_builtin {
 
 	{ "Hangup", pbx_builtin_hangup,
 	"Hang up the calling channel",
-	"  Hangup(): This application will hang up the calling channel.\n"
+	"  Hangup([causecode]): This application will hang up the calling channel.\n"
+	"If a causecode is given the channel's hangup cause will be set to the given\n"
+	"value.\n"
 	},
 
 	{ "NoOp", pbx_builtin_noop,
@@ -5018,9 +5020,28 @@ static int pbx_builtin_setamaflags(struct ast_channel *chan, void *data)
  */
 static int pbx_builtin_hangup(struct ast_channel *chan, void *data)
 {
-	/* Just return non-zero and it will hang up */
-	if (!chan->hangupcause)
+	if (!ast_strlen_zero(data)) {
+		int cause;
+		char *endptr;
+
+		if ((cause = ast_str2cause(data)) > -1) {
+			chan->hangupcause = cause;
+			return -1;
+		}
+		
+		cause = strtol((const char *) data, &endptr, 10);
+		if (cause != 0 || (data != endptr)) {
+			chan->hangupcause = cause;
+			return -1;
+		}
+			
+		ast_log(LOG_NOTICE, "Invalid cause given to Hangup(): \"%s\"\n", (char *) data);
+	}
+
+	if (!chan->hangupcause) {
 		chan->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+	}
+
 	return -1;
 }
 

@@ -1011,6 +1011,13 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
  */
 const char *ast_cause2str(int state);
 
+/*! Convert the string form of a cause code to a number */
+/*! 
+ * \param name string form of the cause
+ * Returns the cause code
+ */
+int ast_str2cause(const char *name);
+
 /*! Gives the string form of a given channel state */
 /*! 
  * \param state state to get the name of
