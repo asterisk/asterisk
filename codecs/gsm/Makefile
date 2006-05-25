@@ -50,6 +50,7 @@ ifneq (${PROC},sparc64)
 ifneq (${PROC},arm)
 ifneq (${PROC},ppc)
 ifneq (${PROC},ppc64)
+ifneq (${PROC},s390)
 OPTIMIZE+=-march=$(PROC)
 endif
 endif
