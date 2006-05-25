@@ -2488,7 +2488,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (bridge != AST_PBX_NO_HANGUP_PEER)
 			ast_hangup(peer);
 		update_queue(qe->parent, member);
-		res = bridge ? 0 : -1;
+		res = bridge ? -1 : 0;
 	}
 out:
 	hangupcalls(outgoing, NULL);
