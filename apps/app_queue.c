@@ -2389,14 +2389,15 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					ast_log(LOG_WARNING, "monitor-format (in queues.conf) and MONITOR_FILENAME cannot contain a '|'! Not recording.\n");
 					mixmonapp = NULL;
 				}
+
+				if (!monitor_options)
+					monitor_options = ast_strdupa("");
 				
 				if (strchr(monitor_options, '|')) {
 					ast_log(LOG_WARNING, "MONITOR_OPTIONS cannot contain a '|'! Not recording.\n");
 					mixmonapp = NULL;
 				}
 
-				if (!monitor_options)
-					monitor_options = ast_strdupa("");
 
 				if (mixmonapp) {
 					if (!ast_strlen_zero(monitor_exec) && !ast_strlen_zero(monitor_options)) 
