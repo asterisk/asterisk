@@ -883,6 +883,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int using_pseudo = 0;
 	int duration=20;
 	int hr, min, sec;
+	int sent_event = 0;
 	time_t now;
 	struct ast_dsp *dsp=NULL;
 	struct ast_app *app;
@@ -1135,12 +1136,15 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	}
 	ast_log(LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
 
-	manager_event(EVENT_FLAG_CALL, "MeetmeJoin", 
-		      "Channel: %s\r\n"
-		      "Uniqueid: %s\r\n"
-		      "Meetme: %s\r\n"
-		      "Usernum: %d\r\n",
-		      chan->name, chan->uniqueid, conf->confno, user->user_no);
+	if (!sent_event) {
+		manager_event(EVENT_FLAG_CALL, "MeetmeJoin", 
+			      "Channel: %s\r\n"
+			      "Uniqueid: %s\r\n"
+			      "Meetme: %s\r\n"
+			      "Usernum: %d\r\n",
+			      chan->name, chan->uniqueid, conf->confno, user->user_no);
+		sent_event = 1;
+	}
 
 	if (!firstpass && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN)) {
 		firstpass = 1;
@@ -1693,19 +1697,21 @@ bailoutandtrynormal:
 		min = ((now - user->jointime) % 3600) / 60;
 		sec = (now - user->jointime) % 60;
 
-		manager_event(EVENT_FLAG_CALL, "MeetmeLeave",
-			"Channel: %s\r\n"
-			"Uniqueid: %s\r\n"
-			"Meetme: %s\r\n"
-			"Usernum: %d\r\n"
-		        "CallerIDnum: %s\r\n"
-			"CallerIDname: %s\r\n"
-		        "Duration: %ld\r\n",
-			chan->name, chan->uniqueid, conf->confno, 
-			user->user_no,
-			S_OR(user->chan->cid.cid_num, "<unknown>"),
-			S_OR(user->chan->cid.cid_name, "<unknown>"),
-			(now - user->jointime));
+		if (sent_event) {
+			manager_event(EVENT_FLAG_CALL, "MeetmeLeave",
+				      "Channel: %s\r\n"
+				      "Uniqueid: %s\r\n"
+				      "Meetme: %s\r\n"
+				      "Usernum: %d\r\n"
+				      "CallerIDnum: %s\r\n"
+				      "CallerIDname: %s\r\n"
+				      "Duration: %ld\r\n",
+				      chan->name, chan->uniqueid, conf->confno, 
+				      user->user_no,
+				      S_OR(user->chan->cid.cid_num, "<unknown>"),
+				      S_OR(user->chan->cid.cid_name, "<unknown>"),
+				      (now - user->jointime));
+		}
 
 		conf->users--;
 		conf->refcount--;
