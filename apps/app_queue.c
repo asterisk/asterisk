@@ -1659,6 +1659,7 @@ static void record_abandoned(struct queue_ent *qe)
 	ast_mutex_unlock(&qe->parent->lock);
 }
 
+/*! \brief RNA == Ring No Answer. Common code that is executed when we try a queue member and they don't answer. */
 static void rna(int rnatime, struct queue_ent *qe, char *membername)
 {
 
