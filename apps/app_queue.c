@@ -1659,6 +1659,23 @@ static void record_abandoned(struct queue_ent *qe)
 	ast_mutex_unlock(&qe->parent->lock);
 }
 
+static void rna(int rnatime, struct queue_ent *qe, char *membername)
+{
+
+	if (option_verbose > 2)
+		ast_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", rnatime);
+	ast_queue_log(qe->parent->name, qe->chan->uniqueid, membername, "RINGNOANSWER", "%d", rnatime);
+	if (qe->parent->autopause) {
+		if (!set_member_paused(qe->parent->name, membername, 1)) {
+			if (option_verbose > 2)
+				ast_verbose( VERBOSE_PREFIX_3 "Auto-Pausing Queue Member %s in queue %s since they failed to answer.\n", membername, qe->parent->name);
+		} else {
+			if (option_verbose > 2)
+				ast_verbose( VERBOSE_PREFIX_3 "Failed to pause Queue Member %s in queue %s!\n", membername, qe->parent->name);
+		}
+	}
+ return;
+} 
 
 #define AST_MAX_WATCHERS 256
 
@@ -1677,6 +1694,10 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 	struct ast_channel *winner;
 	struct ast_channel *in = qe->chan;
 	char on[256] = "";
+	long starttime = 0;
+	long endtime = 0;	
+
+	starttime = (long)time(NULL);
 	
 	while(*to && !peer) {
 		int numlines, retry, pos = 1;
@@ -1792,6 +1813,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							if (in->cdr)
 								ast_cdr_busy(in->cdr);
 							do_hang(o);
+							endtime = (long)time(NULL);
+							endtime -= starttime;
+							rna(endtime*1000, qe, on);
 							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								if (qe->parent->timeoutrestart)
 									*to = orig;
@@ -1804,6 +1828,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								ast_verbose( VERBOSE_PREFIX_3 "%s is circuit-busy\n", o->chan->name);
 							if (in->cdr)
 								ast_cdr_busy(in->cdr);
+							endtime = (long)time(NULL);
+							endtime -= starttime;
+							rna(endtime*1000, qe, on);
 							do_hang(o);
 							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								if (qe->parent->timeoutrestart)
@@ -1831,6 +1858,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					}
 					ast_frfree(f);
 				} else {
+					endtime = (long)time(NULL);
+					endtime -= starttime;
+					rna(endtime*1000, qe, on);
 					do_hang(o);
 					if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 						if (qe->parent->timeoutrestart)
@@ -1872,20 +1902,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 			}
 			ast_frfree(f);
 		}
-		if (!*to) {
-			if (option_verbose > 2)
-				ast_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);
-			ast_queue_log(qe->parent->name, qe->chan->uniqueid, on, "RINGNOANSWER", "%d", orig);
-			if (qe->parent->autopause) {
-				if (!set_member_paused(qe->parent->name, on, 1)) {
-					if (option_verbose > 2)
-						ast_verbose( VERBOSE_PREFIX_3 "Auto-Pausing Queue Member %s in queue %s since they failed to answer.\n", on, qe->parent->name);
-				} else {
-					if (option_verbose > 2)
-						ast_verbose( VERBOSE_PREFIX_3 "Failed to pause Queue Member %s in queue %s!\n", on, qe->parent->name);
-				}
-			}
-		}
+		if (!*to) 
+			rna(orig, qe, on);
 	}
 
 	return peer;
