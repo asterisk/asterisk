@@ -1069,7 +1069,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	if (!firstpass && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN)) {
 		firstpass = 1;
 		if (!(confflags & CONFFLAG_QUIET))
-			if (!(confflags & CONFFLAG_WAITMARKED) || (conf->markedusers >= 1))
+			if (!(confflags & CONFFLAG_WAITMARKED) || ((confflags & CONFFLAG_MARKEDUSER) && (conf->markedusers >= 1)))
 				conf_play(chan, conf, ENTER);
 	}
 
