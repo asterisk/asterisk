@@ -7138,6 +7138,7 @@ retryowner2:
 					iax2_destroy_nolock(fr->callno);
 					peer->callno = 0;
 					/* Try again eventually */
+					if (option_debug)
 						ast_log(LOG_DEBUG, "Peer lastms %d, historicms %d, maxms %d\n", peer->lastms, peer->historicms, peer->maxms);
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) 
 						peer->pokeexpire = ast_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer);
