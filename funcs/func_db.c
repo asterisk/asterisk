@@ -159,6 +159,53 @@ static struct ast_custom_function db_exists_function = {
 	.read = function_db_exists,
 };
 
+static int function_db_delete(struct ast_channel *chan, char* cmd,
+			      char *parse, char *buf, size_t len)
+{
+	AST_DECLARE_APP_ARGS(args,
+			     AST_APP_ARG(family);
+			     AST_APP_ARG(key);
+	);
+
+	buf[0] = '\0';
+
+	if (ast_strlen_zero(parse)) {
+		ast_log(LOG_WARNING, "DB_DELETE requires an argument, DB_DELETE(<family>/<key>)\n");
+		return -1;
+	}
+
+	AST_NONSTANDARD_APP_ARGS(args, parse, '/');
+
+	if (args.argc < 2) {
+		ast_log(LOG_WARNING, "DB_DELETE requires an argument, DB_DELETE(<family>/<key>)\n");
+		return -1;
+	}
+
+	if (ast_db_get(args.family, args.key, buf, len - 1)) {
+		ast_log(LOG_DEBUG, "DB_DELETE: %s/%s not found in database.\n", args.family, args.key);
+	} else {
+		if (ast_db_del(args.family, args.key)) {
+			ast_log(LOG_DEBUG, "DB_DELETE: %s/%s could not be deleted from the database\n", 
+				args.family, args.key);
+		}
+	}
+	pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
+
+	return 0;
+}
+
+
+static struct ast_custom_function db_delete_function = {
+	.name = "DB_DELETE",
+	.synopsis = "Return a value from the database and delete it",
+	.syntax = "DB_DELETE(<family>/<key>)",
+	.desc =
+		"This function will retrieve a value from the Asterisk database\n"
+		" and then remove that key from the database.  DB_RESULT\n"
+		"will be set to the key's value if it exists.\n",
+	.read = function_db_delete,
+};
+
 static char *tdesc = "Database (astdb) related dialplan functions";
 
 static int unload_module(void *mod)
@@ -167,6 +214,7 @@ static int unload_module(void *mod)
 
 	res |= ast_custom_function_unregister(&db_function);
 	res |= ast_custom_function_unregister(&db_exists_function);
+	res |= ast_custom_function_unregister(&db_delete_function);
 
 	return res;
 }
@@ -177,6 +225,7 @@ static int load_module(void *mod)
 
 	res |= ast_custom_function_register(&db_function);
 	res |= ast_custom_function_register(&db_exists_function);
+	res |= ast_custom_function_register(&db_delete_function);
 
 	return res;
 }

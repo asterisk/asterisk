@@ -48,9 +48,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/options.h"
 
+/*! \todo XXX Remove this application after 1.4 is relased */
 static char *d_descrip =
 "  DBdel(family/key): This applicaiton will delete a key from the Asterisk\n"
-"database.\n";
+"database.\n"
+"  This application has been DEPRECATED in favor of the DB_DELETE function.\n";
 
 static char *dt_descrip =
 "  DBdeltree(family[/keytree]): This application will delete a family or keytree\n"
@@ -109,8 +111,14 @@ static int del_exec(struct ast_channel *chan, void *data)
 {
 	char *argv, *family, *key;
 	struct localuser *u;
+	static int deprecation_warning = 0;
 
 	LOCAL_USER_ADD(u);
+
+	if (!deprecation_warning) {
+		deprecation_warning = 1;
+		ast_log(LOG_WARNING, "The DBdel application has been deprecated in favor of the DB_DELETE dialplan function!\n");
+	}
 
 	argv = ast_strdupa(data);
 
