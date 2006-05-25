@@ -7177,6 +7177,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			}
 			if (!ast_strlen_zero(user->cid_name) && !ast_strlen_zero(p->cid_num)) 
 				ast_copy_string(p->cid_name, user->cid_name, sizeof(p->cid_name));
+			ast_copy_string(p->peername, user->name, sizeof(p->peername));
 			ast_copy_string(p->username, user->name, sizeof(p->username));
 			ast_copy_string(p->peersecret, user->secret, sizeof(p->peersecret));
 			ast_copy_string(p->subscribecontext, user->subscribecontext, sizeof(p->subscribecontext));
