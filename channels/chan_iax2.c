@@ -7732,7 +7732,6 @@ static void *iax2_process_thread(void *data)
 	ast_mutex_destroy(&thread->lock);
 	ast_cond_destroy(&thread->cond);
 	free(thread);
-	thread = NULL;
 
 	return NULL;
 }
@@ -8642,7 +8641,6 @@ static void delete_users(void)
 	AST_LIST_TRAVERSE(&peers, peer, entry)
 		ast_set_flag(peer, IAX_DELME);
 	AST_LIST_UNLOCK(&peers);
-
 }
 
 static void destroy_user(struct iax2_user *user)
@@ -9681,6 +9679,7 @@ static struct ast_cli_entry iax2_cli[] = {
 
 static int __unload_module(void)
 {
+	pthread_t threadid = AST_PTHREADT_NULL;
 	struct iax2_thread *thread = NULL;
 	int x;
 
@@ -9700,24 +9699,36 @@ static int __unload_module(void)
 
 	/* Call for all threads to halt */
 	AST_LIST_LOCK(&idle_list);
-	AST_LIST_TRAVERSE(&idle_list, thread, list) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&idle_list, thread, list) {
+		AST_LIST_REMOVE_CURRENT(&idle_list, list);
+		threadid = thread->threadid;
 		thread->halt = 1;
 		signal_condition(&thread->lock, &thread->cond);
+		pthread_join(threadid, NULL);
 	}
+	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&idle_list);
 
 	AST_LIST_LOCK(&active_list);
-	AST_LIST_TRAVERSE(&active_list, thread, list) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&active_list, thread, list) {
+		AST_LIST_REMOVE_CURRENT(&active_list, list);
+		threadid = thread->threadid;
 		thread->halt = 1;
 		signal_condition(&thread->lock, &thread->cond);
+		pthread_join(threadid, NULL);
 	}
+	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&active_list);
 
 	AST_LIST_LOCK(&dynamic_list);
-        AST_LIST_TRAVERSE(&dynamic_list, thread, list) {
+        AST_LIST_TRAVERSE_SAFE_BEGIN(&dynamic_list, thread, list) {
+		AST_LIST_REMOVE_CURRENT(&dynamic_list, list);
+		threadid = thread->threadid;
                 thread->halt = 1;
                 signal_condition(&thread->lock, &thread->cond);
+		pthread_join(threadid, NULL);
         }
+	AST_LIST_TRAVERSE_SAFE_END
         AST_LIST_UNLOCK(&dynamic_list);
 
 	ast_netsock_release(netsock);
