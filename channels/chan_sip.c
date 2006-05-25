@@ -7627,6 +7627,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			if (!ast_strlen_zero(user->cid_name) && !ast_strlen_zero(p->cid_num))
 				ast_string_field_set(p, cid_name, user->cid_name);
 			ast_string_field_set(p, username, user->name);
+			ast_string_field_set(p, peername, user->name);
 			ast_string_field_set(p, peersecret, user->secret);
 			ast_string_field_set(p, peermd5secret, user->md5secret);
 			ast_string_field_set(p, subscribecontext, user->subscribecontext);
