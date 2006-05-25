@@ -90,6 +90,9 @@ static char *descrip =
 "  This channel will stop dialplan execution on hangup inside of this\n"
 "application, except when using DeadAGI.  Otherwise, dialplan execution\n"
 "will continue normally.\n"
+"  A locally executed AGI script will receive SIGHUP on hangup from the channel\n"
+"except when using DeadAGI. This can be disabled by setting the AGISIGHUP channel\n"
+"variable to \"no\" before executing the AGI application.\n"
 "  Using 'EAGI' provides enhanced AGI, with incoming audio available out of band\n"
 "on file descriptor 3\n\n"
 "  Use the CLI command 'show agi' to list available agi commands\n"
@@ -1858,8 +1861,11 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 	}
 	/* Notify process */
 	if (pid > -1) {
-		if (kill(pid, SIGHUP))
-			ast_log(LOG_WARNING, "unable to send SIGHUP to AGI process %d: %s\n", pid, strerror(errno));
+		const char *sighup = pbx_builtin_getvar_helper(chan, "AGISIGHUP");
+		if (ast_strlen_zero(sighup) || !ast_false(sighup)) {
+			if (kill(pid, SIGHUP))
+				ast_log(LOG_WARNING, "unable to send SIGHUP to AGI process %d: %s\n", pid, strerror(errno));
+		}
 	}
 	fclose(readf);
 	return returnstatus;
