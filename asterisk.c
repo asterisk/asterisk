@@ -608,21 +608,15 @@ static void null_sig_handler(int signal)
 }
 
 AST_MUTEX_DEFINE_STATIC(safe_system_lock);
+/*! Keep track of how many threads are currently trying to wait*() on
+ *  a child process */
 static unsigned int safe_system_level = 0;
 static void *safe_system_prev_handler;
 
-int ast_safe_system(const char *s)
+void ast_replace_sigchld(void)
 {
-	pid_t pid;
-	int x;
-	int res;
-	struct rusage rusage;
-	int status;
 	unsigned int level;
 
-	/* keep track of how many ast_safe_system() functions
-	   are running at this moment
-	*/
 	ast_mutex_lock(&safe_system_lock);
 	level = safe_system_level++;
 
@@ -631,6 +625,31 @@ int ast_safe_system(const char *s)
 		safe_system_prev_handler = signal(SIGCHLD, null_sig_handler);
 
 	ast_mutex_unlock(&safe_system_lock);
+}
+
+void ast_unreplace_sigchld(void)
+{
+	unsigned int level;
+
+	ast_mutex_lock(&safe_system_lock);
+	level = --safe_system_level;
+
+	/* only restore the handler if we are the last one */
+	if (level == 0)
+		signal(SIGCHLD, safe_system_prev_handler);
+
+	ast_mutex_unlock(&safe_system_lock);
+}
+
+int ast_safe_system(const char *s)
+{
+	pid_t pid;
+	int x;
+	int res;
+	struct rusage rusage;
+	int status;
+
+	ast_replace_sigchld();
 
 	pid = fork();
 
@@ -656,14 +675,7 @@ int ast_safe_system(const char *s)
 		res = -1;
 	}
 
-	ast_mutex_lock(&safe_system_lock);
-	level = --safe_system_level;
-
-	/* only restore the handler if we are the last one */
-	if (level == 0)
-		signal(SIGCHLD, safe_system_prev_handler);
-
-	ast_mutex_unlock(&safe_system_lock);
+	ast_unreplace_sigchld();
 
 	return res;
 }

@@ -120,6 +120,27 @@ int ast_app_messagecount(const char *context, const char *mailbox, const char *f
 int ast_safe_system(const char *s);
 
 /*!
+ * \brief Replace the SIGCHLD handler
+ *
+ * Normally, Asterisk has a SIGCHLD handler that is cleaning up all zombie
+ * processes from forking elsewhere in Asterisk.  However, if you want to
+ * wait*() on the process to retrieve information about it's exit status,
+ * then this signal handler needs to be temporaraly replaced.
+ *
+ * Code that executes this function *must* call ast_unreplace_sigchld()
+ * after it is finished doing the wait*().
+ */
+void ast_replace_sigchld(void);
+
+/*!
+ * \brief Restore the SIGCHLD handler
+ *
+ * This function is called after a call to ast_replace_sigchld.  It restores
+ * the SIGCHLD handler that cleans up any zombie processes.
+ */
+void ast_unreplace_sigchld(void);
+
+/*!
   \brief Send DTMF to a channel
 
   \param chan    The channel that will receive the DTMF frames
