@@ -2365,6 +2365,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 						}
 					}
 
+					memset(tmpid, 0, sizeof(tmpid));
 					pbx_substitute_variables_helper(qe->chan, tmpid2, tmpid, sizeof(tmpid) - 1);
 				}
 
@@ -2378,6 +2379,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 							*p = '$';
 						}
 					}
+
+					memset(meid, 0, sizeof(meid));
 					pbx_substitute_variables_helper(qe->chan, meid2, meid, sizeof(meid) - 1);
 				} 
 	
