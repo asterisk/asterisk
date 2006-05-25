@@ -58,10 +58,13 @@ enum {
 	 * maximum number of retries is exceeded, even if the
 	 * modification time of the call file is in the future.
 	 */
-	SPOOL_FLAG_ALWAYS_DELETE = (1 << 0)
+	SPOOL_FLAG_ALWAYS_DELETE = (1 << 0),
+	/* Don't unlink the call file after processing, move in qdonedir */
+	SPOOL_FLAG_ARCHIVE = (1 << 1)
 };
 
 static char qdir[255];
+static char qdonedir[255];
 
 struct outgoing {
 	char fn[256];
@@ -228,6 +231,8 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 					ast_copy_string(o->account, c, sizeof(o->account));
 				} else if (!strcasecmp(buf, "alwaysdelete")) {
 					ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_ALWAYS_DELETE);
+				} else if (!strcasecmp(buf, "archive")) {
+					ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_ARCHIVE);
 				} else {
 					ast_log(LOG_WARNING, "Unknown keyword '%s' at line %d of %s\n", buf, lineno, fn);
 				}
@@ -264,17 +269,59 @@ static void safe_append(struct outgoing *o, time_t now, char *s)
 	}
 }
 
-static void check_unlink(struct outgoing *o)
+/*!
+ * \brief Remove a call file from the outgoing queue optionally moving it in the archive dir
+ *
+ * \param o the pointer to outgoing struct
+ * \param status the exit status of the call. Can be "Completed", "Failed" or "Expired"
+ */
+static int remove_from_queue(struct outgoing *o, const char *status)
 {
-	if (ast_test_flag(&o->options, SPOOL_FLAG_ALWAYS_DELETE))
-		unlink(o->fn);
-	else {
+	int fd;
+	FILE *f;
+	char newfn[256];
+	const char *bname;
+
+	if (!ast_test_flag(&o->options, SPOOL_FLAG_ALWAYS_DELETE)) {
 		struct stat current_file_status;
-	
+
 		if (!stat(o->fn, &current_file_status))
-			if (time(NULL) >= current_file_status.st_mtime)
-				unlink(o->fn);
+			if (time(NULL) < current_file_status.st_mtime)
+				return 0;
 	}
+
+	if (!ast_test_flag(&o->options, SPOOL_FLAG_ARCHIVE)) {
+		unlink(o->fn);
+		return 0;
+	}
+	if (mkdir(qdonedir, 0700) && (errno != EEXIST)) {
+		ast_log(LOG_WARNING, "Unable to create queue directory %s -- outgoing spool archiving disabled\n", qdonedir);
+		unlink(o->fn);
+		return -1;
+	}
+	fd = open(o->fn, O_WRONLY|O_APPEND);
+	if (fd > -1) {
+		f = fdopen(fd, "a");
+		if (f) {
+			fprintf(f, "Status: %s\n", status);
+			fclose(f);
+		} else
+			close(fd);
+	}
+
+	bname = strrchr(o->fn,'/');
+	if (bname == NULL) 
+		bname = o->fn;
+	else 
+		bname++;	
+	snprintf(newfn, sizeof(newfn), "%s/%s", qdonedir, bname);
+	/* a existing call file the archive dir is overwritten */
+	unlink(newfn);
+	if (rename(o->fn, newfn) != 0) {
+		unlink(o->fn);
+		return -1;
+	} else
+		return 0;
 }
 
 static void *attempt_thread(void *data)
@@ -295,7 +342,7 @@ static void *attempt_thread(void *data)
 		if (o->retries >= o->maxretries + 1) {
 			/* Max retries exceeded */
 			ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
-			check_unlink(o);
+			remove_from_queue(o, "Expired");
 		} else {
 			/* Notate that the call is still active */
 			safe_append(o, time(NULL), "EndRetry");
@@ -303,7 +350,7 @@ static void *attempt_thread(void *data)
 	} else {
 		ast_log(LOG_NOTICE, "Call completed to %s/%s\n", o->tech, o->dest);
 		ast_log(LOG_EVENT, "Queued call to %s/%s completed\n", o->tech, o->dest);
-		check_unlink(o);
+		remove_from_queue(o, "Completed");
 	}
 	free_outgoing(o);
 	return NULL;
@@ -357,19 +404,19 @@ static int scan_service(char *fn, time_t now, time_t atime)
 				} else {
 					ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
 					free_outgoing(o);
-					unlink(fn);
+					remove_from_queue(o, "Expired");
 					return 0;
 				}
 			} else {
 				free_outgoing(o);
 				ast_log(LOG_WARNING, "Invalid file contents in %s, deleting\n", fn);
 				fclose(f);
-				unlink(fn);
+				remove_from_queue(o, "Failed");
 			}
 		} else {
 			free_outgoing(o);
 			ast_log(LOG_WARNING, "Unable to open %s: %s, deleting\n", fn, strerror(errno));
-			unlink(fn);
+			remove_from_queue(o, "Failed");
 		}
 	} else
 		ast_log(LOG_WARNING, "Out of memory :(\n");
@@ -445,6 +492,7 @@ static int load_module(void *mod)
 		ast_log(LOG_WARNING, "Unable to create queue directory %s -- outgoing spool disabled\n", qdir);
 		return 0;
 	}
+	snprintf(qdonedir, sizeof(qdir), "%s/%s", ast_config_AST_SPOOL_DIR, "outgoing_done");
 	pthread_attr_init(&attr);
  	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	if ((ret = ast_pthread_create(&thread,&attr,scan_thread, NULL)) != 0) {
