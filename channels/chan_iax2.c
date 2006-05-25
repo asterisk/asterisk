@@ -5380,7 +5380,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	struct iax2_registry *reg;
 	/* Start pessimistic */
 	char peer[256] = "";
-	char msgstatus[40];
+	char msgstatus[60];
 	int refresh = 0;
 	char ourip[256] = "<Unspecified>";
 	struct sockaddr_in oldus;
@@ -5410,7 +5410,8 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 		return -1;
 	}
 	memcpy(&reg->us, &us, sizeof(reg->us));
-	reg->messages = ies->msgcount & 0xffff;		/* only low 16 bits are used in the transmission of the IE */
+	if (ies->msgcount >= 0)
+		reg->messages = ies->msgcount & 0xffff;		/* only low 16 bits are used in the transmission of the IE */
 	/* always refresh the registration at the interval requested by the server
 	   we are registering to
 	*/
