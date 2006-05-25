@@ -51,6 +51,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		ast_channel_unlock(chan); \
 	} while (0)
 
+char *transfercapability_table[0x20] = {
+	"SPEECH", "UNK", "UNK", "UNK", "UNK", "UNK", "UNK", "UNK",
+	"DIGITAL", "RESTRICTED_DIGITAL", "UNK", "UNK", "UNK", "UNK", "UNK", "UNK",
+	"3K1AUDIO", "DIGITAL_W_TONES", "UNK", "UNK", "UNK", "UNK", "UNK", "UNK",
+	"VIDEO", "UNK", "UNK", "UNK", "UNK", "UNK", "UNK", "UNK", };
+
 static int func_channel_read(struct ast_channel *chan, char *function,
 			     char *data, char *buf, size_t len)
 {
@@ -78,6 +84,8 @@ static int func_channel_read(struct ast_channel *chan, char *function,
 		locked_copy_string(chan, buf, ast_state2str(chan->_state), len);
 	else if (!strcasecmp(data, "channeltype"))
 		locked_copy_string(chan, buf, chan->tech->type, len);
+	else if (!strcasecmp(data, "transfercapability"))
+		locked_copy_string(chan, buf, transfercapability_table[chan->transfercapability & 0x1f], len);
 	else if (!strcasecmp(data, "callgroup")) {
 		char groupbuf[256];
 		locked_copy_string(chan, buf,  ast_print_group(groupbuf, sizeof(groupbuf), chan->callgroup), len);
@@ -107,7 +115,15 @@ static int func_channel_write(struct ast_channel *chan, char *function,
 		ast_channel_setoption(chan, AST_OPTION_TXGAIN, &gainset, sizeof(gainset), 0);
 	} else if (!strcasecmp(data, "rxgain")) {
 		sscanf(value, "%hhd", &gainset);
-		ast_channel_setoption(chan, AST_OPTION_RXGAIN, &gainset, sizeof(gainset), 0);	
+		ast_channel_setoption(chan, AST_OPTION_RXGAIN, &gainset, sizeof(gainset), 0);
+	} else if (!strcasecmp(data, "transfercapability")) {
+		unsigned short i;
+		for (i = 0; i < 0x20; i++) {
+			if (!strcasecmp(transfercapability_table[i], value) && strcmp(value, "UNK")) {
+				chan->transfercapability = i;
+				break;
+			}
+		}
 	} else if (!chan->tech->func_channel_write
 		 || chan->tech->func_channel_write(chan, function, data, value)) {
 		ast_log(LOG_WARNING, "Unknown or unavailable item requested: '%s'\n",

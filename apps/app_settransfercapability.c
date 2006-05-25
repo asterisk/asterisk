@@ -76,9 +76,15 @@ static int settransfercapability_exec(struct ast_channel *chan, void *data)
 	int x;
 	char *opts;
 	int transfercapability = -1;
+	static int dep_warning = 0;
 	
 	LOCAL_USER_ADD(u);
-	
+
+	if (!dep_warning) {
+		dep_warning = 1;
+		ast_log(LOG_WARNING, "SetTransferCapability is deprecated.  Please use CHANNEL(transfercapability) instead.\n");
+	}
+
 	if (data)
 		tmp = ast_strdupa(data);
 	else

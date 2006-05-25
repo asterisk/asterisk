@@ -66,8 +66,13 @@ lookupcidname_exec (struct ast_channel *chan, void *data)
 {
   char dbname[64];
   struct localuser *u;
+	static int dep_warning = 0;
 
   LOCAL_USER_ADD (u);
+	if (!dep_warning) {
+		dep_warning = 1;
+		ast_log(LOG_WARNING, "LookupCIDName is deprecated.  Please use ${DB(cidname/${CALLERID(num)})} instead.\n");
+	}
   if (chan->cid.cid_num) {
 	if (!ast_db_get ("cidname", chan->cid.cid_num, dbname, sizeof (dbname))) {
 		ast_set_callerid (chan, NULL, dbname, NULL);

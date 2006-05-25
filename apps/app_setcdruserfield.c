@@ -109,11 +109,17 @@ static int setcdruserfield_exec(struct ast_channel *chan, void *data)
 {
 	struct localuser *u;
 	int res = 0;
+	static int dep_warning = 0;
 	
 	LOCAL_USER_ADD(u);
 
 	if (chan->cdr && data) {
 		ast_cdr_setuserfield(chan, (char*)data);
+	}
+
+	if (!dep_warning) {
+		dep_warning = 1;
+		ast_log(LOG_WARNING, "SetCDRUserField is deprecated.  Please use CDR(userfield) instead.\n");
 	}
 
 	LOCAL_USER_REMOVE(u);
@@ -125,11 +131,17 @@ static int appendcdruserfield_exec(struct ast_channel *chan, void *data)
 {
 	struct localuser *u;
 	int res = 0;
+	static int dep_warning = 0;
 	
 	LOCAL_USER_ADD(u);
 
 	if (chan->cdr && data) {
 		ast_cdr_appenduserfield(chan, (char*)data);
+	}
+
+	if (!dep_warning) {
+		dep_warning = 1;
+		ast_log(LOG_WARNING, "AppendCDRUserField is deprecated.  Please use CDR(userfield) instead.\n");
 	}
 
 	LOCAL_USER_REMOVE(u);

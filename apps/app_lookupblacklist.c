@@ -65,6 +65,32 @@ static char *descrip =
 
 LOCAL_USER_DECL;
 
+static int blacklist_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	char blacklist[1];
+	int bl = 0;
+
+	if (chan->cid.cid_num) {
+		if (!ast_db_get("blacklist", chan->cid.cid_num, blacklist, sizeof (blacklist)))
+			bl = 1;
+	}
+	if (chan->cid.cid_name) {
+		if (!ast_db_get("blacklist", chan->cid.cid_name, blacklist, sizeof (blacklist)))
+			bl = 1;
+	}
+
+	snprintf(buf, len, "%d", bl);
+	return 0;
+}
+
+static struct ast_custom_function blacklist_function = {
+	.name = "BLACKLIST",
+	.synopsis = "Check if the callerid is on the blacklist",
+	.desc = "Uses astdb to check if the Caller*ID is in family 'blacklist'.  Returns 1 or 0.\n",
+	.syntax = "BLACKLIST()",
+	.read = blacklist_read,
+};
+
 static int
 lookupblacklist_exec (struct ast_channel *chan, void *data)
 {
@@ -72,8 +98,14 @@ lookupblacklist_exec (struct ast_channel *chan, void *data)
 	struct localuser *u;
 	int bl = 0;
 	int priority_jump = 0;
+	static int dep_warning = 0;
 
 	LOCAL_USER_ADD(u);
+
+	if (!dep_warning) {
+		dep_warning = 1;
+		ast_log(LOG_WARNING, "LookupBlacklist is deprecated.  Please use ${BLACKLIST()} instead.\n");
+	}
 
 	if (!ast_strlen_zero(data)) {
 		if (strchr(data, 'j'))
@@ -112,6 +144,7 @@ static int unload_module(void *mod)
 	int res;
 
 	res = ast_unregister_application(app);
+	res |= ast_custom_function_unregister(&blacklist_function);
 
 	STANDARD_HANGUP_LOCALUSERS;
 
@@ -120,7 +153,9 @@ static int unload_module(void *mod)
 
 static int load_module(void *mod)
 {
-	return ast_register_application (app, lookupblacklist_exec, synopsis,descrip);
+	int res = ast_custom_function_register(&blacklist_function);
+	res |= ast_register_application (app, lookupblacklist_exec, synopsis,descrip);
+	return res;
 }
 
 static const char *description(void)
