@@ -72,26 +72,30 @@ static int echo_exec(struct ast_channel *chan, void *data)
 			break;
 		f->delivery.tv_sec = 0;
 		f->delivery.tv_usec = 0;
-		if (f->frametype == AST_FRAME_VOICE) {
-			if (ast_write(chan, f)) 
-				break;
-		} else if (f->frametype == AST_FRAME_VIDEO) {
-			if (ast_write(chan, f)) 
-				break;
-		} else if (f->frametype == AST_FRAME_DTMF) {
+		switch (f->frametype) {
+		case AST_FRAME_DTMF:
+		case AST_FRAME_DTMF_END:
 			if (f->subclass == '#') {
 				res = 0;
-				break;
-			} else {
-				if (ast_write(chan, f))
-					break;
+				ast_frfree(f);
+				goto end;
+			}
+			/* fall through */
+		case AST_FRAME_DTMF_BEGIN:
+		case AST_FRAME_VOICE:
+		case AST_FRAME_VIDEO:
+		case AST_FRAME_TEXT:
+		case AST_FRAME_HTML:
+		case AST_FRAME_IMAGE:
+			if (ast_write(chan, f)) {
+				ast_frfree(f);
+				goto end;
 			}
 		}
 		ast_frfree(f);
 	}
-
+end:
 	LOCAL_USER_REMOVE(u);
-
 	return res;
 }
 
