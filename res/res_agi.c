@@ -86,11 +86,15 @@ static char *descrip =
 "written in any language to control a telephony channel, play audio,\n"
 "read DTMF digits, etc. by communicating with the AGI protocol on stdin\n"
 "and stdout.\n"
-"Returns -1 on hangup (except for DeadAGI) or if application requested\n"
-" hangup, or 0 on non-hangup exit. \n"
-"Using 'EAGI' provides enhanced AGI, with incoming audio available out of band\n"
+"  This channel will stop dialplan execution on hangup inside of this\n"
+"application, except when using DeadAGI.  Otherwise, dialplan execution\n"
+"will continue normally.\n"
+"  Using 'EAGI' provides enhanced AGI, with incoming audio available out of band\n"
 "on file descriptor 3\n\n"
-"Use the CLI command 'show agi' to list available agi commands\n";
+"  Use the CLI command 'show agi' to list available agi commands\n"
+"  This application sets the following channel variable upon completion:\n"
+"     AGISTATUS      The status of the attempt to the run the AGI script\n"
+"                    text string, one of SUCCESS | FAILED | HANGUP\n";
 
 static int agidebug = 0;
 
@@ -102,6 +106,12 @@ struct module_symbols *me;
 #define MAX_AGI_CONNECT 2000
 
 #define AGI_PORT 4573
+
+enum agi_result {
+	AGI_RESULT_SUCCESS,
+	AGI_RESULT_FAILURE,
+	AGI_RESULT_HANGUP
+};
 
 static void agi_debug_cli(int fd, char *fmt, ...)
 {
@@ -124,7 +134,7 @@ static void agi_debug_cli(int fd, char *fmt, ...)
 
 /* launch_netscript: The fastagi handler.
 	FastAGI defaults to port 4573 */
-static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int *opid)
+static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int *opid)
 {
 	int s;
 	int flags;
@@ -181,7 +191,7 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) && (errno != EINPROGRESS)) {
 		ast_log(LOG_WARNING, "Connect failed with unexpected error: %s\n", strerror(errno));
 		close(s);
-		return -1;
+		return AGI_RESULT_FAILURE;
 	}
 
 	pfds[0].fd = s;
@@ -190,7 +200,7 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 		if (errno != EINTR) {
 			ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
 			close(s);
-			return -1;
+			return AGI_RESULT_FAILURE;
 		}
 	}
 	/* XXX in theory should check for partial writes... */
@@ -198,7 +208,7 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 		if (errno != EINTR) {
 			ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
 			close(s);
-			return -1;
+			return AGI_RESULT_FAILURE;
 		}
 	}
 
@@ -211,10 +221,10 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 	fds[0] = s;
 	fds[1] = s;
 	*opid = -1;
-	return 0;
+	return AGI_RESULT_SUCCESS;
 }
 
-static int launch_script(char *script, char *argv[], int *fds, int *efd, int *opid)
+static enum agi_result launch_script(char *script, char *argv[], int *fds, int *efd, int *opid)
 {
 	char tmp[256];
 	int pid;
@@ -234,13 +244,13 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 	}
 	if (pipe(toast)) {
 		ast_log(LOG_WARNING, "Unable to create toast pipe: %s\n",strerror(errno));
-		return -1;
+		return AGI_RESULT_FAILURE;
 	}
 	if (pipe(fromast)) {
 		ast_log(LOG_WARNING, "unable to create fromast pipe: %s\n", strerror(errno));
 		close(toast[0]);
 		close(toast[1]);
-		return -1;
+		return AGI_RESULT_FAILURE;
 	}
 	if (efd) {
 		if (pipe(audio)) {
@@ -249,7 +259,7 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 			close(fromast[1]);
 			close(toast[0]);
 			close(toast[1]);
-			return -1;
+			return AGI_RESULT_FAILURE;
 		}
 		res = fcntl(audio[1], F_GETFL);
 		if (res > -1) 
@@ -262,13 +272,13 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 			close(toast[1]);
 			close(audio[0]);
 			close(audio[1]);
-			return -1;
+			return AGI_RESULT_FAILURE;
 		}
 	}
 	pid = fork();
 	if (pid < 0) {
 		ast_log(LOG_WARNING, "Failed to fork(): %s\n", strerror(errno));
-		return -1;
+		return AGI_RESULT_FAILURE;
 	}
 	if (!pid) {
 		/* Pass paths to AGI via environmental variables */
@@ -324,13 +334,11 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 	close(toast[1]);
 	close(fromast[0]);
 
-	if (efd) {
-		/* [PHM 12/18/03] */
+	if (efd)
 		close(audio[0]);
-	}
 
 	*opid = pid;
-	return 0;
+	return AGI_RESULT_SUCCESS;
 		
 }
 
@@ -1773,12 +1781,12 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 	return 0;
 }
 #define RETRY	3
-static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, int dead)
+static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, int dead)
 {
 	struct ast_channel *c;
 	int outfd;
 	int ms;
-	int returnstatus = 0;
+	enum agi_result returnstatus = AGI_RESULT_SUCCESS;
 	struct ast_frame *f;
 	char buf[2048];
 	FILE *readf;
@@ -1791,7 +1799,7 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, i
 		if (pid > -1)
 			kill(pid, SIGHUP);
 		close(agi->ctrl);
-		return -1;
+		return AGI_RESULT_FAILURE;
 	}
 	setlinebuf(readf);
 	setup_env(chan, request, agi->fd, (agi->audio > -1));
@@ -1804,7 +1812,7 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, i
 			f = ast_read(c);
 			if (!f) {
 				ast_log(LOG_DEBUG, "%s hungup\n", chan->name);
-				returnstatus = -1;
+				returnstatus = AGI_RESULT_HANGUP;
 				break;
 			} else {
 				/* If it's voice, write it to the audio pipe */
@@ -1839,7 +1847,7 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, i
 		} else {
 			if (--retry <= 0) {
 				ast_log(LOG_WARNING, "No channel, no fd?\n");
-				returnstatus = -1;
+				returnstatus = AGI_RESULT_FAILURE;
 				break;
 			}
 		}
@@ -1933,7 +1941,7 @@ static int handle_dumpagihtml(int fd, int argc, char *argv[])
 
 static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int dead)
 {
-	int res=0;
+	enum agi_result res;
 	struct localuser *u;
 	char *argv[MAX_ARGS];
 	char buf[2048]="";
@@ -1967,7 +1975,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 	}
 #endif
 	res = launch_script(argv[0], argv, fds, enhanced ? &efd : NULL, &pid);
-	if (!res) {
+	if (res == AGI_RESULT_SUCCESS) {
 		agi.fd = fds[1];
 		agi.ctrl = fds[0];
 		agi.audio = efd;
@@ -1977,7 +1985,20 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 			close(efd);
 	}
 	ast_localuser_remove(me, u);
-	return res;
+
+	switch (res) {
+	case AGI_RESULT_SUCCESS:
+		pbx_builtin_setvar_helper(chan, "AGISTATUS", "SUCCESS");
+		break;
+	case AGI_RESULT_FAILURE:
+		pbx_builtin_setvar_helper(chan, "AGISTATUS", "FAILURE");
+		break;
+	case AGI_RESULT_HANGUP:
+		pbx_builtin_setvar_helper(chan, "AGISTATUS", "HANGUP");
+		return -1;
+	}
+
+	return 0;
 }
 
 static int agi_exec(struct ast_channel *chan, void *data)

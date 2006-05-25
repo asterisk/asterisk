@@ -602,6 +602,7 @@ In Asterisk 1.2, many applications return the result in a variable
 instead of, as in Asterisk 1.0, changing the dial plan priority (+101).
 For the various status values, see each application's help text.
 
+${AGISTATUS}			* agi()
 ${AQMSTATUS}			* addqueuemember()
 ${AVAILSTATUS}			* chanisavail()
 ${CHECKGROUPSTATUS}		* checkgroup()
