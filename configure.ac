@@ -28,19 +28,17 @@ case "${host}" in
      ;;
      *)
      ac_default_prefix=/usr
+     if test ${sysconfdir} = '${prefix}/etc'; then
+        sysconfdir=/etc
+     fi
+     if test ${mandir} = '${prefix}/man'; then
+        mandir=/usr/share/man
+     fi
      ;;
 esac
 
-if test ${sysconfdir} = '${prefix}/etc'; then
-   sysconfdir=/etc
-fi
-
 if test ${localstatedir} = '${prefix}/var'; then
-   localstatedir=/var
-fi
-
-if test ${mandir} = '${prefix}/man'; then
-   mandir=/usr/share/man
+     localstatedir=/var
 fi
 
 ### ** Platform.

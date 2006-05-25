@@ -95,14 +95,18 @@ ifeq ($(OSARCH),SunOS)
 else
   ASTETCDIR=$(sysconfdir)/asterisk
   ASTLIBDIR=$(libdir)/asterisk
-  ASTVARLIBDIR=$(localstatedir)/lib/asterisk
-  ASTSPOOLDIR=$(localstatedir)/spool/asterisk
-  ASTLOGDIR=$(localstatedir)/log/asterisk
   ASTHEADERDIR=$(includedir)/asterisk
   ASTBINDIR=$(bindir)
   ASTSBINDIR=$(sbindir)
+  ASTSPOOLDIR=$(localstatedir)/spool/asterisk
+  ASTLOGDIR=$(localstatedir)/log/asterisk
   ASTVARRUNDIR=$(localstatedir)/run
   ASTMANDIR=$(mandir)
+ifeq ($(OSARCH),FreeBSD)
+  ASTVARLIBDIR=$(prefix)/share/asterisk
+else
+  ASTVARLIBDIR=$(localstatedir)/lib/asterisk
+endif
 endif
 ASTDATADIR?=$(ASTVARLIBDIR)
 
