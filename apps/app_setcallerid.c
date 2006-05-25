@@ -107,6 +107,7 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char *opt;
 	int anitoo = 0;
+	static int dep_warning = 0;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SetCallerID requires an argument!\n");
@@ -114,7 +115,12 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 	}
 	
 	LOCAL_USER_ADD(u);
-	
+
+	if (!dep_warning) {
+		dep_warning = 1;
+		ast_log(LOG_WARNING, "SetCallerID is deprecated.  Please use Set(CALLERID(all)=...) or Set(CALLERID(ani)=...) instead.\n");
+	}
+
 	tmp = ast_strdupa(data);
 	
 	opt = strchr(tmp, '|');
