@@ -14,21 +14,22 @@ automatically), which libraries you wish to have ignored even though they may
 be present, etc.
 
 You must run the configure script before Asterisk will build, although it will
-attempt to automatically run it for you with no options specified; for most users,
-that will result in a similar build to what they would have had before the
-configure script was added to the build process (except for having to run 'make'
-again after the configure script is run). Note that the configure script does NOT
-need to be re-run just to rebuild Asterisk; you only need to re-run it when your
-system configuration changes or you wish to build Asterisk with different options.
+attempt to automatically run it for you with no options specified; for most
+users, that will result in a similar build to what they would have had before
+the configure script was added to the build process (except for having to run
+'make' again after the configure script is run). Note that the configure script
+does NOT need to be re-run just to rebuild Asterisk; you only need to re-run it
+when your system configuration changes or you wish to build Asterisk with 
+different options.
 
 Build Process (module selection):
 
 The Asterisk source tree now includes a basic module selection and build option
 selection tool called 'menuselect'. Run 'make menuselect' to make your choices.
 In this tool, you can disable building of modules that you don't care about,
-turn on/off global options for the build and see which modules will not (and cannot)
-be built because your system does not have the required external dependencies
-installed.
+turn on/off global options for the build and see which modules will not 
+(and cannot) be built because your system does not have the required external
+dependencies installed.
 
 The resulting file from menuselect is called 'menuselect.makeopts'. Note that
 the resulting menuselect.makeopts file generally contains which modules *not*
@@ -187,8 +188,9 @@ Functions:
   modules.conf file then you will need to explicitly load the modules that
   contain the functions you want to use.
 
-* The ENUMLOOKUP() function with the 'c' option (for counting the number of records),
-  but the lookup fails to match any records, the returned value will now be "0" instead of blank.
+* The ENUMLOOKUP() function with the 'c' option (for counting the number of 
+  records), but the lookup fails to match any records, the returned value will 
+  now be "0" instead of blank.
 
 * The REALTIME() function is now available in version 1.4 and app_realtime has
   been deprecated in favor of the new function. app_realtime will be removed
@@ -206,7 +208,8 @@ The IAX2 channel:
 
 The SIP channel:
 
-* The "incominglimit" setting is replaced by the "call-limit" setting in sip.conf.
+* The "incominglimit" setting is replaced by the "call-limit" setting in 
+  sip.conf.
 
 * OSP support code is removed from SIP channel to OSP applications. ospauth 
   option in sip.conf is removed to osp.conf as authpolicy. allowguest option
@@ -214,13 +217,17 @@ The SIP channel:
 
 The Zap channel:
 
-* Support for MFC/R2 has been removed, as it has not been functional for some time
-  and it has no maintainer.
+* Support for MFC/R2 has been removed, as it has not been functional for some
+  time and it has no maintainer.
 
 Installation:
 
-* On BSD systems, the installation directories have changed to more "FreeBSDish" directories. On startup, Asterisk will look for the main configuration in /usr/local/etc/asterisk/asterisk.conf
-If you have an old installation, you might want to remove the binaries and move the configuration files to the new locations. The following directories are now default:
+* On BSD systems, the installation directories have changed to more "FreeBSDish"
+  directories. On startup, Asterisk will look for the main configuration in 
+  /usr/local/etc/asterisk/asterisk.conf
+  If you have an old installation, you might want to remove the binaries and 
+  move the configuration files to the new locations. The following directories 
+  are now default:
 	ASTLIBDIR	/usr/local/lib/asterisk
 	ASTVARLIBDIR	/usr/local/share/asterisk
 	ASTETCDIR	/usr/local/etc/asterisk
@@ -229,8 +236,8 @@ If you have an old installation, you might want to remove the binaries and move 
 
 Sounds:
 
-* The phonetic sounds directory has been removed from the asterisk-sounds package
-  because they are now included directly in Asterisk.  However, it is important to
-  note that the phonetic sounds that existed in asterisk-sounds used a different
-  naming convention than the sounds in Asterisk.  For example, instead of alpha.gsm
-  and bravo.gsm, Asterisk has a_p.gsm and b_p.gsm.
+* The phonetic sounds directory has been removed from the asterisk-sounds
+  package because they are now included directly in Asterisk.  However, it is
+  important to note that the phonetic sounds that existed in asterisk-sounds 
+  used a different naming convention than the sounds in Asterisk.  For example,
+  instead of alpha.gsm and bravo.gsm, Asterisk has a_p.gsm and b_p.gsm.
