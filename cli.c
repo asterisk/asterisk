@@ -114,6 +114,11 @@ static char set_debug_help[] =
 "       no messages should be displayed. Equivalent to -d[d[d...]]\n"
 "       on startup.\n";
 
+static char logger_mute_help[] = 
+"Usage: logger mute\n"
+"       Disables logging output to the current console, making it possible to\n"
+"       gather information without being disturbed by scrolling lines.\n";
+
 static char softhangup_help[] =
 "Usage: soft hangup <channel>\n"
 "       Request that a channel be hung up. The hangup takes effect\n"
@@ -210,6 +215,14 @@ static int handle_set_debug(int fd, int argc, char *argv[])
 		ast_cli(fd, "Core debug is at least %d\n", option_debug);
 	else if (oldval > 0 && option_debug == 0)
 		ast_cli(fd, "Core debug is now OFF\n");
+	return RESULT_SUCCESS;
+}
+
+static int handle_logger_mute(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	ast_console_mute(fd);
 	return RESULT_SUCCESS;
 }
 
@@ -919,6 +932,7 @@ static struct ast_cli_entry builtins[] = {
 	{ { "reload", NULL }, handle_reload, "Reload configuration", reload_help, complete_mod_2 },
 	{ { "set", "debug", NULL }, handle_set_debug, "Set level of debug chattiness", set_debug_help },
 	{ { "set", "verbose", NULL }, handle_set_verbose, "Set level of verboseness", set_verbose_help },
+	{ { "logger", "mute", NULL }, handle_logger_mute, "Disable logging output to a console", logger_mute_help },
 	{ { "show", "channel", NULL }, handle_showchan, "Display information on a specific channel", showchan_help, complete_ch_3 },
 	{ { "show", "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help, complete_show_channels },
 	{ { "show", "modules", NULL }, handle_modlist, "List modules and info", modlist_help },

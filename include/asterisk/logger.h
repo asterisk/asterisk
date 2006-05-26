@@ -82,6 +82,9 @@ int ast_unregister_verbose(void (*verboser)(const char *string, int opos, int re
 int ast_verbose_dmesg(void (*verboser)(const char *string, int opos, int replacelast, int complete));
 void ast_console_puts(const char *string);
 
+extern void ast_console_puts_mutable(const char *string);
+extern void ast_console_mute(int fd);
+
 #define _A_ __FILE__, __LINE__, __PRETTY_FUNCTION__
 
 #ifdef LOG_DEBUG

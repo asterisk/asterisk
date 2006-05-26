@@ -160,6 +160,7 @@ struct ast_flags ast_options = { AST_DEFAULT_OPTIONS };
 
 int option_verbose = 0;				/*!< Verbosity level */
 int option_debug = 0;				/*!< Debug level */
+int option_mute = 0;				/*!< Mute console */
 
 double option_maxload = 0.0;			/*!< Max load avg on system */
 int option_maxcalls = 0;			/*!< Max number of active calls */
@@ -176,6 +177,7 @@ struct console {
 	int fd;				/*!< File descriptor */
 	int p[2];			/*!< Pipe */
 	pthread_t t;			/*!< Thread of handler */
+	int mute;			/*!< Is the console muted for logs */
 };
 
 struct ast_atexit {
@@ -681,6 +683,51 @@ int ast_safe_system(const char *s)
 }
 
 /*!
+ * mute or unmute a console from logging
+ */
+void ast_console_mute(int fd) {
+	int x;
+	for (x=0;x<AST_MAX_CONNECTS; x++) {
+		if (fd == consoles[x].fd) {
+			if (consoles[x].mute) {
+				consoles[x].mute=0;
+				ast_cli(fd, "Console is not muted anymore.\n");
+			} else {
+				consoles[x].mute=1;
+				ast_cli(fd, "Console is muted.\n");
+			}
+			return;
+		}
+	}
+	ast_cli(fd, "Couldn't find remote console.\n");
+}
+
+/*!
+ * log the string to all attached console clients
+ */
+static void ast_network_puts_mutable(const char *string)
+{
+	int x;
+	for (x=0;x < AST_MAX_CONNECTS; x++) {
+		if (consoles[x].mute)
+			continue;;
+		if (consoles[x].fd > -1) 
+			fdprint(consoles[x].p[1], string);
+	}
+}
+
+/*!
+ * log the string to the console, and all attached
+ * console clients
+ */
+void ast_console_puts_mutable(const char *string)
+{
+	fputs(string, stdout);
+	fflush(stdout);
+	ast_network_puts_mutable(string);
+}
+
+/*!
  * write the string to all attached console clients
  */
 static void ast_network_puts(const char *string)
@@ -711,14 +758,14 @@ static void network_verboser(const char *s, int pos, int replace, int complete)
 		if ((t = alloca(strlen(s) + 2))) {
 			sprintf(t, "\r%s", s);
 			if (complete)
-				ast_network_puts(t);
+				ast_network_puts_mutable(t);
 		} else {
 			ast_log(LOG_ERROR, "Out of memory\n");
-			ast_network_puts(s);
+			ast_network_puts_mutable(s);
 		}
 	} else {
 		if (complete)
-			ast_network_puts(s);
+			ast_network_puts_mutable(s);
 	}
 }
 
@@ -819,6 +866,7 @@ static void *listener(void *unused)
 					flags = fcntl(consoles[x].p[1], F_GETFL);
 					fcntl(consoles[x].p[1], F_SETFL, flags | O_NONBLOCK);
 					consoles[x].fd = s;
+					consoles[x].mute = 0;
 					if (ast_pthread_create(&consoles[x].t, &attr, netconsole, &consoles[x])) {
 						ast_log(LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
 						close(consoles[x].p[0]);
@@ -2025,6 +2073,10 @@ static void ast_remotecontrol(char * data)
 	fdprint(ast_consock, tmp);
 	snprintf(tmp, sizeof(tmp), "set debug atleast %d", option_debug);
 	fdprint(ast_consock, tmp);
+	if (option_mute) {
+		snprintf(tmp, sizeof(tmp), "logger mute");
+		fdprint(ast_consock, tmp);
+	}
 	ast_verbose("Connected to Asterisk %s currently running on %s (pid = %d)\n", version, hostname, pid);
 	remotehostname = hostname;
 	if (getenv("HOME")) 
@@ -2093,6 +2145,7 @@ static int show_cli_help(void) {
 	printf("   -I              Enable internal timing if Zaptel timer is available\n");
 	printf("   -L <load>       Limit the maximum load average before rejecting new calls\n");
 	printf("   -M <value>      Limit the maximum number of calls to the specified value\n");
+	printf("   -m              Mute the console from debugging and verbose output\n");
 	printf("   -n              Disable console colorization\n");
 	printf("   -p              Run as pseudo-realtime thread\n");
 	printf("   -q              Quiet mode (suppress output)\n");
@@ -2311,7 +2364,7 @@ int main(int argc, char *argv[])
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 	/* Check for options */
-	while ((c = getopt(argc, argv, "tThfdvVqprRgciInx:U:G:C:L:M:")) != -1) {
+	while ((c = getopt(argc, argv, "mtThfdvVqprRgciInx:U:G:C:L:M:")) != -1) {
 		switch (c) {
 		case 'F':
 			ast_set_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK);
@@ -2340,6 +2393,10 @@ int main(int argc, char *argv[])
 			break;
 		case 'v':
 			option_verbose++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK);
+			break;
+		case 'm':
+			option_mute++;
 			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK);
 			break;
 		case 'M':

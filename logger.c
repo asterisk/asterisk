@@ -756,11 +756,11 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 						term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
 						term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
 					
-					ast_console_puts(buf);
+					ast_console_puts_mutable(buf);
 					va_start(ap, fmt);
 					vsnprintf(buf, sizeof(buf), fmt, ap);
 					va_end(ap);
-					ast_console_puts(buf);
+					ast_console_puts_mutable(buf);
 				}
 			/* File channels */
 			} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
