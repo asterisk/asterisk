@@ -30,8 +30,17 @@ turn on/off global options for the build and see which modules will not (and can
 be built because your system does not have the required external dependencies
 installed.
 
-(TODO: document where 'global' and 'per-user' menuselect input files should go
-and what they need to contain)
+The resulting file from menuselect is called 'menuselect.makeopts'. Note that
+the resulting menuselect.makeopts file generally contains which modules *not*
+to build. The modules listed in this file indicate which modules have unmet
+dependencies, a present conflict, or have been disabled by the user in the
+menuselect interface. Compiler Flags can also be set in the menuselect
+interface.  In this case, the resulting file contains which CFLAGS are in use,
+not which ones are not in use.
+
+If you would like to save your choices and have them applied against all
+builds, the file can be copied to '~/.asterisk.makeopts' or 
+'/etc/asterisk.makeopts'.
 
 PBX Core:
 
