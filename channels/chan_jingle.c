@@ -1563,7 +1563,7 @@ static int load_module(void *mod)
 	ASTOBJ_CONTAINER_INIT(&jingles);
 	if (!jingle_load_config()) {
 		ast_log(LOG_ERROR, "Unable to read config file %s\n", JINGLE_CONFIG);
-		return -1;
+		return 0;
 	}
 
 	sched = sched_context_create();
