@@ -135,6 +135,24 @@ Applications:
   This addresses the deficiency of not being able to count the number of
   messages in folders other than INBOX and Old.
 
+* The exit behavior of the AGI applications has changed. Previously, when
+  a connection to an AGI server failed, the application would cause the channel
+  to immediately stop dialplan execution and hangup. Now, the only time that
+  the AGI applications will cause the channel to stop dialplan execution is
+  when the channel itself requests hangup. The AGI applications now set an
+  AGISTATUS variable which will allow you to find out whether running the AGI
+  was successful or not.
+
+  Previously, there was no way to handle the case where Asterisk was unable to
+  locally execute an AGI script for some reason. In this case, dialplan
+  execution will continue as it did before, but the AGISTATUS variable will be
+  set to "FAILURE".
+
+  A locally executed AGI script can now exit with a non-zero exit code and this
+  failure will be detected by Asterisk. If an AGI script exits with a non-zero
+  exit code, the AGISTATUS variable will be set to "FAILURE" as opposed to
+  "SUCCESS".
+
 Manager:
 
 * After executing the 'status' manager action, the "Status" manager events
