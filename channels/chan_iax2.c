@@ -1893,7 +1893,7 @@ static int iax2_prune_realtime(int fd, int argc, char *argv[])
 	} else if ((peer = find_peer(argv[3], 0))) {
 		if(ast_test_flag(peer, IAX_RTCACHEFRIENDS)) {
 			ast_set_flag(peer, IAX_RTAUTOCLEAR);
-			expire_registry(peer);
+			expire_registry(peer->name);
 			ast_cli(fd, "OK peer %s was removed from the cache.\n", argv[3]);
 		} else {
 			ast_cli(fd, "SORRY peer %s is not eligible for this operation.\n", argv[3]);
@@ -2531,7 +2531,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 		if (ast_test_flag(peer, IAX_RTAUTOCLEAR)) {
 			if (peer->expire > -1)
 				ast_sched_del(sched, peer->expire);
-			peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_registry, peer);
+			peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_registry, (void*)peer->name);
 		}
 		AST_LIST_LOCK(&peers);
 		AST_LIST_INSERT_HEAD(&peers, peer, entry);
@@ -5521,6 +5521,7 @@ static void __expire_registry(void *data)
 			/* If we are set to auto clear then remove ourselves */
 			if (ast_test_flag(p, IAX_RTAUTOCLEAR))
 				AST_LIST_REMOVE_CURRENT(&peers, entry);
+			p->expire = -1;
 			break;
 		}
 	}
@@ -5552,9 +5553,6 @@ static void __expire_registry(void *data)
 
 static int expire_registry(void *data)
 {
-	struct iax2_peer *p = data;
-	/* Reset expire notice */
-	p->expire = -1;
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__expire_registry, data))
 #endif		
