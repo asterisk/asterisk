@@ -537,7 +537,9 @@ static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc
 static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res;
+	int vres;	
 	struct ast_filestream *fs;
+	struct ast_filestream *vfs;
 	long sample_offset = 0;
 	long max_length;
 
@@ -546,16 +548,26 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	if ((argc > 4) && (sscanf(argv[4], "%ld", &sample_offset) != 1))
 		return RESULT_SHOWUSAGE;
 	
-	fs = ast_openstream(chan, argv[2], chan->language);
-	if (!fs){
+	fs = ast_openstream(chan, argv[2], chan->language);	
+	
+	if (!fs) {
 		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
 		return RESULT_SUCCESS;
-	}
+	}	
+	vfs = ast_openvstream(chan, argv[2], chan->language);
+	if (vfs)
+		ast_log(LOG_DEBUG, "Ooh, found a video stream, too\n");
+		
 	ast_seekstream(fs, 0, SEEK_END);
 	max_length = ast_tellstream(fs);
 	ast_seekstream(fs, sample_offset, SEEK_SET);
 	res = ast_applystream(chan, fs);
+	if (vfs)
+		vres = ast_applystream(chan, vfs);
 	res = ast_playstream(fs);
+	if (vfs)
+		vres = ast_playstream(vfs);
+	
 	if (res) {
 		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
 		return (res >= 0) ? RESULT_SHOWUSAGE : RESULT_FAILURE;
@@ -576,10 +588,12 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 /* get option - really similar to the handle_streamfile, but with a timeout */
 static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-        int res;
-        struct ast_filestream *fs;
-        long sample_offset = 0;
-        long max_length;
+	int res;
+	int vres;	
+	struct ast_filestream *fs;
+	struct ast_filestream *vfs;
+	long sample_offset = 0;
+	long max_length;
 	int timeout = 0;
 	char *edigits = NULL;
 
@@ -596,43 +610,51 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 		timeout = chan->pbx->dtimeout * 1000; /* in msec */
 	}
 
-        fs = ast_openstream(chan, argv[2], chan->language);
-        if (!fs){
-                fdprintf(agi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
-                ast_log(LOG_WARNING, "Unable to open %s\n", argv[2]);
+	fs = ast_openstream(chan, argv[2], chan->language);
+	if (!fs) {
+		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
+		ast_log(LOG_WARNING, "Unable to open %s\n", argv[2]);
 		return RESULT_SUCCESS;
-        }
+	}
+	vfs = ast_openvstream(chan, argv[2], chan->language);
+	if (vfs)
+		ast_log(LOG_DEBUG, "Ooh, found a video stream, too\n");
+	
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Playing '%s' (escape_digits=%s) (timeout %d)\n", argv[2], edigits, timeout);
 
-        ast_seekstream(fs, 0, SEEK_END);
-        max_length = ast_tellstream(fs);
-        ast_seekstream(fs, sample_offset, SEEK_SET);
-        res = ast_applystream(chan, fs);
-        res = ast_playstream(fs);
-        if (res) {
-                fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
-                if (res >= 0)
-                        return RESULT_SHOWUSAGE;
-                else
-                        return RESULT_FAILURE;
-        }
-        res = ast_waitstream_full(chan, argv[3], agi->audio, agi->ctrl);
-        /* this is to check for if ast_waitstream closed the stream, we probably are at
-         * the end of the stream, return that amount, else check for the amount */
-        sample_offset = (chan->stream)?ast_tellstream(fs):max_length;
-        ast_stopstream(chan);
-        if (res == 1) {
-                /* Stop this command, don't print a result line, as there is a new command */
-                return RESULT_SUCCESS;
-        }
+	ast_seekstream(fs, 0, SEEK_END);
+	max_length = ast_tellstream(fs);
+	ast_seekstream(fs, sample_offset, SEEK_SET);
+	res = ast_applystream(chan, fs);
+	if (vfs)
+		vres = ast_applystream(chan, vfs);
+	res = ast_playstream(fs);
+	if (vfs)
+		vres = ast_playstream(vfs);
+	if (res) {
+		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
+		if (res >= 0)
+			return RESULT_SHOWUSAGE;
+		else
+			return RESULT_FAILURE;
+	}
+	res = ast_waitstream_full(chan, argv[3], agi->audio, agi->ctrl);
+	/* this is to check for if ast_waitstream closed the stream, we probably are at
+	 * the end of the stream, return that amount, else check for the amount */
+	sample_offset = (chan->stream)?ast_tellstream(fs):max_length;
+	ast_stopstream(chan);
+	if (res == 1) {
+		/* Stop this command, don't print a result line, as there is a new command */
+		return RESULT_SUCCESS;
+	}
 
 	/* If the user didnt press a key, wait for digitTimeout*/
 	if (res == 0 ) {
 		res = ast_waitfordigit_full(chan, timeout, agi->audio, agi->ctrl);
 		/* Make sure the new result is in the escape digits of the GET OPTION */
 		if ( !strchr(edigits,res) )
-                	res=0;
+			res=0;
 	}
 
         fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
