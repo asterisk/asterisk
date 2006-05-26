@@ -76,6 +76,8 @@ enum ast_option_flags {
 	AST_OPT_FLAG_INTERNAL_TIMING = (1 << 20),
 	/*! Always fork, even if verbose or debug settings are non-zero */
 	AST_OPT_FLAG_ALWAYS_FORK = (1 << 21),
+	/*! Disable log/verbose output to remote consoles */
+	AST_OPT_FLAG_MUTE = (1 << 22)
 };
 
 /*! These are the options that set by default when Asterisk starts */
@@ -103,6 +105,7 @@ enum ast_option_flags {
 #define ast_opt_end_cdr_before_h_exten	ast_test_flag(&ast_options, AST_OPT_FLAG_END_CDR_BEFORE_H_EXTEN)
 #define ast_opt_internal_timing		ast_test_flag(&ast_options, AST_OPT_FLAG_INTERNAL_TIMING)
 #define ast_opt_always_fork		ast_test_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK)
+#define ast_opt_mute			ast_test_flag(&ast_options, AST_OPT_FLAG_MUTE)
 
 extern struct ast_flags ast_options;
 

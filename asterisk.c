@@ -160,7 +160,6 @@ struct ast_flags ast_options = { AST_DEFAULT_OPTIONS };
 
 int option_verbose = 0;				/*!< Verbosity level */
 int option_debug = 0;				/*!< Debug level */
-int option_mute = 0;				/*!< Mute console */
 
 double option_maxload = 0.0;			/*!< Max load avg on system */
 int option_maxcalls = 0;			/*!< Max number of active calls */
@@ -685,15 +684,15 @@ int ast_safe_system(const char *s)
 /*!
  * mute or unmute a console from logging
  */
-void ast_console_mute(int fd) {
+void ast_console_toggle_mute(int fd) {
 	int x;
-	for (x=0;x<AST_MAX_CONNECTS; x++) {
+	for (x = 0;x < AST_MAX_CONNECTS; x++) {
 		if (fd == consoles[x].fd) {
 			if (consoles[x].mute) {
-				consoles[x].mute=0;
+				consoles[x].mute = 0;
 				ast_cli(fd, "Console is not muted anymore.\n");
 			} else {
-				consoles[x].mute=1;
+				consoles[x].mute = 1;
 				ast_cli(fd, "Console is muted.\n");
 			}
 			return;
@@ -708,9 +707,9 @@ void ast_console_mute(int fd) {
 static void ast_network_puts_mutable(const char *string)
 {
 	int x;
-	for (x=0;x < AST_MAX_CONNECTS; x++) {
+	for (x = 0;x < AST_MAX_CONNECTS; x++) {
 		if (consoles[x].mute)
-			continue;;
+			continue;
 		if (consoles[x].fd > -1) 
 			fdprint(consoles[x].p[1], string);
 	}
@@ -866,7 +865,7 @@ static void *listener(void *unused)
 					flags = fcntl(consoles[x].p[1], F_GETFL);
 					fcntl(consoles[x].p[1], F_SETFL, flags | O_NONBLOCK);
 					consoles[x].fd = s;
-					consoles[x].mute = 0;
+					consoles[x].mute = ast_opt_mute;
 					if (ast_pthread_create(&consoles[x].t, &attr, netconsole, &consoles[x])) {
 						ast_log(LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
 						close(consoles[x].p[0]);
@@ -2073,8 +2072,8 @@ static void ast_remotecontrol(char * data)
 	fdprint(ast_consock, tmp);
 	snprintf(tmp, sizeof(tmp), "set debug atleast %d", option_debug);
 	fdprint(ast_consock, tmp);
-	if (option_mute) {
-		snprintf(tmp, sizeof(tmp), "logger mute");
+	if (ast_opt_mute) {
+		snprintf(tmp, sizeof(tmp), "log and verbose output currently muted ('logger unmute' to unmute)");
 		fdprint(ast_consock, tmp);
 	}
 	ast_verbose("Connected to Asterisk %s currently running on %s (pid = %d)\n", version, hostname, pid);
@@ -2396,8 +2395,7 @@ int main(int argc, char *argv[])
 			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK);
 			break;
 		case 'm':
-			option_mute++;
-			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK);
+			ast_set_flag(&ast_options, AST_OPT_FLAG_MUTE);
 			break;
 		case 'M':
 			if ((sscanf(optarg, "%d", &option_maxcalls) != 1) || (option_maxcalls < 0))

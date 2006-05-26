@@ -222,7 +222,7 @@ static int handle_logger_mute(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	ast_console_mute(fd);
+	ast_console_toggle_mute(fd);
 	return RESULT_SUCCESS;
 }
 
@@ -928,11 +928,11 @@ static struct ast_cli_entry builtins[] = {
 	{ { "group", "show", "channels", NULL }, group_show_channels, "Show active channels with group(s)", group_show_channels_help},
 	{ { "help", NULL }, handle_help, "Display help list, or specific help on a command", help_help, complete_help },
 	{ { "load", NULL }, handle_load, "Load a dynamic module by name", load_help, complete_fn },
+	{ { "logger", "mute", NULL }, handle_logger_mute, "Toggle logging output to a console", logger_mute_help },
 	{ { "no", "debug", "channel", NULL }, handle_nodebugchan, "Disable debugging on a channel", nodebugchan_help, complete_ch_4 },
 	{ { "reload", NULL }, handle_reload, "Reload configuration", reload_help, complete_mod_2 },
 	{ { "set", "debug", NULL }, handle_set_debug, "Set level of debug chattiness", set_debug_help },
 	{ { "set", "verbose", NULL }, handle_set_verbose, "Set level of verboseness", set_verbose_help },
-	{ { "logger", "mute", NULL }, handle_logger_mute, "Disable logging output to a console", logger_mute_help },
 	{ { "show", "channel", NULL }, handle_showchan, "Display information on a specific channel", showchan_help, complete_ch_3 },
 	{ { "show", "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help, complete_show_channels },
 	{ { "show", "modules", NULL }, handle_modlist, "List modules and info", modlist_help },
