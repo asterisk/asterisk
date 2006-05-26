@@ -37,7 +37,13 @@ PBX Core:
 
 * The (very old and undocumented) ability to use BYEXTENSION for dialing
   instead of ${EXTEN} has been removed.
-
+  
+* Builtin (res_features) transfer functionality attempts to use the context
+  defined in TRANSFER_CONTEXT variable of the transferer channel first. If
+  not set, it uses the transferee variable. If not set in any channel, it will 
+  attempt to use the last non macro context. If not possible, it will default
+  to the current context.
+ 
 Command Line Interface:
 
 * 'show channels concise', designed to be used by applications that will parse
@@ -158,6 +164,9 @@ Variables:
 * OSP applications exports several new variables, ${OSPINHANDLE},
   ${OSPOUTHANDLE}, ${OSPINTOKEN}, ${OSPOUTTOKEN}, ${OSPCALLING},
   ${OSPINTIMELIMIT}, and ${OSPOUTTIMELIMIT}
+  
+* Builtin transfer functionality sets the variable ${TRANSFERERNAME} in the new
+  created channel. This variables holds the channel name of the transferer.
 
 Functions:
 

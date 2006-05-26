@@ -563,9 +563,9 @@ static int finishup(struct ast_channel *chan)
 
 static const char *real_ctx(struct ast_channel *transferer, struct ast_channel *transferee)
 {
-        const char *s = pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT");
+        const char *s = pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT");
         if (ast_strlen_zero(s))
-                s = pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT");
+                s = pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT");
         if (ast_strlen_zero(s)) /* Use the non-macro context to transfer the call XXX ? */
                 s = transferer->macrocontext;
         if (ast_strlen_zero(s))
@@ -1039,6 +1039,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 	if ((chan = ast_request(type, format, data, &cause))) {
 		ast_set_callerid(chan, cid_num, cid_name, cid_num);
 		ast_channel_inherit_variables(caller, chan);	
+		pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", caller->name);
 		if (!ast_call(chan, data, timeout)) {
 			struct timeval started;
 			int x, len = 0;
