@@ -539,9 +539,9 @@ static int odbc_load_module(void)
 
 	cfg = ast_config_load(config);
 	if (!cfg) {
-		ast_log(LOG_WARNING, "Unable to load config for func_odbc: %s\n", config);
+		ast_log(LOG_NOTICE, "Unable to load config for func_odbc: %s\n", config);
 		AST_LIST_UNLOCK(&queries);
-		return -1;
+		return 0;
 	}
 
 	for (catg = ast_category_browse(cfg, NULL);
