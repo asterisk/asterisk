@@ -203,7 +203,7 @@ retry_write:
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		odbc_release_obj(obj);
 		/* All handles are now invalid (after a disconnect), so we gotta redo all handles */
-		obj = odbc_request_obj("asterisk", 1);
+		obj = odbc_request_obj(query->dsn, 1);
 		if (!retry) {
 			retry = 1;
 			goto retry_write;
