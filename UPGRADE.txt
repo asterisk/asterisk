@@ -215,6 +215,9 @@ Functions:
   completely with the version 1.6 release so please take the time between
   releases to make any necessary changes
 
+* The QUEUEAGENTCOUNT() function has been deprecated in favor of
+  QUEUE_MEMBER_COUNT().
+
 The IAX2 channel:
 
 * The "mailboxdetail" option has been deprecated.  Previously, if this option
