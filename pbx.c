@@ -5473,6 +5473,7 @@ static int pbx_builtin_setglobalvar(struct ast_channel *chan, void *data)
 {
 	char *name;
 	char *stringp = data;
+	static int dep_warning = 0;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
@@ -5480,6 +5481,12 @@ static int pbx_builtin_setglobalvar(struct ast_channel *chan, void *data)
 	}
 
 	name = strsep(&stringp, "=");
+
+	if (!dep_warning) {
+		dep_warning = 1;
+		ast_log(LOG_WARNING, "SetGlobalVar is deprecated.  Please use Set(GLOBAL(%s)=%s) instead.\n", name, stringp);
+	}
+
 	/*! \todo XXX watch out, leading whitespace ? */
 	pbx_builtin_setvar_helper(NULL, name, stringp);
 

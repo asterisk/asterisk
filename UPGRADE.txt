@@ -75,6 +75,12 @@ Applications:
   been removed in this version.  You should use the equivalent dialplan
   function in places where you have previously used one of these applications.
 
+* The application SetGlobalVar has been deprecated.  You should replace uses
+  of this application with the following combination of Set and GLOBAL():
+  Set(GLOBAL(name)=value).  You may also access global variables exclusively by
+  using the GLOBAL() dialplan function, instead of relying on variable
+  interpolation falling back to globals when no channel variable is set.
+
 * The application SetVar has been renamed to Set.  The syntax SetVar was marked
   deprecated in version 1.2 and is no longer recognized in this version.
 
