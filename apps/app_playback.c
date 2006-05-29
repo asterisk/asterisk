@@ -223,7 +223,7 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 		}
 		/* prefix:fmt:data */
 		for (p = fmt; p < data && ret <= 0; p++) {
-			char fn2[128];
+			char fn2[sizeof(fn)];
 			if (*p == ' ' || *p == '\t')	/* skip blanks */
 				continue;
 			if (*p == '\'') {/* file name - we trim them */
@@ -458,6 +458,10 @@ static int reload(void *mod)
 		ast_log(LOG_NOTICE, "Reloading say.conf\n");
 	}
 	say_cfg = ast_config_load("say.conf");
+	/*
+	 * XXX here we should sort rules according to the same order
+	 * we have in pbx.c so we have the same matching behaviour.
+	 */
 	return 0;
 }
 
