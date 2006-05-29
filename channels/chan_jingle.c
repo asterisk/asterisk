@@ -159,9 +159,9 @@ AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
 
 /* Protect the interface list (of sip_pvt's) */
-static AST_MUTEX_DEFINE_STATIC(jinglelock);
+AST_MUTEX_DEFINE_STATIC(jinglelock);
 
-static AST_MUTEX_DEFINE_STATIC(rand_lock);	/*!< Lock for thread-safe random generator */
+AST_MUTEX_DEFINE_STATIC(rand_lock);	/*!< Lock for thread-safe random generator */
 
 
 static struct ast_channel *jingle_request(const char *type, int format, void *data, int *cause);
