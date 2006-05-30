@@ -2119,9 +2119,8 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				prilocaldialplan = PRI_LOCAL_ISDN;
 			}
 		}
-		pri_sr_set_caller(sr, l ? (l + ldp_strip) : NULL, n, prilocaldialplan, 
-					l ? (p->use_callingpres ? ast->cid.cid_pres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN) : 
-						 PRES_NUMBER_NOT_AVAILABLE);
+		pri_sr_set_caller(sr, l ? (l + ldp_strip) : NULL, n, prilocaldialplan,
+				  p->use_callingpres ? ast->cid.cid_pres : (l ? PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN : PRES_NUMBER_NOT_AVAILABLE));
 		pri_sr_set_redirecting(sr, ast->cid.cid_rdnis, p->pri->localdialplan - 1, PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, PRI_REDIR_UNCONDITIONAL);
 
 #ifdef SUPPORT_USERUSER
@@ -10718,6 +10717,8 @@ static int setup_zap(int reload)
 						v->value, v->lineno);
 			} else if (!strcasecmp(v->name, "minunused")) {
 				minunused = atoi(v->value);
+			} else if (!strcasecmp(v->name, "minidle")) {
+				minidle = atoi(v->value); 
 			} else if (!strcasecmp(v->name, "idleext")) {
 				ast_copy_string(idleext, v->value, sizeof(idleext));
 			} else if (!strcasecmp(v->name, "idledial")) {

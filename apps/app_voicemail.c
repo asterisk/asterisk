@@ -2006,7 +2006,7 @@ static char *mbox(int id)
 #ifdef USE_ODBC_STORAGE
 static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
-	int x = 0;
+	int x = -1;
 	int res;
 	SQLHSTMT stmt;
 	char sql[256];
@@ -2018,6 +2018,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
                 *newmsgs = 0;
         if (oldmsgs)
                 *oldmsgs = 0;
+
         /* If no mailbox, return immediately */
         if (ast_strlen_zero(mailbox))
                 return 0;
@@ -2099,7 +2100,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		}
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		*oldmsgs = atoi(rowdata);
-		x = 1;
+		x = 0;
 	} else
 		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 		
@@ -2364,17 +2365,17 @@ struct leave_vm_options {
 
 static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_options *options)
 {
-	char tmptxtfile[256], txtfile[256];
+	char txtfile[256], tmptxtfile[256];
 	char callerid[256];
 	FILE *txt;
-	int res = 0;
+	int res = 0, txtdes;
 	int msgnum;
 	int duration = 0;
 	int ausemacro = 0;
 	int ousemacro = 0;
 	int ouseexten = 0;
 	char date[256];
-	char dir[256];
+	char dir[256], tmpdir[260];
 	char fn[256];
 	char prefile[256]="";
 	char tempfile[256]="";
@@ -2429,6 +2430,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	DISPOSE(tempfile, -1);
 	/* It's easier just to try to make it than to check for its existence */
 	create_dirpath(dir, sizeof(dir), vmu->context, ext, "INBOX");
+	create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, ext, "tmp");
 
 	/* Check current or macro-calling context for special extensions */
 	if (ast_test_flag(vmu, VM_OPERATOR)) {
@@ -2535,22 +2537,25 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	if (!ast_strlen_zero(fmt)) {
 		msgnum = 0;
 
-		if (vm_lock_path(dir)) {
-			free_user(vmu);
-			return ERROR_LOCK_PATH;
+		if (count_messages(vmu, dir) >= vmu->maxmsg) {
+			res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
+			if (!res)
+				res = ast_waitstream(chan, "");
+			ast_log(LOG_WARNING, "No more messages possible\n");
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+			goto leave_vm_out;
 		}
 
-		/* 
-		 * This operation can be very expensive if done say over NFS or if the mailbox has 100+ messages
-		 * in the mailbox.  So we should get this first so we don't cut off the first few seconds of the 
-		 * message.  
-		 */
-		do {
-			make_file(fn, sizeof(fn), dir, msgnum);
-			if (!EXISTS(dir,msgnum,fn,chan->language))
-				break;
-			msgnum++;
-		} while (msgnum < vmu->maxmsg);
+		snprintf(tmptxtfile, sizeof(tmptxtfile), "%s/XXXXXX", tmpdir);
+		txtdes = mkstemp(tmptxtfile);
+		if (txtdes < 0) {
+			res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
+			if (!res)
+				res = ast_waitstream(chan, "");
+			ast_log(LOG_ERROR, "Unable to create message file: %s\n", strerror(errno));
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+			goto leave_vm_out;
+		}
 
 		/* Now play the beep once we have the message number for our next message. */
 		if (res >= 0) {
@@ -2559,101 +2564,104 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			if (!res)
 				res = ast_waitstream(chan, "");
 		}
-		if (msgnum < vmu->maxmsg) {
-			/* assign a variable with the name of the voicemail file */	  
-			pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", fn);
-				
-			/* Store information */
-			snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
-			snprintf(tmptxtfile, sizeof(tmptxtfile), "%s.txt.tmp", fn);
-			txt = fopen(tmptxtfile, "w+");
-			if (txt) {
-				get_date(date, sizeof(date));
-				fprintf(txt, 
-					";\n"
-					"; Message Information file\n"
-					";\n"
-					"[message]\n"
-					"origmailbox=%s\n"
-					"context=%s\n"
-					"macrocontext=%s\n"
-					"exten=%s\n"
-					"priority=%d\n"
-					"callerchan=%s\n"
-					"callerid=%s\n"
-					"origdate=%s\n"
-					"origtime=%ld\n"
-					"category=%s\n",
-					ext,
-					chan->context,
-					chan->macrocontext, 
-					chan->exten,
-					chan->priority,
-					chan->name,
-					ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"),
-					date, (long)time(NULL),
-					category ? category : ""); 
-			} else
-				ast_log(LOG_WARNING, "Error opening text file for output\n");
-			res = play_record_review(chan, NULL, fn, vmmaxmessage, fmt, 1, vmu, &duration, dir, options->record_gain);
-			if (res == '0') {
-				if (txt && EXISTS(dir,msgnum,fn,chan->language)) {
-					fclose(txt);
-					rename(tmptxtfile, txtfile);
-				} else if (txt && !EXISTS(dir,msgnum,fn,chan->language)) {
-					if (option_debug) 
-						ast_log(LOG_DEBUG, "The recorded media file is gone, so we should remove the .txt file too!\n");
-					fclose(txt);
-					unlink(tmptxtfile);	
-				}
-				goto transfer;
-			}
-			if (res > 0)
-				res = 0;
-			if (txt) {
-				fprintf(txt, "duration=%d\n", duration);
-				fclose(txt);
-				rename(tmptxtfile, txtfile);
-			}
-				
+
+		/* Store information */
+		txt = fdopen(txtdes, "w+");
+		if (txt) {
+			get_date(date, sizeof(date));
+			fprintf(txt, 
+				";\n"
+				"; Message Information file\n"
+				";\n"
+				"[message]\n"
+				"origmailbox=%s\n"
+				"context=%s\n"
+				"macrocontext=%s\n"
+				"exten=%s\n"
+				"priority=%d\n"
+				"callerchan=%s\n"
+				"callerid=%s\n"
+				"origdate=%s\n"
+				"origtime=%ld\n"
+				"category=%s\n",
+				ext,
+				chan->context,
+				chan->macrocontext, 
+				chan->exten,
+				chan->priority,
+				chan->name,
+				ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"),
+				date, (long)time(NULL),
+				category ? category : ""); 
+		} else
+			ast_log(LOG_WARNING, "Error opening text file for output\n");
+		res = play_record_review(chan, NULL, tmptxtfile, vmmaxmessage, fmt, 1, vmu, &duration, NULL, options->record_gain);
+
+		if (txt) {
 			if (duration < vmminmessage) {
 				if (option_verbose > 2) 
 					ast_verbose( VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminmessage);
 				DELETE(dir,msgnum,fn);
-				/* XXX We should really give a prompt too short/option start again, with leave_vm_out called only after a timeout XXX */
-				pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
-				goto leave_vm_out;
-			}
-			/* Are there to be more recipients of this message? */
-			while (tmpptr) {
-				struct ast_vm_user recipu, *recip;
-				char *exten, *context;
-					
-				exten = strsep(&tmpptr, "&");
-				context = strchr(exten, '@');
-				if (context) {
-					*context = '\0';
-					context++;
+			} else {
+				fprintf(txt, "duration=%d\n", duration);
+				fclose(txt);
+				if (vm_lock_path(dir)) {
+					ast_log(LOG_ERROR, "Couldn't lock directory %s.  Voicemail will be lost.\n", dir);
+					/* Delete files */
+					ast_filedelete(tmptxtfile, NULL);
+					unlink(tmptxtfile);
+				} else {
+					for (;;) {
+						make_file(fn, sizeof(fn), dir, msgnum);
+						if (!EXISTS(dir, msgnum, fn, NULL))
+							break;
+						msgnum++;
+					}
+
+					/* assign a variable with the name of the voicemail file */	  
+					pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", fn);
+
+					snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
+					ast_filerename(tmptxtfile, fn, NULL);
+					rename(tmptxtfile, txtfile);
+
+					ast_unlock_path(dir);
+
+					/* Are there to be more recipients of this message? */
+					while (tmpptr) {
+						struct ast_vm_user recipu, *recip;
+						char *exten, *context;
+
+						exten = strsep(&tmpptr, "&");
+						context = strchr(exten, '@');
+						if (context) {
+							*context = '\0';
+							context++;
+						}
+						if ((recip = find_user(&recipu, context, exten))) {
+							copy_message(chan, vmu, 0, msgnum, duration, recip, fmt);
+							free_user(recip);
+						}
+					}
+					if (ast_fileexists(fn, NULL, NULL)) {
+						STORE(dir, vmu->mailbox, vmu->context, msgnum);
+						notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
+						DISPOSE(dir, msgnum);
+					}
 				}
-				if ((recip = find_user(&recipu, context, exten))) {
-					copy_message(chan, vmu, 0, msgnum, duration, recip, fmt);
-					free_user(recip);
-				}
 			}
-			if (ast_fileexists(fn, NULL, NULL)) {
-				STORE(dir, vmu->mailbox, vmu->context, msgnum);
-				notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
-				DISPOSE(dir, msgnum);
-			}
-			pbx_builtin_setvar_helper(chan, "VMSTATUS", "SUCCESS");
-		} else {
-			ast_unlock_path(dir);
-			res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
-			if (!res)
-				res = ast_waitstream(chan, "");
-			ast_log(LOG_WARNING, "No more messages possible\n");
-			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 		}
+
+		if (res == '0') {
+			goto transfer;
+		} else if (res > 0)
+			res = 0;
+
+		if (duration < vmminmessage)
+			/* XXX We should really give a prompt too short/option start again, with leave_vm_out called only after a timeout XXX */
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
+		else
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "SUCCESS");
 	} else
 		ast_log(LOG_WARNING, "No format for saving voicemail?\n");
  leave_vm_out:
@@ -5302,7 +5310,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 
 				case '5': /* Leave VoiceMail */
 					if (ast_test_flag(vmu, VM_SVMAIL)) {
-						cmd = forward_message(chan, context, vms.curdir, vms.curmsg, vmu, vmfmts, 1, record_gain);
+						cmd = forward_message(chan, vmu->context, vms.curdir, vms.curmsg, vmu, vmfmts, 1, record_gain);
 						if (cmd == ERROR_LOCK_PATH) {
 							res = cmd;
 							goto out;
@@ -5383,7 +5391,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	
 		case '8':
 			if (vms.lastmsg > -1) {
-				cmd = forward_message(chan, context, vms.curdir, vms.curmsg, vmu, vmfmts, 0, record_gain);
+				cmd = forward_message(chan, vmu->context, vms.curdir, vms.curmsg, vmu, vmfmts, 0, record_gain);
 				if (cmd == ERROR_LOCK_PATH) {
 					res = cmd;
 					goto out;
@@ -5530,7 +5538,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
-			ast_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING);
+			ast_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING | OPT_PRIORITY_JUMP);
 			if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
 				int gain;
 
@@ -6513,20 +6521,21 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 							res = ast_play_and_wait(chan, "vm-star-cancel");
 						if (!res)
 							res = ast_waitfordigit(chan, 6000);
-						if (!res)
+						if (!res) {
 							retries++;
-						if (retries > 3)
-							res = 't';
-							break; 
-
+							if (retries > 3)
+								res = 't';
 						}
-					if (res == 't')
-						res = 0;
-					else if (res == '*')
-						res = -1;
+						break; 
+						
 				}
+				if (res == 't')
+					res = 0;
+				else if (res == '*')
+					res = -1;
 			}
-
+		}
+		
 	}
 	else if (option == 1) { /* Reply */
 		/* Send reply directly to sender */

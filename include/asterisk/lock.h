@@ -97,6 +97,13 @@ typedef struct ast_mutex_info ast_mutex_t;
 
 typedef pthread_cond_t ast_cond_t;
 
+static pthread_mutex_t empty_mutex;
+
+static void __attribute__((constructor)) init_empty_mutex(void)
+{
+	memset(&empty_mutex, 0, sizeof(empty_mutex));
+}
+
 static inline int __ast_pthread_mutex_init_attr(const char *filename, int lineno, const char *func,
 						const char *mutex_name, ast_mutex_t *t,
 						pthread_mutexattr_t *attr) 
@@ -105,14 +112,16 @@ static inline int __ast_pthread_mutex_init_attr(const char *filename, int lineno
 	int canlog = strcmp(filename, "logger.c");
 
 	if ((t->mutex) != ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
-		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is already initialized.\n",
-				   filename, lineno, func, mutex_name);
-		__ast_mutex_logger("%s line %d (%s): Error: previously initialization of mutex '%s'.\n",
-				   t->file, t->lineno, t->func, mutex_name);
+		if ((t->mutex) != (empty_mutex)) {
+			__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is already initialized.\n",
+					   filename, lineno, func, mutex_name);
+			__ast_mutex_logger("%s line %d (%s): Error: previously initialization of mutex '%s'.\n",
+					   t->file, t->lineno, t->func, mutex_name);
 #ifdef THREAD_CRASH
-		DO_THREAD_CRASH;
+			DO_THREAD_CRASH;
 #endif
-		return 0;
+			return 0;
+		}
 	}
 #endif
 

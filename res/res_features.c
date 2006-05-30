@@ -641,7 +641,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context '%s'\n", newext, transferer_real_context);
 	}
 	if (!ast_strlen_zero(xferfailsound))
-		res = ast_streamfile(transferer, xferfailsound, transferee->language);
+		res = ast_streamfile(transferer, xferfailsound, transferer->language);
 	else
 		res = 0;
 	if (res) {
@@ -866,7 +866,7 @@ struct ast_call_feature builtin_features[] =
 };
 
 
-static AST_LIST_HEAD(feature_list,ast_call_feature) feature_list;
+static AST_LIST_HEAD_STATIC(feature_list,ast_call_feature);
 
 /* register new feature into feature_list*/
 void ast_register_feature(struct ast_call_feature *feature)
@@ -944,8 +944,12 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 		if (ast_test_flag(feature, AST_FEATURE_FLAG_CALLEE))
 			work = peer;
 		res = pbx_exec(work, app, feature->app_args, 1);
-		if (res < 0)
-			return res; 
+		if (res == AST_PBX_KEEPALIVE)
+			return FEATURE_RETURN_PBX_KEEPALIVE;
+		else if (res == AST_PBX_NO_HANGUP_PEER)
+			return FEATURE_RETURN_NO_HANGUP_PEER;
+		else if (res)
+			return FEATURE_RETURN_SUCCESSBREAK;
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", feature->app);
 		return -2;
@@ -1021,7 +1025,10 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 				if (!strcmp(feature->exten, code)) {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 " Feature Found: %s exten: %s\n",feature->sname, tok);
-					res = feature->operation(chan, peer, config, code, sense);
+					if (sense == FEATURE_SENSE_CHAN)
+						res = feature->operation(chan, peer, config, code, sense);
+					else
+						res = feature->operation(peer, chan, config, code, sense);
 					break;
 				} else if (!strncmp(feature->exten, code, strlen(code))) {
 					res = FEATURE_RETURN_STOREDIGITS;
@@ -1426,6 +1433,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				featurecode = peer_featurecode;
 			}
 			featurecode[strlen(featurecode)] = f->subclass;
+			/* Get rid of the frame before we start doing "stuff" with the channels */
+			ast_frfree(f);
+			f = NULL;
 			config->feature_timer = backup_config.feature_timer;
 			res = ast_feature_interpret(chan, peer, config, featurecode, sense);
 			switch(res) {
@@ -1438,10 +1448,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			}
 			if (res >= FEATURE_RETURN_PASSDIGITS) {
 				res = 0;
-			} else {
-				ast_frfree(f);
+			} else 
 				break;
-			}
 			hasfeatures = !ast_strlen_zero(chan_featurecode) || !ast_strlen_zero(peer_featurecode);
 			if (hadfeatures && !hasfeatures) {
 				/* Restore backup */
@@ -2137,7 +2145,6 @@ int load_module(void)
 {
 	int res;
 	
-	AST_LIST_HEAD_INIT(&feature_list);
 	memset(parking_ext, 0, sizeof(parking_ext));
 	memset(parking_con, 0, sizeof(parking_con));
 

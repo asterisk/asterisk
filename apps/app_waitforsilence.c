@@ -69,7 +69,7 @@ static int do_waiting(struct ast_channel *chan, int maxsilence) {
 	int totalsilence = 0;
 	int dspsilence = 0;
 	int gotsilence = 0; 
-	static int silencethreshold = 64;
+	static int silencethreshold = 128;
 	int rfmt = 0;
 	int res = 0;
 	struct ast_dsp *sildet;	 /* silence detector dsp */

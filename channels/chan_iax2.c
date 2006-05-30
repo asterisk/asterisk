@@ -464,7 +464,10 @@ struct chan_iax2_pvt {
 	int maxtime;
 	/*! Peer Address */
 	struct sockaddr_in addr;
+	/*! Actual used codec preferences */
 	struct ast_codec_pref prefs;
+	/*! Requested codec preferences */
+	struct ast_codec_pref rprefs;
 	/*! Our call number */
 	unsigned short callno;
 	/*! Peer callno */
@@ -4755,9 +4758,12 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	if (ies->version)
 		version = ies->version;
 
-	if(ies->codec_prefs)
+	/* Use provided preferences until told otherwise for actual preferences */
+	if(ies->codec_prefs) {
+		ast_codec_pref_convert(&iaxs[callno]->rprefs, ies->codec_prefs, 32, 0);
 		ast_codec_pref_convert(&iaxs[callno]->prefs, ies->codec_prefs, 32, 0);
-	
+	}
+
 	if (!gotcapability) 
 		iaxs[callno]->peercapability = iaxs[callno]->peerformat;
 	if (version > IAX_PROTO_VERSION) {
@@ -6279,8 +6285,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	struct ast_iax2_meta_trunk_hdr *mth;
 	struct ast_iax2_meta_trunk_entry *mte;
 	struct ast_iax2_meta_trunk_mini *mtm;
-	char dblbuf[4096];	/* Declaration of dblbuf must immediately *preceed* fr  on the stack */
-	struct iax_frame fr;
+	struct iax_frame *fr;
 	struct iax_frame *cur;
 	char iabuf[INET_ADDRSTRLEN];
 	struct ast_frame f;
@@ -6299,11 +6304,12 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	struct iax_frame *duped_fr;
 	char host_pref_buf[128];
 	char caller_pref_buf[128];
-	struct ast_codec_pref pref,rpref;
+	struct ast_codec_pref pref;
 	char *using_prefs = "mine";
 
-	dblbuf[0] = 0;	/* Keep GCC from whining */
-	fr.callno = 0;
+	/* allocate an iax_frame with 4096 bytes of data buffer */
+	fr = alloca(sizeof(*fr) + 4096);
+	fr->callno = 0;
 	
 	res = recvfrom(fd, buf, sizeof(buf), 0,(struct sockaddr *) &sin, &len);
 	if (res < 0) {
@@ -6323,7 +6329,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	}
 	if ((vh->zeros == 0) && (ntohs(vh->callno) & 0x8000)) {
 		/* This is a video frame, get call number */
-		fr.callno = find_callno(ntohs(vh->callno) & ~0x8000, dcallno, &sin, new, 1, fd);
+		fr->callno = find_callno(ntohs(vh->callno) & ~0x8000, dcallno, &sin, new, 1, fd);
 		minivid = 1;
 	} else if (meta->zeros == 0) {
 		unsigned char metatype;
@@ -6374,16 +6380,16 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				/* Stop if we don't have enough data */
 				if (len > res)
 					break;
-				fr.callno = find_callno(callno & ~IAX_FLAG_FULL, 0, &sin, NEW_PREVENT, 1, fd);
-				if (fr.callno) {
-					ast_mutex_lock(&iaxsl[fr.callno]);
+				fr->callno = find_callno(callno & ~IAX_FLAG_FULL, 0, &sin, NEW_PREVENT, 1, fd);
+				if (fr->callno) {
+					ast_mutex_lock(&iaxsl[fr->callno]);
 					/* If it's a valid call, deliver the contents.  If not, we
 					   drop it, since we don't have a scallno to use for an INVAL */
 					/* Process as a mini frame */
 					f.frametype = AST_FRAME_VOICE;
-					if (iaxs[fr.callno]) {
-						if (iaxs[fr.callno]->voiceformat > 0) {
-							f.subclass = iaxs[fr.callno]->voiceformat;
+					if (iaxs[fr->callno]) {
+						if (iaxs[fr->callno]->voiceformat > 0) {
+							f.subclass = iaxs[fr->callno]->voiceformat;
 							f.datalen = len;
 							if (f.datalen >= 0) {
 								if (f.datalen)
@@ -6391,11 +6397,11 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 								else
 									f.data = NULL;
 								if(trunked_ts) {
-									fr.ts = (iaxs[fr.callno]->last & 0xFFFF0000L) | (trunked_ts & 0xffff);
+									fr->ts = (iaxs[fr->callno]->last & 0xFFFF0000L) | (trunked_ts & 0xffff);
 								} else
-									fr.ts = fix_peerts(&rxtrunktime, fr.callno, ts);
+									fr->ts = fix_peerts(&rxtrunktime, fr->callno, ts);
 								/* Don't pass any packets until we're started */
-								if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED)) {
+								if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
 									/* Common things */
 									f.src = "IAX2";
 									f.mallocd = 0;
@@ -6404,28 +6410,28 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 										f.samples = ast_codec_get_samples(&f);
 									else
 										f.samples = 0;
-									fr.outoforder = 0;
-									iax_frame_wrap(&fr, &f);
+									fr->outoforder = 0;
+									iax_frame_wrap(fr, &f);
 #ifdef BRIDGE_OPTIMIZATION
-									if (iaxs[fr.callno]->bridgecallno) {
+									if (iaxs[fr->callno]->bridgecallno) {
 										forward_delivery(&fr);
 									} else {
 										duped_fr = iaxfrdup2(&fr);
 										if (duped_fr) {
-											schedule_delivery(duped_fr, updatehistory, 1, &fr.ts);
+											schedule_delivery(duped_fr, updatehistory, 1, &fr->ts);
 										}
 									}
 #else
-									duped_fr = iaxfrdup2(&fr);
+									duped_fr = iaxfrdup2(fr);
 									if (duped_fr) {
-										schedule_delivery(duped_fr, updatehistory, 1, &fr.ts);
+										schedule_delivery(duped_fr, updatehistory, 1, &fr->ts);
 									}
 #endif
-									if (iaxs[fr.callno]->last < fr.ts) {
-										iaxs[fr.callno]->last = fr.ts;
+									if (iaxs[fr->callno]->last < fr->ts) {
+										iaxs[fr->callno]->last = fr->ts;
 #if 1
 										if (option_debug)
-											ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
+											ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr->callno, fr->ts);
 #endif
 									}
 								}
@@ -6434,10 +6440,10 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 							}
 						} else {
 							ast_log(LOG_WARNING, "Received trunked frame before first full voice frame\n ");
-							iax2_vnak(fr.callno);
+							iax2_vnak(fr->callno);
 						}
 					}
-					ast_mutex_unlock(&iaxsl[fr.callno]);
+					ast_mutex_unlock(&iaxsl[fr->callno]);
 				}
 				ptr += len;
 				res -= len;
@@ -6470,13 +6476,13 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		f.subclass = 0;
 	}
 
-	if (!fr.callno)
-		fr.callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new, 1, fd);
+	if (!fr->callno)
+		fr->callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new, 1, fd);
 
-	if (fr.callno > 0) 
-		ast_mutex_lock(&iaxsl[fr.callno]);
+	if (fr->callno > 0) 
+		ast_mutex_lock(&iaxsl[fr->callno]);
 
-	if (!fr.callno || !iaxs[fr.callno]) {
+	if (!fr->callno || !iaxs[fr->callno]) {
 		/* A call arrived for a nonexistent destination.  Unless it's an "inval"
 		   frame, reply with an inval */
 		if (ntohs(mh->callno) & IAX_FLAG_FULL) {
@@ -6489,14 +6495,14 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				raw_hangup(&sin, ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS, ntohs(mh->callno) & ~IAX_FLAG_FULL,
 				fd);
 		}
-		if (fr.callno > 0) 
-			ast_mutex_unlock(&iaxsl[fr.callno]);
+		if (fr->callno > 0) 
+			ast_mutex_unlock(&iaxsl[fr->callno]);
 		return 1;
 	}
-	if (ast_test_flag(iaxs[fr.callno], IAX_ENCRYPTED)) {
-		if (decrypt_frame(fr.callno, fh, &f, &res)) {
+	if (ast_test_flag(iaxs[fr->callno], IAX_ENCRYPTED)) {
+		if (decrypt_frame(fr->callno, fh, &f, &res)) {
 			ast_log(LOG_NOTICE, "Packet Decrypt Failed!\n");
-			ast_mutex_unlock(&iaxsl[fr.callno]);
+			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
 #ifdef DEBUG_SUPPORT
@@ -6506,24 +6512,24 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	}
 
 	/* count this frame */
-	iaxs[fr.callno]->frames_received++;
+	iaxs[fr->callno]->frames_received++;
 
-	if (!inaddrcmp(&sin, &iaxs[fr.callno]->addr) && !minivid &&
+	if (!inaddrcmp(&sin, &iaxs[fr->callno]->addr) && !minivid &&
 		f.subclass != IAX_COMMAND_TXCNT &&		/* for attended transfer */
 		f.subclass != IAX_COMMAND_TXACC)		/* for attended transfer */
-		iaxs[fr.callno]->peercallno = (unsigned short)(ntohs(mh->callno) & ~IAX_FLAG_FULL);
+		iaxs[fr->callno]->peercallno = (unsigned short)(ntohs(mh->callno) & ~IAX_FLAG_FULL);
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
 		if (option_debug  && iaxdebug)
 			ast_log(LOG_DEBUG, "Received packet %d, (%d, %d)\n", fh->oseqno, f.frametype, f.subclass);
 		/* Check if it's out of order (and not an ACK or INVAL) */
-		fr.oseqno = fh->oseqno;
-		fr.iseqno = fh->iseqno;
-		fr.ts = ntohl(fh->ts);
+		fr->oseqno = fh->oseqno;
+		fr->iseqno = fh->iseqno;
+		fr->ts = ntohl(fh->ts);
 #ifdef IAXTESTS
 		if (test_resync) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Simulating frame ts resync, was %u now %u\n", fr.ts, fr.ts + test_resync);
-			fr.ts += test_resync;
+				ast_log(LOG_DEBUG, "Simulating frame ts resync, was %u now %u\n", fr->ts, fr->ts + test_resync);
+			fr->ts += test_resync;
 		}
 #endif /* IAXTESTS */
 #if 0
@@ -6536,8 +6542,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 #endif
 		if ((ntohs(fh->dcallno) & IAX_FLAG_RETRANS) || (f.frametype != AST_FRAME_VOICE))
 			updatehistory = 0;
-		if ((iaxs[fr.callno]->iseqno != fr.oseqno) &&
-			(iaxs[fr.callno]->iseqno ||
+		if ((iaxs[fr->callno]->iseqno != fr->oseqno) &&
+			(iaxs[fr->callno]->iseqno ||
 				((f.subclass != IAX_COMMAND_TXCNT) &&
 				(f.subclass != IAX_COMMAND_TXREADY) &&		/* for attended transfer */
 				(f.subclass != IAX_COMMAND_TXREL) &&		/* for attended transfer */
@@ -6557,8 +6563,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			 	/* If it's not an ACK packet, it's out of order. */
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Packet arrived out of order (expecting %d, got %d) (frametype = %d, subclass = %d)\n", 
-					iaxs[fr.callno]->iseqno, fr.oseqno, f.frametype, f.subclass);
-				if (iaxs[fr.callno]->iseqno > fr.oseqno) {
+					iaxs[fr->callno]->iseqno, fr->oseqno, f.frametype, f.subclass);
+				if (iaxs[fr->callno]->iseqno > fr->oseqno) {
 					/* If we've already seen it, ack it XXX There's a border condition here XXX */
 					if ((f.frametype != AST_FRAME_IAX) || 
 							((f.subclass != IAX_COMMAND_ACK) && (f.subclass != IAX_COMMAND_INVAL))) {
@@ -6566,13 +6572,13 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 							ast_log(LOG_DEBUG, "Acking anyway\n");
 						/* XXX Maybe we should handle its ack to us, but then again, it's probably outdated anyway, and if
 						   we have anything to send, we'll retransmit and get an ACK back anyway XXX */
-						send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
+						send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
 					}
 				} else {
 					/* Send a VNAK requesting retransmission */
-					iax2_vnak(fr.callno);
+					iax2_vnak(fr->callno);
 				}
-				ast_mutex_unlock(&iaxsl[fr.callno]);
+				ast_mutex_unlock(&iaxsl[fr->callno]);
 				return 1;
 			}
 		} else {
@@ -6583,67 +6589,67 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			    (f.subclass != IAX_COMMAND_TXACC) &&
 				(f.subclass != IAX_COMMAND_VNAK)) ||
 			    (f.frametype != AST_FRAME_IAX))
-				iaxs[fr.callno]->iseqno++;
+				iaxs[fr->callno]->iseqno++;
 		}
 		/* A full frame */
 		if (res < sizeof(struct ast_iax2_full_hdr)) {
 			ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, (int)sizeof(struct ast_iax2_full_hdr));
-			ast_mutex_unlock(&iaxsl[fr.callno]);
+			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
 		f.datalen = res - sizeof(struct ast_iax2_full_hdr);
 
 		/* Handle implicit ACKing unless this is an INVAL, and only if this is 
 		   from the real peer, not the transfer peer */
-		if (!inaddrcmp(&sin, &iaxs[fr.callno]->addr) && 
+		if (!inaddrcmp(&sin, &iaxs[fr->callno]->addr) && 
 		    ((f.subclass != IAX_COMMAND_INVAL) ||
 		     (f.frametype != AST_FRAME_IAX))) {
 			unsigned char x;
 			/* XXX This code is not very efficient.  Surely there is a better way which still
 			       properly handles boundary conditions? XXX */
 			/* First we have to qualify that the ACKed value is within our window */
-			for (x=iaxs[fr.callno]->rseqno; x != iaxs[fr.callno]->oseqno; x++)
-				if (fr.iseqno == x)
+			for (x=iaxs[fr->callno]->rseqno; x != iaxs[fr->callno]->oseqno; x++)
+				if (fr->iseqno == x)
 					break;
-			if ((x != iaxs[fr.callno]->oseqno) || (iaxs[fr.callno]->oseqno == fr.iseqno)) {
+			if ((x != iaxs[fr->callno]->oseqno) || (iaxs[fr->callno]->oseqno == fr->iseqno)) {
 				/* The acknowledgement is within our window.  Time to acknowledge everything
 				   that it says to */
-				for (x=iaxs[fr.callno]->rseqno; x != fr.iseqno; x++) {
+				for (x=iaxs[fr->callno]->rseqno; x != fr->iseqno; x++) {
 					/* Ack the packet with the given timestamp */
 					if (option_debug && iaxdebug)
 						ast_log(LOG_DEBUG, "Cancelling transmission of packet %d\n", x);
 					ast_mutex_lock(&iaxq.lock);
 					for (cur = iaxq.head; cur ; cur = cur->next) {
 						/* If it's our call, and our timestamp, mark -1 retries */
-						if ((fr.callno == cur->callno) && (x == cur->oseqno)) {
+						if ((fr->callno == cur->callno) && (x == cur->oseqno)) {
 							cur->retries = -1;
 							/* Destroy call if this is the end */
 							if (cur->final) { 
 								if (iaxdebug && option_debug)
-									ast_log(LOG_DEBUG, "Really destroying %d, having been acked on final message\n", fr.callno);
-								iax2_destroy_nolock(fr.callno);
+									ast_log(LOG_DEBUG, "Really destroying %d, having been acked on final message\n", fr->callno);
+								iax2_destroy_nolock(fr->callno);
 							}
 						}
 					}
 					ast_mutex_unlock(&iaxq.lock);
 				}
 				/* Note how much we've received acknowledgement for */
-				if (iaxs[fr.callno])
-					iaxs[fr.callno]->rseqno = fr.iseqno;
+				if (iaxs[fr->callno])
+					iaxs[fr->callno]->rseqno = fr->iseqno;
 				else {
 					/* Stop processing now */
-					ast_mutex_unlock(&iaxsl[fr.callno]);
+					ast_mutex_unlock(&iaxsl[fr->callno]);
 					return 1;
 				}
 			} else
-				ast_log(LOG_DEBUG, "Received iseqno %d not within window %d->%d\n", fr.iseqno, iaxs[fr.callno]->rseqno, iaxs[fr.callno]->oseqno);
+				ast_log(LOG_DEBUG, "Received iseqno %d not within window %d->%d\n", fr->iseqno, iaxs[fr->callno]->rseqno, iaxs[fr->callno]->oseqno);
 		}
-		if (inaddrcmp(&sin, &iaxs[fr.callno]->addr) && 
+		if (inaddrcmp(&sin, &iaxs[fr->callno]->addr) && 
 			((f.frametype != AST_FRAME_IAX) || 
 			 ((f.subclass != IAX_COMMAND_TXACC) &&
 			  (f.subclass != IAX_COMMAND_TXCNT)))) {
 			/* Only messages we accept from a transfer host are TXACC and TXCNT */
-			ast_mutex_unlock(&iaxsl[fr.callno]);
+			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
 
@@ -6651,7 +6657,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			if (f.frametype == AST_FRAME_IAX) {
 				if (iax_parse_ies(&ies, buf + sizeof(struct ast_iax2_full_hdr), f.datalen)) {
 					ast_log(LOG_WARNING, "Undecodable frame received from '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
-					ast_mutex_unlock(&iaxsl[fr.callno]);
+					ast_mutex_unlock(&iaxsl[fr->callno]);
 					return 1;
 				}
 				f.data = NULL;
@@ -6665,59 +6671,59 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			memset(&ies, 0, sizeof(ies));
 		}
 		if (f.frametype == AST_FRAME_VOICE) {
-			if (f.subclass != iaxs[fr.callno]->voiceformat) {
-					iaxs[fr.callno]->voiceformat = f.subclass;
+			if (f.subclass != iaxs[fr->callno]->voiceformat) {
+					iaxs[fr->callno]->voiceformat = f.subclass;
 					ast_log(LOG_DEBUG, "Ooh, voice format changed to %d\n", f.subclass);
-					if (iaxs[fr.callno]->owner) {
+					if (iaxs[fr->callno]->owner) {
 						int orignative;
 retryowner:
-						if (ast_mutex_trylock(&iaxs[fr.callno]->owner->lock)) {
-							ast_mutex_unlock(&iaxsl[fr.callno]);
+						if (ast_mutex_trylock(&iaxs[fr->callno]->owner->lock)) {
+							ast_mutex_unlock(&iaxsl[fr->callno]);
 							usleep(1);
-							ast_mutex_lock(&iaxsl[fr.callno]);
-							if (iaxs[fr.callno] && iaxs[fr.callno]->owner) goto retryowner;
+							ast_mutex_lock(&iaxsl[fr->callno]);
+							if (iaxs[fr->callno] && iaxs[fr->callno]->owner) goto retryowner;
 						}
-						if (iaxs[fr.callno]) {
-							if (iaxs[fr.callno]->owner) {
-								orignative = iaxs[fr.callno]->owner->nativeformats;
-								iaxs[fr.callno]->owner->nativeformats = f.subclass;
-								if (iaxs[fr.callno]->owner->readformat)
-									ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat);
-								iaxs[fr.callno]->owner->nativeformats = orignative;
-								ast_mutex_unlock(&iaxs[fr.callno]->owner->lock);
+						if (iaxs[fr->callno]) {
+							if (iaxs[fr->callno]->owner) {
+								orignative = iaxs[fr->callno]->owner->nativeformats;
+								iaxs[fr->callno]->owner->nativeformats = f.subclass;
+								if (iaxs[fr->callno]->owner->readformat)
+									ast_set_read_format(iaxs[fr->callno]->owner, iaxs[fr->callno]->owner->readformat);
+								iaxs[fr->callno]->owner->nativeformats = orignative;
+								ast_mutex_unlock(&iaxs[fr->callno]->owner->lock);
 							}
 						} else {
 							ast_log(LOG_DEBUG, "Neat, somebody took away the channel at a magical time but i found it!\n");
-							ast_mutex_unlock(&iaxsl[fr.callno]);
+							ast_mutex_unlock(&iaxsl[fr->callno]);
 							return 1;
 						}
 					}
 			}
 		}
 		if (f.frametype == AST_FRAME_VIDEO) {
-			if (f.subclass != iaxs[fr.callno]->videoformat) {
+			if (f.subclass != iaxs[fr->callno]->videoformat) {
 				ast_log(LOG_DEBUG, "Ooh, video format changed to %d\n", f.subclass & ~0x1);
-				iaxs[fr.callno]->videoformat = f.subclass & ~0x1;
+				iaxs[fr->callno]->videoformat = f.subclass & ~0x1;
 			}
 		}
 		if (f.frametype == AST_FRAME_IAX) {
-			if (iaxs[fr.callno]->initid > -1) {
+			if (iaxs[fr->callno]->initid > -1) {
 				/* Don't auto congest anymore since we've gotten something usefulb ack */
-				ast_sched_del(sched, iaxs[fr.callno]->initid);
-				iaxs[fr.callno]->initid = -1;
+				ast_sched_del(sched, iaxs[fr->callno]->initid);
+				iaxs[fr->callno]->initid = -1;
 			}
 			/* Handle the IAX pseudo frame itself */
 			if (option_debug && iaxdebug)
 				ast_log(LOG_DEBUG, "IAX subclass %d received\n", f.subclass);
 
                         /* Update last ts unless the frame's timestamp originated with us. */
-			if (iaxs[fr.callno]->last < fr.ts &&
+			if (iaxs[fr->callno]->last < fr->ts &&
                             f.subclass != IAX_COMMAND_ACK &&
                             f.subclass != IAX_COMMAND_PONG &&
                             f.subclass != IAX_COMMAND_LAGRP) {
-				iaxs[fr.callno]->last = fr.ts;
+				iaxs[fr->callno]->last = fr->ts;
 				if (option_debug && iaxdebug)
-					ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
+					ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr->callno, fr->ts);
 			}
 
 			switch(f.subclass) {
@@ -6725,163 +6731,165 @@ retryowner:
 				/* Do nothing */
 				break;
 			case IAX_COMMAND_QUELCH:
-				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED)) {
+				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
 				        /* Generate Manager Hold event, if necessary*/
-					if (iaxs[fr.callno]->owner) {
+					if (iaxs[fr->callno]->owner) {
 						manager_event(EVENT_FLAG_CALL, "Hold",
 							"Channel: %s\r\n"
 							"Uniqueid: %s\r\n",
-							iaxs[fr.callno]->owner->name, 
-							iaxs[fr.callno]->owner->uniqueid);
+							iaxs[fr->callno]->owner->name, 
+							iaxs[fr->callno]->owner->uniqueid);
 					}
 
-					ast_set_flag(iaxs[fr.callno], IAX_QUELCH);
+					ast_set_flag(iaxs[fr->callno], IAX_QUELCH);
 					if (ies.musiconhold) {
-						if (iaxs[fr.callno]->owner &&
-							ast_bridged_channel(iaxs[fr.callno]->owner))
-								ast_moh_start(ast_bridged_channel(iaxs[fr.callno]->owner), NULL);
+						if (iaxs[fr->callno]->owner &&
+							ast_bridged_channel(iaxs[fr->callno]->owner))
+								ast_moh_start(ast_bridged_channel(iaxs[fr->callno]->owner), NULL);
 					}
 				}
 				break;
 			case IAX_COMMAND_UNQUELCH:
-				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED)) {
+				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
 				        /* Generate Manager Unhold event, if necessary*/
-					if (iaxs[fr.callno]->owner && ast_test_flag(iaxs[fr.callno], IAX_QUELCH)) {
+					if (iaxs[fr->callno]->owner && ast_test_flag(iaxs[fr->callno], IAX_QUELCH)) {
 						manager_event(EVENT_FLAG_CALL, "Unhold",
 							"Channel: %s\r\n"
 							"Uniqueid: %s\r\n",
-							iaxs[fr.callno]->owner->name, 
-							iaxs[fr.callno]->owner->uniqueid);
+							iaxs[fr->callno]->owner->name, 
+							iaxs[fr->callno]->owner->uniqueid);
 					}
 
-					ast_clear_flag(iaxs[fr.callno], IAX_QUELCH);
-					if (iaxs[fr.callno]->owner &&
-						ast_bridged_channel(iaxs[fr.callno]->owner))
-							ast_moh_stop(ast_bridged_channel(iaxs[fr.callno]->owner));
+					ast_clear_flag(iaxs[fr->callno], IAX_QUELCH);
+					if (iaxs[fr->callno]->owner &&
+						ast_bridged_channel(iaxs[fr->callno]->owner))
+							ast_moh_stop(ast_bridged_channel(iaxs[fr->callno]->owner));
 				}
 				break;
 			case IAX_COMMAND_TXACC:
-				if (iaxs[fr.callno]->transferring == TRANSFER_BEGIN) {
+				if (iaxs[fr->callno]->transferring == TRANSFER_BEGIN) {
 					/* Ack the packet with the given timestamp */
 					ast_mutex_lock(&iaxq.lock);
 					for (cur = iaxq.head; cur ; cur = cur->next) {
 						/* Cancel any outstanding txcnt's */
-						if ((fr.callno == cur->callno) && (cur->transfer))
+						if ((fr->callno == cur->callno) && (cur->transfer))
 							cur->retries = -1;
 					}
 					ast_mutex_unlock(&iaxq.lock);
 					memset(&ied1, 0, sizeof(ied1));
-					iax_ie_append_short(&ied1, IAX_IE_CALLNO, iaxs[fr.callno]->callno);
-					send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_TXREADY, 0, ied1.buf, ied1.pos, -1);
-					iaxs[fr.callno]->transferring = TRANSFER_READY;
+					iax_ie_append_short(&ied1, IAX_IE_CALLNO, iaxs[fr->callno]->callno);
+					send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_TXREADY, 0, ied1.buf, ied1.pos, -1);
+					iaxs[fr->callno]->transferring = TRANSFER_READY;
 				}
 				break;
 			case IAX_COMMAND_NEW:
 				/* Ignore if it's already up */
-				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD))
+				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD))
 					break;
 				if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr)
 					check_provisioning(&sin, fd, ies.serviceident, ies.provver);
 				/* If we're in trunk mode, do it now, and update the trunk number in our frame before continuing */
-				if (ast_test_flag(iaxs[fr.callno], IAX_TRUNK)) {
-					fr.callno = make_trunk(fr.callno, 1);
+				if (ast_test_flag(iaxs[fr->callno], IAX_TRUNK)) {
+					fr->callno = make_trunk(fr->callno, 1);
 				}
 				/* For security, always ack immediately */
 				if (delayreject)
-					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
-				if (check_access(fr.callno, &sin, &ies)) {
+					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
+				if (check_access(fr->callno, &sin, &ies)) {
 					/* They're not allowed on */
-					auth_fail(fr.callno, IAX_COMMAND_REJECT);
+					auth_fail(fr->callno, IAX_COMMAND_REJECT);
 					if (authdebug)
-						ast_log(LOG_NOTICE, "Rejected connect attempt from %s, who was trying to reach '%s@%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
+						ast_log(LOG_NOTICE, "Rejected connect attempt from %s, who was trying to reach '%s@%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr->callno]->exten, iaxs[fr->callno]->context);
 					break;
 				}
 				/* This might re-enter the IAX code and need the lock */
-				if (strcasecmp(iaxs[fr.callno]->exten, "TBD")) {
-					ast_mutex_unlock(&iaxsl[fr.callno]);
-					exists = ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->cid_num);
-					ast_mutex_lock(&iaxsl[fr.callno]);
+				if (strcasecmp(iaxs[fr->callno]->exten, "TBD")) {
+					ast_mutex_unlock(&iaxsl[fr->callno]);
+					exists = ast_exists_extension(NULL, iaxs[fr->callno]->context, iaxs[fr->callno]->exten, 1, iaxs[fr->callno]->cid_num);
+					ast_mutex_lock(&iaxsl[fr->callno]);
 				} else
 					exists = 0;
-				if (ast_strlen_zero(iaxs[fr.callno]->secret) && ast_strlen_zero(iaxs[fr.callno]->inkeys)) {
-					if (strcmp(iaxs[fr.callno]->exten, "TBD") && !exists) {
+				if (ast_strlen_zero(iaxs[fr->callno]->secret) && ast_strlen_zero(iaxs[fr->callno]->inkeys)) {
+					if (strcmp(iaxs[fr->callno]->exten, "TBD") && !exists) {
 						memset(&ied0, 0, sizeof(ied0));
 						iax_ie_append_str(&ied0, IAX_IE_CAUSE, "No such context/extension");
 						iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_NO_ROUTE_DESTINATION);
-						send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+						send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 						if (authdebug)
-							ast_log(LOG_NOTICE, "Rejected connect attempt from %s, request '%s@%s' does not exist\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
+							ast_log(LOG_NOTICE, "Rejected connect attempt from %s, request '%s@%s' does not exist\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr->callno]->exten, iaxs[fr->callno]->context);
 					} else {
 						/* Select an appropriate format */
 
-						if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOPREFS)) {
-							if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP)) {
+						if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOPREFS)) {
+							if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP)) {
 								using_prefs = "reqonly";
 							} else {
 								using_prefs = "disabled";
 							}
-							format = iaxs[fr.callno]->peerformat & iaxs[fr.callno]->capability;
+							format = iaxs[fr->callno]->peerformat & iaxs[fr->callno]->capability;
 							memset(&pref, 0, sizeof(pref));
 							strcpy(caller_pref_buf, "disabled");
 							strcpy(host_pref_buf, "disabled");
 						} else {
 							using_prefs = "mine";
-							if(ies.codec_prefs) {
-								ast_codec_pref_convert(&rpref, ies.codec_prefs, 32, 0);
+							/* If the information elements are in here... use them */
+							if (ies.codec_prefs)
+								ast_codec_pref_convert(&iaxs[fr->callno]->rprefs, ies.codec_prefs, 32, 0);
+							if (ast_codec_pref_index(&iaxs[fr->callno]->rprefs, 0)) {
 								/* If we are codec_first_choice we let the caller have the 1st shot at picking the codec.*/
-								if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
-									pref = rpref;
+								if (ast_test_flag(iaxs[fr->callno], IAX_CODEC_USER_FIRST)) {
+									pref = iaxs[fr->callno]->rprefs;
 									using_prefs = "caller";
 								} else {
-									pref = iaxs[fr.callno]->prefs;
+									pref = iaxs[fr->callno]->prefs;
 								}
 							} else
-								pref = iaxs[fr.callno]->prefs;
-						
-							format = ast_codec_choose(&pref, iaxs[fr.callno]->capability & iaxs[fr.callno]->peercapability, 0);
-							ast_codec_pref_string(&rpref, caller_pref_buf, sizeof(caller_pref_buf) - 1);
-							ast_codec_pref_string(&iaxs[fr.callno]->prefs, host_pref_buf, sizeof(host_pref_buf) - 1);
+								pref = iaxs[fr->callno]->prefs;
+							
+							format = ast_codec_choose(&pref, iaxs[fr->callno]->capability & iaxs[fr->callno]->peercapability, 0);
+							ast_codec_pref_string(&iaxs[fr->callno]->rprefs, caller_pref_buf, sizeof(caller_pref_buf) - 1);
+							ast_codec_pref_string(&iaxs[fr->callno]->prefs, host_pref_buf, sizeof(host_pref_buf) - 1);
 						}
 						if (!format) {
-							if(!ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP))
-								format = iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability;
+							if(!ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP))
+								format = iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability;
 							if (!format) {
 								memset(&ied0, 0, sizeof(ied0));
 								iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 								iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
-								send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+								send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 								if (authdebug) {
-									if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP))
-										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
+									if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP))
+										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr->callno]->peerformat, iaxs[fr->callno]->capability);
 									else 
-										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
+										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr->callno]->peerformat, iaxs[fr->callno]->peercapability, iaxs[fr->callno]->capability);
 								}
 							} else {
 								/* Pick one... */
-								if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP)) {
-									if(!(iaxs[fr.callno]->peerformat & iaxs[fr.callno]->capability))
+								if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP)) {
+									if(!(iaxs[fr->callno]->peerformat & iaxs[fr->callno]->capability))
 										format = 0;
 								} else {
-									if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOPREFS)) {
-										using_prefs = ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP) ? "reqonly" : "disabled";
+									if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOPREFS)) {
+										using_prefs = ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP) ? "reqonly" : "disabled";
 										memset(&pref, 0, sizeof(pref));
-										format = ast_best_codec(iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
+										format = ast_best_codec(iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability);
 										strcpy(caller_pref_buf,"disabled");
 										strcpy(host_pref_buf,"disabled");
 									} else {
 										using_prefs = "mine";
-										if(ies.codec_prefs) {
+										if (ast_codec_pref_index(&iaxs[fr->callno]->rprefs, 0)) {
 											/* Do the opposite of what we tried above. */
-											if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
-												pref = iaxs[fr.callno]->prefs;								
+											if (ast_test_flag(iaxs[fr->callno], IAX_CODEC_USER_FIRST)) {
+												pref = iaxs[fr->callno]->prefs;								
 											} else {
-												pref = rpref;
+												pref = iaxs[fr->callno]->rprefs;
 												using_prefs = "caller";
 											}
-											format = ast_codec_choose(&pref, iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability, 1);
+											format = ast_codec_choose(&pref, iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability, 1);
 									
 										} else /* if no codec_prefs IE do it the old way */
-											format = ast_best_codec(iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);	
+											format = ast_best_codec(iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability);	
 									}
 								}
 
@@ -6889,11 +6897,11 @@ retryowner:
 									memset(&ied0, 0, sizeof(ied0));
 									iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 									iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
-									ast_log(LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
-									send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+									ast_log(LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability);
+									send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 									if (authdebug)
-										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
-									ast_set_flag(iaxs[fr.callno], IAX_ALREADYGONE);	
+										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr->callno]->peerformat, iaxs[fr->callno]->peercapability, iaxs[fr->callno]->capability);
+									ast_set_flag(iaxs[fr->callno], IAX_ALREADYGONE);	
 									break;
 								}
 							}
@@ -6902,9 +6910,9 @@ retryowner:
 							/* No authentication required, let them in */
 							memset(&ied1, 0, sizeof(ied1));
 							iax_ie_append_int(&ied1, IAX_IE_FORMAT, format);
-							send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACCEPT, 0, ied1.buf, ied1.pos, -1);
-							if (strcmp(iaxs[fr.callno]->exten, "TBD")) {
-								ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED);
+							send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACCEPT, 0, ied1.buf, ied1.pos, -1);
+							if (strcmp(iaxs[fr->callno]->exten, "TBD")) {
+								ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
 								if (option_verbose > 2) 
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting UNAUTHENTICATED call from %s:\n"
 												"%srequested format = %s,\n"
@@ -6914,7 +6922,7 @@ retryowner:
 												"%spriority = %s\n",
 												ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), 
 												VERBOSE_PREFIX_4,
-												ast_getformatname(iaxs[fr.callno]->peerformat), 
+												ast_getformatname(iaxs[fr->callno]->peerformat), 
 												VERBOSE_PREFIX_4,
 												caller_pref_buf,
 												VERBOSE_PREFIX_4,
@@ -6924,10 +6932,10 @@ retryowner:
 												VERBOSE_PREFIX_4,
 												using_prefs);
 								
-								if(!(c = ast_iax2_new(fr.callno, AST_STATE_RING, format)))
-									iax2_destroy_nolock(fr.callno);
+								if(!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format)))
+									iax2_destroy_nolock(fr->callno);
 							} else {
-								ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_TBD);
+								ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
 								/* If this is a TBD call, we're ready but now what...  */
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepted unauthenticated TBD call from %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
@@ -6936,35 +6944,35 @@ retryowner:
 					}
 					break;
 				}
-				if (iaxs[fr.callno]->authmethods & IAX_AUTH_MD5)
-					merge_encryption(iaxs[fr.callno],ies.encmethods);
+				if (iaxs[fr->callno]->authmethods & IAX_AUTH_MD5)
+					merge_encryption(iaxs[fr->callno],ies.encmethods);
 				else
-					iaxs[fr.callno]->encmethods = 0;
-				authenticate_request(iaxs[fr.callno]);
-				ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_AUTHENTICATED);
+					iaxs[fr->callno]->encmethods = 0;
+				authenticate_request(iaxs[fr->callno]);
+				ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED);
 				break;
 			case IAX_COMMAND_DPREQ:
 				/* Request status in the dialplan */
-				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_TBD) &&
-					!ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED) && ies.called_number) {
+				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD) &&
+					!ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED) && ies.called_number) {
 					if (iaxcompat) {
 						/* Spawn a thread for the lookup */
-						spawn_dp_lookup(fr.callno, iaxs[fr.callno]->context, ies.called_number, iaxs[fr.callno]->cid_num);
+						spawn_dp_lookup(fr->callno, iaxs[fr->callno]->context, ies.called_number, iaxs[fr->callno]->cid_num);
 					} else {
 						/* Just look it up */
-						dp_lookup(fr.callno, iaxs[fr.callno]->context, ies.called_number, iaxs[fr.callno]->cid_num, 1);
+						dp_lookup(fr->callno, iaxs[fr->callno]->context, ies.called_number, iaxs[fr->callno]->cid_num, 1);
 					}
 				}
 				break;
 			case IAX_COMMAND_HANGUP:
-				ast_set_flag(iaxs[fr.callno], IAX_ALREADYGONE);
-				ast_log(LOG_DEBUG, "Immediately destroying %d, having received hangup\n", fr.callno);
+				ast_set_flag(iaxs[fr->callno], IAX_ALREADYGONE);
+				ast_log(LOG_DEBUG, "Immediately destroying %d, having received hangup\n", fr->callno);
 				/* Set hangup cause according to remote */
-				if (ies.causecode && iaxs[fr.callno]->owner)
-					iaxs[fr.callno]->owner->hangupcause = ies.causecode;
+				if (ies.causecode && iaxs[fr->callno]->owner)
+					iaxs[fr->callno]->owner->hangupcause = ies.causecode;
 				/* Send ack immediately, before we destroy */
-				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
-				iax2_destroy_nolock(fr.callno);
+				send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
+				iax2_destroy_nolock(fr->callno);
 				break;
 			case IAX_COMMAND_REJECT:
 				memset(&f, 0, sizeof(f));
@@ -6972,101 +6980,101 @@ retryowner:
 				f.subclass = AST_CONTROL_CONGESTION;
 
 				/* Set hangup cause according to remote */
-				if (ies.causecode && iaxs[fr.callno]->owner)
-					iaxs[fr.callno]->owner->hangupcause = ies.causecode;
+				if (ies.causecode && iaxs[fr->callno]->owner)
+					iaxs[fr->callno]->owner->hangupcause = ies.causecode;
 
-				iax2_queue_frame(fr.callno, &f);
-				if (ast_test_flag(iaxs[fr.callno], IAX_PROVISION)) {
+				iax2_queue_frame(fr->callno, &f);
+				if (ast_test_flag(iaxs[fr->callno], IAX_PROVISION)) {
 					/* Send ack immediately, before we destroy */
-					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
-					iax2_destroy_nolock(fr.callno);
+					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
+					iax2_destroy_nolock(fr->callno);
 					break;
 				}
-				if (iaxs[fr.callno]->owner) {
+				if (iaxs[fr->callno]->owner) {
 					if (authdebug)
-						ast_log(LOG_WARNING, "Call rejected by %s: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr), ies.cause ? ies.cause : "<Unknown>");
+						ast_log(LOG_WARNING, "Call rejected by %s: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr->callno]->addr.sin_addr), ies.cause ? ies.cause : "<Unknown>");
 				}
-				ast_log(LOG_DEBUG, "Immediately destroying %d, having received reject\n", fr.callno);
+				ast_log(LOG_DEBUG, "Immediately destroying %d, having received reject\n", fr->callno);
 				/* Send ack immediately, before we destroy */
-				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
-				iaxs[fr.callno]->error = EPERM;
-				iax2_destroy_nolock(fr.callno);
+				send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
+				iaxs[fr->callno]->error = EPERM;
+				iax2_destroy_nolock(fr->callno);
 				break;
 			case IAX_COMMAND_TRANSFER:
-				if (iaxs[fr.callno]->owner && ast_bridged_channel(iaxs[fr.callno]->owner) && ies.called_number) {
+				if (iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner) && ies.called_number) {
 					if (!strcmp(ies.called_number, ast_parking_ext())) {
-						if (iax_park(ast_bridged_channel(iaxs[fr.callno]->owner), iaxs[fr.callno]->owner)) {
-							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", ast_bridged_channel(iaxs[fr.callno]->owner)->name);
+						if (iax_park(ast_bridged_channel(iaxs[fr->callno]->owner), iaxs[fr->callno]->owner)) {
+							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name);
 						} else
-							ast_log(LOG_DEBUG, "Parked call on '%s'\n", ast_bridged_channel(iaxs[fr.callno]->owner)->name);
+							ast_log(LOG_DEBUG, "Parked call on '%s'\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name);
 					} else {
-						if (ast_async_goto(ast_bridged_channel(iaxs[fr.callno]->owner), iaxs[fr.callno]->context, ies.called_number, 1))
-							ast_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", ast_bridged_channel(iaxs[fr.callno]->owner)->name, 
-								ies.called_number, iaxs[fr.callno]->context);
+						if (ast_async_goto(ast_bridged_channel(iaxs[fr->callno]->owner), iaxs[fr->callno]->context, ies.called_number, 1))
+							ast_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name, 
+								ies.called_number, iaxs[fr->callno]->context);
 						else
-							ast_log(LOG_DEBUG, "Async goto of '%s' to '%s@%s' started\n", ast_bridged_channel(iaxs[fr.callno]->owner)->name, 
-								ies.called_number, iaxs[fr.callno]->context);
+							ast_log(LOG_DEBUG, "Async goto of '%s' to '%s@%s' started\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name, 
+								ies.called_number, iaxs[fr->callno]->context);
 					}
 				} else
-						ast_log(LOG_DEBUG, "Async goto not applicable on call %d\n", fr.callno);
+						ast_log(LOG_DEBUG, "Async goto not applicable on call %d\n", fr->callno);
 				break;
 			case IAX_COMMAND_ACCEPT:
 				/* Ignore if call is already up or needs authentication or is a TBD */
-				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD | IAX_STATE_AUTHENTICATED))
+				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD | IAX_STATE_AUTHENTICATED))
 					break;
-				if (ast_test_flag(iaxs[fr.callno], IAX_PROVISION)) {
+				if (ast_test_flag(iaxs[fr->callno], IAX_PROVISION)) {
 					/* Send ack immediately, before we destroy */
-					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
-					iax2_destroy_nolock(fr.callno);
+					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
+					iax2_destroy_nolock(fr->callno);
 					break;
 				}
 				if (ies.format) {
-					iaxs[fr.callno]->peerformat = ies.format;
+					iaxs[fr->callno]->peerformat = ies.format;
 				} else {
-					if (iaxs[fr.callno]->owner)
-						iaxs[fr.callno]->peerformat = iaxs[fr.callno]->owner->nativeformats;
+					if (iaxs[fr->callno]->owner)
+						iaxs[fr->callno]->peerformat = iaxs[fr->callno]->owner->nativeformats;
 					else
-						iaxs[fr.callno]->peerformat = iaxs[fr.callno]->capability;
+						iaxs[fr->callno]->peerformat = iaxs[fr->callno]->capability;
 				}
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Call accepted by %s (format %s)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr), ast_getformatname(iaxs[fr.callno]->peerformat));
-				if (!(iaxs[fr.callno]->peerformat & iaxs[fr.callno]->capability)) {
+					ast_verbose(VERBOSE_PREFIX_3 "Call accepted by %s (format %s)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr->callno]->addr.sin_addr), ast_getformatname(iaxs[fr->callno]->peerformat));
+				if (!(iaxs[fr->callno]->peerformat & iaxs[fr->callno]->capability)) {
 					memset(&ied0, 0, sizeof(ied0));
 					iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 					iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
-					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 					if (authdebug)
-						ast_log(LOG_NOTICE, "Rejected call to %s, format 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
+						ast_log(LOG_NOTICE, "Rejected call to %s, format 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr->callno]->peerformat, iaxs[fr->callno]->capability);
 				} else {
-					ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED);
-					if (iaxs[fr.callno]->owner) {
+					ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
+					if (iaxs[fr->callno]->owner) {
 						/* Switch us to use a compatible format */
-						iaxs[fr.callno]->owner->nativeformats = iaxs[fr.callno]->peerformat;
+						iaxs[fr->callno]->owner->nativeformats = iaxs[fr->callno]->peerformat;
 						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Format for call is %s\n", ast_getformatname(iaxs[fr.callno]->owner->nativeformats));
+							ast_verbose(VERBOSE_PREFIX_3 "Format for call is %s\n", ast_getformatname(iaxs[fr->callno]->owner->nativeformats));
 retryowner2:
-						if (ast_mutex_trylock(&iaxs[fr.callno]->owner->lock)) {
-							ast_mutex_unlock(&iaxsl[fr.callno]);
+						if (ast_mutex_trylock(&iaxs[fr->callno]->owner->lock)) {
+							ast_mutex_unlock(&iaxsl[fr->callno]);
 							usleep(1);
-							ast_mutex_lock(&iaxsl[fr.callno]);
-							if (iaxs[fr.callno] && iaxs[fr.callno]->owner) goto retryowner2;
+							ast_mutex_lock(&iaxsl[fr->callno]);
+							if (iaxs[fr->callno] && iaxs[fr->callno]->owner) goto retryowner2;
 						}
 						
-						if (iaxs[fr.callno] && iaxs[fr.callno]->owner) {
+						if (iaxs[fr->callno] && iaxs[fr->callno]->owner) {
 							/* Setup read/write formats properly. */
-							if (iaxs[fr.callno]->owner->writeformat)
-								ast_set_write_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->writeformat);	
-							if (iaxs[fr.callno]->owner->readformat)
-								ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat);	
-							ast_mutex_unlock(&iaxs[fr.callno]->owner->lock);
+							if (iaxs[fr->callno]->owner->writeformat)
+								ast_set_write_format(iaxs[fr->callno]->owner, iaxs[fr->callno]->owner->writeformat);	
+							if (iaxs[fr->callno]->owner->readformat)
+								ast_set_read_format(iaxs[fr->callno]->owner, iaxs[fr->callno]->owner->readformat);	
+							ast_mutex_unlock(&iaxs[fr->callno]->owner->lock);
 						}
 					}
 				}
 				ast_mutex_lock(&dpcache_lock);
-				dp = iaxs[fr.callno]->dpentries;
+				dp = iaxs[fr->callno]->dpentries;
 				while(dp) {
 					if (!(dp->flags & CACHE_FLAG_TRANSMITTED)) {
-						iax2_dprequest(dp, fr.callno);
+						iax2_dprequest(dp, fr->callno);
 					}
 					dp = dp->peer;
 				}
@@ -7074,71 +7082,71 @@ retryowner2:
 				break;
 			case IAX_COMMAND_POKE:
 				/* Send back a pong packet with the original timestamp */
-				send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr.ts, NULL, 0, -1);
+				send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr->ts, NULL, 0, -1);
 				break;
 			case IAX_COMMAND_PING:
 #ifdef BRIDGE_OPTIMIZATION
-				if (iaxs[fr.callno]->bridgecallno) {
+				if (iaxs[fr->callno]->bridgecallno) {
 					/* If we're in a bridged call, just forward this */
-					forward_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_PING, fr.ts, NULL, 0, -1);
+					forward_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_PING, fr->ts, NULL, 0, -1);
 				} else {
 					struct iax_ie_data pingied;
-					construct_rr(iaxs[fr.callno], &pingied);
+					construct_rr(iaxs[fr->callno], &pingied);
 					/* Send back a pong packet with the original timestamp */
-					send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr.ts, pingied.buf, pingied.pos, -1);
+					send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr->ts, pingied.buf, pingied.pos, -1);
 				}
 #else				
 				{
 					struct iax_ie_data pingied;
-					construct_rr(iaxs[fr.callno], &pingied);
+					construct_rr(iaxs[fr->callno], &pingied);
 				/* Send back a pong packet with the original timestamp */
-					send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr.ts, pingied.buf, pingied.pos, -1);
+					send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr->ts, pingied.buf, pingied.pos, -1);
 				}
 #endif			
 				break;
 			case IAX_COMMAND_PONG:
 #ifdef BRIDGE_OPTIMIZATION
-				if (iaxs[fr.callno]->bridgecallno) {
+				if (iaxs[fr->callno]->bridgecallno) {
 					/* Forward to the other side of the bridge */
-					forward_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr.ts, NULL, 0, -1);
+					forward_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr->ts, NULL, 0, -1);
 				} else {
 					/* Calculate ping time */
-					iaxs[fr.callno]->pingtime =  calc_timestamp(iaxs[fr.callno], 0, &f) - fr.ts;
+					iaxs[fr->callno]->pingtime =  calc_timestamp(iaxs[fr->callno], 0, &f) - fr->ts;
 				}
 #else
 				/* Calculate ping time */
-				iaxs[fr.callno]->pingtime =  calc_timestamp(iaxs[fr.callno], 0, &f) - fr.ts;
+				iaxs[fr->callno]->pingtime =  calc_timestamp(iaxs[fr->callno], 0, &f) - fr->ts;
 #endif
 				/* save RR info */
-				save_rr(&fr, &ies);
+				save_rr(fr, &ies);
 
-				if (iaxs[fr.callno]->peerpoke) {
-					peer = iaxs[fr.callno]->peerpoke;
+				if (iaxs[fr->callno]->peerpoke) {
+					peer = iaxs[fr->callno]->peerpoke;
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) {
-						if (iaxs[fr.callno]->pingtime <= peer->maxms) {
-							ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %d\n", peer->name, iaxs[fr.callno]->pingtime);
-							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, iaxs[fr.callno]->pingtime); 
+						if (iaxs[fr->callno]->pingtime <= peer->maxms) {
+							ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %d\n", peer->name, iaxs[fr->callno]->pingtime);
+							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, iaxs[fr->callno]->pingtime); 
 							ast_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 						}
 					} else if ((peer->historicms > 0) && (peer->historicms <= peer->maxms)) {
-						if (iaxs[fr.callno]->pingtime > peer->maxms) {
-							ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%d ms)!\n", peer->name, iaxs[fr.callno]->pingtime);
-							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, iaxs[fr.callno]->pingtime); 
+						if (iaxs[fr->callno]->pingtime > peer->maxms) {
+							ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%d ms)!\n", peer->name, iaxs[fr->callno]->pingtime);
+							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, iaxs[fr->callno]->pingtime); 
 							ast_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 						}
 					}
-					peer->lastms = iaxs[fr.callno]->pingtime;
+					peer->lastms = iaxs[fr->callno]->pingtime;
 					if (peer->smoothing && (peer->lastms > -1))
-						peer->historicms = (iaxs[fr.callno]->pingtime + peer->historicms) / 2;
+						peer->historicms = (iaxs[fr->callno]->pingtime + peer->historicms) / 2;
 					else if (peer->smoothing && peer->lastms < 0)
 						peer->historicms = (0 + peer->historicms) / 2;
 					else					
-						peer->historicms = iaxs[fr.callno]->pingtime;
+						peer->historicms = iaxs[fr->callno]->pingtime;
 
 					if (peer->pokeexpire > -1)
 						ast_sched_del(sched, peer->pokeexpire);
-					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
-					iax2_destroy_nolock(fr.callno);
+					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
+					iax2_destroy_nolock(fr->callno);
 					peer->callno = 0;
 					/* Try again eventually */
 						ast_log(LOG_DEBUG, "Peer lastms %d, historicms %d, maxms %d\n", peer->lastms, peer->historicms, peer->maxms);
@@ -7151,158 +7159,158 @@ retryowner2:
 			case IAX_COMMAND_LAGRQ:
 			case IAX_COMMAND_LAGRP:
 #ifdef BRIDGE_OPTIMIZATION
-				if (iaxs[fr.callno]->bridgecallno) {
-					forward_command(iaxs[fr.callno], AST_FRAME_IAX, f.subclass, fr.ts, NULL, 0, -1);
+				if (iaxs[fr->callno]->bridgecallno) {
+					forward_command(iaxs[fr->callno], AST_FRAME_IAX, f.subclass, fr->ts, NULL, 0, -1);
 				} else {
 #endif				
 					f.src = "LAGRQ";
 					f.mallocd = 0;
 					f.offset = 0;
 					f.samples = 0;
-					iax_frame_wrap(&fr, &f);
+					iax_frame_wrap(fr, &f);
 					if(f.subclass == IAX_COMMAND_LAGRQ) {
 					    /* Received a LAGRQ - echo back a LAGRP */
-					    fr.af.subclass = IAX_COMMAND_LAGRP;
-					    iax2_send(iaxs[fr.callno], &fr.af, fr.ts, -1, 0, 0, 0);
+					    fr->af.subclass = IAX_COMMAND_LAGRP;
+					    iax2_send(iaxs[fr->callno], &fr->af, fr->ts, -1, 0, 0, 0);
 					} else {
 					    /* Received LAGRP in response to our LAGRQ */
 					    unsigned int ts;
 					    /* This is a reply we've been given, actually measure the difference */
-					    ts = calc_timestamp(iaxs[fr.callno], 0, &fr.af);
-					    iaxs[fr.callno]->lag = ts - fr.ts;
+					    ts = calc_timestamp(iaxs[fr->callno], 0, &fr->af);
+					    iaxs[fr->callno]->lag = ts - fr->ts;
 					    if (option_debug && iaxdebug)
 						ast_log(LOG_DEBUG, "Peer %s lag measured as %dms\n",
-								ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr), iaxs[fr.callno]->lag);
+								ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr->callno]->addr.sin_addr), iaxs[fr->callno]->lag);
 					}
 #ifdef BRIDGE_OPTIMIZATION
 				}
 #endif				
 				break;
 			case IAX_COMMAND_AUTHREQ:
-				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD)) {
-					ast_log(LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>");
+				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD)) {
+					ast_log(LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>");
 					break;
 				}
-				if (authenticate_reply(iaxs[fr.callno], &iaxs[fr.callno]->addr, &ies, iaxs[fr.callno]->secret, iaxs[fr.callno]->outkey)) {
+				if (authenticate_reply(iaxs[fr->callno], &iaxs[fr->callno]->addr, &ies, iaxs[fr->callno]->secret, iaxs[fr->callno]->outkey)) {
 					ast_log(LOG_WARNING, 
 						"I don't know how to authenticate %s to %s\n", 
-						ies.username ? ies.username : "<unknown>", ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr));
+						ies.username ? ies.username : "<unknown>", ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr->callno]->addr.sin_addr));
 				}
 				break;
 			case IAX_COMMAND_AUTHREP:
 				/* For security, always ack immediately */
 				if (delayreject)
-					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
+					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
 				/* Ignore once we've started */
-				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD)) {
-					ast_log(LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>");
+				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD)) {
+					ast_log(LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>");
 					break;
 				}
-				if (authenticate_verify(iaxs[fr.callno], &ies)) {
+				if (authenticate_verify(iaxs[fr->callno], &ies)) {
 					if (authdebug)
-						ast_log(LOG_NOTICE, "Host %s failed to authenticate as %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr), iaxs[fr.callno]->username);
+						ast_log(LOG_NOTICE, "Host %s failed to authenticate as %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr->callno]->addr.sin_addr), iaxs[fr->callno]->username);
 					memset(&ied0, 0, sizeof(ied0));
-					auth_fail(fr.callno, IAX_COMMAND_REJECT);
+					auth_fail(fr->callno, IAX_COMMAND_REJECT);
 					break;
 				}
-				if (strcasecmp(iaxs[fr.callno]->exten, "TBD")) {
+				if (strcasecmp(iaxs[fr->callno]->exten, "TBD")) {
 					/* This might re-enter the IAX code and need the lock */
-					exists = ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->cid_num);
+					exists = ast_exists_extension(NULL, iaxs[fr->callno]->context, iaxs[fr->callno]->exten, 1, iaxs[fr->callno]->cid_num);
 				} else
 					exists = 0;
-				if (strcmp(iaxs[fr.callno]->exten, "TBD") && !exists) {
+				if (strcmp(iaxs[fr->callno]->exten, "TBD") && !exists) {
 					if (authdebug)
-						ast_log(LOG_NOTICE, "Rejected connect attempt from %s, request '%s@%s' does not exist\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
+						ast_log(LOG_NOTICE, "Rejected connect attempt from %s, request '%s@%s' does not exist\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr->callno]->exten, iaxs[fr->callno]->context);
 					memset(&ied0, 0, sizeof(ied0));
 					iax_ie_append_str(&ied0, IAX_IE_CAUSE, "No such context/extension");
 					iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_NO_ROUTE_DESTINATION);
-					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 				} else {
 					/* Select an appropriate format */
-					if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOPREFS)) {
-						if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP)) {
+					if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOPREFS)) {
+						if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP)) {
 							using_prefs = "reqonly";
 						} else {
 							using_prefs = "disabled";
 						}
-						format = iaxs[fr.callno]->peerformat & iaxs[fr.callno]->capability;
+						format = iaxs[fr->callno]->peerformat & iaxs[fr->callno]->capability;
 						memset(&pref, 0, sizeof(pref));
 						strcpy(caller_pref_buf, "disabled");
 						strcpy(host_pref_buf, "disabled");
 					} else {
 						using_prefs = "mine";
-						if(ies.codec_prefs) {
-							/* If we are codec_first_choice we let the caller have the 1st shot at picking the codec.*/
-							ast_codec_pref_convert(&rpref, ies.codec_prefs, 32, 0);
-							if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
-								ast_codec_pref_convert(&pref, ies.codec_prefs, 32, 0);
+						if (ies.codec_prefs)
+							ast_codec_pref_convert(&iaxs[fr->callno]->rprefs, ies.codec_prefs, 32, 0);
+						if (ast_codec_pref_index(&iaxs[fr->callno]->rprefs, 0)) {
+							if (ast_test_flag(iaxs[fr->callno], IAX_CODEC_USER_FIRST)) {
+								pref = iaxs[fr->callno]->rprefs;
 								using_prefs = "caller";
 							} else {
-								pref = iaxs[fr.callno]->prefs;
+								pref = iaxs[fr->callno]->prefs;
 							}
 						} else /* if no codec_prefs IE do it the old way */
-							pref = iaxs[fr.callno]->prefs;
+							pref = iaxs[fr->callno]->prefs;
 					
-						format = ast_codec_choose(&pref, iaxs[fr.callno]->capability & iaxs[fr.callno]->peercapability, 0);
-						ast_codec_pref_string(&rpref, caller_pref_buf, sizeof(caller_pref_buf) - 1);
-						ast_codec_pref_string(&iaxs[fr.callno]->prefs, host_pref_buf, sizeof(host_pref_buf) - 1);
+						format = ast_codec_choose(&pref, iaxs[fr->callno]->capability & iaxs[fr->callno]->peercapability, 0);
+						ast_codec_pref_string(&iaxs[fr->callno]->rprefs, caller_pref_buf, sizeof(caller_pref_buf) - 1);
+						ast_codec_pref_string(&iaxs[fr->callno]->prefs, host_pref_buf, sizeof(host_pref_buf) - 1);
 					}
 					if (!format) {
-						if(!ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP)) {
-							ast_log(LOG_DEBUG, "We don't do requested format %s, falling back to peer capability %d\n", ast_getformatname(iaxs[fr.callno]->peerformat), iaxs[fr.callno]->peercapability);
-							format = iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability;
+						if(!ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP)) {
+							ast_log(LOG_DEBUG, "We don't do requested format %s, falling back to peer capability %d\n", ast_getformatname(iaxs[fr->callno]->peerformat), iaxs[fr->callno]->peercapability);
+							format = iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability;
 						}
 						if (!format) {
 							if (authdebug) {
-								if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP)) 
-									ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
+								if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP)) 
+									ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr->callno]->peerformat, iaxs[fr->callno]->capability);
 								else
-									ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
+									ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr->callno]->peerformat, iaxs[fr->callno]->peercapability, iaxs[fr->callno]->capability);
 							}
 							memset(&ied0, 0, sizeof(ied0));
 							iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 							iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
-							send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+							send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 						} else {
 							/* Pick one... */
-							if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP)) {
-								if(!(iaxs[fr.callno]->peerformat & iaxs[fr.callno]->capability))
+							if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP)) {
+								if(!(iaxs[fr->callno]->peerformat & iaxs[fr->callno]->capability))
 									format = 0;
 							} else {
-								if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOPREFS)) {
-									using_prefs = ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP) ? "reqonly" : "disabled";
+								if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOPREFS)) {
+									using_prefs = ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP) ? "reqonly" : "disabled";
 									memset(&pref, 0, sizeof(pref));
-									format = ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP) ?
-										iaxs[fr.callno]->peerformat : ast_best_codec(iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
+									format = ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP) ?
+										iaxs[fr->callno]->peerformat : ast_best_codec(iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability);
 									strcpy(caller_pref_buf,"disabled");
 									strcpy(host_pref_buf,"disabled");
 								} else {
 									using_prefs = "mine";
-									if(ies.codec_prefs) {
+									if (ast_codec_pref_index(&iaxs[fr->callno]->rprefs, 0)) {
 										/* Do the opposite of what we tried above. */
-										if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
-											pref = iaxs[fr.callno]->prefs;						
+										if (ast_test_flag(iaxs[fr->callno], IAX_CODEC_USER_FIRST)) {
+											pref = iaxs[fr->callno]->prefs;						
 										} else {
-											pref = rpref;
+											pref = iaxs[fr->callno]->rprefs;
 											using_prefs = "caller";
 										}
-										format = ast_codec_choose(&pref, iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability, 1);
+										format = ast_codec_choose(&pref, iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability, 1);
 									} else /* if no codec_prefs IE do it the old way */
-										format = ast_best_codec(iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);	
+										format = ast_best_codec(iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability);	
 								}
 							}
 							if (!format) {
-								ast_log(LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
+								ast_log(LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability);
 								if (authdebug) {
-									if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP))
-										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
+									if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP))
+										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr->callno]->peerformat, iaxs[fr->callno]->capability);
 									else
-										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
+										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr->callno]->peerformat, iaxs[fr->callno]->peercapability, iaxs[fr->callno]->capability);
 								}
 								memset(&ied0, 0, sizeof(ied0));
 								iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 								iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
-								send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+								send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 							}
 						}
 					}
@@ -7310,9 +7318,9 @@ retryowner2:
 						/* Authentication received */
 						memset(&ied1, 0, sizeof(ied1));
 						iax_ie_append_int(&ied1, IAX_IE_FORMAT, format);
-						send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACCEPT, 0, ied1.buf, ied1.pos, -1);
-						if (strcmp(iaxs[fr.callno]->exten, "TBD")) {
-							ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED);
+						send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACCEPT, 0, ied1.buf, ied1.pos, -1);
+						if (strcmp(iaxs[fr->callno]->exten, "TBD")) {
+							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
 							if (option_verbose > 2) 
 								ast_verbose(VERBOSE_PREFIX_3 "Accepting AUTHENTICATED call from %s:\n"
 											"%srequested format = %s,\n"
@@ -7322,7 +7330,7 @@ retryowner2:
 											"%spriority = %s\n", 
 											ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), 
 											VERBOSE_PREFIX_4,
-											ast_getformatname(iaxs[fr.callno]->peerformat),
+											ast_getformatname(iaxs[fr->callno]->peerformat),
 											VERBOSE_PREFIX_4,
 											caller_pref_buf,
 											VERBOSE_PREFIX_4,
@@ -7332,11 +7340,11 @@ retryowner2:
 											VERBOSE_PREFIX_4,
 											using_prefs);
 
-							ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED);
-							if(!(c = ast_iax2_new(fr.callno, AST_STATE_RING, format)))
-								iax2_destroy_nolock(fr.callno);
+							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
+							if(!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format)))
+								iax2_destroy_nolock(fr->callno);
 						} else {
-							ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_TBD);
+							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
 							/* If this is a TBD call, we're ready but now what...  */
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Accepted AUTHENTICATED TBD call from %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
@@ -7345,147 +7353,147 @@ retryowner2:
 				}
 				break;
 			case IAX_COMMAND_DIAL:
-				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_TBD)) {
-					ast_clear_flag(&iaxs[fr.callno]->state, IAX_STATE_TBD);
-					ast_copy_string(iaxs[fr.callno]->exten, ies.called_number ? ies.called_number : "s", sizeof(iaxs[fr.callno]->exten));	
-					if (!ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->cid_num)) {
+				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD)) {
+					ast_clear_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
+					ast_copy_string(iaxs[fr->callno]->exten, ies.called_number ? ies.called_number : "s", sizeof(iaxs[fr->callno]->exten));	
+					if (!ast_exists_extension(NULL, iaxs[fr->callno]->context, iaxs[fr->callno]->exten, 1, iaxs[fr->callno]->cid_num)) {
 						if (authdebug)
-							ast_log(LOG_NOTICE, "Rejected dial attempt from %s, request '%s@%s' does not exist\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
+							ast_log(LOG_NOTICE, "Rejected dial attempt from %s, request '%s@%s' does not exist\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr->callno]->exten, iaxs[fr->callno]->context);
 						memset(&ied0, 0, sizeof(ied0));
 						iax_ie_append_str(&ied0, IAX_IE_CAUSE, "No such context/extension");
 						iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_NO_ROUTE_DESTINATION);
-						send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+						send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 					} else {
-						ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED);
+						ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
 						if (option_verbose > 2) 
-							ast_verbose(VERBOSE_PREFIX_3 "Accepting DIAL from %s, formats = 0x%x\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat);
-						ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED);
-						send_command(iaxs[fr.callno], AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, 0, NULL, 0, -1);
-						if(!(c = ast_iax2_new(fr.callno, AST_STATE_RING, iaxs[fr.callno]->peerformat)))
-							iax2_destroy_nolock(fr.callno);
+							ast_verbose(VERBOSE_PREFIX_3 "Accepting DIAL from %s, formats = 0x%x\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr->callno]->peerformat);
+						ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
+						send_command(iaxs[fr->callno], AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, 0, NULL, 0, -1);
+						if(!(c = ast_iax2_new(fr->callno, AST_STATE_RING, iaxs[fr->callno]->peerformat)))
+							iax2_destroy_nolock(fr->callno);
 					}
 				}
 				break;
 			case IAX_COMMAND_INVAL:
-				iaxs[fr.callno]->error = ENOTCONN;
-				ast_log(LOG_DEBUG, "Immediately destroying %d, having received INVAL\n", fr.callno);
-				iax2_destroy_nolock(fr.callno);
+				iaxs[fr->callno]->error = ENOTCONN;
+				ast_log(LOG_DEBUG, "Immediately destroying %d, having received INVAL\n", fr->callno);
+				iax2_destroy_nolock(fr->callno);
 				if (option_debug)
-					ast_log(LOG_DEBUG, "Destroying call %d\n", fr.callno);
+					ast_log(LOG_DEBUG, "Destroying call %d\n", fr->callno);
 				break;
 			case IAX_COMMAND_VNAK:
 				ast_log(LOG_DEBUG, "Received VNAK: resending outstanding frames\n");
 				/* Force retransmission */
-				vnak_retransmit(fr.callno, fr.iseqno);
+				vnak_retransmit(fr->callno, fr->iseqno);
 				break;
 			case IAX_COMMAND_REGREQ:
 			case IAX_COMMAND_REGREL:
 				/* For security, always ack immediately */
 				if (delayreject)
-					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
-				if (register_verify(fr.callno, &sin, &ies)) {
+					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
+				if (register_verify(fr->callno, &sin, &ies)) {
 					/* Send delayed failure */
-					auth_fail(fr.callno, IAX_COMMAND_REGREJ);
+					auth_fail(fr->callno, IAX_COMMAND_REGREJ);
 					break;
 				}
-				if ((ast_strlen_zero(iaxs[fr.callno]->secret) && ast_strlen_zero(iaxs[fr.callno]->inkeys)) || ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_AUTHENTICATED)) {
+				if ((ast_strlen_zero(iaxs[fr->callno]->secret) && ast_strlen_zero(iaxs[fr->callno]->inkeys)) || ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED)) {
 					if (f.subclass == IAX_COMMAND_REGREL)
 						memset(&sin, 0, sizeof(sin));
-					if (update_registry(iaxs[fr.callno]->peer, &sin, fr.callno, ies.devicetype, fd, ies.refresh))
+					if (update_registry(iaxs[fr->callno]->peer, &sin, fr->callno, ies.devicetype, fd, ies.refresh))
 						ast_log(LOG_WARNING, "Registry error\n");
 					if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr)
 						check_provisioning(&sin, fd, ies.serviceident, ies.provver);
 					break;
 				}
-				registry_authrequest(iaxs[fr.callno]->peer, fr.callno);
+				registry_authrequest(iaxs[fr->callno]->peer, fr->callno);
 				break;
 			case IAX_COMMAND_REGACK:
-				if (iax2_ack_registry(&ies, &sin, fr.callno)) 
+				if (iax2_ack_registry(&ies, &sin, fr->callno)) 
 					ast_log(LOG_WARNING, "Registration failure\n");
 				/* Send ack immediately, before we destroy */
-				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
-				iax2_destroy_nolock(fr.callno);
+				send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
+				iax2_destroy_nolock(fr->callno);
 				break;
 			case IAX_COMMAND_REGREJ:
-				if (iaxs[fr.callno]->reg) {
+				if (iaxs[fr->callno]->reg) {
 					if (authdebug) {
-						ast_log(LOG_NOTICE, "Registration of '%s' rejected: '%s' from: '%s'\n", iaxs[fr.callno]->reg->username, ies.cause ? ies.cause : "<unknown>", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
-						manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: IAX2\r\nUsername: %s\r\nStatus: Rejected\r\nCause: %s\r\n", iaxs[fr.callno]->reg->username, ies.cause ? ies.cause : "<unknown>");
+						ast_log(LOG_NOTICE, "Registration of '%s' rejected: '%s' from: '%s'\n", iaxs[fr->callno]->reg->username, ies.cause ? ies.cause : "<unknown>", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
+						manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: IAX2\r\nUsername: %s\r\nStatus: Rejected\r\nCause: %s\r\n", iaxs[fr->callno]->reg->username, ies.cause ? ies.cause : "<unknown>");
 					}
-					iaxs[fr.callno]->reg->regstate = REG_STATE_REJECTED;
+					iaxs[fr->callno]->reg->regstate = REG_STATE_REJECTED;
 				}
 				/* Send ack immediately, before we destroy */
-				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
-				iax2_destroy_nolock(fr.callno);
+				send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
+				iax2_destroy_nolock(fr->callno);
 				break;
 			case IAX_COMMAND_REGAUTH:
 				/* Authentication request */
-				if (registry_rerequest(&ies, fr.callno, &sin)) {
+				if (registry_rerequest(&ies, fr->callno, &sin)) {
 					memset(&ied0, 0, sizeof(ied0));
 					iax_ie_append_str(&ied0, IAX_IE_CAUSE, "No authority found");
 					iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_FACILITY_NOT_SUBSCRIBED);
-					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 				}
 				break;
 			case IAX_COMMAND_TXREJ:
-				iaxs[fr.callno]->transferring = 0;
+				iaxs[fr->callno]->transferring = 0;
 				if (option_verbose > 2) 
-					ast_verbose(VERBOSE_PREFIX_3 "Channel '%s' unable to transfer\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>");
-				memset(&iaxs[fr.callno]->transfer, 0, sizeof(iaxs[fr.callno]->transfer));
-				if (iaxs[fr.callno]->bridgecallno) {
-					if (iaxs[iaxs[fr.callno]->bridgecallno]->transferring) {
-						iaxs[iaxs[fr.callno]->bridgecallno]->transferring = 0;
-						send_command(iaxs[iaxs[fr.callno]->bridgecallno], AST_FRAME_IAX, IAX_COMMAND_TXREJ, 0, NULL, 0, -1);
+					ast_verbose(VERBOSE_PREFIX_3 "Channel '%s' unable to transfer\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>");
+				memset(&iaxs[fr->callno]->transfer, 0, sizeof(iaxs[fr->callno]->transfer));
+				if (iaxs[fr->callno]->bridgecallno) {
+					if (iaxs[iaxs[fr->callno]->bridgecallno]->transferring) {
+						iaxs[iaxs[fr->callno]->bridgecallno]->transferring = 0;
+						send_command(iaxs[iaxs[fr->callno]->bridgecallno], AST_FRAME_IAX, IAX_COMMAND_TXREJ, 0, NULL, 0, -1);
 					}
 				}
 				break;
 			case IAX_COMMAND_TXREADY:
-				if (iaxs[fr.callno]->transferring == TRANSFER_BEGIN) {
-					iaxs[fr.callno]->transferring = TRANSFER_READY;
+				if (iaxs[fr->callno]->transferring == TRANSFER_BEGIN) {
+					iaxs[fr->callno]->transferring = TRANSFER_READY;
 					if (option_verbose > 2) 
-						ast_verbose(VERBOSE_PREFIX_3 "Channel '%s' ready to transfer\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>");
-					if (iaxs[fr.callno]->bridgecallno) {
-						if (iaxs[iaxs[fr.callno]->bridgecallno]->transferring == TRANSFER_READY) {
+						ast_verbose(VERBOSE_PREFIX_3 "Channel '%s' ready to transfer\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>");
+					if (iaxs[fr->callno]->bridgecallno) {
+						if (iaxs[iaxs[fr->callno]->bridgecallno]->transferring == TRANSFER_READY) {
 							if (option_verbose > 2) 
-								ast_verbose(VERBOSE_PREFIX_3 "Releasing %s and %s\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>",
-										iaxs[iaxs[fr.callno]->bridgecallno]->owner ? iaxs[iaxs[fr.callno]->bridgecallno]->owner->name : "<Unknown>");
+								ast_verbose(VERBOSE_PREFIX_3 "Releasing %s and %s\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>",
+										iaxs[iaxs[fr->callno]->bridgecallno]->owner ? iaxs[iaxs[fr->callno]->bridgecallno]->owner->name : "<Unknown>");
 
 							/* They're both ready, now release them. */
-							iaxs[iaxs[fr.callno]->bridgecallno]->transferring = TRANSFER_RELEASED;
-							iaxs[fr.callno]->transferring = TRANSFER_RELEASED;
-							ast_set_flag(iaxs[iaxs[fr.callno]->bridgecallno], IAX_ALREADYGONE);
-							ast_set_flag(iaxs[fr.callno], IAX_ALREADYGONE);
+							iaxs[iaxs[fr->callno]->bridgecallno]->transferring = TRANSFER_RELEASED;
+							iaxs[fr->callno]->transferring = TRANSFER_RELEASED;
+							ast_set_flag(iaxs[iaxs[fr->callno]->bridgecallno], IAX_ALREADYGONE);
+							ast_set_flag(iaxs[fr->callno], IAX_ALREADYGONE);
 
 							/* Stop doing lag & ping requests */
-							stop_stuff(fr.callno);
-							stop_stuff(iaxs[fr.callno]->bridgecallno);
+							stop_stuff(fr->callno);
+							stop_stuff(iaxs[fr->callno]->bridgecallno);
 
 							memset(&ied0, 0, sizeof(ied0));
 							memset(&ied1, 0, sizeof(ied1));
-							iax_ie_append_short(&ied0, IAX_IE_CALLNO, iaxs[iaxs[fr.callno]->bridgecallno]->peercallno);
-							iax_ie_append_short(&ied1, IAX_IE_CALLNO, iaxs[fr.callno]->peercallno);
-							send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_TXREL, 0, ied0.buf, ied0.pos, -1);
-							send_command(iaxs[iaxs[fr.callno]->bridgecallno], AST_FRAME_IAX, IAX_COMMAND_TXREL, 0, ied1.buf, ied1.pos, -1);
+							iax_ie_append_short(&ied0, IAX_IE_CALLNO, iaxs[iaxs[fr->callno]->bridgecallno]->peercallno);
+							iax_ie_append_short(&ied1, IAX_IE_CALLNO, iaxs[fr->callno]->peercallno);
+							send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_TXREL, 0, ied0.buf, ied0.pos, -1);
+							send_command(iaxs[iaxs[fr->callno]->bridgecallno], AST_FRAME_IAX, IAX_COMMAND_TXREL, 0, ied1.buf, ied1.pos, -1);
 
 						}
 					}
 				}
 				break;
 			case IAX_COMMAND_TXREQ:
-				try_transfer(iaxs[fr.callno], &ies);
+				try_transfer(iaxs[fr->callno], &ies);
 				break;
 			case IAX_COMMAND_TXCNT:
-				if (iaxs[fr.callno]->transferring)
-					send_command_transfer(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_TXACC, 0, NULL, 0);
+				if (iaxs[fr->callno]->transferring)
+					send_command_transfer(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_TXACC, 0, NULL, 0);
 				break;
 			case IAX_COMMAND_TXREL:
 				/* Send ack immediately, rather than waiting until we've changed addresses */
-				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
-				complete_transfer(fr.callno, &ies);
-				stop_stuff(fr.callno);	/* for attended transfer to work with libiax */
+				send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
+				complete_transfer(fr->callno, &ies);
+				stop_stuff(fr->callno);	/* for attended transfer to work with libiax */
 				break;	
 			case IAX_COMMAND_DPREP:
-				complete_dpreply(iaxs[fr.callno], &ies);
+				complete_dpreply(iaxs[fr->callno], &ies);
 				break;
 			case IAX_COMMAND_UNSUPPORT:
 				ast_log(LOG_NOTICE, "Peer did not understand our iax command '%d'\n", ies.iax_unknown);
@@ -7495,17 +7503,17 @@ retryowner2:
 				memset(&ied0, 0, sizeof(ied0));
 				res = iax_firmware_append(&ied0, (unsigned char *)ies.devicetype, ies.fwdesc);
 				if (res < 0)
-					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 				else if (res > 0)
-					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_FWDATA, 0, ied0.buf, ied0.pos, -1);
+					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_FWDATA, 0, ied0.buf, ied0.pos, -1);
 				else
-					send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_FWDATA, 0, ied0.buf, ied0.pos, -1);
+					send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_FWDATA, 0, ied0.buf, ied0.pos, -1);
 				break;
 			default:
-				ast_log(LOG_DEBUG, "Unknown IAX command %d on %d/%d\n", f.subclass, fr.callno, iaxs[fr.callno]->peercallno);
+				ast_log(LOG_DEBUG, "Unknown IAX command %d on %d/%d\n", f.subclass, fr->callno, iaxs[fr->callno]->peercallno);
 				memset(&ied0, 0, sizeof(ied0));
 				iax_ie_append_byte(&ied0, IAX_IE_IAX_UNKNOWN, f.subclass);
-				send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_UNSUPPORT, 0, ied0.buf, ied0.pos, -1);
+				send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_UNSUPPORT, 0, ied0.buf, ied0.pos, -1);
 			}
 			/* Don't actually pass these frames along */
 			if ((f.subclass != IAX_COMMAND_ACK) && 
@@ -7513,23 +7521,23 @@ retryowner2:
 			  (f.subclass != IAX_COMMAND_TXACC) && 
 			  (f.subclass != IAX_COMMAND_INVAL) &&
 			  (f.subclass != IAX_COMMAND_VNAK)) { 
-			  	if (iaxs[fr.callno] && iaxs[fr.callno]->aseqno != iaxs[fr.callno]->iseqno)
-					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
+			  	if (iaxs[fr->callno] && iaxs[fr->callno]->aseqno != iaxs[fr->callno]->iseqno)
+					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
 			}
-			ast_mutex_unlock(&iaxsl[fr.callno]);
+			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
 		/* Unless this is an ACK or INVAL frame, ack it */
-		if (iaxs[fr.callno]->aseqno != iaxs[fr.callno]->iseqno)
-			send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
+		if (iaxs[fr->callno]->aseqno != iaxs[fr->callno]->iseqno)
+			send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
 	} else if (minivid) {
 		f.frametype = AST_FRAME_VIDEO;
-		if (iaxs[fr.callno]->videoformat > 0) 
-			f.subclass = iaxs[fr.callno]->videoformat | (ntohs(vh->ts) & 0x8000 ? 1 : 0);
+		if (iaxs[fr->callno]->videoformat > 0) 
+			f.subclass = iaxs[fr->callno]->videoformat | (ntohs(vh->ts) & 0x8000 ? 1 : 0);
 		else {
 			ast_log(LOG_WARNING, "Received mini frame before first full video frame\n ");
-			iax2_vnak(fr.callno);
-			ast_mutex_unlock(&iaxsl[fr.callno]);
+			iax2_vnak(fr->callno);
+			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
 		f.datalen = res - sizeof(struct ast_iax2_video_hdr);
@@ -7539,25 +7547,25 @@ retryowner2:
 			f.data = NULL;
 #ifdef IAXTESTS
 		if (test_resync) {
-			fr.ts = (iaxs[fr.callno]->last & 0xFFFF8000L) | ((ntohs(mh->ts) + test_resync) & 0x7fff);
+			fr->ts = (iaxs[fr->callno]->last & 0xFFFF8000L) | ((ntohs(mh->ts) + test_resync) & 0x7fff);
 		} else
 #endif /* IAXTESTS */
-		fr.ts = (iaxs[fr.callno]->last & 0xFFFF8000L) | (ntohs(mh->ts) & 0x7fff);
+		fr->ts = (iaxs[fr->callno]->last & 0xFFFF8000L) | (ntohs(mh->ts) & 0x7fff);
 	} else {
 		/* A mini frame */
 		f.frametype = AST_FRAME_VOICE;
-		if (iaxs[fr.callno]->voiceformat > 0)
-			f.subclass = iaxs[fr.callno]->voiceformat;
+		if (iaxs[fr->callno]->voiceformat > 0)
+			f.subclass = iaxs[fr->callno]->voiceformat;
 		else {
 			ast_log(LOG_WARNING, "Received mini frame before first full voice frame\n ");
-			iax2_vnak(fr.callno);
-			ast_mutex_unlock(&iaxsl[fr.callno]);
+			iax2_vnak(fr->callno);
+			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
 		f.datalen = res - sizeof(struct ast_iax2_mini_hdr);
 		if (f.datalen < 0) {
 			ast_log(LOG_WARNING, "Datalen < 0?\n");
-			ast_mutex_unlock(&iaxsl[fr.callno]);
+			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
 		if (f.datalen)
@@ -7566,15 +7574,15 @@ retryowner2:
 			f.data = NULL;
 #ifdef IAXTESTS
 		if (test_resync) {
-			fr.ts = (iaxs[fr.callno]->last & 0xFFFF0000L) | ((ntohs(mh->ts) + test_resync) & 0xffff);
+			fr->ts = (iaxs[fr->callno]->last & 0xFFFF0000L) | ((ntohs(mh->ts) + test_resync) & 0xffff);
 		} else
 #endif /* IAXTESTS */
-		fr.ts = (iaxs[fr.callno]->last & 0xFFFF0000L) | ntohs(mh->ts);
+		fr->ts = (iaxs[fr->callno]->last & 0xFFFF0000L) | ntohs(mh->ts);
 		/* FIXME? Surely right here would be the right place to undo timestamp wraparound? */
 	}
 	/* Don't pass any packets until we're started */
-	if (!ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED)) {
-		ast_mutex_unlock(&iaxsl[fr.callno]);
+	if (!ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
+		ast_mutex_unlock(&iaxsl[fr->callno]);
 		return 1;
 	}
 	/* Common things */
@@ -7588,43 +7596,43 @@ retryowner2:
 			ast_frame_byteswap_be(&f);
 	} else
 		f.samples = 0;
-	iax_frame_wrap(&fr, &f);
+	iax_frame_wrap(fr, &f);
 
 	/* If this is our most recent packet, use it as our basis for timestamping */
-	if (iaxs[fr.callno]->last < fr.ts) {
-		/*iaxs[fr.callno]->last = fr.ts; (do it afterwards cos schedule/forward_delivery needs the last ts too)*/
-		fr.outoforder = 0;
+	if (iaxs[fr->callno]->last < fr->ts) {
+		/*iaxs[fr->callno]->last = fr->ts; (do it afterwards cos schedule/forward_delivery needs the last ts too)*/
+		fr->outoforder = 0;
 	} else {
 		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass, fr.ts, iaxs[fr.callno]->last);
-		fr.outoforder = -1;
+			ast_log(LOG_DEBUG, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass, fr->ts, iaxs[fr->callno]->last);
+		fr->outoforder = -1;
 	}
 #ifdef BRIDGE_OPTIMIZATION
-	if (iaxs[fr.callno]->bridgecallno) {
+	if (iaxs[fr->callno]->bridgecallno) {
 		forward_delivery(&fr);
 	} else {
 		duped_fr = iaxfrdup2(&fr);
 		if (duped_fr) {
-			schedule_delivery(duped_fr, updatehistory, 0, &fr.ts);
+			schedule_delivery(duped_fr, updatehistory, 0, &fr->ts);
 		}
 	}
 #else
-	duped_fr = iaxfrdup2(&fr);
+	duped_fr = iaxfrdup2(fr);
 	if (duped_fr) {
-		schedule_delivery(duped_fr, updatehistory, 0, &fr.ts);
+		schedule_delivery(duped_fr, updatehistory, 0, &fr->ts);
 	}
 #endif
 
-	if (iaxs[fr.callno]->last < fr.ts) {
-		iaxs[fr.callno]->last = fr.ts;
+	if (iaxs[fr->callno]->last < fr->ts) {
+		iaxs[fr->callno]->last = fr->ts;
 #if 1
 		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
+			ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr->callno, fr->ts);
 #endif
 	}
 
 	/* Always run again */
-	ast_mutex_unlock(&iaxsl[fr.callno]);
+	ast_mutex_unlock(&iaxsl[fr->callno]);
 	return 1;
 }
 
@@ -8081,6 +8089,7 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 		int res;
 
 		sin.sin_port = 0;
+		sin.sin_family = AF_INET;
 		res = check_srcaddr((struct sockaddr *) &sin, sizeof(sin));
 		if (res == 0) {
 			/* ip address valid. */
