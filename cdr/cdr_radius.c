@@ -100,64 +100,44 @@ static int build_radius_record(VALUE_PAIR **send, struct ast_cdr *cdr)
 	char timestr[128];
 	char *tmp;
 
-	if (!rc_avpair_add(rh, send, PW_ACCT_STATUS_TYPE, &recordtype, 0, 0)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_ACCT_STATUS_TYPE, &recordtype, 0, 0))
 		return -1;
-	}
 
 	/* Account code */
-	if (!rc_avpair_add(rh, send, PW_AST_ACCT_CODE, &cdr->accountcode, strlen(cdr->accountcode), VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_ACCT_CODE, &cdr->accountcode, strlen(cdr->accountcode), VENDOR_CODE))
 		return -1;
-	}
 
  	/* Source */
-	if (!rc_avpair_add(rh, send, PW_AST_SRC, &cdr->src, strlen(cdr->src), VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_SRC, &cdr->src, strlen(cdr->src), VENDOR_CODE))
 		return -1;
-	}
 
  	/* Destination */
-	if (!rc_avpair_add(rh, send, PW_AST_DST, &cdr->dst, strlen(cdr->dst), VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_DST, &cdr->dst, strlen(cdr->dst), VENDOR_CODE))
 		return -1;
-	}
 
  	/* Destination context */
-	if (!rc_avpair_add(rh, send, PW_AST_DST_CTX, &cdr->dcontext, strlen(cdr->dcontext), VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_DST_CTX, &cdr->dcontext, strlen(cdr->dcontext), VENDOR_CODE))
 		return -1;
-	}
 
 	/* Caller ID */
-	if (!rc_avpair_add(rh, send, PW_AST_CLID, &cdr->clid, strlen(cdr->clid), VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_CLID, &cdr->clid, strlen(cdr->clid), VENDOR_CODE))
 		return -1;
-	}
 
 	/* Channel */
-	if (!rc_avpair_add(rh, send, PW_AST_CHAN, &cdr->channel, strlen(cdr->channel), VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_CHAN, &cdr->channel, strlen(cdr->channel), VENDOR_CODE))
 		return -1;
-	}
 
 	/* Destination Channel */
-	if (!rc_avpair_add(rh, send, PW_AST_DST_CHAN, &cdr->dstchannel, strlen(cdr->dstchannel), VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_DST_CHAN, &cdr->dstchannel, strlen(cdr->dstchannel), VENDOR_CODE))
 		return -1;
-	}
 
 	/* Last Application */
-	if (!rc_avpair_add(rh, send, PW_AST_LAST_APP, &cdr->lastapp, strlen(cdr->lastapp), VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_LAST_APP, &cdr->lastapp, strlen(cdr->lastapp), VENDOR_CODE))
 		return -1;
-	}
 
 	/* Last Data */
-	if (!rc_avpair_add(rh, send, PW_AST_LAST_DATA, &cdr->lastdata, strlen(cdr->lastdata), VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_LAST_DATA, &cdr->lastdata, strlen(cdr->lastdata), VENDOR_CODE))
 		return -1;
-	}
 
 
 	/* Start Time */
@@ -166,10 +146,8 @@ static int build_radius_record(VALUE_PAIR **send, struct ast_cdr *cdr)
 	else
 		localtime_r(&(cdr->start.tv_sec), &tm);
 	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
-	if (!rc_avpair_add(rh, send, PW_AST_START_TIME, timestr, strlen(timestr), VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_START_TIME, timestr, strlen(timestr), VENDOR_CODE))
 		return -1;
-	}
 
 	/* Answer Time */
 	if (ast_test_flag(&global_flags, RADIUS_FLAG_USEGMTIME))
@@ -177,10 +155,8 @@ static int build_radius_record(VALUE_PAIR **send, struct ast_cdr *cdr)
 	else
 		localtime_r(&(cdr->answer.tv_sec), &tm);
 	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
-	if (!rc_avpair_add(rh, send, PW_AST_ANSWER_TIME, timestr, strlen(timestr), VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_ANSWER_TIME, timestr, strlen(timestr), VENDOR_CODE))
 		return -1;
-	}
 
 	/* End Time */
 	if (ast_test_flag(&global_flags, RADIUS_FLAG_USEGMTIME))
@@ -188,65 +164,49 @@ static int build_radius_record(VALUE_PAIR **send, struct ast_cdr *cdr)
 	else
 		localtime_r(&(cdr->end.tv_sec), &tm);
 	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
-	if (!rc_avpair_add(rh, send, PW_AST_END_TIME, timestr, strlen(timestr), VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_END_TIME, timestr, strlen(timestr), VENDOR_CODE))
 		return -1;
-	}
 
  	/* Duration */ 
-	if (!rc_avpair_add(rh, send, PW_AST_DURATION, &cdr->duration, 0, VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_DURATION, &cdr->duration, 0, VENDOR_CODE))
 		return -1;
-	}
 
 	/* Billable seconds */
-	if (!rc_avpair_add(rh, send, PW_AST_BILL_SEC, &cdr->billsec, 0, VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_BILL_SEC, &cdr->billsec, 0, VENDOR_CODE))
 		return -1;
-	}
 
 	/* Disposition */
 	tmp = ast_cdr_disp2str(cdr->disposition);
-	if (!rc_avpair_add(rh, send, PW_AST_DISPOSITION, tmp, strlen(tmp), VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_DISPOSITION, tmp, strlen(tmp), VENDOR_CODE))
 		return -1;
-	}
 
 	/* AMA Flags */
 	tmp = ast_cdr_flags2str(cdr->amaflags);
-	if (!rc_avpair_add(rh, send, PW_AST_AMA_FLAGS, tmp, strlen(tmp), VENDOR_CODE)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_AST_AMA_FLAGS, tmp, strlen(tmp), VENDOR_CODE))
 		return -1;
-	}
 
 	if (ast_test_flag(&global_flags, RADIUS_FLAG_LOGUNIQUEID)) {
 		/* Unique ID */
-		if (!rc_avpair_add(rh, send, PW_AST_UNIQUE_ID, &cdr->uniqueid, strlen(cdr->uniqueid), VENDOR_CODE)) {
-			ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+		if (!rc_avpair_add(rh, send, PW_AST_UNIQUE_ID, &cdr->uniqueid, strlen(cdr->uniqueid), VENDOR_CODE))
 			return -1;
-		}
 	}
 
 	if (ast_test_flag(&global_flags, RADIUS_FLAG_LOGUSERFIELD)) {
 		/* append the user field */
-		if (!rc_avpair_add(rh, send, PW_AST_USER_FIELD, &cdr->userfield, strlen(cdr->userfield), VENDOR_CODE)) {
-			ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+		if (!rc_avpair_add(rh, send, PW_AST_USER_FIELD, &cdr->userfield, strlen(cdr->userfield), VENDOR_CODE))
 			return -1;
-		}
 	}
 
 	/* Setting Acct-Session-Id & User-Name attributes for proper generation
 	   of Acct-Unique-Session-Id on server side */ 
 	/* Channel */
-	if (!rc_avpair_add(rh, send, PW_USER_NAME, &cdr->channel, strlen(cdr->channel), 0)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_USER_NAME, &cdr->channel, strlen(cdr->channel), 0))
 		return -1;
-	}
+
 	/* Unique ID */
-	if (!rc_avpair_add(rh, send, PW_ACCT_SESSION_ID, &cdr->uniqueid, strlen(cdr->uniqueid), 0)) {
-		ast_log(LOG_WARNING, "Failed to add VALUE PAIR. RADIUS CDR not recorded!\n");
+	if (!rc_avpair_add(rh, send, PW_ACCT_SESSION_ID, &cdr->uniqueid, strlen(cdr->uniqueid), 0))
 		return -1;
-	}
+
 	return 0;
 }
 
