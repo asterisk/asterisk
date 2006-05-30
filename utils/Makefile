@@ -40,13 +40,13 @@ install:
 	done 
 
 uninstall:
-	for x in $(TARGET); do rm -f $$x $(DESTDIR)$(ASTSBINDIR)/$$x; done
+	for x in $(UTILS); do rm -f $$x $(DESTDIR)$(ASTSBINDIR)/$$x; done
 
 clean-depend:
 	rm -f .depend
 
 clean: clean-depend
-	rm -f *.o $(TARGET) check_expr
+	rm -f *.o $(UTILS) check_expr
 	rm -f ast_expr2.o ast_expr2f.o
 
 astman.o: astman.c
