@@ -622,6 +622,9 @@ static int add_to_interfaces(char *interface)
 {
 	struct ast_member_interfaces *curint, *newint;
 
+	if (!interface)
+		return 0;
+
 	AST_LIST_LOCK(&interfaces);
 	AST_LIST_TRAVERSE(&interfaces, curint, list) {
 		if (!strcasecmp(curint->interface, interface))
@@ -649,6 +652,9 @@ static int interface_exists_global(char *interface)
 	struct member *mem;
 	int ret = 0;
 
+	if (!interface)
+		return ret;
+
 	ast_mutex_lock(&qlock);
 	for (q = queues; q && !ret; q = q->next) {
 		ast_mutex_lock(&q->lock);
@@ -658,6 +664,7 @@ static int interface_exists_global(char *interface)
 				ret = 1;
 				break;
 			}
+			mem = mem->next;
 		}
 		ast_mutex_unlock(&q->lock);
 	}
@@ -670,6 +677,9 @@ static int interface_exists_global(char *interface)
 static int remove_from_interfaces(char *interface)
 {
 	struct ast_member_interfaces *curint;
+
+	if (!interface)
+		return 0;
 
 	AST_LIST_LOCK(&interfaces);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&interfaces, curint, list) {
