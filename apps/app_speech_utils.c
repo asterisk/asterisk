@@ -759,7 +759,7 @@ static int load_module(void *mod)
 	res |= ast_register_application("SpeechUnloadGrammar", speech_unload, "Unload a Grammar", speechunload_descrip);
 	res |= ast_register_application("SpeechActivateGrammar", speech_activate, "Activate a Grammar", speechactivategrammar_descrip);
         res |= ast_register_application("SpeechDeactivateGrammar", speech_deactivate, "Deactivate a Grammar", speechdeactivategrammar_descrip);
-	res |= ast_register_application("SpeechStart", speech_start, "Start recognizing", speechstart_descrip);
+	res |= ast_register_application("SpeechStart", speech_start, "Start recognizing voice in the audio stream", speechstart_descrip);
 	res |= ast_register_application("SpeechBackground", speech_background, "Play a sound file and wait for speech to be recognized", speechbackground_descrip);
 	res |= ast_register_application("SpeechDestroy", speech_destroy, "End speech recognition", speechdestroy_descrip);
 	res |= ast_register_application("SpeechProcessingSound", speech_processing_sound, "Change background processing sound", speechprocessingsound_descrip);

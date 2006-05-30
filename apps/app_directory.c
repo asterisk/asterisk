@@ -53,7 +53,7 @@ static char *descrip =
 "the calling channel with a directory of extensions from which they can search\n"
 "by name. The list of names and corresponding extensions is retrieved from the\n"
 "voicemail configuration file, voicemail.conf.\n"
-"  This applicaiton will immediate exit if one of the following DTMF digits are\n"
+"  This application will immediately exit if one of the following DTMF digits are\n"
 "received and the extension to jump to exists:\n"
 "    0 - Jump to the 'o' extension, if it exists.\n"
 "    * - Jump to the 'a' extension, if it exists.\n\n"

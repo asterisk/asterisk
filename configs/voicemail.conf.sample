@@ -142,13 +142,6 @@ emaildateformat=%A, %B %d, %Y at %r
 ; R             24 hour time, including minute 
 ; 
 ; 
-[zonemessages]
-eastern=America/New_York|'vm-received' Q 'digits/at' IMp
-central=America/Chicago|'vm-received' Q 'digits/at' IMp
-central24=America/Chicago|'vm-received' q 'digits/at' H N 'hours'
-military=Zulu|'vm-received' q 'digits/at' H N 'hours' 'phonetic/z_p'
-european=Europe/Copenhagen|'vm-received' a d b 'digits/at' HM
-
 ;
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>,<options>
 ; if the e-mail is specified, a message will be sent when a message is
@@ -160,7 +153,7 @@ european=Europe/Copenhagen|'vm-received' a d b 'digits/at' HM
 ; NOTE: All options can be expressed globally in the general section, and
 ; overriden in the per-mailbox settings, unless listed otherwise.
 ; 
-; tz=central 		; Timezone from zonemessages above.  Irrelevant if envelope=no.
+; tz=central 		; Timezone from zonemessages below. Irrelevant if envelope=no.
 ; attach=yes 		; Attach the voicemail to the notification email *NOT* the pager email
 ; attachfmt=wav49	; Which format to attach to the email.  Normally this is the
 			; first format specified in the format parameter above, but this
@@ -203,8 +196,17 @@ sendvoicemail=yes	; Context to Send voicemail from [option 5 from the advanced m
 			;     The default is "no".
 ;tempgreetwarn=yes	; Remind the user that their temporary greeting is set
 
+[zonemessages]
+eastern=America/New_York|'vm-received' Q 'digits/at' IMp
+central=America/Chicago|'vm-received' Q 'digits/at' IMp
+central24=America/Chicago|'vm-received' q 'digits/at' H N 'hours'
+military=Zulu|'vm-received' q 'digits/at' H N 'hours' 'phonetic/z_p'
+european=Europe/Copenhagen|'vm-received' a d b 'digits/at' HM
+
+
+
 [default]
-; Define maximum number of messages per folder for partcular context.
+; Define maximum number of messages per folder for a particular context.
 ;maxmsg=50
 
 1234 => 4242,Example Mailbox,root@localhost

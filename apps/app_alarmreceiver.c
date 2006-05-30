@@ -70,7 +70,7 @@ typedef struct event_node event_node_t;
 
 static char *app = "AlarmReceiver";
 
-static char *synopsis = "Provide support for receving alarm reports from a burglar or fire alarm panel";
+static char *synopsis = "Provide support for receiving alarm reports from a burglar or fire alarm panel";
 static char *descrip =
 "  AlarmReceiver(): Only 1 signalling format is supported at this time: Ademco\n"
 "Contact ID. This application should be called whenever there is an alarm\n"

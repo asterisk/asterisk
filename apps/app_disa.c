@@ -70,7 +70,7 @@ static char *descrip =
 	"Be aware that using this compromises the security of your PBX.\n\n"
 	"The arguments to this application (in extensions.conf) allow either\n"
 	"specification of a single global passcode (that everyone uses), or\n"
-	"individual passcodes contained in a file. It also allow specification\n"
+	"individual passcodes contained in a file. It also allows specification\n"
 	"of the context on which the user will be dialing. If no context is\n"
 	"specified, the DISA application defaults the context to \"disa\".\n"
 	"Presumably a normal system will have a special context set up\n"
