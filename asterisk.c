@@ -2190,8 +2190,8 @@ static void ast_readconfig(void)
 	if (!cfg) {
 		return;
 	}
-	v = ast_variable_browse(cfg, "files");
-	while (v) {
+
+	for (v = ast_variable_browse(cfg, "files"); v; v = v->next) {
 		if (!strcasecmp(v->name, "astctlpermissions")) {
 			ast_copy_string(ast_config_AST_CTL_PERMISSIONS, v->value, sizeof(ast_config_AST_CTL_PERMISSIONS));
 		} else if (!strcasecmp(v->name, "astctlowner")) {
@@ -2201,10 +2201,9 @@ static void ast_readconfig(void)
 		} else if (!strcasecmp(v->name, "astctl")) {
 			ast_copy_string(ast_config_AST_CTL, v->value, sizeof(ast_config_AST_CTL));
 		}
-		v = v->next;
 	}
-	v = ast_variable_browse(cfg, "directories");
-	while(v) {
+
+	for (v = ast_variable_browse(cfg, "directories"); v; v = v->next) {
 		if (!strcasecmp(v->name, "astetcdir")) {
 			ast_copy_string(ast_config_AST_CONFIG_DIR, v->value, sizeof(ast_config_AST_CONFIG_DIR));
 		} else if (!strcasecmp(v->name, "astspooldir")) {
@@ -2226,13 +2225,10 @@ static void ast_readconfig(void)
 			ast_copy_string(ast_config_AST_RUN_DIR, v->value, sizeof(ast_config_AST_RUN_DIR));
 		} else if (!strcasecmp(v->name, "astmoddir")) {
 			ast_copy_string(ast_config_AST_MODULE_DIR, v->value, sizeof(ast_config_AST_MODULE_DIR));
-		} else if (!strcasecmp(v->name, "languageprefix")) {
-			ast_language_is_prefix = ast_true(v->value);
 		}
-		v = v->next;
 	}
-	v = ast_variable_browse(cfg, "options");
-	while(v) {
+
+	for (v = ast_variable_browse(cfg, "options"); v; v = v->next) {
 		/* verbose level (-v at startup) */
 		if (!strcasecmp(v->name, "verbose")) {
 			option_verbose = atoi(v->value);
@@ -2311,8 +2307,9 @@ static void ast_readconfig(void)
 			ast_copy_string(ast_config_AST_RUN_GROUP, v->value, sizeof(ast_config_AST_RUN_GROUP));
 		} else if (!strcasecmp(v->name, "systemname")) {
 			ast_copy_string(ast_config_AST_SYSTEM_NAME, v->value, sizeof(ast_config_AST_SYSTEM_NAME));
+		} else if (!strcasecmp(v->name, "languageprefix")) {
+			ast_language_is_prefix = ast_true(v->value);
 		}
-		v = v->next;
 	}
 	ast_config_destroy(cfg);
 }

@@ -65,6 +65,10 @@ maxcalls = 255					; The maximum number of concurrent calls you want to allow
 execincludes = yes | no 			; Allow #exec entries in configuration files
 dontwarn = yes | no				; Don't over-inform the Asterisk sysadm, he's a guru
 systemname = <a_string>				; System name. Used to prefix CDR uniqueid and to fill ${SYSTEMNAME}
+languageprefix = yes | no			; Should language code be last component of sound file name or first?
+	       	       				; when off, sound files are searched as <path>/<lang>/<file>
+						; when on, sound files are search as <lang>/<path>/<file>
+						; (only affects relative paths for sound files)
 
 [files]
 ; Changing the following lines may compromise your security
