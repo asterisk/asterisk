@@ -246,16 +246,6 @@
 
 %vm-newuser.gsm%Welcome to Comedian Mail. First, I will guide you through a short setup process.
 
-;%priv-sayname.gsm%After the tone, please say your name or the company you represent.
-
-;%priv-trying.gsm%Please hold while I attempt to contact your party.
-
-;%priv-callfrom.gsm%You have a call from
-
-;%priv-at.gsm%at
-
-;%priv-instruct.gsm%Press 1 to accept this call.  Press 2 to not accept this call.  Press 3 to always accept calls from this number.  Press 4 to never accept calls from this number.  Press 5 to reject calls from this number and request that they add you to their do not call list.
-
 %priv-callee-options.gsm%Dial 1 if you wish this caller to reach you directly now, and in the future.  Dial 2 if you wish to send this caller to voicemail now and forevermore.  Dial 3 to send this caller to the torture menus, now and forevermore.  Dial 4 to send this caller to a polite "don't call" menu, now and forevermore.  Dial 5 to allow this caller to come straight thru to you in the future, but just this once, send them to voicemail.
 
 %screen-callee-options.gsm%You have these options: Dial 1 if you wish to immediately connect to the incoming call.  Dial 2 if you wish to send this caller to voicemail.  Dial 3 to send this caller to the torture menus.  Dial 4 to send this caller to a polite "don't call" menu.
@@ -291,8 +281,6 @@
 %enter_filename.gsm%Enter a numeric dictation filename followed by # or just # to exit
 
 %forhelp.gsm%press 0 for help
-
-%inithelp.gsm%1 to switch to playback mode
 
 %pause.gsm%pause
 
@@ -654,8 +642,6 @@
 %niner.gsm%niner
 
 ; Misc 
-
-%percent.gsm%percent [%]
 
 %plus.gsm%plus [+]
 
