@@ -1730,12 +1730,12 @@ bailoutandtrynormal:
 		ast_update_realtime("meetme", "confno", conf->confno, "members", members, NULL);
 		if (confflags & CONFFLAG_MARKEDUSER) 
 			conf->markedusers--;
+		/* Remove ourselves from the list */
+		AST_LIST_REMOVE(&conf->userlist, user, list);
 		if (AST_LIST_EMPTY(&conf->userlist)) {
 			/* close this one when no more users and no references*/
 			if (!conf->refcount)
 				conf_free(conf);
-		} else {
-			AST_LIST_REMOVE(&conf->userlist, user, list);
 		}
 		/* Return the number of seconds the user was in the conf */
 		snprintf(meetmesecs, sizeof(meetmesecs), "%d", (int) (time(NULL) - user->jointime));
