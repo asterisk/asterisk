@@ -119,6 +119,11 @@ Applications:
   record conversations queue members are having with queue callers. Please
   see configs/queues.conf.sample for more information on this option.
 
+* The app_queue application strategy called 'roundrobin' has been deprecated
+  for this release. Users are encouraged to use 'rrmemory' instead, since it
+  provides more 'true' round-robin call delivery. For the Asterisk 1.6 release,
+  'rrmemory' will be renamed 'roundrobin'.
+
 * app_meetme: The 'm' option (monitor) is renamed to 'l' (listen only), and
   the 'm' option now provides the functionality of "initially muted". 
   In practice, most existing dialplans using the 'm' flag should not notice

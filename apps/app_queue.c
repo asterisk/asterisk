@@ -395,6 +395,16 @@ static AST_LIST_HEAD_STATIC(queues, ast_call_queue);
 
 static int set_member_paused(char *queuename, char *interface, int paused);
 
+static void rr_dep_warning(void)
+{
+	static unsigned int warned = 0;
+
+	if (!warned) {
+		ast_log(LOG_NOTICE, "The 'roundrobin' queue strategy is deprecated. Please use the 'rrmemory' strategy instead.\n");
+		warned = 1;
+	}
+}
+
 static void set_queue_result(struct ast_channel *chan, enum queue_result res)
 {
 	int i;
@@ -1027,6 +1037,9 @@ static struct ast_call_queue *find_queue_by_name_rt(const char *queuename, struc
 		queue_set_param(q, tmp_name, v->value, -1, 0);
 		v = v->next;
 	}
+
+	if (q->strategy == QUEUE_STRATEGY_ROUNDROBIN)
+		rr_dep_warning();
 
 	/* Temporarily set non-dynamic members dead so we can detect deleted ones. */
 	m = q->members;
@@ -3691,6 +3704,9 @@ static void reload_queues(void)
 						remove_from_interfaces(cur->interface);
 					}
 				}
+
+				if (q->strategy == QUEUE_STRATEGY_ROUNDROBIN)
+					rr_dep_warning();
 
 				if (new) {
 					AST_LIST_INSERT_HEAD(&queues, q, list);
