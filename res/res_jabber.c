@@ -2149,7 +2149,6 @@ struct aji_client_container *ast_aji_get_clients(void)
 
 static void aji_reload()
 {
-	int res = -1;
 	ASTOBJ_CONTAINER_MARKALL(&clients);
 	if (!aji_load_config())
 		ast_log(LOG_ERROR, "JABBER: Failed to load config.\n");
