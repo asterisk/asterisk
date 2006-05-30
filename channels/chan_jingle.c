@@ -161,9 +161,6 @@ static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GS
 /* Protect the interface list (of sip_pvt's) */
 AST_MUTEX_DEFINE_STATIC(jinglelock);
 
-AST_MUTEX_DEFINE_STATIC(rand_lock);	/*!< Lock for thread-safe random generator */
-
-
 static struct ast_channel *jingle_request(const char *type, int format, void *data, int *cause);
 static int jingle_digit(struct ast_channel *ast, char digit);
 static int jingle_call(struct ast_channel *ast, char *dest, int timeout);
@@ -393,17 +390,6 @@ static int jingle_answer(struct ast_channel *ast)
 	return res;
 }
 
-static force_inline int thread_safe_rand(void)
-{
-	int val;
-
-	ast_mutex_lock(&rand_lock);
-	val = rand();
-	ast_mutex_unlock(&rand_lock);
-
-	return val;
-}
-
 static struct ast_rtp *jingle_get_rtp_peer(struct ast_channel *chan)
 {
 	struct jingle_pvt *p;
@@ -567,8 +553,8 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 	ast_copy_string(ours1->name, "rtp", sizeof(ours1->name));
 	ours1->port = ntohs(sin.sin_port);
 	ours1->preference = 1;
-	snprintf(user, sizeof(user), "%08x%08x", thread_safe_rand(), thread_safe_rand());
-	snprintf(pass, sizeof(pass), "%08x%08x", thread_safe_rand(), thread_safe_rand());
+	snprintf(user, sizeof(user), "%08lx%08lx", ast_random(), ast_random());
+	snprintf(pass, sizeof(pass), "%08lx%08lx", ast_random(), ast_random());
 	ast_copy_string(ours1->username, user, sizeof(ours1->username));
 	ast_copy_string(ours1->password, pass, sizeof(ours1->password));
 	ast_inet_ntoa(ours1->ip, sizeof(ours1->ip), us);
@@ -579,8 +565,8 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 
 	if (!ast_strlen_zero(externip)) {
 		/* XXX We should really stun for this one not just go with externip XXX */
-		snprintf(user, sizeof(user), "%08x%08x", thread_safe_rand(), thread_safe_rand());
-		snprintf(pass, sizeof(pass), "%08x%08x", thread_safe_rand(), thread_safe_rand());
+		snprintf(user, sizeof(user), "%08lx%08lx", ast_random(), ast_random());
+		snprintf(pass, sizeof(pass), "%08lx%08lx", ast_random(), ast_random());
 		ast_copy_string(ours2->username, user, sizeof(ours2->username));
 		ast_copy_string(ours2->password, pass, sizeof(ours2->password));
 		ast_copy_string(ours2->ip, externip, sizeof(ours2->ip));
