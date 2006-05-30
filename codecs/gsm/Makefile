@@ -212,7 +212,7 @@ GSM_SOURCES =	$(SRC)/add.c		\
 # XXX Keep a space after each findstring argument
 # XXX should merge with GSM_OBJECTS
 ifeq (${OSARCH},Linux)
-ifeq (,$(findstring $(shell uname -m) , x86_64 amd64 ppc ppc64 alpha armv4l sparc64 parisc ))
+ifeq (,$(findstring $(shell uname -m) , x86_64 amd64 ppc ppc64 alpha armv4l sparc64 parisc s390 ))
 ifeq (,$(findstring ${PROC} , arm ia64 ))
 GSM_SOURCES+= $(SRC)/k6opt.s
 endif
