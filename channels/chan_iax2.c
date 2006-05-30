@@ -5052,16 +5052,6 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 				destroy_peer(p);
 			return -1;
 		}
-	} else if (!ast_strlen_zero(secret) && (p->authmethods & IAX_AUTH_PLAINTEXT)) {
-		/* They've provided a plain text password and we support that */
-		if (strcmp(secret, p->secret)) {
-			if (authdebug)
-				ast_log(LOG_NOTICE, "Host %s did not provide proper plaintext password for '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name);
-			if (ast_test_flag(p, IAX_TEMPONLY))
-				destroy_peer(p);
-			return -1;
-		} else
-			ast_set_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED);
 	} else if (!ast_strlen_zero(md5secret) && (p->authmethods & IAX_AUTH_MD5) && !ast_strlen_zero(iaxs[callno]->challenge)) {
 		struct MD5Context md5;
 		unsigned char digest[16];
@@ -5088,6 +5078,16 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 				destroy_peer(p);
 			return -1;
 		}
+	} else if (!ast_strlen_zero(secret) && (p->authmethods & IAX_AUTH_PLAINTEXT)) {
+		/* They've provided a plain text password and we support that */
+		if (strcmp(secret, p->secret)) {
+			if (authdebug)
+				ast_log(LOG_NOTICE, "Host %s did not provide proper plaintext password for '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name);
+			if (ast_test_flag(p, IAX_TEMPONLY))
+				destroy_peer(p);
+			return -1;
+		} else
+			ast_set_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED);
 	} else if (!ast_strlen_zero(md5secret) || !ast_strlen_zero(secret)) {
 		if (authdebug)
 			ast_log(LOG_NOTICE, "Inappropriate authentication received\n");
