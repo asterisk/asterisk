@@ -148,8 +148,7 @@ $company_directory = ($josh | $mark | $kevin) { $ = $$ };
 	exten => s,3,SpeechStart()
 	exten => s,4,SpeechBackground(who-would-you-like-to-dial)
 	exten => s,5,SpeechDeactivateGrammar(company-directory)
-	exten => s,6,SpeechDestroy()
-	exten => s,7,Goto(internal-extensions-${SPEECH_TEXT(0)})
+	exten => s,6,Goto(internal-extensions-${SPEECH_TEXT(0)})
 
 - Useful Dialplan Tidbits:
 
