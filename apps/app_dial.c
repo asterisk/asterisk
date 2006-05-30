@@ -471,6 +471,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
 						if (!o->chan)
 							ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+						else
+							ast_channel_inherit_variables(in, o->chan);
 					} else {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", o->chan->name);
@@ -937,20 +939,26 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 		
 		if( privdb_val == AST_PRIVACY_DENY ) {
+			strcpy(status, "NOANSWER");
 			ast_verbose( VERBOSE_PREFIX_3  "Privacy DB reports PRIVACY_DENY for this callerid. Dial reports unavailable\n");
 			res=0;
 			goto out;
 		}
 		else if( privdb_val == AST_PRIVACY_KILL ) {
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 201);
+			strcpy(status, "DONTCALL");
+			if (option_priority_jumping || ast_test_flag(&opts, OPT_PRIORITY_JUMP)) {
+				ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 201);
+			}
 			res = 0;
 			goto out; /* Is this right? */
 		}
 		else if( privdb_val == AST_PRIVACY_TORTURE ) {
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 301);
+			strcpy(status, "TORTURE");
+			if (option_priority_jumping || ast_test_flag(&opts, OPT_PRIORITY_JUMP)) {
+				ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 301);
+			}
 			res = 0;
 			goto out; /* is this right??? */
-
 		}
 		else if( privdb_val == AST_PRIVACY_UNKNOWN ) {
 			/* Get the user's intro, store it in priv-callerintros/$CID, 
@@ -1060,6 +1068,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				tmp->chan = ast_request(tech, chan->nativeformats, stuff, &cause);
 				if (!tmp->chan)
 					ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+				else
+					ast_channel_inherit_variables(chan, tmp->chan);
 			} else {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", tmp->chan->name);
@@ -1306,6 +1316,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 								     opt_args[OPT_ARG_PRIVACY], privcid);
 						ast_privacy_set(opt_args[OPT_ARG_PRIVACY], privcid, AST_PRIVACY_DENY);
 					}
+					strcpy(status,"NOANSWER");
 					if (ast_test_flag(&opts, OPT_MUSICBACK)) {
 						ast_moh_stop(chan);
 					} else if (ast_test_flag(&opts, OPT_RINGBACK)) {

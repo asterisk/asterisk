@@ -3706,6 +3706,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	int length;
 	struct ast_state_cb *thiscb, *prevcb;
 
+	memset(&store, 0, sizeof(store));
 	AST_LIST_HEAD_INIT(&store);
 
 	/* it is very important that this function hold the hintlock _and_ the conlock
@@ -4064,7 +4065,7 @@ static unsigned int get_month(char *mon)
 	}
 	if (c) {
 		e = 0;
-		while((e < 12) && strcasecmp(mon, months[e])) e++;
+		while((e < 12) && strcasecmp(c, months[e])) e++;
 		if (e >= 12) {
 			ast_log(LOG_WARNING, "Invalid month '%s', assuming none\n", c);
 			return 0;

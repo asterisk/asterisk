@@ -38,31 +38,33 @@ WAV49	= -DWAV49
 ######### probably require gcc. 
 
 ifneq (${OSARCH},Darwin)
-ifneq (${OSARCH},SunOS)
-ifneq (${PROC},x86_64)
-ifneq (${PROC},amd64)
-ifneq (${PROC},ultrasparc)
-ifneq ($(shell uname -m),ppc)
-ifneq ($(shell uname -m),ppc64)
-ifneq ($(shell uname -m),alpha)
-ifneq ($(shell uname -m),armv4l)
-ifneq (${PROC},sparc64)
-ifneq (${PROC},arm)
-ifneq (${PROC},ppc)
-ifneq (${PROC},ppc64)
+ ifneq (${OSARCH},SunOS)
+  ifneq (${PROC},x86_64)
+   ifneq (${PROC},amd64)
+    ifneq (${PROC},ultrasparc)
+     ifneq ($(shell uname -m),ppc)
+      ifneq ($(shell uname -m),ppc64)
+       ifneq ($(shell uname -m),alpha)
+        ifneq ($(shell uname -m),armv4l)
+         ifneq (${PROC},sparc64)
+          ifneq (${PROC},arm)
+           ifneq (${PROC},ppc)
+            ifneq (${PROC},ppc64)
+             ifneq (${PROC},s390)
 OPTIMIZE+=-march=$(PROC)
-endif
-endif
-endif
-endif
-endif
-endif
-endif
-endif
-endif
-endif
-endif
-endif
+             endif
+            endif
+           endif
+          endif
+         endif
+        endif
+       endif
+      endif
+     endif
+    endif
+   endif
+  endif
+ endif
 endif
 
 #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
@@ -240,7 +242,9 @@ ifneq ($(shell uname -m),armv4l)
 ifneq ($(shell uname -m),sparc64)
 ifneq (${PROC},arm)
 ifneq ($(shell uname -m), parisc)
+ifneq (${PROC}, s390)
 GSM_SOURCES+= $(SRC)/k6opt.s
+endif
 endif
 endif
 endif

@@ -96,7 +96,6 @@ static const char *descrip =
 "      's' -- Present menu (user or admin) when '*' is received ('send' to menu)\n"
 "      't' -- set talk only mode. (Talk only, no listening)\n"
 "      'T' -- set talker detection (sent to manager interface and meetme list)\n"
-"      'v' -- video mode\n"
 "      'w' -- wait until the marked user enters the conference\n"
 "      'x' -- close the conference when last marked user exits\n"
 "      'X' -- allow user to exit the conference by entering a valid single\n"
@@ -166,7 +165,7 @@ struct ast_conf_user {
 	int talking;				/* Is user talking */
 	int zapchannel;				/* Is a Zaptel channel */
 	char usrvalue[50];			/* Custom User Value */
-	char namerecloc[AST_MAX_EXTENSION];	/* Name Recorded file Location */
+	char namerecloc[PATH_MAX];	/* Name Recorded file Location */
 	time_t jointime;			/* Time the user joined the conference */
 	struct volume talk;
 	struct volume listen;
@@ -212,7 +211,7 @@ static void *recordthread(void *args);
 #define CONFFLAG_STARMENU (1 << 4)		/* If set asterisk will provide a menu to the user when '*' is pressed */
 #define CONFFLAG_TALKER (1 << 5)		/* If set the use can only send audio to the conference */
 #define CONFFLAG_QUIET (1 << 6)			/* If set there will be no enter or leave sounds */
-#define CONFFLAG_VIDEO (1 << 7)			/* Set to enable video mode */
+#define CONFFLAG_ANNOUNCEUSERCOUNT (1 << 7)	/* If set, when user joins the conference, they will be told the number of users that are already in */
 #define CONFFLAG_AGI (1 << 8)			/* Set to run AGI Script in Background */
 #define CONFFLAG_MOH (1 << 9)			/* Set to have music on hold when user is alone in conference */
 #define CONFFLAG_MARKEDEXIT (1 << 10)		/* If set the MeetMe will return if all marked with this flag left */
@@ -227,7 +226,6 @@ static void *recordthread(void *args);
 #define CONFFLAG_EMPTY (1 << 19)
 #define CONFFLAG_EMPTYNOPIN (1 << 20)
 #define CONFFLAG_ALWAYSPROMPT (1 << 21)
-#define CONFFLAG_ANNOUNCEUSERCOUNT (1 << 22)	/* If set, when user joins the conference, they will be told the number of users that are already in */
 
 
 AST_APP_OPTIONS(meetme_opts, {
@@ -629,7 +627,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 				user->chan->name,
 				user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
 				user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
-				user->adminflags & ADMINFLAG_MUTED ? "(Admn Muted)" : "",
+				user->adminflags & ADMINFLAG_MUTED ? "(Admin Muted)" : "",
 				istalking(user->talking));
 		ast_cli(fd,"%d users in that conference.\n",cnf->users);
 
@@ -1071,7 +1069,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	if (!firstpass && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN)) {
 		firstpass = 1;
 		if (!(confflags & CONFFLAG_QUIET))
-			if (!(confflags & CONFFLAG_WAITMARKED) || (conf->markedusers >= 1))
+			if (!(confflags & CONFFLAG_WAITMARKED) || ((confflags & CONFFLAG_MARKEDUSER) && (conf->markedusers >= 1)))
 				conf_play(chan, conf, ENTER);
 	}
 

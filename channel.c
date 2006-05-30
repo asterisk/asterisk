@@ -1950,10 +1950,12 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 			chan->dtmfq[strlen(chan->dtmfq)] = f->subclass;
 		else
 			ast_log(LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
+		ast_frfree(f);
 		f = &null_frame;
 	} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
 		if (prestate == AST_STATE_UP) {
 			ast_log(LOG_DEBUG, "Dropping duplicate answer!\n");
+			ast_frfree(f);
 			f = &null_frame;
 		}
 		/* Answer the CDR */

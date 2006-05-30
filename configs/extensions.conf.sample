@@ -442,12 +442,10 @@ exten => 8500,n,Goto(s,6)
 include => demo
 
 ;
-; Extensions like the two below can be used for FWD, Nikotel, sipgate etc.
-; Note that you must have a [sipprovider] section in sip.conf whereas
-; the otherprovider.net example does not require such a peer definition
+; An extension like the one below can be used for FWD, Nikotel, sipgate etc.
+; Note that you must have a [sipprovider] section in sip.conf
 ;
 ;exten => _41X.,1,Dial(SIP/${EXTEN:2}@sipprovider,,r)
-;exten => _42X.,1,Dial(SIP/user:passwd@${EXTEN:2}@otherprovider.net,30,rT)
 
 ; Real extensions would go here. Generally you want real extensions to be
 ; 4 or 5 digits long (although there is no such requirement) and start with a

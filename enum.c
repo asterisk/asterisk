@@ -80,27 +80,29 @@ struct naptr {
 } __attribute__ ((__packed__));
 
 /*--- parse_ie: Parse NAPTR record information elements */
-static int parse_ie(char *data, int maxdatalen, char *src, int srclen)
+static unsigned int parse_ie(unsigned char *data, unsigned int maxdatalen, unsigned char *src, unsigned int srclen)
 {
-	int len, olen;
+	unsigned int len, olen;
 
-	len = olen = (int)src[0];
+	len = olen = (unsigned int) src[0];
 	src++;
 	srclen--;
-	if (len > srclen || len < 0 ) {
+
+	if (len > srclen) {
 		ast_log(LOG_WARNING, "ENUM parsing failed: Wanted %d characters, got %d\n", len, srclen);
 		return -1;
 	}
+
 	if (len > maxdatalen)
 		len = maxdatalen;
 	memcpy(data, src, len);
+
 	return olen + 1;
 }
 
 /*--- parse_naptr: Parse DNS NAPTR record used in ENUM ---*/
-static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *answer, int len, char *naptrinput)
+static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize, unsigned char *answer, int len, unsigned char *naptrinput)
 {
-
 	char tech_return[80];
 	char *oanswer = answer;
 	char flags[512] = "";
@@ -344,7 +346,7 @@ static int txt_callback(void *context, char *answer, int len, char *fullanswer)
 /*--- enum_callback: Callback from ENUM lookup function */
 static int enum_callback(void *context, char *answer, int len, char *fullanswer)
 {
-	struct enum_context *c = (struct enum_context *)context;
+       struct enum_context *c = (struct enum_context *)context;
        void *p = NULL;
        int res;
 

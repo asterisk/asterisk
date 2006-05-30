@@ -142,7 +142,7 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
          p = channel;
       p = strchr (p, 'X');
       if (p)
-         fprintf (f, "%.*s%c%s\n", p - channel, channel, subaddress, p + 1);
+         fprintf (f, "%.*s%c%s\n", (int)(p - channel), channel, subaddress, p + 1);
       else
          fprintf (f, "%s\n", channel);
    }
@@ -153,7 +153,7 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
    {
       p = strchr (callerid, 'X');
       if (p)
-         fprintf (f, "%.*s%c%s", p - callerid, callerid, subaddress, p + 1);
+         fprintf (f, "%.*s%c%s", (int)(p - callerid), callerid, subaddress, p + 1);
       else
          fprintf (f, "%s", callerid);
    }
