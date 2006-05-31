@@ -34,10 +34,12 @@ extern "C" {
 
 
 /* return codes */
-#define SCX_JB_OK		0
-#define SCX_JB_DROP		1
-#define SCX_JB_INTERP	2
-#define SCX_JB_NOFRAME	3
+enum {
+	SCX_JB_OK,
+	SCX_JB_DROP,
+	SCX_JB_INTERP,
+	SCX_JB_NOFRAME
+};
 
 
 /* defaults */
