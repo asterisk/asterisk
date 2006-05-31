@@ -1456,11 +1456,16 @@ static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	 * apply it to their address to see if we need to substitute our
 	 * externip or can get away with our internal bindaddr
 	 */
-	struct sockaddr_in theirs;
+	struct sockaddr_in theirs, ours;
+
+	/* Get our local information */
+	ast_ouraddrfor(them, us);
 	theirs.sin_addr = *them;
+	ours.sin_addr = *us;
 
 	if (localaddr && externip.sin_addr.s_addr &&
-	   ast_apply_ha(localaddr, &theirs)) {
+	    ast_apply_ha(localaddr, &theirs) &&
+	    !ast_apply_ha(localaddr, &ours)) {
 		if (externexpire && time(NULL) >= externexpire) {
 			struct ast_hostent ahp;
 			struct hostent *hp;
@@ -1480,8 +1485,6 @@ static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 		}
 	} else if (bindaddr.sin_addr.s_addr)
 		*us = bindaddr.sin_addr;
-	else
-		return ast_ouraddrfor(them, us);
 	return 0;
 }
 
