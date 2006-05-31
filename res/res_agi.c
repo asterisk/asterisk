@@ -149,6 +149,7 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds, in
 	struct sockaddr_in sin;
 	struct hostent *hp;
 	struct ast_hostent ahp;
+	int res;
 
 	/* agiusl is "agi://host.domain[:port][/script/name]" */
 	host = ast_strdupa(agiurl + 6);	/* Remove agi:// */
@@ -200,9 +201,13 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds, in
 
 	pfds[0].fd = s;
 	pfds[0].events = POLLOUT;
-	while (poll(pfds, 1, MAX_AGI_CONNECT) != 1) {
+	while ((res = poll(pfds, 1, MAX_AGI_CONNECT)) != 1) {
 		if (errno != EINTR) {
-			ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
+			if (!res) {
+				ast_log(LOG_WARNING, "FastAGI connection to '%s' timed out after MAX_AGI_CONNECT (%d) milliseconds.\n",
+					agiurl, MAX_AGI_CONNECT);
+			} else
+				ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
 			close(s);
 			return AGI_RESULT_FAILURE;
 		}
