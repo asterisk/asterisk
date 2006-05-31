@@ -2547,7 +2547,12 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 					timeout = 0;		/* trick to force exit from the while() */
 					break;
 
-				case AST_CONTROL_PROGRESS:	/* Ignore */
+				/* Ignore these */
+				case AST_CONTROL_PROGRESS:
+				case AST_CONTROL_PROCEEDING:
+				case AST_CONTROL_HOLD:
+				case AST_CONTROL_UNHOLD:
+				case AST_CONTROL_VIDUPDATE:
 				case -1:			/* Ignore -- just stopping indications */
 					break;
 
