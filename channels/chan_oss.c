@@ -75,6 +75,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/causes.h"
 #include "asterisk/endian.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/abstract_jb.h"
 
 /* ringtones we use */
 #include "busy.h"
@@ -82,8 +83,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "ring10.h"
 #include "answer.h"
 
-#include "asterisk/abstract_jb.h"
-/* Global jitterbuffer configuration - by default, jb is disabled */
+/*! Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =
 {
 	.flags = 0,

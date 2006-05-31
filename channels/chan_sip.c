@@ -139,6 +139,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/monitor.h"
 #include "asterisk/localtime.h"
+#include "asterisk/abstract_jb.h"
 
 #ifndef FALSE
 #define FALSE	0
@@ -202,8 +203,7 @@ static int expiry = DEFAULT_EXPIRY;
 
 #define	INITIAL_CSEQ		101	/*!< our initial sip sequence number */
 
-#include "asterisk/abstract_jb.h"
-/* Global jitterbuffer configuration - by default, jb is disabled */
+/*! Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =
 {
 	.flags = 0,

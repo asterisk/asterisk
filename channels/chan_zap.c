@@ -103,14 +103,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/transcap.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/abstract_jb.h"
 #ifdef WITH_SMDI
 #include "asterisk/smdi.h"
 #include "asterisk/astobj.h"
 #define SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
 #endif
 
-#include "asterisk/abstract_jb.h"
-/* Global jitterbuffer configuration - by default, jb is disabled */
+/*! Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =
 {
 	.flags = 0,
