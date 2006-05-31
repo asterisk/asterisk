@@ -702,7 +702,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 					S_OR(user->chan->cid.cid_name, "<no name>"),
 					user->chan->name,
 					user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
-					user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
+					user->adminflags & ADMINFLAG_SELFMUTED ? "(Listen only)" : "",
 					user->adminflags & ADMINFLAG_MUTED ? "(Admin Muted)" : "",
 					istalking(user->talking), hr, min, sec);
 			else 
@@ -712,7 +712,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 					S_OR(user->chan->cid.cid_name, ""),
 					user->chan->name,
 					user->userflags  & CONFFLAG_ADMIN   ? "1" : "",
-					user->userflags  & CONFFLAG_MONITOR ? "1" : "",
+					user->adminflags & ADMINFLAG_SELFMUTED ? "1" : "",
 					user->adminflags & ADMINFLAG_MUTED  ? "1" : "",
 					user->talking, hr, min, sec);
 			
@@ -964,7 +964,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 	user->chan = chan;
 	user->userflags = confflags;
-	user->adminflags = (confflags & CONFFLAG_STARTMUTED) ? ADMINFLAG_MUTED : 0;
+	user->adminflags = 0;
+	if (confflags & CONFFLAG_STARTMUTED)
+		user->adminflags |= ADMINFLAG_MUTED;
+	if (confflags & CONFFLAG_MONITOR)
+		user->adminflags |= ADMINFLAG_SELFMUTED;
 	user->talking = -1;
 	conf->users++;
 	/* Update table */
@@ -1376,7 +1380,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					user->zapchannel = !retryzap;
 					goto zapretry;
 				}
-				if ((confflags & CONFFLAG_MONITOR) || (user->adminflags & ADMINFLAG_MUTED))
+				if ((user->adminflags & ADMINFLAG_SELFMUTED) || (user->adminflags & ADMINFLAG_MUTED))
 					f = ast_read_noaudio(c);
 				else
 					f = ast_read(c);
@@ -1556,11 +1560,17 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 								/* they can't override the admin mute state */
 								if (user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) {
+									ztc.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;
 									if (!ast_streamfile(chan, "conf-muted", chan->language))
 										ast_waitstream(chan, "");
 								} else {
+									ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
 									if (!ast_streamfile(chan, "conf-unmuted", chan->language))
 										ast_waitstream(chan, "");
+								}
+								if (ioctl(fd, ZT_SETCONF, &ztc)) {
+									ast_log(LOG_WARNING, "Error setting conference - Un/Mute\n");
+									ret = -1;
 								}
 								break;
 							case '4':
@@ -1614,7 +1624,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					fr.data = buf;
 					fr.offset = AST_FRIENDLY_OFFSET;
 					if (!user->listen.actual && 
-						((confflags & CONFFLAG_MONITOR) || 
+						((user->adminflags & ADMINFLAG_SELFMUTED) || 
 						 (user->adminflags & ADMINFLAG_MUTED) ||
 						 (!user->talking && (confflags & CONFFLAG_OPTIMIZETALKER))
 						 )) {
