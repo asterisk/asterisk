@@ -151,7 +151,7 @@ enum {
 	/*! If set, user will be asked to record name on entry of conference 
 	 *  without review */
 	CONFFLAG_STARTMUTED = (1 << 24)
-	/*! If set, the user will be initially muted by admin */
+	/*! If set, the user will be initially self-muted */
 };
 
 AST_APP_OPTIONS(meetme_opts, {
@@ -212,7 +212,7 @@ static const char *descrip =
 "      'i' -- announce user join/leave with review\n"
 "      'I' -- announce user join/leave without review\n"
 "      'l' -- set listen only mode (Listen only, no talking)\n"
-"      'm' -- set initially muted by admin\n"
+"      'm' -- set initially muted\n"
 "      'M' -- enable music on hold when the conference has a single caller\n"
 "      'o' -- set talker optimization - treats talkers who aren't speaking as\n"
 "             being muted, meaning (a) No encode is done on transmission and\n"
@@ -250,10 +250,10 @@ static const char *descrip3 =
 "      'K' -- Kick all users out of conference\n"
 "      'l' -- Unlock conference\n"
 "      'L' -- Lock conference\n"
-"      'm' -- Unmute conference\n"
-"      'M' -- Mute conference\n"
-"      'n' -- Unmute entire conference (except admin)\n"
-"      'N' -- Mute entire conference (except admin)\n"
+"      'm' -- Unmute user\n"
+"      'M' -- Mute user\n"
+"      'n' -- Unmute entire conference\n"
+"      'N' -- Mute entire conference (except admins)\n"
 "      'r' -- Reset one user's volume settings\n"
 "      'R' -- Reset all users volume settings\n"
 "      's' -- Lower entire conference speaking volume\n"
@@ -702,8 +702,8 @@ static int conf_cmd(int fd, int argc, char **argv) {
 					S_OR(user->chan->cid.cid_name, "<no name>"),
 					user->chan->name,
 					user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
-					user->adminflags & ADMINFLAG_SELFMUTED ? "(Listen only)" : "",
-					user->adminflags & ADMINFLAG_MUTED ? "(Admin Muted)" : "",
+					user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
+					user->adminflags & ADMINFLAG_MUTED ? "(Admin Muted)" : user->adminflags & ADMINFLAG_SELFMUTED ? "(Muted)" : "",
 					istalking(user->talking), hr, min, sec);
 			else 
 				ast_cli(fd, "%d!%s!%s!%s!%s!%s!%s!%d!%02d:%02d:%02d\n",
@@ -712,8 +712,8 @@ static int conf_cmd(int fd, int argc, char **argv) {
 					S_OR(user->chan->cid.cid_name, ""),
 					user->chan->name,
 					user->userflags  & CONFFLAG_ADMIN   ? "1" : "",
-					user->adminflags & ADMINFLAG_SELFMUTED ? "1" : "",
-					user->adminflags & ADMINFLAG_MUTED  ? "1" : "",
+					user->userflags  & CONFFLAG_MONITOR ? "1" : "",
+					user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)  ? "1" : "",
 					user->talking, hr, min, sec);
 			
 		}
@@ -964,11 +964,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 	user->chan = chan;
 	user->userflags = confflags;
-	user->adminflags = 0;
-	if (confflags & CONFFLAG_STARTMUTED)
-		user->adminflags |= ADMINFLAG_MUTED;
-	if (confflags & CONFFLAG_MONITOR)
-		user->adminflags |= ADMINFLAG_SELFMUTED;
+	user->adminflags = (confflags & CONFFLAG_STARTMUTED) ? ADMINFLAG_SELFMUTED : 0;
 	user->talking = -1;
 	conf->users++;
 	/* Update table */
@@ -1380,7 +1376,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					user->zapchannel = !retryzap;
 					goto zapretry;
 				}
-				if ((user->adminflags & ADMINFLAG_SELFMUTED) || (user->adminflags & ADMINFLAG_MUTED))
+				if ((confflags & CONFFLAG_MONITOR) || (user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)))
 					f = ast_read_noaudio(c);
 				else
 					f = ast_read(c);
@@ -1484,13 +1480,16 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 								menu_active = 0;
 
 								/* for admin, change both admin and use flags */
-								if (user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) {
+								if (user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED))
 									user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED);
-									if (!ast_streamfile(chan, "conf-unmuted", chan->language))
+								else
+									user->adminflags |= (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED);
+
+								if ((confflags & CONFFLAG_MONITOR) || (user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED))) {
+									if (!ast_streamfile(chan, "conf-muted", chan->language))
 										ast_waitstream(chan, "");
 								} else {
-									user->adminflags |= (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED);
-									if (!ast_streamfile(chan, "conf-muted", chan->language))
+									if (!ast_streamfile(chan, "conf-unmuted", chan->language))
 										ast_waitstream(chan, "");
 								}
 								break;
@@ -1559,18 +1558,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 								user->adminflags ^= ADMINFLAG_SELFMUTED;
 
 								/* they can't override the admin mute state */
-								if (user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) {
-									ztc.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;
+								if ((confflags & CONFFLAG_MONITOR) || (user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED))) {
 									if (!ast_streamfile(chan, "conf-muted", chan->language))
 										ast_waitstream(chan, "");
 								} else {
-									ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
 									if (!ast_streamfile(chan, "conf-unmuted", chan->language))
 										ast_waitstream(chan, "");
-								}
-								if (ioctl(fd, ZT_SETCONF, &ztc)) {
-									ast_log(LOG_WARNING, "Error setting conference - Un/Mute\n");
-									ret = -1;
 								}
 								break;
 							case '4':
@@ -1624,8 +1617,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					fr.data = buf;
 					fr.offset = AST_FRIENDLY_OFFSET;
 					if (!user->listen.actual && 
-						((user->adminflags & ADMINFLAG_SELFMUTED) || 
-						 (user->adminflags & ADMINFLAG_MUTED) ||
+						((confflags & CONFFLAG_MONITOR) || 
+						 (user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) ||
 						 (!user->talking && (confflags & CONFFLAG_OPTIMIZETALKER))
 						 )) {
 						int index;
@@ -2307,13 +2300,13 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 				break;					
 			case 109: /* m: Unmute */ 
 				if (user) {
-					user->adminflags &= ~ADMINFLAG_MUTED;
+					user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED);
 				} else
 					ast_log(LOG_NOTICE, "Specified User not found!\n");
 				break;
 			case 110: /* n: Unmute all users */
 				AST_LIST_TRAVERSE(&cnf->userlist, user, list)
-					user->adminflags &= ~ADMINFLAG_MUTED;
+					user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED);
 				break;
 			case 107: /* k: Kick user */ 
 				if (user)
@@ -2434,7 +2427,7 @@ static int meetmemute(struct mansession *s, struct message *m, int mute)
 	if (mute)
 		user->adminflags |= ADMINFLAG_MUTED;	/* request user muting */
 	else
-		user->adminflags &= ~ADMINFLAG_MUTED;	/* request user unmuting */
+		user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED);	/* request user unmuting */
 
 	AST_LIST_UNLOCK(&confs);
 
