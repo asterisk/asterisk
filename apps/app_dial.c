@@ -488,6 +488,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s/%s' prevented.\n", in->name, tech, stuff);
 						c = o->chan = NULL;
+						cause = AST_CAUSE_BUSY;
 					} else {
 						/* Setup parameters */
 						c = o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
@@ -1083,6 +1084,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_hangup(tmp->chan);
 				/* If we have been told to ignore forwards, just set this channel to null and continue processing extensions normally */
 				if (ast_test_flag(&opts, OPT_IGNORE_FORWARDING)) {
+					tmp->chan = NULL;
+					cause = AST_CAUSE_BUSY;
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s/%s' prevented.\n", chan->name, tech, stuff);
 				} else {
