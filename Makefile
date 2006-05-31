@@ -282,7 +282,7 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
 	utils.o plc.o jitterbuf.o dnsmgr.o devicestate.o \
 	netsock.o slinfactory.o ast_expr2.o ast_expr2f.o \
-	cryptostub.o sha1.o http.o
+	cryptostub.o sha1.o http.o scx_jitterbuf.o abstract_jb.o
 
 # we need to link in the objects statically, not as a library, because
 # otherwise modules will not have them available if none of the static

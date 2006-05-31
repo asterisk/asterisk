@@ -109,6 +109,14 @@ struct ast_frame {
 	struct ast_frame *prev;			
 	/*! Next/Prev for linking stand alone frames */
 	struct ast_frame *next;			
+	/*! Timing data flag */
+	int has_timing_info;
+	/*! Timestamp in milliseconds */
+	long ts;
+	/*! Length in milliseconds */
+	long len;
+	/*! Sequence number */
+	int seqno;
 };
 
 /*!

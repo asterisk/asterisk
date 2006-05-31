@@ -1012,6 +1012,9 @@ void ast_channel_free(struct ast_channel *chan)
 	while ((vardata = AST_LIST_REMOVE_HEAD(headp, entries)))
 		ast_var_delete(vardata);
 
+	/* Destroy the jitterbuffer */
+	ast_jb_destroy(chan);
+
 	ast_string_field_free_all(chan);
 	free(chan);
 	AST_LIST_UNLOCK(&channels);
@@ -3303,6 +3306,9 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 	int watch_c0_dtmf;
 	int watch_c1_dtmf;
 	void *pvt0, *pvt1;
+	/* Indicates whether a frame was queued into a jitterbuffer */
+	int frame_put_in_jb = 0;
+	int jb_in_use;
 	int to;
 	
 	cs[0] = c0;
@@ -3313,6 +3319,9 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 	o1nativeformats = c1->nativeformats;
 	watch_c0_dtmf = config->flags & AST_BRIDGE_DTMF_CHANNEL_0;
 	watch_c1_dtmf = config->flags & AST_BRIDGE_DTMF_CHANNEL_1;
+
+	/* Check the need of a jitterbuffer for each channel */
+	jb_in_use = ast_jb_do_usecheck(c0, c1);
 
 	for (;;) {
 		struct ast_channel *who, *other;
@@ -3332,9 +3341,15 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			}
 		} else
 			to = -1;
+		/* Calculate the appropriate max sleep interval - in general, this is the time,
+		   left to the closest jb delivery moment */
+		if (jb_in_use)
+			to = ast_jb_get_when_to_wakeup(c0, c1, to);
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
-			ast_log(LOG_DEBUG, "Nobody there, continuing...\n");
+			/* No frame received within the specified timeout - check if we have to deliver now */
+			if (jb_in_use)
+				ast_jb_get_and_deliver(c0, c1);
 			if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE) {
 				if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
 					c0->_softhangup = 0;
@@ -3354,6 +3369,9 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 		}
 
 		other = (who == c0) ? c1 : c0; /* the 'other' channel */
+		/* Try add the frame info the who's bridged channel jitterbuff */
+		if (jb_in_use)
+			frame_put_in_jb = !ast_jb_put(other, f);
 
 		if ((f->frametype == AST_FRAME_CONTROL) && !(config->flags & AST_BRIDGE_IGNORE_SIGS)) {
 			int bridge_exit = 0;
@@ -3390,8 +3408,13 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 				ast_log(LOG_DEBUG, "Got DTMF on channel (%s)\n", who->name);
 				break;
 			}
-			/* other frames go to the other side */
-			ast_write(other, f);
+			/* Write immediately frames, not passed through jb */
+			if (!frame_put_in_jb)
+				ast_write(other, f);
+				
+			/* Check if we have to deliver now */
+			if (jb_in_use)
+				ast_jb_get_and_deliver(c0, c1);
 		}
 		/* XXX do we want to pass on also frames not matched above ? */
 		ast_frfree(f);

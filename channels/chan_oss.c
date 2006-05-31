@@ -82,6 +82,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "ring10.h"
 #include "answer.h"
 
+#include "asterisk/abstract_jb.h"
+/* Global jitterbuffer configuration - by default, jb is disabled */
+static struct ast_jb_conf default_jbconf =
+{
+	.flags = 0,
+	.max_size = -1,
+	.resync_threshold = -1,
+	.impl = ""
+};
+static struct ast_jb_conf global_jbconf;
+
 /*
  * Basic mode of operation:
  *
@@ -140,6 +151,33 @@ START_CONFIG
     ; unless you know what you are doing.
     ; queuesize = 10		; frames in device driver
     ; frags = 8			; argument to SETFRAGMENT
+
+    ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+    ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of an
+                                  ; OSS channel. Defaults to "no". An enabled jitterbuffer will
+                                  ; be used only if the sending side can create and the receiving
+                                  ; side can not accept jitter. The ZAP channel can't accept jitter,
+                                  ; thus an enabled jitterbuffer on the receive ZAP side will always
+                                  ; be used if the sending side can create jitter or if ZAP jb is
+                                  ; forced.
+
+    ; jbforce = no                ; Forces the use of a jitterbuffer on the receive side of a ZAP
+                                  ; channel. Defaults to "no".
+
+    ; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
+
+    ; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
+                                  ; resynchronized. Useful to improve the quality of the voice, with
+                                  ; big jumps in/broken timestamps, usualy sent from exotic devices
+                                  ; and programs. Defaults to 1000.
+
+    ; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a SIP
+                                  ; channel. Two implementation are currenlty available - "fixed"
+                                  ; (with size always equals to jbmax-size) and "adaptive" (with
+                                  ; variable size, actually the new jb of IAX2). Defaults to fixed.
+
+    ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
+    ;-----------------------------------------------------------------------------------
 
 [card1]
     ; device = /dev/dsp1	; alternate device
@@ -981,6 +1019,9 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o,
 			/* XXX what about usecnt ? */
 		}
 	}
+	if (c)
+		ast_jb_configure(c, &global_jbconf);
+
 	return c;
 }
 
@@ -1407,6 +1448,10 @@ static struct chan_oss_pvt * store_config(struct ast_config *cfg, char *ctg)
 	for (v = ast_variable_browse(cfg, ctg);v; v=v->next) {
 		M_START(v->name, v->value);
 
+		/* handle jb conf */
+		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
+			continue;
+
 		M_BOOL("autoanswer", o->autoanswer)
 		M_BOOL("autohangup", o->autohangup)
 		M_BOOL("overridecontext", o->overridecontext)
@@ -1471,6 +1516,9 @@ static int load_module(void *mod)
 {
 	int i;
 	struct ast_config *cfg;
+
+	/* Copy the default jb config over global_jbconf */
+	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 
 	/* load config file */
 	cfg = ast_config_load(config);

@@ -86,6 +86,8 @@
 #ifndef _ASTERISK_CHANNEL_H
 #define _ASTERISK_CHANNEL_H
 
+#include "asterisk/abstract_jb.h"
+
 #include <unistd.h>
 #ifdef POLLCOMPAT 
 #include "asterisk/poll-compat.h"
@@ -445,12 +447,20 @@ struct ast_channel {
 
 	/*! For easy linking */
 	AST_LIST_ENTRY(ast_channel) chan_list;
+
+	/*! The jitterbuffer state  */
+	struct ast_jb jb;
 };
 
 /* \defgroup chanprop Channel tech properties:
 	\brief Channels have this property if they can accept input with jitter; i.e. most VoIP channels */
 /* @{ */
 #define AST_CHAN_TP_WANTSJITTER	(1 << 0)	
+
+/* \defgroup chanprop Channel tech properties:
+	\brief Channels have this property if they can create jitter; i.e. most VoIP channels */
+/* @{ */
+#define AST_CHAN_TP_CREATESJITTER (1 << 1)
 
 /* This flag has been deprecated by the transfercapbilty data member in struct ast_channel */
 /* #define AST_FLAG_DIGITAL	(1 << 0) */	/* if the call is a digital ISDN call */

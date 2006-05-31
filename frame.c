@@ -316,6 +316,13 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 		out->samples = fr->samples;
 		out->offset = fr->offset;
 		out->data = fr->data;
+		/* Copy the timing data */
+		out->has_timing_info = fr->has_timing_info;
+		if (fr->has_timing_info) {
+			out->ts = fr->ts;
+			out->len = fr->len;
+			out->seqno = fr->seqno;
+		}
 	} else
 		out = fr;
 	
@@ -380,6 +387,12 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 	out->prev = NULL;
 	out->next = NULL;
 	memcpy(out->data, f->data, out->datalen);	
+	out->has_timing_info = f->has_timing_info;
+	if (f->has_timing_info) {
+		out->ts = f->ts;
+		out->len = f->len;
+		out->seqno = f->seqno;
+	}
 	return out;
 }
 

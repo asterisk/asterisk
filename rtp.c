@@ -696,7 +696,6 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	int padding;
 	int mark;
 	int ext;
-	int x;
 	char iabuf[INET_ADDRSTRLEN];
 	unsigned int ssrc;
 	unsigned int timestamp;
@@ -835,17 +834,6 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	if (!rtp->lastrxts)
 		rtp->lastrxts = timestamp;
 
-	if (rtp->rxseqno) {
-		for (x=rtp->rxseqno + 1; x < seqno; x++) {
-			/* Queue empty frames */
-			rtp->f.mallocd = 0;
-			rtp->f.datalen = 0;
-			rtp->f.data = NULL;
-			rtp->f.offset = 0;
-			rtp->f.samples = 0;
-			rtp->f.src = "RTPMissedFrame";
-		}
-	}
 	rtp->rxseqno = seqno;
 
 	if (rtp->dtmfcount) {
@@ -877,6 +865,11 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		if (rtp->f.subclass == AST_FORMAT_SLINEAR) 
 			ast_frame_byteswap_be(&rtp->f);
 		calc_rxstamp(&rtp->f.delivery, rtp, timestamp, mark);
+		/* Add timing data to let ast_generic_bridge() put the frame into a jitterbuf */
+		rtp->f.has_timing_info = 1;
+		rtp->f.ts = timestamp / 8;
+		rtp->f.len = rtp->f.samples / 8;
+		rtp->f.seqno = seqno;
 	} else {
 		/* Video -- samples is # of samples vs. 90000 */
 		if (!rtp->lastividtimestamp)
@@ -1700,6 +1693,9 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	*/
 	if (rtp->lastts > rtp->lastdigitts)
 		rtp->lastdigitts = rtp->lastts;
+
+	if (f->has_timing_info)
+		rtp->lastts = f->ts * 8;
 
 	/* Get a pointer to the header */
 	rtpheader = (unsigned char *)(f->data - hdrlen);

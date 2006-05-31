@@ -1543,6 +1543,7 @@ static int __do_deliver(void *data)
 	  the IAX thread with the iaxsl lock held. */
 	struct iax_frame *fr = data;
 	fr->retrans = -1;
+	fr->af.has_timing_info = 0;
 	if (iaxs[fr->callno] && !ast_test_flag(iaxs[fr->callno], IAX_ALREADYGONE))
 		iax2_queue_frame(fr->callno, &fr->af);
 	/* Free our iax frame */

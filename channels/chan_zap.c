@@ -109,6 +109,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
 #endif
 
+#include "asterisk/abstract_jb.h"
+/* Global jitterbuffer configuration - by default, jb is disabled */
+static struct ast_jb_conf default_jbconf =
+{
+	.flags = 0,
+	.max_size = -1,
+	.resync_threshold = -1,
+	.impl = ""
+};
+static struct ast_jb_conf global_jbconf;
+
 #if !defined(ZT_SIG_EM_E1) || (defined(HAVE_LIBPRI) && !defined(ZT_SIG_HARDHDLC))
 #error "Your zaptel is too old.  please update"
 #endif
@@ -684,6 +695,7 @@ static struct zt_pvt {
 #endif	
 	int polarity;
 	int dsp_features;
+	struct ast_jb_conf jbconf;
 
 } *iflist = NULL, *ifend = NULL;
 
@@ -5195,6 +5207,9 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		}
 	} else
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
+	/* Configure the new channel jb */
+	if (tmp && i)
+		ast_jb_configure(tmp, &i->jbconf);
 	return tmp;
 }
 
@@ -6988,6 +7003,8 @@ static struct zt_pvt *mkintf(int channel, int signalling, int outsignalling, int
 		for (x=0;x<3;x++)
 			tmp->subs[x].zfd = -1;
 		tmp->channel = channel;
+		/* Assign default jb conf to the new zt_pvt */
+		memcpy(&tmp->jbconf, &global_jbconf, sizeof(struct ast_jb_conf));
 	}
 
 	if (tmp) {
@@ -10200,6 +10217,7 @@ static int setup_zap(int reload)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
+	struct ast_variable *vjb;
 	struct zt_pvt *tmp;
 	char *chan;
 	char *c;
@@ -10289,6 +10307,11 @@ static int setup_zap(int reload)
 	}
 #endif
 	v = ast_variable_browse(cfg, "channels");
+	/* Copy the default jb config over global_jbconf */
+	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
+	/* Traverse all variables to handle jb conf */
+	for (vjb = v; vjb; vjb = vjb->next)
+		ast_jb_read_conf(&global_jbconf, vjb->name, vjb->value);
 	while(v) {
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "channel")

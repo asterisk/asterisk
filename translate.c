@@ -154,6 +154,12 @@ static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	int16_t *dst = (int16_t *)pvt->outbuf;
 	int ret;
 	int samples = pvt->samples;	/* initial value */
+	
+	/* Copy the last in jb timing info to the pvt */
+	pvt->f.has_timing_info = f->has_timing_info;
+	pvt->f.ts = f->ts;
+	pvt->f.len = f->len;
+	pvt->f.seqno = f->seqno;
 
 	if (f->samples == 0) {
 		ast_log(LOG_WARNING, "no samples for %s\n", pvt->t->name);
@@ -285,6 +291,15 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 	struct ast_trans_pvt *p = path;
 	struct ast_frame *out = f;
 	struct timeval delivery;
+	int has_timing_info;
+	long ts;
+	long len;
+	int seqno;
+
+	has_timing_info = f->has_timing_info;
+	ts = f->ts;
+	len = f->len;
+	seqno = f->seqno;
 
 	/* XXX hmmm... check this below */
 	if (!ast_tvzero(f->delivery)) {
@@ -331,6 +346,12 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		path->nextout = ast_tvadd(path->nextout, ast_samp2tv( out->samples, 8000));
 	} else {
 		out->delivery = ast_tv(0, 0);
+		out->has_timing_info = has_timing_info;
+		if (has_timing_info) {
+			out->ts = ts;
+			out->len = len;
+			out->seqno = seqno;
+		}
 	}
 	/* Invalidate prediction if we're entering a silence period */
 	if (out->frametype == AST_FRAME_CNG)
