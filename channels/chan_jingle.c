@@ -191,6 +191,7 @@ static const struct ast_channel_tech jingle_tech = {
 	.indicate = jingle_indicate,
 	.fixup = jingle_fixup,
 	.send_html = jingle_sendhtml,
+	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER
 };
 
 static struct sockaddr_in bindaddr = { 0, };	/*!< The address we bind to */
