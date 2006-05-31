@@ -117,6 +117,8 @@ static char *descrip =
 "           action post answer options in conjunction with this option.\n" 
 "    h    - Allow the called party to hang up by sending the '*' DTMF digit.\n"
 "    H    - Allow the calling party to hang up by hitting the '*' DTMF digit.\n"
+"    i    - Asterisk will ignore any forwarding requests it may receive on this\n"
+"           dial attempt.\n"
 "    j    - Jump to priority n+101 if all of the requested channels were busy.\n"
 "    L(x[:y][:z]) - Limit the call to 'x' ms. Play a warning when 'y' ms are\n"
 "           left. Repeat the warning every 'z' ms. The following special\n"
@@ -233,6 +235,7 @@ enum {
 	OPT_OPERMODE = 		(1 << 24),
 	OPT_CALLEE_PARK =	(1 << 25),
 	OPT_CALLER_PARK =	(1 << 26),
+	OPT_IGNORE_FORWARDING = (1 << 27),
 } dial_exec_option_flags;
 
 #define DIAL_STILLGOING			(1 << 30)
@@ -262,6 +265,7 @@ AST_APP_OPTIONS(dial_exec_options, {
 	AST_APP_OPTION_ARG('G', OPT_GOTO, OPT_ARG_GOTO),
 	AST_APP_OPTION('h', OPT_CALLEE_HANGUP),
 	AST_APP_OPTION('H', OPT_CALLER_HANGUP),
+	AST_APP_OPTION('i', OPT_IGNORE_FORWARDING),
 	AST_APP_OPTION('j', OPT_PRIORITY_JUMP),
 	AST_APP_OPTION_ARG('L', OPT_DURATION_LIMIT, OPT_ARG_DURATION_LIMIT),
 	AST_APP_OPTION_ARG('m', OPT_MUSICBACK, OPT_ARG_MUSICBACK),
@@ -479,10 +483,19 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 						ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, c->name);
 					/* Setup parameters */
 					c = o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
-					if (!c)
-						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
-					else
-						ast_channel_inherit_variables(in, o->chan);
+					/* If we have been told to ignore forwards, just set this channel to null and continue processing extensions normally */
+					if (ast_test_flag(peerflags, OPT_IGNORE_FORWARDING)) {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s/%s' prevented.\n", in->name, tech, stuff);
+						c = o->chan = NULL;
+					} else {
+						/* Setup parameters */
+						c = o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
+						if (!c)
+							ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+						else
+							ast_channel_inherit_variables(in, o->chan);
+					}
 				} else {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", c->name);
@@ -819,7 +832,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Setting operator services mode to %d.\n", opermode);
 	}
-
+	
 	if (ast_test_flag(&opts, OPT_DURATION_STOP) && !ast_strlen_zero(opt_args[OPT_ARG_DURATION_STOP])) {
 		calldurationlimit = atoi(opt_args[OPT_ARG_DURATION_STOP]);
 		if (!calldurationlimit) {
@@ -1015,7 +1028,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	/* If a channel group has been specified, get it for use when we create peer channels */
 	outbound_group = pbx_builtin_getvar_helper(chan, "OUTBOUND_GROUP");
 
-	ast_copy_flags(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID | OPT_CALLER_HANGUP);
+	ast_copy_flags(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID | OPT_CALLER_HANGUP | OPT_IGNORE_FORWARDING);
 	/* loop through the list of dial destinations */
 	rest = args.peers;
 	while ((cur = strsep(&rest, "&")) ) {
@@ -1068,8 +1081,13 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", chan->name, tech, stuff, tmp->chan->name);
 				ast_hangup(tmp->chan);
-				/* Setup parameters */
-				tmp->chan = ast_request(tech, chan->nativeformats, stuff, &cause);
+				/* If we have been told to ignore forwards, just set this channel to null and continue processing extensions normally */
+				if (ast_test_flag(&opts, OPT_IGNORE_FORWARDING)) {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s/%s' prevented.\n", chan->name, tech, stuff);
+				} else {
+					tmp->chan = ast_request(tech, chan->nativeformats, stuff, &cause);
+				}
 				if (!tmp->chan)
 					ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
 				else
