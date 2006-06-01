@@ -938,7 +938,7 @@ int ast_codec_pref_index(struct ast_codec_pref *pref, int index)
 	return slot ? AST_FORMAT_LIST[slot-1].bits : 0;
 }
 
-/*! \brief ast_codec_pref_remove: Remove codec from pref list ---*/
+/*! \brief ast_codec_pref_remove: Remove codec from pref list */
 void ast_codec_pref_remove(struct ast_codec_pref *pref, int format)
 {
 	struct ast_codec_pref oldorder;
@@ -961,7 +961,7 @@ void ast_codec_pref_remove(struct ast_codec_pref *pref, int format)
 	
 }
 
-/*! \brief ast_codec_pref_append: Append codec to list ---*/
+/*! \brief ast_codec_pref_append: Append codec to list */
 int ast_codec_pref_append(struct ast_codec_pref *pref, int format)
 {
 	int x, newindex = -1;
@@ -988,7 +988,7 @@ int ast_codec_pref_append(struct ast_codec_pref *pref, int format)
 }
 
 
-/*! \brief ast_codec_choose: Pick a codec ---*/
+/*! \brief ast_codec_choose: Pick a codec */
 int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best)
 {
 	int x, ret = 0, slot;
