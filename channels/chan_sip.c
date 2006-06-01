@@ -4035,19 +4035,22 @@ static int find_sdp(struct sip_request *req)
 	return 0;
 }
 
-/*! \brief Process SIP SDP and activate RTP channels---*/
+/*! \brief Process SIP SDP, select formats and activate RTP channels */
 static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 {
-	const char *m;
+	const char *m;		/* SDP media offer */
 	const char *c;
 	const char *a;
 	char host[258];
 	char iabuf[INET_ADDRSTRLEN];
 	int len = -1;
-	int portno = -1;
-	int vportno = -1;
+	int portno = -1;	/* Audio port */
+	int vportno = -1;	/* Video port */
+
+	/* Peer capability is the capability in the SDP, non codec is RFC2833 DTMF (101) */	
 	int peercapability, peernoncodeccapability;
-	int vpeercapability=0, vpeernoncodeccapability=0;
+
+	int vpeercapability=0, vpeernoncodeccapability=0;	/* Peer's video capabilities */
 	struct sockaddr_in sin;
 	const char *codecs;
 	struct hostent *hp;
@@ -4056,8 +4059,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int destiterator = 0;
 	int iterator;
 	int sendonly = 0;
-	int x,y;
-	int debug=sip_debug_test_pvt(p);
+	int x, y;
+	int debug = sip_debug_test_pvt(p);
 	struct ast_channel *bridgepeer = NULL;
 
 	if (!p->rtp) {
