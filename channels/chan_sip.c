@@ -638,7 +638,7 @@ struct sip_auth {
 #define SIP_USECLIENTCODE	(1 << 12)	/*!< Trust X-ClientCode info message */
 #define SIP_OUTGOING		(1 << 13)	/*!< Is this an outgoing call? */
 #define SIP_CAN_BYE		(1 << 14)	/*!< Can we send BYE on this dialog? */
-#define SIP_FREEBIT3		(1 << 15)	/*!< Free for session-related use */
+#define SIP_DEFER_BYE_ON_TRANSFER	(1 << 15)	/*!< Do not hangup at first ast_hangup */
 #define SIP_DTMF		(3 << 16)	/*!< DTMF Support: four settings, uses two bits */
 #define SIP_DTMF_RFC2833	(0 << 16)	/*!< DTMF Support: RTP DTMF - "rfc2833" */
 #define SIP_DTMF_INBAND		(1 << 16)	/*!< DTMF Support: Inband audio, only for ULAW/ALAW - "inband" */
@@ -763,9 +763,6 @@ static struct sip_pvt {
 		AST_STRING_FIELD(opaque);	/*!< Opaque nonsense */
 		AST_STRING_FIELD(qop);		/*!< Quality of Protection, since SIP wasn't complicated enough yet. */
 		AST_STRING_FIELD(domain);	/*!< Authorization domain */
-		AST_STRING_FIELD(refer_to);	/*!< Place to store REFER-TO extension */
-		AST_STRING_FIELD(referred_by);	/*!< Place to store REFERRED-BY extension */
-		AST_STRING_FIELD(refer_contact);/*!< Place to store Contact info from a REFER extension */
 		AST_STRING_FIELD(from);		/*!< The From: header */
 		AST_STRING_FIELD(useragent);	/*!< User agent in SIP request */
 		AST_STRING_FIELD(exten);	/*!< Extension where to start */
@@ -824,7 +821,6 @@ static struct sip_pvt {
 	struct sockaddr_in recv;		/*!< Received as */
 	struct in_addr ourip;			/*!< Our IP */
 	struct ast_channel *owner;		/*!< Who owns us */
-	struct sip_pvt *refer_call;		/*!< Call we are referring */
 	struct sip_route *route;		/*!< Head of linked list of routing steps (fm Record-Route) */
 	int route_persistant;			/*!< Is this the "real" route? */
 	struct sip_auth *peerauth;		/*!< Realm authentication */
@@ -1115,6 +1111,7 @@ static int hangup_sip2cause(int cause);
 static const char *hangup_cause2sip(int cause);
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method);
+int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno);
 
 /*--- Codec handling / SDP */
 static void try_suggested_sip_codec(struct sip_pvt *p);
@@ -1250,6 +1247,7 @@ static int handle_request_message(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, char *e);
 static void handle_request_info(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_options(struct sip_pvt *p, struct sip_request *req);
+static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, struct sockaddr_in *sin);
 
 /*------Response handling functions */
 static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
@@ -2880,10 +2878,29 @@ static int sip_hangup(struct ast_channel *ast)
 	if (option_debug && sipdebug)
 		ast_log(LOG_DEBUG, "Hangup call %s, SIP callid %s)\n", ast->name, p->callid);
 
+	if (ast_test_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER)) {
+		if (option_debug >3)
+			ast_log(LOG_DEBUG, "SIP Transfer: Not hanging up right now... Rescheduling hangup.\n");
+		if (p->autokillid > -1)
+			sip_cancel_destroy(p);
+		sip_scheddestroy(p, 32000);
+		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Really hang up next time */
+		ast_clear_flag(&p->flags[0], SIP_NEEDDESTROY);
+		p->owner = NULL;  /* Owner will be gone after we return, so take it away */
+		return 0;
+	}
+	if (option_debug) {
+		if (ast_test_flag(ast, AST_FLAG_ZOMBIE) && p->refer && option_debug)
+         		ast_log(LOG_DEBUG, "SIP Transfer: Hanging up Zombie channel %s after transfer ... Call-ID: %s\n", ast->name, p->callid);
+		else 
+			ast_log(LOG_DEBUG, "Hangup call %s, SIP callid %s)\n", ast->name, p->callid);
+	}
+
 	ast_mutex_lock(&p->lock);
 	if (option_debug && sipdebug)
 		ast_log(LOG_DEBUG, "update_call_counter(%s) - decrement call limit counter on hangup\n", p->username);
 	update_call_counter(p, DEC_CALL_LIMIT);
+
 	/* Determine how to disconnect */
 	if (p->owner != ast) {
 		ast_log(LOG_WARNING, "Huh?  We aren't the owner? Can't hangup call.\n");
@@ -3079,6 +3096,19 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 		p->owner = newchan;
 		ret = 0;
 	}
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "SIP Fixup: New owner for dialogue %s: %s (Old parent: %s)\n", p->callid, p->owner->name, oldchan->name);
+	if (p->refer) {
+		if (option_debug > 2) {
+			if (oldchan->tech_pvt) {
+				struct sip_pvt *old = oldchan->tech_pvt;
+				ast_log(LOG_DEBUG, "Releasing connection between %s and pvt %s\n", oldchan->name, old->callid);
+			} else
+				ast_log(LOG_DEBUG, "Hmmm. No sip_pvt to release for %s\n", oldchan->name);
+		}
+		oldchan->tech_pvt = NULL;	/* Release connection between old channel and it's pvt so we can hang up in peace */
+	}
+
 	ast_mutex_unlock(&p->lock);
 	return ret;
 }
@@ -4307,6 +4337,10 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 	snprintf(req->header[req->headers], maxlen, "%s: %s\r\n", var, value);
 	req->len += strlen(req->header[req->headers]);
 	req->headers++;
+	if (req->headers < SIP_MAX_HEADERS)
+		req->headers++;
+	else
+		ast_log(LOG_WARNING, "Out of SIP header space... Will generate broken SIP message\n");
 
 	return 0;	
 }
@@ -6506,6 +6540,9 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		p->addr = pvt->recv;
 	}
 
+	/* Save SIP options profile */
+	p->sipoptions = pvt->sipoptions;
+
 	if (c)	/* Overwrite the default username from config at registration */
 		ast_copy_string(p->username, c, sizeof(p->username));
 	else
@@ -7223,167 +7260,227 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 	return sip_pvt_ptr;
 }
 
-/*! \brief Call transfer support (the REFER method) */
-static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_req)
+/*! \brief Call transfer support (the REFER method) 
+ * 	Extracts Refer headers into pvt dialog structure */
+static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoing_req)
 {
 
-	const char *p_refer_to = NULL;
-	const char *h_contact = NULL;
 	const char *p_referred_by = NULL;
-	char *h_refer_to = NULL, *h_referred_by = NULL;
-	char *replace_callid = "", *refer_to = NULL, *referred_by = NULL, *ptr = NULL;
+	char *h_refer_to = NULL; 
+	char *h_referred_by = NULL;
+	char *refer_to;
+	const char *p_refer_to;
+	char *referred_by_uri = NULL;
+	char *ptr;
 	struct sip_request *req = NULL;
-	struct sip_pvt *sip_pvt_ptr = NULL;
-	struct ast_channel *chan = NULL, *peer = NULL;
+	const char *transfer_context = NULL;
+	struct sip_refer *referdata;
+
 
 	req = outgoing_req;
+	referdata = transferer->refer;
 
 	if (!req)
-		req = &sip_pvt->initreq;
+		req = &transferer->initreq;
 
 	if (!(p_refer_to = get_header(req, "Refer-To"))) {
-		ast_log(LOG_WARNING, "No Refer-To Header That's illegal\n");
-		return -1;
+		ast_log(LOG_WARNING, "Refer-To Header missing. Skipping transfer.\n");
+		return -2;	/* Syntax error */
 	}
 	h_refer_to = ast_strdupa(p_refer_to);
 	refer_to = get_in_brackets(h_refer_to);
-
-	if (!(p_referred_by = get_header(req, "Referred-By"))) {
-		ast_log(LOG_DEBUG, "No Referrred-By Header That's not illegal\n");
-		return -1;
-	}
-	h_referred_by = ast_strdupa(p_referred_by);
 	if (pedanticsipchecking)
-		ast_uri_decode(h_referred_by);
-	referred_by = get_in_brackets(h_referred_by);
-	h_contact = get_header(req, "Contact");
-	
-	if (strncmp(refer_to, "sip:", 4)) {
-		ast_log(LOG_WARNING, "Refer-to: Huh?  Not a SIP header (%s)?\n", refer_to);
-		return -1;
+		ast_uri_decode(refer_to);
+
+	if (strncasecmp(refer_to, "sip:", 4)) {
+		ast_log(LOG_WARNING, "Can't transfer to non-sip: URI.  (Refer-to: %s)?\n", refer_to);
+		return -3;
+	}
+	refer_to += 4;			/* Skip sip: */
+
+	/* Get referred by header if it exists */
+	if ((p_referred_by = get_header(req, "Referred-By"))) {
+		char *lessthan;
+		h_referred_by = ast_strdupa(p_referred_by);
+		if (pedanticsipchecking)
+			ast_uri_decode(h_referred_by);
+
+		/* Store referrer's caller ID name */
+		ast_copy_string(referdata->referred_by_name, h_referred_by, sizeof(referdata->referred_by_name));
+		if ((lessthan = strchr(referdata->referred_by_name, '<'))) {
+			*(lessthan - 1) = '\0';	/* Space */
+		}
+
+		referred_by_uri = get_in_brackets(h_referred_by);
+		if(strncasecmp(referred_by_uri, "sip:", 4)) {
+			ast_log(LOG_WARNING, "Huh?  Not a sip: header (Referred-by: %s). Skipping.\n", referred_by_uri);
+			referred_by_uri = (char *) NULL;
+		} else {
+			referred_by_uri += 4;		/* Skip sip: */
+		}
 	}
 
-	if (strncmp(referred_by, "sip:", 4)) {
-		ast_log(LOG_WARNING, "Referred-by: Huh?  Not a SIP header (%s) Ignoring?\n", referred_by);
-		referred_by = NULL;
-	}
-
-	if (refer_to)
-		refer_to += 4;
-
-	if (referred_by)
-		referred_by += 4;
-	
-	if ((ptr = strchr(refer_to, '?'))) {
-		/* Search for arguments */
+	/* Check for arguments in the refer_to header */
+	if ((ptr = strchr(refer_to, '?'))) { /* Search for arguments */
 		*ptr = '\0';
 		ptr++;
 		if (!strncasecmp(ptr, "REPLACES=", 9)) {
-			char *p;
-			replace_callid = ast_strdupa(ptr + 9);
-			/* someday soon to support invite/replaces properly!
-			   replaces_header = ast_strdupa(replace_callid); 
-			   -anthm
-			*/
-			ast_uri_decode(replace_callid);
-			if ((ptr = strchr(replace_callid, '%'))) 
+			char *to, *from;
+
+			/* This is an attended transfer */
+			referdata->attendedtransfer = 1;
+			strncpy(referdata->replaces_callid, ptr+9, sizeof(referdata->replaces_callid));
+			ast_uri_decode(referdata->replaces_callid);
+			if ((ptr = strchr(referdata->replaces_callid, ';'))) 	/* Remove options */ {
 				*ptr = '\0';
-			if ((ptr = strchr(replace_callid, ';'))) 
-				*ptr = '\0';
-			/* Skip leading whitespace XXX memmove behaviour with overlaps ? */
-			p = ast_skip_blanks(replace_callid);
-			if (p != replace_callid)
-				memmove(replace_callid, p, strlen(p));
+			}
+			ptr++;
+
+			/* Find the different tags before we destroy the string */
+			to = strcasestr(ptr, "to-tag=");
+			from = strcasestr(ptr, "from-tag=");
+
+			/* Grab the to header */
+			if (to) {
+				ptr = to + 7;
+				if ((to = strchr(ptr, '&')))
+					*to = '\0';
+				if ((to = strchr(ptr, ';')))
+					*to = '\0';
+				ast_copy_string(referdata->replaces_callid_totag, ptr, sizeof(referdata->replaces_callid_totag));
+			}
+
+			if (from) {
+				ptr = from + 9;
+				if ((to = strchr(ptr, '&')))
+					*to = '\0';
+				if ((to = strchr(ptr, ';')))
+					*to = '\0';
+				ast_copy_string(referdata->replaces_callid_fromtag, ptr, sizeof(referdata->replaces_callid_fromtag));
+			}
+
+			if (option_debug > 1) {
+				if (!pedanticsipchecking)
+					ast_log(LOG_DEBUG,"Attended transfer: Will use Replace-Call-ID : %s (No check of from/to tags)\n", referdata->replaces_callid );
+				else
+					ast_log(LOG_DEBUG,"Attended transfer: Will use Replace-Call-ID : %s F-tag: %s T-tag: %s\n", referdata->replaces_callid, referdata->replaces_callid_fromtag ? referdata->replaces_callid_fromtag : "<none>", referdata->replaces_callid_totag ? referdata->replaces_callid_totag : "<none>" );
+			}
 		}
 	}
 	
-	/* strip domain and everything after ';' (domain should be saved in SIPDOMAIN) */
-	ptr = refer_to;
-	strsep(&ptr, "@;");	/* trim anything after @ or ; */
-	ptr = referred_by;
-	strsep(&ptr, "@;");	/* trim anything after @ or ;, NULL is ok */
-
-	if (sip_debug_test_pvt(sip_pvt)) {
-		ast_verbose("Transfer to %s in %s\n", refer_to, sip_pvt->context);
-		if (referred_by)
-			ast_verbose("Transfer from %s in %s\n", referred_by, sip_pvt->context);
+	if ((ptr = strchr(refer_to, '@'))) {	/* Separate domain */
+		char *urioption;
+		*ptr = '\0';
+		ptr++;
+		if ((urioption = strchr(ptr, ';'))) {
+			*urioption = '\0';
+			urioption++;
+		}	
+		/* Save the domain for the dial plan */
+		strncpy(referdata->refer_to_domain, ptr, sizeof(referdata->refer_to_domain));
+		if (urioption)
+			strncpy(referdata->refer_to_urioption, urioption, sizeof(referdata->refer_to_urioption));
 	}
-	if (!ast_strlen_zero(replace_callid)) {	
-		/* This is a supervised transfer */
-		ast_log(LOG_DEBUG,"Assigning Replace-Call-ID Info %s to REPLACE_CALL_ID\n", replace_callid);
-		
-		ast_string_field_free(sip_pvt, refer_to);
-		ast_string_field_free(sip_pvt, referred_by);
-		ast_string_field_free(sip_pvt, refer_contact);
-		sip_pvt->refer_call = NULL;
-		if ((sip_pvt_ptr = get_sip_pvt_byid_locked(replace_callid, NULL, NULL))) {
-			sip_pvt->refer_call = sip_pvt_ptr;
-			if (sip_pvt->refer_call == sip_pvt) {
-				ast_log(LOG_NOTICE, "Supervised transfer attempted to transfer into same call id (%s == %s)!\n", replace_callid, sip_pvt->callid);
-				sip_pvt->refer_call = NULL;
-			} else
-				return 0;
-		} else {
-			ast_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'.  Both legs must reside on Asterisk box to transfer at this time.\n", replace_callid);
-			/* XXX The refer_to could contain a call on an entirely different machine, requiring an 
-				INVITE with a replaces header -anthm XXX */
-			/* The only way to find out is to use the dialplan - oej */
+
+	if ((ptr = strchr(refer_to, ';'))) 	/* Remove options */
+		*ptr = '\0';
+	ast_copy_string(referdata->refer_to, refer_to, sizeof(referdata->refer_to));
+	
+	if ((ptr = strchr(referred_by_uri, ';'))) 	/* Remove options */
+		*ptr = '\0';
+	ast_copy_string(referdata->referred_by, referred_by_uri, sizeof(referdata->referred_by));
+
+	/* Determine transfer context */
+	if (transferer->owner)	/* Mimic behaviour in res_features.c */
+		transfer_context = pbx_builtin_getvar_helper(transferer->owner, "TRANSFER_CONTEXT");
+
+	/* By default, use the context in the channel sending the REFER */
+	if (ast_strlen_zero(transfer_context)) {
+		if (!ast_strlen_zero(transferer->owner->macrocontext))
+			transfer_context=transferer->owner->macrocontext;
+		else if (ast_strlen_zero(transferer->context))
+			transfer_context = default_context;
+		else
+			transfer_context = transferer->context;
+	}
+
+	strncpy(referdata->refer_to_context, transfer_context, sizeof(referdata->refer_to_context));
+	
+	/* Either an existing extension or the parking extension */
+	if (ast_exists_extension(NULL, transfer_context, refer_to, 1, NULL) ) {
+		if (sip_debug_test_pvt(transferer)) {
+			ast_verbose("SIP transfer to extension %s@%s by %s\n", refer_to, transfer_context, referred_by_uri);
 		}
-	} else if (ast_exists_extension(NULL, sip_pvt->context, refer_to, 1, NULL) || !strcmp(refer_to, ast_parking_ext())) {
-		/* This is an unsupervised transfer (blind transfer) */
-		
-		ast_log(LOG_DEBUG,"Unsupervised transfer to (Refer-To): %s\n", refer_to);
-		if (referred_by)
-			ast_log(LOG_DEBUG,"Transferred by  (Referred-by: ) %s \n", referred_by);
-		ast_log(LOG_DEBUG,"Transfer Contact Info %s (REFER_CONTACT)\n", h_contact);
-		ast_string_field_set(sip_pvt, refer_to, refer_to);
-		if (referred_by)
-			ast_string_field_set(sip_pvt, referred_by, referred_by);
-		if (h_contact)
-			ast_string_field_set(sip_pvt, refer_contact, h_contact);
-		sip_pvt->refer_call = NULL;
-		chan = sip_pvt->owner;
-		if (chan && (peer = ast_bridged_channel(chan)) != NULL) {
-			pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
-			pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
-		}
+		/* We are ready to transfer to the extension */
 		return 0;
-	} else if (ast_canmatch_extension(NULL, sip_pvt->context, refer_to, 1, NULL)) {
-		return 1;
-	}
+	} 
+	if (sip_debug_test_pvt(transferer))
+		ast_verbose("Failed SIP Transfer to non-existing extension %s in context %s\n n", refer_to, transfer_context);
 
+	/* Failure, we can't find this extension */
 	return -1;
 }
 
-/*! \brief  Call transfer support (old way, deprecated in the IETF) */
+
+/*! \brief Call transfer support (old way, depreciated by the IETF)--*/
 static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 {
-	char tmp[256], *c, *a;
+	char tmp[256] = "", *c, *a;
 	struct sip_request *req = oreq;
+	struct sip_refer *referdata;
+	const char *transfer_context = NULL;
 	
-	if (!req)
+	referdata = p->refer;
+	
+	if (!oreq)
 		req = &p->initreq;
+	else
+		req = oreq;
 	ast_copy_string(tmp, get_header(req, "Also"), sizeof(tmp));
 	c = get_in_brackets(tmp);
+
+	if (pedanticsipchecking)
+		ast_uri_decode(c);
+	
 	if (strncmp(c, "sip:", 4)) {
-		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
+		ast_log(LOG_WARNING, "Huh?  Not a SIP header in Also: transfer (%s)?\n", c);
 		return -1;
 	}
 	c += 4;
-	a = c;
-	strsep(&a, "@;");	/* trim anything after @ or ; */
+	if ((a = strchr(c, '@'))) {	/* Separate Domain */
+		*a = '\0';
+		a++;
+		ast_copy_string(referdata->refer_to_domain, a, sizeof(referdata->refer_to_domain));
+	}
+	
+	if ((a = strchr(c, ';'))) 	/* Remove arguments */
+		*a = '\0';
 	
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Looking for %s in %s\n", c, p->context);
 
-	if (ast_exists_extension(NULL, p->context, c, 1, NULL)) {
-		/* This is an unsupervised transfer */
+	if (p->owner)	/* Mimic behaviour in res_features.c */
+		transfer_context = pbx_builtin_getvar_helper(p->owner, "TRANSFER_CONTEXT");
+
+	/* By default, use the context in the channel sending the REFER */
+	if (!transfer_context || ast_strlen_zero(transfer_context)) {
+		if (!ast_strlen_zero(p->owner->macrocontext))
+			transfer_context = p->owner->macrocontext;
+		else if (ast_strlen_zero(p->context))
+			transfer_context = default_context;
+		else
+			transfer_context = p->context;
+	}
+	if (ast_exists_extension(NULL, transfer_context, c, 1, NULL)) {
+		/* This is a blind transfer */
 		if (option_debug)
-			ast_log(LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", c);
-		ast_string_field_set(p, refer_to, c);
-		ast_string_field_free(p, referred_by);
-		ast_string_field_free(p, refer_contact);
-		p->refer_call = NULL;
+			ast_log(LOG_DEBUG,"SIP Bye-also transfer to Extension %s@%s \n", c, transfer_context);
+		ast_copy_string(referdata->refer_to, c, sizeof(referdata->refer_to));
+		ast_copy_string(referdata->referred_by, "", sizeof(referdata->referred_by));
+		ast_copy_string(referdata->refer_contact, "", sizeof(referdata->refer_contact));
+		referdata->refer_call = NULL;
+		/* Set new context */
+		ast_string_field_set(p, context, transfer_context);
 		return 0;
 	} else if (ast_canmatch_extension(NULL, p->context, c, 1, NULL)) {
 		return 1;
@@ -7391,7 +7488,6 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 
 	return -1;
 }
-
 /*! \brief check Via: header for hostname, port and rport request/answer */
 static int check_via(struct sip_pvt *p, struct sip_request *req)
 {
@@ -9173,6 +9269,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 				ast_cli(fd, "  * SIP Call\n");
 			ast_cli(fd, "  Direction:              %s\n", ast_test_flag(&cur->flags[0], SIP_OUTGOING)?"Outgoing":"Incoming");
 			ast_cli(fd, "  Call-ID:                %s\n", cur->callid);
+			ast_cli(fd, "  Owner channel ID:       %s\n", cur->owner ? cur->owner->name : "<none>");
 			ast_cli(fd, "  Our Codec Capability:   %d\n", cur->capability);
 			ast_cli(fd, "  Non-Codec Capability (DTMF):   %d\n", cur->noncodeccapability);
 			ast_cli(fd, "  Their Codec Capability:   %d\n", cur->peercapability);
@@ -10297,11 +10394,11 @@ static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struc
 	case 202:   /* Transfer accepted */
 		/* We need  to do something here */
 		/* The transferee is now sending INVITE to target */
+		p->refer->status = REFER_ACCEPTED;
 		/* Now wait for next message */
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Got 202 accepted on transfer\n");
 		/* We should hang along, waiting for NOTIFY's here */
-		/* (done in a separate function) */
 		break;
 
 	case 401:   /* Not www-authorized on SIP method */
@@ -10317,6 +10414,7 @@ static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struc
 		}
 		if ((p->authtries > 1) || do_proxy_auth(p, req, auth, auth2, SIP_REFER, 0)) {
 			ast_log(LOG_NOTICE, "Failed to authenticate on REFER to '%s'\n", get_header(&p->initreq, "From"));
+			p->refer->status = REFER_NOAUTH;
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 		}
 		break;
@@ -10326,11 +10424,13 @@ static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struc
 	case 501:   /* Method not implemented */
 		/* Return to the current call onhold */
 		/* Status flag needed to be reset */
-		ast_log(LOG_NOTICE, "SIP transfer failed, call miserably fails. \n");
+		ast_log(LOG_NOTICE, "SIP transfer to %s failed, call miserably fails. \n", p->refer->refer_to);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+		p->refer->status = REFER_FAILED;
 		break;
 	case 603:   /* Transfer declined */
-		ast_log(LOG_NOTICE, "SIP transfer declined, call fails. \n" );
+		ast_log(LOG_NOTICE, "SIP transfer to %s declined, call miserably fails. \n", p->refer->refer_to);
+		p->refer->status = REFER_FAILED;
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 		break;
 	}
@@ -10571,12 +10671,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			} else if (sipmethod == SIP_NOTIFY) {
 				/* They got the notify, this is the end */
 				if (p->owner) {
-					ast_log(LOG_WARNING, "Notify answer on an owned channel?\n");
-					ast_queue_hangup(p->owner);
-				} else {
-					if (p->subscribed == NONE) {
-						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY); 
+					if (!p->refer) {
+						ast_log(LOG_WARNING, "Notify answer on an owned channel?\n");
+						ast_queue_hangup(p->owner);
 					}
+				} else {
+					if (p->subscribed == NONE) 
+						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY); 
 				}
 			} else if (sipmethod == SIP_REGISTER)
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
@@ -10790,6 +10891,16 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			} else if (sipmethod == SIP_CANCEL) {
 				ast_log(LOG_DEBUG, "Got 200 OK on CANCEL\n");
 				/* Wait for 487, then destroy */
+			} else if (sipmethod == SIP_NOTIFY) {
+				/* They got the notify, this is the end */
+				if (p->owner) {
+					ast_log(LOG_WARNING, "Notify answer on an owned channel?\n");
+					ast_queue_hangup(p->owner);
+				} else {
+					if (!p->subscribed)
+						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+				}
+				/* Wait for 487, then destroy */
 			} else if (sipmethod == SIP_MESSAGE)
 				/* We successfully transmitted a message */
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
@@ -10819,6 +10930,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (sipmethod == SIP_INVITE) {
 				/* Re-invite failed */
 				handle_response_invite(p, resp, rest, req, seqno);
+			} else if (sipdebug) {
+				ast_log	(LOG_DEBUG, "Remote host can't match request %s to call '%s'. Giving up\n", sip_methods[sipmethod].text, p->callid);
 			}
 			break;
 		case 501: /* Not Implemented */
@@ -10900,13 +11013,13 @@ static void *sip_park_thread(void *stuff)
 	transmit_response(transferer->tech_pvt, "202 Accepted", &req);
 	if (!res)	{
 		/* Transfer succeeded */
-		transmit_notify_with_sipfrag(transferer->tech_pvt, d->seqno, "200 OK", 1);
+		transmit_notify_with_sipfrag(transferer->tech_pvt, d->seqno, "200 OK", TRUE);
 		transferer->hangupcause = AST_CAUSE_NORMAL_CLEARING;
 		ast_hangup(transferer); /* This will cause a BYE */
 		if (option_debug)
 			ast_log(LOG_DEBUG, "SIP Call parked on extension '%d'\n", ext);
 	} else {
-		transmit_notify_with_sipfrag(transferer->tech_pvt, d->seqno, "503 Service Unavailable", 1);
+		transmit_notify_with_sipfrag(transferer->tech_pvt, d->seqno, "503 Service Unavailable", TRUE);
 		if (option_debug)
 			ast_log(LOG_DEBUG, "SIP Call parked failed \n");
 		/* Do not hangup call */
@@ -10994,72 +11107,89 @@ static void ast_quiet_chan(struct ast_channel *chan)
 	}
 }
 
-/*! \brief Attempt transfer of SIP call */
-static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
+/*! \brief Attempt transfer of SIP call 
+	This fix for attended transfers on a local PBX */
+static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target)
 {
 	int res = 0;
-	struct ast_channel 
-		*chana = NULL,
-		*chanb = NULL,
-		*bridgea = NULL,
-		*bridgeb = NULL,
-		*peera = NULL,
+	struct ast_channel *peera = NULL,	
 		*peerb = NULL,
 		*peerc = NULL,
 		*peerd = NULL;
 
-	if (!p1->owner || !p2->owner) {
-		ast_log(LOG_WARNING, "Transfer attempted without dual ownership?\n");
-		return -1;
-	}
-	chana = p1->owner;
-	chanb = p2->owner;
-	bridgea = ast_bridged_channel(chana);
-	bridgeb = ast_bridged_channel(chanb);
-	
-	if (bridgea) {
-		peera = chana;
-		peerb = chanb;
-		peerc = bridgea;
-		peerd = bridgeb;
-	} else if (bridgeb) {
-		peera = chanb;
-		peerb = chana;
-		peerc = bridgeb;
-		peerd = bridgea;
-	}
-	
-	if (peera && peerb && peerc && (peerb != peerc)) {
-		ast_quiet_chan(peera);
-		ast_quiet_chan(peerb);
-		ast_quiet_chan(peerc);
-		ast_quiet_chan(peerd);
 
-		if (peera->cdr && peerb->cdr) {
+	/* We will try to connect the transferee with the target and hangup
+   	all channels to the transferer */	
+	if (option_debug > 3) {
+		ast_log(LOG_DEBUG, "Sip transfer:--------------------\n");
+		if (transferer->chan1)
+			ast_log(LOG_DEBUG, "-- Transferer to PBX channel: %s State %s\n", transferer->chan1->name, ast_state2str(transferer->chan1->_state));
+		else
+			ast_log(LOG_DEBUG, "-- No transferer first channel - odd??? \n");
+		if (target->chan1)
+			ast_log(LOG_DEBUG, "-- Transferer to PBX second channel (target): %s State %s\n", target->chan1->name, ast_state2str(target->chan1->_state));
+		else
+			ast_log(LOG_DEBUG, "-- No target first channel ---\n");
+		if (transferer->chan2)
+			ast_log(LOG_DEBUG, "-- Bridged call to transferee: %s State %s\n", transferer->chan2->name, ast_state2str(transferer->chan2->_state));
+		else
+			ast_log(LOG_DEBUG, "-- No bridged call to transferee\n");
+		if (target->chan2)
+			ast_log(LOG_DEBUG, "-- Bridged call to transfer target: %s State %s\n", target->chan2 ? target->chan2->name : "<none>", target->chan2 ? ast_state2str(target->chan2->_state) : "(none)");
+		else
+			ast_log(LOG_DEBUG, "-- No target second channel ---\n");
+		ast_log(LOG_DEBUG, "-- END Sip transfer:--------------------\n");
+	}
+	if (transferer->chan2) {			/* We have a bridge on the transferer's channel */
+		peera = transferer->chan1;	/* Transferer - PBX -> transferee channel * the one we hangup */
+		peerb = target->chan1;		/* Transferer - PBX -> target channel - This will get lost in masq */
+		peerc = transferer->chan2;	/* Asterisk to Transferee */
+		peerd = target->chan2;		/* Asterisk to Target */
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "SIP transfer: Four channels to handle\n");
+	} else if (target->chan2) {	/* Transferer has no bridge (IVR), but transferee */
+		peera = target->chan1;		/* Transferer to PBX -> target channel */
+		peerb = transferer->chan1;	/* Transferer to IVR*/
+		peerc = target->chan2;		/* Asterisk to Target */
+		peerd = transferer->chan2;	/* Nothing */
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "SIP transfer: Three channels to handle\n");
+	}
+
+	if (peera && peerb && peerc && (peerb != peerc)) {
+		ast_quiet_chan(peera);		/* Stop generators */
+		ast_quiet_chan(peerb);	
+		ast_quiet_chan(peerc);
+		if (peerd)
+			ast_quiet_chan(peerd);
+
+		/* Fix CDRs so they're attached to the remaining channel */
+		if (peera->cdr && peerb->cdr)
 			peerb->cdr = ast_cdr_append(peerb->cdr, peera->cdr);
-		} else if (peera->cdr) {
+		else if (peera->cdr) 
 			peerb->cdr = peera->cdr;
-		}
 		peera->cdr = NULL;
 
-		if (peerb->cdr && peerc->cdr) {
+		if (peerb->cdr && peerc->cdr) 
 			peerb->cdr = ast_cdr_append(peerb->cdr, peerc->cdr);
-		} else if (peerc->cdr) {
+		else if (peerc->cdr)
 			peerb->cdr = peerc->cdr;
-		}
 		peerc->cdr = NULL;
-		
+	
+		if (option_debug > 3)
+			ast_log(LOG_DEBUG, "SIP transfer: trying to masquerade %s into %s\n", peerc->name, peerb->name);
 		if (ast_channel_masquerade(peerb, peerc)) {
 			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", peerb->name, peerc->name);
 			res = -1;
-		}
+		} else
+			ast_log(LOG_DEBUG, "SIP transfer: Succeeded to masquerade channels.\n");
 		return res;
 	} else {
-		ast_log(LOG_NOTICE, "Transfer attempted with no appropriate bridged calls to transfer\n");
-		if (chana)
-			ast_softhangup_nolock(chana, AST_SOFTHANGUP_DEV);
-		if (chanb)
-			ast_softhangup_nolock(chanb, AST_SOFTHANGUP_DEV);
+		ast_log(LOG_NOTICE, "SIP Transfer attempted with no appropriate bridged calls to transfer\n");
+		if (transferer->chan1)
+			ast_softhangup_nolock(transferer->chan1, AST_SOFTHANGUP_DEV);
+		if (target->chan1)
+			ast_softhangup_nolock(target->chan1, AST_SOFTHANGUP_DEV);
 		return -1;
 	}
 	return 0;
@@ -11248,14 +11378,177 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
 	return res;
 }
 
-/*! \brief Handle incoming INVITE request */
+/*! \brief Handle the transfer part of INVITE with a replaces: header, 
+    meaning a target pickup or an attended transfer */
+static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, struct sockaddr_in *sin)
+{
+	struct ast_frame *f;
+	int earlyreplace = 0;
+	int oneleggedreplace = 0;		/* Call with no bridge, propably IVR or voice message */
+	struct ast_channel *c = p->owner;	/* Our incoming call */
+	struct ast_channel *replacecall = p->refer->refer_call->owner;	/* The channel we're about to take over */
+	struct ast_channel *targetcall;		/* The bridge to the take-over target */
+
+	/* Check if we're in ring state */
+	if (replacecall->_state == AST_STATE_RING)
+		earlyreplace = 1;
+
+	/* Check if we have a bridge */
+	if (!(targetcall = ast_bridged_channel(replacecall))) {
+		/* We have no bridge */
+		if (!earlyreplace) {
+			if (option_debug > 1)
+			ast_log(LOG_DEBUG, "	Attended transfer attempted to replace call with no bridge (maybe ringing). Channel %s!\n", replacecall->name);
+			oneleggedreplace = 1;
+		}
+	} 
+	if (option_debug > 3 && targetcall && targetcall->_state == AST_STATE_RINGING)
+			ast_log(LOG_DEBUG, "SIP transfer: Target channel is in ringing state\n");
+
+	if (option_debug > 3) {
+		if (targetcall) 
+			ast_log(LOG_DEBUG, "SIP transfer: Invite Replace incoming channel should bridge to channel %s while hanging up channel %s\n", targetcall->name, replacecall->name); 
+		else
+			ast_log(LOG_DEBUG, "SIP transfer: Invite Replace incoming channel should replace and hang up channel %s (one call leg)\n", replacecall->name); 
+	}
+
+	if (ignore) {
+		ast_log(LOG_NOTICE, "Ignoring this INVITE with replaces in a stupid way.\n");
+		/* We should answer something here. If we are here, the
+			call we are replacing exists, so an accepted 
+			can't harm */
+		transmit_response_with_sdp(p, "200 OK", req, 1);
+		/* Do something more clever here */
+		ast_channel_unlock(c);
+		ast_mutex_unlock(&p->refer->refer_call->lock);
+		return 1;
+	} 
+	if (!c) {
+		/* What to do if no channel ??? */
+		ast_log(LOG_ERROR, "Unable to create new channel.  Invite/replace failed.\n");
+		transmit_response_with_sdp(p, "503 Service Unavailable", req, 1);
+		append_history(p, "Xfer", "INVITE/Replace Failed. No new channel.");
+		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		ast_mutex_unlock(&p->refer->refer_call->lock);
+		return 1;
+	}
+	append_history(p, "Xfer", "INVITE/Replace received");
+	/* We have three channels to play with
+		channel c: New incoming call
+		targetcall: Call from PBX to target
+		p->refer->refer_call: SIP pvt dialog from transferer to pbx.
+		replacecall: The owner of the previous
+		We need to masq C into refer_call to connect to 
+		targetcall;
+		If we are talking to internal audio stream, target call is null.
+	*/
+
+	/* Fake call progress */
+	transmit_response(p, "100 Trying", req);
+	ast_setstate(c, AST_STATE_RING);
+
+	/* Masquerade the new call into the referred call to connect to target call 
+	   Targetcall is not touched by the masq */
+
+	/* Answer the incoming call and set channel to UP state */
+	transmit_response_with_sdp(p, "200 OK", req, 1);
+	ast_setstate(c, AST_STATE_UP);
+	
+	/* Stop music on hold and other generators */
+	ast_quiet_chan(replacecall);
+	if (option_debug > 3)
+		ast_log(LOG_DEBUG, "Invite/Replaces: preparing to masquerade %s into %s\n", c->name, replacecall->name);
+	/* Unlock clone, but not original (replacecall) */
+	ast_channel_unlock(c);
+
+	/* Unlock PVT */
+	ast_mutex_unlock(&p->refer->refer_call->lock);
+
+	/* Make sure that the masq does not free our PVT for the old call */
+	ast_set_flag(&p->refer->refer_call->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
+		
+	/* Prepare the masquerade - if this does not happen, we will be gone */
+	if(ast_channel_masquerade(replacecall, c))
+		ast_log(LOG_ERROR, "Failed to masquerade C into Replacecall\n");
+	else if (option_debug > 3)
+		ast_log(LOG_DEBUG, "Invite/Replaces: Going to masquerade %s into %s\n", c->name, replacecall->name);
+
+	/* The masquerade will happen as soon as someone reads a frame from the channel */
+
+	/* C should now be in place of replacecall */
+	/* ast_read needs to lock channel */
+	ast_channel_unlock(c);
+	
+	if (earlyreplace || oneleggedreplace ) {
+		/* Force the masq to happen */
+		if ((f = ast_read(replacecall))) {	/* Force the masq to happen */
+			ast_frfree(f);
+			f = NULL;
+			if (option_debug > 3)
+				ast_log(LOG_DEBUG, "Invite/Replace:  Could successfully read frame from RING channel!\n");
+		} else {
+			ast_log(LOG_WARNING, "Invite/Replace:  Could not read frame from RING channel \n");
+		}
+		c->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+		ast_channel_unlock(replacecall);
+	} else {	/* Bridged call, UP channel */
+		if ((f = ast_read(replacecall))) {	/* Force the masq to happen */
+			/* Masq ok */
+			ast_frfree(f);
+			f = NULL;
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "Invite/Replace:  Could successfully read frame from channel! Masq done.\n");
+		} else {
+			ast_log(LOG_WARNING, "Invite/Replace:  Could not read frame from channel. Transfer failed\n");
+		}
+		ast_channel_unlock(replacecall);
+	}
+	ast_mutex_unlock(&p->refer->refer_call->lock);
+
+	ast_setstate(c, AST_STATE_DOWN);
+	if (option_debug > 3) {
+		struct ast_channel *test;
+		ast_log(LOG_DEBUG, "After transfer:----------------------------\n");
+		ast_log(LOG_DEBUG, " -- C:        %s State %s\n", c->name, ast_state2str(c->_state));
+		if (replacecall)
+			ast_log(LOG_DEBUG, " -- replacecall:        %s State %s\n", replacecall->name, ast_state2str(replacecall->_state));
+		if (p->owner) {
+			ast_log(LOG_DEBUG, " -- P->owner: %s State %s\n", p->owner->name, ast_state2str(p->owner->_state));
+			test = ast_bridged_channel(p->owner);
+			if (test)
+				ast_log(LOG_DEBUG, " -- Call bridged to P->owner: %s State %s\n", test->name, ast_state2str(test->_state));
+			else
+				ast_log(LOG_DEBUG, " -- No call bridged to C->owner \n");
+		} else 
+			ast_log(LOG_DEBUG, " -- No channel yet \n");
+		ast_log(LOG_DEBUG, "End After transfer:----------------------------\n");
+	}
+
+	ast_channel_unlock(p->owner);	/* Unlock new owner */
+	ast_mutex_unlock(&p->lock);	/* Unlock SIP structure */
+
+	/* The call should be down with no ast_channel, so hang it up */
+	c->tech_pvt = NULL;
+	ast_hangup(c);
+	return 0;
+}
+
+
+/*! \brief Handle incoming INVITE request
+\note 	If the INVITE has a Replaces header, it is part of an
+ *	attended transfer. If so, we do not go through the dial
+ *	plan but tries to find the active call and masquerade
+ *	into it 
+ */
 static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *recount, char *e)
 {
 	int res = 1;
-	struct ast_channel *c=NULL;		/* New channel */
 	int gotdest;
+	const char *p_replaces;
+	char *replace_id = NULL;
 	const char *required;
 	unsigned int required_profile = 0;
+	struct ast_channel *c = NULL;		/* New channel */
 
 	/* Find out what they support */
 	if (!p->sipoptions) {
@@ -11266,43 +11559,163 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 	/* Find out what they require */
 	required = get_header(req, "Require");
-	if (!ast_strlen_zero(required)) {
+	if (required && !ast_strlen_zero(required)) {
 		required_profile = parse_sip_options(NULL, required);
-		if (required_profile) { 	/* They require something */
-			/* At this point we support no extensions, so fail */
-			transmit_response_with_unsupported(p, "420 Bad extension", req, required);
+		if (required_profile && required_profile != SIP_OPT_REPLACES) {
+			/* At this point we only support REPLACES */
+			transmit_response_with_unsupported(p, "420 Bad extension (unsupported)", req, required);
 			ast_log(LOG_WARNING,"Received SIP INVITE with unsupported required extension: %s\n", required);
 			if (!p->lastinvite)
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			return -1;
-			
 		}
 	}
 
 	/* Check if this is a loop */
-	/* This happens since we do not properly support SIP domain
-	   handling yet... -oej */
 	if (ast_test_flag(&p->flags[0], SIP_OUTGOING) && p->owner && (p->owner->_state != AST_STATE_UP)) {
 		/* This is a call to ourself.  Send ourselves an error code and stop
-		   processing immediately, as SIP really has no good mechanism for
-		   being able to call yourself */
+	   	processing immediately, as SIP really has no good mechanism for
+	   	being able to call yourself */
+		/* If pedantic is on, we need to check the tags. If they're different, this is
+	   	in fact a forked call through a SIP proxy somewhere. */
 		transmit_response(p, "482 Loop Detected", req);
 		/* We do NOT destroy p here, so that our response will be accepted */
 		return 0;
 	}
-
+	
 	if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->pendinginvite) {
 		/* We already have a pending invite. Sorry. You are on hold. */
 		transmit_response(p, "491 Request Pending", req);
-		if (option_debug > 1)
+		if (option_debug)
 			ast_log(LOG_DEBUG, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
-		/* Do NOT destroy dialog */
 		return 0;
 	}
 
+	if ((p_replaces = get_header(req, "Replaces")) && !ast_strlen_zero(p_replaces)) {
+		/* We have a replaces header */
+		char *ptr;
+		char *fromtag = NULL;
+		char *totag = NULL;
+		char *start, *to;
+		int error = 0;
+
+		if (p->owner) {
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "INVITE w Replaces on existing call? Refusing action. [%s]\n", p->callid);
+			transmit_response(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
+			/* Do not destroy existing call */
+			return -1;
+		}
+
+		if (sipdebug && option_debug > 2)
+			ast_log(LOG_DEBUG, "INVITE part of call transfer. Replaces [%s]\n", p_replaces);
+		/* Create a buffer we can manipulate */
+		replace_id = ast_strdupa(p_replaces);
+		ast_uri_decode(replace_id);
+
+		if (!p->refer && !sip_refer_allocate(p)) {
+			transmit_response(p, "500 Server Internal Error", req);
+			append_history(p, "Xfer", "INVITE/Replace Failed. Out of memory.");
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+			return -1;
+		}
+
+		/*  Todo: (When we find phones that support this)
+			if the replaces header contains ";early-only"
+			we can only replace the call in early
+			stage, not after it's up.
+
+			If it's not in early mode, 486 Busy.
+		*/
+		
+		/* Skip leading whitespace */
+		while(replace_id[0] && (replace_id[0] < 33))
+			memmove(replace_id, replace_id+1, strlen(replace_id));
+
+		if ((ptr = strchr(replace_id, ';'))) {
+			*ptr = '\0';
+			ptr++;
+		}
+		start = ptr;
+
+		to = strcasestr(ptr, "to-tag=");
+		if (to) {
+			ptr = to + 7;
+			totag = ptr;
+			if ((to = strchr(ptr, ';')))
+				*to = '\0';
+			to++;
+			ptr = to;
+		}
+
+		to = strcasestr(ptr, "from-tag=");
+		if (to) {
+			ptr = to + 9;
+			fromtag = ptr;
+			if ((to = strchr(ptr, '&')))
+				*to = '\0';
+			if ((to = strchr(ptr, ';')))
+				*to = '\0';
+		}
+
+		if (sipdebug && option_debug > 3) 
+			ast_log(LOG_DEBUG,"Invite/replaces: Will use Replace-Call-ID : %s Fromtag: %s Totag: %s\n", replace_id, fromtag ? fromtag : "<no from tag>", totag ? totag : "<no to tag>");
+
+
+		/* Try to find call that we are replacing 
+			If we have a Replaces  header, we need to cancel that call if we succeed with this call 
+		*/
+		if ((p->refer->refer_call = get_sip_pvt_byid_locked(replace_id, totag, fromtag)) == NULL) {
+			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-existent call id (%s)!\n", replace_id);
+			transmit_response(p, "481 Call Leg Does Not Exist (Replaces)", req);
+			error = 1;
+		}
+
+		/* At this point, bot the pvt and the owner of the call to be replaced is locked */
+
+		/* The matched call is the call from the transferer to Asterisk .
+			We want to bridge the bridged part of the call to the 
+			incoming invite, thus taking over the refered call */
+
+		if (p->refer->refer_call == p) {
+			ast_log(LOG_NOTICE, "INVITE with replaces into it's own call id (%s == %s)!\n", replace_id, p->callid);
+			p->refer->refer_call = NULL;
+			transmit_response(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
+			error = 1;
+		}
+
+		if (!error && !p->refer->refer_call->owner) {
+			/* Oops, someting wrong anyway, no owner, no call */
+			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-existing call id (%s)!\n", replace_id);
+			/* Check for better return code */
+			transmit_response(p, "481 Call Leg Does Not Exist (Replace)", req);
+			error = 1;
+		}
+
+		if (!error && p->refer->refer_call->owner->_state != AST_STATE_RING && p->refer->refer_call->owner->_state != AST_STATE_UP ) {
+			ast_log(LOG_NOTICE, "Supervised transfer attempted to replace non-ringing or active call id (%s)!\n", replace_id);
+			transmit_response(p, "603 Declined (Replaces)", req);
+			error = 1;
+		}
+
+		if (error) {	/* Give up this dialog */
+			append_history(p, "Xfer", "INVITE/Replace Failed.");
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+			ast_mutex_unlock(&p->lock);
+			if (p->refer->refer_call) {
+				ast_mutex_unlock(&p->refer->refer_call->lock);
+				ast_channel_unlock(p->refer->refer_call->owner);
+			}
+			return -1;
+		}
+	}
+
+
+	/* Check if this is an INVITE that sets up a new dialog or
+	   a re-invite in an existing dialog */
+
 	if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
 		sip_cancel_destroy(p);
-
 		/* This also counts as a pending invite */
 		p->pendinginvite = seqno;
 		check_via(p, req);
@@ -11331,8 +11744,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 	} else if (debug)
 		ast_verbose("Ignoring this INVITE request\n");
-	if (!p->lastinvite && !ast_test_flag(req, SIP_PKT_IGNORE) && !p->owner) {
 
+	
+	if (!p->lastinvite && !ast_test_flag(req, SIP_PKT_IGNORE) && !p->owner) {
+		/* This is a new invite */
 		/* Handle authentication if this is our first invite */
 		res = check_user(p, req, SIP_INVITE, e, XMIT_RELIABLE, sin);
 		if (res == AUTH_CHALLENGE_SENT)
@@ -11360,19 +11775,22 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					ast_log(LOG_DEBUG, "No compatible codecs for this SIP call.\n");
 				return -1;
 			}
-		} else {
+		} else {	/* No SDP in invite, call control session */
 			p->jointcapability = p->capability;
 			if (option_debug > 1)
 				ast_log(LOG_DEBUG, "No SDP in Invite, third party call control\n");
 		}
 
 		/* Queue NULL frame to prod ast_rtp_bridge if appropriate */
+		/* This seems redundant ... see !p-owner above */
 		if (p->owner)
 			ast_queue_frame(p->owner, &ast_null_frame);
+
 
 		/* Initialize the context if it hasn't been already */
 		if (ast_strlen_zero(p->context))
 			ast_string_field_set(p, context, default_context);
+
 
 		/* Check number of concurrent calls -vs- incoming limit HERE */
 		if (option_debug)
@@ -11391,7 +11809,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		build_contact(p);			/* Build our contact header */
 		ast_rtp_setdtmf(p->rtp, ast_test_flag(&p->flags[0], SIP_DTMF) != SIP_DTMF_INFO);
 
-		if (gotdest) {
+		if (!replace_id && gotdest) {	/* No matching extension found */
 			if (gotdest == 1 && ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP)) {
 				transmit_response_reliable(p, "484 Address Incomplete", req);
 				update_call_counter(p, DEC_CALL_LIMIT);
@@ -11402,21 +11820,25 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);		
 		} else {
 			/* If no extension was specified, use the s one */
+			/* Basically for calling to IP/Host name only */
 			if (ast_strlen_zero(p->exten))
 				ast_string_field_set(p, exten, "s");
 			/* Initialize our tag */	
+
 			make_our_tag(p->tag, sizeof(p->tag));
-			/* First invitation */
+
+			/* First invitation - create the channel */
 			c = sip_new(p, AST_STATE_DOWN, S_OR(p->username, NULL));
 			*recount = 1;
+
 			/* Save Record-Route for any later requests we make on this dialogue */
 			build_route(p, req, 0);
+
 			if (c) {
 				/* Pre-lock the call */
 				ast_channel_lock(c);
 			}
 		}
-		
 	} else {
 		if (option_debug > 1 && sipdebug) {
 			if (!ast_test_flag(req, SIP_PKT_IGNORE))
@@ -11426,19 +11848,31 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 		c = p->owner;
 	}
+
 	if (!ast_test_flag(req, SIP_PKT_IGNORE) && p)
 		p->lastinvite = seqno;
-	if (c) {
+
+	if (replace_id) { 	/* Attended transfer or call pickup - we're the target */
+		/* Go and take over the target call */
+		if (sipdebug && option_debug > 3)
+			ast_log(LOG_DEBUG, "Sending this call to the invite/replcaes handler %s\n", p->callid);
+		return handle_invite_replaces(p, req, debug, ast_test_flag(req, SIP_PKT_IGNORE), seqno, sin);
+	}
+
+
+	if (c) {	/* We have a call  -either a new call or an old one (RE-INVITE) */
 		switch(c->_state) {
 		case AST_STATE_DOWN:
+			if (option_debug > 1)
+				ast_log(LOG_DEBUG, "%s: New call is still down.... Trying... \n", c->name);
 			transmit_response(p, "100 Trying", req);
 			ast_setstate(c, AST_STATE_RING);
-			if (strcmp(p->exten, ast_pickup_ext())) {
+			if (strcmp(p->exten, ast_pickup_ext())) {	/* Call to extension -start pbx on this call */
 				enum ast_pbx_result res;
 
 				res = ast_pbx_start(c);
 
-				switch (res) {
+				switch(res) {
 				case AST_PBX_FAILED:
 					ast_log(LOG_WARNING, "Failed to start PBX :(\n");
 					if (ast_test_flag(req, SIP_PKT_IGNORE))
@@ -11459,9 +11893,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				}
 
 				if (res) {
+
 					/* Unlock locks so ast_hangup can do its magic */
-					ast_channel_unlock(c);
-					ast_channel_unlock(p);
+					ast_mutex_unlock(&c->lock);
+					ast_mutex_unlock(&p->lock);
 					ast_hangup(c);
 					ast_mutex_lock(&p->lock);
 					c = NULL;
@@ -11471,7 +11906,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				if (ast_pickup_call(c)) {
 					ast_log(LOG_NOTICE, "Nothing to pick up for %s\n", p->callid);
 					if (ast_test_flag(req, SIP_PKT_IGNORE))
-						transmit_response(p, "503 Unavailable", req);
+						transmit_response(p, "503 Unavailable", req);	/* OEJ - Right answer? */
 					else
 						transmit_response_reliable(p, "503 Unavailable", req);
 					ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
@@ -11495,11 +11930,15 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			transmit_response(p, "180 Ringing", req);
 			break;
 		case AST_STATE_UP:
+			if (option_debug > 1)
+				ast_log(LOG_DEBUG, "%s: New call is UP.... \n", c->name);
 			transmit_response_with_sdp(p, "200 OK", req, XMIT_CRITICAL);
+
 			break;
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle INVITE in state %d\n", c->_state);
 			transmit_response(p, "100 Trying", req);
+			break;
 		}
 	} else {
 		if (p && !ast_test_flag(&p->flags[0], SIP_NEEDDESTROY)) {
@@ -11522,24 +11961,185 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	return res;
 }
 
-/*! \brief Handle incoming REFER request */
-static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, int *nounlock)
+/*! \brief  Find all call legs and bridge transferee with target 
+ *	called from handle_request_refer */
+int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno)
 {
-	struct ast_channel *c=NULL;
-	int res;
-	struct ast_channel *transfer_to;
+	struct sip_dual target;		/* Chan 1: Call from tranferer to Asterisk */
+					/* Chan 2: Call from Asterisk to target */
+	int res = 0;
+	struct sip_pvt *targetcall_pvt;
+	int error = 0;
 
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "SIP call transfer received for call %s (REFER)!\n", p->callid);
-
-	/* Check if transfer is allowed from this device */
-	if (p->allowtransfer == TRANSFER_CLOSED ) {
-		/* Transfer not allowed, decline */
-		transmit_response(p, "603 Declined (policy)", req);
-		append_history(p, "Xfer", "Refer failed. Allowtransfer == closed.");
-		/* Do not destroy SIP session */
+	/* Check if the call ID of the replaces header does exist locally */
+	if (!(targetcall_pvt = get_sip_pvt_byid_locked(transferer->refer->replaces_callid, transferer->refer->replaces_callid_totag, 
+		transferer->refer->replaces_callid_fromtag))) {
+		if (transferer->refer->localtransfer) {
+			/* We did not find the refered call. Sorry, can't accept then */
+			transmit_response(transferer, "202 Accepted", req);
+			/* Let's fake a response from someone else in order
+		   	to follow the standard */
+			transmit_notify_with_sipfrag(transferer, seqno, "481 Call leg/transaction does not exist", TRUE);
+			append_history(transferer, "Xfer", "Refer failed");
+			ast_clear_flag(&transferer->flags[0], SIP_GOTREFER);	
+			transferer->refer->status = REFER_FAILED;
+			return -1;
+		}
+		/* Fall through for remote transfers that we did not find locally */
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "SIP attended transfer: Not our call - generating INVITE with replaces\n");
 		return 0;
 	}
+
+	/* Ok, we can accept this transfer */
+	transmit_response(transferer, "202 Accepted", req);
+	append_history(transferer, "Xfer", "Refer accepted");
+	if (!targetcall_pvt->owner) {	/* No active channel */
+		if (option_debug > 3)
+			ast_log(LOG_DEBUG, "SIP attended transfer: Error: No owner of target call\n");
+		error = 1;
+	}
+	/* We have a channel, find the bridge */
+	target.chan1 = targetcall_pvt->owner;				/* Transferer to Asterisk */
+
+	if (!error) {
+		target.chan2 = ast_bridged_channel(targetcall_pvt->owner);	/* Asterisk to target */
+
+		if (!target.chan2 || !(target.chan2->_state == AST_STATE_UP || target.chan2->_state == AST_STATE_RINGING) ) {
+			/* Wrong state of new channel */
+			if (option_debug > 3) {
+				if (target.chan2) 
+					ast_log(LOG_DEBUG, "SIP attended transfer: Error: Wrong state of target call: %s\n", ast_state2str(target.chan2->_state));
+				else if (target.chan1->_state != AST_STATE_RING)
+					ast_log(LOG_DEBUG, "SIP attended transfer: Error: No target channel\n");
+				else
+					ast_log(LOG_DEBUG, "SIP attended transfer: Attempting transfer in ringing state\n");
+			}
+			if (target.chan1->_state != AST_STATE_RING)
+				error = 1;
+		}
+	}
+	if (error) {	/* Cancel transfer */
+		transmit_notify_with_sipfrag(transferer, seqno, "503 Service Unavailable", TRUE);
+		append_history(transferer, "Xfer", "Refer failed");
+		ast_clear_flag(&transferer->flags[0], SIP_GOTREFER);	
+		transferer->refer->status = REFER_FAILED;
+		ast_mutex_unlock(&targetcall_pvt->lock);
+		ast_channel_unlock(current->chan1);
+		ast_channel_unlock(target.chan1);
+		return -1;
+	}
+
+	/* Transfer */
+	if (option_debug > 3 && sipdebug) {
+		if (current->chan2)	/* We have two bridges */
+			ast_log(LOG_DEBUG, "SIP attended transfer: trying to bridge %s and %s\n", target.chan1->name, current->chan2->name);
+		else			/* One bridge, propably transfer of IVR/voicemail etc */
+			ast_log(LOG_DEBUG, "SIP attended transfer: trying to make %s take over (masq) %s\n", target.chan1->name, current->chan1->name);
+	}
+
+	ast_set_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
+
+	/* Perform the transfer */
+	res = attempt_transfer(current, &target);
+	ast_mutex_unlock(&targetcall_pvt->lock);
+	if (res) {
+		/* Failed transfer */
+		/* Could find better message, but they will get the point */
+		transmit_notify_with_sipfrag(transferer, seqno, "486 Busy", TRUE);
+		append_history(transferer, "Xfer", "Refer failed");
+		if (targetcall_pvt->owner)
+			ast_channel_unlock(targetcall_pvt->owner);
+		/* Right now, we have to hangup, sorry. Bridge is destroyed */
+		ast_hangup(transferer->owner);
+	} else {
+		/* Transfer succeeded! */
+
+		/* Tell transferer that we're done. */
+		transmit_notify_with_sipfrag(transferer, seqno, "200 OK", TRUE);
+		append_history(transferer, "Xfer", "Refer succeeded");
+		transferer->refer->status = REFER_200OK;
+		if (targetcall_pvt->owner) {
+			ast_log(LOG_DEBUG, "SIP attended transfer: Unlocking channel %s\n", targetcall_pvt->owner->name);
+			ast_channel_unlock(targetcall_pvt->owner);
+		}
+	}
+	return 1;
+}
+
+
+/*! \brief Handle incoming REFER request */
+/*! \page SIP_REFER SIP transfer Support (REFER)
+
+	REFER is used for call transfer in SIP. We get a REFER
+	to place a new call with an INVITE somwhere and then
+	keep the transferor up-to-date of the transfer. If the
+	transfer fails, get back on line with the orginal call. 
+
+	- REFER can be sent outside or inside of a dialog.
+	  Asterisk only accepts REFER inside of a dialog.
+
+	- If we get a replaces header, it is an attended transfer
+
+	\par Blind transfers
+	The transferor provides the transferee
+	with the transfer targets contact. The signalling between
+	transferer or transferee should not be cancelled, so the
+	call is recoverable if the transfer target can not be reached 
+	by the transferee.
+
+	In this case, Asterisk receives a TRANSFER from
+	the transferor, thus is the transferee. We should
+	try to set up a call to the contact provided
+	and if that fails, re-connect the current session.
+	If the new call is set up, we issue a hangup.
+	In this scenario, we are following section 5.2
+	in the SIP CC Transfer draft. (Transfer without
+	a GRUU)
+
+	\par Transfer with consultation hold
+	In this case, the transferor
+	talks to the transfer target before the transfer takes place.
+	This is implemented with SIP hold and transfer.
+	Note: The invite From: string could indicate a transfer.
+	(Section 6. Transfer with consultation hold)
+	The transferor places the transferee on hold, starts a call
+	with the transfer target to alert them to the impending
+	transfer, terminates the connection with the target, then
+	proceeds with the transfer (as in Blind transfer above)
+
+	\par Attended transfer
+	The transferor places the transferee
+	on hold, calls the transfer target to alert them,
+	places the target on hold, then proceeds with the transfer
+	using a Replaces header field in the Refer-to header. This
+	will force the transfee to send an Invite to the target,
+	with a replaces header that instructs the target to
+	hangup the call between the transferor and the target.
+	In this case, the Refer/to: uses the AOR address. (The same
+	URI that the transferee used to establish the session with
+	the transfer target (To: ). The Require: replaces header should
+	be in the INVITE to avoid the wrong UA in a forked SIP proxy
+	scenario to answer and have no call to replace with.
+
+	The referred-by header is *NOT* required, but if we get it,
+	can be copied into the INVITE to the transfer target to 
+	inform the target about the transferor
+
+	"Any REFER request has to be appropriately authenticated.".
+	
+	We can't destroy dialogs, since we want the call to continue.
+	
+	*/
+static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, int *nounlock)
+{
+	struct sip_dual current;	/* Chan1: Call between asterisk and transferer */
+					/* Chan2: Call between asterisk and transferee */
+
+	int res = 0;
+
+	if (ast_test_flag(req, SIP_PKT_DEBUG))
+		ast_verbose("Call %s got a SIP call transfer from %s: (REFER)!\n", p->callid, ast_test_flag(&p->flags[0], SIP_OUTGOING) ? "callee" : "caller");
 
 	if (!p->owner) {
 		/* This is a REFER outside of an existing SIP dialog */
@@ -11555,67 +12155,262 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		return 0;
 	}	
 
+
+	/* Check if transfer is allowed from this device */
+	if (p->allowtransfer == TRANSFER_CLOSED ) {
+		/* Transfer not allowed, decline */
+		transmit_response(p, "603 Declined (policy)", req);
+		append_history(p, "Xfer", "Refer failed. Allowtransfer == closed.");
+		/* Do not destroy SIP session */
+		return 0;
+	}
+
+	if(!ignore && ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
+		/* Already have a pending REFER */	
+		transmit_response(p, "491 Request pending", req);
+		append_history(p, "Xfer", "Refer failed. Request pending.");
+		return 0;
+	}
+
+	/* Allocate memory for call transfer data */
+	if (!p->refer && !sip_refer_allocate(p)) {
+		transmit_response(p, "500 Internal Server Error", req);
+		append_history(p, "Xfer", "Refer failed. Memory allocation error.");
+		return -3;
+	}
+
+	res = get_refer_info(p, req);	/* Extract headers */
+
+	p->refer->status = REFER_SENT;
+
+	if (res != 0) {
+		switch (res) {
+		case -2:	/* Syntax error */
+			transmit_response(p, "400 Bad Request (Refer-to missing)", req);
+			append_history(p, "Xfer", "Refer failed. Refer-to missing.");
+			if (ast_test_flag(req, SIP_PKT_DEBUG))
+				ast_log(LOG_DEBUG, "SIP transfer to black hole can't be handled (no refer-to: )\n");
+			break;
+		case -3:
+			transmit_response(p, "603 Declined (Non sip: uri)", req);
+			append_history(p, "Xfer", "Refer failed. Non SIP uri");
+			if (ast_test_flag(req, SIP_PKT_DEBUG))
+				ast_log(LOG_DEBUG, "SIP transfer to non-SIP uri denied\n");
+			break;
+		default:
+			/* Refer-to extension not found, fake a failed transfer */
+			transmit_response(p, "202 Accepted", req);
+			append_history(p, "Xfer", "Refer failed. Bad extension.");
+			transmit_notify_with_sipfrag(p, seqno, "404 Not found", TRUE);
+			ast_clear_flag(&p->flags[0], SIP_GOTREFER);	
+			if (ast_test_flag(req, SIP_PKT_DEBUG))
+				ast_log(LOG_DEBUG, "SIP transfer to bad extension: %s\n", p->refer->refer_to);
+			break;
+		} 
+		return 0;
+	}
 	if (ast_strlen_zero(p->context))
 		ast_string_field_set(p, context, default_context);
-	res = get_refer_info(p, req);
-	if (res > 0) {
-		if (ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP)) 
-			transmit_response_with_allow(p, "484 Address Incomplete", req, 1);
-		else
-			transmit_response_with_allow(p, "404 Not Found", req, 1);
-	} else if (res < 0)
-		transmit_response_with_allow(p, "404 Not Found", req, 1);
-	else {
-		int nobye = 0;
-		if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
-			if (p->refer_call) {
-				ast_log(LOG_DEBUG,"202 Accepted (supervised)\n");
-				attempt_transfer(p, p->refer_call);
-				if (p->refer_call->owner)
-					ast_channel_unlock(p->refer_call->owner);
-				ast_mutex_unlock(&p->refer_call->lock);
-				p->refer_call = NULL;
-				ast_set_flag(&p->flags[0], SIP_GOTREFER);	
-			} else {
-				ast_log(LOG_DEBUG,"202 Accepted (blind)\n");
-				c = p->owner;
-				if (c) {
-					transfer_to = ast_bridged_channel(c);
-					if (transfer_to) {
-						ast_log(LOG_DEBUG, "Got SIP blind transfer, applying to '%s'\n", transfer_to->name);
-						ast_moh_stop(transfer_to);
-						if (!strcmp(p->refer_to, ast_parking_ext())) {
-							/* Must release c's lock now, because it will not longer
-							    be accessible after the transfer! */
-							*nounlock = 1;
-							ast_channel_unlock(c);
-							sip_park(transfer_to, c, req, seqno);
-							nobye = 1;
-						} else {
-							/* Must release c's lock now, because it will not longer
-							    be accessible after the transfer! */
-							*nounlock = 1;
-							ast_channel_unlock(c);
-							ast_async_goto(transfer_to,p->context, p->refer_to,1);
-						}
-					} else {
-						ast_log(LOG_DEBUG, "Got SIP blind transfer but nothing to transfer to.\n");
-						ast_queue_hangup(p->owner);
-					}
-				}
-				ast_set_flag(&p->flags[0], SIP_GOTREFER);	
-			}
-			transmit_response(p, "202 Accepted", req);
-			transmit_notify_with_sipfrag(p, seqno, "200 OK", 1);
-			/* Always increment on a BYE */
-			if (!nobye) {
-				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, TRUE);
-				ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
-			}
-		}
+
+	/* If we do not support SIP domains, all transfers are local */
+	if (allow_external_domains && check_sip_domain(p->refer->refer_to_domain, NULL, 0)) {
+		p->refer->localtransfer = 1;
+		if (sipdebug && option_debug > 2)
+			ast_log(LOG_DEBUG, "This SIP transfer is local : %s\n", p->refer->refer_to_domain);
+	} else if (!allow_external_domains) {
+		/* This PBX don't bother with SIP domains, so all transfers are local */
+		p->refer->localtransfer = 1;
+	} else
+		if (sipdebug && option_debug > 2)
+			ast_log(LOG_DEBUG, "This SIP transfer is to a remote SIP extension (remote domain %s)\n", p->refer->refer_to_domain);
+	
+	/* Is this a repeat of a current request? Ignore it */
+	/* Don't know what else to do right now. */
+	if (ignore) 
+		return res;
+
+	/* If this is a blind transfer, we have the following
+   	channels to work with:
+   	- chan1, chan2: The current call between transferer and transferee (2 channels)
+   	- target_channel: A new call from the transferee to the target (1 channel)
+   	We need to stay tuned to what happens in order to be able
+   	to bring back the call to the transferer */
+
+	/* If this is a attended transfer, we should have all call legs within reach:
+   	- chan1, chan2: The call between the transferer and transferee (2 channels)
+   	- target_channel, targetcall_pvt: The call between the transferer and the target (2 channels)
+	We want to bridge chan2 with targetcall_pvt!
+	
+   	The replaces call id in the refer message points
+   	to the call leg between Asterisk and the transferer.
+   	So we need to connect the target and the transferee channel
+   	and hangup the two other channels silently 
+	
+   	If the target is non-local, the call ID could be on a remote
+   	machine and we need to send an INVITE with replaces to the
+   	target. We basically handle this as a blind transfer
+   	and let the sip_call function catch that we need replaces
+   	header in the INVITE.
+	*/
+
+
+	/* Get the transferer's channel */
+	current.chan1 = p->owner;
+
+	/* Find the other part of the bridge (2) - transferee */
+	current.chan2 = ast_bridged_channel(current.chan1);
+	
+	if (sipdebug && option_debug > 2)
+		ast_log(LOG_DEBUG, "SIP %s transfer: Transferer channel %s, transferee channel %s\n", p->refer->attendedtransfer ? "attended" : "blind", current.chan1->name, current.chan2 ? current.chan2->name : "<none>");
+
+	if (!current.chan2 && !p->refer->attendedtransfer) {
+		/* No bridged channel, propably IVR or echo or similar... */
+		/* Guess we should masquerade or something here */
+		/* Until we figure it out, refuse transfer of such calls */
+		if (sipdebug && option_debug > 2)
+			ast_log(LOG_DEBUG,"Refused SIP transfer on non-bridged channel.\n");
+		p->refer->status = REFER_FAILED;
+		append_history(p, "Xfer", "Refer failed. Non-bridged channel.");
+		transmit_response(p, "603 Declined", req);
+		return -1;
+	}
+
+	if (sipdebug && option_debug > 3)
+		ast_log(LOG_DEBUG, "Got SIP transfer, applying to bridged peer '%s'\n", current.chan2->name);
+
+	/* Stop music on hold on this channel */
+	if (current.chan2)
+		ast_moh_stop(current.chan2);
+
+	ast_set_flag(&p->flags[0], SIP_GOTREFER);	
+
+	/* Attended transfer: Find all call legs and bridge transferee with target*/
+	if (p->refer->attendedtransfer) {
+		if ((res = local_attended_transfer(p, &current, req, seqno)))
+			return res;	/* We're done with the transfer */
+		/* Fall through for remote transfers that we did not find locally */
+		if (sipdebug && option_debug > 3)
+			ast_log(LOG_DEBUG, "SIP attended transfer: Still not our call - generating INVITE with replaces\n");
+		/* Fallthrough if we can't find the call leg internally */
+	}
+
+
+	/* Parking a call */
+	if (p->refer->localtransfer && !strcmp(p->refer->refer_to, ast_parking_ext())) {
+		/* Must release c's lock now, because it will not longer be accessible after the transfer! */
+		*nounlock = 1;
+		ast_channel_unlock(current.chan1);
+		copy_request(&current.req, req);
+		ast_clear_flag(&p->flags[0], SIP_GOTREFER);	
+		p->refer->status = REFER_200OK;
+		append_history(p, "Xfer", "REFER to call parking.");
+		if (sipdebug && option_debug > 3)
+			ast_log(LOG_DEBUG, "SIP transfer to parking: trying to park %s. Parked by %s\n", current.chan2->name, current.chan1->name);
+		sip_park(current.chan2, current.chan1, req, seqno);
+		return res;
+	} 
+
+	/* Blind transfers and remote attended xfers */
+	transmit_response(p, "202 Accepted", req);
+	if (current.chan2->name) {
+		ast_log(LOG_NOTICE, "chan2->name: %s\n", current.chan2->name);
+		pbx_builtin_setvar_helper(current.chan2, "BLINDTRANSFER", current.chan1->name);
+	}
+	if (current.chan1) {
+		ast_log(LOG_NOTICE, "chan1->name: %s\n", current.chan1->name);
+		pbx_builtin_setvar_helper(current.chan1, "BLINDTRANSFER", current.chan2->name);
+	}
+	if (current.chan2) {
+		pbx_builtin_setvar_helper(current.chan2, "SIPDOMAIN", p->refer->refer_to_domain);
+		pbx_builtin_setvar_helper(current.chan2, "SIPTRANSFER", "yes");
+		/* One for the new channel */
+		pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER", "yes");
+		if (p->refer->referred_by)
+			pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER_REFERER", p->refer->referred_by);
+		if (p->refer->referred_by)
+		/* Attended transfer to remote host, prepare headers for the INVITE */
+		pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER_REFERER", p->refer->referred_by);
+	}
+	/* Generate an URI-encoded string */
+	if (p->refer->replaces_callid && !ast_strlen_zero(p->refer->replaces_callid)) {
+		char tempheader[BUFSIZ];
+		char tempheader2[BUFSIZ];
+		snprintf(tempheader, sizeof(tempheader), "%s%s%s%s%s", p->refer->replaces_callid, 
+				p->refer->replaces_callid_totag ? ";to-tag=" : "", 
+				p->refer->replaces_callid_totag, 
+				p->refer->replaces_callid_fromtag ? ";from-tag=" : "",
+				p->refer->replaces_callid_fromtag);
+
+		/* Convert it to URL encoding, also convert reserved strings */
+		ast_uri_encode(tempheader, tempheader2, sizeof(tempheader2), 1);
+
+		if (current.chan2)
+			pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER_REPLACES", tempheader2);
+	}
+	/* Must release lock now, because it will not longer
+    	   be accessible after the transfer! */
+	*nounlock = 1;
+	ast_channel_unlock(current.chan1);
+	ast_channel_unlock(current.chan2);
+
+	/* Connect the call */
+	/* FAKE ringing if not attended transfer */
+	if (!p->refer->attendedtransfer)
+		transmit_notify_with_sipfrag(p, seqno, "183 Ringing", FALSE);
+		
+	/* For blind transfer, this will lead to a new call */
+	/* For attended transfer to remote host, this will lead to
+   	   a new SIP call with a replaces header, if the dial plan allows it 
+  	*/
+	if (!current.chan2) {
+		/* We have no bridge, so we're talking with Asterisk somehow */
+		/* We need to masquerade this call */
+		/* What to do to fix this situation:
+		   * Set up the new call in a new channel 
+		   * Let the new channel masq into this channel
+		   Please add that code here :-)
+		*/
+		transmit_response(p, "202 Accepted", req);
+		p->refer->status = REFER_FAILED;
+		transmit_notify_with_sipfrag(p, seqno, "503 Service Unavailable (can't handle one-legged xfers)", TRUE);
+		ast_clear_flag(&p->flags[0], SIP_GOTREFER);	
+		append_history(p, "Xfer", "Refer failed (only bridged calls).");
+		return -1;
+	}
+	ast_set_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
+
+	/* For blind transfers, move the call to the new extensions. For attended transfers on multiple
+	   servers - generate an INVITE with Replaces. Either way, let the dial plan decided  */
+	res = ast_async_goto(current.chan2, p->refer->refer_to_context, p->refer->refer_to, 1);
+
+	if (!res) {
+		/* Success  - we have a new channel */
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "%s transfer succeeded. Telling transferer.\n", p->refer->attendedtransfer? "Attended" : "Blind");
+		transmit_notify_with_sipfrag(p, seqno, "200 Ok", TRUE);
+		if (p->refer->localtransfer)
+			p->refer->status = REFER_200OK;
+		if (p->owner)
+			p->owner->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+		append_history(p, "Xfer", "Refer succeeded.");
+		ast_clear_flag(&p->flags[0], SIP_GOTREFER);	
+		/* Do not hangup call, the other side do that when we say 200 OK */
+		/* We could possibly implement a timer here, auto congestion */
+		res = 0;
+	} else {
+		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Don't delay hangup */
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "%s transfer failed. Resuming original call.\n", p->refer->attendedtransfer? "Attended" : "Blind");
+		append_history(p, "Xfer", "Refer failed.");
+		/* Failure of some kind */
+		p->refer->status = REFER_FAILED;
+		transmit_notify_with_sipfrag(p, seqno, "503 Service Unavailable", TRUE);
+		ast_clear_flag(&p->flags[0], SIP_GOTREFER);	
+		res = -1;
 	}
 	return res;
 }
+
 /*! \brief Handle incoming CANCEL request */
 static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 {
@@ -11687,7 +12482,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 				if (bridged_to) {
 					/* Don't actually hangup here... */
 					ast_moh_stop(bridged_to);
-					ast_async_goto(bridged_to, p->context, p->refer_to,1);
+					ast_async_goto(bridged_to, p->context, p->refer->refer_to,1);
 				} else
 					ast_queue_hangup(p->owner);
 			}
