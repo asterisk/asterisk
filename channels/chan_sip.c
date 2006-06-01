@@ -288,7 +288,7 @@ enum sipmethod {
 	SIP_INFO,
 	SIP_CANCEL,
 	SIP_PUBLISH,
-} sip_method_list;
+};
 
 enum sip_auth_type {
 	PROXY_AUTH,
@@ -481,7 +481,7 @@ static char global_useragent[AST_MAX_EXTENSION];	/*!< Useragent for the SIP chan
 static int allow_external_domains;	/*!< Accept calls to external SIP domains? */
 static int global_callevents;		/*!< Whether we send manager events or not */
 static int global_t1min;		/*!< T1 roundtrip time minimum */
-enum transfermodes global_allowtransfer;	/*! SIP Refer restriction scheme */
+static enum transfermodes global_allowtransfer;	/*!< SIP Refer restriction scheme */
 
 /*! \brief Codecs that we support by default: */
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
