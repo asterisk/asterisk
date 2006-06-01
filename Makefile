@@ -371,7 +371,7 @@ _all: all
 	@echo " +               make install                +"  
 	@echo " +-------------------------------------------+"  
 
-all: cleantest defaults.h config.status menuselect.makeopts depend asterisk subdirs
+all: cleantest config.status menuselect.makeopts depend asterisk subdirs
 
 config.status: configure
 	@CFLAGS="" ./configure
@@ -907,6 +907,7 @@ env:
 cleantest:
 	@if cmp -s .cleancount .lastclean ; then echo ; else \
 		$(MAKE) clean; cp -f .cleancount .lastclean;\
+		$(MAKE) defaults.h;\
 	fi
 
 _uninstall:
