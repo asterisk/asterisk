@@ -166,7 +166,7 @@ int te_lib_init( void ) ; /* returns midev */
 void te_lib_destroy(int midev) ;
 struct misdn_bchannel *manager_find_bc_by_pid(int pid);
 struct misdn_bchannel *manager_find_bc_holded(struct misdn_bchannel* bc);
-void manager_ph_control_block(struct misdn_bchannel *bc, long c1, void *c2, int c2_len);
+void manager_ph_control_block(struct misdn_bchannel *bc, int c1, void *c2, int c2_len);
 void manager_clean_bc(struct misdn_bchannel *bc );
 void manager_bchannel_setup (struct misdn_bchannel *bc);
 void manager_bchannel_cleanup (struct misdn_bchannel *bc);
@@ -3677,17 +3677,17 @@ int misdn_lib_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len)
 /*
  * send control information to the channel (dsp-module)
  */
-void manager_ph_control(struct misdn_bchannel *bc, long c1, long c2)
+void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2)
 {
-	unsigned char buffer[mISDN_HEADER_LEN+2*sizeof(long)];
+	unsigned char buffer[mISDN_HEADER_LEN+2*sizeof(int)];
 	iframe_t *ctrl = (iframe_t *)buffer; /* preload data */
-	unsigned long *d = (unsigned long *)&ctrl->data.p;
+	unsigned int *d = (unsigned int*)&ctrl->data.p;
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	
 	ctrl->prim = PH_CONTROL | REQUEST;
 	ctrl->addr = bc->addr | FLG_MSG_DOWN;
 	ctrl->dinfo = 0;
-	ctrl->len = sizeof(unsigned long)*2;
+	ctrl->len = sizeof(unsigned int)*2;
 	*d++ = c1;
 	*d++ = c2;
 	mISDN_write(stack->midev, ctrl, mISDN_HEADER_LEN+ctrl->len, TIMEOUT_1SEC);
@@ -3696,17 +3696,17 @@ void manager_ph_control(struct misdn_bchannel *bc, long c1, long c2)
 /*
  * send control information to the channel (dsp-module)
  */
-void manager_ph_control_block(struct misdn_bchannel *bc, long c1, void *c2, int c2_len)
+void manager_ph_control_block(struct misdn_bchannel *bc, int c1, void *c2, int c2_len)
 {
-	unsigned char buffer[mISDN_HEADER_LEN+sizeof(long)+c2_len];
+	unsigned char buffer[mISDN_HEADER_LEN+sizeof(int)+c2_len];
 	iframe_t *ctrl = (iframe_t *)buffer;
-	unsigned long *d = (unsigned long *)&ctrl->data.p;
+	unsigned int *d = (unsigned int *)&ctrl->data.p;
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	
 	ctrl->prim = PH_CONTROL | REQUEST;
 	ctrl->addr = bc->addr | FLG_MSG_DOWN;
 	ctrl->dinfo = 0;
-	ctrl->len = sizeof(unsigned long) + c2_len;
+	ctrl->len = sizeof(unsigned int) + c2_len;
 	*d++ = c1;
 	memcpy(d, c2, c2_len);
 	mISDN_write(stack->midev, ctrl, mISDN_HEADER_LEN+ctrl->len, TIMEOUT_1SEC);
