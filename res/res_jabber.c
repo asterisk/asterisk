@@ -332,7 +332,11 @@ static int aji_status_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Could not find Connection.\n");
 		return -1;
 	}
-
+	
+	if(!&client->buddies) {
+		ast_log(LOG_WARNING, "No buddies for connection.\n");
+		return -1;
+	}
 	ASTOBJ_CONTAINER_TRAVERSE(&client->buddies, 1, {
 		ASTOBJ_RDLOCK(iterator); 
 		if (!strcasecmp(iterator->user, screenname)) {
@@ -2057,6 +2061,7 @@ static int aji_create_transport(char *label, struct aji_client *client)
 		}
 	}
 	ASTOBJ_UNLOCK(buddy);
+	ASTOBJ_UNMARK(buddy);
 	ASTOBJ_CONTAINER_LINK(&client->buddies, buddy);
 	return 0;
 }
@@ -2088,8 +2093,10 @@ static int aji_create_buddy(char *label, struct aji_client *client)
 	ASTOBJ_UNLOCK(buddy);
 	if(flag)
 		ASTOBJ_CONTAINER_LINK(&client->buddies, buddy);
-	else
+	else {
+		ASTOBJ_UNMARK(buddy);
 		ASTOBJ_UNREF(buddy, aji_buddy_destroy);
+	}
 	return 1;
 }
 
