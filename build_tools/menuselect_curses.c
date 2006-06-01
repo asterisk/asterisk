@@ -160,7 +160,7 @@ void draw_category_menu(WINDOW *menu, struct category *cat, int start, int end, 
 	}
 	if (!AST_LIST_EMPTY(&curmem->deps)) {
 		wmove(menu, end - start + 3, max_x / 2 - 16);
-		snprintf(buf, sizeof(buf), "Depends on: ");
+		strcpy(buf, "Depends on: ");
 		AST_LIST_TRAVERSE(&curmem->deps, dep, list) {
 			strncat(buf, dep->name, sizeof(buf) - strlen(buf) - 1);
 			if (AST_LIST_NEXT(dep, list))
@@ -170,7 +170,7 @@ void draw_category_menu(WINDOW *menu, struct category *cat, int start, int end, 
 	}
 	if (!AST_LIST_EMPTY(&curmem->conflicts)) {
 		wmove(menu, end - start + 4, max_x / 2 - 16);
-		snprintf(buf, sizeof(buf), "Conflicts with: ");
+		strcpy(buf, "Conflicts with: ");
 		AST_LIST_TRAVERSE(&curmem->conflicts, con, list) {
 			strncat(buf, con->name, sizeof(buf) - strlen(buf) - 1);
 			if (AST_LIST_NEXT(con, list))
