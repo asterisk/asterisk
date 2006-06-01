@@ -311,8 +311,9 @@ struct ast_channel {
 	/*! Current active data generator */
 	struct ast_generator *generator;
 
-	/*! Who are we bridged to, if we're bridged  Do not access directly,
-	    use ast_bridged_channel(chan) */
+	/*! Who are we bridged to, if we're bridged. Who is proxying for us,
+	  if we are proxied (i.e. chan_agent).
+	  Do not access directly, use ast_bridged_channel(chan) */
 	struct ast_channel *_bridge;
 	/*! Channel that will masquerade as us */
 	struct ast_channel *masq;		
