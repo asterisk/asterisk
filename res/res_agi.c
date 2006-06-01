@@ -140,6 +140,7 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 	struct sockaddr_in sin;
 	struct hostent *hp;
 	struct ast_hostent ahp;
+	int res;
 
 	host = ast_strdupa(agiurl + 6);	/* Remove agi:// */
 	if (!host)
@@ -192,9 +193,13 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 
 	pfds[0].fd = s;
 	pfds[0].events = POLLOUT;
-	while (poll(pfds, 1, MAX_AGI_CONNECT) != 1) {
+	while ((res = poll(pfds, 1, MAX_AGI_CONNECT)) != 1) {
 		if (errno != EINTR) {
-			ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
+			if (!res) {
+				ast_log(LOG_WARNING, "FastAGI connection to '%s' timed out after MAX_AGI_CONNECT (%d) milliseconds.\n",
+					agiurl, MAX_AGI_CONNECT);
+			} else
+				ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
 			close(s);
 			return -1;
 		}
