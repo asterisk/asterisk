@@ -342,9 +342,7 @@ static int aji_status_exec(struct ast_channel *chan, void *data)
 		if (!strcasecmp(iterator->user, screenname)) {
 			found = 1; 
 			r = iterator->resources; 
-			if (!r) {	/* client hasnt signed on */
-				break;
-			} else {
+			if (r) {	/* client has signed on */
 				if (resource) {
 					while (r) {
 						if (!strcasecmp(r->resource, resource)) {
@@ -353,7 +351,9 @@ static int aji_status_exec(struct ast_channel *chan, void *data)
 						}
 						r = r->next;
 					}
+					if(stat != 7) break;
 					ast_log(LOG_WARNING, "Resource not found %s\n", resource);
+					break;
 				} else {
 					stat = r->status; 
 					break;
