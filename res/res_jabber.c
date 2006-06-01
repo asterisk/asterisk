@@ -377,14 +377,14 @@ static int aji_send_exec(struct ast_channel *chan, void *data)
 {
 	struct aji_client *client = NULL;
 
-	char *s = NULL, *sender = NULL, *recipiant = NULL, *message = NULL;
+	char *s = NULL, *sender = NULL, *recipient = NULL, *message = NULL;
 	if (data) {
 		s = ast_strdupa((char *) data);
 		if (s) {
 			sender = strsep(&s, "|");
 			if (sender && (sender[0] != '\0')) {
-				recipiant = strsep(&s, "|");
-				if (recipiant && (recipiant[0] != '\0')) {
+				recipient = strsep(&s, "|");
+				if (recipient && (recipient[0] != '\0')) {
 					message = s;
 				} else {
 					ast_log(LOG_ERROR, "Bad arguments \n");
@@ -401,8 +401,8 @@ static int aji_send_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
-	if (strchr(recipiant, '@') && message)
-		ast_aji_send(client, recipiant, message);
+	if (strchr(recipient, '@') && message)
+		ast_aji_send(client, recipient, message);
 	return 0;
 }
 
@@ -1019,7 +1019,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 
 	buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, pak->from->partial);
 	if (!buddy) {
-		ast_log(LOG_WARNING, "Got presence packet from %s, somone not in our roster!!!!\n", pak->from->partial);
+		ast_log(LOG_WARNING, "Got presence packet from %s, someone not in our roster!!!!\n", pak->from->partial);
 		return;
 	}
 	status = (pak->show) ? pak->show : 6;
@@ -1475,6 +1475,8 @@ static void aji_pruneregister(struct aji_client *client)
 	send = iks_make_iq(IKS_TYPE_GET, "http://jabber.org/protocol/disco#items");
 
 	if (client && removeiq && removequery && removeitem && send) {
+		iks_insert_node(removeiq, removequery);
+		iks_insert_node(removequery, removeitem);
 		ASTOBJ_CONTAINER_TRAVERSE(&client->buddies, 1, {
 			ASTOBJ_RDLOCK(iterator);
 			/* For an aji_buddy, both AUTOPRUNE and AUTOREGISTER will never
@@ -1491,8 +1493,6 @@ static void aji_pruneregister(struct aji_client *client)
 				iks_insert_attrib(removequery, "xmlns", "jabber:iq:roster");
 				iks_insert_attrib(removeitem, "jid", iterator->name);
 				iks_insert_attrib(removeitem, "subscription", "remove");
-				iks_insert_node(removeiq, removequery);
-				iks_insert_node(removequery, removeitem);
 				res = iks_send(client->p, removeiq);
 			} else if (ast_test_flag(iterator, AJI_AUTOREGISTER)) {
 				if (iterator->btype == AJI_USER) {	/*if it is not a transport */
@@ -1639,7 +1639,7 @@ static int aji_get_roster(struct aji_client *client)
 	roster = iks_make_iq(IKS_TYPE_GET, IKS_NS_ROSTER);
 	if(roster) {
 		iks_insert_attrib(roster, "id", "roster");
-		aji_set_presence(client, client->jid->full, 1, "im available");
+		aji_set_presence(client, client->jid->full, 1, client->statusmessage);
 		iks_send(client->p, roster);
 	}
 	if (roster)
@@ -1920,6 +1920,8 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 	client->keepalive = 1;
 	client->timeout = 20;
 	client->component = AJI_CLIENT;
+	ast_copy_string(client->statusmessage, "Online and Available", sizeof(client->statusmessage));
+
 	if (flag) client->authorized = 0;
 	client->usesasl = 0;
 	if (flag) client->state = AJI_DISCONNECTED;
@@ -1930,6 +1932,8 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 			ast_copy_string(client->serverhost, var->value, sizeof(client->serverhost));
 		else if (!strcasecmp(var->name, "secret"))
 			ast_copy_string(client->password, var->value, sizeof(client->password));
+		else if (!strcasecmp(var->name, "statusmessage"))
+			ast_copy_string(client->statusmessage, var->value, sizeof(client->statusmessage));
 		else if (!strcasecmp(var->name, "port"))
 			client->port = atoi(var->value);
 		else if (!strcasecmp(var->name, "debug"))

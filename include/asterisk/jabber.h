@@ -93,6 +93,7 @@ struct aji_client {
 	char user[160];
 	char serverhost[160];
 	char context[100];
+	char statusmessage[256];
 	char sid[10]; /* Session ID */
 	char mid[6]; /* Message ID */
 	iksid *jid;
