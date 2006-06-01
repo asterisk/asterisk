@@ -31,8 +31,19 @@
 #define OUTPUT_MAKEOPTS_DEFAULT "menuselect.makeopts"
 #define MENUSELECT_DEPS         "build_tools/menuselect-deps"
 
-struct depend;
-struct conflict;
+struct depend {
+	/*! the name of the dependency */
+	const char *name;
+	/*! for linking */
+	AST_LIST_ENTRY(depend) list;
+};
+
+struct conflict {
+	/*! the name of the conflict */
+	const char *name;
+	/*! for linking */
+	AST_LIST_ENTRY(conflict) list;
+};
 
 struct member {
 	/*! What will be sent to the makeopts file */

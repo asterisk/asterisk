@@ -40,20 +40,6 @@
 
 #undef MENUSELECT_DEBUG
 
-struct depend {
-	/*! the name of the dependency */
-	const char *name;
-	/*! for linking */
-	AST_LIST_ENTRY(depend) list;
-};
-
-struct conflict {
-	/*! the name of the conflict */
-	const char *name;
-	/*! for linking */
-	AST_LIST_ENTRY(conflict) list;
-};
-
 /*! The list of categories */
 struct categories categories = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 

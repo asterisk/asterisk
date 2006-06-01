@@ -126,7 +126,9 @@ void draw_category_menu(WINDOW *menu, struct category *cat, int start, int end, 
 {
 	int i = 0;
 	int j = 0;
-	struct member *mem;
+	struct member *mem, *curmem = NULL;
+	struct depend *dep;
+	struct conflict *con;
 	char buf[64];
 	const char *desc = NULL;
 
@@ -146,15 +148,35 @@ void draw_category_menu(WINDOW *menu, struct category *cat, int start, int end, 
 		waddstr(menu, buf);
 		
 		if (curopt + 1 == i)
-			desc = mem->displayname;
+			curmem = mem;
 
 		if (i == end)
 			break;
 	}
 
-	if (desc) {
+	if (curmem->displayname) {
 		wmove(menu, end - start + 2, max_x / 2 - 16);
-		waddstr(menu, desc);
+		waddstr(menu, curmem->displayname);
+	}
+	if (!AST_LIST_EMPTY(&curmem->deps)) {
+		wmove(menu, end - start + 3, max_x / 2 - 16);
+		snprintf(buf, sizeof(buf), "Depends on: ");
+		AST_LIST_TRAVERSE(&curmem->deps, dep, list) {
+			strncat(buf, dep->name, sizeof(buf) - strlen(buf) - 1);
+			if (AST_LIST_NEXT(dep, list))
+				strncat(buf, ", ", sizeof(buf) - strlen(buf) - 1);
+		}
+		waddstr(menu, buf);
+	}
+	if (!AST_LIST_EMPTY(&curmem->conflicts)) {
+		wmove(menu, end - start + 4, max_x / 2 - 16);
+		snprintf(buf, sizeof(buf), "Conflicts with: ");
+		AST_LIST_TRAVERSE(&curmem->conflicts, con, list) {
+			strncat(buf, con->name, sizeof(buf) - strlen(buf) - 1);
+			if (AST_LIST_NEXT(con, list))
+				strncat(buf, ", ", sizeof(buf) - strlen(buf) - 1);
+		}
+		waddstr(menu, buf);
 	}
 	wmove(menu, curopt - start, max_x / 2 - 9);
 
