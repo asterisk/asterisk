@@ -362,7 +362,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;allow=alaw
 ;allow=g723.1			; Asterisk only supports g723.1 pass-thru!
 ;allow=g729			; Pass-thru only unless g729 license obtained
-;astdb=chan2ext/SIP/grandstream1=1234	; ensures an astDB entry exists
 
 
 ;[xlite1]
