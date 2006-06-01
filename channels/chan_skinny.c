@@ -3123,8 +3123,7 @@ static int reload_config(void)
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
 		/* handle jb conf */
-		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
-		{
+		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value)) {
 			v = v->next;
 			continue;
 		}
