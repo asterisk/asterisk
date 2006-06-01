@@ -221,10 +221,6 @@ static int ast_moh_files_next(struct ast_channel *chan)
 
 	state->pos = state->pos % state->class->total_files;
 	
-	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
-		ast_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
-		return -1;
-	}
 	if (!ast_openstream_full(chan, state->class->filearray[state->pos], chan->language, 1)) {
 		ast_log(LOG_WARNING, "Unable to open file '%s': %s\n", state->class->filearray[state->pos], strerror(errno));
 		state->pos++;
@@ -299,14 +295,8 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 
 		state->origwfmt = chan->writeformat;
 
-		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
-			ast_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
-			free(chan->music_state);
-			chan->music_state = NULL;
-		} else {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on %s\n", class->name, chan->name);
-		}
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on %s\n", class->name, chan->name);
 	}
 	
 	return chan->music_state;
