@@ -157,6 +157,7 @@ void ast_md5_hash(char *output, char *input);
 	\brief Produces SHA1 hash based on input string */
 void ast_sha1_hash(char *output, char *input);
 
+int ast_base64encode_full(char *dst, const unsigned char *src, int srclen, int max, int linebreaks);
 int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max);
 int ast_base64decode(unsigned char *dst, const char *src, int max);
 

@@ -324,17 +324,11 @@ int ast_base64decode(unsigned char *dst, const char *src, int max)
 	unsigned int byte = 0;
 	unsigned int bits = 0;
 	int incnt = 0;
-#if 0
-	unsigned char *odst = dst;
-#endif
 	while(*src && (cnt < max)) {
 		/* Shift in 6 bits of input */
 		byte <<= 6;
 		byte |= (b2a[(int)(*src)]) & 0x3f;
 		bits += 6;
-#if 0
-		printf("Add: %c %s\n", *src, binary(b2a[(int)(*src)] & 0x3f, 6));
-#endif
 		src++;
 		incnt++;
 		/* If we have at least 8 bits left over, take that character 
@@ -342,64 +336,69 @@ int ast_base64decode(unsigned char *dst, const char *src, int max)
 		if (bits >= 8)  {
 			bits -= 8;
 			*dst = (byte >> bits) & 0xff;
-#if 0
-			printf("Remove: %02x %s\n", *dst, binary(*dst, 8));
-#endif
 			dst++;
 			cnt++;
 		}
 	}
-#if 0
-	dump(odst, cnt);
-#endif
 	/* Dont worry about left over bits, they're extra anyway */
 	return cnt;
 }
 
 /*! \brief encode text to BASE64 coding */
-int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max)
+int ast_base64encode_full(char *dst, const unsigned char *src, int srclen, int max, int linebreaks)
 {
 	int cnt = 0;
+	int col = 0;
 	unsigned int byte = 0;
 	int bits = 0;
-	int index;
 	int cntin = 0;
-#if 0
-	char *odst = dst;
-	dump(src, srclen);
-#endif
-	/* Reserve one bit for end */
+	/* Reserve space for null byte at end of string */
 	max--;
 	while((cntin < srclen) && (cnt < max)) {
 		byte <<= 8;
-#if 0
-		printf("Add: %02x %s\n", *src, binary(*src, 8));
-#endif
 		byte |= *(src++);
 		bits += 8;
 		cntin++;
-		while((bits >= 6) && (cnt < max)) {
-			bits -= 6;
-			/* We want only the top */
-			index = (byte >> bits) & 0x3f;
-			*dst = base64[index];
-#if 0
-			printf("Remove: %c %s\n", *dst, binary(index, 6));
-#endif
-			dst++;
+		if ((bits == 24) && (cnt + 4 < max)) {
+			*dst++ = base64[(byte >> 18) & 0x3f];
+			*dst++ = base64[(byte >> 12) & 0x3f];
+			*dst++ = base64[(byte >> 6) & 0x3f];
+			*dst++ = base64[byte & 0x3f];
+			cnt += 4;
+			col += 4;
+			bits = 0;
+			byte = 0;
+		}
+		if (linebreaks && (cnt < max) && (col == 64)) {
+			*dst++ = '\n';
 			cnt++;
+			col = 0;
 		}
 	}
-	if (bits && (cnt < max)) {
+	if (bits && (cnt + 4 < max)) {
 		/* Add one last character for the remaining bits, 
 		   padding the rest with 0 */
-		byte <<= (6 - bits);
-		index = (byte) & 0x3f;
-		*(dst++) = base64[index];
+		byte <<= 24 - bits;
+		*dst++ = base64[(byte >> 18) & 0x3f];
+		*dst++ = base64[(byte >> 12) & 0x3f];
+		if (bits == 16)
+			*dst++ = base64[(byte >> 6) & 0x3f];
+		else
+			*dst++ = '=';
+		*dst++ = '=';
+		cnt += 4;
+	}
+	if (linebreaks && (cnt < max)) {
+		*dst++ = '\n';
 		cnt++;
 	}
 	*dst = '\0';
 	return cnt;
+}
+
+int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max)
+{
+	return ast_base64encode_full(dst, src, srclen, max, 0);
 }
 
 static void base64_init(void)
