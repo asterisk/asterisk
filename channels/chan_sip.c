@@ -2242,13 +2242,13 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	natflags = ast_test_flag(&r->flags[0], SIP_NAT) & SIP_NAT_ROUTE;
 	if (r->rtp) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", natflags);
+			ast_log(LOG_DEBUG, "Setting NAT on RTP to %s\n", natflags ? "On" : "Off");
 		ast_rtp_setnat(r->rtp, natflags);
 		ast_rtp_setdtmf(r->rtp, ast_test_flag(&r->flags[0], SIP_DTMF) != SIP_DTMF_INFO);
 	}
 	if (r->vrtp) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", natflags);
+			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %s\n", natflags ? "On" : "Off");
 		ast_rtp_setnat(r->vrtp, natflags);
 		ast_rtp_setdtmf(r->vrtp, 0);
 	}
@@ -3262,7 +3262,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	tmp = ast_channel_alloc(1);
 	ast_mutex_lock(&i->lock);
 	if (!tmp) {
-		ast_log(LOG_WARNING, "Unable to allocate SIP channel structure\n");
+		ast_log(LOG_WARNING, "Unable to allocate AST channel structure for SIP channel\n");
 		return NULL;
 	}
 	tmp->tech = &sip_tech;
@@ -7713,12 +7713,12 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 
 		if (p->rtp) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", usenatroute);
+				ast_log(LOG_DEBUG, "Setting NAT on RTP to %s\n", usenatroute ? "On" : "Off");
 			ast_rtp_setnat(p->rtp, usenatroute);
 		}
 		if (p->vrtp) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", usenatroute);
+				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %s\n", usenatroute ? "On" : "Off");
 			ast_rtp_setnat(p->vrtp, usenatroute);
 		}
 		if (!(res = check_auth(p, req, user->name, user->secret, user->md5secret, sipmethod, uri, reliable, ast_test_flag(req, SIP_PKT_IGNORE)))) {
@@ -7816,11 +7816,11 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			}
 			usenatroute = ast_test_flag(&p->flags[0], SIP_NAT_ROUTE);
 			if (p->rtp) {
-				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", usenatroute);
+				ast_log(LOG_DEBUG, "Setting NAT on RTP to %s\n", usenatroute ? "On" : "Off");
 				ast_rtp_setnat(p->rtp, usenatroute);
 			}
 			if (p->vrtp) {
-				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", usenatroute);
+				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %s\n", usenatroute ? "On" : "Off");
 				ast_rtp_setnat(p->vrtp, usenatroute);
 			}
 			ast_string_field_set(p, peersecret, peer->secret);
