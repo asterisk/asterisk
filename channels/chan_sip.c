@@ -1366,7 +1366,7 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported
 	unsigned int profile = 0;
 	int i, found;
 
-	if (!pvt || ast_strlen_zero(supported) )
+	if (ast_strlen_zero(supported) )
 		return 0;
 
 	if (option_debug > 2 && sipdebug)
@@ -1392,7 +1392,8 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported
 			ast_log(LOG_DEBUG, "Found no match for SIP option: %s (Please file bug report!)\n", next);
 	}
 
-	pvt->sipoptions = profile;
+	if (pvt)
+		pvt->sipoptions = profile;
 	return profile;
 }
 
