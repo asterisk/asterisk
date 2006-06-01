@@ -42,7 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 
 #include "asterisk/abstract_jb.h"
-#include "scx_jitterbuf.h"
+#include "fixedjitterbuf.h"
 #include "jitterbuf.h"
 
 /*! Internal jb flags */
@@ -89,49 +89,49 @@ struct ast_jb_impl
 };
 
 /* Implementation functions */
-/* scx */
-static void * jb_create_scx(struct ast_jb_conf *general_config, long resynch_threshold);
-static void jb_destroy_scx(void *jb);
-static int jb_put_first_scx(void *jb, struct ast_frame *fin, long now);
-static int jb_put_scx(void *jb, struct ast_frame *fin, long now);
-static int jb_get_scx(void *jb, struct ast_frame **fout, long now, long interpl);
-static long jb_next_scx(void *jb);
-static int jb_remove_scx(void *jb, struct ast_frame **fout);
-static void jb_force_resynch_scx(void *jb);
-/* stevek */
-static void * jb_create_stevek(struct ast_jb_conf *general_config, long resynch_threshold);
-static void jb_destroy_stevek(void *jb);
-static int jb_put_first_stevek(void *jb, struct ast_frame *fin, long now);
-static int jb_put_stevek(void *jb, struct ast_frame *fin, long now);
-static int jb_get_stevek(void *jb, struct ast_frame **fout, long now, long interpl);
-static long jb_next_stevek(void *jb);
-static int jb_remove_stevek(void *jb, struct ast_frame **fout);
-static void jb_force_resynch_stevek(void *jb);
+/* fixed */
+static void * jb_create_fixed(struct ast_jb_conf *general_config, long resynch_threshold);
+static void jb_destroy_fixed(void *jb);
+static int jb_put_first_fixed(void *jb, struct ast_frame *fin, long now);
+static int jb_put_fixed(void *jb, struct ast_frame *fin, long now);
+static int jb_get_fixed(void *jb, struct ast_frame **fout, long now, long interpl);
+static long jb_next_fixed(void *jb);
+static int jb_remove_fixed(void *jb, struct ast_frame **fout);
+static void jb_force_resynch_fixed(void *jb);
+/* adaptive */
+static void * jb_create_adaptive(struct ast_jb_conf *general_config, long resynch_threshold);
+static void jb_destroy_adaptive(void *jb);
+static int jb_put_first_adaptive(void *jb, struct ast_frame *fin, long now);
+static int jb_put_adaptive(void *jb, struct ast_frame *fin, long now);
+static int jb_get_adaptive(void *jb, struct ast_frame **fout, long now, long interpl);
+static long jb_next_adaptive(void *jb);
+static int jb_remove_adaptive(void *jb, struct ast_frame **fout);
+static void jb_force_resynch_adaptive(void *jb);
 
 /* Available jb implementations */
 static struct ast_jb_impl avail_impl[] = 
 {
 	{
 		.name = "fixed",
-		.create = jb_create_scx,
-		.destroy = jb_destroy_scx,
-		.put_first = jb_put_first_scx,
-		.put = jb_put_scx,
-		.get = jb_get_scx,
-		.next = jb_next_scx,
-		.remove = jb_remove_scx,
-		.force_resync = jb_force_resynch_scx
+		.create = jb_create_fixed,
+		.destroy = jb_destroy_fixed,
+		.put_first = jb_put_first_fixed,
+		.put = jb_put_fixed,
+		.get = jb_get_fixed,
+		.next = jb_next_fixed,
+		.remove = jb_remove_fixed,
+		.force_resync = jb_force_resynch_fixed
 	},
 	{
 		.name = "adaptive",
-		.create = jb_create_stevek,
-		.destroy = jb_destroy_stevek,
-		.put_first = jb_put_first_stevek,
-		.put = jb_put_stevek,
-		.get = jb_get_stevek,
-		.next = jb_next_stevek,
-		.remove = jb_remove_stevek,
-		.force_resync = jb_force_resynch_stevek
+		.create = jb_create_adaptive,
+		.destroy = jb_destroy_adaptive,
+		.put_first = jb_put_first_adaptive,
+		.put = jb_put_adaptive,
+		.get = jb_get_adaptive,
+		.next = jb_next_adaptive,
+		.remove = jb_remove_adaptive,
+		.force_resync = jb_force_resynch_adaptive
 	}
 };
 
@@ -147,9 +147,9 @@ enum {
 };
 
 /* Translations between impl and abstract return codes */
-static int scx_to_abstract_code[] =
+static int fixed_to_abstract_code[] =
 	{JB_IMPL_OK, JB_IMPL_DROP, JB_IMPL_INTERP, JB_IMPL_NOFRAME};
-static int stevek_to_abstract_code[] =
+static int adaptive_to_abstract_code[] =
 	{JB_IMPL_OK, JB_IMPL_NOFRAME, JB_IMPL_NOFRAME, JB_IMPL_INTERP, JB_IMPL_DROP, JB_IMPL_OK};
 
 /* JB_GET actions (used only for the frames log) */
@@ -467,7 +467,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 	res = jbimpl->put_first(jbobj, frr, now);
 	
 	/* The result of putting the first frame should not differ from OK. However, its possible
-	   some implementations (i.e. stevek's when resynch_threshold is specified) to drop it. */
+	   some implementations (i.e. adaptive's when resynch_threshold is specified) to drop it. */
 	if (res != JB_IMPL_OK) {
 		ast_log(LOG_WARNING, "Failed to put first frame in the jitterbuffer on channel '%s'\n", chan->name);
 		/*
@@ -615,170 +615,170 @@ void ast_jb_get_config(const struct ast_channel *chan, struct ast_jb_conf *conf)
 
 /* Implementation functions */
 
-/* scx */
+/* fixed */
 
-static void * jb_create_scx(struct ast_jb_conf *general_config, long resynch_threshold)
+static void * jb_create_fixed(struct ast_jb_conf *general_config, long resynch_threshold)
 {
-	struct scx_jb_conf conf;
+	struct fixed_jb_conf conf;
 	
 	conf.jbsize = general_config->max_size;
 	conf.resync_threshold = resynch_threshold;
 	
-	return scx_jb_new(&conf);
+	return fixed_jb_new(&conf);
 }
 
 
-static void jb_destroy_scx(void *jb)
+static void jb_destroy_fixed(void *jb)
 {
-	struct scx_jb *scxjb = (struct scx_jb *) jb;
+	struct fixed_jb *fixedjb = (struct fixed_jb *) jb;
 	
 	/* destroy the jb */
-	scx_jb_destroy(scxjb);
+	fixed_jb_destroy(fixedjb);
 }
 
 
-static int jb_put_first_scx(void *jb, struct ast_frame *fin, long now)
+static int jb_put_first_fixed(void *jb, struct ast_frame *fin, long now)
 {
-	struct scx_jb *scxjb = (struct scx_jb *) jb;
+	struct fixed_jb *fixedjb = (struct fixed_jb *) jb;
 	int res;
 	
-	res = scx_jb_put_first(scxjb, fin, fin->len, fin->ts, now);
+	res = fixed_jb_put_first(fixedjb, fin, fin->len, fin->ts, now);
 	
-	return scx_to_abstract_code[res];
+	return fixed_to_abstract_code[res];
 }
 
 
-static int jb_put_scx(void *jb, struct ast_frame *fin, long now)
+static int jb_put_fixed(void *jb, struct ast_frame *fin, long now)
 {
-	struct scx_jb *scxjb = (struct scx_jb *) jb;
+	struct fixed_jb *fixedjb = (struct fixed_jb *) jb;
 	int res;
 	
-	res = scx_jb_put(scxjb, fin, fin->len, fin->ts, now);
+	res = fixed_jb_put(fixedjb, fin, fin->len, fin->ts, now);
 	
-	return scx_to_abstract_code[res];
+	return fixed_to_abstract_code[res];
 }
 
 
-static int jb_get_scx(void *jb, struct ast_frame **fout, long now, long interpl)
+static int jb_get_fixed(void *jb, struct ast_frame **fout, long now, long interpl)
 {
-	struct scx_jb *scxjb = (struct scx_jb *) jb;
-	struct scx_jb_frame frame;
+	struct fixed_jb *fixedjb = (struct fixed_jb *) jb;
+	struct fixed_jb_frame frame;
 	int res;
 	
-	res = scx_jb_get(scxjb, &frame, now, interpl);
+	res = fixed_jb_get(fixedjb, &frame, now, interpl);
 	*fout = frame.data;
 	
-	return scx_to_abstract_code[res];
+	return fixed_to_abstract_code[res];
 }
 
 
-static long jb_next_scx(void *jb)
+static long jb_next_fixed(void *jb)
 {
-	struct scx_jb *scxjb = (struct scx_jb *) jb;
+	struct fixed_jb *fixedjb = (struct fixed_jb *) jb;
 	
-	return scx_jb_next(scxjb);
+	return fixed_jb_next(fixedjb);
 }
 
 
-static int jb_remove_scx(void *jb, struct ast_frame **fout)
+static int jb_remove_fixed(void *jb, struct ast_frame **fout)
 {
-	struct scx_jb *scxjb = (struct scx_jb *) jb;
-	struct scx_jb_frame frame;
+	struct fixed_jb *fixedjb = (struct fixed_jb *) jb;
+	struct fixed_jb_frame frame;
 	int res;
 	
-	res = scx_jb_remove(scxjb, &frame);
+	res = fixed_jb_remove(fixedjb, &frame);
 	*fout = frame.data;
 	
-	return scx_to_abstract_code[res];
+	return fixed_to_abstract_code[res];
 }
 
 
-static void jb_force_resynch_scx(void *jb)
+static void jb_force_resynch_fixed(void *jb)
 {
-	struct scx_jb *scxjb = (struct scx_jb *) jb;
+	struct fixed_jb *fixedjb = (struct fixed_jb *) jb;
 	
-	scx_jb_set_force_resynch(scxjb);
+	fixed_jb_set_force_resynch(fixedjb);
 }
 
 
-/* stevek */
+/* adaptive */
 
-static void *jb_create_stevek(struct ast_jb_conf *general_config, long resynch_threshold)
+static void *jb_create_adaptive(struct ast_jb_conf *general_config, long resynch_threshold)
 {
 	jb_conf jbconf;
-	jitterbuf *stevekjb;
+	jitterbuf *adaptivejb;
 
-	stevekjb = jb_new();
-	if (stevekjb) {
+	adaptivejb = jb_new();
+	if (adaptivejb) {
 		jbconf.max_jitterbuf = general_config->max_size;
 		jbconf.resync_threshold = general_config->resync_threshold;
 		jbconf.max_contig_interp = 10;
-		jb_setconf(stevekjb, &jbconf);
+		jb_setconf(adaptivejb, &jbconf);
 	}
 	
-	return stevekjb;
+	return adaptivejb;
 }
 
 
-static void jb_destroy_stevek(void *jb)
+static void jb_destroy_adaptive(void *jb)
 {
-	jitterbuf *stevekjb = (jitterbuf *) jb;
+	jitterbuf *adaptivejb = (jitterbuf *) jb;
 	
-	jb_destroy(stevekjb);
+	jb_destroy(adaptivejb);
 }
 
 
-static int jb_put_first_stevek(void *jb, struct ast_frame *fin, long now)
+static int jb_put_first_adaptive(void *jb, struct ast_frame *fin, long now)
 {
-	return jb_put_stevek(jb, fin, now);
+	return jb_put_adaptive(jb, fin, now);
 }
 
 
-static int jb_put_stevek(void *jb, struct ast_frame *fin, long now)
+static int jb_put_adaptive(void *jb, struct ast_frame *fin, long now)
 {
-	jitterbuf *stevekjb = (jitterbuf *) jb;
+	jitterbuf *adaptivejb = (jitterbuf *) jb;
 	int res;
 	
-	res = jb_put(stevekjb, fin, JB_TYPE_VOICE, fin->len, fin->ts, now);
+	res = jb_put(adaptivejb, fin, JB_TYPE_VOICE, fin->len, fin->ts, now);
 	
-	return stevek_to_abstract_code[res];
+	return adaptive_to_abstract_code[res];
 }
 
 
-static int jb_get_stevek(void *jb, struct ast_frame **fout, long now, long interpl)
+static int jb_get_adaptive(void *jb, struct ast_frame **fout, long now, long interpl)
 {
-	jitterbuf *stevekjb = (jitterbuf *) jb;
+	jitterbuf *adaptivejb = (jitterbuf *) jb;
 	jb_frame frame;
 	int res;
 	
-	res = jb_get(stevekjb, &frame, now, interpl);
+	res = jb_get(adaptivejb, &frame, now, interpl);
 	*fout = frame.data;
 	
-	return stevek_to_abstract_code[res];
+	return adaptive_to_abstract_code[res];
 }
 
 
-static long jb_next_stevek(void *jb)
+static long jb_next_adaptive(void *jb)
 {
-	jitterbuf *stevekjb = (jitterbuf *) jb;
+	jitterbuf *adaptivejb = (jitterbuf *) jb;
 	
-	return jb_next(stevekjb);
+	return jb_next(adaptivejb);
 }
 
 
-static int jb_remove_stevek(void *jb, struct ast_frame **fout)
+static int jb_remove_adaptive(void *jb, struct ast_frame **fout)
 {
-	jitterbuf *stevekjb = (jitterbuf *) jb;
+	jitterbuf *adaptivejb = (jitterbuf *) jb;
 	jb_frame frame;
 	int res;
 	
-	res = jb_getall(stevekjb, &frame);
+	res = jb_getall(adaptivejb, &frame);
 	*fout = frame.data;
 	
-	return stevek_to_abstract_code[res];
+	return adaptive_to_abstract_code[res];
 }
 
 
-static void jb_force_resynch_stevek(void *jb)
+static void jb_force_resynch_adaptive(void *jb)
 {
 }

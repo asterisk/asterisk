@@ -1,6 +1,4 @@
 /*
- * scx_jitterbuf: jitterbuffering algorithm
- *
  * Copyright (C) 2005, Attractel OOD
  *
  * Contributors:
@@ -36,22 +34,22 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision $")
 
 #include "asterisk/utils.h"
-#include "scx_jitterbuf.h"
+#include "fixedjitterbuf.h"
 
-#undef SCX_JB_DEBUG
+#undef FIXED_JB_DEBUG
 
-#ifdef SCX_JB_DEBUG
+#ifdef FIXED_JB_DEBUG
 #define ASSERT(a)
 #else
 #define ASSERT(a) assert(a)
 #endif
 
-/*! \brief private scx_jb structure */
-struct scx_jb
+/*! \brief private fixed_jb structure */
+struct fixed_jb
 {
-	struct scx_jb_frame *frames;
-	struct scx_jb_frame *tail;
-	struct scx_jb_conf conf;
+	struct fixed_jb_frame *frames;
+	struct fixed_jb_frame *tail;
+	struct fixed_jb_conf conf;
 	long rxcore;
 	long delay;
 	long next_delivery;
@@ -59,24 +57,24 @@ struct scx_jb
 };
 
 
-static struct scx_jb_frame *alloc_jb_frame(struct scx_jb *jb);
-static void release_jb_frame(struct scx_jb *jb, struct scx_jb_frame *frame);
-static void get_jb_head(struct scx_jb *jb, struct scx_jb_frame *frame);
-static int resynch_jb(struct scx_jb *jb, void *data, long ms, long ts, long now);
+static struct fixed_jb_frame *alloc_jb_frame(struct fixed_jb *jb);
+static void release_jb_frame(struct fixed_jb *jb, struct fixed_jb_frame *frame);
+static void get_jb_head(struct fixed_jb *jb, struct fixed_jb_frame *frame);
+static int resynch_jb(struct fixed_jb *jb, void *data, long ms, long ts, long now);
 
-static inline struct scx_jb_frame *alloc_jb_frame(struct scx_jb *jb)
+static inline struct fixed_jb_frame *alloc_jb_frame(struct fixed_jb *jb)
 {
-	return ast_calloc(1, sizeof(struct scx_jb_frame));
+	return ast_calloc(1, sizeof(struct fixed_jb_frame));
 }
 
-static inline void release_jb_frame(struct scx_jb *jb, struct scx_jb_frame *frame)
+static inline void release_jb_frame(struct fixed_jb *jb, struct fixed_jb_frame *frame)
 {
 	free(frame);
 }
 
-static void get_jb_head(struct scx_jb *jb, struct scx_jb_frame *frame)
+static void get_jb_head(struct fixed_jb *jb, struct fixed_jb_frame *frame)
 {
-	struct scx_jb_frame *fr;
+	struct fixed_jb_frame *fr;
 	
 	/* unlink the frame */
 	fr = jb->frames;
@@ -92,32 +90,32 @@ static void get_jb_head(struct scx_jb *jb, struct scx_jb_frame *frame)
 	jb->next_delivery = fr->delivery + fr->ms;
 	
 	/* copy the destination */
-	memcpy(frame, fr, sizeof(struct scx_jb_frame));
+	memcpy(frame, fr, sizeof(struct fixed_jb_frame));
 	
 	/* and release the frame */
 	release_jb_frame(jb, fr);
 }
 
 
-struct scx_jb *scx_jb_new(struct scx_jb_conf *conf)
+struct fixed_jb *fixed_jb_new(struct fixed_jb_conf *conf)
 {
-	struct scx_jb *jb;
+	struct fixed_jb *jb;
 	
 	if (!(jb = ast_calloc(1, sizeof(*jb))))
 		return NULL;
 	
 	/* First copy our config */
-	memcpy(&jb->conf, conf, sizeof(struct scx_jb_conf));
+	memcpy(&jb->conf, conf, sizeof(struct fixed_jb_conf));
 
 	/* we dont need the passed config anymore - continue working with the saved one */
 	conf = &jb->conf;
 	
 	/* validate the configuration */
 	if (conf->jbsize < 1)
-		conf->jbsize = SCX_JB_SIZE_DEFAULT;
+		conf->jbsize = FIXED_JB_SIZE_DEFAULT;
 
 	if (conf->resync_threshold < 1)
-		conf->resync_threshold = SCX_JB_RESYNCH_THRESHOLD_DEFAULT;
+		conf->resync_threshold = FIXED_JB_RESYNCH_THRESHOLD_DEFAULT;
 	
 	/* Set the constant delay to the jitterbuf */
 	jb->delay = conf->jbsize;
@@ -126,7 +124,7 @@ struct scx_jb *scx_jb_new(struct scx_jb_conf *conf)
 }
 
 
-void scx_jb_destroy(struct scx_jb *jb)
+void fixed_jb_destroy(struct fixed_jb *jb)
 {
 	/* jitterbuf MUST be empty before it can be destroyed */
 	ASSERT(jb->frames == NULL);
@@ -135,17 +133,17 @@ void scx_jb_destroy(struct scx_jb *jb)
 }
 
 
-static int resynch_jb(struct scx_jb *jb, void *data, long ms, long ts, long now)
+static int resynch_jb(struct fixed_jb *jb, void *data, long ms, long ts, long now)
 {
 	long diff, offset;
-	struct scx_jb_frame *frame;
+	struct fixed_jb_frame *frame;
 	
 	/* If jb is empty, just reinitialize the jb */
 	if (!jb->frames) {
 		/* debug check: tail should also be NULL */
 		ASSERT(jb->tail == NULL);
 		
-		return scx_jb_put_first(jb, data, ms, ts, now);
+		return fixed_jb_put_first(jb, data, ms, ts, now);
 	}
 	
 	/* Adjust all jb state just as the new frame is with delivery = the delivery of the last
@@ -160,7 +158,7 @@ static int resynch_jb(struct scx_jb *jb, void *data, long ms, long ts, long now)
 	
 	/* Do we really need to resynch, or this is just a frame for dropping? */
 	if (!jb->force_resynch && (offset < jb->conf.resync_threshold && offset > -jb->conf.resync_threshold))
-		return SCX_JB_DROP;
+		return FIXED_JB_DROP;
 	
 	/* Reset the force resynch flag */
 	jb->force_resynch = 0;
@@ -174,17 +172,17 @@ static int resynch_jb(struct scx_jb *jb, void *data, long ms, long ts, long now)
 	}
 	
 	/* now jb_put() should add the frame at a last position */
-	return scx_jb_put(jb, data, ms, ts, now);
+	return fixed_jb_put(jb, data, ms, ts, now);
 }
 
 
-void scx_jb_set_force_resynch(struct scx_jb *jb)
+void fixed_jb_set_force_resynch(struct fixed_jb *jb)
 {
 	jb->force_resynch = 1;
 }
 
 
-int scx_jb_put_first(struct scx_jb *jb, void *data, long ms, long ts, long now)
+int fixed_jb_put_first(struct fixed_jb *jb, void *data, long ms, long ts, long now)
 {
 	/* this is our first frame - set the base of the receivers time */
 	jb->rxcore = now - ts;
@@ -193,13 +191,13 @@ int scx_jb_put_first(struct scx_jb *jb, void *data, long ms, long ts, long now)
 	jb->next_delivery = now + jb->delay;
 	
 	/* put the frame */
-	return scx_jb_put(jb, data, ms, ts, now);
+	return fixed_jb_put(jb, data, ms, ts, now);
 }
 
 
-int scx_jb_put(struct scx_jb *jb, void *data, long ms, long ts, long now)
+int fixed_jb_put(struct fixed_jb *jb, void *data, long ms, long ts, long now)
 {
-	struct scx_jb_frame *frame, *next, *newframe;
+	struct fixed_jb_frame *frame, *next, *newframe;
 	long delivery;
 	
 	/* debug check the validity of the input params */
@@ -269,7 +267,7 @@ int scx_jb_put(struct scx_jb *jb, void *data, long ms, long ts, long now)
 		}
 		newframe->prev = frame;
 		
-		return SCX_JB_OK;
+		return FIXED_JB_OK;
 	} else if (!jb->frames) {
 		/* the frame list is empty or thats just the first frame ever */
 		/* tail should also be NULL is that case */
@@ -278,7 +276,7 @@ int scx_jb_put(struct scx_jb *jb, void *data, long ms, long ts, long now)
 		newframe->next = NULL;
 		newframe->prev = NULL;
 		
-		return SCX_JB_OK;
+		return FIXED_JB_OK;
 	} else {
 		/* insert on a first position - should update frames head */
 		newframe->next = jb->frames;
@@ -286,19 +284,19 @@ int scx_jb_put(struct scx_jb *jb, void *data, long ms, long ts, long now)
 		jb->frames->prev = newframe;
 		jb->frames = newframe;
 		
-		return SCX_JB_OK;
+		return FIXED_JB_OK;
 	}
 }
 
 
-int scx_jb_get(struct scx_jb *jb, struct scx_jb_frame *frame, long now, long interpl)
+int fixed_jb_get(struct fixed_jb *jb, struct fixed_jb_frame *frame, long now, long interpl)
 {
 	ASSERT(now >= 0);
 	ASSERT(interpl >= 2);
 	
 	if (now < jb->next_delivery) {
 		/* too early for the next frame */
-		return SCX_JB_NOFRAME;
+		return FIXED_JB_NOFRAME;
 	}
 	
 	/* Is the jb empty? */
@@ -307,7 +305,7 @@ int scx_jb_get(struct scx_jb *jb, struct scx_jb_frame *frame, long now, long int
 		/* update next */
 		jb->next_delivery += interpl;
 		
-		return SCX_JB_INTERP;
+		return FIXED_JB_INTERP;
 	}
 	
 	/* Isn't it too late for the first frame available in the jb? */
@@ -315,7 +313,7 @@ int scx_jb_get(struct scx_jb *jb, struct scx_jb_frame *frame, long now, long int
 		/* yes - should drop this frame and update next to point the next frame (get_jb_head() does it) */
 		get_jb_head(jb, frame);
 		
-		return SCX_JB_DROP;
+		return FIXED_JB_DROP;
 	}
 	
 	/* isn't it too early to play the first frame available? */
@@ -324,28 +322,28 @@ int scx_jb_get(struct scx_jb *jb, struct scx_jb_frame *frame, long now, long int
 		/* update next */
 		jb->next_delivery += interpl;
 		
-		return SCX_JB_INTERP;
+		return FIXED_JB_INTERP;
 	}
 	
 	/* we have a frame for playing now (get_jb_head() updates next) */
 	get_jb_head(jb, frame);
 	
-	return SCX_JB_OK;
+	return FIXED_JB_OK;
 }
 
 
-long scx_jb_next(struct scx_jb *jb)
+long fixed_jb_next(struct fixed_jb *jb)
 {
 	return jb->next_delivery;
 }
 
 
-int scx_jb_remove(struct scx_jb *jb, struct scx_jb_frame *frameout)
+int fixed_jb_remove(struct fixed_jb *jb, struct fixed_jb_frame *frameout)
 {
 	if (!jb->frames)
-		return SCX_JB_NOFRAME;
+		return FIXED_JB_NOFRAME;
 	
 	get_jb_head(jb, frameout);
 	
-	return SCX_JB_OK;
+	return FIXED_JB_OK;
 }

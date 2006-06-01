@@ -30,57 +30,93 @@ PhoneJack and Linejack card to the project.  (http://www.quicknet.net)
 === MISCELLANEOUS PATCHES ===
 Jim Dixon - Zapata Telephony and app_rpt
 	http://www.zapatatelephony.org/app_rpt.html
+
 Russell Bryant - Asterisk 1.0 maintainer and misc. enhancements
 	russelb@clemson.edu
+
 Anthony Minessale II - Countless big and small fixes, and relentless forward push
 	anthmct@yahoo.com              http://www.asterlink.com
+
 James Golovich - Innumerable contributions
 	You can find him and asterisk-perl at http://asterisk.gnuinter.net
+
 Andre Bierwirth - Extension hints and status
+
 Oliver Daudey - ISDN4Linux fixes
+
 Pauline Middelink - ISDN4Linux patches and some general patches.
 	She can be found at http://www.polyware.nl/~middelink/En/
+
 Jean-Denis Girard - Various contributions from the South Pacific Islands
 	jd-girard@esoft.pf             http://www.esoft.pf
+
 William Jordan / Vonage - MySQL enhancements to Voicemail
 	wjordan@vonage.com
+
 Jac Kersing - Various fixes
+
 Steven Critchfield - Seek and Trunc functions for playback and recording
 	critch@basesys.com
+
 Jefferson Noxon - app_lookupcidname, app_db, and various other contributions
+
 Klaus-Peter Junghanns - in-band DTMF on SIP and MGCP
+
 Ross Finlayson - Dynamic RTP payload support
+
 Mahmut Fettahlioglu - Audio recording, music-on-hold changes, alaw file
 	format, and various fixes. Can be contacted at mahmut@oa.com.au
+
 James Dennis - Cisco SIP compatibility patches to work with SIP service
 	providers. Can be contacted at asterisk@jdennis.net
+
 Tilghman Lesher - ast_localtime(); ast_say_date_with_format(); 
 	GotoIfTime, Random, SayUnixTime, HasNewVoicemail applications;
 	CUT, SORT, EVAL, CURL, FIELDQTY, STRFTIME, QUEUEAGENT* functions;
 	and other innumerable bug fixes. http://asterisk.drunkcoder.com/
+
 Jayson Vantuyl - Manager protocol changes, various other bugs.
 	jvantuyl@computingedge.net
+
 Thorsten Lockert - OpenBSD, FreeBSD ports, making MacOS X port run on 10.3,
 	dialplan include verification, route lookup on OpenBSD, SNMP agent
 	support (res_snmp), various other bugs. tholo@sigmasoft.com
+
 Brian West - ODBC support and Bug Marshaling  
+
 Josh Roberson - chan_zap reload support, Advanced Voicemail Features, other misc. patches,
 	and Bug Marshalling. - josh@asteriasgi.com, http://www.asteriasgi.com
+
 William Waites - syslog support, SIP NAT traversal for SIP-UA. ww@styx.org
+
 Rich Murphey - Porting to FreeBSD, NetBSD, OpenBSD, and Darwin.
 	rich@whiteoaklabs.com  http://whiteoaklabs.com
+
 Simon Lockhart - Porting to Solaris (based on work of Logan ???)	
 	simon@slimey.org
+
 Olle E. Johansson - SIP RFC compliance, documentation and testing, testing, testing
 	oej@edvina.net, http://edvina.net
+
 Steve Kann - new jitter buffer for IAX2
 	stevek@stevek.com
+
 Constantine Filin - major contributions to the Asterisk Realtime Architecture
+
 Steve Murphy - privacy support, $[ ] parser upgrade, AEL2 parser upgrade
+
 Claude Patry - bug fixes, feature enhancements, and bug marshalling
 	cpatry@gmail.com
+
 Miroslav Nachev, miro@space-comm.com COSMOS Software Enterprises, Ltd.
 	- for Variable for No Answer Timeout for Attended Transfer
+
+Slav Klenov & Vanheuverzwijn Joachim - development of the generic jitterbuffer
+	Securax Ltd. info@securax.be
+
+Roy Sigurd Karlsbakk - providing funding for generic jitterbuffer development
+	roy@karlsbakk.net, Briiz Telecom AS
+
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt

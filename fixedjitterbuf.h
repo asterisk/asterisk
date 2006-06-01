@@ -1,6 +1,4 @@
 /*
- * scx_jitterbuf: jitterbuffering algorithm
- *
  * Copyright (C) 2005, Attractel OOD
  *
  * Contributors:
@@ -25,8 +23,8 @@
  * 
  */
 
-#ifndef _SCX_JITTERBUF_H_
-#define _SCX_JITTERBUF_H_
+#ifndef _FIXEDJITTERBUF_H_
+#define _FIXEDJITTERBUF_H_
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -35,61 +33,61 @@ extern "C" {
 
 /* return codes */
 enum {
-	SCX_JB_OK,
-	SCX_JB_DROP,
-	SCX_JB_INTERP,
-	SCX_JB_NOFRAME
+	FIXED_JB_OK,
+	FIXED_JB_DROP,
+	FIXED_JB_INTERP,
+	FIXED_JB_NOFRAME
 };
 
 
 /* defaults */
-#define SCX_JB_SIZE_DEFAULT 200
-#define SCX_JB_RESYNCH_THRESHOLD_DEFAULT 1000
+#define FIXED_JB_SIZE_DEFAULT 200
+#define FIXED_JB_RESYNCH_THRESHOLD_DEFAULT 1000
 
 
 /* jb configuration properties */
-struct scx_jb_conf
+struct fixed_jb_conf
 {
 	long jbsize;
  	long resync_threshold;
 };
 
 
-struct scx_jb_frame
+struct fixed_jb_frame
 {
 	void *data;
 	long ts;
 	long ms;
 	long delivery;
-	struct scx_jb_frame *next;
-	struct scx_jb_frame *prev;
+	struct fixed_jb_frame *next;
+	struct fixed_jb_frame *prev;
 };
 
 
-struct scx_jb;
+struct fixed_jb;
 
 
 /* jb interface */
 
-struct scx_jb * scx_jb_new(struct scx_jb_conf *conf);
+struct fixed_jb * fixed_jb_new(struct fixed_jb_conf *conf);
 
-void scx_jb_destroy(struct scx_jb *jb);
+void fixed_jb_destroy(struct fixed_jb *jb);
 
-int scx_jb_put_first(struct scx_jb *jb, void *data, long ms, long ts, long now);
+int fixed_jb_put_first(struct fixed_jb *jb, void *data, long ms, long ts, long now);
 
-int scx_jb_put(struct scx_jb *jb, void *data, long ms, long ts, long now);
+int fixed_jb_put(struct fixed_jb *jb, void *data, long ms, long ts, long now);
 
-int scx_jb_get(struct scx_jb *jb, struct scx_jb_frame *frame, long now, long interpl);
+int fixed_jb_get(struct fixed_jb *jb, struct fixed_jb_frame *frame, long now, long interpl);
 
-long scx_jb_next(struct scx_jb *jb);
+long fixed_jb_next(struct fixed_jb *jb);
 
-int scx_jb_remove(struct scx_jb *jb, struct scx_jb_frame *frameout);
+int fixed_jb_remove(struct fixed_jb *jb, struct fixed_jb_frame *frameout);
 
-void scx_jb_set_force_resynch(struct scx_jb *jb);
+void fixed_jb_set_force_resynch(struct fixed_jb *jb);
 
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
 
-#endif /* _SCX_JITTERBUF_H_ */
+#endif /* _FIXEDJITTERBUF_H_ */
