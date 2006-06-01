@@ -128,6 +128,11 @@ senddtmf=yes
 far_alerting=no
 
 
+;
+; here you can define which bearers should be allowed
+;
+allowed_bearers=all
+
 ; Prefixes for national and international, those are put before the 
 ; oad if an according dialplan is set by the other end. 
 ;

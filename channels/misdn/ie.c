@@ -162,23 +162,28 @@ void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *capabili
 	*stopbits = -1;
 	*dbits = -1;
 	*parity = -1;
-
+	
 	if (!nt)
 	{
 		p = NULL;
-		if (qi->QI_ELEMENT(llc))
+#ifdef LLC_SUPPORT
+		if (qi->QI_ELEMENT(llc)) {
+			
 			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(llc) + 1;
-		else if (qi->QI_ELEMENT(bearer_capability))
+		}
+#endif
+		if (qi->QI_ELEMENT(bearer_capability))
 			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(bearer_capability) + 1;
 	}
 	if (!p)
 		return;
+
 	if (p[0] < 2)
 	{
 		printf("%s: ERROR: IE too short (%d).\n", __FUNCTION__, p[0]);
 		return;
 	}
-
+	
 	*coding = (p[1]&0x60) >> 5;
 	*capability = p[1] & 0x1f;
 	octet = 2;

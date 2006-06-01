@@ -197,8 +197,8 @@ void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc,
 	}
 
 	{
-		int  sending_complete;
-		dec_ie_complete(setup->COMPLETE, (Q931_info_t *)setup, &sending_complete, nt,bc);
+		dec_ie_complete(setup->COMPLETE, (Q931_info_t *)setup, &bc->sending_complete, nt,bc);
+		
 	}
   
 	{
@@ -216,6 +216,8 @@ void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc,
 		case -1: bc->capability=INFO_CAPABILITY_DIGITAL_UNRESTRICTED; 
 			break;
 		case 0: bc->capability=INFO_CAPABILITY_SPEECH;
+			break;
+		case 18: bc->capability=INFO_CAPABILITY_VIDEO;
 			break;
 		case 8: bc->capability=INFO_CAPABILITY_DIGITAL_UNRESTRICTED;
 			bc->user1 = user;
@@ -775,7 +777,7 @@ void parse_restart (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *b
   
 	{
 		int  exclusive, channel;
-		dec_ie_channel_id(restart->CHANNEL_ID, (Q931_info_t *)restart, &exclusive, &channel, nt,bc);
+		dec_ie_channel_id(restart->CHANNEL_ID, (Q931_info_t *)restart, &exclusive, &bc->restart_channel, nt,bc);
 		if (channel==0xff) /* any channel */
 			channel=-1;
 		cb_log(3, stack->port, "CC_RESTART Request on channel:%d on this port.\n");

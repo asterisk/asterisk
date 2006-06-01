@@ -471,6 +471,10 @@ void empty_bc(struct misdn_bchannel *bc)
 	bc->channel = 0;
 	bc->in_use = 0;
 
+	bc->sending_complete = 0;
+
+	bc->restart_channel=0;
+	
 	bc->conf_id = 0;
 
 	bc->need_more_infos = 0;
@@ -557,7 +561,7 @@ int clean_up_bc(struct misdn_bchannel *bc)
 	unsigned char buff[32];
 	struct misdn_stack * stack;
 
-	cb_log(2, 0, "$$$ CLEANUP CALLED\n");
+	cb_log(3, 0, "$$$ CLEANUP CALLED\n");
 	
 	if (!bc  ) return -1;
 	stack=get_stack_by_bc(bc);
@@ -587,15 +591,18 @@ int clean_up_bc(struct misdn_bchannel *bc)
 		manager_ec_disable(bc);
 	}
 
-	mISDN_write_frame(stack->midev, buff, bc->layer_id|FLG_MSG_DOWN, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC); 
+	if (bc->bc_state == BCHAN_SETUP) 
+		mISDN_write_frame(stack->midev, buff, bc->layer_id|FLG_MSG_DOWN, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
+	else
+		mISDN_write_frame(stack->midev, buff, bc->addr|FLG_MSG_DOWN, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
 
-	cb_log(2, stack->port, "$$$ CLEARING STACK\n");
+	cb_log(3, stack->port, "$$$ CLEARING STACK\n");
+	
 	ret=mISDN_clear_stack(stack->midev,bc->b_stid);
 	if (ret<0) {
 		cb_log(-1,stack->port,"clear stack failed [%s]\n",strerror(errno));
 	}
 
-	
 	bc->b_stid = 0;
 	bc_state_change(bc, BCHAN_CLEANED);
 	
@@ -612,8 +619,7 @@ void clear_l3(struct misdn_stack *stack)
 			cb_event(EVENT_CLEANUP, &stack->bc[i], glob_mgr->user_data);
 			empty_chan_in_stack(stack,i+1);
 			empty_bc(&stack->bc[i]);
-			queue_cleanup_bc(&stack->bc[i]);
-			
+			clean_up_bc(&stack->bc[i]);
 		}
 		
 	} 
@@ -971,18 +977,17 @@ int setup_bc(struct misdn_bchannel *bc)
 		pid.layermask = ISDN_LAYER((1)) | ISDN_LAYER((2)) | ISDN_LAYER((3)) | ISDN_LAYER((4));
 		
 	} 
-	
+
 	ret = mISDN_set_stack(midev, bc->b_stid, &pid);
-	
+
 	if (ret){
-		cb_log(5, stack->port,"$$$ Set Stack Err: %d %s\n",ret,strerror(errno));
+		cb_log(-1, stack->port,"$$$ Set Stack Err: %d %s\n",ret,strerror(errno));
 		
 		mISDN_write_frame(midev, buff, bc->layer_id, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
-
+		
 		bc_state_change(bc,BCHAN_ERROR);
 		return(-EINVAL);
 	}
-
 
 	bc_state_change(bc,BCHAN_SETUP);
 
@@ -1479,7 +1484,7 @@ int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
 				cb_log(4, stack->port, " --> lib: CLEANING UP l3id: %x\n",frm->dinfo);
 				empty_chan_in_stack(stack,bc->channel);
 				empty_bc(bc);
-				queue_cleanup_bc(bc);
+				clean_up_bc(bc);
 				dump_chan_list(stack);
 				bc->pid = 0;
 				cb_event(EVENT_CLEANUP, bc, glob_mgr->user_data);
@@ -1517,7 +1522,7 @@ void misdn_lib_release(struct misdn_bchannel *bc)
 		empty_chan_in_stack(stack,bc->channel);
 		empty_bc(bc);
 	}
-	queue_cleanup_bc(bc);
+	clean_up_bc(bc);
 }
 
 
@@ -2049,7 +2054,7 @@ int handle_bchan(msg_t *msg)
 		
 	case MGR_SETSTACK| INDICATION:
 		cb_log(2, stack->port, "BCHAN: MGR_SETSTACK|IND \n");
-
+		
 	AGAIN:
 		bc->addr = mISDN_get_layerid(stack->midev, bc->b_stid, bc->layer);
 		if (!bc->addr) {
@@ -2943,7 +2948,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 
 			empty_chan_in_stack(stack,bc->channel);
 			empty_bc(bc);
-			queue_cleanup_bc(bc);
+			clean_up_bc(bc);
 		}
 		
 		/** we set it up later at RETRIEVE_ACK again.**/
@@ -3018,6 +3023,13 @@ int handle_err(msg_t *msg)
 		case MGR_SETSTACK|INDICATION:
 			return handle_bchan(msg);
 		break;
+
+		case MGR_SETSTACK|CONFIRM:
+		case MGR_CLEARSTACK|CONFIRM:
+			free_msg(msg) ; 
+			return 1;
+		break;
+
 		case DL_DATA|INDICATION:
 		{
 			int port=(frm->addr&MASTER_ID_MASK) >> 8;
@@ -3101,8 +3113,10 @@ int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 	if (handle_l1(msg)) 
 		return 0 ;
 
-	/* The L2/L3 will be queued */
-	if (queue_l2l3(msg))
+	if (handle_frm_nt(msg)) 
+		return 0;
+
+	if (handle_frm(msg))
 		return 0;
 
 	if (handle_err(msg)) 
@@ -3862,7 +3876,7 @@ void misdn_split_conf(struct misdn_bchannel *bc, int conf_id)
 }
 
 void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2) {
-	int conf_id=(bc1->pid<<1) +1;
+	int conf_id=bc1->pid +1;
 
 	cb_log(1, bc1->port, "I Send: BRIDGE from:%d to:%d\n",bc1->port,bc2->port);
 	

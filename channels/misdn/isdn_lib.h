@@ -182,7 +182,8 @@ struct misdn_bchannel {
 	int l3_id;
 	int pid;
 	int ces;
-  
+
+	int restart_channel;
 	int channel;
 	int channel_preselected;
 	
@@ -207,6 +208,10 @@ struct misdn_bchannel {
 
 	/* get setup ack */
 	int need_more_infos;
+
+	/* may there be more infos ?*/
+	int sending_complete;
+
 
 	/* wether we should use jollys dsp or not */
 	int nodsp;
