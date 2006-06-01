@@ -321,7 +321,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
                               ; and programs. Defaults to 1000.
 
 ; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a SIP
-                              ; channel. Two implementation are currenlty available - "fixed"
+                              ; channel. Two implementations are currenlty available - "fixed"
                               ; (with size always equals to jbmaxsize) and "adaptive" (with
                               ; variable size, actually the new jb of IAX2). Defaults to fixed.
 

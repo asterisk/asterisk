@@ -83,6 +83,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dsp.h"
 #include "asterisk/causes.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/abstract_jb.h"
 #ifdef __cplusplus
 }
 #endif
@@ -104,6 +105,16 @@ setcapabilities_cb on_setcapabilities;
 
 /* global debug flag */
 int h323debug;
+
+/*! Global jitterbuffer configuration - by default, jb is disabled */
+static struct ast_jb_conf default_jbconf =
+{
+	.flags = 0,
+	.max_size = -1,
+	.resync_threshold = -1,
+	.impl = ""
+};
+static struct ast_jb_conf global_jbconf;
 
 /** Variables required by Asterisk */
 static const char desc[] = "The NuFone Network's Open H.323 Channel Driver";
@@ -788,6 +799,10 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 				ch = NULL;
 			}
 		}
+
+		/* Configure the new channel jb */
+		if (ch && pvt && pvt->rtp)
+			ast_jb_configure(ch, &global_jbconf);
 	} else  {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 	}
@@ -2020,8 +2035,18 @@ int reload_config(void)
 	global_options.dtmfmode = H323_DTMF_RFC2833;
 	global_options.capability = GLOBAL_CAPABILITY;
 	global_options.bridge = 1;		/* Do native bridging by default */
+
+	/* Copy the default jb config over global_jbconf */
+	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
+
 	v = ast_variable_browse(cfg, "general");
-	while(v) {
+	while (v) {
+		/* handle jb conf */
+                if (!ast_jb_read_conf(&global_jbconf, v->name, v->value)) {
+			v = v->next;
+			continue;
+		}
+
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "port")) {
 			h323_signalling_port = (int)strtol(v->value, NULL, 10);

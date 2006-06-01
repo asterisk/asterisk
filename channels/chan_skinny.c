@@ -826,8 +826,6 @@ struct skinny_subchannel {
 	int nat;
 	int outgoing;
 	int alreadygone;
-	struct ast_jb_conf jbconf;
-
 	struct skinny_subchannel *next;
 };
 
@@ -1615,10 +1613,6 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 							callnums++;
 							sub->cxmode = SKINNY_CX_INACTIVE;
 							sub->nat = nat;
-
-							/* Assign default jb conf to the new skinny_subchannel */
-							memcpy(&sub->jbconf, &global_jbconf, sizeof(struct ast_jb_conf));
-
 							sub->next = l->sub;
 							l->sub = sub;
 						} else {
@@ -2311,7 +2305,7 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 
 		/* Configure the new channel jb */
 		if (tmp && sub && sub->rtp)
-			ast_jb_configure(tmp, &sub->jbconf);
+			ast_jb_configure(tmp, &global_jbconf);
 	} else {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 	}
@@ -3121,7 +3115,7 @@ static int reload_config(void)
 
 	/* load the general section */
 	v = ast_variable_browse(cfg, "general");
-	while(v) {
+	while (v) {
 		/* handle jb conf */
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value)) {
 			v = v->next;

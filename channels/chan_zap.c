@@ -698,8 +698,6 @@ static struct zt_pvt {
 #endif	
 	int polarity;
 	int dsp_features;
-	struct ast_jb_conf jbconf;
-
 } *iflist = NULL, *ifend = NULL;
 
 static struct ast_channel *zt_request(const char *type, int format, void *data, int *cause);
@@ -5215,7 +5213,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 	/* Configure the new channel jb */
 	if (tmp && i)
-		ast_jb_configure(tmp, &i->jbconf);
+		ast_jb_configure(tmp, &global_jbconf);
 	return tmp;
 }
 
@@ -7011,8 +7009,6 @@ static struct zt_pvt *mkintf(int channel, int signalling, int outsignalling, int
 		for (x = 0; x < 3; x++)
 			tmp->subs[x].zfd = -1;
 		tmp->channel = channel;
-		/* Assign default jb conf to the new zt_pvt */
-		memcpy(&tmp->jbconf, &global_jbconf, sizeof(struct ast_jb_conf));
 	}
 
 	if (tmp) {

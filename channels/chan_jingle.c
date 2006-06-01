@@ -69,10 +69,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/causes.h"
 #include "asterisk/astobj.h"
+#include "asterisk/abstract_jb.h"
 #include "asterisk/jabber.h"
 #include "asterisk/jingle.h"
 
 #define JINGLE_CONFIG "jingle.conf"
+
+/*! Global jitterbuffer configuration - by default, jb is disabled */
+static struct ast_jb_conf default_jbconf =
+{
+	.flags = 0,
+	.max_size = -1,
+	.resync_threshold = -1,
+	.impl = ""
+};
+static struct ast_jb_conf global_jbconf;
 
 enum jingle_protocol {
 	AJI_PROTOCOL_UDP = 1,
@@ -773,6 +784,11 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 		ast_hangup(tmp);
 		tmp = NULL;
 	}
+
+	/* Configure the new channel jb */
+	if (tmp && i && i->rtp)
+		ast_jb_configure(tmp, &global_jbconf);
+
 	return tmp;
 }
 
@@ -1453,8 +1469,15 @@ static int jingle_load_config(void)
 		return 0;
 	}
 
+	/* Copy the default jb config over global_jbconf */
+	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
+
 	cat = ast_category_browse(cfg, NULL);
 	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
+		/* handle jb conf */
+		if (!ast_jb_read_conf(&global_jbconf, var->name, var->value))
+			continue;
+
 		if (!strcasecmp(var->name, "allowguest"))
 			allowguest =
 				(ast_true(ast_variable_retrieve(cfg, "general", "allowguest"))) ? 1 : 0;

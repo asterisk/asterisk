@@ -156,13 +156,9 @@ START_CONFIG
     ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of an
                                   ; OSS channel. Defaults to "no". An enabled jitterbuffer will
                                   ; be used only if the sending side can create and the receiving
-                                  ; side can not accept jitter. The ZAP channel can't accept jitter,
-                                  ; thus an enabled jitterbuffer on the receive ZAP side will always
-                                  ; be used if the sending side can create jitter or if ZAP jb is
-                                  ; forced.
-
-    ; jbforce = no                ; Forces the use of a jitterbuffer on the receive side of a ZAP
-                                  ; channel. Defaults to "no".
+                                  ; side can not accept jitter. The OSS channel can't accept jitter,
+                                  ; thus an enabled jitterbuffer on the receive OSS side will always
+                                  ; be used if the sending side can create jitter.
 
     ; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
 
@@ -171,8 +167,8 @@ START_CONFIG
                                   ; big jumps in/broken timestamps, usualy sent from exotic devices
                                   ; and programs. Defaults to 1000.
 
-    ; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a SIP
-                                  ; channel. Two implementation are currenlty available - "fixed"
+    ; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of an OSS
+                                  ; channel. Two implementations are currenlty available - "fixed"
                                   ; (with size always equals to jbmax-size) and "adaptive" (with
                                   ; variable size, actually the new jb of IAX2). Defaults to fixed.
 

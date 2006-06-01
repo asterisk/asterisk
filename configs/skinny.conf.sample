@@ -29,7 +29,7 @@ keepAlive=120
                              ; and programs. Defaults to 1000.
 
 ;jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a
-                             ; skinny channel. Two implementation are currently available
+                             ; skinny channel. Two implementations are currently available
                              ; - "fixed" (with size always equals to jbmaxsize)
                              ; - "adaptive" (with variable size, actually the new jb of IAX2).
                              ; Defaults to fixed.

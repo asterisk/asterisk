@@ -117,6 +117,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dsp.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/abstract_jb.h"
 
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST 0x02
@@ -136,6 +137,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #ifndef INADDR_NONE
 #define INADDR_NONE (in_addr_t)(-1)
 #endif
+
+/*! Global jitterbuffer configuration - by default, jb is disabled */
+static struct ast_jb_conf default_jbconf =
+{
+	.flags = 0,
+	.max_size = -1,
+	.resync_threshold = -1,
+	.impl = ""
+};
+static struct ast_jb_conf global_jbconf;
 
 static const char tdesc[] = "Media Gateway Control Protocol (MGCP)";
 static const char config[] = "mgcp.conf";
@@ -353,10 +364,6 @@ struct mgcp_subchannel {
 			This should be obsoleted */
 	char cxident[80];
 	char callid[80];
-/* SC: obsolete
-	time_t lastouttime;
-	int lastout;
-*/
 	int cxmode;
 	struct mgcp_request *cx_queue; /*!< SC: pending CX commands */
 	ast_mutex_t cx_queue_lock;     /*!< SC: CX queue lock */
@@ -364,10 +371,6 @@ struct mgcp_subchannel {
 	int iseq; /* Not used? RTP? */
 	int outgoing;
 	int alreadygone;
-/* SC: obsolete
-	int messagepending;
-	struct mgcp_message *msgs;
-*/
 	struct mgcp_subchannel *next; /* for out circular linked list */
 };
 
@@ -1499,6 +1502,10 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 			ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_new(%s) created in state: %s\n",
 				tmp->name, ast_state2str(state));
 		}
+
+		/* Configure the new channel jb */
+		if (tmp && sub && sub->rtp)
+			ast_jb_configure(tmp, &global_jbconf);
 	} else {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 	}
@@ -4165,8 +4172,18 @@ static int reload_config(void)
 	}
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	dtmfmode = 0;
+
+	/* Copy the default jb config over global_jbconf */
+	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
+
 	v = ast_variable_browse(cfg, "general");
-	while(v) {
+	while (v) {
+		/* handle jb conf */
+		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value)) {
+			v = v->next;
+			continue;
+		}
+
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "bindaddr")) {
 			if (!(hp = ast_gethostbyname(v->value, &ahp))) {

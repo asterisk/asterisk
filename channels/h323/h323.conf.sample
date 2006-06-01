@@ -63,6 +63,32 @@ allow=gsm		; Always allow GSM, it's cool :)
 ; use user authentication at all.
 ;
 ;context=default
+;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
+                              ; H323 channel. Defaults to "no". An enabled jitterbuffer will
+                              ; be used only if the sending side can create and the receiving
+                              ; side can not accept jitter. The H323 channel can accept jitter,
+                              ; thus an enabled jitterbuffer on the receive H323 side will only
+                              ; be used if the sending side can create jitter and jbforce is
+                              ; also set to yes.
+
+; jbforce = no                ; Forces the use of a jitterbuffer on the receive side of a H323
+                              ; channel. Defaults to "no".
+
+; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
+
+; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
+                              ; resynchronized. Useful to improve the quality of the voice, with
+                              ; big jumps in/broken timestamps, usualy sent from exotic devices
+                              ; and programs. Defaults to 1000.
+
+; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a H323
+                              ; channel. Two implementations are currenlty available - "fixed"
+                              ; (with size always equals to jbmax-size) and "adaptive" (with
+                              ; variable size, actually the new jb of IAX2). Defaults to fixed.
+
+; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
+;-----------------------------------------------------------------------------------
 ;
 ; H.323 Alias definitions
 ;

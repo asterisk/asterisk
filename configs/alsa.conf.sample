@@ -34,13 +34,9 @@ extension=s
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of an
                               ; ALSA channel. Defaults to "no". An enabled jitterbuffer will
                               ; be used only if the sending side can create and the receiving
-                              ; side can not accept jitter. The ZAP channel can't accept jitter,
-                              ; thus an enabled jitterbuffer on the receive ZAP side will always
-                              ; be used if the sending side can create jitter or if ZAP jb is
-                              ; forced.
-
-; jbforce = no                ; Forces the use of a jitterbuffer on the receive side of a ZAP
-                              ; channel. Defaults to "no".
+                              ; side can not accept jitter. The ALSA channel can't accept jitter,
+                              ; thus an enabled jitterbuffer on the receive ALSA side will always
+                              ; be used if the sending side can create jitter.
 
 ; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
 
