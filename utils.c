@@ -70,7 +70,7 @@ static char b2a[256];
 
 AST_MUTEX_DEFINE_STATIC(__mutex);
 
-/*! \brief Recursive replacement for gethostbyname for BSD-based systems.
+/*! \brief Reentrant replacement for gethostbyname for BSD-based systems.
 \note This
 routine is derived from code originally written and placed in the public 
 domain by Enzo Michelangeli <em@em.no-ip.com> */
