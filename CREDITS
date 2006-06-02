@@ -119,6 +119,9 @@ Roy Sigurd Karlsbakk - providing funding for generic jitterbuffer development
 
 Voop A/S, Nuvio Inc and Foniris Telecom A/S - funding for rewrite of SIP transfers
 
+Philippe Sultan - RADIUS CDR module
+	INRIA, http://www.inria.fr/
+
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
 Michael Jerris - bug marshaling
