@@ -133,6 +133,7 @@ struct mohclass {
 	char dir[256];
 	char args[256];
 	char mode[80];
+	/* XXX This means that we are allocating 64KB of memory for every musiconhold class XXX */
 	char filearray[MAX_MOHFILES][MAX_MOHFILE_LEN];
 	unsigned int flags;
 	int total_files;
