@@ -7331,6 +7331,10 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 			if ((ptr = strchr(referdata->replaces_callid, ';'))) 	/* Remove options */ {
 				*ptr = '\0';
 			}
+			/*
+			 * XXX don't know what was the intention but this code is
+			 * definitely wrong, as ptr can be NULL here.
+			 */
 			ptr++;
 
 			/* Find the different tags before we destroy the string */
