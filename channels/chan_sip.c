@@ -7417,20 +7417,14 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 }
 
 
-/*! \brief Call transfer support (old way, depreciated by the IETF)--*/
+/*! \brief Call transfer support (old way, deprecated by the IETF)--*/
 static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 {
 	char tmp[256] = "", *c, *a;
-	struct sip_request *req = oreq;
-	struct sip_refer *referdata;
+	struct sip_request *req = oreq ? oreq : &p->initreq;
+	struct sip_refer *referdata = p->refer;
 	const char *transfer_context = NULL;
 	
-	referdata = p->refer;
-	
-	if (!oreq)
-		req = &p->initreq;
-	else
-		req = oreq;
 	ast_copy_string(tmp, get_header(req, "Also"), sizeof(tmp));
 	c = get_in_brackets(tmp);
 
