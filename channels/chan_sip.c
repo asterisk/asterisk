@@ -7541,7 +7541,7 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 static char *get_calleridname(const char *input, char *output, size_t outputsize)
 {
 	const char *end = strchr(input,'<');	/* first_bracket */
-	const char *tmp = strchr(input,'\"');	/* first quote */
+	const char *tmp = strchr(input,'"');	/* first quote */
 	int bytes = 0;
 	int maxbytes = outputsize - 1;
 
@@ -7553,7 +7553,7 @@ static char *get_calleridname(const char *input, char *output, size_t outputsize
 
 	/* we found "name" */
 	if (tmp && tmp < end) {
-		end = strchr(tmp+1, '\"');
+		end = strchr(tmp+1, '"');
 		if (!end)
 			return NULL;
 		bytes = (int) (end - tmp);
@@ -9714,7 +9714,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req,
 				continue;
 			/* Found. Skip keyword, take text in quotes or up to the separator. */
 			c += strlen(i->key);
-			if (*c == '\"') {
+			if (*c == '"') {
 				src = ++c;
 				separator = "\"";
 			} else {
