@@ -370,7 +370,8 @@ struct {								\
   \param head This is a pointer to the list head structure
 
   This macro initializes a list head structure by setting the head
-  entry to \a NULL (empty list) and recreating the embedded lock.
+  entry to \a NULL (empty list). There is no embedded lock handling
+  with this macro.
 */
 #define AST_LIST_HEAD_INIT_NOLOCK(head) {				\
 	(head)->first = NULL;						\
