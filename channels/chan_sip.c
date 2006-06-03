@@ -7154,9 +7154,6 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	/* Get the target domain */
 	if ((a = strchr(uri, '@'))) {
 		*a++ = '\0';
-		colon = strchr(a, ':'); /* Remove :port */
-		if (colon)
-			*colon = '\0';
 	} else {	/* No username part */
 		a = uri;
 		uri = "s";	/* Set extension to "s" */
