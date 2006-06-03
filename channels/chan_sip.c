@@ -6750,6 +6750,9 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 		return AUTH_CHALLENGE_SENT;
 	} else {	/* We have auth, so check it */
+
+		/* XXX reduce nesting here */
+
 		/* Whoever came up with the authentication section of SIP can suck my %&#$&* for not putting
 	   	an example in the spec of just what it is you're doing a hash on. */
 		char a1_hash[256];
@@ -12602,6 +12605,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		return 0;
 	} else {
+		/* XXX reduce nesting here */
+
 		/* Initialize tag for new subscriptions */	
 		if (ast_strlen_zero(p->tag))
 			make_our_tag(p->tag, sizeof(p->tag));
@@ -12700,6 +12705,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 				return 0;
 			} else {
+				/* XXX reduce nesting here */
 				struct sip_pvt *p_old;
 	
 				transmit_response(p, "200 OK", req);
