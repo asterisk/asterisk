@@ -6026,10 +6026,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	
 	/* Fromdomain is what we are registering to, regardless of actual
 	   host name from SRV */
-	if (!ast_strlen_zero(p->fromdomain))
-		snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
-	else
-		snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
+	snprintf(addr, sizeof(addr), "sip:%s", S_OR(p->fromdomain, r->hostname));
 	ast_string_field_set(p, uri, addr);
 
 	p->branch ^= ast_random();
@@ -7141,11 +7138,11 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		}
 		from += 4;
 		from = strsep(&from, ";");
-		if ((a = strchr(from, '@'))) {
-			*a = '\0';
-			ast_string_field_set(p, fromdomain, a + 1);
-		} else
-			ast_string_field_set(p, fromdomain, from);
+		if ((a = strchr(from, '@')))
+			*a++ = '\0';
+		else
+			a = from;	/* just a domain */
+		ast_string_field_set(p, fromdomain, a);
 	}
 
 	/* Skip any options and find the domain */
@@ -7371,12 +7368,10 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 	
 	if ((ptr = strchr(refer_to, '@'))) {	/* Separate domain */
 		char *urioption;
-		*ptr = '\0';
-		ptr++;
-		if ((urioption = strchr(ptr, ';'))) {
-			*urioption = '\0';
-			urioption++;
-		}	
+
+		*ptr++ = '\0';
+		if ((urioption = strchr(ptr, ';')))
+			*urioption++ = '\0';
 		/* Save the domain for the dial plan */
 		strncpy(referdata->refer_to_domain, ptr, sizeof(referdata->refer_to_domain));
 		if (urioption)
@@ -7397,12 +7392,8 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 
 	/* By default, use the context in the channel sending the REFER */
 	if (ast_strlen_zero(transfer_context)) {
-		if (!ast_strlen_zero(transferer->owner->macrocontext))
-			transfer_context=transferer->owner->macrocontext;
-		else if (ast_strlen_zero(transferer->context))
-			transfer_context = default_context;
-		else
-			transfer_context = transferer->context;
+		transfer_context = S_OR(transferer->owner->macrocontext,
+					S_OR(transferer->context, default_context));
 	}
 
 	strncpy(referdata->refer_to_context, transfer_context, sizeof(referdata->refer_to_context));
@@ -7449,8 +7440,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 	}
 	c += 4;
 	if ((a = strchr(c, '@'))) {	/* Separate Domain */
-		*a = '\0';
-		a++;
+		*a++ = '\0';
 		ast_copy_string(referdata->refer_to_domain, a, sizeof(referdata->refer_to_domain));
 	}
 	
@@ -7464,13 +7454,9 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 		transfer_context = pbx_builtin_getvar_helper(p->owner, "TRANSFER_CONTEXT");
 
 	/* By default, use the context in the channel sending the REFER */
-	if (!transfer_context || ast_strlen_zero(transfer_context)) {
-		if (!ast_strlen_zero(p->owner->macrocontext))
-			transfer_context = p->owner->macrocontext;
-		else if (ast_strlen_zero(p->context))
-			transfer_context = default_context;
-		else
-			transfer_context = p->context;
+	if (ast_strlen_zero(transfer_context)) {
+		transfer_context = S_OR(p->owner->macrocontext,
+					S_OR(p->context, default_context));
 	}
 	if (ast_exists_extension(NULL, transfer_context, c, 1, NULL)) {
 		/* This is a blind transfer */
