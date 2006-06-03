@@ -10034,15 +10034,11 @@ static int function_sippeer(struct ast_channel *chan, char *cmd, char *data, cha
 	} else  if (!strcasecmp(colname, "codecs")) {
 		ast_getformatname_multiple(buf, len -1, peer->capability);
 	} else  if (!strncasecmp(colname, "codec[", 6)) {
-		char *codecnum, *ptr;
+		char *codecnum;
 		int index = 0, codec = 0;
 		
-		codecnum = strchr(colname, '[');
-		*codecnum = '\0';
-		codecnum++;
-		if ((ptr = strchr(codecnum, ']')))
-			*ptr = '\0';
-
+		codecnum = colname + 6;	/* move past the '[' */
+		codecnum = strsep(&codecnum, "]"); /* trim trailing ']' if any */
 		index = atoi(codecnum);
 		if((codec = ast_codec_pref_index(&peer->prefs, index))) {
 			ast_copy_string(buf, ast_getformatname(codec), len);
