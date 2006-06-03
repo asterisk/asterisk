@@ -11222,6 +11222,8 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		return -1;
 	} else {
+		/* XXX reduce nesting depth */
+
 		/* Handle REFER notifications */
 
 		char buf[1024];
@@ -11321,6 +11323,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		return res;
 	};
 
+	/* XXX hey, we never reach this code! */
 	/* THis could be voicemail notification */
 	transmit_response(p, "200 OK", req);
 	if (!p->lastinvite) 
@@ -11370,7 +11373,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 		/* We have no bridge */
 		if (!earlyreplace) {
 			if (option_debug > 1)
-			ast_log(LOG_DEBUG, "	Attended transfer attempted to replace call with no bridge (maybe ringing). Channel %s!\n", replacecall->name);
+				ast_log(LOG_DEBUG, "	Attended transfer attempted to replace call with no bridge (maybe ringing). Channel %s!\n", replacecall->name);
 			oneleggedreplace = 1;
 		}
 	} 
@@ -11935,20 +11938,19 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 	} else {
 		if (p && !ast_test_flag(&p->flags[0], SIP_NEEDDESTROY)) {
-			if (!p->jointcapability) {
-				if (ast_test_flag(req, SIP_PKT_IGNORE))
-					transmit_response(p, "488 Not Acceptable Here (codec error)", req);
-				else
-					transmit_response_reliable(p, "488 Not Acceptable Here (codec error)", req);
-				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-			} else {
+			const char *msg;
+
+			if (!p->jointcapability)
+				msg = "488 Not Acceptable Here (codec error)";
+			else {
 				ast_log(LOG_NOTICE, "Unable to create/find SIP channel for this INVITE\n");
-				if (ast_test_flag(req, SIP_PKT_IGNORE))
-					transmit_response(p, "503 Unavailable", req);
-				else
-					transmit_response_reliable(p, "503 Unavailable", req);
-				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+				msg = "503 Unavailable";
 			}
+			if (ast_test_flag(req, SIP_PKT_IGNORE))
+				transmit_response(p, msg, req);
+			else
+				transmit_response_reliable(p, msg, req);
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		}
 	}
 	return res;
