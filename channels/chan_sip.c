@@ -10163,8 +10163,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 	} else {
 		e = strchr(tmp, '@');
 		if (e) {
-			*e = '\0';
-			e++;
+			*e++ = '\0';
 			domain = e;
 		} else {
 			/* No username part */
@@ -11225,8 +11224,8 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 	char *sep;
 
 	if( (sep = strchr(event, ';')) ) {	/* XXX bug here - overwriting string ? */
-		*sep = '\0';
-		eventid = ++sep;
+		*sep++ = '\0';
+		eventid = sep;
 	}
 	
 	if (option_debug > 1 && sipdebug)
@@ -11291,27 +11290,20 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		*/
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "* SIP Transfer NOTIFY Attachment: \n---%s\n---\n", buf);
-		cmd = buf;
-		while(*cmd && (*cmd < 33)) {	/* Skip white space */
-			cmd++;
-		}
+		cmd = ast_skip_blanks(buf);
 		code = cmd;
 		/* We are at SIP/2.0 */
 		while(*code && (*code > 32)) {	/* Search white space */
 			code++;
 		}
-		*code = '\0';
-		code++;
-		while(*code && (*code < 33)) {	/* Skip white space */
-			code++;
-		}
+		*code++ = '\0';
+		code = ast_skip_blanks(code);
 		sep = code;
 		sep++;
 		while(*sep && (*sep > 32)) {	/* Search white space */
 			sep++;
 		}
-		*sep = '\0';
-		sep++;				/* Response string */
+		*sep++ = '\0';			/* Response string */
 		respcode = atoi(code);
 		switch (respcode) {
 		case 100:	/* Trying: */
