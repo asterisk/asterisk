@@ -13473,14 +13473,9 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 		ext = tmp;
 	} else {
 		ext = strchr(tmp, '/');
-		if (ext) {
+		if (ext) 
 			*ext++ = '\0';
-			host = tmp;
-		}
-		else {
-			host = tmp;
-			ext = NULL;
-		}
+		host = tmp;
 	}
 
 	if (create_addr(p, host)) {
