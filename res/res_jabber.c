@@ -325,7 +325,11 @@ static int aji_status_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	resource = strsep(&screenname, "/");
+	if(!strchr(screename, '/')) {
+		resource = NULL;
+	} else {
+		resource = strsep(&screenname, "/");
+	}
 
 	client = ast_aji_get_client(sender);
 	if (!client) {
@@ -347,16 +351,12 @@ static int aji_status_exec(struct ast_channel *chan, void *data)
 					while (r) {
 						if (!strcasecmp(r->resource, resource)) {
 							stat = r->status; 
-							break;
 						}
 						r = r->next;
 					}
-					if(stat != 7) break;
-					ast_log(LOG_WARNING, "Resource not found %s\n", resource);
-					break;
+					if (stat == 7) ast_log(LOG_NOTICE, "Resource not found %s\n", resource);
 				} else {
 					stat = r->status; 
-					break;
 				}
 			}
 		}
