@@ -6622,7 +6622,11 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	
 	p->route_persistant = backwards;
 	
-	/* We build up head, then assign it to p->route when we're done */
+	/* Build a tailq, then assign it to p->route when done.
+	 * If backwards, we add entries from the head so they end up
+	 * in reverse order. However, we do need to maintain a correct
+	 * tail pointer because the contact is always at the end.
+	 */
 	head = NULL;
 	tail = head;
 	/* 1st we pass through all the hops in any Record-Route headers */
@@ -6631,12 +6635,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		rr = __get_header(req, "Record-Route", &start);
 		if (*rr == '\0')
 			break;
-		for (;;) {
-			/* Each route entry */
-			/* Find < */
-			rr = strchr(rr, '<');
-			if (!rr) 
-				break; /* No more hops */
+		for (; (rr = strchr(rr, '<')) ; rr += len) { /* Each route entry */
 			++rr;
 			len = strcspn(rr, ">") + 1;
 			/* Make a struct route */
@@ -6650,7 +6649,8 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 					thishop->next = head;
 					head = thishop;
 					/* If this was the first then it'll be the tail */
-					if (!tail) tail = thishop;
+					if (!tail)
+						tail = thishop;
 				} else {
 					thishop->next = NULL;
 					/* Link in at the end */
@@ -6661,7 +6661,6 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 					tail = thishop;
 				}
 			}
-			rr += len;
 		}
 	}
 
