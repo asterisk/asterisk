@@ -786,8 +786,8 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	}
 
 	if(rtp_debug_test_addr(&sin))
-		ast_verbose("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len %d)\n"
-			, ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
+		ast_verbose("Got  RTP packet from %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+			ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
 
    	rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
 	if (!rtpPT.isAstFormat) {
@@ -1573,7 +1573,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 					ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
 					ntohs(rtp->them.sin_port), strerror(errno));
 			if (rtp_debug_test_addr(&rtp->them))
-				ast_verbose("Sent RTP DTMF packet to %s:%d (type %d, seq %u, ts %u, len %u)\n",
+				ast_verbose("Sent RTP DTMF packet to %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
 					    ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
 					    ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 		}
@@ -1719,7 +1719,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		}
 				
 		if(rtp_debug_test_addr(&rtp->them))
-			ast_verbose("Sent RTP packet to %s:%d (type %d, seq %u, ts %u, len %u)\n",
+			ast_verbose("Sent RTP packet to   %s:%d (type %d, seq %u, ts %u, len %u)\n",
 				ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), codec, rtp->seqno, rtp->lastts,res - hdrlen);
 	}
 
