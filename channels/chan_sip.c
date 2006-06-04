@@ -11219,7 +11219,8 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		return -1;
 	} else {
-		/* XXX reduce nesting depth */
+		/* Save nesting depth for now, since there might be other events we will
+			support in the future */
 
 		/* Handle REFER notifications */
 
@@ -11319,13 +11320,6 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		transmit_response(p, "200 OK", req);
 		return res;
 	};
-
-	/* XXX hey, we never reach this code! */
-	/* THis could be voicemail notification */
-	transmit_response(p, "200 OK", req);
-	if (!p->lastinvite) 
-		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-	return res;
 }
 
 /*! \brief Handle incoming OPTIONS request */
@@ -11603,15 +11597,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* Skip leading whitespace */
 		replace_id = ast_skip_blanks(replace_id);
 
-		/* XXX there are several bugs in the code below,
-		 * because 'ptr' can be NULL so all the dereferences in strcasestr()
-		 * would cause panics.
-		 * I think we should do something like the code below, which also has
-		 * the advantage of not depending on the order of headers.
-		 * Please test if it works, and in case remove the block in #else / #endif
-		 */
-#if 1	/* proposed replacement */
-
 		start = replace_id;
 		while ( (ptr = strsep(&start, ";")) ) {
 			ptr = ast_skip_blanks(ptr); /* XXX maybe unnecessary ? */
@@ -11622,34 +11607,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				fromtag = strsep(&fromtag, "&"); /* trim what ? */
 			}
 		}
-#else	/* original code, buggy */
-		if ((ptr = strchr(replace_id, ';'))) {
-			*ptr = '\0';
-			ptr++;
-		}
-		start = ptr;
-
-		to = strcasestr(ptr, "to-tag=");
-		if (to) {
-			ptr = to + 7;
-			totag = ptr;
-			if ((to = strchr(ptr, ';')))
-				*to = '\0';
-			/* XXX this code is also wrong as to can be NULL */
-			to++;
-			ptr = to;
-		}
-
-		to = strcasestr(ptr, "from-tag=");
-		if (to) {
-			ptr = to + 9;
-			fromtag = ptr;
-			if ((to = strchr(ptr, '&')))
-				*to = '\0';
-			if ((to = strchr(ptr, ';')))
-				*to = '\0';
-		}
-#endif
 
 		if (sipdebug && option_debug > 3) 
 			ast_log(LOG_DEBUG,"Invite/replaces: Will use Replace-Call-ID : %s Fromtag: %s Totag: %s\n", replace_id, fromtag ? fromtag : "<no from tag>", totag ? totag : "<no to tag>");
