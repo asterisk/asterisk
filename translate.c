@@ -67,13 +67,13 @@ struct translator_path {
  */
 static struct translator_path tr_matrix[MAX_FORMAT][MAX_FORMAT];
 
-/*
+/*! \todo
  * TODO: sample frames for each supported input format.
  * We build this on the fly, by taking an SLIN frame and using
  * the existing converter to play with it.
  */
 
-/* returns the index of the lowest bit set */
+/*! \brief returns the index of the lowest bit set */
 static int powerof(int d)
 {
 	int x;
@@ -146,9 +146,7 @@ static void destroy(struct ast_trans_pvt *pvt)
 	ast_update_use_count();
 }
 
-/*
- * framein wrapper, deals with plc and bound checks.
- */
+/*! \brief framein wrapper, deals with plc and bound checks.  */
 static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	int16_t *dst = (int16_t *)pvt->outbuf;
@@ -200,8 +198,7 @@ static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
         return ret;
 }
 
-/*
- * generic frameout routine.
+/*! \brief generic frameout routine.
  * If samples and datalen are 0, take whatever is in pvt
  * and reset them, otherwise take the values in the caller and
  * leave alone the pvt values.
@@ -251,7 +248,7 @@ void ast_translator_free_path(struct ast_trans_pvt *p)
 	}
 }
 
-/*! Build a chain of translators based upon the given source and dest formats */
+/*! \brief Build a chain of translators based upon the given source and dest formats */
 struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 {
 	struct ast_trans_pvt *head = NULL, *tail = NULL;
@@ -545,6 +542,7 @@ static char show_trans_usage[] =
 static struct ast_cli_entry show_trans =
 { { "show", "translation", NULL }, show_translation, "Display translation matrix", show_trans_usage };
 
+/*! \brief register codec translator */
 int ast_register_translator(struct ast_translator *t, void *module)
 {
 	static int added_cli = 0;
