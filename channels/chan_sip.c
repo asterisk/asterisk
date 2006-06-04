@@ -2908,8 +2908,11 @@ static int sip_hangup(struct ast_channel *ast)
 		return 0;
 	}
 	/* If the call is not UP, we need to send CANCEL instead of BYE */
-	if (ast->_state != AST_STATE_UP)
+	if (ast->_state != AST_STATE_UP) {
 		needcancel = TRUE;
+		if (option_debug > 3)
+			ast_log(LOG_DEBUG, "Hanging up channel in state %s (not UP)\n", ast_state2str(ast->_state));
+	}
 
 	/* Disconnect */
 	p = ast->tech_pvt;
@@ -7318,23 +7321,23 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 
 	/* Check for arguments in the refer_to header */
 	if ((ptr = strchr(refer_to, '?'))) { /* Search for arguments */
-		*ptr = '\0';
-		ptr++;
+		*ptr++ = '\0';
 		if (!strncasecmp(ptr, "REPLACES=", 9)) {
-			char *to, *from;
+			char *to = NULL, *from = NULL;
 
 			/* This is an attended transfer */
 			referdata->attendedtransfer = 1;
 			strncpy(referdata->replaces_callid, ptr+9, sizeof(referdata->replaces_callid));
 			ast_uri_decode(referdata->replaces_callid);
-			if ((ptr = strchr(referdata->replaces_callid, ';'))) 	/* Remove options */ {
-				*ptr = '\0';
-				ptr++;
+			if ((ptr = strchr(referdata->replaces_callid, ';'))) 	/* Find options */ {
+				*ptr++ = '\0';
 			}
 
-			/* Find the different tags before we destroy the string */
-			to = strcasestr(ptr, "to-tag=");
-			from = strcasestr(ptr, "from-tag=");
+			if (ptr) {
+				/* Find the different tags before we destroy the string */
+				to = strcasestr(ptr, "to-tag=");
+				from = strcasestr(ptr, "from-tag=");
+			}
 
 			/* Grab the to header */
 			if (to) {
