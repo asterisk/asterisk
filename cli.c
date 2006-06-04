@@ -702,6 +702,8 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		"  NativeFormats: %s\n"
 		"    WriteFormat: %s\n"
 		"     ReadFormat: %s\n"
+		" WriteTranscode: %s\n"
+		"  ReadTranscode: %s\n"
 		"1st File Descriptor: %d\n"
 		"      Frames in: %d%s\n"
 		"     Frames out: %d%s\n"
@@ -725,6 +727,8 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		ast_getformatname_multiple(nf, sizeof(nf), c->nativeformats), 
 		ast_getformatname_multiple(wf, sizeof(wf), c->writeformat), 
 		ast_getformatname_multiple(rf, sizeof(rf), c->readformat),
+		c->writetrans ? "Yes" : "No",
+		c->readtrans ? "Yes" : "No",
 		c->fds[0],
 		c->fin & ~DEBUGCHAN_FLAG, (c->fin & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
 		c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
