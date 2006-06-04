@@ -72,8 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/linkedlists.h"
 
-#define MAX_MOHFILES 512
-#define MAX_MOHFILE_LEN 128
+#define INITIAL_NUM_FILES   8
 
 static char *app0 = "MusicOnHold";
 static char *app1 = "WaitMusicOnHold";
@@ -133,17 +132,22 @@ struct mohclass {
 	char dir[256];
 	char args[256];
 	char mode[80];
-	/* XXX This means that we are allocating 64KB of memory for every musiconhold class XXX */
-	char filearray[MAX_MOHFILES][MAX_MOHFILE_LEN];
-	unsigned int flags;
+	/*! A dynamically sized array to hold the list of filenames in "files" mode */
+	char **filearray;
+	/*! The current size of the filearray */
+	int allowed_files;
+	/*! The current number of files loaded into the filearray */
 	int total_files;
+	unsigned int flags;
+	/*! The format from the MOH source, not applicable to "files" mode */
 	int format;
-	int pid;		/* PID of mpg123 */
+	/*! The pid of the external application delivering MOH */
+	int pid;
 	time_t start;
 	pthread_t thread;
-	/* Source of audio */
+	/*! Source of audio */
 	int srcfd;
-	/* FD for timing source */
+	/*! FD for timing source */
 	int pseudofd;
 	AST_LIST_HEAD_NOLOCK(, mohdata) members;
 	AST_LIST_ENTRY(mohclass) list;
@@ -164,20 +168,28 @@ AST_LIST_HEAD_STATIC(mohclasses, mohclass);
 #define MAX_MP3S 256
 
 
-static void ast_moh_free_class(struct mohclass **class) 
+static void ast_moh_free_class(struct mohclass **mohclass) 
 {
 	struct mohdata *member;
+	struct mohclass *class = *mohclass;
+	int i;
 	
-	while ((member = AST_LIST_REMOVE_HEAD(&((*class)->members), list)))
+	while ((member = AST_LIST_REMOVE_HEAD(&class->members, list)))
 		free(member);
 	
-	if ((*class)->thread) {
-		pthread_cancel((*class)->thread);
-		(*class)->thread = 0;
+	if (class->thread) {
+		pthread_cancel(class->thread);
+		class->thread = 0;
 	}
 
-	free(*class);
-	*class = NULL;
+	if (class->filearray) {
+		for (i = 0; i < class->total_files; i++)
+			free(class->filearray[i]);
+		free(class->filearray);
+	}
+
+	free(class);
+	*mohclass = NULL;
 }
 
 
@@ -402,14 +414,6 @@ static int spawn_mp3(struct mohclass *class)
 		ast_log(LOG_WARNING, "Pipe failed\n");
 		return -1;
 	}
-#if 0
-	printf("%d files total, %d args total\n", files, argc);
-	{
-		int x;
-		for (x=0;argv[x];x++)
-			printf("arg%d: %s\n", x, argv[x]);
-	}
-#endif	
 	if (!files) {
 		ast_log(LOG_WARNING, "Found no files in '%s'\n", class->dir);
 		close(fds[0]);
@@ -721,12 +725,35 @@ static struct ast_generator mohgen =
 	generate: moh_generate,
 };
 
+static int moh_add_file(struct mohclass *class, const char *filepath)
+{
+	if (!class->allowed_files) {
+		if (!(class->filearray = ast_calloc(1, INITIAL_NUM_FILES * sizeof(*class->filearray))))
+			return -1;
+		class->allowed_files = INITIAL_NUM_FILES;
+	} else if (class->total_files == class->allowed_files) {
+		if (!(class->filearray = ast_realloc(class->filearray, class->allowed_files * sizeof(*class->filearray) * 2))) {
+			class->allowed_files = 0;
+			class->total_files = 0;
+			return -1;
+		}
+		class->allowed_files *= 2;
+	}
+
+	if (!(class->filearray[class->total_files] = ast_strdup(filepath)))
+		return -1;
+
+	class->total_files++;
+
+	return 0;
+}
+
 static int moh_scan_files(struct mohclass *class) {
 
 	DIR *files_DIR;
 	struct dirent *files_dirent;
 	char path[512];
-	char filepath[MAX_MOHFILE_LEN];
+	char filepath[PATH_MAX];
 	char *ext;
 	struct stat statbuf;
 	int dirnamelen;
@@ -738,16 +765,19 @@ static int moh_scan_files(struct mohclass *class) {
 		return -1;
 	}
 
+	for (i = 0; i < class->total_files; i++)
+		free(class->filearray[i]);
+
 	class->total_files = 0;
 	dirnamelen = strlen(class->dir) + 2;
 	getcwd(path, 512);
 	chdir(class->dir);
-	memset(class->filearray, 0, MAX_MOHFILES*MAX_MOHFILE_LEN);
 	while ((files_dirent = readdir(files_DIR))) {
-		if ((strlen(files_dirent->d_name) < 4) || ((strlen(files_dirent->d_name) + dirnamelen) >= MAX_MOHFILE_LEN))
+		/* The file name must be at least long enough to have the file type extension */
+		if ((strlen(files_dirent->d_name) < 4))
 			continue;
 
-		snprintf(filepath, MAX_MOHFILE_LEN, "%s/%s", class->dir, files_dirent->d_name);
+		snprintf(filepath, sizeof(filepath), "%s/%s", class->dir, files_dirent->d_name);
 
 		if (stat(filepath, &statbuf))
 			continue;
@@ -765,13 +795,10 @@ static int moh_scan_files(struct mohclass *class) {
 			if (!strcmp(filepath, class->filearray[i]))
 				break;
 
-		if (i == class->total_files)
-			strcpy(class->filearray[class->total_files++], filepath);
-
-		/* If the new total files is equal to the maximum allowed, stop adding new ones */
-		if (class->total_files == MAX_MOHFILES)
-			break;
-
+		if (i == class->total_files) {
+			if (moh_add_file(class, filepath))
+				break;
+		}
 	}
 
 	closedir(files_DIR);
