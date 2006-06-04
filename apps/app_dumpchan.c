@@ -87,9 +87,9 @@ static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 "DNIDDigits=         %s\n"
 			 "State=              %s (%d)\n"
 			 "Rings=              %d\n"
-			 "NativeFormat=       %d %s\n"
-			 "WriteFormat=        %d %s\n"
-			 "ReadFormat=         %d %s\n"
+			 "NativeFormat=       %s\n"
+			 "WriteFormat=        %s\n"
+			 "ReadFormat=         %s\n"
 			 "1stFileDescriptor=  %d\n"
 			 "Framesin=           %d %s\n"
 			 "Framesout=          %d %s\n"
@@ -112,11 +112,8 @@ static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 ast_state2str(c->_state),
 			 c->_state,
 			 c->rings,
-			 c->nativeformats,
 			 ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->nativeformats),
-			 c->writeformat,
 			 ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->writeformat),
-			 c->readformat,
 			 ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->readformat),
 			 c->fds[0], c->fin & ~DEBUGCHAN_FLAG, (c->fin & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
 			 c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "", (long)c->whentohangup,
