@@ -8675,7 +8675,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  Call limit   : %d\n", peer->call_limit);
 		ast_cli(fd, "  Dynamic      : %s\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC)?"Yes":"No"));
 		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
-		ast_cli(fd, "  MaxCallBR    : %dkbps\n", peer->maxcallbitrate);
+		ast_cli(fd, "  MaxCallBR    : %d kbps\n", peer->maxcallbitrate);
 		ast_cli(fd, "  Expire       : %d\n", peer->expire);
 		ast_cli(fd, "  Insecure     : %s\n", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE_PORT), ast_test_flag(&peer->flags[0], SIP_INSECURE_INVITE)));
 		ast_cli(fd, "  Nat          : %s\n", nat2str(ast_test_flag(&peer->flags[0], SIP_NAT)));
@@ -8757,7 +8757,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		astman_append(s, "TransferMode: %s\r\n", transfermode2str(peer->allowtransfer));
 		astman_append(s, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
 		astman_append(s, "Call limit: %d\r\n", peer->call_limit);
-		astman_append(s, "MaxCallBR: %dkbps\r\n", peer->maxcallbitrate);
+		astman_append(s, "MaxCallBR: %d kbps\r\n", peer->maxcallbitrate);
 		astman_append(s, "Dynamic: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC)?"Y":"N"));
 		astman_append(s, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, ""));
 		astman_append(s, "RegExpire: %ld seconds\r\n", ast_sched_when(sched,peer->expire));
@@ -8842,6 +8842,7 @@ static int sip_show_user(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Accountcode  : %s\n", user->accountcode);
 		ast_cli(fd, "  AMA flags    : %s\n", ast_cdr_flags2str(user->amaflags));
 		ast_cli(fd, "  Transfer mode: %s\n", transfermode2str(user->allowtransfer));
+		ast_cli(fd, "  MaxCallBR    : %d kbps\n", user->maxcallbitrate);
 		ast_cli(fd, "  CallingPres  : %s\n", ast_describe_caller_presentation(user->callingpres));
 		ast_cli(fd, "  Call limit   : %d\n", user->call_limit);
 		ast_cli(fd, "  Callgroup    : ");
@@ -8973,7 +8974,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Outbound reg. attempts: %d\n", global_regattempts_max);
 	ast_cli(fd, "  Notify ringing state:   %s\n", global_notifyringing ? "Yes" : "No");
 	ast_cli(fd, "  SIP Transfer mode:      %s\n", transfermode2str(global_allowtransfer));
-	ast_cli(fd, "  Max Call Bitrate:       %dkbps\r\n", default_maxcallbitrate);
+	ast_cli(fd, "  Max Call Bitrate:       %d kbps\r\n", default_maxcallbitrate);
 	ast_cli(fd, "\nDefault Settings:\n");
 	ast_cli(fd, "-----------------\n");
 	ast_cli(fd, "  Context:                %s\n", default_context);
@@ -9258,6 +9259,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Their Codec Capability:   %d\n", cur->peercapability);
 			ast_cli(fd, "  Joint Codec Capability:   %d\n", cur->jointcapability);
 			ast_cli(fd, "  Format:                 %s\n", ast_getformatname_multiple(formatbuf, sizeof(formatbuf), cur->owner ? cur->owner->nativeformats : 0) );
+			ast_cli(fd, "  MaxCallBR:              %d kbps\n", cur->maxcallbitrate);
 			ast_cli(fd, "  Theoretical Address:    %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), ntohs(cur->sa.sin_port));
 			ast_cli(fd, "  Received Address:       %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->recv.sin_addr), ntohs(cur->recv.sin_port));
 			ast_cli(fd, "  SIP Transfer mode:      %s\n", transfermode2str(cur->allowtransfer));
