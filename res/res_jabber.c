@@ -325,7 +325,7 @@ static int aji_status_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if(!strchr(screename, '/')) {
+	if(!strchr(screenname, '/')) {
 		resource = NULL;
 	} else {
 		resource = strsep(&screenname, "/");
