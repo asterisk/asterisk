@@ -3,6 +3,12 @@
        not listed here.  A complete listing of changes is available through
        the Asterisk-CVS mailing list hosted at http://lists.digium.com.
 
+Asterisk 1.0.11
+
+ -- chan_iax2
+    -- A security vulnerability that could lead to denial of service attacks
+       and Asterisk process crashes was fixed in this release.
+	
 Asterisk 1.0.10
 
  -- chan_local
