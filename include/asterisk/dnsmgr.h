@@ -37,6 +37,10 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry);
 
 int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmgr_entry **dnsmgr);
 
+int ast_dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose);
+
+int ast_dnsmgr_changed(struct ast_dnsmgr_entry *entry);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif /* c_plusplus */
