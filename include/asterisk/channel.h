@@ -999,7 +999,7 @@ int ast_channel_setoption(struct ast_channel *channel, int option, void *data, i
 
 /*! Pick the best codec  */
 /* Choose the best codec...  Uhhh...   Yah. */
-extern int ast_best_codec(int fmts);
+int ast_best_codec(int fmts);
 
 
 /*! Checks the value of an option */
@@ -1254,10 +1254,10 @@ static inline int ast_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds,
 									ast_set_flag(c, AST_FLAG_BLOCKING); \
 									} }
 
-extern ast_group_t ast_get_group(char *s);
+ast_group_t ast_get_group(char *s);
 
 /*! \brief print call- and pickup groups into buffer */
-extern char *ast_print_group(char *buf, int buflen, ast_group_t group);
+char *ast_print_group(char *buf, int buflen, ast_group_t group);
 
 /*! \brief Convert enum channelreloadreason to text string for manager event
 	\param reason	Enum channelreloadreason - reason for reload (manager, cli, start etc)
@@ -1265,7 +1265,7 @@ extern char *ast_print_group(char *buf, int buflen, ast_group_t group);
 const char *channelreloadreason2txt(enum channelreloadreason reason);
 
 /*! \brief return an ast_variable list of channeltypes */
-extern struct ast_variable *ast_channeltype_list(void);
+struct ast_variable *ast_channeltype_list(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

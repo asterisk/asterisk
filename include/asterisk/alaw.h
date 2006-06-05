@@ -27,7 +27,7 @@
 /*!
  * To init the ulaw to slinear conversion stuff, this needs to be run.
  */
-extern void ast_alaw_init(void);
+void ast_alaw_init(void);
 
 /*! converts signed linear to mulaw */
 /*!
