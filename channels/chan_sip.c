@@ -7739,7 +7739,8 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			p->amaflags = user->amaflags;
 			p->callgroup = user->callgroup;
 			p->pickupgroup = user->pickupgroup;
-			p->callingpres = user->callingpres;
+			if (user->callingpres)	/* User callingpres setting will override RPID header */
+				p->callingpres = user->callingpres;
 			p->capability = user->capability;
 			p->jointcapability = user->capability;
 			p->maxcallbitrate = user->maxcallbitrate;
@@ -7811,7 +7812,8 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			ast_string_field_set(p, peersecret, peer->secret);
 			ast_string_field_set(p, peermd5secret, peer->md5secret);
 			ast_string_field_set(p, subscribecontext, peer->subscribecontext);
-			p->callingpres = peer->callingpres;
+			if (peer->callingpres)	/* Peer calling pres setting will override RPID */
+				p->callingpres = peer->callingpres;
 			if (peer->maxms && peer->lastms)
 				p->timer_t1 = peer->lastms;
 			if (ast_test_flag(&peer->flags[0], SIP_INSECURE_INVITE)) {
