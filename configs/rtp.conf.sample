@@ -18,3 +18,5 @@ rtpend=20000
 ; allowed to continue (in 'samples', 1/8000 of a second)
 ;
 ;dtmftimeout=3000
+; rtcpinterval = 5000 	; Milliseconds between rtcp reports 
+			;(min 500, max 60000, default 5000)
