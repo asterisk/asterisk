@@ -97,73 +97,11 @@ static int ast_rtcp_write_sr(void *data);
 static int ast_rtcp_write_rr(void *data);
 static unsigned int ast_rtcp_calc_interval(struct ast_rtp *rtp);
 
-/*! \brief The value of each payload format mapping: */
-struct rtpPayloadType {
-	int isAstFormat; 	/*!< whether the following code is an AST_FORMAT */
-	int code;
-};
-
-#define MAX_RTP_PT			256
-
 #define FLAG_3389_WARNING		(1 << 0)
 #define FLAG_NAT_ACTIVE			(3 << 1)
 #define FLAG_NAT_INACTIVE		(0 << 1)
 #define FLAG_NAT_INACTIVE_NOWARN	(1 << 1)
 #define FLAG_HAS_DTMF			(1 << 3)
-
-/*! \brief RTP session description */
-struct ast_rtp {
-	int s;
-	char resp;
-	struct ast_frame f;
-	unsigned char rawdata[8192 + AST_FRIENDLY_OFFSET];
-	unsigned int ssrc;		/*!< Synchronization source, RFC 3550, page 10. */
-	unsigned int themssrc;		/*!< Their SSRC */
-	unsigned int rxssrc;
-	unsigned int lastts;
-	unsigned int lastdigitts;
-	unsigned int lastrxts;
-	unsigned int lastividtimestamp;
-	unsigned int lastovidtimestamp;
-	unsigned int lasteventseqn;
-	int lastrxseqno;                /*!< Last received sequence number */
-	unsigned short seedrxseqno;     /*!< What sequence number did they start with?*/
-	unsigned int seedrxts;          /*!< What RTP timestamp did they start with? */
-	unsigned int rxcount;           /*!< How many packets have we received? */
-	unsigned int rxoctetcount;      /*!< How many octets have we received? should be rxcount *160*/
-	unsigned int txcount;           /*!< How many packets have we sent? */
-	unsigned int txoctetcount;      /*!< How many octets have we sent? (txcount*160)*/
-	unsigned int cycles;            /*!< Shifted count of sequence number cycles */
-	double rxjitter;                /*!< Interarrival jitter at the moment */
-	double rxtransit;               /*!< Relative transit time for previous packet */
-	unsigned int lasteventendseqn;
-	int lasttxformat;
-	int lastrxformat;
-	int dtmfcount;
-	unsigned int dtmfduration;
-	int nat;
-	unsigned int flags;
-	struct sockaddr_in us;		/*!< Socket representation of the local endpoint. */
-	struct sockaddr_in them;	/*!< Socket representation of the remote endpoint. */
-	struct timeval rxcore;
-	struct timeval txcore;
-	double drxcore;                 /*!< The double representation of the first received packet */
-	struct timeval lastrx;          /*!< timeval when we last received a packet */
-	struct timeval dtmfmute;
-	struct ast_smoother *smoother;
-	int *ioid;
-	unsigned short seqno;		/*!< Sequence number, RFC 3550, page 13. */
-	unsigned short rxseqno;
-	struct sched_context *sched;
-	struct io_context *io;
-	void *data;
-	ast_rtp_callback callback;
-	struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
-	int rtp_lookup_code_cache_isAstFormat; /*!< a cache for the result of rtp_lookup_code(): */
-	int rtp_lookup_code_cache_code;
-	int rtp_lookup_code_cache_result;
-	struct ast_rtcp *rtcp;
-};
 
 /*!
  * \brief Structure defining an RTCP session.
