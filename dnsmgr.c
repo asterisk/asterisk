@@ -53,11 +53,9 @@ static int refresh_sched = -1;
 static pthread_t refresh_thread = AST_PTHREADT_NULL;
 
 struct ast_dnsmgr_entry {
-	struct in_addr *result; 	/* where we will store the resulting address */
-	struct in_addr last; 		/* the last result, used to check if address has changed */
-	int changed;
+	struct in_addr *result;
 	AST_LIST_ENTRY(ast_dnsmgr_entry) list;
-	char name[1];			/* just 1 here, but we use calloc to allocate the correct size */
+	char name[1];
 };
 
 static AST_LIST_HEAD_STATIC(entry_list, ast_dnsmgr_entry);
@@ -106,8 +104,6 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry)
 	AST_LIST_LOCK(&entry_list);
 	AST_LIST_REMOVE(&entry_list, entry, list);
 	AST_LIST_UNLOCK(&entry_list);
-	if (option_verbose > 4)
-		ast_verbose(VERBOSE_PREFIX_4 "removing dns manager for '%s'\n", entry->name);
 	free(entry);
 }
 
@@ -120,7 +116,7 @@ int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmg
 		return 0;
 
 	if (option_verbose > 3)
-		ast_verbose(VERBOSE_PREFIX_3 "doing dnsmgr_lookup for '%s'\n", name);
+		ast_verbose(VERBOSE_PREFIX_3 "doing lookup for '%s'\n", name);
 
 	/* if it's actually an IP address and not a name,
 	   there's no need for a managed lookup */
@@ -138,56 +134,10 @@ int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmg
 		return 0;
 	} else {
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_2 "adding dns manager for '%s'\n", name);
+			ast_verbose(VERBOSE_PREFIX_2 "adding manager for '%s'\n", name);
 		*dnsmgr = ast_dnsmgr_get(name, result);
 		return !*dnsmgr;
 	}
-}
-
-/*
- * Refresh a dnsmgr entry
- *
- * XXX maybe we must lock the entry to make safer
- */
-int ast_dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
-{
-	struct ast_hostent ahp;
-	struct hostent *hp;
-        char iabuf[INET_ADDRSTRLEN];
-        char iabuf2[INET_ADDRSTRLEN];
-        struct in_addr tmp;
-        
-	if (verbose && (option_verbose > 2))
-		ast_verbose(VERBOSE_PREFIX_2 "refreshing '%s'\n", entry->name);
-
-	if ((hp = ast_gethostbyname(entry->name, &ahp))) {
-		/* check to see if it has changed, do callback if requested (where de callback is defined ????) */
-		memcpy(&tmp, hp->h_addr, sizeof(tmp));
-		if (tmp.s_addr != entry->last.s_addr) {
-			ast_log(LOG_NOTICE, "host '%s' changed from %s to %s\n", 
-				entry->name,
-				ast_inet_ntoa(iabuf, sizeof(iabuf), entry->last),
-				ast_inet_ntoa(iabuf2, sizeof(iabuf2), tmp));
-
-			memcpy(entry->result, hp->h_addr, sizeof(entry->result));
-			memcpy(&entry->last, hp->h_addr, sizeof(entry->last));
-			entry->changed = 1;
-			return 1;
-		} 
-		
-	}
-	return 0;
-}
-
-/*
- * Check if dnsmgr entry has changed from since last call to this function
- */
-int ast_dnsmgr_changed(struct ast_dnsmgr_entry *entry) 
-{
-	int ret = entry->changed;
-	entry->changed = 0;
-	
-	return ret;
 }
 
 static void *do_refresh(void *data)
@@ -205,6 +155,8 @@ static int refresh_list(void *data)
 {
 	struct refresh_info *info = data;
 	struct ast_dnsmgr_entry *entry;
+	struct ast_hostent ahp;
+	struct hostent *hp;
 
 	/* if a refresh or reload is already in progress, exit now */
 	if (ast_mutex_trylock(&refresh_lock)) {
@@ -220,7 +172,13 @@ static int refresh_list(void *data)
 		if (info->regex_present && regexec(&info->filter, entry->name, 0, NULL, 0))
 		    continue;
 
-		ast_dnsmgr_refresh(entry, info->verbose);
+		if (info->verbose && (option_verbose > 2))
+			ast_verbose(VERBOSE_PREFIX_2 "refreshing '%s'\n", entry->name);
+
+		if ((hp = ast_gethostbyname(entry->name, &ahp))) {
+			/* check to see if it has changed, do callback if requested */
+			memcpy(entry->result, hp->h_addr, sizeof(entry->result));
+		}
 	}
 	AST_LIST_UNLOCK(info->entries);
 

@@ -416,7 +416,6 @@ struct iax2_registry {
 	int callno;				/*!< Associated call number if applicable */
 	struct sockaddr_in us;			/*!< Who the server thinks we are */
 	struct iax2_registry *next;
-	struct ast_dnsmgr_entry *dnsmgr;	/*!< DNS refresh manager */
 };
 
 static struct iax2_registry *registrations;
@@ -1895,7 +1894,7 @@ static int iax2_prune_realtime(int fd, int argc, char *argv[])
 	} else if ((peer = find_peer(argv[3], 0))) {
 		if(ast_test_flag(peer, IAX_RTCACHEFRIENDS)) {
 			ast_set_flag(peer, IAX_RTAUTOCLEAR);
-			expire_registry(peer);
+			expire_registry(peer->name);
 			ast_cli(fd, "OK peer %s was removed from the cache.\n", argv[3]);
 		} else {
 			ast_cli(fd, "SORRY peer %s is not eligible for this operation.\n", argv[3]);
@@ -2533,7 +2532,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 		if (ast_test_flag(peer, IAX_RTAUTOCLEAR)) {
 			if (peer->expire > -1)
 				ast_sched_del(sched, peer->expire);
-			peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_registry, (void*)peer);
+			peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_registry, (void*)peer->name);
 		}
 		AST_LIST_LOCK(&peers);
 		AST_LIST_INSERT_HEAD(&peers, peer, entry);
@@ -4305,8 +4304,8 @@ static char *regstate2str(int regstate)
 
 static int iax2_show_registry(int fd, int argc, char *argv[])
 {
-#define FORMAT2 "%-20.20s  %-6.6s  %-10.10s  %-20.20s %8.8s  %s\n"
-#define FORMAT  "%-20.20s  %-6.6s  %-10.10s  %-20.20s %8d  %s\n"
+#define FORMAT2 "%-20.20s  %-10.10s  %-20.20s %8.8s  %s\n"
+#define FORMAT "%-20.20s  %-10.10s  %-20.20s %8d  %s\n"
 	struct iax2_registry *reg = NULL;
 
 	char host[80];
@@ -4315,7 +4314,7 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	AST_LIST_LOCK(&peers);
-	ast_cli(fd, FORMAT2, "Host", "dnsmgr", "Username", "Perceived", "Refresh", "State");
+	ast_cli(fd, FORMAT2, "Host", "Username", "Perceived", "Refresh", "State");
 	for (reg = registrations;reg;reg = reg->next) {
 		snprintf(host, sizeof(host), "%s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), reg->addr.sin_addr), ntohs(reg->addr.sin_port));
 		if (reg->us.sin_addr.s_addr) 
@@ -4323,7 +4322,6 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 		else
 			ast_copy_string(perceived, "<Unregistered>", sizeof(perceived));
 		ast_cli(fd, FORMAT, host, 
-					(reg->dnsmgr) ? "Y" : "N", 
 					reg->username, perceived, reg->refresh, regstate2str(reg->regstate));
 	}
 	AST_LIST_UNLOCK(&peers);
@@ -5449,6 +5447,7 @@ static int iax2_register(char *value, int lineno)
 	char *porta;
 	char *stringp=NULL;
 	
+	struct ast_hostent ahp; struct hostent *hp;
 	if (!value)
 		return -1;
 	ast_copy_string(copy, value, sizeof(copy));
@@ -5470,18 +5469,20 @@ static int iax2_register(char *value, int lineno)
 		ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
 		return -1;
 	}
-	if (!(reg = ast_calloc(1, sizeof(*reg))))
-		return -1;
-	if (ast_dnsmgr_lookup(hostname, &reg->addr.sin_addr, &reg->dnsmgr) < 0) {
-		free(reg);
+	hp = ast_gethostbyname(hostname, &ahp);
+	if (!hp) {
+		ast_log(LOG_WARNING, "Host '%s' not found at line %d\n", hostname, lineno);
 		return -1;
 	}
+	if (!(reg = ast_calloc(1, sizeof(*reg))))
+		return -1;
 	ast_copy_string(reg->username, username, sizeof(reg->username));
 	if (secret)
 		ast_copy_string(reg->secret, secret, sizeof(reg->secret));
 	reg->expire = -1;
 	reg->refresh = IAX_DEFAULT_REG_EXPIRE;
 	reg->addr.sin_family = AF_INET;
+	memcpy(&reg->addr.sin_addr, hp->h_addr, sizeof(&reg->addr.sin_addr));
 	reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(IAX_DEFAULT_PORTNO);
 	reg->next = registrations;
 	reg->callno = 0;
@@ -5511,7 +5512,26 @@ static void prune_peers(void);
 
 static void __expire_registry(void *data)
 {
-	struct iax2_peer *p = data;
+	char *name = data;
+	struct iax2_peer *p = NULL;
+
+	/* Go through and grab this peer... and if it needs to be removed... then do it */
+	AST_LIST_LOCK(&peers);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&peers, p, entry) {
+		if (!strcasecmp(p->name, name)) {
+			/* If we are set to auto clear then remove ourselves */
+			if (ast_test_flag(p, IAX_RTAUTOCLEAR))
+				AST_LIST_REMOVE_CURRENT(&peers, entry);
+			p->expire = -1;
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&peers);
+
+	/* Peer is already gone for whatever reason */
+	if (!p)
+		return;
 
 	ast_log(LOG_DEBUG, "Expiring registration for peer '%s'\n", p->name);
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", p->name);
@@ -5528,18 +5548,16 @@ static void __expire_registry(void *data)
 
 	if (ast_test_flag(p, IAX_RTAUTOCLEAR)) {
 		/* We are already gone from the list, so we can just destroy ourselves */
-		AST_LIST_LOCK(&peers);
-		AST_LIST_REMOVE(&peers, p, entry);
-		AST_LIST_UNLOCK(&peers);
 		destroy_peer(p);
 	}
 }
 
 static int expire_registry(void *data)
 {
-	struct iax2_peer *p = data;
-	p->expire = -1;
-	__expire_registry(p);
+#ifdef SCHED_MULTITHREADED
+	if (schedule_action(__expire_registry, data))
+#endif		
+		__expire_registry(data);
 	return 0;
 }
 
@@ -5573,7 +5591,7 @@ static void reg_source_db(struct iax2_peer *p)
 					if (p->expire > -1)
 						ast_sched_del(sched, p->expire);
 					ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
-					p->expire = ast_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p);
+					p->expire = ast_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p->name);
 					if (iax2_regfunk)
 						iax2_regfunk(p->name, 1);
 					register_peer_exten(p, 1);
@@ -5651,7 +5669,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 		p->expiry = refresh;
 	}
 	if (p->expiry && sin->sin_addr.s_addr)
-		p->expire = ast_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p);
+		p->expire = ast_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p->name);
 	iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
 	iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(p->zonetag));
 	if (sin->sin_addr.s_addr) {
@@ -7723,31 +7741,6 @@ static int iax2_do_register(struct iax2_registry *reg)
 	struct iax_ie_data ied;
 	if (option_debug && iaxdebug)
 		ast_log(LOG_DEBUG, "Sending registration request for '%s'\n", reg->username);
-
-	if (reg->dnsmgr && 
-	    ((reg->regstate == REG_STATE_TIMEOUT) || !reg->addr.sin_addr.s_addr)) {
-		/* Maybe the IP has changed, force DNS refresh */
-		ast_dnsmgr_refresh(reg->dnsmgr, 1);
-	}
-	
-	/*
-	 * if IP has Changed, free allocated call to create a new one with new IP
-	 * call has the pointer to IP and must be updated to the new one
-	 */
-	if (reg->dnsmgr && ast_dnsmgr_changed(reg->dnsmgr) && (reg->callno > 0)) {
-		iax2_destroy(reg->callno);
-		reg->callno = 0;
-	}
-	if (!reg->addr.sin_addr.s_addr) {
-		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "Unable to send registration request for '%s' without IP address\n", reg->username);
-		/* Setup the next registration attempt */
-		if (reg->expire > -1)
-			ast_sched_del(sched, reg->expire);
-		reg->expire  = ast_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
-		return -1;
-	}
-
 	if (!reg->callno) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Allocate call number\n");
@@ -8640,8 +8633,6 @@ static void delete_users(void)
 			}
 			ast_mutex_unlock(&iaxsl[regl->callno]);
 		}
-		if (regl->dnsmgr)
-			ast_dnsmgr_release(regl->dnsmgr);
 		free(regl);
 	}
 	registrations = NULL;
