@@ -7142,16 +7142,16 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 			return -1;
 		}
 		from += 4;
-		from = strsep(&from, ";");
 		if ((a = strchr(from, '@')))
 			*a++ = '\0';
 		else
 			a = from;	/* just a domain */
+		from = strsep(&from, ";");	/* Remove userinfo options */
+		a = strsep(&a, ";");		/* Remove URI options */
 		ast_string_field_set(p, fromdomain, a);
 	}
 
 	/* Skip any options and find the domain */
-	uri = strsep(&uri, ";");
 
 	/* Get the target domain */
 	if ((a = strchr(uri, '@'))) {
@@ -7163,6 +7163,9 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	colon = strchr(a, ':'); /* Remove :port */
 	if (colon)
 		*colon = '\0';
+
+	uri = strsep(&uri, ";");	/* Remove userinfo options */
+	a = strsep(&a, ";");		/* Remove URI options */
 
 	ast_string_field_set(p, domain, a);
 
