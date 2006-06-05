@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-MODS:=$(filter-out $(MENUSELECT_CDR),$(patsubst %.c,%.so,$(wildcard cdr_*.c)))
+SELECTED_MODS:=$(filter-out $(MENUSELECT_CDR),$(patsubst %.c,%,$(wildcard cdr_*.c)))
 
 #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
 #This works for even old (2.96) versions of gcc and provides a small boost either way.
@@ -34,6 +34,8 @@ ifneq ($(TDS_LIB),)
     endif
   endif
 endif
+
+MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
 
 all: depend $(MODS)
 

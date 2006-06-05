@@ -11,13 +11,15 @@
 # the GNU General Public License
 #
 
-MODS:=$(filter-out $(MENUSELECT_PBX),$(patsubst %.c,%.so,$(wildcard pbx_*.c)))
+SELECTED_MODS:=$(filter-out $(MENUSELECT_PBX),$(patsubst %.c,%,$(wildcard pbx_*.c)))
 
 MOC=$(QTDIR)/bin/moc
 KDE_FLAGS=-I$(KDEDIR)/include -I$(KDEDIR)/include/kde -I$(QTDIR)/include
 KDE_LIBS=-L$(KDEDIR)/lib -L$(QTDIR)/lib -lqt -lkdecore -lkdeui
 
 KDE_CONSOLE_OBJS=pbx_kdeconsole_main.o pbx_kdeconsole.o 
+
+MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
 
 all: depend $(MODS)
 

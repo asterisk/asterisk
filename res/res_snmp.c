@@ -141,13 +141,3 @@ const char *description(void)
 {
     return MODULE_DESCRIPTION;
 }
-
-/*
- * Local Variables:
- * c-file-style: gnu
- * c-basic-offset: 4
- * c-file-offsets: ((case-label . 0))
- * tab-width: 4
- * indent-tabs-mode: t
- * End:
- */

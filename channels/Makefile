@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(patsubst %.c,%.so,$(wildcard chan_*.c)))
+SELECTED_MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(patsubst %.c,%,$(wildcard chan_*.c)))
 
 ifeq ($(OSARCH),OpenBSD)
   PTLIB=-lpt_OpenBSD_x86_r
@@ -45,11 +45,11 @@ ifeq ($(OSARCH),SunOS)
 endif
 
 ifeq ($(wildcard h323/libchanh323.a),)
-  MODS:=$(filter-out chan_h323.so,$(MODS))
+  SELECTED_MODS:=$(filter-out chan_h323,$(SELECTED_MODS))
 endif
 
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/mISDNuser/mISDNlib.h),)
-  MODS:=$(filter-out chan_misdn.so,$(MODS))
+  SELECTED_MODS:=$(filter-out chan_misdn,$(SELECTED_MODS))
 else
   CFLAGS+=-Imisdn 
 endif
@@ -61,6 +61,8 @@ endif
 ifndef PWLIBDIR
   PWLIBDIR=$(HOME)/pwlib
 endif
+
+MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
 
 all: depend $(MODS) 
 

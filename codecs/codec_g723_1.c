@@ -27,6 +27,10 @@
  * \ingroup codecs
  */
 
+/*** MODULEINFO
+	<defaultenabled>no</defaultenabled>
+ ***/
+
 #define TYPE_HIGH	 0x0
 #define TYPE_LOW	 0x1
 #define TYPE_SILENCE	 0x2

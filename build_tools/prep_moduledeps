@@ -38,7 +38,7 @@ process_dir() {
 		fname=${file##${dir}/}
 		get_description ${file}
 		desc=${TDESC}
-		echo -e "\t\t<member name=\"${fname%%.c}.so\" displayname=\"${desc}\">"
+		echo -e "\t\t<member name=\"${fname%%.c}\" displayname=\"${desc}\">"
 		awk -f build_tools/get_moduledeps ${file}
 		echo -e "\t\t</member>"
 	done

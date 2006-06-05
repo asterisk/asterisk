@@ -1,19 +1,33 @@
 	<category name="MENUSELECT_SOUNDS" displayname="Sound Packages" positive_output="yes">
-		<member name="CORE_SOUNDS_EN_WAV" displayname="Core Sounds - English, WAV format" />
-		<member name="CORE_SOUNDS_EN_ULAW" displayname="Core Sounds - English, mu-Law format" />
-		<member name="CORE_SOUNDS_EN_ALAW" displayname="Core Sounds - English, a-Law format" />
+		<member name="CORE_SOUNDS_EN_WAV" displayname="Core Sounds - English, WAV format">
+		</member>
+		<member name="CORE_SOUNDS_EN_ULAW" displayname="Core Sounds - English, mu-Law format">
+		</member>
+		<member name="CORE_SOUNDS_EN_ALAW" displayname="Core Sounds - English, a-Law format">
+		</member>
 		<member name="CORE_SOUNDS_EN_GSM" displayname="Core Sounds - English, GSM format" >
 			<defaultenabled>yes</defaultenabled>
 		</member>
-		<member name="CORE_SOUNDS_EN_G729" displayname="Core Sounds - English, G.729 format" />
-		<member name="CORE_SOUNDS_ES_WAV" displayname="Core Sounds - Spanish, WAV format" />
-		<member name="CORE_SOUNDS_ES_ULAW" displayname="Core Sounds - Spanish, mu-Law format" />
-		<member name="CORE_SOUNDS_ES_ALAW" displayname="Core Sounds - Spanish, a-Law format" />
-		<member name="CORE_SOUNDS_ES_GSM" displayname="Core Sounds - Spanish, GSM format" />
-		<member name="CORE_SOUNDS_ES_G729" displayname="Core Sounds - Spanish, G.729 format" />
-		<member name="CORE_SOUNDS_FR_WAV" displayname="Core Sounds - French, WAV format" />
-		<member name="CORE_SOUNDS_FR_ULAW" displayname="Core Sounds - French, mu-Law format" />
-		<member name="CORE_SOUNDS_FR_ALAW" displayname="Core Sounds - French, a-Law format" />
-		<member name="CORE_SOUNDS_FR_GSM" displayname="Core Sounds - French, GSM format" />
-		<member name="CORE_SOUNDS_FR_G729" displayname="Core Sounds - French, G.729 format" />
+		<member name="CORE_SOUNDS_EN_G729" displayname="Core Sounds - English, G.729 format">
+		</member>
+		<member name="CORE_SOUNDS_ES_WAV" displayname="Core Sounds - Spanish, WAV format">
+		</member>
+		<member name="CORE_SOUNDS_ES_ULAW" displayname="Core Sounds - Spanish, mu-Law format">
+		</member>
+		<member name="CORE_SOUNDS_ES_ALAW" displayname="Core Sounds - Spanish, a-Law format">
+		</member>
+		<member name="CORE_SOUNDS_ES_GSM" displayname="Core Sounds - Spanish, GSM format">
+		</member>
+		<member name="CORE_SOUNDS_ES_G729" displayname="Core Sounds - Spanish, G.729 format">
+		</member>
+		<member name="CORE_SOUNDS_FR_WAV" displayname="Core Sounds - French, WAV format">
+		</member>
+		<member name="CORE_SOUNDS_FR_ULAW" displayname="Core Sounds - French, mu-Law format">
+		</member>
+		<member name="CORE_SOUNDS_FR_ALAW" displayname="Core Sounds - French, a-Law format">
+		</member>
+		<member name="CORE_SOUNDS_FR_GSM" displayname="Core Sounds - French, GSM format">
+		</member>
+		<member name="CORE_SOUNDS_FR_G729" displayname="Core Sounds - French, G.729 format">
+		</member>
 	</category>

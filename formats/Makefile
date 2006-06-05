@@ -11,9 +11,11 @@
 # the GNU General Public License
 #
 
-MODS:=$(filter-out $(MENUSELECT_FORMATS),$(patsubst %.c,%.so,$(wildcard format_*.c)))
+SELECTED_MODS:=$(filter-out $(MENUSELECT_FORMATS),$(patsubst %.c,%,$(wildcard format_*.c)))
 
 GSMLIB=../codecs/gsm/lib/libgsm.a
+
+MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
 
 all: depend $(MODS)
 

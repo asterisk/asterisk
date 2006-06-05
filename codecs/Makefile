@@ -11,26 +11,17 @@
 # the GNU General Public License
 #
 
-MODS:=$(filter-out $(MENUSELECT_CODECS),$(patsubst %.c,%.so,$(wildcard codec_*.c)))
-
-ifeq ($(wildcard g723.1/coder.c),)
-  MODS:=$(filter-out codec_g723_1.so,$(MODS))
-else
-  LIBG723=g723.1/libg723.a
-endif
-
-ifneq ($(wildcard g723.1b/coder2.c),)
-  MODS+=codec_g723_1b.so
-  LIBG723B=g723.1b/libg723b.a
-endif
+SELECTED_MODS:=$(filter-out $(MENUSELECT_CODECS),$(patsubst %.c,%,$(wildcard codec_*.c)))
 
 ifeq ($(wildcard ilbc/iLBC_decode.h),)
-  MODS:=$(filter-out codec_ilbc.so,$(MODS))
+  MODS:=$(filter-out codec_ilbc,$(MODS))
 else
   LIBILBC=ilbc/libilbc.a
 endif
 
 LIBLPC10=lpc10/liblpc10.a
+
+MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
 
 all: depend $(MODS)
 

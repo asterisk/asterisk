@@ -11,28 +11,30 @@
 # the GNU General Public License
 #
 
-MODS:=$(filter-out $(MENUSELECT_RES),$(patsubst %.c,%.so,$(wildcard res_*.c)))
+SELECTED_MODS:=$(filter-out $(MENUSELECT_RES),$(patsubst %.c,%,$(wildcard res_*.c)))
 
 ifeq ($(OSARCH),FreeBSD)
-  MODS:=$(filter-out $(shell if test ${BSDVERSION} -lt 500000 ; then echo "res_config_odbc.so"; fi),$(MODS))
+  SELECTED_MODS:=$(filter-out $(shell if test ${BSDVERSION} -lt 500000 ; then echo "res_config_odbc"; fi),$(SELECTED_MODS))
 endif
 
 # NETsnmp has some difficulties on some platforms (conflict with unload_module)
 # Until we figure out if the collission is version-specific or what to do
 # we have disabled res_snmp on OS/X and *BSD
 ifeq ($(OSARCH),Darwin)
-  MODS:=$(filter-out res_snmp.so,$(MODS))
+  SELECTED_MODS:=$(filter-out res_snmp,$(SELECTED_MODS))
 else
   ifeq ($(findstring BSD,$(OSARCH)),BSD)
-    MODS:=$(filter-out res_snmp.so,$(MODS))
+    SELECTED_MODS:=$(filter-out res_snmp,$(SELECTED_MODS))
   endif
 endif
 
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/net-snmp/net-snmp-config.h),)
-  MODS:=$(filter-out res_snmp.so,$(MODS))
+  SELECTED_MODS:=$(filter-out res_snmp,$(SELECTED_MODS))
 else
   SNMP_LDLIBS+=$(shell net-snmp-config --agent-libs)
 endif
+
+MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
 
 all: depend $(MODS)
 

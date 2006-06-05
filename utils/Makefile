@@ -26,7 +26,7 @@ ifeq ($(NEWT_LIB),)
   UTILS:=$(filter-out astman,$(UTILS))
 endif
 
-ifneq ($(filter pbx_ael.so,$(MENUSELECT_PBX)),)
+ifneq ($(filter pbx_ael,$(MENUSELECT_PBX)),)
   UTILS:=$(filter-out aelparse,$(UTILS))
 endif
 

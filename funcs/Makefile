@@ -11,18 +11,20 @@
 # the GNU General Public License
 #
 
-MODS:=$(filter-out $(MENUSELECT_FUNCS),$(patsubst %.c,%.so,$(wildcard func_*.c)))
+SELECTED_MODS:=$(filter-out $(MENUSELECT_FUNCS),$(patsubst %.c,%,$(wildcard func_*.c)))
 
 # TODO This check needs to be handled with autoconf
 ifeq ($(OSARCH),SunOS)
   ifeq ($(shell if [ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]; then echo "OK" ; fi),)
-    MODS:=$(filter-out func_curl.so,$(MODS))
+    MODS:=$(filter-out func_curl,$(MODS))
   endif
 else
   ifeq ($(shell if [[ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]]; then echo "OK" ; fi),)
-    MODS:=$(filter-out func_curl.so,$(MODS)) 
+    MODS:=$(filter-out func_curl,$(MODS)) 
   endif
 endif
+
+MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
 
 all: $(MODS)
 
