@@ -456,30 +456,47 @@ extern struct ast_frame *ast_smoother_read(struct ast_smoother *s);
 
 extern void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix);
 
-/*! \brief Initialize a codec preference to "no preference" */
+/*! \par AudioCodecPref Audio Codec Preferences
+	In order to negotiate audio codecs in the order they are configured
+	in <channel>.conf for a device, we set up codec preference lists
+	in addition to the codec capabilities setting. The capabilities
+	setting is a bitmask of audio and video codecs with no internal
+	order. This will reflect the offer given to the other side, where
+	the prefered codecs will be added to the top of the list in the
+	order indicated by the "allow" lines in the device configuration.
+	
+	Video codecs are not included in the preference lists since they
+	can't be transcoded and we just have to pick whatever is supported
+*/
+
+/*! \brief Initialize an audio codec preference to "no preference" See \ref AudioCodecPref */
 extern void ast_codec_pref_init(struct ast_codec_pref *pref);
 
-/*! \brief Codec located at  a particular place in the preference index */
+/*! \brief Codec located at a particular place in the preference index See \ref AudioCodecPref */
 extern int ast_codec_pref_index(struct ast_codec_pref *pref, int index);
 
-/*! \brief Remove a codec from a preference list */
+/*! \brief Remove audio a codec from a preference list */
 extern void ast_codec_pref_remove(struct ast_codec_pref *pref, int format);
 
-/*! \brief Append a codec to a preference list, removing it first if it was already there */
+/*! \brief Append a audio codec to a preference list, removing it first if it was already there 
+*/
 extern int ast_codec_pref_append(struct ast_codec_pref *pref, int format);
 
-/*! \brief Select the best format according to preference list from supplied options. 
+/*! \brief Select the best audio format according to preference list from supplied options. 
    If "find_best" is non-zero then if nothing is found, the "Best" format of 
    the format list is selected, otherwise 0 is returned. */
 extern int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best);
 
-/*! \brief Parse an "allow" or "deny" line and update the mask and pref if provided */
+/*! \brief Parse an "allow" or "deny" line in a channel or device configuration 
+        and update the capabilities mask and pref if provided.
+	Video codecs are not added to codec preference lists, since we can not transcode
+ */
 extern void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, const char *list, int allowing);
 
-/*! \brief Dump codec preference list into a string */
+/*! \brief Dump audio codec preference list into a string */
 extern int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size);
 
-/*! \brief Shift a codec preference list up or down 65 bytes so that it becomes an ASCII string */
+/*! \brief Shift an audio codec preference list up or down 65 bytes so that it becomes an ASCII string */
 extern void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size, int right);
 
 /*! \brief Returns the number of samples contained in the frame */
