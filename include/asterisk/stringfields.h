@@ -47,7 +47,7 @@
   
   sample = calloc(1, sizeof(*sample));
   if (sample) {
-	  if (!ast_string_field_init(sample)) {
+	  if (!ast_string_field_init(sample, 256)) {
 		  free(sample);
 		  sample = NULL;
 	  }
