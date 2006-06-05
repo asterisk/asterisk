@@ -1358,7 +1358,7 @@ static void pbx_load_config(const char *config_file)
 	write_protect_config = ast_true(ast_variable_retrieve(cfg, "general", "writeprotect"));
 	autofallthrough_config = ast_true(ast_variable_retrieve(cfg, "general", "autofallthrough"));
 	clearglobalvars_config = ast_true(ast_variable_retrieve(cfg, "general", "clearglobalvars"));
-	ast_set2_flag(&ast_options, !ast_false(ast_variable_retrieve(cfg, "general", "priorityjumping")), AST_OPT_FLAG_PRIORITY_JUMPING);
+	ast_set2_flag(&ast_options, ast_true(ast_variable_retrieve(cfg, "general", "priorityjumping")), AST_OPT_FLAG_PRIORITY_JUMPING);
 								    
 	for (v = ast_variable_browse(cfg, "globals"); v; v = v->next) {
 		memset(realvalue, 0, sizeof(realvalue));

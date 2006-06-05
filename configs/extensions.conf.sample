@@ -50,7 +50,7 @@ clearglobalvars=no
 ; of Asterisk). Individual applications can also be requested to do this
 ; by passing a 'j' option in their arguments.
 ;
-priorityjumping=no
+;priorityjumping=yes
 ;
 ; You can include other config files, use the #include command
 ; (without the ';'). Note that this is different from the "include" command
