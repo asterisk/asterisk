@@ -6323,27 +6323,28 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			return 1;
  
 	}
-	if (res < sizeof(struct ast_iax2_mini_hdr)) {
-		ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, (int)sizeof(struct ast_iax2_mini_hdr));
+	if (res < sizeof(*mh)) {
+		ast_log(LOG_WARNING, "midget packet received (%d of %zd min)\n", res, sizeof(*mh));
 		return 1;
 	}
-	if ((vh->zeros == 0) && (ntohs(vh->callno) & 0x8000)) {
+	if ((res >= sizeof(*vh)) && ((vh->zeros == 0) && (ntohs(vh->callno) & 0x8000))) {
 		/* This is a video frame, get call number */
 		fr->callno = find_callno(ntohs(vh->callno) & ~0x8000, dcallno, &sin, new, 1, fd);
 		minivid = 1;
-	} else if (meta->zeros == 0) {
+	} else if ((res >= sizeof(*meta)) && (meta->zeros == 0) && !(ntohs(meta->metacmd) & 0x8000)) {
 		unsigned char metatype;
 		/* This is a meta header */
 		switch(meta->metacmd) {
 		case IAX_META_TRUNK:
-			if (res < sizeof(struct ast_iax2_meta_hdr) + sizeof(struct ast_iax2_meta_trunk_hdr)) {
-				ast_log(LOG_WARNING, "midget meta trunk packet received (%d of %d min)\n", res, (int)sizeof(struct ast_iax2_mini_hdr));
+			if (res < (sizeof(*meta) + sizeof(*mth))) {
+				ast_log(LOG_WARNING, "midget meta trunk packet received (%d of %zd min)\n", res,
+					sizeof(*meta) + sizeof(*mth));
 				return 1;
 			}
 			mth = (struct ast_iax2_meta_trunk_hdr *)(meta->data);
 			ts = ntohl(mth->ts);
 			metatype = meta->cmddata;
-			res -= (sizeof(struct ast_iax2_meta_hdr) + sizeof(struct ast_iax2_meta_trunk_hdr));
+			res -= (sizeof(*meta) + sizeof(*mth));
 			ptr = mth->data;
 			tpeer = find_tpeer(&sin, fd);
 			if (!tpeer) {
@@ -6355,21 +6356,21 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				tpeer->rxtrunktime = tpeer->trunkact;
 			rxtrunktime = tpeer->rxtrunktime;
 			ast_mutex_unlock(&tpeer->lock);
-			while(res >= sizeof(struct ast_iax2_meta_trunk_entry)) {
+			while(res >= sizeof(*mte)) {
 				/* Process channels */
 				unsigned short callno, trunked_ts, len;
 
-				if(metatype == IAX_META_TRUNK_MINI) {
+				if (metatype == IAX_META_TRUNK_MINI) {
 					mtm = (struct ast_iax2_meta_trunk_mini *)ptr;
-					ptr += sizeof(struct ast_iax2_meta_trunk_mini);
-					res -= sizeof(struct ast_iax2_meta_trunk_mini);
+					ptr += sizeof(*mtm);
+					res -= sizeof(*mtm);
 					len = ntohs(mtm->len);
 					callno = ntohs(mtm->mini.callno);
 					trunked_ts = ntohs(mtm->mini.ts);
-				} else if ( metatype == IAX_META_TRUNK_SUPERMINI ) {
+				} else if (metatype == IAX_META_TRUNK_SUPERMINI) {
 					mte = (struct ast_iax2_meta_trunk_entry *)ptr;
-					ptr += sizeof(struct ast_iax2_meta_trunk_entry);
-					res -= sizeof(struct ast_iax2_meta_trunk_entry);
+					ptr += sizeof(*mte);
+					res -= sizeof(*mte);
 					len = ntohs(mte->len);
 					callno = ntohs(mte->callno);
 					trunked_ts = 0;
@@ -6452,11 +6453,21 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		}
 		return 1;
 	}
+
+	/* if we got here and ->zeros contains zeros, this cannot be a valid
+	   miniframe or full frame but it wasn't a valid video frame or meta
+	   frame either, so we reject it
+	*/
+	if (vh->zeros == 0) {
+		ast_log(LOG_WARNING, "Rejecting packet from '%s.%d' that is flagged as a video or meta frame but is not properly formatted\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+		return 1;
+	}
+
 #ifdef DEBUG_SUPPORT
-	if (iaxdebug)
-		iax_showframe(NULL, fh, 1, &sin, res - sizeof(struct ast_iax2_full_hdr));
+	if (iaxdebug && (res >= sizeof(*fh)))
+		iax_showframe(NULL, fh, 1, &sin, res - sizeof(*fh));
 #endif
-	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
+	if ((res >= sizeof(*fh)) && ntohs(mh->callno) & IAX_FLAG_FULL) {
 		/* Get the destination call number */
 		dcallno = ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS;
 		/* Retrieve the type and subclass */
@@ -6507,7 +6518,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		}
 #ifdef DEBUG_SUPPORT
 		else if (iaxdebug)
-			iax_showframe(NULL, fh, 3, &sin, res - sizeof(struct ast_iax2_full_hdr));
+			iax_showframe(NULL, fh, 3, &sin, res - sizeof(*fh));
 #endif
 	}
 
@@ -6592,12 +6603,12 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				iaxs[fr->callno]->iseqno++;
 		}
 		/* A full frame */
-		if (res < sizeof(struct ast_iax2_full_hdr)) {
-			ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, (int)sizeof(struct ast_iax2_full_hdr));
+		if (res < sizeof(*fh)) {
+			ast_log(LOG_WARNING, "midget packet received (%d of %zd min)\n", res, sizeof(*fh));
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
-		f.datalen = res - sizeof(struct ast_iax2_full_hdr);
+		f.datalen = res - sizeof(*fh);
 
 		/* Handle implicit ACKing unless this is an INVAL, and only if this is 
 		   from the real peer, not the transfer peer */
@@ -6655,14 +6666,14 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 
 		if (f.datalen) {
 			if (f.frametype == AST_FRAME_IAX) {
-				if (iax_parse_ies(&ies, buf + sizeof(struct ast_iax2_full_hdr), f.datalen)) {
+				if (iax_parse_ies(&ies, buf + sizeof(*fh), f.datalen)) {
 					ast_log(LOG_WARNING, "Undecodable frame received from '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
 					ast_mutex_unlock(&iaxsl[fr->callno]);
 					return 1;
 				}
 				f.data = NULL;
 			} else
-				f.data = buf + sizeof(struct ast_iax2_full_hdr);
+				f.data = buf + sizeof(*fh);
 		} else {
 			if (f.frametype == AST_FRAME_IAX)
 				f.data = NULL;
@@ -7540,9 +7551,9 @@ retryowner2:
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
-		f.datalen = res - sizeof(struct ast_iax2_video_hdr);
+		f.datalen = res - sizeof(*vh);
 		if (f.datalen)
-			f.data = buf + sizeof(struct ast_iax2_video_hdr);
+			f.data = buf + sizeof(*vh);
 		else
 			f.data = NULL;
 #ifdef IAXTESTS
@@ -7569,7 +7580,7 @@ retryowner2:
 			return 1;
 		}
 		if (f.datalen)
-			f.data = buf + sizeof(struct ast_iax2_mini_hdr);
+			f.data = buf + sizeof(*mh);
 		else
 			f.data = NULL;
 #ifdef IAXTESTS
