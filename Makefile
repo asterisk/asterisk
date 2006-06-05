@@ -953,6 +953,6 @@ mxml/libmxml.a:
 	@cd mxml && unset CFLAGS LIBS && test -f config.h || ./configure
 	$(MAKE) -C mxml libmxml.a
 
-makeopts.xml: $(foreach dir,$(MOD_SUBDIRS),$(dir)/*.c) build_tools/cflags.xml
+makeopts.xml: $(foreach dir,$(MOD_SUBDIRS),$(dir)/*.c) build_tools/cflags.xml build_tools/sounds.xml
 	@echo "Generating list of available modules ..."
 	@build_tools/prep_moduledeps > $@
