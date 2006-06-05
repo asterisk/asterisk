@@ -9980,7 +9980,9 @@ static int function_sippeer(struct ast_channel *chan, char *cmd, char *data, cha
 	char *colname;
 	char iabuf[INET_ADDRSTRLEN];
 
-	if ((colname = strchr(data, ':')))
+	if ((colname = strchr(data, ':')))	/*! \todo Will be deprecated after 1.4 */
+		*colname++ = '\0';
+	else if ((colname = strchr(data, '|')))
 		*colname++ = '\0';
 	else
 		colname = "ip";
@@ -10039,7 +10041,7 @@ static int function_sippeer(struct ast_channel *chan, char *cmd, char *data, cha
 struct ast_custom_function sippeer_function = {
 	.name = "SIPPEER",
 	.synopsis = "Gets SIP peer information",
-	.syntax = "SIPPEER(<peername>[:item])",
+	.syntax = "SIPPEER(<peername>[|item])",
 	.read = function_sippeer,
 	.desc = "Valid items are:\n"
 	"- ip (default)          The IP address.\n"

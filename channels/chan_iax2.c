@@ -9398,7 +9398,9 @@ static int function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, cha
 		return 0;
 	}
 
-	if ((colname = strchr(peername, ':')))
+	if ((colname = strchr(peername, ':')))	/*! \todo : will be removed after the 1.4 relese */
+		*colname++ = '\0';
+	else if ((colname = strchr(peername, '|')))
 		*colname++ = '\0';
 	else
 		colname = "ip";
@@ -9446,7 +9448,7 @@ static int function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, cha
 struct ast_custom_function iaxpeer_function = {
 	.name = "IAXPEER",
 	.synopsis = "Gets IAX peer information",
-	.syntax = "IAXPEER(<peername|CURRENTCHANNEL>[:item])",
+	.syntax = "IAXPEER(<peername|CURRENTCHANNEL>[|item])",
 	.read = function_iaxpeer,
 	.desc = "If peername specified, valid items are:\n"
 	"- ip (default)          The IP address.\n"
