@@ -1780,11 +1780,13 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
 					prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-					pbx_substitute_variables_helper(ast,fromstring,passdata,vmlen);
+					pbx_substitute_variables_helper(ast, fromstring, passdata, vmlen);
 					fprintf(p, "From: %s <%s>\n",passdata,who);
-				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+				} else
+					ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
 				ast_channel_free(ast);
-			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+			} else
+				ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else
 			fprintf(p, "From: Asterisk PBX <%s>\n", who);
 		fprintf(p, "To: %s <%s>\n", vmu->fullname, vmu->email);
@@ -1797,11 +1799,13 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
 					prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-					pbx_substitute_variables_helper(ast,emailsubject,passdata,vmlen);
-					fprintf(p, "Subject: %s\n",passdata);
-				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+					pbx_substitute_variables_helper(ast, emailsubject, passdata, vmlen);
+					fprintf(p, "Subject: %s\n", passdata);
+				} else
+					ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
 				ast_channel_free(ast);
-			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+			} else
+				ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else
 		if (*emailtitle) {
 			fprintf(p, emailtitle, msgnum + 1, mailbox) ;
@@ -1811,6 +1815,10 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 		else
 			fprintf(p, "Subject: [PBX]: New message %d in mailbox %s\n", msgnum + 1, mailbox);
 		fprintf(p, "Message-ID: <Asterisk-%d-%d-%s-%d@%s>\n", msgnum, (unsigned int)ast_random(), mailbox, getpid(), host);
+		if (!ast_strlen_zero(cidnum))
+			fprintf(p, "X-Asterisk-CallerID: %s\n", cidnum);
+		if (!ast_strlen_zero(cidname))
+			fprintf(p, "X-Asterisk-CallerIDName: %s\n", cidname);
 		fprintf(p, "MIME-Version: 1.0\n");
 		if (attach_user_voicemail) {
 			/* Something unique. */
@@ -1829,11 +1837,13 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
 					prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-					pbx_substitute_variables_helper(ast,emailbody,passdata,vmlen);
-					fprintf(p, "%s\n",passdata);
-				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+					pbx_substitute_variables_helper(ast, emailbody, passdata, vmlen);
+					fprintf(p, "%s\n", passdata);
+				} else
+					ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
 				ast_channel_free(ast);
-			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+			} else
+				ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else {
 			fprintf(p, "Dear %s:\n\n\tJust wanted to let you know you were just left a %s long message (number %d)\n"
 
@@ -1843,9 +1853,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 		}
 		if (attach_user_voicemail) {
 			/* Eww. We want formats to tell us their own MIME type */
-			char *ctype = "audio/x-";
-			if (!strcasecmp(format, "ogg"))
-				ctype = "application/";
+			char *ctype = (!strcasecmp(format, "ogg")) ?  "application/" : "audio/x-";
 		
 			fprintf(p, "--%s\n", bound);
 			fprintf(p, "Content-Type: %s%s; name=\"msg%04d.%s\"\n", ctype, format, msgnum, format);
