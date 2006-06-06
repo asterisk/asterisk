@@ -843,8 +843,8 @@ static void findmeexec(struct fm_args *tpargs)
 						if (outbound->cdr) {
 							char tmp[256];
 							ast_cdr_init(outbound->cdr, outbound);
-							snprintf(tmp, 256, "%s/%s", "Local", dialarg);
-							ast_cdr_setapp(outbound->cdr,"FollowMe",tmp);
+							snprintf(tmp, sizeof(tmp), "%s/%s", "Local", dialarg);
+							ast_cdr_setapp(outbound->cdr, "FollowMe", tmp);
 							ast_cdr_update(outbound);
 							ast_cdr_start(outbound->cdr);
 							ast_cdr_end(outbound->cdr);
