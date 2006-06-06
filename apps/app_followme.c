@@ -476,10 +476,10 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 	int ctstatus;
 	int dg;
 	struct findme_user *tmpuser;
-	int *to = ast_calloc(1, sizeof(*to));
+	int to = 0;
 	int livechannels = 0;
 	int tmpto;
-	long totalwait = 0, wtd, towas = *to;
+	long totalwait = 0, wtd, towas = 0;
 	char *callfromname;
 	char *pressbuttonname;
 
@@ -494,14 +494,13 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Original caller hungup. Cleanup.\n");
 			clear_calling_tree(findme_user_list);
-			free(to);
 			return NULL;
 		}
 		ctstatus = 0;
 		totalwait = nm->timeout * 1000;
 		wtd = 0;
 		while (!ctstatus) {
-			*to = 1000;
+			to = 1000;
 			pos = 1; 
 			livechannels = 0;
 			watchers[0] = caller;
@@ -523,7 +522,6 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 								ast_sched_runq(tmpuser->ochan->sched);
 							} else {
 								ast_log(LOG_WARNING, "Unable to playback %s.\n", callfromname);
-								free(to);
 								return NULL;
 							}							
 						} else {
@@ -533,7 +531,6 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 								ast_sched_runq(tmpuser->ochan->sched);
 							else {
 								ast_log(LOG_WARNING, "Unable to playback %s.\n", tpargs->norecordingprompt);
-								free(to);
 								return NULL;
 							}
 						}
@@ -541,8 +538,8 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					if (tmpuser->ochan->stream) {
 						ast_sched_runq(tmpuser->ochan->sched);
 						tmpto = ast_sched_wait(tmpuser->ochan->sched);
-						if (tmpto > 0 && tmpto < *to)
-							*to = tmpto;
+						if (tmpto > 0 && tmpto < to)
+							to = tmpto;
 						else if (tmpto < 0 && !tmpuser->ochan->timingfunc) {
 							ast_stopstream(tmpuser->ochan);
 							if (tmpuser->state == 1) {
@@ -558,7 +555,6 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 										tmpuser->state = 3;
 									else {
 										ast_log(LOG_WARNING, "Unable to playback %s.\n", pressbuttonname);
-										free(to);
 										return NULL;
 									} 
 								}
@@ -571,7 +567,6 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 									tmpuser->state = 3;
 									
 								} else {
-									ast_log(LOG_WARNING, "Unable to playback %s.\n", pressbuttonname);										  free(to);
 									return NULL;
 								} 
 							} else if (tmpuser->state == 3) {
@@ -586,21 +581,20 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 				}
 			}
 
-			tmpto = *to;
-			if (*to < 0) {
-				*to = 1000;
+			tmpto = to;
+			if (to < 0) {
+				to = 1000;
 				tmpto = 1000;
 			}
-			towas = *to;
-			winner = ast_waitfor_n(watchers, pos, to);
-			tmpto -= *to;
+			towas = to;
+			winner = ast_waitfor_n(watchers, pos, &to);
+			tmpto -= to;
 			totalwait -= tmpto;
-			wtd = *to;	
+			wtd = to;	
 			if (totalwait <= 0) {
 				if (option_verbose > 2)	
 					ast_verbose(VERBOSE_PREFIX_3 "We've hit our timeout for this step. Drop everyone and move on to the next one. %ld\n", totalwait);
 				clear_calling_tree(findme_user_list);
-				free(to);
 				return NULL;
 			}
 			if (winner) {
@@ -640,7 +634,6 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 										tmpuser->state = 1;
 									} else {
 										ast_log(LOG_WARNING, "Unable to playback %s.\n", callfromname);
-										free(to);
 										return NULL;
 									}				
 								} else {			
@@ -649,7 +642,6 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 										ast_sched_runq(tmpuser->ochan->sched);
 									else {
 										ast_log(LOG_WARNING, "Unable to playback %s.\n", tpargs->norecordingprompt);
-										free(to);
 										return NULL;
 									}
 								}
@@ -717,14 +709,12 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							if (!strcmp(tmpuser->yn, tpargs->takecall)) {
 								if (option_debug)
 									ast_log(LOG_DEBUG, "Match to take the call!\n");
-								free(to);
 								return tmpuser->ochan;	
 							}
 							if (!strcmp(tmpuser->yn, tpargs->nextindp)) {
 								if (option_debug)
 									ast_log(LOG_DEBUG, "Next in dial plan step requested.\n");
 								*status = 1;
-								free(to);
 								return NULL;
 							}	
 
@@ -738,7 +728,6 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							ast_log(LOG_DEBUG, "we didn't get a frame. hanging up. dg is %d\n",dg);					      
 						if (!dg) {
 							clear_calling_tree(findme_user_list);
-							free(to);
 							return NULL;
 						} else {
 							tmpuser->state = -1;
@@ -749,7 +738,6 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							if (!livechannels) {
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "no live channels left. exiting.\n");
-								free(to);
 								return NULL;
 							}
 						}
@@ -769,7 +757,6 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 	}
 	
 	/* --- WAIT FOR WINNER NUMBER END! -----------*/
-	free(to);
 	return NULL;
 }
 
