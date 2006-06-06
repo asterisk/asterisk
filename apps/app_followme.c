@@ -438,7 +438,7 @@ static void clear_caller(struct findme_user *tmpuser)
 		}
 		if (outbound->cdr) {
 			char tmp[256];
-			snprintf(tmp, 256, "%s/%s", "Local", tmpuser->dialarg);
+			snprintf(tmp, sizeof(tmp), "%s/%s", "Local", tmpuser->dialarg);
 			ast_cdr_setapp(outbound->cdr,"FollowMe",tmp);
 			ast_cdr_update(outbound);
 			ast_cdr_start(outbound->cdr);
