@@ -1584,23 +1584,23 @@ static int aji_filter_roster(void *data, ikspak *pak)
 			});
 
 			if (!flag) {
-				if (ast_test_flag(client, AJI_AUTOPRUNE)) {
-					buddy = (struct aji_buddy *) malloc(sizeof(struct aji_buddy));
-					if (!buddy)
-						ast_log(LOG_WARNING, "Out of memory\n");
-					memset(buddy, 0, sizeof(struct aji_buddy));
-					ASTOBJ_INIT(buddy);
-					ASTOBJ_WRLOCK(buddy);
-					ast_copy_string(buddy->name, iks_find_attrib(x, "jid"), sizeof(buddy->name));
-					ast_copy_string(buddy->user, iks_find_attrib(x, "jid"), sizeof(buddy->user));
-					ast_clear_flag(buddy, AST_FLAGS_ALL);
+				buddy = (struct aji_buddy *) malloc(sizeof(struct aji_buddy));
+				if (!buddy)
+					ast_log(LOG_WARNING, "Out of memory\n");
+				memset(buddy, 0, sizeof(struct aji_buddy));
+				ASTOBJ_INIT(buddy);
+				ASTOBJ_WRLOCK(buddy);
+				ast_copy_string(buddy->name, iks_find_attrib(x, "jid"), sizeof(buddy->name));
+				ast_clear_flag(buddy, AST_FLAGS_ALL);
+				if(ast_test_flag(client, AJI_AUTOPRUNE)) {
 					ast_set_flag(buddy, AJI_AUTOPRUNE);
 					buddy->objflags |= ASTOBJ_FLAG_MARKED;
-					ASTOBJ_UNLOCK(buddy);
-					if (buddy) {
-						ASTOBJ_CONTAINER_LINK(&client->buddies, buddy);
-						ASTOBJ_UNREF(buddy, aji_buddy_destroy);
-					}
+				} else
+					ast_set_flag(buddy, AJI_AUTOREGISTER);
+				ASTOBJ_UNLOCK(buddy);
+				if (buddy) {
+					ASTOBJ_CONTAINER_LINK(&client->buddies, buddy);
+					ASTOBJ_UNREF(buddy, aji_buddy_destroy);
 				}
 			}
 		}
