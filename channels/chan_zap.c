@@ -10250,7 +10250,7 @@ static int setup_zap(int reload)
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
-		return -1;
+		return 0;
 	}
 	
 
