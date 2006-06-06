@@ -479,7 +479,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 	int *to = ast_calloc(1, sizeof(*to));
 	int livechannels = 0;
 	int tmpto;
-	long totalwait = 0, wtd, towas;
+	long totalwait = 0, wtd, towas = *to;
 	char *callfromname;
 	char *pressbuttonname;
 
@@ -779,7 +779,7 @@ static void findmeexec(void *args)
 	struct number *nm;
 	struct ast_channel *outbound;
 	struct ast_channel *caller;
-	struct ast_channel *winner;
+	struct ast_channel *winner = NULL;
 	char dialarg[512];
 	int dg, idx;
 	char *rest, *number;
