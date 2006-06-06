@@ -86,7 +86,7 @@ void callerid_init(void);
  * \return It returns the size
  * (in bytes) of the data (if it returns a size of 0, there is probably an error)
 */
-int callerid_generate(unsigned char *buf, char *number, char *name, int flags, int callwaiting, int codec);
+int callerid_generate(unsigned char *buf, const char *number, const char *name, int flags, int callwaiting, int codec);
 
 /*! \brief Create a callerID state machine
  * \param cid_signalling Type of signalling in use
@@ -157,7 +157,7 @@ void callerid_free(struct callerid_state *cid);
  *
  * Acts like callerid_generate except uses an asterisk format callerid string.
  */
-int ast_callerid_generate(unsigned char *buf, char *name, char *number, int codec);
+int ast_callerid_generate(unsigned char *buf, const char *name, const char *number, int codec);
 
 /*! \brief Generate message waiting indicator  (stutter tone) */
 int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec);
@@ -165,7 +165,7 @@ int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec);
 /*! \brief Generate Caller-ID spill but in a format suitable for Call Waiting(tm)'s Caller*ID(tm)
  * See ast_callerid_generate() for other details
  */
-int ast_callerid_callwaiting_generate(unsigned char *buf, char *name, char *number, int codec);
+int ast_callerid_callwaiting_generate(unsigned char *buf, const char *name, const char *number, int codec);
 
 /*! \brief Destructively parse inbuf into name and location (or number)
  * Parses callerid stream from inbuf and changes into useable form, outputed in name and location.

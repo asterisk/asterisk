@@ -696,7 +696,7 @@ void callerid_free(struct callerid_state *cid)
 	free(cid);
 }
 
-static int callerid_genmsg(char *msg, int size, char *number, char *name, int flags)
+static int callerid_genmsg(char *msg, int size, const char *number, const char *name, int flags)
 {
 	time_t t;
 	struct tm tm;
@@ -827,7 +827,7 @@ int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec)
 	return bytes;
 }
 
-int callerid_generate(unsigned char *buf, char *number, char *name, int flags, int callwaiting, int codec)
+int callerid_generate(unsigned char *buf, const char *number, const char *name, int flags, int callwaiting, int codec)
 {
 	int bytes=0;
 	int x, sum;
@@ -989,7 +989,7 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 	return 0;
 }
 
-static int __ast_callerid_generate(unsigned char *buf, char *name, char *number, int callwaiting, int codec)
+static int __ast_callerid_generate(unsigned char *buf, const char *name, const char *number, int callwaiting, int codec)
 {
 	if (ast_strlen_zero(name))
 		name = NULL;
@@ -998,12 +998,12 @@ static int __ast_callerid_generate(unsigned char *buf, char *name, char *number,
 	return callerid_generate(buf, number, name, 0, callwaiting, codec);
 }
 
-int ast_callerid_generate(unsigned char *buf, char *name, char *number, int codec)
+int ast_callerid_generate(unsigned char *buf, const char *name, const char *number, int codec)
 {
 	return __ast_callerid_generate(buf, name, number, 0, codec);
 }
 
-int ast_callerid_callwaiting_generate(unsigned char *buf, char *name, char *number, int codec)
+int ast_callerid_callwaiting_generate(unsigned char *buf, const char *name, const char *number, int codec)
 {
 	return __ast_callerid_generate(buf, name, number, 1, codec);
 }
