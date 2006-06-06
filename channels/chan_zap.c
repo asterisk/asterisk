@@ -9375,7 +9375,9 @@ static int handle_pri_debug(int fd, int argc, char *argv[])
 	}
 	for (x = 0; x < NUM_DCHANS; x++) {
 		if (pris[span-1].dchans[x])
-			pri_set_debug(pris[span-1].dchans[x], PRI_DEBUG_APDU | PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE);
+			pri_set_debug(pris[span-1].dchans[x], PRI_DEBUG_APDU |
+			                                      PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE |
+			                                      PRI_DEBUG_Q921_STATE);
 	}
 	ast_cli(fd, "Enabled debugging on span %d\n", span);
 	return RESULT_SUCCESS;
@@ -9423,7 +9425,9 @@ static int handle_pri_really_debug(int fd, int argc, char *argv[])
 	}
 	for (x = 0; x < NUM_DCHANS; x++) {
 		if (pris[span-1].dchans[x])
-			pri_set_debug(pris[span-1].dchans[x], (PRI_DEBUG_APDU | PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q921_DUMP | PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_STATE));
+			pri_set_debug(pris[span-1].dchans[x], PRI_DEBUG_APDU |
+			                                      PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE |
+			                                      PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_DUMP | PRI_DEBUG_Q921_STATE);
 	}
 	ast_cli(fd, "Enabled EXTENSIVE debugging on span %d\n", span);
 	return RESULT_SUCCESS;
