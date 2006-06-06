@@ -811,7 +811,11 @@ static int aji_client_info_handler(void *data, ikspak *pak)
 	buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, pak->from->partial);
 
 	resource = aji_find_resource(buddy, pak->from->resource);
-
+	if (!resource) {
+		ast_log(LOG_NOTICE,"JABBER: Received client info from %s when not requested.\n", pak->from->full);
+		ASTOBJ_UNREF(client, aji_client_destroy);
+		return IKS_FILTER_EAT;
+	}	
 	if (pak->subtype == IKS_TYPE_RESULT) {
 		if (iks_find_with_attrib(pak->query, "feature", "var", "http://www.google.com/xmpp/protocol/voice/v1")) {
 			resource->cap->jingle = 1;
@@ -837,8 +841,8 @@ static int aji_client_info_handler(void *data, ikspak *pak)
 			iks_insert_attrib(google, "var", "http://www.google.com/xmpp/protocol/voice/v1");
 			iks_insert_node(iq, query);
 			iks_insert_node(query, ident);
-			iks_insert_node(query, disco);
 			iks_insert_node(query, google);
+			iks_insert_node(query, disco);
 			iks_send(client->p, iq);
 		} else
 			ast_log(LOG_ERROR, "Out of Memory.\n");
