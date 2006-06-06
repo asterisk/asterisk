@@ -23,7 +23,7 @@
 #include "asterisk/astobj.h"
 
 enum aji_state {
-	AJI_DISCONNECTED=0,
+	AJI_DISCONNECTED = 0,
 	AJI_CONNECTING,
 	AJI_CONNECTED
 };
@@ -60,7 +60,7 @@ struct aji_capabilities {
 struct aji_resource {
 	int status;
 	char resource[80];
-	char description[1000];
+	char *description;
 	struct aji_version *cap;
 	int priority;
 	struct aji_resource *next;
