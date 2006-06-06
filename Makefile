@@ -37,22 +37,6 @@ PWD=$(shell pwd)
 # Remember the MAKELEVEL at the top
 MAKETOPLEVEL?=$(MAKELEVEL)
 
-ifeq ($(findstring dont-optimize,$(MAKECMDGOALS)),)
-# More GSM codec optimization
-# Uncomment to enable MMXTM optimizations for x86 architecture CPU's
-# which support MMX instructions.  This should be newer pentiums,
-# ppro's, etc, as well as the AMD K6 and K7.  
-#K6OPT  = -DK6OPT
-
-# Tell gcc to optimize the code
-OPTIMIZE+=-O6
-else
-  # Stack backtraces, while useful for debugging, are incompatible with optimizations
-  ifeq (${OSARCH},Linux)
-    CFLAGS+=-DSTACK_BACKTRACES
-  endif
-endif
-
 # Overwite config files on "make samples"
 OVERWRITE=y
 
@@ -146,6 +130,29 @@ endif
 TOPDIR_CFLAGS=-include include/autoconfig.h -Iinclude
 MOD_SUBDIR_CFLAGS=-include ../include/autoconfig.h -I../include -I..
 OTHER_SUBDIR_CFLAGS=-include ../include/autoconfig.h -I../include -I..
+
+ifeq ($(findstring dont-optimize,$(MAKECMDGOALS)),)
+  ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
+# More GSM codec optimization
+# Uncomment to enable MMXTM optimizations for x86 architecture CPU's
+# which support MMX instructions.  This should be newer pentiums,
+# ppro's, etc, as well as the AMD K6 and K7.  
+#K6OPT  = -DK6OPT
+
+# Tell gcc to optimize the code
+OPTIMIZE+=-O6
+  else
+    # Stack backtraces, while useful for debugging, are incompatible with optimizations
+    ifeq (${OSARCH},Linux)
+      CFLAGS+=-DSTACK_BACKTRACES
+    endif
+  endif
+else
+  # Stack backtraces, while useful for debugging, are incompatible with optimizations
+  ifeq (${OSARCH},Linux)
+    CFLAGS+=-DSTACK_BACKTRACES
+  endif
+endif
 
 #   *CLI> show memory allocations [filename]
 #   *CLI> show memory summary [filename]

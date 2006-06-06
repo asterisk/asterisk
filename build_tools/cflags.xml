@@ -7,6 +7,8 @@
 		</member>
 		<member name="DETECT_DEADLOCKS" displayname="Detect Deadlocks">
 		</member>
+		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations from the Compiler">
+		</member>
 		<member name="DUMP_SCHEDULER" displayname="Dump Scheduler Contents for Debugging">
 		</member>
 		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage">
