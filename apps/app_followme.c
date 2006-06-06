@@ -763,9 +763,8 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 	return NULL;
 }
 
-static void findmeexec(void *args)
+static void findmeexec(struct fm_args *tpargs)
 {
-	struct fm_args *tpargs;
 	struct number *nm;
 	struct ast_channel *outbound;
 	struct ast_channel *caller;
@@ -781,12 +780,6 @@ static void findmeexec(void *args)
 
 	findme_user_list = ast_calloc(1, sizeof(*findme_user_list));		
 	AST_LIST_HEAD_INIT_NOLOCK(findme_user_list);
-
-	tpargs = (struct fm_args *)args;
-			
-	if (!tpargs->chan) 
-		return;
-	
 
 	/* We're going to figure out what the longest possible string of digits to collect is */
 	ynlongest = 0;
