@@ -164,7 +164,7 @@ static char sorryprompt[AST_CONFIG_MAX_PATH] = "followme/followme-sorry";
 
 
 static AST_LIST_HEAD_STATIC(followmes, ast_call_followme);
-static AST_LIST_HEAD_NOLOCK(findme_user_listptr, findme_user);
+AST_LIST_HEAD_NOLOCK(findme_user_listptr, findme_user);
 
 static void free_numbers(struct ast_call_followme *f)
 {
