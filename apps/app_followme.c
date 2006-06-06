@@ -1081,16 +1081,19 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 static int unload_module(void *mod)
 {
+	STANDARD_HANGUP_LOCALUSERS;
+	ast_unregister_application(app);
 	struct ast_call_followme *f;
 	/* Free Memory. Yeah! I'm free! */
+	AST_LIST_LOCK(&followmes);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&followmes, f, entry) {
 		free_numbers(f);
 		AST_LIST_REMOVE_CURRENT(&followmes, entry);
 		free(f);
 	}
 	AST_LIST_TRAVERSE_SAFE_END
-	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+	AST_LIST_UNLOCK(&followmes);
+	return 0;
 }
 
 static int load_module(void *mod)
