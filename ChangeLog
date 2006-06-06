@@ -3,6 +3,18 @@
        not listed here.  A complete listing of changes is available through
        the Asterisk-CVS mailing list hosted at http://lists.digium.com.
 
+Asterisk 1.0.11.1
+
+ -- chan_iax2
+    -- A bug in the vulnerability fix in the last release could cause Asterisk
+       to improperly reject incoming video frames and result in deadlocks.
+	
+Asterisk 1.0.11
+
+ -- chan_iax2
+    -- A security vulnerability that could lead to denial of service attacks
+       and Asterisk process crashes was fixed in this release.
+	
 Asterisk 1.0.10
 
  -- chan_local
