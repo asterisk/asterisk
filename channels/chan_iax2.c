@@ -6327,12 +6327,23 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		ast_log(LOG_WARNING, "midget packet received (%d of %zd min)\n", res, sizeof(*mh));
 		return 1;
 	}
-	if ((res >= sizeof(*vh)) && ((vh->zeros == 0) && (ntohs(vh->callno) & 0x8000))) {
+	if ((vh->zeros == 0) && (ntohs(vh->callno) & 0x8000)) {
+		if (res < sizeof(*vh)) {
+			ast_log(LOG_WARNING, "Rejecting packet from '%s.%d' that is flagged as a video frame but is too short\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			return 1;
+		}
+
 		/* This is a video frame, get call number */
 		fr->callno = find_callno(ntohs(vh->callno) & ~0x8000, dcallno, &sin, new, 1, fd);
 		minivid = 1;
-	} else if ((res >= sizeof(*meta)) && (meta->zeros == 0) && !(ntohs(meta->metacmd) & 0x8000)) {
+	} else if ((meta->zeros == 0) && !(ntohs(meta->metacmd) & 0x8000)) {
 		unsigned char metatype;
+
+		if (res < sizeof(*meta)) {
+			ast_log(LOG_WARNING, "Rejecting packet from '%s.%d' that is flagged as a meta frame but is too short\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			return 1;
+		}
+
 		/* This is a meta header */
 		switch(meta->metacmd) {
 		case IAX_META_TRUNK:
@@ -6454,20 +6465,16 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		return 1;
 	}
 
-	/* if we got here and ->zeros contains zeros, this cannot be a valid
-	   miniframe or full frame but it wasn't a valid video frame or meta
-	   frame either, so we reject it
-	*/
-	if (vh->zeros == 0) {
-		ast_log(LOG_WARNING, "Rejecting packet from '%s.%d' that is flagged as a video or meta frame but is not properly formatted\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-		return 1;
-	}
-
 #ifdef DEBUG_SUPPORT
 	if (iaxdebug && (res >= sizeof(*fh)))
 		iax_showframe(NULL, fh, 1, &sin, res - sizeof(*fh));
 #endif
-	if ((res >= sizeof(*fh)) && ntohs(mh->callno) & IAX_FLAG_FULL) {
+	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
+		if (res < sizeof(*fh)) {
+			ast_log(LOG_WARNING, "Rejecting packet from '%s.%d' that is flagged as a full frame but is too short\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			return 1;
+		}
+
 		/* Get the destination call number */
 		dcallno = ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS;
 		/* Retrieve the type and subclass */
