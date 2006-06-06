@@ -264,8 +264,7 @@ static struct number *create_followme_number(char *number, int timeout, int numo
 
 	if (cur) {
 		cur->timeout = timeout;
-		if (strchr(number, ',')) { 
-			tmp = strchr(number, ',');
+		if ((tmp = strchr(number, ','))) { 
 			*tmp = '\0';
 		}
 		ast_copy_string(cur->number, number, sizeof(cur->number));
@@ -634,6 +633,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 										tmpuser->state = 1;
 									} else {
 										ast_log(LOG_WARNING, "Unable to playback %s.\n", callfromname);
+										ast_frfree(f);
 										return NULL;
 									}				
 								} else {			
@@ -642,6 +642,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 										ast_sched_runq(tmpuser->ochan->sched);
 									else {
 										ast_log(LOG_WARNING, "Unable to playback %s.\n", tpargs->norecordingprompt);
+										ast_frfree(f);
 										return NULL;
 									}
 								}
@@ -709,12 +710,14 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							if (!strcmp(tmpuser->yn, tpargs->takecall)) {
 								if (option_debug)
 									ast_log(LOG_DEBUG, "Match to take the call!\n");
+								ast_frfree(f);
 								return tmpuser->ochan;	
 							}
 							if (!strcmp(tmpuser->yn, tpargs->nextindp)) {
 								if (option_debug)
 									ast_log(LOG_DEBUG, "Next in dial plan step requested.\n");
 								*status = 1;
+								ast_frfree(f);
 								return NULL;
 							}	
 
