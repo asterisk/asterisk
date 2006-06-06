@@ -1018,6 +1018,8 @@ static int app_exec(struct ast_channel *chan, void *data)
 				/* just checking to see if we *can* play it. 						*/
 				if (ast_streamfile(chan, namerecloc, chan->language))
 					ast_copy_string(namerecloc, "", sizeof(namerecloc));					
+				else
+					ast_stopstream(chan);
 
 				if (ast_streamfile(chan, targs.plsholdprompt, chan->language))
 					goto outrun;
