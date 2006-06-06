@@ -2352,7 +2352,6 @@ static int tone_indicate( struct chan_list *cl, enum tone_e tone)
 		break;
 	case TONE_FILE:
 		break;
-
 	case TONE_NONE:
 		chan_misdn_log(3,cl->bc->port," --> None\n");
 		misdn_lib_tone_generator_stop(cl->bc);
@@ -3285,7 +3284,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				
 				ast_queue_frame(ch->ast, &fr);
 			}
-			
 		}
 	}
 	break;
@@ -3694,7 +3692,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
 
 		chan_misdn_log(9,bc->port,"TONE_GEN: len:%d\n");
-		
+
 		if (!ast->generator) break;
 		
 		tmp = ast->generatordata;
@@ -3702,13 +3700,13 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		generate = ast->generator->generate;
 		res = generate(ast, tmp, tone_len, tone_len);
 		ast->generatordata = tmp;
+		
 		if (res) {
 			ast_log(LOG_WARNING, "Auto-deactivating generator\n");
 			ast_deactivate_generator(ast);
 		} else {
 			bc->tone_cnt=0;
 		}
-		
 	}
 	break;
 		
@@ -3728,10 +3726,35 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			
 			ast_queue_frame(ch->ast,&frame);
 		} else {
-			int ret=write(ch->pipe[1], bc->bframe, bc->bframe_len);
+			fd_set wrfs;
+			struct timeval tv;
+			tv.tv_sec=0;
+			tv.tv_usec=0;
+			
+			
+			FD_ZERO(&wrfs);
+			FD_SET(ch->pipe[1],&wrfs);
+			
+			int t=select(FD_SETSIZE,NULL,&wrfs,NULL,&tv);
 
-			if (ret<=0) {
-				chan_misdn_log(1, bc->port, "Write returned <=0 (err=%s)\n",strerror(errno));
+			if (!t) {
+				chan_misdn_log(9, bc->port, "Select Timed out\n");
+				break;
+			}
+			
+			if (t<0) {
+				chan_misdn_log(-1, bc->port, "Select Error (err=%s)\n",strerror(errno));
+				break;
+			}
+			
+			if (FD_ISSET(ch->pipe[1],&wrfs)) {
+				int ret=write(ch->pipe[1], bc->bframe, bc->bframe_len);
+				
+				if (ret<=0) {
+					chan_misdn_log(-1, bc->port, "Write returned <=0 (err=%s)\n",strerror(errno));
+				}
+			} else {
+				chan_misdn_log(1, bc->port, "Wripe Pipe full!\n");
 			}
 		}
 	}

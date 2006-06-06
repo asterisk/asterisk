@@ -599,7 +599,7 @@ int clean_up_bc(struct misdn_bchannel *bc)
 	cb_log(3, stack->port, "$$$ CLEARING STACK\n");
 	
 	ret=mISDN_clear_stack(stack->midev,bc->b_stid);
-	if (ret<0) {
+	if (ret<0 && errno) {
 		cb_log(-1,stack->port,"clear stack failed [%s]\n",strerror(errno));
 	}
 
@@ -1986,7 +1986,7 @@ static int do_tone(struct misdn_bchannel *bc, int len)
 	
 	if (bc->generate_tone) {
 		cb_event(EVENT_TONE_GENERATE, bc, glob_mgr->user_data);
-
+		
 		if ( !bc->nojitter ) {
 			misdn_tx_jitter(bc,len);
 		}
@@ -2002,13 +2002,14 @@ static int do_tone(struct misdn_bchannel *bc, int len)
 void misdn_tx_jitter(struct misdn_bchannel *bc, int len)
 {
 	char buf[4096 + mISDN_HEADER_LEN];
+	char *data=&buf[mISDN_HEADER_LEN];
 	iframe_t *txfrm= (iframe_t*)buf;
 	int jlen, r;
 	
-	jlen=cb_jb_empty(bc,&buf[mISDN_HEADER_LEN],len);
+	jlen=cb_jb_empty(bc,data,len);
 	
 	if (jlen) {
-		flip_buf_bits( &buf[mISDN_HEADER_LEN], jlen);
+		flip_buf_bits( data, jlen);
 		
 		if (jlen < len) {
 			cb_log(5,bc->port,"Jitterbuffer Underrun.\n");
@@ -2024,6 +2025,33 @@ void misdn_tx_jitter(struct misdn_bchannel *bc, int len)
 		cb_log(9, bc->port, "Transmitting %d samples 2 misdn\n", txfrm->len);
 		
 		r=mISDN_write( glob_mgr->midev, buf, txfrm->len + mISDN_HEADER_LEN, 8000 );
+	} else {
+#ifdef MISDN_GEN_SILENCE
+		int cnt=len/TONE_SILENCE_SIZE;
+		int rest=len%TONE_SILENCE_SIZE;
+		int i;
+
+		for (i=0; i<cnt; i++) {
+			memcpy(data, tone_silence_flip, TONE_SILENCE_SIZE );
+			data +=TONE_SILENCE_SIZE;
+		}
+
+		if (rest) {
+			memcpy(data, tone_silence_flip, rest);
+		}
+
+		txfrm->prim = DL_DATA|REQUEST;
+
+		txfrm->dinfo = 0;
+
+		txfrm->addr = bc->addr|FLG_MSG_DOWN; /*  | IF_DOWN; */
+
+		txfrm->len =len;
+		cb_log(9, bc->port, "Transmitting %d samples 2 misdn\n", txfrm->len);
+
+		r=mISDN_write( glob_mgr->midev, buf, txfrm->len + mISDN_HEADER_LEN, 8000 );
+#endif
+
 	}
 }
 
@@ -2201,15 +2229,39 @@ int handle_bchan(msg_t *msg)
 #endif
 		
 		if ( (bc->bc_state == BCHAN_ACTIVATED) && frm->len > 0) {
-			if (  !do_tone(bc, frm->len)   ) {
+			int t;
+
+#ifdef MISDN_B_DEBUG
+			cb_log(0,bc->port,"do_tone START\n");
+#endif
+			t=do_tone(bc,frm->len);
+
+#ifdef MISDN_B_DEBUG
+			cb_log(0,bc->port,"do_tone STOP (%d)\n",t);
+#endif
+			if (  !t ) {
 				
 				if ( misdn_cap_is_speech(bc->capability)) {
 					if ( !bc->nojitter ) {
+#ifdef MISDN_B_DEBUG
+						cb_log(0,bc->port,"tx_jitter START\n");
+#endif
 						misdn_tx_jitter(bc,frm->len);
+#ifdef MISDN_B_DEBUG
+						cb_log(0,bc->port,"tx_jitter STOP\n");
+#endif
 					}
 				}
+
+#ifdef MISDN_B_DEBUG	
+				cb_log(0,bc->port,"EVENT_B_DATA START\n");
+#endif
 				
 				int i=cb_event( EVENT_BCHAN_DATA, bc, glob_mgr->user_data);
+#ifdef MISDN_B_DEBUG	
+				cb_log(0,bc->port,"EVENT_B_DATA STOP\n");
+#endif
+				
 				if (i<0) {
 					cb_log(10,stack->port,"cb_event returned <0\n");
 					/*clean_up_bc(bc);*/
@@ -2262,7 +2314,8 @@ int handle_frm_nt(msg_t *msg)
 	if (!stack || !stack->nt) {
 		return 0;
 	}
-  
+
+	
 	if ((err=stack->nst.l1_l2(&stack->nst,msg))) {
     
 		if (nt_err_cnt > 0 ) {
@@ -2520,6 +2573,8 @@ int handle_mgmt(msg_t *msg)
 		case SSTATUS_L1_DEACTIVATED:
 			cb_log(1, 0, "MGMT: SSTATUS: L1_DEACTIVATED \n");
 			stack->l1link=0;
+
+			clear_l3(stack);
 			break;
 
 		case SSTATUS_L2_ESTABLISHED:
@@ -3096,10 +3151,20 @@ int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 	}
 
 	if ( ((frm->addr | ISDN_PID_BCHANNEL_BIT )>> 28 ) == 0x5) {
-		if (handle_bchan(msg)) 
+#ifdef MISDN_HANDLER_DEBUG
+		cb_log(0,0,"handle_bchan START\n");
+#endif
+		if (handle_bchan(msg)) {
+#ifdef MISDN_HANDLER_DEBUG
+			cb_log(0,0,"handle_bchan STOP\n");
+#endif
 			return 0 ;
+		}
+#ifdef MISDN_HANDLER_DEBUG
+		cb_log(0,0,"handle_bchan NOTSTOP\n");
+#endif	
 	}	
-
+	
 	if (handle_timers(msg)) 
 		return 0 ;
 	
@@ -3112,16 +3177,46 @@ int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 	/* Its important to handle l1 AFTER l2  */
 	if (handle_l1(msg)) 
 		return 0 ;
-
-	if (handle_frm_nt(msg)) 
+	
+#ifdef MISDN_HANDLER_DEBUG
+	cb_log(0,0,"handle_frm_nt START\n");
+#endif
+	if (handle_frm_nt(msg)) {
+#ifdef MISDN_HANDLER_DEBUG
+		cb_log(0,0,"handle_frm_nt STOP\n");
+#endif
 		return 0;
-
-	if (handle_frm(msg))
+	}
+#ifdef MISDN_HANDLER_DEBUG
+	cb_log(0,0,"handle_frm_nt NOTSTOP\n");
+	
+	cb_log(0,0,"handle_frm START\n");
+#endif
+	
+	if (handle_frm(msg)) {
+#ifdef MISDN_HANDLER_DEBUG
+		cb_log(0,0,"handle_frm STOP\n");
+#endif
+		
 		return 0;
-
-	if (handle_err(msg)) 
+	}
+#ifdef MISDN_HANDLER_DEBUG
+	cb_log(0,0,"handle_frm NOTSTOP\n");	
+	
+	cb_log(0,0,"handle_err START\n");
+#endif
+	
+	if (handle_err(msg)) {
+#ifdef MISDN_HANDLER_DEBUG
+		cb_log(0,0,"handle_err STOP\n");
+#endif
 		return 0 ;
+	}
+#ifdef MISDN_HANDLER_DEBUG
+	cb_log(0,0,"handle_err NOTSTOP\n");
+#endif
 
+	
 	cb_log(-1, 0, "Unhandled Message: prim %x len %d from addr %x, dinfo %x on this port.\n",frm->prim, frm->len, frm->addr, frm->dinfo);		
 	free_msg(msg);
 	
