@@ -557,6 +557,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 		res = fsk_serie(&cid->fskd, buf, &mylen, &b);
 		if (mylen < 0) {
 			ast_log(LOG_ERROR, "fsk_serie made mylen < 0 (%d)\n", mylen);
+			free(obuf);
 			return -1;
 		}
 		buf += (olen - mylen);
@@ -590,6 +591,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 			case 4: /* Retrieve message */
 				if (cid->pos >= 128) {
 					ast_log(LOG_WARNING, "Caller ID too long???\n");
+					free(obuf);
 					return -1;
 				}
 				cid->rawdata[cid->pos++] = b;
@@ -675,6 +677,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 					strcpy(cid->name, "");
 					cid->flags |= CID_UNKNOWN_NAME;
 				}
+				free(obuf);
 				return 1;
 				break;
 			default:
