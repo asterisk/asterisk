@@ -1502,8 +1502,10 @@ int ast_answer(struct ast_channel *chan)
 	int res = 0;
 	ast_channel_lock(chan);
 	/* You can't answer an outbound call */
-	if (ast_test_flag(chan, AST_FLAG_OUTGOING))
+	if (ast_test_flag(chan, AST_FLAG_OUTGOING)) {
+		ast_channel_unlock(chan);
 		return 0;
+	}
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
 		ast_channel_unlock(chan);
