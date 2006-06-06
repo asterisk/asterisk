@@ -1350,7 +1350,7 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
 	return 1;
 }
 
-/*! \brief  Make a note of a RTP paymoad type that was seen in a SDP "m=" line.
+/*! \brief  Make a note of a RTP payload type that was seen in a SDP "m=" line.
  * By default, use the well-known value for this type (although it may 
  * still be set to a different value by a subsequent "a=rtpmap:" line)
  */
@@ -1359,9 +1359,8 @@ void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt)
 	if (pt < 0 || pt > MAX_RTP_PT) 
 		return; /* bogus payload type */
 
-	if (static_RTP_PT[pt].code != 0) {
+	if (static_RTP_PT[pt].code != 0) 
 		rtp->current_RTP_PT[pt] = static_RTP_PT[pt];
-	}
 } 
 
 /*! \brief Make a note of a RTP payload type (with MIME type) that was seen in
@@ -2245,7 +2244,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 	
 	/* Make sure we have enough space for RTP header */
 	if ((_f->frametype != AST_FRAME_VOICE) && (_f->frametype != AST_FRAME_VIDEO)) {
-		ast_log(LOG_WARNING, "RTP can only send voice\n");
+		ast_log(LOG_WARNING, "RTP can only send voice and video\n");
 		return -1;
 	}
 

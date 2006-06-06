@@ -23,7 +23,8 @@
 #ifndef _ASTERISK_TRANSLATE_H
 #define _ASTERISK_TRANSLATE_H
 
-#define MAX_FORMAT 32
+//#define MAX_FORMAT 15	/* Do not include video here */
+#define MAX_FORMAT 32	/* Do include video here */
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

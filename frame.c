@@ -1008,8 +1008,11 @@ int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best)
 			break;
 		}
 	}
-	if(ret)
+	if(ret & AST_FORMAT_AUDIO_MASK)
 		return ret;
+
+	if (option_debug > 3)
+		ast_log(LOG_DEBUG, "Could not find preferred codec - %s\n", find_best ? "Going for the best codec" : "Returning zero codec");
 
    	return find_best ? ast_best_codec(formats) : 0;
 }
@@ -1034,7 +1037,10 @@ void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, const char
 				*mask &= ~format;
 		}
 
-		if (pref) {
+		/* Set up a preference list for audio. Do not include video in preferences 
+		   since we can not transcode video and have to use whatever is offered
+		 */
+		if (pref && (format & AST_FORMAT_AUDIO_MASK)) {
 			if (strcasecmp(this, "all")) {
 				if (allowing)
 					ast_codec_pref_append(pref, format);

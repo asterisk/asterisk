@@ -539,7 +539,7 @@ char *ast_transfercapability2str(int transfercapability)
 	}
 }
 
-/*! \brief Pick the best codec */
+/*! \brief Pick the best audio codec */
 int ast_best_codec(int fmts)
 {
 	/* This just our opinion, expressed in code.  We are asked to choose
@@ -572,7 +572,9 @@ int ast_best_codec(int fmts)
 		/*! Down to G.723.1 which is proprietary but at least designed for voice */
 		AST_FORMAT_G723_1,
 	};
-	
+
+	/* Strip out video */
+	fmts &= AST_FORMAT_AUDIO_MASK;
 	
 	/* Find the first preferred codec in the format given */
 	for (x=0; x < (sizeof(prefs) / sizeof(prefs[0]) ); x++)
@@ -2614,6 +2616,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 	int fmt;
 	int res;
 	int foo;
+	int videoformat = format & AST_FORMAT_VIDEO_MASK;
 
 	if (!cause)
 		cause = &foo;
@@ -2629,7 +2632,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 			continue;
 
 		capabilities = chan->tech->capabilities;
-		fmt = format;
+		fmt = format & AST_FORMAT_AUDIO_MASK;
 		res = ast_translator_best_choice(&fmt, &capabilities);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "No translator path exists for channel type %s (native %d) to %d\n", type, chan->tech->capabilities, format);
@@ -2640,7 +2643,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 		if (!chan->tech->requester)
 			return NULL;
 		
-		if (!(c = chan->tech->requester(type, capabilities, data, cause)))
+		if (!(c = chan->tech->requester(type, capabilities | videoformat, data, cause)))
 			return NULL;
 
 		if (c->_state == AST_STATE_DOWN) {
