@@ -554,8 +554,7 @@ static int aji_act_hook(void *data, int type, iks *node)
 		switch (type) {
 		case IKS_NODE_START:{
 				char secret[160], shasum[320], *handshake;
-				switch (client->state) {
-				case AJI_DISCONNECTED:
+				if (client->state == AJI_DISCONNECTED) {
 					sprintf(secret, "%s%s", pak->id, client->password);
 					ast_sha1_hash(shasum, secret);
 					handshake = NULL;
@@ -567,14 +566,7 @@ static int aji_act_hook(void *data, int type, iks *node)
 					}
 					client->state = AJI_CONNECTED;
 					break;
-				case AJI_ALMOST:
-					client->state = AJI_CONNECTED;
-					break;
-				case AJI_CONNECTING:
-				case AJI_CONNECTED:
-					break;
-				};
-				break;
+				}
 			}
 
 		case IKS_NODE_NORMAL:{
@@ -1020,12 +1012,35 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 	struct aji_buddy *buddy = NULL;
 	struct aji_resource *tmp = NULL, *last = NULL, *found = NULL;
 	char *ver, *node;
-
+	
+	if(client->state != AJI_CONNECTED) {
+		buddy = (struct aji_buddy *) malloc(sizeof(struct aji_buddy));
+		if (!buddy) {
+			ast_log(LOG_WARNING, "Out of memory\n");
+			return ;
+		}
+		memset(buddy, 0, sizeof(struct aji_buddy));
+		ASTOBJ_INIT(buddy);
+		ASTOBJ_WRLOCK(buddy);
+		ast_copy_string(buddy->name, pak->from->partial, sizeof(buddy->name));
+		ast_clear_flag(buddy, AST_FLAGS_ALL);
+		if(ast_test_flag(client, AJI_AUTOPRUNE)) {
+			ast_set_flag(buddy, AJI_AUTOPRUNE);
+			buddy->objflags |= ASTOBJ_FLAG_MARKED;
+		} else
+			ast_set_flag(buddy, AJI_AUTOREGISTER);
+		ASTOBJ_UNLOCK(buddy);
+		if (buddy) {
+			ASTOBJ_CONTAINER_LINK(&client->buddies, buddy);
+			buddy = NULL;
+		}
+	}
 	buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, pak->from->partial);
 	if (!buddy) {
 		ast_log(LOG_WARNING, "Got presence packet from %s, someone not in our roster!!!!\n", pak->from->partial);
 		return;
 	}
+	ASTOBJ_WRLOCK(buddy);
 	status = (pak->show) ? pak->show : 6;
 	priority = atoi((iks_find_cdata(pak->x, "priority")) ? iks_find_cdata(pak->x, "priority") : "0");
 	tmp = buddy->resources;
@@ -1118,6 +1133,8 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 		if (!tmp)
 			buddy->resources = found;
 	}
+	ASTOBJ_UNLOCK(buddy);
+	ASTOBJ_UNREF(buddy, aji_buddy_destroy);
 
 	node = iks_find_attrib(iks_find(pak->x, "c"), "node");
 	ver = iks_find_attrib(iks_find(pak->x, "c"), "ver");
@@ -1348,7 +1365,7 @@ static void *aji_recv_loop(void *data)
 			ast_log(LOG_WARNING, "JABBER: Got hook event.\n");
 		} else if (res == IKS_NET_TLSFAIL) {
 			ast_log(LOG_WARNING, "JABBER:  Failure in tls.\n");
-		} else if (client->timeout == 0 && client->state != AJI_CONNECTED) {
+		} else if (client->timeout == 0 && client->state == AJI_CONNECTED) {
 			res = -1;
 			ast_log(LOG_WARNING, "JABBER:  Network Timeout\n");
 		} else if (res == IKS_NET_RWERR) {
@@ -1539,7 +1556,8 @@ static int aji_filter_roster(void *data, ikspak *pak)
 	int flag = 0;
 	iks *x = NULL;
 	struct aji_buddy *buddy;
-
+	
+	client->state = AJI_CONNECTED;
 	ASTOBJ_CONTAINER_TRAVERSE(&client->buddies, 1, {
 		ASTOBJ_RDLOCK(iterator);
 		x = iks_child(pak->query);
@@ -1585,8 +1603,10 @@ static int aji_filter_roster(void *data, ikspak *pak)
 
 			if (!flag) {
 				buddy = (struct aji_buddy *) malloc(sizeof(struct aji_buddy));
-				if (!buddy)
+				if (!buddy) {
 					ast_log(LOG_WARNING, "Out of memory\n");
+					return 0;
+				}
 				memset(buddy, 0, sizeof(struct aji_buddy));
 				ASTOBJ_INIT(buddy);
 				ASTOBJ_WRLOCK(buddy);
@@ -1663,7 +1683,7 @@ static int aji_client_connect(void *data, ikspak *pak)
 	if (client) {
 		if (client->state == AJI_DISCONNECTED) {
 			iks_filter_add_rule(client->f, aji_filter_roster, client, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_SUBTYPE, IKS_TYPE_RESULT, IKS_RULE_ID, "roster", IKS_RULE_DONE);
-			client->state = AJI_CONNECTED;
+			client->state = AJI_CONNECTING;
 			client->jid = (iks_find_cdata(pak->query, "jid")) ? iks_id_new(client->stack, iks_find_cdata(pak->query, "jid")) : client->jid;
 			iks_filter_remove_hook(client->f, aji_client_connect);
 			if(client->component == AJI_CLIENT)
@@ -1826,7 +1846,6 @@ static int aji_show_clients(int fd, int argc, char *argv[])
 			status = "Disconnected";
 			break;
 		case AJI_CONNECTING:
-		case AJI_ALMOST:
 			status = "Connecting";
 			break;
 		case AJI_CONNECTED:
@@ -2170,7 +2189,7 @@ static void aji_reload()
 			if(iterator->state == AJI_DISCONNECTED) {
 				if (!iterator->thread)
 					ast_pthread_create(&iterator->thread, NULL, aji_recv_loop, iterator);
-			} else if (iterator->state == AJI_CONNECTED) {
+			} else if (iterator->state == AJI_CONNECTING) {
 				aji_get_roster(iterator);
 			}
 			ASTOBJ_UNLOCK(iterator);

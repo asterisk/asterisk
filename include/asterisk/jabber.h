@@ -25,7 +25,6 @@
 enum aji_state {
 	AJI_DISCONNECTED=0,
 	AJI_CONNECTING,
-	AJI_ALMOST,
 	AJI_CONNECTED
 };
 
