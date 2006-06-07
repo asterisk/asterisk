@@ -22,7 +22,7 @@
  *
  */
  
-#include "autoconfig.h"
+#include "asterisk/autoconfig.h"
 
 #include <newt.h>
 #include <stdio.h>

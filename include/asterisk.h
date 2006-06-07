@@ -18,7 +18,7 @@
 #ifndef _ASTERISK_H
 #define _ASTERISK_H
 
-#include "autoconfig.h"
+#include "asterisk/autoconfig.h"
 
 #include "asterisk/compat.h"
 

@@ -17,7 +17,7 @@ AC_CANONICAL_TARGET
 AC_CONFIG_SRCDIR([asterisk.c])
 
 # specify output header file
-AC_CONFIG_HEADER(include/autoconfig.h)
+AC_CONFIG_HEADER(include/asterisk/autoconfig.h)
 
 AC_COPYRIGHT("Asterisk")
 AC_REVISION($Revision$)

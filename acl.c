@@ -69,7 +69,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 #include "asterisk/srv.h"
-#include "asterisk/compat.h"
 
 struct ast_ha {
 	/* Host access rule */

@@ -1,4 +1,4 @@
-/* include/autoconfig.h.in.  Generated from configure.ac by autoheader.  */
+/* include/asterisk/autoconfig.h.in.  Generated from configure.ac by autoheader.  */
 
 #ifndef ASTERISK_AUTOCONFIG_H
 #define ASTERISK_AUTOCONFIG_H

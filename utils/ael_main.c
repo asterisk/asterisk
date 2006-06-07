@@ -1,4 +1,4 @@
-#include "autoconfig.h"
+#include "asterisk/autoconfig.h"
 
 #include <sys/types.h>
 #include <stdio.h>
