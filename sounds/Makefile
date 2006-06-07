@@ -37,12 +37,13 @@ MENUSELECT_MOH:=$(subst -FREEPLAY-,-freeplay-,$(MENUSELECT_MOH))
 MENUSELECT_MOH:=$(subst -MP3,-mp3,$(MENUSELECT_MOH))
 MOH:=$(MENUSELECT_MOH:MOH-%=asterisk-moh-%.tar.gz)
 
-%.gz:
+%.tar.gz:
 	@wget --no-verbose --continue $(SOUNDS_URL)/$@
 
 all:	$(CORE_SOUNDS) $(EXTRA_SOUNDS) $(MOH)
 
-clean:
+dist-clean:
+	rm -f *.tar.gz
 
 install: all
 	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds

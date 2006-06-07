@@ -24,7 +24,7 @@
  * \brief A menu-driven system for Asterisk module selection
  */
 
-#include "autoconfig.h"
+#include "asterisk.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -33,8 +33,6 @@
 
 #include "mxml/mxml.h"
 #include "menuselect.h"
-
-#include "asterisk.h"
 
 #include "asterisk/linkedlists.h"
 

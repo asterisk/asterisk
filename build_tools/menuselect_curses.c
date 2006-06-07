@@ -24,7 +24,7 @@
  * \brief curses frontend for Asterisk module selection
  */
 
-#include "autoconfig.h"
+#include "asterisk/autoconfig.h"
 
 #include <stdlib.h>
 #include <stdio.h>

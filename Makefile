@@ -380,7 +380,7 @@ _all: all
 	@echo " +               make install                +"  
 	@echo " +-------------------------------------------+"  
 
-all: cleantest config.status menuselect.makeopts depend asterisk subdirs sounds
+all: cleantest config.status menuselect.makeopts depend asterisk subdirs
 
 config.status: configure
 	@CFLAGS="" ./configure
@@ -519,12 +519,13 @@ clean: clean-depend
 distclean: dist-clean
 
 dist-clean: clean
+	$(MAKE) -C mxml clean
+	$(MAKE) -C build_tools dist-clean
+	$(MAKE) -C sounds dist-clean
 	rm -f menuselect.makeopts makeopts makeopts.xml
 	rm -f config.log config.status
 	rm -f include/autoconfig.h
 	rm -f include/asterisk/buildopts.h
-	$(MAKE) -C mxml clean
-	$(MAKE) -C build_tools dist-clean
 
 datafiles: all
 	if [ x`$(ID) -un` = xroot ]; then sh build_tools/mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
@@ -540,6 +541,7 @@ datafiles: all
 		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/images ; \
 	done
 	mkdir -p $(DESTDIR)$(AGI_DIR)
+	$(MAKE) -C sounds install
 
 update: 
 	@if [ -d .svn ]; then \
@@ -871,6 +873,7 @@ _uninstall:
 	rm -rf $(DESTDIR)$(ASTDATADIR)/firmware
 	rm -rf $(DESTDIR)$(ASTMANDIR)/man8
 	for x in $(SUBDIRS); do $(MAKE) -C $$x uninstall || exit 1 ; done
+	$(MAKE) -C sounds uninstall
 
 uninstall: _uninstall
 	@echo " +--------- Asterisk Uninstall Complete -----+"  
