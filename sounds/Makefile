@@ -46,10 +46,11 @@ MENUSELECT_MOH:=$(subst -GSM,-gsm,$(MENUSELECT_MOH))
 MENUSELECT_MOH:=$(subst -G729,-g729,$(MENUSELECT_MOH))
 MOH:=$(MENUSELECT_MOH:MOH-%=asterisk-moh-%.tar.gz)
 MOH_TAGS:=$(MENUSELECT_MOH:MOH-%=$(MOH_DIR)/.asterisk-moh-%)
+WGET_ARGS:=--continue
 
 $(SOUNDS_DIR)/.asterisk-core-sounds-en-%:
 	@PACKAGE=$(subst $(SOUNDS_DIR)/.asterisk,asterisk,$@).tar.gz; \
-	if ! test -f $${PACKAGE}; then wget --no-verbose --continue $(SOUNDS_URL)/$${PACKAGE}; fi; \
+	if ! test -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
 	if ! test -f $${PACKAGE}; then exit 1; fi; \
 	rm -f $(subst -$(CORE_SOUNDS_VERSION),,$@)-* && \
 	(cd $(SOUNDS_DIR); tar xzf $(PWD)/$${PACKAGE}) && \
@@ -57,7 +58,7 @@ $(SOUNDS_DIR)/.asterisk-core-sounds-en-%:
 
 $(SOUNDS_DIR)/.asterisk-core-sounds-fr-%: $(SOUNDS_DIR)/fr
 	@PACKAGE=$(subst $(SOUNDS_DIR)/.asterisk,asterisk,$@).tar.gz; \
-	if ! test -f $${PACKAGE}; then wget --no-verbose --continue $(SOUNDS_URL)/$${PACKAGE}; fi; \
+	if ! test -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
 	if ! test -f $${PACKAGE}; then exit 1; fi; \
 	rm -f $(subst -$(CORE_SOUNDS_VERSION),,$@)-* && \
 	(cd $(SOUNDS_DIR)/fr; tar xzf $(PWD)/$${PACKAGE}) && \
@@ -65,7 +66,7 @@ $(SOUNDS_DIR)/.asterisk-core-sounds-fr-%: $(SOUNDS_DIR)/fr
 
 $(SOUNDS_DIR)/.asterisk-core-sounds-fr-%: $(SOUNDS_DIR)/es
 	@PACKAGE=$(subst $(SOUNDS_DIR)/.asterisk,asterisk,$@).tar.gz; \
-	if ! test -f $${PACKAGE}; then wget --no-verbose --continue $(SOUNDS_URL)/$${PACKAGE}; fi; \
+	if ! test -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
 	if ! test -f $${PACKAGE}; then exit 1; fi; \
 	rm -f $(subst -$(CORE_SOUNDS_VERSION),,$@)-* && \
 	(cd $(SOUNDS_DIR)/es; tar xzf $(PWD)/$${PACKAGE}) && \
@@ -73,19 +74,19 @@ $(SOUNDS_DIR)/.asterisk-core-sounds-fr-%: $(SOUNDS_DIR)/es
 
 $(MOH_DIR)/.asterisk-moh-%:
 	@PACKAGE=$(subst $(MOH_DIR)/.asterisk,asterisk,$@).tar.gz; \
-	if ! test -f $${PACKAGE}; then wget --no-verbose --continue $(MOH_URL)/$${PACKAGE}; fi; \
+	if ! test -f $${PACKAGE}; then wget $(WGET_ARGS) $(MOH_URL)/$${PACKAGE}; fi; \
 	if ! test -f $${PACKAGE}; then exit 1; fi; \
 	(cd $(MOH_DIR); tar xzf $(PWD)/$${PACKAGE}) && \
 	touch $@
 
 asterisk-core-%.tar.gz:
-	@wget --no-verbose --continue $(SOUNDS_URL)/$@
+	@wget $(WGET_ARGS) $(SOUNDS_URL)/$@
 
 asterisk-extra-%.tar.gz:
-	@wget --no-verbose --continue $(MOH_URL)/$@
+	@wget $(WGET_ARGS) $(MOH_URL)/$@
 
 asterisk-moh-%.tar.gz:
-	@wget --no-verbose --continue $(MOH_URL)/$@
+	@wget $(WGET_ARGS) $(MOH_URL)/$@
 
 all:	$(CORE_SOUNDS) $(EXTRA_SOUNDS) $(MOH)
 
