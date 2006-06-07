@@ -1,16 +1,6 @@
 Asterisk SMDI (Simple Message Desk Interface) integration
 ---------------------------------------------------------
 
-Support for using Asterisk as an SMDI message desk was developed by Matthew A.
-Nicholson <mnicholson@digium.com>.  To enable SMDI support in asterisk edit the
-Makefile file and uncomment the line regarding SMDI so it reads like
-this:
-
-#
-# Asterisk SMDI integration
-#
-WITH_SMDI = 1
-
 SMDI integration is configured in smdi.conf, zaptel.conf, and voicemail.conf.
 Various characteristics of the SMDI interfaces to be used (serial ports) are
 defined in smdi.conf.  SMDI integration for callerid and MWI are defined in

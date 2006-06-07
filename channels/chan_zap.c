@@ -104,11 +104,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/transcap.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/abstract_jb.h"
-#ifdef WITH_SMDI
 #include "asterisk/smdi.h"
 #include "asterisk/astobj.h"
 #define SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
-#endif
 
 /*! Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =
@@ -286,10 +284,8 @@ static char mailbox[AST_MAX_EXTENSION];
 static int amaflags = 0;
 
 static int adsi = 0;
-#ifdef WITH_SMDI
 static int use_smdi = 0;
 static char smdi_port[SMDI_MAX_FILENAME_LEN] = "/dev/ttyS0";
-#endif
 static int numbufs = 4;
 
 static int cur_prewink = -1;
@@ -611,10 +607,8 @@ static struct zt_pvt {
 	unsigned int resetting:1;
 	unsigned int setup_ack:1;
 #endif
-#ifdef WITH_SMDI
 	unsigned int use_smdi:1;		/* Whether to use SMDI on this channel */
 	struct ast_smdi_interface *smdi_iface;	/* The serial port to listen for SMDI data on */
-#endif
 
 	struct zt_distRings drings;
 
@@ -2147,10 +2141,8 @@ static void destroy_zt_pvt(struct zt_pvt **pvt)
 		p->prev->next = p->next;
 	if (p->next)
 		p->next->prev = p->prev;
-#ifdef WITH_SMDI
 	if (p->use_smdi)
 		ASTOBJ_UNREF(p->smdi_iface, ast_smdi_interface_destroy);
-#endif
 	ast_mutex_destroy(&p->lock);
 	free(p);
 	*pvt = NULL;
@@ -5272,9 +5264,7 @@ static void *ss_thread(void *data)
 	int counter1;
 	int counter;
 	int samples = 0;
-#ifdef WITH_SMDI
 	struct ast_smdi_md_message *smdi_msg = NULL;
-#endif
 	int flags;
 	int i;
 	int timeout;
@@ -5930,7 +5920,6 @@ lax);
 			}
 		}
 #endif
-#ifdef WITH_SMDI
 		/* check for SMDI messages */
 		if (p->use_smdi && p->smdi_iface) {
 			smdi_msg = ast_smdi_md_message_wait(p->smdi_iface, SMDI_MD_WAIT_TIMEOUT);
@@ -5956,9 +5945,6 @@ lax);
 		 * and we're set to use a polarity reversal to trigger the start of caller id,
 		 * grab the caller id and wait for ringing to start... */
 		} else if (p->use_callerid && (chan->_state == AST_STATE_PRERING && p->cid_start == CID_START_POLARITY)) {
-#else
-		if (p->use_callerid && (chan->_state == AST_STATE_PRERING && p->cid_start == CID_START_POLARITY)) {
-#endif
 			/* If set to use DTMF CID signalling, listen for DTMF */
 			if (p->cid_signalling == CID_SIG_DTMF) {
 				int i = 0;
@@ -6377,10 +6363,8 @@ lax);
 			ast_shrink_phone_number(number);
 
 		ast_set_callerid(chan, number, name, number);
-#ifdef WITH_SMDI
 		if (smdi_msg)
 			ASTOBJ_UNREF(smdi_msg, ast_smdi_md_message_destroy);
-#endif
 		if (cs)
 			callerid_free(cs);
 		ast_setstate(chan, AST_STATE_RING);
@@ -7257,9 +7241,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int outsignalling, int
 		tmp->callwaitingcallerid = callwaitingcallerid;
 		tmp->threewaycalling = threewaycalling;
 		tmp->adsi = adsi;
-#ifdef WITH_SMDI
 		tmp->use_smdi = use_smdi;
-#endif
 		tmp->permhidecallerid = hidecallerid;
 		tmp->callreturn = callreturn;
 		tmp->echocancel = echocancel;
@@ -7292,7 +7274,6 @@ static struct zt_pvt *mkintf(int channel, int signalling, int outsignalling, int
 			}
 		}
 
-#ifdef WITH_SMDI
 		if (tmp->cid_signalling == CID_SIG_SMDI) {
 			if (!tmp->use_smdi) {
 				ast_log(LOG_WARNING, "SMDI callerid requires SMDI to be enabled, enabling...\n");
@@ -7306,7 +7287,6 @@ static struct zt_pvt *mkintf(int channel, int signalling, int outsignalling, int
 				tmp->use_smdi = 0;
 			}
 		}
-#endif
 
 		ast_copy_string(tmp->accountcode, accountcode, sizeof(tmp->accountcode));
 		tmp->amaflags = amaflags;
@@ -10449,10 +10429,8 @@ static int setup_zap(int reload)
 				cid_signalling = CID_SIG_V23;
 			else if (!strcasecmp(v->value, "dtmf"))
 				cid_signalling = CID_SIG_DTMF;
-#ifdef WITH_SMDI
 			else if (!strcasecmp(v->value, "smdi"))
 				cid_signalling = CID_SIG_SMDI;
-#endif
 			else if (!strcasecmp(v->value, "v23_jp"))
 				cid_signalling = CID_SIG_V23_JP;
 			else if (ast_true(v->value))
@@ -10477,12 +10455,10 @@ static int setup_zap(int reload)
 			ast_copy_string(mailbox, v->value, sizeof(mailbox));
 		} else if (!strcasecmp(v->name, "adsi")) {
 			adsi = ast_true(v->value);
-#ifdef WITH_SMDI
 		} else if (!strcasecmp(v->name, "usesmdi")) {
 			use_smdi = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "smdiport")) {
 			ast_copy_string(smdi_port, v->value, sizeof(smdi_port));
-#endif
 		} else if (!strcasecmp(v->name, "transfer")) {
 			transfer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "canpark")) {

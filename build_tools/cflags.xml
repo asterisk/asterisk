@@ -21,7 +21,4 @@
 		</member>
 		<member name="TRACE_FRAMES" displayname="Trace Frame Allocations">
 		</member>
-		<member name="WITH_SMDI" displayname="Include SMDI Support">
-			<defaultenabled>yes</defaultenabled>
-		</member>
 	</category>

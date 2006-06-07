@@ -75,10 +75,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/utils.h"
 #include "asterisk/stringfields.h"
-#ifdef WITH_SMDI
 #include "asterisk/smdi.h"
 #define SMDI_MWI_WAIT_TIMEOUT 1000 /* 1 second */
-#endif
 #ifdef USE_ODBC_STORAGE
 #include "asterisk/res_odbc.h"
 #endif
@@ -408,9 +406,7 @@ static int silencethreshold = 128;
 static char serveremail[80];
 static char mailcmd[160];	/* Configurable mail cmd */
 static char externnotify[160]; 
-#ifdef WITH_SMDI
 static struct ast_smdi_interface *smdi_iface = NULL;
-#endif
 static char vmfmts[80];
 static int vmminmessage;
 static int vmmaxmessage;
@@ -2348,16 +2344,13 @@ static void run_externnotify(char *context, char *extension)
 	char arguments[255];
 	char ext_context[256] = "";
 	int newvoicemails = 0, oldvoicemails = 0;
-#ifdef WITH_SMDI
 	struct ast_smdi_mwi_message *mwi_msg;
-#endif
 
 	if (!ast_strlen_zero(context))
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", extension, context);
 	else
 		ast_copy_string(ext_context, extension, sizeof(ext_context));
 
-#ifdef WITH_SMDI
 	if (!strcasecmp(externnotify, "smdi")) {
 		if (ast_app_has_voicemail(ext_context, NULL)) 
 			ast_smdi_mwi_set(smdi_iface, extension);
@@ -2376,9 +2369,6 @@ static void run_externnotify(char *context, char *extension)
 			ast_log(LOG_DEBUG, "Successfully executed SMDI MWI change for %s on %s\n", extension, smdi_iface->name);
 		}
 	} else if (!ast_strlen_zero(externnotify)) {
-#else
-	if (!ast_strlen_zero(externnotify)) {
-#endif
 		if (inboxcount(ext_context, &newvoicemails, &oldvoicemails)) {
 			ast_log(LOG_ERROR, "Problem in calculating number of voicemail messages available for extension %s\n", extension);
 		} else {
@@ -6136,9 +6126,7 @@ static int load_config(void)
 	char *cat;
 	struct ast_variable *var;
 	char *notifystr = NULL;
-#ifdef WITH_SMDI
 	char *smdistr = NULL;
-#endif
 	char *astattach;
 	char *astsearch;
 	char *astsaycid;
@@ -6245,7 +6233,6 @@ static int load_config(void)
 		if ((notifystr = ast_variable_retrieve(cfg, "general", "externnotify"))) {
 			ast_copy_string(externnotify, notifystr, sizeof(externnotify));
 			ast_log(LOG_DEBUG, "found externnotify: %s\n", externnotify);
-#ifdef WITH_SMDI
 			if (!strcasecmp(externnotify, "smdi")) {
 				ast_log(LOG_DEBUG, "Using SMDI for external voicemail notification\n");
 				if ((smdistr = ast_variable_retrieve(cfg, "general", "smdiport"))) {
@@ -6262,7 +6249,6 @@ static int load_config(void)
 					ast_log(LOG_DEBUG, "Using SMDI port %s\n", smdi_iface->name);
 				}
 			}
-#endif
 		} else {
 			externnotify[0] = '\0';
 		}
