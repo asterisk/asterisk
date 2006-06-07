@@ -13,6 +13,8 @@
 
 .EXPORT_ALL_VARIABLES:
 
+.PHONY: sounds
+
 # Create OPTIONS variable
 OPTIONS=
 
@@ -378,7 +380,7 @@ _all: all
 	@echo " +               make install                +"  
 	@echo " +-------------------------------------------+"  
 
-all: cleantest config.status menuselect.makeopts depend asterisk subdirs
+all: cleantest config.status menuselect.makeopts depend asterisk subdirs sounds
 
 config.status: configure
 	@CFLAGS="" ./configure
@@ -533,52 +535,6 @@ datafiles: all
 	for x in static-http/*; do \
 		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/static-http ; \
 	done
-	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds/digits
-	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds/priv-callerintros
-	for x in sounds/digits/*.gsm; do \
-		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/sounds/digits ; \
-		else \
-			echo "No description for $$x"; \
-			exit 1; \
-		fi; \
-	done
-	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds/dictate
-	for x in sounds/dictate/*.gsm; do \
-		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/sounds/dictate ; \
-		else \
-			echo "No description for $$x"; \
-			exit 1; \
-		fi; \
-	done
-	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds/letters
-	for x in sounds/letters/*.gsm; do \
-		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/sounds/letters ; \
-		else \
-			echo "No description for $$x"; \
-			exit 1; \
-		fi; \
-	done
-	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds/phonetic
-	for x in sounds/phonetic/*.gsm; do \
-		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/sounds/phonetic ; \
-		else \
-			echo "No description for $$x"; \
-			exit 1; \
-		fi; \
-	done
-	for x in sounds/demo-* sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-* sounds/auth-* sounds/privacy-* sounds/queue-* sounds/spy-* sounds/priv-* sounds/screen-* sounds/hello-*; do \
-		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/sounds ; \
-		else \
-			echo "No description for $$x"; \
-			exit 1; \
-		fi; \
-	done
-	mkdir -p $(DESTDIR)$(ASTDATADIR)/mohmp3
 	mkdir -p $(DESTDIR)$(ASTDATADIR)/images
 	for x in images/*.jpg; do \
 		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/images ; \
@@ -640,7 +596,6 @@ bininstall: all
 	if [ -n "$(OLDHEADERS)" ]; then \
 		rm -f $(addprefix $(DESTDIR)$(ASTHEADERDIR)/,$(OLDHEADERS)) ;\
 	fi
-	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-csv
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-custom
 	mkdir -p $(DESTDIR)$(ASTDATADIR)/keys
@@ -762,20 +717,6 @@ samples: adsi
 	else \
 		echo "Skipping asterisk.conf creation"; \
 	fi
-	mkdir -p $(DESTDIR)$(ASTDATADIR)/sounds ; \
-	for x in sounds/demo-*; do \
-		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/sounds ; \
-		else \
-			echo "No description for $$x"; \
-			exit 1; \
-		fi; \
-	done
-	mkdir -p $(DESTDIR)$(ASTDATADIR)/mohmp3 ; \
-	for x in sounds/*.mp3; do \
-		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/mohmp3 ; \
-	done
-	rm -f $(DESTDIR)$(ASTDATADIR)/mohmp3/sample-hold.mp3
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX
 	:> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/unavail.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isunavail; do \
@@ -905,6 +846,9 @@ FORCE:
 %_env:
 	$(MAKE) -C $(shell echo $@ | sed "s/_env//g") env
 
+sounds:
+	$(MAKE) -C sounds all
+
 env:
 	env
 
@@ -924,7 +868,6 @@ _uninstall:
 	rm -f $(DESTDIR)$(ASTSBINDIR)/astgenkey
 	rm -f $(DESTDIR)$(ASTSBINDIR)/autosupport
 	rm -rf $(DESTDIR)$(ASTHEADERDIR)
-	rm -rf $(DESTDIR)$(ASTDATADIR)/sounds
 	rm -rf $(DESTDIR)$(ASTDATADIR)/firmware
 	rm -rf $(DESTDIR)$(ASTMANDIR)/man8
 	for x in $(SUBDIRS); do $(MAKE) -C $$x uninstall || exit 1 ; done
@@ -961,6 +904,6 @@ mxml/libmxml.a:
 	@cd mxml && unset CFLAGS LIBS && test -f config.h || ./configure
 	$(MAKE) -C mxml libmxml.a
 
-makeopts.xml: $(foreach dir,$(MOD_SUBDIRS),$(dir)/*.c) build_tools/cflags.xml build_tools/sounds.xml
+makeopts.xml: $(foreach dir,$(MOD_SUBDIRS),$(dir)/*.c) build_tools/cflags.xml sounds/sounds.xml
 	@echo "Generating list of available modules ..."
 	@build_tools/prep_moduledeps > $@
