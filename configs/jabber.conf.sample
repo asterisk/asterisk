@@ -15,3 +15,4 @@
 ;buddy=mogorman@astjab.org		;;Manual addition of buddy to list.
 ;statusmessage="I am available"		;;Have custom status message for
 					;;Asterisk.
+;timeout=100				;;Timeout on the message stack.

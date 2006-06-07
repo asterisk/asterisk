@@ -66,6 +66,14 @@ struct aji_resource {
 	struct aji_resource *next;
 };
 
+struct aji_message {
+	char *from;
+	char *message;
+	char id[25];
+	time_t arrived;
+	struct aji_message *next;
+};
+
 struct aji_buddy {
 	ASTOBJ_COMPONENTS(struct aji_buddy);
 	char user[160];
@@ -108,10 +116,13 @@ struct aji_client {
 	int keepalive;
 	int allowguest;
 	int timeout;
+	int message_timeout;
 	int authorized;
 	unsigned int flags;
 	enum aji_type component;
 	struct aji_buddy_container buddies;
+ 	ast_mutex_t message_lock; 
+	struct aji_message *messages;
 	void *jingle;
 	pthread_t thread;
 };

@@ -61,6 +61,7 @@ static int aji_status_exec(struct ast_channel *chan, void *data);
 static void aji_log_hook(void *data, const char *xmpp, size_t size, int is_incoming);
 static int aji_act_hook(void *data, int type, iks *node);
 static void aji_handle_iq(struct aji_client *client, iks *node);
+static void aji_handle_message(struct aji_client *client, ikspak *pak);
 static void aji_handle_presence(struct aji_client *client, ikspak *pak);
 static void aji_handle_subscribe(struct aji_client *client, ikspak *pak);
 static void *aji_recv_loop(void *data);
@@ -154,8 +155,16 @@ static struct ast_flags globalflags = { AJI_AUTOPRUNE | AJI_AUTOREGISTER };
  */
 static void aji_client_destroy(struct aji_client *obj)
 {
+	struct aji_message *tmp;
 	ASTOBJ_CONTAINER_DESTROYALL(&obj->buddies, aji_buddy_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&obj->buddies);
+
+	while ((tmp = obj->messages)) {
+		obj->messages = obj->messages->next;
+		if(tmp->from) free(tmp->from);
+		if(tmp->message) free(tmp->message);
+		free(tmp);
+	}
 	free(obj);
 }
 
@@ -596,6 +605,7 @@ static int aji_act_hook(void *data, int type, iks *node)
 			ast_verbose(VERBOSE_PREFIX_3 "JABBER: I Don't know what to do with you NONE\n");
 		break;
 	case IKS_PAK_MESSAGE:
+		aji_handle_message(client, pak);
 		if (option_verbose > 30)
 			ast_verbose(VERBOSE_PREFIX_3 "JABBER: I Don't know what to do with you MESSAGE\n");
 		break;
@@ -619,7 +629,7 @@ static int aji_act_hook(void *data, int type, iks *node)
 			ast_verbose(VERBOSE_PREFIX_3 "JABBER: I Dont know %i\n", pak->type);
 		break;
 	}
-
+	
 	iks_filter_packet(client->f, pak);
 
 	if (node)
@@ -813,12 +823,13 @@ static int aji_client_info_handler(void *data, ikspak *pak)
 	buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, pak->from->partial);
 
 	resource = aji_find_resource(buddy, pak->from->resource);
-	if (!resource) {
-		ast_log(LOG_NOTICE,"JABBER: Received client info from %s when not requested.\n", pak->from->full);
-		ASTOBJ_UNREF(client, aji_client_destroy);
-		return IKS_FILTER_EAT;
-	}	
+
 	if (pak->subtype == IKS_TYPE_RESULT) {
+		if (!resource) {
+			ast_log(LOG_NOTICE,"JABBER: Received client info from %s when not requested.\n", pak->from->full);
+			ASTOBJ_UNREF(client, aji_client_destroy);
+			return IKS_FILTER_EAT;
+		}
 		if (iks_find_with_attrib(pak->query, "feature", "var", "http://www.google.com/xmpp/protocol/voice/v1")) {
 			resource->cap->jingle = 1;
 		} else
@@ -835,7 +846,7 @@ static int aji_client_info_handler(void *data, ikspak *pak)
 			iks_insert_attrib(iq, "to", pak->from->full);
 			iks_insert_attrib(iq, "type", "result");
 			iks_insert_attrib(iq, "id", pak->id);
-			iks_insert_attrib(query, "xmlns", "xmlns='http://jabber.org/protocol/disco#info");
+			iks_insert_attrib(query, "xmlns", "http://jabber.org/protocol/disco#info");
 			iks_insert_attrib(ident, "category", "client");
 			iks_insert_attrib(ident, "type", "pc");
 			iks_insert_attrib(ident, "name", "asterisk");
@@ -1012,6 +1023,47 @@ static void aji_handle_iq(struct aji_client *client, iks *node)
  * \param client structure and the node.
  * \return void.
  */
+static void aji_handle_message(struct aji_client *client, ikspak *pak)
+{
+	struct aji_message *insert, *tmp, *delete, *last;
+	int flag = 0;
+	insert = ast_malloc(sizeof(struct aji_message));
+	memset(insert, 0, sizeof(struct aji_message));
+	insert->arrived = time(NULL);
+	insert->next = NULL;
+	insert->message = ast_strdup(iks_find_cdata(pak->x, "body"));
+	ast_copy_string(insert->id, pak->id, sizeof(insert->message));
+	insert->from = ast_strdup(pak->from->full);
+	ast_mutex_lock(&(client)->message_lock);
+	insert->next = client->messages;
+	client->messages = insert;
+	insert = NULL;
+	tmp = client->messages;
+	last = tmp;
+	while(tmp) {
+		if(flag) { /*timestamp exceeded delete rest */
+			delete = tmp;
+			tmp = tmp->next;
+			if(delete->message) free(delete->message);
+			if(delete->from) free(delete->from);
+			free(delete);
+			delete = NULL;
+		} else if(difftime(time(NULL), tmp->arrived) >= client->message_timeout) {
+			flag = 1;
+			last->next = NULL;
+			delete = tmp;
+			tmp = tmp->next;
+			if(delete->message) free(delete->message);
+			if(delete->from) free(delete->from);
+			free(delete);
+			delete = NULL;
+		} else {
+			last = tmp;
+			tmp = tmp->next;
+		}
+	}
+	ast_mutex_unlock(&(client)->message_lock);
+}
 static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 {
 	int status, priority;
@@ -1020,26 +1072,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 	char *ver, *node, *descrip;
 	
 	if(client->state != AJI_CONNECTED) {
-		buddy = (struct aji_buddy *) malloc(sizeof(struct aji_buddy));
-		if (!buddy) {
-			ast_log(LOG_WARNING, "Out of memory\n");
-			return ;
-		}
-		memset(buddy, 0, sizeof(struct aji_buddy));
-		ASTOBJ_INIT(buddy);
-		ASTOBJ_WRLOCK(buddy);
-		ast_copy_string(buddy->name, pak->from->partial, sizeof(buddy->name));
-		ast_clear_flag(buddy, AST_FLAGS_ALL);
-		if(ast_test_flag(client, AJI_AUTOPRUNE)) {
-			ast_set_flag(buddy, AJI_AUTOPRUNE);
-			buddy->objflags |= ASTOBJ_FLAG_MARKED;
-		} else
-			ast_set_flag(buddy, AJI_AUTOREGISTER);
-		ASTOBJ_UNLOCK(buddy);
-		if (buddy) {
-			ASTOBJ_CONTAINER_LINK(&client->buddies, buddy);
-			buddy = NULL;
-		}
+		aji_create_buddy(pak->from->partial,client);
 	}
 	buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, pak->from->partial);
 	if (!buddy) {
@@ -1113,6 +1146,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 
 	if (!found && status != 6) {
 		found = (struct aji_resource *) malloc(sizeof(struct aji_resource));
+		memset(found, 0, sizeof(struct aji_resource));
 		if (!found) {
 			ast_log(LOG_ERROR, "Out of memory!\n");
 			return;
@@ -1369,6 +1403,7 @@ static void *aji_recv_loop(void *data)
 				sleep(4);
 			}
 		}
+
 		res = iks_recv(client->p, 1);
 		client->timeout--;
 		if (res == IKS_HOOK) {
@@ -1716,13 +1751,13 @@ static int aji_client_initialize(struct aji_client *client)
 {
 	int connected = 0;
 
-	connected = iks_connect_via(client->p, client->serverhost, client->port, client->jid->server);
+	connected = iks_connect_via(client->p, S_OR(client->serverhost, client->jid->server), client->port, client->jid->server);
 
 	if (connected == IKS_NET_NOCONN) {
 		ast_log(LOG_ERROR, "JABBER ERROR: No Connection\n");
 		return IKS_HOOK;
 	} else 	if (connected == IKS_NET_NODNS) {
-		ast_log(LOG_ERROR, "JABBER ERROR: No DNS\n");
+		ast_log(LOG_ERROR, "JABBER ERROR: No DNS %s for client to  %s\n", client->name, S_OR(client->serverhost, client->jid->server));
 		return IKS_HOOK;
 	} else
 		iks_recv(client->p, 30);
@@ -1880,7 +1915,7 @@ static int aji_test(int fd, int argc, char *argv[])
 	struct aji_client *client;
 	struct aji_resource *resource;
 	const char *name = "asterisk";
-
+	struct aji_message *tmp;
 	if (argc > 3)
 		return RESULT_SHOWUSAGE;
 	else if (argc == 3)
@@ -1908,6 +1943,15 @@ static int aji_test(int fd, int argc, char *argv[])
 		}
 		ASTOBJ_UNLOCK(iterator);
 	});
+	tmp = client->messages;
+	ast_mutex_lock(&(client)->message_lock);
+	ast_verbose("\nOooh a working message stack!\n");
+	while(tmp) {
+	ast_verbose("	Message from: %s with id %s @ %s	%s\n",tmp->from, tmp->id, ctime(&tmp->arrived), tmp->message);
+	tmp = tmp->next;
+	}
+	ast_mutex_unlock(&(client)->message_lock);
+
 
 	ASTOBJ_UNREF(client, aji_client_destroy);
 
@@ -1949,14 +1993,15 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 	ast_copy_flags(client, &globalflags, AST_FLAGS_ALL);
 	client->port = 5222;
 	client->usetls = 1;
+	client->usesasl = 1;
 	client->forcessl = 0;
 	client->keepalive = 1;
 	client->timeout = 20;
+	client->message_timeout = 100;
 	client->component = AJI_CLIENT;
 	ast_copy_string(client->statusmessage, "Online and Available", sizeof(client->statusmessage));
 
 	if (flag) client->authorized = 0;
-	client->usesasl = 0;
 	if (flag) client->state = AJI_DISCONNECTED;
 	while (var) {
 		if (!strcasecmp(var->name, "username"))
@@ -1969,6 +2014,8 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 			ast_copy_string(client->statusmessage, var->value, sizeof(client->statusmessage));
 		else if (!strcasecmp(var->name, "port"))
 			client->port = atoi(var->value);
+		else if (!strcasecmp(var->name, "timeout"))
+			client->message_timeout = atoi(var->value);
 		else if (!strcasecmp(var->name, "debug"))
 			client->debug = (ast_false(var->value)) ? 0 : 1;
 		else if (!strcasecmp(var->name, "type")){
@@ -2209,6 +2256,9 @@ static void aji_reload()
 
 static int unload_module(void *mod)
 {
+	ast_cli_unregister_multiple(aji_cli, sizeof(aji_cli) / sizeof(aji_cli[0]));
+	ast_unregister_application(app_ajisend);
+
 	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
 		ASTOBJ_RDLOCK(iterator);
 		if (option_verbose > 2)
@@ -2222,9 +2272,6 @@ static int unload_module(void *mod)
 	ASTOBJ_CONTAINER_DESTROYALL(&clients, aji_client_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&clients);
 
-	STANDARD_HANGUP_LOCALUSERS;
-	ast_cli_unregister_multiple(aji_cli, sizeof(aji_cli) / sizeof(aji_cli[0]));
-	ast_unregister_application(app_ajisend);
 	ast_log(LOG_NOTICE, "res_jabber unloaded.\n");
 	return 0;
 }
