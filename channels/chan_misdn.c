@@ -2273,7 +2273,7 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 		}
 		
 		/* trying to make a mISDN_dsp conference */
-		chan_misdn_log(1, ch1->bc->port, "I SEND: Making conference with Number:%d\n", (ch1->bc->pid<<1) +1);
+		chan_misdn_log(1, ch1->bc->port, "I SEND: Making conference with Number:%d\n", ch1->bc->pid +1);
 
 		misdn_lib_bridge(ch1->bc,ch2->bc);
 	}
@@ -2281,7 +2281,7 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 	if (option_verbose > 2) 
 		ast_verbose(VERBOSE_PREFIX_3 "Native bridging %s and %s\n", c0->name, c1->name);
 
-	chan_misdn_log(1, ch1->bc->port, "* Makeing Native Bridge between %s and %s\n", ch1->bc->oad, ch2->bc->oad);
+	chan_misdn_log(1, ch1->bc->port, "* Making Native Bridge between %s and %s\n", ch1->bc->oad, ch2->bc->oad);
   
 	while(1) {
 		to=-1;

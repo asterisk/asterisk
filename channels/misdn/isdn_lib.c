@@ -591,17 +591,16 @@ int clean_up_bc(struct misdn_bchannel *bc)
 		manager_ec_disable(bc);
 	}
 
-	if (bc->bc_state == BCHAN_SETUP) 
-		mISDN_write_frame(stack->midev, buff, bc->layer_id|FLG_MSG_DOWN, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
-	else
-		mISDN_write_frame(stack->midev, buff, bc->addr|FLG_MSG_DOWN, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
-
-	cb_log(3, stack->port, "$$$ CLEARING STACK\n");
 	
+	mISDN_write_frame(stack->midev, buff, bc->layer_id|FLG_MSG_DOWN, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
+
+#if 0
+	cb_log(3, stack->port, "$$$ CLEARING STACK\n");
 	ret=mISDN_clear_stack(stack->midev,bc->b_stid);
 	if (ret<0 && errno) {
 		cb_log(-1,stack->port,"clear stack failed [%s]\n",strerror(errno));
 	}
+#endif
 
 	bc->b_stid = 0;
 	bc_state_change(bc, BCHAN_CLEANED);
