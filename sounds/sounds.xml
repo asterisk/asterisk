@@ -31,9 +31,17 @@
 		<member name="CORE-SOUNDS-FR-G729" displayname="French, G.729 format">
 		</member>
 	</category>
-	<category name="MENUSELECT_MOH" displayname="Music On Hold File Package" positive_output="yes">
-		<member name="MOH-FREEPLAY-MP3" displayname="FreePlay Music On Hold Files, MP3 format" >
+	<category name="MENUSELECT_MOH" displayname="Music On Hold File Packages" positive_output="yes">
+		<member name="MOH-FREEPLAY-WAV" displayname="FreePlay Music On Hold Files, WAV format" >
 			<defaultenabled>yes</defaultenabled>
+		</member>
+		<member name="MOH-FREEPLAY-ULAW" displayname="FreePlay Music On Hold Files, mu-Law format" >
+		</member>
+		<member name="MOH-FREEPLAY-ALAW" displayname="FreePlay Music On Hold Files, a-Law format" >
+		</member>
+		<member name="MOH-FREEPLAY-GSM" displayname="FreePlay Music On Hold Files, GSM format" >
+		</member>
+		<member name="MOH-FREEPLAY-G729" displayname="FreePlay Music On Hold Files, G.729 format" >
 		</member>
 	</category>
 	<category name="MENUSELECT_EXTRA_SOUNDS" displayname="Extras Sound Packages" positive_output="yes">

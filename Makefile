@@ -196,7 +196,6 @@ ifeq ($(OSARCH),Linux)
       endif
     endif
   endif
-  MPG123TARG=linux
 endif
 
 GREP=grep
@@ -239,12 +238,10 @@ ifeq ($(OSARCH),FreeBSD)
   ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/spandsp),)
     ASTCFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include/spandsp
   endif
-  MPG123TARG=freebsd
 endif # FreeBSD
 
 ifeq ($(OSARCH),NetBSD)
   AST_CFLAGS+=-pthread -I$(CROSS_COMPILE_TARGET)/usr/pkg/include
-  MPG123TARG=netbsd
 endif
 
 ifeq ($(OSARCH),OpenBSD)
@@ -512,7 +509,6 @@ clean: clean-depend
 	rm -f include/asterisk/version.h
 	rm -f .tags-sources tags TAGS
 	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
-	@if [ -d mpg123-0.59r ]; then $(MAKE) -C mpg123-0.59r clean; fi
 	$(MAKE) -C db1-ast clean
 	$(MAKE) -C stdtime clean
 
@@ -615,7 +611,6 @@ bininstall: all
 	else \
 		echo "You need to do cvs update -d not just cvs update" ; \
 	fi 
-	if [ -f mpg123-0.59r/mpg123 ]; then $(MAKE) -C mpg123-0.59r install; fi
 
 install-subdirs:
 	@for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
@@ -772,12 +767,6 @@ __rpm: include/asterisk/version.h include/asterisk/buildopts.h spec
 progdocs:
 	(cat contrib/asterisk-ng-doxygen; echo "HAVE_DOT=$(HAVEDOT)"; \
 	echo "PROJECT_NUMBER=$(ASTERISKVERSION)") | doxygen - 
-
-mpg123:
-	@wget -V >/dev/null || (echo "You need wget" ; false )
-	[ -f mpg123-0.59r.tar.gz ] || wget http://www.mpg123.de/mpg123/mpg123-0.59r.tar.gz
-	[ -d mpg123-0.59r ] || tar xfz mpg123-0.59r.tar.gz
-	$(MAKE) -C mpg123-0.59r $(MPG123TARG)
 
 config:
 	@if [ "${OSARCH}" = "Linux" ]; then \

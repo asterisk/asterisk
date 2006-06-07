@@ -2,10 +2,10 @@
 ; Music on Hold -- Sample Configuration
 ;
 
-[default]
-mode=quietmp3
-directory=/var/lib/asterisk/mohmp3
-
+;[samplemp3]
+;mode=quietmp3
+;directory=/var/lib/asterisk/mohmp3
+;
 ; valid mode options:
 ; quietmp3 	-- default 
 ; mp3 		-- loud
@@ -55,11 +55,11 @@ directory=/var/lib/asterisk/mohmp3
 ; understand when it loads.
 ;
 
-;[native]
-;mode=files
-;directory=/var/lib/asterisk/moh-native
+[default]
+mode=files
+directory=/var/lib/asterisk/moh
 ;
 ;[native-random]
 ;mode=files
-;directory=/var/lib/asterisk/moh-native
+;directory=/var/lib/asterisk/moh
 ;random=yes 	; Play the files in a random order
