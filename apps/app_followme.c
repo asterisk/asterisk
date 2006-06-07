@@ -234,7 +234,7 @@ static void profile_set_param(struct ast_call_followme *f, const char *param, co
 		ast_copy_string(f->nextindp, val, sizeof(f->nextindp));
 	} else if (!strcasecmp(param, "call-from-prompt")) {
 		ast_copy_string(f->callfromprompt, val, sizeof(f->callfromprompt));
-	} else if (!strcasecmp(param, "followme-recording-prompt")) {
+	} else if (!strcasecmp(param, "followme-norecording-prompt")) {
 		ast_copy_string(f->norecordingprompt, val, sizeof(f->norecordingprompt));
 	} else if (!strcasecmp(param, "followme-options-prompt")) {
 		ast_copy_string(f->optionsprompt, val, sizeof(f->optionsprompt));
