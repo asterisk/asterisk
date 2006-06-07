@@ -6416,9 +6416,9 @@ static int socket_process(struct iax2_thread *thread)
 									iax_frame_wrap(fr, &f);
 #ifdef BRIDGE_OPTIMIZATION
 									if (iaxs[fr->callno]->bridgecallno) {
-										forward_delivery(&fr);
+										forward_delivery(fr);
 									} else {
-										duped_fr = iaxfrdup2(&fr);
+										duped_fr = iaxfrdup2(fr);
 										if (duped_fr) {
 											schedule_delivery(duped_fr, updatehistory, 1, &fr->ts);
 										}
@@ -7643,9 +7643,9 @@ retryowner2:
 	}
 #ifdef BRIDGE_OPTIMIZATION
 	if (iaxs[fr->callno]->bridgecallno) {
-		forward_delivery(&fr);
+		forward_delivery(fr);
 	} else {
-		duped_fr = iaxfrdup2(&fr);
+		duped_fr = iaxfrdup2(fr);
 		if (duped_fr) {
 			schedule_delivery(duped_fr, updatehistory, 0, &fr->ts);
 		}
