@@ -127,9 +127,9 @@ ifneq ($(wildcard makeopts),)
   include makeopts
 endif
 
-TOPDIR_CFLAGS=-include include/autoconfig.h -Iinclude
-MOD_SUBDIR_CFLAGS=-include ../include/autoconfig.h -I../include -I..
-OTHER_SUBDIR_CFLAGS=-include ../include/autoconfig.h -I../include -I..
+TOPDIR_CFLAGS=-Iinclude
+MOD_SUBDIR_CFLAGS=-I../include -I..
+OTHER_SUBDIR_CFLAGS=-I../include -I..
 
 ifeq ($(findstring dont-optimize,$(MAKECMDGOALS)),)
   ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)

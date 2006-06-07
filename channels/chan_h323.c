@@ -37,6 +37,18 @@
 	<depend>h323</depend>
  ***/
 
+#ifdef __cplusplus
+extern "C" {
+#endif   
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#ifdef __cplusplus
+}
+#endif
+
 #include <sys/socket.h>
 #include <sys/signal.h>
 #include <sys/param.h>
@@ -57,13 +69,10 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif   
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/lock.h"
 #include "asterisk/logger.h"
@@ -84,9 +93,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/causes.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/abstract_jb.h"
+
 #ifdef __cplusplus
 }
 #endif
+
 #include "h323/chan_h323.h"
 
 send_digit_cb on_send_digit; 

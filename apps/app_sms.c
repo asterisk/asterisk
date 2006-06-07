@@ -22,6 +22,10 @@
  * \author Adrian Kennard
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -31,10 +35,6 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"

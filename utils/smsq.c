@@ -17,6 +17,8 @@
  * at the top of the source tree.
  */
 
+#include "autoconfig.h"
+
 #include <stdio.h>
 #include <popt.h>
 #include <sys/types.h>
@@ -28,6 +30,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+
 #include <asterisk/compat.h>
 #ifdef SOLARIS
 #define     POPT_ARGFLAG_SHOW_DEFAULT 0x00800000

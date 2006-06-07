@@ -24,16 +24,16 @@
  * - See ModMngMnt
  */
 
+#define MOD_LOADER	/* prevent some module-specific stuff from being compiled */
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <stdio.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define MOD_LOADER	/* prevent some module-specific stuff from being compiled */
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/linkedlists.h"
 #include "asterisk/module.h"

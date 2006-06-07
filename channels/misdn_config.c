@@ -26,6 +26,10 @@
  * \ingroup channel_drivers
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -33,13 +37,13 @@
 
 #include "chan_misdn_config.h"
 
-#include <asterisk/config.h>
-#include <asterisk/channel.h>
-#include <asterisk/logger.h>
-#include <asterisk/lock.h>
-#include <asterisk/pbx.h>
-#include <asterisk/strings.h>
-#include <asterisk/utils.h>
+#include "asterisk/config.h"
+#include "asterisk/channel.h"
+#include "asterisk/logger.h"
+#include "asterisk/lock.h"
+#include "asterisk/pbx.h"
+#include "asterisk/strings.h"
+#include "asterisk/utils.h"
 
 #define AST_LOAD_CFG ast_config_load
 #define AST_DESTROY_CFG ast_config_destroy

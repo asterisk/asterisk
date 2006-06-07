@@ -26,6 +26,10 @@
  * \note RTP is defined in RFC 3550.
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,10 +42,6 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/rtp.h"
 #include "asterisk/frame.h"

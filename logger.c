@@ -25,6 +25,10 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -42,10 +46,6 @@
 #define SYSLOG_NAMES /* so we can map syslog facilities names to their numeric values,
 		        from <syslog.h> which is included by logger.h */
 #include <syslog.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static int syslog_level_map[] = {
 	LOG_DEBUG,

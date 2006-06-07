@@ -27,6 +27,10 @@
 	<depend>ssl</depend>
  ***/
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <sys/types.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -36,10 +40,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/file.h"
 #include "asterisk/channel.h"

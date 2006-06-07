@@ -24,11 +24,11 @@
  * \author Anthony Minessale <anthmct@yahoo.com>
  */
 
-#include <string.h>
-
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include <string.h>
 
 #include "asterisk/slinfactory.h"
 #include "asterisk/logger.h"

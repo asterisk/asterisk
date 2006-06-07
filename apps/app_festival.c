@@ -25,6 +25,10 @@
  * \ingroup applications
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <sys/types.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -41,10 +45,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <ctype.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/file.h"
 #include "asterisk/logger.h"

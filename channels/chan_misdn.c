@@ -26,6 +26,10 @@
  * \ingroup channel_drivers
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
@@ -39,29 +43,29 @@
 #include <sys/ioctl.h>
 #include <sys/file.h>
 
-#include <asterisk/channel.h>
-#include <asterisk/config.h>
-#include <asterisk/logger.h>
-#include <asterisk/module.h>
-#include <asterisk/pbx.h>
-#include <asterisk/options.h>
-#include <asterisk/io.h>
-#include <asterisk/frame.h>
-#include <asterisk/translate.h>
-#include <asterisk/cli.h>
-#include <asterisk/musiconhold.h>
-#include <asterisk/dsp.h>
-#include <asterisk/translate.h>
-#include <asterisk/config.h>
-#include <asterisk/file.h>
-#include <asterisk/callerid.h>
-#include <asterisk/indications.h>
-#include <asterisk/app.h>
-#include <asterisk/features.h>
-#include <asterisk/stringfields.h>
+#include "asterisk/channel.h"
+#include "asterisk/config.h"
+#include "asterisk/logger.h"
+#include "asterisk/module.h"
+#include "asterisk/pbx.h"
+#include "asterisk/options.h"
+#include "asterisk/io.h"
+#include "asterisk/frame.h"
+#include "asterisk/translate.h"
+#include "asterisk/cli.h"
+#include "asterisk/musiconhold.h"
+#include "asterisk/dsp.h"
+#include "asterisk/translate.h"
+#include "asterisk/config.h"
+#include "asterisk/file.h"
+#include "asterisk/callerid.h"
+#include "asterisk/indications.h"
+#include "asterisk/app.h"
+#include "asterisk/features.h"
+#include "asterisk/stringfields.h"
 
-#include <chan_misdn_config.h>
-#include <isdn_lib.h>
+#include "chan_misdn_config.h"
+#include "isdn_lib.h"
 
 ast_mutex_t release_lock_mutex;
 

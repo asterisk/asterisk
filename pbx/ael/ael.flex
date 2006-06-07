@@ -56,11 +56,14 @@
 %option bison-locations
 
 %{
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "asterisk.h"
 #include "asterisk/logger.h"
 #include "ael/ael.tab.h"
 #include "asterisk/ael_structs.h"

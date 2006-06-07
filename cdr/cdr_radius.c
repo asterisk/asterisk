@@ -29,6 +29,10 @@
 	<depend>radiusclient</depend>
  ***/
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Rev$")
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -37,10 +41,6 @@
 #include <time.h>
 #include <sys/types.h>
 #include <radiusclient-ng.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Rev$")
 
 #include "asterisk/channel.h"
 #include "asterisk/cdr.h"

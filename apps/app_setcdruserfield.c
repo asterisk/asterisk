@@ -25,13 +25,13 @@
  * \ingroup applications
  */
 
-#include <sys/types.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include <sys/types.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "asterisk/channel.h"
 #include "asterisk/cdr.h"

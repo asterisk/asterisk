@@ -28,6 +28,10 @@
  * \ingroup cdr_drivers
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
@@ -36,10 +40,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/config.h"
 #include "asterisk/channel.h"

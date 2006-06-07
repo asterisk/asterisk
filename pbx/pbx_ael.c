@@ -22,6 +22,10 @@
  * 
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -30,10 +34,6 @@
 #include <errno.h>
 #include <regex.h>
 #include <sys/stat.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/pbx.h"
 #include "asterisk/config.h"

@@ -57,6 +57,10 @@
   
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -86,13 +90,9 @@
 #if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
 #include <netdb.h>
 #if defined(SOLARIS)
-extern int daemon(int, int);  /* defined in libresolv of all places */
+int daemon(int, int);  /* defined in libresolv of all places */
 #endif
 #endif
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/logger.h"
 #include "asterisk/options.h"
@@ -122,7 +122,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/version.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/devicestate.h"
-#include "asterisk/compat.h"
 
 #include "asterisk/doxyref.h"		/* Doxygen documentation */
 

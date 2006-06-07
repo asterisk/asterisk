@@ -28,6 +28,10 @@
  * \ingroup channel_drivers
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -50,8 +54,6 @@
 #include <sys/stat.h>
 #include <regex.h>
 
-#include "asterisk.h"
-
 #ifdef HAVE_ZAPTEL
 #include <sys/ioctl.h>
 #ifdef __linux__
@@ -60,8 +62,6 @@
 #include <zaptel.h>
 #endif /* __linux__ */
 #endif
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/lock.h"
 #include "asterisk/frame.h" 

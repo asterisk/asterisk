@@ -29,6 +29,10 @@
 	<depend>ixjuser</depend>
  ***/
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -48,10 +52,6 @@
 # include <linux/compiler.h>
 #endif
 #include <linux/ixjuser.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"

@@ -23,6 +23,10 @@
  * \author Mark Spencer <markster@digium.com> 
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <sys/types.h>
 #include <errno.h>
 #include <unistd.h>
@@ -33,10 +37,6 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/frame.h"
 #include "asterisk/file.h"
@@ -52,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/linkedlists.h"
 #define	MOD_LOADER
-#include "asterisk/module.h"	/* ast_update_use_count() */
+#include "asterisk/module.h"
 
 /*
  * The following variable controls the layout of localized sound files.

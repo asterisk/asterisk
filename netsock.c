@@ -25,6 +25,10 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,10 +53,6 @@
 #if defined (SOLARIS)
 #include <sys/sockio.h>
 #endif
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/netsock.h"
 #include "asterisk/logger.h"

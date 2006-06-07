@@ -1,5 +1,8 @@
 /* include/autoconfig.h.in.  Generated from configure.ac by autoheader.  */
 
+#ifndef ASTERISK_AUTOCONFIG_H
+#define ASTERISK_AUTOCONFIG_H
+
 #ifndef MENUSELECT
 #include "asterisk/buildopts.h"
 #endif
@@ -569,3 +572,6 @@
 /* Define to empty if the keyword `volatile' does not work. Warning: valid
    code using `volatile' can become incorrect without. Disable with care. */
 #undef volatile
+
+#endif
+

@@ -22,6 +22,10 @@
  * 
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <sys/stat.h>
 #include <errno.h>
 #include <time.h>
@@ -33,10 +37,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"

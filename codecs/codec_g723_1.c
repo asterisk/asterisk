@@ -31,11 +31,9 @@
 	<defaultenabled>no</defaultenabled>
  ***/
 
-#define TYPE_HIGH	 0x0
-#define TYPE_LOW	 0x1
-#define TYPE_SILENCE	 0x2
-#define TYPE_DONTSEND	 0x3
-#define TYPE_MASK	 0x3
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <sys/types.h>
 #include <fcntl.h>
@@ -44,10 +42,6 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <stdio.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/lock.h"
 #include "asterisk/translate.h"
@@ -77,6 +71,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Sample frame data */
 #include "slin_g723_ex.h"
 #include "g723_slin_ex.h"
+
+#define TYPE_HIGH	 0x0
+#define TYPE_LOW	 0x1
+#define TYPE_SILENCE	 0x2
+#define TYPE_DONTSEND	 0x3
+#define TYPE_MASK	 0x3
 
 /* g723_1 has 240 samples per buffer.
  * We want a buffer which is a multiple...

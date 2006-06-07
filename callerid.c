@@ -23,6 +23,10 @@
  * \author Mark Spencer <markster@digium.com> 
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <time.h>
 #include <string.h>
 #include <stdio.h>
@@ -30,10 +34,6 @@
 #include <unistd.h>
 #include <math.h>
 #include <ctype.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/ulaw.h"
 #include "asterisk/alaw.h"

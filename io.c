@@ -23,16 +23,16 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <termios.h>
-#include <string.h> /* for memset */
+#include <string.h>
 #include <sys/ioctl.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/io.h"
 #include "asterisk/logger.h"

@@ -35,17 +35,16 @@
 	<depend>sqlite</depend>
  ***/
 
-#include <sys/types.h>
+#include "asterisk.h"
 
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include <sys/types.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <sqlite.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/channel.h"
 #include "asterisk/module.h"

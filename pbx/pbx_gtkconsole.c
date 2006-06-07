@@ -27,6 +27,10 @@
 	<defaultenabled>no</defaultenabled>
  ***/
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <sys/types.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -39,10 +43,6 @@
 
 #include <gtk/gtk.h>
 #include <glib.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/pbx.h"
 #include "asterisk/config.h"

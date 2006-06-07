@@ -23,12 +23,12 @@
  * \author Mark Spencer <markster@digium.com> 
  */
 
-#include <stdlib.h>
-#include <string.h>
-
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include <stdlib.h>
+#include <string.h>
 
 #include "asterisk/chanvars.h"
 #include "asterisk/logger.h"

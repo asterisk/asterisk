@@ -23,6 +23,10 @@
  * \author Kevin P. Fleming <kpfleming@digium.com> 
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -34,10 +38,6 @@
 #include <stdlib.h>
 #include <regex.h>
 #include <signal.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/dnsmgr.h"
 #include "asterisk/linkedlists.h"

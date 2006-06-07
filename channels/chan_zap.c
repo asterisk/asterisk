@@ -34,12 +34,16 @@
  *
  * \ingroup channel_drivers
  *
- * \todo Decprecate the "musiconhold" configuration option post 1.4
+ * \todo Deprecate the "musiconhold" configuration option post 1.4
  */
 
 /*** MODULEINFO
 	<depend>zaptel</depend>
  ***/
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <stdio.h>
 #include <string.h>
@@ -65,16 +69,12 @@
 #include <tonezone.h>
 #include <ctype.h>
 
-#include "asterisk.h"
-
 #ifdef HAVE_LIBPRI
 #include <libpri.h>
 #ifndef PRI_KEYPAD_FACILITY_TX
 #error "You need newer libpri"
 #endif
 #endif
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"

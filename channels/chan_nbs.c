@@ -29,6 +29,10 @@
 	<depend>nbs</depend>
  ***/
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -40,10 +44,6 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <nbs.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"

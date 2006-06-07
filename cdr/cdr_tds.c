@@ -59,6 +59,10 @@ CREATE TABLE [dbo].[cdr] (
 	<depend>freetds</depend>
  ***/
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
@@ -70,10 +74,6 @@ CREATE TABLE [dbo].[cdr] (
 #include <tds.h>
 #include <tdsconvert.h>
 #include <ctype.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/config.h"
 #include "asterisk/options.h"

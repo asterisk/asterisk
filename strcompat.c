@@ -19,12 +19,10 @@
  * \brief Compatibility functions for strsep and strtoq missing on Solaris 
  */
 
-#include <sys/types.h>
-#include <stdio.h>
-
 #include "asterisk.h"
 
-#include "asterisk/compat.h"
+#include <sys/types.h>
+#include <stdio.h>
 
 #ifndef HAVE_STRSEP
 char *strsep(char **str, const char *delims)

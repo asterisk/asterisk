@@ -27,6 +27,10 @@
  *  						
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
@@ -39,10 +43,6 @@
 #ifdef SOLARIS
 #include <iso/limits_iso.h>
 #endif
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/file.h"
 #include "asterisk/channel.h"

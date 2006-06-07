@@ -23,6 +23,10 @@
  * \author Mark Spencer <markster@digium.com>
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #ifdef DEBUG_SCHEDULER
 #define DEBUG(a) do { \
 	if (option_debug) \
@@ -37,10 +41,6 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <string.h>
-
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/sched.h"
 #include "asterisk/logger.h"

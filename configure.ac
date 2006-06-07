@@ -128,12 +128,19 @@ AC_SUBST(PBX_OSTYPE)
 AC_GNU_SOURCE
 
 AH_TOP(
+#ifndef ASTERISK_AUTOCONFIG_H
+#define ASTERISK_AUTOCONFIG_H
+
 #ifndef MENUSELECT
 #include "asterisk/buildopts.h"
 #endif
 
 #ifndef _REENTRANT
 #define _REENTRANT
+#endif
+)
+
+AH_BOTTOM(
 #endif
 )
 

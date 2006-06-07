@@ -36,9 +36,13 @@
 	<depend>ossaudio</depend>
  ***/
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <stdio.h>
-#include <ctype.h>	/* for isalnum */
-#include <math.h>	/* exp and log */
+#include <ctype.h>
+#include <math.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -46,7 +50,6 @@
 #include <sys/time.h>
 #include <stdlib.h>
 #include <errno.h>
-
 
 #ifdef __linux
 #include <linux/soundcard.h>
@@ -56,20 +59,15 @@
 #include <soundcard.h>
 #endif
 
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
-
 #include "asterisk/lock.h"
 #include "asterisk/frame.h"
 #include "asterisk/logger.h"
-#include "asterisk/callerid.h"	/* for ast_callerid_split() */
+#include "asterisk/callerid.h"
 #include "asterisk/channel.h"
 #include "asterisk/module.h"
 #include "asterisk/options.h"
 #include "asterisk/pbx.h"
 #include "asterisk/config.h"
-
 #include "asterisk/cli.h"
 #include "asterisk/utils.h"
 #include "asterisk/causes.h"
