@@ -11,6 +11,8 @@
 # the GNU General Public License
 #
 
+include ../menuselect.makeopts
+
 SELECTED_MODS:=$(filter-out $(MENUSELECT_CDR),$(patsubst %.c,%,$(wildcard cdr_*.c)))
 
 #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.

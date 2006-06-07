@@ -11,6 +11,8 @@
 # the GNU General Public License
 #
 
+include ../menuselect.makeopts
+
 SELECTED_MODS:=$(filter-out $(MENUSELECT_APPS),$(patsubst %.c,%,$(wildcard app_*.c)))
 
 # If you have UnixODBC you can use ODBC voicemail

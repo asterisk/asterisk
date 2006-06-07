@@ -11,6 +11,8 @@
 # the GNU General Public License
 #
 
+include ../menuselect.makeopts
+
 SELECTED_MODS:=$(filter-out $(MENUSELECT_PBX),$(patsubst %.c,%,$(wildcard pbx_*.c)))
 
 MOC=$(QTDIR)/bin/moc

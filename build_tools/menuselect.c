@@ -698,14 +698,6 @@ int main(int argc, char *argv[])
 	free_trees();
 	free_member_list();
 
-	if (check_deps && !existing_config && !res) {
-		fprintf(stderr, "\n***********************************************************\n");
-		fprintf(stderr, "* menuselect.makeopts file generated with default values! *\n");
-		fprintf(stderr, "* Please rerun make to build Asterisk.                    *\n");
-		fprintf(stderr, "***********************************************************\n\n");
-		res = -1;
-	}
-
 	/* In some cases, such as modifying the CFLAGS for the build,
 	 * a "make clean" needs to be forced.  Removing the .lastclean 
 	 * file does this. */

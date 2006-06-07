@@ -11,6 +11,8 @@
 # the GNU General Public License
 #
 
+include ../menuselect.makeopts
+
 SELECTED_MODS:=$(filter-out $(MENUSELECT_FUNCS),$(patsubst %.c,%,$(wildcard func_*.c)))
 
 # TODO This check needs to be handled with autoconf

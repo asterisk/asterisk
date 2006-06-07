@@ -11,6 +11,8 @@
 # the GNU General Public License
 #
 
+include ../menuselect.makeopts
+
 SELECTED_MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(patsubst %.c,%,$(wildcard chan_*.c)))
 
 ifeq ($(OSARCH),OpenBSD)
