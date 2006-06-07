@@ -279,7 +279,7 @@ static int reload_followme(void)
 {
 	struct ast_call_followme *f;
 	struct ast_config *cfg;
-	char *cat, *tmp;
+	char *cat = NULL, *tmp;
 	struct ast_variable *var;
 	struct number *cur, *nm;
 	int new, idx;
@@ -346,8 +346,9 @@ static int reload_followme(void)
 		ast_copy_string(sorryprompt, tmpstr, sizeof(sorryprompt));
 
 	/* Chug through config file */
-	cat = ast_category_browse(cfg, NULL);
-	while(cat) {
+	while ((cat = ast_category_browse(cfg, cat))) {
+		if (!strcasecmp(cat, "general"))
+			continue;
 		/* Define a new profile */
 		/* Look for an existing one */
 		AST_LIST_TRAVERSE(&followmes, f, entry) {
@@ -416,7 +417,6 @@ static int reload_followme(void)
 				AST_LIST_INSERT_HEAD(&followmes, f, entry);
 			}
 		}
-		cat = ast_category_browse(cfg, cat);
 	}
 	ast_config_destroy(cfg);
 
