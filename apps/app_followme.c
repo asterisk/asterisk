@@ -308,9 +308,10 @@ static int reload_followme(void)
 	}
 	featuredigittostr = ast_variable_retrieve(cfg, "general", "featuredigittimeout");
 	
-	if (!ast_strlen_zero(featuredigittostr)) 
-		if (!scanf("%d", &featuredigittimeout))
+	if (!ast_strlen_zero(featuredigittostr)) {
+		if (!sscanf(featuredigittostr, "%d", &featuredigittimeout))
 			featuredigittimeout = 5000;
+	}
 
 	takecallstr = ast_variable_retrieve(cfg, "general", "takecall");
 	if (!ast_strlen_zero(takecallstr))
