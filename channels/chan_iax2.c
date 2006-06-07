@@ -416,6 +416,7 @@ struct iax2_registry {
 	int callno;				/*!< Associated call number if applicable */
 	struct sockaddr_in us;			/*!< Who the server thinks we are */
 	struct iax2_registry *next;
+	struct ast_dnsmgr_entry *dnsmgr;	/*!< DNS refresh manager */
 };
 
 static struct iax2_registry *registrations;
@@ -4304,8 +4305,8 @@ static char *regstate2str(int regstate)
 
 static int iax2_show_registry(int fd, int argc, char *argv[])
 {
-#define FORMAT2 "%-20.20s  %-10.10s  %-20.20s %8.8s  %s\n"
-#define FORMAT "%-20.20s  %-10.10s  %-20.20s %8d  %s\n"
+#define FORMAT2 "%-20.20s  %-6.6s  %-10.10s  %-20.20s %8.8s  %s\n"
+#define FORMAT  "%-20.20s  %-6.6s  %-10.10s  %-20.20s %8d  %s\n"
 	struct iax2_registry *reg = NULL;
 
 	char host[80];
@@ -4314,7 +4315,7 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	AST_LIST_LOCK(&peers);
-	ast_cli(fd, FORMAT2, "Host", "Username", "Perceived", "Refresh", "State");
+	ast_cli(fd, FORMAT2, "Host", "dnsmgr", "Username", "Perceived", "Refresh", "State");
 	for (reg = registrations;reg;reg = reg->next) {
 		snprintf(host, sizeof(host), "%s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), reg->addr.sin_addr), ntohs(reg->addr.sin_port));
 		if (reg->us.sin_addr.s_addr) 
@@ -4322,6 +4323,7 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 		else
 			ast_copy_string(perceived, "<Unregistered>", sizeof(perceived));
 		ast_cli(fd, FORMAT, host, 
+					(reg->dnsmgr) ? "Y" : "N", 
 					reg->username, perceived, reg->refresh, regstate2str(reg->regstate));
 	}
 	AST_LIST_UNLOCK(&peers);
@@ -5447,7 +5449,6 @@ static int iax2_register(char *value, int lineno)
 	char *porta;
 	char *stringp=NULL;
 	
-	struct ast_hostent ahp; struct hostent *hp;
 	if (!value)
 		return -1;
 	ast_copy_string(copy, value, sizeof(copy));
@@ -5469,20 +5470,18 @@ static int iax2_register(char *value, int lineno)
 		ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
 		return -1;
 	}
-	hp = ast_gethostbyname(hostname, &ahp);
-	if (!hp) {
-		ast_log(LOG_WARNING, "Host '%s' not found at line %d\n", hostname, lineno);
-		return -1;
-	}
 	if (!(reg = ast_calloc(1, sizeof(*reg))))
 		return -1;
+	if (ast_dnsmgr_lookup(hostname, &reg->addr.sin_addr, &reg->dnsmgr) < 0) {
+		free(reg);
+		return -1;
+	}
 	ast_copy_string(reg->username, username, sizeof(reg->username));
 	if (secret)
 		ast_copy_string(reg->secret, secret, sizeof(reg->secret));
 	reg->expire = -1;
 	reg->refresh = IAX_DEFAULT_REG_EXPIRE;
 	reg->addr.sin_family = AF_INET;
-	memcpy(&reg->addr.sin_addr, hp->h_addr, sizeof(&reg->addr.sin_addr));
 	reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(IAX_DEFAULT_PORTNO);
 	reg->next = registrations;
 	reg->callno = 0;
@@ -7759,6 +7758,31 @@ static int iax2_do_register(struct iax2_registry *reg)
 	struct iax_ie_data ied;
 	if (option_debug && iaxdebug)
 		ast_log(LOG_DEBUG, "Sending registration request for '%s'\n", reg->username);
+
+	if (reg->dnsmgr && 
+	    ((reg->regstate == REG_STATE_TIMEOUT) || !reg->addr.sin_addr.s_addr)) {
+		/* Maybe the IP has changed, force DNS refresh */
+		ast_dnsmgr_refresh(reg->dnsmgr);
+	}
+	
+	/*
+	 * if IP has Changed, free allocated call to create a new one with new IP
+	 * call has the pointer to IP and must be updated to the new one
+	 */
+	if (reg->dnsmgr && ast_dnsmgr_changed(reg->dnsmgr) && (reg->callno > 0)) {
+		iax2_destroy(reg->callno);
+		reg->callno = 0;
+	}
+	if (!reg->addr.sin_addr.s_addr) {
+		if (option_debug && iaxdebug)
+			ast_log(LOG_DEBUG, "Unable to send registration request for '%s' without IP address\n", reg->username);
+		/* Setup the next registration attempt */
+		if (reg->expire > -1)
+			ast_sched_del(sched, reg->expire);
+		reg->expire  = ast_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
+		return -1;
+	}
+
 	if (!reg->callno) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Allocate call number\n");
@@ -8651,6 +8675,8 @@ static void delete_users(void)
 			}
 			ast_mutex_unlock(&iaxsl[regl->callno]);
 		}
+		if (regl->dnsmgr)
+			ast_dnsmgr_release(regl->dnsmgr);
 		free(regl);
 	}
 	registrations = NULL;

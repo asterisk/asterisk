@@ -37,6 +37,24 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry);
 
 int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmgr_entry **dnsmgr);
 
+/*!
+ * \brief Force a refresh of a dnsmgr entry
+ *
+ * \retval non-zero if the result is different than the previous result
+ * \retval zero if the result is the same as the previous result 
+ */
+int ast_dnsmgr_refresh(struct ast_dnsmgr_entry *entry);
+
+/*!
+ * \brief Check is see if a dnsmgr entry has changed
+ *
+ * \retval non-zero if the dnsmgr entry has changed since the last call to
+ *                  this function
+ * \retval zero     if the dnsmgr entry has not changed since the last call to
+ *                  this function
+ */
+int ast_dnsmgr_changed(struct ast_dnsmgr_entry *entry);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif /* c_plusplus */
