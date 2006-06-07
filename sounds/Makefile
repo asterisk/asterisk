@@ -17,7 +17,8 @@ PWD:=$(shell pwd)
 SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
 MOH_DIR:=$(DESTDIR)$(ASTDATADIR)/moh
 CORE_SOUNDS_VERSION:=1.4.0
-SOUNDS_URL:=http://cork.digium.internal/apache2-default
+SOUNDS_URL:=http://ftp.digium.com/pub/telephony/sounds/releases
+MOH_URL:=http://ftp.digium.com/pub/telephony/sounds
 MENUSELECT_CORE_SOUNDS:=$(subst -EN-,-en-,$(MENUSELECT_CORE_SOUNDS))
 MENUSELECT_CORE_SOUNDS:=$(subst -FR-,-fr-,$(MENUSELECT_CORE_SOUNDS))
 MENUSELECT_CORE_SOUNDS:=$(subst -ES-,-es-,$(MENUSELECT_CORE_SOUNDS))
@@ -72,13 +73,19 @@ $(SOUNDS_DIR)/.asterisk-core-sounds-fr-%: $(SOUNDS_DIR)/es
 
 $(MOH_DIR)/.asterisk-moh-%:
 	@PACKAGE=$(subst $(MOH_DIR)/.asterisk,asterisk,$@).tar.gz; \
-	if ! test -f $${PACKAGE}; then wget --no-verbose --continue $(SOUNDS_URL)/$${PACKAGE}; fi; \
+	if ! test -f $${PACKAGE}; then wget --no-verbose --continue $(MOH_URL)/$${PACKAGE}; fi; \
 	if ! test -f $${PACKAGE}; then exit 1; fi; \
 	(cd $(MOH_DIR); tar xzf $(PWD)/$${PACKAGE}) && \
 	touch $@
 
-%.tar.gz:
+asterisk-core-%.tar.gz:
 	@wget --no-verbose --continue $(SOUNDS_URL)/$@
+
+asterisk-extra-%.tar.gz:
+	@wget --no-verbose --continue $(MOH_URL)/$@
+
+asterisk-moh-%.tar.gz:
+	@wget --no-verbose --continue $(MOH_URL)/$@
 
 all:	$(CORE_SOUNDS) $(EXTRA_SOUNDS) $(MOH)
 
