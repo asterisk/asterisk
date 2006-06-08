@@ -90,6 +90,60 @@ static struct sockaddr_in rtcpdebugaddr;	/*!< Debug RTCP packets to/from this ho
 static int nochecksums = 0;
 #endif
 
+/*! \brief RTP session description */
+struct ast_rtp {
+	int s;
+	char resp;
+	struct ast_frame f;
+	unsigned char rawdata[8192 + AST_FRIENDLY_OFFSET];
+	unsigned int ssrc;		/*!< Synchronization source, RFC 3550, page 10. */
+	unsigned int themssrc;		/*!< Their SSRC */
+	unsigned int rxssrc;
+	unsigned int lastts;
+	unsigned int lastdigitts;
+	unsigned int lastrxts;
+	unsigned int lastividtimestamp;
+	unsigned int lastovidtimestamp;
+	unsigned int lasteventseqn;
+	int lastrxseqno;                /*!< Last received sequence number */
+	unsigned short seedrxseqno;     /*!< What sequence number did they start with?*/
+	unsigned int seedrxts;          /*!< What RTP timestamp did they start with? */
+	unsigned int rxcount;           /*!< How many packets have we received? */
+	unsigned int rxoctetcount;      /*!< How many octets have we received? should be rxcount *160*/
+	unsigned int txcount;           /*!< How many packets have we sent? */
+	unsigned int txoctetcount;      /*!< How many octets have we sent? (txcount*160)*/
+	unsigned int cycles;            /*!< Shifted count of sequence number cycles */
+	double rxjitter;                /*!< Interarrival jitter at the moment */
+	double rxtransit;               /*!< Relative transit time for previous packet */
+	unsigned int lasteventendseqn;
+	int lasttxformat;
+	int lastrxformat;
+	int dtmfcount;
+	unsigned int dtmfduration;
+	int nat;
+	unsigned int flags;
+	struct sockaddr_in us;		/*!< Socket representation of the local endpoint. */
+	struct sockaddr_in them;	/*!< Socket representation of the remote endpoint. */
+	struct timeval rxcore;
+	struct timeval txcore;
+	double drxcore;                 /*!< The double representation of the first received packet */
+	struct timeval lastrx;          /*!< timeval when we last received a packet */
+	struct timeval dtmfmute;
+	struct ast_smoother *smoother;
+	int *ioid;
+	unsigned short seqno;		/*!< Sequence number, RFC 3550, page 13. */
+	unsigned short rxseqno;
+	struct sched_context *sched;
+	struct io_context *io;
+	void *data;
+	ast_rtp_callback callback;
+	struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
+	int rtp_lookup_code_cache_isAstFormat; /*!< a cache for the result of rtp_lookup_code(): */
+	int rtp_lookup_code_cache_code;
+	int rtp_lookup_code_cache_result;
+	struct ast_rtcp *rtcp;
+};
+
 /* Forward declarations */
 static int ast_rtcp_write(void *data);
 static void timeval2ntp(struct timeval tv, unsigned int *msw, unsigned int *lsw);
@@ -301,6 +355,11 @@ static void stun_req_id(struct stun_header *req)
 	int x;
 	for (x=0;x<4;x++)
 		req->id.id[x] = ast_random();
+}
+
+size_t ast_rtp_alloc_size(void)
+{
+	return sizeof(struct ast_rtp);
 }
 
 void ast_rtp_stun_request(struct ast_rtp *rtp, struct sockaddr_in *suggestion, const char *username)
@@ -1185,10 +1244,10 @@ void ast_rtp_pt_default(struct ast_rtp* rtp)
 	rtp->rtp_lookup_code_cache_result = 0;
 }
 
-static void ast_rtp_pt_copy(struct ast_rtp *dest, struct ast_rtp *src)
+void ast_rtp_pt_copy(struct ast_rtp *dest, const struct ast_rtp *src)
 {
-	int i;
-	/* Copy payload types from source to destination */
+	unsigned int i;
+
 	for (i=0; i < MAX_RTP_PT; ++i) {
 		dest->current_RTP_PT[i].isAstFormat = 
 			src->current_RTP_PT[i].isAstFormat;

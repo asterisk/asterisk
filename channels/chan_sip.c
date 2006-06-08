@@ -4112,7 +4112,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int sendonly = 0;
 	int numberofports;
 	struct ast_channel *bridgepeer = NULL;
-	struct ast_rtp newaudiortp, newvideortp;	/* Buffers for codec handling */
+	struct ast_rtp *newaudiortp, *newvideortp;	/* Buffers for codec handling */
 	int newjointcapability;				/* Negotiated capability */
 	int newpeercapability;
 	int newnoncodeccapability;
@@ -4125,10 +4125,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 
 	/* Initialize the temporary RTP structures we use to evaluate the offer from the peer */
-	memset(&newaudiortp, 0, sizeof(newaudiortp));
-	memset(&newvideortp, 0, sizeof(newvideortp));
-	ast_rtp_pt_default(&newaudiortp);
-	ast_rtp_pt_default(&newvideortp);
+	newaudiortp = alloca(ast_rtp_alloc_size());
+	memset(newaudiortp, 0, ast_rtp_alloc_size());
+	ast_rtp_pt_default(newaudiortp);
+
+	newvideortp = alloca(ast_rtp_alloc_size());
+	memset(newvideortp, 0, ast_rtp_alloc_size());
+	ast_rtp_pt_default(newvideortp);
 
 	/* Update our last rtprx when we receive an SDP, too */
 	p->lastrtprx = p->lastrtptx = time(NULL); /* XXX why both ? */
@@ -4168,7 +4171,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		numberofmediastreams++;
 
 		if (p->vrtp)
-			ast_rtp_pt_clear(&newvideortp);  /* Must be cleared in case no m=video line exists */
+			ast_rtp_pt_clear(newvideortp);  /* Must be cleared in case no m=video line exists */
 		numberofports = 1;
 		if ((sscanf(m, "audio %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2) ||
 		    (sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1)) {
@@ -4176,7 +4179,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			/* Found audio stream in this media definition */
 			portno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
-			ast_rtp_pt_clear(&newaudiortp);
+			ast_rtp_pt_clear(newaudiortp);
 			for (codecs = m + len; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
 				if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
@@ -4184,7 +4187,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				}
 				if (debug)
 					ast_verbose("Found RTP audio format %d\n", codec);
-				ast_rtp_set_m_type(&newaudiortp, codec);
+				ast_rtp_set_m_type(newaudiortp, codec);
 			}
 		} else if ((sscanf(m, "video %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2) ||
 		    (sscanf(m, "video %d RTP/AVP %n", &x, &len) == 1)) {
@@ -4199,7 +4202,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				}
 				if (debug)
 					ast_verbose("Found RTP video format %d\n", codec);
-				ast_rtp_set_m_type(&newvideortp, codec);
+				ast_rtp_set_m_type(newvideortp, codec);
 			}
 		} else 
 			ast_log(LOG_WARNING, "Unsupported SDP media type in offer: %s\n", m);
@@ -4305,14 +4308,14 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_verbose("Found description format %s for ID %d\n", mimeSubtype, codec);
 
 		/* Note: should really look at the 'freq' and '#chans' params too */
-		ast_rtp_set_rtpmap_type(&newaudiortp, codec, "audio", mimeSubtype);
+		ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype);
 		if (p->vrtp)
-			ast_rtp_set_rtpmap_type(&newvideortp, codec, "video", mimeSubtype);
+			ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype);
 	}
 
 	/* Now gather all of the codecs that we are asked for: */
-	ast_rtp_get_current_formats(&newaudiortp, &peercapability, &peernoncodeccapability);
-	ast_rtp_get_current_formats(&newvideortp, &vpeercapability, &vpeernoncodeccapability);
+	ast_rtp_get_current_formats(newaudiortp, &peercapability, &peernoncodeccapability);
+	ast_rtp_get_current_formats(newvideortp, &vpeercapability, &vpeernoncodeccapability);
 
 	newjointcapability = p->capability & (peercapability | vpeercapability);
 	newpeercapability = (peercapability | vpeercapability);
@@ -4346,15 +4349,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	p->peercapability = newpeercapability;		/* The other sides capability in latest offer */
 	p->noncodeccapability = newnoncodeccapability;	/* DTMF capabilities */
 
-	{
-		int i;
-		/* Copy payload types from source to destination */
-		for (i=0; i < MAX_RTP_PT; ++i) {
-			p->rtp->current_RTP_PT[i]= newaudiortp.current_RTP_PT[i];
-			if (p->vrtp) 
-				p->vrtp->current_RTP_PT[i]= newvideortp.current_RTP_PT[i];
-		}
-	}
+	ast_rtp_pt_copy(p->rtp, newaudiortp);
+	if (p->vrtp)
+		ast_rtp_pt_copy(p->vrtp, newvideortp);
 
 	if (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO) {
 		ast_clear_flag(&p->flags[0], SIP_DTMF);
