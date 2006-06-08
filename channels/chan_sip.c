@@ -14946,7 +14946,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		changed |= ast_rtp_get_peer(vrtp, &p->vredirip);
 	else
 		memset(&p->vredirip, 0, sizeof(p->vredirip));
-	if (p->redircodecs != codecs) {
+	if (codecs && (p->redircodecs != codecs)) {
 		p->redircodecs = codecs;
 		changed = 1;
 	}
