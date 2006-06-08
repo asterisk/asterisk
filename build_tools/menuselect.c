@@ -24,12 +24,12 @@
  * \brief A menu-driven system for Asterisk module selection
  */
 
-#include "asterisk.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "asterisk.h"
 
 #include "mxml/mxml.h"
 #include "menuselect.h"
