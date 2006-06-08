@@ -21,6 +21,7 @@
  * \brief Save to raw, headerless h263 data.
  * \arg File name extension: h263
  * \ingroup formats
+ * \arg See \ref AstVideo
  */
  
 #include "asterisk.h"

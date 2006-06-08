@@ -21,6 +21,7 @@
  * \brief Save to raw, headerless h264 data.
  * \arg File name extension: h264
  * \ingroup formats
+ * \arg See \ref AstVideo
  */
  
 #include "asterisk.h"
@@ -47,6 +48,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Some Ideas for this code came from makeh264e.c by Jeffrey Chilton */
 
 /* Portions of the conversion code are by guido@sienanet.it */
+/*! \todo Check this buf size estimate, it may be totally wrong for large frame video */
+
 #define BUF_SIZE	4096	/* Two Real h264 Frames */
 struct h264_desc {
 	unsigned int lastts;
