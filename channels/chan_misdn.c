@@ -163,8 +163,10 @@ struct chan_list {
 
 	int norxtone;
 	int notxtone; 
-
+	
 	int incoming_early_audio;
+
+	int ignore_dtmf;
 
 	int pipe[2];
 	char ast_rd_buf[4096];
@@ -2286,7 +2288,13 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 		ast_verbose(VERBOSE_PREFIX_3 "Native bridging %s and %s\n", c0->name, c1->name);
 
 	chan_misdn_log(1, ch1->bc->port, "* Making Native Bridge between %s and %s\n", ch1->bc->oad, ch2->bc->oad);
-  
+ 
+	if (! (flags&AST_BRIDGE_DTMF_CHANNEL_0) )
+		ch1->ignore_dtmf=1;
+
+	if (! (flags&AST_BRIDGE_DTMF_CHANNEL_1) )
+		ch2->ignore_dtmf=1;
+
 	while(1) {
 		to=-1;
 		who = ast_waitfor_n(carr, 2, &to);
@@ -2304,8 +2312,16 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
       
 			break;
 		}
-    
-    
+		
+		if ( f->frametype == AST_FRAME_DTMF ) {
+			chan_misdn_log(1,0,"Read DTMF %d from %s\n",f->subclass, who->exten);
+
+			*fo=f;
+			*rc=who;
+			break;
+		}
+		
+		
 		if (who == c0) {
 			ast_write(c1,f);
 		}
@@ -2314,8 +2330,13 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 		}
     
 	}
-  
-	return 0;
+	
+	chan_misdn_log(1, ch1->bc->port, "I SEND: Splitting conference with Number:%d\n", ch1->bc->pid +1);
+	
+	misdn_lib_split_bridge(ch1->bc,ch2->bc);
+	
+	
+	return AST_BRIDGE_COMPLETE;
 }
 
 /** AST INDICATIONS END **/
@@ -3181,9 +3202,12 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		fr.mallocd =0 ;
 		fr.offset= 0 ;
 		
-		chan_misdn_log(2, bc->port, " --> DTMF:%c\n", bc->dtmf);
-		
-		ast_queue_frame(ch->ast, &fr);
+		if (!ch->ignore_dtmf) {
+			chan_misdn_log(2, bc->port, " --> DTMF:%c\n", bc->dtmf);
+			ast_queue_frame(ch->ast, &fr);
+		} else {
+			chan_misdn_log(2, bc->port, " --> Ingoring DTMF:%c due to bridge flags\n", bc->dtmf);
+		}
 	}
 	break;
 	case EVENT_STATUS:
