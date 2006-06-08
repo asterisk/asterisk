@@ -16,6 +16,9 @@
 #ifndef _COMPAT_H
 #define _COMPAT_H
 
+#include <inttypes.h>
+#include <sys/types.h>
+
 #ifndef HAVE_STRSEP
 char* strsep(char** str, const char* delims);
 #endif
@@ -80,18 +83,6 @@ typedef unsigned int	u_int32_t;
 #define INET6_ADDRSTRLEN 46
 #endif
 #endif /* __CYGWIN__ */
-
-#ifdef __linux__
-#include <inttypes.h>
-#endif
-
-#ifdef __Darwin__
-#include <inttypes.h>
-#endif
-
-#ifdef __FreeBSD__
-#include <sys/types.h>
-#endif
 
 #ifdef __CYGWIN__
 typedef unsigned long long uint64_t;
