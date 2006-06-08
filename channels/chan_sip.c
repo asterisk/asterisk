@@ -13234,7 +13234,7 @@ retrylock:
 		/* becaues this is deadlock-prone, we need to try and unlock if failed */
 		if (p->owner && ast_channel_trylock(p->owner)) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Failed to grab lock, trying again...\n");
+				ast_log(LOG_DEBUG, "Failed to grab owner channel lock, trying again. (SIP call %s)\n", p->callid);
 			ast_mutex_unlock(&p->lock);
 			ast_mutex_unlock(&netlock);
 			/* Sleep for a very short amount of time */
@@ -13242,15 +13242,19 @@ retrylock:
 			if (--lockretry)
 				goto retrylock;
 		}
-		if (!lockretry) {
-			ast_log(LOG_ERROR, "We could NOT get the channel lock for %s! \n", p->owner->name);
-			ast_log(LOG_ERROR, "SIP MESSAGE JUST IGNORED: %s \n", req.data);
-			ast_log(LOG_ERROR, "BAD! BAD! BAD!\n");
-			return 1;
-		}
 		p->recv = sin;
+
 		if (recordhistory) /* This is a request or response, note what it was for */
 			append_history(p, "Rx", "%s / %s / %s", req.data, get_header(&req, "CSeq"), req.rlPart2);
+
+		if (!lockretry) {
+			ast_log(LOG_ERROR, "We could NOT get the channel lock for %s! \n", p->owner->name ? p->owner->name : "- no channel name ??? - ");
+			ast_log(LOG_ERROR, "SIP transaction failed: %s \n", p->callid);
+			transmit_response(p, "503 Server error", &req);	/* We must respond according to RFC 3261 sec 12.2 */
+					/* XXX We could add retry-after to make sure they come back */
+			append_history(p, "LockFail", "Owner lock failed, transaction failed.");
+			return 1;
+		}
 		nounlock = 0;
 		if (handle_request(p, &req, &sin, &recount, &nounlock) == -1) {
 			/* Request failed */
