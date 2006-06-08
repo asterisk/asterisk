@@ -36,6 +36,7 @@
  *  \arg \ref AstCDR
  *  \arg \ref AstREADME
  *  \arg \ref AstVar
+ *  \arg \ref AstVideo
  *  \arg \ref AstENUM : The IETF way to redirect from phone numbers to VoIP calls
  *  \arg \ref AstHTTP
  *  \arg \ref AstSpeech
@@ -129,9 +130,14 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  *  \verbinclude CREDITS
  */
 
+/*! \page AstVideo Video support in Asterisk
+ * \section sectAstVideo Video support in Asterisk
+ *  \verbinclude video.txt
+ */
+
 /*! \page AstVar Global channel variables
  * \section globchan Global Channel Variables
- *  \verbinclude variables.txt
+ *  \verbinclude channelvariables.txt
  */
 
 /*! \page AstENUM ENUM
