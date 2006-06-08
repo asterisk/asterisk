@@ -1108,7 +1108,6 @@ static int auto_congest(void *nothing);
 static int update_call_counter(struct sip_pvt *fup, int event);
 static int hangup_sip2cause(int cause);
 static const char *hangup_cause2sip(int cause);
-static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method);
 int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno);
 
@@ -2876,8 +2875,6 @@ static int sip_hangup(struct ast_channel *ast)
 		ast_log(LOG_DEBUG, "Asked to hangup channel that was not connected\n");
 		return 0;
 	}
-	if (option_debug && sipdebug)
-		ast_log(LOG_DEBUG, "Hangup call %s, SIP callid %s)\n", ast->name, p->callid);
 
 	if (ast_test_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER)) {
 		if (option_debug >3)
@@ -3085,8 +3082,16 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	int ret = -1;
 	struct sip_pvt *p;
 
+	if (newchan && ast_test_flag(newchan, AST_FLAG_ZOMBIE))
+		ast_log(LOG_DEBUG, "New channel is zombie\n");
+	if (oldchan && ast_test_flag(oldchan, AST_FLAG_ZOMBIE))
+		ast_log(LOG_DEBUG, "Old channel is zombie\n");
+
 	if (!newchan || !newchan->tech_pvt) {
-		ast_log(LOG_WARNING, "No SIP tech_pvt! Fixup of %s failed.\n", oldchan->name);
+		if (!newchan)
+			ast_log(LOG_WARNING, "No new channel! Fixup of %s failed.\n", oldchan->name);
+		else
+			ast_log(LOG_WARNING, "No SIP tech_pvt! Fixup of %s failed.\n", oldchan->name);
 		return -1;
 	}
 	p = newchan->tech_pvt;
