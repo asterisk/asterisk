@@ -12439,7 +12439,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		return -1;
 	}
 
-	if (sipdebug && option_debug > 3)
+	if (current.chan2 && sipdebug && option_debug > 3)
 		ast_log(LOG_DEBUG, "Got SIP transfer, applying to bridged peer '%s'\n", current.chan2->name);
 
 	/* Stop music on hold on this channel */
