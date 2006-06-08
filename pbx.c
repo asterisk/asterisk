@@ -1680,8 +1680,8 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			}
 			if (option_verbose > 2) {
 				char tmp[80], tmp2[80], tmp3[EXT_DATA_SIZE];
-				ast_verbose( VERBOSE_PREFIX_3 "Executing [%s:%d] %s(\"%s\", \"%s\") %s\n",
-					context, priority,
+				ast_verbose( VERBOSE_PREFIX_3 "Executing [%s@%s:%d] %s(\"%s\", \"%s\") %s\n",
+					exten, context, priority,
 					term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
 					term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
 					term_color(tmp3, passdata, COLOR_BRMAGENTA, 0, sizeof(tmp3)),
