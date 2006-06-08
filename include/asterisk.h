@@ -50,31 +50,20 @@ extern char ast_config_AST_CTL_GROUP[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_CTL[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_SYSTEM_NAME[20];
 
-/* Provided by asterisk.c */
-int ast_set_priority(int);
-/* Provided by module.c */
-int load_modules(const int preload_only);
-/* Provided by pbx.c */
-int load_pbx(void);
-/* Provided by logger.c */
-int init_logger(void);
-void close_logger(void);
-/* Provided by frame.c */
-int init_framer(void);
-/* Provided by logger.c */
-int reload_logger(int);
-/* Provided by term.c */
-int term_init(void);
-/* Provided by db.c */
-int astdb_init(void);
-/* Provided by channel.c */
-void ast_channels_init(void);
-/* Provided by cli.c */
-void ast_builtins_init(void);
-/* Provided by dnsmgr.c */
-int dnsmgr_init(void);
-void dnsmgr_start_refresh(void);
-int dnsmgr_reload(void);
+int ast_set_priority(int);			/*!< Provided by asterisk.c */
+int load_modules(const int preload_only);	/*!< Provided by module.c */
+int load_pbx(void);				/*!< Provided by pbx.c */
+int init_logger(void)				/*!< Provided by logger.c */;
+void close_logger(void)				/*!< Provided by logger.c */;
+int reload_logger(int);				/*!< Provided by logger.c */
+int init_framer(void);				/*!< Provided by frame.c */
+int term_init(void);				/*!< Provided by term.c */
+int astdb_init(void);				/*!< Provided by db.c */
+void ast_channels_init(void);			/*!< Provided by channel.c */
+void ast_builtins_init(void);			/*!< Provided by cli.c */
+int dnsmgr_init(void);				/*!< Provided by dnsmgr.c */ 
+void dnsmgr_start_refresh(void);		/*!< Provided by dnsmgr.c */
+int dnsmgr_reload(void);			/*!< Provided by dnsmgr.c */
 
 /*!
  * \brief Reload asterisk modules.
@@ -130,6 +119,7 @@ void ast_unregister_file_version(const char *file);
 
 /*!
  * \brief support for event profiling
+ *
  * (note, this must be documented a lot more)
  * ast_add_profile allocates a generic 'counter' with a given name,
  * which can be shown with the command 'show profile <name>'
