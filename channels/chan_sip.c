@@ -1697,7 +1697,7 @@ static int __sip_autodestruct(void *data)
 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Auto destroying call '%s'\n", p->callid);
-	append_history(p, "AutoDestroy", "");
+	append_history(p, "AutoDestroy", "%s", p->callid);
 	if (p->owner) {
 		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner in place (Method: %s)\n", p->callid, sip_methods[p->method].text);
 		ast_queue_hangup(p->owner);
@@ -11889,6 +11889,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			copy_request(&p->initreq, req);
 			if (debug)
 				ast_verbose("Using INVITE request as basis request - %s\n", p->callid);
+			append_history(p, "Invite", "New call: %s", p->callid);
 			parse_ok_contact(p, req);
 		} else {	/* Re-invite on existing call */
 			/* Handle SDP here if we already have an owner */
