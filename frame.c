@@ -324,15 +324,25 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 		out = fr;
 	
 	if (!(fr->mallocd & AST_MALLOCD_SRC)) {
-		if (fr->src)
+		if (fr->src) {
 			out->src = strdup(fr->src);
+			if (!out->src) {
+				if (out != fr)
+					free(out);
+				ast_log(LOG_WARNING, "Out of memory\n");
+				return NULL;
+			}
+		}
 	} else
 		out->src = fr->src;
 	
 	if (!(fr->mallocd & AST_MALLOCD_DATA))  {
 		newdata = malloc(fr->datalen + AST_FRIENDLY_OFFSET);
 		if (!newdata) {
-			free(out);
+			if (out->src != fr->src)
+				free((void *) out->src);
+			if (out != fr)
+				free(out);
 			ast_log(LOG_WARNING, "Out of memory\n");
 			return NULL;
 		}
