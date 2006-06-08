@@ -486,6 +486,6 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * http.
  *  \section ami AMI - The manager Interface
  *  \arg \link Config_ami Configuration file \endlink
- *  \verbinclude http.txt
+ *  \verbinclude ajam.txt
  */
 

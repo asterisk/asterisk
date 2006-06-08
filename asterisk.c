@@ -357,9 +357,8 @@ struct profile_data {
 
 static struct profile_data *prof_data;
 
-/*
- * allocates a counter with a given name and scale.
- * Returns the identifier of the counter.
+/*! \brief allocates a counter with a given name and scale.
+ * \return Returns the identifier of the counter.
  */
 int ast_add_profile(const char *name, uint64_t scale)
 {
@@ -488,7 +487,7 @@ static char show_version_files_help[] =
 "       Shows the revision numbers of the files used to build this copy of Asterisk.\n"
 "       Optional regular expression pattern is used to filter the file list.\n";
 
-/*! CLI command to list module versions */
+/*! \brief CLI command to list module versions */
 static int handle_show_version_files(int fd, int argc, char *argv[])
 {
 #define FORMAT "%-25.25s %-40.40s\n"
@@ -600,14 +599,14 @@ static int fdprint(int fd, const char *s)
 	return write(fd, s, strlen(s) + 1);
 }
 
-/*! NULL handler so we can collect the child exit status */
+/*! \brief NULL handler so we can collect the child exit status */
 static void null_sig_handler(int signal)
 {
 
 }
 
 AST_MUTEX_DEFINE_STATIC(safe_system_lock);
-/*! Keep track of how many threads are currently trying to wait*() on
+/*! \brief Keep track of how many threads are currently trying to wait*() on
  *  a child process */
 static unsigned int safe_system_level = 0;
 static void *safe_system_prev_handler;
@@ -680,7 +679,7 @@ int ast_safe_system(const char *s)
 }
 
 /*!
- * mute or unmute a console from logging
+ * \brief mute or unmute a console from logging
  */
 void ast_console_toggle_mute(int fd) {
 	int x;
@@ -700,7 +699,7 @@ void ast_console_toggle_mute(int fd) {
 }
 
 /*!
- * log the string to all attached console clients
+ * \brief log the string to all attached console clients
  */
 static void ast_network_puts_mutable(const char *string)
 {
@@ -714,7 +713,7 @@ static void ast_network_puts_mutable(const char *string)
 }
 
 /*!
- * log the string to the console, and all attached
+ * \brief log the string to the console, and all attached
  * console clients
  */
 void ast_console_puts_mutable(const char *string)
@@ -725,7 +724,7 @@ void ast_console_puts_mutable(const char *string)
 }
 
 /*!
- * write the string to all attached console clients
+ * \brief write the string to all attached console clients
  */
 static void ast_network_puts(const char *string)
 {
@@ -978,7 +977,8 @@ static int ast_tryconnect(void)
 		return 1;
 }
 
-/*! Urgent handler
+/*! \brief Urgent handler
+
  Called by soft_hangup to interrupt the poll, read, or other
  system call.  We don't actually need to do anything though.  
  Remember: Cannot EVER ast_log from within a signal handler 
@@ -1021,7 +1021,7 @@ static void child_handler(int sig)
 	signal(sig, child_handler);
 }
 
-/*! Set an X-term or screen title */
+/*! \brief Set an X-term or screen title */
 static void set_title(char *text)
 {
 	if (getenv("TERM") && strstr(getenv("TERM"), "xterm"))
@@ -1034,7 +1034,7 @@ static void set_icon(char *text)
 		fprintf(stdout, "\033]1;%s\007", text);
 }
 
-/*! We set ourselves to a high priority, that we might pre-empt everything
+/*! \brief We set ourselves to a high priority, that we might pre-empt everything
    else.  If your PBX has heavy activity on it, this is a good thing.  */
 int ast_set_priority(int pri)
 {
