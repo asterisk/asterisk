@@ -23,6 +23,8 @@
  *
  * \author BJ Weschke <bweschke@btwtech.com>
  *
+ * \arg See \ref Config_followme
+ *
  * \ingroup applications
  */
 
