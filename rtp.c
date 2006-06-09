@@ -90,6 +90,19 @@ static struct sockaddr_in rtcpdebugaddr;	/*!< Debug RTCP packets to/from this ho
 static int nochecksums = 0;
 #endif
 
+/*!
+ * \brief Structure representing a RTP session.
+ *
+ * RTP session is defined on page 9 of RFC 3550: "An association among a set of participants communicating with RTP.  A participant may be involved in multiple RTP sessions at the same time [...]"
+ *
+ */
+/*! \brief The value of each payload format mapping: */
+struct rtpPayloadType {
+	int isAstFormat; 	/*!< whether the following code is an AST_FORMAT */
+	int code;
+};
+
+
 /*! \brief RTP session description */
 struct ast_rtp {
 	int s;

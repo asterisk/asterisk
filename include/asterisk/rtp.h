@@ -67,19 +67,6 @@ struct ast_rtp_protocol {
 
 typedef int (*ast_rtp_callback)(struct ast_rtp *rtp, struct ast_frame *f, void *data);
 
-
-/*!
- * \brief Structure representing a RTP session.
- *
- * RTP session is defined on page 9 of RFC 3550: "An association among a set of participants communicating with RTP.  A participant may be involved in multiple RTP sessions at the same time [...]"
- *
- */
-/*! \brief The value of each payload format mapping: */
-struct rtpPayloadType {
-	int isAstFormat; 	/*!< whether the following code is an AST_FORMAT */
-	int code;
-};
-
 /*!
  * \brief Get the amount of space required to hold an RTP session
  * \return number of bytes required
