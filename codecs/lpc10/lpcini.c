@@ -29,13 +29,6 @@ Some OSS fixes and a few lpc changes to make it actually work
 
 */
 
-#ifdef P_R_O_T_O_T_Y_P_E_S
-extern int lpcini_(void);
-/* comlen contrl_ 12 */
-/*:ref: initlpcenc_ 14 0 */
-/*:ref: initlpcdec_ 14 0 */
-#endif
-
 /*  -- translated by f2c (version 19951025).
    You must link the resulting object file with the libraries:
 	-lf2c -lm   (in that order)
@@ -43,6 +36,13 @@ extern int lpcini_(void);
 
 #include <stdlib.h>
 #include "f2c.h"
+
+#ifdef P_R_O_T_O_T_Y_P_E_S
+extern int lpcini_(void);
+/* comlen contrl_ 12 */
+/*:ref: initlpcenc_ 14 0 */
+/*:ref: initlpcdec_ 14 0 */
+#endif
 
 /* Common Block Declarations */
 

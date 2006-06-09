@@ -162,7 +162,7 @@ static int ospauth_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	ast_log(LOG_DEBUG, "OSPAuth: source '%s'\n", source);
-	ast_log(LOG_DEBUG, "OSPAuth: token size '%d'\n", strlen(token));
+	ast_log(LOG_DEBUG, "OSPAuth: token size '%zd'\n", strlen(token));
 
 	res = ast_osp_auth(provider, &handle, source, chan->cid.cid_num, chan->exten, token, &timelimit);
 	if (res > 0) {
@@ -294,11 +294,11 @@ static int osplookup_exec(struct ast_channel *chan, void *data)
 	pbx_builtin_setvar_helper(chan, "OSPCALLING", result.calling);
 	ast_log(LOG_DEBUG, "OSPLookup: OSPCALLING '%s'\n", result.calling);
 	pbx_builtin_setvar_helper(chan, "OSPOUTTOKEN", result.token);
-	ast_log(LOG_DEBUG, "OSPLookup: OSPOUTTOKEN size '%d'\n", strlen(result.token));
+	ast_log(LOG_DEBUG, "OSPLookup: OSPOUTTOKEN size '%zd'\n", strlen(result.token));
 	if (!ast_strlen_zero(result.token)) {
 		snprintf(buffer, sizeof(buffer), "P-OSP-Auth-Token: %s", result.token);
 		pbx_builtin_setvar_helper(chan, "_SIPADDHEADER", buffer);
-		ast_log(LOG_DEBUG, "OSPLookup: SIPADDHEADER size '%d'\n", strlen(buffer));
+		ast_log(LOG_DEBUG, "OSPLookup: SIPADDHEADER size '%zd'\n", strlen(buffer));
 	}
 	snprintf(buffer, sizeof(buffer), "%d", result.numresults);
 	pbx_builtin_setvar_helper(chan, "OSPRESULTS", buffer);
@@ -440,11 +440,11 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 	pbx_builtin_setvar_helper(chan, "OSPCALLING", result.calling);
 	ast_log(LOG_DEBUG, "OSPNext: OSPCALLING '%s'\n", result.calling);
 	pbx_builtin_setvar_helper(chan, "OSPOUTTOKEN", result.token);
-	ast_log(LOG_DEBUG, "OSPNext: OSPOUTTOKEN size '%d'\n", strlen(result.token));
+	ast_log(LOG_DEBUG, "OSPNext: OSPOUTTOKEN size '%zd'\n", strlen(result.token));
 	if (!ast_strlen_zero(result.token)) {
 		snprintf(buffer, sizeof(buffer), "P-OSP-Auth-Token: %s", result.token);
 		pbx_builtin_setvar_helper(chan, "_SIPADDHEADER", buffer);
-		ast_log(LOG_DEBUG, "OSPNext: SIPADDHEADER size '%d'\n", strlen(buffer));
+		ast_log(LOG_DEBUG, "OSPNext: SIPADDHEADER size '%zd'\n", strlen(buffer));
 	}
 	snprintf(buffer, sizeof(buffer), "%d", result.numresults);
 	pbx_builtin_setvar_helper(chan, "OSPRESULTS", buffer);

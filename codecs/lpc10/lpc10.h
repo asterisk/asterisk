@@ -31,6 +31,8 @@ Add broken lpc10 code...  It's not too far from working I don't think...
 #ifndef __LPC10_H__
 #define __LPC10_H__
 
+#define P_R_O_T_O_T_Y_P_E_S
+
 #define LPC10_SAMPLES_PER_FRAME 180
 #define LPC10_BITS_IN_COMPRESSED_FRAME 54
 
