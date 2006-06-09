@@ -36,19 +36,13 @@ void Gsm_Preprocess P3((S, s, so),
 	word		 * s,
 	word 		 * so )		/* [0..159] 	IN/OUT	*/
 {
-
-	word       z1 = S->z1;
-	longword L_z2 = S->L_z2;
-	word 	   mp = S->mp;
-
+	word       	z1 = S->z1;
+	longword 	L_z2 = S->L_z2;
+	word 	   	mp = S->mp;
 	word 	   	s1;
-
-
 	word		SO;
-
 	ulongword	utmp;		/* for L_ADD */
-
-	register int		k = 160;
+	register int	k = 160;
 
 	while (k--) {
 

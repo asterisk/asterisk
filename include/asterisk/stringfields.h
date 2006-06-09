@@ -171,7 +171,7 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
   \brief Declare a string field
   \param name The field name
 */
-#define AST_STRING_FIELD(name) const ast_string_field name;
+#define AST_STRING_FIELD(name) const ast_string_field name
 
 /*!
   \brief Declare the fields needed in a structure
@@ -181,7 +181,7 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 	ast_string_field __begin_field[0]; \
 	field_list \
 	ast_string_field __end_field[0]; \
-	struct ast_string_field_mgr __field_mgr;
+	struct ast_string_field_mgr __field_mgr
 
 /*!
   \brief Get the number of string fields in a structure

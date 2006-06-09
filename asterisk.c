@@ -657,7 +657,7 @@ int ast_safe_system(const char *s)
 		/* Close file descriptors and launch system command */
 		for (x = STDERR_FILENO + 1; x < 4096; x++)
 			close(x);
-		execl("/bin/sh", "/bin/sh", "-c", s, NULL);
+		execl("/bin/sh", "/bin/sh", "-c", s, (char *) NULL);
 		exit(1);
 	} else if (pid > 0) {
 		for(;;) {

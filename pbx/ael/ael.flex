@@ -56,8 +56,6 @@
 %option bison-locations
 
 %{
-#include "asterisk.h"
-
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <sys/types.h>
@@ -65,6 +63,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <unistd.h>
 
 #include "asterisk/logger.h"
+#include "asterisk/utils.h"
 #include "ael/ael.tab.h"
 #include "asterisk/ael_structs.h"
 
@@ -402,13 +401,10 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		if ( !error ) {	/* valid file name */
 			*p2 = 0;
 			/* relative vs. absolute */
-			if ( *(p1+1) != '/' ) {
-				/* XXX must check overflows */
-				strcpy(fnamebuf,ast_config_AST_CONFIG_DIR);
-				strcat(fnamebuf,"/");
-				strcat(fnamebuf,p1+1);
-			} else
-				strcpy(fnamebuf,p1+1);
+			if (*(p1+1) != '/')
+				snprintf(fnamebuf, sizeof(fnamebuf), "%s/%s", ast_config_AST_CONFIG_DIR, p1 + 1);
+			else
+				ast_copy_string(fnamebuf, p1 + 1, sizeof(fnamebuf));
 			in1 = fopen( fnamebuf, "r" );
 			if ( ! in1 ) {
 				ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Couldn't find the include file: %s; ignoring the Include directive!\n", my_file, my_lineno, my_col, fnamebuf);

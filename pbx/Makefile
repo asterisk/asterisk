@@ -65,7 +65,7 @@ ael/aelbison.o: ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h
 	$(CC) $(CFLAGS) -I. -c -o ael/aelbison.o ael/ael.tab.c
 
 ael/ael_lex.c:
-	(cd ael; flex ael.flex)
+	(cd ael; flex ael.flex; sed -i -e "/begin standard C headers/i#include \"asterisk.h\"" ael_lex.c)
 
 ael/ael.tab.c ael/ael.tab.h:
 	(cd ael; bison -v -d ael.y)
