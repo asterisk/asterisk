@@ -2109,7 +2109,7 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 				if (user && (user->adminflags & ADMINFLAG_MUTED)) {
 					user->adminflags ^= ADMINFLAG_MUTED;
 				} else {
-					ast_log(LOG_NOTICE, "Specified User not found or he muted himself!");
+					ast_log(LOG_NOTICE, "Specified User not found or he muted himself!\n");
 				}
 				break;
 			case  110: /* n: Unmute all users */
@@ -2129,7 +2129,7 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 				if (user) {
 					user->adminflags |= ADMINFLAG_KICKME;
 				} else {
-					ast_log(LOG_NOTICE, "Specified User not found!");
+					ast_log(LOG_NOTICE, "Specified User not found!\n");
 				}
 				break;
 			}
