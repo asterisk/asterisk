@@ -53,8 +53,8 @@ extern char ast_config_AST_SYSTEM_NAME[20];
 int ast_set_priority(int);			/*!< Provided by asterisk.c */
 int load_modules(const int preload_only);	/*!< Provided by module.c */
 int load_pbx(void);				/*!< Provided by pbx.c */
-int init_logger(void)				/*!< Provided by logger.c */;
-void close_logger(void)				/*!< Provided by logger.c */;
+int init_logger(void);				/*!< Provided by logger.c */
+void close_logger(void);			/*!< Provided by logger.c */
 int reload_logger(int);				/*!< Provided by logger.c */
 int init_framer(void);				/*!< Provided by frame.c */
 int term_init(void);				/*!< Provided by term.c */
