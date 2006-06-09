@@ -2011,20 +2011,25 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static struct ast_conf_user* find_user(struct ast_conference *conf, char *callerident) {
+static struct ast_conf_user* find_user(struct ast_conference *conf, char *callerident)
+{
 	struct ast_conf_user *user = NULL;
-	char usrno[1024] = "";
+	int cid;
 
-	if (conf && callerident) {
-		user = conf->firstuser;
-		while (user) {
-			snprintf(usrno, sizeof(usrno), "%d", user->user_no);
-			if (strcmp(usrno, callerident) == 0)
-				return user;
-			user = user->nextuser;
-		}
+	if (!conf || !callerident) {
+		return NULL;
 	}
-	return NULL;
+
+	sscanf(callerident, "%i", &cid);
+
+	user = conf->firstuser;
+	while (user) {
+		if (user->user_no == cid)
+			break;
+		user = user->nextuser;
+	}
+
+	return user;
 }
 
 /*--- admin_exec: The MeetMeadmin application */
