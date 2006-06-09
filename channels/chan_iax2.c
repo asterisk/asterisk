@@ -5866,11 +5866,9 @@ static int auth_fail(int callno, int failcode)
 	ast_mutex_lock(&iaxsl[callno]);
 	iaxs[callno]->authfail = failcode;
 	if (delayreject) {
-		ast_mutex_lock(&iaxsl[callno]);
 		if (iaxs[callno]->authid > -1)
 			ast_sched_del(sched, iaxs[callno]->authid);
 		iaxs[callno]->authid = ast_sched_add(sched, 1000, auth_reject, (void *)(long)callno);
-		ast_mutex_unlock(&iaxsl[callno]);
 	} else
 		auth_reject((void *)(long)callno);
 	ast_mutex_unlock(&iaxsl[callno]);
