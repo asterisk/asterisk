@@ -982,9 +982,18 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				   "At the tone, please say your name:"
 
 				*/
-				ast_play_and_record(chan, "priv-recordintro", privintro, 4, "gsm", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to 4 sec */
-															/* don't think we'll need a lock removed, we took care of
-															   conflicts by naming the privintro file */
+				res = ast_play_and_record(chan, "priv-recordintro", privintro, 4, "gsm", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to */
+															/* 4 sec don't think we'll need a lock removed, we 
+															   took care of conflicts by naming the privintro file */
+				if (res == -1) {
+					/* Delete the file regardless since they hung up during recording */
+                                        ast_filedelete(privintro, NULL);
+                                        if( ast_fileexists(privintro,NULL,NULL ) > 0 )
+                                                ast_log(LOG_NOTICE,"privacy: ast_filedelete didn't do its job on %s\n", privintro);
+                                        else if (option_verbose > 2)
+                                                ast_verbose( VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
+					goto out;
+				}
 			}
 		}
 	}
@@ -1258,18 +1267,18 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 					do {
 						if (!res2)
 							res2 = ast_play_and_wait(peer,"priv-callpending");
-						if( res2 < '1' || (ast_test_flag(&opts, OPT_PRIVACY) && res2>'5') || (ast_test_flag(&opts, OPT_SCREENING) && res2 > '4') ) /* uh, interrupting with a bad answer is ... ignorable! */
+						if ( res2 < '1' || (ast_test_flag(&opts, OPT_PRIVACY) && res2>'5') || (ast_test_flag(&opts, OPT_SCREENING) && res2 > '4') ) /* uh, interrupting with a bad answer is ... ignorable! */
 							res2 = 0;
 						
 						/* priv-callpending script: 
 						   "I have a caller waiting, who introduces themselves as:"
 						*/
 						if (!res2)
-							res2 = ast_play_and_wait(peer,privintro);
-						if( res2 < '1' || (ast_test_flag(&opts, OPT_PRIVACY) && res2>'5') || (ast_test_flag(&opts, OPT_SCREENING) && res2 > '4') ) /* uh, interrupting with a bad answer is ... ignorable! */
+							res2 = ast_play_and_wait(peer, privintro);
+						if ( res2 < '1' || (ast_test_flag(&opts, OPT_PRIVACY) && res2>'5') || (ast_test_flag(&opts, OPT_SCREENING) && res2 > '4') ) /* uh, interrupting with a bad answer is ... ignorable! */
 							res2 = 0;
 						/* now get input from the called party, as to their choice */
-						if( !res2 ) {
+						if (!res2) {
 							if( ast_test_flag(&opts, OPT_PRIVACY) )
 								res2 = ast_play_and_wait(peer,"priv-callee-options");
 							if( ast_test_flag(&opts, OPT_SCREENING) )
