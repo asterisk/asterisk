@@ -2389,6 +2389,9 @@ int handle_frm(msg_t *msg)
 					break;
 				case RESPONSE_IGNORE_SETUP:
 					/* I think we should send CC_RELEASE_CR, but am not sure*/
+
+					bc->out_cause=16;
+					misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
 					empty_chan_in_stack(stack, bc->channel);
 					empty_bc(bc);
 					bc_state_change(bc,BCHAN_CLEANED);
