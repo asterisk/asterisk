@@ -158,13 +158,17 @@ static void aji_client_destroy(struct aji_client *obj)
 	struct aji_message *tmp;
 	ASTOBJ_CONTAINER_DESTROYALL(&obj->buddies, aji_buddy_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&obj->buddies);
-
-	while ((tmp = obj->messages)) {
-		obj->messages = obj->messages->next;
-		if(tmp->from) free(tmp->from);
-		if(tmp->message) free(tmp->message);
-		free(tmp);
+	iks_filter_delete(obj->f);
+	iks_parser_delete(obj->p);
+	iks_stack_delete(obj->stack);
+	AST_LIST_LOCK(&client->messages);
+	while(tmp = AST_LIST_REMOVE_HEAD(&client->messages, list)) {
+		if (tmp->from)
+			free(tmp->from);
+		if (tmp->message)
+			free(tmp->message);
 	}
+	AST_LIST_HEAD_DESTROY(&client->messages);
 	free(obj);
 }
 
@@ -1025,44 +1029,33 @@ static void aji_handle_iq(struct aji_client *client, iks *node)
  */
 static void aji_handle_message(struct aji_client *client, ikspak *pak)
 {
-	struct aji_message *insert, *tmp, *delete, *last;
+	struct aji_message *insert, *tmp;
 	int flag = 0;
-	insert = ast_malloc(sizeof(struct aji_message));
-	memset(insert, 0, sizeof(struct aji_message));
-	insert->arrived = time(NULL);
-	insert->next = NULL;
+	insert = ast_calloc(1,sizeof(struct aji_message));
+	time(&insert->arrived);
 	insert->message = ast_strdup(iks_find_cdata(pak->x, "body"));
 	ast_copy_string(insert->id, pak->id, sizeof(insert->message));
 	insert->from = ast_strdup(pak->from->full);
-	ast_mutex_lock(&(client)->message_lock);
-	insert->next = client->messages;
-	client->messages = insert;
-	insert = NULL;
-	tmp = client->messages;
-	last = tmp;
-	while(tmp) {
-		if(flag) { /*timestamp exceeded delete rest */
-			delete = tmp;
-			tmp = tmp->next;
-			if(delete->message) free(delete->message);
-			if(delete->from) free(delete->from);
-			free(delete);
-			delete = NULL;
-		} else if(difftime(time(NULL), tmp->arrived) >= client->message_timeout) {
+	AST_LIST_LOCK(&client->messages);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&client->messages, tmp, list) {
+		if(flag) {
+			AST_LIST_REMOVE_CURRENT(&client->messages,list);
+			if (tmp->from)
+				free(tmp->from);
+			if (tmp->message)
+				free(tmp->message);
+		} else if (difftime(time(NULL), tmp->arrived) >= client->message_timeout) {
 			flag = 1;
-			last->next = NULL;
-			delete = tmp;
-			tmp = tmp->next;
-			if(delete->message) free(delete->message);
-			if(delete->from) free(delete->from);
-			free(delete);
-			delete = NULL;
-		} else {
-			last = tmp;
-			tmp = tmp->next;
+			AST_LIST_REMOVE_CURRENT(&client->messages,list);
+			if (tmp->from)
+				free(tmp->from);
+			if (tmp->message)
+				free(tmp->message);
 		}
 	}
-	ast_mutex_unlock(&(client)->message_lock);
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_INSERT_HEAD(&client->messages,insert,list);
+	AST_LIST_UNLOCK(&client->messages);
 }
 static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 {
@@ -1939,20 +1932,16 @@ static int aji_test(int fd, int argc, char *argv[])
 			}
 			ast_verbose("	Priority: %d\n", resource->priority);
 			ast_verbose("	Status: %d\n", resource->status); 
-			ast_verbose("	Message: %s\n", resource->description); 
+			ast_verbose("	Message: %s\n", S_OR(resource->description,"")); 
 		}
 		ASTOBJ_UNLOCK(iterator);
 	});
-	tmp = client->messages;
-	ast_mutex_lock(&(client)->message_lock);
 	ast_verbose("\nOooh a working message stack!\n");
-	while(tmp) {
-	ast_verbose("	Message from: %s with id %s @ %s	%s\n",tmp->from, tmp->id, ctime(&tmp->arrived), tmp->message);
-	tmp = tmp->next;
+	AST_LIST_LOCK(&client->messages);
+	AST_LIST_TRAVERSE(&client->messages, tmp, list) {
+		ast_verbose("	Message from: %s with id %s @ %s	%s\n",tmp->from, tmp->id, ctime(&tmp->arrived), tmp->message);
 	}
-	ast_mutex_unlock(&(client)->message_lock);
-
-
+	AST_LIST_UNLOCK(&client->messages);
 	ASTOBJ_UNREF(client, aji_client_destroy);
 
 	return RESULT_SUCCESS;
@@ -1998,6 +1987,7 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 	client->keepalive = 1;
 	client->timeout = 20;
 	client->message_timeout = 100;
+	AST_LIST_HEAD_INIT(&client->messages);
 	client->component = AJI_CLIENT;
 	ast_copy_string(client->statusmessage, "Online and Available", sizeof(client->statusmessage));
 

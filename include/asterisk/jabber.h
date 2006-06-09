@@ -21,6 +21,7 @@
 
 #include <iksemel.h>
 #include "asterisk/astobj.h"
+#include "asterisk/linkedlists.h"
 
 enum aji_state {
 	AJI_DISCONNECTED = 0,
@@ -71,7 +72,7 @@ struct aji_message {
 	char *message;
 	char id[25];
 	time_t arrived;
-	struct aji_message *next;
+	AST_LIST_ENTRY(aji_message) list;
 };
 
 struct aji_buddy {
@@ -121,8 +122,7 @@ struct aji_client {
 	unsigned int flags;
 	enum aji_type component;
 	struct aji_buddy_container buddies;
- 	ast_mutex_t message_lock; 
-	struct aji_message *messages;
+	AST_LIST_HEAD(messages,aji_message) messages;
 	void *jingle;
 	pthread_t thread;
 };
