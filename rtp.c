@@ -428,7 +428,7 @@ static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *dat
 		attr = (struct stun_attr *)data;
 		if (ntohs(attr->len) > len) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Inconsistant Attribute (length %d exceeds remaining msg len %zd)\n", ntohs(attr->len), len);
+				ast_log(LOG_DEBUG, "Inconsistent Attribute (length %d exceeds remaining msg len %zd)\n", ntohs(attr->len), len);
 			break;
 		}
 		if (stun_process_attr(&st, attr)) {
@@ -1063,7 +1063,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		rtp->themssrc = ntohl(rtpheader[2]); /* Record their SSRC to put in future RR */
 	
 	if (rtp_debug_test_addr(&sin))
-		ast_verbose("Got  RTP packet from %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+		ast_verbose("Got  RTP packet from    %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
 			ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
 
 	rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
@@ -1086,7 +1086,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 				event_end >>= 24;
 				duration = ntohl(*((unsigned int *)(data)));
 				duration &= 0xFFFF;
-				ast_verbose("Got rfc2833 RTP packet from %s:%d (type %d, seq %d, ts %d, len %d, mark %d, event %08x, end %d, duration %d) \n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
+				ast_verbose("Got  RTP RFC2833 from   %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u, mark %d, event %08x, end %d, duration %-5.5d) \n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
 			}
 			if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
 				f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno);
@@ -2290,7 +2290,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		}
 				
 		if (rtp_debug_test_addr(&rtp->them))
-			ast_verbose("Sent RTP packet to %s:%d (type %d, seq %u, ts %u, len %u)\n",
+			ast_verbose("Sent RTP packet to      %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
 					ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), codec, rtp->seqno, rtp->lastts,res - hdrlen);
 	}
 

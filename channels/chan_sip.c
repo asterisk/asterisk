@@ -2968,6 +2968,14 @@ static int sip_hangup(struct ast_channel *ast)
 			if (!p->pendinginvite) {
 				/* Send a hangup */
 				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
+
+				/* Get RTCP quality before end of call */
+				if (recordhistory) {
+					if (p->rtp)
+						append_history(p, "RTCPaudio", "Quality:%s", ast_rtp_get_quality(p->rtp));
+					if (p->vrtp)
+						append_history(p, "RTCPvideo", "Quality:%s", ast_rtp_get_quality(p->vrtp));
+				}
 			} else {
 				/* Note we will need a BYE when this all settles out
 				   but we can't send one while we have "INVITE" outstanding. */
@@ -3665,14 +3673,15 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 
 	if (intended_method != SIP_OPTIONS)	/* Peerpoke has it's own system */
 		p->timer_t1 = 500;	/* Default SIP retransmission timer T1 (RFC 3261) */
+
 	if (sin) {
 		p->sa = *sin;
 		if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 			p->ourip = __ourip;
-	} else {
+	} else
 		p->ourip = __ourip;
-	}
-	
+
+	/* Copy global flags to this PVT at setup. */
 	ast_copy_flags(&p->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&p->flags[1], &global_flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 
@@ -3682,6 +3691,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 
 	if (sip_methods[intended_method].need_rtp) {
 		p->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
+		/* If the global videosupport flag is on, we always create a RTP interface for video */
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT))
 			p->vrtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
 		if (!p->rtp || (ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) && !p->vrtp)) {
@@ -9551,7 +9561,7 @@ void sip_dump_history(struct sip_pvt *dialog)
 		ast_log(LOG_DEBUG, "  * SIP Call\n");
 	if (dialog->history)
 		AST_LIST_TRAVERSE(dialog->history, hist, list)
-			ast_log(LOG_DEBUG, "  %d. %s\n", ++x, hist->event);
+			ast_log(LOG_DEBUG, "  %-3.3d. %s\n", ++x, hist->event);
 	if (!x)
 		ast_log(LOG_DEBUG, "Call '%s' has no history\n", dialog->callid);
 	ast_log(LOG_DEBUG, "\n---------- END SIP HISTORY for '%s' \n", dialog->callid);
@@ -12626,6 +12636,14 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	copy_request(&p->initreq, req);
 	check_via(p, req);
 	ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
+
+	/* Get RTCP quality before end of call */
+	if (recordhistory) {
+		if (p->rtp)
+			append_history(p, "RTCPaudio", "Quality:%s", ast_rtp_get_quality(p->rtp));
+		if (p->vrtp)
+			append_history(p, "RTCPvideo", "Quality:%s", ast_rtp_get_quality(p->vrtp));
+	}
 	if (p->rtp) {
 		/* Immediately stop RTP */
 		ast_rtp_stop(p->rtp);
@@ -13700,6 +13718,8 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 
 	if (create_addr(p, host)) {
 		*cause = AST_CAUSE_UNREGISTERED;
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Cant create SIP call - target device not registred\n");
 		sip_destroy(p);
 		return NULL;
 	}
