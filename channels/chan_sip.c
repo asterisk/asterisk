@@ -1704,6 +1704,8 @@ static int __sip_autodestruct(void *data)
 	if (p->owner) {
 		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner in place (Method: %s)\n", p->callid, sip_methods[p->method].text);
 		ast_queue_hangup(p->owner);
+	} else if (p->refer) {
+		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
 	} else {
 		sip_destroy(p);
 	}
@@ -2878,12 +2880,13 @@ static int sip_hangup(struct ast_channel *ast)
 
 	if (ast_test_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER)) {
 		if (option_debug >3)
-			ast_log(LOG_DEBUG, "SIP Transfer: Not hanging up right now... Rescheduling hangup.\n");
+			ast_log(LOG_DEBUG, "SIP Transfer: Not hanging up right now... Rescheduling hangup for %s.\n", p->callid);
 		if (p->autokillid > -1)
 			sip_cancel_destroy(p);
 		sip_scheddestroy(p, 32000);
 		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Really hang up next time */
 		ast_clear_flag(&p->flags[0], SIP_NEEDDESTROY);
+		p->owner->tech_pvt = NULL;
 		p->owner = NULL;  /* Owner will be gone after we return, so take it away */
 		return 0;
 	}
@@ -3101,7 +3104,7 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 
 	ast_mutex_lock(&p->lock);
 	append_history(p, "Masq", "Old channel: %s\n", oldchan->name);
-	append_history(p, "Masq (cont)", "...new owner: %s\n", p->owner->name);
+	append_history(p, "Masq (cont)", "...new owner: %s\n", newchan->name);
 	if (p->owner != oldchan)
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
 	else {
@@ -3110,16 +3113,6 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	}
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "SIP Fixup: New owner for dialogue %s: %s (Old parent: %s)\n", p->callid, p->owner->name, oldchan->name);
-	if (p->refer) {
-		if (option_debug > 2) {
-			if (oldchan->tech_pvt) {
-				struct sip_pvt *old = oldchan->tech_pvt;
-				ast_log(LOG_DEBUG, "Releasing connection between %s and pvt %s\n", oldchan->name, old->callid);
-			} else
-				ast_log(LOG_DEBUG, "Hmmm. No sip_pvt to release for %s\n", oldchan->name);
-		}
-		oldchan->tech_pvt = NULL;	/* Release connection between old channel and it's pvt so we can hang up in peace */
-	}
 
 	ast_mutex_unlock(&p->lock);
 	return ret;
@@ -10864,15 +10857,17 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* They got the notify, this is the end */
 				if (p->owner) {
 					if (!p->refer) {
-						ast_log(LOG_WARNING, "Notify answer on an owned channel?\n");
+						ast_log(LOG_WARNING, "Notify answer on an owned channel? - %s\n", p->owner->name);
 						ast_queue_hangup(p->owner);
 					}
 				} else {
 					if (p->subscribed == NONE) 
 						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY); 
 				}
-			} else if (sipmethod == SIP_REGISTER)
+			} else if (sipmethod == SIP_REGISTER) 
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
+			else if (sipmethod == SIP_BYE)
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY); 
 			break;
 		case 202:   /* Transfer accepted */
 			if (sipmethod == SIP_REFER) 
@@ -11067,7 +11062,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		if (ast_test_flag(req, SIP_PKT_DEBUG))
 			ast_verbose("SIP Response message for INCOMING dialog %s arrived\n", msg);
 
-		if (resp == 200) {
+		if (sipmethod == SIP_INVITE && resp == 200) {
 			/* Tags in early session is replaced by the tag in 200 OK, which is 
 		  	the final reply to our INVITE */
 			char tag[128];
@@ -11087,14 +11082,16 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* They got the notify, this is the end */
 				if (p->owner) {
 					ast_log(LOG_WARNING, "Notify answer on an owned channel?\n");
-					ast_queue_hangup(p->owner);
+					//ast_queue_hangup(p->owner);
 				} else {
-					if (!p->subscribed)
+					if (!p->subscribed && !p->refer)
 						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 				}
-				/* Wait for 487, then destroy */
-			} else if (sipmethod == SIP_MESSAGE)
+			} else if (sipmethod == SIP_BYE)
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			else if (sipmethod == SIP_MESSAGE)
 				/* We successfully transmitted a message */
+				/* XXX Why destroy this pvt after message transfer? Bad */
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			break;
 		case 202:   /* Transfer accepted */
@@ -11122,6 +11119,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (sipmethod == SIP_INVITE) {
 				/* Re-invite failed */
 				handle_response_invite(p, resp, rest, req, seqno);
+			} else if (sipmethod == SIP_BYE) {
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			} else if (sipdebug) {
 				ast_log	(LOG_DEBUG, "Remote host can't match request %s to call '%s'. Giving up\n", sip_methods[sipmethod].text, p->callid);
 			}
