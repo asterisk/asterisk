@@ -2384,12 +2384,12 @@ static int meetmemute(struct mansession *s, struct message *m, int mute)
 	char *userid = astman_get_header(m, "Usernum");
 	int userno;
 
-	if (!confid || ast_strlen_zero(confid)) {
+	if (ast_strlen_zero(confid)) {
 		astman_send_error(s, m, "Meetme conference not specified");
 		return 0;
 	}
 
-	if (!userid || ast_strlen_zero(userid)) {
+	if (ast_strlen_zero(userid)) {
 		astman_send_error(s, m, "Meetme user number not specified");
 		return 0;
 	}
