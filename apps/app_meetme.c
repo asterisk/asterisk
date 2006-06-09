@@ -2312,7 +2312,7 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 				if (user)
 					user->adminflags |= ADMINFLAG_KICKME;
 				else
-					ast_log(LOG_NOTICE, "Specified User not found!");
+					ast_log(LOG_NOTICE, "Specified User not found!\n");
 				break;
 			case 118: /* v: Lower all users listen volume */
 				AST_LIST_TRAVERSE(&cnf->userlist, user, list)
@@ -2338,31 +2338,31 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 				if (user)
 					reset_volumes(user);
 				else
-					ast_log(LOG_NOTICE, "Specified User not found!");
+					ast_log(LOG_NOTICE, "Specified User not found!\n");
 				break;
 			case 85: /* U: Raise user's listen volume */
 				if (user)
 					tweak_listen_volume(user, VOL_UP);
 				else
-					ast_log(LOG_NOTICE, "Specified User not found!");
+					ast_log(LOG_NOTICE, "Specified User not found!\n");
 				break;
 			case 117: /* u: Lower user's listen volume */
 				if (user)
 					tweak_listen_volume(user, VOL_DOWN);
 				else
-					ast_log(LOG_NOTICE, "Specified User not found!");
+					ast_log(LOG_NOTICE, "Specified User not found!\n");
 				break;
 			case 84: /* T: Raise user's talk volume */
 				if (user)
 					tweak_talk_volume(user, VOL_UP);
 				else
-					ast_log(LOG_NOTICE, "Specified User not found!");
+					ast_log(LOG_NOTICE, "Specified User not found!\n");
 				break;
 			case 116: /* t: Lower user's talk volume */
 				if (user) 
 					tweak_talk_volume(user, VOL_DOWN);
 				else 
-					ast_log(LOG_NOTICE, "Specified User not found!");
+					ast_log(LOG_NOTICE, "Specified User not found!\n");
 				break;
 			}
 		} else {
