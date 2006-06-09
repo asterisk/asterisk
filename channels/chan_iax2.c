@@ -2236,7 +2236,7 @@ static void update_jbsched(struct chan_iax2_pvt *pvt)
 static void __get_from_jb(void *p) 
 {
 	int callno = PTR_TO_CALLNO(p);
-	struct chan_iax2_pvt *pvt = iaxs[callno];
+	struct chan_iax2_pvt *pvt = NULL;
 	struct iax_frame *fr;
 	jb_frame frame;
 	int ret;
