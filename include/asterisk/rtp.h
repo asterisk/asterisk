@@ -182,7 +182,9 @@ void ast_rtp_proto_unregister(struct ast_rtp_protocol *proto);
 
 int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, int media);
 
-int ast_rtp_early_media(struct ast_channel *dest, struct ast_channel *src);
+/*! \brief If possible, create an early bridge directly between the devices without
+           having to send a re-invite later */
+int ast_rtp_early_bridge(struct ast_channel *dest, struct ast_channel *src);
 
 void ast_rtp_stop(struct ast_rtp *rtp);
 

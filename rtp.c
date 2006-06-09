@@ -1274,7 +1274,7 @@ static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
 	return cur;
 }
 
-int ast_rtp_early_media(struct ast_channel *dest, struct ast_channel *src)
+int ast_rtp_early_bridge(struct ast_channel *dest, struct ast_channel *src)
 {
 	struct ast_rtp *destp, *srcp=NULL;		/* Audio RTP Channels */
 	struct ast_rtp *vdestp, *vsrcp=NULL;		/* Video RTP channels */

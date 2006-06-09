@@ -576,8 +576,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 							       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
 							       OPT_CALLEE_PARK | OPT_CALLER_PARK |
 							       DIAL_NOFORWARDHTML);
-						/* Setup early media if appropriate */
-						ast_rtp_early_media(in, peer);
+						/* Setup RTP early bridge if appropriate */
+						ast_rtp_early_bridge(in, peer);
 					}
 					/* If call has been answered, then the eventual hangup is likely to be normal hangup */
 					in->hangupcause = AST_CAUSE_NORMAL_CLEARING;
@@ -606,7 +606,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 						ast_verbose(VERBOSE_PREFIX_3 "%s is ringing\n", c->name);
 					/* Setup early media if appropriate */
 					if (single)
-						ast_rtp_early_media(in, c);
+						ast_rtp_early_bridge(in, c);
 					if (!(*sentringing) && !ast_test_flag(outgoing, OPT_MUSICBACK)) {
 						ast_indicate(in, AST_CONTROL_RINGING);
 						(*sentringing)++;
@@ -617,7 +617,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 						ast_verbose (VERBOSE_PREFIX_3 "%s is making progress passing it to %s\n", c->name, in->name);
 					/* Setup early media if appropriate */
 					if (single)
-						ast_rtp_early_media(in, c);
+						ast_rtp_early_bridge(in, c);
 					if (!ast_test_flag(outgoing, OPT_RINGBACK))
 						ast_indicate(in, AST_CONTROL_PROGRESS);
 					break;
@@ -630,7 +630,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 					if (option_verbose > 2)
 						ast_verbose (VERBOSE_PREFIX_3 "%s is proceeding passing it to %s\n", c->name, in->name);
 					if (single)
-						ast_rtp_early_media(in, c);
+						ast_rtp_early_bridge(in, c);
 					if (!ast_test_flag(outgoing, OPT_RINGBACK))
 						ast_indicate(in, AST_CONTROL_PROCEEDING);
 					break;
@@ -1608,7 +1608,7 @@ out:
 		sentringing = 0;
 		ast_indicate(chan, -1);
 	}
-	ast_rtp_early_media(chan, NULL);
+	ast_rtp_early_bridge(chan, NULL);
 	hanguptree(outgoing, NULL);
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
 	if (option_debug)
