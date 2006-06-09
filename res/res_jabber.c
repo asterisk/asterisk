@@ -161,14 +161,14 @@ static void aji_client_destroy(struct aji_client *obj)
 	iks_filter_delete(obj->f);
 	iks_parser_delete(obj->p);
 	iks_stack_delete(obj->stack);
-	AST_LIST_LOCK(&client->messages);
-	while(tmp = AST_LIST_REMOVE_HEAD(&client->messages, list)) {
+	AST_LIST_LOCK(&obj->messages);
+	while ((tmp = AST_LIST_REMOVE_HEAD(&obj->messages, list))) {
 		if (tmp->from)
 			free(tmp->from);
 		if (tmp->message)
 			free(tmp->message);
 	}
-	AST_LIST_HEAD_DESTROY(&client->messages);
+	AST_LIST_HEAD_DESTROY(&obj->messages);
 	free(obj);
 }
 
