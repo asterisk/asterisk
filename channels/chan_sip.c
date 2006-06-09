@@ -7325,10 +7325,11 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	/* Find the request URI */
 	if (req->rlPart2)
 		ast_copy_string(tmp, req->rlPart2, sizeof(tmp));
-	uri = get_in_brackets(tmp);
 	
 	if (pedanticsipchecking)
 		ast_uri_decode(tmp);
+
+	uri = get_in_brackets(tmp);
 
 	if (strncmp(uri, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", uri);
