@@ -2893,6 +2893,9 @@ static int sip_hangup(struct ast_channel *ast)
 		else 
 			ast_log(LOG_DEBUG, "Hangup call %s, SIP callid %s)\n", ast->name, p->callid);
 	}
+	if (option_debug && ast_test_flag(ast, AST_FLAG_ZOMBIE)) {
+		ast_log(LOG_DEBUG, "Hanging up zombie call. Be scared.\n");
+	}
 
 	ast_mutex_lock(&p->lock);
 	if (option_debug && sipdebug)
@@ -5259,8 +5262,6 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	for (x = 1; x <= (needvideo ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
 		if (!(capability & x))	/* Codec not requested */
 			continue;
-
-		ast_log(LOG_DEBUG, "--- Checking codec ... %d\n", x);
 
 		if (alreadysent & x)	/* Already added to SDP */
 			continue;
