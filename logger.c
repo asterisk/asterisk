@@ -378,8 +378,8 @@ void ast_queue_log(const char *queuename, const char *callid, const char *agent,
 
 int reload_logger(int rotate)
 {
-	char old[AST_CONFIG_MAX_PATH] = "";
-	char new[AST_CONFIG_MAX_PATH];
+	char old[PATH_MAX] = "";
+	char new[PATH_MAX];
 	int event_rotate = rotate, queue_rotate = rotate;
 	struct logchannel *f;
 	FILE *myf;

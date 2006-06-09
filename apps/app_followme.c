@@ -92,12 +92,12 @@ struct ast_call_followme {
 	unsigned int active;		/*!< Profile is active (1), or disabled (0). */
 	char takecall[20];		/*!< Digit mapping to take a call */
 	char nextindp[20];		/*!< Digit mapping to decline a call */
-	char callfromprompt[AST_CONFIG_MAX_PATH];
-	char norecordingprompt[AST_CONFIG_MAX_PATH];
-	char optionsprompt[AST_CONFIG_MAX_PATH];
-	char plsholdprompt[AST_CONFIG_MAX_PATH];
-	char statusprompt[AST_CONFIG_MAX_PATH];
-	char sorryprompt[AST_CONFIG_MAX_PATH];
+	char callfromprompt[PATH_MAX];
+	char norecordingprompt[PATH_MAX];
+	char optionsprompt[PATH_MAX];
+	char plsholdprompt[PATH_MAX];
+	char statusprompt[PATH_MAX];
+	char sorryprompt[PATH_MAX];
 
 	AST_LIST_HEAD_NOLOCK(numbers, number) numbers;	   /*!< Head of the list of follow-me numbers */
 	AST_LIST_HEAD_NOLOCK(blnumbers, number) blnumbers; /*!< Head of the list of black-listed numbers */
@@ -115,12 +115,12 @@ struct fm_args {
 	struct ast_channel *outbound;
 	char takecall[20];		/*!< Digit mapping to take a call */
 	char nextindp[20];		/*!< Digit mapping to decline a call */
-	char callfromprompt[AST_CONFIG_MAX_PATH];
-	char norecordingprompt[AST_CONFIG_MAX_PATH];
-	char optionsprompt[AST_CONFIG_MAX_PATH];
-	char plsholdprompt[AST_CONFIG_MAX_PATH];
-	char statusprompt[AST_CONFIG_MAX_PATH];
-	char sorryprompt[AST_CONFIG_MAX_PATH];
+	char callfromprompt[PATH_MAX];
+	char norecordingprompt[PATH_MAX];
+	char optionsprompt[PATH_MAX];
+	char plsholdprompt[PATH_MAX];
+	char statusprompt[PATH_MAX];
+	char sorryprompt[PATH_MAX];
 	struct ast_flags followmeflags;
 };
 
@@ -156,12 +156,12 @@ static int featuredigittimeout = 5000;		/*!< Feature Digit Timeout */
 static const char *defaultmoh = "default";    	/*!< Default Music-On-Hold Class */
 
 static char takecall[20] = "1", nextindp[20] = "2";
-static char callfromprompt[AST_CONFIG_MAX_PATH] = "followme/call-from";
-static char norecordingprompt[AST_CONFIG_MAX_PATH] = "followme/no-recording";
-static char optionsprompt[AST_CONFIG_MAX_PATH] = "followme/followme-options";
-static char plsholdprompt[AST_CONFIG_MAX_PATH] = "followme/pls-hold-while-try";
-static char statusprompt[AST_CONFIG_MAX_PATH] = "followme/followme-status";
-static char sorryprompt[AST_CONFIG_MAX_PATH] = "followme/followme-sorry";
+static char callfromprompt[PATH_MAX] = "followme/call-from";
+static char norecordingprompt[PATH_MAX] = "followme/no-recording";
+static char optionsprompt[PATH_MAX] = "followme/followme-options";
+static char plsholdprompt[PATH_MAX] = "followme/pls-hold-while-try";
+static char statusprompt[PATH_MAX] = "followme/followme-status";
+static char sorryprompt[PATH_MAX] = "followme/followme-sorry";
 
 
 static AST_LIST_HEAD_STATIC(followmes, ast_call_followme);

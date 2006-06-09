@@ -261,7 +261,7 @@ static int build_csv_record(char *buf, size_t bufsize, struct ast_cdr *cdr)
 
 static int writefile(char *s, char *acc)
 {
-	char tmp[AST_CONFIG_MAX_PATH];
+	char tmp[PATH_MAX];
 	FILE *f;
 	if (strchr(acc, '/') || (acc[0] == '.')) {
 		ast_log(LOG_WARNING, "Account code '%s' insecure for writing file\n", acc);
@@ -282,7 +282,7 @@ static int csv_log(struct ast_cdr *cdr)
 {
 	/* Make sure we have a big enough buf */
 	char buf[1024];
-	char csvmaster[AST_CONFIG_MAX_PATH];
+	char csvmaster[PATH_MAX];
 	snprintf(csvmaster, sizeof(csvmaster),"%s/%s/%s", ast_config_AST_LOG_DIR, CSV_LOG_DIR, CSV_MASTER);
 #if 0
 	printf("[CDR] %s ('%s' -> '%s') Dur: %ds Bill: %ds Disp: %s Flags: %s Account: [%s]\n", cdr->channel, cdr->src, cdr->dst, cdr->duration, cdr->billsec, ast_cdr_disp2str(cdr->disposition), ast_cdr_flags2str(cdr->amaflags), cdr->accountcode);

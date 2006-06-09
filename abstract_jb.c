@@ -32,7 +32,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
 
 #include "asterisk/frame.h"
 #include "asterisk/channel.h"

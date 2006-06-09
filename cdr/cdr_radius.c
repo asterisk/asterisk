@@ -88,7 +88,7 @@ static char *desc = "RADIUS CDR Backend";
 static char *name = "radius";
 static char *cdr_config = "cdr.conf";
 
-static char radiuscfg[AST_CONFIG_MAX_PATH] = "/etc/radiusclient-ng/radiusclient.conf";
+static char radiuscfg[PATH_MAX] = "/etc/radiusclient-ng/radiusclient.conf";
 
 static struct ast_flags global_flags = { RADIUS_FLAG_USEGMTIME | RADIUS_FLAG_LOGUNIQUEID | RADIUS_FLAG_LOGUSERFIELD };
 

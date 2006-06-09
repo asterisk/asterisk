@@ -22,32 +22,32 @@
 
 #include "asterisk/compat.h"
 
+#include <limits.h>
+
 #define DEFAULT_LANGUAGE "en"
 
 #define DEFAULT_SAMPLE_RATE 8000
 #define DEFAULT_SAMPLES_PER_MS  ((DEFAULT_SAMPLE_RATE)/1000)
 
-#define AST_CONFIG_MAX_PATH 255
-
 /* provided in asterisk.c */
-extern char ast_config_AST_CONFIG_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_CONFIG_FILE[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_MODULE_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_SPOOL_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_MONITOR_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_VAR_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_DATA_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_LOG_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_AGI_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_DB[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_KEY_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_PID[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_SOCKET[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_RUN_DIR[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_CTL_PERMISSIONS[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_CTL_OWNER[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_CTL_GROUP[AST_CONFIG_MAX_PATH];
-extern char ast_config_AST_CTL[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_CONFIG_DIR[PATH_MAX];
+extern char ast_config_AST_CONFIG_FILE[PATH_MAX];
+extern char ast_config_AST_MODULE_DIR[PATH_MAX];
+extern char ast_config_AST_SPOOL_DIR[PATH_MAX];
+extern char ast_config_AST_MONITOR_DIR[PATH_MAX];
+extern char ast_config_AST_VAR_DIR[PATH_MAX];
+extern char ast_config_AST_DATA_DIR[PATH_MAX];
+extern char ast_config_AST_LOG_DIR[PATH_MAX];
+extern char ast_config_AST_AGI_DIR[PATH_MAX];
+extern char ast_config_AST_DB[PATH_MAX];
+extern char ast_config_AST_KEY_DIR[PATH_MAX];
+extern char ast_config_AST_PID[PATH_MAX];
+extern char ast_config_AST_SOCKET[PATH_MAX];
+extern char ast_config_AST_RUN_DIR[PATH_MAX];
+extern char ast_config_AST_CTL_PERMISSIONS[PATH_MAX];
+extern char ast_config_AST_CTL_OWNER[PATH_MAX];
+extern char ast_config_AST_CTL_GROUP[PATH_MAX];
+extern char ast_config_AST_CTL[PATH_MAX];
 extern char ast_config_AST_SYSTEM_NAME[20];
 
 int ast_set_priority(int);			/*!< Provided by asterisk.c */

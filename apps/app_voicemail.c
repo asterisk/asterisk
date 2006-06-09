@@ -309,7 +309,7 @@ static char odbc_table[80];
 #define DELETE(a,b,c) (vm_delete(c))
 #endif
 
-static char VM_SPOOL_DIR[AST_CONFIG_MAX_PATH];
+static char VM_SPOOL_DIR[PATH_MAX];
 
 static char ext_pass_cmd[128];
 
@@ -651,8 +651,8 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	char inbuf[256];
 	char orig[256];
 	char currcontext[256] ="";
-	char tmpin[AST_CONFIG_MAX_PATH];
-	char tmpout[AST_CONFIG_MAX_PATH];
+	char tmpin[PATH_MAX];
+	char tmpout[PATH_MAX];
 	struct stat statbuf;
 
 	if (!change_password_realtime(vmu, newpassword))

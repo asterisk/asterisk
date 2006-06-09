@@ -63,7 +63,7 @@ static char *name = "cdr-custom";
 
 static FILE *mf = NULL;
 
-static char master[AST_CONFIG_MAX_PATH];
+static char master[PATH_MAX];
 static char format[1024]="";
 
 static int load_config(int reload) 
