@@ -1017,11 +1017,20 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				   "At the tone, please say your name:"
 
 				*/
-				ast_play_and_record(chan, "priv-recordintro", privintro, 4, "gsm", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to 4 sec */
+				res = ast_play_and_record(chan, "priv-recordintro", privintro, 4, "gsm", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to 4 sec */
 										/* don't think we'll need a lock removed, we took care of
 										   conflicts by naming the privintro file */
-				if( !ast_streamfile(chan, "vm-dialout", chan->language) )
-					ast_waitstream(chan, "");
+				if (res == -1) {
+					/* Delete the file regardless since they hung up during recording */
+                                        ast_filedelete(privintro, NULL);
+                                        if( ast_fileexists(privintro,NULL,NULL ) > 0 )
+                                                ast_log(LOG_NOTICE,"privacy: ast_filedelete didn't do its job on %s\n", privintro);
+                                        else if (option_verbose > 2)
+                                                ast_verbose( VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
+					goto out;
+				}
+                                if( !ast_streamfile(chan, "vm-dialout", chan->language) )
+                                        ast_waitstream(chan, "");
 			}
 		}
 	}
@@ -1279,7 +1288,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 					res2 = ast_play_and_wait(peer,"priv-callpending");
 				if (!valid_priv_reply(&opts, res2))
 					res2 = 0;
-				
 				/* priv-callpending script: 
 				   "I have a caller waiting, who introduces themselves as:"
 				*/
