@@ -18,8 +18,6 @@
 #include "asterisk/module.h"
 #include "asterisk/ael_structs.h"
 
-#define PATH_MAX 255
-
 int conts=0, extens=0, priors=0;
 char last_exten[18000];
 char ast_config_AST_CONFIG_DIR[PATH_MAX];
