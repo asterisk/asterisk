@@ -74,7 +74,7 @@ check_expr: check_expr.c ast_expr2.o ast_expr2f.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 aelflex.o: ../pbx/ael/ael_lex.c ../include/asterisk/ael_structs.h ../pbx/ael/ael.tab.h
-	$(CC) $(CFLAGS) -I../pbx/ -c -o $@ $<
+	$(CC) $(CFLAGS) -I../pbx/ -DSTANDALONE -c -o $@ $<
 
 aelbison.o: ../pbx/ael/ael.tab.c ../pbx/ael/ael.tab.h ../include/asterisk/ael_structs.h
 	$(CC) $(CFLAGS) -I../pbx/ -c -o $@ $<

@@ -404,7 +404,11 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			if (*(p1+1) != '/')
 				snprintf(fnamebuf, sizeof(fnamebuf), "%s/%s", ast_config_AST_CONFIG_DIR, p1 + 1);
 			else
+#ifdef STANDALONE
+				strncpy(fnamebuf, p1 + 1, sizeof(fnamebuf) - 1);
+#else
 				ast_copy_string(fnamebuf, p1 + 1, sizeof(fnamebuf));
+#endif
 			in1 = fopen( fnamebuf, "r" );
 			if ( ! in1 ) {
 				ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Couldn't find the include file: %s; ignoring the Include directive!\n", my_file, my_lineno, my_col, fnamebuf);

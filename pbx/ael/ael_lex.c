@@ -1553,7 +1553,11 @@ YY_RULE_SETUP
 			if (*(p1+1) != '/')
 				snprintf(fnamebuf, sizeof(fnamebuf), "%s/%s", ast_config_AST_CONFIG_DIR, p1 + 1);
 			else
+#ifdef STANDALONE
+				strncpy(fnamebuf, p1 + 1, sizeof(fnamebuf) - 1);
+#else
 				ast_copy_string(fnamebuf, p1 + 1, sizeof(fnamebuf));
+#endif
 			in1 = fopen( fnamebuf, "r" );
 			if ( ! in1 ) {
 				ast_log(LOG_ERROR,"File=%s, line=%d, column=%d: Couldn't find the include file: %s; ignoring the Include directive!\n", my_file, my_lineno, my_col, fnamebuf);
@@ -1586,7 +1590,7 @@ case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(paren):
 case YY_STATE_EOF(semic):
 case YY_STATE_EOF(argg):
-#line 436 "ael.flex"
+#line 440 "ael.flex"
 {
 		if ( --include_stack_index < 0 ) {
 			yyterminate();
@@ -1602,10 +1606,10 @@ case YY_STATE_EOF(argg):
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 449 "ael.flex"
+#line 453 "ael.flex"
 ECHO;
 	YY_BREAK
-#line 1608 "ael_lex.c"
+#line 1612 "ael_lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -1836,7 +1840,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 		/* Read in more data. */
 		YY_INPUT( (&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move]),
-			yyg->yy_n_chars, num_to_read );
+			yyg->yy_n_chars, (size_t) num_to_read );
 
 		YY_CURRENT_BUFFER_LVALUE->yy_n_chars = yyg->yy_n_chars;
 		}
@@ -2735,7 +2739,7 @@ void ael_yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 449 "ael.flex"
+#line 453 "ael.flex"
 
 
 
