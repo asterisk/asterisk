@@ -18,12 +18,12 @@
 #include "asterisk/module.h"
 #include "asterisk/ael_structs.h"
 
-#define AST_CONFIG_MAX_PATH 255
+#define PATH_MAX 255
 
 int conts=0, extens=0, priors=0;
 char last_exten[18000];
-char ast_config_AST_CONFIG_DIR[AST_CONFIG_MAX_PATH];
-char ast_config_AST_VAR_DIR[AST_CONFIG_MAX_PATH];
+char ast_config_AST_CONFIG_DIR[PATH_MAX];
+char ast_config_AST_VAR_DIR[PATH_MAX];
 
 void ast_add_profile(void);
 void ast_cli_register_multiple(void);
