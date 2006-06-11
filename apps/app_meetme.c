@@ -1440,16 +1440,19 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					if (!ast_goto_if_exists(chan, exitcontext, tmp, 1)) {
 						ast_log(LOG_DEBUG, "Got DTMF %c, goto context %s\n", tmp[0], exitcontext);
 						ret = 0;
+						ast_frfree(f);
 						break;
 					} else if (option_debug > 1)
 						ast_log(LOG_DEBUG, "Exit by single digit did not work in meetme. Extension %s does not exist in context %s\n", tmp, exitcontext);
 				} else if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#') && (confflags & CONFFLAG_POUNDEXIT)) {
 					ret = 0;
+					ast_frfree(f);
 					break;
 				} else if (((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == AST_FRAME_DTMF) && menu_active)) {
 					if (ioctl(fd, ZT_SETCONF, &ztc_empty)) {
 						ast_log(LOG_WARNING, "Error setting conference\n");
 						close(fd);
+						ast_frfree(f);
 						goto outrun;
 					}
 
@@ -1595,7 +1598,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					if (ioctl(fd, ZT_SETCONF, &ztc)) {
 						ast_log(LOG_WARNING, "Error setting conference\n");
 						close(fd);
-						AST_LIST_UNLOCK(&confs);
+						ast_frfree(f);
 						goto outrun;
 					}
 
