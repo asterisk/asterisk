@@ -576,6 +576,8 @@ static int speech_background(struct ast_channel *chan, void *data)
 			time(&current);
 			if ((current-start) >= timeout) {
 				done = 1;
+				if (f)
+					ast_frfree(f);
 				break;
 			}
 		}
