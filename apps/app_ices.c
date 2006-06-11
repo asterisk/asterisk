@@ -173,6 +173,7 @@ static int ices_exec(struct ast_channel *chan, void *data)
 					if (errno != EAGAIN) {
 						ast_log(LOG_WARNING, "Write failed to pipe: %s\n", strerror(errno));
 						res = -1;
+						ast_frfree(f);
 						break;
 					}
 				}
