@@ -14,23 +14,13 @@
  * \author Thorsten Lockert <tholo@voop.as>
  */
 
-#include <net-snmp/net-snmp-config.h>
-#include <net-snmp/net-snmp-includes.h>
-#include <net-snmp/agent/net-snmp-agent-includes.h>
-
-/*
- * These conflict with ones in Asterisk header files, so
- * get rid of  them.  They'll be back after the next few
- * includes...
- */
-#undef HAVE_GETLOADAVG
-#undef HAVE_STRCASESTR
-
-#include <pthread.h>
-
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-includes.h>
+#include <net-snmp/agent/net-snmp-agent-includes.h>
 
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"
