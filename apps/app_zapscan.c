@@ -272,6 +272,8 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 					ast_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
 			}
         }
+	if (f)
+		ast_frfree(f);
         if (fd != chan->fds[0])
 			close(fd);
         else {
