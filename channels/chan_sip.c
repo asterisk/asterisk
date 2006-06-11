@@ -261,6 +261,13 @@ enum subscriptiontype {
 	MWI_NOTIFICATION
 };
 
+enum parse_register_result {
+	PARSE_REGISTER_FAILED,
+	PARSE_REGISTER_UPDATE,
+	PARSE_REGISTER_QUERY,
+};
+
+
 static const struct cfsubscription_types {
 	enum subscriptiontype type;
 	const char * const event;
@@ -276,28 +283,45 @@ static const struct cfsubscription_types {
 	{ MWI_NOTIFICATION,	"message-summary", "application/simple-message-summary", "mwi" } /* RFC 3842: Mailbox notification */
 };
 
+/*! \brief SIP Request methods known by Asterisk */
 enum sipmethod {
-	SIP_UNKNOWN,
-	SIP_RESPONSE,
+	SIP_UNKNOWN,		/* Unknown response */
+	SIP_RESPONSE,		/* Not request, response to outbound request */
 	SIP_REGISTER,
 	SIP_OPTIONS,
 	SIP_NOTIFY,
 	SIP_INVITE,
 	SIP_ACK,
-	SIP_PRACK,
+	SIP_PRACK,		/* Not supported at all */
 	SIP_BYE,
 	SIP_REFER,
 	SIP_SUBSCRIBE,
 	SIP_MESSAGE,
-	SIP_UPDATE,
+	SIP_UPDATE,		/* We can send UPDATE; but not accept it */
 	SIP_INFO,
 	SIP_CANCEL,
-	SIP_PUBLISH,
+	SIP_PUBLISH,		/* Not supported at all */
 };
 
+/*! \brief Authentication types - proxy or www authentication 
+	\note Endpoints, like Asterisk, should always use WWW authentication to
+	allow multiple authentications in the same call - to the proxy and
+	to the end point.
+*/
 enum sip_auth_type {
 	PROXY_AUTH,
 	WWW_AUTH,
+};
+
+/*! \brief Authentication result from check_auth* functions */
+enum check_auth_result {
+	AUTH_SUCCESSFUL = 0,
+	AUTH_CHALLENGE_SENT = 1,
+	AUTH_SECRET_FAILED = -1,
+	AUTH_USERNAME_MISMATCH = -2,
+	AUTH_NOT_FOUND = -3,
+	AUTH_FAKE_AUTH = -4,
+	AUTH_UNKNOWN_DOMAIN = -5,
 };
 
 /* States for outbound registrations (with register= lines in sip.conf */
@@ -1044,19 +1068,9 @@ static struct sockaddr_in debugaddr;
 
 static struct ast_config *notify_types;		/*!< The list of manual NOTIFY types we know how to send */
 
-enum check_auth_result {
-	AUTH_SUCCESSFUL = 0,
-	AUTH_CHALLENGE_SENT = 1,
-	AUTH_SECRET_FAILED = -1,
-	AUTH_USERNAME_MISMATCH = -2,
-	AUTH_NOT_FOUND = -3,
-	AUTH_FAKE_AUTH = -4,
-	AUTH_UNKNOWN_DOMAIN = -5,
-};
-
 /*---------------------------- Forward declarations of functions in chan_sip.c */
-/*! \note Sorted up from start to build_rpid.... Will continue categorization in order to
-	split up chan_sip.c into several files  */
+/*! \note This is added to help splitting up chan_sip.c into several files
+	in coming releases */
 
 /*--- PBX interface functions */
 static struct ast_channel *sip_request_call(const char *type, int format, void *data, int *cause);
@@ -1073,9 +1087,12 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int sip_senddigit(struct ast_channel *ast, char digit);
 
 /*--- Transmitting responses and requests */
+static int sipsock_read(int *id, int fd, short events, void *ignore);
 static int __sip_xmit(struct sip_pvt *p, char *data, int len);
 static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal, int sipmethod);
 static int __transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
+static int retrans_pkt(void *data);
+static int transmit_sip_request(struct sip_pvt *p, struct sip_request *req);
 static int transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req);
 static int transmit_response_reliable(struct sip_pvt *p, const char *msg, const struct sip_request *req);
 static int transmit_response_with_date(struct sip_pvt *p, const char *msg, const struct sip_request *req);
@@ -1083,20 +1100,26 @@ static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const 
 static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *unsupported);
 static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *rand, enum xmittype reliable, const char *header, int stale);
 static int transmit_response_with_allow(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
+static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *req, int reliable);
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
-static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
-static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, int init);
+static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqno, enum xmittype reliable, int newbranch);
+static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p);
-static int transmit_info_with_digit(struct sip_pvt *p, char digit);
+static int transmit_info_with_digit(struct sip_pvt *p, const char digit);
 static int transmit_info_with_vidupdate(struct sip_pvt *p);
 static int transmit_message_with_text(struct sip_pvt *p, const char *text);
 static int transmit_refer(struct sip_pvt *p, const char *dest);
+static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs, char *vmexten);
+static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *message, int terminate);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full);
 static int transmit_register(struct sip_registry *r, int sipmethod, const char *auth, const char *authheader);
-static int retrans_pkt(void *data);
 static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
 static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
 static void copy_request(struct sip_request *dst, const struct sip_request *src);
+static void receive_message(struct sip_pvt *p, struct sip_request *req);
+static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req);
+static int sip_send_mwi_to_peer(struct sip_peer *peer);
+static int does_peer_need_mwi(struct sip_peer *peer);
 
 /*--- Dialog management */
 static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
@@ -1114,7 +1137,19 @@ static int update_call_counter(struct sip_pvt *fup, int event);
 static int hangup_sip2cause(int cause);
 static const char *hangup_cause2sip(int cause);
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method);
-int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno);
+static void free_old_route(struct sip_route *route);
+static void list_route(struct sip_route *route);
+static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards);
+static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
+					 const char *secret, const char *md5secret, int sipmethod,
+					 char *uri, enum xmittype reliable, int ignore);
+static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr_in *sin,
+					      struct sip_request *req, char *uri);
+static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *totag, const char *fromtag);
+static void check_pendings(struct sip_pvt *p);
+static void *sip_park_thread(void *stuff);
+static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct sip_request *req, int seqno);
+static int sip_sipredirect(struct sip_pvt *p, const char *dest);
 
 /*--- Codec handling / SDP */
 static void try_suggested_sip_codec(struct sip_pvt *p);
@@ -1140,29 +1175,112 @@ static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, con
 static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
 					 const char *secret, const char *md5secret, int sipmethod,
 					 char *uri, enum xmittype reliable, int ignore);
+static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_request *req,
+					      int sipmethod, char *uri, enum xmittype reliable,
+					      struct sockaddr_in *sin, struct sip_peer **authpeer);
+static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, enum xmittype reliable, struct sockaddr_in *sin);
+static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init);
+static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int digest_len);
 
 /*--- Domain handling */
 static int check_sip_domain(const char *domain, char *context, size_t len); /* Check if domain is one of our local domains */
+static int add_sip_domain(const char *domain, const enum domain_mode mode, const char *context);
+static void clear_sip_domains(void);
 
-static void free_old_route(struct sip_route *route);
+/*--- SIP realm authentication */
+static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);
+static int clear_realm_authentication(struct sip_auth *authlist);
+static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, const char *realm);
 
 /*--- Misc functions */
 static int sip_do_reload(enum channelreloadreason reason);
+static int reload_config(enum channelreloadreason reason);
 static int expire_register(void *data);
 static int sip_sipredirect(struct sip_pvt *p, const char *dest);
+static void *do_monitor(void *data);
 static int restart_monitor(void);
 static int sip_send_mwi_to_peer(struct sip_peer *peer);
 static void sip_destroy(struct sip_pvt *p);
 static int sip_addrcmp(char *name, struct sockaddr_in *sin);	/* Support for peer matching */
+static int sip_refer_allocate(struct sip_pvt *p);
+static void ast_quiet_chan(struct ast_channel *chan);
+static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target);
 
-/*--- CLI and manager command helpers */
+/*--- Device monitoring and Device/extension state handling */
+static int cb_extensionstate(char *context, char* exten, int state, void *data);
+static int sip_devicestate(void *data);
+static int sip_poke_noanswer(void *data);
+static int sip_poke_peer(struct sip_peer *peer);
+static void sip_poke_all_peers(void);
+
+
+/*--- Applications, functions, CLI and manager command helpers */
 static const char *sip_nat_mode(const struct sip_pvt *p);
+static int sip_show_inuse(int fd, int argc, char *argv[]);
+static char *transfermode2str(enum transfermodes mode);
+static char *nat2str(int nat);
+static int peer_status(struct sip_peer *peer, char *status, int statuslen);
+static int sip_show_users(int fd, int argc, char *argv[]);
+static int _sip_show_peers(int fd, int *total, struct mansession *s, struct message *m, int argc, char *argv[]);
+static int manager_sip_show_peers( struct mansession *s, struct message *m );
+static int sip_show_peers(int fd, int argc, char *argv[]);
+static int sip_show_objects(int fd, int argc, char *argv[]);
+static void  print_group(int fd, unsigned int group, int crlf);
+static const char *dtmfmode2str(int mode);
+static const char *insecure2str(int port, int invite);
+static void cleanup_stale_contexts(char *new, char *old);
+static void print_codec_to_cli(int fd, struct ast_codec_pref *pref);
+static const char *domain_mode_to_text(const enum domain_mode mode);
+static int sip_show_domains(int fd, int argc, char *argv[]);
+static int _sip_show_peer(int type, int fd, struct mansession *s, struct message *m, int argc, char *argv[]);
+static int manager_sip_show_peer( struct mansession *s, struct message *m);
+static int sip_show_peer(int fd, int argc, char *argv[]);
+static int _sip_show_peer(int type, int fd, struct mansession *s, struct message *m, int argc, char *argv[]);
+static int sip_show_user(int fd, int argc, char *argv[]);
+static int sip_show_registry(int fd, int argc, char *argv[]);
+static int sip_show_settings(int fd, int argc, char *argv[]);
+static const char *subscription_type2str(enum subscriptiontype subtype);
+static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
+static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions);
+static int sip_show_channels(int fd, int argc, char *argv[]);
+static int sip_show_subscriptions(int fd, int argc, char *argv[]);
+static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions);
+static char *complete_sipch(const char *line, const char *word, int pos, int state);
+static char *complete_sip_peer(const char *word, int state, int flags2);
+static char *complete_sip_show_peer(const char *line, const char *word, int pos, int state);
+static char *complete_sip_debug_peer(const char *line, const char *word, int pos, int state);
+static char *complete_sip_user(const char *word, int state, int flags2);
+static char *complete_sip_show_user(const char *line, const char *word, int pos, int state);
+static char *complete_sipnotify(const char *line, const char *word, int pos, int state);
+static char *complete_sip_prune_realtime_peer(const char *line, const char *word, int pos, int state);
+static char *complete_sip_prune_realtime_user(const char *line, const char *word, int pos, int state);
+static int sip_show_channel(int fd, int argc, char *argv[]);
+static int sip_show_history(int fd, int argc, char *argv[]);
+static int sip_do_debug_ip(int fd, int argc, char *argv[]);
+static int sip_do_debug_peer(int fd, int argc, char *argv[]);
+static int sip_do_debug(int fd, int argc, char *argv[]);
+static int sip_no_debug(int fd, int argc, char *argv[]);
+static int sip_notify(int fd, int argc, char *argv[]);
+static int sip_do_history(int fd, int argc, char *argv[]);
+static int sip_no_history(int fd, int argc, char *argv[]);
+static int func_header_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len);
+static int func_check_sipdomain(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len);
+static int function_sippeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len);
+static int function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len);
+static int sip_dtmfmode(struct ast_channel *chan, void *data);
+static int sip_addheader(struct ast_channel *chan, void *data);
+static int sip_do_reload(enum channelreloadreason reason);
+static int sip_reload(int fd, int argc, char *argv[]);
 
-/*--- Debugging */
+/*--- Debugging 
+	Functions for enabling debug per IP or fully, or enabling history logging for
+	a SIP dialog
+*/
 static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEBUG at end of dialog, before destroying data */
 static inline int sip_debug_test_addr(const struct sockaddr_in *addr);
 static inline int sip_debug_test_pvt(struct sip_pvt *p);
 static void append_history_full(struct sip_pvt *p, const char *fmt, ...);
+static void sip_dump_history(struct sip_pvt *dialog);
 
 /*--- Device object handling */
 static struct sip_peer *temp_peer(const char *name);
@@ -1179,17 +1297,31 @@ static void sip_destroy_peer(struct sip_peer *peer);
 static void sip_destroy_user(struct sip_user *user);
 static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime);
 static struct sip_user *find_user(const char *name, int realtime);
+static int sip_poke_peer_s(void *data);
+static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_request *req);
+static int expire_register(void *data);
+static void reg_source_db(struct sip_peer *peer);
+static void destroy_association(struct sip_peer *peer);
+static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v);
+
 /* Realtime device support */
 static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, int expirey);
 static struct sip_user *realtime_user(const char *username);
 static void update_peer(struct sip_peer *p, int expiry);
 static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *sin);
+static int sip_prune_realtime(int fd, int argc, char *argv[]);
 
 /*--- Internal UA client handling (outbound registrations) */
-static int __sip_do_register(struct sip_registry *r);
 static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us);
 static void sip_registry_destroy(struct sip_registry *reg);
 static int sip_register(char *value, int lineno);
+static char *regstate2str(enum sipregistrystate regstate);
+static int sip_reregister(void *data);
+static int __sip_do_register(struct sip_registry *r);
+static int sip_reg_timeout(void *data);
+static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader);
+static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod,  char *digest, int digest_len);
+static void sip_send_all_registers(void);
 
 /*--- Parsing SIP requests and responses */
 static void append_date(struct sip_request *req);	/* Append date to SIP packet */
@@ -1209,11 +1341,24 @@ static const char *__get_header(const struct sip_request *req, const char *name,
 static const char *get_header(const struct sip_request *req, const char *name);
 static int lws2sws(char *msgbuf, int len);
 static void extract_uri(struct sip_pvt *p, struct sip_request *req);
+static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoing_req);
+static int get_also_info(struct sip_pvt *p, struct sip_request *oreq);
+static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req);
+static int set_address_from_contact(struct sip_pvt *pvt);
+static void check_via(struct sip_pvt *p, struct sip_request *req);
+static char *get_calleridname(const char *input, char *output, size_t outputsize);
+static int get_rpid_num(const char *input, char *output, int maxlen);
+static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq);
+static int get_destination(struct sip_pvt *p, struct sip_request *oreq);
+static int get_msg_text(char *buf, int len, struct sip_request *req);
+static const char *gettag(const struct sip_request *req, const char *header, char *tagbuf, int tagbufsize);
+static void free_old_route(struct sip_route *route);
 
 /*--- Constructing requests and responses */
 static void initialize_initreq(struct sip_pvt *p, struct sip_request *req);
 static int init_req(struct sip_request *req, int sipmethod, const char *recip);
 static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, int seqno, int newbranch);
+static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod);
 static int init_resp(struct sip_request *resp, const char *msg);
 static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg, const struct sip_request *req);
 static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p);
@@ -1240,6 +1385,7 @@ static void build_contact(struct sip_pvt *p);
 static void build_rpid(struct sip_pvt *p);
 
 /*------Request handling functions */
+static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount, int *nounlock);
 static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *recount, char *e);
 static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, int *nounlock);
 static int handle_request_bye(struct sip_pvt *p, struct sip_request *req);
@@ -1250,11 +1396,16 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 static void handle_request_info(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_options(struct sip_pvt *p, struct sip_request *req);
 static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, struct sockaddr_in *sin);
+static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, char *e);
+static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, struct sockaddr_in *sin);
+static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno);
 
 /*------Response handling functions */
 static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_request *req);
+static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno);
+static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno);
 
 /*----- RTP interface functions */
 static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active);
@@ -5990,9 +6141,9 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 }
 
 /*! \brief Transmit SIP request */
-static int transmit_sip_request(struct sip_pvt *p,struct sip_request *req)
+static int transmit_sip_request(struct sip_pvt *p, struct sip_request *req)
 {
-	if (!p->initreq.headers) 
+	if (!p->initreq.headers) 	/* Initialize first request before sending */
 		initialize_initreq(p, req);
 	return send_request(p, req, 0, p->ocseq);
 }
@@ -6047,7 +6198,7 @@ static char *regstate2str(enum sipregistrystate regstate)
 	}
 }
 
-/*! \brief Update registration with SIP Proxy*/
+/*! \brief Update registration with SIP Proxy */
 static int sip_reregister(void *data) 
 {
 	/* if we are here, we know that we need to reregister. */
@@ -6316,7 +6467,11 @@ static int sip_refer_allocate(struct sip_pvt *p)
 	return p->refer ? 1 : 0;
 }
 
-/*! \brief Transmit SIP REFER message */
+/*! \brief Transmit SIP REFER message (initiated by the transfer() dialplan application
+	\note this is currently broken as we have no way of telling the dialplan
+	engine whether a transfer succeeds or fails.
+	\todo Fix the transfer() dialplan function so that a transfer may fail
+*/
 static int transmit_refer(struct sip_pvt *p, const char *dest)
 {
 	struct sip_request req;
@@ -6386,9 +6541,10 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 
 
 /*! \brief Send SIP INFO dtmf message, see Cisco documentation on cisco.com */
-static int transmit_info_with_digit(struct sip_pvt *p, char digit)
+static int transmit_info_with_digit(struct sip_pvt *p, const char digit)
 {
 	struct sip_request req;
+
 	reqprep(&req, p, SIP_INFO, 0, 1);
 	add_digit(&req, digit);
 	return send_request(p, &req, 1, p->ocseq);
@@ -6398,6 +6554,7 @@ static int transmit_info_with_digit(struct sip_pvt *p, char digit)
 static int transmit_info_with_vidupdate(struct sip_pvt *p)
 {
 	struct sip_request req;
+
 	reqprep(&req, p, SIP_INFO, 0, 1);
 	add_vidupdate(&req);
 	return send_request(p, &req, 1, p->ocseq);
@@ -6407,6 +6564,7 @@ static int transmit_info_with_vidupdate(struct sip_pvt *p)
 static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, enum xmittype reliable, int newbranch)
 {
 	struct sip_request resp;
+
 	reqprep(&resp, p, sipmethod, seqno, newbranch);
 	add_header_contentLength(&resp, 0);
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);
@@ -6446,15 +6604,14 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);	
 }
 
-/*! \brief Remove registration data from realtime database and AST/DB when registration expires */
+/*! \brief Remove registration data from realtime database or AST/DB when registration expires */
 static void destroy_association(struct sip_peer *peer)
 {
 	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE)) {
-		if (ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT)) {
+		if (ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT))
 			ast_update_realtime("sippeers", "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", "username", "", NULL);
-		} else {
+		else 
 			ast_db_del("SIP/Registry", peer->name);
-		}
 	}
 }
 
@@ -6640,12 +6797,6 @@ static int set_address_from_contact(struct sip_pvt *pvt)
 	return 0;
 }
 
-
-enum parse_register_result {
-	PARSE_REGISTER_FAILED,
-	PARSE_REGISTER_UPDATE,
-	PARSE_REGISTER_QUERY,
-};
 
 /*! \brief Parse contact header and save registration */
 static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_request *req)
@@ -7427,12 +7578,12 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 {
 	struct sip_pvt *sip_pvt_ptr;
 
-	/* Search interfaces and find the match */
 	ast_mutex_lock(&iflock);
 
 	if (option_debug > 3 && totag)
 		ast_log(LOG_DEBUG, "Looking for callid %s (fromtag %s totag %s)\n", callid, fromtag ? fromtag : "<no fromtag>", totag ? totag : "<no totag>");
 
+	/* Search interfaces and find the match */
 	for (sip_pvt_ptr = iflist; sip_pvt_ptr; sip_pvt_ptr = sip_pvt_ptr->next) {
 		if (!strcmp(sip_pvt_ptr->callid, callid)) {
 			int match = 1;
@@ -8191,7 +8342,8 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 }
 
 /*! \brief  CLI Command to show calls within limits set by call_limit */
-static int sip_show_inuse(int fd, int argc, char *argv[]) {
+static int sip_show_inuse(int fd, int argc, char *argv[])
+{
 #define FORMAT  "%-25.25s %-15.15s %-15.15s \n"
 #define FORMAT2 "%-25.25s %-15.15s %-15.15s \n"
 	char ilimits[40];
@@ -8340,8 +8492,6 @@ static char mandescr_show_peers[] =
 "Description: Lists SIP peers in text format with details on current status.\n"
 "Variables: \n"
 "  ActionID: <id>	Action ID for this transaction. Will be returned.\n";
-
-static int _sip_show_peers(int fd, int *total, struct mansession *s, struct message *m, int argc, char *argv[]);
 
 /*! \brief  Show SIP peers in the manager API */
 /*    Inspired from chan_iax2 */
@@ -8515,7 +8665,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 #undef FORMAT2
 }
 
-/*! \brief  sip_show_objects: List all allocated SIP Objects */
+/*! \brief List all allocated SIP Objects (realtime or static) */
 static int sip_show_objects(int fd, int argc, char *argv[])
 {
 	char tmp[256];
@@ -8529,14 +8679,14 @@ static int sip_show_objects(int fd, int argc, char *argv[])
 	ASTOBJ_CONTAINER_DUMP(fd, tmp, sizeof(tmp), &regl);
 	return RESULT_SUCCESS;
 }
-/*! \brief  print_group: Print call group and pickup group */
-static void  print_group(int fd, unsigned int group, int crlf) 
+/*! \brief Print call group and pickup group */
+static void  print_group(int fd, unsigned int group, int crlf)
 {
 	char buf[256];
 	ast_cli(fd, crlf ? "%s\r\n" : "%s\n", ast_print_group(buf, sizeof(buf), group) );
 }
 
-/*! \brief  dtmfmode2str: Convert DTMF mode to printable string */
+/*! \brief Convert DTMF mode to printable string */
 static const char *dtmfmode2str(int mode)
 {
 	switch (mode) {
@@ -8552,7 +8702,7 @@ static const char *dtmfmode2str(int mode)
 	return "<error>";
 }
 
-/*! \brief  insecure2str: Convert Insecure setting to printable string */
+/*! \brief Convert Insecure setting to printable string */
 static const char *insecure2str(int port, int invite)
 {
 	if (port && invite)
@@ -8565,7 +8715,7 @@ static const char *insecure2str(int port, int invite)
 		return "no";
 }
 
-/*! \brief cleanup_stale_contexts:  Destroy disused contexts between reloads
+/*! \brief Destroy disused contexts between reloads
 	Only used in reload_config so the code for regcontext doesn't get ugly
 */
 static void cleanup_stale_contexts(char *new, char *old)
@@ -8591,7 +8741,7 @@ static void cleanup_stale_contexts(char *new, char *old)
 	}
 }
 
-/*! \brief  sip_prune_realtime: Remove temporary realtime objects from memory (CLI) */
+/*! \brief Remove temporary realtime objects from memory (CLI) */
 static int sip_prune_realtime(int fd, int argc, char *argv[])
 {
 	struct sip_peer *peer;
@@ -8738,8 +8888,8 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  print_codec_to_cli: Print codec list from preference to CLI/manager */
-static void print_codec_to_cli(int fd, struct ast_codec_pref *pref) 
+/*! \brief Print codec list from preference to CLI/manager */
+static void print_codec_to_cli(int fd, struct ast_codec_pref *pref)
 {
 	int x, codec;
 
@@ -8755,6 +8905,7 @@ static void print_codec_to_cli(int fd, struct ast_codec_pref *pref)
 		ast_cli(fd, "none");
 }
 
+/*! \brief Print domain mode to cli */
 static const char *domain_mode_to_text(const enum domain_mode mode)
 {
 	switch (mode) {
@@ -8767,11 +8918,11 @@ static const char *domain_mode_to_text(const enum domain_mode mode)
 	return "";
 }
 
-/*! \brief  sip_show_domains: CLI command to list local domains */
-#define FORMAT "%-40.40s %-20.20s %-16.16s\n"
+/*! \brief CLI command to list local domains */
 static int sip_show_domains(int fd, int argc, char *argv[])
 {
 	struct domain *d;
+#define FORMAT "%-40.40s %-20.20s %-16.16s\n"
 
 	if (AST_LIST_EMPTY(&domain_list)) {
 		ast_cli(fd, "SIP Domain support not enabled.\n\n");
@@ -8795,10 +8946,8 @@ static char mandescr_show_peer[] =
 "  Peer: <name>           The peer name you want to check.\n"
 "  ActionID: <id>	  Optional action ID for this AMI transaction.\n";
 
-static int _sip_show_peer(int type, int fd, struct mansession *s, struct message *m, int argc, char *argv[]);
-
-/*! \brief  manager_sip_show_peer: Show SIP peers in the manager API  */
-static int manager_sip_show_peer( struct mansession *s, struct message *m )
+/*! \brief Show SIP peers in the manager API  */
+static int manager_sip_show_peer( struct mansession *s, struct message *m)
 {
 	char *id = astman_get_header(m,"ActionID");
 	char *a[4];
@@ -8824,12 +8973,13 @@ static int manager_sip_show_peer( struct mansession *s, struct message *m )
 
 
 
-/*! \brief  sip_show_peer: Show one peer in detail */
+/*! \brief Show one peer in detail */
 static int sip_show_peer(int fd, int argc, char *argv[])
 {
 	return _sip_show_peer(0, fd, NULL, NULL, argc, argv);
 }
 
+/*! \brief Show one peer in detail (main function) */
 static int _sip_show_peer(int type, int fd, struct mansession *s, struct message *m, int argc, char *argv[])
 {
 	char status[30] = "";
@@ -9033,7 +9183,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  sip_show_user: Show one user in detail */
+/*! \brief Show one user in detail */
 static int sip_show_user(int fd, int argc, char *argv[])
 {
 	char cbuf[256];
@@ -9129,7 +9279,7 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
-/*! \brief  sip_show_settings: List global settings for the SIP channel */
+/*! \brief List global settings for the SIP channel */
 static int sip_show_settings(int fd, int argc, char *argv[])
 {
 	char tmp[BUFSIZ];
@@ -9220,8 +9370,9 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  subscription_type2str: Show subscription type in string format */
-static const char *subscription_type2str(enum subscriptiontype subtype) {
+/*! \brief Show subscription type in string format */
+static const char *subscription_type2str(enum subscriptiontype subtype)
+{
 	int i;
 
 	for (i = 1; (i < (sizeof(subscription_types) / sizeof(subscription_types[0]))); i++) {
@@ -9232,8 +9383,9 @@ static const char *subscription_type2str(enum subscriptiontype subtype) {
 	return subscription_types[0].text;
 }
 
-/*! \brief  find_subscription_type: Find subscription type in array */
-static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype) {
+/*! \brief Find subscription type in array */
+static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype)
+{
 	int i;
 
 	for (i = 1; (i < (sizeof(subscription_types) / sizeof(subscription_types[0]))); i++) {
@@ -9244,21 +9396,19 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 	return &subscription_types[0];
 }
 
-/* Forward declaration */
-static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions);
-
-/*! \brief  sip_show_channels: Show active SIP channels */
+/*! \brief Show active SIP channels */
 static int sip_show_channels(int fd, int argc, char *argv[])  
 {
         return __sip_show_channels(fd, argc, argv, 0);
 }
  
-/*! \brief  sip_show_subscriptions: Show active SIP subscriptions */
+/*! \brief Show active SIP subscriptions */
 static int sip_show_subscriptions(int fd, int argc, char *argv[])
 {
         return __sip_show_channels(fd, argc, argv, 1);
 }
 
+/*! \brief SIP show channels CLI (main function) */
 static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions)
 {
 #define FORMAT3 "%-15.15s  %-10.10s  %-11.11s  %-15.15s  %-13.13s  %-15.15s %-10.10s\n"
@@ -9319,7 +9469,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 #undef FORMAT3
 }
 
-/*! \brief  complete_sipch: Support routine for 'sip show channel' CLI */
+/*! \brief Support routine for 'sip show channel' CLI */
 static char *complete_sipch(const char *line, const char *word, int pos, int state)
 {
 	int which=0;
@@ -9338,7 +9488,7 @@ static char *complete_sipch(const char *line, const char *word, int pos, int sta
 	return c;
 }
 
-/*! \brief  complete_sip_peer: Do completion on peer name */
+/*! \brief Do completion on peer name */
 static char *complete_sip_peer(const char *word, int state, int flags2)
 {
 	char *result = NULL;
@@ -9355,7 +9505,7 @@ static char *complete_sip_peer(const char *word, int state, int flags2)
 	return result;
 }
 
-/*! \brief  complete_sip_show_peer: Support routine for 'sip show peer' CLI */
+/*! \brief Support routine for 'sip show peer' CLI */
 static char *complete_sip_show_peer(const char *line, const char *word, int pos, int state)
 {
 	if (pos == 3)
@@ -9364,7 +9514,7 @@ static char *complete_sip_show_peer(const char *line, const char *word, int pos,
 	return NULL;
 }
 
-/*! \brief  complete_sip_debug_peer: Support routine for 'sip debug peer' CLI */
+/*! \brief Support routine for 'sip debug peer' CLI */
 static char *complete_sip_debug_peer(const char *line, const char *word, int pos, int state)
 {
 	if (pos == 3)
@@ -9373,7 +9523,7 @@ static char *complete_sip_debug_peer(const char *line, const char *word, int pos
 	return NULL;
 }
 
-/*! \brief  complete_sip_user: Do completion on user name */
+/*! \brief Do completion on user name */
 static char *complete_sip_user(const char *word, int state, int flags2)
 {
 	char *result = NULL;
@@ -9393,7 +9543,7 @@ static char *complete_sip_user(const char *word, int state, int flags2)
 	return result;
 }
 
-/*! \brief  complete_sip_show_user: Support routine for 'sip show user' CLI */
+/*! \brief Support routine for 'sip show user' CLI */
 static char *complete_sip_show_user(const char *line, const char *word, int pos, int state)
 {
 	if (pos == 3)
@@ -9402,7 +9552,7 @@ static char *complete_sip_show_user(const char *line, const char *word, int pos,
 	return NULL;
 }
 
-/*! \brief  complete_sipnotify: Support routine for 'sip notify' CLI */
+/*! \brief Support routine for 'sip notify' CLI */
 static char *complete_sipnotify(const char *line, const char *word, int pos, int state)
 {
 	char *c = NULL;
@@ -9432,7 +9582,7 @@ static char *complete_sipnotify(const char *line, const char *word, int pos, int
 	return NULL;
 }
 
-/*! \brief  complete_sip_prune_realtime_peer: Support routine for 'sip prune realtime peer' CLI */
+/*! \brief Support routine for 'sip prune realtime peer' CLI */
 static char *complete_sip_prune_realtime_peer(const char *line, const char *word, int pos, int state)
 {
 	if (pos == 4)
@@ -9440,7 +9590,7 @@ static char *complete_sip_prune_realtime_peer(const char *line, const char *word
 	return NULL;
 }
 
-/*! \brief  complete_sip_prune_realtime_user: Support routine for 'sip prune realtime user' CLI */
+/*! \brief Support routine for 'sip prune realtime user' CLI */
 static char *complete_sip_prune_realtime_user(const char *line, const char *word, int pos, int state)
 {
 	if (pos == 4)
@@ -9449,7 +9599,7 @@ static char *complete_sip_prune_realtime_user(const char *line, const char *word
 	return NULL;
 }
 
-/*! \brief  sip_show_channel: Show details of one call */
+/*! \brief Show details of one active dialog */
 static int sip_show_channel(int fd, int argc, char *argv[])
 {
 	struct sip_pvt *cur;
@@ -9518,7 +9668,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  sip_show_history: Show history details of one call */
+/*! \brief Show history details of one dialog */
 static int sip_show_history(int fd, int argc, char *argv[])
 {
 	struct sip_pvt *cur;
@@ -9555,9 +9705,8 @@ static int sip_show_history(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  dump_history: Dump SIP history to debug log file at end of 
-  lifespan for SIP dialog */
-void sip_dump_history(struct sip_pvt *dialog)
+/*! \brief Dump SIP history to debug log file at end of lifespan for SIP dialog */
+static void sip_dump_history(struct sip_pvt *dialog)
 {
 	int x = 0;
 	struct sip_history *hist;
@@ -9579,7 +9728,7 @@ void sip_dump_history(struct sip_pvt *dialog)
 }
 
 
-/*! \brief  handle_request_info: Receive SIP INFO Message
+/*! \brief  Receive SIP INFO Message
 \note    Doesn't read the duration of the DTMF signal */
 static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 {
@@ -9670,7 +9819,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 	return;
 }
 
-/*! \brief  sip_do_debug: Enable SIP Debugging in CLI */
+/*! \brief Enable SIP Debugging in CLI */
 static int sip_do_debug_ip(int fd, int argc, char *argv[])
 {
 	struct hostent *hp;
@@ -9725,7 +9874,7 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  sip_do_debug: Turn on SIP debugging (CLI command) */
+/*! \brief Turn on SIP debugging (CLI command) */
 static int sip_do_debug(int fd, int argc, char *argv[])
 {
 	int oldsipdebug = sipdebug_console;
@@ -9745,7 +9894,7 @@ static int sip_do_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  sip_notify: Send SIP notify to peer */
+/*! \brief Cli command to send SIP notify to peer */
 static int sip_notify(int fd, int argc, char *argv[])
 {
 	struct ast_variable *varlist;
@@ -9800,7 +9949,18 @@ static int sip_notify(int fd, int argc, char *argv[])
 
 	return RESULT_SUCCESS;
 }
-/*! \brief  sip_do_history: Enable SIP History logging (CLI) */
+
+/*! \brief Disable SIP Debugging in CLI */
+static int sip_no_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	ast_clear_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
+	ast_cli(fd, "SIP Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
+
+/*! \brief Enable SIP History logging (CLI) */
 static int sip_do_history(int fd, int argc, char *argv[])
 {
 	if (argc != 2) {
@@ -9811,7 +9971,7 @@ static int sip_do_history(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  sip_no_history: Disable SIP History logging (CLI) */
+/*! \brief Disable SIP History logging (CLI) */
 static int sip_no_history(int fd, int argc, char *argv[])
 {
 	if (argc != 3) {
@@ -9822,20 +9982,9 @@ static int sip_no_history(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief Disable SIP Debugging in CLI */
-static int sip_no_debug(int fd, int argc, char *argv[])
-
-{
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	ast_clear_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
-	ast_cli(fd, "SIP Debugging Disabled\n");
-	return RESULT_SUCCESS;
-}
-
 
 /*! \brief Authenticate for outbound registration */
-static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader) 
+static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader)
 {
 	char digest[1024];
 	p->authtries++;
@@ -9856,7 +10005,7 @@ static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *he
 }
 
 /*! \brief Add authentication on outbound SIP packet */
-static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init) 
+static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init)
 {
 	char digest[1024];
 
@@ -9881,8 +10030,7 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *heade
 \return	Returns -1 if we have no auth 
 \note	This is used for register= servers in sip.conf, SIP proxies we register
 	with  for receiving calls from.  */
-static int reply_digest(struct sip_pvt *p, struct sip_request *req,
-	char *header, int sipmethod,  char *digest, int digest_len)
+static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod,  char *digest, int digest_len)
 {
 	char tmp[512];
 	char *c;
@@ -10119,7 +10267,7 @@ static char show_settings_usage[] =
 
 
 
-/*! \brief  func_header_read: Read SIP header (dialplan function) */
+/*! \brief Read SIP header (dialplan function) */
 static int func_header_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len) 
 {
 	struct sip_pvt *p;
@@ -10282,7 +10430,7 @@ struct ast_custom_function sippeer_function = {
 };
 
 /*! \brief ${SIPCHANINFO()} Dialplan function - reads sip channel data */
-static int function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static int function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	struct sip_pvt *p;
 	char iabuf[INET_ADDRSTRLEN];
@@ -11186,7 +11334,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 }
 
 
-/*! \brief Park SIP call support function */
+/*! \brief Park SIP call support function 
+	Starts in a new thread, then parks the call
+	XXX Should we add a wait period after streaming audio and before hangup?? Sometimes the
+		audio can't be heard before hangup
+*/
 static void *sip_park_thread(void *stuff)
 {
 	struct ast_channel *transferee, *transferer;	/* Chan1: The transferee, Chan2: The transferer */
@@ -11310,7 +11462,9 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	return -1;
 }
 
-/*! \brief Turn off generator data */
+/*! \brief Turn off generator data 
+	XXX Does this function belong in the SIP channel?
+*/
 static void ast_quiet_chan(struct ast_channel *chan) 
 {
 	if (chan && chan->_state == AST_STATE_UP) {
@@ -11412,7 +11566,7 @@ static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target
  * \return Returns the pointer to the provided tag buffer,
  *         or NULL if the tag was not found.
  */
-static const char *gettag(const struct sip_request *req, const char *header, char *tagbuf, int tagbufsize) 
+static const char *gettag(const struct sip_request *req, const char *header, char *tagbuf, int tagbufsize)
 {
 	const char *thetag;
 
@@ -12149,7 +12303,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 /*! \brief  Find all call legs and bridge transferee with target 
  *	called from handle_request_refer */
-int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno)
+static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno)
 {
 	struct sip_dual target;		/* Chan 1: Call from tranferer to Asterisk */
 					/* Chan 2: Call from Asterisk to target */
@@ -12716,6 +12870,7 @@ static int handle_request_message(struct sip_pvt *p, struct sip_request *req)
 	transmit_response(p, "202 Accepted", req);
 	return 1;
 }
+
 /*! \brief  Handle incoming SUBSCRIBE request */
 static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, char *e)
 {
@@ -13776,7 +13931,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 }
 
 /*!
-  \brief Handle flag-type options common to users and peers
+  \brief Handle flag-type options common to configuration of devices - users and peers
   \param flags array of two struct ast_flags
   \param mask array of two struct ast_flags
   \param v linked list of config variables to process
@@ -14931,7 +15086,7 @@ static int reload_config(enum channelreloadreason reason)
 	return 0;
 }
 
-/*! \brief Returns null if we can't reinvite (part of RTP interface) */
+/*! \brief Returns null if we can't reinvite audio (part of RTP interface) */
 static struct ast_rtp *sip_get_rtp_peer(struct ast_channel *chan)
 {
 	struct sip_pvt *p;
