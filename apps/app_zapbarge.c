@@ -217,6 +217,7 @@ zapretry:
 				break;
 			if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#')) {
 				ret = 0;
+				ast_frfree(f);
 				break;
 			} else if (fd != chan->fds[0]) {
 				if (f->frametype == AST_FRAME_VOICE) {
