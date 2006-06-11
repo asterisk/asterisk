@@ -234,11 +234,13 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 					myf.f.data = myf.frdata;
 					if (ast_write(chan, &myf.f) < 0) {
 						res = -1;
+						ast_frfree(f);
 						break;
 					}
 					if (res < needed) { /* last frame */
 						ast_log(LOG_DEBUG, "Last frame\n");
 						res=0;
+						ast_frfree(f);
 						break;
 					}
 				} else {
