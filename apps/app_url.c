@@ -143,6 +143,7 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 					if (local_option_jump || ast_opt_priority_jumping)
 			 			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 					res = 0;
+					ast_frfree(f);
 					goto out;
 					break;
 				default:
