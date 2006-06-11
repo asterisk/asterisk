@@ -4908,8 +4908,10 @@ static void *async_wait(void *data)
 			break;
 		if (f->frametype == AST_FRAME_CONTROL) {
 			if ((f->subclass == AST_CONTROL_BUSY)  ||
-				(f->subclass == AST_CONTROL_CONGESTION) )
-					break;
+			    (f->subclass == AST_CONTROL_CONGESTION) ) {
+				ast_frfree(f);
+				break;
+			}
 		}
 		ast_frfree(f);
 	}
