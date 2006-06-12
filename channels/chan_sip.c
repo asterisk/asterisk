@@ -3128,9 +3128,9 @@ static int sip_hangup(struct ast_channel *ast)
 					if (p->vrtp)
 						append_history(p, "RTCPvideo", "Quality:%s", videoqos);
 				}
-				if (p->rtp)
+				if (p->rtp && p->owner)
 					pbx_builtin_setvar_helper(p->owner, "RTPAUDIOQOS", audioqos);
-				if (p->vrtp)
+				if (p->vrtp && p->owner)
 					pbx_builtin_setvar_helper(p->owner, "RTPVIDEOQOS", videoqos);
 			} else {
 				/* Note we will need a BYE when this all settles out
