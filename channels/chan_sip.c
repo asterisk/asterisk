@@ -1647,7 +1647,7 @@ static enum sip_result ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *
 		}
 	} else if (bindaddr.sin_addr.s_addr)
 		*us = bindaddr.sin_addr;
-	return AST_FAILURE;
+	return AST_SUCCESS;
 }
 
 /*! \brief Append to SIP dialog history 
