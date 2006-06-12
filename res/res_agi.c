@@ -282,6 +282,9 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		return -1;
 	}
 	if (!pid) {
+		/* Don't run AGI scripts with realtime priority -- it causes audio stutter */
+		ast_set_priority(0);
+
 		/* Redirect stdin and out, provide enhanced audio channel if desired */
 		dup2(fromast[0], STDIN_FILENO);
 		dup2(toast[1], STDOUT_FILENO);
@@ -300,9 +303,6 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		/* Close everything but stdin/out/error */
 		for (x=STDERR_FILENO + 2;x<1024;x++) 
 			close(x);
-
-		/* Don't run AGI scripts with realtime priority -- it causes audio stutter */
-		ast_set_priority(0);
 
 		/* Execute script */
 		execv(script, argv);
