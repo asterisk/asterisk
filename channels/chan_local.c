@@ -186,7 +186,13 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 		return;
 	if (!p->chan || !p->owner)
 		return;
-	if (isoutbound&& p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && !p->owner->readq) {
+
+	/* only do the masquerade if we are being called on the outbound channel,
+	   if it has been bridged to another channel and if there are no pending
+	   frames on the owner channel (because they would be transferred to the
+	   outbound channel during the masquerade)
+	*/
+	if (isoutbound && p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && !p->owner->readq) {
 		/* Masquerade bridged channel into owner */
 		/* Lock everything we need, one by one, and give up if
 		   we can't get everything.  Remember, we'll get another
@@ -203,6 +209,11 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 				ast_mutex_unlock(&(p->chan->_bridge)->lock);
 			}
 		}
+	/* We only allow masquerading in one 'direction'... it's important to preserve the state
+	   (group variables, etc.) that live on p->chan->_bridge (and were put there by the dialplan)
+	   when the local channels go away.
+	*/
+#if 0
 	} else if (!isoutbound && p->owner && p->owner->_bridge && p->chan && !p->chan->readq) {
 		/* Masquerade bridged channel into chan */
 		if (!ast_mutex_trylock(&(p->owner->_bridge)->lock)) {
@@ -217,6 +228,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 			}
 			ast_mutex_unlock(&(p->owner->_bridge)->lock);
 		}
+#endif
 	}
 }
 
