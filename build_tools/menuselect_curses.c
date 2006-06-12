@@ -276,6 +276,7 @@ int run_category_menu(WINDOW *menu, int cat_num)
 		case 'h':
 		case 'H':
 			show_help(menu);
+			changed = 1;
 			break;
 		case KEY_F(7):
 			set_all(cat, 0);
