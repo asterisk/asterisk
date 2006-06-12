@@ -5518,9 +5518,6 @@ static void __expire_registry(void *data)
 	AST_LIST_LOCK(&peers);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&peers, p, entry) {
 		if (!strcasecmp(p->name, name)) {
-			/* If we are set to auto clear then remove ourselves */
-			if (ast_test_flag(p, IAX_RTAUTOCLEAR))
-				AST_LIST_REMOVE_CURRENT(&peers, entry);
 			p->expire = -1;
 			break;
 		}
@@ -5546,8 +5543,8 @@ static void __expire_registry(void *data)
 		iax2_regfunk(p->name, 0);
 
 	if (ast_test_flag(p, IAX_RTAUTOCLEAR)) {
-		/* We are already gone from the list, so we can just destroy ourselves */
-		destroy_peer(p);
+		ast_set_flag(p, IAX_DELME);
+		prune_peers();
 	}
 }
 
