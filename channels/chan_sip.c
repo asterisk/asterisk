@@ -1140,9 +1140,6 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 static void free_old_route(struct sip_route *route);
 static void list_route(struct sip_route *route);
 static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards);
-static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
-					 const char *secret, const char *md5secret, int sipmethod,
-					 char *uri, enum xmittype reliable, int ignore);
 static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr_in *sin,
 					      struct sip_request *req, char *uri);
 static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *totag, const char *fromtag);
@@ -6798,26 +6795,28 @@ static int set_address_from_contact(struct sip_pvt *pvt)
 }
 
 
-/*! \brief Parse contact header and save registration */
-static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_request *req)
+/*! \brief Parse contact header and save registration (peer registration) */
+static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, struct sip_peer *peer, struct sip_request *req)
 {
 	char contact[BUFSIZ]; 
 	char data[BUFSIZ];
 	char iabuf[INET_ADDRSTRLEN];
 	const char *expires = get_header(req, "Expires");
 	int expiry = atoi(expires);
-	char *c, *n, *pt;
+	char *curi, *n, *pt;
 	int port;
 	const char *useragent;
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	struct sockaddr_in oldsin;
 
+	ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
+
 	if (ast_strlen_zero(expires)) {	/* No expires header */
-		expires = strcasestr(get_header(req, "Contact"), ";expires=");
+		expires = strcasestr(contact, ";expires=");
 		if (expires) {
 			/* XXX bug here, we overwrite the string */
-			expires = strsep((char **)&expires, ";"); /* trim ; and beyond */
+			expires = strsep((char **) &expires, ";"); /* trim ; and beyond */
 			if (sscanf(expires + 9, "%d", &expiry) != 1)
 				expiry = default_expiry;
 		} else {
@@ -6825,57 +6824,61 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 			expiry = default_expiry;
 		}
 	}
+
 	/* Look for brackets */
-	ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
-	c = contact;
+	curi = contact;
 	if (strchr(contact, '<') == NULL)	/* No <, check for ; and strip it */
-		strsep(&c, ";");	/* This is Header options, not URI options */
-	c = get_in_brackets(contact);
+		strsep(&curi, ";");	/* This is Header options, not URI options */
+	curi = get_in_brackets(contact);
 
 	/* if they did not specify Contact: or Expires:, they are querying
 	   what we currently have stored as their contact address, so return
 	   it
 	*/
-	if (ast_strlen_zero(c) && ast_strlen_zero(expires)) {
+	if (ast_strlen_zero(curi) && ast_strlen_zero(expires)) {
 		/* If we have an active registration, tell them when the registration is going to expire */
-		if (p->expire > -1 && !ast_strlen_zero(p->fullcontact))
-			pvt->expiry = ast_sched_when(sched, p->expire);
+		if (peer->expire > -1 && !ast_strlen_zero(peer->fullcontact))
+			pvt->expiry = ast_sched_when(sched, peer->expire);
 		return PARSE_REGISTER_QUERY;
-	} else if (!strcasecmp(c, "*") || !expiry) {	/* Unregister this peer */
+	} else if (!strcasecmp(curi, "*") || !expiry) {	/* Unregister this peer */
 		/* This means remove all registrations and return OK */
-		memset(&p->addr, 0, sizeof(p->addr));
-		if (p->expire > -1)
-			ast_sched_del(sched, p->expire);
-		p->expire = -1;
+		memset(&peer->addr, 0, sizeof(peer->addr));
+		if (peer->expire > -1)
+			ast_sched_del(sched, peer->expire);
+		peer->expire = -1;
 
-		destroy_association(p);
+		destroy_association(peer);
 		
-		register_peer_exten(p, 0);
-		p->fullcontact[0] = '\0';
-		p->useragent[0] = '\0';
-		p->sipoptions = 0;
-		p->lastms = 0;
+		register_peer_exten(peer, 0);	/* Add extension from regexten= setting in sip.conf */
+		peer->fullcontact[0] = '\0';
+		peer->useragent[0] = '\0';
+		peer->sipoptions = 0;
+		peer->lastms = 0;
 
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->name);
-			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\n", p->name);
+			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", peer->name);
+			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\n", peer->name);
 		return PARSE_REGISTER_UPDATE;
 	}
-	ast_copy_string(p->fullcontact, c, sizeof(p->fullcontact));
+
+	/* Store whatever we got as a contact from the client */
+	ast_copy_string(peer->fullcontact, curi, sizeof(peer->fullcontact));
+
 	/* For the 200 OK, we should use the received contact */
-	ast_string_field_build(pvt, our_contact, "<%s>", c);
+	ast_string_field_build(pvt, our_contact, "<%s>", curi);
+
 	/* Make sure it's a SIP URL */
-	if (strncasecmp(c, "sip:", 4)) {
-		ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", c);
+	if (strncasecmp(curi, "sip:", 4)) {
+		ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", curi);
 	} else
-		c += 4;
+		curi += 4;
 	/* Ditch q */
-	c = strsep(&c, ";");
+	curi = strsep(&curi, ";");
 	/* Grab host */
-	n = strchr(c, '@');
+	n = strchr(curi, '@');
 	if (!n) {
-		n = c;
-		c = NULL;
+		n = curi;
+		curi = NULL;
 	} else
 		*n++ = '\0';
 	pt = strchr(n, ':');
@@ -6884,60 +6887,59 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		port = atoi(pt);
 	} else
 		port = DEFAULT_SIP_PORT;
-	oldsin = p->addr;
-	if (!ast_test_flag(&p->flags[0], SIP_NAT_ROUTE)) {
+	oldsin = peer->addr;
+	if (!ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE)) {
 		/* XXX This could block for a long time XXX */
 		hp = ast_gethostbyname(n, &ahp);
 		if (!hp)  {
 			ast_log(LOG_WARNING, "Invalid host '%s'\n", n);
 			return PARSE_REGISTER_FAILED;
 		}
-		p->addr.sin_family = AF_INET;
-		memcpy(&p->addr.sin_addr, hp->h_addr, sizeof(p->addr.sin_addr));
-		p->addr.sin_port = htons(port);
+		peer->addr.sin_family = AF_INET;
+		memcpy(&peer->addr.sin_addr, hp->h_addr, sizeof(peer->addr.sin_addr));
+		peer->addr.sin_port = htons(port);
 	} else {
 		/* Don't trust the contact field.  Just use what they came to us
 		   with */
-		p->addr = pvt->recv;
+		peer->addr = pvt->recv;
 	}
 
 	/* Save SIP options profile */
-	p->sipoptions = pvt->sipoptions;
+	peer->sipoptions = pvt->sipoptions;
 
-	if (c)	/* Overwrite the default username from config at registration */
-		ast_copy_string(p->username, c, sizeof(p->username));
+	if (curi)	/* Overwrite the default username from config at registration */
+		ast_copy_string(peer->username, curi, sizeof(peer->username));
 	else
-		p->username[0] = '\0';
+		peer->username[0] = '\0';
 
-	if (p->expire > -1)
-		ast_sched_del(sched, p->expire);
+	if (peer->expire > -1)
+		ast_sched_del(sched, peer->expire);
 	if (expiry > max_expiry)
 		expiry = max_expiry;
 	if (expiry < min_expiry)
 		expiry = min_expiry;
-	p->expire = ast_test_flag(&p->flags[0], SIP_REALTIME) ? -1 :
-		ast_sched_add(sched, (expiry + 10) * 1000, expire_register, p);
+	peer->expire = ast_test_flag(&peer->flags[0], SIP_REALTIME) ? -1 :
+		ast_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
 	pvt->expiry = expiry;
-	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->fullcontact);
-	if (!ast_test_flag(&p->flags[1], SIP_PAGE2_RT_FROMCONTACT)) 
-		ast_db_put("SIP/Registry", p->name, data);
-	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", p->name);
-	if (inaddrcmp(&p->addr, &oldsin)) {
-		sip_poke_peer(p);
+	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry, peer->username, peer->fullcontact);
+	if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT)) 
+		ast_db_put("SIP/Registry", peer->name, data);
+	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", peer->name);
+
+	/* Is this a new IP address for us? */
+	if (inaddrcmp(&peer->addr, &oldsin)) {
+		sip_poke_peer(peer);
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->name, ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
-		register_peer_exten(p, 1);
+			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", peer->name, ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry);
+		register_peer_exten(peer, 1);
 	}
 	
-	/* Save SIP options profile */
-	p->sipoptions = pvt->sipoptions;
-
 	/* Save User agent */
 	useragent = get_header(req, "User-Agent");
-	if (useragent && strcasecmp(useragent, p->useragent)) {
-		ast_copy_string(p->useragent, useragent, sizeof(p->useragent));
+	if (useragent && strcasecmp(useragent, peer->useragent)) {
+		ast_copy_string(peer->useragent, useragent, sizeof(peer->useragent));
 		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n",p->useragent,p->name);  
+			ast_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n", peer->useragent, peer->name);  
 	}
 	return PARSE_REGISTER_UPDATE;
 }
@@ -7266,7 +7268,11 @@ static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *r
 	transmit_response_with_auth(p, "401 Unauthorized", req, p->randdata, reliable, "WWW-Authenticate", 0);
 }
 
-/*! \brief Verify registration of user */
+/*! \brief Verify registration of user 
+	- Registration is done in several steps, first a REGISTER without auth
+	  to get a challenge (nonce) then a second one with auth
+	- Registration requests are only matched with peers that are marked as "dynamic"
+ */
 static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr_in *sin,
 					      struct sip_request *req, char *uri)
 {
@@ -7327,6 +7333,9 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			transmit_response(p, "100 Trying", req);
 			if (!(res = check_auth(p, req, peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri, XMIT_UNRELIABLE, ast_test_flag(req, SIP_PKT_IGNORE)))) {
 				sip_cancel_destroy(p);
+
+				/* We have a succesful registration attemp with proper authentication,
+				   now, update the peer */
 				switch (parse_register_contact(p, peer, req)) {
 				case PARSE_REGISTER_FAILED:
 					ast_log(LOG_WARNING, "Failed to parse contact info\n");
