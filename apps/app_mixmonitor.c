@@ -92,12 +92,11 @@ struct module_symbols *me;
 static const char *mixmonitor_spy_type = "MixMonitor";
 
 struct mixmonitor {
-	struct ast_channel *chan;
-	char *filename;
+	struct ast_channel_spy *spy;
+	struct ast_filestream *fs;
 	char *post_process;
+	char *name;
 	unsigned int flags;
-	int readvol;
-	int writevol;
 };
 
 enum {
@@ -123,18 +122,20 @@ AST_APP_OPTIONS(mixmonitor_opts, {
 	AST_APP_OPTION_ARG('W', MUXFLAG_VOLUME, OPT_ARG_VOLUME),
 });
 
-static void stopmon(struct ast_channel *chan, struct ast_channel_spy *spy) 
+static void stopmon(struct ast_channel_spy *spy) 
 {
+	struct ast_channel *chan = spy->chan;
+
 	/* If our status has changed to DONE, then the channel we're spying on is gone....
 	   DON'T TOUCH IT!!!  RUN AWAY!!! */
 	if (spy->status == CHANSPY_DONE)
 		return;
-
+  
 	if (!chan)
 		return;
 
 	ast_channel_lock(chan);
-	ast_channel_spy_remove(chan, spy);
+	ast_channel_spy_remove(spy->chan, spy);
 	ast_channel_unlock(chan);
 }
 
@@ -149,7 +150,7 @@ static int startmon(struct ast_channel *chan, struct ast_channel_spy *spy)
 	ast_channel_lock(chan);
 	res = ast_channel_spy_add(chan, spy);
 	ast_channel_unlock(chan);
-		
+
 	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan)))
 		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);	
 
@@ -161,91 +162,31 @@ static int startmon(struct ast_channel *chan, struct ast_channel_spy *spy)
 static void *mixmonitor_thread(void *obj) 
 {
 	struct mixmonitor *mixmonitor = obj;
-	struct ast_channel_spy spy;
-	struct ast_filestream *fs = NULL;
-	char *ext, *name;
-	unsigned int oflags;
-	struct ast_frame *f;
-	char post_process[1024] = "";
+	struct ast_frame *f = NULL;
 	
 	ast_atomic_fetchadd_int(&__mod_desc->usecnt, +1);
-
-	name = ast_strdupa(mixmonitor->chan->name);
-
-	oflags = O_CREAT|O_WRONLY;
-	oflags |= ast_test_flag(mixmonitor, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
-		
-	if ((ext = strrchr(mixmonitor->filename, '.'))) {
-		*(ext++) = '\0';
-	} else {
-		ext = "raw";
-	}
-
-	fs = ast_writefile(mixmonitor->filename, ext, NULL, oflags, 0, 0644);
-	if (!fs) {
-		ast_log(LOG_ERROR, "Cannot open %s.%s\n", mixmonitor->filename, ext);
-		goto out;
-	}
-
-	if (ast_test_flag(mixmonitor, MUXFLAG_APPEND))
-		ast_seekstream(fs, 0, SEEK_END);
 	
-	memset(&spy, 0, sizeof(spy));
-	ast_set_flag(&spy, CHANSPY_FORMAT_AUDIO);
-	ast_set_flag(&spy, CHANSPY_MIXAUDIO);
-	spy.type = mixmonitor_spy_type;
-	spy.status = CHANSPY_RUNNING;
-	spy.read_queue.format = AST_FORMAT_SLINEAR;
-	spy.write_queue.format = AST_FORMAT_SLINEAR;
-	if (mixmonitor->readvol) {
-		ast_set_flag(&spy, CHANSPY_READ_VOLADJUST);
-		spy.read_vol_adjustment = mixmonitor->readvol;
-	}
-	if (mixmonitor->writevol) {
-		ast_set_flag(&spy, CHANSPY_WRITE_VOLADJUST);
-		spy.write_vol_adjustment = mixmonitor->writevol;
-	}
-	ast_mutex_init(&spy.lock);
-
-	if (startmon(mixmonitor->chan, &spy)) {
-		ast_log(LOG_WARNING, "Unable to add '%s' spy to channel '%s'\n",
-			spy.type, mixmonitor->chan->name);
-		goto out2;
-	}
-
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Begin MixMonitor Recording %s\n", name);
+		ast_verbose(VERBOSE_PREFIX_2 "Begin MixMonitor Recording %s\n", mixmonitor->name);
 	
-	if (mixmonitor->post_process) {
-		char *p;
+	ast_mutex_lock(&mixmonitor->spy->lock);
 
-		for (p = mixmonitor->post_process; *p ; p++) {
-			if (*p == '^' && *(p+1) == '{') {
-				*p = '$';
-			}
-		}
-		pbx_substitute_variables_helper(mixmonitor->chan, mixmonitor->post_process, post_process, sizeof(post_process) - 1);
-	}
-
-	while (1) {
-		struct ast_frame *next;
+	while (mixmonitor->spy->chan) {
+		struct ast_frame *next = NULL;
 		int write;
 
-		ast_mutex_lock(&spy.lock);
-
-		ast_channel_spy_trigger_wait(&spy);
+		ast_channel_spy_trigger_wait(mixmonitor->spy);
 		
-		if (ast_check_hangup(mixmonitor->chan) || spy.status != CHANSPY_RUNNING) {
-			ast_mutex_unlock(&spy.lock);
+		if (!mixmonitor->spy->chan || mixmonitor->spy->status != CHANSPY_RUNNING) {
 			break;
 		}
 		
 		while (1) {
-			if (!(f = ast_channel_spy_read_frame(&spy, SAMPLES_PER_FRAME)))
+			if (!(f = ast_channel_spy_read_frame(mixmonitor->spy, SAMPLES_PER_FRAME)))
 				break;
 
 			write = (!ast_test_flag(mixmonitor, MUXFLAG_BRIDGED) ||
-				 ast_bridged_channel(mixmonitor->chan));
+				 ast_bridged_channel(mixmonitor->spy->chan));
 
 			/* it is possible for ast_channel_spy_read_frame() to return a chain
 			   of frames if a queue flush was necessary, so process them
@@ -253,32 +194,33 @@ static void *mixmonitor_thread(void *obj)
 			for (; f; f = next) {
 				next = f->next;
 				if (write)
-					ast_writestream(fs, f);
+					ast_writestream(mixmonitor->fs, f);
 				ast_frfree(f);
 			}
 		}
-
-		ast_mutex_unlock(&spy.lock);
 	}
+
+	ast_mutex_unlock(&mixmonitor->spy->lock);
 	
-	stopmon(mixmonitor->chan, &spy);
+	stopmon(mixmonitor->spy);
 
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "End MixMonitor Recording %s\n", name);
+		ast_verbose(VERBOSE_PREFIX_2 "End MixMonitor Recording %s\n", mixmonitor->name);
 
-	if (!ast_strlen_zero(post_process)) {
+	if (!ast_strlen_zero(mixmonitor->post_process)) {
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_2 "Executing [%s]\n", post_process);
-		ast_safe_system(post_process);
+			ast_verbose(VERBOSE_PREFIX_2 "Executing [%s]\n", mixmonitor->post_process);
+		ast_safe_system(mixmonitor->post_process);
 	}
 
-out2:
-	ast_mutex_destroy(&spy.lock);
+	ast_mutex_destroy(&mixmonitor->spy->lock);
+		
+	ast_closestream(mixmonitor->fs);
 
-	if (fs)
-		ast_closestream(fs);
-
-out:
+	/* Deallocate everything */
+	free(mixmonitor->spy);
+	free(mixmonitor->post_process);
+	free(mixmonitor->name);
 	free(mixmonitor);
 
 	ast_atomic_fetchadd_int(&__mod_desc->usecnt, -1);
@@ -292,31 +234,92 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 	pthread_attr_t attr;
 	pthread_t thread;
 	struct mixmonitor *mixmonitor;
-	int len;
+	char *file_name, *postprocess, *ext, postprocess2[1024] = "";
+	unsigned int oflags;
 
-	len = sizeof(*mixmonitor) + strlen(filename) + 1;
-	if (!ast_strlen_zero(post_process))
-		len += strlen(post_process) + 1;
-
-	if (!(mixmonitor = ast_calloc(1, len))) {
+	if (!(mixmonitor = ast_calloc(1, sizeof(*mixmonitor)))) {
+		ast_log(LOG_ERROR, "Memory Error!\n");
 		return;
 	}
 
-	mixmonitor->chan = chan;
-	mixmonitor->filename = (char *) mixmonitor + sizeof(*mixmonitor);
-	strcpy(mixmonitor->filename, filename);
-	if (!ast_strlen_zero(post_process)) {
-		mixmonitor->post_process = mixmonitor->filename + strlen(filename) + 1;
-		strcpy(mixmonitor->post_process, post_process);
-	}
-	mixmonitor->readvol = readvol;
-	mixmonitor->writevol = writevol;
+	if (!(mixmonitor->spy = ast_calloc(1, sizeof(*mixmonitor->spy)))) {
+                ast_log(LOG_ERROR, "Memory Error!\n");
+		free(mixmonitor);
+                return;
+        }
+
+	/* Copy over flags and channel name */
 	mixmonitor->flags = flags;
+	mixmonitor->name = ast_strdup(chan->name);
+
+	/* Determine creation flags and filename plus extension for filestream */
+	oflags = O_CREAT | O_WRONLY;
+	oflags |= ast_test_flag(mixmonitor, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
+	file_name = ast_strdupa(filename);
+	if ((ext = strrchr(file_name, '.'))) {
+		*(ext++) = '\0';
+	} else {
+		ext = "raw";
+	}
+
+	/* Move onto actually creating the filestream */
+	mixmonitor->fs = ast_writefile(file_name, ext, NULL, oflags, 0, 0644);
+	if (!mixmonitor->fs) {
+		ast_log(LOG_ERROR, "Cannot open %s.%s\n", file_name, ext);
+		free(mixmonitor->name);
+		free(mixmonitor->spy);
+		free(mixmonitor);
+		return;
+	}
+
+	/* If a post process system command is given attach it to the structure */
+	if (!ast_strlen_zero(post_process)) {
+		char *p = NULL;
+		postprocess = ast_strdupa(post_process);
+		for (p = postprocess; *p ; p++) {
+			if (*p == '^' && *(p+1) == '{') {
+				*p = '$';
+			}
+		}
+		pbx_substitute_variables_helper(chan, postprocess, postprocess2, sizeof(postprocess2) - 1);
+		mixmonitor->post_process = strdup(postprocess2);
+	}
+
+	/* Setup the actual spy before creating our thread */
+	ast_set_flag(mixmonitor->spy, CHANSPY_FORMAT_AUDIO);
+	ast_set_flag(mixmonitor->spy, CHANSPY_MIXAUDIO);
+	mixmonitor->spy->type = mixmonitor_spy_type;
+	mixmonitor->spy->status = CHANSPY_RUNNING;
+	mixmonitor->spy->read_queue.format = AST_FORMAT_SLINEAR;
+	mixmonitor->spy->write_queue.format = AST_FORMAT_SLINEAR;
+	if (readvol) {
+		ast_set_flag(mixmonitor->spy, CHANSPY_READ_VOLADJUST);
+		mixmonitor->spy->read_vol_adjustment = readvol;
+	}
+	if (writevol) {
+		ast_set_flag(mixmonitor->spy, CHANSPY_WRITE_VOLADJUST);
+		mixmonitor->spy->write_vol_adjustment = writevol;
+	}
+	ast_mutex_init(&mixmonitor->spy->lock);
+
+	if (startmon(chan, mixmonitor->spy)) {
+		ast_log(LOG_WARNING, "Unable to add '%s' spy to channel '%s'\n",
+			mixmonitor->spy->type, chan->name);
+		/* Since we couldn't add ourselves - bail out! */
+		ast_mutex_destroy(&mixmonitor->spy->lock);
+		free(mixmonitor->post_process);
+		ast_closestream(mixmonitor->fs);
+		free(mixmonitor->name);
+		free(mixmonitor->spy);
+		free(mixmonitor);
+		return;
+	}
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	ast_pthread_create(&thread, &attr, mixmonitor_thread, mixmonitor);
 	pthread_attr_destroy(&attr);
+
 }
 
 static int mixmonitor_exec(struct ast_channel *chan, void *data)

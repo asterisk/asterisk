@@ -1122,6 +1122,9 @@ struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const
 
 int ast_channel_spy_add(struct ast_channel *chan, struct ast_channel_spy *spy)
 {
+	/* Link the owner channel to the spy */
+	spy->chan = chan;
+
 	if (!ast_test_flag(spy, CHANSPY_FORMAT_AUDIO)) {
 		ast_log(LOG_WARNING, "Could not add channel spy '%s' to channel '%s', only audio format spies are supported.\n",
 			spy->type, chan->name);
@@ -1191,7 +1194,14 @@ void ast_channel_spy_stop_by_type(struct ast_channel *chan, const char *type)
 
 void ast_channel_spy_trigger_wait(struct ast_channel_spy *spy)
 {
-	ast_cond_wait(&spy->trigger, &spy->lock);
+	struct timeval tv;
+	struct timespec ts;
+
+	tv = ast_tvadd(ast_tvnow(), ast_samp2tv(50000, 1000));
+	ts.tv_sec = tv.tv_sec;
+	ts.tv_nsec = tv.tv_usec * 1000;
+
+	ast_cond_timedwait(&spy->trigger, &spy->lock, &ts);
 }
 
 void ast_channel_spy_remove(struct ast_channel *chan, struct ast_channel_spy *spy)
@@ -1204,6 +1214,8 @@ void ast_channel_spy_remove(struct ast_channel *chan, struct ast_channel_spy *sp
 	AST_LIST_REMOVE(&chan->spies->list, spy, list);
 
 	ast_mutex_lock(&spy->lock);
+
+	spy->chan = NULL;
 
 	for (f = spy->read_queue.head; f; f = spy->read_queue.head) {
 		spy->read_queue.head = f->next;
@@ -1242,6 +1254,7 @@ static void detach_spies(struct ast_channel *chan)
 	/* Marking the spies as done is sufficient.  Chanspy or spy users will get the picture. */
 	AST_LIST_TRAVERSE(&chan->spies->list, spy, list) {
 		ast_mutex_lock(&spy->lock);
+		spy->chan = NULL;
 		if (spy->status == CHANSPY_RUNNING)
 			spy->status = CHANSPY_DONE;
 		if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE)
