@@ -1610,14 +1610,13 @@ static void build_via(struct sip_pvt *p)
 }
 
 /*! \brief NAT fix - decide which IP address to use for ASterisk server?
- * Only used for outbound registrations */
+ *
+ * Using the localaddr structure built up with localnet statements in sip.conf
+ * apply it to their address to see if we need to substitute our
+ * externip or can get away with our internal bindaddr
+ */
 static enum sip_result ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 {
-	/*
-	 * Using the localaddr structure built up with localnet statements
-	 * apply it to their address to see if we need to substitute our
-	 * externip or can get away with our internal bindaddr
-	 */
 	struct sockaddr_in theirs, ours;
 
 	/* Get our local information */
@@ -1642,7 +1641,6 @@ static enum sip_result ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *
 		if (option_debug) {
 			char iabuf[INET_ADDRSTRLEN];
 			ast_inet_ntoa(iabuf, sizeof(iabuf), *(struct in_addr *)&them->s_addr);
-		
 			ast_log(LOG_DEBUG, "Target address %s is not local, substituting externip\n", iabuf);
 		}
 	} else if (bindaddr.sin_addr.s_addr)
@@ -3834,7 +3832,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 
 	if (sin) {
 		p->sa = *sin;
-		if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
 			p->ourip = __ourip;
 	} else
 		p->ourip = __ourip;
@@ -13762,7 +13760,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 	}
 
 	/* Recalculate our side, and recalculate Call ID */
-	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+	if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
 		p->ourip = __ourip;
 	build_via(p);
 	build_callid_pvt(p);
@@ -13912,7 +13910,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	if (ast_strlen_zero(p->peername) && ext)
 		ast_string_field_set(p, peername, ext);
 	/* Recalculate our side, and recalculate Call ID */
-	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+	if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
 		p->ourip = __ourip;
 	build_via(p);
 	build_callid_pvt(p);
