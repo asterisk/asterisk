@@ -472,6 +472,9 @@ static int unload_module(void *mod)
 
 	STANDARD_HANGUP_LOCALUSERS;
 
+	if (say_cfg)
+		ast_config_destroy(say_cfg);
+
 	return res;	
 }
 
