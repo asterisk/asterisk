@@ -3426,7 +3426,6 @@ struct ast_context *ast_context_create(struct ast_context **extcontexts, const c
 
 	for (tmp = *local_contexts; tmp; tmp = tmp->next) {
 		if (!strcasecmp(tmp->name, name)) {
-			ast_mutex_unlock(&conlock);
 			ast_log(LOG_WARNING, "Tried to register context '%s', already in use\n", name);
 			if (!extcontexts)
 				ast_mutex_unlock(&conlock);
