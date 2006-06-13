@@ -2383,6 +2383,10 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		res = (chan->tech->write_video == NULL) ? 0 :
 			chan->tech->write_video(chan, fr);
 		break;
+	case AST_FRAME_MODEM:
+		res = (chan->tech->write == NULL) ? 0 :
+			chan->tech->write(chan, fr);
+		break;
 	case AST_FRAME_VOICE:
 		if (chan->tech->write == NULL)
 			break;	/*! \todo XXX should return 0 maybe ? */
