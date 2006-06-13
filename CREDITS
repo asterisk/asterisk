@@ -27,6 +27,9 @@ Wasim - Hangup detect
 * Thanks to QuickNet Technologies for their donation of an Internet
 PhoneJack and Linejack card to the project.  (http://www.quicknet.net)
 
+* Thanks to VoipSuppy for their donation of sipuras to the project for
+	t38 testing. (http://www.voipsupply.com)
+
 === MISCELLANEOUS PATCHES ===
 Jim Dixon - Zapata Telephony and app_rpt
 	http://www.zapatatelephony.org/app_rpt.html
@@ -123,6 +126,8 @@ Philippe Sultan - RADIUS CDR module
 	INRIA, http://www.inria.fr/
 
 John Martin, Aupix - Improved video support in the SIP channel
+
+Steve Underwood - Provided T.38 pass through support.
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
