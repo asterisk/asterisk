@@ -487,6 +487,9 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
                        if ( read_data == -1 )
                        {
                                ast_log(LOG_WARNING,"Unable to read from cache/festival fd");
+			       close(fd);
+			       ast_config_destroy(cfg);
+			       LOCAL_USER_REMOVE(u);
                                return -1;
                        }
                        n += read_data;
