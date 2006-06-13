@@ -1803,17 +1803,12 @@ static void ast_remotecontrol(char * data)
 
 	if (option_exec && data) {  /* hack to print output then exit if asterisk -rx is used */
 		char tempchar;
-#ifdef __Darwin__
-		struct pollfd fds[0];
-		fds[0].fd = ast_consock;
-		fds[0].events = POLLIN;
-		fds[0].revents = 0;
-		while (poll(fds, 1, 100) > 0) {
+		struct pollfd fds;
+		fds.fd = ast_consock;
+		fds.events = POLLIN;
+		fds.revents = 0;
+		while (poll(&fds, 1, 100) > 0)
 			ast_el_read_char(el, &tempchar);
-		}
-#else
-		while (!ast_el_read_char(el, &tempchar));
-#endif
 		return;
 	}
 	for(;;) {
