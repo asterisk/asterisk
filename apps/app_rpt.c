@@ -21,7 +21,7 @@
 /*! \file
  *
  * \brief Radio Repeater / Remote Base program 
- *  version 0.47 05/23/06
+ *  version 0.48 06/13/06
  * 
  * \author Jim Dixon, WB6NIL <jim@lambdatel.com>
  *
@@ -123,12 +123,10 @@
 
 /* Un-comment the following to include support for MDC-1200 digital tone
    signalling protocol (using KA6SQG's GPL'ed implementation) */
-/* file must be downloaded separately, not part of Asterisk distribution */
 /* #include "mdc_decode.c" */
 
 /* Un-comment the following to include support for notch filters in the
    rx audio stream (using Tony Fisher's mknotch (mkfilter) implementation) */
-/* file must be downloaded separately, not part of Asterisk distribution */
 /* #include "rpt_notch.c" */
 
 /* maximum digits in DTMF buffer, and seconds after * for DTMF command timeout */
@@ -244,7 +242,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/localtime.h"
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.47  05/23/2006";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.48  06/13/2006";
 
 static char *app = "Rpt";
 
@@ -6831,17 +6829,23 @@ char tmpstr[300];
 				/* if RX key */
 				if (f->subclass == AST_CONTROL_RADIO_KEY)
 				{
-					if (debug == 7) printf("@@@@ rx key\n");
-					myrpt->keyed = 1;
+					if ((!lasttx) || (myrpt->p.duplex > 1))
+					{
+						if (debug == 7) printf("@@@@ rx key\n");
+						myrpt->keyed = 1;
+					}
 				}
 				/* if RX un-key */
 				if (f->subclass == AST_CONTROL_RADIO_UNKEY)
 				{
-					if (debug == 7) printf("@@@@ rx un-key\n");
-					if(myrpt->keyed) {
-						rpt_telemetry(myrpt,UNKEY,NULL);
+					if ((!lasttx) || (myrpt->p.duplex > 1))
+					{
+						if (debug == 7) printf("@@@@ rx un-key\n");
+						if(myrpt->keyed) {
+							rpt_telemetry(myrpt,UNKEY,NULL);
+						}
+						myrpt->keyed = 0;
 					}
-					myrpt->keyed = 0;
 				}
 			}
 			ast_frfree(f);
