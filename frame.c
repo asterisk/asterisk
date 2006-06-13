@@ -816,6 +816,20 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 			break;
 		}
 		break;
+	case AST_FRAME_MODEM:
+		strcpy(ftype, "Modem");
+		switch (f->subclass) {
+		case AST_MODEM_T38:
+			strcpy(subclass, "T.38");
+			break;
+		case AST_MODEM_V150:
+			strcpy(subclass, "V.150");
+			break;
+		default:
+			snprintf(subclass, sizeof(subclass), "Unknown MODEM frame '%d'\n", f->subclass);
+			break;
+		}
+		break;
 	default:
 		snprintf(ftype, sizeof(ftype), "Unknown Frametype '%d'", f->frametype);
 	}

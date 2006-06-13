@@ -151,6 +151,13 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; separated by '&'.  Patterns may be used in regexten.
 ;
 ;regcontext=sipregistrations
+;----------------------------------------- T.38 FAX PASSTHROUGH SUPPORT -----------------------
+;
+; These settings are available in the [general] section as well as in device configurations
+;
+; t38pt_udptl = yes            ; Default false
+; t38pt_rtp = yes              ; Default false
+; t38pt_tcp = yes              ; Default false, not yet used
 ;
 ;----------------------------------------- OUTBOUND SIP REGISTRATIONS  ------------------------
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
