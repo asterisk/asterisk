@@ -74,13 +74,15 @@ static struct translator_path tr_matrix[MAX_FORMAT][MAX_FORMAT];
  */
 
 /*! \brief returns the index of the lowest bit set */
-static int powerof(int d)
+static force_inline int powerof(unsigned int d)
 {
-	int x;
-	for (x = 0; x < MAX_FORMAT; x++)
-		if ((1 << x) & d)
-			return x;
-	ast_log(LOG_WARNING, "Powerof %d: No power??\n", d);
+	int x = ffs(d);
+
+	if (x)
+		return x - 1;
+
+	ast_log(LOG_WARNING, "No bits set? %d\n", d);
+
 	return -1;
 }
 

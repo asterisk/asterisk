@@ -1334,12 +1334,13 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 	return chan;
 }
 
-static int powerof(unsigned int v)
+static force_inline int powerof(unsigned int d)
 {
-	int x;
-	for (x=0;x<32;x++) {
-		if (v & (1 << x)) return x;
-	}
+	int x = ffs(d);
+
+	if (x)
+		return x - 1;
+
 	return 0;
 }
 
