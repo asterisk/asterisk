@@ -6452,6 +6452,8 @@ static int load_config(void)
 							}
 						} else {
 							free(z);
+							AST_LIST_UNLOCK(&users);
+							ast_config_destroy(cfg);
 							return -1;
 						}
 						var = var->next;
@@ -6706,14 +6708,18 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 		return 0;
 	}
 
-	if (!(origtime = ast_variable_retrieve(msg_cfg, "message", "origtime")))
+	if (!(origtime = ast_variable_retrieve(msg_cfg, "message", "origtime"))) {
+		ast_config_destroy(msg_cfg);
 		return 0;
+	}
 
 	cid = ast_variable_retrieve(msg_cfg, "message", "callerid");
 
 	context = ast_variable_retrieve(msg_cfg, "message", "context");
 	if (!strncasecmp("macro",context,5)) /* Macro names in contexts are useless for our needs */
 		context = ast_variable_retrieve(msg_cfg, "message","macrocontext");
+
+	ast_config_destroy(msg_cfg);
 
 	switch (option) {
 	case 3:
@@ -6851,8 +6857,6 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 
 		break;
 	}
-
-	ast_config_destroy(msg_cfg);
 
 	if (!res) {
 		make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);
