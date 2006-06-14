@@ -134,9 +134,9 @@ static int local_devicestate(void *data)
 		ast_log(LOG_DEBUG, "Checking if extension %s@%s exists (devicestate)\n", exten, context);
 	res = ast_exists_extension(NULL, context, exten, 1, NULL);
 	if (!res)
-		return AST_DEVICE_NOT_INUSE;
+		return AST_DEVICE_INVALID;
 	else
-		return AST_DEVICE_INUSE;
+		return AST_DEVICE_UNKNOWN;
 }
 
 static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_frame *f, struct ast_channel *us)
