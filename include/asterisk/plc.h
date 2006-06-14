@@ -24,7 +24,9 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * This version may be optionally licenced under the GNU LGPL licence.
- * This version is disclaimed to DIGIUM for inclusion in the Asterisk project.
+ *
+ * A license has been granted to Digium (via disclaimer) for the use of
+ * this code.
  */
 
 
