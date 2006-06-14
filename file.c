@@ -866,6 +866,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 	struct ast_filestream *fs = NULL;
 	char *buf = NULL;
 	size_t size = 0;
+	int format_found = 0;
 
 	if (AST_LIST_LOCK(&formats)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
@@ -892,6 +893,8 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 
 		if (!exts_compare(f->exts, type))
 			continue;
+		else
+			format_found = 1;
 
 		fn = build_filename(filename, type);
 		fd = open(fn, flags | myflags, mode);
@@ -974,7 +977,8 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 	}
 
 	AST_LIST_UNLOCK(&formats);
-	if (!fs)
+
+	if (!format_found)
 		ast_log(LOG_WARNING, "No such format '%s'\n", type);
 
 	return fs;
