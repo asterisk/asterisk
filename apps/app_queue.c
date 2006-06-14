@@ -2037,11 +2037,13 @@ static int is_our_turn(struct queue_ent *qe)
 				ast_log(LOG_DEBUG, "Even though there are %d available members, the strategy is ringall so only the head call is allowed in\n", avl);
 			avl = 1;
 		} else {
-			cur = qe->parent->members;
-			while (cur) {
-				if (cur->status == 1) 
+			for (cur = qe->parent->members; cur; cur = cur->next) {
+				switch (cur->status) {
+				case AST_DEVICE_NOT_INUSE:
+				case AST_DEVICE_UNKNOWN:
 					avl++;
-				cur = cur->next;
+					break;
+				}
 			}
 		}
 
