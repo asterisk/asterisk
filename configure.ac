@@ -724,7 +724,7 @@ AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strcasecmp strchr strcspn strdup strerror strncasecmp strndup strnlen strrchr strsep strspn strstr strtol unsetenv utime strtoq strcasestr asprintf vasprintf])
 
 echo -n "checking for compiler atomic operations... "
-AC_COMPILE_IFELSE(
+AC_LINK_IFELSE(
 AC_LANG_PROGRAM([], [int foo1; int foo2 = __sync_fetch_and_add(&foo1, 1);]),
 AC_MSG_RESULT(yes)
 AC_DEFINE([HAVE_GCC_ATOMICS], 1, [Define to 1 if your GCC C compiler provides atomic operations.]),
