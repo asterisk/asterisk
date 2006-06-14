@@ -3887,7 +3887,7 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 {
 	struct ast_frame *fr;
 	struct sip_pvt *p = ast->tech_pvt;
-	int faxdetected = 0;
+	int faxdetected = FALSE;
 
 	ast_mutex_lock(&p->lock);
 	fr = sip_rtp_read(ast, p, &faxdetected);
@@ -4024,9 +4024,8 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			ast_rtp_settos(p->vrtp, global_tos_video);
 			ast_rtp_setdtmf(p->vrtp, 0);
 		}
-		if (p->udptl) {
+		if (p->udptl)
 			ast_udptl_settos(p->udptl, global_tos_audio);
-		}
 		p->rtptimeout = global_rtptimeout;
 		p->rtpholdtimeout = global_rtpholdtimeout;
 		p->rtpkeepalive = global_rtpkeepalive;
