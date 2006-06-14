@@ -472,8 +472,7 @@ static void *changethread(void *data)
 	technology = ast_strdupa(sc->dev);
 	loc = strchr(technology, '/');
 	if (loc) {
-		*loc = '\0';
-		loc++;
+		*loc++ = '\0';
 	} else {
 		free(sc);
 		return NULL;
@@ -486,43 +485,44 @@ static void *changethread(void *data)
 	}
 	AST_LIST_UNLOCK(&interfaces);
 	
-	if (curint) {
-
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s)\n", technology, loc, sc->state, devstate2str(sc->state));
-		ast_mutex_lock(&qlock);
-		for (q = queues; q; q = q->next) {
-			ast_mutex_lock(&q->lock);
-			cur = q->members;
-			while(cur) {
-				if (!strcasecmp(sc->dev, cur->interface)) {
-					if (cur->status != sc->state) {
-						cur->status = sc->state;
-						if (!q->maskmemberstatus) {
-							manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
-								"Queue: %s\r\n"
-								"Location: %s\r\n"
-								"Membership: %s\r\n"
-								"Penalty: %d\r\n"
-								"CallsTaken: %d\r\n"
-								"LastCall: %d\r\n"
-								"Status: %d\r\n"
-								"Paused: %d\r\n",
-							q->name, cur->interface, cur->dynamic ? "dynamic" : "static",
-							cur->penalty, cur->calls, (int)cur->lastcall, cur->status, cur->paused);
-						}
-					}
-				}
-				cur = cur->next;
-			}
-			ast_mutex_unlock(&q->lock);
-		}
-		ast_mutex_unlock(&qlock);
-	} else {
+	if (!curint) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n", technology, loc, sc->state, devstate2str(sc->state));
+		free(sc);
+		return NULL;
         }
-	free(sc);
+
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s)\n", technology, loc, sc->state, devstate2str(sc->state));
+	ast_mutex_lock(&qlock);
+	for (q = queues; q; q = q->next) {
+		ast_mutex_lock(&q->lock);
+		for (cur = q->members; cur; cur = cur->next) {
+			if (strcasecmp(sc->dev, cur->interface))
+				continue;
+
+			if (cur->status != sc->state) {
+				cur->status = sc->state;
+				if (q->maskmemberstatus)
+					continue;
+
+				manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
+					      "Queue: %s\r\n"
+					      "Location: %s\r\n"
+					      "Membership: %s\r\n"
+					      "Penalty: %d\r\n"
+					      "CallsTaken: %d\r\n"
+					      "LastCall: %d\r\n"
+					      "Status: %d\r\n"
+					      "Paused: %d\r\n",
+					      q->name, cur->interface, cur->dynamic ? "dynamic" : "static",
+					      cur->penalty, cur->calls, (int)cur->lastcall, cur->status, cur->paused);
+			}
+		}
+		ast_mutex_unlock(&q->lock);
+	}
+	ast_mutex_unlock(&qlock);
+
 	return NULL;
 }
 
@@ -534,17 +534,18 @@ static int statechange_queue(const char *dev, int state, void *ign)
 	pthread_t t;
 	pthread_attr_t attr;
 
-	sc = malloc(sizeof(struct statechange) + strlen(dev) + 1);
-	if (sc) {
-		sc->state = state;
-		strcpy(sc->dev, dev);
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (ast_pthread_create(&t, &attr, changethread, sc)) {
-			ast_log(LOG_WARNING, "Failed to create update thread!\n");
-			free(sc);
-		}
+	if (!(sc = malloc(sizeof(*sc) + strlen(dev) + 1)))
+		return 0;
+
+	sc->state = state;
+	strcpy(sc->dev, dev);
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	if (ast_pthread_create(&t, &attr, changethread, sc)) {
+		ast_log(LOG_WARNING, "Failed to create update thread!\n");
+		free(sc);
 	}
+
 	return 0;
 }
 
@@ -620,7 +621,7 @@ static void clear_queue(struct ast_call_queue *q)
 
 static int add_to_interfaces(char *interface) 
 {
-	struct ast_member_interfaces *curint, *newint;
+	struct ast_member_interfaces *curint;
 
 	if (!interface)
 		return 0;
@@ -631,19 +632,22 @@ static int add_to_interfaces(char *interface)
 			break; 
 	}
 
-	if (!curint) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Adding %s to the list of interfaces that make up all of our queue members.\n", interface);
+	if (curint) {
+		AST_LIST_UNLOCK(&interfaces);
+		return 0;
+	}
 
-	        if ((newint = malloc(sizeof(*newint)))) {
-			memset(newint, 0, sizeof(*newint));
-			ast_copy_string(newint->interface, interface, sizeof(newint->interface));
-			AST_LIST_INSERT_HEAD(&interfaces, newint, list);
-		}
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Adding %s to the list of interfaces that make up all of our queue members.\n", interface);
+	
+	if ((curint = malloc(sizeof(*curint)))) {
+		memset(curint, 0, sizeof(*curint));
+		ast_copy_string(curint->interface, interface, sizeof(curint->interface));
+		AST_LIST_INSERT_HEAD(&interfaces, curint, list);
 	}
 	AST_LIST_UNLOCK(&interfaces);
 
- return 0;
+	return 0;
 }
 
 static int interface_exists_global(char *interface)
@@ -658,13 +662,9 @@ static int interface_exists_global(char *interface)
 	ast_mutex_lock(&qlock);
 	for (q = queues; q && !ret; q = q->next) {
 		ast_mutex_lock(&q->lock);
-		mem = q->members;
-		while(mem) {
-			if (!strcasecmp(interface, mem->interface)) {
+		for (mem = q->members; mem && !ret; mem = mem->next) {
+			if (!strcasecmp(interface, mem->interface))
 				ret = 1;
-				break;
-			}
-			mem = mem->next;
 		}
 		ast_mutex_unlock(&q->lock);
 	}
@@ -672,7 +672,6 @@ static int interface_exists_global(char *interface)
 
 	return ret;
 }
-
 
 static int remove_from_interfaces(char *interface)
 {
@@ -683,11 +682,14 @@ static int remove_from_interfaces(char *interface)
 
 	AST_LIST_LOCK(&interfaces);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&interfaces, curint, list) {
-		if (!strcasecmp(curint->interface, interface) && !interface_exists_global(interface)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Removing %s from the list of interfaces that make up all of our queue members.\n", interface);
-			AST_LIST_REMOVE_CURRENT(&interfaces, list);
-			free(curint);
+		if (!strcasecmp(curint->interface, interface)) {
+			if (!interface_exists_global(interface)) {
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Removing %s from the list of interfaces that make up all of our queue members.\n", interface);
+				AST_LIST_REMOVE_CURRENT(&interfaces, list);
+				free(curint);
+			}
+			break;
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
@@ -701,14 +703,9 @@ static void clear_and_free_interfaces(void)
 	struct ast_member_interfaces *curint;
 
 	AST_LIST_LOCK(&interfaces);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&interfaces, curint, list) {
-		AST_LIST_REMOVE_CURRENT(&interfaces, list);
+	while ((curint = AST_LIST_REMOVE_HEAD(&interfaces, list)))
 		free(curint);
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&interfaces);
-
- 	return;
 }
 
 /*! \brief Configure a queue parameter.

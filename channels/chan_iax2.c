@@ -9330,51 +9330,39 @@ struct ast_custom_function iaxpeer_function = {
 /*--- iax2_devicestate: Part of the device state notification system ---*/
 static int iax2_devicestate(void *data) 
 {
-	char *dest = (char *) data;
+	struct parsed_dial_string pds;
+	char *tmp = ast_strdupa(data);
 	struct iax2_peer *p;
-	int found = 0;
-	char *ext, *host;
-	char tmp[256];
 	int res = AST_DEVICE_INVALID;
 
-	ast_copy_string(tmp, dest, sizeof(tmp));
-	host = strchr(tmp, '@');
-	if (host) {
-		*host = '\0';
-		host++;
-		ext = tmp;
-	} else {
-		host = tmp;
-		ext = NULL;
-	}
-
+	parse_dial_string(tmp, &pds);
+	if (!pds.peer || ast_strlen_zero(pds.peer))
+		return res;
+	
 	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Checking device state for device %s\n", dest);
+		ast_log(LOG_DEBUG, "Checking device state for device %s\n", pds.peer);
 
 	/* SLD: FIXME: second call to find_peer during registration */
-	p = find_peer(host, 1);
-	if (p) {
-		found++;
-		res = AST_DEVICE_UNAVAILABLE;
-		if (option_debug > 2) 
-			ast_log(LOG_DEBUG, "iax2_devicestate(%s): Found peer. What's device state of %s? addr=%d, defaddr=%d maxms=%d, lastms=%d\n",
-				host, dest, p->addr.sin_addr.s_addr, p->defaddr.sin_addr.s_addr, p->maxms, p->lastms);
+	if (!(p = find_peer(pds.peer, 1)))
+		return res;
 
-		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
-		    (!p->maxms || ((p->lastms > -1) && (p->historicms <= p->maxms)))) {
-			/* Peer is registered, or have default IP address
-			   and a valid registration */
-			if (p->historicms == 0 || p->historicms <= p->maxms)
-				/* let the core figure out whether it is in use or not */
-				res = AST_DEVICE_UNKNOWN;	
-		}
-	} else {
-		if (option_debug > 2) 
-			ast_log(LOG_DEBUG, "Devicestate: Can't find peer %s.\n", host);
-	}
+	res = AST_DEVICE_UNAVAILABLE;
+	if (option_debug > 2) 
+		ast_log(LOG_DEBUG, "iax2_devicestate: Found peer. What's device state of %s? addr=%d, defaddr=%d maxms=%d, lastms=%d\n",
+			pds.peer, p->addr.sin_addr.s_addr, p->defaddr.sin_addr.s_addr, p->maxms, p->lastms);
 	
-	if (p && ast_test_flag(p, IAX_TEMPONLY))
+	if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
+	    (!p->maxms || ((p->lastms > -1) && (p->historicms <= p->maxms)))) {
+		/* Peer is registered, or have default IP address
+		   and a valid registration */
+		if (p->historicms == 0 || p->historicms <= p->maxms)
+			/* let the core figure out whether it is in use or not */
+			res = AST_DEVICE_UNKNOWN;	
+	}
+
+	if (ast_test_flag(p, IAX_TEMPONLY))
 		destroy_peer(p);
+
 	return res;
 }
 
