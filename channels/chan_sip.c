@@ -11627,7 +11627,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					if (!p->refer) {
 						ast_log(LOG_WARNING, "Notify answer on an owned channel? - %s\n", p->owner->name);
 						ast_queue_hangup(p->owner);
-					}
+					} else if (option_debug > 3) 
+						ast_log(LOG_DEBUG, "Got OK on REFER Notify message\n");
 				} else {
 					if (p->subscribed == NONE) 
 						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY); 
