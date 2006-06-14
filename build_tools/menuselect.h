@@ -53,11 +53,11 @@ struct member {
 	/*! Default setting */
 	const char *defaultenabled;
 	/*! This module is currently selected */
-	int enabled;
+	int enabled:1;
 	/*! This module has failed dependencies */
-	int depsfailed;
+	int depsfailed:1;
 	/*! This module has failed conflicts */
-	int conflictsfailed;
+	int conflictsfailed:1;
 	/*! dependencies of this module */
 	AST_LIST_HEAD_NOLOCK(, depend) deps;
 	/*! conflicts of this module */
@@ -72,9 +72,9 @@ struct category {
 	/*! the name displayed in the menu */
 	const char *displayname;
 	/*! Display what is selected, as opposed to not selected */
-	int positive_output;
+	int positive_output:1;
 	/*! Force a clean of the source tree if anything in this category changes */
-	int force_clean_on_change;
+	int force_clean_on_change:1;
 	/*! the list of possible values to be set in this variable */
 	AST_LIST_HEAD_NOLOCK(, member) members;
 	/*! for linking */
