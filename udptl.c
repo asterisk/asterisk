@@ -11,7 +11,8 @@
  * This program is free software, distributed under the terms of
  * the GNU General Public License
  *
- * This version is disclaimed to DIGIUM for inclusion in the Asterisk project.
+ * A license has been granted to Digium (via disclaimer) for the use of
+ * this code.
  */
 
 #include "asterisk.h"
