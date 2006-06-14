@@ -140,16 +140,14 @@ static const char mandescr_agent_callback_login[] =
 
 static char moh[80] = "default";
 
-#define AST_MAX_AGENT	80		/**< Agent ID or Password max length */
+#define AST_MAX_AGENT	80                          /*!< Agent ID or Password max length */
 #define AST_MAX_BUF	256
 #define AST_MAX_FILENAME_LEN	256
 
-/** Persistent Agents astdb family */
-static const char pa_family[] = "/Agents";
-/** The maximum length of each persistent member agent database entry */
-#define PA_MAX_LEN 2048
-/** queues.conf [general] option */
-static int persistent_agents = 0;
+static const char pa_family[] = "/Agents";          /*!< Persistent Agents astdb family */
+#define PA_MAX_LEN 2048                             /*!< The maximum length of each persistent member agent database entry */
+
+static int persistent_agents = 0;                   /*!< queues.conf [general] option */
 static void dump_agents(void);
 
 static ast_group_t group;
@@ -173,37 +171,35 @@ static char beep[AST_MAX_BUF] = "beep";
 
 #define GETAGENTBYCALLERID	"AGENTBYCALLERID"
 
-/**
- * Structure representing an agent.
- */
+/*! \brief * Structure representing an agent.  */
 struct agent_pvt {
-	ast_mutex_t lock;              /**< Channel private lock */
-	int dead;                      /**< Poised for destruction? */
-	int pending;                   /**< Not a real agent -- just pending a match */
-	int abouttograb;               /**< About to grab */
-	int autologoff;                /**< Auto timeout time */
-	int ackcall;                   /**< ackcall */
-	time_t loginstart;             /**< When agent first logged in (0 when logged off) */
-	time_t start;                  /**< When call started */
-	struct timeval lastdisc;       /**< When last disconnected */
-	int wrapuptime;                /**< Wrapup time in ms */
-	ast_group_t group;             /**< Group memberships */
-	int acknowledged;              /**< Acknowledged */
-	char moh[80];                  /**< Which music on hold */
-	char agent[AST_MAX_AGENT];     /**< Agent ID */
-	char password[AST_MAX_AGENT];  /**< Password for Agent login */
+	ast_mutex_t lock;              /*!< Channel private lock */
+	int dead;                      /*!< Poised for destruction? */
+	int pending;                   /*!< Not a real agent -- just pending a match */
+	int abouttograb;               /*!< About to grab */
+	int autologoff;                /*!< Auto timeout time */
+	int ackcall;                   /*!< ackcall */
+	time_t loginstart;             /*!< When agent first logged in (0 when logged off) */
+	time_t start;                  /*!< When call started */
+	struct timeval lastdisc;       /*!< When last disconnected */
+	int wrapuptime;                /*!< Wrapup time in ms */
+	ast_group_t group;             /*!< Group memberships */
+	int acknowledged;              /*!< Acknowledged */
+	char moh[80];                  /*!< Which music on hold */
+	char agent[AST_MAX_AGENT];     /*!< Agent ID */
+	char password[AST_MAX_AGENT];  /*!< Password for Agent login */
 	char name[AST_MAX_AGENT];
-	ast_mutex_t app_lock;          /**< Synchronization between owning applications */
-	volatile pthread_t owning_app; /**< Owning application thread id */
-	volatile int app_sleep_cond;   /**< Sleep condition for the login app */
-	struct ast_channel *owner;     /**< Agent */
-	char loginchan[80];            /**< channel they logged in from */
-	char logincallerid[80];        /**< Caller ID they had when they logged in */
-	struct ast_channel *chan;      /**< Channel we use */
-	AST_LIST_ENTRY(agent_pvt) list;	/**< Next Agent in the linked list. */
+	ast_mutex_t app_lock;          /*!< Synchronization between owning applications */
+	volatile pthread_t owning_app; /*!< Owning application thread id */
+	volatile int app_sleep_cond;   /*!< Sleep condition for the login app */
+	struct ast_channel *owner;     /*!< Agent */
+	char loginchan[80];            /*!< channel they logged in from */
+	char logincallerid[80];        /*!< Caller ID they had when they logged in */
+	struct ast_channel *chan;      /*!< Channel we use */
+	AST_LIST_ENTRY(agent_pvt) list;	/*!< Next Agent in the linked list. */
 };
 
-static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/**< Holds the list of agents (loaded form agents.conf). */
+static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/*!< Holds the list of agents (loaded form agents.conf). */
 
 #define CHECK_FORMATS(ast, p) do { \
 	if (p->chan) {\
@@ -222,7 +218,7 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/**< Holds the list of agents (l
 	} \
 } while(0)
 
-/* Cleanup moves all the relevant FD's from the 2nd to the first, but retains things
+/*! \brief Cleanup moves all the relevant FD's from the 2nd to the first, but retains things
    properly for a timingfd XXX This might need more work if agents were logged in as agents or other
    totally impractical combinations XXX */
 
@@ -237,6 +233,7 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/**< Holds the list of agents (l
 	} \
 } while(0)
 
+/*--- Forward declarations */
 static struct ast_channel *agent_request(const char *type, int format, void *data, int *cause);
 static int agent_devicestate(void *data);
 static void agent_logoff_maintenance(struct agent_pvt *p, char *loginchan, long logintime, const char *uniqueid, char *logcommand);
@@ -253,6 +250,7 @@ static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge);
 static void set_agentbycallerid(const char *callerid, const char *agent);
 
+/*! \brief Channel interface description for PBX integration */
 static const struct ast_channel_tech agent_tech = {
 	.type = "Agent",
 	.description = tdesc,
@@ -273,13 +271,13 @@ static const struct ast_channel_tech agent_tech = {
 	.bridged_channel = agent_bridgedchannel,
 };
 
-/**
+/*!
  * Adds an agent to the global list of agents.
  *
- * @param agent A string with the username, password and real name of an agent. As defined in agents.conf. Example: "13,169,John Smith"
- * @param pending If it is pending or not.
+ * \param agent A string with the username, password and real name of an agent. As defined in agents.conf. Example: "13,169,John Smith"
+ * \param pending If it is pending or not.
  * @return The just created agent.
- * @sa agent_pvt, agents.
+ * \sa agent_pvt, agents.
  */
 static struct agent_pvt *add_agent(char *agent, int pending)
 {
@@ -365,10 +363,10 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	return p;
 }
 
-/**
+/*!
  * Deletes an agent after doing some clean up.
  * Further documentation: How safe is this function ? What state should the agent be to be cleaned.
- * @param p Agent to be deleted.
+ * \param p Agent to be deleted.
  * @returns Always 0.
  */
 static int agent_cleanup(struct agent_pvt *p)
@@ -972,7 +970,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 }
 
 
-/**
+/*!
  * Read configuration data. The file named agents.conf.
  *
  * @returns Always 0, or so it seems.
@@ -1344,13 +1342,13 @@ static force_inline int powerof(unsigned int d)
 	return 0;
 }
 
-/**
+/*!
  * Lists agents and their status to the Manager API.
  * It is registered on load_module() and it gets called by the manager backend.
- * @param s
- * @param m
+ * \param s
+ * \param m
  * @returns 
- * @sa action_agent_logoff(), action_agent_callback_login(), load_module().
+ * \sa action_agent_logoff(), action_agent_callback_login(), load_module().
  */
 static int action_agents(struct mansession *s, struct message *m)
 {
@@ -1513,13 +1511,13 @@ static int agent_logoff_cmd(int fd, int argc, char **argv)
 	return RESULT_SUCCESS;
 }
 
-/**
+/*!
  * Sets an agent as no longer logged in in the Manager API.
  * It is registered on load_module() and it gets called by the manager backend.
- * @param s
- * @param m
+ * \param s
+ * \param m
  * @returns 
- * @sa action_agents(), action_agent_callback_login(), load_module().
+ * \sa action_agents(), action_agent_callback_login(), load_module().
  */
 static int action_agent_logoff(struct mansession *s, struct message *m)
 {
@@ -1565,7 +1563,7 @@ static char *complete_agent_logoff_cmd(const char *line, const char *word, int p
 	return NULL;
 }
 
-/**
+/*!
  * Show agents in cli.
  */
 static int agents_show(int fd, int argc, char **argv)
@@ -2155,39 +2153,39 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
  	return -1;
 }
 
-/**
+/*!
  * Called by the AgentLogin application (from the dial plan).
  * 
- * @param chan
- * @param data
+ * \param chan
+ * \param data
  * @returns
- * @sa callback_login_exec(), agentmonitoroutgoing_exec(), load_module().
+ * \sa callback_login_exec(), agentmonitoroutgoing_exec(), load_module().
  */
 static int login_exec(struct ast_channel *chan, void *data)
 {
 	return __login_exec(chan, data, 0);
 }
 
-/**
+/*!
  *  Called by the AgentCallbackLogin application (from the dial plan).
  * 
- * @param chan
- * @param data
+ * \param chan
+ * \param data
  * @returns
- * @sa login_exec(), agentmonitoroutgoing_exec(), load_module().
+ * \sa login_exec(), agentmonitoroutgoing_exec(), load_module().
  */
 static int callback_exec(struct ast_channel *chan, void *data)
 {
 	return __login_exec(chan, data, 1);
 }
 
-/**
+/*!
  * Sets an agent as logged in by callback in the Manager API.
  * It is registered on load_module() and it gets called by the manager backend.
- * @param s
- * @param m
+ * \param s
+ * \param m
  * @returns 
- * @sa action_agents(), action_agent_logoff(), load_module().
+ * \sa action_agents(), action_agent_logoff(), load_module().
  */
 static int action_agent_callback_login(struct mansession *s, struct message *m)
 {
@@ -2263,13 +2261,13 @@ static int action_agent_callback_login(struct mansession *s, struct message *m)
 	return 0;
 }
 
-/**
- *  Called by the AgentMonitorOutgoing application (from the dial plan).
+/*!
+ *  \brief Called by the AgentMonitorOutgoing application (from the dial plan).
  *
- * @param chan
- * @param data
- * @returns
- * @sa login_exec(), callback_login_exec(), load_module().
+ * \param chan
+ * \param data
+ * \returns
+ * \sa login_exec(), callback_login_exec(), load_module().
  */
 static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 {
@@ -2315,6 +2313,7 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "There is no callerid on that call, so I can't figure out which agent (if it's an agent) is placing outgoing call.\n");
 	}
 	/* check if there is n + 101 priority */
+	/*! \todo XXX Needs to check option priorityjump etc etc */
 	if (res) {
 		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
 			chan->priority+=100;
@@ -2327,8 +2326,8 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-/**
- * Dump AgentCallbackLogin agents to the database for persistence
+/*!
+ * \brief Dump AgentCallbackLogin agents to the ASTdb database for persistence
  */
 static void dump_agents(void)
 {
@@ -2342,7 +2341,7 @@ static void dump_agents(void)
 		if (!ast_strlen_zero(cur_agent->loginchan)) {
 			snprintf(buf, sizeof(buf), "%s;%s", cur_agent->loginchan, cur_agent->logincallerid);
 			if (ast_db_put(pa_family, cur_agent->agent, buf))
-				ast_log(LOG_WARNING, "failed to create persistent entry!\n");
+				ast_log(LOG_WARNING, "failed to create persistent entry in ASTdb for %s!\n", buf);
 			else if (option_debug)
 				ast_log(LOG_DEBUG, "Saved Agent: %s on %s\n", cur_agent->agent, cur_agent->loginchan);
 		} else {
@@ -2352,8 +2351,8 @@ static void dump_agents(void)
 	}
 }
 
-/**
- * Reload the persistent agents from astdb.
+/*!
+ * \brief Reload the persistent agents from astdb.
  */
 static void reload_agents(void)
 {
@@ -2406,7 +2405,7 @@ static void reload_agents(void)
 	}
 }
 
-/*! \brief Part of PBX channel interface ---*/
+/*! \brief Part of PBX channel interface */
 static int agent_devicestate(void *data)
 {
 	struct agent_pvt *p;
@@ -2495,11 +2494,10 @@ static int function_agent(struct ast_channel *chan, char *cmd, char *data, char 
 	}
 
 	if (!strcasecmp(args.item, "status")) {
-		if (agent->chan || !ast_strlen_zero(agent->loginchan)) {
-			ast_copy_string(buf, "LOGGEDIN", len);
-		} else {
-			ast_copy_string(buf, "LOGGEDOUT", len);
-		}
+		char *status = "LOGGEDOUT";
+		if (agent->chan || !ast_strlen_zero(agent->loginchan)) 
+			status = "LOGGEDIN";	
+		ast_copy_string(buf, status, len);
 	} else if (!strcasecmp(args.item, "password")) {
 		ast_copy_string(buf, agent->password, len);
 	} else if (!strcasecmp(args.item, "name")) {
@@ -2536,11 +2534,12 @@ struct ast_custom_function agent_function = {
 };
 
 
-/**
- * Initialize the Agents module.
- * This function is being called by Asterisk when loading the module. Among other thing it registers applications, cli commands and reads the cofiguration file.
+/*!
+ * \brief Initialize the Agents module.
+ * This function is being called by Asterisk when loading the module. 
+ * Among other things it registers applications, cli commands and reads the cofiguration file.
  *
- * @returns int Always 0.
+ * \returns int Always 0.
  */
 static int load_module(void *mod)
 {
@@ -2554,16 +2553,20 @@ static int load_module(void *mod)
 	ast_register_application(app, login_exec, synopsis, descrip);
 	ast_register_application(app2, callback_exec, synopsis2, descrip2);
 	ast_register_application(app3, agentmonitoroutgoing_exec, synopsis3, descrip3);
+
 	/* Manager commands */
 	ast_manager_register2("Agents", EVENT_FLAG_AGENT, action_agents, "Lists agents and their status", mandescr_agents);
 	ast_manager_register2("AgentLogoff", EVENT_FLAG_AGENT, action_agent_logoff, "Sets an agent as no longer logged in", mandescr_agent_logoff);
 	ast_manager_register2("AgentCallbackLogin", EVENT_FLAG_AGENT, action_agent_callback_login, "Sets an agent as logged in by callback", mandescr_agent_callback_login);
+
 	/* CLI Commands */
 	ast_cli_register(&cli_show_agents);
 	ast_cli_register(&cli_show_agents_online);
 	ast_cli_register(&cli_agent_logoff);
+
 	/* Dialplan Functions */
 	ast_custom_function_register(&agent_function);
+
 	/* Read in the config */
 	read_agent_config();
 	if (persistent_agents)
