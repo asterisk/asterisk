@@ -285,7 +285,7 @@ struct callattempt {
 LOCAL_USER_DECL;
 
 struct queue_ent {
-	struct ast_call_queue *parent;	/*!< What queue is our parent */
+	struct call_queue *parent;	/*!< What queue is our parent */
 	char moh[80];			/*!< Name of musiconhold to be used */
 	char announce[80];		/*!< Announcement to play for member when call is answered */
 	char context[AST_MAX_CONTEXT];	/*!< Context when user exits queue */
@@ -318,20 +318,20 @@ struct member {
 	struct member *next;		/*!< Next member */
 };
 
-struct ast_member_interfaces {
+struct member_interface {
 	char interface[80];
-	AST_LIST_ENTRY(ast_member_interfaces) list;    /*!< Next call queue */
+	AST_LIST_ENTRY(member_interface) list;    /*!< Next call queue */
 };
 
-static AST_LIST_HEAD_STATIC(interfaces, ast_member_interfaces);
+static AST_LIST_HEAD_STATIC(interfaces, member_interface);
 
-/* values used in multi-bit flags in ast_call_queue */
+/* values used in multi-bit flags in call_queue */
 #define QUEUE_EMPTY_NORMAL 1
 #define QUEUE_EMPTY_STRICT 2
 #define ANNOUNCEHOLDTIME_ALWAYS 1
 #define ANNOUNCEHOLDTIME_ONCE 2
 
-struct ast_call_queue {
+struct call_queue {
 	ast_mutex_t lock;	
 	char name[80];			/*!< Name */
 	char moh[80];			/*!< Music On Hold class to be used */
@@ -388,10 +388,10 @@ struct ast_call_queue {
 	
 	struct member *members;		/*!< Head of the list of members */
 	struct queue_ent *head;		/*!< Head of the list of callers */
-	AST_LIST_ENTRY(ast_call_queue) list;	/*!< Next call queue */
+	AST_LIST_ENTRY(call_queue) list;	/*!< Next call queue */
 };
 
-static AST_LIST_HEAD_STATIC(queues, ast_call_queue);
+static AST_LIST_HEAD_STATIC(queues, call_queue);
 
 static int set_member_paused(char *queuename, char *interface, int paused);
 
@@ -442,7 +442,7 @@ static int strat2int(const char *strategy)
 }
 
 /*! \brief Insert the 'new' entry after the 'prev' entry of queue 'q' */
-static inline void insert_entry(struct ast_call_queue *q, struct queue_ent *prev, struct queue_ent *new, int *pos)
+static inline void insert_entry(struct call_queue *q, struct queue_ent *prev, struct queue_ent *new, int *pos)
 {
 	struct queue_ent *cur;
 
@@ -467,7 +467,7 @@ enum queue_member_status {
 	QUEUE_NORMAL
 };
 
-static enum queue_member_status get_member_status(const struct ast_call_queue *q, int max_penalty)
+static enum queue_member_status get_member_status(const struct call_queue *q, int max_penalty)
 {
 	struct member *member;
 	enum queue_member_status result = QUEUE_NO_MEMBERS;
@@ -500,10 +500,10 @@ struct statechange {
 
 static void *changethread(void *data)
 {
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct statechange *sc = data;
 	struct member *cur;
-	struct ast_member_interfaces *curint;
+	struct member_interface *curint;
 	char *loc;
 	char *technology;
 
@@ -603,9 +603,9 @@ static struct member *create_queue_member(char *interface, int penalty, int paus
 	return cur;
 }
 
-static struct ast_call_queue *alloc_queue(const char *queuename)
+static struct call_queue *alloc_queue(const char *queuename)
 {
-	struct ast_call_queue *q;
+	struct call_queue *q;
 
 	if ((q = ast_calloc(1, sizeof(*q)))) {
 		ast_mutex_init(&q->lock);
@@ -614,7 +614,7 @@ static struct ast_call_queue *alloc_queue(const char *queuename)
 	return q;
 }
 
-static void init_queue(struct ast_call_queue *q)
+static void init_queue(struct call_queue *q)
 {
 	int i;
 
@@ -650,7 +650,7 @@ static void init_queue(struct ast_call_queue *q)
 	}
 }
 
-static void clear_queue(struct ast_call_queue *q)
+static void clear_queue(struct call_queue *q)
 {
 	q->holdtime = 0;
 	q->callscompleted = 0;
@@ -661,7 +661,7 @@ static void clear_queue(struct ast_call_queue *q)
 
 static int add_to_interfaces(char *interface) 
 {
-	struct ast_member_interfaces *curint;
+	struct member_interface *curint;
 
 	AST_LIST_LOCK(&interfaces);
 	AST_LIST_TRAVERSE(&interfaces, curint, list) {
@@ -688,7 +688,7 @@ static int add_to_interfaces(char *interface)
 
 static int interface_exists_global(char *interface)
 {
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct member *mem;
 	int ret = 0;
 
@@ -710,7 +710,7 @@ static int interface_exists_global(char *interface)
 
 static int remove_from_interfaces(char *interface)
 {
-	struct ast_member_interfaces *curint;
+	struct member_interface *curint;
 
 	AST_LIST_LOCK(&interfaces);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&interfaces, curint, list) {
@@ -732,7 +732,7 @@ static int remove_from_interfaces(char *interface)
 
 static void clear_and_free_interfaces(void)
 {
-	struct ast_member_interfaces *curint;
+	struct member_interface *curint;
 
 	AST_LIST_LOCK(&interfaces);
 	while ((curint = AST_LIST_REMOVE_HEAD(&interfaces, list)))
@@ -747,7 +747,7 @@ static void clear_and_free_interfaces(void)
    The failunknown flag is set for config files (and static realtime) to show
    errors for unknown parameters. It is cleared for dynamic realtime to allow
    extra fields in the tables. */
-static void queue_set_param(struct ast_call_queue *q, const char *param, const char *val, int linenum, int failunknown)
+static void queue_set_param(struct call_queue *q, const char *param, const char *val, int linenum, int failunknown)
 {
 	int i = 0;
 	char *c, *lastc;
@@ -897,7 +897,7 @@ static void queue_set_param(struct ast_call_queue *q, const char *param, const c
 	}
 }
 
-static void rt_handle_member_record(struct ast_call_queue *q, char *interface, const char *penalty_str)
+static void rt_handle_member_record(struct call_queue *q, char *interface, const char *penalty_str)
 {
 	struct member *m, *prev_m;
 	int penalty = 0;
@@ -930,7 +930,7 @@ static void rt_handle_member_record(struct ast_call_queue *q, char *interface, c
 	}
 }
 
-static void free_members(struct ast_call_queue *q, int all)
+static void free_members(struct call_queue *q, int all)
 {
 	/* Free non-dynamic members */
 	struct member *curm, *next, *prev = NULL;
@@ -949,7 +949,7 @@ static void free_members(struct ast_call_queue *q, int all)
 	}
 }
 
-static void destroy_queue(struct ast_call_queue *q)
+static void destroy_queue(struct call_queue *q)
 {
 	free_members(q, 1);
 	ast_mutex_destroy(&q->lock);
@@ -959,10 +959,10 @@ static void destroy_queue(struct ast_call_queue *q)
 /*!\brief Reload a single queue via realtime.
    \return Return the queue, or NULL if it doesn't exist.
    \note Should be called with the global qlock locked. */
-static struct ast_call_queue *find_queue_by_name_rt(const char *queuename, struct ast_variable *queue_vars, struct ast_config *member_config)
+static struct call_queue *find_queue_by_name_rt(const char *queuename, struct ast_variable *queue_vars, struct ast_config *member_config)
 {
 	struct ast_variable *v;
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct member *m, *prev_m, *next_m;
 	char *interface;
 	char *tmp, *tmp_name;
@@ -1074,11 +1074,11 @@ static struct ast_call_queue *find_queue_by_name_rt(const char *queuename, struc
 	return q;
 }
 
-static struct ast_call_queue *load_realtime_queue(char *queuename)
+static struct call_queue *load_realtime_queue(char *queuename)
 {
 	struct ast_variable *queue_vars;
 	struct ast_config *member_config = NULL;
-	struct ast_call_queue *q;
+	struct call_queue *q;
 
 	/* Find the queue in the in-core list first. */
 	AST_LIST_LOCK(&queues);
@@ -1123,7 +1123,7 @@ static struct ast_call_queue *load_realtime_queue(char *queuename)
 
 static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *reason)
 {
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct queue_ent *cur, *prev = NULL;
 	int res = -1;
 	int pos = 0;
@@ -1358,7 +1358,7 @@ static void recalc_holdtime(struct queue_ent *qe)
 
 static void leave_queue(struct queue_ent *qe)
 {
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct queue_ent *cur, *prev = NULL;
 	int pos = 0;
 
@@ -1414,7 +1414,7 @@ static void hangupcalls(struct callattempt *outgoing, struct ast_channel *except
 	}
 }
 
-static int update_status(struct ast_call_queue *q, struct member *member, int status)
+static int update_status(struct call_queue *q, struct member *member, int status)
 {
 	struct member *cur;
 
@@ -1444,7 +1444,7 @@ static int update_status(struct ast_call_queue *q, struct member *member, int st
 	return 0;
 }
 
-static int update_dial_status(struct ast_call_queue *q, struct member *member, int status)
+static int update_dial_status(struct call_queue *q, struct member *member, int status)
 {
 	if (status == AST_CAUSE_BUSY)
 		status = AST_DEVICE_BUSY;
@@ -1459,9 +1459,9 @@ static int update_dial_status(struct ast_call_queue *q, struct member *member, i
 
 /* traverse all defined queues which have calls waiting and contain this member
    return 0 if no other queue has precedence (higher weight) or 1 if found  */
-static int compare_weight(struct ast_call_queue *rq, struct member *member)
+static int compare_weight(struct call_queue *rq, struct member *member)
 {
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct member *mem;
 	int found = 0;
 	
@@ -2126,7 +2126,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 	return res;
 }
 
-static int update_queue(struct ast_call_queue *q, struct member *member)
+static int update_queue(struct call_queue *q, struct member *member)
 {
 	struct member *cur;
 
@@ -2147,7 +2147,7 @@ static int update_queue(struct ast_call_queue *q, struct member *member)
 	return 0;
 }
 
-static int calc_metric(struct ast_call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct callattempt *tmp)
+static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct callattempt *tmp)
 {
 	if (mem->penalty > qe->max_penalty)
 		return -1;
@@ -2593,7 +2593,7 @@ static int wait_a_bit(struct queue_ent *qe)
 	return ast_waitfordigit(qe->chan, retrywait);
 }
 
-static struct member * interface_exists(struct ast_call_queue *q, char *interface)
+static struct member *interface_exists(struct call_queue *q, char *interface)
 {
 	struct member *mem;
 
@@ -2614,7 +2614,7 @@ static struct member * interface_exists(struct ast_call_queue *q, char *interfac
  * <pm_family>/<queuename> = <interface>;<penalty>;<paused>[|...]
  *
  */
-static void dump_queue_members(struct ast_call_queue *pm_queue)
+static void dump_queue_members(struct call_queue *pm_queue)
 {
 	struct member *cur_member;
 	char value[PM_MAX_LEN];
@@ -2650,7 +2650,7 @@ static void dump_queue_members(struct ast_call_queue *pm_queue)
 
 static int remove_from_queue(char *queuename, char *interface)
 {
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct member *last_member, *look;
 	int res = RES_NOSUCHQUEUE;
 
@@ -2703,7 +2703,7 @@ static int remove_from_queue(char *queuename, char *interface)
 
 static int add_to_queue(char *queuename, char *interface, int penalty, int paused, int dump)
 {
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct member *new_member;
 	int res = RES_NOSUCHQUEUE;
 
@@ -2753,7 +2753,7 @@ static int add_to_queue(char *queuename, char *interface, int penalty, int pause
 static int set_member_paused(char *queuename, char *interface, int paused)
 {
 	int found = 0;
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct member *mem;
 
 	/* Special event for when all queues are paused - individual events still generated */
@@ -2803,7 +2803,7 @@ static void reload_queue_members(void)
 	int paused = 0;
 	struct ast_db_entry *db_tree;
 	struct ast_db_entry *entry;
-	struct ast_call_queue *cur_queue;
+	struct call_queue *cur_queue;
 	char queue_data[PM_MAX_LEN];
 
 	AST_LIST_LOCK(&queues);
@@ -3389,7 +3389,7 @@ check_turns:
 static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	int count = 0;
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct localuser *lu;
 	struct member *m;
 
@@ -3431,7 +3431,7 @@ static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, c
 static int queue_function_queuewaitingcount(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	int count = 0;
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct localuser *lu;
 
 	buf[0] = '\0';
@@ -3466,7 +3466,7 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, char *cmd,
 static int queue_function_queuememberlist(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	struct localuser *u;
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct member *m;
 
 	/* Ensure an otherwise empty list doesn't return garbage */
@@ -3555,7 +3555,7 @@ static struct ast_custom_function queuememberlist_function = {
 
 static void reload_queues(void)
 {
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct ast_config *cfg;
 	char *cat, *tmp;
 	struct ast_variable *var;
@@ -3707,7 +3707,7 @@ static void reload_queues(void)
 
 static int __queues_show(struct mansession *s, int manager, int fd, int argc, char **argv, int queue_show)
 {
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct queue_ent *qe;
 	struct member *mem;
 	int pos;
@@ -3845,7 +3845,7 @@ static int queue_show(int fd, int argc, char **argv)
 
 static char *complete_queue(const char *line, const char *word, int pos, int state)
 {
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	char *ret = NULL;
 	int which = 0;
 	int wordlen = strlen(word);
@@ -3884,7 +3884,7 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 	char *queuefilter = astman_get_header(m,"Queue");
 	char *memberfilter = astman_get_header(m,"Member");
 	char idText[256] = "";
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct queue_ent *qe;
 	float sl = 0;
 	struct member *mem;
@@ -4175,7 +4175,7 @@ static int handle_remove_queue_member(int fd, int argc, char *argv[])
 static char *complete_remove_queue_member(const char *line, const char *word, int pos, int state)
 {
 	int which = 0;
-	struct ast_call_queue *q;
+	struct call_queue *q;
 	struct member *m;
 
 	/* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - from; 5 - <queue> */
