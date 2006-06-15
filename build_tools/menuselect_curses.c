@@ -48,11 +48,11 @@
 
 
 /*! Maximum number of characters horizontally */
-int max_x = 0;
+static int max_x = 0;
 /*! Maximum number of characters vertically */
-int max_y = 0;
+static int max_y = 0;
 
-const char * const help_info[] = {
+static const char * const help_info[] = {
 	"scroll        => up/down arrows",
 	"(de)select    => Enter",
 	"select all    => F8",
@@ -64,16 +64,8 @@ const char * const help_info[] = {
 	"XXX means dependencies have not been met"
 };
 
-void winch_handler(int sig);
-void show_help(WINDOW *win);
-void draw_main_menu(WINDOW *menu, int curopt);
-void draw_category_menu(WINDOW *menu, struct category *cat, int start, int end, int curopt, int changed);
-int run_category_menu(WINDOW *menu, int cat_num);
-int run_category_menu(WINDOW *menu, int cat_num);
-void draw_title_window(WINDOW *title);
-
 /*! \brief Handle a window resize in xterm */
-void winch_handler(int sig)
+static void winch_handler(int sig)
 {
 	getmaxyx(stdscr, max_y, max_x);
 
@@ -85,7 +77,7 @@ void winch_handler(int sig)
 }
 
 /*! \brief Display help information */
-void show_help(WINDOW *win)
+static void show_help(WINDOW *win)
 {
 	int i;
 
@@ -98,7 +90,7 @@ void show_help(WINDOW *win)
 	getch(); /* display the help until the user hits a key */
 }
 
-void draw_main_menu(WINDOW *menu, int curopt)
+static void draw_main_menu(WINDOW *menu, int curopt)
 {
 	struct category *cat;
 	char buf[64];
@@ -122,7 +114,7 @@ void draw_main_menu(WINDOW *menu, int curopt)
 	wrefresh(menu);
 }
 
-void display_mem_info(WINDOW *menu, struct member *mem, int start, int end)
+static void display_mem_info(WINDOW *menu, struct member *mem, int start, int end)
 {
 	char buf[64];
 	struct depend *dep;
@@ -162,7 +154,7 @@ void display_mem_info(WINDOW *menu, struct member *mem, int start, int end)
 
 }
 
-void draw_category_menu(WINDOW *menu, struct category *cat, int start, int end, int curopt, int changed)
+static void draw_category_menu(WINDOW *menu, struct category *cat, int start, int end, int curopt, int changed)
 {
 	int i = 0;
 	int j = 0;
@@ -212,7 +204,7 @@ void draw_category_menu(WINDOW *menu, struct category *cat, int start, int end, 
 	wrefresh(menu);
 }
 
-int run_category_menu(WINDOW *menu, int cat_num)
+static int run_category_menu(WINDOW *menu, int cat_num)
 {
 	struct category *cat;
 	int i = 0;
@@ -298,7 +290,7 @@ int run_category_menu(WINDOW *menu, int cat_num)
 	return c;
 }
 
-void draw_title_window(WINDOW *title)
+static void draw_title_window(WINDOW *title)
 {
 	wmove(title, 1, (max_x / 2) - (strlen(MENU_TITLE1) / 2));
 	waddstr(title, MENU_TITLE1);
