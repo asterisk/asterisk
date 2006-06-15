@@ -12911,7 +12911,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 	else
 		memset(&p->vredirip, 0, sizeof(p->vredirip));
 	p->redircodecs = codecs;
-	if (!ast_test_flag(p, SIP_GOTREFER)) {
+	if (codecs && !ast_test_flag(p, SIP_GOTREFER)) {
 		if (!p->pendinginvite) {
 			if (option_debug > 2) {
 				char iabuf[INET_ADDRSTRLEN];
