@@ -256,7 +256,6 @@ static int load_odbc_config(void)
 					new = ast_calloc(1, sizeof(*new));
 
 					if (!new) {
-						ast_log(LOG_ERROR, "Memory error while loading configuration.\n");
 						res = -1;
 						break;
 					}
@@ -397,7 +396,6 @@ struct odbc_obj *odbc_request_obj(const char *name, int check)
 			class->count++;
 			obj = ast_calloc(1, sizeof(*obj));
 			if (!obj) {
-				ast_log(LOG_ERROR, "Out of memory\n");
 				AST_LIST_UNLOCK(&class->odbc_obj);
 				return NULL;
 			}
@@ -417,7 +415,6 @@ struct odbc_obj *odbc_request_obj(const char *name, int check)
 			/* No entry: build one */
 			obj = ast_calloc(1, sizeof(*obj));
 			if (!obj) {
-				ast_log(LOG_ERROR, "Out of memory\n");
 				AST_LIST_UNLOCK(&class->odbc_obj);
 				return NULL;
 			}
@@ -589,7 +586,6 @@ static int reload(void *mod)
 					}
 
 					if (!new) {
-						ast_log(LOG_ERROR, "Memory error while loading configuration.\n");
 						res = -1;
 						break;
 					}
