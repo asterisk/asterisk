@@ -66,7 +66,7 @@ endif
 
 MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
 
-all: depend $(MODS) 
+all: $(MODS) 
 
 clean-depend:
 	rm -f .depend

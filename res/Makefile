@@ -38,7 +38,7 @@ endif
 
 MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
 
-all: depend $(MODS)
+all: $(MODS)
 
 install: all
 	rm -f $(DESTDIR)$(ASTHEADERDIR)/parking.h
