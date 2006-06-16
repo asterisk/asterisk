@@ -81,15 +81,16 @@ B. Steps to follow in order to have RADIUS support:
 		File "dictionary"
 			
 		Asterisk uses some attributes that are not included in the 
-		dictionary of radiusclient library, therefore it is necesarry to add 
-		them. A file called dictionary.asterisk was created to list all new 
-		attributes used by Asterisk. Add into file
+		dictionary of radiusclient library, therefore it is necessary to add 
+		them. A file called dictionary.digium (kept in the contrib dir)
+ 		was created to list all new attributes used by Asterisk. 
+		Add to the end of the main dictionary file
 		/usr/local/etc/radiusclient-ng/dictionary
 		the line:
 
-			$INCLUDE /path/to/dictionary.asterisk
+			$INCLUDE /path/to/dictionary.digium
 
- 2.FreeRADIUS Server
+ 2.FreeRADIUS Server (Version 1.1.1)
  	2.a Installation
 			
 		Download sources tarball from:
@@ -135,9 +136,13 @@ B. Steps to follow in order to have RADIUS support:
 
 		File "dictionary"
 			
+		Note : as of version 1.1.2, the dictionary.digium file ships with FreeRADIUS. 
+		The following procedure brings the dictionary.digium file to previous versions 
+		of FreeRADIUS.
+		
 		File /usr/local/etc/raddb/dictionary contains the dictionary of 
 		FreeRADIUS server. You have to add the same dictionary file 
-		(dictionary.asterisk), which you added to the dictionary of radiusclient-ng
+		(dictionary.digium), which you added to the dictionary of radiusclient-ng
 		library. You can include it into the main file, adding the following line at the
 		end of file '/usr/local/etc/raddb/dictionary':
 			
