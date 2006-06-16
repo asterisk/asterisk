@@ -617,7 +617,8 @@ static int smdi_load(int reload)
 				}
 			}
 							
-			iface = ast_calloc(1, sizeof(*iface));
+			if (!(iface = ast_calloc(1, sizeof(*iface))))
+				continue;
 
 			ASTOBJ_INIT(iface);
 			ASTOBJ_CONTAINER_INIT(&iface->md_q);
