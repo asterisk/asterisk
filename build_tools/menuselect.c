@@ -73,18 +73,6 @@ static int check_deps = 0;
 /*! Force a clean of the source tree */
 static int force_clean = 0;
 
-static int add_category(struct category *cat);
-static int add_member(struct member *mem, struct category *cat);
-static int parse_makeopts_xml(const char *makeopts_xml);
-static int process_deps(void);
-static int build_member_list(void);
-static void mark_as_present(const char *member, const char *category);
-static void process_prev_failed_deps(char *buf);
-static int parse_existing_config(const char *infile);
-static int generate_makeopts_file(void);
-static void free_member_list(void);
-static void free_trees(void);
-
 /*! \brief return a pointer to the first non-whitespace character */
 static inline char *skip_blanks(char *str)
 {
@@ -127,6 +115,19 @@ static int add_member(struct member *mem, struct category *cat)
 	AST_LIST_INSERT_TAIL(&cat->members, mem, list);
 
 	return 0;
+}
+
+/*! \brief Free a member structure and all of its members */
+static void free_member(struct member *mem)
+{
+	struct depend *dep;
+	struct conflict *cnf;
+
+	while ((dep = AST_LIST_REMOVE_HEAD(&mem->deps, list)))
+		free(dep);
+	while ((cnf = AST_LIST_REMOVE_HEAD(&mem->conflicts, list)))
+		free(cnf);
+	free(mem);
 }
 
 /*! \brief Parse an input makeopts file */
@@ -203,8 +204,10 @@ static int parse_makeopts_xml(const char *makeopts_xml)
 			     cur3 && cur3->child;
 			     cur3 = mxmlFindElement(cur3, cur2, "depend", NULL, NULL, MXML_DESCEND))
 			{
-				if (!(dep = calloc(1, sizeof(*dep))))
+				if (!(dep = calloc(1, sizeof(*dep)))) {
+					free_member(mem);
 					return -1;
+				}
 				if (!strlen_zero(cur3->child->value.opaque)) {
 					dep->name = cur3->child->value.opaque;
 					AST_LIST_INSERT_HEAD(&mem->deps, dep, list);
@@ -216,8 +219,10 @@ static int parse_makeopts_xml(const char *makeopts_xml)
 			     cur3 && cur3->child;
 			     cur3 = mxmlFindElement(cur3, cur2, "conflict", NULL, NULL, MXML_DESCEND))
 			{
-				if (!(cnf = calloc(1, sizeof(*cnf))))
+				if (!(cnf = calloc(1, sizeof(*cnf)))) {
+					free_member(mem);
 					return -1;
+				}
 				if (!strlen_zero(cur3->child->value.opaque)) {
 					cnf->name = cur3->child->value.opaque;
 					AST_LIST_INSERT_HEAD(&mem->conflicts, cnf, list);
@@ -226,7 +231,7 @@ static int parse_makeopts_xml(const char *makeopts_xml)
 			}
 
 			if (add_member(mem, cat))
-				free(mem);
+				free_member(mem);
 		}
 	}
 
