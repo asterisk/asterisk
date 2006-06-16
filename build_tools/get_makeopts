@@ -1,0 +1,3 @@
+/\/\*\*\* MAKEOPTS/ {printit=1; next}
+/\*\*\*\// {exit}
+// {if (printit) print}

@@ -39,15 +39,21 @@ process_dir() {
 		get_description ${file}
 		desc=${TDESC}
 		echo -e "\t\t<member name=\"${fname%%.c}\" displayname=\"${desc}\">"
-		awk -f build_tools/get_moduledeps ${file}
+		awk -f build_tools/get_moduleinfo ${file}
 		echo -e "\t\t</member>"
 	done
 	echo -e "\t</category>"
+
+	for file in ${dir}/${prefix}*.c
+	do
+		awk -f build_tools/get_makeopts ${file} >> .makeoptstmp
+	done
 }
 
 echo "<?xml version="1.0"?>"
 echo
 echo "<menu>"
+rm -f .makeoptstmp
 process_dir apps app APPS Applications
 process_dir cdr cdr CDR "Call Detail Recording"
 process_dir channels chan CHANNELS "Channel Drivers"
@@ -58,4 +64,6 @@ process_dir pbx pbx PBX "PBX Modules"
 process_dir res res RES "Resource Modules"
 cat build_tools/cflags.xml
 cat sounds/sounds.xml
+cat .makeoptstmp
+rm -f .makeoptstmp
 echo "</menu>"

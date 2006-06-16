@@ -41,6 +41,23 @@
  *				 Bartosz Supczinski <Bartosz.Supczinski@dir.pl>
  */
 
+/*** MAKEOPTS
+<category name="MENUSELECT_app_voicemail" displayname="Voicemail Build Options" positive_output="yes" force_clean_on_change="yes">
+	<member name="IMAP_STORAGE" displayname="Storage of Voicemail using IMAP">
+		<depend>cc-client</depend>
+		<defaultenabled>no</defaultenabled>
+	</member>
+	<member name="ODBC_STORAGE" displayname="Storage of Voicemail using ODBC">
+		<depend>unixodbc</depend>
+		<defaultenabled>no</defaultenabled>
+	</member>
+	<member name="EXTENDED_ODBC_STORAGE" displayname="Storage of Voicemail using ODBC (extended)">
+		<depend>unixodbc</depend>
+		<defaultenabled>no</defaultenabled>
+	</member>
+</category>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -77,7 +94,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/smdi.h"
 #define SMDI_MWI_WAIT_TIMEOUT 1000 /* 1 second */
-#ifdef USE_ODBC_STORAGE
+#ifdef ODBC_STORAGE
 #include "asterisk/res_odbc.h"
 #endif
 
@@ -289,7 +306,7 @@ static int vm_play_folder_name(struct ast_channel *chan, char *mbox);
 
 static void apply_options(struct ast_vm_user *vmu, const char *options);
 
-#ifdef USE_ODBC_STORAGE
+#ifdef ODBC_STORAGE
 static char odbc_database[80];
 static char odbc_table[80];
 #define RETRIEVE(a,b) retrieve_file(a,b)
@@ -838,7 +855,7 @@ static int vm_lock_path(const char *path)
 }
 
 
-#ifdef USE_ODBC_STORAGE
+#ifdef ODBC_STORAGE
 static int retrieve_file(char *dir, int msgnum)
 {
 	int x = 0;
@@ -1290,7 +1307,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 		}
 		fdlen = lseek(fd, 0, SEEK_END);
 		lseek(fd, 0, SEEK_SET);
-		printf("Length is %d\n", fdlen);
+		printf("Length is %zd\n", fdlen);
 		fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED,fd, 0);
 		if (!fdm) {
 			ast_log(LOG_WARNING, "Memory map failed!\n");
@@ -2015,7 +2032,7 @@ static const char *mbox(int id)
 	return (id >= 0 && id < (sizeof(msgs)/sizeof(msgs[0]))) ? msgs[id] : "Unknown";
 }
 
-#ifdef USE_ODBC_STORAGE
+#ifdef ODBC_STORAGE
 static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
 	int x = -1;
@@ -6183,7 +6200,7 @@ static int load_config(void)
 			astsearch = "no";
 		ast_set2_flag((&globalflags), ast_true(astsearch), VM_SEARCH);
 
-#ifdef USE_ODBC_STORAGE
+#ifdef ODBC_STORAGE
 		strcpy(odbc_database, "asterisk");
 		if ((thresholdstr = ast_variable_retrieve(cfg, "general", "odbcstorage"))) {
 			ast_copy_string(odbc_database, thresholdstr, sizeof(odbc_database));
@@ -6614,7 +6631,7 @@ static int load_module(void *mod)
 
 	ast_install_vm_functions(has_voicemail, inboxcount, messagecount);
 
-#if defined(USE_ODBC_STORAGE) && !defined(EXTENDED_ODBC_STORAGE)
+#if defined(ODBC_STORAGE) && !defined(EXTENDED_ODBC_STORAGE)
 	ast_log(LOG_WARNING, "The current ODBC storage table format will be changed soon."
 				"Please update your tables as per the README and edit the apps/Makefile "
 				"and uncomment the line containing EXTENDED_ODBC_STORAGE to enable the "

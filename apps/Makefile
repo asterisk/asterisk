@@ -15,16 +15,9 @@ include ../menuselect.makeopts
 
 SELECTED_MODS:=$(filter-out $(MENUSELECT_APPS),$(patsubst %.c,%,$(wildcard app_*.c)))
 
-# If you have UnixODBC you can use ODBC voicemail
-# storage
-#
-# Uncomment to use ODBC storage
-#CFLAGS+=-DUSE_ODBC_STORAGE
-# Uncomment for extended ODBC voicemail storage
-#CFLAGS+=-DEXTENDED_ODBC_STORAGE
-# See doc/README.odbcstorage for more information
-
 MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
+
+app_voicemail.o: CFLAGS+=$(patsubst %,-D%,$(MENUSELECT_app_voicemail))
 
 all: $(MODS)
 
