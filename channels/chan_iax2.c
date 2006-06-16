@@ -9335,6 +9335,7 @@ static int iax2_devicestate(void *data)
 	struct iax2_peer *p;
 	int res = AST_DEVICE_INVALID;
 
+	memset(&pds, 0, sizeof(pds));
 	parse_dial_string(tmp, &pds);
 	if (!pds.peer || ast_strlen_zero(pds.peer))
 		return res;
