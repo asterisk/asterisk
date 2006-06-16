@@ -126,16 +126,23 @@ static int local_devicestate(void *data)
 	int res;
 		
 	exten = ast_strdupa(data);
-	if ((context  = strchr(exten, '@'))) {
-		*context = '\0';
-		context = context + 1;
+	context = strchr(exten, '@');
+
+	if (!context) {
+		ast_log(LOG_WARNING, "Someone used Local/%s somewhere without a @context. This is bad.\n", exten);
+		return AST_DEVICE_INVALID;	
 	}
+
+	*context = '\0';
+	context = context + 1;
+
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Checking if extension %s@%s exists (devicestate)\n", exten, context);
 	res = ast_exists_extension(NULL, context, exten, 1, NULL);
-	if (!res)
+	if (!res) {
+		
 		return AST_DEVICE_INVALID;
-	else
+	} else
 		return AST_DEVICE_UNKNOWN;
 }
 
