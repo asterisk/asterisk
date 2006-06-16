@@ -481,8 +481,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 				if (o->forwards < AST_MAX_FORWARDS) {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, c->name);
-					/* Setup parameters */
-					c = o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
 					/* If we have been told to ignore forwards, just set this channel to null and continue processing extensions normally */
 					if (ast_test_flag(peerflags, OPT_IGNORE_FORWARDING)) {
 						if (option_verbose > 2)
