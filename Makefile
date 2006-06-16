@@ -145,13 +145,13 @@ ifeq ($(findstring dont-optimize,$(MAKECMDGOALS)),)
 OPTIMIZE+=-O6
   else
     # Stack backtraces, while useful for debugging, are incompatible with optimizations
-    ifeq (${OSARCH},Linux)
+    ifeq ($(OSARCH),Linux)
       CFLAGS+=-DSTACK_BACKTRACES
     endif
   endif
 else
   # Stack backtraces, while useful for debugging, are incompatible with optimizations
-  ifeq (${OSARCH},Linux)
+  ifeq ($(OSARCH),Linux)
     CFLAGS+=-DSTACK_BACKTRACES
   endif
 endif
@@ -668,7 +668,7 @@ upgrade: all bininstall
 adsi:
 	mkdir -p $(DESTDIR)$(ASTETCDIR)
 	for x in configs/*.adsi; do \
-		if [ ! -f $(DESTDIR)$(ASTETCDIRX)/$$x ]; then \
+		if [ ! -f $(DESTDIR)$(ASTETCDIR)/$$x ]; then \
 			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x` ; \
 		fi ; \
 	done
