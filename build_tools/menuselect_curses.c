@@ -160,7 +160,6 @@ static void draw_category_menu(WINDOW *menu, struct category *cat, int start, in
 	int j = 0;
 	struct member *mem;
 	char buf[64];
-	const char *desc = NULL;
 
 	if (!changed) {
 		/* If all we have to do is move the cursor, 

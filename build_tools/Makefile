@@ -15,13 +15,13 @@ else
 endif
 
 menuselect: $(MENUSELECT_OBJS)
-	$(CC) -g -o $@ $(MENUSELECT_OBJS) $(MENUSELECT_LIBS)
+	$(CC) -g -Wall -o $@ $(MENUSELECT_OBJS) $(MENUSELECT_LIBS)
 
 menuselect.o: menuselect.c menuselect.h
-	$(CC) -o $@ $(MENUSELECT_CFLAGS) $<
+	$(CC) -Wall -o $@ $(MENUSELECT_CFLAGS) $<
 
 menuselect_curses.o: menuselect_curses.c menuselect.h
-	$(CC) -o $@ $(MENUSELECT_CFLAGS) $(MENUSELECT_INCLUDE) $<
+	$(CC) -Wall -o $@ $(MENUSELECT_CFLAGS) $(MENUSELECT_INCLUDE) $<
 
 clean:
 	rm -f menuselect *.o
