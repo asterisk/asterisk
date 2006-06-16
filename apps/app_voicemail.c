@@ -43,10 +43,6 @@
 
 /*** MAKEOPTS
 <category name="MENUSELECT_app_voicemail" displayname="Voicemail Build Options" positive_output="yes" force_clean_on_change="yes">
-	<member name="IMAP_STORAGE" displayname="Storage of Voicemail using IMAP">
-		<depend>cc-client</depend>
-		<defaultenabled>no</defaultenabled>
-	</member>
 	<member name="ODBC_STORAGE" displayname="Storage of Voicemail using ODBC">
 		<depend>unixodbc</depend>
 		<defaultenabled>no</defaultenabled>
