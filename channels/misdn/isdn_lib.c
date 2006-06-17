@@ -61,7 +61,7 @@ void get_show_stack_details(int port, char *buf)
 	
 	if (stack) {
 		sprintf(buf, "* Stack Addr:%x Port %d Type %s Prot. %s L2Link %s L1Link:%s", stack->upper_id, stack->port, stack->nt?"NT":"TE", stack->ptp?"PTP":"PMP", stack->l2link?"UP":"DOWN", stack->l1link?"UP":"DOWN");
-		
+
 	} else {
 		buf[0]=0;
 	}
@@ -329,7 +329,7 @@ int send_msg (int midev, struct misdn_bchannel *bc, msg_t *dmsg)
 }
 
 
-static int mypid=0;
+static int mypid=1;
 
 
 int misdn_cap_is_speech(int cap)
@@ -425,6 +425,7 @@ char *bc_state2str(enum bchannel_state state) {
 		{"BCHAN_RELEASE", BCHAN_RELEASE},
 		{"BCHAN_RELEASED", BCHAN_RELEASED},
 		{"BCHAN_CLEAN", BCHAN_CLEAN},
+		{"BCHAN_CLEAN_REQUEST", BCHAN_CLEAN_REQUEST},
 		{"BCHAN_ERROR", BCHAN_ERROR}
 	};
 	
@@ -550,8 +551,13 @@ void empty_bc(struct misdn_bchannel *bc)
 
 	bc->holded_bc=NULL;
 	
-	bc_state_change(bc,BCHAN_EMPTY);
-	bc_next_state_change(bc,BCHAN_EMPTY);
+	
+	if (bc->bc_state != BCHAN_SETUP) {
+		bc_state_change(bc,BCHAN_EMPTY);
+		bc_next_state_change(bc,BCHAN_EMPTY);
+	} else {
+		cb_log(-1,bc->port,"Emptying bc(%x) within SETSTACK!\n",bc->addr);
+	}
 }
 
 
@@ -581,6 +587,12 @@ int clean_up_bc(struct misdn_bchannel *bc)
 		
 	case BCHAN_BRIDGED:
 		cb_log(2, stack->port, "$$$ bc still bridged\n");
+		break;
+
+
+	case BCHAN_SETUP:
+		bc_state_change(bc,BCHAN_CLEAN_REQUEST);
+		return -1;
 	default:
 		break;
 	}
@@ -804,7 +816,7 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 		ncr.len = 0;
 
 		bc->l3_id = l3_id;
-		if (mypid>5000) mypid=0;
+		if (mypid>5000) mypid=1;
 		bc->pid=mypid++;
       
 		cb_log(3, stack->port, " --> new_l3id %x\n",l3_id);
@@ -837,7 +849,7 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 		/* send message */
 
 		bc->l3_id = l3_id;
-		if (mypid>5000) mypid=0;
+		if (mypid>5000) mypid=1;
 		bc->pid=mypid++;
     
 		cb_log(3, stack->port, "--> new_l3id %x\n",l3_id);
@@ -1442,7 +1454,7 @@ int handle_new_process(struct misdn_stack *stack, iframe_t *frm)
 	cb_log(7, stack->port, " --> new_process: New L3Id: %x\n",frm->dinfo);
 	bc->l3_id=frm->dinfo;
 	
-	if (mypid>5000) mypid=0;
+	if (mypid>5000) mypid=1;
 	bc->pid=mypid++;
 	return 0;
 }
@@ -1711,11 +1723,11 @@ handle_event_nt(void *dat, void *arg)
 #endif
 		break;
 		
-		case CC_CONNECT|INDICATION:
 		case CC_ALERTING|INDICATION:
 		case CC_PROCEEDING|INDICATION:
 		case CC_SETUP_ACKNOWLEDGE|INDICATION:
-
+			if(!stack->ptp) break;	
+		case CC_CONNECT|INDICATION:
 		{
 			struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
 			
@@ -2104,16 +2116,19 @@ int handle_bchan(msg_t *msg)
 		cb_log(4, stack->port," --> Got Adr %x\n", bc->addr);
 
 		free_msg(msg);
+	
 		
-		if (bc->bc_state !=  BCHAN_SETUP) {
-			cb_log(4, stack->port," --> STATE WASN'T SETUP in SETSTACK|IND\n");
+		switch(bc->bc_state) {
+		case BCHAN_SETUP:
+			bc_state_change(bc,BCHAN_SETUPED);
+			manager_bchannel_activate(bc);
+		break;
+
+		case BCHAN_CLEAN_REQUEST:
+		default:
+			cb_log(-1, stack->port," --> STATE WASN'T SETUP (but %s) in SETSTACK|IND\n",bc_state2str(bc->bc_state));
+			clean_up_bc(bc);
 		}
-		
-		bc_state_change(bc,BCHAN_SETUPED);
-		
-		
-		manager_bchannel_activate(bc);
-				
 		return 1;
 
 	case MGR_DELLAYER| INDICATION:
@@ -2885,7 +2900,7 @@ void misdn_lib_log_ies(struct misdn_bchannel *bc)
 	cb_log(3, stack->port, " --> screen:%d --> pres:%d\n",
 			bc->screen, bc->pres);
 	
-	cb_log(2, stack->port, " --> channel:%d caps:%s pi:%x keypad:%s\n", bc->channel, bearer2str(bc->capability),bc->progress_indicator, bc->keypad);
+	cb_log(2, stack->port, " --> channel:%d caps:%s pi:%x keypad:%s sending_complete:%d\n", bc->channel, bearer2str(bc->capability),bc->progress_indicator, bc->keypad, bc->sending_complete);
 
 	cb_log(3, stack->port, " --> urate:%d rate:%d mode:%d user1:%d\n", bc->urate, bc->rate, bc->mode,bc->user1);
 	
@@ -2933,11 +2948,13 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		}
 		break;
 
-	case EVENT_CONNECT:
 	case EVENT_PROGRESS:
 	case EVENT_ALERTING:
 	case EVENT_PROCEEDING:
 	case EVENT_SETUP_ACKNOWLEDGE:
+		if (!bc->nt && !stack->ptp) break;
+
+	case EVENT_CONNECT:
 	case EVENT_RETRIEVE_ACKNOWLEDGE:
 		if (stack->nt) {
 			if (bc->channel <=0 ) { /*  else we have the channel already */
