@@ -170,6 +170,7 @@ struct ael_priority
 struct ael_extension
 {
 	char *name;
+	char *cidmatch;
 	char *hints;
 	int regexten;
 	

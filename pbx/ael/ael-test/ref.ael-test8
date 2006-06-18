@@ -1,0 +1,11 @@
+Executed ast_register_file_version();
+Executed ast_register_file_version();
+Executed ast_register_file_version();
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3453 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3460 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3463 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3466 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3468 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3471 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3474 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:253 func: main  1 contexts, 5 extensions, 15 priorities

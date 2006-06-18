@@ -1,0 +1,27 @@
+context default
+{
+
+706/3077610011 => {
+                 JabberStatus(asterisk|jmls@mike,StatusCode);
+
+                 switch(${StatusCode}) {
+                         case 1:
+                                 Dial(SIP/706,12);
+                                 switch(${DIALSTATUS}) {
+                                        case BUSY:
+                                                 Voicemail(b706);
+                                                 break;
+                                        default:
+                                         Voicemail(u706);
+                                 };
+				 BackGround(hello);
+                                 break;
+                         default:
+                                 Voicemail(u706);
+                 };
+
+                 Hangup();
+         };
+
+}
+

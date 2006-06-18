@@ -153,7 +153,7 @@ static pval *update_last(pval *, YYLTYPE *);
 
 /* there will be two shift/reduce conflicts, they involve the if statement, where a single statement occurs not wrapped in curlies in the "true" section
    the default action to shift will attach the else to the preceeding if. */
-%expect 5
+%expect 7
 %error-verbose
 
 /*
@@ -449,8 +449,6 @@ statement : LC statements RC {
 opt_else : KW_ELSE statement { $$ = $2; }
 	| { $$ = NULL ; }
 
-/* XXX unused */
-bar_or_comma: BAR | COMMA ;
 
 target : goto_word { $$ = nword($1, &@1); }
 	| goto_word BAR goto_word {

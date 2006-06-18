@@ -35,7 +35,7 @@ AEL is really the merger of 4 different 'languages', or syntaxes:
       Asterisk. Embedded in this language is the Application/AGI
       commands, of which one application call per step, or priority
       can be made. You can think of this as a "macro assembler"
-      language, that AEL2 will compile into.
+      language, that AEL will compile into.
 
 
 Any programmer of AEL should be familiar with it's syntax, of course,
@@ -178,7 +178,7 @@ facilities to debug your file:
 * About "aelparse"          *
 *****************************
 
-You can also use the "aelparse" program to check your extensions.ael
+You can use the "aelparse" program to check your extensions.ael
 file before feeding it to asterisk. Wouldn't it be nice to eliminate
 most errors before giving the file to asterisk?
 
@@ -270,7 +270,7 @@ do not wish to do so, you can still use the application, by using a
 capitalized letter somewhere in its name. In the Asterisk extension
 language, application names are NOT case-sensitive.
 
-The following are keywords in the AEL2 language:
+The following are keywords in the AEL language:
 
     * abstract
     * context
@@ -581,6 +581,9 @@ Two optional items have been added to the AEL syntax, that allow the
 specification of hints, and a keyword, regexten, that will force the
 numbering of priorities to start at 2.
 
+The ability to make extensions match by CID is preserved in
+AEL; just use '/' and the CID number in the specification. See below.
+
 
 context default {
 
@@ -604,6 +607,18 @@ context default {
 
 The regexten must come before the hint if they are both present.
 
+CID matching is done as with the extensions.conf file. Follow the extension
+name/number with a slash (/) and the number to match against the Caller ID:
+
+context zoombo 
+{
+	819/7079953345 => { NoOp(hello, 3345); }
+}
+
+In the above,  the 819/7079953345 extension will only be matched if the
+CallerID is 7079953345, and the dialed number is 819. Hopefully you have
+another 819 extension defined for all those who wish 819, that are not so lucky
+as to have 7079953345 as their CallerID!
 
 
 Includes
