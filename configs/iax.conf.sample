@@ -412,7 +412,9 @@ host=216.207.245.47
 ;type=friend
 ;host=dynamic
 ;regexten=1234
-;secret=moofoo
+;secret=moofoo   ; Multiple secrets may be specified. For a "user", all
+;secret=foomoo   ; specified entries will be accepted as valid. For a "peer",
+;secret=shazbot  ; only the last specified secret will be used.
 ;context=default
 ;permit=0.0.0.0/0.0.0.0
 
