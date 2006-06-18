@@ -277,7 +277,7 @@ endif
 ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
 
 MOD_SUBDIRS=res channels pbx apps codecs formats cdr funcs
-OTHER_SUBDIRS=utils stdtime agi
+OTHER_SUBDIRS=utils agi
 SUBDIRS:=$(MOD_SUBDIRS) $(OTHER_SUBDIRS)
 
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
@@ -477,17 +477,14 @@ include/asterisk/buildopts.h: menuselect.makeopts
 	fi
 	@rm -f $@.tmp
 
-stdtime/libtime.a:
-	CFLAGS="$(MOD_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C stdtime libtime.a
-
-asterisk: include/asterisk/buildopts.h editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
+asterisk: include/asterisk/buildopts.h editline/libedit.a db1-ast/libdb1.a $(OBJS)
 	build_tools/make_build_h > include/asterisk/build.h.tmp
 	if cmp -s include/asterisk/build.h.tmp include/asterisk/build.h ; then echo ; else \
 		mv include/asterisk/build.h.tmp include/asterisk/build.h ; \
 	fi
 	rm -f include/asterisk/build.h.tmp
 	$(CC) -c -o buildinfo.o $(CFLAGS) buildinfo.c
-	$(CC) $(DEBUG) $(ASTOBJ) $(ASTLINK) $(OBJS) buildinfo.o $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a $(LIBS)
+	$(CC) $(DEBUG) $(ASTOBJ) $(ASTLINK) $(OBJS) buildinfo.o $(LIBEDIT) db1-ast/libdb1.a $(LIBS)
 
 muted: muted.o
 	$(CC) $(AUDIO_LIBS) -o muted muted.o
