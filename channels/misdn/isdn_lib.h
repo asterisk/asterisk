@@ -21,6 +21,19 @@
 
 
 
+enum tone_e {
+	TONE_NONE=0,
+	TONE_DIAL,
+	TONE_ALERTING,
+	TONE_FAR_ALERTING,
+	TONE_BUSY,
+	TONE_HANGUP,
+	TONE_CUSTOM,
+	TONE_FILE
+};
+
+
+
 #define MAX_BCHANS 30
 
 enum bchannel_state {
@@ -376,6 +389,7 @@ int misdn_lib_send_facility(struct misdn_bchannel *bc, enum facility_type fac, v
 void manager_ec_enable(struct misdn_bchannel *bc);
 void manager_ec_disable(struct misdn_bchannel *bc);
 
+void misdn_lib_send_tone(struct misdn_bchannel *bc, enum tone_e tone);
 
 void get_show_stack_details(int port, char *buf);
 

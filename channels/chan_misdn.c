@@ -111,16 +111,6 @@ int misdn_jb_empty(struct misdn_jb *jb, char *data, int len);
 /* BEGIN: chan_misdn.h */
 
 
-enum tone_e {
-	TONE_NONE=0,
-	TONE_DIAL,
-	TONE_ALERTING,
-	TONE_FAR_ALERTING,
-	TONE_BUSY,
-	TONE_CUSTOM,
-	TONE_FILE
-};
-
 
 enum misdn_chan_state {
 	MISDN_NOTHING,		/*!< at beginning */
@@ -1981,7 +1971,7 @@ static int misdn_hangup(struct ast_channel *ast)
 		return 0;
 	}
 
-	stop_bc_tones(p);
+	/*stop_bc_tones(p);*/
 	
 	release_unlock;
 	
@@ -2008,11 +1998,11 @@ static int misdn_hangup(struct ast_channel *ast)
 		case MISDN_HOLDED:
 		case MISDN_DIALING:
 			start_bc_tones(p);
-			tone_indicate(p, TONE_BUSY);
+			tone_indicate(p, TONE_HANGUP);
 			p->state=MISDN_CLEANING;
 		
 			if (bc->nt)
-				misdn_lib_send_event( bc, EVENT_RELEASE);
+				misdn_lib_send_event( bc, EVENT_DISCONNECT);
 			else
 				misdn_lib_send_event( bc, EVENT_RELEASE_COMPLETE);
       
@@ -2024,7 +2014,7 @@ static int misdn_hangup(struct ast_channel *ast)
 			chan_misdn_log(2, bc->port, " --> * State Alerting\n");
 
 			if (p->orginator != ORG_AST) 
-				tone_indicate(p, TONE_BUSY);
+				tone_indicate(p, TONE_HANGUP);
       
 			p->state=MISDN_CLEANING;
 			misdn_lib_send_event( bc, EVENT_DISCONNECT);
@@ -2033,7 +2023,7 @@ static int misdn_hangup(struct ast_channel *ast)
 			/*  Alerting or Disconect */
 			chan_misdn_log(2, bc->port, " --> * State Connected\n");
 			start_bc_tones(p);
-			tone_indicate(p, TONE_BUSY);
+			tone_indicate(p, TONE_HANGUP);
 			misdn_lib_send_event( bc, EVENT_DISCONNECT);
       
 			p->state=MISDN_CLEANING; /* MISDN_HUNGUP_FROM_AST; */
@@ -2129,7 +2119,7 @@ static struct ast_frame  *misdn_read(struct ast_channel *ast)
 	if (!ast) return NULL;
 	if (! (tmp=MISDN_ASTERISK_TECH_PVT(ast)) ) return NULL;
 	if (!tmp->bc) return NULL;
-	
+
 	len=read(tmp->pipe[0],tmp->ast_rd_buf,sizeof(tmp->ast_rd_buf));
 
 	if (len<=0) {
@@ -2367,14 +2357,9 @@ static int tone_indicate( struct chan_list *cl, enum tone_e tone)
 	
 	if (!cl->ast) {
 		chan_misdn_log(-1,cl->bc->port,"Ast Ptr Not existing anymore.. we need to generate tones ourselves now (tbd)\n");
+		
+		misdn_lib_send_tone(cl->bc,tone);
 		return 0;
-#if 0
-		struct ast_channel *dummy=misdn_new(cl, AST_STATE_RESERVED, cl->bc->dad, cl->bc->oad, AST_FORMAT_ALAW, cl->bc->port, 99);
-		cl->ast=dummy;
-		/* return 0; */
-		cl->dummy=1;
-		ast=cl->ast;
-#endif
 	}
 	
 	switch (tone) {

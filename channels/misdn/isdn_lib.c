@@ -3798,6 +3798,8 @@ void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2)
 	unsigned int *d = (unsigned int*)&ctrl->data.p;
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	
+	cb_log(4,bc->port,"ph_control: c1:%x c2:%x\n",c1,c2);
+	
 	ctrl->prim = PH_CONTROL | REQUEST;
 	ctrl->addr = bc->addr | FLG_MSG_DOWN;
 	ctrl->dinfo = 0;
@@ -3913,6 +3915,29 @@ struct misdn_bchannel *stack_holder_find(struct misdn_stack *stack, unsigned lon
 	return NULL;
 }
 
+
+
+void misdn_lib_send_tone(struct misdn_bchannel *bc, enum tone_e tone) 
+{
+	switch(tone) {
+	case TONE_DIAL:
+		manager_ph_control(bc, TONE_PATT_ON, TONE_GERMAN_DIALTONE);	
+	break;
+	
+	case TONE_ALERTING:
+		manager_ph_control(bc, TONE_PATT_ON, TONE_GERMAN_RINGING);	
+	break;
+	
+	case TONE_HANGUP:
+		manager_ph_control(bc, TONE_PATT_ON, TONE_GERMAN_HANGUP);	
+	break;
+
+	case TONE_NONE:
+	default:
+		manager_ph_control(bc, TONE_PATT_OFF, TONE_GERMAN_HANGUP);	
+	}
+
+}
 
 
 void manager_ec_enable(struct misdn_bchannel *bc)
