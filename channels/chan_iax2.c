@@ -8351,11 +8351,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		peer->peercontext[0] = '\0';
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) {
-				if (!ast_strlen_zero(peer->secret)) {
-					strncpy(peer->secret + strlen(peer->secret), ";", sizeof(peer->secret)-strlen(peer->secret) - 1);
-					strncpy(peer->secret + strlen(peer->secret), v->value, sizeof(peer->secret)-strlen(peer->secret) - 1);
-				} else
-					ast_copy_string(peer->secret, v->value, sizeof(peer->secret));
+				ast_copy_string(peer->secret, v->value, sizeof(peer->secret));
 			} else if (!strcasecmp(v->name, "mailbox")) {
 				ast_copy_string(peer->mailbox, v->value, sizeof(peer->mailbox));
 			} else if (!strcasecmp(v->name, "dbsecret")) {
