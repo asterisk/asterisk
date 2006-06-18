@@ -479,13 +479,10 @@ static int jingle_is_answered(struct jingle *client, ikspak *pak)
 	struct jingle_pvt *tmp;
 
 	ast_log(LOG_DEBUG, "The client is %s\n", client->name);
-	tmp = client->p;
 	/* Make sure our new call doesn't exist yet */
-	while (tmp) {
-		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid)) {
+	for (tmp = client->p; tmp; tmp = tmp->next) {
+		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid))
 			break;
-		}
-		tmp = tmp->next;
 	}
 
 	if (tmp) {
@@ -502,13 +499,10 @@ static int jingle_hangup_farend(struct jingle *client, ikspak *pak)
 	struct jingle_pvt *tmp;
 
 	ast_log(LOG_DEBUG, "The client is %s\n", client->name);
-	tmp = client->p;
 	/* Make sure our new call doesn't exist yet */
-	while (tmp) {
-		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid)) {
+	for (tmp = client->p; tmp; tmp = tmp->next) {
+		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid))
 			break;
-		}
-		tmp = tmp->next;
 	}
 
 	if (tmp) {
@@ -536,21 +530,18 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 	iq = iks_new("iq");
 	jingle = iks_new(GOOGLE_NODE);
 	candidate = iks_new("candidate");
-	ours1 = (struct jingle_candidate *) ast_calloc(1, sizeof(struct jingle_candidate));
-	ours2 = (struct jingle_candidate *) ast_calloc(1, sizeof(struct jingle_candidate));
-	if (!iq || !jingle || !candidate || !ours1 || !ours2) {
-		ast_log(LOG_WARNING, "out of memory!\n");
+	if (!iq || !jingle || !candidate) {
+		ast_log(LOG_ERROR, "Memory allocation error\n");
 		goto safeout;
 	}
-
+	ours1 = ast_calloc(1, sizeof(*ours1));
+	ours2 = ast_calloc(1, sizeof(*ours2));
 	iks_insert_node(iq, jingle);
 	iks_insert_node(jingle, candidate);
 
-	while (p) {
-		if (!strcasecmp(p->sid, sid)) {
+	for (; p; p = p->next) {
+		if (!strcasecmp(p->sid, sid))
 			break;
-		}
-		p = p->next;
 	}
 
 	if (!p) {
@@ -596,8 +587,7 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 	dest.sin_port = sin.sin_port;
 
 
-	tmp = p->ourcandidates;
-	while (tmp) {				/*send standard candidates */
+	for (tmp = p->ourcandidates; tmp; tmp = tmp->next) {
 		snprintf(port, sizeof(port), "%d", tmp->port);
 		snprintf(preference, sizeof(preference), "%.2f", tmp->preference);
 		iks_insert_attrib(iq, "from", c->jid->full);
@@ -628,7 +618,6 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 		iks_insert_attrib(candidate, "network", "0");
 		iks_insert_attrib(candidate, "generation", "0");
 		iks_send(c->p, iq);
-		tmp = tmp->next;
 	}
 	p->laststun = 0;
 
@@ -958,23 +947,18 @@ static int jingle_add_candidate(struct jingle *client, ikspak *pak)
 	struct aji_client *c = client->connection;
 	struct jingle_candidate *newcandidate = NULL;
 	iks  *traversenodes = NULL, *receipt = NULL;
-	newcandidate =
-		(struct jingle_candidate *) ast_calloc(1, sizeof(struct jingle_candidate));
+	newcandidate = ast_calloc(1, sizeof(*newcandidate));
 	if (!newcandidate)
 		return 0;
-	memset(newcandidate, 0, sizeof(struct jingle_candidate));
-	tmp = client->p;
-	while (tmp) {
+	for (tmp = client->p; tmp; tmp = tmp->next) {
 		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid)) {
 			p = tmp;
 			break;
 		}
-		tmp = tmp->next;
 	}
 
-	if (!p) {
+	if (!p)
 		return -1;
-	}
 
 	traversenodes = pak->query;
 	while(traversenodes) {
@@ -983,11 +967,9 @@ static int jingle_add_candidate(struct jingle *client, ikspak *pak)
 			continue;
 		}
 		if(!strcasecmp(iks_name(traversenodes), "candidate")) {
-			newcandidate =
-				(struct jingle_candidate *) ast_calloc(1, sizeof(struct jingle_candidate));
+			newcandidate = ast_calloc(1, sizeof(*newcandidate));
 			if (!newcandidate)
 				return 0;
-			memset(newcandidate, 0, sizeof(struct jingle_candidate));
 			ast_copy_string(newcandidate->name, iks_find_attrib(traversenodes, "name"),
 							sizeof(newcandidate->name));
 			ast_copy_string(newcandidate->ip, iks_find_attrib(traversenodes, "address"),
