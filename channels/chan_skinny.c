@@ -719,7 +719,7 @@ int skinny_header_size = 12;
  * Asterisk specific globals *
  *****************************/
 
-static int skinnydebug = 1;	/* XXX for now, enable debugging default */
+static int skinnydebug = 0;
 
 /* a hostname, portnumber, socket and such is usefull for VoIP protocols */
 static struct sockaddr_in bindaddr;
