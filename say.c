@@ -4698,7 +4698,11 @@ int ast_say_date_with_format_pl(struct ast_channel *chan, time_t thetime, const 
 			case 'e':
 				/* First - Thirtyfirst */
 				remainder = tm.tm_mday;
-				if (tm.tm_mday > 20) {
+				if (tm.tm_mday > 30) {
+					res = wait_file(chan, ints, "digits/h-30", lang);
+					remainder -= 30;
+				}
+				if (tm.tm_mday > 20 && tm.tm_mday < 30) {
 					res = wait_file(chan, ints, "digits/h-20", lang);
 					remainder -= 20;
 				}
