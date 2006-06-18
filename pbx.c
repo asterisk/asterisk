@@ -5432,7 +5432,8 @@ static int pbx_builtin_ringing(struct ast_channel *chan, void *data)
 static int pbx_builtin_busy(struct ast_channel *chan, void *data)
 {
 	ast_indicate(chan, AST_CONTROL_BUSY);		
-	ast_setstate(chan, AST_STATE_BUSY);
+	if (chan->_state != AST_STATE_UP)
+		ast_setstate(chan, AST_STATE_BUSY);
 	wait_for_hangup(chan, data);
 	return -1;
 }
@@ -5443,7 +5444,8 @@ static int pbx_builtin_busy(struct ast_channel *chan, void *data)
 static int pbx_builtin_congestion(struct ast_channel *chan, void *data)
 {
 	ast_indicate(chan, AST_CONTROL_CONGESTION);
-	ast_setstate(chan, AST_STATE_BUSY);
+	if (chan->_state != AST_STATE_UP)
+		ast_setstate(chan, AST_STATE_BUSY);
 	wait_for_hangup(chan, data);
 	return -1;
 }
