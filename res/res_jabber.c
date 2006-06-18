@@ -1031,22 +1031,24 @@ static void aji_handle_message(struct aji_client *client, ikspak *pak)
 {
 	struct aji_message *insert, *tmp;
 	int flag = 0;
-	insert = ast_calloc(1,sizeof(struct aji_message));
+
+	if (!(insert = ast_calloc(1, sizeof(struct aji_message))))
+		return;
 	time(&insert->arrived);
 	insert->message = ast_strdup(iks_find_cdata(pak->x, "body"));
 	ast_copy_string(insert->id, pak->id, sizeof(insert->message));
 	insert->from = ast_strdup(pak->from->full);
 	AST_LIST_LOCK(&client->messages);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&client->messages, tmp, list) {
-		if(flag) {
-			AST_LIST_REMOVE_CURRENT(&client->messages,list);
+		if (flag) {
+			AST_LIST_REMOVE_CURRENT(&client->messages, list);
 			if (tmp->from)
 				free(tmp->from);
 			if (tmp->message)
 				free(tmp->message);
 		} else if (difftime(time(NULL), tmp->arrived) >= client->message_timeout) {
 			flag = 1;
-			AST_LIST_REMOVE_CURRENT(&client->messages,list);
+			AST_LIST_REMOVE_CURRENT(&client->messages, list);
 			if (tmp->from)
 				free(tmp->from);
 			if (tmp->message)
@@ -1054,9 +1056,10 @@ static void aji_handle_message(struct aji_client *client, ikspak *pak)
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
-	AST_LIST_INSERT_HEAD(&client->messages,insert,list);
+	AST_LIST_INSERT_HEAD(&client->messages, insert, list);
 	AST_LIST_UNLOCK(&client->messages);
 }
+
 static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 {
 	int status, priority;
