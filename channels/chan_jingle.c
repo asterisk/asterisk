@@ -536,6 +536,8 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 	}
 	ours1 = ast_calloc(1, sizeof(*ours1));
 	ours2 = ast_calloc(1, sizeof(*ours2));
+	if (!ours1 || !ours2)
+		goto safeout;
 	iks_insert_node(iq, jingle);
 	iks_insert_node(jingle, candidate);
 
