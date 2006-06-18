@@ -52,8 +52,12 @@ struct member {
 	const char *displayname;
 	/*! Default setting */
 	const char *defaultenabled;
+	/*! Delete these file(s) if this member changes */
+	const char *remove_on_change;
 	/*! This module is currently selected */
 	unsigned int enabled:1;
+	/*! This module was enabled when the config was loaded */
+	unsigned int was_enabled:1;
 	/*! This module has failed dependencies */
 	unsigned int depsfailed:1;
 	/*! This module has failed conflicts */
@@ -71,10 +75,10 @@ struct category {
 	const char *name;
 	/*! the name displayed in the menu */
 	const char *displayname;
-	/*! Display what is selected, as opposed to not selected */
+	/*! Delete these file(s) if anything in this category changes */
+	const char *remove_on_change;
+	/*! Output what is selected, as opposed to not selected */
 	unsigned int positive_output:1;
-	/*! Force a clean of the source tree if anything in this category changes */
-	unsigned int force_clean_on_change:1;
 	/*! the list of possible values to be set in this variable */
 	AST_LIST_HEAD_NOLOCK(, member) members;
 	/*! for linking */
