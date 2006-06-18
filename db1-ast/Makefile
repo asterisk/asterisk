@@ -51,8 +51,7 @@ clean-depend:
 clean:
 	rm -f $(LIBDB) $(LIBDBSO) $(OBJS) $(SHOBJS)
 
-OORG=	-O2
-CL=	$(CC) -Wall -c -D__DBINTERFACE_PRIVATE $(OORG) -I. -Iinclude
+CL=	$(CC) $(CFLAGS) -Wall -c -D__DBINTERFACE_PRIVATE -I. -I.. -Iinclude
 
 OSTYPE=$(shell uname -s)
 ifeq ($(OSTYPE),SunOS)
