@@ -1495,6 +1495,9 @@ int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
 				cb_log(4, stack->port, " --> lib: CLEANING UP l3id: %x\n",frm->dinfo);
 				empty_chan_in_stack(stack,bc->channel);
 				empty_bc(bc);
+				
+				bc_state_change(bc, BCHAN_EMPTY);
+
 				clean_up_bc(bc);
 				dump_chan_list(stack);
 				bc->pid = 0;

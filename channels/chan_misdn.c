@@ -1971,7 +1971,9 @@ static int misdn_hangup(struct ast_channel *ast)
 		return 0;
 	}
 
-	/*stop_bc_tones(p);*/
+	if (!p->bc->nt) 
+		stop_bc_tones(p);
+
 	
 	release_unlock;
 	
