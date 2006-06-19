@@ -263,15 +263,8 @@ else
   RPMVERSION=unknown
 endif
 
-# CVS mirrors of SVN have .svnrevision files showing
-# which SVN revision they are based on, and .svnbranch
-# showing the branch they are made from
-ifneq ($(wildcard .svnrevision),)
+ifneq ($(wildcard .svn),)
   ASTERISKVERSIONNUM=999999
-else
-  ifneq ($(wildcard .svn),)
-    ASTERISKVERSIONNUM=999999
-  endif
 endif
 
 ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
@@ -458,21 +451,21 @@ asterisk.txt: asterisk.sgml
 
 defaults.h: makeopts
 	@build_tools/make_defaults_h > $@.tmp
-	@if cmp -s $@.tmp $@ ; then echo ; else \
+	@if cmp -s $@.tmp $@ ; then : ; else \
 		mv $@.tmp $@ ; \
 	fi
 	@rm -f $@.tmp
 
 include/asterisk/version.h:
 	@build_tools/make_version_h > $@.tmp
-	@if cmp -s $@.tmp $@ ; then echo; else \
+	@if cmp -s $@.tmp $@ ; then : ; else \
 		mv $@.tmp $@ ; \
 	fi
 	@rm -f $@.tmp
 
 include/asterisk/buildopts.h: menuselect.makeopts
 	@build_tools/make_buildopts_h > $@.tmp
-	@if cmp -s $@.tmp $@ ; then echo; else \
+	@if cmp -s $@.tmp $@ ; then : ; else \
 		mv $@.tmp $@ ; \
 	fi
 	@rm -f $@.tmp
@@ -547,16 +540,6 @@ update:
 		fi ; \
 		rm -f update.out; \
 		$(MAKE) clean-depend; \
-	elif [ -d CVS ]; then \
-		echo "Updating from CVS..." ; \
-		cvs -q -z3 update -Pd | tee update.out; \
-		rm -f .version; \
-		if [ `grep -c ^C update.out` -gt 0 ]; then \
-			echo ; echo "The following files have conflicts:" ; \
-			grep ^C update.out | cut -d' ' -f2- ; \
-		fi ; \
-		rm -f update.out; \
-		$(MAKE) clean-depend; \
 	else \
 		echo "Not under version control";  \
 	fi
@@ -603,11 +586,7 @@ bininstall: all
 	$(INSTALL) -m 644 contrib/scripts/astgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
 	$(INSTALL) -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(ASTMANDIR)/man8
 	$(INSTALL) -m 644 contrib/scripts/safe_asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
-	if [ -d contrib/firmware/iax ]; then \
-		$(INSTALL) -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTDATADIR)/firmware/iax/iaxy.bin; \
-	else \
-		echo "You need to do cvs update -d not just cvs update" ; \
-	fi 
+	$(INSTALL) -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTDATADIR)/firmware/iax/iaxy.bin; \
 
 install-subdirs:
 	@for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
