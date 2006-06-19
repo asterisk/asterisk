@@ -11,7 +11,9 @@
 # the GNU General Public License
 #
 
-include ../menuselect.makeopts
+ifneq ($(wildcard ../menuselect.makeopts),)
+  include ../menuselect.makeopts
+endif
 
 PWD:=$(shell pwd)
 SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
