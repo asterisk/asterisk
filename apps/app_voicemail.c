@@ -2628,6 +2628,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			if (duration < vmminmessage) {
 				if (option_verbose > 2) 
 					ast_verbose( VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminmessage);
+				fclose(txt);
 				ast_filedelete(tmptxtfile, NULL);
 				unlink(tmptxtfile);
 			} else {
@@ -2638,6 +2639,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					/* Delete files */
 					ast_filedelete(tmptxtfile, NULL);
 					unlink(tmptxtfile);
+				} else if (ast_fileexists(tmptxtfile, NULL, NULL) <= 0) {
+					if (option_debug) 
+						ast_log(LOG_DEBUG, "The recorded media file is gone, so we should remove the .txt file too!\n");
+					unlink(tmptxtfile);	
 				} else {
 					for (;;) {
 						make_file(fn, sizeof(fn), dir, msgnum);
@@ -2671,7 +2676,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 							free_user(recip);
 						}
 					}
-					if (ast_fileexists(fn, NULL, NULL)) {
+					if (ast_fileexists(fn, NULL, NULL) > 0) {
 						STORE(dir, vmu->mailbox, vmu->context, msgnum);
 						notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
 						DISPOSE(dir, msgnum);
