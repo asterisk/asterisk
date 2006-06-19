@@ -70,6 +70,18 @@ static int existing_config = 0;
 /*! This is set when the --check-deps argument is provided. */
 static int check_deps = 0;
 
+#if !defined(ast_strdupa) && defined(__GNUC__)
+#define ast_strdupa(s)                                                    \
+	(__extension__                                                    \
+	({                                                                \
+		const char *__old = (s);                                  \
+		size_t __len = strlen(__old) + 1;                         \
+		char *__new = __builtin_alloca(__len);                    \
+		memcpy (__new, __old, __len);                             \
+		__new;                                                    \
+	}))
+#endif
+
 /*! \brief return a pointer to the first non-whitespace character */
 static inline char *skip_blanks(char *str)
 {
@@ -516,7 +528,7 @@ static int generate_makeopts_file(void)
 			had_changes = 1;
 
 			if (mem->remove_on_change) {
-				for (buf = strdupa(mem->remove_on_change), file = strsep(&buf, " ");
+				for (buf = ast_strdupa(mem->remove_on_change), file = strsep(&buf, " ");
 				     file;
 				     file = strsep(&buf, " "))
 					unlink(file);
@@ -524,7 +536,7 @@ static int generate_makeopts_file(void)
 		}
 
 		if (cat->remove_on_change && had_changes) {
-			for (buf = strdupa(cat->remove_on_change), file = strsep(&buf, " ");
+			for (buf = ast_strdupa(cat->remove_on_change), file = strsep(&buf, " ");
 			     file;
 			     file = strsep(&buf, " "))
 				unlink(file);
