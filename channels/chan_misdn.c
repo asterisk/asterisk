@@ -3825,7 +3825,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			case MISDN_CALLING:
 			case MISDN_DIALING:
 			case MISDN_PROGRESS:
-				
+			case MISDN_ALERTING:
+			case MISDN_PROCEEDING:
+			case MISDN_CALLING_ACKNOWLEDGE:
 				if (bc->nt) {
 					bc->progress_indicator=8;
 					tone_indicate(ch, TONE_BUSY);
