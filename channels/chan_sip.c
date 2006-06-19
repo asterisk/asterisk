@@ -7604,6 +7604,26 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 	const char *reqheader = "Proxy-Authorization";
 	const char *respheader = "Proxy-Authenticate";
 	const char *authtoken;
+	char a1_hash[256];
+	char resp_hash[256]="";
+	char tmp[BUFSIZ * 2];                /* Make a large enough buffer */
+	char *c;
+	int  wrongnonce = FALSE;
+	int  good_response;
+	const char *usednonce = p->randdata;
+
+	/* table of recognised keywords, and their value in the digest */
+	enum keys { K_RESP, K_URI, K_USER, K_NONCE, K_LAST };
+	struct x {
+		const char *key;
+		const char *s;
+	} *i, keys[] = {
+		[K_RESP] = { "response=", "" },
+		[K_URI] = { "uri=", "" },
+		[K_USER] = { "username=", "" },
+		[K_NONCE] = { "nonce=", "" },
+		[K_LAST] = { NULL, NULL}
+	};
 
 	/* Always OK if no secret */
 	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret))
@@ -7635,120 +7655,102 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 		/* Schedule auto destroy in 32 seconds */
 		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 		return AUTH_CHALLENGE_SENT;
-	} else {	/* We have auth, so check it */
+	} 
 
-		/* XXX reduce nesting here */
+	/* --- We have auth, so check it */
 
-		/* Whoever came up with the authentication section of SIP can suck my %&#$&* for not putting
-	   	an example in the spec of just what it is you're doing a hash on. */
-		char a1_hash[256];
-		char resp_hash[256]="";
-		char tmp[256];
-		char *c;
-		int  wrongnonce = FALSE;
-		int  good_response;
-		const char *usednonce = p->randdata; /* XXX check */
+	/* Whoever came up with the authentication section of SIP can suck my %&#$&* for not putting
+   	   an example in the spec of just what it is you're doing a hash on. */
 
-		/* table of recognised keywords, and their value in the digest */
-		enum keys { K_RESP, K_URI, K_USER, K_NONCE, K_LAST };
-		struct x {
-			const char *key;
-			const char *s;
-		} *i, keys[] = {
-			[K_RESP] = { "response=", "" },
-			[K_URI] = { "uri=", "" },
-			[K_USER] = { "username=", "" },
-			[K_NONCE] = { "nonce=", "" },
-			[K_LAST] = { NULL, NULL}
-		};
 
-		/* Make a copy of the response and parse it */
-		ast_copy_string(tmp, authtoken, sizeof(tmp));
-		c = tmp;
+	/* Make a copy of the response and parse it */
+	ast_copy_string(tmp, authtoken, sizeof(tmp));
+	c = tmp;
 
-		while(c && *(c = ast_skip_blanks(c)) ) { /* lookup for keys */
-			for (i = keys; i->key != NULL; i++) {
-				const char *separator = ",";	/* default */
+	while(c && *(c = ast_skip_blanks(c)) ) { /* lookup for keys */
+		for (i = keys; i->key != NULL; i++) {
+			const char *separator = ",";	/* default */
 
-				if (strncasecmp(c, i->key, strlen(i->key)) != 0)
-					continue;
-				/* Found. Skip keyword, take text in quotes or up to the separator. */
-				c += strlen(i->key);
-				if (*c == '"') { /* in quotes. Skip first and look for last */
-					c++;
-					separator = "\"";
-				}
-				i->s = c;
-				strsep(&c, separator);
-				break;
+			if (strncasecmp(c, i->key, strlen(i->key)) != 0)
+				continue;
+			/* Found. Skip keyword, take text in quotes or up to the separator. */
+			c += strlen(i->key);
+			if (*c == '"') { /* in quotes. Skip first and look for last */
+				c++;
+				separator = "\"";
 			}
-			if (i->key == NULL) /* not found, jump after space or comma */
-				strsep(&c, " ,");
+			i->s = c;
+			strsep(&c, separator);
+			break;
 		}
-		/* Verify that digest username matches  the username we auth as */
-		if (strcmp(username, keys[K_USER].s)) {
-			ast_log(LOG_WARNING, "username mismatch, have <%s>, digest has <%s>\n",
-				username, keys[K_USER].s);
-			/* Oops, we're trying something here */
-			return AUTH_USERNAME_MISMATCH;
+		if (i->key == NULL) /* not found, jump after space or comma */
+			strsep(&c, " ,");
+	}
+
+	/* Verify that digest username matches  the username we auth as */
+	if (strcmp(username, keys[K_USER].s)) {
+		ast_log(LOG_WARNING, "username mismatch, have <%s>, digest has <%s>\n",
+			username, keys[K_USER].s);
+		/* Oops, we're trying something here */
+		return AUTH_USERNAME_MISMATCH;
+	}
+
+	/* Verify nonce from request matches our nonce.  If not, send 401 with new nonce */
+	if (strcasecmp(p->randdata, keys[K_NONCE].s)) { /* XXX it was 'n'casecmp ? */
+		wrongnonce = TRUE;
+		usednonce = keys[K_NONCE].s;
+	}
+
+	if (!ast_strlen_zero(md5secret))
+		ast_copy_string(a1_hash, md5secret, sizeof(a1_hash));
+	else {
+		char a1[256];
+		snprintf(a1, sizeof(a1), "%s:%s:%s", username, global_realm, secret);
+		ast_md5_hash(a1_hash, a1);
+	}
+
+	/* compute the expected response to compare with what we received */
+	{
+		char a2[256];
+		char a2_hash[256];
+		char resp[256];
+
+		snprintf(a2, sizeof(a2), "%s:%s", sip_methods[sipmethod].text,
+				S_OR(keys[K_URI].s, uri));
+		ast_md5_hash(a2_hash, a2);
+		snprintf(resp, sizeof(resp), "%s:%s:%s", a1_hash, usednonce, a2_hash);
+		ast_md5_hash(resp_hash, resp);
+	}
+
+	good_response = keys[K_RESP].s &&
+			!strncasecmp(keys[K_RESP].s, resp_hash, strlen(resp_hash));
+	if (wrongnonce) {
+		ast_string_field_build(p, randdata, "%08lx", ast_random());
+		if (good_response) {
+			if (sipdebug)
+				ast_log(LOG_NOTICE, "Correct auth, but based on stale nonce received from '%s'\n", get_header(req, "To"));
+			/* We got working auth token, based on stale nonce . */
+			transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 1);
+		} else {
+			/* Everything was wrong, so give the device one more try with a new challenge */
+			if (sipdebug)
+				ast_log(LOG_NOTICE, "Bad authentication received from '%s'\n", get_header(req, "To"));
+			transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
 		}
 
-		/* Verify nonce from request matches our nonce.  If not, send 401 with new nonce */
-		if (strcasecmp(p->randdata, keys[K_NONCE].s)) { /* XXX it was 'n'casecmp ? */
-			wrongnonce = TRUE;
-			usednonce = keys[K_NONCE].s;
-		}
-
-		if (!ast_strlen_zero(md5secret))
-			ast_copy_string(a1_hash, md5secret, sizeof(a1_hash));
-		else {
-			char a1[256];
-			snprintf(a1, sizeof(a1), "%s:%s:%s", username, global_realm, secret);
-			ast_md5_hash(a1_hash, a1);
-		}
-
-		/* compute the expected response to compare with what we received */
-		{
-			char a2[256];
-			char a2_hash[256];
-			char resp[256];
-
-			snprintf(a2, sizeof(a2), "%s:%s", sip_methods[sipmethod].text,
-					S_OR(keys[K_URI].s, uri));
-			ast_md5_hash(a2_hash, a2);
-			snprintf(resp, sizeof(resp), "%s:%s:%s", a1_hash, usednonce, a2_hash);
-			ast_md5_hash(resp_hash, resp);
-		}
-
-		good_response = keys[K_RESP].s &&
-				!strncasecmp(keys[K_RESP].s, resp_hash, strlen(resp_hash));
-		if (wrongnonce) {
-			ast_string_field_build(p, randdata, "%08lx", ast_random());
-			if (good_response) {
-				if (sipdebug)
-					ast_log(LOG_NOTICE, "stale nonce received from '%s'\n", get_header(req, "To"));
-				/* We got working auth token, based on stale nonce . */
-				transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 1);
-			} else {
-				/* Everything was wrong, so give the device one more try with a new challenge */
-				if (sipdebug)
-					ast_log(LOG_NOTICE, "Bad authentication received from '%s'\n", get_header(req, "To"));
-				transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
-			}
-
-			/* Schedule auto destroy in 32 seconds */
-			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
-			return AUTH_CHALLENGE_SENT;
-		} 
-		if (good_response)
-			return AUTH_SUCCESSFUL;
-
-		/* Ok, we have a bad username/secret pair */
-		/* Challenge again, and again, and again */
-		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
+		/* Schedule auto destroy in 32 seconds */
 		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 		return AUTH_CHALLENGE_SENT;
-	}
+	} 
+	if (good_response)
+		return AUTH_SUCCESSFUL;
+
+	/* Ok, we have a bad username/secret pair */
+	/* Challenge again, and again, and again */
+	transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
+	sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+
+	return AUTH_CHALLENGE_SENT;
 }
 
 /*! \brief Callback for the devicestate notification (SUBSCRIBE) support subsystem
