@@ -2254,7 +2254,12 @@ static int skinny_answer(struct ast_channel *ast)
 	if (ast->_state != AST_STATE_UP) {
 		ast_setstate(ast, AST_STATE_UP);
 	}
+
 	transmit_tone(s, SKINNY_SILENCE);
+	/* order matters here...
+	   for some reason, transmit_callinfo must be before transmit_callstate,
+	   or you won't get keypad messages in some situations. */
+	transmit_callinfo(s, ast->cid.cid_name, ast->cid.cid_num, ast->exten, ast->exten, l->instance, sub->callid, 2);
 	transmit_callstate(s, l->instance, SKINNY_CONNECTED, sub->callid);
 	transmit_displaypromptstatus(s, "Connected", 0, l->instance, sub->callid);
 	return res;
@@ -2602,8 +2607,9 @@ static int handle_keypad_button_message(skinny_req *req, struct skinnysession *s
 {
 	struct skinny_subchannel *sub = NULL;
 	struct skinny_line *l;
+	struct skinny_device *d = s->device;
 	struct ast_frame f = { 0, };
-	char d;
+	char dgt;
 	int digit;
 	int lineInstance;
 	int callReference;
@@ -2613,11 +2619,11 @@ static int handle_keypad_button_message(skinny_req *req, struct skinnysession *s
 	callReference = letohl(req->data.keypad.callReference);
 	f.frametype = AST_FRAME_DTMF;
 	if (digit == 14) {
-		d = '*';
+		dgt = '*';
 	} else if (digit == 15) {
-		d = '#';
+		dgt = '#';
 	} else if (digit >=0 && digit <= 9) {
-		d = '0' + digit;
+		dgt = '0' + digit;
 	} else {
 		/* digit=10-13 (A,B,C,D ?), or
 		 * digit is bad value
@@ -2626,14 +2632,16 @@ static int handle_keypad_button_message(skinny_req *req, struct skinnysession *s
 		 * value for backward compatibility, and log
 		 * a warning.
 		 */
-		d = '0' + digit;
+		dgt = '0' + digit;
 		ast_log(LOG_WARNING, "Unsupported digit %d\n", digit);
 	}
-	f.subclass = d;
+	f.subclass = dgt;
 	f.src = "skinny";
 
 	if (lineInstance && callReference)
-		sub = find_subchannel_by_instance_reference(s->device, lineInstance, callReference);
+		sub = find_subchannel_by_instance_reference(d, lineInstance, callReference);
+	else
+		sub = find_subchannel_by_instance_reference(d, d->lastlineinstance, d->lastcallreference);
 
 	if (!sub)
 		return 0;
