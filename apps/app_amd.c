@@ -346,7 +346,7 @@ static void load_config(void)
 	cat = ast_category_browse(cfg, NULL);
 
 	while (cat) {
-		if (!strcasecmp(cat, "amd") ) {
+		if (!strcasecmp(cat, "general") ) {
 			var = ast_variable_browse(cfg, cat);
 			while (var) {
 				if (!strcasecmp(var->name, "initial_silence")) {
