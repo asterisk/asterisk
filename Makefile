@@ -359,8 +359,6 @@ else
   HAVEDOT=no
 endif
 
-INSTALL=install
-
 _all: all
 	@echo " +--------- Asterisk Build Complete ---------+"  
 	@echo " + Asterisk has successfully been built, but +"  
