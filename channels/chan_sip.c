@@ -11966,6 +11966,10 @@ static void *sip_park_thread(void *stuff)
 	transferer = d->chan2;
 	copy_request(&req, &d->req);
 	free(d);
+
+	if (option_debug > 3) 
+		ast_log(LOG_DEBUG, "SIP Park: Transferer channel %s, Transferee %s\n", transferer->name, transferee->name);
+
 	ast_channel_lock(transferee);
 	if (ast_do_masquerade(transferee)) {
 		ast_log(LOG_WARNING, "Masquerade failed.\n");
@@ -11976,6 +11980,7 @@ static void *sip_park_thread(void *stuff)
 	ast_channel_unlock(transferee);
 
 	res = ast_park_call(transferee, transferer, 0, &ext);
+	
 
 #ifdef WHEN_WE_KNOW_THAT_THE_CLIENT_SUPPORTS_MESSAGE
 	if (!res) {
@@ -11988,9 +11993,11 @@ static void *sip_park_thread(void *stuff)
 #endif
 
 	/* Any way back to the current call??? */
+	/* Transmit response to the REFER request */
 	transmit_response(transferer->tech_pvt, "202 Accepted", &req);
 	if (!res)	{
 		/* Transfer succeeded */
+		append_history(transferer->tech_pvt, "SIPpark","Parked call on %d", ext);
 		transmit_notify_with_sipfrag(transferer->tech_pvt, d->seqno, "200 OK", TRUE);
 		transferer->hangupcause = AST_CAUSE_NORMAL_CLEARING;
 		ast_hangup(transferer); /* This will cause a BYE */
@@ -11998,6 +12005,7 @@ static void *sip_park_thread(void *stuff)
 			ast_log(LOG_DEBUG, "SIP Call parked on extension '%d'\n", ext);
 	} else {
 		transmit_notify_with_sipfrag(transferer->tech_pvt, d->seqno, "503 Service Unavailable", TRUE);
+		append_history(transferer->tech_pvt, "SIPpark","Parking failed\n");
 		if (option_debug)
 			ast_log(LOG_DEBUG, "SIP Call parked failed \n");
 		/* Do not hangup call */
@@ -12005,7 +12013,9 @@ static void *sip_park_thread(void *stuff)
 	return NULL;
 }
 
-/*! \brief Park a call */
+/*! \brief Park a call using the subsystem in res_features.c 
+	This is executed in a separate thread
+*/
 static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct sip_request *req, int seqno)
 {
 	struct sip_dual *d;
@@ -12031,6 +12041,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	/* Make formats okay */
 	transferee->readformat = chan1->readformat;
 	transferee->writeformat = chan1->writeformat;
+
+	/* Prepare for taking over the channel */
 	ast_channel_masquerade(transferee, chan1);
 
 	/* Setup the extensions and such */
@@ -12045,6 +12057,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	/* Make formats okay */
 	transferer->readformat = chan2->readformat;
 	transferer->writeformat = chan2->writeformat;
+
+	/* Prepare for taking over the channel */
 	ast_channel_masquerade(transferer, chan2);
 
 	/* Setup the extensions and such */
@@ -12061,6 +12075,13 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		return -1;
 	}
 	ast_channel_unlock(transferer);
+	if (!transferer || !transferee) {
+		if (!transferer)
+			ast_log(LOG_DEBUG, "No transferer channel, giving up parking\n");
+		if (!transferee)
+			ast_log(LOG_DEBUG, "No transferee channel, giving up parking\n");
+		return -1;
+	}
 	if ((d = ast_calloc(1, sizeof(*d)))) {
 		/* Save original request for followup */
 		copy_request(&d->req, req);
