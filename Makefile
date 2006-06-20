@@ -423,10 +423,10 @@ ast_expr2.c ast_expr2.h:
 ast_expr2f.c:
 	flex -o $@ --full ast_expr2.fl
 
-testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
-	gcc -g -c -DSTANDALONE ast_expr2f.c
-	gcc -g -c -DSTANDALONE ast_expr2.c
-	gcc -g -o testexpr2 ast_expr2f.o ast_expr2.o
+testexpr2: config.status include/asterisk/buildopts.h ast_expr2f.c ast_expr2.c ast_expr2.h
+	$(CC) -g -c -Iinclude -DSTANDALONE ast_expr2f.c
+	$(CC) -g -c -Iinclude -DSTANDALONE ast_expr2.c
+	$(CC) -g -o testexpr2 ast_expr2f.o ast_expr2.o
 	rm ast_expr2.o ast_expr2f.o 
 
 manpage: asterisk.8

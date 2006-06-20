@@ -14,7 +14,9 @@
 
 #include "asterisk.h"
 
+#ifndef STANDALONE
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+#endif
 
 #include <sys/types.h>
 #include <stdio.h>
