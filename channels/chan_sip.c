@@ -9591,14 +9591,16 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 
 	switch (resp) {
 	case 100:	/* Trying */
-		sip_cancel_destroy(p);
+		if (!ignore)
+			sip_cancel_destroy(p);
 		/* must call check_pendings before setting CAN_BYE, so that
 		   if PENDINGBYE is set it will know to send CANCEL instead */
 		check_pendings(p);
 		ast_set_flag(p, SIP_CAN_BYE);
 		break;
 	case 180:	/* 180 Ringing */
-		sip_cancel_destroy(p);
+		if (!ignore)
+			sip_cancel_destroy(p);
 		if (!ignore && p->owner) {
 			ast_queue_control(p->owner, AST_CONTROL_RINGING);
 			if (p->owner->_state != AST_STATE_UP)
@@ -9617,7 +9619,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_set_flag(p, SIP_CAN_BYE);
 		break;
 	case 183:	/* Session progress */
-		sip_cancel_destroy(p);
+		if (!ignore)
+			sip_cancel_destroy(p);
 		/* Ignore 183 Session progress without SDP */
 		if (find_sdp(req)) {
 			process_sdp(p, req);
@@ -9632,7 +9635,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_set_flag(p, SIP_CAN_BYE);
 		break;
 	case 200:	/* 200 OK on invite - someone's answering our call */
-		sip_cancel_destroy(p);
+		if (!ignore)
+			sip_cancel_destroy(p);
 		p->authtries = 0;
 		if (find_sdp(req)) {
 			process_sdp(p, req);
@@ -10090,7 +10094,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					ast_set_flag(p, SIP_NEEDDESTROY);	
 			} else if ((resp >= 100) && (resp < 200)) {
 				if (sipmethod == SIP_INVITE) {
-					sip_cancel_destroy(p);
+					if (!ignore)
+						sip_cancel_destroy(p);
 					if (find_sdp(req))
 						process_sdp(p, req);
 					if (p->owner) {
@@ -10150,9 +10155,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		default:	/* Errors without handlers */
 			if ((resp >= 100) && (resp < 200)) {
-				if (sipmethod == SIP_INVITE) {	/* re-invite */
+				if (sipmethod == SIP_INVITE && !ignore) 	/* re-invite */
 					sip_cancel_destroy(p);
-				}
+				
 			}
 			if ((resp >= 300) && (resp < 700)) {
 				if ((option_verbose > 2) && (resp != 487))
@@ -10163,7 +10168,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 500: /* Server error */
 				case 503: /* Service Unavailable */
 
-					if (sipmethod == SIP_INVITE) {	/* re-invite failed */
+					if (sipmethod == SIP_INVITE && !ignore) {	/* re-invite failed */
 						sip_cancel_destroy(p);
 					}
 					break;
@@ -11329,7 +11334,7 @@ retrylock:
 		if (recordhistory) {
 			char tmp[80];
 			/* This is a response, note what it was for */
-			snprintf(tmp, sizeof(tmp), "%s / %s", req.data, get_header(&req, "CSeq"));
+			snprintf(tmp, sizeof(tmp), "%s / %s /%s", req.data, get_header(&req, "CSeq"), req.rlPart2);
 			append_history(p, "Rx", tmp);
 		}
 		nounlock = 0;
