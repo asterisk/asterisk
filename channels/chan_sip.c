@@ -13237,7 +13237,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		p->refer->localtransfer = 1;
 		if (sipdebug && option_debug > 2)
 			ast_log(LOG_DEBUG, "This SIP transfer is local : %s\n", p->refer->refer_to_domain);
-	} else if (!allow_external_domains) {
+	} else if (AST_LIST_EMPTY(&domain_list)) {
 		/* This PBX don't bother with SIP domains, so all transfers are local */
 		p->refer->localtransfer = 1;
 	} else
