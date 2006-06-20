@@ -4915,16 +4915,16 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	/* Manager Hold and Unhold events must be generated, if necessary */
 	/* XXX Support for sendonly/recvonly needs to be fixed !!! */
 	if (sin.sin_addr.s_addr && !sendonly) {
-		append_history(p, "Unhold", "%s", req->data);
+		if (ast_test_flag(&p->flags[0], SIP_CALL_ONHOLD)) {
+			append_history(p, "Unhold", "%s", req->data);
+			if (global_callevents)
+				manager_event(EVENT_FLAG_CALL, "Unhold",
+					"Channel: %s\r\n"
+					"Uniqueid: %s\r\n",
+					p->owner->name, 
+					p->owner->uniqueid);
 
-		if (global_callevents && ast_test_flag(&p->flags[0], SIP_CALL_ONHOLD)) {
-			manager_event(EVENT_FLAG_CALL, "Unhold",
-				"Channel: %s\r\n"
-				"Uniqueid: %s\r\n",
-				p->owner->name, 
-				p->owner->uniqueid);
-
-		}
+		} 
 		ast_clear_flag(&p->flags[0], SIP_CALL_ONHOLD);
 	} else {
 		/* No address for RTP, we're on hold */
@@ -11820,7 +11820,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			} else if ((resp >= 100) && (resp < 200)) {
 				if (sipmethod == SIP_INVITE) {
-					sip_cancel_destroy(p);
+					if (!ast_test_flag(req, SIP_PKT_IGNORE))
+						sip_cancel_destroy(p);
 					if (find_sdp(req))
 						process_sdp(p, req);
 					if (p->owner) {
@@ -11857,7 +11858,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* They got the notify, this is the end */
 				if (p->owner) {
 					ast_log(LOG_WARNING, "Notify answer on an owned channel?\n");
-					//ast_queue_hangup(p->owner);
+					/* ast_queue_hangup(p->owner); Disabled */
 				} else {
 					if (!p->subscribed && !p->refer)
 						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
@@ -11915,7 +11916,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		default:	/* Errors without handlers */
 			if ((resp >= 100) && (resp < 200)) {
 				if (sipmethod == SIP_INVITE) { 	/* re-invite */
-					if (!ignore)
+					if (!ast_test_flag(req, SIP_PKT_IGNORE))
 						sip_cancel_destroy(p);
 				}
 			}
