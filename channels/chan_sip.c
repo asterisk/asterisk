@@ -12089,10 +12089,10 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		d->chan2 = transferer;	/* Transferer */
 		d->seqno = seqno;
 		if (!ast_pthread_create(&th, NULL, sip_park_thread, d)) {
-			free(d);
+			free(d);	/* We don't need it anymore. If thread is created, d will be free'd
+					   by sip_park_thread() */
 			return 0;
 		}
-		free(d);
 	} 
 	return -1;
 }
