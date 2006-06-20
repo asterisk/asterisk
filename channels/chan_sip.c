@@ -4506,7 +4506,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	while ((m = get_sdp_iterate(&iterator, req, "m"))[0] != '\0') {
 		int x;
 		int audio = FALSE;
-		numberofmediastreams++;
 
 		if (p->vrtp)
 			ast_rtp_pt_clear(newvideortp);  /* Must be cleared in case no m=video line exists */
@@ -4514,6 +4513,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		if ((sscanf(m, "audio %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2) ||
 		    (sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1)) {
 			audio = TRUE;
+			numberofmediastreams++;
 			/* Found audio stream in this media definition */
 			portno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
@@ -4531,6 +4531,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		    (sscanf(m, "video %d RTP/AVP %n", &x, &len) == 1)) {
 			/* If it is not audio - is it video ? */
 			ast_clear_flag(&p->flags[0], SIP_NOVIDEO);	
+			numberofmediastreams++;
 			vportno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			for (codecs = m + len; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
@@ -4546,6 +4547,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			if (debug)
 				ast_verbose("Got T.38 offer in SDP in dialog %s\n", p->callid);
 			udptlportno = x;
+			numberofmediastreams++;
 			
 			if (p->owner && p->lastinvite) {
 				p->t38.state = T38_PEER_REINVITE; /* T38 Offered in re-invite from remote party */
@@ -4584,7 +4586,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		return -2;
 
 	if (numberofmediastreams > 2)
-		/* We have too many media streams, fail this offer */
+		/* We have too many fax, audio and/or video media streams, fail this offer */
 		return -3;
 
 	/* RTP addresses and ports for audio and video */
