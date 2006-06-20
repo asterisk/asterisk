@@ -4631,23 +4631,19 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	iterator = req->sdp_start;
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
 		char* mimeSubtype = ast_strdupa(a); /* ensures we have enough space */
-		if (!strcasecmp(a, "sendonly")) {
-			sendonly = 1;
-			continue;
-		}  else if (!strcasecmp(a, "sendrecv")) {
-			sendonly = 0;
-			continue;
-		} else if (option_debug) {
+		if (option_debug > 1) {
+			int breakout = FALSE;
+		
 			/* If we're debugging, check for unsupported sdp options */
 			if (!strcasecmp(a, "inactive")) {
 				/* Inactive media streams: Not supported */
 				if (debug)
 					ast_verbose("Got unsupported a:inactive in SDP offer \n");
-				continue;
+				breakout = TRUE;
 			} else if (!strncasecmp(a, "rtcp:", (size_t) 5)) {
 				if (debug)
 					ast_verbose("Got unsupported a:rtcp in SDP offer \n");
-				continue;
+				breakout = TRUE;
 			} else if (!strncasecmp(a, "fmtp:", (size_t) 5)) {
 				/* Format parameters:  Not supported */
 				/* Note: This is used for codec parameters, like bitrate for
@@ -4655,27 +4651,36 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					See RFC2327 for an example */
 				if (debug)
 					ast_verbose("Got unsupported a:fmtp in SDP offer \n");
-				continue;
+				breakout = TRUE;
 			} else if (!strncasecmp(a, "framerate:", (size_t) 10)) {
 				/* Video stuff:  Not supported */
 				if (debug)
 					ast_verbose("Got unsupported a:framerate in SDP offer \n");
-				continue;
+				breakout = TRUE;
 			} else if (!strncasecmp(a, "maxprate:", (size_t) 9)) {
 				/* Video stuff:  Not supported */
 				if (debug)
 					ast_verbose("Got unsupported a:maxprate in SDP offer \n");
-				continue;
+				breakout = TRUE;
 			} else if (!strncasecmp(a, "crypto:", (size_t) 7)) {
 				/* SRTP stuff, not yet supported */
 				if (debug)
 					ast_verbose("Got unsupported a:crypto in SDP offer \n");
-				continue;
+				breakout = TRUE;
 			} else if (!strncasecmp(a, "ptime:", (size_t) 6)) {
 				if (debug)
 					ast_verbose("Got unsupported a:ptime in SDP offer \n");
-				continue;
+				breakout = TRUE;
 			}
+			if (breakout)	/* We have a match, skip to next header */
+				continue;
+		}
+		if (!strcasecmp(a, "sendonly")) {
+			sendonly = 1;
+			continue;
+		}  else if (!strcasecmp(a, "sendrecv")) {
+			sendonly = 0;
+			continue;
 		} else if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) 
 			continue;
 		/* We have a rtpmap to handle */
