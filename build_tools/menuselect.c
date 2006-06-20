@@ -694,7 +694,8 @@ int main(int argc, char *argv[])
 		exit(res);
 	
 	/* Process module dependencies */
-	res = process_deps();
+	if ((res = process_deps()))
+		exit(res);
 	
 	/* The --check-deps option is used to ask this application to check to
 	 * see if that an existing menuselect.makeopts file contails all of the
