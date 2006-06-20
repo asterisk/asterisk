@@ -277,7 +277,7 @@ static int write_header(FILE *f)
 	/* Mono = 1 channel */
 	unsigned short chans = htols(1);
 	/* Each block of data is exactly 65 bytes in size. */
-	unsigned short block_align = htols(MSGSM_FRAME_SIZE);
+	unsigned int block_align = htoll(MSGSM_FRAME_SIZE);
 	/* Not actually 2, but rounded up to the nearest bit */
 	unsigned short bits_per_sample = htols(2);
 	/* Needed for compressed formats */
