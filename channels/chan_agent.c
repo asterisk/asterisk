@@ -263,6 +263,7 @@ static const struct ast_channel_tech agent_tech = {
 	.answer = agent_answer,
 	.read = agent_read,
 	.write = agent_write,
+	.write_video = agent_write,
 	.send_html = agent_sendhtml,
 	.send_text = agent_sendtext,
 	.exception = agent_read,
@@ -503,7 +504,8 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
  			}
  			break;
  		case AST_FRAME_VOICE:
- 			/* don't pass voice until the call is acknowledged */
+ 		case AST_FRAME_VIDEO:
+ 			/* don't pass voice or video until the call is acknowledged */
  			if (!p->acknowledged) {
  				ast_frfree(f);
  				f = &ast_null_frame;
@@ -554,16 +556,20 @@ static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 	int res = -1;
 	CHECK_FORMATS(ast, p);
 	ast_mutex_lock(&p->lock);
-	if (p->chan) {
+	if (!p->chan) 
+		res = 0;
+	else {
 		if ((f->frametype != AST_FRAME_VOICE) ||
+		    (f->frametype != AST_FRAME_VIDEO) ||
 		    (f->subclass == p->chan->writeformat)) {
 			res = ast_write(p->chan, f);
 		} else {
-			ast_log(LOG_DEBUG, "Dropping one incompatible voice frame on '%s' to '%s'\n", ast->name, p->chan->name);
+			ast_log(LOG_DEBUG, "Dropping one incompatible %s frame on '%s' to '%s'\n", 
+				f->frametype == AST_FRAME_VOICE ? "audio" : "video",
+				ast->name, p->chan->name);
 			res = 0;
 		}
-	} else
-		res = 0;
+	}
 	CLEANUP(ast, p);
 	ast_mutex_unlock(&p->lock);
 	return res;
