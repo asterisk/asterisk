@@ -336,7 +336,7 @@ struct iax2_peer {
 
 	/* Qualification */
 	int callno;					/*!< Call number of POKE request */
-	int pokeexpire;					/*!< When to expire poke */
+	int pokeexpire;					/*!< Scheduled qualification-related task (ie iax2_poke_peer_s or iax2_poke_noanswer) */
 	int lastms;					/*!< How long last response took (in ms), or -1 for no response */
 	int maxms;					/*!< Max ms we will accept for the host to be up, 0 to not monitor */
 
@@ -7143,18 +7143,21 @@ retryowner2:
 					else					
 						peer->historicms = iaxs[fr->callno]->pingtime;
 
+					/* Remove scheduled iax2_poke_noanswer */
 					if (peer->pokeexpire > -1)
 						ast_sched_del(sched, peer->pokeexpire);
-					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
-					iax2_destroy_nolock(fr->callno);
-					peer->callno = 0;
-					/* Try again eventually */
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Peer lastms %d, historicms %d, maxms %d\n", peer->lastms, peer->historicms, peer->maxms);
+					/* Schedule the next cycle */
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) 
 						peer->pokeexpire = ast_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer);
 					else
 						peer->pokeexpire = ast_sched_add(sched, peer->pokefreqok, iax2_poke_peer_s, peer);
+					/* and finally send the ack */
+					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
+					/* And wrap up the qualify call */
+					iax2_destroy_nolock(fr->callno);
+					peer->callno = 0;
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Peer %s: got pong, lastms %d, historicms %d, maxms %d\n", peer->name, peer->lastms, peer->historicms, peer->maxms);
 				}
 				break;
 			case IAX_COMMAND_LAGRQ:
@@ -7955,7 +7958,7 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 {
 	if (!peer->maxms || !peer->addr.sin_addr.s_addr) {
 		/* IF we have no IP, or this isn't to be monitored, return
-		  imeediately after clearing things out */
+		  immediately after clearing things out */
 		peer->lastms = 0;
 		peer->historicms = 0;
 		peer->pokeexpire = -1;
@@ -7975,18 +7978,24 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 		ast_log(LOG_WARNING, "Unable to allocate call for poking peer '%s'\n", peer->name);
 		return -1;
 	}
-	if (peer->pokeexpire > -1)
-		ast_sched_del(sched, peer->pokeexpire);
-	/* Speed up retransmission times */
+
+	/* Speed up retransmission times for this qualify call */
 	iaxs[peer->callno]->pingtime = peer->maxms / 4 + 1;
 	iaxs[peer->callno]->peerpoke = peer;
-	send_command(iaxs[peer->callno], AST_FRAME_IAX, IAX_COMMAND_POKE, 0, NULL, 0, -1);
 	
+	/* Remove any pending pokeexpire task */
+	if (peer->pokeexpire > -1)
+		ast_sched_del(sched, peer->pokeexpire);
+
+	/* Queue up a new task to handle no reply */
 	/* If the host is already unreachable then use the unreachable interval instead */
 	if (peer->lastms < 0) {
 		peer->pokeexpire = ast_sched_add(sched, peer->pokefreqnotok, iax2_poke_noanswer, peer);
 	} else
 		peer->pokeexpire = ast_sched_add(sched, DEFAULT_MAXMS * 2, iax2_poke_noanswer, peer);
+
+	/* And send the poke */
+	send_command(iaxs[peer->callno], AST_FRAME_IAX, IAX_COMMAND_POKE, 0, NULL, 0, -1);
 
 	return 0;
 }
