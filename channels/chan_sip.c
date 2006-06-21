@@ -11967,6 +11967,10 @@ static void *sip_park_thread(void *stuff)
 	copy_request(&req, &d->req);
 	free(d);
 
+	if (!transferee || !transferer) {
+		ast_log(LOG_ERROR, "Missing channels for parking! Transferer %s Transferee %s\n", transferer ? "<available>" : "<missing>", transferee ? "<available>" : "<missing>" );
+		return;
+	}
 	if (option_debug > 3) 
 		ast_log(LOG_DEBUG, "SIP Park: Transferer channel %s, Transferee %s\n", transferer->name, transferee->name);
 
@@ -12088,7 +12092,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		d->chan1 = transferee;	/* Transferee */
 		d->chan2 = transferer;	/* Transferer */
 		d->seqno = seqno;
-		if (!ast_pthread_create(&th, NULL, sip_park_thread, d)) {
+		if (ast_pthread_create(&th, NULL, sip_park_thread, d) < 0) {
+			/* Could not start thread */
 			free(d);	/* We don't need it anymore. If thread is created, d will be free'd
 					   by sip_park_thread() */
 			return 0;
