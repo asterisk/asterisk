@@ -964,7 +964,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 	struct ast_variable *v;
 	struct call_queue *q;
 	struct member *m, *prev_m, *next_m;
-	char *interface;
+	char *interface = NULL;
 	char *tmp, *tmp_name;
 	char tmpbuf[64];	/* Must be longer than the longest queue param name. */
 
@@ -1046,8 +1046,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 			m->dead = 1;
 	}
 
-	interface = NULL;
-	while (ast_category_browse(member_config, interface))
+	while ((interface = ast_category_browse(member_config, interface)))
 		rt_handle_member_record(q, interface, ast_variable_retrieve(member_config, interface, "penalty"));
 
 	/* Delete all realtime members that have been deleted in DB. */
