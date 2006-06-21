@@ -126,6 +126,7 @@ enum misdn_chan_state {
 	MISDN_CONNECTED, /*!<  when connected */
 	MISDN_PRECONNECTED, /*!<  when connected */
 	MISDN_DISCONNECTED, /*!<  when connected */
+	MISDN_RELEASED, /*!<  when connected */
 	MISDN_BRIDGED, /*!<  when bridged */
 	MISDN_CLEANING, /*!< when hangup from * but we were connected before */
 	MISDN_HUNGUP_FROM_MISDN, /*!< when DISCONNECT/RELEASE/REL_COMP  cam from misdn */
@@ -644,6 +645,8 @@ static struct state_struct state_array[] = {
 	{MISDN_ALERTING,"ALERTING"}, /*  when Alerting */
 	{MISDN_BUSY,"BUSY"}, /*  when BUSY */
 	{MISDN_CONNECTED,"CONNECTED"}, /*  when connected */
+	{MISDN_DISCONNECTED,"DISCONNECTED"}, /*  when connected */
+	{MISDN_RELEASED,"RELEASED"}, /*  when connected */
 	{MISDN_BRIDGED,"BRIDGED"}, /*  when bridged */
 	{MISDN_CLEANING,"CLEANING"}, /* when hangup from * but we were connected before */
 	{MISDN_HUNGUP_FROM_MISDN,"HUNGUP_FROM_MISDN"}, /* when DISCONNECT/RELEASE/REL_COMP  cam from misdn */
@@ -1853,14 +1856,29 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 				chan_misdn_log(1, p->bc->port, " --> * IND :\tringing pid:%d\n",p->bc?p->bc->pid:-1);
 				misdn_lib_send_event( p->bc, EVENT_ALERTING);
 			
-				if (p->other_ch && p->other_ch->bc && misdn_inband_avail(p->other_ch->bc)) {
-					chan_misdn_log(1,p->bc->port, " --> other End is mISDN and has inband info available\n");
-					break;
+				if (p->other_ch && p->other_ch->bc) {
+					if (misdn_inband_avail(p->other_ch->bc)) {
+						chan_misdn_log(1,p->bc->port, " --> other End is mISDN and has inband info available\n");
+						break;
+					}
+
+					if (!p->other_ch->bc->nt) {
+						chan_misdn_log(1,p->bc->port, " --> other End is mISDN TE so it has inband info for sure (?)\n");
+						break;
+					}
+#if 0
+					if (p->other_ch->bc->nt) {
+						chan_misdn_log(1,p->bc->port, " --> other End is mISDN NT .. \n");
+						break;
+					}
+#endif
+
 				}
+
 			
 				if ( !p->bc->nt && (p->orginator==ORG_MISDN) && !p->incoming_early_audio ) 
 					chan_misdn_log(1,p->bc->port, " --> incoming_early_audio off\n");
-				 else 
+				else 
 					 tone_indicate(p, TONE_ALERTING);
 				chan_misdn_log(1, p->bc->port, " --> * SEND: State Ring pid:%d\n",p->bc?p->bc->pid:-1);
 				ast_setstate(ast,AST_STATE_RINGING);
@@ -1919,7 +1937,7 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 		chan_misdn_log(1, p->bc->port, " --> *\tUNHOLD pid:%d\n",p->bc?p->bc->pid:-1);
 		break;
 	default:
-		ast_log(LOG_WARNING, " --> * Unknown Indication:%d pid:%d\n",cond,p->bc?p->bc->pid:-1);
+		ast_log(LOG_NOTICE, " --> * Unknown Indication:%d pid:%d\n",cond,p->bc?p->bc->pid:-1);
 	}
   
 	return 0;
@@ -1991,6 +2009,7 @@ static int misdn_hangup(struct ast_channel *ast)
 		chan_misdn_log(2, bc->port, " --> l3id:%x\n",p->l3id);
 		chan_misdn_log(1, bc->port, " --> cause:%d\n",bc->cause);
 		chan_misdn_log(1, bc->port, " --> out_cause:%d\n",bc->out_cause);
+		chan_misdn_log(1, bc->port, " --> state:%s\n", misdn_get_ch_state(p));
 		
 		switch (p->state) {
 		case MISDN_CALLING:
@@ -2013,8 +2032,6 @@ static int misdn_hangup(struct ast_channel *ast)
 		case MISDN_ALERTING:
 		case MISDN_PROGRESS:
 		case MISDN_PROCEEDING:
-			chan_misdn_log(2, bc->port, " --> * State Alerting\n");
-
 			if (p->orginator != ORG_AST) 
 				tone_indicate(p, TONE_HANGUP);
       
@@ -2023,7 +2040,6 @@ static int misdn_hangup(struct ast_channel *ast)
 			break;
 		case MISDN_CONNECTED:
 			/*  Alerting or Disconect */
-			chan_misdn_log(2, bc->port, " --> * State Connected\n");
 			start_bc_tones(p);
 			tone_indicate(p, TONE_HANGUP);
 			misdn_lib_send_event( bc, EVENT_DISCONNECT);
@@ -2031,17 +2047,16 @@ static int misdn_hangup(struct ast_channel *ast)
 			p->state=MISDN_CLEANING; /* MISDN_HUNGUP_FROM_AST; */
 			break;
 		case MISDN_DISCONNECTED:
-			chan_misdn_log(2, bc->port, " --> * State Disconnected\n");
 			misdn_lib_send_event( bc, EVENT_RELEASE);
 			p->state=MISDN_CLEANING; /* MISDN_HUNGUP_FROM_AST; */
 			break;
 
+		case MISDN_RELEASED:
 		case MISDN_CLEANING:
 			break;
       
 		case MISDN_HOLD_DISCONNECT:
 			/* need to send release here */
-			chan_misdn_log(2, bc->port, " --> state HOLD_DISC\n");
 			chan_misdn_log(1, bc->port, " --> cause %d\n",bc->cause);
 			chan_misdn_log(1, bc->port, " --> out_cause %d\n",bc->out_cause);
 			
@@ -2358,7 +2373,7 @@ static int tone_indicate( struct chan_list *cl, enum tone_e tone)
 	chan_misdn_log(3,cl->bc->port,"Tone Indicate:\n");
 	
 	if (!cl->ast) {
-		chan_misdn_log(-1,cl->bc->port,"Ast Ptr Not existing anymore.. we need to generate tones ourselves now (tbd)\n");
+		chan_misdn_log(3,cl->bc->port,"Ast Ptr Not existing anymore.. we need to generate tones ourselves now (tbd)\n");
 		
 		misdn_lib_send_tone(cl->bc,tone);
 		return 0;
@@ -2407,7 +2422,7 @@ static int tone_indicate( struct chan_list *cl, enum tone_e tone)
 
 static int start_bc_tones(struct chan_list* cl)
 {
-	manager_bchannel_activate(cl->bc);
+/*	manager_bchannel_activate(cl->bc); */
 	misdn_lib_tone_generator_stop(cl->bc);
 	cl->notxtone=0;
 	cl->norxtone=0;
@@ -2416,9 +2431,10 @@ static int start_bc_tones(struct chan_list* cl)
 
 static int stop_bc_tones(struct chan_list *cl)
 {
-	if (cl->bc) {
+/*	if (cl->bc) {
 		manager_bchannel_deactivate(cl->bc);
 	}
+*/
 	cl->notxtone=1;
 	cl->norxtone=1;
 	
@@ -2514,7 +2530,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 					if (port >= port_start)
 						next_chan = 1;
 					
-					if (port < port_start && next_chan) {
+					if (port <= port_start && next_chan) {
 						if (++robin_channel >= MAX_BCHANS) {
 							robin_channel = 1;
 						}
@@ -2528,13 +2544,17 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 						int check;
 						misdn_cfg_get(port, MISDN_CFG_PMP_L1_CHECK, &check, sizeof(int));
 						port_up = misdn_lib_port_up(port, check);
+
+						if (check && !port_up) 
+							chan_misdn_log(1,port,"L1 is not Up on this Port\n");
+						
 						
 						if ( port_up )	{
 							newbc = misdn_lib_get_free_bc(port, robin_channel);
 							if (newbc) {
 								chan_misdn_log(4, port, " Success! Found port:%d channel:%d\n", newbc->port, newbc->channel);
 								if (port_up)
-									chan_misdn_log(4, port, "ortup:%d\n",  port_up);
+									chan_misdn_log(4, port, "portup:%d\n",  port_up);
 								rr->port = newbc->port;
 								rr->channel = newbc->channel;
 								break;
@@ -2579,8 +2599,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	}
 	
 	if (!newbc) {
-		chan_misdn_log(-1, 0, " --> ! No free channel chan ext:%s even after Group Call\n",ext);
-		chan_misdn_log(-1, 0, " --> SEND: State Down\n");
+		chan_misdn_log(-1, 0, "Could not create channel on port:%d with extensions:%s\n",port,ext);
 		return NULL;
 	}
 
@@ -3144,7 +3163,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch=find_chan_by_l3id(cl_te, bc->l3_id);
 	
 	if (event != EVENT_BCHAN_DATA && event != EVENT_TONE_GENERATE) { /*  Debug Only Non-Bchan */
-		chan_misdn_log(1, bc->port, "I IND :%s oad:%s dad:%s\n", manager_isdn_get_info(event), bc->oad, bc->dad);
+		chan_misdn_log(1, bc->port, "I IND :%s oad:%s dad:%s pid:%d\n", manager_isdn_get_info(event), bc->oad, bc->dad, bc->pid);
 		misdn_lib_log_ies(bc);
 		chan_misdn_log(2,bc->port," --> bc_state:%s\n",bc_state2str(bc->bc_state));
 	}
@@ -3152,7 +3171,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	if (event != EVENT_SETUP) {
 		if (!ch) {
 			if (event != EVENT_CLEANUP )
-				ast_log(LOG_WARNING, "Chan not existing at the moment bc->l3id:%x bc:%p event:%s port:%d channel:%d\n",bc->l3_id, bc, manager_isdn_get_info( event), bc->port,bc->channel);
+				ast_log(LOG_NOTICE, "Chan not existing at the moment bc->l3id:%x bc:%p event:%s port:%d channel:%d\n",bc->l3_id, bc, manager_isdn_get_info( event), bc->port,bc->channel);
 			return -1;
 		}
 	}
@@ -3164,12 +3183,13 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		case EVENT_RELEASE_COMPLETE:
 		case EVENT_CLEANUP:
 		case EVENT_TIMEOUT:
-			chan_misdn_log(3,bc->port,"ast_hangup already called, so we have no ast ptr anymore in event(%s)\n",manager_isdn_get_info(event));
+			if (!ch->ast)
+				chan_misdn_log(3,bc->port,"ast_hangup already called, so we have no ast ptr anymore in event(%s)\n",manager_isdn_get_info(event));
 			break;
 		default:
 			if ( !ch->ast  || !MISDN_ASTERISK_PVT(ch->ast) || !MISDN_ASTERISK_TECH_PVT(ch->ast)) {
 				if (event!=EVENT_BCHAN_DATA)
-					ast_log(LOG_WARNING, "No Ast or No private Pointer in Event (%d:%s)\n", event, manager_isdn_get_info(event));
+					ast_log(LOG_NOTICE, "No Ast or No private Pointer in Event (%d:%s)\n", event, manager_isdn_get_info(event));
 				return -1;
 			}
 		}
@@ -3674,7 +3694,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			   alternative number, then play it instead of
 			   immediately releasing the call */
 			chan_misdn_log(0,bc->port, " --> Inband Info Avail, not sending RELEASE\n");
-			ch->state = MISDN_DISCONNECTED;
+			ch->state=MISDN_DISCONNECTED;
 			start_bc_tones(ch);
 			break;
 		}
@@ -3699,6 +3719,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		*/
 		
 		misdn_lib_send_event(bc,EVENT_RELEASE);
+
+		if (ch->state == MISDN_CONNECTED)
+			ch->state=MISDN_RELEASED;
 	}
 	break;
 	
@@ -3725,7 +3748,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			/*stop_bc_tones(ch);
 			  release_chan(bc);*/
 			
+			if (!bc->nt) release_chan(bc);
+			
 			misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
+
 		}
 		break;
 	case EVENT_RELEASE_COMPLETE:
@@ -3755,7 +3781,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		generate = ast->generator->generate;
 
 		if (tone_len <0 || tone_len > 512 ) {
-			ast_log(LOG_WARNING, "TONE_GEN: len was %d, set to 128\n",tone_len);
+			ast_log(LOG_NOTICE, "TONE_GEN: len was %d, set to 128\n",tone_len);
 			tone_len=128;
 		}
 
@@ -3950,7 +3976,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		break;
 				
 	default:
-		ast_log(LOG_WARNING, "Got Unknown Event\n");
+		ast_log(LOG_NOTICE, "Got Unknown Event\n");
 		break;
 	}
 	
