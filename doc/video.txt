@@ -26,8 +26,9 @@ configuration file.
 Channel drivers
 ---------------
 SIP		The SIP channel driver (chan_sip.so) has support for video
-IAX2		Supports video calls
+IAX2		Supports video calls (over trunks too)
 Local		Forwards video calls as a proxy channel
+Agent		Forwards video calls as a proxy channel
 
 Applications
 ------------
@@ -42,4 +43,4 @@ There is a development group working on enhancing video support for Asterisk.
 If you want to participate, join the asterisk-video mailing list on http://lists.digium.com
 
 ---
-Updates to this file are welcome!
+Updates to this file are more than welcome!
