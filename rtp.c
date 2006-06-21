@@ -1047,7 +1047,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		rtp->seedrxseqno = seqno;
 	}
 
-	if (rtp->rtcp->schedid<1) {
+	if (rtp->rtcp->schedid < 1) {
 		/* Schedule transmission of Receiver Report */
 		rtp->rtcp->schedid = ast_sched_add(rtp->sched, ast_rtcp_calc_interval(rtp), ast_rtcp_write, rtp);
 	}
@@ -1744,7 +1744,7 @@ void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us)
 
 void ast_rtp_stop(struct ast_rtp *rtp)
 {
-	if (rtp->rtcp->schedid>0) {
+	if (rtp->rtcp->schedid > 0) {
 		ast_sched_del(rtp->sched, rtp->rtcp->schedid);
 		rtp->rtcp->schedid = -1;
 	}
@@ -1816,7 +1816,7 @@ void ast_rtp_destroy(struct ast_rtp *rtp)
 		ast_verbose("  RTT:		 %f\n", rtp->rtcp->rtt);
 	}
 
-	if (rtp->rtcp->schedid>0) {
+	if (rtp->rtcp->schedid > 0) {
 		ast_sched_del(rtp->sched, rtp->rtcp->schedid);
 		rtp->rtcp->schedid = -1;
 	}
@@ -1974,7 +1974,8 @@ static int ast_rtcp_write_sr(void *data)
 	
 	if (!rtp->rtcp->them.sin_addr.s_addr) {  /* This'll stop rtcp for this rtp session */
 		ast_verbose("RTCP SR transmission error, rtcp halted %s\n",strerror(errno));
-		ast_sched_del(rtp->sched, rtp->rtcp->schedid);
+		if (rtp->rtcp->schedid > 0)
+			ast_sched_del(rtp->sched, rtp->rtcp->schedid);
 		rtp->rtcp->schedid = -1;
 		return 0;
 	}
@@ -2032,7 +2033,8 @@ static int ast_rtcp_write_sr(void *data)
 	res = sendto(rtp->rtcp->s, (unsigned int *)rtcpheader, len, 0, (struct sockaddr *)&rtp->rtcp->them, sizeof(rtp->rtcp->them));
 	if (res < 0) {
 		ast_log(LOG_ERROR, "RTCP SR transmission error to %s:%d, rtcp halted %s\n",ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port), strerror(errno));
-		ast_sched_del(rtp->sched, rtp->rtcp->schedid);
+		if (rtp->rtcp->schedid > 0)
+			ast_sched_del(rtp->sched, rtp->rtcp->schedid);
 		rtp->rtcp->schedid = -1;
 		return 0;
 	}
@@ -2084,7 +2086,8 @@ static int ast_rtcp_write_rr(void *data)
 	  
 	if (!rtp->rtcp->them.sin_addr.s_addr) {
 		ast_log(LOG_ERROR, "RTCP RR transmission error to, rtcp halted %s\n",strerror(errno));
-		ast_sched_del(rtp->sched, rtp->rtcp->schedid);
+		if (rtp->rtcp->schedid > 0)
+			ast_sched_del(rtp->sched, rtp->rtcp->schedid);
 		rtp->rtcp->schedid = -1;
 		return 0;
 	}
@@ -2132,7 +2135,8 @@ static int ast_rtcp_write_rr(void *data)
 	if (res < 0) {
 		ast_log(LOG_ERROR, "RTCP RR transmission error, rtcp halted: %s\n",strerror(errno));
 		/* Remove the scheduler */
-		ast_sched_del(rtp->sched, rtp->rtcp->schedid);
+		if (rtp->rtcp->schedid > 0)
+			ast_sched_del(rtp->sched, rtp->rtcp->schedid);
 		rtp->rtcp->schedid = -1;
 		return 0;
 	}
