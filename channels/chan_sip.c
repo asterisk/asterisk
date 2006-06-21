@@ -143,41 +143,41 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/abstract_jb.h"
 
 #ifndef FALSE
-#define FALSE	0
+#define FALSE    0
 #endif
 
 #ifndef TRUE
-#define TRUE 1
+#define TRUE     1
 #endif
 
-#define VIDEO_CODEC_MASK	0x1fc0000 /*!< Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO */
+#define VIDEO_CODEC_MASK        0x1fc0000 /*!< Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO */
 #ifndef IPTOS_MINCOST
-#define IPTOS_MINCOST		0x02
+#define IPTOS_MINCOST           0x02
 #endif
 
 /* #define VOCAL_DATA_HACK */
 
 #define DEFAULT_DEFAULT_EXPIRY  120
-#define DEFAULT_MIN_EXPIRY	60
-#define DEFAULT_MAX_EXPIRY	3600
-#define DEFAULT_REGISTRATION_TIMEOUT	20
-#define DEFAULT_MAX_FORWARDS	"70"
+#define DEFAULT_MIN_EXPIRY      60
+#define DEFAULT_MAX_EXPIRY      3600
+#define DEFAULT_REGISTRATION_TIMEOUT 20
+#define DEFAULT_MAX_FORWARDS    "70"
 
 /* guard limit must be larger than guard secs */
 /* guard min must be < 1000, and should be >= 250 */
-#define EXPIRY_GUARD_SECS	15		/*!< How long before expiry do we reregister */
-#define EXPIRY_GUARD_LIMIT	30		/*!< Below here, we use EXPIRY_GUARD_PCT instead of 
-					 	  EXPIRY_GUARD_SECS */
-#define EXPIRY_GUARD_MIN	500		/*!< This is the minimum guard time applied. If 
-					 	  GUARD_PCT turns out to be lower than this, it 
-						   will use this time instead.
-						   This is in milliseconds. */
-#define EXPIRY_GUARD_PCT	0.20		/*!< Percentage of expires timeout to use when 
-						   below EXPIRY_GUARD_LIMIT */
-#define DEFAULT_EXPIRY 900			/*!< Expire slowly */
+#define EXPIRY_GUARD_SECS       15                /*!< How long before expiry do we reregister */
+#define EXPIRY_GUARD_LIMIT      30                /*!< Below here, we use EXPIRY_GUARD_PCT instead of 
+                                                   EXPIRY_GUARD_SECS */
+#define EXPIRY_GUARD_MIN        500                /*!< This is the minimum guard time applied. If 
+                                                   GUARD_PCT turns out to be lower than this, it 
+                                                   will use this time instead.
+                                                   This is in milliseconds. */
+#define EXPIRY_GUARD_PCT        0.20                /*!< Percentage of expires timeout to use when 
+                                                    below EXPIRY_GUARD_LIMIT */
+#define DEFAULT_EXPIRY 900                          /*!< Expire slowly */
 
-static int min_expiry = DEFAULT_MIN_EXPIRY;	/*!< Minimum accepted registration time */
-static int max_expiry = DEFAULT_MAX_EXPIRY;	/*!< Maximum accepted registration time */
+static int min_expiry = DEFAULT_MIN_EXPIRY;        /*!< Minimum accepted registration time */
+static int max_expiry = DEFAULT_MAX_EXPIRY;        /*!< Maximum accepted registration time */
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 static int expiry = DEFAULT_EXPIRY;
 
@@ -185,29 +185,29 @@ static int expiry = DEFAULT_EXPIRY;
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #endif
 
-#define CALLERID_UNKNOWN	"Unknown"
+#define CALLERID_UNKNOWN        "Unknown"
 
-#define DEFAULT_MAXMS		2000		/*!< Qualification: Must be faster than 2 seconds by default */
-#define DEFAULT_FREQ_OK		60 * 1000	/*!< Qualification: How often to check for the host to be up */
-#define DEFAULT_FREQ_NOTOK	10 * 1000	/*!< Qualification: How often to check, if the host is down... */
+#define DEFAULT_MAXMS                2000             /*!< Qualification: Must be faster than 2 seconds by default */
+#define DEFAULT_FREQ_OK              60 * 1000        /*!< Qualification: How often to check for the host to be up */
+#define DEFAULT_FREQ_NOTOK           10 * 1000        /*!< Qualification: How often to check, if the host is down... */
 
-#define DEFAULT_RETRANS		1000		/*!< How frequently to retransmit Default: 2 * 500 ms in RFC 3261 */
-#define MAX_RETRANS		6		/*!< Try only 6 times for retransmissions, a total of 7 transmissions */
-#define SIP_TRANS_TIMEOUT	32000		/*!< SIP request timeout (rfc 3261) 64*T1 
-						\todo Use known T1 for timeout (peerpoke)
-						*/
-#define MAX_AUTHTRIES		3		/*!< Try authentication three times, then fail */
+#define DEFAULT_RETRANS              1000             /*!< How frequently to retransmit Default: 2 * 500 ms in RFC 3261 */
+#define MAX_RETRANS                  6                /*!< Try only 6 times for retransmissions, a total of 7 transmissions */
+#define SIP_TRANS_TIMEOUT            32000            /*!< SIP request timeout (rfc 3261) 64*T1 
+                                                      \todo Use known T1 for timeout (peerpoke)
+                                                      */
+#define MAX_AUTHTRIES                3                /*!< Try authentication three times, then fail */
 
-#define SIP_MAX_HEADERS		64			/*!< Max amount of SIP headers to read */
-#define SIP_MAX_LINES 		64			/*!< Max amount of lines in SIP attachment (like SDP) */
-#define SIP_MAX_PACKET		4096	/*!< Also from RFC 3261 (2543), should sub headers tho */
+#define SIP_MAX_HEADERS              64               /*!< Max amount of SIP headers to read */
+#define SIP_MAX_LINES                64               /*!< Max amount of lines in SIP attachment (like SDP) */
+#define SIP_MAX_PACKET               4096             /*!< Also from RFC 3261 (2543), should sub headers tho */
 
-#define	INITIAL_CSEQ		101	/*!< our initial sip sequence number */
+#define INITIAL_CSEQ                 101              /*!< our initial sip sequence number */
 
-/*! Global jitterbuffer configuration - by default, jb is disabled */
+/*! \brief Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =
 {
-	.flags = 0,
+        .flags = 0,
 	.max_size = -1,
 	.resync_threshold = -1,
 	.impl = ""
@@ -227,8 +227,8 @@ static int usecnt = 0;
 \note Not a bitfield flag, since there are plans for other modes,
 	like "only allow transfers for authenticated devices" */
 enum transfermodes {
-	TRANSFER_OPENFORALL, 		/*!< Allow all SIP transfers */
-	TRANSFER_CLOSED,		/*!< Allow no SIP transfers */
+	TRANSFER_OPENFORALL,            /*!< Allow all SIP transfers */
+	TRANSFER_CLOSED,                /*!< Allow no SIP transfers */
 };
 
 
@@ -246,10 +246,16 @@ enum sip_result {
 */
 
 enum xmittype {
-	XMIT_CRITICAL = 2,		/*!< Transmit critical SIP message reliably, with re-transmits.
-							If it fails, it's critical and will cause a teardown of the session */
-	XMIT_RELIABLE = 1,		/*!< Transmit SIP message reliably, with re-transmits */
-	XMIT_UNRELIABLE = 0,		/*!< Transmit SIP message without bothering with re-transmits */
+	XMIT_CRITICAL = 2,              /*!< Transmit critical SIP message reliably, with re-transmits.
+                                              If it fails, it's critical and will cause a teardown of the session */
+	XMIT_RELIABLE = 1,              /*!< Transmit SIP message reliably, with re-transmits */
+	XMIT_UNRELIABLE = 0,            /*!< Transmit SIP message without bothering with re-transmits */
+};
+
+enum parse_register_result {
+	PARSE_REGISTER_FAILED,
+	PARSE_REGISTER_UPDATE,
+	PARSE_REGISTER_QUERY,
 };
 
 enum subscriptiontype { 
@@ -261,13 +267,6 @@ enum subscriptiontype {
 	PIDF_XML,
 	MWI_NOTIFICATION
 };
-
-enum parse_register_result {
-	PARSE_REGISTER_FAILED,
-	PARSE_REGISTER_UPDATE,
-	PARSE_REGISTER_QUERY,
-};
-
 
 static const struct cfsubscription_types {
 	enum subscriptiontype type;
