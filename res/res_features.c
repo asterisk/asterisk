@@ -76,18 +76,18 @@ static void FREE(void *ptr)
 
 static char *parkedcall = "ParkedCall";
 
-static int parkingtime = DEFAULT_PARK_TIME; 		/*!< No more than 45 seconds parked before you do something with them */
-static char parking_con[AST_MAX_EXTENSION];		/*!< Context for which parking is made accessible */
-static char parking_con_dial[AST_MAX_EXTENSION];	/*!< Context for dialback for parking (KLUDGE) */
-static char parking_ext[AST_MAX_EXTENSION];		/*!< Extension you type to park the call */
-static char pickup_ext[AST_MAX_EXTENSION];		/*!< Call pickup extension */
-static int parking_start;				/*!< First available extension for parking */
-static int parking_stop;				/*!< Last available extension for parking */
+static int parkingtime = DEFAULT_PARK_TIME;                /*!< No more than 45 seconds parked before you do something with them */
+static char parking_con[AST_MAX_EXTENSION];                /*!< Context for which parking is made accessible */
+static char parking_con_dial[AST_MAX_EXTENSION];           /*!< Context for dialback for parking (KLUDGE) */
+static char parking_ext[AST_MAX_EXTENSION];                /*!< Extension you type to park the call */
+static char pickup_ext[AST_MAX_EXTENSION];                 /*!< Call pickup extension */
+static int parking_start;                                  /*!< First available extension for parking */
+static int parking_stop;                                   /*!< Last available extension for parking */
 
-static char courtesytone[256];				/*!< Courtesy tone */
-static int parkedplay = 0;				/*!< Who to play the courtesy tone to */
-static char xfersound[256];				/*!< Call transfer sound */
-static char xferfailsound[256];				/*!< Call transfer failure sound */
+static char courtesytone[256];                             /*!< Courtesy tone */
+static int parkedplay = 0;                                 /*!< Who to play the courtesy tone to */
+static char xfersound[256];                                /*!< Call transfer sound */
+static char xferfailsound[256];                            /*!< Call transfer failure sound */
 
 static int parking_offset;
 static int parkfindnext;
@@ -99,7 +99,7 @@ static int featuredigittimeout;
 
 static int atxfernoanswertimeout;
 
-static char *registrar = "res_features";		/*!< Registrar for operations */
+static char *registrar = "res_features";		   /*!< Registrar for operations */
 
 /* module and CLI command definitions */
 static char *synopsis = "Answer a parked call";
@@ -125,14 +125,13 @@ static struct ast_app *monitor_app = NULL;
 static int monitor_ok = 1;
 
 struct parkeduser {
-	struct ast_channel *chan;
-	struct timeval start;
-	int parkingnum;
-	/* Where to go if our parking time expires */
-	char context[AST_MAX_CONTEXT];
+	struct ast_channel *chan;                   /*!< Parking channel */
+	struct timeval start;                       /*!< Time the parking started */
+	int parkingnum;                             /*!< Parking lot */
+	char context[AST_MAX_CONTEXT];              /*!< Where to go if our parking time expires */
 	char exten[AST_MAX_EXTENSION];
 	int priority;
-	int parkingtime;
+	int parkingtime;                            /*!< Maximum length in parking lot before return */
 	int notquiteyet;
 	char peername[1024];
 	unsigned char moh_trys;
@@ -265,7 +264,7 @@ static int adsi_announce_park(struct ast_channel *chan, int parkingnum)
 }
 
 /*! \brief Park a call 
- 	We put the user in the parking list, then wake up the parking thread to be sure it looks
+ 	\note We put the user in the parking list, then wake up the parking thread to be sure it looks
 	after these channels too */
 int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout)
 {
@@ -274,9 +273,9 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	char exten[AST_MAX_EXTENSION];
 	struct ast_context *con;
 	
-	if (!(pu = ast_calloc(1, sizeof(*pu)))) {
+	if (!(pu = ast_calloc(1, sizeof(*pu)))) 
 		return -1;
-	}
+
 	ast_mutex_lock(&parking_lock);
 	parking_range = parking_stop - parking_start+1;
 	for (i = 0; i < parking_range; i++) {
@@ -305,7 +304,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	pu->chan = chan;
 	/* Start music on hold */
 	if (chan != peer) {
-		ast_indicate(pu->chan, AST_CONTROL_HOLD);
+		ast_indicate(pu->chan, AST_CONTROL_HOLD);	/* Indicate to peer that we're on hold */
 		ast_moh_start(pu->chan, NULL);
 	}
 	pu->start = ast_tvnow();
@@ -345,22 +344,21 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		S_OR(pu->chan->cid.cid_name, "<unknown>")
 		);
 
-	if (peer) {
-		if (adsipark && adsi_available(peer))
-			adsi_announce_park(peer, pu->parkingnum);
-		if (adsipark && adsi_available(peer))
-			adsi_unload_session(peer);
+	if (peer && adsipark && adsi_available(peer)) {
+		adsi_announce_park(peer, pu->parkingnum);
+		adsi_unload_session(peer);
 	}
+
 	con = ast_context_find(parking_con);
-	if (!con) {
+	if (!con) 
 		con = ast_context_create(NULL, parking_con, registrar);
-		if (!con)
-			ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
-	}
-	if (con) {
+	if (!con)	/* Still no context? Bad */
+		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
+	else {		/* Add extension to context */
 		snprintf(exten, sizeof(exten), "%d", x);
 		ast_add_extension2(con, 1, exten, 1, NULL, NULL, parkedcall, strdup(exten), FREE, registrar);
 	}
+	/* Tell the peer channel the number of the parking space */
 	if (peer) 
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
 	if (pu->notquiteyet) {
@@ -378,27 +376,27 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	struct ast_frame *f;
 
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
-	if ((chan = ast_channel_alloc(0))) {
-		/* Let us keep track of the channel name */
-		ast_string_field_build(chan, name, "Parked/%s",rchan->name);
-
-		/* Make formats okay */
-		chan->readformat = rchan->readformat;
-		chan->writeformat = rchan->writeformat;
-		ast_channel_masquerade(chan, rchan);
-
-		/* Setup the extensions and such */
-		set_c_e_p(chan, rchan->context, rchan->exten, rchan->priority);
-
-		/* Make the masq execute */
-		f = ast_read(chan);
-		if (f)
-			ast_frfree(f);
-		ast_park_call(chan, peer, timeout, extout);
-	} else {
+	if (!(chan = ast_channel_alloc(0))) {
 		ast_log(LOG_WARNING, "Unable to create parked channel\n");
 		return -1;
 	}
+	/* Let us keep track of the channel name */
+	ast_string_field_build(chan, name, "Parked/%s",rchan->name);
+
+	/* Make formats okay */
+	chan->readformat = rchan->readformat;
+	chan->writeformat = rchan->writeformat;
+	ast_channel_masquerade(chan, rchan);
+
+	/* Setup the extensions and such */
+	set_c_e_p(chan, rchan->context, rchan->exten, rchan->priority);
+
+	/* Make the masq execute */
+	f = ast_read(chan);
+	if (f)
+		ast_frfree(f);
+
+	ast_park_call(chan, peer, timeout, extout);
 	return 0;
 }
 

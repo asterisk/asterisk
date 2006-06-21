@@ -11969,7 +11969,7 @@ static void *sip_park_thread(void *stuff)
 
 	if (!transferee || !transferer) {
 		ast_log(LOG_ERROR, "Missing channels for parking! Transferer %s Transferee %s\n", transferer ? "<available>" : "<missing>", transferee ? "<available>" : "<missing>" );
-		return;
+		return NULL;
 	}
 	if (option_debug > 3) 
 		ast_log(LOG_DEBUG, "SIP Park: Transferer channel %s, Transferee %s\n", transferer->name, transferee->name);
