@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-.PHONY: dist-clean all
+.PHONY: dist-clean all uninstall
 
 ifneq ($(wildcard ../menuselect.makeopts),)
   include ../menuselect.makeopts
