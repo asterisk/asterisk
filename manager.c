@@ -169,7 +169,7 @@ static struct mansession {
 static struct manager_action *first_action = NULL;
 AST_MUTEX_DEFINE_STATIC(actionlock);
 
-/*! authority_to_str: Convert authority code to string with serveral options */
+/*! \brief Convert authority code to string with serveral options */
 static char *authority_to_str(int authority, char *res, int reslen)
 {
 	int running_total = 0, i;
@@ -418,8 +418,8 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  handle_showmancmds: CLI command */
-/* Should change to "manager show commands" */
+/*! \brief  CLI command 
+	Should change to "manager show commands" */
 static int handle_showmancmds(int fd, int argc, char *argv[])
 {
 	struct manager_action *cur = first_action;
@@ -438,7 +438,7 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  handle_showmanconn: CLI command show manager connected */
+/*! \brief CLI command show manager connected */
 /* Should change to "manager show connected" */
 static int handle_showmanconn(int fd, int argc, char *argv[])
 {
@@ -457,7 +457,7 @@ static int handle_showmanconn(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  handle_showmanconn: CLI command show manager connected */
+/*! \brief CLI command show manager connected */
 /* Should change to "manager show connected" */
 static int handle_showmaneventq(int fd, int argc, char *argv[])
 {
@@ -613,7 +613,7 @@ struct ast_variable *astman_get_variables(struct message *m)
 	return head;
 }
 
-/*! NOTE:
+/*! \note NOTE:
    Callers of astman_send_error(), astman_send_response() or astman_send_ack() must EITHER
    hold the session lock _or_ be running in an action callback (in which case s->busy will
    be non-zero). In either of these cases, there is no need to lock-protect the session's
@@ -730,11 +730,10 @@ static int ast_strings_to_mask(char *string)
 	return ret;
 }
 
-/*! 
+/*! \brief
    Rather than braindead on,off this now can also accept a specific int mask value 
    or a ',' delim list of mask strings (the same as manager.conf) -anthm
 */
-
 static int set_eventmask(struct mansession *s, char *eventmask)
 {
 	int maskint = ast_strings_to_mask(eventmask);
@@ -847,7 +846,7 @@ static int authenticate(struct mansession *s, struct message *m)
 	return -1;
 }
 
-/*! \brief PING: Manager PING */
+/*! \brief Manager PING */
 static char mandescr_ping[] = 
 "Description: A 'Ping' action will ellicit a 'Pong' response.  Used to keep the\n"
 "  manager connection open.\n"
@@ -859,7 +858,7 @@ static int action_ping(struct mansession *s, struct message *m)
 	return 0;
 }
 
-/*! \brief WAITEVENT: Manager WAITEVENT */
+/*! \brief Manager WAITEVENT */
 static char mandescr_waitevent[] = 
 "Description: A 'WaitEvent' action will ellicit a 'Success' response.  Whenever\n"
 "a manager event is queued.  Once WaitEvent has been called on an HTTP manager\n"
@@ -1123,7 +1122,7 @@ static int action_getvar(struct mansession *s, struct message *m)
 }
 
 
-/*! \brief  action_status: Manager "status" command to show channels */
+/*! \brief Manager "status" command to show channels */
 /* Needs documentation... */
 static int action_status(struct mansession *s, struct message *m)
 {
@@ -1465,7 +1464,7 @@ static int action_originate(struct mansession *s, struct message *m)
 	return 0;
 }
 
-/*! 	\brief Help text for manager command mailboxstatus
+/*! \brief Help text for manager command mailboxstatus
  */
 static char mandescr_mailboxstatus[] = 
 "Description: Checks a voicemail account for status.\n"
@@ -2442,9 +2441,8 @@ int init_manager(void)
 		httptimeout = newhttptimeout;
 
 	/* If not enabled, do nothing */
-	if (!enabled) {
+	if (!enabled)
 		return 0;
-	}
 
 	if (asock < 0) {
 		asock = socket(AF_INET, SOCK_STREAM, 0);
