@@ -368,7 +368,7 @@ _all: all
 	@echo " +               make install                +"  
 	@echo " +-------------------------------------------+"  
 
-all: cleantest config.status menuselect.makeopts depend asterisk subdirs
+all: cleantest config.status menuselect.makeopts depend asterisk $(SUBDIRS)
 
 config.status: configure
 	@CFLAGS="" ./configure
@@ -480,10 +480,11 @@ asterisk: include/asterisk/buildopts.h editline/libedit.a db1-ast/libdb1.a $(OBJ
 muted: muted.o
 	$(CC) $(AUDIO_LIBS) -o muted muted.o
 
-subdirs: 
-	@for x in $(MOD_SUBDIRS); do CFLAGS="$(MOD_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $$x || exit 1 ; done
-	@CFLAGS="$(OTHER_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C utils
-	@CFLAGS="$(OTHER_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C agi
+$(MOD_SUBDIRS): FORCE
+	@CFLAGS="$(MOD_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $@
+
+$(OTHER_SUBDIRS): FORCE 
+	@CFLAGS="$(OTHER_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $@
 
 clean-depend:
 	@for x in $(SUBDIRS); do $(MAKE) -C $$x clean-depend || exit 1 ; done
