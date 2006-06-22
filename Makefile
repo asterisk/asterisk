@@ -201,7 +201,9 @@ ifeq ($(OSARCH),SunOS)
 endif
 
 ASTCFLAGS+=-pipe -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
+ifneq ($(OPTIMIZE),)
 ASTCFLAGS+=$(OPTIMIZE)
+endif
 
 ifeq ($(AST_DEVMODE),yes)
   ASTCFLAGS+=-Werror -Wunused
