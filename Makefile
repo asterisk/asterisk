@@ -387,7 +387,6 @@ makeopts: configure
 	@exit 1
 
 menuselect.makeopts: build_tools/menuselect makeopts.xml
-	@echo "WTF WTF WTF WTF"
 	@build_tools/menuselect --check-deps ${GLOBAL_MAKEOPTS} ${USER_MAKEOPTS} $@
 
 #ifneq ($(wildcard tags),)
