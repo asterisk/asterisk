@@ -250,10 +250,11 @@ monitor-type = MixMonitor
 ;
 ;
 ; If this is set to yes, the following manager events will be generated:
-; AgentCalled, AgentDump, AgentConnect, AgentComplete
+; AgentCalled, AgentDump, AgentConnect, AgentComplete; setting this to
+; vars also sends all channel variables with the event.
 ; (may generate some extra manager events, but probably ones you want)
 ;
-; eventwhencalled = yes
+; eventwhencalled = yes|no|vars
 ;
 ; If this is set to no, the following manager events will be generated:
 ; QueueMemberStatus

@@ -330,6 +330,7 @@ static AST_LIST_HEAD_STATIC(interfaces, member_interface);
 #define QUEUE_EMPTY_STRICT 2
 #define ANNOUNCEHOLDTIME_ALWAYS 1
 #define ANNOUNCEHOLDTIME_ONCE 2
+#define QUEUE_EVENT_VARIABLES 3
 
 struct call_queue {
 	ast_mutex_t lock;	
@@ -340,7 +341,7 @@ struct call_queue {
 	unsigned int monjoin:1;
 	unsigned int dead:1;
 	unsigned int joinempty:2;
-	unsigned int eventwhencalled:1;
+	unsigned int eventwhencalled:2;
 	unsigned int leavewhenempty:2;
 	unsigned int ringinuse:1;
 	unsigned int setinterfacevar:1;
@@ -874,7 +875,11 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	} else if (!strcasecmp(param, "eventmemberstatus")) {
 		q->maskmemberstatus = !ast_true(val);
 	} else if (!strcasecmp(param, "eventwhencalled")) {
-		q->eventwhencalled = ast_true(val);
+		if (strcasecmp(val, "vars")) {
+			q->eventwhencalled = QUEUE_EVENT_VARIABLES;
+		} else {
+			q->eventwhencalled = ast_true(val);
+		}
 	} else if (!strcasecmp(param, "reportholdtime")) {
 		q->reportholdtime = ast_true(val);
 	} else if (!strcasecmp(param, "memberdelay")) {
@@ -1498,6 +1503,41 @@ static void do_hang(struct callattempt *o)
 	o->chan = NULL;
 }
 
+static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
+{
+	char *tmp = alloca(len);
+
+	if (pbx_builtin_serialize_variables(chan, tmp, len)) {
+		int i, j;
+
+		/* convert "\n" to "\nVariable: " */
+		strcpy(vars, "Variable: ");
+
+		for (i = 0, j = 10; (i < len - 1) && (j < len - 1); i++, j++) {
+			vars[j] = tmp[i];
+
+			if (tmp[i + 1] == '\0')
+				break;
+			if (tmp[i] == '\n') {
+				vars[j] = '\r';
+				vars[++j] = '\n';
+
+				ast_copy_string(&(vars[j]), "Variable: ", len - j);
+				j += 9;
+			}
+		}
+		if (j > len - 1)
+			j = len - 1;
+		vars[j - 2] = '\r';
+		vars[j - 1] = '\n';
+		vars[j] = '\0';
+	} else {
+		/* there are no channel variables; leave it blank */
+		*vars = '\0';
+	}
+	return vars;
+}
+
 static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies)
 {
 	int res;
@@ -1589,21 +1629,23 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		do_hang(tmp);
 		(*busies)++;
 		return 0;
-	} else {
-		if (qe->parent->eventwhencalled) {
-			manager_event(EVENT_FLAG_AGENT, "AgentCalled",
-						"AgentCalled: %s\r\n"
-						"ChannelCalling: %s\r\n"
-						"CallerID: %s\r\n"
-						"CallerIDName: %s\r\n"
-						"Context: %s\r\n"
-						"Extension: %s\r\n"
-						"Priority: %d\r\n",
-						tmp->interface, qe->chan->name,
-						S_OR(tmp->chan->cid.cid_num, "unknown"),
-						S_OR(tmp->chan->cid.cid_name, "unknown"),
-						qe->chan->context, qe->chan->exten, qe->chan->priority);
-		}
+	} else if (qe->parent->eventwhencalled) {
+		char vars[2048];
+
+		manager_event(EVENT_FLAG_AGENT, "AgentCalled",
+					"AgentCalled: %s\r\n"
+					"ChannelCalling: %s\r\n"
+					"CallerID: %s\r\n"
+					"CallerIDName: %s\r\n"
+					"Context: %s\r\n"
+					"Extension: %s\r\n"
+					"Priority: %d\r\n"
+					"%s",
+					tmp->interface, qe->chan->name,
+					tmp->chan->cid.cid_num ? tmp->chan->cid.cid_num : "unknown",
+					tmp->chan->cid.cid_name ? tmp->chan->cid.cid_name : "unknown",
+					qe->chan->context, qe->chan->exten, qe->chan->priority,
+					qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", tmp->interface);
 	}
@@ -2233,6 +2275,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	char mixmonargs[1512];
 	struct ast_app *mixmonapp = NULL;
 	char *p;
+	char vars[2048];
 
 	memset(&bridge_config, 0, sizeof(bridge_config));
 	time(&now);
@@ -2381,14 +2424,15 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_log(LOG_WARNING, "Agent on %s hungup on the customer.  They're going to be pissed.\n", peer->name);
 				ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "AGENTDUMP", "%s", "");
 				record_abandoned(qe);
-				if (qe->parent->eventwhencalled) {
+				if (qe->parent->eventwhencalled)
 					manager_event(EVENT_FLAG_AGENT, "AgentDump",
-						      "Queue: %s\r\n"
-						      "Uniqueid: %s\r\n"
-						      "Channel: %s\r\n"
-						      "Member: %s\r\n",
-						      queuename, qe->chan->uniqueid, peer->name, member->interface);
-				}
+							"Queue: %s\r\n"
+							"Uniqueid: %s\r\n"
+							"Channel: %s\r\n"
+							"Member: %s\r\n"
+							"%s",
+							queuename, qe->chan->uniqueid, peer->name, member->interface,
+							qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 				ast_hangup(peer);
 				goto out;
 			} else if (res2) {
@@ -2526,14 +2570,16 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "CONNECT", "%ld|%s", (long)time(NULL) - qe->start, peer->uniqueid);
 		if (qe->parent->eventwhencalled)
 			manager_event(EVENT_FLAG_AGENT, "AgentConnect",
-				      "Queue: %s\r\n"
-				      "Uniqueid: %s\r\n"
-				      "Channel: %s\r\n"
-				      "Member: %s\r\n"
-				      "Holdtime: %ld\r\n"
-				      "BridgedChannel: %s\r\n",
-				      queuename, qe->chan->uniqueid, peer->name, member->interface,
-				      (long) time(NULL) - qe->start,peer->uniqueid);
+					"Queue: %s\r\n"
+					"Uniqueid: %s\r\n"
+					"Channel: %s\r\n"
+					"Member: %s\r\n"
+					"Holdtime: %ld\r\n"
+					"BridgedChannel: %s\r\n"
+					"%s",
+					queuename, qe->chan->uniqueid, peer->name, member->interface,
+					(long)time(NULL) - qe->start, peer->uniqueid,
+					qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 		ast_copy_string(oldcontext, qe->chan->context, sizeof(oldcontext));
 		ast_copy_string(oldexten, qe->chan->exten, sizeof(oldexten));
 		time(&callstart);
@@ -2549,28 +2595,32 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				      (long) (callstart - qe->start), (long) (time(NULL) - callstart));
 			if (qe->parent->eventwhencalled)
 				manager_event(EVENT_FLAG_AGENT, "AgentComplete",
-					      "Queue: %s\r\n"
-					      "Uniqueid: %s\r\n"
-					      "Channel: %s\r\n"
-					      "Member: %s\r\n"
-					      "HoldTime: %ld\r\n"
-					      "TalkTime: %ld\r\n"
-					      "Reason: caller\r\n",
-					      queuename, qe->chan->uniqueid, peer->name, member->interface,
-					      (long) (callstart - qe->start), (long) (time(NULL) - callstart));
+						"Queue: %s\r\n"
+						"Uniqueid: %s\r\n"
+						"Channel: %s\r\n"
+						"Member: %s\r\n"
+						"HoldTime: %ld\r\n"
+						"TalkTime: %ld\r\n"
+						"Reason: caller\r\n"
+						"%s",
+						queuename, qe->chan->uniqueid, peer->name, member->interface,
+						(long)(callstart - qe->start), (long)(time(NULL) - callstart),
+						qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 		} else {
 			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETEAGENT", "%ld|%ld",
 				      (long) (callstart - qe->start), (long) (time(NULL) - callstart));
 			if (qe->parent->eventwhencalled)
 				manager_event(EVENT_FLAG_AGENT, "AgentComplete",
-					      "Queue: %s\r\n"
-					      "Uniqueid: %s\r\n"
-					      "Channel: %s\r\n"
-					      "HoldTime: %ld\r\n"
-					      "TalkTime: %ld\r\n"
-					      "Reason: agent\r\n",
-					      queuename, qe->chan->uniqueid, peer->name, (long)(callstart - qe->start),
-					      (long) (time(NULL) - callstart));
+						"Queue: %s\r\n"
+						"Uniqueid: %s\r\n"
+						"Channel: %s\r\n"
+						"HoldTime: %ld\r\n"
+						"TalkTime: %ld\r\n"
+						"Reason: agent\r\n"
+						"%s",
+						queuename, qe->chan->uniqueid, peer->name, (long)(callstart - qe->start),
+						(long)(time(NULL) - callstart),
+						qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 		}
 
 		if (bridge != AST_PBX_NO_HANGUP_PEER)
