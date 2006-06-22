@@ -24,10 +24,10 @@ AC_REVISION($Revision$)
 
 case "${host}" in
      *freebsd*)
-     AC_PREFIX_DEFAULT(/usr/local)
+     ac_default_prefix=/usr/local
      ;;
      *)
-     AC_PREFIX_DEFAULT(/usr)
+     ac_default_prefix=/usr
      if test ${sysconfdir} = '${prefix}/etc'; then
         sysconfdir=/etc
      fi
