@@ -133,8 +133,7 @@ TOPDIR_CFLAGS=-Iinclude
 MOD_SUBDIR_CFLAGS=-I../include -I..
 OTHER_SUBDIR_CFLAGS=-I../include -I..
 
-ifeq ($(findstring dont-optimize,$(MAKECMDGOALS)),)
-  ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
+ifeq ($(or $(findstring dont-optimize,$(MAKECMDGOALS)),$(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS))),)
 # More GSM codec optimization
 # Uncomment to enable MMXTM optimizations for x86 architecture CPU's
 # which support MMX instructions.  This should be newer pentiums,
@@ -143,12 +142,6 @@ ifeq ($(findstring dont-optimize,$(MAKECMDGOALS)),)
 
 # Tell gcc to optimize the code
 OPTIMIZE+=-O6
-  else
-    # Stack backtraces, while useful for debugging, are incompatible with optimizations
-    ifeq ($(OSARCH),Linux)
-      CFLAGS+=-DSTACK_BACKTRACES
-    endif
-  endif
 else
   # Stack backtraces, while useful for debugging, are incompatible with optimizations
   ifeq ($(OSARCH),Linux)
