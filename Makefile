@@ -13,7 +13,7 @@
 
 .EXPORT_ALL_VARIABLES:
 
-.PHONY: sounds clean clean-depend dist-clean all
+.PHONY: sounds clean clean-depend dist-clean all depend
 
 # Create OPTIONS variable
 OPTIONS=
@@ -264,12 +264,15 @@ endif
 
 ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
 
-MOD_SUBDIRS=res channels pbx apps codecs formats cdr funcs
-OTHER_SUBDIRS=utils agi
+MOD_SUBDIRS:=res channels pbx apps codecs formats cdr funcs
+OTHER_SUBDIRS:=utils agi
 SUBDIRS:=$(MOD_SUBDIRS) $(OTHER_SUBDIRS)
 SUBDIRS_INSTALL:=$(SUBDIRS:%=%-install)
 SUBDIRS_CLEAN:=$(SUBDIRS:%=%-clean)
 SUBDIRS_CLEAN_DEPEND:=$(SUBDIRS:%=%-clean-depend)
+MOD_SUBDIRS_DEPEND:=$(MOD_SUBDIRS:%=%-depend)
+OTHER_SUBDIRS_DEPEND:=$(OTHER_SUBDIRS:%=%-depend)
+SUBDIRS_DEPEND:=$(MOD_SUBDIRS_DEPEND) $(OTHER_SUBDIRS_DEPEND)
 
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o pbx.o cli.o md5.o term.o \
@@ -775,9 +778,13 @@ dont-optimize: _all
 
 valgrind: dont-optimize
 
-depend: include/asterisk/version.h include/asterisk/buildopts.h .depend defaults.h 
-	@for x in $(MOD_SUBDIRS); do CFLAGS="$(MOD_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $$x depend || exit 1 ; done
-	@for x in $(OTHER_SUBDIRS); do CFLAGS="$(OTHER_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $$x depend || exit 1 ; done
+$(MOD_SUBDIRS_DEPEND):
+	@CFLAGS="$(MOD_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $(@:-depend=) depend
+
+$(OTHER_SUBDIRS_DEPEND):
+	@CFLAGS="$(OTHER_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $(@:-depend=) depend
+
+depend: include/asterisk/version.h include/asterisk/buildopts.h .depend defaults.h $(SUBDIRS_DEPEND)
 
 .depend: include/asterisk/version.h include/asterisk/buildopts.h defaults.h
 	build_tools/mkdep $(CFLAGS) $(wildcard *.c)

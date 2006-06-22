@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-.PHONY: clean clean-depend all
+.PHONY: clean clean-depend all depend
 
 ifneq ($(wildcard ../menuselect.makeopts),)
   include ../menuselect.makeopts
