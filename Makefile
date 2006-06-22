@@ -268,6 +268,8 @@ MOD_SUBDIRS=res channels pbx apps codecs formats cdr funcs
 OTHER_SUBDIRS=utils agi
 SUBDIRS:=$(MOD_SUBDIRS) $(OTHER_SUBDIRS)
 SUBDIRS_INSTALL:=$(SUBDIRS:%=%-install)
+SUBDIRS_CLEAN:=$(SUBDIRS:%=%-clean)
+SUBDIRS_CLEAN_DEPEND:=$(SUBDIRS:%=%-clean-depend)
 
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o pbx.o cli.o md5.o term.o \
@@ -365,6 +367,12 @@ _all: all
 	@echo " +-------------------------------------------+"  
 
 all: cleantest config.status menuselect.makeopts depend asterisk $(SUBDIRS)
+
+$(MOD_SUBDIRS): FORCE
+	@CFLAGS="$(MOD_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $@
+
+$(OTHER_SUBDIRS): FORCE 
+	@CFLAGS="$(OTHER_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $@
 
 config.status: configure
 	@CFLAGS="" ./configure
@@ -476,33 +484,31 @@ asterisk: include/asterisk/buildopts.h editline/libedit.a db1-ast/libdb1.a $(OBJ
 muted: muted.o
 	$(CC) $(AUDIO_LIBS) -o muted muted.o
 
-$(MOD_SUBDIRS): FORCE
-	@CFLAGS="$(MOD_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $@
+$(SUBDIRS_CLEAN_DEPEND):
+	@$(MAKE) -C $(@:-clean-depend=) clean-depend
 
-$(OTHER_SUBDIRS): FORCE 
-	@CFLAGS="$(OTHER_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $@
+$(SUBDIRS_CLEAN):
+	@$(MAKE) -C $(@:-clean=) clean
 
-clean-depend:
-	@for x in $(SUBDIRS); do $(MAKE) -C $$x clean-depend || exit 1 ; done
-	rm -f .depend .tags-depend
+clean-depend: $(SUBDIRS_CLEAN_DEPEND)
 
-clean: clean-depend
-	@for x in $(SUBDIRS); do $(MAKE) -C $$x clean || exit 1 ; done
+clean: $(SUBDIRS_CLEAN) clean-depend
 	rm -f *.o *.so asterisk
 	rm -f defaults.h
 	rm -f include/asterisk/build.h
 	rm -f include/asterisk/version.h
 	rm -f .tags-sources tags TAGS
+	rm -f .depend .tags-depend
 	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
-	$(MAKE) -C db1-ast clean
-	$(MAKE) -C stdtime clean
+	@$(MAKE) -C db1-ast clean
+	@$(MAKE) -C stdtime clean
 
 distclean: dist-clean
 
 dist-clean: clean
-	$(MAKE) -C mxml clean
-	$(MAKE) -C build_tools dist-clean
-	$(MAKE) -C sounds dist-clean
+	@$(MAKE) -C mxml clean
+	@$(MAKE) -C build_tools dist-clean
+	@$(MAKE) -C sounds dist-clean
 	rm -f menuselect.makeopts makeopts makeopts.xml
 	rm -f config.log config.status
 	rm -f include/autoconfig.h
