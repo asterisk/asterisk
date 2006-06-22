@@ -272,6 +272,7 @@ ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
 MOD_SUBDIRS=res channels pbx apps codecs formats cdr funcs
 OTHER_SUBDIRS=utils agi
 SUBDIRS:=$(MOD_SUBDIRS) $(OTHER_SUBDIRS)
+SUBDIRS_INSTALL:=$(patsubst %,%-install,$(SUBDIRS))
 
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o pbx.o cli.o md5.o term.o \
@@ -587,8 +588,8 @@ bininstall: all
 	$(INSTALL) -m 644 contrib/scripts/safe_asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
 	$(INSTALL) -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTDATADIR)/firmware/iax/iaxy.bin; \
 
-install-subdirs:
-	@for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
+$(SUBDIRS_INSTALL):
+	@$(MAKE) -C $(@:-install=) install
 
 NEWMODS=$(notdir $(wildcard */*.so))
 OLDMODS=$(filter-out $(NEWMODS),$(notdir $(wildcard $(DESTDIR)$(MODULES_DIR)/*.so)))
@@ -611,7 +612,7 @@ oldmodcheck:
 		echo " WARNING WARNING WARNING" ;\
 	fi
 
-install: all datafiles bininstall install-subdirs
+install: all datafiles bininstall $(SUBDIRS_INSTALL)
 	@if [ -x /usr/sbin/asterisk-post-install ]; then \
 		/usr/sbin/asterisk-post-install $(DESTDIR) . ; \
 	fi
