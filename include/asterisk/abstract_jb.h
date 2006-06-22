@@ -202,16 +202,22 @@ int ast_jb_read_conf(struct ast_jb_conf *conf, char *varname, char *value);
  *
  * Called from a channel driver when a channel is created and its jitterbuffer needs
  * to be configured.
+ *
+ * \retval 0 success
+ * \retval -1 failure
  */
-void ast_jb_configure(struct ast_channel *chan, const struct ast_jb_conf *conf);
+int ast_jb_configure(struct ast_channel *chan, const struct ast_jb_conf *conf);
 
 
 /*!
  * \brief Copies a channel's jitterbuffer configuration.
  * \param chan channel.
  * \param conf destination.
+ *
+ * \retval 0 success
+ * \retval -1 failure
  */
-void ast_jb_get_config(const struct ast_channel *chan, struct ast_jb_conf *conf);
+int ast_jb_get_config(const struct ast_channel *chan, struct ast_jb_conf *conf);
 
 
 #if defined(__cplusplus) || defined(c_plusplus)

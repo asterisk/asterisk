@@ -2516,10 +2516,6 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		if (l->amaflags)
 			tmp->amaflags = l->amaflags;
 
-		ast_mutex_lock(&usecnt_lock);
-		usecnt++;
-		ast_mutex_unlock(&usecnt_lock);
-		ast_update_use_count();
 		tmp->callgroup = l->callgroup;
 		tmp->pickupgroup = l->pickupgroup;
 		ast_string_field_set(tmp, call_forward, l->call_forward);
@@ -2530,18 +2526,29 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		tmp->priority = 1;
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 
+		/* Configure the new channel jb */
+		if (sub->rtp) {
+			if (ast_jb_configure(tmp, &global_jbconf)) {
+				ast_hangup(tmp);
+				sub->owner = NULL;
+				return NULL;
+			}
+		}
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 				ast_hangup(tmp);
-				tmp = NULL;
+				sub->owner = NULL;
+				return NULL;
 			}
 		}
-
-		/* Configure the new channel jb */
-		if (tmp && sub->rtp)
-			ast_jb_configure(tmp, &global_jbconf);
 	}
+
+	ast_mutex_lock(&usecnt_lock);
+	usecnt++;
+	ast_mutex_unlock(&usecnt_lock);
+	ast_update_use_count();
+
 	return tmp;
 }
 

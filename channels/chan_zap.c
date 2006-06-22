@@ -5190,22 +5190,28 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		/* Assure there is no confmute on this channel */
 		zt_confmute(i, 0);
 		ast_setstate(tmp, state);
-		ast_mutex_lock(&usecnt_lock);
-		usecnt++;
-		ast_mutex_unlock(&usecnt_lock);
-		ast_update_use_count();
+		/* Configure the new channel jb */
+		if (ast_jb_configure(tmp, &global_jbconf)) {
+			ast_hangup(tmp);
+			i->owner = NULL;
+			return NULL;
+		}
 		if (startpbx) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 				ast_hangup(tmp);
-				tmp = NULL;
+				i->owner = NULL;
+				return NULL;
 			}
 		}
 	} else
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
-	/* Configure the new channel jb */
-	if (tmp && i)
-		ast_jb_configure(tmp, &global_jbconf);
+
+	ast_mutex_lock(&usecnt_lock);
+	usecnt++;
+	ast_mutex_unlock(&usecnt_lock);
+	ast_update_use_count();
+	
 	return tmp;
 }
 

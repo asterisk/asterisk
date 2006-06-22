@@ -1000,21 +1000,24 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o,
 
 	o->owner = c;
 	ast_setstate(c, state);
-	ast_mutex_lock(&usecnt_lock);
-	usecnt++;
-	ast_mutex_unlock(&usecnt_lock);
-	ast_update_use_count();
+	if (ast_jb_configure(c, &global_jbconf)) {
+		ast_hangup(c);
+		o->owner = NULL;
+		return NULL;
+	}
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(c)) {
 			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", c->name);
 			ast_hangup(c);
-			o->owner = c = NULL;
-			/* XXX what about the channel itself ? */
-			/* XXX what about usecnt ? */
+			o->owner = NULL;
+			return NULL;
 		}
 	}
-	if (c)
-		ast_jb_configure(c, &global_jbconf);
+
+	ast_mutex_lock(&usecnt_lock);
+	usecnt++;
+	ast_mutex_unlock(&usecnt_lock);
+	ast_update_use_count();
 
 	return c;
 }

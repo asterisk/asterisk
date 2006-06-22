@@ -383,7 +383,7 @@ struct ast_channel {
 
 	struct ast_channel_spy_list *spies;		/*!< Chan Spy stuff */
 	AST_LIST_ENTRY(ast_channel) chan_list;		/*!< For easy linking */
-	struct ast_jb jb;				/*!< The jitterbuffer state  */
+	struct ast_jb *jb;				/*!< The jitterbuffer state  */
 
 	/*! \brief Data stores on the channel */
 	AST_LIST_HEAD_NOLOCK(datastores, ast_datastore) datastores;
