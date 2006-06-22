@@ -4,6 +4,8 @@
 # Make file for OpenH323 support layer
 #
 
+.PHONY: Makefile.ast
+
 # Verify those options with main Makefile
 STDCCFLAGS	+= -DNDEBUG
 STDCCFLAGS	+= $(shell grep ^DEBUG_THREADS ../../Makefile | sed -e "s/^DEBUG_THREADS[ 	]*=//" -e "s/\([^\#]*\)\#.*/\1/")
@@ -31,7 +33,7 @@ $(SOURCES)::	Makefile ../../Makefile
 libchanh323.a:	$(OBJS)
 	ar crv $@ $(OBJS)
 
-Makefile.ast:	FORCE
+Makefile.ast:
 	@echo H323CFLAGS  = $(STDCCFLAGS) $(OPTCCFLAGS) $(CFLAGS) >$@.tmp
 	@echo H323LDFLAGS = $(CFLAGS) $(LDFLAGS) >>$@.tmp
 	@echo H323LDLIBS  = $(LDLIBS) $(ENDLDLIBS) $(ENDLDFLAGS) >>$@.tmp
@@ -39,5 +41,3 @@ Makefile.ast:	FORCE
 
 clean::
 	rm -f ast_h323.cxx libchanh323.a Makefile.ast *.dep
-
-FORCE:
