@@ -1,3 +1,16 @@
+#
+# Asterisk -- A telephony toolkit for Linux.
+# 
+# Makefile for Build Tools
+#
+# Copyright (C) 2005-2006, Digium, Inc.
+#
+# Russell Bryant <russell@digium.com>
+#
+# This program is free software, distributed under the terms of
+# the GNU General Public License
+#
+
 .PHONY: clean dist-clean
 
 MENUSELECT_OBJS=menuselect.o menuselect_curses.o

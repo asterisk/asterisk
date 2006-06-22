@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-.PHONY: dist-clean
+.PHONY: dist-clean all
 
 ifneq ($(wildcard ../menuselect.makeopts),)
   include ../menuselect.makeopts

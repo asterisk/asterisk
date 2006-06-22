@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-.PHONY: clean clean-depend
+.PHONY: clean clean-depend all
 
 UTILS:=astman smsq stereorize streamplayer aelparse
 
@@ -32,7 +32,7 @@ ifneq ($(filter pbx_ael,$(MENUSELECT_PBX)),)
   UTILS:=$(filter-out aelparse,$(UTILS))
 endif
 
-all: depend $(UTILS)
+all: $(UTILS)
 
 install:
 	for x in $(UTILS); do \

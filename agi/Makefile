@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-.PHONY: clean clean-depend
+.PHONY: clean clean-depend all
 
 AGIS=agi-test.agi eagi-test eagi-sphinx-test jukebox.agi
 
@@ -20,7 +20,7 @@ ifeq ($(OSARCH),SunOS)
   LIBS=-lsocket -lnsl ../strcompat.o
 endif
 
-all: depend $(AGIS)
+all: $(AGIS)
 
 install: all
 	mkdir -p $(DESTDIR)$(AGI_DIR)
