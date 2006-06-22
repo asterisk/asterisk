@@ -272,7 +272,7 @@ ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
 MOD_SUBDIRS=res channels pbx apps codecs formats cdr funcs
 OTHER_SUBDIRS=utils agi
 SUBDIRS:=$(MOD_SUBDIRS) $(OTHER_SUBDIRS)
-SUBDIRS_INSTALL:=$(patsubst %,%-install,$(SUBDIRS))
+SUBDIRS_INSTALL:=$(SUBDIRS:%=%-install)
 
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o pbx.o cli.o md5.o term.o \
