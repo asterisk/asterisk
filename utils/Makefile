@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-.PHONY: clean clean-depend all depend
+.PHONY: clean clean-depend all depend uninstall
 
 UTILS:=astman smsq stereorize streamplayer aelparse
 

@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-.PHONY: clean clean-depend all depend
+.PHONY: clean clean-depend all depend uninstall
 
 ifneq ($(wildcard ../menuselect.makeopts),)
   include ../menuselect.makeopts

@@ -13,8 +13,6 @@
 
 .EXPORT_ALL_VARIABLES:
 
-.PHONY: sounds clean clean-depend dist-clean all depend
-
 # Create OPTIONS variable
 OPTIONS=
 
@@ -273,6 +271,7 @@ SUBDIRS_CLEAN_DEPEND:=$(SUBDIRS:%=%-clean-depend)
 MOD_SUBDIRS_DEPEND:=$(MOD_SUBDIRS:%=%-depend)
 OTHER_SUBDIRS_DEPEND:=$(OTHER_SUBDIRS:%=%-depend)
 SUBDIRS_DEPEND:=$(MOD_SUBDIRS_DEPEND) $(OTHER_SUBDIRS_DEPEND)
+SUBDIRS_UNINSTALL:=$(SUBDIRS:%=%-uninstall)
 
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o pbx.o cli.o md5.o term.o \
@@ -371,10 +370,10 @@ _all: all
 
 all: cleantest config.status menuselect.makeopts depend asterisk $(SUBDIRS)
 
-$(MOD_SUBDIRS): FORCE
+$(MOD_SUBDIRS):
 	@CFLAGS="$(MOD_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $@
 
-$(OTHER_SUBDIRS): FORCE 
+$(OTHER_SUBDIRS):
 	@CFLAGS="$(OTHER_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $@
 
 config.status: configure
@@ -816,8 +815,6 @@ TAGS: .tags-depend .tags-sources
 
 etags: TAGS
 
-FORCE:
-
 %_env:
 	$(MAKE) -C $(shell echo $@ | sed "s/_env//g") env
 
@@ -837,7 +834,10 @@ cleantest:
 		$(MAKE) defaults.h;\
 	fi
 
-_uninstall:
+$(SUBDIRS_UNINSTALL):
+	@$(MAKE) -C $(@:-uninstall=) uninstall
+
+_uninstall: $(SUBDIRS_UNINSTALL)
 	rm -f $(DESTDIR)$(MODULES_DIR)/*
 	rm -f $(DESTDIR)$(ASTSBINDIR)/*asterisk*
 	rm -f $(DESTDIR)$(ASTSBINDIR)/astgenkey
@@ -845,7 +845,6 @@ _uninstall:
 	rm -rf $(DESTDIR)$(ASTHEADERDIR)
 	rm -rf $(DESTDIR)$(ASTDATADIR)/firmware
 	rm -rf $(DESTDIR)$(ASTMANDIR)/man8
-	for x in $(SUBDIRS); do $(MAKE) -C $$x uninstall || exit 1 ; done
 	$(MAKE) -C sounds uninstall
 
 uninstall: _uninstall
@@ -883,3 +882,5 @@ mxml/libmxml.a:
 makeopts.xml: $(foreach dir,$(MOD_SUBDIRS),$(dir)/*.c) build_tools/cflags.xml sounds/sounds.xml
 	@echo "Generating list of available modules ..."
 	@build_tools/prep_moduledeps > $@
+
+.PHONY: sounds clean clean-depend dist-clean all _all depend cleantest uninstall _uninstall uninstall-all dont-optimize valgrind $(SUBDIRS_INSTALL) $(SUBDIRS_CLEAN) $(SUBDIRS_CLEAN_DEPEND) $(SUBDIRS_DEPEND) $(SUBDIRS_UNINSTALL)
