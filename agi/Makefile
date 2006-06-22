@@ -11,6 +11,8 @@
 # the GNU General Public License
 #
 
+.PHONY: clean clean-depend
+
 AGIS=agi-test.agi eagi-test eagi-sphinx-test jukebox.agi
 
 LIBS=

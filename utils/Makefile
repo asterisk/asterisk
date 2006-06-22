@@ -11,6 +11,8 @@
 # the GNU General Public License
 #
 
+.PHONY: clean clean-depend
+
 UTILS:=astman smsq stereorize streamplayer aelparse
 
 ifeq (${OSARCH},SunOS)
