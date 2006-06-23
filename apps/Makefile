@@ -42,9 +42,6 @@ app_rpt.o: app_rpt.c
 
 install: all
 	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
-	rm -f $(DESTDIR)$(MODULES_DIR)/app_cut.so
-	rm -f $(DESTDIR)$(MODULES_DIR)/app_datetime.so
-	rm -f $(DESTDIR)$(MODULES_DIR)/app_qcall.so
 
 uninstall:
 

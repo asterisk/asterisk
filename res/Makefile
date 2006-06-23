@@ -45,9 +45,6 @@ MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
 all: $(MODS)
 
 install: all
-	rm -f $(DESTDIR)$(ASTHEADERDIR)/parking.h
-	rm -f $(DESTDIR)$(MODULES_DIR)/app_agi.so 
-	rm -f $(DESTDIR)$(MODULES_DIR)/res_parking.so
 	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 	@if [ x`which mpg123 2>/dev/null | grep -v '^no'` != x ] ; then \
 	  if mpg123 --longhelp 2>&1 | grep -q .59r 2>&1 >/dev/null ; then echo ; else \
