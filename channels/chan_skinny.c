@@ -3138,14 +3138,15 @@ static int handle_button_template_req_message(skinny_req *req, struct skinnysess
 		switch (btn[i].buttonDefinition) {
 			case BT_CUST_LINESPEEDDIAL:
 				/* assume failure */
-				req->data.buttontemplate.definition[i].buttonDefinition = htolel(BT_NONE);
+				req->data.buttontemplate.definition[i].buttonDefinition = BT_NONE;
 				req->data.buttontemplate.definition[i].instanceNumber = htolel(0);
 
 				for (l = d->lines; l; l = l->next) {
 					if (l->instance == lineInstance) {
 						ast_verbose("Adding button: %d, %d\n", BT_LINE, lineInstance);
-						req->data.buttontemplate.definition[i].buttonDefinition = htolel(BT_LINE);
-						req->data.buttontemplate.definition[i].instanceNumber = htolel(lineInstance++);
+						req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
+						req->data.buttontemplate.definition[i].instanceNumber = htolel(lineInstance);
+						lineInstance++;
 						buttonCount++;
 						btnSet = 1;
 						break;
@@ -3156,8 +3157,9 @@ static int handle_button_template_req_message(skinny_req *req, struct skinnysess
 					for (sd = d->speeddials; sd; sd = sd->next) {
 						if (sd->instance == speeddialInstance) {
 							ast_verbose("Adding button: %d, %d\n", BT_SPEEDDIAL, speeddialInstance);
-							req->data.buttontemplate.definition[i].buttonDefinition = htolel(BT_SPEEDDIAL);
-							req->data.buttontemplate.definition[i].instanceNumber = htolel(speeddialInstance++);
+							req->data.buttontemplate.definition[i].buttonDefinition = BT_SPEEDDIAL;
+							req->data.buttontemplate.definition[i].instanceNumber = htolel(speeddialInstance);
+							speeddialInstance++;
 							buttonCount++;
 							btnSet = 1;
 							break;
@@ -3172,8 +3174,9 @@ static int handle_button_template_req_message(skinny_req *req, struct skinnysess
 				for (l = d->lines; l; l = l->next) {
 					if (l->instance == lineInstance) {
 						ast_verbose("Adding button: %d, %d\n", BT_LINE, lineInstance);
-						req->data.buttontemplate.definition[i].buttonDefinition = htolel(BT_LINE);
-						req->data.buttontemplate.definition[i].instanceNumber = htolel(lineInstance++);
+						req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
+						req->data.buttontemplate.definition[i].instanceNumber = htolel(lineInstance);
+						lineInstance++;
 						buttonCount++;
 						btnSet = 1;
 						break;
@@ -3187,8 +3190,9 @@ static int handle_button_template_req_message(skinny_req *req, struct skinnysess
 				for (sd = d->speeddials; sd; sd = sd->next) {
 					if (sd->instance == speeddialInstance) {
 						ast_verbose("Adding button: %d, %d\n", BT_SPEEDDIAL, speeddialInstance);
-						req->data.buttontemplate.definition[i].buttonDefinition = htolel(BT_SPEEDDIAL);
-						req->data.buttontemplate.definition[i].instanceNumber = htolel(speeddialInstance++);
+						req->data.buttontemplate.definition[i].buttonDefinition = BT_SPEEDDIAL;
+						req->data.buttontemplate.definition[i].instanceNumber = htolel(speeddialInstance);
+						speeddialInstance++;
 						buttonCount++;
 						btnSet = 1;
 						break;
