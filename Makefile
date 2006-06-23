@@ -516,6 +516,7 @@ dist-clean: clean
 	rm -rf autom4te.cache
 	rm -f include/autoconfig.h
 	rm -f include/asterisk/buildopts.h
+	rm -rf doc/api
 
 datafiles: all
 	if [ x`$(ID) -un` = xroot ]; then sh build_tools/mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
