@@ -54,6 +54,7 @@ clean-depend:
 
 clean: clean-depend
 	rm -f *.so *.o
+	rm -f snmp/*.o
 
 res_odbc.so: res_odbc.o
 	$(CC) $(SOLINK) -o $@ $< $(ODBC_LIB) 
