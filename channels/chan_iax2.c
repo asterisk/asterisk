@@ -3268,60 +3268,67 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 	struct chan_iax2_pvt *i;
 	struct ast_variable *v = NULL;
 
+	if (!(i = iaxs[callno])) {
+		ast_log(LOG_WARNING, "No IAX2 pvt found for callno '%d' !\n", callno);
+		return NULL;
+	}
+
 	/* Don't hold call lock */
 	ast_mutex_unlock(&iaxsl[callno]);
 	tmp = ast_channel_alloc(1);
 	ast_mutex_lock(&iaxsl[callno]);
-	i = iaxs[callno];
-	if (i && tmp) {
-		tmp->tech = &iax2_tech;
-		ast_string_field_build(tmp, name, "IAX2/%s-%d", i->host, i->callno);
-		/* We can support any format by default, until we get restricted */
-		tmp->nativeformats = capability;
-		tmp->readformat = ast_best_codec(capability);
-		tmp->writeformat = ast_best_codec(capability);
-		tmp->tech_pvt = CALLNO_TO_PTR(i->callno);
+	if (!tmp)
+		return NULL;
+	tmp->tech = &iax2_tech;
+	ast_string_field_build(tmp, name, "IAX2/%s-%d", i->host, i->callno);
+	/* We can support any format by default, until we get restricted */
+	tmp->nativeformats = capability;
+	tmp->readformat = ast_best_codec(capability);
+	tmp->writeformat = ast_best_codec(capability);
+	tmp->tech_pvt = CALLNO_TO_PTR(i->callno);
 
-		if (!ast_strlen_zero(i->cid_num))
-			tmp->cid.cid_num = ast_strdup(i->cid_num);
-		if (!ast_strlen_zero(i->cid_name))
-			tmp->cid.cid_name = ast_strdup(i->cid_name);
-		if (!ast_strlen_zero(i->ani))
-			tmp->cid.cid_ani = ast_strdup(i->ani);
-		if (!ast_strlen_zero(i->language))
-			ast_string_field_set(tmp, language, i->language);
-		if (!ast_strlen_zero(i->dnid))
-			tmp->cid.cid_dnid = ast_strdup(i->dnid);
-		if (!ast_strlen_zero(i->rdnis))
-			tmp->cid.cid_rdnis = ast_strdup(i->rdnis);
-		tmp->cid.cid_pres = i->calling_pres;
-		tmp->cid.cid_ton = i->calling_ton;
-		tmp->cid.cid_tns = i->calling_tns;
-		if (!ast_strlen_zero(i->accountcode))
-			ast_string_field_set(tmp, accountcode, i->accountcode);
-		if (i->amaflags)
-			tmp->amaflags = i->amaflags;
-		ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
-		ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
-		tmp->adsicpe = i->peeradsicpe;
-		i->owner = tmp;
-		i->capability = capability;
-		ast_setstate(tmp, state);
-		if (state != AST_STATE_DOWN) {
-			if (ast_pbx_start(tmp)) {
-				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
-				ast_hangup(tmp);
-				i->owner = NULL;
-				return NULL;
-			}
+	if (!ast_strlen_zero(i->cid_num))
+		tmp->cid.cid_num = ast_strdup(i->cid_num);
+	if (!ast_strlen_zero(i->cid_name))
+		tmp->cid.cid_name = ast_strdup(i->cid_name);
+	if (!ast_strlen_zero(i->ani))
+		tmp->cid.cid_ani = ast_strdup(i->ani);
+	if (!ast_strlen_zero(i->language))
+		ast_string_field_set(tmp, language, i->language);
+	if (!ast_strlen_zero(i->dnid))
+		tmp->cid.cid_dnid = ast_strdup(i->dnid);
+	if (!ast_strlen_zero(i->rdnis))
+		tmp->cid.cid_rdnis = ast_strdup(i->rdnis);
+	tmp->cid.cid_pres = i->calling_pres;
+	tmp->cid.cid_ton = i->calling_ton;
+	tmp->cid.cid_tns = i->calling_tns;
+	if (!ast_strlen_zero(i->accountcode))
+		ast_string_field_set(tmp, accountcode, i->accountcode);
+	if (i->amaflags)
+		tmp->amaflags = i->amaflags;
+	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
+	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
+	tmp->adsicpe = i->peeradsicpe;
+	i->owner = tmp;
+	i->capability = capability;
+	ast_setstate(tmp, state);
+	if (state != AST_STATE_DOWN) {
+		if (ast_pbx_start(tmp)) {
+			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+			ast_hangup(tmp);
+			i->owner = NULL;
+			return NULL;
 		}
-		for (v = i->vars ; v ; v = v->next)
-			pbx_builtin_setvar_helper(tmp,v->name,v->value);
-		ast_mutex_lock(&usecnt_lock);
-		usecnt++;
-		ast_mutex_unlock(&usecnt_lock);
-		ast_update_use_count();
 	}
+
+	for (v = i->vars ; v ; v = v->next)
+		pbx_builtin_setvar_helper(tmp, v->name, v->value);
+
+	ast_mutex_lock(&usecnt_lock);
+	usecnt++;
+	ast_mutex_unlock(&usecnt_lock);
+	ast_update_use_count();
+	
 	return tmp;
 }
 
