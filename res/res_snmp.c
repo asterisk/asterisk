@@ -15,6 +15,7 @@
  */
 
 /*** MODULEINFO
+	<depend>netsnmp</depend>
 	<defaultenabled>no</defaultenabled>
  ***/
 

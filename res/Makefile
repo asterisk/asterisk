@@ -23,23 +23,6 @@ ifeq ($(OSARCH),FreeBSD)
   SELECTED_MODS:=$(filter-out $(shell if test ${BSDVERSION} -lt 500000 ; then echo "res_config_odbc"; fi),$(SELECTED_MODS))
 endif
 
-# NETsnmp has some difficulties on some platforms (conflict with unload_module)
-# Until we figure out if the collission is version-specific or what to do
-# we have disabled res_snmp on OS/X and *BSD
-ifeq ($(OSARCH),Darwin)
-  SELECTED_MODS:=$(filter-out res_snmp,$(SELECTED_MODS))
-else
-  ifeq ($(findstring BSD,$(OSARCH)),BSD)
-    SELECTED_MODS:=$(filter-out res_snmp,$(SELECTED_MODS))
-  endif
-endif
-
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/net-snmp/net-snmp-config.h),)
-  SELECTED_MODS:=$(filter-out res_snmp,$(SELECTED_MODS))
-else
-  SNMP_LDLIBS+=$(shell net-snmp-config --agent-libs)
-endif
-
 MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
 
 all: $(MODS)
@@ -97,7 +80,7 @@ res_config_odbc.o: res_config_odbc.c
 	$(CC) -c -o $@ $(CFLAGS) $(ODBC_INCLUDE) $<
 
 res_snmp.so: res_snmp.o snmp/agent.o
-	$(CC) $(SOLINK) $(SNMP_LDFLAGS) -o $@ $< snmp/agent.o $(SNMP_LDLIBS)
+	$(CC) $(SOLINK) -o $@ $< snmp/agent.o $(NETSNMP_LIBS)
 
 res_config_pgsql.so: res_config_pgsql.o
 	$(CC) $(SOLINK) -o $@ $< $(PGSQL_LIB)
