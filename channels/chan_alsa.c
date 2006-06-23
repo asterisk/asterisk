@@ -812,23 +812,19 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 			ast_string_field_set(tmp, language, language);
 		p->owner = tmp;
 		ast_setstate(tmp, state);
-		if (ast_jb_configure(tmp, &global_jbconf)) {
-			ast_hangup(tmp);
-			p->owner = NULL;
-			return NULL;
-		}
-		if (state != AST_STATE_DOWN) {
-			if (ast_pbx_start(tmp)) {
-				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
-				ast_hangup(tmp);
-				p->owner = NULL;
-				return NULL;
-			}
-		}
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
 		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
+		if (state != AST_STATE_DOWN) {
+			if (ast_pbx_start(tmp)) {
+				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+				ast_hangup(tmp);
+				tmp = NULL;
+			}
+		}
+		if (tmp)
+			ast_jb_configure(tmp, &global_jbconf);
 	}
 	return tmp;
 }

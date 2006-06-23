@@ -756,6 +756,9 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 	if (!ast_strlen_zero(client->musicclass))
 		ast_string_field_set(tmp, musicclass, client->musicclass);
 	i->owner = tmp;
+	ast_mutex_lock(&usecnt_lock);
+	usecnt++;
+	ast_mutex_unlock(&usecnt_lock);
 	ast_copy_string(tmp->context, client->context, sizeof(tmp->context));
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
 	if (!ast_strlen_zero(i->cid_num))
@@ -766,26 +769,16 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 		tmp->cid.cid_dnid = ast_strdup(i->exten);
 	tmp->priority = 1;
 	ast_setstate(tmp, state);
-	/* Configure the new channel jb */
-	if (i->rtp) {
-		if (ast_jb_configure(tmp, &global_jbconf)) {
-			ast_hangup(tmp);
-			i->owner = NULL;
-			return NULL;
-		}
-	}
 	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
 		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 		tmp->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 		ast_hangup(tmp);
-		i->owner = NULL;
-		return NULL;
+		tmp = NULL;
 	}
 
-	ast_mutex_lock(&usecnt_lock);
-	usecnt++;
-	ast_mutex_unlock(&usecnt_lock);
-	ast_update_use_count();
+	/* Configure the new channel jb */
+	if (tmp && i && i->rtp)
+		ast_jb_configure(tmp, &global_jbconf);
 
 	return tmp;
 }

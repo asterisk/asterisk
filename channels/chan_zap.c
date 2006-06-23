@@ -5188,11 +5188,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	zt_confmute(i, 0);
 	ast_setstate(tmp, state);
 	/* Configure the new channel jb */
-	if (ast_jb_configure(tmp, &global_jbconf)) {
-		ast_hangup(tmp);
-		i->owner = NULL;
-		return NULL;
-	}
+	ast_jb_configure(tmp, &global_jbconf);
 	if (startpbx) {
 		if (ast_pbx_start(tmp)) {
 			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);

@@ -746,6 +746,9 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 	/* Don't hold a oh323_pvt lock while we allocate a chanel */
 	ast_mutex_unlock(&pvt->lock);
 	ch = ast_channel_alloc(1);
+	/* Update usage counter */
+	ast_atomic_fetchadd_int(&__mod_desc->usecnt, +1);
+	ast_update_use_count();
 	ast_mutex_lock(&pvt->lock);
 	if (ch) {
 		ch->tech = &oh323_tech;
@@ -800,25 +803,17 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 			ch->cid.cid_dnid = strdup(pvt->exten);
 		}
 		ast_setstate(ch, state);
-		/* Configure the new channel jb */
-		if (pvt->rtp) {
-			if (ast_jb_configure(ch, &global_jbconf)) {
-				ast_hangup(ch);
-				pvt->owner = NULL;
-				return NULL;
-			}
-		}
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(ch)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ch->name);
 				ast_hangup(ch);
-				pvt->owner = NULL;
-				return NULL;
+				ch = NULL;
 			}
 		}
-		/* Update usage counter */
-		ast_atomic_fetchadd_int(&__mod_desc->usecnt, +1);
-		ast_update_use_count();
+
+		/* Configure the new channel jb */
+		if (ch && pvt && pvt->rtp)
+			ast_jb_configure(ch, &global_jbconf);
 	} else  {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 	}

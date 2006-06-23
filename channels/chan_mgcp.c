@@ -1478,6 +1478,8 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		if (i->amaflags)
 			tmp->amaflags = i->amaflags;
 		sub->owner = tmp;
+		ast_atomic_fetchadd_int(&__mod_desc->usecnt, +1);
+		ast_update_use_count();
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
 		ast_string_field_set(tmp, call_forward, i->call_forward);
@@ -1488,28 +1490,22 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		if (!i->adsi)
 			tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 		tmp->priority = 1;
-		/* Configure the new channel jb */
-		if (sub->rtp) {
-			if (ast_jb_configure(tmp, &global_jbconf)) {
-				ast_hangup(tmp);
-				sub->owner = NULL;
-				return NULL;
-			}
-		}
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 				ast_hangup(tmp);
-				sub->owner = NULL;
-				return NULL;
+				tmp = NULL;
 			}
 		}
+		/* SC: verbose level check */
 		if (option_verbose > 2) {
 			ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_new(%s) created in state: %s\n",
 				tmp->name, ast_state2str(state));
 		}
-		ast_atomic_fetchadd_int(&__mod_desc->usecnt, +1);
-		ast_update_use_count();
+
+		/* Configure the new channel jb */
+		if (tmp && sub && sub->rtp)
+			ast_jb_configure(tmp, &global_jbconf);
 	} else {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 	}

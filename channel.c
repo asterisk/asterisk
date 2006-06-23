@@ -1015,8 +1015,7 @@ void ast_channel_free(struct ast_channel *chan)
 		ast_var_delete(vardata);
 
 	/* Destroy the jitterbuffer */
-	if (chan->jb)
-		ast_jb_destroy(chan);
+	ast_jb_destroy(chan);
 
 	ast_string_field_free_all(chan);
 	free(chan);
