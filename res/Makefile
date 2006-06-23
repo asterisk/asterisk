@@ -81,7 +81,7 @@ res_config_odbc.o: res_config_odbc.c
 	$(CC) -c -o $@ $(CFLAGS) $(ODBC_INCLUDE) $<
 
 res_snmp.so: res_snmp.o snmp/agent.o
-	$(CC) $(SOLINK) -o $@ $< snmp/agent.o $(NETSNMP_LIBS)
+	$(CC) $(SOLINK) -o $@ $^ $(NETSNMP_LIBS)
 
 res_config_pgsql.so: res_config_pgsql.o
 	$(CC) $(SOLINK) -o $@ $< $(PGSQL_LIB)
