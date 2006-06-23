@@ -5039,173 +5039,168 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
 		return NULL;
 	}
-	tmp = ast_channel_alloc(0);
-	if (tmp) {
-		tmp->tech = &zap_tech;
-		ps.channo = i->channel;
-		res = ioctl(i->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &ps);
-		if (res) {
-			ast_log(LOG_WARNING, "Unable to get parameters, assuming MULAW\n");
-			ps.curlaw = ZT_LAW_MULAW;
-		}
-		if (ps.curlaw == ZT_LAW_ALAW)
+	if (!(tmp = ast_channel_alloc(0)))
+		return NULL;
+	tmp->tech = &zap_tech;
+	ps.channo = i->channel;
+	res = ioctl(i->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &ps);
+	if (res) {
+		ast_log(LOG_WARNING, "Unable to get parameters, assuming MULAW\n");
+		ps.curlaw = ZT_LAW_MULAW;
+	}
+	if (ps.curlaw == ZT_LAW_ALAW)
+		deflaw = AST_FORMAT_ALAW;
+	else
+		deflaw = AST_FORMAT_ULAW;
+	if (law) {
+		if (law == ZT_LAW_ALAW)
 			deflaw = AST_FORMAT_ALAW;
 		else
 			deflaw = AST_FORMAT_ULAW;
-		if (law) {
-			if (law == ZT_LAW_ALAW)
-				deflaw = AST_FORMAT_ALAW;
-			else
-				deflaw = AST_FORMAT_ULAW;
-		}
-		y = 1;
-		do {
+	}
+	y = 1;
+	do {
 #ifdef HAVE_LIBPRI
-			if (i->bearer || (i->pri && (i->sig == SIG_FXSKS)))
-				ast_string_field_build(tmp, name, "Zap/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
-			else
+		if (i->bearer || (i->pri && (i->sig == SIG_FXSKS)))
+			ast_string_field_build(tmp, name, "Zap/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
+		else
 #endif
-			if (i->channel == CHAN_PSEUDO)
-				ast_string_field_build(tmp, name, "Zap/pseudo-%d", ast_random());
-			else	
-				ast_string_field_build(tmp, name, "Zap/%d-%d", i->channel, y);
-			for (x = 0; x < 3; x++) {
-				if ((index != x) && i->subs[x].owner && !strcasecmp(tmp->name, i->subs[x].owner->name))
-					break;
-			}
-			y++;
-		} while (x < 3);
-		tmp->fds[0] = i->subs[index].zfd;
-		tmp->nativeformats = AST_FORMAT_SLINEAR | deflaw;
-		/* Start out assuming ulaw since it's smaller :) */
-		tmp->rawreadformat = deflaw;
-		tmp->readformat = deflaw;
-		tmp->rawwriteformat = deflaw;
-		tmp->writeformat = deflaw;
-		i->subs[index].linear = 0;
-		zt_setlinear(i->subs[index].zfd, i->subs[index].linear);
-		features = 0;
-		if (i->busydetect && CANBUSYDETECT(i)) {
-			features |= DSP_FEATURE_BUSY_DETECT;
+		if (i->channel == CHAN_PSEUDO)
+			ast_string_field_build(tmp, name, "Zap/pseudo-%d", ast_random());
+		else	
+			ast_string_field_build(tmp, name, "Zap/%d-%d", i->channel, y);
+		for (x = 0; x < 3; x++) {
+			if ((index != x) && i->subs[x].owner && !strcasecmp(tmp->name, i->subs[x].owner->name))
+				break;
 		}
-		if ((i->callprogress & 1) && CANPROGRESSDETECT(i)) {
-			features |= DSP_FEATURE_CALL_PROGRESS;
-		}
-		if ((!i->outgoing && (i->callprogress & 4)) || 
-		    (i->outgoing && (i->callprogress & 2))) {
-			features |= DSP_FEATURE_FAX_DETECT;
-		}
+		y++;
+	} while (x < 3);
+	tmp->fds[0] = i->subs[index].zfd;
+	tmp->nativeformats = AST_FORMAT_SLINEAR | deflaw;
+	/* Start out assuming ulaw since it's smaller :) */
+	tmp->rawreadformat = deflaw;
+	tmp->readformat = deflaw;
+	tmp->rawwriteformat = deflaw;
+	tmp->writeformat = deflaw;
+	i->subs[index].linear = 0;
+	zt_setlinear(i->subs[index].zfd, i->subs[index].linear);
+	features = 0;
+	if (i->busydetect && CANBUSYDETECT(i))
+		features |= DSP_FEATURE_BUSY_DETECT;
+	if ((i->callprogress & 1) && CANPROGRESSDETECT(i))
+		features |= DSP_FEATURE_CALL_PROGRESS;
+	if ((!i->outgoing && (i->callprogress & 4)) || 
+	    (i->outgoing && (i->callprogress & 2))) {
+		features |= DSP_FEATURE_FAX_DETECT;
+	}
 #ifdef ZT_TONEDETECT
-		x = ZT_TONEDETECT_ON | ZT_TONEDETECT_MUTE;
-		if (ioctl(i->subs[index].zfd, ZT_TONEDETECT, &x)) {
+	x = ZT_TONEDETECT_ON | ZT_TONEDETECT_MUTE;
+	if (ioctl(i->subs[index].zfd, ZT_TONEDETECT, &x)) {
 #endif		
-			i->hardwaredtmf = 0;
-			features |= DSP_FEATURE_DTMF_DETECT;
+		i->hardwaredtmf = 0;
+		features |= DSP_FEATURE_DTMF_DETECT;
 #ifdef ZT_TONEDETECT
-		} else if (NEED_MFDETECT(i)) {
-			i->hardwaredtmf = 1;
-			features |= DSP_FEATURE_DTMF_DETECT;
-		}
+	} else if (NEED_MFDETECT(i)) {
+		i->hardwaredtmf = 1;
+		features |= DSP_FEATURE_DTMF_DETECT;
+	}
 #endif
-		if (features) {
+	if (features) {
+		if (i->dsp) {
+			ast_log(LOG_DEBUG, "Already have a dsp on %s?\n", tmp->name);
+		} else {
+			if (i->channel != CHAN_PSEUDO)
+				i->dsp = ast_dsp_new();
+			else
+				i->dsp = NULL;
 			if (i->dsp) {
-				ast_log(LOG_DEBUG, "Already have a dsp on %s?\n", tmp->name);
-			} else {
-				if (i->channel != CHAN_PSEUDO)
-					i->dsp = ast_dsp_new();
-				else
-					i->dsp = NULL;
-				if (i->dsp) {
-					i->dsp_features = features & ~DSP_PROGRESS_TALK;
+				i->dsp_features = features & ~DSP_PROGRESS_TALK;
 #ifdef HAVE_LIBPRI
-					/* We cannot do progress detection until receives PROGRESS message */
-					if (i->outgoing && (i->sig == SIG_PRI)) {
-						/* Remember requested DSP features, don't treat
-						   talking as ANSWER */
-						features = 0;
-					}
+				/* We cannot do progress detection until receives PROGRESS message */
+				if (i->outgoing && (i->sig == SIG_PRI)) {
+					/* Remember requested DSP features, don't treat
+					   talking as ANSWER */
+					features = 0;
+				}
 #endif
-					ast_dsp_set_features(i->dsp, features);
-					ast_dsp_digitmode(i->dsp, DSP_DIGITMODE_DTMF | i->dtmfrelax);
-					if (!ast_strlen_zero(progzone))
-						ast_dsp_set_call_progress_zone(i->dsp, progzone);
-					if (i->busydetect && CANBUSYDETECT(i)) {
-						ast_dsp_set_busy_count(i->dsp, i->busycount);
-						ast_dsp_set_busy_pattern(i->dsp, i->busy_tonelength, i->busy_quietlength);
-					}
+				ast_dsp_set_features(i->dsp, features);
+				ast_dsp_digitmode(i->dsp, DSP_DIGITMODE_DTMF | i->dtmfrelax);
+				if (!ast_strlen_zero(progzone))
+					ast_dsp_set_call_progress_zone(i->dsp, progzone);
+				if (i->busydetect && CANBUSYDETECT(i)) {
+					ast_dsp_set_busy_count(i->dsp, i->busycount);
+					ast_dsp_set_busy_pattern(i->dsp, i->busy_tonelength, i->busy_quietlength);
 				}
 			}
 		}
+	}
 		
-		if (state == AST_STATE_RING)
-			tmp->rings = 1;
-		tmp->tech_pvt = i;
-		if ((i->sig == SIG_FXOKS) || (i->sig == SIG_FXOGS) || (i->sig == SIG_FXOLS)) {
-			/* Only FXO signalled stuff can be picked up */
-			tmp->callgroup = i->callgroup;
-			tmp->pickupgroup = i->pickupgroup;
-		}
-		if (!ast_strlen_zero(i->language))
-			ast_string_field_set(tmp, language, i->language);
-		if (!ast_strlen_zero(i->musicclass))
-			ast_string_field_set(tmp, musicclass, i->musicclass);
-		if (!i->owner)
-			i->owner = tmp;
-		if (!ast_strlen_zero(i->accountcode))
-			ast_string_field_set(tmp, accountcode, i->accountcode);
-		if (i->amaflags)
-			tmp->amaflags = i->amaflags;
-		i->subs[index].owner = tmp;
-		ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
-		ast_string_field_set(tmp, call_forward, i->call_forward);
-		/* If we've been told "no ADSI" then enforce it */
-		if (!i->adsi)
-			tmp->adsicpe = AST_ADSI_UNAVAILABLE;
-		if (!ast_strlen_zero(i->exten))
-			ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
-		if (!ast_strlen_zero(i->rdnis))
-			tmp->cid.cid_rdnis = ast_strdup(i->rdnis);
-		if (!ast_strlen_zero(i->dnid))
-			tmp->cid.cid_dnid = ast_strdup(i->dnid);
+	if (state == AST_STATE_RING)
+		tmp->rings = 1;
+	tmp->tech_pvt = i;
+	if ((i->sig == SIG_FXOKS) || (i->sig == SIG_FXOGS) || (i->sig == SIG_FXOLS)) {
+		/* Only FXO signalled stuff can be picked up */
+		tmp->callgroup = i->callgroup;
+		tmp->pickupgroup = i->pickupgroup;
+	}
+	if (!ast_strlen_zero(i->language))
+		ast_string_field_set(tmp, language, i->language);
+	if (!ast_strlen_zero(i->musicclass))
+		ast_string_field_set(tmp, musicclass, i->musicclass);
+	if (!i->owner)
+		i->owner = tmp;
+	if (!ast_strlen_zero(i->accountcode))
+		ast_string_field_set(tmp, accountcode, i->accountcode);
+	if (i->amaflags)
+		tmp->amaflags = i->amaflags;
+	i->subs[index].owner = tmp;
+	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
+	ast_string_field_set(tmp, call_forward, i->call_forward);
+	/* If we've been told "no ADSI" then enforce it */
+	if (!i->adsi)
+		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
+	if (!ast_strlen_zero(i->exten))
+		ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
+	if (!ast_strlen_zero(i->rdnis))
+		tmp->cid.cid_rdnis = ast_strdup(i->rdnis);
+	if (!ast_strlen_zero(i->dnid))
+		tmp->cid.cid_dnid = ast_strdup(i->dnid);
 
 #ifdef PRI_ANI
-		ast_set_callerid(tmp, i->cid_num, i->cid_name, S_OR(i->cid_ani, i->cid_num));
+	ast_set_callerid(tmp, i->cid_num, i->cid_name, S_OR(i->cid_ani, i->cid_num));
 #else
-		ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
+	ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
 #endif
-		tmp->cid.cid_pres = i->callingpres;
-		tmp->cid.cid_ton = i->cid_ton;
+	tmp->cid.cid_pres = i->callingpres;
+	tmp->cid.cid_ton = i->cid_ton;
 #ifdef HAVE_LIBPRI
-		tmp->transfercapability = transfercapability;
-		pbx_builtin_setvar_helper(tmp, "TRANSFERCAPABILITY", ast_transfercapability2str(transfercapability));
-		if (transfercapability & PRI_TRANS_CAP_DIGITAL) {
-			i->digital = 1;
-		}
-		/* Assume calls are not idle calls unless we're told differently */
-		i->isidlecall = 0;
-		i->alreadyhungup = 0;
+	tmp->transfercapability = transfercapability;
+	pbx_builtin_setvar_helper(tmp, "TRANSFERCAPABILITY", ast_transfercapability2str(transfercapability));
+	if (transfercapability & PRI_TRANS_CAP_DIGITAL)
+		i->digital = 1;
+	/* Assume calls are not idle calls unless we're told differently */
+	i->isidlecall = 0;
+	i->alreadyhungup = 0;
 #endif
-		/* clear the fake event in case we posted one before we had ast_channel */
-		i->fake_event = 0;
-		/* Assure there is no confmute on this channel */
-		zt_confmute(i, 0);
-		ast_setstate(tmp, state);
-		/* Configure the new channel jb */
-		if (ast_jb_configure(tmp, &global_jbconf)) {
+	/* clear the fake event in case we posted one before we had ast_channel */
+	i->fake_event = 0;
+	/* Assure there is no confmute on this channel */
+	zt_confmute(i, 0);
+	ast_setstate(tmp, state);
+	/* Configure the new channel jb */
+	if (ast_jb_configure(tmp, &global_jbconf)) {
+		ast_hangup(tmp);
+		i->owner = NULL;
+		return NULL;
+	}
+	if (startpbx) {
+		if (ast_pbx_start(tmp)) {
+			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 			ast_hangup(tmp);
 			i->owner = NULL;
 			return NULL;
 		}
-		if (startpbx) {
-			if (ast_pbx_start(tmp)) {
-				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
-				ast_hangup(tmp);
-				i->owner = NULL;
-				return NULL;
-			}
-		}
-	} else
-		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
+	}
 
 	ast_mutex_lock(&usecnt_lock);
 	usecnt++;
