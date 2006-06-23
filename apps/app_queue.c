@@ -3746,8 +3746,10 @@ static void reload_queues(void)
 			else
 				ast_log(LOG_DEBUG, "XXX Leaking a little memory :( XXX\n");
 		} else {
+			ast_mutex_lock(&q->lock);
 			for (cur = q->members; cur; cur = cur->next)
 				cur->status = ast_device_state(cur->interface);
+			ast_mutex_unlock(&q->lock);
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
