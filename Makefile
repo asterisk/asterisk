@@ -504,12 +504,13 @@ clean: $(SUBDIRS_CLEAN) clean-depend
 	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
 	@$(MAKE) -C db1-ast clean
 	@$(MAKE) -C stdtime clean
+	@$(MAKE) -C menuselect clean
 
 distclean: dist-clean
 
 dist-clean: clean
 	@$(MAKE) -C mxml clean
-	@$(MAKE) -C build_tools dist-clean
+	@$(MAKE) -C menuselect dist-clean
 	@$(MAKE) -C sounds dist-clean
 	rm -f menuselect.makeopts makeopts makeopts.xml
 	rm -f config.log config.status
