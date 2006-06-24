@@ -72,22 +72,18 @@ struct lpc10_coder_pvt {
 	int longer;
 };
 
-static void *lpc10_enc_new(struct ast_trans_pvt *pvt)
+static int lpc10_enc_new(struct ast_trans_pvt *pvt)
 {
 	struct lpc10_coder_pvt *tmp = pvt->pvt;
 
-	if (!(tmp->lpc10.enc = create_lpc10_encoder_state()))
-		return NULL;
-	return tmp;
+	return (tmp->lpc10.enc = create_lpc10_encoder_state()) ? 0 : -1;
 }
 
-static void *lpc10_dec_new(struct ast_trans_pvt *pvt)
+static int lpc10_dec_new(struct ast_trans_pvt *pvt)
 {
 	struct lpc10_coder_pvt *tmp = pvt->pvt;
 
-	if (!(tmp->lpc10.dec = create_lpc10_decoder_state()))
-		return NULL;
-	return tmp;
+	return (tmp->lpc10.dec = create_lpc10_decoder_state()) ? 0 : -1;
 }
 
 static struct ast_frame *lintolpc10_sample(void)

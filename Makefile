@@ -228,9 +228,6 @@ ifeq ($(OSARCH),FreeBSD)
   BSDVERSION=$(shell make -V OSVERSION -f $(CROSS_COMPILE_TARGET)/usr/share/mk/bsd.port.subdir.mk)
   ASTCFLAGS+=$(shell if test $(BSDVERSION) -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
   LIBS+=$(shell if test  $(BSDVERSION) -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
-  ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/spandsp),)
-    ASTCFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include/spandsp
-  endif
 endif # FreeBSD
 
 ifeq ($(OSARCH),NetBSD)
@@ -303,9 +300,9 @@ ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/dlfcn.h),)
 endif
 
 ifeq ($(OSARCH),Linux)
-  LIBS+=-ldl -lpthread $(EDITLINE_LIBS) -lm -lresolv  #-lnjamd
+  LIBS+=-ldl -lpthread $(EDITLINE_LIB) -lm -lresolv  #-lnjamd
 else
-  LIBS+=$(EDITLINE_LIBS) -lm
+  LIBS+=$(EDITLINE_LIB) -lm
 endif
 
 ifeq ($(OSARCH),Darwin)
@@ -333,11 +330,11 @@ ifeq ($(OSARCH),FreeBSD)
 endif
 
 ifeq ($(OSARCH),NetBSD)
-  LIBS+=-lpthread -lcrypto -lm -L$(CROSS_COMPILE_TARGET)/usr/pkg/lib $(EDITLINE_LIBS)
+  LIBS+=-lpthread -lcrypto -lm -L$(CROSS_COMPILE_TARGET)/usr/pkg/lib $(EDITLINE_LIB)
 endif
 
 ifeq ($(OSARCH),OpenBSD)
-  LIBS+=-lcrypto -lpthread -lm $(EDITLINE_LIBS)
+  LIBS+=-lcrypto -lpthread -lm $(EDITLINE_LIB)
 endif
 
 ifeq ($(OSARCH),SunOS)
@@ -473,6 +470,9 @@ include/asterisk/buildopts.h: menuselect.makeopts
 		mv $@.tmp $@ ; \
 	fi
 	@rm -f $@.tmp
+
+channel.o: channel.c
+	$(CC) -c -o $@ $< $(CFLAGS) $(ZAPTEL_INCLUDE)
 
 asterisk: include/asterisk/buildopts.h editline/libedit.a db1-ast/libdb1.a $(OBJS)
 	build_tools/make_build_h > include/asterisk/build.h.tmp
@@ -885,5 +885,6 @@ mxml/libmxml.a:
 makeopts.xml: $(foreach dir,$(MOD_SUBDIRS),$(dir)/*.c) build_tools/cflags.xml sounds/sounds.xml
 	@echo "Generating list of available modules ..."
 	@build_tools/prep_moduledeps > $@
+	@sed -i -e /MENUSELECT_DEPENDS/d menuselect.makeopts
 
 .PHONY: menuselect sounds clean clean-depend dist-clean distclean all _all depend cleantest uninstall _uninstall uninstall-all dont-optimize valgrind $(SUBDIRS_INSTALL) $(SUBDIRS_CLEAN) $(SUBDIRS_CLEAN_DEPEND) $(SUBDIRS_DEPEND) $(SUBDIRS_UNINSTALL) $(SUBDIRS)

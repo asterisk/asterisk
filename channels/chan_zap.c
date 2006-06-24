@@ -40,6 +40,7 @@
 /*** MODULEINFO
 	<depend>zaptel</depend>
 	<depend>tonezone</depend>
+	<use>libpri</use>
  ***/
 
 #include "asterisk.h"
@@ -61,20 +62,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 #include <unistd.h>
 #include <sys/ioctl.h>
-#ifdef __linux__
-#include <linux/zaptel.h>
-#else
 #include <zaptel.h>
-#endif /* __linux__ */
 #include <math.h>
 #include <tonezone.h>
 #include <ctype.h>
 
 #ifdef HAVE_LIBPRI
 #include <libpri.h>
-#ifndef PRI_KEYPAD_FACILITY_TX
-#error "You need newer libpri"
-#endif
 #endif
 
 #include "asterisk/lock.h"

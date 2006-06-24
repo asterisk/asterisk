@@ -72,7 +72,7 @@ struct ast_translator {
 	int dstfmt;			/*!< Destination format (note: bit position,
 					  converted to index during registration) */
 
-	void *(*newpvt)(struct ast_trans_pvt *); /*!< initialize private data 
+	int (*newpvt)(struct ast_trans_pvt *); /*!< initialize private data 
 					associated with the translator */
 
 	int (*framein)(struct ast_trans_pvt *pvt, struct ast_frame *in);

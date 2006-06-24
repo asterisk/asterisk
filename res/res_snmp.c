@@ -16,7 +16,6 @@
 
 /*** MODULEINFO
 	<depend>netsnmp</depend>
-	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"

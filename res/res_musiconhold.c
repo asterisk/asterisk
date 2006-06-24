@@ -27,6 +27,7 @@
 
 /*** MODULEINFO
 	<conflict>win32</conflict>
+	<use>zaptel</use>
  ***/
 
 #include "asterisk.h"
@@ -49,11 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/ioctl.h>
 
 #ifdef HAVE_ZAPTEL
-#ifdef __linux__
-#include <linux/zaptel.h>
-#else
 #include <zaptel.h>
-#endif /* __linux__ */
 #endif
 
 #include "asterisk/lock.h"

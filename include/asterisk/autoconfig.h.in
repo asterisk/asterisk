@@ -200,6 +200,9 @@
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #undef HAVE_NETINET_IN_H
 
+/* Define to indicate the Net-SNMP library */
+#undef HAVE_NETSNMP
+
 /* Define to indicate the newt library */
 #undef HAVE_NEWT
 

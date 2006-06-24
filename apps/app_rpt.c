@@ -222,8 +222,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/ioctl.h>
 #include <sys/io.h>
 #include <math.h>
+#include <zaptel.h>
 #include <tonezone.h>
-#include <linux/zaptel.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 

@@ -103,17 +103,16 @@ struct speex_coder_pvt {
 };
 
 
-static void *lintospeex_new(struct ast_trans_pvt *pvt)
+static int lintospeex_new(struct ast_trans_pvt *pvt)
 {
 	struct speex_coder_pvt *tmp = pvt->pvt;
 
 	if (!(tmp->speex = speex_encoder_init(&speex_nb_mode)))
-		return NULL;
+		return -1;
 
 	speex_bits_init(&tmp->bits);
 	speex_bits_reset(&tmp->bits);
 	speex_encoder_ctl(tmp->speex, SPEEX_GET_FRAME_SIZE, &tmp->framesize);
-	ast_log(LOG_WARNING, "speex framesize is %d\n", tmp->framesize);
 	speex_encoder_ctl(tmp->speex, SPEEX_SET_COMPLEXITY, &complexity);
 #ifdef _SPEEX_TYPES_H
 	if (preproc) {
@@ -142,20 +141,22 @@ static void *lintospeex_new(struct ast_trans_pvt *pvt)
 		speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &dtx); 
 	tmp->silent_state = 0;
 
-	return tmp;
+	return 0;
 }
 
-static void *speextolin_new(struct ast_trans_pvt *pvt)
+static int speextolin_new(struct ast_trans_pvt *pvt)
 {
 	struct speex_coder_pvt *tmp = pvt->pvt;
 	
 	if (!(tmp->speex = speex_decoder_init(&speex_nb_mode)))
-		return NULL;
+		return -1;
+
 	speex_bits_init(&tmp->bits);
 	speex_decoder_ctl(tmp->speex, SPEEX_GET_FRAME_SIZE, &tmp->framesize);
 	if (enhancement)
 		speex_decoder_ctl(tmp->speex, SPEEX_SET_ENH, &enhancement);
-	return tmp;
+
+	return 0;
 }
 
 static struct ast_frame *lintospeex_sample(void)

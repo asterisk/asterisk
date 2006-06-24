@@ -68,13 +68,11 @@ struct gsm_translator_pvt {	/* both gsm2lin and lin2gsm */
 	int16_t buf[BUFFER_SAMPLES];	/* lin2gsm, temporary storage */
 };
 
-static void *gsm_new(struct ast_trans_pvt *pvt)
+static int gsm_new(struct ast_trans_pvt *pvt)
 {
 	struct gsm_translator_pvt *tmp = pvt->pvt;
 	
-	if (!(tmp->gsm = gsm_create()))
-		return NULL;
-	return tmp;
+	return (tmp->gsm = gsm_create()) ? 0 : -1;
 }
 
 static struct ast_frame *lintogsm_sample(void)

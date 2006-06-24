@@ -700,12 +700,13 @@ struct g726_coder_pvt {
 };
 
 /*! \brief init a new instance of g726_coder_pvt. */
-static void *lintog726_new(struct ast_trans_pvt *pvt)
+static int lintog726_new(struct ast_trans_pvt *pvt)
 {
 	struct g726_coder_pvt *tmp = pvt->pvt;
 
 	g726_init_state(&tmp->g726);
-	return tmp;
+
+	return 0;
 }
 
 /*! \brief decode packed 4-bit G726 values and store in buffer. */

@@ -23,7 +23,7 @@
 
 /*** MODULEINFO
 	<depend>libvorbis</depend>
-	<depend>ogg</depend>
+	<depend>libogg</depend>
  ***/
 
 #include "asterisk.h"

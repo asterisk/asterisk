@@ -67,20 +67,22 @@ struct ilbc_coder_pvt {
 	int16_t buf[BUFFER_SAMPLES];
 };
 
-static void *lintoilbc_new(struct ast_trans_pvt *pvt)
+static int lintoilbc_new(struct ast_trans_pvt *pvt)
 {
 	struct ilbc_coder_pvt *tmp = pvt->pvt;
 
 	initEncode(&tmp->enc, ILBC_MS);
-	return tmp;
+
+	return 0;
 }
 
-static void *ilbctolin_new(struct ast_trans_pvt *pvt)
+static int ilbctolin_new(struct ast_trans_pvt *pvt)
 {
 	struct ilbc_coder_pvt *tmp = pvt->pvt;
 
 	initDecode(&tmp->dec, ILBC_MS, USE_ILBC_ENHANCER);
-	return tmp;
+
+	return 0;
 }
 
 static struct ast_frame *lintoilbc_sample(void)

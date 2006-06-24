@@ -28,6 +28,10 @@
  * \ingroup channel_drivers
  */
 
+/*** MODULEINFO
+	<use>zaptel</use>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -56,11 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #ifdef HAVE_ZAPTEL
 #include <sys/ioctl.h>
-#ifdef __linux__
-#include <linux/zaptel.h>
-#else
 #include <zaptel.h>
-#endif /* __linux__ */
 #endif
 
 #include "asterisk/lock.h"

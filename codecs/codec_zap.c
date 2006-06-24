@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <sys/mman.h>
-#include <linux/zaptel.h>
+#include <zaptel.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/translate.h"
@@ -162,7 +162,7 @@ static void zap_destroy(struct ast_trans_pvt *pvt)
 	close(ztp->fd);
 }
 
-static struct ast_trans_pvt *zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
+static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 {
 	/* Request translation through zap if possible */
 	int fd;
@@ -171,13 +171,13 @@ static struct ast_trans_pvt *zap_translate(struct ast_trans_pvt *pvt, int dest, 
 	struct zt_transcode_header *hdr;
 	
 	if ((fd = open("/dev/zap/transcode", O_RDWR)) < 0)
-		return NULL;
+		return -1;
 
 	if ((hdr = mmap(NULL, sizeof(*hdr), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) == MAP_FAILED) {
 		ast_log(LOG_ERROR, "Memory Map failed for transcoding (%s)\n", strerror(errno));
 		close(fd);
 
-		return NULL;
+		return -1;
 	}
 
 	if (hdr->magic != ZT_TRANSCODE_MAGIC) {
@@ -185,7 +185,7 @@ static struct ast_trans_pvt *zap_translate(struct ast_trans_pvt *pvt, int dest, 
 		munmap(hdr, sizeof(*hdr));
 		close(fd);
 
-		return NULL;
+		return -1;
 	}
 	
 	hdr->srcfmt = (1 << source);
@@ -195,17 +195,17 @@ static struct ast_trans_pvt *zap_translate(struct ast_trans_pvt *pvt, int dest, 
 		munmap(hdr, sizeof(*hdr));
 		close(fd);
 
-		return NULL;
+		return -1;
 	}
 
 	ztp = pvt->pvt;
 	ztp->fd = fd;
 	ztp->hdr = hdr;
 
-	return pvt;
+	return 0;
 }
 
-static void *zap_new(struct ast_trans_pvt *pvt)
+static int zap_new(struct ast_trans_pvt *pvt)
 {
 	return zap_translate(pvt, pvt->t->dstfmt, pvt->t->srcfmt);
 }

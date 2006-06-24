@@ -127,7 +127,7 @@ static void *newpvt(struct ast_translator *t)
 	if (t->buf_size)		/* finally buffer and header */
 		pvt->outbuf = ofs + AST_FRIENDLY_OFFSET;
 	/* call local init routine, if present */
-	if (t->newpvt && t->newpvt(pvt) == NULL) {
+	if (t->newpvt && t->newpvt(pvt)) {
 		free(pvt);
 		return NULL;
 	}
