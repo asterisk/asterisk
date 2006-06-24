@@ -118,6 +118,7 @@
 
 /*** MODULEINFO
 	<depend>zaptel</depend>
+	<depend>tonezone</depend>
 	<defaultenabled>no</defaultenabled>
  ***/
 

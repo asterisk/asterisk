@@ -35,9 +35,12 @@ clean: clean-depend
 	$(CC) $(SOLINK) -o $@ $<
 
 app_rpt.so: app_rpt.o
-	$(CC) $(SOLINK) -o $@ $< $(ZAPTEL_LIB)
+	$(CC) $(SOLINK) -o $@ $< $(TONEZONE_LIB)
 
 app_rpt.o: app_rpt.c
+	$(CC) -c -o $@ $(CFLAGS) $(TONEZONE_INCLUDE) $(ZAPTEL_INCLUDE) $<
+
+app_flash.o app_meetme.o app_page.o app_zapbarge.o app_zapras.o app_zapscan.o: %.o: %.c
 	$(CC) -c -o $@ $(CFLAGS) $(ZAPTEL_INCLUDE) $<
 
 install: all

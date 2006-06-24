@@ -39,6 +39,7 @@
 
 /*** MODULEINFO
 	<depend>zaptel</depend>
+	<depend>tonezone</depend>
  ***/
 
 #include "asterisk.h"

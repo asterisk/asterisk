@@ -388,6 +388,9 @@
 /* Define to indicate the Term Info library */
 #undef HAVE_TINFO
 
+/* Define to indicate the tonezone library */
+#undef HAVE_TONEZONE
+
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
@@ -427,7 +430,7 @@
 /* Define to 1 if `vfork' works. */
 #undef HAVE_WORKING_VFORK
 
-/* Define to indicate the Zaptel library */
+/* Define if your system has the Zaptel headers. */
 #undef HAVE_ZAPTEL
 
 /* Define to indicate the zlib library */

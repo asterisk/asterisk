@@ -249,10 +249,70 @@ fi
 AC_SUBST([PBX_LIBOSS])
 
 if test "${PBX_OSTYPE}" = "Linux" ; then
-  AST_EXT_LIB([tonezone], [tone_zone_find], [linux/zaptel.h], [ZAPTEL], [Zaptel])
+  AST_EXT_LIB([tonezone], [tone_zone_find], [tonezone.h], [TONEZONE], [tonezone])
 else
-  AST_EXT_LIB([tonezone], [tone_zone_find], [zaptel.h], [ZAPTEL], [Zaptel], [-lm])
+  AST_EXT_LIB([tonezone], [tone_zone_find], [tonezone.h], [TONEZONE], [tonezone], [-lm])
 fi
+
+AC_ARG_WITH([zaptel], AC_HELP_STRING([--with-zaptel=PATH], [use Zaptel files in PATH]), [
+case ${withval} in
+     n|no)
+     USE_ZAPTEL=no
+     ;;
+     y|ye|yes)
+     ZAPTEL_MANDATORY=yes
+     ;;
+     *)
+     ZAPTEL_DIR="${withval}"
+     ZAPTEL_MANDATORY=yes
+     ;;
+esac
+])
+
+PBX_ZAPTEL=0
+if test "${USE_ZAPTEL}" != "no"; then
+   echo -n "checking for usability of zaptel.h... "
+   if test "${PBX_OSTYPE}" = "Linux" ; then
+      zapheader=linux/zaptel.h
+   else
+      zapheader=zaptel.h
+   fi
+   saved_cppflags="${CPPFLAGS}"
+   if test "x${ZAPTEL_DIR}" != "x"; then
+      CPPFLAGS="${CPPFLAGS} -I${ZAPTEL_DIR}/include"
+   fi
+   AC_COMPILE_IFELSE(
+	[
+	AC_LANG_PROGRAM(
+	[#include <${zapheader}>],
+	[struct zt_transcode_header test;])
+	],
+	[	AC_MSG_RESULT(yes) 
+		ac_cv_zaptel_h="yes" 
+	],
+	[	AC_MSG_RESULT(no) 
+		ac_cv_zaptel_h="no" 
+	]
+	)
+   CPPFLAGS="${saved_cppflags}"
+   if test "${ac_cv_zaptel_h}" = "yes"; then
+	if test "${ZAPTEL_DIR}" != ""; then
+	   ZAPTEL_INCLUDE="-I${ZAPTEL_DIR}/include"
+	   AC_SUBST([ZAPTEL_INCLUDE])
+	fi
+	PBX_ZAPTEL=1
+	AC_DEFINE([HAVE_ZAPTEL], 1, [Define if your system has the Zaptel headers.])
+   elif test ! -z "${ZAPTEL_MANDATORY}"; 
+   then
+      echo "***"
+      echo "*** The Zaptel installation on this system appears to be broken."
+      echo "*** Either correct the installation, or run configure"
+      echo "*** including --without-zaptel."
+      exit 1
+   fi
+fi
+
+AC_SUBST([PBX_ZAPTEL])
 
 GSM_INTERNAL="yes"
 GSM_SYSTEM="yes"
@@ -394,9 +454,9 @@ AC_ARG_WITH([vpb], AC_HELP_STRING([--with-vpb=PATH],[use vpb files in PATH]),[
 case ${withval} in
      n|no)
      USE_VPB=no
-     VPB_MANDATORY="yes"
      ;;
      y|ye|yes)
+     VPB_MANDATORY="yes"
      ;;
      *)
      VPB_DIR="${withval}"
@@ -454,9 +514,9 @@ AC_ARG_WITH([qt], AC_HELP_STRING([--with-qt=PATH],[use Qt files in PATH]),[
 case ${withval} in
      n|no)
      USE_QT=no
-     QT_MANDATORY="yes"
      ;;
      y|ye|yes)
+     QT_MANDATORY="yes"
      ;;
      *)
      QT_DIR="${withval}"
@@ -540,9 +600,9 @@ AC_ARG_WITH([kde], AC_HELP_STRING([--with-kde=PATH],[use KDE files in PATH]),[
 case ${withval} in
      n|no)
      USE_KDE=no
-     KDE_MANDATORY="yes"
      ;;
      y|ye|yes)
+     KDE_MANDATORY="yes"
      ;;
      *)
      KDE_DIR="${withval}"
@@ -776,4 +836,3 @@ if test "x${crossCompile}" = xYes; then
    echo " Cross Compilation = YES"
    echo " Target            = ${host}"
 fi
-

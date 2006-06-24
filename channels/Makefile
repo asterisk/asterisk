@@ -113,13 +113,13 @@ chan_oss.so: chan_oss.o
 	$(CC) $(SOLINK) -o $@ chan_oss.o $(OSSAUDIO_LIB)
 
 chan_iax2.so: chan_iax2.o iax2-parser.o iax2-provision.o
-	$(CC) $(SOLINK) -o $@ $< iax2-parser.o iax2-provision.o
+	$(CC) $(SOLINK) -o $@ $^
 
 chan_zap.so: chan_zap.o
-	$(CC) $(SOLINK) -o $@ $< $(PRI_LIB) $(ZAPTEL_LIB)
+	$(CC) $(SOLINK) -o $@ $< $(PRI_LIB) $(TONEZONE_LIB)
 
 chan_zap.o: chan_zap.c
-	$(CC) -c -o $@ $(CFLAGS) $(ZAPTEL_INCLUDE) $<
+	$(CC) -c -o $@ $(CFLAGS) $(TONEZONE_INCLUDE) $(ZAPTEL_INCLUDE) $<
 
 chan_alsa.so: chan_alsa.o
 	$(CC) $(SOLINK) -o $@ $< $(ASOUND_LIB)

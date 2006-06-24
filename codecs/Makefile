@@ -92,6 +92,9 @@ codec_speex.so: codec_speex.o
 codec_lpc10.so: codec_lpc10.o $(LIBLPC10)
 	$(CC) $(SOLINK) -o $@ $< $(LIBLPC10) -lm
 
+codec_zap.o: codec_zap.c
+	$(CC) -c -o $@ $(CFLAGS) $(ZAPTEL_INCLUDE) $<
+
 %.so : %.o
 	$(CC) $(SOLINK) -o $@ $<
 
