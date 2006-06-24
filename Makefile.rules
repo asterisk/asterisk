@@ -1,0 +1,53 @@
+#
+# Asterisk -- A telephony toolkit for Linux.
+# 
+# Makefile rules
+#
+# Copyright (C) 2006, Digium, Inc.
+#
+# Kevin P. Fleming <kpfleming@digium.com>
+#
+# This program is free software, distributed under the terms of
+# the GNU General Public License
+#
+
+define module_o_template
+$(1).o: $(1).c
+	$$(CC) -c -o $$@ $$< $$(CFLAGS) $$(MENUSELECT_OPTS_$(1):%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_INCLUDE))
+endef
+
+define module_so_template
+$(1).so: $(1).o
+	$$(CC) $$(SOLINK) -o $$@ $$^ $(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LIB))
+endef
+
+%.o: %.c
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+$(foreach mod,$(SELECTED_MODS),$(eval $(call module_o_template,$(mod))))
+
+$(foreach mod,$(SELECTED_MODS),$(eval $(call module_so_template,$(mod))))
+
+.PHONY: clean clean-depend depend uninstall _all
+
+_all: $(SELECTED_MODS:%=%.so)
+
+clean-depend::
+	rm -f .depend
+
+clean:: clean-depend
+	rm -f *.so *.o
+
+install:: all
+	for x in $(SELECTED_MODS:%=%.so); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
+
+uninstall::
+
+ifneq ($(wildcard .depend),)
+ include .depend
+endif
+
+depend: .depend
+
+.depend:
+	../build_tools/mkdep $(CFLAGS) `ls *.c`
