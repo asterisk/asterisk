@@ -772,9 +772,8 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struc
 	int i;
 	long int flags;
 
-	if ((udptl = malloc(sizeof(struct ast_udptl))) == NULL)
+	if (!(udptl = ast_calloc(1, sizeof(*udptl))))
 		return NULL;
-	memset(udptl, 0, sizeof(struct ast_udptl));
 
 	if (udptlfectype == 2)
 		udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_FEC;
