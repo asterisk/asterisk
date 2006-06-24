@@ -52,7 +52,7 @@ process_dir() {
 
 echo "<?xml version="1.0"?>"
 echo
-echo "<menu>"
+echo "<menu name=\"Asterisk Module Selection\">"
 rm -f .makeoptstmp
 process_dir apps app APPS Applications
 process_dir cdr cdr CDR "Call Detail Recording"
