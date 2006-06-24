@@ -22,92 +22,36 @@ SELECTED_MODS:=$(filter-out $(MENUSELECT_CODECS),$(patsubst %.c,%,$(wildcard cod
 ifeq ($(wildcard ilbc/iLBC_decode.h),)
   MODS:=$(filter-out codec_ilbc,$(MODS))
 else
-  LIBILBC=ilbc/libilbc.a
+  LIBILBC:=ilbc/libilbc.a
 endif
 
-LIBLPC10=lpc10/liblpc10.a
+LIBLPC10:=lpc10/liblpc10.a
 
-MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
+all: _all
 
-all: $(MODS)
+ifeq ($(LIBGSM_LIB),internal)
+LIBGSM_INCLUDE:=-Igsm/inc
+LIBGSM_LIB:=
 
-clean-depend:
-	rm -f .depend
+codec_gsm.so: gsm/lib/libgsm.a
+endif
 
-clean: clean-depend
-	rm -f *.so *.o
-	[ ! -d g723.1 ] || $(MAKE) -C g723.1 clean
-	[ ! -d g723.1b ] || $(MAKE) -C g723.1b clean
+include ../Makefile.rules
+
+clean::
 	$(MAKE) -C gsm clean
 	$(MAKE) -C lpc10 clean
 	$(MAKE) -C ilbc clean
 
-$(LIBG723):
-	CFLAGS="$(ASTCFLAGS)" $(MAKE) -C g723.1 all
-
 gsm/lib/libgsm.a:
 	CFLAGS="$(ASTCFLAGS) -I." $(MAKE) -C gsm lib/libgsm.a
-
-$(LIBG723B):
-	CFLAGS="$(ASTCFLAGS)" $(MAKE) -C g723.1b all
 
 $(LIBLPC10):
 	CFLAGS="$(ASTCFLAGS)" $(MAKE) -C lpc10 all
 
+codec_lpc10.so: $(LIBLPC10)
+
 $(LIBILBC):
 	CFLAGS="$(ASTCFLAGS)" $(MAKE) -C ilbc all
 
-codec_ilbc.so: codec_ilbc.o $(LIBILBC)
-	$(CC) $(SOLINK) -o $@ $< $(LIBILBC)
-
-codec_g723_1.so : codec_g723_1.o $(LIBG723)
-	$(CC) $(SOLINK) -o $@ $< $(LIBG723)
-
-codec_g723_1b.o : codec_g723_1.c
-	$(CC) -c -o $@ $(CFLAGS) -DANNEX_B -Dsingle $<
-
-codec_g723_1b.so : codec_g723_1b.o $(LIBG723B)
-	$(CC) $(SOLINK) -o $@ $< $(LIBG723B) -lm
-
-ifeq ($(GSM_LIB),internal)
-codec_gsm.o: codec_gsm.c
-	$(CC) -c -o $@ $(CFLAGS) -Igsm/inc $<
-
-codec_gsm.so: codec_gsm.o gsm/lib/libgsm.a
-	$(CC) $(SOLINK) -o $@ $< gsm/lib/libgsm.a
-else
-codec_gsm.o: codec_gsm.c
-	$(CC) -c -o $@ $(CFLAGS) $(GSM_INCLUDE) $<
-
-codec_gsm.so: codec_gsm.o
-	$(CC) $(SOLINK) -o $@ $< $(GSM_LIB)
-endif
-
-codec_speex.o: codec_speex.c
-	$(CC) -c -o $@ $(CFLAGS) $(SPEEX_INCLUDE) $<
-
-codec_speex.so: codec_speex.o
-	$(CC) $(SOLINK) -o $@ $< $(SPEEX_LIB)
-
-codec_lpc10.so: codec_lpc10.o $(LIBLPC10)
-	$(CC) $(SOLINK) -o $@ $< $(LIBLPC10) -lm
-
-codec_zap.o: codec_zap.c
-	$(CC) -c -o $@ $(CFLAGS) $(ZAPTEL_INCLUDE) $<
-
-%.so : %.o
-	$(CC) $(SOLINK) -o $@ $<
-
-ifneq ($(wildcard .depend),)
-  include .depend
-endif
-
-install: all
-	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
-
-uninstall:
-
-depend: .depend
-
-.depend:
-	../build_tools/mkdep $(CFLAGS) `ls *.c`
+codec_ilbc.so: $(LIBILBC)

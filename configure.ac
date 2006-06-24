@@ -295,13 +295,13 @@ if test "${USE_KDE}" != "no"; then
 	fi
 	
 	if test "${ac_cv_lib_kde_crash}" = "yes"; then
-		KDE_LIBS="-lkdecore -lkdeui"
+		KDE_LIB="-lkdecore -lkdeui"
 		if test "${KDE_DIR}" != ""; then
-			KDE_LIBS="-L${KDE_DIR}/lib ${KDE_LIBS}"
+			KDE_LIB="-L${KDE_DIR}/lib ${KDE_LIB}"
 			KDE_INCLUDE="-I${KDE_DIR}/include"
 			AC_SUBST([KDE_INCLUDE])
 		fi
-		AC_SUBST([KDE_LIBS])
+		AC_SUBST([KDE_LIB])
 		PBX_KDE=1
 		AC_DEFINE([HAVE_LIBKDE], 1, [Define if your system has the KDE library])
    elif test ! -z "${KDE_MANDATORY}"; 
@@ -767,20 +767,20 @@ fi
 
 AC_SUBST([PBX_ZAPTEL])
 
-EDITLINE_LIBS=""
+EDITLINE_LIB=""
 if test "x$TERMCAP_LIB" != "x" ; then
-  EDITLINE_LIBS="$TERMCAP_LIB"
+  EDITLINE_LIB="$TERMCAP_LIB"
 elif test "x$TINFO_LIB" != "x" ; then
-  EDITLINE_LIBS="$TINFO_LIB"
+  EDITLINE_LIB="$TINFO_LIB"
 elif test "x$CURSES_LIB" != "x" ; then
-  EDITLINE_LIBS="$CURSES_LIB"
+  EDITLINE_LIB="$CURSES_LIB"
 elif test "x$NCURSES_LIB" != "x" ; then
-  EDITLINE_LIBS="$NCURSES_LIB"
+  EDITLINE_LIB="$NCURSES_LIB"
 else
   echo "*** termcap support not found"
   exit 1
 fi
-AC_SUBST(EDITLINE_LIBS)
+AC_SUBST(EDITLINE_LIB)
 
 AC_CHECK_HEADER([h323.h], [PBX_H323=1], [PBX_H323=0])
 AC_SUBST(PBX_H323)
@@ -797,24 +797,24 @@ PBX_GTK=0
 AC_CHECK_TOOL(GTKCONFIG, gtk-config, No)
 if test ! "x${GTKCONFIG}" = xNo; then
    GTK_INCLUDE=$(${GTKCONFIG} --cflags gthread)
-   GTK_LIBS=$(${GTKCONFIG} --libs gthread)
+   GTK_LIB=$(${GTKCONFIG} --libs gthread)
    PBX_GTK=1
    AC_DEFINE([HAVE_GTK], 1, [Define if your system has the GTK libraries.])
 fi
 AC_SUBST(PBX_GTK)
 AC_SUBST(GTK_INCLUDE)
-AC_SUBST(GTK_LIBS)
+AC_SUBST(GTK_LIB)
 
 PBX_CURL=0
 AC_PATH_TOOL([CURL], [curl-config], No)
 if test ! x"${CURL}" = xNo; then
 # check for version
-   CURLLIBS=$(${CURL} --libs)
+   CURLLIB=$(${CURL} --libs)
    PBX_CURL=1
    AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
 fi
 AC_SUBST(PBX_CURL)
-AC_SUBST(CURLLIBS)
+AC_SUBST(CURLLIB)
 
 AC_FUNC_ALLOCA
 AC_HEADER_DIRENT
