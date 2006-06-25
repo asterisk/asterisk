@@ -10913,7 +10913,7 @@ static int function_sippeer(struct ast_channel *chan, char *cmd, char *data, cha
 	if (!strcasecmp(colname, "ip")) {
 		ast_copy_string(buf, peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", len);
 	} else  if (!strcasecmp(colname, "status")) {
-		peer_status(peer, buf, sizeof(buf));
+		peer_status(peer, buf, len);
 	} else  if (!strcasecmp(colname, "language")) {
 		ast_copy_string(buf, peer->language, len);
 	} else  if (!strcasecmp(colname, "regexten")) {
