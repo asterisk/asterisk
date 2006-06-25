@@ -37,3 +37,8 @@ ael/ael_lex.c:
 
 ael/ael.tab.c ael/ael.tab.h:
 	(cd ael; bison -v -d ael.y)
+
+dundi-parser.o: dundi-parser.c dundi-parser.h
+	$(CC) $(CFLAGS) -I. -c -o $@ $<
+
+pbx_dundi.so: pbx_dundi.o dundi-parser.o
