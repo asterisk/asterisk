@@ -52,6 +52,8 @@ MOH:=$(MENUSELECT_MOH:MOH-%=asterisk-moh-%.tar.gz)
 MOH_TAGS:=$(MENUSELECT_MOH:MOH-%=$(MOH_DIR)/.asterisk-moh-%)
 WGET_ARGS:=--continue
 
+all:	$(CORE_SOUNDS) $(EXTRA_SOUNDS) $(MOH)
+
 $(SOUNDS_DIR)/.asterisk-core-sounds-en-%:
 	@PACKAGE=$(subst $(SOUNDS_DIR)/.asterisk,asterisk,$@).tar.gz; \
 	if ! test -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
@@ -91,8 +93,6 @@ asterisk-extra-%.tar.gz:
 
 asterisk-moh-%.tar.gz:
 	@wget $(WGET_ARGS) $(MOH_URL)/$@
-
-all:	$(CORE_SOUNDS) $(EXTRA_SOUNDS) $(MOH)
 
 dist-clean:
 	rm -f *.tar.gz

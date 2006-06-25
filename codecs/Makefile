@@ -11,10 +11,9 @@
 # the GNU General Public License
 #
 
-.PHONY: clean clean-depend all depend uninstall
-
 ifneq ($(wildcard ../menuselect.makeopts),)
   include ../menuselect.makeopts
+  include ../menuselect.makedeps
 endif
 
 SELECTED_MODS:=$(filter-out $(MENUSELECT_CODECS),$(patsubst %.c,%,$(wildcard codec_*.c)))

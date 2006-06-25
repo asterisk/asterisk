@@ -11,6 +11,7 @@
 
 ifneq ($(wildcard ../menuselect.makeopts),)
   include ../menuselect.makeopts
+  include ../menuselect.makedeps
 endif
 
 SELECTED_MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(patsubst %.c,%,$(wildcard chan_*.c)))

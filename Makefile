@@ -121,6 +121,7 @@ USER_MAKEOPTS=$(wildcard ~/.asterisk.makeopts)
 
 ifneq ($(wildcard menuselect.makeopts),)
   include menuselect.makeopts
+  include menuselect.makedeps
 endif
 
 ifneq ($(wildcard makeopts),)
@@ -512,7 +513,7 @@ dist-clean: clean
 	@$(MAKE) -C mxml clean
 	@$(MAKE) -C menuselect dist-clean
 	@$(MAKE) -C sounds dist-clean
-	rm -f menuselect.makeopts makeopts makeopts.xml
+	rm -f menuselect.makeopts makeopts makeopts.xml menuselect.makedeps
 	rm -f config.log config.status
 	rm -rf autom4te.cache
 	rm -f include/autoconfig.h
@@ -885,6 +886,5 @@ mxml/libmxml.a:
 makeopts.xml: $(foreach dir,$(MOD_SUBDIRS),$(dir)/*.c) build_tools/cflags.xml sounds/sounds.xml
 	@echo "Generating list of available modules ..."
 	@build_tools/prep_moduledeps > $@
-	@sed -i -e /MENUSELECT_DEPENDS/d menuselect.makeopts
 
 .PHONY: menuselect sounds clean clean-depend dist-clean distclean all _all depend cleantest uninstall _uninstall uninstall-all dont-optimize valgrind $(SUBDIRS_INSTALL) $(SUBDIRS_CLEAN) $(SUBDIRS_CLEAN_DEPEND) $(SUBDIRS_DEPEND) $(SUBDIRS_UNINSTALL) $(SUBDIRS)
