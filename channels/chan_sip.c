@@ -388,6 +388,9 @@ static const struct  cfsip_methods {
 #define SIP_OPT_EVENTLIST	(1 << 11)
 #define SIP_OPT_GRUU		(1 << 12)
 #define SIP_OPT_TARGET_DIALOG	(1 << 13)
+#define SIP_OPT_NOREFERSUB	(1 << 14)
+#define SIP_OPT_HISTINFO	(1 << 15)
+#define SIP_OPT_RESPRIORITY	(1 << 16)
 
 /*! \brief List of well-known SIP options. If we get this in a require,
    we should check the list and answer accordingly. */
@@ -396,17 +399,17 @@ static const struct cfsip_options {
 	int supported;		/*!< Supported by Asterisk ? */
 	char * const text;	/*!< Text id, as in standard */
 } sip_options[] = {	/* XXX used in 3 places */
-	/* Replaces: header for transfer */
+	/* RFC3891: Replaces: header for transfer */
 	{ SIP_OPT_REPLACES,	SUPPORTED,	"replaces" },	
 	/* One version of Polycom firmware has the wrong label */
 	{ SIP_OPT_REPLACES,	SUPPORTED,	"replace" },	
 	/* RFC3262: PRACK 100% reliability */
 	{ SIP_OPT_100REL,	NOT_SUPPORTED,	"100rel" },	
-	/* SIP Session Timers */
+	/* RFC4028: SIP Session Timers */
 	{ SIP_OPT_TIMER,	NOT_SUPPORTED,	"timer" },
 	/* RFC3959: SIP Early session support */
 	{ SIP_OPT_EARLY_SESSION, NOT_SUPPORTED,	"early-session" },
-	/* SIP Join header support */
+	/* RFC3911: SIP Join header support */
 	{ SIP_OPT_JOIN,		NOT_SUPPORTED,	"join" },
 	/* RFC3327: Path support */
 	{ SIP_OPT_PATH,		NOT_SUPPORTED,	"path" },
@@ -424,8 +427,14 @@ static const struct cfsip_options {
 	{ SIP_OPT_EVENTLIST,	NOT_SUPPORTED,	"eventlist" },
 	/* GRUU: Globally Routable User Agent URI's */
 	{ SIP_OPT_GRUU,		NOT_SUPPORTED,	"gruu" },
-	/* Target-dialog: draft-ietf-sip-target-dialog-00.txt */
-	{ SIP_OPT_TARGET_DIALOG,NOT_SUPPORTED,	"target-dialog" },
+	/* Target-dialog: draft-ietf-sip-target-dialog-03.txt */
+	{ SIP_OPT_TARGET_DIALOG,NOT_SUPPORTED,	"tdialog" },
+	/* Disable the REFER subscription, RFC 4488 */
+	{ SIP_OPT_NOREFERSUB,	NOT_SUPPORTED,	"norefersub" },
+	/* ietf-sip-history-info-06.txt */
+	{ SIP_OPT_HISTINFO,	NOT_SUPPORTED,	"histinfo" },
+	/* ietf-sip-resource-priority-10.txt */
+	{ SIP_OPT_RESPRIORITY,	NOT_SUPPORTED,	"resource-priority" },
 };
 
 
