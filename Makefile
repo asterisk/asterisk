@@ -472,8 +472,7 @@ include/asterisk/buildopts.h: menuselect.makeopts
 	fi
 	@rm -f $@.tmp
 
-channel.o: channel.c
-	$(CC) -c -o $@ $< $(CFLAGS) $(ZAPTEL_INCLUDE)
+channel.o: CFLAGS+=$(ZAPTEL_INCLUDE)
 
 asterisk: include/asterisk/buildopts.h editline/libedit.a db1-ast/libdb1.a $(OBJS)
 	build_tools/make_build_h > include/asterisk/build.h.tmp
