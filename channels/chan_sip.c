@@ -2773,11 +2773,11 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	fmt = ast_best_codec(tmp->nativeformats);
 
 	if (title)
-		snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%04x", title, thread_safe_rand() & 0xffff);
+		snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", title, (int)(long) i);
 	else if (strchr(i->fromdomain,':'))
-		snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", strchr(i->fromdomain,':')+1, (int)(long)(i));
+		snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", strchr(i->fromdomain,':') + 1, (int)(long) i);
 	else
-		snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", i->fromdomain, (int)(long)(i));
+		snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", i->fromdomain, (int)(long) i);
 
 	tmp->type = channeltype;
 	if (ast_test_flag(i, SIP_DTMF) ==  SIP_DTMF_INBAND) {
