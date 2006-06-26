@@ -13333,12 +13333,13 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		return -1;
 	}
 
-	if (current.chan2 && sipdebug && option_debug > 3)
-		ast_log(LOG_DEBUG, "Got SIP transfer, applying to bridged peer '%s'\n", current.chan2->name);
+	if (current.chan2) {
+		if (sipdebug && option_debug > 3)
+			ast_log(LOG_DEBUG, "Got SIP transfer, applying to bridged peer '%s'\n", current.chan2->name);
 
-	/* Stop music on hold on this channel */
-	if (current.chan2)
+		/* Stop music on hold on this channel */
 		ast_moh_stop(current.chan2);
+	}
 
 	ast_set_flag(&p->flags[0], SIP_GOTREFER);	
 
@@ -13370,15 +13371,13 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 
 	/* Blind transfers and remote attended xfers */
 	transmit_response(p, "202 Accepted", req);
-	if (current.chan2->name) {
-		ast_log(LOG_NOTICE, "chan2->name: %s\n", current.chan2->name);
-		pbx_builtin_setvar_helper(current.chan2, "BLINDTRANSFER", current.chan1->name);
-	}
-	if (current.chan1) {
+
+	if (current.chan1 && current.chan2) {
 		ast_log(LOG_NOTICE, "chan1->name: %s\n", current.chan1->name);
 		pbx_builtin_setvar_helper(current.chan1, "BLINDTRANSFER", current.chan2->name);
 	}
 	if (current.chan2) {
+		pbx_builtin_setvar_helper(current.chan2, "BLINDTRANSFER", current.chan1->name);
 		pbx_builtin_setvar_helper(current.chan2, "SIPDOMAIN", p->refer->refer_to_domain);
 		pbx_builtin_setvar_helper(current.chan2, "SIPTRANSFER", "yes");
 		/* One for the new channel */
@@ -13412,6 +13411,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	ast_channel_unlock(current.chan2);
 
 	/* Connect the call */
+
 	/* FAKE ringing if not attended transfer */
 	if (!p->refer->attendedtransfer)
 		transmit_notify_with_sipfrag(p, seqno, "183 Ringing", FALSE);
