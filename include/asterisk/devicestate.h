@@ -44,7 +44,11 @@ extern "C" {
 /*! Device is ringing *and* in use */
 #define AST_DEVICE_RINGINUSE	7
 
+/*! \brief Devicestate watcher call back */
 typedef int (*ast_devstate_cb_type)(const char *dev, int state, void *data);
+
+/*!  \brief Devicestate provider call back */
+typedef int (*ast_devstate_prov_cb_type)(const char *data);
 
 /*! \brief Convert device state to text string for output 
  * \param devstate Current device state 
@@ -95,7 +99,27 @@ int ast_device_state_changed_literal(const char *device);
  * Return -1 on failure, ID on success
  */ 
 int ast_devstate_add(ast_devstate_cb_type callback, void *data);
+
+/*! \brief Unregisters a device state change callback 
+ * \param callback Callback
+ * \param data to pass to callback
+ * The callback is called if the state for extension is changed
+ * Return -1 on failure, ID on success
+ */ 
 void ast_devstate_del(ast_devstate_cb_type callback, void *data);
+
+/*! \brief Add device state provider 
+ * \param label to use in hint, like label:object
+ * \param callback Callback
+ * Return -1 on failure, ID on success
+ */ 
+int ast_devstate_prov_add(const char *label, ast_devstate_prov_cb_type callback);
+
+/*! \brief Remove device state provider 
+ * \param label to use in hint, like label:object
+ * Return -1 on failure, ID on success
+ */ 
+void ast_devstate_prov_del(const char *label);
 
 int ast_device_state_engine_init(void);
 

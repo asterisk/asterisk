@@ -188,7 +188,7 @@ struct ast_state_cb {
 
 /*! \brief Structure for dial plan hints
 
-  Hints are pointers from an extension in the dialplan to one or
+  \note Hints are pointers from an extension in the dialplan to one or
   more devices (tech/name) */
 struct ast_hint {
 	struct ast_exten *exten;	/*!< Extension */

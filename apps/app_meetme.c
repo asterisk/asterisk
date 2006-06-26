@@ -58,6 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/translate.h"
 #include "asterisk/ulaw.h"
+#include "asterisk/devicestate.h"
 
 #include "enter.h"
 #include "leave.h"
@@ -274,7 +275,7 @@ struct ast_conference {
 	int markedusers;                        /*!< Number of marked users */
 	time_t start;                           /*!< Start time (s) */
 	int refcount;                           /*!< reference count of usage */
-	enum recording_state recording:2;               /*!< recording status */
+	enum recording_state recording:2;       /*!< recording status */
 	unsigned int isdynamic:1;               /*!< Created on the fly? */
 	unsigned int locked:1;                  /*!< Is the conference locked? */
 	pthread_t recordthread;                 /*!< thread for recording */
@@ -966,6 +967,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	/* Update table */
 	snprintf(members, sizeof(members), "%d", conf->users);
 	ast_update_realtime("meetme", "confno", conf->confno, "members", members , NULL);
+
+	/* This device changed state now - if this is the first user */
+	if (conf->users == 1)
+		ast_device_state_changed("meetme:%s", conf->confno);
 
 	ast_mutex_unlock(&conf->playlock);
 
@@ -1742,6 +1747,10 @@ bailoutandtrynormal:
 		/* Return the number of seconds the user was in the conf */
 		snprintf(meetmesecs, sizeof(meetmesecs), "%d", (int) (time(NULL) - user->jointime));
 		pbx_builtin_setvar_helper(chan, "MEETMESECS", meetmesecs);
+
+		/* This device changed state now */
+		if (!conf->users)	/* If there are no more members */
+			ast_device_state_changed("meetme:%s", conf->confno);
 	}
 	free(user);
 	AST_LIST_UNLOCK(&confs);
@@ -2510,6 +2519,29 @@ static void *recordthread(void *args)
 	pthread_exit(0);
 }
 
+/*! \brief Callback for devicestate providers */
+static int meetmestate(const char *data)
+{
+	struct ast_conference *conf;
+
+	/* Find conference */
+	AST_LIST_LOCK(&confs);
+	AST_LIST_TRAVERSE(&confs, conf, list) {
+		if (!strcmp(data, conf->confno))
+			break;
+	}
+	AST_LIST_UNLOCK(&confs);
+	if (!conf)
+		return AST_DEVICE_INVALID;
+
+
+	/* SKREP to fill */
+	if (!conf->users)
+		return AST_DEVICE_NOT_INUSE;
+
+	return AST_DEVICE_INUSE;
+}
+
 static void load_config(void)
 {
 	struct ast_config *cfg;
@@ -2547,6 +2579,7 @@ static int unload_module(void *mod)
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(app);
 
+	ast_devstate_prov_del("Meetme");
 	STANDARD_HANGUP_LOCALUSERS;
 
 	return res;
@@ -2565,6 +2598,7 @@ static int load_module(void *mod)
 	res |= ast_register_application(app2, count_exec, synopsis2, descrip2);
 	res |= ast_register_application(app, conf_exec, synopsis, descrip);
 
+	res |= ast_devstate_prov_add("Meetme", meetmestate);
 	return res;
 }
 

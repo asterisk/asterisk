@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/logger.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/pbx.h"
+#include "asterisk/app.h"
 #include "asterisk/options.h"
 
 /*! \brief Device state strings for printing */
@@ -53,6 +54,16 @@ static const char *devstatestring[] = {
 	/* 6 AST_DEVICE_RINGING */	"Ringing"	/*!< Ring, ring, ring */
 };
 
+/*! \brief  A device state provider (not a channel) */
+struct devstate_prov {
+	char label[40];
+	ast_devstate_prov_cb_type callback;
+	AST_LIST_ENTRY(devstate_prov) list;
+};
+
+/*! \brief A list of providers */
+static AST_LIST_HEAD_STATIC(devstate_provs, devstate_prov);
+
 /*! \brief  A device state watcher (callback) */
 struct devstate_cb {
 	void *data;
@@ -60,6 +71,7 @@ struct devstate_cb {
 	AST_LIST_ENTRY(devstate_cb) list;
 };
 
+/*! \brief A device state watcher list */
 static AST_LIST_HEAD_STATIC(devstate_cbs, devstate_cb);
 
 struct state_change {
@@ -67,10 +79,18 @@ struct state_change {
 	char device[1];
 };
 
+/*! \brief The state change queue. State changes are queued
+	for processing by a separate thread */
 static AST_LIST_HEAD_STATIC(state_changes, state_change);
 
+/*! \brief The device state change notification thread */
 static pthread_t change_thread = AST_PTHREADT_NULL;
+
+/*! \brief Flag for the queue */
 static ast_cond_t change_pending;
+
+/* Forward declarations */
+static int getproviderstate(const char *provider, const char *address);
 
 /*! \brief Find devicestate as text message for output */
 const char *devstate2str(int devstate) 
@@ -79,9 +99,9 @@ const char *devstate2str(int devstate)
 }
 
 /*! \brief Find out if device is active in a call or not 
-\note find channels with the device's name in it
-This function is only used for channels that does not implement 
-devicestate natively
+	\note find channels with the device's name in it
+	This function is only used for channels that does not implement 
+	devicestate natively
 */
 int ast_parse_device_state(const char *device)
 {
@@ -110,17 +130,34 @@ int ast_parse_device_state(const char *device)
 int ast_device_state(const char *device)
 {
 	char *buf;
-	char *tech;
 	char *number;
 	const struct ast_channel_tech *chan_tech;
 	int res = 0;
+	/*! \brief Channel driver that provides device state */
+	char *tech;
+	/*! \brief Another provider of device state */
+	char *provider = NULL;
 	
 	buf = ast_strdupa(device);
 	tech = strsep(&buf, "/");
 	number = buf;
-	if (!number)
-		return AST_DEVICE_INVALID;
-		
+	if (!number) {
+		provider = strsep(&tech, ":");
+		if (!provider)
+			return AST_DEVICE_INVALID;
+		/* We have a provider */
+		number = tech;
+		tech = NULL;
+	}
+
+	if (provider)  {
+		if(option_debug > 2)
+			ast_log(LOG_DEBUG, "Checking if I can find provider for \"%s\" - number: %s\n", provider, number);
+		return getproviderstate(provider, number);
+	}
+	if (option_debug > 3)
+		ast_log(LOG_DEBUG, "No provider found, checking channel drivers for %s - %s\n", tech, number);
+
 	chan_tech = ast_get_channel_tech(tech);
 	if (!chan_tech)
 		return AST_DEVICE_INVALID;
@@ -141,6 +178,63 @@ int ast_device_state(const char *device)
 		} else
 			return res;
 	}
+}
+
+/*! \brief Add device state provider */
+int ast_devstate_prov_add(const char *label, ast_devstate_prov_cb_type callback)
+{
+	struct devstate_prov *devprov;
+
+	if (!callback || !(devprov = ast_calloc(1, sizeof(*devprov))))
+		return -1;
+
+	devprov->callback = callback;
+	ast_copy_string(devprov->label, label, sizeof(devprov->label));
+
+	AST_LIST_LOCK(&devstate_provs);
+	AST_LIST_INSERT_HEAD(&devstate_provs, devprov, list);
+	AST_LIST_UNLOCK(&devstate_provs);
+
+	return 0;
+}
+
+/*! \brief Remove device state provider */
+void ast_devstate_prov_del(const char *label)
+{
+	struct devstate_prov *devcb;
+
+	AST_LIST_LOCK(&devstate_provs);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&devstate_provs, devcb, list) {
+		if (!strcasecmp(devcb->label, label)) {
+			AST_LIST_REMOVE_CURRENT(&devstate_provs, list);
+			free(devcb);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&devstate_provs);
+}
+
+/*! \brief Get provider device state */
+static int getproviderstate(const char *provider, const char *address)
+{
+	struct devstate_prov *devprov;
+	int res = AST_DEVICE_INVALID;
+
+
+	AST_LIST_LOCK(&devstate_provs);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&devstate_provs, devprov, list) {
+		if(option_debug > 4)
+			ast_log(LOG_DEBUG, "Checking provider %s with %s\n", devprov->label, provider);
+
+		if (!strcasecmp(devprov->label, provider)) {
+			res = devprov->callback(address);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&devstate_provs);
+	return res;
 }
 
 /*! \brief Add device state watcher */
@@ -178,7 +272,9 @@ void ast_devstate_del(ast_devstate_cb_type callback, void *data)
 	AST_LIST_UNLOCK(&devstate_cbs);
 }
 
-/*! \brief Notify callback watchers of change, and notify PBX core for hint updates */
+/*! \brief Notify callback watchers of change, and notify PBX core for hint updates
+	Normally executed within a separate thread
+*/
 static void do_state_change(const char *device)
 {
 	int state;
@@ -201,9 +297,14 @@ static int __ast_device_state_changed_literal(char *buf)
 	char *device, *tmp;
 	struct state_change *change;
 
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "Notification of state change to be queued on device/channel %s\n", buf);
+
 	device = buf;
 	if ((tmp = strrchr(device, '-')))
 		*tmp = '\0';
+
+	
 
 	if (change_thread == AST_PTHREADT_NULL || !(change = ast_calloc(1, sizeof(*change) + strlen(device)))) {
 		/* we could not allocate a change struct, or */
