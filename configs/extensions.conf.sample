@@ -206,6 +206,12 @@ include => dundi-e164-switch
 ;
 ; ARG1 is the extension to Dial
 ;
+; Extension "s" is not a wildcard extension that matches "anything".
+; In macros, it is the start extension. In most other cases, 
+; you have to goto "s" to execute that extension.
+;
+; For wildcard matches, see above - all pattern matches start with
+; an underscore.
 exten => s,1,Goto(${ARG1},1)
 include => dundi-e164-lookup
 
