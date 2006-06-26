@@ -1614,8 +1614,12 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported
 				break;
 			}
 		}
-		if (!found && option_debug > 2 && sipdebug)
-			ast_log(LOG_DEBUG, "Found no match for SIP option: %s (Please file bug report!)\n", next);
+		if (!found && option_debug > 2 && sipdebug) {
+			if (!strncasecmp(next, "x-", 2))
+				ast_log(LOG_DEBUG, "Found private SIP option, not supported: %s\n", next);
+			else
+				ast_log(LOG_DEBUG, "Found no match for SIP option: %s (Please file bug report!)\n", next);
+		}
 	}
 
 	if (pvt)
