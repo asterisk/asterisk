@@ -393,6 +393,9 @@ makeopts: configure
 menuselect.makeopts: menuselect/menuselect makeopts.xml
 	@menuselect/menuselect --check-deps ${GLOBAL_MAKEOPTS} ${USER_MAKEOPTS} $@
 
+menuselect.makedeps: menuselect/menuselect makeopts.xml
+	@menuselect/menuselect --check-deps ${GLOBAL_MAKEOPTS} ${USER_MAKEOPTS} $@
+
 #ifneq ($(wildcard tags),)
 ctags: tags
 #endif
