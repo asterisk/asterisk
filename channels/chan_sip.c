@@ -12463,6 +12463,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	
 	/* Stop music on hold and other generators */
 	ast_quiet_chan(replacecall);
+	ast_quiet_chan(targetcal);
 	if (option_debug > 3)
 		ast_log(LOG_DEBUG, "Invite/Replaces: preparing to masquerade %s into %s\n", c->name, replacecall->name);
 	/* Unlock clone, but not original (replacecall) */
