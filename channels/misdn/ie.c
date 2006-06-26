@@ -1093,8 +1093,7 @@ void dec_ie_progress(unsigned char *p, Q931_info_t *qi, int *coding, int *locati
 	*location = p[1] & 0x0f;
 	*progress = p[2] & 0x7f;
 
-	//if (MISDN_IE_DEBG) printf("    coding=%d location=%d progress=%d\n", *coding, *location, *progress);
-	if (1) printf("    coding=%d location=%d progress=%d\n", *coding, *location, *progress);
+	if (MISDN_IE_DEBG) printf("    coding=%d location=%d progress=%d\n", *coding, *location, *progress);
 }
 
 

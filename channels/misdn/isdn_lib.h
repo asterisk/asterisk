@@ -406,6 +406,7 @@ void misdn_lib_split_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel 
 void misdn_lib_echo(struct misdn_bchannel *bc, int onoff);
 
 int misdn_lib_is_ptp(int port);
+int misdn_lib_get_maxchans(int port);
 
 #define PRI_TRANS_CAP_SPEECH                                    0x0
 #define PRI_TRANS_CAP_DIGITAL                                   0x08

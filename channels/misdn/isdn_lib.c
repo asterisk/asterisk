@@ -33,6 +33,20 @@ int misdn_lib_is_ptp(int port)
 	return -1;
 }
 
+int misdn_lib_get_maxchans(int port) 
+{
+	struct misdn_stack *stack=get_misdn_stack();
+	for ( ; stack; stack=stack->next) {
+		if (stack->port == port) {
+			if (stack->pri) 
+				return 30;
+			else
+				return 2;
+		}
+	}
+	return -1;
+}
+
 
 struct misdn_stack* get_stack_by_bc(struct misdn_bchannel *bc)
 {
@@ -374,6 +388,8 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 {
 	int i;
 
+	cb_log(1,stack->port,"find_free_chan: req_chan:%d\n",channel);
+
 	if (channel < 0 || channel > MAX_BCHANS) {
 		cb_log(4, stack->port, " !! out of bound call to find_free_chan_in_stack! (ch:%d)\n", channel);
 		return 0;
@@ -384,7 +400,7 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 	for (i = 0; i < stack->b_num; i++) {
 		if (i != 15 && (channel < 0 || i == channel)) { /* skip E1 Dchannel ;) and work with chan preselection */
 			if (!stack->channels[i]) {
-				cb_log (4, stack->port, " --> found chan%s: %d\n", channel>=0?" (preselected)":"", i+1);
+				cb_log (1, stack->port, " --> found chan%s: %d\n", channel>=0?" (preselected)":"", i+1);
 				stack->channels[i] = 1;
 				bc->channel=i+1;
 				cb_event(EVENT_NEW_CHANNEL, bc, NULL);
@@ -401,7 +417,7 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 
 int empty_chan_in_stack(struct misdn_stack *stack, int channel)
 {
-	cb_log (4, stack?stack->port:0, " --> empty chan %d\n",channel); 
+	cb_log (1, stack?stack->port:0, "empty_chan_in_stack: %d\n",channel); 
 	stack->channels[channel-1] = 0;
 	dump_chan_list(stack);
 	return 0;
@@ -613,7 +629,13 @@ void clear_l3(struct misdn_stack *stack)
 
 int set_chan_in_stack(struct misdn_stack *stack, int channel)
 {
-	stack->channels[channel-1] = 1;
+
+	cb_log(1,stack->port,"set_chan_in_stack: %d\n",channel);
+	if (channel >=1 ) {
+		stack->channels[channel-1] = 1;
+	} else {
+		cb_log(-1,stack->port,"couldn't set channel %d in\n", channel );
+	}
   
 	return 0;
 }
@@ -802,7 +824,7 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 			free_chan = find_free_chan_in_stack(stack, bc, bc->channel_preselected?bc->channel:0);
 			if (!free_chan) return -1;
 			/*bc->channel=free_chan;*/
-			cb_log(0,stack->port, " -->  found channel: %d\n",free_chan);
+			cb_log(2,stack->port, " -->  found channel: %d\n",free_chan);
 		} else {
 			/* other phones could have made a call also on this port (ptmp) */
 			bc->channel=0xff;
@@ -1420,7 +1442,12 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 					cb_log(-1, stack->port, "Any Channel Requested, but we have no more!!\n");
 					break;
 				}
-			}  	
+			}  
+
+			if (bc->channel >0 && bc->channel<255) {
+				set_chan_in_stack(stack ,bc->channel);
+			}
+
 #if 0
 			int ret=setup_bc(bc);
 			if (ret == -EINVAL){
@@ -2085,6 +2112,7 @@ void misdn_tx_jitter(struct misdn_bchannel *bc, int len)
 		
 		r=mISDN_write( glob_mgr->midev, buf, txfrm->len + mISDN_HEADER_LEN, 8000 );
 	} else {
+#define MISDN_GEN_SILENCE
 #ifdef MISDN_GEN_SILENCE
 		int cnt=len/TONE_SILENCE_SIZE;
 		int rest=len%TONE_SILENCE_SIZE;
@@ -2122,7 +2150,7 @@ int handle_bchan(msg_t *msg)
 	struct misdn_bchannel *bc=find_bc_by_addr(frm->addr);
 	
 	if (!bc) {
-		cb_log(0,0,"handle_bchan: BC not found for prim:%x with addr:%x dinfo:%x\n", frm->prim, frm->addr, frm->dinfo);
+		cb_log(1,0,"handle_bchan: BC not found for prim:%x with addr:%x dinfo:%x\n", frm->prim, frm->addr, frm->dinfo);
 		return 0 ;
 	}
 	
@@ -2273,7 +2301,8 @@ int handle_bchan(msg_t *msg)
 		
 		free_msg(msg);
 		return 1;
-		
+	
+	
 	case PH_DATA|INDICATION:
 	case DL_DATA|INDICATION:
 	{
@@ -3188,6 +3217,16 @@ int handle_err(msg_t *msg)
 			return 1;
 		break;
 
+		case DL_DATA|CONFIRM:
+			cb_log(4,0,"DL_DATA|CONFIRM\n");
+			free_msg(msg);
+			return 1;
+
+		case PH_CONTROL|CONFIRM:
+			cb_log(4,0,"PH_CONTROL|CONFIRM\n");
+			free_msg(msg);
+			return 1;
+
 		case DL_DATA|INDICATION:
 		{
 			int port=(frm->addr&MASTER_ID_MASK) >> 8;
@@ -3984,6 +4023,7 @@ struct misdn_bchannel *stack_holder_find(struct misdn_stack *stack, unsigned lon
 
 void misdn_lib_send_tone(struct misdn_bchannel *bc, enum tone_e tone) 
 {
+
 	switch(tone) {
 	case TONE_DIAL:
 		manager_ph_control(bc, TONE_PATT_ON, TONE_GERMAN_DIALTONE);	

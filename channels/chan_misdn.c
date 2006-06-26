@@ -299,7 +299,7 @@ ast_mutex_t cl_te_lock;
 static enum event_response_e
 cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data);
 
-static void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel*bc);
+static void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel*bc, struct chan_list *ch);
 
 static void cl_queue_chan(struct chan_list **list, struct chan_list *chan);
 static void cl_dequeue_chan(struct chan_list **list, struct chan_list *chan);
@@ -641,7 +641,9 @@ static struct state_struct state_array[] = {
 	{MISDN_EXTCANTMATCH,"EXTCANTMATCH"}, /*  when asterisk couldnt match our ext */
 	{MISDN_DIALING,"DIALING"}, /*  when pbx_start */
 	{MISDN_PROGRESS,"PROGRESS"}, /*  when pbx_start */
+	{MISDN_PROCEEDING,"PROCEEDING"}, /*  when pbx_start */
 	{MISDN_CALLING,"CALLING"}, /*  when misdn_call is called */
+	{MISDN_CALLING_ACKNOWLEDGE,"CALLING_ACKNOWLEDGE"}, /*  when misdn_call is called */
 	{MISDN_ALERTING,"ALERTING"}, /*  when Alerting */
 	{MISDN_BUSY,"BUSY"}, /*  when BUSY */
 	{MISDN_CONNECTED,"CONNECTED"}, /*  when connected */
@@ -659,13 +661,17 @@ static struct state_struct state_array[] = {
 static char *misdn_get_ch_state(struct chan_list *p) 
 {
 	int i;
+	static char state[8];
+	
 	if( !p) return NULL;
   
 	for (i=0; i< sizeof(state_array)/sizeof(struct state_struct); i++) {
 		if ( state_array[i].state == p->state) return state_array[i].txt; 
 	}
-  
-	return NULL;
+
+ 	sprintf(state,"%d",p->state) ;
+
+	return state;
 }
 
 
@@ -1829,7 +1835,7 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 		chan_misdn_log(1, p->bc->port, "* IND :\tbusy\n");
 		chan_misdn_log(1, p->bc->port, " --> * SEND: State Busy pid:%d\n",p->bc?p->bc->pid:-1);
 		ast_setstate(ast,AST_STATE_BUSY);
-		
+
 		p->bc->out_cause=17;
 		if (p->state != MISDN_CONNECTED) {
 			misdn_lib_send_event( p->bc, EVENT_DISCONNECT);
@@ -1997,7 +2003,7 @@ static int misdn_hangup(struct ast_channel *ast)
 	
 	{
 		const char *varcause=NULL;
-		bc->cause=ast->hangupcause?ast->hangupcause:16;
+		bc->out_cause=ast->hangupcause?ast->hangupcause:16;
 		
 		if ( (varcause=pbx_builtin_getvar_helper(ast, "HANGUPCAUSE")) ||
 		     (varcause=pbx_builtin_getvar_helper(ast, "PRI_CAUSE"))) {
@@ -2018,15 +2024,16 @@ static int misdn_hangup(struct ast_channel *ast)
 			break;
 		case MISDN_HOLDED:
 		case MISDN_DIALING:
+		case MISDN_CALLING_ACKNOWLEDGE:
 			start_bc_tones(p);
 			tone_indicate(p, TONE_HANGUP);
-			p->state=MISDN_CLEANING;
 		
-			if (bc->nt)
+			if (bc->nt) {
 				misdn_lib_send_event( bc, EVENT_DISCONNECT);
-			else
+			} else {
 				misdn_lib_send_event( bc, EVENT_RELEASE_COMPLETE);
-      
+				p->state=MISDN_CLEANING;
+			}
 			break;
       
 		case MISDN_ALERTING:
@@ -2035,16 +2042,19 @@ static int misdn_hangup(struct ast_channel *ast)
 			if (p->orginator != ORG_AST) 
 				tone_indicate(p, TONE_HANGUP);
       
-			p->state=MISDN_CLEANING;
+			/*p->state=MISDN_CLEANING;*/
 			misdn_lib_send_event( bc, EVENT_DISCONNECT);
 			break;
 		case MISDN_CONNECTED:
 			/*  Alerting or Disconect */
-			start_bc_tones(p);
-			tone_indicate(p, TONE_HANGUP);
+			if (p->bc->nt) {
+				start_bc_tones(p);
+				tone_indicate(p, TONE_HANGUP);
+				p->bc->progress_indicator=8;
+			}
 			misdn_lib_send_event( bc, EVENT_DISCONNECT);
-      
-			p->state=MISDN_CLEANING; /* MISDN_HUNGUP_FROM_AST; */
+
+			/*p->state=MISDN_CLEANING;*/
 			break;
 		case MISDN_DISCONNECTED:
 			misdn_lib_send_event( bc, EVENT_RELEASE);
@@ -2053,6 +2063,10 @@ static int misdn_hangup(struct ast_channel *ast)
 
 		case MISDN_RELEASED:
 		case MISDN_CLEANING:
+			p->state=MISDN_CLEANING;
+			break;
+
+		case MISDN_BUSY:
 			break;
       
 		case MISDN_HOLD_DISCONNECT:
@@ -2062,22 +2076,22 @@ static int misdn_hangup(struct ast_channel *ast)
 			
 			bc->out_cause=-1;
 			misdn_lib_send_event(bc,EVENT_RELEASE);
+			p->state=MISDN_CLEANING;
 			break;
 		default:
-			/*  Alerting or Disconect */
-
 			if (bc->nt) {
 				bc->out_cause=-1;
 				misdn_lib_send_event(bc, EVENT_RELEASE);
-			} else
+				p->state=MISDN_CLEANING; 
+			} else {
 				misdn_lib_send_event(bc, EVENT_DISCONNECT);
-			p->state=MISDN_CLEANING; /* MISDN_HUNGUP_FROM_AST; */
+			}
 		}
     
 	}
 	
 
-	chan_misdn_log(1, bc->port, "Channel: %s hanguped\n",ast->name);
+	chan_misdn_log(1, bc->port, "Channel: %s hanguped new state:%s\n",ast->name,misdn_get_ch_state(p));
 	
 	return 0;
 }
@@ -2376,6 +2390,7 @@ static int tone_indicate( struct chan_list *cl, enum tone_e tone)
 		chan_misdn_log(3,cl->bc->port,"Ast Ptr Not existing anymore.. we need to generate tones ourselves now (tbd)\n");
 		
 		misdn_lib_send_tone(cl->bc,tone);
+		misdn_lib_tone_generator_start(cl->bc);
 		return 0;
 	}
 	
@@ -2383,24 +2398,20 @@ static int tone_indicate( struct chan_list *cl, enum tone_e tone)
 	case TONE_DIAL:
 		chan_misdn_log(3,cl->bc->port," --> Dial\n");
 		ts=ast_get_indication_tone(ast->zone,"dial");
-		misdn_lib_tone_generator_start(cl->bc);
 		break;
 	case TONE_ALERTING:
 		chan_misdn_log(3,cl->bc->port," --> Ring\n");
 		ts=ast_get_indication_tone(ast->zone,"ring");
-		misdn_lib_tone_generator_start(cl->bc);
 		break;
 	case TONE_FAR_ALERTING:
 	/* VERY UGLY HACK, BECAUSE CHAN_SIP DOES NOT GENERATE TONES */
 		chan_misdn_log(3,cl->bc->port," --> Ring\n");
 		ts=ast_get_indication_tone(ast->zone,"ring");
-		misdn_lib_tone_generator_start(cl->bc);
 		misdn_lib_echo(cl->bc,1);
 		break;
 	case TONE_BUSY:
 		chan_misdn_log(3,cl->bc->port," --> Busy\n");
 		ts=ast_get_indication_tone(ast->zone,"busy");
-		misdn_lib_tone_generator_start(cl->bc);
 		break;
 	case TONE_FILE:
 		break;
@@ -2415,7 +2426,13 @@ static int tone_indicate( struct chan_list *cl, enum tone_e tone)
 	
 	cl->ts=ts;	
 	
-	if (ts) ast_playtones_start(ast,0, ts->data, 0);
+	if (ts) {
+		cl->notxtone=0;
+		cl->norxtone=0;
+		ast_playtones_start(ast,0, ts->data, 0);
+		chan_misdn_log(4,cl->bc->port,"Starting Playtones\n");
+		misdn_lib_tone_generator_start(cl->bc);
+	}
 	
 	return 0;
 }
@@ -2531,7 +2548,8 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 						next_chan = 1;
 					
 					if (port <= port_start && next_chan) {
-						if (++robin_channel >= MAX_BCHANS) {
+						int maxbchans=misdn_lib_get_maxchans(port);
+						if (++robin_channel >= maxbchans) {
 							robin_channel = 1;
 						}
 						next_chan = 0;
@@ -2914,7 +2932,7 @@ static void release_chan(struct misdn_bchannel *bc) {
 				chan_misdn_log(1, bc->port, "* RELEASING CHANNEL pid:%d ctx:%s dad:%s oad:%s state: %s\n",bc?bc->pid:-1, ast->context, ast->exten,AST_CID_P(ast),misdn_get_ch_state(ch));
 				chan_misdn_log(3, bc->port, " --> * State Down\n");
 				/* copy cause */
-				send_cause2ast(ast,bc);
+				send_cause2ast(ast,bc,ch);
 				
 				MISDN_ASTERISK_TECH_PVT(ast)=NULL;
 				
@@ -2936,11 +2954,13 @@ static void release_chan(struct misdn_bchannel *bc) {
 				case MISDN_DIALING:
 				case MISDN_CALLING_ACKNOWLEDGE:
 				case MISDN_PROGRESS:
+				case MISDN_PROCEEDING:
 					chan_misdn_log(2,  bc->port, "* --> In State Dialin\n");
 					chan_misdn_log(2,  bc->port, "* --> Queue Hangup\n");
 					
-
+					ch->state=MISDN_CLEANING;
 					ast_queue_hangup(ast);
+					
 					break;
 				case MISDN_CALLING:
 					
@@ -3059,7 +3079,7 @@ static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , 
 
 
 
-static void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel*bc) {
+static void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel*bc, struct chan_list *ch) {
 	
 	ast->hangupcause=bc->cause;
 	
@@ -3076,6 +3096,7 @@ static void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel*bc) {
 		 * the inband message
 		 *
 		chan_misdn_log(1, bc?bc->port:0, " --> * SEND: Queue Congestion pid:%d\n", bc?bc->pid:-1);
+		ch->state=MISDN_BUSY;
 		
 		ast_queue_control(ast, AST_CONTROL_CONGESTION);
 		*/
@@ -3084,7 +3105,8 @@ static void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel*bc) {
 	case 21:
 	case 17: /* user busy */
 		chan_misdn_log(1,  bc?bc->port:0, " --> * SEND: Queue Busy pid:%d\n", bc?bc->pid:-1);
-		
+	
+		ch->state=MISDN_BUSY;
 		ast_queue_control(ast, AST_CONTROL_BUSY);
 		
 		break;
@@ -3178,6 +3200,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	
 	if (ch ) {
 		switch (event) {
+		case EVENT_TONE_GENERATE:
+		break;
 		case EVENT_DISCONNECT:
 		case EVENT_RELEASE:
 		case EVENT_RELEASE_COMPLETE:
@@ -3297,10 +3321,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				ch->state=MISDN_EXTCANTMATCH;
 				bc->out_cause=1;
 
-				if (bc->nt)
-					misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE );
-				else
-					misdn_lib_send_event(bc, EVENT_DISCONNECT );
+				misdn_lib_send_event(bc, EVENT_DISCONNECT );
+
 				break;
 			}
 			if (ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
@@ -3313,10 +3335,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 					chan_misdn_log(-1, bc->port, "ast_pbx_start returned < 0 in INFO\n");
 					tone_indicate(ch,TONE_BUSY);
 
-					if (bc->nt)
-						misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE );
-					else
-						misdn_lib_send_event(bc, EVENT_DISCONNECT );
+					misdn_lib_send_event(bc, EVENT_DISCONNECT );
 				}
 			}
 	
@@ -3683,8 +3702,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		struct chan_list *holded_ch=find_holded(cl_te, bc);
 		
 		if (ch->ast)	
-			send_cause2ast(ch->ast,bc);
-
+			send_cause2ast(ch->ast,bc,ch);
 
 		chan_misdn_log(3,bc->port," --> org:%d nt:%d, inbandavail:%d state:%d\n", ch->orginator, bc->nt, misdn_inband_avail(bc), ch->state);
 		if ( ch->orginator==ORG_AST && !bc->nt && misdn_inband_avail(bc) && ch->state != MISDN_CONNECTED) {
@@ -3709,19 +3727,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 		
 		stop_bc_tones(ch);
-		/*bc->out_cause=16;*/
 		bc->out_cause=-1;
 		
-		/*if (ch->state == MISDN_CONNECTED) 
 		misdn_lib_send_event(bc,EVENT_RELEASE);
-		else
-		misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
-		*/
-		
-		misdn_lib_send_event(bc,EVENT_RELEASE);
-
-		if (ch->state == MISDN_CONNECTED)
-			ch->state=MISDN_RELEASED;
 	}
 	break;
 	
@@ -3771,6 +3779,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
 
 		chan_misdn_log(9,bc->port,"TONE_GEN: len:%d\n");
+
+		if (!ast) break;
 
 		if (!ast->generator) break;
 	
@@ -3848,6 +3858,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	break;
 	case EVENT_TIMEOUT:
 		{
+		if (ch && bc)
+			chan_misdn_log(1,bc->port,"--> state: %s\n",misdn_get_ch_state(ch));
+
 		switch (ch->state) {
 			case MISDN_WAITING4DIGS:
 			case MISDN_CALLING:
