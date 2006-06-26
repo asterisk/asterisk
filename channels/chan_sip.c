@@ -10670,9 +10670,9 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		strcpy(p->context, default_context);
 	res = get_refer_info(p, req);
 	if (res < 0)
-		transmit_response_with_allow(p, "404 Not Found", req, 1);
+		transmit_response(p, "603 Declined", req);
 	else if (res > 0)
-		transmit_response_with_allow(p, "484 Address Incomplete", req, 1);
+		transmit_response(p, "484 Address Incomplete", req);
 	else {
 		int nobye = 0;
 		if (!ignore) {
@@ -10724,6 +10724,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	}
 	return res;
 }
+
 /*! \brief  handle_request_cancel: Handle incoming CANCEL request ---*/
 static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req, int debug, int ignore)
 {
