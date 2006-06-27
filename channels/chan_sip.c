@@ -2175,12 +2175,20 @@ static int sip_sendtext(struct ast_channel *ast, const char *text)
 	return 0;	
 }
 
-/*! \brief Update peer object in realtime storage */
+/*! \brief Update peer object in realtime storage 
+	If the Asterisk system name is set in asterisk.conf, we will use
+	that name and store that in the "regserver" field in the sippeers
+	table to facilitate multi-server setups.
+*/
 static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, int expirey)
 {
 	char port[10];
 	char ipaddr[20];
 	char regseconds[20];
+
+	char *sysname = ast_config_AST_SYSTEM_NAME;
+	char *syslabel = NULL;
+
 	time_t nowtime = time(NULL) + expirey;
 	const char *fc = fullcontact ? "fullcontact" : NULL;
 	
@@ -2188,9 +2196,14 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 	ast_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
 	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
 	
+	if (ast_strlen_zero(sysname))	/* No system name, disable this */
+		sysname = NULL;
+	else
+		syslabel = "regserver";
+
 	ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr,
 		"port", port, "regseconds", regseconds,
-		"username", username, fc, fullcontact, NULL); /* note fc _can_ be NULL */
+		"username", username, fc, fullcontact, syslabel, sysname, NULL); /* note fc _can_ be NULL */
 }
 
 /*! \brief Automatically add peer extension to dial plan */
@@ -7141,7 +7154,7 @@ static void destroy_association(struct sip_peer *peer)
 {
 	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE)) {
 		if (ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT))
-			ast_update_realtime("sippeers", "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", "username", "", NULL);
+			ast_update_realtime("sippeers", "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", "username", "", "regserver", "", NULL);
 		else 
 			ast_db_del("SIP/Registry", peer->name);
 	}

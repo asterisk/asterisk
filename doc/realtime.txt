@@ -49,9 +49,8 @@ voicemail notification and NAT keepalives for these peers. Other than that,
 most of the functionality works the same way for realtime friends as for
 the ones in static configuration.
 
-There is some work to create a solution for Realtime SIP devices that
-loads from database and stays in memory for the duration of a call or
-a registration, but that work is not integrated into Asterisk yet.
+With caching, the device stays in memory for a specified time. More 
+information about this is to be found in the sip.conf sample file.
 
 * New function in the dial plan: The Realtime Switch
 ----------------------------------------------------
@@ -94,8 +93,11 @@ driver.
 Defined well-known family names are:
 
 * sippeers, sipusers	SIP peers and users
-* iaxfriends		IAX2 peers
+* iaxpeers, iaxusers	IAX2 peers and users
 * voicemail		Voicemail accounts 
+* queues		Queues
+* queue_members		Queue members
+* extensions		Realtime extensions (switch)
 
 There is documentation of the SQL database in the file
 doc/extconfig.txt in your Asterisk source code tree.
