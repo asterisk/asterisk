@@ -828,9 +828,9 @@ struct sip_refer {
 	char referred_by[AST_MAX_EXTENSION];		/*!< Place to store REFERRED-BY extension */
 	char referred_by_name[AST_MAX_EXTENSION];	/*!< Place to store REFERRED-BY extension */
 	char refer_contact[AST_MAX_EXTENSION];		/*!< Place to store Contact info from a REFER extension */
-	char replaces_callid[BUFSIZ];			/*!< Replace info */
-	char replaces_callid_totag[BUFSIZ/2];		/*!< Replace info */
-	char replaces_callid_fromtag[BUFSIZ/2];		/*!< Replace info */
+	char replaces_callid[BUFSIZ];			/*!< Replace info: callid */
+	char replaces_callid_totag[BUFSIZ/2];		/*!< Replace info: to-tag */
+	char replaces_callid_fromtag[BUFSIZ/2];		/*!< Replace info: from-tag */
 	struct sip_pvt *refer_call;			/*!< Call we are referring */
 	int attendedtransfer;				/*!< Attended or blind transfer? */
 	int localtransfer;				/*!< Transfer to local domain? */
@@ -871,15 +871,14 @@ static struct sip_pvt {
 		AST_STRING_FIELD(okcontacturi);	/*!< URI from the 200 OK on INVITE */
 		AST_STRING_FIELD(peersecret);	/*!< Password */
 		AST_STRING_FIELD(peermd5secret);
-		AST_STRING_FIELD(cid_num);	/*!< Caller*ID */
-		AST_STRING_FIELD(cid_name);	/*!< Caller*ID */
+		AST_STRING_FIELD(cid_num);	/*!< Caller*ID number */
+		AST_STRING_FIELD(cid_name);	/*!< Caller*ID name */
 		AST_STRING_FIELD(via);		/*!< Via: header */
 		AST_STRING_FIELD(fullcontact);	/*!< The Contact: that the UA registers with us */
 		AST_STRING_FIELD(our_contact);	/*!< Our contact header */
 		AST_STRING_FIELD(rpid);		/*!< Our RPID header */
 		AST_STRING_FIELD(rpid_from);	/*!< Our RPID From header */
 	);
-	struct ast_codec_pref prefs;		/*!< codec prefs */
 	unsigned int ocseq;			/*!< Current outgoing seqno */
 	unsigned int icseq;			/*!< Current incoming seqno */
 	ast_group_t callgroup;			/*!< Call group */
@@ -887,7 +886,8 @@ static struct sip_pvt {
 	int lastinvite;				/*!< Last Cseq of invite */
 	struct ast_flags flags[2];		/*!< SIP_ flags */
 	int timer_t1;				/*!< SIP timer T1, ms rtt */
-	unsigned int sipoptions;		/*!< Supported SIP sipoptions on the other end */
+	unsigned int sipoptions;		/*!< Supported SIP options on the other end */
+	struct ast_codec_pref prefs;		/*!< codec prefs */
 	int capability;				/*!< Special capability (codec) */
 	int jointcapability;			/*!< Supported capability at both ends (codecs ) */
 	int peercapability;			/*!< Supported peer capability */
@@ -901,40 +901,40 @@ static struct sip_pvt {
 	int callingpres;			/*!< Calling presentation */
 	int authtries;				/*!< Times we've tried to authenticate */
 	int expiry;				/*!< How long we take to expire */
-	long branch;				/*!< One random number */
-	char tag[11];				/*!< Another random number */
+	long branch;				/*!< The branch identifier of this session */
+	char tag[11];				/*!< Our tag for this session */
 	int sessionid;				/*!< SDP Session ID */
 	int sessionversion;			/*!< SDP Session Version */
 	struct sockaddr_in sa;			/*!< Our peer */
 	struct sockaddr_in redirip;		/*!< Where our RTP should be going if not to us */
 	struct sockaddr_in vredirip;		/*!< Where our Video RTP should be going if not to us */
+	time_t lastrtprx;			/*!< Last RTP received */
+	time_t lastrtptx;			/*!< Last RTP sent */
+	int rtptimeout;				/*!< RTP timeout time */
+	int rtpholdtimeout;			/*!< RTP timeout when on hold */
+	int rtpkeepalive;			/*!< Send RTP packets for keepalive */
 	struct sockaddr_in recv;		/*!< Received as */
 	struct in_addr ourip;			/*!< Our IP */
-	struct ast_channel *owner;		/*!< Who owns us */
+	struct ast_channel *owner;		/*!< Who owns us (if we have an owner) */
 	struct sip_route *route;		/*!< Head of linked list of routing steps (fm Record-Route) */
 	int route_persistant;			/*!< Is this the "real" route? */
 	struct sip_auth *peerauth;		/*!< Realm authentication */
 	int noncecount;				/*!< Nonce-count */
 	char lastmsg[256];			/*!< Last Message sent/received */
 	int amaflags;				/*!< AMA Flags */
-	int pendinginvite;			/*!< Any pending invite */
+	int pendinginvite;			/*!< Any pending invite ? (seqno of this) */
 	struct sip_request initreq;		/*!< Initial request that opened the SIP dialog */
 	
 	int maxtime;				/*!< Max time for first response */
-	int initid;				/*!< Auto-congest ID if appropriate */
-	int autokillid;				/*!< Auto-kill ID */
-	time_t lastrtprx;			/*!< Last RTP received */
-	time_t lastrtptx;			/*!< Last RTP sent */
-	int rtptimeout;				/*!< RTP timeout time */
-	int rtpholdtimeout;			/*!< RTP timeout when on hold */
-	int rtpkeepalive;			/*!< Send RTP packets for keepalive */
-	enum transfermodes allowtransfer;	/*! SIP Refer restriction scheme */
+	int initid;				/*!< Auto-congest ID if appropriate (scheduler) */
+	int autokillid;				/*!< Auto-kill ID (scheduler) */
+	enum transfermodes allowtransfer;	/*!< REFER: restriction scheme */
+	struct sip_refer *refer;		/*!< REFER: SIP transfer data structure */
 	enum subscriptiontype subscribed;	/*!< SUBSCRIBE: Is this dialog a subscription?  */
 	int stateid;				/*!< SUBSCRIBE: ID for devicestate subscriptions */
 	int laststate;				/*!< SUBSCRIBE: Last known extension state */
 	int dialogver;				/*!< SUBSCRIBE: Version for subscription dialog-info */
 	
-	struct sip_refer *refer;		/*!< REFER: SIP transfer data structure */
 	struct ast_dsp *vad;			/*!< Voice Activation Detection dsp */
 	
 	struct sip_peer *relatedpeer;		/*!< If this dialog is related to a peer, which one 
@@ -14372,6 +14372,7 @@ restartsearch:
 		fastrestart = FALSE;
 		curpeernum = 0;
 		peer = NULL;
+		/* Find next peer that needs mwi */
 		ASTOBJ_CONTAINER_TRAVERSE(&peerl, !peer, do {
 			if ((curpeernum > lastpeernum) && does_peer_need_mwi(iterator)) {
 				fastrestart = TRUE;
@@ -14381,6 +14382,7 @@ restartsearch:
 			curpeernum++;
 		} while (0)
 		);
+		/* Send MWI to the peer */
 		if (peer) {
 			ASTOBJ_WRLOCK(peer);
 			sip_send_mwi_to_peer(peer);
