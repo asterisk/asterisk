@@ -1035,7 +1035,7 @@ static void aji_handle_message(struct aji_client *client, ikspak *pak)
 	if (!(insert = ast_calloc(1, sizeof(struct aji_message))))
 		return;
 	time(&insert->arrived);
-	if(iks_find_cdata(pak->x, "body")
+	if (iks_find_cdata(pak->x, "body"))
 		insert->message = ast_strdup(iks_find_cdata(pak->x, "body"));
 	if(pak->id)
 		ast_copy_string(insert->id, pak->id, sizeof(insert->message));
