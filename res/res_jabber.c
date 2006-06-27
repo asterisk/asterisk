@@ -1031,12 +1031,14 @@ static void aji_handle_message(struct aji_client *client, ikspak *pak)
 {
 	struct aji_message *insert, *tmp;
 	int flag = 0;
-
+	
 	if (!(insert = ast_calloc(1, sizeof(struct aji_message))))
 		return;
 	time(&insert->arrived);
-	insert->message = ast_strdup(iks_find_cdata(pak->x, "body"));
-	ast_copy_string(insert->id, pak->id, sizeof(insert->message));
+	if(iks_find_cdata(pak->x, "body")
+		insert->message = ast_strdup(iks_find_cdata(pak->x, "body"));
+	if(pak->id)
+		ast_copy_string(insert->id, pak->id, sizeof(insert->message));
 	insert->from = ast_strdup(pak->from->full);
 	AST_LIST_LOCK(&client->messages);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&client->messages, tmp, list) {
@@ -1942,7 +1944,7 @@ static int aji_test(int fd, int argc, char *argv[])
 	ast_verbose("\nOooh a working message stack!\n");
 	AST_LIST_LOCK(&client->messages);
 	AST_LIST_TRAVERSE(&client->messages, tmp, list) {
-		ast_verbose("	Message from: %s with id %s @ %s	%s\n",tmp->from, tmp->id, ctime(&tmp->arrived), tmp->message);
+		ast_verbose("	Message from: %s with id %s @ %s	%s\n",tmp->from, S_OR(tmp->id,""), ctime(&tmp->arrived), S_OR(tmp->message, ""));
 	}
 	AST_LIST_UNLOCK(&client->messages);
 	ASTOBJ_UNREF(client, aji_client_destroy);
