@@ -390,11 +390,8 @@ makeopts: configure
 	@echo "****"
 	@exit 1
 
-menuselect.makeopts: menuselect/menuselect makeopts.xml
-	@menuselect/menuselect --check-deps ${GLOBAL_MAKEOPTS} ${USER_MAKEOPTS} $@
-
-menuselect.makedeps: menuselect/menuselect makeopts.xml
-	@menuselect/menuselect --check-deps ${GLOBAL_MAKEOPTS} ${USER_MAKEOPTS} $@
+menuselect.makeopts menuselect.makedeps: menuselect/menuselect makeopts.xml
+	menuselect/menuselect --check-deps ${GLOBAL_MAKEOPTS} ${USER_MAKEOPTS} menuselect.makeopts
 
 #ifneq ($(wildcard tags),)
 ctags: tags
