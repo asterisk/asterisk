@@ -2249,9 +2249,8 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	if (peer->call)
 		sip_destroy(peer->call);
 
-	if (peer->mwipvt) {	/* We have an active subscription, delete it */
+	if (peer->mwipvt) 	/* We have an active subscription, delete it */
 		sip_destroy(peer->mwipvt);
-	}
 
 	if (peer->chanvars) {
 		ast_variables_destroy(peer->chanvars);
@@ -16257,12 +16256,23 @@ static int sip_get_codec(struct ast_channel *chan)
 	return p->peercapability;	
 }
 
-/*! \brief Send a poke to all known peers */
+/*! \brief Send a poke to all known peers 
+	Space them out 100 ms apart
+	XXX We might have a cool algorithm for this or use random - any suggestions?
+*/
 static void sip_poke_all_peers(void)
 {
+	int ms = 0;
+	
+	if (!speerobjs)	/* No peers, just give up */
+		return;
+
 	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
 		ASTOBJ_WRLOCK(iterator);
-		sip_poke_peer(iterator);
+		if (iterator->pokeexpire > -1)
+			ast_sched_del(sched, iterator->pokeexpire);
+		ms += 100;
+		iterator->pokeexpire = ast_sched_add(sched, ms, sip_poke_peer_s, iterator);
 		ASTOBJ_UNLOCK(iterator);
 	} while (0)
 	);
