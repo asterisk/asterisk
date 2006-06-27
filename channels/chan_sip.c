@@ -2819,8 +2819,6 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 		ast_log(LOG_WARNING, "Trying to destroy \"%s\", not found in dialog list?!?! \n", p->callid);
 		return;
 	} 
-	if (p->initid > -1)
-		ast_sched_del(sched, p->initid);
 
 	/* remove all current packets in this dialog */
 	while((cp = p->packets)) {
