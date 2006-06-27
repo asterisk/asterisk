@@ -6100,13 +6100,10 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 	/* Use this as the basis */
 	initialize_initreq(p, &req);
 	p->lastinvite = p->ocseq;
-	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 	return send_request(p, &req, 1, p->ocseq);
 }
 
-/*--- transmit_reinvite_with_t38_sdp: Transmit reinvite with T38 SDP ---*/
-/*     A re-invite is basically a new INVITE with the same CALL-ID and TAG as the
-       INVITE that opened the SIP dialogue
+/*! \brief Transmit reinvite with T38 SDP 
        We reinvite so that the T38 processing can take place.
        SIP Signalling stays with * in the path.
 */
@@ -6125,7 +6122,6 @@ static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
 	/* Use this as the basis */
 	initialize_initreq(p, &req);
 	p->lastinvite = p->ocseq;
-	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 	return send_request(p, &req, 1, p->ocseq);
 }
 
