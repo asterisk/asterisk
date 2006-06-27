@@ -3764,6 +3764,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		break;
 	case EVENT_RELEASE_COMPLETE:
 	{
+		ch->state=MISDN_CLEANING;
 		stop_bc_tones(ch);
 		release_chan(bc);
 	}
