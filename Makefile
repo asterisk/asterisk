@@ -133,10 +133,11 @@ MOD_SUBDIR_CFLAGS=-I../include -I..
 OTHER_SUBDIR_CFLAGS=-I../include -I..
 
 ifeq ($(origin MENUSELECT_CFLAGS),undefined)
-  MENUSELECT_CFLAGS:=$(shell echo $(or $(shell grep MENUSELECT_CFLAGS $(USER_MAKEOPTS) .),$(shell grep MENUSELECT_CFLAGS $(GLOBAL_MAKEOPTS) .)) | cut -f2 -d'=')
+  MENUSELECT_CFLAGS:=$(shell grep MENUSELECT_CFLAGS $(USER_MAKEOPTS) . | cut -f2 -d'=')
+  MENUSELECT_CFLAGS?=$(shell grep MENUSELECT_CFLAGS $(GLOBAL_MAKEOPTS) . | cut -f2 -d'=')
 endif
 
-ifeq ($(or $(findstring dont-optimize,$(MAKECMDGOALS)),$(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS))),)
+ifeq ($(findstring dont-optimize,$(MAKECMDGOALS)),$(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
 # More GSM codec optimization
 # Uncomment to enable MMXTM optimizations for x86 architecture CPU's
 # which support MMX instructions.  This should be newer pentiums,
