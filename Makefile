@@ -133,8 +133,11 @@ MOD_SUBDIR_CFLAGS=-I../include -I..
 OTHER_SUBDIR_CFLAGS=-I../include -I..
 
 ifeq ($(origin MENUSELECT_CFLAGS),undefined)
-  MENUSELECT_CFLAGS:=$(shell grep MENUSELECT_CFLAGS $(USER_MAKEOPTS) . | cut -f2 -d'=')
-  MENUSELECT_CFLAGS?=$(shell grep MENUSELECT_CFLAGS $(GLOBAL_MAKEOPTS) . | cut -f2 -d'=')
+  MENUSELECT_CFLAGS:=$(shell grep MENUSELECT_CFLAGS $(USER_MAKEOPTS) .)
+  MENUSELECT_CFLAGS?=$(shell grep MENUSELECT_CFLAGS $(GLOBAL_MAKEOPTS) .)
+  ifneq ($(MENUSELECT_CFLAGS),)
+    MENUSELECT_CFLAGS:=$(shell echo $(MENUSELECT_CFLAGS) | cut -f2 -d'=')
+  endif
 endif
 
 ifeq ($(findstring dont-optimize,$(MAKECMDGOALS)),$(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)))
