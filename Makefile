@@ -880,7 +880,7 @@ menuselect: menuselect/menuselect makeopts.xml
 	-@menuselect/menuselect ${GLOBAL_MAKEOPTS} ${USER_MAKEOPTS} menuselect.makeopts && echo "menuselect changes saved!" || echo "menuselect changes NOT saved!"
 
 menuselect/menuselect: menuselect/menuselect.c menuselect/menuselect_curses.c menuselect/menuselect.h menuselect/linkedlists.h config.status mxml/libmxml.a $(MENUSELECT_OBJS)
-	@CFLAGS="-include ../include/asterisk/autoconfig.h" $(MAKE) -C menuselect menuselect
+	@CFLAGS="-include $(PWD)/include/asterisk/autoconfig.h" PARENTSRC="$(PWD)" $(MAKE) -C menuselect menuselect
 
 mxml/libmxml.a:
 	@cd mxml && unset CFLAGS LIBS && test -f config.h || ./configure
