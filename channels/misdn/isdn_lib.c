@@ -2098,7 +2098,7 @@ void misdn_tx_jitter(struct misdn_bchannel *bc, int len)
 		flip_buf_bits( data, jlen);
 		
 		if (jlen < len) {
-			cb_log(5,bc->port,"Jitterbuffer Underrun.\n");
+			cb_log(7,bc->port,"Jitterbuffer Underrun.\n");
 		}
 		
 		txfrm->prim = DL_DATA|REQUEST;

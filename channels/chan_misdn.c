@@ -2087,6 +2087,8 @@ static int misdn_hangup(struct ast_channel *ast)
 				misdn_lib_send_event(bc, EVENT_DISCONNECT);
 			}
 		}
+
+		p->state=MISDN_CLEANING;
     
 	}
 	
@@ -2899,13 +2901,6 @@ static void release_chan(struct misdn_bchannel *bc) {
 		release_unlock;
 		
 		chan_misdn_log(1, bc->port, "release_chan: bc with l3id: %x\n",bc->l3_id);
-#if 0
-		if (ch->dummy) {
-			ast_hangup(ast);
-			ch->ast=NULL;
-			ast=NULL;
-		}
-#endif
 		
 		/*releaseing jitterbuffer*/
 		if (ch->jb ) {
@@ -2927,6 +2922,7 @@ static void release_chan(struct misdn_bchannel *bc) {
 			
 			close(ch->pipe[0]);
 			close(ch->pipe[1]);
+
 			
 			if (ast && MISDN_ASTERISK_TECH_PVT(ast)) {
 				chan_misdn_log(1, bc->port, "* RELEASING CHANNEL pid:%d ctx:%s dad:%s oad:%s state: %s\n",bc?bc->pid:-1, ast->context, ast->exten,AST_CID_P(ast),misdn_get_ch_state(ch));
@@ -2957,8 +2953,6 @@ static void release_chan(struct misdn_bchannel *bc) {
 				case MISDN_PROCEEDING:
 					chan_misdn_log(2,  bc->port, "* --> In State Dialin\n");
 					chan_misdn_log(2,  bc->port, "* --> Queue Hangup\n");
-					
-					ch->state=MISDN_CLEANING;
 					ast_queue_hangup(ast);
 					
 					break;
@@ -2992,6 +2986,7 @@ static void release_chan(struct misdn_bchannel *bc) {
 					}
 				}
 			}
+			ch->state=MISDN_CLEANING;
 			cl_dequeue_chan(&cl_te, ch);
 			
 			free(ch);
@@ -3185,14 +3180,14 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch=find_chan_by_l3id(cl_te, bc->l3_id);
 	
 	if (event != EVENT_BCHAN_DATA && event != EVENT_TONE_GENERATE) { /*  Debug Only Non-Bchan */
-		chan_misdn_log(1, bc->port, "I IND :%s oad:%s dad:%s pid:%d\n", manager_isdn_get_info(event), bc->oad, bc->dad, bc->pid);
+		chan_misdn_log(1, bc->port, "I IND :%s oad:%s dad:%s pid:%d state:%s\n", manager_isdn_get_info(event), bc->oad, bc->dad, bc->pid, ch?misdn_get_ch_state(ch):"none");
 		misdn_lib_log_ies(bc);
 		chan_misdn_log(2,bc->port," --> bc_state:%s\n",bc_state2str(bc->bc_state));
 	}
 	
 	if (event != EVENT_SETUP) {
 		if (!ch) {
-			if (event != EVENT_CLEANUP )
+			if (event != EVENT_CLEANUP && event != EVENT_TONE_GENERATE && event != EVENT_BCHAN_DATA)
 				ast_log(LOG_NOTICE, "Chan not existing at the moment bc->l3id:%x bc:%p event:%s port:%d channel:%d\n",bc->l3_id, bc, manager_isdn_get_info( event), bc->port,bc->channel);
 			return -1;
 		}
@@ -3711,7 +3706,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			   dialled number, or perhaps even giving an
 			   alternative number, then play it instead of
 			   immediately releasing the call */
-			chan_misdn_log(0,bc->port, " --> Inband Info Avail, not sending RELEASE\n");
+			chan_misdn_log(1,bc->port, " --> Inband Info Avail, not sending RELEASE\n");
+		
 			ch->state=MISDN_DISCONNECTED;
 			start_bc_tones(ch);
 			break;
@@ -3729,6 +3725,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		stop_bc_tones(ch);
 		bc->out_cause=-1;
 		
+		release_chan(bc);
 		misdn_lib_send_event(bc,EVENT_RELEASE);
 	}
 	break;
@@ -3747,6 +3744,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				*/
 				
 				/*return RESPONSE_OK;*/
+				if (!bc->nt) release_chan(bc);
+
 				break;
 			}
 			
