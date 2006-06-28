@@ -3187,6 +3187,11 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	
 	if (event != EVENT_SETUP) {
 		if (!ch) {
+			if (event == EVENT_RELEASE_COMPLETE) {
+				chan_misdn_log(1, bc->port, " --> no Ch, so we've already released.\n");
+				return 0;
+			}
+		
 			if (event != EVENT_CLEANUP && event != EVENT_TONE_GENERATE && event != EVENT_BCHAN_DATA)
 				ast_log(LOG_NOTICE, "Chan not existing at the moment bc->l3id:%x bc:%p event:%s port:%d channel:%d\n",bc->l3_id, bc, manager_isdn_get_info( event), bc->port,bc->channel);
 			return -1;
