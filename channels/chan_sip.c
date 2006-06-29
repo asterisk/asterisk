@@ -4968,7 +4968,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				p->owner->name, 
 				p->owner->uniqueid);
 		}
-		if (sendonly == 1)	/* One directional hold (sendonly/recvonly)
+		if (sendonly == 1)	/* One directional hold (sendonly/recvonly) */
 			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_ONEDIR);
 		else if (sendonly == 2)	/* Inactive stream */
 			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_INACTIVE);
