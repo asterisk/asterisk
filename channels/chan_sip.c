@@ -701,7 +701,7 @@ struct sip_auth {
 #define SIP_PROG_INBAND_NEVER	(0 << 25)
 #define SIP_PROG_INBAND_NO	(1 << 25)
 #define SIP_PROG_INBAND_YES	(2 << 25)
-#define SIP_CALL_ONHOLD		(1 << 27)	/*!< Call states */
+#define SIP_FREE_BIT		(1 << 27)	/*!< Undefined bit - not in use */
 #define SIP_CALL_LIMIT		(1 << 28)	/*!< Call limit enforced for this call */
 #define SIP_SENDRPID		(1 << 29)	/*!< Remote Party-ID Support */
 #define SIP_INC_COUNT		(1 << 30)	/*!< Did this connection increment the counter of in-use calls? */
@@ -711,7 +711,7 @@ struct sip_auth {
 	 SIP_PROG_INBAND | SIP_USECLIENTCODE | SIP_NAT | \
 	 SIP_USEREQPHONE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE)
 
-/* a new page of flags for peers */
+/* a new page of flags */
 #define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)
 #define SIP_PAGE2_RTUPDATE		(1 << 1)
 #define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)
@@ -731,6 +731,9 @@ struct sip_auth {
 #define SIP_PAGE2_T38SUPPORT_UDPTL	(1 << 14)	/*!< 14: T38 Fax Passthrough Support */
 #define SIP_PAGE2_T38SUPPORT_RTP	(2 << 14)	/*!< 15: T38 Fax Passthrough Support */
 #define SIP_PAGE2_T38SUPPORT_TCP	(4 << 14)	/*!< 16: T38 Fax Passthrough Support */
+#define SIP_PAGE2_CALL_ONHOLD		(2 << 17)	/*!< Call states */
+#define SIP_PAGE2_CALL_ONHOLD_ONEDIR	(1 << 17)	/*!< 17: One directional hold */
+#define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(2 << 17)	/*!< 18: Inactive  */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT)
@@ -4659,12 +4662,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			int breakout = FALSE;
 		
 			/* If we're debugging, check for unsupported sdp options */
-			if (!strcasecmp(a, "inactive")) {
-				/* Inactive media streams: Not supported */
-				if (debug)
-					ast_verbose("Got unsupported a:inactive in SDP offer \n");
-				breakout = TRUE;
-			} else if (!strncasecmp(a, "rtcp:", (size_t) 5)) {
+			if (!strncasecmp(a, "rtcp:", (size_t) 5)) {
 				if (debug)
 					ast_verbose("Got unsupported a:rtcp in SDP offer \n");
 				breakout = TRUE;
@@ -4701,6 +4699,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		}
 		if (!strcasecmp(a, "sendonly")) {
 			sendonly = 1;
+			continue;
+		} else if (!strcasecmp(a, "inactive")) {
+			sendonly = 2;
 			continue;
 		}  else if (!strcasecmp(a, "sendrecv")) {
 			sendonly = 0;
@@ -4930,7 +4931,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		
 			/* Activate a re-invite */
 			ast_queue_frame(p->owner, &ast_null_frame);
-		} else {
+		} else if (!sin.sin_addr.s_addr || sendonly ) {
 			/* No address for RTP, we're on hold */
 			ast_moh_start(bridgepeer, NULL);
 			if (sendonly)
@@ -4940,11 +4941,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			/* Activate a re-invite */
 			ast_queue_frame(p->owner, &ast_null_frame);
 		}
+		/* guess we got a re-invite for changing media or IP - not hold/unhold */
 	}
 
 	/* Manager Hold and Unhold events must be generated, if necessary */
 	if (sin.sin_addr.s_addr && !sendonly) {
-		if (ast_test_flag(&p->flags[0], SIP_CALL_ONHOLD)) {
+		if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD)) {
 			append_history(p, "Unhold", "%s", req->data);
 			if (global_callevents)
 				manager_event(EVENT_FLAG_CALL, "Unhold",
@@ -4954,19 +4956,22 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					p->owner->uniqueid);
 
 		} 
-		ast_clear_flag(&p->flags[0], SIP_CALL_ONHOLD);
-	} else {
+		ast_clear_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD);	/* Clear both flags */
+	} else if (!sin.sin_addr.s_addr || sendonly ) {
 		/* No address for RTP, we're on hold */
 		append_history(p, "Hold", "%s", req->data);
 
-		if (global_callevents && !ast_test_flag(&p->flags[0], SIP_CALL_ONHOLD)) {
+		if (global_callevents && !ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD)) {
 			manager_event(EVENT_FLAG_CALL, "Hold",
 				"Channel: %s\r\n"
 				"Uniqueid: %s\r\n",
 				p->owner->name, 
 				p->owner->uniqueid);
 		}
-		ast_set_flag(&p->flags[0], SIP_CALL_ONHOLD);
+		if (sendonly == 1)	/* One directional hold (sendonly/recvonly)
+			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_ONEDIR);
+		else if (sendonly == 2)	/* Inactive stream */
+			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_INACTIVE);
 	}
 	
 	return 0;
@@ -5873,8 +5878,10 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	snprintf(connection, sizeof(connection), "c=IN IP4 %s\r\n", ast_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
 	ast_build_string(&m_audio_next, &m_audio_left, "m=audio %d RTP/AVP", ntohs(dest.sin_port));
 
-	if (ast_test_flag(&p->flags[0], SIP_CALL_ONHOLD))
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_ONEDIR))
 		hold = "a=recvonly\r\n";
+	else if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_INACTIVE))
+		hold = "a=inactive\r\n";
 	else
 		hold = "a=sendrecv\r\n";
 
@@ -10012,7 +10019,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 				cur->callid, 
 				cur->ocseq, cur->icseq, 
 				ast_getformatname(cur->owner ? cur->owner->nativeformats : 0), 
-				ast_test_flag(&cur->flags[0], SIP_CALL_ONHOLD) ? "Yes" : "No",
+				ast_test_flag(&cur->flags[1], SIP_PAGE2_CALL_ONHOLD) ? "Yes" : "No",
 				ast_test_flag(&cur->flags[0], SIP_NEEDDESTROY) ? "(d)" : "",
 				cur->lastmsg ,
 				referstatus
