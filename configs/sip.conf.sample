@@ -25,9 +25,7 @@
 
 [general]
 context=default			; Default context for incoming calls
-;allowguest=no			; Allow or reject guest calls (default is yes, 
-				; this can also be set to 'osp'
-				; if asterisk was compiled with OSP support.)
+;allowguest=no			; Allow or reject guest calls (default is yes)
 allowoverlap=no			; Disable overlap dialing support. (Default is yes)
 ;allowtransfer=no		; Disable all transfers (unless enabled in peers or users)
 				; Default is enabled
@@ -49,15 +47,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; If configured, Asterisk will only allow
 				; INVITE and REFER to non-local domains
 				; Use "sip show domains" to list local domains
-;domain=mydomain.tld,mydomain-incoming
-				; Add domain and configure incoming context
-				; for external calls to this domain
-;domain=1.2.3.4			; Add IP address as local domain
-				; You can have several "domain" settings
-;allowexternalinvites=no	; Disable INVITE and REFER to non-local domains
-				; Default is yes
-;autodomain=yes			; Turn this on to have Asterisk add local host
-				; name and local IP to domain list.
 ;pedantic=yes			; Enable checking of tags in headers, 
 				; international character conversions in URIs
 				; and multiline formatted headers for strict
@@ -79,9 +68,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;vmexten=voicemail		; dialplan extension to reach mailbox sets the 
 				; Message-Account in the MWI notify message 
 				; defaults to "asterisk"
-;recordhistory=yes		; Record SIP history by default 
-				; (see sip history / sip no history)
-
 ;disallow=all			; First disallow all codecs
 ;allow=ulaw			; Allow codecs in order of preference
 ;allow=ilbc			; 
@@ -114,8 +100,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; auto : Use rfc2833 if offered, inband otherwise
 
 ;compactheaders = yes		; send compact sip headers.
-;sipdebug = yes			; Turn on SIP debugging by default, from
-				; the moment the channel loads this configuration
 ;
 ;videosupport=yes		; Turn on support for SIP video
 ;maxcallbitrate=384		; Maximum bitrate for video calls (default 384 kb/s)
@@ -123,8 +107,33 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; for peers and users as well
 ;callevents=no			; generate manager events when sip ua 
 				; performs events (e.g. hold)
+;alwaysauthreject = yes		; When an incoming INVITE or REGISTER is to be rejected,
+ 		    		; for any reason, always reject with '401 Unauthorized'
+ 				; instead of letting the requester know whether there was
+ 				; a matching user or peer for their request
+;
+; If regcontext is specified, Asterisk will dynamically create and destroy a
+; NoOp priority 1 extension for a given peer who registers or unregisters with
+; us and have a "regexten=" configuration item.  
+; Multiple contexts may be specified by separating them with '&'. The 
+; actual extension is the 'regexten' parameter of the registering peer or its
+; name if 'regexten' is not provided.  If more than one context is provided,
+; the context must be specified within regexten by appending the desired
+; context after '@'.  More than one regexten may be supplied if they are 
+; separated by '&'.  Patterns may be used in regexten.
+;
+;regcontext=sipregistrations
+;
+;--------------------------- SIP DEBUGGING ---------------------------------------------------
+;sipdebug = yes			; Turn on SIP debugging by default, from
+				; the moment the channel loads this configuration
+;recordhistory=yes		; Record SIP history by default 
+				; (see sip history / sip no history)
+;dumphistory=yes		; Dump SIP history at end of SIP dialogue
+				; SIP history is output to the DEBUG logging channel
 
-;--------------------------- STATUS NOTIFICATIONS (SUBSCRIPTIONS) ---------
+
+;--------------------------- STATUS NOTIFICATIONS (SUBSCRIPTIONS) ----------------------------
 ; You can subscribe to the status of extensions with a "hint" priority
 ; (See extensions.conf.sample for examples)
 ; chan_sip support two major formats for notifications: dialog-info and SIMPLE 
@@ -136,21 +145,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Useful to limit subscriptions to local extensions
 				; Settable per peer/user also
 ;notifyringing = yes		; Notify subscriptions on RINGING state
-;alwaysauthreject = yes		; When an incoming INVITE or REGISTER is to be rejected,
- 		    		; for any reason, always reject with '401 Unauthorized'
- 				; instead of letting the requester know whether there was
- 				; a matching user or peer for their request
-;
-; If regcontext is specified, Asterisk will dynamically create and destroy a
-; NoOp priority 1 extension for a given peer who registers or unregisters with
-; us.  Multiple contexts may be specified by separating them with '&'. The 
-; actual extension is the 'regexten' parameter of the registering peer or its
-; name if 'regexten' is not provided.  If more than one context is provided,
-; the context must be specified within regexten by appending the desired
-; context after '@'.  More than one regexten may be supplied if they are 
-; separated by '&'.  Patterns may be used in regexten.
-;
-;regcontext=sipregistrations
 ;----------------------------------------- T.38 FAX PASSTHROUGH SUPPORT -----------------------
 ;
 ; These settings are available in the [general] section as well as in device configurations
@@ -301,13 +295,23 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; To disallow requests for domains not serviced by this server:
 ; allowexternaldomains=no
 
-; fromdomain=mydomain.tld ; When making outbound SIP INVITEs to
-                          ; non-peers, use your primary domain "identity"
-                          ; for From: headers instead of just your IP
-                          ; address. This is to be polite and
-                          ; it may be a mandatory requirement for some
-                          ; destinations which do not have a prior
-                          ; account relationship with your server. 
+;domain=mydomain.tld,mydomain-incoming
+				; Add domain and configure incoming context
+				; for external calls to this domain
+;domain=1.2.3.4			; Add IP address as local domain
+				; You can have several "domain" settings
+;allowexternalinvites=no	; Disable INVITE and REFER to non-local domains
+				; Default is yes
+;autodomain=yes			; Turn this on to have Asterisk add local host
+				; name and local IP to domain list.
+
+; fromdomain=mydomain.tld 	; When making outbound SIP INVITEs to
+                          	; non-peers, use your primary domain "identity"
+                          	; for From: headers instead of just your IP
+                          	; address. This is to be polite and
+                          	; it may be a mandatory requirement for some
+                          	; destinations which do not have a prior
+                          	; account relationship with your server. 
 
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
