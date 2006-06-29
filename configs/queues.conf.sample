@@ -3,8 +3,8 @@
 ; Global settings for call queues
 ;
 ; Persistent Members
-;    Store each dynamic agent in each queue in the astdb so that
-;    when asterisk is restarted, each agent will be automatically
+;    Store each dynamic member in each queue in the astdb so that
+;    when asterisk is restarted, each member will be automatically
 ;    read into their recorded queues. Default is 'yes'.
 ;
 persistentmembers = yes
