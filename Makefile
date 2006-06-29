@@ -28,6 +28,7 @@ HOST_CC=gcc
 ifeq ($(CROSS_COMPILE),)
   OSARCH=$(shell uname -s)
   OSREV=$(shell uname -r)
+  OSCPU=$(shell uname -m)
 else
   OSARCH=$(CROSS_ARCH)
   OSREV=$(CROSS_REV)
@@ -82,6 +83,8 @@ TRACE_FRAMES = #-DTRACE_FRAMES
 #   *CLI> show memory summary [filename]
 #
 MALLOC_DEBUG = #-include $(PWD)/include/asterisk/astmm.h
+
+INSTALL=install
 
 # Where to install asterisk after compiling
 # Default -> leave empty
@@ -211,12 +214,15 @@ ifeq ($(OSARCH),Linux)
 endif
 
 GREP=grep
+LN=ln
 ID=id
 
 ifeq ($(OSARCH),SunOS)
   GREP=/usr/xpg4/bin/grep
   M4=/usr/local/bin/m4
   ID=/usr/xpg4/bin/id
+  LN=/usr/xpg4/bin/ln
+  INSTALL=ginstall
 endif
 
 INCLUDE+=-Iinclude -I../include
@@ -283,7 +289,10 @@ endif
 
 ifeq ($(OSARCH),SunOS)
   ASTCFLAGS+=-Wcast-align -DSOLARIS
-  INCLUDE+=-Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
+  INCLUDE+=-Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/opt/ssl/include -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
+  ifeq ($(OSCPU),sun4u)
+    OPTIMIZE+=-mcpu=v9 -mcpu=ultrasparc
+  endif
 endif
 
 ifeq ($(findstring CYGWIN,$(OSARCH)),CYGWIN)
@@ -360,7 +369,11 @@ endif
 ifeq ($(OSARCH),Linux)
   LIBS+=-ldl -lpthread -lncurses -lm -lresolv  #-lnjamd
 else
-  LIBS+=-lncurses -lm
+  ifeq ($(OSARCH),SunOS)
+    LIBS+=-lm -lcurses
+  else
+    LIBS+=-lncurses -lm
+  endif
 endif
 
 ifeq ($(OSARCH),Darwin)
@@ -390,10 +403,10 @@ ifeq ($(OSARCH),OpenBSD)
 endif
 
 ifeq ($(OSARCH),SunOS)
-  LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
+  LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/opt/ssl/lib -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
   OBJS+=strcompat.o
   ASTLINK=
-  SOLINK=-shared -fpic -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
+  SOLINK=-shared -fpic -L$(CROSS_COMPILE_TARGET)/opt/ssl/lib -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
 endif
 
 ifeq ($(MAKETOPLEVEL),$(MAKELEVEL))
@@ -408,8 +421,6 @@ else
 endif
 
 LIBS+=-lssl
-
-INSTALL=install
 
 _all: all
 	@echo " +--------- Asterisk Build Complete ---------+"  
@@ -634,7 +645,7 @@ bininstall: all
 	if [ -f asterisk ]; then $(INSTALL) -m 755 asterisk $(DESTDIR)$(ASTSBINDIR)/; fi
 	if [ -f cygwin/asterisk.exe ]; then $(INSTALL) -m 755 cygwin/asterisk.exe $(DESTDIR)$(ASTSBINDIR)/; fi
 	if [ -f asterisk.dll ]; then $(INSTALL) -m 755 asterisk.dll $(DESTDIR)$(ASTSBINDIR)/; fi
-	ln -sf asterisk $(DESTDIR)$(ASTSBINDIR)/rasterisk
+	$(LN) -sf asterisk $(DESTDIR)$(ASTSBINDIR)/rasterisk
 	$(INSTALL) -m 755 contrib/scripts/astgenkey $(DESTDIR)$(ASTSBINDIR)/
 	$(INSTALL) -m 755 contrib/scripts/autosupport $(DESTDIR)$(ASTSBINDIR)/	
 	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ]; then \
