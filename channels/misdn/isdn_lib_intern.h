@@ -55,6 +55,8 @@ struct misdn_stack {
   
 	int ptp;
 
+	int l2upcnt;
+
 	int l2_id;
 	int lower_id;
 	int upper_id;

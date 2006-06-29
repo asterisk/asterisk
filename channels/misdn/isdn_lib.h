@@ -347,6 +347,8 @@ struct misdn_lib_iface {
 
 /***** USER IFACE **********/
 
+void misdn_lib_nt_debug_init( int flags, char *file );
+
 int misdn_lib_init(char *portlist, struct misdn_lib_iface* iface, void *user_data);
 int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event );
 void misdn_lib_destroy(void);

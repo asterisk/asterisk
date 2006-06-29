@@ -136,8 +136,9 @@ static const struct misdn_cfg_spec gen_spec[] = {
 	{ "dynamic_crypt", MISDN_GEN_DYNAMIC_CRYPT, MISDN_CTYPE_BOOL, "no", NONE },
 	{ "crypt_prefix", MISDN_GEN_CRYPT_PREFIX, MISDN_CTYPE_STR, NO_DEFAULT, NONE },
 	{ "crypt_keys", MISDN_GEN_CRYPT_KEYS, MISDN_CTYPE_STR, NO_DEFAULT, NONE },
-	{ "l1watcher_timeout", MISDN_GEN_L1_TIMEOUT, MISDN_CTYPE_INT, "0", NONE }
-	
+	{ "l1watcher_timeout", MISDN_GEN_L1_TIMEOUT, MISDN_CTYPE_INT, "0", NONE },
+	{ "ntdebugflags", MISDN_GEN_NTDEBUGFLAGS, MISDN_CTYPE_INT, "0", NONE },
+	{ "ntdebugfile", MISDN_GEN_NTDEBUGFILE, MISDN_CTYPE_STR, "/var/log/misdn-nt.log", NONE }
 };
 
 /* array of port configs, default is at position 0. */
@@ -543,11 +544,18 @@ static int _parse (union misdn_cfg_pt *dest, char *value, enum misdn_cfg_type ty
 		}
 		break;
 	case MISDN_CTYPE_INT:
-		if (sscanf(value, "%d", &tmp)) {
+	{
+		char *pat;
+		if (strchr(value,'x')) 
+			pat="%x";
+		else
+			pat="%d";
+		if (sscanf(value, pat, &tmp)) {
 			dest->num = (int *)malloc(sizeof(int));
 			memcpy(dest->num, &tmp, sizeof(int));
 		} else
 			re = -1;
+	}
 		break;
 	case MISDN_CTYPE_BOOL:
 		dest->num = (int *)malloc(sizeof(int));

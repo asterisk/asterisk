@@ -25,6 +25,37 @@ misdn_init=/etc/misdn-init.conf
 debug=0
 
 
+
+; set debugging file and flags for mISDNuser (NT-Stack) 
+; 
+; flags can be or'ed with the following values:
+;
+; DBGM_NET        0x00000001
+; DBGM_MSG        0x00000002
+; DBGM_FSM        0x00000004
+; DBGM_TEI        0x00000010
+; DBGM_L2         0x00000020
+; DBGM_L3         0x00000040
+; DBGM_L3DATA     0x00000080
+; DBGM_BC         0x00000100
+; DBGM_TONE       0x00000200
+; DBGM_BCDATA     0x00000400
+; DBGM_MAN        0x00001000
+; DBGM_APPL       0x00002000
+; DBGM_ISDN       0x00004000
+; DBGM_SOCK       0x00010000
+; DBGM_CONN       0x00020000
+; DBGM_CDATA      0x00040000
+; DBGM_DDATA      0x00080000
+; DBGM_SOUND      0x00100000
+; DBGM_SDATA      0x00200000
+; DBGM_TOPLEVEL   0x40000000
+; DBGM_ALL        0xffffffff
+;
+
+ntdebugflags=0
+ntdebugfile=/var/log/misdn-nt.log
+
 ; the big trace
 ;
 ; default value: [not set]

@@ -20,6 +20,7 @@ void misdn_split_conf(struct misdn_bchannel *bc, int conf_id);
 
 int queue_cleanup_bc(struct misdn_bchannel *bc) ;
 
+int misdn_lib_get_l2_up(struct misdn_stack *stack);
 
 struct misdn_stack* get_misdn_stack( void );
 
@@ -1642,12 +1643,21 @@ int misdn_lib_port_up(int port, int check)
 		if ( !stack->ptp && !check) return 1;
 		
 		if (stack->port == port) {
-			if (stack->l1link)
-				return 1;
-			else {
-				cb_log(-1,port, "Port down [%s]\n",
-				       stack->ptp?"PP":"PMP");
-				return 0;
+			if (stack->ptp ) {
+				if (stack->l1link && stack->l2link) {
+					return 1;
+				} else {
+					cb_log(-1,port, "Port Down L2:%d L1:%d\n",
+						stack->l2link, stack->l1link);
+					return 0;
+				}
+			} else {
+				if ( stack->l1link)
+					return 1;
+				else {
+					cb_log(-1,port, "Port down PMP\n");
+					return 0;
+				}
 			}
 		}
 	}
@@ -1894,6 +1904,7 @@ handle_event_nt(void *dat, void *arg)
 		{
 			cb_log(4, stack->port, "%% GOT L2 Activate Info.\n");
 			stack->l2link = 1;
+			stack->l2upcnt=0;
 			
 			free_msg(msg);
 			return 0;
@@ -1904,9 +1915,19 @@ handle_event_nt(void *dat, void *arg)
 		case DL_RELEASE | INDICATION:
 		case DL_RELEASE | CONFIRM:
 		{
-			cb_log(4, stack->port, "%% GOT L2 DeActivate Info.\n");
-			stack->l2link = 0;
+			if (stack->ptp) {
+				cb_log(-1 , stack->port, "%% GOT L2 DeActivate Info.\n");
+				if (stack->l2upcnt>3) {
+					cb_log(-1 , stack->port, "!!! Could not Get the L2 up after 3 Attemps!!!\n");
+				}  else {
+					misdn_lib_get_l2_up(stack);
+					stack->l2upcnt++;
+				}
+				
+			} else 
+				cb_log(4, stack->port, "%% GOT L2 DeActivate Info.\n");
 			
+			stack->l2link = 0;
 			free_msg(msg);
 			return 0;
 		}
@@ -1945,7 +1966,7 @@ handle_event_nt(void *dat, void *arg)
 
 					} else {
 
-						bc->channel = find_free_chan_in_stack(stack, 0);
+						bc->channel = find_free_chan_in_stack(stack, bc, 0);
 						if (!bc->channel) {
 							cb_log(-1, stack->port, " No free channel at the moment\n");
 					
@@ -3604,6 +3625,21 @@ int misdn_lib_maxports_get() { /** BE AWARE WE HAVE NO CB_LOG HERE! **/
 	return max;
 }
 
+
+void misdn_lib_nt_debug_init( int flags, char *file ) 
+{
+	int static init=0;
+
+	if (!init) {
+		debug_init( flags , file, file, file);
+		init=1;
+	} else {
+		debug_close();
+		debug_init( flags , file, file, file);
+	}
+}
+
+
 int misdn_lib_init(char *portlist, struct misdn_lib_iface *iface, void *user_data)
 {
 	struct misdn_lib *mgr=calloc(1, sizeof(struct misdn_lib));
@@ -3619,13 +3655,9 @@ int misdn_lib_init(char *portlist, struct misdn_lib_iface *iface, void *user_dat
 	glob_mgr = mgr;
   
 	msg_init();
-#if 0
-	int flags=0xff;
-	flags &= ~DBGM_MSG;
-	debug_init( flags , NULL, NULL, NULL);
-#else
-	debug_init(0 , NULL, NULL, NULL);
-#endif	
+
+	misdn_lib_nt_debug_init(0,NULL);
+	
 	if (!portlist || (*portlist == 0) ) return 1;
 	
 	init_flip_bits();

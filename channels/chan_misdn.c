@@ -691,6 +691,14 @@ static void reload_config(void)
 		misdn_debug[i] = cfg_debug;
 		misdn_debug_only[i] = 0;
 	}
+
+	int ntflags=0;
+	char ntfile[BUFFERSIZE+1];
+
+	misdn_cfg_get( 0, MISDN_GEN_NTDEBUGFLAGS, &ntflags, sizeof(int));
+	misdn_cfg_get( 0, MISDN_GEN_NTDEBUGFILE, &ntfile, BUFFERSIZE);
+
+	misdn_lib_nt_debug_init(ntflags,ntfile);
 }
 
 static int misdn_reload (int fd, int argc, char *argv[])
@@ -4124,6 +4132,9 @@ static int load_module(void *mod)
 			chan_misdn_log(0, 0, "No te ports initialized\n");
 	}
 
+
+
+	reload_config();
 
 	{
 		if (ast_channel_register(&misdn_tech)) {

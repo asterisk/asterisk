@@ -74,6 +74,8 @@ enum misdn_cfg_elements {
 	MISDN_GEN_CRYPT_PREFIX,        /* char[] */
 	MISDN_GEN_CRYPT_KEYS,          /* char[] */
 	MISDN_GEN_L1_TIMEOUT,          /* int */
+	MISDN_GEN_NTDEBUGFLAGS,          /* int */
+	MISDN_GEN_NTDEBUGFILE,          /* char[] */
 	MISDN_GEN_LAST
 };
 
