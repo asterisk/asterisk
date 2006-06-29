@@ -16,18 +16,6 @@ endif
 
 SELECTED_MODS:=$(filter-out $(MENUSELECT_CDR),$(patsubst %.c,%,$(wildcard cdr_*.c)))
 
-ifneq ($(FREETDS_LIB),)
-  ifeq ($(shell grep -s TDS_VERSION_NO $(CROSS_COMPILE_TARGET)/usr/include/tdsver.h $(CROSS_COMPILE_TARGET)/usr/local/include/tdsver.h $(CROSS_COMPILE_TARGET)/usr/include/freetds/tdsver.h | grep -c 0.63),1)
-    CFLAGS += -DFREETDS_0_63
-  else
-	ifeq ($(shell grep -s TDS_VERSION_NO $(CROSS_COMPILE_TARGET)/usr/include/tdsver.h $(CROSS_COMPILE_TARGET)/usr/local/include/tdsver.h $(CROSS_COMPILE_TARGET)/usr/include/freetds/tdsver.h | grep -c 0.62),1)
-      CFLAGS += -DFREETDS_0_62
-    else
-      CFLAGS += -DFREETDS_PRE_0_62
-    endif
-  endif
-endif
-
 all: _all
 
 include ../Makefile.rules

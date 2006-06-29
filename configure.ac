@@ -635,6 +635,22 @@ AST_EXT_LIB([speex], [speex_encode], [speex/speex.h], [SPEEX], [Speex], [-lm])
 AST_EXT_LIB([sqlite], [sqlite_exec], [sqlite.h], [SQLITE], [SQLite])
 AST_EXT_LIB([ssl], [ssl2_connect], [openssl/ssl.h], [OPENSSL], [OpenSSL], [-lcrypto])
 AST_EXT_LIB([tds], [tds_version], [tds.h], [FREETDS], [FreeTDS])
+
+if test "${PBX_LIBFREETDS}" != "0";
+then
+    case `grep TDS_VERSION_NO ${FREETDS_DIR:-/usr/include}/tdsver.h` in
+    *0.63*)
+        FREETDS_INCLUDE="${FREETDS_INCLUDE} -DFREETDS_0_63"
+	;;
+    *0.62*)
+        FREETDS_INCLUDE="${FREETDS_INCLUDE} -DFREETDS_0_62"
+	;;
+    *)
+        FREETDS_INCLUDE="${FREETDS_INCLUDE} -DFREETDS_PRE_0_62"
+	;;
+    esac
+fi
+
 AST_EXT_LIB([termcap], [tgetent], [], [TERMCAP], [Termcap])
 AST_EXT_LIB([tinfo], [tgetent], [], [TINFO], [Term Info])
 

@@ -18,12 +18,7 @@ endif
 
 SELECTED_MODS:=$(filter-out $(MENUSELECT_CODECS),$(patsubst %.c,%,$(wildcard codec_*.c)))
 
-ifeq ($(wildcard ilbc/iLBC_decode.h),)
-  MODS:=$(filter-out codec_ilbc,$(MODS))
-else
-  LIBILBC:=ilbc/libilbc.a
-endif
-
+LIBILBC:=ilbc/libilbc.a
 LIBLPC10:=lpc10/liblpc10.a
 
 all: _all
