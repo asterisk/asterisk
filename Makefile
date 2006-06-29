@@ -66,16 +66,16 @@ DESTDIR?=
 # Define standard directories for various platforms
 # These apply if they are not redefined in asterisk.conf 
 ifeq ($(OSARCH),SunOS)
-  ASTETCDIR=/etc/opt/asterisk
+  ASTETCDIR=/var/etc/asterisk
   ASTLIBDIR=/opt/asterisk/lib
-  ASTVARLIBDIR=/var/opt/asterisk/lib
-  ASTSPOOLDIR=/var/opt/asterisk/spool
-  ASTLOGDIR=/var/opt/asterisk/log
-  ASTHEADERDIR=/opt/asterisk/usr/include/asterisk
-  ASTBINDIR=/opt/asterisk/usr/bin
-  ASTSBINDIR=/opt/asterisk/usr/sbin
-  ASTVARRUNDIR=/var/opt/asterisk/run
-  ASTMANDIR=/opt/asterisk/usr/share/man
+  ASTVARLIBDIR=/var/opt/asterisk
+  ASTSPOOLDIR=/var/spool/asterisk
+  ASTLOGDIR=/var/log/asterisk
+  ASTHEADERDIR=/opt/asterisk/include
+  ASTBINDIR=/opt/asterisk/bin
+  ASTSBINDIR=/opt/asterisk/sbin
+  ASTVARRUNDIR=/var/run/asterisk
+  ASTMANDIR=/opt/asterisk/man
 else
   ASTETCDIR=$(sysconfdir)/asterisk
   ASTLIBDIR=$(libdir)/asterisk
@@ -250,7 +250,7 @@ ifeq ($(OSARCH),OpenBSD)
 endif
 
 ifeq ($(OSARCH),SunOS)
-  ASTCFLAGS+=-Wcast-align -DSOLARIS -Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
+  ASTCFLAGS+=-Wcast-align -DSOLARIS -Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/opt/ssl/include -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
 endif
 
 LIBEDIT=editline/libedit.a
@@ -349,7 +349,7 @@ ifeq ($(OSARCH),OpenBSD)
 endif
 
 ifeq ($(OSARCH),SunOS)
-  LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
+  LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/opt/ssl/lib -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
   OBJS+=strcompat.o
   MENUSELECT_OBJS+=strcompat.o
   ASTLINK=
