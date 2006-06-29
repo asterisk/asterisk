@@ -308,6 +308,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                             rtptimeout
 ;                             rtpholdtimeout
 ;                             sendrpid
+;                             outboundproxy
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)
@@ -318,14 +319,15 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;host=fwd.pulver.com
 
 ;[sip_proxy-out]
-;type=peer          		; we only want to call out, not be called
+;type=peer          			; we only want to call out, not be called
 ;secret=guessit
-;username=yourusername		; Authentication user for outbound proxies
-;fromuser=yourusername		; Many SIP providers require this!
+;username=yourusername			; Authentication user for outbound proxies
+;fromuser=yourusername			; Many SIP providers require this!
 ;fromdomain=provider.sip.domain	
 ;host=box.provider.com
-;usereqphone=yes		; This provider requires ";user=phone" on URI
-;call-limit=5			; permit only 5 simultaneous outgoing calls to this peer
+;usereqphone=yes			; This provider requires ";user=phone" on URI
+;call-limit=5				; permit only 5 simultaneous outgoing calls to this peer
+;outboundproxy=proxy.provider.domain	; send outbound signaling to this proxy, not directly to the peer
 
 ;------------------------------------------------------------------------------
 ; Definitions of locally connected SIP phones
