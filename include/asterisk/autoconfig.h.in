@@ -218,6 +218,9 @@
 /* Define to indicate the Open Sound System library */
 #undef HAVE_OSS
 
+/* Define to 1 if OSX atomic operations are supported. */
+#undef HAVE_OSX_ATOMICS
+
 /* Define to indicate the popt library */
 #undef HAVE_POPT
 
@@ -501,6 +504,9 @@
    second argument and the buffer pointer as the third, as on System V before
    release 3. */
 #undef SETVBUF_REVERSED
+
+/* The size of `int', as computed by sizeof. */
+#undef SIZEOF_INT
 
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
