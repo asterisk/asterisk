@@ -887,6 +887,11 @@ AC_DEFINE([HAVE_GCC_ATOMICS], 1, [Define to 1 if your GCC C compiler provides at
 AC_MSG_RESULT(no)
 )
 
+AC_CHECK_HEADER([libkern/OSAtomic.h],
+                [AC_DEFINE_UNQUOTED([HAVE_OSX_ATOMICS], 1, [Define to 1 if OSX atomic operations are supported.])])
+
+AC_CHECK_SIZEOF(int)
+
 AC_CONFIG_FILES([build_tools/menuselect-deps makeopts])
 AC_OUTPUT
 

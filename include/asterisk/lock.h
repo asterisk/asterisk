@@ -738,6 +738,10 @@ int ast_atomic_fetchadd_int_slow(volatile int *p, int v);
 
 #include "asterisk/inline_api.h"
 
+#ifdef __Darwin__
+#include "libkern/OSAtomic.h"
+#endif
+
 /*! \brief Atomically add v to *p and return * the previous value of *p.
  * This can be used to handle reference counts, and the return value
  * can be used to generate unique identifiers.
@@ -748,7 +752,16 @@ AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
 	return __sync_fetch_and_add(p, v);
 })
-#elif defined ( __i386__)
+#elif defined(HAVE_OSX_ATOMICS) && (SIZEOF_INT == 4)
+AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
+{
+	return OSAtomicAdd32(v, (int32_t *) p);
+})
+#elif defined(HAVE_OSX_ATOMICS) && (SIZEOF_INT == 8)
+AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
+{
+	return OSAtomicAdd64(v, (int64_t *) p);
+#elif defined (__i386__)
 AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
 	__asm __volatile (
@@ -773,6 +786,15 @@ AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 {
 	return __sync_sub_and_fetch(p, 1) == 0;
 })
+#elif defined(HAVE_OSX_ATOMICS) && (SIZEOF_INT == 4)
+AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
+{
+	return OSAtomicDecrement32((int32_t *) p) == 0;
+})
+#elif defined(HAVE_OSX_ATOMICS) && (SIZEOF_INT == 8)
+AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
+{
+	return OSAtomicDecrement64((int64_t *) p) == 0;
 #else
 AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 {
