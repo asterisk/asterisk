@@ -105,5 +105,5 @@ endif
 misdn/chan_misdn_lib.a:
 	make -C misdn
 
-chan_misdn.so: misdn_config.o misdn/chan_misdn_lib.a
+chan_misdn.so: chan_misdn.o misdn_config.o misdn/chan_misdn_lib.a
 	$(CC) $(SOLINK) -o $@ $^ -lisdnnet -lmISDN
