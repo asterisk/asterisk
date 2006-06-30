@@ -3286,7 +3286,7 @@ static void try_suggested_sip_codec(struct sip_pvt *p)
 
 	fmt = ast_getformatbyname(codec);
 	if (fmt) {
-		ast_log(LOG_NOTICE, "Changing codec to '%s' for this call because of ${SIP_CODEC) variable\n", codec);
+		ast_log(LOG_NOTICE, "Changing codec to '%s' for this call because of ${SIP_CODEC} variable\n", codec);
 		if (p->jointcapability & fmt) {
 			p->jointcapability &= fmt;
 			p->capability &= fmt;
@@ -11277,7 +11277,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 					}
 				} else {
-					ast_log(LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
+					ast_log(LOG_WARNING, "Strange... The other side of the bridge does not have a udptl struct\n");
 					ast_mutex_lock(&bridgepvt->lock);
 					bridgepvt->t38.state = T38_DISABLED;
 					ast_mutex_unlock(&bridgepvt->lock);
@@ -13392,7 +13392,8 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	transmit_response(p, "202 Accepted", req);
 
 	if (current.chan1 && current.chan2) {
-		ast_log(LOG_NOTICE, "chan1->name: %s\n", current.chan1->name);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "chan1->name: %s\n", current.chan1->name);
 		pbx_builtin_setvar_helper(current.chan1, "BLINDTRANSFER", current.chan2->name);
 	}
 	if (current.chan2) {
