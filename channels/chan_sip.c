@@ -2204,9 +2204,14 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 	else
 		syslabel = "regserver";
 
-	ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr,
-		"port", port, "regseconds", regseconds,
-		"username", username, fc, fullcontact, syslabel, sysname, NULL); /* note fc _can_ be NULL */
+	if (fc)
+		ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr,
+			"port", port, "regseconds", regseconds,
+			"username", username, fc, fullcontact, syslabel, sysname, NULL); /* note fc _can_ be NULL */
+	else
+		ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr,
+			"port", port, "regseconds", regseconds,
+			"username", username, syslabel, sysname, NULL); /* note fc _can_ be NULL */
 }
 
 /*! \brief Automatically add peer extension to dial plan */
