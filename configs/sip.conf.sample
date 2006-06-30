@@ -147,11 +147,12 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;notifyringing = yes		; Notify subscriptions on RINGING state
 ;----------------------------------------- T.38 FAX PASSTHROUGH SUPPORT -----------------------
 ;
-; These settings are available in the [general] section as well as in device configurations
+; This setting is available in the [general] section as well as in device configurations.
+; Setting this to yes, enables T.38 fax (UDPTL) passthrough on SIP to SIP calls, provided
+; both parties have T38 support enabled in their Asterisk configuration (either general or
+; peer/user/friend sections)
 ;
 ; t38pt_udptl = yes            ; Default false
-; t38pt_rtp = yes              ; Default false
-; t38pt_tcp = yes              ; Default false, not yet used
 ;
 ;----------------------------------------- OUTBOUND SIP REGISTRATIONS  ------------------------
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
