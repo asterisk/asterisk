@@ -738,7 +738,7 @@ int ast_atomic_fetchadd_int_slow(volatile int *p, int v);
 
 #include "asterisk/inline_api.h"
 
-#ifdef __Darwin__
+#if defined(HAVE_OSX_ATOMICS)
 #include "libkern/OSAtomic.h"
 #endif
 
