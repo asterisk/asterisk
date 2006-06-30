@@ -56,33 +56,33 @@ all:	$(CORE_SOUNDS) $(EXTRA_SOUNDS) $(MOH)
 
 $(SOUNDS_DIR)/.asterisk-core-sounds-en-%:
 	@PACKAGE=$(subst $(SOUNDS_DIR)/.asterisk,asterisk,$@).tar.gz; \
-	if ! test -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
-	if ! test -f $${PACKAGE}; then exit 1; fi; \
+	if test ! -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
+	if test ! -f $${PACKAGE}; then exit 1; fi; \
 	rm -f $(subst -$(CORE_SOUNDS_VERSION),,$@)-* && \
-	(cd $(SOUNDS_DIR); tar xzf $(PWD)/$${PACKAGE}) && \
+	(cd $(SOUNDS_DIR); cat $(PWD)/$${PACKAGE} | gzip -d | tar xf -) && \
 	touch $@
 
 $(SOUNDS_DIR)/.asterisk-core-sounds-fr-%: $(SOUNDS_DIR)/fr
 	@PACKAGE=$(subst $(SOUNDS_DIR)/.asterisk,asterisk,$@).tar.gz; \
-	if ! test -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
-	if ! test -f $${PACKAGE}; then exit 1; fi; \
+	if test ! -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
+	if test ! -f $${PACKAGE}; then exit 1; fi; \
 	rm -f $(subst -$(CORE_SOUNDS_VERSION),,$@)-* && \
-	(cd $(SOUNDS_DIR)/fr; tar xzf $(PWD)/$${PACKAGE}) && \
+	(cd $(SOUNDS_DIR)/fr; cat $(PWD)/$${PACKAGE} | gzip -d | tar xf -) && \
 	touch $@
 
 $(SOUNDS_DIR)/.asterisk-core-sounds-fr-%: $(SOUNDS_DIR)/es
 	@PACKAGE=$(subst $(SOUNDS_DIR)/.asterisk,asterisk,$@).tar.gz; \
-	if ! test -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
-	if ! test -f $${PACKAGE}; then exit 1; fi; \
+	if test ! -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
+	if test ! -f $${PACKAGE}; then exit 1; fi; \
 	rm -f $(subst -$(CORE_SOUNDS_VERSION),,$@)-* && \
-	(cd $(SOUNDS_DIR)/es; tar xzf $(PWD)/$${PACKAGE}) && \
+	(cd $(SOUNDS_DIR)/es; cat $(PWD)/$${PACKAGE} | gzip -d | tar xf -) && \
 	touch $@
 
 $(MOH_DIR)/.asterisk-moh-%:
 	@PACKAGE=$(subst $(MOH_DIR)/.asterisk,asterisk,$@).tar.gz; \
-	if ! test -f $${PACKAGE}; then wget $(WGET_ARGS) $(MOH_URL)/$${PACKAGE}; fi; \
-	if ! test -f $${PACKAGE}; then exit 1; fi; \
-	(cd $(MOH_DIR); tar xzf $(PWD)/$${PACKAGE}) && \
+	if test ! -f $${PACKAGE}; then wget $(WGET_ARGS) $(MOH_URL)/$${PACKAGE}; fi; \
+	if test ! -f $${PACKAGE}; then exit 1; fi; \
+	(cd $(MOH_DIR); cat $(PWD)/$${PACKAGE} | gzip -d | tar xf -) && \
 	touch $@
 
 asterisk-core-%.tar.gz:
