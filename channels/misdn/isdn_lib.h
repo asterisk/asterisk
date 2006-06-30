@@ -410,6 +410,8 @@ void misdn_lib_echo(struct misdn_bchannel *bc, int onoff);
 int misdn_lib_is_ptp(int port);
 int misdn_lib_get_maxchans(int port);
 
+void misdn_lib_reinit_nt_stack(int port);
+
 #define PRI_TRANS_CAP_SPEECH                                    0x0
 #define PRI_TRANS_CAP_DIGITAL                                   0x08
 #define PRI_TRANS_CAP_RESTRICTED_DIGITAL                        0x09

@@ -175,7 +175,7 @@ struct misdn_bchannel *stack_holder_find(struct misdn_stack *stack, unsigned lon
 /* from isdn_lib.h */
 int init_bc(struct misdn_stack * stack,  struct misdn_bchannel *bc, int midev, int port, int bidx, char *msn, int firsttime);
 struct misdn_stack* stack_init(int midev,  int port, int ptp);
-void stack_te_destroy(struct misdn_stack* stack);
+void stack_destroy(struct misdn_stack* stack);
 	/* user iface */
 int te_lib_init( void ) ; /* returns midev */
 void te_lib_destroy(int midev) ;
@@ -1278,10 +1278,15 @@ struct misdn_stack* stack_init( int midev, int port, int ptp )
 }
 
 
-void stack_te_destroy(struct misdn_stack* stack)
+void stack_destroy(struct misdn_stack* stack)
 {
 	char buf[1024];
 	if (!stack) return;
+
+	if (stack->nt) {
+		cleanup_Isdnl2(&stack->nst);
+		cleanup_Isdnl3(&stack->nst);
+	}
   
 	if (stack->lower_id) 
 		mISDN_write_frame(stack->midev, buf, stack->lower_id, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
@@ -1917,9 +1922,11 @@ handle_event_nt(void *dat, void *arg)
 		{
 			if (stack->ptp) {
 				cb_log(-1 , stack->port, "%% GOT L2 DeActivate Info.\n");
+
 				if (stack->l2upcnt>3) {
 					cb_log(-1 , stack->port, "!!! Could not Get the L2 up after 3 Attemps!!!\n");
 				}  else {
+					if (stack->nt) misdn_lib_reinit_nt_stack(stack->port);
 					misdn_lib_get_l2_up(stack);
 					stack->l2upcnt++;
 				}
@@ -3452,7 +3459,7 @@ int misdn_lib_port_restart(int port)
 	cb_log(0, port, "Restarting this port.\n");
 	if (stack) {
 		cb_log(0, port, "Stack:%p\n",stack);
-		
+			
 		clear_l3(stack);
 		{
 			msg_t *msg=alloc_msg(MAX_MSG_SIZE);
@@ -3474,48 +3481,10 @@ int misdn_lib_port_restart(int port)
 			msg_queue_tail(&glob_mgr->activatequeue, msg);
 			sem_post(&glob_mgr->new_msg);
 		}
-		return 0;
-    
-		stack_te_destroy(stack);
-      
-		{
-			struct misdn_stack *tmpstack;
-			struct misdn_stack *newstack=stack_init(stack->midev ,port, stack->ptp);
-      
-      
-			if (stack == glob_mgr->stack_list) {
-				struct misdn_stack *n=glob_mgr->stack_list->next;
-				glob_mgr->stack_list = newstack ;
-				glob_mgr->stack_list->next = n;
-			} else {
-				for (tmpstack=glob_mgr->stack_list;
-				     tmpstack->next;
-				     tmpstack=tmpstack->next) 
-					if (tmpstack->next == stack) break;
 
-				if (!tmpstack->next) {
-					cb_log(-1, port, "Stack to restart not found\n");
-					return 0;
-				}  else {
-					struct misdn_stack *n=tmpstack->next->next;
-					tmpstack->next=newstack;
-					newstack->next=n;
-				}
-			}
-      
-			{
-				int i;
-				for(i=0;i<newstack->b_num; i++) {
-					int r;
-					if ((r=init_bc(newstack, &newstack->bc[i], newstack->midev,port,i, "", 1))<0) {
-						cb_log(-1, port, "Got Err @ init_bc :%d\n",r);
-						return 0;
-					}
-				}
-			}
-      
-			free(stack);
-		}
+		if (stack->nt)
+			misdn_lib_reinit_nt_stack(stack->port);
+    
 	}
 
 	return 0;
@@ -3629,13 +3598,19 @@ int misdn_lib_maxports_get() { /** BE AWARE WE HAVE NO CB_LOG HERE! **/
 void misdn_lib_nt_debug_init( int flags, char *file ) 
 {
 	int static init=0;
+	char *f;
+	
+	if (!flags) 
+		f=NULL;
+	else
+		f=file;
 
 	if (!init) {
-		debug_init( flags , file, file, file);
+		debug_init( flags , f, f, f);
 		init=1;
 	} else {
 		debug_close();
-		debug_init( flags , file, file, file);
+		debug_init( flags , f, f, f);
 	}
 }
 
@@ -3779,7 +3754,7 @@ void misdn_lib_destroy()
 			help->bc[i].addr = 0;
 		}
 		cb_log (1, help->port, "Destroying this port.\n");
-		stack_te_destroy(help);
+		stack_destroy(help);
 	}
 	
 	if (global_state == MISDN_INITIALIZED) {
@@ -4210,6 +4185,44 @@ void misdn_lib_echo(struct misdn_bchannel *bc, int onoff)
 {
 	cb_log(1,bc->port, " --> ECHO %s\n", onoff?"ON":"OFF");
 	manager_ph_control(bc, onoff?CMX_ECHO_ON:CMX_ECHO_OFF, 0);
+}
+
+
+
+void misdn_lib_reinit_nt_stack(int port)
+{
+	struct misdn_stack *stack=find_stack_by_port(port);
+	
+	if (stack) {
+		cleanup_Isdnl3(&stack->nst);
+		cleanup_Isdnl2(&stack->nst);
+
+
+		memset(&stack->nst, 0, sizeof(net_stack_t));
+		memset(&stack->mgr, 0, sizeof(manager_t));
+   
+		stack->mgr.nst = &stack->nst;
+		stack->nst.manager = &stack->mgr;
+    
+		stack->nst.l3_manager = handle_event_nt;
+		stack->nst.device = glob_mgr->midev;
+		stack->nst.cardnr = port;
+		stack->nst.d_stid = stack->d_stid;
+   
+		stack->nst.feature = FEATURE_NET_HOLD;
+		if (stack->ptp)
+			stack->nst.feature |= FEATURE_NET_PTP;
+		if (stack->pri)
+			stack->nst.feature |= FEATURE_NET_CRLEN2 | FEATURE_NET_EXTCID;
+		
+		stack->nst.l1_id = stack->lower_id;
+		stack->nst.l2_id = stack->upper_id;
+		
+		msg_queue_init(&stack->nst.down_queue);
+	
+		Isdnl2Init(&stack->nst);
+		Isdnl3Init(&stack->nst);
+	}
 }
 
 
