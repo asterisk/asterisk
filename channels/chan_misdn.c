@@ -2355,6 +2355,12 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
     
 		if (!f || f->frametype == AST_FRAME_CONTROL) {
 			/* got hangup .. */
+
+			if (!f) 
+				chan_misdn_log(1,ch1->bc->port,"Read Null Frame\n");
+			else
+				chan_misdn_log(1,ch1->bc->port,"Read Frame Controll class:%d\n",f->subclass);
+			
 			*fo=f;
 			*rc=who;
       
