@@ -68,7 +68,7 @@ static int function_fieldqty(struct ast_channel *chan, char *cmd,
 static struct ast_custom_function fieldqty_function = {
 	.name = "FIELDQTY",
 	.synopsis = "Count the fields, with an arbitrary delimiter",
-	.syntax = "FIELDQTY(<varname>,<delim>)",
+	.syntax = "FIELDQTY(<varname>|<delim>)",
 	.read = function_fieldqty,
 };
 
@@ -81,10 +81,10 @@ static int filter(struct ast_channel *chan, char *cmd, char *parse, char *buf,
 	);
 	char *outbuf = buf;
 
-	AST_NONSTANDARD_APP_ARGS(args, parse, ',');
+	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (!args.string) {
-		ast_log(LOG_ERROR, "Usage: FILTER(<allowed-chars>,<string>)\n");
+		ast_log(LOG_ERROR, "Usage: FILTER(<allowed-chars>|<string>)\n");
 		return -1;
 	}
 
@@ -100,7 +100,7 @@ static int filter(struct ast_channel *chan, char *cmd, char *parse, char *buf,
 static struct ast_custom_function filter_function = {
 	.name = "FILTER",
 	.synopsis = "Filter the string to include only the allowed characters",
-	.syntax = "FILTER(<allowed-chars>,<string>)",
+	.syntax = "FILTER(<allowed-chars>|<string>)",
 	.read = filter,
 };
 
@@ -193,13 +193,13 @@ static int array(struct ast_channel *chan, char *cmd, char *var,
 static struct ast_custom_function array_function = {
 	.name = "ARRAY",
 	.synopsis = "Allows setting multiple variables at once",
-	.syntax = "ARRAY(var1[,var2[...][,varN]])",
+	.syntax = "ARRAY(var1[|var2[...][|varN]])",
 	.write = array,
 	.desc =
 		"The comma-separated list passed as a value to which the function is set will\n"
 		"be interpreted as a set of values to which the comma-separated list of\n"
 		"variable names in the argument should be set.\n"
-		"Hence, Set(ARRAY(var1,var2)=1,2) will set var1 to 1 and var2 to 2\n"
+		"Hence, Set(ARRAY(var1|var2)=1\\,2) will set var1 to 1 and var2 to 2\n"
 		"Note: remember to either backslash your commas in extensions.conf or quote the\n"
 		"entire argument, since Set can take multiple arguments itself.\n",
 };
@@ -339,7 +339,7 @@ sprintf_fail:
 static struct ast_custom_function sprintf_function = {
 	.name = "SPRINTF",
 	.synopsis = "Format a variable according to a format string",
-	.syntax = "SPRINTF(<format>,<arg1>[,...<argN>])",
+	.syntax = "SPRINTF(<format>|<arg1>[|...<argN>])",
 	.read = acf_sprintf,
 	.desc =
 "Parses the format string specified and returns a string matching that format.\n"
@@ -435,7 +435,7 @@ static int acf_strftime(struct ast_channel *chan, char *cmd, char *parse,
 static struct ast_custom_function strftime_function = {
 	.name = "STRFTIME",
 	.synopsis = "Returns the current date/time in a specified format.",
-	.syntax = "STRFTIME([<epoch>][,[timezone][,format]])",
+	.syntax = "STRFTIME([<epoch>][|[timezone][|format]])",
 	.read = acf_strftime,
 };
 
