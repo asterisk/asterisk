@@ -58,6 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/translate.h"
 #include "asterisk/ulaw.h"
+#include "asterisk/astobj.h"
 #include "asterisk/devicestate.h"
 
 #include "enter.h"
@@ -179,13 +180,20 @@ AST_APP_OPTIONS(meetme_opts, {
 	AST_APP_OPTION('1', CONFFLAG_NOONLYPERSON ),
 });
 
+AST_APP_OPTIONS(sla_opts, {
+	/* Just a placeholder for now */
+});
 static const char *app = "MeetMe";
 static const char *app2 = "MeetMeCount";
 static const char *app3 = "MeetMeAdmin";
+static const char *appslas = "SLAS";
+static const char *appslat = "SLAT";
 
 static const char *synopsis = "MeetMe conference bridge";
 static const char *synopsis2 = "MeetMe participant count";
 static const char *synopsis3 = "MeetMe conference Administration";
+static const char *synopslas = "Shared Line Appearance - Station";
+static const char *synopslat = "Shared Line Appearance - Trunk";
 
 static const char *descrip =
 "  MeetMe([confno][,[options][,pin]]): Enters the user into a specified MeetMe\n"
@@ -263,6 +271,23 @@ static const char *descrip3 =
 "      'V' -- Raise entire conference listening volume\n"
 "";
 
+static const char *descripslas =
+"  SLAS(sla[,options]): Run Shared Line Appearance for station\n"
+"Runs the share line appearance for a station calling in.  If there are no\n"
+"other participants in the conference, the trunk is called and is dumped into\n"
+"the bridge.\n";
+
+static const char *descripslat =
+"  SLAT(sla[,options]): Run Shared Line Appearance for trunk\n"
+"Runs the share line appearance for a trunk calling in.  If there are no\n"
+"other participants in the conference, all member stations are invited into\n"
+"the bridge.\n";
+
+#define CONFIG_FILE_NAME "meetme.conf"
+#define CONFIG_FILE_NAME_SLA "sla.conf"
+
+LOCAL_USER_DECL;
+
 struct ast_conference {
 	ast_mutex_t playlock;                   /*!< Conference specific lock (players) */
 	ast_mutex_t listenlock;                 /*!< Conference specific lock (listeners) */
@@ -313,6 +338,31 @@ struct ast_conf_user {
 	AST_LIST_ENTRY(ast_conf_user) list;
 };
 
+struct ast_sla_station {
+	ASTOBJ_COMPONENTS(struct ast_sla_station);
+	char *dest;
+	char tech[0];
+};
+
+struct ast_sla_station_box {
+	ASTOBJ_CONTAINER_COMPONENTS(struct ast_sla_station);
+};
+
+struct ast_sla {
+	ASTOBJ_COMPONENTS (struct ast_sla);
+	struct ast_sla_station_box stations;
+	char confname[80];
+	char trunkdest[256];
+	char trunktech[20];
+};
+
+struct ast_sla_box {
+	ASTOBJ_CONTAINER_COMPONENTS(struct ast_sla);
+} slas;
+
+static int audio_buffers;			/* The number of audio buffers to be allocated on pseudo channels
+						   when in a conference
+						*/
 /*! The number of audio buffers to be allocated on pseudo channels
  *  when in a conference */
 static int audio_buffers;
@@ -503,6 +553,18 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enu
 		ast_autoservice_stop(chan);
 }
 
+static void station_destroy(struct ast_sla_station *station)
+{
+	free(station);
+}
+
+static void sla_destroy(struct ast_sla *sla)
+{
+	ASTOBJ_CONTAINER_DESTROYALL(&sla->stations, station_destroy);
+	ASTOBJ_CONTAINER_DESTROY(&sla->stations);
+	free(sla);
+}
+
 static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic, int refcount)
 {
 	struct ast_conference *cnf;
@@ -584,7 +646,55 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	return cnf;
 }
 
-static int conf_cmd(int fd, int argc, char **argv) {
+static int confs_show(int fd, int argc, char **argv)
+{
+	ast_cli(fd, "Deprecated! Please use 'meetme' instead.\n");
+
+	return RESULT_SUCCESS;
+}
+
+static int sla_show(int fd, int argc, char *argv[]) 
+{
+	struct ast_sla *sla;
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+
+	ast_cli(fd, "Shared line appearances:\n");
+	ASTOBJ_CONTAINER_TRAVERSE(&slas, 1, {
+		ASTOBJ_RDLOCK(iterator);
+		ast_cli(fd, "SLA %s\n", iterator->name);
+		if (ast_strlen_zero(iterator->trunkdest) || ast_strlen_zero(iterator->trunktech))
+			ast_cli(fd, "Trunk => <unspecified>\n");
+		else
+			ast_cli(fd, "Trunk => %s/%s\n", iterator->trunktech, iterator->trunkdest);
+		sla = iterator;
+		ASTOBJ_CONTAINER_TRAVERSE(&sla->stations, 1, {
+			ast_cli(fd, "Station: %s/%s\n", iterator->tech, iterator->dest);
+		});
+		ASTOBJ_UNLOCK(iterator);
+	});
+
+	return RESULT_SUCCESS;
+}
+
+static char show_confs_usage[] =
+"Deprecated! Please use 'meetme' instead.\n";
+
+static struct ast_cli_entry cli_show_confs = {
+	{ "show", "conferences", NULL }, confs_show,
+	"Show status of conferences", show_confs_usage, NULL };
+
+
+static char sla_show_usage[] =
+"Usage: sla show\n"
+"       Lists status of all shared line appearances\n";
+
+static struct ast_cli_entry cli_sla_show = {
+	{ "sla", "show", NULL }, sla_show,
+	"Show status of Shared Line Appearances", sla_show_usage, NULL };
+
+static int conf_cmd(int fd, int argc, char **argv) 
+{
 	/* Process the command */
 	struct ast_conference *cnf;
 	struct ast_conf_user *user;
@@ -2224,6 +2334,152 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+struct sla_originate_helper {
+	char tech[100];
+	char data[200];
+	char app[20];
+	char appdata[100];
+	char cid_name[100];
+	char cid_num[100];
+};
+
+static void *sla_originate(void *data)
+{
+	struct sla_originate_helper *in = data;
+	int res;
+	int reason = 0;
+	struct ast_channel *chan = NULL;
+
+	ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, 99999, in->app, in->appdata, &reason, 1, 
+		S_OR(in->cid_num, NULL), 
+		S_OR(in->cid_name, NULL),
+		NULL, NULL, &chan);
+	/* Locked by ast_pbx_outgoing_exten or ast_pbx_outgoing_app */
+	if (chan)
+		ast_channel_unlock(chan);
+	free(in);
+	return NULL;
+}
+
+static void do_invite(struct ast_channel *orig, struct ast_sla *sla, const char *tech, const char *dest, const char *app)
+{
+	struct sla_originate_helper *slal = malloc(sizeof(struct sla_originate_helper));
+	pthread_attr_t attr;
+	pthread_t th;
+	if (slal) {
+		memset(slal, 0, sizeof(struct sla_originate_helper));
+		ast_copy_string(slal->tech, tech, sizeof(slal->tech));
+   		ast_copy_string(slal->data, dest, sizeof(slal->data));
+		ast_copy_string(slal->app, app, sizeof(slal->app));
+		ast_copy_string(slal->appdata, sla->name, sizeof(slal->appdata));
+		if (orig->cid.cid_num)
+			ast_copy_string(slal->cid_num, orig->cid.cid_num, sizeof(slal->cid_num));
+		if (orig->cid.cid_name)
+			ast_copy_string(slal->cid_name, orig->cid.cid_name, sizeof(slal->cid_name));
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		ast_pthread_create(&th, &attr, sla_originate, slal);
+	}
+}
+
+static void invite_stations(struct ast_channel *orig, struct ast_sla *sla)
+{
+	ASTOBJ_CONTAINER_TRAVERSE(&sla->stations, 1, {
+		do_invite(orig, sla,iterator->tech, iterator->dest, "SLAS");
+	});
+}
+
+static void invite_trunk(struct ast_channel *orig, struct ast_sla *sla)
+{
+	do_invite(orig, sla,sla->trunktech, sla->trunkdest, "SLAT");
+}
+
+
+
+/*! \brief The slas()/slat() application */
+static int sla_exec(struct ast_channel *chan, void *data, int trunk)
+{
+	int res=-1;
+	struct localuser *u;
+	char confno[AST_MAX_EXTENSION] = "";
+	struct ast_sla *sla;
+	struct ast_conference *cnf;
+	char *info;
+	struct ast_flags confflags = {0};
+	int dynamic = 1;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(confno);
+		AST_APP_ARG(options);
+	);
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "SLA%c requires an argument (line)\n", trunk ? 'T' : 'S');
+		return -1;
+	}
+
+	info = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(args, info);	
+
+	if (ast_strlen_zero(args.confno)) {
+		ast_log(LOG_WARNING, "SLA%c requires an SLA line number\n", trunk ? 'T' : 'S');
+		return -1;
+	}
+	
+	LOCAL_USER_ADD(u);
+
+	if (chan->_state != AST_STATE_UP)
+		ast_answer(chan);
+
+	info = ast_strdupa(data);
+
+	
+	if (args.options)
+		ast_app_parse_options(sla_opts, &confflags, NULL, args.options);
+		
+	ast_set_flag(&confflags, CONFFLAG_QUIET|CONFFLAG_DYNAMIC);
+	if (trunk)
+		ast_set_flag(&confflags, CONFFLAG_WAITMARKED|CONFFLAG_MARKEDEXIT);
+	else
+		ast_set_flag(&confflags, CONFFLAG_MARKEDUSER);
+
+	sla = ASTOBJ_CONTAINER_FIND(&slas, args.confno);
+	if (sla) {
+		snprintf(confno, sizeof(confno), "sla-%s", args.confno);
+		cnf = find_conf(chan, confno, 1, dynamic, "", 1, &confflags);
+		if (cnf) {
+			if (!cnf->users) {
+				if (trunk)
+					invite_stations(chan, sla);
+				else
+					invite_trunk(chan, sla);
+			}
+			/* Run the conference */
+			res = conf_run(chan, cnf, confflags.flags);
+		} else
+			ast_log(LOG_WARNING, "SLA%c: Found SLA '%s' but unable to build conference!\n", trunk ? 'T' : 'S', args.confno);
+		ASTOBJ_UNREF(sla, sla_destroy);
+	} else {
+		ast_log(LOG_WARNING, "SLA%c: SLA '%s' not found!\n", trunk ? 'T' : 'S', args.confno);
+	}
+	
+	LOCAL_USER_REMOVE(u);
+	
+	return res;
+}
+
+/*! \brief The slas() wrapper */
+static int slas_exec(struct ast_channel *chan, void *data)
+{
+	return sla_exec(chan, data, 0);
+}
+
+/*! \brief The slat() wrapper */
+static int slat_exec(struct ast_channel *chan, void *data)
+{
+	return sla_exec(chan, data, 1);
+}
+
 static struct ast_conf_user *find_user(struct ast_conference *conf, char *callerident) 
 {
 	struct ast_conf_user *user = NULL;
@@ -2542,7 +2798,7 @@ static int meetmestate(const char *data)
 	return AST_DEVICE_INUSE;
 }
 
-static void load_config(void)
+static void load_config_meetme(void)
 {
 	struct ast_config *cfg;
 	char *val;
@@ -2568,11 +2824,90 @@ static void load_config(void)
 	ast_config_destroy(cfg);
 }
 
+static void append_station(struct ast_sla *sla, const char *station)
+{
+	struct ast_sla_station *s;
+	char *c;
+	s = ast_calloc(1, sizeof(struct ast_sla_station) + strlen(station) + 2);
+	if (s) {
+		ASTOBJ_INIT(s);
+		strcpy(s->tech, station);
+		c = strchr(s->tech, '/');
+		if (c) {
+			*c = '\0';
+			s->dest = c + 1;
+			ASTOBJ_CONTAINER_LINK(&sla->stations, s);
+		} else {
+			ast_log(LOG_WARNING, "station '%s' should be in tech/destination format! Ignoring!\n", station);
+			free(s);
+		}
+	}
+}
+
+static void parse_sla(const char *cat, struct ast_variable *v)
+{
+	struct ast_sla *sla;
+	sla = ASTOBJ_CONTAINER_FIND(&slas, cat);
+	if (!sla) {
+		sla = ast_calloc(1, sizeof(struct ast_sla));
+		if (sla) {
+			ASTOBJ_INIT(sla);
+			ast_copy_string(sla->name, cat, sizeof(sla->name));
+			snprintf(sla->confname, sizeof(sla->confname), "sla-%s", sla->name);
+			ASTOBJ_CONTAINER_LINK(&slas, sla);
+		}
+	}
+	if (sla) {
+		ASTOBJ_UNMARK(sla);
+		ASTOBJ_WRLOCK(sla);
+		while (v) {
+			if (!strcasecmp(v->name, "trunk")) {
+				char *c;
+				c = strchr(v->value, '/');
+				if (c) {
+					ast_copy_string(sla->trunktech, v->value, (c - v->value) + 1);
+					ast_copy_string(sla->trunkdest, c + 1, sizeof(sla->trunkdest));
+				}
+			} else if (!strcasecmp(v->name, "station")) {
+				append_station(sla, v->value);
+			}
+			v = v->next;
+		}
+		ASTOBJ_UNLOCK(sla);
+	}
+}
+
+static void load_config_sla(void)
+{
+	char *cat;
+	struct ast_config *cfg;
+	if (!(cfg = ast_config_load(CONFIG_FILE_NAME_SLA)))
+		return;
+
+	ASTOBJ_CONTAINER_MARKALL(&slas);
+	cat = ast_category_browse(cfg, NULL);
+	while(cat) {
+		if (strcasecmp(cat, "general")) 
+			parse_sla(cat, ast_variable_browse(cfg, cat));
+		cat = ast_category_browse(cfg, cat);
+	}
+	ast_config_destroy(cfg);
+	ASTOBJ_CONTAINER_PRUNE_MARKED(&slas, sla_destroy);
+}
+
+static void load_config(void)
+{
+	load_config_meetme();
+	load_config_sla();
+}
+
 static int unload_module(void *mod)
 {
 	int res;
 	
-	res = ast_cli_unregister(&cli_conf);
+	res = ast_cli_unregister(&cli_show_confs);
+	res |= ast_cli_unregister(&cli_sla_show);
+	res |= ast_cli_unregister(&cli_conf);
 	res |= ast_manager_unregister("MeetmeMute");
 	res |= ast_manager_unregister("MeetmeUnmute");
 	res |= ast_unregister_application(app3);
@@ -2590,13 +2925,17 @@ static int load_module(void *mod)
 	int res;
 
 	load_config();
-
-	res = ast_cli_register(&cli_conf);
+	ASTOBJ_CONTAINER_INIT(&slas);
+	res = ast_cli_register(&cli_show_confs);
+	res |= ast_cli_register(&cli_sla_show);
+	res |= ast_cli_register(&cli_conf);
 	res |= ast_manager_register("MeetmeMute", EVENT_FLAG_CALL, action_meetmemute, "Mute a Meetme user");
 	res |= ast_manager_register("MeetmeUnmute", EVENT_FLAG_CALL, action_meetmeunmute, "Unmute a Meetme user");
 	res |= ast_register_application(app3, admin_exec, synopsis3, descrip3);
 	res |= ast_register_application(app2, count_exec, synopsis2, descrip2);
 	res |= ast_register_application(app, conf_exec, synopsis, descrip);
+	res |= ast_register_application(appslas, slas_exec, synopslas, descripslas);
+	res |= ast_register_application(appslat, slat_exec, synopslat, descripslat);
 
 	res |= ast_devstate_prov_add("Meetme", meetmestate);
 	return res;
