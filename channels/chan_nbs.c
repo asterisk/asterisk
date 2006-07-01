@@ -296,12 +296,12 @@ static int __unload_module(void)
 	return 0;
 }
 
-static int unload_module(void)
+static int unload_module(void *mod)
 {
 	return __unload_module();
 }
 
-static int load_module(void)
+static int load_module(void *mod)
 {
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&nbs_tech)) {
@@ -312,18 +312,14 @@ static int load_module(void)
 	return 0;
 }
 
-int usecount(void)
-{
-	return usecnt;
-}
-
-const char *description(void)
+static const char *description(void)
 {
 	return (char *) desc;
 }
 
-const char *key(void)
+static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
 
+STD_MOD(MOD_0, NULL, NULL, NULL);
