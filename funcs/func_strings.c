@@ -81,7 +81,7 @@ static int filter(struct ast_channel *chan, char *cmd, char *parse, char *buf,
 	);
 	char *outbuf = buf;
 
-	AST_STANDARD_APP_ARGS(args, parse);
+	AST_NONSTANDARD_APP_ARGS(args, parse, ',');
 
 	if (!args.string) {
 		ast_log(LOG_ERROR, "Usage: FILTER(<allowed-chars>,<string>)\n");
