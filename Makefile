@@ -524,7 +524,7 @@ distclean: clean
 	rm -f menuselect.makeopts makeopts makeopts.xml menuselect.makedeps
 	rm -f config.log config.status
 	rm -rf autom4te.cache
-	rm -f include/autoconfig.h
+	rm -f include/asterisk/autoconfig.h
 	rm -f include/asterisk/buildopts.h
 	rm -rf doc/api
 	rm -f build_tools/menuselect-deps
