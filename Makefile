@@ -527,6 +527,7 @@ dist-clean: clean
 	rm -f include/autoconfig.h
 	rm -f include/asterisk/buildopts.h
 	rm -rf doc/api
+	rm -f build_tools/menuselect-deps
 
 datafiles: all
 	if [ x`$(ID) -un` = xroot ]; then sh build_tools/mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
