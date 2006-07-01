@@ -515,9 +515,9 @@ clean: $(SUBDIRS_CLEAN) clean-depend
 	@$(MAKE) -C stdtime clean
 	@$(MAKE) -C menuselect clean
 
-distclean: dist-clean
+dist-clean: distclean
 
-dist-clean: clean
+distclean: clean
 	@$(MAKE) -C mxml clean
 	@$(MAKE) -C menuselect dist-clean
 	@$(MAKE) -C sounds dist-clean
