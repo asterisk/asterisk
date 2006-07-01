@@ -89,7 +89,7 @@ static int load_config(void)
     return 0;
 }
 
-int load_module(void)
+static int load_module(void *mod)
 {
     load_config();
 
@@ -102,7 +102,7 @@ int load_module(void)
 		return 0;
 }
 
-int unload_module(void)
+static int unload_module(void *mod)
 {
     ast_verbose(VERBOSE_PREFIX_1 "Unloading [Sub]Agent Module\n");
 
@@ -110,7 +110,7 @@ int unload_module(void)
     return pthread_join(thread, NULL);
 }
 
-int reload(void)
+static int reload(void *mod)
 {
     ast_verbose(VERBOSE_PREFIX_1 "Reloading [Sub]Agent Module\n");
 
@@ -127,17 +127,14 @@ int reload(void)
 		return 0;
 }
 
-int usecount(void)
-{
-    return 0;
-}
-
-const char *key(void)
+static const char *key(void)
 {
     return ASTERISK_GPL_KEY;
 }
 
-const char *description(void)
+static const char *description(void)
 {
     return MODULE_DESCRIPTION;
 }
+
+STD_MOD(MOD_0, reload, NULL, NULL);

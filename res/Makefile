@@ -24,6 +24,8 @@ all: _all
 
 include ../Makefile.rules
 
+res_snmp.so: res_snmp.o snmp/agent.o
+
 clean::
 	rm -f snmp/*.o
 
