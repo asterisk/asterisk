@@ -2799,7 +2799,7 @@ static int handle_stimulus_message(skinny_req *req, struct skinnysession *s)
 		break;
 	case STIMULUS_CONFERENCE:
 		if (skinnydebug)
-			ast_verbose("Received Stimulus: Transfer(%d)\n", instance);
+			ast_verbose("Received Stimulus: Conference(%d)\n", instance);
 		transmit_tone(s, SKINNY_DIALTONE);
 		/* XXX determine the best way to pull off a conference.  Meetme? */
 		break;
