@@ -5361,7 +5361,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		c = is_strict ? p->route->hop : p->okcontacturi; /* Use for BYE or REINVITE */
 	else if (!ast_strlen_zero(p->uri)) 
 		c = p->uri;
-	} else {
+	else {
 		char *n;
 		/* We have no URI, use To: or From:  header as URI (depending on direction) */
 		ast_copy_string(stripped, get_header(orig, (ast_test_flag(&p->flags[0], SIP_OUTGOING)) ? "To" : "From"),
@@ -7602,7 +7602,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		/* Can be multiple Contact headers, comma separated values - we just take the first */
 		contact = get_header(req, "Contact");
 		if (!ast_strlen_zero(contact)) {
-			if (option-debug > 1)
+			if (option_debug > 1)
 				ast_log(LOG_DEBUG, "build_route: Contact hop: %s\n", contact);
 			/* Look for <: delimited address */
 			c = strchr(contact, '<');
