@@ -5316,7 +5316,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 	return 0;
 }
 
-/*! \brief Initialize a SIP request response packet */
+/*! \brief Initialize a SIP request message (not the initial one in a dialog) */
 static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, int seqno, int newbranch)
 {
 	struct sip_request *orig = &p->initreq;
@@ -5348,18 +5348,18 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 			ast_log(LOG_DEBUG, "Strict routing enforced for session %s\n", p->callid);
 	}
 
-	if (sipmethod == SIP_CANCEL) {
+	if (sipmethod == SIP_CANCEL)
 		c = p->initreq.rlPart2;	/* Use original URI */
-	} else if (sipmethod == SIP_ACK) {
+	else if (sipmethod == SIP_ACK) {
 		/* Use URI from Contact: in 200 OK (if INVITE) 
 		(we only have the contacturi on INVITEs) */
 		if (!ast_strlen_zero(p->okcontacturi))
 			c = is_strict ? p->route->hop : p->okcontacturi;
  		else
  			c = p->initreq.rlPart2;
-	} else if (!ast_strlen_zero(p->okcontacturi)) {
+	} else if (!ast_strlen_zero(p->okcontacturi)) 
 		c = is_strict ? p->route->hop : p->okcontacturi; /* Use for BYE or REINVITE */
-	} else if (!ast_strlen_zero(p->uri)) {
+	else if (!ast_strlen_zero(p->uri)) 
 		c = p->uri;
 	} else {
 		char *n;
@@ -7573,7 +7573,8 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 			if ((thishop = ast_malloc(sizeof(*thishop) + len))) {
 				/* ast_calloc is not needed because all fields are initialized in this block */
 				ast_copy_string(thishop->hop, rr, len);
-				ast_log(LOG_DEBUG, "build_route: Record-Route hop: <%s>\n", thishop->hop);
+				if (option_debug > 1)
+					ast_log(LOG_DEBUG, "build_route: Record-Route hop: <%s>\n", thishop->hop);
 				/* Link in */
 				if (backwards) {
 					/* Link in at head so they end up in reverse order */
@@ -7601,7 +7602,8 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		/* Can be multiple Contact headers, comma separated values - we just take the first */
 		contact = get_header(req, "Contact");
 		if (!ast_strlen_zero(contact)) {
-			ast_log(LOG_DEBUG, "build_route: Contact hop: %s\n", contact);
+			if (option-debug > 1)
+				ast_log(LOG_DEBUG, "build_route: Contact hop: %s\n", contact);
 			/* Look for <: delimited address */
 			c = strchr(contact, '<');
 			if (c) {
