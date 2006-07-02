@@ -5152,7 +5152,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const st
 /*! \brief Add route header into request per learned route */
 static void add_route(struct sip_request *req, struct sip_route *route)
 {
-	char r[256], *p;
+	char r[BUFSIZ], *p;
 	int n, rem = sizeof(r);
 
 	if (!route)
@@ -12953,7 +12953,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			break;
 		case AST_STATE_UP:
 			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "%s: New call is UP.... \n", c->name);
+				ast_log(LOG_DEBUG, "%s: This call is UP.... \n", c->name);
+
 			if (p->t38.state == T38_PEER_REINVITE) {
 				struct ast_channel *bridgepeer = NULL;
 				struct sip_pvt *bridgepvt = NULL;
@@ -13000,6 +13001,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 						ast_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
 				}
 			} else if (p->t38.state == T38_DISABLED) { /* Channel doesn't have T38 offered or enabled */
+				int sendok = TRUE;
+
 				/* If we are bridged to a channel that has T38 enabled than this is a case of RTP re-invite after T38 session */
 				/* so handle it here (re-invite other party to RTP) */
 				struct ast_channel *bridgepeer = NULL;
@@ -13007,6 +13010,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				if ((bridgepeer = ast_bridged_channel(p->owner))) {
 					if (!strcasecmp(bridgepeer->tech->type, sip_tech.type)) {
 						bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
+						/* Does the bridged peer have T38 ? */
 						if (bridgepvt->t38.state == T38_ENABLED) {
 							ast_log(LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
 							/* Insted of this we should somehow re-invite the other side of the bridge to RTP */
@@ -13015,13 +13019,14 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 							else
 								transmit_response_reliable(p, "488 Not Acceptable Here (unsupported)", req);
 							ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
-						} else {
-							/* No bridged peer with T38 enabled*/
-							transmit_response_with_sdp(p, "200 OK", req, XMIT_CRITICAL);
-						}
+							sendok = FALSE;
+						} 
+						/* No bridged peer with T38 enabled*/
 					}
-				} else	/* No bridged peer */
+				} 
+				if (sendok)
 					transmit_response_with_sdp(p, "200 OK", req, XMIT_CRITICAL);
+
 			}
 			break;
 		default:
