@@ -712,28 +712,31 @@ struct sip_auth {
 	 SIP_USEREQPHONE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE)
 
 /* a new page of flags */
+/* realtime flags */
 #define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)
 #define SIP_PAGE2_RTUPDATE		(1 << 1)
 #define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)
-#define SIP_PAGE2_IGNOREREGEXPIRE	(1 << 3)
 #define SIP_PAGE2_RT_FROMCONTACT 	(1 << 4)
-#define SIP_PAGE2_DEBUG			(3 << 5)
-#define SIP_PAGE2_DEBUG_CONFIG 		(1 << 5)
-#define SIP_PAGE2_DEBUG_CONSOLE 	(1 << 6)
-#define SIP_PAGE2_DYNAMIC		(1 << 7)	/*!< Dynamic Peers register with Asterisk */
-#define SIP_PAGE2_SELFDESTRUCT		(1 << 8)	/*!< Automatic peers need to destruct themselves */
-#define SIP_PAGE2_VIDEOSUPPORT		(1 << 9)
-#define SIP_PAGE2_ALLOWSUBSCRIBE	(1 << 10)	/*!< Allow subscriptions from this peer? */
-#define SIP_PAGE2_ALLOWOVERLAP		(1 << 11)	/*!< Allow overlap dialing ? */
-#define SIP_PAGE2_SUBSCRIBEMWIONLY	(1 << 12)	/*!< Only issue MWI notification if subscribed to */
-#define SIP_PAGE2_INC_RINGING		(1 << 13)	/*!< Did this connection increment the counter of in-use calls? */
-#define SIP_PAGE2_T38SUPPORT		(7 << 14)	/*!< T38 Fax Passthrough Support */
-#define SIP_PAGE2_T38SUPPORT_UDPTL	(1 << 14)	/*!< 14: T38 Fax Passthrough Support */
-#define SIP_PAGE2_T38SUPPORT_RTP	(2 << 14)	/*!< 15: T38 Fax Passthrough Support */
-#define SIP_PAGE2_T38SUPPORT_TCP	(4 << 14)	/*!< 16: T38 Fax Passthrough Support */
-#define SIP_PAGE2_CALL_ONHOLD		(2 << 17)	/*!< Call states */
-#define SIP_PAGE2_CALL_ONHOLD_ONEDIR	(1 << 17)	/*!< 17: One directional hold */
-#define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(2 << 17)	/*!< 18: Inactive  */
+#define SIP_PAGE2_RTSAVE_SYSNAME 	(1 << 5)
+/* Space for addition of other realtime flags in the future */
+#define SIP_PAGE2_IGNOREREGEXPIRE	(1 << 10)
+#define SIP_PAGE2_DEBUG			(3 << 11)
+#define SIP_PAGE2_DEBUG_CONFIG 		(1 << 11)
+#define SIP_PAGE2_DEBUG_CONSOLE 	(1 << 12)
+#define SIP_PAGE2_DYNAMIC		(1 << 13)	/*!< Dynamic Peers register with Asterisk */
+#define SIP_PAGE2_SELFDESTRUCT		(1 << 14)	/*!< Automatic peers need to destruct themselves */
+#define SIP_PAGE2_VIDEOSUPPORT		(1 << 15)
+#define SIP_PAGE2_ALLOWSUBSCRIBE	(1 << 16)	/*!< Allow subscriptions from this peer? */
+#define SIP_PAGE2_ALLOWOVERLAP		(1 << 17)	/*!< Allow overlap dialing ? */
+#define SIP_PAGE2_SUBSCRIBEMWIONLY	(1 << 18)	/*!< Only issue MWI notification if subscribed to */
+#define SIP_PAGE2_INC_RINGING		(1 << 19)	/*!< Did this connection increment the counter of in-use calls? */
+#define SIP_PAGE2_T38SUPPORT		(7 << 20)	/*!< T38 Fax Passthrough Support */
+#define SIP_PAGE2_T38SUPPORT_UDPTL	(1 << 20)	/*!< 20: T38 Fax Passthrough Support */
+#define SIP_PAGE2_T38SUPPORT_RTP	(2 << 20)	/*!< 21: T38 Fax Passthrough Support */
+#define SIP_PAGE2_T38SUPPORT_TCP	(4 << 20)	/*!< 22: T38 Fax Passthrough Support */
+#define SIP_PAGE2_CALL_ONHOLD		(3 << 23)	/*!< Call states */
+#define SIP_PAGE2_CALL_ONHOLD_ONEDIR	(1 << 23)	/*!< 23: One directional hold */
+#define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(2 << 24)	/*!< 24: Inactive  */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT)
@@ -2082,7 +2085,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 		struct sip_request tmp;
 		parse_copy(&tmp, req);
 		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s - %s", tmp.data, get_header(&tmp, "CSeq"), 
-			tmp.method == SIP_RESPONSE ? tmp.rlPart2 : sip_methods[tmp.method].text);
+			(tmp.method == SIP_RESPONSE || tmp.method == SIP_UNKNOWN) ? tmp.rlPart2 : sip_methods[tmp.method].text);
 	}
 	res = (reliable) ?
 		__sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
@@ -2201,17 +2204,17 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 	
 	if (ast_strlen_zero(sysname))	/* No system name, disable this */
 		sysname = NULL;
-	else
+	else if (ast_test_flag(&global_flags[1], SIP_PAGE2_RTSAVE_SYSNAME))
 		syslabel = "regserver";
 
 	if (fc)
 		ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr,
 			"port", port, "regseconds", regseconds,
-			"username", username, fc, fullcontact, syslabel, sysname, NULL); /* note fc _can_ be NULL */
+			"username", username, fc, fullcontact, syslabel, sysname, NULL); /* note fc and syslabel _can_ be NULL */
 	else
 		ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr,
 			"port", port, "regseconds", regseconds,
-			"username", username, syslabel, sysname, NULL); /* note fc _can_ be NULL */
+			"username", username, syslabel, sysname, NULL); /* note syslabel _can_ be NULL */
 }
 
 /*! \brief Automatically add peer extension to dial plan */
@@ -6400,7 +6403,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 	struct sip_request req;
 	
 	req.method = sipmethod;
-	if (init) {
+	if (init) {		/* Seems like init always is 2 */
 		/* Bump branch even on initial requests */
 		p->branch ^= ast_random();
 		build_via(p);
@@ -9950,6 +9953,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Cache Friends:          %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS) ? "Yes" : "No");
 		ast_cli(fd, "  Update:                 %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_RTUPDATE) ? "Yes" : "No");
 		ast_cli(fd, "  Ignore Reg. Expire:     %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE) ? "Yes" : "No");
+		ast_cli(fd, "  Save sys. name:         %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_RTSAVE_SYSNAME) ? "Yes" : "No");
 		ast_cli(fd, "  Auto Clear:             %d\n", global_rtautoclear);
 	}
 	ast_cli(fd, "\n----\n");
@@ -13895,6 +13899,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 		   get our 200 OK */
 		sip_scheddestroy(p, 15000);
 	}
+	append_history(p, "RegRequest", "%s : Account %s", res ? "Failed": "Succeeded", get_header(req, "To"));
 	return res;
 }
 
@@ -15534,6 +15539,8 @@ static int reload_config(enum channelreloadreason reason)
 			global_allowtransfer = ast_true(v->value) ? TRANSFER_OPENFORALL : TRANSFER_CLOSED;
 		} else if (!strcasecmp(v->name, "rtcachefriends")) {
 			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_RTCACHEFRIENDS);	
+		} else if (!strcasecmp(v->name, "rtsavesysname")) {
+			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_RTSAVE_SYSNAME);	
 		} else if (!strcasecmp(v->name, "rtupdate")) {
 			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_RTUPDATE);	
 		} else if (!strcasecmp(v->name, "ignoreregexpire")) {
