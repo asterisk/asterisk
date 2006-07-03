@@ -1279,6 +1279,7 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 			res = 0;
 		}
 	}
+#ifndef BUSYDETECT_TONEONLY
 	/* If we know the expected busy tone silent-period length, check we are in the range */
 	if (res && (dsp->busy_quietlength > 0)) {
 		if (abs(avgsilence - dsp->busy_quietlength) > (dsp->busy_quietlength*BUSY_PAT_PERCENT/100)) {
@@ -1289,6 +1290,7 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 			res = 0;
 		}
 	}
+#endif
 #if 1
 	if (res)
 		ast_log(LOG_DEBUG, "ast_dsp_busydetect detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
