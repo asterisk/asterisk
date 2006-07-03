@@ -2346,7 +2346,6 @@ struct sla_originate_helper {
 static void *sla_originate(void *data)
 {
 	struct sla_originate_helper *in = data;
-	int res;
 	int reason = 0;
 	struct ast_channel *chan = NULL;
 
@@ -2363,23 +2362,24 @@ static void *sla_originate(void *data)
 
 static void do_invite(struct ast_channel *orig, struct ast_sla *sla, const char *tech, const char *dest, const char *app)
 {
-	struct sla_originate_helper *slal = malloc(sizeof(struct sla_originate_helper));
+	struct sla_originate_helper *slal;
 	pthread_attr_t attr;
 	pthread_t th;
-	if (slal) {
-		memset(slal, 0, sizeof(struct sla_originate_helper));
-		ast_copy_string(slal->tech, tech, sizeof(slal->tech));
-   		ast_copy_string(slal->data, dest, sizeof(slal->data));
-		ast_copy_string(slal->app, app, sizeof(slal->app));
-		ast_copy_string(slal->appdata, sla->name, sizeof(slal->appdata));
-		if (orig->cid.cid_num)
-			ast_copy_string(slal->cid_num, orig->cid.cid_num, sizeof(slal->cid_num));
-		if (orig->cid.cid_name)
-			ast_copy_string(slal->cid_name, orig->cid.cid_name, sizeof(slal->cid_name));
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		ast_pthread_create(&th, &attr, sla_originate, slal);
-	}
+
+	if (!(slal = ast_calloc(1, sizeof(*slal))))
+		return;
+	
+	ast_copy_string(slal->tech, tech, sizeof(slal->tech));
+   	ast_copy_string(slal->data, dest, sizeof(slal->data));
+	ast_copy_string(slal->app, app, sizeof(slal->app));
+	ast_copy_string(slal->appdata, sla->name, sizeof(slal->appdata));
+	if (orig->cid.cid_num)
+		ast_copy_string(slal->cid_num, orig->cid.cid_num, sizeof(slal->cid_num));
+	if (orig->cid.cid_name)
+		ast_copy_string(slal->cid_name, orig->cid.cid_name, sizeof(slal->cid_name));
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	ast_pthread_create(&th, &attr, sla_originate, slal);
 }
 
 static void invite_stations(struct ast_channel *orig, struct ast_sla *sla)
@@ -2431,9 +2431,6 @@ static int sla_exec(struct ast_channel *chan, void *data, int trunk)
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 
-	info = ast_strdupa(data);
-
-	
 	if (args.options)
 		ast_app_parse_options(sla_opts, &confflags, NULL, args.options);
 		
