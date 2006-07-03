@@ -62,6 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/indications.h"
 #include "asterisk/app.h"
 #include "asterisk/features.h"
+#include "asterisk/term.h"
 #include "asterisk/stringfields.h"
 
 #include "chan_misdn_config.h"
@@ -578,15 +579,66 @@ static int misdn_port_down (int fd, int argc, char *argv[])
 	return 0;
 }
 
+static inline void show_config_description (int fd, enum misdn_cfg_elements elem)
+{
+	char section[BUFFERSIZE];
+	char name[BUFFERSIZE];
+	char desc[BUFFERSIZE];
+	char def[BUFFERSIZE];
+	char tmp[BUFFERSIZE];
+
+	misdn_cfg_get_name(elem, tmp, sizeof(tmp));
+	term_color(name, tmp, COLOR_BRWHITE, 0, sizeof(tmp));
+	misdn_cfg_get_desc(elem, desc, sizeof(desc), def, sizeof(def));
+
+	if (elem < MISDN_CFG_LAST)
+		term_color(section, "PORTS SECTION", COLOR_YELLOW, 0, sizeof(section));
+	else
+		term_color(section, "GENERAL SECTION", COLOR_YELLOW, 0, sizeof(section));
+
+	if (*def)
+		ast_cli(fd, "[%s] %s   (Default: %s)\n\t%s\n", section, name, def, desc);
+	else
+		ast_cli(fd, "[%s] %s\n\t%s\n", section, name, desc);
+}
 
 static int misdn_show_config (int fd, int argc, char *argv[])
 {
 	char buffer[BUFFERSIZE];
 	enum misdn_cfg_elements elem;
 	int linebreak;
-
 	int onlyport = -1;
+	int ok = 0;
+
 	if (argc >= 4) {
+		if (!strcmp(argv[3], "description")) {
+			if (argc == 5) {
+				enum misdn_cfg_elements elem = misdn_cfg_get_elem (argv[4]);
+				if (elem == MISDN_CFG_FIRST)
+					ast_cli(fd, "Unknown element: %s\n", argv[4]);
+				else
+					show_config_description(fd, elem);
+				return 0;
+			}
+			return RESULT_SHOWUSAGE;
+		}
+		if (!strcmp(argv[3], "descriptions")) {
+			if ((argc == 4) || ((argc == 5) && !strcmp(argv[4], "general"))) {
+				for (elem = MISDN_GEN_FIRST + 1; elem < MISDN_GEN_LAST; ++elem) {
+					show_config_description(fd, elem);
+					ast_cli(fd, "\n");
+				}
+				ok = 1;
+			}
+			if ((argc == 4) || ((argc == 5) && !strcmp(argv[4], "ports"))) {
+				for (elem = MISDN_CFG_FIRST + 1; elem < MISDN_CFG_LAST; ++elem) {
+					show_config_description(fd, elem);
+					ast_cli(fd, "\n");
+				}
+				ok = 1;
+			}
+			return ok ? 0 : RESULT_SHOWUSAGE;
+		}
 		if (!sscanf(argv[3], "%d", &onlyport) || onlyport < 0) {
 			ast_cli(fd, "Unknown option: %s\n", argv[3]);
 			return RESULT_SHOWUSAGE;
@@ -619,7 +671,7 @@ static int misdn_show_config (int fd, int argc, char *argv[])
 		if (misdn_cfg_is_port_valid(onlyport)) {
 			ast_cli(fd, "[PORT %d]\n", onlyport);
 			for (elem = MISDN_CFG_FIRST + 1, linebreak = 1; elem < MISDN_CFG_LAST; elem++, linebreak++) {
-				misdn_cfg_get_config_string( onlyport, elem, buffer, BUFFERSIZE);
+				misdn_cfg_get_config_string(onlyport, elem, buffer, BUFFERSIZE);
 				ast_cli(fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
 			}	
 			ast_cli(fd, "\n");
@@ -1043,6 +1095,50 @@ static char *complete_debug_port (const char *line, const char *word, int pos, i
 	return NULL;
 }
 
+static char *complete_show_config (const char *line, const char *word, int pos, int state)
+{
+	char buffer[BUFFERSIZE];
+	enum misdn_cfg_elements elem;
+	int wordlen = strlen(word);
+	int which = 0;
+	int port = 0;
+
+	switch (pos) {
+	case 3: if ((!strncmp(word, "description", wordlen)) && (++which > state))
+				return strdup("description");
+			if ((!strncmp(word, "descriptions", wordlen)) && (++which > state))
+				return strdup("descriptions");
+			if ((!strncmp(word, "0", wordlen)) && (++which > state))
+				return strdup("0");
+			while ((port = misdn_cfg_get_next_port(port)) != -1) {
+				snprintf(buffer, sizeof(buffer), "%d", port);
+				if ((!strncmp(word, buffer, wordlen)) && (++which > state)) {
+					return strdup(buffer);
+				}
+			}
+			break;
+	case 4:
+			if (strstr(line, "description ")) {
+				for (elem = MISDN_CFG_FIRST + 1; elem < MISDN_GEN_LAST; ++elem) {
+					if ((elem == MISDN_CFG_LAST) || (elem == MISDN_GEN_FIRST))
+						continue;
+					misdn_cfg_get_name(elem, buffer, BUFFERSIZE);
+					if (!wordlen || !strncmp(word, buffer, wordlen)) {
+						if (++which > state)
+							return strdup(buffer);
+					}
+				}
+			} else if (strstr(line, "descriptions ")) {
+				if ((!wordlen || !strncmp(word, "general", wordlen)) && (++which > state))
+					return strdup("general");
+				if ((!wordlen || !strncmp(word, "ports", wordlen)) && (++which > state))
+					return strdup("ports");
+			}
+			break;
+	}
+	return NULL;
+}
+
 static struct ast_cli_entry cli_send_cd =
 { {"misdn","send","calldeflect", NULL},
   misdn_send_cd,
@@ -1083,7 +1179,9 @@ static struct ast_cli_entry cli_show_config =
 { {"misdn","show","config", NULL},
   misdn_show_config,
   "Shows internal mISDN config, read from cfg-file", 
-  "Usage: misdn show config [port | 0]\n       use 0 to only print the general config.\n"
+  "Usage: misdn show config [<port> | description <config element> | descriptions [general|ports]]\n"
+  "       Use 0 for <port> to only print the general config.\n",
+  complete_show_config
 };
  
 static struct ast_cli_entry cli_reload =
@@ -3127,7 +3225,7 @@ static void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel*bc, st
 
 void import_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch)
 {
-	char *tmp;
+	const char *tmp;
 	tmp=pbx_builtin_getvar_helper(chan,"MISDN_PID");
 	if (tmp) {
 		ch->other_pid=atoi(tmp);

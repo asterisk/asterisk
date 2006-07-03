@@ -60,6 +60,7 @@ enum misdn_cfg_elements {
 	MISDN_CFG_MAX_OUT,              /* int */
 	MISDN_CFG_MSNS,                /* char[] */
 	MISDN_CFG_PTP,                 /* int (bool) */
+	MISDN_CFG_FAXDETECT,           /* char[] */
 	MISDN_CFG_LAST,
 	
 	/* general config items */
@@ -95,6 +96,15 @@ void misdn_cfg_update_ptp( void );
  * value is not available, or the buffer is too small, the buffer will be nulled (in 
  * case of a char* only its first byte will be nulled). */
 void misdn_cfg_get(int port, enum misdn_cfg_elements elem, void* buf, int bufsize);
+
+/* returns the enum element for the given name, returns MISDN_CFG_FIRST if none was found */
+enum misdn_cfg_elements misdn_cfg_get_elem (char *name);
+
+/* fills the buffer with the name of the given config element */
+void misdn_cfg_get_name (enum misdn_cfg_elements elem, void *buf, int bufsize);
+
+/* fills the buffer with the description of the given config element */
+void misdn_cfg_get_desc (enum misdn_cfg_elements elem, void *buf, int bufsize, void *buf_default, int bufsize_default);
 
 /* fills the buffer with a ',' separated list of all active ports */
 void misdn_cfg_get_ports_string(char *ports);

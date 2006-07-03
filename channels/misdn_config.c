@@ -84,62 +84,225 @@ struct misdn_cfg_spec {
 	enum misdn_cfg_type type;
 	char def[BUFFERSIZE];
 	int boolint_def;
+	char desc[BUFFERSIZE];
 };
 
+
+static const char ports_description[] =
+	"Define your ports, e.g. 1,2 (depends on mISDN-driver loading order).";
+
 static const struct misdn_cfg_spec port_spec[] = {
-	{ "name", MISDN_CFG_GROUPNAME, MISDN_CTYPE_STR, "default", NONE },
-	{ "allowed_bearers", MISDN_CFG_ALLOWED_BEARERS, MISDN_CTYPE_STR, "all", NONE },
-	{ "rxgain", MISDN_CFG_RXGAIN, MISDN_CTYPE_INT, "0", NONE },
-	{ "txgain", MISDN_CFG_TXGAIN, MISDN_CTYPE_INT, "0", NONE },
-	{ "te_choose_channel", MISDN_CFG_TE_CHOOSE_CHANNEL, MISDN_CTYPE_BOOL, "no", NONE },
-	{ "far_alerting", MISDN_CFG_FAR_ALERTING, MISDN_CTYPE_BOOL, "no", NONE },
-	{ "pmp_l1_check", MISDN_CFG_PMP_L1_CHECK, MISDN_CTYPE_BOOL, "yes", NONE },
-	{ "hdlc", MISDN_CFG_HDLC, MISDN_CTYPE_BOOL, "no", NONE },
-	{ "context", MISDN_CFG_CONTEXT, MISDN_CTYPE_STR, "default", NONE },
-	{ "language", MISDN_CFG_LANGUAGE, MISDN_CTYPE_STR, "en", NONE },
-	{ "musicclass", MISDN_CFG_MUSICCLASS, MISDN_CTYPE_STR, "default", NONE },
-	{ "callerid", MISDN_CFG_CALLERID, MISDN_CTYPE_STR, "", NONE },
-	{ "method", MISDN_CFG_METHOD, MISDN_CTYPE_STR, "standard", NONE },
-	{ "dialplan", MISDN_CFG_DIALPLAN, MISDN_CTYPE_INT, "0", NONE },
-	{ "localdialplan", MISDN_CFG_LOCALDIALPLAN, MISDN_CTYPE_INT, "0", NONE },
-	{ "cpndialplan", MISDN_CFG_CPNDIALPLAN, MISDN_CTYPE_INT, "0", NONE },
-	{ "nationalprefix", MISDN_CFG_NATPREFIX, MISDN_CTYPE_STR, "0", NONE },
-	{ "internationalprefix", MISDN_CFG_INTERNATPREFIX, MISDN_CTYPE_STR, "00", NONE },
-	{ "presentation", MISDN_CFG_PRES, MISDN_CTYPE_INT, "-1", NONE },
-	{ "screen", MISDN_CFG_SCREEN, MISDN_CTYPE_INT, "-1", NONE },
-	{ "always_immediate", MISDN_CFG_ALWAYS_IMMEDIATE, MISDN_CTYPE_BOOL, "no", NONE },
-	{ "immediate", MISDN_CFG_IMMEDIATE, MISDN_CTYPE_BOOL, "no", NONE },
-	{ "senddtmf", MISDN_CFG_SENDDTMF, MISDN_CTYPE_BOOL, "no", NONE },
-	{ "hold_allowed", MISDN_CFG_HOLD_ALLOWED, MISDN_CTYPE_BOOL, "no", NONE },
-	{ "early_bconnect", MISDN_CFG_EARLY_BCONNECT, MISDN_CTYPE_BOOL, "yes", NONE },
-	{ "incoming_early_audio", MISDN_CFG_INCOMING_EARLY_AUDIO, MISDN_CTYPE_BOOL, "no", NONE },
-	{ "echocancel", MISDN_CFG_ECHOCANCEL, MISDN_CTYPE_BOOLINT, "0", 128 },
-	{ "echocancelwhenbridged", MISDN_CFG_ECHOCANCELWHENBRIDGED, MISDN_CTYPE_BOOL, "no", NONE },
-	{ "echotraining", MISDN_CFG_ECHOTRAINING, MISDN_CTYPE_BOOLINT, "0", 2000 },
-	{ "need_more_infos", MISDN_CFG_NEED_MORE_INFOS, MISDN_CTYPE_BOOL, "0", NONE },
-	{ "jitterbuffer", MISDN_CFG_JITTERBUFFER, MISDN_CTYPE_INT, "4000", NONE },
-	{ "jitterbuffer_upper_threshold", MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD, MISDN_CTYPE_INT, "0", NONE },
-	{ "callgroup", MISDN_CFG_CALLGROUP, MISDN_CTYPE_ASTGROUP, NO_DEFAULT, NONE },
-	{ "pickupgroup", MISDN_CFG_PICKUPGROUP, MISDN_CTYPE_ASTGROUP, NO_DEFAULT, NONE },
-	{ "max_incoming", MISDN_CFG_MAX_IN, MISDN_CTYPE_INT, "-1", NONE },
-	{ "max_outgoing", MISDN_CFG_MAX_OUT, MISDN_CTYPE_INT, "-1", NONE },
-	{ "msns", MISDN_CFG_MSNS, MISDN_CTYPE_MSNLIST, NO_DEFAULT, NONE }
+	{ "name", MISDN_CFG_GROUPNAME, MISDN_CTYPE_STR, "default", NONE,
+		"Name of the portgroup." },
+	{ "allowed_bearers", MISDN_CFG_ALLOWED_BEARERS, MISDN_CTYPE_STR, "all", NONE,
+		"Here you can define which bearers should be allowed." },
+	{ "rxgain", MISDN_CFG_RXGAIN, MISDN_CTYPE_INT, "0", NONE,
+		"Set this between -8 and 8 to change the RX Gain." },
+	{ "txgain", MISDN_CFG_TXGAIN, MISDN_CTYPE_INT, "0", NONE,
+		"Set this between -8 and 8 to change the TX Gain." },
+	{ "te_choose_channel", MISDN_CFG_TE_CHOOSE_CHANNEL, MISDN_CTYPE_BOOL, "no", NONE,
+		"Some telcos espacially in NL seem to need this set to yes,\n"
+		"\talso in switzerland this seems to be important." },
+	{ "far_alerting", MISDN_CFG_FAR_ALERTING, MISDN_CTYPE_BOOL, "no", NONE,
+		"If we should generate ringing for chan_sip and others." },
+	{ "pmp_l1_check", MISDN_CFG_PMP_L1_CHECK, MISDN_CTYPE_BOOL, "yes", NONE,
+		"This option defines, if chan_misdn should check the L1 on a PMP\n"
+		"\tbefore makeing a group call on it. The L1 may go down for PMP Ports\n"
+		"\tso we might need this.\n"
+		"\tBut be aware! a broken or plugged off cable might be used for a group call\n"
+		"\tas well, since chan_misdn has no chance to distinguish if the L1 is down\n"
+		"\tbecause of a lost Link or because the Provider shut it down..." },
+	{ "hdlc", MISDN_CFG_HDLC, MISDN_CTYPE_BOOL, "no", NONE,
+		"Set this to yes, if you want to bridge a mISDN data channel to\n"
+		"\tanother channel type or to an application." },
+	{ "context", MISDN_CFG_CONTEXT, MISDN_CTYPE_STR, "default", NONE,
+		"Context to use for incoming calls." },
+	{ "language", MISDN_CFG_LANGUAGE, MISDN_CTYPE_STR, "en", NONE,
+		"Language." },
+	{ "musicclass", MISDN_CFG_MUSICCLASS, MISDN_CTYPE_STR, "default", NONE,
+		"Sets the musiconhold class." },
+	{ "callerid", MISDN_CFG_CALLERID, MISDN_CTYPE_STR, "", NONE,
+		"Sets the caller ID." },
+	{ "method", MISDN_CFG_METHOD, MISDN_CTYPE_STR, "standard", NONE,
+		"Sets the method to use for channel selection:\n"
+		"\t  standard    - always choose the first free channel with the lowest number\n"
+		"\t  round_robin - use the round robin algorithm to select a channel. use this\n"
+		"\t                if you want to balance your load." },
+	{ "dialplan", MISDN_CFG_DIALPLAN, MISDN_CTYPE_INT, "0", NONE,
+		"Dialplan means Type Of Number in ISDN Terms (for outgoing calls)\n"
+		"\n"
+		"\tThere are different types of the dialplan:\n"
+		"\n"
+		"\tdialplan -> outgoing Number\n"
+		"\tlocaldialplan -> callerid\n"
+		"\tcpndialplan -> connected party number\n"
+		"\n"
+		"\tdialplan options:\n"
+		"\n"
+		"\t0 - unknown\n"
+		"\t1 - International\n"
+		"\t2 - National\n"
+		"\t4 - Subscriber\n"
+		"\n"
+		"\tThis setting is used for outgoing calls." },
+	{ "localdialplan", MISDN_CFG_LOCALDIALPLAN, MISDN_CTYPE_INT, "0", NONE,
+		"Dialplan means Type Of Number in ISDN Terms (for outgoing calls)\n"
+		"\n"
+		"\tThere are different types of the dialplan:\n"
+		"\n"
+		"\tdialplan -> outgoing Number\n"
+		"\tlocaldialplan -> callerid\n"
+		"\tcpndialplan -> connected party number\n"
+		"\n"
+		"\tdialplan options:\n"
+		"\n"
+		"\t0 - unknown\n"
+		"\t1 - International\n"
+		"\t2 - National\n"
+		"\t4 - Subscriber\n"
+		"\n"
+		"\tThis setting is used for outgoing calls" },
+	{ "cpndialplan", MISDN_CFG_CPNDIALPLAN, MISDN_CTYPE_INT, "0", NONE,
+		"Dialplan means Type Of Number in ISDN Terms (for outgoing calls)\n"
+		"\n"
+		"\tThere are different types of the dialplan:\n"
+		"\n"
+		"\tdialplan -> outgoing Number\n"
+		"\tlocaldialplan -> callerid\n"
+		"\tcpndialplan -> connected party number\n"
+		"\n"
+		"\tdialplan options:\n"
+		"\n"
+		"\t0 - unknown\n"
+		"\t1 - International\n"
+		"\t2 - National\n"
+		"\t4 - Subscriber\n"
+		"\n"
+		"\tThis setting is used for outgoing calls." },
+	{ "nationalprefix", MISDN_CFG_NATPREFIX, MISDN_CTYPE_STR, "0", NONE,
+		"Prefix for national, this is put before the\n"
+		"\toad if an according dialplan is set by the other end." },
+	{ "internationalprefix", MISDN_CFG_INTERNATPREFIX, MISDN_CTYPE_STR, "00", NONE,
+		"Prefix for international, this is put before the\n"
+		"\toad if an according dialplan is set by the other end." },
+	{ "presentation", MISDN_CFG_PRES, MISDN_CTYPE_INT, "-1", NONE,
+		"These (presentation and screen) are the exact isdn screening and presentation\n"
+		"\tindicators.\n"
+		"\tIf -1 is given for both values, the presentation indicators are used from\n"
+		"\tAsterisks SetCallerPres application.\n"
+		"\n"
+		"\tscreen=0, presentation=0 -> callerid presented not screened\n"
+		"\tscreen=1, presentation=1 -> callerid presented but screened (the remote end doesn't see it!)" },
+	{ "screen", MISDN_CFG_SCREEN, MISDN_CTYPE_INT, "-1", NONE,
+		"These (presentation and screen) are the exact isdn screening and presentation\n"
+		"\tindicators.\n"
+		"\tIf -1 is given for both values, the presentation indicators are used from\n"
+		"\tAsterisks SetCallerPres application.\n"
+		"\n"
+		"\tscreen=0, presentation=0 -> callerid presented not screened\n"
+		"\tscreen=1, presentation=1 -> callerid presented but screened (the remote end doesn't see it!)" },
+	{ "always_immediate", MISDN_CFG_ALWAYS_IMMEDIATE, MISDN_CTYPE_BOOL, "no", NONE,
+		"Enable this to get into the s dialplan-extension.\n"
+		"\tThere you can use DigitTimeout if you can't or don't want to use\n"
+		"\tisdn overlap dial.\n"
+		"\tNOTE: This will jump into the s extension for every exten!" },
+	{ "immediate", MISDN_CFG_IMMEDIATE, MISDN_CTYPE_BOOL, "no", NONE,
+		"Enable this if you want callers which called exactly the base\n"
+		"\tnumber (so no extension is set) to jump into the s extension.\n"
+		"\tIf the user dials something more, it jumps to the correct extension\n"
+		"\tinstead." },
+	{ "senddtmf", MISDN_CFG_SENDDTMF, MISDN_CTYPE_BOOL, "no", NONE,
+		"Enable this if we should produce DTMF Tones ourselves." },
+	{ "hold_allowed", MISDN_CFG_HOLD_ALLOWED, MISDN_CTYPE_BOOL, "no", NONE,
+		"Enable this to have support for hold and retrieve.\n" },
+	{ "early_bconnect", MISDN_CFG_EARLY_BCONNECT, MISDN_CTYPE_BOOL, "yes", NONE,
+		"Disable this if you don't mind correct handling of Progress Indicators." },
+	{ "incoming_early_audio", MISDN_CFG_INCOMING_EARLY_AUDIO, MISDN_CTYPE_BOOL, "no", NONE,
+		"Turn this on if you like to send Tone Indications to a Incoming\n"
+		"\tisdn channel on a TE Port. Rarely used, only if the Telco allows\n"
+		"\tyou to send indications by yourself, normally the Telco sends the\n"
+		"\tindications to the remote party." },
+	{ "echocancel", MISDN_CFG_ECHOCANCEL, MISDN_CTYPE_BOOLINT, "0", 128,
+		"This enables echocancellation, with the given number of taps.\n"
+		"\tBe aware, move this setting only to outgoing portgroups!\n"
+		"\tA value of zero turns echocancellation off.\n"
+		"\n"
+		"\tPossible values are: 0,32,64,128,256,yes(=128),no(=0)" },
+	{ "echocancelwhenbridged", MISDN_CFG_ECHOCANCELWHENBRIDGED, MISDN_CTYPE_BOOL, "no", NONE,
+		"This disables echocancellation when the call is bridged between\n"
+		"\tmISDN channels" },
+	{ "echotraining", MISDN_CFG_ECHOTRAINING, MISDN_CTYPE_BOOLINT, "0", 2000,
+		"Set this to no to disable echotraining. You can enter a number > 10.\n"
+		"\tThe value is a multiple of 0.125 ms.\n"
+		"\n"
+		"\tyes = 2000\n"
+		"\tno = 0" },
+	{ "need_more_infos", MISDN_CFG_NEED_MORE_INFOS, MISDN_CTYPE_BOOL, "0", NONE,
+		"Send Setup_Acknowledge on incoming calls anyway (instead of PROCEEDING),\n"
+		"\tthis requests additional Infos, so we can waitfordigits without much\n"
+		"\tissues. This works only for PTP Ports" },
+	{ "jitterbuffer", MISDN_CFG_JITTERBUFFER, MISDN_CTYPE_INT, "4000", NONE,
+		"The jitterbuffer." },
+	{ "jitterbuffer_upper_threshold", MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD, MISDN_CTYPE_INT, "0", NONE,
+		"Change this threshold to enable dejitter functionality." },
+	{ "callgroup", MISDN_CFG_CALLGROUP, MISDN_CTYPE_ASTGROUP, NO_DEFAULT, NONE,
+		"Callgroup." },
+	{ "pickupgroup", MISDN_CFG_PICKUPGROUP, MISDN_CTYPE_ASTGROUP, NO_DEFAULT, NONE,
+		"Pickupgroup." },
+	{ "max_incoming", MISDN_CFG_MAX_IN, MISDN_CTYPE_INT, "-1", NONE,
+		"Defines the maximum amount of incoming calls per port for this group.\n"
+		"\tCalls which exceed the maximum will be marked with the channel varible\n"
+		"\tMAX_OVERFLOW. It will contain the amount of overflowed calls" },
+	{ "max_outgoing", MISDN_CFG_MAX_OUT, MISDN_CTYPE_INT, "-1", NONE,
+		"Defines the maximum amount of outgoing calls per port for this group\n"
+		"\texceeding calls will be rejected" },
+	{ "faxdetect", MISDN_CFG_FAXDETECT, MISDN_CTYPE_STR, "no", NONE,
+		"Context to jump into if we detect an incoming fax." },
+	{ "msns", MISDN_CFG_MSNS, MISDN_CTYPE_MSNLIST, NO_DEFAULT, NONE,
+		"MSN's for TE ports, listen on those numbers on the above ports, and\n"
+		"\tindicate the incoming calls to Asterisk.\n"
+		"\tHere you can give a comma seperated list, or simply an '*' for any msn." },
 };
 
 static const struct misdn_cfg_spec gen_spec[] = {
-	{ "debug", MISDN_GEN_DEBUG, MISDN_CTYPE_INT, "0", NONE },
-	{ "misdn_init", MISDN_GEN_MISDN_INIT, MISDN_CTYPE_STR, "/etc/misdn-init.conf", NONE },
-	{ "tracefile", MISDN_GEN_TRACEFILE, MISDN_CTYPE_STR, "/var/log/asterisk/misdn.log", NONE },
-	{ "bridging", MISDN_GEN_BRIDGING, MISDN_CTYPE_BOOL, "yes", NONE },
-	{ "stop_tone_after_first_digit", MISDN_GEN_STOP_TONE, MISDN_CTYPE_BOOL, "yes", NONE },
-	{ "append_digits2exten", MISDN_GEN_APPEND_DIGITS2EXTEN, MISDN_CTYPE_BOOL, "yes", NONE },
-	{ "dynamic_crypt", MISDN_GEN_DYNAMIC_CRYPT, MISDN_CTYPE_BOOL, "no", NONE },
-	{ "crypt_prefix", MISDN_GEN_CRYPT_PREFIX, MISDN_CTYPE_STR, NO_DEFAULT, NONE },
-	{ "crypt_keys", MISDN_GEN_CRYPT_KEYS, MISDN_CTYPE_STR, NO_DEFAULT, NONE },
-	{ "l1watcher_timeout", MISDN_GEN_L1_TIMEOUT, MISDN_CTYPE_INT, "0", NONE },
-	{ "ntdebugflags", MISDN_GEN_NTDEBUGFLAGS, MISDN_CTYPE_INT, "0", NONE },
-	{ "ntdebugfile", MISDN_GEN_NTDEBUGFILE, MISDN_CTYPE_STR, "/var/log/misdn-nt.log", NONE }
+	{ "debug", MISDN_GEN_DEBUG, MISDN_CTYPE_INT, "0", NONE,
+		"Sets the debugging flag:\n"
+		"\t0 - No Debug\n"
+		"\t1 - mISDN Messages and * - Messages, and * - State changes\n"
+		"\t2 - Messages + Message specific Informations (e.g. bearer capability)\n"
+		"\t3 - very Verbose, the above + lots of Driver specific infos\n"
+		"\t4 - even more Verbose than 3" },
+	{ "misdn_init", MISDN_GEN_MISDN_INIT, MISDN_CTYPE_STR, "/etc/misdn-init.conf", NONE,
+		"Set the path to the misdn-init.conf (for nt_ptp mode checking)." },
+	{ "tracefile", MISDN_GEN_TRACEFILE, MISDN_CTYPE_STR, "/var/log/asterisk/misdn.log", NONE,
+		"Set the path to the massively growing trace file, if you want that." },
+	{ "bridging", MISDN_GEN_BRIDGING, MISDN_CTYPE_BOOL, "yes", NONE,
+		"Set this to yes if you want mISDN_dsp to bridge the calls in HW." },
+	{ "stop_tone_after_first_digit", MISDN_GEN_STOP_TONE, MISDN_CTYPE_BOOL, "yes", NONE,
+		"Stops dialtone after getting first digit on NT Port." },
+	{ "append_digits2exten", MISDN_GEN_APPEND_DIGITS2EXTEN, MISDN_CTYPE_BOOL, "yes", NONE,
+		"Wether to append overlapdialed Digits to Extension or not." },
+	{ "dynamic_crypt", MISDN_GEN_DYNAMIC_CRYPT, MISDN_CTYPE_BOOL, "no", NONE,
+		"Wether to look out for dynamic crypting attempts." },
+	{ "crypt_prefix", MISDN_GEN_CRYPT_PREFIX, MISDN_CTYPE_STR, NO_DEFAULT, NONE,
+		"What is used for crypting Protocol." },
+	{ "crypt_keys", MISDN_GEN_CRYPT_KEYS, MISDN_CTYPE_STR, NO_DEFAULT, NONE,
+		"Keys for cryption, you reference them in the dialplan\n"
+		"\tLater also in dynamic encr." },
+	{ "l1watcher_timeout", MISDN_GEN_L1_TIMEOUT, MISDN_CTYPE_INT, "0", NONE,
+		"Watches the L1s of every port. If one l1 is down it tries to\n"
+		"\tget it up. The timeout is given in seconds. with 0 as value it\n"
+		"\tdoes not watch the l1 at all\n"
+		"\n"
+		"\tThis option is only read at loading time of chan_misdn, which\n"
+		"\tmeans you need to unload and load chan_misdn to change the value,\n"
+	  "\tan Asterisk restart should do the trick." },
+	{ "ntdebugflags", MISDN_GEN_NTDEBUGFLAGS, MISDN_CTYPE_INT, "0", NONE,
+	  "no description yet"},
+	{ "ntdebugfile", MISDN_GEN_NTDEBUGFILE, MISDN_CTYPE_STR, "/var/log/misdn-nt.log", NONE,
+	  "no description yet" }
 };
+
 
 /* array of port configs, default is at position 0. */
 static union misdn_cfg_pt **port_cfg;
@@ -321,6 +484,87 @@ void misdn_cfg_get (int port, enum misdn_cfg_elements elem, void *buf, int bufsi
 	misdn_cfg_unlock();
 }
 
+enum misdn_cfg_elements misdn_cfg_get_elem (char *name)
+{
+	int pos;
+
+	/* here comes a hack to replace the (not existing) "name" elemet with the "ports" element */
+	if (!strcmp(name, "ports"))
+		return MISDN_CFG_GROUPNAME;
+	if (!strcmp(name, "name"))
+		return MISDN_CFG_FIRST;
+
+	pos = get_cfg_position (name, PORT_CFG);
+	if (pos >= 0)
+		return port_spec[pos].elem;
+	
+	pos = get_cfg_position (name, GEN_CFG);
+	if (pos >= 0)
+		return gen_spec[pos].elem;
+	
+	return MISDN_CFG_FIRST;
+}
+
+void misdn_cfg_get_name (enum misdn_cfg_elements elem, void *buf, int bufsize)
+{
+	struct misdn_cfg_spec *spec = NULL;
+	int place = map[elem];
+
+	/* the ptp hack */
+	if (elem == MISDN_CFG_PTP) {
+		memset(buf, 0, 1);
+		return;
+	}
+	
+	/* here comes a hack to replace the (not existing) "name" elemet with the "ports" element */
+	if (elem == MISDN_CFG_GROUPNAME) {
+		if (!snprintf(buf, bufsize, "ports"))
+			memset(buf, 0, 1);
+		return;
+	}
+	
+	if ((elem > MISDN_CFG_FIRST) && (elem < MISDN_CFG_LAST))
+		spec = (struct misdn_cfg_spec *)port_spec;
+	else if ((elem > MISDN_GEN_FIRST) && (elem < MISDN_GEN_LAST))
+		spec = (struct misdn_cfg_spec *)gen_spec;
+
+	if (!spec || !memccpy(buf, spec[place].name, 0, bufsize))
+		memset(buf, 0, 1);
+}
+
+void misdn_cfg_get_desc (enum misdn_cfg_elements elem, void *buf, int bufsize, void *buf_default, int bufsize_default)
+{
+	int place = map[elem];
+	struct misdn_cfg_spec *spec = NULL;
+
+	/* here comes a hack to replace the (not existing) "name" elemet with the "ports" element */
+	if (elem == MISDN_CFG_GROUPNAME) {
+		if (!memccpy(buf, ports_description, 0, bufsize))
+			memset(buf, 0, 1);
+		if (buf_default && bufsize_default)
+			memset(buf_default, 0, 1);
+		return;
+	}
+
+	if ((elem > MISDN_CFG_FIRST) && (elem < MISDN_CFG_LAST))
+		spec = (struct misdn_cfg_spec *)port_spec;
+	else if ((elem > MISDN_GEN_FIRST) && (elem < MISDN_GEN_LAST))
+		spec = (struct misdn_cfg_spec *)gen_spec;
+		
+	if (!spec || !spec[place].desc)
+		memset(buf, 0, 1);
+	else {
+		if (!memccpy(buf, spec[place].desc, 0, bufsize))
+			memset(buf, 0, 1);
+		if (buf_default && bufsize) {
+			if (!strcmp(spec[place].def, NO_DEFAULT))
+				memset(buf_default, 0, 1);
+			else if (!memccpy(buf_default, spec[place].def, 0, bufsize_default))
+				memset(buf_default, 0, 1);
+		}
+	}
+}
+
 int misdn_cfg_is_msn_valid (int port, char* msn)
 {
 	int re = 0;
@@ -348,7 +592,9 @@ int misdn_cfg_is_msn_valid (int port, char* msn)
 
 int misdn_cfg_is_port_valid (int port)
 {
-	return (port >= 1 && port <= max_ports);
+	int gn = map[MISDN_CFG_GROUPNAME];
+
+	return (port >= 1 && port <= max_ports && port_cfg[port][gn].str);
 }
 
 int misdn_cfg_is_group_method (char *group, enum misdn_cfg_method meth)
