@@ -1779,6 +1779,9 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 
 	ast_setstate(ast, AST_STATE_DIALING);
 	ast->hangupcause=16;
+	
+	if (newbc->nt) stop_bc_tones(ch);
+	
 	return 0; 
 }
 
@@ -1945,9 +1948,8 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 		p->bc->out_cause=17;
 		if (p->state != MISDN_CONNECTED) {
 			misdn_lib_send_event( p->bc, EVENT_DISCONNECT);
-			tone_indicate(p, TONE_BUSY);
+			return -1;
 		} else {
-
 			chan_misdn_log(-1, p->bc->port, " --> !! Got Busy in Connected State !?! ast:%s\n", ast->name);
 		}
 		break;
@@ -1961,7 +1963,7 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 				break;
 			case MISDN_CONNECTED:
 				chan_misdn_log(1, p->bc->port, " --> * IND :\tringing pid:%d but Connected, so just send TONE_ALERTING without state changes \n",p->bc?p->bc->pid:-1);
-				tone_indicate(p, TONE_ALERTING);
+				return -1;
 				break;
 			default:
 				p->state=MISDN_ALERTING;
@@ -1987,13 +1989,13 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 
 				}
 
+				chan_misdn_log(1, p->bc->port, " --> * SEND: State Ring pid:%d\n",p->bc?p->bc->pid:-1);
+				ast_setstate(ast,AST_STATE_RINGING);
 			
 				if ( !p->bc->nt && (p->orginator==ORG_MISDN) && !p->incoming_early_audio ) 
 					chan_misdn_log(1,p->bc->port, " --> incoming_early_audio off\n");
 				else 
-					 tone_indicate(p, TONE_ALERTING);
-				chan_misdn_log(1, p->bc->port, " --> * SEND: State Ring pid:%d\n",p->bc?p->bc->pid:-1);
-				ast_setstate(ast,AST_STATE_RINGING);
+					return -1;
 		}
 		break;
 	case AST_CONTROL_ANSWER:

@@ -1878,7 +1878,9 @@ handle_event_nt(void *dat, void *arg)
 			}
 			else cb_log(-1, stack->port, "Couldnt find BC so I couldnt remove the Process!!!! this is a bad port.\n");
 	
-			handle_cr(stack, &frm);
+			if (handle_cr(stack, &frm)<0) {
+			}
+
 			free_msg(msg);
 			return 0 ;
 		}
