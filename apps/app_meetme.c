@@ -288,6 +288,7 @@ static const char *descripslat =
 
 LOCAL_USER_DECL;
 
+/*! \brief The MeetMe Conference object */
 struct ast_conference {
 	ast_mutex_t playlock;                   /*!< Conference specific lock (players) */
 	ast_mutex_t listenlock;                 /*!< Conference specific lock (listeners) */
@@ -338,6 +339,7 @@ struct ast_conf_user {
 	AST_LIST_ENTRY(ast_conf_user) list;
 };
 
+/*! SLA station - one device in an SLA configuration */
 struct ast_sla_station {
 	ASTOBJ_COMPONENTS(struct ast_sla_station);
 	char *dest;
@@ -348,19 +350,22 @@ struct ast_sla_station_box {
 	ASTOBJ_CONTAINER_COMPONENTS(struct ast_sla_station);
 };
 
+/*! SLA - Shared Line Apperance object. These consist of one trunk (outbound line)
+	and stations that receive incoming calls and place outbound calls over the trunk 
+*/
 struct ast_sla {
 	ASTOBJ_COMPONENTS (struct ast_sla);
-	struct ast_sla_station_box stations;
-	char confname[80];
-	char trunkdest[256];
-	char trunktech[20];
+	struct ast_sla_station_box stations;	/*!< Stations connected to this SLA */
+	char confname[80];	/*!< Name for this SLA bridge */
+	char trunkdest[256];	/*!< Device (channel) identifier for the trunk line */
+	char trunktech[20];	/*!< Technology used for the trunk (channel driver) */
 };
 
 struct ast_sla_box {
 	ASTOBJ_CONTAINER_COMPONENTS(struct ast_sla);
 } slas;
 
-static int audio_buffers;			/* The number of audio buffers to be allocated on pseudo channels
+static int audio_buffers;			/*!< The number of audio buffers to be allocated on pseudo channels
 						   when in a conference
 						*/
 /*! The number of audio buffers to be allocated on pseudo channels
@@ -653,6 +658,7 @@ static int confs_show(int fd, int argc, char **argv)
 	return RESULT_SUCCESS;
 }
 
+/*! \brief CLI command for showing SLAs */
 static int sla_show(int fd, int argc, char *argv[]) 
 {
 	struct ast_sla *sla;
@@ -664,12 +670,12 @@ static int sla_show(int fd, int argc, char *argv[])
 		ASTOBJ_RDLOCK(iterator);
 		ast_cli(fd, "SLA %s\n", iterator->name);
 		if (ast_strlen_zero(iterator->trunkdest) || ast_strlen_zero(iterator->trunktech))
-			ast_cli(fd, "Trunk => <unspecified>\n");
+			ast_cli(fd, "   Trunk => <unspecified>\n");
 		else
-			ast_cli(fd, "Trunk => %s/%s\n", iterator->trunktech, iterator->trunkdest);
+			ast_cli(fd, "   Trunk => %s/%s\n", iterator->trunktech, iterator->trunkdest);
 		sla = iterator;
 		ASTOBJ_CONTAINER_TRAVERSE(&sla->stations, 1, {
-			ast_cli(fd, "Station: %s/%s\n", iterator->tech, iterator->dest);
+			ast_cli(fd, "   Station: %s/%s\n", iterator->tech, iterator->dest);
 		});
 		ASTOBJ_UNLOCK(iterator);
 	});
@@ -2360,6 +2366,7 @@ static void *sla_originate(void *data)
 	return NULL;
 }
 
+/*! Call in stations and trunk to the SLA */
 static void do_invite(struct ast_channel *orig, struct ast_sla *sla, const char *tech, const char *dest, const char *app)
 {
 	struct sla_originate_helper *slal;
@@ -2827,10 +2834,12 @@ static void load_config_meetme(void)
 	ast_config_destroy(cfg);
 }
 
+/*! Append SLA station to station list */
 static void append_station(struct ast_sla *sla, const char *station)
 {
 	struct ast_sla_station *s;
 	char *c;
+
 	s = ast_calloc(1, sizeof(struct ast_sla_station) + strlen(station) + 2);
 	if (s) {
 		ASTOBJ_INIT(s);
@@ -2847,9 +2856,11 @@ static void append_station(struct ast_sla *sla, const char *station)
 	}
 }
 
+/*! Parse SLA configuration file and create objects */
 static void parse_sla(const char *cat, struct ast_variable *v)
 {
 	struct ast_sla *sla;
+
 	sla = ASTOBJ_CONTAINER_FIND(&slas, cat);
 	if (!sla) {
 		sla = ast_calloc(1, sizeof(struct ast_sla));
@@ -2880,6 +2891,7 @@ static void parse_sla(const char *cat, struct ast_variable *v)
 	}
 }
 
+/*! If there is a SLA configuration file, parse it */
 static void load_config_sla(void)
 {
 	char *cat;
