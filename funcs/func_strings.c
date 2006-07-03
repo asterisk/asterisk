@@ -119,6 +119,11 @@ static int regex(struct ast_channel *chan, char *cmd, char *parse, char *buf,
 
 	AST_NONSTANDARD_APP_ARGS(args, parse, '"');
 
+	if (args.argc != 3) {
+		ast_log(LOG_ERROR, "Unexpected arguments: should have been in the form '\"<regex>\" <string>'\n");
+		return -1;
+	}
+
 	ast_log(LOG_DEBUG, "FUNCTION REGEX (%s)(%s)\n", args.reg, args.str);
 
 	if ((errcode = regcomp(&regexbuf, args.reg, REG_EXTENDED | REG_NOSUB))) {
