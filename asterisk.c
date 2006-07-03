@@ -839,6 +839,7 @@ static void *listener(void *unused)
 		fds[0].fd = ast_socket;
 		fds[0].events = POLLIN;
 		s = poll(fds, 1, -1);
+		pthread_testcancel();
 		if (s < 0) {
 			if (errno != EINTR)
 				ast_log(LOG_WARNING, "poll returned error: %s\n", strerror(errno));
@@ -1152,10 +1153,10 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		ast_log(LOG_DEBUG, "Asterisk ending (%d).\n", num);
 	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", ast_active_channels() ? "Uncleanly" : "Cleanly", restart ? "True" : "False");
 	if (ast_socket > -1) {
+		pthread_cancel(lthread);
 		close(ast_socket);
 		ast_socket = -1;
 		unlink(ast_config_AST_SOCKET);
-		pthread_cancel(lthread);
 	}
 	if (ast_consock > -1)
 		close(ast_consock);
