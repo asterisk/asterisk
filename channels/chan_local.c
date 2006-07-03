@@ -336,25 +336,15 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	size_t len, namelen;
 	
 	ast_mutex_lock(&p->lock);
-	if (p->owner->cid.cid_num)
-		p->chan->cid.cid_num = strdup(p->owner->cid.cid_num);
-	else 
-		p->chan->cid.cid_num = NULL;
 
-	if (p->owner->cid.cid_name)
-		p->chan->cid.cid_name = strdup(p->owner->cid.cid_name);
-	else 
-		p->chan->cid.cid_name = NULL;
+	ast_set_callerid(p->chan,
+		p->owner->cid.cid_num, p->owner->cid.cid_name,
+		p->owner->cid.cid_ani ? p->chan->cid.cid_ani : p->owner->cid.cid_num);
 
 	if (p->owner->cid.cid_rdnis)
 		p->chan->cid.cid_rdnis = strdup(p->owner->cid.cid_rdnis);
 	else
 		p->chan->cid.cid_rdnis = NULL;
-
-	if (p->owner->cid.cid_ani)
-		p->chan->cid.cid_ani = strdup(p->owner->cid.cid_ani);
-	else
-		p->chan->cid.cid_ani = NULL;
 
 	p->chan->cid.cid_pres = p->owner->cid.cid_pres;
 

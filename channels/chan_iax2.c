@@ -3412,12 +3412,8 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		tmp->writeformat = ast_best_codec(capability);
 		tmp->tech_pvt = CALLNO_TO_PTR(i->callno);
 
-		if (!ast_strlen_zero(i->cid_num))
-			tmp->cid.cid_num = strdup(i->cid_num);
-		if (!ast_strlen_zero(i->cid_name))
-			tmp->cid.cid_name = strdup(i->cid_name);
-		if (!ast_strlen_zero(i->ani))
-			tmp->cid.cid_ani = strdup(i->ani);
+		ast_set_callerid(tmp, i->cid_num, i->cid_name,
+			i->ani ? i->ani : i->cid_num);
 		if (!ast_strlen_zero(i->language))
 			ast_copy_string(tmp->language, i->language, sizeof(tmp->language));
 		if (!ast_strlen_zero(i->dnid))
