@@ -86,6 +86,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 "CallerID=           %s\n"
 			 "CallerIDName=       %s\n"
 			 "DNIDDigits=         %s\n"
+			 "RDNIS=              %s\n" 
 			 "State=              %s (%d)\n"
 			 "Rings=              %d\n"
 			 "NativeFormat=       %s\n"
@@ -107,9 +108,10 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 c->name,
 			 c->tech->type,
 			 c->uniqueid,
-			 (c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
-			 (c->cid.cid_name ? c->cid.cid_name : "(N/A)"),
-			 (c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ),
+			 S_OR(c->cid.cid_num, "(N/A)"),
+			 S_OR(c->cid.cid_name, "(N/A)"),
+			 S_OR(c->cid.cid_dnid, "(N/A)"),
+			 S_OR(c->cid.cid_rdnis, "(N/A)"),
 			 ast_state2str(c->_state),
 			 c->_state,
 			 c->rings,
