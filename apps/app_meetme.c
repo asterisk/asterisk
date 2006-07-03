@@ -2504,132 +2504,138 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 		AST_APP_ARG(command);
 		AST_APP_ARG(user);
 	);
-	
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "MeetMeAdmin requires an argument!\n");
+		return -1;
+	}
+
 	LOCAL_USER_ADD(u);
 
 	AST_LIST_LOCK(&confs);
-	/* The param has the conference number the user and the command to execute */
-	if (!ast_strlen_zero(data)) {		
-		params = ast_strdupa((char *) data);
+	
+	params = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, params);
 
-		AST_STANDARD_APP_ARGS(args, params);
-
-		if (!args.command) {
-			ast_log(LOG_WARNING, "MeetmeAdmin requires a command!\n");
-			AST_LIST_UNLOCK(&confs);
-			LOCAL_USER_REMOVE(u);
-			return -1;
-		}
-		AST_LIST_TRAVERSE(&confs, cnf, list) {
-			if (!strcmp(cnf->confno, args.confno))
-				break;
-		}
-		
-		if (args.user)
-			user = find_user(cnf, args.user);
-		
-		if (cnf) {
-			switch((int) (*args.command)) {
-			case 76: /* L: Lock */ 
-				cnf->locked = 1;
-				break;
-			case 108: /* l: Unlock */ 
-				cnf->locked = 0;
-				break;
-			case 75: /* K: kick all users */
-				AST_LIST_TRAVERSE(&cnf->userlist, user, list)
-					user->adminflags |= ADMINFLAG_KICKME;
-				break;
-			case 101: /* e: Eject last user*/
-				user = AST_LIST_LAST(&cnf->userlist);
-				if (!(user->userflags & CONFFLAG_ADMIN))
-					user->adminflags |= ADMINFLAG_KICKME;
-				else
-					ast_log(LOG_NOTICE, "Not kicking last user, is an Admin!\n");
-				break;
-			case 77: /* M: Mute */ 
-				if (user) {
-					user->adminflags |= ADMINFLAG_MUTED;
-				} else
-					ast_log(LOG_NOTICE, "Specified User not found!\n");
-				break;
-			case 78: /* N: Mute all (non-admin) users */
-				AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
-					if (!(user->userflags & CONFFLAG_ADMIN))
-						user->adminflags |= ADMINFLAG_MUTED;
-				}
-				break;					
-			case 109: /* m: Unmute */ 
-				if (user) {
-					user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED);
-				} else
-					ast_log(LOG_NOTICE, "Specified User not found!\n");
-				break;
-			case 110: /* n: Unmute all users */
-				AST_LIST_TRAVERSE(&cnf->userlist, user, list)
-					user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED);
-				break;
-			case 107: /* k: Kick user */ 
-				if (user)
-					user->adminflags |= ADMINFLAG_KICKME;
-				else
-					ast_log(LOG_NOTICE, "Specified User not found!\n");
-				break;
-			case 118: /* v: Lower all users listen volume */
-				AST_LIST_TRAVERSE(&cnf->userlist, user, list)
-					tweak_listen_volume(user, VOL_DOWN);
-				break;
-			case 86: /* V: Raise all users listen volume */
-				AST_LIST_TRAVERSE(&cnf->userlist, user, list)
-					tweak_listen_volume(user, VOL_UP);
-				break;
-			case 115: /* s: Lower all users speaking volume */
-				AST_LIST_TRAVERSE(&cnf->userlist, user, list)
-					tweak_talk_volume(user, VOL_DOWN);
-				break;
-			case 83: /* S: Raise all users speaking volume */
-				AST_LIST_TRAVERSE(&cnf->userlist, user, list)
-					tweak_talk_volume(user, VOL_UP);
-				break;
-			case 82: /* R: Reset all volume levels */
-				AST_LIST_TRAVERSE(&cnf->userlist, user, list)
-					reset_volumes(user);
-				break;
-			case 114: /* r: Reset user's volume level */
-				if (user)
-					reset_volumes(user);
-				else
-					ast_log(LOG_NOTICE, "Specified User not found!\n");
-				break;
-			case 85: /* U: Raise user's listen volume */
-				if (user)
-					tweak_listen_volume(user, VOL_UP);
-				else
-					ast_log(LOG_NOTICE, "Specified User not found!\n");
-				break;
-			case 117: /* u: Lower user's listen volume */
-				if (user)
-					tweak_listen_volume(user, VOL_DOWN);
-				else
-					ast_log(LOG_NOTICE, "Specified User not found!\n");
-				break;
-			case 84: /* T: Raise user's talk volume */
-				if (user)
-					tweak_talk_volume(user, VOL_UP);
-				else
-					ast_log(LOG_NOTICE, "Specified User not found!\n");
-				break;
-			case 116: /* t: Lower user's talk volume */
-				if (user) 
-					tweak_talk_volume(user, VOL_DOWN);
-				else 
-					ast_log(LOG_NOTICE, "Specified User not found!\n");
-				break;
-			}
-		} else {
-			ast_log(LOG_NOTICE, "Conference Number not found\n");
-		}
+	if (!args.command) {
+		ast_log(LOG_WARNING, "MeetmeAdmin requires a command!\n");
+		AST_LIST_UNLOCK(&confs);
+		LOCAL_USER_REMOVE(u);
+		return -1;
 	}
+	AST_LIST_TRAVERSE(&confs, cnf, list) {
+		if (!strcmp(cnf->confno, args.confno))
+			break;
+	}
+
+	if (!cnf) {
+		ast_log(LOG_WARNING, "Conference number '%s' not found!\n", args.confno);
+		LOCAL_USER_REMOVE(u);
+		AST_LIST_UNLOCK(&confs);
+		return 0;
+	}
+
+	if (args.user)
+		user = find_user(cnf, args.user);
+
+	switch (*args.command) {
+	case 76: /* L: Lock */ 
+		cnf->locked = 1;
+		break;
+	case 108: /* l: Unlock */ 
+		cnf->locked = 0;
+		break;
+	case 75: /* K: kick all users */
+		AST_LIST_TRAVERSE(&cnf->userlist, user, list)
+			user->adminflags |= ADMINFLAG_KICKME;
+		break;
+	case 101: /* e: Eject last user*/
+		user = AST_LIST_LAST(&cnf->userlist);
+		if (!(user->userflags & CONFFLAG_ADMIN))
+			user->adminflags |= ADMINFLAG_KICKME;
+		else
+			ast_log(LOG_NOTICE, "Not kicking last user, is an Admin!\n");
+		break;
+	case 77: /* M: Mute */ 
+		if (user) {
+			user->adminflags |= ADMINFLAG_MUTED;
+		} else
+			ast_log(LOG_NOTICE, "Specified User not found!\n");
+		break;
+	case 78: /* N: Mute all (non-admin) users */
+		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
+			if (!(user->userflags & CONFFLAG_ADMIN))
+				user->adminflags |= ADMINFLAG_MUTED;
+		}
+		break;					
+	case 109: /* m: Unmute */ 
+		if (user) {
+			user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED);
+		} else
+			ast_log(LOG_NOTICE, "Specified User not found!\n");
+		break;
+	case 110: /* n: Unmute all users */
+		AST_LIST_TRAVERSE(&cnf->userlist, user, list)
+			user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED);
+		break;
+	case 107: /* k: Kick user */ 
+		if (user)
+			user->adminflags |= ADMINFLAG_KICKME;
+		else
+			ast_log(LOG_NOTICE, "Specified User not found!\n");
+		break;
+	case 118: /* v: Lower all users listen volume */
+		AST_LIST_TRAVERSE(&cnf->userlist, user, list)
+			tweak_listen_volume(user, VOL_DOWN);
+		break;
+	case 86: /* V: Raise all users listen volume */
+		AST_LIST_TRAVERSE(&cnf->userlist, user, list)
+			tweak_listen_volume(user, VOL_UP);
+		break;
+	case 115: /* s: Lower all users speaking volume */
+		AST_LIST_TRAVERSE(&cnf->userlist, user, list)
+			tweak_talk_volume(user, VOL_DOWN);
+		break;
+	case 83: /* S: Raise all users speaking volume */
+		AST_LIST_TRAVERSE(&cnf->userlist, user, list)
+			tweak_talk_volume(user, VOL_UP);
+		break;
+	case 82: /* R: Reset all volume levels */
+		AST_LIST_TRAVERSE(&cnf->userlist, user, list)
+			reset_volumes(user);
+		break;
+	case 114: /* r: Reset user's volume level */
+		if (user)
+			reset_volumes(user);
+		else
+			ast_log(LOG_NOTICE, "Specified User not found!\n");
+		break;
+	case 85: /* U: Raise user's listen volume */
+		if (user)
+			tweak_listen_volume(user, VOL_UP);
+		else
+			ast_log(LOG_NOTICE, "Specified User not found!\n");
+		break;
+	case 117: /* u: Lower user's listen volume */
+		if (user)
+			tweak_listen_volume(user, VOL_DOWN);
+		else
+			ast_log(LOG_NOTICE, "Specified User not found!\n");
+		break;
+	case 84: /* T: Raise user's talk volume */
+		if (user)
+			tweak_talk_volume(user, VOL_UP);
+		else
+			ast_log(LOG_NOTICE, "Specified User not found!\n");
+		break;
+	case 116: /* t: Lower user's talk volume */
+		if (user) 
+			tweak_talk_volume(user, VOL_DOWN);
+		else 
+			ast_log(LOG_NOTICE, "Specified User not found!\n");
+		break;
+	}
+
 	AST_LIST_UNLOCK(&confs);
 
 	LOCAL_USER_REMOVE(u);
