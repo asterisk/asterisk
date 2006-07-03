@@ -1917,8 +1917,8 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
 					prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-					pbx_substitute_variables_helper(ast,pagerfromstring,passdata,vmlen);
-					fprintf(p, "From: %s <%s>\n",passdata,who);
+					pbx_substitute_variables_helper(ast, pagerfromstring, passdata, vmlen);
+					fprintf(p, "From: %s <%s>\n", passdata, who);
 				} else 
 					ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
 				ast_channel_free(ast);
@@ -1926,39 +1926,39 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		} else
 			fprintf(p, "From: Asterisk PBX <%s>\n", who);
 		fprintf(p, "To: %s\n", pager);
-               if (pagersubject) {
-                       struct ast_channel *ast;
-                       if ((ast = ast_channel_alloc(0))) {
-                               char *passdata;
-                               int vmlen = strlen(pagersubject)*3 + 200;
-                               if ((passdata = alloca(vmlen))) {
-                                       memset(passdata, 0, vmlen);
-                                       prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-                                       pbx_substitute_variables_helper(ast,pagersubject,passdata,vmlen);
-                                       fprintf(p, "Subject: %s\n\n",passdata);
-                               } else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
-                               ast_channel_free(ast);
-                       } else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
-               } else
-                       fprintf(p, "Subject: New VM\n\n");
+		if (pagersubject) {
+			struct ast_channel *ast;
+			if ((ast = ast_channel_alloc(0))) {
+				char *passdata;
+				int vmlen = strlen(pagersubject) * 3 + 200;
+				if ((passdata = alloca(vmlen))) {
+					memset(passdata, 0, vmlen);
+					prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+					pbx_substitute_variables_helper(ast, pagersubject, passdata, vmlen);
+					fprintf(p, "Subject: %s\n\n", passdata);
+				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+				ast_channel_free(ast);
+			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+		} else
+			fprintf(p, "Subject: New VM\n\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
-               if (pagerbody) {
-                       struct ast_channel *ast;
-                       if ((ast = ast_channel_alloc(0))) {
-                               char *passdata;
-                               int vmlen = strlen(pagerbody)*3 + 200;
-                               if ((passdata = alloca(vmlen))) {
-                                       memset(passdata, 0, vmlen);
-                                       prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-                                       pbx_substitute_variables_helper(ast,pagerbody,passdata,vmlen);
-                                       fprintf(p, "%s\n",passdata);
-                               } else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
-                               ast_channel_free(ast);
-                       } else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
-               } else {
-                       fprintf(p, "New %s long msg in box %s\n"
-                                       "from %s, on %s", dur, mailbox, (cidname ? cidname : (cidnum ? cidnum : "unknown")), date);
-               }
+		if (pagerbody) {
+			struct ast_channel *ast;
+			if ((ast = ast_channel_alloc(0))) {
+				char *passdata;
+				int vmlen = strlen(pagerbody)*3 + 200;
+				if ((passdata = alloca(vmlen))) {
+					memset(passdata, 0, vmlen);
+					prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+					pbx_substitute_variables_helper(ast, pagerbody, passdata, vmlen);
+					fprintf(p, "%s\n", passdata);
+				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+			ast_channel_free(ast);
+			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+		} else {
+			fprintf(p, "New %s long msg in box %s\n"
+					"from %s, on %s", dur, mailbox, (cidname ? cidname : (cidnum ? cidnum : "unknown")), date);
+		}
 		fclose(p);
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		ast_safe_system(tmp2);
@@ -2040,25 +2040,25 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	char rowdata[20];
 	char tmp[256]="";
 	struct odbc_obj *obj;
-        char *context;
+	char *context;
 
-        if (newmsgs)
-                *newmsgs = 0;
-        if (oldmsgs)
-                *oldmsgs = 0;
+	if (newmsgs)
+		*newmsgs = 0;
+	if (oldmsgs)
+		*oldmsgs = 0;
 
-        /* If no mailbox, return immediately */
-        if (ast_strlen_zero(mailbox))
-                return 0;
+	/* If no mailbox, return immediately */
+	if (ast_strlen_zero(mailbox))
+		return 0;
 
-        ast_copy_string(tmp, mailbox, sizeof(tmp));
-        
+	ast_copy_string(tmp, mailbox, sizeof(tmp));
+	
 	context = strchr(tmp, '@');
-        if (context) {   
-                *context = '\0';
-                context++;
-        } else  
-                context = "default";
+	if (context) {   
+		*context = '\0';
+		context++;
+	} else  
+		context = "default";
 	
 	obj = odbc_request_obj(odbc_database, 0);
 	if (obj) {
@@ -3927,8 +3927,8 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		res = play_message_datetime(chan, vmu, origtime, filename);
 	if ((!res) && (ast_test_flag(vmu, VM_SAYCID)))
 		res = play_message_callerid(chan, vms, cid, context, 0);
-        if ((!res) && (ast_test_flag(vmu, VM_SAYDURATION)))
-                res = play_message_duration(chan, vms, duration, vmu->saydurationm);
+	if ((!res) && (ast_test_flag(vmu, VM_SAYDURATION)))
+		res = play_message_duration(chan, vms, duration, vmu->saydurationm);
 	/* Allow pressing '1' to skip envelope / callerid */
 	if (res == '1')
 		res = 0;
@@ -4296,18 +4296,18 @@ static int vm_intro_pl(struct ast_channel *chan, struct vm_state *vms)
 /* SWEDISH syntax */
 static int vm_intro_se(struct ast_channel *chan, struct vm_state *vms)
 {
-        /* Introduce messages they have */
-        int res;
+	/* Introduce messages they have */
+	int res;
 
 	res = ast_play_and_wait(chan, "vm-youhave");
 	if (res)
 		return res;
 
-        if (!vms->oldmessages && !vms->newmessages) {
+	if (!vms->oldmessages && !vms->newmessages) {
 		res = ast_play_and_wait(chan, "vm-no");
 		res = res ? res : ast_play_and_wait(chan, "vm-messages");
 		return res;
-        }
+	}
 
 	if (vms->newmessages) {
 		if ((vms->newmessages == 1)) {
@@ -4340,18 +4340,18 @@ static int vm_intro_se(struct ast_channel *chan, struct vm_state *vms)
 /* NORWEGIAN syntax */
 static int vm_intro_no(struct ast_channel *chan,struct vm_state *vms)
 {
-        /* Introduce messages they have */
-        int res;
+	/* Introduce messages they have */
+	int res;
 
 	res = ast_play_and_wait(chan, "vm-youhave");
 	if (res)
 		return res;
 
-        if (!vms->oldmessages && !vms->newmessages) {
+	if (!vms->oldmessages && !vms->newmessages) {
 		res = ast_play_and_wait(chan, "vm-no");
 		res = res ? res : ast_play_and_wait(chan, "vm-messages");
 		return res;
-        }
+	}
 
 	if (vms->newmessages) {
 		if ((vms->newmessages == 1)) {
@@ -5147,20 +5147,20 @@ static int vm_browse_messages_en(struct ast_channel *chan, struct vm_state *vms,
 /* ITALIAN syntax */
 static int vm_browse_messages_it(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
-        int cmd=0;
+	int cmd=0;
 
-        if (vms->lastmsg > -1) {
-                cmd = play_message(chan, vmu, vms);
-        } else {
-                cmd = ast_play_and_wait(chan, "vm-no");
-                if (!cmd)
-                        cmd = ast_play_and_wait(chan, "vm-message");
-                if (!cmd) {
-                        snprintf(vms->fn, sizeof(vms->fn), "vm-%s", vms->curbox);
-                        cmd = ast_play_and_wait(chan, vms->fn);
-                }
-        }
-        return cmd;
+	if (vms->lastmsg > -1) {
+		cmd = play_message(chan, vmu, vms);
+	} else {
+		cmd = ast_play_and_wait(chan, "vm-no");
+		if (!cmd)
+			cmd = ast_play_and_wait(chan, "vm-message");
+		if (!cmd) {
+			snprintf(vms->fn, sizeof(vms->fn), "vm-%s", vms->curbox);
+			cmd = ast_play_and_wait(chan, vms->fn);
+		}
+	}
+	return cmd;
 }
 
 /* SPANISH syntax */
@@ -5357,7 +5357,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			AST_APP_ARG(argv0);
 			AST_APP_ARG(argv1);
 		);
-				        
+
 		parse = ast_strdupa(data);
 
 		AST_STANDARD_APP_ARGS(args, parse);
@@ -6209,9 +6209,9 @@ static int load_config(void)
 			ast_copy_string(odbc_database, thresholdstr, sizeof(odbc_database));
 		}
 		strcpy(odbc_table, "voicemessages");
-                if ((thresholdstr = ast_variable_retrieve(cfg, "general", "odbctable"))) {
-                        ast_copy_string(odbc_table, thresholdstr, sizeof(odbc_table));
-                }
+		if ((thresholdstr = ast_variable_retrieve(cfg, "general", "odbctable"))) {
+			ast_copy_string(odbc_table, thresholdstr, sizeof(odbc_table));
+		}
 #endif		
 		/* Mail command */
 		strcpy(mailcmd, SENDMAIL);
@@ -6494,90 +6494,90 @@ static int load_config(void)
 			free(emailsubject);
 			emailsubject = NULL;
 		}
-               if (pagerbody) {
-                       free(pagerbody);
-                       pagerbody = NULL;
-               }
-               if (pagersubject) {
-                       free(pagersubject);
-                       pagersubject = NULL;
-               }
-		if ((s=ast_variable_retrieve(cfg, "general", "pbxskip")))
+		if (pagerbody) {
+			free(pagerbody);
+			pagerbody = NULL;
+		}
+		if (pagersubject) {
+			free(pagersubject);
+			pagersubject = NULL;
+		}
+		if ((s = ast_variable_retrieve(cfg, "general", "pbxskip")))
 			ast_set2_flag((&globalflags), ast_true(s), VM_PBXSKIP);
-		if ((s=ast_variable_retrieve(cfg, "general", "fromstring")))
+		if ((s = ast_variable_retrieve(cfg, "general", "fromstring")))
 			ast_copy_string(fromstring,s,sizeof(fromstring));
-		if ((s=ast_variable_retrieve(cfg, "general", "pagerfromstring")))
+		if ((s = ast_variable_retrieve(cfg, "general", "pagerfromstring")))
 			ast_copy_string(pagerfromstring,s,sizeof(pagerfromstring));
-		if ((s=ast_variable_retrieve(cfg, "general", "charset")))
+		if ((s = ast_variable_retrieve(cfg, "general", "charset")))
 			ast_copy_string(charset,s,sizeof(charset));
-		if ((s=ast_variable_retrieve(cfg, "general", "adsifdn"))) {
+		if ((s = ast_variable_retrieve(cfg, "general", "adsifdn"))) {
 			sscanf(s, "%2x%2x%2x%2x", &tmpadsi[0], &tmpadsi[1], &tmpadsi[2], &tmpadsi[3]);
-			for (x=0; x<4; x++) {
+			for (x = 0; x < 4; x++) {
 				memcpy(&adsifdn[x], &tmpadsi[x], 1);
 			}
 		}
-		if ((s=ast_variable_retrieve(cfg, "general", "adsisec"))) {
+		if ((s = ast_variable_retrieve(cfg, "general", "adsisec"))) {
 			sscanf(s, "%2x%2x%2x%2x", &tmpadsi[0], &tmpadsi[1], &tmpadsi[2], &tmpadsi[3]);
-			for (x=0; x<4; x++) {
+			for (x = 0; x < 4; x++) {
 				memcpy(&adsisec[x], &tmpadsi[x], 1);
 			}
 		}
-		if ((s=ast_variable_retrieve(cfg, "general", "adsiver")))
+		if ((s = ast_variable_retrieve(cfg, "general", "adsiver")))
 			if (atoi(s)) {
 				adsiver = atoi(s);
 			}
-		if ((s=ast_variable_retrieve(cfg, "general", "emailtitle"))) {
+		if ((s = ast_variable_retrieve(cfg, "general", "emailtitle"))) {
 			ast_log(LOG_NOTICE, "Keyword 'emailtitle' is DEPRECATED, please use 'emailsubject' instead.\n");
 			ast_copy_string(emailtitle,s,sizeof(emailtitle));
 		}
-		if ((s=ast_variable_retrieve(cfg, "general", "emailsubject")))
+		if ((s = ast_variable_retrieve(cfg, "general", "emailsubject")))
 			emailsubject = ast_strdup(s);
-		if ((s=ast_variable_retrieve(cfg, "general", "emailbody"))) {
+		if ((s = ast_variable_retrieve(cfg, "general", "emailbody"))) {
 			char *tmpread, *tmpwrite;
 			emailbody = ast_strdup(s);
 
 			/* substitute strings \t and \n into the apropriate characters */
 			tmpread = tmpwrite = emailbody;
-                       while ((tmpwrite = strchr(tmpread,'\\'))) {
-                               int len = strlen("\n");
-                               switch (tmpwrite[1]) {
-                                       case 'n':
-                                               strncpy(tmpwrite+len,tmpwrite+2,strlen(tmpwrite+2)+1);
-                                               strncpy(tmpwrite,"\n",len);
-                                               break;
-                                       case 't':
-                                               strncpy(tmpwrite+len,tmpwrite+2,strlen(tmpwrite+2)+1);
-                                               strncpy(tmpwrite,"\t",len);
-                                               break;
-                                       default:
-                                               ast_log(LOG_NOTICE, "Substitution routine does not support this character: %c\n",tmpwrite[1]);
-                               }
-                               tmpread = tmpwrite+len;
-                       }
-               }
-               if ((s=ast_variable_retrieve(cfg, "general", "pagersubject")))
-                       pagersubject = ast_strdup(s);
-               if ((s=ast_variable_retrieve(cfg, "general", "pagerbody"))) {
-                       char *tmpread, *tmpwrite;
-                       pagerbody = ast_strdup(s);
-
-                       /* substitute strings \t and \n into the apropriate characters */
-                       tmpread = tmpwrite = pagerbody;
 			while ((tmpwrite = strchr(tmpread,'\\'))) {
 				int len = strlen("\n");
 				switch (tmpwrite[1]) {
+				case 'n':
+					strncpy(tmpwrite + len, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
+					strncpy(tmpwrite, "\n", len);
+					break;
+				case 't':
+					strncpy(tmpwrite + len, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
+					strncpy(tmpwrite, "\t", len);
+					break;
+				default:
+					ast_log(LOG_NOTICE, "Substitution routine does not support this character: %c\n", tmpwrite[1]);
+				}
+				tmpread = tmpwrite + len;
+			}
+		}
+		if ((s = ast_variable_retrieve(cfg, "general", "pagersubject")))
+			pagersubject = ast_strdup(s);
+		if ((s = ast_variable_retrieve(cfg, "general", "pagerbody"))) {
+			char *tmpread, *tmpwrite;
+			pagerbody = ast_strdup(s);
+
+			/* substitute strings \t and \n into the apropriate characters */
+			tmpread = tmpwrite = pagerbody;
+			while ((tmpwrite = strchr(tmpread, '\\'))) {
+				int len = strlen("\n");
+				switch (tmpwrite[1]) {
 					case 'n':
-						strncpy(tmpwrite+len,tmpwrite+2,strlen(tmpwrite+2)+1);
-						strncpy(tmpwrite,"\n",len);
+						strncpy(tmpwrite + len, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
+						strncpy(tmpwrite, "\n", len);
 						break;
 					case 't':
-						strncpy(tmpwrite+len,tmpwrite+2,strlen(tmpwrite+2)+1);
-						strncpy(tmpwrite,"\t",len);
+						strncpy(tmpwrite + len, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
+						strncpy(tmpwrite, "\t", len);
 						break;
 					default:
-						ast_log(LOG_NOTICE, "Substitution routine does not support this character: %c\n",tmpwrite[1]);
+						ast_log(LOG_NOTICE, "Substitution routine does not support this character: %c\n", tmpwrite[1]);
 				}
-				tmpread = tmpwrite+len;
+				tmpread = tmpwrite + len;
 			}
 		}
 		AST_LIST_UNLOCK(&users);
