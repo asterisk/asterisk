@@ -3936,7 +3936,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 /*! \brief  add_route: Add route header into request per learned route ---*/
 static void add_route(struct sip_request *req, struct sip_route *route)
 {
-	char r[256], *p;
+	char r[BUFSIZ*2], *p;
 	int n, rem = sizeof(r);
 
 	if (!route) return;
