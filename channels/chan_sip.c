@@ -13405,7 +13405,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	transmit_response(p, "202 Accepted", req);
 
 	if (current.chan1 && current.chan2) {
-		if (option_debug)
+		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "chan1->name: %s\n", current.chan1->name);
 		pbx_builtin_setvar_helper(current.chan1, "BLINDTRANSFER", current.chan2->name);
 	}
