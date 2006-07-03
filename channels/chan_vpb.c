@@ -804,18 +804,14 @@ static void get_callerid_ast(struct vpb_pvt *p)
 	}
 	if (number)
 		ast_shrink_phone_number(number);
-	if (!ast_strlen_zero(number)) {
-		owner->cid.cid_num = strdup(number);
-		owner->cid.cid_ani = strdup(number);
-		if (!ast_strlen_zero(name)){
-			owner->cid.cid_name = strdup(name);
-			snprintf(p->callerid,(sizeof(p->callerid)-1),"%s %s",number,name);
-		}
-		else {
-			snprintf(p->callerid,(sizeof(p->callerid)-1),"%s",number);
-		}
+	ast_set_callerid(owner,
+		number, name,
+		owner->cid.cid_ani ? NULL : number);
+	if (!ast_strlen_zero(name)){
+		snprintf(p->callerid,(sizeof(p->callerid)-1),"%s %s",number,name);
+	} else {
+		snprintf(p->callerid,(sizeof(p->callerid)-1),"%s",number);
 	}
-														     
 	if (cs)
 		callerid_free(cs);
 }

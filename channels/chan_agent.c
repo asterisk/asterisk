@@ -640,12 +640,8 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		/* Call on this agent */
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "outgoing agentcall, to agent '%s', on '%s'\n", p->agent, p->chan->name);
-		if (p->chan->cid.cid_num)
-			free(p->chan->cid.cid_num);
-		p->chan->cid.cid_num = ast_strdup(ast->cid.cid_num);
-		if (p->chan->cid.cid_name)
-			free(p->chan->cid.cid_name);
-		p->chan->cid.cid_name = ast_strdup(ast->cid.cid_name);
+		ast_set_callerid(p->chan,
+			ast->cid.cid_num, ast->cid.cid_name, NULL);
 		ast_channel_inherit_variables(ast, p->chan);
 		res = ast_call(p->chan, p->loginchan, 0);
 		CLEANUP(ast,p);

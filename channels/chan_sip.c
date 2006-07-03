@@ -3687,10 +3687,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	ast_mutex_unlock(&usecnt_lock);
 	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
-	if (!ast_strlen_zero(i->cid_num)) 
-		tmp->cid.cid_num = ast_strdup(i->cid_num);
-	if (!ast_strlen_zero(i->cid_name))
-		tmp->cid.cid_name = ast_strdup(i->cid_name);
+	ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
 	if (!ast_strlen_zero(i->rdnis))
 		tmp->cid.cid_rdnis = ast_strdup(i->rdnis);
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s"))

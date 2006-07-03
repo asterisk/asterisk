@@ -991,12 +991,9 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o,
 		ast_copy_string(c->exten, ext, sizeof(c->exten));
 	if (!ast_strlen_zero(o->language))
 		ast_string_field_set(c, language, o->language);
-        if (!ast_strlen_zero(o->cid_num))
-                c->cid.cid_num = ast_strdup(o->cid_num);
-        if (!ast_strlen_zero(o->cid_name))
-                c->cid.cid_name = ast_strdup(o->cid_name);
-        if (!ast_strlen_zero(ext))
-		c->cid.cid_dnid = strdup(ext);
+	ast_set_callerid(c, o->cid_num, o->cid_name, o->cid_num);
+	if (!ast_strlen_zero(ext))
+		c->cid.cid_dnid = ast_strdup(ext);
 
 	o->owner = c;
 	ast_setstate(c, state);

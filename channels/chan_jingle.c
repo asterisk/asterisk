@@ -761,10 +761,7 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 	ast_mutex_unlock(&usecnt_lock);
 	ast_copy_string(tmp->context, client->context, sizeof(tmp->context));
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
-	if (!ast_strlen_zero(i->cid_num))
-		tmp->cid.cid_num = ast_strdup(i->cid_num);
-	if (!ast_strlen_zero(i->cid_name))
-		tmp->cid.cid_name = ast_strdup(i->cid_name);
+	ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s"))
 		tmp->cid.cid_dnid = ast_strdup(i->exten);
 	tmp->priority = 1;

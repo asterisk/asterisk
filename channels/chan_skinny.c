@@ -2093,12 +2093,10 @@ static void *skinny_ss(void *data)
 				} else {
 					ast_copy_string(chan->exten, exten, sizeof(chan->exten));
 					ast_copy_string(l->lastnumberdialed, exten, sizeof(l->lastnumberdialed));
-					if (!ast_strlen_zero(l->cid_num)) {
-						if (!l->hidecallerid) {
-							chan->cid.cid_num = strdup(l->cid_num);
-							chan->cid.cid_ani = strdup(l->cid_num);
-						}
-					}
+					ast_set_callerid(chan,
+						l->hidecallerid ? "" : l->cid_num,
+						l->hidecallerid ? "" : l->cid_name,
+						chan->cid.cid_ani ? NULL : l->cid_num);
 					ast_setstate(chan, AST_STATE_RING);
 					res = ast_pbx_run(chan);
 					if (res) {
@@ -2525,8 +2523,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		ast_string_field_set(tmp, call_forward, l->call_forward);
 		ast_copy_string(tmp->context, l->context, sizeof(tmp->context));
 		ast_copy_string(tmp->exten, l->exten, sizeof(tmp->exten));
-		tmp->cid.cid_num = ast_strdup(l->cid_num);
-		tmp->cid.cid_name = ast_strdup(l->cid_name);
+		ast_set_callerid(tmp, l->cid_num, l->cid_name, l->cid_num);
 		tmp->priority = 1;
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 
@@ -2720,12 +2717,10 @@ static int handle_stimulus_message(skinny_req *req, struct skinnysession *s)
 			if (ast_exists_extension(c, c->context, l->lastnumberdialed, 1, l->cid_num)) {
 				if (!ast_matchmore_extension(c, c->context, l->lastnumberdialed, 1, l->cid_num)) {
 					ast_copy_string(c->exten, l->lastnumberdialed, sizeof(c->exten));
-					if (!ast_strlen_zero(l->cid_num)) {
-						if (!l->hidecallerid) {
-							c->cid.cid_num = strdup(l->cid_num);
-							c->cid.cid_ani = strdup(l->cid_num);
-						}
-					}
+					ast_set_callerid(c,
+						l->hidecallerid ? "" : l->cid_num,
+						l->hidecallerid ? "" : l->cid_name,
+						c->cid.cid_ani ? NULL : l->cid_num);
 					ast_setstate(c, AST_STATE_RING);
 					res = ast_pbx_run(c);
 					if (res) {
@@ -2766,12 +2761,10 @@ static int handle_stimulus_message(skinny_req *req, struct skinnysession *s)
 				if (!ast_matchmore_extension(c, c->context, sd->exten, 1, l->cid_num)) {
 					ast_copy_string(c->exten, sd->exten, sizeof(c->exten));
 					ast_copy_string(l->lastnumberdialed, sd->exten, sizeof(l->lastnumberdialed));
-					if (!ast_strlen_zero(l->cid_num)) {
-						if (!l->hidecallerid) {
-							c->cid.cid_num = strdup(l->cid_num);
-							c->cid.cid_ani = strdup(l->cid_num);
-						}
-					}
+					ast_set_callerid(c,
+						l->hidecallerid ? "" : l->cid_num,
+						l->hidecallerid ? "" : l->cid_name,
+						c->cid.cid_ani ? NULL : l->cid_num);
 					ast_setstate(c, AST_STATE_RING);
 					res = ast_pbx_run(c);
 					if (res) {
@@ -3422,12 +3415,10 @@ static int handle_soft_key_event_message(skinny_req *req, struct skinnysession *
 			if (ast_exists_extension(c, c->context, l->lastnumberdialed, 1, l->cid_num)) {
 				if (!ast_matchmore_extension(c, c->context, l->lastnumberdialed, 1, l->cid_num)) {
 					ast_copy_string(c->exten, l->lastnumberdialed, sizeof(c->exten));
-					if (!ast_strlen_zero(l->cid_num)) {
-						if (!l->hidecallerid) {
-							c->cid.cid_num = strdup(l->cid_num);
-							c->cid.cid_ani = strdup(l->cid_num);
-						}
-					}
+					ast_set_callerid(c,
+						l->hidecallerid ? "" : l->cid_num,
+						l->hidecallerid ? "" : l->cid_name,
+						c->cid.cid_ani ? NULL : l->cid_num);
 					ast_setstate(c, AST_STATE_RING);
 					res = ast_pbx_run(c);
 					if (res) {
