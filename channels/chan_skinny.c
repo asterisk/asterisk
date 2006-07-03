@@ -1741,11 +1741,12 @@ static void *skinny_ss(void *data)
                     			getforward = 0;
                 		} else  {
                     			strncpy(chan->exten, exten, sizeof(chan->exten)-1);
+
                     			if (!ast_strlen_zero(l->cid_num)) {
-                        			if (!l->hidecallerid) {
-                            				chan->cid.cid_num = strdup(l->cid_num);
-                        				chan->cid.cid_ani = strdup(l->cid_num);
-                    				}
+						ast_set_callerid(chan,
+							l->hidecallerid ? "" : l->cid_num,
+							l->hidecallerid ? "" : l->cid_name,
+							chan->cid.cid_ani ? NULL : l->cid_num);
                     				ast_setstate(chan, AST_STATE_RING);
                     				res = ast_pbx_run(chan);
                     				if (res) {
@@ -1792,14 +1793,7 @@ static void *skinny_ss(void *data)
             		}
 		       	/* Disable Caller*ID if enabled */
 		        l->hidecallerid = 1;
-       			if (chan->cid.cid_num) {
-	               		free(chan->cid.cid_num);
-	    		}
-	            	chan->cid.cid_num = NULL;
-	   		if (chan->cid.cid_name) {
-               			free(chan->cid.cid_name);
-	    		}
-	      		chan->cid.cid_name = NULL;
+			ast_set_callerid(chan, "", "", NULL);
             		transmit_tone(s, SKINNY_DIALTONE);
        			len = 0;
            		memset(exten, 0, sizeof(exten));
@@ -1873,18 +1867,7 @@ static void *skinny_ss(void *data)
        			}
        			/* Enable Caller*ID if enabled */
        			l->hidecallerid = 0;
-       			if (chan->cid.cid_num) {
-              			free(chan->cid.cid_num);	
-    			}
-            		if (!ast_strlen_zero(l->cid_num)) {
-                		chan->cid.cid_num = strdup(l->cid_num);
-	    		}
-      			if (chan->cid.cid_name) {
-               			free(chan->cid.cid_name);
-    			}
-            		if (!ast_strlen_zero(l->cid_name)) {
-               			chan->cid.cid_name = strdup(l->cid_name);	
-			}
+			ast_set_callerid(chan, l->cid_num, l->cid_name, NULL);
             		transmit_tone(s, SKINNY_DIALTONE);
             		len = 0;
             		memset(exten, 0, sizeof(exten));
@@ -2296,12 +2279,7 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 		strncpy(tmp->call_forward, l->call_forward, sizeof(tmp->call_forward) - 1);
 		strncpy(tmp->context, l->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten,l->exten, sizeof(tmp->exten)-1);
-		if (!ast_strlen_zero(l->cid_num)) {
-			tmp->cid.cid_num = strdup(l->cid_num);
-		}
-		if (!ast_strlen_zero(l->cid_name)) {
-			tmp->cid.cid_name = strdup(l->cid_name);
-		}
+		ast_set_callerid(tmp, l->cid_num, l->cid_name, l->cid_num);
 		tmp->priority = 1;
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 

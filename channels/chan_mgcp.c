@@ -1428,10 +1428,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		strncpy(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward) - 1);
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
-		if (!ast_strlen_zero(i->cid_num))
-			tmp->cid.cid_num = strdup(i->cid_num);
-		if (!ast_strlen_zero(i->cid_name))
-			tmp->cid.cid_name = strdup(i->cid_name);
+		ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
 		if (!i->adsi)
 			tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 		tmp->priority = 1;
@@ -2621,21 +2618,10 @@ static void *mgcp_ss(void *data)
 					/*res = tone_zone_play_tone(p->subs[index].zfd, -1);*/
 					ast_indicate(chan, -1);
 					strncpy(chan->exten, exten, sizeof(chan->exten)-1);
-					if (!ast_strlen_zero(p->cid_num)) {
-						if (!p->hidecallerid) {
-							/* SC: free existing chan->callerid */
-							if (chan->cid.cid_num)
-								free(chan->cid.cid_num);
-							chan->cid.cid_num = strdup(p->cid_num);
-							/* SC: free existing chan->callerid */
-							if (chan->cid.cid_name)
-								free(chan->cid.cid_name);
-							chan->cid.cid_name = strdup(p->cid_name);
-						}
-						if (chan->cid.cid_ani)
-							free(chan->cid.cid_ani);
-						chan->cid.cid_ani = strdup(p->cid_num);
-					}
+					ast_set_callerid(chan,
+							p->hidecallerid ? "" : p->cid_num,
+							p->hidecallerid ? "" : p->cid_name,
+							chan->cid.cid_ani ? NULL : p->cid_num);
 					ast_setstate(chan, AST_STATE_RING);
 					/*zt_enable_ec(p);*/
 					if (p->dtmfmode & MGCP_DTMF_HYBRID) {
@@ -2692,12 +2678,7 @@ static void *mgcp_ss(void *data)
 			}
 			/* Disable Caller*ID if enabled */
 			p->hidecallerid = 1;
-			if (chan->cid.cid_num)
-				free(chan->cid.cid_num);
-			chan->cid.cid_num = NULL;
-			if (chan->cid.cid_name)
-				free(chan->cid.cid_name);
-			chan->cid.cid_name = NULL;
+			ast_set_callerid(chan, "", "", NULL);
 			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			len = 0;
@@ -2776,14 +2757,7 @@ static void *mgcp_ss(void *data)
 			}
 			/* Enable Caller*ID if enabled */
 			p->hidecallerid = 0;
-			if (chan->cid.cid_num)
-				free(chan->cid.cid_num);
-			if (!ast_strlen_zero(p->cid_num))
-				chan->cid.cid_num = strdup(p->cid_num);
-			if (chan->cid.cid_name)
-				free(chan->cid.cid_name);
-			if (!ast_strlen_zero(p->cid_name))
-				chan->cid.cid_name = strdup(p->cid_name);
+			ast_set_callerid(chan, p->cid_num, p->cid_name, NULL);
 			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			len = 0;

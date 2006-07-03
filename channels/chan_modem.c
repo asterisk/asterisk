@@ -576,10 +576,7 @@ struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
 		tmp->tech_pvt = i;
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 
-		if (!ast_strlen_zero(i->cid_num))
-			tmp->cid.cid_num = strdup(i->cid_num);
-		if (!ast_strlen_zero(i->cid_name))
-			tmp->cid.cid_name = strdup(i->cid_name);
+		ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
 
 		if (!ast_strlen_zero(i->language))
 			strncpy(tmp->language,i->language, sizeof(tmp->language)-1);
