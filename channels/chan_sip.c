@@ -5497,7 +5497,7 @@ static int transmit_response_with_allow(struct sip_pvt *p, const char *msg, cons
 static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *randdata, enum xmittype reliable, const char *header, int stale)
 {
 	struct sip_request resp;
-	char tmp[256];
+	char tmp[512];
 	int seqno = 0;
 
 	if (reliable && (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1)) {
@@ -5506,7 +5506,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const
 	}
 	/* Stale means that they sent us correct authentication, but 
 	   based it on an old challenge (nonce) */
-	snprintf(tmp, sizeof(tmp), "Digest realm=\"%s\", nonce=\"%s\"%s", global_realm, randdata, stale ? ", stale=true" : "");
+	snprintf(tmp, sizeof(tmp), "Digest algorithm=MD5, realm=\"%s\", nonce=\"%s\"%s", global_realm, randdata, stale ? ", stale=true" : "");
 	respprep(&resp, p, msg, req);
 	add_header(&resp, header, tmp);
 	add_header_contentLength(&resp, 0);
