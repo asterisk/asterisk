@@ -743,14 +743,6 @@ static void reload_config(void)
 		misdn_debug[i] = cfg_debug;
 		misdn_debug_only[i] = 0;
 	}
-
-	int ntflags=0;
-	char ntfile[BUFFERSIZE+1];
-
-	misdn_cfg_get( 0, MISDN_GEN_NTDEBUGFLAGS, &ntflags, sizeof(int));
-	misdn_cfg_get( 0, MISDN_GEN_NTDEBUGFILE, &ntfile, BUFFERSIZE);
-
-	misdn_lib_nt_debug_init(ntflags,ntfile);
 }
 
 static int misdn_reload (int fd, int argc, char *argv[])
@@ -3431,7 +3423,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			if(!ast_canmatch_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
 
 				chan_misdn_log(-1, bc->port, "Extension can never match, so disconnecting\n");
-				tone_indicate(ch,TONE_BUSY);
+				if (bc->nt)
+					tone_indicate(ch,TONE_BUSY);
 				ch->state=MISDN_EXTCANTMATCH;
 				bc->out_cause=1;
 
@@ -3447,7 +3440,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				if (ast_pbx_start(ch->ast)<0) {
 
 					chan_misdn_log(-1, bc->port, "ast_pbx_start returned < 0 in INFO\n");
-					tone_indicate(ch,TONE_BUSY);
+				 	if (bc->nt) tone_indicate(ch,TONE_BUSY);
 
 					misdn_lib_send_event(bc, EVENT_DISCONNECT );
 				}
@@ -3617,7 +3610,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			
 			chan_misdn_log(-1, bc->port, "Extension can never match, so disconnecting\n");
 
-			tone_indicate(ch,TONE_BUSY);
+			if (bc->nt)
+				tone_indicate(ch,TONE_BUSY);
 			ch->state=MISDN_EXTCANTMATCH;
 			bc->out_cause=1;
 
@@ -3644,11 +3638,11 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 				chan_misdn_log(-1, bc->port, "ast_pbx_start returned <0 in SETUP\n");
 				chan=NULL;
-				tone_indicate(ch,TONE_BUSY);
 
-				if (bc->nt)
+				if (bc->nt) {
+					tone_indicate(ch,TONE_BUSY);
 					misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE );
-				else
+				} else
 					misdn_lib_send_event(bc, EVENT_RELEASE);
 			}
 		} else {
@@ -3882,9 +3876,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		break;
 	case EVENT_RELEASE_COMPLETE:
 	{
-		ch->state=MISDN_CLEANING;
 		stop_bc_tones(ch);
 		release_chan(bc);
+		ch->state=MISDN_CLEANING;
 	}
 	break;
 
@@ -4236,11 +4230,16 @@ static int load_module(void *mod)
 		
 		if (misdn_lib_init(ports, &iface, NULL))
 			chan_misdn_log(0, 0, "No te ports initialized\n");
+	
+		int ntflags=0;
+		char ntfile[BUFFERSIZE+1];
+
+		misdn_cfg_get( 0, MISDN_GEN_NTDEBUGFLAGS, &ntflags, sizeof(int));
+		misdn_cfg_get( 0, MISDN_GEN_NTDEBUGFILE, &ntfile, BUFFERSIZE);
+
+		misdn_lib_nt_debug_init(ntflags,ntfile);
+
 	}
-
-
-
-	reload_config();
 
 	{
 		if (ast_channel_register(&misdn_tech)) {
