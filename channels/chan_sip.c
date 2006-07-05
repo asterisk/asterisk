@@ -275,7 +275,7 @@ static const struct cfsubscription_types {
 	const char * const text;
 } subscription_types[] = {
 	{ NONE,		   "-",        "unknown",	             "unknown" },
- 	/* IETF draft: draft-ietf-sipping-dialog-package-05.txt */
+ 	/* RFC 4235: SIP Dialog event package */
 	{ DIALOG_INFO_XML, "dialog",   "application/dialog-info+xml", "dialog-info+xml" },
 	{ CPIM_PIDF_XML,   "presence", "application/cpim-pidf+xml",   "cpim-pidf+xml" },  /* RFC 3863 */
 	{ PIDF_XML,        "presence", "application/pidf+xml",        "pidf+xml" },       /* RFC 3863 */
