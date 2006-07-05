@@ -1,73 +1,83 @@
-# AST_EXT_LIB([NAME], [FUNCTION], [package header], [package symbol name], [package friendly name], [additional LIB data])
+# AST_EXT_LIB_SETUP([package symbol name], [package friendly name], [package option name], [additional help text])
 
-AC_DEFUN([AST_EXT_LIB],
+AC_DEFUN([AST_EXT_LIB_SETUP],
 [
-AC_ARG_WITH([$1], AC_HELP_STRING([--with-$1=PATH],[use $5 files in PATH]),[
+$1_DESCRIP="$2"
+$1_OPTION="$3"
+AC_ARG_WITH([$3], AC_HELP_STRING([--with-$3=PATH],[use $2 files in PATH $4]),[
 case ${withval} in
      n|no)
-     USE_$4=no
+     USE_$1=no
      ;;
      y|ye|yes)
-     $4_MANDATORY="yes"
+     $1_MANDATORY="yes"
      ;;
      *)
-     $4_DIR="${withval}"
-     $4_MANDATORY="yes"
+     $1_DIR="${withval}"
+     $1_MANDATORY="yes"
      ;;
 esac
 ])
+PBX_$1=0
+AC_SUBST([$1_LIB])
+AC_SUBST([$1_INCLUDE])
+AC_SUBST([PBX_$1])
+])
 
-PBX_LIB$4=0
+# AST_EXT_LIB_CHECK([package symbol name], [package library name], [function to check], [package header], [additional LIB data])
 
-if test "${USE_$4}" != "no"; then
+AC_DEFUN([AST_EXT_LIB_CHECK],
+[
+if test "${USE_$1}" != "no"; then
    pbxlibdir=""
-   if test "x${$4_DIR}" != "x"; then
-      pbxlibdir="-L${$1_DIR} -L${$1_DIR}/lib"
+   if test "x${$1_DIR}" != "x"; then
+      if test -d ${$1_DIR}/lib; then
+      	 pbxlibdir="-L${$1_DIR}/lib"
+      else
+      	 pbxlibdir="-L${$1_DIR}"
+      fi
    fi
-   AC_CHECK_LIB([$1], [$2], [AST_$4_FOUND=yes], [AST_$4_FOUND=no], ${pbxlibdir} $6)
+   AC_CHECK_LIB([$2], [$3], [AST_$1_FOUND=yes], [AST_$1_FOUND=no], ${pbxlibdir} $5)
 
-   if test "${AST_$4_FOUND}" = "yes"; then
-      $4_LIB="-l$1 $6"
-      $4_HEADER_FOUND="1"
-      if test "x${$4_DIR}" != "x"; then
-         $4_LIB="${pbxlibdir} ${$4_LIB}"
-	 $4_INCLUDE="-I${$4_DIR}/include"
-	 if test "x$3" != "x" ; then
-	    AC_CHECK_HEADER([${$4_DIR}/include/$3], [$4_HEADER_FOUND=1], [$4_HEADER_FOUND=0] )
+   if test "${AST_$1_FOUND}" = "yes"; then
+      $1_LIB="-l$2 $5"
+      $1_HEADER_FOUND="1"
+      if test "x${$1_DIR}" != "x"; then
+         $1_LIB="${pbxlibdir} ${$1_LIB}"
+	 $1_INCLUDE="-I${$1_DIR}/include"
+	 if test "x$4" != "x" ; then
+	    AC_CHECK_HEADER([${$1_DIR}/include/$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0] )
 	 fi
       else
-	 if test "x$3" != "x" ; then
-            AC_CHECK_HEADER([$3], [$4_HEADER_FOUND=1], [$4_HEADER_FOUND=0] )
+	 if test "x$4" != "x" ; then
+            AC_CHECK_HEADER([$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0] )
 	 fi
       fi
-      if test "x${$4_HEADER_FOUND}" = "x0" ; then
-         if test ! -z "${$4_MANDATORY}" ;
+      if test "x${$1_HEADER_FOUND}" = "x0" ; then
+         if test ! -z "${$1_MANDATORY}" ;
          then
             echo " ***"
-            echo " *** It appears that you do not have the $1 development package installed."
-            echo " *** Please install it to include $5 support, or re-run configure"
-            echo " *** without explicitly specifying --with-$1"
+            echo " *** It appears that you do not have the $2 development package installed."
+            echo " *** Please install it to include ${$1_DESCRIP} support, or re-run configure"
+            echo " *** without explicitly specifying --with-${$1_OPTION}"
             exit 1
          fi
-         $4_LIB=""
-         $4_INCLUDE=""
-         PBX_LIB$4=0
+         $1_LIB=""
+         $1_INCLUDE=""
+         PBX_$1=0
       else
-         PBX_LIB$4=1
-         AC_DEFINE_UNQUOTED([HAVE_$4], 1, [Define to indicate the $5 library])
+         PBX_$1=1
+         AC_DEFINE_UNQUOTED([HAVE_$1], 1, [Define to indicate the ${$1_DESCRIP} library])
       fi
-   elif test ! -z "${$4_MANDATORY}";
+   elif test ! -z "${$1_MANDATORY}";
    then
       echo "***"
-      echo "*** The $5 installation on this system appears to be broken."
+      echo "*** The ${$1_DESCRIP} installation on this system appears to be broken."
       echo "*** Either correct the installation, or run configure"
-      echo "*** without explicity specifying --with-$1"
+      echo "*** without explicitly specifying --with-${$1_OPTION}"
       exit 1
    fi
 fi
-AC_SUBST([$4_LIB])
-AC_SUBST([$4_INCLUDE])
-AC_SUBST([PBX_LIB$4])
 ])
 
 

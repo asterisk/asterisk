@@ -39,7 +39,7 @@
    */
 #undef HAVE_ALLOCA_H
 
-/* Define to indicate the Advanced Linux Sound Architecture library */
+/* Define to indicate the ${ALSA_DESCRIP} library */
 #undef HAVE_ALSA
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
@@ -60,7 +60,7 @@
 /* Define if your system has the curl libraries. */
 #undef HAVE_CURL
 
-/* Define to indicate the curses library */
+/* Define to indicate the ${CURSES_DESCRIP} library */
 #undef HAVE_CURSES
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
@@ -85,7 +85,7 @@
 /* Define to 1 if you have the `fork' function. */
 #undef HAVE_FORK
 
-/* Define to indicate the FreeTDS library */
+/* Define to indicate the ${FREETDS_DESCRIP} library */
 #undef HAVE_FREETDS
 
 /* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
@@ -118,7 +118,7 @@
 /* Define if your system has the GTK libraries. */
 #undef HAVE_GTK
 
-/* Define to indicate the Iksemel Jabber Library library */
+/* Define to indicate the ${IKSEMEL_DESCRIP} library */
 #undef HAVE_IKSEMEL
 
 /* Define to 1 if you have the `inet_ntoa' function. */
@@ -133,20 +133,8 @@
 /* Define to 1 if you have the <libintl.h> header file. */
 #undef HAVE_LIBINTL_H
 
-/* Define if your system has the KDE library */
+/* Define if your system has the KDE libraries. */
 #undef HAVE_LIBKDE
-
-/* Define to indicate the ISDN PRI library */
-#undef HAVE_LIBPRI
-
-/* Define if your system has the pwlib libraries. */
-#undef HAVE_LIBPWLIB
-
-/* Define if your system has the Qt library */
-#undef HAVE_LIBQT
-
-/* Define if your system has the VoiceTronix (vpb) libraries. */
-#undef HAVE_LIBVPB
 
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
@@ -185,10 +173,10 @@
 /* Define to 1 if you have the `munmap' function. */
 #undef HAVE_MUNMAP
 
-/* Define to indicate the Network Broadcast Sound library */
+/* Define to indicate the ${NBS_DESCRIP} library */
 #undef HAVE_NBS
 
-/* Define to indicate the ncurses library */
+/* Define to indicate the ${NCURSES_DESCRIP} library */
 #undef HAVE_NCURSES
 
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
@@ -203,32 +191,35 @@
 /* Define to indicate the Net-SNMP library */
 #undef HAVE_NETSNMP
 
-/* Define to indicate the newt library */
+/* Define to indicate the ${NEWT_DESCRIP} library */
 #undef HAVE_NEWT
 
-/* Define to indicate the OGG library */
+/* Define to indicate the ${OGG_DESCRIP} library */
 #undef HAVE_OGG
 
-/* Define to indicate the OpenSSL library */
+/* Define to indicate the ${OPENSSL_DESCRIP} library */
 #undef HAVE_OPENSSL
 
-/* Define to indicate the OSP Toolkit library */
+/* Define to indicate the ${OSPTK_DESCRIP} library */
 #undef HAVE_OSPTK
 
-/* Define to indicate the Open Sound System library */
+/* Define to indicate the ${OSS_DESCRIP} library */
 #undef HAVE_OSS
 
 /* Define to 1 if OSX atomic operations are supported. */
 #undef HAVE_OSX_ATOMICS
 
-/* Define to indicate the popt library */
+/* Define to indicate the PostgreSQL library */
+#undef HAVE_PGSQL
+
+/* Define to indicate the ${POPT_DESCRIP} library */
 #undef HAVE_POPT
 
 /* Define to 1 if you have the `pow' function. */
 #undef HAVE_POW
 
-/* Define to indicate the PostgreSQL library */
-#undef HAVE_PQ
+/* Define to indicate the ${PRI_DESCRIP} library */
+#undef HAVE_PRI
 
 /* Define to 1 if the system has the type `ptrdiff_t'. */
 #undef HAVE_PTRDIFF_T
@@ -236,8 +227,14 @@
 /* Define to 1 if you have the `putenv' function. */
 #undef HAVE_PUTENV
 
-/* Define to indicate the Radius Client library */
-#undef HAVE_RADIUSCLIENT
+/* Define if your system has the pwlib libraries. */
+#undef HAVE_PWLIB
+
+/* Define if your system has the Qt library */
+#undef HAVE_QT
+
+/* Define to indicate the ${RADIUS_DESCRIP} library */
+#undef HAVE_RADIUS
 
 /* Define to 1 if your system has a GNU libc compatible `realloc' function,
    and to 0 otherwise. */
@@ -261,10 +258,10 @@
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
 
-/* Define to indicate the Speex library */
+/* Define to indicate the ${SPEEX_DESCRIP} library */
 #undef HAVE_SPEEX
 
-/* Define to indicate the SQLite library */
+/* Define to indicate the ${SQLITE_DESCRIP} library */
 #undef HAVE_SQLITE
 
 /* Define to 1 if you have the `sqrt' function. */
@@ -385,22 +382,22 @@
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #undef HAVE_SYS_WAIT_H
 
-/* Define to indicate the Termcap library */
+/* Define to indicate the ${TERMCAP_DESCRIP} library */
 #undef HAVE_TERMCAP
 
 /* Define to 1 if you have the <termios.h> header file. */
 #undef HAVE_TERMIOS_H
 
-/* Define to indicate the Term Info library */
+/* Define to indicate the ${TINFO_DESCRIP} library */
 #undef HAVE_TINFO
 
-/* Define to indicate the tonezone library */
+/* Define to indicate the ${TONEZONE_DESCRIP} library */
 #undef HAVE_TONEZONE
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Define to indicate the unixODBC library */
+/* Define to indicate the ${UNIXODBC_DESCRIP} library */
 #undef HAVE_UNIXODBC
 
 /* Define to 1 if you have the `unsetenv' function. */
@@ -424,8 +421,11 @@
 /* Define to 1 if you have the <vfork.h> header file. */
 #undef HAVE_VFORK_H
 
-/* Define to indicate the Vorbis library */
+/* Define to indicate the ${VORBIS_DESCRIP} library */
 #undef HAVE_VORBIS
+
+/* Define if your system has the VoiceTronix API libraries. */
+#undef HAVE_VPB
 
 /* Define to 1 if you have the `vprintf' function. */
 #undef HAVE_VPRINTF
@@ -439,7 +439,7 @@
 /* Define if your system has the Zaptel headers. */
 #undef HAVE_ZAPTEL
 
-/* Define to indicate the zlib library */
+/* Define to indicate the ${ZLIB_DESCRIP} library */
 #undef HAVE_ZLIB
 
 /* Define to 1 if the system has the type `_Bool'. */

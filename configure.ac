@@ -95,10 +95,10 @@ case "${host}" in
     # XXX temporary hack to let FreeBSD use the default paths
     # for local stuff. We need a better solution.
     if test x"${CPPFLAGS}" = x; then
-        CPPFLAGS="-I /usr/local/include"
+        CPPFLAGS="-I/usr/local/include"
     fi
     if test x"${LDFLAGS}" = x; then
-        LDFLAGS="-L /usr/local/lib"
+        LDFLAGS="-L/usr/local/lib"
     fi
     ;;
   *openbsd*)
@@ -193,644 +193,43 @@ AC_ARG_ENABLE(dev-mode,
 	esac])
 AC_SUBST(AST_DEVMODE)
 
-# from here on down, library checking should be done in alphabetical order
+# package option names should be in alphabetical order
 # by the --with option name, to make things easier for the users :-)
 
-AST_EXT_LIB([asound], [snd_spcm_init], [alsa/asoundlib.h], [ALSA], [Advanced Linux Sound Architecture], [-lm -ldl])
-AST_EXT_LIB([curses], [initscr], [curses.h], [CURSES], [curses], [])
+AST_EXT_LIB_SETUP([ALSA], [Advanced Linux Sound Architecture], [asound])
+AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
+AST_EXT_LIB_SETUP([GSM], [GSM], [gsm], [, or 'internal'])
+AST_EXT_LIB_SETUP([IKSEMEL], [Iksemel Jabber Library], [iksemel])
+AST_EXT_LIB_SETUP([IMAP_TK], [UW IMAP Toolkit], [imap])
+AST_EXT_LIB_SETUP([KDE], [KDE], [kde])
+AST_EXT_LIB_SETUP([NBS], [Network Broadcast Sound], [nbs])
+AST_EXT_LIB_SETUP([NCURSES], [ncurses], [ncurses])
+AST_EXT_LIB_SETUP([NETSNMP], [Net-SNMP], [netsnmp])
+AST_EXT_LIB_SETUP([NEWT], [newt], [newt])
+AST_EXT_LIB_SETUP([UNIXODBC], [unixODBC], [odbc])
+AST_EXT_LIB_SETUP([OGG], [OGG], [ogg])
+AST_EXT_LIB_SETUP([OSPTK], [OSP Toolkit], [osptk])
+AST_EXT_LIB_SETUP([OSS], [Open Sound System], [oss])
+AST_EXT_LIB_SETUP([POPT], [popt], [popt])
+AST_EXT_LIB_SETUP([PGSQL], [PostgreSQL], [postgres])
+AST_EXT_LIB_SETUP([PRI], [ISDN PRI], [pri])
+AST_EXT_LIB_SETUP([PWLIB], [PWlib], [pwlib])
+AST_EXT_LIB_SETUP([QT], [Qt], [qt])
+AST_EXT_LIB_SETUP([RADIUS], [Radius Client], [radius])
+AST_EXT_LIB_SETUP([SPEEX], [Speex], [speex])
+AST_EXT_LIB_SETUP([SQLITE], [SQLite], [sqlite])
+AST_EXT_LIB_SETUP([OPENSSL], [OpenSSL], [ssl])
+AST_EXT_LIB_SETUP([FREETDS], [FreeTDS], [tds])
+AST_EXT_LIB_SETUP([TERMCAP], [Termcap], [termcap])
+AST_EXT_LIB_SETUP([TINFO], [Term Info], [tinfo])
+AST_EXT_LIB_SETUP([TONEZONE], [tonezone], [tonezone])
+AST_EXT_LIB_SETUP([VORBIS], [Vorbis], [vorbis])
+AST_EXT_LIB_SETUP([VPB], [Voicetronix API], [vpb])
+AST_EXT_LIB_SETUP([ZLIB], [zlib], [z])
+AST_EXT_LIB_SETUP([ZAPTEL], [Zaptel], [zaptel])
 
-GSM_INTERNAL="yes"
-GSM_SYSTEM="yes"
-AC_ARG_WITH([gsm], AC_HELP_STRING([--with-gsm=PATH], [use libgsm files in PATH, or 'internal']), [
-case ${withval} in
-     n|no)
-     USE_GSM=no
-     ;;
-     y|ye|yes)
-     ;;
-     internal)
-     GSM_SYSTEM="no"
-     ;;
-     *)
-     GSM_DIR="${withval}"
-     GSM_INTERNAL="no"
-     ;;
-esac
-])
-
-PBX_LIBgsm=0
-
-if test "${USE_GSM}" != "no"; then
-   if test "${GSM_SYSTEM}" = "yes"; then
-      gsmlibdir=""
-      if test "x${GSM_DIR}" != "x"; then
-         gsmlibdir="-L${GSM_DIR} -L${GSM_DIR}/lib"
-      fi
-      AC_CHECK_LIB([gsm], [gsm_create], AC_DEFINE_UNQUOTED([HAVE_GSM], 1,
-      [Define to indicate the GSM library]), [], ${gsmlibdir})
-      if test "${ac_cv_lib_gsm_gsm_create}" = "yes"; then
-	 gsm_LIB="-lgsm"
-	 if test "x${GSM_DIR}" != "x"; then
-	    gsm_LIB="${gsmlibdir} ${gsm_LIB}"
-	    gsm_INCLUDE="-I${GSM_DIR}/include"
-	 fi
-	 PBX_LIBgsm=1
-	 GSM_INTERNAL="no"
-      fi
-   fi
-   if test "${GSM_INTERNAL}" = "yes"; then
-      gsm_LIB="internal"
-      PBX_LIBgsm=1
-   fi
-   if test "x${PBX_LIBgsm}" = "x0"; then
-      echo "***"
-      echo "*** The GSM installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-gsm"
-      exit 1
-   fi
-fi
-
-AC_SUBST([gsm_LIB])
-AC_SUBST([gsm_INCLUDE])
-AC_SUBST([PBX_LIBgsm])
-
-AC_LANG_PUSH(C++)
-
-AC_ARG_WITH([kde], AC_HELP_STRING([--with-kde=PATH],[use KDE files in PATH]),[
-case ${withval} in
-     n|no)
-     USE_KDE=no
-     ;;
-     y|ye|yes)
-     KDE_MANDATORY="yes"
-     ;;
-     *)
-     KDE_DIR="${withval}"
-     KDE_MANDATORY="yes"
-     ;;
-esac
-])
-
-PBX_KDE=0
-if test "${USE_KDE}" != "no"; then
-   echo -n "checking for crashHandler in -lkdecore... "
-   saved_ldflags="${LDFLAGS}"
-   LDFLAGS="-I${KDE_DIR}/include ${LDFLAGS} -L${KDE_DIR} -L${KDE_DIR}/lib -lkdecore"
-	AC_LINK_IFELSE(
-	[
-		AC_LANG_PROGRAM(
-		[#include "kcrash.h"],
-		[KCrash::defaultCrashHandler(1);])
-	],
-	[ac_cv_lib_kde_crash="yes"],
-	[ac_cv_lib_kde_crash="no"])
-		
-	LDFLAGS="${saved_ldflags}"
-	
-	if test "${ac_cv_lib_kde_crash}" = "yes"; then
-		AC_MSG_RESULT(yes) 
-	else
-		AC_MSG_RESULT(no) 
-	fi
-	
-	if test "${ac_cv_lib_kde_crash}" = "yes"; then
-		KDE_LIB="-lkdecore -lkdeui"
-		if test "${KDE_DIR}" != ""; then
-			KDE_LIB="-L${KDE_DIR} -L${KDE_DIR}/lib ${KDE_LIB}"
-			KDE_INCLUDE="-I${KDE_DIR}/include"
-			AC_SUBST([KDE_INCLUDE])
-		fi
-		AC_SUBST([KDE_LIB])
-		PBX_KDE=1
-		AC_DEFINE([HAVE_LIBKDE], 1, [Define if your system has the KDE library])
-   elif test ! -z "${KDE_MANDATORY}"; 
-   then
-      echo "***"
-      echo "*** The KDE installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-kde."
-      exit 1
-   fi
-fi
-AC_SUBST([PBX_KDE])
-
-if test x"${PBX_KDE}" = x1; then
-	AC_PATH_TOOL(KDEINIT, kdeinit, No)
-	if test ! x"${KDEINIT}" = xNo; then
-   	KDEDIR=$(${DIRNAME} ${KDEINIT})
-   	KDEDIR=$(${DIRNAME} ${KDEDIR})
-	fi
-	AC_SUBST([KDEDIR])
-fi
-
-AC_LANG_POP
-
-AST_EXT_LIB([iksemel], [iks_start_sasl], [iksemel.h], [IKSEMEL], [Iksemel Jabber Library])
-AST_EXT_LIB([nbs], [nbs_connect], [nbs.h], [NBS], [Network Broadcast Sound])
-AST_EXT_LIB([ncurses], [initscr], [curses.h], [NCURSES], [ncurses], [])
-
-AC_ARG_WITH([netsnmp], AC_HELP_STRING([--with-netsnmp=PATH],[use Net-SNMP in PATH]),[
-case ${withval} in
-     n|no)
-     USE_NETSNMP=no
-     ;;
-     y|ye|yes)
-     NETSNMP_MANDATORY="yes"
-     ;;
-     *)
-     NETSNMP_DIR="${withval}"
-     NETSNMP_MANDATORY="yes"
-     ;;
-esac
-])
-
-PBX_NETSNMP=0
-NETSNMP_CONFIG=No
-if test "${USE_NETSNMP}" != "no"; then	
-   if test "x${NETSNMP_DIR}" != "x"; then
-      AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], No, [${NETSNMP_DIR}/bin])
-      if test x"${NETSNMP_CONFIG}" = xNo; then
-         echo "***"
-         echo "*** net-snmp-config was not found in the path you specified:"
-         echo "*** ${NETSNMP_DIR}/bin"
-         echo "*** Either correct the installation, or run configure"
-         echo "*** including --without-netsnmp"
-         exit 1
-      fi
-   else
-      AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], No)
-   fi
-fi
-
-if test x"${NETSNMP_CONFIG}" != xNo; then
-   NETSNMP_libs=`net-snmp-config --agent-libs`
-   
-   AC_CHECK_LIB([netsnmp], [snmp_register_callback], AC_DEFINE_UNQUOTED([HAVE_NETSNMP], 1,
-   [Define to indicate the Net-SNMP library]), [], ${NETSNMP_libs})
-
-   if test "${ac_cv_lib_netsnmp_snmp_register_callback}" = "yes"; then
-      NETSNMP_LIB="${NETSNMP_libs}"
-      PBX_NETSNMP=1
-   elif test ! -z "${NETSNMP_MANDATORY}";
-   then
-      echo "***"
-      echo "*** The Net-SNMP installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-netsnmp"
-      exit 1
-   fi
-elif test ! -z "${NETSNMP_MANDATORY}";
-then
-   echo "***"
-   echo "*** The Net-SNMP installation on this system appears to be broken."
-   echo "*** Either correct the installation, or run configure"
-   echo "*** including --without-netsnmp"
-   exit 1
-fi
-AC_SUBST([NETSNMP_LIB])
-AC_SUBST([PBX_NETSNMP])
-
-AST_EXT_LIB([newt], [newtBell], [newt.h], [NEWT], [newt])
-AST_EXT_LIB([odbc], [SQLConnect], [sql.h], [UNIXODBC], [unixODBC])
-AST_EXT_LIB([ogg], [ogg_sync_init], [], [OGG], [OGG])
-AST_EXT_LIB([osptk], [OSPPCryptoDecrypt], [osp/osp.h], [OSPTK], [OSP Toolkit], [-lcrypto -lssl])
-
-PBX_LIBOSS=0
-AC_CHECK_HEADER([linux/soundcard.h],
-	        [
-		PBX_LIBOSS=1
-                AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
-		])
-if test "$PBX_LIBOSS" = "0"; then
-   AC_CHECK_HEADER([sys/soundcard.h],
-                   [
-		   PBX_LIBossaudio=1
-		   AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
-		   ])
-fi
-if test "$PBX_LIBOSS" = "0"; then
-   AST_EXT_LIB([ossaudio], [oss_ioctl_mixer], [soundcard.h], [OSS], [Open Sound System])
-fi
-
-AC_SUBST([PBX_LIBOSS])
-
-AC_ARG_WITH([pq], AC_HELP_STRING([--with-pq=PATH],[use PostgreSQL files in PATH]),[
-case ${withval} in
-     n|no)
-     USE_PQ=no
-     ;;
-     y|ye|yes)
-     PQ_MANDATORY="yes"
-     ;;
-     *)
-     PQ_DIR="${withval}"
-     PQ_MANDATORY="yes"
-     ;;
-esac
-])
-
-PBX_LIBpq=0
-PG_CONFIG=No
-if test "${USE_PQ}" != "no"; then	
-   if test "x${PQ_DIR}" != "x"; then
-      AC_PATH_TOOL([PG_CONFIG], [pg_config], No, [${PQ_DIR}/bin])
-      if test x"${PG_CONFIG}" = xNo; then
-         echo "***"
-         echo "*** pg_config was not found in the path you specified:"
-         echo "*** ${PQ_DIR}/bin"
-         echo "*** Either correct the installation, or run configure"
-         echo "*** including --without-pq"
-         exit 1
-      fi
-   else
-      AC_PATH_TOOL([PG_CONFIG], [pg_config], No)
-   fi
-fi
-
-if test x"${PG_CONFIG}" != xNo; then
-   PQ_libdir=`pg_config --libdir`
-   PQ_includedir=`pg_config --includedir`
-   
-   AC_CHECK_LIB([pq], [PQexec], AC_DEFINE_UNQUOTED([HAVE_PQ], 1,
-   [Define to indicate the PostgreSQL library]), [], -L${PQ_libdir} -lz)
-
-   if test "${ac_cv_lib_pq_PQexec}" = "yes"; then
-      pq_LIB="-L${PQ_libdir} -lpq -lz"
-      pq_INCLUDE="-I${PQ_includedir}"
-      PBX_LIBpq=1
-   elif test ! -z "${PQ_MANDATORY}";
-   then
-      echo "***"
-      echo "*** The PostgreSQL installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-pq"
-      exit 1
-   fi
-elif test ! -z "${PQ_MANDATORY}";
-then
-   echo "***"
-   echo "*** The PostgreSQL installation on this system appears to be broken."
-   echo "*** Either correct the installation, or run configure"
-   echo "*** including --without-pq"
-   exit 1
-fi
-AC_SUBST([pq_INCLUDE])
-AC_SUBST([pq_LIB])
-AC_SUBST([PBX_LIBpq])
-
-AST_EXT_LIB([popt], [poptStrerror], [popt.h], [POPT], [popt])
-AST_EXT_LIB([pri], [pri_call], [libpri.h], [LIBPRI], [ISDN PRI])
-
-PLATFORM_PTLIB="ptlib_${OSTYPE}_${MACHTYPE}_r"
-
-AC_ARG_WITH([pwlib], AC_HELP_STRING([--with-pwlib=PATH],[use PWLib files in PATH]),[
-case ${withval} in
-     n|no)
-     USE_PWLIB=no
-     ;;
-     y|ye|yes)
-     ;;
-     *)
-     PWLIB_DIR="${withval}"
-     ;;
-esac
-])
-if test "${USE_PWLIB}" != "no"; then
-	echo -n "checking for existence of pwlib... "
-	
-	saved_ldflags="${LDFLAGS}"
-	LDFLAGS="${LDFLAGS} -L${PWLIB_DIR} -l${PLATFORM_PTLIB}"
-	
-	AC_LINK_IFELSE(
-	[
-	AC_LANG_PROGRAM(
-	[#include "${PWDIR_DIR}ptime.h"],
-	[int q = PTime::IsDaylightSaving();])
-	],
-	[	AC_MSG_RESULT(yes) 
-		ac_cv_lib_pwlib="yes" 
-	],
-	[	AC_MSG_RESULT(no) 
-		ac_cv_lib_pwlib="no" 
-	]
-	)
-	LDFLAGS="${saved_ldflags}"
-
-	PBX_LIBPWLIB=0
-   
-   if test "${ac_cv_lib_pwlib}" = "yes"; then
-      PWLIB_LIB="-l{PLATFORM_PWLIB}"
-      if test "${PWLIB_DIR}" != ""; then
-         PWLIB_LIB="-L${PWLIB_DIR}/lib ${PWLIB_LIB}"
-	 		PWLIB_INCLUDE="-I${PWLIB_DIR}/include"
-	 		AC_SUBST([PWLIB_INCLUDE])
-      fi
-   	AC_SUBST([PWLIB_LIB])
-   	PBX_LIBPWLIB=1
-   	AC_DEFINE([HAVE_LIBPWLIB], 1, [Define if your system has the pwlib libraries.])
-   elif test ! -z "${PWLIB_DIR}"; 
-   then
-      echo "***"
-      echo "*** The PWLIB installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-pwlib"
-      exit 1
-   fi
-fi
-AC_SUBST([PBX_LIBPWLIB])
-
-AC_LANG_PUSH(C++)
-
-AC_ARG_WITH([qt], AC_HELP_STRING([--with-qt=PATH],[use Qt files in PATH]),[
-case ${withval} in
-     n|no)
-     USE_QT=no
-     ;;
-     y|ye|yes)
-     QT_MANDATORY="yes"
-     ;;
-     *)
-     QT_DIR="${withval}"
-     QT_MANDATORY="yes"
-     ;;
-esac
-])
-
-PBX_QT=0
-if test "${USE_QT}" != "no"; then
-   echo -n "checking for QDate in -lqt... "
-   saved_libs="${LIBS}"
-   saved_cppflags="${CPPFLAGS}"
-   if test "x${QT_DIR}" != "x"; then
-      LIBS="${LIBS} -L${QT_DIR}/lib"
-      CPPFLAGS="${CPPFLAGS} -I${QT_DIR}/include"
-   fi
-   LIBS="${LIBS} -lqt"
-   qtlib="qt"
-   AC_LINK_IFELSE(
-	[
-		AC_LANG_PROGRAM(
-		[#include <qt3/qdatetime.h>],
-		[QDate date();])
-	],
-	[ac_cv_lib_qt_qt_date="yes"],
-	[ac_cv_lib_qt_qt_date="no"])
-   LIBS="${saved_libs}"
-   CPPFLAGS="${saved_cppflags}"
-	
-   if test "${ac_cv_lib_qt_qt_date}" = "no"; then
-      saved_libs="${LIBS}"
-      saved_cppflags="${CPPFLAGS}"
-      if test "x${QT_DIR}" != "x"; then
-      	 LIBS="${LIBS} -L${QT_DIR}/lib"
-	 CPPFLAGS="${CPPFLAGS} -I${QT_DIR}/include"
-      fi
-      LIBS="${LIBS} -lqt-mt"
-      qtlib="qt-mt"	
-      AC_LINK_IFELSE(
-		[
-			AC_LANG_PROGRAM(
-			[#include <qt3/qdatetime.h>],
-			[QDate date();])
-		],
-		[ac_cv_lib_qt_qt_date="yes"],
-		[ac_cv_lib_qt_qt_date="no"])
-      LIBS="${saved_libs}"
-      CPPFLAGS="${saved_cppflags}"
-   fi	
-
-   if test "${ac_cv_lib_qt_qt_date}" = "yes"; then
-      AC_MSG_RESULT(yes) 
-   else
-      AC_MSG_RESULT(no) 
-   fi
-	
-   if test "${ac_cv_lib_qt_qt_date}" = "yes"; then
-      QT_LIB="-l${qtlib}"
-      if test "${QT_DIR}" != ""; then
-      	 QT_LIB="-L${QT_DIR}/lib ${QT_LIB}"
-	 QT_INCLUDE="-I${QT_DIR}/include"
-	 AC_SUBST([QT_INCLUDE])
-      fi
-      AC_SUBST([QT_LIB])
-      PBX_QT=1
-      AC_DEFINE([HAVE_LIBQT], 1, [Define if your system has the Qt library])
-      AC_PATH_TOOL(QTMOC, moc, No)
-   elif test ! -z "${QT_MANDATORY}"; 
-   then
-      echo "***"
-      echo "*** The Qt installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-qt."
-      exit 1
-   fi
-fi
-AC_SUBST([PBX_QT])
-
-AC_LANG_POP
-
-AST_EXT_LIB([radiusclient-ng], [rc_read_config], [radiusclient-ng.h], [RADIUSCLIENT], [Radius Client])
-AST_EXT_LIB([speex], [speex_encode], [speex/speex.h], [SPEEX], [Speex], [-lm])
-AST_EXT_LIB([sqlite], [sqlite_exec], [sqlite.h], [SQLITE], [SQLite])
-AST_EXT_LIB([ssl], [ssl2_connect], [openssl/ssl.h], [OPENSSL], [OpenSSL], [-lcrypto])
-AST_EXT_LIB([tds], [tds_version], [tds.h], [FREETDS], [FreeTDS])
-
-if test "${PBX_LIBFREETDS}" != "0";
-then
-    case `grep TDS_VERSION_NO ${FREETDS_DIR:-/usr/include}/tdsver.h` in
-    *0.63*)
-        FREETDS_INCLUDE="${FREETDS_INCLUDE} -DFREETDS_0_63"
-	;;
-    *0.62*)
-        FREETDS_INCLUDE="${FREETDS_INCLUDE} -DFREETDS_0_62"
-	;;
-    *)
-        FREETDS_INCLUDE="${FREETDS_INCLUDE} -DFREETDS_PRE_0_62"
-	;;
-    esac
-fi
-
-AST_EXT_LIB([termcap], [tgetent], [], [TERMCAP], [Termcap])
-AST_EXT_LIB([tinfo], [tgetent], [], [TINFO], [Term Info])
-
-if test "${PBX_OSTYPE}" = "Linux" ; then
-  AST_EXT_LIB([tonezone], [tone_zone_find], [zaptel/tonezone.h], [TONEZONE], [tonezone])
-else
-  AST_EXT_LIB([tonezone], [tone_zone_find], [zaptel/tonezone.h], [TONEZONE], [tonezone], [-lm])
-fi
-
-AST_EXT_LIB([vorbis], [vorbis_info_init], [vorbis/codec.h], [VORBIS], [Vorbis], [-lm -lvorbisenc])
-
-AC_LANG_PUSH(C++)
-
-AC_ARG_WITH([vpb], AC_HELP_STRING([--with-vpb=PATH],[use vpb files in PATH]),[
-case ${withval} in
-     n|no)
-     USE_VPB=no
-     ;;
-     y|ye|yes)
-     VPB_MANDATORY="yes"
-     ;;
-     *)
-     VPB_DIR="${withval}"
-     VPB_MANDATORY="yes"
-     ;;
-esac
-])
-if test "${USE_VPB}" != "no"; then
-   echo -n "checking for vpb_open in -lvpb... "
-   saved_libs="${LIBS}"
-   saved_cppflags="${CPPFLAGS}"
-   if test "x${VPB_DIR}" != "x"; then
-      LIBS="${LIBS} -L${VPB_DIR} -L${VPB_DIR}/lib"
-      CPPFLAGS="${CPPFLAGS} -I${VPB_DIR}/include"
-   fi
-   LIBS="${LIBS} -lvpb -lpthread"
-   AC_LINK_IFELSE(
-	[
-	AC_LANG_PROGRAM(
-	[#include <vpbapi.h>],
-	[int q = vpb_open(0,0);])
-	],
-	[	AC_MSG_RESULT(yes) 
-		ac_cv_lib_vpb_vpb_open="yes" 
-	],
-	[	AC_MSG_RESULT(no) 
-		ac_cv_lib_vpb_vpb_open="no" 
-	]
-	)
-   LIBS="${saved_libs}"
-   CPPFLAGS="${saved_cppflags}"
-   PBX_LIBvpb=0
-   if test "${ac_cv_lib_vpb_vpb_open}" = "yes"; then
-	VPB_LIB="-lvpb"
-	if test "${VPB_DIR}" != ""; then
-	   VPB_LIB="-L${VPB_DIR} -L${VPB_DIR}/lib ${VPB_LIB}"
-	   VPB_INCLUDE="-I${VPB_DIR}/include"
-	   AC_SUBST([VPB_INCLUDE])
-	fi
-	AC_SUBST([VPB_LIB])
-	PBX_LIBvpb=1
-	AC_DEFINE([HAVE_LIBVPB], 1, [Define if your system has the VoiceTronix (vpb) libraries.])
-   elif test ! -z "${VPB_MANDATORY}"; 
-   then
-      echo "***"
-      echo "*** The VoiceTronix (vpb) installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-vpb."
-      exit 1
-   fi
-fi
-AC_SUBST([PBX_LIBvpb])
-
-AC_LANG_POP
-
-AST_EXT_LIB([z], [compress], [zlib.h], [ZLIB], [zlib])
-
-AC_ARG_WITH([zaptel], AC_HELP_STRING([--with-zaptel=PATH], [use Zaptel files in PATH]), [
-case ${withval} in
-     n|no)
-     USE_ZAPTEL=no
-     ;;
-     y|ye|yes)
-     ZAPTEL_MANDATORY=yes
-     ;;
-     *)
-     ZAPTEL_DIR="${withval}"
-     ZAPTEL_MANDATORY=yes
-     ;;
-esac
-])
-
-PBX_ZAPTEL=0
-if test "${USE_ZAPTEL}" != "no"; then
-   echo -n "checking for zt_transcode_header in zaptel.h... "
-   saved_cppflags="${CPPFLAGS}"
-   if test "x${ZAPTEL_DIR}" != "x"; then
-      CPPFLAGS="${CPPFLAGS} -I${ZAPTEL_DIR}/include"
-   fi
-   AC_COMPILE_IFELSE(
-	[
-	AC_LANG_PROGRAM(
-	[#include <zaptel/zaptel.h>],
-	[struct zt_transcode_header test;])
-	],
-	[	AC_MSG_RESULT(yes) 
-		ac_cv_zaptel_h="yes" 
-	],
-	[	AC_MSG_RESULT(no) 
-		ac_cv_zaptel_h="no" 
-	]
-	)
-   CPPFLAGS="${saved_cppflags}"
-   if test "${ac_cv_zaptel_h}" = "yes"; then
-	if test "${ZAPTEL_DIR}" != ""; then
-	   ZAPTEL_INCLUDE="-I${ZAPTEL_DIR}/include"
-	   AC_SUBST([ZAPTEL_INCLUDE])
-	fi
-	PBX_ZAPTEL=1
-	AC_DEFINE([HAVE_ZAPTEL], 1, [Define if your system has the Zaptel headers.])
-   elif test ! -z "${ZAPTEL_MANDATORY}"; 
-   then
-      echo "***"
-      echo "*** The Zaptel installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-zaptel."
-      exit 1
-   fi
-fi
-
-AC_SUBST([PBX_ZAPTEL])
-
-EDITLINE_LIB=""
-if test "x$TERMCAP_LIB" != "x" ; then
-  EDITLINE_LIB="$TERMCAP_LIB"
-elif test "x$TINFO_LIB" != "x" ; then
-  EDITLINE_LIB="$TINFO_LIB"
-elif test "x$CURSES_LIB" != "x" ; then
-  EDITLINE_LIB="$CURSES_LIB"
-elif test "x$NCURSES_LIB" != "x" ; then
-  EDITLINE_LIB="$NCURSES_LIB"
-else
-  echo "*** termcap support not found"
-  exit 1
-fi
-AC_SUBST(EDITLINE_LIB)
-
-AC_CHECK_HEADER([h323.h], [PBX_H323=1], [PBX_H323=0])
-AC_SUBST(PBX_H323)
-
-AC_CHECK_HEADER([linux/ixjuser.h], [PBX_IXJUSER=1], [PBX_IXJUSER=0], [
-				   #include <linux/version.h>
-				   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-				   #include <linux/compiler.h>
-				   #endif
-				   ])
-AC_SUBST(PBX_IXJUSER)
-
-PBX_GTK=0
-AC_CHECK_TOOL(GTKCONFIG, gtk-config, No)
-if test ! "x${GTKCONFIG}" = xNo; then
-   GTK_INCLUDE=$(${GTKCONFIG} --cflags gthread)
-   GTK_LIB=$(${GTKCONFIG} --libs gthread)
-   PBX_GTK=1
-   AC_DEFINE([HAVE_GTK], 1, [Define if your system has the GTK libraries.])
-fi
-AC_SUBST(PBX_GTK)
-AC_SUBST(GTK_INCLUDE)
-AC_SUBST(GTK_LIB)
-
-PBX_CURL=0
-AC_PATH_TOOL([CURL], [curl-config], No)
-if test ! x"${CURL}" = xNo; then
-# check for version
-   CURLLIB=$(${CURL} --libs)
-   PBX_CURL=1
-   AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
-fi
-AC_SUBST(PBX_CURL)
-AC_SUBST(CURLLIB)
+# check for basic system features and functionality before
+# checking for package libraries
 
 AC_FUNC_ALLOCA
 AC_HEADER_DIRENT
@@ -891,6 +290,513 @@ AC_CHECK_HEADER([libkern/OSAtomic.h],
                 [AC_DEFINE_UNQUOTED([HAVE_OSX_ATOMICS], 1, [Define to 1 if OSX atomic operations are supported.])])
 
 AC_CHECK_SIZEOF(int)
+
+# do the package library checks now
+
+AST_EXT_LIB_CHECK([ALSA], [asound], [snd_spcm_init], [alsa/asoundlib.h], [-lm -ldl])
+
+AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
+
+GSM_INTERNAL="yes"
+GSM_SYSTEM="yes"
+if test "${USE_GSM}" != "no"; then
+   if test "${GSM_SYSTEM}" = "yes"; then
+      gsmlibdir=""
+      if test "x${GSM_DIR}" != "x"; then
+      	 if test -d ${GSM_DIR}/lib; then
+	    gsmlibdir="-L${GSM_DIR}/lib"
+	 else
+	    gsmlibdir="-L${GSM_DIR}"
+	 fi
+      fi
+      AC_CHECK_LIB([gsm], [gsm_create], AC_DEFINE_UNQUOTED([HAVE_GSM], 1,
+      [Define to indicate the GSM library]), [], ${gsmlibdir})
+      if test "${ac_cv_lib_gsm_gsm_create}" = "yes"; then
+	 GSM_LIB="-lgsm"
+	 if test "x${GSM_DIR}" != "x"; then
+	    GSM_LIB="${gsmlibdir} ${GSM_LIB}"
+	    GSM_INCLUDE="-I${GSM_DIR}/include"
+	 fi
+	 PBX_GSM=1
+	 GSM_INTERNAL="no"
+      fi
+   fi
+   if test "${GSM_INTERNAL}" = "yes"; then
+      GSM_LIB="internal"
+      PBX_GSM=1
+   fi
+fi
+
+AST_EXT_LIB_CHECK([IKSEMEL], [iksemel], [iks_start_sasl], [iksemel.h])
+
+if test "${USE_IMAP_TK}" != "no"; then
+   if test "${IMAP_TK_DIR}" = ""; then
+      IMAP_TK_DIR=../imap-2004g
+   fi
+fi
+
+AC_LANG_PUSH(C++)
+
+if test "${USE_KDE}" != "no"; then
+   echo -n "checking for crashHandler in -lkdecore... "
+   saved_libs="${LIBS}"
+   saved_cppflags="${CPPFLAGS}"
+   CPPFLAGS="${CPPFLAGS} -I${KDE_DIR}/include"
+   if test -d ${KDE_DIR}/lib; then
+      kdelibdir="${KDE_DIR}/lib"
+   else
+      kdelibdir="${KDE_DIR}"
+   fi
+   LIBS="${LIBS} -L${kdelibdir} -lkdecore"
+
+   AC_LINK_IFELSE(
+	[AC_LANG_PROGRAM(
+			[#include "kcrash.h"],
+			[KCrash::defaultCrashHandler(1);])
+	],
+	[ac_cv_lib_kde_crash="yes"],
+	[ac_cv_lib_kde_crash="no"])
+		
+   LIBS="${saved_libs}"
+   CPPFLAGS="${saved_cppflags}"
+	
+   if test "${ac_cv_lib_kde_crash}" = "yes"; then
+      AC_MSG_RESULT(yes) 
+      KDE_LIB="-lkdecore -lkdeui"
+      if test "${KDE_DIR}" != ""; then
+      	 KDE_LIB="-L${kdelibdir} ${KDE_LIB}"
+	 KDE_INCLUDE="-I${KDE_DIR}/include"
+      fi
+      PBX_KDE=1
+      AC_DEFINE([HAVE_LIBKDE], 1, [Define if your system has the KDE libraries.])
+   elif test ! -z "${KDE_MANDATORY}"; then
+      AC_MSG_RESULT(no) 
+      echo "***"
+      echo "*** The KDE installation on this system appears to be broken."
+      echo "*** Either correct the installation, or run configure"
+      echo "*** including --without-kde."
+      exit 1
+   else
+      AC_MSG_RESULT(no) 
+   fi
+fi
+if test "${PBX_KDE}" = 1; then
+   AC_PATH_TOOL(KDEINIT, kdeinit, No)
+   if test ! x"${KDEINIT}" = xNo; then
+      KDEDIR=$(${DIRNAME} ${KDEINIT})
+      KDEDIR=$(${DIRNAME} ${KDEDIR})
+   fi
+   AC_SUBST([KDEDIR])
+fi
+
+AC_LANG_POP
+
+AST_EXT_LIB_CHECK([NBS], [nbs], [nbs_connect], [nbs.h])
+
+AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
+
+NETSNMP_CONFIG=No
+if test "${USE_NETSNMP}" != "no"; then	
+   if test "x${NETSNMP_DIR}" != "x"; then
+      AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], No, [${NETSNMP_DIR}/bin])
+      if test x"${NETSNMP_CONFIG}" = xNo; then
+         echo "***"
+         echo "*** net-snmp-config was not found in the path you specified:"
+         echo "*** ${NETSNMP_DIR}/bin"
+         echo "*** Either correct the installation, or run configure"
+         echo "*** including --without-netsnmp"
+         exit 1
+      fi
+   else
+      AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], No)
+   fi
+fi
+if test x"${NETSNMP_CONFIG}" != xNo; then
+   NETSNMP_libs=`net-snmp-config --agent-libs`
+   
+   AC_CHECK_LIB([netsnmp], [snmp_register_callback], AC_DEFINE_UNQUOTED([HAVE_NETSNMP], 1,
+   [Define to indicate the Net-SNMP library]), [], ${NETSNMP_libs})
+
+   if test "${ac_cv_lib_netsnmp_snmp_register_callback}" = "yes"; then
+      NETSNMP_LIB="${NETSNMP_libs}"
+      PBX_NETSNMP=1
+   elif test ! -z "${NETSNMP_MANDATORY}";
+   then
+      echo "***"
+      echo "*** The Net-SNMP installation on this system appears to be broken."
+      echo "*** Either correct the installation, or run configure"
+      echo "*** including --without-netsnmp"
+      exit 1
+   fi
+elif test ! -z "${NETSNMP_MANDATORY}";
+then
+   echo "***"
+   echo "*** The Net-SNMP installation on this system appears to be broken."
+   echo "*** Either correct the installation, or run configure"
+   echo "*** including --without-netsnmp"
+   exit 1
+fi
+
+AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
+
+AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h])
+
+AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_sync_init], [])
+
+AST_EXT_LIB_CHECK([OSPTK], [osptk], [OSPPCryptoDecrypt], [osp/osp.h], [-lcrypto -lssl])
+
+PBX_LIBOSS=0
+AC_CHECK_HEADER([linux/soundcard.h],
+	        [
+		PBX_LIBOSS=1
+                AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
+		])
+if test "$PBX_LIBOSS" = "0"; then
+   AC_CHECK_HEADER([sys/soundcard.h],
+                   [
+		   PBX_LIBossaudio=1
+		   AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
+		   ])
+fi
+if test "$PBX_LIBOSS" = "0"; then
+   AST_EXT_LIB_CHECK([OSS], [ossaudio], [oss_ioctl_mixer], [soundcard.h])
+fi
+AC_SUBST([PBX_LIBOSS])
+
+PG_CONFIG=No
+if test "${USE_PGSQL}" != "no"; then	
+   if test "x${PGSQL_DIR}" != "x"; then
+      AC_PATH_TOOL([PG_CONFIG], [pg_config], No, [${PGSQL_DIR}/bin])
+      if test x"${PG_CONFIG}" = xNo; then
+         echo "***"
+         echo "*** pg_config was not found in the path you specified:"
+         echo "*** ${PGSQL_DIR}/bin"
+         echo "*** Either correct the installation, or run configure"
+         echo "*** including --without-postgres"
+         exit 1
+      fi
+   else
+      AC_PATH_TOOL([PG_CONFIG], [pg_config], No)
+   fi
+fi
+if test "${PG_CONFIG}" != No; then
+   PGSQL_libdir=`pg_config --libdir`
+   PGSQL_includedir=`pg_config --includedir`
+   
+   AC_CHECK_LIB([pq], [PQexec], AC_DEFINE_UNQUOTED([HAVE_PGSQL], 1,
+   [Define to indicate the PostgreSQL library]), [], -L${PGSQL_libdir} -lz)
+
+   if test "${ac_cv_lib_pq_PQexec}" = "yes"; then
+      PGSQL_LIB="-L${PGSQL_libdir} -lpq -lz"
+      PGSQL_INCLUDE="-I${PGSQL_includedir}"
+      PBX_PGSQL=1
+   elif test ! -z "${PGSQL_MANDATORY}";
+   then
+      echo "***"
+      echo "*** The PostgreSQL installation on this system appears to be broken."
+      echo "*** Either correct the installation, or run configure"
+      echo "*** including --without-postgres"
+      exit 1
+   fi
+elif test ! -z "${PGSQL_MANDATORY}";
+then
+   echo "***"
+   echo "*** The PostgreSQL installation on this system appears to be broken."
+   echo "*** Either correct the installation, or run configure"
+   echo "*** including --without-postgres"
+   exit 1
+fi
+
+AST_EXT_LIB_CHECK([POPT], [popt], [poptStrerror], [popt.h])
+
+AST_EXT_LIB_CHECK([PRI], [pri], [pri_call], [libpri.h])
+
+PLATFORM_PTLIB="ptlib_${OSTYPE}_${MACHTYPE}_r"
+if test "${USE_PWLIB}" != "no"; then
+   echo -n "checking for existence of pwlib... "
+	
+   saved_cppflags="${CPPFLAGS}"
+   saved_libs="${LIBS}"
+   LIBS="${LIBS} -L${PWLIB_DIR} -l${PLATFORM_PTLIB}"
+   CPPFLAGS="${CPPFLAGS} -I${PWLIB_DIR}/include"
+	
+   AC_LINK_IFELSE(
+	[
+	AC_LANG_PROGRAM(
+	[#include "ptime.h"],
+	[int q = PTime::IsDaylightSaving();])
+	],
+	[	AC_MSG_RESULT(yes) 
+		ac_cv_lib_pwlib="yes" 
+	],
+	[	AC_MSG_RESULT(no) 
+		ac_cv_lib_pwlib="no" 
+	]
+	)
+
+   LIBS="${saved_libs}"
+   CPPFLAGS="${saved_cppflags}"
+
+   if test "${ac_cv_lib_pwlib}" = "yes"; then
+      PWLIB_LIB="-l{PLATFORM_PWLIB}"
+      if test "${PWLIB_DIR}" != ""; then
+         PWLIB_LIB="-L${PWLIB_DIR}/lib ${PWLIB_LIB}"
+         PWLIB_INCLUDE="-I${PWLIB_DIR}/include"
+      fi
+   	PBX_PWLIB=1
+   	AC_DEFINE([HAVE_PWLIB], 1, [Define if your system has the pwlib libraries.])
+   elif test ! -z "${PWLIB_MANDATORY}"; then
+      echo "***"
+      echo "*** The PWLIB installation on this system appears to be broken."
+      echo "*** Either correct the installation, or run configure"
+      echo "*** including --without-pwlib"
+      exit 1
+   fi
+fi
+
+AC_LANG_PUSH(C++)
+
+if test "${USE_QT}" != "no"; then
+   echo -n "checking for QDate in -lqt... "
+   saved_libs="${LIBS}"
+   saved_cppflags="${CPPFLAGS}"
+   if test "x${QT_DIR}" != "x"; then
+      LIBS="${LIBS} -L${QT_DIR}/lib"
+      CPPFLAGS="${CPPFLAGS} -I${QT_DIR}/include"
+   fi
+   LIBS="${LIBS} -lqt"
+   qtlib="qt"
+   AC_LINK_IFELSE(
+	[
+		AC_LANG_PROGRAM(
+		[#include <qt3/qdatetime.h>],
+		[QDate date();])
+	],
+	[ac_cv_lib_qt_qt_date="yes"],
+	[ac_cv_lib_qt_qt_date="no"])
+   LIBS="${saved_libs}"
+   CPPFLAGS="${saved_cppflags}"
+	
+   if test "${ac_cv_lib_qt_qt_date}" = "no"; then
+      saved_libs="${LIBS}"
+      saved_cppflags="${CPPFLAGS}"
+      if test "x${QT_DIR}" != "x"; then
+      	 LIBS="${LIBS} -L${QT_DIR}/lib"
+	 CPPFLAGS="${CPPFLAGS} -I${QT_DIR}/include"
+      fi
+      LIBS="${LIBS} -lqt-mt"
+      qtlib="qt-mt"	
+      AC_LINK_IFELSE(
+		[
+			AC_LANG_PROGRAM(
+			[#include <qt3/qdatetime.h>],
+			[QDate date();])
+		],
+		[ac_cv_lib_qt_qt_date="yes"],
+		[ac_cv_lib_qt_qt_date="no"])
+      LIBS="${saved_libs}"
+      CPPFLAGS="${saved_cppflags}"
+   fi	
+
+   if test "${ac_cv_lib_qt_qt_date}" = "yes"; then
+      AC_MSG_RESULT(yes) 
+   else
+      AC_MSG_RESULT(no) 
+   fi
+	
+   if test "${ac_cv_lib_qt_qt_date}" = "yes"; then
+      QT_LIB="-l${qtlib}"
+      if test "${QT_DIR}" != ""; then
+      	 QT_LIB="-L${QT_DIR}/lib ${QT_LIB}"
+	 QT_INCLUDE="-I${QT_DIR}/include"
+      fi
+      PBX_QT=1
+      AC_DEFINE([HAVE_QT], 1, [Define if your system has the Qt library])
+      AC_PATH_TOOL(QTMOC, moc, No)
+   elif test ! -z "${QT_MANDATORY}"; 
+   then
+      echo "***"
+      echo "*** The Qt installation on this system appears to be broken."
+      echo "*** Either correct the installation, or run configure"
+      echo "*** including --without-qt."
+      exit 1
+   fi
+fi
+
+AC_LANG_POP
+
+AST_EXT_LIB_CHECK([RADIUS], [radiusclient-ng], [rc_read_config], [radiusclient-ng.h])
+
+AST_EXT_LIB_CHECK([SPEEX], [speex], [speex_encode], [speex/speex.h], [-lm])
+
+AST_EXT_LIB_CHECK([SQLITE], [sqlite], [sqlite_exec], [sqlite.h])
+
+AST_EXT_LIB_CHECK([OPENSSL], [ssl], [ssl2_connect], [openssl/ssl.h], [-lcrypto])
+
+AST_EXT_LIB_CHECK([FREETDS], [tds], [tds_version], [tds.h])
+if test "${PBX_FREETDS}" != "0";
+then
+    case `grep TDS_VERSION_NO ${FREETDS_DIR:-/usr/include}/tdsver.h` in
+    *0.63*)
+        FREETDS_INCLUDE="${FREETDS_INCLUDE} -DFREETDS_0_63"
+	;;
+    *0.62*)
+        FREETDS_INCLUDE="${FREETDS_INCLUDE} -DFREETDS_0_62"
+	;;
+    *)
+        FREETDS_INCLUDE="${FREETDS_INCLUDE} -DFREETDS_PRE_0_62"
+	;;
+    esac
+fi
+
+AST_EXT_LIB_CHECK([TERMCAP], [termcap], [tgetent], [])
+
+AST_EXT_LIB_CHECK([TINFO], [tinfo], [tgetent], [])
+
+if test "${PBX_OSTYPE}" != "Linux" ; then
+  tonezone_extra="-lm"
+fi
+
+AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [zaptel/tonezone.h], [${tonezone_extra}])
+
+AST_EXT_LIB_CHECK([VORBIS], [vorbis], [vorbis_info_init], [vorbis/codec.h], [-lm -lvorbisenc])
+
+AC_LANG_PUSH(C++)
+
+if test "${USE_VPB}" != "no"; then
+   echo -n "checking for vpb_open in -lvpb... "
+   saved_libs="${LIBS}"
+   saved_cppflags="${CPPFLAGS}"
+   if test "x${VPB_DIR}" != "x"; then
+      if test -d ${VPB_DIR}/lib; then
+         vpblibdir=${VPB_DIR}/lib
+      else
+         vpblibdir=${VPB_DIR}
+      fi
+      LIBS="${LIBS} -L${vpblibdir}"
+      CPPFLAGS="${CPPFLAGS} -I${VPB_DIR}/include"
+   fi
+   LIBS="${LIBS} -lvpb -lpthread"
+   AC_LINK_IFELSE(
+	[
+	AC_LANG_PROGRAM(
+	[#include <vpbapi.h>],
+	[int q = vpb_open(0,0);])
+	],
+	[	AC_MSG_RESULT(yes) 
+		ac_cv_lib_vpb_vpb_open="yes" 
+	],
+	[	AC_MSG_RESULT(no) 
+		ac_cv_lib_vpb_vpb_open="no" 
+	]
+	)
+   LIBS="${saved_libs}"
+   CPPFLAGS="${saved_cppflags}"
+   if test "${ac_cv_lib_vpb_vpb_open}" = "yes"; then
+	VPB_LIB="-lvpb"
+	if test "${VPB_DIR}" != ""; then
+	   VPB_LIB="-L${vpblibdir}  ${VPB_LIB}"
+	   VPB_INCLUDE="-I${VPB_DIR}/include"
+	fi
+	PBX_VPB=1
+	AC_DEFINE([HAVE_VPB], 1, [Define if your system has the VoiceTronix API libraries.])
+   elif test ! -z "${VPB_MANDATORY}"; then
+      echo "***"
+      echo "*** The VoiceTronix (vpb) installation on this system appears to be broken."
+      echo "*** Either correct the installation, or run configure"
+      echo "*** including --without-vpb."
+      exit 1
+   fi
+fi
+
+AC_LANG_POP
+
+AST_EXT_LIB_CHECK([ZLIB], [z], [compress], [zlib.h])
+
+if test "${USE_ZAPTEL}" != "no"; then
+   echo -n "checking for zt_transcode_header in zaptel.h... "
+   saved_cppflags="${CPPFLAGS}"
+   if test "x${ZAPTEL_DIR}" != "x"; then
+      CPPFLAGS="${CPPFLAGS} -I${ZAPTEL_DIR}/include"
+   fi
+   AC_COMPILE_IFELSE(
+	[
+	AC_LANG_PROGRAM(
+	[#include <zaptel/zaptel.h>],
+	[struct zt_transcode_header test;])
+	],
+	[	AC_MSG_RESULT(yes) 
+		ac_cv_zaptel_h="yes" 
+	],
+	[	AC_MSG_RESULT(no) 
+		ac_cv_zaptel_h="no" 
+	]
+	)
+   CPPFLAGS="${saved_cppflags}"
+   if test "${ac_cv_zaptel_h}" = "yes"; then
+	if test "${ZAPTEL_DIR}" != ""; then
+	   ZAPTEL_INCLUDE="-I${ZAPTEL_DIR}/include"
+	fi
+	PBX_ZAPTEL=1
+	AC_DEFINE([HAVE_ZAPTEL], 1, [Define if your system has the Zaptel headers.])
+   elif test ! -z "${ZAPTEL_MANDATORY}"; 
+   then
+      echo "***"
+      echo "*** The Zaptel installation on this system appears to be broken."
+      echo "*** Either correct the installation, or run configure"
+      echo "*** including --without-zaptel."
+      exit 1
+   fi
+fi
+
+EDITLINE_LIB=""
+if test "x$TERMCAP_LIB" != "x" ; then
+  EDITLINE_LIB="$TERMCAP_LIB"
+elif test "x$TINFO_LIB" != "x" ; then
+  EDITLINE_LIB="$TINFO_LIB"
+elif test "x$CURSES_LIB" != "x" ; then
+  EDITLINE_LIB="$CURSES_LIB"
+elif test "x$NCURSES_LIB" != "x" ; then
+  EDITLINE_LIB="$NCURSES_LIB"
+else
+  echo "*** termcap support not found"
+  exit 1
+fi
+AC_SUBST(EDITLINE_LIB)
+
+AC_CHECK_HEADER([h323.h], [PBX_H323=1], [PBX_H323=0])
+AC_SUBST(PBX_H323)
+
+AC_CHECK_HEADER([linux/ixjuser.h], [PBX_IXJUSER=1], [PBX_IXJUSER=0], [
+				   #include <linux/version.h>
+				   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+				   #include <linux/compiler.h>
+				   #endif
+				   ])
+AC_SUBST(PBX_IXJUSER)
+
+PBX_GTK=0
+AC_CHECK_TOOL(GTKCONFIG, gtk-config, No)
+if test ! "x${GTKCONFIG}" = xNo; then
+   GTK_INCLUDE=$(${GTKCONFIG} --cflags gthread)
+   GTK_LIB=$(${GTKCONFIG} --libs gthread)
+   PBX_GTK=1
+   AC_DEFINE([HAVE_GTK], 1, [Define if your system has the GTK libraries.])
+fi
+AC_SUBST(PBX_GTK)
+AC_SUBST(GTK_INCLUDE)
+AC_SUBST(GTK_LIB)
+
+PBX_CURL=0
+AC_PATH_TOOL([CURL], [curl-config], No)
+if test ! x"${CURL}" = xNo; then
+# check for version
+   CURLLIB=$(${CURL} --libs)
+   PBX_CURL=1
+   AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
+fi
+AC_SUBST(PBX_CURL)
+AC_SUBST(CURLLIB)
 
 AC_CONFIG_FILES([build_tools/menuselect-deps makeopts])
 AC_OUTPUT

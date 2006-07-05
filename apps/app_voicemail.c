@@ -52,6 +52,10 @@
 		<depend>unixodbc</depend>
 		<defaultenabled>no</defaultenabled>
 	</member>
+	<member name="IMAP_STORAGE" displayname="Storage of Voicemail using IMAP4">
+		<depend>imap_tk</depend>
+		<defaultenabled>no</defaultenabled>
+	</member>
 </category>
  ***/
 
