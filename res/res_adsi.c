@@ -23,6 +23,11 @@
  * \brief ADSI support 
  *
  * \author Mark Spencer <markster@digium.com> 
+ *
+ * \note this module is required by app_voicemail and app_getcpeid
+ * \todo Move app_getcpeid into this module
+ * \todo Create a core layer so that app_voicemail does not require
+ * 	res_adsi to load
  */
 
 #include "asterisk.h"

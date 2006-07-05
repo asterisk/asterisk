@@ -25,6 +25,7 @@
  * \par See also
  * \arg \ref Config_vm
  * \ingroup applications
+ * \note This module requires res_adsi to load.
  */
 
 /*

@@ -29,19 +29,6 @@ noload => pbx_gtkconsole.so
 ;load => pbx_gtkconsole.so
 noload => pbx_kdeconsole.so
 ;
-; Intercom application is obsoleted by
-; chan_oss.  Don't load it.
-;
-noload => app_intercom.so
-;
-; The 'modem' channel driver and its subdrivers are
-; obsolete, don't load them.
-;
-noload => chan_modem.so
-noload => chan_modem_aopen.so
-noload => chan_modem_bestdata.so
-noload => chan_modem_i4l.so
-;
 load => res_musiconhold.so
 ;
 ; Load either OSS or ALSA, not both
