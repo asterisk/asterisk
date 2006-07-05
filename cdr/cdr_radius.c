@@ -26,7 +26,7 @@
  */
 
 /*** MODULEINFO
-	<depend>radiusclient</depend>
+	<depend>radius</depend>
  ***/
 
 #include "asterisk.h"

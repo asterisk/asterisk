@@ -40,7 +40,7 @@
 /*** MODULEINFO
 	<depend>zaptel</depend>
 	<depend>tonezone</depend>
-	<use>libpri</use>
+	<use>pri</use>
  ***/
 
 #include "asterisk.h"

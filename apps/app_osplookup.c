@@ -26,7 +26,7 @@
  */
 
 /*** MODULEINFO
-	<depend>libosptk</depend>
+	<depend>osptk</depend>
 	<depend>ssl</depend>
  ***/
 

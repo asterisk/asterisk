@@ -27,7 +27,7 @@
  */
 
 /*** MODULEINFO
-	<depend>libgsm</depend>
+	<depend>gsm</depend>
  ***/
 
 #include "asterisk.h"
