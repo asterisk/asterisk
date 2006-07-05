@@ -3071,12 +3071,12 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 
 	switch (remove_from_queue(args.queuename, args.interface)) {
 	case RES_OKAY:
-		ast_log(LOG_NOTICE, "Removed interface '%s' from queue '%s'\n", args.interface, args.queuename);
+		ast_log(LOG_DEBUG, "Removed interface '%s' from queue '%s'\n", args.interface, args.queuename);
 		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "REMOVED");
 		res = 0;
 		break;
 	case RES_EXISTS:
-		ast_log(LOG_WARNING, "Unable to remove interface '%s' from queue '%s': Not there\n", args.interface, args.queuename);
+		ast_log(LOG_DEBUG, "Unable to remove interface '%s' from queue '%s': Not there\n", args.interface, args.queuename);
 		if (priority_jump || ast_opt_priority_jumping) 
 			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "NOTINQUEUE");
@@ -3086,9 +3086,6 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Unable to remove interface from queue '%s': No such queue\n", args.queuename);
 		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "NOSUCHQUEUE");
 		res = 0;
-		break;
-	case RES_OUTOFMEMORY:
-		ast_log(LOG_ERROR, "Out of memory\n");
 		break;
 	}
 
