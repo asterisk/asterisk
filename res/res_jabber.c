@@ -251,7 +251,7 @@ static struct aji_version *aji_find_version(char *node, char *version, ikspak *p
 static struct aji_resource *aji_find_resource(struct aji_buddy *buddy, char *rname)
 {
 	struct aji_resource *res = NULL;
-	if (!buddy)
+	if (!buddy || !rname)
 		return res;
 	res = buddy->resources;
 	while (res) {
@@ -317,17 +317,18 @@ static iks *jabber_make_auth(iksid * id, const char *pass, const char *sid)
 static int aji_status_exec(struct ast_channel *chan, void *data)
 {
 	struct aji_client *client = NULL;
+	struct aji_buddy *buddy = NULL;
 	struct aji_resource *r = NULL;
-	char *s = NULL, *sender = NULL, *screenname = NULL, *resource = NULL, *variable = NULL;
-	int stat = 7, found = 0;
+	char *s = NULL, *sender = NULL, *jid = NULL, *screenname = NULL, *resource = NULL, *variable = NULL;
+	int stat = 7;
 	char status[2];
 	if (data) {
 		s = ast_strdupa((char *) data);
 		if (s) {
 			sender = strsep(&s, "|");
 			if (sender && (sender[0] != '\0')) {
-				screenname = strsep(&s, "|");
-				if (screenname && (screenname[0] != '\0')) {
+				jid = strsep(&s, "|");
+				if (jid && (jid[0] != '\0')) {
 					variable = s;
 				} else {
 					ast_log(LOG_ERROR, "Bad arguments\n");
@@ -340,48 +341,34 @@ static int aji_status_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if(!strchr(screenname, '/')) {
+	if(!strchr(jid, '/')) {
 		resource = NULL;
 	} else {
-		resource = strsep(&screenname, "/");
+		screenname = strsep(&jid, "/");
+		resource = jid;
 	}
-
 	client = ast_aji_get_client(sender);
 	if (!client) {
 		ast_log(LOG_WARNING, "Could not find Connection.\n");
 		return -1;
 	}
-	
 	if(!&client->buddies) {
 		ast_log(LOG_WARNING, "No buddies for connection.\n");
 		return -1;
 	}
-	ASTOBJ_CONTAINER_TRAVERSE(&client->buddies, 1, {
-		ASTOBJ_RDLOCK(iterator); 
-		if (!strcasecmp(iterator->user, screenname)) {
-			found = 1; 
-			r = iterator->resources; 
-			if (r) {	/* client has signed on */
-				if (resource) {
-					while (r) {
-						if (!strcasecmp(r->resource, resource)) {
-							stat = r->status; 
-						}
-						r = r->next;
-					}
-					if (stat == 7) ast_log(LOG_NOTICE, "Resource not found %s\n", resource);
-				} else {
-					stat = r->status; 
-				}
-			}
-		}
-	ASTOBJ_UNLOCK(iterator);
-	});
-
-	if (!found) {				/* just a label */
+	buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, (resource)?screenname:jid);
+	if (!buddy) {
 		ast_log(LOG_WARNING, "Could not find Buddy in list.\n");
 		return -1;
 	}
+	r = aji_find_resource(buddy, resource);
+	if(!r && buddy->resources) {
+		r = buddy->resources;
+	}
+	if(!r){
+		ast_log(LOG_NOTICE, "Resource %s of buddy %s not found \n", resource, screenname);
+	}
+	stat = r->status;
 	sprintf(status, "%d", stat);
 	pbx_builtin_setvar_helper(chan, variable, status);
 	return 0;
@@ -1074,7 +1061,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 	}
 	buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, pak->from->partial);
 	if (!buddy) {
-		ast_log(LOG_WARNING, "Got presence packet from %s, someone not in our roster!!!!\n", pak->from->partial);
+		ast_log(LOG_NOTICE, "Got presence packet from %s, someone not in our roster!!!!\n", pak->from->partial);
 		return;
 	}
 	ASTOBJ_WRLOCK(buddy);
