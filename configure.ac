@@ -445,23 +445,22 @@ AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_sync_init], [])
 
 AST_EXT_LIB_CHECK([OSPTK], [osptk], [OSPPCryptoDecrypt], [osp/osp.h], [-lcrypto -lssl])
 
-PBX_LIBOSS=0
+PBX_OSS=0
 AC_CHECK_HEADER([linux/soundcard.h],
 	        [
-		PBX_LIBOSS=1
+		PBX_OSS=1
                 AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
 		])
-if test "$PBX_LIBOSS" = "0"; then
+if test "$PBX_OSS" = "0"; then
    AC_CHECK_HEADER([sys/soundcard.h],
                    [
-		   PBX_LIBossaudio=1
+		   PBX_OSS=1
 		   AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
 		   ])
 fi
-if test "$PBX_LIBOSS" = "0"; then
+if test "$PBX_OSS" = "0"; then
    AST_EXT_LIB_CHECK([OSS], [ossaudio], [oss_ioctl_mixer], [soundcard.h])
 fi
-AC_SUBST([PBX_LIBOSS])
 
 PG_CONFIG=No
 if test "${USE_PGSQL}" != "no"; then	
