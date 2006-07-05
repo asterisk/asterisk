@@ -22,7 +22,7 @@ PBX_LIB$4=0
 if test "${USE_$4}" != "no"; then
    pbxlibdir=""
    if test "x${$4_DIR}" != "x"; then
-      pbxlibdir="-L${$1_DIR}/lib"
+      pbxlibdir="-L${$1_DIR} -L${$1_DIR}/lib"
    fi
    AC_CHECK_LIB([$1], [$2], [AST_$4_FOUND=yes], [AST_$4_FOUND=no], ${pbxlibdir} $6)
 

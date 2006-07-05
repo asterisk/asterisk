@@ -6016,7 +6016,7 @@ PBX_LIBALSA=0
 if test "${USE_ALSA}" != "no"; then
    pbxlibdir=""
    if test "x${ALSA_DIR}" != "x"; then
-      pbxlibdir="-L${asound_DIR}/lib"
+      pbxlibdir="-L${asound_DIR} -L${asound_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for snd_spcm_init in -lasound" >&5
 echo $ECHO_N "checking for snd_spcm_init in -lasound... $ECHO_C" >&6; }
@@ -6488,7 +6488,7 @@ PBX_LIBCURSES=0
 if test "${USE_CURSES}" != "no"; then
    pbxlibdir=""
    if test "x${CURSES_DIR}" != "x"; then
-      pbxlibdir="-L${curses_DIR}/lib"
+      pbxlibdir="-L${curses_DIR} -L${curses_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for initscr in -lcurses" >&5
 echo $ECHO_N "checking for initscr in -lcurses... $ECHO_C" >&6; }
@@ -6965,7 +6965,7 @@ if test "${USE_GSM}" != "no"; then
    if test "${GSM_SYSTEM}" = "yes"; then
       gsmlibdir=""
       if test "x${GSM_DIR}" != "x"; then
-         gsmlibdir="-L${GSM_DIR}/lib"
+         gsmlibdir="-L${GSM_DIR} -L${GSM_DIR}/lib"
       fi
       { echo "$as_me:$LINENO: checking for gsm_create in -lgsm" >&5
 echo $ECHO_N "checking for gsm_create in -lgsm... $ECHO_C" >&6; }
@@ -7110,7 +7110,7 @@ PBX_KDE=0
 if test "${USE_KDE}" != "no"; then
    echo -n "checking for crashHandler in -lkdecore... "
    saved_ldflags="${LDFLAGS}"
-   LDFLAGS="-I${KDE_DIR}/include ${LDFLAGS} -L${KDE_DIR}/lib -lkdecore"
+   LDFLAGS="-I${KDE_DIR}/include ${LDFLAGS} -L${KDE_DIR} -L${KDE_DIR}/lib -lkdecore"
 
 cat >conftest.$ac_ext <<_ACEOF
 
@@ -7187,7 +7187,7 @@ echo "${ECHO_T}no" >&6; }
 	if test "${ac_cv_lib_kde_crash}" = "yes"; then
 		KDE_LIB="-lkdecore -lkdeui"
 		if test "${KDE_DIR}" != ""; then
-			KDE_LIB="-L${KDE_DIR}/lib ${KDE_LIB}"
+			KDE_LIB="-L${KDE_DIR} -L${KDE_DIR}/lib ${KDE_LIB}"
 			KDE_INCLUDE="-I${KDE_DIR}/include"
 
 		fi
@@ -7352,7 +7352,7 @@ PBX_LIBIKSEMEL=0
 if test "${USE_IKSEMEL}" != "no"; then
    pbxlibdir=""
    if test "x${IKSEMEL_DIR}" != "x"; then
-      pbxlibdir="-L${iksemel_DIR}/lib"
+      pbxlibdir="-L${iksemel_DIR} -L${iksemel_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for iks_start_sasl in -liksemel" >&5
 echo $ECHO_N "checking for iks_start_sasl in -liksemel... $ECHO_C" >&6; }
@@ -7824,7 +7824,7 @@ PBX_LIBNBS=0
 if test "${USE_NBS}" != "no"; then
    pbxlibdir=""
    if test "x${NBS_DIR}" != "x"; then
-      pbxlibdir="-L${nbs_DIR}/lib"
+      pbxlibdir="-L${nbs_DIR} -L${nbs_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for nbs_connect in -lnbs" >&5
 echo $ECHO_N "checking for nbs_connect in -lnbs... $ECHO_C" >&6; }
@@ -8296,7 +8296,7 @@ PBX_LIBNCURSES=0
 if test "${USE_NCURSES}" != "no"; then
    pbxlibdir=""
    if test "x${NCURSES_DIR}" != "x"; then
-      pbxlibdir="-L${ncurses_DIR}/lib"
+      pbxlibdir="-L${ncurses_DIR} -L${ncurses_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for initscr in -lncurses" >&5
 echo $ECHO_N "checking for initscr in -lncurses... $ECHO_C" >&6; }
@@ -9120,7 +9120,7 @@ PBX_LIBNEWT=0
 if test "${USE_NEWT}" != "no"; then
    pbxlibdir=""
    if test "x${NEWT_DIR}" != "x"; then
-      pbxlibdir="-L${newt_DIR}/lib"
+      pbxlibdir="-L${newt_DIR} -L${newt_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for newtBell in -lnewt" >&5
 echo $ECHO_N "checking for newtBell in -lnewt... $ECHO_C" >&6; }
@@ -9592,7 +9592,7 @@ PBX_LIBUNIXODBC=0
 if test "${USE_UNIXODBC}" != "no"; then
    pbxlibdir=""
    if test "x${UNIXODBC_DIR}" != "x"; then
-      pbxlibdir="-L${odbc_DIR}/lib"
+      pbxlibdir="-L${odbc_DIR} -L${odbc_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for SQLConnect in -lodbc" >&5
 echo $ECHO_N "checking for SQLConnect in -lodbc... $ECHO_C" >&6; }
@@ -10064,7 +10064,7 @@ PBX_LIBOGG=0
 if test "${USE_OGG}" != "no"; then
    pbxlibdir=""
    if test "x${OGG_DIR}" != "x"; then
-      pbxlibdir="-L${ogg_DIR}/lib"
+      pbxlibdir="-L${ogg_DIR} -L${ogg_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for ogg_sync_init in -logg" >&5
 echo $ECHO_N "checking for ogg_sync_init in -logg... $ECHO_C" >&6; }
@@ -10536,7 +10536,7 @@ PBX_LIBOSPTK=0
 if test "${USE_OSPTK}" != "no"; then
    pbxlibdir=""
    if test "x${OSPTK_DIR}" != "x"; then
-      pbxlibdir="-L${osptk_DIR}/lib"
+      pbxlibdir="-L${osptk_DIR} -L${osptk_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for OSPPCryptoDecrypt in -losptk" >&5
 echo $ECHO_N "checking for OSPPCryptoDecrypt in -losptk... $ECHO_C" >&6; }
@@ -11335,7 +11335,7 @@ PBX_LIBOSS=0
 if test "${USE_OSS}" != "no"; then
    pbxlibdir=""
    if test "x${OSS_DIR}" != "x"; then
-      pbxlibdir="-L${ossaudio_DIR}/lib"
+      pbxlibdir="-L${ossaudio_DIR} -L${ossaudio_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for oss_ioctl_mixer in -lossaudio" >&5
 echo $ECHO_N "checking for oss_ioctl_mixer in -lossaudio... $ECHO_C" >&6; }
@@ -12165,7 +12165,7 @@ PBX_LIBPOPT=0
 if test "${USE_POPT}" != "no"; then
    pbxlibdir=""
    if test "x${POPT_DIR}" != "x"; then
-      pbxlibdir="-L${popt_DIR}/lib"
+      pbxlibdir="-L${popt_DIR} -L${popt_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for poptStrerror in -lpopt" >&5
 echo $ECHO_N "checking for poptStrerror in -lpopt... $ECHO_C" >&6; }
@@ -12637,7 +12637,7 @@ PBX_LIBLIBPRI=0
 if test "${USE_LIBPRI}" != "no"; then
    pbxlibdir=""
    if test "x${LIBPRI_DIR}" != "x"; then
-      pbxlibdir="-L${pri_DIR}/lib"
+      pbxlibdir="-L${pri_DIR} -L${pri_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for pri_call in -lpri" >&5
 echo $ECHO_N "checking for pri_call in -lpri... $ECHO_C" >&6; }
@@ -13550,7 +13550,7 @@ PBX_LIBRADIUSCLIENT=0
 if test "${USE_RADIUSCLIENT}" != "no"; then
    pbxlibdir=""
    if test "x${RADIUSCLIENT_DIR}" != "x"; then
-      pbxlibdir="-L${radiusclient-ng_DIR}/lib"
+      pbxlibdir="-L${radiusclient-ng_DIR} -L${radiusclient-ng_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for rc_read_config in -lradiusclient-ng" >&5
 echo $ECHO_N "checking for rc_read_config in -lradiusclient-ng... $ECHO_C" >&6; }
@@ -14022,7 +14022,7 @@ PBX_LIBSPEEX=0
 if test "${USE_SPEEX}" != "no"; then
    pbxlibdir=""
    if test "x${SPEEX_DIR}" != "x"; then
-      pbxlibdir="-L${speex_DIR}/lib"
+      pbxlibdir="-L${speex_DIR} -L${speex_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for speex_encode in -lspeex" >&5
 echo $ECHO_N "checking for speex_encode in -lspeex... $ECHO_C" >&6; }
@@ -14494,7 +14494,7 @@ PBX_LIBSQLITE=0
 if test "${USE_SQLITE}" != "no"; then
    pbxlibdir=""
    if test "x${SQLITE_DIR}" != "x"; then
-      pbxlibdir="-L${sqlite_DIR}/lib"
+      pbxlibdir="-L${sqlite_DIR} -L${sqlite_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for sqlite_exec in -lsqlite" >&5
 echo $ECHO_N "checking for sqlite_exec in -lsqlite... $ECHO_C" >&6; }
@@ -14966,7 +14966,7 @@ PBX_LIBOPENSSL=0
 if test "${USE_OPENSSL}" != "no"; then
    pbxlibdir=""
    if test "x${OPENSSL_DIR}" != "x"; then
-      pbxlibdir="-L${ssl_DIR}/lib"
+      pbxlibdir="-L${ssl_DIR} -L${ssl_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for ssl2_connect in -lssl" >&5
 echo $ECHO_N "checking for ssl2_connect in -lssl... $ECHO_C" >&6; }
@@ -15438,7 +15438,7 @@ PBX_LIBFREETDS=0
 if test "${USE_FREETDS}" != "no"; then
    pbxlibdir=""
    if test "x${FREETDS_DIR}" != "x"; then
-      pbxlibdir="-L${tds_DIR}/lib"
+      pbxlibdir="-L${tds_DIR} -L${tds_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for tds_version in -ltds" >&5
 echo $ECHO_N "checking for tds_version in -ltds... $ECHO_C" >&6; }
@@ -15926,7 +15926,7 @@ PBX_LIBTERMCAP=0
 if test "${USE_TERMCAP}" != "no"; then
    pbxlibdir=""
    if test "x${TERMCAP_DIR}" != "x"; then
-      pbxlibdir="-L${termcap_DIR}/lib"
+      pbxlibdir="-L${termcap_DIR} -L${termcap_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for tgetent in -ltermcap" >&5
 echo $ECHO_N "checking for tgetent in -ltermcap... $ECHO_C" >&6; }
@@ -16398,7 +16398,7 @@ PBX_LIBTINFO=0
 if test "${USE_TINFO}" != "no"; then
    pbxlibdir=""
    if test "x${TINFO_DIR}" != "x"; then
-      pbxlibdir="-L${tinfo_DIR}/lib"
+      pbxlibdir="-L${tinfo_DIR} -L${tinfo_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for tgetent in -ltinfo" >&5
 echo $ECHO_N "checking for tgetent in -ltinfo... $ECHO_C" >&6; }
@@ -16872,7 +16872,7 @@ PBX_LIBTONEZONE=0
 if test "${USE_TONEZONE}" != "no"; then
    pbxlibdir=""
    if test "x${TONEZONE_DIR}" != "x"; then
-      pbxlibdir="-L${tonezone_DIR}/lib"
+      pbxlibdir="-L${tonezone_DIR} -L${tonezone_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for tone_zone_find in -ltonezone" >&5
 echo $ECHO_N "checking for tone_zone_find in -ltonezone... $ECHO_C" >&6; }
@@ -17345,7 +17345,7 @@ PBX_LIBTONEZONE=0
 if test "${USE_TONEZONE}" != "no"; then
    pbxlibdir=""
    if test "x${TONEZONE_DIR}" != "x"; then
-      pbxlibdir="-L${tonezone_DIR}/lib"
+      pbxlibdir="-L${tonezone_DIR} -L${tonezone_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for tone_zone_find in -ltonezone" >&5
 echo $ECHO_N "checking for tone_zone_find in -ltonezone... $ECHO_C" >&6; }
@@ -17819,7 +17819,7 @@ PBX_LIBVORBIS=0
 if test "${USE_VORBIS}" != "no"; then
    pbxlibdir=""
    if test "x${VORBIS_DIR}" != "x"; then
-      pbxlibdir="-L${vorbis_DIR}/lib"
+      pbxlibdir="-L${vorbis_DIR} -L${vorbis_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for vorbis_info_init in -lvorbis" >&5
 echo $ECHO_N "checking for vorbis_info_init in -lvorbis... $ECHO_C" >&6; }
@@ -18297,7 +18297,7 @@ if test "${USE_VPB}" != "no"; then
    saved_libs="${LIBS}"
    saved_cppflags="${CPPFLAGS}"
    if test "x${VPB_DIR}" != "x"; then
-      LIBS="${LIBS} -L${VPB_DIR}/lib"
+      LIBS="${LIBS} -L${VPB_DIR} -L${VPB_DIR}/lib"
       CPPFLAGS="${CPPFLAGS} -I${VPB_DIR}/include"
    fi
    LIBS="${LIBS} -lvpb -lpthread"
@@ -18375,7 +18375,7 @@ rm -f conftest.err conftest.$ac_objext \
    if test "${ac_cv_lib_vpb_vpb_open}" = "yes"; then
 	VPB_LIB="-lvpb"
 	if test "${VPB_DIR}" != ""; then
-	   VPB_LIB="-L${VPB_DIR}/lib ${VPB_LIB}"
+	   VPB_LIB="-L${VPB_DIR} -L${VPB_DIR}/lib ${VPB_LIB}"
 	   VPB_INCLUDE="-I${VPB_DIR}/include"
 
 	fi
@@ -18430,7 +18430,7 @@ PBX_LIBZLIB=0
 if test "${USE_ZLIB}" != "no"; then
    pbxlibdir=""
    if test "x${ZLIB_DIR}" != "x"; then
-      pbxlibdir="-L${z_DIR}/lib"
+      pbxlibdir="-L${z_DIR} -L${z_DIR}/lib"
    fi
    { echo "$as_me:$LINENO: checking for compress in -lz" >&5
 echo $ECHO_N "checking for compress in -lz... $ECHO_C" >&6; }

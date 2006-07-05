@@ -224,7 +224,7 @@ if test "${USE_GSM}" != "no"; then
    if test "${GSM_SYSTEM}" = "yes"; then
       gsmlibdir=""
       if test "x${GSM_DIR}" != "x"; then
-         gsmlibdir="-L${GSM_DIR}/lib"
+         gsmlibdir="-L${GSM_DIR} -L${GSM_DIR}/lib"
       fi
       AC_CHECK_LIB([gsm], [gsm_create], AC_DEFINE_UNQUOTED([HAVE_GSM], 1,
       [Define to indicate the GSM library]), [], ${gsmlibdir})
@@ -276,7 +276,7 @@ PBX_KDE=0
 if test "${USE_KDE}" != "no"; then
    echo -n "checking for crashHandler in -lkdecore... "
    saved_ldflags="${LDFLAGS}"
-   LDFLAGS="-I${KDE_DIR}/include ${LDFLAGS} -L${KDE_DIR}/lib -lkdecore"
+   LDFLAGS="-I${KDE_DIR}/include ${LDFLAGS} -L${KDE_DIR} -L${KDE_DIR}/lib -lkdecore"
 	AC_LINK_IFELSE(
 	[
 		AC_LANG_PROGRAM(
@@ -297,7 +297,7 @@ if test "${USE_KDE}" != "no"; then
 	if test "${ac_cv_lib_kde_crash}" = "yes"; then
 		KDE_LIB="-lkdecore -lkdeui"
 		if test "${KDE_DIR}" != ""; then
-			KDE_LIB="-L${KDE_DIR}/lib ${KDE_LIB}"
+			KDE_LIB="-L${KDE_DIR} -L${KDE_DIR}/lib ${KDE_LIB}"
 			KDE_INCLUDE="-I${KDE_DIR}/include"
 			AC_SUBST([KDE_INCLUDE])
 		fi
@@ -683,7 +683,7 @@ if test "${USE_VPB}" != "no"; then
    saved_libs="${LIBS}"
    saved_cppflags="${CPPFLAGS}"
    if test "x${VPB_DIR}" != "x"; then
-      LIBS="${LIBS} -L${VPB_DIR}/lib"
+      LIBS="${LIBS} -L${VPB_DIR} -L${VPB_DIR}/lib"
       CPPFLAGS="${CPPFLAGS} -I${VPB_DIR}/include"
    fi
    LIBS="${LIBS} -lvpb -lpthread"
@@ -706,7 +706,7 @@ if test "${USE_VPB}" != "no"; then
    if test "${ac_cv_lib_vpb_vpb_open}" = "yes"; then
 	VPB_LIB="-lvpb"
 	if test "${VPB_DIR}" != ""; then
-	   VPB_LIB="-L${VPB_DIR}/lib ${VPB_LIB}"
+	   VPB_LIB="-L${VPB_DIR} -L${VPB_DIR}/lib ${VPB_LIB}"
 	   VPB_INCLUDE="-I${VPB_DIR}/include"
 	   AC_SUBST([VPB_INCLUDE])
 	fi
