@@ -62,10 +62,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include <zaptel.h>
 #include <math.h>
-#include <tonezone.h>
 #include <ctype.h>
+#include <zaptel/zaptel.h>
+#include <zaptel/tonezone.h>
 
 #ifdef HAVE_LIBPRI
 #include <libpri.h>

@@ -60,7 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #ifdef HAVE_ZAPTEL
 #include <sys/ioctl.h>
-#include <zaptel.h>
+#include <zaptel/zaptel.h>
 #endif
 
 #include "asterisk/lock.h"

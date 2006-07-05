@@ -655,9 +655,9 @@ AST_EXT_LIB([termcap], [tgetent], [], [TERMCAP], [Termcap])
 AST_EXT_LIB([tinfo], [tgetent], [], [TINFO], [Term Info])
 
 if test "${PBX_OSTYPE}" = "Linux" ; then
-  AST_EXT_LIB([tonezone], [tone_zone_find], [tonezone.h], [TONEZONE], [tonezone])
+  AST_EXT_LIB([tonezone], [tone_zone_find], [zaptel/tonezone.h], [TONEZONE], [tonezone])
 else
-  AST_EXT_LIB([tonezone], [tone_zone_find], [tonezone.h], [TONEZONE], [tonezone], [-lm])
+  AST_EXT_LIB([tonezone], [tone_zone_find], [zaptel/tonezone.h], [TONEZONE], [tonezone], [-lm])
 fi
 
 AST_EXT_LIB([vorbis], [vorbis_info_init], [vorbis/codec.h], [VORBIS], [Vorbis], [-lm -lvorbisenc])
@@ -753,7 +753,7 @@ if test "${USE_ZAPTEL}" != "no"; then
    AC_COMPILE_IFELSE(
 	[
 	AC_LANG_PROGRAM(
-	[#include <zaptel.h>],
+	[#include <zaptel/zaptel.h>],
 	[struct zt_transcode_header test;])
 	],
 	[	AC_MSG_RESULT(yes) 
