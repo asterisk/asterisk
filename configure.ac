@@ -300,6 +300,11 @@ AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
 GSM_INTERNAL="yes"
 GSM_SYSTEM="yes"
 if test "${USE_GSM}" != "no"; then
+   if test "${GSM_DIR}" = "internal"; then
+      GSM_SYSTEM="no"
+   elif test "${GSM_DIR}" != ""; then
+      GSM_INTERNAL="no"
+   fi
    if test "${GSM_SYSTEM}" = "yes"; then
       gsmlibdir=""
       if test "x${GSM_DIR}" != "x"; then

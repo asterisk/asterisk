@@ -23,9 +23,9 @@ LIBLPC10:=lpc10/liblpc10.a
 
 all: _all
 
-ifeq ($(LIBGSM_LIB),internal)
-LIBGSM_INCLUDE:=-Igsm/inc
-LIBGSM_LIB:=
+ifeq ($(GSM_LIB),internal)
+GSM_INCLUDE:=-Igsm/inc
+GSM_LIB:=
 
 codec_gsm.so: gsm/lib/libgsm.a
 endif
