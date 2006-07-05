@@ -58,18 +58,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* OSP Buffer Sizes */
 #define OSP_INTSTR_SIZE			((unsigned int)16)			/* OSP signed/unsigned int string buffer size */
 #define OSP_NORSTR_SIZE			((unsigned int)256)			/* OSP normal string buffer size */
-#define OSP_TOKSTR_SIZE			((unsigned int)4096)		/* OSP token string buffer size */
+#define OSP_TOKSTR_SIZE			((unsigned int)4096)			/* OSP token string buffer size */
 
 /* OSP Constants */
-#define OSP_INVALID_HANDLE		((int)-1)					/* Invalid OSP handle, provider, transaction etc. */
-#define OSP_CONFIG_FILE			((const char*)"osp.conf")	/* OSP configuration file name */
-#define OSP_GENERAL_CAT			((const char*)"general")	/* OSP global configuration context name */
-#define OSP_DEF_PROVIDER		((const char*)"default")	/* OSP default provider context name */
+#define OSP_INVALID_HANDLE		((int)-1)				/* Invalid OSP handle, provider, transaction etc. */
+#define OSP_CONFIG_FILE			((const char*)"osp.conf")		/* OSP configuration file name */
+#define OSP_GENERAL_CAT			((const char*)"general")		/* OSP global configuration context name */
+#define OSP_DEF_PROVIDER		((const char*)"default")		/* OSP default provider context name */
 #define OSP_MAX_CERTS			((unsigned int)10)			/* OSP max number of cacerts */
 #define OSP_MAX_SRVS			((unsigned int)10)			/* OSP max number of service points */
-#define OSP_DEF_MAXCONNECTIONS	((unsigned int)20)			/* OSP default max_connections */
-#define OSP_MIN_MAXCONNECTIONS	((unsigned int)1)			/* OSP min max_connections */
-#define OSP_MAX_MAXCONNECTIONS	((unsigned int)1000)		/* OSP max max_connections */
+#define OSP_DEF_MAXCONNECTIONS		((unsigned int)20)			/* OSP default max_connections */
+#define OSP_MIN_MAXCONNECTIONS		((unsigned int)1)			/* OSP min max_connections */
+#define OSP_MAX_MAXCONNECTIONS		((unsigned int)1000)			/* OSP max max_connections */
 #define OSP_DEF_RETRYDELAY		((unsigned int)0)			/* OSP default retry delay */
 #define OSP_MIN_RETRYDELAY		((unsigned int)0)			/* OSP min retry delay */
 #define OSP_MAX_RETRYDELAY		((unsigned int)10)			/* OSP max retry delay */
@@ -78,15 +78,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define OSP_MAX_RETRYLIMIT		((unsigned int)100)			/* OSP max retry times */
 #define OSP_DEF_TIMEOUT			((unsigned int)500)			/* OSP default timeout in ms */
 #define OSP_MIN_TIMEOUT			((unsigned int)200)			/* OSP min timeout in ms */
-#define OSP_MAX_TIMEOUT			((unsigned int)10000)		/* OSP max timeout in ms */
+#define OSP_MAX_TIMEOUT			((unsigned int)10000)			/* OSP max timeout in ms */
 #define OSP_DEF_AUTHPOLICY		((enum osp_authpolicy)OSP_AUTH_YES)
-#define OSP_AUDIT_URL			((const char*)"localhost")	/* OSP default Audit URL */
-#define OSP_LOCAL_VALIDATION	((int)1)					/* Validate OSP token locally */
+#define OSP_AUDIT_URL			((const char*)"localhost")		/* OSP default Audit URL */
+#define OSP_LOCAL_VALIDATION		((int)1)				/* Validate OSP token locally */
 #define OSP_SSL_LIFETIME		((unsigned int)300)			/* SSL life time, in seconds */
-#define OSP_HTTP_PERSISTENCE	((int)1)					/* In seconds */
+#define OSP_HTTP_PERSISTENCE		((int)1)				/* In seconds */
 #define OSP_CUSTOMER_ID			((const char*)"")			/* OSP customer ID */
 #define OSP_DEVICE_ID			((const char*)"")			/* OSP device ID */
-#define OSP_DEF_DESTINATIONS	((unsigned int)5)			/* OSP default max number of destinations */
+#define OSP_DEF_DESTINATIONS		((unsigned int)5)			/* OSP default max number of destinations */
 #define OSP_DEF_TIMELIMIT		((unsigned int)0)			/* OSP default duration limit, no limit */
 
 /* OSP Authentication Policy */
@@ -98,41 +98,41 @@ enum osp_authpolicy {
 
 /* OSP Provider */
 struct osp_provider {
-	char name[OSP_NORSTR_SIZE];						/* OSP provider context name */
-	char privatekey[OSP_NORSTR_SIZE];				/* OSP private key file name */
-	char localcert[OSP_NORSTR_SIZE];				/* OSP local cert file name */
-	unsigned int cacount;							/* Number of cacerts */
-	char cacerts[OSP_MAX_CERTS][OSP_NORSTR_SIZE]; 	/* Cacert file names */
-	unsigned int spcount;							/* Number of service points */
-	char srvpoints[OSP_MAX_SRVS][OSP_NORSTR_SIZE];	/* Service point URLs */
-	int maxconnections;								/* Max number of connections */
-	int retrydelay;									/* Retry delay */
-	int retrylimit;									/* Retry limit */
-	int timeout;									/* Timeout in ms */
-	char source[OSP_NORSTR_SIZE];					/* IP of self */
-	enum osp_authpolicy authpolicy;					/* OSP authentication policy */
-	OSPTPROVHANDLE handle;							/* OSP provider handle */
-	struct osp_provider* next;						/* Pointer to next OSP provider */
+	char name[OSP_NORSTR_SIZE];				/* OSP provider context name */
+	char privatekey[OSP_NORSTR_SIZE];			/* OSP private key file name */
+	char localcert[OSP_NORSTR_SIZE];			/* OSP local cert file name */
+	unsigned int cacount;					/* Number of cacerts */
+	char cacerts[OSP_MAX_CERTS][OSP_NORSTR_SIZE]; 		/* Cacert file names */
+	unsigned int spcount;					/* Number of service points */
+	char srvpoints[OSP_MAX_SRVS][OSP_NORSTR_SIZE];		/* Service point URLs */
+	int maxconnections;					/* Max number of connections */
+	int retrydelay;						/* Retry delay */
+	int retrylimit;						/* Retry limit */
+	int timeout;						/* Timeout in ms */
+	char source[OSP_NORSTR_SIZE];				/* IP of self */
+	enum osp_authpolicy authpolicy;				/* OSP authentication policy */
+	OSPTPROVHANDLE handle;					/* OSP provider handle */
+	struct osp_provider* next;				/* Pointer to next OSP provider */
 };
 
 /* OSP Application In/Output Results */
 struct osp_result {
-	int inhandle;					/* Inbound transaction handle */
-	int outhandle;					/* Outbound transaction handle */
-	unsigned int intimelimit;		/* Inbound duration limit */
-	unsigned int outtimelimit;		/* Outbound duration limit */
-	char tech[20];					/* Asterisk TECH string */
-	char dest[OSP_NORSTR_SIZE];		/* Destination in called@IP format */
-	char calling[OSP_NORSTR_SIZE];	/* Calling number, may be translated */
-	char token[OSP_TOKSTR_SIZE];	/* Outbound OSP token */
-	int numresults;					/* Number of remain destinations */
+	int inhandle;						/* Inbound transaction handle */
+	int outhandle;						/* Outbound transaction handle */
+	unsigned int intimelimit;				/* Inbound duration limit */
+	unsigned int outtimelimit;				/* Outbound duration limit */
+	char tech[20];						/* Asterisk TECH string */
+	char dest[OSP_NORSTR_SIZE];				/* Destination in called@IP format */
+	char calling[OSP_NORSTR_SIZE];				/* Calling number, may be translated */
+	char token[OSP_TOKSTR_SIZE];				/* Outbound OSP token */
+	int numresults;						/* Number of remain destinations */
 };
 
 /* OSP Module Global Variables */
-AST_MUTEX_DEFINE_STATIC(osplock);							/* Lock of OSP provider list */
-static int osp_initialized = 0;								/* Init flag */
-static int osp_hardware = 0;								/* Hardware accelleration flag */
-static struct osp_provider* ospproviders = NULL;			/* OSP provider list */
+AST_MUTEX_DEFINE_STATIC(osplock);				/* Lock of OSP provider list */
+static int osp_initialized = 0;					/* Init flag */
+static int osp_hardware = 0;					/* Hardware accelleration flag */
+static struct osp_provider* ospproviders = NULL;		/* OSP provider list */
 static unsigned int osp_tokenformat = TOKEN_ALGO_SIGNED;	/* Token format supported */
 
 /* OSP Client Wrapper APIs */
@@ -143,9 +143,7 @@ static unsigned int osp_tokenformat = TOKEN_ALGO_SIGNED;	/* Token format support
  * \param provider OSP provider context name
  * \return 1 Success, 0 Failed, -1 Error
  */
-static int osp_create_provider(
-	struct ast_config* cfg,		/* OSP configuration */
-	const char* provider)		/* OSP provider context name */
+static int osp_create_provider(struct ast_config* cfg, const char* provider)
 {
 	int res;
 	unsigned int t, i, j;
@@ -303,23 +301,9 @@ static int osp_create_provider(
 		psrvpoints[i] = p->srvpoints[i];
 	}
 
-	error = OSPPProviderNew(
-		p->spcount, psrvpoints,
-		NULL,
-		OSP_AUDIT_URL,
-		&privatekey,
-		&localcert,
-		p->cacount, pcacerts,
-		OSP_LOCAL_VALIDATION,
-		OSP_SSL_LIFETIME,
-		p->maxconnections,
-		OSP_HTTP_PERSISTENCE,
-		p->retrydelay,
-		p->retrylimit,
-		p->timeout,
-		OSP_CUSTOMER_ID,
-		OSP_DEVICE_ID,
-		&p->handle);
+	error = OSPPProviderNew(p->spcount, psrvpoints, NULL, OSP_AUDIT_URL, &privatekey, &localcert, p->cacount, pcacerts, OSP_LOCAL_VALIDATION,
+				OSP_SSL_LIFETIME, p->maxconnections, OSP_HTTP_PERSISTENCE, p->retrydelay, p->retrylimit,p->timeout, OSP_CUSTOMER_ID,
+				OSP_DEVICE_ID, &p->handle);
 	if (error != OSPC_ERR_NO_ERROR) {
 		ast_log(LOG_WARNING, "OSP: Unable to create provider '%s', error '%d'\n", provider, error);
 		free(p);
@@ -354,9 +338,7 @@ static int osp_create_provider(
  * \param policy OSP authentication policy, output
  * \return 1 Success, 0 Failed, -1 Error
  */
-static int osp_get_policy(
-	const char* provider,		/* OSP provider context name */
-	int* policy)				/* OSP authentication policy, output */
+static int osp_get_policy(const char* provider, int* policy)
 {
 	int res = 0;
 	struct osp_provider* p;
@@ -385,11 +367,7 @@ static int osp_get_policy(
  * \param source Source of provider, output
  * \return 1 Success, 0 Failed, -1 Error
  */
-static int osp_create_transaction(
-	const char* provider,		/* OSP provider context name */
-	int* transaction,			/* OSP transaction handle, output */
-	unsigned int sourcesize,	/* Size of source buffer, in/output */
-	char* source)				/* Source of provider context, output */
+static int osp_create_transaction(const char* provider, int* transaction, unsigned int sourcesize, char* source)
 {
 	int res = 0;
 	struct osp_provider* p;
@@ -430,14 +408,7 @@ static int osp_create_transaction(
  * \param timelimit Call duration limit, output
  * \return 1 Success, 0 Failed, -1 Error
  */
-static int osp_validate_token(
-	int transaction,			/* OSP transaction handle */
-	const char* source,			/* Source of inbound call */
-	const char* dest,			/* Destination of inbound call */
-	const char* calling,		/* Calling number */
-	const char* called,			/* Called number */
-	const char* token,			/* OSP token, may be empty */
-	unsigned int* timelimit)	/* Call duration limit, output */
+static int osp_validate_token(int transaction, const char* source, const char* dest, const char* calling, const char* called, const char* token, unsigned int* timelimit)
 {
 	int res;
 	int tokenlen;
@@ -478,9 +449,7 @@ static int osp_validate_token(
  * \param out Outbound duration limit
  * \return min duration limit
  */
-static unsigned int osp_choose_timelimit(
-	unsigned int in,			/* Inbound duration timelimit */
-	unsigned int out)			/* Outbound duration timelimit */
+static unsigned int osp_choose_timelimit(unsigned int in, unsigned int out)
 {
 	if (in == OSP_DEF_TIMELIMIT) {
 		return out;
@@ -502,14 +471,7 @@ static unsigned int osp_choose_timelimit(
  * \param result OSP lookup results, in/output
  * \return 1 Success, 0 Failed, -1 Error
  */
-static int osp_check_destination(
-	const char* called,				/* Called number */
-	const char* calling,			/* Calling number */
-	char* destination,				/* Destination IP in '[x.x.x.x]' format */
-	unsigned int tokenlen,			/* OSP token length */
-	const char* token,				/* OSP token */
-	enum OSPEFAILREASON* reason,	/* Failure reason, output */
-	struct osp_result* result)		/* OSP lookup results, in/output */
+static int osp_check_destination(const char* called, const char* calling, char* destination, unsigned int tokenlen, const char* token, enum OSPEFAILREASON* reason, struct osp_result* result)
 {
 	int res;
 	OSPE_DEST_OSP_ENABLED enabled;
@@ -578,8 +540,7 @@ static int osp_check_destination(
  * \param cause Asterisk hangup cause
  * \return OSP TC code
  */
-static enum OSPEFAILREASON asterisk2osp(
-	int cause)						/* Asterisk hangup cause */
+static enum OSPEFAILREASON asterisk2osp(int cause)
 {
 	return (enum OSPEFAILREASON)cause;
 }
@@ -595,23 +556,16 @@ static enum OSPEFAILREASON asterisk2osp(
  * \param timelimit Call duration limit, output
  * \return 1 Authenricated, 0 Unauthenticated, -1 Error
  */
-static int osp_auth(
-	const char* provider,		/* OSP provider context name */
-	int* transaction,			/* OSP transaction handle, output */
-	const char* source,			/* Source of inbound call */
-	const char* calling,		/* Calling number */
-	const char* called,			/* Called number */
-	const char* token,			/* OSP token, may be empty */
-	unsigned int* timelimit)	/* Call duration limit, output */
+static int osp_auth(const char* provider, int* transaction, const char* source, const char* calling, const char* called, const char* token, unsigned int* timelimit)
 {
 	int res;
-	int policy;
+	int policy = OSP_AUTH_YES;
 	char dest[OSP_NORSTR_SIZE];
 
 	*transaction = OSP_INVALID_HANDLE;
 	*timelimit = OSP_DEF_TIMELIMIT;
-
-	if ((res = osp_get_policy(provider, &policy)) <= 0) {
+	res = osp_get_policy(provider, &policy);
+	if (!res) {
 		ast_log(LOG_DEBUG, "OSP: Unabe to find OSP authentication policy\n");
 		return res;
 	}
@@ -657,12 +611,7 @@ static int osp_auth(
  * \param result Lookup results
  * \return 1 Found , 0 No route, -1 Error
  */
-static int osp_lookup(
-	const char* provider,		/* OSP provider conttext name */
-	const char* srcdev,			/* Source device of outbound call */
-	const char* calling,		/* Calling number */
-	const char* called,			/* Called number */
-	struct osp_result* result)	/* OSP lookup results, in/output */
+static int osp_lookup(const char* provider, const char* srcdev, const char* calling, const char* called, struct osp_result* result)
 {
 	int res;
 	char source[OSP_NORSTR_SIZE];
@@ -695,16 +644,8 @@ static int osp_lookup(
 	}
 
 	result->numresults = OSP_DEF_DESTINATIONS;
-	error = OSPPTransactionRequestAuthorisation(
-		result->outhandle, 
-		source, srcdev,
-		calling ? calling : "", OSPC_E164, 
-		called, OSPC_E164, 
-		NULL, 
-		0, NULL, 
-		NULL, 
-		&result->numresults, 
-		&dummy, NULL);
+	error = OSPPTransactionRequestAuthorisation(result->outhandle, source, srcdev, calling ? calling : "",
+			OSPC_E164, called, OSPC_E164, NULL, 0, NULL, NULL, &result->numresults, &dummy, NULL);
 	if (error != OSPC_ERR_NO_ERROR) {
 		ast_log(LOG_DEBUG, "OSP: Unable to request authorization\n");
 		result->numresults = 0;
@@ -724,16 +665,8 @@ static int osp_lookup(
 
 	callidlen = sizeof(callid);
 	tokenlen = sizeof(token);
-	error = OSPPTransactionGetFirstDestination(
-		result->outhandle, 
-		0, NULL, NULL, 
-		&result->outtimelimit, 
-		&callidlen, callid,
-		sizeof(callednum), callednum, 
-		sizeof(callingnum), callingnum, 
-		sizeof(destination), destination, 
-		0, NULL, 
-		&tokenlen, token);
+	error = OSPPTransactionGetFirstDestination(result->outhandle, 0, NULL, NULL, &result->outtimelimit, &callidlen, callid,
+			sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token);
 	if (error != OSPC_ERR_NO_ERROR) {
 		ast_log(LOG_DEBUG, "OSP: Unable to get first route\n");
 		result->numresults = 0;
@@ -769,17 +702,8 @@ static int osp_lookup(
 	while(result->numresults) {
 		callidlen = sizeof(callid);
 		tokenlen = sizeof(token);
-		error = OSPPTransactionGetNextDestination(
-			result->outhandle, 
-			reason, 
-			0, NULL, NULL, 
-			&result->outtimelimit, 
-			&callidlen, callid,
-			sizeof(callednum), callednum, 
-			sizeof(callingnum), callingnum, 
-			sizeof(destination), destination, 
-			0, NULL, 
-			&tokenlen, token);
+		error = OSPPTransactionGetNextDestination(result->outhandle, reason, 0, NULL, NULL, &result->outtimelimit, &callidlen, callid,
+				sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token);
 		if (error == OSPC_ERR_NO_ERROR) {
 			result->numresults--;
 			result->outtimelimit = osp_choose_timelimit(result->intimelimit, result->outtimelimit);
@@ -819,9 +743,7 @@ static int osp_lookup(
  * \param result Lookup results, in/output
  * \return 1 Found , 0 No route, -1 Error
  */
-static int osp_next(
-	int cause,					/* Asterisk hangup cuase */
-	struct osp_result* result)	/* OSP lookup results, in/output */
+static int osp_next(int cause, struct osp_result* result)
 {
 	int res;
 	unsigned int callidlen;
@@ -863,17 +785,8 @@ static int osp_next(
 	while(result->numresults) {
 		callidlen = sizeof(callid);
 		tokenlen = sizeof(token);
-		error = OSPPTransactionGetNextDestination(
-			result->outhandle, 
-			reason, 
-			0, NULL, NULL, 
-			&result->outtimelimit, 
-			&callidlen, callid,
-			sizeof(callednum), callednum, 
-			sizeof(callingnum), callingnum, 
-			sizeof(destination), destination, 
-			0, NULL, 
-			&tokenlen, token);
+		error = OSPPTransactionGetNextDestination(result->outhandle, reason, 0, NULL, NULL, &result->outtimelimit, &callidlen,
+				callid, sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token);
 		if (error == OSPC_ERR_NO_ERROR) {
 			result->numresults--;
 			result->outtimelimit = osp_choose_timelimit(result->intimelimit, result->outtimelimit);
@@ -921,14 +834,7 @@ static int osp_next(
  * \param release Who release first, 0 source, 1 destination
  * \return 1 Success, 0 Failed, -1 Error
  */
-static int osp_finish(
-	int handle,				/* OSP in/outbound transaction handle */
-	int recorded,			/* If failure reason has been recorded */
-	int cause,				/* Asterisk hangup cause */
-	time_t start, 			/* Call start time */
-	time_t connect,			/* Call connect time */
-	time_t end,				/* Call end time */
-	unsigned int release)	/* Who release first, 0 source, 1 destination */
+static int osp_finish(int handle, int recorded, int cause, time_t start, time_t connect, time_t end, unsigned int release)
 {
 	int res;
 	enum OSPEFAILREASON reason;
@@ -948,14 +854,8 @@ static int osp_finish(
 		OSPPTransactionRecordFailure(handle, reason);
 	}
 
-	error = OSPPTransactionReportUsage(
-		handle, 
-		difftime(end, connect), start, end, alert, connect, 
-		isPddInfoPresent, pdd, 
-		release, 
-		confId,
-		0, 0, 0, 0,
-		&dummy, NULL);
+	error = OSPPTransactionReportUsage(handle, difftime(end, connect), start, end, alert, connect, isPddInfoPresent, pdd,
+						release, confId, 0, 0, 0, 0, &dummy, NULL);
 	if (error == OSPC_ERR_NO_ERROR) {
 		ast_log(LOG_DEBUG, "OSP: Usage reported\n");
 		res = 1;
