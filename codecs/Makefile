@@ -38,14 +38,15 @@ clean::
 	$(MAKE) -C ilbc clean
 
 gsm/lib/libgsm.a:
-	CFLAGS="$(ASTCFLAGS) -I." $(MAKE) -C gsm lib/libgsm.a
+	@mkdir -p gsm/lib
+	@CFLAGS="$(ASTCFLAGS) -I." $(MAKE) -C gsm lib/libgsm.a
 
 $(LIBLPC10):
-	CFLAGS="$(ASTCFLAGS)" $(MAKE) -C lpc10 all
+	@CFLAGS="$(ASTCFLAGS)" $(MAKE) -C lpc10 all
 
 codec_lpc10.so: $(LIBLPC10)
 
 $(LIBILBC):
-	CFLAGS="$(ASTCFLAGS)" $(MAKE) -C ilbc all
+	@CFLAGS="$(ASTCFLAGS)" $(MAKE) -C ilbc all
 
 codec_ilbc.so: $(LIBILBC)

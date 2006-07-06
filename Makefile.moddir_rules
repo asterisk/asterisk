@@ -11,22 +11,35 @@
 # the GNU General Public License
 #
 
-define module_o_template
+include $(ASTTOPDIR)/Makefile.rules
+
+define module_o_c_template
 $(1).o: $(1).c
-	$$(CC) -c -o $$@ $$< $$(CFLAGS) $$(MENUSELECT_OPTS_$(1):%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_INCLUDE))
+$(1).o: CFLAGS+=$$(MENUSELECT_OPTS_$(1):%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_INCLUDE))
 endef
 
-define module_so_template
+define module_oo_cc_template
+$(1).oo: $(1).cc
+$(1).oo: CFLAGS+=$$(MENUSELECT_OPTS_$(1):%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_INCLUDE))
+endef
+
+define module_so_o_template
 $(1).so: $(1).o
-	$$(CC) $$(SOLINK) -o $$@ $$^ $(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LIB))
+$(1).so: LDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LIB))
 endef
 
-%.o: %.c
-	$(CC) -c -o $@ $< $(CFLAGS)
+define module_so_oo_template
+$(1).so: $(1).oo
+$(1).so: LDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LIB))
+endef
 
-$(foreach mod,$(SELECTED_MODS),$(eval $(call module_o_template,$(mod))))
+$(foreach mod,$(filter-out $(CC_MODS),$(SELECTED_MODS)),$(eval $(call module_o_c_template,$(mod))))
 
-$(foreach mod,$(SELECTED_MODS),$(eval $(call module_so_template,$(mod))))
+$(foreach mod,$(filter-out $(CC_MODS),$(SELECTED_MODS)),$(eval $(call module_so_o_template,$(mod))))
+
+$(foreach mod,$(filter $(CC_MODS),$(SELECTED_MODS)),$(eval $(call module_oo_cc_template,$(mod))))
+
+$(foreach mod,$(filter $(CC_MODS),$(SELECTED_MODS)),$(eval $(call module_so_oo_template,$(mod))))
 
 .PHONY: clean clean-depend depend uninstall _all
 
@@ -36,7 +49,7 @@ clean-depend::
 	rm -f .depend
 
 clean:: clean-depend
-	rm -f *.so *.o
+	rm -f *.so *.o *.oo
 
 install:: all
 	for x in $(SELECTED_MODS:%=%.so); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done

@@ -21,10 +21,7 @@ LIB_TARGET_DIR = .
 # directives can find the machine.h file.
 # 
 
-WARNINGS = -Wall -Wno-comment -Wno-error
-CFLAGS += $(OPTIMIZE) -I$(LIB_TARGET_DIR) $(WARNINGS)
-CFLAGS += -fPIC
-#CFLAGS+= $(shell if uname -m | grep -q 86; then echo "-mpentium" ; fi)
+CFLAGS+= -fPIC -Wno-comment
 
 #fix for PPC processors and ALPHA, And UltraSparc too
 ifneq ($(OSARCH),Darwin)
@@ -56,18 +53,18 @@ LIB = $(LIB_TARGET_DIR)/liblpc10.a
 
 .PHONY: all clean
 
+include $(ASTTOPDIR)/Makefile.rules
+
 all:	$(LIB)
 
-OBJ=	f2clib.o analys.o bsynz.o chanwr.o dcbias.o decode.o \
-		deemp.o difmag.o dyptrk.o encode.o energy.o ham84.o \
-		hp100.o invert.o irc2pc.o ivfilt.o lpcdec.o lpcenc.o \
-		lpcini.o lpfilt.o median.o mload.o onset.o pitsyn.o \
-		placea.o placev.o preemp.o prepro.o random.o rcchk.o \
-		synths.o tbdm.o voicin.o vparms.o
+OBJ=f2clib.o analys.o bsynz.o chanwr.o dcbias.o decode.o \
+    deemp.o difmag.o dyptrk.o encode.o energy.o ham84.o \
+    hp100.o invert.o irc2pc.o ivfilt.o lpcdec.o lpcenc.o \
+    lpcini.o lpfilt.o median.o mload.o onset.o pitsyn.o \
+    placea.o placev.o preemp.o prepro.o random.o rcchk.o \
+    synths.o tbdm.o voicin.o vparms.o
 
-$(LIB): $(OBJ)
-	$(AR) cr $@ $(OBJ)
-	ranlib $@
+$(eval $(call ast_make_a_o,$(LIB),$(OBJ)))
 
 clean:
-	-rm -f *.o $(LIB)
+	rm -f *.o $(LIB)

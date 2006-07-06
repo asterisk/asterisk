@@ -16,8 +16,7 @@
 UTILS:=astman smsq stereorize streamplayer aelparse
 
 ifeq (${OSARCH},SunOS)
-  SOL=../strcompat.o
-  SOLLIBS=-lsocket -lnsl
+  LDFLAGS+=../strcompat.o -lsocket -lnsl
 endif
 
 ifeq ($(POPT_LIB),)
@@ -31,6 +30,8 @@ endif
 ifneq ($(filter pbx_ael,$(MENUSELECT_PBX)),)
   UTILS:=$(filter-out aelparse,$(UTILS))
 endif
+
+include $(ASTTOPDIR)/Makefile.rules
 
 all: $(UTILS)
 
@@ -49,49 +50,39 @@ clean-depend:
 
 clean: clean-depend
 	rm -f *.o $(UTILS) check_expr
-	rm -f ast_expr2.o ast_expr2f.o
-
-astman.o: astman.c
-	$(CC) $(CFLAGS) -c -o $@ $<
 
 astman: astman.o ../md5.o
-	$(CC) $(CFLAGS) -o $@ $< ../md5.o -lnewt
+astman: LDFLAGS+=-lnewt
 
 stereorize: stereorize.o frame.o
-	$(CC) $(CFLAGS) -o stereorize stereorize.o frame.o -lm
+stereorize: LDFLAGS+=-lm
 
 ../ast_expr2.c:
-	bison -o $@ -d --name-prefix=ast_yy ../ast_expr2.y
+	@echo "   [BISON] ../ast_expr2.y -> $@"
+	@bison -o $@ -d --name-prefix=ast_yy ../ast_expr2.y
 
 ../ast_expr2f.c:
-	flex -o $@ --full ../ast_expr2.fl
+	@echo "   [FLEX] ../ast_expr2.fl -> $@"
+	@flex -o $@ --full ../ast_expr2.fl
 
-ast_expr2.o: ../ast_expr2.c
-	gcc  $(CFLAGS) -c -o $@ $<
+$(eval $(call ast_make_o_c,ast_expr2.o,../ast_expr2.c))
 
-ast_expr2f.o: ../ast_expr2f.c
-	gcc  $(CFLAGS) -c -DSTANDALONE -o $@ $<
+$(eval $(call ast_make_o_c,ast_expr2f.o,../ast_expr2f.c))
+ast_expr2f.o: CFLAGS+=-DSTANDALONE
 
-check_expr: check_expr.c ast_expr2.o ast_expr2f.o
-	$(CC) $(CFLAGS) -o $@ $^
+$(eval $(call ast_make_final,check_expr,check_expr.c ast_expr2.o ast_expr2f.o))
 
-aelflex.o: ../pbx/ael/ael_lex.c ../include/asterisk/ael_structs.h ../pbx/ael/ael.tab.h
-	$(CC) $(CFLAGS) -I../pbx -DSTANDALONE -c -o $@ $<
+$(eval $(call ast_make_o_c,aelflex.o,../pbx/ael/ael_lex.c ../include/asterisk/ael_structs.h ../pbx/ael/ael.tab.h))
+aelflex.o: CFLAGS+=-I../pbx -DSTANDALONE
 
-aelbison.o: ../pbx/ael/ael.tab.c ../pbx/ael/ael.tab.h ../include/asterisk/ael_structs.h
-	$(CC) $(CFLAGS) -I../pbx -c -o $@ $<
+$(eval $(call ast_make_o_c,aelbison.o,../pbx/ael/ael.tab.c ../pbx/ael/ael.tab.h ../include/asterisk/ael_structs.h))
+aelbison.o: CFLAGS+=-I../pbx
 
-pbx_ael.o: ../pbx/pbx_ael.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+$(eval $(call ast_make_o_c,pbx_ael.o,../pbx/pbx_ael.c))
 
-aelparse : aelflex.o aelbison.o pbx_ael.o ael_main.o ast_expr2f.o ast_expr2.o
-	$(CC) $(CFLAGS) -g -o aelparse aelflex.o aelbison.o ael_main.o pbx_ael.o ast_expr2f.o ast_expr2.o
+$(eval $(call ast_make_final,aelparse,aelflex.o aelbison.o pbx_ael.o ael_main.o ast_expr2f.o ast_expr2.o))
 
-ael_main.o : ael_main.c ../include/asterisk/ael_structs.h
-	$(CC) $(CFLAGS) -c -g -o ael_main.o ael_main.c
-
-ael_main1.o : ael_main.c ../include/asterisk/ael_structs.h
-	$(CC) $(CFLAGS) -c -g  -o ael_main1.o ael_main.c
+$(eval $(call ast_make_o_c,ael_main.o,ael_main.c ../include/asterisk/ael_structs.h))
 
 testexpr2s: ../ast_expr2f.c ../ast_expr2.c ../ast_expr2.h
 	$(CC) -g -c -I../include -DSTANDALONE ../ast_expr2f.c -o ast_expr2f.o
@@ -100,14 +91,10 @@ testexpr2s: ../ast_expr2f.c ../ast_expr2.c ../ast_expr2.h
 	rm ast_expr2.o ast_expr2f.o 
 	./testexpr2s expr2.testinput
 
-smsq.o: smsq.c
-	$(CC) $(CFLAGS) -c -o $@ $<
-
 smsq: smsq.o
-	$(CC) $(CFLAGS) -o smsq ${SOL} smsq.o -lpopt
+smsq: LDFLAGS+=-lpopt
 
 streamplayer: streamplayer.o
-	$(CC) $(CFLAGS) -o streamplayer ${SOL} streamplayer.o ${SOLLIBS}
 
 ifneq ($(wildcard .depend),)
   include .depend

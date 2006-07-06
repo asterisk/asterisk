@@ -14,7 +14,9 @@ ifneq ($(wildcard ../menuselect.makeopts),)
   include ../menuselect.makedeps
 endif
 
-SELECTED_MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(patsubst %.c,%,$(wildcard chan_*.c)))
+SELECTED_MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(patsubst %.c,%,$(wildcard chan_*.c)) $(patsubst %.cc,%,$(wildcard chan_*.cc)))
+
+CC_MODS=chan_vpb
 
 ifeq ($(OSARCH),OpenBSD)
   PTLIB=-lpt_OpenBSD_x86_r
@@ -44,8 +46,6 @@ endif
 
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/mISDNuser/mISDNlib.h),)
   SELECTED_MODS:=$(filter-out chan_misdn,$(SELECTED_MODS))
-else
-  CFLAGS+=-Imisdn 
 endif
 
 ifndef OPENH323DIR
@@ -56,25 +56,19 @@ ifndef PWLIBDIR
   PWLIBDIR=$(HOME)/pwlib
 endif
 
-MENUSELECT_OPTS_chan_misdn+=CHAN_MISDN_VERSION=\"0.3.0\"
-
 all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
 clean::
-	rm -f busy.h ringtone.h gentone gentone-ulaw
+	rm -f busy.h ringtone.h gentone
 
-ifneq ($(wildcard $(ASTTOPDIR)/Makefile.ast),)
-  include $(ASTTOPDIR)/Makefile.ast
+ifneq ($(wildcard $(PWD)/Makefile.ast),)
+  include $(PWD)/Makefile.ast
 endif
 
-ifneq ($(wildcard m$(ASTTOPDIR)/Makefile.ast),)
-  include m$(ASTTOPDIR)/Makefile.ast
-endif
-
-gentone gentone-ulaw: %: %.c
-	$(HOST_CC) -o $@ $< -lm
+$(eval $(call ast_make_final_host,gentone,gentone.c))
+gentone: LDFLAGS+=-lm
 
 busy.h: gentone
 	./gentone busy 480 620
@@ -82,20 +76,14 @@ busy.h: gentone
 ringtone.h: gentone
 	./gentone ringtone 440 480
 
-chan_oss.o: chan_oss.c busy.h ringtone.h
+chan_oss.o: busy.h ringtone.h
 
 chan_iax2.so: iax2-parser.o iax2-provision.o
 
 chan_alsa.o: busy.h ringtone.h
 
-chan_vpb.o: chan_vpb.c
-	$(CXX) -c $(CFLAGS:-Werror=) -o $@ chan_vpb.c
-
-chan_vpb.so: chan_vpb.o
-	 $(CXX) $(SOLINK) -o $@ $< -lvpb -lpthread -lm -ldl
-
 ifeq ($(OSARCH),Linux)
-chan_h323.so: chan_h323.o h323/libchanh323.a $(ASTTOPDIR)/Makefile.ast
+chan_h323.so: chan_h323.o h323/libchanh323.a $(PWD)/Makefile.ast
 	$(CC) $(SOLINK) $(H323LDFLAGS) -o $@ $< h323/libchanh323.a $(H323LDLIBS) -lstdc++
 else
 chan_h323.so: chan_h323.o h323/libchanh323.a
@@ -105,5 +93,9 @@ endif
 misdn/chan_misdn_lib.a:
 	make -C misdn
 
+chan_misdn.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\"
+
+misdn_config.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\"
+
 chan_misdn.so: chan_misdn.o misdn_config.o misdn/chan_misdn_lib.a
-	$(CC) $(SOLINK) -o $@ $^ -lisdnnet -lmISDN
+chan_misdn.so: LDFLAGS+=-lisdnnet -lmISDN

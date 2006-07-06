@@ -25,11 +25,11 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 clean::
 	rm -f ael/*.o
 
-ael/aelflex.o: ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h
-	$(CC) $(CFLAGS) -I. -c -o $@ $<
+$(eval $(call ast_make_o_c,ael/aelflex.o,ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h))
+ael/aelflex.o: CFLAGS+=-I.
 
-ael/aelbison.o: ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h
-	$(CC) $(CFLAGS) -I. -c -o $@ $<
+$(eval $(call ast_make_o_c,ael/aelbison.o,ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h))
+ael/aelbison.o: CFLAGS+=-I.
 
 pbx_ael.so: pbx_ael.o ael/aelbison.o ael/aelflex.o
 
@@ -39,7 +39,7 @@ ael/ael_lex.c:
 ael/ael.tab.c ael/ael.tab.h:
 	(cd ael; bison -v -d ael.y)
 
-dundi-parser.o: dundi-parser.c dundi-parser.h
-	$(CC) $(CFLAGS) -I. -c -o $@ $<
+$(eval $(call ast_make_o_c,dundi-parser.o,dundi-parser.c dundi-parser.h))
+dundi-parser.o: CFLAGS+=-I.
 
 pbx_dundi.so: pbx_dundi.o dundi-parser.o

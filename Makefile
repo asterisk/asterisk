@@ -13,6 +13,9 @@
 
 .EXPORT_ALL_VARIABLES:
 
+#Uncomment this to see all build commands instead of 'quiet' output
+#NOISY_BUILD=yes
+
 # Create OPTIONS variable
 OPTIONS=
 
@@ -366,6 +369,8 @@ else
   HAVEDOT=no
 endif
 
+include Makefile.rules
+
 _all: all
 	@echo " +--------- Asterisk Build Complete ---------+"  
 	@echo " + Asterisk has successfully been built, but +"  
@@ -484,16 +489,17 @@ include/asterisk/buildopts.h: menuselect.makeopts
 channel.o: CFLAGS+=$(ZAPTEL_INCLUDE)
 
 asterisk: include/asterisk/buildopts.h editline/libedit.a db1-ast/libdb1.a $(OBJS)
-	build_tools/make_build_h > include/asterisk/build.h.tmp
-	if cmp -s include/asterisk/build.h.tmp include/asterisk/build.h ; then echo ; else \
+	@build_tools/make_build_h > include/asterisk/build.h.tmp
+	@if cmp -s include/asterisk/build.h.tmp include/asterisk/build.h ; then echo ; else \
 		mv include/asterisk/build.h.tmp include/asterisk/build.h ; \
 	fi
-	rm -f include/asterisk/build.h.tmp
-	$(CC) -c -o buildinfo.o $(CFLAGS) buildinfo.c
-	$(CC) $(DEBUG) $(ASTOBJ) $(ASTLINK) $(OBJS) buildinfo.o $(LIBEDIT) db1-ast/libdb1.a $(LIBS)
+	@rm -f include/asterisk/build.h.tmp
+	@$(CC) -c -o buildinfo.o $(CFLAGS) buildinfo.c
+	@echo "   [LD] $(OBJS) buildinfo.o $(LIBEDIT) db1-ast/libdb1.1 $(LIBS) -> $@"
+	@$(CC) $(DEBUG) $(ASTOBJ) $(ASTLINK) $(OBJS) buildinfo.o $(LIBEDIT) db1-ast/libdb1.a $(LIBS)
 
 muted: muted.o
-	$(CC) $(AUDIO_LIBS) -o muted muted.o
+muted: LDFLAGS+=$(AUDIO_LIBS)
 
 $(SUBDIRS_CLEAN_DEPEND):
 	@$(MAKE) -C $(@:-clean-depend=) clean-depend

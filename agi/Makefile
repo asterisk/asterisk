@@ -15,12 +15,17 @@
 
 AGIS=agi-test.agi eagi-test eagi-sphinx-test jukebox.agi
 
-LIBS=
 ifeq ($(OSARCH),SunOS)
-  LIBS=-lsocket -lnsl ../strcompat.o
+  LDFLAGS+=-lsocket -lnsl ../strcompat.o
 endif
 
+include $(ASTTOPDIR)/Makefile.rules
+
 all: $(AGIS)
+
+eagi-test: eagi-test.o
+
+eagi-sphinx-test: eagi-sphinx-test.o
 
 install: all
 	mkdir -p $(DESTDIR)$(AGI_DIR)
@@ -29,20 +34,11 @@ install: all
 uninstall:
 	for x in $(AGIS); do rm -f $(DESTDIR)$(AGI_DIR)/$$x ; done
 
-eagi-test: eagi-test.o
-	$(CC) $(CFLAGS) -include ../include/autoconfig.h -o eagi-test eagi-test.o $(LIBS)
-
-eagi-sphinx-test: eagi-sphinx-test.o
-	$(CC) $(CFLAGS) -include ../include/autoconfig.h -o eagi-sphinx-test eagi-sphinx-test.o $(LIBS) 
-
 clean-depend:
 	rm -f .depend
 
 clean: clean-depend
 	rm -f *.so *.o look eagi-test eagi-sphinx-test
-
-%.so : %.o
-	$(CC) -shared -Xlinker -x -o $@ $<
 
 ifneq ($(wildcard .depend),)
 include .depend
