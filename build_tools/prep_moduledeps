@@ -33,12 +33,13 @@ process_dir() {
 	displayname=${4}
 
 	echo -e "\t<category name=\"MENUSELECT_${catsuffix}\" displayname=\"${displayname}\">"
-	for file in ${dir}/${prefix}*.c
+	for file in `ls ${dir}/${prefix}*.c ${dir}/${prefix}*.cc | sort`
 	do
 		fname=`basename ${file} .c`
+		fname=`basename ${fname} .cc`
 		get_description ${file}
 		desc=${TDESC}
-		echo -e "\t\t<member name=\"${fname}\" displayname=\"${desc}\" remove_on_change=\"${dir}/${fname}.o ${dir}/${fname}.so\">"
+		echo -e "\t\t<member name=\"${fname}\" displayname=\"${desc}\" remove_on_change=\"${dir}/${fname}.o ${dir}/${fname}.oo ${dir}/${fname}.so\">"
 		awk -f build_tools/get_moduleinfo ${file}
 		echo -e "\t\t</member>"
 	done

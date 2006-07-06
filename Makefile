@@ -900,6 +900,6 @@ mxml/libmxml.a:
 
 makeopts.xml: $(foreach dir,$(MOD_SUBDIRS),$(dir)/*.c) build_tools/cflags.xml sounds/sounds.xml
 	@echo "Generating list of available modules ..."
-	@build_tools/prep_moduledeps > $@
+	@build_tools/prep_moduledeps 2>/dev/null > $@
 
 .PHONY: menuselect sounds clean clean-depend dist-clean distclean all _all depend cleantest uninstall _uninstall uninstall-all dont-optimize valgrind $(SUBDIRS_INSTALL) $(SUBDIRS_CLEAN) $(SUBDIRS_CLEAN_DEPEND) $(SUBDIRS_DEPEND) $(SUBDIRS_UNINSTALL) $(SUBDIRS)
