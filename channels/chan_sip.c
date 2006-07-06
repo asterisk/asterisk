@@ -8051,7 +8051,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  Call limit   : %d\n", peer->call_limit);
 		ast_cli(fd, "  Dynamic      : %s\n", (ast_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC)?"Yes":"No"));
 		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
-		ast_cli(fd, "  Expire       : %d\n", peer->expire);
+		ast_cli(fd, "  Expire       : %ld\n", ast_sched_when(sched, peer->expire));
 		ast_cli(fd, "  Insecure     : %s\n", insecure2str(ast_test_flag(peer, SIP_INSECURE_PORT), ast_test_flag(peer, SIP_INSECURE_INVITE)));
 		ast_cli(fd, "  Nat          : %s\n", nat2str(ast_test_flag(peer, SIP_NAT)));
 		ast_cli(fd, "  ACL          : %s\n", (peer->ha?"Yes":"No"));
