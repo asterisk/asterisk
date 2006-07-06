@@ -795,14 +795,16 @@ static int agent_hangup(struct ast_channel *ast)
 			ast_mutex_lock(&p->chan->lock);
 			ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
 			ast_mutex_unlock(&p->chan->lock);
-		} else {
+		} else if (p->loginstart) {
 			ast_mutex_lock(&p->chan->lock);
 			ast_moh_start(p->chan, p->moh);
 			ast_mutex_unlock(&p->chan->lock);
 		}
 	}
 	ast_mutex_unlock(&p->lock);
-	ast_device_state_changed("Agent/%s", p->agent);
+	/* Only register a device state change if the agent is still logged in */
+	if (p->loginstart)
+		ast_device_state_changed("Agent/%s", p->agent);
 
 	if (p->pending) {
 		ast_mutex_lock(&agentlock);
