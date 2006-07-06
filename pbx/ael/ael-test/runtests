@@ -21,4 +21,20 @@ for i in ael-test*; do
 	fi
 
 done
+
+for i in ael-ntest*; do
+	echo -n Test: $i.................
+	(cd $i; ../../../../utils/aelparse -d | grep -v -i 'seconds' > ../res.$i)
+	do_filter < res.$i > $NEW
+	do_filter < ref.$i > $ORIG
+	if (diff -q $NEW $ORIG > /dev/null 2>&1 ) then
+		echo PASSED
+		rm res.$i
+	else
+		echo %%%%%%FAILED%%%%%%
+		# diff -u ref.$i res.$i
+		diff -u $ORIG $NEW
+	fi
+
+done
 rm $NEW $ORIG

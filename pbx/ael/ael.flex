@@ -164,11 +164,11 @@ static void pbcwhere(const char *text, int *line, int *col )
 %}
 
 
-NOPARENS	[^()\[\]\{\}]*
+NOPARENS	([^()\[\]\{\}]|\\[()\[\]\{\}])*
 
-NOARGG		[^(),\{\}\[\]]*
+NOARGG		([^(),\{\}\[\]]|\\[,()\[\]\{\}])*
 
-NOSEMIC		[^;()\{\}\[\]]*
+NOSEMIC		([^;()\{\}\[\]]|\\[;()\[\]\{\}])*
 
 %%
 
