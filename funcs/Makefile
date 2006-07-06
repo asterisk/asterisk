@@ -29,4 +29,4 @@ endif
 
 all: _all
 
-include ../Makefile.rules
+include $(ASTTOPDIR)/Makefile.moddir_rules

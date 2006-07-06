@@ -22,7 +22,7 @@ endif
 
 all: _all
 
-include ../Makefile.rules
+include $(ASTTOPDIR)/Makefile.moddir_rules
 
 res_snmp.so: res_snmp.o snmp/agent.o
 

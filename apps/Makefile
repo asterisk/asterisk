@@ -20,7 +20,7 @@ MENUSELECT_DEPENDS_app_voicemail+=$(MENUSELECT_DEPENDS_ODBC_STORAGE) $(MENUSELEC
 
 all: _all
 
-include ../Makefile.rules
+include $(ASTTOPDIR)/Makefile.moddir_rules
 
 ifeq (SunOS,$(shell uname))
 app_chanspy.so: app_chanspy.o

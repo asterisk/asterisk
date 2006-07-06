@@ -25,14 +25,14 @@ OPTIONS=
 #SUB_PROC=xscale # or maverick
 
 ifeq ($(CROSS_COMPILE),)
-  OSARCH=$(shell uname -s)
-  PROC?=$(shell uname -m)
+  OSARCH:=$(shell uname -s)
+  PROC?:=$(shell uname -m)
 else
   OSARCH=$(CROSS_ARCH)
   PROC=$(CROSS_PROC)
 endif
 
-PWD=$(shell pwd)
+ASTTOPDIR:=$(shell pwd)
 
 # Remember the MAKELEVEL at the top
 MAKETOPLEVEL?=$(MAKELEVEL)
@@ -886,7 +886,7 @@ menuselect: menuselect/menuselect makeopts.xml
 	-@menuselect/menuselect $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts && echo "menuselect changes saved!" || echo "menuselect changes NOT saved!"
 
 menuselect/menuselect: menuselect/menuselect.c menuselect/menuselect_curses.c menuselect/menuselect.h menuselect/linkedlists.h config.status mxml/libmxml.a
-	@CFLAGS="-include $(PWD)/include/asterisk/autoconfig.h -I$(PWD)/include" PARENTSRC="$(PWD)" $(MAKE) -C menuselect menuselect
+	@CFLAGS="-include $(ASTTOPDIR)/include/asterisk/autoconfig.h -I$(ASTTOPDIR)/include" PARENTSRC="$(ASTTOPDIR)" $(MAKE) -C menuselect menuselect
 
 mxml/libmxml.a:
 	@cd mxml && unset CFLAGS LIBS && test -f config.h || ./configure

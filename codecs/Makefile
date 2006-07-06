@@ -30,7 +30,7 @@ GSM_LIB:=
 codec_gsm.so: gsm/lib/libgsm.a
 endif
 
-include ../Makefile.rules
+include $(ASTTOPDIR)/Makefile.moddir_rules
 
 clean::
 	$(MAKE) -C gsm clean

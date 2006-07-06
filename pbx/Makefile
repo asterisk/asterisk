@@ -20,7 +20,7 @@ MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
 
 all: _all
 
-include ../Makefile.rules
+include $(ASTTOPDIR)/Makefile.moddir_rules
 
 clean::
 	rm -f ael/*.o

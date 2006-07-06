@@ -18,4 +18,4 @@ SELECTED_MODS:=$(filter-out $(MENUSELECT_FORMATS),$(patsubst %.c,%,$(wildcard fo
 
 all: _all
 
-include ../Makefile.rules
+include $(ASTTOPDIR)/Makefile.moddir_rules

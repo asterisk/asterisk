@@ -60,17 +60,17 @@ MENUSELECT_OPTS_chan_misdn+=CHAN_MISDN_VERSION=\"0.3.0\"
 
 all: _all
 
-include ../Makefile.rules
+include $(ASTTOPDIR)/Makefile.moddir_rules
 
 clean::
 	rm -f busy.h ringtone.h gentone gentone-ulaw
 
-ifneq ($(wildcard h323/Makefile.ast),)
-  include h323/Makefile.ast
+ifneq ($(wildcard $(ASTTOPDIR)/Makefile.ast),)
+  include $(ASTTOPDIR)/Makefile.ast
 endif
 
-ifneq ($(wildcard misdn/Makefile.ast),)
-  include misdn/Makefile.ast
+ifneq ($(wildcard m$(ASTTOPDIR)/Makefile.ast),)
+  include m$(ASTTOPDIR)/Makefile.ast
 endif
 
 gentone gentone-ulaw: %: %.c
@@ -95,7 +95,7 @@ chan_vpb.so: chan_vpb.o
 	 $(CXX) $(SOLINK) -o $@ $< -lvpb -lpthread -lm -ldl
 
 ifeq ($(OSARCH),Linux)
-chan_h323.so: chan_h323.o h323/libchanh323.a h323/Makefile.ast
+chan_h323.so: chan_h323.o h323/libchanh323.a $(ASTTOPDIR)/Makefile.ast
 	$(CC) $(SOLINK) $(H323LDFLAGS) -o $@ $< h323/libchanh323.a $(H323LDLIBS) -lstdc++
 else
 chan_h323.so: chan_h323.o h323/libchanh323.a
