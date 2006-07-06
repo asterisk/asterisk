@@ -108,14 +108,14 @@ static
 #endif
 struct ast_custom_function db_function = {
 	.name = "DB",
-	.synopsis = "Read or Write from/to the Asterisk database",
+	.synopsis = "Read from or write to the Asterisk database",
 	.syntax = "DB(<family>/<key>)",
-	.desc = "This function will read or write a value from/to the Asterisk database.\n"
-		"DB(...) will read a value from the database, while DB(...)=value\n"
-		"will write a value to the database.  On a read, this function\n"
-		"returns the value from the datase, or NULL if it does not exist.\n"
-		"On a write, this function will always return NULL.  Reading a database value\n"
-		"will also set the variable DB_RESULT.\n",
+	.desc =
+"This function will read from or write a value to the Asterisk database.  On a\n"
+"read, this function returns the corresponding value from the database, or blank\n"
+"if it does not exist.  Reading a database value will also set the variable\n"
+"DB_RESULT.  If you wish to find out if an entry exists, use the DB_EXISTS\n"
+"function.\n",
 	.read = function_db_read,
 	.write = function_db_write,
 };
