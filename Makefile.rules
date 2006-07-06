@@ -1,0 +1,133 @@
+#
+# Asterisk -- A telephony toolkit for Linux.
+# 
+# Makefile rules
+#
+# Copyright (C) 2006, Digium, Inc.
+#
+# Kevin P. Fleming <kpfleming@digium.com>
+#
+# This program is free software, distributed under the terms of
+# the GNU General Public License
+#
+
+ifeq ($(NOISY_BUILD),)
+
+define ast_make_o_c
+$(1): $(2)
+	@echo "   [CC] $$< -> $$@"
+	@$$(CC) -o $$@ -c $$< $$(CFLAGS)
+endef
+
+define ast_make_oo_cc
+$(1): $(2)
+	@echo "   [CXX] $$< -> $$@"
+	@$$(CXX) -o $$@ -c $$< $$(CFLAGS)
+endef
+
+define ast_make_c_y
+$(1): $(2)
+	@echo "   [BISON] $$< -> $$@"
+	@bison -o $$@ -d --name-prefix=ast_yy $$<
+endef
+
+define ast_make_c_fl
+$(1): $(2)
+	@echo "   [FLEX] $$< -> $$@"
+	@flex -o $$@ --full $$<
+endef
+
+define ast_make_so_o
+$(1): $(2)
+	@echo "   [LD] $$^ -> $$@"
+	@$$(CC) -o $$@ $$(SOLINK) $$^ $$(LDFLAGS)
+endef
+
+define ast_make_so_oo
+$(1): $(2)
+	@echo "   [LDXX] $$^ -> $$@"
+	@$$(CXX) -o $$@ $$(SOLINK) $$^ $$(LDFLAGS)
+endef
+
+define ast_make_a_o
+$(1): $(2)
+	@echo "   [AR] $$^ -> $$@"
+	@$$(AR) cr $$@ $$^
+	@$$(RANLIB) $$@
+endef
+
+define ast_make_final
+$(1): $(2)
+	@echo "   [LD] $$^ -> $$@"
+	@$$(CC) -o $$@ $$^ $$(LDFLAGS)
+endef
+
+define ast_make_final_host
+$(1): $(2)
+	@echo "   [LD] $$^ -> $$@"
+	@$$(HOST_CC) -o $$@ $$^ $$(CFLAGS) $$(LDFLAGS)
+endef
+
+else
+
+define ast_make_o_c
+$(1): $(2)
+	$$(CC) -o $$@ -c $$< $$(CFLAGS)
+endef
+
+define ast_make_oo_cc
+$(1): $(2)
+	$$(CXX) -o $$@ -c $$< $$(CFLAGS)
+endef
+
+define ast_make_c_y
+$(1): $(2)
+	bison -o $$@ -d --name-prefix=ast_yy $$<
+endef
+
+define ast_make_c_fl
+$(1): $(2)
+	flex -o $$@ --full $$<
+endef
+
+define ast_make_so_o
+$(1): $(2)
+	$$(CC) -o $$@ $$(SOLINK) $$^ $$(LDFLAGS)
+endef
+
+define ast_make_so_oo
+$(1): $(2)
+	$$(CXX) -o $$@ $$(SOLINK) $$^ $$(LDFLAGS)
+endef
+
+define ast_make_a_o
+$(1): $(2)
+	$$(AR) cr $$@ $$^
+	$$(RANLIB) $$@
+endef
+
+define ast_make_final
+$(1): $(2)
+	$$(CC) -o $$@ $$^ $$(LDFLAGS)
+endef
+
+define ast_make_final_host
+$(1): $(2)
+	$$(HOST_CC) -o $$@ $$^ $$(CFLAGS) $$(LDFLAGS)
+endef
+
+endif
+
+$(eval $(call ast_make_o_c,%.o,%.c))
+
+$(eval $(call ast_make_oo_cc,%.oo,%.cc))
+
+$(eval $(call ast_make_so_o,%.so,%.o))
+
+$(eval $(call ast_make_so_oo,%.so,%.oo))
+
+$(eval $(call ast_make_final,%,%.o))
+
+$(eval $(call ast_make_c_y,%.c,%.y))
+
+$(eval $(call ast_make_c_fl,%.c,%.fl))
