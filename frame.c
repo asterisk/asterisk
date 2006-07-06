@@ -80,29 +80,29 @@ static struct ast_format_list {
 	int bits;	/*!< bitmask value */
 	char *name;	/*!< short name */
 	char *desc;	/*!< Description */
-} AST_FORMAT_LIST[] = {
-	{ 1, AST_FORMAT_G723_1 , "g723" , "G.723.1"},	/*!< codec_g723_1.c */
-	{ 1, AST_FORMAT_GSM, "gsm" , "GSM"},		/*!< codec_gsm.c */
-	{ 1, AST_FORMAT_ULAW, "ulaw", "G.711 u-law" },	/*!< codec_ulaw.c */
-	{ 1, AST_FORMAT_ALAW, "alaw", "G.711 A-law" },	/*!< codec_alaw.c */
-	{ 1, AST_FORMAT_G726, "g726", "G.726" },	/*!< codec_g726.c */
-	{ 1, AST_FORMAT_ADPCM, "adpcm" , "ADPCM"},	/*!< codec_adpcm.c */
-	{ 1, AST_FORMAT_SLINEAR, "slin",  "16 bit Signed Linear PCM"},	/*!<  */
-	{ 1, AST_FORMAT_LPC10, "lpc10", "LPC10" },	/*!< codec_lpc10.c */
-	{ 1, AST_FORMAT_G729A, "g729", "G.729A" },	/*!< Binary commercial distribution */
-	{ 1, AST_FORMAT_SPEEX, "speex", "SpeeX" },	/*!< codec_speex.c */
-	{ 1, AST_FORMAT_ILBC, "ilbc", "iLBC"},		/*!< codec_ilbc.c */
+} AST_FORMAT_LIST[] = {					/*!< Bit number: comment  - Bit numbers are hard coded in show_codec() */
+	{ 1, AST_FORMAT_G723_1 , "g723" , "G.723.1"},	/*!<  1: codec_g723_1.c */
+	{ 1, AST_FORMAT_GSM, "gsm" , "GSM"},		/*!<  2: codec_gsm.c */
+	{ 1, AST_FORMAT_ULAW, "ulaw", "G.711 u-law" },	/*!<  3: codec_ulaw.c */
+	{ 1, AST_FORMAT_ALAW, "alaw", "G.711 A-law" },	/*!<  4: codec_alaw.c */
+	{ 1, AST_FORMAT_G726, "g726", "G.726" },	/*!<  5: codec_g726.c */
+	{ 1, AST_FORMAT_ADPCM, "adpcm" , "ADPCM"},	/*!<  6: codec_adpcm.c */
+	{ 1, AST_FORMAT_SLINEAR, "slin",  "16 bit Signed Linear PCM"},	/*!< 7 */
+	{ 1, AST_FORMAT_LPC10, "lpc10", "LPC10" },	/*!<  8: codec_lpc10.c */
+	{ 1, AST_FORMAT_G729A, "g729", "G.729A" },	/*!<  9: Binary commercial distribution */
+	{ 1, AST_FORMAT_SPEEX, "speex", "SpeeX" },	/*!< 10: codec_speex.c */
+	{ 1, AST_FORMAT_ILBC, "ilbc", "iLBC"},		/*!< 11: codec_ilbc.c */
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },
-	{ 0, AST_FORMAT_MAX_AUDIO, "maxaudio", "Maximum audio format" },
-	{ 1, AST_FORMAT_JPEG, "jpeg", "JPEG image"},	/*!< See format_jpeg.c */
-	{ 1, AST_FORMAT_PNG, "png", "PNG image"},	/*!< Image format */
-	{ 1, AST_FORMAT_H261, "h261", "H.261 Video" },	/*!< Passthrough */
-	{ 1, AST_FORMAT_H263, "h263", "H.263 Video" },	/*!< Passthrough support, see format_h263.c */
-	{ 1, AST_FORMAT_H263_PLUS, "h263p", "H.263+ Video" },	/*!< See format_h263.c */
-	{ 1, AST_FORMAT_H264, "h264", "H.264 Video" },	/*!< Passthrough support, see format_h263.c */
+	{ 0, AST_FORMAT_MAX_AUDIO, "maxaudio", "Maximum audio format" },	
+	{ 1, AST_FORMAT_JPEG, "jpeg", "JPEG image"},	/*!< 17: See format_jpeg.c */
+	{ 1, AST_FORMAT_PNG, "png", "PNG image"},	/*!< 18: Image format */
+	{ 1, AST_FORMAT_H261, "h261", "H.261 Video" },	/*!< 19: Video Passthrough */
+	{ 1, AST_FORMAT_H263, "h263", "H.263 Video" },	/*!< 20: Passthrough support, see format_h263.c */
+	{ 1, AST_FORMAT_H263_PLUS, "h263p", "H.263+ Video" },	/*!< 21: See format_h263.c */
+	{ 1, AST_FORMAT_H264, "h264", "H.264 Video" },	/*!< 22: Passthrough support, see format_h263.c */
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },
@@ -635,7 +635,7 @@ static int show_codecs(int fd, int argc, char *argv[])
 
 	if ((argc == 2) || (!strcasecmp(argv[1],"video"))) {
 		found = 1;
-		for (i=18;i<21;i++) {
+		for (i=18;i<22;i++) {
 			snprintf(hex,25,"(0x%x)",1<<i);
 			ast_cli(fd, "%11u (1 << %2d) %10s  video   %5s   (%s)\n",1 << i,i,hex,ast_getformatname(1<<i),ast_codec2str(1<<i));
 		}
