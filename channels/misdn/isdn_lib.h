@@ -191,7 +191,11 @@ struct misdn_bchannel {
 	
 	int layer;
 	
-	
+	/*state stuff*/
+	int need_disconnect;
+	int need_release;
+	int need_release_complete;
+
 	/** var stuff**/
 	int l3_id;
 	int pid;

@@ -418,6 +418,11 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 
 int empty_chan_in_stack(struct misdn_stack *stack, int channel)
 {
+	if (channel<=0) {
+		cb_log(-1,stack?stack->port:0, "empty_chan_inst_stack: cannot empty channel %d\n",channel);
+		return -1;
+	}
+	
 	cb_log (1, stack?stack->port:0, "empty_chan_in_stack: %d\n",channel); 
 	stack->channels[channel-1] = 0;
 	dump_chan_list(stack);
@@ -814,9 +819,6 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 		ncr.len = 0;
 
 		bc->l3_id = l3_id;
-		if (mypid>5000) mypid=1;
-		bc->pid=mypid++;
-      
 		cb_log(3, stack->port, " --> new_l3id %x\n",l3_id);
     
 	} else { 
@@ -847,9 +849,6 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 		/* send message */
 
 		bc->l3_id = l3_id;
-		if (mypid>5000) mypid=1;
-		bc->pid=mypid++;
-    
 		cb_log(3, stack->port, "--> new_l3id %x\n",l3_id);
     
 		mISDN_write(midev, &ncr, mISDN_HEADER_LEN+ncr.len, TIMEOUT_1SEC);
@@ -1466,7 +1465,8 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 
 		case EVENT_RELEASE_COMPLETE:
 		case EVENT_RELEASE:
-			empty_chan_in_stack(stack,bc->channel);
+			if (bc->channel>0)
+				empty_chan_in_stack(stack,bc->channel);
 			empty_bc(bc);
 			clean_up_bc(bc);
 			break;
@@ -1492,9 +1492,6 @@ int handle_new_process(struct misdn_stack *stack, iframe_t *frm)
   
 	cb_log(7, stack->port, " --> new_process: New L3Id: %x\n",frm->dinfo);
 	bc->l3_id=frm->dinfo;
-	
-	if (mypid>5000) mypid=1;
-	bc->pid=mypid++;
 	return 0;
 }
 
@@ -1532,7 +1529,8 @@ int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
       
 			if (bc) {
 				cb_log(4, stack->port, " --> lib: CLEANING UP l3id: %x\n",frm->dinfo);
-				empty_chan_in_stack(stack,bc->channel);
+				if (bc->channel>0)
+					empty_chan_in_stack(stack,bc->channel);
 				empty_bc(bc);
 				
 				clean_up_bc(bc);
@@ -1570,10 +1568,10 @@ void misdn_lib_release(struct misdn_bchannel *bc)
 		return;
 	}
 	
-	if (bc->channel>=0) {
+	if (bc->channel>0) {
 		empty_chan_in_stack(stack,bc->channel);
-		empty_bc(bc);
 	}
+	empty_bc(bc);
 	clean_up_bc(bc);
 }
 
@@ -1649,7 +1647,11 @@ int misdn_lib_port_up(int port, int check)
 		
 		if (stack->port == port) {
 			if (stack->ptp ) {
-				if (stack->l1link && stack->l2link) {
+				if (stack->l1link) {
+					if (check==2 && !stack->l2link) {
+						cb_log(-1,port, "Port Down L2 (checked):%d L1:%d\n", stack->l2link, stack->l1link);
+						return 0;
+					}
 					return 1;
 				} else {
 					cb_log(-1,port, "Port Down L2:%d L1:%d\n",
@@ -1996,6 +1998,9 @@ handle_event_nt(void *dat, void *arg)
 					break;
 				case EVENT_RELEASE:
 				case EVENT_RELEASE_COMPLETE:
+					if (bc->channel>0)
+                        			empty_chan_in_stack(stack, bc->channel);
+			                empty_bc(bc);
 					clean_up_bc(bc);
 					break;
 
@@ -2526,7 +2531,8 @@ int handle_frm(msg_t *msg)
 
 					bc->out_cause=16;
 					misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
-					empty_chan_in_stack(stack, bc->channel);
+					if (bc->channel>0)
+						empty_chan_in_stack(stack, bc->channel);
 					empty_bc(bc);
 					bc_state_change(bc,BCHAN_CLEANED);
 
@@ -2947,6 +2953,25 @@ struct misdn_bchannel *manager_find_bc_holded(struct misdn_bchannel* bc)
 
 
 
+void prepare_bc(struct misdn_bchannel*bc, int channel)
+{
+	bc->channel = channel;
+	bc->channel_preselected = channel?1:0;
+	bc->in_use = 1;
+	bc->need_disconnect=1;
+	bc->need_release=1;
+	bc->need_release_complete=1;
+
+	if (++mypid>5000) mypid=1;
+	bc->pid=mypid;
+
+#if 0
+	bc->addr=0;
+	bc->b_stid=0;
+	bc->layer_id=0;
+#endif
+}
+
 struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel)
 {
 	struct misdn_stack *stack;
@@ -2975,9 +3000,7 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel)
 			}
 			for (i = 0; i < stack->b_num; i++) {
 				if (!stack->bc[i].in_use) {
-					stack->bc[i].channel = channel;
-					stack->bc[i].channel_preselected = channel?1:0;
-					stack->bc[i].in_use = 1;
+					prepare_bc(&stack->bc[i], channel);
 					return &stack->bc[i];
 				}
 			}
@@ -3155,7 +3178,8 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 				misdn_split_conf(bc->holded_bc,bc->holded_bc->conf_id);
 			}
 
-			empty_chan_in_stack(stack,bc->channel);
+			if (bc->channel>0)
+				empty_chan_in_stack(stack,bc->channel);
 			empty_bc(bc);
 			clean_up_bc(bc);
 		}
@@ -3168,11 +3192,29 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		cb_event( EVENT_NEW_BC, holded_bc, glob_mgr->user_data);
 	}
 	break;
-	
+
+	/* finishing the channel eh ? */
+	case EVENT_DISCONNECT:
+		if (!bc->need_disconnect) {
+			cb_log(-1,1," --> we have already send Disconnect\n");
+			return -1;
+		}
+		
+		bc->need_disconnect=0;
+		break;
 	case EVENT_RELEASE:
+		if (!bc->need_release) {
+			cb_log(-1,bc->port," --> we have already send Release\n");
+			return -1;
+		}
+		bc->need_release=0;
+		break;
 	case EVENT_RELEASE_COMPLETE:
-		/*we do the cleanup in EVENT_CLEANUP*/
-		/*clean_up_bc(bc);*/
+		if (!bc->need_release_complete) {
+			cb_log(-1,bc->port," --> we have already send Release_complete\n");
+			return -1;
+		}
+		bc->need_release_complete=0;
 		break;
     
 	case EVENT_CONNECT_ACKNOWLEDGE:
@@ -3948,7 +3990,8 @@ void manager_clean_bc(struct misdn_bchannel *bc )
 {
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	
-	empty_chan_in_stack(stack, bc->channel);
+	if (bc->channel>0)
+		empty_chan_in_stack(stack, bc->channel);
 	empty_bc(bc);
   
 	misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);

@@ -201,6 +201,7 @@ te_choose_channel=no
 ; default: yes
 ;
 pmp_l1_check=yes
+pp_l2_check=no
 
 ;
 ; Send Setup_Acknowledge on incoming calls anyway (instead of PROCEEDING), 

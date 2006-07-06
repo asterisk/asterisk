@@ -112,6 +112,10 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\tBut be aware! a broken or plugged off cable might be used for a group call\n"
 		"\tas well, since chan_misdn has no chance to distinguish if the L1 is down\n"
 		"\tbecause of a lost Link or because the Provider shut it down..." },
+	{ "pp_l2_check", MISDN_CFG_PP_L2_CHECK, MISDN_CTYPE_BOOL, "no", NONE ,
+	  "Some PBX's do not turn on the L2 automatically. Turn this to yes\n"
+	  "and we'll ignore that and send out calls on that port anyways\n"
+	  "default: no\n" },
 	{ "hdlc", MISDN_CFG_HDLC, MISDN_CTYPE_BOOL, "no", NONE,
 		"Set this to yes, if you want to bridge a mISDN data channel to\n"
 		"\tanother channel type or to an application." },
