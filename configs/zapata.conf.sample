@@ -131,6 +131,16 @@ switchtype=national
 ; ISDN Timers
 ; All of the ISDN timers and counters that are used are configurable.  Specify
 ; the timer name, and its value (in ms for timers).
+; K:    Layer 2 max number of outstanding unacknowledged I frames (default 7)
+; N200: Layer 2 max number of retransmissions of a frame (default 3)
+; T200: Layer 2 max time before retransmission of a frame (default 1000 ms)
+; T203: Layer 2 max time without frames being exchanged (default 10000 ms)
+; T305: Wait for DISCONNECT acknowledge (default 30000 ms)
+; T308: Wait for RELEASE acknowledge (default 4000 ms)
+; T309: Maintain active calls on Layer 2 disconnection (default -1, Asterisk clears calls)
+;       EuroISDN: 6000 to 12000 ms, according to (N200 + 1) × T200 + 2s
+;       May vary in other ISDN standards (Q.931 1993 : 90000 ms)
+; T313: Wait for CONNECT acknowledge, CPE side only (default 3000 ms)
 ;
 ; pritimer => t200,1000
 ; pritimer => t313,4000

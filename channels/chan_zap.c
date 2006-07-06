@@ -3637,20 +3637,23 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			break;
 		case ZT_EVENT_ALARM:
 #ifdef HAVE_PRI
-			if (p->call) {
-				if (p->pri && p->pri->pri) {
-					if (!pri_grab(p, p->pri)) {
-						pri_hangup(p->pri->pri, p->call, -1);
-						pri_destroycall(p->pri->pri, p->call);
-						p->call = NULL;
-						pri_rel(p->pri);
+			if (!p->pri || !p->pri->pri || (pri_get_timer(p->pri->pri, PRI_TIMER_T309) < 0)) {
+				/* T309 is not enabled : hangup calls when alarm occurs */
+				if (p->call) {
+					if (p->pri && p->pri->pri) {
+						if (!pri_grab(p, p->pri)) {
+							pri_hangup(p->pri->pri, p->call, -1);
+							pri_destroycall(p->pri->pri, p->call);
+							p->call = NULL;
+							pri_rel(p->pri);
+						} else
+							ast_log(LOG_WARNING, "Failed to grab PRI!\n");
 					} else
-						ast_log(LOG_WARNING, "Failed to grab PRI!\n");
-				} else
-					ast_log(LOG_WARNING, "The PRI Call have not been destroyed\n");
+						ast_log(LOG_WARNING, "The PRI Call has not been destroyed\n");
+				}
+				if (p->owner)
+					p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 			}
-			if (p->owner)
-				p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 			if (p->bearer)
 				p->bearer->inalarm = 1;
 			else
@@ -3662,7 +3665,13 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								"Alarm: %s\r\n"
 								"Channel: %d\r\n",
 								alarm2str(res), p->channel);
-			/* fall through intentionally */
+#ifdef HAVE_LIBPRI
+			if (!p->pri || !p->pri->pri || pri_get_timer(p->pri->pri, PRI_TIMER_T309) < 0) {
+				/* fall through intentionally */
+			} else {
+				break;
+			}
+#endif
 		case ZT_EVENT_ONHOOK:
 			if (p->radio) {
 				p->subs[index].f.frametype = AST_FRAME_CONTROL;
@@ -8366,18 +8375,21 @@ static void *pri_dchannel(void *vpri)
 					for (i = 0; i < pri->numchans; i++) {
 						struct zt_pvt *p = pri->pvts[i];
 						if (p) {
-							if (p->call) {
-								if (p->pri && p->pri->pri) {
-									pri_hangup(p->pri->pri, p->call, -1);
-									pri_destroycall(p->pri->pri, p->call);
-									p->call = NULL;
-								} else
-									ast_log(LOG_WARNING, "The PRI Call have not been destroyed\n");
+							if (!p->pri || !p->pri->pri || pri_get_timer(p->pri->pri, PRI_TIMER_T309) < 0) {
+								/* T309 is not enabled : hangup calls when alarm occurs */
+								if (p->call) {
+									if (p->pri && p->pri->pri) {
+										pri_hangup(p->pri->pri, p->call, -1);
+										pri_destroycall(p->pri->pri, p->call);
+										p->call = NULL;
+									} else
+										ast_log(LOG_WARNING, "The PRI Call have not been destroyed\n");
+								}
+								if (p->realcall) {
+									pri_hangup_all(p->realcall, pri);
+								} else if (p->owner)
+									p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							}
-							if (p->realcall) {
-								pri_hangup_all(p->realcall, pri);
-							} else if (p->owner)
-								p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							p->inalarm = 1;
 						}
 					}
@@ -10218,12 +10230,11 @@ static int setup_zap(int reload)
 
 	cfg = ast_config_load(config);
 
-	/* We *must* have a config file otherwise stop immediately */
+	/* Error if we have no config file */
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
 		return 0;
 	}
-	
 
 	/* It's a little silly to lock it, but we mind as well just to be sure */
 	ast_mutex_lock(&iflock);
