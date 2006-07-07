@@ -336,7 +336,89 @@ AST_EXT_LIB_CHECK([IKSEMEL], [iksemel], [iks_start_sasl], [iksemel.h])
 
 if test "${USE_IMAP_TK}" != "no"; then
    if test "${IMAP_TK_DIR}" = ""; then
-      IMAP_TK_DIR=../imap-2004g
+      IMAP_TK_DIR=`pwd`"/../imap-2004g"
+   fi
+   echo -n "checking for UW IMAP Toolkit c-client library... "
+   saved_cppflags="${CPPFLAGS}"
+   saved_libs="${LIBS}"
+   imap_ldflags=`cat ${IMAP_TK_DIR}/c-client/LDFLAGS`
+   CPPFLAGS="${CPPFLAGS} -I${IMAP_TK_DIR}/c-client"
+   LIBS="${LIBS} ${IMAP_TK_DIR}/c-client/c-client.a "`echo ${imap_ldflags}`
+   AC_LINK_IFELSE(
+	AC_LANG_PROGRAM(
+		[#include "c-client.h"],
+		[
+		void mm_searched (MAILSTREAM *stream,unsigned long number)
+		{
+		}
+		void mm_exists (MAILSTREAM *stream,unsigned long number)
+		{
+		}
+		void mm_expunged (MAILSTREAM *stream,unsigned long number)
+		{
+		}
+		void mm_flags (MAILSTREAM *stream,unsigned long number)
+		{
+		}
+		void mm_notify (MAILSTREAM *stream,char *string,long errflg)
+		{
+		}
+		void mm_list (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+		{
+		}
+		void mm_lsub (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+		{
+		}
+		void mm_status (MAILSTREAM *stream,char *mailbox,MAILSTATUS *status)
+		{
+		}
+		void mm_log (char *string,long errflg)
+		{
+		}
+		void mm_dlog (char *string)
+		{
+		}
+		void mm_login (NETMBX *mb,char *user,char *pwd,long trial)
+		{
+		}
+		void mm_critical (MAILSTREAM *stream)
+		{
+		}
+		void mm_nocritical (MAILSTREAM *stream)
+		{
+		}
+		long mm_diskerror (MAILSTREAM *stream,long errcode,long serious)
+		{
+		}
+		void mm_fatal (char *string)
+		{
+		}
+		int main()
+		{
+		MAILSTREAM *foo = mail_open(NULL, "", 0);
+		}
+		]
+	),
+	[ac_cv_imap_tk="yes"],
+	[ac_cv_imap_tk="no"]
+   )
+   CPPFLAGS="${saved_cppflags}"
+   LIBS="${saved_libs}"
+   if test "${ac_cv_imap_tk}" = "yes"; then
+      AC_MSG_RESULT(yes) 
+      IMAP_TK_LIB="${IMAP_TK_DIR}/c-client/c-client.a "`echo ${imap_ldflags}`
+      IMAP_TK_INCLUDE="-I${IMAP_TK_DIR}/c-client"
+      PBX_IMAP_TK=1
+      AC_DEFINE([HAVE_IMAP_TK], 1, [Define if your system has the UW IMAP Toolkit c-client library.])
+   elif test ! -z "${IMAP_TK_MANDATORY}"; then
+      AC_MSG_RESULT(no) 
+      echo "***"
+      echo "*** The UW IMAP Toolkit installation on this system appears to be broken."
+      echo "*** Either correct the installation, or run configure"
+      echo "*** including --without-imap."
+      exit 1
+   else
+      AC_MSG_RESULT(no) 
    fi
 fi
 
