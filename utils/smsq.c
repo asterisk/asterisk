@@ -191,7 +191,7 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
 /* Process received queue entries and run through a process, setting environment variables */
 static void rxqcheck (char *dir, char *queue, char *process)
 {
-   unsigned char *p;
+   char *p;
    char dirname[100],
      temp[100];
    DIR *d;
@@ -267,7 +267,7 @@ static void rxqcheck (char *dir, char *queue, char *process)
                {                /* read the user data as UTF-8 */
                   long v;
                   udl = 0;
-                  while ((v = utf8decode (&p)) && udl < 160)
+                  while ((v = utf8decode ((unsigned char **) &p)) && udl < 160)
                      if (v && v <= 0xFFFF)
                         ud[udl++] = v;
                }
@@ -591,7 +591,7 @@ main (int argc, const char *argv[])
    {                            /* multiple command line arguments in UTF-8 */
       while (poptPeekArg (optCon) && udl < 160)
       {
-         unsigned char *a = (char *) poptGetArg (optCon);
+         unsigned char *a = (unsigned char *) poptGetArg (optCon);
          if (udl && udl < 160)
             ud[udl++] = ' ';    /* space between arguments */
          while (udl < 160 && *a)
