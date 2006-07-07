@@ -497,8 +497,8 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	ssrc = ntohl(rtpheader[2]);
 	
 	if (!mark && rtp->rxssrc && rtp->rxssrc != ssrc) {
-		if (option_verbose > 1)
-			ast_verbose(VERBOSE_PREFIX_2 "Forcing Marker bit, because SSRC has changed\n");
+		if (option_debug || rtpdebug)
+			ast_log(LOG_DEBUG, "Forcing Marker bit, because SSRC has changed\n");
 		mark = 1;
 	}
 
