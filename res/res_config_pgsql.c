@@ -702,18 +702,6 @@ static const char *description(void)
 
 }
 
-static int usecount(void)
-{
-	/* XXX check this... */
-	/* Try and get a lock. If unsuccessful, than that means another thread is using the pgsql object. */
-	if (ast_mutex_trylock(&pgsql_lock)) {
-		ast_log(LOG_DEBUG, "Postgresql RealTime: Module usage count is 1.\n");
-		return 1;
-	}
-	ast_mutex_unlock(&pgsql_lock);
-	return 0;
-}
-
 static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
