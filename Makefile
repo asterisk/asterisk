@@ -221,9 +221,6 @@ ifeq ($(AST_DEVMODE),yes)
   ASTCFLAGS+=-Werror -Wunused
 endif
 
-ifeq ($(shell gcc -v 2>&1 | grep 'gcc version' | cut -f3 -d' ' | cut -f1 -d.),4)
-ASTCFLAGS+=-Wno-pointer-sign
-endif
 ASTOBJ=-o asterisk
 
 ifeq ($(findstring BSD,$(OSARCH)),BSD)
