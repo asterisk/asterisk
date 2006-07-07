@@ -36,6 +36,6 @@ struct ast_channel;
 		services does not work, Asterisk may lock while waiting for response.
 */
 int ast_search_dns(void *context, const char *dname, int class, int type,
-	 int (*callback)(void *context, char *answer, int len, char *fullanswer));
+	 int (*callback)(void *context, unsigned char *answer, int len, unsigned char *fullanswer));
 
 #endif /* _ASTERISK_DNS_H */

@@ -91,7 +91,7 @@ struct dn_answer {
 	unsigned short size;
 } __attribute__ ((__packed__));
 
-static int skip_name(char *s, int len)
+static int skip_name(unsigned char *s, int len)
 {
 	int x = 0;
 
@@ -116,10 +116,10 @@ static int skip_name(char *s, int len)
 
 /*! \brief Parse DNS lookup result, call callback */
 static int dns_parse_answer(void *context,
-	int class, int type, char *answer, int len,
-	int (*callback)(void *context, char *answer, int len, char *fullanswer))
+	int class, int type, unsigned char *answer, int len,
+	int (*callback)(void *context, unsigned char *answer, int len, unsigned char *fullanswer))
 {
-	char *fullanswer = answer;
+	unsigned char *fullanswer = answer;
 	struct dn_answer *ans;
 	dns_HEADER *h;
 	int res;
@@ -192,12 +192,12 @@ not work properly, Asterisk might not start properly or a channel may lock.
 */
 int ast_search_dns(void *context,
 	   const char *dname, int class, int type,
-	   int (*callback)(void *context, char *answer, int len, char *fullanswer))
+	   int (*callback)(void *context, unsigned char *answer, int len, unsigned char *fullanswer))
 {
 #ifdef HAS_RES_NINIT
 	struct __res_state dnsstate;
 #endif
-	char answer[MAX_SIZE];
+	unsigned char answer[MAX_SIZE];
 	int res, ret = -1;
 
 #ifdef HAS_RES_NINIT
@@ -205,7 +205,7 @@ int ast_search_dns(void *context,
 	memset(&dnsstate, 0, sizeof(dnsstate));
 #endif	
 	res_ninit(&dnsstate);
-	res = res_nsearch(&dnsstate, dname, class, type, (unsigned char *)answer, sizeof(answer));
+	res = res_nsearch(&dnsstate, dname, class, type, answer, sizeof(answer));
 #else
 	ast_mutex_lock(&res_lock);
 	res_init();

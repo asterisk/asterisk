@@ -95,7 +95,7 @@ struct naptr {
 } __attribute__ ((__packed__));
 
 /*! \brief Parse NAPTR record information elements */
-static unsigned int parse_ie(char *data, unsigned int maxdatalen, char *src, unsigned int srclen)
+static unsigned int parse_ie(char *data, unsigned int maxdatalen, unsigned char *src, unsigned int srclen)
 {
 	unsigned int len, olen;
 
@@ -116,10 +116,10 @@ static unsigned int parse_ie(char *data, unsigned int maxdatalen, char *src, uns
 }
 
 /*! \brief Parse DNS NAPTR record used in ENUM ---*/
-static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize, unsigned char *answer, int len, unsigned char *naptrinput)
+static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, unsigned char *answer, int len, char *naptrinput)
 {
 	char tech_return[80];
-	char *oanswer = answer;
+	unsigned char *oanswer = answer;
 	char flags[512] = "";
 	char services[512] = "";
 	char *p;
@@ -167,7 +167,7 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 		len -= res;
 	}
 
-	if ((res = dn_expand((unsigned char *)oanswer, (unsigned char *)answer + len, (unsigned char *)answer, repl, sizeof(repl) - 1)) < 0) {
+	if ((res = dn_expand(oanswer, answer + len, answer, repl, sizeof(repl) - 1)) < 0) {
 		ast_log(LOG_WARNING, "Failed to expand hostname\n");
 		return -1;
 	}
@@ -324,7 +324,7 @@ struct enum_context {
 };
 
 /*! \brief Callback for TXT record lookup */
-static int txt_callback(void *context, char *answer, int len, char *fullanswer)
+static int txt_callback(void *context, unsigned char *answer, int len, unsigned char *fullanswer)
 {
 	struct enum_context *c = (struct enum_context *)context;
 #if 0
@@ -350,7 +350,7 @@ static int txt_callback(void *context, char *answer, int len, char *fullanswer)
 	len +=1;
 
 	/* finally, copy the answer into c->txt */
-	ast_copy_string(c->txt, answer, len < c->txtlen ? len : (c->txtlen));
+	ast_copy_string(c->txt, (const char *) answer, len < c->txtlen ? len : (c->txtlen));
 
 	/* just to be safe, let's make sure c->txt is null terminated */
 	c->txt[(c->txtlen)-1] = '\0';
@@ -359,7 +359,7 @@ static int txt_callback(void *context, char *answer, int len, char *fullanswer)
 }
 
 /*! \brief Callback from ENUM lookup function */
-static int enum_callback(void *context, char *answer, int len, char *fullanswer)
+static int enum_callback(void *context, unsigned char *answer, int len, unsigned char *fullanswer)
 {
        struct enum_context *c = context;
        void *p = NULL;
