@@ -181,7 +181,7 @@ static struct ast_frame *lintoilbc_frameout(struct ast_trans_pvt *pvt)
 		/* Encode a frame of data */
 		for ( i = 0 ; i < ILBC_SAMPLES ; i++ )
 			tmpf[i] = tmp->buf[i];
-		iLBC_encode(pvt->outbuf + datalen, tmpf, &tmp->enc);
+		iLBC_encode((unsigned char *) pvt->outbuf + datalen, tmpf, &tmp->enc);
 		datalen += ILBC_FRAME_LEN;
 		samples += ILBC_SAMPLES;
 		pvt->samples -= ILBC_SAMPLES;

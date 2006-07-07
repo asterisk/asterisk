@@ -211,7 +211,7 @@ static struct ast_frame *lintolpc10_frameout(struct ast_trans_pvt *pvt)
 		for (x=0;x<LPC10_SAMPLES_PER_FRAME;x++)
 			tmpbuf[x] = (float)tmp->buf[x + samples] / 32768.0;
 		lpc10_encode(tmpbuf, bits, tmp->lpc10.enc);
-		build_bits(pvt->outbuf + datalen, bits);
+		build_bits((unsigned char *) pvt->outbuf + datalen, bits);
 		datalen += LPC10_BYTES_IN_COMPRESSED_FRAME;
 		samples += LPC10_SAMPLES_PER_FRAME;
 		pvt->samples -= LPC10_SAMPLES_PER_FRAME;
