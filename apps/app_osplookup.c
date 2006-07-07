@@ -125,7 +125,7 @@ struct osp_result {
 	char dest[OSP_NORSTR_SIZE];				/* Destination in called@IP format */
 	char calling[OSP_NORSTR_SIZE];				/* Calling number, may be translated */
 	char token[OSP_TOKSTR_SIZE];				/* Outbound OSP token */
-	int numresults;						/* Number of remain destinations */
+	unsigned int numresults;				/* Number of remain destinations */
 };
 
 /* OSP Module Global Variables */
@@ -254,14 +254,14 @@ static int osp_create_provider(struct ast_config* cfg, const char* provider)
 		v = v->next;
 	}
 
-	error = OSPPUtilLoadPEMPrivateKey(p->privatekey, &privatekey);
+	error = OSPPUtilLoadPEMPrivateKey((unsigned char *) p->privatekey, &privatekey);
 	if (error != OSPC_ERR_NO_ERROR) {
 		ast_log(LOG_WARNING, "OSP: Unable to load privatekey '%s', error '%d'\n", p->privatekey, error);
 		free(p);
 		return 0;
 	}
 
-	error = OSPPUtilLoadPEMCert(p->localcert, &localcert);
+	error = OSPPUtilLoadPEMCert((unsigned char *) p->localcert, &localcert);
 	if (error != OSPC_ERR_NO_ERROR) {
 		ast_log(LOG_WARNING, "OSP: Unable to load localcert '%s', error '%d'\n", p->localcert, error);
 		if (privatekey.PrivateKeyData) {
@@ -277,7 +277,7 @@ static int osp_create_provider(struct ast_config* cfg, const char* provider)
 		p->cacount++;
 	}
 	for (i = 0; i < p->cacount; i++) {
-		error = OSPPUtilLoadPEMCert(p->cacerts[i], &cacerts[i]);
+		error = OSPPUtilLoadPEMCert((unsigned char *) p->cacerts[i], &cacerts[i]);
 		if (error != OSPC_ERR_NO_ERROR) {
 			ast_log(LOG_WARNING, "OSP: Unable to load cacert '%s', error '%d'\n", p->cacerts[i], error);
 			for (j = 0; j < i; j++) {
@@ -412,7 +412,7 @@ static int osp_validate_token(int transaction, const char* source, const char* d
 {
 	int res;
 	int tokenlen;
-	char tokenstr[OSP_TOKSTR_SIZE];
+	unsigned char tokenstr[OSP_TOKSTR_SIZE];
 	unsigned int authorised;
 	unsigned int dummy = 0;
 	int error;
@@ -424,7 +424,7 @@ static int osp_validate_token(int transaction, const char* source, const char* d
 		calling ? calling : "", OSPC_E164, 
 		called, OSPC_E164, 
 		0, NULL,
-		tokenlen, tokenstr, 
+		tokenlen, (char *) tokenstr, 
 		&authorised, 
 		timelimit, 
 		&dummy, NULL, 
@@ -493,7 +493,7 @@ static int osp_check_destination(const char* called, const char* calling, char* 
 	if (enabled == OSPE_OSP_FALSE) {
 		result->token[0] = '\0';
 	} else {
-		ast_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
+		ast_base64encode(result->token, (const unsigned char *) token, tokenlen, sizeof(result->token) - 1);
 	}
 
 	if ((error = OSPPTransactionGetDestProtocol(result->outhandle, &protocol)) != OSPC_ERR_NO_ERROR) {
@@ -841,7 +841,6 @@ static int osp_finish(int handle, int recorded, int cause, time_t start, time_t 
 	time_t alert = 0;
 	unsigned isPddInfoPresent = 0;
 	unsigned pdd = 0;
-	unsigned char* confId = "";
 	unsigned int dummy = 0;
 	int error;
 	
@@ -855,7 +854,7 @@ static int osp_finish(int handle, int recorded, int cause, time_t start, time_t 
 	}
 
 	error = OSPPTransactionReportUsage(handle, difftime(end, connect), start, end, alert, connect, isPddInfoPresent, pdd,
-						release, confId, 0, 0, 0, 0, &dummy, NULL);
+						release, (unsigned char *) "", 0, 0, 0, 0, &dummy, NULL);
 	if (error == OSPC_ERR_NO_ERROR) {
 		ast_log(LOG_DEBUG, "OSP: Usage reported\n");
 		res = 1;

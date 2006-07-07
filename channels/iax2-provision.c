@@ -71,7 +71,7 @@ struct iax_template {
 	unsigned int altserver;
 	unsigned int flags;
 	unsigned int format;
-	int tos;	
+	unsigned int tos;	
 } *templates;
 
 static struct iax_flag {
