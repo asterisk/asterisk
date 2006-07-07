@@ -507,9 +507,9 @@ static int global_allowguest;		/*!< allow unauthenticated users/peers to connect
 static int global_allowsubscribe;	/*!< Flag for disabling ALL subscriptions, this is FALSE only if all peers are FALSE 
 					    the global setting is in globals_flags[1] */
 static int global_mwitime;		/*!< Time between MWI checks for peers */
-static int global_tos_sip;		/*!< IP type of service for SIP packets */
-static int global_tos_audio;		/*!< IP type of service for audio RTP packets */
-static int global_tos_video;		/*!< IP type of service for video RTP packets */
+static unsigned int global_tos_sip;		/*!< IP type of service for SIP packets */
+static unsigned int global_tos_audio;		/*!< IP type of service for audio RTP packets */
+static unsigned int global_tos_video;		/*!< IP type of service for video RTP packets */
 static int compactheaders;		/*!< send compact sip headers */
 static int recordhistory;		/*!< Record SIP history. Off by default */
 static int dumphistory;			/*!< Dump history to verbose before destroying SIP dialog */
@@ -15430,7 +15430,7 @@ static int reload_config(enum channelreloadreason reason)
 	int auto_sip_domains = FALSE;
 	struct sockaddr_in old_bindaddr = bindaddr;
 	int registry_count = 0, peer_count = 0, user_count = 0;
-	int temp_tos = 0;
+	unsigned int temp_tos = 0;
 	struct ast_flags debugflag = {0};
 
 	cfg = ast_config_load(config);
