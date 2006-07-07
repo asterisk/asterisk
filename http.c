@@ -461,7 +461,7 @@ static void *http_root(void *data)
 {
 	int fd;
 	struct sockaddr_in sin;
-	int sinlen;
+	socklen_t sinlen;
 	struct ast_http_server_instance *ser;
 	pthread_t launched;
 	pthread_attr_t attr;
