@@ -516,7 +516,7 @@ static int aji_act_hook(void *data, int type, iks *node)
 										char *base64 = ast_malloc(80 + len * 2);
 										iks_insert_attrib(x, "mechanism", "PLAIN");
 										sprintf(s, "%c%s%c%s", 0, client->jid->user, 0, client->password);
-										ast_base64encode(base64, s, len, len * 2);
+										ast_base64encode(base64, (const unsigned char *) s, len, len * 2);
 										iks_insert_cdata(x, base64, 0);
 										iks_send(client->p, x);
 										iks_delete(x);
