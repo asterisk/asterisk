@@ -117,7 +117,7 @@ static int gsmtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 
 	for (x=0; x < f->datalen; x += flen) {
 		unsigned char data[2 * GSM_FRAME_LEN];
-		char *src;
+		unsigned char *src;
 		int len;
 		if (flen == MSGSM_FRAME_LEN) {
 			len = 2*GSM_SAMPLES;
