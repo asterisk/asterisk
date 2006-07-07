@@ -302,8 +302,8 @@ static const char *stun_attr2str(int msg)
 }
 
 struct stun_state {
-	unsigned char *username;
-	unsigned char *password;
+	const char *username;
+	const char *password;
 };
 
 static int stun_process_attr(struct stun_state *state, struct stun_attr *attr)
@@ -313,10 +313,10 @@ static int stun_process_attr(struct stun_state *state, struct stun_attr *attr)
 			stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr), ntohs(attr->len));
 	switch(ntohs(attr->attr)) {
 	case STUN_USERNAME:
-		state->username = (unsigned char *)(attr->value);
+		state->username = (const char *) (attr->value);
 		break;
 	case STUN_PASSWORD:
-		state->password = (unsigned char *)(attr->value);
+		state->password = (const char *) (attr->value);
 		break;
 	default:
 		if (stundebug)
@@ -455,7 +455,7 @@ static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *dat
 		case STUN_BINDREQ:
 			if (stundebug)
 				ast_verbose("STUN Bind Request, username: %s\n", 
-					st.username ? (const char *)st.username : "<none>");
+					st.username ? st.username : "<none>");
 			if (st.username)
 				append_attr_string(&attr, STUN_USERNAME, st.username, &resplen, &respleft);
 			append_attr_address(&attr, STUN_MAPPED_ADDRESS, src, &resplen, &respleft);
