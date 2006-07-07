@@ -13,6 +13,7 @@
 
 /*** MODULEINFO
 	<depend>qt</depend>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "pbx_kdeconsole.moc"

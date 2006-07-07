@@ -54,6 +54,7 @@
 	</member>
 	<member name="IMAP_STORAGE" displayname="Storage of Voicemail using IMAP4">
 		<depend>imap_tk</depend>
+		<use>ssl</use>
 		<defaultenabled>no</defaultenabled>
 	</member>
 </category>

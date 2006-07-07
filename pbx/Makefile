@@ -14,9 +14,11 @@ ifneq ($(wildcard ../menuselect.makeopts),)
   include ../menuselect.makedeps
 endif
 
-SELECTED_MODS:=$(filter-out $(MENUSELECT_PBX),$(patsubst %.c,%,$(wildcard pbx_*.c)))
+SELECTED_MODS:=$(filter-out $(MENUSELECT_PBX),$(patsubst %.c,%,$(wildcard pbx_*.c)) $(patsubst %.cc,%,$(wildcard pbx_*.cc)))
 
 MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
+
+CC_MODS:=pbx_kdeconsole
 
 all: _all
 
