@@ -35,7 +35,7 @@ process_dir() {
 	echo -e "\t<category name=\"MENUSELECT_${catsuffix}\" displayname=\"${displayname}\">"
 	for file in `ls ${dir}/${prefix}*.c ${dir}/${prefix}*.cc 2> /dev/null | sort`
 	do
-	        if [ ! -f ${file} ]; then
+		if [ ! -f ${file} ]; then
 			continue
 		fi
 		fname=`basename ${file} .c`
