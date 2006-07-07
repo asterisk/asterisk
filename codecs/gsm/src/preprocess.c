@@ -44,6 +44,8 @@ void Gsm_Preprocess P3((S, s, so),
 	ulongword	utmp;		/* for L_ADD */
 	register int	k = 160;
 
+	(void) utmp;
+
 	while (k--) {
 
 	/*  4.2.1   Downscaling of the input signal
