@@ -428,7 +428,7 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 		s->fr.offset += GSM_FRAME_SIZE;
 	} else {
 		/* read and convert */
-		char msdata[MSGSM_FRAME_SIZE];
+		unsigned char msdata[MSGSM_FRAME_SIZE];
 		int res;
 		
 		if ((res = fread(msdata, 1, MSGSM_FRAME_SIZE, s->f)) != MSGSM_FRAME_SIZE) {
@@ -469,10 +469,10 @@ static int wav_write(struct ast_filestream *s, struct ast_frame *f)
 	}
 	for (len = 0; len < f->datalen ; len += size) {
 		int res;
-		char *src, msdata[MSGSM_FRAME_SIZE];
+		unsigned char *src, msdata[MSGSM_FRAME_SIZE];
 		if (fs->secondhalf) {	/* second half of raw gsm to be converted */
 			memcpy(s->buf + GSM_FRAME_SIZE, f->data + len, GSM_FRAME_SIZE);
-			conv66(s->buf, msdata);
+			conv66((unsigned char *) s->buf, msdata);
 			src = msdata;
 			fs->secondhalf = 0;
 		} else if (size == GSM_FRAME_SIZE) {	/* first half of raw gsm */
