@@ -170,7 +170,7 @@ static int iaxdefaultdpcache=10 * 60;	/* Cache dialplan entries for 10 minutes b
 
 static int iaxdefaulttimeout = 5;		/* Default to wait no more than 5 seconds for a reply to come back */
 
-static int tos = 0;
+static unsigned int tos = 0;
 
 static int min_reg_expire;
 static int max_reg_expire;
