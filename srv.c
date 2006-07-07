@@ -62,7 +62,7 @@ struct srv {
 	unsigned short portnum;
 } __attribute__ ((__packed__));
 
-static int parse_srv(char *host, int hostlen, int *portno, char *answer, int len, char *msg)
+static int parse_srv(char *host, int hostlen, int *portno, unsigned char *answer, int len, unsigned char *msg)
 {
 	int res = 0;
 	struct srv *srv = (struct srv *)answer;
@@ -75,7 +75,7 @@ static int parse_srv(char *host, int hostlen, int *portno, char *answer, int len
 	answer += sizeof(struct srv);
 	len -= sizeof(struct srv);
 
-	if ((res = dn_expand((unsigned char *)msg, (unsigned char *)answer + len, (unsigned char *)answer, repl, sizeof(repl) - 1)) < 0) {
+	if ((res = dn_expand(msg, answer + len, answer, repl, sizeof(repl) - 1)) < 0) {
 		ast_log(LOG_WARNING, "Failed to expand hostname\n");
 		return -1;
 	}
@@ -99,7 +99,7 @@ struct srv_context {
 	int *port;
 };
 
-static int srv_callback(void *context, char *answer, int len, char *fullanswer)
+static int srv_callback(void *context, unsigned char *answer, int len, unsigned char *fullanswer)
 {
 	struct srv_context *c = (struct srv_context *)context;
 
