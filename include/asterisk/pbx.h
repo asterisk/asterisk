@@ -52,6 +52,7 @@ enum ast_extension_states {
 	AST_EXTENSION_BUSY = 1 << 1,	/*!< All devices BUSY */
 	AST_EXTENSION_UNAVAILABLE = 1 << 2, /*!< All devices UNAVAILABLE/UNREGISTERED */
 	AST_EXTENSION_RINGING = 1 << 3,	/*!< All devices RINGING */
+	AST_EXTENSION_ONHOLD = 1 << 4,	/*!< All devices ONHOLD */
 };
 
 

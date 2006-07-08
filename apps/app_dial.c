@@ -728,10 +728,13 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 				if (ast_write(outgoing->chan, f))
 					ast_log(LOG_WARNING, "Unable to forward voice\n");
 			}
-			if (single && (f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_VIDUPDATE)) {
+			if (single && (f->frametype == AST_FRAME_CONTROL) && 
+				((f->subclass == AST_CONTROL_HOLD) || 
+				 (f->subclass == AST_CONTROL_UNHOLD) || 
+				 (f->subclass == AST_CONTROL_VIDUPDATE))) {
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "%s requested a video update, passing it to %s\n", in->name,outgoing->chan->name);
-				ast_indicate(outgoing->chan, AST_CONTROL_VIDUPDATE);
+					ast_verbose(VERBOSE_PREFIX_3 "%s requested special control %d, passing it to %s\n", in->name, f->subclass, outgoing->chan->name);
+				ast_indicate_data(outgoing->chan, f->subclass, f->data, f->datalen);
 			}
 			ast_frfree(f);
 		}

@@ -444,7 +444,18 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		"ANSWER ",
 		"BUSY   ",
 		"TKOFFHK",
-		"OFFHOOK" };
+		"OFFHOOK",
+		"CONGSTN",
+		"FLASH  ",
+		"WINK   ",
+		"OPTION ",
+		"RDKEY  ",
+		"RDUNKEY",
+		"PROGRES",
+		"PROCDNG",
+		"HOLD   ",
+		"UNHOLD ",
+		"VIDUPDT", };
 	struct ast_iax2_full_hdr *fh;
 	char retries[20];
 	char class2[20];

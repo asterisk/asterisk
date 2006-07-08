@@ -515,6 +515,8 @@ struct zt_subchannel {
 	unsigned int needcallerid:1;
 	unsigned int needanswer:1;
 	unsigned int needflash:1;
+	unsigned int needhold:1;
+	unsigned int needunhold:1;
 	unsigned int linear:1;
 	unsigned int inthreeway:1;
 	ZT_CONFINFO curconf;
@@ -3899,6 +3901,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					/* Okay -- probably call waiting*/
 					if (ast_bridged_channel(p->owner))
 							ast_moh_stop(ast_bridged_channel(p->owner));
+					p->subs[index].needunhold = 1;
 					break;
 				case AST_STATE_RESERVED:
 					/* Start up dialtone */
@@ -4056,8 +4059,10 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					/* Start music on hold if appropriate */
 					if (!p->subs[SUB_CALLWAIT].inthreeway && ast_bridged_channel(p->subs[SUB_CALLWAIT].owner))
 						ast_moh_start(ast_bridged_channel(p->subs[SUB_CALLWAIT].owner), NULL);
+					p->subs[SUB_CALLWAIT].needhold = 1;
 					if (ast_bridged_channel(p->subs[SUB_REAL].owner))
 						ast_moh_stop(ast_bridged_channel(p->subs[SUB_REAL].owner));
+					p->subs[SUB_REAL].needunhold = 1;
 				} else if (!p->subs[SUB_THREEWAY].owner) {
 					char cid_num[256];
 					char cid_name[256];
@@ -4116,6 +4121,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							/* Start music on hold if appropriate */
 							if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner))
 								ast_moh_start(ast_bridged_channel(p->subs[SUB_THREEWAY].owner), NULL);
+							p->subs[SUB_THREEWAY].needhold = 1;
 						}		
 					}
 				} else {
@@ -4153,6 +4159,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							}
 							if (p->subs[otherindex].owner && ast_bridged_channel(p->subs[otherindex].owner))
 								ast_moh_stop(ast_bridged_channel(p->subs[otherindex].owner));
+							p->subs[otherindex].needunhold = 1;
 							p->owner = p->subs[SUB_REAL].owner;
 							if (ast->_state == AST_STATE_RINGING) {
 								ast_log(LOG_DEBUG, "Enabling ringtone on real and threeway\n");
@@ -4167,6 +4174,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							p->owner = p->subs[SUB_REAL].owner;
 							if (p->subs[SUB_REAL].owner && ast_bridged_channel(p->subs[SUB_REAL].owner))
 								ast_moh_stop(ast_bridged_channel(p->subs[SUB_REAL].owner));
+							p->subs[SUB_REAL].needunhold = 1;
 							zt_enable_ec(p);
 						}
 							
@@ -4354,6 +4362,7 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 			p->owner = p->subs[SUB_REAL].owner;
 			if (p->owner && ast_bridged_channel(p->owner))
 				ast_moh_stop(ast_bridged_channel(p->owner));
+			p->subs[SUB_REAL].needunhold = 1;
 		}
 		switch (res) {
 		case ZT_EVENT_ONHOOK:
@@ -4397,6 +4406,7 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 				p->cidcwexpire = 0;
 				if (ast_bridged_channel(p->owner))
 					ast_moh_stop(ast_bridged_channel(p->owner));
+				p->subs[SUB_REAL].needunhold = 1;
 			} else
 				ast_log(LOG_WARNING, "Absorbed on hook, but nobody is left!?!?\n");
 			update_conf(p);
@@ -4541,6 +4551,26 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		p->subs[index].f.frametype = AST_FRAME_CONTROL;
 		p->subs[index].f.subclass = AST_CONTROL_FLASH;
 		ast_mutex_unlock(&p->lock);
+		return &p->subs[index].f;
+	}	
+	
+	if (p->subs[index].needhold) {
+		/* Send answer frame if requested */
+		p->subs[index].needhold = 0;
+		p->subs[index].f.frametype = AST_FRAME_CONTROL;
+		p->subs[index].f.subclass = AST_CONTROL_HOLD;
+		ast_mutex_unlock(&p->lock);
+		ast_log(LOG_DEBUG, "Sending hold on '%s'\n", ast->name);
+		return &p->subs[index].f;
+	}	
+	
+	if (p->subs[index].needunhold) {
+		/* Send answer frame if requested */
+		p->subs[index].needunhold = 0;
+		p->subs[index].f.frametype = AST_FRAME_CONTROL;
+		p->subs[index].f.subclass = AST_CONTROL_UNHOLD;
+		ast_mutex_unlock(&p->lock);
+		ast_log(LOG_DEBUG, "Sending unhold on '%s'\n", ast->name);
 		return &p->subs[index].f;
 	}	
 	

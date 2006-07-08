@@ -145,11 +145,17 @@ enum {
 	/*! If set, won't speak the extra prompt when the first person 
 	 *  enters the conference */
 	CONFFLAG_NOONLYPERSON = (1 << 22),
-	CONFFLAG_INTROUSERNOREVIEW = (1 << 23),
 	/*! If set, user will be asked to record name on entry of conference 
 	 *  without review */
-	CONFFLAG_STARTMUTED = (1 << 24)
+	CONFFLAG_INTROUSERNOREVIEW = (1 << 23),
 	/*! If set, the user will be initially self-muted */
+	CONFFLAG_STARTMUTED = (1 << 24),
+	/*! If set, the user is a shared line appearance station */
+	CONFFLAG_SLA_STATION = (1 << 25),
+	/*! If set, the user is a shared line appearance trunk */
+	CONFFLAG_SLA_TRUNK = (1 << 26),
+	/*! If set, the user has put us on hold */
+	CONFFLAG_HOLD = (1 << 27)
 };
 
 AST_APP_OPTIONS(meetme_opts, {
@@ -332,7 +338,9 @@ struct ast_conf_user {
 	int talking;                            /*!< Is user talking */
 	int zapchannel;                         /*!< Is a Zaptel channel */
 	char usrvalue[50];                      /*!< Custom User Value */
-	char namerecloc[PATH_MAX];		/*!< Name Recorded file Location */
+	char namerecloc[PATH_MAX];				/*!< Name Recorded file Location */
+	int control;							/*! Queue Control for transmission */
+	int dtmf;								/*! Queue DTMF for transmission */
 	time_t jointime;                        /*!< Time the user joined the conference */
 	struct volume talk;
 	struct volume listen;
@@ -809,7 +817,7 @@ static int conf_cmd(int fd, int argc, char **argv)
 			min = ((now - user->jointime) % 3600) / 60;
 			sec = (now - user->jointime) % 60;
 			if ( !concise )
-				ast_cli(fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %02d:%02d:%02d\n",
+				ast_cli(fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %s %02d:%02d:%02d\n",
 					user->user_no,
 					S_OR(user->chan->cid.cid_num, "<unknown>"),
 					S_OR(user->chan->cid.cid_name, "<no name>"),
@@ -817,7 +825,8 @@ static int conf_cmd(int fd, int argc, char **argv)
 					user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
 					user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
 					user->adminflags & ADMINFLAG_MUTED ? "(Admin Muted)" : user->adminflags & ADMINFLAG_SELFMUTED ? "(Muted)" : "",
-					istalking(user->talking), hr, min, sec);
+					istalking(user->talking), 
+					user->userflags & CONFFLAG_HOLD ? " (On Hold) " : "", hr, min, sec);
 			else 
 				ast_cli(fd, "%d!%s!%s!%s!%s!%s!%s!%d!%02d:%02d:%02d\n",
 					user->user_no,
@@ -980,6 +989,23 @@ static int conf_free(struct ast_conference *conf)
 	return 0;
 }
 
+static void conf_queue_dtmf(struct ast_conference *conf, int digit)
+{
+	struct ast_conf_user *user;
+	AST_LIST_TRAVERSE(&conf->userlist, user, list) {
+		user->dtmf = digit;
+	}
+}
+
+static void conf_queue_control(struct ast_conference *conf, int control)
+{
+	struct ast_conf_user *user;
+	AST_LIST_TRAVERSE(&conf->userlist, user, list) {
+		user->control = control;
+	}
+}
+
+
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags)
 {
 	struct ast_conf_user *user = NULL;
@@ -1087,6 +1113,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	/* This device changed state now - if this is the first user */
 	if (conf->users == 1)
 		ast_device_state_changed("meetme:%s", conf->confno);
+	if (confflags & (CONFFLAG_SLA_STATION|CONFFLAG_SLA_TRUNK))
+		ast_device_state_changed("SLA:%s", conf->confno + 4);
 
 	ast_mutex_unlock(&conf->playlock);
 
@@ -1549,6 +1577,17 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						if (user->talking || !(confflags & CONFFLAG_OPTIMIZETALKER))
 							careful_write(fd, f->data, f->datalen, 0);
 					}
+				} else if ((f->frametype == AST_FRAME_DTMF) && 
+							(confflags & (CONFFLAG_SLA_STATION|CONFFLAG_SLA_TRUNK))) {
+					conf_queue_dtmf(conf, f->subclass);
+				} else if ((f->frametype == AST_FRAME_CONTROL) && 
+							(confflags & (CONFFLAG_SLA_STATION|CONFFLAG_SLA_TRUNK))) {
+					conf_queue_control(conf, f->subclass);
+					if (f->subclass == AST_CONTROL_HOLD)
+						confflags |= CONFFLAG_HOLD;
+					else if (f->subclass == AST_CONTROL_UNHOLD)
+						confflags &= ~CONFFLAG_HOLD;
+					user->userflags = confflags;
 				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT)) {
 					char tmp[2];
 
@@ -1727,6 +1766,33 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				}
 				ast_frfree(f);
 			} else if (outfd > -1) {
+				if (user->control) {
+					switch(user->control) {
+					case AST_CONTROL_RINGING:
+					case AST_CONTROL_PROGRESS:
+					case AST_CONTROL_PROCEEDING:
+						ast_indicate(chan, user->control);
+						break;
+					case AST_CONTROL_ANSWER:
+						if (chan->_state != AST_STATE_UP)
+							ast_answer(chan);
+						break;
+					}
+					user->control = 0;
+					if (confflags & (CONFFLAG_SLA_STATION|CONFFLAG_SLA_TRUNK))
+						ast_device_state_changed("SLA:%s", conf->confno + 4);
+					continue;
+				}
+				if (user->dtmf) {
+					memset(&fr, 0, sizeof(fr));
+					fr.frametype = AST_FRAME_DTMF;
+					fr.subclass = user->dtmf;
+					if (ast_write(chan, &fr) < 0) {
+						ast_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
+					}
+					user->dtmf = 0;
+					continue;
+				}
 				res = read(outfd, buf, CONF_SIZE);
 				if (res > 0) {
 					memset(&fr, 0, sizeof(fr));
@@ -1867,6 +1933,8 @@ bailoutandtrynormal:
 		/* This device changed state now */
 		if (!conf->users)	/* If there are no more members */
 			ast_device_state_changed("meetme:%s", conf->confno);
+		if (confflags & (CONFFLAG_SLA_STATION|CONFFLAG_SLA_TRUNK))
+			ast_device_state_changed("SLA:%s", conf->confno + 4);
 	}
 	free(user);
 	AST_LIST_UNLOCK(&confs);
@@ -2402,6 +2470,31 @@ static void invite_trunk(struct ast_channel *orig, struct ast_sla *sla)
 }
 
 
+static int sla_checkforhold(struct ast_conference *conf, int hangup)
+{
+	struct ast_conf_user *user;
+	struct ast_channel *onhold=NULL;
+	int holdcount = 0;
+	int stationcount = 0;
+	int amonhold = 0;
+	AST_LIST_TRAVERSE(&conf->userlist, user, list) {
+		if (user->userflags & CONFFLAG_SLA_STATION) {
+			stationcount++;
+			if ((user->userflags & CONFFLAG_HOLD)) {
+				holdcount++;
+				onhold = user->chan;
+			}
+		}
+	}
+	if ((holdcount == 1) && (stationcount == 1)) {
+		amonhold = 1;
+		if (hangup)
+			ast_softhangup(onhold, AST_SOFTHANGUP_EXPLICIT);
+	} else if (holdcount && (stationcount == holdcount))
+		amonhold = 1;
+	return amonhold;
+}
+
 
 /*! \brief The slas()/slat() application */
 static int sla_exec(struct ast_channel *chan, void *data, int trunk)
@@ -2435,29 +2528,31 @@ static int sla_exec(struct ast_channel *chan, void *data, int trunk)
 	
 	LOCAL_USER_ADD(u);
 
-	if (chan->_state != AST_STATE_UP)
-		ast_answer(chan);
 
 	if (args.options)
 		ast_app_parse_options(sla_opts, &confflags, NULL, args.options);
 		
 	ast_set_flag(&confflags, CONFFLAG_QUIET|CONFFLAG_DYNAMIC);
 	if (trunk)
-		ast_set_flag(&confflags, CONFFLAG_WAITMARKED|CONFFLAG_MARKEDEXIT);
+		ast_set_flag(&confflags, CONFFLAG_WAITMARKED|CONFFLAG_MARKEDEXIT|CONFFLAG_SLA_TRUNK);
 	else
-		ast_set_flag(&confflags, CONFFLAG_MARKEDUSER);
+		ast_set_flag(&confflags, CONFFLAG_MARKEDUSER|CONFFLAG_SLA_STATION);
 
 	sla = ASTOBJ_CONTAINER_FIND(&slas, args.confno);
 	if (sla) {
 		snprintf(confno, sizeof(confno), "sla-%s", args.confno);
 		cnf = find_conf(chan, confno, 1, dynamic, "", 1, &confflags);
 		if (cnf) {
+			sla_checkforhold(cnf, 1);
 			if (!cnf->users) {
-				if (trunk)
+				if (trunk) {
+					ast_indicate(chan, AST_CONTROL_RINGING);
 					invite_stations(chan, sla);
-				else
+				} else
 					invite_trunk(chan, sla);
-			}
+			} else if (chan->_state != AST_STATE_UP)
+				ast_answer(chan);
+
 			/* Run the conference */
 			res = conf_run(chan, cnf, confflags.flags);
 		} else
@@ -2808,6 +2903,44 @@ static int meetmestate(const char *data)
 	return AST_DEVICE_INUSE;
 }
 
+/*! \brief Callback for devicestate providers */
+static int slastate(const char *data)
+{
+	struct ast_conference *conf;
+	struct ast_sla *sla, *sla2;
+
+	ast_log(LOG_DEBUG, "asked for sla state for '%s'\n", data);
+
+	/* Find conference */
+	AST_LIST_LOCK(&confs);
+	AST_LIST_TRAVERSE(&confs, conf, list) {
+		if (!strncmp(conf->confno, "sla-", 4) && !strcmp(data, conf->confno + 4))
+			break;
+	}
+	AST_LIST_UNLOCK(&confs);
+
+	/* Find conference */
+	sla = sla2 = ASTOBJ_CONTAINER_FIND(&slas, data);
+	ASTOBJ_UNREF(sla2, sla_destroy);
+
+	ast_log(LOG_DEBUG, "for '%s' conf = %p, sla = %p\n", data, conf, sla);
+
+	if (!conf && !sla)
+		return AST_DEVICE_INVALID;
+
+	/* SKREP to fill */
+	if (!conf || !conf->users)
+		return AST_DEVICE_NOT_INUSE;
+	
+	if (conf && sla_checkforhold(conf, 0))
+		return AST_DEVICE_ONHOLD;
+
+	if ((conf->users == 1) && (AST_LIST_FIRST(&conf->userlist)->userflags & CONFFLAG_SLA_TRUNK))
+		return AST_DEVICE_RINGING;
+
+	return AST_DEVICE_INUSE;
+}
+
 static void load_config_meetme(void)
 {
 	struct ast_config *cfg;
@@ -2874,6 +3007,7 @@ static void parse_sla(const char *cat, struct ast_variable *v)
 	if (sla) {
 		ASTOBJ_UNMARK(sla);
 		ASTOBJ_WRLOCK(sla);
+		ASTOBJ_CONTAINER_DESTROYALL(&sla->stations, station_destroy);
 		while (v) {
 			if (!strcasecmp(v->name, "trunk")) {
 				char *c;
@@ -2888,6 +3022,7 @@ static void parse_sla(const char *cat, struct ast_variable *v)
 			v = v->next;
 		}
 		ASTOBJ_UNLOCK(sla);
+		ast_device_state_changed("SLA:%s", cat);
 	}
 }
 
@@ -2930,6 +3065,7 @@ static int unload_module(void *mod)
 	res |= ast_unregister_application(app);
 
 	ast_devstate_prov_del("Meetme");
+	ast_devstate_prov_del("SLA");
 	STANDARD_HANGUP_LOCALUSERS;
 
 	return res;
@@ -2939,7 +3075,6 @@ static int load_module(void *mod)
 {
 	int res;
 
-	load_config();
 	ASTOBJ_CONTAINER_INIT(&slas);
 	res = ast_cli_register(&cli_show_confs);
 	res |= ast_cli_register(&cli_sla_show);
@@ -2953,6 +3088,8 @@ static int load_module(void *mod)
 	res |= ast_register_application(appslat, slat_exec, synopslat, descripslat);
 
 	res |= ast_devstate_prov_add("Meetme", meetmestate);
+	res |= ast_devstate_prov_add("SLA", slastate);
+	load_config();
 	return res;
 }
 

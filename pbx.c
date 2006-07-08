@@ -206,7 +206,9 @@ static const struct cfextension_states {
 	{ AST_EXTENSION_BUSY,                          "Busy" },
 	{ AST_EXTENSION_UNAVAILABLE,                   "Unavailable" },
 	{ AST_EXTENSION_RINGING,                       "Ringing" },
-	{ AST_EXTENSION_INUSE | AST_EXTENSION_RINGING, "InUse&Ringing" }
+	{ AST_EXTENSION_INUSE | AST_EXTENSION_RINGING, "InUse&Ringing" },
+	{ AST_EXTENSION_ONHOLD,                        "Hold" },
+	{ AST_EXTENSION_INUSE | AST_EXTENSION_ONHOLD,  "InUse&Hold" }
 };
 
 int ast_pbx_outgoing_cdr_failed(void);
@@ -1754,7 +1756,7 @@ static int ast_extension_state2(struct ast_exten *e)
 {
 	char hint[AST_MAX_EXTENSION];
 	char *cur, *rest;
-	int allunavailable = 1, allbusy = 1, allfree = 1;
+	int allunavailable = 1, allbusy = 1, allfree = 1, allonhold = 1;
 	int busy = 0, inuse = 0, ring = 0;
 
 	if (!e)
@@ -1769,37 +1771,48 @@ static int ast_extension_state2(struct ast_exten *e)
 		case AST_DEVICE_NOT_INUSE:
 			allunavailable = 0;
 			allbusy = 0;
+			allonhold = 0;
 			break;
 		case AST_DEVICE_INUSE:
 			inuse = 1;
 			allunavailable = 0;
 			allfree = 0;
+			allonhold = 0;
 			break;
 		case AST_DEVICE_RINGING:
 			ring = 1;
 			allunavailable = 0;
 			allfree = 0;
+			allonhold = 0;
 			break;
 		case AST_DEVICE_RINGINUSE:
 			inuse = 1;
 			ring = 1;
 			allunavailable = 0;
 			allfree = 0;
+			allonhold = 0;
+			break;
+		case AST_DEVICE_ONHOLD:
+			allunavailable = 0;
+			allfree = 0;
 			break;
 		case AST_DEVICE_BUSY:
 			allunavailable = 0;
 			allfree = 0;
+			allonhold = 0;
 			busy = 1;
 			break;
 		case AST_DEVICE_UNAVAILABLE:
 		case AST_DEVICE_INVALID:
 			allbusy = 0;
 			allfree = 0;
+			allonhold = 0;
 			break;
 		default:
 			allunavailable = 0;
 			allbusy = 0;
 			allfree = 0;
+			allonhold = 0;
 		}
 	}
 
@@ -1811,6 +1824,8 @@ static int ast_extension_state2(struct ast_exten *e)
 		return AST_EXTENSION_INUSE;
 	if (allfree)
 		return AST_EXTENSION_NOT_INUSE;
+	if (allonhold)
+		return AST_EXTENSION_ONHOLD;
 	if (allbusy)
 		return AST_EXTENSION_BUSY;
 	if (allunavailable)
