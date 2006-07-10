@@ -65,12 +65,12 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 	struct tone_zone_sound *ts;
 	int res=0, x=0;
 
-	if(maxlen > size)
+	if (maxlen > size)
 		maxlen = size;
 	
-	if(!timeout && chan->pbx)
+	if (!timeout && chan->pbx)
 		timeout = chan->pbx->dtimeout;
-	else if(!timeout)
+	else if (!timeout)
 		timeout = 5;
 	
 	ts = ast_get_indication_tone(chan->zone,"dial");
@@ -99,8 +99,6 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 	return res;
 }
 
-
-
 /*! \param timeout set timeout to 0 for "standard" timeouts. Set timeout to -1 for 
    "ludicrous time" (essentially never times out) */
 int ast_app_getdata(struct ast_channel *c, char *prompt, char *s, int maxlen, int timeout)
@@ -128,7 +126,7 @@ int ast_app_getdata(struct ast_channel *c, char *prompt, char *s, int maxlen, in
 
 int ast_app_getdata_full(struct ast_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd)
 {
-	int res,to,fto;
+	int res, to, fto;
 	if (prompt) {
 		res = ast_streamfile(c, prompt, c->language);
 		if (res < 0)
@@ -538,7 +536,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 
 	stringp = fmts;
 	strsep(&stringp, "|");
-	ast_log(LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);
+	ast_log(LOG_DEBUG, "Recording Formats: sfmts=%s\n", fmts);
 	sfmt[0] = ast_strdupa(fmts);
 
 	while ((fmt = strsep(&stringp, "|"))) {
@@ -555,9 +553,8 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "x=%d, open writing:  %s format: %s, %p\n", x, prepend ? prependfile : recordfile, sfmt[x], others[x]);
 
-		if (!others[x]) {
+		if (!others[x])
 			break;
-		}
 	}
 
 	if (path)
@@ -705,7 +702,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			if (!others[x])
 				break;
 			if (res > 0)
-				ast_stream_rewind(others[x], totalsilence ? totalsilence-200 : 200);
+				ast_stream_rewind(others[x], totalsilence ? totalsilence - 200 : 200);
 			ast_truncstream(others[x]);
 			ast_closestream(others[x]);
 		}
@@ -720,7 +717,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			realfiles[x] = ast_readfile(recordfile, sfmt[x], comment, O_RDONLY, 0, 0);
 			if (!others[x] || !realfiles[x])
 				break;
-			ast_stream_rewind(others[x], totalsilence ? totalsilence-200 : 200);
+			ast_stream_rewind(others[x], totalsilence ? totalsilence - 200 : 200);
 			ast_truncstream(others[x]);
 			/* add the original file too */
 			while ((fr = ast_readframe(realfiles[x]))) {
@@ -925,7 +922,7 @@ enum AST_LOCK_RESULT ast_lock_path(const char *path)
 	snprintf(fs, strlen(path) + 19, "%s/.lock-%08lx", path, ast_random());
 	fd = open(fs, O_WRONLY | O_CREAT | O_EXCL, 0600);
 	if (fd < 0) {
-		fprintf(stderr, "Unable to create lock file '%s': %s\n", path, strerror(errno));
+		ast_log(LOG_ERROR, "Unable to create lock file '%s': %s\n", path, strerror(errno));
 		return AST_LOCK_PATH_NOT_FOUND;
 	}
 	close(fd);
@@ -1056,6 +1053,7 @@ int ast_record_review(struct ast_channel *chan, const char *playfile, const char
 #define RES_RESTART ((1 << 19) | RES_REPEAT)
 
 static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_menu *menu, void *cbdata);
+
 static int ivr_dispatch(struct ast_channel *chan, struct ast_ivr_option *option, char *exten, void *cbdata)
 {
 	int res;
@@ -1127,7 +1125,7 @@ static int ivr_dispatch(struct ast_channel *chan, struct ast_ivr_option *option,
 static int option_exists(struct ast_ivr_menu *menu, char *option)
 {
 	int x;
-	for (x=0;menu->options[x].option;x++)
+	for (x = 0; menu->options[x].option; x++)
 		if (!strcasecmp(menu->options[x].option, option))
 			return x;
 	return -1;
@@ -1136,7 +1134,7 @@ static int option_exists(struct ast_ivr_menu *menu, char *option)
 static int option_matchmore(struct ast_ivr_menu *menu, char *option)
 {
 	int x;
-	for (x=0;menu->options[x].option;x++)
+	for (x = 0; menu->options[x].option; x++)
 		if ((!strncasecmp(menu->options[x].option, option, strlen(option))) && 
 				(menu->options[x].option[strlen(option)]))
 			return x;
@@ -1147,7 +1145,7 @@ static int read_newoption(struct ast_channel *chan, struct ast_ivr_menu *menu, c
 {
 	int res=0;
 	int ms;
-	while(option_matchmore(menu, exten)) {
+	while (option_matchmore(menu, exten)) {
 		ms = chan->pbx ? chan->pbx->dtimeout : 5000;
 		if (strlen(exten) >= maxexten - 1) 
 			break;
@@ -1202,7 +1200,7 @@ static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_me
 						else if (option_exists(menu, "s") > -1)
 							strcpy(exten, "s");
 					}
-					pos=0;
+					pos = 0;
 					continue;
 				} else if (res && strchr(AST_DIGIT_ANY, res)) {
 					ast_log(LOG_DEBUG, "Got start of extension, %c\n", res);
@@ -1242,26 +1240,23 @@ static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_me
 
 int ast_ivr_menu_run(struct ast_channel *chan, struct ast_ivr_menu *menu, void *cbdata)
 {
-	int res;
-	res = ast_ivr_menu_run_internal(chan, menu, cbdata);
+	int res = ast_ivr_menu_run_internal(chan, menu, cbdata);
 	/* Hide internal coding */
-	if (res > 0)
-		res = 0;
-	return res;
+	return res > 0 ? 0 : res;
 }
 	
 char *ast_read_textfile(const char *filename)
 {
 	int fd;
-	char *output=NULL;
+	char *output = NULL;
 	struct stat filesize;
-	int count=0;
+	int count = 0;
 	int res;
-	if(stat(filename,&filesize)== -1){
-		ast_log(LOG_WARNING,"Error can't stat %s\n", filename);
+	if (stat(filename, &filesize) == -1) {
+		ast_log(LOG_WARNING, "Error can't stat %s\n", filename);
 		return NULL;
 	}
-	count=filesize.st_size + 1;
+	count = filesize.st_size + 1;
 	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
 		ast_log(LOG_WARNING, "Cannot open file '%s' for reading: %s\n", filename, strerror(errno));
@@ -1272,7 +1267,7 @@ char *ast_read_textfile(const char *filename)
 		if (res == count - 1) {
 			output[res] = '\0';
 		} else {
-			ast_log(LOG_WARNING, "Short read of %s (%d of %d): %s\n", filename, res, count -  1, strerror(errno));
+			ast_log(LOG_WARNING, "Short read of %s (%d of %d): %s\n", filename, res, count - 1, strerror(errno));
 			free(output);
 			output = NULL;
 		}
@@ -1318,3 +1313,4 @@ int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags
 
 	return res;
 }
+
