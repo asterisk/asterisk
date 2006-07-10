@@ -1050,7 +1050,7 @@ char *ast_process_quotes_and_slashes(char *start, char find, char replace_with)
 	return dataPut;
 }
 
-void ast_join(char *s, size_t len, const char *w[])
+void ast_join(char *s, size_t len, char * const w[])
 {
 	int x, ofs = 0;
 	const char *src;
