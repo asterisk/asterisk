@@ -80,7 +80,7 @@ Pre-Requisites
 To compile and install this driver, you'll need at least one mISDN Driver and
 the mISDNuser package. Chan_misdn works with both, the current release version
 and the development (svn trunk) version of Asterisk. mISDNuser and mISDN must
-be fetched from cvs.isdn4linux.de (mqueue).
+be fetched from cvs.isdn4linux.de.
 
 You should use Kernels >= 2.6.9 
 
