@@ -2843,25 +2843,43 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clone)
 {
 	int res = -1;
+	struct ast_channel *final_orig = original, *final_clone = clone;
 
-	/* each of these channels may be sitting behind a channel proxy (i.e. chan_agent)
-	   and if so, we don't really want to masquerade it, but its proxy */
-	if (original->_bridge && (original->_bridge != ast_bridged_channel(original)))
-		original = original->_bridge;
-
-	if (clone->_bridge && (clone->_bridge != ast_bridged_channel(clone)))
-		clone = clone->_bridge;
-
-	if (original == clone) {
-		ast_log(LOG_WARNING, "Can't masquerade channel '%s' into itself!\n", original->name);
-		return -1;
-	}
 	ast_channel_lock(original);
-	while(ast_channel_trylock(clone)) {
+	while (ast_channel_trylock(clone)) {
 		ast_channel_unlock(original);
 		usleep(1);
 		ast_channel_lock(original);
 	}
+
+	/* each of these channels may be sitting behind a channel proxy (i.e. chan_agent)
+	   and if so, we don't really want to masquerade it, but its proxy */
+	if (original->_bridge && (original->_bridge != ast_bridged_channel(original)))
+		final_orig = original->_bridge;
+
+	if (clone->_bridge && (clone->_bridge != ast_bridged_channel(clone)))
+		final_clone = clone->_bridge;
+
+	if ((final_orig != original) || (final_clone != clone)) {
+		ast_channel_lock(final_orig);
+		while (ast_channel_trylock(final_clone)) {
+			ast_channel_unlock(final_orig);
+			usleep(1);
+			ast_channel_lock(final_orig);
+		}
+		ast_channel_unlock(clone);
+		ast_channel_unlock(original);
+		original = final_orig;
+		clone = final_clone;
+	}
+
+	if (original == clone) {
+		ast_log(LOG_WARNING, "Can't masquerade channel '%s' into itself!\n", original->name);
+		ast_channel_unlock(clone);
+		ast_channel_unlock(original);
+		return -1;
+	}
+
 	ast_log(LOG_DEBUG, "Planning to masquerade channel %s into the structure of %s\n",
 		clone->name, original->name);
 	if (original->masq) {
@@ -2878,8 +2896,10 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 		ast_log(LOG_DEBUG, "Done planning to masquerade channel %s into the structure of %s\n", clone->name, original->name);
 		res = 0;
 	}
+
 	ast_channel_unlock(clone);
 	ast_channel_unlock(original);
+
 	return res;
 }
 
