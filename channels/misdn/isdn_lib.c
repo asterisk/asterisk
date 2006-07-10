@@ -1930,7 +1930,9 @@ handle_event_nt(void *dat, void *arg)
 				if (stack->l2upcnt>3) {
 					cb_log(-1 , stack->port, "!!! Could not Get the L2 up after 3 Attemps!!!\n");
 				}  else {
+#if 0
 					if (stack->nt) misdn_lib_reinit_nt_stack(stack->port);
+#endif
 					misdn_lib_get_l2_up(stack);
 					stack->l2upcnt++;
 				}

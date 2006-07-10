@@ -68,12 +68,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "chan_misdn_config.h"
 #include "isdn_lib.h"
 
-ast_mutex_t release_lock_mutex;
-
-#define release_lock ast_mutex_lock(&release_lock_mutex)
-#define release_unlock ast_mutex_unlock(&release_lock_mutex)
-
-
 char global_tracefile[BUFFERSIZE+1];
 
 
@@ -2061,21 +2055,16 @@ static int misdn_hangup(struct ast_channel *ast)
 	
 	if (!ast || ! (p=MISDN_ASTERISK_TECH_PVT(ast) ) ) return -1;
 	
-	release_lock;
-
-	
 	ast_log(LOG_DEBUG, "misdn_hangup(%s)\n", ast->name);
 	
 	if (!p) {
 		chan_misdn_log(3, 0, "misdn_hangup called, without chan_list obj.\n");
-		release_unlock;
 		return 0 ;
 	}
 	
 	bc=p->bc;
 
 	if (!bc) {
-		release_unlock;
 		ast_log(LOG_WARNING,"Hangup with private but no bc ?\n");
 		return 0;
 	}
@@ -2089,7 +2078,6 @@ static int misdn_hangup(struct ast_channel *ast)
 	if (ast->_state == AST_STATE_RESERVED) {
 		/* between request and call */
 		MISDN_ASTERISK_TECH_PVT(ast)=NULL;
-		release_unlock;
 		
 		cl_dequeue_chan(&cl_te, p);
 		free(p);
@@ -2103,8 +2091,6 @@ static int misdn_hangup(struct ast_channel *ast)
 	if (!p->bc->nt) 
 		stop_bc_tones(p);
 
-	
-	release_unlock;
 	
 	{
 		const char *varcause=NULL;
@@ -2887,18 +2873,6 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 	return tmp;
 }
 
-static struct chan_list *find_chan_by_l3id(struct chan_list *list, unsigned long l3id)
-{
-	struct chan_list *help=list;
-	for (;help; help=help->next) {
-		if (help->l3id == l3id ) return help;
-	}
-  
-	chan_misdn_log(6, list? (list->bc? list->bc->port : 0) : 0, "$$$ find_chan: No channel found with l3id:%x\n",l3id);
-  
-	return NULL;
-}
-
 static struct chan_list *find_chan_by_bc(struct chan_list *list, struct misdn_bchannel *bc)
 {
 	struct chan_list *help=list;
@@ -3041,17 +3015,14 @@ static void release_chan(struct misdn_bchannel *bc) {
 	struct ast_channel *ast=NULL;
 	{
 		struct chan_list *ch=find_chan_by_bc(cl_te, bc);
-		if (!ch) ch=find_chan_by_l3id (cl_te, bc->l3_id);
 		if (!ch)  {
 			chan_misdn_log(0, bc->port, "release_chan: Ch not found!\n");
 			return;
 		}
 		
-		release_lock;
 		if (ch->ast) {
 			ast=ch->ast;
 		} 
-		release_unlock;
 		
 		chan_misdn_log(1, bc->port, "release_chan: bc with l3id: %x\n",bc->l3_id);
 		
@@ -3291,9 +3262,6 @@ static enum event_response_e
 cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 {
 	struct chan_list *ch=find_chan_by_bc(cl_te, bc);
-	
-	if (!ch)
-		ch=find_chan_by_l3id(cl_te, bc->l3_id);
 	
 	if (event != EVENT_BCHAN_DATA && event != EVENT_TONE_GENERATE) { /*  Debug Only Non-Bchan */
 		chan_misdn_log(1, bc->port, "I IND :%s oad:%s dad:%s pid:%d state:%s\n", manager_isdn_get_info(event), bc->oad, bc->dad, bc->pid, ch?misdn_get_ch_state(ch):"none");
@@ -4222,8 +4190,6 @@ static int load_module(void *mod)
 	}
 	
 	ast_mutex_init(&cl_te_lock);
-	ast_mutex_init(&release_lock_mutex);
-
 
 	misdn_cfg_update_ptp();
 	misdn_cfg_get_ports_string(ports);
