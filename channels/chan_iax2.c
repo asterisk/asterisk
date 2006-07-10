@@ -116,14 +116,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int nochecksums = 0;
 #endif
 
-/*
- * Uncomment to try experimental IAX bridge optimization,
- * designed to reduce latency when IAX calls cannot
- * be trasnferred -- obsolete
- */
-
-/* #define BRIDGE_OPTIMIZATION  */
-
 
 #define PTR_TO_CALLNO(a) ((unsigned short)(unsigned long)(a))
 #define CALLNO_TO_PTR(a) ((void *)(unsigned long)(a))
@@ -574,11 +566,9 @@ struct chan_iax2_pvt {
 
 	/*! Status of knowledge of peer ADSI capability */
 	int peeradsicpe;
-	
+
 	/*! Who we are bridged to */
 	unsigned short bridgecallno;
-	unsigned int bridgesfmt;
-	struct ast_trans_pvt *bridgetrans;
 	
 	int pingid;			/*!< Transmit PING request */
 	int lagid;			/*!< Retransmit lag request */
@@ -892,15 +882,10 @@ static int send_ping(void *data)
 {
 	int callno = (long)data;
 	if (iaxs[callno]) {
-#ifdef BRIDGE_OPTIMIZATION
-		if (!iaxs[callno]->bridgecallno) 
-#endif
-		{		
 #ifdef SCHED_MULTITHREADED
-			if (schedule_action(__send_ping, data))
+		if (schedule_action(__send_ping, data))
 #endif		
-				__send_ping(data);
-		}
+			__send_ping(data);
 		return 1;
 	} else
 		return 0;
@@ -930,15 +915,10 @@ static int send_lagrq(void *data)
 {
 	int callno = (long)data;
 	if (iaxs[callno]) {
-#ifdef BRIDGE_OPTIMIZATION
-		if (!iaxs[callno]->bridgecallno) 
-#endif
-		{		
 #ifdef SCHED_MULTITHREADED
-			if (schedule_action(__send_lagrq, data))
+		if (schedule_action(__send_lagrq, data))
 #endif		
-				__send_lagrq(data);
-		}
+			__send_lagrq(data);
 		return 1;
 	} else
 		return 0;
@@ -1724,9 +1704,6 @@ retry:
 		if (!owner)
 			pvt->owner = NULL;
 		iax2_destroy_helper(pvt);
-		if (pvt->bridgetrans)
-			ast_translator_free_path(pvt->bridgetrans);
-		pvt->bridgetrans = NULL;
 
 		/* Already gone */
 		ast_set_flag(pvt, IAX_ALREADYGONE);	
@@ -2134,51 +2111,6 @@ static int iax2_show_cache(int fd, int argc, char *argv[])
 }
 
 static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset);
-
-#ifdef BRIDGE_OPTIMIZATION
-static unsigned int calc_fakestamp(struct chan_iax2_pvt *from, struct chan_iax2_pvt *to, unsigned int ts);
-
-static int forward_delivery(struct iax_frame *fr)
-{
-	struct chan_iax2_pvt *p1, *p2;
-	char iabuf[INET_ADDRSTRLEN];
-	int res, orig_ts;
-
-	p1 = iaxs[fr->callno];
-	p2 = iaxs[p1->bridgecallno];
-	if (!p1)
-		return -1;
-	if (!p2)
-		return -1;
-
-	if (option_debug)
-		ast_log(LOG_DEBUG, "forward_delivery: Forwarding ts=%d on %d/%d to %d/%d on %s:%d\n",
-				fr->ts,
-				p1->callno, p1->peercallno,
-				p2->callno, p2->peercallno,
-				ast_inet_ntoa(iabuf, sizeof(iabuf), p2->addr.sin_addr),
-				ntohs(p2->addr.sin_port));
-
-	/* Undo wraparound - which can happen when full VOICE frame wasn't sent by our peer.
-	   This is necessary for when our peer is chan_iax2.c v1.1nn or earlier which didn't
-	   send full frame on timestamp wrap when doing optimized bridging
-	   (actually current code STILL doesn't)
-	*/
-	if (fr->ts + 50000 <= p1->last) {
-		fr->ts = ( (p1->last & 0xFFFF0000) + 0x10000) | (fr->ts & 0xFFFF);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "forward_delivery: pushed forward timestamp to %u\n", fr->ts);
-	}
-
-	/* Send with timestamp adjusted to the origin of the outbound leg */
-	/* But don't destroy inbound timestamp still needed later to set "last" */
-	orig_ts = fr->ts;
-	fr->ts = calc_fakestamp(p1, p2, fr->ts);
-	res = iax2_send(p2, &fr->af, fr->ts, -1, 0, 0, 0);
-	fr->ts = orig_ts;
-	return res;
-}
-#endif
 
 static void unwrap_timestamp(struct iax_frame *fr)
 {
@@ -3492,32 +3424,6 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	return ms;
 }
 
-#ifdef BRIDGE_OPTIMIZATION
-static unsigned int calc_fakestamp(struct chan_iax2_pvt *p1, struct chan_iax2_pvt *p2, unsigned int fakets)
-{
-	int ms;
-	/* Receive from p1, send to p2 */
-	
-	/* Setup rxcore if necessary on outgoing channel */
-	if (ast_tvzero(p1->rxcore))
-		p1->rxcore = ast_tvnow();
-
-	/* Setup txcore if necessary on outgoing channel */
-	if (ast_tvzero(p2->offset))
-		p2->offset = ast_tvnow();
-	
-	/* Now, ts is the timestamp of the original packet in the orignal context.
-	   Adding rxcore to it gives us when we would want the packet to be delivered normally.
-	   Subtracting txcore of the outgoing channel gives us what we'd expect */
-	
-	ms = ast_tvdiff_ms(p1->rxcore, p2->offset);
-	fakets += ms;
-
-	p2->lastsent = fakets;
-	return fakets;
-}
-#endif
-
 static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset)
 {
 	/* Returns where in "receive time" we are.  That is, how many ms
@@ -4349,41 +4255,28 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 	for (x=0;x<IAX_MAX_CALLS;x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (iaxs[x]) {
-#ifdef BRIDGE_OPTIMIZATION
-			if (iaxs[x]->bridgecallno)
-				ast_cli(fd, FORMATB,
-						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
-						ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[x]->addr.sin_addr),
-						S_OR(iaxs[x]->username, "(None)"),
-						iaxs[x]->callno, iaxs[x]->peercallno,
-						iaxs[x]->oseqno, iaxs[x]->iseqno,
-						iaxs[x]->bridgecallno );
-			else
-#endif
-			{
-				int lag, jitter, localdelay;
-				jb_info jbinfo;
-
-				if(ast_test_flag(iaxs[x], IAX_USEJITTERBUF)) {
-					jb_getinfo(iaxs[x]->jb, &jbinfo);
-					jitter = jbinfo.jitter;
-					localdelay = jbinfo.current - jbinfo.min;
-				} else {
-					jitter = -1;
-					localdelay = 0;
-				}
-				lag = iaxs[x]->remote_rr.delay;
-				ast_cli(fd, FORMAT,
-						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
-						ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[x]->addr.sin_addr), 
-						S_OR(iaxs[x]->username, "(None)"),
-						iaxs[x]->callno, iaxs[x]->peercallno,
-						iaxs[x]->oseqno, iaxs[x]->iseqno,
-						lag,
-						jitter,
-						localdelay,
-						ast_getformatname(iaxs[x]->voiceformat) );
+			int lag, jitter, localdelay;
+			jb_info jbinfo;
+			
+			if(ast_test_flag(iaxs[x], IAX_USEJITTERBUF)) {
+				jb_getinfo(iaxs[x]->jb, &jbinfo);
+				jitter = jbinfo.jitter;
+				localdelay = jbinfo.current - jbinfo.min;
+			} else {
+				jitter = -1;
+				localdelay = 0;
 			}
+			lag = iaxs[x]->remote_rr.delay;
+			ast_cli(fd, FORMAT,
+				iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
+				ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[x]->addr.sin_addr), 
+				S_OR(iaxs[x]->username, "(None)"),
+				iaxs[x]->callno, iaxs[x]->peercallno,
+				iaxs[x]->oseqno, iaxs[x]->iseqno,
+				lag,
+				jitter,
+				localdelay,
+				ast_getformatname(iaxs[x]->voiceformat) );
 			numchans++;
 		}
 		ast_mutex_unlock(&iaxsl[x]);
@@ -4402,88 +4295,68 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 	for (x=0;x<IAX_MAX_CALLS;x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (iaxs[x]) {
-#ifdef BRIDGE_OPTIMIZATION
-			if (iaxs[x]->bridgecallno) {
-				if (limit_fmt)	 {
-					if (s)
-						astman_append(s, "%-25.25s <NATIVE BRIDGED>",
-							iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
-					else
-						ast_cli(fd, "%-25.25s <NATIVE BRIDGED>",
-							iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
-			 	} else {
-					if (s)
-						astman_append(s, "%s <NATIVE BRIDGED>",
-							iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
-					else
-						ast_cli(fd, "%s <NATIVE BRIDGED>",
-							iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
-				} else
-#endif
-			{
-				int localjitter, localdelay, locallost, locallosspct, localdropped, localooo;
-				char *fmt;
-				jb_info jbinfo;
-
-				if(ast_test_flag(iaxs[x], IAX_USEJITTERBUF)) {
-					jb_getinfo(iaxs[x]->jb, &jbinfo);
-					localjitter = jbinfo.jitter;
-					localdelay = jbinfo.current - jbinfo.min;
-					locallost = jbinfo.frames_lost;
-					locallosspct = jbinfo.losspct/1000;
-					localdropped = jbinfo.frames_dropped;
-					localooo = jbinfo.frames_ooo;
-				} else {
-					localjitter = -1;
-					localdelay = 0;
-					locallost = -1;
-					locallosspct = -1;
-					localdropped = 0;
-					localooo = -1;
-				}
-				if (limit_fmt)
-					fmt = "%-25.25s %4d %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d\n";
-				else
-					fmt = "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n";
-				if (s)
-				
-					astman_append(s, fmt,
-						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
-						iaxs[x]->pingtime,
-						localjitter, 
-						localdelay,
-						locallost,
-						locallosspct,
-						localdropped,
-						localooo,
-						iaxs[x]->frames_received/1000,
-						iaxs[x]->remote_rr.jitter,
-						iaxs[x]->remote_rr.delay,
-						iaxs[x]->remote_rr.losscnt,
-						iaxs[x]->remote_rr.losspct,
-						iaxs[x]->remote_rr.dropped,
-						iaxs[x]->remote_rr.ooo,
-						iaxs[x]->remote_rr.packets/1000);
-				else
-					ast_cli(fd, fmt,
-						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
-						iaxs[x]->pingtime,
-						localjitter, 
-						localdelay,
-						locallost,
-						locallosspct,
-						localdropped,
-						localooo,
-						iaxs[x]->frames_received/1000,
-						iaxs[x]->remote_rr.jitter,
-						iaxs[x]->remote_rr.delay,
-						iaxs[x]->remote_rr.losscnt,
-						iaxs[x]->remote_rr.losspct,
-						iaxs[x]->remote_rr.dropped,
-						iaxs[x]->remote_rr.ooo,
-						iaxs[x]->remote_rr.packets/1000
-				);
+			int localjitter, localdelay, locallost, locallosspct, localdropped, localooo;
+			char *fmt;
+			jb_info jbinfo;
+			
+			if(ast_test_flag(iaxs[x], IAX_USEJITTERBUF)) {
+				jb_getinfo(iaxs[x]->jb, &jbinfo);
+				localjitter = jbinfo.jitter;
+				localdelay = jbinfo.current - jbinfo.min;
+				locallost = jbinfo.frames_lost;
+				locallosspct = jbinfo.losspct/1000;
+				localdropped = jbinfo.frames_dropped;
+				localooo = jbinfo.frames_ooo;
+			} else {
+				localjitter = -1;
+				localdelay = 0;
+				locallost = -1;
+				locallosspct = -1;
+				localdropped = 0;
+				localooo = -1;
 			}
+			if (limit_fmt)
+				fmt = "%-25.25s %4d %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d\n";
+			else
+				fmt = "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n";
+			if (s)
+				
+				astman_append(s, fmt,
+					      iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
+					      iaxs[x]->pingtime,
+					      localjitter, 
+					      localdelay,
+					      locallost,
+					      locallosspct,
+					      localdropped,
+					      localooo,
+					      iaxs[x]->frames_received/1000,
+					      iaxs[x]->remote_rr.jitter,
+					      iaxs[x]->remote_rr.delay,
+					      iaxs[x]->remote_rr.losscnt,
+					      iaxs[x]->remote_rr.losspct,
+					      iaxs[x]->remote_rr.dropped,
+					      iaxs[x]->remote_rr.ooo,
+					      iaxs[x]->remote_rr.packets/1000);
+			else
+				ast_cli(fd, fmt,
+					iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
+					iaxs[x]->pingtime,
+					localjitter, 
+					localdelay,
+					locallost,
+					locallosspct,
+					localdropped,
+					localooo,
+					iaxs[x]->frames_received/1000,
+					iaxs[x]->remote_rr.jitter,
+					iaxs[x]->remote_rr.delay,
+					iaxs[x]->remote_rr.losscnt,
+					iaxs[x]->remote_rr.losspct,
+					iaxs[x]->remote_rr.dropped,
+					iaxs[x]->remote_rr.ooo,
+					iaxs[x]->remote_rr.packets/1000
+					);
 			numchans++;
 		}
 		ast_mutex_unlock(&iaxsl[x]);
@@ -4615,13 +4488,6 @@ static int send_command_locked(unsigned short callno, char type, int command, un
 	ast_mutex_unlock(&iaxsl[callno]);
 	return res;
 }
-
-#ifdef BRIDGE_OPTIMIZATION
-static int forward_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const char *data, int datalen, int seqno)
-{
-	return __send_command(iaxs[i->bridgecallno], type, command, ts, data, datalen, seqno, 0, 0, 0);
-}
-#endif
 
 static int send_command_final(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const unsigned char *data, int datalen, int seqno)
 {
@@ -6411,21 +6277,10 @@ static int socket_process(struct iax2_thread *thread)
 										f.samples = 0;
 									fr->outoforder = 0;
 									iax_frame_wrap(fr, &f);
-#ifdef BRIDGE_OPTIMIZATION
-									if (iaxs[fr->callno]->bridgecallno) {
-										forward_delivery(fr);
-									} else {
-										duped_fr = iaxfrdup2(fr);
-										if (duped_fr) {
-											schedule_delivery(duped_fr, updatehistory, 1, &fr->ts);
-										}
-									}
-#else
 									duped_fr = iaxfrdup2(fr);
 									if (duped_fr) {
 										schedule_delivery(duped_fr, updatehistory, 1, &fr->ts);
 									}
-#endif
 									if (iaxs[fr->callno]->last < fr->ts) {
 										iaxs[fr->callno]->last = fr->ts;
 #if 1
@@ -7087,38 +6942,16 @@ retryowner2:
 				send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr->ts, NULL, 0, -1);
 				break;
 			case IAX_COMMAND_PING:
-#ifdef BRIDGE_OPTIMIZATION
-				if (iaxs[fr->callno]->bridgecallno) {
-					/* If we're in a bridged call, just forward this */
-					forward_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_PING, fr->ts, NULL, 0, -1);
-				} else {
-					struct iax_ie_data pingied;
-					construct_rr(iaxs[fr->callno], &pingied);
-					/* Send back a pong packet with the original timestamp */
-					send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr->ts, pingied.buf, pingied.pos, -1);
-				}
-#else				
-				{
-					struct iax_ie_data pingied;
-					construct_rr(iaxs[fr->callno], &pingied);
+			{
+				struct iax_ie_data pingied;
+				construct_rr(iaxs[fr->callno], &pingied);
 				/* Send back a pong packet with the original timestamp */
-					send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr->ts, pingied.buf, pingied.pos, -1);
-				}
-#endif			
+				send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr->ts, pingied.buf, pingied.pos, -1);
+			}
 				break;
 			case IAX_COMMAND_PONG:
-#ifdef BRIDGE_OPTIMIZATION
-				if (iaxs[fr->callno]->bridgecallno) {
-					/* Forward to the other side of the bridge */
-					forward_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr->ts, NULL, 0, -1);
-				} else {
-					/* Calculate ping time */
-					iaxs[fr->callno]->pingtime =  calc_timestamp(iaxs[fr->callno], 0, &f) - fr->ts;
-				}
-#else
 				/* Calculate ping time */
 				iaxs[fr->callno]->pingtime =  calc_timestamp(iaxs[fr->callno], 0, &f) - fr->ts;
-#endif
 				/* save RR info */
 				save_rr(fr, &ies);
 
@@ -7164,33 +6997,25 @@ retryowner2:
 				break;
 			case IAX_COMMAND_LAGRQ:
 			case IAX_COMMAND_LAGRP:
-#ifdef BRIDGE_OPTIMIZATION
-				if (iaxs[fr->callno]->bridgecallno) {
-					forward_command(iaxs[fr->callno], AST_FRAME_IAX, f.subclass, fr->ts, NULL, 0, -1);
+				f.src = "LAGRQ";
+				f.mallocd = 0;
+				f.offset = 0;
+				f.samples = 0;
+				iax_frame_wrap(fr, &f);
+				if(f.subclass == IAX_COMMAND_LAGRQ) {
+					/* Received a LAGRQ - echo back a LAGRP */
+					fr->af.subclass = IAX_COMMAND_LAGRP;
+					iax2_send(iaxs[fr->callno], &fr->af, fr->ts, -1, 0, 0, 0);
 				} else {
-#endif				
-					f.src = "LAGRQ";
-					f.mallocd = 0;
-					f.offset = 0;
-					f.samples = 0;
-					iax_frame_wrap(fr, &f);
-					if(f.subclass == IAX_COMMAND_LAGRQ) {
-					    /* Received a LAGRQ - echo back a LAGRP */
-					    fr->af.subclass = IAX_COMMAND_LAGRP;
-					    iax2_send(iaxs[fr->callno], &fr->af, fr->ts, -1, 0, 0, 0);
-					} else {
-					    /* Received LAGRP in response to our LAGRQ */
-					    unsigned int ts;
-					    /* This is a reply we've been given, actually measure the difference */
-					    ts = calc_timestamp(iaxs[fr->callno], 0, &fr->af);
-					    iaxs[fr->callno]->lag = ts - fr->ts;
-					    if (option_debug && iaxdebug)
+					/* Received LAGRP in response to our LAGRQ */
+					unsigned int ts;
+					/* This is a reply we've been given, actually measure the difference */
+					ts = calc_timestamp(iaxs[fr->callno], 0, &fr->af);
+					iaxs[fr->callno]->lag = ts - fr->ts;
+					if (option_debug && iaxdebug)
 						ast_log(LOG_DEBUG, "Peer %s lag measured as %dms\n",
-								ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr->callno]->addr.sin_addr), iaxs[fr->callno]->lag);
-					}
-#ifdef BRIDGE_OPTIMIZATION
+							ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr->callno]->addr.sin_addr), iaxs[fr->callno]->lag);
 				}
-#endif				
 				break;
 			case IAX_COMMAND_AUTHREQ:
 				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD)) {
@@ -7641,22 +7466,10 @@ retryowner2:
 			ast_log(LOG_DEBUG, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass, fr->ts, iaxs[fr->callno]->last);
 		fr->outoforder = -1;
 	}
-#ifdef BRIDGE_OPTIMIZATION
-	if (iaxs[fr->callno]->bridgecallno) {
-		forward_delivery(fr);
-	} else {
-		duped_fr = iaxfrdup2(fr);
-		if (duped_fr) {
-			schedule_delivery(duped_fr, updatehistory, 0, &fr->ts);
-		}
-	}
-#else
 	duped_fr = iaxfrdup2(fr);
 	if (duped_fr) {
 		schedule_delivery(duped_fr, updatehistory, 0, &fr->ts);
 	}
-#endif
-
 	if (iaxs[fr->callno]->last < fr->ts) {
 		iaxs[fr->callno]->last = fr->ts;
 #if 1
