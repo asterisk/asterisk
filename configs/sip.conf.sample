@@ -390,7 +390,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; callerid		      callerid
 ; amaflags		      amaflags
 ; call-limit		      call-limit
-; restrictcid		      restrictcid
 ; allowoverlap		      allowoverlap
 ; allowsubscribe	      allowsubscribe
 ; allowtransfer	      	      allowtransfer
@@ -512,7 +511,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;vmexten=voicemail		; dialplan extension to reach mailbox 
 				; sets the Message-Account in the MWI notify message
 				; defaults to global vmexten which defaults to "asterisk"
-;restrictcid=yes		; To have the callerid restriced -> sent as ANI
 ;disallow=all
 ;allow=ulaw			; dtmfmode=inband only works with ulaw or alaw!
 
