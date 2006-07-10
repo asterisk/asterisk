@@ -226,7 +226,7 @@ int ast_false(const char *val);
   string.  It will also place a space in the result buffer in between each
   string from 'w'.
 */
-void ast_join(char *s, size_t len, char * const w[]);
+void ast_join(char *s, size_t len, const char *w[]);
 
 /*
   \brief Parse a time (integer) string.
