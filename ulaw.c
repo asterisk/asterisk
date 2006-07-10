@@ -85,22 +85,22 @@ static unsigned char linear2ulaw(short sample)
 void ast_ulaw_init(void)
 {
 	int i;
-	for(i = 0;i < 256;i++) {
-		short mu,e,f,y;
-		static short etab[]={0,132,396,924,1980,4092,8316,16764};
+	for (i = 0; i < 256; i++) {
+		short mu, e, f, y;
+		static short etab[] = {0,132,396,924,1980,4092,8316,16764};
 
-		mu = 255-i;
-		e = (mu & 0x70)/16;
+		mu = 255 - i;
+		e = (mu & 0x70) / 16;
 		f = mu & 0x0f;
 		y = f * (1 << (e + 3));
 		y += etab[e];
-		if (mu & 0x80) y = -y;
-	        __ast_mulaw[i] = y;
+		if (mu & 0x80)
+			y = -y;
+		__ast_mulaw[i] = y;
 	}
 	/* set up the reverse (mu-law) conversion table */
-	for(i = -32768; i < 32768; i++) {
+	for (i = -32768; i < 32768; i++) {
 		__ast_lin2mu[((unsigned short)i) >> 2] = linear2ulaw(i);
 	}
-
 }
 

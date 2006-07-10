@@ -88,7 +88,7 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 
 	if (frame) {
 		int x = 0;
-		for (frame_ptr = sf->queue; frame_ptr && frame_ptr->next; frame_ptr=frame_ptr->next) {
+		for (frame_ptr = sf->queue; frame_ptr && frame_ptr->next; frame_ptr = frame_ptr->next) {
 			x++;
 		}
 		if (frame_ptr) {

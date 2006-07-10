@@ -71,13 +71,13 @@ static void save_history(plc_state_t *s, int16_t *buf, int len)
 {
 	if (len >= PLC_HISTORY_LEN) {
 		/* Just keep the last part of the new data, starting at the beginning of the buffer */
-		 memcpy(s->history, buf + len - PLC_HISTORY_LEN, sizeof(int16_t)*PLC_HISTORY_LEN);
+		 memcpy(s->history, buf + len - PLC_HISTORY_LEN, sizeof(int16_t) * PLC_HISTORY_LEN);
 		s->buf_ptr = 0;
 		return;
 	}
 	if (s->buf_ptr + len > PLC_HISTORY_LEN) {
 		/* Wraps around - must break into two sections */
-		memcpy(s->history + s->buf_ptr, buf, sizeof(int16_t)*(PLC_HISTORY_LEN - s->buf_ptr));
+		memcpy(s->history + s->buf_ptr, buf, sizeof(int16_t) * (PLC_HISTORY_LEN - s->buf_ptr));
 		len -= (PLC_HISTORY_LEN - s->buf_ptr);
 		memcpy(s->history, buf + (PLC_HISTORY_LEN - s->buf_ptr), sizeof(int16_t)*len);
 		s->buf_ptr = len;
@@ -97,8 +97,8 @@ static void normalise_history(plc_state_t *s)
 	if (s->buf_ptr == 0)
 		return;
 	memcpy(tmp, s->history, sizeof(int16_t)*s->buf_ptr);
-	memcpy(s->history, s->history + s->buf_ptr, sizeof(int16_t)*(PLC_HISTORY_LEN - s->buf_ptr));
-	memcpy(s->history + PLC_HISTORY_LEN - s->buf_ptr, tmp, sizeof(int16_t)*s->buf_ptr);
+	memcpy(s->history, s->history + s->buf_ptr, sizeof(int16_t) * (PLC_HISTORY_LEN - s->buf_ptr));
+	memcpy(s->history + PLC_HISTORY_LEN - s->buf_ptr, tmp, sizeof(int16_t) * s->buf_ptr);
 	s->buf_ptr = 0;
 }
 
@@ -114,9 +114,9 @@ static int __inline__ amdf_pitch(int min_pitch, int max_pitch, int16_t amp[], in
 
 	pitch = min_pitch;
 	min_acc = INT_MAX;
-	for (i = max_pitch;  i <= min_pitch;  i++) {
+	for (i = max_pitch; i <= min_pitch; i++) {
 		acc = 0;
-		for (j = 0;  j < len;  j++)
+		for (j = 0; j < len; j++)
 			acc += abs(amp[i + j] - amp[j]);
 		if (acc < min_acc) {
 			min_acc = acc;
@@ -154,8 +154,8 @@ int plc_rx(plc_state_t *s, int16_t amp[], int len)
 		old_step = new_step*gain;
 		new_weight = new_step;
 		old_weight = (1.0 - new_step)*gain;
-		for (i = 0;  i < pitch_overlap;  i++) {
-			amp[i] = fsaturate(old_weight*s->pitchbuf[s->pitch_offset] + new_weight*amp[i]);
+		for (i = 0; i < pitch_overlap; i++) {
+			amp[i] = fsaturate(old_weight * s->pitchbuf[s->pitch_offset] + new_weight * amp[i]);
 			if (++s->pitch_offset >= s->pitch)
 				s->pitch_offset = 0;
 			new_weight += new_step;
@@ -200,8 +200,8 @@ int plc_fillin(plc_state_t *s, int16_t amp[], int len)
 		/* The last 1/4 of the cycle is overlapped with the end of the previous cycle */
 		new_step = 1.0/pitch_overlap;
 		new_weight = new_step;
-		for (  ;  i < s->pitch;  i++) {
-			s->pitchbuf[i] = s->history[PLC_HISTORY_LEN - s->pitch + i]*(1.0 - new_weight) + s->history[PLC_HISTORY_LEN - 2*s->pitch + i]*new_weight;
+		for ( ; i < s->pitch; i++) {
+			s->pitchbuf[i] = s->history[PLC_HISTORY_LEN - s->pitch + i] * (1.0 - new_weight) + s->history[PLC_HISTORY_LEN - 2 * s->pitch + i]*new_weight;
 			new_weight += new_step;
 		}
 		/* We should now be ready to fill in the gap with repeated, decaying cycles
@@ -211,12 +211,12 @@ int plc_fillin(plc_state_t *s, int16_t amp[], int len)
 	   	it into the previous real data. To avoid the need to introduce a delay
 	   	in the stream, reverse the last 1/4 wavelength, and OLA with that. */
 		gain = 1.0;
-		new_step = 1.0/pitch_overlap;
+		new_step = 1.0 / pitch_overlap;
 		old_step = new_step;
 		new_weight = new_step;
 		old_weight = 1.0 - new_step;
-		for (i = 0;  i < pitch_overlap;  i++) {
-			amp[i] = fsaturate(old_weight*s->history[PLC_HISTORY_LEN - 1 - i] + new_weight*s->pitchbuf[i]);
+		for (i = 0; i < pitch_overlap; i++) {
+			amp[i] = fsaturate(old_weight * s->history[PLC_HISTORY_LEN - 1 - i] + new_weight * s->pitchbuf[i]);
 			new_weight += new_step;
 			old_weight -= old_step;
 			if (old_weight < 0.0)
@@ -227,13 +227,13 @@ int plc_fillin(plc_state_t *s, int16_t amp[], int len)
 		gain = 1.0 - s->missing_samples*ATTENUATION_INCREMENT;
 		i = 0;
 	}
-	for (  ;  gain > 0.0  &&  i < len;  i++) {
-		amp[i] = s->pitchbuf[s->pitch_offset]*gain;
+	for ( ; gain > 0.0 && i < len; i++) {
+		amp[i] = s->pitchbuf[s->pitch_offset] * gain;
 		gain -= ATTENUATION_INCREMENT;
 		if (++s->pitch_offset >= s->pitch)
 			s->pitch_offset = 0;
 	}
-	for (  ;  i < len;  i++)
+	for ( ; i < len; i++)
 		amp[i] = 0;
 	s->missing_samples += orig_len;
 	save_history(s, amp, len);

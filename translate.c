@@ -393,7 +393,7 @@ static void calc_cost(struct ast_translator *t, int seconds)
 		}
 		framein(pvt, f);
 		ast_frfree(f);
-		while( (f = t->frameout(pvt))) {
+		while ((f = t->frameout(pvt))) {
 			sofar += f->samples;
 			ast_frfree(f);
 		}
@@ -412,9 +412,9 @@ static void calc_cost(struct ast_translator *t, int seconds)
 static void rebuild_matrix(int samples)
 {
 	struct ast_translator *t;
-	int x;	/* source format index */
-	int y;	/* intermediate format index */
-	int z;	/* destination format index */
+	int x;      /* source format index */
+	int y;      /* intermediate format index */
+	int z;      /* destination format index */
 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Resetting translation matrix\n");
@@ -443,24 +443,24 @@ static void rebuild_matrix(int samples)
 	 */
 	for (;;) {
 		int changed = 0;
-		for (x=0; x < MAX_FORMAT; x++) {			/* source format */
-			for (y=0; y < MAX_FORMAT; y++) {	/* intermediate format */
-				if (x == y) 			/* skip ourselves */
+		for (x = 0; x < MAX_FORMAT; x++) {      /* source format */
+			for (y=0; y < MAX_FORMAT; y++) {    /* intermediate format */
+				if (x == y)                     /* skip ourselves */
 					continue;
 
-				for (z=0; z<MAX_FORMAT; z++) {	/* dst format */
+				for (z=0; z<MAX_FORMAT; z++) {  /* dst format */
 					int newcost;
 
-					if (z == x || z == y)	/* skip null conversions */
+					if (z == x || z == y)       /* skip null conversions */
 						continue;
-					if (!tr_matrix[x][y].step)	/* no path from x to y */
+					if (!tr_matrix[x][y].step)  /* no path from x to y */
 						continue;
-					if (!tr_matrix[y][z].step)	/* no path from y to z */
+					if (!tr_matrix[y][z].step)  /* no path from y to z */
 						continue;
 					newcost = tr_matrix[x][y].cost + tr_matrix[y][z].cost;
 					if (tr_matrix[x][z].step && newcost >= tr_matrix[x][z].cost)
-						continue;	/* x->y->z is more expensive than
-								 * the existing path */
+						continue;               /* x->y->z is more expensive than
+						                         * the existing path */
 					/* ok, we can get from x to z via y with a cost that
 					   is the sum of the transition from x to y and
 					   from y to z */
@@ -490,19 +490,19 @@ static int show_translation(int fd, int argc, char *argv[])
 
 	AST_LIST_LOCK(&translators);	
 	
-	if (argv[2] && !strcasecmp(argv[2],"recalc")) {
+	if (argv[2] && !strcasecmp(argv[2], "recalc")) {
 		z = argv[3] ? atoi(argv[3]) : 1;
 
 		if (z <= 0) {
-			ast_cli(fd,"         C'mon let's be serious here... defaulting to 1.\n");
+			ast_cli(fd, "         C'mon let's be serious here... defaulting to 1.\n");
 			z = 1;
 		}
 
 		if (z > MAX_RECALC) {
-			ast_cli(fd,"         Maximum limit of recalc exceeded by %d, truncating value to %d\n",z-MAX_RECALC,MAX_RECALC);
+			ast_cli(fd, "         Maximum limit of recalc exceeded by %d, truncating value to %d\n", z - MAX_RECALC, MAX_RECALC);
 			z = MAX_RECALC;
 		}
-		ast_cli(fd,"         Recalculating Codec Translation (number of sample seconds: %d)\n\n",z);
+		ast_cli(fd, "         Recalculating Codec Translation (number of sample seconds: %d)\n\n", z);
 		rebuild_matrix(z);
 	}
 
@@ -515,11 +515,11 @@ static int show_translation(int fd, int argc, char *argv[])
 		/* next 2 lines run faster than using ast_build_string() */
 		*buf++ = ' ';
 		*buf = '\0';
-		for (y=-1;y<SHOW_TRANS;y++) {
-			if (x >= 0 && y >= 0 && tr_matrix[x][y].step)	/* XXX what is 99999 ? */
+		for (y = -1; y < SHOW_TRANS; y++) {
+			if (x >= 0 && y >= 0 && tr_matrix[x][y].step)    /* XXX what is 99999 ? */
 				ast_build_string(&buf, &left, " %5d", tr_matrix[x][y].cost >= 99999 ? 0 : tr_matrix[x][y].cost);
 			else if (((x == -1 && y >= 0) || (y == -1 && x >= 0))) {
-				ast_build_string(&buf, &left, " %5s", ast_getformatname(1<<(x+y+1)) );
+				ast_build_string(&buf, &left, " %5s", ast_getformatname(1 << (x + y + 1)) );
 			} else if (x != -1 && y != -1) {
 				ast_build_string(&buf, &left, "     -");
 			} else {
@@ -586,12 +586,12 @@ int ast_register_translator(struct ast_translator *t, void *module)
 		*/
 		struct _test_align { void *a, *b; } p;
 		int align = (char *)&p.b - (char *)&p.a;
-		t->buf_size = ((t->buf_size + align - 1)/align)*align;
+		t->buf_size = ((t->buf_size + align - 1) / align) * align;
 	}
 	if (t->frameout == NULL)
 		t->frameout = default_frameout;
   
-	calc_cost(t,1);
+	calc_cost(t, 1);
 	if (option_verbose > 1) {
 		char tmp[80];
 		ast_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %s to %s, cost %d\n",
@@ -641,19 +641,19 @@ int ast_translator_best_choice(int *dst, int *srcs)
 	int common = (*dst) & (*srcs);	/* are there common formats ? */
 
 	if (common) { /* yes, pick one and return */
-		for (cur = 1, y=0; y < MAX_FORMAT; cur <<=1, y++) {
+		for (cur = 1, y = 0; y < MAX_FORMAT; cur <<= 1, y++) {
 			if (cur & common)	/* guaranteed to find one */
 				break;
 		}
 		/* We are done, this is a common format to both. */
-		*srcs = *dst  = cur;
+		*srcs = *dst = cur;
 		return 0;
 	} else {	/* No, we will need to translate */
 		AST_LIST_LOCK(&translators);
-		for (cur = 1, y=0; y < MAX_FORMAT; cur <<=1, y++) {
+		for (cur = 1, y = 0; y < MAX_FORMAT; cur <<= 1, y++) {
 			if (! (cur & *dst))
 				continue;
-			for (cursrc = 1, x=0; x < MAX_FORMAT; cursrc <<= 1, x++) {
+			for (cursrc = 1, x = 0; x < MAX_FORMAT; cursrc <<= 1, x++) {
 				if (!(*srcs & cursrc) || !tr_matrix[x][y].step ||
 				    tr_matrix[x][y].cost >  besttime)
 					continue;	/* not existing or no better */
@@ -687,3 +687,4 @@ unsigned int ast_translate_path_steps(unsigned int dest, unsigned int src)
 	else
 		return tr_matrix[src][dest].multistep + 1;
 }
+

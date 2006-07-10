@@ -63,20 +63,28 @@ static float tddsb = 176.0;  /* 45.5 baud */
 
 static int tdd_decode_baudot(struct tdd_state *tdd,unsigned char data)	/* covert baudot into ASCII */
 {
-	static char ltrs[32]={'<','E','\n','A',' ','S','I','U',
-				'\n','D','R','J','N','F','C','K',
-				'T','Z','L','W','H','Y','P','Q',
-				'O','B','G','^','M','X','V','^'};
-	static char figs[32]={'<','3','\n','-',' ',',','8','7',
-				'\n','$','4','\'',',','·',':','(',
-				'5','+',')','2','·','6','0','1',
-				'9','7','·','^','.','/','=','^'};
-	int d;
-	d=0;  /* return 0 if not decodeable */
+	static char ltrs[32] = { '<','E','\n','A',' ','S','I','U',
+	                         '\n','D','R','J','N','F','C','K',
+	                         'T','Z','L','W','H','Y','P','Q',
+	                         'O','B','G','^','M','X','V','^' };
+	static char figs[32] = { '<','3','\n','-',' ',',','8','7',
+	                         '\n','$','4','\'',',','·',':','(',
+	                         '5','+',')','2','·','6','0','1',
+	                         '9','7','·','^','.','/','=','^' };
+	int d = 0;  /* return 0 if not decodeable */
 	switch (data) {
-	case 0x1f :	tdd->modo=0; break;
-	case 0x1b : tdd->modo=1; break;
-	default:	if (tdd->modo==0) d=ltrs[data]; else d=figs[data]; break;
+	case 0x1f:
+		tdd->modo = 0;
+		break;
+	case 0x1b:
+		tdd->modo = 1;
+		break;
+	default:
+		if (tdd->modo == 0)
+			d = ltrs[data];
+		else
+			d = figs[data];
+		break;
 	}
 	return d;
 }
@@ -96,16 +104,16 @@ struct tdd_state *tdd_new(void)
 	tdd = malloc(sizeof(struct tdd_state));
 	if (tdd) {
 		memset(tdd, 0, sizeof(struct tdd_state));
-		tdd->fskd.spb = 176;		/* 45.5 baud */
-		tdd->fskd.hdlc = 0;		/* Async */
-		tdd->fskd.nbit = 5;		/* 5 bits */
-		tdd->fskd.nstop = 1.5;	/* 1.5 stop bits */
-		tdd->fskd.paridad = 0;	/* No parity */
-		tdd->fskd.bw=0;			/* Filter 75 Hz */
-		tdd->fskd.f_mark_idx =  0;	/* 1400 Hz */
-		tdd->fskd.f_space_idx = 1;	/* 1800 Hz */
-		tdd->fskd.pcola = 0;		/* No clue */
-		tdd->fskd.cont = 0;			/* Digital PLL reset */
+		tdd->fskd.spb = 176;        /* 45.5 baud */
+		tdd->fskd.hdlc = 0;         /* Async */
+		tdd->fskd.nbit = 5;         /* 5 bits */
+		tdd->fskd.nstop = 1.5;      /* 1.5 stop bits */
+		tdd->fskd.paridad = 0;      /* No parity */
+		tdd->fskd.bw=0;             /* Filter 75 Hz */
+		tdd->fskd.f_mark_idx = 0;   /* 1400 Hz */
+		tdd->fskd.f_space_idx = 1;  /* 1800 Hz */
+		tdd->fskd.pcola = 0;        /* No clue */
+		tdd->fskd.cont = 0;         /* Digital PLL reset */
 		tdd->fskd.x0 = 0.0;
 		tdd->fskd.state = 0;
 		tdd->pos = 0;
@@ -119,10 +127,8 @@ int ast_tdd_gen_ecdisa(unsigned char *outbuf, int len)
 {
 	int pos = 0;
 	int cnt;
-	while(len) {
-		cnt = len;
-		if (cnt > sizeof(ecdisa))
-			cnt = sizeof(ecdisa);
+	while (len) {
+		cnt = len > sizeof(ecdisa) ? sizeof(ecdisa) : len;
 		memcpy(outbuf + pos, ecdisa, cnt);
 		pos += cnt;
 		len -= cnt;
@@ -146,14 +152,14 @@ int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int len)
 	memset(buf, 0, 2 * len + tdd->oldlen);
 	memcpy(buf, tdd->oldstuff, tdd->oldlen);
 	mylen += tdd->oldlen/2;
-	for (x=0;x<len;x++) 
-		buf[x+tdd->oldlen/2] = AST_MULAW(ubuf[x]);
+	for (x = 0; x < len; x++) 
+		buf[x + tdd->oldlen / 2] = AST_MULAW(ubuf[x]);
 	c = res = 0;
-	while(mylen >= 1320) { /* has to have enough to work on */
+	while (mylen >= 1320) { /* has to have enough to work on */
 		olen = mylen;
 		res = fsk_serie(&tdd->fskd, buf, &mylen, &b);
 		if (mylen < 0) {
-			ast_log(LOG_ERROR, "fsk_serie made mylen < 0 (%d) (olen was %d)\n", mylen,olen);
+			ast_log(LOG_ERROR, "fsk_serie made mylen < 0 (%d) (olen was %d)\n", mylen, olen);
 			free(obuf);
 			return -1;
 		}
@@ -178,7 +184,7 @@ int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int len)
 	} else
 		tdd->oldlen = 0;
 	free(obuf);
-	if (res)  {
+	if (res) {
 		tdd->mode = 2; /* put it in mode where it
 			reliably puts teleprinter in correct shift mode */
 		return(c);
@@ -243,7 +249,7 @@ static inline float tdd_getcarrier(float *cr, float *ci, int bit)
 	int z; \
 	unsigned char b = (byte); \
 	PUT_TDD_BAUD(0); 	/* Start bit */ \
-	for (z=0;z<5;z++) { \
+	for (z = 0; z < 5; z++) { \
 		PUT_TDD_BAUD(b & 1); \
 		b >>= 1; \
 	} \
@@ -267,57 +273,48 @@ int tdd_generate(struct tdd_state *tdd, unsigned char *buf, const char *str)
 #if	0
 		printf("%c",c); fflush(stdout);
 #endif
-		if (c == 0) /* send null */
-		   {
+		if (c == 0) { /* send null */
 			PUT_TDD(0);
 			continue;
-		   }
-		if (c == '\r') /* send c/r */
-		   {
+		}
+		if (c == '\r') { /* send c/r */
 			PUT_TDD(8);
 			continue;
-		   }
-		if (c == '\n') /* send c/r and l/f */
-		   {
+		}
+		if (c == '\n') { /* send c/r and l/f */
 			PUT_TDD(8);
 			PUT_TDD(2);
 			continue;
-		   }
-		if (c == ' ') /* send space */
-		   {
+		}
+		if (c == ' ') { /* send space */
 			PUT_TDD(4);
 			continue;
-		   }
-		for(i = 0; i < 31; i++)
-		   {
-			if (lstr[i] == c) break;
-		   }
-		if (i < 31) /* if we found it */
-		   {
-			if (tdd->mode)  /* if in figs mode, change it */
-			   { 
+		}
+		for (i = 0; i < 31; i++) {
+			if (lstr[i] == c)
+				break;
+		}
+		if (i < 31) {        /* if we found it */
+			if (tdd->mode) { /* if in figs mode, change it */
 				PUT_TDD(31); /* Send LTRS */
 				tdd->mode = 0;
-			   }
+			}
 			PUT_TDD(i);
 			continue;
-		   }
-		for(i = 0; i < 31; i++)
-		   {
-			if (fstr[i] == c) break;
-		   }
-		if (i < 31) /* if we found it */
-		   {
-			if (tdd->mode != 1)  /* if in ltrs mode, change it */
-			   {
-				PUT_TDD(27); /* send FIGS */
+		}
+		for (i = 0; i < 31; i++) {
+			if (fstr[i] == c)
+				break;
+		}
+		if (i < 31) {             /* if we found it */
+			if (tdd->mode != 1) { /* if in ltrs mode, change it */
+				PUT_TDD(27);      /* send FIGS */
 				tdd->mode = 1;
-			   }
-			PUT_TDD(i);  /* send byte */
+			}
+			PUT_TDD(i);           /* send byte */
 			continue;
-		   }
-	   }
+		}
+	}
 	return bytes;
 }
-
 

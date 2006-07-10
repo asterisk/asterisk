@@ -68,7 +68,7 @@ struct sched_context {
 	ast_mutex_t lock;
 	int eventcnt;                           /*!< Number of events processed */
 	int schedcnt;                           /*!< Number of outstanding schedule events */
- 	AST_LIST_HEAD_NOLOCK(, sched) schedq;   /*!< Schedule entry and main queue */
+	AST_LIST_HEAD_NOLOCK(, sched) schedq;   /*!< Schedule entry and main queue */
 
 #ifdef SCHED_MAX_CACHE
 	AST_LIST_HEAD_NOLOCK(, sched) schedc;   /*!< Cache of unused schedule structures and how many */
@@ -261,7 +261,7 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, vo
  */
 int ast_sched_del(struct sched_context *con, int id)
 {
-	struct sched  *s;
+	struct sched *s;
 
 	DEBUG(ast_log(LOG_DEBUG, "ast_sched_del()\n"));
 	
@@ -309,7 +309,7 @@ void ast_sched_dump(const struct sched_context *con)
 	ast_log(LOG_DEBUG, "|ID    Callback          Data              Time  (sec:ms)   |\n");
 	ast_log(LOG_DEBUG, "+-----+-----------------+-----------------+-----------------+\n");
 	AST_LIST_TRAVERSE(&con->schedq, q, list) {
- 		struct timeval delta =  ast_tvsub(q->when, tv);
+		struct timeval delta = ast_tvsub(q->when, tv);
 
 		ast_log(LOG_DEBUG, "|%.4d | %-15p | %-15p | %.6ld : %.6ld |\n", 
 			q->id,
@@ -334,7 +334,7 @@ int ast_sched_runq(struct sched_context *con)
 	DEBUG(ast_log(LOG_DEBUG, "ast_sched_runq()\n"));
 		
 	ast_mutex_lock(&con->lock);
-	for(;;) {
+	for (;;) {
 		if (AST_LIST_EMPTY(&con->schedq))
 			break;
 		
