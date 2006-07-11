@@ -3876,9 +3876,11 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 			case 'P':
 			case 'p':
 				/* AM/PM */
-				if (tm.tm_hour > 12)
+				if (tm.tm_hour > 18)
 					res = wait_file(chan, ints, "digits/p-m", lang);
-				else if (tm.tm_hour  && tm.tm_hour < 12)
+				else if (tm.tm_hour > 12)
+					res = wait_file(chan, ints, "digits/afternoon", lang);
+				else if (tm.tm_hour)
 					res = wait_file(chan, ints, "digits/a-m", lang);
 				break;
 			case 'Q':
