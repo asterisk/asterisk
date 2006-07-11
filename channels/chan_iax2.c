@@ -264,7 +264,8 @@ enum {
 	IAX_RTAUTOCLEAR = 	(1 << 19), 	/*!< erase me on expire */ 
 	IAX_FORCEJITTERBUF =	(1 << 20),	/*!< Force jitterbuffer, even when bridged to a channel that can take jitter */ 
 	IAX_RTIGNOREREGEXPIRE =	(1 << 21),	/*!< When using realtime, ignore registration expiration */
-	IAX_TRUNKTIMESTAMPS =	(1 << 22)	/*!< Send trunk timestamps */
+	IAX_TRUNKTIMESTAMPS =	(1 << 22),	/*!< Send trunk timestamps */
+	IAX_MAXAUTHREQ =        (1 << 23)       /*!< Maximum outstanding AUTHREQ restriction is in place */
 } iax2_flags;
 
 static int global_rtautoclear = 120;
@@ -285,6 +286,8 @@ struct iax2_user {
 	int amaflags;
 	unsigned int flags;
 	int capability;
+	int maxauthreq; /*!< Maximum allowed outstanding AUTHREQs */
+	int curauthreq; /*!< Current number of outstanding AUTHREQs */
 	char cid_num[AST_MAX_EXTENSION];
 	char cid_name[AST_MAX_EXTENSION];
 	struct ast_codec_pref prefs;
@@ -1525,6 +1528,7 @@ static int iax2_predestroy(int callno)
 {
 	struct ast_channel *c;
 	struct chan_iax2_pvt *pvt;
+	struct iax2_user *user;
 	ast_mutex_lock(&iaxsl[callno]);
 	pvt = iaxs[callno];
 	if (!pvt) {
@@ -1532,6 +1536,18 @@ static int iax2_predestroy(int callno)
 		return -1;
 	}
 	if (!ast_test_flag(pvt, IAX_ALREADYGONE)) {
+		if (ast_test_flag(pvt, IAX_MAXAUTHREQ)) {
+			ast_mutex_lock(&userl.lock);
+			user = userl.users;
+			while (user) {
+				if (!strcmp(user->name, pvt->username)) {
+					user->curauthreq--;
+					break;
+				}
+				user = user->next;
+			}
+			ast_mutex_unlock(&userl.lock);
+		}
 		/* No more pings or lagrq's */
 		if (pvt->pingid > -1)
 			ast_sched_del(sched, pvt->pingid);
@@ -1586,6 +1602,7 @@ static void iax2_destroy(int callno)
 	struct chan_iax2_pvt *pvt;
 	struct iax_frame *cur;
 	struct ast_channel *owner;
+	struct iax2_user *user;
 
 retry:
 	ast_mutex_lock(&iaxsl[callno]);
@@ -1609,6 +1626,18 @@ retry:
 	if (pvt) {
 		if (!owner)
 			pvt->owner = NULL;
+		if (ast_test_flag(pvt, IAX_MAXAUTHREQ)) {
+			ast_mutex_lock(&userl.lock);
+			user = userl.users;
+			while (user) {
+				if (!strcmp(user->name, pvt->username)) {
+					user->curauthreq--;
+					break;
+				}
+				user = user->next;
+			}
+			ast_mutex_unlock(&userl.lock);
+		}
 		/* No more pings or lagrq's */
 		if (pvt->pingid > -1)
 			ast_sched_del(sched, pvt->pingid);
@@ -4713,7 +4742,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	int version = 2;
 	struct iax2_user *user, *best = NULL;
 	int bestscore = 0;
-	int gotcapability=0;
+	int gotcapability = 0;
 	char iabuf[INET_ADDRSTRLEN];
 	struct ast_variable *v = NULL, *tmpvar = NULL;
 
@@ -4832,6 +4861,9 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 				iaxs[callno]->vars = tmpvar;
 			}
 		}
+		/* If a max AUTHREQ restriction is in place, activate it */
+		if (user->maxauthreq > 0)
+			ast_set_flag(iaxs[callno], IAX_MAXAUTHREQ);
 		iaxs[callno]->prefs = user->prefs;
 		ast_copy_flags(iaxs[callno], user, IAX_CODEC_USER_FIRST);
 		ast_copy_flags(iaxs[callno], user, IAX_CODEC_NOPREFS);
@@ -4936,9 +4968,37 @@ static void merge_encryption(struct chan_iax2_pvt *p, unsigned int enc)
 
 static int authenticate_request(struct chan_iax2_pvt *p)
 {
+	struct iax2_user *user = NULL;
 	struct iax_ie_data ied;
-	int res;
+	int res = -1, authreq_restrict = 0;
+
 	memset(&ied, 0, sizeof(ied));
+
+	/* If an AUTHREQ restriction is in place, make sure we can send an AUTHREQ back */
+	if (ast_test_flag(p, IAX_MAXAUTHREQ)) {
+		ast_mutex_lock(&userl.lock);
+		user = userl.users;
+		while (user) {
+			if (!strcmp(user->name, p->username)) {
+				if (user->curauthreq == user->maxauthreq)
+					authreq_restrict = 1;
+				else
+					user->curauthreq++;
+				break;
+			}
+			user = user->next;
+		}
+		ast_mutex_unlock(&userl.lock);
+	}
+
+	/* If the AUTHREQ limit test failed, send back an error */
+	if (authreq_restrict) {
+		iax_ie_append_str(&ied, IAX_IE_CAUSE, "Unauthenticated call limit reached");
+		iax_ie_append_byte(&ied, IAX_IE_CAUSECODE, AST_CAUSE_CALL_REJECTED);
+		send_command_final(p, AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied.buf, ied.pos, -1);
+		return 0;
+	}
+
 	iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
 	if (p->authmethods & (IAX_AUTH_MD5 | IAX_AUTH_RSA)) {
 		snprintf(p->challenge, sizeof(p->challenge), "%d", rand());
@@ -4946,10 +5006,14 @@ static int authenticate_request(struct chan_iax2_pvt *p)
 	}
 	if (p->encmethods)
 		iax_ie_append_short(&ied, IAX_IE_ENCRYPTION, p->encmethods);
+
 	iax_ie_append_str(&ied,IAX_IE_USERNAME, p->username);
+
 	res = send_command(p, AST_FRAME_IAX, IAX_COMMAND_AUTHREQ, 0, ied.buf, ied.pos, -1);
+
 	if (p->encmethods)
 		ast_set_flag(p, IAX_ENCRYPTED);
+
 	return res;
 }
 
@@ -4961,7 +5025,22 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 	char rsasecret[256] = "";
 	int res = -1; 
 	int x;
-	
+	struct iax2_user *user = NULL;
+
+	if (ast_test_flag(p, IAX_MAXAUTHREQ)) {
+		ast_mutex_lock(&userl.lock);
+		user = userl.users;
+		while (user) {
+			if (!strcmp(user->name, p->username)) {
+				user->curauthreq--;
+				break;
+			}
+			user = user->next;
+		}
+		ast_mutex_unlock(&userl.lock);
+		ast_clear_flag(p, IAX_MAXAUTHREQ);
+	}
+
 	if (!ast_test_flag(&p->state, IAX_STATE_AUTHENTICATED))
 		return res;
 	if (ies->password)
@@ -6960,8 +7039,8 @@ retryowner:
 					merge_encryption(iaxs[fr->callno],ies.encmethods);
 				else
 					iaxs[fr->callno]->encmethods = 0;
-				authenticate_request(iaxs[fr->callno]);
-				ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED);
+				if (!authenticate_request(iaxs[fr->callno]))
+					ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED);
 				break;
 			case IAX_COMMAND_DPREQ:
 				/* Request status in the dialplan */
@@ -8325,6 +8404,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 	struct ast_ha *oldha = NULL;
 	struct iax2_context *oldcon = NULL;
 	int format;
+	int oldcurauthreq = 0;
 	char *varname = NULL, *varval = NULL;
 	struct ast_variable *tmpvar = NULL;
 	
@@ -8343,6 +8423,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 		user = NULL;
 	
 	if (user) {
+		oldcurauthreq = user->curauthreq;
 		oldha = user->ha;
 		oldcon = user->contexts;
 		user->ha = NULL;
@@ -8363,6 +8444,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 	
 	if (user) {
 		memset(user, 0, sizeof(struct iax2_user));
+		user->curauthreq = oldcurauthreq;
 		user->prefs = prefs;
 		user->capability = iax2_capability;
 		user->encmethods = iax2_encryption;
@@ -8445,6 +8527,10 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 				}
 			} else if (!strcasecmp(v->name, "inkeys")) {
 				ast_copy_string(user->inkeys, v->value, sizeof(user->inkeys));
+			} else if (!strcasecmp(v->name, "maxauthreq")) {
+				user->maxauthreq = atoi(v->value);
+				if (user->maxauthreq < 0)
+					user->maxauthreq = 0;
 			}/* else if (strcasecmp(v->name,"type")) */
 			/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 			v = v->next;

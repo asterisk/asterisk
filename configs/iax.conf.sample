@@ -349,6 +349,8 @@ inkeys=freeworlddialup
 ;notransfer=yes		; Disable IAX native transfer
 ;jitterbuffer=yes	; Override global setting an enable jitter buffer
 ;			; for this user
+;maxauthreq=10		; Set maximum number of outstanding AUTHREQs waiting for replies. Any further authentication attempts will be blocked
+;			; if this limit is reached until they expire or a reply is received.
 ;callerid="Mark Spencer" <(256) 428-6275>
 ;deny=0.0.0.0/0.0.0.0
 ;accountcode=markster0101
