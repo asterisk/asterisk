@@ -41,7 +41,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <signal.h>
 #include <sys/file.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
 
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
@@ -63,6 +66,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/features.h"
 #include "asterisk/term.h"
+#include "asterisk/sched.h"
 #include "asterisk/stringfields.h"
 
 #include "chan_misdn_config.h"
@@ -101,12 +105,6 @@ of data. */
 int misdn_jb_empty(struct misdn_jb *jb, char *data, int len);
 
 
-
-
-/* BEGIN: chan_misdn.h */
-
-
-
 enum misdn_chan_state {
 	MISDN_NOTHING,		/*!< at beginning */
 	MISDN_WAITING4DIGS, /*!<  when waiting for infos */
@@ -137,8 +135,6 @@ enum misdn_chan_state {
 
 struct chan_list {
   
-	ast_mutex_t lock;
-
 	char allowed_bearers[BUFFERSIZE+1];
 	
 	enum misdn_chan_state state;
@@ -192,6 +188,11 @@ struct chan_list {
 
 	const struct tone_zone_sound *ts;
 	
+	int overlap_dial;
+	int overlap_dial_task;
+	ast_mutex_t overlap_tv_lock;
+	struct timeval overlap_tv;
+  
 	struct chan_list *peer;
 	struct chan_list *next;
 	struct chan_list *prev;
@@ -251,6 +252,11 @@ static struct robin_list* get_robin_position (char *group)
 	return robin;
 }
 
+
+/* the main schedule context for stuff like l1 watcher, overlap dial, ... */
+static struct sched_context *misdn_tasks = NULL;
+static pthread_t misdn_tasks_thread;
+static int misdn_tasks_semid;
 
 static void chan_misdn_log(int level, int port, char *tmpl, ...);
 
@@ -435,6 +441,177 @@ static void print_bearer(struct misdn_bchannel *bc)
 	}
 }
 /*************** Helpers END *************/
+
+static void sighandler(int sig)
+{}
+
+static void* misdn_tasks_thread_func (void *data)
+{
+	int wait;
+	struct sigaction sa;
+	struct sembuf semb = {
+		.sem_num = 0,
+		.sem_op = 1,
+		.sem_flg = 0
+	};
+
+	sa.sa_handler = sighandler;
+	sa.sa_flags = SA_NODEFER;
+	sigemptyset(&sa.sa_mask);
+	sigaddset(&sa.sa_mask, SIGUSR1);
+	sigaction(SIGUSR1, &sa, NULL);
+	
+	semop(misdn_tasks_semid, &semb, 1);
+
+	while (1) {
+		wait = ast_sched_wait(misdn_tasks);
+		if (wait < 0)
+			wait = 8000;
+		if (poll(NULL, 0, wait) < 0)
+			chan_misdn_log(4, 0, "Waking up misdn_tasks thread\n");
+		ast_sched_runq(misdn_tasks);
+	}
+	return NULL;
+}
+
+static void misdn_tasks_init (void)
+{
+	key_t key;
+	union {
+		int val;
+		struct semid_ds *buf;
+		unsigned short *array;
+		struct seminfo *__buf;
+	} semu;
+	struct sembuf semb = {
+		.sem_num = 0,
+		.sem_op = -1,
+		.sem_flg = 0
+	};
+	
+	chan_misdn_log(4, 0, "Starting misdn_tasks thread\n");
+	
+	key = ftok("/etc/asterisk/misdn.conf", 'E');
+	if (key == -1) {
+		perror("chan_misdn: Failed to create a semaphore key!");
+		exit(1);
+	}
+
+	misdn_tasks_semid = semget(key, 10, 0666 | IPC_CREAT);
+	if (misdn_tasks_semid == -1) {
+		perror("chan_misdn: Failed to get a semaphore!");
+		exit(1);
+	}
+
+	semu.val = 0;
+	if (semctl(misdn_tasks_semid, 0, SETVAL, semu) == -1) {
+		perror("chan_misdn: Failed to initialize semaphore!");
+		exit(1);
+	}
+
+	misdn_tasks = sched_context_create();
+	pthread_create(&misdn_tasks_thread, NULL, misdn_tasks_thread_func, NULL);
+
+	semop(misdn_tasks_semid, &semb, 1);
+	semctl(misdn_tasks_semid, 0, IPC_RMID, semu);
+}
+
+static void misdn_tasks_destroy (void)
+{
+	if (misdn_tasks) {
+		chan_misdn_log(4, 0, "Killing misdn_tasks thread\n");
+		if ( pthread_cancel(misdn_tasks_thread) == 0 ) {
+			cb_log(4, 0, "Joining misdn_tasks thread\n");
+			pthread_join(misdn_tasks_thread, NULL);
+		}
+		sched_context_destroy(misdn_tasks);
+	}
+}
+
+static inline void misdn_tasks_wakeup (void)
+{
+	pthread_kill(misdn_tasks_thread, SIGUSR1);
+}
+
+static inline int _misdn_tasks_add_variable (int timeout, ast_sched_cb callback, void *data, int variable)
+{
+	int task_id;
+
+	if (!misdn_tasks) {
+		misdn_tasks_init();
+	}
+	task_id = ast_sched_add_variable(misdn_tasks, timeout, callback, data, variable);
+	misdn_tasks_wakeup();
+
+	return task_id;
+}
+
+static int misdn_tasks_add (int timeout, ast_sched_cb callback, void *data)
+{
+	return _misdn_tasks_add_variable(timeout, callback, data, 0);
+}
+
+static int misdn_tasks_add_variable (int timeout, ast_sched_cb callback, void *data)
+{
+	return _misdn_tasks_add_variable(timeout, callback, data, 1);
+}
+
+static void misdn_tasks_remove (int task_id)
+{
+	ast_sched_del(misdn_tasks, task_id);
+}
+
+static int misdn_l1_task (void *data)
+{
+	misdn_lib_isdn_l1watcher((int)data);
+	chan_misdn_log(5, (int)data, "L1watcher timeout\n");
+	return 1;
+}
+
+static int misdn_overlap_dial_task (void *data)
+{
+	struct timeval tv_end, tv_now;
+	int diff;
+	struct chan_list *ch = (struct chan_list *)data;
+
+	chan_misdn_log(4, ch->bc->port, "overlap dial task, chan_state: %d\n", ch->state);
+
+	if (ch->state != MISDN_WAITING4DIGS) {
+		ch->overlap_dial_task = -1;
+		return 0;
+	}
+	
+	ast_mutex_lock(&ch->overlap_tv_lock);
+	tv_end = ch->overlap_tv;
+	ast_mutex_unlock(&ch->overlap_tv_lock);
+	
+	tv_end.tv_sec += ch->overlap_dial;
+	tv_now = ast_tvnow();
+
+	diff = ast_tvdiff_ms(tv_end, tv_now);
+
+	if (diff <= 100) {
+		/* if we are 100ms near the timeout, we are satisfied.. */
+		stop_indicate(ch);
+		if (ast_exists_extension(ch->ast, ch->context, ch->bc->dad, 1, ch->bc->oad)) {
+			ch->state=MISDN_DIALING;
+			if (pbx_start_chan(ch) < 0) {
+				chan_misdn_log(-1, ch->bc->port, "ast_pbx_start returned < 0 in misdn_overlap_dial_task\n");
+				goto misdn_overlap_dial_task_disconnect;
+			}
+		} else {
+misdn_overlap_dial_task_disconnect:
+			hanguptone_indicate(ch);
+			if (ch->bc->nt)
+				misdn_lib_send_event(ch->bc, EVENT_RELEASE_COMPLETE );
+			else
+				misdn_lib_send_event(ch->bc, EVENT_RELEASE);
+		}
+		ch->overlap_dial_task = -1;
+		return 0;
+	} else
+		return diff;
+}
 
 static void send_digit_to_chan(struct chan_list *cl, char digit )
 {
@@ -632,7 +809,7 @@ static int misdn_show_config (int fd, int argc, char *argv[])
 				ok = 1;
 			}
 			if ((argc == 4) || ((argc == 5) && !strcmp(argv[4], "ports"))) {
-				for (elem = MISDN_CFG_FIRST + 1; elem < MISDN_CFG_LAST; ++elem) {
+				for (elem = MISDN_CFG_FIRST + 1; elem < MISDN_CFG_LAST - 1 /* the ptp hack, remove the -1 when ptp is gone */; ++elem) {
 					show_config_description(fd, elem);
 					ast_cli(fd, "\n");
 				}
@@ -872,9 +1049,7 @@ static int misdn_show_stacks (int fd, int argc, char *argv[])
 		ast_cli(fd,"  %s  Debug:%d%s\n", buf, misdn_debug[port], misdn_debug_only[port]?"(only)":"");
 	}
 		
-
 	return 0;
-
 }
 
 
@@ -1564,8 +1739,7 @@ static int read_config(struct chan_list *ch, int orig) {
 			debug_numplan(port, bc->cpnnumplan,"CTON");
 		}
 
-		
-		
+		ch->overlap_dial = 0;
 	} else { /** ORIGINATOR MISDN **/
 	
 		misdn_cfg_get( port, MISDN_CFG_CPNDIALPLAN, &bc->cpnnumplan, sizeof(int));
@@ -1632,6 +1806,9 @@ static int read_config(struct chan_list *ch, int orig) {
 				free(ast->cid.cid_rdnis);
 			ast->cid.cid_rdnis = strdup(bc->rad);
 		}
+	
+		misdn_cfg_get(bc->port, MISDN_CFG_OVERLAP_DIAL, &ch->overlap_dial, sizeof(ch->overlap_dial));
+		ast_mutex_init(&ch->overlap_tv_lock);
 	} /* ORIG MISDN END */
 
 	return 0;
@@ -2297,12 +2474,12 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 	
 	if (ch->holded ) {
-		chan_misdn_log(5, ch->bc->port, "misdn_write: Returning because holded\n");
+		chan_misdn_log(7, ch->bc->port, "misdn_write: Returning because holded\n");
 		return 0;
 	}
 	
 	if (ch->notxtone) {
-		chan_misdn_log(5, ch->bc->port, "misdn_write: Returning because notxone\n");
+		chan_misdn_log(7, ch->bc->port, "misdn_write: Returning because notxone\n");
 		return 0;
 	}
 
@@ -2564,6 +2741,7 @@ static struct chan_list *init_chan_list(int orig)
 	cl->orginator=orig;
 	cl->need_queue_hangup=1;
 	cl->need_hangup=1;
+	cl->overlap_dial_task=-1;
 	
 	return cl;
 	
@@ -3035,6 +3213,13 @@ static void release_chan(struct misdn_bchannel *bc) {
 				chan_misdn_log(5,bc->port,"Jitterbuffer already destroyed.\n");
 		}
 
+		if (ch->overlap_dial) {
+			if (ch->overlap_dial_task != -1) {
+				misdn_tasks_remove(ch->overlap_dial_task);
+				ch->overlap_dial_task = -1;
+			}
+			ast_mutex_destroy(&ch->overlap_tv_lock);
+		}
 
 		if (ch->orginator == ORG_AST) {
 			misdn_out_calls[bc->port]--;
@@ -3416,6 +3601,18 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 				break;
 			}
+
+			if (ch->overlap_dial) {
+				ast_mutex_lock(&ch->overlap_tv_lock);
+				ch->overlap_tv = ast_tvnow();
+				ast_mutex_unlock(&ch->overlap_tv_lock);
+				if (ch->overlap_dial_task == -1) {
+					ch->overlap_dial_task = 
+						misdn_tasks_add_variable(ch->overlap_dial, misdn_overlap_dial_task, ch);
+				}
+				break;
+			}
+
 			if (ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
 				ch->state=MISDN_DIALING;
 	  
@@ -3468,7 +3665,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		struct chan_list *ch=find_chan_by_bc(cl_te, bc);
 		if (ch && ch->state != MISDN_NOTHING ) {
 			chan_misdn_log(1, bc->port, " --> Ignoring Call we have already one\n");
-			return RESPONSE_IGNORE_SETUP_WITHOUT_CLOSE; /*  Ignore MSNs which are not in our List */
+			return RESPONSE_IGNORE_SETUP_WITHOUT_CLOSE;
 		}
 	}
 	
@@ -3608,7 +3805,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			break;
 		}
 		
-		if (ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
+		if (!ch->overlap_dial && ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
 			ch->state=MISDN_DIALING;
 			
 			if (bc->nt || (bc->need_more_infos && misdn_lib_is_ptp(bc->port)) ) {
@@ -3646,7 +3843,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				}
 
 			} else {
-				
+
 				int ret= misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
 				if (ret == -ENOCHAN) {
 					ast_log(LOG_WARNING,"Channel was catched, before we could Acknowledge\n");
@@ -3656,18 +3853,30 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				
 				/** ADD IGNOREPAT **/
 				
-				int stop_tone;
+				int stop_tone, dad_len;
 				misdn_cfg_get( 0, MISDN_GEN_STOP_TONE, &stop_tone, sizeof(int));
-				if ( (!ast_strlen_zero(bc->dad)) && stop_tone ) 
+
+				dad_len = ast_strlen_zero(bc->dad);
+				
+				if ( !dad_len && stop_tone )
 					stop_indicate(ch);
-				else {
+				else
 					dialtone_indicate(ch);
-				}
 				
 				ch->state=MISDN_WAITING4DIGS;
+				
+				if (ch->overlap_dial && !dad_len) {
+					ast_mutex_lock(&ch->overlap_tv_lock);
+					ch->overlap_tv = ast_tvnow();
+					ast_mutex_unlock(&ch->overlap_tv_lock);
+					if (ch->overlap_dial_task == -1) {
+						ch->overlap_dial_task = 
+							misdn_tasks_add_variable(ch->overlap_dial, misdn_overlap_dial_task, ch);
+					}
+				}
 			}
 		}
-      
+		
 	}
 	break;
 	case EVENT_SETUP_ACKNOWLEDGE:
@@ -4108,6 +4317,8 @@ static int unload_module(void *mod)
 {
 	/* First, take us out of the channel loop */
 	ast_log(LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
+
+	misdn_tasks_destroy();
 	
 	if (!g_config_initialized) return 0;
 	
@@ -4152,10 +4363,10 @@ static int unload_module(void *mod)
 
 static int load_module(void *mod)
 {
-	int i;
+	int i, port;
 	
 	char ports[256]="";
-	
+
 	max_ports=misdn_lib_maxports_get();
 	
 	if (max_ports<=0) {
@@ -4194,10 +4405,6 @@ static int load_module(void *mod)
 	misdn_cfg_update_ptp();
 	misdn_cfg_get_ports_string(ports);
 
-
-	int l1watcher_timeout=0;
-	misdn_cfg_get( 0, MISDN_GEN_L1_TIMEOUT, &l1watcher_timeout, sizeof(int));
-	
 	if (strlen(ports))
 		chan_misdn_log(0, 0, "Got: %s from get_ports\n",ports);
 	
@@ -4206,7 +4413,6 @@ static int load_module(void *mod)
 			.cb_event = cb_events,
 			.cb_log = chan_misdn_log,
 			.cb_jb_empty = chan_misdn_jb_empty,
-			.l1watcher_timeout=l1watcher_timeout,
 		};
 		
 		if (misdn_lib_init(ports, &iface, NULL))
@@ -4280,8 +4486,16 @@ static int load_module(void *mod)
 
 	misdn_cfg_get( 0, MISDN_GEN_TRACEFILE, global_tracefile, BUFFERSIZE);
 
-
-
+	/* start the l1 watchers */
+	
+	for (port = misdn_cfg_get_next_port(0); port >= 0; port = misdn_cfg_get_next_port(port)) {
+		int l1timeout;
+		misdn_cfg_get(port, MISDN_CFG_L1_TIMEOUT, &l1timeout, sizeof(l1timeout));
+		if (l1timeout) {
+			chan_misdn_log(4, 0, "Adding L1watcher task: port:%d timeout:%ds\n", port, l1timeout);
+			misdn_tasks_add(l1timeout * 1000, misdn_l1_task, (void*)port);  
+		}
+	}
 	
 	chan_misdn_log(0, 0, "-- mISDN Channel Driver Registred -- (BE AWARE THIS DRIVER IS EXPERIMENTAL!)\n");
 

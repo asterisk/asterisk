@@ -262,6 +262,19 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\texceeding calls will be rejected" },
 	{ "faxdetect", MISDN_CFG_FAXDETECT, MISDN_CTYPE_STR, "no", NONE,
 		"Context to jump into if we detect an incoming fax." },
+	{ "l1watcher_timeout", MISDN_CFG_L1_TIMEOUT, MISDN_CTYPE_BOOLINT, "0", 4,
+		"Watches the layer 1. If the layer 1 is down, it tries to\n"
+		"\tget it up. The timeout is given in seconds. with 0 as value it\n"
+		"\tdoes not watch the l1 at all\n"
+		"\n"
+		"\tThis option is only read at loading time of chan_misdn, which\n"
+		"\tmeans you need to unload and load chan_misdn to change the value,\n"
+		"\tan Asterisk restart should do the trick." },
+	{ "overlap_dial", MISDN_CFG_OVERLAP_DIAL, MISDN_CTYPE_BOOLINT, "0", 4,
+		"Enables overlap dial for the given amount of seconds.\n"
+		"\tPossible values are positive integers or:\n"
+		"\t   yes (= 4 seconds)\n"
+		"\t   no  (= 0 seconds = disabled)" },
 	{ "msns", MISDN_CFG_MSNS, MISDN_CTYPE_MSNLIST, NO_DEFAULT, NONE,
 		"MSN's for TE ports, listen on those numbers on the above ports, and\n"
 		"\tindicate the incoming calls to Asterisk.\n"
@@ -293,18 +306,10 @@ static const struct misdn_cfg_spec gen_spec[] = {
 	{ "crypt_keys", MISDN_GEN_CRYPT_KEYS, MISDN_CTYPE_STR, NO_DEFAULT, NONE,
 		"Keys for cryption, you reference them in the dialplan\n"
 		"\tLater also in dynamic encr." },
-	{ "l1watcher_timeout", MISDN_GEN_L1_TIMEOUT, MISDN_CTYPE_INT, "0", NONE,
-		"Watches the L1s of every port. If one l1 is down it tries to\n"
-		"\tget it up. The timeout is given in seconds. with 0 as value it\n"
-		"\tdoes not watch the l1 at all\n"
-		"\n"
-		"\tThis option is only read at loading time of chan_misdn, which\n"
-		"\tmeans you need to unload and load chan_misdn to change the value,\n"
-	  "\tan Asterisk restart should do the trick." },
 	{ "ntdebugflags", MISDN_GEN_NTDEBUGFLAGS, MISDN_CTYPE_INT, "0", NONE,
-	  "no description yet"},
+	  	"No description yet."},
 	{ "ntdebugfile", MISDN_GEN_NTDEBUGFILE, MISDN_CTYPE_STR, "/var/log/misdn-nt.log", NONE,
-	  "no description yet" }
+	  	"No description yet." }
 };
 
 
@@ -580,10 +585,10 @@ int misdn_cfg_is_msn_valid (int port, char* msn)
 	}
 
 	misdn_cfg_lock();
-	if (port_cfg[port][MISDN_CFG_MSNS-1].ml)
-		iter = port_cfg[port][MISDN_CFG_MSNS-1].ml;
+	if (port_cfg[port][map[MISDN_CFG_MSNS]].ml)
+		iter = port_cfg[port][map[MISDN_CFG_MSNS]].ml;
 	else
-		iter = port_cfg[0][MISDN_CFG_MSNS-1].ml;
+		iter = port_cfg[0][map[MISDN_CFG_MSNS]].ml;
 	for (; iter; iter = iter->next) 
 		if (*(iter->msn) == '*' || ast_extension_match(iter->msn, msn)) {
 			re = 1;
@@ -994,6 +999,8 @@ void misdn_cfg_init (int this_max_ports)
 		ast_log(LOG_WARNING,"no misdn.conf ?\n");
 		return;
 	}
+
+	ast_mutex_init(&config_mutex);
 
 	misdn_cfg_lock();
 

@@ -341,12 +341,9 @@ void (*cb_log) (int level, int port, char *tmpl, ...);
 int (*cb_jb_empty)(struct misdn_bchannel *bc, char *buffer, int len);
 
 struct misdn_lib_iface {
-	
 	enum event_response_e (*cb_event)(enum event_e event, struct misdn_bchannel *bc, void *user_data);
 	void (*cb_log)(int level, int port, char *tmpl, ...);
 	int (*cb_jb_empty)(struct misdn_bchannel *bc, char *buffer, int len);
-	
-	int l1watcher_timeout;
 };
 
 /***** USER IFACE **********/
@@ -356,6 +353,8 @@ void misdn_lib_nt_debug_init( int flags, char *file );
 int misdn_lib_init(char *portlist, struct misdn_lib_iface* iface, void *user_data);
 int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event );
 void misdn_lib_destroy(void);
+
+void misdn_lib_isdn_l1watcher(int port);
 
 void misdn_lib_log_ies(struct misdn_bchannel *bc);
 

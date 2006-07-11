@@ -108,12 +108,9 @@ struct misdn_lib {
 	int midev;
 	int midev_nt;
 
-	pthread_t l1watcher_thread;
 	pthread_t event_thread;
 	pthread_t event_handler_thread;
 
-	int l1watcher_timeout;
-	
 	void *user_data;
 
 	msg_queue_t upqueue;
@@ -163,7 +160,6 @@ static struct misdn_lib *glob_mgr;
 unsigned char tone_425_flip[TONE_425_SIZE];
 unsigned char tone_silence_flip[TONE_SILENCE_SIZE];
 
-static void misdn_lib_isdn_l1watcher(void *arg);
 static void misdn_lib_isdn_event_catcher(void *arg);
 static int handle_event_nt(void *dat, void *arg);
 
@@ -2810,30 +2806,20 @@ msg_t *fetch_msg(int midev)
 	return NULL;
 }
 
-static void misdn_lib_isdn_l1watcher(void *arg)
+void misdn_lib_isdn_l1watcher(int port)
 {
-	struct misdn_lib *mgr = arg;
 	struct misdn_stack *stack;
 
-	while (1) {
-		sleep(mgr->l1watcher_timeout);
-		
-		/* look out for l1 which are down
-		   and try to pull the up.
+	for (stack = glob_mgr->stack_list; stack && (stack->port != port); stack = stack->next)
+		;
 
-		   We might even try to pull the l2 up in the
-		   ptp case.
-		*/
-		for (stack = mgr->stack_list;
-		     stack;
-		     stack = stack->next) {
-			cb_log(4,stack->port,"Checking L1 State\n");	
-			if (!stack->l1link) {
-				cb_log(4,stack->port,"L1 State Down, trying to get it up again\n");	
-				misdn_lib_get_short_status(stack);
-				misdn_lib_get_l1_up(stack); 
-				misdn_lib_get_l2_up(stack); 
-			}
+	if (stack) {
+		cb_log(4, port, "Checking L1 State\n");	
+		if (!stack->l1link) {
+			cb_log(4, port, "L1 State Down, trying to get it up again\n");	
+			misdn_lib_get_short_status(stack);
+			misdn_lib_get_l1_up(stack); 
+			misdn_lib_get_l2_up(stack); 
 		}
 	}
 }
@@ -3703,7 +3689,7 @@ int misdn_lib_init(char *portlist, struct misdn_lib_iface *iface, void *user_dat
   
 	if (sem_init(&mgr->new_msg, 1, 0)<0)
 		sem_init(&mgr->new_msg, 0, 0);
-  
+ 
 	for (tok=strtok_r(plist," ,",&tokb );
 	     tok; 
 	     tok=strtok_r(NULL," ,",&tokb)) {
@@ -3726,20 +3712,20 @@ int misdn_lib_init(char *portlist, struct misdn_lib_iface *iface, void *user_dat
 			exit(1);
 		}
     
+		{
+			int i;
+			for(i=0;i<stack->b_num; i++) {
+				int r;
+				if ((r=init_bc(stack, &stack->bc[i], stack->midev,port,i, "", 1))<0) {
+					cb_log(-1, port, "Got Err @ init_bc :%d\n",r);
+					exit(1);
+				}
+			}
+		}
+
 		if (stack && first) {
 			mgr->stack_list=stack;
 			first=0;
-			{
-				int i;
-				for(i=0;i<stack->b_num; i++) {
-					int r;
-					if ((r=init_bc(stack, &stack->bc[i], stack->midev,port,i, "", 1))<0) {
-						cb_log(-1, port, "Got Err @ init_bc :%d\n",r);
-						exit(1);
-					}
-				}
-			}
-      
 			continue;
 		}
     
@@ -3747,20 +3733,7 @@ int misdn_lib_init(char *portlist, struct misdn_lib_iface *iface, void *user_dat
 			struct misdn_stack * help;
 			for ( help=mgr->stack_list; help; help=help->next ) 
 				if (help->next == NULL) break;
-      
-      
 			help->next=stack;
-
-			{
-				int i;
-				for(i=0;i<stack->b_num; i++) {
-					int r;
-					if ((r=init_bc(stack, &stack->bc[i], stack->midev,port,i, "",1 ))<0) {
-						cb_log(-1, port, "Got Err @ init_bc :%d\n",r);
-						exit(1);
-					} 
-				}
-			}
 		}
     
 	}
@@ -3777,12 +3750,6 @@ int misdn_lib_init(char *portlist, struct misdn_lib_iface *iface, void *user_dat
   
 	cb_log(4, 0, "Event Catcher started\n");
 
-	if (iface->l1watcher_timeout > 0) {
-		mgr->l1watcher_timeout=iface->l1watcher_timeout;
-		cb_log(4, 0, "Starting L1 watcher\n");
-		pthread_create( &mgr->l1watcher_thread, NULL, (void*)misdn_lib_isdn_l1watcher, mgr);
-	}
-	
 	global_state= MISDN_INITIALIZED; 
   
 	return (mgr == NULL);
