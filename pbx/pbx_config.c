@@ -1745,7 +1745,9 @@ static int pbx_load_module(void)
 								}
 							}
 							free(tc);
-						} else fprintf(stderr,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
+						} else {
+							ast_log(LOG_ERROR, "Memory allocation failure\n");
+						}
 					} else if(!strcasecmp(v->name, "include")) {
 						memset(realvalue, 0, sizeof(realvalue));
 						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
