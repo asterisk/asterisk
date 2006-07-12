@@ -16,13 +16,13 @@ endif
 
 SELECTED_MODS:=$(filter-out $(MENUSELECT_APPS),$(patsubst %.c,%,$(wildcard app_*.c)))
 
-ifneq ($(findstring ODBC_STORAGE,$(MENUSELECT_app_voicemail)),)
+ifneq ($(findstring ODBC_STORAGE,$(MENUSELECT_OPTS_app_voicemail)),)
 MENUSELECT_DEPENDS_app_voicemail+=$(MENUSELECT_DEPENDS_ODBC_STORAGE)
 endif
-ifneq ($(findstring EXTENDED_ODBC_STORAGE,$(MENUSELECT_app_voicemail)),)
+ifneq ($(findstring EXTENDED_ODBC_STORAGE,$(MENUSELECT_OPTS_app_voicemail)),)
 MENUSELECT_DEPENDS_app_voicemail+=$(MENUSELECT_DEPENDS_EXTENDED_ODBC_STORAGE)
 endif
-ifneq ($(findstring IMAP_STORAGE,$(MENUSELECT_app_voicemail)),)
+ifneq ($(findstring IMAP_STORAGE,$(MENUSELECT_OPTS_app_voicemail)),)
 MENUSELECT_DEPENDS_app_voicemail+=$(MENUSELECT_DEPENDS_IMAP_STORAGE)
 endif
 
