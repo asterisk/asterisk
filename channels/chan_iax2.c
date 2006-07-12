@@ -2164,10 +2164,7 @@ static void update_jbsched(struct chan_iax2_pvt *pvt)
 	
 	when = ast_tvdiff_ms(ast_tvnow(), pvt->rxcore);
 	
-	/*    fprintf(stderr, "now = %d, next=%d\n", when, jb_next(pvt->jb)); */
-	
 	when = jb_next(pvt->jb) - when;
-	/*   fprintf(stderr, "when = %d\n", when); */
 	
 	if(pvt->jbid > -1) ast_sched_del(sched, pvt->jbid);
 	
@@ -2202,7 +2199,6 @@ static void __get_from_jb(void *p)
 		return;
 	}
 
-	/*  fprintf(stderr, "get_from_jb called\n"); */
 	pvt->jbid = -1;
 	
 	gettimeofday(&tv,NULL);
@@ -2217,7 +2213,6 @@ static void __get_from_jb(void *p)
 		ret = jb_get(pvt->jb,&frame,now,ast_codec_interp_len(pvt->voiceformat));
 		switch(ret) {
 		case JB_OK:
-			/*if(frame.type == JB_TYPE_VOICE && next + 20 != jb_next(pvt->jb)) fprintf(stderr, "NEXT %ld is not %ld+20!\n", jb_next(pvt->jb), next); */
 			fr = frame.data;
 			__do_deliver(fr);
 			break;
@@ -2225,10 +2220,7 @@ static void __get_from_jb(void *p)
 		{
 			struct ast_frame af;
 			
-			/*if(next + 20 != jb_next(pvt->jb)) fprintf(stderr, "NEXT %ld is not %ld+20!\n", jb_next(pvt->jb), next); */
-			
 			/* create an interpolation frame */
-			/*fprintf(stderr, "Making Interpolation frame\n"); */
 			af.frametype = AST_FRAME_VOICE;
 			af.subclass = pvt->voiceformat;
 			af.datalen  = 0;
@@ -2246,7 +2238,6 @@ static void __get_from_jb(void *p)
 		}
 		break;
 		case JB_DROP:
-			/*if(next != jb_next(pvt->jb)) fprintf(stderr, "NEXT %ld is not next %ld!\n", jb_next(pvt->jb), next); */
 			iax2_frame_free(frame.data);
 			break;
 		case JB_NOFRAME:
@@ -3435,9 +3426,6 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	p->lastsent = ms;
 	if (voice)
 		p->nextpred = p->nextpred + f->samples / 8;
-#if 0
-	printf("TS: %s - %dms\n", voice ? "Audio" : "Control", ms);
-#endif	
 	return ms;
 }
 

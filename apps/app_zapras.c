@@ -126,12 +126,6 @@ static pid_t spawn_ras(struct ast_channel *chan, char *args)
 	argv[argc++] = "zaptel.so";
 	argv[argc++] = "stdin";
 
-#if 0
-	for (x=0;x<argc;x++) {
-		fprintf(stderr, "Arg %d: %s\n", x, argv[x]);
-	}
-#endif
-
 	/* Finally launch PPP */
 	execv(PPP_EXEC, argv);
 	fprintf(stderr, "Failed to exec PPPD!\n");

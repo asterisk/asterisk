@@ -422,14 +422,6 @@ static void base64_init(void)
 	base64[63] = '/';
 	b2a[(int)'+'] = 62;
 	b2a[(int)'/'] = 63;
-#if 0
-	for (x=0;x<64;x++) {
-		if (b2a[(int)base64[x]] != x) {
-			fprintf(stderr, "!!! %d failed\n", x);
-		} else
-			fprintf(stderr, "--- %d passed\n", x);
-	}
-#endif
 }
 
 /*! \brief  ast_uri_encode: Turn text string to URI-encoded %XX version
