@@ -354,9 +354,6 @@ int ast_modem_expect(struct ast_modem_pvt *p, char *result, int timeout)
 		}
 		/* Read a response */
 		fgets(p->response, sizeof(p->response), p->f);
-#if	0
-		fprintf(stderr, "Modem said: %s", p->response);
-#endif
 		if (!strncasecmp(p->response, result, strlen(result))) 
 			return 0;
 	} while(timeout > 0);

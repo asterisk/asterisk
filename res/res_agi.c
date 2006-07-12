@@ -1823,11 +1823,6 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 	argc = MAX_ARGS;
 
 	parse_args(buf, &argc, argv);
-#if	0
-	{ int x;
-	for (x=0; x<argc; x++) 
-		fprintf(stderr, "Got Arg%d: %s\n", x, argv[x]); }
-#endif
 	c = find_command(argv, 0);
 	if (c) {
 		res = c->handler(chan, agi, argc, argv);
