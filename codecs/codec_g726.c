@@ -1,9 +1,10 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
+ * Kevin P. Fleming <kpfleming@digium.com>
  *
  * Based on frompcm.c and topcm.c from the Emiliano MIPL browser/
  * interpreter.  See http://www.bsdtelephony.com.mx
@@ -21,7 +22,7 @@
 
 /*! \file
  *
- * \brief codec_g726.c - translate between signed linear and ITU G.726-32kbps
+ * \brief codec_g726.c - translate between signed linear and ITU G.726-32kbps (both RFC3551 and AAL2 codeword packing)
  *
  * \ingroup codecs
  */
@@ -73,10 +74,10 @@ typedef long long sint64;
 
 /*
  * The following is the definition of the state structure
- * used by the G.721/G.723 encoder and decoder to preserve their internal
+ * used by the G.726 encoder and decoder to preserve their internal
  * state between successive calls.  The meanings of the majority
  * of the state structure fields are explained in detail in the
- * CCITT Recommendation G.721.  The field names are essentially indentical
+ * CCITT Recommendation G.721.  The field names are essentially identical
  * to variable names in the bit level description of the coding algorithm
  * included in this Recommendation.
  */
@@ -86,24 +87,20 @@ struct g726_state {
 	int dms;	/* Short term energy estimate. */
 	int dml;	/* Long term energy estimate. */
 	int ap;		/* Linear weighting coefficient of 'yl' and 'yu'. */
-
 	int a[2];	/* Coefficients of pole portion of prediction filter.
-				 * stored as fixed-point 1==2^14 */
+			 * stored as fixed-point 1==2^14 */
 	int b[6];	/* Coefficients of zero portion of prediction filter.
-				 * stored as fixed-point 1==2^14 */
+			 * stored as fixed-point 1==2^14 */
 	int pk[2];	/* Signs of previous two samples of a partially
-			 * reconstructed signal.
-			 */
-	int dq[6];  /* Previous 6 samples of the quantized difference signal
-				 * stored as fixed point 1==2^12,
-				 * or in internal floating point format */
+			 * reconstructed signal. */
+	int dq[6];  	/* Previous 6 samples of the quantized difference signal
+			 * stored as fixed point 1==2^12,
+			 * or in internal floating point format */
 	int sr[2];	/* Previous 2 samples of the quantized difference signal
-				 * stored as fixed point 1==2^12,
-				 * or in internal floating point format */
-	int td;	/* delayed tone detect, new in 1988 version */
+			 * stored as fixed point 1==2^12,
+			 * or in internal floating point format */
+	int td;		/* delayed tone detect, new in 1988 version */
 };
-
-
 
 static int qtab_721[7] = {-124, 80, 178, 246, 300, 349, 400};
 /*
@@ -124,10 +121,6 @@ static int _witab[16] = {-12, 18, 41, 64, 112, 198, 355, 1122,
 static int _fitab[16] = {0, 0, 0, 0x200, 0x200, 0x200, 0x600, 0xE00,
 				0xE00, 0x600, 0x200, 0x200, 0x200, 0, 0, 0};
 
-/* Deprecated
-static int power2[15] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80,
-			0x100, 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000};
-*/
 
 /*
  * g72x_init_state()
@@ -685,10 +678,6 @@ static int g726_encode(int sl, struct g726_state *state_ptr)
 }
 
 /*
- * ------------ Asterisk-codec hooks. -------------------
- */
-
-/*
  * Private workspace for translating signed linear signals to G726.
  * Don't bother to define two distinct structs.
  */
@@ -709,31 +698,35 @@ static int lintog726_new(struct ast_trans_pvt *pvt)
 	return 0;
 }
 
-/*! \brief decode packed 4-bit G726 values and store in buffer. */
-static int g726tolin_framein (struct ast_trans_pvt *pvt, struct ast_frame *f)
+/*! \brief decode packed 4-bit G726 values (AAL2 packing) and store in buffer. */
+static int g726aal2tolin_framein (struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct g726_coder_pvt *tmp = pvt->pvt;
 	unsigned char *src = f->data;
-	int16_t *dst = (int16_t *)pvt->outbuf + pvt->samples;
-	int i;
+	int16_t *dst = (int16_t *) pvt->outbuf + pvt->samples;
+	unsigned int i;
 
-	for ( i = 0 ; i < f->datalen ; i++ ) {
+	for (i = 0; i < f->datalen; i++) {
 		*dst++ = g726_decode((src[i] >> 4) & 0xf, &tmp->g726);
 		*dst++ = g726_decode(src[i] & 0x0f, &tmp->g726);
 	}
+
 	pvt->samples += f->samples;
 	pvt->datalen += 2 * f->samples; /* 2 bytes/sample */
+
 	return 0;
 }
 
-/*! \brief compress and store data (4-bit G726 samples) in outbuf */
-static int lintog726_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
+/*! \brief compress and store data (4-bit G726 samples, AAL2 packing) in outbuf */
+static int lintog726aal2_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct g726_coder_pvt *tmp = pvt->pvt;
 	int16_t *src = f->data;
-	int i;
-	for ( i = 0; i < f->samples; i++ ) {
+	unsigned int i;
+
+	for (i = 0; i < f->samples; i++) {
 		unsigned char d = g726_encode(src[i], &tmp->g726); /* this sample */
+
 		if (tmp->next_flag & 0x80) {	/* merge with leftover sample */
 			pvt->outbuf[pvt->datalen++] = ((tmp->next_flag & 0xf)<< 4) | d;
 			pvt->samples += 2;	/* 2 samples per byte */
@@ -742,37 +735,92 @@ static int lintog726_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 			tmp->next_flag = 0x80 | d;
 		}
 	}
+
 	return 0;
 }
 
-/*! \brief G726ToLin_Sample */
+/*! \brief decode packed 4-bit G726 values (RFC3551 packing) and store in buffer. */
+static int g726tolin_framein (struct ast_trans_pvt *pvt, struct ast_frame *f)
+{
+	struct g726_coder_pvt *tmp = pvt->pvt;
+	unsigned char *src = f->data;
+	int16_t *dst = (int16_t *) pvt->outbuf + pvt->samples;
+	unsigned int i;
+
+	for (i = 0; i < f->datalen; i++) {
+		*dst++ = g726_decode(src[i] & 0x0f, &tmp->g726);
+		*dst++ = g726_decode((src[i] >> 4) & 0xf, &tmp->g726);
+	}
+
+	pvt->samples += f->samples;
+	pvt->datalen += 2 * f->samples; /* 2 bytes/sample */
+
+	return 0;
+}
+
+/*! \brief compress and store data (4-bit G726 samples, RFC3551 packing) in outbuf */
+static int lintog726_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
+{
+	struct g726_coder_pvt *tmp = pvt->pvt;
+	int16_t *src = f->data;
+	unsigned int i;
+
+	for (i = 0; i < f->samples; i++) {
+		unsigned char d = g726_encode(src[i], &tmp->g726); /* this sample */
+
+		if (tmp->next_flag & 0x80) {	/* merge with leftover sample */
+			pvt->outbuf[pvt->datalen++] = (d << 4) | (tmp->next_flag & 0xf);
+			pvt->samples += 2;	/* 2 samples per byte */
+			tmp->next_flag = 0;
+		} else {
+			tmp->next_flag = 0x80 | d;
+		}
+	}
+
+	return 0;
+}
+
+/*! \brief convert G726-32 RFC3551 packed data into AAL2 packed data (or vice-versa) */
+static int g726tog726aal2_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
+{
+	unsigned char *src = f->data;
+	unsigned char *dst = (unsigned char *) pvt->outbuf + pvt->samples;
+	unsigned int i;
+
+	for (i = 0; i < f->datalen; i++)
+		*dst++ = ((src[i] & 0xf) << 4) | (src[i] >> 4);
+
+	pvt->samples += f->samples;
+	pvt->datalen += f->samples; /* 1 byte/sample */
+
+	return 0;
+}
+
 static struct ast_frame *g726tolin_sample(void)
 {
-	static struct ast_frame f;
-	f.frametype = AST_FRAME_VOICE;
-	f.subclass = AST_FORMAT_G726;
-	f.datalen = sizeof (g726_slin_ex);
-	f.samples = sizeof(g726_slin_ex) * 2;	/* 2 samples per byte */
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = __PRETTY_FUNCTION__;
-	f.data = g726_slin_ex;
+	static struct ast_frame f = {
+		.frametype = AST_FRAME_VOICE,
+		.subclass = AST_FORMAT_G726,
+		.datalen = sizeof(g726_slin_ex),
+		.samples = sizeof(g726_slin_ex) * 2,	/* 2 samples per byte */
+		.src = __PRETTY_FUNCTION__,
+		.data = g726_slin_ex,
+	};
+
 	return &f;
 }
 
-/*! \brief LinToG726_Sample */
 static struct ast_frame *lintog726_sample (void)
 {
-	static struct ast_frame f;
-	f.frametype = AST_FRAME_VOICE;
-	f.subclass = AST_FORMAT_SLINEAR;
-	f.datalen = sizeof (slin_g726_ex);
-	/* Assume 8000 Hz */
-	f.samples = sizeof (slin_g726_ex) / 2;	/* 1 sample per 2 bytes */
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = __PRETTY_FUNCTION__;
-	f.data = slin_g726_ex;
+	static struct ast_frame f = {
+		.frametype = AST_FRAME_VOICE,
+		.subclass = AST_FORMAT_SLINEAR,
+		.datalen = sizeof(slin_g726_ex),
+		.samples = sizeof(slin_g726_ex) / 2,	/* 1 sample per 2 bytes */
+		.src = __PRETTY_FUNCTION__,
+		.data = slin_g726_ex,
+	};
+
 	return &f;
 }
 
@@ -801,10 +849,56 @@ static struct ast_translator lintog726 = {
 	.buf_size = BUFFER_SAMPLES/2,
 };
 
+static struct ast_translator g726aal2tolin = {
+	.name = "g726aal2tolin",
+	.srcfmt = AST_FORMAT_G726_AAL2,
+	.dstfmt = AST_FORMAT_SLINEAR,
+	.newpvt = lintog726_new,	/* same for both directions */
+	.framein = g726aal2tolin_framein,
+	.sample = g726tolin_sample,
+	.desc_size = sizeof(struct g726_coder_pvt),
+	.buffer_samples = BUFFER_SAMPLES,
+	.buf_size = BUFFER_SAMPLES * 2,
+	.plc_samples = 160,
+};
+
+static struct ast_translator lintog726aal2 = {
+	.name = "lintog726aal2",
+	.srcfmt = AST_FORMAT_SLINEAR,
+	.dstfmt = AST_FORMAT_G726_AAL2,
+	.newpvt = lintog726_new,	/* same for both directions */
+	.framein = lintog726aal2_framein,
+	.sample = lintog726_sample,
+	.desc_size = sizeof(struct g726_coder_pvt),
+	.buffer_samples = BUFFER_SAMPLES,
+	.buf_size = BUFFER_SAMPLES / 2,
+};
+
+static struct ast_translator g726tog726aal2 = {
+	.name = "g726tog726aal2",
+	.srcfmt = AST_FORMAT_G726,
+	.dstfmt = AST_FORMAT_G726_AAL2,
+	.framein = g726tog726aal2_framein,	/* same for both directions */
+	.sample = lintog726_sample,
+	.buffer_samples = BUFFER_SAMPLES,
+	.buf_size = BUFFER_SAMPLES,
+};
+
+static struct ast_translator g726aal2tog726 = {
+	.name = "g726aal2tog726",
+	.srcfmt = AST_FORMAT_G726_AAL2,
+	.dstfmt = AST_FORMAT_G726,
+	.framein = g726tog726aal2_framein,	/* same for both directions */
+	.sample = lintog726_sample,
+	.buffer_samples = BUFFER_SAMPLES,
+	.buf_size = BUFFER_SAMPLES,
+};
+
 static void parse_config(void)
 {
 	struct ast_variable *var;
 	struct ast_config *cfg = ast_config_load("codecs.conf");
+
 	if (!cfg)
 		return;
 	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
@@ -818,31 +912,47 @@ static void parse_config(void)
 	ast_config_destroy(cfg);
 }
 
-/*! \brief standard module glue */
-
 static int reload(void *mod)
 {
 	parse_config();
+
 	return 0;
 }
 
 static int unload_module (void *mod)
 {
-	int res;
-	res = ast_unregister_translator (&lintog726);
-	res |= ast_unregister_translator (&g726tolin);
+	int res = 0;
+
+	res |= ast_unregister_translator(&g726tolin);
+	res |= ast_unregister_translator(&lintog726);
+
+	res |= ast_unregister_translator(&g726aal2tolin);
+	res |= ast_unregister_translator(&lintog726aal2);
+
+	res |= ast_unregister_translator(&g726aal2tog726);
+	res |= ast_unregister_translator(&g726tog726aal2);
+
 	return res;
 }
 
 static int load_module (void *mod)
 {
-	int res;
+	int res = 0;
+
 	parse_config();
-	res = ast_register_translator (&g726tolin, mod);
-	if (!res)
-		res = ast_register_translator (&lintog726, mod);
-	else
-		ast_unregister_translator (&g726tolin);
+
+	res |= ast_register_translator(&g726tolin, mod);
+	res |= ast_register_translator(&lintog726, mod);
+
+	res |= ast_register_translator(&g726aal2tolin, mod);
+	res |= ast_register_translator(&lintog726aal2, mod);
+
+	res |= ast_register_translator(&g726aal2tog726, mod);
+	res |= ast_register_translator(&g726tog726aal2, mod);
+
+	if (res)
+		unload_module(mod);
+
 	return res;
 }
 
@@ -855,4 +965,5 @@ static const char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
+
 STD_MOD(MOD_1, reload, NULL, NULL);

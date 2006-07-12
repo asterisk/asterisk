@@ -1182,6 +1182,7 @@ static struct {
 	{{1, AST_FORMAT_G729A}, "audio", "G729"},
 	{{1, AST_FORMAT_SPEEX}, "audio", "speex"},
 	{{1, AST_FORMAT_ILBC}, "audio", "iLBC"},
+	{{1, AST_FORMAT_G726_AAL2}, "audio", "AAL2-G726-32"},
 	{{0, AST_RTP_DTMF}, "audio", "telephone-event"},
 	{{0, AST_RTP_CISCO_DTMF}, "audio", "cisco-telephone-event"},
 	{{0, AST_RTP_CN}, "audio", "CN"},
@@ -1223,6 +1224,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
 	[101] = {0, AST_RTP_DTMF},
 	[110] = {1, AST_FORMAT_SPEEX},
 	[111] = {1, AST_FORMAT_G726},
+	[112] = {1, AST_FORMAT_G726_AAL2},
 	[121] = {0, AST_RTP_CISCO_DTMF}, /* Must be type 121 */
 };
 
@@ -2376,6 +2378,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		break;
 	case AST_FORMAT_ADPCM:
 	case AST_FORMAT_G726:
+	case AST_FORMAT_G726_AAL2:
 		if (!rtp->smoother) {
 			rtp->smoother = ast_smoother_new(80);
 		}

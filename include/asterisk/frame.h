@@ -214,7 +214,7 @@ extern struct ast_frame ast_null_frame;
 #define AST_FORMAT_ULAW		(1 << 2)
 /*! Raw A-law data (G.711) */
 #define AST_FORMAT_ALAW		(1 << 3)
-/*! ADPCM (G.726, 32kbps) */
+/*! ADPCM (G.726, 32kbps, RFC3551 codeword packing) */
 #define AST_FORMAT_G726		(1 << 4)
 /*! ADPCM (IMA) */
 #define AST_FORMAT_ADPCM	(1 << 5)
@@ -228,6 +228,8 @@ extern struct ast_frame ast_null_frame;
 #define AST_FORMAT_SPEEX	(1 << 9)
 /*! iLBC Free Compression */
 #define AST_FORMAT_ILBC		(1 << 10)
+/*! ADPCM (G.726, 32kbps, AAL2 codeword packing) */
+#define AST_FORMAT_G726_AAL2	(1 << 11)
 /*! Maximum audio format */
 #define AST_FORMAT_MAX_AUDIO	(1 << 15)
 /*! Maximum audio mask */

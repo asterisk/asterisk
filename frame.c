@@ -81,17 +81,18 @@ static struct ast_format_list {
 	char *name;	/*!< short name */
 	char *desc;	/*!< Description */
 } AST_FORMAT_LIST[] = {					/*!< Bit number: comment  - Bit numbers are hard coded in show_codec() */
-	{ 1, AST_FORMAT_G723_1 , "g723" , "G.723.1"},	/*!<  1: codec_g723_1.c */
+	{ 1, AST_FORMAT_G723_1 , "g723" , "G.723.1"},	/*!<  1 */
 	{ 1, AST_FORMAT_GSM, "gsm" , "GSM"},		/*!<  2: codec_gsm.c */
 	{ 1, AST_FORMAT_ULAW, "ulaw", "G.711 u-law" },	/*!<  3: codec_ulaw.c */
 	{ 1, AST_FORMAT_ALAW, "alaw", "G.711 A-law" },	/*!<  4: codec_alaw.c */
-	{ 1, AST_FORMAT_G726, "g726", "G.726" },	/*!<  5: codec_g726.c */
+	{ 1, AST_FORMAT_G726, "g726", "G.726 RFC3551" },/*!<  5: codec_g726.c */
 	{ 1, AST_FORMAT_ADPCM, "adpcm" , "ADPCM"},	/*!<  6: codec_adpcm.c */
 	{ 1, AST_FORMAT_SLINEAR, "slin",  "16 bit Signed Linear PCM"},	/*!< 7 */
 	{ 1, AST_FORMAT_LPC10, "lpc10", "LPC10" },	/*!<  8: codec_lpc10.c */
 	{ 1, AST_FORMAT_G729A, "g729", "G.729A" },	/*!<  9: Binary commercial distribution */
 	{ 1, AST_FORMAT_SPEEX, "speex", "SpeeX" },	/*!< 10: codec_speex.c */
 	{ 1, AST_FORMAT_ILBC, "ilbc", "iLBC"},		/*!< 11: codec_ilbc.c */
+	{ 1, AST_FORMAT_G726_AAL2, "g726aal2", "G.726 AAL2" },	/*!<  12: codec_g726.c */
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },
@@ -1255,6 +1256,7 @@ int ast_codec_get_samples(struct ast_frame *f)
 		break;
 	case AST_FORMAT_ADPCM:
 	case AST_FORMAT_G726:
+	case AST_FORMAT_G726_AAL2:
 		samples = f->datalen * 2;
 		break;
 	default:
@@ -1287,6 +1289,7 @@ int ast_codec_get_len(int format, int samples)
 		break;
 	case AST_FORMAT_ADPCM:
 	case AST_FORMAT_G726:
+	case AST_FORMAT_G726_AAL2:
 		len = samples / 2;
 		break;
 	default:

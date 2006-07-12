@@ -546,8 +546,10 @@ int ast_best_codec(int fmts)
 		AST_FORMAT_ALAW,
 		/*! Okay, well, signed linear is easy to translate into other stuff */
 		AST_FORMAT_SLINEAR,
-		/*! G.726 is standard ADPCM */
+		/*! G.726 is standard ADPCM, in RFC3551 packing order */
 		AST_FORMAT_G726,
+		/*! G.726 is standard ADPCM, in AAL2 packing order */
+		AST_FORMAT_G726_AAL2,
 		/*! ADPCM has great sound quality and is still pretty easy to translate */
 		AST_FORMAT_ADPCM,
 		/*! Okay, we're down to vocoders now, so pick GSM because it's small and easier to

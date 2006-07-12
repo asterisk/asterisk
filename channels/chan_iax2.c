@@ -182,16 +182,17 @@ int (*iax2_regfunk)(char *username, int onoff) = NULL;
 #define IAX_CAPABILITY_FULLBANDWIDTH 	0xFFFF
 /* T1, maybe ISDN */
 #define IAX_CAPABILITY_MEDBANDWIDTH 	(IAX_CAPABILITY_FULLBANDWIDTH & 	\
-							~AST_FORMAT_SLINEAR & 	\
-							~AST_FORMAT_ULAW & 	\
-							~AST_FORMAT_ALAW) 
+					 ~AST_FORMAT_SLINEAR &			\
+					 ~AST_FORMAT_ULAW &			\
+					 ~AST_FORMAT_ALAW) 
 /* A modem */
-#define IAX_CAPABILITY_LOWBANDWIDTH		(IAX_CAPABILITY_MEDBANDWIDTH & 	\
-							~AST_FORMAT_G726 & 	\
-							~AST_FORMAT_ADPCM)
+#define IAX_CAPABILITY_LOWBANDWIDTH	(IAX_CAPABILITY_MEDBANDWIDTH & 		\
+					 ~AST_FORMAT_G726 &			\
+					 ~AST_FORMAT_G726_AAL2 &		\
+					 ~AST_FORMAT_ADPCM)
 
 #define IAX_CAPABILITY_LOWFREE		(IAX_CAPABILITY_LOWBANDWIDTH & 		\
-							 ~AST_FORMAT_G723_1)
+					 ~AST_FORMAT_G723_1)
 
 
 #define DEFAULT_MAXMS		2000		/* Must be faster than 2 seconds by default */
