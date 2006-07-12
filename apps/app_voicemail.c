@@ -2617,7 +2617,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				} else if (ast_fileexists(tmptxtfile, NULL, NULL) <= 0) {
 					if (option_debug) 
 						ast_log(LOG_DEBUG, "The recorded media file is gone, so we should remove the .txt file too!\n");
-					unlink(tmptxtfile);	
+					unlink(tmptxtfile);
+					ast_unlock_path(dir);
 				} else {
 					for (;;) {
 						make_file(fn, sizeof(fn), dir, msgnum);
