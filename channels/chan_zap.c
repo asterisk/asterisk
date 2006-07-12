@@ -3372,9 +3372,6 @@ static int zt_ring_phone(struct zt_pvt *p)
 	do {
 		x = ZT_RING;
 		res = ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
-#if 0
-		printf("Res: %d, error: %s\n", res, strerror(errno));
-#endif						
 		if (res) {
 			switch (errno) {
 			case EBUSY:
@@ -5503,28 +5500,22 @@ static void *ss_thread(void *data)
 			return NULL;
 		}
 
-		if (p->sig == SIG_FGC_CAMA)
-		{
+		if (p->sig == SIG_FGC_CAMA) {
 			char anibuf[100];
 
-			if (ast_safe_sleep(chan,1000) == -1)
-			{
+			if (ast_safe_sleep(chan,1000) == -1) {
 	                        ast_hangup(chan);
 	                        return NULL;
 			}
                         zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
-                        ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MF | p->dtmfrela\
-x);
+                        ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MF | p->dtmfrelax);
                         res = my_getsigstr(chan, anibuf, "#", 10000);
-                        if ((res > 0) && (strlen(anibuf) > 2))
-                          {
-                            if (anibuf[strlen(anibuf) - 1] == '#')
-                              anibuf[strlen(anibuf) - 1] = 0;
-                          ast_set_callerid(chan, anibuf + 2, NULL, anibuf + 2);
-                          printf("@@@@@ set ani to %s\n",anibuf + 2);
-                          }
-                        ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfre\
-lax);
+                        if ((res > 0) && (strlen(anibuf) > 2)) {
+				if (anibuf[strlen(anibuf) - 1] == '#')
+					anibuf[strlen(anibuf) - 1] = 0;
+				ast_set_callerid(chan, anibuf + 2, NULL, anibuf + 2);
+			}
+                        ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
 		}
 
 		ast_copy_string(exten, dtmfbuf, sizeof(exten));
@@ -5584,7 +5575,6 @@ lax);
 				}
 				if (s1)	ast_copy_string(exten, s1, sizeof(exten));
 				else ast_copy_string(exten, "911", sizeof(exten));
-				printf("E911/FGC CAMA: exten: %s, ANI: %s\n",exten, chan->cid.cid_ani);
 			} else
 				ast_log(LOG_WARNING, "Got a non-E911/FGC CAMA input on channel %d.  Assuming E&M Wink instead\n", p->channel);
 		}
@@ -6478,9 +6468,6 @@ static int handle_init_event(struct zt_pvt *i, int event)
 					}
 				} else
 					ast_log(LOG_WARNING, "Unable to create channel\n");
-#if 0
-				printf("Created thread %ld detached in switch\n", threadid);
-#endif
 			}
 			break;
 		case SIG_FXSLS:
@@ -6514,9 +6501,6 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				} else if (!chan) {
 					ast_log(LOG_WARNING, "Cannot allocate new structure on channel %d\n", i->channel);
 				}
-#if 0
-				printf("Created thread %ld detached in switch(2)\n", threadid);
-#endif
 				break;
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle ring/answer with signalling %s on channel %d\n", sig2str(i->sig), i->channel);
@@ -6696,14 +6680,8 @@ static void *do_monitor(void *data)
 				if (!found && ((i == last) || ((i == iflist) && !last))) {
 					last = i;
 					if (last) {
-#if 0
-						printf("Checking channel %d\n", last->channel);
-#endif						
 						if (!last->cidspill && !last->owner && !ast_strlen_zero(last->mailbox) && (thispass - last->onhooktime > 3) &&
 							(last->sig & __ZT_SIG_FXO)) {
-#if 0
-							printf("Channel %d has mailbox %s\n", last->channel, last->mailbox);
-#endif							
 							res = ast_app_has_voicemail(last->mailbox, NULL);
 							if (last->msgstate != res) {
 								int x;
@@ -6718,9 +6696,6 @@ static void *do_monitor(void *data)
 									ioctl(last->subs[SUB_REAL].zfd, ZT_ONHOOKTRANSFER, &x);
 									last->cidlen = vmwi_generate(last->cidspill, res, 1, AST_LAW(last));
 									last->cidpos = 0;
-#if 0
-									printf("Made %d bytes of message waiting for %d\n", last->cidlen, res);
-#endif									
 									last->msgstate = res;
 									last->onhooktime = thispass;
 								}
@@ -6848,9 +6823,6 @@ static int restart_monitor(void)
 			return -1;
 		}
 	}
-#if 0
-	printf("Created thread %ld detached in restart monitor\n", monitor_thread);
-#endif
 	ast_mutex_unlock(&monlock);
 	return 0;
 }
@@ -7976,9 +7948,6 @@ static void *do_idle_thread(void *vchan)
 		ast_frfree(f);
 		ms = newms;
 	}
-#if 0
-	printf("Hanging up '%s'\n", chan->name);
-#endif
 	/* Hangup the channel since nothing happend */
 	ast_hangup(chan);
 	return NULL;
@@ -8250,12 +8219,6 @@ static void *pri_dchannel(void *vpri)
 				} else if (pri->pvts[x] && pri->pvts[x]->owner && pri->pvts[x]->isidlecall)
 					activeidles++;
 			}
-#if 0
-			printf("nextidle: %d, haveidles: %d, minunsed: %d\n",
-				nextidle, haveidles, minunused);
-			printf("nextidle: %d, haveidles: %d, ms: %ld, minunsed: %d\n",
-				nextidle, haveidles, ast_tvdiff_ms(ast_tvnow(), lastidle), minunused);
-#endif
 			if (nextidle > -1) {
 				if (ast_tvdiff_ms(ast_tvnow(), lastidle) > 1000) {
 					/* Don't create a new idle call more than once per second */
@@ -9893,7 +9856,7 @@ static int zap_show_status(int fd, int argc, char *argv[]) {
 
 	ctl = open("/dev/zap/ctl", O_RDWR);
 	if (ctl < 0) {
-		fprintf(stderr, "Unable to open /dev/zap/ctl: %s\n", strerror(errno));
+		ast_log(LOG_WARNING, "Unable to open /dev/zap/ctl: %s\n", strerror(errno));
 		ast_cli(fd, "No Zaptel interface found.\n");
 		return RESULT_FAILURE;
 	}

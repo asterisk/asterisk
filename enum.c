@@ -227,12 +227,6 @@ static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, unsigne
 	subst   = delim2 + 1;
 	regexp[regexp_len-1] = 0;
 
-#if 0
-	printf("Pattern: %s\n", pattern);
-	printf("Subst: %s\n", subst);
-       printf("Input: %s\n", naptrinput);
-#endif
-
 /*
  * now do the regex wizardry.
  */
@@ -327,9 +321,6 @@ struct enum_context {
 static int txt_callback(void *context, unsigned char *answer, int len, unsigned char *fullanswer)
 {
 	struct enum_context *c = (struct enum_context *)context;
-#if 0
-	printf("ENUMTXT Called\n");
-#endif
 
 	if (answer == NULL) {
 		c->txt = NULL;
@@ -378,7 +369,6 @@ static int enum_callback(void *context, unsigned char *answer, int len, unsigned
                        if ((p = ast_realloc(c->naptr_rrs, sizeof(*c->naptr_rrs) * (c->naptr_rrs_count + 1)))) {
                                c->naptr_rrs = p;
                                memcpy(&c->naptr_rrs[c->naptr_rrs_count].naptr, answer, sizeof(c->naptr_rrs->naptr));
-                               /* printf("order=%d, pref=%d\n", ntohs(c->naptr_rrs[c->naptr_rrs_count].naptr.order), ntohs(c->naptr_rrs[c->naptr_rrs_count].naptr.pref)); */
                                c->naptr_rrs[c->naptr_rrs_count].result = strdup(c->dst);
                                c->naptr_rrs[c->naptr_rrs_count].tech = strdup(c->tech);
                                c->naptr_rrs[c->naptr_rrs_count].sort_pos = c->naptr_rrs_count;

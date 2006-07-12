@@ -1376,10 +1376,8 @@ static void pbx_load_config(const char *config_file)
 
 		for (v = ast_variable_browse(cfg, cxt); v; v = v->next) {
 			if (!strcasecmp(v->name, "exten")) {
-				char *tc = strdup(v->value);
-				if (tc == NULL)
-					fprintf(stderr,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
-				else {
+				char *tc = ast_strdup(v->value);
+				if (tc) {
 					int ipri = -2;
 					char realext[256]="";
 					char *plus, *firstp, *firstc;
