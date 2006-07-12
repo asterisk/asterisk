@@ -1158,7 +1158,7 @@ enum AST_LOCK_RESULT ast_lock_path(const char *path)
 	snprintf(fs, strlen(path) + 19, "%s/.lock-%08x", path, rand());
 	fd = open(fs, O_WRONLY | O_CREAT | O_EXCL, 0600);
 	if (fd < 0) {
-		fprintf(stderr, "Unable to create lock file '%s': %s\n", path, strerror(errno));
+		ast_log(LOG_ERROR, "Unable to create lock file '%s': %s\n", path, strerror(errno));
 		return AST_LOCK_PATH_NOT_FOUND;
 	}
 	close(fd);
