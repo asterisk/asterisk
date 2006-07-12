@@ -2,7 +2,7 @@
 ; Static and realtime external configuration
 ; engine configuration
 ;
-; Please read doc/README.extconfig for basic table
+; Please read doc/extconfig.txt for basic table
 ; formatting information.
 ;
 [settings]
