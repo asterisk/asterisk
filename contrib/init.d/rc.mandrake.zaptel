@@ -17,7 +17,15 @@
 MODULES="usb-uhci zaptel wcfxo wcusb"
 ######################################
 
-[ -f /etc/sysconfig/`basename $0` ] && . /etc/sysconfig/`basename $0`
+# Resolve back to the basename (i.e. zaptel, not S90zaptel)
+if [ 0`readlink $0` = "0" ]; then
+	CONFIGFILE=/etc/sysconfig/`basename $0`
+else
+	CONFIG0=`readlink $0`
+	CONFIGFILE=/etc/sysconfig/`basename $CONFIG0`
+fi
+
+[ -f $CONFIGFILE ] && . $CONFIGFILE
 
 function probe() {
 	gprintf "                           $1"
