@@ -3150,7 +3150,7 @@ static int sip_hangup(struct ast_channel *ast)
 	struct sip_pvt *p = ast->tech_pvt;
 	int needcancel = FALSE;
 	struct ast_flags locflags = {0};
-	struct ast_channel oldowner = ast;
+	struct ast_channel *oldowner = ast;
 
 	if (!p) {
 		ast_log(LOG_DEBUG, "Asked to hangup channel that was not connected\n");
