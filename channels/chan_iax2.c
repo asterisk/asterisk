@@ -147,6 +147,7 @@ static char context[80] = "default";
 static char language[MAX_LANGUAGE] = "";
 static char regcontext[AST_MAX_CONTEXT] = "";
 
+static int maxauthreq = 0;
 static int max_retries = 4;
 static int ping_time = 20;
 static int lagrq_time = 10;
@@ -8432,6 +8433,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 	
 	if (user) {
 		memset(user, 0, sizeof(struct iax2_user));
+		user->maxauthreq = maxauthreq;
 		user->curauthreq = oldcurauthreq;
 		user->prefs = prefs;
 		user->capability = iax2_capability;
@@ -8868,6 +8870,10 @@ static int set_config(char *config_file, int reload)
 			}
 		} else if (!strcasecmp(v->name, "language")) {
                         ast_copy_string(language, v->value, sizeof(language));
+		} else if (!strcasecmp(v->name, "maxauthreq")) {
+			maxauthreq = atoi(v->value);
+			if (maxauthreq < 0)
+				maxauthreq = 0;
 		} /*else if (strcasecmp(v->name,"type")) */
 		/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 		v = v->next;
