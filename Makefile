@@ -123,14 +123,14 @@ GLOBAL_MAKEOPTS=$(wildcard /etc/asterisk.makeopts)
 USER_MAKEOPTS=$(wildcard ~/.asterisk.makeopts)
 
 ifneq ($(wildcard menuselect.makeopts),)
- ifeq ($(findstring clean,$(MAKECMDGOALS))$(findstring distclean,$(MAKECMDGOALS)),)
+ ifeq ($(foreach target,clean distclean update,$(findstring $(target),$(MAKECMDGOALS))),)
   include menuselect.makeopts
   include menuselect.makedeps
  endif
 endif
 
 ifneq ($(wildcard makeopts),)
- ifeq ($(findstring clean,$(MAKECMDGOALS))$(findstring distclean,$(MAKECMDGOALS)),)
+ ifeq ($(foreach target,clean distclean update,$(findstring $(target),$(MAKECMDGOALS))),)
   include makeopts
  endif
 endif
@@ -427,13 +427,13 @@ db1-ast/libdb1.a:
 	$(MAKE) -C db1-ast libdb1.a
 
 ifneq ($(wildcard .depend),)
- ifeq ($(findstring clean,$(MAKECMDGOALS))$(findstring distclean,$(MAKECMDGOALS)),)
+ ifeq ($(foreach target,clean distclean update,$(findstring $(target),$(MAKECMDGOALS))),)
   include .depend
  endif
 endif
 
 ifneq ($(wildcard .tags-depend),)
- ifeq ($(findstring clean,$(MAKECMDGOALS))$(findstring distclean,$(MAKECMDGOALS)),)
+ ifeq ($(foreach target,clean distclean update,$(findstring $(target),$(MAKECMDGOALS))),)
   include .tags-depend
  endif
 endif
