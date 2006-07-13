@@ -440,7 +440,8 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	unsigned int ssrc;
 	unsigned int timestamp;
 	unsigned int *rtpheader;
-	static struct ast_frame *f, null_frame = { AST_FRAME_NULL, };
+	struct ast_frame *f;
+	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	struct rtpPayloadType rtpPT;
 	
 	len = sizeof(sin);
