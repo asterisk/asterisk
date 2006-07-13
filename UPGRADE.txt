@@ -296,7 +296,11 @@ The G726-32 codec:
   be able to continue to use these devices with this version of Asterisk and the
   G726-32 codec, a configuration parameter called 'g726nonstandard' has been added
   to sip.conf, so that Asterisk can use the packing order expected by the device (even
-  though it requested a different order).
+  though it requested a different order). In addition, the internal format number for
+  G726-32 has been changed, and the old number is now assigned to AAL2-G726-32. The
+  result of this is that this version of Asterisk will be able to interoperate over
+  IAX2 with older versions of Asterisk, as long as this version is told to allow
+  'g726aal2' instead of 'g726' as the codec for the call.
 
 Installation:
 
