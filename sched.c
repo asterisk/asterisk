@@ -176,7 +176,7 @@ static void schedule(struct sched_context *con, struct sched *s)
 	struct sched *cur = NULL;
 	
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&con->schedq, cur, list) {
-		if (ast_tvcmp(s->when, cur->when) == 1) {
+		if (ast_tvcmp(s->when, cur->when) == -1) {
 			AST_LIST_INSERT_BEFORE_CURRENT(&con->schedq, s, list);
 			break;
 		}
@@ -339,7 +339,7 @@ int ast_sched_runq(struct sched_context *con)
 		 * close together.
 		 */
 		tv = ast_tvadd(ast_tvnow(), ast_tv(0, 1000));
-		if (ast_tvcmp(AST_LIST_FIRST(&con->schedq)->when, tv) != 1)
+		if (ast_tvcmp(AST_LIST_FIRST(&con->schedq)->when, tv) != -1)
 			break;
 		
 		current = AST_LIST_REMOVE_HEAD(&con->schedq, list);
