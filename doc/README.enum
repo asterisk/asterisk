@@ -239,7 +239,7 @@ ENUMLOOKUP function calls.
 ;  NAPTR(s). 
 ;
 exten => _011.,1,Set(enumresult=${ENUMLOOKUP(+${EXTEN:3})})
-exten => _011.,n,Dial(SIP/${enumlookup})
+exten => _011.,n,Dial(SIP/${enumresult})
 exten => _011.,n,Dial(Zap/g1/${EXTEN})
 ; 
 ; end example 1
