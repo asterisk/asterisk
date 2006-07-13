@@ -333,11 +333,11 @@ static int txt_callback(void *context, unsigned char *answer, int len, unsigned 
 	len -= 1;
 
 	/* answer is not null-terminated, but should be */
-       /* this is safe to do, as answer has extra bytes on the end we can
-           safely overwrite with a null */
+	/* this is safe to do, as answer has extra bytes on the end we can
+	 * safely overwrite with a null */
 	answer[len] = '\0';
 	/* now increment len so that len includes the null, so that we can
-	   compare apples to apples */
+	 * compare apples to apples */
 	len +=1;
 
 	/* finally, copy the answer into c->txt */
@@ -352,36 +352,36 @@ static int txt_callback(void *context, unsigned char *answer, int len, unsigned 
 /*! \brief Callback from ENUM lookup function */
 static int enum_callback(void *context, unsigned char *answer, int len, unsigned char *fullanswer)
 {
-       struct enum_context *c = context;
-       void *p = NULL;
-       int res;
+	struct enum_context *c = context;
+	void *p = NULL;
+	int res;
 
-       res = parse_naptr(c->dst, c->dstlen, c->tech, c->techlen, answer, len, c->naptrinput);
+	res = parse_naptr(c->dst, c->dstlen, c->tech, c->techlen, answer, len, c->naptrinput);
 
-       if (res < 0) {
+	if (res < 0) {
 		ast_log(LOG_WARNING, "Failed to parse naptr :(\n");
 		return -1;
-       } else if (res > 0 && !ast_strlen_zero(c->dst)){ /* ok, we got needed NAPTR */
-               if (c->options & ENUMLOOKUP_OPTIONS_COUNT){ /* counting RRs */
-                       c->position++;
-                       snprintf(c->dst, c->dstlen, "%d", c->position);
-               } else  {
-                       if ((p = ast_realloc(c->naptr_rrs, sizeof(*c->naptr_rrs) * (c->naptr_rrs_count + 1)))) {
-                               c->naptr_rrs = p;
-                               memcpy(&c->naptr_rrs[c->naptr_rrs_count].naptr, answer, sizeof(c->naptr_rrs->naptr));
-                               c->naptr_rrs[c->naptr_rrs_count].result = strdup(c->dst);
-                               c->naptr_rrs[c->naptr_rrs_count].tech = strdup(c->tech);
-                               c->naptr_rrs[c->naptr_rrs_count].sort_pos = c->naptr_rrs_count;
-                               c->naptr_rrs_count++;
-                       }
-                       c->dst[0] = 0;
-               }
-               return 0;
+	} else if (res > 0 && !ast_strlen_zero(c->dst)){ /* ok, we got needed NAPTR */
+		if (c->options & ENUMLOOKUP_OPTIONS_COUNT){ /* counting RRs */
+			c->position++;
+			snprintf(c->dst, c->dstlen, "%d", c->position);
+		} else  {
+			if ((p = ast_realloc(c->naptr_rrs, sizeof(*c->naptr_rrs) * (c->naptr_rrs_count + 1)))) {
+				c->naptr_rrs = p;
+				memcpy(&c->naptr_rrs[c->naptr_rrs_count].naptr, answer, sizeof(c->naptr_rrs->naptr));
+				c->naptr_rrs[c->naptr_rrs_count].result = strdup(c->dst);
+				c->naptr_rrs[c->naptr_rrs_count].tech = strdup(c->tech);
+				c->naptr_rrs[c->naptr_rrs_count].sort_pos = c->naptr_rrs_count;
+				c->naptr_rrs_count++;
+			}
+			c->dst[0] = 0;
+		}
+		return 0;
 	}
 
-       if (c->options & ENUMLOOKUP_OPTIONS_COUNT) 	{ /* counting RRs */
-               snprintf(c->dst, c->dstlen, "%d", c->position);
-       }
+	if (c->options & ENUMLOOKUP_OPTIONS_COUNT) 	{ /* counting RRs */
+		snprintf(c->dst, c->dstlen, "%d", c->position);
+	}
 
 	return 0;
 }
@@ -483,7 +483,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		if (ret > 0)
 			break;
 		if (suffix != NULL)
-                       break;
+			break;
 	}
 	if (ret < 0) {
 		ast_log(LOG_DEBUG, "No such number found: %s (%s)\n", tmp, strerror(errno));
@@ -493,8 +493,8 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 
 	if (context.naptr_rrs_count >= context.position && ! (context.options & ENUMLOOKUP_OPTIONS_COUNT)) {
 		/* sort array by NAPTR order/preference */
-		for (k=0; k<context.naptr_rrs_count; k++) {
-			for (i=0; i<context.naptr_rrs_count; i++) {
+		for (k = 0; k < context.naptr_rrs_count; k++) {
+			for (i = 0; i < context.naptr_rrs_count; i++) {
 				/* use order first and then preference to compare */
 				if ((ntohs(context.naptr_rrs[k].naptr.order) < ntohs(context.naptr_rrs[i].naptr.order)
 						&& context.naptr_rrs[k].sort_pos > context.naptr_rrs[i].sort_pos)
@@ -517,7 +517,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 				}
 			}
 		}
-		for (k=0; k<context.naptr_rrs_count; k++) {
+		for (k = 0; k < context.naptr_rrs_count; k++) {
 			if (context.naptr_rrs[k].sort_pos == context.position-1) {
 				ast_copy_string(context.dst, context.naptr_rrs[k].result, dstlen);
 				ast_copy_string(context.tech, context.naptr_rrs[k].tech, techlen);
@@ -530,7 +530,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	if (chan)
 		ret |= ast_autoservice_stop(chan);
 
-	for (k=0; k<context.naptr_rrs_count; k++) {
+	for (k = 0; k < context.naptr_rrs_count; k++) {
 		free(context.naptr_rrs[k].result);
 		free(context.naptr_rrs[k].tech);
 	}
