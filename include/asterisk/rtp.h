@@ -50,6 +50,10 @@ extern "C" {
 
 #define MAX_RTP_PT			256
 
+enum ast_rtp_options {
+	AST_RTP_OPT_G726_NONSTANDARD = (1 << 0),
+};
+
 struct ast_rtp_protocol {
 	/*! Get RTP struct, or NULL if unwilling to transfer */
 	struct ast_rtp *(* const get_rtp_info)(struct ast_channel *chan);
@@ -141,7 +145,8 @@ void ast_rtp_pt_copy(struct ast_rtp *dest, const struct ast_rtp *src);
 
 void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt);
 void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
-			 char* mimeType, char* mimeSubtype);
+			     char *mimeType, char *mimeSubtype,
+			     enum ast_rtp_options options);
 
 /*! \brief  Mapping between RTP payload format codes and Asterisk codes: */
 struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt);
@@ -151,10 +156,12 @@ void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 			     int* astFormats, int* nonAstFormats);
 
 /*! \brief  Mapping an Asterisk code into a MIME subtype (string): */
-char* ast_rtp_lookup_mime_subtype(int isAstFormat, int code);
+const char *ast_rtp_lookup_mime_subtype(int isAstFormat, int code,
+					enum ast_rtp_options options);
 
 /*! \brief Build a string of MIME subtype names from a capability list */
-char *ast_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int isAstFormat);
+char *ast_rtp_lookup_mime_multiple(char *buf, size_t size, const int capability,
+				   const int isAstFormat, enum ast_rtp_options options);
 
 void ast_rtp_setnat(struct ast_rtp *rtp, int nat);
 

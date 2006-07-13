@@ -1439,19 +1439,25 @@ void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt)
 } 
 
 /*! \brief Make a note of a RTP payload type (with MIME type) that was seen in
- 	a SDP "a=rtpmap:" line. */
-void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
-			 char* mimeType, char* mimeSubtype) 
+ * an SDP "a=rtpmap:" line.
+ */
+void ast_rtp_set_rtpmap_type(struct ast_rtp *rtp, int pt,
+			     char *mimeType, char *mimeSubtype,
+			     enum ast_rtp_options options)
 {
-	int i;
+	unsigned int i;
 
 	if (pt < 0 || pt > MAX_RTP_PT) 
 		return; /* bogus payload type */
 
-	for (i = 0; i < sizeof mimeTypes/sizeof mimeTypes[0]; ++i) {
+	for (i = 0; i < sizeof(mimeTypes)/sizeof(mimeTypes[0]); ++i) {
 		if (strcasecmp(mimeSubtype, mimeTypes[i].subtype) == 0 &&
-		     strcasecmp(mimeType, mimeTypes[i].type) == 0) {
+		    strcasecmp(mimeType, mimeTypes[i].type) == 0) {
 			rtp->current_RTP_PT[pt] = mimeTypes[i].payloadType;
+			if ((mimeTypes[i].payloadType.code == AST_FORMAT_G726) &&
+			    mimeTypes[i].payloadType.isAstFormat &&
+			    (options & AST_RTP_OPT_G726_NONSTANDARD))
+				rtp->current_RTP_PT[pt].code = AST_FORMAT_G726_AAL2;
 			return;
 		}
 	}
@@ -1524,19 +1530,27 @@ int ast_rtp_lookup_code(struct ast_rtp* rtp, const int isAstFormat, const int co
 	return -1;
 }
 
-char* ast_rtp_lookup_mime_subtype(const int isAstFormat, const int code) 
+const char *ast_rtp_lookup_mime_subtype(const int isAstFormat, const int code,
+				  enum ast_rtp_options options)
 {
+	unsigned int i;
 
-	int i;
-
-	for (i = 0; i < sizeof mimeTypes/sizeof mimeTypes[0]; ++i) {
-		if (mimeTypes[i].payloadType.code == code && mimeTypes[i].payloadType.isAstFormat == isAstFormat)
-			return mimeTypes[i].subtype;
+	for (i = 0; i < sizeof(mimeTypes)/sizeof(mimeTypes[0]); ++i) {
+		if ((mimeTypes[i].payloadType.code == code) && (mimeTypes[i].payloadType.isAstFormat == isAstFormat)) {
+			if (isAstFormat &&
+			    (code == AST_FORMAT_G726_AAL2) &&
+			    (options & AST_RTP_OPT_G726_NONSTANDARD))
+				return "AAL2-G726-32";
+			else
+				return mimeTypes[i].subtype;
+		}
 	}
+
 	return "";
 }
 
-char *ast_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int isAstFormat)
+char *ast_rtp_lookup_mime_multiple(char *buf, size_t size, const int capability,
+				   const int isAstFormat, enum ast_rtp_options options)
 {
 	int format;
 	unsigned len;
@@ -1555,7 +1569,8 @@ char *ast_rtp_lookup_mime_multiple(char *buf, int size, const int capability, co
 
 	for (format = 1; format < AST_RTP_MAX; format <<= 1) {
 		if (capability & format) {
-			const char *name = ast_rtp_lookup_mime_subtype(isAstFormat, format);
+			const char *name = ast_rtp_lookup_mime_subtype(isAstFormat, format, options);
+
 			snprintf(end, size, "%s|", name);
 			len = strlen(end);
 			end += len;

@@ -882,7 +882,7 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 		while (codec) {
 			ast_rtp_set_m_type(p->rtp, atoi(iks_find_attrib(codec, "id")));
 			ast_rtp_set_rtpmap_type(p->rtp, atoi(iks_find_attrib(codec, "id")), "audio",
-									iks_find_attrib(codec, "name"));
+						iks_find_attrib(codec, "name"), 0);
 			codec = iks_next(codec);
 		}
 		

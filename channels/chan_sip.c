@@ -4719,9 +4719,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_verbose("Found description format %s for ID %d\n", mimeSubtype, codec);
 
 		/* Note: should really look at the 'freq' and '#chans' params too */
-		ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype);
+		ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype, 0);
 		if (p->vrtp)
-			ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype);
+			ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype, 0);
 	}
 	
 	if (udptlportno != -1) {
@@ -4855,15 +4855,15 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		char s1[BUFSIZ], s2[BUFSIZ], s3[BUFSIZ], s4[BUFSIZ];
 
 		ast_verbose("Capabilities: us - %s, peer - audio=%s/video=%s, combined - %s\n",
-			ast_getformatname_multiple(s1, BUFSIZ, p->capability),
-			ast_getformatname_multiple(s2, BUFSIZ, newpeercapability),
-			ast_getformatname_multiple(s3, BUFSIZ, vpeercapability),
-			ast_getformatname_multiple(s4, BUFSIZ, newjointcapability));
+			    ast_getformatname_multiple(s1, BUFSIZ, p->capability),
+			    ast_getformatname_multiple(s2, BUFSIZ, newpeercapability),
+			    ast_getformatname_multiple(s3, BUFSIZ, vpeercapability),
+			    ast_getformatname_multiple(s4, BUFSIZ, newjointcapability));
 
 		ast_verbose("Non-codec capabilities (dtmf): us - %s, peer - %s, combined - %s\n",
-			ast_rtp_lookup_mime_multiple(s1, BUFSIZ, noncodeccapability, 0),
-			ast_rtp_lookup_mime_multiple(s2, BUFSIZ, peernoncodeccapability, 0),
-			ast_rtp_lookup_mime_multiple(s3, BUFSIZ, newnoncodeccapability, 0));
+			    ast_rtp_lookup_mime_multiple(s1, BUFSIZ, noncodeccapability, 0, 0),
+			    ast_rtp_lookup_mime_multiple(s2, BUFSIZ, peernoncodeccapability, 0, 0),
+			    ast_rtp_lookup_mime_multiple(s3, BUFSIZ, newnoncodeccapability, 0, 0));
 	}
 	if (!newjointcapability) {
 		ast_log(LOG_NOTICE, "No compatible codecs, not accepting this offer!\n");
@@ -5571,7 +5571,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 
 	ast_build_string(m_buf, m_size, " %d", rtp_code);
 	ast_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
-			 ast_rtp_lookup_mime_subtype(1, codec),
+			 ast_rtp_lookup_mime_subtype(1, codec, 0),
 			 sample_rate);
 	if (codec == AST_FORMAT_G729A) {
 		/* Indicate that we don't support VAD (G.729 annex B) */
@@ -5727,13 +5727,13 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_
 	int rtp_code;
 
 	if (debug)
-		ast_verbose("Adding non-codec 0x%x (%s) to SDP\n", format, ast_rtp_lookup_mime_subtype(0, format));
+		ast_verbose("Adding non-codec 0x%x (%s) to SDP\n", format, ast_rtp_lookup_mime_subtype(0, format, 0));
 	if ((rtp_code = ast_rtp_lookup_code(p->rtp, 0, format)) == -1)
 		return;
 
 	ast_build_string(m_buf, m_size, " %d", rtp_code);
 	ast_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
-			 ast_rtp_lookup_mime_subtype(0, format),
+			 ast_rtp_lookup_mime_subtype(0, format, 0),
 			 sample_rate);
 	if (format == AST_RTP_DTMF)
 		/* Indicate we support DTMF and FLASH... */

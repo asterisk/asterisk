@@ -1882,7 +1882,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 		if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2)
 			continue;
 		/* Note: should really look at the 'freq' and '#chans' params too */
-		ast_rtp_set_rtpmap_type(sub->rtp, codec, "audio", mimeSubtype);
+		ast_rtp_set_rtpmap_type(sub->rtp, codec, "audio", mimeSubtype, 0);
 	}
 
 	/* Now gather all of the codecs that were asked for: */
@@ -2081,7 +2081,7 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
 				strncat(m, costr, sizeof(m) - strlen(m) - 1);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x));
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x, 0));
 				strncat(a, costr, sizeof(a) - strlen(a) - 1);
 			}
 		}
@@ -2095,7 +2095,7 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
 				strncat(m, costr, sizeof(m) - strlen(m) - 1);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(0, x));
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(0, x, 0));
 				strncat(a, costr, sizeof(a) - strlen(a) - 1);
 				if (x == AST_RTP_DTMF) {
 					/* Indicate we support DTMF...  Not sure about 16,
@@ -2140,7 +2140,7 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp 
 	snprintf(local, sizeof(local), "p:20");
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (p->capability & x) {
-			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x));
+			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x, 0));
 			strncat(local, tmp, sizeof(local) - strlen(local) - 1);
 		}
 	}
@@ -2170,7 +2170,7 @@ static int transmit_connect_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp
 	snprintf(local, sizeof(local), "p:20");
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (p->capability & x) {
-			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x));
+			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x, 0));
 			strncat(local, tmp, sizeof(local) - strlen(local) - 1);
 		}
 	}
