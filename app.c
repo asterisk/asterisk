@@ -931,11 +931,13 @@ enum AST_LOCK_RESULT ast_lock_path(const char *path)
 	start = time(NULL);
 	while (((res = link(fs, s)) < 0) && (errno == EEXIST) && (time(NULL) - start < 5))
 		usleep(1);
+
+	unlink(fs);
+
 	if (res) {
 		ast_log(LOG_WARNING, "Failed to lock path '%s': %s\n", path, strerror(errno));
 		return AST_LOCK_TIMEOUT;
 	} else {
-		unlink(fs);
 		ast_log(LOG_DEBUG, "Locked path '%s'\n", path);
 		return AST_LOCK_SUCCESS;
 	}
@@ -944,11 +946,21 @@ enum AST_LOCK_RESULT ast_lock_path(const char *path)
 int ast_unlock_path(const char *path)
 {
 	char *s;
-	if (!(s = alloca(strlen(path) + 10)))
+	int res;
+
+	if (!(s = alloca(strlen(path) + 10))) {
+		ast_log(LOG_WARNING, "Out of memory!\n");
 		return -1;
+	}
+
 	snprintf(s, strlen(path) + 9, "%s/%s", path, ".lock");
-	ast_log(LOG_DEBUG, "Unlocked path '%s'\n", path);
-	return unlink(s);
+
+	if ((res = unlink(s)))
+		ast_log(LOG_ERROR, "Could not unlock path '%s': %s\n", path, strerror(errno));
+	else
+		ast_log(LOG_DEBUG, "Unlocked path '%s'\n", path);
+
+	return res;
 }
 
 int ast_record_review(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path) 
