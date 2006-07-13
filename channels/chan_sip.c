@@ -705,10 +705,11 @@ struct sip_auth {
 #define SIP_CALL_LIMIT		(1 << 28)	/*!< Call limit enforced for this call */
 #define SIP_SENDRPID		(1 << 29)	/*!< Remote Party-ID Support */
 #define SIP_INC_COUNT		(1 << 30)	/*!< Did this connection increment the counter of in-use calls? */
+#define SIP_G726_NONSTANDARD	(1 << 31)	/*!< Use non-standard packing for G726-32 data */
 
 #define SIP_FLAGS_TO_COPY \
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
-	 SIP_PROG_INBAND | SIP_USECLIENTCODE | SIP_NAT | \
+	 SIP_PROG_INBAND | SIP_USECLIENTCODE | SIP_NAT | SIP_G726_NONSTANDARD | \
 	 SIP_USEREQPHONE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE)
 
 /* a new page of flags */
@@ -778,7 +779,7 @@ static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_
 #define sipdebug_config		ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONFIG)
 #define sipdebug_console	ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE)
 
-/*! \brief T38 Sates for a call */
+/*! \brief T38 States for a call */
 enum t38state {
 	T38_DISABLED = 0,		/*! Not enabled */
 	T38_LOCAL_DIRECT,		/*! Offered from local */
@@ -4719,7 +4720,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_verbose("Found description format %s for ID %d\n", mimeSubtype, codec);
 
 		/* Note: should really look at the 'freq' and '#chans' params too */
-		ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype, 0);
+		ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
+					ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0);
 		if (p->vrtp)
 			ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype, 0);
 	}
@@ -5571,7 +5573,8 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 
 	ast_build_string(m_buf, m_size, " %d", rtp_code);
 	ast_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
-			 ast_rtp_lookup_mime_subtype(1, codec, 0),
+			 ast_rtp_lookup_mime_subtype(1, codec,
+						     ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0),
 			 sample_rate);
 	if (codec == AST_FORMAT_G729A) {
 		/* Indicate that we don't support VAD (G.729 annex B) */
@@ -5583,7 +5586,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 	}
 }
 
-/*! \brief Get Max T.38 Transmision rate from T38 capabilities */
+/*! \brief Get Max T.38 Transmission rate from T38 capabilities */
 static int t38_get_rate(int t38cap)
 {
 	int maxrate = (t38cap & (T38FAX_RATE_14400 | T38FAX_RATE_12000 | T38FAX_RATE_9600 | T38FAX_RATE_7200 | T38FAX_RATE_4800 | T38FAX_RATE_2400));
@@ -14715,6 +14718,10 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "sendrpid")) {
 		ast_set_flag(&mask[0], SIP_SENDRPID);
 		ast_set2_flag(&flags[0], ast_true(v->value), SIP_SENDRPID);
+		res = 1;
+	} else if (!strcasecmp(v->name, "g726nonstandard")) {
+		ast_set_flag(&mask[0], SIP_G726_NONSTANDARD);
+		ast_set2_flag(&flags[0], ast_true(v->value), SIP_G726_NONSTANDARD);
 		res = 1;
 	} else if (!strcasecmp(v->name, "useclientcode")) {
 		ast_set_flag(&mask[0], SIP_USECLIENTCODE);

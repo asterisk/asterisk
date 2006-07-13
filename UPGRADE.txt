@@ -285,6 +285,19 @@ The Zap channel:
 * Support for MFC/R2 has been removed, as it has not been functional for some
   time and it has no maintainer.
 
+The G726-32 codec:
+
+* It has been determined that previous versions of Asterisk used the wrong codeword
+  packing order for G726-32 data. This version supports both available packing orders,
+  and can transcode between them. It also now selects the proper order when
+  negotiating with a SIP peer based on the codec name supplied in the SDP. However,
+  there are existing devices that improperly request one order and then use another;
+  Sipura and Grandstream ATAs are known to do this, and there may be others. To
+  be able to continue to use these devices with this version of Asterisk and the
+  G726-32 codec, a configuration parameter called 'g726nonstandard' has been added
+  to sip.conf, so that Asterisk can use the packing order expected by the device (even
+  though it requested a different order).
+
 Installation:
 
 * On BSD systems, the installation directories have changed to more "FreeBSDish"
