@@ -2190,7 +2190,7 @@ static int update_queue(struct call_queue *q, struct member *member)
 
 static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct callattempt *tmp)
 {
-	if (mem->penalty > qe->max_penalty)
+	if (qe->max_penalty && (mem->penalty > qe->max_penalty))
 		return -1;
 
 	switch (q->strategy) {
