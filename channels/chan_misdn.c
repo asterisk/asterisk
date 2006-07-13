@@ -2296,7 +2296,8 @@ static int misdn_hangup(struct ast_channel *ast)
 			hanguptone_indicate(p);
 		
 			if (bc->nt) {
-				misdn_lib_send_event( bc, EVENT_DISCONNECT);
+				if (bc->need_disconnect)
+					misdn_lib_send_event( bc, EVENT_DISCONNECT);
 			} else {
 				misdn_lib_send_event( bc, EVENT_RELEASE_COMPLETE);
 				p->state=MISDN_CLEANING;
@@ -2307,7 +2308,8 @@ static int misdn_hangup(struct ast_channel *ast)
 			start_bc_tones(p);
 			hanguptone_indicate(p);
 		
-			misdn_lib_send_event( bc, EVENT_DISCONNECT);
+			if (bc->need_disconnect)
+				misdn_lib_send_event( bc, EVENT_DISCONNECT);
 			break;
       
 		case MISDN_ALERTING:
@@ -2317,7 +2319,8 @@ static int misdn_hangup(struct ast_channel *ast)
 				hanguptone_indicate(p);
       
 			/*p->state=MISDN_CLEANING;*/
-			misdn_lib_send_event( bc, EVENT_DISCONNECT);
+			if (bc->need_disconnect)
+				misdn_lib_send_event( bc, EVENT_DISCONNECT);
 			break;
 		case MISDN_CONNECTED:
 			/*  Alerting or Disconect */
@@ -2326,7 +2329,8 @@ static int misdn_hangup(struct ast_channel *ast)
 				hanguptone_indicate(p);
 				p->bc->progress_indicator=8;
 			}
-			misdn_lib_send_event( bc, EVENT_DISCONNECT);
+			if (bc->need_disconnect)
+				misdn_lib_send_event( bc, EVENT_DISCONNECT);
 
 			/*p->state=MISDN_CLEANING;*/
 			break;
@@ -2358,7 +2362,8 @@ static int misdn_hangup(struct ast_channel *ast)
 				misdn_lib_send_event(bc, EVENT_RELEASE);
 				p->state=MISDN_CLEANING; 
 			} else {
-				misdn_lib_send_event(bc, EVENT_DISCONNECT);
+				if (bc->need_disconnect)
+					misdn_lib_send_event(bc, EVENT_DISCONNECT);
 			}
 		}
 
@@ -2674,6 +2679,16 @@ static int dialtone_indicate(struct chan_list *cl)
 {
 	const struct tone_zone_sound *ts= NULL;
 	struct ast_channel *ast=cl->ast;
+
+
+	int nd=0;
+	misdn_cfg_get( cl->bc->port, MISDN_CFG_NODIALTONE, &nd, sizeof(nd));
+
+	if (nd) {
+		chan_misdn_log(1,cl->bc->port,"Not sending Dialtone, because config wants it\n");
+		return 0;
+	}
+	
 	chan_misdn_log(3,cl->bc->port," --> Dial\n");
 	ts=ast_get_indication_tone(ast->zone,"dial");
 	cl->ts=ts;	
@@ -2692,7 +2707,6 @@ static int dialtone_indicate(struct chan_list *cl)
 static int hanguptone_indicate(struct chan_list *cl)
 {
 	misdn_lib_send_tone(cl->bc,TONE_HANGUP);
-	misdn_lib_tone_generator_start(cl->bc);
 	return 0;
 }
 
@@ -3707,12 +3721,38 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->ast->rings=1;
 		ast_setstate(ch->ast, AST_STATE_RINGING);
 
-		if ( bc->pres ) {
-			chan->cid.cid_pres=AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
-		}  else {
-			chan->cid.cid_pres=AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
+		int pres,screen;
+
+		switch (bc->pres) {
+			case 1:
+			pres=AST_PRES_RESTRICTED; chan_misdn_log(2,bc->port," --> PRES: Restricted (1)\n");
+			break;
+			case 2:
+			pres=AST_PRES_UNAVAILABLE; chan_misdn_log(2,bc->port," --> PRES: Restricted (2)\n");
+			break;
+			default:
+			pres=AST_PRES_ALLOWED; chan_misdn_log(2,bc->port," --> PRES: Restricted (%d)\n", bc->pres);
 		}
-      
+
+		switch (bc->screen) {
+			case 0:
+			screen=AST_PRES_USER_NUMBER_UNSCREENED;  chan_misdn_log(2,bc->port," --> SCREEN: Unscreened (0)\n");
+			break;
+			case 1:
+			screen=AST_PRES_USER_NUMBER_PASSED_SCREEN; chan_misdn_log(2,bc->port," --> SCREEN: Passed screen (1)\n");
+			break;
+			case 2:
+			screen=AST_PRES_USER_NUMBER_FAILED_SCREEN; chan_misdn_log(2,bc->port," --> SCREEN: failed screen (2)\n");
+			break;
+			case 3:
+			screen=AST_PRES_NETWORK_NUMBER; chan_misdn_log(2,bc->port," --> SCREEN: Network Number (3)\n");
+			break;
+			default:
+			screen=AST_PRES_USER_NUMBER_UNSCREENED; chan_misdn_log(2,bc->port," --> SCREEN: Unscreened (%d)\n",bc->screen);
+		}
+
+		chan->cid.cid_pres=pres+screen;
+
 		pbx_builtin_setvar_helper(chan, "TRANSFERCAPABILITY", ast_transfercapability2str(bc->capability));
 		chan->transfercapability=bc->capability;
 		

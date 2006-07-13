@@ -44,6 +44,7 @@ enum misdn_cfg_elements {
 	MISDN_CFG_PRES,                /* int */
 	MISDN_CFG_SCREEN,              /* int */
 	MISDN_CFG_ALWAYS_IMMEDIATE,    /* int (bool) */
+	MISDN_CFG_NODIALTONE,    /* int (bool) */
 	MISDN_CFG_IMMEDIATE,           /* int (bool) */
 	MISDN_CFG_SENDDTMF,           /* int (bool) */
 	MISDN_CFG_HOLD_ALLOWED,        /* int (bool) */

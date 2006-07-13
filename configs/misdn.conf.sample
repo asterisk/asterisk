@@ -272,6 +272,15 @@ incoming_early_audio=no
 ;
 ;always_immediate=no
 
+;
+; set this to yes if you want to generate your own dialtone 
+; with always_immediate=yes, else chan_misdn generates the dialtone
+;
+; default value: no
+;
+nodialtone=no
+
+
 ; uncomment the following if you want callers which called exactly the 
 ; base number (so no extension is set) jump to the s extension.
 ; if the user dials something more it jumps to the correct extension 

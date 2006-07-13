@@ -210,6 +210,10 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\tThere you can use DigitTimeout if you can't or don't want to use\n"
 		"\tisdn overlap dial.\n"
 		"\tNOTE: This will jump into the s extension for every exten!" },
+	{ "nodialtone", MISDN_CFG_NODIALTONE, MISDN_CTYPE_BOOL, "no", NONE,
+		"Enable this to prevent chan_misdn to generate the dialtone\n"
+		"\tThis makes only sense together with the always_immediate=yes option\n"
+		"\tto generate your own dialtone with Playtones or so.\n"},
 	{ "immediate", MISDN_CFG_IMMEDIATE, MISDN_CTYPE_BOOL, "no", NONE,
 		"Enable this if you want callers which called exactly the base\n"
 		"\tnumber (so no extension is set) to jump into the s extension.\n"

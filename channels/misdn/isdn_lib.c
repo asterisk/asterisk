@@ -3195,6 +3195,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 			cb_log(-1,bc->port," --> we have already send Release\n");
 			return -1;
 		}
+		bc->need_disconnect=0;
 		bc->need_release=0;
 		break;
 	case EVENT_RELEASE_COMPLETE:
@@ -3202,6 +3203,8 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 			cb_log(-1,bc->port," --> we have already send Release_complete\n");
 			return -1;
 		}
+		bc->need_disconnect=0;
+		bc->need_release=0;
 		bc->need_release_complete=0;
 		break;
     
