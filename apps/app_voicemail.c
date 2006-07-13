@@ -3668,6 +3668,11 @@ static int play_message_category(struct ast_channel *chan, char *category)
 	if (!ast_strlen_zero(category))
 		res = ast_play_and_wait(chan, category);
 
+	if (res) {
+		ast_log(LOG_WARNING, "No sound file for category '%s' was found.\n", category);
+		res = 0;
+	}
+
 	return res;
 }
 
