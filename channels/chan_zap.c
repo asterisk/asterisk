@@ -10139,6 +10139,7 @@ static int __unload_module(void)
 	ast_manager_unregister( "ZapDNDoff" );
 	ast_manager_unregister( "ZapDNDon" );
 	ast_manager_unregister("ZapShowChannels");
+	ast_manager_unregister("ZapRestart");
 	ast_channel_unregister(&zap_tech);
 	ast_mutex_lock(&iflock);
 	/* Hangup all interfaces if they have an owner */
