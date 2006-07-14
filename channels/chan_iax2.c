@@ -218,6 +218,7 @@ static int test_jitpct = 0;
 
 static char accountcode[AST_MAX_ACCOUNT_CODE];
 static int amaflags = 0;
+static int adsi = 0;
 static int delayreject = 0;
 static int iax2_encryption = 0;
 
@@ -285,6 +286,7 @@ struct iax2_user {
 	char inkeys[80];				/*!< Key(s) this user can use to authenticate to us */
 	char language[MAX_LANGUAGE];
 	int amaflags;
+	int adsi;
 	unsigned int flags;
 	int capability;
 	int maxauthreq; /*!< Maximum allowed outstanding AUTHREQs */
@@ -314,6 +316,7 @@ struct iax2_peer {
 	int formats;
 	int sockfd;					/*!< Socket to use for transmission */
 	struct in_addr mask;
+	int adsi;
 	unsigned int flags;
 
 	/* Dynamic Registration fields */
@@ -557,6 +560,7 @@ struct chan_iax2_pvt {
 	struct iax2_peer *peerpoke;
 	/*! IAX_ flags */
 	unsigned int flags;
+	int adsi;
 
 	/*! Transferring status */
 	enum iax_transfer_state transferring;
@@ -2565,6 +2569,7 @@ struct create_addr_info {
 	int encmethods;
 	int found;
 	int sockfd;
+	int adsi;
 	char username[80];
 	char secret[80];
 	char outkey[80];
@@ -2622,6 +2627,7 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 	cai->capability = peer->capability;
 	cai->encmethods = peer->encmethods;
 	cai->sockfd = peer->sockfd;
+	cai->adsi = peer->adsi;
 	ast_codec_pref_convert(&peer->prefs, cai->prefs, sizeof(cai->prefs), 1);
 	ast_copy_string(cai->context, peer->context, sizeof(cai->context));
 	ast_copy_string(cai->peercontext, peer->peercontext, sizeof(cai->peercontext));
@@ -2873,6 +2879,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		ast_copy_string(iaxs[callno]->username, pds.username, sizeof(iaxs[callno]->username));
 
 	iaxs[callno]->encmethods = cai.encmethods;
+
+	iaxs[callno]->adsi = cai.adsi;
 
 	if (pds.key)
 		ast_copy_string(iaxs[callno]->outkey, pds.key, sizeof(iaxs[callno]->outkey));
@@ -3245,7 +3253,10 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		tmp->amaflags = i->amaflags;
 	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
-	tmp->adsicpe = i->peeradsicpe;
+	if (i->adsi)
+		tmp->adsicpe = i->peeradsicpe;
+	else
+		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 	i->owner = tmp;
 	i->capability = capability;
 	ast_setstate(tmp, state);
@@ -4675,6 +4686,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		ast_copy_string(iaxs[callno]->inkeys, user->inkeys, sizeof(iaxs[callno]->inkeys));
 		/* And the permitted authentication methods */
 		iaxs[callno]->authmethods = user->authmethods;
+		iaxs[callno]->adsi = user->adsi;
 		/* If they have callerid, override the given caller id.  Always store the ANI */
 		if (!ast_strlen_zero(iaxs[callno]->cid_num) || !ast_strlen_zero(iaxs[callno]->cid_name)) {
 			if (ast_test_flag(user, IAX_HASCALLERID)) {
@@ -8213,6 +8225,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 	if (peer) {
 		ast_copy_flags(peer, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
 		peer->encmethods = iax2_encryption;
+		peer->adsi = adsi;
 		peer->secret[0] = '\0';
 		if (!found) {
 			ast_copy_string(peer->name, name, sizeof(peer->name));
@@ -8350,6 +8363,8 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 				} else ast_log(LOG_WARNING, "Set peer->pokefreqnotok to %d\n", peer->pokefreqnotok);
 			} else if (!strcasecmp(v->name, "timezone")) {
 				ast_copy_string(peer->zonetag, v->value, sizeof(peer->zonetag));
+			} else if (!strcasecmp(v->name, "adsi")) {
+				peer->adsi = ast_true(v->value);
 			}/* else if (strcasecmp(v->name,"type")) */
 			/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 			v=v->next;
@@ -8409,6 +8424,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 		user->prefs = prefs;
 		user->capability = iax2_capability;
 		user->encmethods = iax2_encryption;
+		user->adsi = adsi;
 		ast_copy_string(user->name, name, sizeof(user->name));
 		ast_copy_string(user->language, language, sizeof(user->language));
 		ast_copy_flags(user, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_CODEC_USER_FIRST | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP);	
@@ -8501,6 +8517,8 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 				user->maxauthreq = atoi(v->value);
 				if (user->maxauthreq < 0)
 					user->maxauthreq = 0;
+			} else if (!strcasecmp(v->name, "adsi")) {
+				user->adsi = ast_true(v->value);
 			}/* else if (strcasecmp(v->name,"type")) */
 			/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 			v = v->next;
@@ -8871,6 +8889,8 @@ static int set_config(char *config_file, int reload)
 			maxauthreq = atoi(v->value);
 			if (maxauthreq < 0)
 				maxauthreq = 0;
+		} else if (!strcasecmp(v->name, "adsi")) {
+			adsi = ast_true(v->value);
 		} /*else if (strcasecmp(v->name,"type")) */
 		/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 		v = v->next;
