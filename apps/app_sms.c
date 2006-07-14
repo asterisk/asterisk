@@ -1205,7 +1205,8 @@ static int sms_generate (struct ast_channel *chan, void *data, int len, int samp
 	f.datalen = samples * 2;
 #endif
 	f.offset = AST_FRIENDLY_OFFSET;
-	f.data = buf + AST_FRIENDLY_OFFSET;
+	f.mallocd = 0;
+	f.data = buf;
 	f.samples = samples;
 	f.src = "app_sms";
 	/* create a buffer containing the digital sms pattern */
