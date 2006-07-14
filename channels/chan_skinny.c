@@ -1584,30 +1584,30 @@ static void do_housekeeping(struct skinnysession *s)
 /* I do not believe skinny can deal with video.
    Anyone know differently? */
 /* Yes, it can.  Currently 7985 and Cisco VT Advantage do video. */
-static struct ast_rtp *skinny_get_vrtp_peer(struct ast_channel *chan)
+static struct ast_rtp *skinny_get_vrtp_peer(struct ast_channel *c)
 {
 	struct skinny_subchannel *sub;
-	sub = chan->tech_pvt;
+	sub = c->tech_pvt;
 	if (sub && sub->vrtp) {
 		return sub->vrtp;
 	}
 	return NULL;
 }
 
-static struct ast_rtp *skinny_get_rtp_peer(struct ast_channel *chan)
+static struct ast_rtp *skinny_get_rtp_peer(struct ast_channel *c)
 {
 	struct skinny_subchannel *sub;
-	sub = chan->tech_pvt;
+	sub = c->tech_pvt;
 	if (sub && sub->rtp) {
 		return sub->rtp;
 	}
 	return NULL;
 }
 
-static int skinny_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active)
+static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active)
 {
 	struct skinny_subchannel *sub;
-	sub = chan->tech_pvt;
+	sub = c->tech_pvt;
 	if (sub) {
 		/* transmit_modify_with_sdp(sub, rtp); @@FIXME@@ if needed */
 		return 0;
@@ -2026,24 +2026,60 @@ static void start_rtp(struct skinny_subchannel *sub)
 {
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->parent;
+	int hasvideo = 0;
+
 	ast_mutex_lock(&sub->lock);
 	/* Allocate the RTP */
-	sub->rtp = ast_rtp_new(sched, io, 1, 0);
+	sub->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
+	if (hasvideo)
+		sub->vrtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
+	
 	if (sub->rtp && sub->owner) {
 		sub->owner->fds[0] = ast_rtp_fd(sub->rtp);
+		sub->owner->fds[1] = ast_rtcp_fd(sub->rtp);
+	}
+	if (hasvideo && sub->vrtp && sub->owner) {
+		sub->owner->fds[2] = ast_rtp_fd(sub->vrtp);
+		sub->owner->fds[3] = ast_rtcp_fd(sub->vrtp);
 	}
 	if (sub->rtp) {
 		ast_rtp_setnat(sub->rtp, l->nat);
+	}
+	if (sub->vrtp) {
+		ast_rtp_setnat(sub->vrtp, l->nat);
 	}
 	/* Create the RTP connection */
 	transmit_connect(d->session, sub);
  	ast_mutex_unlock(&sub->lock);
 }
 
+static void *skinny_newcall(void *data)
+{
+	struct ast_channel *c = data;
+	struct skinny_subchannel *sub = c->tech_pvt;
+	struct skinny_line *l = sub->parent;
+	struct skinny_device *d = l->parent;
+	struct skinnysession *s = d->session;
+	int res = 0;
+
+	ast_copy_string(l->lastnumberdialed, c->exten, sizeof(l->lastnumberdialed));
+	ast_set_callerid(c,
+		l->hidecallerid ? "" : l->cid_num,
+		l->hidecallerid ? "" : l->cid_name,
+		c->cid.cid_ani ? NULL : l->cid_num);
+	ast_setstate(c, AST_STATE_RING);
+	res = ast_pbx_run(c);
+	if (res) {
+		ast_log(LOG_WARNING, "PBX exited non-zero\n");
+		transmit_tone(s, SKINNY_REORDER);
+	}
+	return NULL;
+}
+
 static void *skinny_ss(void *data)
 {
-	struct ast_channel *chan = data;
-	struct skinny_subchannel *sub = chan->tech_pvt;
+	struct ast_channel *c = data;
+	struct skinny_subchannel *sub = c->tech_pvt;
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->parent;
 	struct skinnysession *s = d->session;
@@ -2056,53 +2092,44 @@ static void *skinny_ss(void *data)
 	if (option_verbose > 2)
 		ast_verbose( VERBOSE_PREFIX_3 "Starting simple switch on '%s@%s'\n", l->name, d->name);
 	while (len < AST_MAX_EXTENSION-1) {
-		res = ast_waitfordigit(chan, timeout);
+		res = ast_waitfordigit(c, timeout);
 		timeout = 0;
 		if (res < 0) {
 			if (skinnydebug)
 				ast_verbose("Skinny(%s@%s): waitfordigit returned < 0\n", l->name, d->name);
-			ast_indicate(chan, -1);
-			ast_hangup(chan);
+			ast_indicate(c, -1);
+			ast_hangup(c);
 			return NULL;
 		} else if (res) {
 			exten[len++]=res;
 			exten[len] = '\0';
 		}
-		if (!ast_ignore_pattern(chan->context, exten)) {
+		if (!ast_ignore_pattern(c->context, exten)) {
 			transmit_tone(s, SKINNY_SILENCE);
 		}
-		if (ast_exists_extension(chan, chan->context, exten, 1, l->cid_num)) {
-			if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, l->cid_num)) {
+		if (ast_exists_extension(c, c->context, exten, 1, l->cid_num)) {
+			if (!res || !ast_matchmore_extension(c, c->context, exten, 1, l->cid_num)) {
 				if (getforward) {
 					/* Record this as the forwarding extension */
 					ast_copy_string(l->call_forward, exten, sizeof(l->call_forward));
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %s\n",
-							l->call_forward, chan->name);
+							l->call_forward, c->name);
 					transmit_tone(s, SKINNY_DIALTONE);
 					if (res) {
 						break;
 					}
-					ast_safe_sleep(chan, 500);
-					ast_indicate(chan, -1);
- 					ast_safe_sleep(chan, 1000);
+					ast_safe_sleep(c, 500);
+					ast_indicate(c, -1);
+ 					ast_safe_sleep(c, 1000);
 					memset(exten, 0, sizeof(exten));
 					transmit_tone(s, SKINNY_DIALTONE);
 					len = 0;
 					getforward = 0;
 				} else {
-					ast_copy_string(chan->exten, exten, sizeof(chan->exten));
+					ast_copy_string(c->exten, exten, sizeof(c->exten));
 					ast_copy_string(l->lastnumberdialed, exten, sizeof(l->lastnumberdialed));
-					ast_set_callerid(chan,
-						l->hidecallerid ? "" : l->cid_num,
-						l->hidecallerid ? "" : l->cid_name,
-						chan->cid.cid_ani ? NULL : l->cid_num);
-					ast_setstate(chan, AST_STATE_RING);
-					res = ast_pbx_run(chan);
-					if (res) {
-						ast_log(LOG_WARNING, "PBX exited non-zero\n");
-						transmit_tone(s, SKINNY_REORDER);
-					}
+					skinny_newcall(c);
 					return NULL;
 				}
 			} else {
@@ -2113,24 +2140,24 @@ static void *skinny_ss(void *data)
 		} else if (res == 0) {
 			ast_log(LOG_DEBUG, "Not enough digits (and no ambiguous match)...\n");
 			transmit_tone(s, SKINNY_REORDER);
-			ast_hangup(chan);
+			ast_hangup(c);
 			return NULL;
-		} else if (!ast_canmatch_extension(chan, chan->context, exten, 1, chan->cid.cid_num) &&
+		} else if (!ast_canmatch_extension(c, c->context, exten, 1, c->cid.cid_num) &&
 			   ((exten[0] != '*') || (!ast_strlen_zero(exten) > 2))) {
-			ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", exten, chan->cid.cid_num ? chan->cid.cid_num : "<Unknown Caller>", chan->context);
+			ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", exten, c->cid.cid_num ? c->cid.cid_num : "<Unknown Caller>", c->context);
 			transmit_tone(s, SKINNY_REORDER);
 			/* hang out for 3 seconds to let congestion play */
-			ast_safe_sleep(chan, 3000);
+			ast_safe_sleep(c, 3000);
 			break;
 		}
 		if (!timeout) {
 			timeout = gendigittimeout;
 		}
-		if (len && !ast_ignore_pattern(chan->context, exten)) {
-			ast_indicate(chan, -1);
+		if (len && !ast_ignore_pattern(c->context, exten)) {
+			ast_indicate(c, -1);
 		}
 	}
-	ast_hangup(chan);
+	ast_hangup(c);
 	return NULL;
 }
 
@@ -2143,7 +2170,7 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 	struct skinny_subchannel *sub = ast->tech_pvt;
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->parent;
-	struct skinnysession *session = d->session;
+	struct skinnysession *s = d->session;
 
 	if (!d->registered) {
 		ast_log(LOG_ERROR, "Device not registered, cannot call %s\n", dest);
@@ -2175,14 +2202,14 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 		break;
 	}
 
-	transmit_lamp_indication(session, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
-	transmit_ringer_mode(session, SKINNY_RING_INSIDE);
+	transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
+	transmit_ringer_mode(s, SKINNY_RING_INSIDE);
 
-	transmit_tone(session, tone);
-	transmit_callstate(session, l->instance, SKINNY_RINGIN, sub->callid);
-	transmit_displaypromptstatus(session, "Ring-In", 0, l->instance, sub->callid);
-	transmit_callinfo(session, ast->cid.cid_name, ast->cid.cid_num, l->cid_name, l->cid_num, l->instance, sub->callid, 1);
-	transmit_selectsoftkeys(session, l->instance, sub->callid, KEYDEF_RINGIN);
+	transmit_tone(s, tone);
+	transmit_callinfo(s, ast->cid.cid_name, ast->cid.cid_num, l->cid_name, l->cid_num, l->instance, sub->callid, 1);
+	transmit_callstate(s, l->instance, SKINNY_RINGIN, sub->callid);
+	transmit_displaypromptstatus(s, "Ring-In", 0, l->instance, sub->callid);
+	transmit_selectsoftkeys(s, l->instance, sub->callid, KEYDEF_RINGIN);
 
 	ast_setstate(ast, AST_STATE_RINGING);
 	ast_queue_control(ast, AST_CONTROL_RINGING);
@@ -2269,7 +2296,34 @@ static struct ast_frame *skinny_rtp_read(struct skinny_subchannel *sub)
 	struct ast_channel *ast = sub->owner;
 	struct ast_frame *f;
 
-	f = ast_rtp_read(sub->rtp);
+	if (!sub->rtp) {
+		/* We have no RTP allocated for this channel */
+		return &ast_null_frame;
+	}
+
+	switch(ast->fdno) {
+	case 0:
+		f = ast_rtp_read(sub->rtp);	/* RTP Audio */
+		break;
+	case 1:
+		f = ast_rtcp_read(sub->rtp);	/* RTCP Control Channel */
+		break;
+	case 2:
+		f = ast_rtp_read(sub->vrtp);	/* RTP Video */
+		break;
+	case 3:
+		f = ast_rtcp_read(sub->vrtp);	/* RTCP Control Channel for video */
+		break;
+#if 0
+	case 5:
+		/* Not yet supported */
+		f = ast_udptl_read(sub->udptl);	/* UDPTL for T.38 */
+		break;
+#endif
+	default:
+		f = &ast_null_frame;
+	}
+
 	if (ast) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
@@ -2614,6 +2668,7 @@ static int handle_keypad_button_message(skinny_req *req, struct skinnysession *s
 	digit = letohl(req->data.keypad.button);
 	lineInstance = letohl(req->data.keypad.lineInstance);
 	callReference = letohl(req->data.keypad.callReference);
+
 	f.frametype = AST_FRAME_DTMF;
 	if (digit == 14) {
 		dgt = '*';
@@ -2690,17 +2745,15 @@ static int handle_stimulus_message(skinny_req *req, struct skinnysession *s)
 
 	switch(event) {
 	case STIMULUS_REDIAL:
-		/* If we can keep an array of dialed frames we can implement a quick
-		   and dirty redial, feeding the frames we last got into the queue
-		   function */
 		if (skinnydebug)
 			ast_verbose("Received Stimulus: Redial(%d)\n", instance);
 
 #if 0
 		c = skinny_new(l, AST_STATE_DOWN);
-		if(c) {
+		if(!c) {
+			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
+		} else {
 			sub = c->tech_pvt;
-			l = sub->parent;
 			transmit_callstate(s, l->instance, SKINNY_OFFHOOK, sub->callid);
 			if (skinnydebug)
 				ast_verbose("Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
@@ -2714,24 +2767,11 @@ static int handle_stimulus_message(skinny_req *req, struct skinnysession *s)
 			if (!ast_ignore_pattern(c->context, l->lastnumberdialed)) {
 				transmit_tone(s, SKINNY_SILENCE);
 			}
-			if (ast_exists_extension(c, c->context, l->lastnumberdialed, 1, l->cid_num)) {
-				if (!ast_matchmore_extension(c, c->context, l->lastnumberdialed, 1, l->cid_num)) {
-					ast_copy_string(c->exten, l->lastnumberdialed, sizeof(c->exten));
-					ast_set_callerid(c,
-						l->hidecallerid ? "" : l->cid_num,
-						l->hidecallerid ? "" : l->cid_name,
-						c->cid.cid_ani ? NULL : l->cid_num);
-					ast_setstate(c, AST_STATE_RING);
-					res = ast_pbx_run(c);
-					if (res) {
-						ast_log(LOG_WARNING, "PBX exited non-zero\n");
-						transmit_tone(s, SKINNY_REORDER);
-					}
-					break;
-				}
+			ast_copy_string(c->exten, l->lastnumberdialed, sizeof(c->exten));
+			if (ast_pthread_create(&t, NULL, skinny_newcall, c)) {
+				ast_log(LOG_WARNING, "Unable to create new call thread: %s\n", strerror(errno));
+				ast_hangup(c);
 			}
-		} else {
-			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		}
 #endif
 		break;
@@ -2761,16 +2801,7 @@ static int handle_stimulus_message(skinny_req *req, struct skinnysession *s)
 				if (!ast_matchmore_extension(c, c->context, sd->exten, 1, l->cid_num)) {
 					ast_copy_string(c->exten, sd->exten, sizeof(c->exten));
 					ast_copy_string(l->lastnumberdialed, sd->exten, sizeof(l->lastnumberdialed));
-					ast_set_callerid(c,
-						l->hidecallerid ? "" : l->cid_num,
-						l->hidecallerid ? "" : l->cid_name,
-						c->cid.cid_ani ? NULL : l->cid_num);
-					ast_setstate(c, AST_STATE_RING);
-					res = ast_pbx_run(c);
-					if (res) {
-						ast_log(LOG_WARNING, "PBX exited non-zero\n");
-						transmit_tone(s, SKINNY_REORDER);
-					}
+					skinny_newcall(c);
 					break;
 				}
 			}
@@ -3356,7 +3387,6 @@ static int handle_soft_key_event_message(skinny_req *req, struct skinnysession *
 	int event;
 	int instance;
 	int reference;
-	/*int res;*/
 
 	event = letohl(req->data.softkeyeventmessage.softKeyEvent);
 	instance = letohl(req->data.softkeyeventmessage.instance);
@@ -3389,21 +3419,22 @@ static int handle_soft_key_event_message(skinny_req *req, struct skinnysession *
 			ast_verbose("Received Softkey Event: Redial(%d)\n", instance);
 
 #if 0
-		if (sub)
-			transmit_callstate(s, l->instance, SKINNY_OFFHOOK, sub->callid);
-		if (skinnydebug)
-			ast_verbose("Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
-		transmit_displaymessage(s, NULL); /* clear display */
-		transmit_tone(s, SKINNY_DIALTONE);
-
-		if (!sub) {
+		if (!sub || !sub->owner) {
 			c = skinny_new(l, AST_STATE_DOWN);
 		} else {
 			c = sub->owner;
 		}
 
-		if(c) {
+		if(!c) {
+			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
+		} else {
 			sub = c->tech_pvt;
+			transmit_callstate(s, l->instance, SKINNY_OFFHOOK, sub->callid);
+			if (skinnydebug)
+				ast_verbose("Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
+			transmit_displaymessage(s, NULL); /* clear display */
+			transmit_tone(s, SKINNY_DIALTONE);
+
 			if (ast_strlen_zero(l->lastnumberdialed)) {
 				ast_log(LOG_WARNING, "Attempted redial, but no previously dialed number found.\n");
 				return 0;
@@ -3411,25 +3442,11 @@ static int handle_soft_key_event_message(skinny_req *req, struct skinnysession *
 			if (!ast_ignore_pattern(c->context, l->lastnumberdialed)) {
 				transmit_tone(s, SKINNY_SILENCE);
 			}
-			start_rtp(sub);
-			if (ast_exists_extension(c, c->context, l->lastnumberdialed, 1, l->cid_num)) {
-				if (!ast_matchmore_extension(c, c->context, l->lastnumberdialed, 1, l->cid_num)) {
-					ast_copy_string(c->exten, l->lastnumberdialed, sizeof(c->exten));
-					ast_set_callerid(c,
-						l->hidecallerid ? "" : l->cid_num,
-						l->hidecallerid ? "" : l->cid_name,
-						c->cid.cid_ani ? NULL : l->cid_num);
-					ast_setstate(c, AST_STATE_RING);
-					res = ast_pbx_run(c);
-					if (res) {
-						ast_log(LOG_WARNING, "PBX exited non-zero\n");
-						transmit_tone(s, SKINNY_REORDER);
-					}
-					break;
-				}
+			ast_copy_string(c->exten, l->lastnumberdialed, sizeof(c->exten));
+			if (ast_pthread_create(&t, NULL, skinny_newcall, c)) {
+				ast_log(LOG_WARNING, "Unable to create new call thread: %s\n", strerror(errno));
+				ast_hangup(c);
 			}
-		} else {
-			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		}
 #endif
 		break;
@@ -4289,8 +4306,7 @@ static int load_module(void *mod)
 static int unload_module(void *mod)
 {
 #if 0
-	struct skinnysession *session, s;
-	struct skinny_line *l = session;
+	struct skinnysession *s;
 
 	/* close all IP connections */
 	if (!ast_mutex_lock(&devicelock)) {
