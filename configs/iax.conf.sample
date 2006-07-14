@@ -46,6 +46,11 @@
 ;
 ;amaflags=default
 ;
+; ADSI (Analog Display Services Interface) can be enabled if you have
+; (or may have) ADSI compatible CPE equipment
+;
+;adsi=no
+;
 ; You may specify a default account for Call Detail Records in addition
 ; to specifying on a per-user basis
 ;
