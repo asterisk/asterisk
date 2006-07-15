@@ -484,42 +484,51 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		ret = 0;
 	}
 
-       if (context.naptr_rrs_count >= context.position && ! (context.options & ENUMLOOKUP_OPTIONS_COUNT)) {
-               /* sort array by NAPTR order/preference */
-               for (k=0; k<context.naptr_rrs_count; k++) {
-                       for (i=0; i<context.naptr_rrs_count; i++) {
-                               /* use order first and then preference to compare */
-                               if ((ntohs(context.naptr_rrs[k].naptr.order) < ntohs(context.naptr_rrs[i].naptr.order)
-                                               && context.naptr_rrs[k].sort_pos > context.naptr_rrs[i].sort_pos)
-                                       || (ntohs(context.naptr_rrs[k].naptr.order) > ntohs(context.naptr_rrs[i].naptr.order)
-                                               && context.naptr_rrs[k].sort_pos < context.naptr_rrs[i].sort_pos)){
-                                       z = context.naptr_rrs[k].sort_pos;
-                                       context.naptr_rrs[k].sort_pos = context.naptr_rrs[i].sort_pos;
-                                       context.naptr_rrs[i].sort_pos = z;
-                                       continue;
-                               }
-                               if (ntohs(context.naptr_rrs[k].naptr.order) == ntohs(context.naptr_rrs[i].naptr.order)) {
-                                       if ((ntohs(context.naptr_rrs[k].naptr.pref) < ntohs(context.naptr_rrs[i].naptr.pref)
-                                                       && context.naptr_rrs[k].sort_pos > context.naptr_rrs[i].sort_pos)
-                                               || (ntohs(context.naptr_rrs[k].naptr.pref) > ntohs(context.naptr_rrs[i].naptr.pref)
-                                                       && context.naptr_rrs[k].sort_pos < context.naptr_rrs[i].sort_pos)){
-                                               z = context.naptr_rrs[k].sort_pos;
-                                               context.naptr_rrs[k].sort_pos = context.naptr_rrs[i].sort_pos;
-                                               context.naptr_rrs[i].sort_pos = z;
-                                       }
-                               }
-                       }
-               }
-               for (k=0; k<context.naptr_rrs_count; k++) {
-                       if (context.naptr_rrs[k].sort_pos == context.position-1) {
-                               ast_copy_string(context.dst, context.naptr_rrs[k].result, dstlen);
-                               ast_copy_string(context.tech, context.naptr_rrs[k].tech, techlen);
-                               break;
-                       }
-               }
-       } else if (!(context.options & ENUMLOOKUP_OPTIONS_COUNT)) {
-               context.dst[0] = 0;
-       }
+	if (context.naptr_rrs_count >= context.position && ! (context.options & ENUMLOOKUP_OPTIONS_COUNT)) {
+		/* sort array by NAPTR order/preference/tech */
+		for (k = 0; k < context.naptr_rrs_count; k++) {
+			for (i = 0; i < context.naptr_rrs_count; i++) {
+				/* Compare by order first. */
+				if ((ntohs(context.naptr_rrs[k].naptr.order) < ntohs(context.naptr_rrs[i].naptr.order)
+						&& context.naptr_rrs[k].sort_pos > context.naptr_rrs[i].sort_pos)
+					|| (ntohs(context.naptr_rrs[k].naptr.order) > ntohs(context.naptr_rrs[i].naptr.order)
+						&& context.naptr_rrs[k].sort_pos < context.naptr_rrs[i].sort_pos)){
+					z = context.naptr_rrs[k].sort_pos;
+					context.naptr_rrs[k].sort_pos = context.naptr_rrs[i].sort_pos;
+					context.naptr_rrs[i].sort_pos = z;
+				} else if (ntohs(context.naptr_rrs[k].naptr.order) == ntohs(context.naptr_rrs[i].naptr.order)) {
+					/* Order is the same, so sort by preference next */
+					if (ntohs(context.naptr_rrs[k].naptr.pref) == ntohs(context.naptr_rrs[i].naptr.pref)) {
+						/* Preference is the same, so sort by tech */
+						if ((strcmp(context.naptr_rrs[k].tech, context.naptr_rrs[i].tech) < 0
+								&& context.naptr_rrs[k].sort_pos > context.naptr_rrs[i].sort_pos)
+							|| (strcmp(context.naptr_rrs[k].tech, context.naptr_rrs[i].tech) > 0
+								&& context.naptr_rrs[k].sort_pos < context.naptr_rrs[i].sort_pos)) {
+							z = context.naptr_rrs[k].sort_pos;
+							context.naptr_rrs[k].sort_pos = context.naptr_rrs[i].sort_pos;
+							context.naptr_rrs[i].sort_pos = z;
+						}
+					} else if ((ntohs(context.naptr_rrs[k].naptr.pref) < ntohs(context.naptr_rrs[i].naptr.pref)
+							&& context.naptr_rrs[k].sort_pos > context.naptr_rrs[i].sort_pos)
+						|| (ntohs(context.naptr_rrs[k].naptr.pref) > ntohs(context.naptr_rrs[i].naptr.pref)
+							&& context.naptr_rrs[k].sort_pos < context.naptr_rrs[i].sort_pos)){
+						z = context.naptr_rrs[k].sort_pos;
+						context.naptr_rrs[k].sort_pos = context.naptr_rrs[i].sort_pos;
+						context.naptr_rrs[i].sort_pos = z;
+					}
+				}
+			}
+		}
+		for (k = 0; k < context.naptr_rrs_count; k++) {
+			if (context.naptr_rrs[k].sort_pos == context.position - 1) {
+				ast_copy_string(context.dst, context.naptr_rrs[k].result, dstlen);
+				ast_copy_string(context.tech, context.naptr_rrs[k].tech, techlen);
+				break;
+			}
+		}
+	} else if (!(context.options & ENUMLOOKUP_OPTIONS_COUNT)) {
+		context.dst[0] = 0;
+	}
 
 	if (chan)
 		ret |= ast_autoservice_stop(chan);
