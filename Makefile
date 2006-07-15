@@ -11,6 +11,15 @@
 # the GNU General Public License
 #
 
+# All Makefiles use the following variables:
+#
+# LDFLAGS - linker flags (not libraries), used for all links
+# LIBS - additional libraries, at top-level for all links,
+#      on a single object just for that object
+# SOLINK - linker flags used only for creating shared objects (.so files),
+#      used for all .so links
+#
+
 .EXPORT_ALL_VARIABLES:
 
 #Uncomment this to see all build commands instead of 'quiet' output
@@ -332,7 +341,7 @@ else
   ASTLINK=-Wl,-E 
   SOLINK=-shared -Xlinker -x
   ifeq ($(findstring BSD,$(OSARCH)),BSD)
-    SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
+    LDFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
   endif
 endif
 
