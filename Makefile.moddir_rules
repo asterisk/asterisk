@@ -35,13 +35,13 @@ $(1).so: LIBS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LIB))
 $(1).so: LDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LDFLAGS))
 endef
 
-$(foreach mod,$(filter-out $(CC_MODS),$(SELECTED_MODS)),$(eval $(call module_o_c_template,$(mod))))
+$(foreach mod,$(C_MODS),$(eval $(call module_o_c_template,$(mod))))
 
-$(foreach mod,$(filter-out $(CC_MODS),$(SELECTED_MODS)),$(eval $(call module_so_o_template,$(mod))))
+$(foreach mod,$(C_MODS),$(eval $(call module_so_o_template,$(mod))))
 
-$(foreach mod,$(filter $(CC_MODS),$(SELECTED_MODS)),$(eval $(call module_oo_cc_template,$(mod))))
+$(foreach mod,$(CC_MODS),$(eval $(call module_oo_cc_template,$(mod))))
 
-$(foreach mod,$(filter $(CC_MODS),$(SELECTED_MODS)),$(eval $(call module_so_oo_template,$(mod))))
+$(foreach mod,$(CC_MODS),$(eval $(call module_so_oo_template,$(mod))))
 
 .PHONY: clean clean-depend depend uninstall _all
 

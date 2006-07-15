@@ -14,11 +14,10 @@ ifneq ($(wildcard ../menuselect.makeopts),)
   include ../menuselect.makedeps
 endif
 
-SELECTED_MODS:=$(filter-out $(MENUSELECT_PBX),$(patsubst %.c,%,$(wildcard pbx_*.c)) $(patsubst %.cc,%,$(wildcard pbx_*.cc)))
+C_MODS:=$(filter-out $(MENUSELECT_PBX),$(patsubst %.c,%,$(wildcard pbx_*.c)))
+CC_MODS:=$(filter-out $(MENUSELECT_PBX),$(patsubst %.cc,%,$(wildcard pbx_*.cc)))
 
-MODS:=$(patsubst %,%.so,$(SELECTED_MODS))
-
-CC_MODS:=pbx_kdeconsole
+SELECTED_MODS:=$(C_MODS) $(CC_MODS)
 
 all: _all
 
@@ -33,7 +32,7 @@ ael/aelflex.o: CFLAGS+=-I.
 $(eval $(call ast_make_o_c,ael/aelbison.o,ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h))
 ael/aelbison.o: CFLAGS+=-I.
 
-pbx_ael.so: pbx_ael.o ael/aelbison.o ael/aelflex.o
+pbx_ael.so: ael/aelbison.o ael/aelflex.o
 
 ael/ael_lex.c:
 	(cd ael; flex ael.flex; sed -i -e "/begin standard C headers/i#include \"asterisk.h\"" ael_lex.c)
@@ -44,4 +43,4 @@ ael/ael.tab.c ael/ael.tab.h:
 $(eval $(call ast_make_o_c,dundi-parser.o,dundi-parser.c dundi-parser.h))
 dundi-parser.o: CFLAGS+=-I.
 
-pbx_dundi.so: pbx_dundi.o dundi-parser.o
+pbx_dundi.so: dundi-parser.o

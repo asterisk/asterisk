@@ -14,9 +14,8 @@ ifneq ($(wildcard ../menuselect.makeopts),)
   include ../menuselect.makedeps
 endif
 
-SELECTED_MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(patsubst %.c,%,$(wildcard chan_*.c)) $(patsubst %.cc,%,$(wildcard chan_*.cc)))
-
-CC_MODS=chan_vpb
+C_MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(patsubst %.c,%,$(wildcard chan_*.c)))
+CC_MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(patsubst %.cc,%,$(wildcard chan_*.cc)))
 
 ifeq ($(OSARCH),OpenBSD)
   PTLIB=-lpt_OpenBSD_x86_r
@@ -41,11 +40,11 @@ ifeq ($(OSARCH),NetBSD)
 endif
 
 ifeq ($(wildcard h323/libchanh323.a),)
-  SELECTED_MODS:=$(filter-out chan_h323,$(SELECTED_MODS))
+  CC_MODS:=$(filter-out chan_h323,$(CC_MODS))
 endif
 
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/mISDNuser/mISDNlib.h),)
-  SELECTED_MODS:=$(filter-out chan_misdn,$(SELECTED_MODS))
+  C_MODS:=$(filter-out chan_misdn,$(C_MODS))
 endif
 
 ifndef OPENH323DIR
@@ -55,6 +54,8 @@ endif
 ifndef PWLIBDIR
   PWLIBDIR=$(HOME)/pwlib
 endif
+
+SELECTED_MODS:=$(C_MODS) $(CC_MODS)
 
 all: _all
 

@@ -14,18 +14,16 @@ ifneq ($(wildcard ../menuselect.makeopts),)
   include ../menuselect.makedeps
 endif
 
-SELECTED_MODS:=$(filter-out $(MENUSELECT_RES),$(patsubst %.c,%,$(wildcard res_*.c)))
+C_MODS:=$(filter-out $(MENUSELECT_RES),$(patsubst %.c,%,$(wildcard res_*.c)))
+CC_MODS:=$(filter-out $(MENUSELECT_RES),$(patsubst %.cc,%,$(wildcard res_*.cc)))
 
-ifeq ($(OSARCH),FreeBSD)
-  SELECTED_MODS:=$(filter-out $(shell if test ${BSDVERSION} -lt 500000 ; then echo "res_config_odbc"; fi),$(SELECTED_MODS))
-endif
+SELECTED_MODS:=$(C_MODS) $(CC_MODS)
 
 all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
-res_snmp.so: res_snmp.o snmp/agent.o
+res_snmp.so: snmp/agent.o
 
 clean::
 	rm -f snmp/*.o
-

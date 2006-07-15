@@ -238,7 +238,7 @@ endif
 ifeq ($(OSARCH),FreeBSD)
   BSDVERSION=$(shell make -V OSVERSION -f $(CROSS_COMPILE_TARGET)/usr/share/mk/bsd.port.subdir.mk)
   ASTCFLAGS+=$(shell if test $(BSDVERSION) -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
-  LIBS+=$(shell if test  $(BSDVERSION) -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
+  AST_LIBS+=$(shell if test  $(BSDVERSION) -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
 endif # FreeBSD
 
 ifeq ($(OSARCH),NetBSD)
@@ -311,13 +311,13 @@ ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/dlfcn.h),)
 endif
 
 ifeq ($(OSARCH),Linux)
-  LIBS+=-ldl -lpthread $(EDITLINE_LIB) -lm -lresolv  #-lnjamd
+  AST_LIBS+=-ldl -lpthread $(EDITLINE_LIB) -lm -lresolv  #-lnjamd
 else
-  LIBS+=$(EDITLINE_LIB) -lm
+  AST_LIBS+=$(EDITLINE_LIB) -lm
 endif
 
 ifeq ($(OSARCH),Darwin)
-  LIBS+=-lresolv
+  AST_LIBS+=-lresolv
   ASTCFLAGS+=-D__Darwin__
   AUDIO_LIBS=-framework CoreAudio
   ASTLINK=-Wl,-dynamic
@@ -337,19 +337,19 @@ else
 endif
 
 ifeq ($(OSARCH),FreeBSD)
-  LIBS+=-lcrypto
+  AST_LIBS+=-lcrypto
 endif
 
 ifeq ($(OSARCH),NetBSD)
-  LIBS+=-lpthread -lcrypto -lm -L$(CROSS_COMPILE_TARGET)/usr/pkg/lib $(EDITLINE_LIB)
+  AST_LIBS+=-lpthread -lcrypto -lm -L$(CROSS_COMPILE_TARGET)/usr/pkg/lib $(EDITLINE_LIB)
 endif
 
 ifeq ($(OSARCH),OpenBSD)
-  LIBS+=-lcrypto -lpthread -lm $(EDITLINE_LIB)
+  AST_LIBS+=-lcrypto -lpthread -lm $(EDITLINE_LIB)
 endif
 
 ifeq ($(OSARCH),SunOS)
-  LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/opt/ssl/lib -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
+  AST_LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/opt/ssl/lib -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
   OBJS+=strcompat.o
   ASTLINK=
   SOLINK=-shared -fpic -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
@@ -377,7 +377,7 @@ _all: all
 	@echo " +               make install                +"  
 	@echo " +-------------------------------------------+"  
 
-all: cleantest config.status menuselect.makeopts depend asterisk $(SUBDIRS)
+all: cleantest config.status menuselect.makeopts depend $(SUBDIRS) asterisk
 
 $(MOD_SUBDIRS):
 	@CFLAGS="$(MOD_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) -C $@
@@ -413,10 +413,10 @@ all: TAGS
 endif
 
 editline/config.h:
-	cd editline && unset CFLAGS LIBS && CFLAGS="$(OPTIMIZE)" ./configure ; \
+	cd editline && unset CFLAGS AST_LIBS && CFLAGS="$(OPTIMIZE)" ./configure ; \
 
 editline/libedit.a:
-	cd editline && unset CFLAGS LIBS && test -f config.h || CFLAGS="$(OPTIMIZE)" ./configure
+	cd editline && unset CFLAGS AST_LIBS && test -f config.h || CFLAGS="$(OPTIMIZE)" ./configure
 	$(MAKE) -C editline libedit.a
 
 db1-ast/libdb1.a:
@@ -492,8 +492,8 @@ asterisk: include/asterisk/buildopts.h editline/libedit.a db1-ast/libdb1.a $(OBJ
 	fi
 	@rm -f include/asterisk/build.h.tmp
 	@$(CC) -c -o buildinfo.o $(CFLAGS) buildinfo.c
-	@echo "   [LD] $(OBJS) buildinfo.o $(LIBEDIT) db1-ast/libdb1.1 $(LIBS) -> $@"
-	@$(CC) $(DEBUG) $(ASTOBJ) $(ASTLINK) $(OBJS) buildinfo.o $(LIBEDIT) db1-ast/libdb1.a $(LIBS)
+	@echo "   [LD] $(OBJS) buildinfo.o $(LIBEDIT) db1-ast/libdb1.1 $(AST_LIBS) -> $@"
+	@$(CC) $(DEBUG) $(ASTOBJ) $(ASTLINK) $(OBJS) buildinfo.o $(LIBEDIT) db1-ast/libdb1.a $(AST_LIBS)
 
 muted: muted.o
 muted: LIBS+=$(AUDIO_LIBS)
@@ -892,7 +892,7 @@ menuselect/menuselect: menuselect/menuselect.c menuselect/menuselect_curses.c me
 	@CFLAGS="-include $(ASTTOPDIR)/include/asterisk/autoconfig.h -I$(ASTTOPDIR)/include" PARENTSRC="$(ASTTOPDIR)" $(MAKE) -C menuselect menuselect
 
 mxml/libmxml.a:
-	@cd mxml && unset CFLAGS LIBS && test -f config.h || ./configure
+	@cd mxml && unset CFLAGS AST_LIBS && test -f config.h || ./configure
 	$(MAKE) -C mxml libmxml.a
 
 makeopts.xml: $(foreach dir,$(MOD_SUBDIRS),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml sounds/sounds.xml

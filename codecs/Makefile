@@ -16,7 +16,10 @@ ifneq ($(wildcard ../menuselect.makeopts),)
   include ../menuselect.makedeps
 endif
 
-SELECTED_MODS:=$(filter-out $(MENUSELECT_CODECS),$(patsubst %.c,%,$(wildcard codec_*.c)))
+C_MODS:=$(filter-out $(MENUSELECT_CODECS),$(patsubst %.c,%,$(wildcard codec_*.c)))
+CC_MODS:=$(filter-out $(MENUSELECT_CODECS),$(patsubst %.cc,%,$(wildcard codec_*.cc)))
+
+SELECTED_MODS:=$(C_MODS) $(CC_MODS)
 
 LIBILBC:=ilbc/libilbc.a
 LIBLPC10:=lpc10/liblpc10.a

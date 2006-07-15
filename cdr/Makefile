@@ -14,7 +14,10 @@ ifneq ($(wildcard ../menuselect.makeopts),)
   include ../menuselect.makedeps
 endif
 
-SELECTED_MODS:=$(filter-out $(MENUSELECT_CDR),$(patsubst %.c,%,$(wildcard cdr_*.c)))
+C_MODS:=$(filter-out $(MENUSELECT_CDR),$(patsubst %.c,%,$(wildcard cdr_*.c)))
+CC_MODS:=$(filter-out $(MENUSELECT_CDR),$(patsubst %.cc,%,$(wildcard cdr_*.cc)))
+
+SELECTED_MODS:=$(C_MODS) $(CC_MODS)
 
 all: _all
 

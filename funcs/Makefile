@@ -14,7 +14,10 @@ ifneq ($(wildcard ../menuselect.makeopts),)
   include ../menuselect.makedeps
 endif
 
-SELECTED_MODS:=$(filter-out $(MENUSELECT_FUNCS),$(patsubst %.c,%,$(wildcard func_*.c)))
+C_MODS:=$(filter-out $(MENUSELECT_FUNCS),$(patsubst %.c,%,$(wildcard func_*.c)))
+CC_MODS:=$(filter-out $(MENUSELECT_FUNCS),$(patsubst %.cc,%,$(wildcard func_*.cc)))
+
+SELECTED_MODS:=$(C_MODS) $(CC_MODS)
 
 # TODO This check needs to be handled with autoconf
 ifeq ($(OSARCH),SunOS)
