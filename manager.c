@@ -233,8 +233,8 @@ static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int low
 			break;
 		case '&':
 			strcpy(*dst, "&amp;");
-			(*dst) += 4;
-			*maxlen -= 4;
+			(*dst) += 5;
+			*maxlen -= 5;
 			break;		
 		default:
 			*(*dst)++ = lower ? tolower(*src) : *src;
