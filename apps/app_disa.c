@@ -54,7 +54,7 @@ static char *app = "DISA";
 static char *synopsis = "DISA (Direct Inward System Access)";
 
 static char *descrip = 
-	"DISA(<numeric passcode>[|<context>]) or disa(<filename>)\n"
+	"DISA(<numeric passcode>[|<context>]) or DISA(<filename>)\n"
 	"The DISA, Direct Inward System Access, application allows someone from \n"
 	"outside the telephone switch (PBX) to obtain an \"internal\" system \n"
 	"dialtone and to place calls from it as if they were placing a call from \n"
@@ -133,7 +133,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
+		ast_log(LOG_WARNING, "DISA requires an argument (passcode/passcode file)\n");
 		return -1;
 	}
 
