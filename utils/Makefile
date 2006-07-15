@@ -16,7 +16,7 @@
 UTILS:=astman smsq stereorize streamplayer aelparse
 
 ifeq (${OSARCH},SunOS)
-  LDFLAGS+=../strcompat.o -lsocket -lnsl
+  LIBS+=../strcompat.o -lsocket -lnsl
 endif
 
 ifeq ($(POPT_LIB),)
@@ -51,11 +51,11 @@ clean-depend:
 clean: clean-depend
 	rm -f *.o $(UTILS) check_expr
 
-astman: astman.o ../md5.o
-astman: LDFLAGS+=-lnewt
+$(eval $(call ast_make_final,astman,astman.o ../md5.o))
+astman: LIBS+=-lnewt
 
-stereorize: stereorize.o frame.o
-stereorize: LDFLAGS+=-lm
+$(eval $(call ast_make_final,stereorize,stereorize.o frame.o))
+stereorize: LIBS+=-lm
 
 ../ast_expr2.c:
 	@echo "   [BISON] ../ast_expr2.y -> $@"
@@ -92,7 +92,7 @@ testexpr2s: ../ast_expr2f.c ../ast_expr2.c ../ast_expr2.h
 	./testexpr2s expr2.testinput
 
 smsq: smsq.o
-smsq: LDFLAGS+=-lpopt
+smsq: LIBS+=-lpopt
 
 streamplayer: streamplayer.o
 
@@ -104,4 +104,3 @@ depend: .depend
 
 .depend:
 	../build_tools/mkdep $(CFLAGS) `ls *.c`
-

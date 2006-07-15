@@ -25,12 +25,14 @@ endef
 
 define module_so_o_template
 $(1).so: $(1).o
-$(1).so: LDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LIB))
+$(1).so: LIBS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LIB))
+$(1).so: LDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LDFLAGS))
 endef
 
 define module_so_oo_template
 $(1).so: $(1).oo
-$(1).so: LDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LIB))
+$(1).so: LIBS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LIB))
+$(1).so: LDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LDFLAGS))
 endef
 
 $(foreach mod,$(filter-out $(CC_MODS),$(SELECTED_MODS)),$(eval $(call module_o_c_template,$(mod))))

@@ -496,7 +496,7 @@ asterisk: include/asterisk/buildopts.h editline/libedit.a db1-ast/libdb1.a $(OBJ
 	@$(CC) $(DEBUG) $(ASTOBJ) $(ASTLINK) $(OBJS) buildinfo.o $(LIBEDIT) db1-ast/libdb1.a $(LIBS)
 
 muted: muted.o
-muted: LDFLAGS+=$(AUDIO_LIBS)
+muted: LIBS+=$(AUDIO_LIBS)
 
 $(SUBDIRS_CLEAN_DEPEND):
 	@$(MAKE) -C $(@:-clean-depend=) clean-depend

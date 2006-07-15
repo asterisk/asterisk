@@ -40,13 +40,13 @@ endef
 define ast_make_so_o
 $(1): $(2)
 	@echo "   [LD] $$^ -> $$@"
-	@$$(CC) -o $$@ $$(SOLINK) $$^ $$(LDFLAGS)
+	@$$(CC) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
 endef
 
 define ast_make_so_oo
 $(1): $(2)
 	@echo "   [LDXX] $$^ -> $$@"
-	@$$(CXX) -o $$@ $$(SOLINK) $$^ $$(LDFLAGS)
+	@$$(CXX) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
 endef
 
 define ast_make_a_o
@@ -59,13 +59,13 @@ endef
 define ast_make_final
 $(1): $(2)
 	@echo "   [LD] $$^ -> $$@"
-	@$$(CC) -o $$@ $$^ $$(LDFLAGS)
+	@$$(CC) -o $$@ $$(LDFLAGS) $$^ $$(LIBS)
 endef
 
 define ast_make_final_host
 $(1): $(2)
 	@echo "   [LD] $$^ -> $$@"
-	@$$(HOST_CC) -o $$@ $$^ $$(CFLAGS) $$(LDFLAGS)
+	@$$(HOST_CC) -o $$@ $$(CFLAGS) $$(LDFLAGS) $$^ $$(LIBS)
 endef
 
 else
@@ -92,12 +92,12 @@ endef
 
 define ast_make_so_o
 $(1): $(2)
-	$$(CC) -o $$@ $$(SOLINK) $$^ $$(LDFLAGS)
+	$$(CC) -o $$@ $$(LDFAGS) $$(SOLINK) $$^ $$(LIBS)
 endef
 
 define ast_make_so_oo
 $(1): $(2)
-	$$(CXX) -o $$@ $$(SOLINK) $$^ $$(LDFLAGS)
+	$$(CXX) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
 endef
 
 define ast_make_a_o
@@ -108,12 +108,12 @@ endef
 
 define ast_make_final
 $(1): $(2)
-	$$(CC) -o $$@ $$^ $$(LDFLAGS)
+	$$(CC) -o $$@ $$(LDFLAGS) $$^ $$(LIBS)
 endef
 
 define ast_make_final_host
 $(1): $(2)
-	$$(HOST_CC) -o $$@ $$^ $$(CFLAGS) $$(LDFLAGS)
+	$$(HOST_CC) -o $$@ $$(CFLAGS) $$(LDFLAGS) $$^ $$(LIBS)
 endef
 
 endif

@@ -68,7 +68,7 @@ ifneq ($(wildcard $(PWD)/Makefile.ast),)
 endif
 
 $(eval $(call ast_make_final_host,gentone,gentone.c))
-gentone: LDFLAGS+=-lm
+gentone: LIBS+=-lm
 
 busy.h: gentone
 	./gentone busy 480 620
@@ -98,4 +98,4 @@ chan_misdn.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\"
 misdn_config.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\"
 
 chan_misdn.so: chan_misdn.o misdn_config.o misdn/chan_misdn_lib.a
-chan_misdn.so: LDFLAGS+=-lisdnnet -lmISDN
+chan_misdn.so: LIBS+=-lisdnnet -lmISDN
