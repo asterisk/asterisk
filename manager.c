@@ -1909,12 +1909,9 @@ static void *accept_thread(void *ignore)
 				ast_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
 			}
 		}
-		s = malloc(sizeof(struct mansession));
-		if (!s) {
-			ast_log(LOG_WARNING, "Failed to allocate management session: %s\n", strerror(errno));
+		if (!(s = ast_calloc(1, sizeof(*s))))
 			continue;
-		} 
-		memset(s, 0, sizeof(struct mansession));
+		
 		memcpy(&s->sin, &sin, sizeof(sin));
 		s->writetimeout = 100;
 		s->waiting_thread = AST_PTHREADT_NULL;
