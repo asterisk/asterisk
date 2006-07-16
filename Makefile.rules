@@ -68,7 +68,7 @@ $(1): $(2)
 	@$$(HOST_CC) -o $$@ $$(CFLAGS) $$(LDFLAGS) $$^ $$(LIBS)
 endef
 
-else
+else	# noisy build
 
 define ast_make_o_c
 $(1): $(2)
@@ -92,7 +92,7 @@ endef
 
 define ast_make_so_o
 $(1): $(2)
-	$$(CC) -o $$@ $$(LDFAGS) $$(SOLINK) $$^ $$(LIBS)
+	$$(CC) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
 endef
 
 define ast_make_so_oo
