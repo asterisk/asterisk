@@ -11,112 +11,72 @@
 # the GNU General Public License
 #
 
+# Each command is preceded by a short comment on what to do.
+# Prefixing one or the other with @\# or @ or nothing makes the desired
+# behaviour. ECHO_PREFIX prefixes the comment, CMD_PREFIX prefixes the command.
+
 ifeq ($(NOISY_BUILD),)
-
-define ast_make_o_c
-$(1): $(2)
-	@echo "   [CC] $$< -> $$@"
-	@$$(CC) -o $$@ -c $$< $$(CFLAGS)
-endef
-
-define ast_make_oo_cc
-$(1): $(2)
-	@echo "   [CXX] $$< -> $$@"
-	@$$(CXX) -o $$@ -c $$< $$(CFLAGS)
-endef
-
-define ast_make_c_y
-$(1): $(2)
-	@echo "   [BISON] $$< -> $$@"
-	@bison -o $$@ -d --name-prefix=ast_yy $$<
-endef
-
-define ast_make_c_fl
-$(1): $(2)
-	@echo "   [FLEX] $$< -> $$@"
-	@flex -o $$@ --full $$<
-endef
-
-define ast_make_so_o
-$(1): $(2)
-	@echo "   [LD] $$^ -> $$@"
-	@$$(CC) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
-endef
-
-define ast_make_so_oo
-$(1): $(2)
-	@echo "   [LDXX] $$^ -> $$@"
-	@$$(CXX) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
-endef
-
-define ast_make_a_o
-$(1): $(2)
-	@echo "   [AR] $$^ -> $$@"
-	@$$(AR) cr $$@ $$^
-	@$$(RANLIB) $$@
-endef
-
-define ast_make_final
-$(1): $(2)
-	@echo "   [LD] $$^ -> $$@"
-	@$$(CC) -o $$@ $$(LDFLAGS) $$^ $$(LIBS)
-endef
-
-define ast_make_final_host
-$(1): $(2)
-	@echo "   [LD] $$^ -> $$@"
-	@$$(HOST_CC) -o $$@ $$(CFLAGS) $$(LDFLAGS) $$^ $$(LIBS)
-endef
-
-else	# noisy build
-
-define ast_make_o_c
-$(1): $(2)
-	$$(CC) -o $$@ -c $$< $$(CFLAGS)
-endef
-
-define ast_make_oo_cc
-$(1): $(2)
-	$$(CXX) -o $$@ -c $$< $$(CFLAGS)
-endef
-
-define ast_make_c_y
-$(1): $(2)
-	bison -o $$@ -d --name-prefix=ast_yy $$<
-endef
-
-define ast_make_c_fl
-$(1): $(2)
-	flex -o $$@ --full $$<
-endef
-
-define ast_make_so_o
-$(1): $(2)
-	$$(CC) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
-endef
-
-define ast_make_so_oo
-$(1): $(2)
-	$$(CXX) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
-endef
-
-define ast_make_a_o
-$(1): $(2)
-	$$(AR) cr $$@ $$^
-	$$(RANLIB) $$@
-endef
-
-define ast_make_final
-$(1): $(2)
-	$$(CC) -o $$@ $$(LDFLAGS) $$^ $$(LIBS)
-endef
-
-define ast_make_final_host
-$(1): $(2)
-	$$(HOST_CC) -o $$@ $$(CFLAGS) $$(LDFLAGS) $$^ $$(LIBS)
-endef
-
+   ECHO_PREFIX=@
+   CMD_PREFIX=@
+else
+   ECHO_PREFIX=@\# 
+   CMD_PREFIX=
 endif
+
+define ast_make_o_c
+$(1): $(2)
+	$(ECHO_PREFIX) echo "   [CC] $$< -> $$@"
+	$(CMD_PREFIX) $$(CC) -o $$@ -c $$< $$(CFLAGS)
+endef
+
+define ast_make_oo_cc
+$(1): $(2)
+	$(ECHO_PREFIX) echo "   [CXX] $$< -> $$@"
+	$(CMD_PREFIX) $$(CXX) -o $$@ -c $$< $$(CFLAGS)
+endef
+
+define ast_make_c_y
+$(1): $(2)
+	$(ECHO_PREFIX) echo "   [BISON] $$< -> $$@"
+	$(CMD_PREFIX) bison -o $$@ -d --name-prefix=ast_yy $$<
+endef
+
+define ast_make_c_fl
+$(1): $(2)
+	$(ECHO_PREFIX) echo "   [FLEX] $$< -> $$@"
+	$(CMD_PREFIX) flex -o $$@ --full $$<
+endef
+
+define ast_make_so_o
+$(1): $(2)
+	$(ECHO_PREFIX) echo "   [LD] $$^ -> $$@"
+	$(CMD_PREFIX) $$(CC) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
+endef
+
+define ast_make_so_oo
+$(1): $(2)
+	$(ECHO_PREFIX) echo "   [LDXX] $$^ -> $$@"
+	$(CMD_PREFIX) $$(CXX) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
+endef
+
+define ast_make_a_o
+$(1): $(2)
+	$(ECHO_PREFIX) echo "   [AR] $$^ -> $$@"
+	$(CMD_PREFIX) $$(AR) cr $$@ $$^
+	$(CMD_PREFIX) $$(RANLIB) $$@
+endef
+
+define ast_make_final
+$(1): $(2)
+	$(ECHO_PREFIX) echo "   [LD] $$^ -> $$@"
+	$(CMD_PREFIX) $$(CC) -o $$@ $$(LDFLAGS) $$^ $$(LIBS)
+endef
+
+define ast_make_final_host
+$(1): $(2)
+	$(ECHO_PREFIX) echo "   [LD] $$^ -> $$@"
+	$(CMD_PREFIX) $$(HOST_CC) -o $$@ $$(CFLAGS) $$(LDFLAGS) $$^ $$(LIBS)
+endef
 
 $(eval $(call ast_make_o_c,%.o,%.c))
 
