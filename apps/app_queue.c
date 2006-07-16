@@ -227,6 +227,13 @@ static char *app_upqm_descrip =
 "            UNPAUSED | NOTFOUND\n"
 "Example: UnpauseQueueMember(|SIP/3000)\n";
 
+static char *app_ql = "QueueLog" ;
+static char *app_ql_synopsis = "Writes to the queue_log" ;
+static char *app_ql_descrip =
+"   QueueLog(queuename|uniqueid|agent|event[|additionalinfo]):\n"
+"Allows you to write your own events into the queue log\n"
+"Example: QueueLog(101|${UNIQUEID}|${AGENT}|WENTONBREAK|600)\n";
+
 /*! \brief Persistent Members astdb family */
 static const char *pm_family = "/Queue/PersistentMembers";
 /* The maximum length of each persistent member queue database entry */
@@ -3167,6 +3174,45 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static int ql_exec(struct ast_channel *chan, void *data)
+{
+	struct localuser *u;
+	char *parse;
+
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(queuename);
+		AST_APP_ARG(uniqueid);
+		AST_APP_ARG(peer);
+		AST_APP_ARG(event);
+		AST_APP_ARG(params);
+	);
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "QueueLog requires arguments (queuename|uniqueid|peer|event[|additionalinfo]\n");
+		return -1;
+	}
+
+	LOCAL_USER_ADD(u);
+
+	parse = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_strlen_zero(args.queuename) || ast_strlen_zero(args.uniqueid)
+	    || ast_strlen_zero(args.peer) || ast_strlen_zero(args.event)) {
+		ast_log(LOG_WARNING, "QueueLog requires arguments (queuename|uniqueid|peer|event[|additionalinfo])\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
+	ast_queue_log(args.queuename, args.uniqueid, args.peer, args.event, 
+		"%s", args.params ? args.params : "");
+
+	LOCAL_USER_REMOVE(u);
+
+	return 0;
+}
+
 static int queue_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
@@ -4299,6 +4345,7 @@ static int unload_module(void *mod)
 	res |= ast_unregister_application(app_rqm);
 	res |= ast_unregister_application(app_pqm);
 	res |= ast_unregister_application(app_upqm);
+	res |= ast_unregister_application(app_ql);
 	res |= ast_custom_function_unregister(&queueagentcount_function);
 	res |= ast_custom_function_unregister(&queuemembercount_function);
 	res |= ast_custom_function_unregister(&queuememberlist_function);
@@ -4321,15 +4368,16 @@ static int load_module(void *mod)
 	res |= ast_cli_register(&cli_show_queues);
 	res |= ast_cli_register(&cli_add_queue_member);
 	res |= ast_cli_register(&cli_remove_queue_member);
-	res |= ast_manager_register( "Queues", 0, manager_queues_show, "Queues" );
-	res |= ast_manager_register( "QueueStatus", 0, manager_queues_status, "Queue Status" );
-	res |= ast_manager_register( "QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member, "Add interface to queue." );
-	res |= ast_manager_register( "QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member, "Remove interface from queue." );
-	res |= ast_manager_register( "QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member, "Makes a queue member temporarily unavailable" );
-	res |= ast_register_application(app_aqm, aqm_exec, app_aqm_synopsis, app_aqm_descrip) ;
-	res |= ast_register_application(app_rqm, rqm_exec, app_rqm_synopsis, app_rqm_descrip) ;
-	res |= ast_register_application(app_pqm, pqm_exec, app_pqm_synopsis, app_pqm_descrip) ;
-	res |= ast_register_application(app_upqm, upqm_exec, app_upqm_synopsis, app_upqm_descrip) ;
+	res |= ast_manager_register("Queues", 0, manager_queues_show, "Queues");
+	res |= ast_manager_register("QueueStatus", 0, manager_queues_status, "Queue Status");
+	res |= ast_manager_register("QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member, "Add interface to queue.");
+	res |= ast_manager_register("QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member, "Remove interface from queue.");
+	res |= ast_manager_register("QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member, "Makes a queue member temporarily unavailable");
+	res |= ast_register_application(app_aqm, aqm_exec, app_aqm_synopsis, app_aqm_descrip);
+	res |= ast_register_application(app_rqm, rqm_exec, app_rqm_synopsis, app_rqm_descrip);
+	res |= ast_register_application(app_pqm, pqm_exec, app_pqm_synopsis, app_pqm_descrip);
+	res |= ast_register_application(app_upqm, upqm_exec, app_upqm_synopsis, app_upqm_descrip);
+	res |= ast_register_application(app_ql, ql_exec, app_ql_synopsis, app_ql_descrip);
 	res |= ast_custom_function_register(&queueagentcount_function);
 	res |= ast_custom_function_register(&queuemembercount_function);
 	res |= ast_custom_function_register(&queuememberlist_function);
