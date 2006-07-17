@@ -161,6 +161,7 @@ static struct ast_frame *h263_read(struct ast_filestream *s, int *whennext)
 	len &= 0x7fff;
 	if (len > sizeof(s->h263)) {
 		ast_log(LOG_WARNING, "Length %d is too long\n", len);
+		return NULL;
 	}
 	if ((res = fread(s->h263, 1, len, s->f)) != len) {
 		if (res)
