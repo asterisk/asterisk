@@ -58,7 +58,7 @@ struct ast_filestream {
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
-	unsigned char h263[4096];				/* Two Real h263 Frames */
+	unsigned char h263[32768];				/* Four real h263 Frames */
 };
 
 
