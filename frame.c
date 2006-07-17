@@ -375,7 +375,7 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 		srclen = strlen(f->src);
 	if (srclen > 0)
 		len += srclen + 1;
-	if (!(buf = ast_malloc(len)))
+	if (!(buf = ast_calloc(1, len)))
 		return NULL;
 	out = buf;
 	/* Set us as having malloc'd header only, so it will eventually
@@ -387,16 +387,15 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 	out->delivery = f->delivery;
 	out->mallocd = AST_MALLOCD_HDR;
 	out->offset = AST_FRIENDLY_OFFSET;
-	out->data = buf + sizeof(*out) + AST_FRIENDLY_OFFSET;
+	if (out->datalen) {
+		out->data = buf + sizeof(*out) + AST_FRIENDLY_OFFSET;
+		memcpy(out->data, f->data, out->datalen);	
+	}
 	if (srclen > 0) {
 		out->src = out->data + f->datalen;
 		/* Must have space since we allocated for it */
 		strcpy((char *)out->src, f->src);
-	} else
-		out->src = NULL;
-	out->prev = NULL;
-	out->next = NULL;
-	memcpy(out->data, f->data, out->datalen);	
+	}
 	out->has_timing_info = f->has_timing_info;
 	if (f->has_timing_info) {
 		out->ts = f->ts;
