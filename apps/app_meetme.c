@@ -2435,7 +2435,7 @@ static void *sla_originate(void *data)
 }
 
 /*! Call in stations and trunk to the SLA */
-static void do_invite(struct ast_channel *orig, struct ast_sla *sla, const char *tech, const char *dest, const char *app)
+static void do_invite(struct ast_channel *orig, const char *tech, const char *dest, const char *app, const char *data)
 {
 	struct sla_originate_helper *slal;
 	pthread_attr_t attr;
@@ -2447,7 +2447,7 @@ static void do_invite(struct ast_channel *orig, struct ast_sla *sla, const char 
 	ast_copy_string(slal->tech, tech, sizeof(slal->tech));
    	ast_copy_string(slal->data, dest, sizeof(slal->data));
 	ast_copy_string(slal->app, app, sizeof(slal->app));
-	ast_copy_string(slal->appdata, sla->name, sizeof(slal->appdata));
+	ast_copy_string(slal->appdata, data, sizeof(slal->appdata));
 	if (orig->cid.cid_num)
 		ast_copy_string(slal->cid_num, orig->cid.cid_num, sizeof(slal->cid_num));
 	if (orig->cid.cid_name)
@@ -2460,13 +2460,13 @@ static void do_invite(struct ast_channel *orig, struct ast_sla *sla, const char 
 static void invite_stations(struct ast_channel *orig, struct ast_sla *sla)
 {
 	ASTOBJ_CONTAINER_TRAVERSE(&sla->stations, 1, {
-		do_invite(orig, sla,iterator->tech, iterator->dest, "SLAS");
+		do_invite(orig, iterator->tech, iterator->dest, "SLAS", sla->name);
 	});
 }
 
 static void invite_trunk(struct ast_channel *orig, struct ast_sla *sla)
 {
-	do_invite(orig, sla,sla->trunktech, sla->trunkdest, "SLAT");
+	do_invite(orig, sla->trunktech, sla->trunkdest, "SLAT", sla->name);
 }
 
 
