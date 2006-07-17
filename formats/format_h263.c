@@ -84,7 +84,7 @@ static struct ast_frame *h263_read(struct ast_filestream *s, int *whennext)
 	len &= 0x7fff;
 	if (len > BUF_SIZE) {
 		ast_log(LOG_WARNING, "Length %d is too long\n", len);
-		len = BUF_SIZE;	/* XXX truncate ? */
+		return NULL;
 	}
 	s->fr.frametype = AST_FRAME_VIDEO;
 	s->fr.subclass = AST_FORMAT_H263;
