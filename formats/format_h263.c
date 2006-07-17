@@ -49,7 +49,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* Portions of the conversion code are by guido@sienanet.it */
 
-#define	BUF_SIZE	4096	/* Two Real h263 Frames */
+/* According to:
+ * http://lists.mpegif.org/pipermail/mp4-tech/2005-July/005741.html
+ * the maximum actual frame size is not 2048, but 8192.  Since the maximum
+ * theoretical limit is not much larger (32k = 15bits), we'll go for that
+ * size to ensure we don't corrupt frames sent to us (unless they're
+ * ridiculously large). */
+#define	BUF_SIZE	32768	/* Four real h.263 Frames */
 
 struct h263_desc {
 	unsigned int lastts;
