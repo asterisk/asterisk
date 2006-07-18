@@ -153,6 +153,7 @@ static char *static_callback(struct sockaddr_in *req, const char *uri, struct as
 			goto out403;
 		}
 	}
+	close(fd);
 	return blob;
 
 out404:
