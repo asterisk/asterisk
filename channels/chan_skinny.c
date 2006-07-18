@@ -3144,14 +3144,14 @@ static int handle_button_template_req_message(skinny_req *req, struct skinnysess
 	struct skinny_line *l;
 	int i;
 
-	if (!(req = req_alloc(sizeof(button_template_res_message), BUTTON_TEMPLATE_RES_MESSAGE)))
-		return -1;
-
 	struct skinny_speeddial *sd;
 	button_definition_template btn[42];
 	int lineInstance = 1;
 	int speeddialInstance = 1;
 	int buttonCount = 0;
+
+	if (!(req = req_alloc(sizeof(button_template_res_message), BUTTON_TEMPLATE_RES_MESSAGE)))
+		return -1;
 
 	memset(&btn, 0, sizeof(btn));
 
@@ -3351,6 +3351,7 @@ static int handle_soft_key_set_req_message(skinny_req *req, struct skinnysession
 	int i;
 	int x;
 	int y;
+	const soft_key_definitions *softkeymode = soft_key_default_definitions;
 
 	if (!(req = req_alloc(sizeof(soft_key_set_res_message), SOFT_KEY_SET_RES_MESSAGE)))
 		return -1;
@@ -3358,7 +3359,6 @@ static int handle_soft_key_set_req_message(skinny_req *req, struct skinnysession
 	req->data.softkeysets.softKeySetOffset = htolel(0);
 	req->data.softkeysets.softKeySetCount = htolel(11);
 	req->data.softkeysets.totalSoftKeySetCount = htolel(11);
-	const soft_key_definitions *softkeymode = soft_key_default_definitions;
 	for (x = 0; x < sizeof(soft_key_default_definitions) / sizeof(soft_key_definitions); x++) {
 		const uint8_t *defaults = softkeymode->defaults;
 		/* XXX I wanted to get the size of the array dynamically, but that wasn't wanting to work.
