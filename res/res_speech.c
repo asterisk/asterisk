@@ -191,6 +191,18 @@ int ast_speech_write(struct ast_speech *speech, void *data, int len)
 	return res;
 }
 
+/*! \brief Change an engine specific attribute */
+int ast_speech_change(struct ast_speech *speech, char *name, const char *value)
+{
+	int res = 0;
+
+	if (speech->engine->change != NULL) {
+		res = speech->engine->change(speech, name, value);
+	}
+
+	return res;
+}
+
 /*! \brief Create a new speech structure using the engine specified */
 struct ast_speech *ast_speech_new(char *engine_name, int format)
 {

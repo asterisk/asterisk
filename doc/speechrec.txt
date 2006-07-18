@@ -109,6 +109,10 @@ Returns the recognized text of a result.
 
 Returns the matched grammar of the result.
 
+- SPEECH_ENGINE(name)=value
+
+Sets a speech engine specific attribute.
+
 * Dialplan Flow:
 -----------------
 

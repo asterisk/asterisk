@@ -77,6 +77,8 @@ struct ast_speech_engine {
 	int (*write)(struct ast_speech *speech, void *data, int len);
 	/*! Prepare engine to accept audio */
 	int (*start)(struct ast_speech *speech);
+	/*! Change an engine specific setting */
+	int (*change)(struct ast_speech *speech, char *name, const char *value);
 	/*! Try to get results */
 	struct ast_speech_result *(*get)(struct ast_speech *speech);
 	/*! Accepted formats by the engine */
@@ -116,6 +118,8 @@ struct ast_speech *ast_speech_new(char *engine_name, int format);
 int ast_speech_destroy(struct ast_speech *speech);
 /*! \brief Write audio to the speech engine */
 int ast_speech_write(struct ast_speech *speech, void *data, int len);
+/*! \brief Change an engine specific attribute */
+int ast_speech_change(struct ast_speech *speech, char *name, const char *value);
 /*! \brief Change state of a speech structure */
 int ast_speech_change_state(struct ast_speech *speech, int state);
 /*! \brief Register a speech recognition engine */

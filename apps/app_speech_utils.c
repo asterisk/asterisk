@@ -228,6 +228,29 @@ static struct ast_custom_function speech_grammar_function = {
         .write = NULL,
 };
 
+/*! \brief SPEECH_ENGINE() Dialplan Function */
+static int speech_engine_write(struct ast_channel *chan, char *cmd, char *data, const char *value)
+{
+	struct ast_speech *speech = find_speech(chan);
+
+	if (data == NULL || speech == NULL)
+		return -1;
+
+	ast_speech_change(speech, data, value);
+
+	return 0;
+}
+
+static struct ast_custom_function speech_engine_function = {
+	.name = "SPEECH_ENGINE",
+	.synopsis = "Change a speech engine specific attribute.",
+	.syntax = "SPEECH_ENGINE(name)=value",
+	.desc =
+	"Changes a speech engine specific attribute.\n",
+	.read = NULL,
+	.write = speech_engine_write,
+};
+
 /*! \brief SPEECH() Dialplan Function */
 static int speech_read(struct ast_channel *chan, char *cmd, char *data,
 			char *buf, size_t len)
@@ -746,6 +769,7 @@ static int unload_module(void *mod)
 	res |= ast_custom_function_unregister(&speech_score_function);
 	res |= ast_custom_function_unregister(&speech_text_function);
 	res |= ast_custom_function_unregister(&speech_grammar_function);
+	res |= ast_custom_function_unregister(&speech_engine_function);
 
 	STANDARD_HANGUP_LOCALUSERS;
 
@@ -769,6 +793,7 @@ static int load_module(void *mod)
 	res |= ast_custom_function_register(&speech_score_function);
 	res |= ast_custom_function_register(&speech_text_function);
 	res |= ast_custom_function_register(&speech_grammar_function);
+	res |= ast_custom_function_register(&speech_engine_function);
 
 	return res;
 }
