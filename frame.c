@@ -374,7 +374,7 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 		srclen = strlen(f->src);
 	if (srclen > 0)
 		len += srclen + 1;
-	buf = malloc(len);
+	buf = calloc(1, len);
 	if (!buf)
 		return NULL;
 	out = buf;
@@ -387,16 +387,15 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 	out->delivery = f->delivery;
 	out->mallocd = AST_MALLOCD_HDR;
 	out->offset = AST_FRIENDLY_OFFSET;
-	out->data = buf + sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET;
+	if (out->datalen) {
+		out->data = buf + sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET;
+		memcpy(out->data, f->data, out->datalen);	
+	}
 	if (srclen > 0) {
 		out->src = out->data + f->datalen;
 		/* Must have space since we allocated for it */
 		strcpy((char *)out->src, f->src);
-	} else
-		out->src = NULL;
-	out->prev = NULL;
-	out->next = NULL;
-	memcpy(out->data, f->data, out->datalen);	
+	}
 	return out;
 }
 
