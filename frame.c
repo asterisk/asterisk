@@ -392,7 +392,7 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 		memcpy(out->data, f->data, out->datalen);	
 	}
 	if (srclen > 0) {
-		out->src = out->data + f->datalen;
+		out->src = buf + sizeof(*out) + AST_FRIENDLY_OFFSET + f->datalen;
 		/* Must have space since we allocated for it */
 		strcpy((char *)out->src, f->src);
 	}
