@@ -487,7 +487,7 @@ static SQLHSTMT config_odbc_prepare(struct odbc_obj *obj, void *data)
 	return sth;
 }
 
-static struct ast_config *config_odbc(const char *database, const char *table, const char *file, struct ast_config *cfg)
+static struct ast_config *config_odbc(const char *database, const char *table, const char *file, struct ast_config *cfg, int withcomments)
 {
 	struct ast_variable *new_v;
 	struct ast_category *cur_cat;

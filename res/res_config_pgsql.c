@@ -439,7 +439,8 @@ static int update_pgsql(const char *database, const char *table, const char *key
 }
 
 static struct ast_config *config_pgsql(const char *database, const char *table,
-					   const char *file, struct ast_config *cfg)
+					   const char *file, struct ast_config *cfg,
+					   int withcomments)
 {
 	PGresult *result = NULL;
 	long num_rows;
