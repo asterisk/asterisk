@@ -7485,7 +7485,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	if (expiry < min_expiry)
 		expiry = min_expiry;
 	peer->expire = ast_test_flag(&peer->flags[0], SIP_REALTIME) ? -1 :
-		ast_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
+	ast_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
 	pvt->expiry = expiry;
 	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry, peer->username, peer->fullcontact);
 	if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT)) 

@@ -45,7 +45,7 @@ struct ast_variable {
 	char stuff[0];
 };
 
-typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config);
+typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config, int withcomments);
 typedef struct ast_variable *realtime_var_get(const char *database, const char *table, va_list ap);
 typedef struct ast_config *realtime_multi_get(const char *database, const char *table, va_list ap);
 typedef int realtime_update(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
@@ -66,6 +66,7 @@ struct ast_config_engine {
  * Returns NULL on error, or an ast_config data structure on success
  */
 struct ast_config *ast_config_load(const char *filename);
+struct ast_config *ast_config_load_with_comments(const char *filename);
 
 /*! \brief Destroys a config 
  * \param config pointer to config data structure
@@ -181,11 +182,12 @@ void ast_category_rename(struct ast_category *cat, const char *name);
 
 struct ast_variable *ast_variable_new(const char *name, const char *value);
 void ast_variable_append(struct ast_category *category, struct ast_variable *variable);
-int ast_variable_delete(struct ast_config *cfg, char *category, char *variable, char *value);
+int ast_variable_delete(struct ast_category *category, char *variable);
+int ast_variable_update(struct ast_category *category, char *variable, char *value);
 
 int config_text_file_save(const char *filename, const struct ast_config *cfg, const char *generator);
 
-struct ast_config *ast_config_internal_load(const char *configfile, struct ast_config *cfg);
+struct ast_config *ast_config_internal_load(const char *configfile, struct ast_config *cfg, int withcomments);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

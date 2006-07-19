@@ -45,5 +45,5 @@ bindaddr = 0.0.0.0
 ; writetimeout = 100
 ;
 ; Authorization for various classes 
-;read = system,call,log,verbose,command,agent,user
-;write = system,call,log,verbose,command,agent,user
+;read = system,call,log,verbose,command,agent,user,config
+;write = system,call,log,verbose,command,agent,user,config

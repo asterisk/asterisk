@@ -115,6 +115,7 @@ static struct permalias {
 	{ EVENT_FLAG_COMMAND, "command" },
 	{ EVENT_FLAG_AGENT, "agent" },
 	{ EVENT_FLAG_USER, "user" },
+	{ EVENT_FLAG_CONFIG, "config" },
 	{ -1, "all" },
 	{ 0, "none" },
 };
@@ -858,6 +859,144 @@ static int action_ping(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char mandescr_getconfig[] =
+"Description: A 'GetConfig' action will dump the contents of a configuration\n"
+"file by category and contents.\n"
+"Variables:\n"
+"   Filename: Configuration filename (e.g. foo.conf)\n";
+
+static int action_getconfig(struct mansession *s, struct message *m)
+{
+	struct ast_config *cfg;
+	char *fn = astman_get_header(m, "Filename");
+	int catcount = 0;
+	int lineno = 0;
+	char *category=NULL;
+	struct ast_variable *v;
+	char idText[256] = "";
+	char *id = astman_get_header(m, "ActionID");
+
+	if (!ast_strlen_zero(id))
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+
+	if (ast_strlen_zero(fn)) {
+		astman_send_error(s, m, "Filename not specified");
+		return 0;
+	}
+	if (!(cfg = ast_config_load(fn))) {
+		astman_send_error(s, m, "Config file not found");
+		return 0;
+	}
+	astman_append(s, "Response: Success\r\n%s", idText);
+	while ((category = ast_category_browse(cfg, category))) {
+		lineno = 0;
+		astman_append(s, "Category-%06d: %s\r\n", catcount, category);
+		v = ast_variable_browse(cfg, category);
+		while (v) {
+			astman_append(s, "Line-%06d-%06d: %s=%s\r\n", catcount, lineno++, v->name, v->value);
+			v = v->next;
+		}
+		catcount++;
+	}
+	ast_config_destroy(cfg);
+	astman_append(s, "\r\n");
+	return 0;
+}
+
+
+static void handle_updates(struct mansession *s, struct message *m, struct ast_config *cfg)
+{
+	int x;
+	char hdr[40];
+	char *action, *cat, *var, *value;
+	struct ast_category *category;
+	struct ast_variable *v;
+	
+	for (x=0;x<100000;x++) {
+		snprintf(hdr, sizeof(hdr), "Action-%06d", x);
+		action = astman_get_header(m, hdr);
+		if (ast_strlen_zero(action))
+			break;
+		snprintf(hdr, sizeof(hdr), "Cat-%06d", x);
+		cat = astman_get_header(m, hdr);
+		snprintf(hdr, sizeof(hdr), "Var-%06d", x);
+		var = astman_get_header(m, hdr);
+		snprintf(hdr, sizeof(hdr), "Value-%06d", x);
+		value = astman_get_header(m, hdr);
+		if (!strcasecmp(action, "newcat")) {
+			if (!ast_strlen_zero(cat)) {
+				category = ast_category_new(cat);
+				if (category) {
+					ast_category_append(cfg, category);
+				}
+			}
+		} else if (!strcasecmp(action, "renamecat")) {
+			if (!ast_strlen_zero(cat) && !ast_strlen_zero(value)) {
+				category = ast_category_get(cfg, cat);
+				if (category) 
+					ast_category_rename(category, value);
+			}
+		} else if (!strcasecmp(action, "delcat")) {
+			if (!ast_strlen_zero(cat))
+				ast_category_delete(cfg, cat);
+		} else if (!strcasecmp(action, "update")) {
+			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) && (category = ast_category_get(cfg, cat)))
+				ast_variable_update(category, var, value);
+		} else if (!strcasecmp(action, "delete")) {
+			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) && (category = ast_category_get(cfg, cat)))
+				ast_variable_delete(category, var);
+		} else if (!strcasecmp(action, "append")) {
+			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) && 
+				(category = ast_category_get(cfg, cat)) && 
+				(v = ast_variable_new(var, value))){
+				ast_variable_append(category, v);
+			}
+		}
+	}
+}
+
+static char mandescr_updateconfig[] =
+"Description: A 'UpdateConfig' action will dump the contents of a configuration\n"
+"file by category and contents.\n"
+"Variables (X's represent 6 digit number beginning with 000000):\n"
+"   SrcFilename:   Configuration filename to read(e.g. foo.conf)\n"
+"   DstFilename:   Configuration filename to write(e.g. foo.conf)\n"
+"   Action-XXXXXX: Action to Take (NewCat,RenameCat,DelCat,Update,Delete,Append)\n"
+"   Cat-XXXXXX:    Category to operate on\n"
+"   Var-XXXXXX:    Variable to work on\n"
+"   Value-XXXXXX:  Value to work on\n";
+
+static int action_updateconfig(struct mansession *s, struct message *m)
+{
+	struct ast_config *cfg;
+	char *sfn = astman_get_header(m, "SrcFilename");
+	char *dfn = astman_get_header(m, "DstFilename");
+	int res;
+	char idText[256] = "";
+	char *id = astman_get_header(m, "ActionID");
+
+	if (!ast_strlen_zero(id))
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+
+	if (ast_strlen_zero(sfn) || ast_strlen_zero(dfn)) {
+		astman_send_error(s, m, "Filename not specified");
+		return 0;
+	}
+	if (!(cfg = ast_config_load(sfn))) {
+		astman_send_error(s, m, "Config file not found");
+		return 0;
+	}
+	handle_updates(s, m, cfg);
+	res = config_text_file_save(dfn, cfg, "Manager");
+	ast_config_destroy(cfg);
+	if (res) {
+		astman_send_error(s, m, "Save of config failed");
+		return 0;
+	}
+	astman_append(s, "Response: Success\r\n%s\r\n", idText);
+	return 0;
+}
+
 /*! \brief Manager WAITEVENT */
 static char mandescr_waitevent[] = 
 "Description: A 'WaitEvent' action will ellicit a 'Success' response.  Whenever\n"
@@ -1136,8 +1275,8 @@ static int action_status(struct mansession *s, struct message *m)
 	int all = ast_strlen_zero(name); /* set if we want all channels */
 
 	astman_send_ack(s, m, "Channel status will follow");
-        if (!ast_strlen_zero(id))
-                snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+	if (!ast_strlen_zero(id))
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	if (all)
 		c = ast_channel_walk_locked(NULL);
 	else {
@@ -2144,7 +2283,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 {
 	struct mansession *s = NULL;
 	unsigned long ident = 0;
-	char workspace[256];
+	char workspace[512];
 	char cookie[128];
 	char iabuf[INET_ADDRSTRLEN];
 	size_t len = sizeof(workspace);
@@ -2345,6 +2484,8 @@ int init_manager(void)
 		ast_manager_register("Status", EVENT_FLAG_CALL, action_status, "Lists channel status" );
 		ast_manager_register2("Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable", mandescr_setvar );
 		ast_manager_register2("Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable", mandescr_getvar );
+		ast_manager_register2("GetConfig", EVENT_FLAG_CONFIG, action_getconfig, "Retrieve configuration", mandescr_getconfig);
+		ast_manager_register2("UpdateConfig", EVENT_FLAG_CONFIG, action_updateconfig, "Update basic configuration", mandescr_updateconfig);
 		ast_manager_register2("Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect (transfer) a call", mandescr_redirect );
 		ast_manager_register2("Originate", EVENT_FLAG_CALL, action_originate, "Originate Call", mandescr_originate);
 		ast_manager_register2("Command", EVENT_FLAG_COMMAND, action_command, "Execute Asterisk CLI Command", mandescr_command );

@@ -323,6 +323,143 @@ struct ast_config *ast_config_new(void)
 	return config;
 }
 
+int ast_variable_delete(struct ast_category *category, char *variable)
+{
+	struct ast_variable *cur, *prev=NULL;
+	cur = category->root;
+	while (cur) {
+		if (cur->name == variable) {
+			if (prev) {
+				prev->next = cur->next;
+				if (cur == category->last)
+					category->last = prev;
+			} else {
+				category->root = cur->next;
+				if (cur == category->last)
+					category->last = NULL;
+			}
+			cur->next = NULL;
+			ast_variables_destroy(cur);
+			return 0;
+		}
+		prev = cur;
+		cur = cur->next;
+	}
+
+	cur = category->root;
+	while (cur) {
+		if (!strcasecmp(cur->name, variable)) {
+			if (prev) {
+				prev->next = cur->next;
+				if (cur == category->last)
+					category->last = prev;
+			} else {
+				category->root = cur->next;
+				if (cur == category->last)
+					category->last = NULL;
+			}
+			cur->next = NULL;
+			ast_variables_destroy(cur);
+			return 0;
+		}
+		prev = cur;
+		cur = cur->next;
+	}
+	return -1;
+}
+
+int ast_variable_update(struct ast_category *category, char *variable, char *value)
+{
+	struct ast_variable *cur, *prev=NULL, *newer;
+	newer = ast_variable_new(variable, value);
+	if (!newer)
+		return -1;
+	cur = category->root;
+	while (cur) {
+		if (cur->name == variable) {
+			newer->next = cur->next;
+			if (prev)
+				prev->next = newer;
+			else
+				category->root = newer;
+			if (category->last == cur)
+				category->last = newer;
+			cur->next = NULL;
+			ast_variables_destroy(cur);
+			return 0;
+		}
+		prev = cur;
+		cur = cur->next;
+	}
+
+	cur = category->root;
+	while (cur) {
+		if (!strcasecmp(cur->name, variable)) {
+			newer->next = cur->next;
+			if (prev)
+				prev->next = newer;
+			else
+				category->root = newer;
+			if (category->last == cur)
+				category->last = newer;
+			cur->next = NULL;
+			ast_variables_destroy(cur);
+			return 0;
+		}
+		prev = cur;
+		cur = cur->next;
+	}
+	if (prev)
+		prev->next = newer;
+	else
+		category->root = newer;
+	return 0;
+}
+
+int ast_category_delete(struct ast_config *cfg, char *category)
+{
+	struct ast_category *prev=NULL, *cat;
+	cat = cfg->root;
+	while(cat) {
+		if (cat->name == category) {
+			ast_variables_destroy(cat->root);
+			if (prev) {
+				prev->next = cat->next;
+				if (cat == cfg->last)
+					cfg->last = prev;
+			} else {
+				cfg->root = cat->next;
+				if (cat == cfg->last)
+					cfg->last = NULL;
+			}
+			free(cat);
+			return 0;
+		}
+		prev = cat;
+		cat = cat->next;
+	}
+	cat = cfg->root;
+	while(cat) {
+		if (!strcasecmp(cat->name, category)) {
+			ast_variables_destroy(cat->root);
+			if (prev) {
+				prev->next = cat->next;
+				if (cat == cfg->last)
+					cfg->last = prev;
+			} else {
+				cfg->root = cat->next;
+				if (cat == cfg->last)
+					cfg->last = NULL;
+			}
+			free(cat);
+			return 0;
+		}
+		prev = cat;
+		cat = cat->next;
+	}
+	return -1;
+}
+
 void ast_config_destroy(struct ast_config *cfg)
 {
 	struct ast_category *cat, *catn;
@@ -351,7 +488,7 @@ void ast_config_set_current_category(struct ast_config *cfg, const struct ast_ca
 	cfg->current = (struct ast_category *) cat;
 }
 
-static int process_text_line(struct ast_config *cfg, struct ast_category **cat, char *buf, int lineno, const char *configfile)
+static int process_text_line(struct ast_config *cfg, struct ast_category **cat, char *buf, int lineno, const char *configfile, int withcomments)
 {
 	char *c;
 	char *cur = buf;
@@ -461,7 +598,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				} else
 					exec_file[0] = '\0';
 				/* A #include */
-				do_include = ast_config_internal_load(cur, cfg) ? 1 : 0;
+				do_include = ast_config_internal_load(cur, cfg, withcomments) ? 1 : 0;
 				if(!ast_strlen_zero(exec_file))
 					unlink(exec_file);
 				if(!do_include)
@@ -511,7 +648,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 	return 0;
 }
 
-static struct ast_config *config_text_file_load(const char *database, const char *table, const char *filename, struct ast_config *cfg)
+static struct ast_config *config_text_file_load(const char *database, const char *table, const char *filename, struct ast_config *cfg, int withcomments)
 {
 	char fn[256];
 	char buf[8192];
@@ -630,7 +767,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				if (process_buf) {
 					char *buf = ast_strip(process_buf);
 					if (!ast_strlen_zero(buf)) {
-						if (process_text_line(cfg, &cat, buf, lineno, filename)) {
+						if (process_text_line(cfg, &cat, buf, lineno, filename, withcomments)) {
 							cfg = NULL;
 							break;
 						}
@@ -690,7 +827,7 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 		cat = cfg->root;
 		while(cat) {
 			/* Dump section with any appropriate comment */
-			fprintf(f, "[%s]\n", cat->name);
+			fprintf(f, "\n[%s]\n", cat->name);
 			var = cat->root;
 			while(var) {
 				if (var->sameline) 
@@ -711,6 +848,8 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 #endif
 			cat = cat->next;
 		}
+		if ((option_verbose > 1) && !option_debug)
+			ast_verbose("Saved\n");
 	} else {
 		if (option_debug)
 			printf("Unable to open for writing: %s\n", fn);
@@ -782,7 +921,7 @@ int read_config_maps(void)
 
 	configtmp = ast_config_new();
 	configtmp->max_include_level = 1;
-	config = ast_config_internal_load(extconfig_conf, configtmp);
+	config = ast_config_internal_load(extconfig_conf, configtmp, 0);
 	if (!config) {
 		ast_config_destroy(configtmp);
 		return 0;
@@ -918,7 +1057,7 @@ static struct ast_config_engine text_file_engine = {
 	.load_func = config_text_file_load,
 };
 
-struct ast_config *ast_config_internal_load(const char *filename, struct ast_config *cfg)
+struct ast_config *ast_config_internal_load(const char *filename, struct ast_config *cfg, int withcomments)
 {
 	char db[256];
 	char table[256];
@@ -947,7 +1086,7 @@ struct ast_config *ast_config_internal_load(const char *filename, struct ast_con
 		}
 	}
 
-	result = loader->load_func(db, table, filename, cfg);
+	result = loader->load_func(db, table, filename, cfg, withcomments);
 
 	if (result)
 		result->include_level--;
@@ -964,7 +1103,23 @@ struct ast_config *ast_config_load(const char *filename)
 	if (!cfg)
 		return NULL;
 
-	result = ast_config_internal_load(filename, cfg);
+	result = ast_config_internal_load(filename, cfg, 0);
+	if (!result)
+		ast_config_destroy(cfg);
+
+	return result;
+}
+
+struct ast_config *ast_config_load_with_comments(const char *filename)
+{
+	struct ast_config *cfg;
+	struct ast_config *result;
+
+	cfg = ast_config_new();
+	if (!cfg)
+		return NULL;
+
+	result = ast_config_internal_load(filename, cfg, 1);
 	if (!result)
 		ast_config_destroy(cfg);
 
