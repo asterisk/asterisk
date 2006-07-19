@@ -897,7 +897,7 @@ uninstall-all: _uninstall
 menuselect: menuselect/menuselect makeopts.xml
 	-@menuselect/menuselect $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts && echo "menuselect changes saved!" || echo "menuselect changes NOT saved!"
 
-menuselect/menuselect: menuselect/menuselect.c menuselect/menuselect_curses.c menuselect/menuselect.h menuselect/linkedlists.h config.status mxml/libmxml.a
+menuselect/menuselect: menuselect/menuselect.c menuselect/menuselect_curses.c menuselect/menuselect_stub.c menuselect/menuselect.h menuselect/linkedlists.h config.status mxml/libmxml.a
 	@CFLAGS="-include $(ASTTOPDIR)/include/asterisk/autoconfig.h -I$(ASTTOPDIR)/include" PARENTSRC="$(ASTTOPDIR)" $(MAKE) -C menuselect menuselect
 
 mxml/libmxml.a:
