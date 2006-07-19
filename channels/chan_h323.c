@@ -702,6 +702,16 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 		if (token)
 			free(token);
 		return -1;
+	case AST_CONTROL_HOLD:
+		ast_moh_start(c, data, NULL);
+		if (token)
+			free(token);
+		return 0;
+	case AST_CONTROL_UNHOLD:
+		ast_moh_stop(c);
+		if (token)
+			free(token);
+		return 0;
 	case AST_CONTROL_PROCEEDING:
 	case -1:
 		if (token)

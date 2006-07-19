@@ -5170,7 +5170,7 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 		ast_app_parse_options(waitexten_opts, &flags, opts, args.options);
 
 	if (ast_test_flag(&flags, WAITEXTEN_MOH))
-		ast_moh_start(chan, opts[0]);
+		ast_indicate_data(chan, AST_CONTROL_HOLD, opts[0], strlen(opts[0]));
 
 	/* Wait for "n" seconds */
 	if (args.timeout && (ms = atof(args.timeout)) > 0)
@@ -5195,7 +5195,7 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 	}
 
 	if (ast_test_flag(&flags, WAITEXTEN_MOH))
-		ast_moh_stop(chan);
+		ast_indicate(chan, AST_CONTROL_UNHOLD);
 
 	return res;
 }

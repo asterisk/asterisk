@@ -595,7 +595,7 @@ static int agent_indicate(struct ast_channel *ast, int condition, const void *da
 	int res = -1;
 	ast_mutex_lock(&p->lock);
 	if (p->chan)
-		res = ast_indicate(p->chan, condition);
+		res = ast_indicate_data(p->chan, condition, data, datalen);
 	else
 		res = 0;
 	ast_mutex_unlock(&p->lock);
@@ -773,7 +773,9 @@ static int agent_hangup(struct ast_channel *ast)
 			ast_channel_unlock(p->chan);
 		} else if (p->loginstart) {
 			ast_channel_lock(p->chan);
-			ast_moh_start(p->chan, p->moh);
+			ast_indicate_data(p->chan, AST_CONTROL_HOLD, 
+				S_OR(p->moh, NULL),
+				!ast_strlen_zero(p->moh) ? strlen(p->moh) + 1 : 0);
 			ast_channel_unlock(p->chan);
 		}
 	}
@@ -965,7 +967,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 			ast_log( LOG_ERROR, "A blocker exists after agent channel ownership acquired\n" );
 			CRASH;
 		}
-		ast_moh_stop(p->chan);
+		ast_indicate(p->chan, AST_CONTROL_UNHOLD);
 	}
 	return tmp;
 }
@@ -1964,12 +1966,9 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							res = ast_safe_sleep(chan, 500);
 						ast_mutex_unlock(&p->lock);
 					} else if (!res) {
-#ifdef HONOR_MUSIC_CLASS
-						/* check if the moh class was changed with setmusiconhold */
-						if (*(chan->musicclass))
-							ast_copy_string(p->moh, chan->musicclass, sizeof(p->moh));
-#endif								
-						ast_moh_start(chan, p->moh);
+						ast_indicate_data(chan, AST_CONTROL_HOLD, 
+							S_OR(p->moh, NULL), 
+							!ast_strlen_zero(p->moh) ? strlen(p->moh) + 1 : 0);
 						if (p->loginstart == 0)
 							time(&p->loginstart);
 						manager_event(EVENT_FLAG_AGENT, "Agentlogin",

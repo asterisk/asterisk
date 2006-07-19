@@ -3881,11 +3881,11 @@ ast_group_t ast_get_group(char *s)
 	return group;
 }
 
-static int (*ast_moh_start_ptr)(struct ast_channel *, const char *) = NULL;
+static int (*ast_moh_start_ptr)(struct ast_channel *, const char *, const char *) = NULL;
 static void (*ast_moh_stop_ptr)(struct ast_channel *) = NULL;
 static void (*ast_moh_cleanup_ptr)(struct ast_channel *) = NULL;
 
-void ast_install_music_functions(int (*start_ptr)(struct ast_channel *, const char *),
+void ast_install_music_functions(int (*start_ptr)(struct ast_channel *, const char *, const char *),
 				 void (*stop_ptr)(struct ast_channel *),
 				 void (*cleanup_ptr)(struct ast_channel *))
 {
@@ -3902,14 +3902,16 @@ void ast_uninstall_music_functions(void)
 }
 
 /*! \brief Turn on music on hold on a given channel */
-int ast_moh_start(struct ast_channel *chan, const char *mclass)
+int ast_moh_start(struct ast_channel *chan, const char *mclass, const char *interpclass)
 {
 	if (ast_moh_start_ptr)
-		return ast_moh_start_ptr(chan, mclass);
+		return ast_moh_start_ptr(chan, mclass, interpclass);
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Music class %s requested but no musiconhold loaded.\n", mclass ? mclass : "default");
-	
+	if (option_verbose > 2) {
+		ast_verbose(VERBOSE_PREFIX_3 "Music class %s requested but no musiconhold loaded.\n", 
+			mclass ? mclass : (interpclass ? interpclass : "default"));
+	}
+
 	return 0;
 }
 

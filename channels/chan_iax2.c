@@ -217,6 +217,8 @@ static int test_jitpct = 0;
 #endif /* IAXTESTS */
 
 static char accountcode[AST_MAX_ACCOUNT_CODE];
+static char mohinterpret[MAX_MUSICCLASS];
+static char mohsuggest[MAX_MUSICCLASS];
 static int amaflags = 0;
 static int adsi = 0;
 static int delayreject = 0;
@@ -283,6 +285,8 @@ struct iax2_user {
 	int authmethods;
 	int encmethods;
 	char accountcode[AST_MAX_ACCOUNT_CODE];
+	char mohinterpret[MAX_MUSICCLASS];
+	char mohsuggest[MAX_MUSICCLASS];
 	char inkeys[80];				/*!< Key(s) this user can use to authenticate to us */
 	char language[MAX_LANGUAGE];
 	int amaflags;
@@ -310,6 +314,8 @@ struct iax2_peer {
 	char regexten[AST_MAX_EXTENSION];		/*!< Extension to register (if regcontext is used) */
 	char peercontext[AST_MAX_EXTENSION];		/*!< Context to pass to peer */
 	char mailbox[AST_MAX_EXTENSION];		/*!< Mailbox */
+	char mohinterpret[MAX_MUSICCLASS];
+	char mohsuggest[MAX_MUSICCLASS];
 	struct ast_codec_pref prefs;
 	struct ast_dnsmgr_entry *dnsmgr;		/*!< DNS refresh manager */
 	struct sockaddr_in addr;
@@ -590,6 +596,8 @@ struct chan_iax2_pvt {
 	int calling_pres;
 	char dproot[AST_MAX_EXTENSION];
 	char accountcode[AST_MAX_ACCOUNT_CODE];
+	char mohinterpret[MAX_MUSICCLASS];
+	char mohsuggest[MAX_MUSICCLASS];
 	int amaflags;
 	struct iax2_dpcache *dpentries;
 	struct ast_variable *vars;
@@ -1226,6 +1234,8 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			iaxs[x]->amaflags = amaflags;
 			ast_copy_flags(iaxs[x], (&globalflags), IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
 			ast_copy_string(iaxs[x]->accountcode, accountcode, sizeof(iaxs[x]->accountcode));
+			ast_copy_string(iaxs[x]->mohinterpret, mohinterpret, sizeof(iaxs[x]->mohinterpret));
+			ast_copy_string(iaxs[x]->mohsuggest, mohsuggest, sizeof(iaxs[x]->mohsuggest));
 		} else {
 			ast_log(LOG_WARNING, "Out of resources\n");
 			ast_mutex_unlock(&iaxsl[x]);
@@ -2577,6 +2587,8 @@ struct create_addr_info {
 	char prefs[32];
 	char context[AST_MAX_CONTEXT];
 	char peercontext[AST_MAX_CONTEXT];
+	char mohinterpret[MAX_MUSICCLASS];
+	char mohsuggest[MAX_MUSICCLASS];
 };
 
 static int create_addr(const char *peername, struct sockaddr_in *sin, struct create_addr_info *cai)
@@ -2634,6 +2646,8 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 	ast_copy_string(cai->username, peer->username, sizeof(cai->username));
 	ast_copy_string(cai->timezone, peer->zonetag, sizeof(cai->timezone));
 	ast_copy_string(cai->outkey, peer->outkey, sizeof(cai->outkey));
+	ast_copy_string(cai->mohinterpret, peer->mohinterpret, sizeof(cai->mohinterpret));
+	ast_copy_string(cai->mohsuggest, peer->mohsuggest, sizeof(cai->mohsuggest));
 	if (ast_strlen_zero(peer->dbsecret)) {
 		ast_copy_string(cai->secret, peer->secret, sizeof(cai->secret));
 	} else {
@@ -2881,6 +2895,9 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	iaxs[callno]->encmethods = cai.encmethods;
 
 	iaxs[callno]->adsi = cai.adsi;
+	
+	ast_copy_string(iaxs[callno]->mohinterpret, cai.mohinterpret, sizeof(iaxs[callno]->mohinterpret));
+	ast_copy_string(iaxs[callno]->mohsuggest, cai.mohsuggest, sizeof(iaxs[callno]->mohsuggest));
 
 	if (pds.key)
 		ast_copy_string(iaxs[callno]->outkey, pds.key, sizeof(iaxs[callno]->outkey));
@@ -3168,9 +3185,23 @@ static int iax2_answer(struct ast_channel *c)
 static int iax2_indicate(struct ast_channel *c, int condition, const void *data, size_t datalen)
 {
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
+
 	if (option_debug && iaxdebug)
 		ast_log(LOG_DEBUG, "Indicating condition %d\n", condition);
-	return send_command_locked(callno, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);
+
+	if (!strcasecmp(iaxs[callno]->mohinterpret, "passthrough"))
+		return send_command_locked(callno, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);
+
+	switch (condition) {
+	case AST_CONTROL_HOLD:
+		ast_moh_start(c, data, iaxs[callno]->mohinterpret);
+		return 0;
+	case AST_CONTROL_UNHOLD:
+		ast_moh_stop(c);
+		return 0;
+	default:
+		return send_command_locked(callno, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);
+	}
 }
 	
 static int iax2_transfer(struct ast_channel *c, const char *dest)
@@ -4703,6 +4734,10 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		}
 		if (!ast_strlen_zero(user->accountcode))
 			ast_copy_string(iaxs[callno]->accountcode, user->accountcode, sizeof(iaxs[callno]->accountcode));
+		if (!ast_strlen_zero(user->mohinterpret))
+			ast_copy_string(iaxs[callno]->mohinterpret, user->mohinterpret, sizeof(iaxs[callno]->mohinterpret));
+		if (!ast_strlen_zero(user->mohsuggest))
+			ast_copy_string(iaxs[callno]->mohsuggest, user->mohsuggest, sizeof(iaxs[callno]->mohsuggest));
 		if (user->amaflags)
 			iaxs[callno]->amaflags = user->amaflags;
 		if (!ast_strlen_zero(user->language))
@@ -6668,9 +6703,12 @@ retryowner:
 
 					ast_set_flag(iaxs[fr->callno], IAX_QUELCH);
 					if (ies.musiconhold) {
-						if (iaxs[fr->callno]->owner &&
-							ast_bridged_channel(iaxs[fr->callno]->owner))
-								ast_moh_start(ast_bridged_channel(iaxs[fr->callno]->owner), NULL);
+						if (iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner)) {
+							const char *mohsuggest = iaxs[fr->callno]->mohsuggest;
+							ast_queue_control_data(iaxs[fr->callno]->owner, AST_CONTROL_HOLD, 
+								S_OR(mohsuggest, NULL),
+								!ast_strlen_zero(mohsuggest) ? strlen(mohsuggest) + 1 : 0);
+						}
 					}
 				}
 				break;
@@ -6686,9 +6724,8 @@ retryowner:
 					}
 
 					ast_clear_flag(iaxs[fr->callno], IAX_QUELCH);
-					if (iaxs[fr->callno]->owner &&
-						ast_bridged_channel(iaxs[fr->callno]->owner))
-							ast_moh_stop(ast_bridged_channel(iaxs[fr->callno]->owner));
+					if (iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner))
+						ast_queue_control(iaxs[fr->callno]->owner, AST_CONTROL_UNHOLD);
 				}
 				break;
 			case IAX_COMMAND_TXACC:
@@ -8244,6 +8281,10 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 				ast_copy_string(peer->secret, v->value, sizeof(peer->secret));
 			} else if (!strcasecmp(v->name, "mailbox")) {
 				ast_copy_string(peer->mailbox, v->value, sizeof(peer->mailbox));
+			} else if (!strcasecmp(v->name, "mohinterpret")) {
+				ast_copy_string(peer->mohinterpret, v->value, sizeof(peer->mohinterpret));
+			} else if (!strcasecmp(v->name, "mohsuggest")) {
+				ast_copy_string(peer->mohsuggest, v->value, sizeof(peer->mohsuggest));
 			} else if (!strcasecmp(v->name, "dbsecret")) {
 				ast_copy_string(peer->dbsecret, v->value, sizeof(peer->dbsecret));
 			} else if (!strcasecmp(v->name, "trunk")) {
@@ -8502,6 +8543,10 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 				ast_set_flag(user, IAX_HASCALLERID);	
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				ast_copy_string(user->accountcode, v->value, sizeof(user->accountcode));
+			} else if (!strcasecmp(v->name, "mohinterpret")) {
+				ast_copy_string(user->mohinterpret, v->value, sizeof(user->mohinterpret));
+			} else if (!strcasecmp(v->name, "mohsuggest")) {
+				ast_copy_string(user->mohsuggest, v->value, sizeof(user->mohsuggest));
 			} else if (!strcasecmp(v->name, "language")) {
 				ast_copy_string(user->language, v->value, sizeof(user->language));
 			} else if (!strcasecmp(v->name, "amaflags")) {
@@ -8878,6 +8923,10 @@ static int set_config(char *config_file, int reload)
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, see doc/ip-tos.txt for more information.'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(accountcode, v->value, sizeof(accountcode));
+		} else if (!strcasecmp(v->name, "mohinterpret")) {
+			ast_copy_string(mohinterpret, v->value, sizeof(user->mohinterpret));
+		} else if (!strcasecmp(v->name, "mohsuggest")) {
+			ast_copy_string(mohsuggest, v->value, sizeof(user->mohsuggest));
 		} else if (!strcasecmp(v->name, "amaflags")) {
 			format = ast_cdr_amaflags2int(v->value);
 			if (format < 0) {
@@ -8956,8 +9005,10 @@ static int reload_config(void)
 	struct iax2_registry *reg;
 	struct iax2_peer *peer = NULL;
 
-	ast_copy_string(accountcode, "", sizeof(accountcode));
-	ast_copy_string(language, "", sizeof(language));
+	strcpy(accountcode, "");
+	strcpy(language, "");
+	strcpy(mohinterpret, "default");
+	strcpy(mohsuggest, "");
 	amaflags = 0;
 	delayreject = 0;
 	ast_clear_flag((&globalflags), IAX_NOTRANSFER);	

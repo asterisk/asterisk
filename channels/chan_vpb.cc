@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/callerid.h"
 #include "asterisk/dsp.h"
 #include "asterisk/features.h"
+#include "asterisk/musiconhold.h"
 }
 
 #include <sys/socket.h>
@@ -1777,7 +1778,12 @@ static int vpb_indicate(struct ast_channel *ast, int condition, const void *data
 				vpb_timer_start(p->busy_timer);
 			}
 			break;
-
+		case AST_CONTROL_HOLD:
+			ast_moh_start(ast, (const char *) data, NULL);
+			break;
+		case AST_CONTROL_UNHOLD:
+			ast_moh_stop(ast);
+			break;
 		default:
 			res = 0;
 			break;

@@ -62,6 +62,24 @@
 ;
 ;language=en
 ;
+; This option specifies a preference for which music on hold class this channel
+; should listen to when put on hold if the music class has not been set on the
+; channel with Set(CHANNEL(musicclass)=whatever) in the dialplan, and the peer
+; channel putting this one on hold did not suggest a music class.
+;
+; If this option is set to "passthrough", then the hold message will always be
+; passed through as signalling instead of generating hold music locally.
+;
+; This option may be specified globally, or on a per-user or per-peer basis.
+;
+;mohinterpret=default
+;
+; This option specifies which music on hold class to suggest to the peer channel
+; when this channel places the peer on hold. It may be specified globally or on
+; a per-user or per-peer basis.
+;
+;mohsuggest=default
+;
 ; Specify bandwidth of low, medium, or high to control which codecs are used
 ; in general.
 ;

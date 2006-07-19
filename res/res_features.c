@@ -83,6 +83,7 @@ static char parking_con[AST_MAX_EXTENSION];                /*!< Context for whic
 static char parking_con_dial[AST_MAX_EXTENSION];           /*!< Context for dialback for parking (KLUDGE) */
 static char parking_ext[AST_MAX_EXTENSION];                /*!< Extension you type to park the call */
 static char pickup_ext[AST_MAX_EXTENSION];                 /*!< Call pickup extension */
+static char parkmohclass[MAX_MUSICCLASS];                  /*!< Music class used for parking */
 static int parking_start;                                  /*!< First available extension for parking */
 static int parking_stop;                                   /*!< Last available extension for parking */
 
@@ -358,11 +359,13 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 
 	pu->chan = chan;
 	
-	/* Start music on hold if we have two different channels */
+	/* Put the parked channel on hold if we have two different channels */
 	if (chan != peer) {
-		ast_indicate(pu->chan, AST_CONTROL_HOLD);	/* Indicate to peer that we're on hold */
-		ast_moh_start(pu->chan, NULL);
+		ast_indicate_data(pu->chan, AST_CONTROL_HOLD, 
+			S_OR(parkmohclass, NULL),
+			!ast_strlen_zero(parkmohclass) ? strlen(parkmohclass) + 1 : 0);
 	}
+	
 	pu->start = ast_tvnow();
 	pu->parkingnum = x;
 	pu->parkingtime = (timeout > 0) ? timeout : parkingtime;
@@ -423,7 +426,9 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
 	if (pu->notquiteyet) {
 		/* Wake up parking thread if we're really done */
-		ast_moh_start(pu->chan, NULL);
+		ast_indicate_data(pu->chan, AST_CONTROL_HOLD, 
+			S_OR(parkmohclass, NULL),
+			!ast_strlen_zero(parkmohclass) ? strlen(parkmohclass) + 1 : 0);
 		pu->notquiteyet = 0;
 		pthread_kill(parking_thread, SIGURG);
 	}
@@ -612,12 +617,9 @@ static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer
 
 static int finishup(struct ast_channel *chan)
 {
-        int res;
-  
-        ast_moh_stop(chan);
-        res = ast_autoservice_stop(chan);
         ast_indicate(chan, AST_CONTROL_UNHOLD);
-        return res;
+  
+        return ast_autoservice_stop(chan);
 }
 
 /*! \brief Find the context for the transfer */
@@ -644,9 +646,8 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	set_peers(&transferer, &transferee, peer, chan, sense);
 	transferer_real_context = real_ctx(transferer, transferee);
 	/* Start autoservice on chan while we talk to the originator */
-	ast_indicate(transferee, AST_CONTROL_HOLD);
 	ast_autoservice_start(transferee);
-	ast_moh_start(transferee, NULL);
+	ast_indicate(transferee, AST_CONTROL_HOLD);
 
 	memset(xferto, 0, sizeof(xferto));
 	
@@ -731,7 +732,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	struct ast_channel *transferer;
 	struct ast_channel *transferee;
 	const char *transferer_real_context;
-	char xferto[256];
+	char xferto[256] = "";
 	int res;
 	int outstate=0;
 	struct ast_channel *newchan;
@@ -746,10 +747,9 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	set_peers(&transferer, &transferee, peer, chan, sense);
         transferer_real_context = real_ctx(transferer, transferee);
 	/* Start autoservice on chan while we talk to the originator */
-	ast_indicate(transferee, AST_CONTROL_HOLD);
 	ast_autoservice_start(transferee);
-	ast_moh_start(transferee, NULL);
-	memset(xferto, 0, sizeof(xferto));
+	ast_indicate(transferee, AST_CONTROL_HOLD);
+	
 	/* Transfer */
 	res = ast_stream_and_wait(transferer, "pbx-transfer", transferer->language, AST_DIGIT_ANY);
 	if (res < 0) {
@@ -814,7 +814,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	if (check_compat(transferee, newchan))
 		return -1;
 
-	ast_moh_stop(transferee);
+	ast_indicate(transferee, AST_CONTROL_UNHOLD);
 	
 	if ((ast_autoservice_stop(transferee) < 0)
 	   || (ast_waitfordigit(transferee, 100) < 0)
@@ -1521,8 +1521,6 @@ static void *do_parking_thread(void *ignore)
 			}
 			tms = ast_tvdiff_ms(ast_tvnow(), pu->start);
 			if (tms > pu->parkingtime) {
-				/* Stop music on hold */
-				ast_moh_stop(chan);
 				ast_indicate(chan, AST_CONTROL_UNHOLD);
 				/* Get chan, exten from derived kludge */
 				if (pu->peername[0]) {
@@ -1620,7 +1618,9 @@ static void *do_parking_thread(void *ignore)
 						if (pu->moh_trys < 3 && !chan->generatordata) {
 							if (option_debug)
 								ast_log(LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
-							ast_moh_start(chan, NULL);
+							ast_indicate_data(pu->chan, AST_CONTROL_HOLD, 
+								S_OR(parkmohclass, NULL),
+								!ast_strlen_zero(parkmohclass) ? strlen(parkmohclass) + 1 : 0);
 							pu->moh_trys++;
 						}
 						goto std;	/*! \todo XXX Ick: jumping into an else statement??? XXX */
@@ -1748,7 +1748,6 @@ static int park_exec(struct ast_channel *chan, void *data)
 		
 		if (!ast_strlen_zero(courtesytone)) {
 			int error = 0;
-			ast_moh_stop(peer);
 			ast_indicate(peer, AST_CONTROL_UNHOLD);
 			if (parkedplay == 0) {
 				error = ast_stream_and_wait(chan, courtesytone, chan->language, "");
@@ -1770,10 +1769,8 @@ static int park_exec(struct ast_channel *chan, void *data)
 				ast_hangup(peer);
 				return -1;
 			}
-		} else {
-			ast_moh_stop(peer);
+		} else
 			ast_indicate(peer, AST_CONTROL_UNHOLD); 
-		}
 
 		res = ast_channel_make_compatible(chan, peer);
 		if (res < 0) {
@@ -2063,6 +2060,7 @@ static int load_config(void)
 	strcpy(parking_con_dial, "park-dial");
 	strcpy(parking_ext, "700");
 	strcpy(pickup_ext, "*8");
+	strcpy(parkmohclass, "default");
 	courtesytone[0] = '\0';
 	strcpy(xfersound, "beep");
 	strcpy(xferfailsound, "pbx-invalid");
@@ -2134,6 +2132,8 @@ static int load_config(void)
 				ast_copy_string(xferfailsound, var->value, sizeof(xferfailsound));
 			} else if (!strcasecmp(var->name, "pickupexten")) {
 				ast_copy_string(pickup_ext, var->value, sizeof(pickup_ext));
+			} else if (!strcasecmp(var->name, "parkedmusicclass")) {
+				ast_copy_string(parkmohclass, var->value, sizeof(parkmohclass));
 			}
 		}
 

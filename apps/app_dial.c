@@ -1214,8 +1214,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		/* Our status will at least be NOANSWER */
 		strcpy(status, "NOANSWER");
 		if (ast_test_flag(outgoing, OPT_MUSICBACK)) {
-			moh=1;
-			ast_moh_start(chan, opt_args[OPT_ARG_MUSICBACK]);
+			moh = 1;
+			ast_moh_start(chan, opt_args[OPT_ARG_MUSICBACK], NULL);
 		} else if (ast_test_flag(outgoing, OPT_RINGBACK)) {
 			ast_indicate(chan, AST_CONTROL_RINGING);
 			sentringing++;
@@ -1273,7 +1273,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 			if (ast_test_flag(&opts, OPT_MUSICBACK) && !ast_strlen_zero(opt_args[OPT_ARG_MUSICBACK])) {
 				ast_indicate(chan, -1);
-				ast_moh_start(chan, opt_args[OPT_ARG_MUSICBACK]);
+				ast_moh_start(chan, opt_args[OPT_ARG_MUSICBACK], NULL);
 			} else if (ast_test_flag(&opts, OPT_RINGBACK)) {
 				ast_indicate(chan, AST_CONTROL_RINGING);
 				sentringing++;
@@ -1701,7 +1701,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 					res = ast_waitstream(chan, AST_DIGIT_ANY);
 				if (!res && sleep) {
 					if (!ast_test_flag(chan, AST_FLAG_MOH))
-						ast_moh_start(chan, NULL);
+						ast_moh_start(chan, NULL, NULL);
 					res = ast_waitfordigit(chan, sleep);
 				}
 			} else {
@@ -1709,7 +1709,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 					res = ast_waitstream(chan, "");
 				if (sleep) {
 					if (!ast_test_flag(chan, AST_FLAG_MOH))
-						ast_moh_start(chan, NULL);
+						ast_moh_start(chan, NULL, NULL);
 					if (!res) 
 						res = ast_waitfordigit(chan, sleep);
 				}

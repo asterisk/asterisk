@@ -1010,10 +1010,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 					goto outrun;
 				if (ast_waitstream(chan, "") < 0)
 					goto outrun;
-				if (!strcmp(targs.mohclass, ""))
-					ast_moh_start(chan, NULL);
-				else
-					ast_moh_start(chan, targs.mohclass);
+				ast_moh_start(chan, S_OR(targs.mohclass, NULL), NULL);
 
 
 				targs.status = 0;

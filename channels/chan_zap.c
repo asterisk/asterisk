@@ -206,7 +206,8 @@ static char defaultcic[64] = "";
 static char defaultozz[64] = "";
 
 static char language[MAX_LANGUAGE] = "";
-static char musicclass[MAX_MUSICCLASS] = "";
+static char mohinterpret[MAX_MUSICCLASS] = "default";
+static char mohsuggest[MAX_MUSICCLASS] = "";
 static char progzone[10] = "";
 
 static int usedistinctiveringdetection = 0;
@@ -613,7 +614,8 @@ static struct zt_pvt {
 	char defcontext[AST_MAX_CONTEXT];
 	char exten[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
-	char musicclass[MAX_MUSICCLASS];
+	char mohinterpret[MAX_MUSICCLASS];
+	char mohsuggest[MAX_MUSICCLASS];
 #ifdef PRI_ANI
 	char cid_ani[AST_MAX_EXTENSION];
 #endif
@@ -2424,7 +2426,7 @@ static int zt_hangup(struct ast_channel *ast)
 				if (p->owner->_state != AST_STATE_UP)
 					p->subs[SUB_REAL].needanswer = 1;
 				if (ast_bridged_channel(p->subs[SUB_REAL].owner))
-					ast_moh_stop(ast_bridged_channel(p->subs[SUB_REAL].owner));
+					ast_queue_control(p->subs[SUB_REAL].owner, AST_CONTROL_UNHOLD);
 			} else if (p->subs[SUB_THREEWAY].zfd > -1) {
 				swap_subs(p, SUB_THREEWAY, SUB_REAL);
 				unalloc_sub(p, SUB_THREEWAY);
@@ -2445,8 +2447,11 @@ static int zt_hangup(struct ast_channel *ast)
 			if (p->subs[SUB_CALLWAIT].inthreeway) {
 				/* This is actually part of a three way, placed on hold.  Place the third part
 				   on music on hold now */
-				if (p->subs[SUB_THREEWAY].owner && ast_bridged_channel(p->subs[SUB_THREEWAY].owner))
-					ast_moh_start(ast_bridged_channel(p->subs[SUB_THREEWAY].owner), NULL);
+				if (p->subs[SUB_THREEWAY].owner && ast_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
+					ast_queue_control_data(p->subs[SUB_THREEWAY].owner, AST_CONTROL_HOLD, 
+						S_OR(p->mohsuggest, NULL),
+						!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+				}
 				p->subs[SUB_THREEWAY].inthreeway = 0;
 				/* Make it the call wait now */
 				swap_subs(p, SUB_CALLWAIT, SUB_THREEWAY);
@@ -2457,8 +2462,11 @@ static int zt_hangup(struct ast_channel *ast)
 			if (p->subs[SUB_CALLWAIT].inthreeway) {
 				/* The other party of the three way call is currently in a call-wait state.
 				   Start music on hold for them, and take the main guy out of the third call */
-				if (p->subs[SUB_CALLWAIT].owner && ast_bridged_channel(p->subs[SUB_CALLWAIT].owner))
-					ast_moh_start(ast_bridged_channel(p->subs[SUB_CALLWAIT].owner), NULL);
+				if (p->subs[SUB_CALLWAIT].owner && ast_bridged_channel(p->subs[SUB_CALLWAIT].owner)) {
+					ast_queue_control_data(p->subs[SUB_CALLWAIT].owner, AST_CONTROL_HOLD, 
+						S_OR(p->mohsuggest, NULL),
+						!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+				}
 				p->subs[SUB_CALLWAIT].inthreeway = 0;
 			}
 			p->subs[SUB_REAL].inthreeway = 0;
@@ -3404,7 +3412,7 @@ static int attempt_transfer(struct zt_pvt *p)
 		/* The three-way person we're about to transfer to could still be in MOH, so
 		   stop if now if appropriate */
 		if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner))
-			ast_moh_stop(ast_bridged_channel(p->subs[SUB_THREEWAY].owner));
+			ast_queue_control(p->subs[SUB_THREEWAY].owner, AST_CONTROL_UNHOLD);
 		if (p->subs[SUB_THREEWAY].owner->_state == AST_STATE_RINGING) {
 			ast_indicate(ast_bridged_channel(p->subs[SUB_REAL].owner), AST_CONTROL_RINGING);
 		}
@@ -3429,10 +3437,9 @@ static int attempt_transfer(struct zt_pvt *p)
 		ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
 		unalloc_sub(p, SUB_THREEWAY);
 	} else if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
-		if (p->subs[SUB_REAL].owner->_state == AST_STATE_RINGING) {
+		ast_queue_control(p->subs[SUB_REAL].owner, AST_CONTROL_UNHOLD);
+		if (p->subs[SUB_REAL].owner->_state == AST_STATE_RINGING)
 			ast_indicate(ast_bridged_channel(p->subs[SUB_THREEWAY].owner), AST_CONTROL_RINGING);
-		}
-		ast_moh_stop(ast_bridged_channel(p->subs[SUB_THREEWAY].owner));
 		if (p->subs[SUB_THREEWAY].owner->cdr) {
 			/* Move CDR from second channel to current one */
 			p->subs[SUB_REAL].owner->cdr = 
@@ -3897,7 +3904,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					zt_set_hook(p->subs[index].zfd, ZT_OFFHOOK);
 					/* Okay -- probably call waiting*/
 					if (ast_bridged_channel(p->owner))
-							ast_moh_stop(ast_bridged_channel(p->owner));
+						ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
 					p->subs[index].needunhold = 1;
 					break;
 				case AST_STATE_RESERVED:
@@ -4054,11 +4061,17 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					p->callwaitingrepeat = 0;
 					p->cidcwexpire = 0;
 					/* Start music on hold if appropriate */
-					if (!p->subs[SUB_CALLWAIT].inthreeway && ast_bridged_channel(p->subs[SUB_CALLWAIT].owner))
-						ast_moh_start(ast_bridged_channel(p->subs[SUB_CALLWAIT].owner), NULL);
+					if (!p->subs[SUB_CALLWAIT].inthreeway && ast_bridged_channel(p->subs[SUB_CALLWAIT].owner)) {
+						ast_queue_control_data(p->subs[SUB_CALLWAIT].owner, AST_CONTROL_HOLD,
+							S_OR(p->mohsuggest, NULL),
+							!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+					}
 					p->subs[SUB_CALLWAIT].needhold = 1;
-					if (ast_bridged_channel(p->subs[SUB_REAL].owner))
-						ast_moh_stop(ast_bridged_channel(p->subs[SUB_REAL].owner));
+					if (ast_bridged_channel(p->subs[SUB_REAL].owner)) {
+						ast_queue_control_data(p->subs[SUB_REAL].owner, AST_CONTROL_HOLD,
+							S_OR(p->mohsuggest, NULL),
+							!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+					}
 					p->subs[SUB_REAL].needunhold = 1;
 				} else if (!p->subs[SUB_THREEWAY].owner) {
 					char cid_num[256];
@@ -4116,8 +4129,11 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							if (option_verbose > 2)	
 								ast_verbose(VERBOSE_PREFIX_3 "Started three way call on channel %d\n", p->channel);
 							/* Start music on hold if appropriate */
-							if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner))
-								ast_moh_start(ast_bridged_channel(p->subs[SUB_THREEWAY].owner), NULL);
+							if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
+								ast_queue_control_data(p->subs[SUB_THREEWAY].owner, AST_CONTROL_HOLD,
+									S_OR(p->mohsuggest, NULL),
+									!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+							}
 							p->subs[SUB_THREEWAY].needhold = 1;
 						}		
 					}
@@ -4155,7 +4171,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								otherindex = SUB_REAL;
 							}
 							if (p->subs[otherindex].owner && ast_bridged_channel(p->subs[otherindex].owner))
-								ast_moh_stop(ast_bridged_channel(p->subs[otherindex].owner));
+								ast_queue_control(p->subs[otherindex].owner, AST_CONTROL_UNHOLD);
 							p->subs[otherindex].needunhold = 1;
 							p->owner = p->subs[SUB_REAL].owner;
 							if (ast->_state == AST_STATE_RINGING) {
@@ -4170,7 +4186,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							p->owner = p->subs[SUB_REAL].owner;
 							if (p->subs[SUB_REAL].owner && ast_bridged_channel(p->subs[SUB_REAL].owner))
-								ast_moh_stop(ast_bridged_channel(p->subs[SUB_REAL].owner));
+								ast_queue_control(p->subs[SUB_REAL].owner, AST_CONTROL_UNHOLD);
 							p->subs[SUB_REAL].needunhold = 1;
 							zt_enable_ec(p);
 						}
@@ -4358,7 +4374,7 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 			ast_log(LOG_DEBUG, "Restoring owner of channel %d on event %d\n", p->channel, res);
 			p->owner = p->subs[SUB_REAL].owner;
 			if (p->owner && ast_bridged_channel(p->owner))
-				ast_moh_stop(ast_bridged_channel(p->owner));
+				ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
 			p->subs[SUB_REAL].needunhold = 1;
 		}
 		switch (res) {
@@ -4402,7 +4418,7 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 				p->callwaitingrepeat = 0;
 				p->cidcwexpire = 0;
 				if (ast_bridged_channel(p->owner))
-					ast_moh_stop(ast_bridged_channel(p->owner));
+					ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
 				p->subs[SUB_REAL].needunhold = 1;
 			} else
 				ast_log(LOG_WARNING, "Absorbed on hook, but nobody is left!?!?\n");
@@ -5005,26 +5021,30 @@ static int zt_indicate(struct ast_channel *chan, int condition, const void *data
 #endif
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
 			break;
-#ifdef HAVE_PRI
 		case AST_CONTROL_HOLD:
-			if (p->pri) {
+#ifdef HAVE_PRI
+			if (p->pri && !strcasecmp(p->mohinterpret, "passthrough")) {
 				if (!pri_grab(p, p->pri)) {
 					res = pri_notify(p->pri->pri, p->call, p->prioffset, PRI_NOTIFY_REMOTE_HOLD);
 					pri_rel(p->pri);
 				} else
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);			
-			}
+			} else
+#endif
+				ast_moh_start(chan, data, p->mohinterpret);
 			break;
 		case AST_CONTROL_UNHOLD:
-			if (p->pri) {
+#ifdef HAVE_PRI
+			if (p->pri && !strcasecmp(p->mohinterpret, "passthrough")) {
 				if (!pri_grab(p, p->pri)) {
 					res = pri_notify(p->pri->pri, p->call, p->prioffset, PRI_NOTIFY_REMOTE_RETRIEVAL);
 					pri_rel(p->pri);
 				} else
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);			
-			}
-			break;
+			} else
 #endif
+				ast_moh_stop(chan);
+			break;
 		case AST_CONTROL_RADIO_KEY:
 			if (p->radio) 
 			    res =  zt_set_hook(p->subs[index].zfd, ZT_OFFHOOK);
@@ -5176,8 +5196,6 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	}
 	if (!ast_strlen_zero(i->language))
 		ast_string_field_set(tmp, language, i->language);
-	if (!ast_strlen_zero(i->musicclass))
-		ast_string_field_set(tmp, musicclass, i->musicclass);
 	if (!i->owner)
 		i->owner = tmp;
 	if (!ast_strlen_zero(i->accountcode))
@@ -5882,7 +5900,7 @@ static void *ss_thread(void *data)
 					unalloc_sub(p, SUB_THREEWAY);
 					p->owner = p->subs[SUB_REAL].owner;
 					if (ast_bridged_channel(p->subs[SUB_REAL].owner))
-						ast_moh_stop(ast_bridged_channel(p->subs[SUB_REAL].owner));
+						ast_queue_control(p->subs[SUB_REAL].owner, AST_CONTROL_UNHOLD);
 					ast_hangup(chan);
 					return NULL;
 				} else {
@@ -7301,7 +7319,8 @@ static struct zt_pvt *mkintf(int channel, int signalling, int outsignalling, int
 		tmp->transfer = transfer;
 		ast_copy_string(tmp->defcontext,context,sizeof(tmp->defcontext));
 		ast_copy_string(tmp->language, language, sizeof(tmp->language));
-		ast_copy_string(tmp->musicclass, musicclass, sizeof(tmp->musicclass));
+		ast_copy_string(tmp->mohinterpret, mohinterpret, sizeof(tmp->mohinterpret));
+		ast_copy_string(tmp->mohsuggest, mohsuggest, sizeof(tmp->mohsuggest));
 		ast_copy_string(tmp->context, context, sizeof(tmp->context));
 		ast_copy_string(tmp->cid_num, cid_num, sizeof(tmp->cid_num));
 		tmp->cid_ton = 0;
@@ -9662,9 +9681,9 @@ static int zap_show_channels(int fd, int argc, char **argv)
 
 	ast_mutex_lock(lock);
 #ifdef HAVE_PRI
-	ast_cli(fd, FORMAT2, pri ? "CRV" : "Chan", "Extension", "Context", "Language", "MusicOnHold");
+	ast_cli(fd, FORMAT2, pri ? "CRV" : "Chan", "Extension", "Context", "Language", "MOH Interpret");
 #else
-	ast_cli(fd, FORMAT2, "Chan", "Extension", "Context", "Language", "MusicOnHold");
+	ast_cli(fd, FORMAT2, "Chan", "Extension", "Context", "Language", "MOH Interpret");
 #endif	
 	
 	tmp = start;
@@ -9673,7 +9692,7 @@ static int zap_show_channels(int fd, int argc, char **argv)
 			snprintf(tmps, sizeof(tmps), "%d", tmp->channel);
 		} else
 			ast_copy_string(tmps, "pseudo", sizeof(tmps));
-		ast_cli(fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->musicclass);
+		ast_cli(fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->mohinterpret);
 		tmp = tmp->next;
 	}
 	ast_mutex_unlock(lock);
@@ -10525,8 +10544,11 @@ static int setup_zap(int reload)
 			ast_copy_string(language, v->value, sizeof(language));
 		} else if (!strcasecmp(v->name, "progzone")) {
 			ast_copy_string(progzone, v->value, sizeof(progzone));
-		} else if (!strcasecmp(v->name, "musiconhold") || !strcasecmp(v->name, "musicclass")) {
-			ast_copy_string(musicclass, v->value, sizeof(musicclass));
+		} else if (!strcasecmp(v->name, "mohinterpret") 
+			||!strcasecmp(v->name, "musiconhold") || !strcasecmp(v->name, "musicclass")) {
+			ast_copy_string(mohinterpret, v->value, sizeof(mohinterpret));
+		} else if (!strcasecmp(v->name, "mohsuggest")) {
+			ast_copy_string(mohsuggest, v->value, sizeof(mohsuggest));
 		} else if (!strcasecmp(v->name, "stripmsd")) {
 			stripmsd = atoi(v->value);
 		} else if (!strcasecmp(v->name, "jitterbuffers")) {

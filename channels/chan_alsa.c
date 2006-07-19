@@ -61,6 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/endian.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/abstract_jb.h"
+#include "asterisk/musiconhold.h"
 
 #include "busy.h"
 #include "ringtone.h"
@@ -127,6 +128,7 @@ static const char config[] = "alsa.conf";
 static char context[AST_MAX_CONTEXT] = "default";
 static char language[MAX_LANGUAGE] = "";
 static char exten[AST_MAX_EXTENSION] = "s";
+static char mohinterpret[MAX_MUSICCLASS];
 
 static int hookstate=0;
 
@@ -764,7 +766,9 @@ static int alsa_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static int alsa_indicate(struct ast_channel *chan, int cond, const void *data, size_t datalen)
 {
 	int res = 0;
+
 	ast_mutex_lock(&alsalock);
+	
 	switch(cond) {
 	case AST_CONTROL_BUSY:
 		res = 1;
@@ -773,7 +777,6 @@ static int alsa_indicate(struct ast_channel *chan, int cond, const void *data, s
 		res = 2;
 		break;
 	case AST_CONTROL_RINGING:
-		res = 0;
 		break;
 	case -1:
 		res = -1;
@@ -781,14 +784,24 @@ static int alsa_indicate(struct ast_channel *chan, int cond, const void *data, s
 	case AST_CONTROL_VIDUPDATE:
 		res = -1;
 		break;
+	case AST_CONTROL_HOLD:
+		ast_verbose( " << Console Has Been Placed on Hold >> \n");
+		ast_moh_start(chan, data, mohinterpret);
+		break;
+	case AST_CONTROL_UNHOLD:
+		ast_verbose( " << Console Has Been Retrieved from Hold >> \n");
+		ast_moh_stop(chan);
+		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, chan->name);
 		res = -1;
 	}
-	if (res > -1) {
+	
+	if (res > -1)
 		write(sndcmd[1], &res, sizeof(res));
-	}
+
 	ast_mutex_unlock(&alsalock);
+
 	return res;	
 }
 
@@ -1068,14 +1081,15 @@ static int load_module(void *mod)
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 
+	strcpy(mohinterpret, "default");
+
 	if ((cfg = ast_config_load(config))) {
 		v = ast_variable_browse(cfg, "general");
-		while(v) {
+		for (; v; v = v->next) {
 			/* handle jb conf */
-			if (!ast_jb_read_conf(&global_jbconf, v->name, v->value)) {
-				v = v->next;
+			if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
 				continue;
-			}
+			
 			if (!strcasecmp(v->name, "autoanswer"))
 				autoanswer = ast_true(v->value);
 			else if (!strcasecmp(v->name, "silencesuppression"))
@@ -1083,16 +1097,17 @@ static int load_module(void *mod)
 			else if (!strcasecmp(v->name, "silencethreshold"))
 				silencethreshold = atoi(v->value);
 			else if (!strcasecmp(v->name, "context"))
-				strncpy(context, v->value, sizeof(context)-1);
+				ast_copy_string(context, v->value, sizeof(context));
 			else if (!strcasecmp(v->name, "language"))
-				strncpy(language, v->value, sizeof(language)-1);
+				ast_copy_string(language, v->value, sizeof(language));
 			else if (!strcasecmp(v->name, "extension"))
-				strncpy(exten, v->value, sizeof(exten)-1);
+				ast_copy_string(exten, v->value, sizeof(exten));
 			else if (!strcasecmp(v->name, "input_device"))
-				strncpy(indevname, v->value, sizeof(indevname)-1);
+				ast_copy_string(indevname, v->value, sizeof(indevname));
 			else if (!strcasecmp(v->name, "output_device"))
-				strncpy(outdevname, v->value, sizeof(outdevname)-1);
-			v=v->next;
+				ast_copy_string(outdevname, v->value, sizeof(outdevname));
+			else if (!strcasecmp(v->name, "mohinterpret"))
+				ast_copy_string(mohinterpret, v->value, sizeof(mohinterpret));
 		}
 		ast_config_destroy(cfg);
 	}

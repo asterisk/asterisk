@@ -4291,7 +4291,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			bc->holded_bc=bridged_ch->bc;
 			misdn_lib_send_event(bc, EVENT_HOLD_ACKNOWLEDGE);
 
-			ast_moh_start(bridged, NULL);
+			/* XXX This should queue an AST_CONTROL_HOLD frame on this channel
+			 * instead of starting moh on the bridged channel directly */
+			ast_moh_start(bridged, NULL, NULL);
 		} else {
 			misdn_lib_send_event(bc, EVENT_HOLD_REJECT);
 			chan_misdn_log(0, bc->port, "We aren't bridged to anybody\n");

@@ -761,7 +761,8 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	char *c, *lastc;
 	char buff[80];
 
-	if (!strcasecmp(param, "music") || !strcasecmp(param, "musiconhold")) {
+	if (!strcasecmp(param, "musicclass") || 
+		!strcasecmp(param, "music") || !strcasecmp(param, "musiconhold")) {
 		ast_copy_string(q->moh, val, sizeof(q->moh));
 	} else if (!strcasecmp(param, "announce")) {
 		ast_copy_string(q->announce, val, sizeof(q->announce));
@@ -1343,7 +1344,7 @@ playout:
 
 	/* Don't restart music on hold if we're about to exit the caller from the queue */
 	if (!res)
-		ast_moh_start(qe->chan, qe->moh);
+		ast_moh_start(qe->chan, qe->moh, NULL);
 
 	return res;
 }
@@ -1782,7 +1783,7 @@ static int say_periodic_announcement(struct queue_ent *qe)
 
 	/* Resume Music on Hold if the caller is going to stay in the queue */
 	if (!res)
-		ast_moh_start(qe->chan, qe->moh);
+		ast_moh_start(qe->chan, qe->moh, NULL);
 
 	/* update last_periodic_announce_time */
 	qe->last_periodic_announce_time = now;
@@ -3311,7 +3312,7 @@ check_turns:
 		if (ringing) {
 			ast_indicate(chan, AST_CONTROL_RINGING);
 		} else {
-			ast_moh_start(chan, qe.moh);
+			ast_moh_start(chan, qe.moh, NULL);
 		}
 		for (;;) {
 			/* This is the wait loop for callers 2 through maxlen */

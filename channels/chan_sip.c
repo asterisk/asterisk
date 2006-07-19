@@ -452,7 +452,8 @@ static const struct cfsip_options {
  */
 #define DEFAULT_SIP_PORT	5060	/*!< From RFC 3261 (former 2543) */
 #define DEFAULT_CONTEXT		"default"
-#define DEFAULT_MUSICCLASS	"default"
+#define DEFAULT_MOHINTERPRET    "default"
+#define DEFAULT_MOHSUGGEST      ""
 #define DEFAULT_VMEXTEN 	"asterisk"
 #define DEFAULT_CALLERID 	"asterisk"
 #define DEFAULT_NOTIFYMIME 	"application/simple-message-summary"
@@ -486,7 +487,9 @@ static char default_fromdomain[AST_MAX_EXTENSION];
 static char default_notifymime[AST_MAX_EXTENSION];
 static int default_qualify;		/*!< Default Qualify= setting */
 static char default_vmexten[AST_MAX_EXTENSION];
-static char default_musicclass[MAX_MUSICCLASS];		/*!< Global music on hold class */
+static char default_mohinterpret[MAX_MUSICCLASS];  /*!< Global setting for moh class to use when put on hold */
+static char default_mohsuggest[MAX_MUSICCLASS];	   /*!< Global setting for moh class to suggest when putting 
+                                                    *   a bridged channel on hold */
 static int default_maxcallbitrate;	/*!< Maximum bitrate for call */
 static struct ast_codec_pref default_prefs;		/*!< Default codec prefs */
 
@@ -868,7 +871,8 @@ static struct sip_pvt {
 		AST_STRING_FIELD(fromname);	/*!< Name to show in the user field */
 		AST_STRING_FIELD(tohost);	/*!< Host we should put in the "to" field */
 		AST_STRING_FIELD(language);	/*!< Default language for this call */
-		AST_STRING_FIELD(musicclass);	/*!< Music on Hold class */
+		AST_STRING_FIELD(mohinterpret);	/*!< MOH class to use when put on hold */
+		AST_STRING_FIELD(mohsuggest);	/*!< MOH class to suggest when putting a peer on hold */
 		AST_STRING_FIELD(rdnis);	/*!< Referring DNIS */
 		AST_STRING_FIELD(theirtag);	/*!< Their tag */
 		AST_STRING_FIELD(username);	/*!< [user] name */
@@ -986,7 +990,8 @@ struct sip_user {
 	char cid_name[80];		/*!< Caller ID name */
 	char accountcode[AST_MAX_ACCOUNT_CODE];	/* Account code */
 	char language[MAX_LANGUAGE];	/*!< Default language for this user */
-	char musicclass[MAX_MUSICCLASS];/*!< Music on Hold class */
+	char mohinterpret[MAX_MUSICCLASS];/*!< Music on Hold class */
+	char mohsuggest[MAX_MUSICCLASS];/*!< Music on Hold class */
 	char useragent[256];		/*!< User agent in SIP request */
 	struct ast_codec_pref prefs;	/*!< codec prefs */
 	ast_group_t callgroup;		/*!< Call group */
@@ -1032,7 +1037,8 @@ struct sip_peer {
 	char vmexten[AST_MAX_EXTENSION]; /*!< Dialplan extension for MWI notify message*/
 	char mailbox[AST_MAX_EXTENSION]; /*!< Mailbox setting for MWI checks */
 	char language[MAX_LANGUAGE];	/*!<  Default language for prompts */
-	char musicclass[MAX_MUSICCLASS];/*!<  Music on Hold class */
+	char mohinterpret[MAX_MUSICCLASS];/*!<  Music on Hold class */
+	char mohsuggest[MAX_MUSICCLASS];/*!<  Music on Hold class */
 	char useragent[256];		/*!<  User agent in SIP request (saved from registration) */
 	struct ast_codec_pref prefs;	/*!<  codec prefs */
 	int lastmsgssent;
@@ -3541,21 +3547,16 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		}
 		res = -1;
 		break;
-	case AST_CONTROL_HOLD:	/* The other part of the bridge are put on hold */
-		if (sipdebug)
-			ast_log(LOG_DEBUG, "Bridged channel now on hold - %s\n", p->callid);
-		res = -1;
+	case AST_CONTROL_HOLD:
+		ast_moh_start(ast, data, p->mohinterpret);
 		break;
-	case AST_CONTROL_UNHOLD:	/* The other part of the bridge are back from hold */
-		if (sipdebug)
-			ast_log(LOG_DEBUG, "Bridged channel is back from hold, let's talk! : %s\n", p->callid);
-		res = -1;
+	case AST_CONTROL_UNHOLD:
+		ast_moh_stop(ast);
 		break;
 	case AST_CONTROL_VIDUPDATE:	/* Request a video frame update */
 		if (p->vrtp && !ast_test_flag(&p->flags[0], SIP_NOVIDEO)) {
 			transmit_info_with_vidupdate(p);
 			/* ast_rtcp_send_h261fur(p->vrtp); */
-			res = 0;
 		} else
 			res = -1;
 		break;
@@ -3681,8 +3682,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		tmp->amaflags = i->amaflags;
 	if (!ast_strlen_zero(i->language))
 		ast_string_field_set(tmp, language, i->language);
-	if (!ast_strlen_zero(i->musicclass))
-		ast_string_field_set(tmp, musicclass, i->musicclass);
 	i->owner = tmp;
 	ast_mutex_lock(&usecnt_lock);
 	usecnt++;
@@ -4086,7 +4085,8 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	else
 		ast_string_field_set(p, callid, callid);
 	/* Assign default music on hold class */
-	ast_string_field_set(p, musicclass, default_musicclass);
+	ast_string_field_set(p, mohinterpret, default_mohinterpret);
+	ast_string_field_set(p, mohsuggest, default_mohsuggest);
 	p->capability = global_capability;
 	p->allowtransfer = global_allowtransfer;
 	if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
@@ -4935,13 +4935,16 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		/* We have a bridge */
 		/* Turn on/off music on hold if we are holding/unholding */
 		if (sin.sin_addr.s_addr && !sendonly) {
-			ast_moh_stop(bridgepeer);
+			ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
 		
 			/* Activate a re-invite */
 			ast_queue_frame(p->owner, &ast_null_frame);
-		} else if (!sin.sin_addr.s_addr || sendonly ) {
+		} else if (!sin.sin_addr.s_addr || sendonly) {
 			/* No address for RTP, we're on hold */
-			ast_moh_start(bridgepeer, NULL);
+			ast_queue_control_data(p->owner, AST_CONTROL_HOLD, 
+				S_OR(p->mohsuggest, NULL),
+				!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+
 			if (sendonly)
 				ast_rtp_stop(p->rtp);
 			/* RTCP needs to go ahead, even if we're on hold!!! */
@@ -8682,7 +8685,8 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			ast_string_field_set(p, subscribecontext, user->subscribecontext);
 			ast_string_field_set(p, accountcode, user->accountcode);
 			ast_string_field_set(p, language, user->language);
-			ast_string_field_set(p, musicclass, user->musicclass);
+			ast_string_field_set(p, mohsuggest, user->mohsuggest);
+			ast_string_field_set(p, mohinterpret, user->mohinterpret);
 			p->allowtransfer = user->allowtransfer;
 			p->amaflags = user->amaflags;
 			p->callgroup = user->callgroup;
@@ -8769,6 +8773,8 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			ast_string_field_set(p, peersecret, peer->secret);
 			ast_string_field_set(p, peermd5secret, peer->md5secret);
 			ast_string_field_set(p, subscribecontext, peer->subscribecontext);
+			ast_string_field_set(p, mohinterpret, peer->mohinterpret);
+			ast_string_field_set(p, mohsuggest, peer->mohsuggest);
 			if (peer->callingpres)	/* Peer calling pres setting will override RPID */
 				p->callingpres = peer->callingpres;
 			if (peer->maxms && peer->lastms)
@@ -9949,7 +9955,8 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Use ClientCode:         %s\n", ast_test_flag(&global_flags[0], SIP_USECLIENTCODE) ? "Yes" : "No");
 	ast_cli(fd, "  Progress inband:        %s\n", (ast_test_flag(&global_flags[0], SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER) ? "Never" : (ast_test_flag(&global_flags[0], SIP_PROG_INBAND) == SIP_PROG_INBAND_NO) ? "No" : "Yes" );
 	ast_cli(fd, "  Language:               %s\n", S_OR(default_language, "(Defaults to English)"));
-	ast_cli(fd, "  Musicclass:             %s\n", default_musicclass);
+	ast_cli(fd, "  MOH Interpret:          %s\n", default_mohinterpret);
+	ast_cli(fd, "  MOH Suggest:            %s\n", default_mohsuggest);
 	ast_cli(fd, "  Voice Mail Extension:   %s\n", default_vmexten);
 
 	
@@ -13373,8 +13380,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		if (sipdebug && option_debug > 3)
 			ast_log(LOG_DEBUG, "Got SIP transfer, applying to bridged peer '%s'\n", current.chan2->name);
 
-		/* Stop music on hold on this channel */
-		ast_moh_stop(current.chan2);
+		ast_queue_control(current.chan1, AST_CONTROL_UNHOLD);
 	}
 
 	ast_set_flag(&p->flags[0], SIP_GOTREFER);	
@@ -13603,7 +13609,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 				bridged_to = ast_bridged_channel(c);
 				if (bridged_to) {
 					/* Don't actually hangup here... */
-					ast_moh_stop(bridged_to);
+					ast_queue_control(c, AST_CONTROL_UNHOLD);
 					ast_async_goto(bridged_to, p->context, p->refer->refer_to,1);
 				} else
 					ast_queue_hangup(p->owner);
@@ -15021,7 +15027,8 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	/* set default context */
 	strcpy(user->context, default_context);
 	strcpy(user->language, default_language);
-	strcpy(user->musicclass, default_musicclass);
+	strcpy(user->mohinterpret, default_mohinterpret);
+	strcpy(user->mohsuggest, default_mohsuggest);
 	for (; v; v = v->next) {
 		if (handle_common_options(&userflags[0], &mask[0], v))
 			continue;
@@ -15056,8 +15063,11 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			user->pickupgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "language")) {
 			ast_copy_string(user->language, v->value, sizeof(user->language));
-		} else if (!strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold")) {
-			ast_copy_string(user->musicclass, v->value, sizeof(user->musicclass));
+		} else if (!strcasecmp(v->name, "mohinterpret") 
+			|| !strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold")) {
+			ast_copy_string(user->mohinterpret, v->value, sizeof(user->mohinterpret));
+		} else if (!strcasecmp(v->name, "mohsuggest")) {
+			ast_copy_string(user->mohsuggest, v->value, sizeof(user->mohsuggest));
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(user->accountcode, v->value, sizeof(user->accountcode));
 		} else if (!strcasecmp(v->name, "call-limit")) {
@@ -15124,7 +15134,8 @@ static void set_peer_defaults(struct sip_peer *peer)
 	strcpy(peer->context, default_context);
 	strcpy(peer->subscribecontext, default_subscribecontext);
 	strcpy(peer->language, default_language);
-	strcpy(peer->musicclass, default_musicclass);
+	strcpy(peer->mohinterpret, default_mohinterpret);
+	strcpy(peer->mohsuggest, default_mohsuggest);
 	peer->addr.sin_family = AF_INET;
 	peer->defaddr.sin_family = AF_INET;
 	peer->capability = global_capability;
@@ -15324,8 +15335,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			}
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(peer->accountcode, v->value, sizeof(peer->accountcode));
-		} else if (!strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold")) {
-			ast_copy_string(peer->musicclass, v->value, sizeof(peer->musicclass));
+		} else if (!strcasecmp(v->name, "mohinterpret")
+			|| !strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold")) {
+			ast_copy_string(peer->mohinterpret, v->value, sizeof(peer->mohinterpret));
+		} else if (!strcasecmp(v->name, "mohsuggest")) {
+			ast_copy_string(peer->mohsuggest, v->value, sizeof(peer->mohsuggest));
 		} else if (!strcasecmp(v->name, "mailbox")) {
 			ast_copy_string(peer->mailbox, v->value, sizeof(peer->mailbox));
 		} else if (!strcasecmp(v->name, "subscribemwi")) {
@@ -15516,7 +15530,8 @@ static int reload_config(enum channelreloadreason reason)
 	default_fromdomain[0] = '\0';
 	default_qualify = DEFAULT_QUALIFY;
 	default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
-	ast_copy_string(default_musicclass, DEFAULT_MUSICCLASS, sizeof(default_musicclass));
+	ast_copy_string(default_mohinterpret, DEFAULT_MOHINTERPRET, sizeof(default_mohinterpret));
+	ast_copy_string(default_mohsuggest, DEFAULT_MOHSUGGEST, sizeof(default_mohsuggest));
 	ast_copy_string(default_vmexten, DEFAULT_VMEXTEN, sizeof(default_vmexten));
 	ast_set_flag(&global_flags[0], SIP_DTMF_RFC2833);			/*!< Default DTMF setting: RFC2833 */
 	ast_set_flag(&global_flags[0], SIP_NAT_RFC3581);			/*!< NAT support if requested by device with rport */
@@ -15607,8 +15622,11 @@ static int reload_config(enum channelreloadreason reason)
 			global_notifyringing = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "alwaysauthreject")) {
 			global_alwaysauthreject = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold")) {
-			ast_copy_string(default_musicclass, v->value, sizeof(default_musicclass));
+		} else if (!strcasecmp(v->name, "mohinterpret") 
+			|| !strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold")) {
+			ast_copy_string(default_mohinterpret, v->value, sizeof(default_mohinterpret));
+		} else if (!strcasecmp(v->name, "mohsuggest")) {
+			ast_copy_string(default_mohsuggest, v->value, sizeof(default_mohsuggest));
 		} else if (!strcasecmp(v->name, "language")) {
 			ast_copy_string(default_language, v->value, sizeof(default_language));
 		} else if (!strcasecmp(v->name, "regcontext")) {

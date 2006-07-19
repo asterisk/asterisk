@@ -71,8 +71,22 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;disallow=all			; First disallow all codecs
 ;allow=ulaw			; Allow codecs in order of preference
 ;allow=ilbc			; 
-;musicclass=default		; Sets the default music on hold class for all SIP calls
-				; This may also be set for individual users/peers
+;
+; This option specifies a preference for which music on hold class this channel
+; should listen to when put on hold if the music class has not been set on the
+; channel with Set(CHANNEL(musicclass)=whatever) in the dialplan, and the peer
+; channel putting this one on hold did not suggest a music class.
+;
+; This option may be specified globally, or on a per-user or per-peer basis.
+;
+;mohinterpret=default
+;
+; This option specifies which music on hold class to suggest to the peer channel
+; when this channel places the peer on hold. It may be specified globally or on
+; a per-user or per-peer basis.
+;
+;mohsuggest=default
+;
 ;language=en			; Default language setting for all users/peers
 				; This may also be set for individual users/peers
 ;relaxdtmf=yes			; Relax dtmf handling

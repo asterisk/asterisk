@@ -1116,9 +1116,21 @@ static int jingle_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 
 static int jingle_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
-	ast_log(LOG_NOTICE, "XXX Implement jingle indicate XXX\n");
+	int res = 0;
 
-	return -1;
+	switch (condition) {
+	case AST_CONTROL_HOLD:
+		ast_moh_start(ast, data, NULL);
+		break;
+	case AST_CONTROL_UNHOLD:
+		ast_moh_stop(ast);
+		break;
+	default:
+		ast_log(LOG_NOTICE, "Don't know how to indicate condition '%d'\n", condition);
+		res = -1;
+	}
+
+	return res;
 }
 
 static int jingle_digit(struct ast_channel *ast, char digit)

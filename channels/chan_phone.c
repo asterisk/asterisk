@@ -64,6 +64,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/callerid.h"
 #include "asterisk/causes.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/musiconhold.h"
 
 #include "DialTone.h"
 
@@ -218,6 +219,12 @@ static int phone_indicate(struct ast_channel *chan, int condition, const void *d
 			ioctl(p->fd, IXJCTL_PSTN_SET_STATE, PSTN_OFF_HOOK);
 			p->lastformat = -1;
 			res = 0;
+			break;
+		case AST_CONTROL_HOLD:
+			ast_moh_start(chan, data, NULL);
+			break;
+		case AST_CONTROL_UNHOLD:
+			ast_moh_stop(chan);
 			break;
 		default:
 			ast_log(LOG_WARNING, "Condition %d is not supported on channel %s\n", condition, chan->name);

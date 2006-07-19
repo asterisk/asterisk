@@ -733,7 +733,7 @@ static pthread_t tcp_thread;
 static pthread_t accept_t;
 static char context[AST_MAX_CONTEXT] = "default";
 static char language[MAX_LANGUAGE] = "";
-static char musicclass[MAX_MUSICCLASS] = "";
+static char mohinterpret[MAX_MUSICCLASS] = "default";
 static char cid_num[AST_MAX_EXTENSION] = "";
 static char cid_name[AST_MAX_EXTENSION] = "";
 static char linelabel[AST_MAX_EXTENSION] ="";
@@ -911,7 +911,7 @@ struct skinny_line {
 	char lastcallerid[AST_MAX_EXTENSION];		/* Last Caller*ID */
 	char call_forward[AST_MAX_EXTENSION];
 	char mailbox[AST_MAX_EXTENSION];
-	char musicclass[MAX_MUSICCLASS];
+	char mohinterpret[MAX_MUSICCLASS];
 	char lastnumberdialed[AST_MAX_EXTENSION];	/* Last number that was dialed - used for redial */
 	int curtone;					/* Current tone being played */
 	ast_group_t callgroup;
@@ -1847,8 +1847,8 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 				} else {
 					amaflags = y;
 				}
-			} else if (!strcasecmp(v->name, "musiconhold")) {
-				ast_copy_string(musicclass, v->value, sizeof(musicclass));
+			} else if (!strcasecmp(v->name, "mohinterpret") || !strcasecmp(v->name, "musiconhold")) {
+				ast_copy_string(mohinterpret, v->value, sizeof(mohinterpret));
 			} else if (!strcasecmp(v->name, "callgroup")) {
 				cur_callergroup = ast_get_group(v->value);
 			} else if (!strcasecmp(v->name, "pickupgroup")) {
@@ -1913,7 +1913,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 					ast_copy_string(l->cid_name, cid_name, sizeof(l->cid_name));
 					ast_copy_string(l->label, linelabel, sizeof(l->label));
 					ast_copy_string(l->language, language, sizeof(l->language));
-					ast_copy_string(l->musicclass, musicclass, sizeof(l->musicclass));
+					ast_copy_string(l->mohinterpret, mohinterpret, sizeof(l->mohinterpret));
 					ast_copy_string(l->mailbox, mailbox, sizeof(l->mailbox));
 					ast_copy_string(l->mailbox, mailbox, sizeof(l->mailbox));
 					if (!ast_strlen_zero(mailbox)) {
@@ -2501,6 +2501,12 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 		return -1;
 	case -1:
 		transmit_tone(s, SKINNY_SILENCE);
+		break;
+	case AST_CONTROL_HOLD:
+		ast_moh_start(ast, data, l->mohinterpret);
+		break;
+	case AST_CONTROL_UNHOLD:
+		ast_moh_stop(ast);
 		break;
 	case AST_CONTROL_PROCEEDING:
 		break;

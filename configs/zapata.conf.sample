@@ -481,10 +481,24 @@ immediate=no
 ;faxdetect=outgoing
 ;faxdetect=no
 ;
-; Select which class of music to use for music on hold.  If not specified
-; then the default will be used.
+; This option specifies a preference for which music on hold class this channel
+; should listen to when put on hold if the music class has not been set on the
+; channel with Set(CHANNEL(musicclass)=whatever) in the dialplan, and the peer
+; channel putting this one on hold did not suggest a music class.
 ;
-;musicclass=default
+; If this option is set to "passthrough", then the hold message will always be
+; passed through as signalling instead of generating hold music locally. This
+; setting is only valid when used on a channel that uses digital signalling.
+;
+; This option may be specified globally, or on a per-user or per-peer basis.
+;
+;mohinterpret=default
+;
+; This option specifies which music on hold class to suggest to the peer channel
+; when this channel places the peer on hold. It may be specified globally or on
+; a per-user or per-peer basis.
+;
+;mohsuggest=default
 ;
 ; PRI channels can have an idle extension and a minunused number.  So long as
 ; at least "minunused" channels are idle, chan_zap will try to call "idledial"

@@ -1407,7 +1407,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						}
 					}
 					if (musiconhold == 0 && (confflags & CONFFLAG_MOH)) {
-						ast_moh_start(chan, NULL);
+						ast_moh_start(chan, NULL, NULL);
 						musiconhold = 1;
 					} else {
 						ztc.confmode = ZT_CONF_CONF;
@@ -1445,7 +1445,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			if ((confflags & CONFFLAG_MOH) && !(confflags & CONFFLAG_WAITMARKED)) {
 				if (conf->users == 1) {
 					if (musiconhold == 0) {
-						ast_moh_start(chan, NULL);
+						ast_moh_start(chan, NULL, NULL);
 						musiconhold = 1;
 					} 
 				} else {
@@ -1749,7 +1749,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						}
 					}
 					if (musiconhold)
-			   			ast_moh_start(chan, NULL);
+			   			ast_moh_start(chan, NULL, NULL);
 
 					if (ioctl(fd, ZT_SETCONF, &ztc)) {
 						ast_log(LOG_WARNING, "Error setting conference\n");

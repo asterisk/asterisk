@@ -74,6 +74,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/endian.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/abstract_jb.h"
+#include "asterisk/musiconhold.h"
 
 /* ringtones we use */
 #include "busy.h"
@@ -135,6 +136,13 @@ START_CONFIG
     ; extension = s		; default extension to call
     ; context = default		; default context for outgoing calls
     ; language = ""		; default language
+
+    ; Default Music on Hold class to use when this channel is placed on hold in
+    ; the case that the music class is not set on the channel with
+    ; Set(CHANNEL(musicclass)=whatever) in the dialplan and the peer channel
+    ; putting this one on hold did not suggest a class to use.
+    ;
+    ; mohinterpret=default
 
     ; If you set overridecontext to 'yes', then the whole dial string
     ; will be interpreted as an extension, which is extremely useful
@@ -365,6 +373,7 @@ struct chan_oss_pvt {
 	char language[MAX_LANGUAGE];
 	char cid_name[256]; /*XXX */
 	char cid_num[256]; /*XXX */
+	char mohinterpret[MAX_MUSICCLASS];
 
 	/* buffers used in oss_write */
 	char oss_write_buf[FRAME_SIZE*2];
@@ -953,14 +962,24 @@ static int oss_indicate(struct ast_channel *c, int cond, const void *data, size_
 	case AST_CONTROL_VIDUPDATE:
 		res = -1;
 		break;
+	case AST_CONTROL_HOLD:
+		ast_verbose( " << Console Has Been Placed on Hold >> \n");
+		ast_moh_start(c, data, o->mohinterpret);
+		break;
+	case AST_CONTROL_UNHOLD:
+		ast_verbose( " << Console Has Been Retrieved from Hold >> \n");
+		ast_moh_stop(c);
+		break;
 	default:
 		ast_log(LOG_WARNING,
 		    "Don't know how to display condition %d on %s\n",
 		    cond, c->name);
 		return -1;
 	}
+
 	if (res > -1)
 		ring(o, res);
+	
 	return 0;	
 }
 
@@ -1434,6 +1453,8 @@ static struct chan_oss_pvt * store_config(struct ast_config *cfg, char *ctg)
 		o->name = ast_strdup(ctg);
 	}
 
+	strcpy(o->mohinterpret, "default");
+
 	o->lastopen = ast_tvnow(); /* don't leave it 0 or tvdiff may wrap */
 	/* fill other fields from configuration */
 	for (v = ast_variable_browse(cfg, ctg);v; v=v->next) {
@@ -1452,6 +1473,7 @@ static struct chan_oss_pvt * store_config(struct ast_config *cfg, char *ctg)
 		M_UINT("queuesize", o->queuesize)
 		M_STR("context", o->ctx)
 		M_STR("language", o->language)
+		M_STR("mohinterpret", o->mohinterpret)
 		M_STR("extension", o->ext)
 		M_F("mixer", store_mixer(o, v->value))
 		M_F("callerid", store_callerid(o, v->value))

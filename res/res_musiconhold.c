@@ -549,7 +549,7 @@ static void *monmp3thread(void *data)
 
 static int moh0_exec(struct ast_channel *chan, void *data)
 {
-	if (ast_moh_start(chan, data)) {
+	if (ast_moh_start(chan, data, NULL)) {
 		ast_log(LOG_WARNING, "Unable to start music on hold (class '%s') on channel %s\n", (char *)data, chan->name);
 		return -1;
 	}
@@ -565,7 +565,7 @@ static int moh1_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "WaitMusicOnHold requires an argument (number of seconds to wait)\n");
 		return -1;
 	}
-	if (ast_moh_start(chan, NULL)) {
+	if (ast_moh_start(chan, NULL, NULL)) {
 		ast_log(LOG_WARNING, "Unable to start music on hold for %d seconds on channel %s\n", atoi(data), chan->name);
 		return -1;
 	}
@@ -589,7 +589,7 @@ static int moh3_exec(struct ast_channel *chan, void *data)
 	char *class = NULL;
 	if (data && strlen(data))
 		class = data;
-	if (ast_moh_start(chan, class)) 
+	if (ast_moh_start(chan, class, NULL)) 
 		ast_log(LOG_NOTICE, "Unable to start music on hold class '%s' on channel %s\n", class ? class : "default", chan->name);
 
 	return 0;
@@ -884,20 +884,37 @@ static void local_ast_moh_cleanup(struct ast_channel *chan)
 	}
 }
 
-static int local_ast_moh_start(struct ast_channel *chan, const char *class)
+static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, const char *interpclass)
 {
 	struct mohclass *mohclass;
+	const char *class;
 
-	if (ast_strlen_zero(class))
+	/* The following is the order of preference for which class to use:
+	 * 1) The channels explicitly set musicclass, which should *only* be
+	 *    set by a call to Set(CHANNEL(musicclass)=whatever) in the dialplan.
+	 * 2) The mclass argument. If a channel is calling ast_moh_start() as the
+	 *    result of receiving a HOLD control frame, this should be the
+	 *    payload that came with the frame.
+	 * 3) The interpclass argument. This would be from the mohinterpret
+	 *    option from channel drivers. This is the same as the old musicclass
+	 *    option.
+	 * 4) The default class.
+	 */
+	if (!ast_strlen_zero(chan->musicclass))
 		class = chan->musicclass;
-	if (ast_strlen_zero(class))
+	else if (!ast_strlen_zero(mclass))
+		class = mclass;
+	else if (!ast_strlen_zero(interpclass))
+		class = interpclass;
+	else
 		class = "default";
+
 	AST_LIST_LOCK(&mohclasses);
 	mohclass = get_mohbyname(class);
 	AST_LIST_UNLOCK(&mohclasses);
 
 	if (!mohclass) {
-		ast_log(LOG_WARNING, "No class: %s\n", (char *)class);
+		ast_log(LOG_WARNING, "No class: %s\n", class);
 		return -1;
 	}
 
@@ -1104,7 +1121,7 @@ static void moh_on_off(int on)
 	while ( (chan = ast_channel_walk_locked(chan)) != NULL) {
 		if (ast_test_flag(chan, AST_FLAG_MOH)) {
 			if (on)
-				local_ast_moh_start(chan, NULL);
+				local_ast_moh_start(chan, NULL, NULL);
 			else
 				ast_deactivate_generator(chan);
 		}

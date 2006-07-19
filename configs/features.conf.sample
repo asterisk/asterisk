@@ -18,6 +18,9 @@ context => parkedcalls		; Which context parked calls are in
 ;adsipark = yes			; if you want ADSI parking announcements
 ;findslot => next		; Continue to the 'next' free parking space. 
 				; Defaults to 'first' available
+;parkedmusicclass=default	; This is the MOH class to use for the parked channel
+				; as long as the class is not set on the channel directly
+				; using Set(CHANNEL(musicclass)=whatever) in the dialplan
 
 ;transferdigittimeout => 3	; Number of seconds to wait between digits when transfering a call
 				; (default is 3 seconds)
