@@ -346,6 +346,7 @@ int ast_variable_delete(struct ast_category *category, char *variable)
 		cur = cur->next;
 	}
 
+	prev = NULL;
 	cur = category->root;
 	while (cur) {
 		if (!strcasecmp(cur->name, variable)) {
@@ -392,6 +393,7 @@ int ast_variable_update(struct ast_category *category, char *variable, char *val
 		cur = cur->next;
 	}
 
+	prev = NULL;
 	cur = category->root;
 	while (cur) {
 		if (!strcasecmp(cur->name, variable)) {
@@ -438,6 +440,8 @@ int ast_category_delete(struct ast_config *cfg, char *category)
 		prev = cat;
 		cat = cat->next;
 	}
+
+	prev = NULL;
 	cat = cfg->root;
 	while(cat) {
 		if (!strcasecmp(cat->name, category)) {
