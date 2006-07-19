@@ -20,7 +20,7 @@ endif
 PWD:=$(shell pwd)
 SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
 MOH_DIR:=$(DESTDIR)$(ASTDATADIR)/moh
-CORE_SOUNDS_VERSION:=1.4.0
+CORE_SOUNDS_VERSION:=1.4.1
 SOUNDS_URL:=http://ftp.digium.com/pub/telephony/sounds/releases
 MOH_URL:=http://ftp.digium.com/pub/telephony/sounds
 MENUSELECT_CORE_SOUNDS:=$(subst -EN-,-en-,$(MENUSELECT_CORE_SOUNDS))
