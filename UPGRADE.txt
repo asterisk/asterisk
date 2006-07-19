@@ -315,3 +315,42 @@ Installation:
 	ASTETCDIR	/usr/local/etc/asterisk
 	ASTBINDIR	/usr/local/bin/asterisk
 	ASTSBINDIR	/usr/local/sbin/asterisk
+
+Music on Hold:
+
+* The music on hold handling has been changed in some significant ways in hopes
+  to make it work in a way that is much less confusing to users. Behavior will
+  not change if the same configuration is used from older versions of Asterisk.
+  However, there are some new configuration options that will make things work
+  in a way that makes more sense.
+
+  Previously, many of the channel drivers had an option called "musicclass" or
+  something similar. This option set what music on hold class this channel
+  would *hear* when put on hold. Some people expected (with good reason) that
+  this option was to configure what music on hold class to play when putting
+  the bridged channel on hold. This option has now been deprecated.
+
+  Two new music on hold related configuration options for channel drivers have
+  been introduced. Some channel drivers support both options, some just one,
+  and some support neither of them. Check the sample configuration files to see
+  which options apply to which channel driver.
+
+  The "mohsuggest" option specifies which music on hold class to suggest to the
+  bridged channel when putting them on hold. The only way that this class can
+  be overridden is if the bridged channel has a specific music class set that
+  was done in the dialplan using Set(CHANNEL(musicclass)=something).
+
+  The "mohinterpret" option is similar to the old "musicclass" option. It
+  specifies which music on hold class this channel would like to listen to when
+  put on hold. This music class is only effective if this channel has no music
+  class set on it from the dialplan and the bridged channel putting this one on
+  hold had no "mohsuggest" setting.
+
+  The IAX2 and Zap channel drivers have an additional feature for the
+  "mohinterpret" option. If this option is set to "passthrough", then these
+  channel drivers will pass through the HOLD message in signalling instead of
+  starting music on hold on the channel. An example for how this would be
+  useful is in an enterprise network of Asterisk servers. When one phone on one
+  server puts a phone on a different server on hold, the remote server will be
+  responsibile for playing the hold music to its local phone that was put on
+  hold instead of the far end server across the network playing the music.
