@@ -70,7 +70,7 @@ $(SOUNDS_DIR)/.asterisk-core-sounds-fr-%: $(SOUNDS_DIR)/fr
 	(cd $(SOUNDS_DIR)/fr; cat $(PWD)/$${PACKAGE} | gzip -d | tar xf -) && \
 	touch $@
 
-$(SOUNDS_DIR)/.asterisk-core-sounds-fr-%: $(SOUNDS_DIR)/es
+$(SOUNDS_DIR)/.asterisk-core-sounds-es-%: $(SOUNDS_DIR)/es
 	@PACKAGE=$(subst $(SOUNDS_DIR)/.asterisk,asterisk,$@).tar.gz; \
 	if test ! -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
 	if test ! -f $${PACKAGE}; then exit 1; fi; \
@@ -97,7 +97,7 @@ asterisk-moh-%.tar.gz:
 dist-clean:
 	rm -f *.tar.gz
 
-$(SOUNDS_DIR) $(MOH_DIR) $(SOUNDS_DIR)/%:
+$(SOUNDS_DIR) $(MOH_DIR) $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr:
 	mkdir -p $@
 
 install: $(SOUNDS_DIR) $(MOH_DIR) $(CORE_SOUND_TAGS) $(MOH_TAGS)
