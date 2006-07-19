@@ -514,7 +514,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 			char *field_var_val = PQgetvalue(result, rowIndex, 2);
 			char *field_cat_metric = PQgetvalue(result, rowIndex, 3);
 			if (!strcmp(field_var_name, "#include")) {
-				if (!ast_config_internal_load(field_var_val, cfg)) {
+				if (!ast_config_internal_load(field_var_val, cfg, 0)) {
 					PQclear(result);
 					ast_mutex_unlock(&pgsql_lock);
 					return NULL;
