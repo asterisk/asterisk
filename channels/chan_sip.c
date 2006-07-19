@@ -6739,7 +6739,7 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *messa
 	return send_request(p, &req, 1, p->ocseq);
 }
 
-/*! \build Convert registration state status to string */
+/*! \brief Convert registration state status to string */
 static char *regstate2str(enum sipregistrystate regstate)
 {
 	switch(regstate) {

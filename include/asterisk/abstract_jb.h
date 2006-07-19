@@ -137,7 +137,7 @@ int ast_jb_get_when_to_wakeup(struct ast_channel *c0, struct ast_channel *c1, in
 /*!
  * \brief Puts a frame into a channel jitterbuffer.
  * \param chan channel.
- * \param frame frame.
+ * \param f frame.
  *
  * Called from ast_generic_bridge() to put a frame into a channel's jitterbuffer.
  * The function will successfuly enqueue a frame if and only if:

@@ -85,7 +85,7 @@ struct vorbis_desc {	/* format specific parameters */
 
 /*!
  * \brief Create a new OGG/Vorbis filestream and set it up for reading.
- * \param f File that points to on disk storage of the OGG/Vorbis data.
+ * \param s File that points to on disk storage of the OGG/Vorbis data.
  * \return The new filestream.
  */
 static int ogg_vorbis_open(struct ast_filestream *s)
@@ -195,7 +195,7 @@ error:
 
 /*!
  * \brief Create a new OGG/Vorbis filestream and set it up for writing.
- * \param f File pointer that points to on-disk storage.
+ * \param s File pointer that points to on-disk storage.
  * \param comment Comment that should be embedded in the OGG/Vorbis file.
  * \return A new filestream.
  */
@@ -272,7 +272,7 @@ static void write_stream(struct vorbis_desc *s, FILE *f)
 
 /*!
  * \brief Write audio data from a frame to an OGG/Vorbis filestream.
- * \param s A OGG/Vorbis filestream.
+ * \param fs A OGG/Vorbis filestream.
  * \param f An frame containing audio to be written to the filestream.
  * \return -1 ifthere was an error, 0 on success.
  */
@@ -316,7 +316,7 @@ static int ogg_vorbis_write(struct ast_filestream *fs, struct ast_frame *f)
 
 /*!
  * \brief Close a OGG/Vorbis filestream.
- * \param s A OGG/Vorbis filestream.
+ * \param fs A OGG/Vorbis filestream.
  */
 static void ogg_vorbis_close(struct ast_filestream *fs)
 {
@@ -342,7 +342,7 @@ static void ogg_vorbis_close(struct ast_filestream *fs)
 
 /*!
  * \brief Get audio data.
- * \param s An OGG/Vorbis filestream.
+ * \param fs An OGG/Vorbis filestream.
  * \param pcm Pointer to a buffere to store audio data in.
  */
 
@@ -421,7 +421,7 @@ static int read_samples(struct ast_filestream *fs, float ***pcm)
 
 /*!
  * \brief Read a frame full of audio data from the filestream.
- * \param s The filestream.
+ * \param fs The filestream.
  * \param whennext Number of sample times to schedule the next call.
  * \return A pointer to a frame containing audio data or NULL ifthere is no more audio data.
  */
