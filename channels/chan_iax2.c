@@ -145,7 +145,7 @@ static char context[80] = "default";
 static char language[MAX_LANGUAGE] = "";
 static char regcontext[AST_MAX_CONTEXT] = "";
 
-static int maxauthreq = 0;
+static int maxauthreq = 3;
 static int max_retries = 4;
 static int ping_time = 20;
 static int lagrq_time = 10;
@@ -8702,6 +8702,8 @@ static int set_config(char *config_file, int reload)
 
 	min_reg_expire = IAX_DEFAULT_REG_EXPIRE;
 	max_reg_expire = IAX_DEFAULT_REG_EXPIRE;
+
+	maxauthreq = 3;
 
 	v = ast_variable_browse(cfg, "general");
 
