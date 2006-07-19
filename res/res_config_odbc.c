@@ -539,7 +539,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 
 	while ((res = SQLFetch(stmt)) != SQL_NO_DATA) {
 		if (!strcmp (q.var_name, "#include")) {
-			if (!ast_config_internal_load(q.var_val, cfg)) {
+			if (!ast_config_internal_load(q.var_val, cfg, 0)) {
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 				odbc_release_obj(obj);
 				return NULL;
