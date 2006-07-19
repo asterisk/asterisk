@@ -8714,6 +8714,8 @@ static int set_config(char *config_file, int reload)
 	min_reg_expire = IAX_DEFAULT_REG_EXPIRE;
 	max_reg_expire = IAX_DEFAULT_REG_EXPIRE;
 
+	maxauthreq = 0;
+
 	v = ast_variable_browse(cfg, "general");
 
 	/* Seed initial tos value */
