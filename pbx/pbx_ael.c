@@ -95,8 +95,8 @@ int ael_is_funcname(char *name);
 #endif
 
 int check_app_args(pval *appcall, pval *arglist, struct argapp *app);
-void check_pval(pval *item, struct argapp *apps);
-void check_pval_item(pval *item, struct argapp *apps);
+void check_pval(pval *item, struct argapp *apps, int in_globals);
+void check_pval_item(pval *item, struct argapp *apps, int in_globals);
 void check_switch_expr(pval *item, struct argapp *apps);
 void ast_expr_register_extra_error_info(char *errmsg);
 void ast_expr_clear_extra_error_info(void);
@@ -1987,7 +1987,7 @@ static void check_abstract_reference(pval *abstract_context)
 }
 
 
-void check_pval_item(pval *item, struct argapp *apps)
+void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 {
 	pval *lp;
 #ifdef AAL_ARGCHECK
@@ -2019,7 +2019,7 @@ void check_pval_item(pval *item, struct argapp *apps)
 		for (lp=item->u2.arglist; lp; lp=lp->next) {
 		
 		}
-		check_pval(item->u3.macro_statements, apps);
+		check_pval(item->u3.macro_statements, apps,in_globals);
 		break;
 			
 	case PV_CONTEXT:
@@ -2034,7 +2034,7 @@ void check_pval_item(pval *item, struct argapp *apps)
 			check_abstract_reference(item);
 		} else
 			in_abstract_context = 0;
-		check_pval(item->u2.statements, apps);
+		check_pval(item->u2.statements, apps,in_globals);
 		break;
 			
 	case PV_MACRO_CALL:
@@ -2117,7 +2117,7 @@ void check_pval_item(pval *item, struct argapp *apps)
 		*/
 		/* Make sure sequence of statements under case is terminated with  goto, return, or break */
 		/* find the last statement */
-		check_pval(item->u2.statements, apps);
+		check_pval(item->u2.statements, apps,in_globals);
 		break;
 			
 	case PV_PATTERN:
@@ -2127,7 +2127,7 @@ void check_pval_item(pval *item, struct argapp *apps)
 		/* Make sure sequence of statements under case is terminated with  goto, return, or break */
 		/* find the last statement */
 		
-		check_pval(item->u2.statements, apps);
+		check_pval(item->u2.statements, apps,in_globals);
 		break;
 			
 	case PV_DEFAULT:
@@ -2135,32 +2135,32 @@ void check_pval_item(pval *item, struct argapp *apps)
 		           item->u2.statements == pval list of statements under the case
 		*/
 
-		check_pval(item->u2.statements, apps);
+		check_pval(item->u2.statements, apps,in_globals);
 		break;
 			
 	case PV_CATCH:
 		/* fields: item->u1.str     == name of extension to catch
 		           item->u2.statements == pval list of statements in context body
 		*/
-		check_pval(item->u2.statements, apps);
+		check_pval(item->u2.statements, apps,in_globals);
 		break;
 			
 	case PV_SWITCHES:
 		/* fields: item->u1.list     == pval list of PV_WORD elements, one per entry in the list
 		*/
-		check_pval(item->u1.list, apps);
+		check_pval(item->u1.list, apps,in_globals);
 		break;
 			
 	case PV_ESWITCHES:
 		/* fields: item->u1.list     == pval list of PV_WORD elements, one per entry in the list
 		*/
-		check_pval(item->u1.list, apps);
+		check_pval(item->u1.list, apps,in_globals);
 		break;
 			
 	case PV_INCLUDES:
 		/* fields: item->u1.list     == pval list of PV_WORD elements, one per entry in the list
 		*/
-		check_pval(item->u1.list, apps);
+		check_pval(item->u1.list, apps,in_globals);
 		for (lp=item->u1.list; lp; lp=lp->next){
 			char *incl_context = lp->u1.str;
 			struct pval *that_context = find_context(incl_context);
@@ -2182,7 +2182,7 @@ void check_pval_item(pval *item, struct argapp *apps)
 	case PV_STATEMENTBLOCK:
 		/* fields: item->u1.list     == pval list of statements in block, one per entry in the list
 		*/
-		check_pval(item->u1.list, apps);
+		check_pval(item->u1.list, apps,in_globals);
 		break;
 			
 	case PV_VARDEC:
@@ -2190,16 +2190,18 @@ void check_pval_item(pval *item, struct argapp *apps)
 		           item->u2.val     == variable value to assign
 		*/
 		/* the RHS of a vardec is encapsulated in a $[] expr. Is it legal? */
-		snprintf(errmsg,sizeof(errmsg), "file %s, line %d, columns %d-%d, variable declaration expr '%s':", config, item->startline, item->startcol, item->endcol, item->u2.val);
-		ast_expr_register_extra_error_info(errmsg);
-		ast_expr(item->u2.val, expr_output, sizeof(expr_output));
-		ast_expr_clear_extra_error_info();
-		if ( strpbrk(item->u2.val,"~!-+<>=*/&^") && !strstr(item->u2.val,"${") ) {
-			ast_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
-					item->filename, item->startline, item->endline, item->u2.val);
-			warns++;
+		if( !in_globals ) { /* don't check stuff inside the globals context; no wrapping in $[ ] there... */
+			snprintf(errmsg,sizeof(errmsg), "file %s, line %d, columns %d-%d, variable declaration expr '%s':", config, item->startline, item->startcol, item->endcol, item->u2.val);
+			ast_expr_register_extra_error_info(errmsg);
+			ast_expr(item->u2.val, expr_output, sizeof(expr_output));
+			ast_expr_clear_extra_error_info();
+			if ( strpbrk(item->u2.val,"~!-+<>=*/&^") && !strstr(item->u2.val,"${") ) {
+				ast_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
+						item->filename, item->startline, item->endline, item->u2.val);
+				warns++;
+			}
+			check_expr2_input(item,item->u2.val);
 		}
-		check_expr2_input(item,item->u2.val);
 		break;
 			
 	case PV_GOTO:
@@ -2256,7 +2258,7 @@ void check_pval_item(pval *item, struct argapp *apps)
 		check_expr2_input(item,item->u3.for_inc);
 		
 		ast_expr_clear_extra_error_info();
-		check_pval(item->u4.for_statements, apps);
+		check_pval(item->u4.for_statements, apps,in_globals);
 		break;
 			
 	case PV_WHILE:
@@ -2274,7 +2276,7 @@ void check_pval_item(pval *item, struct argapp *apps)
 			warns++;
 		}
 		check_expr2_input(item,item->u1.str);
-		check_pval(item->u2.statements, apps);
+		check_pval(item->u2.statements, apps,in_globals);
 		break;
 			
 	case PV_BREAK:
@@ -2309,9 +2311,9 @@ void check_pval_item(pval *item, struct argapp *apps)
 			warns++;
 		}
 		check_expr2_input(item,item->u1.str);
-		check_pval(item->u2.statements, apps);
+		check_pval(item->u2.statements, apps,in_globals);
 		if (item->u3.else_statements) {
-			check_pval(item->u3.else_statements, apps);
+			check_pval(item->u3.else_statements, apps,in_globals);
 		}
 		break;
 
@@ -2329,9 +2331,9 @@ void check_pval_item(pval *item, struct argapp *apps)
 			check_month(item->u1.list->next->next->next);
 		}
 
-		check_pval(item->u2.statements, apps);
+		check_pval(item->u2.statements, apps,in_globals);
 		if (item->u3.else_statements) {
-			check_pval(item->u3.else_statements, apps);
+			check_pval(item->u3.else_statements, apps,in_globals);
 		}
 		break;
 			
@@ -2352,9 +2354,9 @@ void check_pval_item(pval *item, struct argapp *apps)
 			warns++;
 		}
 		check_expr2_input(item,item->u1.str);
-		check_pval(item->u2.statements, apps);
+		check_pval(item->u2.statements, apps,in_globals);
 		if (item->u3.else_statements) {
-			check_pval(item->u3.else_statements, apps);
+			check_pval(item->u3.else_statements, apps,in_globals);
 		}
 		break;
 			
@@ -2367,7 +2369,7 @@ void check_pval_item(pval *item, struct argapp *apps)
 		/* we can check the switch expression, see if it matches any of the app variables...
            if it does, then, are all the possible cases accounted for? */
 		check_switch_expr(item, apps);
-		check_pval(item->u2.statements, apps);
+		check_pval(item->u2.statements, apps,in_globals);
 		break;
 			
 	case PV_EXTENSION:
@@ -2379,7 +2381,7 @@ void check_pval_item(pval *item, struct argapp *apps)
 		*/
 		current_extension = item ;
 		
-		check_pval(item->u2.statements, apps);
+		check_pval(item->u2.statements, apps,in_globals);
 		break;
 			
 	case PV_IGNOREPAT:
@@ -2391,14 +2393,14 @@ void check_pval_item(pval *item, struct argapp *apps)
 		/* fields: item->u1.statements     == pval list of statements, usually vardecs
 		*/
 		in_abstract_context = 0;
-		check_pval(item->u1.statements, apps);
+		check_pval(item->u1.statements, apps, 1);
 		break;
 	default:
 		break;
 	}
 }
 
-void check_pval(pval *item, struct argapp *apps)
+void check_pval(pval *item, struct argapp *apps, int in_globals)
 {
 	pval *i;
 
@@ -2414,7 +2416,7 @@ void check_pval(pval *item, struct argapp *apps)
 	*/
 	
 	for (i=item; i; i=i->next) {
-		check_pval_item(i,apps);
+		check_pval_item(i,apps,in_globals);
 	}
 }
 
@@ -2437,7 +2439,7 @@ static void ael2_semantic_check(pval *item, int *arg_errs, int *arg_warns, int *
 	errs = warns = notes = 0;
 
 	check_context_names();
-	check_pval(item, apps);
+	check_pval(item, apps, 0);
 
 #ifdef AAL_ARGCHECK
 	argdesc_destroy(apps);  /* taketh away */

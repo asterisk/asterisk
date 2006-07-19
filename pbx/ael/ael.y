@@ -357,7 +357,7 @@ goto_word : word { $$ = $1;}
 		asprintf(&($$), "%s%s", $1, $2);
 		free($1);
 		free($2);}
-	| word COLON word {
+	| goto_word COLON word {
 		asprintf(&($$), "%s:%s", $1, $3);
 		free($1);
 		free($3);}
