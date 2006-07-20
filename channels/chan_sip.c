@@ -4845,7 +4845,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
 	/* Now gather all of the codecs that we are asked for: */
 	ast_rtp_get_current_formats(newaudiortp, &peercapability, &peernoncodeccapability);
-	ast_rtp_get_current_formats(newvideortp, &vpeercapability, &vpeernoncodeccapability);
+	if (p->vrtp)
+		ast_rtp_get_current_formats(newvideortp, &vpeercapability, &vpeernoncodeccapability);
 
 	newjointcapability = p->capability & (peercapability | vpeercapability);
 	newpeercapability = (peercapability | vpeercapability);
