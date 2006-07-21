@@ -148,12 +148,10 @@ static int make_components(char *s, int lineno)
 {
 	char *w;
 	int res = 0;
-	char *stringp=NULL;
-	stringp=s;
-	w = strsep(&stringp, ",");
-	while(w) {
-		while(*w && (*w < 33))
-			w++;
+	char *stringp = s;
+
+	while ((w = strsep(&stringp, ","))) {
+		w = ast_skip_blanks(w);
 		if (!strcasecmp(w, "error")) 
 			res |= (1 << __LOG_ERROR);
 		else if (!strcasecmp(w, "warning"))
@@ -171,8 +169,8 @@ static int make_components(char *s, int lineno)
 		else {
 			fprintf(stderr, "Logfile Warning: Unknown keyword '%s' at line %d of logger.conf\n", w, lineno);
 		}
-		w = strsep(&stringp, ",");
 	}
+
 	return res;
 }
 
