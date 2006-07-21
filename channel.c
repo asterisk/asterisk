@@ -92,7 +92,9 @@ static int uniqueint = 0;
 
 unsigned long global_fin = 0, global_fout = 0;
 
-/* XXX Lock appropriately in more functions XXX */
+static pthread_key_t state2str_buf_key;
+static pthread_once_t state2str_buf_once = PTHREAD_ONCE_INIT;
+#define STATE2STR_BUFSIZE   32
 
 struct chanlist {
 	const struct ast_channel_tech *tech;
@@ -482,12 +484,17 @@ int ast_str2cause(const char *name)
 
 	return -1;
 }
-	 
+
+static void state2str_buf_key_create(void)
+{
+	pthread_key_create(&state2str_buf_key, free);
+}
+ 
 /*! \brief Gives the string form of a given channel state */
 char *ast_state2str(int state)
 {
-	/* XXX Not reentrant XXX */
-	static char localtmp[256];
+	char *buf;
+
 	switch(state) {
 	case AST_STATE_DOWN:
 		return "Down";
@@ -506,8 +513,14 @@ char *ast_state2str(int state)
 	case AST_STATE_BUSY:
 		return "Busy";
 	default:
-		snprintf(localtmp, sizeof(localtmp), "Unknown (%d)\n", state);
-		return localtmp;
+		pthread_once(&state2str_buf_once, state2str_buf_key_create);
+		if (!(buf = pthread_getspecific(state2str_buf_key))) {
+			if (!(buf = ast_calloc(1, STATE2STR_BUFSIZE)))
+				return NULL;
+			pthread_setspecific(state2str_buf_key, buf);
+		}
+		snprintf(buf, STATE2STR_BUFSIZE, "Unknown (%d)\n", state);
+		return buf;
 	}
 }
 
