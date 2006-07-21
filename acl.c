@@ -208,10 +208,9 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
 		char iabuf[INET_ADDRSTRLEN];
 		char iabuf2[INET_ADDRSTRLEN];
 		/* DEBUG */
-		ast_log(LOG_DEBUG,
-			"##### Testing %s with %s\n",
-			ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr),
-			ast_inet_ntoa(iabuf2, sizeof(iabuf2), ha->netaddr));
+		ast_copy_string(iabuf, ast_inet_ntoa(sin->sin_addr), sizeof(iabuf));
+		ast_copy_string(iabuf2, ast_inet_ntoa(ha->netaddr), sizeof(iabuf2));
+		ast_log(LOG_DEBUG, "##### Testing %s with %s\n", iabuf, iabuf2);
 		/* For each rule, if this address and the netmask = the net address
 		   apply the current rule */
 		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == ha->netaddr.s_addr)

@@ -7505,7 +7505,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 				return -1;
 			}
 			memcpy(&ia,hp->h_addr,sizeof(in_addr_t));
-			ast_inet_ntoa(nodeip,sizeof(nodeip) - 1,ia);
+			ast_copy_string(nodeip, ast_inet_ntoa(ia), sizeof(nodeip));
 			if (strcmp(hisip,nodeip))
 			{
 				char *s3 = strchr(s1,'@');
@@ -7519,7 +7519,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 					return -1;
 				}
 				memcpy(&ia,hp->h_addr,sizeof(in_addr_t));
-				ast_inet_ntoa(nodeip,sizeof(nodeip) - 1,ia);
+				ast_copy_string(nodeip, ast_inet_ntoa(ia), sizeof(nodeip));
 				if (strcmp(hisip,nodeip))
 				{
 					ast_log(LOG_WARNING, "Node %s IP %s does not match link IP %s!!\n",b1,nodeip,hisip);

@@ -123,7 +123,6 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 {
 	int netsocket = -1;
 	int *ioref;
-	char iabuf[INET_ADDRSTRLEN];
 	
 	struct ast_netsock *ns;
 	
@@ -135,7 +134,7 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 		return NULL;
 	}
 	if (bind(netsocket,(struct sockaddr *)bindaddr, sizeof(struct sockaddr_in))) {
-		ast_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr->sin_addr), ntohs(bindaddr->sin_port), strerror(errno));
+		ast_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", ast_inet_ntoa(bindaddr->sin_addr), ntohs(bindaddr->sin_port), strerror(errno));
 		close(netsocket);
 		return NULL;
 	}

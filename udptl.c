@@ -644,7 +644,6 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 	struct sockaddr_in sin;
 	socklen_t len;
 	uint16_t seqno = 0;
-	char iabuf[INET_ADDRSTRLEN];
 	uint16_t *udptlheader;
 
 	len = sizeof(sin);
@@ -674,16 +673,16 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 		if ((udptl->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
 			(udptl->them.sin_port != sin.sin_port)) {
 			memcpy(&udptl->them, &sin, sizeof(udptl->them));
-			ast_log(LOG_DEBUG, "UDPTL NAT: Using address %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
+			ast_log(LOG_DEBUG, "UDPTL NAT: Using address %s:%d\n", ast_inet_ntoa(udptl->them.sin_addr), ntohs(udptl->them.sin_port));
 		}
 	}
 
 	if (udptl_debug_test_addr(&sin)) {
 		ast_verbose("Got UDPTL packet from %s:%d (type %d, seq %d, len %d)\n",
-			ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), 0, seqno, res);
+			ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), 0, seqno, res);
 	}
 #if 0
-	printf("Got UDPTL packet from %s:%d (seq %d, len = %d)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), seqno, res);
+	printf("Got UDPTL packet from %s:%d (seq %d, len = %d)\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), seqno, res);
 #endif
 	udptl_rx_packet(udptl, udptl->rawdata + AST_FRIENDLY_OFFSET, res);
 
@@ -895,7 +894,6 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 	int len;
 	int res;
 	uint8_t buf[LOCAL_FAX_MAX_DATAGRAM];
-	char iabuf[INET_ADDRSTRLEN];
 
 	/* If we have no peer, return immediately */	
 	if (s->them.sin_addr.s_addr == INADDR_ANY)
@@ -915,13 +913,13 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 
 	if (len > 0 && s->them.sin_port && s->them.sin_addr.s_addr) {
 		if ((res = sendto(s->fd, buf, len, 0, (struct sockaddr *) &s->them, sizeof(s->them))) < 0)
-			ast_log(LOG_NOTICE, "UDPTL Transmission error to %s:%d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->them.sin_addr), ntohs(s->them.sin_port), strerror(errno));
+			ast_log(LOG_NOTICE, "UDPTL Transmission error to %s:%d: %s\n", ast_inet_ntoa(s->them.sin_addr), ntohs(s->them.sin_port), strerror(errno));
 #if 0
-		printf("Sent %d bytes of UDPTL data to %s:%d\n", res, ast_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
+		printf("Sent %d bytes of UDPTL data to %s:%d\n", res, ast_inet_ntoa(udptl->them.sin_addr), ntohs(udptl->them.sin_port));
 #endif
 		if (udptl_debug_test_addr(&s->them))
 			ast_verbose("Sent UDPTL packet to %s:%d (type %d, seq %d, len %d)\n",
-					ast_inet_ntoa(iabuf, sizeof(iabuf), s->them.sin_addr),
+					ast_inet_ntoa(s->them.sin_addr),
 					ntohs(s->them.sin_port), 0, s->seqno, len);
 	}
 		
@@ -991,7 +989,6 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	struct sockaddr_in ac1;
 	struct sockaddr_in t0;
 	struct sockaddr_in t1;
-	char iabuf[INET_ADDRSTRLEN];
 	void *pvt0;
 	void *pvt1;
 	int to;
@@ -1056,16 +1053,16 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		ast_udptl_get_peer(p0, &t0);
 		if (inaddrcmp(&t1, &ac1)) {
 			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
-				c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port));
+				c1->name, ast_inet_ntoa(t1.sin_addr), ntohs(t1.sin_port));
 			ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
-				c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port));
+				c1->name, ast_inet_ntoa(ac1.sin_addr), ntohs(ac1.sin_port));
 			memcpy(&ac1, &t1, sizeof(ac1));
 		}
 		if (inaddrcmp(&t0, &ac0)) {
 			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
-				c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port));
+				c0->name, ast_inet_ntoa(t0.sin_addr), ntohs(t0.sin_port));
 			ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
-				c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port));
+				c0->name, ast_inet_ntoa(ac0.sin_addr), ntohs(ac0.sin_port));
 			memcpy(&ac0, &t0, sizeof(ac0));
 		}
 		who = ast_waitfor_n(cs, 2, &to);
@@ -1106,7 +1103,6 @@ static int udptl_do_debug_ip(int fd, int argc, char *argv[])
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
-	char iabuf[INET_ADDRSTRLEN];
 	int port;
 	char *p;
 	char *arg;
@@ -1128,9 +1124,9 @@ static int udptl_do_debug_ip(int fd, int argc, char *argv[])
 	memcpy(&udptldebugaddr.sin_addr, hp->h_addr, sizeof(udptldebugaddr.sin_addr));
 	udptldebugaddr.sin_port = htons(port);
 	if (port == 0)
-		ast_cli(fd, "UDPTL Debugging Enabled for IP: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), udptldebugaddr.sin_addr));
+		ast_cli(fd, "UDPTL Debugging Enabled for IP: %s\n", ast_inet_ntoa(udptldebugaddr.sin_addr));
 	else
-		ast_cli(fd, "UDPTL Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), udptldebugaddr.sin_addr), port);
+		ast_cli(fd, "UDPTL Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(udptldebugaddr.sin_addr), port);
 	udptldebug = 1;
 	return RESULT_SUCCESS;
 }

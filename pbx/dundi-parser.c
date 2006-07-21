@@ -474,7 +474,6 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 	char *subclass;
 	char tmp[256];
 	char retries[20];
-	char iabuf[INET_ADDRSTRLEN];
 	if (ntohs(fhi->dtrans) & DUNDI_FLAG_RETRANS)
 		strcpy(retries, "Yes");
 	else
@@ -499,7 +498,7 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 	snprintf(tmp, (int)sizeof(tmp), 
 		"%s     Flags: %s STrans: %5.5d  DTrans: %5.5d [%s:%d]%s\n", (rx > 1) ? "     " : "",
 		subclass, ntohs(fhi->strans) & ~DUNDI_FLAG_RESERVED, ntohs(fhi->dtrans) & ~DUNDI_FLAG_RETRANS,
-		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port),
+		ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port),
 		fhi->cmdresp & 0x80 ? " (Final)" : "");
 	outputf(tmp);
 	dump_ies(fhi->ies, rx > 1, datalen);

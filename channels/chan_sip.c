@@ -1678,12 +1678,11 @@ static inline int sip_debug_test_pvt(struct sip_pvt *p)
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
 	int res;
-	char iabuf[INET_ADDRSTRLEN];
 	const struct sockaddr_in *dst = sip_real_dst(p);
 	res=sendto(sipsock, data, len, 0, (const struct sockaddr *)dst, sizeof(struct sockaddr_in));
 
 	if (res != len)
-		ast_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s:%d returned %d: %s\n", data, len, ast_inet_ntoa(iabuf, sizeof(iabuf), dst->sin_addr), ntohs(dst->sin_port), res, strerror(errno));
+		ast_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s:%d returned %d: %s\n", data, len, ast_inet_ntoa(dst->sin_addr), ntohs(dst->sin_port), res, strerror(errno));
 	return res;
 }
 
@@ -1691,13 +1690,12 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 /*! \brief Build a Via header for a request */
 static void build_via(struct sip_pvt *p)
 {
-	char iabuf[INET_ADDRSTRLEN];
 	/* Work around buggy UNIDEN UIP200 firmware */
 	const char *rport = ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_RFC3581 ? ";rport" : "";
 
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	ast_string_field_build(p, via, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x%s",
-			 ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch, rport);
+			 ast_inet_ntoa(p->ourip), ourport, p->branch, rport);
 }
 
 /*! \brief NAT fix - decide which IP address to use for ASterisk server?
@@ -1730,9 +1728,8 @@ static enum sip_result ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *
 		}
 		*us = externip.sin_addr;
 		if (option_debug) {
-			char iabuf[INET_ADDRSTRLEN];
-			ast_inet_ntoa(iabuf, sizeof(iabuf), *(struct in_addr *)&them->s_addr);
-			ast_log(LOG_DEBUG, "Target address %s is not local, substituting externip\n", iabuf);
+			ast_log(LOG_DEBUG, "Target address %s is not local, substituting externip\n", 
+				ast_inet_ntoa(*(struct in_addr *)&them->s_addr));
 		}
 	} else if (bindaddr.sin_addr.s_addr)
 		*us = bindaddr.sin_addr;
@@ -1784,7 +1781,6 @@ static void append_history_full(struct sip_pvt *p, const char *fmt, ...)
 static int retrans_pkt(void *data)
 {
 	struct sip_pkt *pkt = data, *prev, *cur = NULL;
-	char iabuf[INET_ADDRSTRLEN];
 	int reschedule = DEFAULT_RETRANS;
 
 	/* Lock channel PVT */
@@ -1820,7 +1816,7 @@ static int retrans_pkt(void *data)
 			const struct sockaddr_in *dst = sip_real_dst(pkt->owner);
 			ast_verbose("Retransmitting #%d (%s) to %s:%d:\n%s\n---\n",
 				pkt->retrans, sip_nat_mode(pkt->owner),
-				ast_inet_ntoa(iabuf, sizeof(iabuf), dst->sin_addr),
+				ast_inet_ntoa(dst->sin_addr),
 				ntohs(dst->sin_port), pkt->data);
 		}
 
@@ -2080,12 +2076,11 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
-		char iabuf[INET_ADDRSTRLEN];
 		const struct sockaddr_in *dst = sip_real_dst(p);
 
 		ast_verbose("%sTransmitting (%s) to %s:%d:\n%s\n---\n",
 			reliable ? "Reliably " : "", sip_nat_mode(p),
-			ast_inet_ntoa(iabuf, sizeof(iabuf), dst->sin_addr),
+			ast_inet_ntoa(dst->sin_addr),
 			ntohs(dst->sin_port), req->data);
 	}
 	if (recordhistory) {
@@ -2109,11 +2104,10 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
-		char iabuf[INET_ADDRSTRLEN];
 		if (ast_test_flag(&p->flags[0], SIP_NAT_ROUTE))
-			ast_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port), req->data);
+			ast_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port), req->data);
 		else
-			ast_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), req->data);
+			ast_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port), req->data);
 	}
 	if (recordhistory) {
 		struct sip_request tmp;
@@ -2196,7 +2190,7 @@ static int sip_sendtext(struct ast_channel *ast, const char *text)
 static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, int expirey)
 {
 	char port[10];
-	char ipaddr[20];
+	char ipaddr[INET_ADDRSTRLEN];
 	char regseconds[20];
 
 	char *sysname = ast_config_AST_SYSTEM_NAME;
@@ -2206,7 +2200,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 	const char *fc = fullcontact ? "fullcontact" : NULL;
 	
 	snprintf(regseconds, sizeof(regseconds), "%d", (int)nowtime);	/* Expiration time */
-	ast_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
+	ast_copy_string(ipaddr, ast_inet_ntoa(sin->sin_addr), sizeof(ipaddr));
 	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
 	
 	if (ast_strlen_zero(sysname))	/* No system name, disable this */
@@ -2314,17 +2308,16 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	struct sip_peer *peer;
 	struct ast_variable *var = NULL;
 	struct ast_variable *tmp;
-	char iabuf[80];
+	char ipaddr[INET_ADDRSTRLEN];
 
 	/* First check on peer name */
 	if (newpeername) 
 		var = ast_load_realtime("sippeers", "name", newpeername, NULL);
 	else if (sin) {	/* Then check on IP address for dynamic peers */
-		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
-		var = ast_load_realtime("sippeers", "host", iabuf, NULL);	/* First check for fixed IP hosts */
+		ast_copy_string(ipaddr, ast_inet_ntoa(sin->sin_addr), sizeof(ipaddr));
+		var = ast_load_realtime("sippeers", "host", ipaddr, NULL);	/* First check for fixed IP hosts */
 		if (!var)
-			var = ast_load_realtime("sippeers", "ipaddr", iabuf, NULL);	/* Then check for registred hosts */
-	
+			var = ast_load_realtime("sippeers", "ipaddr", ipaddr, NULL);	/* Then check for registred hosts */
 	}
 
 	if (!var)
@@ -2342,7 +2335,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	}
 	
 	if (!newpeername) {	/* Did not find peer in realtime */
-		ast_log(LOG_WARNING, "Cannot Determine peer name ip=%s\n", iabuf);
+		ast_log(LOG_WARNING, "Cannot Determine peer name ip=%s\n", ipaddr);
 		ast_variables_destroy(var);
 		return NULL;
 	}
@@ -2548,12 +2541,8 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 			ast_string_field_build(r, callid, "%s@%s", tmpcall, peer->fromdomain);
 		}
 	}
-	if (ast_strlen_zero(r->tohost)) {
-		char iabuf[INET_ADDRSTRLEN];
-
-		ast_inet_ntoa(iabuf, sizeof(iabuf),  r->sa.sin_addr);
-		ast_string_field_set(r, tohost, iabuf);
-	}
+	if (ast_strlen_zero(r->tohost))
+		ast_string_field_set(r, tohost, ast_inet_ntoa(r->sa.sin_addr));
 	if (!ast_strlen_zero(peer->fromdomain))
 		ast_string_field_set(r, fromdomain, peer->fromdomain);
 	if (!ast_strlen_zero(peer->fromuser))
@@ -3964,10 +3953,9 @@ static char *generate_random_string(char *buf, size_t size)
 /*! \brief Build SIP Call-ID value for a non-REGISTER transaction */
 static void build_callid_pvt(struct sip_pvt *pvt)
 {
-	char iabuf[INET_ADDRSTRLEN];
 	char buf[33];
 
-	const char *host = S_OR(pvt->fromdomain, ast_inet_ntoa(iabuf, sizeof(iabuf), pvt->ourip));
+	const char *host = S_OR(pvt->fromdomain, ast_inet_ntoa(pvt->ourip));
 	
 	ast_string_field_build(pvt, callid, "%s@%s", generate_random_string(buf, sizeof(buf)), host);
 
@@ -3976,10 +3964,9 @@ static void build_callid_pvt(struct sip_pvt *pvt)
 /*! \brief Build SIP Call-ID value for a REGISTER transaction */
 static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip, const char *fromdomain)
 {
-	char iabuf[INET_ADDRSTRLEN];
 	char buf[33];
 
-	const char *host = S_OR(fromdomain, ast_inet_ntoa(iabuf, sizeof(iabuf), ourip));
+	const char *host = S_OR(fromdomain, ast_inet_ntoa(ourip));
 
 	ast_string_field_build(reg, callid, "%s@%s", generate_random_string(buf, sizeof(buf)), host);
 }
@@ -4456,7 +4443,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	const char *c;
 	const char *a;
 	char host[258];
-	char iabuf[INET_ADDRSTRLEN];
 	int len = -1;
 	int portno = -1;		/*!< RTP Audio port number */
 	int vportno = -1;		/*!< RTP Video port number */
@@ -4633,7 +4619,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			sin.sin_port = htons(portno);
 			ast_rtp_set_peer(p->rtp, &sin);
 			if (debug)
-				ast_verbose("Peer audio RTP is at port %s:%d\n", ast_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+				ast_verbose("Peer audio RTP is at port %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 		} else {
 			ast_rtp_stop(p->rtp);
 			if (debug)
@@ -4650,7 +4636,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			sin.sin_port = htons(udptlportno);
 			ast_udptl_set_peer(p->udptl, &sin);
 			if (debug)
-				ast_log(LOG_DEBUG,"Peer T.38 UDPTL is at port %s:%d\n",ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+				ast_log(LOG_DEBUG,"Peer T.38 UDPTL is at port %s:%d\n",ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 		} else {
 			ast_udptl_stop(p->udptl);
 			if (debug)
@@ -4898,14 +4884,14 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	if (p->rtp && sin.sin_port) {
 		ast_rtp_set_peer(p->rtp, &sin);
 		if (debug)
-			ast_verbose("Peer audio RTP is at port %s:%d\n", ast_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			ast_verbose("Peer audio RTP is at port %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 	}
 
 	/* Setup video port number */
 	if (p->vrtp && vsin.sin_port) {
 		ast_rtp_set_peer(p->vrtp, &vsin);
 		if (debug) 
-			ast_verbose("Peer video RTP is at port %s:%d\n", ast_inet_ntoa(iabuf,sizeof(iabuf), vsin.sin_addr), ntohs(vsin.sin_port));
+			ast_verbose("Peer video RTP is at port %s:%d\n", ast_inet_ntoa(vsin.sin_addr), ntohs(vsin.sin_port));
 	}
 
 	/* Ok, we're going with this offer */
@@ -5105,7 +5091,6 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const st
 			break;
 
 		if (!copied) {	/* Only check for empty rport in topmost via header */
-			char iabuf[INET_ADDRSTRLEN];
 			char *rport;
 
 			/* Find ;rport;  (empty request) */
@@ -5134,12 +5119,12 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const st
 				   another RFC (RFC3581). I'll leave the original comments in for
 				   posterity.  */
 				snprintf(new, sizeof(new), "%s;received=%s;rport=%d",
-					tmp, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr),
+					tmp, ast_inet_ntoa(p->recv.sin_addr),
 					ntohs(p->recv.sin_port));
 			} else {
 				/* We should *always* add a received to the topmost via */
 				snprintf(new, sizeof(new), "%s;received=%s",
-					oh, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
+					oh, ast_inet_ntoa(p->recv.sin_addr));
 			}
 			oh = new;	/* the header to copy */
 		}  /* else add the following via headers untouched */
@@ -5185,7 +5170,6 @@ static void add_route(struct sip_request *req, struct sip_route *route)
 static void set_destination(struct sip_pvt *p, char *uri)
 {
 	char *h, *maddr, hostname[256];
-	char iabuf[INET_ADDRSTRLEN];
 	int port, hn;
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -5243,7 +5227,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
 	p->sa.sin_port = htons(port);
 	if (debug)
-		ast_verbose("set_destination: set destination to %s, port %d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), port);
+		ast_verbose("set_destination: set destination to %s, port %d\n", ast_inet_ntoa(p->sa.sin_addr), port);
 }
 
 /*! \brief Initialize SIP response, based on SIP request */
@@ -5643,7 +5627,6 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 	size_t m_modem_left = sizeof(m_modem);
 	char *a_modem_next = a_modem;
 	size_t a_modem_left = sizeof(a_modem);
-	char iabuf[INET_ADDRSTRLEN];
 	struct sockaddr_in udptldest = { 0, };
 	int debug;
 	
@@ -5673,7 +5656,7 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 	
 	if (debug) {
-		ast_log(LOG_DEBUG, "T.38 UDPTL is at %s port %d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));
+		ast_log(LOG_DEBUG, "T.38 UDPTL is at %s port %d\n", ast_inet_ntoa(p->ourip), ntohs(udptlsin.sin_port));
 	}
 	
 	/* We break with the "recommendation" and send our IP, in order that our
@@ -5686,9 +5669,9 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 			p->t38.jointcapability);
 	}
 	snprintf(v, sizeof(v), "v=0\r\n");
-	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, ast_inet_ntoa(iabuf, sizeof(iabuf), udptldest.sin_addr));
+	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, ast_inet_ntoa(udptldest.sin_addr));
 	snprintf(s, sizeof(s), "s=session\r\n");
-	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", ast_inet_ntoa(iabuf, sizeof(iabuf), udptldest.sin_addr));
+	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", ast_inet_ntoa(udptldest.sin_addr));
 	snprintf(t, sizeof(t), "t=0 0\r\n");
 	ast_build_string(&m_modem_next, &m_modem_left, "m=image %d udptl t38\r\n", ntohs(udptldest.sin_port));
 	
@@ -5779,7 +5762,6 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	size_t a_audio_left = sizeof(a_audio);
 	size_t a_video_left = sizeof(a_video);
 
-	char iabuf[INET_ADDRSTRLEN];
 	int x;
 	int capability;
 	int needvideo = FALSE;
@@ -5858,7 +5840,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		if (p->maxcallbitrate)
 			snprintf(bandwidth, sizeof(bandwidth), "b=CT:%d\r\n", p->maxcallbitrate);
 		if (debug) 
-			ast_verbose("Video is at %s port %d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(vsin.sin_port));	
+			ast_verbose("Video is at %s port %d\n", ast_inet_ntoa(p->ourip), ntohs(vsin.sin_port));	
 
 		/* For video, we can't negotiate video offers. Let's compare the incoming call with what we got. */
 		if (p->prefcodec) {
@@ -5885,15 +5867,15 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		}
 	}
 	if (debug) 
-		ast_verbose("Audio is at %s port %d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(sin.sin_port));	
+		ast_verbose("Audio is at %s port %d\n", ast_inet_ntoa(p->ourip), ntohs(sin.sin_port));	
 
 	/* Start building generic SDP headers */
 
 	/* We break with the "recommendation" and send our IP, in order that our
 	   peer doesn't have to ast_gethostbyname() us */
 
-	snprintf(owner, sizeof(owner), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, ast_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
-	snprintf(connection, sizeof(connection), "c=IN IP4 %s\r\n", ast_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
+	snprintf(owner, sizeof(owner), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, ast_inet_ntoa(dest.sin_addr));
+	snprintf(connection, sizeof(connection), "c=IN IP4 %s\r\n", ast_inet_ntoa(dest.sin_addr));
 	ast_build_string(&m_audio_next, &m_audio_left, "m=audio %d RTP/AVP", ntohs(dest.sin_port));
 
 	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_ONEDIR))
@@ -6176,13 +6158,11 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 /*! \brief Build contact header - the contact header we send out */
 static void build_contact(struct sip_pvt *p)
 {
-	char iabuf[INET_ADDRSTRLEN];
-
 	/* Construct Contact: header */
 	if (ourport != 5060)	/* Needs to be 5060, according to the RFC */
-		ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport);
+		ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip), ourport);
 	else
-		ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
+		ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip));
 }
 
 /*! \brief Build the Remote Party-ID & From using callingpres options */
@@ -6194,7 +6174,6 @@ static void build_rpid(struct sip_pvt *p)
 	char buf[256];
 	const char *clid = default_callerid;
 	const char *clin = NULL;
-	char iabuf[INET_ADDRSTRLEN];
 	const char *fromdomain;
 
 	if (!ast_strlen_zero(p->rpid) || !ast_strlen_zero(p->rpid_from))  
@@ -6253,7 +6232,7 @@ static void build_rpid(struct sip_pvt *p)
 		break;
 	}
 	
-	fromdomain = S_OR(p->fromdomain, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
+	fromdomain = S_OR(p->fromdomain, ast_inet_ntoa(p->ourip));
 
 	snprintf(buf, sizeof(buf), "\"%s\" <sip:%s@%s>", clin, clid, fromdomain);
 	if (send_pres_tags)
@@ -6275,7 +6254,6 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	char to[256];
 	char tmp[BUFSIZ/2];
 	char tmp2[BUFSIZ/2];
-	char iabuf[INET_ADDRSTRLEN];
 	const char *l = NULL, *n = NULL;
 	int x;
 	char urioptions[256]="";
@@ -6341,9 +6319,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	}
 
 	if ((ourport != 5060) && ast_strlen_zero(p->fromdomain))	/* Needs to be 5060 */
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip)), ourport, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)), ourport, p->tag);
 	else
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip)), p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)), p->tag);
 
 	/* If we're calling a registered SIP peer, use the fullcontact to dial to the peer */
 	if (!ast_strlen_zero(p->fullcontact)) {
@@ -6679,7 +6657,6 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	char tmp[500];
 	char *t = tmp;
 	size_t maxbytes = sizeof(tmp);
-	char iabuf[INET_ADDRSTRLEN];
 
 	initreqprep(&req, p, SIP_NOTIFY);
 	add_header(&req, "Event", "message-summary");
@@ -6687,7 +6664,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 
 	ast_build_string(&t, &maxbytes, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
 	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n",
-		S_OR(vmexten, default_vmexten), S_OR(p->fromdomain, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip)));
+		S_OR(vmexten, default_vmexten), S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)));
 	ast_build_string(&t, &maxbytes, "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
 	if (p->subscribed) {
 		if (p->expiry)
@@ -7225,7 +7202,6 @@ static int sip_poke_peer_s(void *data)
 static void reg_source_db(struct sip_peer *peer)
 {
 	char data[256];
-	char iabuf[INET_ADDRSTRLEN];
 	struct in_addr in;
 	int expiry;
 	int port;
@@ -7263,7 +7239,7 @@ static void reg_source_db(struct sip_peer *peer)
 
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "SIP Seeding peer from astdb: '%s' at %s@%s:%d for %d\n",
-			    peer->name, peer->username, ast_inet_ntoa(iabuf, sizeof(iabuf), in), port, expiry);
+			    peer->name, peer->username, ast_inet_ntoa(in), port, expiry);
 
 	memset(&peer->addr, 0, sizeof(peer->addr));
 	peer->addr.sin_family = AF_INET;
@@ -7370,7 +7346,6 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 {
 	char contact[BUFSIZ]; 
 	char data[BUFSIZ];
-	char iabuf[INET_ADDRSTRLEN];
 	const char *expires = get_header(req, "Expires");
 	int expiry = atoi(expires);
 	char *curi, *n, *pt;
@@ -7491,7 +7466,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	peer->expire = ast_test_flag(&peer->flags[0], SIP_REALTIME) ? -1 :
 		ast_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
 	pvt->expiry = expiry;
-	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry, peer->username, peer->fullcontact);
+	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry, peer->username, peer->fullcontact);
 	if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT)) 
 		ast_db_put("SIP/Registry", peer->name, data);
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", peer->name);
@@ -7500,7 +7475,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	if (inaddrcmp(&peer->addr, &oldsin)) {
 		sip_poke_peer(peer);
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", peer->name, ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry);
+			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", peer->name, ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry);
 		register_peer_exten(peer, 1);
 	}
 	
@@ -7853,7 +7828,6 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 	enum check_auth_result res = AUTH_NOT_FOUND;
 	struct sip_peer *peer;
 	char tmp[256];
-	char iabuf[INET_ADDRSTRLEN];
 	char *name, *c;
 	char *t;
 	char *domain;
@@ -7875,7 +7849,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		name = c + 4;
 	} else {
 		name = c;
-		ast_log(LOG_NOTICE, "Invalid to address: '%s' from %s (missing sip:) trying to use anyway...\n", c, ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+		ast_log(LOG_NOTICE, "Invalid to address: '%s' from %s (missing sip:) trying to use anyway...\n", c, ast_inet_ntoa(sin->sin_addr));
 	}
 
 	/* Strip off the domain name */
@@ -8422,7 +8396,6 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 static void check_via(struct sip_pvt *p, struct sip_request *req)
 {
 	char via[256];
-	char iabuf[INET_ADDRSTRLEN];
 	char *c, *pt;
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -8461,7 +8434,7 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 
 		if (sip_debug_test_pvt(p)) {
 			const struct sockaddr_in *dst = sip_real_dst(p);
-			ast_verbose("Sending to %s : %d (%s)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), dst->sin_addr), ntohs(dst->sin_port), sip_nat_mode(p));
+			ast_verbose("Sending to %s : %d (%s)\n", ast_inet_ntoa(dst->sin_addr), ntohs(dst->sin_port), sip_nat_mode(p));
 		}
 	}
 }
@@ -8556,7 +8529,6 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	char *of;
 	char rpid_num[50];
 	const char *rpid;
-	char iabuf[INET_ADDRSTRLEN];
 	enum check_auth_result res = AUTH_SUCCESSFUL;
 	char *t;
 	char calleridname[50];
@@ -8850,7 +8822,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			ASTOBJ_UNREF(peer, sip_destroy_peer);
 		} else { 
 			if (debug)
-				ast_verbose("Found no matching peer or user for '%s:%d'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
+				ast_verbose("Found no matching peer or user for '%s:%d'\n", ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 
 			/* do we allow guests? */
 			if (!global_allowguest) {
@@ -9131,7 +9103,6 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 #define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-10s %-10s\n"
 
 	char name[256];
-	char iabuf[INET_ADDRSTRLEN];
 	int total_peers = 0;
 	int peers_online = 0;
 	int peers_offline = 0;
@@ -9199,7 +9170,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 		}			
 		
 		snprintf(srch, sizeof(srch), FORMAT, name,
-			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), iterator->addr.sin_addr) : "(Unspecified)",
+			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iterator->addr.sin_addr) : "(Unspecified)",
 			ast_test_flag(&iterator->flags[1], SIP_PAGE2_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
 			ast_test_flag(&iterator->flags[0], SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
 			iterator->ha ? " A " : "   ", 	/* permit/deny */
@@ -9208,7 +9179,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 
 		if (!s)  {/* Normal CLI list */
 			ast_cli(fd, FORMAT, name, 
-			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), iterator->addr.sin_addr) : "(Unspecified)",
+			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iterator->addr.sin_addr) : "(Unspecified)",
 			ast_test_flag(&iterator->flags[1], SIP_PAGE2_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
 			ast_test_flag(&iterator->flags[0], SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
 			iterator->ha ? " A " : "   ",       /* permit/deny */
@@ -9232,7 +9203,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			"RealtimeDevice: %s\r\n\r\n", 
 			idtext,
 			iterator->name, 
-			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), iterator->addr.sin_addr) : "-none-",
+			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iterator->addr.sin_addr) : "-none-",
 			ntohs(iterator->addr.sin_port), 
 			ast_test_flag(&iterator->flags[1], SIP_PAGE2_DYNAMIC) ? "yes" : "no", 	/* Dynamic or not? */
 			ast_test_flag(&iterator->flags[0], SIP_NAT_ROUTE) ? "yes" : "no",	/* NAT=yes? */
@@ -9582,7 +9553,6 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 {
 	char status[30] = "";
 	char cbuf[256];
-	char iabuf[INET_ADDRSTRLEN];
 	struct sip_peer *peer;
 	char codec_buf[512];
 	struct ast_codec_pref *pref;
@@ -9662,8 +9632,8 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  DTMFmode     : %s\n", dtmfmode2str(ast_test_flag(&peer->flags[0], SIP_DTMF)));
 		ast_cli(fd, "  LastMsg      : %d\n", peer->lastmsg);
 		ast_cli(fd, "  ToHost       : %s\n", peer->tohost);
-		ast_cli(fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
-		ast_cli(fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
+		ast_cli(fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
+		ast_cli(fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
 		if (!ast_strlen_zero(global_regcontext))
 			ast_cli(fd, "  Reg. exten   : %s\n", peer->regexten);
 		ast_cli(fd, "  Def. Username: %s\n", peer->username);
@@ -9742,8 +9712,8 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		astman_append(s, "SIP-DTMFmode: %s\r\n", dtmfmode2str(ast_test_flag(&peer->flags[0], SIP_DTMF)));
 		astman_append(s, "SIPLastMsg: %d\r\n", peer->lastmsg);
 		astman_append(s, "ToHost: %s\r\n", peer->tohost);
-		astman_append(s, "Address-IP: %s\r\nAddress-Port: %d\r\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", ntohs(peer->addr.sin_port));
-		astman_append(s, "Default-addr-IP: %s\r\nDefault-addr-port: %d\r\n", ast_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
+		astman_append(s, "Address-IP: %s\r\nAddress-Port: %d\r\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "", ntohs(peer->addr.sin_port));
+		astman_append(s, "Default-addr-IP: %s\r\nDefault-addr-port: %d\r\n", ast_inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
 		astman_append(s, "Default-Username: %s\r\n", peer->username);
 		if (!ast_strlen_zero(global_regcontext))
 			astman_append(s, "RegExtension: %s\r\n", peer->regexten);
@@ -9883,7 +9853,6 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 /*! \brief List global settings for the SIP channel */
 static int sip_show_settings(int fd, int argc, char *argv[])
 {
-	char tmp[BUFSIZ];
 	int realtimepeers;
 	int realtimeusers;
 
@@ -9895,7 +9864,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "\n\nGlobal Settings:\n");
 	ast_cli(fd, "----------------\n");
 	ast_cli(fd, "  SIP Port:               %d\n", ntohs(bindaddr.sin_port));
-	ast_cli(fd, "  Bindaddress:            %s\n", ast_inet_ntoa(tmp, sizeof(tmp), bindaddr.sin_addr));
+	ast_cli(fd, "  Bindaddress:            %s\n", ast_inet_ntoa(bindaddr.sin_addr));
 	ast_cli(fd, "  Videosupport:           %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "Yes" : "No");
 	ast_cli(fd, "  AutoCreatePeer:         %s\n", autocreatepeer ? "Yes" : "No");
 	ast_cli(fd, "  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No");
@@ -10021,7 +9990,6 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 #define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-4.4s  %-7.7s  %-15.15s\n"
 #define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-4.4s  %-3.3s %-3.3s  %-15.15s %-10.10s\n"
 	struct sip_pvt *cur;
-	char iabuf[INET_ADDRSTRLEN];
 	int numchans = 0;
 	char *referstatus = NULL;
 
@@ -10039,7 +10007,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 			referstatus = referstatus2str(cur->refer->status);
 		}
 		if (cur->subscribed == NONE && !subscriptions) {
-			ast_cli(fd, FORMAT, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), 
+			ast_cli(fd, FORMAT, ast_inet_ntoa(cur->sa.sin_addr), 
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")),
 				cur->callid, 
 				cur->ocseq, cur->icseq, 
@@ -10052,7 +10020,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 			numchans++;
 		}
 		if (cur->subscribed != NONE && subscriptions) {
-			ast_cli(fd, FORMAT3, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr),
+			ast_cli(fd, FORMAT3, ast_inet_ntoa(cur->sa.sin_addr),
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")), 
 			   	cur->callid,
 				/* the 'complete' exten/context is hidden in the refer_to field for subscriptions */
@@ -10209,7 +10177,6 @@ static char *complete_sip_prune_realtime_user(const char *line, const char *word
 static int sip_show_channel(int fd, int argc, char *argv[])
 {
 	struct sip_pvt *cur;
-	char iabuf[INET_ADDRSTRLEN];
 	size_t len;
 	int found = 0;
 
@@ -10234,11 +10201,11 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Joint Codec Capability:   %d\n", cur->jointcapability);
 			ast_cli(fd, "  Format:                 %s\n", ast_getformatname_multiple(formatbuf, sizeof(formatbuf), cur->owner ? cur->owner->nativeformats : 0) );
 			ast_cli(fd, "  MaxCallBR:              %d kbps\n", cur->maxcallbitrate);
-			ast_cli(fd, "  Theoretical Address:    %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), ntohs(cur->sa.sin_port));
-			ast_cli(fd, "  Received Address:       %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->recv.sin_addr), ntohs(cur->recv.sin_port));
+			ast_cli(fd, "  Theoretical Address:    %s:%d\n", ast_inet_ntoa(cur->sa.sin_addr), ntohs(cur->sa.sin_port));
+			ast_cli(fd, "  Received Address:       %s:%d\n", ast_inet_ntoa(cur->recv.sin_addr), ntohs(cur->recv.sin_port));
 			ast_cli(fd, "  SIP Transfer mode:      %s\n", transfermode2str(cur->allowtransfer));
 			ast_cli(fd, "  NAT Support:            %s\n", nat2str(ast_test_flag(&cur->flags[0], SIP_NAT)));
-			ast_cli(fd, "  Audio IP:               %s %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->redirip.sin_addr.s_addr ? cur->redirip.sin_addr : cur->ourip), cur->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)" );
+			ast_cli(fd, "  Audio IP:               %s %s\n", ast_inet_ntoa(cur->redirip.sin_addr.s_addr ? cur->redirip.sin_addr : cur->ourip), cur->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)" );
 			ast_cli(fd, "  Our Tag:                %s\n", cur->tag);
 			ast_cli(fd, "  Their Tag:              %s\n", cur->theirtag);
 			ast_cli(fd, "  SIP User agent:         %s\n", cur->useragent);
@@ -10430,7 +10397,6 @@ static int sip_do_debug_ip(int fd, int argc, char *argv[])
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
-	char iabuf[INET_ADDRSTRLEN];
 	int port = 0;
 	char *p, *arg;
 
@@ -10448,9 +10414,9 @@ static int sip_do_debug_ip(int fd, int argc, char *argv[])
 	memcpy(&debugaddr.sin_addr, hp->h_addr, sizeof(debugaddr.sin_addr));
 	debugaddr.sin_port = htons(port);
 	if (port == 0)
-		ast_cli(fd, "SIP Debugging Enabled for IP: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr));
+		ast_cli(fd, "SIP Debugging Enabled for IP: %s\n", ast_inet_ntoa(debugaddr.sin_addr));
 	else
-		ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr), port);
+		ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(debugaddr.sin_addr), port);
 
 	ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
 
@@ -10461,7 +10427,6 @@ static int sip_do_debug_ip(int fd, int argc, char *argv[])
 static int sip_do_debug_peer(int fd, int argc, char *argv[])
 {
 	struct sip_peer *peer;
-	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	peer = find_peer(argv[3], NULL, 1);
@@ -10470,7 +10435,7 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 			debugaddr.sin_family = AF_INET;
 			debugaddr.sin_addr = peer->addr.sin_addr;
 			debugaddr.sin_port = peer->addr.sin_port;
-			ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr), ntohs(debugaddr.sin_port));
+			ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(debugaddr.sin_addr), ntohs(debugaddr.sin_port));
 			ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
 		} else
 			ast_cli(fd, "Unable to get IP address of peer '%s'\n", argv[3]);
@@ -10720,7 +10685,6 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	char resp_hash[256];
 	char uri[256];
 	char cnonce[80];
-	char iabuf[INET_ADDRSTRLEN];
 	const char *username;
 	const char *secret;
 	const char *md5secret;
@@ -10731,7 +10695,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	else if (!ast_strlen_zero(p->uri))
 		ast_copy_string(uri, p->uri, sizeof(uri));
 	else
-		snprintf(uri, sizeof(uri), "sip:%s@%s",p->username, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+		snprintf(uri, sizeof(uri), "sip:%s@%s",p->username, ast_inet_ntoa(p->sa.sin_addr));
 
 	snprintf(cnonce, sizeof(cnonce), "%08lx", ast_random());
 
@@ -10949,7 +10913,6 @@ static int function_sippeer(struct ast_channel *chan, char *cmd, char *data, cha
 {
 	struct sip_peer *peer;
 	char *colname;
-	char iabuf[INET_ADDRSTRLEN];
 
 	if ((colname = strchr(data, ':')))	/*! \todo Will be deprecated after 1.4 */
 		*colname++ = '\0';
@@ -10962,7 +10925,7 @@ static int function_sippeer(struct ast_channel *chan, char *cmd, char *data, cha
 		return -1;
 
 	if (!strcasecmp(colname, "ip")) {
-		ast_copy_string(buf, peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", len);
+		ast_copy_string(buf, peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "", len);
 	} else  if (!strcasecmp(colname, "status")) {
 		peer_status(peer, buf, len);
 	} else  if (!strcasecmp(colname, "language")) {
@@ -11039,7 +11002,6 @@ struct ast_custom_function sippeer_function = {
 static int function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	struct sip_pvt *p;
-	char iabuf[INET_ADDRSTRLEN];
 
 	*buf = 0;
 	
@@ -11064,9 +11026,9 @@ static int function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char *
 	}
 
 	if (!strcasecmp(data, "peerip")) {
-		ast_copy_string(buf, p->sa.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr) : "", len);
+		ast_copy_string(buf, p->sa.sin_addr.s_addr ? ast_inet_ntoa(p->sa.sin_addr) : "", len);
 	} else  if (!strcasecmp(data, "recvip")) {
-		ast_copy_string(buf, p->recv.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr) : "", len);
+		ast_copy_string(buf, p->recv.sin_addr.s_addr ? ast_inet_ntoa(p->recv.sin_addr) : "", len);
 	} else  if (!strcasecmp(data, "from")) {
 		ast_copy_string(buf, p->from, len);
 	} else  if (!strcasecmp(data, "uri")) {
@@ -11399,7 +11361,6 @@ static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struc
 {
 	char *auth = "Proxy-Authenticate";
 	char *auth2 = "Proxy-Authorization";
-	char iabuf[INET_ADDRSTRLEN];
 
 	switch (resp) {
 	case 202:   /* Transfer accepted */
@@ -11416,7 +11377,7 @@ static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struc
 	case 407:   /* Proxy auth */
 		if (ast_strlen_zero(p->authname)) {
 			ast_log(LOG_WARNING, "Asked to authenticate REFER to %s:%d but we have no matching peer or realm auth!\n",
-				ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
+				ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 		}
 		if (resp == 401) {
@@ -11623,7 +11584,6 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_requ
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
 {
 	struct ast_channel *owner;
-	char iabuf[INET_ADDRSTRLEN];
 	int sipmethod;
 	int res = 1;
 	const char *c = get_header(req, "Cseq");
@@ -11740,7 +11700,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			else if (sipmethod == SIP_BYE) {
 				if (ast_strlen_zero(p->authname))
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
-							msg, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
+							msg, ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 				if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", sipmethod, 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
@@ -11793,7 +11753,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			else if (sipmethod == SIP_REFER)
 				handle_response_refer(p, resp, rest, req, seqno);
 			else
-				ast_log(LOG_WARNING, "Host '%s' does not implement '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), msg);
+				ast_log(LOG_WARNING, "Host '%s' does not implement '%s'\n", ast_inet_ntoa(p->sa.sin_addr), msg);
 			break;
 		case 603:	/* Declined transfer */
 			if (sipmethod == SIP_REFER) {
@@ -11805,7 +11765,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if ((resp >= 300) && (resp < 700)) {
 				/* Fatal response */
 				if ((option_verbose > 2) && (resp != 487))
-					ast_verbose(VERBOSE_PREFIX_3 "Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+					ast_verbose(VERBOSE_PREFIX_3 "Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(p->sa.sin_addr));
 				ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
 				if (p->rtp) {
 					/* Immediately stop RTP */
@@ -11886,7 +11846,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					}
 				}
 			} else
-				ast_log(LOG_NOTICE, "Dont know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+				ast_log(LOG_NOTICE, "Dont know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : ast_inet_ntoa(p->sa.sin_addr));
 		}
 	} else {	
 		/* Responses to OUTGOING SIP requests on INCOMING calls 
@@ -11978,7 +11938,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			}
 			if ((resp >= 300) && (resp < 700)) {
 				if ((option_verbose > 2) && (resp != 487))
-					ast_verbose(VERBOSE_PREFIX_3 "Incoming call: Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+					ast_verbose(VERBOSE_PREFIX_3 "Incoming call: Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(p->sa.sin_addr));
 				switch(resp) {
 				case 488: /* Not acceptable here - codec error */
 				case 603: /* Decline */
@@ -13559,7 +13519,6 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	struct ast_channel *c=NULL;
 	int res;
 	struct ast_channel *bridged_to;
-	char iabuf[INET_ADDRSTRLEN];
 	char *audioqos = NULL, *videoqos = NULL;
 	
 	if (p->pendinginvite && !ast_test_flag(&p->flags[0], SIP_OUTGOING) && !ast_test_flag(req, SIP_PKT_IGNORE))
@@ -13600,7 +13559,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	}
 	if (!ast_strlen_zero(get_header(req, "Also"))) {
 		ast_log(LOG_NOTICE, "Client '%s' using deprecated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
-			ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
+			ast_inet_ntoa(p->recv.sin_addr));
 		if (ast_strlen_zero(p->context))
 			ast_string_field_set(p, context, default_context);
 		res = get_also_info(p, req);
@@ -13616,7 +13575,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 					ast_queue_hangup(p->owner);
 			}
 		} else {
-			ast_log(LOG_WARNING, "Invalid transfer information from '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
+			ast_log(LOG_WARNING, "Invalid transfer information from '%s'\n", ast_inet_ntoa(p->recv.sin_addr));
 			if (p->owner)
 				ast_queue_hangup(p->owner);
 		}
@@ -13831,9 +13790,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			}
 		} else {
 			if ((firststate = ast_extension_state(NULL, p->context, p->exten)) < 0) {
-				char iabuf[INET_ADDRSTRLEN];
 
-				ast_log(LOG_ERROR, "Got SUBSCRIBE for extension %s@%s from %s, but there is no hint for that extension\n", p->exten, p->context, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+				ast_log(LOG_ERROR, "Got SUBSCRIBE for extension %s@%s from %s, but there is no hint for that extension\n", p->exten, p->context, ast_inet_ntoa(p->sa.sin_addr));
 				transmit_response(p, "404 Not found", req);
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 				return 0;
@@ -13886,7 +13844,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 static int handle_request_register(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, char *e)
 {
 	enum check_auth_result res;
-	char iabuf[INET_ADDRSTRLEN];
 
 	/* Use this as the basis */
 	if (ast_test_flag(req, SIP_PKT_DEBUG))
@@ -13913,7 +13870,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 			break;
 		}
 		ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n",
-			get_header(req, "To"), ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr),
+			get_header(req, "To"), ast_inet_ntoa(sin->sin_addr),
 			reason);
 	}
 	if (res < 1) {
@@ -13941,7 +13898,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	int ignore = FALSE;
 	int respid;
 	int res = 0;
-	char iabuf[INET_ADDRSTRLEN];
 	int debug = sip_debug_test_pvt(p);
 	char *e;
 	int error = 0;
@@ -14125,7 +14081,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	default:
 		transmit_response_with_allow(p, "501 Method Not Implemented", req, 0);
 		ast_log(LOG_NOTICE, "Unknown SIP command '%s' from '%s'\n", 
-			cmd, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+			cmd, ast_inet_ntoa(p->sa.sin_addr));
 		/* If this is some new method, and we don't have a call, destroy it now */
 		if (!p->initreq.headers)
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
@@ -14148,7 +14104,6 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	socklen_t len;
 	int nounlock;
 	int recount = 0;
-	char iabuf[INET_ADDRSTRLEN];
 	unsigned int lockretry = 100;
 
 	len = sizeof(sin);
@@ -14175,7 +14130,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	if (pedanticsipchecking)
 		req.len = lws2sws(req.data, req.len);	/* Fix multiline headers */
 	if (ast_test_flag(&req, SIP_PKT_DEBUG))
-		ast_verbose("\n<-- SIP read from %s:%d: \n%s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), req.data);
+		ast_verbose("\n<-- SIP read from %s:%d: \n%s\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), req.data);
 
 	parse_request(&req);
 	req.method = find_sip_method(req.rlPart1);
@@ -14520,12 +14475,8 @@ static int sip_poke_peer(struct sip_peer *peer)
 
 	if (!ast_strlen_zero(peer->tohost))
 		ast_string_field_set(p, tohost, peer->tohost);
-	else {
-		char iabuf[INET_ADDRSTRLEN];
-
-		ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr);
-		ast_string_field_set(p, tohost, iabuf);
-	}
+	else
+		ast_string_field_set(p, tohost, ast_inet_ntoa(peer->addr.sin_addr));
 
 	/* Recalculate our side, and recalculate Call ID */
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
@@ -15450,7 +15401,6 @@ static int reload_config(enum channelreloadreason reason)
 	char newcontexts[AST_MAX_CONTEXT], oldcontexts[AST_MAX_CONTEXT];
 	struct hostent *hp;
 	int format;
-	char iabuf[INET_ADDRSTRLEN];
 	struct ast_flags dummy[2];
 	int auto_sip_domains = FALSE;
 	struct sockaddr_in old_bindaddr = bindaddr;
@@ -15869,14 +15819,14 @@ static int reload_config(enum channelreloadreason reason)
 
 			if (bind(sipsock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) < 0) {
 				ast_log(LOG_WARNING, "Failed to bind to %s:%d: %s\n",
-				ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port),
+				ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port),
 				strerror(errno));
 				close(sipsock);
 				sipsock = -1;
 			} else {
 				if (option_verbose > 1) { 
 					ast_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
-					ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port));
+					ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
 					ast_verbose(VERBOSE_PREFIX_2 "Using SIP TOS: %s\n", ast_tos2str(global_tos_sip));
 				}
 				if (setsockopt(sipsock, IPPROTO_IP, IP_TOS, &global_tos_sip, sizeof(global_tos_sip))) 
@@ -15894,18 +15844,14 @@ static int reload_config(enum channelreloadreason reason)
 		char temp[MAXHOSTNAMELEN];
 
 		/* First our default IP address */
-		if (bindaddr.sin_addr.s_addr) {
-			ast_inet_ntoa(temp, sizeof(temp), bindaddr.sin_addr);
-			add_sip_domain(temp, SIP_DOMAIN_AUTO, NULL);
-		} else {
+		if (bindaddr.sin_addr.s_addr)
+			add_sip_domain(ast_inet_ntoa(bindaddr.sin_addr), SIP_DOMAIN_AUTO, NULL);
+		else
 			ast_log(LOG_NOTICE, "Can't add wildcard IP address to domain list, please add IP address to domain manually.\n");
-		}
 
 		/* Our extern IP address, if configured */
-		if (externip.sin_addr.s_addr) {
-			ast_inet_ntoa(temp, sizeof(temp), externip.sin_addr);
-			add_sip_domain(temp, SIP_DOMAIN_AUTO, NULL);
-		}
+		if (externip.sin_addr.s_addr)
+			add_sip_domain(ast_inet_ntoa(externip.sin_addr), SIP_DOMAIN_AUTO, NULL);
 
 		/* Extern host name (NAT traversal support) */
 		if (!ast_strlen_zero(externhost))
@@ -15961,14 +15907,12 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 	if (!ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
 		if (!p->pendinginvite) {
 			if (option_debug > 2) {
-				char iabuf[INET_ADDRSTRLEN];
-				ast_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
+				ast_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
 			}
 			transmit_reinvite_with_t38_sdp(p);
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 			if (option_debug > 2) {
-				char iabuf[INET_ADDRSTRLEN];
-				ast_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf),udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
+				ast_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
 			}
 			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
 		}
@@ -16005,20 +15949,18 @@ static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt
 		if (!ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
 			if (!p->pendinginvite) {
 				if (option_debug > 2) {
-					char iabuf[INET_ADDRSTRLEN];
 					if (flag)
-						ast_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
+						ast_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
 					else
-						ast_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
+						ast_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip));
 				}
 				transmit_reinvite_with_t38_sdp(p);
 			} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 				if (option_debug > 2) {
-					char iabuf[INET_ADDRSTRLEN];
 					if (flag)
-						ast_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
+						ast_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
 					else
-						ast_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
+						ast_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip));
 				}
 				ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
 			}
@@ -16035,11 +15977,10 @@ static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt
 			memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
 		}
 		if (option_debug > 2) {
-			char iabuf[INET_ADDRSTRLEN];
 			if (flag)
-				ast_log(LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
+				ast_log(LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
 			else
-				ast_log(LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
+				ast_log(LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip));
 		}
 		pvt->t38.state = T38_ENABLED;
 		p->t38.state = T38_ENABLED;
@@ -16124,21 +16065,18 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 	}
 	if (changed && !ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
 		if (chan->_state != AST_STATE_UP) {	/* We are in early state */
-			char iabuf[INET_ADDRSTRLEN];
 			if (recordhistory)
 				append_history(p, "ExtInv", "Initial invite sent with remote bridge proposal.");
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Early remote bridge setting SIP '%s' - Sending media to %s\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));
+				ast_log(LOG_DEBUG, "Early remote bridge setting SIP '%s' - Sending media to %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip));
 		} else if (!p->pendinginvite) {		/* We are up, and have no outstanding invite */
 			if (option_debug > 2) {
-				char iabuf[INET_ADDRSTRLEN];
-				ast_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));
+				ast_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip));
 			}
 			transmit_reinvite_with_sdp(p);
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 			if (option_debug > 2) {
-				char iabuf[INET_ADDRSTRLEN];
-				ast_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));
+				ast_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip));
 			}
 			/* We have a pending Invite. Send re-invite when we're done with the invite */
 			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);	

@@ -1592,18 +1592,20 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 				hasauth = 1;
 			if (hasauth) {
 				int expire = default_expiration;
-				char iabuf[INET_ADDRSTRLEN];
 				char data[256];
 				int needqual = 0;
 				if (peer->registerexpire > -1)
 					ast_sched_del(sched, peer->registerexpire);
 				peer->registerexpire = ast_sched_add(sched, (expire + 10) * 1000, do_register_expire, peer);
-				ast_inet_ntoa(iabuf, sizeof(iabuf), trans->addr.sin_addr);
-				snprintf(data, sizeof(data), "%s:%d:%d", iabuf, ntohs(trans->addr.sin_port), expire);
+				snprintf(data, sizeof(data), "%s:%d:%d", ast_inet_ntoa(trans->addr.sin_addr), 
+					ntohs(trans->addr.sin_port), expire);
 				ast_db_put("dundi/dpeers", dundi_eid_to_str_short(eid_str, sizeof(eid_str), &peer->eid), data);
 				if (inaddrcmp(&peer->addr, &trans->addr)) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Registered DUNDi peer '%s' at '%s:%d'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), iabuf, ntohs(trans->addr.sin_port));
+					if (option_verbose > 2) {
+						ast_verbose(VERBOSE_PREFIX_3 "Registered DUNDi peer '%s' at '%s:%d'\n", 
+							dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), 
+							ast_inet_ntoa(trans->addr.sin_addr), ntohs(trans->addr.sin_port));
+					}
 					needqual = 1;
 				}
 					
@@ -1731,8 +1733,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 							ast_copy_string(trans->parent->dei->ipaddr, ies.q_ipaddr, sizeof(trans->parent->dei->ipaddr));
 						if (!dundi_eid_cmp(&trans->them_eid, &trans->parent->query_eid)) {
 							/* If it's them, update our address */
-							ast_inet_ntoa(trans->parent->dei->ipaddr, sizeof(trans->parent->dei->ipaddr),
-								trans->addr.sin_addr);
+							ast_copy_string(trans->parent->dei->ipaddr, ast_inet_ntoa(trans->addr.sin_addr), sizeof(trans->parent->dei->ipaddr));
 						}
 					}
 					if (ies.hint) {
@@ -2361,7 +2362,6 @@ static int dundi_show_peer(int fd, int argc, char *argv[])
 	struct dundi_peer *peer;
 	struct permission *p;
 	char *order;
-	char iabuf[INET_ADDRSTRLEN];
 	char eid_str[20];
 	int x, cnt;
 	
@@ -2391,7 +2391,7 @@ static int dundi_show_peer(int fd, int argc, char *argv[])
 		}
 		ast_cli(fd, "Peer:    %s\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		ast_cli(fd, "Model:   %s\n", model2str(peer->model));
-		ast_cli(fd, "Host:    %s\n", peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "<Unspecified>");
+		ast_cli(fd, "Host:    %s\n", peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "<Unspecified>");
 		ast_cli(fd, "Dynamic: %s\n", peer->dynamic ? "yes" : "no");
 		ast_cli(fd, "Reg:     %s\n", peer->registerid < 0 ? "No" : "Yes");
 		ast_cli(fd, "In Key:  %s\n", ast_strlen_zero(peer->inkey) ? "<None>" : peer->inkey);
@@ -2426,7 +2426,6 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
 #define FORMAT2 "%-20.20s %-15.15s     %-10.10s %-8.8s %-15.15s\n"
 #define FORMAT "%-20.20s %-15.15s %s %-10.10s %-8.8s %-15.15s\n"
 	struct dundi_peer *peer;
-	char iabuf[INET_ADDRSTRLEN];
 	int registeredonly=0;
 	char avgms[20];
 	char eid_str[20];
@@ -2478,7 +2477,7 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
 		else
 			strcpy(avgms, "Unavail");
 		snprintf(srch, sizeof(srch), FORMAT, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), 
-					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
+					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
 					peer->dynamic ? "(D)" : "(S)", model2str(peer->model), avgms, status);
 
                 if (argc == 5) {
@@ -2495,7 +2494,7 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
 		
         if (print_line) {
 			ast_cli(fd, FORMAT, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), 
-					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
+					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
 					peer->dynamic ? "(D)" : "(S)", model2str(peer->model), avgms, status);
 		}
 	}
@@ -2511,13 +2510,12 @@ static int dundi_show_trans(int fd, int argc, char *argv[])
 #define FORMAT2 "%-22.22s %-5.5s %-5.5s %-3.3s %-3.3s %-3.3s\n"
 #define FORMAT "%-16.16s:%5d %-5.5d %-5.5d %-3.3d %-3.3d %-3.3d\n"
 	struct dundi_transaction *trans;
-	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	AST_LIST_LOCK(&peers);
 	ast_cli(fd, FORMAT2, "Remote", "Src", "Dst", "Tx", "Rx", "Ack");
 	AST_LIST_TRAVERSE(&alltrans, trans, all) {
-		ast_cli(fd, FORMAT, ast_inet_ntoa(iabuf, sizeof(iabuf), trans->addr.sin_addr), 
+		ast_cli(fd, FORMAT, ast_inet_ntoa(trans->addr.sin_addr), 
 			ntohs(trans->addr.sin_port), trans->strans, trans->dtrans, trans->oseqno, trans->iseqno, trans->aseqno);
 	}
 	AST_LIST_UNLOCK(&peers);
@@ -2759,13 +2757,12 @@ static struct dundi_transaction *create_transaction(struct dundi_peer *p)
 static int dundi_xmit(struct dundi_packet *pack)
 {
 	int res;
-	char iabuf[INET_ADDRSTRLEN];
 	if (dundidebug)
 		dundi_showframe(pack->h, 0, &pack->parent->addr, pack->datalen - sizeof(struct dundi_hdr));
 	res = sendto(netsocket, pack->data, pack->datalen, 0, (struct sockaddr *)&pack->parent->addr, sizeof(pack->parent->addr));
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Failed to transmit to '%s:%d': %s\n", 
-			ast_inet_ntoa(iabuf, sizeof(iabuf), pack->parent->addr.sin_addr),
+			ast_inet_ntoa(pack->parent->addr.sin_addr),
 			ntohs(pack->parent->addr.sin_port), strerror(errno));
 	}
 	if (res > 0)
@@ -2871,7 +2868,6 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 static int dundi_rexmit(void *data)
 {
 	struct dundi_packet *pack;
-	char iabuf[INET_ADDRSTRLEN];
 	int res;
 	AST_LIST_LOCK(&peers);
 	pack = data;
@@ -2879,7 +2875,7 @@ static int dundi_rexmit(void *data)
 		pack->retransid = -1;
 		if (!ast_test_flag(pack->parent, FLAG_ISQUAL))
 			ast_log(LOG_NOTICE, "Max retries exceeded to host '%s:%d' msg %d on call %d\n", 
-				ast_inet_ntoa(iabuf, sizeof(iabuf), pack->parent->addr.sin_addr), 
+				ast_inet_ntoa(pack->parent->addr.sin_addr), 
 				ntohs(pack->parent->addr.sin_port), pack->h->oseqno, ntohs(pack->h->strans));
 		destroy_trans(pack->parent, 1);
 		res = 0;
@@ -4315,7 +4311,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 		hp = ast_gethostbyname(hn, &he);
 		if (hp) {
 			memcpy(&sin2.sin_addr, hp->h_addr, sizeof(sin2.sin_addr));
-			ast_inet_ntoa(ipaddr, sizeof(ipaddr), sin2.sin_addr);
+			ast_copy_string(ipaddr, ast_inet_ntoa(sin2.sin_addr), sizeof(ipaddr));
 		} else
 			ast_log(LOG_WARNING, "Unable to look up host '%s'\n", hn);
 	} else
@@ -4477,7 +4473,6 @@ static int load_module(void *mod)
 {
 	int res = 0;
 	struct sockaddr_in sin;
-	char iabuf[INET_ADDRSTRLEN];
 
 	__mod_desc = mod;
 	dundi_set_output(dundi_debug_output);
@@ -4505,7 +4500,7 @@ static int load_module(void *mod)
 		return -1;
 	}
 	if (bind(netsocket,(struct sockaddr *)&sin, sizeof(sin))) {
-		ast_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), strerror(errno));
+		ast_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), strerror(errno));
 		return -1;
 	}
 
@@ -4523,7 +4518,7 @@ static int load_module(void *mod)
 	}
 
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "DUNDi Ready and Listening on %s port %d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+		ast_verbose(VERBOSE_PREFIX_2 "DUNDi Ready and Listening on %s port %d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 
 	ast_cli_register(&cli_debug);
 	ast_cli_register(&cli_store_history);

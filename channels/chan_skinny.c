@@ -1701,7 +1701,6 @@ static int skinny_show_devices(int fd, int argc, char *argv[])
 	struct skinny_device *d;
 	struct skinny_line *l;
 	int numlines = 0;
-	char iabuf[INET_ADDRSTRLEN];
 
 	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
@@ -1719,7 +1718,7 @@ static int skinny_show_devices(int fd, int argc, char *argv[])
 		ast_cli(fd, "%-20s %-16s %-15s %6X %c %2d\n",
 				d->name,
 				d->id,
-				ast_inet_ntoa(iabuf, sizeof(iabuf), d->addr.sin_addr),
+				ast_inet_ntoa(d->addr.sin_addr),
 				d->type,
 				d->registered?'Y':'N',
 				numlines);
@@ -3296,7 +3295,6 @@ static int handle_open_receive_channel_ack_message(skinny_req *req, struct skinn
 	struct skinny_subchannel *sub;
 	struct sockaddr_in sin;
 	struct sockaddr_in us;
-	char iabuf[INET_ADDRSTRLEN];
 	uint32_t addr;
 	int port;
 	int status;
@@ -3331,8 +3329,8 @@ static int handle_open_receive_channel_ack_message(skinny_req *req, struct skinn
 	}
 
 	if (skinnydebug) {
-		ast_verbose("ipaddr = %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-		ast_verbose("ourip = %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), d->ourip), ntohs(us.sin_port));
+		ast_verbose("ipaddr = %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+		ast_verbose("ourip = %s:%d\n", ast_inet_ntoa(d->ourip), ntohs(us.sin_port));
 	}
 
 	if (!(req = req_alloc(sizeof(start_media_transmission_message), START_MEDIA_TRANSMISSION_MESSAGE)))
@@ -3897,10 +3895,9 @@ static void *skinny_session(void *data)
 	int res;
 	skinny_req *req;
 	struct skinnysession *s = data;
-	char iabuf[INET_ADDRSTRLEN];
 
 	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Starting Skinny session from %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+		ast_verbose(VERBOSE_PREFIX_3 "Starting Skinny session from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 
 	for (;;) {
 		res = get_input(s);
@@ -4071,7 +4068,6 @@ static int reload_config(void)
 	struct ast_variable *v;
 	int format;
 	char *cat;
-	char iabuf[INET_ADDRSTRLEN];
 	struct skinny_device *d;
 	int oldport = ntohs(bindaddr.sin_port);
 
@@ -4195,7 +4191,7 @@ static int reload_config(void)
 		} else {
 			if (bind(skinnysock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) < 0) {
 				ast_log(LOG_WARNING, "Failed to bind to %s:%d: %s\n",
-						ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port),
+						ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port),
 							strerror(errno));
 				close(skinnysock);
 				skinnysock = -1;
@@ -4204,7 +4200,7 @@ static int reload_config(void)
 			}
 			if (listen(skinnysock,DEFAULT_SKINNY_BACKLOG)) {
 					ast_log(LOG_WARNING, "Failed to start listening to %s:%d: %s\n",
-						ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port),
+						ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port),
 							strerror(errno));
 					close(skinnysock);
 					skinnysock = -1;
@@ -4213,7 +4209,7 @@ static int reload_config(void)
 			}
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Skinny listening on %s:%d\n",
-					ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port));
+					ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
 			ast_pthread_create(&accept_t,NULL, accept_thread, NULL);
 		}
 	}

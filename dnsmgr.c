@@ -172,10 +172,10 @@ static int dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
 		/* check to see if it has changed, do callback if requested (where de callback is defined ????) */
 		memcpy(&tmp, hp->h_addr, sizeof(tmp));
 		if (tmp.s_addr != entry->last.s_addr) {
+			ast_copy_string(iabuf, ast_inet_ntoa(entry->last), sizeof(iabuf));
+			ast_copy_string(iabuf2, ast_inet_ntoa(tmp), sizeof(iabuf2));
 			ast_log(LOG_NOTICE, "host '%s' changed from %s to %s\n", 
-				entry->name,
-				ast_inet_ntoa(iabuf, sizeof(iabuf), entry->last),
-				ast_inet_ntoa(iabuf2, sizeof(iabuf2), tmp));
+				entry->name, iabuf, iabuf2);
 			memcpy(entry->result, hp->h_addr, sizeof(entry->result));
 			memcpy(&entry->last, hp->h_addr, sizeof(entry->last));
 			changed = entry->changed = 1;

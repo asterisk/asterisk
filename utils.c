@@ -62,6 +62,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char base64[64];
 static char b2a[256];
 
+static pthread_key_t inet_ntoa_buf_key;
+static pthread_once_t inet_ntoa_buf_once = PTHREAD_ONCE_INIT;
+
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__) || defined(__CYGWIN__)
 
 #define ERANGE 34	/*!< duh? ERANGE value copied from web... */
@@ -483,10 +486,24 @@ void ast_uri_decode(char *s)
 	*o = '\0';
 }
 
-/*! \brief  ast_inet_ntoa: Recursive thread safe replacement of inet_ntoa */
-const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
+static void inet_ntoa_buf_key_create(void)
 {
-	return inet_ntop(AF_INET, &ia, buf, bufsiz);
+	pthread_key_create(&inet_ntoa_buf_key, free);
+}
+
+/*! \brief  ast_inet_ntoa: Recursive thread safe replacement of inet_ntoa */
+const char *ast_inet_ntoa(struct in_addr ia)
+{
+	char *buf;
+
+	pthread_once(&inet_ntoa_buf_once, inet_ntoa_buf_key_create);
+	if (!(buf = pthread_getspecific(inet_ntoa_buf_key))) {
+		if (!(buf = ast_calloc(1, INET_ADDRSTRLEN)))
+			return NULL;
+		pthread_setspecific(inet_ntoa_buf_key, buf);
+	}
+
+	return inet_ntop(AF_INET, &ia, buf, INET_ADDRSTRLEN);
 }
 
 int ast_utils_init(void)

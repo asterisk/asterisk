@@ -63,10 +63,9 @@ static void (*errorf)(const char *str) = internalerror;
 static void dump_addr(char *output, int maxlen, void *value, int len)
 {
 	struct sockaddr_in sin;
-	char iabuf[INET_ADDRSTRLEN];
 	if (len == (int)sizeof(sin)) {
 		memcpy(&sin, value, len);
-		snprintf(output, maxlen, "IPV4 %s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+		snprintf(output, maxlen, "IPV4 %s:%d", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 	} else {
 		snprintf(output, maxlen, "Invalid Address");
 	}
@@ -143,11 +142,9 @@ static void dump_datetime(char *output, int maxlen, void *value, int len)
 static void dump_ipaddr(char *output, int maxlen, void *value, int len)
 {
 	struct sockaddr_in sin;
-	char iabuf[INET_ADDRSTRLEN];
 	if (len == (int)sizeof(unsigned int)) {
 		memcpy(&sin.sin_addr, value, len);
-		ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr);
-		snprintf(output, maxlen, "%s", iabuf);
+		snprintf(output, maxlen, "%s", ast_inet_ntoa(sin.sin_addr));
 	} else
 		ast_copy_string(output, "Invalid IPADDR", maxlen);
 }
@@ -464,7 +461,6 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 	const char *subclass;
 	char *dir;
 	char tmp[512];
-	char iabuf[INET_ADDRSTRLEN];
 
 	switch(rx) {
 	case 0:
@@ -530,7 +526,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		 "   Timestamp: %05lums  SCall: %5.5d  DCall: %5.5d [%s:%d]\n",
 		 (unsigned long)ntohl(fh->ts),
 		 ntohs(fh->scallno) & ~IAX_FLAG_FULL, ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS,
-		 ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
+		 ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 	outputf(tmp);
 	if (fh->type == AST_FRAME_IAX)
 		dump_ies(fh->iedata, datalen);

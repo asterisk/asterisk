@@ -562,7 +562,7 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 	snprintf(pass, sizeof(pass), "%08lx%08lx", ast_random(), ast_random());
 	ast_copy_string(ours1->username, user, sizeof(ours1->username));
 	ast_copy_string(ours1->password, pass, sizeof(ours1->password));
-	ast_inet_ntoa(ours1->ip, sizeof(ours1->ip), us);
+	ast_copy_string(ours1->ip, ast_inet_ntoa(us), sizeof(ours1->ip));
 	ours1->protocol = AJI_PROTOCOL_UDP;
 	ours1->type = AJI_CONNECT_LOCAL;
 	ours1->generation = 0;

@@ -216,7 +216,7 @@ static force_inline void ast_slinear_saturated_divide(short *input, short *value
 
 int test_for_thread_safety(void);
 
-const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
+const char *ast_inet_ntoa(struct in_addr ia);
 
 #ifdef inet_ntoa
 #undef inet_ntoa

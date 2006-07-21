@@ -444,13 +444,12 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 static int handle_showmanconn(int fd, int argc, char *argv[])
 {
 	struct mansession *s;
-	char iabuf[INET_ADDRSTRLEN];
 	char *format = "  %-15.15s  %-15.15s\n";
 	ast_mutex_lock(&sessionlock);
 	s = sessions;
 	ast_cli(fd, format, "Username", "IP Address");
 	while (s) {
-		ast_cli(fd, format,s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+		ast_cli(fd, format,s->username, ast_inet_ntoa(s->sin.sin_addr));
 		s = s->next;
 	}
 
@@ -750,7 +749,6 @@ static int set_eventmask(struct mansession *s, char *eventmask)
 static int authenticate(struct mansession *s, struct message *m)
 {
 	struct ast_config *cfg;
-	char iabuf[INET_ADDRSTRLEN];
 	char *cat;
 	char *user = astman_get_header(m, "Username");
 	char *pass = astman_get_header(m, "Secret");
@@ -796,7 +794,7 @@ static int authenticate(struct mansession *s, struct message *m)
 					v = v->next;
 				}
 				if (ha && !ast_apply_ha(ha, &(s->sin))) {
-					ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
+					ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
 					ast_free_ha(ha);
 					ast_config_destroy(cfg);
 					return -1;
@@ -825,7 +823,7 @@ static int authenticate(struct mansession *s, struct message *m)
 				} else if (password && !strcmp(password, pass)) {
 					break;
 				} else {
-					ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
+					ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
 					ast_config_destroy(cfg);
 					return -1;
 				}	
@@ -842,7 +840,7 @@ static int authenticate(struct mansession *s, struct message *m)
 			set_eventmask(s, events);
 		return 0;
 	}
-	ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
+	ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
 	ast_config_destroy(cfg);
 	return -1;
 }
@@ -1800,7 +1798,6 @@ static int process_message(struct mansession *s, struct message *m)
 	struct manager_action *tmp = first_action;
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
-	char iabuf[INET_ADDRSTRLEN];
 	int ret = 0;
 
 	ast_copy_string(action, astman_get_header(m, "Action"), sizeof(action));
@@ -1840,10 +1837,10 @@ static int process_message(struct mansession *s, struct message *m)
 				s->authenticated = 1;
 				if (option_verbose > 1) {
 					if (displayconnects) {
-						ast_verbose(VERBOSE_PREFIX_2 "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+						ast_verbose(VERBOSE_PREFIX_2 "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
 					}
 				}
-				ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+				ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
 				astman_send_ack(s, m, "Authentication accepted");
 			}
 		} else if (!strcasecmp(action, "Logoff")) {
@@ -1881,7 +1878,6 @@ static int get_input(struct mansession *s, char *output)
 	int res;
 	int x;
 	struct pollfd fds[1];
-	char iabuf[INET_ADDRSTRLEN];
 	for (x = 1; x < s->inlen; x++) {
 		if ((s->inbuf[x] == '\n') && (s->inbuf[x-1] == '\r')) {
 			/* Copy output data up to and including \r\n */
@@ -1895,7 +1891,7 @@ static int get_input(struct mansession *s, char *output)
 		}
 	} 
 	if (s->inlen >= sizeof(s->inbuf) - 1) {
-		ast_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), s->inbuf);
+		ast_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", ast_inet_ntoa(s->sin.sin_addr), s->inbuf);
 		s->inlen = 0;
 	}
 	fds[0].fd = s->fd;
@@ -1936,7 +1932,6 @@ static void *session_do(void *data)
 {
 	struct mansession *s = data;
 	struct message m;
-	char iabuf[INET_ADDRSTRLEN];
 	int res;
 	
 	ast_mutex_lock(&s->__lock);
@@ -1966,15 +1961,15 @@ static void *session_do(void *data)
 	if (s->authenticated) {
 		if (option_verbose > 1) {
 			if (displayconnects) 
-				ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+				ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 		}
-		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 	} else {
 		if (option_verbose > 1) {
 			if (displayconnects)
-				ast_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+				ast_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(s->sin.sin_addr));
 		}
-		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 	}
 	destroy_session(s);
 	return NULL;
@@ -1993,7 +1988,6 @@ static void *accept_thread(void *ignore)
 	pthread_attr_t attr;
 	time_t now;
 	struct pollfd pfds[1];
-	char iabuf[INET_ADDRSTRLEN];
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -2013,7 +2007,7 @@ static void *accept_thread(void *ignore)
 					sessions = next;
 				if (s->authenticated && (option_verbose > 1) && displayconnects) {
 					ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' timed out from %s\n",
-						s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+						s->username, ast_inet_ntoa(s->sin.sin_addr));
 				}
 				free_session(s);
 			} else
@@ -2285,7 +2279,6 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 	unsigned long ident = 0;
 	char workspace[512];
 	char cookie[128];
-	char iabuf[INET_ADDRSTRLEN];
 	size_t len = sizeof(workspace);
 	int blastaway = 0;
 	char *c = workspace;
@@ -2359,15 +2352,15 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 			if (s->authenticated) {
 				if (option_verbose > 1) {
 					if (displayconnects) 
-						ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));    
+						ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));    
 				}
-				ast_log(LOG_EVENT, "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+				ast_log(LOG_EVENT, "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 			} else {
 				if (option_verbose > 1) {
 					if (displayconnects)
-						ast_verbose(VERBOSE_PREFIX_2 "HTTP Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+						ast_verbose(VERBOSE_PREFIX_2 "HTTP Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(s->sin.sin_addr));
 				}
-				ast_log(LOG_EVENT, "HTTP Failed attempt from %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+				ast_log(LOG_EVENT, "HTTP Failed attempt from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 			}
 			s->needdestroy = 1;
 		}

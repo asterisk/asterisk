@@ -174,7 +174,6 @@ static char *httpstatus_callback(struct sockaddr_in *req, const char *uri, struc
 	size_t reslen = sizeof(result);
 	char *c=result;
 	struct ast_variable *v;
-	char iabuf[INET_ADDRSTRLEN];
 
 	ast_build_string(&c, &reslen,
 		"\r\n"
@@ -185,7 +184,7 @@ static char *httpstatus_callback(struct sockaddr_in *req, const char *uri, struc
 
 	ast_build_string(&c, &reslen, "<tr><td><i>Prefix</i></td><td><b>%s</b></td></tr>\r\n", prefix);
 	ast_build_string(&c, &reslen, "<tr><td><i>Bind Address</i></td><td><b>%s</b></td></tr>\r\n",
-			ast_inet_ntoa(iabuf, sizeof(iabuf), oldsin.sin_addr));
+			ast_inet_ntoa(oldsin.sin_addr));
 	ast_build_string(&c, &reslen, "<tr><td><i>Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
 			ntohs(oldsin.sin_port));
 	ast_build_string(&c, &reslen, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
@@ -513,7 +512,6 @@ char *ast_http_setcookie(const char *var, const char *val, int expires, char *bu
 
 static void http_server_start(struct sockaddr_in *sin)
 {
-	char iabuf[INET_ADDRSTRLEN];
 	int flags;
 	int x = 1;
 	
@@ -549,7 +547,7 @@ static void http_server_start(struct sockaddr_in *sin)
 	setsockopt(httpfd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
 	if (bind(httpfd, (struct sockaddr *)sin, sizeof(*sin))) {
 		ast_log(LOG_NOTICE, "Unable to bind http server to %s:%d: %s\n",
-			ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port),
+			ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port),
 			strerror(errno));
 		close(httpfd);
 		httpfd = -1;
@@ -565,7 +563,7 @@ static void http_server_start(struct sockaddr_in *sin)
 	fcntl(httpfd, F_SETFL, flags | O_NONBLOCK);
 	if (ast_pthread_create(&master, NULL, http_root, NULL)) {
 		ast_log(LOG_NOTICE, "Unable to launch http server on %s:%d: %s\n",
-				ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port),
+				ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port),
 				strerror(errno));
 		close(httpfd);
 		httpfd = -1;
@@ -628,7 +626,6 @@ static int __ast_http_load(int reload)
 
 static int handle_show_http(int fd, int argc, char *argv[])
 {
-	char iabuf[INET_ADDRSTRLEN];
 	struct ast_http_uri *urih;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -636,7 +633,7 @@ static int handle_show_http(int fd, int argc, char *argv[])
 	ast_cli(fd, "Prefix: %s\n", prefix);
 	if (oldsin.sin_family)
 		ast_cli(fd, "Server Enabled and Bound to %s:%d\n\n",
-			ast_inet_ntoa(iabuf, sizeof(iabuf), oldsin.sin_addr),
+			ast_inet_ntoa(oldsin.sin_addr),
 			ntohs(oldsin.sin_port));
 	else
 		ast_cli(fd, "Server Disabled\n\n");

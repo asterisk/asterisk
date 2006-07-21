@@ -91,20 +91,24 @@ static struct iax_flag {
 char *iax_provflags2str(char *buf, int buflen, unsigned int flags)
 {
 	int x;
-	if (!buf || buflen < 1) {
-		return(NULL);
-	}
+
+	if (!buf || buflen < 1)
+		return NULL;
+	
 	buf[0] = '\0';
-	for (x=0;x<sizeof(iax_flags) / sizeof(iax_flags[0]); x++) {
+
+	for (x = 0; x < sizeof(iax_flags) / sizeof(iax_flags[0]); x++) {
 		if (flags & iax_flags[x].value){
 			strncat(buf, iax_flags[x].name, buflen - strlen(buf) - 1);
 			strncat(buf, ",", buflen - strlen(buf) - 1);
 		}
 	}
-	if (strlen(buf)) 
+
+	if (!ast_strlen_zero(buf)) 
 		buf[strlen(buf) - 1] = '\0';
 	else
 		strncpy(buf, "none", buflen - 1);
+
 	return buf;
 }
 
@@ -408,37 +412,45 @@ static const char *ifthere(const char *s)
 		return "<unspecified>";
 }
 
-static const char *iax_server(char *a, int alen, unsigned int addr)
+static const char *iax_server(unsigned int addr)
 {
 	struct in_addr ia;
+	
 	if (!addr)
 		return "<unspecified>";
+	
 	ia.s_addr = htonl(addr);
-	return ast_inet_ntoa(a, alen, ia);
+
+	return ast_inet_ntoa(ia);
 }
 
 
 static int iax_show_provisioning(int fd, int argc, char *argv[])
 {
 	struct iax_template *cur;
-	char iabuf[80];	/* Has to be big enough for 'flags' too */
+	char server[INET_ADDRSTRLEN];
+	char alternate[INET_ADDRSTRLEN];
+	char flags[80];	/* Has to be big enough for 'flags' too */
 	int found = 0;
 	if ((argc != 3) && (argc != 4))
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&provlock);
 	for (cur = templates;cur;cur = cur->next) {
 		if ((argc == 3) || (!strcasecmp(argv[3], cur->name)))  {
-			if (found) ast_cli(fd, "\n");
+			if (found) 
+				ast_cli(fd, "\n");
+			ast_copy_string(server, iax_server(cur->server), sizeof(server));
+			ast_copy_string(alternate, iax_server(cur->altserver), sizeof(alternate));
 			ast_cli(fd, "== %s ==\n", cur->name);
 			ast_cli(fd, "Base Templ:   %s\n", strlen(cur->src) ? cur->src : "<none>");
 			ast_cli(fd, "Username:     %s\n", ifthere(cur->user));
 			ast_cli(fd, "Secret:       %s\n", ifthere(cur->pass));
 			ast_cli(fd, "Language:     %s\n", ifthere(cur->lang));
 			ast_cli(fd, "Bind Port:    %d\n", cur->port);
-			ast_cli(fd, "Server:       %s\n", iax_server(iabuf, sizeof(iabuf), cur->server));
+			ast_cli(fd, "Server:       %s\n", server);
 			ast_cli(fd, "Server Port:  %d\n", cur->serverport);
-			ast_cli(fd, "Alternate:    %s\n", iax_server(iabuf, sizeof(iabuf), cur->altserver));
-			ast_cli(fd, "Flags:        %s\n", iax_provflags2str(iabuf, sizeof(iabuf), cur->flags));
+			ast_cli(fd, "Alternate:    %s\n", alternate);
+			ast_cli(fd, "Flags:        %s\n", iax_provflags2str(flags, sizeof(flags), cur->flags));
 			ast_cli(fd, "Format:       %s\n", ast_getformatname(cur->format));
 			ast_cli(fd, "TOS:          0x%x\n", cur->tos);
 			found++;
