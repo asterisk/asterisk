@@ -11239,11 +11239,10 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			build_route(p, req, 1);
 		}
 		
-		if (p->owner && (p->owner->_state == AST_STATE_UP)) { /* if this is a re-invite */
-			struct ast_channel *bridgepeer = NULL;
+		struct ast_channel *bridgepeer = NULL;
+		if (p->owner && (p->owner->_state == AST_STATE_UP) && (bridgepeer = ast_bridged_channel(p->owner))) { /* if this is a re-invite */
 			struct sip_pvt *bridgepvt = NULL;
 
-			bridgepeer = ast_bridged_channel(p->owner);
 			if (!bridgepeer->tech) {
 				ast_log(LOG_WARNING, "Ooooh.. no tech!  That's REALLY bad\n");
 				break;
