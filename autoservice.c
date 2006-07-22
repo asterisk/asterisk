@@ -104,7 +104,6 @@ int ast_autoservice_start(struct ast_channel *chan)
 		if (as->chan == chan)
 			break;
 	}
-	/* XXX if found, we return -1, why ??? */
 
 	/* If not, start autoservice on channel */
 	if (!as && (as = ast_calloc(1, sizeof(*as)))) {

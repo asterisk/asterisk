@@ -1060,10 +1060,20 @@ void ast_tonepair_stop(struct ast_channel *chan);
 /*! Play a tone pair for a given amount of time */
 int ast_tonepair(struct ast_channel *chan, int freq1, int freq2, int duration, int vol);
 
-/*! Automatically service a channel for us... */
+/*!
+ * \brief Automatically service a channel for us... 
+ *
+ * \retval 0 success
+ * \retval -1 failure, or the channel is already being autoserviced
+ */
 int ast_autoservice_start(struct ast_channel *chan);
 
-/*! Stop servicing a channel for us...  Returns -1 on error or if channel has been hungup */
+/*! 
+ * \brief Stop servicing a channel for us...  
+ *
+ * \retval 0 success
+ * \retval -1 error, or the channel has been hungup 
+ */
 int ast_autoservice_stop(struct ast_channel *chan);
 
 /* If built with zaptel optimizations, force a scheduled expiration on the
