@@ -211,8 +211,6 @@ static const struct cfextension_states {
 	{ AST_EXTENSION_INUSE | AST_EXTENSION_ONHOLD,  "InUse&Hold" }
 };
 
-int ast_pbx_outgoing_cdr_failed(void);
-
 static int pbx_builtin_answer(struct ast_channel *, void *);
 static int pbx_builtin_goto(struct ast_channel *, void *);
 static int pbx_builtin_hangup(struct ast_channel *, void *);
@@ -4509,7 +4507,7 @@ static void *async_wait(void *data)
  *  This function posts an empty cdr for a failed spool call
  *
  */
-int ast_pbx_outgoing_cdr_failed(void)
+static int ast_pbx_outgoing_cdr_failed(void)
 {
 	/* allocate a channel */
 	struct ast_channel *chan = ast_channel_alloc(0);
