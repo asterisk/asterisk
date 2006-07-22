@@ -327,7 +327,6 @@ static int gendigittimeout = 8000;
 static int matchdigittimeout = 3000;
 
 static int usecnt = 0;
-AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 /*! \brief Protect the interface list (of zt_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
@@ -2636,11 +2635,7 @@ static int zt_hangup(struct ast_channel *ast)
 	p->oprmode = 0;
 	ast->tech_pvt = NULL;
 	ast_mutex_unlock(&p->lock);
-	ast_mutex_lock(&usecnt_lock);
-	usecnt--;
-	if (usecnt < 0) 
-		ast_log(LOG_WARNING, "Usecnt < 0???\n");
-	ast_mutex_unlock(&usecnt_lock);
+	ast_atomic_fetchadd_int(&usecnt, -1);
 	ast_update_use_count();
 	if (option_verbose > 2) 
 		ast_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", ast->name);
@@ -5247,9 +5242,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		}
 	}
 
-	ast_mutex_lock(&usecnt_lock);
-	usecnt++;
-	ast_mutex_unlock(&usecnt_lock);
+	ast_atomic_fetchadd_int(&usecnt, 1);
 	ast_update_use_count();
 	
 	return tmp;

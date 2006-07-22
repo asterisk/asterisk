@@ -538,8 +538,6 @@ static int regobjs = 0;			/*!< Registry objects */
 
 static struct ast_flags global_flags[2] = {{0}};	/*!< global SIP_ flags */
 
-AST_MUTEX_DEFINE_STATIC(usecnt_lock);
-
 /*! \brief Protect the SIP dialog list (of sip_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
 
@@ -3201,9 +3199,7 @@ static int sip_hangup(struct ast_channel *ast)
 	p->owner = NULL;
 	ast->tech_pvt = NULL;
 
-	ast_mutex_lock(&usecnt_lock);
-	usecnt--;
-	ast_mutex_unlock(&usecnt_lock);
+	ast_atomic_fetchadd_int(&usecnt, -1);
 	ast_update_use_count();
 
 	ast_set_flag(&locflags, SIP_NEEDDESTROY);	
@@ -3672,9 +3668,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (!ast_strlen_zero(i->language))
 		ast_string_field_set(tmp, language, i->language);
 	i->owner = tmp;
-	ast_mutex_lock(&usecnt_lock);
-	usecnt++;
-	ast_mutex_unlock(&usecnt_lock);
+	ast_atomic_fetchadd_int(&usecnt, 1);
+	ast_update_use_count();
 	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
 	ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
