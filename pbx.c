@@ -264,7 +264,7 @@ static struct pbx_builtin {
 	},
 
 	{ "BackGround", pbx_builtin_background,
-	"Play an audio file while waiting for digits of an extension to go to.\n",
+	"Play an audio file while waiting for digits of an extension to go to.",
 	"  Background(filename1[&filename2...][|options[|langoverride][|context]]):\n"
 	"This application will play the given list of files while waiting for an\n"
 	"extension to be dialed by the calling channel. To continue waiting for digits\n"
