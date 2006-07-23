@@ -2360,8 +2360,8 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	CHECK_BLOCKING(chan);
 	switch(fr->frametype) {
 	case AST_FRAME_CONTROL:
-		/* XXX Interpret control frames XXX */
-		ast_log(LOG_WARNING, "Don't know how to handle control frames yet\n");
+		res = (chan->tech->indicate == NULL) ? 0 :
+			chan->tech->indicate(chan, fr->subclass, fr->data, fr->datalen);
 		break;
 	case AST_FRAME_DTMF_BEGIN:
 		res = (chan->tech->send_digit_begin == NULL) ? 0 :
