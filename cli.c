@@ -50,22 +50,37 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "editline/readline/readline.h"
 
 extern unsigned long global_fin, global_fout;
-	
+
+static pthread_key_t ast_cli_buf_key;
+static pthread_once_t ast_cli_buf_once = PTHREAD_ONCE_INIT;
+
+/*! \brief Maximum length of resulting strings in ast_cli() */
+#define AST_CLI_MAXSTRLEN   16384
+
+static void ast_cli_buf_key_create(void)
+{
+	pthread_key_create(&ast_cli_buf_key, free);
+}
+
 void ast_cli(int fd, char *fmt, ...)
 {
-	char *stuff;
+	char *buf;
 	int res;
 	va_list ap;
 
-	va_start(ap, fmt);
-	res = vasprintf(&stuff, fmt, ap);
-	va_end(ap);
-	if (res == -1) {
-		ast_log(LOG_ERROR, "Memory allocation failure\n");
-	} else {
-		ast_carefulwrite(fd, stuff, strlen(stuff), 100);
-		free(stuff);
+	pthread_once(&ast_cli_buf_once, ast_cli_buf_key_create);
+	if (!(buf = pthread_getspecific(ast_cli_buf_key))) {
+		if (!(buf = ast_malloc(AST_CLI_MAXSTRLEN)))
+			return;
+		pthread_setspecific(ast_cli_buf_key, buf);
 	}
+
+	va_start(ap, fmt);
+	res = vsnprintf(buf, AST_CLI_MAXSTRLEN, fmt, ap);
+	va_end(ap);
+
+	if (res > 0)
+		ast_carefulwrite(fd, buf, strlen(buf), 100);
 }
 
 static AST_LIST_HEAD_STATIC(helpers, ast_cli_entry);
