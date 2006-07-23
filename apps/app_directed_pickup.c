@@ -83,7 +83,7 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 			*context++ = '\0';
 
 		/* If the context is the pickup mark, iterate through all channels finding the right origin one */
-		if (!strcmp(context, PICKUPMARK)) {
+		if (context && !strcmp(context, PICKUPMARK)) {
 			while ((origin = ast_channel_walk_locked(origin))) {
 				if (origin) {
 					tmp2 = pbx_builtin_getvar_helper(origin, PICKUPMARK);
