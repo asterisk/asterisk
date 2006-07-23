@@ -14,17 +14,15 @@ To be accepted into the codebase, all non-trivial changes must be
 disclaimed to Digium or placed in the public domain. For more information
 see http://bugs.digium.com
 
-Patches should be in the form of a unified (-u) diff, made from the directory
-above the top-level Asterisk source directory. For example:
+Patches should be in the form of a unified (-u) diff, made from a checkout
+from subversion.
 
-- the base code you are working from is in ~/work/asterisk-base
-- the changes are in ~/work/asterisk-new
+/usr/src/asterisk$ svn diff > mypatch
 
-~/work$ diff -urN asterisk-base asterisk-new
+If you would like to only include changes to certain files in the patch, you
+can list them in the "svn diff" command:
 
-If you are changing within a fresh CVS/SVN repository, you can create
-a patch with
-$ cvs diff -urN <mycodefile>.c
+/usr/src/asterisk$ svn diff somefile.c someotherfile.c > mypatch
 
 * General rules
 ---------------
