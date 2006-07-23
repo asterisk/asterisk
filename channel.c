@@ -515,7 +515,7 @@ char *ast_state2str(int state)
 	default:
 		pthread_once(&state2str_buf_once, state2str_buf_key_create);
 		if (!(buf = pthread_getspecific(state2str_buf_key))) {
-			if (!(buf = ast_calloc(1, STATE2STR_BUFSIZE)))
+			if (!(buf = ast_malloc(STATE2STR_BUFSIZE)))
 				return NULL;
 			pthread_setspecific(state2str_buf_key, buf);
 		}
