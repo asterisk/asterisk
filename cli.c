@@ -1177,7 +1177,7 @@ static char *parse_args(const char *s, int *argc, char *argv[], int max, int *tr
 	if (s == NULL)	/* invalid, though! */
 		return NULL;
 	/* make a copy to store the parsed string */
-	if (!(dup = strdup(s)))
+	if (!(dup = ast_strdup(s)))
 		return NULL;
 
 	cur = dup;
@@ -1350,10 +1350,8 @@ int ast_cli_command(int fd, const char *s)
 	char *dup;
 	int tws;
 	
-	if (!(dup = parse_args(s, &x, argv, sizeof(argv) / sizeof(argv[0]), &tws))) {
-		ast_log(LOG_ERROR, "Memory allocation failure\n");
+	if (!(dup = parse_args(s, &x, argv, sizeof(argv) / sizeof(argv[0]), &tws)))
 		return -1;
-	}
 
 	/* We need at least one entry, or ignore */
 	if (x > 0) {
@@ -1373,11 +1371,8 @@ int ast_cli_command(int fd, const char *s)
 			}
 		} else 
 			ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));
-		if (e) {
-			AST_LIST_LOCK(&helpers);
-			e->inuse--;	/* XXX here an atomic dec would suffice */
-			AST_LIST_UNLOCK(&helpers);
-		}
+		if (e)
+			ast_atomic_fetchadd_int(&e->inuse, -1);
 	}
 	free(dup);
 	
