@@ -280,7 +280,7 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 			escaped++;
 	}
 	len = (size_t) (strlen(in) + colons * 5 + breaks * (40 + strlen(dest) + strlen(objtype)) + escaped * 10); /* foo="bar", "<response type=\"object\" id=\"dest\"", "&amp;" */
-	out = malloc(len);
+	out = ast_malloc(len);
 	if (!out)
 		return 0;
 	tmp = out;
@@ -338,7 +338,7 @@ static char *html_translate(char *in)
 			breaks++;
 	}
 	len = strlen(in) + colons * 40 + breaks * 40; /* <tr><td></td><td></td></tr>, "<tr><td colspan=\"2\"><hr></td></tr> */
-	out = malloc(len);
+	out = ast_malloc(len);
 	if (!out)
 		return 0;
 	tmp = out;
@@ -1555,11 +1555,10 @@ static int action_originate(struct mansession *s, struct message *m)
 			l = NULL;
 	}
 	if (ast_true(async)) {
-		struct fast_originate_helper *fast = malloc(sizeof(struct fast_originate_helper));
+		struct fast_originate_helper *fast = ast_calloc(1, sizeof(*fast));
 		if (!fast) {
 			res = -1;
 		} else {
-			memset(fast, 0, sizeof(struct fast_originate_helper));
 			if (!ast_strlen_zero(id))
 				snprintf(fast->idtext, sizeof(fast->idtext), "ActionID: %s\r\n", id);
 			ast_copy_string(fast->tech, tech, sizeof(fast->tech));
@@ -2080,24 +2079,28 @@ static void *accept_thread(void *ignore)
 static int append_event(const char *str, int category)
 {
 	struct eventqent *tmp, *prev = NULL;
-	tmp = malloc(sizeof(struct eventqent) + strlen(str));
-	if (tmp) {
-		ast_mutex_init(&tmp->lock);
-		tmp->next = NULL;
-		tmp->category = category;
-		strcpy(tmp->eventdata, str);
-		if (master_eventq) {
-			prev = master_eventq;
-			while (prev->next) 
-				prev = prev->next;
-			prev->next = tmp;
-		} else {
-			master_eventq = tmp;
-		}
-		tmp->usecount = num_sessions;
-		return 0;
+	tmp = ast_malloc(sizeof(*tmp) + strlen(str));
+
+	if (!tmp)
+		return -1;
+
+	ast_mutex_init(&tmp->lock);
+	tmp->next = NULL;
+	tmp->category = category;
+	strcpy(tmp->eventdata, str);
+	
+	if (master_eventq) {
+		prev = master_eventq;
+		while (prev->next) 
+			prev = prev->next;
+		prev->next = tmp;
+	} else {
+		master_eventq = tmp;
 	}
-	return -1;
+	
+	tmp->usecount = num_sessions;
+	
+	return 0;
 }
 
 /*! \brief  manager_event: Send AMI event to client */
@@ -2218,11 +2221,10 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 {
 	struct manager_action *cur;
 
-	cur = malloc(sizeof(struct manager_action));
-	if (!cur) {
-		ast_log(LOG_WARNING, "Manager: out of memory trying to register action\n");
+	cur = ast_malloc(sizeof(*cur));
+	if (!cur)
 		return -1;
-	}
+	
 	cur->action = action;
 	cur->authority = auth;
 	cur->func = func;
