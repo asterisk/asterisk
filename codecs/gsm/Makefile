@@ -242,7 +242,7 @@ ifneq ($(shell uname -m),armv4l)
 ifneq ($(shell uname -m),sparc64)
 ifneq (${PROC},arm)
 ifneq ($(shell uname -m), parisc)
-ifneq (${PROC}, s390)
+ifneq ($(shell uname -m),s390)
 GSM_SOURCES+= $(SRC)/k6opt.s
 endif
 endif
@@ -309,7 +309,9 @@ ifneq ($(shell uname -m), alpha)
 ifneq ($(shell uname -m), sparc64)
 ifneq ($(shell uname -m), armv4l)
 ifneq ($(shell uname -m), parisc)
+ifneq ($(shell uname -m),s390)
 GSM_OBJECTS+= $(SRC)/k6opt.o
+endif
 endif
 endif
 endif
