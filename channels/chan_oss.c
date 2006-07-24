@@ -945,7 +945,7 @@ static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static int oss_indicate(struct ast_channel *c, int cond, const void *data, size_t datalen)
 {
 	struct chan_oss_pvt *o = c->tech_pvt;
-	int res;
+	int res = -1;
 
 	switch(cond) {
 	case AST_CONTROL_BUSY:
@@ -970,6 +970,7 @@ static int oss_indicate(struct ast_channel *c, int cond, const void *data, size_
 		ast_verbose( " << Console Has Been Retrieved from Hold >> \n");
 		ast_moh_stop(c);
 		break;
+
 	default:
 		ast_log(LOG_WARNING,
 		    "Don't know how to display condition %d on %s\n",
