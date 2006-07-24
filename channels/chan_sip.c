@@ -4447,7 +4447,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int old = 0;
 
 	/* Peer capability is the capability in the SDP, non codec is RFC2833 DTMF (101) */	
-	int peercapability, peernoncodeccapability;
+	int peercapability = 0, peernoncodeccapability = 0;
 	int vpeercapability = 0, vpeernoncodeccapability = 0;
 	struct sockaddr_in sin;		/*!< media socket address */
 	struct sockaddr_in vsin;	/*!< Video socket address */
@@ -4825,7 +4825,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 
 	/* Now gather all of the codecs that we are asked for: */
-	ast_rtp_get_current_formats(newaudiortp, &peercapability, &peernoncodeccapability);
+	if (p->rtp)
+		ast_rtp_get_current_formats(newaudiortp, &peercapability, &peernoncodeccapability);
 	if (p->vrtp)
 		ast_rtp_get_current_formats(newvideortp, &vpeercapability, &vpeernoncodeccapability);
 
