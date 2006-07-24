@@ -11135,6 +11135,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	int outgoing = ast_test_flag(&p->flags[0], SIP_OUTGOING);
 	int res = 0;
 	int reinvite = (p->owner && p->owner->_state == AST_STATE_UP);
+	struct ast_channel *bridgepeer = NULL;
 	
 	if (option_debug > 3) {
 		if (reinvite)
@@ -11235,7 +11236,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			build_route(p, req, 1);
 		}
 		
-		struct ast_channel *bridgepeer = NULL;
 		if (p->owner && (p->owner->_state == AST_STATE_UP) && (bridgepeer = ast_bridged_channel(p->owner))) { /* if this is a re-invite */
 			struct sip_pvt *bridgepvt = NULL;
 
