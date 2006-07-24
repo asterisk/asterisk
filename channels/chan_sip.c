@@ -4478,11 +4478,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	/* Initialize the temporary RTP structures we use to evaluate the offer from the peer */
 	newaudiortp = alloca(ast_rtp_alloc_size());
 	memset(newaudiortp, 0, ast_rtp_alloc_size());
-	ast_rtp_pt_default(newaudiortp);
+	ast_rtp_pt_clear(newaudiortp);
 
 	newvideortp = alloca(ast_rtp_alloc_size());
 	memset(newvideortp, 0, ast_rtp_alloc_size());
-	ast_rtp_pt_default(newvideortp);
+	ast_rtp_pt_clear(newvideortp);
 
 	/* Update our last rtprx when we receive an SDP, too */
 	p->lastrtprx = p->lastrtptx = time(NULL); /* XXX why both ? */
@@ -4520,8 +4520,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		int x;
 		int audio = FALSE;
 
-		if (p->vrtp)
-			ast_rtp_pt_clear(newvideortp);  /* Must be cleared in case no m=video line exists */
 		numberofports = 1;
 		if ((sscanf(m, "audio %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2) ||
 		    (sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1)) {
@@ -4530,7 +4528,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			/* Found audio stream in this media definition */
 			portno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
-			ast_rtp_pt_clear(newaudiortp);
 			for (codecs = m + len; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
 				if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
@@ -4825,10 +4822,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 
 	/* Now gather all of the codecs that we are asked for: */
-	if (p->rtp)
-		ast_rtp_get_current_formats(newaudiortp, &peercapability, &peernoncodeccapability);
-	if (p->vrtp)
-		ast_rtp_get_current_formats(newvideortp, &vpeercapability, &vpeernoncodeccapability);
+	ast_rtp_get_current_formats(newaudiortp, &peercapability, &peernoncodeccapability);
+	ast_rtp_get_current_formats(newvideortp, &vpeercapability, &vpeernoncodeccapability);
 
 	newjointcapability = p->capability & (peercapability | vpeercapability);
 	newpeercapability = (peercapability | vpeercapability);
