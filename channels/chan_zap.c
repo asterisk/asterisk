@@ -3117,7 +3117,13 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 	oc0 = p0->owner;
 	oc1 = p1->owner;
 
-	ast_mutex_lock(&p0->lock);
+	if (ast_mutex_trylock(&p0->lock)) {
+		/* Don't block, due to potential for deadlock */
+		ast_mutex_unlock(&c0->lock);
+		ast_mutex_unlock(&c1->lock);
+		ast_log(LOG_NOTICE, "Avoiding deadlock...\n");
+		return AST_BRIDGE_RETRY;
+	}
 	if (ast_mutex_trylock(&p1->lock)) {
 		/* Don't block, due to potential for deadlock */
 		ast_mutex_unlock(&p0->lock);
