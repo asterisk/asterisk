@@ -4847,7 +4847,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		l = CALLERID_UNKNOWN;
 		n = l;
 	}
-	if (!l)
+	if (ast_strlen_zero(l))
 		l = default_callerid;
 	if (ast_strlen_zero(n))
 		n = l;
