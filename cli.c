@@ -54,8 +54,8 @@ extern unsigned long global_fin, global_fout;
 static pthread_key_t ast_cli_buf_key;
 static pthread_once_t ast_cli_buf_once = PTHREAD_ONCE_INIT;
 
-/*! \brief Maximum length of resulting strings in ast_cli() */
-#define AST_CLI_MAXSTRLEN   16384
+/*! \brief Initial buffer size for resulting strings in ast_cli() */
+#define AST_CLI_MAXSTRLEN   256
 
 static void ast_cli_buf_key_create(void)
 {
@@ -64,23 +64,36 @@ static void ast_cli_buf_key_create(void)
 
 void ast_cli(int fd, char *fmt, ...)
 {
-	char *buf;
+	struct {
+		size_t len;
+		char str[0];
+	} *buf;
 	int res;
 	va_list ap;
 
 	pthread_once(&ast_cli_buf_once, ast_cli_buf_key_create);
 	if (!(buf = pthread_getspecific(ast_cli_buf_key))) {
-		if (!(buf = ast_malloc(AST_CLI_MAXSTRLEN)))
+		if (!(buf = ast_malloc(AST_CLI_MAXSTRLEN + sizeof(*buf))))
 			return;
+		buf->len = AST_CLI_MAXSTRLEN;
 		pthread_setspecific(ast_cli_buf_key, buf);
 	}
 
 	va_start(ap, fmt);
-	res = vsnprintf(buf, AST_CLI_MAXSTRLEN, fmt, ap);
+	res = vsnprintf(buf->str, buf->len, fmt, ap);
+	while (res >= buf->len) {
+		if (!(buf = ast_realloc(buf, (buf->len * 2) + sizeof(*buf)))) {
+			va_end(ap);
+			return;
+		}
+		buf->len *= 2;
+		pthread_setspecific(ast_cli_buf_key, buf);
+		res = vsnprintf(buf->str, buf->len, fmt, ap);
+	}
 	va_end(ap);
 
 	if (res > 0)
-		ast_carefulwrite(fd, buf, strlen(buf), 100);
+		ast_carefulwrite(fd, buf->str, strlen(buf->str), 100);
 }
 
 static AST_LIST_HEAD_STATIC(helpers, ast_cli_entry);
