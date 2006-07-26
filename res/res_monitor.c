@@ -200,7 +200,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 			ast_log(LOG_WARNING, "Could not create file %s\n",
 						monitor->read_filename);
 			free(monitor);
-			ast_channel_unlock(chan);
+			UNLOCK_IF_NEEDED(chan, need_lock);
 			return -1;
 		}
 		if (ast_fileexists(monitor->write_filename, NULL, NULL) > 0) {
@@ -213,7 +213,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 						monitor->write_filename);
 			ast_closestream(monitor->read_stream);
 			free(monitor);
-			ast_channel_unlock(chan);
+			UNLOCK_IF_NEEDED(chan, need_lock);
 			return -1;
 		}
 		chan->monitor = monitor;
