@@ -883,7 +883,7 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	} else if (!strcasecmp(param, "eventmemberstatus")) {
 		q->maskmemberstatus = !ast_true(val);
 	} else if (!strcasecmp(param, "eventwhencalled")) {
-		if (strcasecmp(val, "vars")) {
+		if (!strcasecmp(val, "vars")) {
 			q->eventwhencalled = QUEUE_EVENT_VARIABLES;
 		} else {
 			q->eventwhencalled = ast_true(val);
