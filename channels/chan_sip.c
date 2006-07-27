@@ -953,6 +953,15 @@ static const struct ast_channel_tech sip_tech = {
 	.send_text = sip_sendtext,
 };
 
+#ifdef __AST_DEBUG_MALLOC
+static void FREE(void *ptr)
+{
+	free(ptr);
+}
+#else
+#define FREE free
+#endif
+
 /*!
   \brief Thread-safe random number generator
   \return a random number
@@ -1625,7 +1634,7 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 		stringp = multi;
 		while((ext = strsep(&stringp, "&"))) {
 			if (onoff)
-				ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, channeltype);
+				ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), FREE, channeltype);
 			else
 				ast_context_remove_extension(regcontext, ext, 1, NULL);
 		}
