@@ -702,6 +702,15 @@ static AST_LIST_HEAD_STATIC(dynamic_list, iax2_thread);
 
 static void *iax2_process_thread(void *data);
 
+#ifdef __AST_DEBUG_MALLOC
+static void FREE(void *ptr)
+{
+	free(ptr);
+}
+#else
+#define FREE free
+#endif
+
 static void signal_condition(ast_mutex_t *lock, ast_cond_t *cond)
 {
 	ast_mutex_lock(lock);
@@ -5441,7 +5450,7 @@ static void register_peer_exten(struct iax2_peer *peer, int onoff)
 			if (onoff) {
 				if (!ast_exists_extension(NULL, regcontext, ext, 1, NULL))
 					ast_add_extension(regcontext, 1, ext, 1, NULL, NULL,
-							  "Noop", ast_strdup(peer->name), free, "IAX2");
+							  "Noop", ast_strdup(peer->name), FREE, "IAX2");
 			} else
 				ast_context_remove_extension(regcontext, ext, 1, NULL);
 		}
