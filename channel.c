@@ -2328,10 +2328,6 @@ static int set_format(struct ast_channel *chan, int fmt, int *rawformat, int *fo
 	int native;
 	int res;
 	
-	/* if already in the desired format nothing to do here */
-	if (*format == fmt)
-		return 0;
-
 	native = chan->nativeformats;
 	/* Find a translation path from the native format to one of the desired formats */
 	if (!direction)
@@ -2349,6 +2345,13 @@ static int set_format(struct ast_channel *chan, int fmt, int *rawformat, int *fo
 	
 	/* Now we have a good choice for both. */
 	ast_mutex_lock(&chan->lock);
+
+	if ((*rawformat == native) && (*format == fmt)) {
+		/* the channel is already in these formats, so nothing to do */
+		ast_mutex_unlock(&chan->lock);
+		return 0;
+	}
+
 	*rawformat = native;
 	/* User perspective is fmt */
 	*format = fmt;
