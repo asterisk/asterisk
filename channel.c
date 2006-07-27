@@ -2328,6 +2328,10 @@ static int set_format(struct ast_channel *chan, int fmt, int *rawformat, int *fo
 	int native;
 	int res;
 	
+	/* if already in the desired format nothing to do here */
+	if (*format == fmt)
+		return 0;
+
 	native = chan->nativeformats;
 	/* Find a translation path from the native format to one of the desired formats */
 	if (!direction)
