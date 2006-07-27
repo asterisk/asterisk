@@ -292,7 +292,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	   has arrived, since the spied-on channel could have gone away while
 	   we were waiting
 	*/
-	while ((res = ast_waitfor(chan, 500) > -1) &&
+	while ((res = ast_waitfor(chan, -1) > -1) &&
 	       csth.spy.status == CHANSPY_RUNNING &&
 	       !ast_check_hangup(chan) &&
 	       !ast_check_hangup(spyee)) {
