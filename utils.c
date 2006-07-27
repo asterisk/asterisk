@@ -65,6 +65,15 @@ static char b2a[256];
 static pthread_key_t inet_ntoa_buf_key;
 static pthread_once_t inet_ntoa_buf_once = PTHREAD_ONCE_INIT;
 
+#ifdef __AST_DEBUG_MALLOC
+static void FREE(void *ptr)
+{
+	free(ptr);
+}
+#else
+#define FREE free
+#endif
+
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__) || defined(__CYGWIN__)
 
 #define ERANGE 34	/*!< duh? ERANGE value copied from web... */
@@ -488,7 +497,7 @@ void ast_uri_decode(char *s)
 
 static void inet_ntoa_buf_key_create(void)
 {
-	pthread_key_create(&inet_ntoa_buf_key, free);
+	pthread_key_create(&inet_ntoa_buf_key, FREE);
 }
 
 /*! \brief  ast_inet_ntoa: Recursive thread safe replacement of inet_ntoa */

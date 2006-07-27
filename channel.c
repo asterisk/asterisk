@@ -160,6 +160,14 @@ const struct ast_cause {
 	{ AST_CAUSE_INTERWORKING, "INTERWORKING", "Interworking, unspecified" },
 };
 
+#ifdef __AST_DEBUG_MALLOC
+static void FREE(void *ptr)
+{
+	free(ptr);
+}
+#else
+#define FREE free
+#endif
 
 struct ast_variable *ast_channeltype_list(void)
 {
@@ -487,7 +495,7 @@ int ast_str2cause(const char *name)
 
 static void state2str_buf_key_create(void)
 {
-	pthread_key_create(&state2str_buf_key, free);
+	pthread_key_create(&state2str_buf_key, FREE);
 }
  
 /*! \brief Gives the string form of a given channel state */

@@ -57,9 +57,18 @@ static pthread_once_t ast_cli_buf_once = PTHREAD_ONCE_INIT;
 /*! \brief Initial buffer size for resulting strings in ast_cli() */
 #define AST_CLI_MAXSTRLEN   256
 
+#ifdef __AST_DEBUG_MALLOC
+static void FREE(void *ptr)
+{
+	free(ptr);
+}
+#else
+#define FREE free
+#endif
+
 static void ast_cli_buf_key_create(void)
 {
-	pthread_key_create(&ast_cli_buf_key, free);
+	pthread_key_create(&ast_cli_buf_key, FREE);
 }
 
 void ast_cli(int fd, char *fmt, ...)
