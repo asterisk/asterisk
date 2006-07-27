@@ -1567,7 +1567,7 @@ static void *do_parking_thread(void *ignore)
 					if (ast_context_remove_extension2(con, pt->parkingexten, 1, NULL))
 						ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
 					else
-						notify_metermaids(pu->parkingexten, parking_con);
+						notify_metermaids(pt->parkingexten, parking_con);
 				} else
 					ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 				free(pt);
