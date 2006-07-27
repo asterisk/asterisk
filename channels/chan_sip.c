@@ -1537,6 +1537,15 @@ static struct ast_udptl_protocol sip_udptl = {
 	set_udptl_peer: sip_set_udptl_peer,
 };
 
+#ifdef __AST_DEBUG_MALLOC
+static void FREE(void *ptr)
+{
+	free(ptr);
+}
+#else
+#define FREE free
+#endif
+
 /*! \brief Convert transfer status to string */
 static char *referstatus2str(enum referstatus rstatus)
 {
@@ -2243,7 +2252,7 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 		}
 		if (onoff)
 			ast_add_extension(context, 1, ext, 1, NULL, NULL, "Noop",
-				 ast_strdup(peer->name), free, "SIP");
+				 ast_strdup(peer->name), FREE, "SIP");
 		else
 			ast_context_remove_extension(context, ext, 1, NULL);
 	}
