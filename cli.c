@@ -88,6 +88,8 @@ void ast_cli(int fd, char *fmt, ...)
 		}
 		buf->len *= 2;
 		pthread_setspecific(ast_cli_buf_key, buf);
+		va_end(ap);
+		va_start(ap, fmt);
 		res = vsnprintf(buf->str, buf->len, fmt, ap);
 	}
 	va_end(ap);
