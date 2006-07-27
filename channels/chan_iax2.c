@@ -663,6 +663,15 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 static void destroy_peer(struct iax2_peer *peer);
 static int ast_cli_netstats(int fd, int limit_fmt);
 
+#ifdef __AST_DEBUG_MALLOC
+static void FREE(void *ptr)
+{
+	free(ptr);
+}
+#else
+#define FREE free
+#endif
+
 static void iax_debug_output(const char *data)
 {
 	if (iaxdebug)
@@ -5627,7 +5636,7 @@ static void register_peer_exten(struct iax2_peer *peer, int onoff)
 		while((ext = strsep(&stringp, "&"))) {
 			if (onoff) {
 				if (!ast_exists_extension(NULL, regcontext, ext, 1, NULL))
-					ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, channeltype);
+					ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), FREE, channeltype);
 			} else
 				ast_context_remove_extension(regcontext, ext, 1, NULL);
 		}
