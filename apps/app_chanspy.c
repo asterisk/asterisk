@@ -51,8 +51,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
 
-AST_MUTEX_DEFINE_STATIC(modlock);
-
 #define AST_NAME_STRLEN 256
 
 static const char *tdesc = "Listen to the audio of an active channel";
@@ -114,34 +112,6 @@ struct chanspy_translation_helper {
 	int fd;
 	int volfactor;
 };
-
-static struct ast_channel *local_channel_walk(struct ast_channel *chan) 
-{
-	struct ast_channel *ret;
-
-	ast_mutex_lock(&modlock);	
-
-	if ((ret = ast_channel_walk_locked(chan)))
-		ast_mutex_unlock(&ret->lock);
-
-	ast_mutex_unlock(&modlock);			
-
-	return ret;
-}
-
-static struct ast_channel *local_get_channel_begin_name(char *name) 
-{
-	struct ast_channel *ret;
-
-	ast_mutex_lock(&modlock);	
-
-	if ((ret = ast_get_channel_by_name_prefix_locked(name, strlen(name))))
-		ast_mutex_unlock(&ret->lock);
-
-	ast_mutex_unlock(&modlock);			
-
-	return ret;
-}
 
 static void *spy_alloc(struct ast_channel *chan, void *data)
 {
@@ -344,88 +314,32 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	return running;
 }
 
-static int chanspy_exec(struct ast_channel *chan, void *data)
+static struct ast_channel *next_channel(const struct ast_channel *last)
 {
-	struct localuser *u;
-	struct ast_channel *peer, *prev;
-	char name[AST_NAME_STRLEN],
-		peer_name[AST_NAME_STRLEN + 5],
-		*ptr,
-		*options = NULL,
-		*spec = NULL,
-		*argv[5],
-		*mygroup = NULL,
-		*recbase = NULL;
-	int res = -1,
-		volfactor,
-		silent = 0,
-		argc,
-		bronly = 0,
-		waitms,
-		num,
-		oldwf,
-		fd = 0;
-	struct ast_flags flags;
+	struct ast_channel *this;
+
+	if ((this = ast_channel_walk_locked(last)))
+		ast_channel_unlock(this);
+
+	return this;
+}
+
+static int common_exec(struct ast_channel *chan, const int silent, const int bronly,
+		       int volfactor, const int fd, const char *spec, const char *mygroup)
+{
+	struct ast_channel *peer, *prev, *next;
+	char nameprefix[AST_NAME_STRLEN];
+	char peer_name[AST_NAME_STRLEN + 5];
 	signed char zero_volume = 0;
+	int waitms;
+	int res;
+	char *ptr;
+	int num;
 
-	data = ast_strdupa(data);
-
-	LOCAL_USER_ADD(u);
-
-	oldwf = chan->writeformat;
-	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
-		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-
-	ast_answer(chan);
+	if (chan->_state != AST_STATE_UP)
+		ast_answer(chan);
 
 	ast_set_flag(chan, AST_FLAG_SPYING); /* so nobody can spy on us while we are spying */
-
-	if ((argc = ast_app_separate_args(data, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
-		spec = argv[0];
-		if (argc > 1) {
-			options = argv[1];
-		}
-		if (ast_strlen_zero(spec) || !strcmp(spec, "all")) {
-			spec = NULL;
-		}
-	}
-
-	if (options) {
-		char *opts[OPT_ARG_ARRAY_SIZE];
-		
-		ast_app_parse_options(chanspy_opts, &flags, opts, options);
-		if (ast_test_flag(&flags, OPTION_GROUP))
-			mygroup = opts[OPT_ARG_GROUP];
-
-		if (ast_test_flag(&flags, OPTION_RECORD) &&
-		    !(recbase = opts[OPT_ARG_RECORD]))
-			recbase = "chanspy";
-
-		silent = ast_test_flag(&flags, OPTION_QUIET);
-		bronly = ast_test_flag(&flags, OPTION_BRIDGED);
-
-		if (ast_test_flag(&flags, OPTION_VOLUME) && opts[OPT_ARG_VOLUME]) {
-			int vol;
-
-			if ((sscanf(opts[OPT_ARG_VOLUME], "%d", &vol) != 1) || (vol > 4) || (vol < -4))
-				ast_log(LOG_NOTICE, "Volume factor must be a number between -4 and 4\n");
-			else
-				volfactor = vol;
-		}
-	}
-
-	if (recbase) {
-		char filename[512];
-
-		snprintf(filename, sizeof(filename), "%s/%s.%d.raw", ast_config_AST_MONITOR_DIR, recbase, (int) time(NULL));
-		if ((fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644)) <= 0) {
-			ast_log(LOG_WARNING, "Cannot open '%s' for recording\n", filename);
-			fd = 0;
-		}
-	}
 
 	waitms = 100;
 
@@ -448,10 +362,11 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 				
 		/* reset for the next loop around, unless overridden later */
 		waitms = 100;
+		peer = prev = next = NULL;
 
-		for (peer = local_channel_walk(NULL), prev = NULL;
+		for (peer = next_channel(peer);
 		     peer;
-		     peer = local_channel_walk(peer)) {
+		     prev = peer, peer = next ? next : next_channel(peer), next = NULL) {
 			const char *group;
 			int igrp = 0;
 			char *groups[25];
@@ -517,30 +432,109 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 			}
 			
 			waitms = 5000;
-			prev = peer;
 			res = channel_spy(chan, peer, &volfactor, fd);
 			
 			if (res == -1) {
 				break;
 			} else if (res > 1 && spec) {
-				snprintf(name, AST_NAME_STRLEN, "%s/%d", spec, res);
-				if ((peer = local_get_channel_begin_name(name)))
-					prev = NULL;
-				
-				continue;
+				snprintf(nameprefix, AST_NAME_STRLEN, "%s/%d", spec, res);
+				if ((next = ast_get_channel_by_name_prefix_locked(nameprefix, strlen(nameprefix)))) {
+					ast_channel_unlock(next);
+				} else {
+					/* stay on this channel */
+					next = peer;
+				}
+				peer = NULL;
 			}
 		}
 	}
 	
+	ast_clear_flag(chan, AST_FLAG_SPYING);
+
+	ast_channel_setoption(chan, AST_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume), 0);
+
+	return res;
+}
+
+static int chanspy_exec(struct ast_channel *chan, void *data)
+{
+	struct localuser *u;
+	char *options = NULL;
+	char *spec = NULL;
+	char *argv[5];
+	char *mygroup = NULL;
+	char *recbase = NULL;
+	int fd = 0;
+	struct ast_flags flags;
+	int oldwf = 0;
+	int argc = 0;
+	int silent = 0;
+	int bronly = 0;
+	int volfactor = 0;
+	int res;
+
+	data = ast_strdupa(data);
+
+	LOCAL_USER_ADD(u);
+
+	if ((argc = ast_app_separate_args(data, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
+		spec = argv[0];
+		if (argc > 1) {
+			options = argv[1];
+		}
+		if (ast_strlen_zero(spec) || !strcmp(spec, "all")) {
+			spec = NULL;
+		}
+	}
+
+	if (options) {
+		char *opts[OPT_ARG_ARRAY_SIZE];
+		
+		ast_app_parse_options(chanspy_opts, &flags, opts, options);
+		if (ast_test_flag(&flags, OPTION_GROUP))
+			mygroup = opts[OPT_ARG_GROUP];
+
+		if (ast_test_flag(&flags, OPTION_RECORD) &&
+		    !(recbase = opts[OPT_ARG_RECORD]))
+			recbase = "chanspy";
+
+		silent = ast_test_flag(&flags, OPTION_QUIET);
+		bronly = ast_test_flag(&flags, OPTION_BRIDGED);
+
+		if (ast_test_flag(&flags, OPTION_VOLUME) && opts[OPT_ARG_VOLUME]) {
+			int vol;
+
+			if ((sscanf(opts[OPT_ARG_VOLUME], "%d", &vol) != 1) || (vol > 4) || (vol < -4))
+				ast_log(LOG_NOTICE, "Volume factor must be a number between -4 and 4\n");
+			else
+				volfactor = vol;
+		}
+	}
+
+	oldwf = chan->writeformat;
+	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
+		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
+	if (recbase) {
+		char filename[512];
+
+		snprintf(filename, sizeof(filename), "%s/%s.%d.raw", ast_config_AST_MONITOR_DIR, recbase, (int) time(NULL));
+		if ((fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644)) <= 0) {
+			ast_log(LOG_WARNING, "Cannot open '%s' for recording\n", filename);
+			fd = 0;
+		}
+	}
+
+	res = common_exec(chan, silent, bronly, volfactor, fd, mygroup, spec);
+
 	if (fd)
 		close(fd);
 
 	if (oldwf && ast_set_write_format(chan, oldwf) < 0)
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
-
-	ast_clear_flag(chan, AST_FLAG_SPYING);
-
-	ast_channel_setoption(chan, AST_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume), 0);
 
 	LOCAL_USER_REMOVE(u);
 
