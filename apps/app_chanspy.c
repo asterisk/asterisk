@@ -419,19 +419,19 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		char *opts[OPT_ARG_ARRAY_SIZE];
 		ast_app_parse_options(chanspy_opts, &flags, opts, options);
 		if (ast_test_flag(&flags, OPTION_GROUP)) {
-			mygroup = opts[1];
+			mygroup = opts[OPT_ARG_GROUP];
 		}
 		if (ast_test_flag(&flags, OPTION_RECORD)) {
-			if (!(recbase = opts[2])) {
+			if (!(recbase = opts[OPT_ARG_RECORD])) {
 				recbase = "chanspy";
 			}
 		}
 		silent = ast_test_flag(&flags, OPTION_QUIET);
 		bronly = ast_test_flag(&flags, OPTION_BRIDGED);
-		if (ast_test_flag(&flags, OPTION_VOLUME) && opts[1]) {
+		if (ast_test_flag(&flags, OPTION_VOLUME) && opts[OPT_ARG_VOLUME]) {
 			int vol;
 
-			if ((sscanf(opts[0], "%d", &vol) != 1) || (vol > 4) || (vol < -4))
+			if ((sscanf(opts[OPT_ARG_VOLUME], "%d", &vol) != 1) || (vol > 4) || (vol < -4))
 				ast_log(LOG_NOTICE, "Volume factor must be a number between -4 and 4\n");
 			else
 				volfactor = vol;
