@@ -314,11 +314,16 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	return running;
 }
 
-static struct ast_channel *next_channel(const struct ast_channel *last)
+static struct ast_channel *next_channel(const struct ast_channel *last, const char *spec)
 {
 	struct ast_channel *this;
 
-	if ((this = ast_channel_walk_locked(last)))
+	if (spec)
+		this = ast_walk_channel_by_name_prefix_locked(last, spec, strlen(spec));
+	else
+		this = ast_channel_walk_locked(last);
+
+	if (this)
 		ast_channel_unlock(this);
 
 	return this;
@@ -364,22 +369,22 @@ static int common_exec(struct ast_channel *chan, const int silent, const int bro
 		waitms = 100;
 		peer = prev = next = NULL;
 
-		for (peer = next_channel(peer);
+		for (peer = next_channel(peer, spec);
 		     peer;
-		     prev = peer, peer = next ? next : next_channel(peer), next = NULL) {
+		     prev = peer, peer = next ? next : next_channel(peer, spec), next = NULL) {
 			const char *group;
-			int igrp = 0;
+			int igrp = !mygroup;
 			char *groups[25];
 			int num_groups = 0;
 			char *dup_group;
 			int x;
 			char *s;
 				
-			if (peer == chan)
-				continue;
-
 			if (peer == prev)
 				break;
+
+			if (peer == chan)
+				continue;
 
 			if (mygroup) {
 				if ((group = pbx_builtin_getvar_helper(peer, "SPYGROUP"))) {
@@ -388,20 +393,15 @@ static int common_exec(struct ast_channel *chan, const int silent, const int bro
 									   sizeof(groups) / sizeof(groups[0]));
 				}
 				
-				if (num_groups) {
-					for (x = 0; x < num_groups; x++) {
-						if (!strcmp(mygroup, groups[x])) {
-							igrp = 1;
-							break;
-						}
+				for (x = 0; x < num_groups; x++) {
+					if (!strcmp(mygroup, groups[x])) {
+						igrp = 1;
+						break;
 					}
-				} 
+				}
 			}
 			
 			if (!igrp)
-				continue;
-
-			if (spec && strncasecmp(peer->name, spec, strlen(spec)))
 				continue;
 
 			if (bronly && !ast_bridged_channel(peer))

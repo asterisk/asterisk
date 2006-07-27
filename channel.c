@@ -905,7 +905,8 @@ struct ast_channel *ast_get_channel_by_name_prefix_locked(const char *name, cons
 }
 
 /*! \brief Get next channel by name prefix and lock it */
-struct ast_channel *ast_walk_channel_by_name_prefix_locked(struct ast_channel *chan, const char *name, const int namelen)
+struct ast_channel *ast_walk_channel_by_name_prefix_locked(const struct ast_channel *chan, const char *name,
+							   const int namelen)
 {
 	return channel_find_locked(chan, name, namelen, NULL, NULL);
 }
