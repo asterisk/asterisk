@@ -30,4 +30,8 @@
 #define force_inline inline __attribute__((always_inline))
 #endif
 
+#define attribute_pure __attribute__((pure))
+
+#define attribute_const __attribute__((const))
+
 #endif /* _ASTERISK_COMPILER_H */

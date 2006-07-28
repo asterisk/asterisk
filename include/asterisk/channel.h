@@ -116,6 +116,7 @@ extern "C" {
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/compiler.h"
 
 
 #define AST_MAX_FDS		8
@@ -955,14 +956,14 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
  * Give a name to a cause code
  * Returns the text form of the binary cause code given
  */
-const char *ast_cause2str(int state) __attribute__ ((pure));
+const char *ast_cause2str(int state) attribute_pure;
 
 /*! Convert the string form of a cause code to a number */
 /*! 
  * \param name string form of the cause
  * Returns the cause code
  */
-int ast_str2cause(const char *name) __attribute__ ((pure));
+int ast_str2cause(const char *name) attribute_pure;
 
 /*! Gives the string form of a given channel state */
 /*! 
@@ -979,7 +980,7 @@ char *ast_state2str(int state);
  * See above
  * Returns the text form of the binary transfer capbility
  */
-char *ast_transfercapability2str(int transfercapability) __attribute__ ((const));
+char *ast_transfercapability2str(int transfercapability) attribute_const;
 
 /* Options: Some low-level drivers may implement "options" allowing fine tuning of the
    low level channel.  See frame.h for options.  Note that many channel drivers may support

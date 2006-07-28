@@ -141,6 +141,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/monitor.h"
 #include "asterisk/localtime.h"
 #include "asterisk/abstract_jb.h"
+#include "asterisk/compiler.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -1286,8 +1287,8 @@ static void sip_poke_all_peers(void);
 /*--- Applications, functions, CLI and manager command helpers */
 static const char *sip_nat_mode(const struct sip_pvt *p);
 static int sip_show_inuse(int fd, int argc, char *argv[]);
-static char *transfermode2str(enum transfermodes mode) __attribute__ ((const));
-static char *nat2str(int nat) __attribute__ ((const));
+static char *transfermode2str(enum transfermodes mode) attribute_const;
+static char *nat2str(int nat) attribute_const;
 static int peer_status(struct sip_peer *peer, char *status, int statuslen);
 static int sip_show_users(int fd, int argc, char *argv[]);
 static int _sip_show_peers(int fd, int *total, struct mansession *s, struct message *m, int argc, char *argv[]);
@@ -1295,8 +1296,8 @@ static int manager_sip_show_peers( struct mansession *s, struct message *m );
 static int sip_show_peers(int fd, int argc, char *argv[]);
 static int sip_show_objects(int fd, int argc, char *argv[]);
 static void  print_group(int fd, unsigned int group, int crlf);
-static const char *dtmfmode2str(int mode) __attribute__ ((const));
-static const char *insecure2str(int port, int invite) __attribute__ ((const));
+static const char *dtmfmode2str(int mode) attribute_const;
+static const char *insecure2str(int port, int invite) attribute_const;
 static void cleanup_stale_contexts(char *new, char *old);
 static void print_codec_to_cli(int fd, struct ast_codec_pref *pref);
 static const char *domain_mode_to_text(const enum domain_mode mode);
@@ -1308,7 +1309,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 static int sip_show_user(int fd, int argc, char *argv[]);
 static int sip_show_registry(int fd, int argc, char *argv[]);
 static int sip_show_settings(int fd, int argc, char *argv[]);
-static const char *subscription_type2str(enum subscriptiontype subtype) __attribute__ ((pure));
+static const char *subscription_type2str(enum subscriptiontype subtype) attribute_pure;
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
 static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions);
 static int sip_show_channels(int fd, int argc, char *argv[]);
@@ -1384,7 +1385,7 @@ static int sip_prune_realtime(int fd, int argc, char *argv[]);
 static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us);
 static void sip_registry_destroy(struct sip_registry *reg);
 static int sip_register(char *value, int lineno);
-static char *regstate2str(enum sipregistrystate regstate) __attribute__ ((const));
+static char *regstate2str(enum sipregistrystate regstate) attribute_const;
 static int sip_reregister(void *data);
 static int __sip_do_register(struct sip_registry *r);
 static int sip_reg_timeout(void *data);
@@ -1401,7 +1402,7 @@ static int find_sip_method(const char *msg);
 static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported);
 static void parse_request(struct sip_request *req);
 static const char *get_header(const struct sip_request *req, const char *name);
-static char *referstatus2str(enum referstatus rstatus) __attribute__ ((pure));
+static char *referstatus2str(enum referstatus rstatus) attribute_pure;
 static int method_match(enum sipmethod id, const char *name);
 static void parse_copy(struct sip_request *dst, const struct sip_request *src);
 static char *get_in_brackets(char *tmp);
