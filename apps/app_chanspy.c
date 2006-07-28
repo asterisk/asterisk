@@ -291,13 +291,26 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 		return 0;
 	}
 
+	if (ast_test_flag(flags, OPTION_WHISPER)) {
+		struct ast_filestream *beepstream;
+
+		ast_channel_whisper_start(csth.spy.chan);
+		if ((beepstream = ast_openstream_full(chan, "beep", chan->language, 1))) {
+			struct ast_frame *f;
+
+			while ((f = ast_readframe(beepstream))) {
+				ast_channel_whisper_feed(csth.spy.chan, f);
+				ast_frfree(f);
+			}
+
+			ast_closestream(beepstream);
+		}
+	}
+
 	if (ast_test_flag(flags, OPTION_PRIVATE))
 		silgen = ast_channel_start_silence_generator(chan);
 	else
 		ast_activate_generator(chan, &spygen, &csth);
-
-	if (ast_test_flag(flags, OPTION_WHISPER))
-		ast_channel_whisper_start(csth.spy.chan);
 
 	/* We can no longer rely on 'spyee' being an actual channel;
 	   it can be hung up and freed out from under us. However, the
