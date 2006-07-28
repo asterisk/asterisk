@@ -858,16 +858,17 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 					continue;
 				/* found, prepare to return c->next */
 				c = AST_LIST_NEXT(c, chan_list);
-			} else if (name) { /* want match by name */
-				if ( (!namelen && strcasecmp(c->name, name)) ||
-				     (namelen && strncasecmp(c->name, name, namelen)) )
+			}
+			if (name) { /* want match by name */
+				if ((!namelen && strcasecmp(c->name, name)) ||
+				    (namelen && strncasecmp(c->name, name, namelen)))
 					continue;	/* name match failed */
 			} else if (exten) {
 				if (context && strcasecmp(c->context, context) &&
-						strcasecmp(c->macrocontext, context))
+				    strcasecmp(c->macrocontext, context))
 					continue;	/* context match failed */
 				if (strcasecmp(c->exten, exten) &&
-						strcasecmp(c->macroexten, exten))
+				    strcasecmp(c->macroexten, exten))
 					continue;	/* exten match failed */
 			}
 			/* if we get here, c points to the desired record */
@@ -922,6 +923,13 @@ struct ast_channel *ast_walk_channel_by_name_prefix_locked(const struct ast_chan
 struct ast_channel *ast_get_channel_by_exten_locked(const char *exten, const char *context)
 {
 	return channel_find_locked(NULL, NULL, 0, context, exten);
+}
+
+/*! \brief Get next channel by exten (and optionally context) and lock it */
+struct ast_channel *ast_walk_channel_by_exten_locked(const struct ast_channel *chan, const char *exten,
+						     const char *context)
+{
+	return channel_find_locked(chan, NULL, 0, context, exten);
 }
 
 /*! \brief Wait, look for hangups and condition arg */

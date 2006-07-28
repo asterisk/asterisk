@@ -881,6 +881,10 @@ struct ast_channel *ast_walk_channel_by_name_prefix_locked(const struct ast_chan
 /*! \brief Get channel by exten (and optionally context) and lock it */
 struct ast_channel *ast_get_channel_by_exten_locked(const char *exten, const char *context);
 
+/*! \brief Get next channel by exten (and optionally context) and lock it */
+struct ast_channel *ast_walk_channel_by_exten_locked(const struct ast_channel *chan, const char *exten,
+						     const char *context);
+
 /*! ! \brief Waits for a digit
  * \param c channel to wait for a digit on
  * \param ms how many milliseconds to wait
