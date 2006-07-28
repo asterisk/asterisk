@@ -955,14 +955,14 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
  * Give a name to a cause code
  * Returns the text form of the binary cause code given
  */
-const char *ast_cause2str(int state);
+const char *ast_cause2str(int state) __attribute__ ((pure));
 
 /*! Convert the string form of a cause code to a number */
 /*! 
  * \param name string form of the cause
  * Returns the cause code
  */
-int ast_str2cause(const char *name);
+int ast_str2cause(const char *name) __attribute__ ((pure));
 
 /*! Gives the string form of a given channel state */
 /*! 
@@ -979,7 +979,7 @@ char *ast_state2str(int state);
  * See above
  * Returns the text form of the binary transfer capbility
  */
-char *ast_transfercapability2str(int transfercapability);
+char *ast_transfercapability2str(int transfercapability) __attribute__ ((const));
 
 /* Options: Some low-level drivers may implement "options" allowing fine tuning of the
    low level channel.  See frame.h for options.  Note that many channel drivers may support
