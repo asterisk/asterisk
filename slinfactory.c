@@ -30,14 +30,24 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <string.h>
 
+#include "asterisk/frame.h"
 #include "asterisk/slinfactory.h"
 #include "asterisk/logger.h"
 #include "asterisk/translate.h"
 
+struct ast_slinfactory {
+	struct ast_frame *queue;
+	struct ast_trans_pvt *trans;
+	short hold[1280];
+	short *offset;
+	size_t holdlen;			/*! in samples */
+	unsigned int size;		/*! in samples */
+	unsigned int format;
+};
 
 void ast_slinfactory_init(struct ast_slinfactory *sf) 
 {
-	memset(sf, 0, sizeof(struct ast_slinfactory));
+	memset(sf, 0, sizeof(*sf));
 	sf->offset = sf->hold;
 	sf->queue = NULL;
 }
@@ -51,7 +61,7 @@ void ast_slinfactory_destroy(struct ast_slinfactory *sf)
 		sf->trans = NULL;
 	}
 
-	while((f = sf->queue)) {
+	while ((f = sf->queue)) {
 		sf->queue = f->next;
 		ast_frfree(f);
 	}
@@ -60,10 +70,7 @@ void ast_slinfactory_destroy(struct ast_slinfactory *sf)
 int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 {
 	struct ast_frame *frame, *frame_ptr;
-
-	if (!f) {
-		return 0;
-	}
+	unsigned int x;
 
 	if (f->subclass != AST_FORMAT_SLINEAR) {
 		if (sf->trans && f->subclass != sf->format) {
@@ -80,52 +87,49 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 		}
 	}
 
-	if (sf->trans) {
+	if (sf->trans)
 		frame = ast_translate(sf->trans, f, 0);
-	} else {
+	else
 		frame = ast_frdup(f);
-	}
 
-	if (frame) {
-		int x = 0;
-		for (frame_ptr = sf->queue; frame_ptr && frame_ptr->next; frame_ptr = frame_ptr->next) {
-			x++;
-		}
-		if (frame_ptr) {
-			frame_ptr->next = frame;
-		} else {
-			sf->queue = frame;
-		}
-		frame->next = NULL;
-		sf->size += frame->datalen;	
-		return x;
-	}
+	if (!frame)
+		return 0;
 
-	return 0;
-	
+	for (x = 0, frame_ptr = sf->queue; frame_ptr && frame_ptr->next; frame_ptr = frame_ptr->next)
+		x++;
+
+	if (frame_ptr)
+		frame_ptr->next = frame;
+	else
+		sf->queue = frame;
+
+	frame->next = NULL;
+	sf->size += frame->samples;
+
+	return x;
 }
 
-int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t bytes) 
+int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples) 
 {
 	struct ast_frame *frame_ptr;
-	int sofar = 0, ineed, remain;
+	unsigned int sofar = 0, ineed, remain;
 	short *frame_data, *offset = buf;
 
-	while (sofar < bytes) {
-		ineed = bytes - sofar;
+	while (sofar < samples) {
+		ineed = samples - sofar;
 
 		if (sf->holdlen) {
 			if ((sofar + sf->holdlen) <= ineed) {
-				memcpy(offset, sf->hold, sf->holdlen);
+				memcpy(offset, sf->hold, sf->holdlen * sizeof(*offset));
 				sofar += sf->holdlen;
-				offset += (sf->holdlen / sizeof(short));
+				offset += sf->holdlen;
 				sf->holdlen = 0;
 				sf->offset = sf->hold;
 			} else {
 				remain = sf->holdlen - ineed;
-				memcpy(offset, sf->offset, ineed);
+				memcpy(offset, sf->offset, ineed * sizeof(*offset));
 				sofar += ineed;
-				sf->offset += (ineed / sizeof(short));
+				sf->offset += ineed;
 				sf->holdlen = remain;
 			}
 			continue;
@@ -135,16 +139,16 @@ int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t bytes)
 			sf->queue = frame_ptr->next;
 			frame_data = frame_ptr->data;
 			
-			if ((sofar + frame_ptr->datalen) <= ineed) {
-				memcpy(offset, frame_data, frame_ptr->datalen);
-				sofar += frame_ptr->datalen;
-				offset += (frame_ptr->datalen / sizeof(short));
+			if ((sofar + frame_ptr->samples) <= ineed) {
+				memcpy(offset, frame_data, frame_ptr->samples * sizeof(*offset));
+				sofar += frame_ptr->samples;
+				offset += frame_ptr->samples;
 			} else {
-				remain = frame_ptr->datalen - ineed;
-				memcpy(offset, frame_data, ineed);
+				remain = frame_ptr->samples - ineed;
+				memcpy(offset, frame_data, ineed * sizeof(*offset));
 				sofar += ineed;
-				frame_data += (ineed / sizeof(short));
-				memcpy(sf->hold, frame_data, remain);
+				frame_data += ineed;
+				memcpy(sf->hold, frame_data, remain * sizeof(*offset));
 				sf->holdlen = remain;
 			}
 			ast_frfree(frame_ptr);
@@ -155,4 +159,9 @@ int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t bytes)
 
 	sf->size -= sofar;
 	return sofar;
+}
+
+unsigned int ast_slinfactory_available(const struct ast_slinfactory *sf)
+{
+	return sf->size;
 }
