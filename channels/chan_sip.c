@@ -6633,7 +6633,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 /*! \brief  get_destination: Find out who the call is for --*/
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 {
-	char tmp[256] = "", *uri, *a;
+	char tmp[256] = "", *uri, *a, *b;
 	char tmpf[256], *from;
 	struct sip_request *req;
 	char *colon;
@@ -6670,15 +6670,17 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 
 	/* Skip any options */
 	if ((a = strchr(uri, ';'))) {
-		*a = '\0';
+		*a++ = '\0';
+		b = a;
+	} else {
+		b = uri;
 	}
-
+	
 	/* Get the target domain */
-	if ((a = strchr(uri, '@'))) {
-		*a = '\0';
-		a++;
+	if ((a = strchr(b, '@'))) {
+		*a++ = '\0';
 	} else {	/* No username part */
-		a = uri;
+		a = b;
 		uri = "s";	/* Set extension to "s" */
 	}
 	colon = strchr(a, ':'); /* Remove :port */
@@ -7081,9 +7083,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	char calleridname[50];
 	int debug=sip_debug_test_addr(sin);
 	struct ast_variable *tmpvar = NULL, *v = NULL;
+	char *uri2 = ast_strdupa(uri);
 
 	/* Terminate URI */
-	t = uri;
+	t = uri2;
 	while(*t && (*t > 32) && (*t != ';'))
 		t++;
 	*t = '\0';
@@ -7105,7 +7108,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 
 	of = get_in_brackets(from);
 	if (ast_strlen_zero(p->exten)) {
-		t = uri;
+		t = uri2;
 		if (!strncmp(t, "sip:", 4))
 			t+= 4;
 		ast_copy_string(p->exten, t, sizeof(p->exten));
@@ -7162,7 +7165,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 			ast_rtp_setnat(p->vrtp, (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 		}
-		if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, sipmethod, uri, reliable, ignore))) {
+		if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, sipmethod, uri2, reliable, ignore))) {
 			sip_cancel_destroy(p);
 			ast_copy_flags(p, user, SIP_FLAGS_TO_COPY);
 			/* Copy SIP extensions profile from INVITE */
@@ -7262,7 +7265,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				p->peersecret[0] = '\0';
 				p->peermd5secret[0] = '\0';
 			}
-			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, p->peersecret, p->peermd5secret, sipmethod, uri, reliable, ignore))) {
+			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, p->peersecret, p->peermd5secret, sipmethod, uri2, reliable, ignore))) {
 				ast_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
 				/* If we have a call limit, set flag */
 				if (peer->call_limit)
@@ -7323,7 +7326,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 #ifdef OSP_SUPPORT			
 			} else if (global_allowguest == 2) {
 				ast_copy_flags(p, &global_flags, SIP_OSPAUTH);
-				res = check_auth(p, req, p->randdata, sizeof(p->randdata), "", "", "", sipmethod, uri, reliable, ignore); 
+				res = check_auth(p, req, p->randdata, sizeof(p->randdata), "", "", "", sipmethod, uri2, reliable, ignore); 
 #endif
 			}
 		}
