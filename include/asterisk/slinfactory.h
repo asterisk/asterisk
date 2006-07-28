@@ -31,7 +31,15 @@
 extern "C" {
 #endif
 
-struct ast_slinfactory;
+struct ast_slinfactory {
+	struct ast_frame *queue;
+	struct ast_trans_pvt *trans;
+	short hold[1280];
+	short *offset;
+	size_t holdlen;			/*!< in samples */
+	unsigned int size;		/*!< in samples */
+	unsigned int format;
+};
 
 void ast_slinfactory_init(struct ast_slinfactory *sf);
 void ast_slinfactory_destroy(struct ast_slinfactory *sf);

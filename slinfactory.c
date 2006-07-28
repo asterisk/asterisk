@@ -35,16 +35,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/logger.h"
 #include "asterisk/translate.h"
 
-struct ast_slinfactory {
-	struct ast_frame *queue;
-	struct ast_trans_pvt *trans;
-	short hold[1280];
-	short *offset;
-	size_t holdlen;			/*! in samples */
-	unsigned int size;		/*! in samples */
-	unsigned int format;
-};
-
 void ast_slinfactory_init(struct ast_slinfactory *sf) 
 {
 	memset(sf, 0, sizeof(*sf));

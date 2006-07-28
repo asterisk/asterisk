@@ -359,7 +359,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 	return out;
 }
 
-struct ast_frame *ast_frdup(struct ast_frame *f)
+struct ast_frame *ast_frdup(const struct ast_frame *f)
 {
 	struct ast_frame *out;
 	int len, srclen = 0;

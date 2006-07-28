@@ -268,6 +268,7 @@ struct ast_channel_tech {
 };
 
 struct ast_channel_spy_list;
+struct ast_channel_whisper_buffer;
 
 #define	DEBUGCHAN_FLAG  0x80000000
 #define	FRAMECOUNT_INC(x)	( ((x) & DEBUGCHAN_FLAG) | ((x++) & ~DEBUGCHAN_FLAG) )
@@ -382,6 +383,7 @@ struct ast_channel {
 	int rawwriteformat;				/*!< Raw write format */
 
 	struct ast_channel_spy_list *spies;		/*!< Chan Spy stuff */
+	struct ast_channel_whisper_buffer *whisper;	/*!< Whisper Paging buffer */
 	AST_LIST_ENTRY(ast_channel) chan_list;		/*!< For easy linking */
 	struct ast_jb jb;				/*!< The jitterbuffer state  */
 
@@ -397,21 +399,20 @@ struct ast_channel {
 /*! \brief Channels have this property if they can create jitter; i.e. most VoIP channels */
 #define AST_CHAN_TP_CREATESJITTER (1 << 1)
 
-/* This flag has been deprecated by the transfercapbilty data member in struct ast_channel */
-/* #define AST_FLAG_DIGITAL	(1 << 0) */	/* if the call is a digital ISDN call */
 #define AST_FLAG_DEFER_DTMF	(1 << 1)	/*!< if dtmf should be deferred */
 #define AST_FLAG_WRITE_INT	(1 << 2)	/*!< if write should be interrupt generator */
 #define AST_FLAG_BLOCKING	(1 << 3)	/*!< if we are blocking */
 #define AST_FLAG_ZOMBIE		(1 << 4)	/*!< if we are a zombie */
 #define AST_FLAG_EXCEPTION	(1 << 5)	/*!< if there is a pending exception */
 #define AST_FLAG_MOH		(1 << 6)	/*!< XXX anthm promises me this will disappear XXX listening to moh */
-#define AST_FLAG_SPYING		(1 << 7)	/*!< XXX might also go away XXX is spying on someone */
+#define AST_FLAG_SPYING		(1 << 7)	/*!< is spying on someone */
 #define AST_FLAG_NBRIDGE	(1 << 8)	/*!< is it in a native bridge */
 #define AST_FLAG_IN_AUTOLOOP	(1 << 9)	/*!< the channel is in an auto-incrementing dialplan processor,
 						   so when ->priority is set, it will get incremented before
-						   finding the next priority to run
-						*/
-#define AST_FLAG_OUTGOING (1 << 10) /*! Is this call outgoing */
+						   finding the next priority to run */
+#define AST_FLAG_OUTGOING	(1 << 10)	/*!< Is this call outgoing */
+#define AST_FLAG_WHISPER	(1 << 11)	/*!< Is this channel being whispered on */
+
 /* @} */
 
 #define AST_FEATURE_PLAY_WARNING	(1 << 0)
@@ -1276,6 +1277,38 @@ const char *channelreloadreason2txt(enum channelreloadreason reason);
 
 /*! \brief return an ast_variable list of channeltypes */
 struct ast_variable *ast_channeltype_list(void);
+
+/*!
+  \brief Begin 'whispering' onto a channel
+  \param chan The channel to whisper onto
+  \return 0 for success, non-zero for failure
+
+  This function will add a whisper buffer onto a channel and set a flag
+  causing writes to the channel to reduce the volume level of the written
+  audio samples, and then to mix in audio from the whisper buffer if it
+  is available.
+
+  Note: This function performs no locking; you must hold the channel's lock before
+  calling this function.
+ */
+int ast_channel_whisper_start(struct ast_channel *chan);
+
+/*!
+  \brief Feed an audio frame into the whisper buffer on a channel
+  \param chan The channel to whisper onto
+  \return 0 for success, non-zero for failure
+ */
+int ast_channel_whisper_feed(struct ast_channel *chan, struct ast_frame *f);
+
+/*!
+  \brief Stop 'whispering' onto a channel
+  \param chan The channel to whisper onto
+  \return 0 for success, non-zero for failure
+
+  Note: This function performs no locking; you must hold the channel's lock before
+  calling this function.
+ */
+void ast_channel_whisper_stop(struct ast_channel *chan);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

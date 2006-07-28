@@ -354,7 +354,7 @@ struct ast_frame *ast_fralloc(char *source, int len);
  */
 void ast_frfree(struct ast_frame *fr);
 
-/*! \brief Copies a frame 
+/*! \brief Makes a frame independent of any static storage
  * \param fr frame to act upon
  * Take a frame, and if it's not been malloc'd, make a malloc'd copy
  * and if the data hasn't been malloced then make the
@@ -366,10 +366,10 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr);
 
 /*! \brief Copies a frame 
  * \param fr frame to copy
- * Dupliates a frame -- should only rarely be used, typically frisolate is good enough
+ * Duplicates a frame -- should only rarely be used, typically frisolate is good enough
  * \return Returns a frame on success, NULL on error
  */
-struct ast_frame *ast_frdup(struct ast_frame *fr);
+struct ast_frame *ast_frdup(const struct ast_frame *fr);
 
 /*! \brief Reads a frame from an fd
  * Read a frame from a stream or packet fd, as written by fd_write

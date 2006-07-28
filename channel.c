@@ -66,6 +66,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/transcap.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/sha1.h"
+#include "asterisk/slinfactory.h"
 
 struct channel_spy_trans {
 	int last_format;
@@ -76,6 +77,12 @@ struct ast_channel_spy_list {
 	struct channel_spy_trans read_translator;
 	struct channel_spy_trans write_translator;
 	AST_LIST_HEAD_NOLOCK(, ast_channel_spy) list;
+};
+
+struct ast_channel_whisper_buffer {
+	ast_mutex_t lock;
+	struct ast_slinfactory sf;
+	unsigned int original_format;
 };
 
 /* uncomment if you have problems with 'monitoring' synchronized files */
@@ -987,13 +994,16 @@ void ast_channel_free(struct ast_channel *chan)
 	ast_copy_string(name, chan->name, sizeof(name));
 
 	/* Stop monitoring */
-	if (chan->monitor) {
+	if (chan->monitor)
 		chan->monitor->stop( chan, 0 );
-	}
 
 	/* If there is native format music-on-hold state, free it */
-	if(chan->music_state)
+	if (chan->music_state)
 		ast_moh_cleanup(chan);
+
+	/* if someone is whispering on the channel, stop them */
+	if (chan->whisper)
+		ast_channel_whisper_stop(chan);
 
 	/* Free translators */
 	if (chan->readtrans)
@@ -2445,6 +2455,25 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				}
 			}
 
+			if (ast_test_flag(chan, AST_FLAG_WHISPER)) {
+				/* frame is assumed to be in SLINEAR, since that is
+				   required for whisper mode */
+				ast_frame_adjust_volume(f, -2);
+				if (ast_slinfactory_available(&chan->whisper->sf) >= f->samples) {
+					short buf[f->samples];
+					struct ast_frame whisper = {
+						.frametype = AST_FRAME_VOICE,
+						.subclass = AST_FORMAT_SLINEAR,
+						.data = buf,
+						.datalen = sizeof(buf),
+						.samples = f->samples,
+					};
+
+					if (ast_slinfactory_read(&chan->whisper->sf, buf, f->samples))
+						ast_frame_slinear_sum(f, &whisper);
+				}
+			}
+
 			res = chan->tech->write(chan, f);
 		}
 		break;	
@@ -3171,6 +3200,16 @@ int ast_do_masquerade(struct ast_channel *original)
 		if (x != AST_GENERATOR_FD)
 			original->fds[x] = clone->fds[x];
 	}
+
+	/* move any whisperer over */
+	ast_channel_whisper_stop(original);
+	if (ast_test_flag(clone, AST_FLAG_WHISPER)) {
+		original->whisper = clone->whisper;
+		ast_set_flag(original, AST_FLAG_WHISPER);
+		clone->whisper = NULL;
+		ast_clear_flag(clone, AST_FLAG_WHISPER);
+	}
+
 	/* Move data stores over */
 	if (AST_LIST_FIRST(&clone->datastores))
                 AST_LIST_INSERT_TAIL(&original->datastores, AST_LIST_FIRST(&clone->datastores), entry);
@@ -4401,4 +4440,43 @@ int ast_say_digits_full(struct ast_channel *chan, int num,
         return ast_say_digit_str_full(chan, buf, ints, lang, audiofd, ctrlfd);
 }
 
-/* end of file */
+int ast_channel_whisper_start(struct ast_channel *chan)
+{
+	if (chan->whisper)
+		return -1;
+
+	if (!(chan->whisper = ast_calloc(1, sizeof(*chan->whisper))))
+		return -1;
+
+	ast_mutex_init(&chan->whisper->lock);
+	ast_slinfactory_init(&chan->whisper->sf);
+	chan->whisper->original_format = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
+	ast_set_flag(chan, AST_FLAG_WHISPER);
+
+	return 0;
+}
+
+int ast_channel_whisper_feed(struct ast_channel *chan, struct ast_frame *f)
+{
+	if (!chan->whisper)
+		return -1;
+
+	ast_mutex_lock(&chan->whisper->lock);
+	ast_slinfactory_feed(&chan->whisper->sf, f);
+	ast_mutex_unlock(&chan->whisper->lock);
+
+	return 0;
+}
+
+void ast_channel_whisper_stop(struct ast_channel *chan)
+{
+	if (!chan->whisper)
+		return;
+
+	ast_clear_flag(chan, AST_FLAG_WHISPER);
+	ast_set_write_format(chan, chan->whisper->original_format);
+	ast_slinfactory_destroy(&chan->whisper->sf);
+	ast_mutex_destroy(&chan->whisper->lock);
+	free(chan->whisper);
+	chan->whisper = NULL;
+}
