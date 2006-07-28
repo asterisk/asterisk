@@ -8535,9 +8535,10 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	int debug=sip_debug_test_addr(sin);
 	struct ast_variable *tmpvar = NULL, *v = NULL;
 	int usenatroute;
+	char *uri2 = ast_strdupa(uri);
 
 	/* Terminate URI */
-	t = uri;
+	t = uri2;
 	while (*t && *t > 32 && *t != ';')
 		t++;
 	*t = '\0';
@@ -8557,7 +8558,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 
 	of = get_in_brackets(from);
 	if (ast_strlen_zero(p->exten)) {
-		t = uri;
+		t = uri2;
 		if (!strncmp(t, "sip:", 4))
 			t+= 4;
 		ast_string_field_set(p, exten, t);
@@ -8630,7 +8631,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 				ast_log(LOG_DEBUG, "Setting NAT on UDPTL to %s\n", usenatroute ? "On" : "Off");
 			ast_udptl_setnat(p->udptl, usenatroute);
 		}
-		if (!(res = check_auth(p, req, user->name, user->secret, user->md5secret, sipmethod, uri, reliable, ast_test_flag(req, SIP_PKT_IGNORE)))) {
+		if (!(res = check_auth(p, req, user->name, user->secret, user->md5secret, sipmethod, uri2, reliable, ast_test_flag(req, SIP_PKT_IGNORE)))) {
 			sip_cancel_destroy(p);
 			ast_copy_flags(&p->flags[0], &user->flags[0], SIP_FLAGS_TO_COPY);
 			ast_copy_flags(&p->flags[1], &user->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
@@ -8757,7 +8758,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 				ast_string_field_free(p, peersecret);
 				ast_string_field_free(p, peermd5secret);
 			}
-			if (!(res = check_auth(p, req, peer->name, p->peersecret, p->peermd5secret, sipmethod, uri, reliable, ast_test_flag(req, SIP_PKT_IGNORE)))) {
+			if (!(res = check_auth(p, req, peer->name, p->peersecret, p->peermd5secret, sipmethod, uri2, reliable, ast_test_flag(req, SIP_PKT_IGNORE)))) {
 				ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
 				ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 				/* If we have a call limit, set flag */
