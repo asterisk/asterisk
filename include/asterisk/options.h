@@ -60,7 +60,7 @@ enum ast_option_flags {
 	AST_OPT_FLAG_DUMP_CORE = (1 << 12),
 	/*! Cache sound files */
 	AST_OPT_FLAG_CACHE_RECORD_FILES = (1 << 13),
-	/*! Display timestamp in log messages */
+	/*! Display timestamp in CLI verbose output */
 	AST_OPT_FLAG_TIMESTAMP = (1 << 14),
 	/*! Override config */
 	AST_OPT_FLAG_OVERRIDE_CONFIG = (1 << 15),

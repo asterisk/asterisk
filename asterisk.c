@@ -2215,7 +2215,7 @@ static void ast_readconfig(void)
 		/* verbose level (-v at startup) */
 		if (!strcasecmp(v->name, "verbose")) {
 			option_verbose = atoi(v->value);
-		/* whether or not to force timestamping. (-T at startup) */
+		/* whether or not to force timestamping in CLI verbose output. (-T at startup) */
 		} else if (!strcasecmp(v->name, "timestamp")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TIMESTAMP);
 		/* whether or not to support #exec in config files */
