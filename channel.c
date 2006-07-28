@@ -2469,8 +2469,10 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 						.samples = f->samples,
 					};
 
+					ast_mutex_lock(&chan->whisper->lock);
 					if (ast_slinfactory_read(&chan->whisper->sf, buf, f->samples))
 						ast_frame_slinear_sum(f, &whisper);
+					ast_mutex_unlock(&chan->whisper->lock);
 				}
 			}
 
