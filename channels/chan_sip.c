@@ -6633,7 +6633,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 /*! \brief  get_destination: Find out who the call is for --*/
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 {
-	char tmp[256] = "", *uri, *a, *b;
+	char tmp[256] = "", *uri, *a, *user, *domain, *opts;
 	char tmpf[256], *from;
 	struct sip_request *req;
 	char *colon;
@@ -6668,26 +6668,27 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		ast_uri_decode(from);
 	}
 
-	/* Skip any options */
-	if ((a = strchr(uri, ';'))) {
-		*a++ = '\0';
-		b = a;
+	/* Get the target domain first and user */
+	if ((domain = strchr(uri, '@'))) {
+		*domain++ = '\0';
+		user = uri;
 	} else {
-		b = uri;
+		/* No user portion present */
+		domain = uri;
+		user = "s";
 	}
-	
-	/* Get the target domain */
-	if ((a = strchr(b, '@'))) {
-		*a++ = '\0';
-	} else {	/* No username part */
-		a = b;
-		uri = "s";	/* Set extension to "s" */
-	}
-	colon = strchr(a, ':'); /* Remove :port */
-	if (colon)
-		*colon = '\0';
 
-	ast_copy_string(p->domain, a, sizeof(p->domain));
+	/* Strip port from domain if present */
+	if ((colon = strchr(domain, ':'))) {
+		*colon = '\0';
+	}
+
+	/* Strip any params or options from user */
+	if ((opts = strchr(user, ';'))) {
+		*opts = '\0';
+	}
+
+	ast_copy_string(p->domain, domain, sizeof(p->domain));
 
 	if (!AST_LIST_EMPTY(&domain_list)) {
 		char domain_context[AST_MAX_EXTENSION];
@@ -6714,19 +6715,19 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 			ast_copy_string(p->fromdomain, from, sizeof(p->fromdomain));
 	}
 	if (sip_debug_test_pvt(p))
-		ast_verbose("Looking for %s in %s (domain %s)\n", uri, p->context, p->domain);
+		ast_verbose("Looking for %s in %s (domain %s)\n", user, p->context, p->domain);
 
 	/* Return 0 if we have a matching extension */
-	if (ast_exists_extension(NULL, p->context, uri, 1, from) ||
+	if (ast_exists_extension(NULL, p->context, user, 1, from) ||
 		!strcmp(uri, ast_pickup_ext())) {
 		if (!oreq)
-			ast_copy_string(p->exten, uri, sizeof(p->exten));
+			ast_copy_string(p->exten, user, sizeof(p->exten));
 		return 0;
 	}
 
 	/* Return 1 for overlap dialling support */
-	if (ast_canmatch_extension(NULL, p->context, uri, 1, from) ||
-	    !strncmp(uri, ast_pickup_ext(),strlen(uri))) {
+	if (ast_canmatch_extension(NULL, p->context, user, 1, from) ||
+	    !strncmp(user, ast_pickup_ext(),strlen(user))) {
 		return 1;
 	}
 	
