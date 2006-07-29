@@ -323,9 +323,10 @@ struct ast_config *ast_config_new(void)
 	return config;
 }
 
-int ast_variable_delete(struct ast_category *category, char *variable)
+int ast_variable_delete(struct ast_category *category, char *variable, char *match)
 {
-	struct ast_variable *cur, *prev=NULL;
+	struct ast_variable *cur, *prev=NULL, *curn;
+	int res = -1;
 	cur = category->root;
 	while (cur) {
 		if (cur->name == variable) {
@@ -349,7 +350,8 @@ int ast_variable_delete(struct ast_category *category, char *variable)
 	prev = NULL;
 	cur = category->root;
 	while (cur) {
-		if (!strcasecmp(cur->name, variable)) {
+		curn = cur->next;
+		if (!strcasecmp(cur->name, variable) && (ast_strlen_zero(match) || !strcasecmp(cur->value, match))) {
 			if (prev) {
 				prev->next = cur->next;
 				if (cur == category->last)
@@ -361,15 +363,16 @@ int ast_variable_delete(struct ast_category *category, char *variable)
 			}
 			cur->next = NULL;
 			ast_variables_destroy(cur);
-			return 0;
-		}
-		prev = cur;
-		cur = cur->next;
+			res = 0;
+		} else
+			prev = cur;
+
+		cur = curn;
 	}
-	return -1;
+	return res;
 }
 
-int ast_variable_update(struct ast_category *category, char *variable, char *value)
+int ast_variable_update(struct ast_category *category, char *variable, char *value, char *match)
 {
 	struct ast_variable *cur, *prev=NULL, *newer;
 	newer = ast_variable_new(variable, value);
@@ -379,6 +382,7 @@ int ast_variable_update(struct ast_category *category, char *variable, char *val
 	while (cur) {
 		if (cur->name == variable) {
 			newer->next = cur->next;
+			newer->object = cur->object;
 			if (prev)
 				prev->next = newer;
 			else
@@ -396,8 +400,9 @@ int ast_variable_update(struct ast_category *category, char *variable, char *val
 	prev = NULL;
 	cur = category->root;
 	while (cur) {
-		if (!strcasecmp(cur->name, variable)) {
+		if (!strcasecmp(cur->name, variable) && (ast_strlen_zero(match) || !strcasecmp(cur->value, match))) {
 			newer->next = cur->next;
+			newer->object = cur->object;
 			if (prev)
 				prev->next = newer;
 			else

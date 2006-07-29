@@ -906,7 +906,7 @@ static void handle_updates(struct mansession *s, struct message *m, struct ast_c
 {
 	int x;
 	char hdr[40];
-	char *action, *cat, *var, *value;
+	char *action, *cat, *var, *value, *match;
 	struct ast_category *category;
 	struct ast_variable *v;
 	
@@ -921,6 +921,8 @@ static void handle_updates(struct mansession *s, struct message *m, struct ast_c
 		var = astman_get_header(m, hdr);
 		snprintf(hdr, sizeof(hdr), "Value-%06d", x);
 		value = astman_get_header(m, hdr);
+		snprintf(hdr, sizeof(hdr), "Match-%06d", x);
+		match = astman_get_header(m, hdr);
 		if (!strcasecmp(action, "newcat")) {
 			if (!ast_strlen_zero(cat)) {
 				category = ast_category_new(cat);
@@ -939,14 +941,16 @@ static void handle_updates(struct mansession *s, struct message *m, struct ast_c
 				ast_category_delete(cfg, cat);
 		} else if (!strcasecmp(action, "update")) {
 			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) && (category = ast_category_get(cfg, cat)))
-				ast_variable_update(category, var, value);
+				ast_variable_update(category, var, value, match);
 		} else if (!strcasecmp(action, "delete")) {
 			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) && (category = ast_category_get(cfg, cat)))
-				ast_variable_delete(category, var);
+				ast_variable_delete(category, var, match);
 		} else if (!strcasecmp(action, "append")) {
 			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) && 
 				(category = ast_category_get(cfg, cat)) && 
 				(v = ast_variable_new(var, value))){
+				if (match && !strcasecmp(match, "object"))
+					v->object = 1;
 				ast_variable_append(category, v);
 			}
 		}
@@ -962,7 +966,8 @@ static char mandescr_updateconfig[] =
 "   Action-XXXXXX: Action to Take (NewCat,RenameCat,DelCat,Update,Delete,Append)\n"
 "   Cat-XXXXXX:    Category to operate on\n"
 "   Var-XXXXXX:    Variable to work on\n"
-"   Value-XXXXXX:  Value to work on\n";
+"   Value-XXXXXX:  Value to work on\n"
+"   Match-XXXXXX:  Extra match required to match line\n";
 
 static int action_updateconfig(struct mansession *s, struct message *m)
 {
