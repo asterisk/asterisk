@@ -236,6 +236,8 @@ static int reload_module(void *mod)
 			free(module);
 		}
 	}
+
+	return 0;
 }
 
 static void file_ok_sel(GtkWidget *w, GtkFileSelection *fs)
@@ -275,15 +277,15 @@ static void add_module(void)
 static int add_mod(const char *module, const char *description, int usecount, const char *like)
 {
 	char use[10];
-	char *pass[4];
+	const char *pass[4];
 	int row;
 	snprintf(use, sizeof(use), "%d", usecount);
 	pass[0] = module;
 	pass[1] = description;
 	pass[2] = use;
 	pass[3] = NULL;
-	row = gtk_clist_append(GTK_CLIST(modules), pass);
-	gtk_clist_set_row_data(GTK_CLIST(modules), row, module);
+	row = gtk_clist_append(GTK_CLIST(modules), (char **) pass);
+	gtk_clist_set_row_data(GTK_CLIST(modules), row, (char *) module);
 	return 0;	
 }
 
