@@ -39,6 +39,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/frame.h"
 #include "asterisk/utils.h"
 #include "asterisk/unaligned.h"
+#include "asterisk/lock.h"
+
 #include "iax2.h"
 #include "iax2-parser.h"
 #include "iax2-provision.h"
@@ -929,11 +931,11 @@ struct iax_frame *iax_frame_new(int direction, int datalen)
 	if (fr) {
 		fr->direction = direction;
 		fr->retrans = -1;
-		frames++;
+		ast_atomic_fetchadd_int(&frames, 1);
 		if (fr->direction == DIRECTION_INGRESS)
-			iframes++;
+			ast_atomic_fetchadd_int(&iframes, 1);
 		else
-			oframes++;
+			ast_atomic_fetchadd_int(&oframes, 1);
 	}
 	return fr;
 }
@@ -942,16 +944,16 @@ void iax_frame_free(struct iax_frame *fr)
 {
 	/* Note: does not remove from scheduler! */
 	if (fr->direction == DIRECTION_INGRESS)
-		iframes--;
+		ast_atomic_fetchadd_int(&iframes, -1);
 	else if (fr->direction == DIRECTION_OUTGRESS)
-		oframes--;
+		ast_atomic_fetchadd_int(&oframes, -1);
 	else {
 		errorf("Attempt to double free frame detected\n");
 		return;
 	}
 	fr->direction = 0;
 	free(fr);
-	frames--;
+	ast_atomic_fetchadd_int(&frames, -1);
 }
 
 int iax_get_frames(void) { return frames; }
