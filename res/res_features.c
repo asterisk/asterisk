@@ -842,6 +842,9 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		}
 	}  else {
 		ast_log(LOG_WARNING, "Did not read data.\n");
+		ast_moh_stop(transferee);
+		ast_autoservice_stop(transferee);
+		ast_indicate(transferee, AST_CONTROL_UNHOLD);
 		res = ast_streamfile(transferer, "beeperr", transferer->language);
 		if (ast_waitstream(transferer, "") < 0) {
 			return -1;
