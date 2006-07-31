@@ -255,9 +255,9 @@ static struct ast_frame *ast_frame_header_new(void)
 	struct ast_frame *f = ast_calloc(1, sizeof(*f));
 #ifdef TRACE_FRAMES
 	if (f) {
-		headers++;
 		f->prev = NULL;
 		ast_mutex_lock(&framelock);
+		headers++;
 		f->next = headerlist;
 		if (headerlist)
 			headerlist->prev = f;
@@ -284,8 +284,8 @@ void ast_frfree(struct ast_frame *fr)
 	}
 	if (fr->mallocd & AST_MALLOCD_HDR) {
 #ifdef TRACE_FRAMES
-		headers--;
 		ast_mutex_lock(&framelock);
+		headers--;
 		if (fr->next)
 			fr->next->prev = fr->prev;
 		if (fr->prev)
@@ -860,11 +860,11 @@ static int show_frame_stats(int fd, int argc, char *argv[])
 	int x=1;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+	ast_mutex_lock(&framelock);
 	ast_cli(fd, "     Framer Statistics     \n");
 	ast_cli(fd, "---------------------------\n");
 	ast_cli(fd, "Total allocated headers: %d\n", headers);
 	ast_cli(fd, "Queue Dump:\n");
-	ast_mutex_lock(&framelock);
 	for (f=headerlist; f; f = f->next) {
 		ast_cli(fd, "%d.  Type %d, subclass %d from %s\n", x++, f->frametype, f->subclass, f->src ? f->src : "<Unknown>");
 	}
