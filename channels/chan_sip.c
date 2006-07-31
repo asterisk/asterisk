@@ -14300,41 +14300,61 @@ static void *do_monitor(void *data)
 		ast_mutex_lock(&iflock);
 restartsearch:		
 		t = time(NULL);
-		for (sip = iflist; sip; sip = sip->next) {
+		/* don't scan the interface list if it hasn't been a reasonable period
+		   of time since the last time we did it (when MWI is being sent, we can
+		   get back to this point every millisecond or less)
+		*/
+		for (sip = iflist; !fastrestart && sip; sip = sip->next) {
 			ast_mutex_lock(&sip->lock);
 			/* Check RTP timeouts and kill calls if we have a timeout set and do not get RTP */
-			if (sip->rtp && sip->owner && (sip->owner->_state == AST_STATE_UP) && !sip->redirip.sin_addr.s_addr) {
-				if (sip->lastrtptx && sip->rtpkeepalive && t > sip->lastrtptx + sip->rtpkeepalive) {
+			if (sip->rtp && sip->owner &&
+			    (sip->owner->_state == AST_STATE_UP) &&
+			    !sip->redirip.sin_addr.s_addr) {
+				if (sip->lastrtptx &&
+				    sip->rtpkeepalive &&
+				    (t > sip->lastrtptx + sip->rtpkeepalive)) {
 					/* Need to send an empty RTP packet */
 					sip->lastrtptx = time(NULL);
 					ast_rtp_sendcng(sip->rtp, 0);
 				}
-				if (sip->lastrtprx && (sip->rtptimeout || sip->rtpholdtimeout) && t > sip->lastrtprx + sip->rtptimeout) {
+				if (sip->lastrtprx &&
+				    (sip->rtptimeout || sip->rtpholdtimeout) &&
+				    (t > sip->lastrtprx + sip->rtptimeout)) {
 					/* Might be a timeout now -- see if we're on hold */
 					struct sockaddr_in sin;
 					ast_rtp_get_peer(sip->rtp, &sin);
 					if (sin.sin_addr.s_addr || 
-							(sip->rtpholdtimeout && 
-							  (t > sip->lastrtprx + sip->rtpholdtimeout))) {
+					    (sip->rtpholdtimeout && 
+					     (t > sip->lastrtprx + sip->rtpholdtimeout))) {
 						/* Needs a hangup */
 						if (sip->rtptimeout) {
-							while(sip->owner && ast_channel_trylock(sip->owner)) {
+							while (sip->owner && ast_channel_trylock(sip->owner)) {
 								ast_mutex_unlock(&sip->lock);
 								usleep(1);
 								ast_mutex_lock(&sip->lock);
 							}
 							if (sip->owner) {
-								ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n", sip->owner->name, (long)(t - sip->lastrtprx));
+								ast_log(LOG_NOTICE,
+									"Disconnecting call '%s' for lack of RTP activity in %ld seconds\n",
+									sip->owner->name,
+									(long) (t - sip->lastrtprx));
 								/* Issue a softhangup */
-								ast_softhangup(sip->owner, AST_SOFTHANGUP_DEV);
+								ast_softhangup_nolock(sip->owner, AST_SOFTHANGUP_DEV);
 								ast_channel_unlock(sip->owner);
+								/* forget the timeouts for this call, since a hangup
+								   has already been requested and we don't want to
+								   repeatedly request hangups
+								*/
+								sip->rtptimeout = 0;
+								sip->rtpholdtimeout = 0;
 							}
 						}
 					}
 				}
 			}
 			/* If we have sessions that needs to be destroyed, do it now */
-			if (ast_test_flag(&sip->flags[0], SIP_NEEDDESTROY) && !sip->packets && !sip->owner) {
+			if (ast_test_flag(&sip->flags[0], SIP_NEEDDESTROY) && !sip->packets &&
+			    !sip->owner) {
 				ast_mutex_unlock(&sip->lock);
 				__sip_destroy(sip, 1);
 				goto restartsearch;
