@@ -11439,7 +11439,11 @@ static void *do_monitor(void *data)
 restartsearch:		
 		time(&t);
 		sip = iflist;
-		while(sip) {
+		/* don't scan the interface list if it hasn't been a reasonable period
+		   of time since the last time we did it (when MWI is being sent, we can
+		   get back to this point every millisecond or less)
+		*/
+		while(!fastrestart && sip) {
 			ast_mutex_lock(&sip->lock);
 			if (sip->rtp && sip->owner && (sip->owner->_state == AST_STATE_UP) && !sip->redirip.sin_addr.s_addr) {
 				if (sip->lastrtptx && sip->rtpkeepalive && t > sip->lastrtptx + sip->rtpkeepalive) {
@@ -11464,8 +11468,14 @@ restartsearch:
 							if (sip->owner) {
 								ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n", sip->owner->name, (long)(t - sip->lastrtprx));
 								/* Issue a softhangup */
-								ast_softhangup(sip->owner, AST_SOFTHANGUP_DEV);
+								ast_softhangup_nolock(sip->owner, AST_SOFTHANGUP_DEV);
 								ast_mutex_unlock(&sip->owner->lock);
+								/* forget the timeouts for this call, since a hangup
+								   has already been requested and we don't want to
+								   repeatedly request hangups
+								*/
+								sip->rtptimeout = 0;
+								sip->rtpholdtimeout = 0;
 							}
 						}
 					}
