@@ -253,9 +253,9 @@ static struct ast_frame *ast_frame_header_new(void)
 		memset(f, 0, sizeof(struct ast_frame));
 #ifdef TRACE_FRAMES
 	if (f) {
-		headers++;
 		f->prev = NULL;
 		ast_mutex_lock(&framelock);
+		headers++;
 		f->next = headerlist;
 		if (headerlist)
 			headerlist->prev = f;
@@ -282,8 +282,8 @@ void ast_frfree(struct ast_frame *fr)
 	}
 	if (fr->mallocd & AST_MALLOCD_HDR) {
 #ifdef TRACE_FRAMES
-		headers--;
 		ast_mutex_lock(&framelock);
+		headers--;
 		if (fr->next)
 			fr->next->prev = fr->prev;
 		if (fr->prev)
