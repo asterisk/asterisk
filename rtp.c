@@ -1041,7 +1041,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		rtp->seedrxseqno = seqno;
 	}
 
-	if (rtp->rtcp->schedid < 1) {
+	if (rtp->rtcp && rtp->rtcp->schedid < 1) {
 		/* Schedule transmission of Receiver Report */
 		rtp->rtcp->schedid = ast_sched_add(rtp->sched, ast_rtcp_calc_interval(rtp), ast_rtcp_write, rtp);
 	}
@@ -1755,7 +1755,7 @@ void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us)
 
 void ast_rtp_stop(struct ast_rtp *rtp)
 {
-	if (rtp->rtcp->schedid > 0) {
+	if (rtp->rtcp && rtp->rtcp->schedid > 0) {
 		ast_sched_del(rtp->sched, rtp->rtcp->schedid);
 		rtp->rtcp->schedid = -1;
 	}
@@ -1827,11 +1827,6 @@ void ast_rtp_destroy(struct ast_rtp *rtp)
 		ast_verbose("  RTT:		 %f\n", rtp->rtcp->rtt);
 	}
 
-	if (rtp->rtcp->schedid > 0) {
-		ast_sched_del(rtp->sched, rtp->rtcp->schedid);
-		rtp->rtcp->schedid = -1;
-	}
-
 	if (rtp->smoother)
 		ast_smoother_free(rtp->smoother);
 	if (rtp->ioid)
@@ -1839,6 +1834,8 @@ void ast_rtp_destroy(struct ast_rtp *rtp)
 	if (rtp->s > -1)
 		close(rtp->s);
 	if (rtp->rtcp) {
+		if (rtp->rtcp->schedid > 0)
+			ast_sched_del(rtp->sched, rtp->rtcp->schedid);
 		close(rtp->rtcp->s);
 		free(rtp->rtcp);
 		rtp->rtcp=NULL;
@@ -2294,7 +2291,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			rtp->txcount++;
 			rtp->txoctetcount +=(res - hdrlen);
 			
-			if (rtp->rtcp->schedid < 1) 
+			if (rtp->rtcp && rtp->rtcp->schedid < 1) 
 			    rtp->rtcp->schedid = ast_sched_add(rtp->sched, ast_rtcp_calc_interval(rtp), ast_rtcp_write, rtp);
 		}
 				
