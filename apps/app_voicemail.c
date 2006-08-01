@@ -101,8 +101,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 #define COMMAND_TIMEOUT 5000
-#define	VOICEMAIL_DIR_MODE	0770
-#define	VOICEMAIL_FILE_MODE	0660
+/* Don't modify these here; set your umask at runtime instead */
+#define	VOICEMAIL_DIR_MODE	0777
+#define	VOICEMAIL_FILE_MODE	0666
 
 #define VOICEMAIL_CONFIG "voicemail.conf"
 #define ASTERISK_USERNAME "asterisk"
