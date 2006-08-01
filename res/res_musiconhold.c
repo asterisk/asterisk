@@ -195,6 +195,10 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 	struct moh_files_state *state = chan->music_state;
 
 	if (chan && state) {
+		if (chan->stream) {
+                        ast_closestream(chan->stream);
+                        chan->stream = NULL;
+                }
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
 
