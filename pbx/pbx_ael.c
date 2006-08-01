@@ -149,6 +149,8 @@ static void print_pval_list(FILE *fin, pval *item, int depth);
 
 static struct pval *find_label_in_current_extension(const char *label);
 static struct pval *find_label_in_current_db(const char *context, const char *exten, const char *label);
+static void remove_spaces_before_equals(char *str);
+
 
 /* PRETTY PRINTER FOR AEL:  ============================================================================= */
 
@@ -2526,6 +2528,25 @@ void linkexten(struct ael_extension *exten, struct ael_extension *add)
 	exten->next_exten = add;
 }
 
+static void remove_spaces_before_equals(char *str)
+{
+	char *p;
+	while( str && *str && *str != '=' )
+	{
+		if( *str == ' ' || *str == '\n' || *str == '\r' || *str == '\t' )
+		{
+			p = str;
+			while( *p )
+			{
+				*p = *(p+1);
+				p++;
+			}
+		}
+		else
+			str++;
+	}
+}
+
 void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct ael_extension *mother_exten )
 {
 	pval *p,*p2,*p3;
@@ -2554,6 +2575,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			pr->type = AEL_APPCALL;
 			snprintf(buf1,sizeof(buf1),"%s=$[%s]", p->u1.str, p->u2.val);
 			pr->app = strdup("Set");
+			remove_spaces_before_equals(buf1);
 			pr->appargs = strdup(buf1);
 			pr->origin = p;
 			linkprio(exten, pr);
@@ -2612,6 +2634,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			for_init->app = strdup("Set");
 			
 			strcpy(buf2,p->u1.for_init);
+			remove_spaces_before_equals(buf2);
 			strp = strchr(buf2, '=');
 			strp2 = strchr(p->u1.for_init, '=');
 			if (strp) {
@@ -2626,6 +2649,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			for_inc->app = strdup("Set");
 
 			strcpy(buf2,p->u3.for_inc);
+			remove_spaces_before_equals(buf2);
 			strp = strchr(buf2, '=');
 			strp2 = strchr(p->u3.for_inc, '=');
 			if (strp) {
@@ -3308,6 +3332,7 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 				np2->type = AEL_APPCALL;
 				np2->app = strdup("Set");
 				snprintf(buf,sizeof(buf),"%s=${ARG%d}", lp->u1.str, argc++);
+				remove_spaces_before_equals(buf);
 				np2->appargs = strdup(buf);
 				linkprio(exten, np2);
 			}
