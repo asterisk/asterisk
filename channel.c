@@ -3380,7 +3380,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	struct timeval nexteventts = { 0, };
 	char caller_warning = 0;
 	char callee_warning = 0;
-	int to;
 
 	if (c0->_bridge) {
 		ast_log(LOG_WARNING, "%s is already in a bridge with %s\n", 
@@ -3432,20 +3431,28 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	o0nativeformats = c0->nativeformats;
 	o1nativeformats = c1->nativeformats;
 
-	if (config->timelimit) {
+	if (config->feature_timer) {
+		nexteventts = ast_tvadd(config->start_time, ast_samp2tv(config->feature_timer, 1000));
+	} else if (config->timelimit) {
 		nexteventts = ast_tvadd(config->start_time, ast_samp2tv(config->timelimit, 1000));
 		if (caller_warning || callee_warning)
 			nexteventts = ast_tvsub(nexteventts, ast_samp2tv(config->play_warning, 1000));
 	}
 
 	for (/* ever */;;) {
+		struct timeval now;
+		int to;
+
 		to = -1;
-		if (config->timelimit) {
-			struct timeval now;
+
+		if (!ast_tvzero(nexteventts)) {
 			now = ast_tvnow();
 			to = ast_tvdiff_ms(nexteventts, now);
 			if (to < 0)
 				to = 0;
+		}
+
+		if (config->timelimit) {
 			time_left_ms = config->timelimit - ast_tvdiff_ms(now, config->start_time);
 			if (time_left_ms < to)
 				to = time_left_ms;
