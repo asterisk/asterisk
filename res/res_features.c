@@ -1472,6 +1472,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					config->start_sound = NULL;
 					config->firstpass = 0;
 				}
+				config->start_time = ast_tvnow();
 				config->feature_timer = featuredigittimeout;
 				ast_log(LOG_DEBUG, "Set time limit to %ld\n", config->feature_timer);
 			}
