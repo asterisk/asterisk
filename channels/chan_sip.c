@@ -9596,14 +9596,20 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		return;
 	}
 
+	/* RFC3261 says we must treat every 1xx response (but not 100)
+	   that we don't recognize as if it was 183.
+	*/
+	if ((resp > 100) &&
+	    (resp < 200) &&
+	    (resp != 180) &&
+	    (resp != 183))
+		resp = 183;
+
 	switch (resp) {
 	case 100:	/* Trying */
 		if (!ignore)
 			sip_cancel_destroy(p);
-		/* must call check_pendings before setting CAN_BYE, so that
-		   if PENDINGBYE is set it will know to send CANCEL instead */
 		check_pendings(p);
-		ast_set_flag(p, SIP_CAN_BYE);
 		break;
 	case 180:	/* 180 Ringing */
 		if (!ignore)
@@ -9620,10 +9626,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
 			}
 		}
-		/* must call check_pendings before setting CAN_BYE, so that
-		   if PENDINGBYE is set it will know to send CANCEL instead */
-		check_pendings(p);
 		ast_set_flag(p, SIP_CAN_BYE);
+		check_pendings(p);
 		break;
 	case 183:	/* Session progress */
 		if (!ignore)
@@ -9636,10 +9640,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
 			}
 		}
-		/* must call check_pendings before setting CAN_BYE, so that
-		   if PENDINGBYE is set it will know to send CANCEL instead */
-		check_pendings(p);
 		ast_set_flag(p, SIP_CAN_BYE);
+		check_pendings(p);
 		break;
 	case 200:	/* 200 OK on invite - someone's answering our call */
 		if (!ignore)
@@ -9678,6 +9680,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		}
 		/* If I understand this right, the branch is different for a non-200 ACK only */
 		transmit_request(p, SIP_ACK, seqno, 0, 1);
+		ast_set_flag(p, SIP_CAN_BYE);
 		check_pendings(p);
 		break;
 	case 407: /* Proxy authentication */
