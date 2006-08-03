@@ -106,7 +106,9 @@ For voicemail storage with the support of ODBC, there is a
 doc/odbcstorage.txt documentation file.
 
 
-* FreeTDS not supported
------------------------
-Due to architectural constraints in the FreeTDS libraries, FreeTDS is not
-supported for use with realtime at this time.
+* FreeTDS supported with connection pooling
+-------------------------------------------
+In order to use a FreeTDS-based database with realtime, you need to turn
+connection pooling on in res_odbc.conf.  This is due to a limitation within
+the FreeTDS protocol itself.  Please note that this includes databases such
+as MS SQL Server and Sybase.  This support is new in the current release.
