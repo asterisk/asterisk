@@ -25,8 +25,8 @@ Currently there are three realtime database drivers:
 * ODBC: Support for UnixODBC, integrated into Asterisk
   The UnixODBC subsystem supports many different databases,
   please check www.unixodbc.org for more information.
-* MySQL: Found in the asterisk-addons subversion repository on cvs.digium.com
-
+* MySQL: Found in the asterisk-addons subversion repository on svn.digium.com
+* PostgreSQL: Native support for Postgres, integrated into Asterisk
 
 * Two modes: Static and Realtime
 --------------------------------
@@ -104,6 +104,13 @@ doc/extconfig.txt in your Asterisk source code tree.
 
 For voicemail storage with the support of ODBC, there is a 
 doc/odbcstorage.txt documentation file.
+
+
+* Limitations
+-------------
+Currently, realtime extensions do not support realtime hints.  There is
+a workaround available by using func_odbc.  See the sample func_odbc.conf
+for more information.
 
 
 * FreeTDS supported with connection pooling
