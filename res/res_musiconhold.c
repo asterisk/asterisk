@@ -234,7 +234,7 @@ static int ast_moh_files_next(struct ast_channel *chan)
 			state->pos %= state->class->total_files;
 
 			/* check to see if this file's format can be opened */
-			if (ast_fileexists(state->class->filearray[state->pos], NULL, NULL) != -1)
+			if (ast_fileexists(state->class->filearray[state->pos], NULL, NULL) > 0)
 				break;
 
 		}
