@@ -4380,7 +4380,7 @@ static int vm_intro_nl(struct ast_channel *chan,struct vm_state *vms)
 		if (vms->newmessages) {
 			res = say_and_wait(chan, vms->newmessages, chan->language);
 			if (!res) {
-				if (vms->oldmessages == 1)
+				if (vms->newmessages == 1)
 					res = ast_play_and_wait(chan, "vm-INBOXs");
 				else
 					res = ast_play_and_wait(chan, "vm-INBOX");
