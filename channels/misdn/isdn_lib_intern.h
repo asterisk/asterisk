@@ -61,6 +61,9 @@ struct misdn_stack {
 	int lower_id;
 	int upper_id;
   
+
+  	int blocked;
+
 	int l2link;
   
 	time_t l2establish;
@@ -94,5 +97,7 @@ struct misdn_stack {
 
 
 struct misdn_stack* get_stack_by_bc(struct misdn_bchannel *bc);
+
+
 
 #endif

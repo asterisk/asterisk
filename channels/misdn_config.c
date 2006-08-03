@@ -112,10 +112,9 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\tBut be aware! a broken or plugged off cable might be used for a group call\n"
 		"\tas well, since chan_misdn has no chance to distinguish if the L1 is down\n"
 		"\tbecause of a lost Link or because the Provider shut it down..." },
-	{ "pp_l2_check", MISDN_CFG_PP_L2_CHECK, MISDN_CTYPE_BOOL, "no", NONE ,
-	  "Some PBX's do not turn on the L2 automatically. Turn this to yes\n"
-	  "and we'll ignore that and send out calls on that port anyways\n"
-	  "default: no\n" },
+	{ "block_on_alarm", MISDN_CFG_ALARM_BLOCK, MISDN_CTYPE_BOOL, "yes", NONE ,
+	  "Block this port if we have an alarm on it.\n"
+	  "default: yes\n" },
 	{ "hdlc", MISDN_CFG_HDLC, MISDN_CTYPE_BOOL, "no", NONE,
 		"Set this to yes, if you want to bridge a mISDN data channel to\n"
 		"\tanother channel type or to an application." },
@@ -239,12 +238,20 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "echocancelwhenbridged", MISDN_CFG_ECHOCANCELWHENBRIDGED, MISDN_CTYPE_BOOL, "no", NONE,
 		"This disables echocancellation when the call is bridged between\n"
 		"\tmISDN channels" },
-	{ "echotraining", MISDN_CFG_ECHOTRAINING, MISDN_CTYPE_BOOLINT, "0", 2000,
-		"Set this to no to disable echotraining. You can enter a number > 10.\n"
-		"\tThe value is a multiple of 0.125 ms.\n"
-		"\n"
-		"\tyes = 2000\n"
-		"\tno = 0" },
+#ifdef WITH_BEROEC
+	{ "bnechocancel", MISDN_CFG_BNECHOCANCEL, MISDN_CTYPE_BOOLINT, "yes", 64,
+		"echotail in ms (1-200)\n"},
+	{ "bnec_antihowl", MISDN_CFG_BNEC_ANTIHOWL, MISDN_CTYPE_INT, "0", NONE,
+		"Use antihowl\n"},
+	{ "bnec_nlp", MISDN_CFG_BNEC_NLP, MISDN_CTYPE_BOOL, "yes", NONE,
+		"Nonlinear Processing (much faster adaption)"},
+	{ "bnec_zerocoeff", MISDN_CFG_BNEC_ZEROCOEFF, MISDN_CTYPE_BOOL, "no", NONE,
+		"ZeroCoeffeciens\n"},
+	{ "bnec_tonedisabler", MISDN_CFG_BNEC_TD, MISDN_CTYPE_BOOL, "no", NONE,
+		"Disable Tone\n"},
+	{ "bnec_adaption", MISDN_CFG_BNEC_ADAPT, MISDN_CTYPE_INT, "1", NONE,
+		"Adaption mode (0=no,1=full,2=fast)\n"},
+#endif
 	{ "need_more_infos", MISDN_CFG_NEED_MORE_INFOS, MISDN_CTYPE_BOOL, "0", NONE,
 		"Send Setup_Acknowledge on incoming calls anyway (instead of PROCEEDING),\n"
 		"\tthis requests additional Infos, so we can waitfordigits without much\n"

@@ -19,6 +19,30 @@
 /* typedef int ie_nothing_t ;*/
 /** end of init usage **/
 
+#ifdef WITH_BEROEC
+typedef int beroec_t;
+
+
+enum beroec_type {
+	BEROEC_FULLBAND=0,
+	BEROEC_SUBBAND,
+	BEROEC_FASTSUBBAND
+};
+
+void beroec_init(void);
+void beroec_exit(void);
+beroec_t *beroec_new(int tail, enum beroec_type type, int anti_howl,
+		     int tonedisable, int zerocoeff, int adapt, int nlp);
+
+void beroec_destroy(beroec_t *ec);
+int beroec_cancel_alaw_chunk(beroec_t *ec, 
+	char *send, 
+	char *receive , 
+	int len);
+
+int beroec_version(void);
+#endif
+
 
 
 enum tone_e {
@@ -114,6 +138,7 @@ enum event_e {
 	EVENT_DTMF_TONE,
 	EVENT_NEW_L3ID,
 	EVENT_NEW_BC,
+	EVENT_PORT_ALARM,
 	EVENT_NEW_CHANNEL,
 	EVENT_UNKNOWN
 }; 
@@ -326,6 +351,16 @@ struct misdn_bchannel {
 	int ec_deftaps;
 	int ec_whenbridged;
 	int ec_training;
+
+#ifdef WITH_BEROEC
+	beroec_t *ec;
+	int bnec_tail;
+	int bnec_ah;
+	int bnec_nlp;
+	int bnec_td;
+	int bnec_adapt;
+	int bnec_zero;
+#endif
 	
 	int orig;
 
@@ -374,6 +409,9 @@ void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2);
 
 int misdn_lib_port_restart(int port);
 int misdn_lib_get_port_info(int port);
+
+int misdn_lib_port_block(int port);
+int misdn_lib_port_unblock(int port);
 
 int misdn_lib_port_up(int port, int notcheck);
 

@@ -29,7 +29,7 @@ enum misdn_cfg_elements {
 	MISDN_CFG_TXGAIN,              /* int */
 	MISDN_CFG_TE_CHOOSE_CHANNEL,   /* int (bool) */
 	MISDN_CFG_PMP_L1_CHECK,        /* int (bool) */
-	MISDN_CFG_PP_L2_CHECK,        /* int (bool) */
+	MISDN_CFG_ALARM_BLOCK,        /* int (bool) */
 	MISDN_CFG_HDLC,                /* int (bool) */
 	MISDN_CFG_CONTEXT,             /* char[] */
 	MISDN_CFG_LANGUAGE,            /* char[] */
@@ -52,7 +52,18 @@ enum misdn_cfg_elements {
 	MISDN_CFG_INCOMING_EARLY_AUDIO,      /* int (bool) */
 	MISDN_CFG_ECHOCANCEL,          /* int */
 	MISDN_CFG_ECHOCANCELWHENBRIDGED,  /* int (bool) */
+#ifdef WITH_ECHOTRAINGING
 	MISDN_CFG_ECHOTRAINING,        /* int (bool) */
+#endif
+
+#ifdef WITH_BEROEC
+	MISDN_CFG_BNECHOCANCEL,
+	MISDN_CFG_BNEC_ANTIHOWL,
+	MISDN_CFG_BNEC_NLP,
+	MISDN_CFG_BNEC_ZEROCOEFF,
+	MISDN_CFG_BNEC_TD,
+	MISDN_CFG_BNEC_ADAPT,
+#endif
 	MISDN_CFG_NEED_MORE_INFOS,     /* bool */
 	MISDN_CFG_JITTERBUFFER,              /* int */
 	MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD,              /* int */

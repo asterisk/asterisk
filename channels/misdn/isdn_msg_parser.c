@@ -1211,6 +1211,7 @@ char EVENT_CLEAN_INFO[] = "CLEAN_UP";
 char EVENT_DTMF_TONE_INFO[] = "DTMF_TONE";
 char EVENT_NEW_L3ID_INFO[] = "NEW_L3ID";
 char EVENT_NEW_BC_INFO[] = "NEW_BC";
+char EVENT_PORT_ALARM_INFO[] = "ALARM";
 char EVENT_NEW_CHANNEL_INFO[] = "NEW_CHANNEL";
 char EVENT_BCHAN_DATA_INFO[] = "BCHAN_DATA";
 char EVENT_BCHAN_ACTIVATED_INFO[] = "BCHAN_ACTIVATED";
@@ -1230,6 +1231,7 @@ char * isdn_get_info(struct isdn_msg msgs[], enum event_e event, int nt)
 	if (event == EVENT_BCHAN_DATA) return EVENT_BCHAN_DATA_INFO;
 	if (event == EVENT_BCHAN_ACTIVATED) return EVENT_BCHAN_ACTIVATED_INFO;
 	if (event == EVENT_TONE_GENERATE) return EVENT_TONE_GENERATE_INFO;
+	if (event == EVENT_PORT_ALARM) return EVENT_PORT_ALARM_INFO;
 	
 	return NULL;
 }
