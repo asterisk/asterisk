@@ -829,12 +829,9 @@ static struct iax2_thread *find_idle_thread(void)
 {
 	struct iax2_thread *thread = NULL;
 
-	/* Find free idle thread in the list, get a pointer to it, and remove it from the list */
+	/* Pop the head of the list off */
 	AST_LIST_LOCK(&idle_list);
-	thread = AST_LIST_FIRST(&idle_list);
-	if (thread != NULL) {
-		AST_LIST_REMOVE(&idle_list, thread, list);
-	}
+	thread = AST_LIST_REMOVE_HEAD(&idle_list, list);
 	AST_LIST_UNLOCK(&idle_list);
 
 	/* If no idle thread is available from the regular list, try dynamic */
