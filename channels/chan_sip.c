@@ -8306,9 +8306,13 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 		*ptr = '\0';
 	ast_copy_string(referdata->refer_to, refer_to, sizeof(referdata->refer_to));
 	
-	if ((ptr = strchr(referred_by_uri, ';'))) 	/* Remove options */
-		*ptr = '\0';
-	ast_copy_string(referdata->referred_by, referred_by_uri, sizeof(referdata->referred_by));
+	if (referred_by_uri) {
+		if ((ptr = strchr(referred_by_uri, ';'))) 	/* Remove options */
+			*ptr = '\0';
+		ast_copy_string(referdata->referred_by, referred_by_uri, sizeof(referdata->referred_by));
+	} else {
+		referdata->referred_by[0] = '\0';
+	}
 
 	/* Determine transfer context */
 	if (transferer->owner)	/* Mimic behaviour in res_features.c */
