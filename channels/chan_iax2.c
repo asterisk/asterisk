@@ -897,7 +897,7 @@ static int __schedule_action(void (*func)(void *data), void *data, const char *f
 static void __send_ping(void *data)
 {
 	int callno = (long)data;
-	send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_PING, 0, NULL, 0, -1);
+	send_command_locked(callno, AST_FRAME_IAX, IAX_COMMAND_PING, 0, NULL, 0, -1);
 }
 
 static int send_ping(void *data)
@@ -930,7 +930,7 @@ static void __send_lagrq(void *data)
 {
 	int callno = (long)data;
 	/* Ping only if it's real not if it's bridged */
-	send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_LAGRQ, 0, NULL, 0, -1);
+	send_command_locked(callno, AST_FRAME_IAX, IAX_COMMAND_LAGRQ, 0, NULL, 0, -1);
 }
 
 static int send_lagrq(void *data)
