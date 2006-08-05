@@ -3440,7 +3440,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	}
 
 	for (/* ever */;;) {
-		struct timeval now;
+		struct timeval now = { 0, };
 		int to;
 
 		to = -1;
