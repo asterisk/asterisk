@@ -9331,7 +9331,7 @@ static char *func_header_read(struct ast_channel *chan, char *cmd, char *data, c
 
 static struct ast_custom_function sip_header_function = {
 	.name = "SIP_HEADER",
-	.synopsis = "Gets or sets the specified SIP header",
+	.synopsis = "Gets the specified SIP header",
 	.syntax = "SIP_HEADER(<name>)",
 	.read = func_header_read,
 };
