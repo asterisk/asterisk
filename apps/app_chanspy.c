@@ -260,7 +260,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 		       const struct ast_flags *flags) 
 {
 	struct chanspy_translation_helper csth;
-	int running, res, x = 0;
+	int running = 0, res, x = 0;
 	char inp[24] = {0};
 	char *name;
 	struct ast_frame *f;
