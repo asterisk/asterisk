@@ -527,6 +527,10 @@ char *ast_state2str(int state)
 		return "Up";
 	case AST_STATE_BUSY:
 		return "Busy";
+	case AST_STATE_DIALING_OFFHOOK:
+		return "Dialing Offhook";
+	case AST_STATE_PRERING:
+		return "Pre-ring";
 	default:
 		pthread_once(&state2str_buf_once, state2str_buf_key_create);
 		if (!(buf = pthread_getspecific(state2str_buf_key))) {
@@ -534,7 +538,7 @@ char *ast_state2str(int state)
 				return NULL;
 			pthread_setspecific(state2str_buf_key, buf);
 		}
-		snprintf(buf, STATE2STR_BUFSIZE, "Unknown (%d)\n", state);
+		snprintf(buf, STATE2STR_BUFSIZE, "Unknown (%d)", state);
 		return buf;
 	}
 }
