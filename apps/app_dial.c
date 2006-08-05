@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <stdio.h>
 #include <sys/time.h>
 #include <sys/signal.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 
 #include "asterisk/lock.h"
@@ -1001,7 +1002,13 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			   unless it is already there-- this should be done before the 
 			   call is actually dialed  */
 
-			/* make sure the priv-callerintros dir exists? */
+			/* make sure the priv-callerintros dir actually exists */
+			snprintf(privintro, sizeof(privintro), "%s/sounds/priv-callerintros", ast_config_AST_DATA_DIR);
+			if (mkdir(privintro, 0755) && errno != EEXIST) {
+				ast_log(LOG_WARNING, "privacy: can't create directory priv-callerintros: %s\n", strerror(errno));
+				res = -1;
+				goto out;
+			}
 
 			snprintf(privintro,sizeof(privintro), "priv-callerintros/%s", privcid);
 			if( ast_fileexists(privintro,NULL,NULL ) > 0 && strncmp(privcid,"NOCALLERID",10) != 0) {
