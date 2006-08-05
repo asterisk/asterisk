@@ -2582,7 +2582,13 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		ast_string_field_set(tmp, call_forward, l->call_forward);
 		ast_copy_string(tmp->context, l->context, sizeof(tmp->context));
 		ast_copy_string(tmp->exten, l->exten, sizeof(tmp->exten));
-		ast_set_callerid(tmp, l->cid_num, l->cid_name, l->cid_num);
+
+		/* Don't use ast_set_callerid() here because it will
+		 * generate a NewCallerID event before the NewChannel event */
+		tmp->cid.cid_num = ast_strdup(l->cid_num);
+		tmp->cid.cid_ani = ast_strdup(l->cid_num);
+		tmp->cid.cid_name = ast_strdup(l->cid_name);
+
 		tmp->priority = 1;
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 

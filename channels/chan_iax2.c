@@ -3259,16 +3259,21 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 	tmp->writeformat = ast_best_codec(capability);
 	tmp->tech_pvt = CALLNO_TO_PTR(i->callno);
 
-	ast_set_callerid(tmp, i->cid_num, i->cid_name, S_OR(i->ani, i->cid_num));
-	if (!ast_strlen_zero(i->language))
-		ast_string_field_set(tmp, language, i->language);
-	if (!ast_strlen_zero(i->dnid))
-		tmp->cid.cid_dnid = ast_strdup(i->dnid);
-	if (!ast_strlen_zero(i->rdnis))
-		tmp->cid.cid_rdnis = ast_strdup(i->rdnis);
+	/* Don't use ast_set_callerid() here because it will
+	 * generate a NewCallerID event before the NewChannel event */
+	tmp->cid.cid_num = ast_strdup(i->cid_num);
+	tmp->cid.cid_name = ast_strdup(i->cid_name);
+	if (!ast_strlen_zero(i->ani))
+		tmp->cid.cid_ani = ast_strdup(i->ani);
+	else
+		tmp->cid.cid_ani = ast_strdup(i->cid_num);
+	tmp->cid.cid_dnid = ast_strdup(i->dnid);
+	tmp->cid.cid_rdnis = ast_strdup(i->rdnis);
 	tmp->cid.cid_pres = i->calling_pres;
 	tmp->cid.cid_ton = i->calling_ton;
 	tmp->cid.cid_tns = i->calling_tns;
+	if (!ast_strlen_zero(i->language))
+		ast_string_field_set(tmp, language, i->language);
 	if (!ast_strlen_zero(i->accountcode))
 		ast_string_field_set(tmp, accountcode, i->accountcode);
 	if (i->amaflags)

@@ -796,18 +796,19 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		if (pvt->amaflags) {
 			ch->amaflags = pvt->amaflags;
 		}
-		/*
-		 * If cid_num and cd.call_source_e164 are both null, then
-		 * ast_set_callerid will do the right thing and leave the
-		 * cid_num and cid_ani for the channel alone.
-		 */
-		ast_set_callerid(ch,
-			!ast_strlen_zero(pvt->cid_num) ? pvt->cid_num : pvt->cd.call_source_e164,
-			!ast_strlen_zero(pvt->cid_name) ? pvt->cid_name : pvt->cd.call_source_name,
-			!ast_strlen_zero(pvt->cid_num) ? pvt->cid_num : pvt->cd.call_source_e164);
-		if (!ast_strlen_zero(pvt->rdnis)) {
-			ch->cid.cid_rdnis = strdup(pvt->rdnis);
+		
+		/* Don't use ast_set_callerid() here because it will
+		 * generate a NewCallerID event before the NewChannel event */
+		if (!ast_strlen_zero(pvt->cid_num)) {
+			ch->cid.cid_num = ast_strdup(pvt->cid_num);
+			ch->cid.cid_ani = ast_strdup(pvt->cid_num);
+		} else {
+			ch->cid.cid_num = ast_strdup(pvt->cd.call_source_e164);
+			ch->cid.cid_ani = ast_strdup(pvt->cd.call_source_e164);
 		}
+		ch->cid.cid_name = ast_strdup(pvt->cid_name);
+		ch->cid.cid_rdnis = ast_strdup(pvt->rdnis);
+		
 		if (!ast_strlen_zero(pvt->exten) && strcmp(pvt->exten, "s")) {
 			ch->cid.cid_dnid = strdup(pvt->exten);
 		}

@@ -864,7 +864,13 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 			strncpy(tmp->exten, "s",  sizeof(tmp->exten) - 1);
 		if (!ast_strlen_zero(i->language))
 			ast_string_field_set(tmp, language, i->language);
-		ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
+
+		/* Don't use ast_set_callerid() here because it will
+		 * generate a NewCallerID event before the NewChannel event */
+		tmp->cid.cid_num = ast_strdup(i->cid_num);
+		tmp->cid.cid_ani = ast_strdup(i->cid_num);
+		tmp->cid.cid_name = ast_strdup(i->cid_name);
+
 		i->owner = tmp;
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;

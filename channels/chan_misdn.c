@@ -3099,9 +3099,11 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 			char *cid_name, *cid_num;
       
 			ast_callerid_parse(callerid, &cid_name, &cid_num);
-			ast_set_callerid(tmp, cid_num,cid_name,cid_num);
-		} else {
-			ast_set_callerid(tmp, NULL,NULL,NULL);
+			/* Don't use ast_set_callerid() here because it will
+			 * generate a NewCallerID event before the NewChannel event */
+			tmp->cid.cid_num = ast_strdup(cid_num);
+			tmp->cid.cid_ani = ast_strdup(cid_num);
+			tmp->cid.cid_name = ast_strdup(cid_name);
 		}
 
 		{

@@ -1415,7 +1415,13 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		ast_string_field_set(tmp, call_forward, i->call_forward);
 		ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
 		ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
-		ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
+
+		/* Don't use ast_set_callerid() here because it will
+		 * generate a NewCallerID event before the NewChannel event */
+		tmp->cid.cid_num = ast_strdup(i->cid_num);
+		tmp->cid.cid_ani = ast_strdup(i->cid_num);
+		tmp->cid.cid_name = ast_strdup(i->cid_name);
+		
 		if (!i->adsi)
 			tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 		tmp->priority = 1;
