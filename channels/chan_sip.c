@@ -2821,16 +2821,20 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	if (!ast_strlen_zero(i->musicclass))
 		ast_copy_string(tmp->musicclass, i->musicclass, sizeof(tmp->musicclass));
 	i->owner = tmp;
-	ast_mutex_lock(&usecnt_lock);
-	usecnt++;
-	ast_mutex_unlock(&usecnt_lock);
 	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
-	ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
+
+	if (!ast_strlen_zero(i->cid_num)) {
+		tmp->cid.cid_num = strdup(i->cid_num);
+		tmp->cid.cid_ani = strdup(i->cid_num);
+	}
+	if (!ast_strlen_zero(i->cid_name))
+		tmp->cid.cid_name = strdup(i->cid_name);
 	if (!ast_strlen_zero(i->rdnis))
 		tmp->cid.cid_rdnis = strdup(i->rdnis);
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s"))
 		tmp->cid.cid_dnid = strdup(i->exten);
+
 	tmp->priority = 1;
 	if (!ast_strlen_zero(i->uri)) {
 		pbx_builtin_setvar_helper(tmp, "SIPURI", i->uri);
@@ -2860,6 +2864,11 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	for (v = i->chanvars ; v ; v = v->next)
 		pbx_builtin_setvar_helper(tmp,v->name,v->value);
 				
+	ast_mutex_lock(&usecnt_lock);
+	usecnt++;
+	ast_mutex_unlock(&usecnt_lock);
+	ast_update_use_count();	
+	
 	return tmp;
 }
 

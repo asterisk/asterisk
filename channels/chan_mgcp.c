@@ -1428,7 +1428,14 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		strncpy(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward) - 1);
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
-		ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
+
+		if (!ast_strlen_zero(i->cid_num)) {
+			tmp->cid.cid_num = strdup(i->cid_num);
+			tmp->cid.cid_ani = strdup(i->cid_num);
+		}
+		if (!ast_strlen_zero(i->cid_name))
+			tmp->cid.cid_name = strdup(i->cid_name);
+		
 		if (!i->adsi)
 			tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 		tmp->priority = 1;

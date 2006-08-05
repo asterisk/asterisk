@@ -770,15 +770,15 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 			ch->amaflags = pvt->amaflags;
 		}
 
-		/*
-		 * If cid_num and cdi.call_source_e164 are both null, then
-		 * ast_set_callerid will do the right thing and leave the
-		 * cid_num and cid_ani for the channel alone.
-		 */
-		ast_set_callerid(ch,
-			!ast_strlen_zero(pvt->cid_num) ? pvt->cid_num : pvt->cd.call_source_e164,
-			pvt->cid_name,
-			!ast_strlen_zero(pvt->cid_num) ? pvt->cid_num : pvt->cd.call_source_e164);
+		if (!ast_strlen_zero(pvt->cid_num)) {
+			ch->cid.cid_num = strdup(pvt->cid_num);
+			ch->cid.cid_ani = strdup(pvt->cid_num);
+		} else if (!ast_strlen_zero(pvt->cd.call_source_e164)) {
+			ch->cid.cid_num = strdup(pvt->cd.call_source_e164);
+			ch->cid.cid_ani = strdup(pvt->cd.call_source_e164);
+		}
+		if (!ast_strlen_zero(pvt->cid_name))
+			ch->cid.cid_name = strdup(pvt->cid_name);
 
 		if (!ast_strlen_zero(pvt->rdnis)) {
 			ch->cid.cid_rdnis = strdup(pvt->rdnis);

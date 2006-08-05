@@ -2164,7 +2164,12 @@ struct ast_channel *misdn_new(struct chan_list *chlist, int state, char * name, 
 			char *cid_name, *cid_num;
       
 			ast_callerid_parse(callerid, &cid_name, &cid_num);
-			ast_set_callerid(tmp, cid_num, cid_name, cid_num);
+			if (!ast_strlen_zero(cid_num)) {
+				tmp->cid.cid_num = strdup(cid_num);
+				tmp->cid.cid_ani = strdup(cid_num);
+			}
+			if (!ast_strlen_zero(cid_name))
+				tmp->cid.cid_name = strdup(cid_name);
 		}
 
 		{

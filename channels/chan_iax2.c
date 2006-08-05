@@ -3442,15 +3442,22 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		tmp->writeformat = ast_best_codec(capability);
 		tmp->tech_pvt = CALLNO_TO_PTR(i->callno);
 
-		ast_set_callerid(tmp, i->cid_num, i->cid_name,
-			i->ani ? i->ani : i->cid_num);
+		if (!ast_strlen_zero(i->cid_num))
+			tmp->cid.cid_num = strdup(i->cid_num);
+		if (!ast_strlen_zero(i->cid_name))
+			tmp->cid.cid_name = strdup(i->cid_name);
+		if (!ast_strlen_zero(i->ani))
+			tmp->cid.cid_ani = strdup(i->ani);
+		else if (!ast_strlen_zero(i->cid_num))
+			tmp->cid.cid_ani = strdup(i->cid_num);
+		tmp->cid.cid_pres = i->calling_pres;
+		tmp->cid.cid_ton = i->calling_ton;
+		tmp->cid.cid_tns = i->calling_tns;
+
 		if (!ast_strlen_zero(i->language))
 			ast_copy_string(tmp->language, i->language, sizeof(tmp->language));
 		if (!ast_strlen_zero(i->dnid))
 			tmp->cid.cid_dnid = strdup(i->dnid);
-		tmp->cid.cid_pres = i->calling_pres;
-		tmp->cid.cid_ton = i->calling_ton;
-		tmp->cid.cid_tns = i->calling_tns;
 		if (!ast_strlen_zero(i->accountcode))
 			ast_copy_string(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode));
 		if (i->amaflags)
@@ -3461,10 +3468,6 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		i->owner = tmp;
 		i->capability = capability;
 		ast_setstate(tmp, state);
-		ast_mutex_lock(&usecnt_lock);
-		usecnt++;
-		ast_mutex_unlock(&usecnt_lock);
-		ast_update_use_count();
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -3475,6 +3478,10 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		for (v = i->vars ; v ; v = v->next)
 			pbx_builtin_setvar_helper(tmp,v->name,v->value);
 		
+		ast_mutex_lock(&usecnt_lock);
+		usecnt++;
+		ast_mutex_unlock(&usecnt_lock);
+		ast_update_use_count();
 	}
 	return tmp;
 }
