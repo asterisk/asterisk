@@ -5118,9 +5118,21 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			tmp->cid.cid_dnid = strdup(i->dnid);
 
 #ifdef PRI_ANI
-		ast_set_callerid(tmp, i->cid_num, i->cid_name, ast_strlen_zero(i->cid_ani) ? i->cid_num : i->cid_ani);
+		if (!ast_strlen_zero(i->cid_num))
+			tmp->cid.cid_num = strdup(i->cid_num);
+		if (!ast_strlen_zero(i->cid_name))
+			tmp->cid.cid_name = strdup(i->cid_name);
+		if (!ast_strlen_zero(i->cid_ani))
+			tmp->cid.cid_ani = strdup(i->cid_num);
+		else if (!ast_strlen_zero(i->cid_num))	
+			tmp->cid.cid_ani = strdup(i->cid_num);
 #else
-		ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
+		if (!ast_strlen_zero(i->cid_num)) {
+			tmp->cid.cid_num = strdup(i->cid_num);
+			tmp->cid.cid_ani = strdup(i->cid_num);
+		}
+		if (!ast_strlen_zero(i->cid_name))
+			tmp->cid.cid_name = strdup(i->cid_name);
 #endif
 		tmp->cid.cid_pres = i->callingpres;
 		tmp->cid.cid_ton = i->cid_ton;

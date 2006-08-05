@@ -2279,7 +2279,14 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 		strncpy(tmp->call_forward, l->call_forward, sizeof(tmp->call_forward) - 1);
 		strncpy(tmp->context, l->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten,l->exten, sizeof(tmp->exten)-1);
-		ast_set_callerid(tmp, l->cid_num, l->cid_name, l->cid_num);
+
+		if (!ast_strlen_zero(l->cid_num)) {
+			tmp->cid.cid_num = strdup(l->cid_num);
+			tmp->cid.cid_ani = strdup(l->cid_num);
+		}
+		if (!ast_strlen_zero(l->cid_name))
+			tmp->cid.cid_name = strdup(l->cid_name);
+
 		tmp->priority = 1;
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 
