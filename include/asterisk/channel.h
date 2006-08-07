@@ -416,16 +416,14 @@ struct ast_channel {
 
 /* @} */
 
-#define AST_FEATURE_PLAY_WARNING	(1 << 0)
-#define AST_FEATURE_REDIRECT		(1 << 1)
-#define AST_FEATURE_DISCONNECT		(1 << 2)
-#define AST_FEATURE_ATXFER		(1 << 3)
-#define AST_FEATURE_AUTOMON		(1 << 4)
-#define AST_FEATURE_PARKCALL		(1 << 5)
-
-#define AST_FEATURE_FLAG_NEEDSDTMF	(1 << 0)
-#define AST_FEATURE_FLAG_CALLEE		(1 << 1)
-#define AST_FEATURE_FLAG_CALLER		(1 << 2)
+enum {
+	AST_FEATURE_PLAY_WARNING = (1 << 0),
+	AST_FEATURE_REDIRECT =     (1 << 1),
+	AST_FEATURE_DISCONNECT =   (1 << 2),
+	AST_FEATURE_ATXFER =       (1 << 3),
+	AST_FEATURE_AUTOMON =      (1 << 4),
+	AST_FEATURE_PARKCALL =     (1 << 5),
+};
 
 struct ast_bridge_config {
 	struct ast_flags features_caller;

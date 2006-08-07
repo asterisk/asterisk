@@ -75,6 +75,15 @@ static void FREE(void *ptr)
 
 #define AST_MAX_WATCHERS 256
 
+enum {
+	AST_FEATURE_FLAG_NEEDSDTMF = (1 << 0),
+	AST_FEATURE_FLAG_ONPEER =    (1 << 1),
+	AST_FEATURE_FLAG_ONSELF =    (1 << 2),
+	AST_FEATURE_FLAG_BYCALLEE =  (1 << 3),
+	AST_FEATURE_FLAG_BYCALLER =  (1 << 4),
+	AST_FEATURE_FLAG_BYBOTH	 =   (3 << 3),
+};
+
 static char *parkedcall = "ParkedCall";
 
 static int parkaddhints = 0;                               /*!< Add parking hints automatically */
@@ -938,11 +947,12 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 {
 	struct ast_app *app;
 	struct ast_call_feature *feature;
+	struct ast_channel *work;
 	int res;
 
 	AST_LIST_LOCK(&feature_list);
-	AST_LIST_TRAVERSE(&feature_list,feature,feature_entry) {
-		if (!strcasecmp(feature->exten,code))
+	AST_LIST_TRAVERSE(&feature_list, feature, feature_entry) {
+		if (!strcasecmp(feature->exten, code))
 			break;
 	}
 	AST_LIST_UNLOCK(&feature_list);
@@ -951,21 +961,31 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 		ast_log(LOG_NOTICE, "Found feature before, but at execing we've lost it??\n");
 		return -1; 
 	}
-	
-	app = pbx_findapp(feature->app);
-	if (app) {
-		struct ast_channel *work = ast_test_flag(feature,AST_FEATURE_FLAG_CALLEE) ? peer : chan;
-		res = pbx_exec(work, app, feature->app_args);
-		if (res == AST_PBX_KEEPALIVE)
-			return FEATURE_RETURN_PBX_KEEPALIVE;
-		else if (res == AST_PBX_NO_HANGUP_PEER)
-			return FEATURE_RETURN_NO_HANGUP_PEER;
-		else if (res)
-			return FEATURE_RETURN_SUCCESSBREAK;
+
+	if (sense == FEATURE_SENSE_CHAN) {
+		if (!ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLER))
+			return FEATURE_RETURN_PASSDIGITS;
+		work = ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF) ? chan : peer;
 	} else {
+		if (!ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLEE))
+			return FEATURE_RETURN_PASSDIGITS;
+		work = ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF) ? peer : chan;
+	}
+
+	if (!(app = pbx_findapp(feature->app))) {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", feature->app);
 		return -2;
 	}
+
+	/* XXX Should we service the other channel while this runs? */
+	res = pbx_exec(work, app, feature->app_args);
+
+	if (res == AST_PBX_KEEPALIVE)
+		return FEATURE_RETURN_PBX_KEEPALIVE;
+	else if (res == AST_PBX_NO_HANGUP_PEER)
+		return FEATURE_RETURN_NO_HANGUP_PEER;
+	else if (res)
+		return FEATURE_RETURN_SUCCESSBREAK;
 	
 	return FEATURE_RETURN_SUCCESS;	/*! \todo XXX should probably return res */
 }
@@ -1035,10 +1055,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 				if (!strcmp(feature->exten, code)) {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 " Feature Found: %s exten: %s\n",feature->sname, tok);
-					if (sense == FEATURE_SENSE_CHAN)
-						res = feature->operation(chan, peer, config, code, sense);
-					else
-						res = feature->operation(peer, chan, config, code, sense);
+					res = feature->operation(chan, peer, config, code, sense);
 					break;
 				} else if (!strncmp(feature->exten, code, strlen(code))) {
 					res = FEATURE_RETURN_STOREDIGITS;
@@ -1076,9 +1093,9 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 			/* while we have a feature */
 			while ((tok = strsep(&tmp, "#"))) {
 				if ((feature = find_feature(tok)) && ast_test_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF)) {
-					if (ast_test_flag(feature, AST_FEATURE_FLAG_CALLER))
+					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLER))
 						ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
-					if (ast_test_flag(feature, AST_FEATURE_FLAG_CALLEE))
+					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLEE))
 						ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
 				}
 			}
@@ -2147,73 +2164,76 @@ static int load_config(void)
 		/* Map a key combination to an application*/
 		ast_unregister_features();
 		for (var = ast_variable_browse(cfg, "applicationmap"); var; var = var->next) {
-			char *tmp_val = ast_strdup(var->value);
-			char *exten, *party=NULL, *app=NULL, *app_args=NULL; 
-
-			if (!tmp_val) { 
-				/*! \todo XXX No memory. We should probably break, but at least we do not
-				 * insist on this entry or we could be stuck in an
-				 * infinite loop.
-				 */
-				continue;
-			}
+			char *tmp_val = ast_strdupa(var->value);
+			char *exten, *activateon, *activatedby, *app, *app_args; 
+			struct ast_call_feature *feature;
 
 			/* strsep() sets the argument to NULL if match not found, and it
 			 * is safe to use it with a NULL argument, so we don't check
 			 * between calls.
 			 */
 			exten = strsep(&tmp_val,",");
-			party = strsep(&tmp_val,",");
+			activatedby = strsep(&tmp_val,",");
 			app = strsep(&tmp_val,",");
 			app_args = strsep(&tmp_val,",");
 
+			activateon = strsep(&activatedby, "/");	
+
 			/*! \todo XXX var_name or app_args ? */
-			if (ast_strlen_zero(app) || ast_strlen_zero(exten) || ast_strlen_zero(party) || ast_strlen_zero(var->name)) {
-				ast_log(LOG_NOTICE, "Please check the feature Mapping Syntax, either extension, name, or app aren't provided %s %s %s %s\n",app,exten,party,var->name);
-				free(tmp_val);
+			if (ast_strlen_zero(app) || ast_strlen_zero(exten) || ast_strlen_zero(activateon) || ast_strlen_zero(var->name)) {
+				ast_log(LOG_NOTICE, "Please check the feature Mapping Syntax, either extension, name, or app aren't provided %s %s %s %s\n",
+					app, exten, activateon, var->name);
 				continue;
 			}
 
-			{
-				struct ast_call_feature *feature;
-				int mallocd = 0;
-				
-				if (!(feature = find_feature(var->name))) {
-					mallocd = 1;
-					
-					if (!(feature = ast_calloc(1, sizeof(*feature)))) {
-						free(tmp_val);
-						continue;					
-					}
-				}
-
-				ast_copy_string(feature->sname,var->name,FEATURE_SNAME_LEN);
-				ast_copy_string(feature->app,app,FEATURE_APP_LEN);
-				ast_copy_string(feature->exten, exten,FEATURE_EXTEN_LEN);
-				free(tmp_val);
-				
-				if (app_args) 
-					ast_copy_string(feature->app_args,app_args,FEATURE_APP_ARGS_LEN);
-				
-				ast_copy_string(feature->exten, exten,sizeof(feature->exten));
-				feature->operation=feature_exec_app;
-				ast_set_flag(feature,AST_FEATURE_FLAG_NEEDSDTMF);
-				
-				if (!strcasecmp(party,"caller"))
-					ast_set_flag(feature,AST_FEATURE_FLAG_CALLER);
-				else if (!strcasecmp(party, "callee"))
-					ast_set_flag(feature,AST_FEATURE_FLAG_CALLEE);
-				else {
-					ast_log(LOG_NOTICE, "Invalid party specification for feature '%s', must be caller, or callee\n", var->name);
-					continue;
-				}
-
-				ast_register_feature(feature);
-				/* XXX do we need to free it if mallocd ? */
-				
-				if (option_verbose >=1)
-					ast_verbose(VERBOSE_PREFIX_2 "Mapping Feature '%s' to app '%s' with code '%s'\n", var->name, app, exten);  
+			if ((feature = find_feature(var->name))) {
+				ast_log(LOG_WARNING, "Dynamic Feature '%s' specified more than once!\n", var->name);
+				continue;
 			}
+					
+			if (!(feature = ast_calloc(1, sizeof(*feature))))
+				continue;					
+
+			ast_copy_string(feature->sname, var->name, FEATURE_SNAME_LEN);
+			ast_copy_string(feature->app, app, FEATURE_APP_LEN);
+			ast_copy_string(feature->exten, exten, FEATURE_EXTEN_LEN);
+			
+			if (app_args) 
+				ast_copy_string(feature->app_args, app_args, FEATURE_APP_ARGS_LEN);
+				
+			ast_copy_string(feature->exten, exten, sizeof(feature->exten));
+			feature->operation = feature_exec_app;
+			ast_set_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF);
+
+			/* Allow caller and calle to be specified for backwards compatability */
+			if (!strcasecmp(activateon, "self") || !strcasecmp(activateon, "caller"))
+				ast_set_flag(feature, AST_FEATURE_FLAG_ONSELF);
+			else if (!strcasecmp(activateon, "peer") || !strcasecmp(activateon, "callee"))
+				ast_set_flag(feature, AST_FEATURE_FLAG_ONPEER);
+			else {
+				ast_log(LOG_NOTICE, "Invalid 'ActivateOn' specification for feature '%s',"
+					" must be 'self', or 'peer'\n", var->name);
+				continue;
+			}
+
+			if (ast_strlen_zero(activatedby))
+				ast_set_flag(feature, AST_FEATURE_FLAG_BYBOTH);
+			else if (!strcasecmp(activatedby, "caller"))
+				ast_set_flag(feature, AST_FEATURE_FLAG_BYCALLER);
+			else if (!strcasecmp(activatedby, "callee"))
+				ast_set_flag(feature, AST_FEATURE_FLAG_BYCALLEE);
+			else if (!strcasecmp(activatedby, "both"))
+				ast_set_flag(feature, AST_FEATURE_FLAG_BYBOTH);
+			else {
+				ast_log(LOG_NOTICE, "Invalid 'ActivatedBy' specification for feature '%s',"
+					" must be 'caller', or 'callee', or 'both'\n", var->name);
+				continue;
+			}
+
+			ast_register_feature(feature);
+				
+			if (option_verbose >= 1)
+				ast_verbose(VERBOSE_PREFIX_2 "Mapping Feature '%s' to app '%s(%s)' with code '%s'\n", var->name, app, app_args, exten);  
 		}	 
 	}
 	ast_config_destroy(cfg);
