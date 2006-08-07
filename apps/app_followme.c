@@ -158,10 +158,10 @@ static const char *defaultmoh = "default";    	/*!< Default Music-On-Hold Class 
 static char takecall[20] = "1", nextindp[20] = "2";
 static char callfromprompt[PATH_MAX] = "followme/call-from";
 static char norecordingprompt[PATH_MAX] = "followme/no-recording";
-static char optionsprompt[PATH_MAX] = "followme/followme-options";
+static char optionsprompt[PATH_MAX] = "followme/options";
 static char plsholdprompt[PATH_MAX] = "followme/pls-hold-while-try";
-static char statusprompt[PATH_MAX] = "followme/followme-status";
-static char sorryprompt[PATH_MAX] = "followme/followme-sorry";
+static char statusprompt[PATH_MAX] = "followme/status";
+static char sorryprompt[PATH_MAX] = "followme/sorry";
 
 
 static AST_LIST_HEAD_STATIC(followmes, ast_call_followme);
@@ -327,23 +327,23 @@ static int reload_followme(void)
 	if (!ast_strlen_zero(tmpstr))
 		ast_copy_string(callfromprompt, tmpstr, sizeof(callfromprompt));
 
-	tmpstr = ast_variable_retrieve(cfg, "general", "followme-norecording-prompt");
+	tmpstr = ast_variable_retrieve(cfg, "general", "norecording-prompt");
 	if (!ast_strlen_zero(tmpstr))
 		ast_copy_string(norecordingprompt, tmpstr, sizeof(norecordingprompt));
 
-	tmpstr = ast_variable_retrieve(cfg, "general", "followme-options-prompt");
+	tmpstr = ast_variable_retrieve(cfg, "general", "options-prompt");
 	if (!ast_strlen_zero(tmpstr))
 		ast_copy_string(optionsprompt, tmpstr, sizeof(optionsprompt));
 
-	tmpstr = ast_variable_retrieve(cfg, "general", "followme-pls-hold-prompt");
+	tmpstr = ast_variable_retrieve(cfg, "general", "pls-hold-prompt");
 	if (!ast_strlen_zero(tmpstr))
 		ast_copy_string(plsholdprompt, tmpstr, sizeof(plsholdprompt));
 
-	tmpstr = ast_variable_retrieve(cfg, "general", "followme-status-prompt");
+	tmpstr = ast_variable_retrieve(cfg, "general", "status-prompt");
 	if (!ast_strlen_zero(tmpstr))
 		ast_copy_string(statusprompt, tmpstr, sizeof(statusprompt));
 
-	tmpstr = ast_variable_retrieve(cfg, "general", "followme-sorry-prompt");
+	tmpstr = ast_variable_retrieve(cfg, "general", "sorry-prompt");
 	if (!ast_strlen_zero(tmpstr))
 		ast_copy_string(sorryprompt, tmpstr, sizeof(sorryprompt));
 

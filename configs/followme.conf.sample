@@ -16,20 +16,20 @@ declinecall=>2
 call-from-prompt=>followme/call-from
 ; The global default for the 'Incoming call from' message.
 ;
-followme-norecording-prompt=>followme/no-recording
+norecording-prompt=>followme/no-recording
 ; The global default for the 'You have an incoming call' message when the caller elects
 ; not to leave their name or the option isn't set for them to do so.
 ;
-followme-options-prompt=>followme/followme-options
+options-prompt=>followme/options
 ; The global default for the 'Press 1 to accept this call or press 2 to decline it' message.
 ;
-followme-pls-hold-prompt=>followme/pls-hold-while-try
+pls-hold-prompt=>followme/pls-hold-while-try
 ; The global default for 'Please hold while we try and connect your call' message.
 ;
-followme-status-prompt=>followme/followme-status
+status-prompt=>followme/status
 ; The global default for 'The party you're calling isn't at their desk' message.
 ;
-followme-sorry-prompt=>followme/followme-sorry  
+sorry-prompt=>followme/sorry  
 ; The global default for 'I'm sorry, but we were unable to locate your party' message.
 ;
 ;
