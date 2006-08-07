@@ -218,10 +218,36 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
   \return nothing
 */
 #define ast_string_field_index_set(x, index, data) do { \
-	if (((x)->__begin_field[index] = __ast_string_field_alloc_space(&(x)->__field_mgr, strlen(data) + 1, &(x)->__begin_field[0], ast_string_field_count(x)))) \
-		strcpy((char *) (x)->__begin_field[index], data); \
-	} while (0)
+    char *__zz__ = (char*)(x)->__begin_field[index]; \
+    int __dlen__ = strlen(data); \
+    if( __dlen__ == 0 ) { (x)->__begin_field[index] = __ast_string_field_empty; \
+    } else { \
+     if( __zz__[0] != 0 && __dlen__ <= strlen(__zz__) ) { \
+	   strcpy(__zz__, data); \
+     } else { \
+       if (((x)->__begin_field[index] = __ast_string_field_alloc_space(&(x)->__field_mgr, __dlen__ + 1, &(x)->__begin_field[0], ast_string_field_count(x)))) \
+	       strcpy((char*)(x)->__begin_field[index], data); \
+	 } \
+	} \
+   } while (0)
 
+#ifdef FOR_TEST
+#define ast_string_field_index_logset(x, index, data, logstr) do { \
+    char *__zz__ = (char*)(x)->__begin_field[index]; \
+    int __dlen__ = strlen(data); \
+    if( __dlen__ == 0 ) { (x)->__begin_field[index] = __ast_string_field_empty; \
+    } else { \
+     if( __zz__[0] != 0 && __dlen__ <= strlen(__zz__) ) { \
+       ast_verbose("%s: ======replacing '%s' with '%s'\n", logstr, __zz__, data); \
+	   strcpy(__zz__, data); \
+     } else { \
+       ast_verbose("%s: ++++++allocating room for '%s' to replace '%s'\n", logstr, data, __zz__); \
+       if (((x)->__begin_field[index] = __ast_string_field_alloc_space(&(x)->__field_mgr, __dlen__ + 1, &(x)->__begin_field[0], ast_string_field_count(x)))) \
+	       strcpy((char*)(x)->__begin_field[index], data); \
+	 } \
+	} \
+   } while (0)
+#endif
 /*!
   \brief Set a field to a simple string value
   \param x Pointer to a structure containing fields
@@ -232,6 +258,10 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 #define ast_string_field_set(x, field, data) \
 	ast_string_field_index_set(x, ast_string_field_index(x, field), data)
 
+#ifdef FOR_TEST
+#define ast_string_field_logset(x, field, data, logstr) \
+	ast_string_field_index_logset(x, ast_string_field_index(x, field), data, logstr)
+#endif
 /*!
   \brief Set a field to a complex (built) value
   \param x Pointer to a structure containing fields

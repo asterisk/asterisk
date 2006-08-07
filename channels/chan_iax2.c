@@ -175,7 +175,7 @@ static int defaultsockfd = -1;
 
 static int usecnt = 0;
 
-int (*iax2_regfunk)(char *username, int onoff) = NULL;
+int (*iax2_regfunk)(const char *username, int onoff) = NULL;
 
 /* Ethernet, etc */
 #define IAX_CAPABILITY_FULLBANDWIDTH 	0xFFFF
@@ -278,24 +278,27 @@ static int iax2_reload(int fd, int argc, char *argv[]);
 
 
 struct iax2_user {
-	char name[80];
-	char secret[80];
-	char dbsecret[80];
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(name);
+		AST_STRING_FIELD(secret);
+		AST_STRING_FIELD(dbsecret);
+		AST_STRING_FIELD(accountcode);
+		AST_STRING_FIELD(mohinterpret);
+		AST_STRING_FIELD(mohsuggest);
+		AST_STRING_FIELD(inkeys);               /*!< Key(s) this user can use to authenticate to us */
+		AST_STRING_FIELD(language);
+		AST_STRING_FIELD(cid_num);
+		AST_STRING_FIELD(cid_name);
+	);
+	
 	int authmethods;
 	int encmethods;
-	char accountcode[AST_MAX_ACCOUNT_CODE];
-	char mohinterpret[MAX_MUSICCLASS];
-	char mohsuggest[MAX_MUSICCLASS];
-	char inkeys[80];				/*!< Key(s) this user can use to authenticate to us */
-	char language[MAX_LANGUAGE];
 	int amaflags;
 	int adsi;
 	unsigned int flags;
 	int capability;
 	int maxauthreq; /*!< Maximum allowed outstanding AUTHREQs */
 	int curauthreq; /*!< Current number of outstanding AUTHREQs */
-	char cid_num[AST_MAX_EXTENSION];
-	char cid_name[AST_MAX_EXTENSION];
 	struct ast_codec_pref prefs;
 	struct ast_ha *ha;
 	struct iax2_context *contexts;
@@ -304,17 +307,25 @@ struct iax2_user {
 };
 
 struct iax2_peer {
-	char name[80];
-	char username[80];		
-	char secret[80];
-	char dbsecret[80];
-	char outkey[80];				/*!< What key we use to talk to this peer */
-	char context[AST_MAX_CONTEXT];			/*!< For transfers only */
-	char regexten[AST_MAX_EXTENSION];		/*!< Extension to register (if regcontext is used) */
-	char peercontext[AST_MAX_EXTENSION];		/*!< Context to pass to peer */
-	char mailbox[AST_MAX_EXTENSION];		/*!< Mailbox */
-	char mohinterpret[MAX_MUSICCLASS];
-	char mohsuggest[MAX_MUSICCLASS];
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(name);
+		AST_STRING_FIELD(username);
+		AST_STRING_FIELD(secret);
+		AST_STRING_FIELD(dbsecret);
+		AST_STRING_FIELD(outkey);	    /*!< What key we use to talk to this peer */
+
+		AST_STRING_FIELD(regexten);     /*!< Extension to register (if regcontext is used) */
+		AST_STRING_FIELD(context);      /*!< For transfers only */
+		AST_STRING_FIELD(peercontext);  /*!< Context to pass to peer */
+		AST_STRING_FIELD(mailbox);	    /*!< Mailbox */
+		AST_STRING_FIELD(mohinterpret);
+		AST_STRING_FIELD(mohsuggest);
+		AST_STRING_FIELD(inkeys);		/*!< Key(s) this peer can use to authenticate to us */
+		/* Suggested caller id if registering */
+		AST_STRING_FIELD(cid_num);		/*!< Default context (for transfer really) */
+		AST_STRING_FIELD(cid_name);		/*!< Default context (for transfer really) */
+		AST_STRING_FIELD(zonetag);		/*!< Time Zone */
+	);
 	struct ast_codec_pref prefs;
 	struct ast_dnsmgr_entry *dnsmgr;		/*!< DNS refresh manager */
 	struct sockaddr_in addr;
@@ -328,16 +339,10 @@ struct iax2_peer {
 	struct sockaddr_in defaddr;			/*!< Default address if there is one */
 	int authmethods;				/*!< Authentication methods (IAX_AUTH_*) */
 	int encmethods;					/*!< Encryption methods (IAX_ENCRYPT_*) */
-	char inkeys[80];				/*!< Key(s) this peer can use to authenticate to us */
 
-	/* Suggested caller id if registering */
-	char cid_num[AST_MAX_EXTENSION];		/*!< Default context (for transfer really) */
-	char cid_name[AST_MAX_EXTENSION];		/*!< Default context (for transfer really) */
-	
 	int expire;					/*!< Schedule entry for expiry */
 	int expiry;					/*!< How soon to expire */
 	int capability;					/*!< Capability */
-	char zonetag[80];				/*!< Time Zone */
 
 	/* Qualification */
 	int callno;					/*!< Call number of POKE request */
@@ -520,45 +525,54 @@ struct chan_iax2_pvt {
 	unsigned char iseqno;
 	/*! Last incoming sequence number we have acknowledged */
 	unsigned char aseqno;
-	/*! Peer name */
-	char peer[80];
-	/*! Default Context */
-	char context[80];
-	/*! Caller ID if available */
-	char cid_num[80];
-	char cid_name[80];
-	/*! Hidden Caller ID (i.e. ANI) if appropriate */
-	char ani[80];
-	/*! DNID */
-	char dnid[80];
-	/*! RDNIS */
-	char rdnis[80];
-	/*! Requested Extension */
-	char exten[AST_MAX_EXTENSION];
-	/*! Expected Username */
-	char username[80];
-	/*! Expected Secret */
-	char secret[80];
+
+	AST_DECLARE_STRING_FIELDS(
+		/*! Peer name */
+		AST_STRING_FIELD(peer);
+		/*! Default Context */
+		AST_STRING_FIELD(context);
+		/*! Caller ID if available */
+		AST_STRING_FIELD(cid_num);
+		AST_STRING_FIELD(cid_name);
+		/*! Hidden Caller ID (i.e. ANI) if appropriate */
+		AST_STRING_FIELD(ani);
+		/*! DNID */
+		AST_STRING_FIELD(dnid);
+		/*! RDNIS */
+		AST_STRING_FIELD(rdnis);
+		/*! Requested Extension */
+		AST_STRING_FIELD(exten);
+		/*! Expected Username */
+		AST_STRING_FIELD(username);
+		/*! Expected Secret */
+		AST_STRING_FIELD(secret);
+		/*! MD5 challenge */
+		AST_STRING_FIELD(challenge);
+		/*! Public keys permitted keys for incoming authentication */
+		AST_STRING_FIELD(inkeys);
+		/*! Private key for outgoing authentication */
+		AST_STRING_FIELD(outkey);
+		/*! Preferred language */
+		AST_STRING_FIELD(language);
+		/*! Hostname/peername for naming purposes */
+		AST_STRING_FIELD(host);
+
+		AST_STRING_FIELD(dproot);
+		AST_STRING_FIELD(accountcode);
+		AST_STRING_FIELD(mohinterpret);
+		AST_STRING_FIELD(mohsuggest);
+	);
+	
 	/*! permitted authentication methods */
 	int authmethods;
 	/*! permitted encryption methods */
 	int encmethods;
-	/*! MD5 challenge */
-	char challenge[10];
-	/*! Public keys permitted keys for incoming authentication */
-	char inkeys[80];
-	/*! Private key for outgoing authentication */
-	char outkey[80];
 	/*! Encryption AES-128 Key */
 	aes_encrypt_ctx ecx;
 	/*! Decryption AES-128 Key */
 	aes_decrypt_ctx dcx;
 	/*! 32 bytes of semi-random data */
 	unsigned char semirand[32];
-	/*! Preferred language */
-	char language[MAX_LANGUAGE];
-	/*! Hostname/peername for naming purposes */
-	char host[80];
 	/*! Associated registry */
 	struct iax2_registry *reg;
 	/*! Associated peer for poking */
@@ -593,10 +607,6 @@ struct chan_iax2_pvt {
 	int calling_ton;
 	int calling_tns;
 	int calling_pres;
-	char dproot[AST_MAX_EXTENSION];
-	char accountcode[AST_MAX_ACCOUNT_CODE];
-	char mohinterpret[MAX_MUSICCLASS];
-	char mohsuggest[MAX_MUSICCLASS];
 	int amaflags;
 	struct iax2_dpcache *dpentries;
 	struct ast_variable *vars;
@@ -1038,6 +1048,12 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, cons
 	if (!(tmp = ast_calloc(1, sizeof(*tmp))))
 		return NULL;
 
+	if (ast_string_field_init(tmp, 32)) {
+		free(tmp);
+		tmp = NULL;
+		return NULL;
+	}
+		
 	tmp->prefs = prefs;
 	tmp->callno = 0;
 	tmp->peercallno = 0;
@@ -1048,9 +1064,9 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, cons
 	tmp->autoid = -1;
 	tmp->authid = -1;
 	tmp->initid = -1;
-	/* ast_copy_string(tmp->context, context, sizeof(tmp->context)); */
-	ast_copy_string(tmp->exten, "s", sizeof(tmp->exten));
-	ast_copy_string(tmp->host, host, sizeof(tmp->host));
+
+	ast_string_field_set(tmp,exten, "s");
+	ast_string_field_set(tmp,host, host);
 
 	tmp->jb = jb_new();
 	tmp->jbid = -1;
@@ -1236,10 +1252,11 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			iaxs[x]->pingid = ast_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
 			iaxs[x]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			iaxs[x]->amaflags = amaflags;
-			ast_copy_flags(iaxs[x], (&globalflags), IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
-			ast_copy_string(iaxs[x]->accountcode, accountcode, sizeof(iaxs[x]->accountcode));
-			ast_copy_string(iaxs[x]->mohinterpret, mohinterpret, sizeof(iaxs[x]->mohinterpret));
-			ast_copy_string(iaxs[x]->mohsuggest, mohsuggest, sizeof(iaxs[x]->mohsuggest));
+			ast_copy_flags(iaxs[x], (&globalflags), IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
+			
+			ast_string_field_set(iaxs[x], accountcode, accountcode);
+			ast_string_field_set(iaxs[x], mohinterpret, mohinterpret);
+			ast_string_field_set(iaxs[x], mohsuggest, mohsuggest);
 		} else {
 			ast_log(LOG_WARNING, "Out of resources\n");
 			ast_mutex_unlock(&iaxsl[x]);
@@ -1763,6 +1780,8 @@ retry:
 			while (jb_getall(pvt->jb, &frame) == JB_OK)
 				iax2_frame_free(frame.data);
 			jb_destroy(pvt->jb);
+			/* gotta free up the stringfields */
+			ast_string_field_free_all(pvt);
 			free(pvt);
 		}
 	}
@@ -1903,7 +1922,7 @@ static int iax2_prune_realtime(int fd, int argc, char *argv[])
 	} else if ((peer = find_peer(argv[3], 0))) {
 		if(ast_test_flag(peer, IAX_RTCACHEFRIENDS)) {
 			ast_set_flag(peer, IAX_RTAUTOCLEAR);
-			expire_registry(peer->name);
+			expire_registry((void*)peer->name);
 			ast_cli(fd, "OK peer %s was removed from the cache.\n", argv[3]);
 		} else {
 			ast_cli(fd, "SORRY peer %s is not eligible for this operation.\n", argv[3]);
@@ -2693,7 +2712,7 @@ static int auto_congest(void *data)
 	return 0;
 }
 
-static unsigned int iax2_datetime(char *tz)
+static unsigned int iax2_datetime(const char *tz)
 {
 	time_t t;
 	struct tm tm;
@@ -2878,22 +2897,22 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	ast_mutex_lock(&iaxsl[callno]);
 
 	if (!ast_strlen_zero(c->context))
-		ast_copy_string(iaxs[callno]->context, c->context, sizeof(iaxs[callno]->context));
+		ast_string_field_set(iaxs[callno], context, c->context);
 
 	if (pds.username)
-		ast_copy_string(iaxs[callno]->username, pds.username, sizeof(iaxs[callno]->username));
+		ast_string_field_set(iaxs[callno], username, pds.username);
 
 	iaxs[callno]->encmethods = cai.encmethods;
 
 	iaxs[callno]->adsi = cai.adsi;
 	
-	ast_copy_string(iaxs[callno]->mohinterpret, cai.mohinterpret, sizeof(iaxs[callno]->mohinterpret));
-	ast_copy_string(iaxs[callno]->mohsuggest, cai.mohsuggest, sizeof(iaxs[callno]->mohsuggest));
+	ast_string_field_set(iaxs[callno], mohinterpret, cai.mohinterpret);
+	ast_string_field_set(iaxs[callno], mohsuggest, cai.mohsuggest);
 
 	if (pds.key)
-		ast_copy_string(iaxs[callno]->outkey, pds.key, sizeof(iaxs[callno]->outkey));
+		ast_string_field_set(iaxs[callno], outkey, pds.key);
 	if (pds.password)
-		ast_copy_string(iaxs[callno]->secret, pds.password, sizeof(iaxs[callno]->secret));
+		ast_string_field_set(iaxs[callno], secret, pds.password);
 
 	iax_ie_append_int(&ied, IAX_IE_FORMAT, c->nativeformats);
 	iax_ie_append_int(&ied, IAX_IE_CAPABILITY, iaxs[callno]->capability);
@@ -4543,7 +4562,7 @@ static int send_command_transfer(struct chan_iax2_pvt *i, char type, int command
 	return __send_command(i, type, command, ts, data, datalen, 0, 0, 1, 0);
 }
 
-static int apply_context(struct iax2_context *con, char *context)
+static int apply_context(struct iax2_context *con, const char *context)
 {
 	while(con) {
 		if (!strcmp(con->context, context) || !strcmp(con->context, "*"))
@@ -4567,25 +4586,25 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	if (!iaxs[callno])
 		return res;
 	if (ies->called_number)
-		ast_copy_string(iaxs[callno]->exten, ies->called_number, sizeof(iaxs[callno]->exten));
+		ast_string_field_set(iaxs[callno], exten, ies->called_number);
 	if (ies->calling_number) {
 		ast_shrink_phone_number(ies->calling_number);
-		ast_copy_string(iaxs[callno]->cid_num, ies->calling_number, sizeof(iaxs[callno]->cid_num));
+		ast_string_field_set(iaxs[callno], cid_num, ies->calling_number);
 	}
 	if (ies->calling_name)
-		ast_copy_string(iaxs[callno]->cid_name, ies->calling_name, sizeof(iaxs[callno]->cid_name));
+		ast_string_field_set(iaxs[callno], cid_name, ies->calling_name);
 	if (ies->calling_ani)
-		ast_copy_string(iaxs[callno]->ani, ies->calling_ani, sizeof(iaxs[callno]->ani));
+		ast_string_field_set(iaxs[callno], ani, ies->calling_ani);
 	if (ies->dnid)
-		ast_copy_string(iaxs[callno]->dnid, ies->dnid, sizeof(iaxs[callno]->dnid));
+		ast_string_field_set(iaxs[callno], dnid, ies->dnid);
 	if (ies->rdnis)
-		ast_copy_string(iaxs[callno]->rdnis, ies->rdnis, sizeof(iaxs[callno]->rdnis));
+		ast_string_field_set(iaxs[callno], rdnis, ies->rdnis);
 	if (ies->called_context)
-		ast_copy_string(iaxs[callno]->context, ies->called_context, sizeof(iaxs[callno]->context));
+		ast_string_field_set(iaxs[callno], context, ies->called_context);
 	if (ies->language)
-		ast_copy_string(iaxs[callno]->language, ies->language, sizeof(iaxs[callno]->language));
+		ast_string_field_set(iaxs[callno], language, ies->language);
 	if (ies->username)
-		ast_copy_string(iaxs[callno]->username, ies->username, sizeof(iaxs[callno]->username));
+		ast_string_field_set(iaxs[callno], username, ies->username);
 	if (ies->calling_ton > -1)
 		iaxs[callno]->calling_ton = ies->calling_ton;
 	if (ies->calling_tns > -1)
@@ -4689,19 +4708,19 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		iaxs[callno]->encmethods = user->encmethods;
 		/* Store the requested username if not specified */
 		if (ast_strlen_zero(iaxs[callno]->username))
-			ast_copy_string(iaxs[callno]->username, user->name, sizeof(iaxs[callno]->username));
+			ast_string_field_set(iaxs[callno], username, user->name);
 		/* Store whether this is a trunked call, too, of course, and move if appropriate */
 		ast_copy_flags(iaxs[callno], user, IAX_TRUNK);
 		iaxs[callno]->capability = user->capability;
 		/* And use the default context */
 		if (ast_strlen_zero(iaxs[callno]->context)) {
 			if (user->contexts)
-				ast_copy_string(iaxs[callno]->context, user->contexts->context, sizeof(iaxs[callno]->context));
+				ast_string_field_set(iaxs[callno], context, user->contexts->context);
 			else
-				ast_copy_string(iaxs[callno]->context, context, sizeof(iaxs[callno]->context));
+				ast_string_field_set(iaxs[callno], context, context);
 		}
 		/* And any input keys */
-		ast_copy_string(iaxs[callno]->inkeys, user->inkeys, sizeof(iaxs[callno]->inkeys));
+		ast_string_field_set(iaxs[callno], inkeys, user->inkeys);
 		/* And the permitted authentication methods */
 		iaxs[callno]->authmethods = user->authmethods;
 		iaxs[callno]->adsi = user->adsi;
@@ -4710,25 +4729,25 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			if (ast_test_flag(user, IAX_HASCALLERID)) {
 				iaxs[callno]->calling_tns = 0;
 				iaxs[callno]->calling_ton = 0;
-				ast_copy_string(iaxs[callno]->cid_num, user->cid_num, sizeof(iaxs[callno]->cid_num));
-				ast_copy_string(iaxs[callno]->cid_name, user->cid_name, sizeof(iaxs[callno]->cid_name));
+				ast_string_field_set(iaxs[callno], cid_num, user->cid_num);
+				ast_string_field_set(iaxs[callno], cid_name, user->cid_name);
 				iaxs[callno]->calling_pres = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
 			}
 			if (ast_strlen_zero(iaxs[callno]->ani))
-				ast_copy_string(iaxs[callno]->ani, user->cid_num, sizeof(iaxs[callno]->ani));
+				ast_string_field_set(iaxs[callno], ani, user->cid_num);
 		} else {
 			iaxs[callno]->calling_pres = AST_PRES_NUMBER_NOT_AVAILABLE;
 		}
 		if (!ast_strlen_zero(user->accountcode))
-			ast_copy_string(iaxs[callno]->accountcode, user->accountcode, sizeof(iaxs[callno]->accountcode));
+			ast_string_field_set(iaxs[callno], accountcode, user->accountcode);
 		if (!ast_strlen_zero(user->mohinterpret))
-			ast_copy_string(iaxs[callno]->mohinterpret, user->mohinterpret, sizeof(iaxs[callno]->mohinterpret));
+			ast_string_field_set(iaxs[callno], mohinterpret, user->mohinterpret);
 		if (!ast_strlen_zero(user->mohsuggest))
-			ast_copy_string(iaxs[callno]->mohsuggest, user->mohsuggest, sizeof(iaxs[callno]->mohsuggest));
+			ast_string_field_set(iaxs[callno], mohsuggest, user->mohsuggest);
 		if (user->amaflags)
 			iaxs[callno]->amaflags = user->amaflags;
 		if (!ast_strlen_zero(user->language))
-			ast_copy_string(iaxs[callno]->language, user->language, sizeof(iaxs[callno]->language));
+			ast_string_field_set(iaxs[callno], language, user->language);
 		ast_copy_flags(iaxs[callno], user, IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
 		/* Keep this check last */
 		if (!ast_strlen_zero(user->dbsecret)) {
@@ -4739,7 +4758,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 				*key = '\0';
 				key++;
 			}
-			if (!key || ast_db_get(family, key, iaxs[callno]->secret, sizeof(iaxs[callno]->secret))) {
+			if (!key || ast_db_get(family, key, (char*)iaxs[callno]->secret, sizeof(iaxs[callno]->secret))) {
 				ast_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", user->dbsecret);
 				if (ast_test_flag(user, IAX_TEMPONLY)) {
 					destroy_user(user);
@@ -4747,7 +4766,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 				}
 			}
 		} else
-			ast_copy_string(iaxs[callno]->secret, user->secret, sizeof(iaxs[callno]->secret)); 
+			ast_string_field_set(iaxs[callno], secret, user->secret);
 		res = 0;
 	}
 	ast_set2_flag(iaxs[callno], iax2_getpeertrunk(*sin), IAX_TRUNK);	
@@ -4819,7 +4838,8 @@ static int authenticate_request(struct chan_iax2_pvt *p)
 
 	iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
 	if (p->authmethods & (IAX_AUTH_MD5 | IAX_AUTH_RSA)) {
-		snprintf(p->challenge, sizeof(p->challenge), "%d", (int)ast_random());
+		ast_string_field_build(p,challenge, "%d", (int)ast_random());
+		/* snprintf(p->challenge, sizeof(p->challenge), "%d", (int)ast_random()); */
 		iax_ie_append_str(&ied, IAX_IE_CHALLENGE, p->challenge);
 	}
 	if (p->encmethods)
@@ -4924,7 +4944,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	int expire = 0;
 
 	ast_clear_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED | IAX_STATE_UNCHANGED);
-	iaxs[callno]->peer[0] = '\0';
+	/* iaxs[callno]->peer[0] = '\0'; not necc. any more-- stringfield is pre-inited to null string */
 	if (ies->username)
 		ast_copy_string(peer, ies->username, sizeof(peer));
 	if (ies->password)
@@ -4975,8 +4995,8 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	}
 	if (!inaddrcmp(&p->addr, sin))
 		ast_set_flag(&iaxs[callno]->state, IAX_STATE_UNCHANGED);
-	ast_copy_string(iaxs[callno]->secret, p->secret, sizeof(iaxs[callno]->secret));
-	ast_copy_string(iaxs[callno]->inkeys, p->inkeys, sizeof(iaxs[callno]->inkeys));
+	ast_string_field_set(iaxs[callno], secret, p->secret);
+	ast_string_field_set(iaxs[callno], inkeys, p->inkeys);
 	/* Check secret against what we have on file */
 	if (!ast_strlen_zero(rsasecret) && (p->authmethods & IAX_AUTH_RSA) && !ast_strlen_zero(iaxs[callno]->challenge)) {
 		if (!ast_strlen_zero(p->inkeys)) {
@@ -5051,7 +5071,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			destroy_peer(p);
 		return -1;
 	}
-	ast_copy_string(iaxs[callno]->peer, peer, sizeof(iaxs[callno]->peer));
+	ast_string_field_set(iaxs[callno], peer, peer);
 	/* Choose lowest expiry number */
 	if (expire && (expire < iaxs[callno]->expiry)) 
 		iaxs[callno]->expiry = expire;
@@ -5064,7 +5084,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	
 }
 
-static int authenticate(char *challenge, char *secret, char *keyn, int authmethods, struct iax_ie_data *ied, struct sockaddr_in *sin, aes_encrypt_ctx *ecx, aes_decrypt_ctx *dcx)
+static int authenticate(const char *challenge, const char *secret, const char *keyn, int authmethods, struct iax_ie_data *ied, struct sockaddr_in *sin, aes_encrypt_ctx *ecx, aes_decrypt_ctx *dcx)
 {
 	int res = -1;
 	int x;
@@ -5081,8 +5101,8 @@ static int authenticate(char *challenge, char *secret, char *keyn, int authmetho
 			if (!key) {
 				ast_log(LOG_NOTICE, "Unable to find private key '%s'\n", keyn);
 			} else {
-				if (ast_sign(key, challenge, sig)) {
-					ast_log(LOG_NOTICE, "Unable to sign challenge withy key\n");
+				if (ast_sign(key, (char*)challenge, sig)) {
+					ast_log(LOG_NOTICE, "Unable to sign challenge with key\n");
 					res = -1;
 				} else {
 					iax_ie_append_str(ied, IAX_IE_RSA_RESULT, sig);
@@ -5117,7 +5137,7 @@ static int authenticate(char *challenge, char *secret, char *keyn, int authmetho
 	return res;
 }
 
-static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, struct iax_ies *ies, char *override, char *okey)
+static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, struct iax_ies *ies, const char *override, const char *okey)
 {
 	struct iax2_peer *peer = NULL;
 	/* Start pessimistic */
@@ -5128,9 +5148,9 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 	memset(&ied, 0, sizeof(ied));
 	
 	if (ies->username)
-		ast_copy_string(p->username, ies->username, sizeof(p->username));
+		ast_string_field_set(p, username, ies->username);
 	if (ies->challenge)
-		ast_copy_string(p->challenge, ies->challenge, sizeof(p->challenge));
+		ast_string_field_set(p, challenge, ies->challenge);
 	if (ies->authmethods)
 		authmethods = ies->authmethods;
 	if (authmethods & IAX_AUTH_MD5)
@@ -5548,7 +5568,7 @@ static void reg_source_db(struct iax2_peer *p)
 	}
 }
 
-static int update_registry(char *name, struct sockaddr_in *sin, int callno, char *devtype, int fd, unsigned short refresh)
+static int update_registry(const char *name, struct sockaddr_in *sin, int callno, char *devtype, int fd, unsigned short refresh)
 {
 	/* Called from IAX thread only, with proper iaxsl lock */
 	struct iax_ie_data ied;
@@ -5643,7 +5663,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 	return send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGACK, 0, ied.buf, ied.pos, -1);
 }
 
-static int registry_authrequest(char *name, int callno)
+static int registry_authrequest(const char *name, int callno)
 {
 	struct iax_ie_data ied;
 	struct iax2_peer *p;
@@ -5654,7 +5674,8 @@ static int registry_authrequest(char *name, int callno)
 		iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
 		if (p->authmethods & (IAX_AUTH_RSA | IAX_AUTH_MD5)) {
 			/* Build the challenge */
-			snprintf(iaxs[callno]->challenge, sizeof(iaxs[callno]->challenge), "%d", (int)ast_random());
+			ast_string_field_build(iaxs[callno], challenge, "%d", (int)ast_random());
+			/* snprintf(iaxs[callno]->challenge, sizeof(iaxs[callno]->challenge), "%d", (int)ast_random()); */
 			iax_ie_append_str(&ied, IAX_IE_CHALLENGE, iaxs[callno]->challenge);
 		}
 		iax_ie_append_str(&ied, IAX_IE_USERNAME, name);
@@ -5984,7 +6005,7 @@ struct dpreq_data {
 	char *callerid;
 };
 
-static void dp_lookup(int callno, char *context, char *callednum, char *callerid, int skiplock)
+static void dp_lookup(int callno, const char *context, const char *callednum, const char *callerid, int skiplock)
 {
 	unsigned short dpstatus = 0;
 	struct iax_ie_data ied1;
@@ -6027,7 +6048,7 @@ static void *dp_lookup_thread(void *data)
 	return NULL;
 }
 
-static void spawn_dp_lookup(int callno, char *context, char *callednum, char *callerid)
+static void spawn_dp_lookup(int callno, const char *context, const char *callednum, const char *callerid)
 {
 	pthread_t newthread;
 	struct dpreq_data *dpr;
@@ -7266,7 +7287,7 @@ retryowner2:
 			case IAX_COMMAND_DIAL:
 				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD)) {
 					ast_clear_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
-					ast_copy_string(iaxs[fr->callno]->exten, ies.called_number ? ies.called_number : "s", sizeof(iaxs[fr->callno]->exten));	
+					ast_string_field_set(iaxs[fr->callno], exten, ies.called_number ? ies.called_number : "s");
 					if (!ast_exists_extension(NULL, iaxs[fr->callno]->context, iaxs[fr->callno]->exten, 1, iaxs[fr->callno]->cid_num)) {
 						if (authdebug)
 							ast_log(LOG_NOTICE, "Rejected dial attempt from %s, request '%s@%s' does not exist\n", ast_inet_ntoa(sin.sin_addr), iaxs[fr->callno]->exten, iaxs[fr->callno]->context);
@@ -7954,7 +7975,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 		callno = make_trunk(callno, 1);
 	iaxs[callno]->maxtime = cai.maxtime;
 	if (cai.found)
-		ast_copy_string(iaxs[callno]->host, pds.peer, sizeof(iaxs[callno]->host));
+		ast_string_field_set(iaxs[callno], host, pds.peer);
 
 	c = ast_iax2_new(callno, AST_STATE_DOWN, cai.capability);
 
@@ -8234,15 +8255,20 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 			peer->expire = -1;
 			peer->pokeexpire = -1;
 			peer->sockfd = defaultsockfd;
+			if (ast_string_field_init(peer, 32)) {
+				free(peer);
+				peer = NULL;
+			}
 		}
 	}
 	if (peer) {
 		ast_copy_flags(peer, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
 		peer->encmethods = iax2_encryption;
 		peer->adsi = adsi;
-		peer->secret[0] = '\0';
+		/* NOT ANY MORE: peer->secret[0] = '\0'; */
+		ast_string_field_set(peer,secret,"");
 		if (!found) {
-			ast_copy_string(peer->name, name, sizeof(peer->name));
+			ast_string_field_set(peer, name, name);
 			peer->addr.sin_port = htons(IAX_DEFAULT_PORTNO);
 			peer->expiry = min_reg_expire;
 		}
@@ -8251,19 +8277,21 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		peer->smoothing = 0;
 		peer->pokefreqok = DEFAULT_FREQ_OK;
 		peer->pokefreqnotok = DEFAULT_FREQ_NOTOK;
-		peer->context[0] = '\0';
-		peer->peercontext[0] = '\0';
+		/* NO MORE: peer->context[0] = '\0';
+		   peer->peercontext[0] = '\0'; */
+		ast_string_field_set(peer,context,"");
+		ast_string_field_set(peer,peercontext,"");
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) {
-				ast_copy_string(peer->secret, v->value, sizeof(peer->secret));
+				ast_string_field_set(peer, secret, v->value);
 			} else if (!strcasecmp(v->name, "mailbox")) {
-				ast_copy_string(peer->mailbox, v->value, sizeof(peer->mailbox));
+				ast_string_field_set(peer, mailbox, v->value);
 			} else if (!strcasecmp(v->name, "mohinterpret")) {
-				ast_copy_string(peer->mohinterpret, v->value, sizeof(peer->mohinterpret));
+				ast_string_field_set(peer, mohinterpret, v->value);
 			} else if (!strcasecmp(v->name, "mohsuggest")) {
-				ast_copy_string(peer->mohsuggest, v->value, sizeof(peer->mohsuggest));
+				ast_string_field_set(peer, mohsuggest, v->value);
 			} else if (!strcasecmp(v->name, "dbsecret")) {
-				ast_copy_string(peer->dbsecret, v->value, sizeof(peer->dbsecret));
+				ast_string_field_set(peer, dbsecret, v->value);
 			} else if (!strcasecmp(v->name, "trunk")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_TRUNK);	
 				if (ast_test_flag(peer, IAX_TRUNK) && (timingfd < 0)) {
@@ -8310,6 +8338,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 					peer->expire = -1;
 					ast_clear_flag(peer, IAX_DYNAMIC);
 					if (ast_dnsmgr_lookup(v->value, &peer->addr.sin_addr, &peer->dnsmgr)) {
+						ast_string_field_free_all(peer);
 						free(peer);
 						return NULL;
 					}
@@ -8320,6 +8349,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 					inet_aton("255.255.255.255", &peer->mask);
 			} else if (!strcasecmp(v->name, "defaultip")) {
 				if (ast_get_ip(&peer->defaddr, v->value)) {
+					ast_string_field_free_all(peer);
 					free(peer);
 					return NULL;
 				}
@@ -8333,33 +8363,36 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 				inet_aton(v->value, &peer->mask);
 			} else if (!strcasecmp(v->name, "context")) {
 				if (ast_strlen_zero(peer->context))
-					ast_copy_string(peer->context, v->value, sizeof(peer->context));
+					ast_string_field_set(peer, context, v->value);
 			} else if (!strcasecmp(v->name, "regexten")) {
-				ast_copy_string(peer->regexten, v->value, sizeof(peer->regexten));
+				ast_string_field_set(peer, regexten, v->value);
 			} else if (!strcasecmp(v->name, "peercontext")) {
 				if (ast_strlen_zero(peer->peercontext))
-					ast_copy_string(peer->peercontext, v->value, sizeof(peer->peercontext));
+					ast_string_field_set(peer, peercontext, v->value);
 			} else if (!strcasecmp(v->name, "port")) {
 				if (ast_test_flag(peer, IAX_DYNAMIC))
 					peer->defaddr.sin_port = htons(atoi(v->value));
 				else
 					peer->addr.sin_port = htons(atoi(v->value));
 			} else if (!strcasecmp(v->name, "username")) {
-				ast_copy_string(peer->username, v->value, sizeof(peer->username));
+				ast_string_field_set(peer, username, v->value);
 			} else if (!strcasecmp(v->name, "allow")) {
 				ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 1);
 			} else if (!strcasecmp(v->name, "disallow")) {
 				ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 0);
 			} else if (!strcasecmp(v->name, "callerid")) {
-				ast_callerid_split(v->value, peer->cid_name, sizeof(peer->cid_name),
-									peer->cid_num, sizeof(peer->cid_num));
+				char name2[80];
+				char num2[80];
+				ast_callerid_split(v->value, name2, 80, num2, 80);
+				ast_string_field_set(peer, cid_name, name2);
+				ast_string_field_set(peer, cid_num, num2);
 				ast_set_flag(peer, IAX_HASCALLERID);	
 			} else if (!strcasecmp(v->name, "sendani")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_SENDANI);	
 			} else if (!strcasecmp(v->name, "inkeys")) {
-				ast_copy_string(peer->inkeys, v->value, sizeof(peer->inkeys));
+				ast_string_field_set(peer, inkeys, v->value);
 			} else if (!strcasecmp(v->name, "outkey")) {
-				ast_copy_string(peer->outkey, v->value, sizeof(peer->outkey));
+				ast_string_field_set(peer, outkey, v->value);
 			} else if (!strcasecmp(v->name, "qualify")) {
 				if (!strcasecmp(v->value, "no")) {
 					peer->maxms = 0;
@@ -8380,7 +8413,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 					ast_log(LOG_WARNING, "Qualification testing frequency of peer '%s' when NOT OK should be a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
 				} else ast_log(LOG_WARNING, "Set peer->pokefreqnotok to %d\n", peer->pokefreqnotok);
 			} else if (!strcasecmp(v->name, "timezone")) {
-				ast_copy_string(peer->zonetag, v->value, sizeof(peer->zonetag));
+				ast_string_field_set(peer, zonetag, v->value);
 			} else if (!strcasecmp(v->name, "adsi")) {
 				peer->adsi = ast_true(v->value);
 			}/* else if (strcasecmp(v->name,"type")) */
@@ -8432,19 +8465,22 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
  	} else {
 		AST_LIST_UNLOCK(&users);
 		/* This is going to memset'd to 0 in the next block */
-		user = ast_malloc(sizeof(*user));
+		user = ast_calloc(sizeof(*user),1);
+		if (ast_string_field_init(user, 32)) {
+			free(user);
+			user = NULL;
+		}
 	}
 	
 	if (user) {
-		memset(user, 0, sizeof(struct iax2_user));
 		user->maxauthreq = maxauthreq;
 		user->curauthreq = oldcurauthreq;
 		user->prefs = prefs;
 		user->capability = iax2_capability;
 		user->encmethods = iax2_encryption;
 		user->adsi = adsi;
-		ast_copy_string(user->name, name, sizeof(user->name));
-		ast_copy_string(user->language, language, sizeof(user->language));
+		ast_string_field_set(user, name, name);
+		ast_string_field_set(user, language, language);
 		ast_copy_flags(user, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_CODEC_USER_FIRST | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP);	
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
@@ -8504,28 +8540,35 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 					ast_set_flag(user, IAX_CODEC_NOPREFS);
 				}
 			} else if (!strcasecmp(v->name, "jitterbuffer")) {
-				ast_set2_flag(user, ast_true(v->value), IAX_USEJITTERBUF);	
+				ast_set2_flag(user, ast_true(v->value), IAX_USEJITTERBUF);
 			} else if (!strcasecmp(v->name, "forcejitterbuffer")) {
-				ast_set2_flag(user, ast_true(v->value), IAX_FORCEJITTERBUF);	
+				ast_set2_flag(user, ast_true(v->value), IAX_FORCEJITTERBUF);
 			} else if (!strcasecmp(v->name, "dbsecret")) {
-				ast_copy_string(user->dbsecret, v->value, sizeof(user->dbsecret));
+				ast_string_field_set(user, dbsecret, v->value);
 			} else if (!strcasecmp(v->name, "secret")) {
 				if (!ast_strlen_zero(user->secret)) {
-					strncpy(user->secret + strlen(user->secret), ";", sizeof(user->secret) - strlen(user->secret) - 1);
-					strncpy(user->secret + strlen(user->secret), v->value, sizeof(user->secret) - strlen(user->secret) - 1);
+					char buf99[100];
+					strncpy(buf99,user->secret,100); /* just in case some weirdness happens in the string_field_build */
+					ast_string_field_build(user,secret,"%s;%s",buf99,v->value);
+					/* strncpy(user->secret + strlen(user->secret), ";", sizeof(user->secret) - strlen(user->secret) - 1);
+					   strncpy(user->secret + strlen(user->secret), v->value, sizeof(user->secret) - strlen(user->secret) - 1); */
 				} else
-					ast_copy_string(user->secret, v->value, sizeof(user->secret));
+					ast_string_field_set(user, secret, v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {
-				ast_callerid_split(v->value, user->cid_name, sizeof(user->cid_name), user->cid_num, sizeof(user->cid_num));
+				char name2[80];
+				char num2[80];
+				ast_callerid_split(v->value, name2, 80, num2, 80);
+				ast_string_field_set(user, cid_name, name2);
+				ast_string_field_set(user, cid_num, num2);
 				ast_set_flag(user, IAX_HASCALLERID);	
 			} else if (!strcasecmp(v->name, "accountcode")) {
-				ast_copy_string(user->accountcode, v->value, sizeof(user->accountcode));
+				ast_string_field_set(user, accountcode, v->value);
 			} else if (!strcasecmp(v->name, "mohinterpret")) {
-				ast_copy_string(user->mohinterpret, v->value, sizeof(user->mohinterpret));
+				ast_string_field_set(user, mohinterpret, v->value);
 			} else if (!strcasecmp(v->name, "mohsuggest")) {
-				ast_copy_string(user->mohsuggest, v->value, sizeof(user->mohsuggest));
+				ast_string_field_set(user, mohsuggest, v->value);
 			} else if (!strcasecmp(v->name, "language")) {
-				ast_copy_string(user->language, v->value, sizeof(user->language));
+				ast_string_field_set(user, language, v->value);
 			} else if (!strcasecmp(v->name, "amaflags")) {
 				format = ast_cdr_amaflags2int(v->value);
 				if (format < 0) {
@@ -8534,7 +8577,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 					user->amaflags = format;
 				}
 			} else if (!strcasecmp(v->name, "inkeys")) {
-				ast_copy_string(user->inkeys, v->value, sizeof(user->inkeys));
+				ast_string_field_set(user, inkeys, v->value);
 			} else if (!strcasecmp(v->name, "maxauthreq")) {
 				user->maxauthreq = atoi(v->value);
 				if (user->maxauthreq < 0)
@@ -8611,6 +8654,7 @@ static void destroy_user(struct iax2_user *user)
 		ast_variables_destroy(user->vars);
 		user->vars = NULL;
 	}
+	ast_string_field_free_all(user);
 	free(user);
 }
 
@@ -8651,6 +8695,7 @@ static void destroy_peer(struct iax2_peer *peer)
 	register_peer_exten(peer, 0);
 	if (peer->dnsmgr)
 		ast_dnsmgr_release(peer->dnsmgr);
+	ast_string_field_free_all(peer);
 	free(peer);
 }
 
@@ -9062,7 +9107,7 @@ static int cache_get_callno_locked(const char *data)
 	}
 
 	ast_mutex_lock(&iaxsl[callno]);
-	ast_copy_string(iaxs[callno]->dproot, data, sizeof(iaxs[callno]->dproot));
+	ast_string_field_set(iaxs[callno], dproot, data);
 	iaxs[callno]->capability = IAX_CAPABILITY_FULLBANDWIDTH;
 
 	iax_ie_append_short(&ied, IAX_IE_VERSION, IAX_PROTO_VERSION);
@@ -9078,9 +9123,9 @@ static int cache_get_callno_locked(const char *data)
 	iax_ie_append_int(&ied, IAX_IE_CAPABILITY, IAX_CAPABILITY_FULLBANDWIDTH);
 	/* Keep password handy */
 	if (pds.password)
-		ast_copy_string(iaxs[callno]->secret, pds.password, sizeof(iaxs[callno]->secret));
+		ast_string_field_set(iaxs[callno], secret, pds.password);
 	if (pds.key)
-		ast_copy_string(iaxs[callno]->outkey, pds.key, sizeof(iaxs[callno]->outkey));
+		ast_string_field_set(iaxs[callno], outkey, pds.key);
 	/* Start the call going */
 	send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_NEW, 0, ied.buf, ied.pos, -1);
 
