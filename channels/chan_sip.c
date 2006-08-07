@@ -6708,8 +6708,7 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *messa
 	reqprep(&req, p, SIP_NOTIFY, 0, 1);
 	snprintf(tmp, sizeof(tmp), "refer;id=%d", cseq);
 	add_header(&req, "Event", tmp);
-	if (terminate)
-		add_header(&req, "Subscription-state", "terminated;reason=noresource");
+	add_header(&req, "Subscription-state", terminate ? "terminated;reason=noresource" : "active");
 	add_header(&req, "Content-Type", "message/sipfrag;version=2.0");
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
