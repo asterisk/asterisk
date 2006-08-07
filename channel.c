@@ -1502,10 +1502,16 @@ int ast_hangup(struct ast_channel *chan)
 		return 0;
 	}
 	free_translation(chan);
-	if (chan->stream) 		/* Close audio stream */
+	/* Close audio stream */
+	if (chan->stream) {
 		ast_closestream(chan->stream);
-	if (chan->vstream)		/* Close video stream */
+		chan->stream = NULL;
+	}
+	/* Close video stream */
+	if (chan->vstream) {
 		ast_closestream(chan->vstream);
+		chan->vstream = NULL;
+	}
 	if (chan->sched) {
 		sched_context_destroy(chan->sched);
 		chan->sched = NULL;
