@@ -3688,7 +3688,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	tmp->cid.cid_num = ast_strdup(i->cid_num);
 	tmp->cid.cid_ani = ast_strdup(i->cid_num);
 	tmp->cid.cid_name = ast_strdup(i->cid_name);
-	tmp->cid.cid_rdnis = ast_strdup(i->rdnis);
+	if (!ast_strlen_zero(i->rdnis))
+		tmp->cid.cid_rdnis = ast_strdup(i->rdnis);
 	
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s"))
 		tmp->cid.cid_dnid = ast_strdup(i->exten);
