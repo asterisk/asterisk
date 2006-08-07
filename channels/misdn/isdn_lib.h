@@ -413,6 +413,8 @@ int misdn_lib_get_port_info(int port);
 int misdn_lib_port_block(int port);
 int misdn_lib_port_unblock(int port);
 
+int misdn_lib_port_is_pri(int port);
+
 int misdn_lib_port_up(int port, int notcheck);
 
 int misdn_lib_get_port_down(int port);

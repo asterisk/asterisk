@@ -27,6 +27,18 @@ struct misdn_stack* get_misdn_stack( void );
 static int bec_initialized=0;
 #endif
 
+int misdn_lib_port_is_pri(int port)
+{
+	struct misdn_stack *stack=get_misdn_stack();
+	for ( ; stack; stack=stack->next) {
+		if (stack->port == port) {
+			return stack->pri;
+		}
+	}
+	
+	return -1;
+}
+
 
 int misdn_lib_port_block(int port)
 {

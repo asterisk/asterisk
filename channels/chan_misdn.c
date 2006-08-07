@@ -3042,18 +3042,20 @@ static struct ast_channel_tech misdn_tech_wo_bridge = {
 };
 
 
-static unsigned long glob_channel=0;
+static int glob_channel=0;
 
 static void update_name(struct ast_channel *tmp, int port, int c) 
 {
-	if (c<=0) {
-			c=glob_channel++;
-			ast_string_field_build(tmp, name, "%s/%d-u%d",
-				 misdn_type, port, c);
-	} else {
-			 ast_string_field_build(tmp, name, "%s/%d-%d",
-				 misdn_type, port, c);
+	int chan_offset=0;
+	int tmp_port = misdn_cfg_get_next_port(0);
+	for (; tmp_port > 0; tmp_port=misdn_cfg_get_next_port(tmp_port)) {
+	if (tmp_port == port) break;
+		chan_offset+=misdn_lib_port_is_pri(tmp_port)?30:2;	
 	}
+	if (c<0) c=0;
+
+	ast_string_field_build(tmp, name, "%s/%d-u%d",
+				 misdn_type, chan_offset+c, glob_channel++);
 
 	chan_misdn_log(3,port," --> updating channel name to [%s]\n",tmp->name);
 	
