@@ -50,10 +50,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/astobj.h"
 #include "asterisk/astdb.h"
+#include "asterisk/manager.h"
 
 #define JABBER_CONFIG "jabber.conf"
 
 /*-- Forward declarations */
+static int manager_jabber_send( struct mansession *s, struct message *m );
 static int aji_highest_bit(int number);
 static void aji_buddy_destroy(struct aji_buddy *obj);
 static void aji_client_destroy(struct aji_client *obj);
@@ -419,6 +421,7 @@ static int aji_send_exec(struct ast_channel *chan, void *data)
 static void aji_log_hook(void *data, const char *xmpp, size_t size, int is_incoming)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
+	manager_event(EVENT_FLAG_USER, "JabberEvent", "Account: %s\r\n Packet: %s", client->name, xmpp);
 
 	if (client->debug == 1) {
 		if (is_incoming)
@@ -2209,6 +2212,55 @@ struct aji_client_container *ast_aji_get_clients(void)
 	return &clients;
 }
 
+static char mandescr_jabber_send[] =
+"Description: Sends a message to a Jabber Client.\n"
+"Variables: \n"
+"  Jabber:	Client or transport Asterisk uses to connect to JABBER.\n"
+"  ScreenName:	User Name to message.\n"
+"  Message:	Message to be sent to the buddy\n";
+
+/*! \brief  Send a Jabber Message via call from the Manager */
+static int manager_jabber_send( struct mansession *s, struct message *m )
+{
+	struct aji_client *client = NULL;
+	char *id = astman_get_header(m,"ActionID");
+	char *jabber = astman_get_header(m,"Jabber");
+	char *screenname = astman_get_header(m,"ScreenName");
+	char *message = astman_get_header(m,"Message");
+
+	if (ast_strlen_zero(jabber)) {
+		astman_send_error(s, m, "No transport specified");
+		return 0;
+	}
+	if (ast_strlen_zero(screenname)) {
+		astman_send_error(s, m, "No ScreenName specified");
+		return 0;
+	}
+	if (ast_strlen_zero(message)) {
+		astman_send_error(s, m, "No Message specified");
+		return 0;
+	}
+
+	astman_send_ack(s, m, "Attempting to send Jabber Message");
+	client = ast_aji_get_client(jabber);
+	if (!client) {
+		astman_send_error(s, m, "Could not find Sender");
+		return 0;
+	}	
+	if (strchr(screenname, '@') && message){
+		ast_aji_send(client, screenname, message);	
+		if (!ast_strlen_zero(id))
+			astman_append(s, "ActionID: %s\r\n",id);
+		astman_append(s, "Response: Success\r\n");
+		return 0;
+	}
+	if (!ast_strlen_zero(id))
+		astman_append(s, "ActionID: %s\r\n",id);
+	astman_append(s, "Response: Failure\r\n");
+	return 0;
+}
+
+
 static void aji_reload()
 {
 	ASTOBJ_CONTAINER_MARKALL(&clients);
@@ -2232,7 +2284,7 @@ static int unload_module(void *mod)
 {
 	ast_cli_unregister_multiple(aji_cli, sizeof(aji_cli) / sizeof(aji_cli[0]));
 	ast_unregister_application(app_ajisend);
-
+	ast_manager_unregister("JabberSend");
 	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
 		ASTOBJ_RDLOCK(iterator);
 		if (option_verbose > 2)
@@ -2254,6 +2306,8 @@ static int load_module(void *mod)
 {
 	ASTOBJ_CONTAINER_INIT(&clients);
 	aji_reload();
+	ast_manager_register2("JabberSend", EVENT_FLAG_SYSTEM, manager_jabber_send,
+			"Sends a message to a Jabber Client", mandescr_jabber_send);
 	ast_register_application(app_ajisend, aji_send_exec, ajisend_synopsis, ajisend_descrip);
 	ast_register_application(app_ajistatus, aji_status_exec, ajistatus_synopsis, ajistatus_descrip);
 	ast_cli_register_multiple(aji_cli, sizeof(aji_cli) / sizeof(aji_cli[0]));
