@@ -760,8 +760,6 @@ static struct zt_ring_cadence cadences[NUM_CADENCE_MAX] = {
 	{ { 1000, 500, 2500, 5000 } },	/*!< Long ring */
 };
 
-int receivedRingT; /*!< Used to find out what ringtone we are on */
-
 /*! \brief cidrings says in which pause to transmit the cid information, where the first pause
  * is 1, the second pause is 2 and so on.
  */
@@ -5946,9 +5944,8 @@ static void *ss_thread(void *data)
 						len = 0;
 						distMatches = 0;
 						/* Clear the current ring data array so we dont have old data in it. */
-						for (receivedRingT=0; receivedRingT < 3; receivedRingT++) {
+						for (receivedRingT=0; receivedRingT < (sizeof(curRingData) / sizeof(curRingData[0])); receivedRingT++)
 							curRingData[receivedRingT] = 0;
-						}
 						receivedRingT = 0;
 						counter = 0;
 						counter1 = 0;
@@ -5976,8 +5973,10 @@ static void *ss_thread(void *data)
 		
 								if (p->ringt < p->ringt_base/2)
 									break;
-								++receivedRingT; /* Increment the ringT counter so we can match it against
-										values in zapata.conf for distinctive ring */
+								/* Increment the ringT counter so we can match it against
+								   values in zapata.conf for distinctive ring */
+								if (++receivedRingT == (sizeof(curRingData) / sizeof(curRingData[0])))
+									break;
 							} else if (i & ZT_IOMUX_READ) {
 								res = read(p->subs[index].zfd, buf, sizeof(buf));
 								if (res < 0) {
@@ -6048,9 +6047,8 @@ static void *ss_thread(void *data)
 				len = 0;
 				distMatches = 0;
 				/* Clear the current ring data array so we dont have old data in it. */
-				for (receivedRingT=0; receivedRingT < 3; receivedRingT++) {
+				for (receivedRingT=0; receivedRingT < (sizeof(curRingData) / sizeof(curRingData[0])); receivedRingT++)
 					curRingData[receivedRingT] = 0;
-				}
 				receivedRingT = 0;
 				counter = 0;
 				counter1 = 0;
@@ -6080,8 +6078,10 @@ static void *ss_thread(void *data)
 
 						if (p->ringt < p->ringt_base/2)
 							break;
-						++receivedRingT; /* Increment the ringT counter so we can match it against
-								values in zapata.conf for distinctive ring */
+						/* Increment the ringT counter so we can match it against
+						   values in zapata.conf for distinctive ring */
+						if (++receivedRingT == (sizeof(curRingData) / sizeof(curRingData[0])))
+							break;
 					} else if (i & ZT_IOMUX_READ) {
 						res = read(p->subs[index].zfd, buf, sizeof(buf));
 						if (res < 0) {
