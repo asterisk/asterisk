@@ -109,10 +109,10 @@ struct ael_priority *new_prio(void);
 struct ael_extension *new_exten(void);
 void linkprio(struct ael_extension *exten, struct ael_priority *prio);
 void destroy_extensions(struct ael_extension *exten);
-void linkexten(struct ael_extension *exten, struct ael_extension *add);
-void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct ael_extension *mother_exten );
+static void linkexten(struct ael_extension *exten, struct ael_extension *add);
+static void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct ael_extension *mother_exten, struct ast_context *context );
 void set_priorities(struct ael_extension *exten);
-void add_extensions(struct ael_extension *exten, struct ast_context *context);
+void add_extensions(struct ael_extension *exten);
 void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root);
 void destroy_pval(pval *item);
 void destroy_pval_item(pval *item);
@@ -144,11 +144,18 @@ static void check_goto(pval *item);
 static void find_pval_goto_item(pval *item, int lev);
 static void find_pval_gotos(pval *item, int lev);
 
-static struct pval *find_label_in_current_context(char *exten, char *label);
+static struct pval *find_label_in_current_context(char *exten, char *label, pval *curr_cont);
+static struct pval *find_first_label_in_current_context(char *label, pval *curr_cont);
 static void print_pval_list(FILE *fin, pval *item, int depth);
 
-static struct pval *find_label_in_current_extension(const char *label);
+static struct pval *find_label_in_current_extension(const char *label, pval *curr_ext);
 static struct pval *find_label_in_current_db(const char *context, const char *exten, const char *label);
+static pval *get_goto_target(pval *item);
+static int label_inside_case(pval *label);
+static void attach_exten(struct ael_extension **list, struct ael_extension *newmem);
+static void fix_gotos_in_extensions(struct ael_extension *exten);
+static pval *get_extension_or_contxt(pval *p);
+static pval *get_contxt(pval *p);
 static void remove_spaces_before_equals(char *str);
 
 
@@ -1016,6 +1023,97 @@ static void check_month(pval *MON)
 
 /* general purpose goto finder */
 
+static void check_label(pval *item)
+{
+	/* basically, ensure that a label is not repeated in a context. Period.
+	   The method:  well, for each label, find the first label in the context
+	   with the same name. If it's not the current label, then throw an error. */
+	struct pval *curr;
+	
+	/* printf("==== check_label:   ====\n"); */
+	if( !current_extension )
+		curr = current_context;
+	else
+		curr = current_extension;
+	
+	struct pval *x = find_first_label_in_current_context((char *)item->u1.str, curr);
+	/* printf("Hey, check_label found with item = %x, and x is %x, and currcont is %x, label name is %s\n", item,x, current_context, (char *)item->u1.str); */
+	if( x && x != item )
+	{
+		ast_log(LOG_ERROR,"Error: file %s, line %d-%d: Duplicate label %s! Previously defined at file %s, line %d.\n",
+				item->filename, item->startline, item->endline, item->u1.str, x->filename, x->startline);
+		errs++;
+	}
+	/* printf("<<<<< check_label:   ====\n"); */
+}
+
+static pval *get_goto_target(pval *item)
+{
+	/* just one item-- the label should be in the current extension */
+	pval *curr_ext = get_extension_or_contxt(item); /* containing exten, or macro */
+	pval *curr_cont;
+	
+	if (item->u1.list && !item->u1.list->next && !strstr((item->u1.list)->u1.str,"${")) {
+		struct pval *x = find_label_in_current_extension((char*)((item->u1.list)->u1.str), curr_ext);
+			return x;
+	}
+
+	curr_cont = get_contxt(item);
+
+	/* TWO items */
+	if (item->u1.list->next && !item->u1.list->next->next) {
+		if (!strstr((item->u1.list)->u1.str,"${") 
+			&& !strstr(item->u1.list->next->u1.str,"${") ) /* Don't try to match variables */ {
+			struct pval *x = find_label_in_current_context((char *)item->u1.list->u1.str, (char *)item->u1.list->next->u1.str, curr_cont);
+				return x;
+		}
+	}
+	
+	/* All 3 items! */
+	if (item->u1.list->next && item->u1.list->next->next) {
+		/* all three */
+		pval *first = item->u1.list;
+		pval *second = item->u1.list->next;
+		pval *third = item->u1.list->next->next;
+		
+		if (!strstr((item->u1.list)->u1.str,"${") 
+			&& !strstr(item->u1.list->next->u1.str,"${")
+			&& !strstr(item->u1.list->next->next->u1.str,"${")) /* Don't try to match variables */ {
+			struct pval *x = find_label_in_current_db((char*)first->u1.str, (char*)second->u1.str, (char*)third->u1.str);
+			if (!x) {
+
+				struct pval *p3;
+				struct pval *that_context = find_context(item->u1.list->u1.str);
+				
+				/* the target of the goto could be in an included context!! Fancy that!! */
+				/* look for includes in the current context */
+				if (that_context) {
+					for (p3=that_context->u2.statements; p3; p3=p3->next) {
+						if (p3->type == PV_INCLUDES) {
+							struct pval *p4;
+							for (p4=p3->u1.list; p4; p4=p4->next) {
+								/* for each context pointed to, find it, then find a context/label that matches the
+								   target here! */
+								char *incl_context = p4->u1.str;
+								/* find a matching context name */
+								struct pval *that_other_context = find_context(incl_context);
+								if (that_other_context) {
+									struct pval *x3;
+									x3 = find_label_in_current_context((char *)item->u1.list->next->u1.str, (char *)item->u1.list->next->next->u1.str, that_other_context);
+									if (x3) {
+										return x3;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			return x;
+		}
+	}
+	return 0;
+}
 
 static void check_goto(pval *item)
 {
@@ -1029,9 +1127,9 @@ static void check_goto(pval *item)
 	/* just one item-- the label should be in the current extension */
 	
 	if (item->u1.list && !item->u1.list->next && !strstr((item->u1.list)->u1.str,"${")) {
-		struct pval *x = find_label_in_current_extension((char*)((item->u1.list)->u1.str));
-		/* printf("Calling find_label_in_current_extension with args %s\n",
-		   (char*)((item->u1.list)->u1.str)); */
+		struct pval *x = find_label_in_current_extension((char*)((item->u1.list)->u1.str), current_extension? current_extension:current_context); /* if in macro, use current context instead */
+		/* printf("Called find_label_in_current_extension with arg %s; current_extension is %x: %d\n",
+		   (char*)((item->u1.list)->u1.str), current_extension?current_extension:current_context, current_extension?current_extension->type:current_context->type); */
 		if (!x) {
 			ast_log(LOG_ERROR,"Error: file %s, line %d-%d: goto:  no label %s exists in the current extension!\n",
 					item->filename, item->startline, item->endline, item->u1.list->u1.str);
@@ -1048,7 +1146,7 @@ static void check_goto(pval *item)
 		   (char*)((item->u1.list)->u1.str), (char *)item->u1.list->next->u1.str); */
 		if (!strstr((item->u1.list)->u1.str,"${") 
 			&& !strstr(item->u1.list->next->u1.str,"${") ) /* Don't try to match variables */ {
-			struct pval *x = find_label_in_current_context((char *)item->u1.list->u1.str, (char *)item->u1.list->next->u1.str);
+			struct pval *x = find_label_in_current_context((char *)item->u1.list->u1.str, (char *)item->u1.list->next->u1.str, current_context);
 			if (!x) {
 				ast_log(LOG_ERROR,"Error: file %s, line %d-%d: goto:  no label %s|%s exists in the current context, or any of its inclusions!\n",
 						item->filename, item->startline, item->endline, item->u1.list->u1.str, item->u1.list->next->u1.str );
@@ -1066,7 +1164,7 @@ static void check_goto(pval *item)
 		pval *second = item->u1.list->next;
 		pval *third = item->u1.list->next->next;
 		
-		/* printf("Calling find_label_in_current_context with args %s, %s, %s\n",
+		/* printf("Calling find_label_in_current_db with args %s, %s, %s\n",
 		   (char*)first->u1.str, (char*)second->u1.str, (char*)third->u1.str); */
 		if (!strstr((item->u1.list)->u1.str,"${") 
 			&& !strstr(item->u1.list->next->u1.str,"${")
@@ -1090,11 +1188,8 @@ static void check_goto(pval *item)
 								/* find a matching context name */
 								struct pval *that_other_context = find_context(incl_context);
 								if (that_other_context) {
-									struct pval *context_save = current_context;
 									struct pval *x3;
-									current_context = that_other_context;
-									x3 = find_label_in_current_context((char *)item->u1.list->next->u1.str, (char *)item->u1.list->next->next->u1.str);
-									current_context = context_save;
+									x3 = find_label_in_current_context((char *)item->u1.list->next->u1.str, (char *)item->u1.list->next->next->u1.str, that_other_context);
 									if (x3) {
 										found = x3;
 										break;
@@ -1138,7 +1233,7 @@ static void find_pval_goto_item(pval *item, int lev)
 		*/
 			
 		/* printf("Descending into matching macro %s\n", match_context); */
-		find_pval_gotos(item->u2.statements,lev+1); /* if we're just searching for a context, don't bother descending into them */
+		find_pval_gotos(item->u3.macro_statements,lev+1); /* if we're just searching for a context, don't bother descending into them */
 		
 		break;
 			
@@ -1303,16 +1398,21 @@ static struct pval *match_pval_item(pval *item)
 
 				   item->u3.macro_statements == pval list of statements in macro body.
 		*/
+		/* printf("    matching in MACRO %s, match_context=%s; retoncontmtch=%d; \n", item->u1.str, match_context, return_on_context_match); */
 		if (!strcmp(match_context,"*") || !strcmp(item->u1.str, match_context)) {
-			if (return_on_context_match && !strcmp(item->u1.str, match_context)) {
+			
+			/* printf("MACRO: match context is: %s\n", match_context); */
+			
+			if (return_on_context_match && !strcmp(item->u1.str, match_context)) /* if we're just searching for a context, don't bother descending into them */ {
 				/* printf("Returning on matching macro %s\n", match_context); */
 				return item;
 			}
 			
 			
 			if (!return_on_context_match) {
-				/* printf("Descending into matching macro %s\n", match_context); */
-				if ((x=match_pval(item->u2.statements))) /* if we're just searching for a context, don't bother descending into them */ {
+				/* printf("Descending into matching macro %s/%s\n", match_context, item->u1.str); */
+				if ((x=match_pval(item->u3.macro_statements)))  {
+					/* printf("Responded with pval match %x\n", x); */
 					return x;
 				}
 			}
@@ -1327,16 +1427,18 @@ static struct pval *match_pval_item(pval *item)
 		           item->u2.statements == pval list of statements in context body
 				   item->u3.abstract == int 1 if an abstract keyword were present
 		*/
+		/* printf("    matching in CONTEXT\n"); */
 		if (!strcmp(match_context,"*") || !strcmp(item->u1.str, match_context)) {
 			if (return_on_context_match && !strcmp(item->u1.str, match_context)) {
 				/* printf("Returning on matching context %s\n", match_context); */
+				/* printf("non-CONTEXT: Responded with pval match %x\n", x); */
 				return item;
 			}
-			
 			
 			if (!return_on_context_match ) {
 				/* printf("Descending into matching context %s\n", match_context); */
 				if ((x=match_pval(item->u2.statements))) /* if we're just searching for a context, don't bother descending into them */ {
+					/* printf("CONTEXT: Responded with pval match %x\n", x); */
 					return x;
 				}
 			}
@@ -1349,7 +1451,9 @@ static struct pval *match_pval_item(pval *item)
 		/* fields: item->u1.str     == value of case
 		           item->u2.statements == pval list of statements under the case
 		*/
+		/* printf("    matching in CASE\n"); */
 		if ((x=match_pval(item->u2.statements))) {
+			/* printf("CASE: Responded with pval match %x\n", x); */
 			return x;
 		}
 		break;
@@ -1358,7 +1462,9 @@ static struct pval *match_pval_item(pval *item)
 		/* fields: item->u1.str     == value of case
 		           item->u2.statements == pval list of statements under the case
 		*/
+		/* printf("    matching in PATTERN\n"); */
 		if ((x=match_pval(item->u2.statements))) {
+			/* printf("PATTERN: Responded with pval match %x\n", x); */
 			return x;
 		}
 		break;
@@ -1367,7 +1473,9 @@ static struct pval *match_pval_item(pval *item)
 		/* fields: 
 		           item->u2.statements == pval list of statements under the case
 		*/
+		/* printf("    matching in DEFAULT\n"); */
 		if ((x=match_pval(item->u2.statements))) {
+			/* printf("DEFAULT: Responded with pval match %x\n", x); */
 			return x;
 		}
 		break;
@@ -1376,7 +1484,9 @@ static struct pval *match_pval_item(pval *item)
 		/* fields: item->u1.str     == name of extension to catch
 		           item->u2.statements == pval list of statements in context body
 		*/
+		/* printf("    matching in CATCH\n"); */
 		if ((x=match_pval(item->u2.statements))) {
+			/* printf("CATCH: Responded with pval match %x\n", x); */
 			return x;
 		}
 		break;
@@ -1384,7 +1494,9 @@ static struct pval *match_pval_item(pval *item)
 	case PV_STATEMENTBLOCK:
 		/* fields: item->u1.list     == pval list of statements in block, one per entry in the list
 		*/
+		/* printf("    matching in STATEMENTBLOCK\n"); */
 		if ((x=match_pval(item->u1.list))) {
+			/* printf("STATEMENTBLOCK: Responded with pval match %x\n", x); */
 			return x;
 		}
 		break;
@@ -1393,7 +1505,7 @@ static struct pval *match_pval_item(pval *item)
 		/* fields: item->u1.str     == label name
 		*/
 		/* printf("PV_LABEL %s (cont=%s, exten=%s\n", 
-		   item->u1.str, current_context->u1.str, current_extension->u1.str); */
+		   item->u1.str, current_context->u1.str, (current_extension?current_extension->u1.str:"<macro>"));*/
 		
 		if (count_labels) {
 			if (!strcmp(match_label, item->u1.str)) {
@@ -1403,6 +1515,7 @@ static struct pval *match_pval_item(pval *item)
 			
 		} else {
 			if (!strcmp(match_label, item->u1.str)) {
+				/* printf("LABEL: Responded with pval match %x\n", x); */
 				return item;
 			}
 		}
@@ -1415,7 +1528,9 @@ static struct pval *match_pval_item(pval *item)
 
 				   item->u4.for_statements == a pval list of statements in the for ()
 		*/
+		/* printf("    matching in FOR\n"); */
 		if ((x=match_pval(item->u4.for_statements))) {
+			/* printf("FOR: Responded with pval match %x\n", x);*/
 			return x;
 		}
 		break;
@@ -1425,7 +1540,9 @@ static struct pval *match_pval_item(pval *item)
 
 				   item->u2.statements == a pval list of statements in the while ()
 		*/
+		/* printf("    matching in WHILE\n"); */
 		if ((x=match_pval(item->u2.statements))) {
+			/* printf("WHILE: Responded with pval match %x\n", x); */
 			return x;
 		}
 		break;
@@ -1452,11 +1569,13 @@ static struct pval *match_pval_item(pval *item)
 				   item->u3.else_statements == a pval list of statements in the else
 											   (could be zero)
 		*/
+		/* printf("    matching in IF/IFTIME/RANDOM\n"); */
 		if ((x=match_pval(item->u2.statements))) {
 			return x;
 		}
 		if (item->u3.else_statements) {
 			if ((x=match_pval(item->u3.else_statements))) {
+				/* printf("IF/IFTIME/RANDOM: Responded with pval match %x\n", x); */
 				return x;
 			}
 		}
@@ -1468,7 +1587,9 @@ static struct pval *match_pval_item(pval *item)
 				   item->u2.statements == a pval list of statements in the switch, 
 				   							(will be case statements, most likely!)
 		*/
-		if ((x=match_pval(item->u3.else_statements))) {
+		/* printf("    matching in SWITCH\n"); */
+		if ((x=match_pval(item->u2.statements))) {
+			/* printf("SWITCH: Responded with pval match %x\n", x); */
 			return x;
 		}
 		break;
@@ -1480,8 +1601,9 @@ static struct pval *match_pval_item(pval *item)
 				   item->u3.hints      == a char * hint argument
 				   item->u4.regexten   == an int boolean. non-zero says that regexten was specified
 		*/
+		/* printf("    matching in EXTENSION\n"); */
 		if (!strcmp(match_exten,"*") || extension_matches(item, match_exten, item->u1.str) ) {
-			/* printf("Descending into matching exten %s\n", match_exten); */
+			/* printf("Descending into matching exten %s => %s\n", match_exten, item->u1.str); */
 			if (strcmp(match_label,"1") == 0) {
 				if (item->u2.statements) {
 					struct pval *p5 = item->u2.statements;
@@ -1497,6 +1619,7 @@ static struct pval *match_pval_item(pval *item)
 			}
 
 			if ((x=match_pval(item->u2.statements))) {
+				/* printf("EXTENSION: Responded with pval match %x\n", x); */
 				return x;
 			}
 		} else {
@@ -1504,6 +1627,7 @@ static struct pval *match_pval_item(pval *item)
 		}
 		break;
 	default:
+		/* printf("    matching in default = %d\n", item->type); */
 		break;
 	}
 	return 0;
@@ -1515,9 +1639,12 @@ struct pval *match_pval(pval *item)
 
 	for (i=item; i; i=i->next) {
 		pval *x;
+		/* printf("   -- match pval: item %d\n", i->type); */
 		
-		if ((x = match_pval_item(i)))
+		if ((x = match_pval_item(i))) {
+			/* printf("match_pval: returning x=%x\n", (int)x); */
 			return x; /* cut the search short */
+		}
 	}
 	return 0;
 }
@@ -1534,7 +1661,7 @@ int count_labels_in_current_context(char *label)
 }
 #endif
 
-struct pval *find_label_in_current_context(char *exten, char *label)
+struct pval *find_first_label_in_current_context(char *label, pval *curr_cont)
 {
 	/* printf("  --- Got args %s, %s\n", exten, label); */
 	struct pval *ret;
@@ -1543,15 +1670,16 @@ struct pval *find_label_in_current_context(char *exten, char *label)
 	count_labels = 0;
 	return_on_context_match = 0;
 	match_context = "*";
-	match_exten = exten;
+	match_exten = "*";
 	match_label = label;
-	ret =  match_pval(current_context->u2.statements);
+	
+	ret =  match_pval(curr_cont);
 	if (ret)
 		return ret;
 					
 	/* the target of the goto could be in an included context!! Fancy that!! */
 	/* look for includes in the current context */
-	for (p3=current_context->u2.statements; p3; p3=p3->next) {
+	for (p3=curr_cont->u2.statements; p3; p3=p3->next) {
 		if (p3->type == PV_INCLUDES) {
 			struct pval *p4;
 			for (p4=p3->u1.list; p4; p4=p4->next) {
@@ -1561,11 +1689,8 @@ struct pval *find_label_in_current_context(char *exten, char *label)
 				/* find a matching context name */
 				struct pval *that_context = find_context(incl_context);
 				if (that_context) {
-					struct pval *context_save = current_context;
 					struct pval *x3;
-					current_context = that_context;
-					x3 = find_label_in_current_context(exten, label);
-					current_context = context_save;
+					x3 = find_first_label_in_current_context(label, that_context);
 					if (x3) {
 						return x3;
 					}
@@ -1576,7 +1701,46 @@ struct pval *find_label_in_current_context(char *exten, char *label)
 	return 0;
 }
 
-static struct pval *find_label_in_current_extension(const char *label)
+struct pval *find_label_in_current_context(char *exten, char *label, pval *curr_cont)
+{
+	/* printf("  --- Got args %s, %s\n", exten, label); */
+	struct pval *ret;
+	struct pval *p3;
+	
+	count_labels = 0;
+	return_on_context_match = 0;
+	match_context = "*";
+	match_exten = exten;
+	match_label = label;
+	ret =  match_pval(curr_cont->u2.statements);
+	if (ret)
+		return ret;
+					
+	/* the target of the goto could be in an included context!! Fancy that!! */
+	/* look for includes in the current context */
+	for (p3=curr_cont->u2.statements; p3; p3=p3->next) {
+		if (p3->type == PV_INCLUDES) {
+			struct pval *p4;
+			for (p4=p3->u1.list; p4; p4=p4->next) {
+				/* for each context pointed to, find it, then find a context/label that matches the
+				   target here! */
+				char *incl_context = p4->u1.str;
+				/* find a matching context name */
+				struct pval *that_context = find_context(incl_context);
+				if (that_context) {
+					struct pval *x3;
+					x3 = find_label_in_current_context(exten, label, that_context);
+					if (x3) {
+						return x3;
+					}
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+static struct pval *find_label_in_current_extension(const char *label, pval *curr_ext)
 {
 	/* printf("  --- Got args %s\n", label); */
 	count_labels = 0;
@@ -1584,9 +1748,7 @@ static struct pval *find_label_in_current_extension(const char *label)
 	match_context = "*";
 	match_exten = "*";
 	match_label = label;
-	if (! current_extension) /* macros have no current extension, the whole thing is one extension... */
-		return match_pval(current_context->u3.macro_statements);
-	return match_pval(current_extension->u2.statements);
+	return match_pval(curr_ext);
 }
 
 static struct pval *find_label_in_current_db(const char *context, const char *exten, const char *label)
@@ -2225,6 +2387,8 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 					item->filename, item->startline, item->endline, item->u1.str);
 			warns++;
 		}
+
+		check_label(item);
 		break;
 			
 	case PV_FOR:
@@ -2480,6 +2644,8 @@ void linkprio(struct ael_extension *exten, struct ael_priority *prio)
 		exten->plist_last->next = prio;
 		exten->plist_last = prio;
 	}
+	if( !prio->exten )
+		prio->exten = exten; /* don't override the switch value */
 }
 
 void destroy_extensions(struct ael_extension *exten)
@@ -2522,7 +2688,21 @@ void destroy_extensions(struct ael_extension *exten)
 	}
 }
 
-void linkexten(struct ael_extension *exten, struct ael_extension *add)
+static int label_inside_case(pval *label)
+{
+	pval *p = label;
+	
+	while( p && p->type != PV_MACRO && p->type != PV_CONTEXT ) /* early cutout, sort of */ {
+		if( p->type == PV_CASE || p->type == PV_DEFAULT || p->type == PV_PATTERN ) {
+			return 1;
+		}
+
+		p = p->dad;
+	}
+	return 0;
+}
+
+static void linkexten(struct ael_extension *exten, struct ael_extension *add)
 {
 	add->next_exten = exten->next_exten; /* this will reverse the order. Big deal. */
 	exten->next_exten = add;
@@ -2547,7 +2727,7 @@ static void remove_spaces_before_equals(char *str)
 	}
 }
 
-void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct ael_extension *mother_exten )
+static void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct ael_extension *mother_exten, struct ast_context *this_context )
 {
 	pval *p,*p2,*p3;
 	struct ael_priority *pr;
@@ -2584,6 +2764,11 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 		case PV_GOTO:
 			pr = new_prio();
 			pr->type = AEL_APPCALL;
+			p->u2.goto_target = get_goto_target(p);
+			if( p->u2.goto_target ) {
+				p->u3.goto_target_in_case = p->u2.goto_target->u2.label_in_case = label_inside_case(p->u2.goto_target);
+			}
+			
 			if (!p->u1.list->next) /* just one */ {
 				pr->app = strdup("Goto");
 				if (!mother_exten)
@@ -2612,6 +2797,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			pr = new_prio();
 			pr->type = AEL_LABEL;
 			pr->origin = p;
+			p->u3.compiled_label = exten;
 			linkprio(exten, pr);
 			break;
 
@@ -2675,7 +2861,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			exten->loop_break = for_end;
 			exten->loop_continue = for_test;
 			
-			gen_prios(exten, new_label, p->u4.for_statements, mother_exten); /* this will link in all the statements here */
+			gen_prios(exten, new_label, p->u4.for_statements, mother_exten, this_context); /* this will link in all the statements here */
 			
 			linkprio(exten, for_inc);
 			linkprio(exten, for_loop);
@@ -2713,7 +2899,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			exten->loop_break = while_end;
 			exten->loop_continue = while_test;
 			
-			gen_prios(exten, new_label, p->u2.statements, mother_exten); /* this will link in all the while body statements here */
+			gen_prios(exten, new_label, p->u2.statements, mother_exten, this_context); /* this will link in all the while body statements here */
 
 			linkprio(exten, while_loop);
 			linkprio(exten, while_end);
@@ -2756,6 +2942,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 				if (p2->type == PV_CASE) {
 					/* ok, generate a extension and link it in */
 					switch_case = new_exten();
+					switch_case->context = this_context;
 					/* the break/continue locations are inherited from parent */
 					switch_case->loop_break = exten->loop_break;
 					switch_case->loop_continue = exten->loop_continue;
@@ -2765,7 +2952,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 					switch_case->name = strdup(buf1);
 					snprintf(new_label,sizeof(new_label),"sw-%s-%s-%d", label, p2->u1.str, local_control_statement_count);
 					
-					gen_prios(switch_case, new_label, p2->u2.statements, exten); /* this will link in all the case body statements here */
+					gen_prios(switch_case, new_label, p2->u2.statements, exten, this_context); /* this will link in all the case body statements here */
 
 					/* here is where we write code to "fall thru" to the next case... if there is one... */
 					for (p3=p2->u2.statements; p3; p3=p3->next) {
@@ -2817,6 +3004,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 				} else if (p2->type == PV_PATTERN) {
 					/* ok, generate a extension and link it in */
 					switch_case = new_exten();
+					switch_case->context = this_context;
 					/* the break/continue locations are inherited from parent */
 					switch_case->loop_break = exten->loop_break;
 					switch_case->loop_continue = exten->loop_continue;
@@ -2826,7 +3014,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 					switch_case->name = strdup(buf1);
 					snprintf(new_label,sizeof(new_label),"sw-%s-%s-%d", label, p2->u1.str, local_control_statement_count);
 					
-					gen_prios(switch_case, new_label, p2->u2.statements, exten); /* this will link in all the while body statements here */
+					gen_prios(switch_case, new_label, p2->u2.statements, exten, this_context); /* this will link in all the while body statements here */
 					/* here is where we write code to "fall thru" to the next case... if there is one... */
 					for (p3=p2->u2.statements; p3; p3=p3->next) {
 						if (!p3->next)
@@ -2878,6 +3066,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 					default_exists++;
 					/* ok, generate a extension and link it in */
 					switch_case = new_exten();
+					switch_case->context = this_context;
 					/* the break/continue locations are inherited from parent */
 					switch_case->loop_break = exten->loop_break;
 					switch_case->loop_continue = exten->loop_continue;
@@ -2887,7 +3076,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 					
 					snprintf(new_label,sizeof(new_label),"sw-%s-default-%d", label, local_control_statement_count);
 					
-					gen_prios(switch_case, new_label, p2->u2.statements, exten); /* this will link in all the while body statements here */
+					gen_prios(switch_case, new_label, p2->u2.statements, exten, this_context); /* this will link in all the while body statements here */
 					
 					/* here is where we write code to "fall thru" to the next case... if there is one... */
 					for (p3=p2->u2.statements; p3; p3=p3->next) {
@@ -3030,12 +3219,12 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			linkprio(exten, rand_test);
 			
 			if (p->u3.else_statements) {
-				gen_prios(exten, new_label, p->u3.else_statements, mother_exten); /* this will link in all the else statements here */
+				gen_prios(exten, new_label, p->u3.else_statements, mother_exten, this_context); /* this will link in all the else statements here */
 			}
 			
 			linkprio(exten, rand_skip);
 			
-			gen_prios(exten, new_label, p->u2.statements, mother_exten); /* this will link in all the "true" statements here */
+			gen_prios(exten, new_label, p->u2.statements, mother_exten, this_context); /* this will link in all the "true" statements here */
 
 			linkprio(exten, rand_end);
 			
@@ -3089,11 +3278,11 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			
 			/* now, put the body of the if here */
 			
-			gen_prios(exten, new_label, p->u2.statements, mother_exten); /* this will link in all the statements here */
+			gen_prios(exten, new_label, p->u2.statements, mother_exten, this_context); /* this will link in all the statements here */
 			
 			if (p->u3.else_statements) {
 				linkprio(exten, if_skip);
-				gen_prios(exten, new_label, p->u3.else_statements, mother_exten); /* this will link in all the statements here */
+				gen_prios(exten, new_label, p->u3.else_statements, mother_exten, this_context); /* this will link in all the statements here */
 
 			}
 			
@@ -3136,11 +3325,11 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			
 			/* now, put the body of the if here */
 			
-			gen_prios(exten, new_label, p->u2.statements, mother_exten); /* this will link in all the statements here */
+			gen_prios(exten, new_label, p->u2.statements, mother_exten, this_context); /* this will link in all the statements here */
 			
 			if (p->u3.else_statements) {
 				linkprio(exten, if_skip);
-				gen_prios(exten, new_label, p->u3.else_statements, mother_exten); /* this will link in all the statements here */
+				gen_prios(exten, new_label, p->u3.else_statements, mother_exten, this_context); /* this will link in all the statements here */
 
 			}
 			
@@ -3149,7 +3338,7 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			break;
 
 		case PV_STATEMENTBLOCK:
-			gen_prios(exten, label, p->u1.list, mother_exten ); /* recurse into the block */
+			gen_prios(exten, label, p->u1.list, mother_exten, this_context ); /* recurse into the block */
 			break;
 
 		case PV_CATCH:
@@ -3157,11 +3346,12 @@ void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct
 			/* generate an extension with name of catch, put all catch stats
 			   into this exten! */
 			switch_case = new_exten();
+			switch_case->context = this_context;
 			linkexten(exten,switch_case);
 			switch_case->name = strdup(p->u1.str);
 			snprintf(new_label,sizeof(new_label),"catch-%s-%d",p->u1.str, control_statement_count);
 			
-			gen_prios(switch_case, new_label, p->u2.statements,mother_exten); /* this will link in all the catch body statements here */
+			gen_prios(switch_case, new_label, p->u2.statements,mother_exten,this_context); /* this will link in all the catch body statements here */
 			if (switch_case->return_needed) {
 				char buf[2000];
 				struct ael_priority *np2 = new_prio();
@@ -3204,7 +3394,7 @@ void set_priorities(struct ael_extension *exten)
 	} while ( exten );
 }
 
-void add_extensions(struct ael_extension *exten, struct ast_context *context)
+void add_extensions(struct ael_extension *exten)
 {
 	struct ael_priority *pr;
 	char *label=0;
@@ -3212,12 +3402,11 @@ void add_extensions(struct ael_extension *exten, struct ast_context *context)
 		struct ael_priority *last = 0;
 		
 		if (exten->hints) {
-			if (ast_add_extension2(context, 0 /*no replace*/, exten->name, PRIORITY_HINT, NULL, exten->cidmatch, 
+			if (ast_add_extension2(exten->context, 0 /*no replace*/, exten->name, PRIORITY_HINT, NULL, exten->cidmatch, 
 								  exten->hints, NULL, FREE, registrar)) {
 				ast_log(LOG_WARNING, "Unable to add step at priority 'hint' of extension '%s'\n",
 						exten->name);
 			}
-			
 		}
 		
 		for (pr=exten->plist; pr; pr=pr->next) {
@@ -3293,8 +3482,7 @@ void add_extensions(struct ael_extension *exten, struct ast_context *context)
 			else
 				label = 0;
 			
-			
-			if (ast_add_extension2(context, 0 /*no replace*/, exten->name, pr->priority_num, (label?label:NULL), exten->cidmatch, 
+			if (ast_add_extension2(exten->context, 0 /*no replace*/, exten->name, pr->priority_num, (label?label:NULL), exten->cidmatch, 
 								  app, strdup(appargs), FREE, registrar)) {
 				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of extension '%s'\n", pr->priority_num, 
 						exten->name);
@@ -3305,6 +3493,86 @@ void add_extensions(struct ael_extension *exten, struct ast_context *context)
 	} while ( exten );
 }
 
+static void attach_exten(struct ael_extension **list, struct ael_extension *newmem)
+{
+	/* travel to the end of the list... */
+	struct ael_extension *lptr;
+	if( !*list ) {
+		*list = newmem;
+		return;
+	}
+	lptr = *list;
+	
+	while( lptr->next_exten ) {
+		lptr = lptr->next_exten;
+	}
+	/* lptr should now pointing to the last element in the list; it has a null next_exten pointer */
+	lptr->next_exten = newmem;
+}
+
+static pval *get_extension_or_contxt(pval *p)
+{
+	while( p && p->type != PV_EXTENSION && p->type != PV_CONTEXT && p->type != PV_MACRO ) {
+		
+		p = p->dad;
+	}
+	
+	return p;
+}
+
+static pval *get_contxt(pval *p)
+{
+	while( p && p->type != PV_CONTEXT && p->type != PV_MACRO ) {
+		
+		p = p->dad;
+	}
+	
+	return p;
+}
+
+static void fix_gotos_in_extensions(struct ael_extension *exten)
+{
+	struct ael_extension *e;
+	for(e=exten;e;e=e->next_exten) {
+
+		struct ael_priority *p;
+		for(p=e->plist;p;p=p->next) {
+			
+			if( p->origin && p->origin->type == PV_GOTO && p->origin->u3.goto_target_in_case ) {
+				
+				/* fix the extension of the goto target to the actual extension in the post-compiled dialplan */
+
+				pval *target = p->origin->u2.goto_target;
+				struct ael_extension *z = target->u3.compiled_label;
+				pval *pv2 = p->origin;
+				char buf1[500];
+				char *apparg_save = p->appargs;
+				
+				p->appargs = 0;
+				if (!pv2->u1.list->next) /* just one  -- it won't hurt to repeat the extension */ {
+					snprintf(buf1,sizeof(buf1),"%s|%s", z->name, pv2->u1.list->u1.str);
+					p->appargs = strdup(buf1);
+					
+				} else if (pv2->u1.list->next && !pv2->u1.list->next->next) /* two */ {
+					snprintf(buf1,sizeof(buf1),"%s|%s", z->name, pv2->u1.list->next->u1.str);
+					p->appargs = strdup(buf1);
+				} else if (pv2->u1.list->next && pv2->u1.list->next->next) {
+					snprintf(buf1,sizeof(buf1),"%s|%s|%s", pv2->u1.list->u1.str, 
+							 z->name,
+							 pv2->u1.list->next->next->u1.str);
+					p->appargs = strdup(buf1);
+				}
+				else
+					printf("WHAT? The goto doesn't fall into one of three cases for GOTO????\n");
+				
+				if( apparg_save ) {
+					free(apparg_save);
+				}
+			}
+		}
+	}
+}
+
 
 void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 {
@@ -3312,7 +3580,8 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 	struct ast_context *context;
 	char buf[2000];
 	struct ael_extension *exten;
-	
+	struct ael_extension *exten_list = 0;
+
 	for (p=root; p; p=p->next ) {
 		pval *lp;
 		int argc;
@@ -3324,6 +3593,7 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 			context = ast_context_create(local_contexts, buf, registrar);
 			
 			exten = new_exten();
+			exten->context = context;
 			exten->name = strdup("s");
 			argc = 1;
 			for (lp=p->u2.arglist; lp; lp=lp->next) {
@@ -3338,7 +3608,7 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 			}
 			
 			/* CONTAINS APPCALLS, CATCH, just like extensions... */
-			gen_prios(exten, p->u1.str, p->u3.macro_statements, 0 );
+			gen_prios(exten, p->u1.str, p->u3.macro_statements, 0, context );
 			if (exten->return_needed) {
 				struct ael_priority *np2 = new_prio();
 				np2->type = AEL_APPCALL;
@@ -3350,8 +3620,7 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 			}
 			
 			set_priorities(exten);
-			add_extensions(exten, context);
-			destroy_extensions(exten);
+			attach_exten(&exten_list, exten);
 			break;
 			
 		case PV_GLOBALS:
@@ -3365,7 +3634,7 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 			
 		case PV_CONTEXT:
 			context = ast_context_create(local_contexts, p->u1.str, registrar);
-
+			
 			/* contexts contain: ignorepat, includes, switches, eswitches, extensions,  */
 			for (p2=p->u2.statements; p2; p2=p2->next) {
 				pval *p3;
@@ -3375,6 +3644,8 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 				case PV_EXTENSION:
 					exten = new_exten();
 					exten->name = strdup(p2->u1.str);
+					exten->context = context;
+					
 					if( (s3=strchr(exten->name, '/') ) != 0 )
 					{
 						*s3 = 0;
@@ -3384,7 +3655,7 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 					if ( p2->u3.hints )
 						exten->hints = strdup(p2->u3.hints);
 					exten->regexten = p2->u4.regexten;
-					gen_prios(exten, p->u1.str, p2->u2.statements, 0 );
+					gen_prios(exten, p->u1.str, p2->u2.statements, 0, context );
 					if (exten->return_needed) {
 						struct ael_priority *np2 = new_prio();
 						np2->type = AEL_APPCALL;
@@ -3405,8 +3676,7 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 					}
 
 					set_priorities(exten);
-					add_extensions(exten, context);
-					destroy_extensions(exten);
+					attach_exten(&exten_list, exten);
 					break;
 					
 				case PV_IGNOREPAT:
@@ -3466,6 +3736,13 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 			
 		}
 	}
+	/* moved these from being done after a macro or extension were processed,
+	   to after all processing is done, for the sake of fixing gotos to labels inside cases... */
+	/* I guess this would be considered 2nd pass of compiler now... */
+	fix_gotos_in_extensions(exten_list); /* find and fix extension ref in gotos to labels that are in case statements */
+	add_extensions(exten_list);   /* actually makes calls to create priorities in ast_contexts -- feeds dialplan to asterisk */
+	destroy_extensions(exten_list);  /* all that remains is an empty husk, discard of it as is proper */
+	
 }
 
 /* interface stuff */

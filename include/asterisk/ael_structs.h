@@ -24,34 +24,34 @@
 
 typedef enum 
 {
-	PV_WORD, /* an ident, string, name, label, etc. A user-supplied string. */
-	PV_MACRO,
-	PV_CONTEXT,
-	PV_MACRO_CALL,
-	PV_APPLICATION_CALL,
-	PV_CASE,
-	PV_PATTERN,
-	PV_DEFAULT,
-	PV_CATCH,
-	PV_SWITCHES,
-	PV_ESWITCHES,
-	PV_INCLUDES,
-	PV_STATEMENTBLOCK,
-	PV_VARDEC, /* you know, var=val; */
-	PV_GOTO,
-	PV_LABEL,
-	PV_FOR,
-	PV_WHILE,
-	PV_BREAK,
-	PV_RETURN,
-	PV_CONTINUE,
-	PV_IF,
-	PV_IFTIME,
-	PV_RANDOM,
-	PV_SWITCH,
-	PV_EXTENSION,
-	PV_IGNOREPAT,
-	PV_GLOBALS,
+	PV_WORD, /* an ident, string, name, label, etc. A user-supplied string. */ /* 0 */
+	PV_MACRO,             /* 1 */
+	PV_CONTEXT,           /* 2 */
+	PV_MACRO_CALL,        /* 3 */
+	PV_APPLICATION_CALL,  /* 4 */
+	PV_CASE,              /* 5 */
+	PV_PATTERN,           /* 6 */
+	PV_DEFAULT,           /* 7 */
+	PV_CATCH,             /* 8 */
+	PV_SWITCHES,          /* 9 */
+	PV_ESWITCHES,         /* 10 */
+	PV_INCLUDES,          /* 11 */
+	PV_STATEMENTBLOCK,    /* 12 */
+	PV_VARDEC, /* you know, var=val; */  /* 13 */
+	PV_GOTO,              /* 14 */
+	PV_LABEL,             /* 15 */
+	PV_FOR,               /* 16 */
+	PV_WHILE,             /* 17 */
+	PV_BREAK,             /* 18 */
+	PV_RETURN,            /* 19 */
+	PV_CONTINUE,          /* 20 */
+	PV_IF,                /* 21 */
+	PV_IFTIME,            /* 22 */
+	PV_RANDOM,            /* 23 */
+	PV_SWITCH,            /* 24 */
+	PV_EXTENSION,         /* 25 */
+	PV_IGNOREPAT,         /* 26 */
+	PV_GLOBALS,           /* 27 */
 
 } pvaltype;
 
@@ -88,7 +88,8 @@ struct pval
 		struct pval *statements; /* used in case, default, catch, while's statement, CONTEXT elements, GLOBALS */
 		char *val;  /* used in VARDEC */
 		char *for_test; /* used in FOR */
-		
+		int label_in_case; /* a boolean for LABELs */
+		struct pval *goto_target;  /* used in GOTO */
 	} u2;
 	
 	union
@@ -98,6 +99,8 @@ struct pval
 		struct pval *macro_statements; /* used in MACRO */
 		int abstract;  /* used for context */
 		char *hints; /* used in EXTENSION */
+		int goto_target_in_case; /* used in GOTO */
+		struct ael_extension *compiled_label;
 	} u3;
 	
 	union
@@ -106,11 +109,11 @@ struct pval
 		int regexten;                /* used in EXTENSION */
 	} u4;
 	
-	
 	struct pval *next; /* the pval at the end of this ptr will ALWAYS be of the same type as this one! 
 						  EXCEPT for objects of the different types, that are in the same list, like contexts & macros, etc */
 	
-	
+	struct pval *dad; /* the 'container' of this struct instance */
+	struct pval *prev; /* the opposite of the 'next' pointer */
 } ;
 
 
@@ -173,6 +176,8 @@ struct ael_extension
 	char *cidmatch;
 	char *hints;
 	int regexten;
+	
+	struct ast_context *context;
 	
 	struct ael_priority *plist;
 	struct ael_priority *plist_last;

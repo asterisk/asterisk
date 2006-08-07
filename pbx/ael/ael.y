@@ -34,7 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ael_structs.h"
 
 static pval * linku1(pval *head, pval *tail);
-
+static void set_dads(pval *dad, pval *child_list);
 void reset_parencount(yyscan_t yyscanner);
 void reset_semicount(yyscan_t yyscanner);
 void reset_argcount(yyscan_t yyscanner );
@@ -204,6 +204,7 @@ context : opt_abstract KW_CONTEXT context_name LC elements RC {
 		$$ = npval2(PV_CONTEXT, &@1, &@6);
 		$$->u1.str = $3;
 		$$->u2.statements = $5;
+		set_dads($$,$5);
 		$$->u3.abstract = $1; }
 	;
 
@@ -214,12 +215,14 @@ opt_abstract: KW_ABSTRACT { $$ = 1; }
 
 macro : KW_MACRO word LP arglist RP LC macro_statements RC {
 		$$ = npval2(PV_MACRO, &@1, &@8);
-		$$->u1.str = $2; $$->u2.arglist = $4; $$->u3.macro_statements = $7; }
+		$$->u1.str = $2; $$->u2.arglist = $4; $$->u3.macro_statements = $7;
+        set_dads($$,$7);}
 	;
 
 globals : KW_GLOBALS LC global_statements RC {
 		$$ = npval2(PV_GLOBALS, &@1, &@4);
-		$$->u1.statements = $3;}
+		$$->u1.statements = $3;
+        set_dads($$,$3);}
 	;
 
 global_statements : { $$ = NULL; }
@@ -263,21 +266,21 @@ ignorepat : KW_IGNOREPAT EXTENMARK word SEMI {
 extension : word EXTENMARK statement {
 		$$ = npval2(PV_EXTENSION, &@1, &@3);
 		$$->u1.str = $1;
-		$$->u2.statements = $3; }
+		$$->u2.statements = $3; set_dads($$,$3);}
 	| KW_REGEXTEN word EXTENMARK statement {
 		$$ = npval2(PV_EXTENSION, &@1, &@4);
 		$$->u1.str = $2;
-		$$->u2.statements = $4;
+		$$->u2.statements = $4; set_dads($$,$4);
 		$$->u4.regexten=1;}
 	| KW_HINT LP word3_list RP word EXTENMARK statement {
 		$$ = npval2(PV_EXTENSION, &@1, &@7);
 		$$->u1.str = $5;
-		$$->u2.statements = $7;
+		$$->u2.statements = $7; set_dads($$,$7);
 		$$->u3.hints = $3;}
 	| KW_REGEXTEN KW_HINT LP word3_list RP word EXTENMARK statement {
 		$$ = npval2(PV_EXTENSION, &@1, &@8);
 		$$->u1.str = $6;
-		$$->u2.statements = $8;
+		$$->u2.statements = $8; set_dads($$,$8);
 		$$->u4.regexten=1;
 		$$->u3.hints = $4;}
 
@@ -366,7 +369,7 @@ goto_word : word { $$ = $1;}
 switch_statement : KW_SWITCH test_expr LC case_statements RC {
 		$$ = npval2(PV_SWITCH, &@1, &@5);
 		$$->u1.str = $2;
-		$$->u2.statements = $4;}
+		$$->u2.statements = $4; set_dads($$,$4);}
 	;
 
 /*
@@ -374,7 +377,7 @@ switch_statement : KW_SWITCH test_expr LC case_statements RC {
  */
 statement : LC statements RC {
 		$$ = npval2(PV_STATEMENTBLOCK, &@1, &@3);
-		$$->u1.list = $2; }
+		$$->u1.list = $2; set_dads($$,$2);}
 	| assignment { $$ = $1; }
 	| KW_GOTO target SEMI {
 		$$ = npval2(PV_GOTO, &@1, &@3);
@@ -392,11 +395,11 @@ statement : LC statements RC {
 		$$->u1.for_init = $4;
 		$$->u2.for_test=$7;
 		$$->u3.for_inc = $10;
-		$$->u4.for_statements = $12;}
+		$$->u4.for_statements = $12; set_dads($$,$12);}
 	| KW_WHILE test_expr statement {
 		$$ = npval2(PV_WHILE, &@1, &@3);
 		$$->u1.str = $2;
-		$$->u2.statements = $3; }
+		$$->u2.statements = $3; set_dads($$,$3);}
 	| switch_statement { $$ = $1; }
 	| AMPER macro_call SEMI { $$ = update_last($2, &@2); }
 	| application_call SEMI { $$ = update_last($1, &@2); }
@@ -441,8 +444,8 @@ statement : LC statements RC {
 	| KW_CONTINUE SEMI { $$ = npval2(PV_CONTINUE, &@1, &@2); }
 	| if_like_head statement opt_else {
 		$$ = update_last($1, &@2);
-		$$->u2.statements = $2;
-		$$->u3.else_statements = $3;}
+		$$->u2.statements = $2; set_dads($$,$2);
+		$$->u3.else_statements = $3;set_dads($$,$3);}
 	| SEMI { $$=0; }
 	;
 
@@ -541,15 +544,15 @@ case_statements: /* empty */ { $$ = NULL; }
 case_statement: KW_CASE word COLON statements {
 		$$ = npval2(PV_CASE, &@1, &@3); /* XXX 3 or 4 ? */
 		$$->u1.str = $2;
-		$$->u2.statements = $4;}
+		$$->u2.statements = $4; set_dads($$,$4);}
 	| KW_DEFAULT COLON statements {
 		$$ = npval2(PV_DEFAULT, &@1, &@3);
 		$$->u1.str = NULL;
-		$$->u2.statements = $3;}
+		$$->u2.statements = $3;set_dads($$,$3);}
 	| KW_PATTERN word COLON statements {
 		$$ = npval2(PV_PATTERN, &@1, &@4); /* XXX@3 or @4 ? */
 		$$->u1.str = $2;
-		$$->u2.statements = $4;}
+		$$->u2.statements = $4;set_dads($$,$4);}
 	;
 
 macro_statements: /* empty */ { $$ = NULL; }
@@ -560,17 +563,17 @@ macro_statement : statement {$$=$1;}
 	| KW_CATCH word LC statements RC {
 		$$ = npval2(PV_CATCH, &@1, &@5);
 		$$->u1.str = $2;
-		$$->u2.statements = $4;}
+		$$->u2.statements = $4; set_dads($$,$4);}
 	;
 
 switches : KW_SWITCHES LC switchlist RC {
 		$$ = npval2(PV_SWITCHES, &@1, &@2);
-		$$->u1.list = $3; }
+		$$->u1.list = $3; set_dads($$,$3);}
 	;
 
 eswitches : KW_ESWITCHES LC switchlist RC {
 		$$ = npval2(PV_ESWITCHES, &@1, &@2);
-		$$->u1.list = $3; }
+		$$->u1.list = $3; set_dads($$,$3);}
 	;
 
 switchlist : /* empty */ { $$ = NULL; }
@@ -593,7 +596,7 @@ includeslist : included_entry SEMI { $$ = $1; }
 
 includes : KW_INCLUDES LC includeslist RC {
 		$$ = npval2(PV_INCLUDES, &@1, &@4);
-		$$->u1.list = $3;}
+		$$->u1.list = $3;set_dads($$,$3);}
 	| KW_INCLUDES LC RC {
 		$$ = npval2(PV_INCLUDES, &@1, &@3);}
 	;
@@ -784,6 +787,17 @@ static pval * linku1(pval *head, pval *tail)
 			head->u1_last->next = tail;
 		}
 		head->u1_last = tail;
+		tail->prev = head; /* the dad link only points to containers */
 	}
 	return head;
 }
+
+/* this routine adds a dad ptr to each element in the list */
+static void set_dads(struct pval *dad, struct pval *child_list)
+{
+	struct pval *t;
+	
+	for(t=child_list;t;t=t->next)  /* simple stuff */
+		t->dad = dad;
+}
+
