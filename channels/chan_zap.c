@@ -6020,7 +6020,7 @@ static void *ss_thread(void *data)
 					    chan->_state == AST_STATE_RINGING) 
 						break; /* Got ring */
 				}
-				dtmfbuf[i] = 0;
+				dtmfbuf[i] = '\0';
 				zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
 				/* Got cid and ring. */
 				ast_log(LOG_DEBUG, "CID got string '%s'\n", dtmfbuf);
@@ -6028,10 +6028,10 @@ static void *ss_thread(void *data)
 				ast_log(LOG_DEBUG, "CID is '%s', flags %d\n", 
 					dtmfcid, flags);
 				/* If first byte is NULL, we have no cid */
-				if (dtmfcid[0]) 
+				if (!ast_strlen_zero(dtmfcid)) 
 					number = dtmfcid;
 				else
-					number = 0;
+					number = NULL;
 			/* If set to use V23 Signalling, launch our FSK gubbins and listen for it */
 			} else if ((p->cid_signalling == CID_SIG_V23) || (p->cid_signalling == CID_SIG_V23_JP)) {
 				cs = callerid_new(p->cid_signalling);
@@ -6396,24 +6396,17 @@ static void *ss_thread(void *data)
 		}
 		else
 			cs = NULL;
-		if (number || name) {
-		    if (chan->cid.cid_num) {
-			free(chan->cid.cid_num);
-			chan->cid.cid_num = NULL;
-		    }
-		    if (chan->cid.cid_name) {
-			free(chan->cid.cid_name);
-			chan->cid.cid_name = NULL;
-		    }
-		}
+
 		if (number)
 			ast_shrink_phone_number(number);
-
 		ast_set_callerid(chan, number, name, number);
+
 		if (smdi_msg)
 			ASTOBJ_UNREF(smdi_msg, ast_smdi_md_message_destroy);
+
 		if (cs)
 			callerid_free(cs);
+
 		ast_setstate(chan, AST_STATE_RING);
 		chan->rings = 1;
 		p->ringt = p->ringt_base;
