@@ -185,6 +185,9 @@ sendvoicemail=yes	; Context to Send voicemail from [option 5 from the advanced m
 			;     This is intended for use with users who wish to receive their 
 			;     voicemail ONLY by email. Note:  "deletevoicemail" is provided as an
 			;     equivalent option for Realtime configuration.
+; volgain=0.0		; Emails bearing the voicemail may arrive in a volume too
+			;     quiet to be heard.  This parameter allows you to specify how
+			;     much gain to add to the message when sending a voicemail.
 ; nextaftercmd=yes	; Skips to the next message after hitting 7 or 9 to delete/save current message.
 			;     [global option only at this time] 
 ; forcename=yes		; Forces a new user to record their name.  A new user is

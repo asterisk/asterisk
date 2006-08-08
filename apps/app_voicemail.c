@@ -272,6 +272,7 @@ struct ast_vm_user {
 	unsigned int flags;              /*!< VM_ flags */	
 	int saydurationm;
 	int maxmsg;                      /*!< Maximum number of msgs per folder for this mailbox */
+	double volgain;		/*!< Volume gain for voicemails sent via email */
 	AST_LIST_ENTRY(ast_vm_user) list;
 };
 
@@ -427,6 +428,7 @@ static char mailcmd[160];	/* Configurable mail cmd */
 static char externnotify[160]; 
 static struct ast_smdi_interface *smdi_iface = NULL;
 static char vmfmts[80];
+static double volgain;
 static int vmminmessage;
 static int vmmaxmessage;
 static int maxgreet;
@@ -473,6 +475,7 @@ static void populate_defaults(struct ast_vm_user *vmu)
 		ast_copy_string(vmu->exit, exitcontext, sizeof(vmu->exit));
 	if (maxmsg)
 		vmu->maxmsg = maxmsg;
+	vmu->volgain = volgain;
 }
 
 static void apply_option(struct ast_vm_user *vmu, const char *var, const char *value)
@@ -529,6 +532,8 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 			ast_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value maxmsg=%s\n", MAXMSGLIMIT, value);
 			vmu->maxmsg = MAXMSGLIMIT;
 		}
+	} else if (!strcasecmp(var, "volgain")) {
+		sscanf(value, "%lf", &vmu->volgain);
 	} else if (!strcasecmp(var, "options")) {
 		apply_options(vmu, value);
 	}
@@ -1761,6 +1766,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 	char dur[256];
 	char tmp[80] = "/tmp/astmail-XXXXXX";
 	char tmp2[256];
+	char tmpcmd[256];
 	struct tm tm;
 
 	if (vmu && ast_strlen_zero(vmu->email)) {
@@ -1871,7 +1877,19 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 		if (attach_user_voicemail) {
 			/* Eww. We want formats to tell us their own MIME type */
 			char *ctype = (!strcasecmp(format, "ogg")) ?  "application/" : "audio/x-";
+			char tmpdir[256], newtmp[256];
+			int tmpfd;
 		
+			create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, vmu->mailbox, "tmp");
+			snprintf(newtmp, sizeof(newtmp), "%s/XXXXXX", tmpdir);
+			tmpfd = mkstemp(newtmp);
+			ast_log(LOG_DEBUG, "newtmp: %s\n", newtmp);
+			if (vmu->volgain < -.001 || vmu->volgain > .001) {
+				snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, attach, format, newtmp, format);
+				ast_safe_system(tmpcmd);
+				attach = newtmp;
+				ast_log(LOG_DEBUG, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
+			}
 			fprintf(p, "--%s\n", bound);
 			fprintf(p, "Content-Type: %s%s; name=\"msg%04d.%s\"\n", ctype, format, msgnum, format);
 			fprintf(p, "Content-Transfer-Encoding: base64\n");
@@ -1881,6 +1899,9 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 			snprintf(fname, sizeof(fname), "%s.%s", attach, format);
 			base_encode(fname, p);
 			fprintf(p, "\n\n--%s--\n.\n", bound);
+			if (tmpfd > -1)
+				close(tmpfd);
+			unlink(newtmp);
 		}
 		fclose(p);
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
@@ -6183,6 +6204,7 @@ static int load_config(void)
 	char *exitcxt = NULL;	
 	char *extpc;
 	char *emaildateformatstr;
+	char *volgainstr;
 	int x;
 	int tmpadsi[4];
 
@@ -6212,6 +6234,10 @@ static int load_config(void)
 		if (!(astsearch = ast_variable_retrieve(cfg, "general", "searchcontexts")))
 			astsearch = "no";
 		ast_set2_flag((&globalflags), ast_true(astsearch), VM_SEARCH);
+
+		volgain = 0.0;
+		if ((volgainstr = ast_variable_retrieve(cfg, "general", "volgain")))
+			sscanf(volgainstr, "%lf", &volgain);
 
 #ifdef ODBC_STORAGE
 		strcpy(odbc_database, "asterisk");
