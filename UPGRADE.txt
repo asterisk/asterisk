@@ -240,6 +240,10 @@ Variables:
 * Builtin transfer functionality sets the variable ${TRANSFERERNAME} in the new
   created channel. This variables holds the channel name of the transferer.
 
+* The dial plan variable PRI_CAUSE will be removed from future versions 
+  of Asterisk.
+  It is replaced by adding a cause value to the hangup() application.
+
 Functions:
 
 * The function ${CHECK_MD5()} has been deprecated in favor of using an
