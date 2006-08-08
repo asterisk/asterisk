@@ -43,8 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/ioctl.h>
 #include <signal.h>
 #include <sys/file.h>
-#include <sys/ipc.h>
-#include <sys/sem.h>
+#include <semaphore.h>
 
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
@@ -157,7 +156,9 @@ struct chan_list {
 	char ast_rd_buf[4096];
 	struct ast_frame frame;
 
-	int faxdetect;
+	int faxdetect; /* 0:no 1:yes 2:yes+nojump */
+	int faxdetect_timeout;
+	struct timeval faxdetect_tv;
 	int faxhandled;
 
 	int ast_dsp;
@@ -258,7 +259,6 @@ static struct robin_list* get_robin_position (char *group)
 /* the main schedule context for stuff like l1 watcher, overlap dial, ... */
 static struct sched_context *misdn_tasks = NULL;
 static pthread_t misdn_tasks_thread;
-static int misdn_tasks_semid;
 
 static void chan_misdn_log(int level, int port, char *tmpl, ...);
 
@@ -417,15 +417,15 @@ static void print_facility( struct misdn_bchannel *bc)
 {
 	switch (bc->fac_type) {
 	case FACILITY_CALLDEFLECT:
-		chan_misdn_log(2,bc->port," --> calldeflect: %s\n",
+		chan_misdn_log(0,bc->port," --> calldeflect: %s\n",
 			       bc->fac.calldeflect_nr);
 		break;
 	case FACILITY_CENTREX:
-		chan_misdn_log(2,bc->port," --> centrex: %s\n",
+		chan_misdn_log(0,bc->port," --> centrex: %s\n",
 			       bc->fac.cnip);
 		break;
 	default:
-		chan_misdn_log(2,bc->port," --> unknown\n");
+		chan_misdn_log(0,bc->port," --> unknown\n");
 		
 	}
 }
@@ -453,11 +453,6 @@ static void* misdn_tasks_thread_func (void *data)
 {
 	int wait;
 	struct sigaction sa;
-	struct sembuf semb = {
-		.sem_num = 0,
-		.sem_op = 1,
-		.sem_flg = 0
-	};
 
 	sa.sa_handler = sighandler;
 	sa.sa_flags = SA_NODEFER;
@@ -465,7 +460,7 @@ static void* misdn_tasks_thread_func (void *data)
 	sigaddset(&sa.sa_mask, SIGUSR1);
 	sigaction(SIGUSR1, &sa, NULL);
 	
-	semop(misdn_tasks_semid, &semb, 1);
+	sem_post((sem_t *)data);
 
 	while (1) {
 		wait = ast_sched_wait(misdn_tasks);
@@ -480,44 +475,21 @@ static void* misdn_tasks_thread_func (void *data)
 
 static void misdn_tasks_init (void)
 {
-	key_t key;
-	union {
-		int val;
-		struct semid_ds *buf;
-		unsigned short *array;
-		struct seminfo *__buf;
-	} semu;
-	struct sembuf semb = {
-		.sem_num = 0,
-		.sem_op = -1,
-		.sem_flg = 0
-	};
-	
-	chan_misdn_log(4, 0, "Starting misdn_tasks thread\n");
-	
-	key = ftok("/etc/asterisk/misdn.conf", 'E');
-	if (key == -1) {
-		perror("chan_misdn: Failed to create a semaphore key!");
-		exit(1);
-	}
+	sem_t blocker;
+	int i = 5;
 
-	misdn_tasks_semid = semget(key, 10, 0666 | IPC_CREAT);
-	if (misdn_tasks_semid == -1) {
-		perror("chan_misdn: Failed to get a semaphore!");
-		exit(1);
-	}
-
-	semu.val = 0;
-	if (semctl(misdn_tasks_semid, 0, SETVAL, semu) == -1) {
+	if (sem_init(&blocker, 0, 0)) {
 		perror("chan_misdn: Failed to initialize semaphore!");
 		exit(1);
 	}
 
+	chan_misdn_log(4, 0, "Starting misdn_tasks thread\n");
+	
 	misdn_tasks = sched_context_create();
-	pthread_create(&misdn_tasks_thread, NULL, misdn_tasks_thread_func, NULL);
+	pthread_create(&misdn_tasks_thread, NULL, misdn_tasks_thread_func, &blocker);
 
-	semop(misdn_tasks_semid, &semb, 1);
-	semctl(misdn_tasks_semid, 0, IPC_RMID, semu);
+	while (sem_wait(&blocker) && --i);
+	sem_destroy(&blocker);
 }
 
 static void misdn_tasks_destroy (void)
@@ -1751,6 +1723,8 @@ static int read_config(struct chan_list *ch, int orig) {
 
 	misdn_cfg_get( port, MISDN_CFG_ALLOWED_BEARERS, &ch->allowed_bearers, BUFFERSIZE);
 	
+  	char faxdetect[BUFFERSIZE+1];
+  	misdn_cfg_get( port, MISDN_CFG_FAXDETECT, faxdetect, BUFFERSIZE);
 	
 	int hdlc=0;
 	misdn_cfg_get( port, MISDN_CFG_HDLC, &hdlc, sizeof(int));
@@ -1803,6 +1777,13 @@ static int read_config(struct chan_list *ch, int orig) {
 	if ( orig  == ORG_AST) {
 		misdn_cfg_get( port, MISDN_CFG_TE_CHOOSE_CHANNEL, &(bc->te_choose_channel), sizeof(int));
 		
+ 		if (strstr(faxdetect, "outgoing") || strstr(faxdetect, "both")) {
+ 			if (strstr(faxdetect, "nojump"))
+ 				ch->faxdetect=2;
+ 			else
+ 				ch->faxdetect=1;
+ 		}
+
 		{
 			char callerid[BUFFERSIZE+1];
 			misdn_cfg_get( port, MISDN_CFG_CALLERID, callerid, BUFFERSIZE);
@@ -1827,6 +1808,12 @@ static int read_config(struct chan_list *ch, int orig) {
 
 		ch->overlap_dial = 0;
 	} else { /** ORIGINATOR MISDN **/
+ 		if (strstr(faxdetect, "incoming") || strstr(faxdetect, "both")) {
+ 			if (strstr(faxdetect, "nojump"))
+ 				ch->faxdetect=2;
+ 			else
+ 				ch->faxdetect=1;
+ 		}
 	
 		misdn_cfg_get( port, MISDN_CFG_CPNDIALPLAN, &bc->cpnnumplan, sizeof(int));
 		debug_numplan(port, bc->cpnnumplan,"CTON");
@@ -1896,6 +1883,18 @@ static int read_config(struct chan_list *ch, int orig) {
 		misdn_cfg_get(bc->port, MISDN_CFG_OVERLAP_DIAL, &ch->overlap_dial, sizeof(ch->overlap_dial));
 		ast_mutex_init(&ch->overlap_tv_lock);
 	} /* ORIG MISDN END */
+
+	ch->overlap_dial_task = -1;
+	
+	if (ch->faxdetect) {
+		misdn_cfg_get( port, MISDN_CFG_FAXDETECT_TIMEOUT, &ch->faxdetect_timeout, sizeof(ch->faxdetect_timeout));
+		if (!ch->dsp)
+			ch->dsp = ast_dsp_new();
+		if (ch->dsp)
+			ast_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+		if (!ch->trans)
+			ch->trans=ast_translator_build_path(AST_FORMAT_SLINEAR, AST_FORMAT_ALAW);
+	}
 
 	return 0;
 }
@@ -2468,44 +2467,65 @@ static int misdn_hangup(struct ast_channel *ast)
 struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame *frame)
 {
 	struct ast_frame *f,*f2;
-	if (tmp->trans)
-		f2=ast_translate(tmp->trans, frame,0);
-	else {
+ 
+ 	if (tmp->trans) {
+ 		f2 = ast_translate(tmp->trans, frame, 0);
+ 		f = ast_dsp_process(tmp->ast, tmp->dsp, f2);
+ 	} else {
 		chan_misdn_log(0, tmp->bc->port, "No T-Path found\n");
 		return NULL;
 	}
-	
-	f = ast_dsp_process(tmp->ast, tmp->dsp, f2);
-	if (f && (f->frametype == AST_FRAME_DTMF)) {
-		ast_log(LOG_DEBUG, "Detected inband DTMF digit: %c", f->subclass);
-		if (f->subclass == 'f' && tmp->faxdetect) {
-			/* Fax tone -- Handle and return NULL */
-			struct ast_channel *ast = tmp->ast;
-			if (!tmp->faxhandled) {
-				tmp->faxhandled++;
-				if (strcmp(ast->exten, "fax")) {
-					if (ast_exists_extension(ast, ast_strlen_zero(ast->macrocontext)? ast->context : ast->macrocontext, "fax", 1, AST_CID_P(ast))) {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", ast->name);
-						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
-						pbx_builtin_setvar_helper(ast,"FAXEXTEN",ast->exten);
-						if (ast_async_goto(ast, ast->context, "fax", 1))
-							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, ast->context);
-					} else
-						ast_log(LOG_NOTICE, "Fax detected, but no fax extension ctx:%s exten:%s\n",ast->context, ast->exten);
-				} else
-					ast_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
-			} else
-				ast_log(LOG_DEBUG, "Fax already handled\n");
-			
-		}  else if ( tmp->ast_dsp) {
-			chan_misdn_log(2, tmp->bc->port, " --> * SEND: DTMF (AST_DSP) :%c\n",f->subclass);
-			return f;
-		}
-	}
 
-	frame->frametype = AST_FRAME_NULL;
-	frame->subclass = 0;
+ 
+ 	if (!f || (f->frametype != AST_FRAME_DTMF))
+ 		return frame;
+ 
+ 	ast_log(LOG_DEBUG, "Detected inband DTMF digit: %c", f->subclass);
+ 
+ 	if (tmp->faxdetect && (f->subclass == 'f')) {
+ 		/* Fax tone -- Handle and return NULL */
+ 		if (!tmp->faxhandled) {
+  			struct ast_channel *ast = tmp->ast;
+ 			tmp->faxhandled++;
+ 			chan_misdn_log(0, tmp->bc->port, "Fax detected, preparing %s for fax transfer.\n", ast->name);
+ 			tmp->bc->rxgain = 0;
+ 			isdn_lib_update_rxgain(tmp->bc);
+ 			tmp->bc->txgain = 0;
+ 			isdn_lib_update_txgain(tmp->bc);
+ 			tmp->bc->ec_enable = 0;
+ 			isdn_lib_update_ec(tmp->bc);
+ 			isdn_lib_stop_dtmf(tmp->bc);
+ 			switch (tmp->faxdetect) {
+ 			case 1:
+  				if (strcmp(ast->exten, "fax")) {
+ 					char *context;
+ 					char context_tmp[BUFFERSIZE];
+ 					misdn_cfg_get(tmp->bc->port, MISDN_CFG_FAXDETECT_CONTEXT, &context_tmp, sizeof(context_tmp));
+ 					context = ast_strlen_zero(context_tmp) ? (ast_strlen_zero(ast->macrocontext) ? ast->context : ast->macrocontext) : context_tmp;
+ 					if (ast_exists_extension(ast, context, "fax", 1, AST_CID_P(ast))) {
+  						if (option_verbose > 2)
+ 							ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension (context:%s)\n", ast->name, context);
+  						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
+  						pbx_builtin_setvar_helper(ast,"FAXEXTEN",ast->exten);
+ 						if (ast_async_goto(ast, context, "fax", 1))
+ 							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, context);
+  					} else
+ 						ast_log(LOG_NOTICE, "Fax detected, but no fax extension ctx:%s exten:%s\n", context, ast->exten);
+ 				} else 
+  					ast_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
+ 				break;
+ 			case 2:
+ 				ast_verbose(VERBOSE_PREFIX_3 "Not redirecting %s to fax extension, nojump is set.\n", ast->name);
+ 				break;
+ 			}
+ 		} else
+ 			ast_log(LOG_DEBUG, "Fax already handled\n");
+  	}
+ 	
+ 	if (tmp->ast_dsp && (f->subclass != 'f')) {
+ 		chan_misdn_log(2, tmp->bc->port, " --> * SEND: DTMF (AST_DSP) :%c\n", f->subclass);
+ 	}
+
 	return frame;
 }
 
@@ -2519,7 +2539,7 @@ static struct ast_frame  *misdn_read(struct ast_channel *ast)
 		chan_misdn_log(1,0,"misdn_read called without ast\n");
 		return NULL;
 	}
-	if (! (tmp=MISDN_ASTERISK_TECH_PVT(ast)) ) {
+ 	if (!(tmp=MISDN_ASTERISK_TECH_PVT(ast))) {
 		chan_misdn_log(1,0,"misdn_read called without ast->pvt\n");
 		return NULL;
 	}
@@ -2539,17 +2559,40 @@ static struct ast_frame  *misdn_read(struct ast_channel *ast)
 	tmp->frame.frametype  = AST_FRAME_VOICE;
 	tmp->frame.subclass = AST_FORMAT_ALAW;
 	tmp->frame.datalen = len;
-	tmp->frame.samples = len ;
-	tmp->frame.mallocd =0 ;
-	tmp->frame.offset= 0 ;
+	tmp->frame.samples = len;
+	tmp->frame.mallocd = 0;
+	tmp->frame.offset = 0;
 	tmp->frame.src = NULL;
-	tmp->frame.data = tmp->ast_rd_buf ;
-	
-	if (tmp->faxdetect || tmp->ast_dsp ) {
-		return process_ast_dsp(tmp, &tmp->frame);
+	tmp->frame.data = tmp->ast_rd_buf;
+
+	if (tmp->faxdetect && !tmp->faxhandled) {
+		if (tmp->faxdetect_timeout) {
+			if (ast_tvzero(tmp->faxdetect_tv)) {
+				tmp->faxdetect_tv = ast_tvnow();
+				chan_misdn_log(2,tmp->bc->port,"faxdetect: starting detection with timeout: %ds ...\n", tmp->faxdetect_timeout);
+				return process_ast_dsp(tmp, &tmp->frame);
+			} else {
+				struct timeval tv_now = ast_tvnow();
+				int diff = ast_tvdiff_ms(tv_now, tmp->faxdetect_tv);
+				if (diff <= (tmp->faxdetect_timeout * 1000)) {
+					chan_misdn_log(5,tmp->bc->port,"faxdetect: detecting ...\n");
+					return process_ast_dsp(tmp, &tmp->frame);
+				} else {
+					chan_misdn_log(2,tmp->bc->port,"faxdetect: stopping detection (time ran out) ...\n");
+					tmp->faxdetect = 0;
+					return &tmp->frame;
+				}
+			}
+		} else {
+			chan_misdn_log(5,tmp->bc->port,"faxdetect: detecting ... (no timeout)\n");
+			return process_ast_dsp(tmp, &tmp->frame);
+		}
+	} else {
+		if (tmp->ast_dsp)
+			return process_ast_dsp(tmp, &tmp->frame);
+		else
+			return &tmp->frame;
 	}
-	
-	return &tmp->frame;
 }
 
 
@@ -2629,7 +2672,6 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 
 	chan_misdn_log(9, ch->bc->port, "Sending :%d bytes 2 MISDN\n",frame->samples);
-	
 	if ( !ch->bc->nojitter && misdn_cap_is_speech(ch->bc->capability) ) {
 		/* Buffered Transmit (triggert by read from isdn side)*/
 		if (misdn_jb_fill(ch->jb,frame->data,frame->samples) < 0) {
@@ -3586,6 +3628,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			case EVENT_PORT_ALARM:
 			case EVENT_RETRIEVE:
 			case EVENT_NEW_BC:
+			case EVENT_FACILITY:
 				break;
 			case EVENT_RELEASE_COMPLETE:
 				chan_misdn_log(1, bc->port, " --> no Ch, so we've already released.\n");
@@ -4442,6 +4485,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			struct ast_channel *bridged=AST_BRIDGED_P(ch->ast);
 			struct chan_list *ch;
 			
+			misdn_lib_send_event(bc, EVENT_DISCONNECT);
+
 			if (bridged && MISDN_ASTERISK_TECH_PVT(bridged)) {
 				ch=MISDN_ASTERISK_TECH_PVT(bridged);
 				/*ch->state=MISDN_FACILITY_DEFLECTED;*/
@@ -4455,7 +4500,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 		break;
 		default:
-			chan_misdn_log(1, bc->port," --> not yet handled\n");
+			chan_misdn_log(0, bc->port," --> not yet handled: facility type:%p\n", bc->fac_type);
 		}
 		
 		break;
@@ -4550,8 +4595,10 @@ static int load_module(void *mod)
 		return -1;
 	}
 	
-	
-	misdn_cfg_init(max_ports);
+	if (misdn_cfg_init(max_ports)) {
+		ast_log(LOG_ERROR, "Unable to initialize misdn_config.\n");
+		return -1;
+	}
 	g_config_initialized=1;
 	
 	misdn_debug = (int *)malloc(sizeof(int) * (max_ports+1));
@@ -4891,6 +4938,7 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 		case 'f':
 			chan_misdn_log(1, ch->bc->port, "SETOPT: Faxdetect\n");
 			ch->faxdetect=1;
+			misdn_cfg_get(ch->bc->port, MISDN_CFG_FAXDETECT_TIMEOUT, &ch->faxdetect_timeout, sizeof(ch->faxdetect_timeout));
 			break;
 
 		case 'a':
@@ -4921,7 +4969,6 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 	
 	
 	if (ch->faxdetect || ch->ast_dsp) {
-		
 		if (!ch->dsp) ch->dsp = ast_dsp_new();
 		if (ch->dsp) ast_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT| DSP_FEATURE_FAX_DETECT);
 		if (!ch->trans) ch->trans=ast_translator_build_path(AST_FORMAT_SLINEAR, AST_FORMAT_ALAW);

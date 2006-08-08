@@ -2589,6 +2589,7 @@ int handle_frm(msg_t *msg)
     
 		bc=find_bc_by_l3id(stack, frm->dinfo);
     
+handle_frm_bc:
 		if (bc ) {
 			enum event_e event = isdn_msg_get_event(msgs_g, msg, 0);
 			enum event_response_e response=RESPONSE_OK;
@@ -2602,7 +2603,7 @@ int handle_frm(msg_t *msg)
       
 			if(!isdn_get_info(msgs_g,event,0)) 
 				cb_log(0, stack->port, "Unknown Event Ind: Addr:%x prim %x dinfo %x\n",frm->addr, frm->prim, frm->dinfo);
-			else 
+			else
 				response=cb_event(event, bc, glob_mgr->user_data);
 #if 1
 			if (event == EVENT_SETUP) {
@@ -2644,7 +2645,13 @@ int handle_frm(msg_t *msg)
 #endif
       
 		} else {
-			cb_log(0, stack->port, "NO BC FOR STACK\n");		
+			cb_log(0, stack->port, " --> Didn't find BC so temporarly creating dummy BC (l3id:%x) on this port.\n", frm->dinfo);
+			struct misdn_bchannel dummybc;
+			memset (&dummybc,0,sizeof(dummybc));
+			dummybc.port=stack->port;
+			dummybc.l3_id=frm->dinfo;
+			bc=&dummybc; 
+			goto handle_frm_bc;
 		}
 	}
 
@@ -4021,6 +4028,32 @@ void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2)
 	*d++ = c1;
 	*d++ = c2;
 	mISDN_write(glob_mgr->midev, ctrl, mISDN_HEADER_LEN+ctrl->len, TIMEOUT_1SEC);
+}
+
+/*
+ * allow live control of channel parameters
+ */
+void isdn_lib_update_rxgain (struct misdn_bchannel *bc)
+{
+	manager_ph_control(bc, VOL_CHANGE_RX, bc->rxgain);
+}
+
+void isdn_lib_update_txgain (struct misdn_bchannel *bc)
+{
+	manager_ph_control(bc, VOL_CHANGE_TX, bc->txgain);
+}
+
+void isdn_lib_update_ec (struct misdn_bchannel *bc)
+{
+	if (bc->ec_enable)
+		manager_ec_enable(bc);
+	else
+		manager_ec_disable(bc);
+}
+
+void isdn_lib_stop_dtmf (struct misdn_bchannel *bc)
+{
+	manager_ph_control(bc, DTMF_TONE_STOP, 0);
 }
 
 /*

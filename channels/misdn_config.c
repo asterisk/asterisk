@@ -113,7 +113,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\tas well, since chan_misdn has no chance to distinguish if the L1 is down\n"
 		"\tbecause of a lost Link or because the Provider shut it down..." },
 	{ "block_on_alarm", MISDN_CFG_ALARM_BLOCK, MISDN_CTYPE_BOOL, "yes", NONE ,
-	  "Block this port if we have an alarm on it.\n"
+	  "Block this port if we have an alarm on it."
 	  "default: yes\n" },
 	{ "hdlc", MISDN_CFG_HDLC, MISDN_CTYPE_BOOL, "no", NONE,
 		"Set this to yes, if you want to bridge a mISDN data channel to\n"
@@ -212,7 +212,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "nodialtone", MISDN_CFG_NODIALTONE, MISDN_CTYPE_BOOL, "no", NONE,
 		"Enable this to prevent chan_misdn to generate the dialtone\n"
 		"\tThis makes only sense together with the always_immediate=yes option\n"
-		"\tto generate your own dialtone with Playtones or so.\n"},
+		"\tto generate your own dialtone with Playtones or so."},
 	{ "immediate", MISDN_CFG_IMMEDIATE, MISDN_CTYPE_BOOL, "no", NONE,
 		"Enable this if you want callers which called exactly the base\n"
 		"\tnumber (so no extension is set) to jump into the s extension.\n"
@@ -221,7 +221,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "senddtmf", MISDN_CFG_SENDDTMF, MISDN_CTYPE_BOOL, "no", NONE,
 		"Enable this if we should produce DTMF Tones ourselves." },
 	{ "hold_allowed", MISDN_CFG_HOLD_ALLOWED, MISDN_CTYPE_BOOL, "no", NONE,
-		"Enable this to have support for hold and retrieve.\n" },
+		"Enable this to have support for hold and retrieve." },
 	{ "early_bconnect", MISDN_CFG_EARLY_BCONNECT, MISDN_CTYPE_BOOL, "yes", NONE,
 		"Disable this if you don't mind correct handling of Progress Indicators." },
 	{ "incoming_early_audio", MISDN_CFG_INCOMING_EARLY_AUDIO, MISDN_CTYPE_BOOL, "no", NONE,
@@ -272,7 +272,19 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"Defines the maximum amount of outgoing calls per port for this group\n"
 		"\texceeding calls will be rejected" },
 	{ "faxdetect", MISDN_CFG_FAXDETECT, MISDN_CTYPE_STR, "no", NONE,
-		"Context to jump into if we detect an incoming fax." },
+		"Setup fax detection:\n"
+		"\t    no        - no fax detection\n"
+		"\t    incoming  - fax detection for incoming calls\n"
+		"\t    outgoing  - fax detection for outgoing calls\n"
+		"\t    both      - fax detection for incoming and outgoing calls\n"
+		"\tAdd +nojump to your value (i.e. faxdetect=both+nojump) if you don't want to jump into the\n"
+		"\tfax-extension but still want to detect the fax and prepare the channel for fax transfer." },
+	{ "faxdetect_timeout", MISDN_CFG_FAXDETECT_TIMEOUT, MISDN_CTYPE_INT, "5", NONE,
+		"Number of seconds the fax detection should do its job. After the given period of time,\n"
+		"\twe assume that it's not a fax call and save some CPU time by turning off fax detection.\n"
+		"\tSet this to 0 if you don't want a timeout (never stop detecting)." },
+	{ "faxdetect_context", MISDN_CFG_FAXDETECT_CONTEXT, MISDN_CTYPE_STR, NO_DEFAULT, NONE,
+		"Context to jump into if we detect a fax. Don't set this if you want to stay in the current context." },
 	{ "l1watcher_timeout", MISDN_CFG_L1_TIMEOUT, MISDN_CTYPE_BOOLINT, "0", 4,
 		"Watches the layer 1. If the layer 1 is down, it tries to\n"
 		"\tget it up. The timeout is given in seconds. with 0 as value it\n"
@@ -342,28 +354,41 @@ static ast_mutex_t config_mutex;
 		"Please edit your misdn.conf and then do a \"misdn reload\".\n", name, value, section); \
 })
 
-static void _enum_array_map (void)
+static int _enum_array_map (void)
 {
-	int i, j;
+	int i, j, ok;
 
 	for (i = MISDN_CFG_FIRST + 1; i < MISDN_CFG_LAST; ++i) {
 		if (i == MISDN_CFG_PTP)
 			continue;
+		ok = 0;
 		for (j = 0; j < NUM_PORT_ELEMENTS; ++j) {
 			if (port_spec[j].elem == i) {
 				map[i] = j;
+				ok = 1;
 				break;
 			}
+		}
+		if (!ok) {
+			ast_log(LOG_WARNING, "Enum element %d in misdn_cfg_elements (port section) has no corresponding element in the config struct!\n", i);
+			return -1;
 		}
 	}
 	for (i = MISDN_GEN_FIRST + 1; i < MISDN_GEN_LAST; ++i) {
+		ok = 0;
 		for (j = 0; j < NUM_GEN_ELEMENTS; ++j) {
 			if (gen_spec[j].elem == i) {
 				map[i] = j;
+				ok = 1;
 				break;
 			}
 		}
+		if (!ok) {
+			ast_log(LOG_WARNING, "Enum element %d in misdn_cfg_elements (general section) has no corresponding element in the config struct!\n", i);
+			return -1;
+		}
 	}
+	return 0;
 }
 
 static int get_cfg_position (char *name, int type)
@@ -998,7 +1023,7 @@ void misdn_cfg_destroy (void)
 	ast_mutex_destroy(&config_mutex);
 }
 
-void misdn_cfg_init (int this_max_ports)
+int misdn_cfg_init (int this_max_ports)
 {
 	char config[] = "misdn.conf";
 	char *cat, *p;
@@ -1007,8 +1032,8 @@ void misdn_cfg_init (int this_max_ports)
 	struct ast_variable *v;
 
 	if (!(cfg = AST_LOAD_CFG(config))) {
-		ast_log(LOG_WARNING,"no misdn.conf ?\n");
-		return;
+		ast_log(LOG_WARNING, "missing file: misdn.conf\n");
+		return -1;
 	}
 
 	ast_mutex_init(&config_mutex);
@@ -1018,6 +1043,9 @@ void misdn_cfg_init (int this_max_ports)
 	if (this_max_ports) {
 		/* this is the first run */
 		max_ports = this_max_ports;
+		map = (int *)calloc(MISDN_GEN_LAST + 1, sizeof(int));
+		if (_enum_array_map())
+			return -1;
 		p = (char *)calloc(1, (max_ports + 1) * sizeof(union misdn_cfg_pt *)
 						   + (max_ports + 1) * NUM_PORT_ELEMENTS * sizeof(union misdn_cfg_pt));
 		port_cfg = (union misdn_cfg_pt **)p;
@@ -1028,8 +1056,6 @@ void misdn_cfg_init (int this_max_ports)
 		}
 		general_cfg = (union misdn_cfg_pt *)calloc(1, sizeof(union misdn_cfg_pt *) * NUM_GEN_ELEMENTS);
 		ptp = (int *)calloc(max_ports + 1, sizeof(int));
-		map = (int *)calloc(MISDN_GEN_LAST + 1, sizeof(int));
-		_enum_array_map();
 	}
 	else {
 		/* misdn reload */
@@ -1044,18 +1070,20 @@ void misdn_cfg_init (int this_max_ports)
 
 	while(cat) {
 		v = ast_variable_browse(cfg, cat);
-		if (!strcasecmp(cat,"general")) {
+		if (!strcasecmp(cat, "general")) {
 			_build_general_config(v);
 		} else {
 			_build_port_config(v, cat);
 		}
-		cat = ast_category_browse(cfg,cat);
+		cat = ast_category_browse(cfg, cat);
 	}
 
 	_fill_defaults();
 
 	misdn_cfg_unlock();
 	AST_DESTROY_CFG(cfg);
+
+	return 0;
 }
 
 

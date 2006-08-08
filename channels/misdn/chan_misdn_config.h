@@ -75,6 +75,8 @@ enum misdn_cfg_elements {
 	MISDN_CFG_OVERLAP_DIAL, 	/* int (bool)*/
 	MISDN_CFG_MSNS,                /* char[] */
 	MISDN_CFG_FAXDETECT,           /* char[] */
+ 	MISDN_CFG_FAXDETECT_CONTEXT,   /* char[] */
+ 	MISDN_CFG_FAXDETECT_TIMEOUT,   /* int */
 	MISDN_CFG_PTP,                 /* int (bool) */
 	MISDN_CFG_LAST,
 	
@@ -100,7 +102,7 @@ enum misdn_cfg_method {
 };
 
 /* you must call misdn_cfg_init before any other function of this header file */
-void misdn_cfg_init(int max_ports); 
+int misdn_cfg_init(int max_ports); 
 void misdn_cfg_reload(void);
 void misdn_cfg_destroy(void);
 

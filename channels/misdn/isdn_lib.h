@@ -406,6 +406,10 @@ int misdn_lib_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len);
 
 void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2);
 
+void isdn_lib_update_rxgain (struct misdn_bchannel *bc);
+void isdn_lib_update_txgain (struct misdn_bchannel *bc);
+void isdn_lib_update_ec (struct misdn_bchannel *bc);
+void isdn_lib_stop_dtmf (struct misdn_bchannel *bc);
 
 int misdn_lib_port_restart(int port);
 int misdn_lib_get_port_info(int port);
