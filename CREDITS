@@ -165,6 +165,16 @@ John Martin, Aupix - Improved video support in the SIP channel
 
 Steve Underwood - Provided T.38 pass through support.
 
+George Konstantoulakis - Support for Greek in voicemail added by InAccess Networks (work funded by HOL, www.hol.gr) gkon@inaccessnetworks.com
+
+Daniel Nylander - Support for Swedish and Norwegian languages in voicemail. http://www.danielnylander.se/
+
+Stojan Sljivic - An option for maximum number of messsages per mailbox in voicemail.  Also an issue with voicemail synchronization has been fixed.  GDS Partners www.gdspartners.com .  stojan.sljivic@gdspartners.com
+
+Bartosz Supczinski - Support for Polish added by DIR (www.dir.pl) Bartosz.Supczinski@dir.pl
+
+James Rothenberger - Support for IMAP storage integration added by OneBizTone LLC Work funded by University of Pennsylvania jar@onebiztone.com
+
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
 Michael Jerris - bug marshaling
