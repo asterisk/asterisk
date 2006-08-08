@@ -879,7 +879,7 @@ msg_t *build_release_complete (struct isdn_msg msgs[], struct misdn_bchannel *bc
 
 void parse_facility (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
-
+//#define FACILITY_DECODE
 #ifdef FACILITY_DECODE
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	FACILITY_t *facility=(FACILITY_t*)((unsigned long)(msg->data+HEADER_LEN)); 

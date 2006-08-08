@@ -142,11 +142,12 @@ struct chan_list {
 	int need_hangup;
 	int need_busy;
 	
-	int holded; 
 	int orginator;
 
 	int norxtone;
 	int notxtone; 
+
+	int toggle_ec;
 	
 	int incoming_early_audio;
 
@@ -336,6 +337,8 @@ void debug_numplan(int port, int numplan, char *type);
 int add_out_calls(int port);
 int add_in_calls(int port);
 
+
+static int update_ec_config(struct misdn_bchannel *bc);
 
 /*************** Helpers *****************/
 
@@ -987,6 +990,13 @@ static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel
 			"  --> state: %s\n"
 			"  --> capability: %s\n"
 			"  --> echo_cancel: %d\n"
+#ifdef WITH_BEROEC
+			"  --> bnec_tail: %d\n"
+			"  --> bnec_nlp: %d\n"
+			"  --> bnec_ah: %d\n"
+			"  --> bnec_td: %d\n"
+			"  --> bnec_zerocoeff: %d\n"
+#endif
 			"  --> notone : rx %d tx:%d\n"
 			"  --> bc_hold: %d holded_bc :%d\n",
 			help->ast->name,
@@ -1000,6 +1010,14 @@ static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel
 			bc_state2str(bc->bc_state),
 			bearer2str(bc->capability),
 			bc->ec_enable,
+
+#ifdef WITH_BEROEC
+			bc->bnec_tail,
+			bc->bnec_nlp,
+			bc->bnec_ah,
+			bc->bnec_td,
+			bc->bnec_zero,
+#endif
 			help->norxtone,help->notxtone,
 			bc->holded, help->holded_bc?1:0
 			);
@@ -1205,9 +1223,11 @@ static int misdn_toggle_echocancel (int fd, int argc, char *argv[])
 			ast_cli(fd, "Toggling EchoCancel %s failed Channel does not exist\n", channame);
 			return 0; 
 		} else {
-			tmp->bc->ec_enable=tmp->bc->ec_enable?0:1;
+			
+			tmp->toggle_ec=tmp->toggle_ec?0:1;
 
-			if (tmp->bc->ec_enable) {
+			if (tmp->toggle_ec) {
+				update_ec_config(tmp->bc);
 				manager_ec_enable(tmp->bc);
 			} else {
 				manager_ec_disable(tmp->bc);
@@ -1649,6 +1669,44 @@ void debug_numplan(int port, int numplan, char *type)
 
 
 
+static int update_ec_config(struct misdn_bchannel *bc)
+{
+	int ec;
+	int port=bc->port;
+		
+	misdn_cfg_get( port, MISDN_CFG_ECHOCANCEL, &ec, sizeof(int));
+	
+	if (ec == 1 ) {
+		bc->ec_enable=1;
+	} else if ( ec > 1 ) {
+		bc->ec_enable=1;
+		bc->ec_deftaps=ec;
+	}
+#ifdef WITH_ECHOTRAINING 
+	int ectr;
+	misdn_cfg_get( port, MISDN_CFG_ECHOTRAINING, &ectr, sizeof(int));
+	
+	if ( ectr >= 0 ) {
+		bc->ec_training=ectr;
+	}
+#endif
+
+#ifdef WITH_BEROEC
+	misdn_cfg_get(port, MISDN_CFG_BNECHOCANCEL,&bc->bnec_tail, sizeof(int));
+	misdn_cfg_get(port, MISDN_CFG_BNEC_ANTIHOWL, &bc->bnec_ah, sizeof(int));
+	misdn_cfg_get(port, MISDN_CFG_BNEC_NLP, &bc->bnec_nlp, sizeof(int));
+	misdn_cfg_get(port, MISDN_CFG_BNEC_TD, &bc->bnec_td, sizeof(int));
+	misdn_cfg_get(port, MISDN_CFG_BNEC_ADAPT, &bc->bnec_adapt, sizeof(int));
+	misdn_cfg_get(port, MISDN_CFG_BNEC_ZEROCOEFF, &bc->bnec_zero, sizeof(int));
+
+	if (bc->bnec_tail && bc->ec_enable) {
+		ast_log(LOG_WARNING,"Are you sure you wan't to mix BNEC with Zapec ? This might cause bad audio quality!\n");
+		bc->ec_enable=0;
+	}
+#endif
+	return 0;
+}
+
 
 static int read_config(struct chan_list *ch, int orig) {
 
@@ -1718,41 +1776,9 @@ static int read_config(struct chan_list *ch, int orig) {
 	misdn_cfg_get( bc->port, MISDN_CFG_CONTEXT, ch->context, sizeof(ch->context));
 	
 	ast_copy_string (ast->context,ch->context,sizeof(ast->context));	
-	{
-		int ec;
-		
-		misdn_cfg_get( port, MISDN_CFG_ECHOCANCEL, &ec, sizeof(int));
-		
-		if (ec == 1 ) {
-			bc->ec_enable=1;
-		} else if ( ec > 1 ) {
-			bc->ec_enable=1;
-			bc->ec_deftaps=ec;
-		}
-#ifdef WITH_ECHOTRAINING 
-		int ectr;
-		misdn_cfg_get( port, MISDN_CFG_ECHOTRAINING, &ectr, sizeof(int));
-		
-		if ( ectr >= 0 ) {
-			bc->ec_training=ectr;
-		}
-#endif
 
-#ifdef WITH_BEROEC
-		misdn_cfg_get(port, MISDN_CFG_BNECHOCANCEL,&bc->bnec_tail, sizeof(int));
-		misdn_cfg_get(port, MISDN_CFG_BNEC_ANTIHOWL, &bc->bnec_ah, sizeof(int));
-		misdn_cfg_get(port, MISDN_CFG_BNEC_NLP, &bc->bnec_nlp, sizeof(int));
-		misdn_cfg_get(port, MISDN_CFG_BNEC_TD, &bc->bnec_td, sizeof(int));
-		misdn_cfg_get(port, MISDN_CFG_BNEC_ADAPT, &bc->bnec_adapt, sizeof(int));
-		misdn_cfg_get(port, MISDN_CFG_BNEC_ZEROCOEFF, &bc->bnec_zero, sizeof(int));
+	update_ec_config(bc);
 
-		if (bc->bnec_tail && bc->ec_enable) {
-			ast_log(LOG_WARNING,"Are you sure you wan't to mix BNEC with Zapec ? This might cause bad audio quality!\n");
-			bc->ec_enable=0;
-		}
-#endif
-	}
-	
 	{
 		int eb3;
 		
@@ -2141,7 +2167,7 @@ static int misdn_fixup(struct ast_channel *oldast, struct ast_channel *ast)
 	
 	if (!ast || ! (p=MISDN_ASTERISK_TECH_PVT(ast) )) return -1;
 	
-	chan_misdn_log(1, p->bc?p->bc->port:0, "* IND: Got Fixup State:%s Holded:%d L3id:%x\n", misdn_get_ch_state(p), p->holded, p->l3id);
+	chan_misdn_log(1, p->bc?p->bc->port:0, "* IND: Got Fixup State:%s L3id:%x\n", misdn_get_ch_state(p), p->l3id);
 	
 	p->ast = ast ;
 	p->state=MISDN_CONNECTED;
@@ -2539,7 +2565,7 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 		return -1;
 	}
 	
-	if (ch->holded ) {
+	if (ch->state == MISDN_HOLDED) {
 		chan_misdn_log(7, ch->bc->port, "misdn_write: Returning because holded\n");
 		return 0;
 	}
@@ -3349,7 +3375,6 @@ static void misdn_transfer_bc(struct chan_list *tmp_ch, struct chan_list *holded
 	ast_moh_stop(AST_BRIDGED_P(holded_chan->ast));
 
 	holded_chan->state=MISDN_CONNECTED;
-	holded_chan->holded=0;
 	misdn_lib_transfer(holded_chan->bc?holded_chan->bc:holded_chan->holded_bc);
 	ast_channel_masquerade(holded_chan->ast, AST_BRIDGED_P(tmp_ch->ast));
 }
@@ -3559,6 +3584,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			case EVENT_SETUP:
 			case EVENT_DISCONNECT:
 			case EVENT_PORT_ALARM:
+			case EVENT_RETRIEVE:
+			case EVENT_NEW_BC:
 				break;
 			case EVENT_RELEASE_COMPLETE:
 				chan_misdn_log(1, bc->port, " --> no Ch, so we've already released.\n");
@@ -3620,6 +3647,15 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		break;
 
 	case EVENT_NEW_BC:
+		if (!ch) {
+			ch=find_holded(cl_te,bc);
+		}
+		
+		if (!ch) {
+			ast_log(LOG_WARNING,"NEW_BC without chan_list?\n");
+			break;
+		}
+
 		if (bc)
 			ch->bc=(struct misdn_bchannel*)user_data;
 		break;
@@ -4147,7 +4183,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			if  (ch->state == MISDN_CONNECTED ) {
 				misdn_transfer_bc(ch, holded_ch) ;
 			}
-			misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
+			hangup_chan(ch);
+			release_chan(bc);
 			break;
 		}
 		
@@ -4333,6 +4370,12 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	/***************************/
 	case EVENT_RETRIEVE:
 	{
+		ch=find_holded(cl_te, bc);
+		if (!ch) {
+			ast_log(LOG_WARNING, "Found no Holded channel, cannot Retrieve\n");
+			misdn_lib_send_event(bc, EVENT_RETRIEVE_REJECT);
+			break;
+		}
 		struct ast_channel *hold_ast=AST_BRIDGED_P(ch->ast);
 		ch->state = MISDN_CONNECTED;
 		

@@ -264,8 +264,8 @@ void fac_dec( unsigned char *p, Q931_info_t *qi, enum facility_type *type,  unio
 {
 	int i, fac_len=0;
 	unsigned char facility[256];
-	
-	if (! (bc->nt) )
+
+	if (!bc->nt)
 	{
 		p = NULL;
 		if (qi->QI_ELEMENT(facility))
@@ -274,9 +274,9 @@ void fac_dec( unsigned char *p, Q931_info_t *qi, enum facility_type *type,  unio
 	if (!p)
 		return;
 	
-	fac_len = p[0];
+	fac_len = p[0] & 0xff;
+
 	memcpy(facility, p+1, fac_len);
-	
 	
 	switch(facility[0]) {
 	case FACILITY_CENTREX:

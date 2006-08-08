@@ -410,6 +410,7 @@ void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2);
 int misdn_lib_port_restart(int port);
 int misdn_lib_get_port_info(int port);
 
+int misdn_lib_is_port_blocked(int port);
 int misdn_lib_port_block(int port);
 int misdn_lib_port_unblock(int port);
 
