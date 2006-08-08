@@ -10,11 +10,13 @@
 ; immediately provides the PBX without reading any digits or providing 
 ; any dialtone (this is the immediate mode, the default).  Also, you
 ; can set the mode to "fxo" if you have a linejack to make it operate
-; properly.
+; properly. If you are using a Sigma Designs board you may set this to
+; "sig".
 ;
 mode=immediate
 ;mode=dialtone
 ;mode=fxo
+;mode=sig
 ;
 ; You can decide which format to use by default, "g723.1" or "slinear".
 ; XXX Be careful, sometimes the card causes kernel panics when running

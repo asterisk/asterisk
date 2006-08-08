@@ -128,8 +128,9 @@ static int restart_monitor(void);
    
 #define MODE_DIALTONE 	1
 #define MODE_IMMEDIATE	2
-#define MODE_FXO		3
+#define MODE_FXO	3
 #define MODE_FXS        4
+#define MODE_SIGMA      5
 
 static struct phone_pvt {
 	int fd;							/* Raw file descriptor for this device */
@@ -915,7 +916,7 @@ static void phone_check_exception(struct phone_pvt *i)
 	phonee.bytes = ioctl(i->fd, PHONE_EXCEPTION);
 	if (phonee.bits.dtmf_ready)  {
 		digit[0] = ioctl(i->fd, PHONE_GET_DTMF_ASCII);
-		if (i->mode == MODE_DIALTONE || i->mode == MODE_FXS) {
+		if (i->mode == MODE_DIALTONE || i->mode == MODE_FXS || i->mode == MODE_SIGMA) {
 			ioctl(i->fd, PHONE_PLAY_STOP);
 			ioctl(i->fd, PHONE_REC_STOP);
 			ioctl(i->fd, PHONE_CPT_STOP);
@@ -967,6 +968,16 @@ static void phone_check_exception(struct phone_pvt *i)
 				ioctl(i->fd, PHONE_PLAY_CODEC, ULAW);
 				ioctl(i->fd, PHONE_PLAY_START);
 				i->lastformat = -1;
+			} else if (i->mode == MODE_SIGMA) {
+				ast_mutex_lock(&usecnt_lock);
+				usecnt++;
+				ast_mutex_unlock(&usecnt_lock);
+				ast_update_use_count();
+				/* Reset the extension */
+				i->ext[0] = '\0';
+				/* Play the dialtone */
+				i->dialtone++;
+				ioctl(i->fd, PHONE_DIALTONE);
 			}
 		} else {
 			if (i->dialtone) {
@@ -1032,7 +1043,7 @@ static void *do_monitor(void *data)
 				FD_SET(i->fd, &efds);
 				if (i->fd > n)
 					n = i->fd;
-				if (i->dialtone) {
+				if (i->dialtone && i->mode != MODE_SIGMA) {
 					/* Remember we're going to have to come back and play
 					   more dialtones */
 					if (ast_tvzero(tv)) {
@@ -1050,7 +1061,7 @@ static void *do_monitor(void *data)
 		ast_mutex_unlock(&iflock);
 
 		/* Wait indefinitely for something to happen */
-		if (dotone) {
+		if (dotone && i->mode != MODE_SIGMA) {
 			/* If we're ready to recycle the time, set it to 30 ms */
 			tonepos += 240;
 			if (tonepos >= sizeof(DialTone))
@@ -1366,6 +1377,8 @@ static int load_module(void *mod)
 		} else if (!strcasecmp(v->name, "mode")) {
 			if (!strncasecmp(v->value, "di", 2)) 
 				mode = MODE_DIALTONE;
+			else if (!strncasecmp(v->value, "sig", 3))
+				mode = MODE_SIGMA;
 			else if (!strncasecmp(v->value, "im", 2))
 				mode = MODE_IMMEDIATE;
 			else if (!strncasecmp(v->value, "fxs", 3)) {
