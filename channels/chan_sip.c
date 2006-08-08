@@ -592,7 +592,7 @@ static int global_rtautoclear;
 static struct sip_pvt {
 	ast_mutex_t lock;			/*!< Channel private lock */
 	int method;				/*!< SIP method of this packet */
-	char callid[80];			/*!< Global CallID */
+	char callid[128];			/*!< Global CallID */
 	char randdata[80];			/*!< Random data */
 	struct ast_codec_pref prefs;		/*!< codec prefs */
 	unsigned int ocseq;			/*!< Current outgoing seqno */
@@ -834,7 +834,7 @@ struct sip_registry {
 	struct sip_pvt *call;		/*!< create a sip_pvt structure for each outbound "registration call" in progress */
 	int regstate;			/*!< Registration state (see above) */
 	int callid_valid;		/*!< 0 means we haven't chosen callid for this registry yet. */
-	char callid[80];		/*!< Global CallID for this registry */
+	char callid[128];		/*!< Global CallID for this registry */
 	unsigned int ocseq;		/*!< Sequence number we got to for REGISTERs for this registry */
 	struct sockaddr_in us;		/*!< Who the server thinks we are */
  	
