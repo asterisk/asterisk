@@ -51,16 +51,6 @@ static char expr_output[2096];
 
 /* these functions are in ../ast_expr2.fl */
 
-	
-#ifdef __AST_DEBUG_MALLOC
-static void FREE(void *ptr)
-{
-	free(ptr);
-}
-#else
-#define FREE free
-#endif
-
 #define DEBUG_READ   (1 << 0)
 #define DEBUG_TOKENS (1 << 1)
 #define DEBUG_MACROS (1 << 2)
@@ -3403,7 +3393,7 @@ void add_extensions(struct ael_extension *exten)
 		
 		if (exten->hints) {
 			if (ast_add_extension2(exten->context, 0 /*no replace*/, exten->name, PRIORITY_HINT, NULL, exten->cidmatch, 
-								  exten->hints, NULL, FREE, registrar)) {
+								  exten->hints, NULL, ast_free, registrar)) {
 				ast_log(LOG_WARNING, "Unable to add step at priority 'hint' of extension '%s'\n",
 						exten->name);
 			}
@@ -3483,7 +3473,7 @@ void add_extensions(struct ael_extension *exten)
 				label = 0;
 			
 			if (ast_add_extension2(exten->context, 0 /*no replace*/, exten->name, pr->priority_num, (label?label:NULL), exten->cidmatch, 
-								  app, strdup(appargs), FREE, registrar)) {
+								  app, strdup(appargs), ast_free, registrar)) {
 				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of extension '%s'\n", pr->priority_num, 
 						exten->name);
 			}

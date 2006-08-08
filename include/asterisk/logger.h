@@ -77,9 +77,9 @@ void ast_queue_log(const char *queuename, const char *callid, const char *agent,
 void ast_verbose(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
-int ast_register_verbose(void (*verboser)(const char *string, int opos, int replacelast, int complete));
-int ast_unregister_verbose(void (*verboser)(const char *string, int opos, int replacelast, int complete));
-int ast_verbose_dmesg(void (*verboser)(const char *string, int opos, int replacelast, int complete));
+int ast_register_verbose(void (*verboser)(const char *string));
+int ast_unregister_verbose(void (*verboser)(const char *string));
+
 void ast_console_puts(const char *string);
 
 void ast_console_puts_mutable(const char *string);

@@ -68,8 +68,7 @@ static int syslog_level_map[] = {
 #include "asterisk/cli.h"
 #include "asterisk/utils.h"
 #include "asterisk/manager.h"
-
-#define MAX_MSG_QUEUE 200
+#include "asterisk/threadstorage.h"
 
 #if defined(__linux__) && !defined(__NR_gettid)
 #include <asm/unistd.h>
@@ -84,8 +83,6 @@ static int syslog_level_map[] = {
 
 static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 
-AST_MUTEX_DEFINE_STATIC(msglist_lock);
-AST_MUTEX_DEFINE_STATIC(loglock);
 static int filesize_reload_needed = 0;
 static int global_logmask = -1;
 
@@ -93,11 +90,6 @@ static struct {
 	unsigned int queue_log:1;
 	unsigned int event_log:1;
 } logfiles = { 1, 1 };
-
-static struct msglist {
-	char *msg;
-	struct msglist *next;
-} *list = NULL, *last = NULL;
 
 static char hostname[MAXHOSTNAMELEN];
 
@@ -114,12 +106,10 @@ struct logchannel {
 	enum logtypes type;		/* Type of log channel */
 	FILE *fileptr;			/* logfile logging file pointer */
 	char filename[256];		/* Filename */
-	struct logchannel *next;	/* Next channel in chain */
+	AST_LIST_ENTRY(logchannel) list;
 };
 
-static struct logchannel *logchannels = NULL;
-
-static int msgcnt = 0;
+static AST_LIST_HEAD_STATIC(logchannels, logchannel);
 
 static FILE *eventlog = NULL;
 static FILE *qlog = NULL;
@@ -143,6 +133,12 @@ static int colors[] = {
 	COLOR_GREEN,
 	COLOR_BRGREEN
 };
+
+AST_THREADSTORAGE(verbose_buf, verbose_buf_init);
+#define VERBOSE_BUF_INIT_SIZE   128
+
+AST_THREADSTORAGE(log_buf, log_buf_init);
+#define LOG_BUF_INIT_SIZE       128
 
 static int make_components(char *s, int lineno)
 {
@@ -287,21 +283,16 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 
 static void init_logger_chain(void)
 {
-	struct logchannel *chan, *cur;
+	struct logchannel *chan;
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	char *s;
 
 	/* delete our list of log channels */
-	ast_mutex_lock(&loglock);
-	chan = logchannels;
-	while (chan) {
-		cur = chan->next;
+	AST_LIST_LOCK(&logchannels);
+	while ((chan = AST_LIST_REMOVE_HEAD(&logchannels, list)))
 		free(chan);
-		chan = cur;
-	}
-	logchannels = NULL;
-	ast_mutex_unlock(&loglock);
+	AST_LIST_UNLOCK(&logchannels);
 	
 	global_logmask = 0;
 	/* close syslog */
@@ -316,16 +307,16 @@ static void init_logger_chain(void)
 			return;
 		chan->type = LOGTYPE_CONSOLE;
 		chan->logmask = 28; /*warning,notice,error */
-		chan->next = logchannels;
-		logchannels = chan;
+		AST_LIST_LOCK(&logchannels);
+		AST_LIST_INSERT_HEAD(&logchannels, chan, list);
+		AST_LIST_UNLOCK(&logchannels);
 		global_logmask |= chan->logmask;
 		return;
 	}
 	
-	ast_mutex_lock(&loglock);
 	if ((s = ast_variable_retrieve(cfg, "general", "appendhostname"))) {
-		if(ast_true(s)) {
-			if(gethostname(hostname, sizeof(hostname)-1)) {
+		if (ast_true(s)) {
+			if (gethostname(hostname, sizeof(hostname) - 1)) {
 				ast_copy_string(hostname, "unknown", sizeof(hostname));
 				ast_log(LOG_WARNING, "What box has no hostname???\n");
 			}
@@ -333,36 +324,32 @@ static void init_logger_chain(void)
 			hostname[0] = '\0';
 	} else
 		hostname[0] = '\0';
-	if ((s = ast_variable_retrieve(cfg, "general", "dateformat"))) {
+	if ((s = ast_variable_retrieve(cfg, "general", "dateformat")))
 		ast_copy_string(dateformat, s, sizeof(dateformat));
-	} else
+	else
 		ast_copy_string(dateformat, "%b %e %T", sizeof(dateformat));
-	if ((s = ast_variable_retrieve(cfg, "general", "queue_log"))) {
+	if ((s = ast_variable_retrieve(cfg, "general", "queue_log")))
 		logfiles.queue_log = ast_true(s);
-	}
-	if ((s = ast_variable_retrieve(cfg, "general", "event_log"))) {
+	if ((s = ast_variable_retrieve(cfg, "general", "event_log")))
 		logfiles.event_log = ast_true(s);
-	}
 
+	AST_LIST_LOCK(&logchannels);
 	var = ast_variable_browse(cfg, "logfiles");
-	while(var) {
-		chan = make_logchannel(var->name, var->value, var->lineno);
-		if (chan) {
-			chan->next = logchannels;
-			logchannels = chan;
-			global_logmask |= chan->logmask;
-		}
-		var = var->next;
+	for (; var; var = var->next) {
+		if (!(chan = make_logchannel(var->name, var->value, var->lineno)))
+			continue;
+		AST_LIST_INSERT_HEAD(&logchannels, chan, list);
+		global_logmask |= chan->logmask;
 	}
+	AST_LIST_UNLOCK(&logchannels);
 
 	ast_config_destroy(cfg);
-	ast_mutex_unlock(&loglock);
 }
 
 void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
 {
 	va_list ap;
-	ast_mutex_lock(&loglock);
+	AST_LIST_LOCK(&logchannels);
 	if (qlog) {
 		va_start(ap, fmt);
 		fprintf(qlog, "%ld|%s|%s|%s|%s|", (long)time(NULL), callid, queuename, agent, event);
@@ -371,7 +358,7 @@ void ast_queue_log(const char *queuename, const char *callid, const char *agent,
 		va_end(ap);
 		fflush(qlog);
 	}
-	ast_mutex_unlock(&loglock);
+	AST_LIST_UNLOCK(&logchannels);
 }
 
 int reload_logger(int rotate)
@@ -383,8 +370,8 @@ int reload_logger(int rotate)
 	FILE *myf;
 	int x, res = 0;
 
-	ast_mutex_lock(&msglist_lock);	/* to avoid deadlock */
-	ast_mutex_lock(&loglock);
+	AST_LIST_LOCK(&logchannels);
+
 	if (eventlog) 
 		fclose(eventlog);
 	else 
@@ -399,8 +386,7 @@ int reload_logger(int rotate)
 
 	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
 
-	f = logchannels;
-	while(f) {
+	AST_LIST_TRAVERSE(&logchannels, f, list) {
 		if (f->disabled) {
 			f->disabled = 0;	/* Re-enable logging at reload */
 			manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: Yes\r\n", f->filename);
@@ -408,17 +394,16 @@ int reload_logger(int rotate)
 		if (f->fileptr && (f->fileptr != stdout) && (f->fileptr != stderr)) {
 			fclose(f->fileptr);	/* Close file */
 			f->fileptr = NULL;
-			if(rotate) {
+			if (rotate) {
 				ast_copy_string(old, f->filename, sizeof(old));
 	
-				for(x=0;;x++) {
+				for (x = 0; ; x++) {
 					snprintf(new, sizeof(new), "%s.%d", f->filename, x);
 					myf = fopen((char *)new, "r");
-					if (myf) {
+					if (myf)
 						fclose(myf);
-					} else {
+					else
 						break;
-					}
 				}
 	    
 				/* do it */
@@ -426,7 +411,6 @@ int reload_logger(int rotate)
 					fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old, new);
 			}
 		}
-		f = f->next;
 	}
 
 	filesize_reload_needed = 0;
@@ -489,8 +473,8 @@ int reload_logger(int rotate)
 			res = -1;
 		}
 	}
-	ast_mutex_unlock(&loglock);
-	ast_mutex_unlock(&msglist_lock);
+
+	AST_LIST_UNLOCK(&logchannels);
 
 	return res;
 }
@@ -519,14 +503,12 @@ static int handle_logger_show_channels(int fd, int argc, char *argv[])
 #define FORMATL	"%-35.35s %-8.8s %-9.9s "
 	struct logchannel *chan;
 
-	ast_mutex_lock(&loglock);
-
-	chan = logchannels;
 	ast_cli(fd,FORMATL, "Channel", "Type", "Status");
 	ast_cli(fd, "Configuration\n");
 	ast_cli(fd,FORMATL, "-------", "----", "------");
 	ast_cli(fd, "-------------\n");
-	while (chan) {
+	AST_LIST_LOCK(&logchannels);
+	AST_LIST_TRAVERSE(&logchannels, chan, list) {
 		ast_cli(fd, FORMATL, chan->filename, chan->type==LOGTYPE_CONSOLE ? "Console" : (chan->type==LOGTYPE_SYSLOG ? "Syslog" : "File"),
 			chan->disabled ? "Disabled" : "Enabled");
 		ast_cli(fd, " - ");
@@ -545,20 +527,19 @@ static int handle_logger_show_channels(int fd, int argc, char *argv[])
 		if (chan->logmask & (1 << __LOG_EVENT)) 
 			ast_cli(fd, "Event ");
 		ast_cli(fd, "\n");
-		chan = chan->next;
 	}
+	AST_LIST_UNLOCK(&logchannels);
 	ast_cli(fd, "\n");
-
-	ast_mutex_unlock(&loglock);
  		
 	return RESULT_SUCCESS;
 }
 
-static struct verb {
-	void (*verboser)(const char *string, int opos, int replacelast, int complete);
-	struct verb *next;
-} *verboser = NULL;
+struct verb {
+	void (*verboser)(const char *string);
+	AST_LIST_ENTRY(verb) list;
+};
 
+static AST_LIST_HEAD_STATIC(verbosers, verb);
 
 static char logger_reload_help[] =
 "Usage: logger reload\n"
@@ -637,21 +618,31 @@ int init_logger(void)
 
 void close_logger(void)
 {
-	struct msglist *m, *tmp;
+	struct logchannel *f;
 
-	ast_mutex_lock(&msglist_lock);
-	m = list;
-	while(m) {
-		if (m->msg) {
-			free(m->msg);
-		}
-		tmp = m->next;
-		free(m);
-		m = tmp;
+	AST_LIST_LOCK(&logchannels);
+
+	if (eventlog) {
+		fclose(eventlog);
+		eventlog = NULL;
 	}
-	list = last = NULL;
-	msgcnt = 0;
-	ast_mutex_unlock(&msglist_lock);
+
+	if (qlog) {
+		fclose(qlog);
+		qlog = NULL;
+	}
+
+	AST_LIST_TRAVERSE(&logchannels, f, list) {
+		if (f->fileptr && (f->fileptr != stdout) && (f->fileptr != stderr)) {
+			fclose(f->fileptr);
+			f->fileptr = NULL;
+		}
+	}
+
+	closelog(); /* syslog */
+
+	AST_LIST_UNLOCK(&logchannels);
+
 	return;
 }
 
@@ -681,28 +672,30 @@ static void ast_log_vsyslog(int level, const char *file, int line, const char *f
 	syslog(syslog_level_map[level], "%s", buf);
 }
 
-/*
- * send log messages to syslog and/or the console
+/*!
+ * \brief send log messages to syslog and/or the console
  */
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
 	struct logchannel *chan;
-	char buf[BUFSIZ];
+	struct ast_dynamic_str *buf;
 	time_t t;
 	struct tm tm;
 	char date[256];
 
 	va_list ap;
-	
+
+	if (!(buf = ast_dynamic_str_thread_get(&log_buf, LOG_BUF_INIT_SIZE)))
+		return;
+
 	/* don't display LOG_DEBUG messages unless option_verbose _or_ option_debug
 	   are non-zero; LOG_DEBUG messages can still be displayed if option_debug
 	   is zero, if option_verbose is non-zero (this allows for 'level zero'
 	   LOG_DEBUG messages to be displayed, if the logmask on any channel
 	   allows it)
 	*/
-	if (!option_verbose && !option_debug && (level == __LOG_DEBUG)) {
+	if (!option_verbose && !option_debug && (level == __LOG_DEBUG))
 		return;
-	}
 
 	/* Ignore anything that never gets logged anywhere */
 	if (!(global_logmask & (1 << level)))
@@ -712,12 +705,11 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	if ((level == __LOG_DEBUG) && !ast_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
 		return;
 
-	/* begin critical section */
-	ast_mutex_lock(&loglock);
-
 	time(&t);
 	localtime_r(&t, &tm);
 	strftime(date, sizeof(date), dateformat, &tm);
+
+	AST_LIST_LOCK(&logchannels);
 
 	if (logfiles.event_log && level == __LOG_EVENT) {
 		va_start(ap, fmt);
@@ -727,13 +719,14 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		fflush(eventlog);
 
 		va_end(ap);
-		ast_mutex_unlock(&loglock);
+		AST_LIST_UNLOCK(&logchannels);
 		return;
 	}
 
-	if (logchannels) {
-		chan = logchannels;
-		while(chan && !chan->disabled) {
+	if (!AST_LIST_EMPTY(&logchannels)) {
+		AST_LIST_TRAVERSE(&logchannels, chan, list) {
+			if (chan->disabled)
+				break;
 			/* Check syslog channels */
 			if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << level))) {
 				va_start(ap, fmt);
@@ -745,28 +738,33 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 				char tmp1[80], tmp2[80], tmp3[80], tmp4[80];
 
 				if (level != __LOG_VERBOSE) {
+					int res;
 					sprintf(linestr, "%d", line);
-					snprintf(buf, sizeof(buf), "[%s] %s[%ld]: %s:%s %s: ",
+					ast_dynamic_str_thread_set(&buf, BUFSIZ, &log_buf,
+						"[%s] %s[%ld]: %s:%s %s: ",
 						date,
 						term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
 						(long)GETTID(),
 						term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
 						term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
 						term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
+
+					ast_console_puts_mutable(buf->str);
 					
-					ast_console_puts_mutable(buf);
 					va_start(ap, fmt);
-					vsnprintf(buf, sizeof(buf), fmt, ap);
+					res = ast_dynamic_str_thread_set_va(&buf, BUFSIZ, &log_buf, fmt, ap);
 					va_end(ap);
-					ast_console_puts_mutable(buf);
+					if (res != AST_DYNSTR_BUILD_FAILED)
+						ast_console_puts_mutable(buf->str);
 				}
 			/* File channels */
 			} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
 				int res;
-				snprintf(buf, sizeof(buf), "[%s] %s[%ld] %s: ", date,
-					levels[level], (long)GETTID(), file);
-				res = fprintf(chan->fileptr, buf);
-				if (res <= 0 && buf[0] != '\0') {	/* Error, no characters printed */
+				ast_dynamic_str_thread_set(&buf, BUFSIZ, &log_buf, 
+					"[%s] %s[%ld] %s: ",
+					date, levels[level], (long)GETTID(), file);
+				res = fprintf(chan->fileptr, "%s", buf->str);
+				if (res <= 0 && !ast_strlen_zero(buf->str)) {	/* Error, no characters printed */
 					fprintf(stderr,"**** Asterisk Logging Error: ***********\n");
 					if (errno == ENOMEM || errno == ENOSPC) {
 						fprintf(stderr, "Asterisk logging error: Out of disk space, can't log to log file %s\n", chan->filename);
@@ -775,16 +773,18 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 					manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: No\r\nReason: %d - %s\r\n", chan->filename, errno, strerror(errno));
 					chan->disabled = 1;	
 				} else {
+					int res;
 					/* No error message, continue printing */
 					va_start(ap, fmt);
-					vsnprintf(buf, sizeof(buf), fmt, ap);
+					res = ast_dynamic_str_thread_set_va(&buf, BUFSIZ, &log_buf, fmt, ap);
 					va_end(ap);
-					term_strip(buf, buf, sizeof(buf));
-					fputs(buf, chan->fileptr);
-					fflush(chan->fileptr);
+					if (res != AST_DYNSTR_BUILD_FAILED) {
+						term_strip(buf->str, buf->str, buf->len);
+						fputs(buf->str, chan->fileptr);
+						fflush(chan->fileptr);
+					}
 				}
 			}
-			chan = chan->next;
 		}
 	} else {
 		/* 
@@ -792,15 +792,17 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		 * so just log to stdout 
 		*/
 		if (level != __LOG_VERBOSE) {
+			int res;
 			va_start(ap, fmt);
-			vsnprintf(buf, sizeof(buf), fmt, ap);
+			res = ast_dynamic_str_thread_set_va(&buf, BUFSIZ, &log_buf, fmt, ap);
 			va_end(ap);
-			fputs(buf, stdout);
+			if (res != AST_DYNSTR_BUILD_FAILED)
+				fputs(buf->str, stdout);
 		}
 	}
 
-	ast_mutex_unlock(&loglock);
-	/* end critical section */
+	AST_LIST_UNLOCK(&logchannels);
+
 	if (filesize_reload_needed) {
 		reload_logger(1);
 		ast_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
@@ -840,17 +842,10 @@ void ast_backtrace(void)
 
 void ast_verbose(const char *fmt, ...)
 {
-	static char stuff[4096];
-	static int len = 0;
-	static int replacelast = 0;
-
-	int complete;
-	int olen;
-	struct msglist *m;
 	struct verb *v;
-	
+	struct ast_dynamic_str *buf;
+	int res;
 	va_list ap;
-	va_start(ap, fmt);
 
 	if (ast_opt_timestamp) {
 		time_t t;
@@ -866,128 +861,54 @@ void ast_verbose(const char *fmt, ...)
 		fmt = datefmt;
 	}
 
-	/* this lock is also protecting against multiple threads
-	   being in this function at the same time, so it must be
-	   held before any of the static variables are accessed
-	*/
-	ast_mutex_lock(&msglist_lock);
+	if (!(buf = ast_dynamic_str_thread_get(&verbose_buf, VERBOSE_BUF_INIT_SIZE)))
+		return;
 
-	/* there is a potential security problem here: if formatting
-	   the current date using 'dateformat' results in a string
-	   containing '%', then the vsnprintf() call below will
-	   probably try to access random memory
-	*/
-	vsnprintf(stuff + len, sizeof(stuff) - len, fmt, ap);
+	va_start(ap, fmt);
+	res = ast_dynamic_str_thread_set_va(&buf, 0, &verbose_buf, fmt, ap);
 	va_end(ap);
 
-	olen = len;
-	len = strlen(stuff);
+	if (res == AST_DYNSTR_BUILD_FAILED)
+		return;
 
-	complete = (stuff[len - 1] == '\n') ? 1 : 0;
+	AST_LIST_LOCK(&verbosers);
+	AST_LIST_TRAVERSE(&verbosers, v, list)
+		v->verboser(buf->str);
+	AST_LIST_UNLOCK(&verbosers);
 
-	/* If we filled up the stuff completely, then log it even without the '\n' */
-	if (len >= sizeof(stuff) - 1) {
-		complete = 1;
-		len = 0;
-	}
-
-	if (complete) {
-		if (msgcnt < MAX_MSG_QUEUE) {
-			/* Allocate new structure */
-			if ((m = ast_malloc(sizeof(*m))))
-				msgcnt++;
-		} else {
-			/* Recycle the oldest entry */
-			m = list;
-			list = list->next;
-			free(m->msg);
-		}
-		if (m) {
-			if ((m->msg = ast_strdup(stuff))) {
-				if (last)
-					last->next = m;
-				else
-					list = m;
-				m->next = NULL;
-				last = m;
-			} else {
-				msgcnt--;
-				free(m);
-			}
-		}
-	}
-
-	for (v = verboser; v; v = v->next)
-		v->verboser(stuff, olen, replacelast, complete);
-
-	ast_log(LOG_VERBOSE, "%s", stuff);
-
-	if (len) {
-		if (!complete)
-			replacelast = 1;
-		else 
-			replacelast = len = 0;
-	}
-
-	ast_mutex_unlock(&msglist_lock);
+	ast_log(LOG_VERBOSE, "%s", buf->str);
 }
 
-int ast_verbose_dmesg(void (*v)(const char *string, int opos, int replacelast, int complete))
+int ast_register_verbose(void (*v)(const char *string)) 
 {
-	struct msglist *m;
-	ast_mutex_lock(&msglist_lock);
-	m = list;
-	while(m) {
-		/* Send all the existing entries that we have queued (i.e. they're likely to have missed) */
-		v(m->msg, 0, 0, 1);
-		m = m->next;
-	}
-	ast_mutex_unlock(&msglist_lock);
+	struct verb *verb;
+
+	if (!(verb = ast_malloc(sizeof(*verb))))
+		return -1;
+
+	verb->verboser = v;
+
+	AST_LIST_LOCK(&verbosers);
+	AST_LIST_INSERT_HEAD(&verbosers, verb, list);
+	AST_LIST_UNLOCK(&verbosers);
+	
 	return 0;
 }
 
-int ast_register_verbose(void (*v)(const char *string, int opos, int replacelast, int complete)) 
+int ast_unregister_verbose(void (*v)(const char *string))
 {
-	struct msglist *m;
-	struct verb *tmp;
-	/* XXX Should be more flexible here, taking > 1 verboser XXX */
-	if ((tmp = ast_malloc(sizeof(*tmp)))) {
-		tmp->verboser = v;
-		ast_mutex_lock(&msglist_lock);
-		tmp->next = verboser;
-		verboser = tmp;
-		m = list;
-		while(m) {
-			/* Send all the existing entries that we have queued (i.e. they're likely to have missed) */
-			v(m->msg, 0, 0, 1);
-			m = m->next;
-		}
-		ast_mutex_unlock(&msglist_lock);
-		return 0;
-	}
-	return -1;
-}
+	struct verb *cur;
 
-int ast_unregister_verbose(void (*v)(const char *string, int opos, int replacelast, int complete))
-{
-	int res = -1;
-	struct verb *tmp, *tmpl=NULL;
-	ast_mutex_lock(&msglist_lock);
-	tmp = verboser;
-	while(tmp) {
-		if (tmp->verboser == v)	{
-			if (tmpl)
-				tmpl->next = tmp->next;
-			else
-				verboser = tmp->next;
-			free(tmp);
+	AST_LIST_LOCK(&verbosers);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&verbosers, cur, list) {
+		if (cur->verboser == v) {
+			AST_LIST_REMOVE_CURRENT(&verbosers, list);
+			free(cur);
 			break;
 		}
-		tmpl = tmp;
-		tmp = tmp->next;
 	}
-	if (tmp)
-		res = 0;
-	ast_mutex_unlock(&msglist_lock);
-	return res;
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&verbosers);
+	
+	return cur ? 0 : -1;
 }

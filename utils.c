@@ -59,20 +59,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define AST_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "asterisk/utils.h"
 
+#define AST_API_MODULE
+#include "asterisk/threadstorage.h"
+
 static char base64[64];
 static char b2a[256];
 
-static pthread_key_t inet_ntoa_buf_key;
-static pthread_once_t inet_ntoa_buf_once = PTHREAD_ONCE_INIT;
-
-#ifdef __AST_DEBUG_MALLOC
-static void FREE(void *ptr)
-{
-	free(ptr);
-}
-#else
-#define FREE free
-#endif
+AST_THREADSTORAGE(inet_ntoa_buf, inet_ntoa_buf_init);
 
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__) || defined(__CYGWIN__)
 
@@ -495,22 +488,13 @@ void ast_uri_decode(char *s)
 	*o = '\0';
 }
 
-static void inet_ntoa_buf_key_create(void)
-{
-	pthread_key_create(&inet_ntoa_buf_key, FREE);
-}
-
 /*! \brief  ast_inet_ntoa: Recursive thread safe replacement of inet_ntoa */
 const char *ast_inet_ntoa(struct in_addr ia)
 {
 	char *buf;
 
-	pthread_once(&inet_ntoa_buf_once, inet_ntoa_buf_key_create);
-	if (!(buf = pthread_getspecific(inet_ntoa_buf_key))) {
-		if (!(buf = ast_calloc(1, INET_ADDRSTRLEN)))
-			return NULL;
-		pthread_setspecific(inet_ntoa_buf_key, buf);
-	}
+	if (!(buf = ast_threadstorage_get(&inet_ntoa_buf, INET_ADDRSTRLEN)))
+		return "";
 
 	return inet_ntop(AF_INET, &ia, buf, INET_ADDRSTRLEN);
 }
@@ -1211,3 +1195,37 @@ int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed)
 		return -1;
 }
 
+int ast_dynamic_str_thread_build_va(struct ast_dynamic_str **buf, size_t max_len,
+	struct ast_threadstorage *ts, int append, const char *fmt, va_list ap)
+{
+	int res;
+	int offset = append ? strlen((*buf)->str) : 0;
+
+	res = vsnprintf((*buf)->str + offset, (*buf)->len - offset, fmt, ap);
+
+	/* Check to see if there was not enough space in the string buffer to prepare
+	 * the string.  Also, if a maximum length is present, make sure the current
+	 * length is less than the maximum before increasing the size. */
+	if ((res + offset + 1) > (*buf)->len && (max_len ? ((*buf)->len < max_len) : 1)) {
+		/* Set the new size of the string buffer to be the size needed
+		 * to hold the resulting string (res) plus one byte for the
+		 * terminating '\0'.  If this size is greater than the max, set
+		 * the new length to be the maximum allowed. */
+		if (max_len)
+			(*buf)->len = ((res + offset + 1) < max_len) ? (res + offset + 1) : max_len;
+		else
+			(*buf)->len = res + offset + 1;
+
+		if (!(*buf = ast_realloc(*buf, (*buf)->len + sizeof(*(*buf)))))
+			return AST_DYNSTR_BUILD_FAILED;
+
+		if (ts)
+			pthread_setspecific(ts->key, *buf);
+
+		/* va_end() and va_start() must be done before calling
+		 * vsnprintf() again. */
+		return AST_DYNSTR_BUILD_RETRY;
+	}
+
+	return res;
+}

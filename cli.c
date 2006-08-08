@@ -48,62 +48,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/lock.h"
 #include "editline/readline/readline.h"
+#include "asterisk/threadstorage.h"
 
 extern unsigned long global_fin, global_fout;
 
-static pthread_key_t ast_cli_buf_key;
-static pthread_once_t ast_cli_buf_once = PTHREAD_ONCE_INIT;
+AST_THREADSTORAGE(ast_cli_buf, ast_cli_buf_init);
 
 /*! \brief Initial buffer size for resulting strings in ast_cli() */
 #define AST_CLI_MAXSTRLEN   256
 
-#ifdef __AST_DEBUG_MALLOC
-static void FREE(void *ptr)
-{
-	free(ptr);
-}
-#else
-#define FREE free
-#endif
-
-static void ast_cli_buf_key_create(void)
-{
-	pthread_key_create(&ast_cli_buf_key, FREE);
-}
-
 void ast_cli(int fd, char *fmt, ...)
 {
-	struct {
-		size_t len;
-		char str[0];
-	} *buf;
 	int res;
+	struct ast_dynamic_str *buf;
 	va_list ap;
 
-	pthread_once(&ast_cli_buf_once, ast_cli_buf_key_create);
-	if (!(buf = pthread_getspecific(ast_cli_buf_key))) {
-		if (!(buf = ast_malloc(AST_CLI_MAXSTRLEN + sizeof(*buf))))
-			return;
-		buf->len = AST_CLI_MAXSTRLEN;
-		pthread_setspecific(ast_cli_buf_key, buf);
-	}
+	if (!(buf = ast_dynamic_str_thread_get(&ast_cli_buf, AST_CLI_MAXSTRLEN)))
+		return;
 
 	va_start(ap, fmt);
-	res = vsnprintf(buf->str, buf->len, fmt, ap);
-	while (res >= buf->len) {
-		if (!(buf = ast_realloc(buf, (buf->len * 2) + sizeof(*buf)))) {
-			va_end(ap);
-			return;
-		}
-		buf->len *= 2;
-		pthread_setspecific(ast_cli_buf_key, buf);
-		va_end(ap);
-		va_start(ap, fmt);
-		res = vsnprintf(buf->str, buf->len, fmt, ap);
-	}
+	res = ast_dynamic_str_thread_set_va(&buf, 0, &ast_cli_buf, fmt, ap);
 	va_end(ap);
 
-	if (res > 0)
+	if (res != AST_DYNSTR_BUILD_FAILED)
 		ast_carefulwrite(fd, buf->str, strlen(buf->str), 100);
 }
 

@@ -66,6 +66,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/transcap.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/sha1.h"
+#include "asterisk/threadstorage.h"
 #include "asterisk/slinfactory.h"
 
 struct channel_spy_trans {
@@ -99,8 +100,7 @@ static int uniqueint = 0;
 
 unsigned long global_fin = 0, global_fout = 0;
 
-static pthread_key_t state2str_buf_key;
-static pthread_once_t state2str_buf_once = PTHREAD_ONCE_INIT;
+AST_THREADSTORAGE(state2str_threadbuf, state2str_threadbuf_init);
 #define STATE2STR_BUFSIZE   32
 
 struct chanlist {
@@ -166,15 +166,6 @@ const struct ast_cause {
 	{ AST_CAUSE_PROTOCOL_ERROR, "PROTOCOL_ERROR", "Protocol error, unspecified" },
 	{ AST_CAUSE_INTERWORKING, "INTERWORKING", "Interworking, unspecified" },
 };
-
-#ifdef __AST_DEBUG_MALLOC
-static void FREE(void *ptr)
-{
-	free(ptr);
-}
-#else
-#define FREE free
-#endif
 
 struct ast_variable *ast_channeltype_list(void)
 {
@@ -500,11 +491,6 @@ int ast_str2cause(const char *name)
 	return -1;
 }
 
-static void state2str_buf_key_create(void)
-{
-	pthread_key_create(&state2str_buf_key, FREE);
-}
- 
 /*! \brief Gives the string form of a given channel state */
 char *ast_state2str(int state)
 {
@@ -532,12 +518,8 @@ char *ast_state2str(int state)
 	case AST_STATE_PRERING:
 		return "Pre-ring";
 	default:
-		pthread_once(&state2str_buf_once, state2str_buf_key_create);
-		if (!(buf = pthread_getspecific(state2str_buf_key))) {
-			if (!(buf = ast_malloc(STATE2STR_BUFSIZE)))
-				return NULL;
-			pthread_setspecific(state2str_buf_key, buf);
-		}
+		if (!(buf = ast_threadstorage_get(&state2str_threadbuf, STATE2STR_BUFSIZE)))
+			return "Unknown";
 		snprintf(buf, STATE2STR_BUFSIZE, "Unknown (%d)", state);
 		return buf;
 	}

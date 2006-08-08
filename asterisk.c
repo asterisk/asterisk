@@ -746,23 +746,9 @@ void ast_console_puts(const char *string)
 	ast_network_puts(string);
 }
 
-static void network_verboser(const char *s, int pos, int replace, int complete)
-	/* ARGUSED */
+static void network_verboser(const char *s)
 {
-	if (replace) {
-		char *t;
-		if ((t = alloca(strlen(s) + 2))) {
-			sprintf(t, "\r%s", s);
-			if (complete)
-				ast_network_puts_mutable(t);
-		} else {
-			ast_log(LOG_ERROR, "Out of memory\n");
-			ast_network_puts_mutable(s);
-		}
-	} else {
-		if (complete)
-			ast_network_puts_mutable(s);
-	}
+	ast_network_puts_mutable(s);
 }
 
 static pthread_t lthread;
@@ -1203,29 +1189,25 @@ static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp
 	return NULL;
 }
 
-static void console_verboser(const char *s, int pos, int replace, int complete)
+static void console_verboser(const char *s)
 {
 	char tmp[80];
 	const char *c = NULL;
-	/* Return to the beginning of the line */
-	if (!pos) {
-		fprintf(stdout, "\r");
-		if ((c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_4)) ||
-			(c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_3)) ||
-			(c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_2)) ||
-			(c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_1)))
-			fputs(tmp, stdout);
-	}
-	if (c)
-		fputs(c + pos,stdout);
-	else
-		fputs(s + pos,stdout);
+
+	if ((c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_4)) ||
+	    (c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_3)) ||
+	    (c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_2)) ||
+	    (c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_1))) {
+		fputs(tmp, stdout);
+		fputs(c, stdout);
+	} else
+		fputs(s, stdout);
+
 	fflush(stdout);
-	if (complete) {
-		/* Wake up a poll()ing console */
-		if (ast_opt_console && consolethread != AST_PTHREADT_NULL)
-			pthread_kill(consolethread, SIGURG);
-	}
+	
+	/* Wake up a poll()ing console */
+	if (ast_opt_console && consolethread != AST_PTHREADT_NULL)
+		pthread_kill(consolethread, SIGURG);
 }
 
 static int ast_all_zeros(char *s)
@@ -2427,6 +2409,14 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (ast_opt_console || option_verbose || (ast_opt_remote && !ast_opt_exec)) {
+		ast_register_verbose(console_verboser);
+		WELCOME_MESSAGE;
+	}
+
+	if (ast_opt_console && !option_verbose) 
+		ast_verbose("[ Booting...\n");
+
 	if (ast_opt_always_fork && (ast_opt_remote || ast_opt_console)) {
 		ast_log(LOG_WARNING, "'alwaysfork' is not compatible with console or remote console mode; ignored\n");
 		ast_clear_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK);
@@ -2443,7 +2433,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (ast_opt_console && !option_verbose) 
-		ast_verbose("[ Reading Master Configuration ]");
+		ast_verbose("[ Reading Master Configuration ]\n");
 	ast_readconfig();
 
 	if (ast_opt_dump_core) {
@@ -2526,7 +2516,7 @@ int main(int argc, char *argv[])
 	fflush(stdout);
 
 	if (ast_opt_console && !option_verbose) 
-		ast_verbose("[ Initializing Custom Configuration Options ]");
+		ast_verbose("[ Initializing Custom Configuration Options ]\n");
 	/* custom config setup */
 	register_config_cli();
 	read_config_maps();
@@ -2548,8 +2538,6 @@ int main(int argc, char *argv[])
 				exit(0);
 			}
 			printf(term_quit());
-			ast_register_verbose(console_verboser);
-			WELCOME_MESSAGE;
 			ast_remotecontrol(NULL);
 			quit_handler(0, 0, 0, 0);
 			exit(0);
@@ -2597,15 +2585,6 @@ int main(int argc, char *argv[])
 	sigaddset(&sigs, SIGPIPE);
 	sigaddset(&sigs, SIGWINCH);
 	pthread_sigmask(SIG_BLOCK, &sigs, NULL);
-	if (ast_opt_console || option_verbose || ast_opt_remote)
-		ast_register_verbose(console_verboser);
-	/* Print a welcome message if desired */
-	if (option_verbose || ast_opt_console) {
-		WELCOME_MESSAGE;
-	}
-	if (ast_opt_console && !option_verbose) 
-		ast_verbose("[ Booting...");
-
 	signal(SIGURG, urg_handler);
 	signal(SIGINT, __quit_handler);
 	signal(SIGTERM, __quit_handler);

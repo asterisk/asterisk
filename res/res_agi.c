@@ -130,7 +130,7 @@ static void agi_debug_cli(int fd, char *fmt, ...)
 		ast_log(LOG_ERROR, "Out of memory\n");
 	} else {
 		if (agidebug)
-			ast_verbose("AGI Tx >> %s", stuff);
+			ast_verbose("AGI Tx >> %s\n", stuff);
 		ast_carefulwrite(fd, stuff, strlen(stuff), 100);
 		free(stuff);
 	}

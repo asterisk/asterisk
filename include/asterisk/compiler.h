@@ -33,5 +33,6 @@
 #endif
 
 #define attribute_const __attribute__((const))
+#define attribute_unused __attribute__((unused))
 
 #endif /* _ASTERISK_COMPILER_H */

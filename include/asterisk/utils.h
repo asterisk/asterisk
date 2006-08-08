@@ -35,6 +35,7 @@
 #include "asterisk/time.h"
 #include "asterisk/strings.h"
 #include "asterisk/logger.h"
+#include "asterisk/compiler.h"
 
 /*! \note
  \verbatim
@@ -270,6 +271,22 @@ int getloadavg(double *list, int nelem);
 #define ast_random random
 #else
 long int ast_random(void);
+#endif
+
+/*! 
+ * \brief free() wrapper
+ *
+ * ast_free should be used when a function pointer for free() needs to be passed
+ * as the argument to a function. Otherwise, astmm will cause seg faults.
+ */
+#ifdef __AST_DEBUG_MALLOC
+static void ast_free(void *ptr) attribute_unused;
+static void ast_free(void *ptr)
+{
+	free(ptr);
+}
+#else
+#define ast_free free
 #endif
 
 #ifndef __AST_DEBUG_MALLOC

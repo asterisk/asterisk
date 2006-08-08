@@ -66,6 +66,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/acl.h"
 #include "asterisk/utils.h"
 #include "asterisk/http.h"
+#include "asterisk/threadstorage.h"
 
 struct fast_originate_helper {
 	char tech[AST_MAX_MANHEADER_LEN];
@@ -103,6 +104,9 @@ AST_MUTEX_DEFINE_STATIC(sessionlock);
 static int block_sockets = 0;
 static int num_sessions = 0;
 struct eventqent *master_eventq = NULL;
+
+AST_THREADSTORAGE(manager_event_buf, manager_event_buf_init);
+#define MANAGER_EVENT_BUF_INITSIZE   256
 
 static struct permalias {
 	int num;
@@ -2113,33 +2117,37 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 {
 	struct mansession *s;
 	char auth[80];
-	char tmp[4096] = "";
-	char *tmp_next = tmp;
-	size_t tmp_left = sizeof(tmp) - 2;
 	va_list ap;
 	struct timeval now;
+	struct ast_dynamic_str *buf;
 
 	/* Abort if there aren't any manager sessions */
 	if (!num_sessions)
 		return 0;
 
-	ast_build_string(&tmp_next, &tmp_left, "Event: %s\r\nPrivilege: %s\r\n",
+	if (!(buf = ast_dynamic_str_thread_get(&manager_event_buf, MANAGER_EVENT_BUF_INITSIZE)))
+		return -1;
+
+	ast_dynamic_str_thread_set(&buf, 0, &manager_event_buf,
+			"Event: %s\r\nPrivilege: %s\r\n",
 			 event, authority_to_str(category, auth, sizeof(auth)));
+
 	if (timestampevents) {
 		now = ast_tvnow();
-		ast_build_string(&tmp_next, &tmp_left, "Timestamp: %ld.%06lu\r\n",
+		ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf,
+				"Timestamp: %ld.%06lu\r\n",
 				 now.tv_sec, (unsigned long) now.tv_usec);
 	}
+
 	va_start(ap, fmt);
-	ast_build_string_va(&tmp_next, &tmp_left, fmt, ap);
+	ast_dynamic_str_thread_append_va(&buf, 0, &manager_event_buf, fmt, ap);
 	va_end(ap);
-	*tmp_next++ = '\r';
-	*tmp_next++ = '\n';
-	*tmp_next = '\0';
+	
+	ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf, "\r\n");	
 	
 	ast_mutex_lock(&sessionlock);
 	/* Append even to master list and wake up any sleeping sessions */
-	append_event(tmp, category);
+	append_event(buf->str, category);
 	for (s = sessions; s; s = s->next) {
 		ast_mutex_lock(&s->__lock);
 		if (s->waiting_thread != AST_PTHREADT_NULL)
