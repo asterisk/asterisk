@@ -127,7 +127,7 @@ static char *app_ajisend = "JabberSend";
 static char *ajisend_synopsis = "JabberSend(jabber,screenname,message)";
 
 static char *ajisend_descrip =
-"JabberRSend(Jabber,ScreenName,Message)\n"
+"JabberSend(Jabber,ScreenName,Message)\n"
 "  Jabber - Client or transport Asterisk uses to connect to Jabber\n" 
 "  ScreenName - User Name to message.\n" 
 "  Message - Message to be sent to the buddy\n";
@@ -443,6 +443,11 @@ static int aji_act_hook(void *data, int type, iks *node)
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
 	ikspak *pak = NULL;
 	iks *auth = NULL;
+
+	if(!node) {
+		ast_log(LOG_ERROR, "aji_act_hook was called with out a packet\n"); /* most likely cause type is IKS_NODE_ERROR lost connection */
+		return IKS_HOOK;
+	}
 
 	pak = iks_packet(node);
 
@@ -1003,8 +1008,7 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
  */
 static void aji_handle_iq(struct aji_client *client, iks *node)
 {
-	if (option_verbose > 4)
-		ast_verbose("MWAHHAHAHA NOTHING TO SEE HERE!\n");
+	/*Nothing to see here */
 }
 
 /*!
@@ -1908,7 +1912,7 @@ static int aji_test(int fd, int argc, char *argv[])
 		return RESULT_FAILURE;
 	}
 
-	/* XXX Does Matt really want everyone to use his personal address for tests? */
+	/* XXX Does Matt really want everyone to use his personal address for tests? */ /* XXX yes he does */
 	ast_aji_send(client, "mogorman@astjab.org", "blahblah");
 	ASTOBJ_CONTAINER_TRAVERSE(&client->buddies, 1, {
 		ASTOBJ_RDLOCK(iterator);

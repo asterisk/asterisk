@@ -168,7 +168,7 @@ AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
 
-AST_MUTEX_DEFINE_STATIC(jinglelock); /*!< Protect the interface list (of sip_pvt's) */
+AST_MUTEX_DEFINE_STATIC(jinglelock); /*!< Protect the interface list (of jingle_pvt's) */
 
 /* Forward declarations */
 static struct ast_channel *jingle_request(const char *type, int format, void *data, int *cause);
@@ -448,7 +448,7 @@ static int jingle_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, st
 
 static int jingle_response(struct jingle *client, ikspak *pak, const char *reasonstr, const char *reasonstr2)
 {
-	iks *response, *error = NULL, *reason;
+	iks *response = NULL, *error = NULL, *reason = NULL;
 	int res = -1;
 
 	response = iks_new("iq");
@@ -1238,8 +1238,8 @@ static int jingle_sendhtml(struct ast_channel *ast, int subclass, const char *da
 }
 static int jingle_transmit_invite(struct jingle_pvt *p)
 {
-	struct jingle *jingle;
-	struct aji_client *client;
+	struct jingle *jingle = NULL;
+	struct aji_client *client = NULL;
 	iks *iq, *desc, *session;
 	iks *payload_eg711u, *payload_pcmu;
 
@@ -1577,7 +1577,8 @@ static int jingle_load_config(void)
 			ast_copy_string(context, var->value, sizeof(context));
 		else if (!strcasecmp(var->name, "externip"))
 			ast_copy_string(externip, var->value, sizeof(externip));
-#if 0
+/*  Idea to allow for custom candidates  */
+/*
 		else if (!strcasecmp(var->name, "candidate")) {
 			candidate = jingle_create_candidate(var->value);
 			if (candidate) {
@@ -1585,7 +1586,7 @@ static int jingle_load_config(void)
 				global_candidates = candidate;
 			}
 		}
-#endif
+*/
 	}
 	while (cat) {
 		if (strcasecmp(cat, "general")) {
@@ -1610,7 +1611,8 @@ static int jingle_load_config(void)
 					else if (!strcasecmp(var->name, "context"))
 						ast_copy_string(member->context, var->value,
 										sizeof(member->context));
-#if 0
+/*  Idea to allow for custom candidates  */
+/*
 					else if (!strcasecmp(var->name, "candidate")) {
 						candidate = jingle_create_candidate(var->value);
 						if (candidate) {
@@ -1618,7 +1620,7 @@ static int jingle_load_config(void)
 							member->ourcandidates = candidate;
 						}
 					}
-#endif
+*/
 					var = var->next;
 				}
 				ASTOBJ_UNLOCK(member);
