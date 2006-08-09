@@ -6330,8 +6330,10 @@ static void *ss_thread(void *data)
 
 							if (p->ringt < p->ringt_base/2)
 								break;
-							++receivedRingT; /* Increment the ringT counter so we can match it against
-										values in zapata.conf for distinctive ring */
+							/* Increment the ringT counter so we can match it against
+							   values in zapata.conf for distinctive ring */
+							if (++receivedRingT == (sizeof(curRingData) / sizeof(curRingData[0])))
+								break;
 						} else if (i & ZT_IOMUX_READ) {
 							res = read(p->subs[index].zfd, buf, sizeof(buf));
 							if (res < 0) {
