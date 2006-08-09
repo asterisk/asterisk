@@ -2,13 +2,15 @@ Executed ast_register_file_version();
 Executed ast_register_file_version();
 Executed ast_register_file_version();
 Executed ast_register_file_version();
-LOG: lev:2 file:../pbx/pbx_ael.c  line:3732 func: pbx_load_module  Starting AEL load process.
-LOG: lev:2 file:../pbx/pbx_ael.c  line:3739 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
-LOG: lev:2 file:../pbx/pbx_ael.c  line:3742 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
-LOG: lev:4 file:../pbx/pbx_ael.c  line:2229 func: check_pval_item  Error: file ./extensions.ael, line 98-98: The macro call to checkanddial has 5 arguments, but the macro definition has 7 arguments
-LOG: lev:4 file:../pbx/pbx_ael.c  line:2229 func: check_pval_item  Error: file ./extensions.ael, line 107-107: The macro call to checkanddial has 5 arguments, but the macro definition has 7 arguments
-LOG: lev:4 file:../pbx/pbx_ael.c  line:2229 func: check_pval_item  Error: file ./extensions.ael, line 284-284: The macro call to checkanddial has 5 arguments, but the macro definition has 7 arguments
-LOG: lev:4 file:../pbx/pbx_ael.c  line:2229 func: check_pval_item  Error: file ./extensions.ael, line 287-287: The macro call to checkanddial has 5 arguments, but the macro definition has 7 arguments
-LOG: lev:4 file:../pbx/pbx_ael.c  line:2210 func: check_pval_item  Error: file ./extensions.ael, line 452-452: macro call to non-existent std-exten-ael !
-LOG: lev:4 file:../pbx/pbx_ael.c  line:3755 func: pbx_load_module  Sorry, but 0 syntax errors and 5 semantic errors were detected. It doesn't make sense to compile.
-LOG: lev:4 file:ael2_parse  line:253 func: main  0 contexts, 0 extensions, 0 priorities
+
+(You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3757 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3764 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3767 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:4 file:../pbx/pbx_ael.c  line:2231 func: check_pval_item  Error: file ./extensions.ael, line 98-98: The macro call to checkanddial has 5 arguments, but the macro definition has 7 arguments
+LOG: lev:4 file:../pbx/pbx_ael.c  line:2231 func: check_pval_item  Error: file ./extensions.ael, line 107-107: The macro call to checkanddial has 5 arguments, but the macro definition has 7 arguments
+LOG: lev:4 file:../pbx/pbx_ael.c  line:2231 func: check_pval_item  Error: file ./extensions.ael, line 284-284: The macro call to checkanddial has 5 arguments, but the macro definition has 7 arguments
+LOG: lev:4 file:../pbx/pbx_ael.c  line:2231 func: check_pval_item  Error: file ./extensions.ael, line 287-287: The macro call to checkanddial has 5 arguments, but the macro definition has 7 arguments
+LOG: lev:4 file:../pbx/pbx_ael.c  line:2212 func: check_pval_item  Error: file ./extensions.ael, line 452-452: macro call to non-existent std-exten-ael !
+LOG: lev:4 file:../pbx/pbx_ael.c  line:3780 func: pbx_load_module  Sorry, but 0 syntax errors and 5 semantic errors were detected. It doesn't make sense to compile.
+LOG: lev:4 file:ael2_parse  line:407 func: main  0 contexts, 0 extensions, 0 priorities

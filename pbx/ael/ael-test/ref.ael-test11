@@ -2,10 +2,12 @@ Executed ast_register_file_version();
 Executed ast_register_file_version();
 Executed ast_register_file_version();
 Executed ast_register_file_version();
-LOG: lev:2 file:../pbx/pbx_ael.c  line:3732 func: pbx_load_module  Starting AEL load process.
-LOG: lev:2 file:../pbx/pbx_ael.c  line:3739 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
-LOG: lev:2 file:../pbx/pbx_ael.c  line:3742 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
-LOG: lev:4 file:../pbx/pbx_ael.c  line:1041 func: check_label  Error: file ./extensions.ael, line 13-13: Duplicate label lab1! Previously defined at file ./extensions.ael, line 8.
-LOG: lev:4 file:../pbx/pbx_ael.c  line:1041 func: check_label  Error: file ./extensions.ael, line 49-49: Duplicate label ptr1! Previously defined at file ./extensions.ael, line 33.
-LOG: lev:4 file:../pbx/pbx_ael.c  line:3755 func: pbx_load_module  Sorry, but 0 syntax errors and 2 semantic errors were detected. It doesn't make sense to compile.
-LOG: lev:4 file:ael2_parse  line:253 func: main  0 contexts, 0 extensions, 0 priorities
+
+(You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3757 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3764 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3767 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:4 file:../pbx/pbx_ael.c  line:1043 func: check_label  Error: file ./extensions.ael, line 13-13: Duplicate label lab1! Previously defined at file ./extensions.ael, line 8.
+LOG: lev:4 file:../pbx/pbx_ael.c  line:1043 func: check_label  Error: file ./extensions.ael, line 49-49: Duplicate label ptr1! Previously defined at file ./extensions.ael, line 33.
+LOG: lev:4 file:../pbx/pbx_ael.c  line:3780 func: pbx_load_module  Sorry, but 0 syntax errors and 2 semantic errors were detected. It doesn't make sense to compile.
+LOG: lev:4 file:ael2_parse  line:407 func: main  0 contexts, 0 extensions, 0 priorities
