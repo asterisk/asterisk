@@ -211,8 +211,8 @@ static int  entity;
 
 static struct misdn_lib *glob_mgr;
 
-unsigned char tone_425_flip[TONE_425_SIZE];
-unsigned char tone_silence_flip[TONE_SILENCE_SIZE];
+char tone_425_flip[TONE_425_SIZE];
+char tone_silence_flip[TONE_SILENCE_SIZE];
 
 static void misdn_lib_isdn_event_catcher(void *arg);
 static int handle_event_nt(void *dat, void *arg);
@@ -292,13 +292,13 @@ void init_flip_bits(void)
 	}
 }
 
-unsigned char * flip_buf_bits ( unsigned char * buf , int len)
+char * flip_buf_bits ( char * buf , int len)
 {
 	int i;
 	char * start = buf;
 	
 	for (i = 0 ; i < len; i++) {
-		buf[i] = flip_table[buf[i]];
+		buf[i] = flip_table[(unsigned char)buf[i]];
 	}
 	
 	return start;

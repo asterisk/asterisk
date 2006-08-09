@@ -293,7 +293,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\tThis option is only read at loading time of chan_misdn, which\n"
 		"\tmeans you need to unload and load chan_misdn to change the value,\n"
 		"\tan Asterisk restart should do the trick." },
-	{ "overlap_dial", MISDN_CFG_OVERLAP_DIAL, MISDN_CTYPE_BOOLINT, "0", 4,
+	{ "overlapdial", MISDN_CFG_OVERLAP_DIAL, MISDN_CTYPE_BOOLINT, "0", 4,
 		"Enables overlap dial for the given amount of seconds.\n"
 		"\tPossible values are positive integers or:\n"
 		"\t   yes (= 4 seconds)\n"

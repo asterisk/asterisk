@@ -233,7 +233,7 @@ struct misdn_bchannel {
 	int in_use;
 	int addr;
 
-	unsigned char * bframe;
+	char * bframe;
 	int bframe_len;
 	int time_usec;
 	
@@ -323,17 +323,17 @@ struct misdn_bchannel {
 	int hdlc;
 	/* V110 */
   
-	unsigned char display[84];
-	unsigned char msn[32];
-	unsigned char oad[32];
-	unsigned char rad[32];
-	unsigned char dad[32];
-	unsigned char cad[32];
-	unsigned char orig_dad[32];
-	unsigned char keypad[32];
+	char display[84];
+	char msn[32];
+	char oad[32];
+	char rad[32];
+	char dad[32];
+	char cad[32];
+	char orig_dad[32];
+	char keypad[32];
 
-	unsigned char info_dad[64];
-	unsigned char infos_pending[64];
+	char info_dad[64];
+	char infos_pending[64];
 
 /* 	unsigned char info_keypad[32]; */
 /* 	unsigned char clisub[24]; */

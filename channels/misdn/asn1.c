@@ -48,7 +48,7 @@ int _enc_enum (__u8 *dest, __u32 i, int tag)
 	return p - dest;
 }
 
-int _enc_num_string (__u8 *dest, __u8 *nd, __u8 len, int tag)
+int _enc_num_string (__u8 *dest, char *nd, __u8 len, int tag)
 {
 	__u8 *p;
 	int i;
