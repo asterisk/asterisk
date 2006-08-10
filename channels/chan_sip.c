@@ -1031,6 +1031,7 @@ struct sip_peer {
 	int callingpres;		/*!< Calling id presentation */
 	int inUse;			/*!< Number of calls in use */
 	int inRinging;			/*!< Number of calls ringing */
+	int onHold;                     /*!< Peer has someone on hold */
 	int call_limit;			/*!< Limit of concurrent calls */
 	enum transfermodes allowtransfer;	/*! SIP Refer restriction scheme */
 	char vmexten[AST_MAX_EXTENSION]; /*!< Dialplan extension for MWI notify message*/
@@ -1282,7 +1283,7 @@ static int sip_devicestate(void *data);
 static int sip_poke_noanswer(void *data);
 static int sip_poke_peer(struct sip_peer *peer);
 static void sip_poke_all_peers(void);
-
+static void sip_peer_hold(struct sip_pvt *p, int hold);
 
 /*--- Applications, functions, CLI and manager command helpers */
 static const char *sip_nat_mode(const struct sip_pvt *p);
@@ -4916,29 +4917,33 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		ast_set_read_format(p->owner, p->owner->readformat);
 		ast_set_write_format(p->owner, p->owner->writeformat);
 	}
+	
+	bridgepeer = ast_bridged_channel(p->owner);
 
-	if ((bridgepeer = ast_bridged_channel(p->owner))) {
-		/* We have a bridge */
-		/* Turn on/off music on hold if we are holding/unholding */
-		if (sin.sin_addr.s_addr && !sendonly) {
+	/* Turn on/off music on hold if we are holding/unholding */
+	if (sin.sin_addr.s_addr && !sendonly) {
+		/* Update peer state */
+		sip_peer_hold(p, 0);
+		if (bridgepeer)
 			ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
 		
-			/* Activate a re-invite */
-			ast_queue_frame(p->owner, &ast_null_frame);
-		} else if (!sin.sin_addr.s_addr || sendonly) {
-			/* No address for RTP, we're on hold */
+		/* Activate a re-invite */
+		ast_queue_frame(p->owner, &ast_null_frame);
+	} else if (!sin.sin_addr.s_addr || sendonly) {
+		/* Update peer state */
+		sip_peer_hold(p, 1);
+		/* No address for RTP, we're on hold */
+		if (bridgepeer)
 			ast_queue_control_data(p->owner, AST_CONTROL_HOLD, 
-				S_OR(p->mohsuggest, NULL),
-				!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
-
-			if (sendonly)
-				ast_rtp_stop(p->rtp);
-			/* RTCP needs to go ahead, even if we're on hold!!! */
-
-			/* Activate a re-invite */
-			ast_queue_frame(p->owner, &ast_null_frame);
-		}
-		/* guess we got a re-invite for changing media or IP - not hold/unhold */
+					       S_OR(p->mohsuggest, NULL),
+					       !ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+		
+		if (sendonly)
+			ast_rtp_stop(p->rtp);
+		/* RTCP needs to go ahead, even if we're on hold!!! */
+		
+		/* Activate a re-invite */
+		ast_queue_frame(p->owner, &ast_null_frame);
 	}
 
 	/* Manager Hold and Unhold events must be generated, if necessary */
@@ -6534,6 +6539,8 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 		pidfstate = "away";
 		pidfnote = "Unavailable";
 		break;
+	case AST_EXTENSION_ONHOLD:
+		break;
 	case AST_EXTENSION_NOT_INUSE:
 	default:
 		/* Default setting */
@@ -7775,6 +7782,26 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 	sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 
 	return AUTH_CHALLENGE_SENT;
+}
+
+/*! \brief Change onhold state of a peer using a pvt structure */
+static void sip_peer_hold(struct sip_pvt *p, int hold)
+{
+	struct sip_peer *peer = find_peer(p->peername, NULL, 1);
+
+	if (!peer)
+		return;
+
+	/* If they put someone on hold, increment the value... otherwise decrement it */
+	if (hold)
+		peer->onHold++;
+	else
+		peer->onHold--;
+
+	/* Request device state update */
+	ast_device_state_changed("SIP/%s", peer->name);
+
+	return;
 }
 
 /*! \brief Callback for the devicestate notification (SUBSCRIBE) support subsystem
@@ -14578,7 +14605,9 @@ static int sip_devicestate(void *data)
 					res = AST_DEVICE_INUSE;
 				else
 					res = AST_DEVICE_NOT_INUSE;
-				if (p->inRinging) {
+				if (p->onHold)
+					res = AST_DEVICE_ONHOLD;
+				else if (p->inRinging) {
 					if (p->inRinging == p->inUse)
 						res = AST_DEVICE_RINGING;
 					else

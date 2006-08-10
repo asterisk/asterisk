@@ -51,8 +51,8 @@ static const char *devstatestring[] = {
 	/* 3 AST_DEVICE_BUSY */		"Busy",		/*!< Busy */
 	/* 4 AST_DEVICE_INVALID */	"Invalid",	/*!< Invalid - not known to Asterisk */
 	/* 5 AST_DEVICE_UNAVAILABLE */	"Unavailable",	/*!< Unavailable (not registred) */
-	/* 6 AST_DEVICE_RINGING */	"Ringing"	/*!< Ring, ring, ring */
-	/* 7 AST_DEVICE_RINGINUSE */	"Ring+Inuse"	/*!< Ring and in use */
+	/* 6 AST_DEVICE_RINGING */	"Ringing",	/*!< Ring, ring, ring */
+	/* 7 AST_DEVICE_RINGINUSE */	"Ring+Inuse",	/*!< Ring and in use */
 	/* 8 AST_DEVICE_ONHOLD */	"On Hold"	/*!< On Hold */
 };
 
