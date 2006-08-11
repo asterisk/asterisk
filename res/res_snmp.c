@@ -39,14 +39,14 @@ static pthread_t thread = AST_PTHREADT_NULL;
 
 static int load_config(void)
 {
-    struct ast_variable *var;
-    struct ast_config *cfg;
-    char *cat;
-	
+	struct ast_variable *var;
+	struct ast_config *cfg;
+	char *cat;
+
 	res_snmp_enabled = 0;
 	res_snmp_agentx_subagent = 1;
-    cfg = ast_config_load("res_snmp.conf");
-    if (cfg) {
+	cfg = ast_config_load("res_snmp.conf");
+	if (cfg) {
 		cat = ast_category_browse(cfg, NULL);
 		while (cat) {
 			var = ast_variable_browse(cfg, cat);
@@ -59,23 +59,20 @@ static int load_config(void)
 						else if (ast_false(var->value))
 							res_snmp_agentx_subagent = 0;
 						else {
-							ast_log(LOG_ERROR, "Value '%s' does not evaluate to true or false.\n",
-									var->value);
+							ast_log(LOG_ERROR, "Value '%s' does not evaluate to true or false.\n", var->value);
 							ast_config_destroy(cfg);
 							return 1;
 						}
 					} else if (strcasecmp(var->name, "enabled") == 0) {
 						res_snmp_enabled = ast_true(var->value);
 					} else {
-						ast_log(LOG_ERROR, "Unrecognized variable '%s' in category '%s'\n",
-								var->name, cat);
+						ast_log(LOG_ERROR, "Unrecognized variable '%s' in category '%s'\n", var->name, cat);
 						ast_config_destroy(cfg);
 						return 1;
 					}
 					var = var->next;
 				}
-			}
-			else {
+			} else {
 				ast_log(LOG_ERROR, "Unrecognized category '%s'\n", cat);
 				ast_config_destroy(cfg);
 				return 1;
@@ -84,57 +81,57 @@ static int load_config(void)
 			cat = ast_category_browse(cfg, cat);
 		}
 		ast_config_destroy(cfg);
-    }
+	}
 
-    return 0;
+	return 0;
 }
 
 static int load_module(void *mod)
 {
-    load_config();
+	load_config();
 
-    ast_verbose(VERBOSE_PREFIX_1 "Loading [Sub]Agent Module\n");
+	ast_verbose(VERBOSE_PREFIX_1 "Loading [Sub]Agent Module\n");
 
-    res_snmp_dont_stop = 1;
+	res_snmp_dont_stop = 1;
 	if (res_snmp_enabled)
-	    return ast_pthread_create(&thread, NULL, agent_thread, NULL);
+		return ast_pthread_create(&thread, NULL, agent_thread, NULL);
 	else
 		return 0;
 }
 
 static int unload_module(void *mod)
 {
-    ast_verbose(VERBOSE_PREFIX_1 "Unloading [Sub]Agent Module\n");
+	ast_verbose(VERBOSE_PREFIX_1 "Unloading [Sub]Agent Module\n");
 
-    res_snmp_dont_stop = 0;
-    return pthread_join(thread, NULL);
+	res_snmp_dont_stop = 0;
+	return pthread_join(thread, NULL);
 }
 
 static int reload(void *mod)
 {
-    ast_verbose(VERBOSE_PREFIX_1 "Reloading [Sub]Agent Module\n");
+	ast_verbose(VERBOSE_PREFIX_1 "Reloading [Sub]Agent Module\n");
 
-    res_snmp_dont_stop = 0;
+	res_snmp_dont_stop = 0;
 	if (thread != AST_PTHREADT_NULL)
-	    pthread_join(thread, NULL);
+		pthread_join(thread, NULL);
 	thread = AST_PTHREADT_NULL;
-    load_config();
+	load_config();
 
-    res_snmp_dont_stop = 1;
+	res_snmp_dont_stop = 1;
 	if (res_snmp_enabled)
-	    return ast_pthread_create(&thread, NULL, agent_thread, NULL);
+		return ast_pthread_create(&thread, NULL, agent_thread, NULL);
 	else
 		return 0;
 }
 
 static const char *key(void)
 {
-    return ASTERISK_GPL_KEY;
+	return ASTERISK_GPL_KEY;
 }
 
 static const char *description(void)
 {
-    return MODULE_DESCRIPTION;
+	return MODULE_DESCRIPTION;
 }
 
 STD_MOD(MOD_0, reload, NULL, NULL);
