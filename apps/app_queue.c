@@ -237,7 +237,7 @@ static char *app_ql_descrip =
 /*! \brief Persistent Members astdb family */
 static const char *pm_family = "/Queue/PersistentMembers";
 /* The maximum length of each persistent member queue database entry */
-#define PM_MAX_LEN 2048
+#define PM_MAX_LEN 8192
 
 /*! \brief queues.conf [general] option */
 static int queue_persistent_members = 0;
