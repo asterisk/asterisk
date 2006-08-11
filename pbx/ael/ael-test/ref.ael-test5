@@ -1,14 +1,12 @@
-Executed ast_register_file_version();
-Executed ast_register_file_version();
-Executed ast_register_file_version();
-Executed ast_register_file_version();
+
+(If you find progress and other non-error messages irritating, you can use -q to suppress them)
 
 (You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
-LOG: lev:2 file:../pbx/pbx_ael.c  line:3757 func: pbx_load_module  Starting AEL load process.
-LOG: lev:2 file:../pbx/pbx_ael.c  line:3764 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
-LOG: lev:2 file:../pbx/pbx_ael.c  line:3767 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
-LOG: lev:2 file:../pbx/pbx_ael.c  line:3770 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
-LOG: lev:2 file:../pbx/pbx_ael.c  line:3772 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
-LOG: lev:2 file:../pbx/pbx_ael.c  line:3775 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
-LOG: lev:2 file:../pbx/pbx_ael.c  line:3778 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
-LOG: lev:4 file:ael2_parse  line:407 func: main  38 contexts, 90 extensions, 484 priorities
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3747 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3754 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3757 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3760 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3762 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3765 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:../pbx/pbx_ael.c  line:3768 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:458 func: main  38 contexts, 90 extensions, 484 priorities
