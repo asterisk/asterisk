@@ -708,8 +708,6 @@ static const char *key(void)
 	return ASTERISK_GPL_KEY;
 }
 
-STD_MOD(MOD_0, reload, NULL, NULL);
-
 static int pgsql_reconnect(const char *database)
 {
 	char my_database[50];
@@ -800,3 +798,5 @@ static int realtime_pgsql_status(int fd, int argc, char **argv)
 		return RESULT_FAILURE;
 	}
 }
+
+STD_MOD(MOD_0, reload, NULL, NULL);
