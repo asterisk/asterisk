@@ -132,7 +132,7 @@ static pval *update_last(pval *, YYLTYPE *);
 
 %type <str>goto_word
 %type <str>word_list
-%type <str>word3_list
+%type <str>word3_list hint_word
 %type <str>test_expr
 %type <str>opt_pri
 
@@ -272,12 +272,12 @@ extension : word EXTENMARK statement {
 		$$->u1.str = $2;
 		$$->u2.statements = $4; set_dads($$,$4);
 		$$->u4.regexten=1;}
-	| KW_HINT LP word3_list RP word EXTENMARK statement {
+	| KW_HINT LP hint_word RP word EXTENMARK statement {
 		$$ = npval2(PV_EXTENSION, &@1, &@7);
 		$$->u1.str = $5;
 		$$->u2.statements = $7; set_dads($$,$7);
 		$$->u3.hints = $3;}
-	| KW_REGEXTEN KW_HINT LP word3_list RP word EXTENMARK statement {
+	| KW_REGEXTEN KW_HINT LP hint_word RP word EXTENMARK statement {
 		$$ = npval2(PV_EXTENSION, &@1, &@8);
 		$$->u1.str = $6;
 		$$->u2.statements = $8; set_dads($$,$8);
@@ -340,6 +340,17 @@ word_list : word { $$ = $1;}
 		free($2);
 		prev_word = $$;}
 	;
+
+hint_word : word { $$ = $1; }
+	| hint_word word {
+		asprintf(&($$), "%s %s", $1, $2);
+		free($1);
+		free($2); }
+	| hint_word AMPER word {  /* there are often '&' in hints */
+		asprintf(&($$), "%s&%s", $1, $3);
+		free($1);
+		free($3);}
+
 
 word3_list : word { $$ = $1;}
 	| word word {

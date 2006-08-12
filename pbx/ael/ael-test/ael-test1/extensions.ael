@@ -94,7 +94,7 @@ context testloop {
               y=${y}-1;
          };
     }; 
-    regexten hint(nasty/Thingy) 3 => {
+    regexten hint(nasty/Thingy&nasty/Thingamabob) 3 => {
         for (x=0; ${x} < 3; x=${x} + 1) 
 		{
             	Verbose(x is ${x} !);
