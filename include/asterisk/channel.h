@@ -104,7 +104,7 @@ extern "C" {
 #define AST_MAX_CONTEXT		80	/*!< Max length of a context */
 #define AST_CHANNEL_NAME	80	/*!< Max length of an ast_channel name */
 #define MAX_LANGUAGE		20	/*!< Max length of the language setting */
-#define MAX_MUSICCLASS		20	/*!< Max length of the music class setting */
+#define MAX_MUSICCLASS		80	/*!< Max length of the music class setting */
 
 #include "asterisk/compat.h"
 #include "asterisk/frame.h"
