@@ -21,7 +21,7 @@
  *
  * \author Anthony Minessale anthmct@yahoo.com
  *
- * \note Development of this app Sponsered/Funded  by TAAN Softworks Corp
+ * \note Development of this app Sponsored/Funded by TAAN Softworks Corp
  * 
  * \ingroup applications
  */
@@ -48,8 +48,7 @@ static char *synopsis =
 static char *descrip = 
 "  ForkCDR([options]):  Causes the Call Data Record to fork an additional\n"
 	"cdr record starting from the time of the fork call\n"
-"If the option 'v' is passed all cdr variables will be passed along also.\n"
-"";
+"If the option 'v' is passed all cdr variables will be passed along also.\n";
 
 LOCAL_USER_DECL;
 
