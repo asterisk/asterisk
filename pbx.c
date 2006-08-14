@@ -165,6 +165,7 @@ struct ast_context {
 	struct ast_ignorepat *ignorepats;	/*!< Patterns for which to continue playing dialtone */
 	const char *registrar;			/*!< Registrar */
 	AST_LIST_HEAD_NOLOCK(, ast_sw) alts;	/*!< Alternative switches */
+	ast_mutex_t macrolock;			/*!< A lock to implement "exclusive" macros - held whilst a call is executing in the macro */
 	char name[0];				/*!< Name of the context */
 };
 
@@ -2742,6 +2743,62 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 }
 
 
+/*!
+ * \note This function locks contexts list by &conlist, searches for the right context
+ * structure, and locks the macrolock mutex in that context.
+ * macrolock is used to limit a macro to be executed by one call at a time.
+ */
+int ast_context_lockmacro(const char *context)
+{
+	struct ast_context *c = NULL;
+	int ret = -1;
+
+	ast_lock_contexts();
+
+	while ((c = ast_walk_contexts(c))) {
+		if (!strcmp(ast_get_context_name(c), context)) {
+			ret = 0;
+			break;
+		}
+	}
+
+	ast_unlock_contexts();
+
+	/* if we found context, lock macrolock */
+	if (ret == 0) 
+		ret = ast_mutex_lock(&c->macrolock);
+
+	return ret;
+}
+
+/*!
+ * \note This function locks contexts list by &conlist, searches for the right context
+ * structure, and unlocks the macrolock mutex in that context.
+ * macrolock is used to limit a macro to be executed by one call at a time.
+ */
+int ast_context_unlockmacro(const char *context)
+{
+	struct ast_context *c = NULL;
+	int ret = -1;
+
+	ast_lock_contexts();
+
+	while ((c = ast_walk_contexts(c))) {
+		if (!strcmp(ast_get_context_name(c), context)) {
+			ret = 0;
+			break;
+		}
+	}
+
+	ast_unlock_contexts();
+
+	/* if we found context, unlock macrolock */
+	if (ret == 0) 
+		ret = ast_mutex_unlock(&c->macrolock);
+
+	return ret;
+}
+
 /*! \brief Dynamically register a new dial plan application */
 int ast_register_application(const char *app, int (*execute)(struct ast_channel *, void *), const char *synopsis, const char *description)
 {
@@ -3451,6 +3508,7 @@ struct ast_context *ast_context_create(struct ast_context **extcontexts, const c
 	}
 	if ((tmp = ast_calloc(1, length))) {
 		ast_mutex_init(&tmp->lock);
+		ast_mutex_init(&tmp->macrolock);
 		strcpy(tmp->name, name);
 		tmp->root = NULL;
 		tmp->registrar = registrar;

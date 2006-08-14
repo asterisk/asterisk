@@ -70,6 +70,13 @@ static char *if_descrip =
 "(otherwise <macroname_b> if provided)\n"
 "Arguments and return values as in application macro()\n";
 
+static char *exclusive_descrip =
+"  MacroExclusive(macroname|arg1|arg2...):\n"
+"Executes macro defined in the context 'macro-macroname'\n"
+"Only one call at a time may run the macro.\n"
+"(we'll wait if another call is busy executing in the Macro)\n"
+"Arguments and return values as in application Macro()\n";
+
 static char *exit_descrip =
 "  MacroExit():\n"
 "Causes the currently running macro to exit as if it had\n"
@@ -79,15 +86,17 @@ static char *exit_descrip =
 
 static char *app = "Macro";
 static char *if_app = "MacroIf";
+static char *exclusive_app = "MacroExclusive";
 static char *exit_app = "MacroExit";
 
 static char *synopsis = "Macro Implementation";
 static char *if_synopsis = "Conditional Macro Implementation";
+static char *exclusive_synopsis = "Exclusive Macro Implementation";
 static char *exit_synopsis = "Exit From Macro";
 
 LOCAL_USER_DECL;
 
-static int macro_exec(struct ast_channel *chan, void *data)
+static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 {
 	const char *s;
 
@@ -140,14 +149,28 @@ static int macro_exec(struct ast_channel *chan, void *data)
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
+
 	snprintf(fullmacro, sizeof(fullmacro), "macro-%s", macro);
 	if (!ast_exists_extension(chan, fullmacro, "s", 1, chan->cid.cid_num)) {
-  		if (!ast_context_find(fullmacro)) 
+		if (!ast_context_find(fullmacro)) 
 			ast_log(LOG_WARNING, "No such context '%s' for macro '%s'\n", fullmacro, macro);
 		else
-	  		ast_log(LOG_WARNING, "Context '%s' for macro '%s' lacks 's' extension, priority 1\n", fullmacro, macro);
+			ast_log(LOG_WARNING, "Context '%s' for macro '%s' lacks 's' extension, priority 1\n", fullmacro, macro);
 		LOCAL_USER_REMOVE(u);
 		return 0;
+	}
+
+	/* If we are to run the macro exclusively, take the mutex */
+	if (exclusive) {
+		ast_log(LOG_DEBUG, "Locking macrolock for '%s'\n", fullmacro);
+		ast_autoservice_start(chan);
+		if (ast_context_lockmacro(fullmacro)) {
+			ast_log(LOG_WARNING, "Failed to lock macro '%s' as in-use\n", fullmacro);
+			ast_autoservice_stop(chan);
+			LOCAL_USER_REMOVE(u);
+			return 0;
+		}
+		ast_autoservice_stop(chan);
 	}
 	
 	/* Save old info */
@@ -243,7 +266,6 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	snprintf(depthc, sizeof(depthc), "%d", depth);
 	if (!dead) {
 		pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
-
 		ast_set2_flag(chan, autoloopflag, AST_FLAG_IN_AUTOLOOP);
 	}
 
@@ -302,8 +324,28 @@ static int macro_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, "MACRO_OFFSET", save_macro_offset);
 	if (save_macro_offset)
 		free(save_macro_offset);
+
+	/* Unlock the macro */
+	if (exclusive) {
+		ast_log(LOG_DEBUG, "Unlocking macrolock for '%s'\n", fullmacro);
+		if (ast_context_unlockmacro(fullmacro)) {
+			ast_log(LOG_ERROR, "Failed to unlock macro '%s' - that isn't good\n", fullmacro);
+			res = 0;
+		}
+	}
+	
 	LOCAL_USER_REMOVE(u);
 	return res;
+}
+
+static int macro_exec(struct ast_channel *chan, void *data)
+{
+	_macro_exec(chan, data, 0);
+}
+
+static int macroexclusive_exec(struct ast_channel *chan, void *data)
+{
+	_macro_exec(chan, data, 1);
 }
 
 static int macroif_exec(struct ast_channel *chan, void *data) 
@@ -350,6 +392,7 @@ static int unload_module(void *mod)
 	res = ast_unregister_application(if_app);
 	res |= ast_unregister_application(exit_app);
 	res |= ast_unregister_application(app);
+	res |= ast_unregister_application(exclusive_app);
 
 	STANDARD_HANGUP_LOCALUSERS;
 
@@ -362,6 +405,7 @@ static int load_module(void *mod)
 
 	res = ast_register_application(exit_app, macro_exit_exec, exit_synopsis, exit_descrip);
 	res |= ast_register_application(if_app, macroif_exec, if_synopsis, if_descrip);
+	res |= ast_register_application(exclusive_app, macroexclusive_exec, exclusive_synopsis, exclusive_descrip);
 	res |= ast_register_application(app, macro_exec, synopsis, descrip);
 
 	return res;

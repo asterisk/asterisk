@@ -681,6 +681,29 @@ int ast_lock_context(struct ast_context *con);
  */
 int ast_unlock_context(struct ast_context *con);
 
+/*! 
+ * \brief locks the macrolock in the given given context
+ *
+ * \param macrocontext name of the macro-context to lock
+ *
+ * Locks the given macro-context to ensure only one thread (call) can execute it at a time
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_context_lockmacro(const char *macrocontext);
+
+/*!
+ * \brief Unlocks the macrolock in the given context
+ *
+ * \param macrocontext name of the macro-context to unlock
+ *
+ * Unlocks the given macro-context so that another thread (call) can execute it
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_context_unlockmacro(const char *macrocontext);
 
 int ast_async_goto(struct ast_channel *chan, const char *context, const char *exten, int priority);
 
