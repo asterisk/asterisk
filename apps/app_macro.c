@@ -340,12 +340,12 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 
 static int macro_exec(struct ast_channel *chan, void *data)
 {
-	_macro_exec(chan, data, 0);
+	return _macro_exec(chan, data, 0);
 }
 
 static int macroexclusive_exec(struct ast_channel *chan, void *data)
 {
-	_macro_exec(chan, data, 1);
+	return _macro_exec(chan, data, 1);
 }
 
 static int macroif_exec(struct ast_channel *chan, void *data) 
