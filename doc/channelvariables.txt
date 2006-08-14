@@ -139,8 +139,12 @@ previous example).
 	;Save the numbers 555 to the 'number' variable
 	exten => _9X.,1,Set(number=${EXTEN:-7:3})
 
-If a negative length value is entered, it is ignored and Asterisk will match
-to the end of the string.
+If a negative length value is entered, Asterisk will remove that many characters
+from the end of the string.
+
+	;Set pin to everything but the trailing #.
+	exten => _XXXX#,1,Set(pin=${EXTEN:0:-1})
+
 ___________________________
 EXPRESSIONS: 
 ---------------------------

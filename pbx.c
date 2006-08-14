@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <errno.h>
 #include <time.h>
 #include <sys/time.h>
+#include <limits.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/cli.h"
@@ -1020,9 +1021,6 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	return NULL;
 }
 
-/* Note that it's negative -- that's important later. */
-#define DONT_HAVE_LENGTH	0x80000000
-
 /*! \brief extract offset:length from variable name.
  * Returns 1 if there is a offset:length part, which is
  * trimmed off (values go into variables)
@@ -1032,7 +1030,7 @@ static int parse_variable_name(char *var, int *offset, int *length, int *isfunc)
 	int parens=0;
 
 	*offset = 0;
-	*length = DONT_HAVE_LENGTH;
+	*length = INT_MAX;
 	*isfunc = 0;
 	for (; *var; var++) {
 		if (*var == '(') {
@@ -1053,8 +1051,8 @@ static int parse_variable_name(char *var, int *offset, int *length, int *isfunc)
  *
  * offset < 0 means start from the end of the string and set the beginning
  *   to be that many characters back.
- * length is the length of the substring, -1 means unlimited
- * (we take any negative value).
+ * length is the length of the substring.  A value less than 0 means to leave
+ * that many off the end.
  * Always return a copy in workspace.
  */
 static char *substring(const char *value, int offset, int length, char *workspace, size_t workspace_len)
@@ -1064,11 +1062,11 @@ static char *substring(const char *value, int offset, int length, char *workspac
 
 	ast_copy_string(workspace, value, workspace_len); /* always make a copy */
 
-	/* Quick check if no need to do anything */
-	if (offset == 0 && length < 0)	/* take the whole string */
-		return ret;
-
 	lr = strlen(ret); /* compute length after copy, so we never go out of the workspace */
+
+	/* Quick check if no need to do anything */
+	if (offset == 0 && length >= lr)	/* take the whole string */
+		return ret;
 
 	if (offset < 0)	{	/* translate negative offset into positive ones */
 		offset = lr + offset;
@@ -1083,6 +1081,12 @@ static char *substring(const char *value, int offset, int length, char *workspac
 	ret += offset;		/* move to the start position */
 	if (length >= 0 && length < lr - offset)	/* truncate if necessary */
 		ret[length] = '\0';
+	else if (length < 0) {
+		if (lr > offset - length) /* After we remove from the front and from the rear, is there anything left? */
+			ret[lr + length - offset] = '\0';
+		else
+			ret[0] = '\0';
+	}
 
 	return ret;
 }
