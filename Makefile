@@ -131,13 +131,17 @@ ASTCFLAGS=
 GLOBAL_MAKEOPTS=$(wildcard /etc/asterisk.makeopts)
 USER_MAKEOPTS=$(wildcard ~/.asterisk.makeopts)
 
-ifneq ($(wildcard menuselect.makeopts),)
+ifeq ($(strip $(foreach var,clean distclean dist-clean update,$(findstring $(var),$(MAKECMDGOALS)))),)
+ ifneq ($(wildcard menuselect.makeopts),)
   include menuselect.makeopts
   include menuselect.makedeps
+ endif
 endif
 
-ifneq ($(wildcard makeopts),)
+ifeq ($(strip $(foreach var,clean distclean dist-clean update,$(findstring $(var),$(MAKECMDGOALS)))),)
+ ifneq ($(wildcard makeopts),)
   include makeopts
+ endif
 endif
 
 TOPDIR_CFLAGS=-Iinclude
@@ -431,12 +435,16 @@ editline/libedit.a:
 db1-ast/libdb1.a:
 	$(MAKE) -C db1-ast libdb1.a
 
-ifneq ($(wildcard .depend),)
+ifeq ($(strip $(foreach var,clean distclean dist-clean update,$(findstring $(var),$(MAKECMDGOALS)))),)
+ ifneq ($(wildcard .depend),)
   include .depend
+ endif
 endif
 
-ifneq ($(wildcard .tags-depend),)
+ifeq ($(strip $(foreach var,clean distclean dist-clean update,$(findstring $(var),$(MAKECMDGOALS)))),)
+ ifneq ($(wildcard .tags-depend),)
   include .tags-depend
+ endif
 endif
 
 ast_expr2.c ast_expr2.h:
