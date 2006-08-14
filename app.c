@@ -884,7 +884,7 @@ unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arra
 			else if (*scan == ')') {
 				if (paren)
 					paren--;
-			} else if (*scan == '"') {
+			} else if (*scan == '"' && delim != '"') {
 				quote = quote ? 0 : 1;
 				/* Remove quote character from argument */
 				memmove(scan, scan + 1, strlen(scan));
