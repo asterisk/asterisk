@@ -5160,7 +5160,9 @@ fi
 { echo "$as_me:$LINENO: result: $GNU_MAKE" >&5
 echo "${ECHO_T}$GNU_MAKE" >&6; } ;
 if test  "x$GNU_MAKE" = "xNot Found"  ; then
-   echo " *** Please install GNU make.  It is required to build Asterisk!"
+   { { echo "$as_me:$LINENO: error: *** Please install GNU make.  It is required to build Asterisk!" >&5
+echo "$as_me: error: *** Please install GNU make.  It is required to build Asterisk!" >&2;}
+   { (exit 1); exit 1; }; }
    exit 1
 fi
 
@@ -14223,7 +14225,8 @@ fi
 done
 
 
-echo -n "checking for compiler atomic operations... "
+{ echo "$as_me:$LINENO: checking checking for compiler atomic operations" >&5
+echo $ECHO_N "checking checking for compiler atomic operations... $ECHO_C" >&6; }
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -15378,10 +15381,14 @@ fi
       if test "x${ALSA_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${ALSA_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the asound development package installed."
-            echo " *** Please install it to include ${ALSA_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${ALSA_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the asound development package installed." >&5
+echo "$as_me: *** It appears that you do not have the asound development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${ALSA_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${ALSA_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ALSA_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${ALSA_OPTION}" >&6;}
             exit 1
          fi
          ALSA_LIB=""
@@ -15397,10 +15404,14 @@ _ACEOF
       fi
    elif test ! -z "${ALSA_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${ALSA_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${ALSA_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${ALSA_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${ALSA_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ALSA_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${ALSA_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -15830,10 +15841,14 @@ fi
       if test "x${CURSES_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${CURSES_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the curses development package installed."
-            echo " *** Please install it to include ${CURSES_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${CURSES_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the curses development package installed." >&5
+echo "$as_me: *** It appears that you do not have the curses development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${CURSES_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${CURSES_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${CURSES_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${CURSES_OPTION}" >&6;}
             exit 1
          fi
          CURSES_LIB=""
@@ -15849,10 +15864,14 @@ _ACEOF
       fi
    elif test ! -z "${CURSES_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${CURSES_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${CURSES_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${CURSES_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${CURSES_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${CURSES_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${CURSES_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -16400,10 +16419,14 @@ fi
       if test "x${IKSEMEL_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${IKSEMEL_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the iksemel development package installed."
-            echo " *** Please install it to include ${IKSEMEL_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${IKSEMEL_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the iksemel development package installed." >&5
+echo "$as_me: *** It appears that you do not have the iksemel development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${IKSEMEL_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${IKSEMEL_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${IKSEMEL_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${IKSEMEL_OPTION}" >&6;}
             exit 1
          fi
          IKSEMEL_LIB=""
@@ -16419,10 +16442,14 @@ _ACEOF
       fi
    elif test ! -z "${IKSEMEL_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${IKSEMEL_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${IKSEMEL_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${IKSEMEL_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${IKSEMEL_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${IKSEMEL_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${IKSEMEL_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -16432,7 +16459,8 @@ if test "${USE_IMAP_TK}" != "no"; then
    if test "${IMAP_TK_DIR}" = ""; then
       IMAP_TK_DIR=`pwd`"/../imap-2004g"
    fi
-   echo -n "checking for UW IMAP Toolkit c-client library... "
+   { echo "$as_me:$LINENO: checking checking for UW IMAP Toolkit c-client library" >&5
+echo $ECHO_N "checking checking for UW IMAP Toolkit c-client library... $ECHO_C" >&6; }
    saved_cppflags="${CPPFLAGS}"
    saved_libs="${LIBS}"
    if test -f ${IMAP_TK_DIR}/c-client/LDFLAGS ; then
@@ -16567,10 +16595,14 @@ _ACEOF
    elif test ! -z "${IMAP_TK_MANDATORY}"; then
       { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
-      echo "***"
-      echo "*** The UW IMAP Toolkit installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-imap."
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The UW IMAP Toolkit installation on this system appears to be broken." >&5
+echo "$as_me: *** The UW IMAP Toolkit installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** including --without-imap." >&5
+echo "$as_me: *** including --without-imap." >&6;}
       exit 1
    else
       { echo "$as_me:$LINENO: result: no" >&5
@@ -16586,7 +16618,8 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
 
 if test "${USE_KDE}" != "no"; then
-   echo -n "checking for crashHandler in -lkdecore... "
+   { echo "$as_me:$LINENO: checking checking for crashHandler in -lkdecore" >&5
+echo $ECHO_N "checking checking for crashHandler in -lkdecore... $ECHO_C" >&6; }
    saved_libs="${LIBS}"
    saved_cppflags="${CPPFLAGS}"
    CPPFLAGS="${CPPFLAGS} -I${KDE_DIR}/include"
@@ -16679,10 +16712,14 @@ _ACEOF
    elif test ! -z "${KDE_MANDATORY}"; then
       { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
-      echo "***"
-      echo "*** The KDE installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-kde."
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The KDE installation on this system appears to be broken." >&5
+echo "$as_me: *** The KDE installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** including --without-kde." >&5
+echo "$as_me: *** including --without-kde." >&6;}
       exit 1
    else
       { echo "$as_me:$LINENO: result: no" >&5
@@ -17230,10 +17267,14 @@ fi
       if test "x${NBS_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${NBS_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the nbs development package installed."
-            echo " *** Please install it to include ${NBS_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${NBS_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the nbs development package installed." >&5
+echo "$as_me: *** It appears that you do not have the nbs development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${NBS_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${NBS_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NBS_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${NBS_OPTION}" >&6;}
             exit 1
          fi
          NBS_LIB=""
@@ -17249,10 +17290,14 @@ _ACEOF
       fi
    elif test ! -z "${NBS_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${NBS_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${NBS_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${NBS_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${NBS_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NBS_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${NBS_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -17682,10 +17727,14 @@ fi
       if test "x${NCURSES_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${NCURSES_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the ncurses development package installed."
-            echo " *** Please install it to include ${NCURSES_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${NCURSES_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the ncurses development package installed." >&5
+echo "$as_me: *** It appears that you do not have the ncurses development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${NCURSES_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${NCURSES_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NCURSES_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${NCURSES_OPTION}" >&6;}
             exit 1
          fi
          NCURSES_LIB=""
@@ -17701,10 +17750,14 @@ _ACEOF
       fi
    elif test ! -z "${NCURSES_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${NCURSES_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${NCURSES_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${NCURSES_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${NCURSES_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NCURSES_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${NCURSES_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -17816,11 +17869,16 @@ else
 fi
 
       if test x"${NETSNMP_CONFIG}" = xNo; then
-         echo "***"
-         echo "*** net-snmp-config was not found in the path you specified:"
-         echo "*** ${NETSNMP_DIR}/bin"
-         echo "*** Either correct the installation, or run configure"
-         echo "*** including --without-netsnmp"
+         { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+         { echo "$as_me:$LINENO: *** net-snmp-config was not found in the path you specified:" >&5
+echo "$as_me: *** net-snmp-config was not found in the path you specified:" >&6;}
+         { echo "$as_me:$LINENO: *** ${NETSNMP_DIR}/bin" >&5
+echo "$as_me: *** ${NETSNMP_DIR}/bin" >&6;}
+         { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+         { echo "$as_me:$LINENO: *** including --without-netsnmp" >&5
+echo "$as_me: *** including --without-netsnmp" >&6;}
          exit 1
       fi
    else
@@ -18022,18 +18080,26 @@ fi
       PBX_NETSNMP=1
    elif test ! -z "${NETSNMP_MANDATORY}";
    then
-      echo "***"
-      echo "*** The Net-SNMP installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-netsnmp"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The Net-SNMP installation on this system appears to be broken." >&5
+echo "$as_me: *** The Net-SNMP installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** including --without-netsnmp" >&5
+echo "$as_me: *** including --without-netsnmp" >&6;}
       exit 1
    fi
 elif test ! -z "${NETSNMP_MANDATORY}";
 then
-   echo "***"
-   echo "*** The Net-SNMP installation on this system appears to be broken."
-   echo "*** Either correct the installation, or run configure"
-   echo "*** including --without-netsnmp"
+   { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+   { echo "$as_me:$LINENO: *** The Net-SNMP installation on this system appears to be broken." >&5
+echo "$as_me: *** The Net-SNMP installation on this system appears to be broken." >&6;}
+   { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+   { echo "$as_me:$LINENO: *** including --without-netsnmp" >&5
+echo "$as_me: *** including --without-netsnmp" >&6;}
    exit 1
 fi
 
@@ -18461,10 +18527,14 @@ fi
       if test "x${NEWT_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${NEWT_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the newt development package installed."
-            echo " *** Please install it to include ${NEWT_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${NEWT_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the newt development package installed." >&5
+echo "$as_me: *** It appears that you do not have the newt development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${NEWT_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${NEWT_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NEWT_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${NEWT_OPTION}" >&6;}
             exit 1
          fi
          NEWT_LIB=""
@@ -18480,10 +18550,14 @@ _ACEOF
       fi
    elif test ! -z "${NEWT_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${NEWT_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${NEWT_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${NEWT_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${NEWT_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${NEWT_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${NEWT_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -18913,10 +18987,14 @@ fi
       if test "x${UNIXODBC_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${UNIXODBC_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the odbc development package installed."
-            echo " *** Please install it to include ${UNIXODBC_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${UNIXODBC_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the odbc development package installed." >&5
+echo "$as_me: *** It appears that you do not have the odbc development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${UNIXODBC_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${UNIXODBC_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${UNIXODBC_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${UNIXODBC_OPTION}" >&6;}
             exit 1
          fi
          UNIXODBC_LIB=""
@@ -18932,10 +19010,14 @@ _ACEOF
       fi
    elif test ! -z "${UNIXODBC_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${UNIXODBC_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${UNIXODBC_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${UNIXODBC_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${UNIXODBC_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${UNIXODBC_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${UNIXODBC_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -19365,10 +19447,14 @@ fi
       if test "x${OGG_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${OGG_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the ogg development package installed."
-            echo " *** Please install it to include ${OGG_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${OGG_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the ogg development package installed." >&5
+echo "$as_me: *** It appears that you do not have the ogg development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${OGG_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${OGG_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OGG_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${OGG_OPTION}" >&6;}
             exit 1
          fi
          OGG_LIB=""
@@ -19384,10 +19470,14 @@ _ACEOF
       fi
    elif test ! -z "${OGG_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${OGG_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${OGG_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${OGG_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${OGG_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OGG_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${OGG_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -19817,10 +19907,14 @@ fi
       if test "x${OSPTK_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${OSPTK_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the osptk development package installed."
-            echo " *** Please install it to include ${OSPTK_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${OSPTK_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the osptk development package installed." >&5
+echo "$as_me: *** It appears that you do not have the osptk development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${OSPTK_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${OSPTK_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OSPTK_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${OSPTK_OPTION}" >&6;}
             exit 1
          fi
          OSPTK_LIB=""
@@ -19836,10 +19930,14 @@ _ACEOF
       fi
    elif test ! -z "${OSPTK_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${OSPTK_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${OSPTK_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${OSPTK_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${OSPTK_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OSPTK_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${OSPTK_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -20595,10 +20693,14 @@ fi
       if test "x${OSS_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${OSS_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the ossaudio development package installed."
-            echo " *** Please install it to include ${OSS_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${OSS_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the ossaudio development package installed." >&5
+echo "$as_me: *** It appears that you do not have the ossaudio development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${OSS_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${OSS_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OSS_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${OSS_OPTION}" >&6;}
             exit 1
          fi
          OSS_LIB=""
@@ -20614,10 +20716,14 @@ _ACEOF
       fi
    elif test ! -z "${OSS_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${OSS_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${OSS_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${OSS_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${OSS_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OSS_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${OSS_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -20730,11 +20836,16 @@ else
 fi
 
       if test x"${PG_CONFIG}" = xNo; then
-         echo "***"
-         echo "*** pg_config was not found in the path you specified:"
-         echo "*** ${PGSQL_DIR}/bin"
-         echo "*** Either correct the installation, or run configure"
-         echo "*** including --without-postgres"
+         { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+         { echo "$as_me:$LINENO: *** pg_config was not found in the path you specified:" >&5
+echo "$as_me: *** pg_config was not found in the path you specified:" >&6;}
+         { echo "$as_me:$LINENO: *** ${PGSQL_DIR}/bin" >&5
+echo "$as_me: *** ${PGSQL_DIR}/bin" >&6;}
+         { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+         { echo "$as_me:$LINENO: *** including --without-postgres" >&5
+echo "$as_me: *** including --without-postgres" >&6;}
          exit 1
       fi
    else
@@ -20938,18 +21049,26 @@ fi
       PBX_PGSQL=1
    elif test ! -z "${PGSQL_MANDATORY}";
    then
-      echo "***"
-      echo "*** The PostgreSQL installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-postgres"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The PostgreSQL installation on this system appears to be broken." >&5
+echo "$as_me: *** The PostgreSQL installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** including --without-postgres" >&5
+echo "$as_me: *** including --without-postgres" >&6;}
       exit 1
    fi
 elif test ! -z "${PGSQL_MANDATORY}";
 then
-   echo "***"
-   echo "*** The PostgreSQL installation on this system appears to be broken."
-   echo "*** Either correct the installation, or run configure"
-   echo "*** including --without-postgres"
+   { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+   { echo "$as_me:$LINENO: *** The PostgreSQL installation on this system appears to be broken." >&5
+echo "$as_me: *** The PostgreSQL installation on this system appears to be broken." >&6;}
+   { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+   { echo "$as_me:$LINENO: *** including --without-postgres" >&5
+echo "$as_me: *** including --without-postgres" >&6;}
    exit 1
 fi
 
@@ -21377,10 +21496,14 @@ fi
       if test "x${POPT_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${POPT_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the popt development package installed."
-            echo " *** Please install it to include ${POPT_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${POPT_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the popt development package installed." >&5
+echo "$as_me: *** It appears that you do not have the popt development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${POPT_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${POPT_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${POPT_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${POPT_OPTION}" >&6;}
             exit 1
          fi
          POPT_LIB=""
@@ -21396,10 +21519,14 @@ _ACEOF
       fi
    elif test ! -z "${POPT_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${POPT_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${POPT_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${POPT_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${POPT_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${POPT_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${POPT_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -21829,10 +21956,14 @@ fi
       if test "x${PRI_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${PRI_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the pri development package installed."
-            echo " *** Please install it to include ${PRI_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${PRI_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the pri development package installed." >&5
+echo "$as_me: *** It appears that you do not have the pri development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${PRI_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${PRI_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${PRI_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${PRI_OPTION}" >&6;}
             exit 1
          fi
          PRI_LIB=""
@@ -21848,10 +21979,14 @@ _ACEOF
       fi
    elif test ! -z "${PRI_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${PRI_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${PRI_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${PRI_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${PRI_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${PRI_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${PRI_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -21859,7 +21994,8 @@ fi
 
 PLATFORM_PTLIB="ptlib_${OSTYPE}_${MACHTYPE}_r"
 if test "${USE_PWLIB}" != "no"; then
-   echo -n "checking for existence of pwlib... "
+   { echo "$as_me:$LINENO: checking checking for existence of pwlib" >&5
+echo $ECHO_N "checking checking for existence of pwlib... $ECHO_C" >&6; }
 
    saved_cppflags="${CPPFLAGS}"
    saved_libs="${LIBS}"
@@ -21951,10 +22087,14 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
    elif test ! -z "${PWLIB_MANDATORY}"; then
-      echo "***"
-      echo "*** The PWLIB installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-pwlib"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The PWLIB installation on this system appears to be broken." >&5
+echo "$as_me: *** The PWLIB installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** including --without-pwlib" >&5
+echo "$as_me: *** including --without-pwlib" >&6;}
       exit 1
    fi
 fi
@@ -21967,7 +22107,8 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
 
 if test "${USE_QT}" != "no"; then
-   echo -n "checking for QDate in -lqt... "
+   { echo "$as_me:$LINENO: checking checking for QDate in -lqt" >&5
+echo $ECHO_N "checking checking for QDate in -lqt... $ECHO_C" >&6; }
    saved_libs="${LIBS}"
    saved_cppflags="${CPPFLAGS}"
    if test "x${QT_DIR}" != "x"; then
@@ -22238,10 +22379,14 @@ fi
 
    elif test ! -z "${QT_MANDATORY}";
    then
-      echo "***"
-      echo "*** The Qt installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-qt."
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The Qt installation on this system appears to be broken." >&5
+echo "$as_me: *** The Qt installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** including --without-qt." >&5
+echo "$as_me: *** including --without-qt." >&6;}
       exit 1
    fi
 fi
@@ -22677,10 +22822,14 @@ fi
       if test "x${RADIUS_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${RADIUS_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the radiusclient-ng development package installed."
-            echo " *** Please install it to include ${RADIUS_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${RADIUS_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the radiusclient-ng development package installed." >&5
+echo "$as_me: *** It appears that you do not have the radiusclient-ng development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${RADIUS_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${RADIUS_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${RADIUS_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${RADIUS_OPTION}" >&6;}
             exit 1
          fi
          RADIUS_LIB=""
@@ -22696,10 +22845,14 @@ _ACEOF
       fi
    elif test ! -z "${RADIUS_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${RADIUS_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${RADIUS_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${RADIUS_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${RADIUS_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${RADIUS_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${RADIUS_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -23129,10 +23282,14 @@ fi
       if test "x${SPEEX_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${SPEEX_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the speex development package installed."
-            echo " *** Please install it to include ${SPEEX_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${SPEEX_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the speex development package installed." >&5
+echo "$as_me: *** It appears that you do not have the speex development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${SPEEX_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${SPEEX_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SPEEX_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${SPEEX_OPTION}" >&6;}
             exit 1
          fi
          SPEEX_LIB=""
@@ -23148,10 +23305,14 @@ _ACEOF
       fi
    elif test ! -z "${SPEEX_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${SPEEX_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${SPEEX_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${SPEEX_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${SPEEX_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SPEEX_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${SPEEX_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -23581,10 +23742,14 @@ fi
       if test "x${SQLITE_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${SQLITE_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the sqlite development package installed."
-            echo " *** Please install it to include ${SQLITE_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${SQLITE_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the sqlite development package installed." >&5
+echo "$as_me: *** It appears that you do not have the sqlite development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${SQLITE_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${SQLITE_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SQLITE_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${SQLITE_OPTION}" >&6;}
             exit 1
          fi
          SQLITE_LIB=""
@@ -23600,10 +23765,14 @@ _ACEOF
       fi
    elif test ! -z "${SQLITE_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${SQLITE_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${SQLITE_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${SQLITE_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${SQLITE_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${SQLITE_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${SQLITE_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -24033,10 +24202,14 @@ fi
       if test "x${OPENSSL_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${OPENSSL_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the ssl development package installed."
-            echo " *** Please install it to include ${OPENSSL_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${OPENSSL_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the ssl development package installed." >&5
+echo "$as_me: *** It appears that you do not have the ssl development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${OPENSSL_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${OPENSSL_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OPENSSL_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${OPENSSL_OPTION}" >&6;}
             exit 1
          fi
          OPENSSL_LIB=""
@@ -24052,10 +24225,14 @@ _ACEOF
       fi
    elif test ! -z "${OPENSSL_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${OPENSSL_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${OPENSSL_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${OPENSSL_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${OPENSSL_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${OPENSSL_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${OPENSSL_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -24485,10 +24662,14 @@ fi
       if test "x${FREETDS_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${FREETDS_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the tds development package installed."
-            echo " *** Please install it to include ${FREETDS_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${FREETDS_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the tds development package installed." >&5
+echo "$as_me: *** It appears that you do not have the tds development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${FREETDS_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${FREETDS_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${FREETDS_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${FREETDS_OPTION}" >&6;}
             exit 1
          fi
          FREETDS_LIB=""
@@ -24504,10 +24685,14 @@ _ACEOF
       fi
    elif test ! -z "${FREETDS_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${FREETDS_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${FREETDS_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${FREETDS_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${FREETDS_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${FREETDS_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${FREETDS_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -24951,10 +25136,14 @@ fi
       if test "x${TERMCAP_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${TERMCAP_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the termcap development package installed."
-            echo " *** Please install it to include ${TERMCAP_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${TERMCAP_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the termcap development package installed." >&5
+echo "$as_me: *** It appears that you do not have the termcap development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${TERMCAP_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${TERMCAP_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TERMCAP_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${TERMCAP_OPTION}" >&6;}
             exit 1
          fi
          TERMCAP_LIB=""
@@ -24970,10 +25159,14 @@ _ACEOF
       fi
    elif test ! -z "${TERMCAP_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${TERMCAP_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${TERMCAP_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${TERMCAP_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${TERMCAP_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TERMCAP_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${TERMCAP_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -25403,10 +25596,14 @@ fi
       if test "x${TINFO_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${TINFO_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the tinfo development package installed."
-            echo " *** Please install it to include ${TINFO_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${TINFO_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the tinfo development package installed." >&5
+echo "$as_me: *** It appears that you do not have the tinfo development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${TINFO_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${TINFO_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TINFO_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${TINFO_OPTION}" >&6;}
             exit 1
          fi
          TINFO_LIB=""
@@ -25422,10 +25619,14 @@ _ACEOF
       fi
    elif test ! -z "${TINFO_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${TINFO_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${TINFO_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${TINFO_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${TINFO_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TINFO_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${TINFO_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -25859,10 +26060,14 @@ fi
       if test "x${TONEZONE_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${TONEZONE_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the tonezone development package installed."
-            echo " *** Please install it to include ${TONEZONE_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${TONEZONE_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the tonezone development package installed." >&5
+echo "$as_me: *** It appears that you do not have the tonezone development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${TONEZONE_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${TONEZONE_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TONEZONE_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${TONEZONE_OPTION}" >&6;}
             exit 1
          fi
          TONEZONE_LIB=""
@@ -25878,10 +26083,14 @@ _ACEOF
       fi
    elif test ! -z "${TONEZONE_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${TONEZONE_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${TONEZONE_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${TONEZONE_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${TONEZONE_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${TONEZONE_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${TONEZONE_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -26311,10 +26520,14 @@ fi
       if test "x${VORBIS_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${VORBIS_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the vorbis development package installed."
-            echo " *** Please install it to include ${VORBIS_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${VORBIS_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the vorbis development package installed." >&5
+echo "$as_me: *** It appears that you do not have the vorbis development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${VORBIS_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${VORBIS_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${VORBIS_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${VORBIS_OPTION}" >&6;}
             exit 1
          fi
          VORBIS_LIB=""
@@ -26330,10 +26543,14 @@ _ACEOF
       fi
    elif test ! -z "${VORBIS_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${VORBIS_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${VORBIS_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${VORBIS_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${VORBIS_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${VORBIS_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${VORBIS_OPTION}" >&6;}
       exit 1
    fi
 fi
@@ -26347,7 +26564,8 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
 
 if test "${USE_VPB}" != "no"; then
-   echo -n "checking for vpb_open in -lvpb... "
+   { echo "$as_me:$LINENO: checking checking for vpb_open in -lvpb" >&5
+echo $ECHO_N "checking checking for vpb_open in -lvpb... $ECHO_C" >&6; }
    saved_libs="${LIBS}"
    saved_cppflags="${CPPFLAGS}"
    if test "x${VPB_DIR}" != "x"; then
@@ -26443,10 +26661,14 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
    elif test ! -z "${VPB_MANDATORY}"; then
-      echo "***"
-      echo "*** The VoiceTronix (vpb) installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-vpb."
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The VoiceTronix (vpb) installation on this system appears to be broken." >&5
+echo "$as_me: *** The VoiceTronix (vpb) installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** including --without-vpb." >&5
+echo "$as_me: *** including --without-vpb." >&6;}
       exit 1
    fi
 fi
@@ -26882,10 +27104,14 @@ fi
       if test "x${ZLIB_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${ZLIB_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the z development package installed."
-            echo " *** Please install it to include ${ZLIB_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${ZLIB_OPTION}"
+            { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+            { echo "$as_me:$LINENO: *** It appears that you do not have the z development package installed." >&5
+echo "$as_me: *** It appears that you do not have the z development package installed." >&6;}
+            { echo "$as_me:$LINENO: *** Please install it to include ${ZLIB_DESCRIP} support" >&5
+echo "$as_me: *** Please install it to include ${ZLIB_DESCRIP} support" >&or re-run configure;}
+            { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ZLIB_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${ZLIB_OPTION}" >&6;}
             exit 1
          fi
          ZLIB_LIB=""
@@ -26901,17 +27127,22 @@ _ACEOF
       fi
    elif test ! -z "${ZLIB_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${ZLIB_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${ZLIB_OPTION}"
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The ${ZLIB_DESCRIP} installation on this system appears to be broken." >&5
+echo "$as_me: *** The ${ZLIB_DESCRIP} installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** without explicitly specifying --with-${ZLIB_OPTION}" >&5
+echo "$as_me: *** without explicitly specifying --with-${ZLIB_OPTION}" >&6;}
       exit 1
    fi
 fi
 
 
 if test "${USE_ZAPTEL}" != "no"; then
-   echo -n "checking for zt_transcode_header in zaptel.h... "
+   { echo "$as_me:$LINENO: checking checking for zt_transcode_header in zaptel.h" >&5
+echo $ECHO_N "checking checking for zt_transcode_header in zaptel.h... $ECHO_C" >&6; }
    saved_cppflags="${CPPFLAGS}"
    if test "x${ZAPTEL_DIR}" != "x"; then
       CPPFLAGS="${CPPFLAGS} -I${ZAPTEL_DIR}/include"
@@ -26996,10 +27227,14 @@ _ACEOF
 
    elif test ! -z "${ZAPTEL_MANDATORY}";
    then
-      echo "***"
-      echo "*** The Zaptel installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-zaptel."
+      { echo "$as_me:$LINENO: ***" >&5
+echo "$as_me: ***" >&6;}
+      { echo "$as_me:$LINENO: *** The Zaptel installation on this system appears to be broken." >&5
+echo "$as_me: *** The Zaptel installation on this system appears to be broken." >&6;}
+      { echo "$as_me:$LINENO: *** Either correct the installation" >&5
+echo "$as_me: *** Either correct the installation" >&or run configure;}
+      { echo "$as_me:$LINENO: *** including --without-zaptel." >&5
+echo "$as_me: *** including --without-zaptel." >&6;}
       exit 1
    fi
 fi
@@ -27014,8 +27249,9 @@ elif test "x$CURSES_LIB" != "x" ; then
 elif test "x$NCURSES_LIB" != "x" ; then
   EDITLINE_LIB="$NCURSES_LIB"
 else
-  echo "*** termcap support not found"
-  exit 1
+  { { echo "$as_me:$LINENO: error: *** termcap support not found" >&5
+echo "$as_me: error: *** termcap support not found" >&2;}
+   { (exit 1); exit 1; }; }
 fi
 
 
@@ -28814,6 +29050,7 @@ if test "$no_create" != yes; then
 fi
 
 
+if test "x${silent}" != "xyes" ; then
 echo
 echo "               .\$\$\$\$\$\$\$\$\$\$\$\$\$\$\$=..      "
 echo "            .\$7\$7..          .7\$\$7:.    "
@@ -28837,12 +29074,19 @@ echo "   \$\$\$\$\$\$\$.           .7\$\$\$\$\$\$  \$\$      "
 echo "     \$\$\$\$\$\$\$\$\$\$\$\$7\$\$\$\$\$\$\$\$\$.\$\$\$\$\$\$      "
 echo "       \$\$\$\$\$\$\$\$\$\$\$\$\$\$\$\$.                "
 echo
+fi
 
-echo "Package configured for: "
-echo " OS type  : $PBX_OSTYPE"
-echo " Host CPU : $host_cpu"
+{ echo "$as_me:$LINENO: Package configured for: " >&5
+echo "$as_me: Package configured for: " >&6;}
+{ echo "$as_me:$LINENO: OS type  : $PBX_OSTYPE" >&5
+echo "$as_me: OS type  : $PBX_OSTYPE" >&6;}
+{ echo "$as_me:$LINENO: Host CPU : $host_cpu" >&5
+echo "$as_me: Host CPU : $host_cpu" >&6;}
 if test "x${crossCompile}" = xYes; then
-   echo ""
-   echo " Cross Compilation = YES"
-   echo " Target            = ${host}"
+   { echo "$as_me:$LINENO: " >&5
+echo "$as_me: " >&6;}
+   { echo "$as_me:$LINENO: Cross Compilation = YES" >&5
+echo "$as_me: Cross Compilation = YES" >&6;}
+   { echo "$as_me:$LINENO: Target            = ${host}" >&5
+echo "$as_me: Target            = ${host}" >&6;}
 fi

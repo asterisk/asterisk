@@ -56,10 +56,10 @@ if test "${USE_$1}" != "no"; then
       if test "x${$1_HEADER_FOUND}" = "x0" ; then
          if test ! -z "${$1_MANDATORY}" ;
          then
-            echo " ***"
-            echo " *** It appears that you do not have the $2 development package installed."
-            echo " *** Please install it to include ${$1_DESCRIP} support, or re-run configure"
-            echo " *** without explicitly specifying --with-${$1_OPTION}"
+            AC_MSG_NOTICE( ***)
+            AC_MSG_NOTICE( *** It appears that you do not have the $2 development package installed.)
+            AC_MSG_NOTICE( *** Please install it to include ${$1_DESCRIP} support, or re-run configure)
+            AC_MSG_NOTICE( *** without explicitly specifying --with-${$1_OPTION})
             exit 1
          fi
          $1_LIB=""
@@ -71,10 +71,10 @@ if test "${USE_$1}" != "no"; then
       fi
    elif test ! -z "${$1_MANDATORY}";
    then
-      echo "***"
-      echo "*** The ${$1_DESCRIP} installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** without explicitly specifying --with-${$1_OPTION}"
+      AC_MSG_NOTICE(***)
+      AC_MSG_NOTICE(*** The ${$1_DESCRIP} installation on this system appears to be broken.)
+      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+      AC_MSG_NOTICE(*** without explicitly specifying --with-${$1_OPTION})
       exit 1
    fi
 fi
@@ -93,7 +93,7 @@ AC_DEFUN(
    done ;
 ) ;
 if test  "x$GNU_MAKE" = "xNot Found"  ; then
-   echo " *** Please install GNU make.  It is required to build Asterisk!"
+   AC_MSG_ERROR( *** Please install GNU make.  It is required to build Asterisk!)
    exit 1
 fi
 AC_SUBST([GNU_MAKE])

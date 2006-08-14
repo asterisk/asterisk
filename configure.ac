@@ -278,7 +278,7 @@ AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strcasecmp strchr strcspn strdup strerror strncasecmp strndup strnlen strrchr strsep strspn strstr strtol unsetenv utime strtoq strcasestr asprintf vasprintf])
 
-echo -n "checking for compiler atomic operations... "
+AC_MSG_CHECKING(checking for compiler atomic operations)
 AC_LINK_IFELSE(
 AC_LANG_PROGRAM([], [int foo1; int foo2 = __sync_fetch_and_add(&foo1, 1);]),
 AC_MSG_RESULT(yes)
@@ -338,7 +338,7 @@ if test "${USE_IMAP_TK}" != "no"; then
    if test "${IMAP_TK_DIR}" = ""; then
       IMAP_TK_DIR=`pwd`"/../imap-2004g"
    fi
-   echo -n "checking for UW IMAP Toolkit c-client library... "
+   AC_MSG_CHECKING(checking for UW IMAP Toolkit c-client library)
    saved_cppflags="${CPPFLAGS}"
    saved_libs="${LIBS}"
    if test -f ${IMAP_TK_DIR}/c-client/LDFLAGS ; then
@@ -414,10 +414,10 @@ if test "${USE_IMAP_TK}" != "no"; then
       AC_DEFINE([HAVE_IMAP_TK], 1, [Define if your system has the UW IMAP Toolkit c-client library.])
    elif test ! -z "${IMAP_TK_MANDATORY}"; then
       AC_MSG_RESULT(no) 
-      echo "***"
-      echo "*** The UW IMAP Toolkit installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-imap."
+      AC_MSG_NOTICE(***)
+      AC_MSG_NOTICE(*** The UW IMAP Toolkit installation on this system appears to be broken.)
+      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+      AC_MSG_NOTICE(*** including --without-imap.)
       exit 1
    else
       AC_MSG_RESULT(no) 
@@ -427,7 +427,7 @@ fi
 AC_LANG_PUSH(C++)
 
 if test "${USE_KDE}" != "no"; then
-   echo -n "checking for crashHandler in -lkdecore... "
+   AC_MSG_CHECKING(checking for crashHandler in -lkdecore)
    saved_libs="${LIBS}"
    saved_cppflags="${CPPFLAGS}"
    CPPFLAGS="${CPPFLAGS} -I${KDE_DIR}/include"
@@ -460,10 +460,10 @@ if test "${USE_KDE}" != "no"; then
       AC_DEFINE([HAVE_LIBKDE], 1, [Define if your system has the KDE libraries.])
    elif test ! -z "${KDE_MANDATORY}"; then
       AC_MSG_RESULT(no) 
-      echo "***"
-      echo "*** The KDE installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-kde."
+      AC_MSG_NOTICE(***)
+      AC_MSG_NOTICE(*** The KDE installation on this system appears to be broken.)
+      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+      AC_MSG_NOTICE(*** including --without-kde.)
       exit 1
    else
       AC_MSG_RESULT(no) 
@@ -489,11 +489,11 @@ if test "${USE_NETSNMP}" != "no"; then
    if test "x${NETSNMP_DIR}" != "x"; then
       AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], No, [${NETSNMP_DIR}/bin])
       if test x"${NETSNMP_CONFIG}" = xNo; then
-         echo "***"
-         echo "*** net-snmp-config was not found in the path you specified:"
-         echo "*** ${NETSNMP_DIR}/bin"
-         echo "*** Either correct the installation, or run configure"
-         echo "*** including --without-netsnmp"
+         AC_MSG_NOTICE(***)
+         AC_MSG_NOTICE(*** net-snmp-config was not found in the path you specified:)
+         AC_MSG_NOTICE(*** ${NETSNMP_DIR}/bin)
+         AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+         AC_MSG_NOTICE(*** including --without-netsnmp)
          exit 1
       fi
    else
@@ -511,18 +511,18 @@ if test x"${NETSNMP_CONFIG}" != xNo; then
       PBX_NETSNMP=1
    elif test ! -z "${NETSNMP_MANDATORY}";
    then
-      echo "***"
-      echo "*** The Net-SNMP installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-netsnmp"
+      AC_MSG_NOTICE(***)
+      AC_MSG_NOTICE(*** The Net-SNMP installation on this system appears to be broken.)
+      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+      AC_MSG_NOTICE(*** including --without-netsnmp)
       exit 1
    fi
 elif test ! -z "${NETSNMP_MANDATORY}";
 then
-   echo "***"
-   echo "*** The Net-SNMP installation on this system appears to be broken."
-   echo "*** Either correct the installation, or run configure"
-   echo "*** including --without-netsnmp"
+   AC_MSG_NOTICE(***)
+   AC_MSG_NOTICE(*** The Net-SNMP installation on this system appears to be broken.)
+   AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+   AC_MSG_NOTICE(*** including --without-netsnmp)
    exit 1
 fi
 
@@ -556,11 +556,11 @@ if test "${USE_PGSQL}" != "no"; then
    if test "x${PGSQL_DIR}" != "x"; then
       AC_PATH_TOOL([PG_CONFIG], [pg_config], No, [${PGSQL_DIR}/bin])
       if test x"${PG_CONFIG}" = xNo; then
-         echo "***"
-         echo "*** pg_config was not found in the path you specified:"
-         echo "*** ${PGSQL_DIR}/bin"
-         echo "*** Either correct the installation, or run configure"
-         echo "*** including --without-postgres"
+         AC_MSG_NOTICE(***)
+         AC_MSG_NOTICE(*** pg_config was not found in the path you specified:)
+         AC_MSG_NOTICE(*** ${PGSQL_DIR}/bin)
+         AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+         AC_MSG_NOTICE(*** including --without-postgres)
          exit 1
       fi
    else
@@ -580,18 +580,18 @@ if test "${PG_CONFIG}" != No; then
       PBX_PGSQL=1
    elif test ! -z "${PGSQL_MANDATORY}";
    then
-      echo "***"
-      echo "*** The PostgreSQL installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-postgres"
+      AC_MSG_NOTICE(***)
+      AC_MSG_NOTICE(*** The PostgreSQL installation on this system appears to be broken.)
+      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+      AC_MSG_NOTICE(*** including --without-postgres)
       exit 1
    fi
 elif test ! -z "${PGSQL_MANDATORY}";
 then
-   echo "***"
-   echo "*** The PostgreSQL installation on this system appears to be broken."
-   echo "*** Either correct the installation, or run configure"
-   echo "*** including --without-postgres"
+   AC_MSG_NOTICE(***)
+   AC_MSG_NOTICE(*** The PostgreSQL installation on this system appears to be broken.)
+   AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+   AC_MSG_NOTICE(*** including --without-postgres)
    exit 1
 fi
 
@@ -601,7 +601,7 @@ AST_EXT_LIB_CHECK([PRI], [pri], [pri_call], [libpri.h])
 
 PLATFORM_PTLIB="ptlib_${OSTYPE}_${MACHTYPE}_r"
 if test "${USE_PWLIB}" != "no"; then
-   echo -n "checking for existence of pwlib... "
+   AC_MSG_CHECKING(checking for existence of pwlib)
 	
    saved_cppflags="${CPPFLAGS}"
    saved_libs="${LIBS}"
@@ -634,10 +634,10 @@ if test "${USE_PWLIB}" != "no"; then
    	PBX_PWLIB=1
    	AC_DEFINE([HAVE_PWLIB], 1, [Define if your system has the pwlib libraries.])
    elif test ! -z "${PWLIB_MANDATORY}"; then
-      echo "***"
-      echo "*** The PWLIB installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-pwlib"
+      AC_MSG_NOTICE(***)
+      AC_MSG_NOTICE(*** The PWLIB installation on this system appears to be broken.)
+      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+      AC_MSG_NOTICE(*** including --without-pwlib)
       exit 1
    fi
 fi
@@ -645,7 +645,7 @@ fi
 AC_LANG_PUSH(C++)
 
 if test "${USE_QT}" != "no"; then
-   echo -n "checking for QDate in -lqt... "
+   AC_MSG_CHECKING(checking for QDate in -lqt)
    saved_libs="${LIBS}"
    saved_cppflags="${CPPFLAGS}"
    if test "x${QT_DIR}" != "x"; then
@@ -703,10 +703,10 @@ if test "${USE_QT}" != "no"; then
       AC_PATH_TOOL(QTMOC, moc, No)
    elif test ! -z "${QT_MANDATORY}"; 
    then
-      echo "***"
-      echo "*** The Qt installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-qt."
+      AC_MSG_NOTICE(***)
+      AC_MSG_NOTICE(*** The Qt installation on this system appears to be broken.)
+      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+      AC_MSG_NOTICE(*** including --without-qt.)
       exit 1
    fi
 fi
@@ -752,7 +752,7 @@ AST_EXT_LIB_CHECK([VORBIS], [vorbis], [vorbis_info_init], [vorbis/codec.h], [-lm
 AC_LANG_PUSH(C++)
 
 if test "${USE_VPB}" != "no"; then
-   echo -n "checking for vpb_open in -lvpb... "
+   AC_MSG_CHECKING(checking for vpb_open in -lvpb)
    saved_libs="${LIBS}"
    saved_cppflags="${CPPFLAGS}"
    if test "x${VPB_DIR}" != "x"; then
@@ -789,10 +789,10 @@ if test "${USE_VPB}" != "no"; then
 	PBX_VPB=1
 	AC_DEFINE([HAVE_VPB], 1, [Define if your system has the VoiceTronix API libraries.])
    elif test ! -z "${VPB_MANDATORY}"; then
-      echo "***"
-      echo "*** The VoiceTronix (vpb) installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-vpb."
+      AC_MSG_NOTICE(***)
+      AC_MSG_NOTICE(*** The VoiceTronix (vpb) installation on this system appears to be broken.)
+      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+      AC_MSG_NOTICE(*** including --without-vpb.)
       exit 1
    fi
 fi
@@ -802,7 +802,7 @@ AC_LANG_POP
 AST_EXT_LIB_CHECK([ZLIB], [z], [compress], [zlib.h])
 
 if test "${USE_ZAPTEL}" != "no"; then
-   echo -n "checking for zt_transcode_header in zaptel.h... "
+   AC_MSG_CHECKING(checking for zt_transcode_header in zaptel.h)
    saved_cppflags="${CPPFLAGS}"
    if test "x${ZAPTEL_DIR}" != "x"; then
       CPPFLAGS="${CPPFLAGS} -I${ZAPTEL_DIR}/include"
@@ -829,10 +829,10 @@ if test "${USE_ZAPTEL}" != "no"; then
 	AC_DEFINE([HAVE_ZAPTEL], 1, [Define if your system has the Zaptel headers.])
    elif test ! -z "${ZAPTEL_MANDATORY}"; 
    then
-      echo "***"
-      echo "*** The Zaptel installation on this system appears to be broken."
-      echo "*** Either correct the installation, or run configure"
-      echo "*** including --without-zaptel."
+      AC_MSG_NOTICE(***)
+      AC_MSG_NOTICE(*** The Zaptel installation on this system appears to be broken.)
+      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+      AC_MSG_NOTICE(*** including --without-zaptel.)
       exit 1
    fi
 fi
@@ -847,8 +847,7 @@ elif test "x$CURSES_LIB" != "x" ; then
 elif test "x$NCURSES_LIB" != "x" ; then
   EDITLINE_LIB="$NCURSES_LIB"
 else
-  echo "*** termcap support not found"
-  exit 1
+  AC_MSG_ERROR(*** termcap support not found)
 fi
 AC_SUBST(EDITLINE_LIB)
 
@@ -899,6 +898,7 @@ AC_SUBST(CURLLIB)
 AC_CONFIG_FILES([build_tools/menuselect-deps makeopts])
 AC_OUTPUT
 
+if test "x${silent}" != "xyes" ; then
 echo
 echo "               .\$\$\$\$\$\$\$\$\$\$\$\$\$\$\$=..      "
 echo "            .\$7\$7..          .7\$\$7:.    "
@@ -922,12 +922,13 @@ echo "   \$\$\$\$\$\$\$.           .7\$\$\$\$\$\$  \$\$      "
 echo "     \$\$\$\$\$\$\$\$\$\$\$\$7\$\$\$\$\$\$\$\$\$.\$\$\$\$\$\$      "
 echo "       \$\$\$\$\$\$\$\$\$\$\$\$\$\$\$\$.                "
 echo
+fi
 
-echo "Package configured for: "
-echo " OS type  : $PBX_OSTYPE"
-echo " Host CPU : $host_cpu"
+AC_MSG_NOTICE(Package configured for: )
+AC_MSG_NOTICE( OS type  : $PBX_OSTYPE)
+AC_MSG_NOTICE( Host CPU : $host_cpu)
 if test "x${crossCompile}" = xYes; then
-   echo ""
-   echo " Cross Compilation = YES"
-   echo " Target            = ${host}"
+   AC_MSG_NOTICE()
+   AC_MSG_NOTICE( Cross Compilation = YES)
+   AC_MSG_NOTICE( Target            = ${host})
 fi
