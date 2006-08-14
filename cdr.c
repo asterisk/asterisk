@@ -267,6 +267,8 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 		ast_copy_string(workspace, cdr->userfield, workspacelen);
 	else if ((varbuf = ast_cdr_getvar_internal(cdr, name, recur)))
 		ast_copy_string(workspace, varbuf, workspacelen);
+	else
+		workspace[0] = '\0';
 
 	if (!ast_strlen_zero(workspace))
 		*ret = workspace;
