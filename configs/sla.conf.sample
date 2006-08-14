@@ -1,1 +1,26 @@
-; this space is available for rent. Contact our sales people for more information.
+; Configuration file for SLAs (Shared Line Appearances).
+
+; Defining a SLA uses the following syntax:
+;
+; type => Technology/TechData
+;
+;    type       => trunk or station
+;    Technology => the channel driver (see show channeltypes)
+;    TechData   => the data specific to the channel driver
+;
+; The Technology/TechData information is the same as that provided to the
+; Dial application.
+;
+
+; define a SLA called junky
+[junky]
+trunk => SIP/10
+station => SIP/15
+station => SIP/16
+
+;define a SLA called markster
+[markster]
+trunk => Zap/1
+station => SIP/20
+
+; Also you can see SLA infos via the CLI, by typing "sla show"

@@ -192,8 +192,8 @@ AST_APP_OPTIONS(sla_opts, {
 static const char *app = "MeetMe";
 static const char *app2 = "MeetMeCount";
 static const char *app3 = "MeetMeAdmin";
-static const char *appslas = "SLAS";
-static const char *appslat = "SLAT";
+static const char *appslas = "SLAStation";
+static const char *appslat = "SLATrunk";
 
 static const char *synopsis = "MeetMe conference bridge";
 static const char *synopsis2 = "MeetMe participant count";
@@ -278,13 +278,13 @@ static const char *descrip3 =
 "";
 
 static const char *descripslas =
-"  SLAS(sla[,options]): Run Shared Line Appearance for station\n"
+"  SLAStation(sla[,options]): Run Shared Line Appearance for station\n"
 "Runs the share line appearance for a station calling in.  If there are no\n"
 "other participants in the conference, the trunk is called and is dumped into\n"
 "the bridge.\n";
 
 static const char *descripslat =
-"  SLAT(sla[,options]): Run Shared Line Appearance for trunk\n"
+"  SLATrunk(sla[,options]): Run Shared Line Appearance for trunk\n"
 "Runs the share line appearance for a trunk calling in.  If there are no\n"
 "other participants in the conference, all member stations are invited into\n"
 "the bridge.\n";
@@ -2460,13 +2460,13 @@ static void do_invite(struct ast_channel *orig, const char *tech, const char *de
 static void invite_stations(struct ast_channel *orig, struct ast_sla *sla)
 {
 	ASTOBJ_CONTAINER_TRAVERSE(&sla->stations, 1, {
-		do_invite(orig, iterator->tech, iterator->dest, "SLAS", sla->name);
+		do_invite(orig, iterator->tech, iterator->dest, "SLAStation", sla->name);
 	});
 }
 
 static void invite_trunk(struct ast_channel *orig, struct ast_sla *sla)
 {
-	do_invite(orig, sla->trunktech, sla->trunkdest, "SLAT", sla->name);
+	do_invite(orig, sla->trunktech, sla->trunkdest, "SLATrunk", sla->name);
 }
 
 
@@ -3063,6 +3063,8 @@ static int unload_module(void *mod)
 	res |= ast_unregister_application(app3);
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(app);
+	res |= ast_unregister_application(appslas);
+	res |= ast_unregister_application(appslat);
 
 	ast_devstate_prov_del("Meetme");
 	ast_devstate_prov_del("SLA");
