@@ -177,6 +177,7 @@ struct oh323_pvt {
 	int hangupcause;					/* Hangup cause from OpenH323 layer */
 	int newstate;						/* Pending state change */
 	int newcontrol;						/* Pending control to send */
+	int newdigit;						/* Pending DTMF digit to send */
 	struct oh323_pvt *next;				/* Next channel in list */
 } *iflist = NULL;
 
@@ -252,6 +253,8 @@ static const struct ast_channel_tech oh323_tech = {
 /* Channel and private structures should be already locked */
 static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 {
+	struct ast_frame f;
+
 	if (c->nativeformats != pvt->nativeformats) {
 		if (h323debug)
 			ast_log(LOG_DEBUG, "Preparing %s for new native format\n", c->name);
@@ -266,7 +269,7 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 		c->hangupcause = pvt->hangupcause;
 		ast_queue_hangup(c);
 		pvt->needhangup = 0;
-		pvt->newstate = pvt->newcontrol = -1;
+		pvt->newstate = pvt->newcontrol = pvt->newdigit = -1;
 	}
 	if (pvt->newstate >= 0) {
 		ast_setstate(c, pvt->newstate);
@@ -275,6 +278,19 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 	if (pvt->newcontrol >= 0) {
 		ast_queue_control(c, pvt->newcontrol);
 		pvt->newcontrol = -1;
+	}
+	if (pvt->newdigit >= 0) {
+		memset(&f, 0, sizeof(f));
+		f.frametype = AST_FRAME_DTMF;
+		f.subclass = pvt->newdigit;
+		f.datalen = 0;
+		f.samples = 800;
+		f.offset = 0;
+		f.data = NULL;
+		f.mallocd = 0;
+		f.src = "UPDATE_INFO";
+		ast_queue_frame(c, &f);
+		pvt->newdigit = -1;
 	}
 }
 
@@ -390,18 +406,19 @@ static int oh323_digit(struct ast_channel *c, char digit)
 			ast_log(LOG_DEBUG, "Sending out-of-band digit %c on %s\n", digit, c->name);
 		}
 		ast_rtp_senddigit(pvt->rtp, digit);
+		ast_mutex_unlock(&pvt->lock);
 	} else {
 		/* in-band DTMF */
 		if (h323debug) {
 			ast_log(LOG_DEBUG, "Sending inband digit %c on %s\n", digit, c->name);
 		}
 		token = pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL;
+		ast_mutex_unlock(&pvt->lock);
 		h323_send_tone(token, digit);
 		if (token) {
 			free(token);
 		}
 	}
-	ast_mutex_unlock(&pvt->lock);
 	oh323_update_info(c);
 	return 0;
 }
@@ -865,7 +882,7 @@ static struct oh323_pvt *oh323_alloc(int callid)
 		pvt->nonCodecCapability &= ~AST_RTP_DTMF;
 	}
 	strncpy(pvt->context, default_context, sizeof(pvt->context) - 1);
-	pvt->newstate = pvt->newcontrol = -1;
+	pvt->newstate = pvt->newcontrol = pvt->newdigit = -1;
 	/* Add to interface list */
 	ast_mutex_lock(&iflock);
 	pvt->next = iflist;
@@ -1148,16 +1165,22 @@ int send_digit(unsigned call_reference, char digit, const char *token)
 		ast_log(LOG_ERROR, "Private structure not found in send_digit.\n");
 		return -1;
 	}
-	memset(&f, 0, sizeof(f));
-	f.frametype = AST_FRAME_DTMF;
-	f.subclass = digit;
-	f.datalen = 0;
-	f.samples = 800;
-	f.offset = 0;
-	f.data = NULL;
-	f.mallocd = 0;
-	f.src = "SEND_DIGIT";	
-	res = ast_queue_frame(pvt->owner, &f);
+	if (pvt->owner && !ast_mutex_trylock(&pvt->owner->lock)) {
+		memset(&f, 0, sizeof(f));
+		f.frametype = AST_FRAME_DTMF;
+		f.subclass = digit;
+		f.datalen = 0;
+		f.samples = 800;
+		f.offset = 0;
+		f.data = NULL;
+		f.mallocd = 0;
+		f.src = "SEND_DIGIT";
+		res = ast_queue_frame(pvt->owner, &f);
+		ast_mutex_unlock(&pvt->owner->lock);
+	} else {
+		pvt->newdigit = digit;
+		res = 0;
+	}
 	ast_mutex_unlock(&pvt->lock);
 	return res;
 }
