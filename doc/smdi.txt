@@ -4,7 +4,8 @@ Asterisk SMDI (Simple Message Desk Interface) integration
 SMDI integration is configured in smdi.conf, zaptel.conf, and voicemail.conf.
 Various characteristics of the SMDI interfaces to be used (serial ports) are
 defined in smdi.conf.  SMDI integration for callerid and MWI are defined in
-zaptel.conf and voicemail.conf respectively.
+zaptel.conf and voicemail.conf respectively. SMDI only works with Zaptel
+interfaces configured for FXS signalling.
 
 When SMDI is enabled and a call comes into Asterisk, the forwarding station
 number is used as the destination for the call and any callerid information
