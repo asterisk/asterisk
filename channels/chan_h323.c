@@ -253,8 +253,6 @@ static const struct ast_channel_tech oh323_tech = {
 /* Channel and private structures should be already locked */
 static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 {
-	struct ast_frame f;
-
 	if (c->nativeformats != pvt->nativeformats) {
 		if (h323debug)
 			ast_log(LOG_DEBUG, "Preparing %s for new native format\n", c->name);
@@ -280,14 +278,9 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 		pvt->newcontrol = -1;
 	}
 	if (pvt->newdigit >= 0) {
-		memset(&f, 0, sizeof(f));
-		f.frametype = AST_FRAME_DTMF;
-		f.subclass = pvt->newdigit;
-		f.datalen = 0;
+		struct ast_frame f = {AST_FRAME_DTMF, pvt->newdigit, };
+
 		f.samples = 800;
-		f.offset = 0;
-		f.data = NULL;
-		f.mallocd = 0;
 		f.src = "UPDATE_INFO";
 		ast_queue_frame(c, &f);
 		pvt->newdigit = -1;
@@ -1156,7 +1149,6 @@ struct oh323_alias *find_alias(const char *source_aliases)
 int send_digit(unsigned call_reference, char digit, const char *token)
 {
 	struct oh323_pvt *pvt;
-	struct ast_frame f;
 	int res;
 
 	ast_log(LOG_DEBUG, "Received Digit: %c\n", digit);
@@ -1166,14 +1158,8 @@ int send_digit(unsigned call_reference, char digit, const char *token)
 		return -1;
 	}
 	if (pvt->owner && !ast_mutex_trylock(&pvt->owner->lock)) {
-		memset(&f, 0, sizeof(f));
-		f.frametype = AST_FRAME_DTMF;
-		f.subclass = digit;
-		f.datalen = 0;
+		struct ast_frame f = {AST_FRAME_DTMF, digit, };
 		f.samples = 800;
-		f.offset = 0;
-		f.data = NULL;
-		f.mallocd = 0;
 		f.src = "SEND_DIGIT";
 		res = ast_queue_frame(pvt->owner, &f);
 		ast_mutex_unlock(&pvt->owner->lock);
