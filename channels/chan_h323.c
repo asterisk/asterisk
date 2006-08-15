@@ -278,10 +278,13 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 		pvt->newcontrol = -1;
 	}
 	if (pvt->newdigit >= 0) {
-		struct ast_frame f = {AST_FRAME_DTMF, pvt->newdigit, };
+		struct ast_frame f = {
+			.frametype = AST_FRAME_DTMF,
+			.subclass = pvt->newdigit,
+			.samples = 800,
+			.src = "UPDATE_INFO",
+		};
 
-		f.samples = 800;
-		f.src = "UPDATE_INFO";
 		ast_queue_frame(c, &f);
 		pvt->newdigit = -1;
 	}
@@ -1158,9 +1161,13 @@ int send_digit(unsigned call_reference, char digit, const char *token)
 		return -1;
 	}
 	if (pvt->owner && !ast_mutex_trylock(&pvt->owner->lock)) {
-		struct ast_frame f = {AST_FRAME_DTMF, digit, };
-		f.samples = 800;
-		f.src = "SEND_DIGIT";
+		struct ast_frame f = {
+			.frametype = AST_FRAME_DTMF,
+			.subclass = digit,
+			.samples = 800,
+			.src = "SEND_DIGIT",
+		};
+
 		res = ast_queue_frame(pvt->owner, &f);
 		ast_mutex_unlock(&pvt->owner->lock);
 	} else {
