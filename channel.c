@@ -3807,12 +3807,18 @@ struct tonepair_def {
 };
 
 struct tonepair_state {
-	float freq1;
-	float freq2;
-	float vol;
-	int duration;
-	int pos;
+	int fac1;
+	int fac2;
+	int v1_1;
+	int v2_1;
+	int v3_1;
+	int v1_2;
+	int v2_2;
+	int v3_2;
 	int origwfmt;
+	int pos;
+	int duration;
+	int modulate;
 	struct ast_frame f;
 	unsigned char offset[AST_FRIENDLY_OFFSET];
 	short data[4000];
@@ -3840,10 +3846,16 @@ static void *tonepair_alloc(struct ast_channel *chan, void *params)
 		tonepair_release(NULL, ts);
 		ts = NULL;
 	} else {
-		ts->freq1 = td->freq1;
-		ts->freq2 = td->freq2;
+		ts->fac1 = 2.0 * cos(2.0 * M_PI * (td->freq1 / 8000.0)) * 32768.0;
+		ts->v1_1 = 0;
+		ts->v2_1 = sin(-4.0 * M_PI * (td->freq1 / 8000.0)) * td->vol;
+		ts->v3_1 = sin(-2.0 * M_PI * (td->freq1 / 8000.0)) * td->vol;
+		ts->v2_1 = 0;
+		ts->fac2 = 2.0 * cos(2.0 * M_PI * (td->freq2 / 8000.0)) * 32768.0;
+		ts->v2_2 = sin(-4.0 * M_PI * (td->freq2 / 8000.0)) * td->vol;
+		ts->v3_2 = sin(-2.0 * M_PI * (td->freq2 / 8000.0)) * td->vol;
 		ts->duration = td->duration;
-		ts->vol = td->vol;
+		ts->modulate = 0;
 	}
 	/* Let interrupts interrupt :) */
 	ast_set_flag(chan, AST_FLAG_WRITE_INT);
@@ -3865,12 +3877,23 @@ static int tonepair_generator(struct ast_channel *chan, void *data, int len, int
 		return -1;
 	}
 	memset(&ts->f, 0, sizeof(ts->f));
-	for (x = 0; x < (len / 2); x++) {
-		ts->data[x] = ts->vol * (
-				sin((ts->freq1 * 2.0 * M_PI / 8000.0) * (ts->pos + x)) +
-				sin((ts->freq2 * 2.0 * M_PI / 8000.0) * (ts->pos + x))
-			);
-	}
+ 	for (x=0;x<len/2;x++) {
+ 		ts->v1_1 = ts->v2_1;
+ 		ts->v2_1 = ts->v3_1;
+ 		ts->v3_1 = (ts->fac1 * ts->v2_1 >> 15) - ts->v1_1;
+ 		
+ 		ts->v1_2 = ts->v2_2;
+ 		ts->v2_2 = ts->v3_2;
+ 		ts->v3_2 = (ts->fac2 * ts->v2_2 >> 15) - ts->v1_2;
+ 		if (ts->modulate) {
+ 			int p;
+ 			p = ts->v3_2 - 32768;
+ 			if (p < 0) p = -p;
+ 			p = ((p * 9) / 10) + 1;
+ 			ts->data[x] = (ts->v3_1 * p) >> 15;
+ 		} else
+ 			ts->data[x] = ts->v3_1 + ts->v3_2; 
+ 	}
 	ts->f.frametype = AST_FRAME_VOICE;
 	ts->f.subclass = AST_FORMAT_SLINEAR;
 	ts->f.datalen = len;
