@@ -413,20 +413,15 @@ static char *bearer2str(int cap) {
 }
 
 
-static void print_facility( struct misdn_bchannel *bc)
+static void print_facility(struct FacReqParm *fac, struct misdn_bchannel *bc)
 {
-	switch (bc->fac_type) {
-	case FACILITY_CALLDEFLECT:
-		chan_misdn_log(0,bc->port," --> calldeflect: %s\n",
-			       bc->fac.calldeflect_nr);
-		break;
-	case FACILITY_CENTREX:
-		chan_misdn_log(0,bc->port," --> centrex: %s\n",
-			       bc->fac.cnip);
+	switch (fac->Function) {
+	case FacReq_CD:
+		chan_misdn_log(0,bc->port," --> calldeflect to: %s, screened: %s\n", fac->u.CDeflection.DeflectedToNumber,
+					   fac->u.CDeflection.PresentationAllowed ? "yes" : "no");
 		break;
 	default:
 		chan_misdn_log(0,bc->port," --> unknown\n");
-		
 	}
 }
 
@@ -1119,18 +1114,23 @@ static int misdn_send_cd (int fd, int argc, char *argv[])
   
 	channame = argv[3];
 	nr = argv[4];
-	
+
 	ast_cli(fd, "Sending Calldeflection (%s) to %s\n",nr, channame);
 	
 	{
 		struct chan_list *tmp=get_chan_by_ast_name(channame);
 		
 		if (!tmp) {
-			ast_cli(fd, "Sending CD with nr %s to %s failed Channel does not exist\n",nr, channame);
+			ast_cli(fd, "Sending CD with nr %s to %s failed: Channel does not exist.\n",nr, channame);
 			return 0; 
 		} else {
-			
-			misdn_lib_send_facility(tmp->bc, FACILITY_CALLDEFLECT, nr);
+			if (strlen(nr) >= 15) {
+				ast_cli(fd, "Sending CD with nr %s to %s failed: Number too long (up to 15 digits are allowed).\n",nr, channame);
+				return 0; 
+			}
+			tmp->bc->fac_out.Function = FacReq_CD;
+			strncpy((char *)tmp->bc->fac_out.u.CDeflection.DeflectedToNumber, nr, sizeof(tmp->bc->fac_out.u.CDeflection.DeflectedToNumber));
+			misdn_lib_send_event(tmp->bc, EVENT_FACILITY);
 		}
 	}
   
@@ -4477,30 +4477,34 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	break;
 	
 	case EVENT_FACILITY:
-		print_facility(bc);
+		print_facility(&(bc->fac_in), bc);
 		
-		switch (bc->fac_type) {
-		case FACILITY_CALLDEFLECT:
+		switch (bc->fac_in.Function) {
+		case FacReq_CD:
 		{
 			struct ast_channel *bridged=AST_BRIDGED_P(ch->ast);
-			struct chan_list *ch;
+			struct chan_list *ch_br;
 			
-			misdn_lib_send_event(bc, EVENT_DISCONNECT);
-
 			if (bridged && MISDN_ASTERISK_TECH_PVT(bridged)) {
-				ch=MISDN_ASTERISK_TECH_PVT(bridged);
+				ch_br=MISDN_ASTERISK_TECH_PVT(bridged);
 				/*ch->state=MISDN_FACILITY_DEFLECTED;*/
-				if (ch->bc) {
-					/* todo */
+				if (ch_br->bc) {
+					if (ast_exists_extension(bridged, ch->context, (char *)bc->fac_in.u.CDeflection.DeflectedToNumber, 1, bc->oad)) {
+						ch_br->state=MISDN_DIALING;
+						if (pbx_start_chan(ch_br) < 0) {
+							chan_misdn_log(-1, ch_br->bc->port, "ast_pbx_start returned < 0 in misdn_overlap_dial_task\n");
+						}
+					}
 				}
 				
 			}
 			
+			misdn_lib_send_event(bc, EVENT_DISCONNECT);
 		} 
 		
 		break;
 		default:
-			chan_misdn_log(0, bc->port," --> not yet handled: facility type:%p\n", bc->fac_type);
+			chan_misdn_log(0, bc->port," --> not yet handled: facility type:%p\n", bc->fac_in.Function);
 		}
 		
 		break;
@@ -4781,9 +4785,14 @@ static int misdn_facility_exec(struct ast_channel *chan, void *data)
 		if (!tok) {
 			ast_log(LOG_WARNING, "Facility: Call Defl Requires arguments\n");
 		}
-		
-		misdn_lib_send_facility(ch->bc, FACILITY_CALLDEFLECT, tok);
-		
+	
+		if (strlen(tok) >= sizeof(ch->bc->fac_out.u.CDeflection.DeflectedToNumber)) {
+			ast_log(LOG_WARNING, "Facility: Number argument too long (up to 15 digits are allowed). Ignoring.\n");
+			return 0; 
+		}
+		ch->bc->fac_out.Function = FacReq_CD;
+		strncpy((char *)ch->bc->fac_out.u.CDeflection.DeflectedToNumber, tok, sizeof(ch->bc->fac_out.u.CDeflection.DeflectedToNumber));
+		misdn_lib_send_event(ch->bc, EVENT_FACILITY);
 	} else {
 		ast_log(LOG_WARNING, "Unknown Facility: %s\n",tok);
 	}

@@ -11,14 +11,12 @@ CFLAGS	       += -fPIC
 endif
 SOURCES		= isdn_lib.c isdn_msg_parser.c 
 OBJDIR		= .
-OBJS		= isdn_lib.o isdn_msg_parser.o fac.o asn1.o
+OBJS		= isdn_lib.o isdn_msg_parser.o
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libbnec.so),)
 CFLAGS+=-DBEROEC_VERSION=1
 CFLAGS+=-DWITH_BEROEC
 endif
-
-CFLAGS+=-DFACILITY_DEBUG
 
 all: chan_misdn_lib.a 
 

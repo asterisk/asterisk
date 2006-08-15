@@ -104,4 +104,4 @@ chan_misdn.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\" $(EC_CFLAGS)
 misdn_config.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\" $(EC_CFLAGS)
 
 chan_misdn.so: chan_misdn.o misdn_config.o misdn/chan_misdn_lib.a
-chan_misdn.so: LIBS+=-lisdnnet -lmISDN $(EC_LIBS)
+chan_misdn.so: LIBS+=-lisdnnet -lmISDN -lsuppserv $(EC_LIBS)

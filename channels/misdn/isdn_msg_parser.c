@@ -19,8 +19,6 @@
 
 #include "ie.c"
 
-#include "fac.h"
-
 
 void set_channel(struct misdn_bchannel *bc, int channel) {
 
@@ -879,42 +877,64 @@ msg_t *build_release_complete (struct isdn_msg msgs[], struct misdn_bchannel *bc
 
 void parse_facility (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
-#ifdef FACILITY_DEBUG
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	FACILITY_t *facility=(FACILITY_t*)((unsigned long)(msg->data+HEADER_LEN)); 
-	Q931_info_t *qi=(Q931_info_t*)(msg->data+HEADER_LEN);  
+	int HEADER_LEN = nt ? mISDNUSER_HEAD_SIZE : mISDN_HEADER_LEN;
+	FACILITY_t *facility = (FACILITY_t*)(msg->data+HEADER_LEN); 
+	Q931_info_t *qi = (Q931_info_t*)(msg->data+HEADER_LEN);  
+	unsigned char *p = NULL;
+	int err;
 
 #if DEBUG 
 	printf("Parsing FACILITY Msg\n"); 
 #endif
 
-	fac_dec(facility->FACILITY, qi, &bc->fac_type, &bc->fac, bc);
-#endif	
-
+	if (!bc->nt) {
+		if (qi->QI_ELEMENT(facility))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(facility) + 1;
+	} else {
+		p = facility->FACILITY;
+	}
+	if (!p)
+		return;
+	
+	err = decodeFacReq(p, &(bc->fac_in));
+	if (err) {
+		cb_log(1, bc->port, "Decoding FACILITY failed! (%d)\n", err);
+	}
 }
 
 msg_t *build_facility (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
-	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
-	FACILITY_t *facility;
-	msg_t *msg =(msg_t*)create_l3msg(CC_FACILITY | REQUEST, MT_FACILITY,  bc?bc->l3_id:-1, sizeof(FACILITY_t) ,nt); 
- 
-	facility=(FACILITY_t*)((msg->data+HEADER_LEN)); 
+	int len,
+		HEADER_LEN = nt ? mISDNUSER_HEAD_SIZE : mISDN_HEADER_LEN;
+	unsigned char *ie_fac,
+				  fac_tmp[256];
+	msg_t *msg =(msg_t*)create_l3msg(CC_FACILITY | REQUEST, MT_FACILITY,  bc?bc->l3_id:-1, sizeof(FACILITY_t) ,nt);
+	FACILITY_t *facility = (FACILITY_t*)(msg->data+HEADER_LEN); 
+	Q931_info_t *qi;
 
-	{
-		if (*bc->display) {
-			printf("Sending %s as Display\n", bc->display);
-			enc_ie_display(&facility->DISPLAY, msg, bc->display, nt,bc);
-		}
-		
-		
-		fac_enc(&facility->FACILITY, msg, bc->out_fac_type, bc->out_fac,  bc);
-		
-	}
-	
 #if DEBUG 
 	printf("Building FACILITY Msg\n"); 
 #endif
+	
+	len = encodeFacReq(fac_tmp, &(bc->fac_out));
+	if (len <= 0)
+		return NULL;
+
+	ie_fac = msg_put(msg, len);
+	if (bc->nt) {
+		facility->FACILITY = ie_fac + 1;
+	} else {
+		qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
+		qi->QI_ELEMENT(facility) = ie_fac - (unsigned char *)qi - sizeof(Q931_info_t);
+	}
+
+	memcpy(ie_fac, fac_tmp, len);
+
+	if (*bc->display) {
+		printf("Sending %s as Display\n", bc->display);
+		enc_ie_display(&facility->DISPLAY, msg, bc->display, nt,bc);
+	}
+
 	return msg; 
 }
 

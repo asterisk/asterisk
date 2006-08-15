@@ -619,8 +619,8 @@ void empty_bc(struct misdn_bchannel *bc)
 	bc->rad[0] = 0;
 	bc->orig_dad[0] = 0;
 	
-	bc->fac_type=FACILITY_NONE;
-	bc->out_fac_type=FACILITY_NONE;
+	bc->fac_in.Function = FacReq_None;
+	bc->fac_out.Function = FacReq_None;
 	
 	bc->te_choose_channel = 0;
 
@@ -1673,24 +1673,6 @@ int misdn_lib_get_port_down (int port)
 	}
 	return 0;
 }
-
-int misdn_lib_send_facility(struct misdn_bchannel *bc, enum facility_type fac, void *data)
-{
-	switch (fac) {
-	case FACILITY_CALLDEFLECT:
-		strcpy(bc->out_fac.calldeflect_nr,(char*)data);
-		break;
-	default:
-		cb_log(1,bc?bc->port:0,"We don't handle this facility yet: %d\n",fac);
-		return 0;
-	}
-	
-	bc->out_fac_type=fac;
-	
-	misdn_lib_send_event(bc,EVENT_FACILITY);
-	return 0;
-}
-
 
 int misdn_lib_port_up(int port, int check)
 {
@@ -3114,22 +3096,21 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel)
 }
 
 
-char *fac2str (enum facility_type type) {
+char *fac2str (enum FacReqFunction func) {
 	struct arr_el { 
-		enum facility_type p; 
+		enum FacReqFunction p; 
 		char *s ; 
 	} arr[] = {
-		{ FACILITY_NONE, "FAC_NONE" },
-		{ FACILITY_CALLDEFLECT, "FAC_CALLDEFLECT"},
-		{ FACILITY_CENTREX, "FAC_CENTREX"}
+		{ FacReq_None, "FacReq_None" },
+		{ FacReq_CD, "FacReq_CD"},
 	};
 	
 	int i;
 	
 	for (i=0; i < sizeof(arr)/sizeof( struct arr_el) ; i ++)
-		if ( arr[i].p==type) return arr[i].s;
+		if ( arr[i].p==func) return arr[i].s;
 	
-	return "FAC_UNKNOWN";
+	return "unknown";
 }
 
 void misdn_lib_log_ies(struct misdn_bchannel *bc)
@@ -3157,7 +3138,7 @@ void misdn_lib_log_ies(struct misdn_bchannel *bc)
 	
 	cb_log(4, stack->port, " --> addr:%x l3id:%x b_stid:%x layer_id:%x\n", bc->addr, bc->l3_id, bc->b_stid, bc->layer_id);
 	
-	cb_log(4, stack->port, " --> facility:%s out_facility:%s\n",fac2str(bc->fac_type),fac2str(bc->out_fac_type));
+	cb_log(4, stack->port, " --> facility:%s out_facility:%s\n",fac2str(bc->fac_in.Function),fac2str(bc->fac_out.Function));
 
 	cb_log(5, stack->port, " --> urate:%d rate:%d mode:%d user1:%d\n", bc->urate, bc->rate, bc->mode,bc->user1);
 	

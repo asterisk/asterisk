@@ -14,6 +14,7 @@
 #ifndef TE_LIB
 #define TE_LIB
 
+#include <mISDNuser/suppserv.h>
 
 /** For initialization usage **/
 /* typedef int ie_nothing_t ;*/
@@ -187,22 +188,6 @@ enum layer_e {
 
 
 
-/** FACILITY STUFF **/
-
-enum facility_type {
-	FACILITY_NONE,
-	FACILITY_CALLDEFLECT=0x91,
-	FACILITY_CENTREX=0x88
-};
-
-union facility {
-	char calldeflect_nr[15];
-	char cnip[256];
-};
-
-
-
-
 struct misdn_bchannel {
 
 	int nt;
@@ -270,12 +255,9 @@ struct misdn_bchannel {
 	int progress_coding;
 	int progress_location;
 	int progress_indicator;
-	
-	enum facility_type fac_type;
-	union facility fac;
-	
-	enum facility_type out_fac_type;
-	union facility out_fac;
+
+	struct FacReqParm fac_in;
+	struct FacReqParm fac_out;
 	
 	enum event_e evq;
 	
@@ -432,9 +414,6 @@ void misdn_lib_release(struct misdn_bchannel *bc);
 
 int misdn_cap_is_speech(int cap);
 int misdn_inband_avail(struct misdn_bchannel *bc);
-
-int misdn_lib_send_facility(struct misdn_bchannel *bc, enum facility_type fac, void *data);
-
 
 void manager_ec_enable(struct misdn_bchannel *bc);
 void manager_ec_disable(struct misdn_bchannel *bc);
