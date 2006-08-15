@@ -127,7 +127,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 		depth = 0;
 	}
 
-	if (depth >= 7) {
+	if (depth >= 20) {
 		ast_log(LOG_ERROR, "Macro():  possible infinite loop detected.  Returning early.\n");
 		LOCAL_USER_REMOVE(u);
 		return 0;
@@ -241,9 +241,9 @@ static int macro_exec(struct ast_channel *chan, void *data)
 			break;
 		}
 		/* don't stop executing extensions when we're in "h" */
-		if (chan->_softhangup && strcasecmp(oldexten,"h")) {
-			ast_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
-				chan->exten, chan->priority);
+		if (chan->_softhangup && strcasecmp(chan->macroexten,"h")) {
+			ast_log(LOG_DEBUG, "Extension %s, macroexten %s, priority %d returned normally even though call was hung up\n",
+				chan->exten, chan->macroexten, chan->priority);
 			goto out;
 		}
 		chan->priority++;
