@@ -3331,8 +3331,15 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 	switch (frame->frametype) {
 	case AST_FRAME_VOICE:
 		if (!(frame->subclass & ast->nativeformats)) {
-			ast_log(LOG_WARNING, "Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
-				frame->subclass, ast->nativeformats, ast->readformat, ast->writeformat);
+			char s1[512], s2[512], s3[512];
+			ast_log(LOG_WARNING, "Asked to transmit frame type %d, while native formats is %s(%d) read/write = %s(%d)/%s(%d)\n",
+				frame->subclass, 
+				ast_getformatname_multiple(s1, sizeof(s1) - 1, ast->nativeformats & AST_FORMAT_AUDIO_MASK),
+				ast->nativeformats & AST_FORMAT_AUDIO_MASK,
+				ast_getformatname_multiple(s2, sizeof(s2) - 1, ast->readformat),
+				ast->readformat,
+				ast_getformatname_multiple(s3, sizeof(s3) - 1, ast->writeformat),
+				ast->writeformat);
 			return 0;
 		}
 		if (p) {
