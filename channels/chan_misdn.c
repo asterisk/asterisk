@@ -957,13 +957,6 @@ static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel
 			"  --> state: %s\n"
 			"  --> capability: %s\n"
 			"  --> echo_cancel: %d\n"
-#ifdef WITH_BEROEC
-			"  --> bnec_tail: %d\n"
-			"  --> bnec_nlp: %d\n"
-			"  --> bnec_ah: %d\n"
-			"  --> bnec_td: %d\n"
-			"  --> bnec_zerocoeff: %d\n"
-#endif
 			"  --> notone : rx %d tx:%d\n"
 			"  --> bc_hold: %d holded_bc :%d\n",
 			help->ast->name,
@@ -978,13 +971,6 @@ static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel
 			bearer2str(bc->capability),
 			bc->ec_enable,
 
-#ifdef WITH_BEROEC
-			bc->bnec_tail,
-			bc->bnec_nlp,
-			bc->bnec_ah,
-			bc->bnec_td,
-			bc->bnec_zero,
-#endif
 			help->norxtone,help->notxtone,
 			bc->holded, help->holded_bc?1:0
 			);
@@ -1663,19 +1649,6 @@ static int update_ec_config(struct misdn_bchannel *bc)
 	}
 #endif
 
-#ifdef WITH_BEROEC
-	misdn_cfg_get(port, MISDN_CFG_BNECHOCANCEL,&bc->bnec_tail, sizeof(int));
-	misdn_cfg_get(port, MISDN_CFG_BNEC_ANTIHOWL, &bc->bnec_ah, sizeof(int));
-	misdn_cfg_get(port, MISDN_CFG_BNEC_NLP, &bc->bnec_nlp, sizeof(int));
-	misdn_cfg_get(port, MISDN_CFG_BNEC_TD, &bc->bnec_td, sizeof(int));
-	misdn_cfg_get(port, MISDN_CFG_BNEC_ADAPT, &bc->bnec_adapt, sizeof(int));
-	misdn_cfg_get(port, MISDN_CFG_BNEC_ZEROCOEFF, &bc->bnec_zero, sizeof(int));
-
-	if (bc->bnec_tail && bc->ec_enable) {
-		ast_log(LOG_WARNING,"Are you sure you wan't to mix BNEC with Zapec ? This might cause bad audio quality!\n");
-		bc->ec_enable=0;
-	}
-#endif
 	return 0;
 }
 
@@ -4914,10 +4887,6 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 			if (neglect) {
 				chan_misdn_log(1, ch->bc->port, " --> disabled\n");
 				ch->bc->ec_enable=0;
-
-#ifdef WITH_BEROEC
-				ch->bc->bnec_tail=0;
-#endif
 			} else {
 				ch->bc->ec_enable=1;
 				ch->bc->orig=ch->orginator;

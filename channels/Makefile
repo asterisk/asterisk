@@ -47,11 +47,6 @@ ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/mISDNuser/mISDNlib.h),)
   C_MODS:=$(filter-out chan_misdn,$(C_MODS))
 endif
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libbnec.so),)
-  EC_CFLAGS=-DWITH_BEROEC
-  EC_LIBS=-lbnec
-endif
-
 ifndef OPENH323DIR
   OPENH323DIR=$(HOME)/openh323
 endif
@@ -99,9 +94,9 @@ endif
 misdn/chan_misdn_lib.a:
 	make -C misdn
 
-chan_misdn.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\" $(EC_CFLAGS)
+chan_misdn.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\" 
 
-misdn_config.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\" $(EC_CFLAGS)
+misdn_config.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\" 
 
 chan_misdn.so: chan_misdn.o misdn_config.o misdn/chan_misdn_lib.a
-chan_misdn.so: LIBS+=-lisdnnet -lmISDN -lsuppserv $(EC_LIBS)
+chan_misdn.so: LIBS+=-lisdnnet -lmISDN -lsuppserv 

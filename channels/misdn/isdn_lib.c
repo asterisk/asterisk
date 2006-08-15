@@ -25,10 +25,6 @@ int misdn_lib_get_l2_up(struct misdn_stack *stack);
 
 struct misdn_stack* get_misdn_stack( void );
 
-#ifdef WITH_BEROEC
-static int bec_initialized=0;
-#endif
-
 int misdn_lib_port_is_pri(int port)
 {
 	struct misdn_stack *stack=get_misdn_stack();
@@ -2196,14 +2192,6 @@ void misdn_tx_jitter(struct misdn_bchannel *bc, int len)
 		
 		if (jlen < len) {
 			cb_log(7,bc->port,"Jitterbuffer Underrun.\n");
-		} else {
-#ifdef WITH_BEROEC
-			if (bc->ec) {
-				flip_buf_bits(data,len);
-				beroec_cancel_alaw_chunk(bc->ec, data, bc->bframe, len);
-				flip_buf_bits(data,len);
-			}
-#endif
 		}
 		
 		txfrm->prim = DL_DATA|REQUEST;
@@ -3037,10 +3025,6 @@ void prepare_bc(struct misdn_bchannel*bc, int channel)
 	if (++mypid>5000) mypid=1;
 	bc->pid=mypid;
 
-#ifdef WITH_BEROEC
-	bc->ec=NULL;
-#endif
-
 #if 0
 	bc->addr=0;
 	bc->b_stid=0;
@@ -3750,17 +3734,6 @@ int misdn_lib_init(char *portlist, struct misdn_lib_iface *iface, void *user_dat
 	midev=te_lib_init();
 	mgr->midev=midev;
 
-#ifdef WITH_BEROEC
-	int bec_ver=beroec_version();
-	if (bec_ver>=BEROEC_VERSION) {
-		beroec_init();
-		bec_initialized=1;
-	} else {
-		cb_log(0,0,"!! Please update the BEROEC binary\n");
-		bec_initialized=0;
-	}
-#endif
-
 	port_count=mISDN_get_stack_count(midev);
   
 	msg_queue_init(&mgr->activatequeue);
@@ -4195,22 +4168,6 @@ void manager_ec_enable(struct misdn_bchannel *bc)
 		return;
 	}
 
-#ifdef WITH_BEROEC
-	if (bc->ec) {
-		cb_log(1, stack?stack->port:0, " --> EC already loaded\n");
-		return;
-	}
-
-	if (!bec_initialized) bc->bnec_tail=0;
-
-	if (bc->bnec_tail) {
-		bc->ec=beroec_new(bc->bnec_tail, BEROEC_SUBBAND,
-		bc->bnec_ah,
-		bc->bnec_td, bc->bnec_zero, bc->bnec_adapt, bc->bnec_nlp);
-	}	
-	return ;
-#endif
-
 	if (bc->ec_enable) {
 		cb_log(1, stack?stack->port:0,"Sending Control ECHOCAN_ON taps:%d training:%d\n",bc->ec_deftaps, bc->ec_training);
 	
@@ -4254,13 +4211,6 @@ void manager_ec_disable(struct misdn_bchannel *bc)
 		cb_log(1, stack?stack->port:0, " --> no speech? cannot disable EC\n");
 		return;
 	}
-
-#ifdef WITH_BEROEC
-	if (bc->ec)
-		beroec_destroy(bc->ec);
-	bc->ec=NULL;
-	return;
-#endif
 
 	if ( bc->ec_enable) {
 		cb_log(1, stack?stack->port:0, "Sending Control ECHOCAN_OFF\n");

@@ -13,11 +13,6 @@ SOURCES		= isdn_lib.c isdn_msg_parser.c
 OBJDIR		= .
 OBJS		= isdn_lib.o isdn_msg_parser.o
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libbnec.so),)
-CFLAGS+=-DBEROEC_VERSION=1
-CFLAGS+=-DWITH_BEROEC
-endif
-
 all: chan_misdn_lib.a 
 
 %.o: %.c
