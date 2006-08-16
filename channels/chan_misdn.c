@@ -4479,12 +4479,12 @@ static int load_module(void *mod)
 	
 	if (max_ports<=0) {
 		ast_log(LOG_ERROR, "Unable to initialize mISDN\n");
-		return -1;
+		return 0;
 	}
 	
 	if (misdn_cfg_init(max_ports)) {
 		ast_log(LOG_ERROR, "Unable to initialize misdn_config.\n");
-		return -1;
+		return 0;
 	}
 	g_config_initialized=1;
 	
