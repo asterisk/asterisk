@@ -16,13 +16,10 @@ table is as follows:
 | callerid       | varchar(40) | YES  |     | NULL    |       |
 | origtime       | varchar(40) | YES  |     | NULL    |       |
 | duration       | varchar(20) | YES  |     | NULL    |       |
-| mailboxuser    | varchar(80) | YES  |     | NULL    |       |*
-| mailboxcontext | varchar(80) | YES  |     | NULL    |       |*
+| mailboxuser    | varchar(80) | YES  |     | NULL    |       |
+| mailboxcontext | varchar(80) | YES  |     | NULL    |       |
 | recording      | longblob    | YES  |     | NULL    |       |
 +----------------+-------------+------+-----+---------+-------+
-
-*=Denotes new fieldnames, define EXTENDED_ODBC_STORAGE in
-apps/Makefile to enable the functionality.
 
 The database name (from /etc/asterisk/res_odbc.conf) is in the 
 "odbcstorage" variable in the general section of voicemail.conf.

@@ -197,6 +197,10 @@ Applications:
   exit code, the AGISTATUS variable will be set to "FAILURE" as opposed to
   "SUCCESS".
 
+* app_voicemail: The ODBC_STORAGE capability now requires the extended table format
+  previously used only by EXTENDED_ODBC_STORAGE. This means that you will need to update
+  your table format using the schema provided in doc/odbcstorage.txt
+
 Manager:
 
 * After executing the 'status' manager action, the "Status" manager events

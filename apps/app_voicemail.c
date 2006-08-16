@@ -34,10 +34,6 @@
 		<depend>unixodbc</depend>
 		<defaultenabled>no</defaultenabled>
 	</member>
-	<member name="EXTENDED_ODBC_STORAGE" displayname="Storage of Voicemail using ODBC (extended)">
-		<depend>unixodbc</depend>
-		<defaultenabled>no</defaultenabled>
-	</member>
 	<member name="IMAP_STORAGE" displayname="Storage of Voicemail using IMAP4">
 		<depend>imap_tk</depend>
 		<use>ssl</use>
@@ -1330,11 +1326,7 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailbox
 			odbc_release_obj(obj);
 			goto yuck;
 		}
-#ifdef EXTENDED_ODBC_STORAGE
 		snprintf(sql, sizeof(sql), "INSERT INTO %s (dir, msgnum, context, macrocontext, callerid, origtime, duration, recording, mailboxuser, mailboxcontext) SELECT ?,?,context,macrocontext,callerid,origtime,duration,recording,?,? FROM %s WHERE dir=? AND msgnum=?",odbc_table,odbc_table); 
-#else
-		snprintf(sql, sizeof(sql), "INSERT INTO %s (dir, msgnum, context, macrocontext, callerid, origtime, duration, recording) SELECT ?,?,context,macrocontext,callerid,origtime,duration,recording FROM %s WHERE dir=? AND msgnum=?",odbc_table,odbc_table); 
-#endif
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -1344,15 +1336,10 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailbox
 		}
 		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(ddir), 0, (void *)ddir, 0, NULL);
 		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnumd), 0, (void *)msgnumd, 0, NULL);
-#ifdef EXTENDED_ODBC_STORAGE
 		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dmailboxuser), 0, (void *)dmailboxuser, 0, NULL);
 		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dmailboxcontext), 0, (void *)dmailboxcontext, 0, NULL);
 		SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
 		SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
-#else
-		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
-		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
-#endif
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s] (You probably don't have MySQL 4.1 or later installed)\n\n", sql);
@@ -1441,17 +1428,9 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 			goto yuck;
 		}
 		if (!ast_strlen_zero(category)) 
-#ifdef EXTENDED_ODBC_STORAGE
 			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext,category) VALUES (?,?,?,?,?,?,?,?,?,?,?)",odbc_table); 
-#else
-			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,category) VALUES (?,?,?,?,?,?,?,?,?)",odbc_table);
-#endif
 		else
-#ifdef EXTENDED_ODBC_STORAGE
 			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext) VALUES (?,?,?,?,?,?,?,?,?,?)",odbc_table);
-#else
-			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration) VALUES (?,?,?,?,?,?,?,?)",odbc_table);
-#endif
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -1468,15 +1447,10 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 		SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(callerid), 0, (void *)callerid, 0, NULL);
 		SQLBindParameter(stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(origtime), 0, (void *)origtime, 0, NULL);
 		SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(duration), 0, (void *)duration, 0, NULL);
-#ifdef EXTENDED_ODBC_STORAGE
 		SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(mailboxuser), 0, (void *)mailboxuser, 0, NULL);
 		SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(mailboxcontext), 0, (void *)mailboxcontext, 0, NULL);
 		if (!ast_strlen_zero(category))
 			SQLBindParameter(stmt, 11, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(category), 0, (void *)category, 0, NULL);
-#else
-		if (!ast_strlen_zero(category))
-			SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(category), 0, (void *)category, 0, NULL);
-#endif
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
@@ -1518,11 +1492,7 @@ static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxco
 			odbc_release_obj(obj);
 			goto yuck;
 		}
-#ifdef EXTENDED_ODBC_STORAGE
 		snprintf(sql, sizeof(sql), "UPDATE %s SET dir=?, msgnum=?, mailboxuser=?, mailboxcontext=? WHERE dir=? AND msgnum=?",odbc_table);
-#else
-		snprintf(sql, sizeof(sql), "UPDATE %s SET dir=?, msgnum=? WHERE dir=? AND msgnum=?",odbc_table);
-#endif
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -1532,15 +1502,10 @@ static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxco
 		}
 		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(ddir), 0, (void *)ddir, 0, NULL);
 		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnumd), 0, (void *)msgnumd, 0, NULL);
-#ifdef EXTENDED_ODBC_STORAGE
 		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(mailboxuser), 0, (void *)mailboxuser, 0, NULL);
 		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(mailboxcontext), 0, (void *)mailboxcontext, 0, NULL);
 		SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
 		SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
-#else
-		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
-		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
-#endif
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
@@ -7406,13 +7371,6 @@ static int load_module(void *mod)
 	snprintf(VM_SPOOL_DIR, sizeof(VM_SPOOL_DIR), "%s/voicemail/", ast_config_AST_SPOOL_DIR);
 
 	ast_install_vm_functions(has_voicemail, inboxcount, messagecount);
-
-#if defined(ODBC_STORAGE) && !defined(EXTENDED_ODBC_STORAGE)
-	ast_log(LOG_WARNING, "The current ODBC storage table format will be changed soon."
-				"Please update your tables as per the README and edit the apps/Makefile "
-				"and uncomment the line containing EXTENDED_ODBC_STORAGE to enable the "
-				"new table format.\n");
-#endif
 
 	return res;
 }
