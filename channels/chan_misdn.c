@@ -1341,155 +1341,51 @@ static char *complete_show_config (const char *line, const char *word, int pos, 
 	return NULL;
 }
 
-static struct ast_cli_entry cli_send_cd =
-{ {"misdn","send","calldeflect", NULL},
-  misdn_send_cd,
-  "Sends CallDeflection to mISDN Channel", 
-  "Usage: misdn send calldeflect <channel> \"<nr>\" \n",
-  complete_ch
+static struct ast_cli_entry chan_misdn_clis[] = {
+	{ {"misdn","send","calldeflect", NULL}, misdn_send_cd, "Sends CallDeflection to mISDN Channel",
+		"Usage: misdn send calldeflect <channel> \"<nr>\" \n", complete_ch },
+	{ {"misdn","send","digit", NULL}, misdn_send_digit,	"Sends DTMF Digit to mISDN Channel",
+		"Usage: misdn send digit <channel> \"<msg>\" \n"
+		"       Send <digit> to <channel> as DTMF Tone\n"
+		"       when channel is a mISDN channel\n", complete_ch },
+	{ {"misdn","toggle","echocancel", NULL}, misdn_toggle_echocancel, "Toggles EchoCancel on mISDN Channel",
+		"Usage: misdn toggle echocancel <channel>\n", complete_ch },
+	{ {"misdn","send","display", NULL}, misdn_send_display, "Sends Text to mISDN Channel", 
+		"Usage: misdn send display <channel> \"<msg>\" \n"
+		"       Send <msg> to <channel> as Display Message\n"
+		"       when channel is a mISDN channel\n", complete_ch },
+	{ {"misdn","show","config", NULL}, misdn_show_config, "Shows internal mISDN config, read from cfg-file",
+		"Usage: misdn show config [<port> | description <config element> | descriptions [general|ports]]\n"
+		"       Use 0 for <port> to only print the general config.\n", complete_show_config },
+	{ {"misdn","reload", NULL}, misdn_reload, "Reloads internal mISDN config, read from cfg-file",
+		"Usage: misdn reload\n" },
+	{ {"misdn","set","tics", NULL}, misdn_set_tics, "", 
+		"\n" },
+	{ {"misdn","show","channels", NULL}, misdn_show_cls, "Shows internal mISDN chan_list",
+		"Usage: misdn show channels\n" },
+	{ {"misdn","show","channel", NULL}, misdn_show_cl, "Shows internal mISDN chan_list",
+		"Usage: misdn show channels\n", complete_ch },
+	{ {"misdn","port","block", NULL}, misdn_port_block, "Blocks the given port",
+		"Usage: misdn port block\n" },
+	{ {"misdn","port","unblock", NULL}, misdn_port_unblock, "Unblocks the given port",
+		"Usage: misdn port unblock\n" },
+	{ {"misdn","restart","port", NULL}, misdn_restart_port, "Restarts the given port",
+		"Usage: misdn restart port\n" },
+	{ {"misdn","port","up", NULL}, misdn_port_up, "Tries to establish L1 on the given port",
+		"Usage: misdn port up <port>\n" },
+	{ {"misdn","port","down", NULL}, misdn_port_down, "Tries to deacivate the L1 on the given port",
+		"Usage: misdn port down <port>\n" },
+	{ {"misdn","show","stacks", NULL}, misdn_show_stacks, "Shows internal mISDN stack_list",
+		"Usage: misdn show stacks\n" },
+	{ {"misdn","show","ports","stats", NULL}, misdn_show_ports_stats, "Shows chan_misdns call statistics per port",
+		"Usage: misdn show port stats\n" },
+	{ {"misdn","show","port", NULL}, misdn_show_port, "Shows detailed information for given port",
+		"Usage: misdn show port <port>\n" },
+	{ {"misdn","set","debug", NULL}, misdn_set_debug, "Sets Debuglevel of chan_misdn",
+		"Usage: misdn set debug <level> [only] | [port <port> [only]]\n", complete_debug_port },
+	{ {"misdn","set","crypt","debug", NULL}, misdn_set_crypt_debug, "Sets CryptDebuglevel of chan_misdn, at the moment, level={1,2}",
+		"Usage: misdn set crypt debug <level>\n" }
 };
-
-static struct ast_cli_entry cli_send_digit =
-{ {"misdn","send","digit", NULL},
-  misdn_send_digit,
-  "Sends DTMF Digit to mISDN Channel", 
-  "Usage: misdn send digit <channel> \"<msg>\" \n"
-  "       Send <digit> to <channel> as DTMF Tone\n"
-  "       when channel is a mISDN channel\n",
-  complete_ch
-};
-
-static struct ast_cli_entry cli_toggle_echocancel =
-{ {"misdn","toggle","echocancel", NULL},
-  misdn_toggle_echocancel,
-  "Toggles EchoCancel on mISDN Channel", 
-  "Usage: misdn toggle echocancel <channel>\n", 
-  complete_ch
-};
-
-static struct ast_cli_entry cli_send_display =
-{ {"misdn","send","display", NULL},
-  misdn_send_display,
-  "Sends Text to mISDN Channel", 
-  "Usage: misdn send display <channel> \"<msg>\" \n"
-  "       Send <msg> to <channel> as Display Message\n"
-  "       when channel is a mISDN channel\n",
-  complete_ch
-};
-
-static struct ast_cli_entry cli_show_config =
-{ {"misdn","show","config", NULL},
-  misdn_show_config,
-  "Shows internal mISDN config, read from cfg-file", 
-  "Usage: misdn show config [<port> | description <config element> | descriptions [general|ports]]\n"
-  "       Use 0 for <port> to only print the general config.\n",
-  complete_show_config
-};
- 
-static struct ast_cli_entry cli_reload =
-{ {"misdn","reload", NULL},
-  misdn_reload,
-  "Reloads internal mISDN config, read from cfg-file", 
-  "Usage: misdn reload\n"
-};
-
-static struct ast_cli_entry cli_set_tics =
-{ {"misdn","set","tics", NULL},
-  misdn_set_tics,
-  "", 
-  "\n"
-};
-
-static struct ast_cli_entry cli_show_cls =
-{ {"misdn","show","channels", NULL},
-  misdn_show_cls,
-  "Shows internal mISDN chan_list", 
-  "Usage: misdn show channels\n"
-};
-
-static struct ast_cli_entry cli_show_cl =
-{ {"misdn","show","channel", NULL},
-  misdn_show_cl,
-  "Shows internal mISDN chan_list", 
-  "Usage: misdn show channels\n",
-  complete_ch
-};
-
-static struct ast_cli_entry cli_port_block=
-{ {"misdn","port","block", NULL},
-  misdn_port_block,
-  "Blocks the given port", 
-  "Usage: misdn port block\n"
-};
-
-static struct ast_cli_entry cli_port_unblock=
-{ {"misdn","port","unblock", NULL},
-  misdn_port_unblock,
-  "Unblocks the given port", 
-  "Usage: misdn port unblock\n"
-};
-
-
-static struct ast_cli_entry cli_restart_port =
-{ {"misdn","restart","port", NULL},
-  misdn_restart_port,
-  "Restarts the given port", 
-  "Usage: misdn restart port\n"
-};
-
-static struct ast_cli_entry cli_port_up =
-{ {"misdn","port","up", NULL},
-  misdn_port_up,
-  "Tries to establish L1 on the given port", 
-  "Usage: misdn port up <port>\n"
-};
-
-static struct ast_cli_entry cli_port_down =
-{ {"misdn","port","down", NULL},
-  misdn_port_down,
-  "Tries to deacivate the L1 on the given port", 
-  "Usage: misdn port down <port>\n"
-};
-
-
-
-static struct ast_cli_entry cli_show_stacks =
-{ {"misdn","show","stacks", NULL},
-  misdn_show_stacks,
-  "Shows internal mISDN stack_list", 
-  "Usage: misdn show stacks\n"
-};
-
-static struct ast_cli_entry cli_show_ports_stats =
-{ {"misdn","show","ports","stats", NULL},
-  misdn_show_ports_stats,
-  "Shows chan_misdns call statistics per port", 
-  "Usage: misdn show port stats\n"
-};
-
-
-static struct ast_cli_entry cli_show_port =
-{ {"misdn","show","port", NULL},
-  misdn_show_port,
-  "Shows detailed information for given port", 
-  "Usage: misdn show port <port>\n"
-};
-
-static struct ast_cli_entry cli_set_debug =
-{ {"misdn","set","debug", NULL},
-  misdn_set_debug,
-  "Sets Debuglevel of chan_misdn",
-  "Usage: misdn set debug <level> [only] | [port <port> [only]]\n",
-  complete_debug_port
-};
-
-static struct ast_cli_entry cli_set_crypt_debug =
-{ {"misdn","set","crypt","debug", NULL},
-  misdn_set_crypt_debug,
-  "Sets CryptDebuglevel of chan_misdn, at the moment, level={1,2}", 
-  "Usage: misdn set crypt debug <level>\n"
-};
-/*** CLI END ***/
 
 
 static int update_config (struct chan_list *ch, int orig) 
@@ -4545,6 +4441,8 @@ static int g_config_initialized=0;
 
 static int unload_module(void *mod)
 {
+ 	int i;
+
 	/* First, take us out of the channel loop */
 	ast_log(LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
 
@@ -4552,28 +4450,9 @@ static int unload_module(void *mod)
 	
 	if (!g_config_initialized) return 0;
 	
-	ast_cli_unregister(&cli_send_display);
+ 	for (i = 0; i < (sizeof(chan_misdn_clis) / sizeof(struct ast_cli_entry)); ++i)
+ 		ast_cli_unregister(chan_misdn_clis + i);
 	
-	ast_cli_unregister(&cli_send_cd);
-	
-	ast_cli_unregister(&cli_send_digit);
-	ast_cli_unregister(&cli_toggle_echocancel);
-	ast_cli_unregister(&cli_set_tics);
-  
-	ast_cli_unregister(&cli_show_cls);
-	ast_cli_unregister(&cli_show_cl);
-	ast_cli_unregister(&cli_show_config);
-	ast_cli_unregister(&cli_show_port);
-	ast_cli_unregister(&cli_show_ports_stats);
-	ast_cli_unregister(&cli_show_stacks);
-	ast_cli_unregister(&cli_port_block);
-	ast_cli_unregister(&cli_port_unblock);
-	ast_cli_unregister(&cli_restart_port);
-	ast_cli_unregister(&cli_port_up);
-	ast_cli_unregister(&cli_port_down);
-	ast_cli_unregister(&cli_set_debug);
-	ast_cli_unregister(&cli_set_crypt_debug);
-	ast_cli_unregister(&cli_reload);
 	/* ast_unregister_application("misdn_crypt"); */
 	ast_unregister_application("misdn_set_opt");
 	ast_unregister_application("misdn_facility");
@@ -4670,28 +4549,8 @@ static int load_module(void *mod)
 		}
 	}
   
-	ast_cli_register(&cli_send_display);
-	ast_cli_register(&cli_send_cd);
-	ast_cli_register(&cli_send_digit);
-	ast_cli_register(&cli_toggle_echocancel);
-	ast_cli_register(&cli_set_tics);
-
-	ast_cli_register(&cli_show_cls);
-	ast_cli_register(&cli_show_cl);
-	ast_cli_register(&cli_show_config);
-	ast_cli_register(&cli_show_port);
-	ast_cli_register(&cli_show_stacks);
-	ast_cli_register(&cli_show_ports_stats);
-
-	ast_cli_register(&cli_port_block);
-	ast_cli_register(&cli_port_unblock);
-	ast_cli_register(&cli_restart_port);
-	ast_cli_register(&cli_port_up);
-	ast_cli_register(&cli_port_down);
-	ast_cli_register(&cli_set_debug);
-	ast_cli_register(&cli_set_crypt_debug);
-	ast_cli_register(&cli_reload);
-
+	for (i = 0; i < (sizeof(chan_misdn_clis) / sizeof(struct ast_cli_entry)); ++i)
+		ast_cli_register(chan_misdn_clis + i);
   
 	ast_register_application("misdn_set_opt", misdn_set_opt_exec, "misdn_set_opt",
 				 "misdn_set_opt(:<opt><optarg>:<opt><optarg>..):\n"
