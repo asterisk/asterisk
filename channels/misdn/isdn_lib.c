@@ -615,8 +615,8 @@ void empty_bc(struct misdn_bchannel *bc)
 	bc->rad[0] = 0;
 	bc->orig_dad[0] = 0;
 	
-	bc->fac_in.Function = FacReq_None;
-	bc->fac_out.Function = FacReq_None;
+	bc->fac_in.Function = Fac_None;
+	bc->fac_out.Function = Fac_None;
 	
 	bc->te_choose_channel = 0;
 
@@ -3080,13 +3080,13 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel)
 }
 
 
-char *fac2str (enum FacReqFunction func) {
+char *fac2str (enum FacFunction func) {
 	struct arr_el { 
-		enum FacReqFunction p; 
+		enum FacFunction p; 
 		char *s ; 
 	} arr[] = {
-		{ FacReq_None, "FacReq_None" },
-		{ FacReq_CD, "FacReq_CD"},
+		{ Fac_None, "Fac_None" },
+		{ Fac_CD, "Fac_CD"},
 	};
 	
 	int i;

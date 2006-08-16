@@ -896,7 +896,7 @@ void parse_facility (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *
 	if (!p)
 		return;
 	
-	err = decodeFacReq(p, &(bc->fac_in));
+	err = decodeFac(p, &(bc->fac_in));
 	if (err) {
 		cb_log(1, bc->port, "Decoding FACILITY failed! (%d)\n", err);
 	}
@@ -916,7 +916,7 @@ msg_t *build_facility (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt
 	printf("Building FACILITY Msg\n"); 
 #endif
 	
-	len = encodeFacReq(fac_tmp, &(bc->fac_out));
+	len = encodeFac(fac_tmp, &(bc->fac_out));
 	if (len <= 0)
 		return NULL;
 

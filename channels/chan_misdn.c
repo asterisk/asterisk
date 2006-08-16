@@ -413,12 +413,38 @@ static char *bearer2str(int cap) {
 }
 
 
-static void print_facility(struct FacReqParm *fac, struct misdn_bchannel *bc)
+static void print_facility(struct FacParm *fac, struct misdn_bchannel *bc)
 {
 	switch (fac->Function) {
-	case FacReq_CD:
+	case Fac_CD:
 		chan_misdn_log(0,bc->port," --> calldeflect to: %s, screened: %s\n", fac->u.CDeflection.DeflectedToNumber,
 					   fac->u.CDeflection.PresentationAllowed ? "yes" : "no");
+		break;
+	case Fac_AOCDCurrency:
+		if (fac->u.AOCDcur.chargeNotAvailable)
+			chan_misdn_log(0,bc->port," --> AOCD currency: charge not available\n");
+		else if (fac->u.AOCDcur.freeOfCharge)
+			chan_misdn_log(0,bc->port," --> AOCD currency: free of charge\n");
+		else if (fac->u.AOCDchu.billingId >= 0)
+			chan_misdn_log(0,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%d billingId:%d\n",
+						   fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
+						   (fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDcur.billingId);
+		else
+			chan_misdn_log(0,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%d\n",
+						   fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
+						   (fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total");
+		break;
+	case Fac_AOCDChargingUnit:
+		if (fac->u.AOCDchu.chargeNotAvailable)
+			chan_misdn_log(0,bc->port," --> AOCD charging unit: charge not available\n");
+		else if (fac->u.AOCDchu.freeOfCharge)
+			chan_misdn_log(0,bc->port," --> AOCD charging unit: free of charge\n");
+		else if (fac->u.AOCDchu.billingId >= 0)
+			chan_misdn_log(0,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s billingId:%d\n",
+						   fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDchu.billingId);
+		else
+			chan_misdn_log(0,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s\n",
+						   fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total");
 		break;
 	default:
 		chan_misdn_log(0,bc->port," --> unknown\n");
@@ -1114,7 +1140,7 @@ static int misdn_send_cd (int fd, int argc, char *argv[])
 				ast_cli(fd, "Sending CD with nr %s to %s failed: Number too long (up to 15 digits are allowed).\n",nr, channame);
 				return 0; 
 			}
-			tmp->bc->fac_out.Function = FacReq_CD;
+			tmp->bc->fac_out.Function = Fac_CD;
 			strncpy((char *)tmp->bc->fac_out.u.CDeflection.DeflectedToNumber, nr, sizeof(tmp->bc->fac_out.u.CDeflection.DeflectedToNumber));
 			misdn_lib_send_event(tmp->bc, EVENT_FACILITY);
 		}
@@ -1868,6 +1894,9 @@ static int read_config(struct chan_list *ch, int orig) {
 		if (!ch->trans)
 			ch->trans=ast_translator_build_path(AST_FORMAT_SLINEAR, AST_FORMAT_ALAW);
 	}
+
+	/* AOCD initialization */
+	bc->AOCDtype = Fac_None;
 
 	return 0;
 }
@@ -4453,29 +4482,34 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		print_facility(&(bc->fac_in), bc);
 		
 		switch (bc->fac_in.Function) {
-		case FacReq_CD:
-		{
-			struct ast_channel *bridged=AST_BRIDGED_P(ch->ast);
-			struct chan_list *ch_br;
-			
-			if (bridged && MISDN_ASTERISK_TECH_PVT(bridged)) {
-				ch_br=MISDN_ASTERISK_TECH_PVT(bridged);
-				/*ch->state=MISDN_FACILITY_DEFLECTED;*/
-				if (ch_br->bc) {
-					if (ast_exists_extension(bridged, ch->context, (char *)bc->fac_in.u.CDeflection.DeflectedToNumber, 1, bc->oad)) {
-						ch_br->state=MISDN_DIALING;
-						if (pbx_start_chan(ch_br) < 0) {
-							chan_misdn_log(-1, ch_br->bc->port, "ast_pbx_start returned < 0 in misdn_overlap_dial_task\n");
+		case Fac_CD:
+			{
+				struct ast_channel *bridged=AST_BRIDGED_P(ch->ast);
+				struct chan_list *ch_br;
+				if (bridged && MISDN_ASTERISK_TECH_PVT(bridged)) {
+					ch_br=MISDN_ASTERISK_TECH_PVT(bridged);
+					/*ch->state=MISDN_FACILITY_DEFLECTED;*/
+					if (ch_br->bc) {
+						if (ast_exists_extension(bridged, ch->context, (char *)bc->fac_in.u.CDeflection.DeflectedToNumber, 1, bc->oad)) {
+							ch_br->state=MISDN_DIALING;
+							if (pbx_start_chan(ch_br) < 0) {
+								chan_misdn_log(-1, ch_br->bc->port, "ast_pbx_start returned < 0 in misdn_overlap_dial_task\n");
+							}
 						}
 					}
+
 				}
-				
-			}
-			
-			misdn_lib_send_event(bc, EVENT_DISCONNECT);
-		} 
-		
-		break;
+				misdn_lib_send_event(bc, EVENT_DISCONNECT);
+			} 
+			break;
+		case Fac_AOCDCurrency:
+			bc->AOCDtype = Fac_AOCDCurrency;
+			memcpy(&(bc->AOCD.currency), &(bc->fac_in.u.AOCDcur), sizeof(struct FacAOCDCurrency));
+			break;
+		case Fac_AOCDChargingUnit:
+			bc->AOCDtype = Fac_AOCDChargingUnit;
+			memcpy(&(bc->AOCD.chargingUnit), &(bc->fac_in.u.AOCDchu), sizeof(struct FacAOCDChargingUnit));
+			break;
 		default:
 			chan_misdn_log(0, bc->port," --> not yet handled: facility type:%p\n", bc->fac_in.Function);
 		}
@@ -4763,7 +4797,7 @@ static int misdn_facility_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "Facility: Number argument too long (up to 15 digits are allowed). Ignoring.\n");
 			return 0; 
 		}
-		ch->bc->fac_out.Function = FacReq_CD;
+		ch->bc->fac_out.Function = Fac_CD;
 		strncpy((char *)ch->bc->fac_out.u.CDeflection.DeflectedToNumber, tok, sizeof(ch->bc->fac_out.u.CDeflection.DeflectedToNumber));
 		misdn_lib_send_event(ch->bc, EVENT_FACILITY);
 	} else {

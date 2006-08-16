@@ -256,8 +256,15 @@ struct misdn_bchannel {
 	int progress_location;
 	int progress_indicator;
 
-	struct FacReqParm fac_in;
-	struct FacReqParm fac_out;
+	struct FacParm fac_in;
+	struct FacParm fac_out;
+
+	/* storing the current AOCD info here */
+	enum FacFunction AOCDtype;
+	union {
+		struct FacAOCDCurrency currency;
+		struct FacAOCDChargingUnit chargingUnit;
+	} AOCD;
 	
 	enum event_e evq;
 	
