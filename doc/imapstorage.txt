@@ -53,14 +53,12 @@ Compile c-client and verify that a c-client.a file has been generated.
 ------------------
 Compiling Asterisk 
 ------------------
-Uncomment the following lines in apps/Makefile:
 
-USE_IMAP_VM_INTERFACE=1
-UWCLIENT_HOME=/usr/src/imap/c-client <- path to c-client.a (above)
-CFLAGS+=-DUSE_IMAP_STORAGE
-
-Type "make" in the asterisk directory.  Do not attempt to make from the
-asterisk/apps directory.
+Configure with ./configure --with-imap=/usr/src/imap
+or where ever you built the University of Washington IMAP C-Client.
+Then make menuselect go to voicemail options and check the imap box
+then make, make install and asterisk will have imap storage support for 
+voicemail.
 
 ---------------------
 Modify voicemail.conf

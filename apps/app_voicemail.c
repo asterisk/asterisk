@@ -2355,7 +2355,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 
 #else
 #ifdef IMAP_STORAGE
-static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
+static int count_messages_imap(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
    	SEARCHPGM *pgm;
    	SEARCHHEADER *hdr;
@@ -2383,7 +2383,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
  		ret = 0;
  		while((cur = strsep(&mb, ", "))) {
  			if (!ast_strlen_zero(cur)) {
- 				if (messagecount(cur, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
+ 				if (count_messages_imap(cur, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
  					return -1;
  				else {
  					if (newmsgs)
@@ -2507,13 +2507,6 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
  	}
  	return 0;
  }
-#else
-
-static int messagecount(const char *context, const char *mailbox, const char *folder)
-{
-	return __has_voicemail(context, mailbox, folder, 0);
-}
-
 #endif
 #endif
 
@@ -2553,6 +2546,13 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 }
 
 #ifndef ODBC_STORAGE
+
+static int messagecount(const char *context, const char *mailbox, const char *folder)
+{
+	return __has_voicemail(context, mailbox, folder, 0);
+}
+
+
 static int __has_voicemail(const char *context, const char *mailbox, const char *folder, int shortcircuit)
 {
 	DIR *dir;
@@ -2879,7 +2879,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			oldmsgs = vms->oldmessages;
 		} else {
 			ast_log(LOG_DEBUG, "About to call messagecount.\n");
-			res = messagecount(ext, &newmsgs, &oldmsgs);
+			res = count_messages_imap(ext, &newmsgs, &oldmsgs);
 			if(res < 0) {
 				ast_log(LOG_NOTICE,"Can not leave voicemail, unable to count messages\n");
 				return -1;
@@ -8513,7 +8513,7 @@ static void check_msgArray(struct vm_state *vms)
 	for (x = 0; x<256; x++) {
 		if (vms->msgArray[x]!=0) {
   			ast_log (LOG_DEBUG, "Item %d set to %ld\n",x,vms->msgArray[x]);
-		};
+		}
 	}
   	ast_log (LOG_DEBUG, "Check complete.\n");
 }
