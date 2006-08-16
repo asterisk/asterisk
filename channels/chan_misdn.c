@@ -4450,8 +4450,7 @@ static int unload_module(void *mod)
 	
 	if (!g_config_initialized) return 0;
 	
- 	for (i = 0; i < (sizeof(chan_misdn_clis) / sizeof(struct ast_cli_entry)); ++i)
- 		ast_cli_unregister(chan_misdn_clis + i);
+	ast_cli_unregister_multiple(chan_misdn_clis, sizeof(chan_misdn_clis) / sizeof(chan_misdn_clis[0]));
 	
 	/* ast_unregister_application("misdn_crypt"); */
 	ast_unregister_application("misdn_set_opt");
@@ -4549,8 +4548,7 @@ static int load_module(void *mod)
 		}
 	}
   
-	for (i = 0; i < (sizeof(chan_misdn_clis) / sizeof(struct ast_cli_entry)); ++i)
-		ast_cli_register(chan_misdn_clis + i);
+	ast_cli_register_multiple(chan_misdn_clis, sizeof(chan_misdn_clis) / sizeof(chan_misdn_clis[0]));
   
 	ast_register_application("misdn_set_opt", misdn_set_opt_exec, "misdn_set_opt",
 				 "misdn_set_opt(:<opt><optarg>:<opt><optarg>..):\n"
