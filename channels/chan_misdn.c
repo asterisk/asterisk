@@ -4441,8 +4441,6 @@ static int g_config_initialized=0;
 
 static int unload_module(void *mod)
 {
- 	int i;
-
 	/* First, take us out of the channel loop */
 	ast_log(LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
 
@@ -4590,7 +4588,7 @@ static int load_module(void *mod)
 		}
 	}
 	
-	chan_misdn_log(0, 0, "-- mISDN Channel Driver Registred -- (BE AWARE THIS DRIVER IS EXPERIMENTAL!)\n");
+	chan_misdn_log(0, 0, "-- mISDN Channel Driver Registered -- (BE AWARE THIS DRIVER IS EXPERIMENTAL!)\n");
 
 	return 0;
 }
