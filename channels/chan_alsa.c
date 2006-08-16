@@ -829,6 +829,7 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 		usecnt++;
 		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
+		ast_jb_configure(tmp, &global_jbconf);
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -836,8 +837,6 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 				tmp = NULL;
 			}
 		}
-		if (tmp)
-			ast_jb_configure(tmp, &global_jbconf);
 	}
 	return tmp;
 }

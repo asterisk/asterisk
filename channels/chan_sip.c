@@ -3703,6 +3703,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (!ast_strlen_zero(i->callid))
 		pbx_builtin_setvar_helper(tmp, "SIPCALLID", i->callid);
 	ast_setstate(tmp, state);
+	if (i->rtp)
+		ast_jb_configure(tmp, &global_jbconf);
 	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
 		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 		tmp->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
@@ -3715,10 +3717,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	if (recordhistory)
 		append_history(i, "NewChan", "Channel %s - from %s", tmp->name, i->callid);
-
-	/* Configure the new channel jb */
-	if (tmp && i && i->rtp)
-		ast_jb_configure(tmp, &global_jbconf);
 
 	return tmp;
 }

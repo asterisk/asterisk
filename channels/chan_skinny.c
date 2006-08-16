@@ -2592,6 +2592,9 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		tmp->priority = 1;
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 
+		if (sub->rtp)
+			ast_jb_configure(tmp, &global_jbconf);
+
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -2599,10 +2602,6 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 				tmp = NULL;
 			}
 		}
-
-		/* Configure the new channel jb */
-		if (tmp && sub->rtp)
-			ast_jb_configure(tmp, &global_jbconf);
 	}
 	return tmp;
 }

@@ -813,16 +813,14 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 		tmp->cid.cid_dnid = ast_strdup(i->exten);
 	tmp->priority = 1;
 	ast_setstate(tmp, state);
+	if (i->rtp)
+		ast_jb_configure(tmp, &global_jbconf);
 	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
 		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 		tmp->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 		ast_hangup(tmp);
 		tmp = NULL;
 	}
-
-	/* Configure the new channel jb */
-	if (tmp && i && i->rtp)
-		ast_jb_configure(tmp, &global_jbconf);
 
 	return tmp;
 }

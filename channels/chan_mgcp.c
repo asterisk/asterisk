@@ -1425,6 +1425,8 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		if (!i->adsi)
 			tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 		tmp->priority = 1;
+		if (sub->rtp)
+			ast_jb_configure(tmp, &global_jbconf);
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -1437,10 +1439,6 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 			ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_new(%s) created in state: %s\n",
 				tmp->name, ast_state2str(state));
 		}
-
-		/* Configure the new channel jb */
-		if (tmp && sub && sub->rtp)
-			ast_jb_configure(tmp, &global_jbconf);
 	} else {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 	}

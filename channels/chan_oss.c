@@ -1021,6 +1021,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o,
 	usecnt++;
 	ast_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
+	ast_jb_configure(c, &global_jbconf);
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(c)) {
 			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", c->name);
@@ -1030,8 +1031,6 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o,
 			/* XXX what about usecnt ? */
 		}
 	}
-	if (c)
-		ast_jb_configure(c, &global_jbconf);
 
 	return c;
 }
