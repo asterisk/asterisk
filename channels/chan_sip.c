@@ -4926,29 +4926,21 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	bridgepeer = ast_bridged_channel(p->owner);
 
 	/* Turn on/off music on hold if we are holding/unholding */
-	if (sin.sin_addr.s_addr && !sendonly) {
-		/* Update peer state */
-		sip_peer_hold(p, 0);
-		if (bridgepeer)
+	if ((bridgepeer = ast_bridged_channel(p->owner))) {
+		if (sin.sin_addr.s_addr && !sendonly) {
 			ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
-		
-		/* Activate a re-invite */
-		ast_queue_frame(p->owner, &ast_null_frame);
-	} else if (!sin.sin_addr.s_addr || sendonly) {
-		/* Update peer state */
-		sip_peer_hold(p, 1);
-		/* No address for RTP, we're on hold */
-		if (bridgepeer)
+			/* Activate a re-invite */
+			ast_queue_frame(p->owner, &ast_null_frame);
+		} else if (!sin.sin_addr.s_addr || sendonly) {
 			ast_queue_control_data(p->owner, AST_CONTROL_HOLD, 
 					       S_OR(p->mohsuggest, NULL),
 					       !ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
-		
-		if (sendonly)
-			ast_rtp_stop(p->rtp);
-		/* RTCP needs to go ahead, even if we're on hold!!! */
-		
-		/* Activate a re-invite */
-		ast_queue_frame(p->owner, &ast_null_frame);
+			if (sendonly)
+				ast_rtp_stop(p->rtp);
+			/* RTCP needs to go ahead, even if we're on hold!!! */
+			/* Activate a re-invite */
+			ast_queue_frame(p->owner, &ast_null_frame);
+		}
 	}
 
 	/* Manager Hold and Unhold events must be generated, if necessary */
@@ -4961,7 +4953,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					"Uniqueid: %s\r\n",
 					p->owner->name, 
 					p->owner->uniqueid);
-
+			sip_peer_hold(p, 0);
 		} 
 		ast_clear_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD);	/* Clear both flags */
 	} else if (!sin.sin_addr.s_addr || sendonly ) {
@@ -4979,6 +4971,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_ONEDIR);
 		else if (sendonly == 2)	/* Inactive stream */
 			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_INACTIVE);
+		sip_peer_hold(p, 1);
 	}
 	
 	return 0;
@@ -7800,7 +7793,7 @@ static void sip_peer_hold(struct sip_pvt *p, int hold)
 	/* If they put someone on hold, increment the value... otherwise decrement it */
 	if (hold)
 		peer->onHold++;
-	else
+	else if (hold > 0)
 		peer->onHold--;
 
 	/* Request device state update */
