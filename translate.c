@@ -482,8 +482,9 @@ static void rebuild_matrix(int samples)
 /*! \brief CLI "show translation" command handler */
 static int show_translation(int fd, int argc, char *argv[])
 {
-#define SHOW_TRANS 11
+#define SHOW_TRANS 12
 	int x, y, z;
+	int curlen = 0, longest = 0;
 
 	if (argc > 4) 
 		return RESULT_SHOWUSAGE;
@@ -507,7 +508,13 @@ static int show_translation(int fd, int argc, char *argv[])
 	}
 
 	ast_cli(fd, "         Translation times between formats (in milliseconds)\n");
-	ast_cli(fd, "          Source Format (Rows) Destination Format(Columns)\n\n");
+	ast_cli(fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
+	/* Get the length of the longest (usable?) codec name, so we know how wide the left side should be */
+	for (x = 0; x < SHOW_TRANS; x++) {
+		curlen = strlen(ast_getformatname(1 << (x + 1)));
+		if (curlen > longest)
+			longest = curlen;
+	}
 	for (x = -1; x < SHOW_TRANS; x++) {
 		char line[80];
 		char *buf = line;
@@ -516,14 +523,23 @@ static int show_translation(int fd, int argc, char *argv[])
 		*buf++ = ' ';
 		*buf = '\0';
 		for (y = -1; y < SHOW_TRANS; y++) {
-			if (x >= 0 && y >= 0 && tr_matrix[x][y].step)    /* XXX what is 99999 ? */
-				ast_build_string(&buf, &left, " %5d", tr_matrix[x][y].cost >= 99999 ? 0 : tr_matrix[x][y].cost);
-			else if (((x == -1 && y >= 0) || (y == -1 && x >= 0))) {
-				ast_build_string(&buf, &left, " %5s", ast_getformatname(1 << (x + y + 1)) );
-			} else if (x != -1 && y != -1) {
-				ast_build_string(&buf, &left, "     -");
+			curlen = strlen(ast_getformatname(1 << (y)));
+
+			if (x >= 0 && y >= 0 && tr_matrix[x][y].step) {
+				/* XXX 999 is a little hackish
+				   We don't want this number being larger than the shortest (or current) codec
+				   For now, that is "gsm" */
+				ast_build_string(&buf, &left, "%*d", curlen + 1, tr_matrix[x][y].cost > 999 ? 0 : tr_matrix[x][y].cost);
+			} else if (x == -1 && y >= 0) {
+				/* Top row - use a dynamic size */
+				ast_build_string(&buf, &left, "%*s", curlen + 1, ast_getformatname(1 << (x + y + 1)) );
+			} else if (y == -1 && x >= 0) {
+				/* Left column - use a static size. */
+				ast_build_string(&buf, &left, "%*s", longest, ast_getformatname(1 << (x + y + 1)) );
+			} else if (x >= 0 && y >= 0) {
+				ast_build_string(&buf, &left, "%*s", curlen + 1, "-");
 			} else {
-				ast_build_string(&buf, &left, "      ");
+				ast_build_string(&buf, &left, "%*s", longest, "");
 			}
 		}
 		ast_build_string(&buf, &left, "\n");

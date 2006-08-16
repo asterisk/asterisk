@@ -615,13 +615,13 @@ static int show_codecs(int fd, int argc, char *argv[])
 		ast_cli(fd, "Disclaimer: this command is for informational purposes only.\n"
 				"\tIt does not indicate anything about your configuration.\n");
 
-	ast_cli(fd, "%11s %9s %10s   TYPE   %5s   %s\n","INT","BINARY","HEX","NAME","DESC");
+	ast_cli(fd, "%11s %9s %10s   TYPE   %8s   %s\n","INT","BINARY","HEX","NAME","DESC");
 	ast_cli(fd, "--------------------------------------------------------------------------------\n");
 	if ((argc == 2) || (!strcasecmp(argv[1],"audio"))) {
 		found = 1;
-		for (i=0;i<11;i++) {
+		for (i=0;i<12;i++) {
 			snprintf(hex,25,"(0x%x)",1<<i);
-			ast_cli(fd, "%11u (1 << %2d) %10s  audio   %5s   (%s)\n",1 << i,i,hex,ast_getformatname(1<<i),ast_codec2str(1<<i));
+			ast_cli(fd, "%11u (1 << %2d) %10s  audio   %8s   (%s)\n",1 << i,i,hex,ast_getformatname(1<<i),ast_codec2str(1<<i));
 		}
 	}
 
@@ -629,7 +629,7 @@ static int show_codecs(int fd, int argc, char *argv[])
 		found = 1;
 		for (i=16;i<18;i++) {
 			snprintf(hex,25,"(0x%x)",1<<i);
-			ast_cli(fd, "%11u (1 << %2d) %10s  image   %5s   (%s)\n",1 << i,i,hex,ast_getformatname(1<<i),ast_codec2str(1<<i));
+			ast_cli(fd, "%11u (1 << %2d) %10s  image   %8s   (%s)\n",1 << i,i,hex,ast_getformatname(1<<i),ast_codec2str(1<<i));
 		}
 	}
 
@@ -637,7 +637,7 @@ static int show_codecs(int fd, int argc, char *argv[])
 		found = 1;
 		for (i=18;i<22;i++) {
 			snprintf(hex,25,"(0x%x)",1<<i);
-			ast_cli(fd, "%11u (1 << %2d) %10s  video   %5s   (%s)\n",1 << i,i,hex,ast_getformatname(1<<i),ast_codec2str(1<<i));
+			ast_cli(fd, "%11u (1 << %2d) %10s  video   %8s   (%s)\n",1 << i,i,hex,ast_getformatname(1<<i),ast_codec2str(1<<i));
 		}
 	}
 
