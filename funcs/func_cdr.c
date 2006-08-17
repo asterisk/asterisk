@@ -42,9 +42,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 enum {
 	OPT_RECURSIVE = (1 << 0),
 	OPT_UNPARSED = (1 << 1),
+	OPT_LAST = (1 << 2),
 } cdr_option_flags;
 
 AST_APP_OPTIONS(cdr_func_options, {
+	AST_APP_OPTION('l', OPT_LAST),
 	AST_APP_OPTION('r', OPT_RECURSIVE),
 	AST_APP_OPTION('u', OPT_UNPARSED),
 });
@@ -54,6 +56,7 @@ static int cdr_read(struct ast_channel *chan, char *cmd, char *parse,
 {
 	char *ret;
 	struct ast_flags flags = { 0 };
+	struct ast_cdr *cdr = chan->cdr;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(variable);
 			     AST_APP_ARG(options);
@@ -62,7 +65,7 @@ static int cdr_read(struct ast_channel *chan, char *cmd, char *parse,
 	if (ast_strlen_zero(parse))
 		return -1;
 
-	if (!chan->cdr)
+	if (!cdr)
 		return -1;
 
 	AST_STANDARD_APP_ARGS(args, parse);
@@ -70,7 +73,11 @@ static int cdr_read(struct ast_channel *chan, char *cmd, char *parse,
 	if (!ast_strlen_zero(args.options))
 		ast_app_parse_options(cdr_func_options, &flags, NULL, args.options);
 
-	ast_cdr_getvar(chan->cdr, args.variable, &ret, buf, len,
+	if (ast_test_flag(&flags, OPT_LAST))
+		while (cdr->next)
+			cdr = cdr->next;
+
+	ast_cdr_getvar(cdr, args.variable, &ret, buf, len,
 		       ast_test_flag(&flags, OPT_RECURSIVE),
 			   ast_test_flag(&flags, OPT_UNPARSED));
 
