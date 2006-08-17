@@ -260,6 +260,8 @@ static struct robin_list* get_robin_position (char *group)
 static struct sched_context *misdn_tasks = NULL;
 static pthread_t misdn_tasks_thread;
 
+static int *misdn_ports;
+
 static void chan_misdn_log(int level, int port, char *tmpl, ...);
 
 static struct ast_channel *misdn_new(struct chan_list *cl, int state,  char *exten, char *callerid, int format, int port, int c);
@@ -560,8 +562,8 @@ static void misdn_tasks_remove (int task_id)
 
 static int misdn_l1_task (void *data)
 {
-	misdn_lib_isdn_l1watcher((int)data);
-	chan_misdn_log(5, (int)data, "L1watcher timeout\n");
+	misdn_lib_isdn_l1watcher(*(int *)data);
+	chan_misdn_log(5, *(int *)data, "L1watcher timeout\n");
 	return 1;
 }
 
@@ -4465,7 +4467,8 @@ static int unload_module(void *mod)
 		free(misdn_debug);
 	if (misdn_debug_only)
 		free(misdn_debug_only);
-	
+ 	free(misdn_ports);
+ 	
 	return 0;
 }
 
@@ -4489,12 +4492,15 @@ static int load_module(void *mod)
 	g_config_initialized=1;
 	
 	misdn_debug = (int *)malloc(sizeof(int) * (max_ports+1));
+	misdn_ports = (int *)malloc(sizeof(int) * (max_ports+1));
 	misdn_cfg_get( 0, MISDN_GEN_DEBUG, &misdn_debug[0], sizeof(int));
-	for (i = 1; i <= max_ports; i++)
+	for (i = 1; i <= max_ports; i++) {
 		misdn_debug[i] = misdn_debug[0];
+		misdn_ports[i] = i;
+	}
+	*misdn_ports = 0;
 	misdn_debug_only = (int *)calloc(max_ports + 1, sizeof(int));
 
-	
 	{
 		char tempbuf[BUFFERSIZE+1];
 		misdn_cfg_get( 0, MISDN_GEN_TRACEFILE, tempbuf, BUFFERSIZE);
@@ -4584,7 +4590,7 @@ static int load_module(void *mod)
 		misdn_cfg_get(port, MISDN_CFG_L1_TIMEOUT, &l1timeout, sizeof(l1timeout));
 		if (l1timeout) {
 			chan_misdn_log(4, 0, "Adding L1watcher task: port:%d timeout:%ds\n", port, l1timeout);
-			misdn_tasks_add(l1timeout * 1000, misdn_l1_task, (void*)port);  
+			misdn_tasks_add(l1timeout * 1000, misdn_l1_task, &misdn_ports[port]);  
 		}
 	}
 	
