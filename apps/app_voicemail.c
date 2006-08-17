@@ -6470,10 +6470,13 @@ out:
 	/* expunge message - use UID Expunge if supported on IMAP server*/
 	ast_log(LOG_DEBUG, "*** Checking if we can expunge, deleted set to %d, expungeonhangup set to %d\n",deleted,expungeonhangup);
 	if (vmu && deleted == 1 && expungeonhangup == 1)  {
+#ifdef HAVE_IMAP_TK2006
 	      	if (LEVELUIDPLUS (vms.mailstream)) {
 			ast_log(LOG_DEBUG, "*** About to expunge messages using UID\n");
 			mail_expunge_full(vms.mailstream,NIL,EX_UID);
-		} else {
+		} else 
+#endif
+		{
 			ast_log(LOG_DEBUG, "*** About to expunge messages\n");
 			mail_expunge(vms.mailstream);
 		}

@@ -58,7 +58,9 @@ Configure with ./configure --with-imap=/usr/src/imap
 or where ever you built the University of Washington IMAP C-Client.
 Then make menuselect go to voicemail options and check the imap box
 then make, make install and asterisk will have imap storage support for 
-voicemail.
+voicemail. If you are using there 2004 version you will not have access to
+their mail_expunge_full function if you install the 2006 dev branch it will
+configure will detect and enable this for you.
 
 ---------------------
 Modify voicemail.conf

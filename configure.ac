@@ -348,8 +348,7 @@ if test "${USE_IMAP_TK}" != "no"; then
    LIBS="${LIBS} ${IMAP_TK_DIR}/c-client/c-client.a "`echo ${imap_ldflags}`
    AC_LINK_IFELSE(
 	AC_LANG_PROGRAM(
-		[#include "c-client.h"],
-		[
+		[#include "c-client.h"
 		void mm_searched (MAILSTREAM *stream,unsigned long number)
 		{
 		}
@@ -394,16 +393,71 @@ if test "${USE_IMAP_TK}" != "no"; then
 		}
 		void mm_fatal (char *string)
 		{
-		}
-		int main()
-		{
+		}],
+		[
 		MAILSTREAM *foo = mail_open(NULL, "", 0);
-		}
 		]
 	),
 	[ac_cv_imap_tk="yes"],
 	[ac_cv_imap_tk="no"]
    )
+   if test "${ac_cv_imap_tk}" = "yes"; then
+   AC_LINK_IFELSE(
+      AC_LANG_PROGRAM(
+         [#include "c-client.h"
+         void mm_searched (MAILSTREAM *stream,unsigned long number)
+         {
+         }
+         void mm_exists (MAILSTREAM *stream,unsigned long number)
+         {
+         }
+         void mm_expunged (MAILSTREAM *stream,unsigned long number)
+         {
+         }
+         void mm_flags (MAILSTREAM *stream,unsigned long number)
+         {
+         }
+         void mm_notify (MAILSTREAM *stream,char *string,long errflg)
+         {
+         }
+         void mm_list (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+         {
+         }
+         void mm_lsub (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+         {
+         }
+         void mm_status (MAILSTREAM *stream,char *mailbox,MAILSTATUS *status)
+         {
+         }
+         void mm_log (char *string,long errflg)
+         {
+         }
+         void mm_dlog (char *string)
+         {
+         }
+         void mm_login (NETMBX *mb,char *user,char *pwd,long trial)
+         {
+         }
+         void mm_critical (MAILSTREAM *stream)
+         {
+         }
+         void mm_nocritical (MAILSTREAM *stream)
+         {
+         }
+         long mm_diskerror (MAILSTREAM *stream,long errcode,long serious)
+         {
+         }
+         void mm_fatal (char *string)
+         {
+         }],
+         [
+         long check = mail_expunge_full(NULL, "", 0);
+         ]
+      ),
+      [ac_cv_imap_tk2006="yes"],
+      [ac_cv_imap_tk2006="no"]
+  )
+  fi
    CPPFLAGS="${saved_cppflags}"
    LIBS="${saved_libs}"
    if test "${ac_cv_imap_tk}" = "yes"; then
@@ -412,6 +466,9 @@ if test "${USE_IMAP_TK}" != "no"; then
       IMAP_TK_INCLUDE="-I${IMAP_TK_DIR}/c-client"
       PBX_IMAP_TK=1
       AC_DEFINE([HAVE_IMAP_TK], 1, [Define if your system has the UW IMAP Toolkit c-client library.])
+      if test "${ac_cv_imap_tk2006}" = "yes"; then
+         AC_DEFINE([HAVE_IMAP_TK2006], 1, [Define if your system has the UW IMAP Toolkit c-client library version 2006 or greater.])
+      fi
    elif test ! -z "${IMAP_TK_MANDATORY}"; then
       AC_MSG_RESULT(no) 
       AC_MSG_NOTICE(***)
