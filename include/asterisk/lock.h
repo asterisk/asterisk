@@ -789,12 +789,12 @@ AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 #elif defined(HAVE_OSX_ATOMICS) && (SIZEOF_INT == 4)
 AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 {
-	return OSAtomicDecrement32((int32_t *) p) == 0;
+	return OSAtomicAdd32( -1, (int32_t *) p) == 0;
 })
 #elif defined(HAVE_OSX_ATOMICS) && (SIZEOF_INT == 8)
 AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 {
-	return OSAtomicDecrement64((int64_t *) p) == 0;
+	return OSAtomicAdd64( -1, (int64_t *) p) == 0;
 #else
 AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 {
