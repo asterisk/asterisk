@@ -44,11 +44,12 @@ static char *builtin_function_cdr_read(struct ast_channel *chan, char *cmd, char
 	int argc;
 	char *argv[2];
 	int recursive = 0;
+	struct ast_cdr *cdr = chan->cdr;
 
 	if (ast_strlen_zero(data))
 		return NULL;
 	
-	if (!chan->cdr)
+	if (!cdr)
 		return NULL;
 
 	mydata = ast_strdupa(data);
@@ -61,7 +62,11 @@ static char *builtin_function_cdr_read(struct ast_channel *chan, char *cmd, char
 			recursive = 1;
 	}
 
-	ast_cdr_getvar(chan->cdr, argv[0], &ret, buf, len, recursive);
+	/* Find last entry */
+	while (cdr->next)
+		cdr = cdr->next;
+
+	ast_cdr_getvar(cdr, argv[0], &ret, buf, len, recursive);
 
 	return ret;
 }
