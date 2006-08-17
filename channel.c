@@ -3349,7 +3349,8 @@ int ast_setstate(struct ast_channel *chan, int state)
 
 	chan->_state = state;
 	ast_device_state_changed_literal(chan->name);
-	manager_event(EVENT_FLAG_CALL, "Newstate",
+	manager_event(EVENT_FLAG_CALL,
+		      (oldstate == AST_STATE_DOWN) ? "Newchannel" : "Newstate",
 		      "Channel: %s\r\n"
 		      "State: %s\r\n"
 		      "CallerID: %s\r\n"
