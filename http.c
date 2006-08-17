@@ -394,23 +394,50 @@ static void *ast_httpd_helper_thread(void *data)
 			if (ast_strlen_zero(cookie))
 				break;
 			if (!strncasecmp(cookie, "Cookie: ", 8)) {
-				vname = cookie + 8;
-				vval = strchr(vname, '=');
-				if (vval) {
-					/* Ditch the = and the quotes */
-					*vval = '\0';
-					vval++;
-					if (*vval)
-						vval++;
-					if (strlen(vval))
-						vval[strlen(vval) - 1] = '\0';
-					var = ast_variable_new(vname, vval);
-					if (var) {
-						if (prev)
-							prev->next = var;
-						else
-							vars = var;
-						prev = var;
+
+				/* TODO - The cookie parsing code below seems to work   
+				   in IE6 and FireFox 1.5.  However, it is not entirely 
+				   correct, and therefore may not work in all           
+				   circumstances.		                        
+				      For more details see RFC 2109 and RFC 2965        */
+			
+				/* FireFox cookie strings look like:                    
+				     Cookie: mansession_id="********"                   
+				   InternetExplorer's look like:                        
+				     Cookie: $Version="1"; mansession_id="********"     */
+				
+				/* If we got a FireFox cookie string, the name's right  
+				    after "Cookie: "                                    */
+                                vname = cookie + 8;
+				
+				/* If we got an IE cookie string, we need to skip to    
+				    past the version to get to the name                 */
+				if (*vname == '$') {
+					vname = strchr(vname, ';');
+					if (vname) { 
+						vname++;
+						if (*vname == ' ')
+							vname++;
+					}
+				}
+				
+				if (vname) {
+					vval = strchr(vname, '=');
+					if (vval) {
+						/* Ditch the = and the quotes */
+						*vval++ = '\0';
+						if (*vval)
+							vval++;
+						if (strlen(vval))
+							vval[strlen(vval) - 1] = '\0';
+						var = ast_variable_new(vname, vval);
+						if (var) {
+							if (prev)
+								prev->next = var;
+							else
+								vars = var;
+							prev = var;
+						}
 					}
 				}
 			}
