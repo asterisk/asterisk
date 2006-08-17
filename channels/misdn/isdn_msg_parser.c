@@ -12,29 +12,56 @@
  */
 
 
+#include "isdn_lib_intern.h"
+
+
 #include "isdn_lib.h"
+
 #include "ie.c"
 
+#include "fac.h"
+
+
+void set_channel(struct misdn_bchannel *bc, int channel) {
+
+	cb_log(3,bc->port,"set_channel: bc->channel:%d channel:%d\n", bc->channel, channel);
+	
+	
+	if (channel==0xff) {
+		/* any channel */
+		channel=-1;
+	}
+	
+	/*  ALERT: is that everytime true ?  */
+	if (channel > 0 && bc->nt ) {
+		
+		if (bc->channel && ( bc->channel != 0xff) ) {
+			cb_log(0,bc->port,"We already have a channel (%d)\n", bc->channel);
+		} else {
+			bc->channel = channel;
+		}
+	}
+	
+	if (channel > 0 && !bc->nt ) 
+		bc->channel = channel;
+}
 
 void parse_proceeding (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	CALL_PROCEEDING_t *proceeding=(CALL_PROCEEDING_t*)((unsigned long)msg->data+ HEADER_LEN);
-	struct misdn_stack *stack=get_stack_by_bc(bc);
+	//struct misdn_stack *stack=get_stack_by_bc(bc);
 	
 	{
 		int  exclusive, channel;
 		dec_ie_channel_id(proceeding->CHANNEL_ID, (Q931_info_t *)proceeding, &exclusive, &channel, nt,bc);
+
+		set_channel(bc,channel);
 		
-		if (channel==0xff) /* any channel */
-			channel=-1;
-    
-		/*  ALERT: is that everytime true ?  */
-		if (channel > 0 && stack->mode == NT_MODE) 
-			bc->channel = channel;
 	}
 	
 	dec_ie_progress(proceeding->PROGRESS, (Q931_info_t *)proceeding, &bc->progress_coding, &bc->progress_location, &bc->progress_indicator, nt, bc);
+	
 	
 #if DEBUG 
 	printf("Parsing PROCEEDING Msg\n"); 
@@ -58,9 +85,6 @@ msg_t *build_proceeding (struct isdn_msg msgs[], struct misdn_bchannel *bc, int 
 	printf("Building PROCEEDING Msg\n"); 
 #endif
 	return msg; 
-}
-void print_proceeding (struct isdn_msg msgs[]) 
-{
 }
 
 void parse_alerting (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
@@ -94,9 +118,6 @@ msg_t *build_alerting (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt
 #endif
 	return msg; 
 }
-void print_alerting (struct isdn_msg msgs[]) 
-{
-}
 
 
 void parse_progress (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
@@ -125,10 +146,6 @@ msg_t *build_progress (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt
 #endif
 	return msg; 
 }
-void print_progress (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 { 
@@ -142,87 +159,76 @@ void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc,
 	{
 		int type,plan,present, screen;
 		char id[32];
-		dec_ie_calling_pn(setup->CALLING_PN, qi, &type, &plan, &present, &screen, (unsigned char *)id, sizeof(id), nt,bc);
+		dec_ie_calling_pn(setup->CALLING_PN, qi, &type, &plan, &present, &screen, (unsigned char *)id, sizeof(id)-1, nt,bc);
 
 		bc->onumplan=type; 
 		strcpy(bc->oad, id);
 		switch (present) {
 		case 0:
-//			cb_log(3, bc->stack->port, " --> Pres:0\n");
 			bc->pres=0; /* screened */
 			break;
 		case 1:
-//			cb_log(3, bc->stack->port, " --> Pres:1\n");
 			bc->pres=1; /* not screened */
 			break;
 		default:
-//			cb_log(3, bc->stack->port, " --> Pres:%d\n",present);
 			bc->pres=0;
 		}
 		switch (screen) {
 		case 0:
-//			cb_log(4, bc->stack->port, " --> Screen:0\n");
 			break;
 		default:
-//			cb_log(4, bc->stack->port, " --> Screen:%d\n",screen);
 			;
 		} 
 	}
 	{
 		int  type, plan;
 		char number[32]; 
-		dec_ie_called_pn(setup->CALLED_PN, (Q931_info_t *)setup, &type, &plan, (unsigned char *)number, sizeof(number), nt,bc);
+		dec_ie_called_pn(setup->CALLED_PN, (Q931_info_t *)setup, &type, &plan, (unsigned char *)number, sizeof(number)-1, nt,bc);
 		strcpy(bc->dad, number);
 		bc->dnumplan=type; 
 	}
 	{
 		char keypad[32];
-		dec_ie_keypad(setup->KEYPAD, (Q931_info_t *)setup, (unsigned char *)keypad, sizeof(keypad), nt,bc);
+		dec_ie_keypad(setup->KEYPAD, (Q931_info_t *)setup, (unsigned char *)keypad, sizeof(keypad)-1, nt,bc);
 		strcpy(bc->keypad, keypad);
 	}
 
 	{
-		int  sending_complete;
-		dec_ie_complete(setup->COMPLETE, (Q931_info_t *)setup, &sending_complete, nt,bc);
+		dec_ie_complete(setup->COMPLETE, (Q931_info_t *)setup, &bc->sending_complete, nt,bc);
+		
 	}
   
 	{
 		int  type, plan, present, screen, reason;
 		char id[32]; 
-		dec_ie_redir_nr(setup->REDIR_NR, (Q931_info_t *)setup, &type, &plan, &present, &screen, &reason, (unsigned char *)id, sizeof(id), nt,bc);
+		dec_ie_redir_nr(setup->REDIR_NR, (Q931_info_t *)setup, &type, &plan, &present, &screen, &reason, (unsigned char *)id, sizeof(id)-1, nt,bc);
     
 		strcpy(bc->rad, id);
 		bc->rnumplan=type; 
-//		cb_log(3, bc->stack->port, " --> Redirecting number (REDIR_NR): '%s'\n", id);
 	}
 	{
 		int  coding, capability, mode, rate, multi, user, async, urate, stopbits, dbits, parity;
 		dec_ie_bearer(setup->BEARER, (Q931_info_t *)setup, &coding, &capability, &mode, &rate, &multi, &user, &async, &urate, &stopbits, &dbits, &parity, nt,bc);
 		switch (capability) {
 		case -1: bc->capability=INFO_CAPABILITY_DIGITAL_UNRESTRICTED; 
-//			cb_log(2, bc->stack->port, " --> cap -1 -> digital\n");
 			break;
 		case 0: bc->capability=INFO_CAPABILITY_SPEECH;
-//			cb_log(2, bc->stack->port, " --> cap speech\n");
+			break;
+		case 18: bc->capability=INFO_CAPABILITY_VIDEO;
 			break;
 		case 8: bc->capability=INFO_CAPABILITY_DIGITAL_UNRESTRICTED;
 			bc->user1 = user;
-			bc->async = async;
 			bc->urate = urate;
 			
 			bc->rate = rate;
 			bc->mode = mode;
-			
-//			cb_log(2, bc->stack->port, " --> cap unres Digital (user l1 %d, async %d, user rate %d\n", user, async, urate);
 			break;
 		case 9: bc->capability=INFO_CAPABILITY_DIGITAL_RESTRICTED;
-//			cb_log(2, bc->stack->port, " --> cap res Digital\n");
 			break;
 		default:
-//			cb_log(2, bc->stack->port, " --> cap Else\n");
 			break;
 		}
-
+		
 		switch(user) {
 		case 2:
 			bc->law=INFO_CODEC_ULAW;
@@ -240,11 +246,8 @@ void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc,
 	{
 		int  exclusive, channel;
 		dec_ie_channel_id(setup->CHANNEL_ID, (Q931_info_t *)setup, &exclusive, &channel, nt,bc);
-		if (channel==0xff) /* any channel */
-			channel=-1;
-
-		if (channel > 0) 
-			bc->channel = channel;
+		
+		set_channel(bc,channel);
 	}
 	
 	dec_ie_progress(setup->PROGRESS, (Q931_info_t *)setup, &bc->progress_coding, &bc->progress_location, &bc->progress_indicator, nt, bc);
@@ -260,12 +263,12 @@ msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
   
 	setup=(SETUP_t*)((msg->data+HEADER_LEN)); 
   
-//	cb_log(2, bc->stack->port, " --> oad %s dad %s channel %d\n",bc->oad, bc->dad,bc->channel);
 	if (bc->channel == 0 || bc->channel == ANY_CHANNEL || bc->channel==-1)
 		enc_ie_channel_id(&setup->CHANNEL_ID, msg, 0, bc->channel, nt,bc);
-	else
+	else 
 		enc_ie_channel_id(&setup->CHANNEL_ID, msg, 1, bc->channel, nt,bc);
-  
+	
+	
 	{
 		int type=bc->onumplan,plan=1,present=bc->pres,screen=bc->screen;
 		enc_ie_calling_pn(&setup->CALLING_PN, msg, type, plan, present,
@@ -276,6 +279,13 @@ msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 		if (bc->dad[0])
 			enc_ie_called_pn(&setup->CALLED_PN, msg, bc->dnumplan, 1, bc->dad, nt,bc);
 	}
+
+	{
+		if (bc->rad[0])
+			enc_ie_redir_nr(&setup->REDIR_NR, msg, 1, 1,  bc->pres, bc->screen, 0, bc->rad, nt,bc);
+	}
+
+	
   
 	if (*bc->display) {
 		enc_ie_display(&setup->DISPLAY, msg, bc->display, nt,bc);
@@ -299,6 +309,8 @@ msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 			break;
 		case INFO_CAPABILITY_DIGITAL_UNRESTRICTED: capability = 8;
 			user=-1;
+			mode=bc->mode;
+			rate=bc->rate;
 			break;
 		case INFO_CAPABILITY_DIGITAL_RESTRICTED: capability = 9;
 			user=-1;
@@ -318,19 +330,23 @@ msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	return msg; 
 }
 
-void print_setup (struct isdn_msg msgs[]) 
-{
-}
-
 void parse_connect (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	CONNECT_t *connect=(CONNECT_t*)((unsigned long)(msg->data+HEADER_LEN));
   
+	int plan,pres,screen;
+	
 	bc->ces = connect->ces;
 	bc->ces = connect->ces;
 
 	dec_ie_progress(connect->PROGRESS, (Q931_info_t *)connect, &bc->progress_coding, &bc->progress_location, &bc->progress_indicator, nt, bc);
+
+	dec_ie_connected_pn(connect->CONNECT_PN,(Q931_info_t *)connect, &bc->cpnnumplan, &plan, &pres, &screen, bc->cad, 31, nt, bc);
+
+	/*
+		cb_log(1,bc->port,"CONNETED PN: %s cpn_dialplan:%d\n", connected_pn, type);
+	*/
 	
 #if DEBUG 
 	printf("Parsing CONNECT Msg\n"); 
@@ -341,7 +357,9 @@ msg_t *build_connect (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	CONNECT_t *connect;
 	msg_t *msg =(msg_t*)create_l3msg(CC_CONNECT | REQUEST, MT_CONNECT,  bc?bc->l3_id:-1, sizeof(CONNECT_t) ,nt); 
-  
+	
+	cb_log(6,bc->port,"BUILD_CONNECT: bc:%p bc->l3id:%d, nt:%d\n",bc,bc->l3_id,nt);
+
 	connect=(CONNECT_t*)((msg->data+HEADER_LEN)); 
 
 	if (nt) {
@@ -351,8 +369,8 @@ msg_t *build_connect (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	}
   
 	{
-		int type=0, plan=1, present=2, screen=0;
-		enc_ie_connected_pn(&connect->CONNECT_PN, msg, type,plan, present, screen, (unsigned char*) bc->dad , nt , bc);
+		int type=bc->cpnnumplan, plan=1, present=2, screen=0;
+		enc_ie_connected_pn(&connect->CONNECT_PN, msg, type,plan, present, screen, (unsigned char*) bc->cad, nt , bc);
 	}
 
 #if DEBUG 
@@ -360,10 +378,6 @@ msg_t *build_connect (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 #endif
 	return msg; 
 }
-void print_connect (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_setup_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -374,11 +388,8 @@ void parse_setup_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_b
 		int  exclusive, channel;
 		dec_ie_channel_id(setup_acknowledge->CHANNEL_ID, (Q931_info_t *)setup_acknowledge, &exclusive, &channel, nt,bc);
 
-		if (channel==0xff) /* any channel */
-			channel=-1;
 
-		if (channel > 0) 
-			bc->channel = channel;
+		set_channel(bc, channel);
 	}
 	
 	dec_ie_progress(setup_acknowledge->PROGRESS, (Q931_info_t *)setup_acknowledge, &bc->progress_coding, &bc->progress_location, &bc->progress_indicator, nt, bc);
@@ -407,10 +418,6 @@ msg_t *build_setup_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *b
 	return msg; 
 }
 
-void print_setup_acknowledge (struct isdn_msg msgs[]) 
-{
-}
-
 void parse_connect_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
@@ -434,10 +441,6 @@ msg_t *build_connect_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel 
 #endif
 	return msg; 
 }
-void print_connect_acknowledge (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_user_information (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -460,10 +463,6 @@ msg_t *build_user_information (struct isdn_msg msgs[], struct misdn_bchannel *bc
 #endif
 	return msg; 
 }
-void print_user_information (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_suspend_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -486,10 +485,6 @@ msg_t *build_suspend_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, 
 #endif
 	return msg; 
 }
-void print_suspend_reject (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_resume_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -512,10 +507,6 @@ msg_t *build_resume_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, i
 #endif
 	return msg; 
 }
-void print_resume_reject (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_hold (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -538,10 +529,6 @@ msg_t *build_hold (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 #endif
 	return msg; 
 }
-void print_hold (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_suspend (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -564,10 +551,6 @@ msg_t *build_suspend (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 #endif
 	return msg; 
 }
-void print_suspend (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_resume (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -590,10 +573,6 @@ msg_t *build_resume (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 #endif
 	return msg; 
 }
-void print_resume (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_hold_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -616,10 +595,6 @@ msg_t *build_hold_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc
 #endif
 	return msg; 
 }
-void print_hold_acknowledge (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_suspend_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -642,10 +617,6 @@ msg_t *build_suspend_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel 
 #endif
 	return msg; 
 }
-void print_suspend_acknowledge (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_resume_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -668,10 +639,6 @@ msg_t *build_resume_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *
 #endif
 	return msg; 
 }
-void print_resume_acknowledge (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_hold_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -694,10 +661,6 @@ msg_t *build_hold_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, int
 #endif
 	return msg; 
 }
-void print_hold_reject (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_retrieve (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -720,10 +683,6 @@ msg_t *build_retrieve (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt
 #endif
 	return msg; 
 }
-void print_retrieve (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_retrieve_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -747,10 +706,6 @@ msg_t *build_retrieve_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel
 #endif
 	return msg; 
 }
-void print_retrieve_acknowledge (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_retrieve_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -773,10 +728,6 @@ msg_t *build_retrieve_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc,
 #endif
 	return msg; 
 }
-void print_retrieve_reject (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_disconnect (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -809,10 +760,6 @@ msg_t *build_disconnect (struct isdn_msg msgs[], struct misdn_bchannel *bc, int 
 #endif
 	return msg; 
 }
-void print_disconnect (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_restart (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -827,10 +774,10 @@ void parse_restart (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *b
   
 	{
 		int  exclusive, channel;
-		dec_ie_channel_id(restart->CHANNEL_ID, (Q931_info_t *)restart, &exclusive, &channel, nt,bc);
+		dec_ie_channel_id(restart->CHANNEL_ID, (Q931_info_t *)restart, &exclusive, &bc->restart_channel, nt,bc);
 		if (channel==0xff) /* any channel */
 			channel=-1;
-		cb_log(0, stack->port, "CC_RESTART Request on channel:%d on port:%d\n",stack->port);
+		cb_log(3, stack->port, "CC_RESTART Request on channel:%d on this port.\n");
 	}
   
  
@@ -848,10 +795,6 @@ msg_t *build_restart (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 #endif
 	return msg; 
 }
-void print_restart (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_release (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -874,18 +817,14 @@ msg_t *build_release (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
  
 	release=(RELEASE_t*)((msg->data+HEADER_LEN)); 
   
-  
-	enc_ie_cause(&release->CAUSE, msg, nt?1:0, bc->out_cause, nt,bc);
+	if (bc->out_cause>= 0)
+		enc_ie_cause(&release->CAUSE, msg, nt?1:0, bc->out_cause, nt,bc);
   
 #if DEBUG 
 	printf("Building RELEASE Msg\n"); 
 #endif
 	return msg; 
 }
-void print_release (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_release_complete (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -895,35 +834,30 @@ void parse_release_complete (struct isdn_msg msgs[], msg_t *msg, struct misdn_bc
 	iframe_t *frm = (iframe_t*) msg->data;
 
 	struct misdn_stack *stack=get_stack_by_bc(bc);
-	
-#ifdef MISDNUSER_JOLLY
 	mISDNuser_head_t *hh;
 	hh=(mISDNuser_head_t*)msg->data;
-#else
-	mISDN_head_t *hh;
-	hh=(mISDN_head_t*)msg->data;
-#endif
-  
+
+	/*hh=(mISDN_head_t*)msg->data;
+	mISDN_head_t *hh;*/
+
 	if (nt) {
 		if (hh->prim == (CC_RELEASE_COMPLETE|CONFIRM)) {
-			cb_log(0, stack->port, "CC_RELEASE_COMPLETE|CONFIRM [NT] port:%d\n",stack->port);
+			cb_log(0, stack->port, "CC_RELEASE_COMPLETE|CONFIRM [NT] \n");
 			return;
 		}
 	} else {
 		if (frm->prim == (CC_RELEASE_COMPLETE|CONFIRM)) {
-			cb_log(0, stack->port, "CC_RELEASE_COMPLETE|CONFIRM [TE] port:%d\n",stack->port);
+			cb_log(0, stack->port, "CC_RELEASE_COMPLETE|CONFIRM [TE] \n");
 			return;
 		}
 	}
 	dec_ie_cause(release_complete->CAUSE, (Q931_info_t *)(release_complete), &location, &bc->cause, nt,bc);
 
-  
 #if DEBUG 
 	printf("Parsing RELEASE_COMPLETE Msg\n"); 
 #endif
-
- 
 }
+
 msg_t *build_release_complete (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
@@ -939,31 +873,26 @@ msg_t *build_release_complete (struct isdn_msg msgs[], struct misdn_bchannel *bc
 #endif
 	return msg; 
 }
-void print_release_complete (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_facility (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
+//#define FACILITY_DECODE
+#ifdef FACILITY_DECODE
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	FACILITY_t *facility=(FACILITY_t*)((unsigned long)(msg->data+HEADER_LEN)); 
 	Q931_info_t *qi=(Q931_info_t*)(msg->data+HEADER_LEN);  
-
 
 #if DEBUG 
 	printf("Parsing FACILITY Msg\n"); 
 #endif
 
 	{
-		char fac[128];
-		int facility_len;
-		
-		dec_ie_facility(facility->FACILITY, qi, fac, &facility_len,  nt, bc);
+		fac_dec(facility->FACILITY, qi, &bc->fac_type, &bc->fac, bc);
 	}
-		
- 
+#endif	
+
 }
+
 msg_t *build_facility (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
@@ -977,17 +906,9 @@ msg_t *build_facility (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt
 			printf("Sending %s as Display\n", bc->display);
 			enc_ie_display(&facility->DISPLAY, msg, bc->display, nt,bc);
 		}
-
 		
 		
-		switch ( bc->facility ) {
-		case FACILITY_CALLDEFLECT:
-			enc_facility_calldeflect(&facility->FACILITY, msg, bc->facility_calldeflect_nr, nt, bc);
-			
-			break;
-		case FACILITY_NONE:
-			break;
-		}
+		fac_enc(&facility->FACILITY, msg, bc->out_fac_type, bc->out_fac,  bc);
 		
 	}
 	
@@ -996,19 +917,14 @@ msg_t *build_facility (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt
 #endif
 	return msg; 
 }
-void print_facility (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_notify (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing NOTIFY Msg\n"); 
 #endif
-
- 
 }
+
 msg_t *build_notify (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
@@ -1022,19 +938,14 @@ msg_t *build_notify (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 #endif
 	return msg; 
 }
-void print_notify (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_status_enquiry (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing STATUS_ENQUIRY Msg\n"); 
 #endif
-
- 
 }
+
 msg_t *build_status_enquiry (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
@@ -1048,32 +959,25 @@ msg_t *build_status_enquiry (struct isdn_msg msgs[], struct misdn_bchannel *bc, 
 #endif
 	return msg; 
 }
-void print_status_enquiry (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_information (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	INFORMATION_t *information=(INFORMATION_t*)((unsigned long)(msg->data+HEADER_LEN));
-
 	{
 		int  type, plan;
 		char number[32];
 		char keypad[32];
-		dec_ie_called_pn(information->CALLED_PN, (Q931_info_t *)information, &type, &plan, (unsigned char *)number, sizeof(number), nt,bc);
-		dec_ie_keypad(information->KEYPAD, (Q931_info_t *)information, (unsigned char *)keypad, sizeof(keypad), nt,bc);
+		dec_ie_called_pn(information->CALLED_PN, (Q931_info_t *)information, &type, &plan, (unsigned char *)number, sizeof(number)-1, nt, bc);
+		dec_ie_keypad(information->KEYPAD, (Q931_info_t *)information, (unsigned char *)keypad, sizeof(keypad)-1, nt, bc);
 		strcpy(bc->info_dad, number);
 		strcpy(bc->keypad,keypad);
-    
 	}
 #if DEBUG 
 	printf("Parsing INFORMATION Msg\n"); 
 #endif
-
- 
 }
+
 msg_t *build_information (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
@@ -1098,10 +1002,6 @@ msg_t *build_information (struct isdn_msg msgs[], struct misdn_bchannel *bc, int
 #endif
 	return msg; 
 }
-void print_information (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_status (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
@@ -1115,9 +1015,8 @@ void parse_status (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc
 #if DEBUG 
 	printf("Parsing STATUS Msg\n"); 
 #endif
-
- 
 }
+
 msg_t *build_status (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
@@ -1131,19 +1030,14 @@ msg_t *build_status (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 #endif
 	return msg; 
 }
-void print_status (struct isdn_msg msgs[]) 
-{
-}
-
 
 void parse_timeout (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing STATUS Msg\n"); 
-#endif
-
- 
+#endif 
 }
+
 msg_t *build_timeout (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
@@ -1157,9 +1051,6 @@ msg_t *build_timeout (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 #endif
 	return msg; 
 }
-void print_timeout (struct isdn_msg msgs[]) 
-{
-}
 
 
 /************************************/
@@ -1171,96 +1062,96 @@ void print_timeout (struct isdn_msg msgs[])
 
 struct isdn_msg msgs_g[] = {
 	{CC_PROCEEDING,L3,EVENT_PROCEEDING,
-	 parse_proceeding,build_proceeding,print_proceeding,
+	 parse_proceeding,build_proceeding,
 	 "PROCEEDING"},
 	{CC_ALERTING,L3,EVENT_ALERTING,
-	 parse_alerting,build_alerting,print_alerting,
+	 parse_alerting,build_alerting,
 	 "ALERTING"},
 	{CC_PROGRESS,L3,EVENT_PROGRESS,
-	 parse_progress,build_progress,print_progress,
+	 parse_progress,build_progress,
 	 "PROGRESS"},
 	{CC_SETUP,L3,EVENT_SETUP,
-	 parse_setup,build_setup,print_setup,
+	 parse_setup,build_setup,
 	 "SETUP"},
 	{CC_CONNECT,L3,EVENT_CONNECT,
-	 parse_connect,build_connect,print_connect,
+	 parse_connect,build_connect,
 	 "CONNECT"},
 	{CC_SETUP_ACKNOWLEDGE,L3,EVENT_SETUP_ACKNOWLEDGE,
-	 parse_setup_acknowledge,build_setup_acknowledge,print_setup_acknowledge,
+	 parse_setup_acknowledge,build_setup_acknowledge,
 	 "SETUP_ACKNOWLEDGE"},
 	{CC_CONNECT_ACKNOWLEDGE ,L3,EVENT_CONNECT_ACKNOWLEDGE ,
-	 parse_connect_acknowledge ,build_connect_acknowledge ,print_connect_acknowledge ,
+	 parse_connect_acknowledge ,build_connect_acknowledge,
 	 "CONNECT_ACKNOWLEDGE "},
 	{CC_USER_INFORMATION,L3,EVENT_USER_INFORMATION,
-	 parse_user_information,build_user_information,print_user_information,
+	 parse_user_information,build_user_information,
 	 "USER_INFORMATION"},
 	{CC_SUSPEND_REJECT,L3,EVENT_SUSPEND_REJECT,
-	 parse_suspend_reject,build_suspend_reject,print_suspend_reject,
+	 parse_suspend_reject,build_suspend_reject,
 	 "SUSPEND_REJECT"},
 	{CC_RESUME_REJECT,L3,EVENT_RESUME_REJECT,
-	 parse_resume_reject,build_resume_reject,print_resume_reject,
+	 parse_resume_reject,build_resume_reject,
 	 "RESUME_REJECT"},
 	{CC_HOLD,L3,EVENT_HOLD,
-	 parse_hold,build_hold,print_hold,
+	 parse_hold,build_hold,
 	 "HOLD"},
 	{CC_SUSPEND,L3,EVENT_SUSPEND,
-	 parse_suspend,build_suspend,print_suspend,
+	 parse_suspend,build_suspend,
 	 "SUSPEND"},
 	{CC_RESUME,L3,EVENT_RESUME,
-	 parse_resume,build_resume,print_resume,
+	 parse_resume,build_resume,
 	 "RESUME"},
 	{CC_HOLD_ACKNOWLEDGE,L3,EVENT_HOLD_ACKNOWLEDGE,
-	 parse_hold_acknowledge,build_hold_acknowledge,print_hold_acknowledge,
+	 parse_hold_acknowledge,build_hold_acknowledge,
 	 "HOLD_ACKNOWLEDGE"},
 	{CC_SUSPEND_ACKNOWLEDGE,L3,EVENT_SUSPEND_ACKNOWLEDGE,
-	 parse_suspend_acknowledge,build_suspend_acknowledge,print_suspend_acknowledge,
+	 parse_suspend_acknowledge,build_suspend_acknowledge,
 	 "SUSPEND_ACKNOWLEDGE"},
 	{CC_RESUME_ACKNOWLEDGE,L3,EVENT_RESUME_ACKNOWLEDGE,
-	 parse_resume_acknowledge,build_resume_acknowledge,print_resume_acknowledge,
+	 parse_resume_acknowledge,build_resume_acknowledge,
 	 "RESUME_ACKNOWLEDGE"},
 	{CC_HOLD_REJECT,L3,EVENT_HOLD_REJECT,
-	 parse_hold_reject,build_hold_reject,print_hold_reject,
+	 parse_hold_reject,build_hold_reject,
 	 "HOLD_REJECT"},
 	{CC_RETRIEVE,L3,EVENT_RETRIEVE,
-	 parse_retrieve,build_retrieve,print_retrieve,
+	 parse_retrieve,build_retrieve,
 	 "RETRIEVE"},
 	{CC_RETRIEVE_ACKNOWLEDGE,L3,EVENT_RETRIEVE_ACKNOWLEDGE,
-	 parse_retrieve_acknowledge,build_retrieve_acknowledge,print_retrieve_acknowledge,
+	 parse_retrieve_acknowledge,build_retrieve_acknowledge,
 	 "RETRIEVE_ACKNOWLEDGE"},
 	{CC_RETRIEVE_REJECT,L3,EVENT_RETRIEVE_REJECT,
-	 parse_retrieve_reject,build_retrieve_reject,print_retrieve_reject,
+	 parse_retrieve_reject,build_retrieve_reject,
 	 "RETRIEVE_REJECT"},
 	{CC_DISCONNECT,L3,EVENT_DISCONNECT,
-	 parse_disconnect,build_disconnect,print_disconnect,
+	 parse_disconnect,build_disconnect,
 	 "DISCONNECT"},
 	{CC_RESTART,L3,EVENT_RESTART,
-	 parse_restart,build_restart,print_restart,
+	 parse_restart,build_restart,
 	 "RESTART"},
 	{CC_RELEASE,L3,EVENT_RELEASE,
-	 parse_release,build_release,print_release,
+	 parse_release,build_release,
 	 "RELEASE"},
 	{CC_RELEASE_COMPLETE,L3,EVENT_RELEASE_COMPLETE,
-	 parse_release_complete,build_release_complete,print_release_complete,
+	 parse_release_complete,build_release_complete,
 	 "RELEASE_COMPLETE"},
 	{CC_FACILITY,L3,EVENT_FACILITY,
-	 parse_facility,build_facility,print_facility,
+	 parse_facility,build_facility,
 	 "FACILITY"},
 	{CC_NOTIFY,L3,EVENT_NOTIFY,
-	 parse_notify,build_notify,print_notify,
+	 parse_notify,build_notify,
 	 "NOTIFY"},
 	{CC_STATUS_ENQUIRY,L3,EVENT_STATUS_ENQUIRY,
-	 parse_status_enquiry,build_status_enquiry,print_status_enquiry,
+	 parse_status_enquiry,build_status_enquiry,
 	 "STATUS_ENQUIRY"},
 	{CC_INFORMATION,L3,EVENT_INFORMATION,
-	 parse_information,build_information,print_information,
+	 parse_information,build_information,
 	 "INFORMATION"},
 	{CC_STATUS,L3,EVENT_STATUS,
-	 parse_status,build_status,print_status,
+	 parse_status,build_status,
 	 "STATUS"},
 	{CC_TIMEOUT,L3,EVENT_TIMEOUT,
-	 parse_timeout,build_timeout,print_timeout,
+	 parse_timeout,build_timeout,
 	 "TIMEOUT"},
-	{0,0,0,NULL,NULL,NULL,NULL}
+	{0,0,0,NULL,NULL,NULL}
 };
 
 #define msgs_max (sizeof(msgs_g)/sizeof(struct isdn_msg))
@@ -1271,15 +1162,12 @@ int isdn_msg_get_index(struct isdn_msg msgs[], msg_t *msg, int nt)
 	int i;
 
 	if (nt){
-#ifdef MISDNUSER_JOLLY
 		mISDNuser_head_t *hh = (mISDNuser_head_t*)msg->data;
-#else
-		mISDN_head_t *hh = (mISDN_head_t*)msg->data;
-#endif
-    
-		for (i=0; i< msgs_max -1; i++) 
+		
+		for (i=0; i< msgs_max -1; i++) {
 			if ( (hh->prim&COMMAND_MASK)==(msgs[i].misdn_msg&COMMAND_MASK)) return i;
-    
+		}
+		
 	} else {
 		iframe_t *frm = (iframe_t*)msg->data;
     
@@ -1296,7 +1184,7 @@ int isdn_msg_get_index_by_event(struct isdn_msg msgs[], enum event_e event, int 
 	for (i=0; i< msgs_max; i++) 
 		if ( event == msgs[i].event) return i;
 
-	cb_log(4,0, "get_index: EVENT NOT FOUND!!\n");
+	cb_log(10,0, "get_index: event not found!\n");
 	
 	return -1;
 }
@@ -1320,7 +1208,10 @@ char EVENT_CLEAN_INFO[] = "CLEAN_UP";
 char EVENT_DTMF_TONE_INFO[] = "DTMF_TONE";
 char EVENT_NEW_L3ID_INFO[] = "NEW_L3ID";
 char EVENT_NEW_BC_INFO[] = "NEW_BC";
+char EVENT_PORT_ALARM_INFO[] = "ALARM";
 char EVENT_BCHAN_DATA_INFO[] = "BCHAN_DATA";
+char EVENT_BCHAN_ACTIVATED_INFO[] = "BCHAN_ACTIVATED";
+char EVENT_TONE_GENERATE_INFO[] = "TONE_GENERATE";
 
 char * isdn_get_info(struct isdn_msg msgs[], enum event_e event, int nt)
 {
@@ -1333,6 +1224,9 @@ char * isdn_get_info(struct isdn_msg msgs[], enum event_e event, int nt)
 	if (event == EVENT_NEW_L3ID) return EVENT_NEW_L3ID_INFO;
 	if (event == EVENT_NEW_BC) return EVENT_NEW_BC_INFO;
 	if (event == EVENT_BCHAN_DATA) return EVENT_BCHAN_DATA_INFO;
+	if (event == EVENT_BCHAN_ACTIVATED) return EVENT_BCHAN_ACTIVATED_INFO;
+	if (event == EVENT_TONE_GENERATE) return EVENT_TONE_GENERATE_INFO;
+	if (event == EVENT_PORT_ALARM) return EVENT_PORT_ALARM_INFO;
 	
 	return NULL;
 }

@@ -14,34 +14,72 @@
 #ifndef TE_LIB
 #define TE_LIB
 
+
 /** For initialization usage **/
 /* typedef int ie_nothing_t ;*/
 /** end of init usage **/
 
+#ifdef WITH_BEROEC
+typedef int beroec_t;
 
-#define MAX_BCHANS 30
 
-enum bc_state_e {
-	STATE_NOTHING=0,
-	STATE_NULL,
-	STATE_CALL_INIT,
-	STATE_CONNECTED,
-	STATE_HOLD_ACKNOWLEDGE
+enum beroec_type {
+	BEROEC_FULLBAND=0,
+	BEROEC_SUBBAND,
+	BEROEC_FASTSUBBAND
 };
+
+void beroec_init(void);
+void beroec_exit(void);
+beroec_t *beroec_new(int tail, enum beroec_type type, int anti_howl,
+		     int tonedisable, int zerocoeff, int adapt, int nlp);
+
+void beroec_destroy(beroec_t *ec);
+int beroec_cancel_alaw_chunk(beroec_t *ec, 
+	char *send, 
+	char *receive , 
+	int len);
+
+int beroec_version(void);
+#endif
+
 
 
 enum tone_e {
 	TONE_NONE=0,
 	TONE_DIAL,
 	TONE_ALERTING,
+	TONE_FAR_ALERTING,
 	TONE_BUSY,
+	TONE_HANGUP,
+	TONE_CUSTOM,
 	TONE_FILE
 };
+
+
+
+#define MAX_BCHANS 30
+
+enum bchannel_state {
+	BCHAN_CLEANED=0,
+	BCHAN_EMPTY,
+	BCHAN_SETUP,
+	BCHAN_SETUPED,
+	BCHAN_ACTIVE,
+	BCHAN_ACTIVATED,
+	BCHAN_BRIDGE,
+	BCHAN_BRIDGED,
+	BCHAN_RELEASE,
+	BCHAN_RELEASED,
+	BCHAN_CLEAN,
+	BCHAN_CLEAN_REQUEST,
+	BCHAN_ERROR
+};
+
 
 enum misdn_err_e {
 	ENOCHAN=1
 };
-
 
 
 enum mISDN_NUMBER_PLAN {
@@ -61,10 +99,11 @@ enum event_response_e {
 };
 
 
-
 enum event_e {
 	EVENT_NOTHING,
+	EVENT_TONE_GENERATE,
 	EVENT_BCHAN_DATA,
+	EVENT_BCHAN_ACTIVATED,
 	EVENT_CLEANUP,
 	EVENT_PROCEEDING,
 	EVENT_PROGRESS,
@@ -99,6 +138,7 @@ enum event_e {
 	EVENT_DTMF_TONE,
 	EVENT_NEW_L3ID,
 	EVENT_NEW_BC,
+	EVENT_PORT_ALARM,
 	EVENT_UNKNOWN
 }; 
 
@@ -144,9 +184,19 @@ enum layer_e {
 	UNKNOWN
 }; 
 
+
+
+/** FACILITY STUFF **/
+
 enum facility_type {
 	FACILITY_NONE,
-	FACILITY_CALLDEFLECT
+	FACILITY_CALLDEFLECT=0x91,
+	FACILITY_CENTREX=0x88
+};
+
+union facility {
+	char calldeflect_nr[15];
+	char cnip[256];
 };
 
 
@@ -161,13 +211,21 @@ struct misdn_bchannel {
 	/* int b_addr; */
 	int layer_id;
 
-
+	void *ack_hdlc;
 	
+	int layer;
+	
+	/*state stuff*/
+	int need_disconnect;
+	int need_release;
+	int need_release_complete;
+
 	/** var stuff**/
 	int l3_id;
 	int pid;
 	int ces;
-  
+
+	int restart_channel;
 	int channel;
 	int channel_preselected;
 	
@@ -180,8 +238,8 @@ struct misdn_bchannel {
 	
 	
 	void *astbuf;
+
 	void *misdnbuf;
-	
 
 	int te_choose_channel;
 	int early_bconnect;
@@ -189,6 +247,13 @@ struct misdn_bchannel {
 	/* dtmf digit */
 	int dtmf;
 	int send_dtmf;
+
+	/* get setup ack */
+	int need_more_infos;
+
+	/* may there be more infos ?*/
+	int sending_complete;
+
 
 	/* wether we should use jollys dsp or not */
 	int nodsp;
@@ -199,13 +264,17 @@ struct misdn_bchannel {
 	enum mISDN_NUMBER_PLAN dnumplan;
 	enum mISDN_NUMBER_PLAN rnumplan;
 	enum mISDN_NUMBER_PLAN onumplan;
+	enum mISDN_NUMBER_PLAN cpnnumplan;
 
 	int progress_coding;
 	int progress_location;
 	int progress_indicator;
 	
-	enum facility_type facility;
-	char facility_calldeflect_nr[15];
+	enum facility_type fac_type;
+	union facility fac;
+	
+	enum facility_type out_fac_type;
+	union facility out_fac;
 	
 	enum event_e evq;
 	
@@ -226,14 +295,18 @@ struct misdn_bchannel {
 	int active;
 	int upset;
 
-	enum tone_e tone;
+	int generate_tone;
 	int tone_cnt;
-	int tone_cnt2;
-  
-	enum bc_state_e state;
+ 
+	enum bchannel_state bc_state;
+	enum bchannel_state next_bc_state;
 
+	int conf_id;
+	
 	int holded;
 	int stack_holder;
+
+	struct misdn_bchannel *holded_bc;
 	
 	int pres;
 	int screen;
@@ -246,7 +319,7 @@ struct misdn_bchannel {
 
 	int user1;
 	int urate;
-	int async;
+	int hdlc;
 	/* V110 */
   
 	unsigned char display[84];
@@ -254,16 +327,17 @@ struct misdn_bchannel {
 	unsigned char oad[32];
 	unsigned char rad[32];
 	unsigned char dad[32];
+	unsigned char cad[32];
 	unsigned char orig_dad[32];
 	unsigned char keypad[32];
-  
+
 	unsigned char info_dad[64];
 	unsigned char infos_pending[64];
-	unsigned char info_keypad[32];
-	unsigned char clisub[24];
-	unsigned char cldsub[24];
-	unsigned char fac[132];
-	unsigned char uu[256];
+
+/* 	unsigned char info_keypad[32]; */
+/* 	unsigned char clisub[24]; */
+/* 	unsigned char cldsub[24]; */
+/* 	unsigned char uu[256]; */
   
 	int cause;
 	int out_cause;
@@ -276,6 +350,16 @@ struct misdn_bchannel {
 	int ec_deftaps;
 	int ec_whenbridged;
 	int ec_training;
+
+#ifdef WITH_BEROEC
+	beroec_t *ec;
+	int bnec_tail;
+	int bnec_ah;
+	int bnec_nlp;
+	int bnec_td;
+	int bnec_adapt;
+	int bnec_zero;
+#endif
 	
 	int orig;
 
@@ -288,16 +372,18 @@ struct misdn_bchannel {
 
 enum event_response_e (*cb_event) (enum event_e event, struct misdn_bchannel *bc, void *user_data);
 void (*cb_log) (int level, int port, char *tmpl, ...);
-int (*cb_clearl3_true)(void);
+int (*cb_jb_empty)(struct misdn_bchannel *bc, char *buffer, int len);
 
 struct misdn_lib_iface {
 	
 	enum event_response_e (*cb_event)(enum event_e event, struct misdn_bchannel *bc, void *user_data);
 	void (*cb_log)(int level, int port, char *tmpl, ...);
-	int (*cb_clearl3_true)(void);
+	int (*cb_jb_empty)(struct misdn_bchannel *bc, char *buffer, int len);
 };
 
 /***** USER IFACE **********/
+
+void misdn_lib_nt_debug_init( int flags, char *file );
 
 int misdn_lib_init(char *portlist, struct misdn_lib_iface* iface, void *user_data);
 int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event );
@@ -313,8 +399,8 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel);
 
 void manager_bchannel_activate(struct misdn_bchannel *bc);
 void manager_bchannel_deactivate(struct misdn_bchannel * bc);
-int manager_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len);
-void manager_send_tone (struct misdn_bchannel *bc, enum tone_e tone);
+
+int misdn_lib_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len);
 
 void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2);
 
@@ -322,7 +408,13 @@ void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2);
 int misdn_lib_port_restart(int port);
 int misdn_lib_get_port_info(int port);
 
-int misdn_lib_port_up(int port);
+int misdn_lib_is_port_blocked(int port);
+int misdn_lib_port_block(int port);
+int misdn_lib_port_unblock(int port);
+
+int misdn_lib_port_up(int port, int notcheck);
+
+int misdn_lib_get_port_down(int port);
 
 int misdn_lib_get_port_up (int port) ;
      
@@ -339,29 +431,38 @@ int misdn_lib_send_facility(struct misdn_bchannel *bc, enum facility_type fac, v
 void manager_ec_enable(struct misdn_bchannel *bc);
 void manager_ec_disable(struct misdn_bchannel *bc);
 
+void misdn_lib_send_tone(struct misdn_bchannel *bc, enum tone_e tone);
+
 void get_show_stack_details(int port, char *buf);
 
 
-/** Ibuf interface **/
-int misdn_ibuf_usedcount(void *buf);
-int misdn_ibuf_freecount(void *buf);
-void misdn_ibuf_memcpy_r(char *to, void *from, int len);
-void misdn_ibuf_memcpy_w(void *buf, char *from, int len);
+void misdn_lib_tone_generator_start(struct misdn_bchannel *bc);
+void misdn_lib_tone_generator_stop(struct misdn_bchannel *bc);
 
-/** Ibuf interface End **/
 
 void misdn_lib_setup_bc(struct misdn_bchannel *bc);
 
 void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2);
 void misdn_lib_split_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2);
 
+void misdn_lib_echo(struct misdn_bchannel *bc, int onoff);
 
 int misdn_lib_is_ptp(int port);
+int misdn_lib_get_maxchans(int port);
+
+void misdn_lib_reinit_nt_stack(int port);
 
 #define PRI_TRANS_CAP_SPEECH                                    0x0
 #define PRI_TRANS_CAP_DIGITAL                                   0x08
 #define PRI_TRANS_CAP_RESTRICTED_DIGITAL                        0x09
 #define PRI_TRANS_CAP_3_1K_AUDIO                                0x10
 #define PRI_TRANS_CAP_7K_AUDIO                                  0x11
+
+
+
+char *bc_state2str(enum bchannel_state state);
+void bc_state_change(struct misdn_bchannel *bc, enum bchannel_state state);
+
+
 
 #endif

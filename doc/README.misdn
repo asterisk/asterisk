@@ -11,6 +11,7 @@ Features:
 * NT and TE mode
 * PP and PMP mode
 * BRI and PRI (with BNE1 and BN2E1 Cards)
+* Hardware Bridging
 * DTMF Detection in HW+mISDNdsp (much better than asterisks internal!)
 * Display Messages to Phones (which support display msg)
 * HOLD/RETRIEVE/TRANSFER on ISDN Phones : )
@@ -21,6 +22,7 @@ Features:
 * Data (HDLC) callthrough 
 * Data Calling (with app_ptyfork +pppd)
 * Echo cancellation
+* CallDeflection
 * Some other
 
 Supported Hardware:
@@ -54,8 +56,7 @@ channels/misdn. You just need to type:
 cd channels/misdn 
 make misdn
 
-Then all the necessary files are fetched from jollys homepage and are patched
-with the Echocanellor.
+Then all the necessary files are fetched from isdn4linux.de.
 
 
 Pre-Requisites
@@ -64,7 +65,7 @@ Pre-Requisites
 To compile and install this driver, you'll need at least one mISDN Driver and
 the mISDNuser package. Chan_misdn works with both, the current release version
 and the development (svn trunk) version of Asterisk. mISDNuser and mISDN must
-be fetched from jollys homepage and must be patched with the Echocancellor.
+be fetched from cvs.isdn4linux.de.
 
 Please Note that mISDN works good for the linux-2.6.x kernels. Some of the
 mISDN drivers do not compile against the 2.4.x or older kernels, you can patch
@@ -139,10 +140,6 @@ you want to share on PMP TE S0 with a asterisk and a phone or isdn card you
 should insert here the msns which you'll like to give the Asterisk).  Finally
 a context variable resides in the user sections, which tells chan_misdn where
 to send incoming calls to in the Asterisk dial plan (extension.conf).
-
-In NT-Mode Ports there is a new option, directly after the port number you can
-write ptp, this enables PP Mode for this port, please look at misdn.conf.sample for
-an example.
 
 
 Dial and Options String
@@ -282,31 +279,6 @@ Bugs. I use Kernel 2.6.9 now, it works quite ok, Kernel 2.6.10+ has changed
 the pci_find_subgsys funktion, so hfc_multi from mISDN doesn't compile against
 it, you can just change pci_find_subsys to pci_get_subsys, this works.
 
-
-- chan_misdn-0.0.3-rc1: 	
-	* linux-kernel >= 2.6.3 (but at least 2.6) 
-	* asterisk >= v1-0 
-	* mISDN/mISDNuser since September/04
-
-- chan_misdn-0.0.3-rc3: 	
-	* linux-kernel >= 2.6.3 (but at least 2.6) 
-	* asterisk >= v1-0.2 
-	* mISDN/mISDNuser since December/04
-
-- chan_misdn-0.0.3-rc4: 	
-	* linux-kernel >= 2.6.8 (but at least 2.6) 
-	* asterisk >= v1-0.2 
-	* mISDN/mISDNuser head on cvs.isdn4linux.de
-
-- chan_misdn-0.0.3-rc6: 	
-	* linux-kernel >= 2.6.8 (but at least 2.6) 
-	* asterisk >= v1-0.2 
-	* mISDN/mISDNuser head on cvs.isdn4linux.de
-
-- chan_misdn-0.1.0
-	* linux-kernel >= 2.6.8 (but at least 2.6) 
-	* asterisk >= v1-0.2 , also CVS Head
-	* mISDN/mISDNuser (3.0-beta) from isdn.jolly.de
 
 - chan_misdn-0.2.1
 	* linux-kernel >= 2.6.8 (but at least 2.6) 
