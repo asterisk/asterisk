@@ -112,7 +112,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	int oldpriority;
 	char pc[80], depthc[12];
 	char oldcontext[AST_MAX_CONTEXT] = "";
-	int offset, depth = 0;
+	int offset, depth = 0, maxdepth = 7;
 	int setmacrocontext=0;
 	int autoloopflag, dead = 0;
   
@@ -129,11 +129,16 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 
 	LOCAL_USER_ADD(u);
 
+	/* does the user want a deeper rabbit hole? */
+	s = pbx_builtin_getvar_helper(chan, "MACRO_RECURSION");
+	if (s)
+		sscanf(s, "%d", &maxdepth);
+
 	/* Count how many levels deep the rabbit hole goes */
 	s = pbx_builtin_getvar_helper(chan, "MACRO_DEPTH");
 	if (s)
 		sscanf(s, "%d", &depth);
-	if (depth >= 20) {
+	if (depth >= maxdepth) {
 		ast_log(LOG_ERROR, "Macro():  possible infinite loop detected.  Returning early.\n");
 		LOCAL_USER_REMOVE(u);
 		return 0;
