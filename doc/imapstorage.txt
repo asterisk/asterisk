@@ -39,8 +39,10 @@ Installation Notes
 University of Washington IMAP C-Client
 --------------------------------------
 You will need a source distribution of University of Washington's IMAP
-c-client (http://www.washington.edu/imap/).  You will want to make the
-appropriate changes to the c-client Makefile, for instance:
+c-client (http://www.washington.edu/imap/).  Asterisk supports both the
+2004 and 2006 versions of c-client, however mail_expunge_full is enabled
+in the 2006 version.  You will want to make the appropriate changes 
+to the c-client Makefile, for instance:
 
 EXTRAAUTHENTICATORS=gss
 EXTRADRIVERS=mbox
@@ -58,9 +60,7 @@ Configure with ./configure --with-imap=/usr/src/imap
 or where ever you built the University of Washington IMAP C-Client.
 Then make menuselect go to voicemail options and check the imap box
 then make, make install and asterisk will have imap storage support for 
-voicemail. If you are using there 2004 version you will not have access to
-their mail_expunge_full function if you install the 2006 dev branch it will
-configure will detect and enable this for you.
+voicemail. 
 
 ---------------------
 Modify voicemail.conf

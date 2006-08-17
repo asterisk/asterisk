@@ -124,6 +124,10 @@
 /* Define if your system has the UW IMAP Toolkit c-client library. */
 #undef HAVE_IMAP_TK
 
+/* Define if your system has the UW IMAP Toolkit c-client library version 2006
+   or greater. */
+#undef HAVE_IMAP_TK2006
+
 /* Define to 1 if you have the `inet_ntoa' function. */
 #undef HAVE_INET_NTOA
 
