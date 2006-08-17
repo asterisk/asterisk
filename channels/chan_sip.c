@@ -7021,7 +7021,9 @@ static int sip_refer_allocate(struct sip_pvt *p)
 */
 static int transmit_refer(struct sip_pvt *p, const char *dest)
 {
-	struct sip_request req;
+	struct sip_request req = { 
+		.headers = 0,	
+	};
 	char from[256];
 	const char *of;
 	char *c;
