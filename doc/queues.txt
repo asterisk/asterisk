@@ -14,7 +14,7 @@ First of all, set up call queues in queue.conf
 
 Here is an example:
 
-   ============ queue.conf ===========
+   =========== queues.conf ===========
    | ; Cool Digium Queues            |
    | [general]                       |
    | persistentmembers = yes         |
