@@ -8,6 +8,10 @@
 ;
 
 [general] 
+;
+; Sets the Path to the misdn-init.conf (for nt_ptp mode checking)
+;
+misdn_init=/etc/misdn-init.conf
 
 ; set debugging flag: 
 ;   0 - No Debug
@@ -20,27 +24,49 @@
 ;
 debug=0
 
+
+
+; set debugging file and flags for mISDNuser (NT-Stack) 
+; 
+; flags can be or'ed with the following values:
+;
+; DBGM_NET        0x00000001
+; DBGM_MSG        0x00000002
+; DBGM_FSM        0x00000004
+; DBGM_TEI        0x00000010
+; DBGM_L2         0x00000020
+; DBGM_L3         0x00000040
+; DBGM_L3DATA     0x00000080
+; DBGM_BC         0x00000100
+; DBGM_TONE       0x00000200
+; DBGM_BCDATA     0x00000400
+; DBGM_MAN        0x00001000
+; DBGM_APPL       0x00002000
+; DBGM_ISDN       0x00004000
+; DBGM_SOCK       0x00010000
+; DBGM_CONN       0x00020000
+; DBGM_CDATA      0x00040000
+; DBGM_DDATA      0x00080000
+; DBGM_SOUND      0x00100000
+; DBGM_SDATA      0x00200000
+; DBGM_TOPLEVEL   0x40000000
+; DBGM_ALL        0xffffffff
+;
+
+ntdebugflags=0
+ntdebugfile=/var/log/misdn-nt.log
+
 ; the big trace
 ;
 ; default value: [not set]
 ;
-;tracefile=/var/log/misdn.trace
-
-; single call trace files
-; set to true if you want to have them
-; they depend on debug level
-;
-; default values: trace_calls : false
-;                 trace_dir   : /var/log/
-;
-trace_calls=false
-trace_dir=/var/log/
+;tracefile=/var/log/asterisk/misdn.log
 
 ; set to yes if you want mISDN_dsp to bridge the calls in HW
 ;
 ; default value: yes
 ;
-bridging=yes
+bridging=no
 
 ; stops dialtone after getting first digit on nt Port
 ;
@@ -53,29 +79,6 @@ stop_tone_after_first_digit=yes
 ; default value: yes
 ;
 append_digits2exten=yes
-
-; set this to yes if you have jollys mISDN which sends correct L1 Infos
-;
-; default value: yes
-;
-l1_info_ok=yes
-
-; set this to yes if you want to clear the l3 in case the l2 deactivates
-; some environments have a flickering l2 which causes this option to 
-; damage active calls .. highly experimental
-; 
-; default value: no
-;
-clear_l3=no
-
-; set the method to use for channel selection:
-;   standard    - always choose the first free channel with the lowest number
-;   round_robin - use the round robin algorithm to select a channel. use this
-;                 if you want to balance your load.
-;
-; default value: standard
-;
-method=standard
 
 ;;; CRYPTION STUFF
 
@@ -125,6 +128,27 @@ context=misdn
 ;
 language=en
 
+;
+; sets the musiconhold class
+;
+musicclass=default
+
+;
+; Either if we should produce DTMF Tones ourselve
+; 
+senddtmf=yes
+
+;
+; If we should generate Ringing for chan_sip and others
+;
+far_alerting=no
+
+
+;
+; here you can define which bearers should be allowed
+;
+allowed_bearers=all
+
 ; Prefixes for national and international, those are put before the 
 ; oad if an according dialplan is set by the other end. 
 ;
@@ -149,11 +173,52 @@ txgain=0
 ;
 te_choose_channel=no
 
+
+
+;
+; This option defines, if chan_misdn should check the L1 on  a PMP 
+; before makeing a group call on it. The L1 may go down for PMP Ports
+; so we might need this.
+; But be aware! a broken or plugged off cable might be used for a group call
+; as well, since chan_misdn has no chance to distinguish if the L1 is down
+; because of a lost Link or because the Provider shut it down...
+;
+; default: yes
+;
+pmp_l1_check=yes
+
+;
+; Send Setup_Acknowledge on incoming calls anyway (instead of PROCEEDING), 
+; this requests additional Infos, so we can waitfordigits 
+; without much issues. This works only for PTP Ports
+; 
+; default value: no
+;
+need_more_infos=no
+
+; set the method to use for channel selection:
+;   standard    - always choose the first free channel with the lowest number
+;   round_robin - use the round robin algorithm to select a channel. use this
+;                 if you want to balance your load.
+;
+; default value: standard
+;
+method=standard
+
+;
+; dialplan means Type Of Number in ISDN Terms (for outgoing calls)
+;
+; there are different types of the dialplan:
+;
+; dialplan -> outgoing Number
+; localdialplan -> callerid
+; cpndialplan -> connected party number
+;
 ; dialplan options: 
 ;
 ; 0 - unknown
-; 1 - National
-; 2 - International
+; 1 - International
+; 2 - National
 ; 4 - Subscriber
 ;
 ; This setting is used for outgoing calls
@@ -161,14 +226,26 @@ te_choose_channel=no
 ; default value: 0
 ;
 dialplan=0
+localdialplan=0
+cpndialplan=0
 
-; This is only for asterisk head and will result in only considering 
-; misdn.confs and misdn_set_opts callingpresentation informations if set to no.
-; Otherwise asterisks callingpresentation overwrites misdn.confs settings.
+
+
 ;
-; default value: yes
+; turn this to no if you don't mind correct handling of Progress Indicators  
 ;
-use_callingpres=yes
+early_bconnect=yes
+
+
+;
+; turn this on if you like to send Tone Indications to a Incoming
+; isdn channel on a TE Port. Rarely used, only if the Telco allows
+; you to send indications by yourself, normally the Telco sends the 
+; indications to the remote party.
+; 
+; default: no
+;
+incoming_early_audio=no
 
 ; uncomment the following to get into s extension at extension conf
 ; there you can use DigitTimeout if you can't or don't want to use
@@ -178,6 +255,15 @@ use_callingpres=yes
 ; default value: no
 ;
 ;always_immediate=no
+
+;
+; set this to yes if you want to generate your own dialtone 
+; with always_immediate=yes, else chan_misdn generates the dialtone
+;
+; default value: no
+;
+nodialtone=no
+
 
 ; uncomment the following if you want callers which called exactly the 
 ; base number (so no extension is set) jump to the s extension.
@@ -201,17 +287,17 @@ use_callingpres=yes
 ;callgroup=1
 ;pickupgroup=1
 
-; Allows/Screens Callerid
+
 ;
-; possible values: allowed,not_screened
-;
-; be aware, if you set to allowed you need to set a correct 
-; callerid in the dialplan or set it here in the misdn.conf
-; Some Telcos don't care about wrong callerids, others do !
-;
-; default value: allowed
-;
-;presentation=not_screened
+; these are the exact isdn screening and presentation indicators
+; if -1 is given for both values the presentation indicators are used
+; from asterisks SetCallerPres application.
+; s=0, p=0 -> callerid presented not screened
+; s=1, p=1 -> callerid presented but screened (the remote end does not see it!)
+; 
+; defaule values s=-1, p=-1
+presentation=-1
+screen=-1
 
 ; this enables echocancellation, with the given number of taps
 ; be aware, move this setting only to outgoing portgroups!
@@ -223,18 +309,22 @@ use_callingpres=yes
 ;
 ;echocancel=no
 
-; this disables echocancellation when the call is bridged between 
-; mISDN channels
 ;
-; default value: no
-;
-echocancelwhenbridged=no
+; chan_misdns jitterbuffer, default 4000
+; 
+jitterbuffer=4000
 
-; Set this to no to disable echotraining
 ;
-; default value: yes
+; change this threshold to enable dejitter functionality
 ;
-echotraining=yes
+jitterbuffer_upper_threshold=0
+
+
+;
+; change this to yes, if you want to bridge a mISDN data channel to 
+; another channel type or to an application.
+;
+hdlc=no
 
 [intern]
 ; define your ports, e.g. 1,2 (depends on mISDN-driver loading order) 
@@ -243,10 +333,12 @@ ports=1,2
 context=Intern
 
 [internPP]
-; if you want to have pp Protocol on one nt Port, you need 
-; to add a ptp directly after the portnumber, you can still add 
-; more ports and multiple ptp adds in your config.
-ports=3ptp
+;
+; adding the postfix 'ptp' to a port number is obsolete now, chan_misdn
+; parses /etc/misdn-init.conf and sets the ptp mode to the corresponding
+; configs. For backwards compatibility you can still set ptp here.
+;
+ports=3
 	
 [first_extern]
 ; again port defs
