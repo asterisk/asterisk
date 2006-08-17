@@ -932,3 +932,13 @@ if test "x${crossCompile}" = xYes; then
    AC_MSG_NOTICE( Cross Compilation = YES)
    AC_MSG_NOTICE( Target            = ${host})
 fi
+
+if test ${GNU_MAKE_VERSION_MAJOR} -lt 3 || test ${GNU_MAKE_VERSION_MINOR} -lt 81 ; then
+   AC_MSG_NOTICE()
+   AC_MSG_NOTICE(***** WARNING ******)
+   AC_MSG_NOTICE(You are currently using GNU Make version ${GNU_MAKE_VERSION_MAJOR}.${GNU_MAKE_VERSION_MINOR}.)
+   AC_MSG_NOTICE(The Asterisk build system uses features that may not work correctly prior to 3.81.)
+   AC_MSG_NOTICE(Please consider upgrading GNU Make or you may experience problems.)
+   AC_MSG_NOTICE(********************)
+   AC_MSG_NOTICE()
+fi
