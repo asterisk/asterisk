@@ -55,7 +55,7 @@ contexts must be defined somewhere in your dialplan.
 We will show them after the main menu below.
 
 <verbage explaining options above>
-In the [general] section, specifying the persistenmembers=yes,
+In the [general] section, specifying the persistentmembers=yes,
 will cause the agent lists to be stored in astdb, and 
 recalled on startup.
 
