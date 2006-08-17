@@ -101,7 +101,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	int oldpriority;
 	char pc[80], depthc[12];
 	char oldcontext[AST_MAX_CONTEXT] = "";
-	char *offsets;
+	char *offsets, *s;
 	int offset, depth = 0, maxdepth = 7;
 	int setmacrocontext=0;
 	int autoloopflag, dead = 0;
