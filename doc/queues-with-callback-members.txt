@@ -396,6 +396,107 @@ proper actions to take. In the above dial plan code, only the cases I or O are u
 which correspond to the Login and Logout actions.
 
 
+=======================================================
+|    Controlling The Way Queues Call the Agents       |
+=======================================================
+
+Notice in the above, that the commands to manipulate agents in queues have
+"@agents" in their arguments. This is a reference to the agents context:
+
+context agents
+{
+	// General sales queue
+	8010 =>
+	{
+		Set(QUEUE_MAX_PENALTY=10);
+		Queue(sales-general|t);
+		Set(QUEUE_MAX_PENALTY=0);
+		Queue(sales-general|t);
+		Set(CALLERID(name)=EmptySalQ);
+		goto dispatch|s|1;
+	}
+	// Customer Service queue
+	8011 =>
+	{
+		Set(QUEUE_MAX_PENALTY=10);
+		Queue(customerservice|t);
+		Set(QUEUE_MAX_PENALTY=0);
+		Queue(customerservice|t);
+		Set(CALLERID(name)=EMptyCSVQ);
+		goto dispatch|s|1;
+	}
+	8013 =>
+	{
+		Dial(iax2/sweatshop/9456@from-ecstacy);
+
+		Set(CALLERID(name)=EmptySupQ);
+		Set(QUEUE_MAX_PENALTY=10);
+		Queue(support-dispatch,t);
+		Set(QUEUE_MAX_PENALTY=20);
+		Queue(support-dispatch,t);
+		Set(QUEUE_MAX_PENALTY=0); // means no max
+		Queue(support-dispatch,t);
+		goto dispatch|s|1;
+	}
+	6121 => &callagent(${RAQUEL});
+	6165 => &callagent(${SPEARS});
+	6170 => &callagent(${ROCK});
+	6070 => &callagent(${SALINE});
+}
+
+In the above, the variables ${RAQUEL}, etc stand for
+actual devices to ring that person's
+phone (like Zap/37).
+
+The 8010, 8011, and 8013 extensions are purely for transferring
+incoming callers to queues. For instance, a customer service 
+agent might want to transfer the caller to talk to sales. The 
+agent only has to transfer to extension 8010, in this case.
+
+Here is the callagent macro, note that if a person in the
+queue is called, but does not answer, then they are automatically
+removed from the queue.
+
+macro callagent(device)
+{
+	if( ${GROUP_COUNT(${MACRO_EXTEN}@agents)}=0 )
+	{
+		Set(OUTBOUND_GROUP=${MACRO_EXTEN}@agents);
+		Dial(${device}|300|t);
+		switch(${DIALSTATUS})
+		{
+		case BUSY:
+			Busy();
+			break;
+		case NOANSWER:
+			Set(queue-announce-success=0);
+			goto queues-manip|O${MACRO_EXTEN}|1;
+		default:
+			Hangup();
+			break;
+		}
+	}
+	else
+	{
+		Busy();
+	}
+}
+
+In the callagent macro above, the ${MACRO_EXTEN} will
+be 6121, or 6165, etc, which is the extension of the agent.
+
+The use of the GROUP_COUNT, and OUTBOUND_GROUP follow this line
+of thinking. Incoming calls can be queued to ring all agents in the
+current priority. If some of those agents are already talking, they
+would get bothersome call-waiting tones. To avoid this inconvenience,
+when an agent gets a call, the OUTBOUND_GROUP assigns that 
+conversation to the group specified, for instance 6171@agents.
+The ${GROUP_COUNT()} variable on a subsequent call should return
+"1" for that group. If GROUP_COUNT returns 1, then the busy() 
+is returned without actually trying to dial the agent.
+
+
+
 ================ Caveats 
 
 In the above examples, some of the possible error checking has been omitted,
