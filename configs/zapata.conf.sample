@@ -328,10 +328,17 @@ callreturn=yes
 ; Use either "yes", "no", or a power of two from 32 to 256 if you wish to
 ; actually set the number of taps of cancellation.
 ;
+; Note that if any of your Zaptel cards have hardware echo cancellers,
+; then this setting only turns them on and off; numeric settings will
+; be treated as "yes". There are no special settings required for
+; hardware echo cancellers; when present and enabled in their kernel
+; modules, they take precedence over the software echo canceller compiled
+; into Zaptel automatically.
+;
 echocancel=yes
 ;
 ; Generally, it is not necessary (and in fact undesirable) to echo cancel when
-; the circuit path is entirely TDM.  You may, however, reverse this behavior
+; the circuit path is entirely TDM.  You may, however, change this behavior
 ; by enabling the echo cancel during pure TDM bridging below.
 ;
 echocancelwhenbridged=yes
@@ -342,6 +349,8 @@ echocancelwhenbridged=yes
 ; response to pre-train the echo canceller so it can start out with a much
 ; closer idea of the actual echo.  Value may be "yes", "no", or a number of
 ; milliseconds to delay before training (default = 400)
+;
+; Note that these parameters do not apply to hardware echo cancellers.
 ;
 ;echotraining=yes
 ;echotraining=800
