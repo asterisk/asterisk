@@ -22,6 +22,7 @@ fi
 echo
 echo "This will gather information about your system such as:"
 echo "pci listing, dmesg, running processes, and kernel version"
+echo "This may take up to half a minute to run. Please be patient."
 echo "To continue press 'y', to quit press any other key"
 read ans
 
@@ -97,6 +98,13 @@ if [ "$ans" = "y" ]; then
   echo "EXTENSIONS CONFIG" >> $OUTPUT;
   echo "------------------" >> $OUTPUT;
   grep -v '^;' /etc/asterisk/extensions.conf >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "ZTTEST" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  /usr/src/zaptel/zttest -c 20 >> $OUTPUT;
   echo >> $OUTPUT;
   echo >> $OUTPUT;
 
