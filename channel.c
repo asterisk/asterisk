@@ -1564,6 +1564,8 @@ int ast_answer(struct ast_channel *chan)
 	case AST_STATE_UP:
 		ast_cdr_answer(chan->cdr);
 		break;
+	default:
+		break;
 	}
 	ast_channel_unlock(chan);
 	return res;
