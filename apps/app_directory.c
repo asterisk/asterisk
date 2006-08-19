@@ -256,7 +256,7 @@ static char *convert(char *lastname)
  *           '1' for selected entry from directory
  *           '*' for skipped entry from directory
  */
-static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dialcontext, char *ext, char *name) {
+static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dialcontext, char *ext, char *name, int fromappvm) {
 	int res = 0;
 	int loop = 3;
 	char fn[256];
@@ -314,12 +314,17 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 				case '1':
 					/* Name selected */
 					loop = 0;
-					if (ast_goto_if_exists(chan, dialcontext, ext, 1)) {
-						ast_log(LOG_WARNING,
-							"Can't find extension '%s' in context '%s'.  "
-							"Did you pass the wrong context to Directory?\n",
-							ext, dialcontext);
-						res = -1;
+					if (fromappvm) {
+						/* We still want to set the exten */
+						ast_copy_string(chan->exten, ext, sizeof(chan->exten));
+					} else {
+						if (ast_goto_if_exists(chan, dialcontext, ext, 1)) {
+							ast_log(LOG_WARNING,
+								"Can't find extension '%s' in context '%s'.  "
+								"Did you pass the wrong context to Directory?\n",
+								ext, dialcontext);
+							res = -1;
+						}
 					}
 					break;
 	
@@ -403,7 +408,7 @@ static struct ast_config *realtime_directory(char *context)
 	return cfg;
 }
 
-static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *context, char *dialcontext, char digit, int last)
+static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *context, char *dialcontext, char digit, int last, int fromappvm)
 {
 	/* Read in the first three digits..  "digit" is the first digit, already read */
 	char ext[NUMDIGITS + 1];
@@ -482,7 +487,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 
 			if (v) {
 				/* We have a match -- play a greeting if they have it */
-				res = play_mailbox_owner(chan, context, dialcontext, v->name, name);
+				res = play_mailbox_owner(chan, context, dialcontext, v->name, name, fromappvm);
 				switch (res) {
 					case -1:
 						/* user pressed '1' but extension does not exist, or
@@ -529,6 +534,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	struct ast_config *cfg;
 	int last = 1;
+	int fromappvm = 0;
 	char *context, *dialcontext, *dirintro, *options;
 
 	if (ast_strlen_zero(data)) {
@@ -549,6 +555,8 @@ static int directory_exec(struct ast_channel *chan, void *data)
 			options++; 
 			if (strchr(options, 'f'))
 				last = 0;
+			if (strchr(options, 'v'))
+				fromappvm = 1;
 		}
 	} else	
 		dialcontext = context;
@@ -581,7 +589,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		if (!res)
 			res = ast_waitfordigit(chan, 5000);
 		if (res > 0) {
-			res = do_directory(chan, cfg, context, dialcontext, res, last);
+			res = do_directory(chan, cfg, context, dialcontext, res, last, fromappvm);
 			if (res > 0) {
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
 				ast_stopstream(chan);
