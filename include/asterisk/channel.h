@@ -274,6 +274,44 @@ struct ast_channel_whisper_buffer;
 #define	DEBUGCHAN_FLAG  0x80000000
 #define	FRAMECOUNT_INC(x)	( ((x) & DEBUGCHAN_FLAG) | ((x++) & ~DEBUGCHAN_FLAG) )
 
+enum ast_channel_adsicpe {
+	AST_ADSI_UNKNOWN,
+	AST_ADSI_AVAILABLE,
+	AST_ADSI_UNAVAILABLE,
+	AST_ADSI_OFFHOOKONLY,
+};
+
+/*! 
+ * \brief ast_channel states
+ *
+ * \note Bits 0-15 of state are reserved for the state (up/down) of the line
+ *       Bits 16-32 of state are reserved for flags
+ */
+enum ast_channel_state {
+	/*! Channel is down and available */
+	AST_STATE_DOWN,
+	/*! Channel is down, but reserved */
+	AST_STATE_RESERVED,
+	/*! Channel is off hook */
+	AST_STATE_OFFHOOK,
+	/*! Digits (or equivalent) have been dialed */
+	AST_STATE_DIALING,
+	/*! Line is ringing */
+	AST_STATE_RING,
+	/*! Remote end is ringing */
+	AST_STATE_RINGING,
+	/*! Line is up */
+	AST_STATE_UP,
+	/*! Line is busy */
+	AST_STATE_BUSY,
+	/*! Digits (or equivalent) have been dialed while offhook */
+	AST_STATE_DIALING_OFFHOOK,
+	/*! Channel has detected an incoming call and is waiting for ring */
+	AST_STATE_PRERING,
+
+	/*! Do not transmit voice data */
+	AST_STATE_MUTE = (1 << 16),
+};
 
 /*! \brief Main Channel structure associated with a channel. 
  * This is the side of it mostly used by the pbx and call management.
@@ -334,7 +372,7 @@ struct ast_channel {
 	int (*timingfunc)(void *data);
 	void *timingdata;
 
-	int _state;					/*!< State of line -- Don't write directly, use ast_setstate */
+	enum ast_channel_state _state;			/*!< State of line -- Don't write directly, use ast_setstate */
 	int rings;					/*!< Number of rings so far */
 	struct ast_callerid cid;			/*!< Caller ID, name, presentation etc */
 	char dtmfq[AST_MAX_EXTENSION];			/*!< Any/all queued DTMF characters */
@@ -350,7 +388,7 @@ struct ast_channel {
 	struct ast_pbx *pbx;				/*!< PBX private structure for this channel */
 	int amaflags;					/*!< Set BEFORE PBX is started to determine AMA flags */
 	struct ast_cdr *cdr;				/*!< Call Detail Record */
-	int adsicpe;					/*!< Whether or not ADSI is detected on CPE */
+	enum ast_channel_adsicpe adsicpe;		/*!< Whether or not ADSI is detected on CPE */
 
 	struct tone_zone *zone;				/*!< Tone zone as set in indications.conf or
 								in the CHANNEL dialplan function */
@@ -392,30 +430,45 @@ struct ast_channel {
 	AST_LIST_HEAD_NOLOCK(datastores, ast_datastore) datastores;
 };
 
-/*! \defgroup chanprop Channel tech properties:
-	\brief Channels have this property if they can accept input with jitter; i.e. most VoIP channels */
-/*! @{ */
-#define AST_CHAN_TP_WANTSJITTER	(1 << 0)	
+/*! \brief ast_channel_tech Properties */
+enum {
+	/*! \brief Channels have this property if they can accept input with jitter; 
+	 *         i.e. most VoIP channels */
+	AST_CHAN_TP_WANTSJITTER = (1 << 0),
+	/*! \brief Channels have this property if they can create jitter; 
+	 *         i.e. most VoIP channels */
+	AST_CHAN_TP_CREATESJITTER = (1 << 1),
+};
 
-/*! \brief Channels have this property if they can create jitter; i.e. most VoIP channels */
-#define AST_CHAN_TP_CREATESJITTER (1 << 1)
+/*! \brief ast_channel flags */
+enum {
+	/*! Queue incoming dtmf, to be released when this flag is turned off */
+	AST_FLAG_DEFER_DTMF =  (1 << 1),
+	/*! write should be interrupt generator */
+	AST_FLAG_WRITE_INT =   (1 << 2),
+	/*! a thread is blocking on this channel */
+	AST_FLAG_BLOCKING =    (1 << 3),
+	/*! This is a zombie channel */
+	AST_FLAG_ZOMBIE =      (1 << 4),
+	/*! There is an exception pending */
+	AST_FLAG_EXCEPTION =   (1 << 5),
+	/*! Listening to moh XXX anthm promises me this will disappear XXX */
+	AST_FLAG_MOH =         (1 << 6),
+	/*! This channel is spying on another channel */
+	AST_FLAG_SPYING =      (1 << 7),
+	/*! This channel is in a native bridge */
+	AST_FLAG_NBRIDGE =     (1 << 8),
+	/*! the channel is in an auto-incrementing dialplan processor,
+	 *  so when ->priority is set, it will get incremented before
+	 *  finding the next priority to run */
+	AST_FLAG_IN_AUTOLOOP = (1 << 9),
+	/*! This is an outgoing call */
+	AST_FLAG_OUTGOING =    (1 << 10),
+	/*! This channel is being whispered on */
+	AST_FLAG_WHISPER =     (1 << 11),
+};
 
-#define AST_FLAG_DEFER_DTMF	(1 << 1)	/*!< if dtmf should be deferred */
-#define AST_FLAG_WRITE_INT	(1 << 2)	/*!< if write should be interrupt generator */
-#define AST_FLAG_BLOCKING	(1 << 3)	/*!< if we are blocking */
-#define AST_FLAG_ZOMBIE		(1 << 4)	/*!< if we are a zombie */
-#define AST_FLAG_EXCEPTION	(1 << 5)	/*!< if there is a pending exception */
-#define AST_FLAG_MOH		(1 << 6)	/*!< XXX anthm promises me this will disappear XXX listening to moh */
-#define AST_FLAG_SPYING		(1 << 7)	/*!< is spying on someone */
-#define AST_FLAG_NBRIDGE	(1 << 8)	/*!< is it in a native bridge */
-#define AST_FLAG_IN_AUTOLOOP	(1 << 9)	/*!< the channel is in an auto-incrementing dialplan processor,
-						   so when ->priority is set, it will get incremented before
-						   finding the next priority to run */
-#define AST_FLAG_OUTGOING	(1 << 10)	/*!< Is this call outgoing */
-#define AST_FLAG_WHISPER	(1 << 11)	/*!< Is this channel being whispered on */
-
-/* @} */
-
+/*! \brief ast_bridge_config flags */
 enum {
 	AST_FEATURE_PLAY_WARNING = (1 << 0),
 	AST_FEATURE_REDIRECT =     (1 << 1),
@@ -464,53 +517,25 @@ struct outgoing_helper {
 	struct ast_channel *parent_channel;
 };
 
-#define AST_CDR_TRANSFER	(1 << 0)
-#define AST_CDR_FORWARD		(1 << 1)
-#define AST_CDR_CALLWAIT	(1 << 2)
-#define AST_CDR_CONFERENCE	(1 << 3)
+enum {
+	AST_CDR_TRANSFER =   (1 << 0),
+	AST_CDR_FORWARD =    (1 << 1),
+	AST_CDR_CALLWAIT =   (1 << 2),
+	AST_CDR_CONFERENCE = (1 << 3),
+};
 
-#define AST_ADSI_UNKNOWN	(0)
-#define AST_ADSI_AVAILABLE	(1)
-#define AST_ADSI_UNAVAILABLE	(2)
-#define AST_ADSI_OFFHOOKONLY	(3)
+enum {
+	/*! Soft hangup by device */
+	AST_SOFTHANGUP_DEV =       (1 << 0),
+	/*! Soft hangup for async goto */
+	AST_SOFTHANGUP_ASYNCGOTO = (1 << 1),
+	AST_SOFTHANGUP_SHUTDOWN =  (1 << 2),
+	AST_SOFTHANGUP_TIMEOUT =   (1 << 3),
+	AST_SOFTHANGUP_APPUNLOAD = (1 << 4),
+	AST_SOFTHANGUP_EXPLICIT =  (1 << 5),
+	AST_SOFTHANGUP_UNBRIDGE =  (1 << 6),
+};
 
-#define AST_SOFTHANGUP_DEV		(1 << 0)	/*!< Soft hangup by device */
-#define AST_SOFTHANGUP_ASYNCGOTO	(1 << 1)	/*!< Soft hangup for async goto */
-#define AST_SOFTHANGUP_SHUTDOWN		(1 << 2)
-#define AST_SOFTHANGUP_TIMEOUT		(1 << 3)
-#define AST_SOFTHANGUP_APPUNLOAD	(1 << 4)
-#define AST_SOFTHANGUP_EXPLICIT		(1 << 5)
-#define AST_SOFTHANGUP_UNBRIDGE     (1 << 6)
-
-
-/*! \defgroup ChanState Channel states
-\brief Bits 0-15 of state are reserved for the state (up/down) of the line */
-/*! @{ */
-/*! Channel is down and available */
-#define AST_STATE_DOWN		0		
-/*! Channel is down, but reserved */
-#define AST_STATE_RESERVED	1		
-/*! Channel is off hook */
-#define AST_STATE_OFFHOOK	2		
-/*! Digits (or equivalent) have been dialed */
-#define AST_STATE_DIALING	3		
-/*! Line is ringing */
-#define AST_STATE_RING		4		
-/*! Remote end is ringing */
-#define AST_STATE_RINGING	5		
-/*! Line is up */
-#define AST_STATE_UP		6		
-/*! Line is busy */
-#define AST_STATE_BUSY  	7		
-/*! Digits (or equivalent) have been dialed while offhook */
-#define AST_STATE_DIALING_OFFHOOK	8
-/*! Channel has detected an incoming call and is waiting for ring */
-#define AST_STATE_PRERING       9
-
-/* Bits 16-32 of state are reserved for flags (See \ref ChanState ) */
-/*! Do not transmit voice data */
-#define AST_STATE_MUTE		(1 << 16)	
-/*! @} */
 
 /*! \brief Channel reload reasons for manager events at load or reload of configuration */
 enum channelreloadreason {
@@ -536,7 +561,7 @@ int ast_channel_datastore_remove(struct ast_channel *chan, struct ast_datastore 
 struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const struct ast_datastore_info *info, char *uid);
 
 /*! \brief Change the state of a channel */
-int ast_setstate(struct ast_channel *chan, int state);
+int ast_setstate(struct ast_channel *chan, enum ast_channel_state);
 
 /*! \brief Create a channel structure 
     \return Returns NULL on failure to allocate.
@@ -973,7 +998,7 @@ int ast_str2cause(const char *name) attribute_pure;
  * Give a name to a state 
  * Returns the text form of the binary state given
  */
-char *ast_state2str(int state);
+char *ast_state2str(enum ast_channel_state);
 
 /*! Gives the string form of a given transfer capability */
 /*!

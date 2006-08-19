@@ -492,7 +492,7 @@ int ast_str2cause(const char *name)
 }
 
 /*! \brief Gives the string form of a given channel state */
-char *ast_state2str(int state)
+char *ast_state2str(enum ast_channel_state state)
 {
 	char *buf;
 
@@ -3340,7 +3340,7 @@ void ast_set_callerid(struct ast_channel *chan, const char *callerid, const char
 				);
 }
 
-int ast_setstate(struct ast_channel *chan, int state)
+int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 {
 	int oldstate = chan->_state;
 

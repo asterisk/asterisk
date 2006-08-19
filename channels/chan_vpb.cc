@@ -339,7 +339,7 @@ static struct vpb_pvt {
 
 } *iflist = NULL;
 
-static struct ast_channel *vpb_new(struct vpb_pvt *i, int state, char *context);
+static struct ast_channel *vpb_new(struct vpb_pvt *i, enum ast_channel_state state, char *context);
 static void *do_chanreads(void *pvt);
 
 static struct ast_channel *vpb_request(const char *type, int format, void *data, int *cause);
@@ -2618,7 +2618,7 @@ static void *do_chanreads(void *pvt)
 	return NULL;
 }
 
-static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
+static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state state, char *context)
 {
 	struct ast_channel *tmp; 
 	char cid_num[256];
