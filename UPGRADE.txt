@@ -293,6 +293,13 @@ The Zap channel:
 * Support for MFC/R2 has been removed, as it has not been functional for some
   time and it has no maintainer.
 
+The Agent channel:
+
+* Callback mode (AgentCallbackLogin) is now deprecated, since the entire function
+  it provided can be done using dialplan logic, without requiring additional
+  channel and module locks (which frequently caused deadlocks). An example of
+  how to do this using AEL dialplan is in doc/queues-with-callback-members.txt.
+
 The G726-32 codec:
 
 * It has been determined that previous versions of Asterisk used the wrong codeword
@@ -360,5 +367,5 @@ Music on Hold:
   starting music on hold on the channel. An example for how this would be
   useful is in an enterprise network of Asterisk servers. When one phone on one
   server puts a phone on a different server on hold, the remote server will be
-  responsibile for playing the hold music to its local phone that was put on
+  responsible for playing the hold music to its local phone that was put on
   hold instead of the far end server across the network playing the music.

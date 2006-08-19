@@ -2137,6 +2137,19 @@ static int login_exec(struct ast_channel *chan, void *data)
 	return __login_exec(chan, data, 0);
 }
 
+static void callback_deprecated(void)
+{
+	static int depwarning = 0;
+
+	if (!depwarning) {
+		depwarning = 1;
+
+		ast_log(LOG_WARNING, "AgentCallbackLogin is deprecated and will be removed in a future release.\n");
+		ast_log(LOG_WARNING, "See doc/queues-with-callback-members.txt for an example of how to achieve\n");
+		ast_log(LOG_WARNING, "the same functionality using only dialplan logic.\n");
+	}
+}
+
 /*!
  *  Called by the AgentCallbackLogin application (from the dial plan).
  * 
@@ -2147,6 +2160,8 @@ static int login_exec(struct ast_channel *chan, void *data)
  */
 static int callback_exec(struct ast_channel *chan, void *data)
 {
+	callback_deprecated();
+
 	return __login_exec(chan, data, 1);
 }
 
@@ -2167,6 +2182,8 @@ static int action_agent_callback_login(struct mansession *s, struct message *m)
 	char *ackcall_s = astman_get_header(m, "AckCall");
 	struct agent_pvt *p;
 	int login_state = 0;
+
+	callback_deprecated();
 
 	if (ast_strlen_zero(agent)) {
 		astman_send_error(s, m, "No agent specified");
