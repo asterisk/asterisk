@@ -3864,13 +3864,15 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 			
 			app = pbx_findapp("Directory");
 			if (app) {
-				/* make mackup copies */
+				char vmcontext[256];
+				/* make backup copies */
 				memcpy(old_context, chan->context, sizeof(chan->context));
 				memcpy(old_exten, chan->exten, sizeof(chan->exten));
 				old_priority = chan->priority;
 				
 				/* call the the Directory, changes the channel */
-				res = pbx_exec(chan, app, context ? context : "default");
+				sprintf(vmcontext, "%s||v", context ? context : "default");
+				res = pbx_exec(chan, app, vmcontext);
 				
 				ast_copy_string(username, chan->exten, sizeof(username));
 				

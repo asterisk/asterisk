@@ -259,7 +259,8 @@ static char *convert(char *lastname)
  *           '*' for skipped entry from directory
  */
 static int play_mailbox_owner(struct ast_channel *chan, char *context,
-		char *dialcontext, char *ext, char *name, int readext)
+		char *dialcontext, char *ext, char *name, int readext,
+		int fromappvm)
 {
 	int res = 0;
 	int loop;
@@ -311,12 +312,17 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context,
 		if (res < 0) /* User hungup, so jump out now */
 			break;
 		if (res == '1') {	/* Name selected */
-			if (ast_goto_if_exists(chan, dialcontext, ext, 1)) {
-				ast_log(LOG_WARNING,
-					"Can't find extension '%s' in context '%s'.  "
-					"Did you pass the wrong context to Directory?\n",
-					ext, dialcontext);
-				res = -1;
+			if (fromappvm) {
+				/* We still want to set the exten though */
+				ast_copy_string(chan->exten, ext, sizeof(chan->exten));
+			} else {
+				if (ast_goto_if_exists(chan, dialcontext, ext, 1)) {
+					ast_log(LOG_WARNING,
+						"Can't find extension '%s' in context '%s'.  "
+						"Did you pass the wrong context to Directory?\n",
+						ext, dialcontext);
+					res = -1;
+				}
 			}
 			break;
 		}
@@ -388,7 +394,7 @@ static struct ast_config *realtime_directory(char *context)
 	return cfg;
 }
 
-static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *context, char *dialcontext, char digit, int last, int readext)
+static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *context, char *dialcontext, char digit, int last, int readext, int fromappvm)
 {
 	/* Read in the first three digits..  "digit" is the first digit, already read */
 	char ext[NUMDIGITS + 1];
@@ -467,7 +473,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 
 			if (v) {
 				/* We have a match -- play a greeting if they have it */
-				res = play_mailbox_owner(chan, context, dialcontext, v->name, name, readext);
+				res = play_mailbox_owner(chan, context, dialcontext, v->name, name, readext, fromappvm);
 				switch (res) {
 					case -1:
 						/* user pressed '1' but extension does not exist, or
@@ -512,6 +518,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	struct ast_config *cfg;
 	int last = 1;
 	int readext = 0;
+	int fromappvm = 0;
 	char *dirintro, *parse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(vmcontext);
@@ -535,6 +542,8 @@ static int directory_exec(struct ast_channel *chan, void *data)
 			last = 0;
 		if (strchr(args.options, 'e'))
 			readext = 1;
+		if (strchr(args.options, 'v'))
+			fromappvm = 1;
 	}
 
 	if (ast_strlen_zero(args.dialcontext))	
@@ -563,7 +572,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		if (!res)
 			res = ast_waitfordigit(chan, 5000);
 		if (res > 0) {
-			res = do_directory(chan, cfg, args.vmcontext, args.dialcontext, res, last, readext);
+			res = do_directory(chan, cfg, args.vmcontext, args.dialcontext, res, last, readext, fromappvm);
 			if (res > 0) {
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
 				ast_stopstream(chan);
