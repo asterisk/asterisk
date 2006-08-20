@@ -1746,7 +1746,7 @@ static char *device2str(int type)
 	case SKINNY_DEVICE_7902:
 		return "7902";
 	case SKINNY_DEVICE_CIPC:
-		return "CIPC";
+		return "IP Communicator";
 	case SKINNY_DEVICE_7961:
 		return "7961";
 	case SKINNY_DEVICE_7936:
