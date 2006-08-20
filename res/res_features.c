@@ -422,7 +422,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 			notify_metermaids(pu->parkingexten, parking_con);
 	}
 	/* Tell the peer channel the number of the parking space */
-	if (peer && !pu->parkingnum == -1) /* Only say number if it's a number */
+	if (peer && pu->parkingnum != -1) /* Only say number if it's a number */
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
 	if (pu->notquiteyet) {
 		/* Wake up parking thread if we're really done */
