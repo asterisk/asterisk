@@ -3589,17 +3589,15 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		return -2;
 	}
 	/* Check for Media-description-level-address for audio */
-	if (pedanticsipchecking) {
-		c = get_sdp_iterate(&destiterator, req, "c");
-		if (!ast_strlen_zero(c)) {
-			if (sscanf(c, "IN IP4 %256s", host) != 1) {
-				ast_log(LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
-			} else {
-				/* XXX This could block for a long time, and block the main thread! XXX */
-				hp = ast_gethostbyname(host, &ahp);
-				if (!hp) {
-					ast_log(LOG_WARNING, "Unable to lookup host in secondary c= line, '%s'\n", c);
-				}
+	c = get_sdp_iterate(&destiterator, req, "c");
+	if (!ast_strlen_zero(c)) {
+		if (sscanf(c, "IN IP4 %256s", host) != 1) {
+			ast_log(LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
+		} else {
+			/* XXX This could block for a long time, and block the main thread! XXX */
+			hp = ast_gethostbyname(host, &ahp);
+			if (!hp) {
+				ast_log(LOG_WARNING, "Unable to lookup host in secondary c= line, '%s'\n", c);
 			}
 		}
 	}
@@ -3617,17 +3615,15 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		}
 	}
 	/* Check for Media-description-level-address for video */
-	if (pedanticsipchecking) {
-		c = get_sdp_iterate(&destiterator, req, "c");
-		if (!ast_strlen_zero(c)) {
-			if (sscanf(c, "IN IP4 %256s", host) != 1) {
-				ast_log(LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
-			} else {
-				/* XXX This could block for a long time, and block the main thread! XXX */
-				hp = ast_gethostbyname(host, &ahp);
-				if (!hp) {
-					ast_log(LOG_WARNING, "Unable to lookup host in secondary c= line, '%s'\n", c);
-				}
+	c = get_sdp_iterate(&destiterator, req, "c");
+	if (!ast_strlen_zero(c)) {
+		if (sscanf(c, "IN IP4 %256s", host) != 1) {
+			ast_log(LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
+		} else {
+			/* XXX This could block for a long time, and block the main thread! XXX */
+			hp = ast_gethostbyname(host, &ahp);
+			if (!hp) {
+				ast_log(LOG_WARNING, "Unable to lookup host in secondary c= line, '%s'\n", c);
 			}
 		}
 	}
