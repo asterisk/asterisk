@@ -1705,7 +1705,7 @@ static int skinny_reset_device(int fd, int argc, char *argv[])
 
 static char *device2str(int type)
 {
-	static char *tmp;
+	char *tmp;
 
 	switch (type) {
 	case SKINNY_DEVICE_NONE:
@@ -2478,7 +2478,7 @@ static int skinny_senddigit(struct ast_channel *ast, char digit)
 }
 
 static char *control2str(int ind) {
-	static char *tmp;
+	char *tmp;
 
 	switch (ind) {
 	case AST_CONTROL_HANGUP:
