@@ -41,39 +41,14 @@ Russell Bryant - Asterisk 1.0 maintainer and misc. enhancements
 	russelb@clemson.edu
 
 Anthony Minessale II - Countless big and small fixes, and relentless forward push
-also:
-app_chanspy
-app_forkcdr
-app_controlplayback
-app_while
-app_dumpchan
-app_dictate
-app_realtime
-app_macroif
-app_execif
-app_execiftime
-res_odbc
-res_config_odbc
-format_slin
-app_retrydial
-cdr_custom
-res_muxmon (now MixMonitor)
-res_sqlite
-format_mp3
-Several Features in app_dial including L(), G() and enhancements to M() and D()
-The concept design and initial implementation of dialplan functions with several examples.
-Several CDR enhancements including CDR variables.
-Attended Transfer
-One Touch Record
-Native Music On Hold
-Pluggable config backend (res_config)
-Realtime Caching options and SIP/IAX clusterability
-IAX codec preferences
-Modifications to the manager API to disable events.
-command line '-t' flag to allow recording/voicemail on nfs shares.
-#exec parser in config files.
-setvar from iax and sip peers.
-mulit-line comments in config files.
+	ChanSpy, ForkCDR, ControlPlayback, While/EndWhile, DumpChan, Dictate,
+	MacroIf, ExecIf, ExecIfTime, RetryDial, MixMonitor applications; many realtime
+	concepts and implementation pieces, including res_config_odbc; format_slin;
+	cdr_custom; several features in Dial including L(), G() and enhancements to
+	M() and D(); several CDR enhancements including CDR variables; attended
+	transfer; one touch record; native MOH; manager eventmask; command line '-t'
+	flag to allow recording/voicemail on nfs shares; #exec command and multiline
+	comments in config files; setvar in iax and sip configs.
 	anthmct@yahoo.com              http://www.asterlink.com
 
 James Golovich - Innumerable contributions
