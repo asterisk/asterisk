@@ -120,6 +120,10 @@ SQLHSTMT odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(s
 				continue;
 			}
 			break;
+		} else {
+			ast_log(LOG_WARNING, "SQL Prepare failed.  Attempting a reconnect...\n");
+			odbc_obj_disconnect(obj);
+			odbc_obj_connect(obj);
 		}
 	}
 

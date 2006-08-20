@@ -68,16 +68,27 @@ struct acf_odbc_query {
 
 AST_LIST_HEAD_STATIC(queries, acf_odbc_query);
 
-#ifdef NEEDTRACE
-static void acf_odbc_error(SQLHSTMT stmt, int res)
+static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 {
-	char state[10] = "", diagnostic[256] = "";
-	SQLINTEGER nativeerror = 0;
-	SQLSMALLINT diagbytes = 0;
-	SQLGetDiagRec(SQL_HANDLE_STMT, stmt, 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
-	ast_log(LOG_WARNING, "SQL return value %d: error %s: %s (len %d)\n", res, state, diagnostic, diagbytes);
+	int res;
+	char *sql = data;
+	SQLHSTMT stmt;
+
+	res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+		return NULL;
+	}
+
+	res = SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+
+	return stmt;
 }
-#endif
 
 /*
  * Master control routine
@@ -87,7 +98,7 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 	struct odbc_obj *obj;
 	struct acf_odbc_query *query;
 	char *t, buf[2048]="", varname[15];
-	int res, i, retry=0;
+	int i;
 	AST_DECLARE_APP_ARGS(values,
 		AST_APP_ARG(field)[100];
 	);
@@ -95,13 +106,7 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 		AST_APP_ARG(field)[100];
 	);
 	SQLHSTMT stmt;
-	SQLINTEGER nativeerror=0, numfields=0, rows=0;
-	SQLSMALLINT diagbytes=0;
-	unsigned char state[10], diagnostic[256];
-#ifdef NEEDTRACE
-	SQLINTEGER enable = 1;
-	char *tracefile = "/tmp/odbc.trace";
-#endif
+	SQLINTEGER rows=0;
 
 	AST_LIST_LOCK(&queries);
 	AST_LIST_TRAVERSE(&queries, query, list) {
@@ -119,7 +124,7 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 	obj = odbc_request_obj(query->dsn, 0);
 
 	if (!obj) {
-		ast_log(LOG_ERROR, "No such DSN registered (or out of connections): %s (check res_odbc.conf)\n", query->dsn);
+		ast_log(LOG_ERROR, "No database handle available with the name of '%s' (check res_odbc.conf)\n", query->dsn);
 		AST_LIST_UNLOCK(&queries);
 		return -1;
 	}
@@ -166,50 +171,9 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 
 	AST_LIST_UNLOCK(&queries);
 
-retry_write:
-#ifdef NEEDTRACE
-	SQLSetConnectAttr(obj->con, SQL_ATTR_TRACE, &enable, SQL_IS_INTEGER);
-	SQLSetConnectAttr(obj->con, SQL_ATTR_TRACEFILE, tracefile, strlen(tracefile));
-#endif
+	stmt = odbc_prepare_and_execute(obj, generic_prepare, buf);
 
-	res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
-		pbx_builtin_setvar_helper(chan, "ODBCROWS", "-1");
-		return -1;
-	}
-
-	res = SQLPrepare(stmt, (unsigned char *)buf, SQL_NTS);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", buf);
-		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-		pbx_builtin_setvar_helper(chan, "ODBCROWS", "-1");
-		return -1;
-	}
-
-	res = SQLExecute(stmt);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		if (res == SQL_ERROR) {
-			SQLGetDiagField(SQL_HANDLE_STMT, stmt, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
-			for (i = 0; i <= numfields; i++) {
-				SQLGetDiagRec(SQL_HANDLE_STMT, stmt, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
-				ast_log(LOG_WARNING, "SQL Execute returned an error %d: %s: %s (%d)\n", res, state, diagnostic, diagbytes);
-				if (i > 10) {
-					ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
-					break;
-				}
-			}
-		}
-		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-		odbc_release_obj(obj);
-		/* All handles are now invalid (after a disconnect), so we gotta redo all handles */
-		obj = odbc_request_obj(query->dsn, 1);
-		if (!retry) {
-			retry = 1;
-			goto retry_write;
-		}
-		rows = -1;
-	} else {
+	if (stmt) {
 		/* Rows affected */
 		SQLRowCount(stmt, &rows);
 	}
@@ -221,11 +185,10 @@ retry_write:
 	snprintf(varname, sizeof(varname), "%d", (int)rows);
 	pbx_builtin_setvar_helper(chan, "ODBCROWS", varname);
 
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", buf);
-	}
-
-	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+	if (stmt)
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+	if (obj)
+		odbc_release_obj(obj);
 
 	return 0;
 }
@@ -242,10 +205,6 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	SQLHSTMT stmt;
 	SQLSMALLINT colcount=0;
 	SQLINTEGER indicator;
-#ifdef NEEDTRACE
-	SQLINTEGER enable = 1;
-	char *tracefile = "/tmp/odbc.trace";
-#endif
 
 	AST_LIST_LOCK(&queries);
 	AST_LIST_TRAVERSE(&queries, query, list) {
@@ -268,11 +227,6 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 		return -1;
 	}
 
-#ifdef NEEDTRACE
-	SQLSetConnectAttr(obj->con, SQL_ATTR_TRACE, &enable, SQL_IS_INTEGER);
-	SQLSetConnectAttr(obj->con, SQL_ATTR_TRACEFILE, tracefile, strlen(tracefile));
-#endif
-
 	AST_STANDARD_APP_ARGS(args, s);
 	for (x = 0; x < args.argc; x++) {
 		snprintf(varname, sizeof(varname), "ARG%d", x + 1);
@@ -292,23 +246,10 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 
 	AST_LIST_UNLOCK(&queries);
 
-	res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
-		return -1;
-	}
+	stmt = odbc_prepare_and_execute(obj, generic_prepare, sql);
 
-	res = SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
-		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-		return -1;
-	}
-
-	res = odbc_smart_execute(obj, stmt);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	if (!stmt) {
+		odbc_release_obj(obj);
 		return -1;
 	}
 
@@ -316,6 +257,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		odbc_release_obj(obj);
 		return -1;
 	}
 
@@ -323,15 +265,18 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 
 	res = SQLFetch(stmt);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		int res1 = -1;
 		if (res == SQL_NO_DATA) {
 			if (option_verbose > 3) {
 				ast_verbose(VERBOSE_PREFIX_4 "Found no rows [%s]\n", sql);
 			}
+			res1 = 0;
 		} else if (option_verbose > 3) {
 			ast_log(LOG_WARNING, "Error %d in FETCH [%s]\n", res, sql);
 		}
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-		return 0;
+		odbc_release_obj(obj);
+		return res1;
 	}
 
 	for (x = 0; x < colcount; x++) {
@@ -348,6 +293,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+			odbc_release_obj(obj);
 			return -1;
 		}
 
@@ -371,6 +317,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	buf[buflen - 1] = '\0';
 
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+	odbc_release_obj(obj);
 	return 0;
 }
 
