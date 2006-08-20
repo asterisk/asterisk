@@ -1696,6 +1696,73 @@ static int skinny_reset_device(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static char *device2str(int type)
+{
+	static char tmp[15];
+
+	switch (type) {
+	case SKINNY_DEVICE_NONE:
+		return "No Device";
+	case SKINNY_DEVICE_30SPPLUS:
+		return "30SP Plus";
+	case SKINNY_DEVICE_12SPPLUS:
+		return "12SP Plus";
+	case SKINNY_DEVICE_12SP:
+		return "12SP";
+	case SKINNY_DEVICE_12:
+		return "12";
+	case SKINNY_DEVICE_30VIP:
+		return "30VIP";
+	case SKINNY_DEVICE_7910:
+		return "7910";
+	case SKINNY_DEVICE_7960:
+		return "7960";
+	case SKINNY_DEVICE_7940:
+		return "7940";
+	case SKINNY_DEVICE_7935:
+		return "7935";
+	case SKINNY_DEVICE_ATA186:
+		return "ATA186";
+	case SKINNY_DEVICE_7941:
+		return "7941";
+	case SKINNY_DEVICE_7971:
+		return "7971";
+	case SKINNY_DEVICE_7985:
+		return "7985";
+	case SKINNY_DEVICE_7911:
+		return "7911";
+	case SKINNY_DEVICE_7961GE:
+		return "7961GE";
+	case SKINNY_DEVICE_7941GE:
+		return "7941GE";
+	case SKINNY_DEVICE_7905:
+		return "7905";
+	case SKINNY_DEVICE_7920:
+		return "7920";
+	case SKINNY_DEVICE_7970:
+		return "7970";
+	case SKINNY_DEVICE_7912:
+		return "7912";
+	case SKINNY_DEVICE_7902:
+		return "7902";
+	case SKINNY_DEVICE_CIPC:
+		return "CIPC";
+	case SKINNY_DEVICE_7961:
+		return "7961";
+	case SKINNY_DEVICE_7936:
+		return "7936";
+	case SKINNY_DEVICE_SCCPGATEWAY_AN:
+		return "SCCPGATEWAY_AN";
+	case SKINNY_DEVICE_SCCPGATEWAY_BRI:
+		return "SCCPGATEWAY_BRI";
+	case SKINNY_DEVICE_UNKNOWN:
+		return "Unknown";
+	default:
+		snprintf(tmp, sizeof(tmp), "UNKNOWN-%d", type);
+		return tmp;
+	}
+}
+
 static int skinny_show_devices(int fd, int argc, char *argv[])
 {
 	struct skinny_device *d;
@@ -1707,19 +1774,19 @@ static int skinny_show_devices(int fd, int argc, char *argv[])
 	}
 	ast_mutex_lock(&devicelock);
 
-	ast_cli(fd, "Name                 DeviceId         IP              TypeId R NL\n");
-	ast_cli(fd, "-------------------- ---------------- --------------- ------ - --\n");
+	ast_cli(fd, "Name                 DeviceId         IP              Type            R NL\n");
+	ast_cli(fd, "-------------------- ---------------- --------------- --------------- - --\n");
 	for (d = devices; d; d = d->next) {
 		numlines = 0;
 		for (l = d->lines; l; l = l->next) {
 			numlines++;
 		}
 
-		ast_cli(fd, "%-20s %-16s %-15s %6X %c %2d\n",
+		ast_cli(fd, "%-20s %-16s %-15s %-15s %c %2d\n",
 				d->name,
 				d->id,
-				ast_inet_ntoa(d->addr.sin_addr),
-				d->type,
+				d->session?ast_inet_ntoa(d->session->sin.sin_addr):"",
+				device2str(d->type),
 				d->registered?'Y':'N',
 				numlines);
 	}
@@ -2441,9 +2508,10 @@ static char *control2str(int ind) {
 		return "Unhold";
 	case -1:
 		return "Stop tone";
+	default:
+		snprintf(tmp, sizeof(tmp), "UNKNOWN-%d", ind);
+		return tmp;
 	}
-	snprintf(tmp, 100, "UNKNOWN-%d", ind);
-	return tmp;
 }
 
 
