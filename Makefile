@@ -414,7 +414,7 @@ makeopts: configure
 	@echo "****"
 	@exit 1
 
-menuselect.makeopts menuselect.makedeps: menuselect/menuselect makeopts.xml
+menuselect.makeopts menuselect.makedeps: menuselect/menuselect menuselect-tree
 	menuselect/menuselect --check-deps $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts
 
 #ifneq ($(wildcard tags),)
@@ -541,7 +541,7 @@ distclean: clean
 	@$(MAKE) -C mxml clean
 	@$(MAKE) -C menuselect dist-clean
 	@$(MAKE) -C sounds dist-clean
-	rm -f menuselect.makeopts makeopts makeopts.xml menuselect.makedeps
+	rm -f menuselect.makeopts makeopts menuselect-tree menuselect.makedeps
 	rm -f config.log config.status
 	rm -rf autom4te.cache
 	rm -f include/asterisk/autoconfig.h
@@ -902,7 +902,7 @@ uninstall-all: _uninstall
 	rm -rf $(DESTDIR)$(ASTETCDIR)
 	rm -rf $(DESTDIR)$(ASTLOGDIR)
 
-menuselect: menuselect/menuselect makeopts.xml
+menuselect: menuselect/menuselect menuselect-tree
 	-@menuselect/menuselect $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts && echo "menuselect changes saved!" || echo "menuselect changes NOT saved!"
 
 menuselect/menuselect: menuselect/menuselect.c menuselect/menuselect_curses.c menuselect/menuselect_stub.c menuselect/menuselect.h menuselect/linkedlists.h config.status mxml/libmxml.a
@@ -912,7 +912,7 @@ mxml/libmxml.a:
 	@cd mxml && unset CFLAGS AST_LIBS && test -f config.h || ./configure
 	$(MAKE) -C mxml libmxml.a
 
-makeopts.xml: $(foreach dir,$(MOD_SUBDIRS),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml sounds/sounds.xml
+menuselect-tree: $(foreach dir,$(MOD_SUBDIRS),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml sounds/sounds.xml
 	@echo "Generating list of available modules ..."
 	@build_tools/prep_moduledeps > $@
 
