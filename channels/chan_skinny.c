@@ -72,6 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/astobj.h"
 #include "asterisk/abstract_jb.h"
+#include "asterisk/threadstorage.h"
 
 /*************************************
  * Skinny/Asterisk Protocol Settings *
@@ -123,6 +124,12 @@ static struct ast_jb_conf default_jbconf =
 	.impl = ""
 };
 static struct ast_jb_conf global_jbconf;
+
+AST_THREADSTORAGE(device2str_threadbuf, device2str_threadbuf_init);
+#define DEVICE2STR_BUFSIZE   15
+
+AST_THREADSTORAGE(control2str_threadbuf, control2str_threadbuf_init);
+#define CONTROL2STR_BUFSIZE   100
 
 /*********************
  * Protocol Messages *
@@ -1698,7 +1705,7 @@ static int skinny_reset_device(int fd, int argc, char *argv[])
 
 static char *device2str(int type)
 {
-	static char tmp[15];
+	static char *tmp;
 
 	switch (type) {
 	case SKINNY_DEVICE_NONE:
@@ -1758,7 +1765,9 @@ static char *device2str(int type)
 	case SKINNY_DEVICE_UNKNOWN:
 		return "Unknown";
 	default:
-		snprintf(tmp, sizeof(tmp), "UNKNOWN-%d", type);
+		if (!(tmp = ast_threadstorage_get(&device2str_threadbuf, DEVICE2STR_BUFSIZE)))
+			return "Unknown";
+		snprintf(tmp, DEVICE2STR_BUFSIZE, "UNKNOWN-%d", type);
 		return tmp;
 	}
 }
@@ -2469,7 +2478,7 @@ static int skinny_senddigit(struct ast_channel *ast, char digit)
 }
 
 static char *control2str(int ind) {
-	static char tmp[100];
+	static char *tmp;
 
 	switch (ind) {
 	case AST_CONTROL_HANGUP:
@@ -2509,7 +2518,9 @@ static char *control2str(int ind) {
 	case -1:
 		return "Stop tone";
 	default:
-		snprintf(tmp, sizeof(tmp), "UNKNOWN-%d", ind);
+		if (!(tmp = ast_threadstorage_get(&control2str_threadbuf, CONTROL2STR_BUFSIZE)))
+                        return "Unknown";
+		snprintf(tmp, CONTROL2STR_BUFSIZE, "UNKNOWN-%d", ind);
 		return tmp;
 	}
 }
