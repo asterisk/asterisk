@@ -67,6 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/http.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/linkedlists.h"
 
 struct fast_originate_helper {
 	char tech[AST_MAX_MANHEADER_LEN];
@@ -87,7 +88,6 @@ struct fast_originate_helper {
 struct eventqent {
 	int usecount;
 	int category;
-	ast_mutex_t lock;
 	struct eventqent *next;
 	char eventdata[1];
 };
@@ -100,13 +100,17 @@ static int timestampevents = 0;
 static int httptimeout = 60;
 
 static pthread_t t;
-AST_MUTEX_DEFINE_STATIC(sessionlock);
 static int block_sockets = 0;
 static int num_sessions = 0;
+
+/* Protected by the sessions list lock */
 struct eventqent *master_eventq = NULL;
 
 AST_THREADSTORAGE(manager_event_buf, manager_event_buf_init);
 #define MANAGER_EVENT_BUF_INITSIZE   256
+
+AST_THREADSTORAGE(astman_append_buf, astman_append_buf_init);
+#define ASTMAN_APPEND_BUF_INITSIZE   256
 
 static struct permalias {
 	int num;
@@ -124,7 +128,7 @@ static struct permalias {
 	{ 0, "none" },
 };
 
-static struct mansession {
+struct mansession {
 	/*! Execution thread */
 	pthread_t t;
 	/*! Thread lock -- don't use in action callbacks, it's already taken care of  */
@@ -148,7 +152,7 @@ static struct mansession {
 	/*! Session timeout if HTTP */
 	time_t sessiontimeout;
 	/*! Output from manager interface */
-	char *outputstr;
+	struct ast_dynamic_str *outputstr;
 	/*! Logged in username */
 	char username[80];
 	/*! Authentication challenge */
@@ -168,8 +172,10 @@ static struct mansession {
 	struct eventqent *eventq;
 	/* Timeout for ast_carefulwrite() */
 	int writetimeout;
-	struct mansession *next;
-} *sessions = NULL;
+	AST_LIST_ENTRY(mansession) list;
+};
+
+static AST_LIST_HEAD_STATIC(sessions, mansession);
 
 static struct manager_action *first_action = NULL;
 AST_MUTEX_DEFINE_STATIC(actionlock);
@@ -178,8 +184,9 @@ AST_MUTEX_DEFINE_STATIC(actionlock);
 static char *authority_to_str(int authority, char *res, int reslen)
 {
 	int running_total = 0, i;
+
 	memset(res, 0, reslen);
-	for (i=0; i<sizeof(perms) / sizeof(perms[0]) - 1; i++) {
+	for (i = 0; i < (sizeof(perms) / sizeof(perms[0])) - 1; i++) {
 		if (authority & perms[i].num) {
 			if (*res) {
 				strncat(res, ",", (reslen > running_total) ? reslen - running_total : 0);
@@ -189,9 +196,10 @@ static char *authority_to_str(int authority, char *res, int reslen)
 			running_total += strlen(perms[i].label);
 		}
 	}
-	if (ast_strlen_zero(res)) {
+
+	if (ast_strlen_zero(res))
 		ast_copy_string(res, "<none>", reslen);
-	}
+	
 	return res;
 }
 
@@ -209,6 +217,7 @@ static char *complete_show_mancmd(const char *line, const char *word, int pos, i
 		}
 	}
 	ast_mutex_unlock(&actionlock);
+
 	return ret;
 }
 
@@ -262,20 +271,18 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 	int escaped = 0;
 	int inobj = 0;
 	int x;
-	v = vars;
-
-	while (v) {
+	
+	for (v = vars; v; v = v->next) {
 		if (!dest && !strcasecmp(v->name, "ajaxdest"))
 			dest = v->value;
 		else if (!objtype && !strcasecmp(v->name, "ajaxobjtype")) 
 			objtype = v->value;
-		v = v->next;
 	}
 	if (!dest)
 		dest = "unknown";
 	if (!objtype)
 		objtype = "generic";
-	for (x=0; in[x]; x++) {
+	for (x = 0; in[x]; x++) {
 		if (in[x] == ':')
 			colons++;
 		else if (in[x] == '\n')
@@ -375,30 +382,24 @@ static char *html_translate(char *in)
 
 void astman_append(struct mansession *s, const char *fmt, ...)
 {
-	char *stuff;
-	int res;
 	va_list ap;
-	char *tmp;
+	struct ast_dynamic_str *buf;
+
+	if (!(buf = ast_dynamic_str_thread_get(&astman_append_buf, ASTMAN_APPEND_BUF_INITSIZE)))
+		return;
 
 	va_start(ap, fmt);
-	res = vasprintf(&stuff, fmt, ap);
+	ast_dynamic_str_thread_set_va(&buf, 0, &astman_append_buf, fmt, ap);
 	va_end(ap);
-	if (res == -1) {
-		ast_log(LOG_ERROR, "Memory allocation failure\n");
-		return;
-	} 
+	
 	if (s->fd > -1)
-		ast_carefulwrite(s->fd, stuff, strlen(stuff), s->writetimeout);
+		ast_carefulwrite(s->fd, buf->str, strlen(buf->str), s->writetimeout);
 	else {
-		tmp = realloc(s->outputstr, (s->outputstr ? strlen(s->outputstr) : 0) + strlen(stuff) + 1);
-		if (tmp) {
-			if (!s->outputstr)
-				tmp[0] = '\0';
-			s->outputstr = tmp;
-			strcat(s->outputstr, stuff);
-		}
+		if (!s->outputstr && !(s->outputstr = ast_calloc(1, sizeof(*s->outputstr))))
+			return;
+
+		ast_dynamic_str_append(&s->outputstr, 0, "%s", buf->str);	
 	}
-	free(stuff);
 }
 
 static int handle_showmancmd(int fd, int argc, char *argv[])
@@ -409,17 +410,17 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
+
 	ast_mutex_lock(&actionlock);
-	while (cur) { /* Walk the list of actions */
+	for (; cur; cur = cur->next) { /* Walk the list of actions */
 		for (num = 3; num < argc; num++) {
 			if (!strcasecmp(cur->action, argv[num])) {
 				ast_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n", cur->action, cur->synopsis, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->description ? cur->description : "");
 			}
 		}
-		cur = cur->next;
 	}
-
 	ast_mutex_unlock(&actionlock);
+
 	return RESULT_SUCCESS;
 }
 
@@ -431,15 +432,14 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 	char authority[80];
 	char *format = "  %-15.15s  %-15.15s  %-55.55s\n";
 
-	ast_mutex_lock(&actionlock);
 	ast_cli(fd, format, "Action", "Privilege", "Synopsis");
 	ast_cli(fd, format, "------", "---------", "--------");
-	while (cur) { /* Walk the list of actions */
+	
+	ast_mutex_lock(&actionlock);
+	for (; cur; cur = cur->next) /* Walk the list of actions */
 		ast_cli(fd, format, cur->action, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->synopsis);
-		cur = cur->next;
-	}
-
 	ast_mutex_unlock(&actionlock);
+	
 	return RESULT_SUCCESS;
 }
 
@@ -449,15 +449,14 @@ static int handle_showmanconn(int fd, int argc, char *argv[])
 {
 	struct mansession *s;
 	char *format = "  %-15.15s  %-15.15s\n";
-	ast_mutex_lock(&sessionlock);
-	s = sessions;
-	ast_cli(fd, format, "Username", "IP Address");
-	while (s) {
-		ast_cli(fd, format,s->username, ast_inet_ntoa(s->sin.sin_addr));
-		s = s->next;
-	}
 
-	ast_mutex_unlock(&sessionlock);
+	ast_cli(fd, format, "Username", "IP Address");
+	
+	AST_LIST_LOCK(&sessions);
+	AST_LIST_TRAVERSE(&sessions, s, list)
+		ast_cli(fd, format,s->username, ast_inet_ntoa(s->sin.sin_addr));
+	AST_LIST_UNLOCK(&sessions);
+
 	return RESULT_SUCCESS;
 }
 
@@ -466,15 +465,15 @@ static int handle_showmanconn(int fd, int argc, char *argv[])
 static int handle_showmaneventq(int fd, int argc, char *argv[])
 {
 	struct eventqent *s;
-	ast_mutex_lock(&sessionlock);
-	s = master_eventq;
-	while (s) {
+
+	AST_LIST_LOCK(&sessions);
+	for (s = master_eventq; s; s = s->next) {
 		ast_cli(fd, "Usecount: %d\n",s->usecount);
 		ast_cli(fd, "Category: %d\n", s->category);
 		ast_cli(fd, "Event:\n%s", s->eventdata);
-		s = s->next;
 	}
-	ast_mutex_unlock(&sessionlock);
+	AST_LIST_UNLOCK(&sessions);
+
 	return RESULT_SUCCESS;
 }
 
@@ -514,15 +513,7 @@ static struct ast_cli_entry show_maneventq_cli =
 
 static void unuse_eventqent(struct eventqent *e)
 {
-	/* XXX Need to atomically decrement the users.  Change this to atomic_dec
-	       one day when we have such a beast XXX */
-	int val;
-	ast_mutex_lock(&e->lock);
-	e->usecount--;
-	val = !e->usecount && e->next;
-	ast_mutex_unlock(&e->lock);
-	/* Wake up sleeping beauty */
-	if (val)
+	if (ast_atomic_dec_and_test(&e->usecount) && e->next)
 		pthread_kill(t, SIGURG);
 }
 
@@ -544,35 +535,26 @@ static void free_session(struct mansession *s)
 
 static void destroy_session(struct mansession *s)
 {
-	struct mansession *cur, *prev = NULL;
-	ast_mutex_lock(&sessionlock);
-	cur = sessions;
-	while (cur) {
-		if (cur == s)
-			break;
-		prev = cur;
-		cur = cur->next;
-	}
-	if (cur) {
-		if (prev)
-			prev->next = cur->next;
-		else
-			sessions = cur->next;
-		free_session(s);
-		num_sessions--;
-	} else
-		ast_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
-	ast_mutex_unlock(&sessionlock);
+	AST_LIST_LOCK(&sessions);
+	AST_LIST_REMOVE(&sessions, s, list);
+	AST_LIST_UNLOCK(&sessions);
+
+	ast_atomic_fetchadd_int(&num_sessions, -1);
+	free_session(s);
 }
 
 char *astman_get_header(struct message *m, char *var)
 {
 	char cmp[80];
 	int x;
+
 	snprintf(cmp, sizeof(cmp), "%s: ", var);
-	for (x=0; x<m->hdrcount; x++)
+
+	for (x = 0; x < m->hdrcount; x++) {
 		if (!strncasecmp(cmp, m->headers[x], strlen(cmp)))
 			return m->headers[x] + strlen(cmp);
+	}
+
 	return "";
 }
 
@@ -683,9 +665,10 @@ static int get_perm(char *instr)
 	if (!instr)
 		return 0;
 
-	for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
+	for (x = 0; x < (sizeof(perms) / sizeof(perms[0])); x++) {
 		if (ast_instring(instr, perms[x].label, ','))
 			ret |= perms[x].num;
+	}
 	
 	return ret;
 }
@@ -697,7 +680,7 @@ static int ast_is_number(char *string)
 	if (!string)
 		return 0;
 
-	for (x=0; x < strlen(string); x++) {
+	for (x = 0; x < strlen(string); x++) {
 		if (!(string[x] >= 48 && string[x] <= 57)) {
 			ret = 0;
 			break;
@@ -713,13 +696,13 @@ static int ast_strings_to_mask(char *string)
 	
 	x = ast_is_number(string);
 
-	if (x) {
+	if (x)
 		ret = x;
-	} else if (ast_strlen_zero(string)) {
+	else if (ast_strlen_zero(string))
 		ret = -1;
-	} else if (ast_false(string)) {
+	else if (ast_false(string))
 		ret = 0;
-	} else if (ast_true(string)) {
+	else if (ast_true(string)) {
 		ret = 0;
 		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
 			ret |= perms[x].num;		
@@ -771,8 +754,8 @@ static int authenticate(struct mansession *s, struct message *m)
 				struct ast_variable *v;
 				struct ast_ha *ha = NULL;
 				char *password = NULL;
-				v = ast_variable_browse(cfg, cat);
-				while (v) {
+
+				for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
 					if (!strcasecmp(v->name, "secret")) {
 						password = v->value;
 					} else if (!strcasecmp(v->name, "displaysystemname")) {
@@ -795,7 +778,6 @@ static int authenticate(struct mansession *s, struct message *m)
 							s->writetimeout = val;
 					}
 				    		
-					v = v->next;
 				}
 				if (ha && !ast_apply_ha(ha, &(s->sin))) {
 					ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
@@ -893,15 +875,13 @@ static int action_getconfig(struct mansession *s, struct message *m)
 	while ((category = ast_category_browse(cfg, category))) {
 		lineno = 0;
 		astman_append(s, "Category-%06d: %s\r\n", catcount, category);
-		v = ast_variable_browse(cfg, category);
-		while (v) {
+		for (v = ast_variable_browse(cfg, category); v; v = v->next)
 			astman_append(s, "Line-%06d-%06d: %s=%s\r\n", catcount, lineno++, v->name, v->value);
-			v = v->next;
-		}
 		catcount++;
 	}
 	ast_config_destroy(cfg);
 	astman_append(s, "\r\n");
+
 	return 0;
 }
 
@@ -1989,7 +1969,7 @@ static void *accept_thread(void *ignore)
 	struct sockaddr_in sin;
 	socklen_t sinlen;
 	struct eventqent *eqe;
-	struct mansession *s, *prev = NULL, *next;
+	struct mansession *s;
 	struct protoent *p;
 	int arg = 1;
 	int flags;
@@ -2002,26 +1982,19 @@ static void *accept_thread(void *ignore)
 
 	for (;;) {
 		time(&now);
-		ast_mutex_lock(&sessionlock);
-		prev = NULL;
-		s = sessions;
-		while (s) {
-			next = s->next;
+		AST_LIST_LOCK(&sessions);
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&sessions, s, list) {
 			if (s->sessiontimeout && (now > s->sessiontimeout) && !s->inuse) {
-				num_sessions--;
-				if (prev)
-					prev->next = next;
-				else
-					sessions = next;
+				AST_LIST_REMOVE_CURRENT(&sessions, list);
 				if (s->authenticated && (option_verbose > 1) && displayconnects) {
 					ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' timed out from %s\n",
 						s->username, ast_inet_ntoa(s->sin.sin_addr));
 				}
 				free_session(s);
-			} else
-				prev = s;
-			s = next;
+				break;	
+			}
 		}
+		AST_LIST_TRAVERSE_SAFE_END
 		/* Purge master event queue of old, unused events, but make sure we
 		   always keep at least one in the queue */
 		eqe = master_eventq;
@@ -2030,7 +2003,9 @@ static void *accept_thread(void *ignore)
 			master_eventq = master_eventq->next;
 			free(eqe);
 		}
-		ast_mutex_unlock(&sessionlock);
+		AST_LIST_UNLOCK(&sessions);
+		if (s)
+			ast_atomic_fetchadd_int(&num_sessions, -1);
 
 		sinlen = sizeof(sin);
 		pfds[0].fd = asock;
@@ -2052,6 +2027,8 @@ static void *accept_thread(void *ignore)
 		}
 		if (!(s = ast_calloc(1, sizeof(*s))))
 			continue;
+
+		ast_atomic_fetchadd_int(&num_sessions, 1);
 		
 		memcpy(&s->sin, &sin, sizeof(sin));
 		s->writetimeout = 100;
@@ -2065,19 +2042,15 @@ static void *accept_thread(void *ignore)
 		ast_mutex_init(&s->__lock);
 		s->fd = as;
 		s->send_events = -1;
-		ast_mutex_lock(&sessionlock);
-		num_sessions++;
-		s->next = sessions;
-		sessions = s;
+		AST_LIST_LOCK(&sessions);
+		AST_LIST_INSERT_HEAD(&sessions, s, list);
 		/* Find the last place in the master event queue and hook ourselves
 		   in there */
 		s->eventq = master_eventq;
 		while(s->eventq->next)
 			s->eventq = s->eventq->next;
-		ast_mutex_lock(&s->eventq->lock);
-		s->eventq->usecount++;
-		ast_mutex_unlock(&s->eventq->lock);
-		ast_mutex_unlock(&sessionlock);
+		AST_LIST_UNLOCK(&sessions);
+		ast_atomic_fetchadd_int(&s->eventq->usecount, 1);
 		if (ast_pthread_create(&s->t, &attr, session_do, s))
 			destroy_session(s);
 	}
@@ -2093,7 +2066,6 @@ static int append_event(const char *str, int category)
 	if (!tmp)
 		return -1;
 
-	ast_mutex_init(&tmp->lock);
 	tmp->next = NULL;
 	tmp->category = category;
 	strcpy(tmp->eventdata, str);
@@ -2145,21 +2117,22 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 	
 	ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf, "\r\n");	
 	
-	ast_mutex_lock(&sessionlock);
-	/* Append even to master list and wake up any sleeping sessions */
 	append_event(buf->str, category);
-	for (s = sessions; s; s = s->next) {
+	
+	/* Append even to master list and wake up any sleeping sessions */
+	AST_LIST_LOCK(&sessions);
+	AST_LIST_TRAVERSE(&sessions, s, list) {
 		ast_mutex_lock(&s->__lock);
 		if (s->waiting_thread != AST_PTHREADT_NULL)
 			pthread_kill(s->waiting_thread, SIGURG);
 		ast_mutex_unlock(&s->__lock);
 	}
-	ast_mutex_unlock(&sessionlock);
+	AST_LIST_UNLOCK(&sessions);
 
 	return 0;
 }
 
-int ast_manager_unregister( char *action ) 
+int ast_manager_unregister(char *action) 
 {
 	struct manager_action *cur = first_action, *prev = first_action;
 
@@ -2255,18 +2228,18 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 static struct mansession *find_session(unsigned long ident)
 {
 	struct mansession *s;
-	ast_mutex_lock(&sessionlock);
-	s = sessions;
-	while (s) {
+
+	AST_LIST_LOCK(&sessions);
+	AST_LIST_TRAVERSE(&sessions, s, list) {
 		ast_mutex_lock(&s->__lock);
 		if (s->sessiontimeout && (s->managerid == ident) && !s->needdestroy) {
 			s->inuse++;
 			break;
 		}
 		ast_mutex_unlock(&s->__lock);
-		s = s->next;
 	}
-	ast_mutex_unlock(&sessionlock);
+	AST_LIST_UNLOCK(&sessions);
+
 	return s;
 }
 
@@ -2282,10 +2255,11 @@ static void vars2msg(struct message *m, struct ast_variable *vars)
 	}
 }
 
-#define FORMAT_RAW	0
-#define FORMAT_HTML	1
-#define FORMAT_XML	2
-
+enum {
+	FORMAT_RAW,
+	FORMAT_HTML,
+	FORMAT_XML,
+};
 static char *contenttype[] = { "plain", "html", "xml" };
 
 static char *generic_http_callback(int format, struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
@@ -2301,20 +2275,16 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 	struct message m;
 	struct ast_variable *v;
 
-	v = params;
-	while (v) {
+	for (v = params; v; v = v->next) {
 		if (!strcasecmp(v->name, "mansession_id")) {
 			sscanf(v->value, "%lx", &ident);
 			break;
 		}
-		v = v->next;
 	}
-	s = find_session(ident);
-
-	if (!s) {
+	
+	if (!(s = find_session(ident))) {
 		/* Create new session */
-		s = ast_calloc(1, sizeof(struct mansession));
-		if (!s) {
+		if (!(s = ast_calloc(1, sizeof(*s)))) {
 			*status = 500;
 			goto generic_callback_out;
 		}
@@ -2324,20 +2294,17 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 		s->send_events = 0;
 		ast_mutex_init(&s->__lock);
 		ast_mutex_lock(&s->__lock);
-		ast_mutex_lock(&sessionlock);
 		s->inuse = 1;
 		s->managerid = rand() | (unsigned long)s;
-		s->next = sessions;
-		sessions = s;
-		num_sessions++;
+		AST_LIST_LOCK(&sessions);
+		AST_LIST_INSERT_HEAD(&sessions, s, list);
 		/* Hook into the last spot in the event queue */
 		s->eventq = master_eventq;
 		while (s->eventq->next)
 			s->eventq = s->eventq->next;
-		ast_mutex_lock(&s->eventq->lock);
-		s->eventq->usecount++;
-		ast_mutex_unlock(&s->eventq->lock);
-		ast_mutex_unlock(&sessionlock);
+		AST_LIST_UNLOCK(&sessions);
+		ast_atomic_fetchadd_int(&s->eventq->usecount, 1);
+		ast_atomic_fetchadd_int(&num_sessions, 1);
 	}
 
 	/* Reset HTTP timeout.  If we're not yet authenticated, keep it extremely short */
@@ -2382,11 +2349,11 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 		if (s->outputstr) {
 			char *tmp;
 			if (format == FORMAT_XML)
-				tmp = xml_translate(s->outputstr, params);
+				tmp = xml_translate(s->outputstr->str, params);
 			else if (format == FORMAT_HTML)
-				tmp = html_translate(s->outputstr);
+				tmp = html_translate(s->outputstr->str);
 			else
-				tmp = s->outputstr;
+				tmp = s->outputstr->str;
 			if (tmp) {
 				retval = malloc(strlen(workspace) + strlen(tmp) + 128);
 				if (retval) {
@@ -2395,10 +2362,10 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 					c = retval + strlen(retval);
 					len = 120;
 				}
-				free(tmp);
 			}
-			if (tmp != s->outputstr)
-				free(s->outputstr);
+			if (tmp != s->outputstr->str)
+				free(tmp);
+			free(s->outputstr);
 			s->outputstr = NULL;
 		}
 		/* Still okay because c would safely be pointing to workspace even
