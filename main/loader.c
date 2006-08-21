@@ -333,8 +333,8 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	char fn[256];
 	void *lib;
 	struct ast_module *mod;
-	unsigned int load_global = global_symbols_only;
 	char *resource = (char *) resource_in;
+	unsigned int wants_global;
 
 	if (strcasecmp(resource + strlen(resource) - 3, ".so")) {
 		resource = alloca(strlen(resource_in) + 3);
@@ -344,18 +344,16 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 
 	snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_MODULE_DIR, resource);
 
-tryload:
+	/* make a first load of the module in 'quiet' mode... don't try to resolve
+	   any symbols, and don't export any symbols. this will allow us to peek into
+	   the module's info block (if available) to see what flags it has set */
+
 	if (!(resource_being_loaded = ast_calloc(1, sizeof(*resource_being_loaded) + strlen(resource) + 1)))
 		return NULL;
 
 	strcpy(resource_being_loaded->resource, resource);
 
-	if (load_global)
-		lib = dlopen(fn, RTLD_LAZY | RTLD_GLOBAL);
-	else
-		lib = dlopen(fn, RTLD_NOW | RTLD_LOCAL);
-
-	if (!lib) {
+	if (!(lib = dlopen(fn, RTLD_LAZY | RTLD_LOCAL))) {
 		ast_log(LOG_WARNING, "%s\n", dlerror());
 		free(resource_being_loaded);
 		return NULL;
@@ -371,31 +369,43 @@ tryload:
 	if (resource_being_loaded != (mod = AST_LIST_LAST(&module_list))) {
 		/* no, it did not, so close it and return */
 		dlclose(lib);
+		/* note that the module's destructor will call ast_module_unregister(),
+		   which will free the structure we allocated in resource_being_loaded */
+		return NULL;
+	}
+
+	wants_global = ast_test_flag(mod->info, AST_MODFLAG_GLOBAL_SYMBOLS);
+
+	/* we are done with this first load, so clean up and start over */
+
+	dlclose(lib);
+	resource_being_loaded = NULL;
+
+	/* if we are being asked only to load modules that provide global symbols,
+	   and this one does not, then close it and return */
+	if (global_symbols_only && !wants_global)
+		return NULL;
+
+	/* start the load process again */
+
+	if (!(resource_being_loaded = ast_calloc(1, sizeof(*resource_being_loaded) + strlen(resource) + 1)))
+		return NULL;
+
+	strcpy(resource_being_loaded->resource, resource);
+
+	if (!(lib = dlopen(fn, wants_global ? RTLD_LAZY | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL))) {
+		ast_log(LOG_WARNING, "%s\n", dlerror());
 		free(resource_being_loaded);
 		return NULL;
 	}
 
+	/* since the module was successfully opened, and it registered itself
+	   the previous time we did that, we're going to assume it worked this
+	   time too :) */
+	AST_LIST_LAST(&module_list)->lib = lib;
 	resource_being_loaded = NULL;
-	mod->lib = lib;
 
-	/* if we are being asked only to load modules that provide global symbols,
-	   and this one does not, then close it and return */
-	if (load_global && !ast_test_flag(mod->info, AST_MODFLAG_GLOBAL_SYMBOLS)) {
-		unload_dynamic_module(mod);
-		return NULL;
-	}
-
-	/* if we were not asked to load _only_ modules with global symbols, but
-	   this module wants to provide some, then we have to close and re-open
-	   in global mode
-	*/
-	if (!load_global && ast_test_flag(mod->info, AST_MODFLAG_GLOBAL_SYMBOLS)) {
-		unload_dynamic_module(mod);
-		load_global = 1;
-		goto tryload;
-	}
-
-	return mod;
+	return AST_LIST_LAST(&module_list);
 }
 #endif
 
