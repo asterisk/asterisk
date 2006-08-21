@@ -3927,12 +3927,19 @@ static int get_input(struct skinnysession *s)
 		res = read(s->fd, s->inbuf, 4);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "read() returned error: %s\n", strerror(errno));
+			ast_mutex_unlock(&s->lock);
 			return res;
 		} else if (res != 4) {
 			ast_log(LOG_WARNING, "Skinny Client sent less data than expected.  Expected 4 but got %d.\n", res);
+			ast_mutex_unlock(&s->lock);
 			return -1;
 		}
 		dlen = letohl(*(int *)s->inbuf);
+		if (dlen < 0) {
+			ast_log(LOG_WARNING, "Skinny Client sent invalid data.\n");
+			ast_mutex_unlock(&s->lock);
+			return -1;
+		}
 		if (dlen+8 > sizeof(s->inbuf)) {
 			dlen = sizeof(s->inbuf) - 8;
 		}
