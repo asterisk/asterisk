@@ -650,7 +650,7 @@ menuselect/menuselect: makeopts menuselect/menuselect.c menuselect/menuselect_cu
 	@CFLAGS="-include $(ASTTOPDIR)/include/asterisk/autoconfig.h -I$(ASTTOPDIR)/include" PARENTSRC="$(ASTTOPDIR)" $(MAKE) -C menuselect CC="$(HOST_CC)" menuselect
 
 mxml/libmxml.a:
-	@cd mxml && unset CFLAGS AST_LIBS && test -f config.h || ./configure --build=$(BUILD_PLATFORM) --host=$(BUILD_PLATFORM)
+	@cd mxml && unset CC CFLAGS AST_LIBS && test -f config.h || ./configure --build=$(BUILD_PLATFORM) --host=$(BUILD_PLATFORM)
 	$(MAKE) -C mxml libmxml.a
 
 menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml sounds/sounds.xml build_tools/embed_modules.xml
