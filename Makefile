@@ -654,7 +654,7 @@ mxml/libmxml.a:
 	@cd mxml && unset CFLAGS AST_LIBS && test -f config.h || ./configure --build=$(BUILD_PLATFORM) --host=$(BUILD_PLATFORM)
 	$(MAKE) -C mxml libmxml.a
 
-menuselect-tree: $(foreach dir,$(MOD_SUBDIRS),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml sounds/sounds.xml build_tools/embed_modules.xml
+menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml sounds/sounds.xml build_tools/embed_modules.xml
 	@echo "Generating input for menuselect ..."
 	@build_tools/prep_moduledeps > $@
 
