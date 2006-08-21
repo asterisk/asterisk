@@ -43,6 +43,16 @@ If you would like to save your choices and have them applied against all
 builds, the file can be copied to '~/.asterisk.makeopts' or 
 '/etc/asterisk.makeopts'.
 
+Build Process (Makefile targets):
+
+The 'valgrind' and 'dont-optimize' targets have been removed; their functionality
+is available by enabling the DONT_OPTIMIZE setting in the 'Compiler Flags' menu
+in the menuselect tool.
+
+It is now possible to run most make targets against a single subdirectory; from
+the top level directory, for example, 'make channels' will run 'make all' in the
+'channels' subdirectory. This also is true for 'clean', 'distclean' and 'depend'.
+
 Sound (prompt) and Music On Hold files:
 
 Beginning with Asterisk 1.4, the sound files and music on hold files supplied for

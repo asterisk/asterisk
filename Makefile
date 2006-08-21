@@ -197,8 +197,7 @@ ASTCFLAGS+=$(MALLOC_DEBUG)$(BUSYDETECT)$(OPTIONS)
 
 MOD_SUBDIRS:=res channels pbx apps codecs formats cdr funcs main
 OTHER_SUBDIRS:=utils agi
-# Note: OTHER_SUBDIRS must be after MOD_SUBDIRS, because 'utils' uses files from 'main'
-SUBDIRS:=$(MOD_SUBDIRS) $(OTHER_SUBDIRS)
+SUBDIRS:=$(OTHER_SUBDIRS) $(MOD_SUBDIRS)
 SUBDIRS_INSTALL:=$(SUBDIRS:%=%-install)
 SUBDIRS_CLEAN:=$(SUBDIRS:%=%-clean)
 SUBDIRS_CLEAN_DEPEND:=$(SUBDIRS:%=%-clean-depend)
