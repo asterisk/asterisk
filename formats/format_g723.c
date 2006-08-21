@@ -160,4 +160,4 @@ static int unload_module(void)
 	return ast_format_unregister(g723_1_f.name);
 }	
 
-AST_MODULE_INFO_STANDARD("G.723.1 Simple Timestamp File Format", ASTERISK_GPL_KEY);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "G.723.1 Simple Timestamp File Format");
