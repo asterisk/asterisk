@@ -647,7 +647,8 @@ int ast_safe_system(const char *s)
 	struct rusage rusage;
 	int status;
 
-	ast_replace_sigchld();
+#if HAVE_WORKING_FORK
+    	ast_replace_sigchld();
 
 	pid = fork();
 
@@ -674,6 +675,9 @@ int ast_safe_system(const char *s)
 	}
 
 	ast_unreplace_sigchld();
+#else
+	res = -1;
+#endif
 
 	return res;
 }
@@ -2101,7 +2105,10 @@ static int show_cli_help(void) {
 	printf("   -U <user>       Run as a user other than the caller\n");
 	printf("   -c              Provide console CLI\n");
 	printf("   -d              Enable extra debugging\n");
+#if HAVE_WORKING_FORK
 	printf("   -f              Do not fork\n");
+	printf("   -F              Always fork\n");
+#endif
 	printf("   -g              Dump core in case of a crash\n");
 	printf("   -h              This help screen\n");
 	printf("   -i              Initialize crypto keys at startup\n");
@@ -2209,12 +2216,14 @@ static void ast_readconfig(void)
 			if (sscanf(v->value, "%d", &option_debug) != 1) {
 				option_debug = ast_true(v->value);
 			}
+#if HAVE_WORKING_FORK
 		/* Disable forking (-f at startup) */
 		} else if (!strcasecmp(v->name, "nofork")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_NO_FORK);
 		/* Always fork, even if verbose or debug are enabled (-F at startup) */
 		} else if (!strcasecmp(v->name, "alwaysfork")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_ALWAYS_FORK);
+#endif
 		/* Run quietly (-q at startup ) */
 		} else if (!strcasecmp(v->name, "quiet")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_QUIET);
@@ -2326,18 +2335,20 @@ int main(int argc, char *argv[])
 	/* Check for options */
 	while ((c = getopt(argc, argv, "mtThfdvVqprRgciInx:U:G:C:L:M:")) != -1) {
 		switch (c) {
+#if HAVE_WORKING_FORK
 		case 'F':
 			ast_set_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK);
 			break;
+		case 'f':
+			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK);
+			break;
+#endif
 		case 'd':
 			option_debug++;
 			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK);
 			break;
 		case 'c':
 			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_CONSOLE);
-			break;
-		case 'f':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK);
 			break;
 		case 'n':
 			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_COLOR);
@@ -2560,6 +2571,7 @@ int main(int argc, char *argv[])
 	} else
 		ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
 
+#if HAVE_WORKING_FORK
 	if (ast_opt_always_fork || !ast_opt_no_fork) {
 		daemon(0, 0);
 		ast_mainpid = getpid();
@@ -2572,6 +2584,7 @@ int main(int argc, char *argv[])
 		} else
 			ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
 	}
+#endif
 
 	/* Test recursive mutex locking. */
 	if (test_for_thread_safety())
@@ -2719,9 +2732,11 @@ int main(int argc, char *argv[])
 
 	}
 	/* Do nothing */
-	for(;;)  {	/* apparently needed for the MACos */
+	for (;;) {	/* apparently needed for Mac OS X */
 		struct pollfd p = { -1 /* no descriptor */, 0, 0 };
+
 		poll(&p, 0, -1);
 	}
+
 	return 0;
 }

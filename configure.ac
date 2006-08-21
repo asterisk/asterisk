@@ -198,7 +198,7 @@ AC_CHECK_TYPES([ptrdiff_t])
 AC_FUNC_CHOWN
 AC_FUNC_CLOSEDIR_VOID
 AC_FUNC_ERROR_AT_LINE
-AC_FUNC_FORK
+AST_FUNC_FORK
 AC_FUNC_FSEEKO
 AC_PROG_GCC_TRADITIONAL
 # XXX: these are commented out until we determine whether it matters if our malloc()
