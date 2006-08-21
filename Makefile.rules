@@ -98,7 +98,3 @@ $(eval $(call ast_make_oo_cc,%.oo,%.cc))
 $(eval $(call ast_make_so_o,%.so,%.o))
 
 $(eval $(call ast_make_final,%,%.o))
-
-$(eval $(call ast_make_c_y,%.c,%.y))
-
-$(eval $(call ast_make_c_fl,%.c,%.fl))
