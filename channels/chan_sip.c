@@ -10857,9 +10857,14 @@ static char show_settings_usage[] =
 static int func_header_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len) 
 {
 	struct sip_pvt *p;
-	const char *content;
-	
- 	if (!data) {
+	const char *content = NULL;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(header);
+		AST_APP_ARG(number);
+	);
+	int i, number, start = 0;
+
+ 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "This function requires a header name.\n");
 		return -1;
 	}
@@ -10871,6 +10876,11 @@ static int func_header_read(struct ast_channel *chan, char *function, char *data
 		return -1;
 	}
 
+	AST_STANDARD_APP_ARGS(args, data);
+	sscanf(args.number, "%d", &number);
+	if (number < 1)
+		number = 1;
+
 	p = chan->tech_pvt;
 
 	/* If there is no private structure, this channel is no longer alive */
@@ -10879,7 +10889,8 @@ static int func_header_read(struct ast_channel *chan, char *function, char *data
 		return -1;
 	}
 
-	content = get_header(&p->initreq, data);
+	for (i = 0; i < number; i++)
+		content = __get_header(&p->initreq, args.header, &start);
 
 	if (ast_strlen_zero(content)) {
 		ast_channel_unlock(chan);
@@ -10895,7 +10906,10 @@ static int func_header_read(struct ast_channel *chan, char *function, char *data
 static struct ast_custom_function sip_header_function = {
 	.name = "SIP_HEADER",
 	.synopsis = "Gets the specified SIP header",
-	.syntax = "SIP_HEADER(<name>)",
+	.syntax = "SIP_HEADER(<name>[,<number>])",
+	.desc = "Since there are several headers (such as Via) which can occur multiple\n"
+	"times, SIP_HEADER takes an optional second argument to specify which header with\n"
+	"that name to retrieve. Headers start at offset 1.\n",
 	.read = func_header_read,
 };
 
