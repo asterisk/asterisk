@@ -396,14 +396,13 @@ static char odbc_table[80];
 static char VM_SPOOL_DIR[PATH_MAX];
 
 static char ext_pass_cmd[128];
-#ifdef ODBC_STORAGE
+
+#if ODBC_STORAGE
 #define tdesc "Comedian Mail (Voicemail System) with ODBC Storage"
-#else
-#ifdef IMAP_STORAGE
+#elif IMAP_STORAGE
 #define tdesc "Comedian Mail (Voicemail System) with IMAP Storage"
 #else
 #define tdesc "Comedian Mail (Voicemail System)"
-#endif
 #endif
 
 static char *addesc = "Comedian Mail";
