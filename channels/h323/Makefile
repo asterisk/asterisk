@@ -10,7 +10,6 @@
 STDCCFLAGS	+= -DNDEBUG
 STDCCFLAGS	+= $(shell grep ^DEBUG_THREADS ../../Makefile | sed -e "s/^DEBUG_THREADS[ 	]*=//" -e "s/\([^\#]*\)\#.*/\1/")
 STDCCFLAGS	+= -I../../include -include autoconfig.h
-STDCCFLAGS	+= -fPIC
 #OPTCCFLAGS	+=
 CFLAGS		+= -pipe
 TARGET		+= libchanh323.a

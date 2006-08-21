@@ -65,9 +65,7 @@ static struct ast_custom_function global_function = {
 	.write = global_write,
 };
 
-static char *tdesc = "Global variable dialplan functions";
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res = 0;
 
@@ -76,7 +74,7 @@ static int unload_module(void *mod)
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res = 0;
 
@@ -85,15 +83,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Global variable dialplan functions");

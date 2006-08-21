@@ -148,27 +148,16 @@ static const struct ast_format g723_1_f = {
 	.tell =	g723_tell,
 	.read =	g723_read,
 	.buf_size = G723_MAX_SIZE + AST_FRIENDLY_OFFSET,
-	.module = &mod_data, /* XXX */
 };
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_format_register(&g723_1_f);
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_format_unregister(g723_1_f.name);
 }	
 
-static const char *description(void)
-{
-	return "G.723.1 Simple Timestamp File Format";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD("G.723.1 Simple Timestamp File Format", ASTERISK_GPL_KEY);

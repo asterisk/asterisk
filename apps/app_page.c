@@ -63,7 +63,6 @@ static const char *page_descrip =
 "	 q - quiet, do not play beep to caller\n"
 "        r - record the page into a file (see 'r' for app_meetme)\n";
 
-LOCAL_USER_DECL;
 
 enum {
 	PAGE_DUPLEX = (1 << 0),
@@ -143,7 +142,7 @@ static void launch_page(struct ast_channel *chan, const char *meetmeopts, const 
 
 static int page_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *options;
 	char *tech, *resource;
 	char meetmeopts[80];
@@ -159,11 +158,11 @@ static int page_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (!(app = pbx_findapp("MeetMe"))) {
 		ast_log(LOG_WARNING, "There is no MeetMe application available!\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	};
 
@@ -204,36 +203,26 @@ static int page_exec(struct ast_channel *chan, void *data)
 		pbx_exec(chan, app, meetmeopts);
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return -1;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res =  ast_unregister_application(app_page);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app_page, page_exec, page_synopsis, page_descrip);
 }
 
-static const char *description(void)
-{
-	return "Page Multiple Phones";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Page Multiple Phones");
 

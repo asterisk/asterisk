@@ -26,6 +26,11 @@
  * \ingroup channel_drivers
  */
 
+/*** MODULEINFO
+	<depend>isdnnet</depend>
+	<depend>misdn</depend>
+	<depend>suppserv</depend>
+ ***/
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -283,7 +288,6 @@ static int pbx_start_chan(struct chan_list *ch);
 
 /* #define MISDN_DEBUG 1 */
 
-static char *desc = "Channel driver for mISDN Support (Bri/Pri)";
 static const char misdn_type[] = "mISDN";
 
 static int tracing = 0 ;
@@ -4441,7 +4445,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 static int g_config_initialized=0;
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	/* First, take us out of the channel loop */
 	ast_log(LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
@@ -4472,7 +4476,7 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int i, port;
 	
@@ -4547,7 +4551,7 @@ static int load_module(void *mod)
 	{
 		if (ast_channel_register(&misdn_tech)) {
 			ast_log(LOG_ERROR, "Unable to register channel class %s\n", misdn_type);
-			unload_module(mod);
+			unload_module();
 			return -1;
 		}
 	}
@@ -4601,25 +4605,12 @@ static int load_module(void *mod)
 
 
 
-static int reload(void *mod)
+static int reload(void)
 {
 	reload_config();
 
 	return 0;
 }
-
-static const char *description(void)
-{
-	return desc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-
-
 
 /*** SOME APPS ;)***/
 
@@ -5099,4 +5090,8 @@ void chan_misdn_log(int level, int port, char *tmpl, ...)
 	}
 }
 
-STD_MOD(MOD_0, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Channel driver for mISDN Support (BRI/PRI)",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

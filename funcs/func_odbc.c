@@ -49,8 +49,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/res_odbc.h"
 #include "asterisk/app.h"
 
-static char *tdesc = "ODBC lookups";
-
 static char *config = "func_odbc.conf";
 
 enum {
@@ -533,7 +531,7 @@ static int odbc_unload_module(void)
 	return 0;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	int res = 0;
 	struct ast_config *cfg;
@@ -573,27 +571,21 @@ reload_out:
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return odbc_unload_module();
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return odbc_load_module();
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
 /* XXX need to revise usecount - set if query_lock is set */
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ODBC lookups",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );
 

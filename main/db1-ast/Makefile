@@ -50,7 +50,7 @@ clean-depend:
 clean:
 	rm -f $(LIBDB) $(LIBDBSO) $(OBJS) $(SHOBJS)
 
-CFLAGS+=-Wall -c -D__DBINTERFACE_PRIVATE -I. -I.. -Iinclude -Ihash -Ibtree -Irecno
+CFLAGS+=-Wall -D__DBINTERFACE_PRIVATE -I. -I.. -Iinclude -Ihash -Ibtree -Irecno
 
 OSTYPE=$(shell uname -s)
 ifeq ($(OSTYPE),SunOS)

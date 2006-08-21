@@ -2722,8 +2722,6 @@ static struct ast_cli_entry  cli_precache =
 static struct ast_cli_entry  cli_queryeid =
 	{ { "dundi", "query", NULL }, dundi_do_query, "Query a DUNDi EID", query_usage };
 
-LOCAL_USER_DECL;
-
 static struct dundi_transaction *create_transaction(struct dundi_peer *p)
 {
 	struct dundi_transaction *trans;
@@ -3713,7 +3711,7 @@ static int dundifunc_read(struct ast_channel *chan, char *cmd, char *num, char *
 	int results;
 	int x;
 	int bypass = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	struct dundi_result dr[MAX_RESULTS];
 
 	buf[0] = '\0';
@@ -3723,7 +3721,7 @@ static int dundifunc_read(struct ast_channel *chan, char *cmd, char *num, char *
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	context = strchr(num, '|');
 	if (context) {
@@ -3750,7 +3748,7 @@ static int dundifunc_read(struct ast_channel *chan, char *cmd, char *num, char *
 		}
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -4436,9 +4434,9 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	ast_cli_unregister(&cli_debug);
 	ast_cli_unregister(&cli_store_history);
@@ -4462,19 +4460,18 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	struct sockaddr_in sin;
 	set_config("dundi.conf",&sin);
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res = 0;
 	struct sockaddr_in sin;
 
-	__mod_desc = mod;
 	dundi_set_output(dundi_debug_output);
 	dundi_set_error(dundi_error_output);
 	
@@ -4542,15 +4539,9 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return "Distributed Universal Number Discovery (DUNDi)";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1 | NO_USECOUNT | NO_UNLOAD, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Distributed Universal Number Discovery (DUNDi)",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );
 

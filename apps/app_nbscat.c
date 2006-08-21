@@ -55,8 +55,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define AF_LOCAL AF_UNIX
 #endif
 
-static char *tdesc = "Silly NBS Stream Application";
-
 static char *app = "NBScat";
 
 static char *synopsis = "Play an NBS local stream";
@@ -65,7 +63,6 @@ static char *descrip =
 "  NBScat: Executes nbscat to listen to the local NBS stream.\n"
 "User can exit by pressing any key\n.";
 
-LOCAL_USER_DECL;
 
 static int NBScatplay(int fd)
 {
@@ -109,7 +106,7 @@ static int timed_read(int fd, void *data, int datalen)
 static int NBScat_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	int fds[2];
 	int ms = -1;
 	int pid = -1;
@@ -122,11 +119,11 @@ static int NBScat_exec(struct ast_channel *chan, void *data)
 		short frdata[160];
 	} myf;
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (socketpair(AF_LOCAL, SOCK_STREAM, 0, fds)) {
 		ast_log(LOG_WARNING, "Unable to create socketpair\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	
@@ -136,7 +133,7 @@ static int NBScat_exec(struct ast_channel *chan, void *data)
 	res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	
@@ -206,35 +203,25 @@ static int NBScat_exec(struct ast_channel *chan, void *data)
 	if (!res && owriteformat)
 		ast_set_write_format(chan, owriteformat);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, NBScat_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Silly NBS Stream Application");

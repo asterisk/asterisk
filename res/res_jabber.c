@@ -120,8 +120,6 @@ static struct ast_cli_entry aji_cli[] = {
 	{{ "jabber", "test", NULL}, aji_test, "Shows roster, but is genearlly used for mog's debugging.", test_usage },
  };
 
-static const char *tdesc = "AJI - Asterisk Jabber Interface";
-
 static char *app_ajisend = "JabberSend";
 
 static char *ajisend_synopsis = "JabberSend(jabber,screenname,message)";
@@ -2284,7 +2282,7 @@ static void aji_reload()
 	}
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	ast_cli_unregister_multiple(aji_cli, sizeof(aji_cli) / sizeof(aji_cli[0]));
 	ast_unregister_application(app_ajisend);
@@ -2306,7 +2304,7 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	ASTOBJ_CONTAINER_INIT(&clients);
 	aji_reload();
@@ -2320,20 +2318,14 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	aji_reload();
 	return 0;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "AJI - Asterisk Jabber Interface",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

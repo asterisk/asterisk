@@ -72,13 +72,12 @@ AST_APP_OPTIONS(app_opts,{
 	AST_APP_OPTION_ARG('c', OPTION_C, OPTION_ARG_C),
 });
 
-LOCAL_USER_DECL;
 
 static int app_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct ast_flags flags;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *parse, *opts[OPTION_ARG_ARRAY_SIZE];
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(dummy);
@@ -90,7 +89,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	/* Do our thing here */
 
@@ -114,32 +113,21 @@ static int app_exec(struct ast_channel *chan, void *data)
 	if (ast_test_flag(&flags, OPTION_C))
 		ast_log(LOG_NOTICE, "Option C is set with : %s\n", opts[OPTION_ARG_C] ? opts[OPTION_ARG_C] : "<unspecified>");
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 	res = ast_unregister_application(app);
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, app_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Trivial skeleton Application";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
-
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Skeleton (sample) Application");

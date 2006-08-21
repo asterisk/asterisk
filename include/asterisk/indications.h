@@ -34,9 +34,6 @@
 
 #include "asterisk/lock.h"
 
-/* forward reference */
-struct ast_channel;
-
 struct tone_zone_sound {
 	struct tone_zone_sound *next;		/* next element */
 	const char *name;			/* Identifing name */

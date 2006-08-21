@@ -23,16 +23,34 @@
 #ifndef _ASTERISK_COMPILER_H
 #define _ASTERISK_COMPILER_H
 
-#if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 96)
-#define __builtin_expect(exp, c) (exp)
-#define force_inline inline
-#define attribute_pure
-#else
+#if HAVE_ATTRIBUTE_always_inline
 #define force_inline inline __attribute__((always_inline))
-#define attribute_pure __attribute__((pure))
+#else
+#define force_inline inline
 #endif
 
+#if HAVE_ATTRIBUTE_pure
+#define attribute_pure __attribute__((pure))
+#else
+#define attribute_pure
+#endif
+
+#if HAVE_ATTRIBUTE_const
 #define attribute_const __attribute__((const))
+#else
+#define attribute_const
+#endif
+
+#if HAVE_ATTRIBUTE_unused
 #define attribute_unused __attribute__((unused))
+#else
+#define attribute_unused
+#endif
+
+#if HAVE_ATTRIBUTE_malloc
+#define attribute_malloc __attribute__((malloc))
+#else
+#define attribute_malloc
+#endif
 
 #endif /* _ASTERISK_COMPILER_H */

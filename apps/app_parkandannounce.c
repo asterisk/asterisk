@@ -51,8 +51,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 
-static char *tdesc = "Call Parking and Announce Application";
-
 static char *app = "ParkAndAnnounce";
 
 static char *synopsis = "Park and Announce";
@@ -75,7 +73,6 @@ static char *descrip =
 "call was placed.  Use with the Local channel to allow the dialplan to make\n"
 "use of this information.\n";
 
-LOCAL_USER_DECL;
 
 static int parkandannounce_exec(struct ast_channel *chan, void *data)
 {
@@ -93,18 +90,18 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	struct outgoing_helper oh;
 	int outstate;
 
-	struct localuser *u;
+	struct ast_module_user *u;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ParkAndAnnounce requires arguments: (announce:template|timeout|dial|[return_context])\n");
 		return -1;
 	}
   
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	l=strlen(data)+2;	
 	if (!(orig_s = ast_malloc(l))) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	s=orig_s;
@@ -114,7 +111,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	if(! template) {
 		ast_log(LOG_WARNING, "PARK: An announce template must be defined\n");
 		free(orig_s);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
   
@@ -126,7 +123,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	if(!dial) {
 		ast_log(LOG_WARNING, "PARK: A dial resource must be specified i.e: Console/dsp or Zap/g1/5551212\n");
 		free(orig_s);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	} else {
 		dialtech=strsep(&dial, "/");
@@ -159,7 +156,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	if(atoi(priority) < 0) {
 		ast_log(LOG_WARNING, "Priority '%s' must be a number > 0\n", priority);
 		free(orig_s);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	/* At this point we have a priority and maybe an extension and a context */
@@ -206,13 +203,13 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
         			ast_log(LOG_WARNING, "PARK: Channel %s was never answered for the announce.\n", dchan->name);
 			ast_hangup(dchan);
 			free(orig_s);
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return -1;
 		}
 	} else {
 		ast_log(LOG_WARNING, "PARK: Unable to allocate announce channel.\n");
 		free(orig_s);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1; 
 	}
 
@@ -250,36 +247,26 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	ast_hangup(dchan);
 	free(orig_s);
 	
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	/* return ast_register_application(app, park_exec); */
 	return ast_register_application(app, parkandannounce_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Call Parking and Announce Application");

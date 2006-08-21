@@ -501,7 +501,7 @@ void ast_smdi_interface_destroy(struct ast_smdi_interface *iface)
 	ASTOBJ_CONTAINER_DESTROY(&iface->mwi_q);
 	free(iface);
 
-	ast_atomic_fetchadd_int(&me->usecnt, -1);
+	ast_module_unref(ast_module_info->self);
 }
 
 /*!
@@ -686,7 +686,7 @@ static int smdi_load(int reload)
 
 			ASTOBJ_CONTAINER_LINK(&smdi_ifaces, iface);
 			ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
-			ast_atomic_fetchadd_int(&me->usecnt, +1);
+			ast_module_ref(ast_module_info->self);
 		} else {
 			ast_log(LOG_NOTICE, "Ignoring unknown option %s in %s\n", v->name, config_file);
 		}
@@ -706,17 +706,10 @@ static int smdi_load(int reload)
 	return res;
 }
 
-
-static const char *description(void)
-{
-	return "Asterisk Simplified Message Desk Interface (SMDI) Module";
-}
-
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
-	me = mod;
 	/* initialize our containers */
 	memset(&smdi_ifaces, 0, sizeof(smdi_ifaces));
 	ASTOBJ_CONTAINER_INIT(&smdi_ifaces);
@@ -732,7 +725,7 @@ static int load_module(void *mod)
 		return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	/* this destructor stops any running smdi_read threads */
 	ASTOBJ_CONTAINER_DESTROYALL(&smdi_ifaces, ast_smdi_interface_destroy);
@@ -741,7 +734,7 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	int res;
 
@@ -756,9 +749,8 @@ static int reload(void *mod)
 		return 0;
 }
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Simplified Message Desk Interface (SMDI) Resource",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

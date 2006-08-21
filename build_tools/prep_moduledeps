@@ -1,29 +1,7 @@
 #!/bin/sh
 
 get_description() {
-	x=${1}
-	TDESC=`cat $x | grep -e *tdesc | cut -f 2 -d '"'`
-	if [ "$TDESC" = "" ]; then
-		TDESC=`cat $x | grep -A 2 -e *description | grep -e '\"'  | cut -f 2 -d '"'` 
-	fi
-	if [ "$TDESC" = "" ]; then
-		TDESC=`cat $x | grep -e MODULE_DESCRIPTION | grep -v return | cut -f 2 -d '"'`
-	fi
-	if [ "$TDESC" = "" ]; then
-		TDESC=`cat $x | grep -e tdesc\\\[\\\] | cut -f 2 -d '"'`
-	fi
-	if [ "$TDESC" = "" ]; then
-		TDESC=`cat $x | grep -e desc\\\[\\\] | grep -v description | cut -f 2 -d '"'`
-	fi
-	if [ "$TDESC" = "" ]; then
-		TDESC=`cat $x | grep -e *desc | grep -v descrip | cut -f 2 -d '"'`
-	fi
-	if [ "$TDESC" = "" ]; then
-		TDESC=`cat $x | grep -e *dtext | grep static | cut -f 2 -d '"'`
-	fi
-	if [ "$TDESC" = "" ]; then
-		TDESC=`cat $x | grep -A 2 -e *synopsis | grep -e '\"'  | cut -f 2 -d '"'` 
-	fi
+	TDESC=`grep -e AST_MODULE_INFO ${1} | cut -d '"' -f 2`
 }
 
 process_dir() {
@@ -32,7 +10,7 @@ process_dir() {
 	catsuffix=${3}
 	displayname=${4}
 
-	echo -e "\t<category name=\"MENUSELECT_${catsuffix}\" displayname=\"${displayname}\">"
+	echo -e "\t<category name=\"MENUSELECT_${catsuffix}\" displayname=\"${displayname}\" remove_on_change=\"${dir}/modules.link\">"
 	for file in `ls ${dir}/${prefix}*.c ${dir}/${prefix}*.cc 2> /dev/null | sort`
 	do
 		if [ ! -f ${file} ]; then
@@ -45,13 +23,9 @@ process_dir() {
 		echo -e "\t\t<member name=\"${fname}\" displayname=\"${desc}\" remove_on_change=\"${dir}/${fname}.o ${dir}/${fname}.oo ${dir}/${fname}.so\">"
 		awk -f build_tools/get_moduleinfo ${file}
 		echo -e "\t\t</member>"
-	done
-	echo -e "\t</category>"
-
-	for file in ${dir}/${prefix}*.c
-	do
 		awk -f build_tools/get_makeopts ${file} >> .makeoptstmp
 	done
+	echo -e "\t</category>"
 }
 
 echo "<?xml version="1.0"?>"
@@ -66,8 +40,9 @@ process_dir formats format FORMATS "Format Interpreters"
 process_dir funcs func FUNCS "Dialplan Functions"
 process_dir pbx pbx PBX "PBX Modules"
 process_dir res res RES "Resource Modules"
-cat build_tools/cflags.xml
-cat sounds/sounds.xml
 cat .makeoptstmp
+cat build_tools/cflags.xml
+cat build_tools/embed_modules.xml
+cat sounds/sounds.xml
 rm -f .makeoptstmp
 echo "</menu>"

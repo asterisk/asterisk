@@ -367,40 +367,38 @@ static void parse_config(void)
 }
 
 /*! \brief standard module glue */
-static int reload(void *mod)
+static int reload(void)
 {
 	parse_config();
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
+
 	res = ast_unregister_translator(&lintoadpcm);
 	res |= ast_unregister_translator(&adpcmtolin);
+
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
+
 	parse_config();
-	res = ast_register_translator(&adpcmtolin, mod);
+	res = ast_register_translator(&adpcmtolin);
 	if (!res)
-		res = ast_register_translator(&lintoadpcm, mod);
+		res = ast_register_translator(&lintoadpcm);
 	else
 		ast_unregister_translator(&adpcmtolin);
+
 	return res;
 }
 
-static const char *description(void)
-{
-	return "Adaptive Differential PCM Coder/Decoder";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Adaptive Differential PCM Coder/Decoder",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

@@ -298,7 +298,6 @@ struct dial_localuser {
 	struct dial_localuser *next;
 };
 
-LOCAL_USER_DECL;
 
 static void hanguptree(struct dial_localuser *outgoing, struct ast_channel *exception)
 {
@@ -769,7 +768,7 @@ static int valid_priv_reply(struct ast_flags *opts, int res)
 static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags *peerflags)
 {
 	int res = -1;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *rest, *cur;
 	struct dial_localuser *outgoing = NULL;
 	struct ast_channel *peer;
@@ -813,7 +812,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	parse = ast_strdupa(data);
 
@@ -1634,7 +1633,7 @@ out:
 		res = 0;
 
 done:
-	LOCAL_USER_REMOVE(u);    
+	ast_module_user_remove(u);    
 	return res;
 }
 
@@ -1650,7 +1649,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 	char *announce = NULL, *dialdata = NULL;
 	const char *context = NULL;
 	int sleep = 0, loops = 0, res = -1;
-	struct localuser *u;
+	struct ast_module_user *u;
 	struct ast_flags peerflags;
 	
 	if (ast_strlen_zero(data)) {
@@ -1658,7 +1657,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}	
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	announce = ast_strdupa(data);
 
@@ -1739,23 +1738,23 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 	if (ast_test_flag(chan, AST_FLAG_MOH))
 		ast_moh_stop(chan);
 done:
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 	res |= ast_unregister_application(rapp);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 	
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
@@ -1765,14 +1764,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return "Dialing Application";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Dialing Application");

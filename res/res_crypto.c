@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -585,13 +585,13 @@ static int crypto_init(void)
 	return 0;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	crypto_load(-1, -1);
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	crypto_init();
 	if (ast_opt_init_keys)
@@ -601,21 +601,15 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	/* Can't unload this once we're loaded */
 	return -1;
 }
 
-static const char *description(void)
-{
-	return "Cryptographic Digital Signatures";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0 | NO_USECOUNT | NO_UNLOAD, reload, NULL, NULL);
-
+/* needs usecount semantics defined */
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Cryptographic Digital Signatures",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload
+	);

@@ -86,7 +86,7 @@ static int load_config(void)
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	load_config();
 
@@ -99,7 +99,7 @@ static int load_module(void *mod)
 		return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	ast_verbose(VERBOSE_PREFIX_1 "Unloading [Sub]Agent Module\n");
 
@@ -107,7 +107,7 @@ static int unload_module(void *mod)
 	return pthread_join(thread, NULL);
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	ast_verbose(VERBOSE_PREFIX_1 "Reloading [Sub]Agent Module\n");
 
@@ -124,14 +124,8 @@ static int reload(void *mod)
 		return 0;
 }
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-static const char *description(void)
-{
-	return MODULE_DESCRIPTION;
-}
-
-STD_MOD(MOD_0, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "SNMP [Sub]Agent for Asterisk",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+		);

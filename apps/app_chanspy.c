@@ -140,7 +140,6 @@ AST_APP_OPTIONS(spy_opts, {
 	AST_APP_OPTION_ARG('r', OPTION_RECORD, OPT_ARG_RECORD),
 });
 
-LOCAL_USER_DECL;
 
 struct chanspy_translation_helper {
 	/* spy data */
@@ -540,7 +539,7 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 
 static int chanspy_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *options = NULL;
 	char *spec = NULL;
 	char *argv[2];
@@ -555,7 +554,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 
 	data = ast_strdupa(data);
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if ((argc = ast_app_separate_args(data, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		spec = argv[0];
@@ -593,7 +592,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	oldwf = chan->writeformat;
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -615,14 +614,14 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	if (oldwf && ast_set_write_format(chan, oldwf) < 0)
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
 
 static int extenspy_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *options = NULL;
 	char *exten = NULL;
 	char *context = NULL;
@@ -638,7 +637,7 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 
 	data = ast_strdupa(data);
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if ((argc = ast_app_separate_args(data, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		context = argv[0];
@@ -676,7 +675,7 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 	oldwf = chan->writeformat;
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -698,28 +697,26 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 	if (oldwf && ast_set_write_format(chan, oldwf) < 0)
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res = 0;
 
 	res |= ast_unregister_application(app_chan);
 	res |= ast_unregister_application(app_ext);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res = 0;
-
-	__mod_desc = mod;
 
 	res |= ast_register_application(app_chan, chanspy_exec, tdesc, desc_chan);
 	res |= ast_register_application(app_ext, extenspy_exec, tdesc, desc_ext);
@@ -727,14 +724,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return (char *) tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Listen to the audio of an active channel");

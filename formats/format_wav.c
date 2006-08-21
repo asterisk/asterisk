@@ -512,27 +512,16 @@ static const struct ast_format wav_f = {
 	.close = wav_close,
 	.buf_size = WAV_BUF_SIZE + AST_FRIENDLY_OFFSET,
 	.desc_size = sizeof(struct wav_desc),
-	.module = &mod_data, /* XXX */
 };
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_format_register(&wav_f);
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_format_unregister(wav_f.name);
 }	
 
-static const char *description(void)
-{
-	return "Microsoft WAV format (8000hz Signed Linear)";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Microsoft WAV format (8000Hz Signed Linear)");

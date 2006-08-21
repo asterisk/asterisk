@@ -23,8 +23,6 @@
 #ifndef _ASTERISK_SRV_H
 #define _ASTERISK_SRV_H
 
-struct ast_channel;
-
 /*!
   \file srv.h
   \brief Support for DNS SRV records, used in to locate SIP services.

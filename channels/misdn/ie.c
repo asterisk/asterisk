@@ -43,7 +43,8 @@ static void strnncpy(char *dest, char *src, int len, int dst_len)
 
 
 /* IE_COMPLETE */
-void enc_ie_complete(unsigned char **ntmode, msg_t *msg, int complete, int nt, struct misdn_bchannel *bc)
+#if 0
+static void enc_ie_complete(unsigned char **ntmode, msg_t *msg, int complete, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -69,8 +70,9 @@ void enc_ie_complete(unsigned char **ntmode, msg_t *msg, int complete, int nt, s
 		p[0] = IE_COMPLETE;
 	}
 }
+#endif
 
-void dec_ie_complete(unsigned char *p, Q931_info_t *qi, int *complete, int nt, struct misdn_bchannel *bc)
+static void dec_ie_complete(unsigned char *p, Q931_info_t *qi, int *complete, int nt, struct misdn_bchannel *bc)
 {
 	*complete = 0;
 	if (!nt)
@@ -87,7 +89,7 @@ void dec_ie_complete(unsigned char *p, Q931_info_t *qi, int *complete, int nt, s
 
 
 /* IE_BEARER */
-void enc_ie_bearer(unsigned char **ntmode, msg_t *msg, int coding, int capability, int mode, int rate, int multi, int user, int nt, struct misdn_bchannel *bc)
+static void enc_ie_bearer(unsigned char **ntmode, msg_t *msg, int coding, int capability, int mode, int rate, int multi, int user, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -147,7 +149,7 @@ void enc_ie_bearer(unsigned char **ntmode, msg_t *msg, int coding, int capabilit
 		p[4+(multi>=0)] = 0xa0 + user;
 }
 
-void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *capability, int *mode, int *rate, int *multi, int *user, 
+static void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *capability, int *mode, int *rate, int *multi, int *user, 
 		   int *async, int *urate, int *stopbits, int *dbits, int *parity, int nt, struct misdn_bchannel *bc)
 {
 	int octet;
@@ -260,7 +262,8 @@ void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *capabili
 
 
 /* IE_CALL_ID */
-void enc_ie_call_id(unsigned char **ntmode, msg_t *msg, char *callid, int callid_len, int nt, struct misdn_bchannel *bc)
+#if 0
+static void enc_ie_call_id(unsigned char **ntmode, msg_t *msg, char *callid, int callid_len, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -298,8 +301,10 @@ void enc_ie_call_id(unsigned char **ntmode, msg_t *msg, char *callid, int callid
 	p[1] = l;
 	memcpy(p+2, callid, callid_len);
 }
+#endif
 
-void dec_ie_call_id(unsigned char *p, Q931_info_t *qi, char *callid, int *callid_len, int nt, struct misdn_bchannel *bc)
+#if 0
+static void dec_ie_call_id(unsigned char *p, Q931_info_t *qi, char *callid, int *callid_len, int nt, struct misdn_bchannel *bc)
 {
 	char debug[25];
 	int i;
@@ -332,10 +337,10 @@ void dec_ie_call_id(unsigned char *p, Q931_info_t *qi, char *callid, int *callid
 		
 	if (MISDN_IE_DEBG) printf("    callid%s\n", debug);
 }
-
+#endif
 
 /* IE_CALLED_PN */
-void enc_ie_called_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, char *number, int nt, struct misdn_bchannel *bc)
+static void enc_ie_called_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, char *number, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -371,7 +376,7 @@ void enc_ie_called_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, ch
 	strncpy((char *)p+3, (char *)number, strlen((char *)number));
 }
 
-void dec_ie_called_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, char *number, int number_len, int nt, struct misdn_bchannel *bc)
+static void dec_ie_called_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, char *number, int number_len, int nt, struct misdn_bchannel *bc)
 {
 	*type = -1;
 	*plan = -1;
@@ -400,7 +405,7 @@ void dec_ie_called_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, c
 
 
 /* IE_CALLING_PN */
-void enc_ie_calling_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, int present, int screen, char *number, int nt, struct misdn_bchannel *bc)
+static void enc_ie_calling_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, int present, int screen, char *number, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -455,7 +460,7 @@ void enc_ie_calling_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, i
 	}
 }
 
-void dec_ie_calling_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, int *screen, char *number, int number_len, int nt, struct misdn_bchannel *bc)
+static void dec_ie_calling_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, int *screen, char *number, int number_len, int nt, struct misdn_bchannel *bc)
 {
 	*type = -1;
 	*plan = -1;
@@ -502,7 +507,7 @@ void dec_ie_calling_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, 
 
 
 /* IE_CONNECTED_PN */
-void enc_ie_connected_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, int present, int screen, char *number, int nt, struct misdn_bchannel *bc)
+static void enc_ie_connected_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, int present, int screen, char *number, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -557,7 +562,7 @@ void enc_ie_connected_pn(unsigned char **ntmode, msg_t *msg, int type, int plan,
 	}
 }
 
-void dec_ie_connected_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, int *screen, char *number, int number_len, int nt, struct misdn_bchannel *bc)
+static void dec_ie_connected_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, int *screen, char *number, int number_len, int nt, struct misdn_bchannel *bc)
 {
 	*type = -1;
 	*plan = -1;
@@ -601,7 +606,7 @@ void dec_ie_connected_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan
 
 
 /* IE_CAUSE */
-void enc_ie_cause(unsigned char **ntmode, msg_t *msg, int location, int cause, int nt, struct misdn_bchannel *bc)
+static void enc_ie_cause(unsigned char **ntmode, msg_t *msg, int location, int cause, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -631,7 +636,9 @@ void enc_ie_cause(unsigned char **ntmode, msg_t *msg, int location, int cause, i
 	p[2] = 0x80 + location;
 	p[3] = 0x80 + cause;
 }
-void enc_ie_cause_standalone(unsigned char **ntmode, msg_t *msg, int location, int cause, int nt, struct misdn_bchannel *bc)
+
+#if 0
+static void enc_ie_cause_standalone(unsigned char **ntmode, msg_t *msg, int location, int cause, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p = msg_put(msg, 4);
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -644,9 +651,9 @@ void enc_ie_cause_standalone(unsigned char **ntmode, msg_t *msg, int location, i
 	p[2] = 0x80 + location;
 	p[3] = 0x80 + cause;
 }
+#endif
 
-
-void dec_ie_cause(unsigned char *p, Q931_info_t *qi, int *location, int *cause, int nt, struct misdn_bchannel *bc)
+static void dec_ie_cause(unsigned char *p, Q931_info_t *qi, int *location, int *cause, int nt, struct misdn_bchannel *bc)
 {
 	*location = -1;
 	*cause = -1;
@@ -673,7 +680,7 @@ void dec_ie_cause(unsigned char *p, Q931_info_t *qi, int *location, int *cause, 
 
 
 /* IE_CHANNEL_ID */
-void enc_ie_channel_id(unsigned char **ntmode, msg_t *msg, int exclusive, int channel, int nt, struct misdn_bchannel *bc)
+static void enc_ie_channel_id(unsigned char **ntmode, msg_t *msg, int exclusive, int channel, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -748,7 +755,7 @@ void enc_ie_channel_id(unsigned char **ntmode, msg_t *msg, int exclusive, int ch
 	}
 }
 
-void dec_ie_channel_id(unsigned char *p, Q931_info_t *qi, int *exclusive, int *channel, int nt, struct misdn_bchannel *bc)
+static void dec_ie_channel_id(unsigned char *p, Q931_info_t *qi, int *exclusive, int *channel, int nt, struct misdn_bchannel *bc)
 {
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	int pri =stack->pri;
@@ -842,7 +849,7 @@ void dec_ie_channel_id(unsigned char *p, Q931_info_t *qi, int *exclusive, int *c
 
 
 /* IE_DATE */
-void enc_ie_date(unsigned char **ntmode, msg_t *msg, time_t ti, int nt, struct misdn_bchannel *bc)
+static void enc_ie_date(unsigned char **ntmode, msg_t *msg, time_t ti, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -876,7 +883,7 @@ void enc_ie_date(unsigned char **ntmode, msg_t *msg, time_t ti, int nt, struct m
 
 
 /* IE_DISPLAY */
-void enc_ie_display(unsigned char **ntmode, msg_t *msg, char *display, int nt, struct misdn_bchannel *bc)
+static void enc_ie_display(unsigned char **ntmode, msg_t *msg, char *display, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -907,7 +914,8 @@ void enc_ie_display(unsigned char **ntmode, msg_t *msg, char *display, int nt, s
 	strncpy((char *)p+2, (char *)display, strlen((char *)display));
 }
 
-void dec_ie_display(unsigned char *p, Q931_info_t *qi, char *display, int display_len, int nt, struct misdn_bchannel *bc)
+#if 0
+static void dec_ie_display(unsigned char *p, Q931_info_t *qi, char *display, int display_len, int nt, struct misdn_bchannel *bc)
 {
 	*display = '\0';
 
@@ -929,10 +937,11 @@ void dec_ie_display(unsigned char *p, Q931_info_t *qi, char *display, int displa
 
 	if (MISDN_IE_DEBG) printf("    display='%s'\n", display);
 }
-
+#endif
 
 /* IE_KEYPAD */
-void enc_ie_keypad(unsigned char **ntmode, msg_t *msg, char *keypad, int nt, struct misdn_bchannel *bc)
+#if 0
+static void enc_ie_keypad(unsigned char **ntmode, msg_t *msg, char *keypad, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -956,8 +965,9 @@ void enc_ie_keypad(unsigned char **ntmode, msg_t *msg, char *keypad, int nt, str
 	p[1] = l;
 	strncpy((char *)p+2, (char *)keypad, strlen((char *)keypad));
 }
+#endif
 
-void dec_ie_keypad(unsigned char *p, Q931_info_t *qi, char *keypad, int keypad_len, int nt, struct misdn_bchannel *bc)
+static void dec_ie_keypad(unsigned char *p, Q931_info_t *qi, char *keypad, int keypad_len, int nt, struct misdn_bchannel *bc)
 {
 	*keypad = '\0';
 
@@ -982,7 +992,8 @@ void dec_ie_keypad(unsigned char *p, Q931_info_t *qi, char *keypad, int keypad_l
 
 
 /* IE_NOTIFY */
-void enc_ie_notify(unsigned char **ntmode, msg_t *msg, int notify, int nt, struct misdn_bchannel *bc)
+#if 0
+static void enc_ie_notify(unsigned char **ntmode, msg_t *msg, int notify, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -1006,8 +1017,10 @@ void enc_ie_notify(unsigned char **ntmode, msg_t *msg, int notify, int nt, struc
 	p[1] = l;
 	p[2] = 0x80 + notify;
 }
+#endif
 
-void dec_ie_notify(unsigned char *p, Q931_info_t *qi, int *notify, int nt, struct misdn_bchannel *bc)
+#if 0
+static void dec_ie_notify(unsigned char *p, Q931_info_t *qi, int *notify, int nt, struct misdn_bchannel *bc)
 {
 	*notify = -1;
 
@@ -1029,10 +1042,11 @@ void dec_ie_notify(unsigned char *p, Q931_info_t *qi, int *notify, int nt, struc
 
 	if (MISDN_IE_DEBG) printf("    notify=%d\n", *notify);
 }
+#endif
 
 
 /* IE_PROGRESS */
-void enc_ie_progress(unsigned char **ntmode, msg_t *msg, int coding, int location, int progress, int nt, struct misdn_bchannel *bc)
+static void enc_ie_progress(unsigned char **ntmode, msg_t *msg, int coding, int location, int progress, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -1068,7 +1082,7 @@ void enc_ie_progress(unsigned char **ntmode, msg_t *msg, int coding, int locatio
 	p[3] = 0x80 + progress;
 }
 
-void dec_ie_progress(unsigned char *p, Q931_info_t *qi, int *coding, int *location, int *progress, int nt, struct misdn_bchannel *bc)
+static void dec_ie_progress(unsigned char *p, Q931_info_t *qi, int *coding, int *location, int *progress, int nt, struct misdn_bchannel *bc)
 {
 	*coding = -1;
 	*location = -1;
@@ -1098,7 +1112,7 @@ void dec_ie_progress(unsigned char *p, Q931_info_t *qi, int *coding, int *locati
 
 
 /* IE_REDIR_NR (redirecting = during MT_SETUP) */
-void enc_ie_redir_nr(unsigned char **ntmode, msg_t *msg, int type, int plan, int present, int screen, int reason, char *number, int nt, struct misdn_bchannel *bc)
+static void enc_ie_redir_nr(unsigned char **ntmode, msg_t *msg, int type, int plan, int present, int screen, int reason, char *number, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -1172,7 +1186,7 @@ void enc_ie_redir_nr(unsigned char **ntmode, msg_t *msg, int type, int plan, int
 	}
 }
 
-void dec_ie_redir_nr(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, int *screen, int *reason, char *number, int number_len, int nt, struct misdn_bchannel *bc)
+static void dec_ie_redir_nr(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, int *screen, int *reason, char *number, int number_len, int nt, struct misdn_bchannel *bc)
 {
 	*type = -1;
 	*plan = -1;
@@ -1219,7 +1233,8 @@ void dec_ie_redir_nr(unsigned char *p, Q931_info_t *qi, int *type, int *plan, in
 
 
 /* IE_REDIR_DN (redirection = during MT_NOTIFY) */
-void enc_ie_redir_dn(unsigned char **ntmode, msg_t *msg, int type, int plan, int present, char *number, int nt, struct misdn_bchannel *bc)
+#if 0
+static void enc_ie_redir_dn(unsigned char **ntmode, msg_t *msg, int type, int plan, int present, char *number, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 /* 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN); */
@@ -1269,8 +1284,10 @@ void enc_ie_redir_dn(unsigned char **ntmode, msg_t *msg, int type, int plan, int
 			strncpy((char *)p+3, (char *)number, strlen((char *)number));
 	}
 }
+#endif
 
-void dec_ie_redir_dn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, char *number, int number_len, int nt, struct misdn_bchannel *bc)
+#if 0
+static void dec_ie_redir_dn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, char *number, int number_len, int nt, struct misdn_bchannel *bc)
 {
 	*type = -1;
 	*plan = -1;
@@ -1305,11 +1322,12 @@ void dec_ie_redir_dn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, in
 
 	if (MISDN_IE_DEBG) printf("    type=%d plan=%d present=%d number='%s'\n", *type, *plan, *present, number);
 }
-
+#endif
 
 
 /* IE_USERUSER */
-void enc_ie_useruser(unsigned char **ntmode, msg_t *msg, int protocol, char *user, int user_len, int nt, struct misdn_bchannel *bc)
+#if 0
+static void enc_ie_useruser(unsigned char **ntmode, msg_t *msg, int protocol, char *user, int user_len, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -1348,8 +1366,10 @@ void enc_ie_useruser(unsigned char **ntmode, msg_t *msg, int protocol, char *use
 	p[2] = 0x80 + protocol;
 	memcpy(p+3, user, user_len);
 }
+#endif
 
-void dec_ie_useruser(unsigned char *p, Q931_info_t *qi, int *protocol, char *user, int *user_len, int nt, struct misdn_bchannel *bc)
+#if 0
+static void dec_ie_useruser(unsigned char *p, Q931_info_t *qi, int *protocol, char *user, int *user_len, int nt, struct misdn_bchannel *bc)
 {
 	char debug[768];
 	int i;
@@ -1382,7 +1402,5 @@ void dec_ie_useruser(unsigned char *p, Q931_info_t *qi, int *protocol, char *use
 		
 	if (MISDN_IE_DEBG) printf("    protocol=%d user-user%s\n", *protocol, debug);
 }
-
-
-
+#endif
 

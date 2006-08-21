@@ -45,8 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/manager.h"
 
-static char *tdesc = "Send DTMF digits Application";
-
 static char *app = "SendDTMF";
 
 static char *synopsis = "Sends arbitrary DTMF digits";
@@ -57,12 +55,11 @@ static char *descrip =
 " The application will either pass the assigned digits or terminate if it\n"
 " encounters an error.\n";
 
-LOCAL_USER_DECL;
 
 static int senddtmf_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *digits = NULL, *to = NULL;
 	int timeout = 250;
 
@@ -71,7 +68,7 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	digits = ast_strdupa(data);
 
@@ -86,7 +83,7 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 
 	res = ast_dtmf_stream(chan,NULL,digits,timeout);
 		
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
@@ -122,19 +119,19 @@ static int manager_play_dtmf(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 	res |= ast_manager_unregister("PlayDTMF");
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
@@ -144,14 +141,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Send DTMF digits Application");

@@ -47,9 +47,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/endian.h"
 
-static char *desc = "JPEG (Joint Picture Experts Group) Image Format";
-
-
 static struct ast_frame *jpeg_read_image(int fd, int len)
 {
 	struct ast_frame fr;
@@ -115,25 +112,16 @@ static struct ast_imager jpeg_format = {
 	jpeg_write_image,
 };
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_image_register(&jpeg_format);
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	ast_image_unregister(&jpeg_format);
+
 	return 0;
 }	
 
-static const char *description(void)
-{
-	return desc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "JPEG (Joint Picture Experts Group) Image Format");

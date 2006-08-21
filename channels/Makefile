@@ -9,7 +9,7 @@
 # the GNU General Public License
 #
 
-ifneq ($(wildcard ../menuselect.makeopts),)
+ifneq ($(wildcard $(ASTTOPDIR)/menuselect.makeopts),)
   include ../menuselect.makeopts
   include ../menuselect.makedeps
 endif
@@ -22,7 +22,7 @@ ifeq ($(OSARCH),OpenBSD)
   H323LIB=-lh323_OpenBSD_x86_r
 endif
 
-ifeq ($(OSARCH),Linux)
+ifeq ($(OSARCH),linux-gnu)
   PTLIB=-lpt_linux_x86_r
   H323LIB=-lh323_linux_x86_r
   CHANH323LIB=-ldl
@@ -43,10 +43,6 @@ ifeq ($(wildcard h323/libchanh323.a),)
   CC_MODS:=$(filter-out chan_h323,$(CC_MODS))
 endif
 
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/mISDNuser/mISDNlib.h),)
-  C_MODS:=$(filter-out chan_misdn,$(C_MODS))
-endif
-
 ifndef OPENH323DIR
   OPENH323DIR=$(HOME)/openh323
 endif
@@ -55,7 +51,12 @@ ifndef PWLIBDIR
   PWLIBDIR=$(HOME)/pwlib
 endif
 
-SELECTED_MODS:=$(C_MODS) $(CC_MODS)
+LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
+
+ifneq ($(findstring channels,$(MENUSELECT_EMBED)),)
+  EMBEDDED_MODS:=$(LOADABLE_MODS)
+  LOADABLE_MODS:=
+endif
 
 all: _all
 
@@ -63,6 +64,7 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 
 clean::
 	rm -f busy.h ringtone.h gentone
+	make -C misdn clean
 
 ifneq ($(wildcard $(PWD)/Makefile.ast),)
   include $(PWD)/Makefile.ast
@@ -79,24 +81,20 @@ ringtone.h: gentone
 
 chan_oss.o: busy.h ringtone.h
 
-chan_iax2.so: iax2-parser.o iax2-provision.o
+$(chan_iax2): iax2-parser.o iax2-provision.o
 
 chan_alsa.o: busy.h ringtone.h
 
-ifeq ($(OSARCH),Linux)
-chan_h323.so: chan_h323.o h323/libchanh323.a $(PWD)/Makefile.ast
-	$(CC) $(SOLINK) $(H323LDFLAGS) -o $@ $< h323/libchanh323.a $(H323LDLIBS) -lstdc++
+ifeq ($(OSARCH),linux-gnu)
+chan_h323.so: chan_h323.o h323_module_interface.so h323/libchanh323.a h323/Makefile.ast
+	$(CC) $(SOLINK) $(H323LDFLAGS) -o $@ $^ h323/libchanh323.a $(H323LDLIBS) -lstdc++
 else
-chan_h323.so: chan_h323.o h323/libchanh323.a
-	$(CC) $(SOLINK) -o $@ $< h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lcrypto -lssl -lexpat
+chan_h323.so: chan_h323.o h323_module_interface.so h323/libchanh323.a
+	$(CC) $(SOLINK) -o $@ $^ h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lcrypto -lssl -lexpat
 endif
-
-misdn/chan_misdn_lib.a:
-	make -C misdn
 
 chan_misdn.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\" 
 
 misdn_config.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\" 
 
-chan_misdn.so: chan_misdn.o misdn_config.o misdn/chan_misdn_lib.a
-chan_misdn.so: LIBS+=-lisdnnet -lmISDN -lsuppserv 
+$(chan_misdn): chan_misdn.o misdn_config.o misdn/isdn_lib.o misdn/isdn_msg_parser.o

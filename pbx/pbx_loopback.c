@@ -161,34 +161,23 @@ static int loopback_matchmore(struct ast_channel *chan, const char *context, con
 static struct ast_switch loopback_switch =
 {
         name:                   "Loopback",
-        description:    		"Loopback Dialplan Switch",
+        description:   		"Loopback Dialplan Switch",
         exists:                 loopback_exists,
         canmatch:               loopback_canmatch,
         exec:                   loopback_exec,
         matchmore:              loopback_matchmore,
 };
 
-static const char *description(void)
-{
-	return "Loopback Switch";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	ast_unregister_switch(&loopback_switch);
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	ast_register_switch(&loopback_switch);
 	return 0;
 }
 
-/* XXX really no unload ? */
-STD_MOD(MOD_1 | NO_USECOUNT | NO_UNLOAD, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Loopback Switch");

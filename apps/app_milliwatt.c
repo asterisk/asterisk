@@ -50,7 +50,6 @@ static char *synopsis = "Generate a Constant 1000Hz tone at 0dbm (mu-law)";
 static char *descrip = 
 "Milliwatt(): Generate a Constant 1000Hz tone at 0dbm (mu-law)\n";
 
-LOCAL_USER_DECL;
 
 static char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;
 
@@ -118,8 +117,8 @@ static struct ast_generator milliwattgen =
 static int milliwatt_exec(struct ast_channel *chan, void *data)
 {
 
-	struct localuser *u;
-	LOCAL_USER_ADD(u);
+	struct ast_module_user *u;
+	u = ast_module_user_add(chan);
 	ast_set_write_format(chan, AST_FORMAT_ULAW);
 	ast_set_read_format(chan, AST_FORMAT_ULAW);
 	if (chan->_state != AST_STATE_UP)
@@ -129,39 +128,29 @@ static int milliwatt_exec(struct ast_channel *chan, void *data)
 	if (ast_activate_generator(chan,&milliwattgen,"milliwatt") < 0)
 	{
 		ast_log(LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	while(!ast_safe_sleep(chan, 10000));
 	ast_deactivate_generator(chan);
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return -1;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, milliwatt_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Digital Milliwatt (mu-law) Test Application";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Digital Milliwatt (mu-law) Test Application");

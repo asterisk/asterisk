@@ -43,8 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/dsp.h"
 
-static char *tdesc = "Playback with Talk Detection";
-
 static char *app = "BackgroundDetect";
 
 static char *synopsis = "Background a file with talk detect";
@@ -60,12 +58,11 @@ static char *descrip =
 "if available.  If unspecified, sil, min, and max default to 1000, 100, and\n"
 "infinity respectively.\n";
 
-LOCAL_USER_DECL;
 
 static int background_detect_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *tmp;
 	char *options;
 	char *stringp;
@@ -84,7 +81,7 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	tmp = ast_strdupa(data);
 
@@ -207,34 +204,24 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 	}
 	if (dsp)
 		ast_dsp_free(dsp);
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 	
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, background_detect_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Playback with Talk Detection");

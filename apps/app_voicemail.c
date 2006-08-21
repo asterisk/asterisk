@@ -397,12 +397,12 @@ static char VM_SPOOL_DIR[PATH_MAX];
 
 static char ext_pass_cmd[128];
 #ifdef ODBC_STORAGE
-static char *tdesc = "Comedian Mail (Voicemail System) with ODBC Storage";
+#define tdesc "Comedian Mail (Voicemail System) with ODBC Storage"
 #else
 #ifdef IMAP_STORAGE
-static char *tdesc = "Comedian Mail (Voicemail System) with IMAP Storage";
+#define tdesc "Comedian Mail (Voicemail System) with IMAP Storage"
 #else
-static char *tdesc = "Comedian Mail (Voicemail System)";
+#define tdesc "Comedian Mail (Voicemail System)"
 #endif
 #endif
 
@@ -531,7 +531,6 @@ static unsigned char adsisec[4] = "\x9B\xDB\xF7\xAC";
 static int adsiver = 1;
 static char emaildateformat[32] = "%A, %B %d, %Y at %r";
 
-LOCAL_USER_DECL;
 
 static void populate_defaults(struct ast_vm_user *vmu)
 {
@@ -5971,7 +5970,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	int res=-1;
 	int cmd=0;
 	int valid = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char prefixstr[80] ="";
 	char ext_context[256]="";
 	int box;
@@ -5988,7 +5987,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 #ifdef IMAP_STORAGE
 	int deleted = 0;
 #endif
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	/* Add the vm_state to the active list and keep it active */
 	memset(&vms, 0, sizeof(vms));
@@ -6015,7 +6014,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 
 		if (args.argc == 2) {
 			if (ast_app_parse_options(vm_app_options, &flags, opts, args.argv1)) {
-				LOCAL_USER_REMOVE(u);
+				ast_module_user_remove(u);
 				return -1;
 			}
 			if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
@@ -6023,7 +6022,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				if (opts[OPT_ARG_RECORDGAIN]) {
 					if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
 						ast_log(LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
-						LOCAL_USER_REMOVE(u);
+						ast_module_user_remove(u);
 						return -1;
 					} else {
 						record_gain = (signed char) gain;
@@ -6493,7 +6492,7 @@ out:
 		free(vms.deleted);
 	if (vms.heard)
 		free(vms.heard);
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
@@ -6501,7 +6500,7 @@ out:
 static int vm_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *tmp;
 	struct leave_vm_options leave_options;
 	struct ast_flags flags = { 0 };
@@ -6512,7 +6511,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(argv1);
 	);
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	
 	memset(&leave_options, 0, sizeof(leave_options));
 
@@ -6524,7 +6523,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 		AST_STANDARD_APP_ARGS(args, tmp);
 		if (args.argc == 2) {
 			if (ast_app_parse_options(vm_app_options, &flags, opts, args.argv1)) {
-				LOCAL_USER_REMOVE(u);
+				ast_module_user_remove(u);
 				return -1;
 			}
 			ast_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING | OPT_PRIORITY_JUMP);
@@ -6533,7 +6532,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 
 				if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
 					ast_log(LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
-					LOCAL_USER_REMOVE(u);
+					ast_module_user_remove(u);
 					return -1;
 				} else {
 					leave_options.record_gain = (signed char) gain;
@@ -6570,11 +6569,11 @@ static int vm_exec(struct ast_channel *chan, void *data)
 		char tmp[256];
 		res = ast_app_getdata(chan, "vm-whichbox", tmp, sizeof(tmp) - 1, 0);
 		if (res < 0) {
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return res;
 		}
 		if (ast_strlen_zero(tmp)) {
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return 0;
 		}
 		args.argv0 = ast_strdupa(tmp);
@@ -6592,7 +6591,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 		res = 0;
 	}
 	
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
@@ -6631,7 +6630,7 @@ static int append_mailbox(char *context, char *mbox, char *data)
 
 static int vm_box_exists(struct ast_channel *chan, void *data) 
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	struct ast_vm_user svm;
 	char *context, *box;
 	int priority_jump = 0;
@@ -6645,7 +6644,7 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	box = ast_strdupa(data);
 
@@ -6668,20 +6667,20 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 				ast_log(LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", box, context, chan->exten, chan->priority + 101);
 	} else
 		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "FAILED");
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return 0;
 }
 
 static int vmauthenticate(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *s = data, *user=NULL, *context=NULL, mailbox[AST_MAX_EXTENSION] = "";
 	struct ast_vm_user vmus;
 	char *options = NULL;
 	int silent = 0, skipuser = 0;
 	int res = -1;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	
 	if (s) {
 		s = ast_strdupa(s);
@@ -6708,7 +6707,7 @@ static int vmauthenticate(struct ast_channel *chan, void *data)
 		res = 0;
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
@@ -7333,12 +7332,12 @@ static int load_config(void)
 	}
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	return(load_config());
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 	
@@ -7350,12 +7349,12 @@ static int unload_module(void *mod)
 	res |= ast_cli_unregister(&show_voicemail_zones_cli);
 	ast_uninstall_vm_functions();
 	
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 	res = ast_register_application(app, vm_exec, synopsis_vm, descrip_vm);
@@ -8556,16 +8555,11 @@ static void
 get_mailbox_delimiter(MAILSTREAM *stream) {
 	mail_list(stream, "", "*");
 }
-#endif
+
+#endif /* IMAP_STORAGE */
  
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, tdesc,
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

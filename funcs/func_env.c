@@ -135,10 +135,7 @@ static struct ast_custom_function stat_function = {
 		"  M - Returns the epoch at which the file was last modified\n",
 };
 
-
-static char *tdesc = "Environment/filesystem dialplan functions";
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res = 0;
 
@@ -148,7 +145,7 @@ static int unload_module(void *mod)
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res = 0;
 
@@ -158,15 +155,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Environment/filesystem dialplan functions");

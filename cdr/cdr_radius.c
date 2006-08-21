@@ -229,18 +229,13 @@ static int radius_log(struct ast_cdr *cdr)
 	return result;
 }
 
-static const char *description(void)
-{
-	return desc;
-}
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	ast_cdr_unregister(name);
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	struct ast_config *cfg;
 	char *tmp;
@@ -272,9 +267,4 @@ static int load_module(void *mod)
 	return ast_cdr_register(name, desc, radius_log);
 }
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "RADIUS CDR Backend");

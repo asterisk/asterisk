@@ -59,7 +59,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 
-static char *desc = "PostgreSQL CDR Backend";
 static char *name = "pgsql";
 static char *config = "cdr_pgsql.conf";
 static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword = NULL, *pgdbport = NULL, *table = NULL;
@@ -179,11 +178,6 @@ static int pgsql_log(struct ast_cdr *cdr)
 	return 0;
 }
 
-static const char *description(void)
-{
-	return desc;
-}
-
 static int my_unload_module(void)
 { 
 	if (conn)
@@ -285,7 +279,7 @@ static int process_my_load_module(struct ast_config *cfg)
 		connected = 0;
 	}
 
-	return ast_cdr_register(name, desc, pgsql_log);
+	return ast_cdr_register(name, ast_module_info->description, pgsql_log);
 }
 
 static int my_load_module(void)
@@ -304,25 +298,24 @@ static int my_load_module(void)
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return my_load_module();
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return my_unload_module();
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	my_unload_module();
 	return my_load_module();
 }
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "PostgreSQL CDR Backend",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

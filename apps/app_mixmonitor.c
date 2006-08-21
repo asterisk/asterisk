@@ -164,7 +164,6 @@ static void *mixmonitor_thread(void *obj)
 	struct mixmonitor *mixmonitor = obj;
 	struct ast_frame *f = NULL;
 	
-	ast_atomic_fetchadd_int(&__mod_desc->usecnt, +1);
 	
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Begin MixMonitor Recording %s\n", mixmonitor->name);
@@ -219,7 +218,6 @@ static void *mixmonitor_thread(void *obj)
 
 	free(mixmonitor);
 
-	ast_atomic_fetchadd_int(&__mod_desc->usecnt, -1);
 
 	return NULL;
 }
@@ -322,7 +320,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 static int mixmonitor_exec(struct ast_channel *chan, void *data)
 {
 	int x, readvol = 0, writevol = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	struct ast_flags flags = {0};
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
@@ -336,7 +334,7 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	parse = ast_strdupa(data);
 
@@ -344,7 +342,7 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 	
 	if (ast_strlen_zero(args.filename)) {
 		ast_log(LOG_WARNING, "MixMonitor requires an argument (filename)\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -396,22 +394,22 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 	pbx_builtin_setvar_helper(chan, "MIXMONITOR_FILENAME", args.filename);
 	launch_monitor_thread(chan, args.filename, flags.flags, readvol, writevol, args.post_process);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
 
 static int stop_mixmonitor_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	ast_channel_lock(chan);
 	ast_channel_spy_stop_by_type(chan, mixmonitor_spy_type);
 	ast_channel_unlock(chan);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -453,7 +451,7 @@ static struct ast_cli_entry cli_mixmonitor = {
 	complete_mixmonitor_cli
 };
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
@@ -461,12 +459,12 @@ static int unload_module(void *mod)
 	res |= ast_unregister_application(stop_app);
 	res |= ast_unregister_application(app);
 	
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
@@ -477,14 +475,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return "Mixed Audio Monitoring Application";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Mixed Audio Monitoring Application");

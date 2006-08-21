@@ -44,9 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Maximum length of any variable */
 #define MAXRESULT	1024
 
-
-LOCAL_USER_DECL;
-
 struct sortable_keys {
 	char *key;
 	float value;
@@ -213,10 +210,10 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 
 static int acf_sort_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	int ret = -1;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	switch (sort_internal(chan, data, buf, len)) {
 	case ERROR_NOARG:
@@ -231,7 +228,8 @@ static int acf_sort_exec(struct ast_channel *chan, char *cmd, char *data, char *
 	default:
 		ast_log(LOG_ERROR, "Unknown internal error\n");
 	}
-	LOCAL_USER_REMOVE(u);
+
+	ast_module_user_remove(u);
 
 	return ret;
 }
@@ -239,9 +237,9 @@ static int acf_sort_exec(struct ast_channel *chan, char *cmd, char *data, char *
 static int acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	int ret = -1;
-	struct localuser *u;
+	struct ast_module_user *u;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	switch (cut_internal(chan, data, buf, len)) {
 	case ERROR_NOARG:
@@ -259,7 +257,8 @@ static int acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char *b
 	default:
 		ast_log(LOG_ERROR, "Unknown internal error\n");
 	}
-	LOCAL_USER_REMOVE(u);
+
+	ast_module_user_remove(u);
 
 	return ret;
 }
@@ -288,19 +287,19 @@ struct ast_custom_function acf_cut = {
 	.read = acf_cut_exec,
 };
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res = 0;
 
 	res |= ast_custom_function_unregister(&acf_cut);
 	res |= ast_custom_function_unregister(&acf_sort);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res = 0;
 
@@ -310,14 +309,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return "Cut out information from a string";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Cut out information from a string");

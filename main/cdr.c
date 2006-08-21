@@ -105,7 +105,7 @@ static ast_cond_t cdr_pending_cond;
 /*! Register a CDR driver. Each registered CDR driver generates a CDR 
 	\return 0 on success, -1 on failure 
 */
-int ast_cdr_register(char *name, char *desc, ast_cdrbe be)
+int ast_cdr_register(const char *name, const char *desc, ast_cdrbe be)
 {
 	struct ast_cdr_beitem *i;
 
@@ -143,7 +143,7 @@ int ast_cdr_register(char *name, char *desc, ast_cdrbe be)
 }
 
 /*! unregister a CDR driver */
-void ast_cdr_unregister(char *name)
+void ast_cdr_unregister(const char *name)
 {
 	struct ast_cdr_beitem *i = NULL;
 

@@ -52,8 +52,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/res_odbc.h"
 #include "asterisk/utils.h"
 
-LOCAL_USER_DECL;
-
 static struct ast_variable *realtime_odbc(const char *database, const char *table, va_list ap)
 {
 	struct odbc_obj *obj;
@@ -574,16 +572,16 @@ static struct ast_config_engine odbc_engine = {
 	.update_func = update_odbc
 };
 
-static int unload_module (void *mod)
+static int unload_module (void)
 {
-	ast_hangup_localusers(mod);
+	ast_module_user_hangup_all();
 	ast_config_engine_deregister(&odbc_engine);
 	if (option_verbose)
 		ast_verbose("res_config_odbc unloaded.\n");
 	return 0;
 }
 
-static int load_module (void *mod)
+static int load_module (void)
 {
 	ast_config_engine_register(&odbc_engine);
 	if (option_verbose)
@@ -591,14 +589,7 @@ static int load_module (void *mod)
 	return 0;
 }
 
-static const char *description(void)
-{
-	return "ODBC Configuration";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0 | NO_USECOUNT | NO_UNLOAD, NULL, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "ODBC Configuration",
+		.load = load_module,
+		.unload = unload_module,
+		);

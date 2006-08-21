@@ -51,7 +51,6 @@ static char *synopsis = "Virtual Dictation Machine";
 static char *desc = "  Dictate([<base_dir>[|<filename>]])\n"
 "Start dictation machine using optional base dir for files.\n";
 
-LOCAL_USER_DECL;
 
 typedef enum {
 	DFLAG_RECORD = (1 << 0),
@@ -90,7 +89,7 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 	struct ast_flags flags = {0};
 	struct ast_filestream *fs;
 	struct ast_frame *f = NULL;
-	struct localuser *u;
+	struct ast_module_user *u;
 	int ffactor = 320 * 80,
 		res = 0,
 		done = 0,
@@ -103,7 +102,7 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 		maxlen = 0,
 		mode = 0;
 		
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	
 	snprintf(dftbase, sizeof(dftbase), "%s/dictate", ast_config_AST_SPOOL_DIR);
 	if (!ast_strlen_zero(data)) {
@@ -123,7 +122,7 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 	oldr = chan->readformat;
 	if ((res = ast_set_read_format(chan, AST_FORMAT_SLINEAR)) < 0) {
 		ast_log(LOG_WARNING, "Unable to set to linear mode.\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -330,31 +329,20 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 	if (oldr) {
 		ast_set_read_format(chan, oldr);
 	}
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 	res = ast_unregister_application(app);
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
-	__mod_desc = mod;
 	return ast_register_application(app, dictate_exec, synopsis, desc);
 }
 
-static const char *description(void)
-{
-	return "Virtual Dictation Machine";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Virtual Dictation Machine");

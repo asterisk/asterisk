@@ -43,8 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/image.h"
 #include "asterisk/options.h"
 
-static char *tdesc = "Send URL Applications";
-
 static char *app = "SendURL";
 
 static char *synopsis = "Send a URL";
@@ -70,12 +68,11 @@ static char *descrip =
 " SendURL only returns 0 if the URL was sent correctly  or if\n"
 " the channel does not support HTML transport, and -1 otherwise.\n";
 
-LOCAL_USER_DECL;
 
 static int sendurl_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *tmp;
 	char *options;
 	int local_option_wait=0;
@@ -90,7 +87,7 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	tmp = ast_strdupa(data);
 
@@ -107,13 +104,13 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 		if (local_option_jump || ast_opt_priority_jumping)
 			 ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "SENDURLSTATUS", "UNSUPPORTED");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return 0;
 	}
 	res = ast_channel_sendurl(chan, tmp);
 	if (res == -1) {
 		pbx_builtin_setvar_helper(chan, "SENDURLSTATUS", "FAILURE");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return res;
 	}
 	status = "SUCCESS";
@@ -155,34 +152,24 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 	} 
 out:	
 	pbx_builtin_setvar_helper(chan, "SENDURLSTATUS", status);
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 	
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, sendurl_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Send URL Applications");

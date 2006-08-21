@@ -626,13 +626,13 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	event_node_t *elp, *efree;
 	char signalling_type[64] = "";
 
 	event_node_t *event_head = NULL;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	/* Set write and read formats to ULAW */
 
@@ -641,13 +641,13 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 
 	if (ast_set_write_format(chan,AST_FORMAT_ULAW)){
 		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set write format to Mu-law on %s\n",chan->name);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	
 	if (ast_set_read_format(chan,AST_FORMAT_ULAW)){
 		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set read format to Mu-law on %s\n",chan->name);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -666,7 +666,7 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 		res = ast_answer(chan);
 		
 		if (res) {
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return -1;
 		}
 	}
@@ -721,7 +721,7 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 	}
 
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -818,32 +818,21 @@ static int load_config(void)
 */
 
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
-	__mod_desc = mod;
 	load_config();
 	return ast_register_application(app, alarmreceiver_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Alarm Receiver for Asterisk";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Alarm Receiver for Asterisk");

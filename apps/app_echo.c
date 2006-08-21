@@ -41,8 +41,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 
-static char *tdesc = "Simple Echo Application";
-
 static char *app = "Echo";
 
 static char *synopsis = "Echo audio, video, or DTMF back to the calling party";
@@ -52,15 +50,14 @@ static char *descrip =
 "the calling channel back to itself. If the DTMF digit '#' is received, the\n"
 "application will exit.\n";
 
-LOCAL_USER_DECL;
 
 static int echo_exec(struct ast_channel *chan, void *data)
 {
 	int res = -1;
 	int format;
-	struct localuser *u;
+	struct ast_module_user *u;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	format = ast_best_codec(chan->nativeformats);
 	ast_set_write_format(chan, format);
@@ -95,34 +92,24 @@ static int echo_exec(struct ast_channel *chan, void *data)
 		ast_frfree(f);
 	}
 end:
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, echo_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Simple Echo Application");

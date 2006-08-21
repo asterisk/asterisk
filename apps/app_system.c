@@ -44,8 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/options.h"
 
-static char *tdesc = "Generic System() application";
-
 static char *app = "System";
 
 static char *app2 = "TrySystem";
@@ -83,12 +81,11 @@ static char *descrip2 =
 "instance, then  the  channel  will  be  setup  to continue at that\n"
 "priority level.  Otherwise, System will terminate.\n";
 
-LOCAL_USER_DECL;
 
 static int system_exec_helper(struct ast_channel *chan, void *data, int failmode)
 {
 	int res=0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "System requires an argument(command)\n");
@@ -96,7 +93,7 @@ static int system_exec_helper(struct ast_channel *chan, void *data, int failmode
 		return failmode;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	/* Do our thing here */
 	res = ast_safe_system((char *)data);
@@ -121,7 +118,7 @@ static int system_exec_helper(struct ast_channel *chan, void *data, int failmode
 		res = 0;
 	} 
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
@@ -136,19 +133,19 @@ static int trysystem_exec(struct ast_channel *chan, void *data)
 	return system_exec_helper(chan, data, 0);
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 	res |= ast_unregister_application(app2);
 	
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
@@ -158,14 +155,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Generic System() application");

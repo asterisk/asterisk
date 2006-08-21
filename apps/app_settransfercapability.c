@@ -44,7 +44,6 @@ static char *app = "SetTransferCapability";
 
 static char *synopsis = "Set ISDN Transfer Capability";
 
-LOCAL_USER_DECL;
 
 static struct {	int val; char *name; } transcaps[] = {
 	{ AST_TRANS_CAP_SPEECH,				"SPEECH" },
@@ -72,13 +71,13 @@ static char *descrip =
 static int settransfercapability_exec(struct ast_channel *chan, void *data)
 {
 	char *tmp = NULL;
-	struct localuser *u;
+	struct ast_module_user *u;
 	int x;
 	char *opts;
 	int transfercapability = -1;
 	static int dep_warning = 0;
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (!dep_warning) {
 		dep_warning = 1;
@@ -102,7 +101,7 @@ static int settransfercapability_exec(struct ast_channel *chan, void *data)
 	}
 	if (transfercapability < 0) {
 		ast_log(LOG_WARNING, "'%s' is not a valid transfer capability (see 'show application SetTransferCapability')\n", tmp);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return 0;
 	}
 		
@@ -111,36 +110,26 @@ static int settransfercapability_exec(struct ast_channel *chan, void *data)
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Setting transfer capability to: 0x%.2x - %s.\n", transfercapability, tmp);			
 	
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
 
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 	
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, settransfercapability_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return synopsis;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Set ISDN Transfer Capability");

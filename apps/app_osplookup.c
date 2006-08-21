@@ -878,29 +878,29 @@ static int osp_finish(int handle, int recorded, int cause, time_t start, time_t 
 static int ospauth_exec(struct ast_channel* chan, void* data)
 {
 	int res;
-	struct localuser* u;
+	struct ast_module_user *u;
 	const char* provider = OSP_DEF_PROVIDER;
 	int priority_jump = 0;
-	struct varshead* headp;
-	struct ast_var_t* current;
-	const char* source = "";
-	const char* token = "";
+	struct varshead *headp;
+	struct ast_var_t *current;
+	const char *source = "";
+	const char *token = "";
 	int handle;
 	unsigned int timelimit;
 	char buffer[OSP_INTSTR_SIZE];
-	const char* status;
-	char* tmp;
+	const char *status;
+	char *tmp;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(provider);
 		AST_APP_ARG(options);
 	);
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (!(tmp = ast_strdupa(data))) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -959,7 +959,7 @@ static int ospauth_exec(struct ast_channel* chan, void* data)
 		res = 0;
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
@@ -973,16 +973,16 @@ static int ospauth_exec(struct ast_channel* chan, void* data)
 static int osplookup_exec(struct ast_channel* chan, void* data)
 {
 	int res, cres;
-	struct localuser* u;
-	const char* provider = OSP_DEF_PROVIDER;
+	struct ast_module_user *u;
+	const char *provider = OSP_DEF_PROVIDER;
 	int priority_jump = 0;
-	struct varshead* headp;
+	struct varshead *headp;
 	struct ast_var_t* current;
-	const char* srcdev = "";
+	const char *srcdev = "";
 	char buffer[OSP_TOKSTR_SIZE];
 	struct osp_result result;
-	const char* status;
-	char* tmp;
+	const char *status;
+	char *tmp;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(exten);
@@ -995,11 +995,11 @@ static int osplookup_exec(struct ast_channel* chan, void* data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (!(tmp = ast_strdupa(data))) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1039,7 +1039,7 @@ static int osplookup_exec(struct ast_channel* chan, void* data)
 	ast_log(LOG_DEBUG, "OSPLookup: source device '%s'\n", srcdev);
 	
 	if ((cres = ast_autoservice_start(chan)) < 0) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1090,7 +1090,7 @@ static int osplookup_exec(struct ast_channel* chan, void* data)
 	}
 
 	if ((cres = ast_autoservice_stop(chan)) < 0) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1105,7 +1105,7 @@ static int osplookup_exec(struct ast_channel* chan, void* data)
 		res = 0;
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
@@ -1119,7 +1119,7 @@ static int osplookup_exec(struct ast_channel* chan, void* data)
 static int ospnext_exec(struct ast_channel* chan, void* data)
 {
 	int res;
-	struct localuser* u;
+	struct ast_module_user *u;
 	int priority_jump = 0;
 	int cause = 0;
 	struct varshead* headp;
@@ -1139,11 +1139,11 @@ static int ospnext_exec(struct ast_channel* chan, void* data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (!(tmp = ast_strdupa(data))) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1243,7 +1243,7 @@ static int ospnext_exec(struct ast_channel* chan, void* data)
 		res = 0;
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
@@ -1257,30 +1257,30 @@ static int ospnext_exec(struct ast_channel* chan, void* data)
 static int ospfinished_exec(struct ast_channel* chan, void* data)
 {
 	int res = 1;
-	struct localuser* u;
+	struct ast_module_user *u;
 	int priority_jump = 0;
 	int cause = 0;
-	struct varshead* headp;
-	struct ast_var_t* current;
+	struct varshead *headp;
+	struct ast_var_t *current;
 	int inhandle = OSP_INVALID_HANDLE;
 	int outhandle = OSP_INVALID_HANDLE;
 	int recorded = 0;
 	time_t start, connect, end;
 	unsigned int release;
 	char buffer[OSP_INTSTR_SIZE];
-	const char* status;
-	char* tmp;
+	const char *status;
+	char *tmp;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(cause);
 		AST_APP_ARG(options);
 	);
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (!(tmp = ast_strdupa(data))) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1376,7 +1376,7 @@ static int ospfinished_exec(struct ast_channel* chan, void* data)
 		res = 0;
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
@@ -1602,9 +1602,7 @@ static struct ast_cli_entry osp_cli = {
 	osp_usage 
 };
 
-LOCAL_USER_DECL;
-
-static int load_module(void* mod)
+static int load_module(void)
 {
 	int res;
 	
@@ -1618,7 +1616,7 @@ static int load_module(void* mod)
 	return res;
 }
 
-static int unload_module(void* mod)
+static int unload_module(void)
 {
 	int res;
 	
@@ -1629,26 +1627,21 @@ static int unload_module(void* mod)
 	res |= ast_cli_unregister(&osp_cli);
 	osp_unload();
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int reload(void* mod)
+static int reload(void)
 {
 	osp_unload();
 	osp_load();
+
 	return 0;
 }
 
-static const char* description(void)
-{
-	return "Open Settlement Protocol Applications";
-}
-
-static const char* key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Open Settlement Protocol Applications",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+		);

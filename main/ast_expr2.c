@@ -142,7 +142,7 @@
 #include "asterisk.h"
 
 #ifndef STANDALONE
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_FILE_VERSION(__FILE__, "$Revision: 40546 $")
 #endif
 
 #include <sys/types.h>

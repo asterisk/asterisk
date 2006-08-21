@@ -981,10 +981,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 		sub->rtp = NULL;
 	}
 
-	/* Decrement use count */
-	ast_atomic_fetchadd_int(&__mod_desc->usecnt, -1);
-	ast_update_use_count();
-	/* Decrement use count */
+	ast_module_unref(ast_module_info->self);
 
 	if ((p->hookstate == MGCP_ONHOOK) && (!sub->next->rtp)) {
 		p->hidecallerid = 0;
@@ -1408,8 +1405,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		if (i->amaflags)
 			tmp->amaflags = i->amaflags;
 		sub->owner = tmp;
-		ast_atomic_fetchadd_int(&__mod_desc->usecnt, +1);
-		ast_update_use_count();
+		ast_module_ref(ast_module_info->self);
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
 		ast_string_field_set(tmp, call_forward, i->call_forward);
@@ -4222,11 +4218,10 @@ static int reload_config(void)
 }
 
 /*! \brief  load_module: PBX load module - initialization ---*/
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
-	__mod_desc = mod;
 	sched = sched_context_create();
 	if (!sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
@@ -4277,13 +4272,13 @@ static int mgcp_reload(int fd, int argc, char *argv[])
 	return 0;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	mgcp_reload(0, 0, NULL);
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	struct mgcp_endpoint *e;
 	struct mgcp_gateway *g;
@@ -4350,14 +4345,8 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-static const char *description(void)
-{
-	return "Media Gateway Control Protocol (MGCP)";
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Media Gateway Control Protocol (MGCP)",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

@@ -45,7 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DATE_FORMAT 	"%Y-%m-%d %T"
 #define CONF_FILE	"cdr_manager.conf"
 
-static char *desc = "Asterisk Call Manager CDR Backend";
 static char *name = "cdr_manager";
 
 static int enablecdr = 0;
@@ -135,25 +134,20 @@ static int manager_log(struct ast_cdr *cdr)
 	return 0;
 }
 
-static const char *description(void)
-{
-	return desc;
-}
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	ast_cdr_unregister(name);
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
 	/* Configuration file */
 	loadconfigurationfile();
 	
-	res = ast_cdr_register(name, desc, manager_log);
+	res = ast_cdr_register(name, "Asterisk Manager Interface CDR Backend", manager_log);
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to register Asterisk Call Manager CDR handling\n");
 	}
@@ -161,15 +155,14 @@ static int load_module(void *mod)
 	return res;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	loadconfigurationfile();
 	return 0;
 }
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1 | NO_USECOUNT, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Asterisk Manager Interface CDR Backend",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

@@ -161,7 +161,6 @@ struct jingle_container {
 
 static const char desc[] = "Jingle Channel";
 static const char type[] = "Jingle";
-static const char tdesc[] = "Jingle Channel Driver";
 
 static int usecnt = 0;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
@@ -192,7 +191,7 @@ static int jingle_get_codec(struct ast_channel *chan);
 /*! \brief PBX interface structure for channel registration */
 static const struct ast_channel_tech jingle_tech = {
 	.type = type,
-	.description = tdesc,
+	.description = "Jingle Channel Driver",
 	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
 	.requester = jingle_request,
 	.send_digit = jingle_digit,
@@ -1652,7 +1651,7 @@ static int jingle_load_config(void)
 }
 
 /*! \brief Load module into PBX, register channel */
-static int load_module(void *mod)
+static int load_module(void)
 {
 	ASTOBJ_CONTAINER_INIT(&jingles);
 	if (!jingle_load_config()) {
@@ -1684,13 +1683,13 @@ static int load_module(void *mod)
 }
 
 /*! \brief Reload module */
-static int reload(void *mod)
+static int reload(void)
 {
 	return 0;
 }
 
 /*! \brief Unload the jingle channel from Asterisk */
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	struct jingle_pvt *privates = NULL;
 
@@ -1721,14 +1720,8 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-static const char *description(void)
-{
-	return desc;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Jingle Channel Driver",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

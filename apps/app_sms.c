@@ -61,8 +61,6 @@ static volatile unsigned int seq;       /* arbitrary message sequence number for
 static char log_file[255];
 static char spool_dir[255];
 
-static char *tdesc = "SMS/PSTN handler";
-
 static char *app = "SMS";
 
 static char *synopsis = "Communicates with SMS service centres and SMS capable analogue phones";
@@ -95,7 +93,6 @@ static signed short wave[] = {
 static unsigned char wavea[80];
 #endif
 
-LOCAL_USER_DECL;
 
 /* SMS 7 bit character mapping to UCS-2 */
 static const unsigned short defaultalphabet[] = {
@@ -1359,17 +1356,17 @@ static struct ast_generator smsgen = {
 static int sms_exec (struct ast_channel *chan, void *data)
 {
 	int res = -1;
-	struct localuser *u;
+	struct ast_module_user *u;
 	struct ast_frame *f;
 	sms_t h = { 0 };
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	h.ipc0 = h.ipc1 = 20;		  /* phase for cosine */
 	h.dcs = 0xF1;					 /* default */
 	if (!data) {
 		ast_log (LOG_ERROR, "Requires queue name at least\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1382,13 +1379,13 @@ static int sms_exec (struct ast_channel *chan, void *data)
 			answer = 0;
 		if (!*d || *d == '|') {
 			ast_log (LOG_ERROR, "Requires queue name\n");
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return -1;
 		}
 		for (p = d; *p && *p != '|'; p++);
 		if (p - d >= sizeof (h.queue)) {
 			ast_log (LOG_ERROR, "Queue name too long\n");
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return -1;
 		}
 		strncpy (h.queue, (char *)d, p - d);
@@ -1457,7 +1454,7 @@ static int sms_exec (struct ast_channel *chan, void *data)
 			h.rx = 0;				  /* sent message */
 			h.mr = -1;
 			sms_writefile (&h);
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return 0;
 		}
 
@@ -1481,13 +1478,13 @@ static int sms_exec (struct ast_channel *chan, void *data)
 		res = ast_set_read_format (chan, AST_FORMAT_SLINEAR);
 	if (res < 0) {
 		ast_log (LOG_ERROR, "Unable to set to linear mode, giving up\n");
-		LOCAL_USER_REMOVE (u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
 	if (ast_activate_generator (chan, &smsgen, &h) < 0) {
 		ast_log (LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
-		LOCAL_USER_REMOVE (u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1506,22 +1503,22 @@ static int sms_exec (struct ast_channel *chan, void *data)
 
 	sms_log (&h, '?');			  /* log incomplete message */
 
-	LOCAL_USER_REMOVE (u);
+	ast_module_user_remove(u);
 	return (h.err);
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application (app);
 	
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 #ifdef OUTALAW
 	{
@@ -1535,14 +1532,4 @@ static int load_module(void *mod)
 	return ast_register_application (app, sms_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "SMS/PSTN handler");

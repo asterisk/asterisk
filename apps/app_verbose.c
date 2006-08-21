@@ -39,9 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 
-
-static char *tdesc = "Send verbose output";
-
 static char *app_verbose = "Verbose";
 static char *verbose_synopsis = "Send arbitrary text to verbose output";
 static char *verbose_descrip =
@@ -54,15 +51,14 @@ static char *log_descrip =
 "Log(<level>|<message>)\n"
 "  level must be one of ERROR, WARNING, NOTICE, DEBUG, VERBOSE, DTMF\n";
 
-LOCAL_USER_DECL;
 
 static int verbose_exec(struct ast_channel *chan, void *data)
 {
 	char *vtext;
 	int vsize;
-	struct localuser *u;
+	struct ast_module_user *u;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (data) {
 		char *tmp;
@@ -97,7 +93,7 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -105,13 +101,13 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 static int log_exec(struct ast_channel *chan, void *data)
 {
 	char *level, *ltext;
-	struct localuser *u;
+	struct ast_module_user *u;
 	int lnum = -1;
 	char extension[AST_MAX_EXTENSION + 5], context[AST_MAX_EXTENSION + 2];
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	if (ast_strlen_zero(data)) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -143,23 +139,23 @@ static int log_exec(struct ast_channel *chan, void *data)
 
 		ast_log(lnum, extension, chan->priority, context, "%s\n", ltext);
 	}
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app_verbose);
 	res |= ast_unregister_application(app_log);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
@@ -169,14 +165,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Send verbose output");

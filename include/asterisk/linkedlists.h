@@ -28,7 +28,7 @@
 */
 
 /*!
-  \brief Attempts to lock a list.
+  \brief Locks a list.
   \param head This is a pointer to the list head structure
 
   This macro attempts to place an exclusive lock in the
@@ -37,6 +37,17 @@
 */
 #define AST_LIST_LOCK(head)						\
 	ast_mutex_lock(&(head)->lock) 
+	
+/*!
+  \brief Locks a list, without blocking if the list is locked.
+  \param head This is a pointer to the list head structure
+
+  This macro attempts to place an exclusive lock in the
+  list head structure pointed to by head.
+  Returns non-zero on success, 0 on failure
+*/
+#define AST_LIST_TRYLOCK(head)						\
+	ast_mutex_trylock(&(head)->lock) 
 	
 /*!
   \brief Attempts to unlock a list.
@@ -209,7 +220,7 @@ struct {								\
 
 /*!
   \brief Returns the last entry contained in a list.
-  \param head This is a pointer to the list tail structure
+  \param head This is a pointer to the list head structure
  */
 #define	AST_LIST_LAST(head)	((head)->last)
 

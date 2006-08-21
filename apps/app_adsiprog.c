@@ -1545,9 +1545,9 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 static int adsi_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
-	struct localuser *u;
+	struct ast_module_user *u;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	
 	if (ast_strlen_zero(data))
 		data = "asterisk.adsi";
@@ -1561,16 +1561,16 @@ static int adsi_exec(struct ast_channel *chan, void *data)
 		res = adsi_prog(chan, data);
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	res = ast_unregister_application(app);	
 	
@@ -1578,20 +1578,9 @@ static int unload_module(void *mod)
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
-	__mod_desc = mod;
 	return ast_register_application(app, adsi_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Asterisk ADSI Programming Application";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Asterisk ADSI Programming Application");

@@ -182,27 +182,16 @@ static const struct ast_format h263_f = {
 	.read = h263_read,
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 	.desc_size = sizeof(struct h263_desc),
-	.module = &mod_data,	/* XXX */
 };
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_format_register(&h263_f);
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_format_unregister(h263_f.name);
 }	
 
-static const char *description(void)
-{
-	return "Raw h263 data";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Raw H.263 data");

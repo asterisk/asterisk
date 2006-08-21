@@ -66,8 +66,6 @@ static int parse_config(void);
 static int pgsql_reconnect(const char *database);
 static int realtime_pgsql_status(int fd, int argc, char **argv);
 
-LOCAL_USER_DECL;
-
 static char cli_realtime_pgsql_status_usage[] =
 	"Usage: realtime pgsql status\n"
 	"       Shows connection information for the Postgresql RealTime driver\n";
@@ -553,7 +551,7 @@ static struct ast_config_engine pgsql_engine = {
 	.update_func = update_pgsql
 };
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	parse_config();
 
@@ -577,7 +575,7 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	/* Aquire control before doing anything to the module itself. */
 	ast_mutex_lock(&pgsql_lock);
@@ -592,7 +590,7 @@ static int unload_module(void *mod)
 		ast_verbose("Postgresql RealTime unloaded.\n");
 	}
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	/* Unlock so something else can destroy the lock. */
 	ast_mutex_unlock(&pgsql_lock);
@@ -600,7 +598,7 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	/* Aquire control before doing anything to the module itself. */
 	ast_mutex_lock(&pgsql_lock);
@@ -697,17 +695,6 @@ int parse_config(void)
 	return 1;
 }
 
-static const char *description(void)
-{
-	return "Postgresql RealTime Configuration Driver";
-
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
 static int pgsql_reconnect(const char *database)
 {
 	char my_database[50];
@@ -799,4 +786,9 @@ static int realtime_pgsql_status(int fd, int argc, char **argv)
 	}
 }
 
-STD_MOD(MOD_0, reload, NULL, NULL);
+/* needs usecount semantics defined */
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "PostgreSQL RealTime Configuration Driver",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload
+	       );

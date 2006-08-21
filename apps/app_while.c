@@ -44,7 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/options.h"
 
-#define ALL_DONE(u,ret) {LOCAL_USER_REMOVE(u); return ret;}
+#define ALL_DONE(u,ret) {ast_module_user_remove(u); return ret;}
 
 
 static char *start_app = "While";
@@ -74,10 +74,6 @@ static char *continue_desc =
 "Usage:  ContinueWhile()\n"
 "Returns to the top of the while loop and re-evaluates the conditional.\n";
 static char *continue_synopsis = "Restart a While loop";
-
-static char *tdesc = "While Loops and Conditional Execution";
-
-LOCAL_USER_DECL;
 
 #define VAR_SIZE 64
 
@@ -168,7 +164,7 @@ static int find_matching_endwhile(struct ast_channel *chan)
 static int _while_exec(struct ast_channel *chan, void *data, int end)
 {
 	int res=0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	const char *while_pri = NULL;
 	char *my_name = NULL;
 	const char *condition = NULL, *label = NULL;
@@ -183,7 +179,7 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	/* dont want run away loops if the chan isn't even up
 	   this is up for debate since it slows things down a tad ......
@@ -310,7 +306,7 @@ static int while_continue_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 	
@@ -319,12 +315,12 @@ static int unload_module(void *mod)
 	res |= ast_unregister_application(exit_app);
 	res |= ast_unregister_application(continue_app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
@@ -336,14 +332,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "While Loops and Conditional Execution");

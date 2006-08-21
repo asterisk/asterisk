@@ -25,6 +25,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -78,27 +79,16 @@ static struct ast_custom_function base64_decode_function = {
 	.read = base64_decode,
 };
 
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_custom_function_unregister(&base64_encode_function) |
 		ast_custom_function_unregister(&base64_decode_function);
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_custom_function_register(&base64_encode_function) |
 		ast_custom_function_register(&base64_decode_function);
 }
 
-static const char *description(void)
-{
-	return "base64 encode/decode dialplan functions";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "base64 encode/decode dialplan functions");

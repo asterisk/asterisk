@@ -477,12 +477,12 @@ static void *scan_thread(void *unused)
 	return NULL;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return -1;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	pthread_t thread;
 	pthread_attr_t attr;
@@ -502,14 +502,4 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static const char *description(void)
-{
-	return "Outgoing Spool Support";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1 | NO_USECOUNT | NO_UNLOAD, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Outgoing Spool Support");

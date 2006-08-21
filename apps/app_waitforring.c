@@ -45,8 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *synopsis = "Wait for Ring Application";
 
-static char *tdesc = "Waits until first ring after time";
-
 static char *desc = "  WaitForRing(timeout)\n"
 "Returns 0 after waiting at least timeout seconds. and\n"
 "only after the next ring has completed.  Returns 0 on\n"
@@ -54,11 +52,10 @@ static char *desc = "  WaitForRing(timeout)\n"
 
 static char *app = "WaitForRing";
 
-LOCAL_USER_DECL;
 
 static int waitforring_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	struct ast_frame *f;
 	int res = 0;
 	int ms;
@@ -68,7 +65,7 @@ static int waitforring_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	ms *= 1000;
 	while(ms > 0) {
@@ -115,35 +112,25 @@ static int waitforring_exec(struct ast_channel *chan, void *data)
 			}
 		}
 	}
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, waitforring_exec, synopsis, desc);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Waits until first ring after time");

@@ -53,12 +53,11 @@ static const char *descrip =
 "10@PICKUPMARK, this application tries to find a channel which has defined a channel variable with the same context\n"
 "as \"extension\".";
 
-LOCAL_USER_DECL;
 
 static int pickup_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct localuser *u = NULL;
+	struct ast_module_user *u = NULL;
 	struct ast_channel *origin = NULL, *target = NULL;
 	char *tmp = NULL, *exten = NULL, *context = NULL, *rest=data;
 	char workspace[256] = "";
@@ -69,7 +68,7 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 		return -1;	
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	
 	while (!target && (exten = rest) ) {
 		res = 0;
@@ -146,12 +145,12 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 	if (target) 
 		ast_mutex_unlock(&target->lock);
 	
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
@@ -160,20 +159,9 @@ static int unload_module(void *mod)
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
-	__mod_desc = mod;
 	return ast_register_application(app, pickup_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Directed Call Pickup Application";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Directed Call Pickup Application");

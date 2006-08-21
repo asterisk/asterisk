@@ -50,8 +50,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* special result value used to force macro exit */
 #define MACRO_EXIT_RESULT 1024
 
-static char *tdesc = "Extension Macros";
-
 static char *descrip =
 "  Macro(macroname|arg1|arg2...): Executes a macro using the context\n"
 "'macro-<macroname>', jumping to the 's' extension of that context and\n"
@@ -94,7 +92,6 @@ static char *if_synopsis = "Conditional Macro Implementation";
 static char *exclusive_synopsis = "Exclusive Macro Implementation";
 static char *exit_synopsis = "Exit From Macro";
 
-LOCAL_USER_DECL;
 
 static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 {
@@ -120,14 +117,14 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	char *save_macro_context;
 	char *save_macro_priority;
 	char *save_macro_offset;
-	struct localuser *u;
+	struct ast_module_user *u;
  
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Macro() requires arguments. See \"show application macro\" for help.\n");
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	/* does the user want a deeper rabbit hole? */
 	s = pbx_builtin_getvar_helper(chan, "MACRO_RECURSION");
@@ -140,7 +137,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 		sscanf(s, "%d", &depth);
 	if (depth >= maxdepth) {
 		ast_log(LOG_ERROR, "Macro():  possible infinite loop detected.  Returning early.\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return 0;
 	}
 	snprintf(depthc, sizeof(depthc), "%d", depth + 1);
@@ -151,7 +148,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	macro = strsep(&rest, "|");
 	if (ast_strlen_zero(macro)) {
 		ast_log(LOG_WARNING, "Invalid macro name specified\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -161,7 +158,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			ast_log(LOG_WARNING, "No such context '%s' for macro '%s'\n", fullmacro, macro);
 		else
 			ast_log(LOG_WARNING, "Context '%s' for macro '%s' lacks 's' extension, priority 1\n", fullmacro, macro);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -172,7 +169,8 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 		if (ast_context_lockmacro(fullmacro)) {
 			ast_log(LOG_WARNING, "Failed to lock macro '%s' as in-use\n", fullmacro);
 			ast_autoservice_stop(chan);
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
+
 			return 0;
 		}
 		ast_autoservice_stop(chan);
@@ -339,7 +337,8 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 		}
 	}
 	
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
+
 	return res;
 }
 
@@ -357,12 +356,12 @@ static int macroif_exec(struct ast_channel *chan, void *data)
 {
 	char *expr = NULL, *label_a = NULL, *label_b = NULL;
 	int res = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (!(expr = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -380,7 +379,7 @@ static int macroif_exec(struct ast_channel *chan, void *data)
 	} else
 		ast_log(LOG_WARNING, "Invalid Syntax.\n");
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
@@ -390,7 +389,7 @@ static int macro_exit_exec(struct ast_channel *chan, void *data)
 	return MACRO_EXIT_RESULT;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
@@ -399,12 +398,12 @@ static int unload_module(void *mod)
 	res |= ast_unregister_application(app);
 	res |= ast_unregister_application(exclusive_app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
@@ -416,14 +415,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Extension Macros");

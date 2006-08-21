@@ -124,8 +124,6 @@ static struct strategy {
 #define	RES_OUTOFMEMORY	(-2)		/* Out of memory */
 #define	RES_NOSUCHQUEUE	(-3)		/* No such queue */
 
-static char *tdesc = "True Call Queueing";
-
 static char *app = "Queue";
 
 static char *synopsis = "Queue a call for a call queue";
@@ -289,7 +287,6 @@ struct callattempt {
 	struct member *member;
 };
 
-LOCAL_USER_DECL;
 
 struct queue_ent {
 	struct call_queue *parent;          /*!< What queue is our parent */
@@ -2936,7 +2933,7 @@ static void reload_queue_members(void)
 
 static int pqm_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *lu;
+	struct ast_module_user *lu;
 	char *parse;
 	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
@@ -2954,7 +2951,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	LOCAL_USER_ADD(lu);
+	lu = ast_module_user_add(chan);
 
 	if (args.options) {
 		if (strchr(args.options, 'j'))
@@ -2963,7 +2960,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 
 	if (ast_strlen_zero(args.interface)) {
 		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface[|options])\n");
-		LOCAL_USER_REMOVE(lu);
+		ast_module_user_remove(lu);
 		return -1;
 	}
 
@@ -2972,16 +2969,16 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 		if (priority_jump || ast_opt_priority_jumping) {
 			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
 				pbx_builtin_setvar_helper(chan, "PQMSTATUS", "NOTFOUND");
-				LOCAL_USER_REMOVE(lu);
+				ast_module_user_remove(lu);
 				return 0;
 			}
 		}
-		LOCAL_USER_REMOVE(lu);
+		ast_module_user_remove(lu);
 		pbx_builtin_setvar_helper(chan, "PQMSTATUS", "NOTFOUND");
 		return -1;
 	}
 
-	LOCAL_USER_REMOVE(lu);
+	ast_module_user_remove(lu);
 	pbx_builtin_setvar_helper(chan, "PQMSTATUS", "PAUSED");
 
 	return 0;
@@ -2989,7 +2986,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 
 static int upqm_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *lu;
+	struct ast_module_user *lu;
 	char *parse;
 	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
@@ -3007,7 +3004,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	LOCAL_USER_ADD(lu);
+	lu = ast_module_user_add(chan);
 
 	if (args.options) {
 		if (strchr(args.options, 'j'))
@@ -3016,7 +3013,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 
 	if (ast_strlen_zero(args.interface)) {
 		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface[|options])\n");
-		LOCAL_USER_REMOVE(lu);
+		ast_module_user_remove(lu);
 		return -1;
 	}
 
@@ -3025,16 +3022,16 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 		if (priority_jump || ast_opt_priority_jumping) {
 			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
 				pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "NOTFOUND");
-				LOCAL_USER_REMOVE(lu);
+				ast_module_user_remove(lu);
 				return 0;
 			}
 		}
-		LOCAL_USER_REMOVE(lu);
+		ast_module_user_remove(lu);
 		pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "NOTFOUND");
 		return -1;
 	}
 
-	LOCAL_USER_REMOVE(lu);
+	ast_module_user_remove(lu);
 	pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "UNPAUSED");
 
 	return 0;
@@ -3043,7 +3040,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 static int rqm_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
-	struct localuser *lu;
+	struct ast_module_user *lu;
 	char *parse, *temppos = NULL;
 	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
@@ -3062,7 +3059,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	LOCAL_USER_ADD(lu);
+	lu = ast_module_user_add(chan);
 
 	if (ast_strlen_zero(args.interface)) {
 		args.interface = ast_strdupa(chan->name);
@@ -3096,7 +3093,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 		break;
 	}
 
-	LOCAL_USER_REMOVE(lu);
+	ast_module_user_remove(lu);
 
 	return res;
 }
@@ -3104,7 +3101,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 static int aqm_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
-	struct localuser *lu;
+	struct ast_module_user *lu;
 	char *parse, *temppos = NULL;
 	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
@@ -3124,7 +3121,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	LOCAL_USER_ADD(lu);
+	lu = ast_module_user_add(chan);
 
 	if (ast_strlen_zero(args.interface)) {
 		args.interface = ast_strdupa(chan->name);
@@ -3169,14 +3166,14 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 		break;
 	}
 
-	LOCAL_USER_REMOVE(lu);
+	ast_module_user_remove(lu);
 
 	return res;
 }
 
 static int ql_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *parse;
 
 	AST_DECLARE_APP_ARGS(args,
@@ -3192,7 +3189,7 @@ static int ql_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	parse = ast_strdupa(data);
 
@@ -3201,14 +3198,14 @@ static int ql_exec(struct ast_channel *chan, void *data)
 	if (ast_strlen_zero(args.queuename) || ast_strlen_zero(args.uniqueid)
 	    || ast_strlen_zero(args.peer) || ast_strlen_zero(args.event)) {
 		ast_log(LOG_WARNING, "QueueLog requires arguments (queuename|uniqueid|peer|event[|additionalinfo])\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
 	ast_queue_log(args.queuename, args.uniqueid, args.peer, args.event, 
 		"%s", args.params ? args.params : "");
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -3217,7 +3214,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	int ringing=0;
-	struct localuser *lu;
+	struct ast_module_user *lu;
 	const char *user_priority;
 	const char *max_penalty_str;
 	int prio;
@@ -3245,7 +3242,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	parse = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	LOCAL_USER_ADD(lu);
+	lu = ast_module_user_add(chan);
 
 	/* Setup our queue entry */
 	memset(&qe, 0, sizeof(qe));
@@ -3473,7 +3470,7 @@ check_turns:
 		set_queue_result(chan, reason);
 		res = 0;
 	}
-	LOCAL_USER_REMOVE(lu);
+	ast_module_user_remove(lu);
 
 	return res;
 }
@@ -3482,7 +3479,7 @@ static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, c
 {
 	int count = 0;
 	struct call_queue *q;
-	struct localuser *lu;
+	struct ast_module_user *lu;
 	struct member *m;
 
 	buf[0] = '\0';
@@ -3492,7 +3489,7 @@ static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, c
 		return -1;
 	}
 
-	LOCAL_USER_ADD(lu);
+	lu = ast_module_user_add(chan);
 	
 	AST_LIST_LOCK(&queues);
 	AST_LIST_TRAVERSE(&queues, q, list) {
@@ -3515,7 +3512,7 @@ static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, c
 		ast_log(LOG_WARNING, "queue %s was not found\n", data);
 
 	snprintf(buf, len, "%d", count);
-	LOCAL_USER_REMOVE(lu);
+	ast_module_user_remove(lu);
 
 	return 0;
 }
@@ -3524,7 +3521,7 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, char *cmd,
 {
 	int count = 0;
 	struct call_queue *q;
-	struct localuser *lu;
+	struct ast_module_user *lu;
 
 	buf[0] = '\0';
 	
@@ -3533,7 +3530,7 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, char *cmd,
 		return -1;
 	}
 
-	LOCAL_USER_ADD(lu);
+	lu = ast_module_user_add(chan);
 	
 	AST_LIST_LOCK(&queues);
 	AST_LIST_TRAVERSE(&queues, q, list) {
@@ -3551,13 +3548,13 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, char *cmd,
 		ast_log(LOG_WARNING, "queue %s was not found\n", data);
 
 	snprintf(buf, len, "%d", count);
-	LOCAL_USER_REMOVE(lu);
+	ast_module_user_remove(lu);
 	return 0;
 }
 
 static int queue_function_queuememberlist(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	struct call_queue *q;
 	struct member *m;
 
@@ -3569,7 +3566,7 @@ static int queue_function_queuememberlist(struct ast_channel *chan, char *cmd, c
 		return -1;
 	}
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	AST_LIST_LOCK(&queues);
 	AST_LIST_TRAVERSE(&queues, q, list) {
@@ -3603,7 +3600,7 @@ static int queue_function_queuememberlist(struct ast_channel *chan, char *cmd, c
 
 	/* We should already be terminated, but let's make sure. */
 	buf[len - 1] = '\0';
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -4328,7 +4325,7 @@ static struct ast_cli_entry cli_remove_queue_member = {
 	{ "remove", "queue", "member", NULL }, handle_remove_queue_member,
 	"Removes a channel from a specified queue", rqm_cmd_usage, complete_remove_queue_member };
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
@@ -4352,14 +4349,14 @@ static int unload_module(void *mod)
 	res |= ast_custom_function_unregister(&queuewaitingcount_function);
 	res |= ast_unregister_application(app);
 
-	clear_and_free_interfaces();
+	ast_module_user_hangup_all();
 
-	STANDARD_HANGUP_LOCALUSERS;
+	clear_and_free_interfaces();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 	
@@ -4393,21 +4390,15 @@ static int load_module(void *mod)
 	return res;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	reload_queues();
 	return 0;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "True Call Queueing",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );
 

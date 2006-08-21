@@ -479,49 +479,39 @@ static void parse_config(void)
 	ast_config_destroy(cfg);
 }
 
-static int reload(void *mod) 
+static int reload(void) 
 {
-	/*
-	 * XXX reloading while there are active sessions is
-	 * somewhat silly because the old state presumably
-	 * wouldn't work anymore...
-	 * maybe we shuld do a standard hangup localusers ?
-	 */
-	ast_mutex_lock(&__mod_desc->lock);
 	parse_config();
-	ast_mutex_lock(&__mod_desc->lock);
+
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
+
 	res = ast_unregister_translator(&lintospeex);
 	res |= ast_unregister_translator(&speextolin);
+
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
+
 	parse_config();
-	res=ast_register_translator(&speextolin, mod);
+	res=ast_register_translator(&speextolin);
 	if (!res) 
-		res=ast_register_translator(&lintospeex, mod);
+		res=ast_register_translator(&lintospeex);
 	else
 		ast_unregister_translator(&speextolin);
+
 	return res;
 }
 
-static const char *description(void)
-{
-	return "Speex/PCM16 (signed linear) Codec Translator";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
-
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Speex Coder/Decoder",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

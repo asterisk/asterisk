@@ -40,7 +40,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/cli.h"
 #include "asterisk/linkedlists.h"
-#define	MOD_LOADER
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
 #include "asterisk/channel.h"
@@ -805,6 +804,11 @@ static char *complete_ch_4(const char *line, const char *word, int pos, int stat
 	return ast_complete_channels(line, word, pos, state, 3);
 }
 
+static char *complete_mod_2_nr(const char *line, const char *word, int pos, int state)
+{
+	return ast_module_helper(line, word, pos, state, 1, 0);
+}
+
 static char *complete_mod_2(const char *line, const char *word, int pos, int state)
 {
 	return ast_module_helper(line, word, pos, state, 1, 1);
@@ -908,7 +912,7 @@ static struct ast_cli_entry builtins[] = {
 	{ { "debug", "level", NULL }, handle_debuglevel, "Set global debug level", debuglevel_help },
 	{ { "group", "show", "channels", NULL }, group_show_channels, "Show active channels with group(s)", group_show_channels_help},
 	{ { "help", NULL }, handle_help, "Display help list, or specific help on a command", help_help, complete_help },
-	{ { "load", NULL }, handle_load, "Load a dynamic module by name", load_help, complete_fn },
+	{ { "load", NULL }, handle_load, "Load a module by name", load_help, complete_fn },
 	{ { "logger", "mute", NULL }, handle_logger_mute, "Toggle logging output to a console", logger_mute_help },
 	{ { "no", "debug", "channel", NULL }, handle_nodebugchan, "Disable debugging on a channel", nodebugchan_help, complete_ch_4 },
 	{ { "reload", NULL }, handle_reload, "Reload configuration", reload_help, complete_mod_2 },
@@ -920,7 +924,7 @@ static struct ast_cli_entry builtins[] = {
 	{ { "show", "modules", "like", NULL }, handle_modlist, "List modules and info", modlist_help, complete_mod_4 },
  	{ { "show", "uptime", NULL }, handle_showuptime, "Show uptime information", uptime_help },
 	{ { "soft", "hangup", NULL }, handle_softhangup, "Request a hangup on a given channel", softhangup_help, complete_ch_3 },
-	{ { "unload", NULL }, handle_unload, "Unload a dynamic module by name", unload_help, complete_fn },
+	{ { "unload", NULL }, handle_unload, "Unload a module by name", unload_help, complete_mod_2_nr },
 	{ { NULL }, NULL, NULL, NULL }
 };
 

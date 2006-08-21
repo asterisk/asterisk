@@ -13,8 +13,10 @@
 
 
 #include <syslog.h>
-#include "isdn_lib_intern.h"
 #include <mISDNuser/isdn_debug.h>
+
+#include "isdn_lib_intern.h"
+#include "isdn_lib.h"
 
 void misdn_join_conf(struct misdn_bchannel *bc, int conf_id);
 void misdn_split_conf(struct misdn_bchannel *bc, int conf_id);
@@ -232,11 +234,6 @@ void manager_clean_bc(struct misdn_bchannel *bc );
 void manager_bchannel_setup (struct misdn_bchannel *bc);
 void manager_bchannel_cleanup (struct misdn_bchannel *bc);
 
-int isdn_msg_get_index(struct isdn_msg msgs[], msg_t *frm, int nt);
-enum event_e isdn_msg_get_event(struct isdn_msg msgs[], msg_t *frm, int nt);
-int isdn_msg_parse_event(struct isdn_msg msgs[], msg_t *frm, struct misdn_bchannel *bc, int nt);
-char * isdn_get_info(struct isdn_msg msgs[], enum event_e event, int nt);
-msg_t * isdn_msg_build_event(struct isdn_msg msgs[], struct misdn_bchannel *bc, enum event_e event, int nt);
 void ec_chunk( struct misdn_bchannel *bc, unsigned char *rxchunk, unsigned char *txchunk, int chunk_size);
 	/* end */
 int bchdev_echocancel_activate(struct misdn_bchannel* dev);
@@ -275,7 +272,7 @@ static char *bearer2str(int cap) {
 
 static char flip_table[256];
 
-void init_flip_bits(void)
+static void init_flip_bits(void)
 {
 	int i,k;
 	
@@ -288,7 +285,7 @@ void init_flip_bits(void)
 	}
 }
 
-char * flip_buf_bits ( char * buf , int len)
+static char * flip_buf_bits ( char * buf , int len)
 {
 	int i;
 	char * start = buf;
@@ -303,7 +300,7 @@ char * flip_buf_bits ( char * buf , int len)
 
 
 
-msg_t *create_l2msg(int prim, int dinfo, int size) /* NT only */
+static msg_t *create_l2msg(int prim, int dinfo, int size) /* NT only */
 {
 	int i = 0;
 	msg_t *dmsg;
@@ -364,7 +361,7 @@ msg_t *create_l3msg(int prim, int mt, int dinfo, int size, int ntmode)
 }
 
 
-int send_msg (int midev, struct misdn_bchannel *bc, msg_t *dmsg)
+static int send_msg (int midev, struct misdn_bchannel *bc, msg_t *dmsg)
 {
 	iframe_t *frm;
 	frm = (iframe_t *)dmsg->data;
@@ -417,7 +414,7 @@ int misdn_inband_avail(struct misdn_bchannel *bc)
 }
 
 
-void dump_chan_list(struct misdn_stack *stack)
+static void dump_chan_list(struct misdn_stack *stack)
 {
 	int i;
 
@@ -460,7 +457,7 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 	return 0;
 }
 
-int empty_chan_in_stack(struct misdn_stack *stack, int channel)
+static int empty_chan_in_stack(struct misdn_stack *stack, int channel)
 {
 	if (channel<=0) {
 		cb_log(0,stack?stack->port:0, "empty_chan_inst_stack: cannot empty channel %d\n",channel);
@@ -521,7 +518,7 @@ void bc_state_change(struct misdn_bchannel *bc, enum bchannel_state state)
 	}
 }
 
-void bc_next_state_change(struct misdn_bchannel *bc, enum bchannel_state state)
+static void bc_next_state_change(struct misdn_bchannel *bc, enum bchannel_state state)
 {
 	cb_log(5,bc->port,"BC_NEXT_STATE_CHANGE: from:%s to:%s\n",
 	       bc_state2str(bc->next_bc_state),
@@ -531,7 +528,7 @@ void bc_next_state_change(struct misdn_bchannel *bc, enum bchannel_state state)
 }
 
 
-void empty_bc(struct misdn_bchannel *bc)
+static void empty_bc(struct misdn_bchannel *bc)
 {
 	bc->bframe_len=0;
 	
@@ -624,7 +621,7 @@ void empty_bc(struct misdn_bchannel *bc)
 }
 
 
-int clean_up_bc(struct misdn_bchannel *bc)
+static int clean_up_bc(struct misdn_bchannel *bc)
 {
 	int ret=0;
 	unsigned char buff[32];
@@ -667,7 +664,7 @@ int clean_up_bc(struct misdn_bchannel *bc)
 
 
 
-void clear_l3(struct misdn_stack *stack)
+static void clear_l3(struct misdn_stack *stack)
 {
 	int i;
 
@@ -682,7 +679,7 @@ void clear_l3(struct misdn_stack *stack)
 	} 
 }
 
-int set_chan_in_stack(struct misdn_stack *stack, int channel)
+static int set_chan_in_stack(struct misdn_stack *stack, int channel)
 {
 
 	cb_log(4,stack->port,"set_chan_in_stack: %d\n",channel);
@@ -695,21 +692,22 @@ int set_chan_in_stack(struct misdn_stack *stack, int channel)
 	return 0;
 }
 
-int chan_in_stack_free(struct misdn_stack *stack, int channel)
+#if 0
+static int chan_in_stack_free(struct misdn_stack *stack, int channel)
 {
 	if (stack->channels[channel-1])
 		return 0;
   
 	return 1;
 }
-
+#endif
 
 
 static int newteid=0;
 
 #define MAXPROCS 0x100
 
-int misdn_lib_get_l1_down(struct misdn_stack *stack)
+static int misdn_lib_get_l1_down(struct misdn_stack *stack)
 {
 	/* Pull Up L1 */ 
 	iframe_t act;
@@ -726,7 +724,7 @@ int misdn_lib_get_l1_down(struct misdn_stack *stack)
 }
 
 
-int misdn_lib_get_l2_down(struct misdn_stack *stack)
+static int misdn_lib_get_l2_down(struct misdn_stack *stack)
 {
 	
 	if (stack->ptp && (stack->nt) ) {
@@ -752,7 +750,7 @@ int misdn_lib_get_l2_down(struct misdn_stack *stack)
 }
 
 
-int misdn_lib_get_l1_up(struct misdn_stack *stack)
+static int misdn_lib_get_l1_up(struct misdn_stack *stack)
 {
 	/* Pull Up L1 */ 
 	iframe_t act;
@@ -792,7 +790,8 @@ int misdn_lib_get_l2_up(struct misdn_stack *stack)
 	return 0;
 }
 
-int misdn_lib_get_l2_te_ptp_up(struct misdn_stack *stack)
+#if 0
+static int misdn_lib_get_l2_te_ptp_up(struct misdn_stack *stack)
 {
 	iframe_t act;
 		
@@ -804,9 +803,9 @@ int misdn_lib_get_l2_te_ptp_up(struct misdn_stack *stack)
 	return mISDN_write(stack->midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
 	return 0;
 }
+#endif
 
-
-int misdn_lib_get_short_status(struct misdn_stack *stack)
+static int misdn_lib_get_short_status(struct misdn_stack *stack)
 {
 	iframe_t act;
 	
@@ -1342,7 +1341,7 @@ void stack_destroy(struct misdn_stack* stack)
 }
 
 
-struct misdn_stack * find_stack_by_addr(int  addr)
+static struct misdn_stack * find_stack_by_addr(int  addr)
 {
 	struct misdn_stack *stack;
 	
@@ -1357,7 +1356,7 @@ struct misdn_stack * find_stack_by_addr(int  addr)
 }
 
 
-struct misdn_stack * find_stack_by_port(int port)
+static struct misdn_stack * find_stack_by_port(int port)
 {
 	struct misdn_stack *stack;
   
@@ -1369,7 +1368,7 @@ struct misdn_stack * find_stack_by_port(int port)
 	return NULL;
 }
 
-struct misdn_stack * find_stack_by_mgr(manager_t* mgr_nt)
+static struct misdn_stack * find_stack_by_mgr(manager_t* mgr_nt)
 {
 	struct misdn_stack *stack;
   
@@ -1381,7 +1380,7 @@ struct misdn_stack * find_stack_by_mgr(manager_t* mgr_nt)
 	return NULL;
 }
 
-struct misdn_bchannel *find_bc_by_masked_l3id(struct misdn_stack *stack, unsigned long l3id, unsigned long mask)
+static struct misdn_bchannel *find_bc_by_masked_l3id(struct misdn_stack *stack, unsigned long l3id, unsigned long mask)
 {
 	int i;
 	for (i=0; i<stack->b_num; i++) {
@@ -1400,7 +1399,7 @@ struct misdn_bchannel *find_bc_by_l3id(struct misdn_stack *stack, unsigned long 
 	return stack_holder_find(stack,l3id);
 }
 
-struct misdn_bchannel *find_bc_holded(struct misdn_stack *stack)
+static struct misdn_bchannel *find_bc_holded(struct misdn_stack *stack)
 {
 	int i;
 	for (i=0; i<stack->b_num; i++) {
@@ -1410,7 +1409,7 @@ struct misdn_bchannel *find_bc_holded(struct misdn_stack *stack)
 }
 
 
-struct misdn_bchannel *find_bc_by_addr(unsigned long addr)
+static struct misdn_bchannel *find_bc_by_addr(unsigned long addr)
 {
 	struct misdn_stack* stack;
 	int i;
@@ -1434,7 +1433,7 @@ struct misdn_bchannel *find_bc_by_addr(unsigned long addr)
 }
 
 
-struct misdn_bchannel *find_bc_by_channel(int port, int channel)
+static struct misdn_bchannel *find_bc_by_channel(int port, int channel)
 {
 	struct misdn_stack* stack=find_stack_by_port(port);
 	int i;
@@ -1454,7 +1453,7 @@ struct misdn_bchannel *find_bc_by_channel(int port, int channel)
 
 
 
-int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
+static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 {
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	
@@ -1528,7 +1527,7 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 	return 0;
 }
 
-int handle_new_process(struct misdn_stack *stack, iframe_t *frm)
+static int handle_new_process(struct misdn_stack *stack, iframe_t *frm)
 {
   
 	struct misdn_bchannel* bc=misdn_lib_get_free_bc(stack->port, 0);
@@ -1544,7 +1543,7 @@ int handle_new_process(struct misdn_stack *stack, iframe_t *frm)
 	return 0;
 }
 
-int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
+static int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
 {
 	if (!stack) return -1;
   
@@ -2094,7 +2093,7 @@ handle_event_nt(void *dat, void *arg)
 }
 
 
-int handle_timers(msg_t* msg)
+static int handle_timers(msg_t* msg)
 {
 	iframe_t *frm= (iframe_t*)msg->data;
 	struct misdn_stack *stack; 
@@ -2235,7 +2234,7 @@ void misdn_tx_jitter(struct misdn_bchannel *bc, int len)
 	}
 }
 
-int handle_bchan(msg_t *msg)
+static int handle_bchan(msg_t *msg)
 {
 	iframe_t *frm= (iframe_t*)msg->data;
 
@@ -2497,7 +2496,7 @@ int handle_bchan(msg_t *msg)
 
 
 
-int handle_frm_nt(msg_t *msg)
+static int handle_frm_nt(msg_t *msg)
 {
 	iframe_t *frm= (iframe_t*)msg->data;
 	struct misdn_stack *stack;
@@ -2532,7 +2531,7 @@ int handle_frm_nt(msg_t *msg)
 }
 
 
-int handle_frm(msg_t *msg)
+static int handle_frm(msg_t *msg)
 {
 	iframe_t *frm = (iframe_t*) msg->data;
 	
@@ -2630,7 +2629,7 @@ handle_frm_bc:
 }
 
 
-int handle_l1(msg_t *msg)
+static int handle_l1(msg_t *msg)
 {
 	iframe_t *frm = (iframe_t*) msg->data;
 	struct misdn_stack *stack = find_stack_by_addr(frm->addr);
@@ -2700,7 +2699,7 @@ int handle_l1(msg_t *msg)
 	return 0;
 }
 
-int handle_l2(msg_t *msg)
+static int handle_l2(msg_t *msg)
 {
 	iframe_t *frm = (iframe_t*) msg->data;
 
@@ -2747,7 +2746,7 @@ int handle_l2(msg_t *msg)
 	return 0;
 }
 
-int handle_mgmt(msg_t *msg)
+static int handle_mgmt(msg_t *msg)
 {
 	iframe_t *frm = (iframe_t*) msg->data;
 
@@ -2824,7 +2823,7 @@ int handle_mgmt(msg_t *msg)
 }
 
 
-msg_t *fetch_msg(int midev) 
+static msg_t *fetch_msg(int midev) 
 {
 	msg_t *msg=alloc_msg(MAX_MSG_SIZE);
 	int r;
@@ -3012,7 +3011,7 @@ struct misdn_bchannel *manager_find_bc_holded(struct misdn_bchannel* bc)
 
 
 
-void prepare_bc(struct misdn_bchannel*bc, int channel)
+static void prepare_bc(struct misdn_bchannel*bc, int channel)
 {
 	bc->channel = channel;
 	bc->channel_preselected = channel?1:0;
@@ -3080,7 +3079,8 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel)
 }
 
 
-char *fac2str (enum FacFunction func) {
+static char *fac2str (enum FacFunction func)
+{
 	struct arr_el { 
 		enum FacFunction p; 
 		char *s ; 
@@ -3329,7 +3329,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 }
 
 
-int handle_err(msg_t *msg)
+static int handle_err(msg_t *msg)
 {
 	iframe_t *frm = (iframe_t*) msg->data;
 
@@ -3412,8 +3412,9 @@ int handle_err(msg_t *msg)
 	return 0;
 }
 
-
-int queue_l2l3(msg_t *msg) {
+#if 0
+static int queue_l2l3(msg_t *msg)
+{
 	iframe_t *frm= (iframe_t*)msg->data;
 	struct misdn_stack *stack;
 	stack=find_stack_by_addr( frm->addr );
@@ -3427,6 +3428,7 @@ int queue_l2l3(msg_t *msg) {
 	sem_post(&glob_mgr->new_msg);
 	return 1;
 }
+#endif
 
 int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 {  
@@ -3578,7 +3580,7 @@ int misdn_lib_port_restart(int port)
 
 sem_t handler_started; 
 
-void manager_event_handler(void *arg)
+static void manager_event_handler(void *arg)
 {
 	sem_post(&handler_started); 
 	while (1) {
@@ -4261,7 +4263,7 @@ void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2) 
 	};
 	struct misdn_bchannel **bc;
 		
-	for (bc=bc_list; *bc;  *bc++) { 
+	for (bc=bc_list; *bc;  bc++) { 
 		(*bc)->conf_id=conf_id;
 		cb_log(1, (*bc)->port, " --> bc_addr:%x\n",(*bc)->addr);
 	
@@ -4284,7 +4286,7 @@ void misdn_lib_split_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel 
 	};
 	struct misdn_bchannel **bc;
 		
-	for (bc=bc_list; *bc;  *bc++) { 
+	for (bc=bc_list; *bc;  bc++) { 
 		if ( (*bc)->bc_state == BCHAN_BRIDGED){
 			misdn_split_conf( *bc, (*bc)->conf_id);
 		} else {

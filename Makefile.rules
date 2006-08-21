@@ -15,12 +15,25 @@
 # Prefixing one or the other with @\# or @ or nothing makes the desired
 # behaviour. ECHO_PREFIX prefixes the comment, CMD_PREFIX prefixes the command.
 
+include $(ASTTOPDIR)/makeopts
+
 ifeq ($(NOISY_BUILD),)
    ECHO_PREFIX=@
    CMD_PREFIX=@
 else
    ECHO_PREFIX=@\# 
    CMD_PREFIX=
+endif
+
+ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
+# More GSM codec optimization
+# Uncomment to enable MMXTM optimizations for x86 architecture CPU's
+# which support MMX instructions.  This should be newer pentiums,
+# ppro's, etc, as well as the AMD K6 and K7.  
+#K6OPT=-DK6OPT
+
+OPTIMIZE?=-O6
+CFLAGS+=$(OPTIMIZE)
 endif
 
 define ast_make_o_c
@@ -50,13 +63,13 @@ endef
 define ast_make_so_o
 $(1): $(2)
 	$(ECHO_PREFIX) echo "   [LD] $$^ -> $$@"
-	$(CMD_PREFIX) $$(CC) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
+	$(CMD_PREFIX) $$(CC) $$(STATIC_BUILD) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
 endef
 
 define ast_make_so_oo
 $(1): $(2)
 	$(ECHO_PREFIX) echo "   [LDXX] $$^ -> $$@"
-	$(CMD_PREFIX) $$(CXX) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
+	$(CMD_PREFIX) $$(CXX) $$(STATIC_BUILD) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
 endef
 
 define ast_make_a_o
@@ -69,13 +82,13 @@ endef
 define ast_make_final
 $(1): $(2)
 	$(ECHO_PREFIX) echo "   [LD] $$^ -> $$@"
-	$(CMD_PREFIX) $$(CC) -o $$@ $$(LDFLAGS) $$^ $$(LIBS)
+	$(CMD_PREFIX) $$(CXX) $$(STATIC_BUILD) -o $$@ $$(LDFLAGS) $$^ $$(LIBS)
 endef
 
 define ast_make_final_host
 $(1): $(2)
 	$(ECHO_PREFIX) echo "   [LD] $$^ -> $$@"
-	$(CMD_PREFIX) $$(HOST_CC) -o $$@ $$(CFLAGS) $$(LDFLAGS) $$^ $$(LIBS)
+	$(CMD_PREFIX) $$(HOST_CC) $$(STATIC_BUILD) -o $$@ $$(CFLAGS) $$(LDFLAGS) $$^ $$(LIBS)
 endef
 
 $(eval $(call ast_make_o_c,%.o,%.c))
@@ -83,8 +96,6 @@ $(eval $(call ast_make_o_c,%.o,%.c))
 $(eval $(call ast_make_oo_cc,%.oo,%.cc))
 
 $(eval $(call ast_make_so_o,%.so,%.o))
-
-$(eval $(call ast_make_so_oo,%.so,%.oo))
 
 $(eval $(call ast_make_final,%,%.o))
 

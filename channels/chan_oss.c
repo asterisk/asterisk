@@ -1525,7 +1525,7 @@ error:
 	return NULL;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int i;
 	struct ast_config *cfg;
@@ -1563,7 +1563,7 @@ static int load_module(void *mod)
 }
 
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	struct chan_oss_pvt *o;
 
@@ -1587,16 +1587,4 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static const char *description(void)
-{
-	return (char *)oss_tech.description;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
-
-
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "OSS Console Channel Driver");

@@ -144,27 +144,16 @@ static const struct ast_format g729_f = {
 	.tell = g729_tell,
 	.read = g729_read,
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
-	.module = &mod_data, /* XXX */
 };
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_format_register(&g729_f);
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_format_unregister(g729_f.name);
 }	
 
-static const char *description(void)
-{
-	return "Raw G729 data";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Raw G729 data");

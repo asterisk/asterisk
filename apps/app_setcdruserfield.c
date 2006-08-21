@@ -43,8 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 
 
-static char *tdesc = "CDR user field apps";
-
 static char *setcdruserfield_descrip = 
                "[Synopsis]\n"
                "SetCDRUserField(value)\n\n"
@@ -74,7 +72,6 @@ static char *appendcdruserfield_descrip =
 static char *appendcdruserfield_app = "AppendCDRUserField";
 static char *appendcdruserfield_synopsis = "Append to the CDR user field";
 
-LOCAL_USER_DECL;
 
 static int action_setcdruserfield(struct mansession *s, struct message *m)
 {
@@ -107,11 +104,11 @@ static int action_setcdruserfield(struct mansession *s, struct message *m)
 
 static int setcdruserfield_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	int res = 0;
 	static int dep_warning = 0;
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (chan->cdr && data) {
 		ast_cdr_setuserfield(chan, (char*)data);
@@ -122,18 +119,18 @@ static int setcdruserfield_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "SetCDRUserField is deprecated.  Please use CDR(userfield) instead.\n");
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	
 	return res;
 }
 
 static int appendcdruserfield_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	int res = 0;
 	static int dep_warning = 0;
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (chan->cdr && data) {
 		ast_cdr_appenduserfield(chan, (char*)data);
@@ -144,12 +141,12 @@ static int appendcdruserfield_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "AppendCDRUserField is deprecated.  Please use CDR(userfield) instead.\n");
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 	
@@ -157,12 +154,12 @@ static int unload_module(void *mod)
 	res |= ast_unregister_application(appendcdruserfield_app);
 	res |= ast_manager_unregister("SetCDRUserField");
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
@@ -173,14 +170,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "CDR user field apps");

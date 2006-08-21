@@ -173,26 +173,14 @@ static struct ast_custom_function timeout_function = {
 	.write = timeout_write,
 };
 
-static char *tdesc = "Channel timeout dialplan functions";
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_custom_function_unregister(&timeout_function);
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_custom_function_register(&timeout_function);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Channel timeout dialplan functions");

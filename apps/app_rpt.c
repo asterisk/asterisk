@@ -1,4 +1,3 @@
-/* #define OLD_ASTERISK */
 /*
  * Asterisk -- An open source telephony toolkit.
  *
@@ -243,8 +242,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/localtime.h"
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.48  06/13/2006";
-
 static char *app = "Rpt";
 
 static char *synopsis = "Radio Repeater/Remote Base Control System";
@@ -284,6 +281,9 @@ static char *descrip =
 "            available to the phone user.\n"
 "\n";
 
+static unsigned int vmajor = 0;
+static unsigned int vminor = 47;
+
 static int debug = 0;  /* FIXME Set this >0 for extra debug output */
 static int nrpts = 0;
 
@@ -295,7 +295,6 @@ static char *remote_rig_rbi="rbi";
 STANDARD_LOCAL_USER;
 #endif
 
-LOCAL_USER_DECL;
 
 #define	MSWAIT 200
 #define	HANGTIME 5000
@@ -1960,7 +1959,6 @@ struct  rpt_tele *tlist;
 struct	rpt *myrpt;
 struct	rpt_link *l,*m,linkbase;
 struct	ast_channel *mychannel;
-int vmajor, vminor;
 char *p,*ct,*ct_copy,*ident, *nodename;
 time_t t;
 struct tm localtm;
@@ -2454,11 +2452,6 @@ struct tm localtm;
 		imdone = 1;
 	    	break;
 	    case STATS_VERSION:
-		p = strstr(tdesc, "version");	
-		if(!p)
-			break;	
-		if(sscanf(p, "version %d.%d", &vmajor, &vminor) != 2)
-			break;
     		wait_interval(myrpt, DLY_TELEM, mychannel); /* Wait a little bit */
 		/* Say "version" */
 		if (sayfile(mychannel,"rpt/version") == -1)
@@ -7275,7 +7268,7 @@ char *this,*val;
 static int rpt_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1,i,rem_totx,n,phone_mode = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char tmp[256], keyed = 0;
 	char *options,*stringp,*tele,c;
 	struct	rpt *myrpt;
@@ -7644,7 +7637,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Cant get io permission on IO port %x hex\n",myrpt->p.iobase);
 		return -1;
 	}
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	rpt_mutex_unlock(&myrpt->lock);
 	/* find our index, and load the vars initially */
 	for(i = 0; i < nrpts; i++)
@@ -8009,19 +8002,15 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	myrpt->remoteon = 0;
 	rpt_mutex_unlock(&myrpt->lock);
 	closerem(myrpt);
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-#ifdef	OLD_ASTERISK
-int unload_module()
-#else
-static int unload_module(void* mod)
-#endif
+static int unload_module(void)
 {
 	int i;
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 	for(i = 0; i < nrpts; i++) {
 		if (!strcmp(rpt_vars[i].name,rpt_vars[i].p.nodes)) continue;
                 ast_mutex_destroy(&rpt_vars[i].lock);
@@ -8039,11 +8028,7 @@ static int unload_module(void* mod)
 	return i;
 }
 
-#ifdef	OLD_ASTERISK
-int load_module()
-#else
-static int load_module(void *mod)
-#endif
+static int load_module(void)
 {
 	ast_pthread_create(&rpt_master_thread,NULL,rpt_master,NULL);
 
@@ -8058,45 +8043,16 @@ static int load_module(void *mod)
 	return ast_register_application(app, rpt_exec, synopsis, descrip);
 }
 
-#ifdef	OLD_ASTERISK
-char *description()
-#else
-static const char *description(void)
-#endif
+static int reload(void)
 {
-	return tdesc;
-}
-
-#ifdef OLD_ASTERISK
-int usecount(void)
-{
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
-}
-#endif
-
-#ifdef	OLD_ASTERISK
-char *key()
-#else
-static const char *key(void)
-#endif
-{
-	return ASTERISK_GPL_KEY;
-}
-
-#ifdef	OLD_ASTERISK
-int reload()
-#else
-static int reload(void *mod)
-#endif
-{
-int	n;
+	int n;
 
 	for(n = 0; n < nrpts; n++) rpt_vars[n].reload = 1;
 	return(0);
 }
 
-#ifndef	OLD_ASTERISK
-STD_MOD(MOD_1, reload, NULL, NULL);
-#endif
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Radio Repeater / Remote Base",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

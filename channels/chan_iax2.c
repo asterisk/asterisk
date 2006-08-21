@@ -98,7 +98,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "iax2.h"
 #include "iax2-parser.h"
 #include "iax2-provision.h"
-#include "../jitterbuf.h"
+#include "jitterbuf.h"
 
 /* Define SCHED_MULTITHREADED to run the scheduler in a special
    multithreaded mode. */
@@ -9050,7 +9050,7 @@ static int iax2_reload(int fd, int argc, char *argv[])
 	return reload_config();
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	return reload_config();
 }
@@ -9747,7 +9747,7 @@ static int __unload_module(void)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	ast_mutex_destroy(&iaxq.lock);
 	ast_mutex_destroy(&waresl.lock);
@@ -9757,7 +9757,7 @@ static int unload_module(void *mod)
 
 
 /*! \brief Load IAX2 module, load configuraiton ---*/
-static int load_module(void *mod)
+static int load_module(void)
 {
 	char *config = "iax.conf";
 	int res = 0;
@@ -9845,14 +9845,8 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return "Inter Asterisk eXchange (Ver 2)";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Inter Asterisk eXchange (Ver 2)",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

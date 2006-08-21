@@ -47,8 +47,6 @@
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
 
-struct ast_channel;
-
 /*! Responsible for call detail data */
 struct ast_cdr {
 	/*! Caller*ID with text */
@@ -145,14 +143,14 @@ int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *chan);
  * Used to register a Call Detail Record handler.
  * Returns -1 on error, 0 on success.
  */
-int ast_cdr_register(char *name, char *desc, ast_cdrbe be);
+int ast_cdr_register(const char *name, const char *desc, ast_cdrbe be);
 
 /*! Unregister a CDR handling engine */
 /*!
  * \param name name of CDR handler to unregister
  * Unregisters a CDR by it's name
  */
-void ast_cdr_unregister(char *name);
+void ast_cdr_unregister(const char *name);
 
 /*! Start a call */
 /*!

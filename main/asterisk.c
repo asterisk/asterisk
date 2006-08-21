@@ -125,7 +125,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 
 #include "asterisk/doxyref.h"		/* Doxygen documentation */
 
-#include "defaults.h"
+#include "../defaults.h"
 
 #ifndef AF_LOCAL
 #define AF_LOCAL AF_UNIX
@@ -2602,71 +2602,70 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
+	if (load_modules()) {
+		printf(term_quit());
+		exit(1);
+	}
+
 	if (dnsmgr_init()) {
 		printf(term_quit());
 		exit(1);
 	}
-	/* load 'preload' modules, required for access to Realtime-mapped configuration files */
-	if (load_modules(1)) {
-		printf(term_quit());
-		exit(1);
-	}
+
 	ast_http_init();
+
 	ast_channels_init();
+
 	if (init_manager()) {
 		printf(term_quit());
 		exit(1);
 	}
+
 	if (ast_cdr_engine_init()) {
 		printf(term_quit());
 		exit(1);
 	}
+
 	if (ast_device_state_engine_init()) {
 		printf(term_quit());
 		exit(1);
 	}
+
 	ast_rtp_init();
+
 	ast_udptl_init();
+
 	if (ast_image_init()) {
 		printf(term_quit());
 		exit(1);
 	}
+
 	if (ast_file_init()) {
 		printf(term_quit());
 		exit(1);
 	}
+
 	if (load_pbx()) {
 		printf(term_quit());
 		exit(1);
 	}
-	if (load_modules(0)) {
-		printf(term_quit());
-		exit(1);
-	}
+
 	if (init_framer()) {
 		printf(term_quit());
 		exit(1);
 	}
+
 	if (astdb_init()) {
 		printf(term_quit());
 		exit(1);
 	}
+
 	if (ast_enum_init()) {
 		printf(term_quit());
 		exit(1);
 	}
 
 	dnsmgr_start_refresh();
-
-#if 0
-	/* This should no longer be necessary */
-	/* sync cust config and reload some internals in case a custom config handler binded to them */
-	read_ast_cust_config();
-	reload_logger(0);
-	reload_manager();
-	ast_enum_reload();
-	ast_rtp_reload();
-#endif
 
 	/* We might have the option of showing a console, but for now just
 	   do nothing... */
@@ -2676,13 +2675,17 @@ int main(int argc, char *argv[])
 		ast_verbose(term_color(tmp, "Asterisk Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
 	if (ast_opt_no_fork)
 		consolethread = pthread_self();
+
 	ast_set_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED);
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
+
 #ifdef __AST_DEBUG_MALLOC
 	__ast_mm_init();
 #endif	
+
 	time(&ast_startuptime);
 	ast_cli_register_multiple(core_cli, sizeof(core_cli) / sizeof(core_cli[0]));
+
 	if (ast_opt_console) {
 		/* Console stuff now... */
 		/* Register our quit function */

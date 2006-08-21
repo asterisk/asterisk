@@ -129,7 +129,6 @@ static struct ast_jb_conf global_jbconf;
 
 /** Variables required by Asterisk */
 static const char desc[] = "The NuFone Network's Open H.323 Channel Driver";
-static const char tdesc[] = "The NuFone Network's Open H.323 Channel Driver";
 static const char config[] = "h323.conf";
 static char default_context[AST_MAX_CONTEXT] = "default";
 static struct sockaddr_in bindaddr;
@@ -2508,14 +2507,8 @@ static int unload_module(void *mod)
 	return 0; 
 } 
 
-static const char *description(void)
-{
-	return desc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "The NuFone Network's OpenH323 Channel Driver",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+               );

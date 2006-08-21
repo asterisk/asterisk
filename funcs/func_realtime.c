@@ -43,20 +43,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
-#include "asterisk/module.h"
 #include "asterisk/app.h"
-
-LOCAL_USER_DECL;
-
-static char *tdesc = "Read/Write values from a RealTime repository";
 
 static int function_realtime_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	struct ast_variable *var, *head;
-        struct localuser *u;
+        struct ast_module_user *u;
 	char *results;
 	size_t resultslen = 0;
-
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(family);
 		AST_APP_ARG(fieldmatch);
@@ -70,7 +64,9 @@ static int function_realtime_read(struct ast_channel *chan, char *cmd, char *dat
 		ast_log(LOG_WARNING, "Syntax: REALTIME(family|fieldmatch[|value[|delim1[|delim2]]]) - missing argument!\n");
 		return -1;
 	}
-	LOCAL_USER_ADD(u);
+
+	u = ast_module_user_add(chan);
+
 	AST_STANDARD_APP_ARGS(args, data);
 
 	if (!args.delim1)
@@ -81,7 +77,7 @@ static int function_realtime_read(struct ast_channel *chan, char *cmd, char *dat
 	head = ast_load_realtime(args.family, args.fieldmatch, args.value, NULL);
 
 	if (!head) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	for (var = head; var; var = var->next)
@@ -92,16 +88,15 @@ static int function_realtime_read(struct ast_channel *chan, char *cmd, char *dat
 		ast_build_string(&results, &resultslen, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
 	ast_copy_string(buf, results, len);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
+
 	return 0;
 }
 
 static int function_realtime_write(struct ast_channel *chan, char *cmd, char *data, const char *value)
 {
-        struct localuser *u;
+        struct ast_module_user *u;
 	int res = 0;
-
-
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(family);
 		AST_APP_ARG(fieldmatch);
@@ -114,7 +109,8 @@ static int function_realtime_write(struct ast_channel *chan, char *cmd, char *da
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
+
 	AST_STANDARD_APP_ARGS(args, data);
 
 	res = ast_update_realtime(args.family, args.fieldmatch, args.value, args.field, (char *)value, NULL);
@@ -123,7 +119,8 @@ static int function_realtime_write(struct ast_channel *chan, char *cmd, char *da
 		ast_log(LOG_WARNING, "Failed to update. Check the debug log for possible data repository related entries.\n");
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
+
 	return 0;
 }
 
@@ -145,30 +142,20 @@ struct ast_custom_function realtime_function = {
 	.write = function_realtime_write,
 };
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
         int res = ast_custom_function_unregister(&realtime_function);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
         return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
         int res = ast_custom_function_register(&realtime_function);
 
         return res;
 }
 
-static const char *description(void)
-{
-        return tdesc;
-}
-
-static const char *key(void)
-{
-        return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Read/Write values from a RealTime repository");

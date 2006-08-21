@@ -83,7 +83,6 @@ struct ivr_localuser {
 	int option_autoclear;
 };
 
-LOCAL_USER_DECL;
 
 struct gen_state {
 	struct ivr_localuser *u;
@@ -242,7 +241,7 @@ static struct playlist_entry *make_entry(const char *filename)
 
 static int app_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *lu = NULL;
+	struct ast_module_user *lu;
 	struct playlist_entry *entry;
 	const char *args = data;
 	int child_stdin[2] = { 0,0 };
@@ -263,14 +262,14 @@ static int app_exec(struct ast_channel *chan, void *data)
 	};
 	struct ivr_localuser *u = &foo;
 
-	LOCAL_USER_ADD(lu);
+	lu = ast_module_user_add(chan);
 	
 	u->abort_current_sound = 0;
 	u->chan = chan;
 	
 	if (ast_strlen_zero(args)) {
 		ast_log(LOG_WARNING, "ExternalIVR requires a command to execute\n");
-		LOCAL_USER_REMOVE(lu);
+		ast_module_user_remove(lu);
 		return -1;	
 	}
 
@@ -545,35 +544,25 @@ static int app_exec(struct ast_channel *chan, void *data)
 	while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list)))
 		free(entry);
 
-	LOCAL_USER_REMOVE(lu);
+	ast_module_user_remove(lu);
 
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, app_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "External IVR Interface Application";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "External IVR Interface Application");

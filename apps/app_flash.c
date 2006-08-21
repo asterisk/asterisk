@@ -59,7 +59,6 @@ static char *descrip =
 "people who want to perform transfers and such via AGI and is generally\n"
 "quite useless oths application will only work on Zap trunks.\n";
 
-LOCAL_USER_DECL;
 
 static inline int zt_wait_event(int fd)
 {
@@ -75,9 +74,9 @@ static int flash_exec(struct ast_channel *chan, void *data)
 {
 	int res = -1;
 	int x;
-	struct localuser *u;
+	struct ast_module_user *u;
 	struct zt_params ztp;
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	if (!strcasecmp(chan->tech->type, "Zap")) {
 		memset(&ztp, 0, sizeof(ztp));
 		res = ioctl(chan->fds[0], ZT_GET_PARAMS, &ztp);
@@ -101,35 +100,25 @@ static int flash_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "Unable to get parameters of %s: %s\n", chan->name, strerror(errno));
 	} else
 		ast_log(LOG_WARNING, "%s is not a Zap channel\n", chan->name);
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, flash_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Flash zap trunk application";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Flash channel application");
 

@@ -912,14 +912,14 @@ static void parse_config(void)
 	ast_config_destroy(cfg);
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	parse_config();
 
 	return 0;
 }
 
-static int unload_module (void *mod)
+static int unload_module(void)
 {
 	int res = 0;
 
@@ -935,35 +935,30 @@ static int unload_module (void *mod)
 	return res;
 }
 
-static int load_module (void *mod)
+static int load_module(void)
 {
 	int res = 0;
 
+
 	parse_config();
 
-	res |= ast_register_translator(&g726tolin, mod);
-	res |= ast_register_translator(&lintog726, mod);
+	res |= ast_register_translator(&g726tolin);
+	res |= ast_register_translator(&lintog726);
 
-	res |= ast_register_translator(&g726aal2tolin, mod);
-	res |= ast_register_translator(&lintog726aal2, mod);
+	res |= ast_register_translator(&g726aal2tolin);
+	res |= ast_register_translator(&lintog726aal2);
 
-	res |= ast_register_translator(&g726aal2tog726, mod);
-	res |= ast_register_translator(&g726tog726aal2, mod);
+	res |= ast_register_translator(&g726aal2tog726);
+	res |= ast_register_translator(&g726tog726aal2);
 
 	if (res)
-		unload_module(mod);
+		unload_module();
 
 	return res;
 }
 
-static const char *description(void)
-{
-	return "ITU G.726-32kbps G726 Transcoder";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ITU G.726-32kbps G726 Transcoder",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

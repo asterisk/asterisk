@@ -60,7 +60,6 @@ static char *descrip =
 "(available separately).  A configuration file must be supplied\n"
 "for ices (see examples/asterisk-ices.conf). \n";
 
-LOCAL_USER_DECL;
 
 static int icesencode(char *filename, int fd)
 {
@@ -91,7 +90,7 @@ static int icesencode(char *filename, int fd)
 static int ices_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	int fds[2];
 	int ms = -1;
 	int pid = -1;
@@ -107,13 +106,13 @@ static int ices_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	
 	last = ast_tv(0, 0);
 	
 	if (pipe(fds)) {
 		ast_log(LOG_WARNING, "Unable to create pipe\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	flags = fcntl(fds[1], F_GETFL);
@@ -128,7 +127,7 @@ static int ices_exec(struct ast_channel *chan, void *data)
 		close(fds[0]);
 		close(fds[1]);
 		ast_log(LOG_WARNING, "Answer failed!\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -138,7 +137,7 @@ static int ices_exec(struct ast_channel *chan, void *data)
 		close(fds[0]);
 		close(fds[1]);
 		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	if (((char *)data)[0] == '/')
@@ -188,35 +187,25 @@ static int ices_exec(struct ast_channel *chan, void *data)
 	if (!res && oreadformat)
 		ast_set_read_format(chan, oreadformat);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, ices_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Encode and Stream via icecast and ices";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Encode and Stream via icecast and ices");

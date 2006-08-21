@@ -45,8 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Maximum length of any variable */
 #define MAXRESULT	1024
 
-static char *tdesc = "Executes dialplan applications";
-
 /*! Note
  *
  * The key difference between these two apps is exit status.  In a
@@ -90,16 +88,14 @@ static char *execif_descrip =
 "If <expr> is true, but <app> is not found, then the application\n"
 "will return a non-zero value.\n";
 
-LOCAL_USER_DECL;
-
 static int exec_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *s, *appname, *endargs, args[MAXRESULT] = "";
 	struct ast_app *app;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	/* Check and parse arguments */
 	if (data) {
@@ -122,18 +118,18 @@ static int exec_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
 static int tryexec_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *s, *appname, *endargs, args[MAXRESULT] = "";
 	struct ast_app *app;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	/* Check and parse arguments */
 	if (data) {
@@ -157,19 +153,20 @@ static int tryexec_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return 0;
 }
 
-static int execif_exec(struct ast_channel *chan, void *data) {
-	int res=0;
-	struct localuser *u;
+static int execif_exec(struct ast_channel *chan, void *data)
+{
+	int res = 0;
+	struct ast_module_user *u;
 	char *myapp = NULL;
 	char *mydata = NULL;
 	char *expr = NULL;
 	struct ast_app *app = NULL;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	expr = ast_strdupa(data);
 
@@ -195,11 +192,12 @@ static int execif_exec(struct ast_channel *chan, void *data) {
 		res = -1;
 	}
 		
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
+
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
@@ -207,12 +205,12 @@ static int unload_module(void *mod)
 	res |= ast_unregister_application(app_tryexec);
 	res |= ast_unregister_application(app_execif);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res = ast_register_application(app_exec, exec_exec, exec_synopsis, exec_descrip);
 	res |= ast_register_application(app_tryexec, tryexec_exec, tryexec_synopsis, tryexec_descrip);
@@ -220,14 +218,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Executes dialplan applications");

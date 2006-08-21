@@ -215,7 +215,6 @@ static struct ast_jb_conf default_jbconf =
 };
 static struct ast_jb_conf global_jbconf;
 
-static const char tdesc[] = "Session Initiation Protocol (SIP)";
 static const char config[] = "sip.conf";
 static const char notify_config[] = "sip_notify.conf";
 static int usecnt = 0;
@@ -16408,7 +16407,7 @@ static int sip_reload(int fd, int argc, char *argv[])
 }
 
 /*! \brief  reload: Part of Asterisk module interface */
-static int reload(void *mod)
+static int reload(void)
 {
 	return sip_reload(0, 0, NULL);
 }
@@ -16444,7 +16443,7 @@ static struct ast_cli_entry  my_clis[] = {
 };
 
 /*! \brief  load_module: PBX load module - initialization */
-static int load_module(void *mod)
+static int load_module(void)
 {
 	ASTOBJ_CONTAINER_INIT(&userl);	/* User object list */
 	ASTOBJ_CONTAINER_INIT(&peerl);	/* Peer object list */
@@ -16502,7 +16501,7 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	struct sip_pvt *p, *pl;
 	
@@ -16578,14 +16577,8 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-static const char *description(void)
-{
-	return (char *) tdesc;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Session Initiation Protocol (SIP)",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

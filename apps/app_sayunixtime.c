@@ -43,8 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/app.h"
 
-static char *tdesc = "Say time";
-
 static char *app_sayunixtime = "SayUnixTime";
 static char *app_datetime = "DateTime";
 
@@ -67,7 +65,6 @@ static char *datetime_descrip =
 "  format:   a format the time is to be said in.  See voicemail.conf.\n"
 "              defaults to \"ABdY 'digits/at' IMp\"\n";
 
-LOCAL_USER_DECL;
 
 static int sayunixtime_exec(struct ast_channel *chan, void *data)
 {
@@ -78,7 +75,7 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 	);
 	char *parse;
 	int res = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	time_t unixtime;
 	
 	if (!data)
@@ -86,7 +83,7 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 
 	parse = ast_strdupa(data);
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -99,24 +96,24 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 		res = ast_say_date_with_format(chan, unixtime, AST_DIGIT_ANY,
 					       chan->language, args.format, args.timezone);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 	
 	res = ast_unregister_application(app_sayunixtime);
 	res |= ast_unregister_application(app_datetime);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 	
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 	
@@ -126,14 +123,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Say time");

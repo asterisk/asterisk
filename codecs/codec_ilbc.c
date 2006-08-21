@@ -58,8 +58,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define	ILBC_SAMPLES	240	/* 30ms at 8000 hz */
 #define	BUFFER_SAMPLES	8000
 
-static char *tdesc = "iLBC/PCM16 (signed linear) Codec Translator";
-
 struct ilbc_coder_pvt {
 	iLBC_Enc_Inst_t enc;
 	iLBC_Dec_Inst_t dec;
@@ -215,33 +213,27 @@ static struct ast_translator lintoilbc = {
 	.buf_size = (BUFFER_SAMPLES * ILBC_FRAME_LEN + ILBC_SAMPLES - 1) / ILBC_SAMPLES,
 };
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
+
 	res = ast_unregister_translator(&lintoilbc);
 	res |= ast_unregister_translator(&ilbctolin);
+
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
-	res = ast_register_translator(&ilbctolin, mod);
+
+	res = ast_register_translator(&ilbctolin);
 	if (!res) 
-		res=ast_register_translator(&lintoilbc, mod);
+		res=ast_register_translator(&lintoilbc);
 	else
 		ast_unregister_translator(&ilbctolin);
+
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "iLBC Coder/Decoder");

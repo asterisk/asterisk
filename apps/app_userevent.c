@@ -39,8 +39,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/app.h"
 
-static char *tdesc = "Custom User Event Application";
-
 static char *app = "UserEvent";
 
 static char *synopsis = "Send an arbitrary event to the manager interface";
@@ -56,11 +54,10 @@ static char *descrip =
 "    [body]\n"
 "If no body is specified, only Event and UserEvent headers will be present.\n";
 
-LOCAL_USER_DECL;
 
 static int userevent_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *parse, buf[2048] = "";
 	int x, buflen = 0;
 	AST_DECLARE_APP_ARGS(args,
@@ -73,7 +70,7 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	parse = ast_strdupa(data);
 
@@ -88,34 +85,25 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 
 	manager_event(EVENT_FLAG_USER, "UserEvent", "UserEvent: %s\r\n%s\r\n", args.eventname, buf);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
+
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, userevent_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Custom User Event Application");

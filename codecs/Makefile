@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-ifneq ($(wildcard ../menuselect.makeopts),)
+ifneq ($(wildcard $(ASTTOPDIR)/menuselect.makeopts),)
   include ../menuselect.makeopts
   include ../menuselect.makedeps
 endif
@@ -19,21 +19,24 @@ endif
 C_MODS:=$(filter-out $(MENUSELECT_CODECS),$(patsubst %.c,%,$(wildcard codec_*.c)))
 CC_MODS:=$(filter-out $(MENUSELECT_CODECS),$(patsubst %.cc,%,$(wildcard codec_*.cc)))
 
-SELECTED_MODS:=$(C_MODS) $(CC_MODS)
+LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
+
+ifneq ($(findstring codecs,$(MENUSELECT_EMBED)),)
+  EMBEDDED_MODS:=$(LOADABLE_MODS)
+  LOADABLE_MODS:=
+endif
 
 LIBILBC:=ilbc/libilbc.a
 LIBLPC10:=lpc10/liblpc10.a
 
 all: _all
 
-ifeq ($(GSM_LIB),internal)
-GSM_INCLUDE:=-Igsm/inc
-GSM_LIB:=
-
-codec_gsm.so: gsm/lib/libgsm.a
-endif
-
 include $(ASTTOPDIR)/Makefile.moddir_rules
+
+ifneq ($(GSM_INTERNAL),)
+GSM_INCLUDE:=-Igsm/inc
+$(codec_gsm): gsm/lib/libgsm.a
+endif
 
 clean::
 	$(MAKE) -C gsm clean
@@ -42,14 +45,14 @@ clean::
 
 gsm/lib/libgsm.a:
 	@mkdir -p gsm/lib
-	@CFLAGS="$(CFLAGS) -I." $(MAKE) -C gsm lib/libgsm.a
+	@CFLAGS="$(OTHER_SUBDIR_CFLAGS) -I." $(MAKE) -C gsm lib/libgsm.a
 
 $(LIBLPC10):
-	@$(MAKE) -C lpc10 all
+	@CFLAGS="$(OTHER_SUBDIR_CFLAGS)" $(MAKE) -C lpc10 all
 
-codec_lpc10.so: $(LIBLPC10)
+$(codec_lpc10): $(LIBLPC10)
 
 $(LIBILBC):
-	@$(MAKE) -C ilbc all
+	@CFLAGS="$(OTHER_SUBDIR_CFLAGS)" $(MAKE) -C ilbc all
 
-codec_ilbc.so: $(LIBILBC)
+$(codec_ilbc): $(LIBILBC)

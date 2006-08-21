@@ -70,7 +70,6 @@ static const char *pop_descrip =
 "StackPop()\n"
 "  Removes last label on the stack, discarding it.\n";
 
-LOCAL_USER_DECL;
 
 static int pop_exec(struct ast_channel *chan, void *data)
 {
@@ -98,30 +97,30 @@ static int return_exec(struct ast_channel *chan, void *data)
 static int gosub_exec(struct ast_channel *chan, void *data)
 {
 	char newlabel[AST_MAX_EXTENSION * 2 + 3 + 11];
-	struct localuser *u;
+	struct ast_module_user *u;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "%s requires an argument: %s([[context|]exten|]priority)\n", app_gosub, app_gosub);
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	snprintf(newlabel, sizeof(newlabel), "%s|%s|%d", chan->context, chan->exten, chan->priority + 1);
 
 	if (ast_parseable_goto(chan, data)) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
 	pbx_builtin_pushvar_helper(chan, STACKVAR, newlabel);
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
 
 static int gosubif_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *condition="", *label1, *label2, *args;
 	int res=0;
 
@@ -132,7 +131,7 @@ static int gosubif_exec(struct ast_channel *chan, void *data)
 
 	args = ast_strdupa(data);
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	condition = strsep(&args, "?");
 	label1 = strsep(&args, ":");
@@ -146,23 +145,23 @@ static int gosubif_exec(struct ast_channel *chan, void *data)
 		res = gosub_exec(chan, label2);
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	ast_unregister_application(app_return);
 	ast_unregister_application(app_pop);
 	ast_unregister_application(app_gosubif);
 	ast_unregister_application(app_gosub);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	ast_register_application(app_pop, pop_exec, pop_synopsis, pop_descrip);
 	ast_register_application(app_return, return_exec, return_synopsis, return_descrip);
@@ -172,14 +171,4 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static const char *description(void)
-{
-	return "Stack Routines";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Stack Routines");

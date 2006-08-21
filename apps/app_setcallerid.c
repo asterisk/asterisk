@@ -47,7 +47,6 @@ static char *app2 = "SetCallerPres";
 
 static char *synopsis2 = "Set CallerID Presentation";
 
-LOCAL_USER_DECL;
 
 static char *descrip2 = 
 "  SetCallerPres(presentation): Set Caller*ID presentation on a call.\n"
@@ -67,28 +66,24 @@ static char *descrip2 =
 
 static int setcallerid_pres_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	int pres = -1;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	
 	pres = ast_parse_caller_presentation(data);
 
 	if (pres < 0) {
 		ast_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n",
 			(char *) data);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return 0;
 	}
 	
 	chan->cid.cid_pres = pres;
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return 0;
 }
-
-
-
-static char *tdesc = "Set CallerID Application";
 
 static char *app = "SetCallerID";
 
@@ -104,7 +99,7 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 	char *tmp = NULL;
 	char name[256];
 	char num[256];
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *opt;
 	int anitoo = 0;
 	static int dep_warning = 0;
@@ -114,7 +109,7 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (!dep_warning) {
 		dep_warning = 1;
@@ -134,24 +129,24 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 	ast_callerid_split(tmp, name, sizeof(name), num, sizeof(num));
 	ast_set_callerid(chan, num, name, anitoo ? num : NULL);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app2);
 	res |= ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 	
@@ -161,14 +156,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Set CallerID Application");

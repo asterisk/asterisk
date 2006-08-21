@@ -632,7 +632,7 @@ static int unpause_monitor_action(struct mansession *s, struct message *m)
 }
 	
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	ast_register_application("Monitor", start_monitor_exec, monitor_synopsis, monitor_descrip);
 	ast_register_application("StopMonitor", stop_monitor_exec, stopmonitor_synopsis, stopmonitor_descrip);
@@ -648,7 +648,7 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	ast_unregister_application("Monitor");
 	ast_unregister_application("StopMonitor");
@@ -664,14 +664,8 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static const char *description(void)
-{
-	return "Call Monitoring Resource";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0 | NO_USECOUNT | NO_UNLOAD, NULL, NULL, NULL);	/* MOD_0 because it exports some symbols */
+/* usecount semantics need to be defined */
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Call Monitoring Resource",
+		.load = load_module,
+		.unload = unload_module,
+		);

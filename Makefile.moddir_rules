@@ -1,7 +1,7 @@
 #
 # Asterisk -- A telephony toolkit for Linux.
 # 
-# Makefile rules
+# Makefile rules for subdirectories containing modules
 #
 # Copyright (C) 2006, Digium, Inc.
 #
@@ -11,50 +11,83 @@
 # the GNU General Public License
 #
 
+ifneq ($(findstring MALLOC_DEBUG,$(MENUSELECT_CFLAGS)),)
+  CFLAGS+=-include $(ASTTOPDIR)/include/asterisk/astmm.h
+endif
+
+ifneq ($(findstring STATIC_BUILD,$(MENUSELECT_CFLAGS)),)
+  STATIC_BUILD=-static
+endif
+
 include $(ASTTOPDIR)/Makefile.rules
 
-define module_o_c_template
-$(1).o: $(1).c
-$(1).o: CFLAGS+=$$(MENUSELECT_OPTS_$(1):%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_INCLUDE))
+comma:=,
+
+define module_o_template
+$(2): $(3)
+$(2): CFLAGS+=-DAST_MODULE=\"$(1)\" $$(MENUSELECT_OPTS_$(1):%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_INCLUDE))
 endef
 
-define module_oo_cc_template
-$(1).oo: $(1).cc
-$(1).oo: CFLAGS+=$$(MENUSELECT_OPTS_$(1):%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_INCLUDE))
-endef
-
-define module_so_o_template
-$(1).so: $(1).o
+define module_so_template
+$(1)=$(1).so
+$(1).so: CFLAGS+=-fPIC
 $(1).so: LIBS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LIB))
 $(1).so: LDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LDFLAGS))
+$(1).so: $(2)
 endef
 
-define module_so_oo_template
-$(1).so: $(1).oo
-$(1).so: LIBS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LIB))
-$(1).so: LDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LDFLAGS))
+define module_a_template
+$(1)=modules.link
+modules.link: $(2)
 endef
 
-$(foreach mod,$(C_MODS),$(eval $(call module_o_c_template,$(mod))))
+$(foreach mod,$(C_MODS),$(eval $(call module_o_template,$(mod),$(mod).o,$(mod).c)))
 
-$(foreach mod,$(C_MODS),$(eval $(call module_so_o_template,$(mod))))
+$(foreach mod,$(CC_MODS),$(eval $(call module_o_template,$(mod),$(mod).oo,$(mod).cc)))
 
-$(foreach mod,$(CC_MODS),$(eval $(call module_oo_cc_template,$(mod))))
+$(foreach mod,$(filter-out $(EMBEDDED_MODS),$(C_MODS)),$(eval $(call module_so_template,$(mod),$(mod).o)))
 
-$(foreach mod,$(CC_MODS),$(eval $(call module_so_oo_template,$(mod))))
+$(foreach mod,$(filter-out $(EMBEDDED_MODS),$(CC_MODS)),$(eval $(call module_so_template,$(mod),$(mod).oo)))
+
+$(foreach mod,$(filter $(EMBEDDED_MODS),$(C_MODS)),$(eval $(call module_a_template,$(mod),$(mod).o)))
+
+$(foreach mod,$(filter $(EMBEDDED_MODS),$(CC_MODS)),$(eval $(call module_a_template,$(mod),$(mod).oo)))
 
 .PHONY: clean clean-depend depend uninstall _all
 
-_all: $(SELECTED_MODS:%=%.so)
+ifneq ($(LOADABLE_MODS),)
+_all: $(LOADABLE_MODS:%=%.so)
+endif
+
+ifneq ($(EMBEDDED_MODS),)
+_all: modules.link
+__embed_ldscript:
+	@echo "../$(SUBDIR)/modules.link"
+__embed_ldflags:
+	@echo "$(foreach mod,$(filter $(EMBEDDED_MODS),$(C_MODS)),$(foreach dep,$(MENUSELECT_DEPENDS_$(mod)),$(dep)_LDFLAGS))"
+	@echo "$(foreach mod,$(filter $(EMBEDDED_MODS),$(CC_MODS)),$(foreach dep,$(MENUSELECT_DEPENDS_$(mod)),$(dep)_LDFLAGS))"
+__embed_libs:
+	@echo "$(foreach mod,$(filter $(EMBEDDED_MODS),$(C_MODS)),$(foreach dep,$(MENUSELECT_DEPENDS_$(mod)),$(dep)_LIB))"
+	@echo "$(foreach mod,$(filter $(EMBEDDED_MODS),$(CC_MODS)),$(foreach dep,$(MENUSELECT_DEPENDS_$(mod)),$(dep)_LIB))"
+else
+__embed_ldscript:
+__embed_ldflags:
+__embed_libs:
+endif
+
+modules.link:
+	@rm -f $@
+	@for file in $(patsubst $(ASTTOPDIR)/%,%,$(realpath $^)); do echo "INPUT (../$${file})" >> $@; done
 
 clean-depend::
 	rm -f .depend
 
 clean:: clean-depend
 	rm -f *.so *.o *.oo
+	rm -f modules.link
 
 install:: all
-	for x in $(SELECTED_MODS:%=%.so); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
+	for x in $(LOADABLE_MODS:%=%.so); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 uninstall::
 
@@ -65,4 +98,4 @@ endif
 depend: .depend
 
 .depend:
-	../build_tools/mkdep $(CFLAGS) `ls *.c`
+	../build_tools/mkdep $(CFLAGS) `ls *.c *.cc 2> /dev/null`

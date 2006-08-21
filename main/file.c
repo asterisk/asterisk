@@ -51,7 +51,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/pbx.h"
 #include "asterisk/linkedlists.h"
-#define	MOD_LOADER
 #include "asterisk/module.h"
 
 /*
@@ -66,14 +65,10 @@ int ast_language_is_prefix;
 
 static AST_LIST_HEAD_STATIC(formats, ast_format);
 
-int ast_format_register(const struct ast_format *f)
+int __ast_format_register(const struct ast_format *f, struct ast_module *mod)
 {
 	struct ast_format *tmp;
 
-	if (f->module == NULL) {
-		ast_log(LOG_WARNING, "Missing module pointer, you need to supply one\n");
-		return -1;
-	}
 	if (AST_LIST_LOCK(&formats)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return -1;
@@ -85,12 +80,12 @@ int ast_format_register(const struct ast_format *f)
 			return -1;
 		}
 	}
-	tmp = ast_calloc(1, sizeof(struct ast_format));
-	if (!tmp) {
+	if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
 		AST_LIST_UNLOCK(&formats);
 		return -1;
 	}
 	*tmp = *f;
+	tmp->module = mod;
 	if (tmp->buf_size) {
 		/*
 		 * Align buf_size properly, rounding up to the machine-specific
@@ -107,6 +102,7 @@ int ast_format_register(const struct ast_format *f)
 	AST_LIST_UNLOCK(&formats);
 	if (option_verbose > 1)
 		ast_verbose( VERBOSE_PREFIX_2 "Registered file format %s, extension(s) %s\n", f->name, f->exts);
+
 	return 0;
 }
 
@@ -317,9 +313,8 @@ static int fn_wrapper(struct ast_filestream *s, const char *comment, enum wrap_f
                 ast_log(LOG_WARNING, "Unable to rewrite format %s\n", f->name);
 	else {
 		/* preliminary checks succeed. update usecount */
-		ast_atomic_fetchadd_int(&f->module->usecnt, +1);
+		ast_module_ref(f->module);
 		ret = 0;
-		ast_update_use_count();
 	}
         return ret;
 }
@@ -742,8 +737,7 @@ int ast_closestream(struct ast_filestream *f)
 	fclose(f->f);
 	if (f->vfs)
 		ast_closestream(f->vfs);
-	ast_atomic_fetchadd_int(&f->fmt->module->usecnt, -1);
-	ast_update_use_count();
+	ast_module_unref(f->fmt->module);
 	free(f);
 	return 0;
 }

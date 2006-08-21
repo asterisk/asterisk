@@ -234,33 +234,23 @@ static int realtime_matchmore(struct ast_channel *chan, const char *context, con
 static struct ast_switch realtime_switch =
 {
         name:                   "Realtime",
-        description:    		"Realtime Dialplan Switch",
+        description:   		"Realtime Dialplan Switch",
         exists:                 realtime_exists,
         canmatch:               realtime_canmatch,
         exec:                   realtime_exec,
         matchmore:              realtime_matchmore,
 };
 
-static const char *description(void)
-{
-	return "Realtime Switch";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	ast_unregister_switch(&realtime_switch);
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	ast_register_switch(&realtime_switch);
 	return 0;
 }
 
-STD_MOD(MOD_1 | NO_USECOUNT | NO_UNLOAD, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Realtime Switch");

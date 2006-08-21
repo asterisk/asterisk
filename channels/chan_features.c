@@ -519,7 +519,7 @@ static struct ast_cli_entry cli_show_features = {
 	{ "feature", "show", "channels", NULL }, features_show, 
 	"Show status of feature channels", show_features_usage, NULL };
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	/* Make sure we can register our sip channel type */
 	if (ast_channel_register(&features_tech)) {
@@ -530,7 +530,7 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	struct feature_pvt *p;
 	
@@ -553,15 +553,5 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-static const char *description(void)
-{
-	return "Feature Proxy Channel";
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Feature Proxy Channel");
 

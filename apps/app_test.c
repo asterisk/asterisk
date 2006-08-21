@@ -48,10 +48,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
 
-LOCAL_USER_DECL;
-
-static char *tdesc = "Interface Test Application";
-
 static char *tests_descrip = 
 	 "TestServer(): Perform test server function and write call report.\n"
 	 "Results stored in /var/log/asterisk/testreports/<testid>-server.txt";
@@ -133,7 +129,7 @@ static int sendnoise(struct ast_channel *chan, int ms)
 
 static int testclient_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	int res = 0;
 	char *testid=data;
 	char fn[80];
@@ -146,7 +142,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
@@ -318,18 +314,18 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_NOTICE, "Did not read a test ID on '%s'\n", chan->name);
 		res = -1;
 	}
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
 static int testserver_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	int res = 0;
 	char testid[80]="";
 	char fn[80];
 	FILE *f;
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 	/* Read version */
@@ -487,23 +483,23 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_NOTICE, "Did not read a test ID on '%s'\n", chan->name);
 		res = -1;
 	}
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(testc_app);
 	res |= ast_unregister_application(tests_app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
@@ -513,14 +509,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Interface Test Application");

@@ -57,8 +57,6 @@ AST_APP_OPTIONS(read_app_options, {
 	AST_APP_OPTION('n', OPT_NOANSWER),
 });
 
-static char *tdesc = "Read Variable Application";
-
 static char *app = "Read";
 
 static char *synopsis = "Read a variable";
@@ -82,14 +80,13 @@ static char *descrip =
 "  timeout    -- if greater than 0, that value will override the default timeout.\n\n"
 "Read should disconnect if the function fails or errors out.\n";
 
-LOCAL_USER_DECL;
 
 #define ast_next_data(instr,ptr,delim) if((ptr=strchr(instr,delim))) { *(ptr) = '\0' ; ptr++;}
 
 static int read_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char tmp[256];
 	int maxdigits=255;
 	int tries = 1;
@@ -113,7 +110,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	
 	argcopy = ast_strdupa(data);
 
@@ -149,7 +146,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 	}
 	if (ast_strlen_zero(arglist.variable)) {
 		ast_log(LOG_WARNING, "Invalid! Usage: Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])\n\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	ts=NULL;
@@ -162,7 +159,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 		if (ast_test_flag(&flags,OPT_SKIP)) {
 			/* At the user's option, skip if the line is not up */
 			pbx_builtin_setvar_helper(chan, arglist.variable, "\0");
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return 0;
 		} else if (!ast_test_flag(&flags,OPT_NOANSWER)) {
 			/* Otherwise answer unless we're supposed to read while on-hook */
@@ -214,34 +211,24 @@ static int read_exec(struct ast_channel *chan, void *data)
 			}
 		}
 	}
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 	
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, read_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Read Variable Application");

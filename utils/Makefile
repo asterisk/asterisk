@@ -16,7 +16,7 @@
 UTILS:=astman smsq stereorize streamplayer aelparse
 
 ifeq (${OSARCH},SunOS)
-  LIBS+=../strcompat.o -lsocket -lnsl
+  LIBS+=../main/strcompat.o -lsocket -lnsl
 endif
 
 ifeq ($(POPT_LIB),)
@@ -51,23 +51,23 @@ clean-depend:
 clean: clean-depend
 	rm -f *.o $(UTILS) check_expr
 
-$(eval $(call ast_make_final,astman,astman.o ../md5.o))
-astman: LIBS+=-lnewt
+$(eval $(call ast_make_final,astman,astman.o ../main/md5.o))
+astman: LIBS+=-lnewt -lslang -ldl
 
 $(eval $(call ast_make_final,stereorize,stereorize.o frame.o))
 stereorize: LIBS+=-lm
 
-../ast_expr2.c:
-	@echo "   [BISON] ../ast_expr2.y -> $@"
-	@bison -o $@ -d --name-prefix=ast_yy ../ast_expr2.y
+../main/ast_expr2.c:
+	@echo "   [BISON] ../main/ast_expr2.y -> $@"
+	@bison -o $@ -d --name-prefix=ast_yy ../main/ast_expr2.y
 
-../ast_expr2f.c:
-	@echo "   [FLEX] ../ast_expr2.fl -> $@"
-	@flex -o $@ --full ../ast_expr2.fl
+../main/ast_expr2f.c:
+	@echo "   [FLEX] ../main/ast_expr2.fl -> $@"
+	@flex -o $@ --full ../main/ast_expr2.fl
 
-$(eval $(call ast_make_o_c,ast_expr2.o,../ast_expr2.c))
+$(eval $(call ast_make_o_c,ast_expr2.o,../main/ast_expr2.c))
 
-$(eval $(call ast_make_o_c,ast_expr2f.o,../ast_expr2f.c))
+$(eval $(call ast_make_o_c,ast_expr2f.o,../main/ast_expr2f.c))
 ast_expr2f.o: CFLAGS+=-DSTANDALONE
 
 $(eval $(call ast_make_final,check_expr,check_expr.c ast_expr2.o ast_expr2f.o))
@@ -79,22 +79,26 @@ $(eval $(call ast_make_o_c,aelbison.o,../pbx/ael/ael.tab.c ../pbx/ael/ael.tab.h 
 aelbison.o: CFLAGS+=-I../pbx
 
 $(eval $(call ast_make_o_c,pbx_ael.o,../pbx/pbx_ael.c))
+pbx_ael.o: CFLAGS+=-DSTANDALONE_AEL
 
 $(eval $(call ast_make_final,aelparse,aelflex.o aelbison.o pbx_ael.o ael_main.o ast_expr2f.o ast_expr2.o))
 
 $(eval $(call ast_make_o_c,ael_main.o,ael_main.c ../include/asterisk/ael_structs.h))
 
-testexpr2s: ../ast_expr2f.c ../ast_expr2.c ../ast_expr2.h
-	$(CC) -g -c -I../include -DSTANDALONE ../ast_expr2f.c -o ast_expr2f.o
-	$(CC) -g -c -I../include -DSTANDALONE ../ast_expr2.c -o ast_expr2.o
+testexpr2s: ../main/ast_expr2f.c ../main/ast_expr2.c ../main/ast_expr2.h
+	$(CC) -g -c -I../include -DSTANDALONE ../main/ast_expr2f.c -o ast_expr2f.o
+	$(CC) -g -c -I../include -DSTANDALONE ../main/ast_expr2.c -o ast_expr2.o
 	$(CC) -g -o testexpr2s ast_expr2f.o ast_expr2.o
 	rm ast_expr2.o ast_expr2f.o 
 	./testexpr2s expr2.testinput
 
 smsq: smsq.o
-smsq: LIBS+=-lpopt
+smsq: LIBS+=$(POPT_LIB)
 
 streamplayer: streamplayer.o
+
+muted: muted.o
+muted: LIBS+=$(AUDIO_LIBS)
 
 ifneq ($(wildcard .depend),)
   include .depend

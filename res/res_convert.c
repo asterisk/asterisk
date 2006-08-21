@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2005, Digium, Inc.
+ * Copyright (C) 2005, 2006, Digium, Inc.
  *
  * redice li <redice_li@yahoo.com>
  * Russell Bryant <russell@digium.com>
@@ -40,8 +40,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/file.h"
 
-struct module_symbols *me;
-
 /*! \brief Split the filename to basename and extension */
 static int split_ext(char *filename, char **name, char **ext)
 {
@@ -66,8 +64,9 @@ static int cli_audio_convert(int fd, int argc, char *argv[])
 	char *file_in = NULL, *file_out = NULL;
 	char *name_in, *ext_in, *name_out, *ext_out;
 	
-	ast_atomic_fetchadd_int(&me->usecnt, +1);
-	
+	/* ugly, can be removed when CLI entries have ast_module pointers */
+	ast_module_ref(ast_module_info->self);
+
 	if (argc != 3 || ast_strlen_zero(argv[1]) || ast_strlen_zero(argv[2])) {
 		ret = RESULT_SHOWUSAGE;
 		goto fail_out;	
@@ -117,8 +116,8 @@ fail_out:
 	if (fs_in) 
 		ast_closestream(fs_in);
 
-	ast_atomic_fetchadd_int(&me->usecnt, -1);
-	
+	ast_module_unref(ast_module_info->self);
+
 	return ret;
 }
 
@@ -133,25 +132,14 @@ static struct ast_cli_entry audio_convert_cli={
 	{ "convert" , NULL }, cli_audio_convert, "Convert audio files", usage_audio_convert
 };
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_cli_unregister(&audio_convert_cli);
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
-	me = mod;
 	return ast_cli_register(&audio_convert_cli);
 }
 
-static const char *description(void)
-{
-	return "File format conversion CLI command";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "File format conversion CLI command");

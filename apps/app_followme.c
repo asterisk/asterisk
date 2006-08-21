@@ -72,10 +72,7 @@ static char *descrip =
 "    s    - Playback the incoming status message prior to starting the follow-me step(s)\n"
 "    a    - Record the caller's name so it can be announced to the callee on each step\n" 
 "    n    - Playback the unreachable status message if we've run out of steps to reach the\n"
-"           or the callee has elected not to be reachable.\n" 
-
-
-LOCAL_USER_DECL;
+"           or the callee has elected not to be reachable.\n";
 
 struct number {
 	char number[512];	/*!< Phone Number(s) and/or Extension(s) */
@@ -916,7 +913,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	struct ast_call_followme *f;
 	struct number *nm, *newnm;
 	int res = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *argstr;
 	char namerecloc[255];
 	int duration = 0;
@@ -938,7 +935,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	AST_STANDARD_APP_ARGS(args, argstr);
 
@@ -1074,47 +1071,47 @@ static int app_exec(struct ast_channel *chan, void *data)
 			}
 	outrun:
 	
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
+
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	struct ast_call_followme *f;
-	STANDARD_HANGUP_LOCALUSERS;
+
+	ast_module_user_hangup_all();
+
 	ast_unregister_application(app);
+
 	/* Free Memory. Yeah! I'm free! */
 	AST_LIST_LOCK(&followmes);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&followmes, f, entry) {
+	while ((f = AST_LIST_REMOVE_HEAD(&followmes, entry))) {
 		free_numbers(f);
-		AST_LIST_REMOVE_CURRENT(&followmes, entry);
 		free(f);
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+
 	AST_LIST_UNLOCK(&followmes);
+
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	reload_followme();
+
 	return ast_register_application(app, app_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Find-Me/Follow-Me Application";
-}
-
-static int reload(void *mod)
+static int reload(void)
 {
 	reload_followme();
+
 	return 0;	
 }
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Find-Me/Follow-Me Application",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

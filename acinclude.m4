@@ -1,3 +1,16 @@
+# AST_GCC_ATTRIBUTE([attribute name])
+
+AC_DEFUN([AST_GCC_ATTRIBUTE],
+[
+AC_MSG_CHECKING(checking for compiler 'attribute $1' support)
+AC_COMPILE_IFELSE(
+	AC_LANG_PROGRAM([static int __attribute__(($1)) test(void) {}],
+			[]),
+	AC_MSG_RESULT(yes)
+	AC_DEFINE_UNQUOTED([HAVE_ATTRIBUTE_$1], 1, [Define to 1 if your GCC C compiler supports the '$1' attribute.]),
+	AC_MSG_RESULT(no))
+])
+
 # AST_EXT_LIB_SETUP([package symbol name], [package friendly name], [package option name], [additional help text])
 
 AC_DEFUN([AST_EXT_LIB_SETUP],

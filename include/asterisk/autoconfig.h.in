@@ -23,12 +23,6 @@
 /* Define to 1 if using `alloca.c'. */
 #undef C_ALLOCA
 
-/* Define according to your operating system type. */
-#undef Darwin
-
-/* Define according to your operating system type. */
-#undef FreeBSD
-
 /* Define to 1 if you have the `alarm' function. */
 #undef HAVE_ALARM
 
@@ -50,6 +44,22 @@
 
 /* Define to 1 if you have the `atexit' function. */
 #undef HAVE_ATEXIT
+
+/* Define to 1 if your GCC C compiler supports the 'always_inline' attribute.
+   */
+#undef HAVE_ATTRIBUTE_always_inline
+
+/* Define to 1 if your GCC C compiler supports the 'const' attribute. */
+#undef HAVE_ATTRIBUTE_const
+
+/* Define to 1 if your GCC C compiler supports the 'malloc' attribute. */
+#undef HAVE_ATTRIBUTE_malloc
+
+/* Define to 1 if your GCC C compiler supports the 'pure' attribute. */
+#undef HAVE_ATTRIBUTE_pure
+
+/* Define to 1 if your GCC C compiler supports the 'unused' attribute. */
+#undef HAVE_ATTRIBUTE_unused
 
 /* Define to 1 if you have the `bzero' function. */
 #undef HAVE_BZERO
@@ -112,6 +122,9 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
+/* Define to indicate the ${GNUTLS_DESCRIP} library */
+#undef HAVE_GNUTLS
+
 /* Define to indicate the GSM library */
 #undef HAVE_GSM
 
@@ -137,6 +150,9 @@
 /* Define to 1 if you have the `isascii' function. */
 #undef HAVE_ISASCII
 
+/* Define to indicate the ${ISDNNET_DESCRIP} library */
+#undef HAVE_ISDNNET
+
 /* Define to 1 if you have the <libintl.h> header file. */
 #undef HAVE_LIBINTL_H
 
@@ -152,10 +168,6 @@
 /* Define to 1 if you have the `localtime_r' function. */
 #undef HAVE_LOCALTIME_R
 
-/* Define to 1 if your system has a GNU libc compatible `malloc' function, and
-   to 0 otherwise. */
-#undef HAVE_MALLOC
-
 /* Define to 1 if you have the <malloc.h> header file. */
 #undef HAVE_MALLOC_H
 
@@ -170,6 +182,9 @@
 
 /* Define to 1 if you have the `memset' function. */
 #undef HAVE_MEMSET
+
+/* Define to indicate the ${MISDN_DESCRIP} library */
+#undef HAVE_MISDN
 
 /* Define to 1 if you have the `mkdir' function. */
 #undef HAVE_MKDIR
@@ -243,12 +258,11 @@
 /* Define to indicate the ${RADIUS_DESCRIP} library */
 #undef HAVE_RADIUS
 
-/* Define to 1 if your system has a GNU libc compatible `realloc' function,
-   and to 0 otherwise. */
-#undef HAVE_REALLOC
-
 /* Define to 1 if you have the `regcomp' function. */
 #undef HAVE_REGCOMP
+
+/* Define to 1 if your system has the re-entrant resolver functions. */
+#undef HAVE_RES_NINIT
 
 /* Define to 1 if you have the `re_comp' function. */
 #undef HAVE_RE_COMP
@@ -350,6 +364,9 @@
 
 /* Define to 1 if `st_blksize' is member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_BLKSIZE
+
+/* Define to indicate the ${SUPPSERV_DESCRIP} library */
+#undef HAVE_SUPPSERV
 
 /* Define to 1 if you have the <syslog.h> header file. */
 #undef HAVE_SYSLOG_H
@@ -456,15 +473,6 @@
    slash. */
 #undef LSTAT_FOLLOWS_SLASHED_SYMLINK
 
-/* Define according to your operating system type. */
-#undef Linux
-
-/* Define according to your operating system type. */
-#undef NetBSD
-
-/* Define according to your operating system type. */
-#undef OpenBSD
-
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
 
@@ -479,18 +487,6 @@
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
-
-/* Define this to be the name of the CPU of your system. */
-#undef PBX_CPU
-
-/* Define this to be the name of the OS of your system. */
-#undef PBX_OS
-
-/* Define this to be the canonical name (cpu-vendor-os) of your system. */
-#undef PBX_PLATFORM
-
-/* Define this to be the name of the vendor of your system. */
-#undef PBX_VENDOR
 
 /* Define to 1 if the C compiler supports function prototypes. */
 #undef PROTOTYPES
@@ -526,20 +522,11 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
-/* Define according to your operating system type. */
-#undef SunOS
-
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #undef TIME_WITH_SYS_TIME
 
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
-
-/* Define according to your operating system type. */
-#undef Unix
-
-/* Define according to your operating system type. */
-#undef Win32
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS
@@ -570,9 +557,6 @@
 #undef inline
 #endif
 
-/* Define to rpl_malloc if the replacement function should be used. */
-#undef malloc
-
 /* Define to `int' if <sys/types.h> does not define. */
 #undef mode_t
 
@@ -581,9 +565,6 @@
 
 /* Define to `int' if <sys/types.h> does not define. */
 #undef pid_t
-
-/* Define to rpl_realloc if the replacement function should be used. */
-#undef realloc
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t

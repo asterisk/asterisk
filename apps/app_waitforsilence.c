@@ -48,7 +48,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/options.h"
 
-static char *tdesc = "Wait For Silence";
 static char *app = "WaitForSilence";
 static char *synopsis = "Waits for a specified amount of silence";
 static char *descrip = 
@@ -61,7 +60,6 @@ static char *descrip =
 "  - WaitForSilence(500|2) will wait for 1/2 second of silence, twice\n"
 "  - WaitForSilence(1000) will wait for 1 second of silence, once\n";
 
-LOCAL_USER_DECL;
 
 static int do_waiting(struct ast_channel *chan, int maxsilence) {
 
@@ -149,11 +147,11 @@ static int do_waiting(struct ast_channel *chan, int maxsilence) {
 static int waitforsilence_exec(struct ast_channel *chan, void *data)
 {
 	int res = 1;
-	struct localuser *u;
+	struct ast_module_user *u;
 	int maxsilence = 1000;
 	int iterations = 1, i;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	
 	res = ast_answer(chan); /* Answer the channel */
 
@@ -169,36 +167,26 @@ static int waitforsilence_exec(struct ast_channel *chan, void *data)
 	for (i=0; (i<iterations) && (res == 1); i++) {
 		res = do_waiting(chan, maxsilence);
 	}
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	if (res > 0)
 		res = 0;
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 	
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, waitforsilence_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Wait For Silence");

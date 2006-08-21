@@ -45,8 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/callerid.h"
 #include "asterisk/astdb.h"
 
-static char *tdesc = "Look up CallerID Name from local database";
-
 static char *app = "LookupCIDName";
 
 static char *synopsis = "Look up CallerID Name from local database";
@@ -59,56 +57,45 @@ static char *descrip =
   "name delivery, or if you want to change the names on some incoming\n"
   "calls.\n";
 
-LOCAL_USER_DECL;
 
-static int
-lookupcidname_exec (struct ast_channel *chan, void *data)
+static int lookupcidname_exec (struct ast_channel *chan, void *data)
 {
-  char dbname[64];
-  struct localuser *u;
+	char dbname[64];
+	struct ast_module_user *u;
 	static int dep_warning = 0;
 
-  LOCAL_USER_ADD (u);
+	u = ast_module_user_add(chan);
 	if (!dep_warning) {
 		dep_warning = 1;
 		ast_log(LOG_WARNING, "LookupCIDName is deprecated.  Please use ${DB(cidname/${CALLERID(num)})} instead.\n");
 	}
-  if (chan->cid.cid_num) {
-	if (!ast_db_get ("cidname", chan->cid.cid_num, dbname, sizeof (dbname))) {
-		ast_set_callerid (chan, NULL, dbname, NULL);
-		  if (option_verbose > 2)
-		    ast_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID name to %s\n",
-				 dbname);
+	if (chan->cid.cid_num) {
+		if (!ast_db_get ("cidname", chan->cid.cid_num, dbname, sizeof (dbname))) {
+			ast_set_callerid (chan, NULL, dbname, NULL);
+			if (option_verbose > 2)
+				ast_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID name to %s\n",
+					     dbname);
+		}
 	}
-  }
-  LOCAL_USER_REMOVE (u);
-  return 0;
+	ast_module_user_remove(u);
+
+	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application (app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application (app, lookupcidname_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Look up CallerID Name from local database");

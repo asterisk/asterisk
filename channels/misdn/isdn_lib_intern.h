@@ -11,7 +11,6 @@
 
 #include "isdn_lib.h"
 
-
 #if !defined MISDNUSER_VERSION_CODE || (MISDNUSER_VERSION_CODE < MISDNUSER_VERSION(1, 0, 3))
 #error "You need a newer version of mISDNuser ..."
 #endif
@@ -104,6 +103,13 @@ struct misdn_stack {
 
 struct misdn_stack* get_stack_by_bc(struct misdn_bchannel *bc);
 
+int isdn_msg_get_index(struct isdn_msg msgs[], msg_t *frm, int nt);
+enum event_e isdn_msg_get_event(struct isdn_msg msgs[], msg_t *frm, int nt);
+int isdn_msg_parse_event(struct isdn_msg msgs[], msg_t *frm, struct misdn_bchannel *bc, int nt);
+char * isdn_get_info(struct isdn_msg msgs[], enum event_e event, int nt);
+msg_t * isdn_msg_build_event(struct isdn_msg msgs[], struct misdn_bchannel *bc, enum event_e event, int nt);
+int isdn_msg_get_index_by_event(struct isdn_msg msgs[], enum event_e event, int nt);
+char * isdn_msg_get_info(struct isdn_msg msgs[], msg_t *msg, int nt);
 
 
 #endif

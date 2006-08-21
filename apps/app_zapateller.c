@@ -41,8 +41,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
 
-static char *tdesc = "Block Telemarketers with Special Information Tone";
-
 static char *app = "Zapateller";
 
 static char *synopsis = "Block telemarketers with SIT";
@@ -56,17 +54,16 @@ static char *descrip =
 "is no callerid information available.  Options should be separated by |\n"
 "characters\n";
 
-LOCAL_USER_DECL;
 
 static int zapateller_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	int answer = 0, nocallerid = 0;
 	char *c;
 	char *stringp=NULL;
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	stringp=data;
         c = strsep(&stringp, "|");
@@ -89,7 +86,7 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	if (chan->cid.cid_num && nocallerid) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return res;
 	} 
 	if (!res) 
@@ -100,34 +97,24 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
 		res = ast_tonepair(chan, 1800, 0, 330, 0);
 	if (!res) 
 		res = ast_tonepair(chan, 0, 0, 1000, 0);
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 	
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, zapateller_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Block Telemarketers with Special Information Tone");

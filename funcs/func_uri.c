@@ -86,27 +86,16 @@ static struct ast_custom_function urlencode_function = {
 	.read = uriencode,
 };
 
-static char *tdesc = "URI encode/decode dialplan functions";
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_custom_function_unregister(&urldecode_function)
 		|| ast_custom_function_unregister(&urlencode_function);
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_custom_function_register(&urldecode_function)
 		|| ast_custom_function_register(&urlencode_function);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "URI encode/decode dialplan functions");

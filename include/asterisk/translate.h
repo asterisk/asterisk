@@ -101,13 +101,13 @@ struct ast_translator {
 	 */
 	int buf_size;
 
-	int desc_size;		/*!< size of private descriptor in pvt->pvt, if any */
-	int plc_samples;	/*!< set to the plc block size if used, 0 otherwise */
-	int useplc;		/*!< current status of plc, changed at runtime */
+	int desc_size;			/*!< size of private descriptor in pvt->pvt, if any */
+	int plc_samples;		/*!< set to the plc block size if used, 0 otherwise */
+	int useplc;			/*!< current status of plc, changed at runtime */
 
-	void *module;		/*!< opaque reference to the parent module */
+	struct ast_module *module;	/* opaque reference to the parent module */
 
-	int cost;		/*!< Cost in milliseconds for encoding/decoding 1 second of sound */
+	int cost;			/*!< Cost in milliseconds for encoding/decoding 1 second of sound */
 	AST_LIST_ENTRY(ast_translator) list;	/*!< link field */
 };
 
@@ -155,7 +155,8 @@ struct ast_trans_pvt;
  * \param module handle to the module that owns this translator
  * \return 0 on success, -1 on failure
  */
-int ast_register_translator(struct ast_translator *t, void *module);
+int __ast_register_translator(struct ast_translator *t, struct ast_module *module);
+#define ast_register_translator(t) __ast_register_translator(t, ast_module_info->self)
 
 /*!
  * \brief Unregister a translator

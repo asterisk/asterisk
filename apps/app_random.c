@@ -41,8 +41,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! \todo The Random() app should be removed from trunk following the release of 1.4 */
 
-static char *tdesc = "Random goto";
-
 static char *app_random = "Random";
 
 static char *random_synopsis = "Conditionally branches, based upon a probability";
@@ -52,12 +50,11 @@ static char *random_descrip =
 "  probability := INTEGER in the range 1 to 100\n"
 "DEPRECATED: Use GotoIf($[${RAND(1,100)} > <number>]?<label>)\n";
 
-LOCAL_USER_DECL;
 
 static int random_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
-	struct localuser *u;
+	struct ast_module_user *u;
 
 	char *s;
 	char *prob;
@@ -69,7 +66,7 @@ static int random_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	s = ast_strdupa(data);
 
@@ -88,34 +85,24 @@ static int random_exec(struct ast_channel *chan, void *data)
 			ast_verbose( VERBOSE_PREFIX_3 "Random branches to (%s,%s,%d)\n",
 				chan->context,chan->exten, chan->priority+1);
 	}
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 	
 	res = ast_unregister_application(app_random);
 	
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app_random, random_exec, random_synopsis, random_descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Random goto");

@@ -112,6 +112,8 @@ struct local_pvt {
 	int nooptimization;			/* Don't leave masq state */
 	struct ast_channel *owner;		/* Master Channel */
 	struct ast_channel *chan;		/* Outbound channel */
+	struct ast_module_user *u_owner;	/*! reference to keep the module loaded while in use */
+	struct ast_module_user *u_chan;		/*! reference to keep the module loaded while in use */
 	AST_LIST_ENTRY(local_pvt) list;		/* Next entity */
 };
 
@@ -451,11 +453,13 @@ static int local_hangup(struct ast_channel *ast)
 			pbx_builtin_setvar_helper(p->owner, "CHANLOCALSTATUS", status);
 		p->chan = NULL;
 		p->launchedpbx = 0;
-	} else
+		ast_module_user_remove(p->u_chan);
+	} else {
 		p->owner = NULL;
-	ast->tech_pvt = NULL;
+		ast_module_user_remove(p->u_owner);
+	}
 	
-	ast_atomic_fetchadd_int(&__mod_desc->usecnt, -1);
+	ast->tech_pvt = NULL;
 	
 	if (!p->owner && !p->chan) {
 		/* Okay, done with the private part now, too. */
@@ -564,8 +568,8 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 	tmp2->tech_pvt = p;
 	p->owner = tmp;
 	p->chan = tmp2;
-	ast_atomic_fetchadd_int(&__mod_desc->usecnt, +2);	/* we allocate 2 new channels */
-	ast_update_use_count();
+	p->u_owner = ast_module_user_add(p->owner);
+	p->u_chan = ast_module_user_add(p->chan);
 	ast_copy_string(tmp->context, p->context, sizeof(tmp->context));
 	ast_copy_string(tmp2->context, p->context, sizeof(tmp2->context));
 	ast_copy_string(tmp2->exten, p->exten, sizeof(tmp->exten));
@@ -616,10 +620,8 @@ static struct ast_cli_entry cli_show_locals = {
 	"Show status of local channels", show_locals_usage, NULL };
 
 /*! \brief Load module into PBX, register channel */
-static int load_module(void *mod)
+static int load_module(void)
 {
-	__mod_desc = mod;
-
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&local_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Local'\n");
@@ -630,7 +632,7 @@ static int load_module(void *mod)
 }
 
 /*! \brief Unload the local proxy channel from Asterisk */
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	struct local_pvt *p;
 
@@ -652,14 +654,4 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-static const char *description(void)
-{
-	return "Local Proxy Channel";
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Local Proxy Channel");

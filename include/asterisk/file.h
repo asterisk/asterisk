@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -106,7 +106,7 @@ struct ast_format {
 	int buf_size;			/*! size of frame buffer, if any, aligned to 8 bytes. */
 	int desc_size;			/*! size of private descriptor, if any */
 
-	struct module_symbols *module;
+	struct ast_module *module;
 };
 
 /*
@@ -138,10 +138,11 @@ struct ast_filestream {
 #define SEEK_FORCECUR	10
 	
 /*! Register a new file format capability
- * Adds a format to asterisk's format abilities.
+ * Adds a format to Asterisk's format abilities.
  * returns 0 on success, -1 on failure
  */
-int ast_format_register(const struct ast_format *f);
+int __ast_format_register(const struct ast_format *f, struct ast_module *mod);
+#define ast_format_register(f) __ast_format_register(f, ast_module_info->self)
 
 /*! Unregisters a file format */
 /*!

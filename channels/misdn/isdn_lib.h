@@ -458,5 +458,4 @@ char *bc_state2str(enum bchannel_state state);
 void bc_state_change(struct misdn_bchannel *bc, enum bchannel_state state);
 
 
-
 #endif

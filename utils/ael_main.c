@@ -15,7 +15,9 @@
 #include <limits.h>
 
 #include "asterisk/ast_expr.h"
+#include "asterisk/channel.h"
 #include "asterisk/module.h"
+#include "asterisk/app.h"
 #include "asterisk/ael_structs.h"
 
 struct namelist
@@ -453,7 +455,7 @@ int main(int argc, char **argv)
 
 	FIRST_TIME = 1;
 	
-	mod_data.load_module(0);
+	ast_module_info->load();
 	
 	ast_log(4, "ael2_parse", __LINE__, "main", "%d contexts, %d extensions, %d priorities\n", conts, extens, priors);
 

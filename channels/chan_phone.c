@@ -88,7 +88,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define PHONE_MAX_BUF 480
 #define DEFAULT_GAIN 0x100
 
-static const char desc[] = "Linux Telephony API Support";
 static const char tdesc[] = "Standard Linux Telephony API Driver";
 static const char config[] = "phone.conf";
 
@@ -1328,12 +1327,12 @@ static int __unload_module(void)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return __unload_module();
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
@@ -1442,16 +1441,4 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static const char *description(void)
-{
-	return (char *) desc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
-
-
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Linux Telephony API Support");

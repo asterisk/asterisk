@@ -555,27 +555,16 @@ static const struct ast_format wav49_f = {
 	.close = wav_close,
 	.buf_size = 2*GSM_FRAME_SIZE + AST_FRIENDLY_OFFSET,
 	.desc_size = sizeof(struct wavg_desc),
-	.module = &mod_data, /* XXX */
 };
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_format_register(&wav49_f);
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_format_unregister(wav49_f.name);
 }	
 
-static const char *description(void)
-{
-	return "Microsoft WAV format (Proprietary GSM)";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Microsoft WAV format (Proprietary GSM)");

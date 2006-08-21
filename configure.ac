@@ -11,10 +11,9 @@ AC_INIT(asterisk, PBX_VERSION, www.asterisk.org)
 # cross-compile macros
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
-AC_CANONICAL_TARGET
 
 # check existence of the package
-AC_CONFIG_SRCDIR([asterisk.c])
+AC_CONFIG_SRCDIR([main/asterisk.c])
 
 # specify output header file
 AC_CONFIG_HEADER(include/asterisk/autoconfig.h)
@@ -22,8 +21,8 @@ AC_CONFIG_HEADER(include/asterisk/autoconfig.h)
 AC_COPYRIGHT("Asterisk")
 AC_REVISION($Revision$)
 
-case "${host}" in
-     *freebsd*)
+case "${host_os}" in
+     freebsd)
      ac_default_prefix=/usr/local
      ;;
      *)
@@ -41,25 +40,25 @@ if test ${localstatedir} = '${prefix}/var'; then
      localstatedir=/var
 fi
 
-### ** Platform.
-AC_DEFINE_UNQUOTED(PBX_PLATFORM, "${host}",
-[Define this to be the canonical name (cpu-vendor-os) of your system.])
-AC_DEFINE_UNQUOTED(PBX_CPU, "${host_cpu}",
-[Define this to be the name of the CPU of your system.])
-AC_DEFINE_UNQUOTED(PBX_VENDOR, "${host_vendor}",
-[Define this to be the name of the vendor of your system.])
-AC_DEFINE_UNQUOTED(PBX_OS, "${host_os}",
-[Define this to be the name of the OS of your system.])
+BUILD_PLATFORM=${build}
+BUILD_CPU=${build_cpu}
+BUILD_VENDOR=${build_vendor}
+BUILD_OS=${build_os}
 
-# export some useful defines
-PBX_PLATFORM=${host}
-PBX_CPU=${host_cpu}
-PBX_VENDOR=${host_vendor}
-PBX_OS=${host_os}
-AC_SUBST(PBX_PLATFORM)
-AC_SUBST(PBX_CPU)
-AC_SUBST(PBX_VENDOR)
-AC_SUBST(PBX_OS)
+AC_SUBST(BUILD_PLATFORM)
+AC_SUBST(BUILD_CPU)
+AC_SUBST(BUILD_VENDOR)
+AC_SUBST(BUILD_OS)
+
+HOST_PLATFORM=${host}
+HOST_CPU=${host_cpu}
+HOST_VENDOR=${host_vendor}
+HOST_OS=${host_os}
+
+AC_SUBST(HOST_PLATFORM)
+AC_SUBST(HOST_CPU)
+AC_SUBST(HOST_VENDOR)
+AC_SUBST(HOST_OS)
 
 #  check for uname
 AC_PATH_TOOL([UNAME], [uname], No)
@@ -67,62 +66,6 @@ if test ! x"${UNAME}" = xNo; then
    PBX_OSREV=$(${UNAME} -r)
 fi
 AC_SUBST(PBX_OSREV)
-
-# guest OS type
-case "${host}" in
-  cygwin*|mingw*|windows*|winnt)
-    AC_DEFINE(Win32, 1,
-              [Define according to your operating system type.])
-    PBX_OSTYPE="CYGWIN"
-# this is ugly - KPF
-  OSISWIN32=1
-  AC_SUBST(OSISWIN32)
-    ;;
-  *linux*)
-    AC_DEFINE(Linux, 1,
-              [Define according to your operating system type.])
-    PBX_OSTYPE="Linux"
-    ;;
-  *netbsd*)
-    AC_DEFINE(NetBSD, 1,
-              [Define according to your operating system type.])
-    PBX_OSTYPE="NetBSD"
-    ;;
-  *freebsd*)
-    AC_DEFINE(FreeBSD, 1,
-              [Define according to your operating system type.])
-    PBX_OSTYPE="FreeBSD"
-    # XXX temporary hack to let FreeBSD use the default paths
-    # for local stuff. We need a better solution.
-    if test x"${CPPFLAGS}" = x; then
-        CPPFLAGS="-I/usr/local/include"
-    fi
-    if test x"${LDFLAGS}" = x; then
-        LDFLAGS="-L/usr/local/lib"
-    fi
-    ;;
-  *openbsd*)
-    AC_DEFINE(OpenBSD, 1,
-              [Define according to your operating system type.])
-    PBX_OSTYPE="OpenBSD"
-    ;;
-  *sun*)
-    AC_DEFINE(SunOS, 1,
-              [Define according to your operating system type.])
-    PBX_OSTYPE="SunOS"
-    ;;
-  *darwin*)
-    AC_DEFINE(Darwin, 1,
-              [Define according to your operating system type.])
-    PBX_OSTYPE="Darwin"
-    ;;
-  *)
-    AC_DEFINE(Unix, 1,
-              [Define according to your operating system type.])
-    PBX_OSTYPE="Unix"
-   ;;
-esac
-AC_SUBST(PBX_OSTYPE)
 
 # This needs to be before any macros that use the C compiler
 AC_GNU_SOURCE
@@ -145,20 +88,13 @@ AH_BOTTOM(
 )
 
 # cross-compile checks
-if test x"${build}" != x"${host}"; 
+if test "${cross_compiling}" = "yes"; 
 then
    AC_CHECK_TOOL(CC, gcc, :)
    AC_CHECK_TOOL(CXX, g++, :)
+   AC_CHECK_TOOL(LD, ld, :)
    AC_CHECK_TOOL(RANLIB, ranlib, :)
    AC_CHECK_TOOL(AR, ar, :)
-
-   if test x"${PBX_OSTYPE}" = xWin32;
-   then
-      AC_CHECK_TOOL(NM, nm, :)
-      AC_CHECK_TOOL(WINDRES, windres, :)
-      AC_CHECK_TOOL(DLLWRAP, dllwrap, :)
-   fi
-   crossCompile="Yes"
 fi
 
 # Checks for programs.
@@ -198,10 +134,13 @@ AC_SUBST(AST_DEVMODE)
 
 AST_EXT_LIB_SETUP([ALSA], [Advanced Linux Sound Architecture], [asound])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
+AST_EXT_LIB_SETUP([GNUTLS], [GNU TLS support (used for iksemel only)], [gnutls])
 AST_EXT_LIB_SETUP([GSM], [GSM], [gsm], [, or 'internal'])
 AST_EXT_LIB_SETUP([IKSEMEL], [Iksemel Jabber Library], [iksemel])
 AST_EXT_LIB_SETUP([IMAP_TK], [UW IMAP Toolkit], [imap])
+AST_EXT_LIB_SETUP([ISDNNET], [ISDN4Linux Library], [isdnnet])
 AST_EXT_LIB_SETUP([KDE], [KDE], [kde])
+AST_EXT_LIB_SETUP([MISDN], [mISDN User Library], [misdn])
 AST_EXT_LIB_SETUP([NBS], [Network Broadcast Sound], [nbs])
 AST_EXT_LIB_SETUP([NCURSES], [ncurses], [ncurses])
 AST_EXT_LIB_SETUP([NETSNMP], [Net-SNMP], [netsnmp])
@@ -218,6 +157,7 @@ AST_EXT_LIB_SETUP([QT], [Qt], [qt])
 AST_EXT_LIB_SETUP([RADIUS], [Radius Client], [radius])
 AST_EXT_LIB_SETUP([SPEEX], [Speex], [speex])
 AST_EXT_LIB_SETUP([SQLITE], [SQLite], [sqlite])
+AST_EXT_LIB_SETUP([SUPPSERV], [mISDN Supplemental Services], [suppserv])
 AST_EXT_LIB_SETUP([OPENSSL], [OpenSSL], [ssl])
 AST_EXT_LIB_SETUP([FREETDS], [FreeTDS], [tds])
 AST_EXT_LIB_SETUP([TERMCAP], [Termcap], [termcap])
@@ -261,11 +201,13 @@ AC_FUNC_ERROR_AT_LINE
 AC_FUNC_FORK
 AC_FUNC_FSEEKO
 AC_PROG_GCC_TRADITIONAL
-AC_FUNC_MALLOC
+# XXX: these are commented out until we determine whether it matters if our malloc()
+# acts exactly like glibc's or not
+# AC_FUNC_MALLOC
+# AC_FUNC_REALLOC
 AC_FUNC_MEMCMP
 AC_FUNC_MKTIME
 AC_FUNC_MMAP
-AC_FUNC_REALLOC
 AC_FUNC_SELECT_ARGTYPES
 AC_FUNC_SETVBUF_REVERSED
 AC_TYPE_SIGNAL
@@ -286,6 +228,21 @@ AC_DEFINE([HAVE_GCC_ATOMICS], 1, [Define to 1 if your GCC C compiler provides at
 AC_MSG_RESULT(no)
 )
 
+AC_MSG_CHECKING(checking for res_ninit)
+AC_LINK_IFELSE(
+	AC_LANG_PROGRAM([#include <resolv.h>],
+			[int foo = res_ninit(NULL);]),
+	AC_MSG_RESULT(yes)
+	AC_DEFINE([HAVE_RES_NINIT], 1, [Define to 1 if your system has the re-entrant resolver functions.]),
+	AC_MSG_RESULT(no)
+)
+
+AST_GCC_ATTRIBUTE(pure)
+AST_GCC_ATTRIBUTE(malloc)
+AST_GCC_ATTRIBUTE(const)
+AST_GCC_ATTRIBUTE(unused)
+AST_GCC_ATTRIBUTE(always_inline)
+
 AC_CHECK_HEADER([libkern/OSAtomic.h],
                 [AC_DEFINE_UNQUOTED([HAVE_OSX_ATOMICS], 1, [Define to 1 if OSX atomic operations are supported.])])
 
@@ -298,6 +255,7 @@ AST_EXT_LIB_CHECK([ALSA], [asound], [snd_spcm_init], [alsa/asoundlib.h], [-lm -l
 AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
 
 GSM_INTERNAL="yes"
+AC_SUBST(GSM_INTERNAL)
 GSM_SYSTEM="yes"
 if test "${USE_GSM}" != "no"; then
    if test "${GSM_DIR}" = "internal"; then
@@ -327,12 +285,18 @@ if test "${USE_GSM}" != "no"; then
       fi
    fi
    if test "${GSM_INTERNAL}" = "yes"; then
-      GSM_LIB="internal"
       PBX_GSM=1
    fi
 fi
 
 AST_EXT_LIB_CHECK([IKSEMEL], [iksemel], [iks_start_sasl], [iksemel.h])
+
+if test "${PBX_IKSEMEL}" = 1; then
+   AST_EXT_LIB_CHECK([GNUTLS], [gnutls], [gnutls_bye])
+   if test "${PBX_GNUTLS}" = 1; then
+      IKSEMEL_LIB="${IKSEMEL_LIB} -lgnutls -ltasn1 -lz -lgcrypt -lnsl -lgpg-error"
+   fi
+fi
 
 if test "${USE_IMAP_TK}" != "no"; then
    if test "${IMAP_TK_DIR}" = ""; then
@@ -537,6 +501,13 @@ fi
 
 AC_LANG_POP
 
+AST_EXT_LIB_CHECK([MISDN], [mISDN], [mISDN_open], [mISDNuser/mISDNlib.h])
+
+if test "${PBX_MISDN}" = 1; then
+   AST_EXT_LIB_CHECK([ISDNNET], [isdnnet], [init_manager], [mISDNuser/isdn_net.h], [-lmISDN -lpthread])
+   AST_EXT_LIB_CHECK([SUPPSERV], [suppserv], [encodeFac], [mISDNuser/suppserv.h])
+fi
+
 AST_EXT_LIB_CHECK([NBS], [nbs], [nbs_connect], [nbs.h])
 
 AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
@@ -585,7 +556,7 @@ fi
 
 AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
 
-AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h])
+AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h], [-lltdl])
 
 AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_sync_init], [])
 
@@ -632,7 +603,7 @@ if test "${PG_CONFIG}" != No; then
    [Define to indicate the PostgreSQL library]), [], -L${PGSQL_libdir} -lz)
 
    if test "${ac_cv_lib_pq_PQexec}" = "yes"; then
-      PGSQL_LIB="-L${PGSQL_libdir} -lpq -lz"
+      PGSQL_LIB="-L${PGSQL_libdir} -lpq -lz -lcrypt"
       PGSQL_INCLUDE="-I${PGSQL_includedir}"
       PBX_PGSQL=1
    elif test ! -z "${PGSQL_MANDATORY}";
@@ -798,7 +769,7 @@ AST_EXT_LIB_CHECK([TERMCAP], [termcap], [tgetent], [])
 
 AST_EXT_LIB_CHECK([TINFO], [tinfo], [tgetent], [])
 
-if test "${PBX_OSTYPE}" != "Linux" ; then
+if test "${host_os}" != "linux-gnu" ; then
   tonezone_extra="-lm"
 fi
 
@@ -935,7 +906,7 @@ PBX_CURL=0
 AC_PATH_TOOL([CURL], [curl-config], No)
 if test ! x"${CURL}" = xNo; then
 # check for version
-   if test $PBX_OSTYPE = "SunOS"; then
+   if test "${host_os}" = "SunOS"; then
       if [[ 0x`curl-config --vernum` -ge 0x70907 ]]; then
          CURLLIB=$(${CURL} --libs)
          PBX_CURL=1
@@ -982,12 +953,10 @@ echo
 fi
 
 AC_MSG_NOTICE(Package configured for: )
-AC_MSG_NOTICE( OS type  : $PBX_OSTYPE)
+AC_MSG_NOTICE( OS type  : $host_os)
 AC_MSG_NOTICE( Host CPU : $host_cpu)
-if test "x${crossCompile}" = xYes; then
-   AC_MSG_NOTICE()
+if test "${cross_compiling}" = "yes"; then
    AC_MSG_NOTICE( Cross Compilation = YES)
-   AC_MSG_NOTICE( Target            = ${host})
 fi
 
 if test ${GNU_MAKE_VERSION_MAJOR} -lt 3 || test ${GNU_MAKE_VERSION_MINOR} -lt 81 ; then

@@ -51,7 +51,7 @@ extern char ast_config_AST_CTL[PATH_MAX];
 extern char ast_config_AST_SYSTEM_NAME[20];
 
 int ast_set_priority(int);			/*!< Provided by asterisk.c */
-int load_modules(const int preload_only);	/*!< Provided by module.c */
+int load_modules(void);				/*!< Provided by loader.c */
 int load_pbx(void);				/*!< Provided by pbx.c */
 int init_logger(void);				/*!< Provided by logger.c */
 void close_logger(void);			/*!< Provided by logger.c */
@@ -64,6 +64,12 @@ void ast_builtins_init(void);			/*!< Provided by cli.c */
 int dnsmgr_init(void);				/*!< Provided by dnsmgr.c */ 
 void dnsmgr_start_refresh(void);		/*!< Provided by dnsmgr.c */
 int dnsmgr_reload(void);			/*!< Provided by dnsmgr.c */
+
+/* Many headers need 'ast_channel' to be defined */
+struct ast_channel;
+
+/* Many headers need 'ast_module' to be defined */
+struct ast_module;
 
 /*!
  * \brief Reload asterisk modules.

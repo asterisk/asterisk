@@ -9,7 +9,7 @@
 # the GNU General Public License
 #
 
-ifneq ($(wildcard ../menuselect.makeopts),)
+ifneq ($(wildcard $(ASTTOPDIR)/menuselect.makeopts),)
   include ../menuselect.makeopts
   include ../menuselect.makedeps
 endif
@@ -17,7 +17,12 @@ endif
 C_MODS:=$(filter-out $(MENUSELECT_PBX),$(patsubst %.c,%,$(wildcard pbx_*.c)))
 CC_MODS:=$(filter-out $(MENUSELECT_PBX),$(patsubst %.cc,%,$(wildcard pbx_*.cc)))
 
-SELECTED_MODS:=$(C_MODS) $(CC_MODS)
+LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
+
+ifneq ($(findstring pbx,$(MENUSELECT_EMBED)),)
+  EMBEDDED_MODS:=$(LOADABLE_MODS)
+  LOADABLE_MODS:=
+endif
 
 all: _all
 
@@ -32,7 +37,7 @@ ael/aelflex.o: CFLAGS+=-I.
 $(eval $(call ast_make_o_c,ael/aelbison.o,ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h))
 ael/aelbison.o: CFLAGS+=-I.
 
-pbx_ael.so: ael/aelbison.o ael/aelflex.o
+$(pbx_ael): ael/aelbison.o ael/aelflex.o
 
 ael/ael_lex.c:
 	(cd ael; flex ael.flex; sed -i -e "/begin standard C headers/i#include \"asterisk.h\"" ael_lex.c)
@@ -40,7 +45,7 @@ ael/ael_lex.c:
 ael/ael.tab.c ael/ael.tab.h:
 	(cd ael; bison -v -d ael.y)
 
-$(eval $(call ast_make_o_c,dundi-parser.o,dundi-parser.c dundi-parser.h))
+dundi-parser.o: dundi-parser.h
 dundi-parser.o: CFLAGS+=-I.
 
-pbx_dundi.so: dundi-parser.o
+$(pbx_dundi): dundi-parser.o

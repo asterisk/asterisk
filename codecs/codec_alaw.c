@@ -152,40 +152,38 @@ static void parse_config(void)
 
 /*! \brief standard module stuff */
 
-static int reload(void *mod)
+static int reload(void)
 {
 	parse_config();
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
+
 	res = ast_unregister_translator(&lintoalaw);
 	res |= ast_unregister_translator(&alawtolin);
+
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
+
 	parse_config();
-	res = ast_register_translator(&alawtolin, mod);
+	res = ast_register_translator(&alawtolin);
 	if (!res)
-		res = ast_register_translator(&lintoalaw, mod);
+		res = ast_register_translator(&lintoalaw);
 	else
 		ast_unregister_translator(&alawtolin);
+
 	return res;
 }
 
-static const char *description(void)
-{
-	return "A-law Coder/Decoder";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "A-law Coder/Decoder",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

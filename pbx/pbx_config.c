@@ -1314,7 +1314,7 @@ static struct ast_cli_entry reload_extensions_cli =
 /*!
  * Standard module functions ...
  */
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	ast_cli_unregister(&context_add_extension_cli);
 	if (static_config && !write_protect_config)
@@ -1501,7 +1501,7 @@ static int pbx_load_module(void)
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	if (pbx_load_module())
 		return -1;
@@ -1519,7 +1519,7 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	if (clearglobalvars_config)
 		pbx_builtin_clear_globals();
@@ -1527,15 +1527,8 @@ static int reload(void *mod)
 	return 0;
 }
 
-static const char *description(void)
-{
-	return "Text Extension Configuration";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-/* XXX really no usecount ? */
-STD_MOD(MOD_1 | NO_USECOUNT, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Text Extension Configuration",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

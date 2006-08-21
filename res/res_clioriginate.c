@@ -43,8 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 /*! The timeout for originated calls, in seconds */
 #define TIMEOUT 30
 
-static struct module_symbols *me;
-
 static char orig_help[] = 
 "  There are two ways to use this command. A call can be originated between a\n"
 "channel and a specific application, or between a channel and an extension in\n"
@@ -127,7 +125,8 @@ static int handle_orig(int fd, int argc, char *argv[])
 	if (ast_strlen_zero(argv[1]) || ast_strlen_zero(argv[2]))
 		return RESULT_SHOWUSAGE;
 
-	ast_atomic_fetchadd_int(&me->usecnt, +1);
+	/* ugly, can be removed when CLI entries have ast_module pointers */
+	ast_module_ref(ast_module_info->self);
 
 	if (!strcasecmp("application", argv[2])) {
 		res = orig_app(fd, argv[1], argv[3], argv[4]);	
@@ -136,7 +135,7 @@ static int handle_orig(int fd, int argc, char *argv[])
 	} else
 		res = RESULT_SHOWUSAGE;
 
-	ast_atomic_fetchadd_int(&me->usecnt, -1);
+	ast_module_unref(ast_module_info->self);
 
 	return res;
 }
@@ -149,32 +148,22 @@ static char *complete_orig(const char *line, const char *word, int pos, int stat
 	if (pos != 2)
 		return NULL;
 
-	ast_atomic_fetchadd_int(&me->usecnt, +1);
+	/* ugly, can be removed when CLI entries have ast_module pointers */
+	ast_module_ref(ast_module_info->self);
 	ret = ast_cli_complete(word, choices, state);
-	ast_atomic_fetchadd_int(&me->usecnt, -1);
+	ast_module_unref(ast_module_info->self);
 
 	return ret;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_cli_unregister(&cli_orig);
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
-	me = mod;
 	return ast_cli_register(&cli_orig);
 }
 
-static const char *description(void)
-{
-	return "Call origination from the CLI";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0 | NO_USECOUNT, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Call origination from the CLI");

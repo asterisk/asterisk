@@ -72,7 +72,6 @@ static char *descrip =
 "If the user should hangup during a recording, all data will be lost and the\n"
 "application will teminate. \n";
 
-LOCAL_USER_DECL;
 
 static int record_exec(struct ast_channel *chan, void *data)
 {
@@ -85,7 +84,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	char tmp[256];
 
 	struct ast_filestream *s = '\0';
-	struct localuser *u;
+	struct ast_module_user *u;
 	struct ast_frame *f = NULL;
 	
 	struct ast_dsp *sildet = NULL;   	/* silence detector dsp */
@@ -111,7 +110,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	/* Yay for strsep being easy */
 	vdata = ast_strdupa(data);
@@ -135,7 +134,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	}
 	if (!ext) {
 		ast_log(LOG_WARNING, "No extension specified to filename!\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	if (silstr) {
@@ -194,7 +193,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	if (chan->_state != AST_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return 0;
 		} else if (!option_noanswer) {
 			/* Otherwise answer unless we're supposed to record while on-hook */
@@ -225,13 +224,13 @@ static int record_exec(struct ast_channel *chan, void *data)
 		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return -1;
 		}
 		sildet = ast_dsp_new();
 		if (!sildet) {
 			ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return -1;
 		}
 		ast_dsp_set_threshold(sildet, 256);
@@ -335,35 +334,25 @@ static int record_exec(struct ast_channel *chan, void *data)
 			ast_dsp_free(sildet);
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 	
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, record_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Trivial Record Application";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Trivial Record Application");

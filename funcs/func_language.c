@@ -24,6 +24,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -76,26 +77,14 @@ static struct ast_custom_function language_function = {
 	.write = language_write,
 };
 
-static char *tdesc = "Channel language dialplan function";
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_custom_function_unregister(&language_function);
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_custom_function_register(&language_function);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Channel language dialplan function");

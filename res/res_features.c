@@ -497,10 +497,10 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 {
 	struct ast_channel *parker;
         struct ast_channel *parkee;
+	int res = 0;
+	struct ast_module_user *u;
 
-	int res=0;
-	struct localuser *u;
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	set_peers(&parker, &parkee, peer, chan, sense);
 	/* Setup the exten/priority to be s/1 since we don't know
@@ -513,7 +513,9 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 		res = ast_safe_sleep(chan, 1000);
 	if (!res)
 		res = ast_park_call(parkee, parker, 0, NULL);
-	LOCAL_USER_REMOVE(u);
+
+	ast_module_user_remove(u);
+
 	if (!res) {
 		if (sense == FEATURE_SENSE_CHAN)
 			res = AST_PBX_NO_HANGUP_PEER;
@@ -1671,9 +1673,11 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 {
 	/* Data is unused at the moment but could contain a parking
 	   lot context eventually */
-	int res=0;
-	struct localuser *u;
-	LOCAL_USER_ADD(u);
+	int res = 0;
+	struct ast_module_user *u;
+
+	u = ast_module_user_add(chan);
+
 	/* Setup the exten/priority to be s/1 since we don't know
 	   where this call should return */
 	strcpy(chan->exten, "s");
@@ -1687,17 +1691,17 @@ static int park_call_exec(struct ast_channel *chan, void *data)
 	/* Park the call */
 	if (!res)
 		res = ast_park_call(chan, chan, 0, NULL);
-	LOCAL_USER_REMOVE(u);
-	if (!res)
-		res = AST_PBX_KEEPALIVE;
-	return res;
+
+	ast_module_user_remove(u);
+
+	return !res ? AST_PBX_KEEPALIVE : res;
 }
 
 /*! \brief Pickup parked call */
 static int park_exec(struct ast_channel *chan, void *data)
 {
-	int res=0;
-	struct localuser *u;
+	int res = 0;
+	struct ast_module_user *u;
 	struct ast_channel *peer=NULL;
 	struct parkeduser *pu, *pl=NULL;
 	struct ast_context *con;
@@ -1708,7 +1712,9 @@ static int park_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Parkedcall requires an argument (extension number)\n");
 		return -1;
 	}
-	LOCAL_USER_ADD(u);
+	
+	u = ast_module_user_add(chan);
+
 	park = atoi((char *)data);
 	ast_mutex_lock(&parking_lock);
 	pu = parkinglot;
@@ -1813,7 +1819,9 @@ static int park_exec(struct ast_channel *chan, void *data)
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s tried to talk to nonexistent parked call %d\n", chan->name, park);
 		res = -1;
 	}
-	LOCAL_USER_REMOVE(u);
+
+	ast_module_user_remove(u);
+
 	return res;
 }
 
@@ -2250,16 +2258,15 @@ static int load_config(void)
 
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	return load_config();
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 	
-	__mod_desc = mod;
 	memset(parking_ext, 0, sizeof(parking_ext));
 	memset(parking_con, 0, sizeof(parking_con));
 
@@ -2283,9 +2290,9 @@ static int load_module(void *mod)
 }
 
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	ast_manager_unregister("ParkedCalls");
 	ast_manager_unregister("Park");
@@ -2296,14 +2303,8 @@ static int unload_module(void *mod)
 	return ast_unregister_application(parkedcall);
 }
 
-static const char *description(void)
-{
-	return "Call Features Resource";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0 | NO_UNLOAD, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Call Features Resource",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

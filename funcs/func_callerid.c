@@ -143,26 +143,14 @@ static struct ast_custom_function callerid_function = {
 	.write = callerid_write,
 };
 
-static char *tdesc = "Caller ID related dialplan function";
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_custom_function_unregister(&callerid_function);
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_custom_function_register(&callerid_function);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Caller ID related dialplan function");

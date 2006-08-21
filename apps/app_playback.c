@@ -47,8 +47,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/localtime.h"
 #include "asterisk/say.h"
 
-static char *tdesc = "Sound File Playback Application";
-
 static char *app = "Playback";
 
 static char *synopsis = "Play a file";
@@ -69,7 +67,6 @@ static char *descrip =
 "               SUCCESS | FAILED\n"
 ;
 
-LOCAL_USER_DECL;
 
 static struct ast_config *say_cfg;
 /* save the say' api calls.
@@ -381,7 +378,7 @@ static struct ast_cli_entry myclis[] = {
 static int playback_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *tmp;
 	int option_skip=0;
 	int option_say=0;
@@ -400,7 +397,7 @@ static int playback_exec(struct ast_channel *chan, void *data)
 
 	tmp = ast_strdupa(data);
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	AST_STANDARD_APP_ARGS(args, tmp);
 
 	if (args.options) {
@@ -446,11 +443,11 @@ static int playback_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", mres ? "FAILED" : "SUCCESS");
 	}
 done:
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	if (say_cfg) {
 		ast_config_destroy(say_cfg);
@@ -464,13 +461,13 @@ static int reload(void *mod)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	if (say_cfg)
 		ast_config_destroy(say_cfg);
@@ -478,21 +475,15 @@ static int unload_module(void *mod)
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
-	reload(mod);
+	reload();
         ast_cli_register_multiple(myclis, sizeof(myclis)/sizeof(struct ast_cli_entry));
 	return ast_register_application(app, playback_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1,reload,NULL,NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Sound File Playback Application",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

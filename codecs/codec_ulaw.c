@@ -163,44 +163,39 @@ static void parse_config(void)
 	ast_config_destroy(cfg);
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	parse_config();
+
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
+
 	res = ast_unregister_translator(&lintoulaw);
 	res |= ast_unregister_translator(&ulawtolin);
+
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
+
 	parse_config();
-	res = ast_register_translator(&ulawtolin, mod);
+	res = ast_register_translator(&ulawtolin);
 	if (!res)
-		res = ast_register_translator(&lintoulaw, mod);
+		res = ast_register_translator(&lintoulaw);
 	else
 		ast_unregister_translator(&ulawtolin);
+
 	return res;
 }
 
-/*
- * Return a description of this module.
- */
-
-static const char *description(void)
-{
-	return "Mu-law Coder/Decoder";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "mu-Law Coder/Decoder",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

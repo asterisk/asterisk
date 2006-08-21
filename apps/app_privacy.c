@@ -49,8 +49,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define PRIV_CONFIG "privacy.conf"
 
-static char *tdesc = "Require phone number to be entered, if no CallerID sent";
-
 static char *app = "PrivacyManager";
 
 static char *synopsis = "Require phone number to be entered, if no CallerID sent";
@@ -76,7 +74,6 @@ static char *descrip =
   "          SUCCESS | FAILED \n"
 ;
 
-LOCAL_USER_DECL;
 
 static int privacy_exec (struct ast_channel *chan, void *data)
 {
@@ -87,7 +84,7 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 	int x = 0;
 	char *s;
 	char phone[30];
-	struct localuser *u;
+	struct ast_module_user *u;
 	struct ast_config *cfg = NULL;
 	char *parse = NULL;
 	int priority_jump = 0;
@@ -97,7 +94,8 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 		AST_APP_ARG(options);
 	);
 
-	LOCAL_USER_ADD (u);
+	u = ast_module_user_add(chan);
+
 	if (!ast_strlen_zero(chan->cid.cid_num)) {
 		if (option_verbose > 2)
 			ast_verbose (VERBOSE_PREFIX_3 "CallerID Present: Skipping\n");
@@ -106,13 +104,12 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 		if (chan->_state != AST_STATE_UP) {
 			res = ast_answer(chan);
 			if (res) {
-				LOCAL_USER_REMOVE(u);
+				ast_module_user_remove(u);
 				return -1;
 			}
 		}
 
-		if (!ast_strlen_zero((char *)data))
-		{
+		if (!ast_strlen_zero(data)) {
 			parse = ast_strdupa(data);
 			
 			AST_STANDARD_APP_ARGS(args, parse);
@@ -211,34 +208,25 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 			ast_config_destroy(cfg);
 	}
 
-  LOCAL_USER_REMOVE (u);
-  return 0;
+	ast_module_user_remove(u);
+
+	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application (app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application (app, privacy_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Require phone number to be entered, if no CallerID sent");

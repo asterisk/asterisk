@@ -43,48 +43,37 @@ static char *nocdr_descrip =
 static char *nocdr_app = "NoCDR";
 static char *nocdr_synopsis = "Tell Asterisk to not maintain a CDR for the current call";
 
-LOCAL_USER_DECL;
 
 static int nocdr_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (chan->cdr) {
 		ast_cdr_free(chan->cdr);
 		chan->cdr = NULL;
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(nocdr_app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(nocdr_app, nocdr_exec, nocdr_synopsis, nocdr_descrip);
 }
 
-static const char *description(void)
-{
-	return "Tell Asterisk to not maintain a CDR for the current call";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Tell Asterisk to not maintain a CDR for the current call");

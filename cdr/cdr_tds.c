@@ -88,7 +88,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define DATE_FORMAT "%Y/%m/%d %T"
 
-static char *desc = "MSSQL CDR Backend";
 static char *name = "mssql";
 static char *config = "cdr_tds.conf";
 
@@ -297,11 +296,6 @@ static void get_date(char *dateField, struct timeval tv)
 	}
 }
 
-static const char *description(void)
-{
-	return desc;
-}
-
 static int mssql_disconnect(void)
 {
 	if (tds) {
@@ -494,7 +488,7 @@ static int tds_load_module(void)
 	mssql_connect();
 
 	/* Register MSSQL CDR handler */
-	res = ast_cdr_register(name, desc, tds_log);
+	res = ast_cdr_register(name, ast_module_info->description, tds_log);
 	if (res)
 	{
 		ast_log(LOG_ERROR, "Unable to register MSSQL CDR handling\n");
@@ -503,25 +497,24 @@ static int tds_load_module(void)
 	return res;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	tds_unload_module();
 	return tds_load_module();
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return tds_load_module();
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return tds_unload_module();
 }
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "MSSQL CDR Backend",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

@@ -48,12 +48,11 @@ static char *descrip =
 "ChannelRedirect(channel|[[context|]extension|]priority):\n"
 "  Sends the specified channel to the specified extension priority\n";
 
-LOCAL_USER_DECL;
 
 static int asyncgoto_exec(struct ast_channel *chan, void *data)
 {
 	int res = -1;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *info, *context, *exten, *priority;
 	int prio = 1;
 	struct ast_channel *chan2 = NULL;
@@ -68,7 +67,7 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	info = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, info);
@@ -117,36 +116,25 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
  chanquit:
 	ast_mutex_unlock(&chan2->lock);
  quit:
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
-	__mod_desc = mod;
 	return ast_register_application(app, asyncgoto_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Channel Redirect";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Channel Redirect");

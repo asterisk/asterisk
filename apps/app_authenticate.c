@@ -95,7 +95,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	int retries;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char passwd[256];
 	char *prompt;
 	int maxdigits;
@@ -113,12 +113,12 @@ static int auth_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (chan->_state != AST_STATE_UP) {
 		res = ast_answer(chan);
 		if (res) {
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return -1;
 		}
 	}
@@ -226,15 +226,15 @@ static int auth_exec(struct ast_channel *chan, void *data)
 			res = -1;
 		}
 	}
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	res = ast_unregister_application(app);
 
@@ -242,19 +242,9 @@ static int unload_module(void *mod)
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, auth_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Authentication Application";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Authentication Application");

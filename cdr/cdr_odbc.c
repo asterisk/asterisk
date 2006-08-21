@@ -64,7 +64,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 
-static char *desc = "ODBC CDR Backend";
 static char *name = "ODBC";
 static char *config = "cdr_odbc.conf";
 static char *dsn = NULL, *username = NULL, *password = NULL, *table = NULL;
@@ -205,11 +204,6 @@ static int odbc_log(struct ast_cdr *cdr)
 	SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
 	ast_mutex_unlock(&odbc_lock);
 	return 0;
-}
-
-static const char *description(void)
-{
-	return desc;
 }
 
 static int odbc_unload_module(void)
@@ -365,7 +359,7 @@ static int odbc_load_module(void)
 			ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
 		}
 	}
-	res = ast_cdr_register(name, desc, odbc_log);
+	res = ast_cdr_register(name, ast_module_info->description, odbc_log);
 	if (res) {
 		ast_log(LOG_ERROR, "cdr_odbc: Unable to register ODBC CDR handling\n");
 	}
@@ -452,25 +446,24 @@ static int odbc_init(void)
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return odbc_load_module();
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return odbc_unload_module();
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	odbc_unload_module();
 	return odbc_load_module();
 }
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ODBC CDR Backend",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

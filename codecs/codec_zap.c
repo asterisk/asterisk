@@ -222,7 +222,7 @@ static struct ast_frame *fakesrc_sample(void)
 	return &f;
 }
 
-static int register_translator(int dst, int src, void *mod)
+static int register_translator(int dst, int src)
 {
 	struct translator *zt;
 	int res;
@@ -242,7 +242,7 @@ static int register_translator(int dst, int src, void *mod)
 	zt->t.useplc = global_useplc;
 	zt->t.buf_size = BUFFER_SAMPLES * 2;
 	zt->t.desc_size = sizeof(struct pvt);
-	if ((res = ast_register_translator(&zt->t, mod))) {
+	if ((res = ast_register_translator(&zt->t))) {
 		free(zt);
 		return -1;
 	}
@@ -310,7 +310,7 @@ static void parse_config(void)
 	ast_config_destroy(cfg);
 }
 
-static void build_translators(void *mod, struct format_map *map, unsigned int dstfmts, unsigned int srcfmts)
+static void build_translators(struct format_map *map, unsigned int dstfmts, unsigned int srcfmts)
 {
 	unsigned int src, dst;
 
@@ -325,13 +325,13 @@ static void build_translators(void *mod, struct format_map *map, unsigned int ds
 			if (global_format_map.map[dst][src])
 				continue;
 
-			if (!register_translator(dst, src, mod))
+			if (!register_translator(dst, src))
 				map->map[dst][src] = 1;
 		}
 	}
 }
 
-static int find_transcoders(void *mod)
+static int find_transcoders(void)
 {
 	struct zt_transcode_info info = { 0, };
 	struct format_map map = { { { 0 } } };
@@ -346,7 +346,7 @@ static int find_transcoders(void *mod)
 	for (info.tcnum = 0; !(res = ioctl(fd, ZT_TRANSCODE_OP, &info)); info.tcnum++) {
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Found transcoder '%s'.\n", info.name);
-		build_translators(mod, &map, info.dstfmts, info.srcfmts);
+		build_translators(&map, info.dstfmts, info.srcfmts);
 	}
 	close(fd);
 
@@ -363,12 +363,12 @@ static int find_transcoders(void *mod)
 	return 0;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	struct translator *cur;
 
 	parse_config();
-	find_transcoders(mod);
+	find_transcoders();
 
 	AST_LIST_LOCK(&translators);
 	AST_LIST_TRAVERSE(&translators, cur, entry)
@@ -378,29 +378,23 @@ static int reload(void *mod)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	unregister_translators();
 
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	parse_config();
-	find_transcoders(mod);
+	find_transcoders();
 
 	return 0;
 }
 
-static const char *description(void)
-{
-	return "Generic Zaptel Transcoder Codec Translator";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Generic Zaptel Transcoder Codec Translator",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

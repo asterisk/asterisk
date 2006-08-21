@@ -56,9 +56,6 @@ static char expr_output[2096];
 #define DEBUG_MACROS (1 << 2)
 #define DEBUG_CONTEXTS (1 << 3)
 
-static int aeldebug = 0;
-
-static char *dtext = "Asterisk Extension Language Compiler v2";
 static char *config = "extensions.ael";
 static char *registrar = "pbx_ael";
 
@@ -112,8 +109,6 @@ int is_empty(char *arg);
 static pval *current_db;
 static pval *current_context;
 static pval *current_extension;
-static const char *description(void);
-static const char *key(void);
 
 static const char *match_context;
 static const char *match_exten;
@@ -2576,6 +2571,7 @@ void check_pval(pval *item, struct argapp *apps, int in_globals)
 	}
 }
 
+#ifndef STANDALONE_AEL
 static void ael2_semantic_check(pval *item, int *arg_errs, int *arg_warns, int *arg_notes)
 {
 	
@@ -2606,6 +2602,7 @@ static void ael2_semantic_check(pval *item, int *arg_errs, int *arg_warns, int *
 	*arg_warns = warns;
 	*arg_notes = notes;
 }
+#endif
 
 /* =============================================================================================== */
 /* "CODE" GENERATOR -- Convert the AEL representation to asterisk extension language */
@@ -3735,6 +3732,9 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 	
 }
 
+#ifndef STANDALONE_AEL
+static int aeldebug = 0;
+
 /* interface stuff */
 
 static int pbx_load_module(void)
@@ -3820,40 +3820,31 @@ static struct ast_cli_entry  ael_cli[] = {
 	{ { "ael", "no", "debug", NULL }, ael2_no_debug, "Disable AEL debug messages"},
 };
 
-/*
- * Standard module functions ...
- */
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	ast_context_destroy(NULL, registrar);
 	ast_cli_unregister_multiple(ael_cli, sizeof(ael_cli)/ sizeof(ael_cli[0]));
 	return 0;
 }
 
-
-static int load_module(void *mod)
+static int load_module(void)
 {
 	ast_cli_register_multiple(ael_cli, sizeof(ael_cli)/ sizeof(ael_cli[0]));
 	return (pbx_load_module());
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	ast_context_destroy(NULL, registrar);
 	return pbx_load_module();
 }
 
-static const char *description(void)
-{
-	return dtext;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1 | NO_USECOUNT, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Asterisk Extension Language Compiler",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );
+#endif
 
 /* DESTROY the PVAL tree ============================================================================ */
 

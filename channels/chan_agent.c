@@ -189,14 +189,15 @@ struct agent_pvt {
 	char agent[AST_MAX_AGENT];     /*!< Agent ID */
 	char password[AST_MAX_AGENT];  /*!< Password for Agent login */
 	char name[AST_MAX_AGENT];
-	ast_mutex_t app_lock;          /*!< Synchronization between owning applications */
-	volatile pthread_t owning_app; /*!< Owning application thread id */
-	volatile int app_sleep_cond;   /*!< Sleep condition for the login app */
-	struct ast_channel *owner;     /*!< Agent */
-	char loginchan[80];            /*!< channel they logged in from */
-	char logincallerid[80];        /*!< Caller ID they had when they logged in */
-	struct ast_channel *chan;      /*!< Channel we use */
-	AST_LIST_ENTRY(agent_pvt) list;	/*!< Next Agent in the linked list. */
+	ast_mutex_t app_lock;          /**< Synchronization between owning applications */
+	volatile pthread_t owning_app; /**< Owning application thread id */
+	volatile int app_sleep_cond;   /**< Sleep condition for the login app */
+	struct ast_channel *owner;     /**< Agent */
+	char loginchan[80];            /**< channel they logged in from */
+	char logincallerid[80];        /**< Caller ID they had when they logged in */
+	struct ast_channel *chan;      /**< Channel we use */
+	struct ast_module_user *u;	/*! reference to keep our module in memory while in use */
+	AST_LIST_ENTRY(agent_pvt) list;	/**< Next Agent in the linked list. */
 };
 
 static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/*!< Holds the list of agents (loaded form agents.conf). */
@@ -727,8 +728,7 @@ static int agent_hangup(struct ast_channel *ast)
 	 * as in apps/app_chanisavail.c:chanavail_exec()
 	 */
 
-	ast_atomic_fetchadd_int(&__mod_desc->usecnt, -1);
-	/* XXX do we need ast_update_use_count(); */
+	ast_module_user_remove(p->u);
 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Hangup called for state %s\n", ast_state2str(ast->_state));
@@ -932,7 +932,10 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 	ast_setstate(tmp, state);
 	tmp->tech_pvt = p;
 	p->owner = tmp;
+	/* XXX: this needs fixing */
+#if 0
 	ast_atomic_fetchadd_int(&__mod_desc->usecnt, +1);
+#endif
 	ast_update_use_count();
 	tmp->priority = 1;
 	/* Wake up and wait for other applications (by definition the login app)
@@ -1707,7 +1710,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	int tries = 0;
 	int max_login_tries = maxlogintries;
 	struct agent_pvt *p;
-	struct localuser *u;
+	struct ast_module_user *u;
 	int login_state = 0;
 	char user[AST_MAX_AGENT] = "";
 	char pass[AST_MAX_AGENT];
@@ -1728,7 +1731,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	char *filename = "agent-loginok";
 	char tmpchan[AST_MAX_BUF] = "";
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	parse = ast_strdupa(data);
 
@@ -2088,7 +2091,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 
 	/* AgentLogin() exit */
 	if (!callbackmode) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	} else { /* AgentCallbackLogin() exit*/
 		/* Set variables */
@@ -2103,7 +2106,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 			pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "fail");
 		}
 		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 1, chan->cid.cid_num)) {
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return 0;
 		}
 		/* Do we need to play agent-goodbye now that we will be hanging up? */
@@ -2118,7 +2121,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 		}
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	
 	/* We should never get here if next priority exists when in callbackmode */
  	return -1;
@@ -2525,9 +2528,8 @@ struct ast_custom_function agent_function = {
  *
  * \returns int Always 0.
  */
-static int load_module(void *mod)
+static int load_module(void)
 {
-	__mod_desc = mod;
 	/* Make sure we can register our agent channel type */
 	if (ast_channel_register(&agent_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Agent'\n");
@@ -2558,7 +2560,7 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	read_agent_config();
 	if (persistent_agents)
@@ -2566,7 +2568,7 @@ static int reload(void *mod)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	struct agent_pvt *p;
 	/* First, take us out of the channel loop */
@@ -2598,14 +2600,8 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-static const char *description(void)
-{
-	return "Agent Proxy Channel";
-}
-
-STD_MOD(MOD_0, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Agent Proxy Channel",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

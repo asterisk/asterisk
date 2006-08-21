@@ -41,8 +41,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/indications.h"
 
-static char *tdesc = "Morse code";
-
 static char *app_morsecode = "Morsecode";
 
 static char *morsecode_synopsis = "Plays morse code";
@@ -54,7 +52,6 @@ static char *morsecode_descrip =
 "(defaults to 80).  Additionally, if MORSETONE is set, it will use that tone\n"
 "(in Hz).  The tone default is 800.\n";
 
-LOCAL_USER_DECL;
 
 static char *morsecode[] = {
 	"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", /*  0-15 */
@@ -114,13 +111,13 @@ static int morsecode_exec(struct ast_channel *chan, void *data)
 	int res=0, ditlen, tone;
 	char *digit;
 	const char *ditlenc, *tonec;
-	struct localuser *u;
+	struct ast_module_user *u;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: Morsecode(<string>) - no argument found\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -158,34 +155,24 @@ static int morsecode_exec(struct ast_channel *chan, void *data)
 		playtone(chan, 0, 2 * ditlen);
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app_morsecode);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app_morsecode, morsecode_exec, morsecode_synopsis, morsecode_descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Morse code");

@@ -23,7 +23,6 @@
  * \author Mark Spencer <markster@digium.com> 
  */
 
-#define MOD_LOADER	/* not really a module */
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -100,7 +99,6 @@ static void *newpvt(struct ast_translator *t)
 	int len;
 	int useplc = t->plc_samples > 0 && t->useplc;	/* cache, because it can change on the fly */
 	char *ofs;
-	struct module_symbols *ms = t->module;
 
 	/*
 	 * compute the required size adding private descriptor,
@@ -131,21 +129,18 @@ static void *newpvt(struct ast_translator *t)
 		free(pvt);
 		return NULL;
 	}
-	ast_atomic_fetchadd_int(&ms->usecnt, +1);
-	ast_update_use_count();
+	ast_module_ref(t->module);
 	return pvt;
 }
 
 static void destroy(struct ast_trans_pvt *pvt)
 {
 	struct ast_translator *t = pvt->t;
-	struct module_symbols *ms = t->module;
 
 	if (t->destroy)
 		t->destroy(pvt);
 	free(pvt);
-	ast_atomic_fetchadd_int(&ms->usecnt, -1);
-	ast_update_use_count();
+	ast_module_unref(t->module);
 }
 
 /*! \brief framein wrapper, deals with plc and bound checks.  */
@@ -561,19 +556,21 @@ static struct ast_cli_entry show_trans =
 { { "show", "translation", NULL }, show_translation, "Display translation matrix", show_trans_usage };
 
 /*! \brief register codec translator */
-int ast_register_translator(struct ast_translator *t, void *module)
+int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 {
 	static int added_cli = 0;
 
-	if (module == NULL) {
+	if (!mod) {
 		ast_log(LOG_WARNING, "Missing module pointer, you need to supply one\n");
 		return -1;
 	}
-	t->module = module;
-	if (t->buf_size == 0) {
+
+	if (!t->buf_size) {
 		ast_log(LOG_WARNING, "empty buf size, you need to supply one\n");
 		return -1;
 	}
+
+	t->module = mod;
 	if (t->plc_samples) {
 		if (t->buffer_samples < t->plc_samples) {
 			ast_log(LOG_WARNING, "plc_samples %d buffer_samples %d\n",

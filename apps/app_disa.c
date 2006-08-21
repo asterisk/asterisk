@@ -95,7 +95,6 @@ static char *descrip =
 	"exists in the context, it will be used. Also, if you set the 5th argument\n"
 	"to 'NOANSWER', the DISA application will not answer initially.\n";
 
-LOCAL_USER_DECL;
 
 static void play_dialtone(struct ast_channel *chan, char *mailbox)
 {
@@ -115,7 +114,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	int i,j,k,x,did_ignore,special_noanswer;
 	int firstdigittimeout = 20000;
 	int digittimeout = 10000;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *tmp, exten[AST_MAX_EXTENSION],acctcode[20]="";
 	char pwline[256];
 	char ourcidname[256],ourcidnum[256];
@@ -137,7 +136,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	
 	if (chan->pbx) {
 		firstdigittimeout = chan->pbx->rtimeout*1000;
@@ -146,12 +145,12 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	
 	if (ast_set_write_format(chan,AST_FORMAT_ULAW)) {
 		ast_log(LOG_WARNING, "Unable to set write format to Mu-law on %s\n", chan->name);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	if (ast_set_read_format(chan,AST_FORMAT_ULAW)) {
 		ast_log(LOG_WARNING, "Unable to set read format to Mu-law on %s\n", chan->name);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	
@@ -209,13 +208,13 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			
 		f = ast_read(chan);
 		if (f == NULL) {
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return -1;
 		}
 		if ((f->frametype == AST_FRAME_CONTROL) &&
 		    (f->subclass == AST_CONTROL_HANGUP)) {
 			ast_frfree(f);
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return -1;
 		}
 		if (f->frametype == AST_FRAME_VOICE) {
@@ -245,7 +244,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 						fp = fopen(args.passcode,"r");
 						if (!fp) {
 							ast_log(LOG_WARNING,"DISA password file %s not found on chan %s\n",args.passcode,chan->name);
-							LOCAL_USER_REMOVE(u);
+							ast_module_user_remove(u);
 							return -1;
 						}
 						pwline[0] = 0;
@@ -346,7 +345,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			if (special_noanswer) flags.flags = 0;
 			ast_cdr_reset(chan->cdr, &flags);
 			ast_explicit_goto(chan, args.context, exten, 1);
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return 0;
 		}
 	}
@@ -367,34 +366,24 @@ reorder:
 		ast_frfree(f);
 	}
 	ast_playtones_stop(chan);
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return -1;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, disa_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "DISA (Direct Inward System Access) Application";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "DISA (Direct Inward System Access) Application");

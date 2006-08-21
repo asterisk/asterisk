@@ -13,8 +13,8 @@
 
 .PHONY: dist-clean all uninstall
 
-ifneq ($(wildcard ../menuselect.makeopts),)
-  include ../menuselect.makeopts
+ifneq ($(wildcard $(ASTTOPDIR)/menuselect.makeopts),)
+  include $(ASTTOPDIR)/menuselect.makeopts
 endif
 
 PWD:=$(shell pwd)

@@ -44,8 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *synopsis = "Soft Hangup Application";
 
-static char *tdesc = "Hangs up the requested channel";
-
 static char *desc = "  SoftHangup(Technology/resource|options)\n"
 "Hangs up the requested channel.  If there are no channels to hangup,\n"
 "the application will report it.\n"
@@ -54,11 +52,10 @@ static char *desc = "  SoftHangup(Technology/resource|options)\n"
 
 static char *app = "SoftHangup";
 
-LOCAL_USER_DECL;
 
 static int softhangup_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	struct ast_channel *c=NULL;
 	char *options, *cut, *cdata, *match;
 	char name[AST_CHANNEL_NAME] = "";
@@ -69,7 +66,7 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	cdata = ast_strdupa(data);
 	match = strsep(&cdata, "|");
@@ -100,35 +97,25 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 		c = ast_channel_walk_locked(c);
 	}
 	
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, softhangup_exec, synopsis, desc);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Hangs up the requested channel");

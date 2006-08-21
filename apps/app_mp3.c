@@ -50,8 +50,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define LOCAL_MPG_123 "/usr/local/bin/mpg123"
 #define MPG_123 "/usr/bin/mpg123"
 
-static char *tdesc = "Silly MP3 Application";
-
 static char *app = "MP3Player";
 
 static char *synopsis = "Play an MP3 file or stream";
@@ -61,7 +59,6 @@ static char *descrip =
 "which typically would be a filename or a URL. User can exit by pressing\n"
 "any key on the dialpad, or by hanging up."; 
 
-LOCAL_USER_DECL;
 
 static int mp3play(char *filename, int fd)
 {
@@ -118,7 +115,7 @@ static int timed_read(int fd, void *data, int datalen, int timeout)
 static int mp3_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	int fds[2];
 	int ms = -1;
 	int pid = -1;
@@ -137,11 +134,11 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (pipe(fds)) {
 		ast_log(LOG_WARNING, "Unable to create pipe\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	
@@ -151,7 +148,7 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	
@@ -224,35 +221,25 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	if (!res && owriteformat)
 		ast_set_write_format(chan, owriteformat);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 	
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, mp3_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Silly MP3 Application");

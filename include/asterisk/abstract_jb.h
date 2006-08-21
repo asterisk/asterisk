@@ -40,7 +40,6 @@ extern "C" {
 struct ast_channel;
 struct ast_frame;
 
-
 /* Configuration flags */
 enum {
 	AST_JB_ENABLED = (1 << 0),

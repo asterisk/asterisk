@@ -171,27 +171,16 @@ static const struct ast_format h264_f = {
 	.read = h264_read,
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 	.desc_size = sizeof(struct h264_desc),
-	.module = &mod_data,	/* XXX */
 };
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_format_register(&h264_f);
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_format_unregister(h264_f.name);
 }	
 
-static const char *description(void)
-{
-	return "Raw h264 data";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Raw H.264 data");

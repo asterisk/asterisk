@@ -121,7 +121,6 @@ static int silencethreshold = 1000;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 AST_MUTEX_DEFINE_STATIC(alsalock);
 
-static const char desc[] = "ALSA Console Channel Driver";
 static const char tdesc[] = "ALSA Console Channel Driver";
 static const char config[] = "alsa.conf";
 
@@ -1070,7 +1069,7 @@ static struct ast_cli_entry myclis[] = {
 	{ { "autoanswer", NULL }, console_autoanswer, "Sets/displays autoanswer", autoanswer_usage, autoanswer_complete }
 };
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 	int x;
@@ -1140,7 +1139,7 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int x;
 	
@@ -1162,14 +1161,4 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static const char *description(void)
-{
-	return (char *) desc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "ALSA Console Channel Driver");

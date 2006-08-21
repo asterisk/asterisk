@@ -68,7 +68,6 @@ static char *descrip =
 "play it to the user, allowing any given interrupt keys to immediately terminate and return\n"
 "the value, or 'any' to allow any number back (useful in dialplan)\n";
 
-LOCAL_USER_DECL;
 
 static char *socket_receive_file_to_buff(int fd,int *size)
 {
@@ -275,7 +274,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 {
 	int usecache;
 	int res=0;
-	struct localuser *u;
+	struct ast_module_user *u;
  	struct sockaddr_in serv_addr;
 	struct hostent *serverhost;
 	struct ast_hostent ahp;
@@ -314,12 +313,12 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	cfg = ast_config_load(FESTIVAL_CONFIG);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "No such configuration file %s\n", FESTIVAL_CONFIG);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	if (!(host = ast_variable_retrieve(cfg, "general", "host"))) {
@@ -376,7 +375,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
     	if (fd < 0) {
 		ast_log(LOG_WARNING,"festival_client: can't get socket\n");
 		ast_config_destroy(cfg);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
         	return -1;
 	}
         memset(&serv_addr, 0, sizeof(serv_addr));
@@ -386,7 +385,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	        if (serverhost == (struct hostent *)0) {
         	    	ast_log(LOG_WARNING,"festival_client: gethostbyname failed\n");
 			ast_config_destroy(cfg);
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 	            	return -1;
         	}
 	        memmove(&serv_addr.sin_addr,serverhost->h_addr, serverhost->h_length);
@@ -397,7 +396,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	if (connect(fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) != 0) {
 		ast_log(LOG_WARNING,"festival_client: connect to server failed\n");
 		ast_config_destroy(cfg);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
         	return -1;
     	}
     	
@@ -489,7 +488,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
                                ast_log(LOG_WARNING,"Unable to read from cache/festival fd");
 			       close(fd);
 			       ast_config_destroy(cfg);
-			       LOCAL_USER_REMOVE(u);
+			       ast_module_user_remove(u);
                                return -1;
                        }
                        n += read_data;
@@ -516,36 +515,25 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	} while (strcmp(ack,"OK\n") != 0);
 	close(fd);
 	ast_config_destroy(cfg);
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, festival_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Simple Festival Interface";
-
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Simple Festival Interface");

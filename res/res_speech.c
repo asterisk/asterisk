@@ -348,13 +348,13 @@ int ast_speech_unregister(char *engine_name)
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	/* We can not be unloaded */
 	return -1;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res = 0;
 
@@ -364,14 +364,7 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return "Generic Speech Recognition API";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0 | NO_USECOUNT | NO_UNLOAD, NULL, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Generic Speech Recognition API",
+		.load = load_module,
+		.unload = unload_module,
+		);

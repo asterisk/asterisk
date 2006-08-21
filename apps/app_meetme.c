@@ -64,8 +64,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "enter.h"
 #include "leave.h"
 
-LOCAL_USER_DECL;
-
 #define CONFIG_FILE_NAME "meetme.conf"
 
 /*! each buffer is 20ms, so this is 640ms total */
@@ -291,8 +289,6 @@ static const char *descripslat =
 
 #define CONFIG_FILE_NAME "meetme.conf"
 #define CONFIG_FILE_NAME_SLA "sla.conf"
-
-LOCAL_USER_DECL;
 
 /*! \brief The MeetMe Conference object */
 struct ast_conference {
@@ -2099,7 +2095,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 /*! \brief The MeetmeCount application */
 static int count_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	int res = 0;
 	struct ast_conference *conf;
 	int count;
@@ -2115,10 +2111,10 @@ static int count_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	
 	if (!(localdata = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -2140,7 +2136,7 @@ static int count_exec(struct ast_channel *chan, void *data)
 			ast_answer(chan);
 		res = ast_say_number(chan, count, "", chan->language, (char *) NULL); /* Needs gender */
 	}
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
@@ -2149,7 +2145,7 @@ static int count_exec(struct ast_channel *chan, void *data)
 static int conf_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char confno[AST_MAX_EXTENSION] = "";
 	int allowretry = 0;
 	int retrycnt = 0;
@@ -2165,7 +2161,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(pin);
 	);
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (ast_strlen_zero(data)) {
 		allowretry = 1;
@@ -2403,7 +2399,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		}
 	} while (allowretry);
 	
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	
 	return res;
 }
@@ -2500,7 +2496,7 @@ static int sla_checkforhold(struct ast_conference *conf, int hangup)
 static int sla_exec(struct ast_channel *chan, void *data, int trunk)
 {
 	int res=-1;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char confno[AST_MAX_EXTENSION] = "";
 	struct ast_sla *sla;
 	struct ast_conference *cnf;
@@ -2526,8 +2522,7 @@ static int sla_exec(struct ast_channel *chan, void *data, int trunk)
 		return -1;
 	}
 	
-	LOCAL_USER_ADD(u);
-
+	u = ast_module_user_add(chan);
 
 	if (args.options)
 		ast_app_parse_options(sla_opts, &confflags, NULL, args.options);
@@ -2562,7 +2557,7 @@ static int sla_exec(struct ast_channel *chan, void *data, int trunk)
 		ast_log(LOG_WARNING, "SLA%c: SLA '%s' not found!\n", trunk ? 'T' : 'S', args.confno);
 	}
 	
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	
 	return res;
 }
@@ -2600,7 +2595,7 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 	char *params;
 	struct ast_conference *cnf;
 	struct ast_conf_user *user = NULL;
-	struct localuser *u;
+	struct ast_module_user *u;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(confno);
 		AST_APP_ARG(command);
@@ -2612,7 +2607,7 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	AST_LIST_LOCK(&confs);
 	
@@ -2622,7 +2617,7 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 	if (!args.command) {
 		ast_log(LOG_WARNING, "MeetmeAdmin requires a command!\n");
 		AST_LIST_UNLOCK(&confs);
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	AST_LIST_TRAVERSE(&confs, cnf, list) {
@@ -2632,8 +2627,8 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 
 	if (!cnf) {
 		ast_log(LOG_WARNING, "Conference number '%s' not found!\n", args.confno);
-		LOCAL_USER_REMOVE(u);
 		AST_LIST_UNLOCK(&confs);
+		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -2740,7 +2735,7 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 
 	AST_LIST_UNLOCK(&confs);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	
 	return 0;
 }
@@ -3051,11 +3046,11 @@ static void load_config(void)
 	load_config_sla();
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
-	int res;
+	int res = 0;
 	
-	res = ast_cli_unregister(&cli_show_confs);
+	res |= ast_cli_unregister(&cli_show_confs);
 	res |= ast_cli_unregister(&cli_sla_show);
 	res |= ast_cli_unregister(&cli_conf);
 	res |= ast_manager_unregister("MeetmeMute");
@@ -3066,14 +3061,14 @@ static int unload_module(void *mod)
 	res |= ast_unregister_application(appslas);
 	res |= ast_unregister_application(appslat);
 
+	ast_module_user_hangup_all();
 	ast_devstate_prov_del("Meetme");
 	ast_devstate_prov_del("SLA");
-	STANDARD_HANGUP_LOCALUSERS;
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
@@ -3095,22 +3090,16 @@ static int load_module(void *mod)
 	return res;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	load_config();
 
 	return 0;
 }
 
-static const char *description(void)
-{
-	return "MeetMe conference bridge";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "MeetMe conference bridge",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );
 

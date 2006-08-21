@@ -102,8 +102,6 @@ static char *descrip =
 
 static int agidebug = 0;
 
-struct module_symbols *me;
-
 #define TONE_BLOCK_SIZE 200
 
 /* Max time to connect to an AGI remote host */
@@ -1980,7 +1978,7 @@ static int handle_dumpagihtml(int fd, int argc, char *argv[])
 static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int dead)
 {
 	enum agi_result res;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *argv[MAX_ARGS];
 	char buf[2048]="";
 	char *tmp = (char *)buf;
@@ -2002,7 +2000,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 		argv[argc++] = stringp;
 	argv[argc] = NULL;
 
-	u = ast_localuser_add(me, chan);
+	u = ast_module_user_add(chan);
 #if 0
 	 /* Answer if need be */
         if (chan->_state != AST_STATE_UP) {
@@ -2027,7 +2025,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 			close(efd);
 		ast_unreplace_sigchld();
 	}
-	ast_localuser_remove(me, u);
+	ast_module_user_remove(u);
 
 	switch (res) {
 	case AGI_RESULT_SUCCESS:
@@ -2094,9 +2092,9 @@ static struct ast_cli_entry showagi =
 static struct ast_cli_entry dumpagihtml = 
 { { "dump", "agihtml", NULL }, handle_dumpagihtml, "Dumps a list of agi command in html format", dumpagihtml_help };
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
-	ast_hangup_localusers(mod);
+	ast_module_user_hangup_all();
 	ast_cli_unregister(&showagi);
 	ast_cli_unregister(&dumpagihtml);
 	ast_cli_unregister(&cli_debug);
@@ -2106,9 +2104,8 @@ static int unload_module(void *mod)
 	return ast_unregister_application(app);
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
-	me = mod;
 	ast_cli_register(&showagi);
 	ast_cli_register(&dumpagihtml);
 	ast_cli_register(&cli_debug);
@@ -2118,14 +2115,4 @@ static int load_module(void *mod)
 	return ast_register_application(app, agi_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Asterisk Gateway Interface (AGI)";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Asterisk Gateway Interface (AGI)");

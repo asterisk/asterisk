@@ -321,11 +321,11 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 
 static int amd_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	isAnsweringMachine(chan, data);
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -385,33 +385,26 @@ static void load_config(void)
 	return;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 	return ast_unregister_application(app);
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
-	__mod_desc = mod;
 	load_config();
 	return ast_register_application(app, amd_exec, synopsis, descrip);
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	load_config();
 	return 0;
 }
 
-static const char *description(void)
-{
-	return "Answering Machine Detection Application";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Answering Machine Detection Application",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

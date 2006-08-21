@@ -43,10 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/app.h"
 #include "asterisk/speech.h"
 
-static char *tdesc = "Dialplan Speech Applications";
-
-LOCAL_USER_DECL;
-
 /* Descriptions for each application */
 static char *speechcreate_descrip =
 "SpeechCreate(engine name)\n"
@@ -312,18 +308,18 @@ static struct ast_custom_function speech_function = {
 /*! \brief SpeechCreate() Dialplan Application */
 static int speech_create(struct ast_channel *chan, void *data)
 {
-	struct localuser *u = NULL;
+	struct ast_module_user *u = NULL;
 	struct ast_speech *speech = NULL;
 	struct ast_datastore *datastore = NULL;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	/* Request a speech object */
 	speech = ast_speech_new(data, AST_FORMAT_SLINEAR);
 	if (speech == NULL) {
 		/* Not available */
 		pbx_builtin_setvar_helper(chan, "ERROR", "1");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -331,13 +327,13 @@ static int speech_create(struct ast_channel *chan, void *data)
 	if (datastore == NULL) {
 		ast_speech_destroy(speech);
 		pbx_builtin_setvar_helper(chan, "ERROR", "1");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return 0;
 	}
 	datastore->data = speech;
 	ast_channel_datastore_add(chan, datastore);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -346,23 +342,23 @@ static int speech_create(struct ast_channel *chan, void *data)
 static int speech_load(struct ast_channel *chan, void *data)
 {
 	int res = 0, argc = 0;
-	struct localuser *u = NULL;
+	struct ast_module_user *u = NULL;
 	struct ast_speech *speech = find_speech(chan);
 	char *argv[2], *args = NULL, *name = NULL, *path = NULL;
 
 	args = ast_strdupa(data);
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (speech == NULL) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
                 return -1;
         }
 
 	/* Parse out arguments */
 	argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
 	if (argc != 2) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 	name = argv[0];
@@ -371,7 +367,7 @@ static int speech_load(struct ast_channel *chan, void *data)
         /* Load the grammar locally on the object */
         res = ast_speech_grammar_load(speech, name, path);
 
-        LOCAL_USER_REMOVE(u);
+        ast_module_user_remove(u);
 
         return res;
 }
@@ -380,20 +376,20 @@ static int speech_load(struct ast_channel *chan, void *data)
 static int speech_unload(struct ast_channel *chan, void *data)
 {
         int res = 0;
-        struct localuser *u = NULL;
+        struct ast_module_user *u = NULL;
         struct ast_speech *speech = find_speech(chan);
 
-        LOCAL_USER_ADD(u);
+        u = ast_module_user_add(chan);
 
         if (speech == NULL) {
-                LOCAL_USER_REMOVE(u);
+                ast_module_user_remove(u);
                 return -1;
         }
 
         /* Unload the grammar */
         res = ast_speech_grammar_unload(speech, data);
 
-        LOCAL_USER_REMOVE(u);
+        ast_module_user_remove(u);
 
         return res;
 }
@@ -402,20 +398,20 @@ static int speech_unload(struct ast_channel *chan, void *data)
 static int speech_deactivate(struct ast_channel *chan, void *data)
 {
         int res = 0;
-        struct localuser *u = NULL;
+        struct ast_module_user *u = NULL;
         struct ast_speech *speech = find_speech(chan);
 
-        LOCAL_USER_ADD(u);
+        u = ast_module_user_add(chan);
 
         if (speech == NULL) {
-                LOCAL_USER_REMOVE(u);
+                ast_module_user_remove(u);
                 return -1;
         }
 
         /* Deactivate the grammar on the speech object */
         res = ast_speech_grammar_deactivate(speech, data);
 
-        LOCAL_USER_REMOVE(u);
+        ast_module_user_remove(u);
 
         return res;
 }
@@ -424,20 +420,20 @@ static int speech_deactivate(struct ast_channel *chan, void *data)
 static int speech_activate(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct localuser *u = NULL;
+	struct ast_module_user *u = NULL;
 	struct ast_speech *speech = find_speech(chan);
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (speech == NULL) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
 	/* Activate the grammar on the speech object */
 	res = ast_speech_grammar_activate(speech, data);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
@@ -446,19 +442,19 @@ static int speech_activate(struct ast_channel *chan, void *data)
 static int speech_start(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-        struct localuser *u = NULL;
+        struct ast_module_user *u = NULL;
 	struct ast_speech *speech = find_speech(chan);
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (speech == NULL) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
 	ast_speech_start(speech);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
@@ -467,13 +463,13 @@ static int speech_start(struct ast_channel *chan, void *data)
 static int speech_processing_sound(struct ast_channel *chan, void *data)
 {
         int res = 0;
-        struct localuser *u = NULL;
+        struct ast_module_user *u = NULL;
         struct ast_speech *speech = find_speech(chan);
 
-        LOCAL_USER_ADD(u);
+        u = ast_module_user_add(chan);
 
         if (speech == NULL) {
-                LOCAL_USER_REMOVE(u);
+                ast_module_user_remove(u);
                 return -1;
         }
 
@@ -484,7 +480,7 @@ static int speech_processing_sound(struct ast_channel *chan, void *data)
 
 	speech->processing_sound = strdup(data);
 
-        LOCAL_USER_REMOVE(u);
+        ast_module_user_remove(u);
 
         return res;
 }
@@ -517,7 +513,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 {
         unsigned int timeout = 0;
         int res = 0, done = 0, argc = 0, started = 0;
-        struct localuser *u = NULL;
+        struct ast_module_user *u = NULL;
         struct ast_speech *speech = find_speech(chan);
         struct ast_frame *f = NULL;
         int oldreadformat = AST_FORMAT_SLINEAR;
@@ -528,16 +524,16 @@ static int speech_background(struct ast_channel *chan, void *data)
 
         args = ast_strdupa(data);
 
-        LOCAL_USER_ADD(u);
+        u = ast_module_user_add(chan);
 
         if (speech == NULL) {
-                LOCAL_USER_REMOVE(u);
+                ast_module_user_remove(u);
                 return -1;
         }
 
 	/* If channel is not already answered, then answer it */
 	if (chan->_state != AST_STATE_UP && ast_answer(chan)) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -546,7 +542,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 
         /* Change read format to be signed linear */
         if (ast_set_read_format(chan, AST_FORMAT_SLINEAR)) {
-                LOCAL_USER_REMOVE(u);
+                ast_module_user_remove(u);
                 return -1;
         }
 
@@ -563,7 +559,7 @@ static int speech_background(struct ast_channel *chan, void *data)
         if (filename != NULL && ast_streamfile(chan, filename, chan->language)) {
                 /* An error occured while streaming */
                 ast_set_read_format(chan, oldreadformat);
-                LOCAL_USER_REMOVE(u);
+                ast_module_user_remove(u);
                 return -1;
         }
 
@@ -718,7 +714,7 @@ static int speech_background(struct ast_channel *chan, void *data)
                 ast_set_read_format(chan, oldreadformat);
         }
 
-        LOCAL_USER_REMOVE(u);
+        ast_module_user_remove(u);
 
         return 0;
 }
@@ -728,14 +724,14 @@ static int speech_background(struct ast_channel *chan, void *data)
 static int speech_destroy(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-        struct localuser *u = NULL;
+        struct ast_module_user *u = NULL;
 	struct ast_speech *speech = find_speech(chan);
 	struct ast_datastore *datastore = NULL;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (speech == NULL) {
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -747,12 +743,12 @@ static int speech_destroy(struct ast_channel *chan, void *data)
 		ast_channel_datastore_remove(chan, datastore);
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res = 0;
 
@@ -771,12 +767,12 @@ static int unload_module(void *mod)
 	res |= ast_custom_function_unregister(&speech_grammar_function);
 	res |= ast_custom_function_unregister(&speech_engine_function);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res = 0;
 
@@ -798,14 +794,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Dialplan Speech Applications");

@@ -57,7 +57,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* When you change the DATE_FORMAT, be sure to change the CHAR(19) below to something else */
 #define DATE_FORMAT "%Y-%m-%d %T"
 
-static char *desc = "SQLite CDR Backend";
 static char *name = "sqlite";
 static sqlite* db = NULL;
 
@@ -166,13 +165,7 @@ static int sqlite_log(struct ast_cdr *cdr)
 	return res;
 }
 
-
-static const char *description(void)
-{
-	return desc;
-}
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	if (db)
 		sqlite_close(db);
@@ -180,7 +173,7 @@ static int unload_module(void *mod)
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	char *zErr;
 	char fn[PATH_MAX];
@@ -208,7 +201,7 @@ static int load_module(void *mod)
 		/* TODO: here we should probably create an index */
 	}
 	
-	res = ast_cdr_register(name, desc, sqlite_log);
+	res = ast_cdr_register(name, ast_module_info->description, sqlite_log);
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to register SQLite CDR handling\n");
 		return -1;
@@ -221,14 +214,4 @@ err:
 	return -1;
 }
 
-static int reload(void *mod)
-{
-	return 0;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0, reload, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "SQLite CDR Backend");

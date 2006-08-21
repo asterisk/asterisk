@@ -77,11 +77,10 @@ static char *hasnewvoicemail_descrip =
 "	HASVMSTATUS		The result of the new voicemail check returned as a text string as follows\n"
 "		<# of messages in the folder, 0 for NONE>\n";
 
-LOCAL_USER_DECL;
 
 static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *input, *varname = NULL, *vmbox, *context = "default";
 	char *vmfolder;
 	int vmcount = 0;
@@ -104,7 +103,7 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	input = ast_strdupa(data);
 
@@ -146,21 +145,21 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 	snprintf(tmp, sizeof(tmp), "%d", vmcount);
 	pbx_builtin_setvar_helper(chan, "HASVMSTATUS", tmp);
 	
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
 
 static int acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *argsstr, char *buf, size_t len)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *context;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(vmbox);
 		AST_APP_ARG(folder);
 	);
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	buf[0] = '\0';
 
@@ -179,7 +178,7 @@ static int acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *argsstr, 
 
 	snprintf(buf, len, "%d", ast_app_messagecount(context, args.vmbox, args.folder));
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	
 	return 0;
 }
@@ -194,7 +193,7 @@ struct ast_custom_function acf_vmcount = {
 	.read = acf_vmcount_exec,
 };
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 	
@@ -202,12 +201,12 @@ static int unload_module(void *mod)
 	res |= ast_unregister_application(app_hasvoicemail);
 	res |= ast_unregister_application(app_hasnewvoicemail);
 	
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
@@ -218,14 +217,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return "Indicator for whether a voice mailbox has messages in a given folder.";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Indicator for whether a voice mailbox has messages in a given folder.");

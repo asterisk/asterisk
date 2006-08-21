@@ -303,7 +303,7 @@ static void ast_free(void *ptr)
 	_ast_malloc((len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
-void * __attribute__((malloc)) _ast_malloc(size_t len, const char *file, int lineno, const char *func),
+void * attribute_malloc _ast_malloc(size_t len, const char *file, int lineno, const char *func),
 {
 	void *p;
 
@@ -328,7 +328,7 @@ void * __attribute__((malloc)) _ast_malloc(size_t len, const char *file, int lin
 	_ast_calloc((num), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
-void * __attribute__((malloc)) _ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func),
+void * attribute_malloc _ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func),
 {
 	void *p;
 
@@ -353,7 +353,7 @@ void * __attribute__((malloc)) _ast_calloc(size_t num, size_t len, const char *f
 	_ast_realloc((p), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
-void * __attribute__((malloc)) _ast_realloc(void *p, size_t len, const char *file, int lineno, const char *func),
+void * attribute_malloc _ast_realloc(void *p, size_t len, const char *file, int lineno, const char *func),
 {
 	void *newp;
 
@@ -382,7 +382,7 @@ void * __attribute__((malloc)) _ast_realloc(void *p, size_t len, const char *fil
 	_ast_strdup((str), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
-char * __attribute__((malloc)) _ast_strdup(const char *str, const char *file, int lineno, const char *func),
+char * attribute_malloc _ast_strdup(const char *str, const char *file, int lineno, const char *func),
 {
 	char *newstr = NULL;
 
@@ -413,7 +413,7 @@ char * __attribute__((malloc)) _ast_strdup(const char *str, const char *file, in
 	_ast_strndup((str), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
-char * __attribute__((malloc)) _ast_strndup(const char *str, size_t len, const char *file, int lineno, const char *func),
+char * attribute_malloc _ast_strndup(const char *str, size_t len, const char *file, int lineno, const char *func),
 {
 	char *newstr = NULL;
 

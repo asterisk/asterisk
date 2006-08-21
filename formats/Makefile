@@ -9,7 +9,7 @@
 # the GNU General Public License
 #
 
-ifneq ($(wildcard ../menuselect.makeopts),)
+ifneq ($(wildcard $(ASTTOPDIR)/menuselect.makeopts),)
   include ../menuselect.makeopts
   include ../menuselect.makedeps
 endif
@@ -17,7 +17,12 @@ endif
 C_MODS:=$(filter-out $(MENUSELECT_FORMATS),$(patsubst %.c,%,$(wildcard format_*.c)))
 CC_MODS:=$(filter-out $(MENUSELECT_FORMATS),$(patsubst %.cc,%,$(wildcard format_*.cc)))
 
-SELECTED_MODS:=$(C_MODS) $(CC_MODS)
+LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
+
+ifneq ($(findstring formats,$(MENUSELECT_EMBED)),)
+  EMBEDDED_MODS:=$(LOADABLE_MODS)
+  LOADABLE_MODS:=
+endif
 
 all: _all
 

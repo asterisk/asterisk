@@ -10212,7 +10212,7 @@ static int __unload_module(void)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 #ifdef HAVE_PRI		
 	int y;
@@ -11064,7 +11064,7 @@ static int setup_zap(int reload)
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
@@ -11210,7 +11210,7 @@ static int zt_sendtext(struct ast_channel *c, const char *text)
 }
 
 
-static int reload(void *mod)
+static int reload(void)
 {
 	int res = 0;
 
@@ -11222,20 +11222,14 @@ static int reload(void *mod)
 	return 0;
 }
 
-static const char *description(void)
-{
-	return "Zapata Telephony"
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Zapata Telephony"
 #ifdef ZAPATA_PRI
                " w/PRI"
 #endif
-	;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, reload, NULL, NULL);
+		,
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );
 
 

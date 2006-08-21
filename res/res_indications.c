@@ -363,7 +363,7 @@ static struct ast_cli_entry show_indications_cli =
 /*
  * Standard module functions ...
  */
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	/* remove the registed indications... */
 	ast_unregister_indication_country(NULL);
@@ -378,7 +378,7 @@ static int unload_module(void *mod)
 }
 
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	if (ind_load_module())
 		return -1;
@@ -392,7 +392,7 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	/* remove the registed indications... */
 	ast_unregister_indication_country(NULL);
@@ -400,14 +400,8 @@ static int reload(void *mod)
 	return ind_load_module();
 }
 
-static const char *description(void)
-{
-	return "Indications Configuration";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0 | NO_USECOUNT, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Indications Resource",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

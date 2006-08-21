@@ -42,8 +42,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/module.h"
 
-static char *tdesc = "Stores output of file into a variable";
-
 static char *app_readfile = "ReadFile";
 
 static char *readfile_synopsis = "ReadFile(varname=file,length)";
@@ -54,12 +52,11 @@ static char *readfile_descrip =
 "  File - The name of the file to read.\n"
 "  Length - Maximum number of characters to capture.\n";
 
-LOCAL_USER_DECL;
 
 static int readfile_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *s, *varname=NULL, *file=NULL, *length=NULL, *returnvar=NULL;
 	int len=0;
 
@@ -68,7 +65,7 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	s = ast_strdupa(data);
 
@@ -78,7 +75,7 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 
 	if (!varname || !file) {
 		ast_log(LOG_ERROR, "No file or variable specified!\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -99,35 +96,25 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, varname, returnvar);
 		free(returnvar);
 	}
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app_readfile);
 	
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app_readfile, readfile_exec, readfile_synopsis, readfile_descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Stores output of file into a variable");

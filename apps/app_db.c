@@ -64,14 +64,13 @@ static char *dt_app = "DBdeltree";
 static char *d_synopsis = "Delete a key from the database";
 static char *dt_synopsis = "Delete a family or keytree from the database";
 
-LOCAL_USER_DECL;
 
 static int deltree_exec(struct ast_channel *chan, void *data)
 {
 	char *argv, *family, *keytree;
-	struct localuser *u;
+	struct ast_module_user *u;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	argv = ast_strdupa(data);
 
@@ -80,7 +79,7 @@ static int deltree_exec(struct ast_channel *chan, void *data)
 		keytree = strsep(&argv, "\0");
 			if (!family || !keytree) {
 				ast_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
-				LOCAL_USER_REMOVE(u);
+				ast_module_user_remove(u);
 				return 0;
 			}
 		if (ast_strlen_zero(keytree))
@@ -102,7 +101,7 @@ static int deltree_exec(struct ast_channel *chan, void *data)
 			ast_verbose(VERBOSE_PREFIX_3 "DBdeltree: Error deleting key from database.\n");
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -110,10 +109,10 @@ static int deltree_exec(struct ast_channel *chan, void *data)
 static int del_exec(struct ast_channel *chan, void *data)
 {
 	char *argv, *family, *key;
-	struct localuser *u;
+	struct ast_module_user *u;
 	static int deprecation_warning = 0;
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (!deprecation_warning) {
 		deprecation_warning = 1;
@@ -127,7 +126,7 @@ static int del_exec(struct ast_channel *chan, void *data)
 		key = strsep(&argv, "\0");
 		if (!family || !key) {
 			ast_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return 0;
 		}
 		if (option_verbose > 2)
@@ -140,12 +139,12 @@ static int del_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_DEBUG, "Ignoring, no parameters\n");
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int retval;
 
@@ -155,25 +154,14 @@ static int unload_module(void *mod)
 	return retval;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int retval;
 
-	__mod_desc = mod;
 	retval = ast_register_application(d_app, del_exec, d_synopsis, d_descrip);
 	retval |= ast_register_application(dt_app, deltree_exec, dt_synopsis, dt_descrip);
 	
 	return retval;
 }
 
-static const char *description(void)
-{
-	return "Database Access Functions";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Database Access Functions");

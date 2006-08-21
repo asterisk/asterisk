@@ -58,8 +58,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/options.h"
 
-static char *tdesc = "Zap RAS Application";
-
 static char *app = "ZapRAS";
 
 static char *synopsis = "Executes Zaptel ISDN RAS application";
@@ -71,7 +69,6 @@ static char *descrip =
 "Your pppd must be patched to be zaptel aware. Arguments should be\n"
 "separated by | characters.\n";
 
-LOCAL_USER_DECL;
 
 #define PPP_MAX_ARGS	32
 #define PPP_EXEC	"/usr/sbin/pppd"
@@ -195,13 +192,13 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	char *args;
-	struct localuser *u;
+	struct ast_module_user *u;
 	ZT_PARAMS ztp;
 
 	if (!data) 
 		data = "";
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	args = ast_strdupa(data);
 	
@@ -229,35 +226,25 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 			run_ras(chan, args);
 		}
 	}
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod) 
+static int unload_module(void) 
 {
 	int res;
 
 	res = ast_unregister_application(app);
 	
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, zapras_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Zap RAS Application");
 

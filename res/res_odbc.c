@@ -513,9 +513,7 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 	return ODBC_SUCCESS;
 }
 
-LOCAL_USER_DECL;
-
-static int reload(void *mod)
+static int reload(void)
 {
 	static char *cfg = "res_odbc.conf";
 	struct ast_config *config;
@@ -658,13 +656,13 @@ static int reload(void *mod)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	/* Prohibit unloading */
 	return -1;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	load_odbc_config();
 	ast_cli_register(&odbc_show_struct);
@@ -672,14 +670,8 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static const char *description(void)
-{
-	return "ODBC Resource";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "ODBC Resource",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

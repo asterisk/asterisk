@@ -45,7 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/app.h"
 
-LOCAL_USER_DECL;
 
 static const char *app = "Transfer";
 
@@ -70,7 +69,7 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 {
 	int res;
 	int len;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *slash;
 	char *tech = NULL;
 	char *dest = NULL;
@@ -82,11 +81,11 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(options);
 	);
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (ast_strlen_zero((char *)data)) {
 		ast_log(LOG_WARNING, "Transfer requires an argument ([Tech/]destination[|options])\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
 		return 0;
 	} else
@@ -107,7 +106,7 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 		/* Allow execution only if the Tech/destination agrees with the type of the channel */
 		if (strncasecmp(chan->tech->type, tech, len)) {
 			pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
-			LOCAL_USER_REMOVE(u);
+			ast_module_user_remove(u);
 			return 0;
 		}
 	}
@@ -115,7 +114,7 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 	/* Check if the channel supports transfer before we try it */
 	if (!chan->tech->transfer) {
 		pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "UNSUPPORTED");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -133,35 +132,25 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 
 	pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", status);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;	
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, transfer_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Transfer";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Transfer");

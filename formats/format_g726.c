@@ -204,7 +204,6 @@ static const struct ast_format f[] = {
 		.read = g726_read,
 		.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 		.desc_size = sizeof(struct g726_desc),
-		.module = &mod_data, /* XXX */
 	},
 	{
 		.name = "g726-32",
@@ -219,7 +218,6 @@ static const struct ast_format f[] = {
 		.read = g726_read,
 		.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 		.desc_size = sizeof(struct g726_desc),
-		.module = &mod_data, /* XXX */
 	},
 	{
 		.name = "g726-24",
@@ -234,7 +232,6 @@ static const struct ast_format f[] = {
 		.read = g726_read,
 		.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 		.desc_size = sizeof(struct g726_desc),
-		.module = &mod_data, /* XXX */
 	},
 	{
 		.name = "g726-16",
@@ -249,15 +246,11 @@ static const struct ast_format f[] = {
 		.read = g726_read,
 		.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 		.desc_size = sizeof(struct g726_desc),
-		.module = &mod_data, /* XXX */
 	},
 	{	.format = 0 }	/* terminator */
 };
 
-/*
- * Module interface (load_module, unload_module, usecount, description, key)
- */
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int i;
 
@@ -270,7 +263,7 @@ static int load_module(void *mod)
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int i;
 
@@ -281,14 +274,4 @@ static int unload_module(void *mod)
 	return(0);
 }	
 
-static const char *description(void)
-{
-	return "Raw G.726 (16/24/32/40kbps) data";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Raw G.726 (16/24/32/40kbps) data");

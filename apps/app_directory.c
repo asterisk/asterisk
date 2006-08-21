@@ -87,7 +87,6 @@ static char *descrip =
 /* How many digits to read in */
 #define NUMDIGITS 3
 
-LOCAL_USER_DECL;
 
 #ifdef USE_ODBC_STORAGE
 static void retrieve_file(char *dir)
@@ -514,7 +513,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 static int directory_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	struct ast_config *cfg;
 	int last = 1;
 	int readext = 0;
@@ -531,7 +530,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	parse = ast_strdupa(data);
 
@@ -552,7 +551,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	cfg = realtime_directory(args.vmcontext);
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to read the configuration data!\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -583,20 +582,19 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		break;
 	}
 	ast_config_destroy(cfg);
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 	res = ast_unregister_application(app);
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
-	__mod_desc = mod;
 #ifdef USE_ODBC_STORAGE
 	struct ast_config *cfg = ast_config_load(VOICEMAIL_CONFIG);
 	char *tmp;
@@ -619,14 +617,4 @@ static int load_module(void *mod)
 	return ast_register_application(app, directory_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Extension Directory";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Extension Directory");

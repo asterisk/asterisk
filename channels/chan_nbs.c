@@ -54,15 +54,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/utils.h"
 
-static const char desc[] = "Network Broadcast Sound Support";
 static const char tdesc[] = "Network Broadcast Sound Driver";
-
-static int usecnt =0;
 
 /* Only linear is allowed */
 static int prefformat = AST_FORMAT_SLINEAR;
-
-AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 static char context[AST_MAX_EXTENSION] = "default";
 static char type[] = "NBS";
@@ -75,6 +70,7 @@ struct nbs_pvt {
 	char app[16];					/* Our app */
 	char stream[80];				/* Our stream */
 	struct ast_frame fr;			/* "null" frame */
+	struct ast_module_user *u;		/*! for holding a reference to this module */
 };
 
 static struct ast_channel *nbs_request(const char *type, int format, void *data, int *cause);
@@ -125,6 +121,7 @@ static void nbs_destroy(struct nbs_pvt *p)
 {
 	if (p->nbs)
 		nbs_delstream(p->nbs);
+	ast_module_user_remove(p->u);
 	free(p);
 }
 
@@ -134,6 +131,7 @@ static struct nbs_pvt *nbs_alloc(void *data)
 	int flags = 0;
 	char stream[256] = "";
 	char *opts;
+
 	strncpy(stream, data, sizeof(stream) - 1);
 	if ((opts = strchr(stream, ':'))) {
 		*opts = '\0';
@@ -252,10 +250,7 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state)
 		strncpy(tmp->exten, "s",  sizeof(tmp->exten) - 1);
 		ast_string_field_set(tmp, language, "");
 		i->owner = tmp;
-		ast_mutex_lock(&usecnt_lock);
-		usecnt++;
-		ast_mutex_unlock(&usecnt_lock);
-		ast_update_use_count();
+		i->u = ast_module_user_add(tmp);
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -289,37 +284,21 @@ static struct ast_channel *nbs_request(const char *type, int format, void *data,
 	return tmp;
 }
 
-static int __unload_module(void)
+static int unload_module(void)
 {
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(&nbs_tech);
 	return 0;
 }
 
-static int unload_module(void *mod)
-{
-	return __unload_module();
-}
-
-static int load_module(void *mod)
+static int load_module(void)
 {
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&nbs_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-		__unload_module();
 		return -1;
 	}
 	return 0;
 }
 
-static const char *description(void)
-{
-	return (char *) desc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Network Broadcast Sound Support");

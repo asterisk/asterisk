@@ -27,6 +27,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "asterisk/module.h"
@@ -72,26 +73,14 @@ static struct ast_custom_function moh_function = {
 	.write = moh_write,
 };
 
-static char *tdesc = "Music-on-hold dialplan function";
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_custom_function_unregister(&moh_function);
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_custom_function_register(&moh_function);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Music-on-hold dialplan function");

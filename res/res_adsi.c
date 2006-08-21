@@ -1105,32 +1105,26 @@ static void adsi_load(void)
 	}
 }
 
-static int reload(void *mod)
+static int reload(void)
 {
 	adsi_load();
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	adsi_load();
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	/* Can't unload this once we're loaded */
 	return -1;
 }
 
-static const char *description(void)
-{
-	return "ADSI Resource";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_0 | NO_USECOUNT | NO_UNLOAD, reload, NULL, NULL);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "ADSI Resource",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );

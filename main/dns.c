@@ -177,13 +177,8 @@ static int dns_parse_answer(void *context,
 	return 0;
 }
 
-#if defined(res_ninit)
-#define HAS_RES_NINIT
-#else
+#if !HAVE_RES_NINIT
 AST_MUTEX_DEFINE_STATIC(res_lock);
-#if 0
-#warning "Warning, res_ninit is missing...  Could have reentrancy issues"
-#endif
 #endif
 
 /*! \brief Lookup record in DNS 
@@ -194,16 +189,13 @@ int ast_search_dns(void *context,
 	   const char *dname, int class, int type,
 	   int (*callback)(void *context, unsigned char *answer, int len, unsigned char *fullanswer))
 {
-#ifdef HAS_RES_NINIT
+#if HAVE_RES_NINIT
 	struct __res_state dnsstate;
 #endif
 	unsigned char answer[MAX_SIZE];
 	int res, ret = -1;
 
-#ifdef HAS_RES_NINIT
-#ifdef MAKE_VALGRIND_HAPPY
-	memset(&dnsstate, 0, sizeof(dnsstate));
-#endif	
+#if HAVE_RES_NINIT
 	res_ninit(&dnsstate);
 	res = res_nsearch(&dnsstate, dname, class, type, answer, sizeof(answer));
 #else
@@ -223,7 +215,7 @@ int ast_search_dns(void *context,
 		else
 			ret = 1;
 	}
-#ifdef HAS_RES_NINIT
+#if HAVE_RES_NINIT
 	res_nclose(&dnsstate);
 #else
 #ifndef __APPLE__
@@ -231,5 +223,6 @@ int ast_search_dns(void *context,
 #endif
 	ast_mutex_unlock(&res_lock);
 #endif
+
 	return ret;
 }

@@ -25,8 +25,6 @@
 
 #include "asterisk/channel.h"
 
-struct ast_channel;
-
 enum AST_MONITORING_STATE {
 	AST_MONITOR_RUNNING,
 	AST_MONITOR_PAUSED

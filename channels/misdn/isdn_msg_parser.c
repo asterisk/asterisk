@@ -20,7 +20,8 @@
 #include "ie.c"
 
 
-void set_channel(struct misdn_bchannel *bc, int channel) {
+static void set_channel(struct misdn_bchannel *bc, int channel)
+{
 
 	cb_log(3,bc->port,"set_channel: bc->channel:%d channel:%d\n", bc->channel, channel);
 	
@@ -47,7 +48,7 @@ void set_channel(struct misdn_bchannel *bc, int channel) {
 	}
 }
 
-void parse_proceeding (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_proceeding (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	CALL_PROCEEDING_t *proceeding=(CALL_PROCEEDING_t*)((unsigned long)msg->data+ HEADER_LEN);
@@ -68,7 +69,7 @@ void parse_proceeding (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel
 	printf("Parsing PROCEEDING Msg\n"); 
 #endif
 }
-msg_t *build_proceeding (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
+static msg_t *build_proceeding (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	CALL_PROCEEDING_t *proceeding;
@@ -88,7 +89,7 @@ msg_t *build_proceeding (struct isdn_msg msgs[], struct misdn_bchannel *bc, int 
 	return msg; 
 }
 
-void parse_alerting (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_alerting (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN; 
 	ALERTING_t *alerting=(ALERTING_t*)((unsigned long)(msg->data+HEADER_LEN));
@@ -102,7 +103,8 @@ void parse_alerting (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *
 
  
 }
-msg_t *build_alerting (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_alerting (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	ALERTING_t *alerting;
@@ -121,7 +123,7 @@ msg_t *build_alerting (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt
 }
 
 
-void parse_progress (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_progress (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	PROGRESS_t *progress=(PROGRESS_t*)((unsigned long)(msg->data+HEADER_LEN)); 
@@ -134,7 +136,7 @@ void parse_progress (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *
 #endif
 }
 
-msg_t *build_progress (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+static msg_t *build_progress (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	PROGRESS_t *progress;
@@ -148,7 +150,7 @@ msg_t *build_progress (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt
 	return msg; 
 }
 
-void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 { 
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	SETUP_t *setup= (SETUP_t*)((unsigned long)msg->data+HEADER_LEN);
@@ -256,7 +258,7 @@ void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc,
 }
 
 #define ANY_CHANNEL 0xff /* IE attribut for 'any channel' */
-msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	SETUP_t *setup;
@@ -331,7 +333,7 @@ msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	return msg; 
 }
 
-void parse_connect (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_connect (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	CONNECT_t *connect=(CONNECT_t*)((unsigned long)(msg->data+HEADER_LEN));
@@ -353,7 +355,8 @@ void parse_connect (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *b
 	printf("Parsing CONNECT Msg\n"); 
 #endif
 }
-msg_t *build_connect (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_connect (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	CONNECT_t *connect;
@@ -380,7 +383,7 @@ msg_t *build_connect (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	return msg; 
 }
 
-void parse_setup_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_setup_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	SETUP_ACKNOWLEDGE_t *setup_acknowledge=(SETUP_ACKNOWLEDGE_t*)((unsigned long)(msg->data+HEADER_LEN));
@@ -400,7 +403,8 @@ void parse_setup_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_b
 
  
 }
-msg_t *build_setup_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_setup_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	SETUP_ACKNOWLEDGE_t *setup_acknowledge;
@@ -419,7 +423,7 @@ msg_t *build_setup_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *b
 	return msg; 
 }
 
-void parse_connect_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_connect_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing CONNECT_ACKNOWLEDGE Msg\n"); 
@@ -427,7 +431,8 @@ void parse_connect_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn
 
  
 }
-msg_t *build_connect_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_connect_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	CONNECT_ACKNOWLEDGE_t *connect_acknowledge;
@@ -443,7 +448,7 @@ msg_t *build_connect_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel 
 	return msg; 
 }
 
-void parse_user_information (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_user_information (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing USER_INFORMATION Msg\n"); 
@@ -451,7 +456,8 @@ void parse_user_information (struct isdn_msg msgs[], msg_t *msg, struct misdn_bc
 
  
 }
-msg_t *build_user_information (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_user_information (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	USER_INFORMATION_t *user_information;
@@ -465,7 +471,7 @@ msg_t *build_user_information (struct isdn_msg msgs[], struct misdn_bchannel *bc
 	return msg; 
 }
 
-void parse_suspend_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_suspend_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing SUSPEND_REJECT Msg\n"); 
@@ -473,7 +479,8 @@ void parse_suspend_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bcha
 
  
 }
-msg_t *build_suspend_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_suspend_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	SUSPEND_REJECT_t *suspend_reject;
@@ -487,7 +494,7 @@ msg_t *build_suspend_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, 
 	return msg; 
 }
 
-void parse_resume_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_resume_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing RESUME_REJECT Msg\n"); 
@@ -495,7 +502,8 @@ void parse_resume_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchan
 
  
 }
-msg_t *build_resume_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_resume_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RESUME_REJECT_t *resume_reject;
@@ -509,7 +517,7 @@ msg_t *build_resume_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, i
 	return msg; 
 }
 
-void parse_hold (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_hold (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing HOLD Msg\n"); 
@@ -517,7 +525,8 @@ void parse_hold (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, 
 
  
 }
-msg_t *build_hold (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_hold (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	HOLD_t *hold;
@@ -531,7 +540,7 @@ msg_t *build_hold (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	return msg; 
 }
 
-void parse_suspend (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_suspend (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing SUSPEND Msg\n"); 
@@ -539,7 +548,8 @@ void parse_suspend (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *b
 
  
 }
-msg_t *build_suspend (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_suspend (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	SUSPEND_t *suspend;
@@ -553,7 +563,7 @@ msg_t *build_suspend (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	return msg; 
 }
 
-void parse_resume (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_resume (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing RESUME Msg\n"); 
@@ -561,7 +571,8 @@ void parse_resume (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc
 
  
 }
-msg_t *build_resume (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_resume (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RESUME_t *resume;
@@ -575,7 +586,7 @@ msg_t *build_resume (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	return msg; 
 }
 
-void parse_hold_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_hold_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing HOLD_ACKNOWLEDGE Msg\n"); 
@@ -583,7 +594,8 @@ void parse_hold_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bc
 
  
 }
-msg_t *build_hold_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_hold_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	HOLD_ACKNOWLEDGE_t *hold_acknowledge;
@@ -597,7 +609,7 @@ msg_t *build_hold_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc
 	return msg; 
 }
 
-void parse_suspend_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_suspend_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing SUSPEND_ACKNOWLEDGE Msg\n"); 
@@ -605,7 +617,8 @@ void parse_suspend_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn
 
  
 }
-msg_t *build_suspend_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_suspend_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	SUSPEND_ACKNOWLEDGE_t *suspend_acknowledge;
@@ -619,7 +632,7 @@ msg_t *build_suspend_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel 
 	return msg; 
 }
 
-void parse_resume_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_resume_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing RESUME_ACKNOWLEDGE Msg\n"); 
@@ -627,7 +640,8 @@ void parse_resume_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_
 
  
 }
-msg_t *build_resume_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_resume_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RESUME_ACKNOWLEDGE_t *resume_acknowledge;
@@ -641,7 +655,7 @@ msg_t *build_resume_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *
 	return msg; 
 }
 
-void parse_hold_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_hold_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing HOLD_REJECT Msg\n"); 
@@ -649,7 +663,8 @@ void parse_hold_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchanne
 
  
 }
-msg_t *build_hold_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_hold_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	HOLD_REJECT_t *hold_reject;
@@ -663,7 +678,7 @@ msg_t *build_hold_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, int
 	return msg; 
 }
 
-void parse_retrieve (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_retrieve (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing RETRIEVE Msg\n"); 
@@ -671,7 +686,8 @@ void parse_retrieve (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *
 
  
 }
-msg_t *build_retrieve (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_retrieve (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RETRIEVE_t *retrieve;
@@ -685,7 +701,7 @@ msg_t *build_retrieve (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt
 	return msg; 
 }
 
-void parse_retrieve_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_retrieve_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing RETRIEVE_ACKNOWLEDGE Msg\n"); 
@@ -693,7 +709,8 @@ void parse_retrieve_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misd
 
  
 }
-msg_t *build_retrieve_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_retrieve_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RETRIEVE_ACKNOWLEDGE_t *retrieve_acknowledge;
@@ -708,7 +725,7 @@ msg_t *build_retrieve_acknowledge (struct isdn_msg msgs[], struct misdn_bchannel
 	return msg; 
 }
 
-void parse_retrieve_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_retrieve_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing RETRIEVE_REJECT Msg\n"); 
@@ -716,7 +733,8 @@ void parse_retrieve_reject (struct isdn_msg msgs[], msg_t *msg, struct misdn_bch
 
  
 }
-msg_t *build_retrieve_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_retrieve_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RETRIEVE_REJECT_t *retrieve_reject;
@@ -730,7 +748,7 @@ msg_t *build_retrieve_reject (struct isdn_msg msgs[], struct misdn_bchannel *bc,
 	return msg; 
 }
 
-void parse_disconnect (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_disconnect (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	DISCONNECT_t *disconnect=(DISCONNECT_t*)((unsigned long)(msg->data+HEADER_LEN));
@@ -745,7 +763,8 @@ void parse_disconnect (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel
 
  
 }
-msg_t *build_disconnect (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_disconnect (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	DISCONNECT_t *disconnect;
@@ -762,7 +781,7 @@ msg_t *build_disconnect (struct isdn_msg msgs[], struct misdn_bchannel *bc, int 
 	return msg; 
 }
 
-void parse_restart (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_restart (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RESTART_t *restart=(RESTART_t*)((unsigned long)(msg->data+HEADER_LEN));
@@ -774,8 +793,9 @@ void parse_restart (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *b
 #endif
   
 	{
-		int  exclusive, channel;
+		int  exclusive, channel = 0;
 		dec_ie_channel_id(restart->CHANNEL_ID, (Q931_info_t *)restart, &exclusive, &bc->restart_channel, nt,bc);
+		/* XXX: this is broken... channel is not used */
 		if (channel==0xff) /* any channel */
 			channel=-1;
 		cb_log(3, stack->port, "CC_RESTART Request on channel:%d on this port.\n");
@@ -783,7 +803,8 @@ void parse_restart (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *b
   
  
 }
-msg_t *build_restart (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_restart (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RESTART_t *restart;
@@ -797,7 +818,7 @@ msg_t *build_restart (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	return msg; 
 }
 
-void parse_release (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_release (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RELEASE_t *release=(RELEASE_t*)((unsigned long)(msg->data+HEADER_LEN));
@@ -810,7 +831,8 @@ void parse_release (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *b
 
  
 }
-msg_t *build_release (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+
+static msg_t *build_release (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RELEASE_t *release;
@@ -827,7 +849,7 @@ msg_t *build_release (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	return msg; 
 }
 
-void parse_release_complete (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_release_complete (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RELEASE_COMPLETE_t *release_complete=(RELEASE_COMPLETE_t*)((unsigned long)(msg->data+HEADER_LEN));
@@ -859,7 +881,7 @@ void parse_release_complete (struct isdn_msg msgs[], msg_t *msg, struct misdn_bc
 #endif
 }
 
-msg_t *build_release_complete (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+static msg_t *build_release_complete (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RELEASE_COMPLETE_t *release_complete;
@@ -875,7 +897,7 @@ msg_t *build_release_complete (struct isdn_msg msgs[], struct misdn_bchannel *bc
 	return msg; 
 }
 
-void parse_facility (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_facility (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt ? mISDNUSER_HEAD_SIZE : mISDN_HEADER_LEN;
 	FACILITY_t *facility = (FACILITY_t*)(msg->data+HEADER_LEN); 
@@ -902,7 +924,7 @@ void parse_facility (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *
 	}
 }
 
-msg_t *build_facility (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+static msg_t *build_facility (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int len,
 		HEADER_LEN = nt ? mISDNUSER_HEAD_SIZE : mISDN_HEADER_LEN;
@@ -938,14 +960,14 @@ msg_t *build_facility (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt
 	return msg; 
 }
 
-void parse_notify (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_notify (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing NOTIFY Msg\n"); 
 #endif
 }
 
-msg_t *build_notify (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+static msg_t *build_notify (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	NOTIFY_t *notify;
@@ -959,14 +981,14 @@ msg_t *build_notify (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	return msg; 
 }
 
-void parse_status_enquiry (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_status_enquiry (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing STATUS_ENQUIRY Msg\n"); 
 #endif
 }
 
-msg_t *build_status_enquiry (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+static msg_t *build_status_enquiry (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	STATUS_ENQUIRY_t *status_enquiry;
@@ -980,7 +1002,7 @@ msg_t *build_status_enquiry (struct isdn_msg msgs[], struct misdn_bchannel *bc, 
 	return msg; 
 }
 
-void parse_information (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_information (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	INFORMATION_t *information=(INFORMATION_t*)((unsigned long)(msg->data+HEADER_LEN));
@@ -998,7 +1020,7 @@ void parse_information (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchanne
 #endif
 }
 
-msg_t *build_information (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+static msg_t *build_information (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	INFORMATION_t *information;
@@ -1023,7 +1045,7 @@ msg_t *build_information (struct isdn_msg msgs[], struct misdn_bchannel *bc, int
 	return msg; 
 }
 
-void parse_status (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_status (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	STATUS_t *status=(STATUS_t*)((unsigned long)(msg->data+HEADER_LEN));
@@ -1037,7 +1059,7 @@ void parse_status (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc
 #endif
 }
 
-msg_t *build_status (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+static msg_t *build_status (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	STATUS_t *status;
@@ -1051,14 +1073,14 @@ msg_t *build_status (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	return msg; 
 }
 
-void parse_timeout (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
+static void parse_timeout (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 #if DEBUG 
 	printf("Parsing STATUS Msg\n"); 
 #endif 
 }
 
-msg_t *build_timeout (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
+static msg_t *build_timeout (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	STATUS_t *status;
@@ -1269,4 +1291,3 @@ msg_t * isdn_msg_build_event(struct isdn_msg msgs[], struct misdn_bchannel *bc, 
   
 	return  msgs[i].msg_builder(msgs, bc, nt);
 }
-

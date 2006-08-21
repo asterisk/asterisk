@@ -50,8 +50,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
  static char *synopsis = "Syntax: ENUMLOOKUP(number[|Method-type[|options[|record#[|zone-suffix]]]])\n";
 
-LOCAL_USER_DECL;
-
 static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 			 char *buf, size_t len)
 {
@@ -65,7 +63,7 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 	int res = 0;
 	char tech[80];
 	char dest[256] = "", tmp[2] = "", num[AST_MAX_EXTENSION] = "";
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *s, *p;
 
 	buf[0] = '\0';
@@ -82,7 +80,7 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	ast_copy_string(tech, args.tech ? args.tech : "sip", sizeof(tech));
 
@@ -110,7 +108,7 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 	else
 		ast_copy_string(buf, dest, len);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -137,7 +135,7 @@ static int function_txtcidname(struct ast_channel *chan, char *cmd,
 	char tech[80];
 	char txt[256] = "";
 	char dest[80];
-	struct localuser *u;
+	struct ast_module_user *u;
 
 	buf[0] = '\0';
 
@@ -147,7 +145,7 @@ static int function_txtcidname(struct ast_channel *chan, char *cmd,
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	res = ast_get_txt(chan, data, dest, sizeof(dest), tech, sizeof(tech), txt,
 			  sizeof(txt));
@@ -155,7 +153,7 @@ static int function_txtcidname(struct ast_channel *chan, char *cmd,
 	if (!ast_strlen_zero(txt))
 		ast_copy_string(buf, txt, len);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -171,21 +169,19 @@ static struct ast_custom_function txtcidname_function = {
 	.read = function_txtcidname,
 };
 
-static char *tdesc = "ENUM related dialplan functions";
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res = 0;
 
 	res |= ast_custom_function_unregister(&enum_function);
 	res |= ast_custom_function_unregister(&txtcidname_function);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res = 0;
 
@@ -195,15 +191,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "ENUM related dialplan functions");

@@ -56,7 +56,6 @@ static char *desc =
 	"displayed when the verbose level is currently set to that number\n"
 	"or greater. \n";
 
-LOCAL_USER_DECL;
 
 static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 {
@@ -137,13 +136,13 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 
 static int dumpchan_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	char vars[BUFSIZ * 4];
 	char info[1024];
 	int level = 0;
 	static char *line = "================================================================================";
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	if (!ast_strlen_zero(data)) 
 		level = atoi(data);
@@ -153,35 +152,25 @@ static int dumpchan_exec(struct ast_channel *chan, void *data)
 	if (option_verbose >= level)
 		ast_verbose("\nDumping Info For Channel: %s:\n%s\nInfo:\n%s\nVariables:\n%s%s\n", chan->name, line, info, vars, line);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	
 	return 0;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, dumpchan_exec, synopsis, desc);
 }
 
-static const char *description(void)
-{
-	return "Dump Info About The Calling Channel";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Dump Info About The Calling Channel");

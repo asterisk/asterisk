@@ -66,7 +66,6 @@ static const char *descrip =
 "  CPLAYBACKSTATUS -  This variable contains the status of the attempt as a text\n"
 "                     string, one of: SUCCESS | USERSTOPPED | ERROR\n";
 
-LOCAL_USER_DECL;
 
 static int is_on_phonepad(char key)
 {
@@ -77,7 +76,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0, priority_jump = 0;
 	int skipms = 0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	char *tmp;
 	int argc;
 	char *argv[8];
@@ -97,7 +96,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 	
 	tmp = ast_strdupa(data);
 	memset(argv, 0, sizeof(argv));
@@ -106,7 +105,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 
 	if (argc < 1) {
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
-		LOCAL_USER_REMOVE(u);
+		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -149,31 +148,21 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 			pbx_builtin_setvar_helper(chan, "CPLAYBACKSTATUS", "SUCCESS");
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 	res = ast_unregister_application(app);
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_register_application(app, controlplayback_exec, synopsis, descrip);
 }
 
-static const char *description(void)
-{
-	return "Control Playback Application";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Control Playback Application");

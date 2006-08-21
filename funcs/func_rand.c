@@ -39,19 +39,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
-LOCAL_USER_DECL;
-
 static int acf_rand_exec(struct ast_channel *chan, char *cmd,
 			 char *parse, char *buffer, size_t buflen)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	int min_int, response_int, max_int;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(min);
 			     AST_APP_ARG(max);
 	);
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -74,7 +72,7 @@ static int acf_rand_exec(struct ast_channel *chan, char *cmd,
 		response_int, min_int, max_int);
 	snprintf(buffer, buflen, "%d", response_int);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -91,30 +89,16 @@ static struct ast_custom_function acf_rand = {
 	.read = acf_rand_exec,
 };
 
-
-static char *tdesc = "Random number dialplan function";
-
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	ast_custom_function_unregister(&acf_rand);
 
 	return 0;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_custom_function_register(&acf_rand);
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Random number dialplan function");

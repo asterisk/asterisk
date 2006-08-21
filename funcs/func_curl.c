@@ -52,10 +52,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/utils.h"
 
-static char *tdesc = "Load external URL";
-
-LOCAL_USER_DECL;
-
 struct MemoryStruct {
 	char *memory;
 	size_t size;
@@ -113,7 +109,7 @@ static int curl_internal(struct MemoryStruct *chunk, char *url, char *post)
 
 static int acf_curl_exec(struct ast_channel *chan, char *cmd, char *info, char *buf, size_t len)
 {
-	struct localuser *u;
+	struct ast_module_user *u;
 	struct MemoryStruct chunk = { NULL, 0 };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(url);
@@ -127,7 +123,7 @@ static int acf_curl_exec(struct ast_channel *chan, char *cmd, char *info, char *
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	AST_STANDARD_APP_ARGS(args, info);	
 	
@@ -144,7 +140,7 @@ static int acf_curl_exec(struct ast_channel *chan, char *cmd, char *info, char *
 		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
 	}
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -159,18 +155,18 @@ struct ast_custom_function acf_curl = {
 	.read = acf_curl_exec,
 };
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
 	res = ast_custom_function_unregister(&acf_curl);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 	
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
@@ -179,15 +175,5 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD(MOD_1 | NO_USECOUNT, NULL, NULL, NULL);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Load external URL");
 

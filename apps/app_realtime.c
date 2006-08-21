@@ -49,7 +49,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define next_one(var) var = var->next
 #define crop_data(str) { *(str) = '\0' ; (str)++; }
 
-static char *tdesc = "Realtime Data Lookup/Rewrite";
 static char *app = "RealTime";
 static char *uapp = "RealTimeUpdate";
 static char *synopsis = "Realtime Data Lookup";
@@ -69,7 +68,6 @@ static char *udesc = "Use the RealTime config handler system to update a value\n
 "updated to <newval>.  REALTIMECOUNT will be set with the number of rows\n"
 "updated or -1 if an error occurs.\n";
 
-LOCAL_USER_DECL;
 
 static int cli_load_realtime(int fd, int argc, char **argv) 
 {
@@ -136,7 +134,7 @@ static struct ast_cli_entry cli_update_realtime_cmd = {
 static int realtime_update_exec(struct ast_channel *chan, void *data) 
 {
 	char *family=NULL, *colmatch=NULL, *value=NULL, *newcol=NULL, *newval=NULL;
-	struct localuser *u;
+	struct ast_module_user *u;
 	int res = 0, count = 0;
 	char countc[13];
 
@@ -147,7 +145,7 @@ static int realtime_update_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	family = ast_strdupa(data);
 	if ((colmatch = strchr(family,'|'))) {
@@ -171,7 +169,7 @@ static int realtime_update_exec(struct ast_channel *chan, void *data)
 	snprintf(countc, sizeof(countc), "%d", count);
 	pbx_builtin_setvar_helper(chan, "REALTIMECOUNT", countc);
 
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	
 	return res;
 }
@@ -180,7 +178,7 @@ static int realtime_update_exec(struct ast_channel *chan, void *data)
 static int realtime_exec(struct ast_channel *chan, void *data)
 {
 	int res=0, count=0;
-	struct localuser *u;
+	struct ast_module_user *u;
 	struct ast_variable *var, *itt;
 	char *family=NULL, *colmatch=NULL, *value=NULL, *prefix=NULL, *vname=NULL;
 	char countc[13];
@@ -193,7 +191,7 @@ static int realtime_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	
-	LOCAL_USER_ADD(u);
+	u = ast_module_user_add(chan);
 
 	family = ast_strdupa(data);
 	if ((colmatch = strchr(family,'|'))) {
@@ -230,11 +228,11 @@ static int realtime_exec(struct ast_channel *chan, void *data)
 	snprintf(countc, sizeof(countc), "%d", count);
 	pbx_builtin_setvar_helper(chan, "REALTIMECOUNT", countc);
 	
-	LOCAL_USER_REMOVE(u);
+	ast_module_user_remove(u);
 	return res;
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	int res;
 
@@ -243,12 +241,12 @@ static int unload_module(void *mod)
 	res |= ast_unregister_application(uapp);
 	res |= ast_unregister_application(app);
 
-	STANDARD_HANGUP_LOCALUSERS;
+	ast_module_user_hangup_all();
 
 	return res;
 }
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	int res;
 
@@ -260,14 +258,4 @@ static int load_module(void *mod)
 	return res;
 }
 
-static const char *description(void)
-{
-	return tdesc;
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Realtime Data Lookup/Rewrite");

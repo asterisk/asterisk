@@ -131,27 +131,16 @@ static const struct ast_format vox_f = {
 	.tell = vox_tell,
 	.read = vox_read,
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
-	.module = &mod_data, /* XXX */
 };
 
-static int load_module(void *mod)
+static int load_module(void)
 {
 	return ast_format_register(&vox_f);
 }
 
-static int unload_module(void *mod)
+static int unload_module(void)
 {
 	return ast_format_unregister(vox_f.name);
 }	
 
-static const char *description(void)
-{
-	return "Dialogic VOX (ADPCM) File Format";
-}
-
-static const char *key(void)
-{
-	return ASTERISK_GPL_KEY;
-}
-
-STD_MOD1;
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Dialogic VOX (ADPCM) File Format");
