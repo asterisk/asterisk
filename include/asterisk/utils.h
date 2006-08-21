@@ -26,6 +26,8 @@
 #include "asterisk/compat.h"
 
 #include <stdlib.h>
+#include <stdio.h>
+#include <stdarg.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>	/* we want to override inet_ntoa */
 #include <netdb.h>
@@ -114,9 +116,8 @@ extern unsigned int __unsigned_int_flags_dummy;
 /* Non-type checking variations for non-unsigned int flags.  You
    should only use non-unsigned int flags where required by 
    protocol etc and if you know what you're doing :)  */
-#define ast_test_flag_nonstd(p,flag) 		({ \
-					((p)->flags & (flag)); \
-					})
+#define ast_test_flag_nonstd(p,flag) \
+					((p)->flags & (flag))
 
 #define ast_set_flag_nonstd(p,flag) 		do { \
 					((p)->flags |= (flag)); \
@@ -291,14 +292,16 @@ static void ast_free(void *ptr)
 
 #ifndef __AST_DEBUG_MALLOC
 
+#define MALLOC_FAILURE_MSG \
+	ast_log(LOG_ERROR, "Memory Allocation Failure in function %s at line %d of %s\n", func, lineno, file);
 /*!
-  \brief A wrapper for malloc()
-
-  ast_malloc() is a wrapper for malloc() that will generate an Asterisk log
-  message in the case that the allocation fails.
-
-  The argument and return value are the same as malloc()
-*/
+ * \brief A wrapper for malloc()
+ *
+ * ast_malloc() is a wrapper for malloc() that will generate an Asterisk log
+ * message in the case that the allocation fails.
+ *
+ * The argument and return value are the same as malloc()
+ */
 #define ast_malloc(len) \
 	_ast_malloc((len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
@@ -307,23 +310,21 @@ void * attribute_malloc _ast_malloc(size_t len, const char *file, int lineno, co
 {
 	void *p;
 
-	p = malloc(len);
-
-	if (!p)
-		ast_log(LOG_ERROR, "Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", (int)len, func, lineno, file);
+	if (!(p = malloc(len)))
+		MALLOC_FAILURE_MSG;
 
 	return p;
 }
 )
 
 /*!
-  \brief A wrapper for calloc()
-
-  ast_calloc() is a wrapper for calloc() that will generate an Asterisk log
-  message in the case that the allocation fails.
-
-  The arguments and return value are the same as calloc()
-*/
+ * \brief A wrapper for calloc()
+ *
+ * ast_calloc() is a wrapper for calloc() that will generate an Asterisk log
+ * message in the case that the allocation fails.
+ *
+ * The arguments and return value are the same as calloc()
+ */
 #define ast_calloc(num, len) \
 	_ast_calloc((num), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
@@ -332,23 +333,21 @@ void * attribute_malloc _ast_calloc(size_t num, size_t len, const char *file, in
 {
 	void *p;
 
-	p = calloc(num, len);
-
-	if (!p)
-		ast_log(LOG_ERROR, "Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", (int)len, func, lineno, file);
+	if (!(p = calloc(num, len)))
+		MALLOC_FAILURE_MSG;
 
 	return p;
 }
 )
 
 /*!
-  \brief A wrapper for realloc()
-
-  ast_realloc() is a wrapper for realloc() that will generate an Asterisk log
-  message in the case that the allocation fails.
-
-  The arguments and return value are the same as realloc()
-*/
+ * \brief A wrapper for realloc()
+ *
+ * ast_realloc() is a wrapper for realloc() that will generate an Asterisk log
+ * message in the case that the allocation fails.
+ *
+ * The arguments and return value are the same as realloc()
+ */
 #define ast_realloc(p, len) \
 	_ast_realloc((p), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
@@ -357,27 +356,25 @@ void * attribute_malloc _ast_realloc(void *p, size_t len, const char *file, int 
 {
 	void *newp;
 
-	newp = realloc(p, len);
-
-	if (!newp)
-		ast_log(LOG_ERROR, "Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", (int)len, func, lineno, file);
+	if (!(newp = realloc(p, len)))
+		MALLOC_FAILURE_MSG;
 
 	return newp;
 }
 )
 
 /*!
-  \brief A wrapper for strdup()
-
-  ast_strdup() is a wrapper for strdup() that will generate an Asterisk log
-  message in the case that the allocation fails.
-
-  ast_strdup(), unlike strdup(), can safely accept a NULL argument. If a NULL
-  argument is provided, ast_strdup will return NULL without generating any
-  kind of error log message.
-
-  The argument and return value are the same as strdup()
-*/
+ * \brief A wrapper for strdup()
+ *
+ * ast_strdup() is a wrapper for strdup() that will generate an Asterisk log
+ * message in the case that the allocation fails.
+ *
+ * ast_strdup(), unlike strdup(), can safely accept a NULL argument. If a NULL
+ * argument is provided, ast_strdup will return NULL without generating any
+ * kind of error log message.
+ *
+ * The argument and return value are the same as strdup()
+ */
 #define ast_strdup(str) \
 	_ast_strdup((str), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
@@ -387,10 +384,8 @@ char * attribute_malloc _ast_strdup(const char *str, const char *file, int linen
 	char *newstr = NULL;
 
 	if (str) {
-		newstr = strdup(str);
-
-		if (!newstr)
-			ast_log(LOG_ERROR, "Memory Allocation Failure - Could not duplicate '%s' in function %s at line %d of %s\n", str, func, lineno, file);
+		if (!(newstr = strdup(str)))
+			MALLOC_FAILURE_MSG;
 	}
 
 	return newstr;
@@ -398,17 +393,17 @@ char * attribute_malloc _ast_strdup(const char *str, const char *file, int linen
 )
 
 /*!
-  \brief A wrapper for strndup()
-
-  ast_strndup() is a wrapper for strndup() that will generate an Asterisk log
-  message in the case that the allocation fails.
-
-  ast_strndup(), unlike strndup(), can safely accept a NULL argument for the
-  string to duplicate. If a NULL argument is provided, ast_strdup will return  
-  NULL without generating any kind of error log message.
-
-  The arguments and return value are the same as strndup()
-*/
+ * \brief A wrapper for strndup()
+ *
+ * ast_strndup() is a wrapper for strndup() that will generate an Asterisk log
+ * message in the case that the allocation fails.
+ *
+ * ast_strndup(), unlike strndup(), can safely accept a NULL argument for the
+ * string to duplicate. If a NULL argument is provided, ast_strdup will return  
+ * NULL without generating any kind of error log message.
+ *
+ * The arguments and return value are the same as strndup()
+ */
 #define ast_strndup(str, len) \
 	_ast_strndup((str), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
@@ -418,13 +413,60 @@ char * attribute_malloc _ast_strndup(const char *str, size_t len, const char *fi
 	char *newstr = NULL;
 
 	if (str) {
-		newstr = strndup(str, len);
-
-		if (!newstr)
-			ast_log(LOG_ERROR, "Memory Allocation Failure - Could not duplicate '%d' bytes of '%s' in function %s at line %d of %s\n", (int)len, str, func, lineno, file);
+		if (!(newstr = strndup(str, len)))
+			MALLOC_FAILURE_MSG;
 	}
 
 	return newstr;
+}
+)
+
+/*!
+ * \brief A wrapper for asprintf()
+ *
+ * ast_asprintf() is a wrapper for asprintf() that will generate an Asterisk log
+ * message in the case that the allocation fails.
+ *
+ * The arguments and return value are the same as asprintf()
+ */
+#define ast_asprintf(ret, fmt, ...) \
+	_ast_asprintf((ret), __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, __VA_ARGS__)
+
+AST_INLINE_API(
+int __attribute__((malloc)) _ast_asprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, ...),
+{
+	int res;
+	va_list ap;
+
+	va_start(ap, fmt);
+	if ((res = vasprintf(ret, fmt, ap)) == -1)
+		MALLOC_FAILURE_MSG;
+	va_end(ap);
+
+	return res;
+}
+)
+
+/*!
+ * \brief A wrapper for vasprintf()
+ *
+ * ast_vasprintf() is a wrapper for vasprintf() that will generate an Asterisk log
+ * message in the case that the allocation fails.
+ *
+ * The arguments and return value are the same as vasprintf()
+ */
+#define ast_vasprintf(ret, fmt, ap) \
+	_ast_vasprintf((ret), __FILE__, __LINE__, __PRETTY_FUNCTION__, (fmt), (ap))
+
+AST_INLINE_API(
+int __attribute__((malloc)) _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, va_list ap),
+{
+	int res;
+
+	if ((res = vasprintf(ret, fmt, ap)) == -1)
+		MALLOC_FAILURE_MSG;
+
+	return res;
 }
 )
 
@@ -438,6 +480,8 @@ char * attribute_malloc _ast_strndup(const char *str, size_t len, const char *fi
 #define ast_realloc(a,b)	realloc(a,b)
 #define ast_strdup(a)		strdup(a)
 #define ast_strndup(a,b)	strndup(a,b)
+#define ast_asprintf(a,b,c)	asprintf(a,b,c)
+#define ast_vasprintf(a,b,c)	vasprintf(a,b,c)
 
 #endif /* AST_DEBUG_MALLOC */
 
