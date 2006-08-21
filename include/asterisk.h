@@ -51,7 +51,7 @@ extern char ast_config_AST_CTL[PATH_MAX];
 extern char ast_config_AST_SYSTEM_NAME[20];
 
 int ast_set_priority(int);			/*!< Provided by asterisk.c */
-int load_modules(void);				/*!< Provided by loader.c */
+int load_modules(unsigned int);			/*!< Provided by loader.c */
 int load_pbx(void);				/*!< Provided by pbx.c */
 int init_logger(void);				/*!< Provided by logger.c */
 void close_logger(void);			/*!< Provided by logger.c */

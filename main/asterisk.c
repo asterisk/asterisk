@@ -2615,7 +2615,7 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
-	if (load_modules()) {
+	if (load_modules(1)) {
 		printf(term_quit());
 		exit(1);
 	}
@@ -2674,6 +2674,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (ast_enum_init()) {
+		printf(term_quit());
+		exit(1);
+	}
+
+	if (load_modules(0)) {
 		printf(term_quit());
 		exit(1);
 	}

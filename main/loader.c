@@ -667,7 +667,7 @@ static struct load_order_entry *add_to_load_order(const char *resource, struct l
 	return order;
 }
 
-int load_modules(void)
+int load_modules(unsigned int preload_only)
 {
 	struct ast_config *cfg;
 	struct ast_module *mod;
@@ -699,14 +699,22 @@ int load_modules(void)
 
 	AST_LIST_HEAD_INIT_NOLOCK(&load_order);
 
-	/* first, find all the modules we have been explicitly requested to load */
-	for (v = ast_variable_browse(cfg, "modules"); v; v = v->next) {
-		if (!strcasecmp(v->name, "load"))
-			add_to_load_order(v->value, &load_order);
+	if (preload_only) {
+		/* first, find all the modules we have been explicitly requested to load */
+		for (v = ast_variable_browse(cfg, "modules"); v; v = v->next) {
+			if (!strcasecmp(v->name, "preload"))
+				add_to_load_order(v->value, &load_order);
+		}
+	} else {
+		/* first, find all the modules we have been explicitly requested to load */
+		for (v = ast_variable_browse(cfg, "modules"); v; v = v->next) {
+			if (!strcasecmp(v->name, "load"))
+				add_to_load_order(v->value, &load_order);
+		}
 	}
 
 	/* check if 'autoload' is on */
-	if (ast_true(ast_variable_retrieve(cfg, "modules", "autoload"))) {
+	if (!preload_only && ast_true(ast_variable_retrieve(cfg, "modules", "autoload"))) {
 		/* if so, first add all the embedded modules to the load order */
 		AST_LIST_TRAVERSE(&module_list, mod, entry) {
 			order = add_to_load_order(mod->resource, &load_order);
