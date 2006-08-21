@@ -64,7 +64,7 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 
 clean::
 	rm -f busy.h ringtone.h gentone
-	make -C misdn clean
+	$(MAKE) -C misdn clean
 
 ifneq ($(wildcard $(PWD)/Makefile.ast),)
   include $(PWD)/Makefile.ast
