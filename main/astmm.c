@@ -70,7 +70,7 @@ static struct ast_region {
 	struct ast_region *next;
 	char file[40];
 	char func[40];
-	int lineno;
+	unsigned int lineno;
 	enum func_type which;
 	size_t len;
 	unsigned int fence;
@@ -83,38 +83,43 @@ static struct ast_region {
 AST_MUTEX_DEFINE_STATIC(reglock);
 AST_MUTEX_DEFINE_STATIC(showmemorylock);
 
+#define astmm_log(...)                               \
+	do {                                         \
+		fprintf(stderr, __VA_ARGS__);        \
+		if (mmlog) {                         \
+			fprintf(mmlog, __VA_ARGS__); \
+			fflush(mmlog);               \
+		}                                    \
+	} while (0)
+
 static inline void *__ast_alloc_region(size_t size, const enum func_type which, const char *file, int lineno, const char *func)
 {
 	struct ast_region *reg;
 	void *ptr = NULL;
 	unsigned int *fence;
 	int hash;
-	reg = malloc(size + sizeof(*reg) + sizeof(*fence));
+
+	if (!(reg = malloc(size + sizeof(*reg) + sizeof(*fence)))) {
+		astmm_log("Memory Allocation Failure - '%d' bytes in function %s "
+			"at line %d of %s\n", (int) size, func, lineno, file);
+	}
+
+	ast_copy_string(reg->file, file, sizeof(reg->file));
+	ast_copy_string(reg->func, func, sizeof(reg->func));
+	reg->lineno = lineno;
+	reg->len = size;
+	reg->which = which;
+	ptr = reg->data;
+	hash = HASH(ptr);
+	reg->fence = FENCE_MAGIC;
+	fence = (ptr + reg->len);
+	put_unaligned_uint32(fence, FENCE_MAGIC);
+
 	ast_mutex_lock(&reglock);
-	if (reg) {
-		ast_copy_string(reg->file, file, sizeof(reg->file));
-		reg->file[sizeof(reg->file) - 1] = '\0';
-		ast_copy_string(reg->func, func, sizeof(reg->func));
-		reg->func[sizeof(reg->func) - 1] = '\0';
-		reg->lineno = lineno;
-		reg->len = size;
-		reg->which = which;
-		ptr = reg->data;
-		hash = HASH(ptr);
-		reg->next = regions[hash];
-		regions[hash] = reg;
-		reg->fence = FENCE_MAGIC;
-		fence = (ptr + reg->len);
-		put_unaligned_uint32(fence, FENCE_MAGIC);
-	}
+	reg->next = regions[hash];
+	regions[hash] = reg;
 	ast_mutex_unlock(&reglock);
-	if (!reg) {
-		fprintf(stderr, "Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", (int) size, func, lineno, file);
-		if (mmlog) {
-			fprintf(stderr, "%ld - Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", time(NULL), (int) size, func, lineno, file);
-			fflush(mmlog);
-		}
-	}
+
 	return ptr;
 }
 
@@ -125,15 +130,14 @@ static inline size_t __ast_sizeof_region(void *ptr)
 	size_t len = 0;
 	
 	ast_mutex_lock(&reglock);
-	reg = regions[hash];
-	while (reg) {
+	for (reg = regions[hash]; reg; reg = reg->next) {
 		if (reg->data == ptr) {
 			len = reg->len;
 			break;
 		}
-		reg = reg->next;
 	}
 	ast_mutex_unlock(&reglock);
+
 	return len;
 }
 
@@ -144,51 +148,42 @@ static void __ast_free_region(void *ptr, const char *file, int lineno, const cha
 	unsigned int *fence;
 
 	ast_mutex_lock(&reglock);
-	reg = regions[hash];
-	while (reg) {
+	for (reg = regions[hash]; reg; reg = reg->next) {
 		if (reg->data == ptr) {
-			if (prev) {
+			if (prev)
 				prev->next = reg->next;
-			} else {
+			else
 				regions[hash] = reg->next;
-			}
 			break;
 		}
 		prev = reg;
-		reg = reg->next;
 	}
 	ast_mutex_unlock(&reglock);
+
 	if (reg) {
 		fence = (unsigned int *)(reg->data + reg->len);
 		if (reg->fence != FENCE_MAGIC) {
-			fprintf(stderr, "WARNING: Low fence violation at %p, in %s of %s, line %d\n", reg->data, reg->func, reg->file, reg->lineno);
-			if (mmlog) {
-				fprintf(mmlog, "%ld - WARNING: Low fence violation at %p, in %s of %s, line %d\n", time(NULL), reg->data, reg->func, reg->file, reg->lineno);
-				fflush(mmlog);
-			}
+			astmm_log("WARNING: Low fence violation at %p, in %s of %s, "
+				"line %d\n", reg->data, reg->func, reg->file, reg->lineno);
 		}
 		if (get_unaligned_uint32(fence) != FENCE_MAGIC) {
-			fprintf(stderr, "WARNING: High fence violation at %p, in %s of %s, line %d\n", reg->data, reg->func, reg->file, reg->lineno);
-			if (mmlog) {
-				fprintf(mmlog, "%ld - WARNING: High fence violation at %p, in %s of %s, line %d\n", time(NULL), reg->data, reg->func, reg->file, reg->lineno);
-				fflush(mmlog);
-			}
+			astmm_log("WARNING: High fence violation at %p, in %s of %s, "
+				"line %d\n", reg->data, reg->func, reg->file, reg->lineno);
 		}
 		free(reg);
 	} else {
-		fprintf(stderr, "WARNING: Freeing unused memory at %p, in %s of %s, line %d\n",	ptr, func, file, lineno);
-		if (mmlog) {
-			fprintf(mmlog, "%ld - WARNING: Freeing unused memory at %p, in %s of %s, line %d\n", time(NULL), ptr, func, file, lineno);
-			fflush(mmlog);
-		}
+		astmm_log("WARNING: Freeing unused memory at %p, in %s of %s, line %d\n",	
+			ptr, func, file, lineno);
 	}
 }
 
 void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func) 
 {
 	void *ptr;
+
 	if ((ptr = __ast_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func))) 
 		memset(ptr, 0, size * nmemb);
+
 	return ptr;
 }
 
@@ -206,22 +201,23 @@ void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const 
 {
 	void *tmp;
 	size_t len = 0;
+
 	if (ptr && !(len = __ast_sizeof_region(ptr))) {
-		fprintf(stderr, "WARNING: Realloc of unalloced memory at %p, in %s of %s, line %d\n", ptr, func, file, lineno);
-		if (mmlog) {
-			fprintf(mmlog, "%ld - WARNING: Realloc of unalloced memory at %p, in %s of %s, line %d\n", time(NULL), ptr, func, file, lineno);
-			fflush(mmlog);
-		}
+		astmm_log("WARNING: Realloc of unalloced memory at %p, in %s of %s, "
+			"line %d\n", ptr, func, file, lineno);
 		return NULL;
 	}
-	if ((tmp = __ast_alloc_region(size, FUNC_REALLOC, file, lineno, func))) {
-		if (len > size)
-			len = size;
-		if (ptr) {
-			memcpy(tmp, ptr, len);
-			__ast_free_region(ptr, file, lineno, func);
-		}
+
+	if (!(tmp = __ast_alloc_region(size, FUNC_REALLOC, file, lineno, func)))
+		return NULL;
+
+	if (len > size)
+		len = size;
+	if (ptr) {
+		memcpy(tmp, ptr, len);
+		__ast_free_region(ptr, file, lineno, func);
 	}
+	
 	return tmp;
 }
 
@@ -229,11 +225,14 @@ char *__ast_strdup(const char *s, const char *file, int lineno, const char *func
 {
 	size_t len;
 	void *ptr;
+
 	if (!s)
 		return NULL;
+
 	len = strlen(s) + 1;
 	if ((ptr = __ast_alloc_region(len, FUNC_STRDUP, file, lineno, func)))
 		strcpy(ptr, s);
+
 	return ptr;
 }
 
@@ -241,13 +240,16 @@ char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const
 {
 	size_t len;
 	void *ptr;
+
 	if (!s)
 		return NULL;
+
 	len = strlen(s) + 1;
 	if (len > n)
 		len = n;
 	if ((ptr = __ast_alloc_region(len, FUNC_STRNDUP, file, lineno, func)))
 		strcpy(ptr, s);
+
 	return ptr;
 }
 
@@ -294,56 +296,44 @@ int __ast_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, 
 static int handle_show_memory(int fd, int argc, char *argv[])
 {
 	char *fn = NULL;
-	int x;
 	struct ast_region *reg;
+	unsigned int x;
 	unsigned int len = 0;
-	int count = 0;
+	unsigned int count = 0;
 	unsigned int *fence;
+
 	if (argc > 3) 
 		fn = argv[3];
 
-	/* try to lock applications list ... */
 	ast_mutex_lock(&showmemorylock);
-
 	for (x = 0; x < SOME_PRIME; x++) {
-		reg = regions[x];
-		while (reg) {
+		for (reg = regions[x]; reg; reg = reg->next) {
 			if (!fn || !strcasecmp(fn, reg->file) || !strcasecmp(fn, "anomolies")) {
 				fence = (unsigned int *)(reg->data + reg->len);
 				if (reg->fence != FENCE_MAGIC) {
-					fprintf(stderr, "WARNING: Low fence violation at %p, in %s of %s, line %d\n", reg->data, reg->func, reg->file, reg->lineno);
-					if (mmlog) {
-						fprintf(mmlog, "%ld - WARNING: Low fence violation at %p, in %s of %s, line %d\n", time(NULL), reg->data, reg->func, reg-> file, reg->lineno);
-						fflush(mmlog);
-					}
+					astmm_log("WARNING: Low fence violation at %p, "
+						"in %s of %s, line %d\n", reg->data, 
+						reg->func, reg->file, reg->lineno);
 				}
 				if (get_unaligned_uint32(fence) != FENCE_MAGIC) {
-					fprintf(stderr, "WARNING: High fence violation at %p, in %s of %s, line %d\n", reg->data, reg->func, reg->file, reg->lineno);
-					if (mmlog) {
-						fprintf(mmlog, "%ld - WARNING: High fence violation at %p, in %s of %s, line %d\n", time(NULL), reg->data, reg->func, reg->file, reg->lineno);
-						fflush(mmlog);
-					}
+					astmm_log("WARNING: High fence violation at %p, in %s of %s, "
+						"line %d\n", reg->data, reg->func, reg->file, reg->lineno);
 				}
 			}
 			if (!fn || !strcasecmp(fn, reg->file)) {
-				ast_cli(fd, "%10d bytes allocated in %20s at line %5d of %s\n", (int) reg->len, reg->func, reg->lineno, reg->file);
+				ast_cli(fd, "%10d bytes allocated in %20s at line %5d of %s\n", 
+						(int) reg->len, reg->func, reg->lineno, reg->file);
 				len += reg->len;
 				count++;
 			}
-			reg = reg->next;
 		}
 	}
-	ast_cli(fd, "%d bytes allocated %d units total\n", len, count);
 	ast_mutex_unlock(&showmemorylock);
+	
+	ast_cli(fd, "%d bytes allocated %d units total\n", len, count);
+	
 	return RESULT_SUCCESS;
 }
-
-struct file_summary {
-	char fn[80];
-	int len;
-	int count;
-	struct file_summary *next;
-};
 
 static int handle_show_memory_summary(int fd, int argc, char *argv[])
 {
@@ -352,55 +342,55 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 	struct ast_region *reg;
 	unsigned int len = 0;
 	int count = 0;
-	struct file_summary *list = NULL, *cur;
+	struct file_summary {
+		char fn[80];
+		int len;
+		int count;
+		struct file_summary *next;
+	} *list = NULL, *cur;
 	
 	if (argc > 3) 
 		fn = argv[3];
 
-	/* try to lock applications list ... */
 	ast_mutex_lock(&reglock);
-
 	for (x = 0; x < SOME_PRIME; x++) {
-		reg = regions[x];
-		while (reg) {
-			if (!fn || !strcasecmp(fn, reg->file)) {
-				cur = list;
-				while (cur) {
-					if ((!fn && !strcmp(cur->fn, reg->file)) || (fn && !strcmp(cur->fn, reg->func)))
-						break;
-					cur = cur->next;
-				}
-				if (!cur) {
-					cur = alloca(sizeof(*cur));
-					memset(cur, 0, sizeof(*cur));
-					ast_copy_string(cur->fn, fn ? reg->func : reg->file, sizeof(cur->fn));
-					cur->next = list;
-					list = cur;
-				}
-				cur->len += reg->len;
-				cur->count++;
+		for (reg = regions[x]; reg; reg = reg->next) {
+			if (fn && strcasecmp(fn, reg->file))
+				continue;
+
+			for (cur = list; cur; cur = cur->next) {
+				if ((!fn && !strcmp(cur->fn, reg->file)) || (fn && !strcmp(cur->fn, reg->func)))
+					break;
 			}
-			reg = reg->next;
+			if (!cur) {
+				cur = alloca(sizeof(*cur));
+				memset(cur, 0, sizeof(*cur));
+				ast_copy_string(cur->fn, fn ? reg->func : reg->file, sizeof(cur->fn));
+				cur->next = list;
+				list = cur;
+			}
+
+			cur->len += reg->len;
+			cur->count++;
 		}
 	}
 	ast_mutex_unlock(&reglock);
 	
 	/* Dump the whole list */
-	while (list) {
-		cur = list;
+	for (cur = list; cur; cur = cur->next) {
 		len += list->len;
 		count += list->count;
 		if (fn) {
-			ast_cli(fd, "%10d bytes in %5d allocations in function '%s' of '%s'\n", list->len, list->count, list->fn, fn);
+			ast_cli(fd, "%10d bytes in %5d allocations in function '%s' of '%s'\n", 
+				list->len, list->count, list->fn, fn);
 		} else {
-			ast_cli(fd, "%10d bytes in %5d allocations in file '%s'\n", list->len, list->count, list->fn);
+			ast_cli(fd, "%10d bytes in %5d allocations in file '%s'\n", 
+				list->len, list->count, list->fn);
 		}
-		list = list->next;
-#if 0
-		free(cur);
-#endif		
 	}
+
 	ast_cli(fd, "%d bytes allocated %d units total\n", len, count);
+
 	return RESULT_SUCCESS;
 }
 
@@ -426,15 +416,17 @@ static struct ast_cli_entry show_memory_summary_cli =
 
 void __ast_mm_init(void)
 {
-	char filename[80] = "";
+	char filename[PATH_MAX];
+
 	ast_cli_register(&show_memory_allocations_cli);
 	ast_cli_register(&show_memory_summary_cli);
 	
 	snprintf(filename, sizeof(filename), "%s/mmlog", (char *)ast_config_AST_LOG_DIR);
-	mmlog = fopen(filename, "a+");
+	
 	if (option_verbose)
 		ast_verbose("Asterisk Malloc Debugger Started (see %s))\n", filename);
-	if (mmlog) {
+	
+	if ((mmlog = fopen(filename, "a+"))) {
 		fprintf(mmlog, "%ld - New session\n", time(NULL));
 		fflush(mmlog);
 	}
