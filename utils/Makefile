@@ -13,7 +13,7 @@
 
 .PHONY: clean clean-depend all depend uninstall
 
-UTILS:=astman smsq stereorize streamplayer aelparse
+UTILS:=astman smsq stereorize streamplayer aelparse muted
 
 ifeq (${OSARCH},SunOS)
   LIBS+=../main/strcompat.o -lsocket -lnsl
