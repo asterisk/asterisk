@@ -238,7 +238,7 @@ int pbx_builtin_setvar(struct ast_channel *, void *);
 static int pbx_builtin_importvar(struct ast_channel *, void *);
 
 AST_MUTEX_DEFINE_STATIC(globalslock);
-static struct varshead globals;
+static struct varshead globals = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 
 static int autofallthrough = 0;
 
@@ -5681,7 +5681,6 @@ int load_pbx(void)
 		ast_verbose( "Asterisk PBX Core Initializing\n");
 		ast_verbose( "Registering builtin applications:\n");
 	}
-	AST_LIST_HEAD_INIT_NOLOCK(&globals);
 	ast_cli_register_multiple(pbx_cli, sizeof(pbx_cli) / sizeof(pbx_cli[0]));
 
 	/* Register builtin applications */
