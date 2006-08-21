@@ -241,7 +241,7 @@ all: cleantest $(SUBDIRS)
 	@echo " +               make install                +"  
 	@echo " +-------------------------------------------+"  
 
-makeopts:
+makeopts: configure
 	@echo "****"
 	@echo "**** The configure script must be executed before running 'make'."
 	@echo "****"
