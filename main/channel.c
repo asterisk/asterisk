@@ -95,7 +95,6 @@ struct ast_channel_whisper_buffer {
 /*! Prevent new channel allocation if shutting down. */
 static int shutting_down = 0;
 
-AST_MUTEX_DEFINE_STATIC(uniquelock);
 static int uniqueint = 0;
 
 unsigned long global_fin = 0, global_fout = 0;
@@ -626,7 +625,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	/* Don't bother initializing the last two FD here, because they
 	   will *always* be set just a few lines down (AST_TIMING_FD,
 	   AST_ALERT_FD). */
-	for (x=0; x<AST_MAX_FDS - 2; x++)
+	for (x = 0; x < AST_MAX_FDS - 2; x++)
 		tmp->fds[x] = -1;
 
 #ifdef HAVE_ZAPTEL
@@ -645,6 +644,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	if (needqueue) {
 		if (pipe(tmp->alertpipe)) {
 			ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
+			ast_string_field_free_all(tmp);
 			free(tmp);
 			return NULL;
 		} else {
@@ -661,27 +661,35 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	/* And timing pipe */
 	tmp->fds[AST_TIMING_FD] = tmp->timingfd;
 	ast_string_field_set(tmp, name, "**Unknown**");
+	
 	/* Initial state */
 	tmp->_state = AST_STATE_DOWN;
+	
 	tmp->streamid = -1;
-	tmp->appl = NULL;
-	tmp->data = NULL;
+	
 	tmp->fin = global_fin;
 	tmp->fout = global_fout;
-	ast_mutex_lock(&uniquelock);
-	if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME))
-		ast_string_field_build(tmp, uniqueid, "%li.%d", (long) time(NULL), uniqueint++);
-	else
-		ast_string_field_build(tmp, uniqueid, "%s-%li.%d", ast_config_AST_SYSTEM_NAME, (long) time(NULL), uniqueint++);
-	ast_mutex_unlock(&uniquelock);
+
+	if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
+		ast_string_field_build(tmp, uniqueid, "%li.%d", (long) time(NULL), 
+			ast_atomic_fetchadd_int(&uniqueint, 1));
+	} else {
+		ast_string_field_build(tmp, uniqueid, "%s-%li.%d", ast_config_AST_SYSTEM_NAME, 
+			(long) time(NULL), ast_atomic_fetchadd_int(&uniqueint, 1));
+	}
+
 	headp = &tmp->varshead;
-	ast_mutex_init(&tmp->lock);
 	AST_LIST_HEAD_INIT_NOLOCK(headp);
+	
+	ast_mutex_init(&tmp->lock);
+	
 	AST_LIST_HEAD_INIT_NOLOCK(&tmp->datastores);
+	
 	strcpy(tmp->context, "default");
-	ast_string_field_set(tmp, language, defaultlanguage);
 	strcpy(tmp->exten, "s");
 	tmp->priority = 1;
+	
+	ast_string_field_set(tmp, language, defaultlanguage);
 	tmp->amaflags = ast_default_amaflags;
 	ast_string_field_set(tmp, accountcode, ast_default_accountcode);
 
@@ -690,6 +698,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	AST_LIST_LOCK(&channels);
 	AST_LIST_INSERT_HEAD(&channels, tmp, chan_list);
 	AST_LIST_UNLOCK(&channels);
+
 	return tmp;
 }
 
