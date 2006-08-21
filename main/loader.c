@@ -660,14 +660,16 @@ static struct load_order_entry *add_to_load_order(const char *resource, struct l
 int load_modules(void)
 {
 	struct ast_config *cfg;
-	struct dirent *dirent;
-	DIR *dir;
 	struct ast_module *mod;
 	struct load_order_entry *order;
 	struct ast_variable *v;
 	unsigned int load_count;
 	struct load_order load_order;
 	int res = 0;
+#if LOADABLE_MODULES
+	struct dirent *dirent;
+	DIR *dir;
+#endif
 
 	/* all embedded modules have registered themselves by now */
 	embedding = 0;
