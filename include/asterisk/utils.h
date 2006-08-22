@@ -433,7 +433,7 @@ char * attribute_malloc _ast_strndup(const char *str, size_t len, const char *fi
 	_ast_asprintf((ret), __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, __VA_ARGS__)
 
 AST_INLINE_API(
-int attribute_malloc _ast_asprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, ...),
+int _ast_asprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, ...),
 {
 	int res;
 	va_list ap;
@@ -459,7 +459,7 @@ int attribute_malloc _ast_asprintf(char **ret, const char *file, int lineno, con
 	_ast_vasprintf((ret), __FILE__, __LINE__, __PRETTY_FUNCTION__, (fmt), (ap))
 
 AST_INLINE_API(
-int attribute_malloc _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, va_list ap),
+int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, va_list ap),
 {
 	int res;
 
