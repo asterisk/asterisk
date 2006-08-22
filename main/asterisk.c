@@ -405,7 +405,7 @@ int64_t ast_profile(int i, int64_t delta)
 #if defined(__FreeBSD__)
 #include <machine/cpufunc.h>
 #elif defined(linux)
-static __inline u_int64_t
+static __inline uint64_t
 rdtsc(void)
 { 
 	uint64_t rv;
@@ -415,7 +415,7 @@ rdtsc(void)
 }
 #endif
 #else	/* supply a dummy function on other platforms */
-static __inline u_int64_t
+static __inline uint64_t
 rdtsc(void)
 {
 	return 0;
