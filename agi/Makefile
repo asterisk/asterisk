@@ -16,7 +16,7 @@
 AGIS=agi-test.agi eagi-test eagi-sphinx-test jukebox.agi
 
 ifeq ($(OSARCH),SunOS)
-  LIBS+=-lsocket -lnsl ../strcompat.o
+  LIBS+=-lsocket -lnsl ../main/strcompat.o
 endif
 
 include $(ASTTOPDIR)/Makefile.rules

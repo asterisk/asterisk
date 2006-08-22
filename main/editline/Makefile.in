@@ -27,7 +27,7 @@ INSTALL = @INSTALL@
 PREFIX = @prefix@
 
 ifeq ($(OSTYPE),SunOS)
-CFLAGS+=-DSOLARIS -I../include/solaris-compat
+CFLAGS+=-DSOLARIS -I../../include/solaris-compat
 endif
 
 # .c files.

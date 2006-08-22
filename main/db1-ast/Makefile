@@ -54,7 +54,7 @@ CFLAGS+=-Wall -D__DBINTERFACE_PRIVATE -I. -I.. -Iinclude -Ihash -Ibtree -Irecno
 
 OSTYPE=$(shell uname -s)
 ifeq ($(OSTYPE),SunOS)
-CFLAGS+=-I../include -I../include/solaris-compat -DSOLARIS
+CFLAGS+=-I../../include -I../../include/solaris-compat -DSOLARIS
 endif
 
 db_dump185.o: db_dump185.c

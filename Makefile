@@ -177,7 +177,7 @@ ifeq ($(OSARCH),OpenBSD)
 endif
 
 ifeq ($(OSARCH),SunOS)
-  ASTCFLAGS+=-Wcast-align -DSOLARIS -Iinclude/solaris-compat -I/opt/ssl/include -I/usr/local/ssl/include
+  ASTCFLAGS+=-Wcast-align -DSOLARIS -I../include/solaris-compat -I/opt/ssl/include -I/usr/local/ssl/include
 endif
 
 ASTERISKVERSION:=$(shell build_tools/make_version .)
