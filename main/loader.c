@@ -587,6 +587,8 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 				return AST_MODULE_LOAD_SKIP;
 			}
 		}
+#else
+		return AST_MODULE_LOAD_DECLINE;
 #endif
 	}
 
