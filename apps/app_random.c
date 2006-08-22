@@ -116,9 +116,8 @@ char *description(void)
 
 int usecount(void)
 {
-	int res;
-	STANDARD_USECOUNT(res);
-	return res;
+	/* Don't allow unload, since rand(3) depends upon this module being here. */
+	return 1;
 }
 
 char *key()
