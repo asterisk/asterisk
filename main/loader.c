@@ -417,7 +417,10 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 
 	AST_LIST_LOCK(&module_list);
 
-	mod = find_resource(resource_name, 0);
+	if (!(mod = find_resource(resource_name, 0))) {
+		AST_LIST_UNLOCK(&module_list);
+		return 0;
+	}
 
 	if (!ast_test_flag(mod, FLAG_RUNNING | FLAG_DECLINED))
 		error = 1;
@@ -576,8 +579,8 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 		}
 		if (global_symbols_only && !ast_test_flag(mod->info, AST_MODFLAG_GLOBAL_SYMBOLS))
 			return AST_MODULE_LOAD_SKIP;
-#if LOADABLE_MODULES
 	} else {
+#if LOADABLE_MODULES
 		if (!(mod = load_dynamic_module(resource_name, global_symbols_only))) {
 			/* don't generate a warning message during load_modules() */
 			if (!global_symbols_only) {
@@ -645,7 +648,6 @@ int ast_load_resource(const char *resource_name)
 
 struct load_order_entry {
 	char *resource;
-	unsigned int embedded;
 	AST_LIST_ENTRY(load_order_entry) entry;
 };
 
@@ -701,33 +703,21 @@ int load_modules(unsigned int preload_only)
 
 	AST_LIST_HEAD_INIT_NOLOCK(&load_order);
 
-	if (preload_only) {
-		/* first, find all the modules we have been explicitly requested to load */
-		for (v = ast_variable_browse(cfg, "modules"); v; v = v->next) {
-			if (!strcasecmp(v->name, "preload"))
-				add_to_load_order(v->value, &load_order);
-		}
-	} else {
-		/* first, find all the modules we have been explicitly requested to load */
-		for (v = ast_variable_browse(cfg, "modules"); v; v = v->next) {
-			if (!strcasecmp(v->name, "load"))
-				add_to_load_order(v->value, &load_order);
-		}
+	/* first, find all the modules we have been explicitly requested to load */
+	for (v = ast_variable_browse(cfg, "modules"); v; v = v->next) {
+		if (!strcasecmp(v->name, preload_only ? "preload" : "load"))
+			add_to_load_order(v->value, &load_order);
 	}
 
 	/* check if 'autoload' is on */
 	if (!preload_only && ast_true(ast_variable_retrieve(cfg, "modules", "autoload"))) {
 		/* if so, first add all the embedded modules to the load order */
-		AST_LIST_TRAVERSE(&module_list, mod, entry) {
+		AST_LIST_TRAVERSE(&module_list, mod, entry)
 			order = add_to_load_order(mod->resource, &load_order);
 
-			if (order)
-				order->embedded = 1;
-		}
-
+#if LOADABLE_MODULES
 		/* if we are allowed to load dynamic modules, scan the directory for
 		   for all available modules and add them as well */
-#if LOADABLE_MODULES
 		if ((dir  = opendir(ast_config_AST_MODULE_DIR))) {
 			while ((dirent = readdir(dir))) {
 				int ld = strlen(dirent->d_name);
@@ -777,7 +767,8 @@ int load_modules(unsigned int preload_only)
 	AST_LIST_TRAVERSE(&load_order, order, entry)
 		load_count++;
 
-	ast_log(LOG_NOTICE, "%d modules will be loaded.\n", load_count);
+	if (load_count)
+		ast_log(LOG_NOTICE, "%d modules will be loaded.\n", load_count);
 
 	/* first, load only modules that provide global symbols */
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&load_order, order, entry) {
