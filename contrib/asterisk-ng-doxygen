@@ -446,11 +446,12 @@ WARN_LOGFILE           =
 # with spaces.
 
 INPUT                  = ./ \
+			 main \
 			 include \
                          include/asterisk \
 			 channels \
 			 funcs \
-			 stdtime \
+			 main/stdtime \
 			 apps \
 			 cdr \
 			 codecs \
