@@ -294,7 +294,7 @@ AST_EXT_LIB_CHECK([IKSEMEL], [iksemel], [iks_start_sasl], [iksemel.h])
 if test "${PBX_IKSEMEL}" = 1; then
    AST_EXT_LIB_CHECK([GNUTLS], [gnutls], [gnutls_bye])
    if test "${PBX_GNUTLS}" = 1; then
-      IKSEMEL_LIB="${IKSEMEL_LIB} -lgnutls -ltasn1 -lz -lgcrypt -lnsl -lgpg-error"
+      IKSEMEL_LIB="${IKSEMEL_LIB} -lgnutls -lz -lgcrypt -lnsl -lgpg-error"
    fi
 fi
 
