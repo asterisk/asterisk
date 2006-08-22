@@ -59,7 +59,10 @@ static char expr_output[2096];
 static char *config = "extensions.ael";
 static char *registrar = "pbx_ael";
 
-static int errs, warns, notes;
+static int errs, warns;
+#ifndef STANDALONE_AEL
+static int notes;
+#endif
 
 #ifndef AAL_ARGCHECK
 /* for the time being, short circuit all the AAL related structures
@@ -2089,6 +2092,7 @@ void check_switch_expr(pval *item, struct argapp *apps)
 #endif
 }
 
+#ifndef STANDALONE_AEL
 static void check_context_names(void)
 {
 	pval *i,*j;
@@ -2107,6 +2111,7 @@ static void check_context_names(void)
 		}
 	}
 }
+#endif
 
 static void check_abstract_reference(pval *abstract_context)
 {
