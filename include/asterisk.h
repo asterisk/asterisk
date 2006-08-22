@@ -22,7 +22,7 @@
 
 #include "asterisk/compat.h"
 
-#include <limits.h>
+#include "asterisk/paths.h"
 
 #define DEFAULT_LANGUAGE "en"
 
