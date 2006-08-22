@@ -223,7 +223,7 @@ static int connect_asterisk(void)
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
 	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
-	if (connect(sock, &sin, sizeof(sin))) {
+	if (connect(sock, (struct sockaddr *)&sin, sizeof(sin))) {
 		fprintf(stderr, "Failed to connect to '%s' port '%d': %s\n", host, port, strerror(errno));
 		close(sock);
 		return -1;
