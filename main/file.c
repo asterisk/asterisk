@@ -417,6 +417,7 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 					chan->stream = s;
 				else
 					chan->vstream = s;
+				free(fn);
 				break;
 			}
 			switch (action) {
