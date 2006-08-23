@@ -1164,17 +1164,18 @@ static int handle_setvariable(struct ast_channel *chan, AGI *agi, int argc, char
 
 static int handle_getvariable(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
-	const char *ret;
+	char *ret;
 	char tempstr[1024];
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
 	/* check if we want to execute an ast_custom_function */
-	if (!ast_strlen_zero(argv[2]) && (argv[2][strlen(argv[2]) - 1] == ')'))
+	if (!ast_strlen_zero(argv[2]) && (argv[2][strlen(argv[2]) - 1] == ')')) {
 		ret = ast_func_read(chan, argv[2], tempstr, sizeof(tempstr)) ? NULL : tempstr;
-	else
-		ret = pbx_builtin_getvar_helper(chan, argv[2]);
+	} else {
+		pbx_retrieve_variable(chan, argv[2], &ret, tempstr, sizeof(tempstr), NULL);
+	}
 
 	if (ret)
 		fdprintf(agi->fd, "200 result=1 (%s)\n", ret);
