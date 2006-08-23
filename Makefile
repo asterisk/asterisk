@@ -319,10 +319,9 @@ clean: $(SUBDIRS_CLEAN) clean-depend
 dist-clean: distclean
 
 distclean: clean
-	@$(MAKE) -C mxml clean
 	@$(MAKE) -C menuselect dist-clean
 	@$(MAKE) -C sounds dist-clean
-	rm -f menuselect.makeopts makeopts makeopts.xml menuselect.makedeps
+	rm -f menuselect.makeopts makeopts menuselect-tree menuselect.makedeps
 	rm -f makeopts.embed_rules
 	rm -f config.log config.status
 	rm -rf autom4te.cache
@@ -646,12 +645,8 @@ uninstall-all: _uninstall
 menuselect: menuselect/menuselect menuselect-tree
 	-@menuselect/menuselect $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts && echo "menuselect changes saved!" || echo "menuselect changes NOT saved!"
 
-menuselect/menuselect: makeopts menuselect/menuselect.c menuselect/menuselect_curses.c menuselect/menuselect_stub.c menuselect/menuselect.h menuselect/linkedlists.h makeopts mxml/libmxml.a
-	@CFLAGS="-include $(ASTTOPDIR)/include/asterisk/autoconfig.h -I$(ASTTOPDIR)/include" PARENTSRC="$(ASTTOPDIR)" $(MAKE) -C menuselect CC="$(HOST_CC)" menuselect
-
-mxml/libmxml.a:
-	@cd mxml && unset CC CFLAGS LDFLAGS && test -f config.h || ./configure --build=$(BUILD_PLATFORM) --host=$(BUILD_PLATFORM)
-	$(MAKE) -C mxml libmxml.a
+menuselect/menuselect: makeopts menuselect/menuselect.c menuselect/menuselect_curses.c menuselect/menuselect_stub.c menuselect/menuselect.h menuselect/linkedlists.h makeopts
+	@CFLAGS="-include $(ASTTOPDIR)/include/asterisk/autoconfig.h -I$(ASTTOPDIR)/include" PARENTSRC="$(ASTTOPDIR)" $(MAKE) -C menuselect CC="$(HOST_CC)"
 
 menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml sounds/sounds.xml build_tools/embed_modules.xml
 	@echo "Generating input for menuselect ..."
