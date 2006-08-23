@@ -12,7 +12,7 @@
  */
 
 /*! \file
- * \brief Asterisk main include file. File version handling, generic pbx functions.
+ * \brief Asterisk file paths, configured in asterisk.conf
  */
 
 #ifndef _ASTERISK_PATHS_H
