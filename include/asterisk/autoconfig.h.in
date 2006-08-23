@@ -270,6 +270,10 @@
 /* Define to 1 if you have the `rint' function. */
 #undef HAVE_RINT
 
+/* Define to 1 if your system has a dynamic linker that supports RTLD_NOLOAD.
+   */
+#undef HAVE_RTLD_NOLOAD
+
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
 
