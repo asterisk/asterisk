@@ -387,14 +387,6 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	   on the already-opened library to what we want... if not, we have to
 	   close it and start over
 	*/
-#if HAVE_RTLD_NOLOAD
-	if (!dlopen(fn, RTLD_NOLOAD | (wants_global ? RTLD_GLOBAL : RTLD_NOW))) {
-		ast_log(LOG_WARNING, "%s\n", dlerror());
-		while (!dlclose(lib));
-		free(resource_being_loaded);
-		return NULL;
-	}
-#else
 	while (!dlclose(lib));
 	resource_being_loaded = NULL;
 
@@ -414,7 +406,6 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	/* since the module was successfully opened, and it registered itself
 	   the previous time we did that, we're going to assume it worked this
 	   time too :) */
-#endif
 
 	AST_LIST_LAST(&module_list)->lib = lib;
 	resource_being_loaded = NULL;
