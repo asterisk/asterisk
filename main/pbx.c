@@ -5360,9 +5360,9 @@ int pbx_builtin_serialize_variables(struct ast_channel *chan, char *buf, size_t 
 	memset(buf, 0, size);
 
 	AST_LIST_TRAVERSE(&chan->varshead, variables, entries) {
-		if(variables &&
-		   (var=ast_var_name(variables)) && (val=ast_var_value(variables)) &&
-		   !ast_strlen_zero(var) && !ast_strlen_zero(val)) {
+		if ((var=ast_var_name(variables)) && (val=ast_var_value(variables))
+		   /* && !ast_strlen_zero(var) && !ast_strlen_zero(val) */
+		   ) {
 			if (ast_build_string(&buf, &size, "%s=%s\n", var, val)) {
 				ast_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
 				break;

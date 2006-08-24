@@ -3046,7 +3046,7 @@ static void clone_variables(struct ast_channel *original, struct ast_channel *cl
 
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&original->varshead, varptr, entries) {
 		if (!strncmp(ast_var_name(varptr), GROUP_CATEGORY_PREFIX, strlen(GROUP_CATEGORY_PREFIX))) {
-			AST_LIST_REMOVE(&original->varshead, varptr, entries);
+			AST_LIST_REMOVE_CURRENT(&original->varshead, entries);
 			ast_var_delete(varptr);
 		}
 	}
@@ -3055,7 +3055,7 @@ static void clone_variables(struct ast_channel *original, struct ast_channel *cl
 	/* Append variables from clone channel into original channel */
 	/* XXX Is this always correct?  We have to in order to keep MACROS working XXX */
 	if (AST_LIST_FIRST(&clone->varshead))
-		AST_LIST_INSERT_TAIL(&original->varshead, AST_LIST_FIRST(&clone->varshead), entries);
+		AST_LIST_APPEND_LIST(&original->varshead, &clone->varshead, entries);
 }
 
 /*!

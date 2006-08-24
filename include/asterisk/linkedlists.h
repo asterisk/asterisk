@@ -462,6 +462,23 @@ struct {								\
 } while (0)
 
 /*!
+  \brief Appends a whole list to the tail of a list.
+  \param head This is a pointer to the list head structure
+  \param list This is a pointer to the list to be appended.
+  \param field This is the name of the field (declared using AST_LIST_ENTRY())
+  used to link entries of this list together.
+ */
+#define AST_LIST_APPEND_LIST(head, list, field) do {			\
+      if (!(head)->first) {						\
+		(head)->first = (list)->first;				\
+		(head)->last = (list)->last;				\
+      } else {								\
+		(head)->last->field.next = (list)->first;		\
+		(head)->last = (list)->last;				\
+      }									\
+} while (0)
+
+/*!
   \brief Removes and returns the head entry from a list.
   \param head This is a pointer to the list head structure
   \param field This is the name of the field (declared using AST_LIST_ENTRY())
