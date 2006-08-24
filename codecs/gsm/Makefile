@@ -38,7 +38,7 @@ WAV49	= -DWAV49
 ######### probably require gcc. 
 
 ifeq (, $(findstring $(OSARCH) , Darwin SunOS ))
-ifeq (, $(findstring $(PROC) , x86_64 amd64 ultrasparc sparc64 arm ppc ppc64 ia64 s390 bfin ))
+ifeq (, $(findstring $(PROC) , x86_64 amd64 ultrasparc sparc64 arm ppc powerpc ppc64 ia64 s390 bfin ))
 ifeq (, $(findstring $(shell uname -m) , ppc ppc64 alpha armv4l s390 ))
 OPTIMIZE+=-march=$(PROC)
 endif
