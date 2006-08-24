@@ -298,6 +298,10 @@ The SIP channel:
   option in sip.conf is removed to osp.conf as authpolicy. allowguest option
   in sip.conf cannot be set as osp anymore. 
 
+* The $SIPUSERAGENT dialplan variable is deprecated and will be removed
+  in coming versions of Asterisk. Please use the dialplan function
+  SIPCHANINFO(useragent) instead.
+
 The Zap channel:
 
 * Support for MFC/R2 has been removed, as it has not been functional for some
