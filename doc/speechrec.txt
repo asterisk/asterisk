@@ -169,7 +169,7 @@ ARG1 is equal to the file to play back after "I heard..." is played.
 	exten => s,7,Set(CONFIRM=${SPEECH_TEXT(0)})
 	exten => s,8,GotoIf($["${SPEECH_TEXT(0)}" = "1"]?9:10)
 	exten => s,9,Set(CONFIRM=yes)
-	exten => s,10,Set(${CONFIRMED}=${OLDTEXT0})
+	exten => s,10,Set(CONFIRMED=${OLDTEXT0})
 	exten => s,11,SpeechDeactivateGrammar(yes_no)
 
 * The Asterisk Speech Recognition C API

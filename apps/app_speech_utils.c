@@ -64,8 +64,7 @@ static char *speechbackground_descrip =
 "Once they stop talking the processing sound is played to indicate the speech recognition engine is working.\n"
 "Once results are available the application returns and results (score and text) are available using dialplan functions.\n"
 "The first text and score are ${SPEECH_TEXT(0)} AND ${SPEECH_SCORE(0)} while the second are ${SPEECH_TEXT(1)} and ${SPEECH_SCORE(1)}.\n"
-"This may change in the future, however, to use a dialplan function instead of dialplan variables. Note it is possible to have more then one result.\n"
-	"The first argument is the sound file and the second is the timeout. Note the timeout will only start once the sound file has stopped playing.\n";
+"The first argument is the sound file and the second is the timeout. Note the timeout will only start once the sound file has stopped playing.\n";
 
 static char *speechdeactivategrammar_descrip =
 "SpeechDeactivateGrammar(Grammar Name)\n"
