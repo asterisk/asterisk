@@ -762,7 +762,7 @@ static int moh_scan_files(struct mohclass *class) {
 	
 	files_DIR = opendir(class->dir);
 	if (!files_DIR) {
-		ast_log(LOG_WARNING, "Cannot open dir %s or dir does not exist", class->dir);
+		ast_log(LOG_WARNING, "Cannot open dir %s or dir does not exist\n", class->dir);
 		return -1;
 	}
 
