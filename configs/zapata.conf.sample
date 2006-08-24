@@ -84,7 +84,7 @@ switchtype=national
 ; local:          Local ISDN
 ; national:	  National ISDN
 ; international:  International ISDN
-; dynamic:	  Dynamically selectes the appropriate dialplan
+; dynamic:	  Dynamically selects the appropriate dialplan
 ;
 ;prilocaldialplan=national
 ;
