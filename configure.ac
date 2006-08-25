@@ -917,20 +917,23 @@ if test ! x"${CURL}" = xNo; then
 # check for version
    if test "${host_os}" = "SunOS"; then
       if [[ 0x`curl-config --vernum` -ge 0x70907 ]]; then
-         CURLLIB=$(${CURL} --libs)
+         CURL_INCLUDE=$(${CURL} --cflags)
+         CURL_LIB=$(${CURL} --libs)
          PBX_CURL=1
          AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
       fi
    else
       if [[[ 0x`curl-config --vernum` -ge 0x70907 ]]]; then
-         CURLLIB=$(${CURL} --libs)
+         CURL_INCLUDE=$(${CURL} --cflags)
+         CURL_LIB=$(${CURL} --libs)
          PBX_CURL=1
          AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
       fi
    fi
 fi
 AC_SUBST(PBX_CURL)
-AC_SUBST(CURLLIB)
+AC_SUBST(CURL_INCLUDE)
+AC_SUBST(CURL_LIB)
 
 AC_CONFIG_FILES([build_tools/menuselect-deps makeopts])
 AC_OUTPUT
