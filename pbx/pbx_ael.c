@@ -58,11 +58,10 @@ static char expr_output[2096];
 
 static char *config = "extensions.ael";
 static char *registrar = "pbx_ael";
+static int pbx_load_module(void);
 
 static int errs, warns;
-#ifndef STANDALONE_AEL
 static int notes;
-#endif
 
 #ifndef AAL_ARGCHECK
 /* for the time being, short circuit all the AAL related structures
@@ -1008,6 +1007,46 @@ static void check_month(pval *MON)
 	} else
 		e = s;
 }
+
+static int check_break(pval *item)
+{
+	pval *p = item;
+	
+	while( p && p->type != PV_MACRO && p->type != PV_CONTEXT ) /* early cutout, sort of */ {
+		/* a break is allowed in WHILE, FOR, CASE, DEFAULT, PATTERN; otherwise, it don't make
+		   no sense */
+		if( p->type == PV_CASE || p->type == PV_DEFAULT || p->type == PV_PATTERN 
+			|| p->type == PV_WHILE || p->type == PV_FOR   ) {
+			return 1;
+		}
+		p = p->dad;
+	}
+	ast_log(LOG_ERROR,"Error: file %s, line %d-%d: 'break' not in switch, for, or while statement!\n",
+			item->filename, item->startline, item->endline);
+	errs++;
+	
+	return 0;
+}
+
+static int check_continue(pval *item)
+{
+	pval *p = item;
+	
+	while( p && p->type != PV_MACRO && p->type != PV_CONTEXT ) /* early cutout, sort of */ {
+		/* a break is allowed in WHILE, FOR, CASE, DEFAULT, PATTERN; otherwise, it don't make
+		   no sense */
+		if( p->type == PV_WHILE || p->type == PV_FOR   ) {
+			return 1;
+		}
+		p = p->dad;
+	}
+	ast_log(LOG_ERROR,"Error: file %s, line %d-%d: 'continue' not in 'for' or 'while' statement!\n",
+			item->filename, item->startline, item->endline);
+	errs++;
+	
+	return 0;
+}
+
 
 /* general purpose goto finder */
 
@@ -2092,7 +2131,6 @@ void check_switch_expr(pval *item, struct argapp *apps)
 #endif
 }
 
-#ifndef STANDALONE_AEL
 static void check_context_names(void)
 {
 	pval *i,*j;
@@ -2111,7 +2149,6 @@ static void check_context_names(void)
 		}
 	}
 }
-#endif
 
 static void check_abstract_reference(pval *abstract_context)
 {
@@ -2438,6 +2475,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 	case PV_BREAK:
 		/* fields: none
 		*/
+		check_break(item);
 		break;
 			
 	case PV_RETURN:
@@ -2448,6 +2486,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 	case PV_CONTINUE:
 		/* fields: none
 		*/
+		check_continue(item);
 		break;
 			
 	case PV_RANDOM:
@@ -2576,7 +2615,6 @@ void check_pval(pval *item, struct argapp *apps, int in_globals)
 	}
 }
 
-#ifndef STANDALONE_AEL
 static void ael2_semantic_check(pval *item, int *arg_errs, int *arg_warns, int *arg_notes)
 {
 	
@@ -2607,7 +2645,6 @@ static void ael2_semantic_check(pval *item, int *arg_errs, int *arg_warns, int *
 	*arg_warns = warns;
 	*arg_notes = notes;
 }
-#endif
 
 /* =============================================================================================== */
 /* "CODE" GENERATOR -- Convert the AEL representation to asterisk extension language */
@@ -3658,7 +3695,13 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 						exten-> return_target = np2;
 					}
 					/* is the last priority in the extension a label? Then add a trailing no-op */
-					if ( exten->plist_last->type == AEL_LABEL ) {
+					if( !exten->plist_last )
+					{
+						ast_log(LOG_WARNING, "Warning: file %s, line %d-%d: Empty Extension!\n",
+								p2->filename, p2->startline, p2->endline);
+					}
+					
+					if ( exten->plist_last && exten->plist_last->type == AEL_LABEL ) {
 						struct ael_priority *np2 = new_prio();
 						np2->type = AEL_APPCALL;
 						np2->app = strdup("NoOp");
@@ -3737,10 +3780,12 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 	
 }
 
-#ifndef STANDALONE_AEL
+
 static int aeldebug = 0;
 
 /* interface stuff */
+
+/* if all the below are static, who cares if they are present? */
 
 static int pbx_load_module(void)
 {
@@ -3844,12 +3889,22 @@ static int reload(void)
 	return pbx_load_module();
 }
 
+#ifdef STANDALONE_AEL
+#define AST_MODULE "ael"
+int ael_external_load_module(void);
+int ael_external_load_module(void)
+{
+	pbx_load_module();
+	return 1;
+}
+#endif
+
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Asterisk Extension Language Compiler",
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,
 	       );
-#endif
+
 
 /* DESTROY the PVAL tree ============================================================================ */
 

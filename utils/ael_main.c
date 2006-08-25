@@ -119,6 +119,24 @@ void ast_add_profile(void)
 		printf("Executed ast_add_profile();\n");
 }
 
+int ast_loader_register(int (*updater)(void))
+{
+	return 1;
+}
+
+int ast_loader_unregister(int (*updater)(void))
+{
+	return 1;
+}
+void ast_module_register(const struct ast_module_info *x)
+{
+}
+
+void ast_module_unregister(const struct ast_module_info *x)
+{
+}
+
+
 void ast_cli_register_multiple(void)
 {
 	if(!no_comp)
@@ -406,6 +424,7 @@ void filter_newlines(char *str)
 
 
 extern struct module_symbols mod_data;
+extern ael_external_load_module(void);
 
 int main(int argc, char **argv)
 {
@@ -455,7 +474,7 @@ int main(int argc, char **argv)
 
 	FIRST_TIME = 1;
 	
-	ast_module_info->load();
+	ael_external_load_module();
 	
 	ast_log(4, "ael2_parse", __LINE__, "main", "%d contexts, %d extensions, %d priorities\n", conts, extens, priors);
 

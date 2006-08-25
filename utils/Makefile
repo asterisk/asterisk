@@ -68,12 +68,12 @@ stereorize: LIBS+=-lm
 $(eval $(call ast_make_o_c,ast_expr2.o,../main/ast_expr2.c))
 
 $(eval $(call ast_make_o_c,ast_expr2f.o,../main/ast_expr2f.c))
-ast_expr2f.o: CFLAGS+=-DSTANDALONE
+ast_expr2f.o: CFLAGS+=-DSTANDALONE_AEL
 
 $(eval $(call ast_make_final,check_expr,check_expr.c ast_expr2.o ast_expr2f.o))
 
 $(eval $(call ast_make_o_c,aelflex.o,../pbx/ael/ael_lex.c ../include/asterisk/ael_structs.h ../pbx/ael/ael.tab.h))
-aelflex.o: CFLAGS+=-I../pbx -DSTANDALONE
+aelflex.o: CFLAGS+=-I../pbx -DSTANDALONE_AEL
 
 $(eval $(call ast_make_o_c,aelbison.o,../pbx/ael/ael.tab.c ../pbx/ael/ael.tab.h ../include/asterisk/ael_structs.h))
 aelbison.o: CFLAGS+=-I../pbx
@@ -86,8 +86,8 @@ $(eval $(call ast_make_final,aelparse,aelflex.o aelbison.o pbx_ael.o ael_main.o 
 $(eval $(call ast_make_o_c,ael_main.o,ael_main.c ../include/asterisk/ael_structs.h))
 
 testexpr2s: ../main/ast_expr2f.c ../main/ast_expr2.c ../main/ast_expr2.h
-	$(CC) -g -c -I../include -DSTANDALONE ../main/ast_expr2f.c -o ast_expr2f.o
-	$(CC) -g -c -I../include -DSTANDALONE ../main/ast_expr2.c -o ast_expr2.o
+	$(CC) -g -c -I../include -DSTANDALONE_AEL ../main/ast_expr2f.c -o ast_expr2f.o
+	$(CC) -g -c -I../include -DSTANDALONE_AEL ../main/ast_expr2.c -o ast_expr2.o
 	$(CC) -g -o testexpr2s ast_expr2f.o ast_expr2.o
 	rm ast_expr2.o ast_expr2f.o 
 	./testexpr2s expr2.testinput
