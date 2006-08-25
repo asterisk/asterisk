@@ -8628,10 +8628,11 @@ static void *pri_dchannel(void *vpri)
 						res = set_actual_gain(pri->pvts[chanpos]->subs[SUB_REAL].zfd, 0, pri->pvts[chanpos]->rxgain, pri->pvts[chanpos]->txgain, law);
 						if (res < 0)
 							ast_log(LOG_WARNING, "Unable to set gains on channel %d\n", pri->pvts[chanpos]->channel);
-						if (e->ring.complete || !pri->overlapdial)
+						if (e->ring.complete || !pri->overlapdial) {
 							/* Just announce proceeding */
+							p->proceeding = 1;
 							pri_proceeding(pri->pri, e->ring.call, PVT_TO_CHANNEL(pri->pvts[chanpos]), 0);
-						else  {
+						} else {
 							if (pri->switchtype != PRI_SWITCH_GR303_TMC) 
 								pri_need_more_info(pri->pri, e->ring.call, PVT_TO_CHANNEL(pri->pvts[chanpos]), 1);
 							else
