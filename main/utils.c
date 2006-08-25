@@ -363,7 +363,7 @@ int ast_base64encode_full(char *dst, const unsigned char *src, int srclen, int m
 		byte |= *(src++);
 		bits += 8;
 		cntin++;
-		if ((bits == 24) && (cnt + 4 < max)) {
+		if ((bits == 24) && (cnt + 4 <= max)) {
 			*dst++ = base64[(byte >> 18) & 0x3f];
 			*dst++ = base64[(byte >> 12) & 0x3f];
 			*dst++ = base64[(byte >> 6) & 0x3f];
@@ -379,7 +379,7 @@ int ast_base64encode_full(char *dst, const unsigned char *src, int srclen, int m
 			col = 0;
 		}
 	}
-	if (bits && (cnt + 4 < max)) {
+	if (bits && (cnt + 4 <= max)) {
 		/* Add one last character for the remaining bits, 
 		   padding the rest with 0 */
 		byte <<= 24 - bits;
