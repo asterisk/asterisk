@@ -118,7 +118,7 @@ echo '01234567890123456789012345678901S.h:' >> testMakefile
 echo '01234567890123456789012345678901C.h:' >> testMakefile
 echo '01234567890123456789012345678901SK.cc:' >> testMakefile
 echo '01234567890123456789012345678901DynSK.cc:' >> testMakefile
-$GNU_MAKE -r -f testMakefile 2&>1 > /dev/null
+$GNU_MAKE -r -f testMakefile 2>&1 > /dev/null
 if test "$?" != "0" ; then
   rm -f testMakefile
   AC_MSG_NOTICE(********** ERROR **********)
