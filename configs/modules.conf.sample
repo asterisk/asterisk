@@ -36,8 +36,3 @@ load => res_musiconhold.so
 ;
 noload => chan_alsa.so
 ;noload => chan_oss.so
-;
-; Module names listed in "global" section will have symbols globally
-; exported to modules loaded after them.
-;
-[global]
