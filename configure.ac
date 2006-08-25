@@ -108,6 +108,29 @@ AC_PROG_LN_S
 AC_PROG_RANLIB
 AST_CHECK_GNU_MAKE
 
+# http://www.mail-archive.com/bug-make@gnu.org/msg02871.html
+echo 'define A' > testMakefile
+echo '12345: $(1:.idl=.hh) $(1:.idl=S.h) $(1:.idl=C.h) $(1:.idl=SK.cc) $(1:.idl=DynSK.cc)' >> testMakefile
+echo 'endef' >> testMakefile
+echo '$(eval $(call A,01234567890123456789012345678901.idl))' >> testMakefile
+echo '01234567890123456789012345678901.hh:' >> testMakefile
+echo '01234567890123456789012345678901S.h:' >> testMakefile
+echo '01234567890123456789012345678901C.h:' >> testMakefile
+echo '01234567890123456789012345678901SK.cc:' >> testMakefile
+echo '01234567890123456789012345678901DynSK.cc:' >> testMakefile
+$GNU_MAKE -r -f testMakefile 2&>1 > /dev/null
+if test "$?" != "0" ; then
+  rm -f testMakefile
+  AC_MSG_NOTICE(********** ERROR **********)
+  AC_MSG_NOTICE(Your version of GNU Make contains a bug that will cause the Asterisk build)
+  AC_MSG_NOTICE(system to not funciton properly.  This bug is known to be fixed in version)
+  AC_MSG_NOTICE(3.81 as well as versions of 3.80 that contain backported bug fixes.  You)
+  AC_MSG_NOTICE(must update GNU make to build Asterisk.)
+  AC_MSG_NOTICE(***************************)
+  exit 1
+fi
+rm -f testMakefile
+
 AC_PATH_PROG([GREP], [grep], :)
 AC_PATH_PROG([AR], [ar], :)
 AC_PATH_PROG([FIND], [find], :)
@@ -969,14 +992,4 @@ AC_MSG_NOTICE( OS type  : $host_os)
 AC_MSG_NOTICE( Host CPU : $host_cpu)
 if test "${cross_compiling}" = "yes"; then
    AC_MSG_NOTICE( Cross Compilation = YES)
-fi
-
-if test ${GNU_MAKE_VERSION_MAJOR} -lt 3 || test ${GNU_MAKE_VERSION_MINOR} -lt 81 ; then
-   AC_MSG_NOTICE()
-   AC_MSG_NOTICE(***** WARNING ******)
-   AC_MSG_NOTICE(You are currently using GNU Make version ${GNU_MAKE_VERSION_MAJOR}.${GNU_MAKE_VERSION_MINOR}.)
-   AC_MSG_NOTICE(The Asterisk build system uses features that may not work correctly prior to 3.81.)
-   AC_MSG_NOTICE(Please consider upgrading GNU Make or you may experience problems.)
-   AC_MSG_NOTICE(********************)
-   AC_MSG_NOTICE()
 fi
