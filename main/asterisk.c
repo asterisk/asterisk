@@ -469,10 +469,12 @@ static int handle_show_profile(int fd, int argc, char *argv[])
 	}
 	ast_cli(fd, "profile values (%d, allocated %d)\n-------------------\n",
 		prof_data->entries, prof_data->max_size);
+	ast_cli(fd, "%6s   %8s  %10s %12s %12s  %s\n", "ID", "Scale", "Events",
+			"Value", "Average", "Name");
 	for (i = min; i < max; i++) {
 		struct profile_entry *e = &prof_data->e[i];
 		if (!search || strstr(prof_data->e[i].name, search))
-		    ast_cli(fd, "%6d: [%8ld] %10ld %12lld %12lld %s\n",
+		    ast_cli(fd, "%6d: [%8ld] %10ld %12lld %12lld  %s\n",
 			i,
 			(long)e->scale,
 			(long)e->events, (long long)e->value,
