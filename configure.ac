@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.59)
+AC_PREREQ(2.60)
 
 m4_define([PBX_VERSION],
           m4_bpatsubst(m4_esyscmd([build_tools/make_version .]),
