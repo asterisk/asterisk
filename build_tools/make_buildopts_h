@@ -7,7 +7,7 @@ cat << END
  */
 
 END
-TMP=`grep MENUSELECT_CFLAGS menuselect.makeopts | sed s/MENUSELECT_CFLAGS\=//g | sed s/-D//g`
+TMP=`grep MENUSELECT_CFLAGS menuselect.makeopts | sed 's/MENUSELECT_CFLAGS\=//g' | sed 's/-D//g'`
 for x in ${TMP}; do
      echo "#define ${x} 1"
 done
