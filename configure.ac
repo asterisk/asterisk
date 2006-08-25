@@ -123,8 +123,8 @@ if test "$?" != "0" ; then
   rm -f testMakefile
   AC_MSG_NOTICE(********** ERROR **********)
   AC_MSG_NOTICE(Your version of GNU Make contains a bug that will cause the Asterisk build)
-  AC_MSG_NOTICE(system to not funciton properly.  This bug is known to be fixed in version)
-  AC_MSG_NOTICE(3.81 as well as versions of 3.80 that contain backported bug fixes.  You)
+  AC_MSG_NOTICE(system to not function properly.  This bug is known to be fixed in version)
+  AC_MSG_NOTICE(3.81 as well as distributions of 3.80 that contain backported bug fixes.  You)
   AC_MSG_NOTICE(must update GNU make to build Asterisk.)
   AC_MSG_NOTICE(***************************)
   exit 1
