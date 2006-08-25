@@ -4743,19 +4743,21 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		/* Keep this check last */
 		if (!ast_strlen_zero(user->dbsecret)) {
 			char *family, *key=NULL;
+			char buf[80];
 			family = ast_strdupa(user->dbsecret);
 			key = strchr(family, '/');
 			if (key) {
 				*key = '\0';
 				key++;
 			}
-			if (!key || ast_db_get(family, key, (char*)iaxs[callno]->secret, sizeof(iaxs[callno]->secret))) {
+			if (!key || ast_db_get(family, key, buf, sizeof(buf))) {
 				ast_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", user->dbsecret);
 				if (ast_test_flag(user, IAX_TEMPONLY)) {
 					destroy_user(user);
 					user = NULL;
 				}
-			}
+			} else
+				ast_string_field_set(iaxs[callno], secret, buf);
 		} else
 			ast_string_field_set(iaxs[callno], secret, user->secret);
 		res = 0;
