@@ -163,7 +163,8 @@ ifeq ($(PROC),ppc)
 endif
 
 ifeq ($(OSARCH),FreeBSD)
-  BSDVERSION=$(shell $(MAKE) -V OSVERSION -f /usr/share/mk/bsd.port.subdir.mk)
+  # -V is understood by BSD Make, not by GNU make.
+  BSDVERSION=$(shell make -V OSVERSION -f /usr/share/mk/bsd.port.subdir.mk)
   ASTCFLAGS+=$(shell if test $(BSDVERSION) -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
   AST_LIBS+=$(shell if test  $(BSDVERSION) -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
 endif
