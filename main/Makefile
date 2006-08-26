@@ -62,7 +62,9 @@ endif
 
 ifneq ($(findstring darwin,$(OSARCH)),)
   AST_LIBS+=-lresolv
-  ASTLINK=-Wl,-dynamic
+  ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
+    ASTLINK=-Wl,-dynamic
+  endif
   # Mac on Intel CoreDuo does not need poll compatibility layer
   ifneq ($(PROC),i386)
     OBJS+=poll.o
@@ -70,7 +72,11 @@ ifneq ($(findstring darwin,$(OSARCH)),)
   endif
 else
 # These are used for all but Darwin
-  ASTLINK=-Wl,-E 
+  ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
+    ASTLINK+=-Wl,--export-dynamic
+  else
+    ASTLINK+=${GC_LDFLAGS}
+  endif
   ifneq ($(findstring BSD,$(OSARCH)),)
     LDFLAGS+=-L/usr/local/lib
   endif

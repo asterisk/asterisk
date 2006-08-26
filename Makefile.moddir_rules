@@ -15,6 +15,10 @@ ifneq ($(findstring MALLOC_DEBUG,$(MENUSELECT_CFLAGS)),)
   CFLAGS+=-include $(ASTTOPDIR)/include/asterisk/astmm.h
 endif
 
+ifeq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
+  CFLAGS+=${GC_CFLAGS}
+endif
+
 ifneq ($(findstring STATIC_BUILD,$(MENUSELECT_CFLAGS)),)
   STATIC_BUILD=-static
 endif

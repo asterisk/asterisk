@@ -32,6 +32,9 @@ PROC=@HOST_CPU@
 OSARCH=@HOST_OS@
 OSREV=@PBX_OSREV@
 
+GC_CFLAGS=@GC_CFLAGS@
+GC_LDFLAGS=@GC_LDFLAGS@
+
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 

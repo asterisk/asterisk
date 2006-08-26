@@ -251,6 +251,35 @@ AC_DEFINE([HAVE_GCC_ATOMICS], 1, [Define to 1 if your GCC C compiler provides at
 AC_MSG_RESULT(no)
 )
 
+AST_GCC_ATTRIBUTE(pure)
+AST_GCC_ATTRIBUTE(malloc)
+AST_GCC_ATTRIBUTE(const)
+AST_GCC_ATTRIBUTE(unused)
+AST_GCC_ATTRIBUTE(always_inline)
+
+AC_MSG_CHECKING(checking for -ffunction-sections support)
+saved_CFLAGS="${CFLAGS}"
+CFLAGS="${CFLAGS} -ffunction-sections"
+AC_COMPILE_IFELSE(
+	AC_LANG_PROGRAM([], [int x = 1;]),
+	AC_MSG_RESULT(yes)
+	[saved_LDFLAGS="${LDFLAGS}"]
+	[LDFLAGS="${LDFLAGS} -Wl,--gc-sections"]
+	AC_MSG_CHECKING(checking for --gc-sections support)
+	AC_LINK_IFELSE(
+		AC_LANG_PROGRAM([], [int x = 1;]),
+		AC_MSG_RESULT(yes)
+		[GC_CFLAGS="-ffunction-sections"]
+		[[GC_LDFLAGS="-Wl,--gc-sections"]],
+		AC_MSG_RESULT(no)
+	)
+	[LDFLAGS="${saved_LDFLAGS}"],
+	AC_MSG_RESULT(no)
+)
+CFLAGS="${saved_CFLAGS}"
+AC_SUBST(GC_CFLAGS)
+AC_SUBST(GC_LDFLAGS)
+
 AC_MSG_CHECKING(checking for res_ninit)
 AC_LINK_IFELSE(
 	AC_LANG_PROGRAM([#include <resolv.h>],
@@ -268,12 +297,6 @@ AC_LINK_IFELSE(
 	AC_DEFINE([HAVE_RTLD_NOLOAD], 1, [Define to 1 if your system has a dynamic linker that supports RTLD_NOLOAD.]),
 	AC_MSG_RESULT(no)
 )
-
-AST_GCC_ATTRIBUTE(pure)
-AST_GCC_ATTRIBUTE(malloc)
-AST_GCC_ATTRIBUTE(const)
-AST_GCC_ATTRIBUTE(unused)
-AST_GCC_ATTRIBUTE(always_inline)
 
 AC_CHECK_HEADER([libkern/OSAtomic.h],
                 [AC_DEFINE_UNQUOTED([HAVE_OSX_ATOMICS], 1, [Define to 1 if OSX atomic operations are supported.])])
