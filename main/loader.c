@@ -323,9 +323,14 @@ static struct ast_module *find_resource(const char *resource, int do_lock)
 #if LOADABLE_MODULES
 static void unload_dynamic_module(struct ast_module *mod)
 {
-	if (mod->lib)
-		while (!dlclose(mod->lib));
-	/* WARNING: the structure pointed to by mod is now gone! */
+	void *lib = mod->lib;
+
+	/* WARNING: the structure pointed to by mod is going to
+	   disappear when this operation succeeds, so we can't
+	   dereference it */
+
+	if (lib)
+		while (!dlclose(lib));
 }
 
 static struct ast_module *load_dynamic_module(const char *resource_in, unsigned int global_symbols_only)
