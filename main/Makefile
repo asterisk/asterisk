@@ -11,14 +11,7 @@
 # the GNU General Public License
 #
 
-ifneq ($(wildcard $(ASTTOPDIR)/menuselect.makeopts),)
-  include $(ASTTOPDIR)/menuselect.makeopts
-  include $(ASTTOPDIR)/menuselect.makedeps
-endif
-
-ifneq ($(wildcard $(ASTTOPDIR)/makeopts.embed_rules),)
-  include $(ASTTOPDIR)/makeopts.embed_rules
-endif
+-include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps $(ASTTOPDIR)/makeopts.embed_rules
 
 all: asterisk
 

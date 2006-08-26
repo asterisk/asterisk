@@ -13,9 +13,7 @@
 
 .PHONY: dist-clean all uninstall
 
-ifneq ($(wildcard $(ASTTOPDIR)/menuselect.makeopts),)
-  include $(ASTTOPDIR)/menuselect.makeopts
-endif
+-include $(ASTTOPDIR)/menuselect.makeopts
 
 PWD:=$(shell pwd)
 SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds

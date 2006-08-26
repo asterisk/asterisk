@@ -9,10 +9,7 @@
 # the GNU General Public License
 #
 
-ifneq ($(wildcard $(ASTTOPDIR)/menuselect.makeopts),)
-  include ../menuselect.makeopts
-  include ../menuselect.makedeps
-endif
+-include ../menuselect.makeopts ../menuselect.makedeps
 
 C_MODS:=$(filter-out $(MENUSELECT_PBX),$(patsubst %.c,%,$(wildcard pbx_*.c)))
 CC_MODS:=$(filter-out $(MENUSELECT_PBX),$(patsubst %.cc,%,$(wildcard pbx_*.cc)))

@@ -9,10 +9,7 @@
 # the GNU General Public License
 #
 
-ifneq ($(wildcard $(ASTTOPDIR)/menuselect.makeopts),)
-  include ../menuselect.makeopts
-  include ../menuselect.makedeps
-endif
+-include ../menuselect.makeopts ../menuselect.makedeps
 
 C_MODS:=$(filter-out $(MENUSELECT_FUNCS),$(patsubst %.c,%,$(wildcard func_*.c)))
 CC_MODS:=$(filter-out $(MENUSELECT_FUNCS),$(patsubst %.cc,%,$(wildcard func_*.cc)))

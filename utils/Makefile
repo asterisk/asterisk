@@ -100,9 +100,7 @@ streamplayer: streamplayer.o
 muted: muted.o
 muted: LIBS+=$(AUDIO_LIBS)
 
-ifneq ($(wildcard .depend),)
-  include .depend
-endif
+-include .depend
 
 depend: .depend
 

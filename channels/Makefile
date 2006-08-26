@@ -9,10 +9,7 @@
 # the GNU General Public License
 #
 
-ifneq ($(wildcard $(ASTTOPDIR)/menuselect.makeopts),)
-  include ../menuselect.makeopts
-  include ../menuselect.makedeps
-endif
+-include ../menuselect.makeopts ../menuselect.makedeps
 
 C_MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(patsubst %.c,%,$(wildcard chan_*.c)))
 CC_MODS:=$(filter-out $(MENUSELECT_CHANNELS),$(patsubst %.cc,%,$(wildcard chan_*.cc)))
@@ -66,9 +63,7 @@ clean::
 	rm -f busy.h ringtone.h gentone
 	$(MAKE) -C misdn clean
 
-ifneq ($(wildcard $(PWD)/Makefile.ast),)
-  include $(PWD)/Makefile.ast
-endif
+-include $(PWD)/Makefile.ast
 
 $(eval $(call ast_make_final_host,gentone,gentone.c))
 gentone: LIBS+=-lm
