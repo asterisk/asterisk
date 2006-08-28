@@ -227,13 +227,6 @@ with equal precedence are grouped within { } symbols.
             This, the unary minus operator, is right associative, and
             has the same precedence as the ! operator.
 
-     ! expr1
-            Return the result of a logical complement of expr1.
-            In other words, if expr1 is null, 0, an empty string,
-            or the string "0", return a 1. Otherwise, return a 0.
-            It has the same precedence as the unary minus operator, and
-            is also right associative.
-
      expr1 : expr2
              The `:' operator matches expr1 against expr2, which must be a
              regular expression.  The regular expression is anchored to the
@@ -250,12 +243,6 @@ with equal precedence are grouped within { } symbols.
              of the string. This is disastrous to the : operator. Therefore,
              before the regex match is made, beginning and ending double quote
              characters are stripped from both the pattern and the string.
-
-      expr1 =~ expr2
-             Exactly the same as the ':' operator, except that the match is
-             not anchored to the beginning of the string. Pardon any similarity
-             to seemingly similar operators in other programming languages!
-             The ":" and "=~" operators share the same precedence.
 
       expr1 ? expr2 :: expr3
              Traditional Conditional operator. If expr1 is a number
@@ -276,12 +263,6 @@ or C derived languages.
 
 Examples
 
- "One Thousand Five Hundred" =~ "(T[^ ]+)"
-	returns: Thousand
-
- "One Thousand Five Hundred" =~ "T[^ ]+"
-	returns: 8
-
  "One Thousand Five Hundred" : "T[^ ]+"
 	returns: 0
 
@@ -290,11 +271,6 @@ Examples
 
  "3075551212":"...(...)"
 	returns: 555
-
- ! "One Thousand Five Hundred" =~ "T[^ ]+"
-	returns: 0 (because it applies to the string, which is non-null,
-                    which it turns to "0", and then looks for the pattern
-                    in the "0", and doesn't find it)
 
  !( "One Thousand Five Hundred" : "T[^ ]+" )
 	returns: 1  (because the string doesn't start with a word starting
