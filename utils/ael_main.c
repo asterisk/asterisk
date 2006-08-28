@@ -424,7 +424,7 @@ void filter_newlines(char *str)
 
 
 extern struct module_symbols mod_data;
-extern ael_external_load_module(void);
+extern int ael_external_load_module(void);
 
 int main(int argc, char **argv)
 {
