@@ -1479,8 +1479,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 
 /*----- RTP interface functions */
 static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active);
-static struct ast_rtp *sip_get_rtp_peer(struct ast_channel *chan);
-static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan);
+static enum ast_rtp_get_result sip_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp);
+static enum ast_rtp_get_result sip_get_vrtp_peer(struct ast_channel *chan, struct ast_rtp **rtp);
 static int sip_get_codec(struct ast_channel *chan);
 static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p, int *faxdetect);
 
@@ -16051,34 +16051,53 @@ static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt
 
 
 /*! \brief Returns null if we can't reinvite audio (part of RTP interface) */
-static struct ast_rtp *sip_get_rtp_peer(struct ast_channel *chan)
+static enum ast_rtp_get_result sip_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp)
 {
-	struct sip_pvt *p;
-	struct ast_rtp *rtp = NULL;
-	p = chan->tech_pvt;
-	if (!p)
-		return NULL;
+	struct sip_pvt *p = NULL;
+	enum ast_rtp_get_result res = AST_RTP_TRY_PARTIAL;
+
+	if (!(p = chan->tech_pvt))
+		return AST_RTP_GET_FAILED;
+
 	ast_mutex_lock(&p->lock);
-	if (p->rtp && ast_test_flag(&p->flags[0], SIP_CAN_REINVITE))
-		rtp =  p->rtp;
+	if (!(p->rtp)) {
+		ast_mutex_unlock(&p->lock);
+		return AST_RTP_GET_FAILED;
+	}
+
+	*rtp = p->rtp;
+
+	if (ast_test_flag(&p->flags[0], SIP_CAN_REINVITE))
+		res = AST_RTP_TRY_NATIVE;
+
 	ast_mutex_unlock(&p->lock);
-	return rtp;
+
+	return res;
 }
 
 /*! \brief Returns null if we can't reinvite video (part of RTP interface) */
-static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
+static enum ast_rtp_get_result sip_get_vrtp_peer(struct ast_channel *chan, struct ast_rtp **rtp)
 {
-	struct sip_pvt *p;
-	struct ast_rtp *rtp = NULL;
-	p = chan->tech_pvt;
-	if (!p)
-		return NULL;
+	struct sip_pvt *p = NULL;
+	enum ast_rtp_get_result res = AST_RTP_TRY_PARTIAL;
+	
+	if (!(p = chan->tech_pvt))
+		return AST_RTP_GET_FAILED;
 
 	ast_mutex_lock(&p->lock);
-	if (p->vrtp && ast_test_flag(&p->flags[0], SIP_CAN_REINVITE))
-		rtp = p->vrtp;
+	if (!(p->rtp)) {
+		ast_mutex_unlock(&p->lock);
+		return AST_RTP_GET_FAILED;
+	}
+
+	*rtp = p->vrtp;
+
+	if (ast_test_flag(&p->flags[0], SIP_CAN_REINVITE))
+		res = AST_RTP_TRY_NATIVE;
+
 	ast_mutex_unlock(&p->lock);
-	return rtp;
+
+	return res;
 }
 
 /*! \brief Set the RTP peer for this call */

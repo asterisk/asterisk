@@ -54,11 +54,22 @@ enum ast_rtp_options {
 	AST_RTP_OPT_G726_NONSTANDARD = (1 << 0),
 };
 
+enum ast_rtp_get_result {
+	/*! Failed to find the RTP structure */
+	AST_RTP_GET_FAILED = 0,
+	/*! RTP structure exists but true native bridge can not occur so try partial */
+	AST_RTP_TRY_PARTIAL,
+	/*! RTP structure exists and native bridge can occur */
+	AST_RTP_TRY_NATIVE,
+};
+
+struct ast_rtp;
+
 struct ast_rtp_protocol {
 	/*! Get RTP struct, or NULL if unwilling to transfer */
-	struct ast_rtp *(* const get_rtp_info)(struct ast_channel *chan);
+	enum ast_rtp_get_result (* const get_rtp_info)(struct ast_channel *chan, struct ast_rtp **rtp);
 	/*! Get RTP struct, or NULL if unwilling to transfer */
-	struct ast_rtp *(* const get_vrtp_info)(struct ast_channel *chan);
+	enum ast_rtp_get_result (* const get_vrtp_info)(struct ast_channel *chan, struct ast_rtp **rtp);
 	/*! Set RTP peer */
 	int (* const set_rtp_peer)(struct ast_channel *chan, struct ast_rtp *peer, struct ast_rtp *vpeer, int codecs, int nat_active);
 	int (* const get_codec)(struct ast_channel *chan);

@@ -3876,13 +3876,19 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 	return (gw_reload ? NULL : gw);
 }
 
-static struct ast_rtp *mgcp_get_rtp_peer(struct ast_channel *chan)
+static enum ast_rtp_get_result mgcp_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp)
 {
-	struct mgcp_subchannel *sub;
-	sub = chan->tech_pvt;
-	if (sub && sub->rtp && sub->parent->canreinvite)
-		return sub->rtp;
-	return NULL;
+	struct mgcp_subchannel *sub = NULL;
+
+	if (!(sub = chan->tech_pvt) || !(sub->rtp))
+		return AST_RTP_GET_FAILED;
+
+	*rtp = sub->rtp;
+
+	if (sub->parent->canreinvite)
+		return AST_RTP_TRY_NATIVE;
+	else
+		return AST_RTP_TRY_PARTIAL;
 }
 
 static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active)

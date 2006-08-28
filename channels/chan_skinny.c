@@ -1591,24 +1591,28 @@ static void do_housekeeping(struct skinnysession *s)
 /* I do not believe skinny can deal with video.
    Anyone know differently? */
 /* Yes, it can.  Currently 7985 and Cisco VT Advantage do video. */
-static struct ast_rtp *skinny_get_vrtp_peer(struct ast_channel *c)
+static enum ast_rtp_get_result skinny_get_vrtp_peer(struct ast_channel *c, struct ast_rtp **rtp)
 {
-	struct skinny_subchannel *sub;
-	sub = c->tech_pvt;
-	if (sub && sub->vrtp) {
-		return sub->vrtp;
-	}
-	return NULL;
+	struct skinny_subchannel *sub = NULL;
+
+	if (!(sub = c->tech_pvt) || !(sub->vrtp))
+		return AST_RTP_GET_FAILED;
+
+	*rtp = sub->vrtp;
+
+	return AST_RTP_TRY_NATIVE;
 }
 
-static struct ast_rtp *skinny_get_rtp_peer(struct ast_channel *c)
+static enum ast_rtp_get_result skinny_get_rtp_peer(struct ast_channel *c, struct ast_rtp **rtp)
 {
-	struct skinny_subchannel *sub;
-	sub = c->tech_pvt;
-	if (sub && sub->rtp) {
-		return sub->rtp;
-	}
-	return NULL;
+	struct skinny_subchannel *sub = NULL;
+
+	if (!(sub = c->tech_pvt) || !(sub->rtp))
+		return AST_RTP_GET_FAILED;
+
+	*rtp = sub->rtp;
+
+	return AST_RTP_TRY_NATIVE;
 }
 
 static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active)
