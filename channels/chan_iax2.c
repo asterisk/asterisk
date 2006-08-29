@@ -4787,6 +4787,7 @@ static int authenticate_request(struct chan_iax2_pvt *p)
 	struct iax2_user *user = NULL;
 	struct iax_ie_data ied;
 	int res = -1, authreq_restrict = 0;
+	char challenge[10];
 
 	memset(&ied, 0, sizeof(ied));
 
@@ -4815,7 +4816,8 @@ static int authenticate_request(struct chan_iax2_pvt *p)
 
 	iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
 	if (p->authmethods & (IAX_AUTH_MD5 | IAX_AUTH_RSA)) {
-		ast_string_field_build(p,challenge, "%d", (int)ast_random());
+		snprintf(challenge, sizeof(challenge), "%d", (int)ast_random());
+		ast_string_field_set(p, challenge, challenge);
 		/* snprintf(p->challenge, sizeof(p->challenge), "%d", (int)ast_random()); */
 		iax_ie_append_str(&ied, IAX_IE_CHALLENGE, p->challenge);
 	}
@@ -5644,6 +5646,7 @@ static int registry_authrequest(const char *name, int callno)
 {
 	struct iax_ie_data ied;
 	struct iax2_peer *p;
+	char challenge[10];
 	/* SLD: third call to find_peer in registration */
 	p = find_peer(name, 1);
 	if (p) {
@@ -5651,7 +5654,8 @@ static int registry_authrequest(const char *name, int callno)
 		iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
 		if (p->authmethods & (IAX_AUTH_RSA | IAX_AUTH_MD5)) {
 			/* Build the challenge */
-			ast_string_field_build(iaxs[callno], challenge, "%d", (int)ast_random());
+			snprintf(challenge, sizeof(challenge), "%d", (int)ast_random());
+			ast_string_field_set(iaxs[callno], challenge, challenge);
 			/* snprintf(iaxs[callno]->challenge, sizeof(iaxs[callno]->challenge), "%d", (int)ast_random()); */
 			iax_ie_append_str(&ied, IAX_IE_CHALLENGE, iaxs[callno]->challenge);
 		}
