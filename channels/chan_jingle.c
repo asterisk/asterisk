@@ -185,7 +185,7 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 /*----- RTP interface functions */
 static int jingle_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp,
 							   struct ast_rtp *vrtp, int codecs, int nat_active);
-static struct ast_rtp *jingle_get_rtp_peer(struct ast_channel *chan);
+static enum ast_rtp_get_result jingle_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp);
 static int jingle_get_codec(struct ast_channel *chan);
 
 /*! \brief PBX interface structure for channel registration */
@@ -405,18 +405,22 @@ static int jingle_answer(struct ast_channel *ast)
 	return res;
 }
 
-static struct ast_rtp *jingle_get_rtp_peer(struct ast_channel *chan)
+static enum ast_rtp_get_result jingle_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp)
 {
 	struct jingle_pvt *p = chan->tech_pvt;
-	struct ast_rtp *rtp = NULL;
+	enum ast_rtp_get_result res = AST_RTP_GET_FAILED;
 
 	if (!p)
-		return NULL;
+		return res;
+
 	ast_mutex_lock(&p->lock);
-	if (p->rtp)
-		rtp = p->rtp;
+	if (p->rtp) {
+		*rtp = p->rtp;
+		res = AST_RTP_TRY_NATIVE;
+	}
 	ast_mutex_unlock(&p->lock);
-	return rtp;
+
+	return res;
 }
 
 static int jingle_get_codec(struct ast_channel *chan)
