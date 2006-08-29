@@ -871,11 +871,11 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 struct ast_call_feature builtin_features[] = 
  {
-	{ AST_FEATURE_REDIRECT, "Blind Transfer", "blindxfer", "#", "#", builtin_blindtransfer, AST_FEATURE_FLAG_NEEDSDTMF },
-	{ AST_FEATURE_REDIRECT, "Attended Transfer", "atxfer", "", "", builtin_atxfer, AST_FEATURE_FLAG_NEEDSDTMF },
-	{ AST_FEATURE_AUTOMON, "One Touch Monitor", "automon", "", "", builtin_automonitor, AST_FEATURE_FLAG_NEEDSDTMF },
-	{ AST_FEATURE_DISCONNECT, "Disconnect Call", "disconnect", "*", "*", builtin_disconnect, AST_FEATURE_FLAG_NEEDSDTMF },
-	{ AST_FEATURE_PARKCALL, "Park Call", "parkcall", "", "", builtin_parkcall, AST_FEATURE_FLAG_NEEDSDTMF },
+	{ AST_FEATURE_REDIRECT, "Blind Transfer", "blindxfer", "#", "#", builtin_blindtransfer, AST_FEATURE_FLAG_NEEDSDTMF, "" },
+	{ AST_FEATURE_REDIRECT, "Attended Transfer", "atxfer", "", "", builtin_atxfer, AST_FEATURE_FLAG_NEEDSDTMF, "" },
+	{ AST_FEATURE_AUTOMON, "One Touch Monitor", "automon", "", "", builtin_automonitor, AST_FEATURE_FLAG_NEEDSDTMF, "" },
+	{ AST_FEATURE_DISCONNECT, "Disconnect Call", "disconnect", "*", "*", builtin_disconnect, AST_FEATURE_FLAG_NEEDSDTMF, "" },
+	{ AST_FEATURE_PARKCALL, "Park Call", "parkcall", "", "", builtin_parkcall, AST_FEATURE_FLAG_NEEDSDTMF, "" },
 };
 
 
@@ -940,7 +940,7 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 {
 	struct ast_app *app;
 	struct ast_call_feature *feature;
-	struct ast_channel *work;
+	struct ast_channel *work, *idle;
 	int res;
 
 	AST_LIST_LOCK(&feature_list);
@@ -958,11 +958,23 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 	if (sense == FEATURE_SENSE_CHAN) {
 		if (!ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLER))
 			return FEATURE_RETURN_PASSDIGITS;
-		work = ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF) ? chan : peer;
+		if (ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF)) {
+			work = chan;
+			idle = peer;
+		} else {
+			work = peer;
+			idle = chan;
+		}
 	} else {
 		if (!ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLEE))
 			return FEATURE_RETURN_PASSDIGITS;
-		work = ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF) ? peer : chan;
+		if (ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF)) {
+			work = peer;
+			idle = chan;
+		} else {
+			work = chan;
+			idle = peer;
+		}
 	}
 
 	if (!(app = pbx_findapp(feature->app))) {
@@ -970,8 +982,17 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 		return -2;
 	}
 
-	/* XXX Should we service the other channel while this runs? */
+	ast_autoservice_start(idle);
+	
+	if (!ast_strlen_zero(feature->moh_class))
+		ast_moh_start(idle, feature->moh_class, NULL);
+
 	res = pbx_exec(work, app, feature->app_args);
+
+	if (!ast_strlen_zero(feature->moh_class))
+		ast_moh_stop(idle);
+
+	ast_autoservice_stop(idle);
 
 	if (res == AST_PBX_KEEPALIVE)
 		return FEATURE_RETURN_PBX_KEEPALIVE;
@@ -2164,7 +2185,7 @@ static int load_config(void)
 		ast_unregister_features();
 		for (var = ast_variable_browse(cfg, "applicationmap"); var; var = var->next) {
 			char *tmp_val = ast_strdupa(var->value);
-			char *exten, *activateon, *activatedby, *app, *app_args; 
+			char *exten, *activateon, *activatedby, *app, *app_args, *moh_class; 
 			struct ast_call_feature *feature;
 
 			/* strsep() sets the argument to NULL if match not found, and it
@@ -2175,6 +2196,7 @@ static int load_config(void)
 			activatedby = strsep(&tmp_val,",");
 			app = strsep(&tmp_val,",");
 			app_args = strsep(&tmp_val,",");
+			moh_class = strsep(&tmp_val,",");
 
 			activateon = strsep(&activatedby, "/");	
 
@@ -2199,6 +2221,9 @@ static int load_config(void)
 			
 			if (app_args) 
 				ast_copy_string(feature->app_args, app_args, FEATURE_APP_ARGS_LEN);
+
+			if (moh_class)
+				ast_copy_string(feature->moh_class, moh_class, FEATURE_MOH_LEN);
 				
 			ast_copy_string(feature->exten, exten, sizeof(feature->exten));
 			feature->operation = feature_exec_app;

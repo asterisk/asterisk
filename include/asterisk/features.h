@@ -29,6 +29,7 @@
 #define FEATURE_APP_ARGS_LEN	256
 #define FEATURE_SNAME_LEN	32
 #define FEATURE_EXTEN_LEN	32
+#define FEATURE_MOH_LEN		80  /* same as MAX_MUSICCLASS from channel.h */
 
 /*! \brief main call feature structure */
 struct ast_call_feature {
@@ -41,6 +42,7 @@ struct ast_call_feature {
 	unsigned int flags;
 	char app[FEATURE_APP_LEN];		
 	char app_args[FEATURE_APP_ARGS_LEN];
+	char moh_class[FEATURE_MOH_LEN];
 	AST_LIST_ENTRY(ast_call_feature) feature_entry;
 };
 
