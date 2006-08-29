@@ -192,6 +192,7 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
 static void rxqcheck (char *dir, char *queue, char *process)
 {
    char *p;
+   void *pp = &p;
    char dirname[100],
      temp[100];
    DIR *d;
@@ -267,7 +268,7 @@ static void rxqcheck (char *dir, char *queue, char *process)
                {                /* read the user data as UTF-8 */
                   long v;
                   udl = 0;
-                  while ((v = utf8decode ((unsigned char **) &p)) && udl < 160)
+                  while ((v = utf8decode (pp)) && udl < 160)
                      if (v && v <= 0xFFFF)
                         ud[udl++] = v;
                }
