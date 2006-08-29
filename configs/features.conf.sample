@@ -46,7 +46,7 @@ context => parkedcalls		; Which context parked calls are in
 ;    Set(DYNAMIC_FEATURES=myfeature1#myfeature2#myfeature3)
 ;
 ;
-; The syntax for declaring a dynaic feature is the following:
+; The syntax for declaring a dynamic feature is the following:
 ;
 ;<FeatureName> => <DTMF_sequence>,<ActivateOn>[/<ActivatedBy>],<Application>[,<AppArguments>[,MOH_Class]]
 ;
