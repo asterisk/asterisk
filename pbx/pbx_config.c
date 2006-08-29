@@ -1045,46 +1045,42 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 						}
 
 						if (ast_get_extension_priority(p)!=PRIORITY_HINT) {
-							char *tempdata = NULL, *startdata;
+							char *tempdata, *startdata;
 							const char *el = ast_get_extension_label(p);
-							char *label = calloc(1, 128);
-							tempdata = strdup((char *)ast_get_extension_app_data(p));
-							if (tempdata) {
-								startdata = tempdata;
-								while (*tempdata) {
-									if (*tempdata == '|')
-										*tempdata = ',';
-									tempdata++;
-								}
-								tempdata = startdata;
+							char label[128] = "";
+
+							tempdata = ast_strdupa(ast_get_extension_app_data(p));
+
+							startdata = tempdata;
+							while (*tempdata) {
+								if (*tempdata == '|')
+									*tempdata = ',';
+								tempdata++;
 							}
-							if (el) {
-								if (snprintf(label, 127, "(%s)", el) != (strlen(el)+2)) {
-									incomplete = 1; // error encountered or label is > 125 chars
-									label = NULL;
-								};
-							};
-							if (ast_get_extension_matchcid(p))
+							tempdata = startdata;
+							
+							if (el && (snprintf(label, sizeof(label), "(%s)", el) != (strlen(el) + 2)))
+								incomplete = 1; // error encountered or label is > 125 chars
+
+							if (ast_get_extension_matchcid(p)) {
 								fprintf(output, "exten => %s/%s,%d%s,%s(%s)\n",
 								    ast_get_extension_name(p),
 								    ast_get_extension_cidmatch(p),
-								    ast_get_extension_priority(p), (label)?label:"",
+								    ast_get_extension_priority(p), label,
 								    ast_get_extension_app(p),
 								    tempdata);
-							else
+							} else {
 								fprintf(output, "exten => %s,%d%s,%s(%s)\n",
 								    ast_get_extension_name(p),
-								    ast_get_extension_priority(p), (label)?label:"",
+								    ast_get_extension_priority(p), label,
 								    ast_get_extension_app(p),
 								    tempdata);
-							if (tempdata)
-								free(tempdata);
-							if (label)
-								free(label);
-						} else
+							}
+						} else {
 							fprintf(output, "exten => %s,hint,%s\n",
 							    ast_get_extension_name(p),
 							    ast_get_extension_app(p));
+						}
 						
 					}
 					p = ast_walk_extension_priorities(e, p);
