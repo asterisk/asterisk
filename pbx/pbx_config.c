@@ -985,9 +985,12 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	}
 
 	/* fireout general info */
-	fprintf(output, "[general]\nstatic=%s\nwriteprotect=%s\n\n",
+	fprintf(output, "[general]\nstatic=%s\nwriteprotect=%s\nautofallthrough=%s\nclearglobalvars=%s\npriorityjumping=%s\n\n",
 		static_config ? "yes" : "no",
-		write_protect_config ? "yes" : "no");
+		write_protect_config ? "yes" : "no",
+		autofallthrough_config ? "yes" : "no",
+		clearglobalvars_config ? "yes" : "no",
+		option_priority_jumping ? "yes" : "no");
 
 	if ((v = ast_variable_browse(cfg, "globals"))) {
 		fprintf(output, "[globals]\n");
@@ -1043,6 +1046,8 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 
 						if (ast_get_extension_priority(p)!=PRIORITY_HINT) {
 							char *tempdata = NULL, *startdata;
+							const char *el = ast_get_extension_label(p);
+							char *label = calloc(1, 128);
 							tempdata = strdup((char *)ast_get_extension_app_data(p));
 							if (tempdata) {
 								startdata = tempdata;
@@ -1053,21 +1058,29 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 								}
 								tempdata = startdata;
 							}
+							if (el) {
+								if (snprintf(label, 127, "(%s)", el) != (strlen(el)+2)) {
+									incomplete = 1; // error encountered or label is > 125 chars
+									label = NULL;
+								};
+							};
 							if (ast_get_extension_matchcid(p))
-								fprintf(output, "exten => %s/%s,%d,%s(%s)\n",
+								fprintf(output, "exten => %s/%s,%d%s,%s(%s)\n",
 								    ast_get_extension_name(p),
 								    ast_get_extension_cidmatch(p),
-								    ast_get_extension_priority(p),
+								    ast_get_extension_priority(p), (label)?label:"",
 								    ast_get_extension_app(p),
 								    tempdata);
 							else
-								fprintf(output, "exten => %s,%d,%s(%s)\n",
+								fprintf(output, "exten => %s,%d%s,%s(%s)\n",
 								    ast_get_extension_name(p),
-								    ast_get_extension_priority(p),
+								    ast_get_extension_priority(p), (label)?label:"",
 								    ast_get_extension_app(p),
 								    tempdata);
 							if (tempdata)
 								free(tempdata);
+							if (label)
+								free(label);
 						} else
 							fprintf(output, "exten => %s,hint,%s\n",
 							    ast_get_extension_name(p),
