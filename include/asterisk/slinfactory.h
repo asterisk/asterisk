@@ -32,7 +32,7 @@ extern "C" {
 #endif
 
 struct ast_slinfactory {
-	struct ast_frame *queue;
+	AST_LIST_HEAD_NOLOCK(, ast_frame) queue;
 	struct ast_trans_pvt *trans;
 	short hold[1280];
 	short *offset;

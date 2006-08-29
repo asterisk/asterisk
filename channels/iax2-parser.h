@@ -18,6 +18,8 @@
 #ifndef _IAX2_PARSER_H
 #define _IAX2_PARSER_H
 
+#include "asterisk/linkedlists.h"
+
 struct iax_ies {
 	char *called_number;
 	char *calling_number;
@@ -115,10 +117,11 @@ struct iax_frame {
 	/* Retransmission ID */
 	int retrans;
 	/* Easy linking */
-	struct iax_frame *next;
-	struct iax_frame *prev;
+	AST_LIST_ENTRY(iax_frame) list;
 	/* Actual, isolated frame header */
 	struct ast_frame af;
+	/*! Amount of space _allocated_ for data */
+	size_t mallocd_datalen;
 	unsigned char unused[AST_FRIENDLY_OFFSET];
 	unsigned char afdata[0];	/* Data for frame */
 };

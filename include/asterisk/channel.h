@@ -410,7 +410,7 @@ struct ast_channel {
 	unsigned int pickupgroup;			/*!< Pickup group - which calls groups can be picked up? */
 	unsigned int flags;				/*!< channel flags of AST_FLAG_ type */
 	unsigned short transfercapability;		/*!< ISDN Transfer Capbility - AST_FLAG_DIGITAL is not enough */
-	struct ast_frame *readq;
+	AST_LIST_HEAD_NOLOCK(, ast_frame) readq;
 	int alertpipe[2];
 
 	int nativeformats;				/*!< Kinds of data this channel can natively handle */

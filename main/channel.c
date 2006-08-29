@@ -706,7 +706,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 {
 	struct ast_frame *f;
-	struct ast_frame *prev, *cur;
+	struct ast_frame *cur;
 	int blah = 1;
 	int qlen = 0;
 
@@ -716,17 +716,19 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 		return -1;
 	}
 	ast_channel_lock(chan);
-	prev = NULL;
-	for (cur = chan->readq; cur; cur = cur->next) {
-		if ((cur->frametype == AST_FRAME_CONTROL) && (cur->subclass == AST_CONTROL_HANGUP)) {
-			/* Don't bother actually queueing anything after a hangup */
-			ast_frfree(f);
-			ast_channel_unlock(chan);
-			return 0;
-		}
-		prev = cur;
+
+	/* See if the last frame on the queue is a hangup, if so don't queue anything */
+	if ((cur = AST_LIST_LAST(&chan->readq)) && (cur->frametype == AST_FRAME_CONTROL) && (cur->subclass == AST_CONTROL_HANGUP)) {
+		ast_frfree(f);
+		ast_channel_unlock(chan);
+		return 0;
+	}
+
+	/* Count how many frames exist on the queue */
+	AST_LIST_TRAVERSE(&chan->readq, cur, frame_list) {
 		qlen++;
 	}
+
 	/* Allow up to 96 voice frames outstanding, and up to 128 total frames */
 	if (((fin->frametype == AST_FRAME_VOICE) && (qlen > 96)) || (qlen  > 128)) {
 		if (fin->frametype != AST_FRAME_VOICE) {
@@ -739,10 +741,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 			return 0;
 		}
 	}
-	if (prev)
-		prev->next = f;
-	else
-		chan->readq = f;
+	AST_LIST_INSERT_TAIL(&chan->readq, f, frame_list);
 	if (chan->alertpipe[1] > -1) {
 		if (write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
 			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
@@ -973,7 +972,7 @@ void ast_channel_free(struct ast_channel *chan)
 {
 	int fd;
 	struct ast_var_t *vardata;
-	struct ast_frame *f, *fp;
+	struct ast_frame *f;
 	struct varshead *headp;
 	struct ast_datastore *datastore = NULL;
 	char name[AST_CHANNEL_NAME];
@@ -1024,13 +1023,8 @@ void ast_channel_free(struct ast_channel *chan)
 		close(fd);
 	if ((fd = chan->timingfd) > -1)
 		close(fd);
-	f = chan->readq;
-	chan->readq = NULL;
-	while(f) {
-		fp = f;
-		f = f->next;
-		ast_frfree(fp);
-	}
+	while ((f = AST_LIST_REMOVE_HEAD(&chan->readq, frame_list)))
+		ast_frfree(f);
 	
 	/* Get rid of each of the data stores on the channel */
 	while ((datastore = AST_LIST_REMOVE_HEAD(&chan->datastores, entry)))
@@ -1247,14 +1241,11 @@ void ast_channel_spy_remove(struct ast_channel *chan, struct ast_channel_spy *sp
 
 	spy->chan = NULL;
 
-	for (f = spy->read_queue.head; f; f = spy->read_queue.head) {
-		spy->read_queue.head = f->next;
+	while ((f = AST_LIST_REMOVE_HEAD(&spy->read_queue.list, frame_list)))
 		ast_frfree(f);
-	}
-	for (f = spy->write_queue.head; f; f = spy->write_queue.head) {
-		spy->write_queue.head = f->next;
+	
+	while ((f = AST_LIST_REMOVE_HEAD(&spy->write_queue.list, frame_list)))
 		ast_frfree(f);
-	}
 
 	if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE)
 		ast_cond_destroy(&spy->trigger);
@@ -1337,8 +1328,6 @@ static void queue_frame_to_spies(struct ast_channel *chan, struct ast_frame *f, 
 	trans = (dir == SPY_READ) ? &chan->spies->read_translator : &chan->spies->write_translator;
 
 	AST_LIST_TRAVERSE(&chan->spies->list, spy, list) {
-		struct ast_frame *last;
-		struct ast_frame *f1;	/* the frame to append */
 		struct ast_channel_spy_queue *queue;
 
 		ast_mutex_lock(&spy->lock);
@@ -1370,7 +1359,7 @@ static void queue_frame_to_spies(struct ast_channel *chan, struct ast_frame *f, 
 					break;
 				}
 			}
-			f1 = translated_frame;
+			AST_LIST_INSERT_TAIL(&queue->list, ast_frdup(f), frame_list);
 		} else {
 			if (f->subclass != queue->format) {
 				ast_log(LOG_WARNING, "Spy '%s' on channel '%s' wants format '%s', but frame is '%s', dropping\n",
@@ -1379,17 +1368,8 @@ static void queue_frame_to_spies(struct ast_channel *chan, struct ast_frame *f, 
 				ast_mutex_unlock(&spy->lock);
 				continue;
 			}
-			f1 = f;
+			AST_LIST_INSERT_TAIL(&queue->list, ast_frdup(f), frame_list);
 		}
-		/* duplicate and append f1 to the tail */
-		f1 = ast_frdup(f1);
-
-		for (last = queue->head; last && last->next; last = last->next)
-			;
-		if (last)
-			last->next = f1;
-		else
-			queue->head = f1;
 
 		queue->samples += f->samples;
 
@@ -1425,10 +1405,8 @@ static void queue_frame_to_spies(struct ast_channel *chan, struct ast_frame *f, 
 					ast_log(LOG_DEBUG, "Spy '%s' on channel '%s' %s queue too long, dropping frames\n",
 						spy->type, chan->name, (dir == SPY_READ) ? "read" : "write");
 				while (queue->samples > SPY_QUEUE_SAMPLE_LIMIT) {
-					struct ast_frame *drop = queue->head;
-					
+					struct ast_frame *drop = AST_LIST_REMOVE_HEAD(&queue->list, frame_list);
 					queue->samples -= drop->samples;
-					queue->head = drop->next;
 					ast_frfree(drop);
 				}
 			}
@@ -1946,7 +1924,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			blah = ZT_EVENT_TIMER_EXPIRED;
 
 		if (blah == ZT_EVENT_TIMER_PING) {
-			if (!chan->readq || !chan->readq->next) {
+			if (AST_LIST_EMPTY(&chan->readq) || !AST_LIST_NEXT(AST_LIST_FIRST(&chan->readq), frame_list)) {
 				/* Acknowledge PONG unless we need it again */
 				if (ioctl(chan->timingfd, ZT_TIMERPONG, &blah)) {
 					ast_log(LOG_WARNING, "Failed to pong timer on '%s': %s\n", chan->name, strerror(errno));
@@ -1985,10 +1963,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	}
 
 	/* Check for pending read queue */
-	if (chan->readq) {
-		f = chan->readq;
-		chan->readq = f->next;
-		f->next = NULL;
+	if (!AST_LIST_EMPTY(&chan->readq)) {
+		f = AST_LIST_REMOVE_HEAD(&chan->readq, frame_list);
 		/* Interpret hangup and return NULL */
 		/* XXX why not the same for frames from the channel ? */
 		if (f->frametype == AST_FRAME_CONTROL && f->subclass == AST_CONTROL_HANGUP) {
@@ -2014,11 +1990,13 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 
 	if (f) {
 		/* if the channel driver returned more than one frame, stuff the excess
-		   into the readq for the next ast_read call
+		   into the readq for the next ast_read call (note that we can safely assume
+		   that the readq is empty, because otherwise we would not have called into
+		   the channel driver and f would be only a single frame)
 		*/
-		if (f->next) {
-			chan->readq = f->next;
-			f->next = NULL;
+		if (AST_LIST_NEXT(f, frame_list)) {
+			AST_LIST_HEAD_SET_NOLOCK(&chan->readq, AST_LIST_NEXT(f, frame_list));
+			AST_LIST_NEXT(f, frame_list) = NULL;
 		}
 
 		switch (f->frametype) {
@@ -3068,7 +3046,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	int x,i;
 	int res=0;
 	int origstate;
-	struct ast_frame *cur, *prev;
+	struct ast_frame *cur;
 	const struct ast_channel_tech *t;
 	void *t_pvt;
 	struct ast_callerid tmpcid;
@@ -3132,9 +3110,9 @@ int ast_do_masquerade(struct ast_channel *original)
 	clone->tech_pvt = t_pvt;
 
 	/* Swap the readq's */
-	cur = original->readq;
-	original->readq = clone->readq;
-	clone->readq = cur;
+	cur = AST_LIST_FIRST(&original->readq);
+	AST_LIST_HEAD_SET_NOLOCK(&original->readq, AST_LIST_FIRST(&clone->readq));
+	AST_LIST_HEAD_SET_NOLOCK(&clone->readq, cur);
 
 	/* Swap the alertpipes */
 	for (i = 0; i < 2; i++) {
@@ -3153,23 +3131,22 @@ int ast_do_masquerade(struct ast_channel *original)
 
 	/* Save any pending frames on both sides.  Start by counting
 	 * how many we're going to need... */
-	prev = NULL;
 	x = 0;
-	for (cur = clone->readq; cur; cur = cur->next) {
-		x++;
-		prev = cur;
+	if (original->alertpipe[1] > -1) {
+		AST_LIST_TRAVERSE(&clone->readq, cur, frame_list)
+			x++;
 	}
-	/* If we had any, prepend them to the ones already in the queue, and
+
+	/* If we had any, prepend them to the ones already in the queue, and 
 	 * load up the alertpipe */
-	if (prev) {
-		prev->next = original->readq;
-		original->readq = clone->readq;
-		clone->readq = NULL;
-		if (original->alertpipe[1] > -1) {
-			for (i = 0; i < x; i++)
-				write(original->alertpipe[1], &x, sizeof(x));
-		}
+	if (AST_LIST_FIRST(&clone->readq)) {
+		AST_LIST_INSERT_TAIL(&clone->readq, AST_LIST_FIRST(&original->readq), frame_list);
+		AST_LIST_HEAD_SET_NOLOCK(&original->readq, AST_LIST_FIRST(&clone->readq));
+		AST_LIST_HEAD_SET_NOLOCK(&clone->readq, NULL);
+		for (i = 0; i < x; i++)
+			write(original->alertpipe[1], &x, sizeof(x));
 	}
+	
 	clone->_softhangup = AST_SOFTHANGUP_DEV;
 
 
@@ -4086,9 +4063,7 @@ static void copy_data_from_queue(struct ast_channel_spy_queue *queue, short *buf
 	int bytestocopy;
 
 	while (samples) {
-		f = queue->head;
-
-		if (!f) {
+		if (!(f = AST_LIST_FIRST(&queue->list))) {
 			ast_log(LOG_ERROR, "Ran out of frames before buffer filled!\n");
 			break;
 		}
@@ -4103,10 +4078,9 @@ static void copy_data_from_queue(struct ast_channel_spy_queue *queue, short *buf
 		f->datalen -= bytestocopy;
 		f->offset += bytestocopy;
 		queue->samples -= tocopy;
-		if (!f->samples) {
-			queue->head = f->next;
-			ast_frfree(f);
-		}
+
+		if (!f->samples)
+			ast_frfree(AST_LIST_REMOVE_HEAD(&queue->list, frame_list));
 	}
 }
 
@@ -4136,19 +4110,19 @@ struct ast_frame *ast_channel_spy_read_frame(struct ast_channel_spy *spy, unsign
 	if (ast_test_flag(spy, CHANSPY_TRIGGER_FLUSH)) {
 		if (spy->read_queue.samples > spy->write_queue.samples) {
 			if (ast_test_flag(spy, CHANSPY_READ_VOLADJUST)) {
-				for (result = spy->read_queue.head; result; result = result->next)
+				AST_LIST_TRAVERSE(&spy->read_queue.list, result, frame_list)
 					ast_frame_adjust_volume(result, spy->read_vol_adjustment);
 			}
-			result = spy->read_queue.head;
-			spy->read_queue.head = NULL;
+			result = AST_LIST_FIRST(&spy->read_queue.list);
+			AST_LIST_HEAD_SET_NOLOCK(&spy->read_queue.list, NULL);
 			spy->read_queue.samples = 0;
 		} else {
 			if (ast_test_flag(spy, CHANSPY_WRITE_VOLADJUST)) {
-				for (result = spy->write_queue.head; result; result = result->next)
+				AST_LIST_TRAVERSE(&spy->write_queue.list, result, frame_list)
 					ast_frame_adjust_volume(result, spy->write_vol_adjustment);
 			}
-			result = spy->write_queue.head;
-			spy->write_queue.head = NULL;
+			result = AST_LIST_FIRST(&spy->write_queue.list);
+			AST_LIST_HEAD_SET_NOLOCK(&spy->write_queue.list, NULL);
 			spy->write_queue.samples = 0;
 		}
 		ast_clear_flag(spy, CHANSPY_TRIGGER_FLUSH);
@@ -4159,15 +4133,10 @@ struct ast_frame *ast_channel_spy_read_frame(struct ast_channel_spy *spy, unsign
 		return NULL;
 
 	/* short-circuit if both head frames have exactly what we want */
-	if ((spy->read_queue.head->samples == samples) &&
-	    (spy->write_queue.head->samples == samples)) {
-		read_frame = spy->read_queue.head;
-		spy->read_queue.head = read_frame->next;
-		read_frame->next = NULL;
-
-		write_frame = spy->write_queue.head;
-		spy->write_queue.head = write_frame->next;
-		write_frame->next = NULL;
+	if ((AST_LIST_FIRST(&spy->read_queue.list)->samples == samples) &&
+	    (AST_LIST_FIRST(&spy->write_queue.list)->samples == samples)) {
+		read_frame = AST_LIST_REMOVE_HEAD(&spy->read_queue.list, frame_list);
+		write_frame = AST_LIST_REMOVE_HEAD(&spy->write_queue.list, frame_list);
 
 		spy->read_queue.samples -= samples;
 		spy->write_queue.samples -= samples;
@@ -4200,10 +4169,10 @@ struct ast_frame *ast_channel_spy_read_frame(struct ast_channel_spy *spy, unsign
 	} else {
 		if (need_dup) {
 			result = ast_frdup(read_frame);
-			result->next = ast_frdup(write_frame);
+			AST_LIST_NEXT(result, frame_list) = ast_frdup(write_frame);
 		} else {
 			result = read_frame;
-			result->next = write_frame;
+			AST_LIST_NEXT(result, frame_list) = write_frame;
 		}
 	}
 

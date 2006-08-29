@@ -324,10 +324,7 @@ int ast_jb_put(struct ast_channel *chan, struct ast_frame *f)
 		return -1;
 	}
 
-	if (f->mallocd & AST_MALLOCD_HDR)
-		frr = ast_frdup(f);
-	else
-		frr = ast_frisolate(f);
+	frr = ast_frdup(f);
 
 	if (!frr) {
 		ast_log(LOG_ERROR, "Failed to isolate frame for the jitterbuffer on channel '%s'\n", chan->name);

@@ -41,12 +41,38 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/term.h"
 #include "asterisk/utils.h"
+#include "asterisk/threadstorage.h"
+#include "asterisk/linkedlists.h"
 
 #ifdef TRACE_FRAMES
 static int headers = 0;
-static struct ast_frame *headerlist = NULL;
-AST_MUTEX_DEFINE_STATIC(framelock);
+static AST_LIST_HEAD_STATIC(headerlist, ast_frame);
 #endif
+
+static void frame_cache_cleanup(void *data);
+
+/*! \brief A per-thread cache of frame headers */
+AST_THREADSTORAGE_CUSTOM(frame_cache, frame_cache_init, frame_cache_cleanup);
+
+/*! 
+ * \brief Maximum ast_frame cache size
+ *
+ * In most cases where the frame header cache will be useful, the size
+ * of the cache will stay very small.  However, it is not always the case that
+ * the same thread that allocates the frame will be the one freeing them, so
+ * sometimes a thread will never have any frames in its cache, or the cache
+ * will never be pulled from.  For the latter case, we limit the maximum size. 
+ */ 
+#define FRAME_CACHE_MAX_SIZE	10
+
+/*! \brief This is just so ast_frames, a list head struct for holding a list of
+ *  ast_frame structures, is defined. */
+AST_LIST_HEAD_NOLOCK(ast_frames, ast_frame);
+
+struct ast_frame_cache {
+	struct ast_frames list;
+	size_t size;
+};
 
 #define SMOOTHER_SIZE 8000
 
@@ -252,28 +278,63 @@ void ast_smoother_free(struct ast_smoother *s)
 
 static struct ast_frame *ast_frame_header_new(void)
 {
-	struct ast_frame *f = ast_calloc(1, sizeof(*f));
-#ifdef TRACE_FRAMES
-	if (f) {
-		f->prev = NULL;
-		ast_mutex_lock(&framelock);
-		headers++;
-		f->next = headerlist;
-		if (headerlist)
-			headerlist->prev = f;
-		headerlist = f;
-		ast_mutex_unlock(&framelock);
+	struct ast_frame *f;
+	struct ast_frame_cache *frames;
+
+	if ((frames = ast_threadstorage_get(&frame_cache, sizeof(*frames)))) {
+		if ((f = AST_LIST_REMOVE_HEAD(&frames->list, frame_list))) {
+			size_t mallocd_len = f->mallocd_hdr_len;
+			memset(f, 0, sizeof(*f));
+			f->mallocd_hdr_len = mallocd_len;
+			f->mallocd = AST_MALLOCD_HDR;
+			frames->size--;
+			return f;
+		}
 	}
+
+	if (!(f = ast_calloc(1, sizeof(*f))))
+		return NULL;
+
+	f->mallocd_hdr_len = sizeof(*f);
+#ifdef TRACE_FRAMES
+	AST_LIST_LOCK(&headerlist);
+	headers++;
+	AST_LIST_INSERT_HEAD(&headerlist, f, frame_list);
+	AST_LIST_UNLOCK(&headerlist);
 #endif	
+	
 	return f;
 }
 
-/*!
- * \todo Important: I should be made more efficient.  Frame headers should
- * most definitely be cached
- */
+static void frame_cache_cleanup(void *data)
+{
+	struct ast_frame_cache *frames = data;
+	struct ast_frame *f;
+
+	while ((f = AST_LIST_REMOVE_HEAD(&frames->list, frame_list)))
+		free(f);
+	
+	free(frames);
+}
+
 void ast_frfree(struct ast_frame *fr)
 {
+	if (!fr->mallocd)
+		return;
+
+	if (fr->mallocd == AST_MALLOCD_HDR) {
+		/* Cool, only the header is malloc'd, let's just cache those for now 
+		 * to keep things simple... */
+		struct ast_frame_cache *frames;
+
+		if ((frames = ast_threadstorage_get(&frame_cache, sizeof(*frames))) 
+		    && frames->size < FRAME_CACHE_MAX_SIZE) {
+			AST_LIST_INSERT_HEAD(&frames->list, fr, frame_list);
+			frames->size++;
+			return;
+		}
+	}
+	
 	if (fr->mallocd & AST_MALLOCD_DATA) {
 		if (fr->data) 
 			free(fr->data - fr->offset);
@@ -284,15 +345,10 @@ void ast_frfree(struct ast_frame *fr)
 	}
 	if (fr->mallocd & AST_MALLOCD_HDR) {
 #ifdef TRACE_FRAMES
-		ast_mutex_lock(&framelock);
+		AST_LIST_LOCK(&headerlist);
 		headers--;
-		if (fr->next)
-			fr->next->prev = fr->prev;
-		if (fr->prev)
-			fr->prev->next = fr->next;
-		else
-			headerlist = fr->next;
-		ast_mutex_unlock(&framelock);
+		AST_LIST_REMOVE(&headerlist, fr, frame_list);
+		AST_LIST_UNLOCK(&headerlist);
 #endif			
 		free(fr);
 	}
@@ -361,9 +417,11 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 
 struct ast_frame *ast_frdup(const struct ast_frame *f)
 {
+	struct ast_frame_cache *frames;
 	struct ast_frame *out;
 	int len, srclen = 0;
-	void *buf;
+	void *buf = NULL;
+
 	/* Start with standard stuff */
 	len = sizeof(*out) + AST_FRIENDLY_OFFSET + f->datalen;
 	/* If we have a source, add space for it */
@@ -375,16 +433,35 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 		srclen = strlen(f->src);
 	if (srclen > 0)
 		len += srclen + 1;
-	if (!(buf = ast_calloc(1, len)))
-		return NULL;
-	out = buf;
-	/* Set us as having malloc'd header only, so it will eventually
-	   get freed. */
+	
+	if ((frames = ast_threadstorage_get(&frame_cache, sizeof(*frames)))) {
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&frames->list, out, frame_list) {
+			if (out->mallocd_hdr_len >= len) {
+				size_t mallocd_len = out->mallocd_hdr_len;
+				AST_LIST_REMOVE_CURRENT(&frames->list, frame_list);
+				memset(out, 0, sizeof(*out));
+				out->mallocd_hdr_len = mallocd_len;
+				buf = out;
+				frames->size--;
+				break;
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END
+	}
+	if (!buf) {
+		if (!(buf = ast_calloc(1, len)))
+			return NULL;
+		out = buf;
+		out->mallocd_hdr_len = len;
+	}
+
 	out->frametype = f->frametype;
 	out->subclass = f->subclass;
 	out->datalen = f->datalen;
 	out->samples = f->samples;
 	out->delivery = f->delivery;
+	/* Set us as having malloc'd header only, so it will eventually
+	   get freed. */
 	out->mallocd = AST_MALLOCD_HDR;
 	out->offset = AST_FRIENDLY_OFFSET;
 	if (out->datalen) {
@@ -860,15 +937,14 @@ static int show_frame_stats(int fd, int argc, char *argv[])
 	int x=1;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&framelock);
+	AST_LIST_LOCK(&headerlist);
 	ast_cli(fd, "     Framer Statistics     \n");
 	ast_cli(fd, "---------------------------\n");
 	ast_cli(fd, "Total allocated headers: %d\n", headers);
 	ast_cli(fd, "Queue Dump:\n");
-	for (f=headerlist; f; f = f->next) {
+	AST_LIST_TRAVERSE(&headerlist, f, frame_list)
 		ast_cli(fd, "%d.  Type %d, subclass %d from %s\n", x++, f->frametype, f->subclass, f->src ? f->src : "<Unknown>");
-	}
-	ast_mutex_unlock(&framelock);
+	AST_LIST_UNLOCK(&headerlist);
 	return RESULT_SUCCESS;
 }
 
@@ -888,6 +964,7 @@ static struct ast_cli_entry my_clis[] = {
 { { "show", "frame", "stats", NULL }, show_frame_stats, "Shows frame statistics", frame_stats_usage },
 #endif
 };
+
 
 int init_framer(void)
 {
@@ -1341,29 +1418,4 @@ int ast_frame_slinear_sum(struct ast_frame *f1, struct ast_frame *f2)
 		ast_slinear_saturated_add(data1, data2);
 
 	return 0;
-}
-
-struct ast_frame *ast_frame_enqueue(struct ast_frame *head, struct ast_frame *f, int maxlen, int dupe)
-{
-	struct ast_frame *cur, *oldhead;
-	int len=0;
-	if (f && dupe)
-		f = ast_frdup(f);
-	if (!f)
-		return head;
-
-	f->next = NULL;
-	if (!head) 
-		return f;
-	cur = head;
-	while(cur->next) {
-		cur = cur->next;
-		len++;
-		if (len >= maxlen) {
-			oldhead = head;
-			head = head->next;
-			ast_frfree(oldhead);
-		}
-	}
-	return head;
 }

@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/unaligned.h"
 #include "asterisk/lock.h"
+#include "asterisk/threadstorage.h"
 
 #include "iax2.h"
 #include "iax2-parser.h"
@@ -48,6 +49,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int frames = 0;
 static int iframes = 0;
 static int oframes = 0;
+
+static void frame_cache_cleanup(void *data);
+
+/*! \brief A per-thread cache of iax_frame structures */
+AST_THREADSTORAGE_CUSTOM(frame_cache, frame_cache_init, frame_cache_cleanup);
+
+/*! \brief This is just so iax_frames, a list head struct for holding a list of
+ *  iax_frame structures, is defined. */
+AST_LIST_HEAD_NOLOCK(iax_frames, iax_frame);
 
 static void internaloutput(const char *str)
 {
@@ -926,22 +936,44 @@ void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f)
 
 struct iax_frame *iax_frame_new(int direction, int datalen)
 {
-	struct iax_frame *fr;
-	fr = malloc((int)sizeof(struct iax_frame) + datalen);
-	if (fr) {
-		fr->direction = direction;
-		fr->retrans = -1;
-		ast_atomic_fetchadd_int(&frames, 1);
-		if (fr->direction == DIRECTION_INGRESS)
-			ast_atomic_fetchadd_int(&iframes, 1);
-		else
-			ast_atomic_fetchadd_int(&oframes, 1);
+	struct iax_frame *fr = NULL;
+	struct iax_frames *iax_frames;
+
+	/* Attempt to get a frame from this thread's cache */
+	if ((iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
+		AST_LIST_TRAVERSE_SAFE_BEGIN(iax_frames, fr, list) {
+			if (fr->mallocd_datalen >= datalen) {
+				size_t mallocd_datalen = fr->mallocd_datalen;
+				AST_LIST_REMOVE_CURRENT(iax_frames, list);
+				memset(fr, 0, sizeof(*fr));
+				fr->mallocd_datalen = mallocd_datalen;
+				break;
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END
 	}
+
+	if (!fr) {
+		if (!(fr = ast_calloc(1, sizeof(*fr) + datalen)))
+			return NULL;
+		fr->mallocd_datalen = datalen;
+	}
+
+	fr->direction = direction;
+	fr->retrans = -1;
+	
+	if (fr->direction == DIRECTION_INGRESS)
+		ast_atomic_fetchadd_int(&iframes, 1);
+	else
+		ast_atomic_fetchadd_int(&oframes, 1);
+	
 	return fr;
 }
 
-void iax_frame_free(struct iax_frame *fr)
+static void __iax_frame_free(struct iax_frame *fr, int cache)
 {
+	struct iax_frames *iax_frames;
+
 	/* Note: does not remove from scheduler! */
 	if (fr->direction == DIRECTION_INGRESS)
 		ast_atomic_fetchadd_int(&iframes, -1);
@@ -952,8 +984,34 @@ void iax_frame_free(struct iax_frame *fr)
 		return;
 	}
 	fr->direction = 0;
-	free(fr);
 	ast_atomic_fetchadd_int(&frames, -1);
+	if (!cache) {
+		free(fr);
+		return;
+	}
+
+	if (!(iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
+		free(fr);
+		return;
+	}
+
+	AST_LIST_INSERT_HEAD(iax_frames, fr, list);
+}
+
+static void frame_cache_cleanup(void *data)
+{
+	struct iax_frames *frames = data;
+	struct iax_frame *cur;
+
+	while ((cur = AST_LIST_REMOVE_HEAD(frames, list)))
+		__iax_frame_free(cur, 0);
+
+	free(frames);
+}
+
+void iax_frame_free(struct iax_frame *fr)
+{
+	__iax_frame_free(fr, 1);
 }
 
 int iax_get_frames(void) { return frames; }

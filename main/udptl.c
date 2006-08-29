@@ -296,8 +296,7 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 
 	ptr = 0;
 	ifp_no = 0;
-	s->f[0].prev = NULL;
-	s->f[0].next = NULL;
+	memset(&s->f[0], 0, sizeof(s->f[0]));
 
 	/* Decode seq_number */
 	if (ptr + 2 > len)
@@ -342,11 +341,9 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 					s->f[ifp_no].data = (uint8_t *) bufs[i - 1];
 					s->f[ifp_no].offset = 0;
 					s->f[ifp_no].src = "UDPTL";
-					if (ifp_no > 0) {
-						s->f[ifp_no].prev = &s->f[ifp_no - 1];
-						s->f[ifp_no - 1].next = &s->f[ifp_no];
-					}
-					s->f[ifp_no].next = NULL;
+					if (ifp_no > 0)
+						AST_LIST_NEXT(&s->f[ifp_no - 1], frame_list) = &s->f[ifp_no];
+					AST_LIST_NEXT(&s->f[ifp_no], frame_list) = NULL;
 					ifp_no++;
 				}
 			}
@@ -364,11 +361,9 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 			s->f[ifp_no].data = (uint8_t *) ifp;
 			s->f[ifp_no].offset = 0;
 			s->f[ifp_no].src = "UDPTL";
-			if (ifp_no > 0) {
-				s->f[ifp_no].prev = &s->f[ifp_no - 1];
-				s->f[ifp_no - 1].next = &s->f[ifp_no];
-			}
-			s->f[ifp_no].next = NULL;
+			if (ifp_no > 0)
+				AST_LIST_NEXT(&s->f[ifp_no - 1], frame_list) = &s->f[ifp_no];
+			AST_LIST_NEXT(&s->f[ifp_no], frame_list) = NULL;
 		}
 	}
 	else
@@ -465,11 +460,9 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 				s->f[ifp_no].data = s->rx[l].buf;
 				s->f[ifp_no].offset = 0;
 				s->f[ifp_no].src = "UDPTL";
-				if (ifp_no > 0) {
-					s->f[ifp_no].prev = &s->f[ifp_no - 1];
-					s->f[ifp_no - 1].next = &s->f[ifp_no];
-				}
-				s->f[ifp_no].next = NULL;
+				if (ifp_no > 0)
+					AST_LIST_NEXT(&s->f[ifp_no - 1], frame_list) = &s->f[ifp_no];
+				AST_LIST_NEXT(&s->f[ifp_no], frame_list) = NULL;
 				ifp_no++;
 			}
 		}
@@ -483,11 +476,9 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len)
 		s->f[ifp_no].data = (uint8_t *) ifp;
 		s->f[ifp_no].offset = 0;
 		s->f[ifp_no].src = "UDPTL";
-		if (ifp_no > 0) {
-			s->f[ifp_no].prev = &s->f[ifp_no - 1];
-			s->f[ifp_no - 1].next = &s->f[ifp_no];
-		}
-		s->f[ifp_no].next = NULL;
+		if (ifp_no > 0)
+			AST_LIST_NEXT(&s->f[ifp_no - 1], frame_list) = &s->f[ifp_no];
+		AST_LIST_NEXT(&s->f[ifp_no], frame_list) = NULL;
 	}
 
 	s->rx_seq_no = seq_no + 1;

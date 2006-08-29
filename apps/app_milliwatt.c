@@ -66,10 +66,16 @@ static void milliwatt_release(struct ast_channel *chan, void *data)
 
 static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int samples)
 {
-	struct ast_frame wf;
 	unsigned char buf[AST_FRIENDLY_OFFSET + 640];
 	const int maxsamples = sizeof (buf) / sizeof (buf[0]);
 	int i, *indexp = (int *) data;
+	struct ast_frame wf = {
+		.frametype = AST_FRAME_VOICE,
+		.subclass = AST_FORMAT_ULAW,
+		.offset = AST_FRIENDLY_OFFSET,
+		.data = buf + AST_FRIENDLY_OFFSET,
+		.src = __FUNCTION__,
+	};
 
 	/* Instead of len, use samples, because channel.c generator_force
 	* generate(chan, tmp, 0, 160) ignores len. In any case, len is
@@ -82,17 +88,8 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 		samples = maxsamples;
 	}
 	len = samples * sizeof (buf[0]);
-	wf.frametype = AST_FRAME_VOICE;
-	wf.subclass = AST_FORMAT_ULAW;
-	wf.offset = AST_FRIENDLY_OFFSET;
-	wf.mallocd = 0;
-	wf.data = buf + AST_FRIENDLY_OFFSET;
 	wf.datalen = len;
 	wf.samples = samples;
-	wf.src = "app_milliwatt";
-	wf.delivery.tv_sec = 0;
-	wf.delivery.tv_usec = 0;
-	wf.prev = wf.next = NULL;
 	/* create a buffer containing the digital milliwatt pattern */
 	for(i = 0; i < len; i++)
 	{

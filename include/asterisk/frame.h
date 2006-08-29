@@ -32,6 +32,7 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/time.h>
 #include "asterisk/endian.h"
+#include "asterisk/linkedlists.h"
 
 struct ast_codec_pref {
 	char order[32];
@@ -97,6 +98,8 @@ struct ast_frame {
 	int samples;				
 	/*! Was the data malloc'd?  i.e. should we free it when we discard the frame? */
 	int mallocd;				
+	/*! The number of bytes allocated for a malloc'd frame header */
+	size_t mallocd_hdr_len;
 	/*! How many bytes exist _before_ "data" that can be used if needed */
 	int offset;				
 	/*! Optional source of frame for debugging */
@@ -105,10 +108,8 @@ struct ast_frame {
 	void *data;		
 	/*! Global delivery time */		
 	struct timeval delivery;
-	/*! Next/Prev for linking stand alone frames */
-	struct ast_frame *prev;			
-	/*! Next/Prev for linking stand alone frames */
-	struct ast_frame *next;			
+	/*! For placing in a linked list */
+	AST_LIST_ENTRY(ast_frame) frame_list;
 	/*! Timing data flag */
 	int has_timing_info;
 	/*! Timestamp in milliseconds */

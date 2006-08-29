@@ -191,7 +191,7 @@ static void *mixmonitor_thread(void *obj)
 			   of frames if a queue flush was necessary, so process them
 			*/
 			for (; f; f = next) {
-				next = f->next;
+				next = AST_LIST_NEXT(f, frame_list);
 				if (write)
 					ast_writestream(mixmonitor->fs, f);
 				ast_frfree(f);

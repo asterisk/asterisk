@@ -39,7 +39,6 @@ void ast_slinfactory_init(struct ast_slinfactory *sf)
 {
 	memset(sf, 0, sizeof(*sf));
 	sf->offset = sf->hold;
-	sf->queue = NULL;
 }
 
 void ast_slinfactory_destroy(struct ast_slinfactory *sf) 
@@ -51,10 +50,8 @@ void ast_slinfactory_destroy(struct ast_slinfactory *sf)
 		sf->trans = NULL;
 	}
 
-	while ((f = sf->queue)) {
-		sf->queue = f->next;
+	while ((f = AST_LIST_REMOVE_HEAD(&sf->queue, frame_list)))
 		ast_frfree(f);
-	}
 }
 
 int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
@@ -85,15 +82,12 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 	if (!frame)
 		return 0;
 
-	for (x = 0, frame_ptr = sf->queue; frame_ptr && frame_ptr->next; frame_ptr = frame_ptr->next)
+	x = 0;
+	AST_LIST_TRAVERSE(&sf->queue, frame_ptr, frame_list)
 		x++;
 
-	if (frame_ptr)
-		frame_ptr->next = frame;
-	else
-		sf->queue = frame;
+	AST_LIST_INSERT_TAIL(&sf->queue, frame, frame_list);
 
-	frame->next = NULL;
 	sf->size += frame->samples;
 
 	return x;
@@ -125,8 +119,7 @@ int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples)
 			continue;
 		}
 		
-		if ((frame_ptr = sf->queue)) {
-			sf->queue = frame_ptr->next;
+		if ((frame_ptr = AST_LIST_REMOVE_HEAD(&sf->queue, frame_list))) {
 			frame_data = frame_ptr->data;
 			
 			if ((sofar + frame_ptr->samples) <= ineed) {

@@ -226,7 +226,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 	   frames on the owner channel (because they would be transferred to the
 	   outbound channel during the masquerade)
 	*/
-	if (isoutbound && p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && !p->owner->readq) {
+	if (isoutbound && p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && AST_LIST_EMPTY(&p->owner->readq)) {
 		/* Masquerade bridged channel into owner */
 		/* Lock everything we need, one by one, and give up if
 		   we can't get everything.  Remember, we'll get another
@@ -248,7 +248,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 	   when the local channels go away.
 	*/
 #if 0
-	} else if (!isoutbound && p->owner && p->owner->_bridge && p->chan && !p->chan->readq) {
+	} else if (!isoutbound && p->owner && p->owner->_bridge && p->chan && AST_LIST_EMPTY(&p->chan->readq)) {
 		/* Masquerade bridged channel into chan */
 		if (!ast_mutex_trylock(&(p->owner->_bridge)->lock)) {
 			if (!p->owner->_bridge->_softhangup) {

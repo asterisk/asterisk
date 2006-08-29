@@ -49,7 +49,7 @@ enum chanspy_flags {
 };
 
 struct ast_channel_spy_queue {
-	struct ast_frame *head;
+	AST_LIST_HEAD_NOLOCK(, ast_frame) list;
 	unsigned int samples;
 	unsigned int format;
 };

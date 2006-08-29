@@ -3516,7 +3516,6 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	pthread_t threadid;
 	pthread_attr_t attr;
 	struct ast_channel *chan;
-	struct ast_frame dtmf_frame = { .frametype = AST_FRAME_DTMF };
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -3560,8 +3559,6 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			*/
 			p->subs[index].f.frametype = AST_FRAME_DTMF_BEGIN;
 			p->subs[index].f.subclass = res & 0xff;
-			dtmf_frame.subclass = res & 0xff;
-			p->subs[index].f.next = ast_frdup(&dtmf_frame);
 #ifdef HAVE_PRI
 		}
 #endif
