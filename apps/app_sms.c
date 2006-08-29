@@ -691,6 +691,7 @@ static void sms_readfile (sms_t * h, char *fn)
 		while (fgets (line, sizeof (line), s))
 		{								 /* process line in file */
 			char *p;
+			void *pp = &p;
 			for (p = line; *p && *p != '\n' && *p != '\r'; p++);
 			*p = 0;					 /* strip eoln */
 			p = line;
@@ -710,7 +711,7 @@ static void sms_readfile (sms_t * h, char *fn)
 				{						 /* parse message (UTF-8) */
 					unsigned char o = 0;
 					while (*p && o < SMSLEN)
-						h->ud[o++] = utf8decode((unsigned char **) &p);
+						h->ud[o++] = utf8decode(pp);
 					h->udl = o;
 					if (*p)
 						ast_log (LOG_WARNING, "UD too long in %s\n", fn);
