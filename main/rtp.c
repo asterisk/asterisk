@@ -1042,15 +1042,12 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		return &ast_null_frame;
 	}
 
-	if (version != 2)
-		return &ast_null_frame;
-	/* Ignore if the other side hasn't been given an address
-	   yet.  */
+	/* If we don't have the other side's address, then ignore this */
 	if (!rtp->them.sin_addr.s_addr || !rtp->them.sin_port)
 		return &ast_null_frame;
 
+	/* Send to whoever send to us if NAT is turned on */
 	if (rtp->nat) {
-		/* Send to whoever sent to us */
 		if ((rtp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
 		    (rtp->them.sin_port != sin.sin_port)) {
 			rtp->them = sin;
@@ -1064,6 +1061,13 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 				ast_log(LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n", ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
 		}
 	}
+
+	/* If we are bridged to another RTP stream, send direct */
+	if (rtp->bridged && !bridge_p2p_write(rtp, rtpheader, res, hdrlen))
+		return &ast_null_frame;
+
+	if (version != 2)
+		return &ast_null_frame;
 
 	payloadtype = (seqno & 0x7f0000) >> 16;
 	padding = seqno & (1 << 29);
