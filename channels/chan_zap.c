@@ -11220,11 +11220,13 @@ static int reload(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Zapata Telephony"
 #ifdef ZAPATA_PRI
-               " w/PRI"
+#define tdesc "Zapata Telephony w/PRI"
+#else
+#define tdesc "Zapata Telephony"
 #endif
-		,
+
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, tdesc,
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,
