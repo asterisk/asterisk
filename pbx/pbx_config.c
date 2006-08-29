@@ -851,36 +851,31 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 						    ast_get_extension_app(p));
 				} else { /* copy and replace '|' with ',' */
 					const char *sep, *cid;
-					char *tempdata = strdup(ast_get_extension_app_data(p));
+					char *tempdata;
 					char *s;
 					const char *el = ast_get_extension_label(p);
-					char *label = calloc(1, 128);
+					char label[128];
+ 
+ 					tempdata = ast_strdupa(ast_get_extension_app_data(p));
 
-					if (!tempdata) { /* XXX error duplicating string ? */
-						incomplete = 1;
-						continue;
-					}
-					for (s = tempdata; *s; s++)
+					for (s = tempdata; *s; s++) {
 						if (*s == '|')
 							*s = ',';
+					}
+
 					if (ast_get_extension_matchcid(p)) {
 						sep = "/";
 						cid = ast_get_extension_cidmatch(p);
-					} else {
+					} else
 						sep = cid = "";
-					}
-					if (el) {
-						if (snprintf(label, 127, "(%s)", el) != (strlen(el)+2)) {
-							incomplete = 1;	/* error encountered or label > 125 chars */
-							label = NULL;
-						};
-					};
+				
+					if (el && (snprintf(label, 127, "(%s)", el) != (strlen(el) + 2)))
+						incomplete = 1;	/* error encountered or label > 125 chars */
+					
 					fprintf(output, "exten => %s%s%s,%d%s,%s(%s)\n",
 					    ast_get_extension_name(p), sep, cid,
-					    ast_get_extension_priority(p), (label)?label:"",
+					    ast_get_extension_priority(p), label,
 					    ast_get_extension_app(p), tempdata);
-					free(tempdata);
-					if (label) free(label);
 				}
 			}
 		}
