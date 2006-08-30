@@ -485,7 +485,7 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 		t->thread[t->reentrancy] = 0;
 	}
 
-	if ((res = pthread_cond_timedwait(cond, &t->mutex, abstime))) {
+	if ((res = pthread_cond_timedwait(cond, &t->mutex, abstime)) && (res != ETIMEDOUT)) {
 		__ast_mutex_logger("%s line %d (%s): Error waiting on condition mutex '%s'\n", 
 				   filename, lineno, func, strerror(res));
 #ifdef THREAD_CRASH
