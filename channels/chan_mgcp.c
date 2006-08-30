@@ -1429,10 +1429,8 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
 
-		if (!ast_strlen_zero(i->cid_num)) {
+		if (!ast_strlen_zero(i->cid_num))
 			tmp->cid.cid_num = strdup(i->cid_num);
-			tmp->cid.cid_ani = strdup(i->cid_num);
-		}
 		if (!ast_strlen_zero(i->cid_name))
 			tmp->cid.cid_name = strdup(i->cid_name);
 		
@@ -2630,7 +2628,7 @@ static void *mgcp_ss(void *data)
 					ast_set_callerid(chan,
 							p->hidecallerid ? "" : p->cid_num,
 							p->hidecallerid ? "" : p->cid_name,
-							chan->cid.cid_ani ? NULL : p->cid_num);
+							p->cid_num);
 					ast_setstate(chan, AST_STATE_RING);
 					/*zt_enable_ec(p);*/
 					if (p->dtmfmode & MGCP_DTMF_HYBRID) {

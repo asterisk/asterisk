@@ -339,7 +339,7 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 
 	ast_set_callerid(p->chan,
 		p->owner->cid.cid_num, p->owner->cid.cid_name,
-		p->owner->cid.cid_ani ? p->chan->cid.cid_ani : p->owner->cid.cid_num);
+		p->owner->cid.cid_ani);
 
 	if (p->owner->cid.cid_rdnis)
 		p->chan->cid.cid_rdnis = strdup(p->owner->cid.cid_rdnis);

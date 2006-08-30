@@ -3448,8 +3448,6 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 			tmp->cid.cid_name = strdup(i->cid_name);
 		if (!ast_strlen_zero(i->ani))
 			tmp->cid.cid_ani = strdup(i->ani);
-		else if (!ast_strlen_zero(i->cid_num))
-			tmp->cid.cid_ani = strdup(i->cid_num);
 		tmp->cid.cid_pres = i->calling_pres;
 		tmp->cid.cid_ton = i->calling_ton;
 		tmp->cid.cid_tns = i->calling_tns;
