@@ -15296,7 +15296,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 				peer->expire = -1;
 				ast_clear_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC);
 				if (!obproxyfound || !strcasecmp(v->name, "outboundproxy")) {
-					if (ast_get_ip_or_srv(&peer->addr, v->value, "_sip._udp")) {
+					if (ast_get_ip_or_srv(&peer->addr, v->value, srvlookup ? "_sip._udp" : NULL)) {
 						ASTOBJ_UNREF(peer, sip_destroy_peer);
 						return NULL;
 					}
@@ -15653,7 +15653,7 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "fromdomain")) {
 			ast_copy_string(default_fromdomain, v->value, sizeof(default_fromdomain));
 		} else if (!strcasecmp(v->name, "outboundproxy")) {
-			if (ast_get_ip_or_srv(&outboundproxyip, v->value, "_sip._udp") < 0)
+			if (ast_get_ip_or_srv(&outboundproxyip, v->value, srvlookup ? "_sip._udp" : NULL) < 0)
 				ast_log(LOG_WARNING, "Unable to locate host '%s'\n", v->value);
 		} else if (!strcasecmp(v->name, "outboundproxyport")) {
 			/* Port needs to be after IP */
