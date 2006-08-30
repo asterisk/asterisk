@@ -980,7 +980,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp *rtp, unsigned int *rtpheader, in
 	rtpPT = ast_rtp_lookup_pt(rtp, payload);
 
 	/* If the payload is DTMF, and we are listening for DTMF - then feed it into the core */
-	if (!rtpPT.isAstFormat && rtpPT.code == AST_RTP_DTMF)
+	if (ast_test_flag(rtp, FLAG_P2P_NEED_DTMF) && !rtpPT.isAstFormat && rtpPT.code == AST_RTP_DTMF)
 		return -1;
 
 	/* Otherwise adjust bridged payload to match */
