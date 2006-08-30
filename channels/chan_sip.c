@@ -2991,7 +2991,6 @@ static int hangup_sip2cause(int cause)
 		case 401:	/* Unauthorized */
 			return AST_CAUSE_CALL_REJECTED;
 		case 403:	/* Not found */
-		case 487:	/* Call cancelled */
 			return AST_CAUSE_CALL_REJECTED;
 		case 404:	/* Not found */
 			return AST_CAUSE_UNALLOCATED;
