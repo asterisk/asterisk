@@ -1746,7 +1746,7 @@ static void *skinny_ss(void *data)
 						ast_set_callerid(chan,
 							l->hidecallerid ? "" : l->cid_num,
 							l->hidecallerid ? "" : l->cid_name,
-							chan->cid.cid_ani ? NULL : l->cid_num);
+							NULL);
                     				ast_setstate(chan, AST_STATE_RING);
                     				res = ast_pbx_run(chan);
                     				if (res) {
@@ -2280,10 +2280,8 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 		strncpy(tmp->context, l->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten,l->exten, sizeof(tmp->exten)-1);
 
-		if (!ast_strlen_zero(l->cid_num)) {
+		if (!ast_strlen_zero(l->cid_num))
 			tmp->cid.cid_num = strdup(l->cid_num);
-			tmp->cid.cid_ani = strdup(l->cid_num);
-		}
 		if (!ast_strlen_zero(l->cid_name))
 			tmp->cid.cid_name = strdup(l->cid_name);
 

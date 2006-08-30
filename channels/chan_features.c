@@ -328,14 +328,14 @@ static int features_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_mutex_lock(&p->lock);
 		x = indexof(p, ast, 0);
 		if (!x && p->subchan) {
-			ast_set_callerid(p->subchan,
-				p->owner->cid.cid_num, p->owner->cid.cid_name,
-				p->owner->cid.cid_ani ? p->owner->cid.cid_ani : p->owner->cid.cid_num);
-		
-			if (p->owner->cid.cid_rdnis)
-				p->subchan->cid.cid_rdnis = strdup(p->owner->cid.cid_rdnis);
-			else
-				p->subchan->cid.cid_rdnis = NULL;
+			p->subchan->cid.cid_name = p->owner->cid.cid_name ? 
+				strdup(p->owner->cid.cid_name) : NULL;
+			p->subchan->cid.cid_num = p->owner->cid.cid_num ? 
+				strdup(p->owner->cid.cid_num) : NULL;
+			p->subchan->cid.cid_ani = p->owner->cid.cid_ani ? 
+				strdup(p->owner->cid.cid_ani) : NULL;
+			p->subchan->cid.cid_rdnis = p->owner->cid.cid_rdnis ? 
+				strdup(p->owner->cid.cid_rdnis) : NULL;
 		
 			p->subchan->cid.cid_pres = p->owner->cid.cid_pres;
 			strncpy(p->subchan->language, p->owner->language, sizeof(p->subchan->language) - 1);

@@ -826,10 +826,8 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		if (!ast_strlen_zero(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 
-		if (!ast_strlen_zero(i->cid_num)) {
+		if (!ast_strlen_zero(i->cid_num))
 			tmp->cid.cid_num = strdup(i->cid_num);
-			tmp->cid.cid_ani = strdup(i->cid_num);
-		}
 		if (!ast_strlen_zero(i->cid_name))
 			tmp->cid.cid_name = strdup(i->cid_name);
 
