@@ -502,7 +502,7 @@ static int show_translation(int fd, int argc, char *argv[])
 		rebuild_matrix(z);
 	}
 
-	ast_cli(fd, "         Translation times between formats (in milliseconds)\n");
+	ast_cli(fd, "         Translation times between formats (in milliseconds) for one second of data\n");
 	ast_cli(fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
 	/* Get the length of the longest (usable?) codec name, so we know how wide the left side should be */
 	for (x = 0; x < SHOW_TRANS; x++) {
