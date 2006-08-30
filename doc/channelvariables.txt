@@ -710,7 +710,7 @@ The SIP channel uses the following variables:
 ---------------------------------------------------------
 ${SIPCALLID} 		* SIP Call-ID: header verbatim (for logging or CDR matching)
 ${SIPDOMAIN}    	* SIP destination domain of an inbound call (if appropriate)
-${SIPUSERAGENT} 	* SIP user agent 
+${SIPUSERAGENT} 	* SIP user agent (deprecated)
 ${SIPURI}		* SIP uri
 ${SIP_CODEC} 		Set the SIP codec for a call	
 ${SIP_URI_OPTIONS}	* additional options to add to the URI for an outgoing call
