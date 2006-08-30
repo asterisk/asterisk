@@ -4926,8 +4926,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		ast_set_write_format(p->owner, p->owner->writeformat);
 	}
 	
-	bridgepeer = ast_bridged_channel(p->owner);
-
 	/* Turn on/off music on hold if we are holding/unholding */
 	if ((bridgepeer = ast_bridged_channel(p->owner))) {
 		if (sin.sin_addr.s_addr && !sendonly) {
