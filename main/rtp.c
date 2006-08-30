@@ -2807,7 +2807,8 @@ static int p2p_callback_enable(struct ast_channel *chan, struct ast_rtp *rtp, in
 
 	/* Now, fire up callback mode */
 	iod[0] = ast_io_add(rtp->io, fds[0], p2p_rtp_callback, AST_IO_IN, rtp);
-	iod[1] = ast_io_add(rtp->io, fds[1], p2p_rtp_callback, AST_IO_IN, rtp);
+	if (fds[1] >= 0)
+		iod[1] = ast_io_add(rtp->io, fds[1], p2p_rtp_callback, AST_IO_IN, rtp);
 
 	return 1;
 }
