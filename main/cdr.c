@@ -290,7 +290,7 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 	
 	for(x = 0; cdr_readonly_vars[x]; x++) {
 		if (!strcasecmp(name, cdr_readonly_vars[x])) {
-			ast_log(LOG_ERROR, "Attempt to set a read-only variable!.\n");
+			ast_log(LOG_ERROR, "Attempt to set the '%s' read-only variable!.\n", name);
 			return -1;
 		}
 	}
