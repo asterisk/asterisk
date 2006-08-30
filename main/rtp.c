@@ -173,6 +173,7 @@ static int bridge_p2p_rtcp_write(struct ast_rtp *rtp, unsigned int *rtcpheader, 
 #define FLAG_HAS_DTMF			(1 << 3)
 #define FLAG_P2P_SENT_MARK              (1 << 4)
 #define FLAG_P2P_NEED_DTMF              (1 << 5)
+#define FLAG_CALLBACK_MODE              (1 << 6)
 
 /*!
  * \brief Structure defining an RTCP session.
@@ -1791,8 +1792,10 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 	}
 	rtp->sched = sched;
 	rtp->io = io;
-	if (callbackmode)
+	if (callbackmode) {
 		rtp->ioid = ast_io_add(rtp->io, rtp->s, rtpread, AST_IO_IN, rtp);
+		ast_set_flag(rtp, FLAG_CALLBACK_MODE);
+	}
 	ast_rtp_pt_default(rtp);
 	return rtp;
 }
@@ -2785,6 +2788,12 @@ static int p2p_callback_enable(struct ast_channel *chan, struct ast_rtp *rtp, in
 	if (ast_test_flag(rtp, FLAG_P2P_NEED_DTMF) || !rtp->io)
 		return 0;
 
+	/* If the RTP structure is already in callback mode, remove it temporarily */
+	if (rtp->ioid) {
+		ast_io_remove(rtp->io, rtp->ioid);
+		rtp->ioid = NULL;
+	}
+
 	/* Steal the file descriptors from the channel and stash them away */
 	fds[0] = chan->fds[0];
 	fds[1] = chan->fds[1];
@@ -2809,6 +2818,9 @@ static int p2p_callback_disable(struct ast_channel *chan, struct ast_rtp *rtp, i
 	chan->fds[0] = fds[0];
 	chan->fds[1] = fds[1];
 	ast_channel_unlock(chan);
+	/* Restore callback mode if previously used */
+	if (ast_test_flag(rtp, FLAG_CALLBACK_MODE))
+	    rtp->ioid = ast_io_add(rtp->io, rtp->s, rtpread, AST_IO_IN, rtp);
 	return 0;
 }
 
