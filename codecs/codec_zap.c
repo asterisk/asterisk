@@ -75,6 +75,10 @@ static AST_LIST_HEAD_STATIC(translators, translator);
 struct pvt {
 	int fd;
 	int fake;
+#ifdef DEBUG_TRANSCODE
+	int totalms;
+	int lasttotalms;
+#endif
 	struct zt_transcode_header *hdr;
 	struct ast_frame f;
 };
@@ -106,7 +110,7 @@ static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		hdr->srcoffset = 0;
 	}
 
-	memcpy(hdr->srcdata + hdr->srcoffset, f->data, f->datalen);
+	memcpy(hdr->srcdata + hdr->srcoffset + hdr->srclen, f->data, f->datalen);
 	hdr->srclen += f->datalen;
 	pvt->samples += f->samples;
 
@@ -131,24 +135,34 @@ static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 		pvt->samples = 0;
 	} else if (ztp->fake == 1) {
 		return NULL;
-	} else if (!hdr->srclen) {
-		return NULL;
 	} else {
-		hdr->dstoffset = 0;
-		hdr->dstlen = 0;
-		x = ZT_TCOP_TRANSCODE;
-		if (ioctl(ztp->fd, ZT_TRANSCODE_OP, &x))
-			ast_log(LOG_WARNING, "Failed to transcode: %s\n", strerror(errno));
-		if (!hdr->dstlen)
+		if (hdr->dstlen) {
+#ifdef DEBUG_TRANSCODE
+			ztp->totalms += hdr->dstsamples;
+			if ((ztp->totalms - ztp->lasttotalms) > 8000) {
+				printf("Whee %p, %d (%d to %d)\n", ztp, hdr->dstlen, ztp->lasttotalms, ztp->totalms);
+				ztp->lasttotalms = ztp->totalms;
+			}
+#endif
+			ztp->f.frametype = AST_FRAME_VOICE;
+			ztp->f.subclass = hdr->dstfmt;
+			ztp->f.samples = hdr->dstsamples;
+			ztp->f.data = hdr->dstdata + hdr->dstoffset;
+			ztp->f.offset = hdr->dstoffset;
+			ztp->f.datalen = hdr->dstlen;
+			ztp->f.mallocd = 0;
+			pvt->samples -= ztp->f.samples;
+			hdr->dstlen = 0;
+			
+		} else {
+			if (hdr->srclen) {
+				hdr->dstoffset = AST_FRIENDLY_OFFSET;
+				x = ZT_TCOP_TRANSCODE;
+				if (ioctl(ztp->fd, ZT_TRANSCODE_OP, &x))
+					ast_log(LOG_WARNING, "Failed to transcode: %s\n", strerror(errno));
+			}
 			return NULL;
-		ztp->f.frametype = AST_FRAME_VOICE;
-		ztp->f.subclass = hdr->dstfmt;
-		ztp->f.samples = hdr->dstsamples;
-		ztp->f.data = hdr->dstdata + hdr->dstoffset;
-		ztp->f.offset = hdr->dstoffset;
-		ztp->f.datalen = hdr->dstlen;
-		ztp->f.mallocd = 0;
-		pvt->samples -= ztp->f.samples;
+		}
 	}
 
 	return &ztp->f;
@@ -169,9 +183,16 @@ static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 	unsigned int x = ZT_TCOP_RESET;
 	struct pvt *ztp = pvt->pvt;
 	struct zt_transcode_header *hdr;
+	int flags;
 	
 	if ((fd = open("/dev/zap/transcode", O_RDWR)) < 0)
 		return -1;
+	flags = fcntl(fd, F_GETFL);
+	if (flags > - 1) {
+		if (fcntl(fd, F_SETFL, flags | O_NONBLOCK))
+			ast_log(LOG_WARNING, "Could not set non-block mode!\n");
+	}
+	
 
 	if ((hdr = mmap(NULL, sizeof(*hdr), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) == MAP_FAILED) {
 		ast_log(LOG_ERROR, "Memory Map failed for transcoding (%s)\n", strerror(errno));
