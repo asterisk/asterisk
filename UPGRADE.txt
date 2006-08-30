@@ -96,6 +96,11 @@ PBX Core:
   not set, it uses the transferee variable. If not set in any channel, it will 
   attempt to use the last non macro context. If not possible, it will default
   to the current context.
+
+* The autofallthrough setting introduced in Asterisk 1.2 now defaults to 'yes';
+  if your dialplan relies on the ability to 'run off the end' of an extension
+  and wait for a new extension without using WaitExten() to accomplish that,
+  you will need set autofallthrough to 'no' in your extensions.conf file.
  
 Command Line Interface:
 

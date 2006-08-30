@@ -27,13 +27,13 @@ writeprotect=no
 ;
 ; If autofallthrough is set, then if an extension runs out of
 ; things to do, it will terminate the call with BUSY, CONGESTION
-; or HANGUP depending on Asterisk's best guess (strongly recommended).
+; or HANGUP depending on Asterisk's best guess. This is the default.
 ;
 ; If autofallthrough is not set, then if an extension runs out of 
-; things to do, asterisk will wait for a new extension to be dialed 
+; things to do, Asterisk will wait for a new extension to be dialed 
 ; (this is the original behavior of Asterisk 1.0 and earlier).
 ;
-autofallthrough=yes
+;autofallthrough=no
 ;
 ; If clearglobalvars is set, global variables will be cleared 
 ; and reparsed on an extensions reload, or Asterisk reload.

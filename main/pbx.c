@@ -240,7 +240,7 @@ static int pbx_builtin_importvar(struct ast_channel *, void *);
 AST_MUTEX_DEFINE_STATIC(globalslock);
 static struct varshead globals = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 
-static int autofallthrough = 0;
+static int autofallthrough = 1;
 
 AST_MUTEX_DEFINE_STATIC(maxcalllock);
 static int countcalls = 0;
