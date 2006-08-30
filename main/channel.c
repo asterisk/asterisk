@@ -1359,7 +1359,7 @@ static void queue_frame_to_spies(struct ast_channel *chan, struct ast_frame *f, 
 					break;
 				}
 			}
-			AST_LIST_INSERT_TAIL(&queue->list, ast_frdup(f), frame_list);
+			AST_LIST_INSERT_TAIL(&queue->list, ast_frdup(translated_frame), frame_list);
 		} else {
 			if (f->subclass != queue->format) {
 				ast_log(LOG_WARNING, "Spy '%s' on channel '%s' wants format '%s', but frame is '%s', dropping\n",
