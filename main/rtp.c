@@ -164,6 +164,7 @@ static void timeval2ntp(struct timeval tv, unsigned int *msw, unsigned int *lsw)
 static int ast_rtcp_write_sr(void *data);
 static int ast_rtcp_write_rr(void *data);
 static unsigned int ast_rtcp_calc_interval(struct ast_rtp *rtp);
+static int bridge_p2p_rtcp_write(struct ast_rtp *rtp, unsigned int *rtcpheader, int len);
 
 #define FLAG_3389_WARNING		(1 << 0)
 #define FLAG_NAT_ACTIVE			(3 << 1)
@@ -777,6 +778,11 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 				ast_log(LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 		}
 	}
+
+	/* If we are P2P bridged to another RTP stream, send it directly over */
+	if (rtp->bridged && !bridge_p2p_rtcp_write(rtp, rtcpheader, res))
+		return &ast_null_frame;
+
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Got RTCP report of %d bytes\n", res);
 
@@ -929,8 +935,31 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 		rtp->rtcp->minrxjitter = rtp->rxjitter;
 }
 
-/*! \brief Perform a Packet2Packet write */
-static int bridge_p2p_write(struct ast_rtp *rtp, unsigned int *rtpheader, int len, int hdrlen)
+/*! \brief Perform a Packet2Packet RTCP write */
+static int bridge_p2p_rtcp_write(struct ast_rtp *rtp, unsigned int *rtcpheader, int len)
+{
+	struct ast_rtp *bridged = rtp->bridged;
+	int res = 0;
+
+	/* If RTCP is not present on the bridged RTP session, then ignore this */
+	if (!bridged->rtcp)
+		return 0;
+
+	/* Send the data out */
+	res = sendto(bridged->rtcp->s, (void *)rtcpheader, len, 0, (struct sockaddr *)&bridged->rtcp->them, sizeof(bridged->rtcp->them));
+	if (res < 0) {
+		if (!bridged->nat || (bridged->nat && (ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE)))
+			ast_log(LOG_DEBUG, "RTCP Transmission error of packet to %s:%d: %s\n", ast_inet_ntoa(bridged->rtcp->them.sin_addr), ntohs(bridged->rtcp->them.sin_port), strerror(errno));
+		else if ((((ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug)) && (option_debug || rtpdebug))
+			ast_log(LOG_DEBUG, "RTCP NAT: Can't write RTCP to private address %s:%d, waiting for other end to send first...\n", ast_inet_ntoa(bridged->rtcp->them.sin_addr), ntohs(bridged->rtcp->them.sin_port));
+	} else if (rtp_debug_test_addr(&bridged->rtcp->them))
+		ast_verbose("Sent RTCP P2P packet to %s:%d (len %-6.6u)\n", ast_inet_ntoa(bridged->rtcp->them.sin_addr), ntohs(bridged->rtcp->them.sin_port), len);
+
+	return 0;
+}
+
+/*! \brief Perform a Packet2Packet RTP write */
+static int bridge_p2p_rtp_write(struct ast_rtp *rtp, unsigned int *rtpheader, int len, int hdrlen)
 {
 	struct ast_rtp *bridged = rtp->bridged;
 	int res = 0, payload = 0, bridged_payload = 0, version, padding, mark, ext;
@@ -965,23 +994,19 @@ static int bridge_p2p_write(struct ast_rtp *rtp, unsigned int *rtpheader, int le
 	/* Reconstruct part of the packet */
 	rtpheader[0] = htonl((version << 30) | (mark << 23) | (bridged_payload << 16) | (seqno));
 
-	if (bridged->them.sin_port && bridged->them.sin_addr.s_addr) {
-		res = sendto(bridged->s, (void *)rtpheader, len, 0, (struct sockaddr *)&bridged->them, sizeof(bridged->them));
-		if (res < 0) {
-			if (!bridged->nat || (bridged->nat && (ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
-				ast_log(LOG_DEBUG, "RTP Transmission error of packet to %s:%d: %s\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port), strerror(errno));
-			} else if ((ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) {
-				if (option_debug || rtpdebug)
-					ast_log(LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port));
-				ast_set_flag(bridged, FLAG_NAT_INACTIVE_NOWARN);
-			}
-			return -1;
-		} else {
-			if (rtp_debug_test_addr(&bridged->them))
-				ast_verbose("Sent RTP P2P packet to %s:%d (type %-2.2d, len %-6.6u)\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port), bridged_payload, len - hdrlen);
-			return 0;
+	/* Send the packet back out */
+	res = sendto(bridged->s, (void *)rtpheader, len, 0, (struct sockaddr *)&bridged->them, sizeof(bridged->them));
+	if (res < 0) {
+		if (!bridged->nat || (bridged->nat && (ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
+			ast_log(LOG_DEBUG, "RTP Transmission error of packet to %s:%d: %s\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port), strerror(errno));
+		} else if (((ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(bridged, FLAG_NAT_INACTIVE_NOWARN)) {
+			if (option_debug || rtpdebug)
+				ast_log(LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port));
+			ast_set_flag(bridged, FLAG_NAT_INACTIVE_NOWARN);
 		}
-	}
+		return -1;
+	} else if (rtp_debug_test_addr(&bridged->them))
+			ast_verbose("Sent RTP P2P packet to %s:%d (type %-2.2d, len %-6.6u)\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port), bridged_payload, len - hdrlen);
 
 	return -1;
 }
@@ -1024,11 +1049,6 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		return &ast_null_frame;
 	}
 
-	/* If we are P2P bridged to another channel, and the write is a success - then return a null frame and not the actual data */
-	if (rtp->bridged && !bridge_p2p_write(rtp, rtpheader, res, hdrlen)) {
-		return &ast_null_frame;
-	}
-
 	/* Get fields */
 	seqno = ntohl(rtpheader[0]);
 
@@ -1063,7 +1083,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	}
 
 	/* If we are bridged to another RTP stream, send direct */
-	if (rtp->bridged && !bridge_p2p_write(rtp, rtpheader, res, hdrlen))
+	if (rtp->bridged && !bridge_p2p_rtp_write(rtp, rtpheader, res, hdrlen))
 		return &ast_null_frame;
 
 	if (version != 2)
@@ -1769,12 +1789,10 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 			return NULL;
 		}
 	}
-	if (io && sched && callbackmode) {
-		/* Operate this one in a callback mode */
-		rtp->sched = sched;
-		rtp->io = io;
+	rtp->sched = sched;
+	rtp->io = io;
+	if (callbackmode)
 		rtp->ioid = ast_io_add(rtp->io, rtp->s, rtpread, AST_IO_IN, rtp);
-	}
 	ast_rtp_pt_default(rtp);
 	return rtp;
 }
@@ -2355,7 +2373,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		if (res <0) {
 			if (!rtp->nat || (rtp->nat && (ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
 				ast_log(LOG_DEBUG, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
-			} else if ((ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) {
+			} else if (((ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(rtp, FLAG_NAT_INACTIVE_NOWARN)) {
 				/* Only give this error message once if we are not RTP debugging */
 				if (option_debug || rtpdebug)
 					ast_log(LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
@@ -2704,11 +2722,105 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 	return AST_BRIDGE_FAILED;
 }
 
+/*! \brief P2P RTP/RTCP Callback */
+static int p2p_rtp_callback(int *id, int fd, short events, void *cbdata)
+{
+	int res = 0, hdrlen = 12;
+	struct sockaddr_in sin;
+	socklen_t len;
+	unsigned int *header;
+	struct ast_rtp *rtp = cbdata;
+	int is_rtp = 0, is_rtcp = 0;
+
+	if (!rtp)
+		return 1;
+
+	len = sizeof(sin);
+	if ((res = recvfrom(fd, rtp->rawdata + AST_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - AST_FRIENDLY_OFFSET, 0, (struct sockaddr *)&sin, &len)) < 0)
+		return 1;
+
+	header = (unsigned int *)(rtp->rawdata + AST_FRIENDLY_OFFSET);
+
+	/* Determine what this file descriptor is for */
+	if (rtp->s == fd)
+		is_rtp = 1;
+	else if (rtp->rtcp && rtp->rtcp->s == fd)
+		is_rtcp = 1;
+
+	/* If NAT support is turned on, then see if we need to change their address */
+	if (rtp->nat) {
+		/* If this is for RTP, check that - if it's for RTCP, check that */
+		if (is_rtp) {
+			if ((rtp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
+			    (rtp->them.sin_port != sin.sin_port)) {
+				rtp->them = sin;
+				rtp->rxseqno = 0;
+				ast_set_flag(rtp, FLAG_NAT_ACTIVE);
+				if (option_debug || rtpdebug)
+					ast_log(LOG_DEBUG, "P2P RTP NAT: Got audio from other end. Now sending to address %s:%d\n", ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+			}
+		} else if (is_rtcp) {
+			if ((rtp->rtcp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
+			    (rtp->rtcp->them.sin_port != sin.sin_port)) {
+				rtp->rtcp->them = sin;
+				if (option_debug || rtpdebug)
+					ast_log(LOG_DEBUG, "P2P RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
+			}
+		}
+	}
+
+	/* If this came from the RTP stream, write out via RTP - if it's RTCP, write out via RTCP */
+	if (is_rtp)
+		bridge_p2p_rtp_write(rtp, header, res, hdrlen);
+	else if (is_rtcp)
+		bridge_p2p_rtcp_write(rtp, header, res);
+
+	return 1;
+}
+
+/*! \brief Helper function to switch a channel and RTP stream into callback mode */
+static int p2p_callback_enable(struct ast_channel *chan, struct ast_rtp *rtp, int *fds, int **iod)
+{
+	/* If we need DTMF or we have no IO structure, then we can't do direct callback */
+	if (ast_test_flag(rtp, FLAG_P2P_NEED_DTMF) || !rtp->io)
+		return 0;
+
+	/* Steal the file descriptors from the channel and stash them away */
+	fds[0] = chan->fds[0];
+	fds[1] = chan->fds[1];
+	chan->fds[0] = -1;
+	chan->fds[1] = -1;
+
+	/* Now, fire up callback mode */
+	iod[0] = ast_io_add(rtp->io, fds[0], p2p_rtp_callback, AST_IO_IN, rtp);
+	iod[1] = ast_io_add(rtp->io, fds[1], p2p_rtp_callback, AST_IO_IN, rtp);
+
+	return 1;
+}
+
+/*! \brief Helper function to switch a channel and RTP stream out of callback mode */
+static int p2p_callback_disable(struct ast_channel *chan, struct ast_rtp *rtp, int *fds, int **iod)
+{
+	ast_channel_lock(chan);
+	/* Remove the callback from the IO context */
+	ast_io_remove(rtp->io, iod[0]);
+	ast_io_remove(rtp->io, iod[1]);
+	/* Restore file descriptors */
+	chan->fds[0] = fds[0];
+	chan->fds[1] = fds[1];
+	ast_channel_unlock(chan);
+	return 0;
+}
+
 /*! \brief Bridge loop for partial native bridge (packet2packet) */
 static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast_channel *c1, struct ast_rtp *p0, struct ast_rtp *p1, struct ast_rtp *vp0, struct ast_rtp *vp1, int timeoutms, int flags, struct ast_frame **fo, struct ast_channel **rc, void *pvt0, void *pvt1)
 {
 	struct ast_frame *fr = NULL;
 	struct ast_channel *who = NULL, *other = NULL, *cs[3] = {NULL, };
+	int p0_fds[2] = {-1, -1}, p1_fds[2] = {-1, -1};
+	int *p0_iod[2] = {NULL, }, *p1_iod[2] = {NULL, };
+	int p0_callback = 0, p1_callback = 0;
+	enum ast_bridge_result res = AST_BRIDGE_FAILED;
 
 	/* Okay, setup each RTP structure to do P2P forwarding */
 	ast_clear_flag(p0, FLAG_P2P_SENT_MARK);
@@ -2721,6 +2833,10 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 		ast_clear_flag(vp1, FLAG_P2P_SENT_MARK);
 		vp1->bridged = vp0;
 	}
+
+	/* Activate callback modes if possible */
+	p0_callback = p2p_callback_enable(c0, p0, &p0_fds[0], &p0_iod[0]);
+	p1_callback = p2p_callback_enable(c1, p1, &p1_fds[0], &p1_iod[0]);
 
 	/* Now let go of the channel locks and be on our way */
 	ast_channel_unlock(c0);
@@ -2736,12 +2852,15 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 		    (c1->tech_pvt != pvt1) ||
 		    (c0->masq || c0->masqr || c1->masq || c1->masqr)) {
 			ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
-			return AST_BRIDGE_RETRY;
+			res = AST_BRIDGE_RETRY;
+			break;
 		}
 		/* Wait on a channel to feed us a frame */
 		if (!(who = ast_waitfor_n(cs, 2, &timeoutms))) {
-			if (!timeoutms)
-				return AST_BRIDGE_RETRY;
+			if (!timeoutms) {
+				res = AST_BRIDGE_RETRY;
+				break;
+			}
 			if (option_debug)
 				ast_log(LOG_NOTICE, "Ooh, empty read...\n");
 			if (ast_check_hangup(c0) || ast_check_hangup(c1))
@@ -2767,18 +2886,31 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 				vp0->bridged = NULL;
 				vp1->bridged = NULL;
 			}
-			return AST_BRIDGE_COMPLETE;
+			res = AST_BRIDGE_COMPLETE;
+			break;
 		} else if ((fr->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
 			if ((fr->subclass == AST_CONTROL_HOLD) ||
 			    (fr->subclass == AST_CONTROL_UNHOLD) ||
 			    (fr->subclass == AST_CONTROL_VIDUPDATE)) {
+				/* If we are going on hold, then break callback mode */
+				if (fr->subclass == AST_CONTROL_HOLD) {
+					if (p0_callback)
+						p0_callback = p2p_callback_disable(c0, p0, &p0_fds[0], &p0_iod[0]);
+					if (p1_callback)
+						p1_callback = p2p_callback_disable(c1, p1, &p1_fds[0], &p1_iod[0]);
+				} else if (fr->subclass == AST_CONTROL_UNHOLD) {
+					/* If we are off hold, then go back to callback mode */
+					p0_callback = p2p_callback_enable(c0, p0, &p0_fds[0], &p0_iod[0]);
+					p1_callback = p2p_callback_enable(c1, p1, &p1_fds[0], &p1_iod[0]);
+				}
 				ast_indicate(other, fr->subclass);
 				ast_frfree(fr);
 			} else {
 				*fo = fr;
 				*rc = who;
 				ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass, who->name);
-				return AST_BRIDGE_COMPLETE;
+				res = AST_BRIDGE_COMPLETE;
+				break;
 			}
 		} else {
 			/* If this is a DTMF, voice, or video frame write it to the other channel */
@@ -2795,7 +2927,13 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 		cs[1] = cs[2];
 	}
 
-	return AST_BRIDGE_FAILED;
+	/* If we are totally avoiding the core, then restore our link to it */
+	if (p0_callback)
+		p0_callback = p2p_callback_disable(c0, p0, &p0_fds[0], &p0_iod[0]);
+	if (p1_callback)
+		p1_callback = p2p_callback_disable(c1, p1, &p1_fds[0], &p1_iod[0]);
+
+	return res;
 }
 
 /*! \brief Bridge calls. If possible and allowed, initiate
