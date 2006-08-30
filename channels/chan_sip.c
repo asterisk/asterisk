@@ -2299,6 +2299,7 @@ static int hangup_sip2cause(int cause)
 	switch(cause) {
 		case 603:	/* Declined */
 		case 403:	/* Not found */
+		case 487:	/* Call cancelled */
 			return AST_CAUSE_CALL_REJECTED;
 		case 404:	/* Not found */
 			return AST_CAUSE_UNALLOCATED;
@@ -10073,6 +10074,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					break;
 				case 487:
 					/* channel now destroyed - dec the inUse counter */
+					if (owner)
+						ast_queue_hangup(p->owner);
 					update_call_counter(p, DEC_CALL_LIMIT);
 					break;
 				case 482: /* SIP is incapable of performing a hairpin call, which
