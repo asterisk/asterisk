@@ -81,6 +81,10 @@
  * The PBX issues a hangup on both incoming and outgoing calls through
  * the sip_hangup() function
  *
+ * \par Deprecated stuff
+ * This is deprecated and will be removed after the 1.4 release
+ * - the SIPUSERAGENT dialplan variable
+ * - the ALERT_INFO dialplan variable
  */
 
 
