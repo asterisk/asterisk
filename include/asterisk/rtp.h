@@ -120,6 +120,8 @@ int ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
 
 void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us);
 
+struct ast_rtp *ast_rtp_get_bridged(struct ast_rtp *rtp);
+
 void ast_rtp_destroy(struct ast_rtp *rtp);
 
 void ast_rtp_reset(struct ast_rtp *rtp);

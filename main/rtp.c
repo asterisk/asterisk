@@ -781,7 +781,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	}
 
 	/* If we are P2P bridged to another RTP stream, send it directly over */
-	if (rtp->bridged && !bridge_p2p_rtcp_write(rtp, rtcpheader, res))
+	if (ast_rtp_get_bridged(rtp) && !bridge_p2p_rtcp_write(rtp, rtcpheader, res))
 		return &ast_null_frame;
 
 	if (option_debug)
@@ -939,7 +939,7 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 /*! \brief Perform a Packet2Packet RTCP write */
 static int bridge_p2p_rtcp_write(struct ast_rtp *rtp, unsigned int *rtcpheader, int len)
 {
-	struct ast_rtp *bridged = rtp->bridged;
+	struct ast_rtp *bridged = ast_rtp_get_bridged(rtp);
 	int res = 0;
 
 	/* If RTCP is not present on the bridged RTP session, then ignore this */
@@ -962,7 +962,7 @@ static int bridge_p2p_rtcp_write(struct ast_rtp *rtp, unsigned int *rtcpheader, 
 /*! \brief Perform a Packet2Packet RTP write */
 static int bridge_p2p_rtp_write(struct ast_rtp *rtp, unsigned int *rtpheader, int len, int hdrlen)
 {
-	struct ast_rtp *bridged = rtp->bridged;
+	struct ast_rtp *bridged = ast_rtp_get_bridged(rtp);
 	int res = 0, payload = 0, bridged_payload = 0, version, padding, mark, ext;
 	struct rtpPayloadType rtpPT;
 	unsigned int seqno;
@@ -1084,7 +1084,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	}
 
 	/* If we are bridged to another RTP stream, send direct */
-	if (rtp->bridged && !bridge_p2p_rtp_write(rtp, rtpheader, res, hdrlen))
+	if (ast_rtp_get_bridged(rtp) && !bridge_p2p_rtp_write(rtp, rtpheader, res, hdrlen))
 		return &ast_null_frame;
 
 	if (version != 2)
@@ -1844,6 +1844,11 @@ int ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
 void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us)
 {
 	*us = rtp->us;
+}
+
+struct ast_rtp *ast_rtp_get_bridged(struct ast_rtp *rtp)
+{
+	return rtp->bridged;
 }
 
 void ast_rtp_stop(struct ast_rtp *rtp)

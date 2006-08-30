@@ -14365,12 +14365,15 @@ restartsearch:
 								ast_mutex_lock(&sip->lock);
 							}
 							if (sip->owner) {
-								ast_log(LOG_NOTICE,
-									"Disconnecting call '%s' for lack of RTP activity in %ld seconds\n",
-									sip->owner->name,
-									(long) (t - sip->lastrtprx));
-								/* Issue a softhangup */
-								ast_softhangup_nolock(sip->owner, AST_SOFTHANGUP_DEV);
+								if (!(ast_rtp_get_bridged(sip->rtp))) {
+									ast_log(LOG_NOTICE,
+										"Disconnecting call '%s' for lack of RTP activity in %ld seconds\n",
+										sip->owner->name,
+										(long) (t - sip->lastrtprx));
+									/* Issue a softhangup */
+									ast_softhangup_nolock(sip->owner, AST_SOFTHANGUP_DEV);
+								} else
+									ast_log(LOG_NOTICE, "'%s' will not be disconnected in %ld seconds because it is directly bridged to another RTP stream\n", sip->owner->name, (long) (t - sip->lastrtprx));
 								ast_channel_unlock(sip->owner);
 								/* forget the timeouts for this call, since a hangup
 								   has already been requested and we don't want to
