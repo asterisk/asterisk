@@ -383,3 +383,13 @@ Music on Hold:
   server puts a phone on a different server on hold, the remote server will be
   responsible for playing the hold music to its local phone that was put on
   hold instead of the far end server across the network playing the music.
+
+CDR Records:
+
+* The behavior of the "clid" field of the CDR has always been that it will
+  contain the callerid ANI if it is set, or the callerid number if ANI was not
+  set.  When using the "callerid" option for various channel drivers, some
+  would set ANI and some would not.  This has been cleared up so that all
+  channel drivers set ANI.  If you would like to change the callerid number
+  on the channel from the dialplan and have that change also show up in the 
+  CDR, then you *must* set CALLERID(ANI) as well as CALLERID(num).
