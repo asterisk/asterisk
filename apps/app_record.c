@@ -303,7 +303,8 @@ static int record_exec(struct ast_channel *chan, void *data)
 		} else if ((f->frametype == AST_FRAME_DTMF) &&
 		    (f->subclass == terminator)) {
 			 res = ast_writestream(s,f);
-		         if(res) {
+			 
+		         if (res) {
 			 	ast_log(LOG_WARNING,"Problem writing final record frame\n");
 			 }		 
 			ast_frfree(f);
