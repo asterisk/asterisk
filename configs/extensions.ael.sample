@@ -11,9 +11,11 @@
 // - With the "reload" command (that reloads everything) in the CLI
 
 // The "Globals" category contains global variables that can be referenced
-// in the dialplan with ${VARIABLE} or ${ENV(VARIABLE)} for Environmental
-// variables,
-// ${${VARIABLE}} or ${text${VARIABLE}} or any hybrid
+// in the dialplan by using the GLOBAL dialplan function:
+//  ${GLOBAL(VARIABLE)} 
+// ${${GLOBAL(VARIABLE)}} or ${text${GLOBAL(VARIABLE)}} or any hybrid
+// Unix/Linux environmental variables are reached with the ENV dialplan
+// function: ${ENV(VARIABLE)}
 //
 
 globals {

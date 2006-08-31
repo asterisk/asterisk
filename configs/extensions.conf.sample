@@ -1,3 +1,4 @@
+; extensions.conf - the Asterisk dial plan
 ;
 ; Static extension configuration file, used by
 ; the pbx_config module. This is where you configure all your 
@@ -59,9 +60,11 @@ clearglobalvars=no
 ;#include "filename.conf"
 
 ; The "Globals" category contains global variables that can be referenced
-; in the dialplan with ${VARIABLE} or ${ENV(VARIABLE)} for Environmental
-; variables,
-; ${${VARIABLE}} or ${text${VARIABLE}} or any hybrid
+; in the dialplan with the GLOBAL dialplan function:
+; ${GLOBAL(VARIABLE)}
+; ${${GLOBAL(VARIABLE)}} or ${text${GLOBAL(VARIABLE)}} or any hybrid
+; Unix/Linux environmental variables can be reached with the ENV dialplan
+; function: ${ENV(VARIABLE)}
 ;
 [globals]
 CONSOLE=Console/dsp				; Console interface for demo
@@ -222,7 +225,7 @@ include => dundi-e164-lookup
 ; up, please go to www.gnophone.com or www.iaxtel.com
 ;
 [iaxtel700]
-exten => _91700XXXXXXX,1,Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel)
+exten => _91700XXXXXXX,1,Dial(IAX2/${GLOBAL(IAXINFO)}@iaxtel.com/${EXTEN:1}@iaxtel)
 
 ;
 ; The SWITCH statement permits a server to share the dialplain with
@@ -238,29 +241,29 @@ exten => _91700XXXXXXX,1,Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel)
 ; International long distance through trunk
 ;
 exten => _9011.,1,Macro(dundi-e164,${EXTEN:4})
-exten => _9011.,n,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
+exten => _9011.,n,Dial(${GLOBAL(TRUNK)}/${EXTEN:${GLOBAL(TRUNKMSD)}})
 
 [trunkld]
 ;
 ; Long distance context accessed through trunk
 ;
 exten => _91NXXNXXXXXX,1,Macro(dundi-e164,${EXTEN:1})
-exten => _91NXXNXXXXXX,n,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
+exten => _91NXXNXXXXXX,n,Dial(${GLOBAL(TRUNK)}/${EXTEN:${GLOBAL(TRUNKMSD)}})
 
 [trunklocal]
 ;
 ; Local seven-digit dialing accessed through trunk interface
 ;
-exten => _9NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
+exten => _9NXXXXXX,1,Dial(${GLOBAL(TRUNK)}/${EXTEN:${GLOBAL(TRUNKMSD)}})
 
 [trunktollfree]
 ;
 ; Long distance context accessed through trunk interface
 ;
-exten => _91800NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _91888NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _91877NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _91866NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
+exten => _91800NXXXXXX,1,Dial(${GLOBAL(TRUNK)}/${EXTEN:${GLOBAL(TRUNKMSD)}})
+exten => _91888NXXXXXX,1,Dial(${GLOBAL(TRUNK)}/${EXTEN:${GLOBAL(TRUNKMSD)}})
+exten => _91877NXXXXXX,1,Dial(${GLOBAL(TRUNK)}/${EXTEN:${GLOBAL(TRUNKMSD)}})
+exten => _91866NXXXXXX,1,Dial(${GLOBAL(TRUNK)}/${EXTEN:${GLOBAL(TRUNKMSD)}})
 
 [international]
 ;
@@ -400,7 +403,7 @@ exten => 1000,1,Goto(default,s,1)
 ;
 exten => 1234,1,Playback(transfer,skip)		; "Please hold while..." 
 					; (but skip if channel is not up)
-exten => 1234,n,Macro(stdexten,1234,${CONSOLE})
+exten => 1234,n,Macro(stdexten,1234,${GLOBAL(CONSOLE)})
 
 exten => 1235,1,Voicemail(1234,u)		; Right to voicemail
 
