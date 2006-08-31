@@ -1007,7 +1007,7 @@ static void frame_cache_cleanup(void *data)
 	struct iax_frame *cur;
 
 	while ((cur = AST_LIST_REMOVE_HEAD(frames, list)))
-		__iax_frame_free(cur, 0);
+		free(cur);
 
 	free(frames);
 }
