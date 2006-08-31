@@ -115,7 +115,7 @@ static int regex(struct ast_channel *chan, char *cmd, char *parse, char *buf,
 	int errcode;
 	regex_t regexbuf;
 
-	buf[0] = '\0';
+	buf[0] = '0';
 
 	AST_NONSTANDARD_APP_ARGS(args, parse, '"');
 
@@ -130,10 +130,10 @@ static int regex(struct ast_channel *chan, char *cmd, char *parse, char *buf,
 		regerror(errcode, &regexbuf, buf, len);
 		ast_log(LOG_WARNING, "Malformed input %s(%s): %s\n", cmd, parse, buf);
 		return -1;
-	} else {
-		if (!regexec(&regexbuf, args.str, 0, NULL, 0))
-			strcpy(buf, "1");
 	}
+	
+	strcpy(buf, regexec(&regexbuf, args.str, 0, NULL, 0) ? "0" : "1");
+
 	regfree(&regexbuf);
 
 	return 0;
@@ -141,8 +141,8 @@ static int regex(struct ast_channel *chan, char *cmd, char *parse, char *buf,
 
 static struct ast_custom_function regex_function = {
 	.name = "REGEX",
-	.synopsis =
-		"Regular Expression: Returns 1 if data matches regular expression.",
+	.synopsis = "Regular Expression",
+	.desc =  "Returns 1 if data matches regular expression, or 0 otherwise.",
 	.syntax = "REGEX(\"<regular expression>\" <data>)",
 	.read = regex,
 };
