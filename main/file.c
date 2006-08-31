@@ -1029,7 +1029,6 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 			if (!fr)
 				return -1;
 			switch(fr->frametype) {
-			case AST_FRAME_DTMF_BEGIN:
 			case AST_FRAME_DTMF_END:
 				if (context) {
 					const char exten[2] = { fr->subclass, '\0' };
