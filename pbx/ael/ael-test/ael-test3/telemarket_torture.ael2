@@ -1,0 +1,812 @@
+//
+// AN EXCERSIZE IN BAD DIALPLAN DESIGN
+//  (What better testing ground than on telemarketers?)
+//
+
+
+// BAD DESIGN: long, boring introductions followed by long, drawn out menus of choices.
+//             if they survive to the last option, how will they remember the choices?
+//
+
+// BAD DESIGN: Amateur Recording. Poor voice quality, too quiet.
+//              Also, the announcer is definitely not vocally gifted.
+//              Also, the long pauses and clicks between the intro
+//                    and menu choices might lead some to think that
+//                    the announcements are over, and hang up. Too bad!
+
+// WORSE DESIGN: Instead of using the Background application, the Playback
+//               application is used. After taking so much time and trouble
+//               to record this material, the caller must listen and enjoy 
+//               every syllable before they can make an option choice. None
+//               of that interrupting with a choice. We want them to savour
+//               every word!
+
+// GOOD/BAD, ER INSIDIOUS -- DANGLE A CARROT-- GIVE THE LISTENER A GOOD REASON TO
+// HANG ON AND VOLUNTARILY LISTEN TO THE TORTURE.
+// BUT, DON'T MAKE PROMISES YOU WON'T KEEP!
+
+
+context telemarket {
+	s => {
+		begin:
+		Playback(telemarketer-intro);       // ; Script: 
+                                               // Due to the extremely high volume of calls from everything from telemarketers
+                                               // to Septic System Bacteria vendors, we are asking all such organizations
+                                               //  to remove this number from their call list,  or  as need be, to add this
+                                               //  number to their No-Call list, whichever is relevent. 
+
+                                               //  [THE CARROT:]
+                                               // We HAVE made some exceptions, and if you wish to see if your organization
+                                               // has been exempted, please listen to and follow the following prompts.
+                                               // 
+                                               //  Otherwise, please Cease calling this number!
+                                               // 
+		Playback(telemarketer-choices);
+                                               //  if you represent a charitable organization, please dial 1,
+                                               //  if you represent a political organization, please dial 2.
+                                               //  if you represent a polling company, please dial 3,
+                                               //  if you represent a market research organization, please dial 4.
+                                               //  if you represent a magazine or newsletter, please dial 5.
+                                               //  if you represent a commercial organization, please dial 6.
+	}
+	1 => goto telemarket-charity|s|begin;
+	2 => goto telemarket-political|s|begin;
+	3 => goto telemarket-pollster|s|begin;
+	4 => goto telemarket-research|s|begin;
+	5 => goto telemarket-magazine|s|begin;
+	6 => goto telemarket-commercial|s|begin;
+	7 => goto telemarket-other|s|begin;
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+context telemarket-charity {
+	s => {
+		begin:
+		Playback(telemark-charity-intro);
+                                               //  We have contributed generously to many worthy causes in the past, and will
+                                               // continue to do so in the future. But we suspect that such organizatons
+                                               // have sold our name and phone number to each other until we are now hounded
+                                               // day and night by literally hundreds of such organizations.
+                                               // Enough is Enough!
+                                               // 
+                                               // If we have contributed to your cause in the past, we may, perhaps, be disposed to 
+                                               // do so in the future, at our option,
+                                               // we give no pledges nor make any commitments here.
+                                               // Send us material via the post if you feel this necessary
+                                               //  but do not even consider email. Any email or further phone calls from your organization
+                                               // in the future, will be considered an act of aggression, and we will 
+                                               //  blacklist your organization for the rest of our natural lives.
+                                               // 
+                                               // To see if your organization is exempt from these prohibitions, please
+                                               // comply with the following options.
+		Playback(telemark-charity-choices);
+                                               // If your organization is disease or genetic defect related, dial 1,
+                                               // If your organization is handicap related, dial 2.
+                                               // If your organization is a police or fireman or other similar support entity,  please dial 3.
+                                               // If your organization is a grade school to high school related 
+                                               //        fund raiser or other type of activity,  please dial 4.
+                                               // If your organization is a college or univerity or alumnis organization,  please dial 5.
+                                               // If your organization is animal rights or ecology related organization, please dial 6.
+                                               // If your organization is a political action or candidate support related, please dial 7.
+                                               // If your organization is a substance abuse related organization or cause, please dial 8.
+                                               // And any other charity or tax exempt organization should dial 9.
+	}
+	1 => goto telemarket-char-disease|s|begin;
+	2 => goto telemarket-char-handicap|s|begin;
+	3 => goto telemarket-char-police|s|begin;
+	4 => goto telemarket-char-school|s|begin;
+	5 => goto telemarket-char-college|s|begin;
+	6 => goto telemarket-char-animal|s|begin;
+	7 => goto telemarket-char-candidate|s|begin;
+	8 => goto telemarket-char-abuse|s|begin;
+	9 => goto telemarket-char-other|s|begin;
+// BAD DESIGN: referring all timeouts,invalid choices, etc,  back to the root of the menu tree will frustrate users no end!
+// WORSE DESIGN: How about having the user have to push a button to repeat the current menu? When a time out could just
+//               automatically do it for the user?
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+context telemarket-char-disease {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-char-handicap {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-char-police {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-char-school {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-char-college {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-char-animal {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-char-candidate {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-char-abuse {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-char-other {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-sorry {
+	s => {
+		begin:
+		Playback(telemarket-sorry); 
+                                               // Sorry -- your organization is not exempt. Please stop calling us.
+                                               //  Thank you. goodbye.
+		Hangup();
+	}
+}
+
+
+// BAD DESIGN: Hanging up on your audience, no matter what the outcome, is not a nice thing to do!
+
+context telemarket-exception {
+	s => {
+		begin:
+		Playback(telemarket-success);
+                                               // Congratulations. Your organization IS exempt. Please call us back, 
+                                               // but this time, just act like a normal caller. Thank you. Goodbye.
+		Hangup();
+	}
+}
+
+
+// BAD DESIGN:  Making long cascading menu choices is a nasty thing to do to callers!
+// BAD DESIGN:  Putting the most frequently encountered items at the end of a list is also a nasty thing to do!
+
+
+// GOOD DESIGN:  All rejection notices use a single context. All Acceptance also. To change a rejection to an
+//               acceptance, just change the reference from telemarket-sorry to telemarket-exception
+
+
+context telemarket-political {
+	s => {
+		begin:
+		Playback(telemark-polit-intro);
+                                               //  To see if your organization is exempt from our prohibitions,
+                                               // please follow the following prompts.
+                                               //  please note that they are not in alphabetical order, and you will have to
+                                               //  give them your full attention.
+		Playback(telemark-polit-choices);
+                                               //  if You represent the America First  Party, dial 1.
+                                               //  if You represent the American  Party, dial 2.
+                                               //  if You represent the American Heritage  Party, dial 3.
+                                               //  if You represent the American Independent  Party, dial 4.
+                                               //  if You represent the American Nazi  Party, dial 5.
+                                               //  if You represent the Pot  Party, dial 6.
+                                               //  if You represent the American Reform  Party, dial 7.
+                                               //  if You represent the Christian Falenqist Party of America, dial 8.
+                                               // all others, please dial 9.
+	}
+	1 => goto telemarket-poli-Am1st|s|begin;
+	2 => goto telemarket-poli-American|s|begin;
+	3 => goto telemarket-poli-AmHer|s|begin;
+	4 => goto telemarket-poli-AmInd|s|begin;
+	5 => goto telemarket-poli-AmNaz|s|begin;
+	6 => goto telemarket-poli-Pot|s|begin;
+	7 => goto telemarket-poli-AmRef|s|begin;
+	8 => goto telemarket-poli-CFP|s|begin;
+	9 => goto telemarket-political2|s|begin;
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+context telemarket-political2 {
+	s => {
+		begin:
+		Playback(telemark-politx-intro);
+                                               // Thank you for your patience, and I congratulate you for your persistence.
+                                               // Just a few more options!
+                                               // 
+		Playback(telemark-polit2-choices);
+                                               //  if You represent the Communist Party USA, dial 1.
+                                               //  if You represent the Constitution Party, dial 2.
+                                               //  if You represent the Family Values Party, dial 3.
+                                               //  if You represent the Freedom Socialist Party, dial 4.
+                                               //  if You represent the Grass Roots Party, dial 5.
+                                               //  if You represent the Green Party, dial 6.
+                                               //  if You represent the Greens Party, dial 7.
+                                               //  if You represent the Independence Party, dial 8.
+                                               // all others, goto  9.
+	}
+	1 => goto telemarket-poli-Communist|s|begin;
+	2 => goto telemarket-poli-Constit|s|begin;
+	3 => goto telemarket-poli-FamVal|s|begin;
+	4 => goto telemarket-poli-FreedSoc|s|begin;
+	5 => goto telemarket-poli-Grassroot|s|begin;
+	6 => goto telemarket-poli-Green|s|begin;
+	7 => goto telemarket-poli-Greens|s|begin;
+	8 => goto telemarket-poli-Independence|s|begin;
+	9 => goto telemarket-political3|s|begin;
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+context telemarket-political3 {
+	s => {
+		begin:
+		Playback(telemark-politx-intro);
+		Playback(telemark-polit3-choices);
+                                               //  if You represent the Independant American Party, dial 1.
+                                               //  if You represent the Labor Party, dial 2.
+                                               //  if You represent the Libertarian Party, dial 3.
+                                               //  if You represent the Light Party, dial 4.
+                                               //  if You represent the Natural Law Party, dial 5.
+                                               //  if You represent the New Party, dial 6.
+                                               //  if You represent the New Union Party, dial 7.
+                                               //  if You represent the Peace and Freedom Party, dial 8.
+                                               // all others, hang on, dial  9.
+	}
+	1 => goto telemarket-poli-IndAm|s|begin;
+	2 => goto telemarket-poli-Labor|s|begin;
+	3 => goto telemarket-poli-Liber|s|begin;
+	4 => goto telemarket-poli-Light|s|begin;
+	5 => goto telemarket-poli-NatLaw|s|begin;
+	6 => goto telemarket-poli-New|s|begin;
+	7 => goto telemarket-poli-NewUn|s|begin;
+	8 => goto telemarket-poli-PeaceFree|s|begin;
+	9 => goto telemarket-political4|s|begin;
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+
+context telemarket-political4 {
+	s => {
+		begin:
+		Playback(telemark-politx-intro);
+		Playback(telemark-polit4-choices);
+                                               //  if You represent the Prohibition Party, dial 1.
+                                               //  if You represent the Reform Party, dial 2.
+                                               //  if You represent the Revolution , dial 3.
+                                               //  if You represent the Socialist Party USA, dial 4.
+                                               //  if You represent the Socialist Action Party, dial 5.
+                                               //  if You represent the Socialist Equality Party, dial 6.
+                                               //  if You represent the Socialist Labor Party, dial 7.
+                                               //  if You represent the Socialist Workers Party, dial 8.
+                                               // all others, hang on, and dial  9.
+	}
+	1 => goto telemarket-poli-Prohib|s|begin;
+	2 => goto telemarket-poli-Ref|s|begin;
+	3 => goto telemarket-poli-Revol|s|begin;
+	4 => goto telemarket-poli-SocPart|s|begin;
+	5 => goto telemarket-poli-SocAct|s|begin;
+	6 => goto telemarket-poli-SocEq|s|begin;
+	7 => goto telemarket-poli-SocLab|s|begin;
+	8 => goto telemarket-poli-SocWork|s|begin;
+	9 => goto telemarket-political5|s|begin;
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+
+context telemarket-political5 {
+	s => {
+		begin:
+		Playback(telemark-politx-intro);
+		Playback(telemark-polit5-choices);
+                                               //  if You represent the Southern Party, dial 1.
+                                               //  if You represent the Southern Independence Party, dial 2.
+                                               //  if You represent the US Pacifist Party, dial 3.
+                                               //  if You represent the We the People Party, dial 4.
+                                               //  if You represent the Workers World Party, dial 5.
+                                               //  if You represent the Democratic Party, dial 6.
+                                               //  if You represent the Republican Party, dial 7.
+                                               // all others, may dial  8.
+	}
+	1 => goto telemarket-poli-South|s|begin;
+	2 => goto telemarket-poli-SoInd|s|begin;
+	3 => goto telemarket-poli-USPac|s|begin;
+	4 => goto telemarket-poli-WTP|s|begin;
+	5 => goto telemarket-poli-WWP|s|begin;
+	6 => goto telemarket-poli-Democrat|s|begin;
+	7 => goto telemarket-poli-Repub|s|begin;
+	8 => goto telemarket-poli-other|s|begin;
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+
+context telemarket-poli-other {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Repub {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Democrat {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-WWP {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-WTP {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-USPac {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-SoInd {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-South {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-SocWork {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-SocLab {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-SocEq {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-SocAct {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-SocPart {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Revol {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Ref {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Prohib {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-PeaceFree {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-NewUn {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-New {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-NatLaw {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Light {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Liber {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Labor {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-IndAm {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Independence {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Greens {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Green {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Grassroot {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-FreedSoc {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-FamVal {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Constit {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Communist {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-CFP {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-AmRef {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+// BAD DESIGN: Putting in infinite loops in the menus, whether by design or mistake is not nice!
+context telemarket-poli-Pot {
+	s => {
+		begin:
+		goto telemarket-political|s|begin;    // will the Pot Party Guys even notice an infinite loop?
+	}
+}
+
+context telemarket-poli-AmNaz {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-AmInd {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-AmHer {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-American {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+context telemarket-poli-Am1st {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+
+context telemarket-pollster {
+	s => {
+		begin:
+		Playback(telemark-poll-intro);
+                                               // I'm sorry-- We are just not available for doing any polling at the moment. So, 
+                                               // please remove us from your list.
+		goto telemarket-sorry|s|begin;
+	}
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+
+context telemarket-research {
+	s => {
+		begin:
+		Playback(telemark-research-intro);
+                                               // I'd like to say I'd love to help you with your market survey, but that would be a complete
+                                               // and total lie. I am not interested in helping you with Market Surveys.
+                                               // 
+                                               // Please remove me from your call list. It just doesn't pay enough. But Thank you.
+		goto telemarket-sorry|s|begin;
+	}
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+
+context telemarket-magazine {
+	s => {
+		begin:
+		Playback(telemark-mag-choices);
+                                               // If you are calling to see if I would like a NEW free subscription 
+                                               // to your magazine or newsletter, please dial 1.
+                                               // If you are calling to see if I want to Renew an existing subscription, please dial 2.
+                                               // If you are representing some publisher, and want my opinion about something, or are doing
+                                               // some kind of survey, please dial 3.
+                                               // If you are calling to verify that some previous caller actually called me, and the 
+                                               // verification information is correct, please dial 4.
+                                               // and if your call purpose doesn't match any of the above, please dial 5.
+	}
+	1 => goto telemark-mag-new|s|begin;
+	2 => goto telemark-mag-renew|s|begin;
+	3 => goto telemark-mag-survey|s|begin;
+	4 => goto telemark-mag-verify|s|begin;
+	5 => goto telemark-mag-other|s|begin;
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+
+context telemark-mag-new {
+	s => {
+		begin:
+		Playback(telemark-mag-new);
+                                               // I'm sorry, I'm maxed out, and the answer is NO. 
+                                               // If you really think I'd LOVE to add your publication to the pile I already get, 
+                                               // Send something via the post. Don't call me.
+                                               //  Thank you. bye.
+		Hangup();
+	}
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+
+context telemark-mag-renew {
+	s => {
+		begin:
+		Playback(telemark-mag-renew);
+                                               // So, you want to see if I want to Renew, do you?  The answer is most likely "YES".
+                                               // 
+                                               // But, I will not answer a long list of questions over the phone. Send such 
+                                               // categorization info via the post, and stop bothering me over the phone, 
+                                               // if this is what you want.
+                                               // Do you need verification information? Normally I opt out of such nonsense, if possible.
+                                               // If not, use whatever of the following you can:
+                                               // My birth month is October.
+                                               // My birthplace is Kigali, in Rwanda, in Afica.
+                                               // My eye color is orange.
+                                               // All of these are wonderfully false, but I use them regularly for such purposes. Thank you.
+		Hangup();
+	}
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+
+context telemark-mag-survey {
+	s => {
+		begin:
+		Playback(telemark-mag-survey);
+                                               // Sorry, I don't have time to answer survey or opinion questions. Find someone
+                                               // else to help build your marketing database, I guess. Good Luck.
+		Hangup();
+	}
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+
+context telemark-mag-verify {
+	s => {
+		begin:
+		Playback(telemark-mag-verify);
+                                               // If you are calling to verify that your own agents aren't ripping you off,
+                                               // sorry, I can't help you. I opt out whenever I can, mainly because I'm not 
+                                               // paid enough for this kind of thing. I always lie, and I can't remember
+                                               // what I might have said. Sorry. Goodbye.
+		Hangup();
+	}
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+
+context telemark-mag-other {
+	s => {
+		begin:
+		goto telemarket-sorry|s|begin;
+	}
+}
+
+
+
+// BAD DESIGN: Is it entrapment, when you lure telemarketers to reveal their contact information,
+//             Just so you can report them to the FTC/FCC? If it is, isn't it unethical for them
+//             to hide their CID (via Anonymous, usually), to hide their identities from the public?
+
+// BTW -- What telemarketer would be stupid enough to fall for this? I'll bet not a single one!
+//        For that matter, what telemarketer will be stupid enough to even enter any of this? I'll bet not a single one!
+//        (but it was fun messing around).
+
+context telemarket-commercial {
+	s => {
+		begin:
+		Playback(telemark-comm-intro); // Script: Please leave your name, organization, and phone number, plus
+                                            // a short description of the purpose of your call, at the prompt.
+                                            // We will do our best to respond to your call! And, in the mean time, 
+                                            // do not forget to add us to your no-call list!
+		Voicemail(u82);
+		goto telemarket-sorry|s|begin;
+	}
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}
+
+
+context telemarket-other {
+	s => {
+		begin:
+		Playback(telemark-other-intro);
+                                              // Please review the previous menu options, and see if you really don't
+                                              // fit in one of the previous categories. 
+                                              // If you do not, go ahead, and call me again, and let me know what category
+                                              //  I should have included in the above list. I appreciate this. Thank you much!
+		Hangup();
+	}
+	t => goto telemarket|s|begin;
+	i => goto telemarket|s|begin;
+	o => goto telemarket|s|begin;
+}

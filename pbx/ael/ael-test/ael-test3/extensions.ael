@@ -3178,6 +3178,6 @@ context announce-all {
 
 // now include the telemarketer torture scripts!
 
-#include "/etc/asterisk/telemarket_torture.ael2"
+#include "telemarket_torture.ael2"
 
 

@@ -26,7 +26,7 @@
  *
  * %x describes the contexts we have: paren, semic and argg, plus INITIAL
  */
-%x paren semic argg
+%x paren semic argg  comment
 
 /* prefix used for various globally-visible functions and variables.
  * This renames also yywrap, but since we do not use it, we just
@@ -211,6 +211,13 @@ catch		{ STORE_POS; return KW_CATCH;}
 switches	{ STORE_POS; return KW_SWITCHES;}
 eswitches	{ STORE_POS; return KW_ESWITCHES;}
 includes	{ STORE_POS; return KW_INCLUDES;}
+"/*"            { BEGIN(comment); my_col += 2; }
+
+<comment>[^*\n]*	{ my_col += yyleng; }
+<comment>[^*\n]*\n	{ ++my_lineno; my_col=1;}
+<comment>"*"+[^*/\n]*	{ my_col += yyleng; }
+<comment>"*"+[^*/\n]*\n 	{ ++my_lineno; my_col=1;}
+<comment>"*/"		{ my_col += 2; BEGIN(INITIAL); }
 
 \n		{ my_lineno++; my_col = 1; }
 [ ]+		{ my_col += yyleng; }

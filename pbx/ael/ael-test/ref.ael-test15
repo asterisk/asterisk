@@ -4,15 +4,10 @@
 (You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
 LOG: lev:2 file:../pbx/pbx_ael.c  line:3797 func: pbx_load_module  Starting AEL load process.
 LOG: lev:2 file:../pbx/pbx_ael.c  line:3804 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
-LOG: lev:2 file:ael.flex  line:431 func: ael_yylex    --Read in included file ./include1.ael2, 78 chars
-LOG: lev:2 file:ael.flex  line:431 func: ael_yylex    --Read in included file ./include2.ael2, 98 chars
-LOG: lev:2 file:ael.flex  line:431 func: ael_yylex    --Read in included file ./include3.ael2, 57 chars
-LOG: lev:2 file:ael.flex  line:431 func: ael_yylex    --Read in included file ./include5.ael2, 56 chars
-LOG: lev:2 file:ael.flex  line:431 func: ael_yylex    --Read in included file ./include4.ael2, 87 chars
-LOG: lev:2 file:ael.flex  line:431 func: ael_yylex    --Read in included file ./telemarket_torture.ael2, 28036 chars
 LOG: lev:2 file:../pbx/pbx_ael.c  line:3807 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
 LOG: lev:2 file:../pbx/pbx_ael.c  line:3810 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:3 file:../pbx/pbx_ael.c  line:3700 func: ast_compile_ael2  Warning: file ./extensions.ael, line 8-13: Empty Extension!
 LOG: lev:2 file:../pbx/pbx_ael.c  line:3812 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
 LOG: lev:2 file:../pbx/pbx_ael.c  line:3815 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
 LOG: lev:2 file:../pbx/pbx_ael.c  line:3818 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
-LOG: lev:4 file:ael2_parse  line:479 func: main  172 contexts, 858 extensions, 2326 priorities
+LOG: lev:4 file:ael2_parse  line:479 func: main  1 contexts, 0 extensions, 0 priorities
