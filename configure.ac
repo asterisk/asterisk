@@ -241,7 +241,7 @@ AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strcasecmp strchr strcspn strdup strerror strncasecmp strndup strnlen strrchr strsep strspn strstr strtol unsetenv utime strtoq strcasestr asprintf vasprintf])
 
-AC_MSG_CHECKING(checking for compiler atomic operations)
+AC_MSG_CHECKING(for compiler atomic operations)
 AC_LINK_IFELSE(
 AC_LANG_PROGRAM([], [int foo1; int foo2 = __sync_fetch_and_add(&foo1, 1);]),
 AC_MSG_RESULT(yes)
@@ -255,7 +255,7 @@ AST_GCC_ATTRIBUTE(const)
 AST_GCC_ATTRIBUTE(unused)
 AST_GCC_ATTRIBUTE(always_inline)
 
-AC_MSG_CHECKING(checking for -ffunction-sections support)
+AC_MSG_CHECKING(for -ffunction-sections support)
 saved_CFLAGS="${CFLAGS}"
 CFLAGS="${CFLAGS} -ffunction-sections"
 AC_COMPILE_IFELSE(
@@ -263,7 +263,7 @@ AC_COMPILE_IFELSE(
 	AC_MSG_RESULT(yes)
 	[saved_LDFLAGS="${LDFLAGS}"]
 	[LDFLAGS="${LDFLAGS} -Wl,--gc-sections"]
-	AC_MSG_CHECKING(checking for --gc-sections support)
+	AC_MSG_CHECKING(for --gc-sections support)
 	AC_LINK_IFELSE(
 		AC_LANG_PROGRAM([], [int x = 1;]),
 		AC_MSG_RESULT(yes)
@@ -278,7 +278,7 @@ CFLAGS="${saved_CFLAGS}"
 AC_SUBST(GC_CFLAGS)
 AC_SUBST(GC_LDFLAGS)
 
-AC_MSG_CHECKING(checking for res_ninit)
+AC_MSG_CHECKING(for res_ninit)
 AC_LINK_IFELSE(
 	AC_LANG_PROGRAM([#include <resolv.h>],
 			[int foo = res_ninit(NULL);]),
@@ -287,7 +287,7 @@ AC_LINK_IFELSE(
 	AC_MSG_RESULT(no)
 )
 
-AC_MSG_CHECKING(checking for RTLD_NOLOAD)
+AC_MSG_CHECKING(for RTLD_NOLOAD)
 AC_LINK_IFELSE(
 	AC_LANG_PROGRAM([#include <dlfcn.h>],
 			[int foo = RTLD_NOLOAD;]),
@@ -355,7 +355,7 @@ if test "${USE_IMAP_TK}" != "no"; then
    if test "${IMAP_TK_DIR}" = ""; then
       IMAP_TK_DIR=`pwd`"/../imap-2004g"
    fi
-   AC_MSG_CHECKING(checking for UW IMAP Toolkit c-client library)
+   AC_MSG_CHECKING(for UW IMAP Toolkit c-client library)
    saved_cppflags="${CPPFLAGS}"
    saved_libs="${LIBS}"
    if test -f ${IMAP_TK_DIR}/c-client/LDFLAGS ; then
@@ -501,7 +501,7 @@ fi
 AC_LANG_PUSH(C++)
 
 if test "${USE_KDE}" != "no"; then
-   AC_MSG_CHECKING(checking for crashHandler in -lkdecore)
+   AC_MSG_CHECKING(for crashHandler in -lkdecore)
    saved_libs="${LIBS}"
    saved_cppflags="${CPPFLAGS}"
    CPPFLAGS="${CPPFLAGS} -I${KDE_DIR}/include"
@@ -682,7 +682,7 @@ AST_EXT_LIB_CHECK([PRI], [pri], [pri_call], [libpri.h])
 
 PLATFORM_PTLIB="ptlib_${OSTYPE}_${MACHTYPE}_r"
 if test "${USE_PWLIB}" != "no"; then
-   AC_MSG_CHECKING(checking for existence of pwlib)
+   AC_MSG_CHECKING(for existence of pwlib)
 	
    saved_cppflags="${CPPFLAGS}"
    saved_libs="${LIBS}"
@@ -726,7 +726,7 @@ fi
 AC_LANG_PUSH(C++)
 
 if test "${USE_QT}" != "no"; then
-   AC_MSG_CHECKING(checking for QDate in -lqt)
+   AC_MSG_CHECKING(for QDate in -lqt)
    saved_libs="${LIBS}"
    saved_cppflags="${CPPFLAGS}"
    if test "x${QT_DIR}" != "x"; then
@@ -833,7 +833,7 @@ AST_EXT_LIB_CHECK([VORBIS], [vorbis], [vorbis_info_init], [vorbis/codec.h], [-lm
 AC_LANG_PUSH(C++)
 
 if test "${USE_VPB}" != "no"; then
-   AC_MSG_CHECKING(checking for vpb_open in -lvpb)
+   AC_MSG_CHECKING(for vpb_open in -lvpb)
    saved_libs="${LIBS}"
    saved_cppflags="${CPPFLAGS}"
    if test "x${VPB_DIR}" != "x"; then
@@ -883,7 +883,7 @@ AC_LANG_POP
 AST_EXT_LIB_CHECK([ZLIB], [z], [compress], [zlib.h])
 
 if test "${USE_ZAPTEL}" != "no"; then
-   AC_MSG_CHECKING(checking for zt_transcode_header in zaptel.h)
+   AC_MSG_CHECKING(for ZT_TONE_DTMF_BASE in zaptel.h)
    saved_cppflags="${CPPFLAGS}"
    if test "x${ZAPTEL_DIR}" != "x"; then
       CPPFLAGS="${CPPFLAGS} -I${ZAPTEL_DIR}/include"
@@ -892,7 +892,7 @@ if test "${USE_ZAPTEL}" != "no"; then
 	[
 	AC_LANG_PROGRAM(
 	[#include <zaptel/zaptel.h>],
-	[struct zt_transcode_header test;])
+	[int foo = ZT_TONE_DTMF_BASE;])
 	],
 	[	AC_MSG_RESULT(yes) 
 		ac_cv_zaptel_h="yes" 

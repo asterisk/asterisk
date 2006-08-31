@@ -2,7 +2,7 @@
 
 AC_DEFUN([AST_GCC_ATTRIBUTE],
 [
-AC_MSG_CHECKING(checking for compiler 'attribute $1' support)
+AC_MSG_CHECKING(for compiler 'attribute $1' support)
 AC_COMPILE_IFELSE(
 	AC_LANG_PROGRAM([static int __attribute__(($1)) test(void) {}],
 			[]),
