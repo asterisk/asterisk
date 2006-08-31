@@ -504,7 +504,7 @@ static int reload(void)
 }
 
 static int load_module(void)
-
+{
 	if(!tds_load_module())
 		return AST_MODULE_LOAD_DECLINE;
 	else 
