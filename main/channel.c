@@ -2532,6 +2532,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	case AST_FRAME_NULL:
 	case AST_FRAME_IAX:
 		/* Ignore these */
+		res = 0;
 		break;
 	default:
 		res = chan->tech->write(chan, f);
