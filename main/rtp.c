@@ -2843,10 +2843,12 @@ static int p2p_rtp_callback(int *id, int fd, short events, void *cbdata)
 	}
 
 	/* If this came from the RTP stream, write out via RTP - if it's RTCP, write out via RTCP */
-	if (is_rtp)
-		bridge_p2p_rtp_write(rtp, header, res, hdrlen);
-	else if (is_rtcp)
-		bridge_p2p_rtcp_write(rtp, header, res);
+	if (ast_rtp_get_bridged(rtp)) {
+		if (is_rtp)
+			bridge_p2p_rtp_write(rtp, header, res, hdrlen);
+		else if (is_rtcp)
+			bridge_p2p_rtcp_write(rtp, header, res);
+	}
 
 	return 1;
 }
