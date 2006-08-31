@@ -784,8 +784,13 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 	if (f->frametype == AST_FRAME_VIDEO)
 		return;
 	switch(f->frametype) {
-	case AST_FRAME_DTMF:
-		strcpy(ftype, "DTMF");
+	case AST_FRAME_DTMF_BEGIN:
+		strcpy(ftype, "DTMF Begin");
+		subclass[0] = f->subclass;
+		subclass[1] = '\0';
+		break;
+	case AST_FRAME_DTMF_END:
+		strcpy(ftype, "DTMF End");
 		subclass[0] = f->subclass;
 		subclass[1] = '\0';
 		break;
