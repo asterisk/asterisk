@@ -115,7 +115,7 @@ static int regex(struct ast_channel *chan, char *cmd, char *parse, char *buf,
 	int errcode;
 	regex_t regexbuf;
 
-	buf[0] = '0';
+	buf[0] = '\0';
 
 	AST_NONSTANDARD_APP_ARGS(args, parse, '"');
 
