@@ -1016,6 +1016,8 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 				break;
 			case AST_FRAME_VIDEO:
 				ast_writestream(fs, f);
+			default:
+				/* Ignore all other frames */
 				break;
 			}
 			ast_frfree(f);

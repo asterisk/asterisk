@@ -743,9 +743,10 @@ struct sip_auth {
 #define SIP_PAGE2_CALL_ONHOLD		(3 << 23)	/*!< Call states */
 #define SIP_PAGE2_CALL_ONHOLD_ONEDIR	(1 << 23)	/*!< 23: One directional hold */
 #define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(2 << 24)	/*!< 24: Inactive  */
+#define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 26)
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
-	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT)
+	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE)
 
 /* SIP packet flags */
 #define SIP_PKT_DEBUG		(1 << 0)	/*!< Debug this packet */
@@ -1161,7 +1162,8 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame);
 static int sip_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen);
 static int sip_transfer(struct ast_channel *ast, const char *dest);
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
-static int sip_senddigit(struct ast_channel *ast, char digit);
+static int sip_senddigit_begin(struct ast_channel *ast, char digit);
+static int sip_senddigit_end(struct ast_channel *ast, char digit);
 
 /*--- Transmitting responses and requests */
 static int sipsock_read(int *id, int fd, short events, void *ignore);
@@ -1512,7 +1514,8 @@ static const struct ast_channel_tech sip_tech = {
 	.indicate = sip_indicate,
 	.transfer = sip_transfer,
 	.fixup = sip_fixup,
-	.send_digit = sip_senddigit,
+	.send_digit_begin = sip_senddigit_begin,
+	.send_digit_end = sip_senddigit_end,
 	.bridge = ast_rtp_bridge,
 	.send_text = sip_sendtext,
 };
@@ -2515,12 +2518,14 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 			ast_log(LOG_DEBUG, "Setting NAT on RTP to %s\n", natflags ? "On" : "Off");
 		ast_rtp_setnat(r->rtp, natflags);
 		ast_rtp_setdtmf(r->rtp, ast_test_flag(&r->flags[0], SIP_DTMF) != SIP_DTMF_INFO);
+		ast_rtp_setdtmfcompensate(r->rtp, ast_test_flag(&r->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
 	}
 	if (r->vrtp) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %s\n", natflags ? "On" : "Off");
 		ast_rtp_setnat(r->vrtp, natflags);
 		ast_rtp_setdtmf(r->vrtp, 0);
+		ast_rtp_setdtmfcompensate(r->vrtp, 0);
 	}
 	if (r->udptl) {
 		if (option_debug)
@@ -3441,9 +3446,31 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	return ret;
 }
 
+static int sip_senddigit_begin(struct ast_channel *ast, char digit)
+{
+	struct sip_pvt *p = ast->tech_pvt;
+	int res = 0;
+
+	ast_mutex_lock(&p->lock);
+	switch (ast_test_flag(&p->flags[0], SIP_DTMF)) {
+	case SIP_DTMF_INBAND:
+		res = -1; /* Tell Asterisk to generate inband indications */
+		break;
+	case SIP_DTMF_RFC2833:
+		if (p->rtp)
+			ast_rtp_senddigit_begin(p->rtp, digit);
+		break;
+	default:
+		break;
+	}
+	ast_mutex_unlock(&p->lock);
+
+	return res;
+}
+
 /*! \brief Send DTMF character on SIP channel
 	within one call, we're able to transmit in many methods simultaneously */
-static int sip_senddigit(struct ast_channel *ast, char digit)
+static int sip_senddigit_end(struct ast_channel *ast, char digit)
 {
 	struct sip_pvt *p = ast->tech_pvt;
 	int res = 0;
@@ -3455,13 +3482,14 @@ static int sip_senddigit(struct ast_channel *ast, char digit)
 		break;
 	case SIP_DTMF_RFC2833:
 		if (p->rtp)
-			ast_rtp_senddigit(p->rtp, digit);
+			ast_rtp_senddigit_end(p->rtp, digit);
 		break;
 	case SIP_DTMF_INBAND:
-		res = -1;
+		res = -1; /* Tell Asterisk to stop inband indications */
 		break;
 	}
 	ast_mutex_unlock(&p->lock);
+
 	return res;
 }
 
@@ -4049,10 +4077,12 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			return NULL;
 		}
 		ast_rtp_setdtmf(p->rtp, ast_test_flag(&p->flags[0], SIP_DTMF) != SIP_DTMF_INFO);
+		ast_rtp_setdtmfcompensate(p->rtp, ast_test_flag(&p->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
 		ast_rtp_settos(p->rtp, global_tos_audio);
 		if (p->vrtp) {
 			ast_rtp_settos(p->vrtp, global_tos_video);
 			ast_rtp_setdtmf(p->vrtp, 0);
+			ast_rtp_setdtmfcompensate(p->vrtp, 0);
 		}
 		if (p->udptl)
 			ast_udptl_settos(p->udptl, global_tos_audio);
@@ -12835,6 +12865,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		extract_uri(p, req);			/* Get the Contact URI */
 		build_contact(p);			/* Build our contact header */
 		ast_rtp_setdtmf(p->rtp, ast_test_flag(&p->flags[0], SIP_DTMF) != SIP_DTMF_INFO);
+		ast_rtp_setdtmfcompensate(p->rtp, ast_test_flag(&p->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
 
 		if (!replace_id && gotdest) {	/* No matching extension found */
 			if (gotdest == 1 && ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP)) {
@@ -14856,6 +14887,9 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "t38pt_tcp")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_T38SUPPORT_TCP);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_TCP);
+	} else if (!strcasecmp(v->name, "rfc2833compensate")) {
+		ast_set_flag(&mask[1], SIP_PAGE2_RFC2833_COMPENSATE);
+		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_RFC2833_COMPENSATE);
 	}
 
 	return res;

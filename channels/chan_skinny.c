@@ -1013,7 +1013,8 @@ static struct ast_frame *skinny_read(struct ast_channel *ast);
 static int skinny_write(struct ast_channel *ast, struct ast_frame *frame);
 static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, size_t datalen);
 static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
-static int skinny_senddigit(struct ast_channel *ast, char digit);
+static int skinny_senddigit_begin(struct ast_channel *ast, char digit);
+static int skinny_senddigit_end(struct ast_channel *ast, char digit);
 
 static const struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
@@ -1028,7 +1029,8 @@ static const struct ast_channel_tech skinny_tech = {
 	.write = skinny_write,
 	.indicate = skinny_indicate,
 	.fixup = skinny_fixup,
-	.send_digit = skinny_senddigit,
+	.send_digit_begin = skinny_senddigit_begin,
+	.send_digit_end = skinny_senddigit_end,
 /*	.bridge = ast_rtp_bridge, */
 };
 
@@ -2467,7 +2469,12 @@ static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 	return 0;
 }
 
-static int skinny_senddigit(struct ast_channel *ast, char digit)
+static int skinny_senddigit_begin(struct ast_channel *ast, char digit)
+{
+	return -1; /* Start inband indications */
+}
+
+static int skinny_senddigit_end(struct ast_channel *ast, char digit)
 {
 #if 0
 	struct skinny_subchannel *sub = ast->tech_pvt;
@@ -2478,7 +2485,7 @@ static int skinny_senddigit(struct ast_channel *ast, char digit)
 	sprintf(tmp, "%d", digit);
 	transmit_tone(d->session, digit);
 #endif
-	return -1;
+	return -1; /* Stop inband indications */
 }
 
 static char *control2str(int ind) {

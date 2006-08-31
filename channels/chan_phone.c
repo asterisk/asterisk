@@ -161,7 +161,8 @@ static char cid_num[AST_MAX_EXTENSION];
 static char cid_name[AST_MAX_EXTENSION];
 
 static struct ast_channel *phone_request(const char *type, int format, void *data, int *cause);
-static int phone_digit(struct ast_channel *ast, char digit);
+static int phone_digit_begin(struct ast_channel *ast, char digit);
+static int phone_digit_end(struct ast_channel *ast, char digit);
 static int phone_call(struct ast_channel *ast, char *dest, int timeout);
 static int phone_hangup(struct ast_channel *ast);
 static int phone_answer(struct ast_channel *ast);
@@ -177,7 +178,8 @@ static const struct ast_channel_tech phone_tech = {
 	.description = tdesc,
 	.capabilities = AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW,
 	.requester = phone_request,
-	.send_digit = phone_digit,
+	.send_digit_begin = phone_digit_begin,
+	.send_digit_end = phone_digit_end,
 	.call = phone_call,
 	.hangup = phone_hangup,
 	.answer = phone_answer,
@@ -192,7 +194,8 @@ static struct ast_channel_tech phone_tech_fxs = {
 	.type = "Phone",
 	.description = tdesc,
 	.requester = phone_request,
-	.send_digit = phone_digit,
+	.send_digit_begin = phone_digit_begin,
+	.send_digit_end = phone_digit_end,
 	.call = phone_call,
 	.hangup = phone_hangup,
 	.answer = phone_answer,
@@ -240,7 +243,13 @@ static int phone_fixup(struct ast_channel *old, struct ast_channel *new)
 	return 0;
 }
 
-static int phone_digit(struct ast_channel *ast, char digit)
+static int phone_digit_begin(struct ast_channel *chan, char digit)
+{
+	/* XXX Modify this callback to let Asterisk support controlling the length of DTMF */
+	return 0;
+}
+
+static int phone_digit_end(struct ast_channel *ast, char digit)
 {
 	struct phone_pvt *p;
 	int outdigit;
@@ -329,7 +338,7 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 		{
 		  digit++;
 		  while (*digit)
-		    phone_digit(ast, *digit++);
+		    phone_digit_end(ast, *digit++);
 		}
 	}
  

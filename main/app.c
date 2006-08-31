@@ -212,10 +212,6 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const ch
 {
 	const char *ptr;
 	int res = 0;
-	struct ast_frame f = {
-		.frametype = AST_FRAME_DTMF,
-		.src = "ast_dtmf_stream"
-	};
 
 	if (!between)
 		between = 100;
@@ -240,11 +236,8 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const ch
 			if (*ptr == 'f' || *ptr == 'F') {
 				/* ignore return values if not supported by channel */
 				ast_indicate(chan, AST_CONTROL_FLASH);
-			} else {
-				f.subclass = *ptr;
-				if ((res = ast_write(chan, &f)))
-					break;
-			}
+			} else
+				ast_senddigit(chan, *ptr);
 			/* pause between digits */
 			if ((res = ast_safe_sleep(chan, between)))
 				break;

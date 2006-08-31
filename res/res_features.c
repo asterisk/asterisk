@@ -1439,9 +1439,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				if (aoh && aoh->flag == AST_OPTION_FLAG_REQUEST)
 					ast_channel_setoption(other, ntohs(aoh->option), aoh->data, f->datalen - sizeof(struct ast_option_header), 0);
 			}
-		}
-		/* check for '*', if we find it it's time to disconnect */
-		if (f->frametype == AST_FRAME_DTMF) {
+		} else if (f->frametype == AST_FRAME_DTMF_BEGIN) {
+			/* eat it */
+		} else if (f->frametype == AST_FRAME_DTMF) {
 			char *featurecode;
 			int sense;
 

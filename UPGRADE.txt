@@ -303,6 +303,12 @@ The SIP channel:
   option in sip.conf is removed to osp.conf as authpolicy. allowguest option
   in sip.conf cannot be set as osp anymore. 
 
+* The Asterisk RTP stack has been changed in regards to RFC2833 reception
+  and transmission. Packets will now be sent with proper duration instead of all
+  at once. If you are receiving calls from a pre-1.4 Asterisk installation you
+  will want to turn on the rfc2833compensate option. Without this option your
+  DTMF reception may act poorly.
+
 * The $SIPUSERAGENT dialplan variable is deprecated and will be removed
   in coming versions of Asterisk. Please use the dialplan function
   SIPCHANINFO(useragent) instead.

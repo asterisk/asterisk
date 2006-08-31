@@ -1029,7 +1029,8 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 			if (!fr)
 				return -1;
 			switch(fr->frametype) {
-			case AST_FRAME_DTMF:
+			case AST_FRAME_DTMF_BEGIN:
+			case AST_FRAME_DTMF_END:
 				if (context) {
 					const char exten[2] = { fr->subclass, '\0' };
 					if (ast_exists_extension(c, context, exten, 1, c->cid.cid_num)) {
@@ -1065,8 +1066,10 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				/* Write audio if appropriate */
 				if (audiofd > -1)
 					write(audiofd, fr->data, fr->datalen);
+			default:
+				/* Ignore all others */
+				break;
 			}
-			/* Ignore all others */
 			ast_frfree(fr);
 		}
 		ast_sched_runq(c->sched);

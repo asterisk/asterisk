@@ -417,7 +417,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; subscribecontext	      subscribecontext
 ; videosupport		      videosupport
 ; maxcallbitrate	      maxcallbitrate
-;                             mailbox
+; rfc2833compensate           mailbox
 ;                             username
 ;                             template
 ;                             fromdomain
@@ -431,6 +431,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                             rtpholdtimeout
 ;                             sendrpid
 ;                             outboundproxy
+;                             rfc2833compensate
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)
@@ -587,3 +588,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Normally you do NOT need to set this parameter
 ;setvar=CUSTID=5678		; Channel variable to be set for all calls from this device
 
+;[pre14-asterisk]
+;type=friend
+;secret=digium
+;host=dynamic
+;rfc2833compensate=yes		; Compensate for pre-1.4 DTMF transmission from another Asterisk machine.
+				; You must have this turned on or DTMF reception will work improperly.

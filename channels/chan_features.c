@@ -95,7 +95,8 @@ static AST_LIST_HEAD_STATIC(features, feature_pvt);
 #define SUB_THREEWAY	2			/* Three-way call */
 
 static struct ast_channel *features_request(const char *type, int format, void *data, int *cause);
-static int features_digit(struct ast_channel *ast, char digit);
+static int features_digit_begin(struct ast_channel *ast, char digit);
+static int features_digit_end(struct ast_channel *ast, char digit);
 static int features_call(struct ast_channel *ast, char *dest, int timeout);
 static int features_hangup(struct ast_channel *ast);
 static int features_answer(struct ast_channel *ast);
@@ -109,7 +110,8 @@ static const struct ast_channel_tech features_tech = {
 	.description = tdesc,
 	.capabilities = -1,
 	.requester = features_request,
-	.send_digit = features_digit,
+	.send_digit_begin = features_digit_begin,
+	.send_digit_end = features_digit_end,
 	.call = features_call,
 	.hangup = features_hangup,
 	.answer = features_answer,
@@ -300,7 +302,7 @@ static int features_indicate(struct ast_channel *ast, int condition, const void 
 	return res;
 }
 
-static int features_digit(struct ast_channel *ast, char digit)
+static int features_digit_begin(struct ast_channel *ast, char digit)
 {
 	struct feature_pvt *p = ast->tech_pvt;
 	int res = -1;
@@ -310,7 +312,23 @@ static int features_digit(struct ast_channel *ast, char digit)
 	ast_mutex_lock(&p->lock);
 	x = indexof(p, ast, 0);
 	if (!x && p->subchan)
-		res = ast_senddigit(p->subchan, digit);
+		res = ast_senddigit_begin(p->subchan, digit);
+	ast_mutex_unlock(&p->lock);
+
+	return res;
+}
+
+static int features_digit_end(struct ast_channel *ast, char digit)
+{
+	struct feature_pvt *p = ast->tech_pvt;
+	int res = -1;
+	int x;
+
+	/* Queue up a frame representing the indication as a control frame */
+	ast_mutex_lock(&p->lock);
+	x = indexof(p, ast, 0);
+	if (!x && p->subchan)
+		res = ast_senddigit_end(p->subchan, digit);
 	ast_mutex_unlock(&p->lock);
 	return res;
 }

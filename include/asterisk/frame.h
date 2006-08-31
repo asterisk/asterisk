@@ -85,11 +85,46 @@ struct ast_codec_pref {
 
 */
 
+/*!
+ * \brief Frame types 
+ *
+ * \note It is important that the values of each frame type are never changed,
+ *       because it will break backwards compatability with older versions.
+ */
+enum ast_frame_type {
+	/*! DTMF end event, subclass is the digit */
+	AST_FRAME_DTMF_END = 1,
+	/*! Voice data, subclass is AST_FORMAT_* */
+	AST_FRAME_VOICE,
+	/*! Video frame, maybe?? :) */
+	AST_FRAME_VIDEO,
+	/*! A control frame, subclass is AST_CONTROL_* */
+	AST_FRAME_CONTROL,
+	/*! An empty, useless frame */
+	AST_FRAME_NULL,
+	/*! Inter Asterisk Exchange private frame type */
+	AST_FRAME_IAX,
+	/*! Text messages */
+	AST_FRAME_TEXT,
+	/*! Image Frames */
+	AST_FRAME_IMAGE,
+	/*! HTML Frame */
+	AST_FRAME_HTML,
+	/*! Comfort Noise frame (subclass is level of CNG in -dBov), 
+	    body may include zero or more 8-bit quantization coefficients */
+	AST_FRAME_CNG,
+	/*! Modem-over-IP data streams */
+	AST_FRAME_MODEM,	
+	/*! DTMF begin event, subclass is the digit */
+	AST_FRAME_DTMF_BEGIN,
+};
+#define AST_FRAME_DTMF AST_FRAME_DTMF_END
+
 /*! \brief Data structure associated with a single frame of data
  */
 struct ast_frame {
 	/*! Kind of frame */
-	int frametype;				
+	enum ast_frame_type frametype;				
 	/*! Subclass, frame dependent */
 	int subclass;				
 	/*! Length of data */
@@ -150,35 +185,6 @@ extern struct ast_frame ast_null_frame;
 #define AST_MALLOCD_DATA	(1 << 1)
 /*! Need the source be free'd? (haha!) */
 #define AST_MALLOCD_SRC		(1 << 2)
-
-/* Frame types */
-/*! A DTMF digit, subclass is the digit */
-#define AST_FRAME_DTMF		1
-/*! Voice data, subclass is AST_FORMAT_* */
-#define AST_FRAME_VOICE		2
-/*! Video frame, maybe?? :) */
-#define AST_FRAME_VIDEO		3
-/*! A control frame, subclass is AST_CONTROL_* */
-#define AST_FRAME_CONTROL	4
-/*! An empty, useless frame */
-#define AST_FRAME_NULL		5
-/*! Inter Asterisk Exchange private frame type */
-#define AST_FRAME_IAX		6
-/*! Text messages */
-#define AST_FRAME_TEXT		7
-/*! Image Frames */
-#define AST_FRAME_IMAGE		8
-/*! HTML Frame */
-#define AST_FRAME_HTML		9
-/*! Comfort Noise frame (subclass is level of CNG in -dBov), 
-    body may include zero or more 8-bit quantization coefficients */
-#define AST_FRAME_CNG		10
-/*! Modem-over-IP data streams */
-#define AST_FRAME_MODEM		11
-/*! DTMF begin event, subclass is the digit */
-#define AST_FRAME_DTMF_BEGIN	12
-/*! DTMF end event, subclass is the digit */
-#define AST_FRAME_DTMF_END	13
 
 /* MODEM subclasses */
 /*! T.38 Fax-over-IP */

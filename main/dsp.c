@@ -1497,42 +1497,45 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			} else {
 				if (digit) {
 					/* Thought we saw one last time.  Pretty sure we really have now */
-					if (dsp->thinkdigit) {
-						if ((dsp->thinkdigit != 'x') && (dsp->thinkdigit != digit)) {
-							/* If we found a digit, and we're changing digits, go
-							   ahead and send this one, but DON'T stop confmute because
-							   we're detecting something else, too... */
-							memset(&dsp->f, 0, sizeof(dsp->f));
-							dsp->f.frametype = AST_FRAME_DTMF;
-							dsp->f.subclass = dsp->thinkdigit;
-							FIX_INF(af);
-							if (chan)
-								ast_queue_frame(chan, af);
-							ast_frfree(af);
-						}
-						dsp->thinkdigit = digit;
-						return &dsp->f;
-					}
-					dsp->thinkdigit = digit;
-				} else {
-					if (dsp->thinkdigit) {
+					if ((dsp->thinkdigit != 'x') && (dsp->thinkdigit != digit)) {
+						/* If we found a digit, and we're changing digits, go
+						   ahead and send this one, but DON'T stop confmute because
+						   we're detecting something else, too... */
 						memset(&dsp->f, 0, sizeof(dsp->f));
-						if (dsp->thinkdigit != 'x') {
-							/* If we found a digit, send it now */
-							dsp->f.frametype = AST_FRAME_DTMF;
-							dsp->f.subclass = dsp->thinkdigit;
-							dsp->thinkdigit = 0;
-						} else {
-							dsp->f.frametype = AST_FRAME_DTMF;
-							dsp->f.subclass = 'u';
-							dsp->thinkdigit = 0;
-						}
+						dsp->f.frametype = AST_FRAME_DTMF_END;
+						dsp->f.subclass = dsp->thinkdigit;
 						FIX_INF(af);
 						if (chan)
 							ast_queue_frame(chan, af);
 						ast_frfree(af);
-						return &dsp->f;
+					} else {
+						dsp->thinkdigit = digit;
+						memset(&dsp->f, 0, sizeof(dsp->f));
+						dsp->f.frametype = AST_FRAME_DTMF_BEGIN;
+						dsp->f.subclass = dsp->thinkdigit;
+						FIX_INF(af);
+						if (chan)
+							ast_queue_frame(chan, af);
+						ast_frfree(af);
 					}
+					return &dsp->f;
+				} else {
+					memset(&dsp->f, 0, sizeof(dsp->f));
+					if (dsp->thinkdigit != 'x') {
+						/* If we found a digit, send it now */
+						dsp->f.frametype = AST_FRAME_DTMF_END;
+						dsp->f.subclass = dsp->thinkdigit;
+						dsp->thinkdigit = 0;
+					} else {
+						dsp->f.frametype = AST_FRAME_DTMF;
+						dsp->f.subclass = 'u';
+						dsp->thinkdigit = 0;
+					}
+					FIX_INF(af);
+					if (chan)
+						ast_queue_frame(chan, af);
+					ast_frfree(af);
+					return &dsp->f;
 				}
 			}
 		} else if (!digit) {
@@ -1553,7 +1556,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			} else {
 				if (dsp->td.dtmf.current_digits) {
 					memset(&dsp->f, 0, sizeof(dsp->f));
-					dsp->f.frametype = AST_FRAME_DTMF;
+					dsp->f.frametype = AST_FRAME_DTMF_END;
 					dsp->f.subclass = dsp->td.dtmf.digits[0];
 					memmove(dsp->td.dtmf.digits, dsp->td.dtmf.digits + 1, dsp->td.dtmf.current_digits);
 					dsp->td.dtmf.current_digits--;

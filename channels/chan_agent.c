@@ -238,7 +238,8 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/*!< Holds the list of agents (l
 static struct ast_channel *agent_request(const char *type, int format, void *data, int *cause);
 static int agent_devicestate(void *data);
 static void agent_logoff_maintenance(struct agent_pvt *p, char *loginchan, long logintime, const char *uniqueid, char *logcommand);
-static int agent_digit(struct ast_channel *ast, char digit);
+static int agent_digit_begin(struct ast_channel *ast, char digit);
+static int agent_digit_end(struct ast_channel *ast, char digit);
 static int agent_call(struct ast_channel *ast, char *dest, int timeout);
 static int agent_hangup(struct ast_channel *ast);
 static int agent_answer(struct ast_channel *ast);
@@ -258,7 +259,8 @@ static const struct ast_channel_tech agent_tech = {
 	.capabilities = -1,
 	.requester = agent_request,
 	.devicestate = agent_devicestate,
-	.send_digit = agent_digit,
+	.send_digit_begin = agent_digit_begin,
+	.send_digit_end = agent_digit_end,
 	.call = agent_call,
 	.hangup = agent_hangup,
 	.answer = agent_answer,
@@ -491,7 +493,8 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
  				}
  			}
  			break;
- 		case AST_FRAME_DTMF:
+		case AST_FRAME_DTMF_BEGIN:
+ 		case AST_FRAME_DTMF_END:
  			if (!p->acknowledged && (f->subclass == '#')) {
  				if (option_verbose > 2)
  					ast_verbose(VERBOSE_PREFIX_3 "%s acknowledged\n", p->chan->name);
@@ -511,7 +514,9 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
  				ast_frfree(f);
  				f = &ast_null_frame;
  			}
- 			break;
+		default:
+			/* pass everything else on through */
+			break;
   		}
   	}
 
@@ -603,15 +608,22 @@ static int agent_indicate(struct ast_channel *ast, int condition, const void *da
 	return res;
 }
 
-static int agent_digit(struct ast_channel *ast, char digit)
+static int agent_digit_begin(struct ast_channel *ast, char digit)
 {
 	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;
 	ast_mutex_lock(&p->lock);
-	if (p->chan)
-		res = p->chan->tech->send_digit(p->chan, digit);
-	else
-		res = 0;
+	ast_senddigit_begin(p->chan, digit);
+	ast_mutex_unlock(&p->lock);
+	return res;
+}
+
+static int agent_digit_end(struct ast_channel *ast, char digit)
+{
+	struct agent_pvt *p = ast->tech_pvt;
+	int res = -1;
+	ast_mutex_lock(&p->lock);
+	ast_senddigit_end(p->chan, digit);
 	ast_mutex_unlock(&p->lock);
 	return res;
 }

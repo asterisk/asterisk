@@ -171,7 +171,8 @@ AST_MUTEX_DEFINE_STATIC(jinglelock); /*!< Protect the interface list (of jingle_
 
 /* Forward declarations */
 static struct ast_channel *jingle_request(const char *type, int format, void *data, int *cause);
-static int jingle_digit(struct ast_channel *ast, char digit);
+static int jingle_digit_begin(struct ast_channel *ast, char digit);
+static int jingle_digit_end(struct ast_channel *ast, char digit);
 static int jingle_call(struct ast_channel *ast, char *dest, int timeout);
 static int jingle_hangup(struct ast_channel *ast);
 static int jingle_answer(struct ast_channel *ast);
@@ -194,7 +195,8 @@ static const struct ast_channel_tech jingle_tech = {
 	.description = "Jingle Channel Driver",
 	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
 	.requester = jingle_request,
-	.send_digit = jingle_digit,
+	.send_digit_begin = jingle_digit_begin,
+	.send_digit_end = jingle_digit_end,
 	.bridge = ast_rtp_bridge,
 	.call = jingle_call,
 	.hangup = jingle_hangup,
@@ -1181,7 +1183,13 @@ static int jingle_indicate(struct ast_channel *ast, int condition, const void *d
 	return res;
 }
 
-static int jingle_digit(struct ast_channel *ast, char digit)
+static int jingle_digit_begin(struct ast_channel *chan, char digit)
+{
+	/* XXX Does jingle have a concept of the length of a dtmf digit ? */
+	return 0;
+}
+
+static int jingle_digit_end(struct ast_channel *ast, char digit)
 {
 	struct jingle_pvt *p = ast->tech_pvt;
 	struct jingle *client = p->parent;

@@ -690,10 +690,12 @@ static struct zt_pvt {
 #endif	
 	int polarity;
 	int dsp_features;
+	char begindigit;
 } *iflist = NULL, *ifend = NULL;
 
 static struct ast_channel *zt_request(const char *type, int format, void *data, int *cause);
-static int zt_digit(struct ast_channel *ast, char digit);
+static int zt_digit_begin(struct ast_channel *ast, char digit);
+static int zt_digit_end(struct ast_channel *ast, char digit);
 static int zt_sendtext(struct ast_channel *c, const char *text);
 static int zt_call(struct ast_channel *ast, char *rdest, int timeout);
 static int zt_hangup(struct ast_channel *ast);
@@ -711,7 +713,8 @@ static const struct ast_channel_tech zap_tech = {
 	.description = tdesc,
 	.capabilities = AST_FORMAT_SLINEAR | AST_FORMAT_ULAW | AST_FORMAT_ALAW,
 	.requester = zt_request,
-	.send_digit = zt_digit,
+	.send_digit_begin = zt_digit_begin,
+	.send_digit_end = zt_digit_end,
 	.send_text = zt_sendtext,
 	.call = zt_call,
 	.hangup = zt_hangup,
@@ -1002,45 +1005,113 @@ static int unalloc_sub(struct zt_pvt *p, int x)
 	return 0;
 }
 
-static int zt_digit(struct ast_channel *ast, char digit)
+static int digit_to_dtmfindex(char digit)
 {
-	ZT_DIAL_OPERATION zo;
-	struct zt_pvt *p;
+	if (isdigit(digit))
+		return ZT_TONE_DTMF_BASE + (digit - '0');
+	else if (digit >= 'A' && digit <= 'D')
+		return ZT_TONE_DTMF_A + (digit - 'A');
+	else if (digit >= 'a' && digit <= 'd')
+		return ZT_TONE_DTMF_A + (digit - 'a');
+	else if (digit == '*')
+		return ZT_TONE_DTMF_s;
+	else if (digit == '#')
+		return ZT_TONE_DTMF_p;
+	else
+		return -1;
+}
+
+static int zt_digit_begin(struct ast_channel *chan, char digit)
+{
+	struct zt_pvt *pvt;
+	int index;
+	int dtmf = -1;
+	
+	pvt = chan->tech_pvt;
+
+	ast_mutex_lock(&pvt->lock);
+
+	index = zt_get_index(chan, pvt, 0);
+
+	if ((index != SUB_REAL) || !pvt->owner)
+		goto out;
+
+#ifdef HAVE_PRI
+	if ((pvt->sig == SIG_PRI) && (chan->_state == AST_STATE_DIALING) && !pvt->proceeding) {
+		if (pvt->setup_ack) {
+			if (!pri_grab(pvt, pvt->pri)) {
+				pri_information(pvt->pri->pri, pvt->call, digit);
+				pri_rel(pvt->pri);
+			} else
+				ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", pvt->span);
+		} else if (strlen(pvt->dialdest) < sizeof(pvt->dialdest) - 1) {
+			int res;
+			ast_log(LOG_DEBUG, "Queueing digit '%c' since setup_ack not yet received\n", digit);
+			res = strlen(pvt->dialdest);
+			pvt->dialdest[res++] = digit;
+			pvt->dialdest[res] = '\0';
+		}
+		goto out;
+	}
+#endif
+	if ((dtmf = digit_to_dtmfindex(digit)) == -1)
+		goto out;
+
+	if (pvt->pulse || ioctl(pvt->subs[SUB_REAL].zfd, ZT_SENDTONE, &dtmf)) {
+		int res;
+		ZT_DIAL_OPERATION zo = {
+			.op = ZT_DIAL_OP_APPEND,
+			.dialstr[0] = 'T',
+			.dialstr[1] = digit,
+			.dialstr[2] = 0,
+		};
+		if ((res = ioctl(pvt->subs[SUB_REAL].zfd, ZT_DIAL, &zo)))
+			ast_log(LOG_WARNING, "Couldn't dial digit %c\n", digit);
+		else
+			pvt->dialing = 1;
+	} else {
+		ast_log(LOG_DEBUG, "Started VLDTMF digit '%c'\n", digit);
+		pvt->dialing = 1;
+		pvt->begindigit = digit;
+	}
+
+out:
+	ast_mutex_unlock(&pvt->lock);
+
+	return 0; /* Tell Asterisk not to generate inband indications */
+}
+
+static int zt_digit_end(struct ast_channel *chan, char digit)
+{
+	struct zt_pvt *pvt;
 	int res = 0;
 	int index;
-	p = ast->tech_pvt;
-	ast_mutex_lock(&p->lock);
-	index = zt_get_index(ast, p, 0);
-	if ((index == SUB_REAL) && p->owner) {
+	
+	pvt = chan->tech_pvt;
+
+	ast_mutex_lock(&pvt->lock);
+	
+	index = zt_get_index(chan, pvt, 0);
+
+	if ((index != SUB_REAL) || !pvt->owner || pvt->pulse)
+		goto out;
+
 #ifdef HAVE_PRI
-		if ((p->sig == SIG_PRI) && (ast->_state == AST_STATE_DIALING) && !p->proceeding) {
-			if (p->setup_ack) {
-				if (!pri_grab(p, p->pri)) {
-					pri_information(p->pri->pri,p->call,digit);
-					pri_rel(p->pri);
-				} else
-					ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
-			} else if (strlen(p->dialdest) < sizeof(p->dialdest) - 1) {
-				ast_log(LOG_DEBUG, "Queueing digit '%c' since setup_ack not yet received\n", digit);
-				res = strlen(p->dialdest);
-				p->dialdest[res++] = digit;
-				p->dialdest[res] = '\0';
-			}
-		} else {
-#else
-		{
+	/* This means that the digit was already sent via PRI signalling */
+	if (pvt->sig == SIG_PRI && !pvt->begindigit)
+		goto out;
 #endif
-			zo.op = ZT_DIAL_OP_APPEND;
-			zo.dialstr[0] = 'T';
-			zo.dialstr[1] = digit;
-			zo.dialstr[2] = 0;
-			if ((res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &zo)))
-				ast_log(LOG_WARNING, "Couldn't dial digit %c\n", digit);
-			else
-				p->dialing = 1;
-		}
+
+	if (pvt->begindigit) {
+		ast_log(LOG_DEBUG, "Ending VLDTMF digit '%c'\n", digit);
+		res = ioctl(pvt->subs[SUB_REAL].zfd, ZT_SENDTONE, -1);
+		pvt->dialing = 0;
+		pvt->begindigit = 0;
 	}
-	ast_mutex_unlock(&p->lock);
+
+out:
+	ast_mutex_unlock(&pvt->lock);
+
 	return res;
 }
 
@@ -3543,21 +3614,14 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	ast_log(LOG_DEBUG, "Got event %s(%d) on channel %d (index %d)\n", event2str(res), res, p->channel, index);
 
 	if (res & (ZT_EVENT_PULSEDIGIT | ZT_EVENT_DTMFUP)) {
-		if (res & ZT_EVENT_PULSEDIGIT)
-			p->pulsedial = 1;
-		else
-			p->pulsedial = 0;
+		p->pulsedial =  (res & ZT_EVENT_PULSEDIGIT) ? 1 : 0;
 		ast_log(LOG_DEBUG, "Detected %sdigit '%c'\n", p->pulsedial ? "pulse ": "", res & 0xff);
 #ifdef HAVE_PRI
 		if (!p->proceeding && p->sig == SIG_PRI && p->pri && p->pri->overlapdial) {
 			/* absorb event */
 		} else {
 #endif
-			/* Send a DTMF event for 'legacy' channels and all applications,
-			   and a DTMF_BEGIN event for channels that handle variable duration
-			   DTMF events
-			*/
-			p->subs[index].f.frametype = AST_FRAME_DTMF_BEGIN;
+			p->subs[index].f.frametype = AST_FRAME_DTMF_END;
 			p->subs[index].f.subclass = res & 0xff;
 #ifdef HAVE_PRI
 		}
@@ -3571,9 +3635,6 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		ast_log(LOG_DEBUG, "DTMF Down '%c'\n", res & 0xff);
 		/* Mute conference */
 		zt_confmute(p, 1);
-		/* Send a DTMF_BEGIN event for devices that want variable
-		   duration DTMF events
-		*/
 		p->subs[index].f.frametype = AST_FRAME_DTMF_BEGIN;
 		p->subs[index].f.subclass = res & 0xff;
 		return &p->subs[index].f;

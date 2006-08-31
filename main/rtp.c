@@ -106,14 +106,12 @@ struct rtpPayloadType {
 /*! \brief RTP session description */
 struct ast_rtp {
 	int s;
-	char resp;
 	struct ast_frame f;
 	unsigned char rawdata[8192 + AST_FRIENDLY_OFFSET];
 	unsigned int ssrc;		/*!< Synchronization source, RFC 3550, page 10. */
 	unsigned int themssrc;		/*!< Their SSRC */
 	unsigned int rxssrc;
 	unsigned int lastts;
-	unsigned int lastdigitts;
 	unsigned int lastrxts;
 	unsigned int lastividtimestamp;
 	unsigned int lastovidtimestamp;
@@ -128,11 +126,17 @@ struct ast_rtp {
 	unsigned int cycles;            /*!< Shifted count of sequence number cycles */
 	double rxjitter;                /*!< Interarrival jitter at the moment */
 	double rxtransit;               /*!< Relative transit time for previous packet */
-	unsigned int lasteventendseqn;
 	int lasttxformat;
 	int lastrxformat;
+	/* DTMF Reception Variables */
+	char resp;
+	unsigned int lasteventendseqn;
 	int dtmfcount;
 	unsigned int dtmfduration;
+	/* DTMF Transmission Variables */
+	unsigned int lastdigitts;
+	char send_digit;
+	int send_payload;
 	int nat;
 	unsigned int flags;
 	struct sockaddr_in us;		/*!< Socket representation of the local endpoint. */
@@ -164,6 +168,8 @@ static void timeval2ntp(struct timeval tv, unsigned int *msw, unsigned int *lsw)
 static int ast_rtcp_write_sr(void *data);
 static int ast_rtcp_write_rr(void *data);
 static unsigned int ast_rtcp_calc_interval(struct ast_rtp *rtp);
+static int ast_rtp_senddigit_continuation(struct ast_rtp *rtp);
+int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit);
 static int bridge_p2p_rtcp_write(struct ast_rtp *rtp, unsigned int *rtcpheader, int len);
 
 #define FLAG_3389_WARNING		(1 << 0)
@@ -174,6 +180,7 @@ static int bridge_p2p_rtcp_write(struct ast_rtp *rtp, unsigned int *rtcpheader, 
 #define FLAG_P2P_SENT_MARK              (1 << 4)
 #define FLAG_P2P_NEED_DTMF              (1 << 5)
 #define FLAG_CALLBACK_MODE              (1 << 6)
+#define FLAG_DTMF_COMPENSATE            (1 << 7)
 
 /*!
  * \brief Structure defining an RTCP session.
@@ -531,7 +538,12 @@ void ast_rtp_setdtmf(struct ast_rtp *rtp, int dtmf)
 	ast_set2_flag(rtp, dtmf ? 1 : 0, FLAG_HAS_DTMF);
 }
 
-static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
+void ast_rtp_setdtmfcompensate(struct ast_rtp *rtp, int compensate)
+{
+	ast_set2_flag(rtp, compensate ? 1 : 0, FLAG_DTMF_COMPENSATE);
+}
+
+static struct ast_frame *send_dtmf(struct ast_rtp *rtp, enum ast_frame_type type)
 {
 	if (ast_tvcmp(ast_tvnow(), rtp->dtmfmute) < 0) {
 		if (option_debug)
@@ -546,15 +558,13 @@ static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 		rtp->f.frametype = AST_FRAME_CONTROL;
 		rtp->f.subclass = AST_CONTROL_FLASH;
 	} else {
-		rtp->f.frametype = AST_FRAME_DTMF;
+		rtp->f.frametype = type;
 		rtp->f.subclass = rtp->resp;
 	}
 	rtp->f.datalen = 0;
 	rtp->f.samples = 0;
 	rtp->f.mallocd = 0;
 	rtp->f.src = "RTP";
-	rtp->resp = 0;
-	rtp->dtmfduration = 0;
 	return &rtp->f;
 	
 }
@@ -607,7 +617,7 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 		resp = 'X';
 	}
 	if (rtp->resp && (rtp->resp != resp)) {
-		f = send_dtmf(rtp);
+		f = send_dtmf(rtp, AST_FRAME_DTMF_END);
 	}
 	rtp->resp = resp;
 	rtp->dtmfcount = dtmftimeout;
@@ -633,6 +643,7 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	char resp = 0;
 	struct ast_frame *f = NULL;
 
+	/* Figure out event, event end, and duration */
 	event = ntohl(*((unsigned int *)(data)));
 	event >>= 24;
 	event_end = ntohl(*((unsigned int *)(data)));
@@ -640,8 +651,12 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	event_end >>= 24;
 	duration = ntohl(*((unsigned int *)(data)));
 	duration &= 0xFFFF;
+
+	/* Print out debug if turned on */
 	if (rtpdebug || option_debug > 2)
 		ast_log(LOG_DEBUG, "- RTP 2833 Event: %08x (len = %d)\n", event, len);
+
+	/* Figure out what digit was pressed */
 	if (event < 10) {
 		resp = '0' + event;
 	} else if (event < 11) {
@@ -653,25 +668,21 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	} else if (event < 17) {	/* Event 16: Hook flash */
 		resp = 'X';	
 	}
-	if (rtp->resp && (rtp->resp != resp)) {
-		f = send_dtmf(rtp);
-	} else if (event_end & 0x80) {
-		if (rtp->resp) {
-			if (rtp->lasteventendseqn != seqno) {
-				f = send_dtmf(rtp);
-				rtp->lasteventendseqn = seqno;
-			}
-			rtp->resp = 0;
-		}
-		resp = 0;
-		duration = 0;
-	} else if (rtp->resp && rtp->dtmfduration && (duration < rtp->dtmfduration)) {
-		f = send_dtmf(rtp);
-	}
-	if (!(event_end & 0x80))
+
+	if ((!(rtp->resp) && (!(event_end & 0x80))) || (rtp->resp && rtp->resp != resp)) {
 		rtp->resp = resp;
+		if (!ast_test_flag(rtp, FLAG_DTMF_COMPENSATE))
+			f = send_dtmf(rtp, AST_FRAME_DTMF_BEGIN);
+	} else if (event_end & 0x80 && rtp->lasteventendseqn != seqno && rtp->resp) {
+		f = send_dtmf(rtp, AST_FRAME_DTMF_END);
+		f->samples = duration;
+		rtp->resp = 0;
+		rtp->lasteventendseqn = seqno;
+	}
+
 	rtp->dtmfcount = dtmftimeout;
 	rtp->dtmfduration = duration;
+
 	return f;
 }
 
@@ -1030,6 +1041,10 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	unsigned int *rtpheader;
 	struct rtpPayloadType rtpPT;
 	
+	/* If time is up, kill it */
+	if (rtp->send_digit)
+		ast_rtp_senddigit_continuation(rtp);
+
 	len = sizeof(sin);
 	
 	/* Cache where the header will go */
@@ -1172,13 +1187,13 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 				duration &= 0xFFFF;
 				ast_verbose("Got  RTP RFC2833 from   %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u, mark %d, event %08x, end %d, duration %-5.5d) \n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
 			}
-			if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
+			if (rtp->lasteventseqn <= seqno || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
 				f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno);
 				rtp->lasteventseqn = seqno;
 			}
 		} else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
 			/* It's really special -- process it the Cisco way */
-			if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
+			if (rtp->lasteventseqn <= seqno || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
 				f = process_cisco_dtmf(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 				rtp->lasteventseqn = seqno;
 			}
@@ -1198,26 +1213,9 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 	rtp->rxseqno = seqno;
 
-	if (rtp->dtmfcount) {
-#if 0
-		printf("dtmfcount was %d\n", rtp->dtmfcount);
-#endif		
-		rtp->dtmfcount -= (timestamp - rtp->lastrxts);
-		if (rtp->dtmfcount < 0)
-			rtp->dtmfcount = 0;
-#if 0
-		if (dtmftimeout != rtp->dtmfcount)
-			printf("dtmfcount is %d\n", rtp->dtmfcount);
-#endif
-	}
+	/* Record received timestamp as last received now */
 	rtp->lastrxts = timestamp;
 
-	/* Send any pending DTMF */
-	if (rtp->resp && !rtp->dtmfcount) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Sending pending DTMF\n");
-		return send_dtmf(rtp);
-	}
 	rtp->f.mallocd = 0;
 	rtp->f.datalen = res - hdrlen;
 	rtp->f.data = rtp->rawdata + hdrlen + AST_FRIENDLY_OFFSET;
@@ -1962,34 +1960,41 @@ static unsigned int calc_txstamp(struct ast_rtp *rtp, struct timeval *delivery)
 	return (unsigned int) ms;
 }
 
-int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
+/* Convert DTMF digit into something usable */
+static int digit_convert(char digit)
+{
+	if ((digit <= '9') && (digit >= '0'))
+                digit -= '0';
+        else if (digit == '*')
+                digit = 10;
+        else if (digit == '#')
+                digit = 11;
+        else if ((digit >= 'A') && (digit <= 'D'))
+                digit = digit - 'A' + 12;
+        else if ((digit >= 'a') && (digit <= 'd'))
+                digit = digit - 'a' + 12;
+        else {
+                ast_log(LOG_WARNING, "Don't know how to represent '%c'\n", digit);
+                return -1;
+        }
+	return 0;
+}
+
+/*! \brief Send begin frames for DTMF */
+int ast_rtp_senddigit_begin(struct ast_rtp *rtp, char digit)
 {
 	unsigned int *rtpheader;
-	int hdrlen = 12;
-	int res;
-	int x;
-	int payload;
+	int hdrlen = 12, res = 0, i = 0, payload = 0;
 	char data[256];
 
-	if ((digit <= '9') && (digit >= '0'))
-		digit -= '0';
-	else if (digit == '*')
-		digit = 10;
-	else if (digit == '#')
-		digit = 11;
-	else if ((digit >= 'A') && (digit <= 'D')) 
-		digit = digit - 'A' + 12;
-	else if ((digit >= 'a') && (digit <= 'd')) 
-		digit = digit - 'a' + 12;
-	else {
-		ast_log(LOG_WARNING, "Don't know how to represent '%c'\n", digit);
+	if (digit_convert(digit))
 		return -1;
-	}
-	payload = ast_rtp_lookup_code(rtp, 0, AST_RTP_DTMF);
 
 	/* If we have no peer, return immediately */	
-	if (!rtp->them.sin_addr.s_addr)
+	if (!rtp->them.sin_addr.s_addr || !rtp->them.sin_port)
 		return 0;
+
+	payload = ast_rtp_lookup_code(rtp, 0, AST_RTP_DTMF);
 
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
 	
@@ -1999,51 +2004,111 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	rtpheader[1] = htonl(rtp->lastdigitts);
 	rtpheader[2] = htonl(rtp->ssrc); 
 	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
-	for (x = 0; x < 6; x++) {
-		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
-			res = sendto(rtp->s, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
-			if (res < 0) 
-				ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
-					ast_inet_ntoa(rtp->them.sin_addr),
-					ntohs(rtp->them.sin_port), strerror(errno));
-			if (rtp_debug_test_addr(&rtp->them))
-				ast_verbose("Sent RTP DTMF packet to %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
-					    ast_inet_ntoa(rtp->them.sin_addr),
-					    ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
-		}
-		/* Sequence number of last two end packets does not get incremented */
-		if (x < 3)
-			rtp->seqno++;
+
+	for (i = 0; i < 2; i++) {
+		res = sendto(rtp->s, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
+		if (res < 0) 
+			ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
+				ast_inet_ntoa(rtp->them.sin_addr),
+				ntohs(rtp->them.sin_port), strerror(errno));
+		if (rtp_debug_test_addr(&rtp->them))
+			ast_verbose("Sent RTP DTMF packet to %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+				    ast_inet_ntoa(rtp->them.sin_addr),
+				    ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
+		/* Increment sequence number */
+		rtp->seqno++;
 		/* Clear marker bit and set seqno */
 		rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno));
-		/* For the last three packets, set the duration and the end bit */
-		if (x == 2) {
-#if 0
-			/* No, this is wrong...  Do not increment lastdigitts, that's not according
-			   to the RFC, as best we can determine */
-			rtp->lastdigitts++; /* or else the SPA3000 will click instead of beeping... */
-			rtpheader[1] = htonl(rtp->lastdigitts);
-#endif			
-			/* Make duration 800 (100ms) */
-			rtpheader[3] |= htonl((800));
-			/* Set the End bit */
-			rtpheader[3] |= htonl((1 << 23));
-		}
 	}
-	/*! \note Increment the digit timestamp by 120ms, to ensure that digits
-	   sent sequentially with no intervening non-digit packets do not
-	   get sent with the same timestamp, and that sequential digits
-	   have some 'dead air' in between them
-	*/
-	rtp->lastdigitts += 960;
-	/* Increment the sequence number to reflect the last packet
-	   that was sent
-	*/
-	rtp->seqno++;
+
+	/* Since we received a begin, we can safely store the digit and disable any compensation */
+	rtp->send_digit = digit;
+	rtp->send_payload = payload;
+
 	return 0;
 }
 
-/* \brief Public function: Send an H.261 fast update request, some devices need this rather than SIP XML */
+/*! \brief Send continuation frame for DTMF */
+static int ast_rtp_senddigit_continuation(struct ast_rtp *rtp)
+{
+	unsigned int *rtpheader;
+	int hdrlen = 12, res = 0;
+	char data[256];
+
+	if (!rtp->them.sin_addr.s_addr || !rtp->them.sin_port)
+		return 0;
+
+	/* Setup packet to send */
+	rtpheader = (unsigned int *)data;
+        rtpheader[0] = htonl((2 << 30) | (1 << 23) | (rtp->send_payload << 16) | (rtp->seqno));
+        rtpheader[1] = htonl(rtp->lastdigitts);
+        rtpheader[2] = htonl(rtp->ssrc);
+        rtpheader[3] = htonl((rtp->send_digit << 24) | (0xa << 16) | (0));
+	rtpheader[0] = htonl((2 << 30) | (rtp->send_payload << 16) | (rtp->seqno));
+	
+	/* Transmit */
+	res = sendto(rtp->s, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
+	if (res < 0)
+		ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
+			ast_inet_ntoa(rtp->them.sin_addr),
+			ntohs(rtp->them.sin_port), strerror(errno));
+	if (rtp_debug_test_addr(&rtp->them))
+		ast_verbose("Sent RTP DTMF packet to %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+			    ast_inet_ntoa(rtp->them.sin_addr),
+			    ntohs(rtp->them.sin_port), rtp->send_payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
+
+	/* Increment sequence number */
+	rtp->seqno++;
+
+	return 0;
+}
+
+/*! \brief Send end packets for DTMF */
+int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit)
+{
+	unsigned int *rtpheader;
+	int hdrlen = 12, res = 0, i = 0;
+	char data[256];
+	
+	/* If no address, then bail out */
+	if (!rtp->them.sin_addr.s_addr || !rtp->them.sin_port)
+		return 0;
+	
+	/* Convert our digit to the crazy RTP way */
+	if (digit_convert(digit))
+		return -1;
+
+	rtpheader = (unsigned int *)data;
+	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (rtp->send_payload << 16) | (rtp->seqno));
+	rtpheader[1] = htonl(rtp->lastdigitts);
+	rtpheader[2] = htonl(rtp->ssrc);
+	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
+	/* Send duration to 100ms */
+	rtpheader[3] |= htonl((800));
+	/* Set end bit */
+	rtpheader[3] |= htonl((1 << 23));
+	rtpheader[0] = htonl((2 << 30) | (rtp->send_payload << 16) | (rtp->seqno));
+	/* Send 3 termination packets */
+	for (i = 0; i < 3; i++) {
+		res = sendto(rtp->s, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
+		if (res < 0)
+			ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
+				ast_inet_ntoa(rtp->them.sin_addr),
+				ntohs(rtp->them.sin_port), strerror(errno));
+		if (rtp_debug_test_addr(&rtp->them))
+			ast_verbose("Sent RTP DTMF packet to %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+				    ast_inet_ntoa(rtp->them.sin_addr),
+				    ntohs(rtp->them.sin_port), rtp->send_payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
+	}
+	rtp->send_digit = 0;
+	/* Increment lastdigitts */
+	rtp->lastdigitts += 960;
+	rtp->seqno++;
+
+	return res;
+}
+
+/*! \brief Public function: Send an H.261 fast update request, some devices need this rather than SIP XML */
 int ast_rtcp_send_h261fur(void *data)
 {
 	struct ast_rtp *rtp = data;

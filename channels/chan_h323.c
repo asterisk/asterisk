@@ -220,7 +220,8 @@ static int restart_monitor(void);
 static int h323_do_reload(void);
 
 static struct ast_channel *oh323_request(const char *type, int format, void *data, int *cause);
-static int oh323_digit(struct ast_channel *c, char digit);
+static int oh323_digit_begin(struct ast_channel *c, char digit);
+static int oh323_digit_end(struct ast_channel *c, char digit);
 static int oh323_call(struct ast_channel *c, char *dest, int timeout);
 static int oh323_hangup(struct ast_channel *c);
 static int oh323_answer(struct ast_channel *c);
@@ -235,7 +236,8 @@ static const struct ast_channel_tech oh323_tech = {
 	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER,
 	.requester = oh323_request,
-	.send_digit = oh323_digit,
+	.send_digit_begin = oh323_digit_begin,
+	.send_digit_end = oh323_digit_end,
 	.call = oh323_call,
 	.hangup = oh323_hangup,
 	.answer = oh323_answer,
@@ -381,11 +383,17 @@ static void oh323_destroy(struct oh323_pvt *pvt)
 	ast_mutex_unlock(&iflock);
 }
 
+static int oh323_digit_begin(struct ast_channel *chan, char digit)
+{
+	/* XXX Implement me, plz, kthx */
+	return 0;
+}
+
 /**
  * Send (play) the specified digit to the channel.
  * 
  */
-static int oh323_digit(struct ast_channel *c, char digit)
+static int oh323_digit_end(struct ast_channel *c, char digit)
 {
 	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
 	char *token;

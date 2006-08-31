@@ -67,7 +67,8 @@ static const char tdesc[] = "Local Proxy Channel Driver";
 #define IS_OUTBOUND(a,b) (a == b->chan ? 1 : 0)
 
 static struct ast_channel *local_request(const char *type, int format, void *data, int *cause);
-static int local_digit(struct ast_channel *ast, char digit);
+static int local_digit_begin(struct ast_channel *ast, char digit);
+static int local_digit_end(struct ast_channel *ast, char digit);
 static int local_call(struct ast_channel *ast, char *dest, int timeout);
 static int local_hangup(struct ast_channel *ast);
 static int local_answer(struct ast_channel *ast);
@@ -85,7 +86,8 @@ static const struct ast_channel_tech local_tech = {
 	.description = tdesc,
 	.capabilities = -1,
 	.requester = local_request,
-	.send_digit = local_digit,
+	.send_digit_begin = local_digit_begin,
+	.send_digit_end = local_digit_end,
 	.call = local_call,
 	.hangup = local_hangup,
 	.answer = local_answer,
@@ -327,11 +329,11 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 	return res;
 }
 
-static int local_digit(struct ast_channel *ast, char digit)
+static int local_digit_begin(struct ast_channel *ast, char digit)
 {
 	struct local_pvt *p = ast->tech_pvt;
 	int res = -1;
-	struct ast_frame f = { AST_FRAME_DTMF, };
+	struct ast_frame f = { AST_FRAME_DTMF_BEGIN, };
 	int isoutbound;
 
 	ast_mutex_lock(&p->lock);
@@ -339,6 +341,23 @@ static int local_digit(struct ast_channel *ast, char digit)
 	f.subclass = digit;
 	res = local_queue_frame(p, isoutbound, &f, ast);
 	ast_mutex_unlock(&p->lock);
+
+	return res;
+}
+
+static int local_digit_end(struct ast_channel *ast, char digit)
+{
+	struct local_pvt *p = ast->tech_pvt;
+	int res = -1;
+	struct ast_frame f = { AST_FRAME_DTMF_END, };
+	int isoutbound;
+
+	ast_mutex_lock(&p->lock);
+	isoutbound = IS_OUTBOUND(ast, p);
+	f.subclass = digit;
+	res = local_queue_frame(p, isoutbound, &f, ast);
+	ast_mutex_unlock(&p->lock);
+	
 	return res;
 }
 

@@ -427,7 +427,8 @@ static struct ast_frame *mgcp_read(struct ast_channel *ast);
 static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame);
 static int mgcp_indicate(struct ast_channel *ast, int ind, const void *data, size_t datalen);
 static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
-static int mgcp_senddigit(struct ast_channel *ast, char digit);
+static int mgcp_senddigit_begin(struct ast_channel *ast, char digit);
+static int mgcp_senddigit_end(struct ast_channel *ast, char digit);
 static int mgcp_devicestate(void *data);
 
 static const struct ast_channel_tech mgcp_tech = {
@@ -444,7 +445,8 @@ static const struct ast_channel_tech mgcp_tech = {
 	.write = mgcp_write,
 	.indicate = mgcp_indicate,
 	.fixup = mgcp_fixup,
-	.send_digit = mgcp_senddigit,
+	.send_digit_begin = mgcp_senddigit_begin,
+	.send_digit_end = mgcp_senddigit_end,
 	.bridge = ast_rtp_bridge,
 };
 
@@ -1221,7 +1223,13 @@ static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	return 0;
 }
 
-static int mgcp_senddigit(struct ast_channel *ast, char digit)
+static int mgcp_senddigit_begin(struct ast_channel *ast, char digit)
+{
+	/* Let asterisk play inband indications */
+	return -1;
+}
+
+static int mgcp_senddigit_end(struct ast_channel *ast, char digit)
 {
 	struct mgcp_subchannel *sub = ast->tech_pvt;
 	char tmp[4];
@@ -1233,7 +1241,7 @@ static int mgcp_senddigit(struct ast_channel *ast, char digit)
 	ast_mutex_lock(&sub->lock);
 	transmit_notify_request(sub, tmp);
 	ast_mutex_unlock(&sub->lock);
-	return -1;
+	return -1; /* Return non-zero so that Asterisk will stop the inband indications */
 }
 
 /*!

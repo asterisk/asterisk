@@ -2006,7 +2006,13 @@ static int misdn_answer(struct ast_channel *ast)
 	return 0;
 }
 
-static int misdn_digit(struct ast_channel *ast, char digit )
+static int misdn_digit_begin(struct ast_channel *chan, char digit)
+{
+	/* XXX Modify this callback to support Asterisk controlling the length of DTMF */
+	return 0;
+}
+
+static int misdn_digit_end(struct ast_channel *ast, char digit )
 {
 	struct chan_list *p;
 	
@@ -2983,7 +2989,8 @@ static struct ast_channel_tech misdn_tech = {
 	.description="Channel driver for mISDN Support (Bri/Pri)",
 	.capabilities= AST_FORMAT_ALAW ,
 	.requester=misdn_request,
-	.send_digit=misdn_digit,
+	.send_digit_begin=misdn_digit_begin,
+	.send_digit_end=misdn_digit_end,
 	.call=misdn_call,
 	.bridge=misdn_bridge, 
 	.hangup=misdn_hangup,
@@ -3001,7 +3008,8 @@ static struct ast_channel_tech misdn_tech_wo_bridge = {
 	.description="Channel driver for mISDN Support (Bri/Pri)",
 	.capabilities=AST_FORMAT_ALAW ,
 	.requester=misdn_request,
-	.send_digit=misdn_digit,
+	.send_digit_begin=misdn_digit_begin,
+	.send_digit_end=misdn_digit_end,
 	.call=misdn_call,
 	.hangup=misdn_hangup,
 	.answer=misdn_answer,

@@ -142,7 +142,9 @@ int ast_rtp_fd(struct ast_rtp *rtp);
 
 int ast_rtcp_fd(struct ast_rtp *rtp);
 
-int ast_rtp_senddigit(struct ast_rtp *rtp, char digit);
+int ast_rtp_senddigit_begin(struct ast_rtp *rtp, char digit);
+
+int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit);
 
 int ast_rtp_sendcng(struct ast_rtp *rtp, int level);
 
@@ -180,6 +182,9 @@ void ast_rtp_setnat(struct ast_rtp *rtp, int nat);
 
 /*! \brief Indicate whether this RTP session is carrying DTMF or not */
 void ast_rtp_setdtmf(struct ast_rtp *rtp, int dtmf);
+
+/*! \brief Compensate for devices that send RFC2833 packets all at once */
+void ast_rtp_setdtmfcompensate(struct ast_rtp *rtp, int compensate);
 
 int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 

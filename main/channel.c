@@ -102,6 +102,9 @@ unsigned long global_fin = 0, global_fout = 0;
 AST_THREADSTORAGE(state2str_threadbuf, state2str_threadbuf_init);
 #define STATE2STR_BUFSIZE   32
 
+/* XXX 100ms ... this won't work with wideband support */
+#define AST_DEFAULT_EMULATE_DTMF_SAMPLES 800
+
 struct chanlist {
 	const struct ast_channel_tech *tech;
 	AST_LIST_ENTRY(chanlist) list;
@@ -240,7 +243,8 @@ static int show_channeltype(int fd, int argc, char *argv[])
 		"    Indication: %s\n"
 		"     Transfer : %s\n"
 		"  Capabilities: %d\n"
-		"    Send Digit: %s\n"
+		"   Digit Begin: %s\n"
+		"     Digit End: %s\n"
 		"    Send HTML : %s\n"
 		" Image Support: %s\n"
 		"  Text Support: %s\n",
@@ -249,7 +253,8 @@ static int show_channeltype(int fd, int argc, char *argv[])
 		(cl->tech->indicate) ? "yes" : "no",
 		(cl->tech->transfer) ? "yes" : "no",
 		(cl->tech->capabilities) ? cl->tech->capabilities : -1,
-		(cl->tech->send_digit) ? "yes" : "no",
+		(cl->tech->send_digit_begin) ? "yes" : "no",
+		(cl->tech->send_digit_end) ? "yes" : "no",
 		(cl->tech->send_html) ? "yes" : "no",
 		(cl->tech->send_image) ? "yes" : "no",
 		(cl->tech->send_text) ? "yes" : "no"
@@ -1862,8 +1867,10 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 				/* Write audio if appropriate */
 				if (audiofd > -1)
 					write(audiofd, f->data, f->datalen);
+			default:
+				/* Ignore */
+				break;
 			}
-			/* Ignore */
 			ast_frfree(f);
 		}
 	}
@@ -1881,11 +1888,10 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	 */
 	ast_channel_lock(chan);
 	if (chan->masq) {
-		if (ast_do_masquerade(chan)) {
+		if (ast_do_masquerade(chan))
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
-		} else {
+		else
 			f =  &ast_null_frame;
-		}
 		goto done;
 	}
 
@@ -1897,13 +1903,17 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	}
 	prestate = chan->_state;
 
-	if (!ast_test_flag(chan, AST_FLAG_DEFER_DTMF) && !ast_strlen_zero(chan->dtmfq)) {
+	if (!ast_test_flag(chan, AST_FLAG_DEFER_DTMF | AST_FLAG_EMULATE_DTMF | AST_FLAG_IN_DTMF) && 
+	    !ast_strlen_zero(chan->dtmfq)) {
 		/* We have DTMF that has been deferred.  Return it now */
-		chan->dtmff.frametype = AST_FRAME_DTMF;
+		chan->dtmff.frametype = AST_FRAME_DTMF_BEGIN;
 		chan->dtmff.subclass = chan->dtmfq[0];
 		/* Drop first digit from the buffer */
 		memmove(chan->dtmfq, chan->dtmfq + 1, sizeof(chan->dtmfq) - 1);
 		f = &chan->dtmff;
+		ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
+		chan->emulate_dtmf_digit = f->subclass;
+		chan->emulate_dtmf_samples = AST_DEFAULT_EMULATE_DTMF_SAMPLES;
 		goto done;
 	}
 	
@@ -2017,27 +2027,57 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				}
 			}
 			break;
-		case AST_FRAME_DTMF:
-			ast_log(LOG_DTMF, "DTMF '%c' received on %s\n", f->subclass, chan->name);
-			if (ast_test_flag(chan, AST_FLAG_DEFER_DTMF)) {
+		case AST_FRAME_DTMF_END:
+			ast_log(LOG_DTMF, "DTMF end '%c' received on %s\n", f->subclass, chan->name);
+			if (ast_test_flag(chan, AST_FLAG_DEFER_DTMF | AST_FLAG_EMULATE_DTMF)) {
 				if (strlen(chan->dtmfq) < sizeof(chan->dtmfq) - 2)
 					chan->dtmfq[strlen(chan->dtmfq)] = f->subclass;
 				else
 					ast_log(LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
 				ast_frfree(f);
 				f = &ast_null_frame;
-			}
+			} else if (!ast_test_flag(chan, AST_FLAG_IN_DTMF)) {
+				f->frametype = AST_FRAME_DTMF_BEGIN;
+				ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
+				chan->emulate_dtmf_digit = f->subclass;
+				if (f->samples)
+					chan->emulate_dtmf_samples = f->samples;
+				else
+					chan->emulate_dtmf_samples = AST_DEFAULT_EMULATE_DTMF_SAMPLES;
+			} else 
+				ast_clear_flag(chan, AST_FLAG_IN_DTMF);
 			break;
 		case AST_FRAME_DTMF_BEGIN:
 			ast_log(LOG_DTMF, "DTMF begin '%c' received on %s\n", f->subclass, chan->name);
-			break;
-		case AST_FRAME_DTMF_END:
-			ast_log(LOG_DTMF, "DTMF end '%c' received on %s\n", f->subclass, chan->name);
-			break;
-		case AST_FRAME_VOICE:
-			if (dropaudio) {
+			if (ast_test_flag(chan, AST_FLAG_DEFER_DTMF)) {
 				ast_frfree(f);
 				f = &ast_null_frame;
+			} else 
+				ast_set_flag(chan, AST_FLAG_IN_DTMF);
+			break;
+		case AST_FRAME_VOICE:
+			/* The EMULATE_DTMF flag must be cleared here as opposed to when the samples
+			 * first get to zero, because we want to make sure we pass at least one
+			 * voice frame through before starting the next digit, to ensure a gap
+			 * between DTMF digits. */
+			if (ast_test_flag(chan, AST_FLAG_EMULATE_DTMF) && !chan->emulate_dtmf_samples) {
+				ast_clear_flag(chan, AST_FLAG_EMULATE_DTMF);
+				chan->emulate_dtmf_digit = 0;
+			}
+
+			if (dropaudio || ast_test_flag(chan, AST_FLAG_IN_DTMF)) {
+				ast_frfree(f);
+				f = &ast_null_frame;
+			} else if (ast_test_flag(chan, AST_FLAG_EMULATE_DTMF)) {
+				if (f->samples >= chan->emulate_dtmf_samples) {
+					chan->emulate_dtmf_samples = 0;
+					f->frametype = AST_FRAME_DTMF_END;
+					f->subclass = chan->emulate_dtmf_digit;
+				} else {
+					chan->emulate_dtmf_samples -= f->samples;
+					ast_frfree(f);
+					f = &ast_null_frame;
+				}
 			} else if (!(f->subclass & chan->nativeformats)) {
 				/* This frame can't be from the current native formats -- drop it on the
 				   floor */
@@ -2106,6 +2146,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					}
 				}
 			}
+		default:
+			/* Just pass it on! */
+			break;
 		}
 	} else {
 		/* Make sure we always return NULL in the future */
@@ -2258,12 +2301,13 @@ int ast_sendtext(struct ast_channel *chan, const char *text)
 	return res;
 }
 
-static int do_senddigit(struct ast_channel *chan, char digit)
+int ast_senddigit_begin(struct ast_channel *chan, char digit)
 {
 	int res = -1;
 
-	if (chan->tech->send_digit)
-		res = chan->tech->send_digit(chan, digit);
+	if (chan->tech->send_digit_begin)
+		res = chan->tech->send_digit_begin(chan, digit);
+
 	if (res) {
 		/*
 		 * Device does not support DTMF tones, lets fake
@@ -2299,12 +2343,30 @@ static int do_senddigit(struct ast_channel *chan, char digit)
 			ast_log(LOG_DEBUG, "Unable to generate DTMF tone '%c' for '%s'\n", digit, chan->name);
 		}
 	}
+
+	return 0;
+}
+
+int ast_senddigit_end(struct ast_channel *chan, char digit)
+{
+	int res = -1;
+
+	if (chan->tech->send_digit_end)
+		res = chan->tech->send_digit_end(chan, digit);
+
+	if (res && chan->generator)
+		ast_playtones_stop(chan);
+	
 	return 0;
 }
 
 int ast_senddigit(struct ast_channel *chan, char digit)
 {
-	return do_senddigit(chan, digit);
+	ast_senddigit_begin(chan, digit);
+	
+	ast_safe_sleep(chan, 100); /* XXX 100ms ... probably should be configurable */
+	
+	return ast_senddigit_end(chan, digit);
 }
 
 int ast_prod(struct ast_channel *chan)
@@ -2372,17 +2434,16 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			chan->tech->indicate(chan, fr->subclass, fr->data, fr->datalen);
 		break;
 	case AST_FRAME_DTMF_BEGIN:
-		res = (chan->tech->send_digit_begin == NULL) ? 0 :
-			chan->tech->send_digit_begin(chan, fr->subclass);
-		break;
-	case AST_FRAME_DTMF_END:
-		res = (chan->tech->send_digit_end == NULL) ? 0 :
-			chan->tech->send_digit_end(chan);
-		break;
-	case AST_FRAME_DTMF:
 		ast_clear_flag(chan, AST_FLAG_BLOCKING);
 		ast_channel_unlock(chan);
-		res = do_senddigit(chan,fr->subclass);
+		res = ast_senddigit_begin(chan, fr->subclass);
+		ast_channel_lock(chan);
+		CHECK_BLOCKING(chan);
+		break;
+	case AST_FRAME_DTMF_END:
+		ast_clear_flag(chan, AST_FLAG_BLOCKING);
+		ast_channel_unlock(chan);
+		res = ast_senddigit_end(chan, fr->subclass);
 		ast_channel_lock(chan);
 		CHECK_BLOCKING(chan);
 		break;
@@ -2467,7 +2528,14 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 
 			res = chan->tech->write(chan, f);
 		}
-		break;	
+		break;
+	case AST_FRAME_NULL:
+	case AST_FRAME_IAX:
+		/* Ignore these */
+		break;
+	default:
+		res = chan->tech->write(chan, f);
+		break;
 	}
 
 	if (f && f != fr)
@@ -3496,6 +3564,7 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 				break;
 		}
 		if ((f->frametype == AST_FRAME_VOICE) ||
+		    (f->frametype == AST_FRAME_DTMF_BEGIN) ||
 		    (f->frametype == AST_FRAME_DTMF) ||
 		    (f->frametype == AST_FRAME_VIDEO) ||
 		    (f->frametype == AST_FRAME_IMAGE) ||
@@ -3505,10 +3574,14 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			/* monitored dtmf causes exit from bridge */
 			int monitored_source = (who == c0) ? watch_c0_dtmf : watch_c1_dtmf;
 
-			if (f->frametype == AST_FRAME_DTMF && monitored_source) {
+			if (monitored_source && 
+				(f->frametype == AST_FRAME_DTMF_END || 
+				f->frametype == AST_FRAME_DTMF_BEGIN)) {
 				*fo = f;
 				*rc = who;
-				ast_log(LOG_DEBUG, "Got DTMF on channel (%s)\n", who->name);
+				ast_log(LOG_DEBUG, "Got DTMF %s on channel (%s)\n", 
+					f->frametype == AST_FRAME_DTMF_END ? "end" : "begin",
+					who->name);
 				break;
 			}
 			/* Write immediately frames, not passed through jb */

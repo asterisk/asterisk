@@ -395,7 +395,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 {
 	const char *frames[] = {
 		"(0?)",
-		"DTMF   ",
+		"DTMF_E ",
 		"VOICE  ",
 		"VIDEO  ",
 		"CONTROL",
@@ -404,7 +404,10 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		"TEXT   ",
 		"IMAGE  ",
 		"HTML   ",
-		"CNG    " };
+		"CNG    ",
+		"MODEM  ",
+		"DTMF_B ",
+	};
 	const char *iaxs[] = {
 		"(0?)",
 		"NEW    ",
@@ -508,7 +511,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 	} else {
 		class = frames[(int)fh->type];
 	}
-	if (fh->type == AST_FRAME_DTMF) {
+	if (fh->type == AST_FRAME_DTMF_BEGIN || fh->type == AST_FRAME_DTMF_END) {
 		sprintf(subclass2, "%c", fh->csub);
 		subclass = subclass2;
 	} else if (fh->type == AST_FRAME_IAX) {

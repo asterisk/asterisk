@@ -341,9 +341,9 @@ static struct vpb_pvt {
 
 static struct ast_channel *vpb_new(struct vpb_pvt *i, enum ast_channel_state state, char *context);
 static void *do_chanreads(void *pvt);
-
 static struct ast_channel *vpb_request(const char *type, int format, void *data, int *cause);
-static int vpb_digit(struct ast_channel *ast, char digit);
+static int vpb_digit_begin(struct ast_channel *ast, char digit);
+static int vpb_digit_end(struct ast_channel *ast, char digit);
 static int vpb_call(struct ast_channel *ast, char *dest, int timeout);
 static int vpb_hangup(struct ast_channel *ast);
 static int vpb_answer(struct ast_channel *ast);
@@ -360,9 +360,8 @@ static struct ast_channel_tech vpb_tech = {
 	properties: 0,
 	requester: vpb_request,
 	devicestate: NULL,
-	send_digit: vpb_digit,
-	send_digit_begin: NULL,
-	send_digit_end: NULL,
+	send_digit_begin: vpb_digit_begin,
+	send_digit_end: vpb_digit_end,
 	call: vpb_call,
 	hangup: vpb_hangup,
 	answer: vpb_answer,
@@ -389,9 +388,8 @@ static struct ast_channel_tech vpb_tech_indicate = {
 	properties: 0,
 	requester: vpb_request,
 	devicestate: NULL,
-	send_digit: vpb_digit,
-	send_digit_begin: NULL,
-	send_digit_end: NULL,
+	send_digit_begin: vpb_digit_begin,
+	send_digit_end: vpb_digit_end,
 	call: vpb_call,
 	hangup: vpb_hangup,
 	answer: vpb_answer,
@@ -863,11 +861,11 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 				vpb_timer_stop(p->ring_timer);
 				vpb_timer_start(p->ring_timer);
 			} else
-				f.frametype = -1; /* ignore ring on station port. */
+				f.frametype = AST_FRAME_NULL; /* ignore ring on station port. */
 			break;
 
 		case VPB_RING_OFF:
-			f.frametype = -1;
+			f.frametype = AST_FRAME_NULL;
 			break;
 
 		case VPB_TIMEREXP:
@@ -876,12 +874,12 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 				p->state = VPB_STATE_PLAYBUSY;
 				vpb_timer_stop(p->busy_timer);
 				vpb_timer_start(p->busy_timer);
-				f.frametype = -1;
+				f.frametype = AST_FRAME_NULL;
 			} else if (e->data == p->ringback_timer_id) {
 				playtone(p->handle, &Ringbacktone);
 				vpb_timer_stop(p->ringback_timer);
 				vpb_timer_start(p->ringback_timer);
-				f.frametype = -1;
+				f.frametype = AST_FRAME_NULL;
 			} else if (e->data == p->ring_timer_id) {
 				/* We didnt get another ring in time! */
 				if (p->owner->_state != AST_STATE_UP)  {
@@ -890,23 +888,23 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 					f.subclass = AST_CONTROL_HANGUP;
 				} else {
 					vpb_timer_stop(p->ring_timer);
-					f.frametype = -1;
+					f.frametype = AST_FRAME_NULL;
 				}
 				
 			} else {
-				f.frametype = -1; /* Ignore. */
+				f.frametype = AST_FRAME_NULL; /* Ignore. */
 			}
 			break;
 
 		case VPB_DTMF_DOWN:
 		case VPB_DTMF:
 			if (use_ast_dtmfdet){
-				f.frametype = -1;
+				f.frametype = AST_FRAME_NULL;
 			} else if (p->owner->_state == AST_STATE_UP) {
 					f.frametype = AST_FRAME_DTMF;
 					f.subclass = e->data;
 			} else
-				f.frametype = -1;
+				f.frametype = AST_FRAME_NULL;
 			break;
 
 		case VPB_TONEDETECT:
@@ -950,11 +948,11 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 					f.subclass = AST_CONTROL_HANGUP;
 				} else {
 					p->lastgrunt = ast_tvnow();
-					f.frametype = -1;
+					f.frametype = AST_FRAME_NULL;
 				}
 			} 
 			else {
-				f.frametype = -1;
+				f.frametype = AST_FRAME_NULL;
 			}
 			break;
 
@@ -970,7 +968,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 				f.subclass = AST_CONTROL_HANGUP;
 			#else
 			ast_log(LOG_NOTICE,"%s: Got call progress callback but blind dialing \n", p->dev); 
-			f.frametype = -1;
+			f.frametype = AST_FRAME_NULL;
 			#endif
 			break;
 
@@ -983,14 +981,14 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 				if (p->owner->_state == AST_STATE_UP) 
 					f.subclass = AST_CONTROL_HANGUP;
 				else
-					f.frametype = -1;
+					f.frametype = AST_FRAME_NULL;
 			}
 			break;
 		case VPB_LOOP_ONHOOK:
 			if (p->owner->_state == AST_STATE_UP)
 				f.subclass = AST_CONTROL_HANGUP;
 			else
-				f.frametype = -1;
+				f.frametype = AST_FRAME_NULL;
 			break;
 		case VPB_STATION_ONHOOK:
 			f.subclass = AST_CONTROL_HANGUP;
@@ -1009,22 +1007,22 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 				if (option_verbose > 1) 
 					ast_verbose(VERBOSE_PREFIX_2 "%s: Dialend\n", p->dev);
 			} else {
-				f.frametype = -1;
+				f.frametype = AST_FRAME_NULL;
 			}
 			break;
 
 		case VPB_PLAY_UNDERFLOW:
-			f.frametype = -1;
+			f.frametype = AST_FRAME_NULL;
 			vpb_reset_play_fifo_alarm(p->handle);
 			break;
 
 		case VPB_RECORD_OVERFLOW:
-			f.frametype = -1;
+			f.frametype = AST_FRAME_NULL;
 			vpb_reset_record_fifo_alarm(p->handle);
 			break;
 
 		default:
-			f.frametype = -1;
+			f.frametype = AST_FRAME_NULL;
 			break;
 	}
 
@@ -1831,7 +1829,12 @@ static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	return 0;
 }
 
-static int vpb_digit(struct ast_channel *ast, char digit)
+static int vpb_digit_begin(struct ast_channel *ast, char digit)
+{
+	/* XXX Modify this callback to let Asterisk control the length of DTMF */
+	return 0;
+}
+static int vpb_digit_end(struct ast_channel *ast, char digit)
 {
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt;
 	char s[2];

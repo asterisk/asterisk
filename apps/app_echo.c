@@ -71,19 +71,13 @@ static int echo_exec(struct ast_channel *chan, void *data)
 		f->delivery.tv_usec = 0;
 		switch (f->frametype) {
 		case AST_FRAME_DTMF:
-		case AST_FRAME_DTMF_END:
 			if (f->subclass == '#') {
 				res = 0;
 				ast_frfree(f);
 				goto end;
 			}
 			/* fall through */
-		case AST_FRAME_DTMF_BEGIN:
-		case AST_FRAME_VOICE:
-		case AST_FRAME_VIDEO:
-		case AST_FRAME_TEXT:
-		case AST_FRAME_HTML:
-		case AST_FRAME_IMAGE:
+		default:
 			if (ast_write(chan, f)) {
 				ast_frfree(f);
 				goto end;

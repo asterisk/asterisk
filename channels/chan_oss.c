@@ -407,7 +407,8 @@ static int setformat(struct chan_oss_pvt *o, int mode);
 
 static struct ast_channel *oss_request(const char *type, int format, void *data
 , int *cause);
-static int oss_digit(struct ast_channel *c, char digit);
+static int oss_digit_begin(struct ast_channel *c, char digit);
+static int oss_digit_end(struct ast_channel *c, char digit);
 static int oss_text(struct ast_channel *c, const char *text);
 static int oss_hangup(struct ast_channel *c);
 static int oss_answer(struct ast_channel *c);
@@ -423,7 +424,8 @@ static const struct ast_channel_tech oss_tech = {
 	.description =	tdesc,
 	.capabilities =	AST_FORMAT_SLINEAR,
 	.requester = oss_request,
-	.send_digit = oss_digit,
+	.send_digit_begin = oss_digit_begin,
+	.send_digit_end = oss_digit_end,
 	.send_text = oss_text,
 	.hangup = oss_hangup,
 	.answer = oss_answer,
@@ -757,7 +759,12 @@ static int setformat(struct chan_oss_pvt *o, int mode)
 /*
  * some of the standard methods supported by channels.
  */
-static int oss_digit(struct ast_channel *c, char digit)
+static int oss_digit_begin(struct ast_channel *c, char digit)
+{
+	return 0;
+}
+
+static int oss_digit_end(struct ast_channel *c, char digit)
 {
 	/* no better use for received digits than print them */
 	ast_verbose( " << Console Received digit %c >> \n", digit);

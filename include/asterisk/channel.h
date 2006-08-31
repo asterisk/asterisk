@@ -200,13 +200,11 @@ struct ast_channel_tech {
 
 	int (* const devicestate)(void *data);	/*!< Devicestate call back */
 
-	int (* const send_digit)(struct ast_channel *chan, char digit);	/*!< Send a literal DTMF digit */
-
 	/*! \brief Start sending a literal DTMF digit */
 	int (* const send_digit_begin)(struct ast_channel *chan, char digit);
 
-	/*! \brief Stop sending the last literal DTMF digit */
-	int (* const send_digit_end)(struct ast_channel *chan);
+	/*! \brief Stop sending a literal DTMF digit */
+	int (* const send_digit_end)(struct ast_channel *chan, char digit);
 
 	/*! \brief Call a given phone number (address, etc), but don't
 	   take longer than timeout seconds to do so.  */
@@ -424,7 +422,11 @@ struct ast_channel {
 	struct ast_channel_spy_list *spies;		/*!< Chan Spy stuff */
 	struct ast_channel_whisper_buffer *whisper;	/*!< Whisper Paging buffer */
 	AST_LIST_ENTRY(ast_channel) chan_list;		/*!< For easy linking */
+	
 	struct ast_jb jb;				/*!< The jitterbuffer state  */
+
+	char emulate_dtmf_digit;			/*!< Digit being emulated */
+	unsigned int emulate_dtmf_samples;		/*!< Number of samples left to emulate DTMF for */
 
 	/*! \brief Data stores on the channel */
 	AST_LIST_HEAD_NOLOCK(datastores, ast_datastore) datastores;
@@ -443,29 +445,34 @@ enum {
 /*! \brief ast_channel flags */
 enum {
 	/*! Queue incoming dtmf, to be released when this flag is turned off */
-	AST_FLAG_DEFER_DTMF =  (1 << 1),
+	AST_FLAG_DEFER_DTMF =   (1 << 1),
 	/*! write should be interrupt generator */
-	AST_FLAG_WRITE_INT =   (1 << 2),
+	AST_FLAG_WRITE_INT =    (1 << 2),
 	/*! a thread is blocking on this channel */
-	AST_FLAG_BLOCKING =    (1 << 3),
+	AST_FLAG_BLOCKING =     (1 << 3),
 	/*! This is a zombie channel */
-	AST_FLAG_ZOMBIE =      (1 << 4),
+	AST_FLAG_ZOMBIE =       (1 << 4),
 	/*! There is an exception pending */
-	AST_FLAG_EXCEPTION =   (1 << 5),
+	AST_FLAG_EXCEPTION =    (1 << 5),
 	/*! Listening to moh XXX anthm promises me this will disappear XXX */
-	AST_FLAG_MOH =         (1 << 6),
+	AST_FLAG_MOH =          (1 << 6),
 	/*! This channel is spying on another channel */
-	AST_FLAG_SPYING =      (1 << 7),
+	AST_FLAG_SPYING =       (1 << 7),
 	/*! This channel is in a native bridge */
-	AST_FLAG_NBRIDGE =     (1 << 8),
+	AST_FLAG_NBRIDGE =      (1 << 8),
 	/*! the channel is in an auto-incrementing dialplan processor,
 	 *  so when ->priority is set, it will get incremented before
 	 *  finding the next priority to run */
-	AST_FLAG_IN_AUTOLOOP = (1 << 9),
+	AST_FLAG_IN_AUTOLOOP =  (1 << 9),
 	/*! This is an outgoing call */
-	AST_FLAG_OUTGOING =    (1 << 10),
+	AST_FLAG_OUTGOING =     (1 << 10),
 	/*! This channel is being whispered on */
-	AST_FLAG_WHISPER =     (1 << 11),
+	AST_FLAG_WHISPER =      (1 << 11),
+	/*! A DTMF_BEGIN frame has been read from this channel, but not yet an END */
+	AST_FLAG_IN_DTMF =      (1 << 12),
+	/*! A DTMF_END was received when not IN_DTMF, so the length of the digit is 
+	 *  currently being emulated */
+	AST_FLAG_EMULATE_DTMF = (1 << 13),
 };
 
 /*! \brief ast_bridge_config flags */
@@ -875,6 +882,9 @@ int ast_recvchar(struct ast_channel *chan, int timeout);
  * \return Returns 0 on success, -1 on failure
  */
 int ast_senddigit(struct ast_channel *chan, char digit);
+
+int ast_senddigit_begin(struct ast_channel *chan, char digit);
+int ast_senddigit_end(struct ast_channel *chan, char digit);
 
 /*! \brief Receives a text string from a channel
  * Read a string of text from a channel
