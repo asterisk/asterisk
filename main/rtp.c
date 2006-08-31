@@ -545,7 +545,8 @@ void ast_rtp_setdtmfcompensate(struct ast_rtp *rtp, int compensate)
 
 static struct ast_frame *send_dtmf(struct ast_rtp *rtp, enum ast_frame_type type)
 {
-	if (ast_tvcmp(ast_tvnow(), rtp->dtmfmute) < 0) {
+	if (((ast_test_flag(rtp, FLAG_DTMF_COMPENSATE) && type == AST_FRAME_DTMF_END) ||
+	     (type == AST_FRAME_DTMF_BEGIN)) && ast_tvcmp(ast_tvnow(), rtp->dtmfmute) < 0) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", ast_inet_ntoa(rtp->them.sin_addr));
 		rtp->resp = 0;
@@ -2077,6 +2078,8 @@ int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit)
 	/* Convert our digit to the crazy RTP way */
 	if (digit_convert(digit))
 		return -1;
+
+	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
 
 	rtpheader = (unsigned int *)data;
 	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (rtp->send_payload << 16) | (rtp->seqno));
