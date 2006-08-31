@@ -973,7 +973,7 @@ struct iax_frame *iax_frame_new(int direction, int datalen)
 	return fr;
 }
 
-static void __iax_frame_free(struct iax_frame *fr, int cache)
+void iax_frame_free(struct iax_frame *fr)
 {
 	struct iax_frames *iax_frames;
 
@@ -988,10 +988,6 @@ static void __iax_frame_free(struct iax_frame *fr, int cache)
 	}
 	fr->direction = 0;
 	ast_atomic_fetchadd_int(&frames, -1);
-	if (!cache) {
-		free(fr);
-		return;
-	}
 
 	if (!(iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
 		free(fr);
@@ -1010,11 +1006,6 @@ static void frame_cache_cleanup(void *data)
 		free(cur);
 
 	free(frames);
-}
-
-void iax_frame_free(struct iax_frame *fr)
-{
-	__iax_frame_free(fr, 1);
 }
 
 int iax_get_frames(void) { return frames; }
