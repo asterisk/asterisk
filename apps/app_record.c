@@ -304,7 +304,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 		    (f->subclass == terminator)) {
 			 res = ast_writestream(s,f);
 		         if(res) {
-			 	ast_log(LOG_WARNING,"Problem writing final recoard frame\n");
+			 	ast_log(LOG_WARNING,"Problem writing final record frame\n");
 			 }		 
 			ast_frfree(f);
 			break;
