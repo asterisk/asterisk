@@ -7150,7 +7150,7 @@ char tmpstr[300];
 }
 
 	
-static void *rpt_master(void *ignore)
+static void *rpt_master(void *config)
 {
 int	i,n;
 pthread_attr_t attr;
@@ -7160,7 +7160,7 @@ char *this,*val;
 	/* go thru all the specified repeaters */
 	this = NULL;
 	n = 0;
-	rpt_vars[n].cfg = ast_config_load("rpt.conf");
+	rpt_vars[n].cfg = config;
 	cfg = rpt_vars[n].cfg;
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to open radio repeater configuration rpt.conf.  Radio Repeater disabled.\n");
@@ -8030,7 +8030,12 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	ast_pthread_create(&rpt_master_thread,NULL,rpt_master,NULL);
+	struct ast_config *cfg = ast_config_load("rpt.conf");
+	if (!cfg) {
+		ast_log(LOG_WARNING, "No such configuration file rpt.conf\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	ast_pthread_create(&rpt_master_thread,NULL,rpt_master,cfg);
 
 	/* Register cli extensions */
 	ast_cli_register(&cli_debug);

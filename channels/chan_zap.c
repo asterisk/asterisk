@@ -11145,7 +11145,7 @@ static int load_module(void)
 	res = setup_zap(0);
 	/* Make sure we can register our Zap channel type */
 	if (res)
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	if (ast_channel_register(&zap_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Zap'\n");
 		__unload_module();

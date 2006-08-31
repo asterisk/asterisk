@@ -289,7 +289,7 @@ static int my_load_module(void)
 
 	if (!(cfg = ast_config_load(config))) {
 		ast_log(LOG_WARNING, "Unable to load config for PostgreSQL CDR's: %s\n", config);
-		return 0;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	res = process_my_load_module(cfg);

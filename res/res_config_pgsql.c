@@ -553,7 +553,8 @@ static struct ast_config_engine pgsql_engine = {
 
 static int load_module(void)
 {
-	parse_config();
+	if(!parse_config())
+		return AST_MODULE_LOAD_DECLINE;
 
 	ast_mutex_lock(&pgsql_lock);
 
@@ -624,61 +625,63 @@ static int reload(void)
 	return 0;
 }
 
-int parse_config(void)
+static int parse_config(void)
 {
 	struct ast_config *config;
 	char *s;
 
 	config = ast_config_load(RES_CONFIG_PGSQL_CONF);
 
-	if (config) {
-		if (!(s = ast_variable_retrieve(config, "general", "dbuser"))) {
-			ast_log(LOG_WARNING,
-					"Postgresql RealTime: No database user found, using 'asterisk' as default.\n");
-			strcpy(dbuser, "asterisk");
-		} else {
-			ast_copy_string(dbuser, s, sizeof(dbuser));
-		}
+	if (!config) {
+		ast_log(LOG_WARNING, "Unable to load config %s\n",RES_CONFIG_PGSQL_CONF);
+		return 0;
+	}
+	if (!(s = ast_variable_retrieve(config, "general", "dbuser"))) {
+		ast_log(LOG_WARNING,
+				"Postgresql RealTime: No database user found, using 'asterisk' as default.\n");
+		strcpy(dbuser, "asterisk");
+	} else {
+		ast_copy_string(dbuser, s, sizeof(dbuser));
+	}
 
-		if (!(s = ast_variable_retrieve(config, "general", "dbpass"))) {
-			ast_log(LOG_WARNING,
-					"Postgresql RealTime: No database password found, using 'asterisk' as default.\n");
-			strcpy(dbpass, "asterisk");
-		} else {
-			ast_copy_string(dbpass, s, sizeof(dbpass));
-		}
+	if (!(s = ast_variable_retrieve(config, "general", "dbpass"))) {
+		ast_log(LOG_WARNING,
+				"Postgresql RealTime: No database password found, using 'asterisk' as default.\n");
+		strcpy(dbpass, "asterisk");
+	} else {
+		ast_copy_string(dbpass, s, sizeof(dbpass));
+	}
 
-		if (!(s = ast_variable_retrieve(config, "general", "dbhost"))) {
-			ast_log(LOG_WARNING,
-					"Postgresql RealTime: No database host found, using localhost via socket.\n");
-			dbhost[0] = '\0';
-		} else {
-			ast_copy_string(dbhost, s, sizeof(dbhost));
-		}
+	if (!(s = ast_variable_retrieve(config, "general", "dbhost"))) {
+		ast_log(LOG_WARNING,
+				"Postgresql RealTime: No database host found, using localhost via socket.\n");
+		dbhost[0] = '\0';
+	} else {
+		ast_copy_string(dbhost, s, sizeof(dbhost));
+	}
 
-		if (!(s = ast_variable_retrieve(config, "general", "dbname"))) {
-			ast_log(LOG_WARNING,
-					"Postgresql RealTime: No database name found, using 'asterisk' as default.\n");
-			strcpy(dbname, "asterisk");
-		} else {
-			ast_copy_string(dbname, s, sizeof(dbname));
-		}
+	if (!(s = ast_variable_retrieve(config, "general", "dbname"))) {
+		ast_log(LOG_WARNING,
+				"Postgresql RealTime: No database name found, using 'asterisk' as default.\n");
+		strcpy(dbname, "asterisk");
+	} else {
+		ast_copy_string(dbname, s, sizeof(dbname));
+	}
 
-		if (!(s = ast_variable_retrieve(config, "general", "dbport"))) {
-			ast_log(LOG_WARNING,
-					"Postgresql RealTime: No database port found, using 5432 as default.\n");
-			dbport = 5432;
-		} else {
-			dbport = atoi(s);
-		}
+	if (!(s = ast_variable_retrieve(config, "general", "dbport"))) {
+		ast_log(LOG_WARNING,
+				"Postgresql RealTime: No database port found, using 5432 as default.\n");
+		dbport = 5432;
+	} else {
+		dbport = atoi(s);
+	}
 
-		if (dbhost && !(s = ast_variable_retrieve(config, "general", "dbsock"))) {
-			ast_log(LOG_WARNING,
-					"Postgresql RealTime: No database socket found, using '/tmp/pgsql.sock' as default.\n");
-			strcpy(dbsock, "/tmp/pgsql.sock");
-		} else {
-			ast_copy_string(dbsock, s, sizeof(dbsock));
-		}
+	if (dbhost && !(s = ast_variable_retrieve(config, "general", "dbsock"))) {
+		ast_log(LOG_WARNING,
+				"Postgresql RealTime: No database socket found, using '/tmp/pgsql.sock' as default.\n");
+		strcpy(dbsock, "/tmp/pgsql.sock");
+	} else {
+		ast_copy_string(dbsock, s, sizeof(dbsock));
 	}
 	ast_config_destroy(config);
 

@@ -3642,7 +3642,7 @@ static struct ast_custom_function queuememberlist_function = {
 	.read = queue_function_queuememberlist,
 };
 
-static void reload_queues(void)
+static int reload_queues(void)
 {
 	struct call_queue *q;
 	struct ast_config *cfg;
@@ -3656,7 +3656,7 @@ static void reload_queues(void)
 	
 	if (!(cfg = ast_config_load("queues.conf"))) {
 		ast_log(LOG_NOTICE, "No call queueing config file (queues.conf), so no call queues\n");
-		return;
+		return 0;
 	}
 	memset(interface, 0, sizeof(interface));
 	AST_LIST_LOCK(&queues);
@@ -3794,6 +3794,7 @@ static void reload_queues(void)
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&queues);
+	return 1;
 }
 
 static int __queues_show(struct mansession *s, int manager, int fd, int argc, char **argv, int queue_show)
@@ -4359,7 +4360,10 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res;
-	
+	if(!reload_queues())
+		return AST_MODULE_LOAD_DECLINE;
+	if (queue_persistent_members)
+		reload_queue_members();
 	res = ast_register_application(app, queue_exec, synopsis, descrip);
 	res |= ast_cli_register(&cli_show_queue);
 	res |= ast_cli_register(&cli_show_queues);
@@ -4380,12 +4384,6 @@ static int load_module(void)
 	res |= ast_custom_function_register(&queuememberlist_function);
 	res |= ast_custom_function_register(&queuewaitingcount_function);
 	res |= ast_devstate_add(statechange_queue, NULL);
-
-	if (!res) {	
-		reload_queues();
-		if (queue_persistent_members)
-			reload_queue_members();
-	}
 
 	return res;
 }

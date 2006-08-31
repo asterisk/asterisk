@@ -743,6 +743,7 @@ static int load_config(void)
 	
 		if(option_verbose >= 4)
 			ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: No config file\n");
+		return 0;
 	}
 	else{
 
@@ -809,7 +810,7 @@ static int load_config(void)
 		}
 		ast_config_destroy(cfg);
 	}
-	return 0;
+	return 1;
 
 }
 
@@ -831,8 +832,10 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	load_config();
-	return ast_register_application(app, alarmreceiver_exec, synopsis, descrip);
+	if(load_config())
+		return ast_register_application(app, alarmreceiver_exec, synopsis, descrip);
+	else
+		return AST_MODULE_LOAD_DECLINE;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Alarm Receiver for Asterisk");

@@ -2872,7 +2872,7 @@ int load_module()
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}  
 
 	vpb_seterrormode(VPB_ERROR_CODE);

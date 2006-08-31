@@ -1551,7 +1551,7 @@ static int load_module(void)
 		ast_config_destroy(cfg);
 	} else {
 		 ast_log(LOG_NOTICE, "Unable to load config oss.conf\n");
-		 return -1;
+		 return AST_MODULE_LOAD_DECLINE;
 	}
 	if (find_desc(oss_active) == NULL) {
 		ast_log(LOG_NOTICE, "Device %s not found\n", oss_active);

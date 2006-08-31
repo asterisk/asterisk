@@ -4488,7 +4488,8 @@ static int load_module(void)
 		return -1;
 	}
 
-	set_config("dundi.conf",&sin);
+	if(set_config("dundi.conf",&sin))
+		return AST_MODULE_LOAD_DECLINE;
 
 	netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 	

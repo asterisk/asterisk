@@ -2113,153 +2113,155 @@ static int load_config(void)
 	atxfernoanswertimeout = DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER;
 
 	cfg = ast_config_load("features.conf");
-	if (cfg) {
-		for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
-			if (!strcasecmp(var->name, "parkext")) {
-				ast_copy_string(parking_ext, var->value, sizeof(parking_ext));
-			} else if (!strcasecmp(var->name, "context")) {
-				ast_copy_string(parking_con, var->value, sizeof(parking_con));
-			} else if (!strcasecmp(var->name, "parkingtime")) {
-				if ((sscanf(var->value, "%d", &parkingtime) != 1) || (parkingtime < 1)) {
-					ast_log(LOG_WARNING, "%s is not a valid parkingtime\n", var->value);
-					parkingtime = DEFAULT_PARK_TIME;
-				} else
-					parkingtime = parkingtime * 1000;
-			} else if (!strcasecmp(var->name, "parkpos")) {
-				if (sscanf(var->value, "%d-%d", &start, &end) != 2) {
-					ast_log(LOG_WARNING, "Format for parking positions is a-b, where a and b are numbers at line %d of parking.conf\n", var->lineno);
-				} else {
-					parking_start = start;
-					parking_stop = end;
-				}
-			} else if (!strcasecmp(var->name, "findslot")) {
-				parkfindnext = (!strcasecmp(var->value, "next"));
-			} else if (!strcasecmp(var->name, "parkinghints")) {
-				parkaddhints = ast_true(var->value);
-			} else if (!strcasecmp(var->name, "adsipark")) {
-				adsipark = ast_true(var->value);
-			} else if (!strcasecmp(var->name, "transferdigittimeout")) {
-				if ((sscanf(var->value, "%d", &transferdigittimeout) != 1) || (transferdigittimeout < 1)) {
-					ast_log(LOG_WARNING, "%s is not a valid transferdigittimeout\n", var->value);
-					transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
-				} else
-					transferdigittimeout = transferdigittimeout * 1000;
-			} else if (!strcasecmp(var->name, "featuredigittimeout")) {
-				if ((sscanf(var->value, "%d", &featuredigittimeout) != 1) || (featuredigittimeout < 1)) {
-					ast_log(LOG_WARNING, "%s is not a valid featuredigittimeout\n", var->value);
-					featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
-				}
-			} else if (!strcasecmp(var->name, "atxfernoanswertimeout")) {
-				if ((sscanf(var->value, "%d", &atxfernoanswertimeout) != 1) || (atxfernoanswertimeout < 1)) {
-					ast_log(LOG_WARNING, "%s is not a valid atxfernoanswertimeout\n", var->value);
-					atxfernoanswertimeout = DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER;
-				} else
-					atxfernoanswertimeout = atxfernoanswertimeout * 1000;
-			} else if (!strcasecmp(var->name, "courtesytone")) {
-				ast_copy_string(courtesytone, var->value, sizeof(courtesytone));
-			}  else if (!strcasecmp(var->name, "parkedplay")) {
-				if (!strcasecmp(var->value, "both"))
-					parkedplay = 2;
-				else if (!strcasecmp(var->value, "parked"))
-					parkedplay = 1;
-				else
-					parkedplay = 0;
-			} else if (!strcasecmp(var->name, "xfersound")) {
-				ast_copy_string(xfersound, var->value, sizeof(xfersound));
-			} else if (!strcasecmp(var->name, "xferfailsound")) {
-				ast_copy_string(xferfailsound, var->value, sizeof(xferfailsound));
-			} else if (!strcasecmp(var->name, "pickupexten")) {
-				ast_copy_string(pickup_ext, var->value, sizeof(pickup_ext));
-			} else if (!strcasecmp(var->name, "parkedmusicclass")) {
-				ast_copy_string(parkmohclass, var->value, sizeof(parkmohclass));
-			}
-		}
-
-		unmap_features();
-		for (var = ast_variable_browse(cfg, "featuremap"); var; var = var->next) {
-			if (remap_feature(var->name, var->value))
-				ast_log(LOG_NOTICE, "Unknown feature '%s'\n", var->name);
-		}
-
-		/* Map a key combination to an application*/
-		ast_unregister_features();
-		for (var = ast_variable_browse(cfg, "applicationmap"); var; var = var->next) {
-			char *tmp_val = ast_strdupa(var->value);
-			char *exten, *activateon, *activatedby, *app, *app_args, *moh_class; 
-			struct ast_call_feature *feature;
-
-			/* strsep() sets the argument to NULL if match not found, and it
-			 * is safe to use it with a NULL argument, so we don't check
-			 * between calls.
-			 */
-			exten = strsep(&tmp_val,",");
-			activatedby = strsep(&tmp_val,",");
-			app = strsep(&tmp_val,",");
-			app_args = strsep(&tmp_val,",");
-			moh_class = strsep(&tmp_val,",");
-
-			activateon = strsep(&activatedby, "/");	
-
-			/*! \todo XXX var_name or app_args ? */
-			if (ast_strlen_zero(app) || ast_strlen_zero(exten) || ast_strlen_zero(activateon) || ast_strlen_zero(var->name)) {
-				ast_log(LOG_NOTICE, "Please check the feature Mapping Syntax, either extension, name, or app aren't provided %s %s %s %s\n",
-					app, exten, activateon, var->name);
-				continue;
-			}
-
-			if ((feature = find_feature(var->name))) {
-				ast_log(LOG_WARNING, "Dynamic Feature '%s' specified more than once!\n", var->name);
-				continue;
-			}
-					
-			if (!(feature = ast_calloc(1, sizeof(*feature))))
-				continue;					
-
-			ast_copy_string(feature->sname, var->name, FEATURE_SNAME_LEN);
-			ast_copy_string(feature->app, app, FEATURE_APP_LEN);
-			ast_copy_string(feature->exten, exten, FEATURE_EXTEN_LEN);
-			
-			if (app_args) 
-				ast_copy_string(feature->app_args, app_args, FEATURE_APP_ARGS_LEN);
-
-			if (moh_class)
-				ast_copy_string(feature->moh_class, moh_class, FEATURE_MOH_LEN);
-				
-			ast_copy_string(feature->exten, exten, sizeof(feature->exten));
-			feature->operation = feature_exec_app;
-			ast_set_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF);
-
-			/* Allow caller and calle to be specified for backwards compatability */
-			if (!strcasecmp(activateon, "self") || !strcasecmp(activateon, "caller"))
-				ast_set_flag(feature, AST_FEATURE_FLAG_ONSELF);
-			else if (!strcasecmp(activateon, "peer") || !strcasecmp(activateon, "callee"))
-				ast_set_flag(feature, AST_FEATURE_FLAG_ONPEER);
-			else {
-				ast_log(LOG_NOTICE, "Invalid 'ActivateOn' specification for feature '%s',"
-					" must be 'self', or 'peer'\n", var->name);
-				continue;
-			}
-
-			if (ast_strlen_zero(activatedby))
-				ast_set_flag(feature, AST_FEATURE_FLAG_BYBOTH);
-			else if (!strcasecmp(activatedby, "caller"))
-				ast_set_flag(feature, AST_FEATURE_FLAG_BYCALLER);
-			else if (!strcasecmp(activatedby, "callee"))
-				ast_set_flag(feature, AST_FEATURE_FLAG_BYCALLEE);
-			else if (!strcasecmp(activatedby, "both"))
-				ast_set_flag(feature, AST_FEATURE_FLAG_BYBOTH);
-			else {
-				ast_log(LOG_NOTICE, "Invalid 'ActivatedBy' specification for feature '%s',"
-					" must be 'caller', or 'callee', or 'both'\n", var->name);
-				continue;
-			}
-
-			ast_register_feature(feature);
-				
-			if (option_verbose >= 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Mapping Feature '%s' to app '%s(%s)' with code '%s'\n", var->name, app, app_args, exten);  
-		}	 
+	if (!cfg) {
+		ast_log(LOG_WARNING,"Could not load features.conf\n");
+		return AST_MODULE_LOAD_DECLINE;
 	}
+	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
+		if (!strcasecmp(var->name, "parkext")) {
+			ast_copy_string(parking_ext, var->value, sizeof(parking_ext));
+		} else if (!strcasecmp(var->name, "context")) {
+			ast_copy_string(parking_con, var->value, sizeof(parking_con));
+		} else if (!strcasecmp(var->name, "parkingtime")) {
+			if ((sscanf(var->value, "%d", &parkingtime) != 1) || (parkingtime < 1)) {
+				ast_log(LOG_WARNING, "%s is not a valid parkingtime\n", var->value);
+				parkingtime = DEFAULT_PARK_TIME;
+			} else
+				parkingtime = parkingtime * 1000;
+		} else if (!strcasecmp(var->name, "parkpos")) {
+			if (sscanf(var->value, "%d-%d", &start, &end) != 2) {
+				ast_log(LOG_WARNING, "Format for parking positions is a-b, where a and b are numbers at line %d of parking.conf\n", var->lineno);
+			} else {
+				parking_start = start;
+				parking_stop = end;
+			}
+		} else if (!strcasecmp(var->name, "findslot")) {
+			parkfindnext = (!strcasecmp(var->value, "next"));
+		} else if (!strcasecmp(var->name, "parkinghints")) {
+			parkaddhints = ast_true(var->value);
+		} else if (!strcasecmp(var->name, "adsipark")) {
+			adsipark = ast_true(var->value);
+		} else if (!strcasecmp(var->name, "transferdigittimeout")) {
+			if ((sscanf(var->value, "%d", &transferdigittimeout) != 1) || (transferdigittimeout < 1)) {
+				ast_log(LOG_WARNING, "%s is not a valid transferdigittimeout\n", var->value);
+				transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
+			} else
+				transferdigittimeout = transferdigittimeout * 1000;
+		} else if (!strcasecmp(var->name, "featuredigittimeout")) {
+			if ((sscanf(var->value, "%d", &featuredigittimeout) != 1) || (featuredigittimeout < 1)) {
+				ast_log(LOG_WARNING, "%s is not a valid featuredigittimeout\n", var->value);
+				featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
+			}
+		} else if (!strcasecmp(var->name, "atxfernoanswertimeout")) {
+			if ((sscanf(var->value, "%d", &atxfernoanswertimeout) != 1) || (atxfernoanswertimeout < 1)) {
+				ast_log(LOG_WARNING, "%s is not a valid atxfernoanswertimeout\n", var->value);
+				atxfernoanswertimeout = DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER;
+			} else
+				atxfernoanswertimeout = atxfernoanswertimeout * 1000;
+		} else if (!strcasecmp(var->name, "courtesytone")) {
+			ast_copy_string(courtesytone, var->value, sizeof(courtesytone));
+		}  else if (!strcasecmp(var->name, "parkedplay")) {
+			if (!strcasecmp(var->value, "both"))
+				parkedplay = 2;
+			else if (!strcasecmp(var->value, "parked"))
+				parkedplay = 1;
+			else
+				parkedplay = 0;
+		} else if (!strcasecmp(var->name, "xfersound")) {
+			ast_copy_string(xfersound, var->value, sizeof(xfersound));
+		} else if (!strcasecmp(var->name, "xferfailsound")) {
+			ast_copy_string(xferfailsound, var->value, sizeof(xferfailsound));
+		} else if (!strcasecmp(var->name, "pickupexten")) {
+			ast_copy_string(pickup_ext, var->value, sizeof(pickup_ext));
+		} else if (!strcasecmp(var->name, "parkedmusicclass")) {
+			ast_copy_string(parkmohclass, var->value, sizeof(parkmohclass));
+		}
+	}
+
+	unmap_features();
+	for (var = ast_variable_browse(cfg, "featuremap"); var; var = var->next) {
+		if (remap_feature(var->name, var->value))
+			ast_log(LOG_NOTICE, "Unknown feature '%s'\n", var->name);
+	}
+
+	/* Map a key combination to an application*/
+	ast_unregister_features();
+	for (var = ast_variable_browse(cfg, "applicationmap"); var; var = var->next) {
+		char *tmp_val = ast_strdupa(var->value);
+		char *exten, *activateon, *activatedby, *app, *app_args, *moh_class; 
+		struct ast_call_feature *feature;
+
+		/* strsep() sets the argument to NULL if match not found, and it
+		 * is safe to use it with a NULL argument, so we don't check
+		 * between calls.
+		 */
+		exten = strsep(&tmp_val,",");
+		activatedby = strsep(&tmp_val,",");
+		app = strsep(&tmp_val,",");
+		app_args = strsep(&tmp_val,",");
+		moh_class = strsep(&tmp_val,",");
+
+		activateon = strsep(&activatedby, "/");	
+
+		/*! \todo XXX var_name or app_args ? */
+		if (ast_strlen_zero(app) || ast_strlen_zero(exten) || ast_strlen_zero(activateon) || ast_strlen_zero(var->name)) {
+			ast_log(LOG_NOTICE, "Please check the feature Mapping Syntax, either extension, name, or app aren't provided %s %s %s %s\n",
+				app, exten, activateon, var->name);
+			continue;
+		}
+
+		if ((feature = find_feature(var->name))) {
+			ast_log(LOG_WARNING, "Dynamic Feature '%s' specified more than once!\n", var->name);
+			continue;
+		}
+				
+		if (!(feature = ast_calloc(1, sizeof(*feature))))
+			continue;					
+
+		ast_copy_string(feature->sname, var->name, FEATURE_SNAME_LEN);
+		ast_copy_string(feature->app, app, FEATURE_APP_LEN);
+		ast_copy_string(feature->exten, exten, FEATURE_EXTEN_LEN);
+		
+		if (app_args) 
+			ast_copy_string(feature->app_args, app_args, FEATURE_APP_ARGS_LEN);
+
+		if (moh_class)
+			ast_copy_string(feature->moh_class, moh_class, FEATURE_MOH_LEN);
+			
+		ast_copy_string(feature->exten, exten, sizeof(feature->exten));
+		feature->operation = feature_exec_app;
+		ast_set_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF);
+
+		/* Allow caller and calle to be specified for backwards compatability */
+		if (!strcasecmp(activateon, "self") || !strcasecmp(activateon, "caller"))
+			ast_set_flag(feature, AST_FEATURE_FLAG_ONSELF);
+		else if (!strcasecmp(activateon, "peer") || !strcasecmp(activateon, "callee"))
+			ast_set_flag(feature, AST_FEATURE_FLAG_ONPEER);
+		else {
+			ast_log(LOG_NOTICE, "Invalid 'ActivateOn' specification for feature '%s',"
+				" must be 'self', or 'peer'\n", var->name);
+			continue;
+		}
+
+		if (ast_strlen_zero(activatedby))
+			ast_set_flag(feature, AST_FEATURE_FLAG_BYBOTH);
+		else if (!strcasecmp(activatedby, "caller"))
+			ast_set_flag(feature, AST_FEATURE_FLAG_BYCALLER);
+		else if (!strcasecmp(activatedby, "callee"))
+			ast_set_flag(feature, AST_FEATURE_FLAG_BYCALLEE);
+		else if (!strcasecmp(activatedby, "both"))
+			ast_set_flag(feature, AST_FEATURE_FLAG_BYBOTH);
+		else {
+			ast_log(LOG_NOTICE, "Invalid 'ActivatedBy' specification for feature '%s',"
+				" must be 'caller', or 'callee', or 'both'\n", var->name);
+			continue;
+		}
+
+		ast_register_feature(feature);
+			
+		if (option_verbose >= 1)
+			ast_verbose(VERBOSE_PREFIX_2 "Mapping Feature '%s' to app '%s(%s)' with code '%s'\n", var->name, app, app_args, exten);  
+	}	 
 	ast_config_destroy(cfg);
 
 	/* Remove the old parking extension */

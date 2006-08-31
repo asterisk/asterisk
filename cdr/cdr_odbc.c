@@ -253,6 +253,7 @@ static int odbc_load_module(void)
 	cfg = ast_config_load(config);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "cdr_odbc: Unable to load config for ODBC CDR's: %s\n", config);
+		res = AST_MODULE_LOAD_DECLINE;
 		goto out;
 	}
 	

@@ -1098,7 +1098,8 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	reload_followme();
+	if(!reload_followme())
+		return AST_MODULE_LOAD_DECLINE;
 
 	return ast_register_application(app, app_exec, synopsis, descrip);
 }

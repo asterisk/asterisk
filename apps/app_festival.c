@@ -533,6 +533,12 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	struct ast_config *cfg = ast_config_load(FESTIVAL_CONFIG);
+	if (!cfg) {
+		ast_log(LOG_WARNING, "No such configuration file %s\n", FESTIVAL_CONFIG);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	ast_config_destroy(cfg);
 	return ast_register_application(app, festival_exec, synopsis, descrip);
 }
 

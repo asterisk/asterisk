@@ -1431,10 +1431,11 @@ static int osp_load(void)
 		ast_config_destroy(cfg);
 	} else {
 		ast_log(LOG_WARNING, "OSP: Unable to find configuration. OSP support disabled\n");
+		return 0;
 	}
 	ast_log(LOG_DEBUG, "OSP: osp_initialized '%d'\n", osp_initialized);
 
-	return 0;
+	return 1;
 }
 
 static int osp_unload(void)
@@ -1606,7 +1607,9 @@ static int load_module(void)
 {
 	int res;
 	
-	osp_load();
+	if(!osp_load())
+		return AST_MODULE_LOAD_DECLINE;
+
 	res = ast_cli_register(&osp_cli);
 	res |= ast_register_application(app1, ospauth_exec, synopsis1, descrip1);
 	res |= ast_register_application(app2, osplookup_exec, synopsis2, descrip2);

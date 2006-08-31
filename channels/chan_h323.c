@@ -2389,7 +2389,7 @@ static int load_module(void *mod)
 	}
 	res = reload_config();
 	if (res) {
-		return 0;
+		return AST_MODULE_LOAD_DECLINE;
 	} else {
 		/* Make sure we can register our channel type */
 		if (ast_channel_register(&oh323_tech)) {

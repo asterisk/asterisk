@@ -216,89 +216,91 @@ static int load_odbc_config(void)
 	struct odbc_class *new;
 
 	config = ast_config_load(cfg);
-	if (config) {
-		for (cat = ast_category_browse(config, NULL); cat; cat=ast_category_browse(config, cat)) {
-			if (!strcasecmp(cat, "ENV")) {
-				for (v = ast_variable_browse(config, cat); v; v = v->next) {
-					setenv(v->name, v->value, 1);
-					ast_log(LOG_NOTICE, "Adding ENV var: %s=%s\n", v->name, v->value);
-				}
-			} else {
-				/* Reset all to defaults for each class of odbc connections */
-				dsn = username = password = NULL;
-				enabled = 1;
-				connect = 0;
-				pooling = 0;
-				limit = 0;
-				for (v = ast_variable_browse(config, cat); v; v = v->next) {
-					if (!strcasecmp(v->name, "pooling")) {
-						pooling = 1;
-					} else if (!strcasecmp(v->name, "limit")) {
-						sscanf(v->value, "%d", &limit);
-						if (ast_true(v->value) && !limit) {
-							ast_log(LOG_WARNING, "Limit should be a number, not a boolean: '%s'.  Setting limit to 1023 for ODBC class '%s'.\n", v->value, cat);
-							limit = 1023;
-						} else if (ast_false(v->value)) {
-							ast_log(LOG_WARNING, "Limit should be a number, not a boolean: '%s'.  Disabling ODBC class '%s'.\n", v->value, cat);
-							enabled = 0;
-							break;
-						}
-					} else if (!strcasecmp(v->name, "enabled")) {
-						enabled = ast_true(v->value);
-					} else if (!strcasecmp(v->name, "pre-connect")) {
-						connect = ast_true(v->value);
-					} else if (!strcasecmp(v->name, "dsn")) {
-						dsn = v->value;
-					} else if (!strcasecmp(v->name, "username")) {
-						username = v->value;
-					} else if (!strcasecmp(v->name, "password")) {
-						password = v->value;
-					}
-				}
-
-				if (enabled && !ast_strlen_zero(dsn)) {
-					new = ast_calloc(1, sizeof(*new));
-
-					if (!new) {
-						res = -1;
+	if (!config) {
+		ast_log(LOG_WARNING, "Unable to load config file res_odbc.conf\n");
+		return -1;
+	}
+	for (cat = ast_category_browse(config, NULL); cat; cat=ast_category_browse(config, cat)) {
+		if (!strcasecmp(cat, "ENV")) {
+			for (v = ast_variable_browse(config, cat); v; v = v->next) {
+				setenv(v->name, v->value, 1);
+				ast_log(LOG_NOTICE, "Adding ENV var: %s=%s\n", v->name, v->value);
+			}
+		} else {
+			/* Reset all to defaults for each class of odbc connections */
+			dsn = username = password = NULL;
+			enabled = 1;
+			connect = 0;
+			pooling = 0;
+			limit = 0;
+			for (v = ast_variable_browse(config, cat); v; v = v->next) {
+				if (!strcasecmp(v->name, "pooling")) {
+					pooling = 1;
+				} else if (!strcasecmp(v->name, "limit")) {
+					sscanf(v->value, "%d", &limit);
+					if (ast_true(v->value) && !limit) {
+						ast_log(LOG_WARNING, "Limit should be a number, not a boolean: '%s'.  Setting limit to 1023 for ODBC class '%s'.\n", v->value, cat);
+						limit = 1023;
+					} else if (ast_false(v->value)) {
+						ast_log(LOG_WARNING, "Limit should be a number, not a boolean: '%s'.  Disabling ODBC class '%s'.\n", v->value, cat);
+						enabled = 0;
 						break;
 					}
-
-					if (cat)
-						ast_copy_string(new->name, cat, sizeof(new->name));
-					if (dsn)
-						ast_copy_string(new->dsn, dsn, sizeof(new->dsn));
-					if (username)
-						ast_copy_string(new->username, username, sizeof(new->username));
-					if (password)
-						ast_copy_string(new->password, password, sizeof(new->password));
-
-					SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &new->env);
-					res = SQLSetEnvAttr(new->env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
-
-					if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-						ast_log(LOG_WARNING, "res_odbc: Error SetEnv\n");
-						SQLFreeHandle(SQL_HANDLE_ENV, new->env);
-						return res;
-					}
-
-					if (pooling) {
-						new->haspool = pooling;
-						if (limit) {
-							new->limit = limit;
-						} else {
-							ast_log(LOG_WARNING, "Pooling without also setting a limit is pointless.  Changing limit from 0 to 5.\n");
-							new->limit = 5;
-						}
-					}
-
-					odbc_register_class(new, connect);
-					ast_log(LOG_NOTICE, "Registered ODBC class '%s' dsn->[%s]\n", cat, dsn);
+				} else if (!strcasecmp(v->name, "enabled")) {
+					enabled = ast_true(v->value);
+				} else if (!strcasecmp(v->name, "pre-connect")) {
+					connect = ast_true(v->value);
+				} else if (!strcasecmp(v->name, "dsn")) {
+					dsn = v->value;
+				} else if (!strcasecmp(v->name, "username")) {
+					username = v->value;
+				} else if (!strcasecmp(v->name, "password")) {
+					password = v->value;
 				}
 			}
+
+			if (enabled && !ast_strlen_zero(dsn)) {
+				new = ast_calloc(1, sizeof(*new));
+
+				if (!new) {
+					res = -1;
+					break;
+				}
+
+				if (cat)
+					ast_copy_string(new->name, cat, sizeof(new->name));
+				if (dsn)
+					ast_copy_string(new->dsn, dsn, sizeof(new->dsn));
+				if (username)
+					ast_copy_string(new->username, username, sizeof(new->username));
+				if (password)
+					ast_copy_string(new->password, password, sizeof(new->password));
+
+				SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &new->env);
+				res = SQLSetEnvAttr(new->env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
+
+				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+					ast_log(LOG_WARNING, "res_odbc: Error SetEnv\n");
+					SQLFreeHandle(SQL_HANDLE_ENV, new->env);
+					return res;
+				}
+
+				if (pooling) {
+					new->haspool = pooling;
+					if (limit) {
+						new->limit = limit;
+					} else {
+						ast_log(LOG_WARNING, "Pooling without also setting a limit is pointless.  Changing limit from 0 to 5.\n");
+						new->limit = 5;
+					}
+				}
+
+				odbc_register_class(new, connect);
+				ast_log(LOG_NOTICE, "Registered ODBC class '%s' dsn->[%s]\n", cat, dsn);
+			}
 		}
-		ast_config_destroy(config);
 	}
+	ast_config_destroy(config);
 	return res;
 }
 
@@ -664,7 +666,8 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	load_odbc_config();
+	if(load_odbc_config() == -1)
+		return AST_MODULE_LOAD_DECLINE;
 	ast_cli_register(&odbc_show_struct);
 	ast_log(LOG_NOTICE, "res_odbc loaded.\n");
 	return 0;

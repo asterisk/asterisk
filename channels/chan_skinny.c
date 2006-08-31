@@ -4377,7 +4377,9 @@ static int load_module(void)
 	}
 	/* load and parse config */
 	res = reload_config();
-
+	if(!res) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
 	ast_rtp_proto_register(&skinny_rtp);
 	ast_cli_register(&cli_show_devices);
 	ast_cli_register(&cli_show_lines);

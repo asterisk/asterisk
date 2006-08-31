@@ -4262,7 +4262,8 @@ static int load_module(void)
 
 		/* And start the monitor for the first time */
 		restart_monitor();
-	}
+	} else
+		return AST_MODULE_LOAD_DECLINE;
 
 	return res;
 }

@@ -9798,7 +9798,8 @@ static int load_module(void)
 	ast_manager_register( "IAXpeers", 0, manager_iax2_show_peers, "List IAX Peers" );
 	ast_manager_register( "IAXnetstats", 0, manager_iax2_show_netstats, "Show IAX Netstats" );
 
-	set_config(config, 0);
+	if(set_config(config, 0) == -1)
+		return AST_MODULE_LOAD_DECLINE;
 
  	if (ast_channel_register(&iax2_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", "IAX2");

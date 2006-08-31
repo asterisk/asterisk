@@ -1353,7 +1353,7 @@ static int load_module(void)
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
-		return 0;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	if (ast_mutex_lock(&iflock)) {
 		/* It's a little silly to lock it, but we mind as well just to be sure */

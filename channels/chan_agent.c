@@ -1113,7 +1113,7 @@ static int read_agent_config(void)
 	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&agents);
 	ast_config_destroy(cfg);
-	return 0;
+	return 1;
 }
 
 static int check_availability(struct agent_pvt *newlyavailable, int needlock)
@@ -2547,6 +2547,11 @@ static int load_module(void)
 		ast_log(LOG_ERROR, "Unable to register channel class 'Agent'\n");
 		return -1;
 	}
+	/* Read in the config */
+	if (!read_agent_config())
+		return AST_MODULE_LOAD_DECLINE;
+	if (persistent_agents)
+		reload_agents();
 	/* Dialplan applications */
 	ast_register_application(app, login_exec, synopsis, descrip);
 	ast_register_application(app2, callback_exec, synopsis2, descrip2);
@@ -2565,10 +2570,6 @@ static int load_module(void)
 	/* Dialplan Functions */
 	ast_custom_function_register(&agent_function);
 
-	/* Read in the config */
-	read_agent_config();
-	if (persistent_agents)
-		reload_agents();
 	return 0;
 }
 

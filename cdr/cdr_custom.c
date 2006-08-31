@@ -153,8 +153,9 @@ static int load_module(void)
 			ast_log(LOG_ERROR, "Unable to register custom CDR handling\n");
 		if (mf)
 			fclose(mf);
-	}
-	return res;
+		return res;
+	} else 
+		return AST_MODULE_LOAD_DECLINE;
 }
 
 static int reload(void)

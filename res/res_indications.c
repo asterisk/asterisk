@@ -238,7 +238,7 @@ static int ind_load_module(void)
 	/* yup, checked it out. It is NOT written to. */
 	cfg = ast_config_load((char *)config);
 	if (!cfg)
-		return 0;
+		return -1;
 
 	/* Use existing config to populate the Indication table */
 	cxt = ast_category_browse(cfg, NULL);
@@ -381,8 +381,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	if (ind_load_module())
-		return -1;
- 
+		return AST_MODULE_LOAD_DECLINE; 
 	ast_cli_register(&add_indication_cli);
 	ast_cli_register(&remove_indication_cli);
 	ast_cli_register(&show_indications_cli);

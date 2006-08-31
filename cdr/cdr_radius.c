@@ -247,7 +247,8 @@ static int load_module(void)
 		if ((tmp = ast_variable_retrieve(cfg, "radius", "radiuscfg")))
 			ast_copy_string(radiuscfg, tmp, sizeof(radiuscfg));
 		ast_config_destroy(cfg);
-	}
+	} else 
+		return AST_MODULE_LOAD_DECLINE;
 	
 	/* start logging */
 	rc_openlog("asterisk");

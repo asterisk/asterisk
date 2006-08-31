@@ -49,7 +49,7 @@ static char *name = "cdr_manager";
 
 static int enablecdr = 0;
 
-static void loadconfigurationfile(void)
+static int loadconfigurationfile(void)
 {
 	char *cat;
 	struct ast_config *cfg;
@@ -59,7 +59,7 @@ static void loadconfigurationfile(void)
 	if (!cfg) {
 		/* Standard configuration */
 		enablecdr = 0;
-		return;
+		return 0;
 	}
 	
 	cat = ast_category_browse(cfg, NULL);
@@ -80,6 +80,7 @@ static void loadconfigurationfile(void)
 	}
 	
 	ast_config_destroy(cfg);
+	return 1;
 }
 
 static int manager_log(struct ast_cdr *cdr)
@@ -145,7 +146,8 @@ static int load_module(void)
 	int res;
 
 	/* Configuration file */
-	loadconfigurationfile();
+	if(loadconfigurationfile())
+		return AST_MODULE_LOAD_DECLINE;
 	
 	res = ast_cdr_register(name, "Asterisk Manager Interface CDR Backend", manager_log);
 	if (res) {

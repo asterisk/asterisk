@@ -1336,7 +1336,7 @@ static int unload_module(void)
 	return 0;
 }
 
-static void pbx_load_config(const char *config_file)
+static int pbx_load_config(const char *config_file)
 {
 	struct ast_config *cfg;
 	char *end;
@@ -1349,7 +1349,7 @@ static void pbx_load_config(const char *config_file)
 
 	cfg = ast_config_load(config_file);
 	if (!cfg)
-		return;
+		return 0;
 
 	/* Use existing config to populate the PBX table */
 	static_config = ast_true(ast_variable_retrieve(cfg, "general", "static"));
@@ -1491,13 +1491,15 @@ static void pbx_load_config(const char *config_file)
 		}
 	}
 	ast_config_destroy(cfg);
+	return 1;
 }
 
 static int pbx_load_module(void)
 {
 	struct ast_context *con;
 
-	pbx_load_config(config);
+	if(!pbx_load_config(config))
+		return AST_MODULE_LOAD_DECLINE;
 	ast_merge_contexts_and_delete(&local_contexts, registrar);
 
 	for (con = NULL; (con = ast_walk_contexts(con));)
@@ -1511,7 +1513,7 @@ static int pbx_load_module(void)
 static int load_module(void)
 {
 	if (pbx_load_module())
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
  
 	ast_cli_register(&context_remove_extension_cli);
 	ast_cli_register(&context_dont_include_cli);

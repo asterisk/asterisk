@@ -80,7 +80,7 @@ static int aji_show_clients(int fd, int argc, char *argv[]);
 static int aji_create_client(char *label, struct ast_variable *var, int debug);
 static int aji_create_buddy(char *label, struct aji_client *client);
 static int aji_create_transport(char *label, struct aji_client *client);
-static void aji_reload(void);
+static int aji_reload(void);
 static int aji_load_config(void);
 static void aji_pruneregister(struct aji_client *client);
 static int aji_register_transport(void *data, ikspak *pak);
@@ -2263,23 +2263,25 @@ static int manager_jabber_send( struct mansession *s, struct message *m )
 }
 
 
-static void aji_reload()
+static int aji_reload()
 {
 	ASTOBJ_CONTAINER_MARKALL(&clients);
-	if (!aji_load_config())
+	if (!aji_load_config()) {
 		ast_log(LOG_ERROR, "JABBER: Failed to load config.\n");
-	else {
-		ASTOBJ_CONTAINER_PRUNE_MARKED(&clients, aji_client_destroy);
-		ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
-			ASTOBJ_RDLOCK(iterator);
-			if(iterator->state == AJI_DISCONNECTED) {
-				if (!iterator->thread)
-					ast_pthread_create(&iterator->thread, NULL, aji_recv_loop, iterator);
-			} else if (iterator->state == AJI_CONNECTING)
-				aji_get_roster(iterator);
-			ASTOBJ_UNLOCK(iterator);
-		});
+		return 0;
 	}
+	ASTOBJ_CONTAINER_PRUNE_MARKED(&clients, aji_client_destroy);
+	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
+		ASTOBJ_RDLOCK(iterator);
+		if(iterator->state == AJI_DISCONNECTED) {
+			if (!iterator->thread)
+				ast_pthread_create(&iterator->thread, NULL, aji_recv_loop, iterator);
+		} else if (iterator->state == AJI_CONNECTING)
+			aji_get_roster(iterator);
+		ASTOBJ_UNLOCK(iterator);
+	});
+	
+	return 1;
 }
 
 static int unload_module(void)
@@ -2307,7 +2309,8 @@ static int unload_module(void)
 static int load_module(void)
 {
 	ASTOBJ_CONTAINER_INIT(&clients);
-	aji_reload();
+	if(!aji_reload())
+		return AST_MODULE_LOAD_DECLINE;
 	ast_manager_register2("JabberSend", EVENT_FLAG_SYSTEM, manager_jabber_send,
 			"Sends a message to a Jabber Client", mandescr_jabber_send);
 	ast_register_application(app_ajisend, aji_send_exec, ajisend_synopsis, ajisend_descrip);

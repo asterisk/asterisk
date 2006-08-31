@@ -504,8 +504,11 @@ static int reload(void)
 }
 
 static int load_module(void)
-{
-	return tds_load_module();
+
+	if(!tds_load_module())
+		return AST_MODULE_LOAD_DECLINE;
+	else 
+		return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)

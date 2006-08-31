@@ -720,7 +720,7 @@ static int load_module(void)
 		return res;
 	} else if (res == 1) {
 		ast_log(LOG_WARNING, "No SMDI interfaces are available to listen on, not starting SDMI listener.\n");
-		return 0;
+		return AST_MODULE_LOAD_DECLINE;;
 	} else
 		return 0;
 }

@@ -108,13 +108,13 @@ static int load_config(void)
 	
 	if (!cfg) {
 		ast_log(LOG_WARNING, "unable to load config: %s\n", config);
-		return -1;
+		return 0;
 	} 
 	
 	var = ast_variable_browse(cfg, "csv");
 	if (!var) {
 		ast_config_destroy(cfg);
-		return -1;
+		return 0;
 	}
 	
 	tmp = ast_variable_retrieve(cfg, "csv", "usegmtime");
@@ -142,7 +142,7 @@ static int load_config(void)
 	}
 
 	ast_config_destroy(cfg);
-	return 0;
+	return 1;
 }
 
 static int append_string(char *buf, char *s, size_t bufsize)
@@ -321,7 +321,8 @@ static int load_module(void)
 {
 	int res;
 	
-	load_config();
+	if(!load_config())
+		return AST_MODULE_LOAD_DECLINE;
 
 	res = ast_cdr_register(name, ast_module_info->description, csv_log);
 	if (res) {

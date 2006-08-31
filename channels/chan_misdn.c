@@ -4499,7 +4499,7 @@ static int load_module(void)
 	
 	if (misdn_cfg_init(max_ports)) {
 		ast_log(LOG_ERROR, "Unable to initialize misdn_config.\n");
-		return 0;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	g_config_initialized=1;
 	
