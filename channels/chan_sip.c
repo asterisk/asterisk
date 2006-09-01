@@ -16169,14 +16169,18 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		return 0;
 	}
 
-	if (rtp) 
+	if (rtp) {
 		changed |= ast_rtp_get_peer(rtp, &p->redirip);
-	else
+	} else if (p->redirip.sin_addr.s_addr || ntohs(p->redirip.sin_port) != 0) {
 		memset(&p->redirip, 0, sizeof(p->redirip));
-	if (vrtp)
+		changed = 1;
+	}
+	if (vrtp) {
 		changed |= ast_rtp_get_peer(vrtp, &p->vredirip);
-	else
+	} else if (p->vredirip.sin_addr.s_addr || ntohs(p->vredirip.sin_port) != 0) {
 		memset(&p->vredirip, 0, sizeof(p->vredirip));
+		changed = 1;
+	}
 	if (codecs && (p->redircodecs != codecs)) {
 		p->redircodecs = codecs;
 		changed = 1;
