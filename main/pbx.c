@@ -736,11 +736,12 @@ enum ext_match_t {
  *	E_MATCHMORE	success only on partial match (i.e. leftover digits in pattern)
  *	E_CANMATCH	either of the above.
  */
+
 static int _extension_match_core(const char *pattern, const char *data, enum ext_match_t mode)
 {
 	mode &= E_MATCH_MASK;	/* only consider the relevant bits */
-	
-	if (!strcasecmp(pattern,data)) /* note: if this test is left out, then _x. will not match _x. !!! */
+
+	if (mode == E_MATCH && pattern[0] == '_' && strcasecmp(pattern,data)==0) /* note: if this test is left out, then _x. will not match _x. !!! */
 		return 1;
 
 	if (pattern[0] != '_') { /* not a pattern, try exact or partial match */
