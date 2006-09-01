@@ -1041,11 +1041,17 @@ void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
 	rtp->rxseqno = 0;
 }
 
-void ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
+int ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
 {
-	them->sin_family = AF_INET;
-	them->sin_port = rtp->them.sin_port;
-	them->sin_addr = rtp->them.sin_addr;
+	if ((them->sin_family != AF_INET) ||
+	    (them->sin_port != rtp->them.sin_port) ||
+	    (them->sin_addr.s_addr != rtp->them.sin_addr.s_addr)) {
+		them->sin_family = AF_INET;
+		them->sin_port = rtp->them.sin_port;
+		them->sin_addr = rtp->them.sin_addr;
+		return 1;
+	}
+	return 0;
 }
 
 void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us)

@@ -96,7 +96,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 
 void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
 
-void ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
+int ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
 
 void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us);
 
