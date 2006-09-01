@@ -89,10 +89,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 #ifdef IMAP_STORAGE
-char *curhst = NIL;/* currently connected host */
-char *curusr = NIL;/* current login user */
+static char *curhst = NIL;	/* currently connected host */
+static char *curusr = NIL;	/* current login user */
 
-char temp[1024];
+static char temp[1024];
 
 static char imapserver[48];
 static char imapport[8];
@@ -104,10 +104,10 @@ static char delimiter = '\0';
 
 struct vm_state;
 
-int init_mailstream (struct vm_state *vms);
-void write_file (char *filename, char *buffer, unsigned long len);
-void status (MAILSTREAM *stream);
-void display_body (BODY *body, char *pfx, long i);
+static int init_mailstream (struct vm_state *vms);
+static void write_file (char *filename, char *buffer, unsigned long len);
+static void status (MAILSTREAM *stream);
+static void display_body (BODY *body, char *pfx, long i);
 static char *get_header_by_tag(char *header, char *tag);
 static void vm_imap_delete(int msgnum, struct vm_state *vms);
 static char *get_user_by_mailbox(char *mailbox);
@@ -122,7 +122,7 @@ static void copy_msgArray(struct vm_state *dst, struct vm_state *src);
 static int save_body(BODY *body, struct vm_state *vms, char *section, char *format);
 static int make_gsm_file(char *dest, char *imapuser, char *dir, int num);
 static void get_mailbox_delimiter(MAILSTREAM *stream);
-void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota);
+static void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota);
 /* should define TMP in config file... */
 #define TMP "/tmp"
 struct vmstate {
@@ -7892,7 +7892,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 
 #ifdef IMAP_STORAGE
  
-int init_mailstream (struct vm_state *vms)
+static int init_mailstream(struct vm_state *vms)
 {
 	MAILSTREAM *stream = NIL;
 	/* char *s; */
@@ -7938,7 +7938,7 @@ int init_mailstream (struct vm_state *vms)
 	}
 }
 
-void write_file (char *filename, char *buffer, unsigned long len)
+static void write_file(char *filename, char *buffer, unsigned long len)
 {
 	FILE *output;
 
@@ -7947,7 +7947,7 @@ void write_file (char *filename, char *buffer, unsigned long len)
 	fclose (output);
 }
 
-void mm_searched (MAILSTREAM *stream, unsigned long number)
+void mm_searched(MAILSTREAM *stream, unsigned long number)
 {
 	struct vm_state *vms;
 	char *mailbox;
@@ -7972,7 +7972,7 @@ void mm_searched (MAILSTREAM *stream, unsigned long number)
  *	    prefix string
  *	    index
  */
-void display_body (BODY *body, char *pfx, long i)
+static void display_body(BODY *body, char *pfx, long i)
 {
 	char tmp[MAILTMPLEN];
 	char *s = tmp;
@@ -8025,7 +8025,7 @@ void display_body (BODY *body, char *pfx, long i)
 /* MM status report
  * Accepts: MAIL stream
  */
-void status (MAILSTREAM *stream)
+static void status(MAILSTREAM *stream)
 {
 	unsigned long i;
 	char *s, date[MAILTMPLEN];
@@ -8134,7 +8134,7 @@ void status (MAILSTREAM *stream)
 
 /* Interfaces to C-client */
 
-void mm_exists (MAILSTREAM * stream, unsigned long number)
+void mm_exists(MAILSTREAM * stream, unsigned long number)
 {
 	/* mail_ping will callback here if new mail! */
 	ast_log (LOG_DEBUG, "Entering EXISTS callback for message %ld\n", number);
@@ -8143,7 +8143,7 @@ void mm_exists (MAILSTREAM * stream, unsigned long number)
 }
 
 
-void mm_expunged (MAILSTREAM * stream, unsigned long number)
+void mm_expunged(MAILSTREAM * stream, unsigned long number)
 {
 	/* mail_ping will callback here if expunged mail! */
 	ast_log (LOG_DEBUG, "Entering EXPUNGE callback for message %ld\n", number);
@@ -8152,7 +8152,7 @@ void mm_expunged (MAILSTREAM * stream, unsigned long number)
 }
 
 
-void mm_flags (MAILSTREAM * stream, unsigned long number)
+void mm_flags(MAILSTREAM * stream, unsigned long number)
 {
 	/* mail_ping will callback here if read mail! */
 	ast_log (LOG_DEBUG, "Entering FLAGS callback for message %ld\n", number);
@@ -8161,13 +8161,13 @@ void mm_flags (MAILSTREAM * stream, unsigned long number)
 }
 
 
-void mm_notify (MAILSTREAM * stream, char *string, long errflg)
+void mm_notify(MAILSTREAM * stream, char *string, long errflg)
 {
 	mm_log (string, errflg);
 }
 
 
-void mm_list (MAILSTREAM * stream, int delim, char *mailbox, long attributes)
+void mm_list(MAILSTREAM * stream, int delim, char *mailbox, long attributes)
 {
 	ast_log (LOG_NOTICE,"****** Entering callback\n");
 	putchar (' ');
@@ -8192,7 +8192,7 @@ void mm_list (MAILSTREAM * stream, int delim, char *mailbox, long attributes)
 }
 
 
-void mm_lsub (MAILSTREAM * stream, int delimiter, char *mailbox, long attributes)
+void mm_lsub(MAILSTREAM * stream, int delimiter, char *mailbox, long attributes)
 {
 	putchar (' ');
 	if (delimiter)
@@ -8213,7 +8213,7 @@ void mm_lsub (MAILSTREAM * stream, int delimiter, char *mailbox, long attributes
 }
 
 
-void mm_status (MAILSTREAM * stream, char *mailbox, MAILSTATUS * status)
+void mm_status(MAILSTREAM * stream, char *mailbox, MAILSTATUS * status)
 {
 	ast_log (LOG_NOTICE," Mailbox %s", mailbox);
 	if (status->flags & SA_MESSAGES)
@@ -8230,7 +8230,7 @@ void mm_status (MAILSTREAM * stream, char *mailbox, MAILSTATUS * status)
 }
 
 
-void mm_log (char *string, long errflg)
+void mm_log(char *string, long errflg)
 {
 	switch ((short) errflg) {
 		case NIL:
@@ -8247,13 +8247,13 @@ void mm_log (char *string, long errflg)
 }
 
 
-void mm_dlog (char *string)
+void mm_dlog(char *string)
 {
 	ast_log (LOG_NOTICE,string);
 }
 
 
-void mm_login (NETMBX * mb, char *user, char *pwd, long trial)
+void mm_login(NETMBX * mb, char *user, char *pwd, long trial)
 {
 	char tmp[MAILTMPLEN];
 	ast_log(LOG_DEBUG, "Entering callback...\n");
@@ -8282,30 +8282,30 @@ void mm_login (NETMBX * mb, char *user, char *pwd, long trial)
 }
 
 
-void mm_critical (MAILSTREAM * stream)
+void mm_critical(MAILSTREAM * stream)
 {
 }
 
 
-void mm_nocritical (MAILSTREAM * stream)
+void mm_nocritical(MAILSTREAM * stream)
 {
 }
 
 
-long mm_diskerror (MAILSTREAM * stream, long errcode, long serious)
+long mm_diskerror(MAILSTREAM * stream, long errcode, long serious)
 {
 	kill (getpid (), SIGSTOP);
 	return NIL;
 }
 
 
-void mm_fatal (char *string)
+void mm_fatal(char *string)
 {
 	ast_log(LOG_ERROR,"IMAP access FATAL error: %s\n", string);
 }
 
 /* C-client callback to handle quota */
-void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota)
+static void mm_parsequota(MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota)
 {
 	struct vm_state *vms;
 	char *mailbox;
@@ -8331,7 +8331,7 @@ void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota)
 	}
 }
 
-static char * get_header_by_tag(char *header, char *tag)
+static char *get_header_by_tag(char *header, char *tag)
 {
 	char *start;
 	int taglen;
@@ -8351,7 +8351,7 @@ static char * get_header_by_tag(char *header, char *tag)
 	return temp;
 }
 
-static char * get_user_by_mailbox(char *mailbox)
+static char *get_user_by_mailbox(char *mailbox)
 {
 	char *start, *quote;
 	char *eol_pnt;
@@ -8379,7 +8379,7 @@ static char * get_user_by_mailbox(char *mailbox)
 	}
 }
 
-static struct vm_state * get_vm_state_by_imapuser(char *user, int interactive)
+static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
 {
 	struct vmstate *vlist = NULL;
 
@@ -8410,7 +8410,7 @@ static struct vm_state * get_vm_state_by_imapuser(char *user, int interactive)
 	return NULL;
 }
 
-static struct vm_state * get_vm_state_by_mailbox(const char *mailbox, int interactive)
+static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interactive)
 { 
 	struct vmstate *vlist = NULL;
 	
@@ -8587,8 +8587,7 @@ static int save_body(BODY *body, struct vm_state *vms, char *section, char *form
 }
 
 /* get delimiter via mm_list callback */
-static void
-get_mailbox_delimiter(MAILSTREAM *stream) {
+static void get_mailbox_delimiter(MAILSTREAM *stream) {
 	mail_list(stream, "", "*");
 }
 
