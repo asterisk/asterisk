@@ -159,7 +159,7 @@ struct ast_rtp {
 	int rtp_lookup_code_cache_code;
 	int rtp_lookup_code_cache_result;
 	struct ast_rtcp *rtcp;
-	struct ast_rtp *bridged;        /*!< Who we are Packet briged to */
+	struct ast_rtp *bridged;        /*!< Who we are Packet bridged to */
 };
 
 /* Forward declarations */
@@ -2967,13 +2967,6 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 			*rc = who;
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Oooh, got a %s\n", fr ? "digit" : "hangup");
-			/* Break out of the bridge */
-			p0->bridged = NULL;
-			p1->bridged = NULL;
-			if (vp0) {
-				vp0->bridged = NULL;
-				vp1->bridged = NULL;
-			}
 			res = AST_BRIDGE_COMPLETE;
 			break;
 		} else if ((fr->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
@@ -3020,6 +3013,14 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 		p0_callback = p2p_callback_disable(c0, p0, &p0_fds[0], &p0_iod[0]);
 	if (p1_callback)
 		p1_callback = p2p_callback_disable(c1, p1, &p1_fds[0], &p1_iod[0]);
+
+	/* Break out of the direct bridge */
+	p0->bridged = NULL;
+	p1->bridged = NULL;
+	if (vp0) {
+		vp0->bridged = NULL;
+		vp1->bridged = NULL;
+	}
 
 	return res;
 }
