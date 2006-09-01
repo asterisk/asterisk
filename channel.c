@@ -1782,6 +1782,7 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 					ast_log(LOG_WARNING, "Unexpected control subclass '%d'\n", f->subclass);
 					break;
 				}
+				break;
 			case AST_FRAME_VOICE:
 				/* Write audio if appropriate */
 				if (audiofd > -1)
