@@ -3070,7 +3070,13 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	audio_p1_res = pr1->get_rtp_info(c1, &p1);
 	video_p1_res = pr1->get_vrtp_info ? pr1->get_vrtp_info(c1, &vp1) : AST_RTP_GET_FAILED;
 
-	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
+	/* If we are carrying video, and both sides are not reinviting... then fail the native bridge */
+	if (video_p0_res != AST_RTP_GET_FAILED && (audio_p0_res != AST_RTP_TRY_NATIVE || video_p0_res != AST_RTP_TRY_NATIVE))
+		audio_p0_res = AST_RTP_GET_FAILED;
+	if (video_p1_res != AST_RTP_GET_FAILED && (audio_p1_res != AST_RTP_TRY_NATIVE || video_p1_res != AST_RTP_TRY_NATIVE))
+		audio_p1_res = AST_RTP_GET_FAILED;
+
+	/* Check if a bridge is possible (partial/native) */
 	if (audio_p0_res == AST_RTP_GET_FAILED || audio_p1_res == AST_RTP_GET_FAILED) {
 		/* Somebody doesn't want to play... */
 		ast_channel_unlock(c0);

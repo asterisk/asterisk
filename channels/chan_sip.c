@@ -16130,7 +16130,7 @@ static enum ast_rtp_get_result sip_get_vrtp_peer(struct ast_channel *chan, struc
 		return AST_RTP_GET_FAILED;
 
 	ast_mutex_lock(&p->lock);
-	if (!(p->rtp)) {
+	if (!(p->vrtp)) {
 		ast_mutex_unlock(&p->lock);
 		return AST_RTP_GET_FAILED;
 	}
