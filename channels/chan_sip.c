@@ -13051,13 +13051,14 @@ static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
 static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active)
 {
 	struct sip_pvt *p;
+	int changed = 0;
 
 	p = chan->tech_pvt;
 	if (!p) 
 		return -1;
 	ast_mutex_lock(&p->lock);
 		if (rtp) {
-		ast_rtp_get_peer(rtp, &p->redirip);
+		changed |= ast_rtp_get_peer(rtp, &p->redirip);
 #ifdef SIP_MIDCOM
 		if (m_cb)
 		  m_cb->ast_rtp_get_their_nat_audio_hook(rtp, p->r);
@@ -13066,7 +13067,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 	else
 		memset(&p->redirip, 0, sizeof(p->redirip));
 		if (vrtp) {
-		ast_rtp_get_peer(vrtp, &p->vredirip);
+		changed |= ast_rtp_get_peer(vrtp, &p->vredirip);
 #ifdef SIP_MIDCOM
 		if (m_cb)
 		  m_cb->ast_rtp_get_their_nat_video_hook(vrtp, p->r);
@@ -13074,8 +13075,11 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		}
 	else
 		memset(&p->vredirip, 0, sizeof(p->vredirip));
-	p->redircodecs = codecs;
-	if (codecs && !ast_test_flag(p, SIP_GOTREFER)) {
+	if (codecs && (p->redircodecs != codecs)) {
+		p->redircodecs = codecs;
+		changed = 1;
+	}
+	if (changed && !ast_test_flag(p, SIP_GOTREFER)) {
 		if (!p->pendinginvite) {
 			if (option_debug > 2) {
 				char iabuf[INET_ADDRSTRLEN];
