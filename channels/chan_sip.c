@@ -10909,9 +10909,13 @@ static int func_header_read(struct ast_channel *chan, char *function, char *data
 	}
 
 	AST_STANDARD_APP_ARGS(args, data);
-	sscanf(args.number, "%d", &number);
-	if (number < 1)
+	if (!args.number) {
 		number = 1;
+	} else {
+		sscanf(args.number, "%d", &number);
+		if (number < 1)
+			number = 1;
+	}
 
 	p = chan->tech_pvt;
 
