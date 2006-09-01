@@ -1002,7 +1002,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 		}
 		if (ms < 0)
 			ms = 1000;
-		if (!cmdfd) {
+		if (cmdfd > -1) {
 			res = ast_waitfor(c, ms);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Select failed (%s)\n", strerror(errno));
