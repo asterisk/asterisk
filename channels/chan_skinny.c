@@ -2172,6 +2172,7 @@ static void *skinny_ss(void *data)
 
 	if (option_verbose > 2)
 		ast_verbose( VERBOSE_PREFIX_3 "Starting simple switch on '%s@%s'\n", l->name, d->name);
+
 	while (len < AST_MAX_EXTENSION-1) {
 		res = ast_waitfordigit(c, timeout);
 		timeout = 0;
@@ -2759,22 +2760,25 @@ static int handle_keypad_button_message(skinny_req *req, struct skinnysession *s
 	struct skinny_subchannel *sub = NULL;
 	struct skinny_line *l;
 	struct skinny_device *d = s->device;
-	struct ast_frame f = { 0, };
+	struct ast_frame fb = { 0, };
+	struct ast_frame fe = { 0, };
 	char dgt;
 	int digit;
 	int lineInstance;
 	int callReference;
 
+	fb.frametype = AST_FRAME_DTMF_BEGIN;
+	fe.frametype = AST_FRAME_DTMF_END;
+
 	digit = letohl(req->data.keypad.button);
 	lineInstance = letohl(req->data.keypad.lineInstance);
 	callReference = letohl(req->data.keypad.callReference);
 
-	f.frametype = AST_FRAME_DTMF;
 	if (digit == 14) {
 		dgt = '*';
 	} else if (digit == 15) {
 		dgt = '#';
-	} else if (digit >=0 && digit <= 9) {
+	} else if (digit >= 0 && digit <= 9) {
 		dgt = '0' + digit;
 	} else {
 		/* digit=10-13 (A,B,C,D ?), or
@@ -2787,8 +2791,12 @@ static int handle_keypad_button_message(skinny_req *req, struct skinnysession *s
 		dgt = '0' + digit;
 		ast_log(LOG_WARNING, "Unsupported digit %d\n", digit);
 	}
-	f.subclass = dgt;
-	f.src = "skinny";
+
+	fb.subclass = dgt;
+	fe.subclass = dgt;
+
+	fb.src = "skinny";
+	fe.src = "skinny";
 
 	if (lineInstance && callReference)
 		sub = find_subchannel_by_instance_reference(d, lineInstance, callReference);
@@ -2800,11 +2808,17 @@ static int handle_keypad_button_message(skinny_req *req, struct skinnysession *s
 
 	l = sub->parent;
 	if (sub->owner) {
+		if (sub->owner->_state == 0) {
+			ast_queue_frame(sub->owner, &fb);
+		}
 		/* XXX MUST queue this frame to all lines in threeway call if threeway call is active */
-		ast_queue_frame(sub->owner, &f);
+		ast_queue_frame(sub->owner, &fe);
 		/* XXX This seriously needs to be fixed */
 		if (sub->next && sub->next->owner) {
-			ast_queue_frame(sub->next->owner, &f);
+			if (sub->owner->_state == 0) {
+				ast_queue_frame(sub->next->owner, &fb);
+			}
+			ast_queue_frame(sub->next->owner, &fe);
 		}
 	} else {
 		if (skinnydebug)
