@@ -4196,7 +4196,7 @@ static int reload_config(void)
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to load config %s, Skinny disabled\n", config);
-		return 0;
+		return -1;
 	}
 	memset(&bindaddr, 0, sizeof(bindaddr));
 
@@ -4331,7 +4331,7 @@ static int reload_config(void)
 	}
 	ast_mutex_unlock(&netlock);
 	ast_config_destroy(cfg);
-	return 0;
+	return 1;
 }
 
 static void delete_devices(void)
@@ -4391,9 +4391,16 @@ static int load_module(void)
 	}
 	/* load and parse config */
 	res = reload_config();
-	if(!res) {
+	if (res == -1) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
+
+	/* Make sure we can register our skinny channel type */
+	if (ast_channel_register(&skinny_tech)) {
+		ast_log(LOG_ERROR, "Unable to register channel class 'Skinny'\n");
+		return -1;
+	}
+
 	ast_rtp_proto_register(&skinny_rtp);
 	ast_cli_register(&cli_show_devices);
 	ast_cli_register(&cli_show_lines);
@@ -4411,14 +4418,6 @@ static int load_module(void)
 	/* And start the monitor for the first time */
 	restart_monitor();
 
-	/* Announce our presence to Asterisk */
-	if (!res) {
-		/* Make sure we can register our skinny channel type */
-		if (ast_channel_register(&skinny_tech)) {
-			ast_log(LOG_ERROR, "Unable to register channel class 'Skinny'\n");
-			return -1;
-		}
-	}
 	return res;
 }
 
