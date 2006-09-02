@@ -1561,7 +1561,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		return 0;
 	}
 
-	if (!qe->parent->ringinuse && (tmp->member->status == AST_DEVICE_INUSE)) {
+	if (!qe->parent->ringinuse && (tmp->member->status != AST_DEVICE_NOT_INUSE) && (tmp->member->status != AST_DEVICE_UNKNOWN)) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "%s in use, can't receive call\n", tmp->interface);
 		if (qe->chan->cdr)
