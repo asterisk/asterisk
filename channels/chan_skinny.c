@@ -2760,15 +2760,11 @@ static int handle_keypad_button_message(skinny_req *req, struct skinnysession *s
 	struct skinny_subchannel *sub = NULL;
 	struct skinny_line *l;
 	struct skinny_device *d = s->device;
-	struct ast_frame fb = { 0, };
-	struct ast_frame fe = { 0, };
+	struct ast_frame f = { 0, };
 	char dgt;
 	int digit;
 	int lineInstance;
 	int callReference;
-
-	fb.frametype = AST_FRAME_DTMF_BEGIN;
-	fe.frametype = AST_FRAME_DTMF_END;
 
 	digit = letohl(req->data.keypad.button);
 	lineInstance = letohl(req->data.keypad.lineInstance);
@@ -2792,11 +2788,9 @@ static int handle_keypad_button_message(skinny_req *req, struct skinnysession *s
 		ast_log(LOG_WARNING, "Unsupported digit %d\n", digit);
 	}
 
-	fb.subclass = dgt;
-	fe.subclass = dgt;
+	f.subclass = dgt;
 
-	fb.src = "skinny";
-	fe.src = "skinny";
+	f.src = "skinny";
 
 	if (lineInstance && callReference)
 		sub = find_subchannel_by_instance_reference(d, lineInstance, callReference);
@@ -2809,16 +2803,20 @@ static int handle_keypad_button_message(skinny_req *req, struct skinnysession *s
 	l = sub->parent;
 	if (sub->owner) {
 		if (sub->owner->_state == 0) {
-			ast_queue_frame(sub->owner, &fb);
+			f.frametype = AST_FRAME_DTMF_BEGIN;
+			ast_queue_frame(sub->owner, &f);
 		}
 		/* XXX MUST queue this frame to all lines in threeway call if threeway call is active */
-		ast_queue_frame(sub->owner, &fe);
+		f.frametype = AST_FRAME_DTMF_END;
+		ast_queue_frame(sub->owner, &f);
 		/* XXX This seriously needs to be fixed */
 		if (sub->next && sub->next->owner) {
 			if (sub->owner->_state == 0) {
-				ast_queue_frame(sub->next->owner, &fb);
+				f.frametype = AST_FRAME_DTMF_BEGIN;
+				ast_queue_frame(sub->next->owner, &f);
 			}
-			ast_queue_frame(sub->next->owner, &fe);
+			f.frametype = AST_FRAME_DTMF_END;
+			ast_queue_frame(sub->next->owner, &f);
 		}
 	} else {
 		if (skinnydebug)
