@@ -57,6 +57,7 @@ struct MemoryStruct {
 	size_t size;
 };
 
+
 static void *myrealloc(void *ptr, size_t size)
 {
 	/* There might be a realloc() out there that doesn't like reallocing
@@ -85,13 +86,16 @@ static int curl_internal(struct MemoryStruct *chunk, char *url, char *post)
 {
 	CURL *curl;
 
-	curl_global_init(CURL_GLOBAL_ALL);
 	curl = curl_easy_init();
 
 	if (!curl) {
 		return -1;
 	}
 
+	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 180);
+	curl_easy_setopt(curl, CURLOPT_FRESH_CONNECT, 1);
+	curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1);
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)chunk);
@@ -126,7 +130,7 @@ static int acf_curl_exec(struct ast_channel *chan, char *cmd, char *info, char *
 	u = ast_module_user_add(chan);
 
 	AST_STANDARD_APP_ARGS(args, info);	
-	
+
 	if (!curl_internal(&chunk, args.url, args.postdata)) {
 		if (chunk.memory) {
 			chunk.memory[chunk.size] = '\0';
@@ -162,6 +166,8 @@ static int unload_module(void)
 	res = ast_custom_function_unregister(&acf_curl);
 
 	ast_module_user_hangup_all();
+
+	curl_global_cleanup();
 	
 	return res;
 }
@@ -169,6 +175,11 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res;
+
+	if (curl_global_init(CURL_GLOBAL_ALL)) {
+		ast_log(LOG_ERROR, "Unable to initialize the CURL library. Cannot load func_curl\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}	
 
 	res = ast_custom_function_register(&acf_curl);
 
