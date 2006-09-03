@@ -131,7 +131,7 @@ static struct ast_channel *local_get_channel_begin_name(char *name)
 	ast_mutex_lock(&modlock);
 	chan = local_channel_walk(NULL);
 	while (chan) {
-		if (!strncmp(chan->name, name, strlen(name))) {
+		if (!strncmp(chan->name, name, strlen(name)) && strncmp(chan->name, "Zap/pseudo", 10)) {
 			ret = chan;
 			break;
 		}
