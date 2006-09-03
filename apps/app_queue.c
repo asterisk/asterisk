@@ -1829,6 +1829,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 						o->stillgoing = 0;
 						numnochan++;
 					} else {
+						ast_channel_inherit_variables(in, o->chan);
 						if (o->chan->cid.cid_num)
 							free(o->chan->cid.cid_num);
 						o->chan->cid.cid_num = NULL;
