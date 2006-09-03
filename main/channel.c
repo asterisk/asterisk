@@ -1366,16 +1366,14 @@ static void queue_frame_to_spies(struct ast_channel *chan, struct ast_frame *f, 
 				}
 			}
 			duped_fr = ast_frdup(translated_frame);
-		} else {
-			if (f->subclass != queue->format) {
-				ast_log(LOG_WARNING, "Spy '%s' on channel '%s' wants format '%s', but frame is '%s', dropping\n",
-					spy->type, chan->name,
-					ast_getformatname(queue->format), ast_getformatname(f->subclass));
-				ast_mutex_unlock(&spy->lock);
-				continue;
-			}
+		} else if (f->subclass != queue->format) {
+			ast_log(LOG_WARNING, "Spy '%s' on channel '%s' wants format '%s', but frame is '%s', dropping\n",
+				spy->type, chan->name,
+				ast_getformatname(queue->format), ast_getformatname(f->subclass));
+			ast_mutex_unlock(&spy->lock);
+			continue;
+		} else
 			duped_fr = ast_frdup(f);
-		}
 
 		AST_LIST_INSERT_TAIL(&queue->list, duped_fr, frame_list);
 
