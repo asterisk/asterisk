@@ -122,23 +122,6 @@ AST_APP_OPTIONS(mixmonitor_opts, {
 	AST_APP_OPTION_ARG('W', MUXFLAG_VOLUME, OPT_ARG_VOLUME),
 });
 
-static void stopmon(struct ast_channel_spy *spy) 
-{
-	struct ast_channel *chan = spy->chan;
-
-	/* If our status has changed to DONE, then the channel we're spying on is gone....
-	   DON'T TOUCH IT!!!  RUN AWAY!!! */
-	if (spy->status == CHANSPY_DONE)
-		return;
-  
-	if (!chan)
-		return;
-
-	ast_channel_lock(chan);
-	ast_channel_spy_remove(chan, spy);
-	ast_channel_unlock(chan);
-}
-
 static int startmon(struct ast_channel *chan, struct ast_channel_spy *spy) 
 {
 	struct ast_channel *peer;
@@ -176,9 +159,8 @@ static void *mixmonitor_thread(void *obj)
 
 		ast_channel_spy_trigger_wait(&mixmonitor->spy);
 		
-		if (!mixmonitor->spy.chan || mixmonitor->spy.status != CHANSPY_RUNNING) {
+		if (!mixmonitor->spy.chan || mixmonitor->spy.status != CHANSPY_RUNNING)
 			break;
-		}
 		
 		while (1) {
 			if (!(f = ast_channel_spy_read_frame(&mixmonitor->spy, SAMPLES_PER_FRAME)))
@@ -194,15 +176,15 @@ static void *mixmonitor_thread(void *obj)
 				next = AST_LIST_NEXT(f, frame_list);
 				if (write)
 					ast_writestream(mixmonitor->fs, f);
-				ast_frfree(f);
+				ast_frame_free(f, 0);
 			}
 		}
 	}
 
 	ast_mutex_unlock(&mixmonitor->spy.lock);
-	
-	stopmon(&mixmonitor->spy);
 
+	ast_channel_spy_free(&mixmonitor->spy);
+	
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "End MixMonitor Recording %s\n", mixmonitor->name);
 
@@ -211,8 +193,6 @@ static void *mixmonitor_thread(void *obj)
 			ast_verbose(VERBOSE_PREFIX_2 "Executing [%s]\n", mixmonitor->post_process);
 		ast_safe_system(mixmonitor->post_process);
 	}
-
-	ast_mutex_destroy(&mixmonitor->spy.lock);
 		
 	ast_closestream(mixmonitor->fs);
 

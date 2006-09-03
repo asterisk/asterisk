@@ -1203,22 +1203,61 @@ int ast_channel_spy_add(struct ast_channel *chan, struct ast_channel_spy *spy)
 	return 0;
 }
 
+/* Clean up a channel's spy information */
+static void spy_cleanup(struct ast_channel *chan)
+{
+	if (!AST_LIST_EMPTY(&chan->spies->list))
+		return;
+	if (chan->spies->read_translator.path)
+		ast_translator_free_path(chan->spies->read_translator.path);
+	if (chan->spies->write_translator.path)
+		ast_translator_free_path(chan->spies->write_translator.path);
+	free(chan->spies);
+	chan->spies = NULL;
+	return;
+}
+
+/* Detach a spy from it's channel */
+static void spy_detach(struct ast_channel_spy *spy, struct ast_channel *chan)
+{
+	ast_mutex_lock(&spy->lock);
+
+	/* We only need to poke them if they aren't already done */
+	if (spy->status != CHANSPY_DONE) {
+		/* Indicate to the spy to stop */
+		spy->status = CHANSPY_STOP;
+		spy->chan = NULL;
+		/* Poke the spy if needed */
+		if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE)
+			ast_cond_signal(&spy->trigger);
+	}
+
+	/* Print it out while we still have a lock so the structure can't go away (if signalled above) */
+	ast_log(LOG_DEBUG, "Spy %s removed from channel %s\n", spy->type, chan->name);
+
+	ast_mutex_unlock(&spy->lock);
+
+	return;
+}
+
 void ast_channel_spy_stop_by_type(struct ast_channel *chan, const char *type)
 {
-	struct ast_channel_spy *spy;
+	struct ast_channel_spy *spy = NULL;
 	
 	if (!chan->spies)
 		return;
 
-	AST_LIST_TRAVERSE(&chan->spies->list, spy, list) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->spies->list, spy, list) {
 		ast_mutex_lock(&spy->lock);
 		if ((spy->type == type) && (spy->status == CHANSPY_RUNNING)) {
-			spy->status = CHANSPY_STOP;
-			if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE)
-				ast_cond_signal(&spy->trigger);
-		}
-		ast_mutex_unlock(&spy->lock);
+			ast_mutex_unlock(&spy->lock);
+			AST_LIST_REMOVE_CURRENT(&chan->spies->list, list);
+			spy_detach(spy, chan);
+		} else
+			ast_mutex_unlock(&spy->lock);
 	}
+	AST_LIST_TRAVERSE_SAFE_END
+	spy_cleanup(chan);
 }
 
 void ast_channel_spy_trigger_wait(struct ast_channel_spy *spy)
@@ -1235,62 +1274,54 @@ void ast_channel_spy_trigger_wait(struct ast_channel_spy *spy)
 
 void ast_channel_spy_remove(struct ast_channel *chan, struct ast_channel_spy *spy)
 {
-	struct ast_frame *f;
-
 	if (!chan->spies)
 		return;
 
 	AST_LIST_REMOVE(&chan->spies->list, spy, list);
+	spy_detach(spy, chan);
+	spy_cleanup(chan);
+}
 
-	ast_mutex_lock(&spy->lock);
+void ast_channel_spy_free(struct ast_channel_spy *spy)
+{
+	struct ast_frame *f = NULL;
 
-	spy->chan = NULL;
+	if (spy->status == CHANSPY_DONE)
+		return;
 
-	while ((f = AST_LIST_REMOVE_HEAD(&spy->read_queue.list, frame_list)))
-		ast_frfree(f);
-	
+	/* Switch status to done in case we get called twice */
+	spy->status = CHANSPY_DONE;
+
+	/* Drop any frames in the queue */
 	while ((f = AST_LIST_REMOVE_HEAD(&spy->write_queue.list, frame_list)))
 		ast_frfree(f);
+	while ((f = AST_LIST_REMOVE_HEAD(&spy->read_queue.list, frame_list)))
+		ast_frfree(f);
 
+	/* Destroy the condition if in use */
 	if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE)
 		ast_cond_destroy(&spy->trigger);
 
-	ast_mutex_unlock(&spy->lock);
+	/* Destroy our mutex since it is no longer in use */
+	ast_mutex_destroy(&spy->lock);
 
-	ast_log(LOG_DEBUG, "Spy %s removed from channel %s\n",
-		spy->type, chan->name);
-
-	if (AST_LIST_EMPTY(&chan->spies->list)) {
-		if (chan->spies->read_translator.path)
-			ast_translator_free_path(chan->spies->read_translator.path);
-		if (chan->spies->write_translator.path)
-			ast_translator_free_path(chan->spies->write_translator.path);
-		free(chan->spies);
-		chan->spies = NULL;
-	}
+	return;
 }
 
 static void detach_spies(struct ast_channel *chan)
 {
-	struct ast_channel_spy *spy;
+	struct ast_channel_spy *spy = NULL;
 
 	if (!chan->spies)
 		return;
 
-	/* Marking the spies as done is sufficient.  Chanspy or spy users will get the picture. */
-	AST_LIST_TRAVERSE(&chan->spies->list, spy, list) {
-		ast_mutex_lock(&spy->lock);
-		spy->chan = NULL;
-		if (spy->status == CHANSPY_RUNNING)
-			spy->status = CHANSPY_DONE;
-		if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE)
-			ast_cond_signal(&spy->trigger);
-		ast_mutex_unlock(&spy->lock);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->spies->list, spy, list) {
+		AST_LIST_REMOVE_CURRENT(&chan->spies->list, list);
+		spy_detach(spy, chan);
 	}
+	AST_LIST_TRAVERSE_SAFE_END
 
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->spies->list, spy, list)
-		ast_channel_spy_remove(chan, spy);
-	AST_LIST_TRAVERSE_SAFE_END;
+	spy_cleanup(chan);
 }
 
 /*! \brief Softly hangup a channel, don't lock */

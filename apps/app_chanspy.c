@@ -211,21 +211,6 @@ static int start_spying(struct ast_channel *chan, struct ast_channel *spychan, s
 	return res;
 }
 
-static void stop_spying(struct ast_channel_spy *spy) 
-{
-	/* If our status has changed to DONE, then the channel we're spying on is gone....
-	   DON'T TOUCH IT!!!  RUN AWAY!!! */
-	if (spy->status == CHANSPY_DONE)
-		return;
-
-	if (!spy->chan)
-		return;
-
-	ast_channel_lock(spy->chan);
-	ast_channel_spy_remove(spy->chan, spy);
-	ast_channel_unlock(spy->chan);
-};
-
 /* Map 'volume' levels from -4 through +4 into
    decibel (dB) settings for channel drivers
 */
@@ -327,10 +312,11 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	*/
 	while ((res = ast_waitfor(chan, -1) > -1) &&
 	       csth.spy.status == CHANSPY_RUNNING &&
-	       !ast_check_hangup(chan) &&
 	       csth.spy.chan) {
-		if (!(f = ast_read(chan)))
+		if (!(f = ast_read(chan)) || ast_check_hangup(chan)) {
+			running = -1;
 			break;
+		}
 
 		if (ast_test_flag(flags, OPTION_WHISPER) &&
 		    (f->frametype == AST_FRAME_VOICE)) {
@@ -381,13 +367,16 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	else
 		ast_deactivate_generator(chan);
 
-	stop_spying(&csth.spy);
+	/* If a channel still exists on our spy structure then we need to remove ourselves */
+        if (csth.spy.chan) {
+                csth.spy.status = CHANSPY_DONE;
+                ast_channel_spy_remove(csth.spy.chan, &csth.spy);
+        }
+	ast_channel_spy_free(&csth.spy);
 	
 	if (option_verbose >= 2)
 		ast_verbose(VERBOSE_PREFIX_2 "Done Spying on channel %s\n", name);
 	
-	ast_mutex_destroy(&csth.spy.lock);
-
 	return running;
 }
 
@@ -532,6 +521,8 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 				peer = NULL;
 			}
 		}
+		if (res == -1)
+			break;
 	}
 	
 	ast_clear_flag(chan, AST_FLAG_SPYING);

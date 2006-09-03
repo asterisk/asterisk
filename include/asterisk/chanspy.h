@@ -95,6 +95,15 @@ int ast_channel_spy_add(struct ast_channel *chan, struct ast_channel_spy *spy);
 void ast_channel_spy_remove(struct ast_channel *chan, struct ast_channel_spy *spy);
 
 /*!
+  \brief Free a spy.
+  \param spy The spy to free
+  \return nothing
+
+  Note: This function MUST NOT be called with the spy locked.
+*/
+void ast_channel_spy_free(struct ast_channel_spy *spy);
+
+/*!
   \brief Find all spies of a particular type on a channel and stop them.
   \param chan The channel to operate on
   \param type A character string identifying the type of spies to be stopped
