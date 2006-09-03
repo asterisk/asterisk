@@ -1219,6 +1219,9 @@ int ast_dynamic_str_thread_build_va(struct ast_dynamic_str **buf, size_t max_len
 		if (!(*buf = ast_realloc(*buf, (*buf)->len + sizeof(*(*buf)))))
 			return AST_DYNSTR_BUILD_FAILED;
 
+		if (append)
+			(*buf)->str[offset] = '\0';
+
 		if (ts)
 			pthread_setspecific(ts->key, *buf);
 
