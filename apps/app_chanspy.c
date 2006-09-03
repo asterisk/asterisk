@@ -368,10 +368,10 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 		ast_deactivate_generator(chan);
 
 	/* If a channel still exists on our spy structure then we need to remove ourselves */
-        if (csth.spy.chan) {
-                csth.spy.status = CHANSPY_DONE;
-                ast_channel_spy_remove(csth.spy.chan, &csth.spy);
-        }
+	if (csth.spy.chan) {
+		csth.spy.status = CHANSPY_DONE;
+		ast_channel_spy_remove(csth.spy.chan, &csth.spy);
+	}
 	ast_channel_spy_free(&csth.spy);
 	
 	if (option_verbose >= 2)
