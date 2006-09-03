@@ -139,6 +139,8 @@ static char *descrip =
 "      'H' -- allow caller to hang up by hitting *.\n"
 "      'n' -- no retries on the timeout; will exit this application and \n"
 "             go to the next step.\n"
+"      'i' -- ignore call forward requests from queue members and do nothing\n"
+"             when they are requested.\n"
 "      'r' -- ring instead of playing MOH\n"
 "      't' -- allow the called user transfer the calling user\n"
 "      'T' -- to allow the calling user to transfer the call.\n"
@@ -1831,7 +1833,7 @@ static void rna(int rnatime, struct queue_ent *qe, char *membername)
 
 #define AST_MAX_WATCHERS 256
 
-static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callattempt *outgoing, int *to, char *digit, int prebusies, int caller_disconnect)
+static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callattempt *outgoing, int *to, char *digit, int prebusies, int caller_disconnect, int forwardsallowed)
 {
 	char *queue = qe->parent->name;
 	struct callattempt *o;
@@ -1892,8 +1894,12 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					peer = o;
 				}
 			} else if (o->chan && (o->chan == winner)) {
-				ast_copy_string(on, o->member->interface, sizeof(on));
-				if (!ast_strlen_zero(o->chan->call_forward)) {
+				if (!ast_strlen_zero(o->chan->call_forward) && !forwardsallowed) {
+					ast_copy_string(on, o->member->interface, sizeof(on));
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s' prevented.\n", in->name, o->chan->call_forward);
+                                        winner = o->chan = NULL;
+				} else if (!ast_strlen_zero(o->chan->call_forward)) {
 					char tmpchan[256];
 					char *stuff;
 					char *tech;
@@ -2286,6 +2292,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	struct ast_app *mixmonapp = NULL;
 	char *p;
 	char vars[2048];
+	int forwardsallowed = 1;
 
 	memset(&bridge_config, 0, sizeof(bridge_config));
 	time(&now);
@@ -2316,6 +2323,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		case 'n':
 			if ((now - qe->start >= qe->parent->timeout))
 				*go_on = 1;
+			break;
+		case 'i':
+			forwardsallowed = 0;
 			break;
 		}
 
@@ -2370,7 +2380,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	ast_mutex_unlock(&qe->parent->lock);
 	if (use_weight)
 		AST_LIST_UNLOCK(&queues);
-	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies, ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT));
+	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies, ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT), forwardsallowed);
 	ast_mutex_lock(&qe->parent->lock);
 	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY) {
 		store_next(qe, outgoing);
