@@ -1334,6 +1334,7 @@ static void queue_frame_to_spies(struct ast_channel *chan, struct ast_frame *f, 
 
 	AST_LIST_TRAVERSE(&chan->spies->list, spy, list) {
 		struct ast_channel_spy_queue *queue;
+		struct ast_frame *duped_fr;
 
 		ast_mutex_lock(&spy->lock);
 
@@ -1364,7 +1365,7 @@ static void queue_frame_to_spies(struct ast_channel *chan, struct ast_frame *f, 
 					break;
 				}
 			}
-			AST_LIST_INSERT_TAIL(&queue->list, ast_frdup(translated_frame), frame_list);
+			duped_fr = ast_frdup(translated_frame);
 		} else {
 			if (f->subclass != queue->format) {
 				ast_log(LOG_WARNING, "Spy '%s' on channel '%s' wants format '%s', but frame is '%s', dropping\n",
@@ -1373,8 +1374,10 @@ static void queue_frame_to_spies(struct ast_channel *chan, struct ast_frame *f, 
 				ast_mutex_unlock(&spy->lock);
 				continue;
 			}
-			AST_LIST_INSERT_TAIL(&queue->list, ast_frdup(f), frame_list);
+			duped_fr = ast_frdup(f);
 		}
+
+		AST_LIST_INSERT_TAIL(&queue->list, duped_fr, frame_list);
 
 		queue->samples += f->samples;
 
