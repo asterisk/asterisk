@@ -5232,8 +5232,10 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 
 	if (args.options)
 		ast_app_parse_options(waitexten_opts, &flags, opts, args.options);
-
-	if (ast_test_flag(&flags, WAITEXTEN_MOH))
+	
+	if (ast_test_flag(&flags, WAITEXTEN_MOH) && !opts[0] ) {
+		ast_log(LOG_WARNING, "The 'm' option has been specified for WaitExten without a class.\n"); 
+	} else if (ast_test_flag(&flags, WAITEXTEN_MOH))
 		ast_indicate_data(chan, AST_CONTROL_HOLD, opts[0], strlen(opts[0]));
 
 	/* Wait for "n" seconds */
