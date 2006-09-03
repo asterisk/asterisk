@@ -839,7 +839,7 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		q->periodicannouncefrequency = atoi(val);
 	} else if (!strcasecmp(param, "retry")) {
 		q->retry = atoi(val);
-		if (q->retry < 0)
+		if (q->retry <= 0)
 			q->retry = DEFAULT_RETRY;
 	} else if (!strcasecmp(param, "wrapuptime")) {
 		q->wrapuptime = atoi(val);
