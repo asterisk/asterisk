@@ -100,7 +100,7 @@ AST_APP_OPTIONS(background_opts, {
 #define WAITEXTEN_MOH		(1 << 0)
 
 AST_APP_OPTIONS(waitexten_opts, {
-	AST_APP_OPTION_ARG('m', WAITEXTEN_MOH, 1),
+	AST_APP_OPTION_ARG('m', WAITEXTEN_MOH, 0),
 });
 
 struct ast_context;
