@@ -396,6 +396,7 @@ static struct ast_channel *next_channel(const struct ast_channel *last, const ch
 {
 	struct ast_channel *this;
 
+	redo:
 	if (spec)
 		this = ast_walk_channel_by_name_prefix_locked(last, spec, strlen(spec));
 	else if (exten)
@@ -403,8 +404,11 @@ static struct ast_channel *next_channel(const struct ast_channel *last, const ch
 	else
 		this = ast_channel_walk_locked(last);
 
-	if (this)
+	if (this) {
 		ast_channel_unlock(this);
+		if (!strncmp(this->name, "Zap/pseudo", 10))
+			goto redo;
+	}
 
 	return this;
 }
