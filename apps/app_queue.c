@@ -1600,6 +1600,11 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 			ast_cdr_busy(qe->chan->cdr);
 		tmp->stillgoing = 0;
 		update_dial_status(qe->parent, tmp->member, status);
+
+		ast_mutex_lock(&qe->parent->lock);
+		qe->parent->rrpos++;
+		ast_mutex_unlock(&qe->parent->lock);
+
 		(*busies)++;
 		return 0;
 	} else if (status != tmp->oldstatus)
