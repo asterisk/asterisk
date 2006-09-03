@@ -317,12 +317,12 @@ static void frame_cache_cleanup(void *data)
 	free(frames);
 }
 
-void ast_frfree(struct ast_frame *fr)
+void ast_frame_free(struct ast_frame *fr, int cache)
 {
 	if (!fr->mallocd)
 		return;
 
-	if (fr->mallocd == AST_MALLOCD_HDR) {
+	if (cache && fr->mallocd == AST_MALLOCD_HDR) {
 		/* Cool, only the header is malloc'd, let's just cache those for now 
 		 * to keep things simple... */
 		struct ast_frame_cache *frames;

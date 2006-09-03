@@ -31,6 +31,8 @@ extern "C" {
 
 #include <sys/types.h>
 #include <sys/time.h>
+
+#include "asterisk/compiler.h"
 #include "asterisk/endian.h"
 #include "asterisk/linkedlists.h"
 
@@ -354,12 +356,18 @@ struct ast_option_header {
 struct ast_frame *ast_fralloc(char *source, int len);
 #endif
 
-/*!  \brief Frees a frame 
+/*!  
+ * \brief Frees a frame 
+ * 
  * \param fr Frame to free
- * Free a frame, and the memory it used if applicable
- * \return no return.
+ * \param cache Whether to consider this frame for frame caching
  */
-void ast_frfree(struct ast_frame *fr);
+void ast_frame_free(struct ast_frame *fr, int cache);
+
+static void force_inline ast_frfree(struct ast_frame *fr)
+{
+	ast_frame_free(fr, 1);
+}
 
 /*! \brief Makes a frame independent of any static storage
  * \param fr frame to act upon
