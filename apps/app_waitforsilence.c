@@ -4,7 +4,7 @@
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * WaitForSilence Application by David C. Troy <dave@popvox.com>
- * Version 1.00 2004-01-29
+ * Version 1.11 2006-06-29
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -25,6 +25,7 @@
  *   - Waits for up to 'x' milliseconds of silence, 'y' times \n
  *   - WaitForSilence(500,2) will wait for 1/2 second of silence, twice \n
  *   - WaitForSilence(1000,1) will wait for 1 second of silence, once \n
+ *   - WaitForSilence(300,3,10) will wait for 300ms of silence, 3 times, and return after 10sec \n
  *
  * \author David C. Troy <dave@popvox.com>
  *
@@ -50,34 +51,43 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app = "WaitForSilence";
 static char *synopsis = "Waits for a specified amount of silence";
-static char *descrip = 
-"  WaitForSilence(x[|y]) Wait for Silence: Waits for up to 'x' \n"
-"milliseconds of silence, 'y' times or 1 if omitted\n"
-"Set the channel variable WAITSTATUS with to one of these values:"
-"SILENCE - if silence of x ms was detected"
-"TIMEOUT - if silence of x ms was not detected."
-"Examples:\n"
+static char *descrip =
+"  WaitForSilence(silencerequired[|iterations][|timeout]) \n"
+"Wait for Silence: Waits for up to 'silencerequired' \n"
+"milliseconds of silence, 'iterations' times or once if omitted.\n"
+"An optional timeout specified the number of seconds to return\n"
+"after, even if we do not receive the specified amount of silence.\n"
+"Use 'timeout' with caution, as it may defeat the purpose of this\n"
+"application, which is to wait indefinitely until silence is detected\n"
+"on the line.  This is particularly useful for reverse-911-type\n"
+"call broadcast applications where you need to wait for an answering\n"
+"machine to complete its spiel before playing a message.\n"
+"The timeout parameter is specified only to avoid an infinite loop in\n"
+"cases where silence is never achieved.  Typically you will want to\n"
+"include two or more calls to WaitForSilence when dealing with an answering\n"
+"machine; first waiting for the spiel to finish, then waiting for the beep, etc.\n\n"
+  "Examples:\n"
 "  - WaitForSilence(500|2) will wait for 1/2 second of silence, twice\n"
-"  - WaitForSilence(1000) will wait for 1 second of silence, once\n";
+"  - WaitForSilence(1000) will wait for 1 second of silence, once\n"
+"  - WaitForSilence(300|3|10) will wait for 300ms silence, 3 times,\n"
+"     and returns after 10 sec, even if silence is not detected\n\n"
+"Sets the channel variable WAITSTATUS with to one of these values:\n"
+"SILENCE - if exited with silence detected\n"
+"TIMEOUT - if exited without silence detected after timeout\n";
 
-
-static int do_waiting(struct ast_channel *chan, int maxsilence) {
-
+static int do_waiting(struct ast_channel *chan, int silencereqd, time_t waitstart, int timeout) {
 	struct ast_frame *f;
-	int totalsilence = 0;
 	int dspsilence = 0;
-	int gotsilence = 0; 
 	static int silencethreshold = 128;
 	int rfmt = 0;
 	int res = 0;
 	struct ast_dsp *sildet;	 /* silence detector dsp */
-	time_t start, now;
-	time(&start);
+ 	time_t now;
 
 	rfmt = chan->readformat; /* Set to linear mode */
 	res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+		ast_log(LOG_WARNING, "Unable to set channel to linear mode, giving up\n");
 		return -1;
 	}
 
@@ -91,87 +101,89 @@ static int do_waiting(struct ast_channel *chan, int maxsilence) {
 	/* Await silence... */
 	f = NULL;
 	for(;;) {
-		res = ast_waitfor(chan, 2000);
-		if (!res) {
-			ast_log(LOG_WARNING, "One waitfor failed, trying another\n");
-			/* Try one more time in case of masq */
-			res = ast_waitfor(chan, 2000);
-			if (!res) {
-				ast_log(LOG_WARNING, "No audio available on %s??\n", chan->name);
-				res = -1;
-			}
-		}
+		/* Start with no silence received */
+		dspsilence = 0;
 
-		if (res < 0) {
+		res = ast_waitfor(chan, silencereqd);
+
+		/* Must have gotten a hangup; let's exit */
+		if (res <= 0) {
 			f = NULL;
 			break;
 		}
-		f = ast_read(chan);
-		if (!f)
-			break;
-		if (f->frametype == AST_FRAME_VOICE) {
-			dspsilence = 0;
-			ast_dsp_silence(sildet, f, &dspsilence);
-			if (dspsilence) {
-				totalsilence = dspsilence;
-				time(&start);
-			} else {
-				totalsilence = 0;
-			}
-
-			if (totalsilence >= maxsilence) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Exiting with %dms silence > %dms required\n", totalsilence, maxsilence);
-				/* Ended happily with silence */
-				gotsilence = 1;
-				pbx_builtin_setvar_helper(chan, "WAITSTATUS", "SILENCE");
-				ast_log(LOG_DEBUG, "WAITSTATUS was set to SILENCE\n");
-				ast_frfree(f);
+		
+		/* We waited and got no frame; sounds like digital silence or a muted digital channel */
+		if (!res) {
+			dspsilence = silencereqd;
+		} else {
+			/* Looks like we did get a frame, so let's check it out */
+			f = ast_read(chan);
+			if (!f)
 				break;
-			} else if ( difftime(time(&now),start) >= maxsilence/1000 ) {
-				pbx_builtin_setvar_helper(chan, "WAITSTATUS", "TIMEOUT");
-				ast_log(LOG_DEBUG, "WAITSTATUS was set to TIMEOUT\n");
+			if (f && f->frametype == AST_FRAME_VOICE) {
+				ast_dsp_silence(sildet, f, &dspsilence);
 				ast_frfree(f);
-				break;
 			}
 		}
-		ast_frfree(f);
+
+		if (option_verbose > 6)
+			ast_verbose(VERBOSE_PREFIX_3 "Got %dms silence< %dms required\n", dspsilence, silencereqd);
+
+		if (dspsilence >= silencereqd) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Exiting with %dms silence >= %dms required\n", dspsilence, silencereqd);
+			/* Ended happily with silence */
+			res = 1;
+			pbx_builtin_setvar_helper(chan, "WAITSTATUS", "SILENCE");
+			ast_log(LOG_DEBUG, "WAITSTATUS was set to SILENCE\n");
+			break;
+		}
+
+		if ( timeout && (difftime(time(&now),waitstart) >= timeout) ) {
+			pbx_builtin_setvar_helper(chan, "WAITSTATUS", "TIMEOUT");
+			ast_log(LOG_DEBUG, "WAITSTATUS was set to TIMEOUT\n");
+			res = 0;
+			break;
+		}
 	}
+
+
 	if (rfmt && ast_set_read_format(chan, rfmt)) {
 		ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(rfmt), chan->name);
 	}
 	ast_dsp_free(sildet);
-	return gotsilence;
+	return res;
 }
 
 static int waitforsilence_exec(struct ast_channel *chan, void *data)
 {
 	int res = 1;
-	struct ast_module_user *u;
-	int maxsilence = 1000;
+	int silencereqd = 1000;
+	int timeout = 0;
 	int iterations = 1, i;
+	time_t waitstart;
 
-	u = ast_module_user_add(chan);
-	
 	res = ast_answer(chan); /* Answer the channel */
 
-	if (!data || ((sscanf(data, "%d|%d", &maxsilence, &iterations) != 2) &&
-		(sscanf(data, "%d", &maxsilence) != 1))) {
-		ast_log(LOG_WARNING, "Using default value of 1000ms, 1 iteration\n");
+	if (!data || ( (sscanf(data, "%d|%d|%d", &silencereqd, &iterations, &timeout) != 3) &&
+		(sscanf(data, "%d|%d", &silencereqd, &iterations) != 2) &&
+		(sscanf(data, "%d", &silencereqd) != 1) ) ) {
+		ast_log(LOG_WARNING, "Using default value of 1000ms, 1 iteration, no timeout\n");
 	}
 
 	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Waiting %d time(s) for %d ms silence\n", iterations, maxsilence);
-	
+		ast_verbose(VERBOSE_PREFIX_3 "Waiting %d time(s) for %d ms silence with %d timeout\n", iterations, silencereqd, timeout);
+
+	time(&waitstart);
 	res = 1;
 	for (i=0; (i<iterations) && (res == 1); i++) {
-		res = do_waiting(chan, maxsilence);
+		res = do_waiting(chan, silencereqd, waitstart, timeout);
 	}
-	ast_module_user_remove(u);
 	if (res > 0)
 		res = 0;
 	return res;
 }
+
 
 static int unload_module(void)
 {
@@ -190,3 +202,4 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Wait For Silence");
+

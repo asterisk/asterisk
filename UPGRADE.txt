@@ -216,6 +216,12 @@ Applications:
   previously used only by EXTENDED_ODBC_STORAGE. This means that you will need to update
   your table format using the schema provided in doc/odbcstorage.txt
 
+* app_waitforsilence: Fixes have been made to this application which changes the 
+  default behavior with how quickly it returns. You can maintain "old-style" behavior
+  with the addition/use of a third "timeout" parameter.
+  Please consult the application documentation and make changes to your dialplan 
+  if appropriate.
+
 Manager:
 
 * After executing the 'status' manager action, the "Status" manager events
