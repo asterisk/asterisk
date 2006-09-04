@@ -2415,7 +2415,7 @@ static int sip_hangup(struct ast_channel *ast)
 {
 	struct sip_pvt *p = ast->tech_pvt;
 	int needcancel = 0;
-	struct ast_flags locflags = {0};
+	int needdestroy = 0;
 
 	if (!p) {
 		ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
@@ -2443,7 +2443,6 @@ static int sip_hangup(struct ast_channel *ast)
 		needcancel = 1;
 
 	/* Disconnect */
-	p = ast->tech_pvt;
 	if (p->vad) {
 		ast_dsp_free(p->vad);
 	}
@@ -2455,7 +2454,16 @@ static int sip_hangup(struct ast_channel *ast)
 	ast_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 
-	ast_set_flag(&locflags, SIP_NEEDDESTROY);	
+	/* Do not destroy this pvt until we have timeout or
+	   get an answer to the BYE or INVITE/CANCEL 
+	   If we get no answer during retransmit period, drop the call anyway.
+	   (Sorry, mother-in-law, you can't deny a hangup by sending
+	   603 declined to BYE...)
+	*/
+	if (ast_test_flag(p, SIP_ALREADYGONE))
+		needdestroy = 1;	/* Set destroy flag at end of this function */
+	else
+		sip_scheddestroy(p, 32000);
 
 	/* Start the process if it's not already started */
 	if (!ast_test_flag(p, SIP_ALREADYGONE) && !ast_strlen_zero(p->initreq.data)) {
@@ -2468,13 +2476,12 @@ static int sip_hangup(struct ast_channel *ast)
 				   it pending */
 				if (!ast_test_flag(p, SIP_CAN_BYE)) {
 					ast_set_flag(p, SIP_PENDINGBYE);
+					/* Do we need a timer here if we don't hear from them at all? */
 				} else {
 					/* Send a new request: CANCEL */
 					transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, 1, 0);
 					/* Actually don't destroy us yet, wait for the 487 on our original 
 					   INVITE, but do set an autodestruct just in case we never get it. */
-					ast_clear_flag(&locflags, SIP_NEEDDESTROY);
-					sip_scheddestroy(p, 32000);
 				}
 				if ( p->initid != -1 ) {
 					/* channel still up - reverse dec of inUse counter
@@ -2500,7 +2507,8 @@ static int sip_hangup(struct ast_channel *ast)
 			}
 		}
 	}
-	ast_copy_flags(p, (&locflags), SIP_NEEDDESTROY);	
+	if (needdestroy)
+		ast_set_flag(p, SIP_NEEDDESTROY);
 	ast_mutex_unlock(&p->lock);
 	return 0;
 }
@@ -9988,6 +9996,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
 			} else if (sipmethod == SIP_REGISTER) {
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
+			} else if (sipmethod == SIP_BYE) {
+				/* Ok, we're ready to go */
+				ast_set_flag(p, SIP_NEEDDESTROY);	
 			} 
 			break;
 		case 401: /* Not www-authorized on SIP method */
@@ -10139,8 +10150,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
 			} else if (sipmethod == SIP_CANCEL) {
 				ast_log(LOG_DEBUG, "Got 200 OK on CANCEL\n");
-			} else if (sipmethod == SIP_MESSAGE)
+			} else if (sipmethod == SIP_MESSAGE) 
 				/* We successfully transmitted a message */
+				ast_set_flag(p, SIP_NEEDDESTROY);	
+			else if (sipmethod == SIP_BYE) 
+				/* Ok, we're ready to go */
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 			break;
 		case 401:	/* www-auth */
@@ -10814,10 +10828,15 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
 			if (p->owner)
 				ast_queue_hangup(p->owner);
 		}
-	} else if (p->owner)
+	} else if (p->owner) {
 		ast_queue_hangup(p->owner);
-	else
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Received bye, issuing owner hangup\n.");
+	} else {
 		ast_set_flag(p, SIP_NEEDDESTROY);	
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Received bye, no owner, selfdestruct soon.\n.");
+	}
 	transmit_response(p, "200 OK", req);
 
 	return 1;
