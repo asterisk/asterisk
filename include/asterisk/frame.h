@@ -386,28 +386,6 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr);
  */
 struct ast_frame *ast_frdup(const struct ast_frame *fr);
 
-/*! \brief Reads a frame from an fd
- * Read a frame from a stream or packet fd, as written by fd_write
- * \param fd an opened fd to read from
- * \return returns a frame on success, NULL on error
- */
-struct ast_frame *ast_fr_fdread(int fd);
-
-/*! Writes a frame to an fd
- * Write a frame to an fd
- * \param fd Which fd to write to
- * \param frame frame to write to the fd
- * \return Returns 0 on success, -1 on failure
- */
-int ast_fr_fdwrite(int fd, struct ast_frame *frame);
-
-/*! \brief Sends a hangup to an fd 
- * Send a hangup (NULL equivalent) on an fd
- * \param fd fd to write to
- * \return Returns 0 on success, -1 on failure
- */
-int ast_fr_fdhangup(int fd);
-
 void ast_swapcopy_samples(void *dst, const void *src, int samples);
 
 /* Helpers for byteswapping native samples to/from 
