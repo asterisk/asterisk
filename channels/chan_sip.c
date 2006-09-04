@@ -3153,7 +3153,7 @@ static int sip_hangup(struct ast_channel *ast)
 {
 	struct sip_pvt *p = ast->tech_pvt;
 	int needcancel = FALSE;
-	struct ast_flags locflags = {0};
+	int needdestroy = 0;
 	struct ast_channel *oldowner = ast;
 
 	if (!p) {
@@ -3166,7 +3166,7 @@ static int sip_hangup(struct ast_channel *ast)
 			ast_log(LOG_DEBUG, "SIP Transfer: Not hanging up right now... Rescheduling hangup for %s.\n", p->callid);
 		if (p->autokillid > -1)
 			sip_cancel_destroy(p);
-		sip_scheddestroy(p, 32000);
+		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Really hang up next time */
 		ast_clear_flag(&p->flags[0], SIP_NEEDDESTROY);
 		p->owner->tech_pvt = NULL;
@@ -3202,7 +3202,6 @@ static int sip_hangup(struct ast_channel *ast)
 	}
 
 	/* Disconnect */
-	p = ast->tech_pvt;
 	if (p->vad)
 		ast_dsp_free(p->vad);
 
@@ -3212,7 +3211,16 @@ static int sip_hangup(struct ast_channel *ast)
 	ast_atomic_fetchadd_int(&usecnt, -1);
 	ast_update_use_count();
 
-	ast_set_flag(&locflags, SIP_NEEDDESTROY);	
+	/* Do not destroy this pvt until we have timeout or
+	   get an answer to the BYE or INVITE/CANCEL 
+	   If we get no answer during retransmit period, drop the call anyway.
+	   (Sorry, mother-in-law, you can't deny a hangup by sending
+	   603 declined to BYE...)
+	*/
+	if (ast_test_flag(&p->flags[0], SIP_ALREADYGONE))
+		needdestroy = 1;	/* Set destroy flag at end of this function */
+	else
+		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 
 	/* Start the process if it's not already started */
 	if (!ast_test_flag(&p->flags[0], SIP_ALREADYGONE) && !ast_strlen_zero(p->initreq.data)) {
@@ -3224,13 +3232,13 @@ static int sip_hangup(struct ast_channel *ast)
 				/* if we can't send right now, mark it pending */
 				if (!ast_test_flag(&p->flags[0], SIP_CAN_BYE)) {
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
+					/* Do we need a timer here if we don't hear from them at all? */
 				} else {
 					/* Send a new request: CANCEL */
 					transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, XMIT_RELIABLE, FALSE);
 					/* Actually don't destroy us yet, wait for the 487 on our original 
 					   INVITE, but do set an autodestruct just in case we never get it. */
-					ast_clear_flag(&locflags, SIP_NEEDDESTROY);
-
+					needdestroy = 0;
 					sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 				}
 				if ( p->initid != -1 ) {
@@ -3275,7 +3283,8 @@ static int sip_hangup(struct ast_channel *ast)
 			}
 		}
 	}
-	ast_copy_flags(&p->flags[0], &locflags, SIP_NEEDDESTROY);	
+	if (needdestroy)
+		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 	ast_mutex_unlock(&p->lock);
 	return 0;
 }
@@ -11721,7 +11730,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				}
 			} else if (sipmethod == SIP_REGISTER) 
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
-			else if (sipmethod == SIP_BYE)
+			else if (sipmethod == SIP_BYE)		/* Ok, we're ready to go */
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY); 
 			break;
 		case 202:   /* Transfer accepted */
@@ -11939,6 +11948,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				handle_response_invite(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_CANCEL) {
 				ast_log(LOG_DEBUG, "Got 200 OK on CANCEL\n");
+
 				/* Wait for 487, then destroy */
 			} else if (sipmethod == SIP_NOTIFY) {
 				/* They got the notify, this is the end */
@@ -11954,6 +11964,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			else if (sipmethod == SIP_MESSAGE)
 				/* We successfully transmitted a message */
 				/* XXX Why destroy this pvt after message transfer? Bad */
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			else if (sipmethod == SIP_BYE) 
+				/* Ok, we're ready to go */
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			break;
 		case 202:   /* Transfer accepted */
@@ -13650,10 +13663,15 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 			if (p->owner)
 				ast_queue_hangup(p->owner);
 		}
-	} else if (p->owner)
+	} else if (p->owner) {
 		ast_queue_hangup(p->owner);
-	else
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Received bye, issuing owner hangup\n.");
+	} else {
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Received bye, no owner, selfdestruct soon.\n.");
+	}
 	transmit_response(p, "200 OK", req);
 
 	return 1;
