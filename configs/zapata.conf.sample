@@ -16,7 +16,7 @@
 ; Trunk groups are used for NFAS or GR-303 connections.
 ;
 ; Group: Defines a trunk group.  
-;        group => <trunkgroup>,<dchannel>[,<backup1>...]
+;        trunkgroup => <trunkgroup>,<dchannel>[,<backup1>...]
 ;
 ;        trunkgroup  is the numerical trunk group to create
 ;        dchannel    is the zap channel which will have the 

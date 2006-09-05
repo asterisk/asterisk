@@ -131,7 +131,7 @@ static struct ast_channel *local_get_channel_begin_name(char *name)
 	ast_mutex_lock(&modlock);
 	chan = local_channel_walk(NULL);
 	while (chan) {
-		if (!strncmp(chan->name, name, strlen(name))) {
+		if (!strncmp(chan->name, name, strlen(name)) && strncmp(chan->name, "Zap/pseudo", 10)) {
 			ret = chan;
 			break;
 		}
@@ -206,21 +206,6 @@ static int start_spying(struct ast_channel *chan, struct ast_channel *spychan, s
 
 	return res;
 }
-
-static void stop_spying(struct ast_channel *chan, struct ast_channel_spy *spy) 
-{
-	/* If our status has changed to DONE, then the channel we're spying on is gone....
-	   DON'T TOUCH IT!!!  RUN AWAY!!! */
-	if (spy->status == CHANSPY_DONE)
-		return;
-
-	if (!chan)
-		return;
-
-	ast_mutex_lock(&chan->lock);
-	ast_channel_spy_remove(chan, spy);
-	ast_mutex_unlock(&chan->lock);
-};
 
 /* Map 'volume' levels from -4 through +4 into
    decibel (dB) settings for channel drivers
@@ -338,7 +323,13 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 			}
 		}
 		ast_deactivate_generator(chan);
-		stop_spying(spyee, &csth.spy);
+
+		if (csth.spy.chan) {
+			csth.spy.status = CHANSPY_DONE;
+			ast_mutex_lock(&csth.spy.chan->lock);
+			ast_channel_spy_remove(csth.spy.chan, &csth.spy);
+			ast_mutex_unlock(&csth.spy.chan->lock);
+		}
 
 		if (option_verbose >= 2) {
 			ast_verbose(VERBOSE_PREFIX_2 "Done Spying on channel %s\n", name);
@@ -347,7 +338,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 		running = 0;
 	}
 
-	ast_mutex_destroy(&csth.spy.lock);
+	ast_channel_spy_free(&csth.spy);
 
 	return running;
 }
