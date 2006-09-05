@@ -310,6 +310,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 		}
 
 		buf[buflen - 1] = ',';
+		buf[buflen] = '\0';
 	}
 	/* Trim trailing comma */
 	buf[buflen - 1] = '\0';
