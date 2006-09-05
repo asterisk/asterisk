@@ -59,8 +59,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$revision$")
 #include "asterisk/app.h"
 
 static char *app = "FollowMe";
-static char *synopsis = 
-"Find-Me/Follow-Me.";
+static char *synopsis = "Find-Me/Follow-Me application";
 static char *descrip = 
 "  FollowMe(followmeid|options):\n"
 "This application performs Find-Me/Follow-Me functionality for the caller\n"
@@ -72,8 +71,10 @@ static char *descrip =
 "    s    - Playback the incoming status message prior to starting the follow-me step(s)\n"
 "    a    - Record the caller's name so it can be announced to the callee on each step\n" 
 "    n    - Playback the unreachable status message if we've run out of steps to reach the\n"
-"           or the callee has elected not to be reachable.\n";
+"           or the callee has elected not to be reachable.\n"
+"Returns -1 on hangup\n";
 
+/*! \brief Number structure */
 struct number {
 	char number[512];	/*!< Phone Number(s) and/or Extension(s) */
 	long timeout;		/*!< Dial Timeout, if used. */
@@ -81,7 +82,8 @@ struct number {
 	AST_LIST_ENTRY(number) entry; /*!< Next Number record */
 };
 
-struct ast_call_followme {
+/*! \brief Data structure for followme scripts */
+struct call_followme {
 	ast_mutex_t lock;
 	char name[AST_MAX_EXTENSION];	/*!< Name - FollowMeID */
 	char moh[AST_MAX_CONTEXT];	/*!< Music On Hold Class to be used */
@@ -89,17 +91,17 @@ struct ast_call_followme {
 	unsigned int active;		/*!< Profile is active (1), or disabled (0). */
 	char takecall[20];		/*!< Digit mapping to take a call */
 	char nextindp[20];		/*!< Digit mapping to decline a call */
-	char callfromprompt[PATH_MAX];
-	char norecordingprompt[PATH_MAX];
-	char optionsprompt[PATH_MAX];
-	char plsholdprompt[PATH_MAX];
-	char statusprompt[PATH_MAX];
-	char sorryprompt[PATH_MAX];
+	char callfromprompt[PATH_MAX];	/*!< Sound prompt name and path */
+	char norecordingprompt[PATH_MAX];	/*!< Sound prompt name and path */
+	char optionsprompt[PATH_MAX];	/*!< Sound prompt name and path */
+	char plsholdprompt[PATH_MAX];	/*!< Sound prompt name and path */
+	char statusprompt[PATH_MAX];	/*!< Sound prompt name and path */
+	char sorryprompt[PATH_MAX];	/*!< Sound prompt name and path */
 
 	AST_LIST_HEAD_NOLOCK(numbers, number) numbers;	   /*!< Head of the list of follow-me numbers */
 	AST_LIST_HEAD_NOLOCK(blnumbers, number) blnumbers; /*!< Head of the list of black-listed numbers */
 	AST_LIST_HEAD_NOLOCK(wlnumbers, number) wlnumbers; /*!< Head of the list of white-listed numbers */
-	AST_LIST_ENTRY(ast_call_followme) entry;           /*!< Next Follow-Me record */
+	AST_LIST_ENTRY(call_followme) entry;           /*!< Next Follow-Me record */
 };
 
 struct fm_args {
@@ -112,12 +114,12 @@ struct fm_args {
 	struct ast_channel *outbound;
 	char takecall[20];		/*!< Digit mapping to take a call */
 	char nextindp[20];		/*!< Digit mapping to decline a call */
-	char callfromprompt[PATH_MAX];
-	char norecordingprompt[PATH_MAX];
-	char optionsprompt[PATH_MAX];
-	char plsholdprompt[PATH_MAX];
-	char statusprompt[PATH_MAX];
-	char sorryprompt[PATH_MAX];
+	char callfromprompt[PATH_MAX];	/*!< Sound prompt name and path */
+	char norecordingprompt[PATH_MAX];	/*!< Sound prompt name and path */
+	char optionsprompt[PATH_MAX];	/*!< Sound prompt name and path */
+	char plsholdprompt[PATH_MAX];	/*!< Sound prompt name and path */
+	char statusprompt[PATH_MAX];	/*!< Sound prompt name and path */
+	char sorryprompt[PATH_MAX];	/*!< Sound prompt name and path */
 	struct ast_flags followmeflags;
 };
 
@@ -145,7 +147,6 @@ AST_APP_OPTIONS(followme_opts, {
 });
 
 static int ynlongest = 0;
-static char toast[80];
 static time_t start_time, answer_time, end_time;
 
 static char *featuredigittostr;
@@ -161,10 +162,10 @@ static char statusprompt[PATH_MAX] = "followme/status";
 static char sorryprompt[PATH_MAX] = "followme/sorry";
 
 
-static AST_LIST_HEAD_STATIC(followmes, ast_call_followme);
+static AST_LIST_HEAD_STATIC(followmes, call_followme);
 AST_LIST_HEAD_NOLOCK(findme_user_listptr, findme_user);
 
-static void free_numbers(struct ast_call_followme *f)
+static void free_numbers(struct call_followme *f)
 {
 	/* Free numbers attached to the profile */
 	struct number *prev;
@@ -187,32 +188,33 @@ static void free_numbers(struct ast_call_followme *f)
 }
 
 
-static struct ast_call_followme *alloc_profile(const char *fmname)
+/*! \brief Allocate and initialize followme profile */
+static struct call_followme *alloc_profile(const char *fmname)
 {
-	struct ast_call_followme *f;
+	struct call_followme *f;
 
-	f = ast_calloc(1, sizeof(*f));
-	if (f) {
-		ast_mutex_init(&f->lock);
-		ast_copy_string(f->name, fmname, sizeof(f->name));
-		ast_copy_string(f->moh, "", sizeof(f->moh));
-		ast_copy_string(f->context, "", sizeof(f->context));
-		ast_copy_string(f->takecall, takecall, sizeof(f->takecall));
-		ast_copy_string(f->nextindp, nextindp, sizeof(f->nextindp));
-		ast_copy_string(f->callfromprompt, callfromprompt, sizeof(f->callfromprompt));
-		ast_copy_string(f->norecordingprompt, norecordingprompt, sizeof(f->norecordingprompt));
-		ast_copy_string(f->optionsprompt, optionsprompt, sizeof(f->optionsprompt));
-		ast_copy_string(f->plsholdprompt, plsholdprompt, sizeof(f->plsholdprompt));
-		ast_copy_string(f->statusprompt, statusprompt, sizeof(f->statusprompt));
-		ast_copy_string(f->sorryprompt, sorryprompt, sizeof(f->sorryprompt));
-		AST_LIST_HEAD_INIT_NOLOCK(&f->numbers);
-		AST_LIST_HEAD_INIT_NOLOCK(&f->blnumbers);
-		AST_LIST_HEAD_INIT_NOLOCK(&f->wlnumbers);
-	}
+	if (!(f = ast_calloc(1, sizeof(*f))))
+		return NULL;
+
+	ast_mutex_init(&f->lock);
+	ast_copy_string(f->name, fmname, sizeof(f->name));
+	f->moh[0] = '\0';
+	f->context[0] = '\0';
+	ast_copy_string(f->takecall, takecall, sizeof(f->takecall));
+	ast_copy_string(f->nextindp, nextindp, sizeof(f->nextindp));
+	ast_copy_string(f->callfromprompt, callfromprompt, sizeof(f->callfromprompt));
+	ast_copy_string(f->norecordingprompt, norecordingprompt, sizeof(f->norecordingprompt));
+	ast_copy_string(f->optionsprompt, optionsprompt, sizeof(f->optionsprompt));
+	ast_copy_string(f->plsholdprompt, plsholdprompt, sizeof(f->plsholdprompt));
+	ast_copy_string(f->statusprompt, statusprompt, sizeof(f->statusprompt));
+	ast_copy_string(f->sorryprompt, sorryprompt, sizeof(f->sorryprompt));
+	AST_LIST_HEAD_INIT_NOLOCK(&f->numbers);
+	AST_LIST_HEAD_INIT_NOLOCK(&f->blnumbers);
+	AST_LIST_HEAD_INIT_NOLOCK(&f->wlnumbers);
 	return f;
 }
 
-static void init_profile(struct ast_call_followme *f)
+static void init_profile(struct call_followme *f)
 {
 	f->active = 1;
 	ast_copy_string(f->moh, defaultmoh, sizeof(f->moh));
@@ -220,30 +222,31 @@ static void init_profile(struct ast_call_followme *f)
 
    
    
-static void profile_set_param(struct ast_call_followme *f, const char *param, const char *val, int linenum, int failunknown)
+/*! \brief Set parameter in profile from configuration file */
+static void profile_set_param(struct call_followme *f, const char *param, const char *val, int linenum, int failunknown)
 {
 
 	if (!strcasecmp(param, "musicclass") || !strcasecmp(param, "musiconhold") || !strcasecmp(param, "music")) 
 		ast_copy_string(f->moh, val, sizeof(f->moh));
-	else if (!strcasecmp(param, "context")) {
+	else if (!strcasecmp(param, "context")) 
 		ast_copy_string(f->context, val, sizeof(f->context));
-	} else if (!strcasecmp(param, "takecall")) {
+	else if (!strcasecmp(param, "takecall"))
 		ast_copy_string(f->takecall, val, sizeof(f->takecall));
-	} else if (!strcasecmp(param, "declinecall")) {
+	else if (!strcasecmp(param, "declinecall"))
 		ast_copy_string(f->nextindp, val, sizeof(f->nextindp));
-	} else if (!strcasecmp(param, "call-from-prompt")) {
+	else if (!strcasecmp(param, "call-from-prompt"))
 		ast_copy_string(f->callfromprompt, val, sizeof(f->callfromprompt));
-	} else if (!strcasecmp(param, "followme-norecording-prompt")) {
+	else if (!strcasecmp(param, "followme-norecording-prompt")) 
 		ast_copy_string(f->norecordingprompt, val, sizeof(f->norecordingprompt));
-	} else if (!strcasecmp(param, "followme-options-prompt")) {
+	else if (!strcasecmp(param, "followme-options-prompt")) 
 		ast_copy_string(f->optionsprompt, val, sizeof(f->optionsprompt));
-	} else if (!strcasecmp(param, "followme-pls-hold-prompt")) {
+	else if (!strcasecmp(param, "followme-pls-hold-prompt"))
 		ast_copy_string(f->plsholdprompt, val, sizeof(f->plsholdprompt));
-	} else if (!strcasecmp(param, "followme-status-prompt")) {
+	else if (!strcasecmp(param, "followme-status-prompt")) 
 		ast_copy_string(f->statusprompt, val, sizeof(f->statusprompt));
-	} else if (!strcasecmp(param, "followme-sorry-prompt")) {
+	else if (!strcasecmp(param, "followme-sorry-prompt")) 
 		ast_copy_string(f->sorryprompt, val, sizeof(f->sorryprompt));
-	} else if (failunknown) {
+	else if (failunknown) {
 		if (linenum >= 0)
 			ast_log(LOG_WARNING, "Unknown keyword in profile '%s': %s at line %d of followme.conf\n", f->name, param, linenum);
 		else
@@ -251,32 +254,31 @@ static void profile_set_param(struct ast_call_followme *f, const char *param, co
 	}
 }
 
+/*! \brief Add a new number */
 static struct number *create_followme_number(char *number, int timeout, int numorder)
 {
 	struct number *cur;
 	char *tmp;
 	
-	/* Add a new number */
 
-	cur = ast_calloc(1, sizeof(*cur));
+	if (!(cur = ast_calloc(1, sizeof(*cur))))
+		return NULL;
 
-	if (cur) {
-		cur->timeout = timeout;
-		if ((tmp = strchr(number, ','))) { 
-			*tmp = '\0';
-		}
-		ast_copy_string(cur->number, number, sizeof(cur->number));
-		cur->order = numorder;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Created a number, %s, order of , %d, with a timeout of %ld.\n", cur->number, cur->order, cur->timeout);
-	}
+	cur->timeout = timeout;
+	if ((tmp = strchr(number, ','))) 
+		*tmp = '\0';
+	ast_copy_string(cur->number, number, sizeof(cur->number));
+	cur->order = numorder;
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Created a number, %s, order of , %d, with a timeout of %ld.\n", cur->number, cur->order, cur->timeout);
 
 	return cur;
 }
 
+/*! \brief Reload followme application module */
 static int reload_followme(void)
 {
-	struct ast_call_followme *f;
+	struct call_followme *f;
 	struct ast_config *cfg;
 	char *cat = NULL, *tmp;
 	struct ast_variable *var;
@@ -404,7 +406,7 @@ static int reload_followme(void)
 					AST_LIST_INSERT_TAIL(&f->numbers, cur, entry);
 				} else {
 					profile_set_param(f, var->name, var->value, var->lineno, 1);
-					if (option_debug)
+					if (option_debug > 1)
 						ast_log(LOG_DEBUG, "Logging parameter %s with value %s from lineno %d\n", var->name, var->value, var->lineno);
 				}
 				var = var->next;
@@ -412,9 +414,8 @@ static int reload_followme(void)
 
 			if (!new) 
 				ast_mutex_unlock(&f->lock);
-			if (new) {
+			else
 				AST_LIST_INSERT_HEAD(&followmes, f, entry);
-			}
 		}
 	}
 	ast_config_destroy(cfg);
@@ -437,13 +438,14 @@ static void clear_caller(struct findme_user *tmpuser)
 		}
 		if (outbound->cdr) {
 			char tmp[256];
+
 			snprintf(tmp, sizeof(tmp), "%s/%s", "Local", tmpuser->dialarg);
-			ast_cdr_setapp(outbound->cdr,"FollowMe",tmp);
+			ast_cdr_setapp(outbound->cdr, "FollowMe", tmp);
 			ast_cdr_update(outbound);
 			ast_cdr_start(outbound->cdr);
 			ast_cdr_end(outbound->cdr);
 			/* If the cause wasn't handled properly */
-			if (ast_cdr_disposition(outbound->cdr,outbound->hangupcause))
+			if (ast_cdr_disposition(outbound->cdr, outbound->hangupcause))
 				ast_cdr_failed(outbound->cdr);
 		} else
 			ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
@@ -486,8 +488,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 	callfromname = ast_strdupa(tpargs->callfromprompt);
 	pressbuttonname = ast_strdupa(tpargs->optionsprompt);	
 
-	if (!AST_LIST_EMPTY(findme_user_list))
-	{
+	if (!AST_LIST_EMPTY(findme_user_list)) {
 		if (!caller) {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Original caller hungup. Cleanup.\n");
@@ -507,9 +508,8 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 			winner = NULL;	
 			AST_LIST_TRAVERSE(findme_user_list, tmpuser, entry) {
 				if (tmpuser->state >= 0 && tmpuser->ochan) {
-					if (tmpuser->state == 3) {
+					if (tmpuser->state == 3) 
 						tmpuser->digts += (towas - wtd);
-					}
 					if (tmpuser->digts && (tmpuser->digts > featuredigittimeout)) {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "We've been waiting for digits longer than we should have.\n");
@@ -574,8 +574,8 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							}
 						}
 					}
-				watchers[pos++] = tmpuser->ochan;
-				livechannels++;
+					watchers[pos++] = tmpuser->ochan;
+					livechannels++;
 				}
 			}
 
@@ -661,11 +661,11 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							break;
 						case AST_CONTROL_PROGRESS:
 							if (option_verbose > 2)
-								ast_verbose ( VERBOSE_PREFIX_3 "%s is making progress passing it to %s\n", winner->name,caller->name);
+								ast_verbose ( VERBOSE_PREFIX_3 "%s is making progress passing it to %s\n", winner->name, caller->name);
 							break;
 						case AST_CONTROL_VIDUPDATE:
 							if (option_verbose > 2)
-								ast_verbose ( VERBOSE_PREFIX_3 "%s requested a video update, passing it to %s\n", winner->name,caller->name);
+								ast_verbose ( VERBOSE_PREFIX_3 "%s requested a video update, passing it to %s\n", winner->name, caller->name);
 							break;
 						case AST_CONTROL_PROCEEDING:
 							if (option_verbose > 2)
@@ -696,7 +696,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					if (tmpuser && tmpuser->state == 3 && f->frametype == AST_FRAME_DTMF) {
 						if (winner->stream)
 							ast_stopstream(winner);
-							tmpuser->digts = 0;
+						tmpuser->digts = 0;
 						if (option_debug)
 							ast_log(LOG_DEBUG, "DTMF received: %c\n",(char) f->subclass);
 						tmpuser->yn[tmpuser->ynidx] = (char) f->subclass;
@@ -751,9 +751,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					ast_log(LOG_DEBUG, "timed out waiting for action\n");
 		}
 		
-	}
-	else
-	{
+	} else {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "couldn't reach at this number.\n");
 	}
@@ -795,12 +793,12 @@ static void findmeexec(struct fm_args *tpargs)
 
 	while (nm) {
 
-		if (option_debug)	
-			ast_log(LOG_DEBUG, "Number %s timeout %ld\n",nm->number,nm->timeout);
+		if (option_debug > 1)	
+			ast_log(LOG_DEBUG, "Number %s timeout %ld\n", nm->number,nm->timeout);
 		time(&start_time);
 
 		number = ast_strdupa(nm->number);
-		if (option_debug)
+		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "examining %s\n", number);
 		do {
 			rest = strchr(number, '&');
@@ -817,6 +815,7 @@ static void findmeexec(struct fm_args *tpargs)
 			tmpuser = ast_calloc(1, sizeof(*tmpuser));
 			if (!tmpuser) {
 				ast_log(LOG_WARNING, "Out of memory!\n");
+				free(findme_user_list);
 				return;
 			}
 					
@@ -836,11 +835,11 @@ static void findmeexec(struct fm_args *tpargs)
 					if (option_verbose > 2) 
 						ast_verbose(VERBOSE_PREFIX_3 "couldn't reach at this number.\n"); 
 					if (outbound) {
-						if (!outbound->cdr) {
+						if (!outbound->cdr) 
 							outbound->cdr = ast_cdr_alloc();
-						}
 						if (outbound->cdr) {
 							char tmp[256];
+
 							ast_cdr_init(outbound->cdr, outbound);
 							snprintf(tmp, sizeof(tmp), "%s/%s", "Local", dialarg);
 							ast_cdr_setapp(outbound->cdr, "FollowMe", tmp);
@@ -851,7 +850,7 @@ static void findmeexec(struct fm_args *tpargs)
 							if (ast_cdr_disposition(outbound->cdr,outbound->hangupcause))
 								ast_cdr_failed(outbound->cdr);
 						} else {
-							ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
+							ast_log(LOG_ERROR, "Unable to create Call Detail Record\n");
 							ast_hangup(outbound);
 							outbound = NULL;
 						}
@@ -884,6 +883,7 @@ static void findmeexec(struct fm_args *tpargs)
 
 		if (!caller) {
 			tpargs->status = 1;
+			free(findme_user_list);
 			return;	
 		}
 
@@ -910,7 +910,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 {
 	struct fm_args targs;
 	struct ast_bridge_config config;
-	struct ast_call_followme *f;
+	struct call_followme *f;
 	struct number *nm, *newnm;
 	int res = 0;
 	struct ast_module_user *u;
@@ -919,6 +919,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	int duration = 0;
 	struct ast_channel *caller;
 	struct ast_channel *outbound;
+	static char toast[80];
 	
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(followmeid);
@@ -940,135 +941,121 @@ static int app_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, argstr);
 
 	if (!ast_strlen_zero(args.followmeid)) 
-	
-			AST_LIST_LOCK(&followmes);
-			AST_LIST_TRAVERSE(&followmes, f, entry) {
-				if (!strcasecmp(f->name, args.followmeid) && (f->active))
-					break;
-			}
-			AST_LIST_UNLOCK(&followmes);
+		AST_LIST_LOCK(&followmes);
+	AST_LIST_TRAVERSE(&followmes, f, entry) {
+		if (!strcasecmp(f->name, args.followmeid) && (f->active))
+			break;
+	}
+	AST_LIST_UNLOCK(&followmes);
 
-			if (option_debug)
-				ast_log(LOG_DEBUG, "New profile %s.\n", args.followmeid);
-			if (!f)
-			{ 
-				ast_log(LOG_WARNING, "Profile requested, %s, not found in the configuration.", args.followmeid);
-				res = -1;
-			}
-			else
-			{
-	
-				/* XXX TODO: Reinsert the db check value to see whether or not follow-me is on or off */
+	if (option_debug)
+		ast_log(LOG_DEBUG, "New profile %s.\n", args.followmeid);
+	if (!f) { 
+		ast_log(LOG_WARNING, "Profile requested, %s, not found in the configuration.", args.followmeid);
+		res = -1;
+	} else {
+		/* XXX TODO: Reinsert the db check value to see whether or not follow-me is on or off */
 
 
-				if (args.options) {
-					ast_app_parse_options(followme_opts, &targs.followmeflags, NULL, args.options);
-				}
+		if (args.options) 
+			ast_app_parse_options(followme_opts, &targs.followmeflags, NULL, args.options);
 
-				/* Lock the profile lock and copy out everything we need to run with before unlocking it again */
-				ast_mutex_lock(&f->lock);
-				targs.mohclass = ast_strdupa(f->moh);
-				ast_copy_string(targs.context, f->context, sizeof(targs.context));
-				ast_copy_string(targs.takecall, f->takecall, sizeof(targs.takecall));
-				ast_copy_string(targs.nextindp, f->nextindp, sizeof(targs.nextindp));
-				ast_copy_string(targs.callfromprompt, f->callfromprompt, sizeof(targs.callfromprompt));
-				ast_copy_string(targs.norecordingprompt, f->norecordingprompt, sizeof(targs.norecordingprompt));
-				ast_copy_string(targs.optionsprompt, f->optionsprompt, sizeof(targs.optionsprompt));
-				ast_copy_string(targs.plsholdprompt, f->plsholdprompt, sizeof(targs.plsholdprompt));
-				ast_copy_string(targs.statusprompt, f->statusprompt, sizeof(targs.statusprompt));
-				ast_copy_string(targs.sorryprompt, f->sorryprompt, sizeof(targs.sorryprompt));
-				/* Copy the numbers we're going to use into another list in case the master list should get modified 
+		/* Lock the profile lock and copy out everything we need to run with before unlocking it again */
+		ast_mutex_lock(&f->lock);
+		targs.mohclass = ast_strdupa(f->moh);
+		ast_copy_string(targs.context, f->context, sizeof(targs.context));
+		ast_copy_string(targs.takecall, f->takecall, sizeof(targs.takecall));
+		ast_copy_string(targs.nextindp, f->nextindp, sizeof(targs.nextindp));
+		ast_copy_string(targs.callfromprompt, f->callfromprompt, sizeof(targs.callfromprompt));
+		ast_copy_string(targs.norecordingprompt, f->norecordingprompt, sizeof(targs.norecordingprompt));
+		ast_copy_string(targs.optionsprompt, f->optionsprompt, sizeof(targs.optionsprompt));
+		ast_copy_string(targs.plsholdprompt, f->plsholdprompt, sizeof(targs.plsholdprompt));
+		ast_copy_string(targs.statusprompt, f->statusprompt, sizeof(targs.statusprompt));
+		ast_copy_string(targs.sorryprompt, f->sorryprompt, sizeof(targs.sorryprompt));
+		/* Copy the numbers we're going to use into another list in case the master list should get modified 
 				   (and locked) while we're trying to do a follow-me */
-				AST_LIST_HEAD_INIT_NOLOCK(&targs.cnumbers);
-				AST_LIST_TRAVERSE(&f->numbers, nm, entry) {
-					newnm = create_followme_number(nm->number, nm->timeout, nm->order);
-					AST_LIST_INSERT_TAIL(&targs.cnumbers, newnm, entry);
-				}
-				ast_mutex_unlock(&f->lock);
+		AST_LIST_HEAD_INIT_NOLOCK(&targs.cnumbers);
+		AST_LIST_TRAVERSE(&f->numbers, nm, entry) {
+			newnm = create_followme_number(nm->number, nm->timeout, nm->order);
+			AST_LIST_INSERT_TAIL(&targs.cnumbers, newnm, entry);
+		}
+		ast_mutex_unlock(&f->lock);
 
-				if (targs.followmeflags.flags & FOLLOWMEFLAG_STATUSMSG) 
-					ast_stream_and_wait(chan, targs.statusprompt, chan->language, "");
+		if (targs.followmeflags.flags & FOLLOWMEFLAG_STATUSMSG) 
+			ast_stream_and_wait(chan, targs.statusprompt, chan->language, "");
 
-				snprintf(namerecloc,sizeof(namerecloc),"%s/followme.%s",ast_config_AST_SPOOL_DIR,chan->uniqueid);
-				duration = 5;
+		snprintf(namerecloc,sizeof(namerecloc),"%s/followme.%s",ast_config_AST_SPOOL_DIR,chan->uniqueid);
+		duration = 5;
 
-				if (targs.followmeflags.flags & FOLLOWMEFLAG_RECORDNAME) 
-					if (ast_play_and_record(chan, "vm-rec-name", namerecloc, 5, "sln", &duration, 128, 0, NULL) < 0)
-						goto outrun;
+		if (targs.followmeflags.flags & FOLLOWMEFLAG_RECORDNAME) 
+			if (ast_play_and_record(chan, "vm-rec-name", namerecloc, 5, "sln", &duration, 128, 0, NULL) < 0)
+				goto outrun;
 
-				/* The following call looks like we're going to playback the file, but we're actually	*/
-				/* just checking to see if we *can* play it. 						*/
-				if (ast_streamfile(chan, namerecloc, chan->language))
-					ast_copy_string(namerecloc, "", sizeof(namerecloc));					
-				else
-					ast_stopstream(chan);
+		/* The following call looks like we're going to playback the file, but we're actually	*/
+		/* just checking to see if we *can* play it. 						*/
+		if (ast_streamfile(chan, namerecloc, chan->language))
+			ast_copy_string(namerecloc, "", sizeof(namerecloc));					
+		else
+			ast_stopstream(chan);
 
-				if (ast_streamfile(chan, targs.plsholdprompt, chan->language))
-					goto outrun;
-				if (ast_waitstream(chan, "") < 0)
-					goto outrun;
-				ast_moh_start(chan, S_OR(targs.mohclass, NULL), NULL);
+		if (ast_streamfile(chan, targs.plsholdprompt, chan->language))
+			goto outrun;
+		if (ast_waitstream(chan, "") < 0)
+			goto outrun;
+		ast_moh_start(chan, S_OR(targs.mohclass, NULL), NULL);
 
+		targs.status = 0;
+		targs.chan = chan;
+		ast_copy_string(targs.namerecloc, namerecloc, sizeof(targs.namerecloc));
 
-				targs.status = 0;
-				targs.chan = chan;
-
-				ast_copy_string(targs.namerecloc, namerecloc, sizeof(targs.namerecloc));
-
-				findmeexec(&targs);		
+		findmeexec(&targs);		
 				
-				AST_LIST_TRAVERSE_SAFE_BEGIN(&targs.cnumbers, nm, entry)	{
-					AST_LIST_REMOVE_CURRENT(&targs.cnumbers, entry);
-					free(nm);
-				}
-				AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&targs.cnumbers, nm, entry) {
+			AST_LIST_REMOVE_CURRENT(&targs.cnumbers, entry);
+			free(nm);
+		}
+		AST_LIST_TRAVERSE_SAFE_END
 	
-				if (!ast_strlen_zero(namerecloc))
-					unlink(namerecloc);	
+		if (!ast_strlen_zero(namerecloc))
+			unlink(namerecloc);	
 
-				if (targs.status != 100)
-				{
-					ast_moh_stop(chan);
-					if (targs.followmeflags.flags & FOLLOWMEFLAG_UNREACHABLEMSG) 
-						ast_stream_and_wait(chan, targs.sorryprompt, chan->language, "");
-					res = 0;
-				}
-				else
-				{
-							
-					caller = chan;
-					outbound = targs.outbound;
-					/* Bridge the two channels. */
+		if (targs.status != 100) {
+			ast_moh_stop(chan);
+			if (targs.followmeflags.flags & FOLLOWMEFLAG_UNREACHABLEMSG) 
+				ast_stream_and_wait(chan, targs.sorryprompt, chan->language, "");
+			res = 0;
+		} else {
+			caller = chan;
+			outbound = targs.outbound;
+			/* Bridge the two channels. */
 
-					memset(&config,0,sizeof(struct ast_bridge_config));
-					ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
-					ast_set_flag(&(config.features_callee), AST_FEATURE_AUTOMON);
-					ast_set_flag(&(config.features_caller), AST_FEATURE_AUTOMON);
+			memset(&config,0,sizeof(struct ast_bridge_config));
+			ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
+			ast_set_flag(&(config.features_callee), AST_FEATURE_AUTOMON);
+			ast_set_flag(&(config.features_caller), AST_FEATURE_AUTOMON);
 				
-					ast_moh_stop(caller);
-					/* Be sure no generators are left on it */
-					ast_deactivate_generator(caller);
-					/* Make sure channels are compatible */
-					res = ast_channel_make_compatible(caller, outbound);
-					if (res < 0) {
-						ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", caller->name, outbound->name);
-						ast_hangup(outbound);
-						goto outrun;
-					}
-					time(&answer_time);
-					res = ast_bridge_call(caller,outbound,&config);
-					time(&end_time);
-					snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
-					pbx_builtin_setvar_helper(caller, "DIALEDTIME", toast);
-					snprintf(toast, sizeof(toast), "%ld", (long)(end_time - answer_time));
-					pbx_builtin_setvar_helper(caller, "ANSWEREDTIME", toast);
-					if (outbound)
-						ast_hangup(outbound);
-					res = 1;
-					
-				}
-				
+			ast_moh_stop(caller);
+			/* Be sure no generators are left on it */
+			ast_deactivate_generator(caller);
+			/* Make sure channels are compatible */
+			res = ast_channel_make_compatible(caller, outbound);
+			if (res < 0) {
+				ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", caller->name, outbound->name);
+				ast_hangup(outbound);
+				goto outrun;
 			}
+			time(&answer_time);
+			res = ast_bridge_call(caller,outbound,&config);
+			time(&end_time);
+			snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
+			pbx_builtin_setvar_helper(caller, "DIALEDTIME", toast);
+			snprintf(toast, sizeof(toast), "%ld", (long)(end_time - answer_time));
+			pbx_builtin_setvar_helper(caller, "ANSWEREDTIME", toast);
+			if (outbound)
+				ast_hangup(outbound);
+			res = 1;
+		}
+	}
 	outrun:
 	
 	ast_module_user_remove(u);
@@ -1078,7 +1065,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 static int unload_module(void)
 {
-	struct ast_call_followme *f;
+	struct call_followme *f;
 
 	ast_module_user_hangup_all();
 
