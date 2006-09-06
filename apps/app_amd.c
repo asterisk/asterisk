@@ -88,26 +88,21 @@ static int dfltSilenceThreshold     = 256;
 
 static void isAnsweringMachine(struct ast_channel *chan, void *data)
 {
-	int res = 0, ret = 0;
-
+	int res = 0;
 	struct ast_frame *f = NULL;
-
-	struct ast_dsp *silenceDetector;         /* silence detector dsp */
-	int dspsilence = 0;
-	int readFormat;
-	int framelength;
-
-	int inInitialSilence         = 1;
-	int inGreeting               = 0;
-	int voiceDuration            = 0;
-	int silenceDuration          = 0;
-	int iTotalTime               = 0;
-	int iWordsCount              = 0;
-	int currentState             = STATE_IN_SILENCE;
-	int previousState            = STATE_IN_SILENCE;
+	struct ast_dsp *silenceDetector = NULL;
+	int dspsilence = 0, readFormat, framelength;
+	int inInitialSilence = 1;
+	int inGreeting = 0;
+	int voiceDuration = 0;
+	int silenceDuration = 0;
+	int iTotalTime = 0;
+	int iWordsCount = 0;
+	int currentState = STATE_IN_SILENCE;
+	int previousState = STATE_IN_SILENCE;
 	int consecutiveVoiceDuration = 0;
-	char amdCause[256]           = "";
-	char amdStatus[256]          = "";
+	char amdCause[256] = "", amdStatus[256] = "";
+	char *parse = ast_strdupa(data);
 
 	/* Lets set the initial values of the variables that will control the algorithm.
 	   The initial values are the default ones. If they are passed as arguments
@@ -122,7 +117,6 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 	int maximumNumberOfWords = dfltMaximumNumberOfWords;
 	int silenceThreshold     = dfltSilenceThreshold;
 
-	char *parse;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(argInitialSilence);
 			     AST_APP_ARG(argGreeting);
@@ -133,98 +127,92 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 			     AST_APP_ARG(argMaximumNumberOfWords);
 			     AST_APP_ARG(argSilenceThreshold);
 	);
+
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "AMD: %s %s %s (Fmt: %d)\n", chan->name ,chan->cid.cid_ani, chan->cid.cid_rdnis, chan->readformat);
 
 	/* Lets parse the arguments. */
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_NOTICE, "AMD using the default parameters.\n");
-	} else {
+	if (!ast_strlen_zero(parse)) {
 		/* Some arguments have been passed. Lets parse them and overwrite the defaults. */
-		parse = ast_strdupa(data);
-
 		AST_STANDARD_APP_ARGS(args, parse);
-
-		if (!ast_strlen_zero(args.argInitialSilence)) {
+		if (!ast_strlen_zero(args.argInitialSilence))
 			initialSilence = atoi(args.argInitialSilence);
-		}
-		if (!ast_strlen_zero(args.argGreeting)) {
+		if (!ast_strlen_zero(args.argGreeting))
 			greeting = atoi(args.argGreeting);
-		}
-		if (!ast_strlen_zero(args.argAfterGreetingSilence)) {
+		if (!ast_strlen_zero(args.argAfterGreetingSilence))
 			afterGreetingSilence = atoi(args.argAfterGreetingSilence);
-		}
-		if (!ast_strlen_zero(args.argTotalAnalysisTime)) {
+		if (!ast_strlen_zero(args.argTotalAnalysisTime))
 			totalAnalysisTime = atoi(args.argTotalAnalysisTime);
-		}
-		if (!ast_strlen_zero(args.argMinimumWordLength)) {
+		if (!ast_strlen_zero(args.argMinimumWordLength))
 			minimumWordLength = atoi(args.argMinimumWordLength);
-		}
-		if (!ast_strlen_zero(args.argBetweenWordsSilence)) {
+		if (!ast_strlen_zero(args.argBetweenWordsSilence))
 			betweenWordsSilence = atoi(args.argBetweenWordsSilence);
-		}
-		if (!ast_strlen_zero(args.argMaximumNumberOfWords)) {
+		if (!ast_strlen_zero(args.argMaximumNumberOfWords))
 			maximumNumberOfWords = atoi(args.argMaximumNumberOfWords);
-		}
-		if (!ast_strlen_zero(args.argSilenceThreshold)) {
+		if (!ast_strlen_zero(args.argSilenceThreshold))
 			silenceThreshold = atoi(args.argSilenceThreshold);
-		}
-	}
+	} else
+		ast_log(LOG_NOTICE, "AMD using the default parameters.\n");
 
 	/* Now we're ready to roll! */
-	
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "AMD: initialSilence [%d] greeting [%d] afterGreetingSilence [%d] "
 		"totalAnalysisTime [%d] minimumWordLength [%d] betweenWordsSilence [%d] maximumNumberOfWords [%d] silenceThreshold [%d] \n",
 				initialSilence, greeting, afterGreetingSilence, totalAnalysisTime,
 				minimumWordLength, betweenWordsSilence, maximumNumberOfWords, silenceThreshold );
 
+	/* Set read format to signed linear so we get signed linear frames in */
 	readFormat = chan->readformat;
-	res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
-	if (res < 0 ) {
+	if (ast_set_read_format(chan, AST_FORMAT_SLINEAR) < 0 ) {
 		ast_log(LOG_WARNING, "AMD: Channel [%s]. Unable to set to linear mode, giving up\n", chan->name );
-		pbx_builtin_setvar_helper(chan , "AMDSTATUS" , "" );
-		pbx_builtin_setvar_helper(chan , "AMDCAUSE" , "" );
+		pbx_builtin_setvar_helper(chan , "AMDSTATUS", "");
+		pbx_builtin_setvar_helper(chan , "AMDCAUSE", "");
 		return;
 	}
 
-	silenceDetector = ast_dsp_new();
-	if (!silenceDetector ) {
+	/* Create a new DSP that will detect the silence */
+	if (!(silenceDetector = ast_dsp_new())) {
 		ast_log(LOG_WARNING, "AMD: Channel [%s]. Unable to create silence detector :(\n", chan->name );
-		pbx_builtin_setvar_helper(chan , "AMDSTATUS" , "" );
-		pbx_builtin_setvar_helper(chan , "AMDCAUSE" , "" );
+		pbx_builtin_setvar_helper(chan , "AMDSTATUS", "");
+		pbx_builtin_setvar_helper(chan , "AMDCAUSE", "");
 		return;
 	}
-	ast_dsp_set_threshold(silenceDetector, silenceThreshold );
 
-	while ((ret = ast_waitfor(chan, totalAnalysisTime)))
-	{
-		if (ret < 0 || !(f = ast_read(chan))) {
-			/* No Frame OR Error on ast_waitfor : Called Party Must Have Dropped */
+	/* Set silence threshold to specified value */
+	ast_dsp_set_threshold(silenceDetector, silenceThreshold);
+
+	/* Now we go into a loop waiting for frames from the channel */
+	while ((res = ast_waitfor(chan, totalAnalysisTime)) > -1) {
+		/* If we fail to read in a frame, that means they hung up */
+		if (!(f = ast_read(chan))) {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "AMD: HANGUP\n");
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Got hangup\n");
-			strcpy(amdStatus , "HANGUP" );
-			strcpy(amdCause , "" );
+			strcpy(amdStatus, "HANGUP");
 			break;
 		}
-		if (f->frametype == AST_FRAME_VOICE ) {
+
+		if (f->frametype == AST_FRAME_VOICE) {
+			/* If the total time exceeds the analysis time then give up as we are not too sure */
 			framelength = (ast_codec_get_samples(f) / DEFAULT_SAMPLES_PER_MS);
 			iTotalTime += framelength;
-			if (iTotalTime >= totalAnalysisTime ) {
+			if (iTotalTime >= totalAnalysisTime) {
 				if (option_verbose > 2)	
 					ast_verbose(VERBOSE_PREFIX_3 "AMD: Channel [%s]. Too long...\n", chan->name );
 				ast_frfree(f);
-				strcpy(amdStatus , "NOTSURE" );
-				sprintf(amdCause , "TOOLONG-%d", iTotalTime );
+				strcpy(amdStatus , "NOTSURE");
+				sprintf(amdCause , "TOOLONG-%d", iTotalTime);
 				break;
 			}
+
+			/* Feed the frame of audio into the silence detector and see if we get a result */
 			dspsilence = 0;
 			ast_dsp_silence(silenceDetector, f, &dspsilence);
-			if (dspsilence ) {
+			if (dspsilence) {
 				silenceDuration = dspsilence;
-				if (silenceDuration >= betweenWordsSilence ) {
+				
+				if (silenceDuration >= betweenWordsSilence) {
 					if (currentState != STATE_IN_SILENCE ) {
 						previousState = currentState;
 						if (option_verbose > 2)
@@ -233,87 +221,88 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 					currentState  = STATE_IN_SILENCE;
 					consecutiveVoiceDuration = 0;
 				}
-				if (inInitialSilence == 1  && silenceDuration >= initialSilence ) {
+				
+				if (inInitialSilence == 1  && silenceDuration >= initialSilence) {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "AMD: ANSWERING MACHINE: silenceDuration:%d initialSilence:%d\n",
-							silenceDuration, initialSilence );
+							    silenceDuration, initialSilence);
 					ast_frfree(f);
-					strcpy(amdStatus , "MACHINE" );
-					sprintf(amdCause , "INITIALSILENCE-%d-%d", silenceDuration, initialSilence );
+					strcpy(amdStatus , "MACHINE");
+					sprintf(amdCause , "INITIALSILENCE-%d-%d", silenceDuration, initialSilence);
 					break;
 				}
-
-				if (silenceDuration >= afterGreetingSilence  &&  inGreeting == 1 ) {
+				
+				if (silenceDuration >= afterGreetingSilence  &&  inGreeting == 1) {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "AMD: HUMAN: silenceDuration:%d afterGreetingSilence:%d\n",
-							silenceDuration, afterGreetingSilence );
+							    silenceDuration, afterGreetingSilence);
 					ast_frfree(f);
-					strcpy(amdStatus , "HUMAN" );
-					sprintf(amdCause , "HUMAN-%d-%d", silenceDuration, afterGreetingSilence );
+					strcpy(amdStatus , "HUMAN");
+					sprintf(amdCause , "HUMAN-%d-%d", silenceDuration, afterGreetingSilence);
 					break;
 				}
+				
 			} else {
 				consecutiveVoiceDuration += framelength;
 				voiceDuration += framelength;
-
+				
 				/* If I have enough consecutive voice to say that I am in a Word, I can only increment the
-					number of words if my previous state was Silence, which means that I moved into a word. */
-				if (consecutiveVoiceDuration >= minimumWordLength ) {
-					if (currentState == STATE_IN_SILENCE ) {
-						iWordsCount++;
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "AMD: Word detected. iWordsCount:%d\n", iWordsCount );
-						previousState = currentState;
-						currentState = STATE_IN_WORD;
-					}
-				}
-
-				if (iWordsCount >= maximumNumberOfWords ) {
+				   number of words if my previous state was Silence, which means that I moved into a word. */
+				if (consecutiveVoiceDuration >= minimumWordLength && currentState == STATE_IN_SILENCE) {
+					iWordsCount++;
 					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "AMD: ANSWERING MACHINE: iWordsCount:%d\n", iWordsCount );
+						ast_verbose(VERBOSE_PREFIX_3 "AMD: Word detected. iWordsCount:%d\n", iWordsCount);
+					previousState = currentState;
+					currentState = STATE_IN_WORD;
+				}
+				
+				if (iWordsCount >= maximumNumberOfWords) {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "AMD: ANSWERING MACHINE: iWordsCount:%d\n", iWordsCount);
 					ast_frfree(f);
-					strcpy(amdStatus , "MACHINE" );
-					sprintf(amdCause , "MAXWORDS-%d-%d", iWordsCount, maximumNumberOfWords );
+					strcpy(amdStatus , "MACHINE");
+					sprintf(amdCause , "MAXWORDS-%d-%d", iWordsCount, maximumNumberOfWords);
 					break;
 				}
-
-				if (inGreeting == 1  &&  voiceDuration >= greeting ) {
+				
+				if (inGreeting == 1 && voiceDuration >= greeting) {
 					if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "AMD: ANSWERING MACHINE: voiceDuration:%d greeting:%d\n", voiceDuration, greeting);
-					 ast_frfree(f);
-					strcpy(amdStatus , "MACHINE" );
-					sprintf(amdCause , "LONGGREETING-%d-%d", voiceDuration, greeting );
+						ast_verbose(VERBOSE_PREFIX_3 "AMD: ANSWERING MACHINE: voiceDuration:%d greeting:%d\n", voiceDuration, greeting);
+					ast_frfree(f);
+					strcpy(amdStatus , "MACHINE");
+					sprintf(amdCause , "LONGGREETING-%d-%d", voiceDuration, greeting);
 					break;
 				}
+				
 				if (voiceDuration >= minimumWordLength ) {
 					silenceDuration = 0;
 					inInitialSilence = 0;
 					inGreeting = 1;
 				}
+				
 			}
 		}
 		ast_frfree(f);
 	}
-	if (!ret) {
+	
+	if (!res) {
 		/* It took too long to get a frame back. Giving up. */
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "AMD: Channel [%s]. Too long...\n", chan->name );
-		strcpy(amdStatus , "NOTSURE" );
-		sprintf(amdCause , "TOOLONG-%d", iTotalTime );
+			ast_verbose(VERBOSE_PREFIX_3 "AMD: Channel [%s]. Too long...\n", chan->name);
+		strcpy(amdStatus , "NOTSURE");
+		sprintf(amdCause , "TOOLONG-%d", iTotalTime);
 	}
 
-	pbx_builtin_setvar_helper(chan , "AMDSTATUS" , amdStatus );
-	pbx_builtin_setvar_helper(chan , "AMDCAUSE" , amdCause );
+	/* Set the status and cause on the channel */
+	pbx_builtin_setvar_helper(chan , "AMDSTATUS" , amdStatus);
+	pbx_builtin_setvar_helper(chan , "AMDCAUSE" , amdCause);
 
-	/* If We Started With A Valid Read Format, Return To It... */
-	if (readFormat && chan->_state == AST_STATE_UP) {
-		res = ast_set_read_format(chan, readFormat );
-		if (res)
-			ast_log(LOG_WARNING, "AMD: Unable to restore read format on '%s'\n", chan->name);
-	}
+	/* Restore channel read format */
+	if (readFormat && ast_set_read_format(chan, readFormat))
+		ast_log(LOG_WARNING, "AMD: Unable to restore read format on '%s'\n", chan->name);
 
-	/* Free The Silence Detector DSP */
-	ast_dsp_free(silenceDetector );
+	/* Free the DSP used to detect silence */
+	ast_dsp_free(silenceDetector);
 
 	return;
 }
@@ -321,7 +310,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 
 static int amd_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
+	struct ast_module_user *u = NULL;
 
 	u = ast_module_user_add(chan);
 	isAnsweringMachine(chan, data);
@@ -332,13 +321,11 @@ static int amd_exec(struct ast_channel *chan, void *data)
 
 static void load_config(void)
 {
-	struct ast_config *cfg;
-	char *cat;
-	struct ast_variable *var;
+	struct ast_config *cfg = NULL;
+	char *cat = NULL;
+	struct ast_variable *var = NULL;
 
-	cfg = ast_config_load("amd.conf");
-
-	if (!cfg) {
+	if (!(cfg = ast_config_load("amd.conf"))) {
 		ast_log(LOG_ERROR, "Configuration file amd.conf missing.\n");
 		return;
 	}
@@ -374,6 +361,7 @@ static void load_config(void)
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
+
 	ast_config_destroy(cfg);
 
 	if (option_verbose > 2)
