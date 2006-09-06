@@ -828,7 +828,8 @@ static int agent_hangup(struct ast_channel *ast)
 			ast_mutex_unlock(&p->lock);
 		}
 		/* Release ownership of the agent to other threads (presumably running the login app). */
-		ast_mutex_unlock(&p->app_lock);
+		if (ast_strlen_zero(p->loginchan))
+			ast_mutex_unlock(&p->app_lock);
 	}
 	return 0;
 }
@@ -972,7 +973,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		 * implemented in the kernel for this.
 		 */
 		p->app_sleep_cond = 0;
-		if( ast_mutex_trylock(&p->app_lock) )
+		if( ast_strlen_zero(p->loginchan) && ast_mutex_trylock(&p->app_lock) )
 		{
 			if (p->chan) {
 				ast_queue_frame(p->chan, &null_frame);
@@ -991,6 +992,18 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 				ast_mutex_unlock(&p->app_lock);
 				return NULL;
 			}
+		} else if (!ast_strlen_zero(p->loginchan)) {
+			if (p->chan)
+				ast_queue_frame(p->chan, &null_frame);
+			if (!p->chan) {
+				ast_log(LOG_WARNING, "Agent disconnected while we were connecting the call\n");
+				p->owner = NULL;
+				tmp->tech_pvt = NULL;
+				p->app_sleep_cond = 1;
+				ast_channel_free( tmp );
+				ast_mutex_unlock(&p->lock);     /* For other thread to read the condition. */
+                                return NULL;
+			}	
 		}
 		p->owning_app = pthread_self();
 		/* After the above step, there should not be any blockers. */
