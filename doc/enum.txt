@@ -203,7 +203,7 @@ Usage notes and subtle features:
   other values in this file, and so it becomes deprecated.
 
   h) The function will digest and return NAPTRs which use older
-  (depricated) style, reversed method strings such as "sip+E2U"
+  (deprecated) style, reversed method strings such as "sip+E2U"
   instead of the more modern "E2U+sip"
 
   i) There is no provision for multi-part methods at this time.  If
