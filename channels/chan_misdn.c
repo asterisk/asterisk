@@ -2225,9 +2225,9 @@ static int misdn_hangup(struct ast_channel *ast)
 	struct chan_list *p;
 	struct misdn_bchannel *bc=NULL;
 	
-	if (!ast || ! (p=MISDN_ASTERISK_TECH_PVT(ast) ) ) return -1;
-	
 	ast_log(LOG_DEBUG, "misdn_hangup(%s)\n", ast->name);
+	
+	if (!ast || ! (p=MISDN_ASTERISK_TECH_PVT(ast) ) ) return -1;
 	
 	if (!p) {
 		chan_misdn_log(3, 0, "misdn_hangup called, without chan_list obj.\n");
@@ -2252,6 +2252,8 @@ static int misdn_hangup(struct ast_channel *ast)
 		MISDN_ASTERISK_TECH_PVT(ast)=NULL;
 		
 		cl_dequeue_chan(&cl_te, p);
+		close(p->pipe[0]);
+		close(p->pipe[1]);
 		free(p);
 		
 		if (bc)
