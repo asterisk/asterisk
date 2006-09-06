@@ -77,7 +77,8 @@ static char *descrip =
 "                'n' to read digits even if the line is not up.\n"
 "  attempts   -- if greater than 1, that many attempts will be made in the \n"
 "                event no data is entered.\n"
-"  timeout    -- if greater than 0, that value will override the default timeout.\n\n"
+"  timeout    -- An integer number of seconds to wait for a digit response. If greater\n"
+"                than 0, that value will override the default timeout.\n\n"
 "Read should disconnect if the function fails or errors out.\n";
 
 
