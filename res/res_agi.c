@@ -2047,7 +2047,8 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 		agi.ctrl = fds[0];
 		agi.audio = efd;
 		res = run_agi(chan, argv[0], &agi, pid, dead);
-		close(fds[1]);
+		if (fds[1] != fds[0])
+			close(fds[1]);
 		if (efd > -1)
 			close(efd);
 	}
