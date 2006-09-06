@@ -2550,14 +2550,12 @@ static struct iax2_user *realtime_user(const char *username)
 	return user;
 }
 
-static void realtime_update_peer(const char *peername, struct sockaddr_in *sin)
+static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, time_t regtime)
 {
 	char port[10];
 	char regseconds[20];
-	time_t nowtime;
 	
-	time(&nowtime);
-	snprintf(regseconds, sizeof(regseconds), "%d", (int)nowtime);
+	snprintf(regseconds, sizeof(regseconds), "%d", (int)regtime);
 	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
 	ast_update_realtime("iaxpeers", "name", peername, 
 		"ipaddr", ast_inet_ntoa(sin->sin_addr), "port", port, 
@@ -5487,6 +5485,8 @@ static void __expire_registry(void *data)
 		return;
 
 	ast_log(LOG_DEBUG, "Expiring registration for peer '%s'\n", p->name);
+	if (ast_test_flag((&globalflags), IAX_RTUPDATE) && (ast_test_flag(p, IAX_TEMPONLY|IAX_RTCACHEFRIENDS)))
+		realtime_update_peer(p->name, &p->addr, 0);
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", p->name);
 	/* Reset the address */
 	memset(&p->addr, 0, sizeof(p->addr));
@@ -5571,8 +5571,15 @@ static int update_registry(const char *name, struct sockaddr_in *sin, int callno
 		return -1;
 	}
 
-	if (ast_test_flag((&globalflags), IAX_RTUPDATE) && (ast_test_flag(p, IAX_TEMPONLY|IAX_RTCACHEFRIENDS)))
-		realtime_update_peer(name, sin);
+	if (ast_test_flag((&globalflags), IAX_RTUPDATE) && (ast_test_flag(p, IAX_TEMPONLY|IAX_RTCACHEFRIENDS))) {
+		if (sin->sin_addr.s_addr) {
+			time_t nowtime;
+			time(&nowtime);
+			realtime_update_peer(name, sin, nowtime);
+		} else {
+			realtime_update_peer(name, sin, 0);
+		}
+	}
 	if (inaddrcmp(&p->addr, sin)) {
 		if (iax2_regfunk)
 			iax2_regfunk(p->name, 1);
