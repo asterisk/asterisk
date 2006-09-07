@@ -370,14 +370,21 @@ instructions:
 	i => Playback(invalid);
 };
 
-context default {
+
+//
+// If you wish to use AEL for your default context, remove it
+// from extensions.conf (or change its name or comment it out)
+// and then uncomment the one here.
+//
+
+// context default {
 
 // By default we include the demo.  In a production system, you 
 // probably don't want to have the demo there.
 
-	includes {
-		ael-demo;
-	};
+//	includes {
+//		ael-demo;
+//	};
 //
 // Extensions like the two below can be used for FWD, Nikotel, sipgate etc.
 // Note that you must have a [sipprovider] section in sip.conf whereas
@@ -437,4 +444,4 @@ context default {
 // 'show application <command>' will show details of how you
 // use that particular application in this file, the dial plan. 
 //
-};
+// };
