@@ -945,13 +945,14 @@ static void *do_cdr(void *data)
 	int numevents = 0;
 
 	for(;;) {
-		struct timeval now = ast_tvnow();
+		struct timeval now;
 		schedms = ast_sched_wait(sched);
 		/* this shouldn't happen, but provide a 1 second default just in case */
 		if (schedms <= 0)
 			schedms = 1000;
-		timeout.tv_sec = now.tv_sec + (schedms / 1000);
-		timeout.tv_nsec = (now.tv_usec * 1000) + ((schedms % 1000) * 1000);
+		now = ast_tvadd(ast_tvnow(), ast_samp2tv(schedms, 1000));
+		timeout.tv_sec = now.tv_sec;
+		timeout.tv_nsec = now.tv_usec * 1000;
 		/* prevent stuff from clobbering cdr_pending_cond, then wait on signals sent to it until the timeout expires */
 		ast_mutex_lock(&cdr_pending_lock);
 		ast_cond_timedwait(&cdr_pending_cond, &cdr_pending_lock, &timeout);
