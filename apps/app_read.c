@@ -88,11 +88,9 @@ static int read_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct ast_module_user *u;
-	char tmp[256];
-	int maxdigits=255;
-	int tries = 1;
-	int to = 0;
-	int x = 0;
+	char tmp[256] = "";
+	int maxdigits = 255;
+	int tries = 1, to = 0, x = 0;
 	char *argcopy = NULL;
 	struct tone_zone_sound *ts;
 	struct ast_flags flags = {0};
