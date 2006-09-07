@@ -140,7 +140,7 @@ switchtype=national
 ; T305: Wait for DISCONNECT acknowledge (default 30000 ms)
 ; T308: Wait for RELEASE acknowledge (default 4000 ms)
 ; T309: Maintain active calls on Layer 2 disconnection (default -1, Asterisk clears calls)
-;       EuroISDN: 6000 to 12000 ms, according to (N200 + 1) × T200 + 2s
+;       EuroISDN: 6000 to 12000 ms, according to (N200 + 1) x T200 + 2s
 ;       May vary in other ISDN standards (Q.931 1993 : 90000 ms)
 ; T313: Wait for CONNECT acknowledge, CPE side only (default 3000 ms)
 ;
