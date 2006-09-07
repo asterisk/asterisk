@@ -104,20 +104,22 @@ static const struct ast_channel_tech local_tech = {
 
 struct local_pvt {
 	ast_mutex_t lock;			/* Channel private lock */
+	unsigned int flags;                     /* Private flags */
 	char context[AST_MAX_CONTEXT];		/* Context to call */
 	char exten[AST_MAX_EXTENSION];		/* Extension to call */
 	int reqformat;				/* Requested format */
-	int glaredetect;			/* Detect glare on hangup */
-	int cancelqueue;			/* Cancel queue */
-	int alreadymasqed;			/* Already masqueraded */
-	int launchedpbx;			/* Did we launch the PBX */
-	int nooptimization;			/* Don't leave masq state */
 	struct ast_channel *owner;		/* Master Channel */
 	struct ast_channel *chan;		/* Outbound channel */
 	struct ast_module_user *u_owner;	/*! reference to keep the module loaded while in use */
 	struct ast_module_user *u_chan;		/*! reference to keep the module loaded while in use */
 	AST_LIST_ENTRY(local_pvt) list;		/* Next entity */
 };
+
+#define LOCAL_GLARE_DETECT    (1 << 0) /*!< Detect glare on hangup */
+#define LOCAL_CANCEL_QUEUE    (1 << 1) /*!< Cancel queue */
+#define LOCAL_ALREADY_MASQED  (1 << 2) /*!< Already masqueraded */
+#define LOCAL_LAUNCHED_PBX    (1 << 3) /*!< PBX was launched */
+#define LOCAL_NO_OPTIMIZATION (1 << 4) /*!< Do not optimize using masquerading */
 
 static AST_LIST_HEAD_STATIC(locals, local_pvt);
 
@@ -154,8 +156,8 @@ retrylock:
 	other = isoutbound ? p->owner : p->chan;
 
 	/* Set glare detection */
-	p->glaredetect = 1;
-	if (p->cancelqueue) {
+	ast_set_flag(p, LOCAL_GLARE_DETECT);
+	if (ast_test_flag(p, LOCAL_CANCEL_QUEUE)) {
 		/* We had a glare on the hangup.  Forget all this business,
 		return and destroy p.  */
 		ast_mutex_unlock(&p->lock);
@@ -164,7 +166,7 @@ retrylock:
 		return -1;
 	}
 	if (!other) {
-		p->glaredetect = 0;
+		ast_clear_flag(p, LOCAL_GLARE_DETECT);
 		return 0;
 	}
 	if (ast_mutex_trylock(&other->lock)) {
@@ -187,7 +189,7 @@ retrylock:
 	}
 	ast_queue_frame(other, f);
 	ast_mutex_unlock(&other->lock);
-	p->glaredetect = 0;
+	ast_clear_flag(p, LOCAL_GLARE_DETECT);
 	return 0;
 }
 
@@ -211,7 +213,7 @@ static int local_answer(struct ast_channel *ast)
 
 static void check_bridge(struct local_pvt *p, int isoutbound)
 {
-	if (p->alreadymasqed || p->nooptimization || !p->chan || !p->owner)
+	if (ast_test_flag(p, LOCAL_ALREADY_MASQED) || ast_test_flag(p, LOCAL_NO_OPTIMIZATION) || !p->chan || !p->owner)
 		return;
 
 	/* only do the masquerade if we are being called on the outbound channel,
@@ -229,7 +231,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 				if (!ast_mutex_trylock(&p->owner->lock)) {
 					if (!p->owner->_softhangup) {
 						ast_channel_masquerade(p->owner, p->chan->_bridge);
-						p->alreadymasqed = 1;
+						ast_set_flag(p, LOCAL_ALREADY_MASQED);
 					}
 					ast_mutex_unlock(&p->owner->lock);
 				}
@@ -248,7 +250,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 				if (!ast_mutex_trylock(&p->chan->lock)) {
 					if (!p->chan->_softhangup) {
 						ast_channel_masquerade(p->chan, p->owner->_bridge);
-						p->alreadymasqed = 1;
+						ast_set_flag(p, LOCAL_ALREADY_MASQED);
 					}
 					ast_mutex_unlock(&p->chan->lock);
 				}
@@ -275,7 +277,7 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 	isoutbound = IS_OUTBOUND(ast, p);
 	if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO))
 		check_bridge(p, isoutbound);
-	if (!p->alreadymasqed)
+	if (!ast_test_flag(p, LOCAL_ALREADY_MASQED))
 		res = local_queue_frame(p, isoutbound, f, ast);
 	else {
 		if (option_debug)
@@ -419,7 +421,7 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 		}
 	}
 
-	p->launchedpbx = 1;
+	ast_set_flag(p, LOCAL_LAUNCHED_PBX);
 
 	/* Start switch on sub channel */
 	res = ast_pbx_start(p->chan);
@@ -434,7 +436,7 @@ static int local_hangup(struct ast_channel *ast)
 	int isoutbound;
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
 	struct ast_channel *ochan = NULL;
-	int glaredetect;
+	int glaredetect = 0;
 
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
@@ -443,7 +445,7 @@ static int local_hangup(struct ast_channel *ast)
 		if ((status) && (p->owner))
 			pbx_builtin_setvar_helper(p->owner, "CHANLOCALSTATUS", status);
 		p->chan = NULL;
-		p->launchedpbx = 0;
+		ast_clear_flag(p, LOCAL_LAUNCHED_PBX);
 		ast_module_user_remove(p->u_chan);
 	} else {
 		p->owner = NULL;
@@ -454,11 +456,11 @@ static int local_hangup(struct ast_channel *ast)
 	
 	if (!p->owner && !p->chan) {
 		/* Okay, done with the private part now, too. */
-		glaredetect = p->glaredetect;
+		glaredetect = ast_test_flag(p, LOCAL_GLARE_DETECT);
 		/* If we have a queue holding, don't actually destroy p yet, but
 		   let local_queue do it. */
-		if (p->glaredetect)
-			p->cancelqueue = 1;
+		if (glaredetect)
+			ast_set_flag(p, LOCAL_CANCEL_QUEUE);
 		ast_mutex_unlock(&p->lock);
 		/* Remove from list */
 		AST_LIST_LOCK(&locals);
@@ -474,7 +476,7 @@ static int local_hangup(struct ast_channel *ast)
 		}
 		return 0;
 	}
-	if (p->chan && !p->launchedpbx)
+	if (p->chan && !ast_test_flag(p, LOCAL_LAUNCHED_PBX))
 		/* Need to actually hangup since there is no PBX */
 		ochan = p->chan;
 	else
@@ -502,7 +504,7 @@ static struct local_pvt *local_alloc(const char *data, int format)
 	if ((opts = strchr(tmp->exten, '/'))) {
 		*opts++ = '\0';
 		if (strchr(opts, 'n'))
-			tmp->nooptimization = 1;
+			ast_set_flag(tmp, LOCAL_NO_OPTIMIZATION);
 	}
 
 	/* Look for a context */
