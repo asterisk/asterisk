@@ -352,6 +352,11 @@ echocancelwhenbridged=yes
 ; closer idea of the actual echo.  Value may be "yes", "no", or a number of
 ; milliseconds to delay before training (default = 400)
 ;
+; WARNING:  In some cases this option can make echo worse!  If you are
+; trying to debug an echo problem, it is worth checking to see if your echo
+; is better with the option set to yes or no.  Use whatever setting gives
+; the best results.
+;
 ; Note that these parameters do not apply to hardware echo cancellers.
 ;
 ;echotraining=yes
