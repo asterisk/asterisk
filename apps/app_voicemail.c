@@ -89,6 +89,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 #ifdef IMAP_STORAGE
+AST_MUTEX_DEFINE_STATIC(curhstusr_lock);
 static char *curhst = NIL;	/* currently connected host */
 static char *curusr = NIL;	/* current login user */
 
@@ -4377,8 +4378,6 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	if (res == '1')
 		res = 0;
 
-
-	/* What is the category thing?  JAR */
 	if ((!res) && !ast_strlen_zero(category)) {
 		res = play_message_category(chan, category);
 	}
@@ -7626,7 +7625,6 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 				
 				memset(&leave_options, 0, sizeof(leave_options));
 				leave_options.record_gain = record_gain;
-				/* Changed to mailbox instead of num - JAR */
 				res = leave_voicemail(chan, mailbox, &leave_options);
 				if (!res)
 					res = 't';
@@ -7870,10 +7868,9 @@ static int init_mailstream(struct vm_state *vms)
 		stream = vms->mailstream;
 		/* return 0; */
 	}
-	
+	ast_mutex_lock(&curhstusr_lock);
 	curusr = cpystr (vms->imapuser);
 	curhst = cpystr (mylocalhost ());
-	
 	/* debug = T;  user wants protocol telemetry? */
 	debug = NIL;  /* NO protocol telemetry? */
 	if (strlen(authuser) > 0) {
@@ -7883,6 +7880,7 @@ static int init_mailstream(struct vm_state *vms)
 	}
 	if(option_debug > 2)
 		ast_log (LOG_DEBUG,"Before mail_open, curusr: %s, mbox:%s\n",curusr,mbox);
+	ast_mutex_unlock(&curhstusr_lock);
 	vms->mailstream = mail_open (stream, mbox, debug ? OP_DEBUG : NIL);
 	if (vms->mailstream == NIL) {
 		return -1;
@@ -8207,6 +8205,7 @@ void mm_login(NETMBX * mb, char *user, char *pwd, long trial)
 	char tmp[MAILTMPLEN];
 	if(option_debug > 3)
 		ast_log(LOG_DEBUG, "Entering callback mm_login\n");
+	ast_mutex_lock(&curhstusr_lock);
 	if (curhst)
 		fs_give ((void **) &curhst);
 	curhst = (char *) fs_get (1 + strlen (mb->host));
@@ -8220,7 +8219,7 @@ void mm_login(NETMBX * mb, char *user, char *pwd, long trial)
 	}
 	if (curusr)
 		fs_give ((void **) &curusr);
-	
+	ast_mutex_unlock(&curhstusr_lock);
 	/* strcpy (pwd, getpass (tmp));*/
 	/* We should only do this when necessary */
 	if (strlen(authpassword) > 0) {
@@ -8408,7 +8407,6 @@ static void vmstate_insert(struct vm_state *vms)
 				ast_log(LOG_DEBUG, "Duplicate mailbox %s, copying message info...\n",vms->username);
 			vms->newmessages = altvms->newmessages;
 			vms->oldmessages = altvms->oldmessages;
-			/* JAR - START HERE - this copy may not be right */
 			if(option_debug > 2)
 				ast_log(LOG_DEBUG, "check_msgArray before memcpy\n");
 			check_msgArray(vms);
