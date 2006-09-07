@@ -207,6 +207,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 				}
 				res = 0;
 			} else {
+				pbx_builtin_setvar_helper(chan, arglist.variable, tmp);
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "User disconnected\n");
 			}
