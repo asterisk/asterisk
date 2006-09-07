@@ -7,7 +7,7 @@
 		</member>
 		<member name="DETECT_DEADLOCKS" displayname="Detect Deadlocks">
 		</member>
-		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations from the Compiler">
+		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations by the Compiler">
 		</member>
 		<member name="DUMP_SCHEDULER" displayname="Dump Scheduler Contents for Debugging">
 		</member>
