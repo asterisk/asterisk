@@ -142,8 +142,12 @@ static int regex(struct ast_channel *chan, char *cmd, char *parse, char *buf,
 static struct ast_custom_function regex_function = {
 	.name = "REGEX",
 	.synopsis = "Regular Expression",
-	.desc =  "Returns 1 if data matches regular expression, or 0 otherwise.",
-	.syntax = "REGEX(\"<regular expression>\" <data>)",
+	.desc =  
+		"Returns 1 if data matches regular expression, or 0 otherwise.\n"
+		"Please note that the double quotes separating the expression from the data\n"
+		"should not have any neighboring spaces, either before or after, unless you\n"
+	        "intend them to be in either the expression or the data!\n",
+	.syntax = "REGEX(\"<regular expression>\"<data>)",
 	.read = regex,
 };
 
