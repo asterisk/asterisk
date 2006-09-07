@@ -295,6 +295,7 @@ static void init_logger_chain(void)
 	AST_LIST_UNLOCK(&logchannels);
 	
 	global_logmask = 0;
+	errno = 0;
 	/* close syslog */
 	closelog();
 	
@@ -302,7 +303,10 @@ static void init_logger_chain(void)
 	
 	/* If no config file, we're fine, set default options. */
 	if (!cfg) {
-		fprintf(stderr, "Unable to open logger.conf: %s\n", strerror(errno));
+		if (errno)
+			fprintf(stderr, "Unable to open logger.conf: %s; default settings will be used.\n", strerror(errno));
+		else
+			fprintf(stderr, "Errors detected in logger.conf: see above; default settings will be used.\n");
 		if (!(chan = ast_calloc(1, sizeof(*chan))))
 			return;
 		chan->type = LOGTYPE_CONSOLE;
@@ -688,6 +692,23 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	if (!(buf = ast_dynamic_str_thread_get(&log_buf, LOG_BUF_INIT_SIZE)))
 		return;
 
+	if (AST_LIST_EMPTY(&logchannels))
+	{
+		/*
+		 * we don't have the logger chain configured yet,
+		 * so just log to stdout
+		*/
+		if (level != __LOG_VERBOSE) {
+			int res;
+			va_start(ap, fmt);
+			res = ast_dynamic_str_thread_set_va(&buf, BUFSIZ, &log_buf, fmt, ap);
+			va_end(ap);
+			if (res != AST_DYNSTR_BUILD_FAILED)
+				fputs(buf->str, stdout);
+		}
+		return;
+	}
+
 	/* don't display LOG_DEBUG messages unless option_verbose _or_ option_debug
 	   are non-zero; LOG_DEBUG messages can still be displayed if option_debug
 	   is zero, if option_verbose is non-zero (this allows for 'level zero'
@@ -723,81 +744,66 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		return;
 	}
 
-	if (!AST_LIST_EMPTY(&logchannels)) {
-		AST_LIST_TRAVERSE(&logchannels, chan, list) {
-			if (chan->disabled)
-				break;
-			/* Check syslog channels */
-			if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << level))) {
-				va_start(ap, fmt);
-				ast_log_vsyslog(level, file, line, function, fmt, ap);
-				va_end(ap);
-			/* Console channels */
-			} else if ((chan->logmask & (1 << level)) && (chan->type == LOGTYPE_CONSOLE)) {
-				char linestr[128];
-				char tmp1[80], tmp2[80], tmp3[80], tmp4[80];
+	AST_LIST_TRAVERSE(&logchannels, chan, list) {
+		if (chan->disabled)
+			break;
+		/* Check syslog channels */
+		if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << level))) {
+			va_start(ap, fmt);
+			ast_log_vsyslog(level, file, line, function, fmt, ap);
+			va_end(ap);
+		/* Console channels */
+		} else if ((chan->logmask & (1 << level)) && (chan->type == LOGTYPE_CONSOLE)) {
+			char linestr[128];
+			char tmp1[80], tmp2[80], tmp3[80], tmp4[80];
 
-				if (level != __LOG_VERBOSE) {
-					int res;
-					sprintf(linestr, "%d", line);
-					ast_dynamic_str_thread_set(&buf, BUFSIZ, &log_buf,
-						"[%s] %s[%ld]: %s:%s %s: ",
-						date,
-						term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
-						(long)GETTID(),
-						term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
-						term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
-						term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
-
-					ast_console_puts_mutable(buf->str);
-					
-					va_start(ap, fmt);
-					res = ast_dynamic_str_thread_set_va(&buf, BUFSIZ, &log_buf, fmt, ap);
-					va_end(ap);
-					if (res != AST_DYNSTR_BUILD_FAILED)
-						ast_console_puts_mutable(buf->str);
-				}
-			/* File channels */
-			} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
+			if (level != __LOG_VERBOSE) {
 				int res;
-				ast_dynamic_str_thread_set(&buf, BUFSIZ, &log_buf, 
-					"[%s] %s[%ld] %s: ",
-					date, levels[level], (long)GETTID(), file);
-				res = fprintf(chan->fileptr, "%s", buf->str);
-				if (res <= 0 && !ast_strlen_zero(buf->str)) {	/* Error, no characters printed */
-					fprintf(stderr,"**** Asterisk Logging Error: ***********\n");
-					if (errno == ENOMEM || errno == ENOSPC) {
-						fprintf(stderr, "Asterisk logging error: Out of disk space, can't log to log file %s\n", chan->filename);
-					} else
-						fprintf(stderr, "Logger Warning: Unable to write to log file '%s': %s (disabled)\n", chan->filename, strerror(errno));
-					manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: No\r\nReason: %d - %s\r\n", chan->filename, errno, strerror(errno));
-					chan->disabled = 1;	
-				} else {
-					int res;
-					/* No error message, continue printing */
-					va_start(ap, fmt);
-					res = ast_dynamic_str_thread_set_va(&buf, BUFSIZ, &log_buf, fmt, ap);
-					va_end(ap);
-					if (res != AST_DYNSTR_BUILD_FAILED) {
-						term_strip(buf->str, buf->str, buf->len);
-						fputs(buf->str, chan->fileptr);
-						fflush(chan->fileptr);
-					}
+				sprintf(linestr, "%d", line);
+				ast_dynamic_str_thread_set(&buf, BUFSIZ, &log_buf,
+					"[%s] %s[%ld]: %s:%s %s: ",
+					date,
+					term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
+					(long)GETTID(),
+					term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
+					term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
+					term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
+
+				ast_console_puts_mutable(buf->str);
+				
+				va_start(ap, fmt);
+				res = ast_dynamic_str_thread_set_va(&buf, BUFSIZ, &log_buf, fmt, ap);
+				va_end(ap);
+				if (res != AST_DYNSTR_BUILD_FAILED)
+					ast_console_puts_mutable(buf->str);
+			}
+		/* File channels */
+		} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
+			int res;
+			ast_dynamic_str_thread_set(&buf, BUFSIZ, &log_buf, 
+				"[%s] %s[%ld] %s: ",
+				date, levels[level], (long)GETTID(), file);
+			res = fprintf(chan->fileptr, "%s", buf->str);
+			if (res <= 0 && !ast_strlen_zero(buf->str)) {	/* Error, no characters printed */
+				fprintf(stderr,"**** Asterisk Logging Error: ***********\n");
+				if (errno == ENOMEM || errno == ENOSPC) {
+					fprintf(stderr, "Asterisk logging error: Out of disk space, can't log to log file %s\n", chan->filename);
+				} else
+					fprintf(stderr, "Logger Warning: Unable to write to log file '%s': %s (disabled)\n", chan->filename, strerror(errno));
+				manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: No\r\nReason: %d - %s\r\n", chan->filename, errno, strerror(errno));
+				chan->disabled = 1;	
+			} else {
+				int res;
+				/* No error message, continue printing */
+				va_start(ap, fmt);
+				res = ast_dynamic_str_thread_set_va(&buf, BUFSIZ, &log_buf, fmt, ap);
+				va_end(ap);
+				if (res != AST_DYNSTR_BUILD_FAILED) {
+					term_strip(buf->str, buf->str, buf->len);
+					fputs(buf->str, chan->fileptr);
+					fflush(chan->fileptr);
 				}
 			}
-		}
-	} else {
-		/* 
-		 * we don't have the logger chain configured yet,
-		 * so just log to stdout 
-		*/
-		if (level != __LOG_VERBOSE) {
-			int res;
-			va_start(ap, fmt);
-			res = ast_dynamic_str_thread_set_va(&buf, BUFSIZ, &log_buf, fmt, ap);
-			va_end(ap);
-			if (res != AST_DYNSTR_BUILD_FAILED)
-				fputs(buf->str, stdout);
 		}
 	}
 
