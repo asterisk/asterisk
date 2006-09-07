@@ -124,42 +124,35 @@ static AST_LIST_HEAD_STATIC(locals, local_pvt);
 /*! \brief Adds devicestate to local channels */
 static int local_devicestate(void *data)
 {
-	char *exten;
-	char *context;
-
+	char *exten = ast_strdupa(data);
+	char *context = NULL;
 	int res;
-		
-	exten = ast_strdupa(data);
-	context = strchr(exten, '@');
 
-	if (!context) {
+	if (!(context = strchr(exten, '@'))) {
 		ast_log(LOG_WARNING, "Someone used Local/%s somewhere without a @context. This is bad.\n", exten);
 		return AST_DEVICE_INVALID;	
 	}
 
-	*context = '\0';
-	context = context + 1;
+	*context++ = '\0';
 
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Checking if extension %s@%s exists (devicestate)\n", exten, context);
 	res = ast_exists_extension(NULL, context, exten, 1, NULL);
-	if (!res) {
-		
+	if (!res)		
 		return AST_DEVICE_INVALID;
-	} else
+	else
 		return AST_DEVICE_UNKNOWN;
 }
 
 static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_frame *f, struct ast_channel *us)
 {
-	struct ast_channel *other;
+	struct ast_channel *other = NULL;
+
 retrylock:		
+
 	/* Recalculate outbound channel */
-	if (isoutbound) {
-		other = p->owner;
-	} else {
-		other = p->chan;
-	}
+	other = isoutbound ? p->owner : p->chan;
+
 	/* Set glare detection */
 	p->glaredetect = 1;
 	if (p->cancelqueue) {
@@ -218,9 +211,7 @@ static int local_answer(struct ast_channel *ast)
 
 static void check_bridge(struct local_pvt *p, int isoutbound)
 {
-	if (p->alreadymasqed || p->nooptimization)
-		return;
-	if (!p->chan || !p->owner)
+	if (p->alreadymasqed || p->nooptimization || !p->chan || !p->owner)
 		return;
 
 	/* only do the masquerade if we are being called on the outbound channel,
@@ -324,6 +315,8 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass = condition;
+	f.data = (void*)data;
+	f.datalen = datalen;
 	res = local_queue_frame(p, isoutbound, &f, ast);
 	ast_mutex_unlock(&p->lock);
 	return res;
@@ -434,27 +427,6 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	return res;
 }
 
-#if 0
-static void local_destroy(struct local_pvt *p)
-{
-	struct local_pvt *cur;
-
-	AST_LIST_LOCK(&locals);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&locals, cur, list) {
-		if (cur == p) {
-			AST_LIST_REMOVE_CURRENT(&locals, list);
-			ast_mutex_destroy(&cur->lock);
-			free(cur);
-			break;
-		}
-	}
-	AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&locals);
-	if (!cur)
-		ast_log(LOG_WARNING, "Unable ot find local '%s@%s' in local list\n", p->exten, p->context);
-}
-#endif
-
 /*! \brief Hangup a call through the local proxy channel */
 static int local_hangup(struct ast_channel *ast)
 {
@@ -516,26 +488,31 @@ static int local_hangup(struct ast_channel *ast)
 /*! \brief Create a call structure */
 static struct local_pvt *local_alloc(const char *data, int format)
 {
-	struct local_pvt *tmp;
-	char *c;
-	char *opts;
+	struct local_pvt *tmp = NULL;
+	char *c = NULL, *opts = NULL;
 
 	if (!(tmp = ast_calloc(1, sizeof(*tmp))))
 		return NULL;
-	
+
+	/* Initialize private structure information */
 	ast_mutex_init(&tmp->lock);
 	ast_copy_string(tmp->exten, data, sizeof(tmp->exten));
-	opts = strchr(tmp->exten, '/');
-	if (opts) {
+
+	/* Look for options */
+	if ((opts = strchr(tmp->exten, '/'))) {
 		*opts++ = '\0';
 		if (strchr(opts, 'n'))
 			tmp->nooptimization = 1;
 	}
-	c = strchr(tmp->exten, '@');
-	if (c)
+
+	/* Look for a context */
+	if ((c = strchr(tmp->exten, '@')))
 		*c++ = '\0';
+
 	ast_copy_string(tmp->context, c ? c : "default", sizeof(tmp->context));
+
 	tmp->reqformat = format;
+
 	if (!ast_exists_extension(NULL, tmp->context, tmp->exten, 1, NULL)) {
 		ast_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->exten, tmp->context);
 		ast_mutex_destroy(&tmp->lock);
@@ -554,12 +531,11 @@ static struct local_pvt *local_alloc(const char *data, int format)
 /*! \brief Start new local channel */
 static struct ast_channel *local_new(struct local_pvt *p, int state)
 {
-	struct ast_channel *tmp, *tmp2;
-	int randnum = ast_random() & 0xffff;
+	struct ast_channel *tmp = NULL, *tmp2 = NULL;
+	int randnum = ast_random() & 0xffff, fmt = 0;
 
-	tmp = ast_channel_alloc(1);
-	tmp2 = ast_channel_alloc(1);
-	if (!tmp || !tmp2) {
+	/* Allocate two new Asterisk channels */
+	if (!(tmp = ast_channel_alloc(1)) || !(tmp2 = ast_channel_alloc(1))) {
 		if (tmp)
 			ast_channel_free(tmp);
 		if (tmp2)
@@ -569,26 +545,35 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 	} 
 
 	tmp2->tech = tmp->tech = &local_tech;
+
 	tmp->nativeformats = p->reqformat;
 	tmp2->nativeformats = p->reqformat;
+
 	ast_string_field_build(tmp, name, "Local/%s@%s-%04x,1", p->exten, p->context, randnum);
 	ast_string_field_build(tmp2, name, "Local/%s@%s-%04x,2", p->exten, p->context, randnum);
+
 	ast_setstate(tmp, state);
 	ast_setstate(tmp2, AST_STATE_RING);
-	tmp->writeformat = p->reqformat;
-	tmp2->writeformat = p->reqformat;
-	tmp->rawwriteformat = p->reqformat;
-	tmp2->rawwriteformat = p->reqformat;
-	tmp->readformat = p->reqformat;
-	tmp2->readformat = p->reqformat;
-	tmp->rawreadformat = p->reqformat;
-	tmp2->rawreadformat = p->reqformat;
+
+	/* Determine our read/write format and set it on each channel */
+	fmt = ast_best_codec(p->reqformat);
+	tmp->writeformat = fmt;
+	tmp2->writeformat = fmt;
+	tmp->rawwriteformat = fmt;
+	tmp2->rawwriteformat = fmt;
+	tmp->readformat = fmt;
+	tmp2->readformat = fmt;
+	tmp->rawreadformat = fmt;
+	tmp2->rawreadformat = fmt;
+
 	tmp->tech_pvt = p;
 	tmp2->tech_pvt = p;
+
 	p->owner = tmp;
 	p->chan = tmp2;
 	p->u_owner = ast_module_user_add(p->owner);
 	p->u_chan = ast_module_user_add(p->chan);
+
 	ast_copy_string(tmp->context, p->context, sizeof(tmp->context));
 	ast_copy_string(tmp2->context, p->context, sizeof(tmp2->context));
 	ast_copy_string(tmp2->exten, p->exten, sizeof(tmp->exten));
@@ -602,31 +587,35 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 /*! \brief Part of PBX interface */
 static struct ast_channel *local_request(const char *type, int format, void *data, int *cause)
 {
-	struct local_pvt *p;
+	struct local_pvt *p = NULL;
 	struct ast_channel *chan = NULL;
 
-	p = local_alloc(data, format);
-	if (p)
+	/* Allocate a new private structure and then Asterisk channel */
+	if ((p = local_alloc(data, format)))
 		chan = local_new(p, AST_STATE_DOWN);
+
 	return chan;
 }
 
 /*! \brief CLI command "local show channels" */
 static int locals_show(int fd, int argc, char **argv)
 {
-	struct local_pvt *p;
+	struct local_pvt *p = NULL;
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	if (AST_LIST_EMPTY(&locals))
-		ast_cli(fd, "No local channels in use\n");
+
 	AST_LIST_LOCK(&locals);
-	AST_LIST_TRAVERSE(&locals, p, list) {
-		ast_mutex_lock(&p->lock);
-		ast_cli(fd, "%s -- %s@%s\n", p->owner ? p->owner->name : "<unowned>", p->exten, p->context);
-		ast_mutex_unlock(&p->lock);
-	}
+	if (!AST_LIST_EMPTY(&locals)) {
+		AST_LIST_TRAVERSE(&locals, p, list) {
+			ast_mutex_lock(&p->lock);
+			ast_cli(fd, "%s -- %s@%s\n", p->owner ? p->owner->name : "<unowned>", p->exten, p->context);
+			ast_mutex_unlock(&p->lock);
+		}
+	} else
+		ast_cli(fd, "No local channels in use\n");
 	AST_LIST_UNLOCK(&locals);
+
 	return RESULT_SUCCESS;
 }
 
@@ -653,7 +642,7 @@ static int load_module(void)
 /*! \brief Unload the local proxy channel from Asterisk */
 static int unload_module(void)
 {
-	struct local_pvt *p;
+	struct local_pvt *p = NULL;
 
 	/* First, take us out of the channel loop */
 	ast_cli_unregister(&cli_show_locals);
