@@ -11335,7 +11335,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 					}
 				} else {
-					ast_log(LOG_WARNING, "Strange... The other side of the bridge does not have a udptl struct\n");
+					if (option_debug > 1)
+						ast_log(LOG_DEBUG, "Strange... The other side of the bridge does not have a udptl struct\n");
 					ast_mutex_lock(&bridgepvt->lock);
 					bridgepvt->t38.state = T38_DISABLED;
 					ast_mutex_unlock(&bridgepvt->lock);
@@ -11347,7 +11348,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				}
 			} else {
 				/* Other side is not a SIP channel */
-				ast_log(LOG_WARNING, "Strange... The other side of the bridge is not a SIP channel\n");
+				if (option_debug > 1)
+					ast_log(LOG_DEBUG, "Strange... The other side of the bridge is not a SIP channel\n");
 				p->t38.state = T38_DISABLED;
 				if (option_debug > 1)
 					ast_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
