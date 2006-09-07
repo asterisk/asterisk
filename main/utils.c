@@ -1199,7 +1199,7 @@ int ast_dynamic_str_thread_build_va(struct ast_dynamic_str **buf, size_t max_len
 	struct ast_threadstorage *ts, int append, const char *fmt, va_list ap)
 {
 	int res;
-	int offset = append ? strlen((*buf)->str) : 0;
+	int offset = (append && (*buf)->len) ? strlen((*buf)->str) : 0;
 
 	res = vsnprintf((*buf)->str + offset, (*buf)->len - offset, fmt, ap);
 
