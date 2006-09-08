@@ -1720,7 +1720,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	/* Wait full interval */
 	rms = *ms;
 	if (whentohangup) {
-		rms = (whentohangup - now) * 1000;	/* timeout in milliseconds */
+		rms = whentohangup * 1000;              /* timeout in milliseconds */
 		if (*ms >= 0 && *ms < rms)		/* original *ms still smaller */
 			rms =  *ms;
 	}
