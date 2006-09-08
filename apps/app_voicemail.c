@@ -124,8 +124,6 @@ static int save_body(BODY *body, struct vm_state *vms, char *section, char *form
 static int make_gsm_file(char *dest, char *imapuser, char *dir, int num);
 static void get_mailbox_delimiter(MAILSTREAM *stream);
 static void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota);
-/* should define TMP in config file... */
-#define TMP "/tmp"
 struct vmstate {
 	struct vm_state *vms;
 	struct vmstate *next;
@@ -2882,7 +2880,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		/* here is a big difference! We add one to it later */
 		msgnum = newmsgs + oldmsgs;
 		ast_log(LOG_NOTICE, "Messagecount set to %d\n",msgnum);
-		sprintf(fn, "%s/msg%s%04d", TMP, vmu->mailbox, msgnum);
+		snprintf(fn, sizeof(fn), "%s/imap/msg%s%04d", VM_SPOOL_DIR, vmu->mailbox, msgnum);
 		/* set variable for compatability */
 		pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", "IMAP_STORAGE");
 
@@ -3722,7 +3720,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	const char *category = pbx_builtin_getvar_helper(chan, "VM_CATEGORY");
 
 #ifdef IMAP_STORAGE
-	stpcpy(todir,TMP);
+	snprintf(todir, sizeof(todir), "%s/imap",VM_SPOOL_DIR);
 	sprintf(fn, "%s/msg%s%04d", todir, vmu->mailbox, msgnum);
 #else
 	make_dir(todir, sizeof(todir), vmu->context, vmu->mailbox, "INBOX");
@@ -3968,8 +3966,8 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	 				ast_log (LOG_DEBUG,"**** format set to %s, vmfmts set to %s\n",fmt,vmfmts);
  				/* ast_copy_string(fmt, vmfmts, sizeof(fmt));*/
  				/* if (!ast_strlen_zero(fmt)) { */
- 
- 				make_gsm_file(vms->fn, vms->imapuser, TMP, vms->curmsg);
+				snprintf(todir, sizeof(todir), "%s/imap", VM_SPOOL_DIR);
+ 				make_gsm_file(vms->fn, vms->imapuser, todir, vms->curmsg);
 				if(option_debug > 2)
 	 				ast_log (LOG_DEBUG,"Before mail_fetchstructure, message number is %ld, filename is:%s\n",vms->msgArray[vms->curmsg], vms->fn);
 				/*mail_fetchstructure (mailstream, vmArray[0], &body); */
@@ -3983,7 +3981,6 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
  					myserveremail = vmtmp->serveremail;
  				int attach_user_voicemail = ast_test_flag((&globalflags), VM_ATTACH);
  				attach_user_voicemail = ast_test_flag(vmtmp, VM_ATTACH);
- 				stpcpy(todir,TMP);
  				sprintf(fn, "%s/%s/msg%04d", todir, vms->imapuser, vms->curmsg);
  				/* NULL category for IMAP storage */
  				sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox, chan->cid.cid_num, chan->cid.cid_name, fn, fmt, duration, attach_user_voicemail, chan, NULL);
@@ -4299,7 +4296,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	char origtime[32];
 	char duration[16];
 	char category[32];
-
+	char todir[256];
 	int res = 0;
 	char *temp;
 
@@ -4318,8 +4315,8 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		ast_log (LOG_ERROR,"Could not fetch header for message number %ld\n",vms->msgArray[vms->curmsg]);
 		return -1;
 	}
-
-	make_gsm_file(vms->fn, vms->imapuser,TMP, vms->curmsg);
+	snprintf(todir, sizeof(todir), "%s/imap", VM_SPOOL_DIR);
+	make_gsm_file(vms->fn, vms->imapuser, todir, vms->curmsg);
 
 	mail_fetchstructure (vms->mailstream,vms->msgArray[vms->curmsg],&body);
 	save_body(body,vms,"3","gsm");
@@ -4398,7 +4395,6 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	res = 0;
 
 	if (!res) {
-		/* make_file(vms->fn, sizeof(vms->fn), TMP, vms->curmsg); */
 		vms->heard[vms->curmsg] = 1;
 		res = wait_file(chan, vms, vms->fn);
 	}
