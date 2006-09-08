@@ -218,7 +218,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 		if (!res)
 			res = ast_waitstream(chan, "");
 	} else {
-		if (ast_test_flag(&flags,OPT_JUMP) && ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
+		if (ast_test_flag(&flags,OPT_JUMP) && ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101) == 0) {
 			res = 0;
 		} else {
 			if (!ast_streamfile(chan, "vm-goodbye", chan->language))
