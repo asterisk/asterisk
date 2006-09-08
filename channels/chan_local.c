@@ -515,7 +515,7 @@ static struct local_pvt *local_alloc(char *data, int format)
 static struct ast_channel *local_new(struct local_pvt *p, int state)
 {
 	struct ast_channel *tmp, *tmp2;
-	int randnum = rand() & 0xffff;
+	int randnum = rand() & 0xffff, fmt = 0;
 
 	tmp = ast_channel_alloc(1);
 	tmp2 = ast_channel_alloc(1);
@@ -537,14 +537,15 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 	tmp2->type = type;
 	ast_setstate(tmp, state);
 	ast_setstate(tmp2, AST_STATE_RING);
-	tmp->writeformat = p->reqformat;
-	tmp2->writeformat = p->reqformat;
-	tmp->rawwriteformat = p->reqformat;
-	tmp2->rawwriteformat = p->reqformat;
-	tmp->readformat = p->reqformat;
-	tmp2->readformat = p->reqformat;
-	tmp->rawreadformat = p->reqformat;
-	tmp2->rawreadformat = p->reqformat;
+	fmt = ast_best_codec(p->reqformat);
+	tmp->writeformat = fmt;
+	tmp2->writeformat = fmt;
+	tmp->rawwriteformat = fmt;
+	tmp2->rawwriteformat = fmt;
+	tmp->readformat = fmt;
+	tmp2->readformat = fmt;
+	tmp->rawreadformat = fmt;
+	tmp2->rawreadformat = fmt;
 	tmp->tech_pvt = p;
 	tmp2->tech_pvt = p;
 	p->owner = tmp;
