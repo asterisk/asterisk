@@ -7504,7 +7504,6 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	context = ast_variable_retrieve(msg_cfg, "message", "context");
 	if (!strncasecmp("macro",context,5)) /* Macro names in contexts are useless for our needs */
 		context = ast_variable_retrieve(msg_cfg, "message","macrocontext");
-	ast_config_destroy(msg_cfg);
 #endif
 	switch (option) {
 	case 3:
@@ -7528,8 +7527,10 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 				if (num) {
 					/* Dial the CID number */
 					res = dialout(chan, vmu, num, vmu->callback);
-					if (res)
+					if (res) {
+						ast_config_destroy(msg_cfg);
 						return 9;
+					}
 				} else {
 					res = '2';
 				}
@@ -7539,13 +7540,16 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 				/* Want to enter a different number, can only do this if there's a dialout context for this user */
 				if (!ast_strlen_zero(vmu->dialout)) {
 					res = dialout(chan, vmu, NULL, vmu->dialout);
-					if (res)
+					if (res) {
+						ast_config_destroy(msg_cfg);
 						return 9;
+					}
 				} else {
 					if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "Caller can not specify callback number - no dialout context available\n");
 					res = ast_play_and_wait(chan, "vm-sorry");
 				}
+				ast_config_destroy(msg_cfg);
 				return res;
 			case '*':
 				res = 't';
@@ -7613,6 +7617,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 				ast_verbose(VERBOSE_PREFIX_3 "No CID number available, no reply sent\n");
 			if (!res)
 				res = ast_play_and_wait(chan, "vm-nonumber");
+			ast_config_destroy(msg_cfg);
 			return res;
 		} else {
 			if (find_user(NULL, vmu->context, num)) {
@@ -7628,6 +7633,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 				res = leave_voicemail(chan, mailbox, &leave_options);
 				if (!res)
 					res = 't';
+				ast_config_destroy(msg_cfg);
 				return res;
 			} else {
 				/* Sender has no mailbox, can't reply */
@@ -7635,6 +7641,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 					ast_verbose( VERBOSE_PREFIX_3 "No mailbox number '%s' in context '%s', no reply sent\n", num, vmu->context);
 				ast_play_and_wait(chan, "vm-nobox");
 				res = 't';
+				ast_config_destroy(msg_cfg);
 				return res;
 			}
 		} 
