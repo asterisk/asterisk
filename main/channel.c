@@ -3154,6 +3154,8 @@ int ast_do_masquerade(struct ast_channel *original)
 	void *t_pvt;
 	struct ast_callerid tmpcid;
 	struct ast_channel *clone = original->masq;
+	struct ast_channel_spy_list *spy_list = NULL;
+	struct ast_channel_spy *spy = NULL;
 	int rformat = original->readformat;
 	int wformat = original->writeformat;
 	char newn[100];
@@ -3231,6 +3233,27 @@ int ast_do_masquerade(struct ast_channel *original)
 	x = original->rawwriteformat;
 	original->rawwriteformat = clone->rawwriteformat;
 	clone->rawwriteformat = x;
+
+	/* Swap the spies */
+	spy_list = original->spies;
+	original->spies = clone->spies;
+	clone->spies = spy_list;
+
+	/* Update channel on respective spy lists if present */
+	if (original->spies) {
+		AST_LIST_TRAVERSE(&original->spies->list, spy, list) {
+			ast_mutex_lock(&spy->lock);
+			spy->chan = original;
+			ast_mutex_unlock(&spy->lock);
+		}
+	}
+	if (clone->spies) {
+		AST_LIST_TRAVERSE(&clone->spies->list, spy, list) {
+			ast_mutex_lock(&spy->lock);
+			spy->chan = clone;
+			ast_mutex_unlock(&spy->lock);
+		}
+	}
 
 	/* Save any pending frames on both sides.  Start by counting
 	 * how many we're going to need... */
