@@ -274,11 +274,11 @@ static struct ast_frame *lintospeex_frameout(struct ast_trans_pvt *pvt)
 #ifdef _SPEEX_TYPES_H
 		/* Preprocess audio */
 		if (preproc)
-			is_speech = speex_preprocess(tmp->pp, tmp->buf, NULL);
+			is_speech = speex_preprocess(tmp->pp, tmp->buf + samples, NULL);
 		/* Encode a frame of data */
 		if (is_speech) {
 			/* If DTX enabled speex_encode returns 0 during silence */
-			is_speech = speex_encode_int(tmp->speex, tmp->buf, &tmp->bits) || !dtx;
+			is_speech = speex_encode_int(tmp->speex, tmp->buf + samples, &tmp->bits) || !dtx;
 		} else {
 			/* 5 zeros interpreted by Speex as silence (submode 0) */
 			speex_bits_pack(&tmp->bits, 0, 5);
@@ -289,17 +289,18 @@ static struct ast_frame *lintospeex_frameout(struct ast_trans_pvt *pvt)
 			int x;
 			/* Convert to floating point */
 			for (x = 0; x < tmp->framesize; x++)
-				fbuf[x] = tmp->buf[x];
+				fbuf[x] = tmp->buf[samples + x];
 			/* Encode a frame of data */
 			is_speech = speex_encode(tmp->speex, fbuf, &tmp->bits) || !dtx;
 		}
 #endif
 		samples += tmp->framesize;
 		pvt->samples -= tmp->framesize;
-		/* Move the data at the end of the buffer to the front */
-		if (pvt->samples)
-			memmove(tmp->buf, tmp->buf + tmp->framesize, pvt->samples * 2);
 	}
+
+	/* Move the data at the end of the buffer to the front */
+	if (pvt->samples)
+		memmove(tmp->buf, tmp->buf + samples, pvt->samples * 2);
 
 	/* Use AST_FRAME_CNG to signify the start of any silence period */
 	if (is_speech) {

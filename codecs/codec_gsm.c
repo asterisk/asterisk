@@ -183,14 +183,16 @@ static struct ast_frame *lintogsm_frameout(struct ast_trans_pvt *pvt)
 		return NULL;
 	while (pvt->samples >= GSM_SAMPLES) {
 		/* Encode a frame of data */
-		gsm_encode(tmp->gsm, tmp->buf, (gsm_byte *)pvt->outbuf + datalen);
+		gsm_encode(tmp->gsm, tmp->buf + samples, (gsm_byte *) pvt->outbuf + datalen);
 		datalen += GSM_FRAME_LEN;
 		samples += GSM_SAMPLES;
 		pvt->samples -= GSM_SAMPLES;
-		/* Move the data at the end of the buffer to the front */
-		if (pvt->samples)
-			memmove(tmp->buf, tmp->buf + GSM_SAMPLES, pvt->samples * 2);
 	}
+
+	/* Move the data at the end of the buffer to the front */
+	if (pvt->samples)
+		memmove(tmp->buf, tmp->buf + samples, pvt->samples * 2);
+
 	return ast_trans_frameout(pvt, datalen, samples);
 }
 

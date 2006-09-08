@@ -218,9 +218,6 @@ static struct ast_frame *lintolpc10_frameout(struct ast_trans_pvt *pvt)
 		/* Use one of the two left over bits to record if this is a 22 or 23 ms frame...
 		   important for IAX use */
 		tmp->longer = 1 - tmp->longer;
-#if 0	/* what the heck was this for? */
-		((char *)(tmp->f.data))[consumed - 1] |= tmp->longer;
-#endif		
 	}
 	/* Move the data at the end of the buffer to the front */
 	if (pvt->samples)

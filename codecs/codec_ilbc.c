@@ -176,17 +176,21 @@ static struct ast_frame *lintoilbc_frameout(struct ast_trans_pvt *pvt)
 	while (pvt->samples >= ILBC_SAMPLES) {
 		float tmpf[ILBC_SAMPLES];
 		int i;
+
 		/* Encode a frame of data */
-		for ( i = 0 ; i < ILBC_SAMPLES ; i++ )
-			tmpf[i] = tmp->buf[i];
+		for (i = 0 ; i < ILBC_SAMPLES ; i++)
+			tmpf[i] = tmp->buf[samples + i];
 		iLBC_encode((unsigned char *) pvt->outbuf + datalen, tmpf, &tmp->enc);
+
 		datalen += ILBC_FRAME_LEN;
 		samples += ILBC_SAMPLES;
 		pvt->samples -= ILBC_SAMPLES;
-		/* Move the data at the end of the buffer to the front */
-		if (pvt->samples)
-			memmove(tmp->buf, tmp->buf + ILBC_SAMPLES, pvt->samples * 2);
 	}
+
+	/* Move the data at the end of the buffer to the front */
+	if (pvt->samples)
+		memmove(tmp->buf, tmp->buf + samples, pvt->samples * 2);
+
 	return ast_trans_frameout(pvt, datalen, samples);
 }
 
