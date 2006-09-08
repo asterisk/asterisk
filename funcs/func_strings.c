@@ -123,6 +123,8 @@ static int regex(struct ast_channel *chan, char *cmd, char *parse, char *buf,
 		ast_log(LOG_ERROR, "Unexpected arguments: should have been in the form '\"<regex>\" <string>'\n");
 		return -1;
 	}
+	if ((*args.str == ' ') || (*args.str == '\t'))
+		args.str++;
 
 	ast_log(LOG_DEBUG, "FUNCTION REGEX (%s)(%s)\n", args.reg, args.str);
 
@@ -144,10 +146,10 @@ static struct ast_custom_function regex_function = {
 	.synopsis = "Regular Expression",
 	.desc =  
 		"Returns 1 if data matches regular expression, or 0 otherwise.\n"
-		"Please note that the double quotes separating the expression from the data\n"
-		"should not have any neighboring spaces, either before or after, unless you\n"
-	        "intend them to be in either the expression or the data!\n",
-	.syntax = "REGEX(\"<regular expression>\"<data>)",
+		"Please note that the space following the double quotes separating the regex from the data\n"
+		"is optional and if present, is skipped. If a space is desired at the beginning of the data,\n"
+	        "then put two spaces there; the second will not be skipped.\n",
+	.syntax = "REGEX(\"<regular expression>\" <data>)",
 	.read = regex,
 };
 
