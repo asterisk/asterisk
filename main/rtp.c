@@ -137,6 +137,7 @@ struct ast_rtp {
 	unsigned int lastdigitts;
 	char send_digit;
 	int send_payload;
+	int send_duration;
 	int nat;
 	unsigned int flags;
 	struct sockaddr_in us;		/*!< Socket representation of the local endpoint. */
@@ -1961,26 +1962,6 @@ static unsigned int calc_txstamp(struct ast_rtp *rtp, struct timeval *delivery)
 	return (unsigned int) ms;
 }
 
-/* Convert DTMF digit into something usable */
-static int digit_convert(char digit)
-{
-	if ((digit <= '9') && (digit >= '0'))
-                digit -= '0';
-        else if (digit == '*')
-                digit = 10;
-        else if (digit == '#')
-                digit = 11;
-        else if ((digit >= 'A') && (digit <= 'D'))
-                digit = digit - 'A' + 12;
-        else if ((digit >= 'a') && (digit <= 'd'))
-                digit = digit - 'a' + 12;
-        else {
-                ast_log(LOG_WARNING, "Don't know how to represent '%c'\n", digit);
-                return -1;
-        }
-	return 0;
-}
-
 /*! \brief Send begin frames for DTMF */
 int ast_rtp_senddigit_begin(struct ast_rtp *rtp, char digit)
 {
@@ -1988,8 +1969,20 @@ int ast_rtp_senddigit_begin(struct ast_rtp *rtp, char digit)
 	int hdrlen = 12, res = 0, i = 0, payload = 0;
 	char data[256];
 
-	if (digit_convert(digit))
-		return -1;
+	if ((digit <= '9') && (digit >= '0'))
+		digit -= '0';
+	else if (digit == '*')
+		digit = 10;
+	else if (digit == '#')
+		digit = 11;
+	else if ((digit >= 'A') && (digit <= 'D'))
+		digit = digit - 'A' + 12;
+	else if ((digit >= 'a') && (digit <= 'd'))
+		digit = digit - 'a' + 12;
+	else {
+		ast_log(LOG_WARNING, "Don't know how to represent '%c'\n", digit);
+		return 0;
+	}
 
 	/* If we have no peer, return immediately */	
 	if (!rtp->them.sin_addr.s_addr || !rtp->them.sin_port)
@@ -1998,15 +1991,17 @@ int ast_rtp_senddigit_begin(struct ast_rtp *rtp, char digit)
 	payload = ast_rtp_lookup_code(rtp, 0, AST_RTP_DTMF);
 
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
+	rtp->send_duration = 160;
 	
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
 	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload << 16) | (rtp->seqno));
 	rtpheader[1] = htonl(rtp->lastdigitts);
 	rtpheader[2] = htonl(rtp->ssrc); 
-	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
 
 	for (i = 0; i < 2; i++) {
+		rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
+		rtpheader[3] |= htonl((rtp->send_duration));
 		res = sendto(rtp->s, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
 		if (res < 0) 
 			ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
@@ -2018,6 +2013,8 @@ int ast_rtp_senddigit_begin(struct ast_rtp *rtp, char digit)
 				    ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 		/* Increment sequence number */
 		rtp->seqno++;
+		/* Increment duration */
+		rtp->send_duration += 160;
 		/* Clear marker bit and set seqno */
 		rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno));
 	}
@@ -2045,6 +2042,7 @@ static int ast_rtp_senddigit_continuation(struct ast_rtp *rtp)
         rtpheader[1] = htonl(rtp->lastdigitts);
         rtpheader[2] = htonl(rtp->ssrc);
         rtpheader[3] = htonl((rtp->send_digit << 24) | (0xa << 16) | (0));
+	rtpheader[3] |= htonl((rtp->send_duration));
 	rtpheader[0] = htonl((2 << 30) | (rtp->send_payload << 16) | (rtp->seqno));
 	
 	/* Transmit */
@@ -2060,6 +2058,8 @@ static int ast_rtp_senddigit_continuation(struct ast_rtp *rtp)
 
 	/* Increment sequence number */
 	rtp->seqno++;
+	/* Increment duration */
+	rtp->send_duration += 160;
 
 	return 0;
 }
@@ -2075,9 +2075,20 @@ int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit)
 	if (!rtp->them.sin_addr.s_addr || !rtp->them.sin_port)
 		return 0;
 	
-	/* Convert our digit to the crazy RTP way */
-	if (digit_convert(digit))
-		return -1;
+	if ((digit <= '9') && (digit >= '0'))
+		digit -= '0';
+	else if (digit == '*')
+		digit = 10;
+	else if (digit == '#')
+		digit = 11;
+	else if ((digit >= 'A') && (digit <= 'D'))
+		digit = digit - 'A' + 12;
+	else if ((digit >= 'a') && (digit <= 'd'))
+		digit = digit - 'a' + 12;
+	else {
+		ast_log(LOG_WARNING, "Don't know how to represent '%c'\n", digit);
+		return 0;
+	}
 
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
 
@@ -2087,7 +2098,7 @@ int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit)
 	rtpheader[2] = htonl(rtp->ssrc);
 	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
 	/* Send duration to 100ms */
-	rtpheader[3] |= htonl((800));
+	rtpheader[3] |= htonl((rtp->send_duration));
 	/* Set end bit */
 	rtpheader[3] |= htonl((1 << 23));
 	rtpheader[0] = htonl((2 << 30) | (rtp->send_payload << 16) | (rtp->seqno));
