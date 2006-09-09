@@ -15,7 +15,7 @@
 # Prefixing one or the other with @\# or @ or nothing makes the desired
 # behaviour. ECHO_PREFIX prefixes the comment, CMD_PREFIX prefixes the command.
 
-include $(ASTTOPDIR)/makeopts
+-include $(ASTTOPDIR)/makeopts
 
 ifeq ($(NOISY_BUILD),)
    ECHO_PREFIX=@

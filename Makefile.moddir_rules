@@ -95,7 +95,9 @@ install:: all
 
 uninstall::
 
--include .depend
+ifneq ($(wildcard .depend),)
+  include .depend
+endif
 
 depend: .depend
 

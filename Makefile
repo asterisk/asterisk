@@ -22,7 +22,12 @@
 
 .EXPORT_ALL_VARIABLES:
 
-include makeopts
+# even though we could use '-include makeopts' here, use a wildcard
+# lookup anyway, so that make won't try to build makeopts if it doesn't
+# exist (other rules will force it to be built if needed)
+ifneq ($(wildcard makeopts),)
+  include makeopts
+endif
 
 #Uncomment this to see all build commands instead of 'quiet' output
 #NOISY_BUILD=yes
@@ -235,9 +240,8 @@ endif
 
 all: cleantest $(SUBDIRS)
 	@echo " +--------- Asterisk Build Complete ---------+"  
-	@echo " + Asterisk has successfully been built, but +"  
-	@echo " + cannot be run before being installed by   +"  
-	@echo " + running:                                  +"  
+	@echo " + Asterisk has successfully been built, and +"  
+	@echo " + can be installed by running:              +"
 	@echo " +                                           +"
 	@echo " +               make install                +"  
 	@echo " +-------------------------------------------+"  
@@ -316,6 +320,7 @@ clean: $(SUBDIRS_CLEAN) clean-depend
 	rm -f include/asterisk/version.h
 	rm -f .depend
 	@$(MAKE) -C menuselect clean
+	cp -f .cleancount .lastclean
 
 dist-clean: distclean
 
@@ -604,8 +609,7 @@ sounds:
 
 cleantest:
 	@if ! cmp -s .cleancount .lastclean ; then \
-		$(MAKE) clean; cp -f .cleancount .lastclean;\
-		$(MAKE) defaults.h;\
+		$(MAKE) clean;\
 	fi
 
 $(SUBDIRS_UNINSTALL):

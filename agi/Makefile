@@ -40,7 +40,9 @@ clean-depend:
 clean: clean-depend
 	rm -f *.so *.o look eagi-test eagi-sphinx-test
 
--include .depend
+ifneq ($(wildcard .depend),)
+  include .depend
+endif
 
 depend: .depend
 
