@@ -2385,7 +2385,7 @@ static int set_format(struct ast_channel *chan, int fmt, int *rawformat, int *fo
 	/* Now we have a good choice for both. */
 	ast_mutex_lock(&chan->lock);
 
-	if ((*rawformat == native) && (*format == fmt)) {
+	if ((*rawformat == native) && (*format == fmt) && ((*rawformat == *format) || (*trans))) {
 		/* the channel is already in these formats, so nothing to do */
 		ast_mutex_unlock(&chan->lock);
 		return 0;
