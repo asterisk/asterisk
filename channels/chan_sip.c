@@ -11197,7 +11197,7 @@ static void check_pendings(struct sip_pvt *p)
 		} else {
 			transmit_request_with_auth(p, SIP_BYE, 0, 1, 1);
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-			ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
+			ast_clear_flag(&p->flags[0], SIP_CAN_BYE);	
 		}
 	} else if (ast_test_flag(&p->flags[0], SIP_NEEDREINVITE)) {
 		if (option_debug)
