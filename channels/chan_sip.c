@@ -9572,16 +9572,14 @@ static void check_pendings(struct sip_pvt *p)
 {
 	if (ast_test_flag(p, SIP_PENDINGBYE)) {
 		/* if we can't BYE, then this is really a pending CANCEL */
-		if (!ast_test_flag(p, SIP_CAN_BYE)) {
+		if (!ast_test_flag(p, SIP_CAN_BYE))
 			transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, 1, 0);
 			/* Actually don't destroy us yet, wait for the 487 on our original 
 			   INVITE, but do set an autodestruct just in case we never get it. */
-			sip_scheddestroy(p, 32000);
-		} else {
+		else 
 			transmit_request_with_auth(p, SIP_BYE, 0, 1, 1);
-			ast_set_flag(p, SIP_NEEDDESTROY);	
-			ast_clear_flag(p, SIP_NEEDREINVITE);	
-		}
+		ast_clear_flag(p, SIP_PENDINGBYE);	
+		sip_scheddestroy(p, 32000);
 	} else if (ast_test_flag(p, SIP_NEEDREINVITE)) {
 		ast_log(LOG_DEBUG, "Sending pending reinvite on '%s'\n", p->callid);
 		/* Didn't get to reinvite yet, so do it now */
