@@ -2000,8 +2000,7 @@ int ast_rtp_senddigit_begin(struct ast_rtp *rtp, char digit)
 	rtpheader[2] = htonl(rtp->ssrc); 
 
 	for (i = 0; i < 2; i++) {
-		rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
-		rtpheader[3] |= htonl((rtp->send_duration));
+		rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (rtp->send_duration));
 		res = sendto(rtp->s, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
 		if (res < 0) 
 			ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
@@ -2041,8 +2040,7 @@ static int ast_rtp_senddigit_continuation(struct ast_rtp *rtp)
         rtpheader[0] = htonl((2 << 30) | (1 << 23) | (rtp->send_payload << 16) | (rtp->seqno));
         rtpheader[1] = htonl(rtp->lastdigitts);
         rtpheader[2] = htonl(rtp->ssrc);
-        rtpheader[3] = htonl((rtp->send_digit << 24) | (0xa << 16) | (0));
-	rtpheader[3] |= htonl((rtp->send_duration));
+        rtpheader[3] = htonl((rtp->send_digit << 24) | (0xa << 16) | (rtp->send_duration));
 	rtpheader[0] = htonl((2 << 30) | (rtp->send_payload << 16) | (rtp->seqno));
 	
 	/* Transmit */
@@ -2096,9 +2094,7 @@ int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit)
 	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (rtp->send_payload << 16) | (rtp->seqno));
 	rtpheader[1] = htonl(rtp->lastdigitts);
 	rtpheader[2] = htonl(rtp->ssrc);
-	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
-	/* Send duration to 100ms */
-	rtpheader[3] |= htonl((rtp->send_duration));
+	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (rtp->send_duration));
 	/* Set end bit */
 	rtpheader[3] |= htonl((1 << 23));
 	rtpheader[0] = htonl((2 << 30) | (rtp->send_payload << 16) | (rtp->seqno));
