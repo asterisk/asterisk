@@ -1822,7 +1822,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	set_actual_gain(p->subs[SUB_REAL].zfd, 0, p->rxgain, p->txgain, p->law);
 
 	mysig = p->sig;
-	if (p->outsigmod)
+	if (p->outsigmod > -1)
 		mysig = p->outsigmod;
 
 	switch (mysig) {
@@ -3593,7 +3593,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 
 	index = zt_get_index(ast, p, 0);
 	mysig = p->sig;
-	if (p->outsigmod)
+	if (p->outsigmod > -1)
 		mysig = p->outsigmod;
 	p->subs[index].f.frametype = AST_FRAME_NULL;
 	p->subs[index].f.subclass = 0;
@@ -10448,7 +10448,7 @@ static int setup_zap(int reload)
 					finish = start;
 					start = x;
 				}
-				if (cur_outsignalling < 0) cur_outsignalling = cur_signalling;
+
 				for (x = start; x <= finish; x++) {
 #ifdef HAVE_PRI
 					tmp = mkintf(x, cur_signalling, cur_outsignalling, cur_radio, pri, reload);
