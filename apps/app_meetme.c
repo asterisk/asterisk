@@ -96,7 +96,8 @@ static const char *descrip =
 "      's' -- Present menu (user or admin) when '*' is received ('send' to menu)\n"
 "      't' -- set talk only mode. (Talk only, no listening)\n"
 "      'T' -- set talker detection (sent to manager interface and meetme list)\n"
-"      'w' -- wait until the marked user enters the conference\n"
+"      'w[(<secs>)]'\n"
+"          -- wait until the marked user enters the conference\n"
 "      'x' -- close the conference when last marked user exits\n"
 "      'X' -- allow user to exit the conference by entering a valid single\n"
 "             digit extension ${MEETME_EXIT_CONTEXT} or the current context\n"
@@ -227,6 +228,10 @@ static void *recordthread(void *args);
 #define CONFFLAG_EMPTYNOPIN (1 << 20)
 #define CONFFLAG_ALWAYSPROMPT (1 << 21)
 
+enum {
+	OPT_ARG_WAITMARKED = 0,
+	OPT_ARG_ARRAY_SIZE = 1,
+} meetme_option_args;
 
 AST_APP_OPTIONS(meetme_opts, {
 	AST_APP_OPTION('a', CONFFLAG_ADMIN ),
@@ -243,7 +248,7 @@ AST_APP_OPTIONS(meetme_opts, {
 	AST_APP_OPTION('X', CONFFLAG_EXIT_CONTEXT ),
 	AST_APP_OPTION('A', CONFFLAG_MARKEDUSER ),
 	AST_APP_OPTION('b', CONFFLAG_AGI ),
-	AST_APP_OPTION('w', CONFFLAG_WAITMARKED ),
+	AST_APP_OPTION_ARG('w', CONFFLAG_WAITMARKED, OPT_ARG_WAITMARKED ),
 	AST_APP_OPTION('r', CONFFLAG_RECORDCONF ),
 	AST_APP_OPTION('d', CONFFLAG_DYNAMIC ),
 	AST_APP_OPTION('D', CONFFLAG_DYNAMICPIN ),
@@ -790,7 +795,7 @@ static int conf_free(struct ast_conference *conf)
 	return 0;
 }
 
-static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags)
+static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags, char *optargs[])
 {
 	struct ast_conf_user *user = calloc(1, sizeof(*user));
 	struct ast_conf_user *usr = NULL;
@@ -822,7 +827,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	char meetmesecs[30] = "";
 	char exitcontext[AST_MAX_CONTEXT] = "";
 	char recordingtmp[AST_MAX_EXTENSION] = "";
-	int dtmf;
+	int dtmf, opt_waitmarked_timeout = 0;
+	time_t timeout = 0;
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
@@ -830,6 +836,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	if (!user) {
 		ast_log(LOG_ERROR, "Out of memory\n");
 		return ret;
+	}
+
+	/* Possible timeout waiting for marked user */
+	if ((confflags & CONFFLAG_WAITMARKED) &&
+		!ast_strlen_zero(optargs[OPT_ARG_WAITMARKED]) &&
+		(sscanf(optargs[OPT_ARG_WAITMARKED], "%d", &opt_waitmarked_timeout) == 1) &&
+		(opt_waitmarked_timeout > 0)) {
+		timeout = time(NULL) + opt_waitmarked_timeout;
 	}
 
 	if (confflags & CONFFLAG_RECORDCONF && conf->recording !=MEETME_RECORD_ACTIVE) {
@@ -1118,7 +1132,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 			outfd = -1;
 			ms = -1;
-			
+
+			if (timeout && time(NULL) >= timeout)
+				break;
+
 			/* if we have just exited from the menu, and the user had a channel-driver
 			   volume adjustment, restore it
 			*/
@@ -1775,6 +1792,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int empty = 0, empty_no_pin = 0;
 	int always_prompt = 0;
 	char *notdata, *info, *inflags = NULL, *inpin = NULL, the_pin[AST_MAX_EXTENSION] = "";
+	char *optargs[OPT_ARG_ARRAY_SIZE] = { NULL, };
 
 	LOCAL_USER_ADD(u);
 
@@ -1805,7 +1823,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		ast_copy_string(the_pin, inpin, sizeof(the_pin));
 
 	if (inflags) {
-		ast_app_parse_options(meetme_opts, &confflags, NULL, inflags);
+		ast_app_parse_options(meetme_opts, &confflags, optargs, inflags);
 		dynamic = ast_test_flag(&confflags, CONFFLAG_DYNAMIC | CONFFLAG_DYNAMICPIN);
 		if (ast_test_flag(&confflags, CONFFLAG_DYNAMICPIN) && !inpin)
 			strcpy(the_pin, "q");
@@ -1962,7 +1980,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 								if (!ast_strlen_zero(cnf->pinadmin) && !strcasecmp(pin, cnf->pinadmin)) 
 									ast_set_flag(&confflags, CONFFLAG_ADMIN);
 								/* Run the conference */
-								res = conf_run(chan, cnf, confflags.flags);
+								res = conf_run(chan, cnf, confflags.flags, optargs);
 								break;
 							} else {
 								/* Pin invalid */
@@ -2003,7 +2021,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 					allowretry = 0;
 
 					/* Run the conference */
-					res = conf_run(chan, cnf, confflags.flags);
+					res = conf_run(chan, cnf, confflags.flags, optargs);
 				}
 			}
 		}
