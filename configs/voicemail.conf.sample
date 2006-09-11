@@ -4,7 +4,7 @@
 
 ;
 ; NOTE: Asterisk has to edit this file to change a user's password.  This does
-; note currently work with the "#include <file>" directive for Asterisk
+; not currently work with the "#include <file>" directive for Asterisk
 ; configuration files.  Do not use it with this configuration file.
 ;
 
@@ -45,7 +45,7 @@ attach=yes
 skipms=3000
 ; How many seconds of silence before we end the recording
 maxsilence=10
-; Silence threshold (what we consider silence, the lower, the more sensitive)
+; Silence threshold (what we consider silence: the lower, the more sensitive)
 silencethreshold=128
 ; Max number of failed login attempts
 maxlogins=3
