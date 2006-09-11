@@ -329,7 +329,7 @@ enum check_auth_result {
 	AUTH_UNKNOWN_DOMAIN = -5,
 };
 
-/* States for outbound registrations (with register= lines in sip.conf */
+/*! \brief States for outbound registrations (with register= lines in sip.conf */
 enum sipregistrystate {
 	REG_STATE_UNREGISTERED = 0,	/*!< We are not registred */
 	REG_STATE_REGSENT,	/*!< Registration request sent */
@@ -639,6 +639,10 @@ enum domain_mode {
 	SIP_DOMAIN_CONFIG,		/*!< This domain is from configuration */
 };
 
+/*! \brief Domain data structure. 
+	\note In the future, we will connect this to a configuration tree specific
+	for this domain
+*/
 struct domain {
 	char domain[MAXHOSTNAMELEN];		/*!< SIP domain we are responsible for */
 	char context[AST_MAX_EXTENSION];	/*!< Incoming context for this domain */
@@ -660,10 +664,10 @@ AST_LIST_HEAD_NOLOCK(sip_history_head, sip_history); /*!< history list, entry in
 /*! \brief sip_auth: Creadentials for authentication to other SIP services */
 struct sip_auth {
 	char realm[AST_MAX_EXTENSION];  /*!< Realm in which these credentials are valid */
-	char username[256];		/*!< Username */
-	char secret[256];		/*!< Secret */
-	char md5secret[256];		/*!< MD5Secret */
-	struct sip_auth *next;		/*!< Next auth structure in list */
+	char username[256];             /*!< Username */
+	char secret[256];               /*!< Secret */
+	char md5secret[256];            /*!< MD5Secret */
+	struct sip_auth *next;          /*!< Next auth structure in list */
 };
 
 /*--- Various flags for the flags field in the pvt structure */
@@ -718,7 +722,7 @@ struct sip_auth {
 	 SIP_PROG_INBAND | SIP_USECLIENTCODE | SIP_NAT | SIP_G726_NONSTANDARD | \
 	 SIP_USEREQPHONE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE)
 
-/* a new page of flags */
+/*--- a new page of flags (for flags[1] */
 /* realtime flags */
 #define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)
 #define SIP_PAGE2_RTUPDATE		(1 << 1)
@@ -788,12 +792,12 @@ static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_
 
 /*! \brief T38 States for a call */
 enum t38state {
-	T38_DISABLED = 0,		/*! Not enabled */
-	T38_LOCAL_DIRECT,		/*! Offered from local */
-	T38_LOCAL_REINVITE,		/*! Offered from local - REINVITE */
-	T38_PEER_DIRECT,		/*! Offered from peer */
-	T38_PEER_REINVITE,		/*! Offered from peer - REINVITE */
-	T38_ENABLED			/*! Negotiated (enabled) */
+        T38_DISABLED = 0,                /*!< Not enabled */
+        T38_LOCAL_DIRECT,                /*!< Offered from local */
+        T38_LOCAL_REINVITE,              /*!< Offered from local - REINVITE */
+        T38_PEER_DIRECT,                 /*!< Offered from peer */
+        T38_PEER_REINVITE,               /*!< Offered from peer - REINVITE */
+        T38_ENABLED                      /*!< Negotiated (enabled) */
 };
 
 /*! \brief T.38 channel settings (at some point we need to make this alloc'ed */
@@ -807,15 +811,15 @@ struct t38properties {
 
 /*! \brief Parameters to know status of transfer */
 enum referstatus {
-	REFER_IDLE,		/*!< No REFER is in progress */
-	REFER_SENT,		/*!< Sent REFER to transferee */
-	REFER_RECEIVED,		/*!< Received REFER from transferer */
-	REFER_CONFIRMED,	/*!< Refer confirmed with a 100 TRYING */
-	REFER_ACCEPTED,		/*!< Accepted by transferee */
-	REFER_RINGING,		/*!< Target Ringing */
-	REFER_200OK,		/*!< Answered by transfer target */
-	REFER_FAILED,		/*!< REFER declined - go on */
-	REFER_NOAUTH		/*!< We had no auth for REFER */
+        REFER_IDLE,                    /*!< No REFER is in progress */
+        REFER_SENT,                    /*!< Sent REFER to transferee */
+        REFER_RECEIVED,                /*!< Received REFER from transferer */
+        REFER_CONFIRMED,               /*!< Refer confirmed with a 100 TRYING */
+        REFER_ACCEPTED,                /*!< Accepted by transferee */
+        REFER_RINGING,                 /*!< Target Ringing */
+        REFER_200OK,                   /*!< Answered by transfer target */
+        REFER_FAILED,                  /*!< REFER declined - go on */
+        REFER_NOAUTH                   /*!< We had no auth for REFER */
 };
 
 static const struct c_referstatusstring {
