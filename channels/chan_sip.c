@@ -201,6 +201,7 @@ static int expiry = DEFAULT_EXPIRY;
 #define SIP_TRANS_TIMEOUT            32000            /*!< SIP request timeout (rfc 3261) 64*T1 
                                                       \todo Use known T1 for timeout (peerpoke)
                                                       */
+#define DEFAULT_TRANS_TIMEOUT        -1               /* Use default SIP transaction timeout */
 #define MAX_AUTHTRIES                3                /*!< Try authentication three times, then fail */
 
 #define SIP_MAX_HEADERS              64               /*!< Max amount of SIP headers to read */
@@ -1954,6 +1955,11 @@ static int __sip_autodestruct(void *data)
 /*! \brief Schedule destruction of SIP call */
 static void sip_scheddestroy(struct sip_pvt *p, int ms)
 {
+	if (ms < 0) {
+		if (p->timer_t1 == 0)
+			p->timer_t1 = 500;	/* Set timer T1 if not set (RFC 3261) */
+		ms = p->timer_t1 * 64;
+	}
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Scheduling destruction of SIP dialog '%s' in %d ms (Method: %s)\n", p->callid, ms, sip_methods[p->method].text);
 	if (recordhistory)
@@ -2709,9 +2715,8 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 			if (sipdebug && option_debug > 2)
 				ast_log(LOG_DEBUG, "Call for %s transfered by %s\n", p->username, referer);
 			snprintf(buf, sizeof(buf)-1, "-> %s (via %s)", p->cid_name, referer);
-		} else {
+		} else 
 			snprintf(buf, sizeof(buf)-1, "-> %s", p->cid_name);
-		}
 		ast_string_field_set(p, cid_name, buf);
 	} 
 	if (option_debug)
@@ -2725,12 +2730,11 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		if (option_debug)
 			ast_log(LOG_DEBUG,"Our T38 capability (%d), joint T38 capability (%d)\n", p->t38.capability, p->t38.jointcapability);
 		transmit_invite(p, SIP_INVITE, 1, 2);
-		if (p->maxtime) {
+		if (p->maxtime)
 			/* Initialize auto-congest time */
 			p->initid = ast_sched_add(sched, p->maxtime * 4, auto_congest, p);
-		} else {
+		else 
 			p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, p);
-		}
 	}
 	return res;
 }
@@ -3166,7 +3170,7 @@ static int sip_hangup(struct ast_channel *ast)
 			ast_log(LOG_DEBUG, "SIP Transfer: Not hanging up right now... Rescheduling hangup for %s.\n", p->callid);
 		if (p->autokillid > -1)
 			sip_cancel_destroy(p);
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Really hang up next time */
 		ast_clear_flag(&p->flags[0], SIP_NEEDDESTROY);
 		p->owner->tech_pvt = NULL;
@@ -3220,7 +3224,7 @@ static int sip_hangup(struct ast_channel *ast)
 	if (ast_test_flag(&p->flags[0], SIP_ALREADYGONE))
 		needdestroy = 1;	/* Set destroy flag at end of this function */
 	else
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 
 	/* Start the process if it's not already started */
 	if (!ast_test_flag(&p->flags[0], SIP_ALREADYGONE) && !ast_strlen_zero(p->initreq.data)) {
@@ -3239,7 +3243,7 @@ static int sip_hangup(struct ast_channel *ast)
 					/* Actually don't destroy us yet, wait for the 487 on our original 
 					   INVITE, but do set an autodestruct just in case we never get it. */
 					needdestroy = 0;
-					sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 				}
 				if ( p->initid != -1 ) {
 					/* channel still up - reverse dec of inUse counter
@@ -7716,7 +7720,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 			   retransmission should get it */
 			transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
 			/* Schedule auto destroy in 32 seconds (according to RFC 3261) */
-			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		}
 		return AUTH_CHALLENGE_SENT;
 	} else if (ast_strlen_zero(p->randdata) || ast_strlen_zero(authtoken)) {
@@ -7724,7 +7728,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 		ast_string_field_build(p, randdata, "%08lx", ast_random());	/* Create nonce for challenge */
 		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
 		/* Schedule auto destroy in 32 seconds */
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return AUTH_CHALLENGE_SENT;
 	} 
 
@@ -7810,7 +7814,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 		}
 
 		/* Schedule auto destroy in 32 seconds */
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return AUTH_CHALLENGE_SENT;
 	} 
 	if (good_response)
@@ -7819,7 +7823,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 	/* Ok, we have a bad username/secret pair */
 	/* Challenge again, and again, and again */
 	transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
-	sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+	sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 
 	return AUTH_CHALLENGE_SENT;
 }
@@ -7856,7 +7860,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 	case AST_EXTENSION_REMOVED:	/* Extension is gone */
 		if (p->autokillid > -1)
 			sip_cancel_destroy(p);	/* Remove subscription expiry for renewals */
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);	/* Delete subscription in 32 secs */
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);	/* Delete subscription in 32 secs */
 		ast_verbose(VERBOSE_PREFIX_2 "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == AST_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
 		p->stateid = -1;
 		p->subscribed = NONE;
@@ -8951,14 +8955,14 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 
 	if (strcmp(content_type, "text/plain")) { /* No text/plain attachment */
 		transmit_response(p, "415 Unsupported Media Type", req); /* Good enough, or? */
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return;
 	}
 
 	if (get_msg_text(buf, sizeof(buf), req)) {
 		ast_log(LOG_WARNING, "Unable to retrieve text from %s\n", p->callid);
 		transmit_response(p, "202 Accepted", req);
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return;
 	}
 
@@ -8977,7 +8981,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 		ast_log(LOG_WARNING,"Received message to %s from %s, dropped it...\n  Content-Type:%s\n  Message: %s\n", get_header(req,"To"), get_header(req,"From"), content_type, buf);
 		transmit_response(p, "405 Method Not Allowed", req); /* Good enough, or? */
 	}
-	sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+	sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	return;
 }
 
@@ -10381,7 +10385,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 	
 		if (!p->owner) {	/* not a PBX call */
 			transmit_response(p, "481 Call leg/transaction does not exist", req);
-			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return;
 		}
 
@@ -10572,7 +10576,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 		build_callid_pvt(p);
 		ast_cli(fd, "Sending NOTIFY of type '%s' to '%s'\n", argv[2], argv[i]);
 		transmit_sip_request(p, &req);
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	}
 
 	return RESULT_SUCCESS;
@@ -11196,7 +11200,7 @@ static void check_pendings(struct sip_pvt *p)
 		else 
 			transmit_request_with_auth(p, SIP_BYE, 0, 1, 1);
 		ast_clear_flag(&p->flags[0], SIP_PENDINGBYE);	
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	} else if (ast_test_flag(&p->flags[0], SIP_NEEDREINVITE)) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Sending pending reinvite on '%s'\n", p->callid);
@@ -11331,7 +11335,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 						ast_log(LOG_WARNING, "RTP re-inivte after T38 session not handled yet !\n");
 						/* Insted of this we should somehow re-invite the other side of the bridge to RTP */
 						/* XXXX Should we really destroy this session here, without any response at all??? */
-						sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+						sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 					}
 				} else {
 					if (option_debug > 1)
@@ -11549,7 +11553,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		r->call = NULL;
 		p->registry = NULL;
 		/* Let this one hang around until we have all the responses */
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		/* ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	*/
 
 		/* set us up for re-registering */
@@ -11795,7 +11799,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					ast_log(LOG_WARNING, "INVITE with REPLACEs failed to '%s'\n", get_header(&p->initreq, "From"));
 				if (owner)
 					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
-				sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			} else if (sipmethod == SIP_REFER) {
 				/* A transfer with Replaces did not work */
 				/* OEJ: We should Set flag, cancel the REFER, go back
@@ -12339,7 +12343,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		/* Here's room to implement incoming voicemail notifications :-) */
 		transmit_response(p, "489 Bad event", req);
 		if (!p->lastinvite) 
-			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return -1;
 	} else {
 		/* Save nesting depth for now, since there might be other events we will
@@ -12362,7 +12366,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		if (strncasecmp(get_header(req, "Content-Type"), "message/sipfrag", strlen("message/sipfrag"))) {
 			/* We need a sipfrag */
 			transmit_response(p, "400 Bad request", req);
-			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return -1;
 		}
 
@@ -12370,7 +12374,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		if (get_msg_text(buf, sizeof(buf), req)) {
 			ast_log(LOG_WARNING, "Unable to retrieve attachment from NOTIFY %s\n", p->callid);
 			transmit_response(p, "400 Bad request", req);
-			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return -1;
 		}
 
@@ -12462,7 +12466,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
 	/* Destroy if this OPTIONS was the opening request, but not if
 	   it's in the middle of a normal call flow. */
 	if (!p->lastinvite)
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 
 	return res;
 }
@@ -12517,7 +12521,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 		ast_log(LOG_ERROR, "Unable to create new channel.  Invite/replace failed.\n");
 		transmit_response_with_sdp(p, "503 Service Unavailable", req, 1);
 		append_history(p, "Xfer", "INVITE/Replace Failed. No new channel.");
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		ast_mutex_unlock(&p->refer->refer_call->lock);
 		return 1;
 	}
@@ -12656,7 +12660,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			transmit_response_with_unsupported(p, "420 Bad extension (unsupported)", req, required);
 			ast_log(LOG_WARNING,"Received SIP INVITE with unsupported required extension: %s\n", required);
 			if (!p->lastinvite)
-				sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return -1;
 		}
 	}
@@ -12706,7 +12710,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (!p->refer && !sip_refer_allocate(p)) {
 			transmit_response(p, "500 Server Internal Error", req);
 			append_history(p, "Xfer", "INVITE/Replace Failed. Out of memory.");
-			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return -1;
 		}
 
@@ -12774,7 +12778,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 		if (error) {	/* Give up this dialog */
 			append_history(p, "Xfer", "INVITE/Replace Failed.");
-			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			ast_mutex_unlock(&p->lock);
 			if (p->refer->refer_call) {
 				ast_mutex_unlock(&p->refer->refer_call->lock);
@@ -12807,7 +12811,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				if (process_sdp(p, req)) {
 					transmit_response(p, "488 Not acceptable here", req);
 					if (!p->lastinvite)
-						sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+						sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 					return -1;
 				}
 			} else {
@@ -12835,7 +12839,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
   				ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
 				transmit_response_reliable(p, "403 Forbidden", req);
   			}
-			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			ast_string_field_free(p, theirtag);
 			return 0;
 		}
@@ -12845,7 +12849,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if (process_sdp(p, req)) {
 				/* Unacceptable codecs */
 				transmit_response_reliable(p, "488 Not acceptable here", req);
-				sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 				if (option_debug)
 					ast_log(LOG_DEBUG, "No compatible codecs for this SIP call.\n");
 				return -1;
@@ -12874,7 +12878,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if (res < 0) {
 				ast_log(LOG_NOTICE, "Failed to place call for user %s, too many calls\n", p->username);
 				transmit_response_reliable(p, "480 Temporarily Unavailable (Call limit) ", req);
-				sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			}
 			return 0;
 		}
@@ -12893,7 +12897,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				transmit_response_reliable(p, "404 Not Found", req);
 				update_call_counter(p, DEC_CALL_LIMIT);
 			}
-			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		} else {
 			/* If no extension was specified, use the s one */
 			/* Basically for calling to IP/Host name only */
@@ -13033,7 +13037,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 									transmit_response(p, "488 Not acceptable here", req);
 								else
 									transmit_response_reliable(p, "488 Not acceptable here", req);
-								sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+								sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 							}
 						}
 					} else {
@@ -13045,7 +13049,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 						p->t38.state = T38_DISABLED;
 						if (option_debug > 1)
 							ast_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
-						sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+						sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 					}
 				} else {
 					/* we are not bridged in a call */
@@ -13072,7 +13076,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 								transmit_response(p, "488 Not Acceptable Here (unsupported)", req);
 							else
 								transmit_response_reliable(p, "488 Not Acceptable Here (unsupported)", req);
-							sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+							sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 							sendok = FALSE;
 						} 
 						/* No bridged peer with T38 enabled*/
@@ -13102,7 +13106,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				transmit_response(p, msg, req);
 			else
 				transmit_response_reliable(p, msg, req);
-			sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		}
 	}
 	return res;
@@ -13587,7 +13591,7 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 	if (p->owner)
 		ast_queue_hangup(p->owner);
 	else
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	if (p->initreq.len > 0) {
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
 		transmit_response(p, "200 OK", req);
@@ -13669,7 +13673,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Received bye, issuing owner hangup\n.");
 	} else {
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Received bye, no owner, selfdestruct soon.\n.");
 	}
@@ -13966,7 +13970,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 	if (res < 1) {
 		/* Destroy the session, but keep us around for just a bit in case they don't
 		   get our 200 OK */
-		sip_scheddestroy(p, 15000);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	}
 	append_history(p, "RegRequest", "%s : Account %s", res ? "Failed": "Succeeded", get_header(req, "To"));
 	return res;
@@ -14111,7 +14115,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				/* Will cease to exist after ACK */
 			} else if (req->method != SIP_ACK) {
 				transmit_response(p, "481 Call/Transaction Does Not Exist", req);
-				sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			}
 			return res;
 		}
@@ -14328,7 +14332,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		build_via(p);
 		build_callid_pvt(p);
 		/* Destroy this session after 32 secs */
-		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	}
 	/* Send MWI */
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
@@ -14689,8 +14693,8 @@ static int sip_devicestate(void *data)
 	return res;
 }
 
-/*! \brief PBX interface function -build SIP pvt structure */
-/* SIP calls initiated by the PBX arrive here */
+/*! \brief PBX interface function -build SIP pvt structure 
+	SIP calls initiated by the PBX arrive here */
 static struct ast_channel *sip_request_call(const char *type, int format, void *data, int *cause)
 {
 	int oldformat;
