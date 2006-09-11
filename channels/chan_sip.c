@@ -1943,7 +1943,7 @@ static int __sip_autodestruct(void *data)
 	p->autokillid = -1;
 
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Auto destroying call '%s'\n", p->callid);
+		ast_log(LOG_DEBUG, "Auto destroying SIP dialog '%s'\n", p->callid);
 	append_history(p, "AutoDestroy", "%s", p->callid);
 	if (p->owner) {
 		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner in place (Method: %s)\n", p->callid, sip_methods[p->method].text);
@@ -1956,7 +1956,7 @@ static int __sip_autodestruct(void *data)
 	return 0;
 }
 
-/*! \brief Schedule destruction of SIP call */
+/*! \brief Schedule destruction of SIP dialog */
 static void sip_scheddestroy(struct sip_pvt *p, int ms)
 {
 	if (ms < 0) {
@@ -2075,7 +2075,7 @@ static void parse_copy(struct sip_request *dst, const struct sip_request *src)
 	parse_request(dst);
 }
 
-/* add a blank line if no body */
+/*! \brief add a blank line if no body */
 static void add_blank(struct sip_request *req)
 {
 	if (!req->lines) {
