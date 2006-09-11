@@ -179,7 +179,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 	if (options)
 		ast_app_parse_options(page_opts, &flags, NULL, options);
 
-	snprintf(meetmeopts, sizeof(meetmeopts), "%ud|%sqxdw", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m");
+	snprintf(meetmeopts, sizeof(meetmeopts), "%ud|%sqxdw(5)", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m");
 
 	while ((tech = strsep(&tmp, "&"))) {
 		/* don't call the originating device */
