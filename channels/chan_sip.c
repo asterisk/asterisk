@@ -534,14 +534,14 @@ static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GS
 static int noncodeccapability = AST_RTP_DTMF;
 
 /* Object counters */
-static int suserobjs = 0;		/*!< Static users */
-static int ruserobjs = 0;		/*!< Realtime users */
-static int speerobjs = 0;		/*!< Statis peers */
-static int rpeerobjs = 0;		/*!< Realtime peers */
-static int apeerobjs = 0;		/*!< Autocreated peer objects */
-static int regobjs = 0;			/*!< Registry objects */
+static int suserobjs = 0;                /*!< Static users */
+static int ruserobjs = 0;                /*!< Realtime users */
+static int speerobjs = 0;                /*!< Statis peers */
+static int rpeerobjs = 0;                /*!< Realtime peers */
+static int apeerobjs = 0;                /*!< Autocreated peer objects */
+static int regobjs = 0;                  /*!< Registry objects */
 
-static struct ast_flags global_flags[2] = {{0}};	/*!< global SIP_ flags */
+static struct ast_flags global_flags[2] = {{0}};        /*!< global SIP_ flags */
 
 /*! \brief Protect the SIP dialog list (of sip_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
@@ -558,11 +558,11 @@ AST_MUTEX_DEFINE_STATIC(sip_reload_lock);
    which are not currently in use.  */
 static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
-static int sip_reloading = FALSE;			/*!< Flag for avoiding multiple reloads at the same time */
-static enum channelreloadreason sip_reloadreason;	/*!< Reason for last reload/load of configuration */
+static int sip_reloading = FALSE;                       /*!< Flag for avoiding multiple reloads at the same time */
+static enum channelreloadreason sip_reloadreason;       /*!< Reason for last reload/load of configuration */
 
-static struct sched_context *sched;	/*!< The scheduling context */
-static struct io_context *io;		/*!< The IO context */
+static struct sched_context *sched;     /*!< The scheduling context */
+static struct io_context *io;           /*!< The IO context */
 
 #define DEC_CALL_LIMIT	0
 #define INC_CALL_LIMIT	1
@@ -571,18 +571,18 @@ static struct io_context *io;		/*!< The IO context */
 
 /*! \brief sip_request: The data grabbed from the UDP socket */
 struct sip_request {
-	char *rlPart1; 		/*!< SIP Method Name or "SIP/2.0" protocol version */
-	char *rlPart2; 		/*!< The Request URI or Response Status */
-	int len;		/*!< Length */
-	int headers;		/*!< # of SIP Headers */
-	int method;		/*!< Method of this request */
-	int lines;		/*!< Body Content */
-	unsigned int flags;	/*!< SIP_PKT Flags for this packet */
+	char *rlPart1; 	        /*!< SIP Method Name or "SIP/2.0" protocol version */
+	char *rlPart2; 	        /*!< The Request URI or Response Status */
+	int len;                /*!< Length */
+	int headers;            /*!< # of SIP Headers */
+	int method;             /*!< Method of this request */
+	int lines;              /*!< Body Content */
+	unsigned int flags;     /*!< SIP_PKT Flags for this packet */
 	char *header[SIP_MAX_HEADERS];
 	char *line[SIP_MAX_LINES];
 	char data[SIP_MAX_PACKET];
 	unsigned int sdp_start; /*!< the line number where the SDP begins */
-	unsigned int sdp_end;	/*!< the line number where the SDP ends */
+	unsigned int sdp_end;   /*!< the line number where the SDP ends */
 };
 
 /*
