@@ -6735,7 +6735,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
-/*! \brief Transmit SIP request unreliably */
+/*! \brief Transmit SIP request unreliably (only used in sip_notify subsystem) */
 static int transmit_sip_request(struct sip_pvt *p, struct sip_request *req)
 {
 	if (!p->initreq.headers) 	/* Initialize first request before sending */
