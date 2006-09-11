@@ -28,7 +28,7 @@ format=slinear
 ;
 echocancel=medium
 ;
-; You can optionally use VAD/CNG silence supression
+; You can optionally use VAD/CNG silence suppression
 ;
 ;silencesupression=yes
 ;
@@ -38,7 +38,7 @@ echocancel=medium
 ;
 ; You can set txgain and rxgain for each device in the same way as context.
 ; If you want to change default gain value (1.0 =~ 100%) for device, simple
-; add txgain or rxgain line before device line. But rememeber, if you change
+; add txgain or rxgain line before device line. But remember, if you change
 ; volume all cards listed below will be affected by these values. You can
 ; use float values (1.0, 0.5, 2.0) or percentage values (100%, 150%, 50%).
 ;
