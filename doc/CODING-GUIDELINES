@@ -170,7 +170,7 @@ Instead, try to minimize the number of lines of code that need to be
 indented, by only indenting the shortest case of the 'if'
 statement, like so:
 
-if !(foo) {
+if (!foo) {
 	result = 0;
 	return;
 }
