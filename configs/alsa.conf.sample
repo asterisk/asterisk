@@ -27,7 +27,7 @@ extension=s
 ;
 ;mohinterpret=default
 ;
-; Silence supression can be enabled when sound is over a certain threshold.
+; Silence suppression can be enabled when sound is over a certain threshold.
 ; The value for the threshold should probably be between 500 and 2000 or so,
 ; but your mileage may vary.  Use the echo test to evaluate the best setting.
 ;silencesuppression = yes
@@ -49,11 +49,11 @@ extension=s
 
 ; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
                               ; resynchronized. Useful to improve the quality of the voice, with
-                              ; big jumps in/broken timestamps, usualy sent from exotic devices
+                              ; big jumps in/broken timestamps, usually sent from exotic devices
                               ; and programs. Defaults to 1000.
 
 ; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a SIP
-                              ; channel. Two implementation are currenlty available - "fixed"
+                              ; channel. Two implementations are currently available - "fixed"
                               ; (with size always equals to jbmax-size) and "adaptive" (with
                               ; variable size, actually the new jb of IAX2). Defaults to fixed.
 

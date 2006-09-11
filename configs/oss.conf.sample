@@ -58,11 +58,11 @@
 
     ; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
                                   ; resynchronized. Useful to improve the quality of the voice, with
-                                  ; big jumps in/broken timestamps, usualy sent from exotic devices
+                                  ; big jumps in/broken timestamps, usually sent from exotic devices
                                   ; and programs. Defaults to 1000.
 
     ; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of an OSS
-                                  ; channel. Two implementations are currenlty available - "fixed"
+                                  ; channel. Two implementations are currently available - "fixed"
                                   ; (with size always equals to jbmax-size) and "adaptive" (with
                                   ; variable size, actually the new jb of IAX2). Defaults to fixed.
 

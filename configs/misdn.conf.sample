@@ -89,7 +89,7 @@ l1watcher_timeout=0
 ;
 stop_tone_after_first_digit=yes
 
-; wether to append overlapdialed Digits to Extension or not 
+; whether to append overlapdialed Digits to Extension or not 
 ;
 ; default value: yes
 ;
@@ -97,7 +97,7 @@ append_digits2exten=yes
 
 ;;; CRYPTION STUFF
 
-; Wether to look for dynamic crypting attempt
+; Whether to look for dynamic crypting attempt
 ;
 ; default value: no
 ;
@@ -119,7 +119,7 @@ crypt_keys=test,muh
 ; users sections:
 ; 
 ; name your sections as you which but not "general" ! 
-; the secions are Groups, you can dial out in extensions.conf
+; the sections are Groups, you can dial out in extensions.conf
 ; with Dial(mISDN/g:extern/101) where extern is a section name, 
 ; chan_misdn tries every port in this section to find a 
 ; new free channel
@@ -149,7 +149,7 @@ language=en
 musicclass=default
 
 ;
-; Either if we should produce DTMF Tones ourselve
+; Either if we should produce DTMF Tones ourselves
 ; 
 senddtmf=yes
 
@@ -181,7 +181,7 @@ internationalprefix=00
 rxgain=0
 txgain=0
 
-; some telcos espacially in NL seem to need this set to yes, also in 
+; some telcos especially in NL seem to need this set to yes, also in 
 ; switzerland this seems to be important
 ;
 ; default value: no
@@ -192,7 +192,7 @@ te_choose_channel=no
 
 ;
 ; This option defines, if chan_misdn should check the L1 on  a PMP 
-; before makeing a group call on it. The L1 may go down for PMP Ports
+; before making a group call on it. The L1 may go down for PMP Ports
 ; so we might need this.
 ; But be aware! a broken or plugged off cable might be used for a group call
 ; as well, since chan_misdn has no chance to distinguish if the L1 is down
@@ -298,7 +298,7 @@ nodialtone=no
 
 ; Pickup and Callgroup
 ;
-; deafult values: not set = 0
+; default values: not set = 0
 ; range: 0-63
 ;
 ;callgroup=1
@@ -312,7 +312,7 @@ nodialtone=no
 ; s=0, p=0 -> callerid presented not screened
 ; s=1, p=1 -> callerid presented but screened (the remote end does not see it!)
 ; 
-; defaule values s=-1, p=-1
+; default values s=-1, p=-1
 presentation=-1
 screen=-1
 
@@ -364,7 +364,7 @@ hdlc=no
 ;
 ; defines the maximum amount of incoming calls per port for
 ; this group. Calls which exceed the maximum will be marked with 
-; the channel varible MAX_OVERFLOW. It will contain the amount of 
+; the channel variable MAX_OVERFLOW. It will contain the amount of 
 ; overflowed calls
 ;
 max_incoming=-1
@@ -392,11 +392,11 @@ ports=3
 [first_extern]
 ; again port defs
 ports=4
-; again a context for incomming calls
+; again a context for incoming calls
 context=Extern1
 ; msns for te ports, listen on those numbers on the above ports, and 
 ; indicate the incoming calls to asterisk
-; here you can give a comma seperated list or simply an '*' for 
+; here you can give a comma separated list or simply an '*' for 
 ; any msn. 
 msns=*
 

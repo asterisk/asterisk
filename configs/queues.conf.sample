@@ -24,7 +24,7 @@ persistentmembers = yes
 ;    probably more along the lines of how a queue should work and 
 ;    in most cases, you will want to enable this behavior. If you 
 ;    do not specify or comment out this option, it will default to no
-;    to keep backward compatability with the old behavior.
+;    to keep backward compatibility with the old behavior.
 ;
 autofill = yes
 ;
@@ -35,7 +35,7 @@ autofill = yes
 ;    the concept of "joining/mixing" the in/out files now goes away
 ;    when this is enabled. You can set the default type for all queues
 ;    here, and then also change monitor-type for individual queues within
-;    queue by using the same configuation parameter within a queue 
+;    queue by using the same configuration parameter within a queue 
 ;    configuration block. If you do not specify or comment out this option,
 ;    it will default to the old 'Monitor' behavior to keep backward
 ;    compatibility. 

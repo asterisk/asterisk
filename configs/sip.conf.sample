@@ -60,7 +60,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;maxexpiry=3600			; Maximum allowed time of incoming registrations
 				; and subscriptions (seconds)
 ;minexpiry=60			; Minimum length of registrations/subscriptions (default 60)
-;defaultexpiry=120		; Default length of incoming/outoing registration
+;defaultexpiry=120		; Default length of incoming/outgoing registration
 ;t1min=100			; Minimum roundtrip time for messages to monitored hosts
 				; Defaults to 100 ms
 ;notifymimetype=text/plain	; Allow overriding of mime type in MWI NOTIFY
@@ -294,7 +294,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; For non-realtime peers, when their registration expires, the
 				; information will _not_ be removed from memory or the Asterisk database
 				; if you attempt to place a call to the peer, the existing information
-				; will be used in spiteof it having expired
+				; will be used in spite of it having expired
 				;
 				; For realtime peers, when the peer is retrieved from realtime storage,
 				; the registration information will be used regardless of whether
@@ -353,11 +353,11 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 
 ; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
                               ; resynchronized. Useful to improve the quality of the voice, with
-                              ; big jumps in/broken timestamps, usualy sent from exotic devices
+                              ; big jumps in/broken timestamps, usually sent from exotic devices
                               ; and programs. Defaults to 1000.
 
 ; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a SIP
-                              ; channel. Two implementations are currenlty available - "fixed"
+                              ; channel. Two implementations are currently available - "fixed"
                               ; (with size always equals to jbmaxsize) and "adaptive" (with
                               ; variable size, actually the new jb of IAX2). Defaults to fixed.
 
@@ -465,7 +465,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; 
 ; For local phones, type=friend works most of the time
 ;
-; If you have one-way audio, you propably have NAT problems. 
+; If you have one-way audio, you probably have NAT problems. 
 ; If Asterisk is on a public IP, and the phone is inside of a NAT device
 ; you will need to configure nat option for those phones.
 ; Also, turn on qualify=yes to keep the nat session open
@@ -566,7 +566,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;
 ;callgroup=1,3-4		; We are in caller groups 1,3,4
 ;pickupgroup=1,3-5		; We can do call pick-p for call group 1,3,4,5
-;defaultip=192.168.0.60		; IP address to use if peer has not registred
+;defaultip=192.168.0.60		; IP address to use if peer has not registered
 ;deny=0.0.0.0/0.0.0.0		; ACL: Control access to this account based on IP address
 ;permit=192.168.0.60/255.255.255.0
 

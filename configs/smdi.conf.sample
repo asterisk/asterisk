@@ -11,7 +11,7 @@
 
 ;twostopbits = no
 
-; Character size or bit length is the size of each character sent accross the
+; Character size or bit length is the size of each character sent across the
 ; link.  Character size can be 7 or 8.  The default is 7.
 
 ;charsize = 7
@@ -34,7 +34,7 @@
 
 ; Occasionally Asterisk and the SMDI switch may become out of sync.  If this
 ; happens, Asterisk will appear one or several calls behind as it processes
-; voicemail requests.  To prevent this from hapening adjust the msgexpirytime.
+; voicemail requests.  To prevent this from happening, adjust the msgexpirytime.
 ; This will make Asterisk discard old SMDI messages that have not yet been
 ; processed.  The default expiry time is 30000 milliseconds.
 

@@ -10,7 +10,7 @@
 ;
 [general]
 ;
-; Should hardware accelleration be enabled?  May not be changed
+; Should hardware acceleration be enabled?  May not be changed
 ; on a reload.
 ;
 ;accelerate=yes

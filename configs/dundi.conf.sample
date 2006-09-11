@@ -89,7 +89,7 @@ autokill=yes
 ;
 ; 'weight' is the weight to use for the responses provided from this
 ; mapping.  The number must be >= 0 and < 60000.  Since it is totally
-; valid to receive multiple reponses to a query, responses received
+; valid to receive multiple responses to a query, responses received
 ; with a lower weight are tried first.  Note that the weight has a
 ; special meaning in the e164 context - see the GPA for more details.
 ;
@@ -144,7 +144,7 @@ autokill=yes
 ;         'tertiary' or 'quartiary'.  In large systems, it is beneficial
 ;         to only query one up-stream host in order to maximize caching
 ;         value.  Adding one with primary and one with secondary gives you
-;         redundancy without sacraficing performance.
+;         redundancy without sacrificing performance.
 ;
 ; include - Includes this peer when searching a particular context
 ;           for lookup (set "all" to perform all lookups with that

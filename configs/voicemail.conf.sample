@@ -41,7 +41,7 @@ attach=yes
 ;minmessage=3
 ; Maximum length of greetings in seconds
 ;maxgreet=60
-; How many miliseconds to skip forward/back when rew/ff in message playback
+; How many milliseconds to skip forward/back when rew/ff in message playback
 skipms=3000
 ; How many seconds of silence before we end the recording
 maxsilence=10
@@ -54,7 +54,7 @@ maxlogins=3
 ; called when a voicemail is left, delivered, or your voicemailbox 
 ; is checked, uncomment this.  It can also be set to 'smdi' to use
 ; smdi for external notification.  If it is 'smdi', smdiport should
-; be set to a valid port as specfied in smdi.conf.
+; be set to a valid port as specified in smdi.conf.
 
 ;externnotify=/usr/bin/myapp
 ;smdiport=/dev/ttyS0
@@ -87,7 +87,7 @@ maxlogins=3
 ;       limitation in the Asterisk configuration subsystem.
 ;emailsubject=[PBX]: New message ${VM_MSGNUM} in mailbox ${VM_MAILBOX}
 ; The following definition is very close to the default, but the default shows
-; just the CIDNAME, if it is not null, otherise just the CIDNUM, or "an unknown
+; just the CIDNAME, if it is not null, otherwise just the CIDNUM, or "an unknown
 ; caller", if they are both null.
 ;emailbody=Dear ${VM_NAME}:\n\n\tjust wanted to let you know you were just left a ${VM_DUR} long message (number ${VM_MSGNUM})\nin mailbox ${VM_MAILBOX} from ${VM_CALLERID}, on ${VM_DATE}, so you might\nwant to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n
 ;
@@ -147,11 +147,11 @@ emaildateformat=%A, %B %d, %Y at %r
 ; if the e-mail is specified, a message will be sent when a message is
 ; received, to the given mailbox. If pager is specified, a message will be
 ; sent there as well. If the password is prefixed by '-', then it is
-; considered to be unchangable.
+; considered to be unchangeable.
 ;
 ; Advanced options example is extension 4069
 ; NOTE: All options can be expressed globally in the general section, and
-; overriden in the per-mailbox settings, unless listed otherwise.
+; overridden in the per-mailbox settings, unless listed otherwise.
 ; 
 ; tz=central 		; Timezone from zonemessages below. Irrelevant if envelope=no.
 ; attach=yes 		; Attach the voicemail to the notification email *NOT* the pager email

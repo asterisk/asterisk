@@ -63,7 +63,7 @@ globals {
 //
 // For example the extension _NXXXXXX would match normal 7 digit dialings, 
 // while _1NXXNXXXXXX would represent an area code plus phone number
-// preceeded by a one.
+// preceded by a one.
 //
 // Each step of an extension is ordered by priority, which must
 // always start with 1 to be considered a valid extension.  The priority
@@ -189,7 +189,7 @@ context iaxtel700 {
 };
 
 //
-// The SWITCH statement permits a server to share the dialplain with
+// The SWITCH statement permits a server to share the dialplan with
 // another server. Use with care: Reciprocal switch statements are not
 // allowed (e.g. both A -> B and B -> A), and the switched server needs
 // to be on-line or else dialing can be severly delayed.

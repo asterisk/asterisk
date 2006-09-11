@@ -25,7 +25,7 @@ keepalive=120
 
 ;jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
                              ; resynchronized. Useful to improve the quality of the voice, with
-                             ; big jumps in/broken timestamps, usualy sent from exotic devices
+                             ; big jumps in/broken timestamps, usually sent from exotic devices
                              ; and programs. Defaults to 1000.
 
 ;jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a
@@ -48,7 +48,7 @@ keepalive=120
 
 ; Typical config for a 7910
 ;[duba]			; Device name
-;device=SEP0007EB463101	; Offical identifier
+;device=SEP0007EB463101	; Official identifier
 ;version=P002F202	; Firmware version identifier
 ;host=192.168.1.144
 ;permit=192.168.0/24	; Optional, used for authentication

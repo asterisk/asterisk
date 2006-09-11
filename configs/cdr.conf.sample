@@ -35,7 +35,7 @@
 ;time=300
 
 ; The CDR engine uses the internal asterisk scheduler to determine when to post
-; records.  Posting can either occure inside the scheduler thread, or a new
+; records.  Posting can either occur inside the scheduler thread, or a new
 ; thread can be spawned for the submission of every batch.  For small batches,
 ; it might be acceptable to just use the scheduler thread, so set this to "yes".
 ; For large batches, say anything over size=10, a new thread is recommended, so
