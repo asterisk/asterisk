@@ -8,7 +8,7 @@ and does not touch it when it already exists.
 ---------------
 
 [directories]
-; Make sure these directoriess have the right permissions if not
+; Make sure these directories have the right permissions if not
 ; running Asterisk as root 
 
 ; Where the configuration files (except for this one) are located
@@ -51,7 +51,7 @@ dumpcore = yes | no				; Dump core on failure (-g)
 quiet = yes | no				; Run quietly (-q)
 timestamp = yes | no				; Force timestamping in CLI verbose output (-T)
 runuser = asterisk				; User to run asterisk as (-U) NOTE: will require changes to
-						; directory and device permisions
+						; directory and device permissions
 rungroup = asterisk				; Group to run asterisk as (-G)
 internal_timing = yes | no			; Enable internal timing support (-I)
 

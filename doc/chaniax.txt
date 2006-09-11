@@ -180,7 +180,7 @@ connections to be over a LAN.
 * maxexcessbuffer is the maximum amount of excess jitter buffer 
   that is permitted before the jitter buffer is slowly shrunk to eliminate 
   latency.
-* minexcessbuffer is the minimum amout of excess jitter buffer
+* minexcessbuffer is the minimum amount of excess jitter buffer
 
 > accountcode = <code>
 > amaflags = [default|omit|billing|documentation]

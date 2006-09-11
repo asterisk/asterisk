@@ -15,7 +15,7 @@ of characters (a-z), digits, #, and *. Please note that when matching a
 pattern, "N", "X", and "Z" are interpreted as classes of digits.
 
 For each extension, several actions may be listed and must be given a unique
-priority. When each action completes, the call continunes at the next priority
+priority. When each action completes, the call continues at the next priority
 (except for some modules which use explicitly GOTO's). 
 
 When each action completes, it generally moves to the next priority (except for
@@ -34,7 +34,7 @@ functions in your Asterisk, use the "show functions" command.
 The example dial plan, in the configs/extensions.conf.sample file
 is installed as extensions.conf if you run "make samples" after
 installation of Asterisk. This file includes many more instructions
-and examples than this file, so it's worthwile to read it.
+and examples than this file, so it's worthwhile to read it.
 	
 * Special extensions
 

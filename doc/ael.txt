@@ -13,7 +13,7 @@ functionality.
 
 AEL is really the merger of 4 different 'languages', or syntaxes:
 
-    * The first and most obvious is the AEL syntax itselft. A BNF is
+    * The first and most obvious is the AEL syntax itself. A BNF is
       provided near the end of this document.
 
     * The second syntax is the Expression Syntax, which is normally
@@ -92,7 +92,7 @@ lines together.
 
 The extensions can also contain "goto" or "jump" commands to skip to
 extensions in other contexts. Conditionals provide the ability to
-react to different stimiuli, and there you have it.
+react to different stimuli, and there you have it.
 
 Macros
 ------
@@ -931,7 +931,7 @@ statements. It means the "first" statement in the extension. I would
 not advise trying to use numeric labels other than "1" in goto's or
 jumps, nor would I advise declaring a "1" label anywhere! As a matter
 of fact, it would be bad form to declare a numeric label, and it might
-confllict with the priority numbers used internally by asterisk.
+conflict with the priority numbers used internally by asterisk.
 
 The syntax of the jump statement is: jump
 extension[,priority][@context] If priority is absent, it defaults to
@@ -1006,7 +1006,7 @@ macro std-exten( ext , dev ) {
 }
 
 
-A macro is then called by preceeding the macro name with an
+A macro is then called by preceding the macro name with an
 ampersand. Empty arguments can be passed simply with nothing between
 comments(0.11).
 
@@ -1130,7 +1130,7 @@ These checks will be:
 Differences with the original version of AEL
 ============================================
 
-   1. The $[...] expressions have been enhanced to inlcude the ==, ||,
+   1. The $[...] expressions have been enhanced to include the ==, ||,
       and && operators. These operators are exactly equivalent to the
       =, |, and & operators, respectively. Why? So the C, Java, C++
       hackers feel at home here.
@@ -1174,10 +1174,10 @@ Differences with the original version of AEL
   13. Added the optional time spec to the contexts in the includes
       construct. See examples above.
   14. You don't have to wrap a single "true" statement in curly
-      braces, as in the orignal AEL. An "else" is attached to the
+      braces, as in the original AEL. An "else" is attached to the
       closest if. As usual, be careful about nested if statements!
       When in doubt, use curlies!
-  15. Added the syntax [regexten] [hint(channel)] to preceed an
+  15. Added the syntax [regexten] [hint(channel)] to precede an
       extension declaration. See examples above, under
       "Extension". The regexten keyword will cause the priorities in
       the extension to begin with 2 instead of 1. The hint keyword
@@ -1216,7 +1216,7 @@ Hints and Bugs
      trouble with the old way, is that, if x contains any spaces, then
      problems occur, usually syntax errors. It is better practice and
      safer wrap all such tests with double quotes! Also, there are now
-     some functions that can be used in a variable referenece,
+     some functions that can be used in a variable reference,
      ISNULL(), and LEN(), that can be used to test for an empty string:
      ${ISNULL(${x})} or $[ ${LEN(${x}) = 0 ].
 

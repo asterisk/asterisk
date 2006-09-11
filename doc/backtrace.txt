@@ -24,7 +24,7 @@ The interesting information is located in the last column.
 
 Second, your copy of Asterisk must have been built without
 optimization or the backtrace will be (nearly) unusable. This can be
-done by using 'make dont-optimize' intead of 'make install' to build
+done by using 'make dont-optimize' instead of 'make install' to build
 and install the Asterisk binary and modules.
 
 After Asterisk crashes, a core file will be "dumped" in your /tmp/

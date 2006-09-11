@@ -64,7 +64,7 @@ Including other files
 ---------------------
 In all of the configuration files, you may include the content of another
 file with the #include statement. The content of the other file will be
-included at the row that the #include statement occured.
+included at the row that the #include statement occurred.
 	
 	#include myusers.conf
 

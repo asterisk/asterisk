@@ -137,7 +137,7 @@ for deletion when a user exits the voicemail system (hangs up the phone).
 UW IMAP-2006 Development Branch
 -------------------------------
 This version supports UIDPLUS, which allows UID_EXPUNGE capabilities.  This
-feature allow the system to expunge ONLY pretainent messages, instead of the
+feature allow the system to expunge ONLY pertinent messages, instead of the
 default behavior, which is to expunge ALL messages marked for deletion when
 EXPUNGE is called.  The IMAP storage mechanism is this version of Asterisk
 will check if the UID_EXPUNGE feature is supported by the server, and use it

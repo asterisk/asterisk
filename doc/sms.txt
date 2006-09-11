@@ -85,7 +85,7 @@ specified. oa is ignored.
 
 When generating files to send to a phone, only oa and ud need be specified. da is ignored.
 
-When receing a message as a service centre, only the destination address is
+When receiving a message as a service centre, only the destination address is
 sent, so the originating address is set to the callerid.
 
 EXAMPLES
@@ -114,7 +114,7 @@ The script sends
 You put the message as the name of the caller ID (messy, I know), the
 originating number and hence queue name as the number of the caller ID and the
 exten as the number to which the sms is to be sent. The context uses SMS to
-create the message in the queue and then SMS to communicate iwth 17094009 to
+create the message in the queue and then SMS to communicate with 17094009 to
 actually send the message.
 
 Note that the 9 on the end of 17094009 is the sub address 9 meaning no sub

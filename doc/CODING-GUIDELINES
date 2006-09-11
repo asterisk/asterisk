@@ -476,7 +476,7 @@ preceding them.
 ------------------------------------------
 
 - Look at the code once more
-When you achieve your desired functionalty, make another few refactor
+When you achieve your desired functionality, make another few refactor
 passes over the code to optimize it.
 
 - Read the patch

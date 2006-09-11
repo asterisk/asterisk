@@ -122,7 +122,7 @@ contain the ports variable which mean the mISDN Ports. Here you can add
 multiple ports, comma separated.
 
 Espacially for TE-Mode Ports there is a msns option. This option tells the
-chan_misdn driver to listen for incomming calls with the given msns, you can
+chan_misdn driver to listen for incoming calls with the given msns, you can
 insert a '*' as single msn, which leads in getting every incoming call (if you
 want to share on PMP TE S0 with a asterisk and a phone or isdn card you should
 insert here the msns which you'll like to give the Asterisk).  Finally a
@@ -148,7 +148,7 @@ The available Optchars are:
 	n - don't detect dtmf tones on called channel
 	h - make digital outgoing call
 	c - make crypted outgoing call, param is keyindex
-	e - perform echo cancelation on this channel, 
+	e - perform echo cancellation on this channel, 
 	    takes taps as arguments (32,64,128,256)
 	s - send Non Inband DTMF as inband
 	vr - rxgain control
@@ -203,7 +203,7 @@ Now you should see the misdn cli commands:
 	-> config	(shows the configuration options)
 	-> channels	(shows the current active misdn channels)
 	-> channel	(shows details about the given misdn channels)
-	-> stacks	(shows the currend ports, there protocols and states)
+	-> stacks	(shows the current ports, their protocols and states)
 	-> fullstacks	(shows the current active and inactive misdn channels)
 
 - restart 
@@ -255,7 +255,7 @@ exten => _0X.,1,Dial(mISDN/g:${OUT_GROUP}/${EXTEN:1})
 exten => _1X.,1,Dial(mISDN/g:${OUT_GROUP}/${EXTEN:1}/:dHello)
 exten => _1X.,1,Dial(mISDN/g:${OUT_GROUP}/${EXTEN:1}/:dHello Test:n)
 
-In the last line you will notice the last argument (Hello), this is sended
+On the last line, you will notice the last argument (Hello); this is sent
 as Display Message to the Phone.
 
 Known Problems
@@ -265,11 +265,11 @@ Known Problems
 
 -> You need to use ztdummy as dummy zaptel interface for the iax timing in
 trunking mode, simply grab libpri, zaptel and compile them (i think you need
-to modify the makefile in zaptel to add ztdummy to the defaultly compiled
+to modify the makefile in zaptel to add ztdummy to the default compiled
 modules) then modprobe ztdummy, this resolves the problem.
 
 
-* I cannot hear any tone after succesfull CONNECT to other end
+* I cannot hear any tone after a successful CONNECT to the other end
 
 -> you forgot to load mISDNdsp, which is now needed by chan_misdn for switching
 and dtmf tone detection

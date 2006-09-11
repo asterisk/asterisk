@@ -66,7 +66,7 @@ call.
 "joinempty" set to "strict" will keep incoming callers from
 being placed in queues where there are no agents to take calls.
 The Queue() application will return, and the dial plan can 
-detemine what to do next.
+determine what to do next.
 
 If there are calls queued, and the last agent logs out, the
 remaining incoming callers will immediately be removed from

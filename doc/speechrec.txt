@@ -179,7 +179,7 @@ The module res_speech.so exports a C based API that any developer can use to spe
 recognize enable their application. The API gives greater control, but requires the 
 developer to do more on their end in comparison to the dialplan speech utilities.
 
-For all API calls that return an integer value a non-zero value indicates an error has occured.
+For all API calls that return an integer value, a non-zero value indicates an error has occurred.
 
 - Creating a speech structure:
 

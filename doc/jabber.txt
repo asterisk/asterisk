@@ -12,4 +12,4 @@ the dial plan, jabberstatus, jabbersend, and soon jabberrecv.  res_jabber is als
 to provide the connection interface for chan_jingle.
 
 The maintainer of res_jabber is Matthew O'Gorman <mogorman@digum.com> or
-mog_work on irc or prefered mogorman@astjab.org over jabber.
+mog_work on irc or (preferred) mogorman@astjab.org over jabber.

@@ -266,7 +266,7 @@ Using smsq
    Create queue, but do not dial to send message
    --no-wait
    Do not wait if a call appears to be in progress
-   This could have a small window where a mesdsage is queued but not
+   This could have a small window where a message is queued but not
    sent, so regular calls to smsq should be done to pick up any missed
    messages
    --concurrent
@@ -314,7 +314,7 @@ Using smsq
    Note that when smsq attempts to make a file in
    /var/spool/asterisk/outgoing, it checks if there is already a call
    queued for that queue. It will try several filenames, up to the
-   --concorrent setting. If these files exists, then this means Asterisk
+   --concurrent setting. If these files exist, then this means Asterisk
    is already queued to send all messages for that queue, and so Asterisk
    should pick up the message just queued. However, this alone could
    create a race condition, so if the files exist then smsq will wait up
@@ -359,13 +359,13 @@ Using smsq
    $ude
    User data, escaped UTF-8, including all characters, but control
    characters \n, \r, \t, \f, \xxx and \ is escaped as \\
-   Useful fGuaranteed one line printable text, so useful in Subject lines
+   Useful guaranteed one line printable text, so useful in Subject lines
    of emails, etc
    $ud8
    Hex UCS-1 coding of user data (2 hex digits per character)
    Present only if all user data is in range U+0000 to U+00FF
    $ud16
-   Hex UCS-2 coding of user data (4 hex digits per chartacter)
+   Hex UCS-2 coding of user data (4 hex digits per character)
    other
    Other fields set using their field name, e.g. mr, pid, dcs, etc. udh
    is a hex byte string
@@ -388,7 +388,7 @@ File formats
    line starts with a keyword and an = and then data. udh and ud have
    options for hex encoding, see below.
    UTF-8. The user data (ud) field is treated as being UTF-8 encoded
-   unless the DCS is specified indicating 8 bit formart. If 8 bit format
+   unless the DCS is specified indicating 8 bit format. If 8 bit format
    is specified then the user data is sent as is.
    The keywords are as follows:-
 

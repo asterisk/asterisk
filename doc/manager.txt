@@ -247,7 +247,7 @@ Some standard AMI headers:
  Paused: <num>			-- Queue member paused status
  Peer: <tech/name>		-- "channel" specifier :-)
  PeerStatus: <tech/name>	-- Peer status code 
-					"Unregistred", "Registred", "Lagged", "Reachable"
+					"Unregistered", "Registered", "Lagged", "Reachable"
  Penalty: <num>			-- Queue penalty
  Priority:			-- Extension priority
  Privilege: <privilege>		-- AMI authorization class (system, call, log, verbose, command, agent, user)
@@ -284,7 +284,7 @@ Some standard AMI headers:
  Time: <sec>			-- Roundtrip time (latency)
  Timeout:			-- Parking timeout time
  Timeout:			-- Timeout for call setup (Originate)
- Timeout: <seconds>		-- Timout for call
+ Timeout: <seconds>		-- Timeout for call
  Uniqueid:			-- Channel Unique ID
  Uniqueid1:			-- Channel 1 Unique ID (Link event)
  Uniqueid2:			-- Channel 2 Unique ID (Link event)

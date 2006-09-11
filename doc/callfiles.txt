@@ -27,7 +27,7 @@ The call file syntax
 The call file consists of <Key>: <value> pairs; one per line.
 
 Comments are indicated by a '#' character that begins a line, or follows a space
-or tab character.  To be consistant with the configuration files in Asterisk,
+or tab character.  To be consistent with the configuration files in Asterisk,
 comments can also be indicated by a semicolon.  However, the multiline comments
 (;-- --;) used in Asterisk configuration files are not supported. Semicolons can
 be escaped by a backslash.
