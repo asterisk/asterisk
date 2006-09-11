@@ -2403,9 +2403,9 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 	else
 		p = ASTOBJ_CONTAINER_FIND_FULL(&peerl, sin, name, sip_addr_hashfunc, 1, sip_addrcmp);
 
-	if (!p && realtime) {
+	if (!p && realtime)
 		p = realtime_peer(peer, sin);
-	}
+
 	return p;
 }
 
@@ -2691,16 +2691,16 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		} else if (!p->options->addsipheaders && !strncasecmp(ast_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER"))) {
 			/* Check whether there is a variable with a name starting with SIPADDHEADER */
 			p->options->addsipheaders = 1;
-		} else if (!strcasecmp(ast_var_name(current),"SIPTRANSFER")) {
+		} else if (!strcasecmp(ast_var_name(current), "SIPTRANSFER")) {
 			/* This is a transfered call */
 			p->options->transfer = 1;
-		} else if (!strcasecmp(ast_var_name(current),"SIPTRANSFER_REFERER")) {
+		} else if (!strcasecmp(ast_var_name(current), "SIPTRANSFER_REFERER")) {
 			/* This is the referer */
 			referer = ast_var_value(current);
-		} else if (!strcasecmp(ast_var_name(current),"SIPTRANSFER_REPLACES")) {
+		} else if (!strcasecmp(ast_var_name(current), "SIPTRANSFER_REPLACES")) {
 			/* We're replacing a call. */
 			p->options->replaces = ast_var_value(current);
-		} else if (!strcasecmp(ast_var_name(current),"T38CALL")) {
+		} else if (!strcasecmp(ast_var_name(current), "T38CALL")) {
 			p->t38.state = T38_LOCAL_DIRECT;
 			if (option_debug)
 				ast_log(LOG_DEBUG,"T38State change to %d on channel %s\n", p->t38.state, ast->name);
@@ -3186,9 +3186,8 @@ static int sip_hangup(struct ast_channel *ast)
 		else 
 			ast_log(LOG_DEBUG, "Hangup call %s, SIP callid %s)\n", ast->name, p->callid);
 	}
-	if (option_debug && ast_test_flag(ast, AST_FLAG_ZOMBIE)) {
+	if (option_debug && ast_test_flag(ast, AST_FLAG_ZOMBIE)) 
 		ast_log(LOG_DEBUG, "Hanging up zombie call. Be scared.\n");
-	}
 
 	ast_mutex_lock(&p->lock);
 	if (option_debug && sipdebug)
@@ -3338,9 +3337,8 @@ static int sip_answer(struct ast_channel *ast)
 			if (option_debug > 1)
 				ast_log(LOG_DEBUG,"T38State change to %d on channel %s\n", p->t38.state, ast->name);
 			res = transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
-		} else {
+		} else 
 			res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
-		}
 	}
 	ast_mutex_unlock(&p->lock);
 	return res;
@@ -5576,8 +5574,8 @@ static int add_digit(struct sip_request *req, char digit)
 	return 0;
 }
 
-/*! \brief add XML encoded media control with update */
-/*! \note XML: The only way to turn 0 bits of information into a few hundred. */
+/*! \brief add XML encoded media control with update 
+	\note XML: The only way to turn 0 bits of information into a few hundred. (markster) */
 static int add_vidupdate(struct sip_request *req)
 {
 	const char *xml_is_a_huge_waste_of_space =
@@ -5704,9 +5702,8 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 		udptldest.sin_port = udptlsin.sin_port;
 	}
 	
-	if (debug) {
+	if (debug) 
 		ast_log(LOG_DEBUG, "T.38 UDPTL is at %s port %d\n", ast_inet_ntoa(p->ourip), ntohs(udptlsin.sin_port));
-	}
 	
 	/* We break with the "recommendation" and send our IP, in order that our
 	   peer doesn't have to ast_gethostbyname() us */
@@ -6049,7 +6046,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	return 0;
 }
 
-/*--- transmit_response_with_t38_sdp: Used for 200 OK and 183 early media ---*/
+/*! \brief Used for 200 OK and 183 early media */
 static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans)
 {
 	struct sip_request resp;
@@ -6063,9 +6060,8 @@ static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct s
 	if (p->udptl) {
 		ast_udptl_offered_from_local(p->udptl, 0);
 		add_t38_sdp(&resp, p);
-	} else {
+	} else 
 		ast_log(LOG_ERROR, "Can't add SDP to response, since we have no UDPTL session allocated. Call-ID %s\n", p->callid);
-	}
 	return send_response(p, &resp, retrans, seqno);
 }
 
@@ -6097,9 +6093,8 @@ static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const 
 	if (p->rtp) {
 		try_suggested_sip_codec(p);	
 		add_sdp(&resp, p);
-	} else {
+	} else 
 		ast_log(LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
-	}
 	return send_response(p, &resp, reliable, seqno);
 }
 
@@ -6405,9 +6400,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	} else if (p->options && p->options->vxml_url) {
 		/* If there is a VXML URL append it to the SIP URL */
 		snprintf(to, sizeof(to), "<%s>;%s", p->uri, p->options->vxml_url);
-	} else {
+	} else 
 		snprintf(to, sizeof(to), "<%s>", p->uri);
-	}
 	
 	init_req(req, sipmethod, p->uri);
 	snprintf(tmp, sizeof(tmp), "%d %s", ++p->ocseq, sip_methods[sipmethod].text);
@@ -6419,9 +6413,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	if (ast_test_flag(&p->flags[0], SIP_SENDRPID) && (sipmethod == SIP_INVITE)) {
 		build_rpid(p);
 		add_header(req, "From", p->rpid_from);
-	} else {
+	} else 
 		add_header(req, "From", from);
-	}
 	add_header(req, "To", to);
 	ast_string_field_set(p, exten, l);
 	build_contact(p);
@@ -6472,9 +6465,8 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		add_header(&req, "Require", "replaces");
 	}
 
-	if (p->options && !ast_strlen_zero(p->options->distinctive_ring)) {
+	if (p->options && !ast_strlen_zero(p->options->distinctive_ring))
 		add_header(&req, "Alert-Info", p->options->distinctive_ring);
-	}
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
 	if (p->options && p->options->addsipheaders ) {
@@ -6522,9 +6514,8 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 			if (option_debug)
 				ast_log(LOG_DEBUG, "T38 is in state %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
 			add_t38_sdp(&req, p);
-		} else if (p->rtp) {
+		} else if (p->rtp) 
 			add_sdp(&req, p);
-		}
 	} else {
 		add_header_contentLength(&req, 0);
 	}
