@@ -42,7 +42,7 @@
 ; txhwgain => Transmit hardware gain (-12 => 12)
 ; rxhwgain => Receive Hardware gain (-12 => 12)
 ;
-; These are advanced settings and only mentioned for fullnes.
+; These are advanced settings and only mentioned for completeness.
 ; bal1  => Hybrid balance codec register 1
 ; bal2  => Hybrid balance codec register 2
 ; bal3  => Hybrid balance codec register 3

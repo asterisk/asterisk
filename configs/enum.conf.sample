@@ -11,7 +11,7 @@
 ;
 search => e164.arpa
 ;
-; If you'd like to use the E.164.org public ENUM registery in addition
+; If you'd like to use the E.164.org public ENUM registry in addition
 ; to the official e164.arpa one, uncomment the following line
 ;
 ;search => e164.org

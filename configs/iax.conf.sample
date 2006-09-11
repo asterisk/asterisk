@@ -246,7 +246,7 @@ autokill=yes
 ;
 ; caller   - Consider the callers preferred order ahead of the host's.
 ; host     - Consider the host's preferred order ahead of the caller's.
-; disabled - Disable the consideration of codec preference alltogether.
+; disabled - Disable the consideration of codec preference altogether.
 ;            (this is the original behaviour before preferences were added)
 ; reqonly  - Same as disabled, only do not consider capabilities if
 ;            the requested format is not available the call will only
@@ -371,7 +371,7 @@ host=216.207.245.47
 ;mask=255.255.255.255
 ;qualify=yes			; Make sure this peer is alive
 ;qualifysmoothing = yes		; use an average of the last two PONG
-				; results to reduce falsly detected LAGGED hosts
+				; results to reduce falsely detected LAGGED hosts
 				; Default: Off
 ;qualifyfreqok = 60000		; how frequently to ping the peer when
 				; everything seems to be ok, in milliseconds
