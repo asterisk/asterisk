@@ -61,28 +61,29 @@ cards = 1
 
 [interfaces]
 
-board = 1
+board = 0
 echocancel = on
 
 
 ; For OpenLine4 cards
 ;context = demo
 ;mode = fxo
+;channel = 0
 ;channel = 1
 ;channel = 2
 ;channel = 3
-;channel = 4
 
 ; For OpenSwith12 with jumpers at factory default
 context = demo
 mode = fxo
+channel = 8
 channel = 9
 channel = 10
 channel = 11
-channel = 12
 
 context = local
 mode = dialtone
+channel = 0
 channel = 1
 channel = 2
 channel = 3
@@ -90,19 +91,18 @@ channel = 4
 channel = 5
 channel = 6
 channel = 7
-channel = 8
 ;
 ; For OpenSwitch6
 ; Note that V6PCI channel numbers start at 7!
 ;context = demo
 ;mode = fxo
+;channel = 6
 ;channel = 7
-;channel = 8
 
 ;mode = dialtone
+;channel = 8
 ;channel = 9
 ;channel = 10
 ;channel = 11
-;channel = 12
 
 
