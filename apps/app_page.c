@@ -176,7 +176,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 	if (options)
 		ast_app_parse_options(page_opts, &flags, NULL, options);
 
-	snprintf(meetmeopts, sizeof(meetmeopts), "%ud|%s%sqxdw", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m"),
+	snprintf(meetmeopts, sizeof(meetmeopts), "%ud|%s%sqxdw(5)", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m"),
 		(ast_test_flag(&flags, PAGE_RECORD) ? "r" : "") );
 
 	while ((tech = strsep(&tmp, "&"))) {

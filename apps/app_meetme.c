@@ -156,6 +156,11 @@ enum {
 	CONFFLAG_HOLD = (1 << 27)
 };
 
+enum {
+	OPT_ARG_WAITMARKED = 0,
+	OPT_ARG_ARRAY_SIZE = 1,
+} meetme_option_args;
+
 AST_APP_OPTIONS(meetme_opts, {
 	AST_APP_OPTION('A', CONFFLAG_MARKEDUSER ),
 	AST_APP_OPTION('a', CONFFLAG_ADMIN ),
@@ -178,7 +183,7 @@ AST_APP_OPTIONS(meetme_opts, {
 	AST_APP_OPTION('T', CONFFLAG_MONITORTALKER ),
 	AST_APP_OPTION('l', CONFFLAG_MONITOR ),
 	AST_APP_OPTION('t', CONFFLAG_TALKER ),
-	AST_APP_OPTION('w', CONFFLAG_WAITMARKED ),
+	AST_APP_OPTION_ARG('w', CONFFLAG_WAITMARKED, OPT_ARG_WAITMARKED ),
 	AST_APP_OPTION('X', CONFFLAG_EXIT_CONTEXT ),
 	AST_APP_OPTION('x', CONFFLAG_MARKEDEXIT ),
 	AST_APP_OPTION('1', CONFFLAG_NOONLYPERSON ),
@@ -237,7 +242,8 @@ static const char *descrip =
 "      's' -- Present menu (user or admin) when '*' is received ('send' to menu)\n"
 "      't' -- set talk only mode. (Talk only, no listening)\n"
 "      'T' -- set talker detection (sent to manager interface and meetme list)\n"
-"      'w' -- wait until the marked user enters the conference\n"
+"      'w[(<secs>)]'\n"
+"          -- wait until the marked user enters the conference\n"
 "      'x' -- close the conference when last marked user exits\n"
 "      'X' -- allow user to exit the conference by entering a valid single\n"
 "             digit extension ${MEETME_EXIT_CONTEXT} or the current context\n"
@@ -1002,7 +1008,7 @@ static void conf_queue_control(struct ast_conference *conf, int control)
 }
 
 
-static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags)
+static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags, char *optargs[])
 {
 	struct ast_conf_user *user = NULL;
 	struct ast_conf_user *usr = NULL;
@@ -1038,7 +1044,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	char exitcontext[AST_MAX_CONTEXT] = "";
 	char recordingtmp[AST_MAX_EXTENSION] = "";
 	char members[10] = "";
-	int dtmf;
+	int dtmf, opt_waitmarked_timeout = 0;
+	time_t timeout = 0;
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
@@ -1051,6 +1058,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		}
 		AST_LIST_UNLOCK(&confs);
 		return ret;
+	}
+
+	/* Possible timeout waiting for marked user */
+	if ((confflags & CONFFLAG_WAITMARKED) &&
+		!ast_strlen_zero(optargs[OPT_ARG_WAITMARKED]) &&
+		(sscanf(optargs[OPT_ARG_WAITMARKED], "%d", &opt_waitmarked_timeout) == 1) &&
+		(opt_waitmarked_timeout > 0)) {
+		timeout = time(NULL) + opt_waitmarked_timeout;
 	}
 
 	if (confflags & CONFFLAG_RECORDCONF) {
@@ -1350,7 +1365,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 			outfd = -1;
 			ms = -1;
-			
+
+			if (timeout && time(NULL) >= timeout)
+				break;
+
 			/* if we have just exited from the menu, and the user had a channel-driver
 			   volume adjustment, restore it
 			*/
@@ -2160,6 +2178,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(options);
 		AST_APP_ARG(pin);
 	);
+	char *optargs[OPT_ARG_ARRAY_SIZE] = { NULL, };
 
 	u = ast_module_user_add(chan);
 
@@ -2188,7 +2207,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		ast_copy_string(the_pin, args.pin, sizeof(the_pin));
 
 	if (args.options) {
-		ast_app_parse_options(meetme_opts, &confflags, NULL, args.options);
+		ast_app_parse_options(meetme_opts, &confflags, optargs, args.options);
 		dynamic = ast_test_flag(&confflags, CONFFLAG_DYNAMIC | CONFFLAG_DYNAMICPIN);
 		if (ast_test_flag(&confflags, CONFFLAG_DYNAMICPIN) && !args.pin)
 			strcpy(the_pin, "q");
@@ -2344,7 +2363,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 								if (!ast_strlen_zero(cnf->pinadmin) && !strcasecmp(pin, cnf->pinadmin)) 
 									ast_set_flag(&confflags, CONFFLAG_ADMIN);
 								/* Run the conference */
-								res = conf_run(chan, cnf, confflags.flags);
+								res = conf_run(chan, cnf, confflags.flags, optargs);
 								break;
 							} else {
 								/* Pin invalid */
@@ -2393,7 +2412,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 					allowretry = 0;
 
 					/* Run the conference */
-					res = conf_run(chan, cnf, confflags.flags);
+					res = conf_run(chan, cnf, confflags.flags, optargs);
 				}
 			}
 		}
@@ -2503,6 +2522,7 @@ static int sla_exec(struct ast_channel *chan, void *data, int trunk)
 	char *info;
 	struct ast_flags confflags = {0};
 	int dynamic = 1;
+	char *options[OPT_ARG_ARRAY_SIZE] = { NULL, };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(confno);
 		AST_APP_ARG(options);
@@ -2549,7 +2569,7 @@ static int sla_exec(struct ast_channel *chan, void *data, int trunk)
 				ast_answer(chan);
 
 			/* Run the conference */
-			res = conf_run(chan, cnf, confflags.flags);
+			res = conf_run(chan, cnf, confflags.flags, options);
 		} else
 			ast_log(LOG_WARNING, "SLA%c: Found SLA '%s' but unable to build conference!\n", trunk ? 'T' : 'S', args.confno);
 		ASTOBJ_UNREF(sla, sla_destroy);
