@@ -2480,107 +2480,106 @@ static struct sip_user *find_user(const char *name, int realtime)
 /*! \brief Create address structure from peer reference.
  *  return -1 on error, 0 on success.
  */
-static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
+static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 {
 	int natflags;
 
 	if ((peer->addr.sin_addr.s_addr || peer->defaddr.sin_addr.s_addr) &&
 	    (!peer->maxms || ((peer->lastms >= 0)  && (peer->lastms <= peer->maxms)))) {
-		r->sa = (peer->addr.sin_addr.s_addr) ? peer->addr : peer->defaddr;
-		r->recv = r->sa;
-	} else {
+		dialog->sa = (peer->addr.sin_addr.s_addr) ? peer->addr : peer->defaddr;
+		dialog->recv = dialog->sa;
+	} else 
 		return -1;
-	}
 
-	ast_copy_flags(&r->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
-	ast_copy_flags(&r->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
-	r->capability = peer->capability;
-	if (!ast_test_flag(&r->flags[1], SIP_PAGE2_VIDEOSUPPORT) && r->vrtp) {
-		ast_rtp_destroy(r->vrtp);
-		r->vrtp = NULL;
+	ast_copy_flags(&dialog->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
+	ast_copy_flags(&dialog->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
+	dialog->capability = peer->capability;
+	if (!ast_test_flag(&dialog->flags[1], SIP_PAGE2_VIDEOSUPPORT) && dialog->vrtp) {
+		ast_rtp_destroy(dialog->vrtp);
+		dialog->vrtp = NULL;
 	}
-	r->prefs = peer->prefs;
-	if (ast_test_flag(&r->flags[1], SIP_PAGE2_T38SUPPORT)) {
-		r->t38.capability = global_t38_capability;
-		if (r->udptl) {
-			if (ast_udptl_get_error_correction_scheme(r->udptl) == UDPTL_ERROR_CORRECTION_FEC )
-				r->t38.capability |= T38FAX_UDP_EC_FEC;
-			else if (ast_udptl_get_error_correction_scheme(r->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY )
-				r->t38.capability |= T38FAX_UDP_EC_REDUNDANCY;
-			else if (ast_udptl_get_error_correction_scheme(r->udptl) == UDPTL_ERROR_CORRECTION_NONE )
-				r->t38.capability |= T38FAX_UDP_EC_NONE;
-			r->t38.capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
+	dialog->prefs = peer->prefs;
+	if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_T38SUPPORT)) {
+		dialog->t38.capability = global_t38_capability;
+		if (dialog->udptl) {
+			if (ast_udptl_get_error_correction_scheme(dialog->udptl) == UDPTL_ERROR_CORRECTION_FEC )
+				dialog->t38.capability |= T38FAX_UDP_EC_FEC;
+			else if (ast_udptl_get_error_correction_scheme(dialog->udptl) == UDPTL_ERROR_CORRECTION_REDUNDANCY )
+				dialog->t38.capability |= T38FAX_UDP_EC_REDUNDANCY;
+			else if (ast_udptl_get_error_correction_scheme(dialog->udptl) == UDPTL_ERROR_CORRECTION_NONE )
+				dialog->t38.capability |= T38FAX_UDP_EC_NONE;
+			dialog->t38.capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
 			if (option_debug > 1)
-				ast_log(LOG_DEBUG,"Our T38 capability (%d)\n", r->t38.capability);
+				ast_log(LOG_DEBUG,"Our T38 capability (%d)\n", dialog->t38.capability);
 		}
-		r->t38.jointcapability = r->t38.capability;
-	} else if (r->udptl) {
-		ast_udptl_destroy(r->udptl);
-		r->udptl = NULL;
+		dialog->t38.jointcapability = dialog->t38.capability;
+	} else if (dialog->udptl) {
+		ast_udptl_destroy(dialog->udptl);
+		dialog->udptl = NULL;
 	}
-	natflags = ast_test_flag(&r->flags[0], SIP_NAT) & SIP_NAT_ROUTE;
-	if (r->rtp) {
+	natflags = ast_test_flag(&dialog->flags[0], SIP_NAT) & SIP_NAT_ROUTE;
+	if (dialog->rtp) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Setting NAT on RTP to %s\n", natflags ? "On" : "Off");
-		ast_rtp_setnat(r->rtp, natflags);
-		ast_rtp_setdtmf(r->rtp, ast_test_flag(&r->flags[0], SIP_DTMF) != SIP_DTMF_INFO);
-		ast_rtp_setdtmfcompensate(r->rtp, ast_test_flag(&r->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
+		ast_rtp_setnat(dialog->rtp, natflags);
+		ast_rtp_setdtmf(dialog->rtp, ast_test_flag(&dialog->flags[0], SIP_DTMF) != SIP_DTMF_INFO);
+		ast_rtp_setdtmfcompensate(dialog->rtp, ast_test_flag(&dialog->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
 	}
-	if (r->vrtp) {
+	if (dialog->vrtp) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %s\n", natflags ? "On" : "Off");
-		ast_rtp_setnat(r->vrtp, natflags);
-		ast_rtp_setdtmf(r->vrtp, 0);
-		ast_rtp_setdtmfcompensate(r->vrtp, 0);
+		ast_rtp_setnat(dialog->vrtp, natflags);
+		ast_rtp_setdtmf(dialog->vrtp, 0);
+		ast_rtp_setdtmfcompensate(dialog->vrtp, 0);
 	}
-	if (r->udptl) {
+	if (dialog->udptl) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Setting NAT on UDPTL to %s\n", natflags ? "On" : "Off");
-		ast_udptl_setnat(r->udptl, natflags);
+		ast_udptl_setnat(dialog->udptl, natflags);
 	}
-	ast_string_field_set(r, peername, peer->username);
-	ast_string_field_set(r, authname, peer->username);
-	ast_string_field_set(r, username, peer->username);
-	ast_string_field_set(r, peersecret, peer->secret);
-	ast_string_field_set(r, peermd5secret, peer->md5secret);
-	ast_string_field_set(r, tohost, peer->tohost);
-	ast_string_field_set(r, fullcontact, peer->fullcontact);
-	if (!r->initreq.headers && !ast_strlen_zero(peer->fromdomain)) {
+	ast_string_field_set(dialog, peername, peer->username);
+	ast_string_field_set(dialog, authname, peer->username);
+	ast_string_field_set(dialog, username, peer->username);
+	ast_string_field_set(dialog, peersecret, peer->secret);
+	ast_string_field_set(dialog, peermd5secret, peer->md5secret);
+	ast_string_field_set(dialog, tohost, peer->tohost);
+	ast_string_field_set(dialog, fullcontact, peer->fullcontact);
+	if (!dialog->initreq.headers && !ast_strlen_zero(peer->fromdomain)) {
 		char *tmpcall;
 		char *c;
-		tmpcall = ast_strdupa(r->callid);
+		tmpcall = ast_strdupa(dialog->callid);
 		c = strchr(tmpcall, '@');
 		if (c) {
 			*c = '\0';
-			ast_string_field_build(r, callid, "%s@%s", tmpcall, peer->fromdomain);
+			ast_string_field_build(dialog, callid, "%s@%s", tmpcall, peer->fromdomain);
 		}
 	}
-	if (ast_strlen_zero(r->tohost))
-		ast_string_field_set(r, tohost, ast_inet_ntoa(r->sa.sin_addr));
+	if (ast_strlen_zero(dialog->tohost))
+		ast_string_field_set(dialog, tohost, ast_inet_ntoa(dialog->sa.sin_addr));
 	if (!ast_strlen_zero(peer->fromdomain))
-		ast_string_field_set(r, fromdomain, peer->fromdomain);
+		ast_string_field_set(dialog, fromdomain, peer->fromdomain);
 	if (!ast_strlen_zero(peer->fromuser))
-		ast_string_field_set(r, fromuser, peer->fromuser);
-	r->maxtime = peer->maxms;
-	r->callgroup = peer->callgroup;
-	r->pickupgroup = peer->pickupgroup;
-	r->allowtransfer = peer->allowtransfer;
+		ast_string_field_set(dialog, fromuser, peer->fromuser);
+	dialog->maxtime = peer->maxms;
+	dialog->callgroup = peer->callgroup;
+	dialog->pickupgroup = peer->pickupgroup;
+	dialog->allowtransfer = peer->allowtransfer;
 	/* Set timer T1 to RTT for this peer (if known by qualify=) */
 	/* Minimum is settable or default to 100 ms */
 	if (peer->maxms && peer->lastms)
-		r->timer_t1 = peer->lastms < global_t1min ? global_t1min : peer->lastms;
-	if ((ast_test_flag(&r->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
-	    (ast_test_flag(&r->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
-		r->noncodeccapability |= AST_RTP_DTMF;
+		dialog->timer_t1 = peer->lastms < global_t1min ? global_t1min : peer->lastms;
+	if ((ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
+	    (ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
+		dialog->noncodeccapability |= AST_RTP_DTMF;
 	else
-		r->noncodeccapability &= ~AST_RTP_DTMF;
-	ast_string_field_set(r, context, peer->context);
-	r->rtptimeout = peer->rtptimeout;
-	r->rtpholdtimeout = peer->rtpholdtimeout;
-	r->rtpkeepalive = peer->rtpkeepalive;
+		dialog->noncodeccapability &= ~AST_RTP_DTMF;
+	ast_string_field_set(dialog, context, peer->context);
+	dialog->rtptimeout = peer->rtptimeout;
+	dialog->rtpholdtimeout = peer->rtpholdtimeout;
+	dialog->rtpkeepalive = peer->rtpkeepalive;
 	if (peer->call_limit)
-		ast_set_flag(&r->flags[0], SIP_CALL_LIMIT);
-	r->maxcallbitrate = peer->maxcallbitrate;
+		ast_set_flag(&dialog->flags[0], SIP_CALL_LIMIT);
+	dialog->maxcallbitrate = peer->maxcallbitrate;
 	
 	return 0;
 }
