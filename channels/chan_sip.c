@@ -6166,7 +6166,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 	/* Use this as the basis */
 	initialize_initreq(p, &req);
 	p->lastinvite = p->ocseq;
-	return send_request(p, &req, 1, p->ocseq);
+	return send_request(p, &req, XMIT_CRITICAL, p->ocseq);
 }
 
 /*! \brief Transmit reinvite with T38 SDP 
@@ -6188,7 +6188,7 @@ static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
 	/* Use this as the basis */
 	initialize_initreq(p, &req);
 	p->lastinvite = p->ocseq;
-	return send_request(p, &req, 1, p->ocseq);
+	return send_request(p, &req, XMIT_CRITICAL, p->ocseq);
 }
 
 /*! \brief Check Contact: URI of SIP message */
@@ -6532,7 +6532,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 	if (!p->initreq.headers)
 		initialize_initreq(p, &req);
 	p->lastinvite = p->ocseq;
-	return send_request(p, &req, init ? 2 : 1, p->ocseq);
+	return send_request(p, &req, init ? XMIT_CRITICAL : XMIT_RELIABLE, p->ocseq);
 }
 
 /*! \brief Used in the SUBSCRIBE notification subsystem */
@@ -6693,7 +6693,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 	add_header_contentLength(&req, strlen(tmp));
 	add_line(&req, tmp);
 
-	return send_request(p, &req, 1, p->ocseq);
+	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
 /*! \brief Notify user of messages waiting in voicemail
@@ -6732,15 +6732,15 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 
 	if (!p->initreq.headers) 
 		initialize_initreq(p, &req);
-	return send_request(p, &req, 1, p->ocseq);
+	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
-/*! \brief Transmit SIP request */
+/*! \brief Transmit SIP request unreliably */
 static int transmit_sip_request(struct sip_pvt *p, struct sip_request *req)
 {
 	if (!p->initreq.headers) 	/* Initialize first request before sending */
 		initialize_initreq(p, req);
-	return send_request(p, req, 0, p->ocseq);
+	return send_request(p, req, XMIT_UNRELIABLE, p->ocseq);
 }
 
 /*! \brief Notify a transferring party of the status of transfer */
@@ -6764,7 +6764,7 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *messa
 	if (!p->initreq.headers)
 		initialize_initreq(p, &req);
 
-	return send_request(p, &req, 1, p->ocseq);
+	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
 /*! \brief Convert registration state status to string */
@@ -7041,7 +7041,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	r->regattempts++;	/* Another attempt */
 	if (option_debug > 3)
 		ast_verbose("REGISTER attempt %d to %s@%s\n", r->regattempts, r->username, r->hostname);
-	return send_request(p, &req, 2, p->ocseq);
+	return send_request(p, &req, XMIT_CRITICAL, p->ocseq);
 }
 
 /*! \brief Transmit text with SIP MESSAGE method */
@@ -7051,7 +7051,7 @@ static int transmit_message_with_text(struct sip_pvt *p, const char *text)
 
 	reqprep(&req, p, SIP_MESSAGE, 0, 1);
 	add_text(&req, text);
-	return send_request(p, &req, 1, p->ocseq);
+	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
 /*! \brief Allocate SIP refer structure */
@@ -7124,7 +7124,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	if (!ast_strlen_zero(p->our_contact))
 		add_header(&req, "Referred-By", p->our_contact);
 
-	return send_request(p, &req, 1, p->ocseq);
+	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 	/* We should propably wait for a NOTIFY here until we ack the transfer */
 	/* Maybe fork a new thread and wait for a STATUS of REFER_200OK on the refer status before returning to app_transfer */
 
@@ -7143,7 +7143,7 @@ static int transmit_info_with_digit(struct sip_pvt *p, const char digit)
 
 	reqprep(&req, p, SIP_INFO, 0, 1);
 	add_digit(&req, digit);
-	return send_request(p, &req, 1, p->ocseq);
+	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
 /*! \brief Send SIP INFO with video update request */
@@ -7153,7 +7153,7 @@ static int transmit_info_with_vidupdate(struct sip_pvt *p)
 
 	reqprep(&req, p, SIP_INFO, 0, 1);
 	add_vidupdate(&req);
-	return send_request(p, &req, 1, p->ocseq);
+	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
 /*! \brief Transmit generic SIP request */
