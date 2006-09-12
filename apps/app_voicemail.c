@@ -7421,11 +7421,10 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	int res = 0;
 #ifdef IMAP_STORAGE
 	char origtimeS[256],cidS[256],contextS[256];
-	char *header_content,*filename,*temp;
-#else
+	char *header_content,*temp;
+#endif
 	char filename[256];
 	struct ast_config *msg_cfg;
-#endif
 	char *origtime, *cid, *context, *name, *num;
 	int retries = 0;
 
@@ -7473,8 +7472,8 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 		origtimeS[0] = '\0';
 	
 	origtime = &origtimeS[0];
-
-	filename = "IMAP_STORAGE";
+	
+	sprintf(filename,"IMAP_STORAGE");
 #else
 	make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);
 
