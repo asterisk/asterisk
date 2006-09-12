@@ -7473,7 +7473,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	
 	origtime = &origtimeS[0];
 	
-	sprintf(filename,"IMAP_STORAGE");
+	strcpy(filename, "IMAP_STORAGE");
 #else
 	make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);
 
