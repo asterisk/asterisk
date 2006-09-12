@@ -13080,7 +13080,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			break;
 		}
 	} else {
-		if (p && !ast_test_flag(&p->flags[0], SIP_NEEDDESTROY)) {
+		if (p && p->autokillid > -1) {
 			const char *msg;
 
 			if (!p->jointcapability)
