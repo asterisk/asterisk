@@ -200,13 +200,13 @@ struct ast_module_user *__ast_module_user_add(struct ast_module *mod,
 void __ast_module_user_remove(struct ast_module *mod, struct ast_module_user *u)
 {
 
-	if (u <= 0) {	
-		ast_log(LOG_ERROR,"ast_module_user invalid can not remove \n");		
+	if (!u) {
+		ast_log(LOG_ERROR, "ast_module_user is invalid can not remove\n");		
 		return;
 	}
 
-	if (mod <= 0) {
-		ast_log(LOG_ERROR,"ast_module invalid can not remove \n");
+	if (!mod) {
+		ast_log(LOG_ERROR, "ast_module is invalid can not remove\n");
 		return;
 	}
 	
