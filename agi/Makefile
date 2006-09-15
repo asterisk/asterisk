@@ -16,16 +16,18 @@
 AGIS=agi-test.agi eagi-test eagi-sphinx-test jukebox.agi
 
 ifeq ($(OSARCH),SunOS)
-  LIBS+=-lsocket -lnsl ../main/strcompat.o
+  LIBS+=-lsocket -lnsl
 endif
 
 include $(ASTTOPDIR)/Makefile.rules
 
 all: $(AGIS)
 
-eagi-test: eagi-test.o
+eagi-test: eagi-test.o strcompat.o
 
 eagi-sphinx-test: eagi-sphinx-test.o
+
+$(eval $(call ast_make_o_c,strcompat.o,../main/strcompat.c))
 
 install: all
 	mkdir -p $(DESTDIR)$(AGI_DIR)

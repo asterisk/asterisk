@@ -256,28 +256,4 @@ struct ast_realloca {
 		(ra)->ptr; \
 	})
 
-#ifndef HAVE_STRCASESTR
-char *strcasestr(const char *, const char *);
-#endif
-
-#if !defined(HAVE_STRNDUP) && !defined(__AST_DEBUG_MALLOC)
-char *strndup(const char *, size_t);
-#endif
-
-#ifndef HAVE_STRNLEN
-size_t strnlen(const char *, size_t);
-#endif
-
-#if !defined(HAVE_VASPRINTF) && !defined(__AST_DEBUG_MALLOC)
-int vasprintf(char **strp, const char *fmt, va_list ap);
-#endif
-
-#if !defined(HAVE_ASPRINTF) && !defined(__AST_DEBUG_MALLOC) 
-int asprintf(char **str, const char *fmt, ...);
-#endif
-
-#ifndef HAVE_STRTOQ
-uint64_t strtoq(const char *nptr, char **endptr, int base);
-#endif
-
 #endif /* _ASTERISK_STRINGS_H */

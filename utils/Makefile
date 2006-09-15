@@ -16,7 +16,7 @@
 UTILS:=astman smsq stereorize streamplayer aelparse muted
 
 ifeq (${OSARCH},SunOS)
-  LIBS+=../main/strcompat.o -lsocket -lnsl
+  LIBS+=-lsocket -lnsl
 endif
 
 ifeq ($(POPT_LIB),)
@@ -57,6 +57,8 @@ astman: LIBS+=-lnewt -lslang -ldl
 $(eval $(call ast_make_final,stereorize,stereorize.o frame.o))
 stereorize: LIBS+=-lm
 
+$(eval $(call ast_make_o_c,strcompat.o,../main/strcompat.c))
+
 ../main/ast_expr2.c:
 	@echo "   [BISON] ../main/ast_expr2.y -> $@"
 	@bison -o $@ -d --name-prefix=ast_yy ../main/ast_expr2.y
@@ -81,7 +83,7 @@ aelbison.o: CFLAGS+=-I../pbx
 $(eval $(call ast_make_o_c,pbx_ael.o,../pbx/pbx_ael.c))
 pbx_ael.o: CFLAGS+=-DSTANDALONE_AEL
 
-$(eval $(call ast_make_final,aelparse,aelflex.o aelbison.o pbx_ael.o ael_main.o ast_expr2f.o ast_expr2.o))
+$(eval $(call ast_make_final,aelparse,aelflex.o aelbison.o pbx_ael.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o))
 
 $(eval $(call ast_make_o_c,ael_main.o,ael_main.c ../include/asterisk/ael_structs.h))
 
@@ -92,7 +94,7 @@ testexpr2s: ../main/ast_expr2f.c ../main/ast_expr2.c ../main/ast_expr2.h
 	rm ast_expr2.o ast_expr2f.o 
 	./testexpr2s expr2.testinput
 
-smsq: smsq.o
+smsq: smsq.o strcompat.o
 smsq: LIBS+=$(POPT_LIB)
 
 streamplayer: streamplayer.o
