@@ -21,7 +21,7 @@
 /*! \file
  *
  * \brief Module Loader
- * \author Mark Spencer <markster@digium.com> 
+ * \author Mark Spencer <markster@digium.com>
  * \author Kevin P. Fleming <kpfleming@digium.com>
  * \author Luigi Rizzo <rizzo@icir.org>
  * - See ModMngMnt
@@ -199,17 +199,6 @@ struct ast_module_user *__ast_module_user_add(struct ast_module *mod,
 
 void __ast_module_user_remove(struct ast_module *mod, struct ast_module_user *u)
 {
-
-	if (!u) {
-		ast_log(LOG_ERROR, "ast_module_user is invalid can not remove\n");		
-		return;
-	}
-
-	if (!mod) {
-		ast_log(LOG_ERROR, "ast_module is invalid can not remove\n");
-		return;
-	}
-	
 	AST_LIST_LOCK(&mod->users);
 	AST_LIST_REMOVE(&mod->users, u, entry);
 	AST_LIST_UNLOCK(&mod->users);
@@ -456,7 +445,7 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 		error = 1;
 
 	if (!error && (mod->usecount > 0)) {
-		if (force) 
+		if (force)
 			ast_log(LOG_WARNING, "Warning:  Forcing removal of module '%s' with use count %d\n",
 				resource_name, mod->usecount);
 		else {
@@ -565,7 +554,7 @@ int ast_module_reload(const char *name)
 		}
 
 		res = 2;
-		if (option_verbose > 2) 
+		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Reloading module '%s' (%s)\n", cur->resource, info->description);
 		info->reload();
 	}
@@ -642,7 +631,7 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 	switch (res) {
 	case AST_MODULE_LOAD_SUCCESS:
 		if (!ast_fully_booted) {
-			if (option_verbose) 
+			if (option_verbose)
 				ast_verbose("%s => (%s)\n", resource_name, term_color(tmp, mod->info->description, COLOR_BROWN, COLOR_BLACK, sizeof(tmp)));
 			if (ast_opt_console && !option_verbose)
 				ast_verbose( ".");
@@ -652,7 +641,7 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 		}
 
 		ast_set_flag(mod, FLAG_RUNNING);
-		
+
 		ast_update_use_count();
 		break;
 	case AST_MODULE_LOAD_DECLINE:
@@ -752,7 +741,7 @@ int load_modules(unsigned int preload_only)
 		if ((dir  = opendir(ast_config_AST_MODULE_DIR))) {
 			while ((dirent = readdir(dir))) {
 				int ld = strlen(dirent->d_name);
-				
+
 				/* Must end in .so to load it.  */
 
 				if (ld < 4)
@@ -850,7 +839,7 @@ done:
 
 void ast_update_use_count(void)
 {
-	/* Notify any module monitors that the use count for a 
+	/* Notify any module monitors that the use count for a
 	   resource has changed */
 	struct loadupdate *m;
 
@@ -880,9 +869,9 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
 	return total_mod_loaded;
 }
 
-int ast_loader_register(int (*v)(void)) 
+int ast_loader_register(int (*v)(void))
 {
-	struct loadupdate *tmp;	
+	struct loadupdate *tmp;
 
 	if (!(tmp = ast_malloc(sizeof(*tmp))))
 		return -1;
