@@ -1086,6 +1086,7 @@ static int zt_digit_end(struct ast_channel *chan, char digit)
 	struct zt_pvt *pvt;
 	int res = 0;
 	int index;
+	int x;
 	
 	pvt = chan->tech_pvt;
 
@@ -1103,8 +1104,9 @@ static int zt_digit_end(struct ast_channel *chan, char digit)
 #endif
 
 	if (pvt->begindigit) {
+		x = -1;
 		ast_log(LOG_DEBUG, "Ending VLDTMF digit '%c'\n", digit);
-		res = ioctl(pvt->subs[SUB_REAL].zfd, ZT_SENDTONE, -1);
+		res = ioctl(pvt->subs[SUB_REAL].zfd, ZT_SENDTONE, &x);
 		pvt->dialing = 0;
 		pvt->begindigit = 0;
 	}
