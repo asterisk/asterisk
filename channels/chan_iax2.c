@@ -2600,6 +2600,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 
 static void destroy_user(struct iax2_user *user);
 static int expire_registry(void *data);
+static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, time_t regtime);
 
 static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in *sin)
 {
@@ -2685,6 +2686,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 		time(&nowtime);
 		if ((nowtime - regseconds) > IAX_DEFAULT_REG_EXPIRE) {
 			memset(&peer->addr, 0, sizeof(peer->addr));
+			realtime_update_peer(peer->name, &peer->addr, 0);
 			if (option_debug)
 				ast_log(LOG_DEBUG, "realtime_peer: Bah, '%s' is expired (%d/%d/%d)!\n",
 						peername, (int)(nowtime - regseconds), (int)regseconds, (int)nowtime);
