@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *config = "extensions.conf";
 static char *registrar = "pbx_config";
+static char userscontext[AST_MAX_EXTENSION] = "default";
 
 static int static_config = 0;
 static int write_protect_config = 1;
@@ -1357,6 +1358,11 @@ static int pbx_load_config(const char *config_file)
 	autofallthrough_config = ast_true(ast_variable_retrieve(cfg, "general", "autofallthrough"));
 	clearglobalvars_config = ast_true(ast_variable_retrieve(cfg, "general", "clearglobalvars"));
 	ast_set2_flag(&ast_options, ast_true(ast_variable_retrieve(cfg, "general", "priorityjumping")), AST_OPT_FLAG_PRIORITY_JUMPING);
+
+	if ((cxt = ast_variable_retrieve(cfg, "general", "userscontext"))) 
+		ast_copy_string(userscontext, cxt, sizeof(userscontext));
+	else
+		ast_copy_string(userscontext, "default", sizeof(userscontext));
 								    
 	for (v = ast_variable_browse(cfg, "globals"); v; v = v->next) {
 		memset(realvalue, 0, sizeof(realvalue));
@@ -1364,11 +1370,10 @@ static int pbx_load_config(const char *config_file)
 		pbx_builtin_setvar_helper(NULL, v->name, realvalue);
 	}
 	for (cxt = NULL; (cxt = ast_category_browse(cfg, cxt)); ) {
-
 		/* All categories but "general" or "globals" are considered contexts */
 		if (!strcasecmp(cxt, "general") || !strcasecmp(cxt, "globals"))
 			continue;
-		con=ast_context_create(&local_contexts,cxt, registrar);
+		con=ast_context_find_or_create(&local_contexts,cxt, registrar);
 		if (con == NULL)
 			continue;
 
@@ -1494,12 +1499,109 @@ static int pbx_load_config(const char *config_file)
 	return 1;
 }
 
+static void append_interface(char *iface, int maxlen, char *add)
+{
+	int len = strlen(iface);
+	if (strlen(add) + len < maxlen - 2) {
+		if (strlen(iface)) {
+			iface[len] = '&';
+			strcpy(iface + len + 1, add);
+		} else
+			strcpy(iface, add);
+	}
+}
+
+static void pbx_load_users(void)
+{
+	struct ast_config *cfg;
+	char *cat, *chan;
+	char *zapchan;
+	char *hasexten;
+	char tmp[256];
+	char iface[256];
+	char zapcopy[256];
+	char *c;
+	int len;
+	int hasvoicemail;
+	int start, finish, x;
+	struct ast_context *con;
+	
+	cfg = ast_config_load("users.conf");
+	if (!cfg)
+		return;
+	con = ast_context_find_or_create(&local_contexts, userscontext, registrar);
+	if (!con)
+		return;
+
+	for (cat = ast_category_browse(cfg, NULL); cat ; cat = ast_category_browse(cfg, cat)) {
+		if (!strcasecmp(cat, "general"))
+			continue;
+		iface[0] = '\0';
+		len = sizeof(iface);
+		if (ast_true(ast_config_option(cfg, cat, "hassip"))) {
+			snprintf(tmp, sizeof(tmp), "SIP/%s", cat);
+			append_interface(iface, sizeof(iface), tmp);
+		}
+		if (ast_true(ast_config_option(cfg, cat, "hasiax"))) {
+			snprintf(tmp, sizeof(tmp), "IAX/%s", cat);
+			append_interface(iface, sizeof(iface), tmp);
+		}
+		hasexten = ast_config_option(cfg, cat, "hasexten");
+		if (hasexten && !ast_true(hasexten))
+			continue;
+		hasvoicemail = ast_true(ast_config_option(cfg, cat, "hasvoicemail"));
+		zapchan = ast_variable_retrieve(cfg, cat, "zapchan");
+		if (!zapchan)
+			zapchan = ast_variable_retrieve(cfg, "general", "zapchan");
+		if (!ast_strlen_zero(zapchan)) {
+			ast_copy_string(zapcopy, zapchan, sizeof(zapcopy));
+			c = zapcopy;
+			chan = strsep(&c, ",");
+			while (chan) {
+				if (sscanf(chan, "%d-%d", &start, &finish) == 2) {
+					/* Range */
+				} else if (sscanf(chan, "%d", &start)) {
+					/* Just one */
+					finish = start;
+				} else {
+					start = 0; finish = 0;
+				}
+				if (finish < start) {
+					x = finish;
+					finish = start;
+					start = x;
+				}
+				for (x = start; x <= finish; x++) {
+					snprintf(tmp, sizeof(tmp), "Zap/%d", x);
+					append_interface(iface, sizeof(iface), tmp);
+				}
+				chan = strsep(&c, ",");
+			}
+		}
+		if (!ast_strlen_zero(iface)) {
+			/* Add hint */
+			ast_add_extension2(con, 0, cat, -1, NULL, NULL, iface, strdup(""), ast_free, registrar);
+			/* If voicemail, use "stdexten" else use plain old dial */
+			if (hasvoicemail) {
+				snprintf(tmp, sizeof(tmp), "stdexten|%s|${HINT}", cat);
+				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Macro", strdup(tmp), ast_free, registrar);
+			} else {
+				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Dial", strdup("${HINT}"), ast_free, registrar);
+			}
+		}
+	}
+	ast_config_destroy(cfg);
+}
+
 static int pbx_load_module(void)
 {
 	struct ast_context *con;
 
 	if(!pbx_load_config(config))
 		return AST_MODULE_LOAD_DECLINE;
+	
+	pbx_load_users();
+
 	ast_merge_contexts_and_delete(&local_contexts, registrar);
 
 	for (con = NULL; (con = ast_walk_contexts(con));)

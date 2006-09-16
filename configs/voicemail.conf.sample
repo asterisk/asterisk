@@ -49,7 +49,12 @@ maxsilence=10
 silencethreshold=128
 ; Max number of failed login attempts
 maxlogins=3
-
+;
+; User context is where entries from users.conf are registered.  The
+; default value is 'default'
+;
+;userscontext=default
+;
 ; If you need to have an external program, i.e. /usr/bin/myapp
 ; called when a voicemail is left, delivered, or your voicemailbox 
 ; is checked, uncomment this.  It can also be set to 'smdi' to use

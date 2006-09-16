@@ -53,6 +53,11 @@ clearglobalvars=no
 ;
 ;priorityjumping=yes
 ;
+; User context is where entries from users.conf are registered.  The
+; default value is 'default'
+;
+;userscontext=default
+;
 ; You can include other config files, use the #include command
 ; (without the ';'). Note that this is different from the "include" command
 ; that includes contexts within other contexts. The #include command works
@@ -315,6 +320,18 @@ include => parkedcalls
 ; being passed to the switch routine.
 ;
 ; eswitch => IAX2/context@${CURSERVER}
+
+[macro-trunkdial]
+;
+; Standard trunk dial macro (hangs up on a dialstatus that should 
+; terminate call)
+;   ${ARG1} - What to dial
+;
+exten => s,1,Dial(${ARG1})
+exten => s,n,Goto(s-${DIALSTATUS},1)
+exten => s-NOANSWER,1,Hangup
+exten => s-BUSY,1,Hangup
+exten => _s-.,1,NoOp
 
 [macro-stdexten];
 ;

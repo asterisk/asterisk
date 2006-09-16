@@ -649,10 +649,14 @@ int ast_safe_system(const char *s)
 	struct rusage rusage;
 	int status;
 
-#if HAVE_WORKING_FORK
-    	ast_replace_sigchld();
+#if defined(HAVE_WORKING_FORK) || defined(HAVE_WORKING_VFORK)
+	ast_replace_sigchld();
 
+#ifdef HAVE_WORKING_VFORK
+	pid = vfork();
+#else
 	pid = fork();
+#endif	
 
 	if (pid == 0) {
 		if (ast_opt_high_priority)

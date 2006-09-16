@@ -219,6 +219,7 @@ static int use_callerid = 1;
 static int cid_signalling = CID_SIG_BELL;
 static int cid_start = CID_START_RING;
 static int zaptrcallerid = 0;
+static int cur_radio = 0;
 static int cur_signalling = -1;
 static int cur_outsignalling = -1;
 
@@ -10282,202 +10283,115 @@ static int unload_module(void)
 #endif
 	return __unload_module();
 }
-		
-static int setup_zap(int reload)
+
+static int build_channels(int iscrv, char *value, int reload, int lineno, int *found_pseudo)
 {
-	struct ast_config *cfg;
-	struct ast_variable *v;
-	struct ast_variable *vjb;
+	char *c, *chan;
+	int x, y, start, finish;
 	struct zt_pvt *tmp;
-	char *chan;
-	char *c;
-	char *ringc;
-	int start, finish,x;
-	int y;
-	int found_pseudo = 0;
-	int cur_radio = 0;
 #ifdef HAVE_PRI
-	int spanno;
-	int i;
-	int logicalspan;
-	int trunkgroup;
-	int dchannels[NUM_DCHANS];
 	struct zt_pri *pri;
+	int trunkgroup;
 #endif
-
-	cfg = ast_config_load(config);
-
-	/* Error if we have no config file */
-	if (!cfg) {
-		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
-		return 0;
+	
+	if ((reload == 0) && (cur_signalling < 0)) {
+		ast_log(LOG_ERROR, "Signalling must be specified before any channels are.\n");
+		return -1;
 	}
 
-	/* It's a little silly to lock it, but we mind as well just to be sure */
-	ast_mutex_lock(&iflock);
+	c = value;
+
 #ifdef HAVE_PRI
-	if (!reload) {
-		/* Process trunkgroups first */
-		v = ast_variable_browse(cfg, "trunkgroups");
-		while (v) {
-			if (!strcasecmp(v->name, "trunkgroup")) {
-				trunkgroup = atoi(v->value);
-				if (trunkgroup > 0) {
-					if ((c = strchr(v->value, ','))) {
-						i = 0;
-						memset(dchannels, 0, sizeof(dchannels));
-						while (c && (i < NUM_DCHANS)) {
-							dchannels[i] = atoi(c + 1);
-							if (dchannels[i] < 0) {
-								ast_log(LOG_WARNING, "D-channel for trunk group %d must be a postiive number at line %d of zapata.conf\n", trunkgroup, v->lineno);
-							} else
-								i++;
-							c = strchr(c + 1, ',');
-						}
-						if (i) {
-							if (pri_create_trunkgroup(trunkgroup, dchannels)) {
-								ast_log(LOG_WARNING, "Unable to create trunk group %d with Primary D-channel %d at line %d of zapata.conf\n", trunkgroup, dchannels[0], v->lineno);
-							} else if (option_verbose > 1)
-								ast_verbose(VERBOSE_PREFIX_2 "Created trunk group %d with Primary D-channel %d and %d backup%s\n", trunkgroup, dchannels[0], i - 1, (i == 1) ? "" : "s");
-						} else
-							ast_log(LOG_WARNING, "Trunk group %d lacks any valid D-channels at line %d of zapata.conf\n", trunkgroup, v->lineno);
-					} else
-						ast_log(LOG_WARNING, "Trunk group %d lacks a primary D-channel at line %d of zapata.conf\n", trunkgroup, v->lineno);
-				} else
-					ast_log(LOG_WARNING, "Trunk group identifier must be a positive integer at line %d of zapata.conf\n", v->lineno);
-			} else if (!strcasecmp(v->name, "spanmap")) {
-				spanno = atoi(v->value);
-				if (spanno > 0) {
-					if ((c = strchr(v->value, ','))) {
-						trunkgroup = atoi(c + 1);
-						if (trunkgroup > 0) {
-							if ((c = strchr(c + 1, ','))) 
-								logicalspan = atoi(c + 1);
-							else
-								logicalspan = 0;
-							if (logicalspan >= 0) {
-								if (pri_create_spanmap(spanno - 1, trunkgroup, logicalspan)) {
-									ast_log(LOG_WARNING, "Failed to map span %d to trunk group %d (logical span %d)\n", spanno, trunkgroup, logicalspan);
-								} else if (option_verbose > 1) 
-									ast_verbose(VERBOSE_PREFIX_2 "Mapped span %d to trunk group %d (logical span %d)\n", spanno, trunkgroup, logicalspan);
-							} else
-								ast_log(LOG_WARNING, "Logical span must be a postive number, or '0' (for unspecified) at line %d of zapata.conf\n", v->lineno);
-						} else
-							ast_log(LOG_WARNING, "Trunk group must be a postive number at line %d of zapata.conf\n", v->lineno);
-					} else
-						ast_log(LOG_WARNING, "Missing trunk group for span map at line %d of zapata.conf\n", v->lineno);
-				} else
-					ast_log(LOG_WARNING, "Span number must be a postive integer at line %d of zapata.conf\n", v->lineno);
-			} else {
-				ast_log(LOG_NOTICE, "Ignoring unknown keyword '%s' in trunkgroups\n", v->name);
+	pri = NULL;
+	if (iscrv) {
+		if (sscanf(c, "%d:%n", &trunkgroup, &y) != 1) {
+			ast_log(LOG_WARNING, "CRV must begin with trunkgroup followed by a colon at line %d\n", lineno);
+			return -1;
+		}
+		if (trunkgroup < 1) {
+			ast_log(LOG_WARNING, "CRV trunk group must be a positive number at line %d\n", lineno);
+			return -1;
+		}
+		c += y;
+		for (y = 0; y < NUM_SPANS; y++) {
+			if (pris[y].trunkgroup == trunkgroup) {
+				pri = pris + y;
+				break;
 			}
-			v = v->next;
+		}
+		if (!pri) {
+			ast_log(LOG_WARNING, "No such trunk group %d at CRV declaration at line %d\n", trunkgroup, lineno);
+			return -1;
 		}
 	}
+#endif			
+
+	while ((chan = strsep(&c, ","))) {
+		if (sscanf(chan, "%d-%d", &start, &finish) == 2) {
+			/* Range */
+		} else if (sscanf(chan, "%d", &start)) {
+			/* Just one */
+			finish = start;
+		} else if (!strcasecmp(chan, "pseudo")) {
+			finish = start = CHAN_PSEUDO;
+			if (found_pseudo)
+				*found_pseudo = 1;
+		} else {
+			ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'\n", value, chan);
+			return -1;
+		}
+		if (finish < start) {
+			ast_log(LOG_WARNING, "Sillyness: %d < %d\n", start, finish);
+			x = finish;
+			finish = start;
+			start = x;
+		}
+
+		for (x = start; x <= finish; x++) {
+#ifdef HAVE_PRI
+			tmp = mkintf(x, cur_signalling, cur_outsignalling, cur_radio, pri, reload);
+#else			
+			tmp = mkintf(x, cur_signalling, cur_outsignalling, cur_radio, NULL, reload);
+#endif			
+
+			if (tmp) {
+				if (option_verbose > 2) {
+#ifdef HAVE_PRI
+					if (pri)
+						ast_verbose(VERBOSE_PREFIX_3 "%s CRV %d:%d, %s signalling\n", reload ? "Reconfigured" : "Registered", trunkgroup, x, sig2str(tmp->sig));
+					else
 #endif
-	v = ast_variable_browse(cfg, "channels");
-	/* Copy the default jb config over global_jbconf */
-	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
-	/* Traverse all variables to handle jb conf */
-	for (vjb = v; vjb; vjb = vjb->next)
-		ast_jb_read_conf(&global_jbconf, vjb->name, vjb->value);
+						ast_verbose(VERBOSE_PREFIX_3 "%s channel %d, %s signalling\n", reload ? "Reconfigured" : "Registered", x, sig2str(tmp->sig));
+				}
+			} else {
+				ast_log(LOG_ERROR, "Unable to %s channel '%s'\n",
+					(reload == 1) ? "reconfigure" : "register", value);
+				return -1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int process_zap(struct ast_variable *v, int reload, int skipchannels)
+{
+	struct zt_pvt *tmp;
+	char *ringc;
+	int y;
+	int found_pseudo = 0;
+	char *c;
+
 	while(v) {
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "channel")
 #ifdef HAVE_PRI
-			|| !strcasecmp(v->name, "crv")
+		    || !strcasecmp(v->name, "crv")
 #endif			
-					) {
-			if (reload == 0) {
-				if (cur_signalling < 0) {
-					ast_log(LOG_ERROR, "Signalling must be specified before any channels are.\n");
-					ast_config_destroy(cfg);
-					ast_mutex_unlock(&iflock);
+			) {
+			if (!skipchannels) {
+				if (build_channels(!strcasecmp(v->name, "crv"), v->value, reload, v->lineno, &found_pseudo))
 					return -1;
-				}
-			}
-			c = v->value;
-
-#ifdef HAVE_PRI
-			pri = NULL;
-			if (!strcasecmp(v->name, "crv")) {
-				if (sscanf(c, "%d:%n", &trunkgroup, &y) != 1) {
-					ast_log(LOG_WARNING, "CRV must begin with trunkgroup followed by a colon at line %d\n", v->lineno);
-					ast_config_destroy(cfg);
-					ast_mutex_unlock(&iflock);
-					return -1;
-				}
-				if (trunkgroup < 1) {
-					ast_log(LOG_WARNING, "CRV trunk group must be a postive number at line %d\n", v->lineno);
-					ast_config_destroy(cfg);
-					ast_mutex_unlock(&iflock);
-					return -1;
-				}
-				c += y;
-				for (y = 0; y < NUM_SPANS; y++) {
-					if (pris[y].trunkgroup == trunkgroup) {
-						pri = pris + y;
-						break;
-					}
-				}
-				if (!pri) {
-					ast_log(LOG_WARNING, "No such trunk group %d at CRV declaration at line %d\n", trunkgroup, v->lineno);
-					ast_config_destroy(cfg);
-					ast_mutex_unlock(&iflock);
-					return -1;
-				}
-			}
-#endif			
-			chan = strsep(&c, ",");
-			while (chan) {
-				if (sscanf(chan, "%d-%d", &start, &finish) == 2) {
-					/* Range */
-				} else if (sscanf(chan, "%d", &start)) {
-					/* Just one */
-					finish = start;
-				} else if (!strcasecmp(chan, "pseudo")) {
-					finish = start = CHAN_PSEUDO;
-					found_pseudo = 1;
-				} else {
-					ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'\n", v->value, chan);
-					ast_config_destroy(cfg);
-					ast_mutex_unlock(&iflock);
-					return -1;
-				}
-				if (finish < start) {
-					ast_log(LOG_WARNING, "Sillyness: %d < %d\n", start, finish);
-					x = finish;
-					finish = start;
-					start = x;
-				}
-
-				for (x = start; x <= finish; x++) {
-#ifdef HAVE_PRI
-					tmp = mkintf(x, cur_signalling, cur_outsignalling, cur_radio, pri, reload);
-#else					
-					tmp = mkintf(x, cur_signalling, cur_outsignalling, cur_radio, NULL, reload);
-#endif					
-
-					if (tmp) {
-						if (option_verbose > 2) {
-#ifdef HAVE_PRI
-							if (pri)
-								ast_verbose(VERBOSE_PREFIX_3 "%s CRV %d:%d, %s signalling\n", reload ? "Reconfigured" : "Registered", trunkgroup,x, sig2str(tmp->sig));
-							else
-#endif
-								ast_verbose(VERBOSE_PREFIX_3 "%s channel %d, %s signalling\n", reload ? "Reconfigured" : "Registered", x, sig2str(tmp->sig));
-						}
-					} else {
-						if (reload == 1)
-							ast_log(LOG_ERROR, "Unable to reconfigure channel '%s'\n", v->value);
-						else
-							ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
-						ast_config_destroy(cfg);
-						ast_mutex_unlock(&iflock);
-						return -1;
-					}
-				}
-				chan = strsep(&c, ",");
 			}
 		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
 			if (ast_true(v->value))
@@ -10645,7 +10559,11 @@ static int setup_zap(int reload)
 				cid_name[0] = '\0';
 			} else {
 				ast_callerid_split(v->value, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
-			}
+			} 
+		} else if (!strcasecmp(v->name, "fullname")) {
+			ast_copy_string(cid_name, v->value, sizeof(cid_name));
+		} else if (!strcasecmp(v->name, "cid_number")) {
+			ast_copy_string(cid_num, v->value, sizeof(cid_num));
 		} else if (!strcasecmp(v->name, "useincomingcalleridonzaptransfer")) {
 			zaptrcallerid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "restrictcid")) {
@@ -10870,8 +10788,6 @@ static int setup_zap(int reload)
 					switchtype = PRI_SWITCH_QSIG;
 				else {
 					ast_log(LOG_ERROR, "Unknown switchtype '%s'\n", v->value);
-					ast_config_destroy(cfg);
-					ast_mutex_unlock(&iflock);
 					return -1;
 				}
 			} else if (!strcasecmp(v->name, "nsf")) {
@@ -11084,12 +11000,11 @@ static int setup_zap(int reload)
 			} else if (!strcasecmp(v->name, "defaultozz")) {
 				ast_copy_string(defaultozz, v->value, sizeof(defaultozz));
 			} 
-		} else 
+		} else if (!skipchannels)
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
 	}
 	if (!found_pseudo && reload == 0) {
-	
 		/* Make sure pseudo isn't a member of any groups if
 		   we're automatically making it. */	
 		cur_group = 0;
@@ -11105,8 +11020,123 @@ static int setup_zap(int reload)
 			ast_log(LOG_WARNING, "Unable to register pseudo channel!\n");
 		}
 	}
+	return 0;
+}
+		
+static int setup_zap(int reload)
+{
+	int x;
+	struct ast_config *cfg;
+	struct ast_variable *v;
+	struct ast_variable *vjb;
+	char *c;
+	int res;
+
+#ifdef HAVE_PRI
+	int spanno;
+	int i;
+	int logicalspan;
+	int trunkgroup;
+	int dchannels[NUM_DCHANS];
+#endif
+
+	cfg = ast_config_load(config);
+
+	/* Error if we have no config file */
+	if (!cfg) {
+		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
+		return 0;
+	}
+
+	/* It's a little silly to lock it, but we mind as well just to be sure */
+	ast_mutex_lock(&iflock);
+#ifdef HAVE_PRI
+	if (!reload) {
+		/* Process trunkgroups first */
+		v = ast_variable_browse(cfg, "trunkgroups");
+		while (v) {
+			if (!strcasecmp(v->name, "trunkgroup")) {
+				trunkgroup = atoi(v->value);
+				if (trunkgroup > 0) {
+					if ((c = strchr(v->value, ','))) {
+						i = 0;
+						memset(dchannels, 0, sizeof(dchannels));
+						while (c && (i < NUM_DCHANS)) {
+							dchannels[i] = atoi(c + 1);
+							if (dchannels[i] < 0) {
+								ast_log(LOG_WARNING, "D-channel for trunk group %d must be a postiive number at line %d of zapata.conf\n", trunkgroup, v->lineno);
+							} else
+								i++;
+							c = strchr(c + 1, ',');
+						}
+						if (i) {
+							if (pri_create_trunkgroup(trunkgroup, dchannels)) {
+								ast_log(LOG_WARNING, "Unable to create trunk group %d with Primary D-channel %d at line %d of zapata.conf\n", trunkgroup, dchannels[0], v->lineno);
+							} else if (option_verbose > 1)
+								ast_verbose(VERBOSE_PREFIX_2 "Created trunk group %d with Primary D-channel %d and %d backup%s\n", trunkgroup, dchannels[0], i - 1, (i == 1) ? "" : "s");
+						} else
+							ast_log(LOG_WARNING, "Trunk group %d lacks any valid D-channels at line %d of zapata.conf\n", trunkgroup, v->lineno);
+					} else
+						ast_log(LOG_WARNING, "Trunk group %d lacks a primary D-channel at line %d of zapata.conf\n", trunkgroup, v->lineno);
+				} else
+					ast_log(LOG_WARNING, "Trunk group identifier must be a positive integer at line %d of zapata.conf\n", v->lineno);
+			} else if (!strcasecmp(v->name, "spanmap")) {
+				spanno = atoi(v->value);
+				if (spanno > 0) {
+					if ((c = strchr(v->value, ','))) {
+						trunkgroup = atoi(c + 1);
+						if (trunkgroup > 0) {
+							if ((c = strchr(c + 1, ','))) 
+								logicalspan = atoi(c + 1);
+							else
+								logicalspan = 0;
+							if (logicalspan >= 0) {
+								if (pri_create_spanmap(spanno - 1, trunkgroup, logicalspan)) {
+									ast_log(LOG_WARNING, "Failed to map span %d to trunk group %d (logical span %d)\n", spanno, trunkgroup, logicalspan);
+								} else if (option_verbose > 1) 
+									ast_verbose(VERBOSE_PREFIX_2 "Mapped span %d to trunk group %d (logical span %d)\n", spanno, trunkgroup, logicalspan);
+							} else
+								ast_log(LOG_WARNING, "Logical span must be a postive number, or '0' (for unspecified) at line %d of zapata.conf\n", v->lineno);
+						} else
+							ast_log(LOG_WARNING, "Trunk group must be a postive number at line %d of zapata.conf\n", v->lineno);
+					} else
+						ast_log(LOG_WARNING, "Missing trunk group for span map at line %d of zapata.conf\n", v->lineno);
+				} else
+					ast_log(LOG_WARNING, "Span number must be a postive integer at line %d of zapata.conf\n", v->lineno);
+			} else {
+				ast_log(LOG_NOTICE, "Ignoring unknown keyword '%s' in trunkgroups\n", v->name);
+			}
+			v = v->next;
+		}
+	}
+#endif
+	v = ast_variable_browse(cfg, "channels");
+	/* Copy the default jb config over global_jbconf */
+	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
+	/* Traverse all variables to handle jb conf */
+	for (vjb = v; vjb; vjb = vjb->next)
+		ast_jb_read_conf(&global_jbconf, vjb->name, vjb->value);
+	res = process_zap(v, reload, 0);
 	ast_mutex_unlock(&iflock);
 	ast_config_destroy(cfg);
+	if (res)
+		return res;
+	cfg = ast_config_load("users.conf");
+	if (cfg) {
+		char *cat;
+		char *chans;
+		process_zap(ast_variable_browse(cfg, "general"), 1, 1);
+		for (cat = ast_category_browse(cfg, NULL); cat ; cat = ast_category_browse(cfg, cat)) {
+			if (!strcasecmp(cat, "general"))
+				continue;
+			chans = ast_variable_retrieve(cfg, cat, "zapchan");
+			if (!ast_strlen_zero(chans)) {
+				process_zap(ast_variable_browse(cfg, cat), 1, 1);
+				build_channels(0, chans, 1, 0, NULL);
+			}
+		}
+		ast_config_destroy(cfg);
+	}
 #ifdef HAVE_PRI
 	if (!reload) {
 		for (x = 0; x < NUM_SPANS; x++) {

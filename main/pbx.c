@@ -3491,7 +3491,7 @@ int ast_unregister_application(const char *app)
 	return tmp ? 0 : -1;
 }
 
-struct ast_context *ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar)
+static struct ast_context *__ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar, int existsokay)
 {
 	struct ast_context *tmp, **local_contexts;
 	int length = sizeof(struct ast_context) + strlen(name) + 1;
@@ -3504,10 +3504,13 @@ struct ast_context *ast_context_create(struct ast_context **extcontexts, const c
 
 	for (tmp = *local_contexts; tmp; tmp = tmp->next) {
 		if (!strcasecmp(tmp->name, name)) {
-			ast_log(LOG_WARNING, "Tried to register context '%s', already in use\n", name);
+			if (!existsokay) {
+				ast_log(LOG_WARNING, "Tried to register context '%s', already in use\n", name);
+				tmp = NULL;
+			}
 			if (!extcontexts)
 				ast_mutex_unlock(&conlock);
-			return NULL;
+			return tmp;
 		}
 	}
 	if ((tmp = ast_calloc(1, length))) {
@@ -3531,6 +3534,15 @@ struct ast_context *ast_context_create(struct ast_context **extcontexts, const c
 	return tmp;
 }
 
+struct ast_context *ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar)
+{
+	return __ast_context_create(extcontexts, name, registrar, 0);
+}
+
+struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, const char *name, const char *registrar)
+{
+	return __ast_context_create(extcontexts, name, registrar, 1);
+}
 void __ast_context_destroy(struct ast_context *con, const char *registrar);
 
 struct store_hint {

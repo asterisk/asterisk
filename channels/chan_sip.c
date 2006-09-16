@@ -1365,7 +1365,7 @@ static void sip_dump_history(struct sip_pvt *dialog);
 
 /*--- Device object handling */
 static struct sip_peer *temp_peer(const char *name);
-static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int realtime);
+static struct sip_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int realtime);
 static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime);
 static int update_call_counter(struct sip_pvt *fup, int event);
 static void sip_destroy_peer(struct sip_peer *peer);
@@ -2357,7 +2357,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	}
 
 	/* Peer found in realtime, now build it in memory */
-	peer = build_peer(newpeername, var, !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS));
+	peer = build_peer(newpeername, var, NULL, !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS));
 	if (!peer) {
 		ast_variables_destroy(var);
 		return NULL;
@@ -15118,6 +15118,10 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			ast_copy_string(user->md5secret, v->value, sizeof(user->md5secret));
 		} else if (!strcasecmp(v->name, "callerid")) {
 			ast_callerid_split(v->value, user->cid_name, sizeof(user->cid_name), user->cid_num, sizeof(user->cid_num));
+		} else if (!strcasecmp(v->name, "fullname")) {
+			ast_copy_string(user->cid_name, v->value, sizeof(user->cid_name));
+		} else if (!strcasecmp(v->name, "cid_number")) {
+			ast_copy_string(user->cid_num, v->value, sizeof(user->cid_num));
 		} else if (!strcasecmp(v->name, "callgroup")) {
 			user->callgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "pickupgroup")) {
@@ -15243,12 +15247,13 @@ static struct sip_peer *temp_peer(const char *name)
 }
 
 /*! \brief Build peer from configuration (file or realtime static/dynamic) */
-static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int realtime)
+static struct sip_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int realtime)
 {
 	struct sip_peer *peer = NULL;
 	struct ast_ha *oldha = NULL;
 	int obproxyfound=0;
 	int found=0;
+	int firstpass=1;
 	int format=0;		/* Ama flags */
 	time_t regseconds = 0;
 	char *varname = NULL, *varval = NULL;
@@ -15268,6 +15273,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	if (peer) {
 		/* Already in the list, remove it and it will be added back (or FREE'd)  */
 		found++;
+		if (!(peer->objflags & ASTOBJ_FLAG_MARKED))
+			firstpass = 0;
  	} else {
 		if (!(peer = ast_calloc(1, sizeof(*peer))))
 			return NULL;
@@ -15279,11 +15286,12 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		ASTOBJ_INIT(peer);
 	}
 	/* Note that our peer HAS had its reference count incrased */
-
-	peer->lastmsgssent = -1;
-	oldha = peer->ha;
-	peer->ha = NULL;
-	set_peer_defaults(peer);	/* Set peer defaults */
+	if (firstpass) {
+		peer->lastmsgssent = -1;
+		oldha = peer->ha;
+		peer->ha = NULL;
+		set_peer_defaults(peer);	/* Set peer defaults */
+	}
 	if (!found && name)
 			ast_copy_string(peer->name, name, sizeof(peer->name));
 
@@ -15293,7 +15301,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		peer->chanvars = NULL;
 		/* XXX should unregister ? */
 	}
-	for (; v; v = v->next) {
+	for (; v || ((v = alt) && !(alt=NULL)); v = v->next) {
 		if (handle_common_options(&peerflags[0], &mask[0], v))
 			continue;
 		if (realtime && !strcasecmp(v->name, "regseconds")) {
@@ -15313,6 +15321,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			peer->auth = add_realm_authentication(peer->auth, v->value, v->lineno);
 		else if (!strcasecmp(v->name, "callerid")) {
 			ast_callerid_split(v->value, peer->cid_name, sizeof(peer->cid_name), peer->cid_num, sizeof(peer->cid_num));
+		} else if (!strcasecmp(v->name, "fullname")) {
+			ast_copy_string(peer->cid_name, v->value, sizeof(peer->cid_name));
+		} else if (!strcasecmp(v->name, "cid_number")) {
+			ast_copy_string(peer->cid_num, v->value, sizeof(peer->cid_num));
 		} else if (!strcasecmp(v->name, "context")) {
 			ast_copy_string(peer->context, v->value, sizeof(peer->context));
 		} else if (!strcasecmp(v->name, "subscribecontext")) {
@@ -15501,7 +15513,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
  */
 static int reload_config(enum channelreloadreason reason)
 {
-	struct ast_config *cfg;
+	struct ast_config *cfg, *ucfg;
 	struct ast_variable *v;
 	struct sip_peer *peer;
 	struct sip_user *user;
@@ -15863,6 +15875,58 @@ static int reload_config(enum channelreloadreason reason)
  			authl = add_realm_authentication(authl, v->value, v->lineno);
  	}
 	
+	ucfg = ast_config_load("users.conf");
+	if (ucfg) {
+		struct ast_variable *gen;
+		int genhassip, genregistersip;
+		char *hassip, *registersip;
+		
+		genhassip = ast_true(ast_variable_retrieve(ucfg, "general", "hassip"));
+		genregistersip = ast_true(ast_variable_retrieve(ucfg, "general", "registersip"));
+		gen = ast_variable_browse(ucfg, "general");
+		cat = ast_category_browse(ucfg, NULL);
+		while (cat) {
+			if (strcasecmp(cat, "general")) {
+				hassip = ast_variable_retrieve(ucfg, cat, "hassip");
+				registersip = ast_variable_retrieve(ucfg, cat, "registersip");
+				if (ast_true(hassip) || (!hassip && genhassip)) {
+					peer = build_peer(cat, gen, ast_variable_browse(ucfg, cat), 0);
+					if (peer) {
+						ASTOBJ_CONTAINER_LINK(&peerl,peer);
+						ASTOBJ_UNREF(peer, sip_destroy_peer);
+						peer_count++;
+					}
+				}
+				if (ast_true(registersip) || (!registersip && genregistersip)) {
+					char tmp[256];
+					char *host = ast_variable_retrieve(ucfg, cat, "host");
+					char *username = ast_variable_retrieve(ucfg, cat, "username");
+					char *secret = ast_variable_retrieve(ucfg, cat, "secret");
+					char *contact = ast_variable_retrieve(ucfg, cat, "contact");
+					if (!host)
+						host = ast_variable_retrieve(ucfg, "general", "host");
+					if (!username)
+						username = ast_variable_retrieve(ucfg, "general", "username");
+					if (!secret)
+						secret = ast_variable_retrieve(ucfg, "general", "secret");
+					if (!contact)
+						contact = "s";
+					if (!ast_strlen_zero(username) && !ast_strlen_zero(host)) {
+						if (!ast_strlen_zero(secret))
+							snprintf(tmp, sizeof(tmp), "%s:%s@%s/%s", username, secret, host, contact);
+						else
+							snprintf(tmp, sizeof(tmp), "%s@%s/%s", username, host, contact);
+						if (sip_register(tmp, 0) == 0)
+							registry_count++;
+					}
+				}
+			}
+			cat = ast_category_browse(ucfg, cat);
+		}
+		ast_config_destroy(ucfg);
+	}
+	
+
 	/* Load peers, users and friends */
 	cat = NULL;
 	while ( (cat = ast_category_browse(cfg, cat)) ) {
@@ -15894,7 +15958,7 @@ static int reload_config(enum channelreloadreason reason)
 				}
 			}
 			if (is_peer) {
-				peer = build_peer(cat, ast_variable_browse(cfg, cat), 0);
+				peer = build_peer(cat, ast_variable_browse(cfg, cat), NULL, 0);
 				if (peer) {
 					ASTOBJ_CONTAINER_LINK(&peerl,peer);
 					ASTOBJ_UNREF(peer, sip_destroy_peer);

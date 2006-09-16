@@ -174,6 +174,7 @@ int pbx_exec(struct ast_channel *c, struct ast_app *app, void *data);
  * \return NULL on failure, and an ast_context structure on success
  */
 struct ast_context *ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar);
+struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, const char *name, const char *registrar);
 
 /*!
  * \brief Merge the temporary contexts into a global contexts list and delete from the 

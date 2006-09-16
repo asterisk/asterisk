@@ -404,6 +404,8 @@ static char ext_pass_cmd[128];
 #define tdesc "Comedian Mail (Voicemail System)"
 #endif
 
+static char userscontext[AST_MAX_EXTENSION] = "default";
+
 static char *addesc = "Comedian Mail";
 
 static char *synopsis_vm =
@@ -641,9 +643,32 @@ static void apply_options(struct ast_vm_user *vmu, const char *options)
 	}	
 }
 
+static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *var)
+{
+	struct ast_variable *tmp;
+	tmp = var;
+	while (tmp) {
+		if (!strcasecmp(tmp->name, "password")) {
+			ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
+		} else if (!strcasecmp(tmp->name, "uniqueid")) {
+			ast_copy_string(retval->uniqueid, tmp->value, sizeof(retval->uniqueid));
+		} else if (!strcasecmp(tmp->name, "pager")) {
+			ast_copy_string(retval->pager, tmp->value, sizeof(retval->pager));
+		} else if (!strcasecmp(tmp->name, "email")) {
+			ast_copy_string(retval->email, tmp->value, sizeof(retval->email));
+		} else if (!strcasecmp(tmp->name, "fullname")) {
+			ast_copy_string(retval->fullname, tmp->value, sizeof(retval->fullname));
+		} else if (!strcasecmp(tmp->name, "context")) {
+			ast_copy_string(retval->context, tmp->value, sizeof(retval->context));
+		} else
+			apply_option(retval, tmp->name, tmp->value);
+		tmp = tmp->next;
+	} 
+}
+
 static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const char *context, const char *mailbox)
 {
-	struct ast_variable *var, *tmp;
+	struct ast_variable *var;
 	struct ast_vm_user *retval;
 
 	if ((retval = (ivm ? ivm : ast_calloc(1, sizeof(*retval))))) {
@@ -659,25 +684,7 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 		else
 			var = ast_load_realtime("voicemail", "mailbox", mailbox, "context", context, NULL);
 		if (var) {
-			tmp = var;
-			while (tmp) {
-				printf("%s => %s\n", tmp->name, tmp->value);
-				if (!strcasecmp(tmp->name, "password")) {
-					ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
-				} else if (!strcasecmp(tmp->name, "uniqueid")) {
-					ast_copy_string(retval->uniqueid, tmp->value, sizeof(retval->uniqueid));
-				} else if (!strcasecmp(tmp->name, "pager")) {
-					ast_copy_string(retval->pager, tmp->value, sizeof(retval->pager));
-				} else if (!strcasecmp(tmp->name, "email")) {
-					ast_copy_string(retval->email, tmp->value, sizeof(retval->email));
-				} else if (!strcasecmp(tmp->name, "fullname")) {
-					ast_copy_string(retval->fullname, tmp->value, sizeof(retval->fullname));
-				} else if (!strcasecmp(tmp->name, "context")) {
-					ast_copy_string(retval->context, tmp->value, sizeof(retval->context));
-				} else
-					apply_option(retval, tmp->name, tmp->value);
-				tmp = tmp->next;
-			} 
+			apply_options_full(retval, var);
 			ast_variables_destroy(var);
 		} else { 
 			if (!ivm) 
@@ -6573,6 +6580,26 @@ static int vm_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static struct ast_vm_user *find_or_create(char *context, char *mbox)
+{
+	struct ast_vm_user *vmu;
+	AST_LIST_TRAVERSE(&users, vmu, list) {
+		if (ast_test_flag((&globalflags), VM_SEARCH) && !strcasecmp(mbox, vmu->mailbox))
+			break;
+		if (context && (!strcasecmp(context, vmu->context)) && (!strcasecmp(mbox, vmu->mailbox)))
+			break;
+	}
+	
+	if (!vmu) {
+		if ((vmu = ast_calloc(1, sizeof(*vmu)))) {
+			ast_copy_string(vmu->context, context, sizeof(vmu->context));
+			ast_copy_string(vmu->mailbox, mbox, sizeof(vmu->mailbox));
+			AST_LIST_INSERT_TAIL(&users, vmu, list);
+		}
+	}
+	return vmu;
+}
+
 static int append_mailbox(char *context, char *mbox, char *data)
 {
 	/* Assumes lock is already held */
@@ -6582,10 +6609,7 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	struct ast_vm_user *vmu;
 
 	ast_copy_string(tmp, data, sizeof(tmp));
-	if ((vmu = ast_calloc(1, sizeof(*vmu)))) {
-		ast_copy_string(vmu->context, context, sizeof(vmu->context));
-		ast_copy_string(vmu->mailbox, mbox, sizeof(vmu->mailbox));
-
+	if ((vmu = find_or_create(context, mbox))) {
 		populate_defaults(vmu);
 
 		stringp = tmp;
@@ -6599,8 +6623,6 @@ static int append_mailbox(char *context, char *mbox, char *data)
 			ast_copy_string(vmu->pager, s, sizeof(vmu->pager));
 		if (stringp && (s = strsep(&stringp, ","))) 
 			apply_options(vmu, s);
-		
-		AST_LIST_INSERT_TAIL(&users, vmu, list);
 	}
 	return 0;
 }
@@ -6813,7 +6835,7 @@ static int load_config(void)
 {
 	struct ast_vm_user *cur;
 	struct vm_zone *zcur;
-	struct ast_config *cfg;
+	struct ast_config *cfg, *ucfg;
 	char *cat;
 	struct ast_variable *var;
 	char *notifystr = NULL;
@@ -6843,6 +6865,7 @@ static int load_config(void)
 	char *thresholdstr;
 	char *fmt;
 	char *astemail;
+	char *ucontext;
 	char *astmailcmd = SENDMAIL;
 	char *astforcename;
 	char *astforcegreet;
@@ -6874,6 +6897,9 @@ static int load_config(void)
 	if (cfg) {
 		/* General settings */
 
+		if (!(ucontext = ast_variable_retrieve(cfg, "general", "userscontext")))
+			ucontext = "default";
+		ast_copy_string(userscontext, ucontext, sizeof(userscontext));
 		/* Attach voice message to mail message ? */
 		if (!(astattach = ast_variable_retrieve(cfg, "general", "attach"))) 
 			astattach = "yes";
@@ -7159,6 +7185,18 @@ static int load_config(void)
 		if (!(astdirfwd = ast_variable_retrieve(cfg, "general", "usedirectory"))) 
 			astdirfwd = "no";
 		ast_set2_flag((&globalflags), ast_true(astdirfwd), VM_DIRECFORWARD);	
+		if ((ucfg = ast_config_load("users.conf"))) {	
+			for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
+				if (!ast_true(ast_config_option(ucfg, cat, "hasvoicemail")))
+					continue;
+				if ((cur = find_or_create(userscontext, cat))) {
+					populate_defaults(cur);
+					apply_options_full(cur, ast_variable_browse(ucfg, cat));
+					ast_copy_string(cur->context, userscontext, sizeof(cur->context));
+				}
+			}
+			ast_config_destroy(ucfg);
+		}
 		cat = ast_category_browse(cfg, NULL);
 		while (cat) {
 			if (strcasecmp(cat, "general")) {

@@ -798,8 +798,8 @@ static int send_command_locked(unsigned short callno, char, int, unsigned int, c
 static int send_command_transfer(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int);
 static struct ast_channel *iax2_request(const char *type, int format, void *data, int *cause);
 static struct ast_frame *iax2_read(struct ast_channel *c);
-static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, int temponly);
-static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly);
+static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int temponly);
+static struct iax2_user *build_user(const char *name, struct ast_variable *v, struct ast_variable *alt, int temponly);
 static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, time_t regtime);
 static void destroy_user(struct iax2_user *user);
 static void prune_peers(void);
@@ -2446,7 +2446,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 	if (!var)
 		return NULL;
 
-	peer = build_peer(peername, var, ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS) ? 0 : 1);
+	peer = build_peer(peername, var, NULL, ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS) ? 0 : 1);
 	
 	if (!peer)
 		return NULL;
@@ -2534,7 +2534,7 @@ static struct iax2_user *realtime_user(const char *username)
 		tmp = tmp->next;
 	}
 
-	user = build_user(username, var, !ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS));
+	user = build_user(username, var, NULL, !ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS));
 	if (!user)
 		return NULL;
 
@@ -8216,17 +8216,20 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 
 		
 /*! \brief Create peer structure based on configuration */
-static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, int temponly)
+static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int temponly)
 {
 	struct iax2_peer *peer = NULL;
 	struct ast_ha *oldha = NULL;
 	int maskfound=0;
 	int found=0;
+	int firstpass=1;
 
 	AST_LIST_LOCK(&peers);
 	if (!temponly) {
 		AST_LIST_TRAVERSE(&peers, peer, entry) {
 			if (!strcmp(peer->name, name)) {	
+				if (!ast_test_flag(peer, IAX_DELME))
+					firstpass = 0;
 				break;
 			}
 		}
@@ -8234,8 +8237,10 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		peer = NULL;	
 	if (peer) {
 		found++;
-		oldha = peer->ha;
-		peer->ha = NULL;
+		if (firstpass) {
+			oldha = peer->ha;
+			peer->ha = NULL;
+		}
 		AST_LIST_REMOVE(&peers, peer, entry);
 		AST_LIST_UNLOCK(&peers);
  	} else {
@@ -8251,25 +8256,29 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		}
 	}
 	if (peer) {
-		ast_copy_flags(peer, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
-		peer->encmethods = iax2_encryption;
-		peer->adsi = adsi;
-		/* NOT ANY MORE: peer->secret[0] = '\0'; */
-		ast_string_field_set(peer,secret,"");
-		if (!found) {
-			ast_string_field_set(peer, name, name);
-			peer->addr.sin_port = htons(IAX_DEFAULT_PORTNO);
-			peer->expiry = min_reg_expire;
+		if (firstpass) {
+			ast_copy_flags(peer, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
+			peer->encmethods = iax2_encryption;
+			peer->adsi = adsi;
+			ast_string_field_set(peer,secret,"");
+			if (!found) {
+				ast_string_field_set(peer, name, name);
+				peer->addr.sin_port = htons(IAX_DEFAULT_PORTNO);
+				peer->expiry = min_reg_expire;
+			}
+			peer->prefs = prefs;
+			peer->capability = iax2_capability;
+			peer->smoothing = 0;
+			peer->pokefreqok = DEFAULT_FREQ_OK;
+			peer->pokefreqnotok = DEFAULT_FREQ_NOTOK;
+			ast_string_field_set(peer,context,"");
+			ast_string_field_set(peer,peercontext,"");
 		}
-		peer->prefs = prefs;
-		peer->capability = iax2_capability;
-		peer->smoothing = 0;
-		peer->pokefreqok = DEFAULT_FREQ_OK;
-		peer->pokefreqnotok = DEFAULT_FREQ_NOTOK;
-		/* NO MORE: peer->context[0] = '\0';
-		   peer->peercontext[0] = '\0'; */
-		ast_string_field_set(peer,context,"");
-		ast_string_field_set(peer,peercontext,"");
+
+		if (!v) {
+			v = alt;
+			alt = NULL;
+		}
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) {
 				ast_string_field_set(peer, secret, v->value);
@@ -8376,6 +8385,12 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 				ast_string_field_set(peer, cid_name, name2);
 				ast_string_field_set(peer, cid_num, num2);
 				ast_set_flag(peer, IAX_HASCALLERID);	
+			} else if (!strcasecmp(v->name, "fullname")) {
+				ast_string_field_set(peer, cid_name, v->value);
+				ast_set_flag(peer, IAX_HASCALLERID);	
+			} else if (!strcasecmp(v->name, "cid_number")) {
+				ast_string_field_set(peer, cid_num, v->value);
+				ast_set_flag(peer, IAX_HASCALLERID);	
 			} else if (!strcasecmp(v->name, "sendani")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_SENDANI);	
 			} else if (!strcasecmp(v->name, "inkeys")) {
@@ -8407,7 +8422,11 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 				peer->adsi = ast_true(v->value);
 			}/* else if (strcasecmp(v->name,"type")) */
 			/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
-			v=v->next;
+			v = v->next;
+			if (!v) {
+				v = alt;
+				alt = NULL;
+			}
 		}
 		if (!peer->authmethods)
 			peer->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
@@ -8421,13 +8440,14 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 }
 
 /*! \brief Create in-memory user structure from configuration */
-static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly)
+static struct iax2_user *build_user(const char *name, struct ast_variable *v, struct ast_variable *alt, int temponly)
 {
 	struct iax2_user *user = NULL;
 	struct iax2_context *con, *conl = NULL;
 	struct ast_ha *oldha = NULL;
 	struct iax2_context *oldcon = NULL;
 	int format;
+	int firstpass=1;
 	int oldcurauthreq = 0;
 	char *varname = NULL, *varval = NULL;
 	struct ast_variable *tmpvar = NULL;
@@ -8436,18 +8456,22 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 	if (!temponly) {
 		AST_LIST_TRAVERSE(&users, user, entry) {
 			if (!strcmp(user->name, name)) {	
+				if (!ast_test_flag(user, IAX_DELME))
+					firstpass = 0;
 				break;
 			}
 		}
 	} else
 		user = NULL;
-	
+
 	if (user) {
-		oldcurauthreq = user->curauthreq;
-		oldha = user->ha;
-		oldcon = user->contexts;
-		user->ha = NULL;
-		user->contexts = NULL;
+		if (firstpass) {
+			oldcurauthreq = user->curauthreq;
+			oldha = user->ha;
+			oldcon = user->contexts;
+			user->ha = NULL;
+			user->contexts = NULL;
+		}
 		/* Already in the list, remove it and it will be added back (or FREE'd) */
 		AST_LIST_REMOVE(&users, user, entry);
 		AST_LIST_UNLOCK(&users);
@@ -8455,22 +8479,30 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 		AST_LIST_UNLOCK(&users);
 		/* This is going to memset'd to 0 in the next block */
 		user = ast_calloc(sizeof(*user),1);
-		if (ast_string_field_init(user, 32)) {
-			free(user);
-			user = NULL;
-		}
 	}
 	
 	if (user) {
-		user->maxauthreq = maxauthreq;
-		user->curauthreq = oldcurauthreq;
-		user->prefs = prefs;
-		user->capability = iax2_capability;
-		user->encmethods = iax2_encryption;
-		user->adsi = adsi;
-		ast_string_field_set(user, name, name);
-		ast_string_field_set(user, language, language);
-		ast_copy_flags(user, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_CODEC_USER_FIRST | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP);	
+		if (firstpass) {
+			ast_string_field_free_all(user);
+			memset(user, 0, sizeof(struct iax2_user));
+			if (ast_string_field_init(user, 32)) {
+				free(user);
+				user = NULL;
+			}
+			user->maxauthreq = maxauthreq;
+			user->curauthreq = oldcurauthreq;
+			user->prefs = prefs;
+			user->capability = iax2_capability;
+			user->encmethods = iax2_encryption;
+			user->adsi = adsi;
+			ast_string_field_set(user, name, name);
+			ast_string_field_set(user, language, language);
+			ast_copy_flags(user, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_CODEC_USER_FIRST | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP);	
+		}
+		if (!v) {
+			v = alt;
+			alt = NULL;
+		}
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
 				con = build_context(v->value);
@@ -8550,6 +8582,12 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 				ast_string_field_set(user, cid_name, name2);
 				ast_string_field_set(user, cid_num, num2);
 				ast_set_flag(user, IAX_HASCALLERID);	
+			} else if (!strcasecmp(v->name, "fullname")) {
+				ast_string_field_set(user, cid_name, v->value);
+				ast_set_flag(user, IAX_HASCALLERID);	
+			} else if (!strcasecmp(v->name, "cid_number")) {
+				ast_string_field_set(user, cid_num, v->value);
+				ast_set_flag(user, IAX_HASCALLERID);	
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				ast_string_field_set(user, accountcode, v->value);
 			} else if (!strcasecmp(v->name, "mohinterpret")) {
@@ -8576,6 +8614,10 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 			}/* else if (strcasecmp(v->name,"type")) */
 			/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 			v = v->next;
+			if (!v) {
+				v = alt;
+				alt = NULL;
+			}
 		}
 		if (!user->authmethods) {
 			if (!ast_strlen_zero(user->secret)) {
@@ -8722,7 +8764,7 @@ static void set_timing(void)
 /*! \brief Load configuration */
 static int set_config(char *config_file, int reload)
 {
-	struct ast_config *cfg;
+	struct ast_config *cfg, *ucfg;
 	int capability=iax2_capability;
 	struct ast_variable *v;
 	char *cat;
@@ -8975,13 +9017,71 @@ static int set_config(char *config_file, int reload)
 		min_reg_expire = max_reg_expire;
 	}
 	iax2_capability = capability;
+	
+	ucfg = ast_config_load("users.conf");
+	if (ucfg) {
+		struct ast_variable *gen;
+		int genhasiax;
+		int genregisteriax;
+		char *hasiax, *registeriax;
+		
+		genhasiax = ast_true(ast_variable_retrieve(ucfg, "general", "hasiax"));
+		genregisteriax = ast_true(ast_variable_retrieve(ucfg, "general", "registeriax"));
+		gen = ast_variable_browse(ucfg, "general");
+		cat = ast_category_browse(ucfg, NULL);
+		while (cat) {
+			if (strcasecmp(cat, "general")) {
+				hasiax = ast_variable_retrieve(ucfg, cat, "hasiax");
+				registeriax = ast_variable_retrieve(ucfg, cat, "registeriax");
+				if (ast_true(hasiax) || (!hasiax && genhasiax)) {
+					/* Start with general parameters, then specific parameters, user and peer */
+					user = build_user(cat, gen, ast_variable_browse(ucfg, cat), 0);
+					if (user) {
+						AST_LIST_LOCK(&users);
+						AST_LIST_INSERT_HEAD(&users, user, entry);
+						AST_LIST_UNLOCK(&users);
+					}
+					peer = build_peer(cat, gen, ast_variable_browse(ucfg, cat), 0);
+					if (peer) {
+						AST_LIST_LOCK(&peers);
+						AST_LIST_INSERT_HEAD(&peers, peer, entry);
+						AST_LIST_UNLOCK(&peers);
+						if (ast_test_flag(peer, IAX_DYNAMIC))
+							reg_source_db(peer);
+					}
+				}
+				if (ast_true(registeriax) || (!registeriax && genregisteriax)) {
+					char tmp[256];
+					char *host = ast_variable_retrieve(ucfg, cat, "host");
+					char *username = ast_variable_retrieve(ucfg, cat, "username");
+					char *secret = ast_variable_retrieve(ucfg, cat, "secret");
+					if (!host)
+						host = ast_variable_retrieve(ucfg, "general", "host");
+					if (!username)
+						username = ast_variable_retrieve(ucfg, "general", "username");
+					if (!secret)
+						secret = ast_variable_retrieve(ucfg, "general", "secret");
+					if (!ast_strlen_zero(username) && !ast_strlen_zero(host)) {
+						if (!ast_strlen_zero(secret))
+							snprintf(tmp, sizeof(tmp), "%s:%s@%s", username, secret, host);
+						else
+							snprintf(tmp, sizeof(tmp), "%s@%s", username, host);
+						iax2_register(tmp, 0);
+					}
+				}
+			}
+			cat = ast_category_browse(ucfg, cat);
+		}
+		ast_config_destroy(ucfg);
+	}
+	
 	cat = ast_category_browse(cfg, NULL);
 	while(cat) {
 		if (strcasecmp(cat, "general")) {
 			utype = ast_variable_retrieve(cfg, cat, "type");
 			if (utype) {
 				if (!strcasecmp(utype, "user") || !strcasecmp(utype, "friend")) {
-					user = build_user(cat, ast_variable_browse(cfg, cat), 0);
+					user = build_user(cat, ast_variable_browse(cfg, cat), NULL, 0);
 					if (user) {
 						AST_LIST_LOCK(&users);
 						AST_LIST_INSERT_HEAD(&users, user, entry);
@@ -8989,7 +9089,7 @@ static int set_config(char *config_file, int reload)
 					}
 				}
 				if (!strcasecmp(utype, "peer") || !strcasecmp(utype, "friend")) {
-					peer = build_peer(cat, ast_variable_browse(cfg, cat), 0);
+					peer = build_peer(cat, ast_variable_browse(cfg, cat), NULL, 0);
 					if (peer) {
 						AST_LIST_LOCK(&peers);
 						AST_LIST_INSERT_HEAD(&peers, peer, entry);

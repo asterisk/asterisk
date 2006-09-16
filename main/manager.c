@@ -947,6 +947,7 @@ static char mandescr_updateconfig[] =
 "Variables (X's represent 6 digit number beginning with 000000):\n"
 "   SrcFilename:   Configuration filename to read(e.g. foo.conf)\n"
 "   DstFilename:   Configuration filename to write(e.g. foo.conf)\n"
+"   Reload:        Whether or not a reload should take place (or name of specific module)\n"
 "   Action-XXXXXX: Action to Take (NewCat,RenameCat,DelCat,Update,Delete,Append)\n"
 "   Cat-XXXXXX:    Category to operate on\n"
 "   Var-XXXXXX:    Variable to work on\n"
@@ -961,6 +962,7 @@ static int action_updateconfig(struct mansession *s, struct message *m)
 	int res;
 	char idText[256] = "";
 	char *id = astman_get_header(m, "ActionID");
+	char *rld = astman_get_header(m, "Reload");
 
 	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
@@ -981,6 +983,11 @@ static int action_updateconfig(struct mansession *s, struct message *m)
 		return 0;
 	}
 	astman_append(s, "Response: Success\r\n%s\r\n", idText);
+	if (!ast_strlen_zero(rld)) {
+		if (ast_true(rld))
+			rld = NULL;
+		ast_module_reload(rld); 
+	}
 	return 0;
 }
 

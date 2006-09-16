@@ -393,10 +393,10 @@ static struct ast_config *realtime_directory(char *context)
 	return cfg;
 }
 
-static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *context, char *dialcontext, char digit, int last, int readext, int fromappvm)
+static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct ast_config *ucfg, char *context, char *dialcontext, char digit, int last, int readext, int fromappvm)
 {
 	/* Read in the first three digits..  "digit" is the first digit, already read */
-	char ext[NUMDIGITS + 1];
+	char ext[NUMDIGITS + 1], *cat;
 	char name[80] = "";
 	struct ast_variable *v;
 	int res;
@@ -499,6 +499,58 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 			}
 		}
 
+		if (!res && ucfg) {
+			/* Search users.conf for all names which start with those digits */
+			for (cat = ast_category_browse(ucfg, NULL); cat && !res ; cat = ast_category_browse(ucfg, cat)) {
+				if (!strcasecmp(cat, "general"))
+					continue;
+				if (!ast_true(ast_config_option(ucfg, cat, "hasdirectory")))
+					continue;
+				
+				/* Find all candidate extensions */
+				if ((pos = ast_variable_retrieve(ucfg, cat, "fullname"))) {
+					ast_copy_string(name, pos, sizeof(name));
+					/* Grab the last name */
+					if (last && strrchr(pos,' '))
+						pos = strrchr(pos, ' ') + 1;
+					conv = convert(pos);
+					if (conv) {
+						if (!strcmp(conv, ext)) {
+							/* Match! */
+							found++;
+							/* We have a match -- play a greeting if they have it */
+							res = play_mailbox_owner(chan, context, dialcontext, cat, name, readext, fromappvm);
+							switch (res) {
+							case -1:
+								/* user pressed '1' but extension does not exist, or
+								 * user hungup
+								 */
+								lastuserchoice = 0;
+								break;
+							case '1':
+								/* user pressed '1' and extensions exists;
+								   play_mailbox_owner will already have done
+								   a goto() on the channel
+								 */
+								lastuserchoice = res;
+								break;
+							case '*':
+								/* user pressed '*' to skip something found */
+								lastuserchoice = res;
+								res = 0;
+								break;
+							default:
+								break;
+							}
+							free(conv);
+							break;
+						}
+						free(conv);
+					}
+				}
+			}
+		}
+			
 		if (lastuserchoice != '1') {
 			res = ast_streamfile(chan, found ? "dir-nomore" : "dir-nomatch", chan->language);
 			if (!res)
@@ -514,7 +566,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct ast_module_user *u;
-	struct ast_config *cfg;
+	struct ast_config *cfg, *ucfg;
 	int last = 1;
 	int readext = 0;
 	int fromappvm = 0;
@@ -554,6 +606,8 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		ast_module_user_remove(u);
 		return -1;
 	}
+	
+	ucfg = ast_config_load("users.conf");
 
 	dirintro = ast_variable_retrieve(cfg, args.vmcontext, "directoryintro");
 	if (ast_strlen_zero(dirintro))
@@ -571,7 +625,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		if (!res)
 			res = ast_waitfordigit(chan, 5000);
 		if (res > 0) {
-			res = do_directory(chan, cfg, args.vmcontext, args.dialcontext, res, last, readext, fromappvm);
+			res = do_directory(chan, cfg, ucfg, args.vmcontext, args.dialcontext, res, last, readext, fromappvm);
 			if (res > 0) {
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
 				ast_stopstream(chan);
@@ -581,6 +635,8 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		}
 		break;
 	}
+	if (ucfg)
+		ast_config_destroy(ucfg);
 	ast_config_destroy(cfg);
 	ast_module_user_remove(u);
 	return res;
