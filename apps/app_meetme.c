@@ -1432,6 +1432,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						}
 					}
 				} else if(currentmarked >= 1 && lastmarked == 0) {
+					/* Marked user entered, so cancel timeout */
+					timeout = 0;
 					if (confflags & CONFFLAG_MONITOR)
 						ztc.confmode = ZT_CONF_CONFMON | ZT_CONF_LISTENER;
 					else if (confflags & CONFFLAG_TALKER)
