@@ -741,6 +741,7 @@ static pthread_t accept_t;
 static char context[AST_MAX_CONTEXT] = "default";
 static char language[MAX_LANGUAGE] = "";
 static char mohinterpret[MAX_MUSICCLASS] = "default";
+static char mohsuggest[MAX_MUSICCLASS] = "";
 static char cid_num[AST_MAX_EXTENSION] = "";
 static char cid_name[AST_MAX_EXTENSION] = "";
 static char linelabel[AST_MAX_EXTENSION] ="";
@@ -895,6 +896,7 @@ struct skinny_subchannel {
 	/* time_t lastouttime; */			/* Unused */
 	int progress;
 	int ringing;
+	int onhold;
 	/* int lastout; */				/* Unused */
 	int cxmode;
 	int nat;
@@ -919,6 +921,7 @@ struct skinny_line {
 	char call_forward[AST_MAX_EXTENSION];
 	char mailbox[AST_MAX_EXTENSION];
 	char mohinterpret[MAX_MUSICCLASS];
+	char mohsuggest[MAX_MUSICCLASS];
 	char lastnumberdialed[AST_MAX_EXTENSION];	/* Last number that was dialed - used for redial */
 	int curtone;					/* Current tone being played */
 	ast_group_t callgroup;
@@ -1930,6 +1933,8 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 				}
 			} else if (!strcasecmp(v->name, "mohinterpret") || !strcasecmp(v->name, "musiconhold")) {
 				ast_copy_string(mohinterpret, v->value, sizeof(mohinterpret));
+			} else if (!strcasecmp(v->name, "mohsuggest")) {
+				ast_copy_string(mohsuggest, v->value, sizeof(mohsuggest));
 			} else if (!strcasecmp(v->name, "callgroup")) {
 				cur_callergroup = ast_get_group(v->value);
 			} else if (!strcasecmp(v->name, "pickupgroup")) {
@@ -1995,6 +2000,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 					ast_copy_string(l->label, linelabel, sizeof(l->label));
 					ast_copy_string(l->language, language, sizeof(l->language));
 					ast_copy_string(l->mohinterpret, mohinterpret, sizeof(l->mohinterpret));
+					ast_copy_string(l->mohsuggest, mohsuggest, sizeof(l->mohsuggest));
 					ast_copy_string(l->mailbox, mailbox, sizeof(l->mailbox));
 					ast_copy_string(l->mailbox, mailbox, sizeof(l->mailbox));
 					if (!ast_strlen_zero(mailbox)) {
@@ -2633,6 +2639,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 			sub->cxmode = SKINNY_CX_INACTIVE;
 			sub->nat = l->nat;
 			sub->parent = l;
+			sub->onhold = 0;
 
 			sub->next = l->sub;
 			l->sub = sub;
@@ -2695,6 +2702,86 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		}
 	}
 	return tmp;
+}
+
+static int skinny_hold(struct skinny_subchannel *sub)
+{
+	struct skinny_line *l = sub->parent;
+	struct skinny_device *d = l->parent;
+	struct skinnysession *s = d->session;
+	struct skinny_req *req;
+
+	/* Channel needs to be put on hold */
+	if (skinnydebug)
+		ast_verbose("Putting on Hold(%d)\n", l->instance);
+
+	ast_queue_control_data(sub->owner, AST_CONTROL_HOLD,
+		S_OR(l->mohsuggest, NULL),
+		!ast_strlen_zero(l->mohsuggest) ? strlen(l->mohsuggest) + 1 : 0);
+
+	if (!(req = req_alloc(sizeof(struct activate_call_plane_message), ACTIVATE_CALL_PLANE_MESSAGE)))
+		return 0;
+	req->data.activatecallplane.lineInstance = htolel(l->instance);
+	transmit_response(s, req);
+	if (!(req = req_alloc(sizeof(struct close_receive_channel_message), CLOSE_RECEIVE_CHANNEL_MESSAGE)))
+		return 0;
+	req->data.closereceivechannel.conferenceId = htolel(0);
+	req->data.closereceivechannel.partyId = htolel(sub->callid);
+	transmit_response(s, req);
+	if (!(req = req_alloc(sizeof(struct stop_media_transmission_message), STOP_MEDIA_TRANSMISSION_MESSAGE)))
+		return 0;
+	req->data.stopmedia.conferenceId = htolel(0);
+	req->data.stopmedia.passThruPartyId = htolel(sub->callid);
+	transmit_response(s, req);
+	transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
+	sub->onhold = 1;
+	return 1;
+}
+
+static int skinny_unhold(struct skinny_subchannel *sub)
+{
+	struct skinny_line *l = sub->parent;
+	struct skinny_device *d = l->parent;
+	struct skinnysession *s = d->session;
+	struct skinny_req *req;
+	struct sockaddr_in us;
+
+	/* Channel is on hold, so we will unhold */
+	if (skinnydebug)
+		ast_verbose("Taking off Hold(%d)\n", l->instance);
+
+	ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
+
+	if (!(req = req_alloc(sizeof(struct activate_call_plane_message), ACTIVATE_CALL_PLANE_MESSAGE)))
+		return 0;
+	req->data.activatecallplane.lineInstance = htolel(l->instance);
+	transmit_response(s, req);
+	if (!(req = req_alloc(sizeof(struct open_receive_channel_message), OPEN_RECEIVE_CHANNEL_MESSAGE)))
+		return 0;
+	req->data.openreceivechannel.conferenceId = htolel(0);
+	req->data.openreceivechannel.partyId = htolel(sub->callid);
+	req->data.openreceivechannel.packets = htolel(20);
+	req->data.openreceivechannel.capability = htolel(convert_cap(l->capability));
+	req->data.openreceivechannel.echo = htolel(0);
+	req->data.openreceivechannel.bitrate = htolel(0);
+	transmit_response(s, req);
+	ast_rtp_get_us(sub->rtp, &us);
+	if (!(req = req_alloc(sizeof(struct start_media_transmission_message), START_MEDIA_TRANSMISSION_MESSAGE)))
+		return -1;
+	req->data.startmedia.conferenceId = htolel(0);
+	req->data.startmedia.passThruPartyId = htolel(sub->callid);
+	req->data.startmedia.remoteIp = htolel(d->ourip.s_addr);
+	req->data.startmedia.remotePort = htolel(ntohs(us.sin_port));
+	req->data.startmedia.packetSize = htolel(20);
+	req->data.startmedia.payloadType = htolel(convert_cap(l->capability));
+	req->data.startmedia.qualifier.precedence = htolel(127);
+	req->data.startmedia.qualifier.vad = htolel(0);
+	req->data.startmedia.qualifier.packets = htolel(0);
+	req->data.startmedia.qualifier.bitRate = htolel(0);
+	transmit_response(s, req);
+	transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
+	sub->onhold = 0;
+	return 1;
 }
 
 static int handle_keep_alive_message(struct skinny_req *req, struct skinnysession *s)
@@ -2923,9 +3010,14 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 #endif
 		break;
 	case STIMULUS_HOLD:
-		/* start moh? set RTP to 0.0.0.0? */
 		if (skinnydebug)
 			ast_verbose("Received Stimulus: Hold(%d)\n", instance);
+
+		if (sub->onhold) {
+			skinny_unhold(sub);
+		} else {
+			skinny_hold(sub);
+		}
 		break;
 	case STIMULUS_TRANSFER:
 		if (skinnydebug)
@@ -3068,6 +3160,12 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 		l = sub->parent;
 	}
 
+	if (sub && sub->onhold) {
+		transmit_ringer_mode(s, SKINNY_RING_OFF);
+		l->hookstate = SKINNY_OFFHOOK;
+		return 1;
+	}
+
 	transmit_ringer_mode(s, SKINNY_RING_OFF);
 	transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
 	l->hookstate = SKINNY_OFFHOOK;
@@ -3123,8 +3221,12 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 
 	if (!sub) {
 		return 0;
-	} else {
-		l = sub->parent;
+	}
+	l = sub->parent;
+
+	if (sub->onhold) {
+		l->hookstate = SKINNY_ONHOOK;
+		return 0;
 	}
 
 	if (l->hookstate == SKINNY_ONHOOK) {
@@ -3591,9 +3693,17 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		}
 		break;
 	case SOFTKEY_HOLD:
-		/* start moh? set RTP to 0.0.0.0? */
 		if (skinnydebug)
 			ast_verbose("Received Softkey Event: Hold(%d)\n", instance);
+
+		if (sub) {
+			if (sub->onhold) {
+				skinny_unhold(sub);
+			} else {
+				skinny_hold(sub);
+			}
+		}
+				
 		break;
 	case SOFTKEY_TRNSFER:
 		if (skinnydebug)

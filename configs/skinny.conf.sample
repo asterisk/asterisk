@@ -60,10 +60,13 @@ keepalive=120
 ;threewaycalling=yes
 ;context=default
 ;line => 500		; Dial(Skinny/500@duba)
-;mohinterpret=default   ; This option specifies a default music on hold class to
-                        ; use when put on hold if the channel's moh class was not
+;mohinterpret=default	; This option specifies a default music on hold class to
+			; use when put on hold if the channel's moh class was not
 			; explicitly set with Set(CHANNEL(musicclass)=whatever) and
 			; the peer channel did not suggest a class to use.
+;mohsuggest=default	; This option specifies which music on hold class to suggest to the peer channel
+			; when this channel places the peer on hold. It may be specified globally or on
+			; a per-user or per-peer basis.
 
 ; Typical config for a 7940 with dual 7914s
 ;[support]
