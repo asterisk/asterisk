@@ -411,7 +411,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 		return -1;
 	}
 	if (digit == '0') {
-		if (!ast_goto_if_exists(chan, chan->context, "o", 1) ||
+		if (!ast_goto_if_exists(chan, dialcontext, "o", 1) ||
 		    (!ast_strlen_zero(chan->macrocontext) &&
 		     !ast_goto_if_exists(chan, chan->macrocontext, "o", 1))) {
 			return 0;
@@ -422,7 +422,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 		}
 	}	
 	if (digit == '*') {
-		if (!ast_goto_if_exists(chan, chan->context, "a", 1) ||
+		if (!ast_goto_if_exists(chan, dialcontext, "a", 1) ||
 		    (!ast_strlen_zero(chan->macrocontext) &&
 		     !ast_goto_if_exists(chan, chan->macrocontext, "a", 1))) {
 			return 0;
