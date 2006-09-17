@@ -139,67 +139,67 @@ AST_THREADSTORAGE(control2str_threadbuf, control2str_threadbuf_init);
 /* no additional struct */
 
 #define REGISTER_MESSAGE 0x0001
-typedef struct register_message {
+struct register_message {
 	char name[16];
 	uint32_t userId;
 	uint32_t instance;
 	uint32_t ip;
 	uint32_t type;
 	uint32_t maxStreams;
-} register_message;
+};
 
 #define IP_PORT_MESSAGE	0x0002
 
 #define KEYPAD_BUTTON_MESSAGE 0x0003
-typedef struct keypad_button_message {
+struct keypad_button_message {
 	uint32_t button;
 	uint32_t lineInstance;
 	uint32_t callReference;
-} keypad_button_message;
+};
 
 #define STIMULUS_MESSAGE 0x0005
-typedef struct stimulus_message {
+struct stimulus_message {
 	uint32_t stimulus;
 	uint32_t stimulusInstance;
 	uint32_t unknown1;
-} stimulus_message;
+};
 
 #define OFFHOOK_MESSAGE 0x0006
-typedef struct offhook_message {
+struct offhook_message {
 	uint32_t unknown1;
 	uint32_t unknown2;
-} offhook_message;
+};
 
 #define ONHOOK_MESSAGE 0x0007
-typedef struct onhook_message {
+struct onhook_message {
 	uint32_t unknown1;
 	uint32_t unknown2;
-} onhook_message;
+};
 
 #define CAPABILITIES_RES_MESSAGE 0x0010
-typedef struct station_capabilities {
+struct station_capabilities {
 	uint32_t codec;
 	uint32_t frames;
 	union {
 		char res[8];
 		uint64_t rate;
 	} payloads;
-} station_capabilities;
+};
 
-typedef struct capabilities_res_message {
+struct capabilities_res_message {
 	uint32_t count;
 	struct station_capabilities caps[18];
-} capabilities_res_message;
+};
 
 #define SPEED_DIAL_STAT_REQ_MESSAGE 0x000A
-typedef struct speed_dial_stat_req_message {
+struct speed_dial_stat_req_message {
 	uint32_t speedDialNumber;
-} speed_dial_stat_req_message;
+};
 
 #define LINE_STATE_REQ_MESSAGE 0x000B
-typedef struct line_state_req_message {
+struct line_state_req_message {
 	uint32_t lineNumber;
-} line_state_req_message;
+};
 
 #define TIME_DATE_REQ_MESSAGE 0x000D
 #define BUTTON_TEMPLATE_REQ_MESSAGE 0x000E
@@ -207,29 +207,29 @@ typedef struct line_state_req_message {
 #define SERVER_REQUEST_MESSAGE 0x0012
 
 #define ALARM_MESSAGE 0x0020
-typedef struct alarm_message {
+struct alarm_message {
 	uint32_t alarmSeverity;
 	char displayMessage[80];
 	uint32_t alarmParam1;
 	uint32_t alarmParam2;
-} alarm_message;
+};
 
 #define OPEN_RECEIVE_CHANNEL_ACK_MESSAGE 0x0022
-typedef struct open_receive_channel_ack_message {
+struct open_receive_channel_ack_message {
 	uint32_t status;
 	uint32_t ipAddr;
 	uint32_t port;
 	uint32_t passThruId;
-} open_receive_channel_ack_message;
+};
 
 #define SOFT_KEY_SET_REQ_MESSAGE 0x0025
 
 #define SOFT_KEY_EVENT_MESSAGE 0x0026
-typedef struct soft_key_event_message {
+struct soft_key_event_message {
 	uint32_t softKeyEvent;
 	uint32_t instance;
 	uint32_t reference;
-} soft_key_event_message;
+};
 
 #define UNREGISTER_MESSAGE 0x0027
 #define SOFT_KEY_TEMPLATE_REQ_MESSAGE 0x0028
@@ -237,72 +237,72 @@ typedef struct soft_key_event_message {
 #define REGISTER_AVAILABLE_LINES_MESSAGE 0x002D
 
 #define REGISTER_ACK_MESSAGE 0x0081
-typedef struct register_ack_message {
+struct register_ack_message {
 	uint32_t keepAlive;
 	char dateTemplate[6];
 	char res[2];
 	uint32_t secondaryKeepAlive;
 	char res2[4];
-} register_ack_message;
+};
 
 #define START_TONE_MESSAGE 0x0082
-typedef struct start_tone_message {
+struct start_tone_message {
 	uint32_t tone;
-} start_tone_message;
+};
 
 #define STOP_TONE_MESSAGE 0x0083
 
 #define SET_RINGER_MESSAGE 0x0085
-typedef struct set_ringer_message {
+struct set_ringer_message {
 	uint32_t ringerMode;
 	uint32_t unknown1; /* See notes in transmit_ringer_mode */
 	uint32_t unknown2;
-} set_ringer_message;
+};
 
 #define SET_LAMP_MESSAGE 0x0086
-typedef struct set_lamp_message {
+struct set_lamp_message {
 	uint32_t stimulus;
 	uint32_t stimulusInstance;
 	uint32_t deviceStimulus;
-} set_lamp_message;
+};
 
 #define SET_SPEAKER_MESSAGE 0x0088
-typedef struct set_speaker_message {
+struct set_speaker_message {
 	uint32_t mode;
-} set_speaker_message;
+};
 
 /* XXX When do we need to use this? */
 #define SET_MICROPHONE_MESSAGE 0x0089
-typedef struct set_microphone_message {
+struct set_microphone_message {
 	uint32_t mode;
-} set_microphone_message;
+};
 
 #define START_MEDIA_TRANSMISSION_MESSAGE 0x008A
-typedef struct media_qualifier {
+struct media_qualifier {
 	uint32_t precedence;
 	uint32_t vad;
 	uint32_t packets;
 	uint32_t bitRate;
-} media_qualifier;
+};
 
-typedef struct start_media_transmission_message {
+struct start_media_transmission_message {
 	uint32_t conferenceId;
 	uint32_t passThruPartyId;
 	uint32_t remoteIp;
 	uint32_t remotePort;
 	uint32_t packetSize;
 	uint32_t payloadType;
-	media_qualifier qualifier;
-} start_media_transmission_message;
+	struct media_qualifier qualifier;
+};
 
 #define STOP_MEDIA_TRANSMISSION_MESSAGE 0x008B
-typedef struct stop_media_transmission_message {
+struct stop_media_transmission_message {
 	uint32_t conferenceId;
 	uint32_t passThruPartyId;
-} stop_media_transmission_message;
+};
 
 #define CALL_INFO_MESSAGE 0x008F
-typedef struct call_info_message {
+struct call_info_message {
 	char callingPartyName[40];
 	char callingParty[24];
 	char calledPartyName[40];
@@ -312,25 +312,25 @@ typedef struct call_info_message {
 	uint32_t type;
 	char originalCalledPartyName[40];
 	char originalCalledParty[24];
-} call_info_message;
+};
 
 #define SPEED_DIAL_STAT_RES_MESSAGE 0x0091
-typedef struct speed_dial_stat_res_message {
+struct speed_dial_stat_res_message {
 	uint32_t speedDialNumber;
 	char speedDialDirNumber[24];
 	char speedDialDisplayName[40];
-} speed_dial_stat_res_message;
+};
 
 #define LINE_STAT_RES_MESSAGE 0x0092
-typedef struct line_stat_res_message {
+struct line_stat_res_message {
 	uint32_t lineNumber;
 	char lineDirNumber[24];
 	char lineDisplayName[42];
 	uint32_t space;
-} line_stat_res_message;
+};
 
 #define DEFINETIMEDATE_MESSAGE 0x0094
-typedef struct definetimedate_message {
+struct definetimedate_message {
 	uint32_t year;	/* since 1900 */
 	uint32_t month;
 	uint32_t dayofweek;	/* monday = 1 */
@@ -340,19 +340,19 @@ typedef struct definetimedate_message {
 	uint32_t seconds;
 	uint32_t milliseconds;
 	uint32_t timestamp;
-} definetimedate_message;
+};
 
 #define BUTTON_TEMPLATE_RES_MESSAGE 0x0097
-typedef struct buttondefinition {
+struct button_definition {
 	uint8_t instanceNumber;
 	uint8_t buttonDefinition;
-} button_definition;
+};
 
-typedef struct buttondefinitiontemplate {
+struct button_definition_template {
 	uint8_t buttonDefinition;
 	/* for now, anything between 0xB0 and 0xCF is custom */
 	/*int custom;*/
-} button_definition_template;
+};
 
 #define STIMULUS_REDIAL			0x01
 #define STIMULUS_SPEEDDIAL		0x02
@@ -393,71 +393,71 @@ typedef struct buttondefinitiontemplate {
 #define BT_CUST_LINESPEEDDIAL		0xB0	/* line or speeddial */
 #define BT_CUST_HINT			0xB1	/* pipe dream */
 
-typedef struct button_template_res_message {
+struct button_template_res_message {
 	uint32_t buttonOffset;
 	uint32_t buttonCount;
 	uint32_t totalButtonCount;
-	button_definition definition[42];
-} button_template_res_message;
+	struct button_definition definition[42];
+};
 
 #define VERSION_RES_MESSAGE 0x0098
-typedef struct version_res_message {
+struct version_res_message {
 	char version[16];
-} version_res_message;
+};
 
 #define DISPLAYTEXT_MESSAGE 0x0099
-typedef struct displaytext_message {
+struct displaytext_message {
 	char text[40];
-} displaytext_message;
+};
 
 #define CLEAR_DISPLAY_MESSAGE 0x009A
 #define CAPABILITIES_REQ_MESSAGE 0x009B
 
 #define REGISTER_REJ_MESSAGE 0x009D
-typedef struct register_rej_message {
+struct register_rej_message {
 	char errMsg[33];
-} register_rej_message;
+};
 
 #define SERVER_RES_MESSAGE 0x009E
-typedef struct server_identifier {
+struct server_identifier {
 	char serverName[48];
-} server_identifier;
+};
 
-typedef struct server_res_message {
-	server_identifier server[5];
+struct server_res_message {
+	struct server_identifier server[5];
 	uint32_t serverListenPort[5];
 	uint32_t serverIpAddr[5];
-} server_res_message;
+};
 
 #define RESET_MESSAGE 0x009F
-typedef struct reset_message {
+struct reset_message {
 	uint32_t resetType;
-} reset_message;
+};
 
 #define KEEP_ALIVE_ACK_MESSAGE 0x0100
 
 #define OPEN_RECEIVE_CHANNEL_MESSAGE 0x0105
-typedef struct open_receive_channel_message {
+struct open_receive_channel_message {
 	uint32_t conferenceId;
 	uint32_t partyId;
 	uint32_t packets;
 	uint32_t capability;
 	uint32_t echo;
 	uint32_t bitrate;
-} open_receive_channel_message;
+};
 
 #define CLOSE_RECEIVE_CHANNEL_MESSAGE 0x0106
-typedef struct close_receive_channel_message {
+struct close_receive_channel_message {
 	uint32_t conferenceId;
 	uint32_t partyId;
-} close_receive_channel_message;
+};
 
 #define SOFT_KEY_TEMPLATE_RES_MESSAGE 0x0108
 
-typedef struct soft_key_template_definition {
+struct soft_key_template_definition {
 	char softKeyLabel[16];
 	uint32_t softKeyEvent;
-} soft_key_template_definition;
+};
 
 #define KEYDEF_ONHOOK			0
 #define KEYDEF_CONNECTED		1
@@ -491,7 +491,7 @@ typedef struct soft_key_template_definition {
 #define SOFTKEY_PICKUP			0x11
 #define SOFTKEY_GPICKUP			0x12
 
-soft_key_template_definition soft_key_template_default[] = {
+struct soft_key_template_definition soft_key_template_default[] = {
 	{ "Redial",	 	0x01 },
 	{ "NewCall",	 	0x02 },
 	{ "Hold",	 	0x03 },
@@ -512,11 +512,11 @@ soft_key_template_definition soft_key_template_default[] = {
 	{ "GPickUp",		0x12 },
 };
 
-typedef struct soft_key_definitions {
+struct soft_key_definitions {
 	const uint8_t mode;
 	const uint8_t *defaults;
 	const int count;
-} soft_key_definitions;
+};
 
 static const uint8_t soft_key_default_onhook[] = {
 	SOFTKEY_REDIAL,
@@ -590,7 +590,7 @@ static const uint8_t soft_key_default_unknown[] = {
 	SOFTKEY_NONE,
 };
 
-static const soft_key_definitions soft_key_default_definitions[] = {
+static const struct soft_key_definitions soft_key_default_definitions[] = {
 	{KEYDEF_ONHOOK, soft_key_default_onhook, sizeof(soft_key_default_onhook) / sizeof(uint8_t)},
 	{KEYDEF_CONNECTED, soft_key_default_connected, sizeof(soft_key_default_connected) / sizeof(uint8_t)},
 	{KEYDEF_ONHOLD, soft_key_default_onhold, sizeof(soft_key_default_onhold) / sizeof(uint8_t)},
@@ -604,118 +604,118 @@ static const soft_key_definitions soft_key_default_definitions[] = {
 	{KEYDEF_UNKNOWN, soft_key_default_unknown, sizeof(soft_key_default_unknown) / sizeof(uint8_t)}
 };
 
-typedef struct soft_key_template_res_message {
+struct soft_key_template_res_message {
 	uint32_t softKeyOffset;
 	uint32_t softKeyCount;
 	uint32_t totalSoftKeyCount;
-	soft_key_template_definition softKeyTemplateDefinition[32];
-} soft_key_template_res_message;
+	struct soft_key_template_definition softKeyTemplateDefinition[32];
+};
 
 #define SOFT_KEY_SET_RES_MESSAGE 0x0109
 
-typedef struct soft_key_set_definition {
+struct soft_key_set_definition {
 	uint8_t softKeyTemplateIndex[16];
 	uint16_t softKeyInfoIndex[16];
-} soft_key_set_definition;
+};
 
-typedef struct soft_key_set_res_message {
+struct soft_key_set_res_message {
 	uint32_t softKeySetOffset;
 	uint32_t softKeySetCount;
 	uint32_t totalSoftKeySetCount;
-	soft_key_set_definition softKeySetDefinition[16];
+	struct soft_key_set_definition softKeySetDefinition[16];
 	uint32_t res;
-} soft_key_set_res_message;
+};
 
 #define SELECT_SOFT_KEYS_MESSAGE 0x0110
-typedef struct select_soft_keys_message {
+struct select_soft_keys_message {
 	uint32_t instance;
 	uint32_t reference;
 	uint32_t softKeySetIndex;
 	uint32_t validKeyMask;
-} select_soft_keys_message;
+};
 
 #define CALL_STATE_MESSAGE 0x0111
-typedef struct call_state_message {
+struct call_state_message {
 	uint32_t callState;
 	uint32_t lineInstance;
 	uint32_t callReference;
-} call_state_message;
+};
 
 #define DISPLAY_PROMPT_STATUS_MESSAGE 0x0112
-typedef struct display_prompt_status_message {
+struct display_prompt_status_message {
 	uint32_t messageTimeout;
 	char promptMessage[32];
 	uint32_t lineInstance;
 	uint32_t callReference;
-} display_prompt_status_message;
+};
 
 #define DISPLAY_NOTIFY_MESSAGE 0x0114
-typedef struct display_notify_message {
+struct display_notify_message {
 	uint32_t displayTimeout;
 	char displayMessage[100];
-} display_notify_message;
+};
 
 #define ACTIVATE_CALL_PLANE_MESSAGE 0x0116
-typedef struct activate_call_plane_message {
+struct activate_call_plane_message {
 	uint32_t lineInstance;
-} activate_call_plane_message;
+};
 
 #define DIALED_NUMBER_MESSAGE 0x011D
-typedef struct dialed_number_message {
+struct dialed_number_message {
 	char dialedNumber[24];
 	uint32_t lineInstance;
 	uint32_t callReference;
-} dialed_number_message;
+};
 
-typedef union {
-	alarm_message alarm;
-	speed_dial_stat_req_message speeddialreq;
-	register_message reg;
-	register_ack_message regack;
-	register_rej_message regrej;
-	capabilities_res_message caps;
-	version_res_message version;
-	button_template_res_message buttontemplate;
-	displaytext_message displaytext;
-	display_prompt_status_message displaypromptstatus;
-	definetimedate_message definetimedate;
-	start_tone_message starttone;
-	speed_dial_stat_res_message speeddial;
-	line_state_req_message line;
-	line_stat_res_message linestat;
-	soft_key_set_res_message softkeysets;
-	soft_key_template_res_message softkeytemplate;
-	server_res_message serverres;
-	reset_message reset;
-	set_lamp_message setlamp;
-	set_ringer_message setringer;
-	call_state_message callstate;
-	keypad_button_message keypad;
-	select_soft_keys_message selectsoftkey;
-	activate_call_plane_message activatecallplane;
-	stimulus_message stimulus;
-	offhook_message offhook;
-	onhook_message onhook;
-	set_speaker_message setspeaker;
-	set_microphone_message setmicrophone;
-	call_info_message callinfo;
-	start_media_transmission_message startmedia;
-	stop_media_transmission_message stopmedia;
-	open_receive_channel_message openreceivechannel;
-	open_receive_channel_ack_message openreceivechannelack;
-	close_receive_channel_message closereceivechannel;
-	display_notify_message displaynotify;
-	dialed_number_message dialednumber;
-	soft_key_event_message softkeyeventmessage;
-} skinny_data;
+union skinny_data {
+	struct alarm_message alarm;
+	struct speed_dial_stat_req_message speeddialreq;
+	struct register_message reg;
+	struct register_ack_message regack;
+	struct register_rej_message regrej;
+	struct capabilities_res_message caps;
+	struct version_res_message version;
+	struct button_template_res_message buttontemplate;
+	struct displaytext_message displaytext;
+	struct display_prompt_status_message displaypromptstatus;
+	struct definetimedate_message definetimedate;
+	struct start_tone_message starttone;
+	struct speed_dial_stat_res_message speeddial;
+	struct line_state_req_message line;
+	struct line_stat_res_message linestat;
+	struct soft_key_set_res_message softkeysets;
+	struct soft_key_template_res_message softkeytemplate;
+	struct server_res_message serverres;
+	struct reset_message reset;
+	struct set_lamp_message setlamp;
+	struct set_ringer_message setringer;
+	struct call_state_message callstate;
+	struct keypad_button_message keypad;
+	struct select_soft_keys_message selectsoftkey;
+	struct activate_call_plane_message activatecallplane;
+	struct stimulus_message stimulus;
+	struct offhook_message offhook;
+	struct onhook_message onhook;
+	struct set_speaker_message setspeaker;
+	struct set_microphone_message setmicrophone;
+	struct call_info_message callinfo;
+	struct start_media_transmission_message startmedia;
+	struct stop_media_transmission_message stopmedia;
+	struct open_receive_channel_message openreceivechannel;
+	struct open_receive_channel_ack_message openreceivechannelack;
+	struct close_receive_channel_message closereceivechannel;
+	struct display_notify_message displaynotify;
+	struct dialed_number_message dialednumber;
+	struct soft_key_event_message softkeyeventmessage;
+};
 
 /* packet composition */
-typedef struct {
+struct skinny_req {
 	int len;
 	int res;
 	int e;
-	skinny_data data;
-} skinny_req;
+	union skinny_data data;
+};
 
 /* XXX This is the combined size of the variables above.  (len, res, e)
    If more are added, this MUST change.
@@ -1034,7 +1034,7 @@ static const struct ast_channel_tech skinny_tech = {
 /*	.bridge = ast_rtp_bridge, */
 };
 
-static void *get_button_template(struct skinnysession *s, button_definition_template *btn)
+static void *get_button_template(struct skinnysession *s, struct button_definition_template *btn)
 {
 	struct skinny_device *d = s->device;
 	struct skinny_addon *a = d->addons;
@@ -1150,9 +1150,9 @@ static void *get_button_template(struct skinnysession *s, button_definition_temp
 	return btn;
 }
 
-static skinny_req *req_alloc(size_t size, int response_message)
+static struct skinny_req *req_alloc(size_t size, int response_message)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (!(req = ast_calloc(1, skinny_header_size + size + 4)))
 		return NULL;
@@ -1275,7 +1275,7 @@ static struct skinny_speeddial *find_speeddial_by_instance(struct skinny_device 
 	return sd;
 }
 
-static int transmit_response(struct skinnysession *s, skinny_req *req)
+static int transmit_response(struct skinnysession *s, struct skinny_req *req)
 {
 	int res = 0;
 	ast_mutex_lock(&s->lock);
@@ -1287,7 +1287,7 @@ static int transmit_response(struct skinnysession *s, skinny_req *req)
 
 	memset(s->outbuf,0,sizeof(s->outbuf));
 	memcpy(s->outbuf, req, skinny_header_size);
-	memcpy(s->outbuf+skinny_header_size, &req->data, sizeof(skinny_data));
+	memcpy(s->outbuf+skinny_header_size, &req->data, sizeof(union skinny_data));
 
 	res = write(s->fd, s->outbuf, letohl(req->len)+8);
 	if (res != letohl(req->len)+8) {
@@ -1306,7 +1306,7 @@ static int convert_cap(int capability)
 
 static void transmit_speaker_mode(struct skinnysession *s, int mode)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (!(req = req_alloc(sizeof(struct set_speaker_message), SET_SPEAKER_MESSAGE)))
 		return;
@@ -1317,7 +1317,7 @@ static void transmit_speaker_mode(struct skinnysession *s, int mode)
 /*
 static void transmit_microphone_mode(struct skinnysession *s, int mode)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (!(req = req_alloc(sizeof(struct set_microphone_message), SET_MICROPHONE_MESSAGE)))
 		return;
@@ -1328,7 +1328,7 @@ static void transmit_microphone_mode(struct skinnysession *s, int mode)
 */
 static void transmit_callstate(struct skinnysession *s, int instance, int state, unsigned callid)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (!(req = req_alloc(sizeof(struct call_state_message), CALL_STATE_MESSAGE)))
 		return;
@@ -1371,7 +1371,7 @@ static void transmit_callstate(struct skinnysession *s, int instance, int state,
 
 static void transmit_callinfo(struct skinnysession *s, const char *fromname, const char *fromnum, const char *toname, const char *tonum, int instance, int callid, int calltype)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (!(req = req_alloc(sizeof(struct call_info_message), CALL_INFO_MESSAGE)))
 		return;
@@ -1396,7 +1396,7 @@ static void transmit_callinfo(struct skinnysession *s, const char *fromname, con
 
 static void transmit_connect(struct skinnysession *s, struct skinny_subchannel *sub)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 	struct skinny_line *l = sub->parent;
 
 	if (!(req = req_alloc(sizeof(struct open_receive_channel_message), OPEN_RECEIVE_CHANNEL_MESSAGE)))
@@ -1413,7 +1413,7 @@ static void transmit_connect(struct skinnysession *s, struct skinny_subchannel *
 
 static void transmit_tone(struct skinnysession *s, int tone)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (tone == SKINNY_NOTONE) {
 		/* This is bad, mmm'kay? */
@@ -1436,7 +1436,7 @@ static void transmit_tone(struct skinnysession *s, int tone)
 
 static void transmit_selectsoftkeys(struct skinnysession *s, int instance, int callid, int softkey)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (!(req = req_alloc(sizeof(struct select_soft_keys_message), SELECT_SOFT_KEYS_MESSAGE)))
 		return;
@@ -1450,7 +1450,7 @@ static void transmit_selectsoftkeys(struct skinnysession *s, int instance, int c
 
 static void transmit_lamp_indication(struct skinnysession *s, int stimulus, int instance, int indication)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (!(req = req_alloc(sizeof(struct set_lamp_message), SET_LAMP_MESSAGE)))
 		return;
@@ -1463,7 +1463,7 @@ static void transmit_lamp_indication(struct skinnysession *s, int stimulus, int 
 
 static void transmit_ringer_mode(struct skinnysession *s, int mode)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (skinnydebug)
 		ast_verbose("Setting ringer mode to '%d'.\n", mode);
@@ -1488,7 +1488,7 @@ static void transmit_ringer_mode(struct skinnysession *s, int mode)
 
 static void transmit_displaymessage(struct skinnysession *s, const char *text)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (text == 0) {
 		if (!(req = req_alloc(0, CLEAR_DISPLAY_MESSAGE)))
@@ -1510,7 +1510,7 @@ static void transmit_displaymessage(struct skinnysession *s, const char *text)
 
 static void transmit_displaynotify(struct skinnysession *s, const char *text, int t)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (!(req = req_alloc(sizeof(struct display_notify_message), DISPLAY_NOTIFY_MESSAGE)))
 		return;
@@ -1526,7 +1526,7 @@ static void transmit_displaynotify(struct skinnysession *s, const char *text, in
 
 static void transmit_displaypromptstatus(struct skinnysession *s, const char *text, int t, int instance, int callid)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (!(req = req_alloc(sizeof(struct display_prompt_status_message), DISPLAY_PROMPT_STATUS_MESSAGE)))
 		return;
@@ -1544,7 +1544,7 @@ static void transmit_displaypromptstatus(struct skinnysession *s, const char *te
 
 static void transmit_dialednumber(struct skinnysession *s, const char *text, int instance, int callid)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (!(req = req_alloc(sizeof(struct dialed_number_message), DIALED_NUMBER_MESSAGE)))
 		return;
@@ -1676,7 +1676,7 @@ static char *complete_skinny_reset(const char *line, const char *word, int pos, 
 static int skinny_reset_device(int fd, int argc, char *argv[])
 {
 	struct skinny_device *d;
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (argc < 3 || argc > 4) {
 		return RESULT_SHOWUSAGE;
@@ -2055,7 +2055,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 	return d;
 }
 
-static int skinny_register(skinny_req *req, struct skinnysession *s)
+static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d;
 	struct sockaddr_in sin;
@@ -2089,7 +2089,7 @@ static int skinny_register(skinny_req *req, struct skinnysession *s)
 	return 1;
 }
 
-static int skinny_unregister(skinny_req *req, struct skinnysession *s)
+static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d;
 
@@ -2697,7 +2697,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 	return tmp;
 }
 
-static int handle_keep_alive_message(skinny_req *req, struct skinnysession *s)
+static int handle_keep_alive_message(struct skinny_req *req, struct skinnysession *s)
 {
 	if (!(req = req_alloc(0, KEEP_ALIVE_ACK_MESSAGE)))
 		return -1;
@@ -2707,7 +2707,7 @@ static int handle_keep_alive_message(skinny_req *req, struct skinnysession *s)
 	return 1;
 }
 
-static int handle_register_message(skinny_req *req, struct skinnysession *s)
+static int handle_register_message(struct skinny_req *req, struct skinnysession *s)
 {
 	char name[16];
 	int res;
@@ -2717,7 +2717,7 @@ static int handle_register_message(skinny_req *req, struct skinnysession *s)
 	res = skinny_register(req, s);
 	if (!res) {
 		ast_log(LOG_ERROR, "Rejecting Device %s: Device not found\n", name);
-		if (!(req = req_alloc(sizeof(register_rej_message), REGISTER_REJ_MESSAGE)))
+		if (!(req = req_alloc(sizeof(struct register_rej_message), REGISTER_REJ_MESSAGE)))
 			return -1;
 
 		snprintf(req->data.regrej.errMsg, sizeof(req->data.regrej.errMsg), "No Authority: %s", name);
@@ -2727,7 +2727,7 @@ static int handle_register_message(skinny_req *req, struct skinnysession *s)
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Device '%s' successfully registered\n", name);
 
-	if (!(req = req_alloc(sizeof(register_ack_message), REGISTER_ACK_MESSAGE)))
+	if (!(req = req_alloc(sizeof(struct register_ack_message), REGISTER_ACK_MESSAGE)))
 		return -1;
 
 	req->data.regack.res[0] = '0';
@@ -2749,13 +2749,13 @@ static int handle_register_message(skinny_req *req, struct skinnysession *s)
 	return res;
 }
 
-static int handle_ip_port_message(skinny_req *req, struct skinnysession *s)
+static int handle_ip_port_message(struct skinny_req *req, struct skinnysession *s)
 {
 	/* no response necessary */
 	return 1;
 }
 
-static int handle_keypad_button_message(skinny_req *req, struct skinnysession *s)
+static int handle_keypad_button_message(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_subchannel *sub = NULL;
 	struct skinny_line *l;
@@ -2825,7 +2825,7 @@ static int handle_keypad_button_message(skinny_req *req, struct skinnysession *s
 	return 1;
 }
 
-static int handle_stimulus_message(skinny_req *req, struct skinnysession *s)
+static int handle_stimulus_message(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
@@ -3044,7 +3044,7 @@ static int handle_stimulus_message(skinny_req *req, struct skinnysession *s)
 	return 1;
 }
 
-static int handle_offhook_message(skinny_req *req, struct skinnysession *s)
+static int handle_offhook_message(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
@@ -3108,7 +3108,7 @@ static int handle_offhook_message(skinny_req *req, struct skinnysession *s)
 	return 1;
 }
 
-static int handle_onhook_message(skinny_req *req, struct skinnysession *s)
+static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
@@ -3168,13 +3168,13 @@ static int handle_onhook_message(skinny_req *req, struct skinnysession *s)
 	return 1;
 }
 
-static int handle_capabilities_res_message(skinny_req *req, struct skinnysession *s)
+static int handle_capabilities_res_message(struct skinny_req *req, struct skinnysession *s)
 {
 	/* XXX process the capabilites */
 	return 1;
 }
 
-static int handle_speed_dial_stat_req_message(skinny_req *req, struct skinnysession *s)
+static int handle_speed_dial_stat_req_message(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d = s->device;
 	struct skinny_speeddial *sd;
@@ -3188,7 +3188,7 @@ static int handle_speed_dial_stat_req_message(skinny_req *req, struct skinnysess
 		return 0;
 	}
 
-	if (!(req = req_alloc(sizeof(speed_dial_stat_res_message), SPEED_DIAL_STAT_RES_MESSAGE)))
+	if (!(req = req_alloc(sizeof(struct speed_dial_stat_res_message), SPEED_DIAL_STAT_RES_MESSAGE)))
 		return -1;
 
 	req->data.speeddialreq.speedDialNumber = htolel(instance);
@@ -3199,7 +3199,7 @@ static int handle_speed_dial_stat_req_message(skinny_req *req, struct skinnysess
 	return 1;
 }
 
-static int handle_line_state_req_message(skinny_req *req, struct skinnysession *s)
+static int handle_line_state_req_message(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
@@ -3217,7 +3217,7 @@ static int handle_line_state_req_message(skinny_req *req, struct skinnysession *
 
 	ast_mutex_unlock(&devicelock);
 
-	if (!(req = req_alloc(sizeof(line_stat_res_message), LINE_STAT_RES_MESSAGE)))
+	if (!(req = req_alloc(sizeof(struct line_stat_res_message), LINE_STAT_RES_MESSAGE)))
 		return -1;
 
 	req->data.linestat.lineNumber = letohl(instance);
@@ -3229,12 +3229,12 @@ static int handle_line_state_req_message(skinny_req *req, struct skinnysession *
 	return 1;
 }
 
-static int handle_time_date_req_message(skinny_req *req, struct skinnysession *s)
+static int handle_time_date_req_message(struct skinny_req *req, struct skinnysession *s)
 {
 	time_t timer;
 	struct tm *cmtime;
 
-	if (!(req = req_alloc(sizeof(definetimedate_message), DEFINETIMEDATE_MESSAGE)))
+	if (!(req = req_alloc(sizeof(struct definetimedate_message), DEFINETIMEDATE_MESSAGE)))
 		return -1;
 
 	timer = time(NULL);
@@ -3250,19 +3250,19 @@ static int handle_time_date_req_message(skinny_req *req, struct skinnysession *s
 	return 1;
 }
 
-static int handle_button_template_req_message(skinny_req *req, struct skinnysession *s)
+static int handle_button_template_req_message(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
 	int i;
 
 	struct skinny_speeddial *sd;
-	button_definition_template btn[42];
+	struct button_definition_template btn[42];
 	int lineInstance = 1;
 	int speeddialInstance = 1;
 	int buttonCount = 0;
 
-	if (!(req = req_alloc(sizeof(button_template_res_message), BUTTON_TEMPLATE_RES_MESSAGE)))
+	if (!(req = req_alloc(sizeof(struct button_template_res_message), BUTTON_TEMPLATE_RES_MESSAGE)))
 		return -1;
 
 	memset(&btn, 0, sizeof(btn));
@@ -3361,10 +3361,10 @@ static int handle_button_template_req_message(skinny_req *req, struct skinnysess
 	return 1;
 }
 
-static int handle_version_req_message(skinny_req *req, struct skinnysession *s)
+static int handle_version_req_message(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d = s->device;
-	if (!(req = req_alloc(sizeof(version_res_message), VERSION_RES_MESSAGE)))
+	if (!(req = req_alloc(sizeof(struct version_res_message), VERSION_RES_MESSAGE)))
 		return -1;
 
 	snprintf(req->data.version.version, sizeof(req->data.version.version), d->version_id);
@@ -3372,10 +3372,10 @@ static int handle_version_req_message(skinny_req *req, struct skinnysession *s)
 	return 1;
 }
 
-static int handle_server_request_message(skinny_req *req, struct skinnysession *s)
+static int handle_server_request_message(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d = s->device;
-	if (!(req = req_alloc(sizeof(server_res_message), SERVER_RES_MESSAGE)))
+	if (!(req = req_alloc(sizeof(struct server_res_message), SERVER_RES_MESSAGE)))
 		return -1;
 
 	memcpy(req->data.serverres.server[0].serverName, ourhost,
@@ -3386,7 +3386,7 @@ static int handle_server_request_message(skinny_req *req, struct skinnysession *
 	return 1;
 }
 
-static int handle_alarm_message(skinny_req *req, struct skinnysession *s)
+static int handle_alarm_message(struct skinny_req *req, struct skinnysession *s)
 {
 	/* no response necessary */
 	if (skinnydebug)
@@ -3395,7 +3395,7 @@ static int handle_alarm_message(skinny_req *req, struct skinnysession *s)
 	return 1;
 }
 
-static int handle_open_receive_channel_ack_message(skinny_req *req, struct skinnysession *s)
+static int handle_open_receive_channel_ack_message(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
@@ -3440,7 +3440,7 @@ static int handle_open_receive_channel_ack_message(skinny_req *req, struct skinn
 		ast_verbose("ourip = %s:%d\n", ast_inet_ntoa(d->ourip), ntohs(us.sin_port));
 	}
 
-	if (!(req = req_alloc(sizeof(start_media_transmission_message), START_MEDIA_TRANSMISSION_MESSAGE)))
+	if (!(req = req_alloc(sizeof(struct start_media_transmission_message), START_MEDIA_TRANSMISSION_MESSAGE)))
 		return -1;
 
 	req->data.startmedia.conferenceId = 0;
@@ -3457,25 +3457,25 @@ static int handle_open_receive_channel_ack_message(skinny_req *req, struct skinn
 	return 1;
 }
 
-static int handle_soft_key_set_req_message(skinny_req *req, struct skinnysession *s)
+static int handle_soft_key_set_req_message(struct skinny_req *req, struct skinnysession *s)
 {
 	int i;
 	int x;
 	int y;
-	const soft_key_definitions *softkeymode = soft_key_default_definitions;
+	const struct soft_key_definitions *softkeymode = soft_key_default_definitions;
 
-	if (!(req = req_alloc(sizeof(soft_key_set_res_message), SOFT_KEY_SET_RES_MESSAGE)))
+	if (!(req = req_alloc(sizeof(struct soft_key_set_res_message), SOFT_KEY_SET_RES_MESSAGE)))
 		return -1;
 
 	req->data.softkeysets.softKeySetOffset = htolel(0);
 	req->data.softkeysets.softKeySetCount = htolel(11);
 	req->data.softkeysets.totalSoftKeySetCount = htolel(11);
-	for (x = 0; x < sizeof(soft_key_default_definitions) / sizeof(soft_key_definitions); x++) {
+	for (x = 0; x < sizeof(soft_key_default_definitions) / sizeof(struct soft_key_definitions); x++) {
 		const uint8_t *defaults = softkeymode->defaults;
 		/* XXX I wanted to get the size of the array dynamically, but that wasn't wanting to work.
 		   This will have to do for now. */
 		for (y = 0; y < softkeymode->count; y++) {
-			for (i = 0; i < (sizeof(soft_key_template_default) / sizeof(soft_key_template_definition)); i++) {
+			for (i = 0; i < (sizeof(soft_key_template_default) / sizeof(struct soft_key_template_definition)); i++) {
 				if (defaults[y] == i+1) {
 					req->data.softkeysets.softKeySetDefinition[softkeymode->mode].softKeyTemplateIndex[y] = htolel(i+1);
 				}
@@ -3488,7 +3488,7 @@ static int handle_soft_key_set_req_message(skinny_req *req, struct skinnysession
 	return 1;
 }
 
-static int handle_soft_key_event_message(skinny_req *req, struct skinnysession *s)
+static int handle_soft_key_event_message(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
@@ -3742,19 +3742,19 @@ static int handle_soft_key_event_message(skinny_req *req, struct skinnysession *
 	return 1;
 }
 
-static int handle_unregister_message(skinny_req *req, struct skinnysession *s)
+static int handle_unregister_message(struct skinny_req *req, struct skinnysession *s)
 {
 	return skinny_unregister(req, s);
 }
 
-static int handle_soft_key_template_req_message(skinny_req *req, struct skinnysession *s)
+static int handle_soft_key_template_req_message(struct skinny_req *req, struct skinnysession *s)
 {
-	if (!(req = req_alloc(sizeof(soft_key_template_res_message), SOFT_KEY_TEMPLATE_RES_MESSAGE)))
+	if (!(req = req_alloc(sizeof(struct soft_key_template_res_message), SOFT_KEY_TEMPLATE_RES_MESSAGE)))
 		return -1;
 
 	req->data.softkeytemplate.softKeyOffset = htolel(0);
-	req->data.softkeytemplate.softKeyCount	= htolel(sizeof(soft_key_template_default) / sizeof(soft_key_template_definition));
-	req->data.softkeytemplate.totalSoftKeyCount = htolel(sizeof(soft_key_template_default) / sizeof(soft_key_template_definition));
+	req->data.softkeytemplate.softKeyCount	= htolel(sizeof(soft_key_template_default) / sizeof(struct soft_key_template_definition));
+	req->data.softkeytemplate.totalSoftKeyCount = htolel(sizeof(soft_key_template_default) / sizeof(struct soft_key_template_definition));
 	memcpy(req->data.softkeytemplate.softKeyTemplateDefinition,
 		soft_key_template_default,
 		sizeof(soft_key_template_default));
@@ -3762,19 +3762,19 @@ static int handle_soft_key_template_req_message(skinny_req *req, struct skinnyse
 	return 1;
 }
 
-static int handle_headset_status_message(skinny_req *req, struct skinnysession *s)
+static int handle_headset_status_message(struct skinny_req *req, struct skinnysession *s)
 {
 	/* XXX umm...okay?  Why do I care? */
 	return 1;
 }
 
-static int handle_register_available_lines_message(skinny_req *req, struct skinnysession *s)
+static int handle_register_available_lines_message(struct skinny_req *req, struct skinnysession *s)
 {
 	/* XXX I have no clue what this is for, but my phone was sending it, so... */
 	return 1;
 }
 
-static int handle_message(skinny_req *req, struct skinnysession *s)
+static int handle_message(struct skinny_req *req, struct skinnysession *s)
 {
 	int res = 0;
 
@@ -3982,9 +3982,9 @@ static int get_input(struct skinnysession *s)
 	return 0;
 }
 
-static skinny_req *skinny_req_parse(struct skinnysession *s)
+static struct skinny_req *skinny_req_parse(struct skinnysession *s)
 {
-	skinny_req *req;
+	struct skinny_req *req;
 
 	if (!(req = ast_calloc(1, SKINNY_MAX_PACKET)))
 		return NULL;
@@ -4007,7 +4007,7 @@ static skinny_req *skinny_req_parse(struct skinnysession *s)
 static void *skinny_session(void *data)
 {
 	int res;
-	skinny_req *req;
+	struct skinny_req *req;
 	struct skinnysession *s = data;
 
 	if (option_verbose > 2)
