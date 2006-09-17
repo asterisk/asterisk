@@ -1405,12 +1405,12 @@ static void transmit_connect(struct skinnysession *s, struct skinny_subchannel *
 	if (!(req = req_alloc(sizeof(struct open_receive_channel_message), OPEN_RECEIVE_CHANNEL_MESSAGE)))
 		return;
 
-	req->data.openreceivechannel.conferenceId = 0;
+	req->data.openreceivechannel.conferenceId = htolel(0);
 	req->data.openreceivechannel.partyId = htolel(sub->callid);
 	req->data.openreceivechannel.packets = htolel(20);
 	req->data.openreceivechannel.capability = htolel(convert_cap(l->capability));
-	req->data.openreceivechannel.echo = 0;
-	req->data.openreceivechannel.bitrate = 0;
+	req->data.openreceivechannel.echo = htolel(0);
+	req->data.openreceivechannel.bitrate = htolel(0);
 	transmit_response(s, req);
 }
 
@@ -2721,18 +2721,24 @@ static int skinny_hold(struct skinny_subchannel *sub)
 
 	if (!(req = req_alloc(sizeof(struct activate_call_plane_message), ACTIVATE_CALL_PLANE_MESSAGE)))
 		return 0;
+
 	req->data.activatecallplane.lineInstance = htolel(l->instance);
 	transmit_response(s, req);
+
 	if (!(req = req_alloc(sizeof(struct close_receive_channel_message), CLOSE_RECEIVE_CHANNEL_MESSAGE)))
 		return 0;
+
 	req->data.closereceivechannel.conferenceId = htolel(0);
 	req->data.closereceivechannel.partyId = htolel(sub->callid);
 	transmit_response(s, req);
+
 	if (!(req = req_alloc(sizeof(struct stop_media_transmission_message), STOP_MEDIA_TRANSMISSION_MESSAGE)))
 		return 0;
+
 	req->data.stopmedia.conferenceId = htolel(0);
 	req->data.stopmedia.passThruPartyId = htolel(sub->callid);
 	transmit_response(s, req);
+
 	transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 	sub->onhold = 1;
 	return 1;
@@ -2744,7 +2750,6 @@ static int skinny_unhold(struct skinny_subchannel *sub)
 	struct skinny_device *d = l->parent;
 	struct skinnysession *s = d->session;
 	struct skinny_req *req;
-	struct sockaddr_in us;
 
 	/* Channel is on hold, so we will unhold */
 	if (skinnydebug)
@@ -2754,31 +2759,11 @@ static int skinny_unhold(struct skinny_subchannel *sub)
 
 	if (!(req = req_alloc(sizeof(struct activate_call_plane_message), ACTIVATE_CALL_PLANE_MESSAGE)))
 		return 0;
+
 	req->data.activatecallplane.lineInstance = htolel(l->instance);
 	transmit_response(s, req);
-	if (!(req = req_alloc(sizeof(struct open_receive_channel_message), OPEN_RECEIVE_CHANNEL_MESSAGE)))
-		return 0;
-	req->data.openreceivechannel.conferenceId = htolel(0);
-	req->data.openreceivechannel.partyId = htolel(sub->callid);
-	req->data.openreceivechannel.packets = htolel(20);
-	req->data.openreceivechannel.capability = htolel(convert_cap(l->capability));
-	req->data.openreceivechannel.echo = htolel(0);
-	req->data.openreceivechannel.bitrate = htolel(0);
-	transmit_response(s, req);
-	ast_rtp_get_us(sub->rtp, &us);
-	if (!(req = req_alloc(sizeof(struct start_media_transmission_message), START_MEDIA_TRANSMISSION_MESSAGE)))
-		return -1;
-	req->data.startmedia.conferenceId = htolel(0);
-	req->data.startmedia.passThruPartyId = htolel(sub->callid);
-	req->data.startmedia.remoteIp = htolel(d->ourip.s_addr);
-	req->data.startmedia.remotePort = htolel(ntohs(us.sin_port));
-	req->data.startmedia.packetSize = htolel(20);
-	req->data.startmedia.payloadType = htolel(convert_cap(l->capability));
-	req->data.startmedia.qualifier.precedence = htolel(127);
-	req->data.startmedia.qualifier.vad = htolel(0);
-	req->data.startmedia.qualifier.packets = htolel(0);
-	req->data.startmedia.qualifier.bitRate = htolel(0);
-	transmit_response(s, req);
+
+	transmit_connect(s, sub);
 	transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
 	sub->onhold = 0;
 	return 1;
@@ -3545,17 +3530,18 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 	if (!(req = req_alloc(sizeof(struct start_media_transmission_message), START_MEDIA_TRANSMISSION_MESSAGE)))
 		return -1;
 
-	req->data.startmedia.conferenceId = 0;
+	req->data.startmedia.conferenceId = htolel(0);
 	req->data.startmedia.passThruPartyId = htolel(sub->callid);
 	req->data.startmedia.remoteIp = htolel(d->ourip.s_addr);
 	req->data.startmedia.remotePort = htolel(ntohs(us.sin_port));
 	req->data.startmedia.packetSize = htolel(20);
 	req->data.startmedia.payloadType = htolel(convert_cap(l->capability));
 	req->data.startmedia.qualifier.precedence = htolel(127);
-	req->data.startmedia.qualifier.vad = 0;
-	req->data.startmedia.qualifier.packets = 0;
-	req->data.startmedia.qualifier.bitRate = 0;
+	req->data.startmedia.qualifier.vad = htolel(0);
+	req->data.startmedia.qualifier.packets = htolel(0);
+	req->data.startmedia.qualifier.bitRate = htolel(0);
 	transmit_response(s, req);
+
 	return 1;
 }
 
