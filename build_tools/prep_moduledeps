@@ -28,7 +28,7 @@ process_dir() {
 	echo -e "\t</category>"
 }
 
-echo "<?xml version="1.0"?>"
+echo "<?xml version=\"1.0\"?>"
 echo
 echo "<menu name=\"Asterisk Module Selection\">"
 rm -f .makeoptstmp
