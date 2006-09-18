@@ -729,7 +729,7 @@ static int pgsql_reconnect(const char *database)
 		free(connInfo);
 		connInfo = NULL;
 		ast_log(LOG_DEBUG, "pgsqlConn=%p\n", pgsqlConn);
-		if (pgsqlConn) {
+		if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {
 			ast_log(LOG_DEBUG, "Postgresql RealTime: Successfully connected to database.\n");
 			connect_time = time(NULL);
 			return 1;
