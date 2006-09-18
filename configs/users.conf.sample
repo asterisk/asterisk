@@ -7,16 +7,39 @@
 ; files (e.g. sip.conf, iax.conf, etc) but is intended to accelerate the
 ; simple task of adding users.  Note that creating individual items (e.g.
 ; custom SIP peers, IAX friends, etc.) will allow you to override specific 
-; parameters within this file.
+; parameters within this file.  Parameter names here are the same as they
+; appear in the other configuration files.  There is no way to change the
+; value of a parameter here for just one subsystem.
 ;
 
 [general]
+;
+; Full name of a user
+;
 fullname = New User
+;
+; Starting point of allocation of extensions
+;
 userbase = 6000
+;
+; Create voicemail mailbox and use use macro-stdexten
+;
 hasvoicemail = yes
+;
+; Create SIP Peer
+;
 hassip = yes
+;
+; Create IAX friend
+;
 hasiax = yes
+;
+; Create manager entry
+;
 hasmanager = no
+;
+; Remaining options are not specific to users.conf entries but are general.
+;
 callwaiting = yes
 threewaycalling = yes
 callwaitingcallerid = yes
