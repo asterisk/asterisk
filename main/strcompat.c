@@ -25,8 +25,11 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <alloca.h>
 #include <string.h>
+
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
+#endif
 
 #ifndef HAVE_STRSEP
 char *strsep(char **str, const char *delims)
