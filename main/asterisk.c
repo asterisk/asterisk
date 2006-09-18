@@ -698,10 +698,10 @@ int ast_safe_system(const char *s)
 #if defined(HAVE_WORKING_FORK) || defined(HAVE_WORKING_VFORK)
 	ast_replace_sigchld();
 
-#ifdef HAVE_WORKING_VFORK
-	pid = vfork();
-#else
+#ifdef HAVE_WORKING_FORK
 	pid = fork();
+#else
+	pid = vfork();
 #endif	
 
 	if (pid == 0) {
