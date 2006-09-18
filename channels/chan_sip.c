@@ -3201,7 +3201,7 @@ static int sip_hangup(struct ast_channel *ast)
 		return 0;
 	}
 	/* If the call is not UP, we need to send CANCEL instead of BYE */
-	if (ast->_state != AST_STATE_UP) {
+	if (ast->_state == AST_STATE_RING || ast->_state == AST_STATE_RINGING) {
 		needcancel = TRUE;
 		if (option_debug > 3)
 			ast_log(LOG_DEBUG, "Hanging up channel in state %s (not UP)\n", ast_state2str(ast->_state));
@@ -14172,6 +14172,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			} 
 			check_pendings(p);
 		}
+		/* Got an ACK that we did not match. Ignore silently */
 		if (!p->lastinvite && ast_strlen_zero(p->randdata))
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		break;
