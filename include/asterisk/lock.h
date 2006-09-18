@@ -211,25 +211,6 @@ static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, 
 	return res;
 }
 
-#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
-/* If AST_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
- constructors/destructors to create/destroy mutexes.  */
-#define __AST_MUTEX_DEFINE(scope, mutex) \
-	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE; \
-static void  __attribute__ ((constructor)) init_##mutex(void) \
-{ \
-	ast_mutex_init(&mutex); \
-} \
-static void  __attribute__ ((destructor)) fini_##mutex(void) \
-{ \
-	ast_mutex_destroy(&mutex); \
-}
-#else /* !AST_MUTEX_INIT_W_CONSTRUCTORS */
-/* By default, use static initialization of mutexes. */ 
-#define __AST_MUTEX_DEFINE(scope, mutex) \
-	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE
-#endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
-
 static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, const char *func,
                                            const char* mutex_name, ast_mutex_t *t)
 {
@@ -546,20 +527,6 @@ static inline int ast_mutex_destroy(ast_mutex_t *pmutex)
 	return pthread_mutex_destroy(pmutex);
 }
 
-#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
-/* if AST_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
- constructors/destructors to create/destroy mutexes.  */ 
-#define __AST_MUTEX_DEFINE(scope,mutex) \
-	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE; \
-static void  __attribute__ ((constructor)) init_##mutex(void) \
-{ \
-	ast_mutex_init(&mutex); \
-} \
-static void  __attribute__ ((destructor)) fini_##mutex(void) \
-{ \
-	ast_mutex_destroy(&mutex); \
-}
-
 static inline int ast_mutex_lock(ast_mutex_t *pmutex)
 {
 	__MTX_PROF(pmutex);
@@ -569,23 +536,6 @@ static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
 {
 	return pthread_mutex_trylock(pmutex);
 }
-
-#else
-/* By default, use static initialization of mutexes.*/ 
-#define __AST_MUTEX_DEFINE(scope, mutex) \
-	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE
-
-static inline int ast_mutex_lock(ast_mutex_t *pmutex)
-{
-	__MTX_PROF(pmutex);
-}
-
-static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
-{
-	return pthread_mutex_trylock(pmutex);
-}
-
-#endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 typedef pthread_cond_t ast_cond_t;
 
@@ -620,6 +570,25 @@ static inline int ast_cond_timedwait(ast_cond_t *cond, ast_mutex_t *t, const str
 }
 
 #endif /* !DEBUG_THREADS */
+
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
+/* If AST_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
+ constructors/destructors to create/destroy mutexes.  */
+#define __AST_MUTEX_DEFINE(scope, mutex) \
+	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE; \
+static void  __attribute__ ((constructor)) init_##mutex(void) \
+{ \
+	ast_mutex_init(&mutex); \
+} \
+static void  __attribute__ ((destructor)) fini_##mutex(void) \
+{ \
+	ast_mutex_destroy(&mutex); \
+}
+#else /* !AST_MUTEX_INIT_W_CONSTRUCTORS */
+/* By default, use static initialization of mutexes. */ 
+#define __AST_MUTEX_DEFINE(scope, mutex) \
+	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE
+#endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 #define pthread_mutex_t use_ast_mutex_t_instead_of_pthread_mutex_t
 #define pthread_mutex_lock use_ast_mutex_lock_instead_of_pthread_mutex_lock
