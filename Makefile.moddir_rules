@@ -34,7 +34,7 @@ endef
 
 define module_so_template
 $(1)=$(1).so
-$(1).so: CFLAGS+=-fPIC
+$(1).so: CFLAGS+=-fpic
 $(1).so: LIBS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LIB))
 $(1).so: LDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LDFLAGS))
 $(1).so: $(2)
