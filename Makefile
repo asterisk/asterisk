@@ -142,13 +142,6 @@ ifeq ($(OSARCH),linux-gnu)
   endif
 endif
 
-ID=id
-
-ifeq ($(OSARCH),SunOS)
-  M4=/usr/local/bin/m4
-  ID=/usr/xpg4/bin/id
-endif
-
 ASTCFLAGS+=-pipe -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
 
 ifeq ($(AST_DEVMODE),yes)
