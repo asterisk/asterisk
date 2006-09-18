@@ -960,20 +960,11 @@ PBX_CURL=0
 AC_PATH_TOOL([CURL], [curl-config], No)
 if test ! x"${CURL}" = xNo; then
 # check for version
-   if test "${host_os}" = "SunOS"; then
-      if [[ 0x`curl-config --vernum` -ge 0x70907 ]]; then
-         CURL_INCLUDE=$(${CURL} --cflags)
-         CURL_LIB=$(${CURL} --libs)
-         PBX_CURL=1
-         AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
-      fi
-   else
-      if [[[ 0x`curl-config --vernum` -ge 0x70907 ]]]; then
-         CURL_INCLUDE=$(${CURL} --cflags)
-         CURL_LIB=$(${CURL} --libs)
-         PBX_CURL=1
-         AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
-      fi
+   if test 0x`curl-config --vernum` -ge 0x70907 ; then
+      CURL_INCLUDE=$(${CURL} --cflags)
+      CURL_LIB=$(${CURL} --libs)
+      PBX_CURL=1
+      AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
    fi
 fi
 AC_SUBST(PBX_CURL)

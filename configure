@@ -29669,28 +29669,15 @@ fi
 
 if test ! x"${CURL}" = xNo; then
 # check for version
-   if test "${host_os}" = "SunOS"; then
-      if [ 0x`curl-config --vernum` -ge 0x70907 ]; then
-         CURL_INCLUDE=$(${CURL} --cflags)
-         CURL_LIB=$(${CURL} --libs)
-         PBX_CURL=1
+   if test 0x`curl-config --vernum` -ge 0x70907 ; then
+      CURL_INCLUDE=$(${CURL} --cflags)
+      CURL_LIB=$(${CURL} --libs)
+      PBX_CURL=1
 
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_CURL 1
 _ACEOF
 
-      fi
-   else
-      if [[ 0x`curl-config --vernum` -ge 0x70907 ]]; then
-         CURL_INCLUDE=$(${CURL} --cflags)
-         CURL_LIB=$(${CURL} --libs)
-         PBX_CURL=1
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_CURL 1
-_ACEOF
-
-      fi
    fi
 fi
 
