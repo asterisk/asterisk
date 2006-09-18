@@ -196,7 +196,6 @@ struct agent_pvt {
 	char loginchan[80];            /**< channel they logged in from */
 	char logincallerid[80];        /**< Caller ID they had when they logged in */
 	struct ast_channel *chan;      /**< Channel we use */
-	struct ast_module_user *u;	/*! reference to keep our module in memory while in use */
 	AST_LIST_ENTRY(agent_pvt) list;	/**< Next Agent in the linked list. */
 };
 
@@ -739,8 +738,6 @@ static int agent_hangup(struct ast_channel *ast)
 	 * agent_request() is followed immediately by agent_hangup()
 	 * as in apps/app_chanisavail.c:chanavail_exec()
 	 */
-
-	ast_module_user_remove(p->u);
 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Hangup called for state %s\n", ast_state2str(ast->_state));
