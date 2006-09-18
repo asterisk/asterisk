@@ -1888,11 +1888,8 @@ static int handle_showfeatures(int fd, int argc, char *argv[])
 }
 
 static char showfeatures_help[] =
-"Usage: show features\n"
+"Usage: feature list\n"
 "       Lists currently configured features.\n";
-
-static struct ast_cli_entry showfeatures =
-{ { "show", "features", NULL }, handle_showfeatures, "Lists configured features", showfeatures_help };
 
 static int handle_parkedcalls(int fd, int argc, char *argv[])
 {
@@ -1922,8 +1919,20 @@ static char showparked_help[] =
 "Usage: show parkedcalls\n"
 "       Lists currently parked calls.\n";
 
-static struct ast_cli_entry showparked =
-{ { "show", "parkedcalls", NULL }, handle_parkedcalls, "Lists parked calls", showparked_help };
+static struct ast_cli_entry cli_show_features_deprecated = {
+	{ "show", "features", NULL },
+	handle_showfeatures, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_features[] = {
+	{ { "feature", "list", NULL },
+	handle_showfeatures, "Lists configured features",
+	showfeatures_help, NULL, &cli_show_features_deprecated },
+
+	{ { "show", "parkedcalls", NULL },
+	handle_parkedcalls, "Lists parked calls",
+	showparked_help },
+};
 
 /*! \brief Dump lot status */
 static int manager_parking_status( struct mansession *s, struct message *m )
@@ -2299,8 +2308,7 @@ static int load_module(void)
 
 	if ((res = load_config()))
 		return res;
-	ast_cli_register(&showparked);
-	ast_cli_register(&showfeatures);
+	ast_cli_register_multiple(cli_features, sizeof(cli_features) / sizeof(struct ast_cli_entry));
 	ast_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
 	res = ast_register_application(parkedcall, park_exec, synopsis, descrip);
 	if (!res)
@@ -2323,8 +2331,7 @@ static int unload_module(void)
 
 	ast_manager_unregister("ParkedCalls");
 	ast_manager_unregister("Park");
-	ast_cli_unregister(&showfeatures);
-	ast_cli_unregister(&showparked);
+	ast_cli_unregister_multiple(cli_features, sizeof(cli_features) / sizeof(struct ast_cli_entry));
 	ast_unregister_application(parkcall);
 	ast_devstate_prov_del("Park");
 	return ast_unregister_application(parkedcall);

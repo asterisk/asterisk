@@ -9621,22 +9621,34 @@ static const char pri_show_spans_help[] =
 	"       Displays PRI Information\n";
 
 static struct ast_cli_entry zap_pri_cli[] = {
-	{ { "pri", "debug", "span", NULL }, handle_pri_debug,
-	  "Enables PRI debugging on a span", pri_debug_help, complete_span_4 },
-	{ { "pri", "no", "debug", "span", NULL }, handle_pri_no_debug,
-	  "Disables PRI debugging on a span", pri_no_debug_help, complete_span_5 },
-	{ { "pri", "intense", "debug", "span", NULL }, handle_pri_really_debug,
-	  "Enables REALLY INTENSE PRI debugging", pri_really_debug_help, complete_span_5 },
-	{ { "pri", "show", "spans", NULL }, handle_pri_show_spans,
-	  "Displays PRI Information", pri_show_spans_help },
-	{ { "pri", "show", "span", NULL }, handle_pri_show_span,
-	  "Displays PRI Information", pri_show_span_help, complete_span_4 },
-	{ { "pri", "show", "debug", NULL }, handle_pri_show_debug,
-	  "Displays current PRI debug settings" },
-	{ { "pri", "set", "debug", "file", NULL }, handle_pri_set_debug_file,
-	  "Sends PRI debug output to the specified file" },
-	{ { "pri", "unset", "debug", "file", NULL }, handle_pri_set_debug_file,
-	  "Ends PRI debug output to file" },
+	{ { "pri", "debug", "span", NULL },
+	handle_pri_debug, "Enables PRI debugging on a span",
+	pri_debug_help, complete_span_4 },
+
+	{ { "pri", "no", "debug", "span", NULL },
+	handle_pri_no_debug, "Disables PRI debugging on a span",
+	pri_no_debug_help, complete_span_5 },
+
+	{ { "pri", "intense", "debug", "span", NULL },
+	handle_pri_really_debug, "Enables REALLY INTENSE PRI debugging",
+	pri_really_debug_help, complete_span_5 },
+
+	{ { "pri", "show", "spans", NULL },
+	handle_pri_show_spans, "Displays PRI Information",
+	pri_show_spans_help },
+
+	{ { "pri", "show", "span", NULL },
+	handle_pri_show_span, "Displays PRI Information",
+	pri_show_span_help, complete_span_4 },
+
+	{ { "pri", "show", "debug", NULL },
+	handle_pri_show_debug, "Displays current PRI debug settings" },
+
+	{ { "pri", "set", "debug", "file", NULL },
+	handle_pri_set_debug_file, "Sends PRI debug output to the specified file" },
+
+	{ { "pri", "unset", "debug", "file", NULL },
+	handle_pri_set_debug_file, "Ends PRI debug output to file" },
 };
 
 #endif /* HAVE_PRI */
@@ -10012,18 +10024,29 @@ static char zap_restart_usage[] =
 	"";
 
 static struct ast_cli_entry zap_cli[] = {
-	{ { "zap", "show", "cadences", NULL }, handle_zap_show_cadences,
-	  "List cadences", zap_show_cadences_help },
-	{ {"zap", "show", "channels", NULL}, zap_show_channels,
-	  "Show active zapata channels", show_channels_usage },
-	{ {"zap", "show", "channel", NULL}, zap_show_channel,
-	  "Show information on a channel", show_channel_usage },
-	{ {"zap", "destroy", "channel", NULL}, zap_destroy_channel,
-	  "Destroy a channel", destroy_channel_usage },
-	{ {"zap", "restart", NULL}, zap_restart_cmd,
-	  "Fully restart zaptel channels", zap_restart_usage },
-	{ {"zap", "show", "status", NULL}, zap_show_status,
-	  "Show all Zaptel cards status", zap_show_status_usage },
+	{ { "zap", "show", "cadences", NULL },
+	handle_zap_show_cadences, "List cadences",
+	zap_show_cadences_help },
+
+	{ { "zap", "show", "channels", NULL},
+	zap_show_channels, "Show active zapata channels",
+	show_channels_usage },
+
+	{ { "zap", "show", "channel", NULL},
+	zap_show_channel, "Show information on a channel",
+	show_channel_usage },
+
+	{ { "zap", "destroy", "channel", NULL},
+	zap_destroy_channel, "Destroy a channel",
+	destroy_channel_usage },
+
+	{ { "zap", "restart", NULL},
+	zap_restart_cmd, "Fully restart zaptel channels",
+	zap_restart_usage },
+
+	{ { "zap", "show", "status", NULL},
+	zap_show_status, "Show all Zaptel cards status",
+	zap_show_status_usage },
 };
 
 #define TRANSFER	0
@@ -10213,10 +10236,10 @@ static int __unload_module(void)
 		if (pris[i].master != AST_PTHREADT_NULL) 
 			pthread_cancel(pris[i].master);
 	}
-	ast_cli_unregister_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(zap_pri_cli[0]));
+	ast_cli_unregister_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(struct ast_cli_entry));
 	ast_unregister_application(zap_send_keypad_facility_app);
 #endif
-	ast_cli_unregister_multiple(zap_cli, sizeof(zap_cli) / sizeof(zap_cli[0]));
+	ast_cli_unregister_multiple(zap_cli, sizeof(zap_cli) / sizeof(struct ast_cli_entry));
 	ast_manager_unregister( "ZapDialOffhook" );
 	ast_manager_unregister( "ZapHangup" );
 	ast_manager_unregister( "ZapTransfer" );
@@ -11186,9 +11209,9 @@ static int load_module(void)
 #ifdef HAVE_PRI
 	ast_string_field_init(&inuse, 16);
 	ast_string_field_set(&inuse, name, "GR-303InUse");
-	ast_cli_register_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(zap_pri_cli[0]));
+	ast_cli_register_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(struct ast_cli_entry));
 #endif	
-	ast_cli_register_multiple(zap_cli, sizeof(zap_cli) / sizeof(zap_cli[0]));
+	ast_cli_register_multiple(zap_cli, sizeof(zap_cli) / sizeof(struct ast_cli_entry));
 	
 	memset(round_robin, 0, sizeof(round_robin));
 	ast_manager_register( "ZapTransfer", 0, action_transfer, "Transfer Zap Channel" );

@@ -478,38 +478,60 @@ static int handle_showmaneventq(int fd, int argc, char *argv[])
 }
 
 static char showmancmd_help[] = 
-"Usage: show manager command <actionname>\n"
+"Usage: manager show command <actionname>\n"
 "	Shows the detailed description for a specific Asterisk manager interface command.\n";
 
 static char showmancmds_help[] = 
-"Usage: show manager commands\n"
+"Usage: manager list commands\n"
 "	Prints a listing of all the available Asterisk manager interface commands.\n";
 
 static char showmanconn_help[] = 
-"Usage: show manager connected\n"
+"Usage: manager list connected\n"
 "	Prints a listing of the users that are currently connected to the\n"
 "Asterisk manager interface.\n";
 
 static char showmaneventq_help[] = 
-"Usage: show manager eventq\n"
+"Usage: manager list eventq\n"
 "	Prints a listing of all events pending in the Asterisk manger\n"
 "event queue.\n";
 
-static struct ast_cli_entry show_mancmd_cli =
-	{ { "show", "manager", "command", NULL },
-	handle_showmancmd, "Show a manager interface command", showmancmd_help, complete_show_mancmd };
+static struct ast_cli_entry cli_show_manager_command_deprecated = {
+	{ "show", "manager", "command", NULL },
+	handle_showmancmd, NULL,
+	NULL, complete_show_mancmd };
 
-static struct ast_cli_entry show_mancmds_cli =
-	{ { "show", "manager", "commands", NULL },
-	handle_showmancmds, "List manager interface commands", showmancmds_help };
+static struct ast_cli_entry cli_show_manager_commands_deprecated = {
+	{ "show", "manager", "commands", NULL },
+	handle_showmancmds, NULL,
+	NULL };
 
-static struct ast_cli_entry show_manconn_cli =
-	{ { "show", "manager", "connected", NULL },
-	handle_showmanconn, "Show connected manager interface users", showmanconn_help };
+static struct ast_cli_entry cli_show_manager_connected_deprecated = {
+	{ "show", "manager", "connected", NULL },
+	handle_showmanconn, NULL,
+	NULL };
 
-static struct ast_cli_entry show_maneventq_cli =
-	{ { "show", "manager", "eventq", NULL },
-	handle_showmaneventq, "Show manager interface queued events", showmaneventq_help };
+static struct ast_cli_entry cli_show_manager_eventq_deprecated = {
+	{ "show", "manager", "eventq", NULL },
+	handle_showmaneventq, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_manager[] = {
+	{ { "manager", "show", "command", NULL },
+	handle_showmancmd, "Show a manager interface command",
+	showmancmd_help, complete_show_mancmd, &cli_show_manager_command_deprecated },
+
+	{ { "manager", "list", "commands", NULL },
+	handle_showmancmds, "List manager interface commands",
+	showmancmds_help, NULL, &cli_show_manager_commands_deprecated },
+
+	{ { "manager", "list", "connected", NULL },
+	handle_showmanconn, "List connected manager interface users",
+	showmanconn_help, NULL, &cli_show_manager_connected_deprecated },
+
+	{ { "manager", "list", "eventq", NULL },
+	handle_showmaneventq, "List manager interface queued events",
+	showmaneventq_help, NULL, &cli_show_manager_eventq_deprecated },
+};
 
 static void unuse_eventqent(struct eventqent *e)
 {
@@ -2479,10 +2501,7 @@ int init_manager(void)
 		ast_manager_register2("UserEvent", EVENT_FLAG_USER, action_userevent, "Send an arbitrary event", mandescr_userevent);
 		ast_manager_register2("WaitEvent", 0, action_waitevent, "Wait for an event to occur", mandescr_waitevent);
 
-		ast_cli_register(&show_mancmd_cli);
-		ast_cli_register(&show_mancmds_cli);
-		ast_cli_register(&show_manconn_cli);
-		ast_cli_register(&show_maneventq_cli);
+		ast_cli_register_multiple(cli_manager, sizeof(cli_manager) / sizeof(struct ast_cli_entry));
 		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);
 		registered = 1;
 		/* Append placeholder event so master_eventq never runs dry */

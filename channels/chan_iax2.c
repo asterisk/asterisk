@@ -4441,7 +4441,7 @@ static int iax2_do_jb_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int iax2_no_debug(int fd, int argc, char *argv[])
+static int iax2_no_debug_deprecated(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -4450,7 +4450,16 @@ static int iax2_no_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int iax2_no_trunk_debug(int fd, int argc, char *argv[])
+static int iax2_no_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	iaxdebug = 0;
+	ast_cli(fd, "IAX2 Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
+
+static int iax2_no_trunk_debug_deprecated(int fd, int argc, char *argv[])
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -4459,9 +4468,28 @@ static int iax2_no_trunk_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int iax2_no_jb_debug(int fd, int argc, char *argv[])
+static int iax2_no_trunk_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	iaxtrunkdebug = 0;
+	ast_cli(fd, "IAX2 Trunk Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
+
+static int iax2_no_jb_debug_deprecated(int fd, int argc, char *argv[])
 {
 	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	jb_setoutput(jb_error_output, jb_warning_output, NULL);
+	jb_debug_output("\n");
+	ast_cli(fd, "IAX2 Jitterbuffer Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
+
+static int iax2_no_jb_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
 	jb_debug_output("\n");
@@ -9625,15 +9653,15 @@ static struct ast_switch iax2_switch =
 };
 
 static char show_stats_usage[] =
-"Usage: iax show stats\n"
+"Usage: iax2 list stats\n"
 "       Display statistics on IAX channel driver.\n";
 
 static char show_cache_usage[] =
-"Usage: iax show cache\n"
+"Usage: iax2 list cache\n"
 "       Display currently cached IAX Dialplan results.\n";
 
 static char show_peer_usage[] =
-"Usage: iax show peer <name>\n"
+"Usage: iax2 show peer <name>\n"
 "       Display details on specific IAX peer\n";
 
 static char prune_realtime_usage[] =
@@ -9652,34 +9680,34 @@ static char show_prov_usage[] =
 "       fields will be provisioned as empty fields.\n";
 
 static char show_users_usage[] = 
-"Usage: iax2 show users [like <pattern>]\n"
+"Usage: iax2 list users [like <pattern>]\n"
 "       Lists all known IAX2 users.\n"
 "       Optional regular expression pattern is used to filter the user list.\n";
 
 static char show_channels_usage[] = 
-"Usage: iax2 show channels\n"
+"Usage: iax2 list channels\n"
 "       Lists all currently active IAX channels.\n";
 
 static char show_netstats_usage[] = 
-"Usage: iax2 show netstats\n"
+"Usage: iax2 list netstats\n"
 "       Lists network status for all currently active IAX channels.\n";
 
 static char show_threads_usage[] = 
-"Usage: iax2 show threads\n"
+"Usage: iax2 list threads\n"
 "       Lists status of IAX helper threads\n";
 
 static char show_peers_usage[] = 
-"Usage: iax2 show peers [registered] [like <pattern>]\n"
+"Usage: iax2 list peers [registered] [like <pattern>]\n"
 "       Lists all known IAX2 peers.\n"
 "       Optional 'registered' argument lists only peers with known addresses.\n"
 "       Optional regular expression pattern is used to filter the peer list.\n";
 
 static char show_firmware_usage[] = 
-"Usage: iax2 show firmware\n"
+"Usage: iax2 list firmware\n"
 "       Lists all known IAX firmware images.\n";
 
 static char show_reg_usage[] =
-"Usage: iax2 show registry\n"
+"Usage: iax2 list registry\n"
 "       Lists all registration requests and status.\n";
 
 static char debug_usage[] = 
@@ -9687,23 +9715,23 @@ static char debug_usage[] =
 "       Enables dumping of IAX packets for debugging purposes\n";
 
 static char no_debug_usage[] = 
-"Usage: iax2 no debug\n"
+"Usage: iax2 nodebug\n"
 "       Disables dumping of IAX packets for debugging purposes\n";
 
 static char debug_trunk_usage[] =
-"Usage: iax2 trunk debug\n"
+"Usage: iax2 debug trunk\n"
 "       Requests current status of IAX trunking\n";
 
 static char no_debug_trunk_usage[] =
-"Usage: iax2 no trunk debug\n"
+"Usage: iax2 nodebug trunk\n"
 "       Requests current status of IAX trunking\n";
 
 static char debug_jb_usage[] =
-"Usage: iax2 jb debug\n"
+"Usage: iax2 debug jb\n"
 "       Enables jitterbuffer debugging information\n";
 
 static char no_debug_jb_usage[] =
-"Usage: iax2 no jb debug\n"
+"Usage: iax2 nodebug jb\n"
 "       Disables jitterbuffer debugging information\n";
 
 static char iax2_test_losspct_usage[] =
@@ -9724,54 +9752,168 @@ static char iax2_test_jitter_usage[] =
 "       For testing, simulate maximum jitter of +/- <ms> on <pct> percentage of packets. If <pct> is not specified, adds jitter to all packets.\n";
 #endif /* IAXTESTS */
 
-static struct ast_cli_entry iax2_cli[] = {
-	{ { "iax2", "show", "stats", NULL }, iax2_show_stats,
-	  "Display IAX statistics", show_stats_usage },
-	{ { "iax2", "show", "cache", NULL }, iax2_show_cache,
-	  "Display IAX cached dialplan", show_cache_usage },
-	{ { "iax2", "show", "peer", NULL }, iax2_show_peer,
-	  "Show details on specific IAX peer", show_peer_usage, complete_iax2_show_peer },
-	{ { "iax2", "prune", "realtime", NULL }, iax2_prune_realtime,
-	  "Prune a cached realtime lookup", prune_realtime_usage, complete_iax2_show_peer },
-	{ { "iax2", "reload", NULL }, iax2_reload,
-	  "Reload IAX configuration", iax2_reload_usage },
-	{ { "iax2", "show", "users", NULL }, iax2_show_users,
-	  "Show defined IAX users", show_users_usage },
-	{ { "iax2", "show", "firmware", NULL }, iax2_show_firmware,
-	  "Show available IAX firmwares", show_firmware_usage },
-	{ { "iax2", "show", "channels", NULL }, iax2_show_channels,
-	  "Show active IAX channels", show_channels_usage },
-	{ { "iax2", "show", "netstats", NULL }, iax2_show_netstats,
-	  "Show active IAX channel netstats", show_netstats_usage },
-	{ { "iax2", "show", "peers", NULL }, iax2_show_peers,
-	  "Show defined IAX peers", show_peers_usage },
-	{ { "iax2", "show", "threads", NULL }, iax2_show_threads,
-	  "Show IAX helper thread info", show_threads_usage },
-	{ { "iax2", "show", "registry", NULL }, iax2_show_registry,
-	  "Show IAX registration status", show_reg_usage },
-	{ { "iax2", "debug", NULL }, iax2_do_debug,
-	  "Enable IAX debugging", debug_usage },
-	{ { "iax2", "trunk", "debug", NULL }, iax2_do_trunk_debug,
-	  "Enable IAX trunk debugging", debug_trunk_usage },
-	{ { "iax2", "jb", "debug", NULL }, iax2_do_jb_debug,
-	  "Enable IAX jitterbuffer debugging", debug_jb_usage },
-	{ { "iax2", "no", "debug", NULL }, iax2_no_debug,
-	  "Disable IAX debugging", no_debug_usage },
-	{ { "iax2", "no", "trunk", "debug", NULL }, iax2_no_trunk_debug,
-	  "Disable IAX trunk debugging", no_debug_trunk_usage },
-	{ { "iax2", "no", "jb", "debug", NULL }, iax2_no_jb_debug,
-	  "Disable IAX jitterbuffer debugging", no_debug_jb_usage },
-	{ { "iax2", "test", "losspct", NULL }, iax2_test_losspct,
-	  "Set IAX2 incoming frame loss percentage", iax2_test_losspct_usage },
-	{ { "iax2", "provision", NULL }, iax2_prov_cmd,
-	  "Provision an IAX device", show_prov_usage, iax2_prov_complete_template_3rd },
+static struct ast_cli_entry cli_iax2_trunk_debug_deprecated = {
+	{ "iax2", "trunk", "debug", NULL },
+	iax2_do_trunk_debug, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_iax2_jb_debug_deprecated = {
+	{ "iax2", "jb", "debug", NULL },
+	iax2_do_jb_debug, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_iax2_no_debug_deprecated = {
+	{ "iax2", "no", "debug", NULL },
+	iax2_no_debug_deprecated, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_iax2_no_trunk_debug_deprecated = {
+	{ "iax2", "no", "trunk", "debug", NULL },
+	iax2_no_trunk_debug_deprecated, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_iax2_no_jb_debug_deprecated = {
+	{ "iax2", "no", "jb", "debug", NULL },
+	iax2_no_jb_debug_deprecated, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_iax2_show_cache_deprecated = {
+	{ "iax2", "show", "cache", NULL },
+	iax2_show_cache, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_iax2_show_peers_deprecated = {
+	{ "iax2", "show", "peers", NULL },
+	iax2_show_peers, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_iax2_show_stats_deprecated = {
+	{ "iax2", "show", "stats", NULL },
+	iax2_show_stats, NULL };
+
+static struct ast_cli_entry cli_iax2_show_firmware_deprecated = {
+	{ "iax2", "show", "firmware", NULL },
+	iax2_show_firmware, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_iax2_show_channels_deprecated = {
+	{ "iax2", "show", "channels", NULL },
+	iax2_show_channels, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_iax2_show_netstats_deprecated = {
+	{ "iax2", "show", "netstats", NULL },
+	iax2_show_netstats, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_iax2_show_users_deprecated = {
+	{ "iax2", "show", "users", NULL },
+	iax2_show_users, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_iax2_show_threads_deprecated = {
+	{ "iax2", "show", "threads", NULL },
+	iax2_show_threads, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_iax2_show_registry_deprecated = {
+	{ "iax2", "show", "registry", NULL },
+	iax2_show_registry, "Show IAX registration status",
+	show_reg_usage };
+
+static struct ast_cli_entry cli_iax2[] = {
+	{ { "iax2", "list", "cache", NULL },
+	iax2_show_cache, "Display IAX cached dialplan",
+	show_cache_usage, NULL, &cli_iax2_show_cache_deprecated  },
+
+	{ { "iax2", "list", "channels", NULL },
+	iax2_show_channels, "List active IAX channels",
+	show_channels_usage, NULL, &cli_iax2_show_channels_deprecated  },
+
+	{ { "iax2", "list", "firmware", NULL },
+	iax2_show_firmware, "List available IAX firmwares",
+	show_firmware_usage, NULL, &cli_iax2_show_firmware_deprecated  },
+
+	{ { "iax2", "list", "netstats", NULL },
+	iax2_show_netstats, "List active IAX channel netstats",
+	show_netstats_usage, NULL, &cli_iax2_show_netstats_deprecated  },
+
+	{ { "iax2", "list", "peers", NULL },
+	iax2_show_peers, "List defined IAX peers",
+	show_peers_usage, NULL, &cli_iax2_show_peers_deprecated  },
+
+	{ { "iax2", "list", "registry", NULL },
+	iax2_show_registry, "Display IAX registration status",
+	show_reg_usage, NULL, &cli_iax2_show_registry_deprecated  },
+
+	{ { "iax2", "list", "stats", NULL },
+	iax2_show_stats, "Display IAX statistics",
+	show_stats_usage, NULL, &cli_iax2_show_stats_deprecated },
+
+	{ { "iax2", "list", "threads", NULL },
+	iax2_show_threads, "Display IAX helper thread info",
+	show_threads_usage, NULL, &cli_iax2_show_threads_deprecated  },
+
+	{ { "iax2", "list", "users", NULL },
+	iax2_show_users, "List defined IAX users",
+	show_users_usage, NULL, &cli_iax2_show_users_deprecated  },
+
+	{ { "iax2", "prune", "realtime", NULL },
+	iax2_prune_realtime, "Prune a cached realtime lookup",
+	prune_realtime_usage, complete_iax2_show_peer },
+
+	{ { "iax2", "reload", NULL },
+	iax2_reload, "Reload IAX configuration",
+	iax2_reload_usage },
+
+	{ { "iax2", "show", "peer", NULL },
+	iax2_show_peer, "Show details on specific IAX peer",
+	show_peer_usage, complete_iax2_show_peer },
+
+	{ { "iax2", "debug", NULL },
+	iax2_do_debug, "Enable IAX debugging",
+	debug_usage },
+
+	{ { "iax2", "debug", "trunk", NULL },
+	iax2_do_trunk_debug, "Enable IAX trunk debugging",
+	debug_trunk_usage, NULL, &cli_iax2_trunk_debug_deprecated },
+
+	{ { "iax2", "debug", "jb", NULL },
+	iax2_do_jb_debug, "Enable IAX jitterbuffer debugging",
+	debug_jb_usage, NULL, &cli_iax2_jb_debug_deprecated },
+
+	{ { "iax2", "nodebug", NULL },
+	iax2_no_debug, "Disable IAX debugging",
+	no_debug_usage, NULL, &cli_iax2_no_debug_deprecated },
+
+	{ { "iax2", "nodebug", "trunk", NULL },
+	iax2_no_trunk_debug, "Disable IAX trunk debugging",
+	no_debug_trunk_usage, NULL, &cli_iax2_no_trunk_debug_deprecated },
+
+	{ { "iax2", "nodebug", "jb", NULL },
+	iax2_no_jb_debug, "Disable IAX jitterbuffer debugging",
+	no_debug_jb_usage, NULL, &cli_iax2_no_jb_debug_deprecated },
+
+	{ { "iax2", "test", "losspct", NULL },
+	iax2_test_losspct, "Set IAX2 incoming frame loss percentage",
+	iax2_test_losspct_usage },
+
+	{ { "iax2", "provision", NULL },
+	iax2_prov_cmd, "Provision an IAX device",
+	show_prov_usage, iax2_prov_complete_template_3rd },
+
 #ifdef IAXTESTS
-	{ { "iax2", "test", "late", NULL }, iax2_test_late,
-	  "Test the receipt of a late frame", iax2_test_late_usage },
-	{ { "iax2", "test", "resync", NULL }, iax2_test_resync,
-	  "Test a resync in received timestamps", iax2_test_resync_usage },
-	{ { "iax2", "test", "jitter", NULL }, iax2_test_jitter,
-	  "Simulates jitter for testing", iax2_test_jitter_usage },
+	{ { "iax2", "test", "late", NULL },
+	iax2_test_late, "Test the receipt of a late frame",
+	iax2_test_late_usage },
+
+	{ { "iax2", "test", "resync", NULL },
+	iax2_test_resync, "Test a resync in received timestamps",
+	iax2_test_resync_usage },
+
+	{ { "iax2", "test", "jitter", NULL },
+	iax2_test_jitter, "Simulates jitter for testing",
+	iax2_test_jitter_usage },
 #endif /* IAXTESTS */
 };
 
@@ -9836,7 +9978,7 @@ static int __unload_module(void)
 	ast_manager_unregister( "IAXpeers" );
 	ast_manager_unregister( "IAXnetstats" );
 	ast_unregister_application(papp);
-	ast_cli_unregister_multiple(iax2_cli, sizeof(iax2_cli) / sizeof(iax2_cli[0]));
+	ast_cli_unregister_multiple(cli_iax2, sizeof(cli_iax2) / sizeof(struct ast_cli_entry));
 	ast_unregister_switch(&iax2_switch);
 	ast_channel_unregister(&iax2_tech);
 	delete_users();
@@ -9900,7 +10042,7 @@ static int load_module(void)
 
 	ast_mutex_init(&waresl.lock);
 	
-	ast_cli_register_multiple(iax2_cli, sizeof(iax2_cli) / sizeof(iax2_cli[0]));
+	ast_cli_register_multiple(cli_iax2, sizeof(cli_iax2) / sizeof(struct ast_cli_entry));
 
 	ast_register_application(papp, iax2_prov_app, psyn, pdescrip);
 	

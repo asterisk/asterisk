@@ -494,23 +494,31 @@ static char database_deltree_usage[] =
 "       Deletes a family or specific keytree within a family\n"
 "in the Asterisk database.\n";
 
-struct ast_cli_entry cli_database_show =
-{ { "database", "show", NULL }, database_show, "Shows database contents", database_show_usage };
+struct ast_cli_entry cli_database[] = {
+	{ { "database", "show", NULL },
+	database_show, "Shows database contents",
+	database_show_usage },
 
-struct ast_cli_entry cli_database_showkey =
-{ { "database", "showkey", NULL }, database_showkey, "Shows database contents", database_showkey_usage };
+	{ { "database", "showkey", NULL },
+	database_showkey, "Shows database contents",
+	database_showkey_usage },
 
-struct ast_cli_entry cli_database_get =
-{ { "database", "get", NULL }, database_get, "Gets database value", database_get_usage };
+	{ { "database", "get", NULL },
+	database_get, "Gets database value",
+	database_get_usage },
 
-struct ast_cli_entry cli_database_put =
-{ { "database", "put", NULL }, database_put, "Adds/updates database value", database_put_usage };
+	{ { "database", "put", NULL },
+	database_put, "Adds/updates database value",
+	database_put_usage },
 
-struct ast_cli_entry cli_database_del =
-{ { "database", "del", NULL }, database_del, "Removes database key/value", database_del_usage };
+	{ { "database", "del", NULL },
+	database_del, "Removes database key/value",
+	database_del_usage },
 
-struct ast_cli_entry cli_database_deltree =
-{ { "database", "deltree", NULL }, database_deltree, "Removes database keytree/values", database_deltree_usage };
+	{ { "database", "deltree", NULL },
+	database_deltree, "Removes database keytree/values",
+	database_deltree_usage },
+};
 
 static int manager_dbput(struct mansession *s, struct message *m)
 {
@@ -581,12 +589,7 @@ static int manager_dbget(struct mansession *s, struct message *m)
 int astdb_init(void)
 {
 	dbinit();
-	ast_cli_register(&cli_database_show);
-	ast_cli_register(&cli_database_showkey);
-	ast_cli_register(&cli_database_get);
-	ast_cli_register(&cli_database_put);
-	ast_cli_register(&cli_database_del);
-	ast_cli_register(&cli_database_deltree);
+	ast_cli_register_multiple(cli_database, sizeof(cli_database) / sizeof(struct ast_cli_entry));
 	ast_manager_register("DBGet", EVENT_FLAG_SYSTEM, manager_dbget, "Get DB Entry");
 	ast_manager_register("DBPut", EVENT_FLAG_SYSTEM, manager_dbput, "Put DB Entry");
 	return 0;

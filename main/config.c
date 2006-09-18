@@ -1232,14 +1232,22 @@ static int config_command(int fd, int argc, char **argv)
 }
 
 static char show_config_help[] =
-	"Usage: show config mappings\n"
+	"Usage: core list config mappings\n"
 	"	Shows the filenames to config engines.\n";
 
-static struct ast_cli_entry config_command_struct = {
-	{ "show", "config", "mappings", NULL }, config_command, "Show Config mappings (file names to config engines)", show_config_help, NULL
+static struct ast_cli_entry cli_show_config_mappings_deprecated = {
+	{ "show", "config", "mappings", NULL },
+	config_command, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_config[] = {
+	{ { "core", "list", "config", "mappings", NULL },
+	config_command, "Display config mappings (file names to config engines)",
+	show_config_help, NULL, &cli_show_config_mappings_deprecated },
 };
 
 int register_config_cli() 
 {
-	return ast_cli_register(&config_command_struct);
+	ast_cli_register_multiple(cli_config, sizeof(cli_config) / sizeof(struct ast_cli_entry));
+	return 0;
 }

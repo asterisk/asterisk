@@ -3161,7 +3161,7 @@ static int rtp_do_debug_ip(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int rtcp_do_debug_ip(int fd, int argc, char *argv[])
+static int rtcp_do_debug_ip_deprecated(int fd, int argc, char *argv[])
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -3171,6 +3171,36 @@ static int rtcp_do_debug_ip(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	arg = argv[4];
+	p = strstr(arg, ":");
+	if (p) {
+		*p = '\0';
+		p++;
+		port = atoi(p);
+	}
+	hp = ast_gethostbyname(arg, &ahp);
+	if (hp == NULL)
+		return RESULT_SHOWUSAGE;
+	rtcpdebugaddr.sin_family = AF_INET;
+	memcpy(&rtcpdebugaddr.sin_addr, hp->h_addr, sizeof(rtcpdebugaddr.sin_addr));
+	rtcpdebugaddr.sin_port = htons(port);
+	if (port == 0)
+		ast_cli(fd, "RTCP Debugging Enabled for IP: %s\n", ast_inet_ntoa(rtcpdebugaddr.sin_addr));
+	else
+		ast_cli(fd, "RTCP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(rtcpdebugaddr.sin_addr), port);
+	rtcpdebug = 1;
+	return RESULT_SUCCESS;
+}
+
+static int rtcp_do_debug_ip(int fd, int argc, char *argv[])
+{
+	struct hostent *hp;
+	struct ast_hostent ahp;
+	int port = 0;
+	char *p, *arg;
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+
+	arg = argv[3];
 	p = strstr(arg, ":");
 	if (p) {
 		*p = '\0';
@@ -3204,9 +3234,21 @@ static int rtp_do_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
    
-static int rtcp_do_debug(int fd, int argc, char *argv[]) {
+static int rtcp_do_debug_deprecated(int fd, int argc, char *argv[]) {
 	if (argc != 3) {
 		if (argc != 5)
+			return RESULT_SHOWUSAGE;
+		return rtcp_do_debug_ip_deprecated(fd, argc, argv);
+	}
+	rtcpdebug = 1;
+	memset(&rtcpdebugaddr,0,sizeof(rtcpdebugaddr));
+	ast_cli(fd, "RTCP Debugging Enabled\n");
+	return RESULT_SUCCESS;
+}
+
+static int rtcp_do_debug(int fd, int argc, char *argv[]) {
+	if (argc != 2) {
+		if (argc != 4)
 			return RESULT_SHOWUSAGE;
 		return rtcp_do_debug_ip(fd, argc, argv);
 	}
@@ -3216,7 +3258,7 @@ static int rtcp_do_debug(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static int rtcp_do_stats(int fd, int argc, char *argv[]) {
+static int rtcp_do_stats_deprecated(int fd, int argc, char *argv[]) {
 	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
 	}
@@ -3225,7 +3267,16 @@ static int rtcp_do_stats(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static int rtp_no_debug(int fd, int argc, char *argv[])
+static int rtcp_do_stats(int fd, int argc, char *argv[]) {
+	if (argc != 2) {
+		return RESULT_SHOWUSAGE;
+	}
+	rtcpstats = 1;
+	ast_cli(fd, "RTCP Stats Enabled\n");
+	return RESULT_SUCCESS;
+}
+
+static int rtp_no_debug_deprecated(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -3234,7 +3285,16 @@ static int rtp_no_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int rtcp_no_debug(int fd, int argc, char *argv[])
+static int rtp_no_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	rtpdebug = 0;
+	ast_cli(fd,"RTP Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
+
+static int rtcp_no_debug_deprecated(int fd, int argc, char *argv[])
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -3243,7 +3303,16 @@ static int rtcp_no_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int rtcp_no_stats(int fd, int argc, char *argv[])
+static int rtcp_no_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	rtcpdebug = 0;
+	ast_cli(fd,"RTCP Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
+
+static int rtcp_no_stats_deprecated(int fd, int argc, char *argv[])
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -3252,6 +3321,14 @@ static int rtcp_no_stats(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int rtcp_no_stats(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	rtcpstats = 0;
+	ast_cli(fd,"RTCP Stats Disabled\n");
+	return RESULT_SUCCESS;
+}
 
 static int stun_do_debug(int fd, int argc, char *argv[])
 {
@@ -3263,7 +3340,7 @@ static int stun_do_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
    
-static int stun_no_debug(int fd, int argc, char *argv[])
+static int stun_no_debug_deprecated(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -3272,13 +3349,21 @@ static int stun_no_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int stun_no_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	stundebug = 0;
+	ast_cli(fd,"STUN Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
 
 static char debug_usage[] =
   "Usage: rtp debug [ip host[:port]]\n"
   "       Enable dumping of all RTP packets to and from host.\n";
 
 static char no_debug_usage[] =
-  "Usage: rtp no debug\n"
+  "Usage: rtp nodebug\n"
   "       Disable all RTP debugging\n";
 
 static char stun_debug_usage[] =
@@ -3286,55 +3371,101 @@ static char stun_debug_usage[] =
   "       Enable STUN (Simple Traversal of UDP through NATs) debugging\n";
 
 static char stun_no_debug_usage[] =
-  "Usage: stun no debug\n"
+  "Usage: stun nodebug\n"
   "       Disable STUN debugging\n";
 
-
-static struct ast_cli_entry  cli_debug_ip =
-{{ "rtp", "debug", "ip", NULL } , rtp_do_debug, "Enable RTP debugging on IP", debug_usage };
-
-static struct ast_cli_entry  cli_debug =
-{{ "rtp", "debug", NULL } , rtp_do_debug, "Enable RTP debugging", debug_usage };
-
-static struct ast_cli_entry  cli_no_debug =
-{{ "rtp", "no", "debug", NULL } , rtp_no_debug, "Disable RTP debugging", no_debug_usage };
-
 static char rtcp_debug_usage[] =
-  "Usage: rtp rtcp debug [ip host[:port]]\n"
+  "Usage: rtcp debug [ip host[:port]]\n"
   "       Enable dumping of all RTCP packets to and from host.\n";
   
 static char rtcp_no_debug_usage[] =
-  "Usage: rtp rtcp no debug\n"
+  "Usage: rtcp nodebug\n"
   "       Disable all RTCP debugging\n";
 
 static char rtcp_stats_usage[] =
-  "Usage: rtp rtcp stats\n"
+  "Usage: rtcp stats\n"
   "       Enable dumping of RTCP stats.\n";
   
 static char rtcp_no_stats_usage[] =
-  "Usage: rtp rtcp no stats\n"
+  "Usage: rtcp nostats\n"
   "       Disable all RTCP stats\n";
 
-static struct ast_cli_entry  cli_debug_ip_rtcp =
-{{ "rtp", "rtcp", "debug", "ip", NULL } , rtcp_do_debug, "Enable RTCP debugging on IP", rtcp_debug_usage };
+static struct ast_cli_entry cli_rtp_no_debug_deprecated = {
+	{ "rtp", "no", "debug", NULL },
+	rtp_no_debug_deprecated, NULL,
+        NULL };
 
-static struct ast_cli_entry  cli_debug_rtcp =
-{{ "rtp", "rtcp", "debug", NULL } , rtcp_do_debug, "Enable RTCP debugging", rtcp_debug_usage };
+static struct ast_cli_entry cli_rtp_rtcp_debug_ip_deprecated = {
+	{ "rtp", "rtcp", "debug", "ip", NULL },
+	rtcp_do_debug_deprecated, NULL,
+        NULL };
 
-static struct ast_cli_entry  cli_no_debug_rtcp =
-{{ "rtp", "rtcp", "no", "debug", NULL } , rtcp_no_debug, "Disable RTCP debugging", rtcp_no_debug_usage };
+static struct ast_cli_entry cli_rtp_rtcp_debug_deprecated = {
+	{ "rtp", "rtcp", "debug", NULL },
+	rtcp_do_debug_deprecated, NULL,
+        NULL };
 
-static struct ast_cli_entry  cli_stats_rtcp =
-{{ "rtp", "rtcp", "stats", NULL } , rtcp_do_stats, "Enable RTCP stats", rtcp_stats_usage };
+static struct ast_cli_entry cli_rtp_rtcp_no_debug_deprecated = {
+	{ "rtp", "rtcp", "no", "debug", NULL },
+	rtcp_no_debug_deprecated, NULL,
+        NULL };
 
-static struct ast_cli_entry  cli_no_stats_rtcp =
-{{ "rtp", "rtcp", "no", "stats", NULL } , rtcp_no_stats, "Disable RTCP stats", rtcp_no_stats_usage };
+static struct ast_cli_entry cli_rtp_rtcp_stats_deprecated = {
+	{ "rtp", "rtcp", "stats", NULL },
+	rtcp_do_stats_deprecated, NULL,
+        NULL };
 
-static struct ast_cli_entry  cli_stun_debug =
-{{ "stun", "debug", NULL } , stun_do_debug, "Enable STUN debugging", stun_debug_usage };
+static struct ast_cli_entry cli_rtp_rtcp_no_stats_deprecated = {
+	{ "rtp", "rtcp", "no", "stats", NULL },
+	rtcp_no_stats_deprecated, NULL,
+        NULL };
 
-static struct ast_cli_entry  cli_stun_no_debug =
-{{ "stun", "no", "debug", NULL } , stun_no_debug, "Disable STUN debugging", stun_no_debug_usage };
+static struct ast_cli_entry cli_stun_no_debug_deprecated = {
+	{ "stun", "no", "debug", NULL },
+	stun_no_debug_deprecated, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_rtp[] = {
+	{ { "rtp", "debug", "ip", NULL },
+	rtp_do_debug, "Enable RTP debugging on IP",
+	debug_usage },
+
+	{ { "rtp", "debug", NULL },
+	rtp_do_debug, "Enable RTP debugging",
+	debug_usage },
+
+	{ { "rtp", "nodebug", NULL },
+	rtp_no_debug, "Disable RTP debugging",
+	no_debug_usage, NULL, &cli_rtp_no_debug_deprecated },
+
+	{ { "rtcp", "debug", "ip", NULL },
+	rtcp_do_debug, "Enable RTCP debugging on IP",
+	rtcp_debug_usage, NULL, &cli_rtp_rtcp_debug_ip_deprecated },
+
+	{ { "rtcp", "debug", NULL },
+	rtcp_do_debug, "Enable RTCP debugging",
+	rtcp_debug_usage, NULL, &cli_rtp_rtcp_debug_deprecated },
+
+	{ { "rtcp", "nodebug", NULL },
+	rtcp_no_debug, "Disable RTCP debugging",
+	rtcp_no_debug_usage, NULL, &cli_rtp_rtcp_no_debug_deprecated },
+
+	{ { "rtcp", "stats", NULL },
+	rtcp_do_stats, "Enable RTCP stats",
+	rtcp_stats_usage, NULL, &cli_rtp_rtcp_stats_deprecated },
+
+	{ { "rtcp", "nostats", NULL },
+	rtcp_no_stats, "Disable RTCP stats",
+	rtcp_no_stats_usage, NULL, &cli_rtp_rtcp_no_stats_deprecated },
+
+	{ { "stun", "debug", NULL },
+	stun_do_debug, "Enable STUN debugging",
+	stun_debug_usage },
+
+	{ { "stun", "nodebug", NULL },
+	stun_no_debug, "Disable STUN debugging",
+	stun_no_debug_usage, NULL, &cli_stun_no_debug_deprecated },
+};
 
 int ast_rtp_reload(void)
 {
@@ -3403,19 +3534,7 @@ int ast_rtp_reload(void)
 /*! \brief Initialize the RTP system in Asterisk */
 void ast_rtp_init(void)
 {
-	ast_cli_register(&cli_debug);
-	ast_cli_register(&cli_debug_ip);
-	ast_cli_register(&cli_no_debug);
-
-	ast_cli_register(&cli_debug_rtcp);
-	ast_cli_register(&cli_debug_ip_rtcp);
-	ast_cli_register(&cli_no_debug_rtcp);
-
-	ast_cli_register(&cli_stats_rtcp);
-	ast_cli_register(&cli_no_stats_rtcp);
-	
-	ast_cli_register(&cli_stun_debug);
-	ast_cli_register(&cli_stun_no_debug);
+	ast_cli_register_multiple(cli_rtp, sizeof(cli_rtp) / sizeof(struct ast_cli_entry));
 	ast_rtp_reload();
 }
 

@@ -554,25 +554,38 @@ static int init_keys(int fd, int argc, char *argv[])
 }
 
 static char show_key_usage[] =
-"Usage: show keys\n"
+"Usage: keys list\n"
 "       Displays information about RSA keys known by Asterisk\n";
 
 static char init_keys_usage[] =
-"Usage: init keys\n"
+"Usage: keys init\n"
 "       Initializes private keys (by reading in pass code from the user)\n";
 
-static struct ast_cli_entry cli_show_keys = 
-{ { "show", "keys", NULL }, show_keys, "Displays RSA key information", show_key_usage };
+static struct ast_cli_entry cli_show_keys_deprecated = {
+	{ "show", "keys", NULL },
+	show_keys, NULL,
+	NULL };
 
-static struct ast_cli_entry cli_init_keys = 
-{ { "init", "keys", NULL }, init_keys, "Initialize RSA key passcodes", init_keys_usage };
+static struct ast_cli_entry cli_init_keys_deprecated = {
+	{ "init", "keys", NULL },
+	init_keys, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_crypto[] = {
+	{ { "keys", "list", NULL },
+	show_keys, "Displays RSA key information",
+	show_key_usage, NULL, &cli_show_keys_deprecated },
+
+	{ { "keys", "init", NULL },
+	init_keys, "Initialize RSA key passcodes",
+	init_keys_usage, NULL, &cli_init_keys_deprecated },
+};
 
 static int crypto_init(void)
 {
 	SSL_library_init();
 	ERR_load_crypto_strings();
-	ast_cli_register(&cli_show_keys);
-	ast_cli_register(&cli_init_keys);
+	ast_cli_register_multiple(cli_crypto, sizeof(cli_crypto) / sizeof(struct ast_cli_entry));
 
 	/* Install ourselves into stubs */
 	ast_key_get = __ast_key_get;

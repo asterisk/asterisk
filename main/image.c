@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/lock.h"
 
+/* XXX Why don't we just use the formats struct for this? */
 static AST_LIST_HEAD_STATIC(imagers, ast_imager);
 
 int ast_image_register(struct ast_imager *img)
@@ -165,7 +166,6 @@ struct ast_frame *ast_read_image(char *filename, const char *preflang, int forma
 	return f;
 }
 
-
 int ast_send_image(struct ast_channel *chan, char *filename)
 {
 	struct ast_frame *f;
@@ -180,7 +180,7 @@ int ast_send_image(struct ast_channel *chan, char *filename)
 	return res;
 }
 
-static int show_image_formats(int fd, int argc, char *argv[])
+static int show_image_formats_deprecated(int fd, int argc, char *argv[])
 {
 #define FORMAT "%10s %10s %50s %10s\n"
 #define FORMAT2 "%10s %10s %50s %10s\n"
@@ -193,18 +193,33 @@ static int show_image_formats(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-struct ast_cli_entry show_images =
+static int show_image_formats(int fd, int argc, char *argv[])
 {
-	{ "show", "image", "formats" },
-	show_image_formats,
-	"Displays image formats",
-"Usage: show image formats\n"
-"       displays currently registered image formats (if any)\n"
-};
+#define FORMAT "%10s %10s %50s %10s\n"
+#define FORMAT2 "%10s %10s %50s %10s\n"
+	struct ast_imager *i;
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	ast_cli(fd, FORMAT, "Name", "Extensions", "Description", "Format");
+	AST_LIST_TRAVERSE(&imagers, i, list)
+		ast_cli(fd, FORMAT2, i->name, i->exts, i->desc, ast_getformatname(i->format));
+	return RESULT_SUCCESS;
+}
 
+struct ast_cli_entry cli_show_image_formats_deprecated = {
+	{ "show", "image", "formats" },
+	show_image_formats_deprecated, NULL,
+	NULL };
+
+struct ast_cli_entry cli_image[] = {
+	{ { "file", "list", "formats", "image" },
+	show_image_formats, "Displays image formats",
+	"Usage: file list formats image\n"
+	"       displays currently registered image formats (if any)\n", NULL, &cli_show_image_formats_deprecated },
+};
 
 int ast_image_init(void)
 {
-	return ast_cli_register(&show_images);
+	ast_cli_register_multiple(cli_image, sizeof(cli_image) / sizeof(struct ast_cli_entry));
+	return 0;
 }
-

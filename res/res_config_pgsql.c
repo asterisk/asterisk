@@ -70,11 +70,11 @@ static char cli_realtime_pgsql_status_usage[] =
 	"Usage: realtime pgsql status\n"
 	"       Shows connection information for the Postgresql RealTime driver\n";
 
-static struct ast_cli_entry cli_realtime_pgsql_status = {
-	 { "realtime", "pgsql", "status", NULL }, realtime_pgsql_status,
-	 "Shows connection information for the Postgresql RealTime driver",
-	 cli_realtime_pgsql_status_usage, NULL
- };
+static struct ast_cli_entry cli_realtime[] = {
+	{ { "realtime", "pgsql", "status", NULL },
+	realtime_pgsql_status, "Shows connection information for the Postgresql RealTime driver",
+	cli_realtime_pgsql_status_usage },
+};
 
 static struct ast_variable *realtime_pgsql(const char *database, const char *table, va_list ap)
 {
@@ -569,7 +569,7 @@ static int load_module(void)
 	if (option_verbose) {
 		ast_verbose("Postgresql RealTime driver loaded.\n");
 	}
-	ast_cli_register(&cli_realtime_pgsql_status);
+	ast_cli_register_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
 
 	ast_mutex_unlock(&pgsql_lock);
 
@@ -585,7 +585,7 @@ static int unload_module(void)
 		PQfinish(pgsqlConn);
 		pgsqlConn = NULL;
 	};
-	ast_cli_unregister(&cli_realtime_pgsql_status);
+	ast_cli_unregister_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
 	ast_config_engine_deregister(&pgsql_engine);
 	if (option_verbose) {
 		ast_verbose("Postgresql RealTime unloaded.\n");

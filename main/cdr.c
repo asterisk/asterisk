@@ -1011,19 +1011,15 @@ static int handle_cli_submit(int fd, int argc, char *argv[])
 }
 
 static struct ast_cli_entry cli_submit = {
-	.cmda = { "cdr", "submit", NULL },
-	.handler = handle_cli_submit,
-	.summary = "Posts all pending batched CDR data",
-	.usage =
+	{ "cdr", "submit", NULL },
+	handle_cli_submit, "Posts all pending batched CDR data",
 	"Usage: cdr submit\n"
 	"       Posts all pending batched CDR data to the configured CDR backend engine modules.\n"
 };
 
 static struct ast_cli_entry cli_status = {
-	.cmda = { "cdr", "status", NULL },
-	.handler = handle_cli_status,
-	.summary = "Display the CDR status",
-	.usage =
+	{ "cdr", "status", NULL },
+	handle_cli_status, "Display the CDR status",
 	"Usage: cdr status\n"
 	"	Displays the Call Detail Record engine system status.\n"
 };

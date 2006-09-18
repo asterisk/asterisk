@@ -113,12 +113,26 @@ static char test_usage[] =
 "       as configured in jabber.conf can be optionally specified.\n";
 
 static struct ast_cli_entry aji_cli[] = {
-	{{ "jabber", "debug", NULL}, aji_do_debug, "Enable Jabber debugging", debug_usage },
-	{{ "jabber", "reload", NULL}, aji_do_reload, "Enable Jabber debugging", reload_usage },
-	{{ "jabber", "show", "connected", NULL}, aji_show_clients, "Show state of clients and components", debug_usage },
-	{{ "jabber", "no", "debug", NULL}, aji_no_debug, "Disable Jabber debug", no_debug_usage },
-	{{ "jabber", "test", NULL}, aji_test, "Shows roster, but is genearlly used for mog's debugging.", test_usage },
- };
+	{ { "jabber", "debug", NULL},
+	aji_do_debug, "Enable Jabber debugging",
+	debug_usage },
+
+	{ { "jabber", "reload", NULL},
+	aji_do_reload, "Enable Jabber debugging",
+	reload_usage },
+
+	{ { "jabber", "show", "connected", NULL},
+	aji_show_clients, "Show state of clients and components",
+	debug_usage },
+
+	{ { "jabber", "no", "debug", NULL},
+	aji_no_debug, "Disable Jabber debug",
+	no_debug_usage },
+
+	{ { "jabber", "test", NULL},
+	aji_test, "Shows roster, but is generally used for mog's debugging.",
+	test_usage },
+};
 
 static char *app_ajisend = "JabberSend";
 
@@ -2286,7 +2300,7 @@ static int aji_reload()
 
 static int unload_module(void)
 {
-	ast_cli_unregister_multiple(aji_cli, sizeof(aji_cli) / sizeof(aji_cli[0]));
+	ast_cli_unregister_multiple(aji_cli, sizeof(aji_cli) / sizeof(struct ast_cli_entry));
 	ast_unregister_application(app_ajisend);
 	ast_manager_unregister("JabberSend");
 	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
@@ -2315,7 +2329,7 @@ static int load_module(void)
 			"Sends a message to a Jabber Client", mandescr_jabber_send);
 	ast_register_application(app_ajisend, aji_send_exec, ajisend_synopsis, ajisend_descrip);
 	ast_register_application(app_ajistatus, aji_status_exec, ajistatus_synopsis, ajistatus_descrip);
-	ast_cli_register_multiple(aji_cli, sizeof(aji_cli) / sizeof(aji_cli[0]));
+	ast_cli_register_multiple(aji_cli, sizeof(aji_cli) / sizeof(struct ast_cli_entry));
 
 	ast_log(LOG_NOTICE, "res_jabber.so loaded.\n");
 	return 0;

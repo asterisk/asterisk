@@ -1183,11 +1183,29 @@ static int moh_classes_show(int fd, int argc, char *argv[])
 	return 0;
 }
 
-static struct ast_cli_entry  cli_moh = { { "moh", "reload"}, moh_cli, "Music On Hold", "Music On Hold", NULL};
+static struct ast_cli_entry cli_moh_classes_show_deprecated = {
+	{ "moh", "classes", "show"},
+	moh_classes_show, NULL,
+	NULL };
 
-static struct ast_cli_entry  cli_moh_classes_show = { { "moh", "classes", "show"}, moh_classes_show, "List MOH classes", "Lists all MOH classes", NULL};
+static struct ast_cli_entry cli_moh_files_show_deprecated = {
+	{ "moh", "files", "show"},
+	cli_files_show, NULL,
+	NULL };
 
-static struct ast_cli_entry  cli_moh_files_show = { { "moh", "files", "show"}, cli_files_show, "List MOH file-based classes", "Lists all loaded file-based MOH classes and their files", NULL};
+static struct ast_cli_entry cli_moh[] = {
+	{ { "moh", "reload"},
+	moh_cli, "Music On Hold",
+	"Music On Hold" },
+
+	{ { "moh", "list", "classes"},
+	moh_classes_show, "List MOH classes",
+	"Lists all MOH classes", NULL, &cli_moh_classes_show_deprecated },
+
+	{ { "moh", "list", "files"},
+	cli_files_show, "List MOH file-based classes",
+	"Lists all loaded file-based MOH classes and their files", NULL, &cli_moh_files_show_deprecated },
+};
 
 static int init_classes(int reload) 
 {
@@ -1212,9 +1230,7 @@ static int load_module(void)
 
 	res = ast_register_application(app0, moh0_exec, synopsis0, descrip0);
 	ast_register_atexit(ast_moh_destroy);
-	ast_cli_register(&cli_moh);
-	ast_cli_register(&cli_moh_files_show);
-	ast_cli_register(&cli_moh_classes_show);
+	ast_cli_register_multiple(cli_moh, sizeof(cli_moh) / sizeof(struct ast_cli_entry));
 	if (!res)
 		res = ast_register_application(app1, moh1_exec, synopsis1, descrip1);
 	if (!res)

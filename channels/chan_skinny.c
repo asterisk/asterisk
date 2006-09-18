@@ -1648,9 +1648,19 @@ static int skinny_do_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int skinny_no_debug(int fd, int argc, char *argv[])
+static int skinny_no_debug_deprecated(int fd, int argc, char *argv[])
 {
 	if (argc != 3) {
+		return RESULT_SHOWUSAGE;
+	}
+	skinnydebug = 0;
+	ast_cli(fd, "Skinny Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
+
+static int skinny_no_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 2) {
 		return RESULT_SHOWUSAGE;
 	}
 	skinnydebug = 0;
@@ -1839,11 +1849,11 @@ static int skinny_show_lines(int fd, int argc, char *argv[])
 }
 
 static char show_devices_usage[] =
-"Usage: skinny show devices\n"
+"Usage: skinny list devices\n"
 "       Lists all devices known to the Skinny subsystem.\n";
 
 static char show_lines_usage[] =
-"Usage: skinny show lines\n"
+"Usage: skinny list lines\n"
 "       Lists all lines known to the Skinny subsystem.\n";
 
 static char debug_usage[] =
@@ -1851,27 +1861,49 @@ static char debug_usage[] =
 "       Enables dumping of Skinny packets for debugging purposes\n";
 
 static char no_debug_usage[] =
-"Usage: skinny no debug\n"
+"Usage: skinny nodebug\n"
 "       Disables dumping of Skinny packets for debugging purposes\n";
 
 static char reset_usage[] =
 "Usage: skinny reset <DeviceId|all> [restart]\n"
 "       Causes a Skinny device to reset itself, optionally with a full restart\n";
 
-static struct ast_cli_entry cli_show_devices =
-	{ { "skinny", "show", "devices", NULL }, skinny_show_devices, "Show defined Skinny devices", show_devices_usage };
+static struct ast_cli_entry cli_skinny_show_devices_deprecated = {
+	{ "skinny", "show", "devices", NULL },
+	skinny_show_devices, NULL,
+	NULL };
 
-static struct ast_cli_entry cli_show_lines =
-	{ { "skinny", "show", "lines", NULL }, skinny_show_lines, "Show defined Skinny lines per device", show_lines_usage };
+static struct ast_cli_entry cli_skinny_show_lines_deprecated = {
+	{ "skinny", "show", "lines", NULL },
+	skinny_show_lines, NULL,
+	NULL };
 
-static struct ast_cli_entry cli_debug =
-	{ { "skinny", "debug", NULL }, skinny_do_debug, "Enable Skinny debugging", debug_usage };
+static struct ast_cli_entry cli_skinny_no_debug_deprecated = {
+	{ "skinny", "no", "debug", NULL },
+	skinny_no_debug_deprecated, NULL,
+	NULL };
 
-static struct ast_cli_entry cli_no_debug =
-	{ { "skinny", "no", "debug", NULL }, skinny_no_debug, "Disable Skinny debugging", no_debug_usage };
+static struct ast_cli_entry cli_skinny[] = {
+	{ { "skinny", "list", "devices", NULL },
+	skinny_show_devices, "List defined Skinny devices",
+	show_devices_usage, NULL, &cli_skinny_show_devices_deprecated },
 
-static struct ast_cli_entry cli_reset_device =
-	{ { "skinny", "reset", NULL }, skinny_reset_device, "Reset Skinny device(s)", reset_usage, complete_skinny_reset };
+	{ { "skinny", "list", "lines", NULL },
+	skinny_show_lines, "List defined Skinny lines per device",
+	show_lines_usage, NULL, &cli_skinny_show_lines_deprecated },
+
+	{ { "skinny", "debug", NULL },
+	skinny_do_debug, "Enable Skinny debugging",
+	debug_usage },
+
+	{ { "skinny", "nodebug", NULL },
+	skinny_no_debug, "Disable Skinny debugging",
+	no_debug_usage, NULL, &cli_skinny_no_debug_deprecated },
+
+	{ { "skinny", "reset", NULL },
+	skinny_reset_device, "Reset Skinny device(s)",
+	reset_usage, complete_skinny_reset },
+};
 
 #if 0
 static struct skinny_paging_device *build_paging_device(const char *cat, struct ast_variable *v)
@@ -4496,11 +4528,7 @@ static int load_module(void)
 	}
 
 	ast_rtp_proto_register(&skinny_rtp);
-	ast_cli_register(&cli_show_devices);
-	ast_cli_register(&cli_show_lines);
-	ast_cli_register(&cli_debug);
-	ast_cli_register(&cli_no_debug);
-	ast_cli_register(&cli_reset_device);
+	ast_cli_register_multiple(cli_skinny, sizeof(cli_skinny) / sizeof(struct ast_cli_entry));
 	sched = sched_context_create();
 	if (!sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
@@ -4558,11 +4586,7 @@ static int unload_module(void)
 
 	ast_rtp_proto_unregister(&skinny_rtp);
 	ast_channel_unregister(&skinny_tech);
-	ast_cli_unregister(&cli_show_devices);
-	ast_cli_unregister(&cli_show_lines);
-	ast_cli_unregister(&cli_debug);
-	ast_cli_unregister(&cli_no_debug);
-	ast_cli_unregister(&cli_reset_device);
+	ast_cli_unregister_multiple(cli_skinny, sizeof(cli_skinny) / sizeof(struct ast_cli_entry));
 
 	return 0;
 #endif

@@ -288,18 +288,32 @@ static char *complete_channeltypes(const char *line, const char *word, int pos, 
 }
 
 static char show_channeltypes_usage[] =
-"Usage: show channeltypes\n"
-"       Shows available channel types registered in your Asterisk server.\n";
+"Usage: channeltype list\n"
+"       Lists available channel types registered in your Asterisk server.\n";
 
 static char show_channeltype_usage[] =
-"Usage: show channeltype <name>\n"
+"Usage: channeltype show <name>\n"
 "	Show details about the specified channel type, <name>.\n";
 
-static struct ast_cli_entry cli_show_channeltypes =
-	{ { "show", "channeltypes", NULL }, show_channeltypes, "Show available channel types", show_channeltypes_usage };
+static struct ast_cli_entry cli_show_channeltypes_deprecated = {
+	{ "show", "channeltypes", NULL },
+	show_channeltypes, NULL,
+	NULL };
 
-static struct ast_cli_entry cli_show_channeltype =
-	{ { "show", "channeltype", NULL }, show_channeltype, "Give more details on that channel type", show_channeltype_usage, complete_channeltypes };
+static struct ast_cli_entry cli_show_channeltype_deprecated = {
+	{ "show", "channeltype", NULL },
+	show_channeltype, NULL,
+	NULL, complete_channeltypes };
+
+static struct ast_cli_entry cli_channel[] = {
+	{ { "channeltype", "list", NULL },
+	show_channeltypes, "List available channel types",
+	show_channeltypes_usage, NULL, &cli_show_channeltypes_deprecated },
+
+	{ { "channeltype", "show", NULL },
+	show_channeltype, "Give more details on that channel type",
+	show_channeltype_usage, complete_channeltypes, &cli_show_channeltype_deprecated },
+};
 
 /*! \brief Checks to see if a channel is needing hang up */
 int ast_check_hangup(struct ast_channel *chan)
@@ -4149,8 +4163,7 @@ void ast_moh_cleanup(struct ast_channel *chan)
 
 void ast_channels_init(void)
 {
-	ast_cli_register(&cli_show_channeltypes);
-	ast_cli_register(&cli_show_channeltype);
+	ast_cli_register_multiple(cli_channel, sizeof(cli_channel) / sizeof(struct ast_cli_entry));
 }
 
 /*! \brief Print call group and pickup group ---*/

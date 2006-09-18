@@ -1068,7 +1068,7 @@ static struct ast_channel *oss_request(const char *type, int format, void *data,
 	return c;
 }
 
-static int console_autoanswer(int fd, int argc, char *argv[])
+static int console_autoanswer_deprecated(int fd, int argc, char *argv[])
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
 
@@ -1091,22 +1091,54 @@ static int console_autoanswer(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int console_autoanswer(int fd, int argc, char *argv[])
+{
+	struct chan_oss_pvt *o = find_desc(oss_active);
+
+	if (argc == 2) {
+		ast_cli(fd, "Auto answer is %s.\n", o->autoanswer ? "on" : "off");
+		return RESULT_SUCCESS;
+	}
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	if (o == NULL) {
+		ast_log(LOG_WARNING, "Cannot find device %s (should not happen!)\n",
+		    oss_active);
+		return RESULT_FAILURE;
+	}
+	if (!strcasecmp(argv[2], "on"))
+		o->autoanswer = -1;
+	else if (!strcasecmp(argv[2], "off"))
+		o->autoanswer = 0;
+	else
+		return RESULT_SHOWUSAGE;
+	return RESULT_SUCCESS;
+}
+
+static char *autoanswer_complete_deprecated(const char *line, const char *word, int pos, int state)
+{
+	static char *choices[] = { "on", "off", NULL };
+
+	return (pos != 2) ? NULL : ast_cli_complete(word, choices, state);
+}
+
 static char *autoanswer_complete(const char *line, const char *word, int pos, int state)
 {
 	static char *choices[] = { "on", "off", NULL };
 
-	return (pos != 1) ? NULL : ast_cli_complete(word, choices, state);
+	return (pos != 3) ? NULL : ast_cli_complete(word, choices, state);
 }
 
 static char autoanswer_usage[] =
-	"Usage: autoanswer [on|off]\n"
+	"Usage: console autoanswer [on|off]\n"
 	"       Enables or disables autoanswer feature.  If used without\n"
-	"       argument, displays the current on/off status of autoanswer.\n" "       The default value of autoanswer is in 'oss.conf'.\n";
+	"       argument, displays the current on/off status of autoanswer.\n"
+	"       The default value of autoanswer is in 'oss.conf'.\n";
 
 /*
  * answer command from the console
  */
-static int console_answer(int fd, int argc, char *argv[])
+static int console_answer_deprecated(int fd, int argc, char *argv[])
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
 	struct chan_oss_pvt *o = find_desc(oss_active);
@@ -1128,13 +1160,37 @@ static int console_answer(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char sendtext_usage[] = "Usage: send text <message>\n" "       Sends a text message for display on the remote terminal.\n";
+static int console_answer(int fd, int argc, char *argv[])
+{
+	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
+	struct chan_oss_pvt *o = find_desc(oss_active);
+
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	if (!o->owner) {
+		ast_cli(fd, "No one is calling us\n");
+		return RESULT_FAILURE;
+	}
+	o->hookstate = 1;
+	o->cursound = -1;
+	o->nosound = 0;
+	ast_queue_frame(o->owner, &f);
+#if 0
+	/* XXX do we really need it ? considering we shut down immediately... */
+	ring(o, AST_CONTROL_ANSWER);
+#endif
+	return RESULT_SUCCESS;
+}
+
+static char answer_usage[] =
+	"Usage: console answer\n"
+	"       Answers an incoming call on the console (OSS) channel.\n";
 
 /*
  * concatenate all arguments into a single string. argv is NULL-terminated
  * so we can use it right away
  */
-static int console_sendtext(int fd, int argc, char *argv[])
+static int console_sendtext_deprecated(int fd, int argc, char *argv[])
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
 	char buf[TEXT_SIZE];
@@ -1159,9 +1215,36 @@ static int console_sendtext(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char answer_usage[] = "Usage: answer\n" "       Answers an incoming call on the console (OSS) channel.\n";
+static int console_sendtext(int fd, int argc, char *argv[])
+{
+	struct chan_oss_pvt *o = find_desc(oss_active);
+	char buf[TEXT_SIZE];
 
-static int console_hangup(int fd, int argc, char *argv[])
+	if (argc < 3)
+		return RESULT_SHOWUSAGE;
+	if (!o->owner) {
+		ast_cli(fd, "Not in a call\n");
+		return RESULT_FAILURE;
+	}
+	ast_join(buf, sizeof(buf) - 1, argv + 3);
+	if (!ast_strlen_zero(buf)) {
+		struct ast_frame f = { 0, };
+		int i = strlen(buf);
+		buf[i] = '\n';
+		f.frametype = AST_FRAME_TEXT;
+		f.subclass = 0;
+		f.data = buf;
+		f.datalen = i + 1;
+		ast_queue_frame(o->owner, &f);
+	}
+	return RESULT_SUCCESS;
+}
+
+static char sendtext_usage[] =
+	"Usage: console send text <message>\n"
+	"       Sends a text message for display on the remote terminal.\n";
+
+static int console_hangup_deprecated(int fd, int argc, char *argv[])
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
 
@@ -1169,7 +1252,7 @@ static int console_hangup(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	o->cursound = -1;
 	o->nosound = 0;
-	if (!o->owner && !o->hookstate) {	/* XXX maybe only one ? */
+	if (!o->owner && !o->hookstate) { /* XXX maybe only one ? */
 		ast_cli(fd, "No call to hang up\n");
 		return RESULT_FAILURE;
 	}
@@ -1180,15 +1263,54 @@ static int console_hangup(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char hangup_usage[] = "Usage: hangup\n" "       Hangs up any call currently placed on the console.\n";
+static int console_hangup(int fd, int argc, char *argv[])
+{
+	struct chan_oss_pvt *o = find_desc(oss_active);
 
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	o->cursound = -1;
+	o->nosound = 0;
+	if (!o->owner && !o->hookstate) { /* XXX maybe only one ? */
+		ast_cli(fd, "No call to hang up\n");
+		return RESULT_FAILURE;
+	}
+	o->hookstate = 0;
+	if (o->owner)
+		ast_queue_hangup(o->owner);
+	setformat(o, O_CLOSE);
+	return RESULT_SUCCESS;
+}
+
+static char hangup_usage[] =
+	"Usage: console hangup\n"
+	"       Hangs up any call currently placed on the console.\n";
+
+static int console_flash_deprecated(int fd, int argc, char *argv[])
+{
+	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_FLASH };
+	struct chan_oss_pvt *o = find_desc(oss_active);
+
+	if (argc != 1)
+		return RESULT_SHOWUSAGE;
+	o->cursound = -1;
+	o->nosound = 0; /* when cursound is -1 nosound must be 0 */
+	if (!o->owner) { /* XXX maybe !o->hookstate too ? */
+		ast_cli(fd, "No call to flash\n");
+		return RESULT_FAILURE;
+	}
+	o->hookstate = 0;
+	if (o->owner) /* XXX must be true, right ? */
+		ast_queue_frame(o->owner, &f);
+	return RESULT_SUCCESS;
+}
 
 static int console_flash(int fd, int argc, char *argv[])
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_FLASH };
 	struct chan_oss_pvt *o = find_desc(oss_active);
 
-	if (argc != 1)
+	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	o->cursound = -1;
 	o->nosound = 0;				/* when cursound is -1 nosound must be 0 */
@@ -1202,23 +1324,22 @@ static int console_flash(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static char flash_usage[] =
+	"Usage: console flash\n"
+	"       Flashes the call currently placed on the console.\n";
 
-static char flash_usage[] = "Usage: flash\n" "       Flashes the call currently placed on the console.\n";
-
-
-
-static int console_dial(int fd, int argc, char *argv[])
+static int console_dial_deprecated(int fd, int argc, char *argv[])
 {
 	char *s = NULL, *mye = NULL, *myc = NULL;
 	struct chan_oss_pvt *o = find_desc(oss_active);
 
 	if (argc != 1 && argc != 2)
 		return RESULT_SHOWUSAGE;
-	if (o->owner) {				/* already in a call */
+	if (o->owner) { /* already in a call */
 		int i;
 		struct ast_frame f = { AST_FRAME_DTMF, 0 };
 
-		if (argc == 1) {		/* argument is mandatory here */
+		if (argc == 1) { /* argument is mandatory here */
 			ast_cli(fd, "Already in a call. You can only dial digits until you hangup.\n");
 			return RESULT_FAILURE;
 		}
@@ -1248,33 +1369,98 @@ static int console_dial(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char dial_usage[] = "Usage: dial [extension[@context]]\n" "       Dials a given extension (and context if specified)\n";
+static int console_dial(int fd, int argc, char *argv[])
+{
+	char *s = NULL, *mye = NULL, *myc = NULL;
+	struct chan_oss_pvt *o = find_desc(oss_active);
 
-static char mute_usage[] = "Usage: mute\nMutes the microphone\n";
+	if (argc != 2 && argc != 3)
+		return RESULT_SHOWUSAGE;
+	if (o->owner) {	/* already in a call */
+		int i;
+		struct ast_frame f = { AST_FRAME_DTMF, 0 };
 
-static char unmute_usage[] = "Usage: unmute\nUnmutes the microphone\n";
+		if (argc == 1) {	/* argument is mandatory here */
+			ast_cli(fd, "Already in a call. You can only dial digits until you hangup.\n");
+			return RESULT_FAILURE;
+		}
+		s = argv[2];
+		/* send the string one char at a time */
+		for (i = 0; i < strlen(s); i++) {
+			f.subclass = s[i];
+			ast_queue_frame(o->owner, &f);
+		}
+		return RESULT_SUCCESS;
+	}
+	/* if we have an argument split it into extension and context */
+	if (argc == 3)
+		s = ast_ext_ctx(argv[2], &mye, &myc);
+	/* supply default values if needed */
+	if (mye == NULL)
+		mye = o->ext;
+	if (myc == NULL)
+		myc = o->ctx;
+	if (ast_exists_extension(NULL, myc, mye, 1, NULL)) {
+		o->hookstate = 1;
+		oss_new(o, mye, myc, AST_STATE_RINGING);
+	} else
+		ast_cli(fd, "No such extension '%s' in context '%s'\n", mye, myc);
+	if (s)
+		free(s);
+	return RESULT_SUCCESS;
+}
+
+static char dial_usage[] =
+	"Usage: console dial [extension[@context]]\n"
+	"       Dials a given extension (and context if specified)\n";
+
+static int __console_mute_unmute(int mute)
+{
+	struct chan_oss_pvt *o = find_desc(oss_active);
+	
+	o->mute = mute;
+	return RESULT_SUCCESS;
+}
+
+static int console_mute_deprecated(int fd, int argc, char *argv[])
+{
+	if (argc != 1)
+		return RESULT_SHOWUSAGE;
+
+	return __console_mute_unmute(1);
+}
 
 static int console_mute(int fd, int argc, char *argv[])
 {
-	struct chan_oss_pvt *o = find_desc(oss_active);
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
 
+	return __console_mute_unmute(1);
+}
+
+static char mute_usage[] =
+	"Usage: console mute\nMutes the microphone\n";
+
+static int console_unmute_deprecated(int fd, int argc, char *argv[])
+{
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
-	o->mute = 1;
-	return RESULT_SUCCESS;
+
+	return __console_mute_unmute(0);
 }
 
 static int console_unmute(int fd, int argc, char *argv[])
 {
-	struct chan_oss_pvt *o = find_desc(oss_active);
-
-	if (argc != 1)
+	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	o->mute = 0;
-	return RESULT_SUCCESS;
+
+	return __console_mute_unmute(0);
 }
 
-static int console_transfer(int fd, int argc, char *argv[])
+static char unmute_usage[] =
+	"Usage: console unmute\nUnmutes the microphone\n";
+
+static int console_transfer_deprecated(int fd, int argc, char *argv[])
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
 	struct ast_channel *b = NULL;
@@ -1284,12 +1470,43 @@ static int console_transfer(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	if (o == NULL)
 		return RESULT_FAILURE;
-	if (o->owner == NULL || (b = ast_bridged_channel(o->owner)) == NULL) {
+	if (o->owner ==NULL || (b = ast_bridged_channel(o->owner)) == NULL) {
 		ast_cli(fd, "There is no call to transfer\n");
 		return RESULT_SUCCESS;
 	}
 
 	tmp = ast_ext_ctx(argv[1], &ext, &ctx);
+	if (ctx == NULL)		/* supply default context if needed */
+		ctx = o->owner->context;
+	if (!ast_exists_extension(b, ctx, ext, 1, b->cid.cid_num))
+		ast_cli(fd, "No such extension exists\n");
+	else {
+		ast_cli(fd, "Whee, transferring %s to %s@%s.\n",
+			b->name, ext, ctx);
+		if (ast_async_goto(b, ctx, ext, 1))
+			ast_cli(fd, "Failed to transfer :(\n");
+	}
+	if (tmp)
+		free(tmp);
+	return RESULT_SUCCESS;
+}
+
+static int console_transfer(int fd, int argc, char *argv[])
+{
+	struct chan_oss_pvt *o = find_desc(oss_active);
+	struct ast_channel *b = NULL;
+	char *tmp, *ext, *ctx;
+
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	if (o == NULL)
+		return RESULT_FAILURE;
+	if (o->owner == NULL || (b = ast_bridged_channel(o->owner)) == NULL) {
+		ast_cli(fd, "There is no call to transfer\n");
+		return RESULT_SUCCESS;
+	}
+
+	tmp = ast_ext_ctx(argv[2], &ext, &ctx);
 	if (ctx == NULL)			/* supply default context if needed */
 		ctx = o->owner->context;
 	if (!ast_exists_extension(b, ctx, ext, 1, b->cid.cid_num))
@@ -1304,13 +1521,12 @@ static int console_transfer(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char transfer_usage[] = "Usage: transfer <extension>[@context]\n" "       Transfers the currently connected call to the given extension (and\n" "context if specified)\n";
+static char transfer_usage[] =
+	"Usage: console transfer <extension>[@context]\n"
+	"       Transfers the currently connected call to the given extension (and\n"
+	"context if specified)\n";
 
-static char console_usage[] =
-	"Usage: console [device]\n"
-	"       If used without a parameter, displays which device is the current\n" "console.  If a device is specified, the console sound device is changed to\n" "the device specified.\n";
-
-static int console_active(int fd, int argc, char *argv[])
+static int console_active_deprecated(int fd, int argc, char *argv[])
 {
 	if (argc == 1)
 		ast_cli(fd, "active console is [%s]\n", oss_active);
@@ -1331,6 +1547,34 @@ static int console_active(int fd, int argc, char *argv[])
 	}
 	return RESULT_SUCCESS;
 }
+
+static int console_active(int fd, int argc, char *argv[])
+{
+	if (argc == 2)
+		ast_cli(fd, "active console is [%s]\n", oss_active);
+	else if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	else {
+		struct chan_oss_pvt *o;
+		if (strcmp(argv[2], "show") == 0) {
+			for (o = oss_default.next; o; o = o->next)
+				ast_cli(fd, "device [%s] exists\n", o->name);
+			return RESULT_SUCCESS;
+		}
+		o = find_desc(argv[2]);
+		if (o == NULL)
+			ast_cli(fd, "No device [%s] exists\n", argv[2]);
+		else
+			oss_active = o->name;
+	}
+	return RESULT_SUCCESS;
+}
+
+static char active_usage[] =
+	"Usage: console active [device]\n"
+	"       If used without a parameter, displays which device is the current\n"
+	"console.  If a device is specified, the console sound device is changed to\n"
+	"the device specified.\n";
 
 /*
  * store the boost factor
@@ -1365,18 +1609,105 @@ static int do_boost(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static struct ast_cli_entry myclis[] = {
-	{{"answer", NULL}, console_answer, "Answer an incoming console call", answer_usage},
-	{{"hangup", NULL}, console_hangup, "Hangup a call on the console", hangup_usage},
-	{{"flash", NULL}, console_flash, "Flash a call on the console", flash_usage},
-	{{"dial", NULL}, console_dial, "Dial an extension on the console", dial_usage},
-	{{"mute", NULL}, console_mute, "Disable mic input", mute_usage},
-	{{"unmute", NULL}, console_unmute, "Enable mic input", unmute_usage},
-	{{"transfer", NULL}, console_transfer, "Transfer a call to a different extension", transfer_usage},
-	{{"send", "text", NULL}, console_sendtext, "Send text to the remote device", sendtext_usage},
-	{{"autoanswer", NULL}, console_autoanswer, "Sets/displays autoanswer", autoanswer_usage, autoanswer_complete},
-	{{"oss", "boost", NULL}, do_boost, "Sets/displays mic boost in dB"},
-	{{"console", NULL}, console_active, "Sets/displays active console", console_usage},
+static struct ast_cli_entry cli_oss_answer_deprecated = {
+	{ "answer", NULL },
+	console_answer_deprecated, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_oss_hangup_deprecated = {
+	{ "hangup", NULL },
+	console_hangup_deprecated, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_oss_flash_deprecated = {
+	{ "flash", NULL },
+	console_flash_deprecated, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_oss_dial_deprecated = {
+	{ "dial", NULL },
+	console_dial_deprecated, NULL,
+        NULL };
+
+static struct ast_cli_entry cli_oss_mute_deprecated = {
+	{ "mute", NULL },
+	console_mute_deprecated, NULL,
+        NULL };
+
+static struct ast_cli_entry cli_oss_unmute_deprecated = {
+	{ "unmute", NULL },
+	console_unmute_deprecated, NULL,
+        NULL };
+
+static struct ast_cli_entry cli_oss_transfer_deprecated = {
+	{ "transfer", NULL },
+	console_transfer_deprecated, NULL,
+        NULL };
+
+static struct ast_cli_entry cli_oss_send_text_deprecated = {
+	{ "send", "text", NULL },
+	console_sendtext_deprecated, NULL,
+        NULL };
+
+static struct ast_cli_entry cli_oss_autoanswer_deprecated = {
+	{ "autoanswer", NULL },
+	console_autoanswer_deprecated, NULL,
+        NULL, autoanswer_complete_deprecated };
+
+static struct ast_cli_entry cli_oss_boost_deprecated = {
+	{ "oss", "boost", NULL },
+	do_boost, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_oss_active_deprecated = {
+	{ "console", NULL },
+	console_active_deprecated, NULL,
+        NULL };
+
+static struct ast_cli_entry cli_oss[] = {
+	{ { "console", "answer", NULL },
+	console_answer, "Answer an incoming console call",
+	answer_usage, NULL, &cli_oss_answer_deprecated },
+
+	{ { "console", "hangup", NULL },
+	console_hangup, "Hangup a call on the console",
+	hangup_usage, NULL, &cli_oss_hangup_deprecated },
+
+	{ { "console", "flash", NULL },
+	console_flash, "Flash a call on the console",
+	flash_usage, NULL, &cli_oss_flash_deprecated },
+
+	{ { "console", "dial", NULL },
+	console_dial, "Dial an extension on the console",
+	dial_usage, NULL, &cli_oss_dial_deprecated },
+
+	{ { "console", "mute", NULL },
+	console_mute, "Disable mic input",
+	mute_usage, NULL, &cli_oss_mute_deprecated },
+
+	{ { "console", "unmute", NULL },
+	console_unmute, "Enable mic input",
+	unmute_usage, NULL, &cli_oss_unmute_deprecated },
+
+	{ { "console", "transfer", NULL },
+	console_transfer, "Transfer a call to a different extension",
+	transfer_usage, NULL, &cli_oss_transfer_deprecated },
+
+	{ { "console", "send", "text", NULL },
+	console_sendtext, "Send text to the remote device",
+	sendtext_usage, NULL, &cli_oss_send_text_deprecated },
+
+	{ { "console", "autoanswer", NULL },
+	console_autoanswer, "Sets/displays autoanswer",
+	autoanswer_usage, autoanswer_complete, &cli_oss_autoanswer_deprecated },
+
+	{ { "console", "boost", NULL },
+	do_boost, "Sets/displays mic boost in dB",
+	NULL, NULL, &cli_oss_boost_deprecated },
+
+	{ { "console", "active", NULL },
+	console_active, "Sets/displays active console",
+	active_usage, NULL, &cli_oss_active_deprecated },
 };
 
 /*
@@ -1536,7 +1867,7 @@ static int load_module(void)
 		/* XXX should cleanup allocated memory etc. */
 		return -1;
 	}
-	ast_cli_register_multiple(myclis, sizeof(myclis) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_oss, sizeof(cli_oss) / sizeof(struct ast_cli_entry));
 	return 0;
 }
 
@@ -1546,7 +1877,7 @@ static int unload_module(void)
 	struct chan_oss_pvt *o;
 
 	ast_channel_unregister(&oss_tech);
-	ast_cli_unregister_multiple(myclis, sizeof(myclis) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_oss, sizeof(cli_oss) / sizeof(struct ast_cli_entry));
 
 	for (o = oss_default.next; o; o = o->next) {
 		close(o->sounddev);

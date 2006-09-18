@@ -64,8 +64,8 @@ static char help_remove_indication[] =
 "       Remove the given indication from the country.\n";
 
 static char help_show_indications[] =
-"Usage: show indications [<country> ...]\n"
-"       Show either a condensed for of all country/indications, or the\n"
+"Usage: indication list [<country> ...]\n"
+"       Display either a condensed for of all country/indications, or the\n"
 "       indications for the specified countries.\n";
 
 char *playtones_desc=
@@ -345,20 +345,24 @@ out:			v = v->next;
 /*
  * CLI entries for commands provided by this module
  */
-static struct ast_cli_entry add_indication_cli =
-	{ { "indication", "add", NULL }, handle_add_indication,
-		"Add the given indication to the country", help_add_indication,
-		NULL };
+static struct ast_cli_entry cli_show_indications_deprecated = {
+	{ "show", "indications", NULL },
+	handle_show_indications, NULL,
+	NULL };
 
-static struct ast_cli_entry remove_indication_cli =
-	{ { "indication", "remove", NULL }, handle_remove_indication,
-		"Remove the given indication from the country", help_remove_indication,
-		NULL };
+static struct ast_cli_entry cli_indications[] = {
+	{ { "indication", "add", NULL },
+	handle_add_indication, "Add the given indication to the country",
+	help_add_indication, NULL },
 
-static struct ast_cli_entry show_indications_cli =
-	{ { "show", "indications", NULL }, handle_show_indications,
-		"Show a list of all country/indications", help_show_indications,
-		NULL };
+	{ { "indication", "remove", NULL },
+	handle_remove_indication, "Remove the given indication from the country",
+	help_remove_indication, NULL },
+
+	{ { "indication", "list", NULL },
+	handle_show_indications, "Display a list of all countries/indications",
+	help_show_indications, NULL, &cli_show_indications_deprecated },
+};
 
 /*
  * Standard module functions ...
@@ -369,9 +373,7 @@ static int unload_module(void)
 	ast_unregister_indication_country(NULL);
 
 	/* and the functions */
-	ast_cli_unregister(&add_indication_cli);
-	ast_cli_unregister(&remove_indication_cli);
-	ast_cli_unregister(&show_indications_cli);
+	ast_cli_unregister_multiple(cli_indications, sizeof(cli_indications) / sizeof(struct ast_cli_entry));
 	ast_unregister_application("PlayTones");
 	ast_unregister_application("StopPlayTones");
 	return 0;
@@ -382,9 +384,7 @@ static int load_module(void)
 {
 	if (ind_load_module())
 		return AST_MODULE_LOAD_DECLINE; 
-	ast_cli_register(&add_indication_cli);
-	ast_cli_register(&remove_indication_cli);
-	ast_cli_register(&show_indications_cli);
+	ast_cli_register_multiple(cli_indications, sizeof(cli_indications) / sizeof(struct ast_cli_entry));
 	ast_register_application("PlayTones", handle_playtones, "Play a tone list", playtones_desc);
 	ast_register_application("StopPlayTones", handle_stopplaytones, "Stop playing a tone list","Stop playing a tone list");
 

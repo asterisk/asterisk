@@ -661,13 +661,6 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	return cnf;
 }
 
-static int confs_show(int fd, int argc, char **argv)
-{
-	ast_cli(fd, "Deprecated! Please use 'meetme' instead.\n");
-
-	return RESULT_SUCCESS;
-}
-
 /*! \brief CLI command for showing SLAs */
 static int sla_show(int fd, int argc, char *argv[]) 
 {
@@ -693,23 +686,7 @@ static int sla_show(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char show_confs_usage[] =
-"Deprecated! Please use 'meetme' instead.\n";
-
-static struct ast_cli_entry cli_show_confs = {
-	{ "show", "conferences", NULL }, confs_show,
-	"Show status of conferences", show_confs_usage, NULL };
-
-
-static char sla_show_usage[] =
-"Usage: sla show\n"
-"       Lists status of all shared line appearances\n";
-
-static struct ast_cli_entry cli_sla_show = {
-	{ "sla", "show", NULL }, sla_show,
-	"Show status of Shared Line Appearances", sla_show_usage, NULL };
-
-static int conf_cmd(int fd, int argc, char **argv) 
+static int meetme_cmd(int fd, int argc, char **argv) 
 {
 	/* Process the command */
 	struct ast_conference *cnf;
@@ -853,7 +830,7 @@ static int conf_cmd(int fd, int argc, char **argv)
 	return 0;
 }
 
-static char *complete_confcmd(const char *line, const char *word, int pos, int state)
+static char *complete_meetmecmd(const char *line, const char *word, int pos, int state)
 {
 	static char *cmds[] = {"lock", "unlock", "mute", "unmute", "kick", "list", NULL};
 
@@ -915,13 +892,23 @@ static char *complete_confcmd(const char *line, const char *word, int pos, int s
 	return NULL;
 }
 	
-static char conf_usage[] =
-"Usage: meetme  (un)lock|(un)mute|kick|list [concise] <confno> <usernumber>\n"
+static char meetme_usage[] =
+"Usage: meetme (un)lock|(un)mute|kick|list [concise] <confno> <usernumber>\n"
 "       Executes a command for the conference or on a conferee\n";
 
-static struct ast_cli_entry cli_conf = {
-	{"meetme", NULL, NULL }, conf_cmd,
-	"Execute a command on a conference or conferee", conf_usage, complete_confcmd};
+static char sla_show_usage[] =
+"Usage: sla show\n"
+"       Lists status of all shared line appearances\n";
+
+static struct ast_cli_entry cli_meetme[] = {
+	{ { "sla", "show", NULL },
+	sla_show, "Show status of Shared Line Appearances",
+	sla_show_usage, NULL },
+
+	{ { "meetme", NULL, NULL },
+	meetme_cmd, "Execute a command on a conference or conferee",
+	meetme_usage, complete_meetmecmd },
+};
 
 static void conf_flush(int fd, struct ast_channel *chan)
 {
@@ -3072,10 +3059,8 @@ static int unload_module(void)
 {
 	int res = 0;
 	
-	res |= ast_cli_unregister(&cli_show_confs);
-	res |= ast_cli_unregister(&cli_sla_show);
-	res |= ast_cli_unregister(&cli_conf);
-	res |= ast_manager_unregister("MeetmeMute");
+	ast_cli_unregister_multiple(cli_meetme, sizeof(cli_meetme) / sizeof(struct ast_cli_entry));
+	res = ast_manager_unregister("MeetmeMute");
 	res |= ast_manager_unregister("MeetmeUnmute");
 	res |= ast_unregister_application(app3);
 	res |= ast_unregister_application(app2);
@@ -3095,10 +3080,8 @@ static int load_module(void)
 	int res;
 
 	ASTOBJ_CONTAINER_INIT(&slas);
-	res = ast_cli_register(&cli_show_confs);
-	res |= ast_cli_register(&cli_sla_show);
-	res |= ast_cli_register(&cli_conf);
-	res |= ast_manager_register("MeetmeMute", EVENT_FLAG_CALL, action_meetmemute, "Mute a Meetme user");
+	ast_cli_register_multiple(cli_meetme, sizeof(cli_meetme) / sizeof(struct ast_cli_entry));
+	res = ast_manager_register("MeetmeMute", EVENT_FLAG_CALL, action_meetmemute, "Mute a Meetme user");
 	res |= ast_manager_register("MeetmeUnmute", EVENT_FLAG_CALL, action_meetmeunmute, "Unmute a Meetme user");
 	res |= ast_register_application(app3, admin_exec, synopsis3, descrip3);
 	res |= ast_register_application(app2, count_exec, synopsis2, descrip2);

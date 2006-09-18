@@ -63,7 +63,11 @@ static char orig_help[] =
 static int handle_orig(int fd, int argc, char *argv[]);
 static char *complete_orig(const char *line, const char *word, int pos, int state);
 
-struct ast_cli_entry cli_orig = { { "originate", NULL }, handle_orig, "Originate a call", orig_help, complete_orig };
+struct ast_cli_entry cli_cliorig[] = {
+	{ { "originate", NULL },
+	handle_orig, "Originate a call",
+	orig_help, complete_orig },
+};
 
 static int orig_app(int fd, const char *chan, const char *app, const char *appdata)
 {
@@ -158,12 +162,14 @@ static char *complete_orig(const char *line, const char *word, int pos, int stat
 
 static int unload_module(void)
 {
-	return ast_cli_unregister(&cli_orig);
+	ast_cli_unregister_multiple(cli_cliorig, sizeof(cli_cliorig) / sizeof(struct ast_cli_entry));
+	return 0;
 }
 
 static int load_module(void)
 {
-	return ast_cli_register(&cli_orig);
+	ast_cli_register_multiple(cli_cliorig, sizeof(cli_cliorig) / sizeof(struct ast_cli_entry));
+	return 0;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Call origination from the CLI");

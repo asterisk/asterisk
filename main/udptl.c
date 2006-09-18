@@ -1135,9 +1135,18 @@ static int udptl_do_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int udptl_no_debug(int fd, int argc, char *argv[])
+static int udptl_nodebug_deprecated(int fd, int argc, char *argv[])
 {
 	if (argc !=3)
+		return RESULT_SHOWUSAGE;
+	udptldebug = 0;
+	ast_cli(fd,"UDPTL Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
+
+static int udptl_nodebug(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	udptldebug = 0;
 	ast_cli(fd,"UDPTL Debugging Disabled\n");
@@ -1148,18 +1157,28 @@ static char debug_usage[] =
   "Usage: udptl debug [ip host[:port]]\n"
   "       Enable dumping of all UDPTL packets to and from host.\n";
 
-static char no_debug_usage[] =
-  "Usage: udptl no debug\n"
+static char nodebug_usage[] =
+  "Usage: udptl nodebug\n"
   "       Disable all UDPTL debugging\n";
 
-static struct ast_cli_entry cli_debug_ip =
-{{ "udptl", "debug", "ip", NULL } , udptl_do_debug, "Enable UDPTL debugging on IP", debug_usage };
+static struct ast_cli_entry cli_udptl_no_debug = {
+	{ "udptl", "no", "debug", NULL },
+	udptl_nodebug_deprecated, NULL,
+	NULL };
 
-static struct ast_cli_entry cli_debug =
-{{ "udptl", "debug", NULL } , udptl_do_debug, "Enable UDPTL debugging", debug_usage };
+static struct ast_cli_entry cli_udptl[] = {
+	{ { "udptl", "debug", NULL },
+	udptl_do_debug, "Enable UDPTL debugging",
+	debug_usage },
 
-static struct ast_cli_entry cli_no_debug =
-{{ "udptl", "no", "debug", NULL } , udptl_no_debug, "Disable UDPTL debugging", no_debug_usage };
+	{ { "udptl", "debug", "ip", NULL },
+	udptl_do_debug, "Enable UDPTL debugging on IP",
+	debug_usage },
+
+	{ { "udptl", "nodebug", NULL },
+	udptl_nodebug, "Disable UDPTL debugging",
+	nodebug_usage, NULL, &cli_udptl_no_debug },
+};
 
 void ast_udptl_reload(void)
 {
@@ -1239,8 +1258,6 @@ void ast_udptl_reload(void)
 
 void ast_udptl_init(void)
 {
-	ast_cli_register(&cli_debug);
-	ast_cli_register(&cli_debug_ip);
-	ast_cli_register(&cli_no_debug);
+	ast_cli_register_multiple(cli_udptl, sizeof(cli_udptl) / sizeof(struct ast_cli_entry));
 	ast_udptl_reload();
 }

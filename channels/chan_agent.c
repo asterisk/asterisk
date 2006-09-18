@@ -1682,11 +1682,11 @@ static int agents_show_online(int fd, int argc, char **argv)
 
 
 static char show_agents_usage[] = 
-"Usage: show agents\n"
+"Usage: agent list\n"
 "       Provides summary information on agents.\n";
 
 static char show_agents_online_usage[] =
-"Usage: show agents\n"
+"Usage: agent list online\n"
 "	Provides a list of all online agents.\n";
 
 static char agent_logoff_usage[] =
@@ -1694,17 +1694,29 @@ static char agent_logoff_usage[] =
 "       Sets an agent as no longer logged in.\n"
 "       If 'soft' is specified, do not hangup existing calls.\n";
 
-static struct ast_cli_entry cli_show_agents = {
-	{ "show", "agents", NULL }, agents_show, 
-	"Show status of agents", show_agents_usage, NULL };
+static struct ast_cli_entry cli_show_agents_deprecated = {
+	{ "show", "agents", NULL },
+	agents_show, NULL,
+	NULL, NULL };
 
-static struct ast_cli_entry cli_show_agents_online = {
-	{ "show", "agents", "online" }, agents_show_online,
-	"Show all online agents", show_agents_online_usage, NULL };
+static struct ast_cli_entry cli_show_agents_online_deprecated = {
+	{ "show", "agents", "online" },
+	agents_show_online, NULL,
+	NULL, NULL };
 
-static struct ast_cli_entry cli_agent_logoff = {
-	{ "agent", "logoff", NULL }, agent_logoff_cmd, 
-	"Sets an agent offline", agent_logoff_usage, complete_agent_logoff_cmd };
+static struct ast_cli_entry cli_agents[] = {
+	{ { "agent", "list", NULL },
+	agents_show, "Show status of agents",
+	show_agents_usage, NULL, &cli_show_agents_deprecated },
+
+	{ { "agent", "list", "online" },
+	agents_show_online, "Show all online agents",
+	show_agents_online_usage, NULL, &cli_show_agents_online_deprecated },
+
+	{ { "agent", "logoff", NULL },
+	agent_logoff_cmd, "Sets an agent offline",
+	agent_logoff_usage, complete_agent_logoff_cmd },
+};
 
 /*!
  * \brief Log in agent application.
@@ -2560,9 +2572,7 @@ static int load_module(void)
 	ast_manager_register2("AgentCallbackLogin", EVENT_FLAG_AGENT, action_agent_callback_login, "Sets an agent as logged in by callback", mandescr_agent_callback_login);
 
 	/* CLI Commands */
-	ast_cli_register(&cli_show_agents);
-	ast_cli_register(&cli_show_agents_online);
-	ast_cli_register(&cli_agent_logoff);
+	ast_cli_register_multiple(cli_agents, sizeof(cli_agents) / sizeof(struct ast_cli_entry));
 
 	/* Dialplan Functions */
 	ast_custom_function_register(&agent_function);
@@ -2586,9 +2596,7 @@ static int unload_module(void)
 	/* Unregister dialplan functions */
 	ast_custom_function_unregister(&agent_function);	
 	/* Unregister CLI commands */
-	ast_cli_unregister(&cli_show_agents);
-	ast_cli_unregister(&cli_show_agents_online);
-	ast_cli_unregister(&cli_agent_logoff);
+	ast_cli_unregister_multiple(cli_agents, sizeof(cli_agents) / sizeof(struct ast_cli_entry));
 	/* Unregister dialplan applications */
 	ast_unregister_application(app);
 	ast_unregister_application(app2);

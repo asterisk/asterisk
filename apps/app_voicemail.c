@@ -6710,15 +6710,15 @@ static int vmauthenticate(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static char show_voicemail_users_help[] =
-"Usage: show voicemail users [for <context>]\n"
+static char voicemail_show_users_help[] =
+"Usage: voicemail list users [for <context>]\n"
 "       Lists all mailboxes currently set up\n";
 
-static char show_voicemail_zones_help[] =
-"Usage: show voicemail zones\n"
+static char voicemail_show_zones_help[] =
+"Usage: voicemail list zones\n"
 "       Lists zone message formats\n";
 
-static int handle_show_voicemail_users(int fd, int argc, char *argv[])
+static int handle_voicemail_show_users(int fd, int argc, char *argv[])
 {
 	struct ast_vm_user *vmu;
 	char *output_format = "%-10s %-5s %-25s %-10s %6s\n";
@@ -6773,7 +6773,7 @@ static int handle_show_voicemail_users(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_show_voicemail_zones(int fd, int argc, char *argv[])
+static int handle_voicemail_show_zones(int fd, int argc, char *argv[])
 {
 	struct vm_zone *zone;
 	char *output_format = "%-15s %-20s %-45s\n";
@@ -6797,7 +6797,7 @@ static int handle_show_voicemail_zones(int fd, int argc, char *argv[])
 	return res;
 }
 
-static char *complete_show_voicemail_users(const char *line, const char *word, int pos, int state)
+static char *complete_voicemail_show_users(const char *line, const char *word, int pos, int state)
 {
 	int which = 0;
 	int wordlen;
@@ -6821,15 +6821,25 @@ static char *complete_show_voicemail_users(const char *line, const char *word, i
 	return NULL;
 }
 
-static struct ast_cli_entry show_voicemail_users_cli =
-	{ { "show", "voicemail", "users", NULL },
-	handle_show_voicemail_users, "List defined voicemail boxes",
-	show_voicemail_users_help, complete_show_voicemail_users };
+static struct ast_cli_entry cli_show_voicemail_users_deprecated = {
+	{ "show", "voicemail", "users", NULL },
+	handle_voicemail_show_users, NULL,
+	NULL, complete_voicemail_show_users };
 
-static struct ast_cli_entry show_voicemail_zones_cli =
-	{ { "show", "voicemail", "zones", NULL },
-	handle_show_voicemail_zones, "List zone message formats",
-	show_voicemail_zones_help, NULL };
+static struct ast_cli_entry cli_show_voicemail_zones_deprecated = {
+	{ "show", "voicemail", "zones", NULL },
+	handle_voicemail_show_zones, NULL,
+	NULL, NULL };
+
+static struct ast_cli_entry cli_voicemail[] = {
+	{ { "voicemail", "list", "users", NULL },
+	handle_voicemail_show_users, "List defined voicemail boxes",
+	voicemail_show_users_help, complete_voicemail_show_users, &cli_show_voicemail_users_deprecated },
+
+	{ { "voicemail", "list", "zones", NULL },
+	handle_voicemail_show_zones, "List zone message formats",
+	voicemail_show_zones_help, NULL, &cli_show_voicemail_zones_deprecated },
+};
 
 static int load_config(void)
 {
@@ -7359,8 +7369,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(app3);
 	res |= ast_unregister_application(app4);
-	res |= ast_cli_unregister(&show_voicemail_users_cli);
-	res |= ast_cli_unregister(&show_voicemail_zones_cli);
+	ast_cli_unregister_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
 	ast_uninstall_vm_functions();
 	
 	ast_module_user_hangup_all();
@@ -7382,8 +7391,7 @@ static int load_module(void)
 		return(res);
 	}
 
-	ast_cli_register(&show_voicemail_users_cli);
-	ast_cli_register(&show_voicemail_zones_cli);
+	ast_cli_register_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
 
 	/* compute the location of the voicemail spool directory */
 	snprintf(VM_SPOOL_DIR, sizeof(VM_SPOOL_DIR), "%s/voicemail/", ast_config_AST_SPOOL_DIR);

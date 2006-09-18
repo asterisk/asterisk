@@ -10570,9 +10570,18 @@ static int sip_notify(int fd, int argc, char *argv[])
 }
 
 /*! \brief Disable SIP Debugging in CLI */
-static int sip_no_debug(int fd, int argc, char *argv[])
+static int sip_no_debug_deprecated(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	ast_clear_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
+	ast_cli(fd, "SIP Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
+
+static int sip_no_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
 	ast_cli(fd, "SIP Debugging Disabled\n");
@@ -10591,7 +10600,7 @@ static int sip_do_history(int fd, int argc, char *argv[])
 }
 
 /*! \brief Disable SIP History logging (CLI) */
-static int sip_no_history(int fd, int argc, char *argv[])
+static int sip_no_history_deprecated(int fd, int argc, char *argv[])
 {
 	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
@@ -10601,6 +10610,15 @@ static int sip_no_history(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int sip_no_history(int fd, int argc, char *argv[])
+{
+	if (argc != 2) {
+		return RESULT_SHOWUSAGE;
+	}
+	recordhistory = FALSE;
+	ast_cli(fd, "SIP History Recording Disabled\n");
+	return RESULT_SUCCESS;
+}
 
 /*! \brief Authenticate for outbound registration */
 static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader)
@@ -10790,7 +10808,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 }
 	
 static char show_domains_usage[] = 
-"Usage: sip show domains\n"
+"Usage: sip list domains\n"
 "       Lists all configured SIP local domains.\n"
 "       Asterisk only responds to SIP messages to local domains.\n";
 
@@ -10800,22 +10818,22 @@ static char notify_usage[] =
 "       Message types are defined in sip_notify.conf\n";
 
 static char show_users_usage[] = 
-"Usage: sip show users [like <pattern>]\n"
+"Usage: sip list users [like <pattern>]\n"
 "       Lists all known SIP users.\n"
 "       Optional regular expression pattern is used to filter the user list.\n";
 
 static char show_user_usage[] =
 "Usage: sip show user <name> [load]\n"
-"       Lists all details on one SIP user and the current status.\n"
+"       Shows all details on one SIP user and the current status.\n"
 "       Option \"load\" forces lookup of peer in realtime storage.\n";
 
 static char show_inuse_usage[] = 
-"Usage: sip show inuse [all]\n"
+"Usage: sip list inuse [all]\n"
 "       List all SIP users and peers usage counters and limits.\n"
 "       Add option \"all\" to show all devices, not only those with a limit.\n";
 
 static char show_channels_usage[] = 
-"Usage: sip show channels\n"
+"Usage: sip list channels\n"
 "       Lists all currently active SIP channels.\n";
 
 static char show_channel_usage[] = 
@@ -10827,13 +10845,13 @@ static char show_history_usage[] =
 "       Provides detailed dialog history on a given SIP channel.\n";
 
 static char show_peers_usage[] = 
-"Usage: sip show peers [like <pattern>]\n"
+"Usage: sip list peers [like <pattern>]\n"
 "       Lists all known SIP peers.\n"
 "       Optional regular expression pattern is used to filter the peer list.\n";
 
 static char show_peer_usage[] =
 "Usage: sip show peer <name> [load]\n"
-"       Lists all details on one SIP peer and the current status.\n"
+"       Shows all details on one SIP peer and the current status.\n"
 "       Option \"load\" forces lookup of peer in realtime storage.\n";
 
 static char prune_realtime_usage[] =
@@ -10842,7 +10860,7 @@ static char prune_realtime_usage[] =
 "       Optional regular expression pattern is used to filter the objects.\n";
 
 static char show_reg_usage[] =
-"Usage: sip show registry\n"
+"Usage: sip list registry\n"
 "       Lists all registration requests and status.\n";
 
 static char debug_usage[] = 
@@ -10855,11 +10873,11 @@ static char debug_usage[] =
 "       Require peer to be registered.\n";
 
 static char no_debug_usage[] = 
-"Usage: sip no debug\n"
+"Usage: sip nodebug\n"
 "       Disables dumping of SIP packets for debugging purposes\n";
 
 static char no_history_usage[] = 
-"Usage: sip no history\n"
+"Usage: sip nohistory\n"
 "       Disables recording of SIP dialog history for debugging purposes\n";
 
 static char history_usage[] = 
@@ -10872,18 +10890,16 @@ static char sip_reload_usage[] =
 "       Reloads SIP configuration from sip.conf\n";
 
 static char show_subscriptions_usage[] =
-"Usage: sip show subscriptions\n" 
-"       Shows active SIP subscriptions for extension states\n";
+"Usage: sip list subscriptions\n" 
+"       Lists active SIP subscriptions for extension states\n";
 
 static char show_objects_usage[] =
-"Usage: sip show objects\n" 
-"       Shows status of known SIP objects\n";
+"Usage: sip list objects\n" 
+"       Lists status of known SIP objects\n";
 
 static char show_settings_usage[] = 
-"Usage: sip show settings\n"
+"Usage: sip list settings\n"
 "       Provides detailed list of the configuration of the SIP channel.\n";
-
-
 
 /*! \brief Read SIP header (dialplan function) */
 static int func_header_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len) 
@@ -16569,34 +16585,157 @@ static int reload(void)
 	return sip_reload(0, 0, NULL);
 }
 
-static struct ast_cli_entry  my_clis[] = {
-	{ { "sip", "notify", NULL }, sip_notify, "Send a notify packet to a SIP peer", notify_usage, complete_sipnotify },
-	{ { "sip", "show", "objects", NULL }, sip_show_objects, "Show all SIP object allocations", show_objects_usage },
-	{ { "sip", "show", "users", NULL }, sip_show_users, "Show defined SIP users", show_users_usage },
-	{ { "sip", "show", "user", NULL }, sip_show_user, "Show details on specific SIP user", show_user_usage, complete_sip_show_user },
-	{ { "sip", "show", "subscriptions", NULL }, sip_show_subscriptions, "Show active SIP subscriptions", show_subscriptions_usage},
-	{ { "sip", "show", "channels", NULL }, sip_show_channels, "Show active SIP channels", show_channels_usage},
-	{ { "sip", "show", "channel", NULL }, sip_show_channel, "Show detailed SIP channel info", show_channel_usage, complete_sipch  },
-	{ { "sip", "show", "history", NULL }, sip_show_history, "Show SIP dialog history", show_history_usage, complete_sipch  },
-	{ { "sip", "show", "domains", NULL }, sip_show_domains, "List our local SIP domains.", show_domains_usage },
-	{ { "sip", "show", "settings", NULL }, sip_show_settings, "Show SIP global settings", show_settings_usage  },
-	{ { "sip", "debug", NULL }, sip_do_debug, "Enable SIP debugging", debug_usage },
-	{ { "sip", "debug", "ip", NULL }, sip_do_debug, "Enable SIP debugging on IP", debug_usage },
-	{ { "sip", "debug", "peer", NULL }, sip_do_debug, "Enable SIP debugging on Peername", debug_usage, complete_sip_debug_peer },
-	{ { "sip", "show", "peer", NULL }, sip_show_peer, "Show details on specific SIP peer", show_peer_usage, complete_sip_show_peer },
-	{ { "sip", "show", "peers", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage },
-	{ { "sip", "prune", "realtime", NULL }, sip_prune_realtime,
-	  "Prune cached Realtime object(s)", prune_realtime_usage },
-	{ { "sip", "prune", "realtime", "peer", NULL }, sip_prune_realtime,
-	  "Prune cached Realtime peer(s)", prune_realtime_usage, complete_sip_prune_realtime_peer },
-	{ { "sip", "prune", "realtime", "user", NULL }, sip_prune_realtime,
-	  "Prune cached Realtime user(s)", prune_realtime_usage, complete_sip_prune_realtime_user },
-	{ { "sip", "show", "inuse", NULL }, sip_show_inuse, "List all inuse/limits", show_inuse_usage },
-	{ { "sip", "show", "registry", NULL }, sip_show_registry, "Show SIP registration status", show_reg_usage },
-	{ { "sip", "history", NULL }, sip_do_history, "Enable SIP history", history_usage },
-	{ { "sip", "no", "history", NULL }, sip_no_history, "Disable SIP history", no_history_usage },
-	{ { "sip", "no", "debug", NULL }, sip_no_debug, "Disable SIP debugging", no_debug_usage },
-	{ { "sip", "reload", NULL }, sip_reload, "Reload SIP configuration", sip_reload_usage },
+static struct ast_cli_entry cli_sip_no_history_deprecated = {
+	{ "sip", "no", "history", NULL },
+	sip_no_history_deprecated, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_sip_no_debug_deprecated = {
+	{ "sip", "no", "debug", NULL },
+	sip_no_debug_deprecated, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_sip_show_objects_deprecated = {
+	{ "sip", "show", "objects", NULL },
+	sip_show_objects, NULL,
+        NULL };
+
+static struct ast_cli_entry cli_sip_show_users_deprecated = {
+	{ "sip", "show", "users", NULL },
+	sip_show_users, NULL,
+        NULL };
+
+static struct ast_cli_entry cli_sip_show_subscriptions_deprecated = {
+	{ "sip", "show", "subscriptions", NULL },
+	sip_show_subscriptions, NULL,
+        NULL };
+
+static struct ast_cli_entry cli_sip_show_channels_deprecated = {
+	{ "sip", "show", "channels", NULL },
+	sip_show_channels, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_sip_show_domains_deprecated = {
+	{ "sip", "show", "domains", NULL },
+	sip_show_domains, NULL,
+        NULL };
+
+static struct ast_cli_entry cli_sip_show_settings_deprecated = {
+	{ "sip", "show", "settings", NULL },
+	sip_show_settings, NULL,
+        NULL };
+
+static struct ast_cli_entry cli_sip_show_peers_deprecated = {
+	{ "sip", "show", "peers", NULL },
+	sip_show_peers, NULL,
+        NULL };
+
+static struct ast_cli_entry cli_sip_show_inuse_deprecated = {
+	{ "sip", "show", "inuse", NULL },
+	sip_show_inuse, NULL,
+        NULL };
+
+static struct ast_cli_entry cli_sip_show_registry_deprecated = {
+	{ "sip", "show", "registry", NULL },
+	sip_show_registry, NULL,
+        NULL };
+
+static struct ast_cli_entry cli_sip[] = {
+	{ { "sip", "list", "channels", NULL },
+	sip_show_channels, "List active SIP channels",
+	show_channels_usage, NULL, &cli_sip_show_channels_deprecated },
+
+	{ { "sip", "list", "domains", NULL },
+	sip_show_domains, "List our local SIP domains.",
+	show_domains_usage, NULL, &cli_sip_show_domains_deprecated },
+
+	{ { "sip", "list", "inuse", NULL },
+	sip_show_inuse, "List all inuse/limits",
+	show_inuse_usage, NULL, &cli_sip_show_inuse_deprecated },
+
+	{ { "sip", "list", "objects", NULL },
+	sip_show_objects, "List all SIP object allocations",
+	show_objects_usage, NULL, &cli_sip_show_objects_deprecated },
+
+	{ { "sip", "list", "peers", NULL },
+	sip_show_peers, "List defined SIP peers",
+	show_peers_usage, NULL, &cli_sip_show_peers_deprecated },
+
+	{ { "sip", "list", "registry", NULL },
+	sip_show_registry, "List SIP registration status",
+	show_reg_usage, NULL, &cli_sip_show_registry_deprecated },
+
+	{ { "sip", "list", "settings", NULL },
+	sip_show_settings, "List SIP global settings",
+	show_settings_usage, NULL, &cli_sip_show_settings_deprecated },
+
+	{ { "sip", "list", "subscriptions", NULL },
+	sip_show_subscriptions, "List active SIP subscriptions",
+	show_subscriptions_usage, NULL, &cli_sip_show_subscriptions_deprecated },
+
+	{ { "sip", "list", "users", NULL },
+	sip_show_users, "List defined SIP users",
+	show_users_usage, NULL, &cli_sip_show_users_deprecated },
+
+	{ { "sip", "notify", NULL },
+	sip_notify, "Send a notify packet to a SIP peer",
+	notify_usage, complete_sipnotify },
+
+	{ { "sip", "show", "channel", NULL },
+	sip_show_channel, "Show detailed SIP channel info",
+	show_channel_usage, complete_sipch  },
+
+	{ { "sip", "show", "history", NULL },
+	sip_show_history, "Show SIP dialog history",
+	show_history_usage, complete_sipch  },
+
+	{ { "sip", "show", "peer", NULL },
+	sip_show_peer, "Show details on specific SIP peer",
+	show_peer_usage, complete_sip_show_peer },
+
+	{ { "sip", "show", "user", NULL },
+	sip_show_user, "Show details on specific SIP user",
+	show_user_usage, complete_sip_show_user },
+
+	{ { "sip", "prune", "realtime", NULL },
+	sip_prune_realtime, "Prune cached Realtime object(s)",
+	prune_realtime_usage },
+
+	{ { "sip", "prune", "realtime", "peer", NULL },
+	sip_prune_realtime, "Prune cached Realtime peer(s)",
+	prune_realtime_usage, complete_sip_prune_realtime_peer },
+
+	{ { "sip", "prune", "realtime", "user", NULL },
+	sip_prune_realtime, "Prune cached Realtime user(s)",
+	prune_realtime_usage, complete_sip_prune_realtime_user },
+
+	{ { "sip", "debug", NULL },
+	sip_do_debug, "Enable SIP debugging",
+	debug_usage },
+
+	{ { "sip", "debug", "ip", NULL },
+	sip_do_debug, "Enable SIP debugging on IP",
+	debug_usage },
+
+	{ { "sip", "debug", "peer", NULL },
+	sip_do_debug, "Enable SIP debugging on Peername",
+	debug_usage, complete_sip_debug_peer },
+
+	{ { "sip", "nodebug", NULL },
+	sip_no_debug, "Disable SIP debugging",
+	no_debug_usage, NULL, &cli_sip_no_debug_deprecated },
+
+	{ { "sip", "history", NULL },
+	sip_do_history, "Enable SIP history",
+	history_usage },
+
+	{ { "sip", "nohistory", NULL },
+	sip_no_history, "Disable SIP history",
+	no_history_usage, NULL, &cli_sip_no_history_deprecated },
+
+	{ { "sip", "reload", NULL },
+	sip_reload, "Reload SIP configuration",
+	sip_reload_usage },
 };
 
 /*! \brief  load_module: PBX load module - initialization */
@@ -16625,7 +16764,7 @@ static int load_module(void)
 	}
 
 	/* Register all CLI functions for SIP */
-	ast_cli_register_multiple(my_clis, sizeof(my_clis)/ sizeof(my_clis[0]));
+	ast_cli_register_multiple(cli_sip, sizeof(cli_sip)/ sizeof(struct ast_cli_entry));
 
 	/* Tell the RTP subdriver that we're here */
 	ast_rtp_proto_register(&sip_rtp);
@@ -16673,7 +16812,7 @@ static int unload_module(void)
 	ast_unregister_application(app_dtmfmode);
 	ast_unregister_application(app_sipaddheader);
 
-	ast_cli_unregister_multiple(my_clis, sizeof(my_clis) / sizeof(my_clis[0]));
+	ast_cli_unregister_multiple(cli_sip, sizeof(cli_sip) / sizeof(struct ast_cli_entry));
 
 	ast_rtp_proto_unregister(&sip_rtp);
 

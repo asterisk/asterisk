@@ -438,7 +438,7 @@ int64_t ast_mark(int i, int startstop)
 	return prof_data->e[i].mark;
 }
 
-static int handle_show_profile(int fd, int argc, char *argv[])
+static int handle_show_profile_deprecated(int fd, int argc, char *argv[])
 {
 	int i, min, max;
 	char *search = NULL;
@@ -484,9 +484,55 @@ static int handle_show_profile(int fd, int argc, char *argv[])
 	return 0;
 }
 
+static int handle_show_profile(int fd, int argc, char *argv[])
+{
+	int i, min, max;
+	char *search = NULL;
+
+	if (prof_data == NULL)
+		return 0;
+
+	min = 0;
+	max = prof_data->entries;
+	if  (argc >= 3) { /* specific entries */
+		if (isdigit(argv[2][0])) {
+			min = atoi(argv[2]);
+			if (argc == 4 && strcmp(argv[3], "-"))
+				max = atoi(argv[3]);
+		} else
+			search = argv[2];
+	}
+	if (max > prof_data->entries)
+		max = prof_data->entries;
+	if (!strcmp(argv[1], "clear")) {
+		for (i= min; i < max; i++) {
+			if (!search || strstr(prof_data->e[i].name, search)) {
+				prof_data->e[i].value = 0;
+				prof_data->e[i].events = 0;
+			}
+		}
+		return 0;
+	}
+	ast_cli(fd, "profile values (%d, allocated %d)\n-------------------\n",
+		prof_data->entries, prof_data->max_size);
+	ast_cli(fd, "%6s   %8s  %10s %12s %12s  %s\n", "ID", "Scale", "Events",
+			"Value", "Average", "Name");
+	for (i = min; i < max; i++) {
+		struct profile_entry *e = &prof_data->e[i];
+		if (!search || strstr(prof_data->e[i].name, search))
+		    ast_cli(fd, "%6d: [%8ld] %10ld %12lld %12lld  %s\n",
+			i,
+			(long)e->scale,
+			(long)e->events, (long long)e->value,
+			(long long)(e->events ? e->value / e->events : e->value),
+			e->name);
+	}
+	return 0;
+}
+
 static char show_version_files_help[] = 
-"Usage: show version files [like <pattern>]\n"
-"       Shows the revision numbers of the files used to build this copy of Asterisk.\n"
+"Usage: file list version [like <pattern>]\n"
+"       Lists the revision numbers of the files used to build this copy of Asterisk.\n"
 "       Optional regular expression pattern is used to filter the file list.\n";
 
 /*! \brief CLI command to list module versions */
@@ -1471,38 +1517,83 @@ static int show_license(int fd, int argc, char *argv[])
 
 #define ASTERISK_PROMPT2 "%s*CLI> "
 
-static struct ast_cli_entry core_cli[] = {
-	{ { "abort", "halt", NULL }, handle_abort_halt,
-	  "Cancel a running halt", abort_halt_help },
-	{ { "stop", "now", NULL }, handle_shutdown_now,
-	  "Shut down Asterisk immediately", shutdown_now_help },
-	{ { "stop", "gracefully", NULL }, handle_shutdown_gracefully,
-	  "Gracefully shut down Asterisk", shutdown_gracefully_help },
-	{ { "stop", "when","convenient", NULL }, handle_shutdown_when_convenient,
-	  "Shut down Asterisk at empty call volume", shutdown_when_convenient_help },
-	{ { "restart", "now", NULL }, handle_restart_now,
-	  "Restart Asterisk immediately", restart_now_help },
-	{ { "restart", "gracefully", NULL }, handle_restart_gracefully,
-	  "Restart Asterisk gracefully", restart_gracefully_help },
-	{ { "restart", "when", "convenient", NULL }, handle_restart_when_convenient,
-	  "Restart Asterisk at empty call volume", restart_when_convenient_help },
-	{ { "show", "warranty", NULL }, show_warranty,
-	  "Show the warranty (if any) for this copy of Asterisk", show_warranty_help },
-	{ { "show", "license", NULL }, show_license,
-	  "Show the license(s) for this copy of Asterisk", show_license_help },
-	{ { "show", "version", NULL }, handle_version, 
-	  "Display version info", version_help },
-	{ { "!", NULL }, handle_bang,
-	  "Execute a shell command", bang_help },
 #if !defined(LOW_MEMORY)
-	{ { "show", "version", "files", NULL }, handle_show_version_files,
-	  "Show versions of files used to build Asterisk", show_version_files_help, complete_show_version_files },
-	{ { "show", "threads", NULL }, handle_show_threads,
-	  "Show running threads", show_threads_help, NULL },
-	{ { "show", "profile", NULL }, handle_show_profile,
-	  "Show profiling info"},
-	{ { "clear", "profile", NULL }, handle_show_profile,
-	  "Clear profiling info"},
+static struct ast_cli_entry cli_show_version_files_deprecated = {
+	{ "show", "version", "files", NULL },
+	handle_show_version_files, NULL,
+	NULL, complete_show_version_files };
+
+static struct ast_cli_entry cli_show_profile_deprecated = {
+	{ "show", "profile", NULL },
+	handle_show_profile_deprecated, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_clear_profile_deprecated = {
+	{ "clear", "profile", NULL },
+	handle_show_profile_deprecated, NULL,
+	NULL };
+#endif /* ! LOW_MEMORY */
+
+static struct ast_cli_entry cli_asterisk[] = {
+	{ { "abort", "halt", NULL },
+	handle_abort_halt, "Cancel a running halt",
+	abort_halt_help },
+
+	{ { "stop", "now", NULL },
+	handle_shutdown_now, "Shut down Asterisk immediately",
+	shutdown_now_help },
+
+	{ { "stop", "gracefully", NULL },
+	handle_shutdown_gracefully, "Gracefully shut down Asterisk",
+	shutdown_gracefully_help },
+
+	{ { "stop", "when", "convenient", NULL },
+	handle_shutdown_when_convenient, "Shut down Asterisk at empty call volume",
+	shutdown_when_convenient_help },
+
+	{ { "restart", "now", NULL },
+	handle_restart_now, "Restart Asterisk immediately", restart_now_help },
+
+	{ { "restart", "gracefully", NULL },
+	handle_restart_gracefully, "Restart Asterisk gracefully",
+	restart_gracefully_help },
+
+	{ { "restart", "when", "convenient", NULL },
+	handle_restart_when_convenient, "Restart Asterisk at empty call volume",
+	restart_when_convenient_help },
+
+	{ { "show", "warranty", NULL },
+	show_warranty, "Show the warranty (if any) for this copy of Asterisk",
+	show_warranty_help },
+
+	{ { "show", "license", NULL },
+	show_license, "Show the license(s) for this copy of Asterisk",
+	show_license_help },
+
+	{ { "show", "version", NULL },
+	handle_version, "Display version info",
+	version_help },
+
+	{ { "!", NULL },
+	handle_bang, "Execute a shell command",
+	bang_help },
+
+#if !defined(LOW_MEMORY)
+	{ { "file", "list", "version", NULL },
+	handle_show_version_files, "List versions of files used to build Asterisk",
+	show_version_files_help, complete_show_version_files, &cli_show_version_files_deprecated },
+
+	{ { "show", "threads", NULL },
+	handle_show_threads, "Show running threads",
+	show_threads_help },
+
+	{ { "profile", "list", NULL },
+	handle_show_profile, "Display profiling info",
+	NULL, NULL, &cli_show_profile_deprecated },
+
+	{ { "profile", "clear", NULL },
+	handle_show_profile, "Clear profiling info",
+	NULL, NULL, &cli_clear_profile_deprecated },
 #endif /* ! LOW_MEMORY */
 };
 
@@ -2047,9 +2138,9 @@ static void ast_remotecontrol(char * data)
 		pid = atoi(cpid);
 	else
 		pid = -1;
-	snprintf(tmp, sizeof(tmp), "set verbose atleast %d", option_verbose);
+	snprintf(tmp, sizeof(tmp), "core verbose %d", option_verbose);
 	fdprint(ast_consock, tmp);
-	snprintf(tmp, sizeof(tmp), "set debug atleast %d", option_debug);
+	snprintf(tmp, sizeof(tmp), "core debug %d", option_debug);
 	fdprint(ast_consock, tmp);
 	if (ast_opt_mute) {
 		snprintf(tmp, sizeof(tmp), "log and verbose output currently muted ('logger unmute' to unmute)");
@@ -2708,7 +2799,7 @@ int main(int argc, char *argv[])
 #endif	
 
 	time(&ast_startuptime);
-	ast_cli_register_multiple(core_cli, sizeof(core_cli) / sizeof(core_cli[0]));
+	ast_cli_register_multiple(cli_asterisk, sizeof(cli_asterisk) / sizeof(struct ast_cli_entry));
 
 	if (ast_opt_console) {
 		/* Console stuff now... */

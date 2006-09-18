@@ -4464,7 +4464,7 @@ static int unload_module(void)
 	
 	if (!g_config_initialized) return 0;
 	
-	ast_cli_unregister_multiple(chan_misdn_clis, sizeof(chan_misdn_clis) / sizeof(chan_misdn_clis[0]));
+	ast_cli_unregister_multiple(chan_misdn_clis, sizeof(chan_misdn_clis) / sizeof(struct ast_cli_entry));
 	
 	/* ast_unregister_application("misdn_crypt"); */
 	ast_unregister_application("misdn_set_opt");
@@ -4566,7 +4566,7 @@ static int load_module(void)
 		}
 	}
   
-	ast_cli_register_multiple(chan_misdn_clis, sizeof(chan_misdn_clis) / sizeof(chan_misdn_clis[0]));
+	ast_cli_register_multiple(chan_misdn_clis, sizeof(chan_misdn_clis) / sizeof(struct ast_cli_entry));
   
 	ast_register_application("misdn_set_opt", misdn_set_opt_exec, "misdn_set_opt",
 				 "misdn_set_opt(:<opt><optarg>:<opt><optarg>..):\n"

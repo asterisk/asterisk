@@ -1596,11 +1596,10 @@ static const char osp_usage[] =
 "Usage: osp show\n"
 "       Displays information on Open Settlement Protocol support\n";
 
-static struct ast_cli_entry osp_cli = {
-	{"osp", "show", NULL}, 
-	osp_show, 
-	"Displays OSP information", 
-	osp_usage 
+static struct ast_cli_entry cli_osp[] = {
+	{ { "osp", "show", NULL},
+	osp_show, "Displays OSP information",
+	osp_usage },
 };
 
 static int load_module(void)
@@ -1610,8 +1609,8 @@ static int load_module(void)
 	if(!osp_load())
 		return AST_MODULE_LOAD_DECLINE;
 
-	res = ast_cli_register(&osp_cli);
-	res |= ast_register_application(app1, ospauth_exec, synopsis1, descrip1);
+	ast_cli_register_multiple(cli_osp, sizeof(cli_osp) / sizeof(struct ast_cli_entry));
+	res = ast_register_application(app1, ospauth_exec, synopsis1, descrip1);
 	res |= ast_register_application(app2, osplookup_exec, synopsis2, descrip2);
 	res |= ast_register_application(app3, ospnext_exec, synopsis3, descrip3);
 	res |= ast_register_application(app4, ospfinished_exec, synopsis4, descrip4);
@@ -1627,7 +1626,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(app3);
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(app1);
-	res |= ast_cli_unregister(&osp_cli);
+	ast_cli_unregister_multiple(cli_osp, sizeof(cli_osp) / sizeof(struct ast_cli_entry));
 	osp_unload();
 
 	ast_module_user_hangup_all();

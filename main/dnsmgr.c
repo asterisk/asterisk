@@ -312,29 +312,23 @@ static int handle_cli_status(int fd, int argc, char *argv[])
 }
 
 static struct ast_cli_entry cli_reload = {
-	.cmda = { "dnsmgr", "reload", NULL },
-	.handler = handle_cli_reload,
-	.summary = "Reloads the DNS manager configuration",
-	.usage = 
+	{ "dnsmgr", "reload", NULL },
+	handle_cli_reload, "Reloads the DNS manager configuration",
 	"Usage: dnsmgr reload\n"
 	"       Reloads the DNS manager configuration.\n"
 };
 
 static struct ast_cli_entry cli_refresh = {
-	.cmda = { "dnsmgr", "refresh", NULL },
-	.handler = handle_cli_refresh,
-	.summary = "Performs an immediate refresh",
-	.usage = 
+	{ "dnsmgr", "refresh", NULL },
+	handle_cli_refresh, "Performs an immediate refresh",
 	"Usage: dnsmgr refresh [pattern]\n"
 	"       Peforms an immediate refresh of the managed DNS entries.\n"
 	"       Optional regular expression pattern is used to filter the entries to refresh.\n",
 };
 
 static struct ast_cli_entry cli_status = {
-	.cmda = { "dnsmgr", "status", NULL },
-	.handler = handle_cli_status,
-	.summary = "Display the DNS manager status",
-	.usage =
+	{ "dnsmgr", "status", NULL },
+	handle_cli_status, "Display the DNS manager status",
 	"Usage: dnsmgr status\n"
 	"       Displays the DNS manager status.\n"
 };

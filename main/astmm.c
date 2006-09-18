@@ -302,7 +302,7 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 	unsigned int count = 0;
 	unsigned int *fence;
 
-	if (argc > 3) 
+	if (argc > 3)
 		fn = argv[3];
 
 	ast_mutex_lock(&showmemorylock);
@@ -395,31 +395,40 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 }
 
 static char show_memory_help[] = 
-"Usage: show memory allocations [<file>]\n"
+"Usage: memory show allocations [<file>]\n"
 "       Dumps a list of all segments of allocated memory, optionally\n"
 "limited to those from a specific file\n";
 
 static char show_memory_summary_help[] = 
-"Usage: show memory summary [<file>]\n"
+"Usage: memory show summary [<file>]\n"
 "       Summarizes heap memory allocations by file, or optionally\n"
 "by function, if a file is specified\n";
 
-static struct ast_cli_entry show_memory_allocations_cli = 
-	{ { "show", "memory", "allocations", NULL }, 
-	handle_show_memory, "Display outstanding memory allocations",
-	show_memory_help };
+static struct ast_cli_entry cli_show_memory_allocations_deprecated = {
+	{ "show", "memory", "allocations", NULL },
+	handle_show_memory, NULL,
+	NULL };
 
-static struct ast_cli_entry show_memory_summary_cli = 
-	{ { "show", "memory", "summary", NULL }, 
+static struct ast_cli_entry cli_show_memory_summary_deprecated = {
+	{ "show", "memory", "summary", NULL },
+	handle_show_memory_summary, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_memory[] = {
+	{ { "memory", "show", "allocations", NULL },
+	handle_show_memory, "Display outstanding memory allocations",
+	show_memory_help, NULL, &cli_show_memory_allocations },
+
+	{ { "memory", "show", "summary", NULL },
 	handle_show_memory_summary, "Summarize outstanding memory allocations",
-	show_memory_summary_help };
+	show_memory_summary_help, NULL, &cli_show_memory_summary },
+};
 
 void __ast_mm_init(void)
 {
 	char filename[PATH_MAX];
 
-	ast_cli_register(&show_memory_allocations_cli);
-	ast_cli_register(&show_memory_summary_cli);
+	ast_cli_register_multiple(cli_memory, sizeof(cli_memory) / sizeof(struct ast_cli_entry));
 	
 	snprintf(filename, sizeof(filename), "%s/mmlog", (char *)ast_config_AST_LOG_DIR);
 	

@@ -69,10 +69,17 @@ struct ast_cli_entry {
 	  until a NULL is returned.
 	 */
 	char *(*generator)(const char *line, const char *word, int pos, int n);
+	struct ast_cli_entry *deprecate_cmd;
 	/*! For keeping track of usage */
 	int inuse;
 	struct module *module;	/*! module this belongs to */
 	char *_full_cmd;	/* built at load time from cmda[] */
+	/* This gets set in ast_cli_register()
+	  It then gets set to something different when the deprecated command
+	  is run for the first time (ie; after we warn the user that it's deprecated)
+	 */
+	int deprecated;
+	char *_deprecated_by;	/* copied from the "parent" _full_cmd, on deprecated commands */
 	/*! For linking */
 	AST_LIST_ENTRY(ast_cli_entry) list;
 };

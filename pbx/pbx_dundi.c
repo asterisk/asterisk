@@ -2677,50 +2677,67 @@ static char flush_usage[] =
 "'stats' is present, clears timer statistics instead of normal\n"
 "operation.\n";
 
-static struct ast_cli_entry  cli_debug =
-	{ { "dundi", "debug", NULL }, dundi_do_debug, "Enable DUNDi debugging", debug_usage };
+static struct ast_cli_entry cli_dundi[] = {
+	{ { "dundi", "debug", NULL },
+	dundi_do_debug, "Enable DUNDi debugging",
+	debug_usage },
 
-static struct ast_cli_entry  cli_store_history =
-	{ { "dundi", "store", "history", NULL }, dundi_do_store_history, "Enable DUNDi historic records", store_history_usage };
+	{ { "dundi", "store", "history", NULL },
+	dundi_do_store_history, "Enable DUNDi historic records",
+	store_history_usage },
 
-static struct ast_cli_entry  cli_no_store_history =
-	{ { "dundi", "no", "store", "history", NULL }, dundi_no_store_history, "Disable DUNDi historic records", no_store_history_usage };
+	{ { "dundi", "no", "store", "history", NULL },
+	dundi_no_store_history, "Disable DUNDi historic records",
+	no_store_history_usage },
 
-static struct ast_cli_entry  cli_flush =
-	{ { "dundi", "flush", NULL }, dundi_flush, "Flush DUNDi cache", flush_usage };
+	{ { "dundi", "flush", NULL },
+	dundi_flush, "Flush DUNDi cache",
+	flush_usage },
 
-static struct ast_cli_entry  cli_no_debug =
-	{ { "dundi", "no", "debug", NULL }, dundi_no_debug, "Disable DUNDi debugging", no_debug_usage };
+	{ { "dundi", "no", "debug", NULL },
+	dundi_no_debug, "Disable DUNDi debugging",
+	no_debug_usage },
 
-static struct ast_cli_entry  cli_show_peers =
-	{ { "dundi", "show", "peers", NULL }, dundi_show_peers, "Show defined DUNDi peers", show_peers_usage };
+	{ { "dundi", "show", "peers", NULL },
+	dundi_show_peers, "Show defined DUNDi peers",
+	show_peers_usage },
 
-static struct ast_cli_entry  cli_show_trans =
-	{ { "dundi", "show", "trans", NULL }, dundi_show_trans, "Show active DUNDi transactions", show_trans_usage };
+	{ { "dundi", "show", "trans", NULL },
+	dundi_show_trans, "Show active DUNDi transactions",
+	show_trans_usage },
 
-static struct ast_cli_entry  cli_show_entityid =
-	{ { "dundi", "show", "entityid", NULL }, dundi_show_entityid, "Display Global Entity ID", show_entityid_usage };
+	{ { "dundi", "show", "entityid", NULL },
+	dundi_show_entityid, "Display Global Entity ID",
+	show_entityid_usage },
 
-static struct ast_cli_entry  cli_show_mappings =
-	{ { "dundi", "show", "mappings", NULL }, dundi_show_mappings, "Show DUNDi mappings", show_mappings_usage };
+	{ { "dundi", "show", "mappings", NULL },
+	dundi_show_mappings, "Show DUNDi mappings",
+	show_mappings_usage },
 
-static struct ast_cli_entry  cli_show_precache =
-	{ { "dundi", "show", "precache", NULL }, dundi_show_precache, "Show DUNDi precache", show_precache_usage };
+	{ { "dundi", "show", "precache", NULL },
+	dundi_show_precache, "Show DUNDi precache",
+	show_precache_usage },
 
-static struct ast_cli_entry  cli_show_requests =
-	{ { "dundi", "show", "requests", NULL }, dundi_show_requests, "Show DUNDi requests", show_requests_usage };
+	{ { "dundi", "show", "requests", NULL },
+	dundi_show_requests, "Show DUNDi requests",
+	show_requests_usage },
 
-static struct ast_cli_entry  cli_show_peer =
-	{ { "dundi", "show", "peer", NULL }, dundi_show_peer, "Show info on a specific DUNDi peer", show_peer_usage, complete_peer_4 };
+	{ { "dundi", "show", "peer", NULL },
+	dundi_show_peer, "Show info on a specific DUNDi peer",
+	show_peer_usage, complete_peer_4 },
 
-static struct ast_cli_entry  cli_lookup =
-	{ { "dundi", "lookup", NULL }, dundi_do_lookup, "Lookup a number in DUNDi", lookup_usage };
+	{ { "dundi", "lookup", NULL },
+	dundi_do_lookup, "Lookup a number in DUNDi",
+	lookup_usage },
 
-static struct ast_cli_entry  cli_precache =
-	{ { "dundi", "precache", NULL }, dundi_do_precache, "Precache a number in DUNDi", precache_usage };
+	{ { "dundi", "precache", NULL },
+	dundi_do_precache, "Precache a number in DUNDi",
+	precache_usage },
 
-static struct ast_cli_entry  cli_queryeid =
-	{ { "dundi", "query", NULL }, dundi_do_query, "Query a DUNDi EID", query_usage };
+	{ { "dundi", "query", NULL },
+	dundi_do_query, "Query a DUNDi EID",
+	query_usage },
+};
 
 static struct dundi_transaction *create_transaction(struct dundi_peer *p)
 {
@@ -4438,21 +4455,7 @@ static int unload_module(void)
 {
 	ast_module_user_hangup_all();
 
-	ast_cli_unregister(&cli_debug);
-	ast_cli_unregister(&cli_store_history);
-	ast_cli_unregister(&cli_flush);
-	ast_cli_unregister(&cli_no_debug);
-	ast_cli_unregister(&cli_no_store_history);
-	ast_cli_unregister(&cli_show_peers);
-	ast_cli_unregister(&cli_show_entityid);
-	ast_cli_unregister(&cli_show_trans);
-	ast_cli_unregister(&cli_show_requests);
-	ast_cli_unregister(&cli_show_mappings);
-	ast_cli_unregister(&cli_show_precache);
-	ast_cli_unregister(&cli_show_peer);
-	ast_cli_unregister(&cli_lookup);
-	ast_cli_unregister(&cli_precache);
-	ast_cli_unregister(&cli_queryeid);
+	ast_cli_unregister_multiple(cli_dundi, sizeof(cli_dundi) / sizeof(struct ast_cli_entry));
 	ast_unregister_switch(&dundi_switch);
 	ast_custom_function_unregister(&dundi_function);
 	sched_context_destroy(sched);
@@ -4518,21 +4521,7 @@ static int load_module(void)
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "DUNDi Ready and Listening on %s port %d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 
-	ast_cli_register(&cli_debug);
-	ast_cli_register(&cli_store_history);
-	ast_cli_register(&cli_flush);
-	ast_cli_register(&cli_no_debug);
-	ast_cli_register(&cli_no_store_history);
-	ast_cli_register(&cli_show_peers);
-	ast_cli_register(&cli_show_entityid);
-	ast_cli_register(&cli_show_trans);
-	ast_cli_register(&cli_show_requests);
-	ast_cli_register(&cli_show_mappings);
-	ast_cli_register(&cli_show_precache);
-	ast_cli_register(&cli_show_peer);
-	ast_cli_register(&cli_lookup);
-	ast_cli_register(&cli_precache);
-	ast_cli_register(&cli_queryeid);
+	ast_cli_register_multiple(cli_dundi, sizeof(cli_dundi) / sizeof(struct ast_cli_entry));
 	if (ast_register_switch(&dundi_switch))
 		ast_log(LOG_ERROR, "Unable to register DUNDi switch\n");
 	ast_custom_function_register(&dundi_function); 

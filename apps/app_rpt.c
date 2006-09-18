@@ -726,29 +726,30 @@ static char restart_usage[] =
 "Usage: rpt restart\n"
 "       Restarts app_rpt\n";
 
-static struct ast_cli_entry  cli_debug =
-        { { "rpt", "debug", "level" }, rpt_do_debug, 
-		"Enable app_rpt debugging", debug_usage };
+static struct ast_cli_entry cli_rpt[] = {
+	{ { "rpt", "debug", "level" },
+	rpt_do_debug, "Enable app_rpt debugging",
+	debug_usage },
 
-static struct ast_cli_entry  cli_dump =
-        { { "rpt", "dump" }, rpt_do_dump,
-		"Dump app_rpt structs for debugging", dump_usage };
+        { { "rpt", "dump" },
+	rpt_do_dump, "Dump app_rpt structs for debugging",
+	dump_usage },
 
-static struct ast_cli_entry  cli_stats =
-        { { "rpt", "stats" }, rpt_do_stats,
-		"Dump node statistics", dump_stats };
+        { { "rpt", "stats" },
+	rpt_do_stats, "Dump node statistics",
+	dump_stats },
+        { { "rpt", "lstats" },
+	rpt_do_lstats, "Dump link statistics",
+	dump_lstats },
 
-static struct ast_cli_entry  cli_lstats =
-        { { "rpt", "lstats" }, rpt_do_lstats,
-		"Dump link statistics", dump_lstats };
+        { { "rpt", "reload" },
+	rpt_do_reload, "Reload app_rpt config",
+	reload_usage },
 
-static struct ast_cli_entry  cli_reload =
-        { { "rpt", "reload" }, rpt_do_reload,
-		"Reload app_rpt config", reload_usage };
-
-static struct ast_cli_entry  cli_restart =
-        { { "rpt", "restart" }, rpt_do_restart,
-		"Restart app_rpt", restart_usage };
+        { { "rpt", "restart" },
+	rpt_do_restart, "Restart app_rpt",
+	restart_usage },
+};
 
 /*
 * Telemetry defaults
@@ -8018,12 +8019,7 @@ static int unload_module(void)
 	i = ast_unregister_application(app);
 
 	/* Unregister cli extensions */
-	ast_cli_unregister(&cli_debug);
-	ast_cli_unregister(&cli_dump);
-	ast_cli_unregister(&cli_stats);
-	ast_cli_unregister(&cli_lstats);
-	ast_cli_unregister(&cli_reload);
-	ast_cli_unregister(&cli_restart);
+	ast_cli_unregister_multiple(cli_rpt, sizeof(cli_rpt) / sizeof(struct ast_cli_entry));
 
 	return i;
 }
@@ -8038,12 +8034,7 @@ static int load_module(void)
 	ast_pthread_create(&rpt_master_thread,NULL,rpt_master,cfg);
 
 	/* Register cli extensions */
-	ast_cli_register(&cli_debug);
-	ast_cli_register(&cli_dump);
-	ast_cli_register(&cli_stats);
-	ast_cli_register(&cli_lstats);
-	ast_cli_register(&cli_reload);
-	ast_cli_register(&cli_restart);
+	ast_cli_register_multiple(cli_rpt, sizeof(cli_rpt) / sizeof(struct ast_cli_entry));
 
 	return ast_register_application(app, rpt_exec, synopsis, descrip);
 }

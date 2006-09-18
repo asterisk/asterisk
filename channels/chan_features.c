@@ -530,12 +530,19 @@ static int features_show(int fd, int argc, char **argv)
 }
 
 static char show_features_usage[] = 
-"Usage: feature show channels\n"
+"Usage: feature list channels\n"
 "       Provides summary information on feature channels.\n";
 
-static struct ast_cli_entry cli_show_features = {
-	{ "feature", "show", "channels", NULL }, features_show, 
-	"Show status of feature channels", show_features_usage, NULL };
+static struct ast_cli_entry cli_features_show_channels_deprecated = {
+	{ "feature", "show", "channels", NULL },
+	features_show, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_features[] = {
+	{ { "feature", "list", "channels", NULL },
+	features_show, "List status of feature channels",
+	show_features_usage, NULL, &cli_features_show_channels_deprecated },
+};
 
 static int load_module(void)
 {
@@ -544,7 +551,7 @@ static int load_module(void)
 		ast_log(LOG_ERROR, "Unable to register channel class 'Feature'\n");
 		return -1;
 	}
-	ast_cli_register(&cli_show_features);
+	ast_cli_register_multiple(cli_features, sizeof(cli_features) / sizeof(struct ast_cli_entry));
 	return 0;
 }
 
@@ -553,7 +560,7 @@ static int unload_module(void)
 	struct feature_pvt *p;
 	
 	/* First, take us out of the channel loop */
-	ast_cli_unregister(&cli_show_features);
+	ast_cli_unregister_multiple(cli_features, sizeof(cli_features) / sizeof(struct ast_cli_entry));
 	ast_channel_unregister(&features_tech);
 	
 	if (!AST_LIST_LOCK(&features))

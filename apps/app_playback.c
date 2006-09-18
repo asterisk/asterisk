@@ -371,8 +371,10 @@ static int __say_init(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static struct ast_cli_entry myclis[] = {
-        { { "say", "load", NULL }, __say_init, "set/show the say mode", "say load new|old" },
+static struct ast_cli_entry cli_playback[] = {
+        { { "say", "load", NULL },
+	__say_init, "set/show the say mode",
+	"say load new|old" },
 };
 
 static int playback_exec(struct ast_channel *chan, void *data)
@@ -478,7 +480,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	reload();
-        ast_cli_register_multiple(myclis, sizeof(myclis)/sizeof(struct ast_cli_entry));
+        ast_cli_register_multiple(cli_playback, sizeof(cli_playback) / sizeof(struct ast_cli_entry));
 	return ast_register_application(app, playback_exec, synopsis, descrip);
 }
 

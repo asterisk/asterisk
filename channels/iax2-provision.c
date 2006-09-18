@@ -400,7 +400,7 @@ static int iax_process_template(struct ast_config *cfg, char *s, char *def)
 }
 
 static char show_provisioning_usage[] = 
-"Usage: iax show provisioning [template]\n"
+"Usage: iax list provisioning [template]\n"
 "       Lists all known IAX provisioning templates or a\n"
 "       specific one if specified.\n";
 
@@ -466,12 +466,20 @@ static int iax_show_provisioning(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static struct ast_cli_entry  cli_show_provisioning = 
-	{ { "iax2", "show", "provisioning", NULL }, iax_show_provisioning, "Show iax provisioning", show_provisioning_usage, iax_prov_complete_template };
+static struct ast_cli_entry cli_iax2_show_provisioning = {
+	{ "iax2", "show", "provisioning", NULL },
+	iax_show_provisioning, NULL,
+	NULL, iax_prov_complete_template };
+
+static struct ast_cli_entry cli_iax2_provision[] = {
+	{ { "iax2", "show", "provisioning", NULL },
+	iax_show_provisioning, "Display iax provisioning",
+	show_provisioning_usage, iax_prov_complete_template, &cli_iax2_show_provisioning },
+};
 
 static int iax_provision_init(void)
 {
-	ast_cli_register(&cli_show_provisioning);
+	ast_cli_register_multiple(cli_iax2_provision, sizeof(cli_iax2_provision) / sizeof(struct ast_cli_entry));
 	provinit = 1;
 	return 0;
 }
@@ -479,7 +487,7 @@ static int iax_provision_init(void)
 int iax_provision_unload(void)
 {
 	provinit = 0;
-	ast_cli_unregister(&cli_show_provisioning);
+	ast_cli_unregister_multiple(cli_iax2_provision, sizeof(cli_iax2_provision) / sizeof(struct ast_cli_entry));
 	return 0;
 }
 

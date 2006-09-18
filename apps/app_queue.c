@@ -3941,7 +3941,7 @@ static int __queues_show(struct mansession *s, int manager, int fd, int argc, ch
 	return RESULT_SUCCESS;
 }
 
-static int queues_show(int fd, int argc, char **argv)
+static int queue_list(int fd, int argc, char **argv)
 {
 	return __queues_show(NULL, 0, fd, argc, argv, 0);
 }
@@ -3975,7 +3975,7 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
  */
 static int manager_queues_show( struct mansession *s, struct message *m )
 {
-	char *a[] = { "show", "queues" };
+	char *a[] = { "queue", "list" };
 
 	__queues_show(s, 1, -1, 2, a, 0);
 	astman_append(s, "\r\n\r\n");	/* Properly terminate Manager output */
@@ -4175,7 +4175,7 @@ static int manager_pause_queue_member(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static int handle_add_queue_member(int fd, int argc, char *argv[])
+static int handle_queue_add_member(int fd, int argc, char *argv[])
 {
 	char *queuename, *interface;
 	int penalty;
@@ -4222,9 +4222,9 @@ static int handle_add_queue_member(int fd, int argc, char *argv[])
 	}
 }
 
-static char *complete_add_queue_member(const char *line, const char *word, int pos, int state)
+static char *complete_queue_add_member(const char *line, const char *word, int pos, int state)
 {
-	/* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - to; 5 - <queue>; 6 - penalty; 7 - <penalty> */
+	/* 0 - queue; 1 - add; 2 - member; 3 - <member>; 4 - to; 5 - <queue>; 6 - penalty; 7 - <penalty> */
 	switch (pos) {
 	case 3:	/* Don't attempt to complete name of member (infinite possibilities) */
 		return NULL;
@@ -4249,7 +4249,7 @@ static char *complete_add_queue_member(const char *line, const char *word, int p
 	}
 }
 
-static int handle_remove_queue_member(int fd, int argc, char *argv[])
+static int handle_queue_remove_member(int fd, int argc, char *argv[])
 {
 	char *queuename, *interface;
 
@@ -4280,13 +4280,13 @@ static int handle_remove_queue_member(int fd, int argc, char *argv[])
 	}
 }
 
-static char *complete_remove_queue_member(const char *line, const char *word, int pos, int state)
+static char *complete_queue_remove_member(const char *line, const char *word, int pos, int state)
 {
 	int which = 0;
 	struct call_queue *q;
 	struct member *m;
 
-	/* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - from; 5 - <queue> */
+	/* 0 - queue; 1 - remove; 2 - member; 3 - <member>; 4 - from; 5 - <queue> */
 	if (pos > 5 || pos < 3)
 		return NULL;
 	if (pos == 4)	/* only one possible match, 'from' */
@@ -4312,44 +4312,64 @@ static char *complete_remove_queue_member(const char *line, const char *word, in
 	return NULL;
 }
 
-static char show_queues_usage[] =
-"Usage: show queues\n"
+static char queue_list_usage[] =
+"Usage: queue list\n"
 "       Provides summary information on call queues.\n";
 
-static struct ast_cli_entry cli_show_queues = {
-	{ "show", "queues", NULL }, queues_show,
-	"Show status of queues", show_queues_usage, NULL };
-
-static char show_queue_usage[] =
-"Usage: show queue\n"
+static char queue_show_usage[] =
+"Usage: queue show\n"
 "       Provides summary information on a specified queue.\n";
 
-static struct ast_cli_entry cli_show_queue = {
-	{ "show", "queue", NULL }, queue_show,
-	"Show status of a specified queue", show_queue_usage, complete_queue };
+static char qam_cmd_usage[] =
+"Usage: queue add member <channel> to <queue> [penalty <penalty>]\n";
 
-static char aqm_cmd_usage[] =
-"Usage: add queue member <channel> to <queue> [penalty <penalty>]\n";
+static char qrm_cmd_usage[] =
+"Usage: queue remove member <channel> from <queue>\n";
 
-static struct ast_cli_entry cli_add_queue_member = {
-	{ "add", "queue", "member", NULL }, handle_add_queue_member,
-	"Add a channel to a specified queue", aqm_cmd_usage, complete_add_queue_member };
+static struct ast_cli_entry cli_show_queues_deprecated = {
+	{ "show", "queues", NULL },
+	queue_list, NULL,
+	NULL, NULL };
 
-static char rqm_cmd_usage[] =
-"Usage: remove queue member <channel> from <queue>\n";
+static struct ast_cli_entry cli_show_queue_deprecated = {
+	{ "show", "queue", NULL },
+	queue_show, NULL,
+	NULL, complete_queue };
 
-static struct ast_cli_entry cli_remove_queue_member = {
-	{ "remove", "queue", "member", NULL }, handle_remove_queue_member,
-	"Removes a channel from a specified queue", rqm_cmd_usage, complete_remove_queue_member };
+static struct ast_cli_entry cli_add_queue_member_deprecated = {
+	{ "add", "queue", "member", NULL },
+	handle_queue_add_member, NULL,
+	NULL, complete_queue_add_member };
+
+static struct ast_cli_entry cli_remove_queue_member_deprecated = {
+	{ "remove", "queue", "member", NULL },
+	handle_queue_remove_member, NULL,
+	NULL, complete_queue_remove_member };
+
+static struct ast_cli_entry cli_queue[] = {
+	{ { "queue", "list", NULL },
+	queue_list, "Show status of queues",
+	queue_list_usage, NULL, &cli_show_queues_deprecated },
+
+	{ { "queue", "show", NULL },
+	queue_show, "Show status of a specified queue",
+	queue_show_usage, complete_queue, &cli_show_queue_deprecated },
+
+	{ { "queue", "add", "member", NULL },
+	handle_queue_add_member, "Add a channel to a specified queue",
+	qam_cmd_usage, complete_queue_add_member, &cli_add_queue_member_deprecated },
+
+	{ { "queue", "remove", "member", NULL },
+	handle_queue_remove_member, "Removes a channel from a specified queue",
+	qrm_cmd_usage, complete_queue_remove_member, &cli_remove_queue_member_deprecated },
+};
 
 static int unload_module(void)
 {
 	int res;
 
-	res = ast_cli_unregister(&cli_show_queue);
-	res |= ast_cli_unregister(&cli_show_queues);
-	res |= ast_cli_unregister(&cli_add_queue_member);
-	res |= ast_cli_unregister(&cli_remove_queue_member);
+	ast_cli_unregister_multiple(cli_queue, sizeof(cli_queue) / sizeof(struct ast_cli_entry));
+	res = ast_manager_unregister("QueueStatus");
 	res |= ast_manager_unregister("Queues");
 	res |= ast_manager_unregister("QueueStatus");
 	res |= ast_manager_unregister("QueueAdd");
@@ -4360,11 +4380,11 @@ static int unload_module(void)
 	res |= ast_unregister_application(app_pqm);
 	res |= ast_unregister_application(app_upqm);
 	res |= ast_unregister_application(app_ql);
+	res |= ast_unregister_application(app);
 	res |= ast_custom_function_unregister(&queueagentcount_function);
 	res |= ast_custom_function_unregister(&queuemembercount_function);
 	res |= ast_custom_function_unregister(&queuememberlist_function);
 	res |= ast_custom_function_unregister(&queuewaitingcount_function);
-	res |= ast_unregister_application(app);
 
 	ast_module_user_hangup_all();
 
@@ -4380,21 +4400,18 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	if (queue_persistent_members)
 		reload_queue_members();
+	ast_cli_register_multiple(cli_queue, sizeof(cli_queue) / sizeof(struct ast_cli_entry));
 	res = ast_register_application(app, queue_exec, synopsis, descrip);
-	res |= ast_cli_register(&cli_show_queue);
-	res |= ast_cli_register(&cli_show_queues);
-	res |= ast_cli_register(&cli_add_queue_member);
-	res |= ast_cli_register(&cli_remove_queue_member);
-	res |= ast_manager_register("Queues", 0, manager_queues_show, "Queues");
-	res |= ast_manager_register("QueueStatus", 0, manager_queues_status, "Queue Status");
-	res |= ast_manager_register("QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member, "Add interface to queue.");
-	res |= ast_manager_register("QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member, "Remove interface from queue.");
-	res |= ast_manager_register("QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member, "Makes a queue member temporarily unavailable");
 	res |= ast_register_application(app_aqm, aqm_exec, app_aqm_synopsis, app_aqm_descrip);
 	res |= ast_register_application(app_rqm, rqm_exec, app_rqm_synopsis, app_rqm_descrip);
 	res |= ast_register_application(app_pqm, pqm_exec, app_pqm_synopsis, app_pqm_descrip);
 	res |= ast_register_application(app_upqm, upqm_exec, app_upqm_synopsis, app_upqm_descrip);
 	res |= ast_register_application(app_ql, ql_exec, app_ql_synopsis, app_ql_descrip);
+	res |= ast_manager_register("Queues", 0, manager_queues_show, "Queues");
+	res |= ast_manager_register("QueueStatus", 0, manager_queues_status, "Queue Status");
+	res |= ast_manager_register("QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member, "Add interface to queue.");
+	res |= ast_manager_register("QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member, "Remove interface from queue.");
+	res |= ast_manager_register("QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member, "Makes a queue member temporarily unavailable");
 	res |= ast_custom_function_register(&queueagentcount_function);
 	res |= ast_custom_function_register(&queuemembercount_function);
 	res |= ast_custom_function_register(&queuememberlist_function);

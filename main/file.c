@@ -1148,17 +1148,23 @@ static int show_file_formats(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
-struct ast_cli_entry show_file =
-{
+char show_file_formats_usage[] = 
+"Usage: core list file formats\n"
+"       Displays currently registered file formats (if any)\n";
+
+struct ast_cli_entry cli_show_file_formats_deprecated = {
 	{ "show", "file", "formats" },
-	show_file_formats,
-	"Displays file formats",
-	"Usage: show file formats\n"
-	"       displays currently registered file formats (if any)\n"
+	show_file_formats, NULL,
+	NULL };
+
+struct ast_cli_entry cli_file[] = {
+	{ { "file", "list", "formats" },
+	show_file_formats, "Displays file formats",
+	show_file_formats_usage, NULL, &cli_show_file_formats_deprecated },
 };
 
 int ast_file_init(void)
 {
-	ast_cli_register(&show_file);
+	ast_cli_register_multiple(cli_file, sizeof(cli_file) / sizeof(struct ast_cli_entry));
 	return 0;
 }

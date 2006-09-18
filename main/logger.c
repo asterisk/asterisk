@@ -554,23 +554,27 @@ static char logger_rotate_help[] =
 "       Rotates and Reopens the log files.\n";
 
 static char logger_show_channels_help[] =
-"Usage: logger show channels\n"
-"       Show configured logger channels.\n";
+"Usage: logger list channels\n"
+"       List configured logger channels.\n";
 
-static struct ast_cli_entry logger_show_channels_cli = 
-	{ { "logger", "show", "channels", NULL }, 
+static struct ast_cli_entry cli_logger_show_channels_deprecated = {
+	{ "logger", "show", "channels", NULL }, 
+	handle_logger_show_channels, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_logger[] = {
+	{ { "logger", "list", "channels", NULL }, 
 	handle_logger_show_channels, "List configured log channels",
-	logger_show_channels_help };
+	logger_show_channels_help, NULL, &cli_logger_show_channels_deprecated },
 
-static struct ast_cli_entry reload_logger_cli = 
 	{ { "logger", "reload", NULL }, 
 	handle_logger_reload, "Reopens the log files",
-	logger_reload_help };
+	logger_reload_help },
 
-static struct ast_cli_entry rotate_logger_cli = 
 	{ { "logger", "rotate", NULL }, 
 	handle_logger_rotate, "Rotates and reopens the log files",
-	logger_rotate_help };
+	logger_rotate_help },
+};
 
 static int handle_SIGXFSZ(int sig) 
 {
@@ -587,10 +591,8 @@ int init_logger(void)
 	/* auto rotate if sig SIGXFSZ comes a-knockin */
 	(void) signal(SIGXFSZ,(void *) handle_SIGXFSZ);
 
-	/* register the relaod logger cli command */
-	ast_cli_register(&reload_logger_cli);
-	ast_cli_register(&rotate_logger_cli);
-	ast_cli_register(&logger_show_channels_cli);
+	/* register the logger cli commands */
+	ast_cli_register_multiple(cli_logger, sizeof(cli_logger) / sizeof(struct ast_cli_entry));
 
 	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
   

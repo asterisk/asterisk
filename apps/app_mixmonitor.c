@@ -421,22 +421,21 @@ static char *complete_mixmonitor_cli(const char *line, const char *word, int pos
 	return ast_complete_channels(line, word, pos, state, 2);
 }
 
-static struct ast_cli_entry cli_mixmonitor = {
-	{ "mixmonitor", NULL, NULL },
-	mixmonitor_cli, 
-	"Execute a MixMonitor command.",
+static struct ast_cli_entry cli_mixmonitor[] = {
+	{ { "mixmonitor", NULL, NULL },
+	mixmonitor_cli, "Execute a MixMonitor command.",
 	"mixmonitor <start|stop> <chan_name> [args]\n\n"
 	"The optional arguments are passed to the\n"
 	"MixMonitor application when the 'start' command is used.\n",
-	complete_mixmonitor_cli
+	complete_mixmonitor_cli },
 };
 
 static int unload_module(void)
 {
 	int res;
 
-	res = ast_cli_unregister(&cli_mixmonitor);
-	res |= ast_unregister_application(stop_app);
+	ast_cli_unregister_multiple(cli_mixmonitor, sizeof(cli_mixmonitor) / sizeof(struct ast_cli_entry));
+	res = ast_unregister_application(stop_app);
 	res |= ast_unregister_application(app);
 	
 	ast_module_user_hangup_all();
@@ -448,8 +447,8 @@ static int load_module(void)
 {
 	int res;
 
-	res = ast_cli_register(&cli_mixmonitor);
-	res |= ast_register_application(app, mixmonitor_exec, synopsis, desc);
+	ast_cli_register_multiple(cli_mixmonitor, sizeof(cli_mixmonitor) / sizeof(struct ast_cli_entry));
+	res = ast_register_application(app, mixmonitor_exec, synopsis, desc);
 	res |= ast_register_application(stop_app, stop_mixmonitor_exec, stop_synopsis, stop_desc);
 
 	return res;

@@ -309,41 +309,48 @@ static int odbc_show_command(int fd, int argc, char **argv)
 	struct odbc_class *class;
 	struct odbc_obj *current;
 
-	if (!strcmp(argv[1], "show")) {
-		AST_LIST_LOCK(&odbc_list);
-		AST_LIST_TRAVERSE(&odbc_list, class, list) {
-			if ((argc == 2) || (argc == 3 && !strcmp(argv[2], "all")) || (!strcmp(argv[2], class->name))) {
-				int count = 0;
-				ast_cli(fd, "Name: %s\nDSN: %s\n", class->name, class->dsn);
+	AST_LIST_LOCK(&odbc_list);
+	AST_LIST_TRAVERSE(&odbc_list, class, list) {
+		if ((argc == 2) || (argc == 3 && !strcmp(argv[2], "all")) || (!strcmp(argv[2], class->name))) {
+			int count = 0;
+			ast_cli(fd, "Name: %s\nDSN: %s\n", class->name, class->dsn);
 
-				if (class->haspool) {
-					ast_cli(fd, "Pooled: yes\nLimit: %d\nConnections in use: %d\n", class->limit, class->count);
+			if (class->haspool) {
+				ast_cli(fd, "Pooled: yes\nLimit: %d\nConnections in use: %d\n", class->limit, class->count);
 
-					AST_LIST_TRAVERSE(&(class->odbc_obj), current, list) {
-						ast_cli(fd, "  Connection %d: %s", ++count, current->up && odbc_sanity_check(current) ? "connected" : "disconnected");
-					}
-				} else {
-					/* Should only ever be one of these */
-					AST_LIST_TRAVERSE(&(class->odbc_obj), current, list) {
-						ast_cli(fd, "Pooled: no\nConnected: %s\n", current->up && odbc_sanity_check(current) ? "yes" : "no");
-					}
+				AST_LIST_TRAVERSE(&(class->odbc_obj), current, list) {
+					ast_cli(fd, "  Connection %d: %s", ++count, current->up && odbc_sanity_check(current) ? "connected" : "disconnected");
 				}
+			} else {
+				/* Should only ever be one of these */
+				AST_LIST_TRAVERSE(&(class->odbc_obj), current, list) {
+					ast_cli(fd, "Pooled: no\nConnected: %s\n", current->up && odbc_sanity_check(current) ? "yes" : "no");
+				}
+			}
 
 				ast_cli(fd, "\n");
-			}
 		}
-		AST_LIST_UNLOCK(&odbc_list);
 	}
+	AST_LIST_UNLOCK(&odbc_list);
+
 	return 0;
 }
 
 static char show_usage[] =
-"Usage: odbc show [<class>]\n"
+"Usage: odbc list [<class>]\n"
 "       List settings of a particular ODBC class.\n"
 "       or, if not specified, all classes.\n";
 
-static struct ast_cli_entry odbc_show_struct =
-        { { "odbc", "show", NULL }, odbc_show_command, "Show ODBC DSN(s)", show_usage };
+static struct ast_cli_entry cli_odbc_show_deprecated = {
+	{ "odbc", "show", NULL },
+	odbc_show_command, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_odbc[] = {
+	{ { "odbc", "list", NULL },
+	odbc_show_command, "List ODBC DSN(s)",
+	show_usage, NULL, &cli_odbc_show_deprecated },
+};
 
 static int odbc_register_class(struct odbc_class *class, int connect)
 {
@@ -668,7 +675,7 @@ static int load_module(void)
 {
 	if(load_odbc_config() == -1)
 		return AST_MODULE_LOAD_DECLINE;
-	ast_cli_register(&odbc_show_struct);
+	ast_cli_register_multiple(cli_odbc, sizeof(cli_odbc) / sizeof(struct ast_cli_entry));
 	ast_log(LOG_NOTICE, "res_odbc loaded.\n");
 	return 0;
 }

@@ -69,7 +69,7 @@ static char *udesc = "Use the RealTime config handler system to update a value\n
 "updated or -1 if an error occurs.\n";
 
 
-static int cli_load_realtime(int fd, int argc, char **argv) 
+static int cli_realtime_load(int fd, int argc, char **argv) 
 {
 	char *header_format = "%30s  %-30s\n";
 	struct ast_variable *var=NULL;
@@ -94,7 +94,7 @@ static int cli_load_realtime(int fd, int argc, char **argv)
 	return RESULT_SUCCESS;
 }
 
-static int cli_update_realtime(int fd, int argc, char **argv) {
+static int cli_realtime_update(int fd, int argc, char **argv) {
 	int res = 0;
 
 	if(argc<7) {
@@ -115,21 +115,23 @@ static int cli_update_realtime(int fd, int argc, char **argv) {
 	return RESULT_SUCCESS;
 }
 
-static char cli_load_realtime_usage[] =
+static char cli_realtime_load_usage[] =
 "Usage: realtime load <family> <colmatch> <value>\n"
 "       Prints out a list of variables using the RealTime driver.\n";
 
-static struct ast_cli_entry cli_load_realtime_cmd = {
-        { "realtime", "load", NULL, NULL }, cli_load_realtime,
-        "Used to print out RealTime variables.", cli_load_realtime_usage, NULL };
-
-static char cli_update_realtime_usage[] =
+static char cli_realtime_update_usage[] =
 "Usage: realtime update <family> <colmatch> <value>\n"
 "       Update a single variable using the RealTime driver.\n";
 
-static struct ast_cli_entry cli_update_realtime_cmd = {
-        { "realtime", "update", NULL, NULL }, cli_update_realtime,
-        "Used to update RealTime variables.", cli_update_realtime_usage, NULL };
+static struct ast_cli_entry cli_realtime[] = {
+	{ { "realtime", "load", NULL, NULL },
+	cli_realtime_load, "Used to print out RealTime variables.",
+	cli_realtime_load_usage, NULL },
+
+	{ { "realtime", "update", NULL, NULL },
+	cli_realtime_update, "Used to update RealTime variables.",
+	cli_realtime_update_usage, NULL },
+};
 
 static int realtime_update_exec(struct ast_channel *chan, void *data) 
 {
@@ -236,9 +238,8 @@ static int unload_module(void)
 {
 	int res;
 
-	res = ast_cli_unregister(&cli_load_realtime_cmd);
-	res |= ast_cli_unregister(&cli_update_realtime_cmd);
-	res |= ast_unregister_application(uapp);
+	ast_cli_unregister_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
+	res = ast_unregister_application(uapp);
 	res |= ast_unregister_application(app);
 
 	ast_module_user_hangup_all();
@@ -250,9 +251,8 @@ static int load_module(void)
 {
 	int res;
 
-	res = ast_cli_register(&cli_load_realtime_cmd);
-	res |= ast_cli_register(&cli_update_realtime_cmd);
-	res |= ast_register_application(uapp, realtime_update_exec, usynopsis, udesc);
+	ast_cli_register_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
+	res = ast_register_application(uapp, realtime_update_exec, usynopsis, udesc);
 	res |= ast_register_application(app, realtime_exec, synopsis, desc);
 
 	return res;

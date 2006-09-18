@@ -122,24 +122,33 @@ fail_out:
 }
 
 static char usage_audio_convert[] =
-"Usage: convert <file_in> <file_out>\n"
+"Usage: file convert <file_in> <file_out>\n"
 "    Convert from file_in to file_out. If an absolute path is not given, the\n"
 "default Asterisk sounds directory will be used.\n\n"
 "Example:\n"
-"    convert tt-weasels.gsm tt-weasels.ulaw\n";
+"    file convert tt-weasels.gsm tt-weasels.ulaw\n";
 
-static struct ast_cli_entry audio_convert_cli={
-	{ "convert" , NULL }, cli_audio_convert, "Convert audio files", usage_audio_convert
+static struct ast_cli_entry cli_convert_deprecated = {
+	{ "convert" , NULL },
+	cli_audio_convert, NULL,
+	NULL };
+
+static struct ast_cli_entry cli_convert[] = {
+	{ { "file", "convert" , NULL },
+	cli_audio_convert, "Convert audio file",
+	usage_audio_convert, NULL, &cli_convert_deprecated },
 };
 
 static int unload_module(void)
 {
-	return ast_cli_unregister(&audio_convert_cli);
+	ast_cli_unregister_multiple(cli_convert, sizeof(cli_convert) / sizeof(struct ast_cli_entry));
+	return 0;
 }
 
 static int load_module(void)
 {
-	return ast_cli_register(&audio_convert_cli);
+	ast_cli_register_multiple(cli_convert, sizeof(cli_convert) / sizeof(struct ast_cli_entry));
+	return 0;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "File format conversion CLI command");

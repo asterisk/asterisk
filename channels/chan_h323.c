@@ -1821,22 +1821,43 @@ static char h323_reload_usage[] =
 "Usage: h323 reload\n"
 "       Reloads H.323 configuration from sip.conf\n";
 
-static struct ast_cli_entry  cli_trace =
-	{ { "h.323", "trace", NULL }, h323_do_trace, "Enable H.323 Stack Tracing", trace_usage };
-static struct ast_cli_entry  cli_no_trace =
-	{ { "h.323", "no", "trace", NULL }, h323_no_trace, "Disable H.323 Stack Tracing", no_trace_usage };
-static struct ast_cli_entry  cli_debug =
-	{ { "h.323", "debug", NULL }, h323_do_debug, "Enable H.323 debug", debug_usage };
-static struct ast_cli_entry  cli_no_debug =
-	{ { "h.323", "no", "debug", NULL }, h323_no_debug, "Disable H.323 debug", no_debug_usage };
-static struct ast_cli_entry  cli_show_codecs =
-	{ { "h.323", "show", "codecs", NULL }, h323_show_codec, "Show enabled codecs", show_codec_usage };
-static struct ast_cli_entry  cli_gk_cycle =
-	{ { "h.323", "gk", "cycle", NULL }, h323_gk_cycle, "Manually re-register with the Gatekeper", show_cycle_usage };
-static struct ast_cli_entry  cli_hangup_call =
-	{ { "h.323", "hangup", NULL }, h323_ep_hangup, "Manually try to hang up a call", show_hangup_usage };
-static struct ast_cli_entry  cli_show_tokens =
-	{ { "h.323", "show", "tokens", NULL }, h323_tokens_show, "Show all active call tokens", show_tokens_usage };
+static struct ast_cli_entry  cli_h323[] = {
+	{ { "h.323", "trace", NULL },
+	h323_do_trace, "Enable H.323 Stack Tracing",
+	trace_usage },
+
+	{ { "h.323", "no", "trace", NULL },
+	h323_no_trace, "Disable H.323 Stack Tracing",
+	no_trace_usage },
+
+	{ { "h.323", "debug", NULL },
+	h323_do_debug, "Enable H.323 debug",
+	debug_usage },
+
+	{ { "h.323", "no", "debug", NULL },
+	h323_no_debug, "Disable H.323 debug",
+	no_debug_usage },
+
+	{ { "h.323", "show", "codecs", NULL },
+	h323_show_codec, "Show enabled codecs",
+	show_codec_usage },
+
+	{ { "h.323", "gk", "cycle", NULL },
+	h323_gk_cycle, "Manually re-register with the Gatekeper",
+	show_cycle_usage },
+
+	{ { "h.323", "hangup", NULL },
+	h323_ep_hangup, "Manually try to hang up a call",
+	show_hangup_usage },
+
+	{ { "h.323", "show", "tokens", NULL },
+	h323_tokens_show, "Show all active call tokens",
+	show_tokens_usage },
+
+	{ { "h.323", "reload", NULL },
+	h323_reload, "Reload H.323 configuration",
+	h323_reload_usage },
+};
 
 static int update_common_options(struct ast_variable *v, struct call_options *options)
 {
@@ -2298,9 +2319,6 @@ static int reload(void *mod)
 	return h323_reload(0, 0, NULL);
 }
 
-static struct ast_cli_entry  cli_h323_reload =
-	{ { "h.323", "reload", NULL }, h323_reload, "Reload H.323 configuration", h323_reload_usage };
-
 static struct ast_rtp *oh323_get_rtp_peer(struct ast_channel *chan)
 {
 	struct oh323_pvt *pvt;
@@ -2397,15 +2415,7 @@ static int load_module(void *mod)
 			h323_end_process();
 			return -1;
 		}
-		ast_cli_register(&cli_debug);
-		ast_cli_register(&cli_no_debug);
-		ast_cli_register(&cli_trace);
-		ast_cli_register(&cli_no_trace);
-		ast_cli_register(&cli_show_codecs);
-		ast_cli_register(&cli_gk_cycle);
-		ast_cli_register(&cli_hangup_call);
-		ast_cli_register(&cli_show_tokens);
-		ast_cli_register(&cli_h323_reload);
+		ast_cli_register_multiple(cli_h323, sizeof(cli_h323) / sizeof(struct ast_cli_entry));
 
 		ast_rtp_proto_register(&oh323_rtp);
 
@@ -2446,15 +2456,7 @@ static int unload_module(void *mod)
 	struct oh323_pvt *p, *pl;
 
 	/* unregister commands */
-	ast_cli_unregister(&cli_debug);
-	ast_cli_unregister(&cli_no_debug);
-	ast_cli_unregister(&cli_trace);
-	ast_cli_unregister(&cli_no_trace);   
-	ast_cli_unregister(&cli_show_codecs);
-	ast_cli_unregister(&cli_gk_cycle);
-	ast_cli_unregister(&cli_hangup_call);
-	ast_cli_unregister(&cli_show_tokens);
-	ast_cli_unregister(&cli_h323_reload);
+	ast_cli_unregister_multiple(cli_h323, sizeof(cli_h323) / sizeof(struct ast_cli_entry));
 	ast_rtp_proto_unregister(&oh323_rtp);
 	ast_channel_unregister(&oh323_tech);
 		
