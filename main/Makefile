@@ -39,6 +39,7 @@ OBJS+=say.o
 
 ifeq ($(wildcard /usr/include/sys/poll.h),)
   OBJS+=poll.o
+  ASTCFLAGS+=-DPOLLCOMPAT
 endif
 
 ifeq ($(wildcard /usr/include/dlfcn.h),)
@@ -58,11 +59,6 @@ ifneq ($(findstring darwin,$(OSARCH)),)
   AST_LIBS+=-lresolv
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
     ASTLINK=-Wl,-dynamic
-  endif
-  # Mac on Intel CoreDuo does not need poll compatibility layer
-  ifneq ($(PROC),i386)
-    OBJS+=poll.o
-    ASTCFLAGS+=-DPOLLCOMPAT
   endif
 else
 # These are used for all but Darwin
