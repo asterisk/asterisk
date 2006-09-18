@@ -229,7 +229,7 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 /* SUN .au support routines */
 
 #define AU_HEADER_SIZE		24
-#define AU_HEADER(var)		u_int32_t var[6]
+#define AU_HEADER(var)		uint32_t var[6]
 
 #define AU_HDR_MAGIC_OFF	0
 #define AU_HDR_HDR_SIZE_OFF	1
@@ -266,19 +266,19 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 static int check_header(FILE *f)
 {
 	AU_HEADER(header);
-	u_int32_t magic;
-	u_int32_t hdr_size;
-	u_int32_t data_size;
-	u_int32_t encoding;
-	u_int32_t sample_rate;
-	u_int32_t channels;
+	uint32_t magic;
+	uint32_t hdr_size;
+	uint32_t data_size;
+	uint32_t encoding;
+	uint32_t sample_rate;
+	uint32_t channels;
 
 	if (fread(header, 1, AU_HEADER_SIZE, f) != AU_HEADER_SIZE) {
 		ast_log(LOG_WARNING, "Read failed (header)\n");
 		return -1;
 	}
 	magic = ltohl(header[AU_HDR_MAGIC_OFF]);
-	if (magic != (u_int32_t) AU_MAGIC) {
+	if (magic != (uint32_t) AU_MAGIC) {
 		ast_log(LOG_WARNING, "Bad magic: 0x%x\n", magic);
 	}
 /*	hdr_size = ltohl(header[AU_HDR_HDR_SIZE_OFF]);
@@ -313,7 +313,7 @@ static int check_header(FILE *f)
 static int update_header(FILE *f)
 {
 	off_t cur, end;
-	u_int32_t datalen;
+	uint32_t datalen;
 	int bytes;
 
 	cur = ftell(f);
@@ -327,7 +327,7 @@ static int update_header(FILE *f)
 		ast_log(LOG_WARNING, "Unable to find our position\n");
 		return -1;
 	}
-	if (fseek(f, AU_HDR_DATA_SIZE_OFF * sizeof(u_int32_t), SEEK_SET)) {
+	if (fseek(f, AU_HDR_DATA_SIZE_OFF * sizeof(uint32_t), SEEK_SET)) {
 		ast_log(LOG_WARNING, "Unable to set our position\n");
 		return -1;
 	}
@@ -346,7 +346,7 @@ static int write_header(FILE *f)
 {
 	AU_HEADER(header);
 
-	header[AU_HDR_MAGIC_OFF] = htoll((u_int32_t) AU_MAGIC);
+	header[AU_HDR_MAGIC_OFF] = htoll((uint32_t) AU_MAGIC);
 	header[AU_HDR_HDR_SIZE_OFF] = htoll(AU_HEADER_SIZE);
 	header[AU_HDR_DATA_SIZE_OFF] = 0;
 	header[AU_HDR_ENCODING_OFF] = htoll(AU_ENC_8BIT_ULAW);

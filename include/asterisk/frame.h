@@ -333,17 +333,17 @@ struct oprmode {
 struct ast_option_header {
 	/* Always keep in network byte order */
 #if __BYTE_ORDER == __BIG_ENDIAN
-        u_int16_t flag:3;
-        u_int16_t option:13;
+        uint16_t flag:3;
+        uint16_t option:13;
 #else
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-        u_int16_t option:13;
-        u_int16_t flag:3;
+        uint16_t option:13;
+        uint16_t flag:3;
 #else
 #error Byte order not defined
 #endif
 #endif
-		u_int8_t data[0];
+		uint8_t data[0];
 };
 
 /*! \brief  Requests a frame to be allocated 

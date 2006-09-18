@@ -87,8 +87,8 @@ static struct ast_frame *g723_read(struct ast_filestream *s, int *whennext)
 
 static int g723_write(struct ast_filestream *s, struct ast_frame *f)
 {
-	u_int32_t delay;
-	u_int16_t size;
+	uint32_t delay;
+	uint16_t size;
 	int res;
 	/* XXX there used to be a check s->fr means a read stream */
 	if (f->frametype != AST_FRAME_VOICE) {
