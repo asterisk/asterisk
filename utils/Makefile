@@ -17,6 +17,7 @@ UTILS:=astman smsq stereorize streamplayer aelparse muted
 
 ifeq (${OSARCH},SunOS)
   LIBS+=-lsocket -lnsl
+  UTILS:=$(filter-out muted,$(UTILS))
 endif
 
 ifeq ($(POPT_LIB),)

@@ -35,10 +35,10 @@
  *
  */
 
-#ifndef __Darwin__
-#include <linux/soundcard.h>
-#else
+#ifdef __Darwin__
 #include <CoreAudio/AudioHardware.h> 
+#elif defined(__linux__) || defined(__FreeBSD__)
+#include <sys/soundcard.h>
 #endif
 #include <stdio.h>
 #include <errno.h>
