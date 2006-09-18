@@ -39,13 +39,3 @@ write=UPDATE presence SET location='${SQL_ESC(${VAL1})}' WHERE id='${SQL_ESC(${A
 			; field may be separated into individual variables with ARRAY.
 			; This option turns that behavior off [default=yes].
 
-; ODBC_HINTS - Workaround for lack of realtime hints
-;
-; Use in extensions.conf as:
-; exten => _1XX,hint,${ODBC_HINTS(${EXTEN})}
-;
-; (assuming your extensions are 3 digits and all begin with the digit 1)
-[HINTS]
-dsn=mysql1
-read=SELECT channel FROM hints WHERE extension='${ARG1}'
-
