@@ -160,6 +160,7 @@ struct ast_rtp {
 	int rtp_lookup_code_cache_code;
 	int rtp_lookup_code_cache_result;
 	struct ast_rtcp *rtcp;
+	struct ast_codec_pref pref;
 	struct ast_rtp *bridged;        /*!< Who we are Packet bridged to */
 };
 
@@ -2480,6 +2481,35 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	return 0;
 }
 
+int ast_rtp_codec_setpref(struct ast_rtp *rtp, struct ast_codec_pref *prefs)
+{
+	int x;
+	for (x = 0; x < 32; x++) {  /* Ugly way */
+		rtp->pref.order[x] = prefs->order[x];
+		rtp->pref.framing[x] = prefs->framing[x];
+	}
+	if (rtp->smoother)
+		ast_smoother_free(rtp->smoother);
+	rtp->smoother = NULL;
+	return 0;
+}
+
+struct ast_codec_pref *ast_rtp_codec_getpref(struct ast_rtp *rtp)
+{
+	return &rtp->pref;
+}
+
+int ast_rtp_codec_getformat(int pt)
+{
+	if (pt < 0 || pt > MAX_RTP_PT)
+		return 0; /* bogus payload type */
+
+	if (static_RTP_PT[pt].isAstFormat)
+		return static_RTP_PT[pt].code;
+	else
+		return 0;
+}
+
 int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 {
 	struct ast_frame *f;
@@ -2522,99 +2552,29 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		rtp->smoother = NULL;
 	}
 
+	if (!rtp->smoother) {
+		struct ast_format_list fmt = ast_codec_pref_getsize(&rtp->pref, subclass);
+		if (fmt.inc_ms) { /* if codec parameters is set / avoid division by zero */
+			if (!(rtp->smoother = ast_smoother_new((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms))) {
+				ast_log(LOG_WARNING, "Unable to create smoother: format: %d ms: %d len: %d\n", subclass, fmt.cur_ms, ((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms));
+				return -1;
+			}
+			if (fmt.flags)
+				ast_smoother_set_flags(rtp->smoother, fmt.flags);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Created smoother: format: %d ms: %d len: %d\n", subclass, fmt.cur_ms, ((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms));
+		}
+	}
+	if (rtp->smoother) {
+		if (ast_smoother_test_flag(rtp->smoother, AST_SMOOTHER_FLAG_BE)) {
+			ast_smoother_feed_be(rtp->smoother, _f);
+		} else {
+			ast_smoother_feed(rtp->smoother, _f);
+		}
 
-	switch(subclass) {
-	case AST_FORMAT_SLINEAR:
-		if (!rtp->smoother) {
-			rtp->smoother = ast_smoother_new(320);
-		}
-		if (!rtp->smoother) {
-			ast_log(LOG_WARNING, "Unable to create smoother :(\n");
-			return -1;
-		}
-		ast_smoother_feed_be(rtp->smoother, _f);
-		
 		while((f = ast_smoother_read(rtp->smoother)))
 			ast_rtp_raw_write(rtp, f, codec);
-		break;
-	case AST_FORMAT_ULAW:
-	case AST_FORMAT_ALAW:
-		if (!rtp->smoother) {
-			rtp->smoother = ast_smoother_new(160);
-		}
-		if (!rtp->smoother) {
-			ast_log(LOG_WARNING, "Unable to create smoother :(\n");
-			return -1;
-		}
-		ast_smoother_feed(rtp->smoother, _f);
-		
-		while((f = ast_smoother_read(rtp->smoother)))
-			ast_rtp_raw_write(rtp, f, codec);
-		break;
-	case AST_FORMAT_ADPCM:
-	case AST_FORMAT_G726:
-	case AST_FORMAT_G726_AAL2:
-		if (!rtp->smoother) {
-			rtp->smoother = ast_smoother_new(80);
-		}
-		if (!rtp->smoother) {
-			ast_log(LOG_WARNING, "Unable to create smoother :(\n");
-			return -1;
-		}
-		ast_smoother_feed(rtp->smoother, _f);
-		
-		while((f = ast_smoother_read(rtp->smoother)))
-			ast_rtp_raw_write(rtp, f, codec);
-		break;
-	case AST_FORMAT_G729A:
-		if (!rtp->smoother) {
-			rtp->smoother = ast_smoother_new(20);
-			if (rtp->smoother)
-				ast_smoother_set_flags(rtp->smoother, AST_SMOOTHER_FLAG_G729);
-		}
-		if (!rtp->smoother) {
-			ast_log(LOG_WARNING, "Unable to create g729 smoother :(\n");
-			return -1;
-		}
-		ast_smoother_feed(rtp->smoother, _f);
-		
-		while((f = ast_smoother_read(rtp->smoother)))
-			ast_rtp_raw_write(rtp, f, codec);
-		break;
-	case AST_FORMAT_GSM:
-		if (!rtp->smoother) {
-			rtp->smoother = ast_smoother_new(33);
-		}
-		if (!rtp->smoother) {
-			ast_log(LOG_WARNING, "Unable to create GSM smoother :(\n");
-			return -1;
-		}
-		ast_smoother_feed(rtp->smoother, _f);
-		while((f = ast_smoother_read(rtp->smoother)))
-			ast_rtp_raw_write(rtp, f, codec);
-		break;
-	case AST_FORMAT_ILBC:
-		if (!rtp->smoother) {
-			rtp->smoother = ast_smoother_new(50);
-		}
-		if (!rtp->smoother) {
-			ast_log(LOG_WARNING, "Unable to create ILBC smoother :(\n");
-			return -1;
-		}
-		ast_smoother_feed(rtp->smoother, _f);
-		while((f = ast_smoother_read(rtp->smoother)))
-			ast_rtp_raw_write(rtp, f, codec);
-		break;
-	default:	
-		ast_log(LOG_WARNING, "Not sure about sending format %s packets\n", ast_getformatname(subclass));
-		/* fall through to... */
-	case AST_FORMAT_H261:
-	case AST_FORMAT_H263:
-	case AST_FORMAT_H263_PLUS:
-	case AST_FORMAT_H264:
-	case AST_FORMAT_G723_1:
-	case AST_FORMAT_LPC10:
-	case AST_FORMAT_SPEEX:
+	} else {
 	        /* Don't buffer outgoing frames; send them one-per-packet: */
 		if (_f->offset < hdrlen) {
 			f = ast_frdup(_f);

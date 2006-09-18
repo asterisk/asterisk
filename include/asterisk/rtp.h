@@ -210,6 +210,12 @@ void ast_rtp_init(void);
 
 int ast_rtp_reload(void);
 
+int ast_rtp_codec_setpref(struct ast_rtp *rtp, struct ast_codec_pref *prefs);
+
+struct ast_codec_pref *ast_rtp_codec_getpref(struct ast_rtp *rtp);
+
+int ast_rtp_codec_getformat(int pt);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

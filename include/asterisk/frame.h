@@ -38,6 +38,7 @@ extern "C" {
 
 struct ast_codec_pref {
 	char order[32];
+	char framing[32];
 };
 
 /*! \page Def_Frame AST Multimedia and signalling frames
@@ -281,6 +282,7 @@ enum ast_control_frame_type {
 };
 
 #define AST_SMOOTHER_FLAG_G729		(1 << 0)
+#define AST_SMOOTHER_FLAG_BE		(1 << 1)
 
 /* Option identifiers and flags */
 #define AST_OPTION_FLAG_REQUEST		0
@@ -345,6 +347,23 @@ struct ast_option_header {
 #endif
 		uint8_t data[0];
 };
+
+
+/*! \brief Definition of supported media formats (codecs) */
+struct ast_format_list {
+	int visible;	/*!< Can we see this entry */
+	int bits;	/*!< bitmask value */
+	char *name;	/*!< short name */
+	char *desc;	/*!< Description */
+	int fr_len;	/*!< Single frame length in bytes */
+	int min_ms;	/*!< Min value */
+	int max_ms;	/*!< Max value */
+	int inc_ms;	/*!< Increment */
+	int def_ms;	/*!< Default value */
+	unsigned int flags;	/*!< Smoother flags */
+	int cur_ms;	/*!< Current value */
+};
+
 
 /*! \brief  Requests a frame to be allocated 
  * 
@@ -436,6 +455,7 @@ struct ast_format_list *ast_get_format_list(size_t *size);
 struct ast_smoother *ast_smoother_new(int bytes);
 void ast_smoother_set_flags(struct ast_smoother *smoother, int flags);
 int ast_smoother_get_flags(struct ast_smoother *smoother);
+int ast_smoother_test_flag(struct ast_smoother *s, int flag);
 void ast_smoother_free(struct ast_smoother *s);
 void ast_smoother_reset(struct ast_smoother *s, int bytes);
 int __ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f, int swap);
@@ -481,6 +501,14 @@ int ast_codec_pref_append(struct ast_codec_pref *pref, int format);
    If "find_best" is non-zero then if nothing is found, the "Best" format of 
    the format list is selected, otherwise 0 is returned. */
 int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best);
+
+/*! \brief Set packet size for codec
+*/
+int ast_codec_pref_setsize(struct ast_codec_pref *pref, int format, int framems);
+
+/*! \brief Get packet size for codec
+*/
+struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, int format);
 
 /*! \brief Parse an "allow" or "deny" line in a channel or device configuration 
         and update the capabilities mask and pref if provided.

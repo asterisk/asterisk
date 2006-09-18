@@ -543,6 +543,8 @@ static int regobjs = 0;                  /*!< Registry objects */
 
 static struct ast_flags global_flags[2] = {{0}};        /*!< global SIP_ flags */
 
+static int global_autoframing = 0;
+
 /*! \brief Protect the SIP dialog list (of sip_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
 
@@ -966,6 +968,7 @@ static struct sip_pvt {
 	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
 	struct sip_pvt *next;			/*!< Next dialog in chain */
 	struct sip_invite_param *options;	/*!< Options for INVITE */
+	int autoframing;
 } *iflist = NULL;
 
 #define FLAG_RESPONSE (1 << 0)
@@ -1015,6 +1018,7 @@ struct sip_user {
 	struct ast_ha *ha;		/*!< ACL setting */
 	struct ast_variable *chanvars;	/*!< Variables to set for channel created by user */
 	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
+	int autoframing;
 };
 
 /*! \brief Structure for SIP peer data, we place calls to peers if registered  or fixed IP address (host) */
@@ -1077,6 +1081,7 @@ struct sip_peer {
 	struct ast_variable *chanvars;	/*!<  Variables to set for channel created by user */
 	struct sip_pvt *mwipvt;		/*!<  Subscription for MWI */
 	int lastmsg;
+	int autoframing;
 };
 
 
@@ -2540,6 +2545,11 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Setting NAT on UDPTL to %s\n", natflags ? "On" : "Off");
 		ast_udptl_setnat(dialog->udptl, natflags);
+	}
+	/* Set Frame packetization */
+	if (dialog->rtp) {
+		ast_rtp_codec_setpref(dialog->rtp, &dialog->prefs);
+		dialog->autoframing = peer->autoframing;
 	}
 	ast_string_field_set(dialog, peername, peer->username);
 	ast_string_field_set(dialog, authname, peer->username);
@@ -4702,6 +4712,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	 */
 	/* XXX This needs to be done per media stream, since it's media stream specific */
 	iterator = req->sdp_start;
+	int found_rtpmap_codecs[32];
+	int last_rtpmap_codec=0;
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
 		char* mimeSubtype = ast_strdupa(a); /* ensures we have enough space */
 		if (option_debug > 1) {
@@ -4752,17 +4764,49 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		}  else if (!strcasecmp(a, "sendrecv")) {
 			sendonly = 0;
 			continue;
-		} else if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) 
+		} else if (strlen(a) > 5 && !strncasecmp(a, "ptime", 5)) {
+			char *tmp = strrchr(a, ':');
+			long int framing = 0;
+			if (tmp) {
+				tmp++;
+				framing = strtol(tmp, NULL, 10);
+				if (framing == LONG_MIN || framing == LONG_MAX) {
+					framing = 0;
+					ast_log(LOG_DEBUG, "Can't read framing from SDP: %s\n", a);
+				}
+			}
+			if (framing && last_rtpmap_codec) {
+				if (p->autoframing || global_autoframing) {
+					struct ast_codec_pref *pref = ast_rtp_codec_getpref(p->rtp);
+					int codec_n;
+					int format = 0;
+					for (codec_n = 0; codec_n < last_rtpmap_codec; codec_n++) {
+						format = ast_rtp_codec_getformat(found_rtpmap_codecs[codec_n]);
+						if (!format)	/* non-codec or not found */
+							continue;
+						if (option_debug)
+							ast_log(LOG_DEBUG, "Setting framing for %d to %ld\n", format, framing);
+						ast_codec_pref_setsize(pref, format, framing);
+					}
+					ast_rtp_codec_setpref(p->rtp, pref);
+				}
+			}
+			memset(&found_rtpmap_codecs, 0, sizeof(found_rtpmap_codecs));
+			last_rtpmap_codec = 0;
 			continue;
-		/* We have a rtpmap to handle */
-		if (debug)
-			ast_verbose("Found description format %s for ID %d\n", mimeSubtype, codec);
+		} else if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) == 2) {
+			/* We have a rtpmap to handle */
+			if (debug)
+				ast_verbose("Found description format %s for ID %d\n", mimeSubtype, codec);
+			found_rtpmap_codecs[last_rtpmap_codec] = codec;
+			last_rtpmap_codec++;
 
-		/* Note: should really look at the 'freq' and '#chans' params too */
-		ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
+			/* Note: should really look at the 'freq' and '#chans' params too */
+			ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
 					ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0);
-		if (p->vrtp)
-			ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype, 0);
+			if (p->vrtp)
+				ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype, 0);
+		}
 	}
 	
 	if (udptlportno != -1) {
@@ -5593,12 +5637,19 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 			     int debug)
 {
 	int rtp_code;
+	struct ast_format_list fmt;
+
 
 	if (debug)
 		ast_verbose("Adding codec 0x%x (%s) to SDP\n", codec, ast_getformatname(codec));
 	if ((rtp_code = ast_rtp_lookup_code(p->rtp, 1, codec)) == -1)
 		return;
 
+	if (p->rtp) {
+		struct ast_codec_pref *pref = ast_rtp_codec_getpref(p->rtp);
+		fmt = ast_codec_pref_getsize(pref, codec);
+	} else /* I dont see how you couldn't have p->rtp, but good to check for and error out if not there like earlier code */
+		return;
 	ast_build_string(m_buf, m_size, " %d", rtp_code);
 	ast_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
 			 ast_rtp_lookup_mime_subtype(1, codec,
@@ -5608,9 +5659,12 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 		/* Indicate that we don't support VAD (G.729 annex B) */
 		ast_build_string(a_buf, a_size, "a=fmtp:%d annexb=no\r\n", rtp_code);
 	} else if (codec == AST_FORMAT_ILBC) {
-		/* Add information about us using only 20 ms packetization */
-		ast_build_string(a_buf, a_size, "a=fmtp:%d mode=20\r\n", rtp_code);
-	
+		/* Add information about us using only 20/30 ms packetization */
+		ast_build_string(a_buf, a_size, "a=fmtp:%d mode=%d\r\n", rtp_code, fmt.cur_ms);
+	}
+
+	if (codec != AST_FORMAT_ILBC) {
+		ast_build_string(a_buf, a_size, "a=ptime:%d\r\n", fmt.cur_ms);
 	}
 }
 
@@ -6084,6 +6138,11 @@ static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const 
 	}
 	respprep(&resp, p, msg, req);
 	if (p->rtp) {
+		if (!p->autoframing && !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Setting framing from config on incoming call\n");
+			ast_rtp_codec_setpref(p->rtp, &p->prefs);
+		}
 		try_suggested_sip_codec(p);	
 		add_sdp(&resp, p);
 	} else 
@@ -7930,6 +7989,11 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			ASTOBJ_UNREF(peer, sip_destroy_peer);
 	}
 	if (peer) {
+		/* Set Frame packetization */
+		if (p->rtp) {
+			ast_rtp_codec_setpref(p->rtp, &peer->prefs);
+			p->autoframing = peer->autoframing;
+		}
 		if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC)) {
 			ast_log(LOG_ERROR, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
 		} else {
@@ -8663,6 +8727,11 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			}
 		}
 		p->prefs = user->prefs;
+		/* Set Frame packetization */
+		if (p->rtp) {
+			ast_rtp_codec_setpref(p->rtp, &p->prefs);
+			p->autoframing = user->autoframing;
+		}
 		/* replace callerid if rpid found, and not restricted */
 		if (!ast_strlen_zero(rpid_num) && ast_test_flag(&p->flags[0], SIP_TRUSTRPID)) {
 			char *tmp;
@@ -8771,6 +8840,11 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			peer = find_peer(NULL, &p->recv, 1);
 
 		if (peer) {
+			/* Set Frame packetization */
+			if (p->rtp) {
+				ast_rtp_codec_setpref(p->rtp, &peer->prefs);
+				p->autoframing = peer->autoframing;
+			}
 			if (debug)
 				ast_verbose("Found peer '%s'\n", peer->name);
 
@@ -9528,6 +9602,7 @@ static void print_codec_to_cli(int fd, struct ast_codec_pref *pref)
 		if (!codec)
 			break;
 		ast_cli(fd, "%s", ast_getformatname(codec));
+		ast_cli(fd, ":%d", pref->framing[x]);
 		if (x < 31 && ast_codec_pref_index(pref, x + 1))
 			ast_cli(fd, ",");
 	}
@@ -15167,6 +15242,8 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			ast_parse_allow_disallow(&user->prefs, &user->capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
 			ast_parse_allow_disallow(&user->prefs, &user->capability, v->value, 0);
+		} else if (!strcasecmp(v->name, "autoframing")) {
+			user->autoframing = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callingpres")) {
 			user->callingpres = ast_parse_caller_presentation(v->value);
 			if (user->callingpres == -1)
@@ -15446,6 +15523,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
 			ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 0);
+		} else if (!strcasecmp(v->name, "autoframing")) {
+			peer->autoframing = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
 			if ((sscanf(v->value, "%d", &peer->rtptimeout) != 1) || (peer->rtptimeout < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
@@ -15807,6 +15886,8 @@ static int reload_config(enum channelreloadreason reason)
 			ast_parse_allow_disallow(&default_prefs, &global_capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
 			ast_parse_allow_disallow(&default_prefs, &global_capability, v->value, 0);
+		} else if (!strcasecmp(v->name, "autoframing")) {
+			global_autoframing = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "allowexternaldomains")) {
 			allow_external_domains = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "autodomain")) {

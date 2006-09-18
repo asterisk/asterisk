@@ -81,7 +81,8 @@ static const char tdesc[] = "Skinny Client Control Protocol (Skinny)";
 static const char config[] = "skinny.conf";
 
 /* Just about everybody seems to support ulaw, so make it a nice default */
-static int capability = AST_FORMAT_ULAW;
+static int default_capability = AST_FORMAT_ULAW;
+static struct ast_codec_pref default_prefs;
 
 #define DEFAULT_SKINNY_PORT	2000
 #define DEFAULT_SKINNY_BACKLOG	2
@@ -948,6 +949,7 @@ struct skinny_line {
 	int hookstate;
 	int nat;
 
+	struct ast_codec_pref prefs;
 	struct skinny_subchannel *sub;
 	struct skinny_line *next;
 	struct skinny_device *parent;
@@ -980,11 +982,13 @@ static struct skinny_device {
 	int registered;
 	int lastlineinstance;
 	int lastcallreference;
+	int capability;
 	struct sockaddr_in addr;
 	struct in_addr ourip;
 	struct skinny_line *lines;
 	struct skinny_speeddial *speeddials;
 	struct skinny_addon *addons;
+	struct ast_codec_pref prefs;
 	struct ast_ha *ha;
 	struct skinnysession *session;
 	struct skinny_device *next;
@@ -1022,7 +1026,7 @@ static int skinny_senddigit_end(struct ast_channel *ast, char digit);
 static const struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
 	.description = tdesc,
-	.capabilities = AST_FORMAT_ULAW,
+	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER,
 	.requester = skinny_request,
 	.call = skinny_call,
@@ -1407,7 +1411,7 @@ static void transmit_connect(struct skinnysession *s, struct skinny_subchannel *
 
 	req->data.openreceivechannel.conferenceId = htolel(0);
 	req->data.openreceivechannel.partyId = htolel(sub->callid);
-	req->data.openreceivechannel.packets = htolel(20);
+	req->data.openreceivechannel.packets = htolel(l->prefs.framing[0]);
 	req->data.openreceivechannel.capability = htolel(convert_cap(l->capability));
 	req->data.openreceivechannel.echo = htolel(0);
 	req->data.openreceivechannel.bitrate = htolel(0);
@@ -1927,6 +1931,8 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 	} else {
 		ast_copy_string(d->name, cat, sizeof(d->name));
 		d->lastlineinstance = 1;
+		d->capability = default_capability;
+		d->prefs = default_prefs;
 		while(v) {
 			if (!strcasecmp(v->name, "host")) {
 				if (ast_get_ip(&d->addr, v->value)) {
@@ -1941,6 +1947,10 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 				d->ha = ast_append_ha(v->name, v->value, d->ha);
 			} else if (!strcasecmp(v->name, "context")) {
 				ast_copy_string(context, v->value, sizeof(context));
+			} else if (!strcasecmp(v->name, "allow")) {
+				ast_parse_allow_disallow(&d->prefs, &d->capability, v->value, 1);
+			} else if (!strcasecmp(v->name, "disallow")) {
+				ast_parse_allow_disallow(&d->prefs, &d->capability, v->value, 0);
 			} else if (!strcasecmp(v->name, "version")) {
 				ast_copy_string(d->version_id, v->value, sizeof(d->version_id));
 			} else if (!strcasecmp(v->name, "nat")) {
@@ -2040,7 +2050,8 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 							ast_verbose(VERBOSE_PREFIX_3 "Setting mailbox '%s' on %s@%s\n", mailbox, d->name, l->name);
 					}
 					l->msgstate = -1;
-					l->capability = capability;
+					l->capability = d->capability;
+					l->prefs = d->prefs;
 					l->parent = d;
 					if (!strcasecmp(v->name, "trunk")) {
 						l->type = TYPE_TRUNK;
@@ -2167,6 +2178,10 @@ static void start_rtp(struct skinny_subchannel *sub)
 	if (sub->vrtp) {
 		ast_rtp_setnat(sub->vrtp, l->nat);
 	}
+	/* Set Frame packetization */
+	if (sub->rtp)
+		ast_rtp_codec_setpref(sub->rtp, &l->prefs);
+
 	/* Create the RTP connection */
 	transmit_connect(d->session, sub);
  	ast_mutex_unlock(&sub->lock);
@@ -2680,7 +2695,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		tmp->tech_pvt = sub;
 		tmp->nativeformats = l->capability;
 		if (!tmp->nativeformats)
-			tmp->nativeformats = capability;
+			tmp->nativeformats = default_capability;
 		fmt = ast_best_codec(tmp->nativeformats);
 		if (skinnydebug)
 			ast_verbose("skinny_new: tmp->nativeformats=%d fmt=%d\n", tmp->nativeformats, fmt);
@@ -3566,7 +3581,7 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 	req->data.startmedia.passThruPartyId = htolel(sub->callid);
 	req->data.startmedia.remoteIp = htolel(d->ourip.s_addr);
 	req->data.startmedia.remotePort = htolel(ntohs(us.sin_port));
-	req->data.startmedia.packetSize = htolel(20);
+	req->data.startmedia.packetSize = htolel(l->prefs.framing[0]);
 	req->data.startmedia.payloadType = htolel(convert_cap(l->capability));
 	req->data.startmedia.qualifier.precedence = htolel(127);
 	req->data.startmedia.qualifier.vad = htolel(0);
@@ -4277,7 +4292,7 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
 	char *dest = data;
 
 	oldformat = format;
-	format &= capability;
+	format &= default_capability;
 	if (!format) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
 		return NULL;
@@ -4308,7 +4323,6 @@ static int reload_config(void)
 	int on = 1;
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	int format;
 	char *cat;
 	struct skinny_device *d;
 	int oldport = ntohs(bindaddr.sin_port);
@@ -4350,19 +4364,9 @@ static int reload_config(void)
 		} else if (!strcasecmp(v->name, "dateformat")) {
 			ast_copy_string(date_format, v->value, sizeof(date_format));
 		} else if (!strcasecmp(v->name, "allow")) {
-			format = ast_getformatbyname(v->value);
-			if (format < 1) {
-				ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
-			} else {
-				capability |= format;
-			}
+			ast_parse_allow_disallow(&default_prefs, &default_capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
-			format = ast_getformatbyname(v->value);
-			if (format < 1) {
-				ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
-			} else {
-				capability &= ~format;
-			}
+			ast_parse_allow_disallow(&default_prefs, &default_capability, v->value, 0);
 		} else if (!strcasecmp(v->name, "bindport") || !strcasecmp(v->name, "port")) {
 			if (sscanf(v->value, "%d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
