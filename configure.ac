@@ -22,7 +22,7 @@ AC_COPYRIGHT("Asterisk")
 AC_REVISION($Revision$)
 
 case "${host_os}" in
-     freebsd)
+     freebsd*)
      ac_default_prefix=/usr/local
      ;;
      *)
