@@ -24,24 +24,15 @@
 
 /* \page LockDef Asterisk thread locking models
  *
- * This file provides several different implementation of the functions,
+ * This file provides different implementation of the functions,
  * depending on the platform, the use of DEBUG_THREADS, and the way
- * global mutexes are initialized.
- *
- * \par At the moment, we have 3 ways to initialize global mutexes, depending on
+ * module-level mutexes are initialized.
  *
  *  - \b static: the mutex is assigned the value AST_MUTEX_INIT_VALUE
  *        this is done at compile time, and is the way used on Linux.
  *        This method is not applicable to all platforms e.g. when the
  *        initialization needs that some code is run.
  *
- *  - \b on first use: the mutex is assigned a magic value at compile time,
- *        and ast_mutex_init() is called when this magic value is detected.
- *        This technique is generally applicable, though it has a bit of
- *        overhead on each access to check whether initialization is needed.
- *        On the other hand, the overall cost of a mutex_lock operation
- *        is such that this overhead is often negligible.
-
  *  - \b through constructors: for each mutex, a constructor function is
  *        defined, which then runs when the program (or the module)
  *        starts. The problem with this approach is that there is a
@@ -49,12 +40,17 @@
  *        each mutex). Also, it does not prevent a user from declaring
  *        a global mutex without going through the wrapper macros,
  *        so sane programming practices are still required.
- *
- * Eventually we should converge on a single method for all platforms.
  */
 
 #ifndef _ASTERISK_LOCK_H
 #define _ASTERISK_LOCK_H
+
+#include <pthread.h>
+#include <netdb.h>
+#include <time.h>
+#include <sys/param.h>
+
+#include "asterisk/logger.h"
 
 /* internal macro to profile mutexes. Only computes the delay on
  * non-blocking calls.
@@ -75,39 +71,16 @@
 	} while (0)
 #endif	/* HAVE_MTX_PROFILE */
 
-#include <pthread.h>
-#include <netdb.h>
-#include <time.h>
-#include <sys/param.h>
-
-#include "asterisk/logger.h"
-
 #define AST_PTHREADT_NULL (pthread_t) -1
 #define AST_PTHREADT_STOP (pthread_t) -2
 
-#ifdef __APPLE__
-/* Provide the Linux initializers for MacOS X */
-#define PTHREAD_MUTEX_RECURSIVE_NP			PTHREAD_MUTEX_RECURSIVE
-#define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP		{ 0x4d555458, \
-							{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, \
-							0x20 } }
-#endif
-
-#ifdef BSD
-#if 1 && defined( __GNUC__)
+#if defined(SOLARIS) || defined(BSD)
 #define AST_MUTEX_INIT_W_CONSTRUCTORS
-#else
-#define AST_MUTEX_INIT_ON_FIRST_USE
-#endif
-#endif /* BSD */
+#endif /* SOLARIS || BSD */
 
-/* From now on, Asterisk REQUIRES Recursive (not error checking) mutexes
+/* Asterisk REQUIRES recursive (not error checking) mutexes
    and will not run without them. */
-#if defined(__CYGWIN__)
-#define PTHREAD_MUTEX_RECURSIVE_NP	PTHREAD_MUTEX_RECURSIVE
-#define PTHREAD_MUTEX_INIT_VALUE 	(ast_mutex_t)18
-#define AST_MUTEX_KIND			PTHREAD_MUTEX_RECURSIVE_NP
-#elif defined(PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP)
+#if defined(PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP)
 #define PTHREAD_MUTEX_INIT_VALUE	PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 #define AST_MUTEX_KIND			PTHREAD_MUTEX_RECURSIVE_NP
 #else
@@ -115,16 +88,14 @@
 #define AST_MUTEX_KIND			PTHREAD_MUTEX_RECURSIVE
 #endif /* PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP */
 
-#ifdef SOLARIS
-#define AST_MUTEX_INIT_W_CONSTRUCTORS
-#endif
-
 #ifdef DEBUG_THREADS
 
 #define __ast_mutex_logger(...)  do { if (canlog) ast_log(LOG_ERROR, __VA_ARGS__); else fprintf(stderr, __VA_ARGS__); } while (0)
 
 #ifdef THREAD_CRASH
 #define DO_THREAD_CRASH do { *((int *)(0)) = 1; } while(0)
+#else
+#define DO_THREAD_CRASH do { } while (0)
 #endif
 
 #include <errno.h>
@@ -169,9 +140,7 @@ static inline int __ast_pthread_mutex_init_attr(const char *filename, int lineno
 					   filename, lineno, func, mutex_name);
 			__ast_mutex_logger("%s line %d (%s): Error: previously initialization of mutex '%s'.\n",
 					   t->file[0], t->lineno[0], t->func[0], mutex_name);
-#ifdef THREAD_CRASH
 			DO_THREAD_CRASH;
-#endif
 			return 0;
 		}
 	}
@@ -243,9 +212,9 @@ static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, 
 }
 
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
-/*! \brief  if AST_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
- constrictors/destructors to create/destroy mutexes.  */
-#define __AST_MUTEX_DEFINE(scope,mutex) \
+/* If AST_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
+ constructors/destructors to create/destroy mutexes.  */
+#define __AST_MUTEX_DEFINE(scope, mutex) \
 	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE; \
 static void  __attribute__ ((constructor)) init_##mutex(void) \
 { \
@@ -255,19 +224,9 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 { \
 	ast_mutex_destroy(&mutex); \
 }
-#elif defined(AST_MUTEX_INIT_ON_FIRST_USE)
-/*! \note
- if AST_MUTEX_INIT_ON_FIRST_USE is defined, mutexes are created on
- first use.  The performance impact on FreeBSD should be small since
- the pthreads library does this itself to initialize errror checking
- (defaulty type) mutexes.  If nither is defined, the pthreads librariy
- does the initialization itself on first use. 
-*/ 
-#define __AST_MUTEX_DEFINE(scope,mutex) \
-	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE
-#else /* AST_MUTEX_INIT_W_CONSTRUCTORS */
-/* By default, use static initialization of mutexes.*/ 
-#define __AST_MUTEX_DEFINE(scope,mutex) \
+#else /* !AST_MUTEX_INIT_W_CONSTRUCTORS */
+/* By default, use static initialization of mutexes. */ 
+#define __AST_MUTEX_DEFINE(scope, mutex) \
 	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
@@ -277,15 +236,13 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 	int res;
 	int canlog = strcmp(filename, "logger.c");
 
-#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE)
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
 		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
 				 filename, lineno, func, mutex_name);
-#endif
 		ast_mutex_init(t);
 	}
-#endif /* defined(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE) */
+#endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 #ifdef DETECT_DEADLOCKS
 	{
@@ -336,9 +293,7 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 	} else {
 		__ast_mutex_logger("%s line %d (%s): Error obtaining mutex: %s\n",
 				   filename, lineno, func, strerror(errno));
-#ifdef THREAD_CRASH
 		DO_THREAD_CRASH;
-#endif
 	}
 
 	return res;
@@ -350,16 +305,13 @@ static inline int __ast_pthread_mutex_trylock(const char *filename, int lineno, 
 	int res;
 	int canlog = strcmp(filename, "logger.c");
 
-#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE)
+#if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
-
 		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
 				   filename, lineno, func, mutex_name);
-#endif
 		ast_mutex_init(t);
 	}
-#endif /* defined(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE) */
+#endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 	if (!(res = pthread_mutex_trylock(&t->mutex))) {
 		if (t->reentrancy < AST_MAX_REENTRANCY) {
@@ -395,9 +347,7 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 				   filename, lineno, func, mutex_name);
 		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
 				   t->file[t->reentrancy-1], t->lineno[t->reentrancy-1], t->func[t->reentrancy-1], mutex_name);
-#ifdef THREAD_CRASH
 		DO_THREAD_CRASH;
-#endif
 	}
 
 	if (--t->reentrancy < 0) {
@@ -416,9 +366,7 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 	if ((res = pthread_mutex_unlock(&t->mutex))) {
 		__ast_mutex_logger("%s line %d (%s): Error releasing mutex: %s\n", 
 				   filename, lineno, func, strerror(res));
-#ifdef THREAD_CRASH
 		DO_THREAD_CRASH;
-#endif
 	}
 
 	return res;
@@ -467,9 +415,7 @@ static inline int __ast_cond_wait(const char *filename, int lineno, const char *
 				   filename, lineno, func, mutex_name);
 		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
 				   t->file[t->reentrancy-1], t->lineno[t->reentrancy-1], t->func[t->reentrancy-1], mutex_name);
-#ifdef THREAD_CRASH
 		DO_THREAD_CRASH;
-#endif
 	}
 
 	if (--t->reentrancy < 0) {
@@ -488,9 +434,7 @@ static inline int __ast_cond_wait(const char *filename, int lineno, const char *
 	if ((res = pthread_cond_wait(cond, &t->mutex))) {
 		__ast_mutex_logger("%s line %d (%s): Error waiting on condition mutex '%s'\n", 
 				   filename, lineno, func, strerror(res));
-#ifdef THREAD_CRASH
 		DO_THREAD_CRASH;
-#endif
 	} else {
 		if (t->reentrancy < AST_MAX_REENTRANCY) {
 			t->file[t->reentrancy] = filename;
@@ -526,9 +470,7 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 				   filename, lineno, func, mutex_name);
 		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
 				   t->file[t->reentrancy-1], t->lineno[t->reentrancy-1], t->func[t->reentrancy-1], mutex_name);
-#ifdef THREAD_CRASH
 		DO_THREAD_CRASH;
-#endif
 	}
 
 	if (--t->reentrancy < 0) {
@@ -547,9 +489,7 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 	if ((res = pthread_cond_timedwait(cond, &t->mutex, abstime)) && (res != ETIMEDOUT)) {
 		__ast_mutex_logger("%s line %d (%s): Error waiting on condition mutex '%s'\n", 
 				   filename, lineno, func, strerror(res));
-#ifdef THREAD_CRASH
 		DO_THREAD_CRASH;
-#endif
 	} else {
 		if (t->reentrancy < AST_MAX_REENTRANCY) {
 			t->file[t->reentrancy] = filename;
@@ -580,16 +520,17 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 #else /* !DEBUG_THREADS */
 
 
-
 typedef pthread_mutex_t ast_mutex_t;
 
-#define AST_MUTEX_INIT_VALUE	((ast_mutex_t)PTHREAD_MUTEX_INIT_VALUE)
+#define AST_MUTEX_INIT_VALUE	((ast_mutex_t) PTHREAD_MUTEX_INIT_VALUE)
 
 static inline int ast_mutex_init(ast_mutex_t *pmutex)
 {
 	pthread_mutexattr_t attr;
+
 	pthread_mutexattr_init(&attr);
 	pthread_mutexattr_settype(&attr, AST_MUTEX_KIND);
+
 	return pthread_mutex_init(pmutex, &attr);
 }
 
@@ -607,7 +548,7 @@ static inline int ast_mutex_destroy(ast_mutex_t *pmutex)
 
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
 /* if AST_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
- constrictors/destructors to create/destroy mutexes.  */ 
+ constructors/destructors to create/destroy mutexes.  */ 
 #define __AST_MUTEX_DEFINE(scope,mutex) \
 	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE; \
 static void  __attribute__ ((constructor)) init_##mutex(void) \
@@ -629,30 +570,9 @@ static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
 	return pthread_mutex_trylock(pmutex);
 }
 
-#elif defined(AST_MUTEX_INIT_ON_FIRST_USE)
-/* if AST_MUTEX_INIT_ON_FIRST_USE is defined, mutexes are created on
- first use.  The performance impact on FreeBSD should be small since
- the pthreads library does this itself to initialize errror checking
- (defaulty type) mutexes.*/ 
-#define __AST_MUTEX_DEFINE(scope,mutex) \
-	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE
-
-static inline int ast_mutex_lock(ast_mutex_t *pmutex)
-{
-	if (*pmutex == (ast_mutex_t)AST_MUTEX_KIND)
-		ast_mutex_init(pmutex);
-	__MTX_PROF(pmutex);
-}
-
-static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
-{
-	if (*pmutex == (ast_mutex_t)AST_MUTEX_KIND)
-		ast_mutex_init(pmutex);
-	return pthread_mutex_trylock(pmutex);
-}
 #else
 /* By default, use static initialization of mutexes.*/ 
-#define __AST_MUTEX_DEFINE(scope,mutex) \
+#define __AST_MUTEX_DEFINE(scope, mutex) \
 	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE
 
 static inline int ast_mutex_lock(ast_mutex_t *pmutex)
@@ -715,11 +635,12 @@ static inline int ast_cond_timedwait(ast_cond_t *cond, ast_mutex_t *t, const str
 #define pthread_cond_wait use_ast_cond_wait_instead_of_pthread_cond_wait
 #define pthread_cond_timedwait use_ast_cond_timedwait_instead_of_pthread_cond_timedwait
 
-#define AST_MUTEX_DEFINE_STATIC(mutex) __AST_MUTEX_DEFINE(static,mutex)
+#define AST_MUTEX_DEFINE_STATIC(mutex) __AST_MUTEX_DEFINE(static, mutex)
 
 #define AST_MUTEX_INITIALIZER __use_AST_MUTEX_DEFINE_STATIC_rather_than_AST_MUTEX_INITIALIZER__
 
 #define gethostbyname __gethostbyname__is__not__reentrant__use__ast_gethostbyname__instead__
+
 #ifndef __linux__
 #define pthread_create __use_ast_pthread_create_instead__
 #endif
