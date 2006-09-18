@@ -237,7 +237,10 @@ usecallerid=yes
 ;
 hidecallerid=no
 ;
-; Whether or not to enable call waiting on FXO lines
+; Whether or not to enable call waiting on internal extensions
+; With this set to 'yes', busy extensions will hear the call-waiting
+; tone, and can use hook-flash to switch between callers. The Dial()
+; app will not return the "BUSY" result for extensions.
 ;
 callwaiting=yes
 ;
