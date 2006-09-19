@@ -9121,7 +9121,8 @@ static char *nat2str(int nat)
 }
 
 /*! \brief  Report Peer status in character string
- * 	\return 1 if peer is online, -1 if unmonitored */
+ *  \return 0 if peer is unreachable, 1 if peer is online, -1 if unmonitored
+ */
 static int peer_status(struct sip_peer *peer, char *status, int statuslen)
 {
 	int res = 0;
@@ -9239,8 +9240,10 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 
 	char name[256];
 	int total_peers = 0;
-	int peers_online = 0;
-	int peers_offline = 0;
+	int peers_mon_online = 0;
+	int peers_mon_offline = 0;
+	int peers_unmon_offline = 0;
+	int peers_unmon_online = 0;
 	char *id;
 	char idtext[256] = "";
 	int realtimepeers;
@@ -9267,9 +9270,8 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 		return RESULT_SHOWUSAGE;
 	}
 
-	if (!s) { /* Normal list */
+	if (!s) /* Normal list */
 		ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Port", "Status", (realtimepeers ? "Realtime" : ""));
-	} 
 	
 	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
 		char status[20] = "";
@@ -9287,23 +9289,19 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			snprintf(name, sizeof(name), "%s/%s", iterator->name, iterator->username);
 		else
 			ast_copy_string(name, iterator->name, sizeof(name));
-
-		pstatus = peer_status(iterator, status, sizeof(status));
-		if (pstatus) 	
-			peers_online++;
-		else	{
-			if (pstatus == 0)
-				peers_offline++;
-			else {	/* Unmonitored */
-				/* Checking if port is 0 */
-				if ( ntohs(iterator->addr.sin_port) == 0 ) {
-					peers_offline++;
-				} else {
-					peers_online++;
-				}
-			}
-		}			
 		
+		pstatus = peer_status(iterator, status, sizeof(status));
+		if (pstatus == 1)
+			peers_mon_online++;
+		else if (pstatus == 0)
+			peers_mon_offline++;
+		else {
+			if (iterator->addr.sin_port == 0)
+				peers_unmon_offline++;
+			else
+				peers_unmon_online++;
+		}
+
 		snprintf(srch, sizeof(srch), FORMAT, name,
 			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iterator->addr.sin_addr) : "(Unspecified)",
 			ast_test_flag(&iterator->flags[1], SIP_PAGE2_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
@@ -9352,10 +9350,10 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 
 		total_peers++;
 	} while(0) );
-
-	if (!s) {
-		ast_cli(fd,"%d sip peers [%d online , %d offline]\n",total_peers,peers_online,peers_offline);
-	}
+	
+	if (!s)
+		ast_cli(fd, "%d sip peers [Monitored: %d online, %d offline Unmonitored: %d online, %d offline]\n",
+		        total_peers, peers_mon_online, peers_mon_offline, peers_unmon_online, peers_unmon_offline);
 
 	if (havepattern)
 		regfree(&regexbuf);
