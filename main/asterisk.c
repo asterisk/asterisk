@@ -1185,7 +1185,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	/* Called on exit */
 	if (option_verbose && ast_opt_console)
 		ast_verbose("Asterisk %s ending (%d).\n", ast_active_channels() ? "uncleanly" : "cleanly", num);
-	else if (option_debug)
+	if (option_debug)
 		ast_log(LOG_DEBUG, "Asterisk ending (%d).\n", num);
 	manager_event(EVENT_FLAG_SYSTEM, "Shutdown", "Shutdown: %s\r\nRestart: %s\r\n", ast_active_channels() ? "Uncleanly" : "Cleanly", restart ? "True" : "False");
 	if (ast_socket > -1) {

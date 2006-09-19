@@ -2354,14 +2354,14 @@ static int __ast_pbx_run(struct ast_channel *c)
 				if (res == AST_PBX_KEEPALIVE) {
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
-					else if (option_verbose > 1)
+					if (option_verbose > 1)
 						ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
 					error = 1;
 					break;
 				}
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-				else if (option_verbose > 1)
+				if (option_verbose > 1)
 					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 				if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
 					c->_softhangup =0;
@@ -2481,7 +2481,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 				/* Something bad happened, or a hangup has been requested. */
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-				else if (option_verbose > 1)
+				if (option_verbose > 1)
 					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 				break;
 			}
@@ -3822,7 +3822,7 @@ static struct ast_context *__ast_context_create(struct ast_context **extcontexts
 		*local_contexts = tmp;
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Registered context '%s'\n", tmp->name);
-		else if (option_verbose > 2)
+		if (option_verbose > 2)
 			ast_verbose( VERBOSE_PREFIX_3 "Registered extension context '%s'\n", tmp->name);
 	}
 
@@ -4796,7 +4796,8 @@ int ast_add_extension2(struct ast_context *con,
 			ast_log(LOG_DEBUG, "Added extension '%s' priority %d to %s\n",
 				tmp->exten, tmp->priority, con->name);
 		}
-	} else if (option_verbose > 2) {
+	}
+	if (option_verbose > 2) {
 		if (tmp->matchcid) {
 			ast_verbose( VERBOSE_PREFIX_3 "Added extension '%s' priority %d (CID match '%s')to %s\n",
 				tmp->exten, tmp->priority, tmp->cidmatch, con->name);

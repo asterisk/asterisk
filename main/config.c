@@ -717,21 +717,21 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			ast_log(LOG_WARNING, "'%s' is not a regular file, ignoring\n", fn);
 			continue;
 		}
-		if ((option_verbose > 1) && !option_debug) {
+		if (option_verbose > 1) {
 			ast_verbose(VERBOSE_PREFIX_2 "Parsing '%s': ", fn);
 			fflush(stdout);
 		}
 		if (!(f = fopen(fn, "r"))) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "No file to parse: %s\n", fn);
-			else if (option_verbose > 1)
+			if (option_verbose > 1)
 				ast_verbose( "Not found (%s)\n", strerror(errno));
 			continue;
 		}
 		count++;
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Parsing %s\n", fn);
-		else if (option_verbose > 1)
+		if (option_verbose > 1)
 			ast_verbose("Found\n");
 		while(!feof(f)) {
 			lineno++;
@@ -835,7 +835,7 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 #else
 	if ((f = fopen(fn, "w"))) {
 #endif	    
-		if ((option_verbose > 1) && !option_debug)
+		if (option_verbose > 1)
 			ast_verbose(  VERBOSE_PREFIX_2 "Saving '%s': ", fn);
 		fprintf(f, ";!\n");
 		fprintf(f, ";! Automatically generated configuration file\n");
@@ -872,7 +872,7 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 	} else {
 		if (option_debug)
 			printf("Unable to open for writing: %s\n", fn);
-		else if (option_verbose > 1)
+		if (option_verbose > 1)
 			printf( "Unable to write (%s)", strerror(errno));
 		return -1;
 	}
