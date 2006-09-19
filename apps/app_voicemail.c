@@ -4477,7 +4477,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		return 0;
 	}
 
-	cid = ast_variable_retrieve(msg_cfg, "message", "callerid");
+	cid = ast_strdupa(ast_variable_retrieve(msg_cfg, "message", "callerid"));
 	duration = ast_variable_retrieve(msg_cfg, "message", "duration");
 	category = ast_variable_retrieve(msg_cfg, "message", "category");
 
@@ -7540,7 +7540,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 		return 0;
 	}
 
-	cid = ast_variable_retrieve(msg_cfg, "message", "callerid");
+	cid = ast_strdupa(ast_variable_retrieve(msg_cfg, "message", "callerid"));
 
 	context = ast_variable_retrieve(msg_cfg, "message", "context");
 	if (!strncasecmp("macro",context,5)) /* Macro names in contexts are useless for our needs */
