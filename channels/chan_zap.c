@@ -2070,6 +2070,8 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		int prilocaldialplan;
 		int ldp_strip;
 		int exclusive;
+		const char *rr_str;
+		int redirect_reason;
 
 		c = strchr(dest, '/');
 		if (c)
@@ -2176,7 +2178,20 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		}
 		pri_sr_set_caller(sr, l ? (l + ldp_strip) : NULL, n, prilocaldialplan,
 			p->use_callingpres ? ast->cid.cid_pres : (l ? PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN : PRES_NUMBER_NOT_AVAILABLE));
-		pri_sr_set_redirecting(sr, ast->cid.cid_rdnis, p->pri->localdialplan - 1, PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, PRI_REDIR_UNCONDITIONAL);
+		if ((rr_str = pbx_builtin_getvar_helper(ast, "PRIREDIRECTREASON"))) {
+			if (!strcasecmp(rr_str, "UNKNOWN"))
+				redirect_reason = 0;
+			else if (!strcasecmp(rr_str, "BUSY"))
+				redirect_reason = 1;
+			else if (!strcasecmp(rr_str, "NO_REPLY"))
+				redirect_reason = 2;
+			else if (!strcasecmp(rr_str, "UNCONDITIONAL"))
+				redirect_reason = 15;
+			else
+				redirect_reason = PRI_REDIR_UNCONDITIONAL;
+		} else
+			redirect_reason = PRI_REDIR_UNCONDITIONAL;
+		pri_sr_set_redirecting(sr, ast->cid.cid_rdnis, p->pri->localdialplan - 1, PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, redirect_reason);
 
 #ifdef SUPPORT_USERUSER
 		/* User-user info */

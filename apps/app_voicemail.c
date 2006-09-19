@@ -4607,12 +4607,15 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int x = 0;
+#ifndef IMAP_STORAGE
+	int res = 0, nummsg;
+#endif
+
 	if (vms->lastmsg <= -1)
 		goto done;
 
 	vms->curmsg = -1; 
 #ifndef IMAP_STORAGE
-	int res = 0, nummsg;
 	/* Get the deleted messages fixed */ 
 	if (vm_lock_path(vms->curdir))
 		return ERROR_LOCK_PATH;

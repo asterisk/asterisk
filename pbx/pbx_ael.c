@@ -1056,6 +1056,7 @@ static void check_label(pval *item)
 	   The method:  well, for each label, find the first label in the context
 	   with the same name. If it's not the current label, then throw an error. */
 	struct pval *curr;
+	struct pval *x;
 	
 	/* printf("==== check_label:   ====\n"); */
 	if( !current_extension )
@@ -1063,7 +1064,7 @@ static void check_label(pval *item)
 	else
 		curr = current_extension;
 	
-	struct pval *x = find_first_label_in_current_context((char *)item->u1.str, curr);
+	x = find_first_label_in_current_context((char *)item->u1.str, curr);
 	/* printf("Hey, check_label found with item = %x, and x is %x, and currcont is %x, label name is %s\n", item,x, current_context, (char *)item->u1.str); */
 	if( x && x != item )
 	{

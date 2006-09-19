@@ -525,7 +525,7 @@ static void *monmp3thread(void *data)
 				close(class->srcfd);
 				class->srcfd = -1;
 				pthread_testcancel();
-				if (class->pid) {
+				if (class->pid > 1) {
 					kill(class->pid, SIGHUP);
 					usleep(100000);
 					kill(class->pid, SIGTERM);
@@ -776,6 +776,10 @@ static int moh_scan_files(struct mohclass *class) {
 	while ((files_dirent = readdir(files_DIR))) {
 		/* The file name must be at least long enough to have the file type extension */
 		if ((strlen(files_dirent->d_name) < 4))
+			continue;
+
+		/* Skip standard license file - it is not audio */
+		if (!strcmp(files_dirent->d_name, "LICENSE"))
 			continue;
 
 		snprintf(filepath, sizeof(filepath), "%s/%s", class->dir, files_dirent->d_name);
@@ -1095,7 +1099,7 @@ static void ast_moh_destroy(void)
 
 	AST_LIST_LOCK(&mohclasses);
 	while ((moh = AST_LIST_REMOVE_HEAD(&mohclasses, list))) {
-		if (moh->pid) {
+		if (moh->pid > 1) {
 			ast_log(LOG_DEBUG, "killing %d!\n", moh->pid);
 			stime = time(NULL) + 2;
 			pid = moh->pid;

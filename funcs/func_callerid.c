@@ -59,7 +59,7 @@ static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 
 			ast_copy_string(buf, num, len);
 		} else {
-			ast_log(LOG_ERROR, "Unknown callerid data type.\n");
+			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 		}
 	} else {
 		if (!strncasecmp("all", data, 3)) {
@@ -88,7 +88,7 @@ static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 				ast_copy_string(buf, chan->cid.cid_rdnis, len);
 			}
 		} else {
-			ast_log(LOG_ERROR, "Unknown callerid data type.\n");
+			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 		}
 	}
 
@@ -125,7 +125,7 @@ static int callerid_write(struct ast_channel *chan, char *cmd, char *data,
 			free(chan->cid.cid_rdnis);
 		chan->cid.cid_rdnis = ast_strdup(value);
 	} else {
-		ast_log(LOG_ERROR, "Unknown callerid data type.\n");
+		ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 	}
 
 	return 0;
