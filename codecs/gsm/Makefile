@@ -50,7 +50,7 @@ endif
 #A ultrasparc cpu is really v9 but the stock debian stable 3.0 gcc doesn't support it.
 #So we go lowest common available by gcc and go a step down, still a step up from
 #the default as we now have a better instruction set to work with. - Belgarath
-ifeq (${PROC},ultrasparc)
+ifeq ($(PROC),ultrasparc)
 OPTIMIZE+=-mcpu=v8 -mtune=$(PROC) -O3 
 endif
 
@@ -208,9 +208,9 @@ GSM_SOURCES =	$(SRC)/add.c		\
 # add k6-specific code only if not on a non-k6 hardware or proc.
 # XXX Keep a space after each findstring argument
 # XXX should merge with GSM_OBJECTS
-ifeq (${OSARCH},Linux)
+ifeq ($(OSARCH),linux-gnu)
 ifeq (,$(findstring $(shell uname -m) , x86_64 amd64 ppc ppc64 alpha armv4l sparc64 parisc s390 ))
-ifeq (,$(findstring ${PROC} , arm ia64 s390 bfin ))
+ifeq (,$(findstring $(PROC) , arm ia64 s390 bfin ))
 GSM_SOURCES+= $(SRC)/k6opt.s
 endif
 endif
@@ -260,9 +260,9 @@ GSM_OBJECTS =	$(SRC)/add.o		\
 		$(SRC)/short_term.o	\
 		$(SRC)/table.o
 
-ifeq (${OSARCH},Linux)
+ifeq ($(OSARCH),linux-gnu)
 ifeq (,$(findstring $(shell uname -m) , x86_64 amd64 ppc ppc64 alpha armv4l sparc64 parisc ))
-ifeq (,$(findstring ${PROC} , arm ia64 bfin ))
+ifeq (,$(findstring $(PROC) , arm ia64 bfin ))
 GSM_OBJECTS+= $(SRC)/k6opt.o
 endif
 endif
