@@ -220,6 +220,9 @@
 /* Define to indicate the ${OGG_DESCRIP} library */
 #undef HAVE_OGG
 
+/* Define if your system has the OpenH323 libraries. */
+#undef HAVE_OPENH323
+
 /* Define to indicate the ${OPENSSL_DESCRIP} library */
 #undef HAVE_OPENSSL
 
@@ -250,7 +253,7 @@
 /* Define to 1 if you have the `putenv' function. */
 #undef HAVE_PUTENV
 
-/* Define if your system has the pwlib libraries. */
+/* Define if your system has the PWLib libraries. */
 #undef HAVE_PWLIB
 
 /* Define if your system has the Qt library */
