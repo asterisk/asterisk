@@ -1559,7 +1559,7 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp, int *busies)
 		/* Again, keep going even if there's an error */
 		if (option_debug)
 			ast_log(LOG_DEBUG, "ast call on peer returned %d\n", res);
-		else if (option_verbose > 2)
+		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", tmp->interface);
 		ast_hangup(tmp->chan);
 		tmp->chan = NULL;
