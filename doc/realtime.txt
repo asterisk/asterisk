@@ -52,6 +52,11 @@ the ones in static configuration.
 With caching, the device stays in memory for a specified time. More 
 information about this is to be found in the sip.conf sample file.
 
+* Realtime H.323 friends
+------------------------
+Like SIP realtime friends, H.323 friends aslo can be configured using
+dynamic realtime objects.
+
 * New function in the dial plan: The Realtime Switch
 ----------------------------------------------------
 The realtime switch is more than a port of functionality in v1.0 to the

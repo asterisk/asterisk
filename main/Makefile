@@ -115,6 +115,13 @@ AST_EMBED_LDFLAGS:=$(foreach dep,$(EMBED_LDFLAGS),$(value $(dep)))
 AST_EMBED_LIBS:=$(foreach dep,$(EMBED_LIBS),$(value $(dep)))
 OBJS:=$(sort $(OBJS))
 
+ifneq ($(wildcard ../channels/h323/Makefile.ast),)
+  include ../channels/h323/Makefile.ast
+else
+  H323LDFLAGS=
+  H323LDLIBS=
+endif
+
 asterisk: $(OBJS) editline/libedit.a db1-ast/libdb1.a $(AST_EMBED_LDSCRIPTS)
 	@$(ASTTOPDIR)/build_tools/make_build_h > $(ASTTOPDIR)/include/asterisk/build.h.tmp
 	@if cmp -s $(ASTTOPDIR)/include/asterisk/build.h.tmp $(ASTTOPDIR)/include/asterisk/build.h ; then echo ; else \
@@ -123,7 +130,7 @@ asterisk: $(OBJS) editline/libedit.a db1-ast/libdb1.a $(AST_EMBED_LDSCRIPTS)
 	@rm -f $(ASTTOPDIR)/include/asterisk/build.h.tmp
 	@$(CC) -c -o buildinfo.o $(CFLAGS) buildinfo.c
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
-	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o asterisk $(ASTLINK) $(AST_EMBED_LDFLAGS) $(LDFLAGS) $^ buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS)
+	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o asterisk $(ASTLINK) $(AST_EMBED_LDFLAGS) $(LDFLAGS) $(H323LDFLAGS) $^ buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(H323LDLIBS)
 
 clean::
 	rm -f asterisk

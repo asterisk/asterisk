@@ -63,7 +63,20 @@ clean::
 	rm -f busy.h ringtone.h gentone
 	$(MAKE) -C misdn clean
 
--include $(PWD)/Makefile.ast
+ifneq ($(wildcard h323/Makefile.ast),)
+  include h323/Makefile.ast
+H323LDFLAGS += -Wl,--version-script=h323/noexport.map
+else
+h323/libchanh323.a h323/Makefile.ast:
+	$(CMD_PREFIX) $(MAKE) -C h323
+	$(CMD_PREFIX) rm -f ../main/asterisk
+	$(CMD_PREFIX) echo "***************************************************************"
+	$(CMD_PREFIX) echo
+	$(CMD_PREFIX) echo "********** Re-run 'make' to pick up H.323 parameters **********"
+	$(CMD_PREFIX) echo
+	$(CMD_PREFIX) echo "***************************************************************"
+	$(CMD_PREFIX) exit 1
+endif
 
 $(eval $(call ast_make_final_host,gentone,gentone.c))
 gentone: LIBS+=-lm
@@ -81,11 +94,13 @@ $(chan_iax2): iax2-parser.o iax2-provision.o
 chan_alsa.o: busy.h ringtone.h
 
 ifeq ($(OSARCH),linux-gnu)
-chan_h323.so: chan_h323.o h323_module_interface.so h323/libchanh323.a h323/Makefile.ast
-	$(CC) $(SOLINK) $(H323LDFLAGS) -o $@ $^ h323/libchanh323.a $(H323LDLIBS) -lstdc++
+chan_h323.so: chan_h323.o h323/libchanh323.a h323/Makefile.ast
+	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
+	$(CMD_PREFIX) $(CXX) $(SOLINK) $(H323LDFLAGS) -o $@ $< h323/libchanh323.a $(H323LDLIBS)
 else
-chan_h323.so: chan_h323.o h323_module_interface.so h323/libchanh323.a
-	$(CC) $(SOLINK) -o $@ $^ h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lcrypto -lssl -lexpat
+chan_h323.so: chan_h323.o h323/libchanh323.a
+	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
+	$(CMD_PREFIX) $(CXX) $(SOLINK) -o $@ $< h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lcrypto -lssl -lexpat
 endif
 
 chan_misdn.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\" 

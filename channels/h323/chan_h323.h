@@ -4,8 +4,8 @@
  * OpenH323 Channel Driver for ASTERISK PBX.
  *			By Jeremy McNamara
  * 			For The NuFone Network
- *	
- * This code has been derived from code created by 
+ *
+ * This code has been derived from code created by
  *		Michael Manousos and Mark Spencer
  *
  * This file is part of the chan_h323 driver for Asterisk
@@ -13,29 +13,42 @@
  * chan_h323 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version. 
+ * (at your option) any later version.
  *
- * chan_h323 is distributed WITHOUT ANY WARRANTY; without even 
- * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
- * PURPOSE. See the GNU General Public License for more details. 
+ * chan_h323 is distributed WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ * PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Version Info: $Id$
  */
 
 #include <arpa/inet.h>
 
+/*
+ * Enable support for sending/reception of tunnelled Q.SIG messages and
+ * some sort of IEs (especially RedirectingNumber) which Cisco CallManager
+ * isn't like to pass in standard Q.931 message.
+ *
+ */
+#define TUNNELLING
+
+#define H323_TUNNEL_CISCO	(1 << 0)
+#define H323_TUNNEL_QSIG	(1 << 1)
+
 /** call_option struct holds various bits
  *         of information for each call */
 typedef struct call_options {
 	char			cid_num[80];
 	char			cid_name[80];
-	int				noFastStart;
-	int				noH245Tunneling;
-	int				noSilenceSuppression;
+	char			cid_rdnis[80];
+	int				redirect_reason;
+	int				fastStart;
+	int				h245Tunneling;
+	int				silenceSuppression;
 	int				progress_setup;
 	int				progress_alert;
 	int				progress_audio;
@@ -44,57 +57,58 @@ typedef struct call_options {
 	int				capability;
 	int				bridge;
 	int				nat;
+	int				tunnelOptions;
+	struct ast_codec_pref	prefs;
 } call_options_t;
 
 /* structure to hold the valid asterisk users */
 struct oh323_user {
-	char name[80];
+	ASTOBJ_COMPONENTS(struct oh323_user);
+//	char name[80];
 	char context[80];
 	char secret[80];
-	char callerid[80];
 	char accountcode[AST_MAX_ACCOUNT_CODE];
 	int amaflags;
 	int host;
 	struct sockaddr_in addr;
 	struct ast_ha *ha;
 	call_options_t options;
-	struct oh323_user *next;
 };
 
-/* structure to hold the valid asterisk peers 
+/* structure to hold the valid asterisk peers
    All peers are registered to a GK if there is one */
 struct oh323_peer {
-	char name[80];
+	ASTOBJ_COMPONENTS(struct oh323_peer);
 	char mailbox[80];
 	int delme;
 	struct sockaddr_in addr;
 	struct ast_ha *ha;
 	call_options_t options;
-	struct oh323_peer *next;
 };
 
-/* structure to hold the H.323 aliases which get registered to 
+/* structure to hold the H.323 aliases which get registered to
    the H.323 endpoint and gatekeeper */
 struct oh323_alias {
-	char name[80];
+	ASTOBJ_COMPONENTS(struct oh323_alias);
 	char e164[20];				/* tells a GK to route this E.164 to this alias */
 	char prefix[500];			/* tells a GK this alias supports these prefixes */
 	char secret[20];			/* the H.235 password to send to the GK for authentication */
 	char context[80];
-	struct oh323_alias *next;	
 };
 
-/** call_details struct call detail records 
-	to asterisk for processing and used for matching up 
+/** call_details struct call detail records
+	to asterisk for processing and used for matching up
 	asterisk channels to acutal h.323 connections */
-typedef struct call_details {	
+typedef struct call_details {
 	unsigned int call_reference;
-	char *call_token;				
+	char *call_token;
 	char *call_source_aliases;
 	char *call_dest_alias;
 	char *call_source_name;
 	char *call_source_e164;
 	char *call_dest_e164;
+	char *redirect_number;
+	int redirect_reason;
 	int presentation;
 	int screening;
 	char *sourceIp;
@@ -107,18 +121,18 @@ typedef struct rtp_info {
 
 /* This is a callback prototype function, called pass
    DTMF down the RTP. */
-typedef int (*send_digit_cb)(unsigned, char, const char *);
-extern send_digit_cb on_send_digit; 
+typedef int (*receive_digit_cb)(unsigned, char, const char *, int);
+extern receive_digit_cb on_receive_digit;
 
 /* This is a callback prototype function, called to collect
    the external RTP port from Asterisk. */
 typedef rtp_info_t *(*on_rtp_cb)(unsigned, const char *);
-extern on_rtp_cb on_external_rtp_create; 
+extern on_rtp_cb on_external_rtp_create;
 
 /* This is a callback prototype function, called to send
-   the remote IP and RTP port from H.323 to Asterisk */ 
+   the remote IP and RTP port from H.323 to Asterisk */
 typedef void (*start_rtp_cb)(unsigned int, const char *, int, const char *, int);
-extern start_rtp_cb on_start_rtp_channel; 
+extern start_rtp_cb on_start_rtp_channel;
 
 /* This is a callback that happens when call progress is
  * made, and handles inband progress */
@@ -133,7 +147,7 @@ extern setup_incoming_cb on_incoming_call;
 /* This is a callback prototype function, called upon
    an outbound call. */
 typedef int (*setup_outbound_cb)(call_details_t *);
-extern setup_outbound_cb on_outgoing_call; 
+extern setup_outbound_cb on_outgoing_call;
 
 /* This is a callback prototype function, called when
    OnAlerting is invoked */
@@ -151,7 +165,7 @@ typedef void (*clear_con_cb)(unsigned, const char *);
 extern clear_con_cb on_connection_cleared;
 
 /* This is a callback prototype function, called when
-    an H.323 call is answered */
+   an H.323 call is answered */
 typedef int (*answer_call_cb)(unsigned, const char *);
 extern answer_call_cb on_answer_call;
 
@@ -167,6 +181,9 @@ extern hangup_cb on_hangup;
 typedef void (*setcapabilities_cb)(unsigned, const char *);
 extern setcapabilities_cb on_setcapabilities;
 
+typedef void (*setpeercapabilities_cb)(unsigned, const char *, int);
+extern setpeercapabilities_cb on_setpeercapabilities;
+
 /* debug flag */
 extern int h323debug;
 
@@ -179,30 +196,31 @@ extern int h323debug;
 
 #ifdef __cplusplus
 extern "C" {
-#endif   
-    
+#endif
+
 	void h323_gk_urq(void);
 	void h323_end_point_create(void);
 	void h323_end_process(void);
 	int  h323_end_point_exist(void);
-    
+
 	void h323_debug(int, unsigned);
 
 	/* callback function handler*/
-	void h323_callback_register(setup_incoming_cb,  
-				    setup_outbound_cb,
- 				    on_rtp_cb,
-				    start_rtp_cb,
- 				    clear_con_cb,
- 				    chan_ringing_cb,
-				    con_established_cb,
- 				    send_digit_cb,
- 				    answer_call_cb,
-				    progress_cb,
-				    rfc2833_cb,
-				    hangup_cb,
-				    setcapabilities_cb);
-	int h323_set_capabilities(const char *, int, int);
+	void h323_callback_register(setup_incoming_cb,
+					setup_outbound_cb,
+					on_rtp_cb,
+					start_rtp_cb,
+					clear_con_cb,
+					chan_ringing_cb,
+					con_established_cb,
+					receive_digit_cb,
+					answer_call_cb,
+					progress_cb,
+					rfc2833_cb,
+					hangup_cb,
+					setcapabilities_cb,
+					setpeercapabilities_cb);
+	int h323_set_capabilities(const char *, int, int, struct ast_codec_pref *, int);
 	int h323_set_alias(struct oh323_alias *);
 	int h323_set_gk(int, char *, char *);
 	void h323_set_id(char *);
@@ -219,12 +237,12 @@ extern "C" {
 	/* H323 create and destroy sessions */
 	int h323_make_call(char *dest, call_details_t *cd, call_options_t *);
 	int h323_clear_call(const char *, int cause);
-	
+
 	/* H.323 alerting and progress */
 	int h323_send_alerting(const char *token);
 	int h323_send_progress(const char *token);
 	int h323_answering_call(const char *token, int);
-	int h323_soft_hangup(const char *data);	
+	int h323_soft_hangup(const char *data);
 	int h323_show_codec(int fd, int argc, char *argv[]);
 
 #ifdef __cplusplus

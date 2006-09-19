@@ -195,6 +195,7 @@ AST_EXT_LIB_SETUP([POPT], [popt], [popt])
 AST_EXT_LIB_SETUP([PGSQL], [PostgreSQL], [postgres])
 AST_EXT_LIB_SETUP([PRI], [ISDN PRI], [pri])
 AST_EXT_LIB_SETUP([PWLIB], [PWlib], [pwlib])
+AST_EXT_LIB_SETUP([OPENH323], [OpenH323], [h323])
 AST_EXT_LIB_SETUP([QT], [Qt], [qt])
 AST_EXT_LIB_SETUP([RADIUS], [Radius Client], [radius])
 AST_EXT_LIB_SETUP([SPEEX], [Speex], [speex])
@@ -701,48 +702,57 @@ AST_EXT_LIB_CHECK([POPT], [popt], [poptStrerror], [popt.h])
 
 AST_EXT_LIB_CHECK([PRI], [pri], [pri_call], [libpri.h])
 
-PLATFORM_PTLIB="ptlib_${OSTYPE}_${MACHTYPE}_r"
 if test "${USE_PWLIB}" != "no"; then
-   AC_MSG_CHECKING(for existence of pwlib)
-	
-   saved_cppflags="${CPPFLAGS}"
-   saved_libs="${LIBS}"
-   LIBS="${LIBS} -L${PWLIB_DIR} -l${PLATFORM_PTLIB}"
-   CPPFLAGS="${CPPFLAGS} -I${PWLIB_DIR}/include"
-	
-   AC_LINK_IFELSE(
-	[
-	AC_LANG_PROGRAM(
-	[#include "ptime.h"],
-	[int q = PTime::IsDaylightSaving();])
-	],
-	[	AC_MSG_RESULT(yes) 
-		ac_cv_lib_pwlib="yes" 
-	],
-	[	AC_MSG_RESULT(no) 
-		ac_cv_lib_pwlib="no" 
-	]
-	)
+	if test ! -z "${PWLIB_DIR}"; then
+		PWLIBDIR="${PWLIB_DIR}"
+	fi
+	AST_CHECK_PWLIB()
+	AST_CHECK_PWLIB_VERSION([PWLib], [PWLIB], [ptbuildopts.h], [1], [9], [2])
+		
+	if test "${HAS_PWLIB:-unset}" != "unset"; then
+		AST_CHECK_OPENH323_PLATFORM()
 
-   LIBS="${saved_libs}"
-   CPPFLAGS="${saved_cppflags}"
+		PLATFORM_PWLIB="pt_${PWLIB_PLATFORM}_r"
 
-   if test "${ac_cv_lib_pwlib}" = "yes"; then
-      PWLIB_LIB="-l{PLATFORM_PWLIB}"
-      if test "${PWLIB_DIR}" != ""; then
-         PWLIB_LIB="-L${PWLIB_DIR}/lib ${PWLIB_LIB}"
-         PWLIB_INCLUDE="-I${PWLIB_DIR}/include"
-      fi
-   	PBX_PWLIB=1
-   	AC_DEFINE([HAVE_PWLIB], 1, [Define if your system has the pwlib libraries.])
-   elif test ! -z "${PWLIB_MANDATORY}"; then
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The PWLIB installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-pwlib)
-      exit 1
-   fi
+		AST_CHECK_PWLIB_BUILD([PWLib], [PWLIB],
+			[Define if your system has the PWLib libraries.],
+			[#include "ptlib.h"],
+			[BOOL q = PTime::IsDaylightSavings();])
+	fi
 fi
+
+if test "${USE_PWLIB}" != "no" -a "x${ac_cv_lib_PWLIB}" != "xyes" -a ! -z "${PWLIB_MANDATORY}"; then
+   AC_MSG_NOTICE(***)
+   AC_MSG_NOTICE(*** The PWLIB installation on this system appears to be broken.)
+   AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+   AC_MSG_NOTICE(*** including --without-pwlib)
+   exit 1
+fi
+
+if test "${PBX_PWLIB}" = "1" -a "${USE_OPENH323}" != "no" ; then
+	if test ! -z "${OPENH323_DIR}"; then
+		OPENH323DIR="${OPENH323_DIR}"
+	fi
+	AST_CHECK_OPENH323()
+	AST_CHECK_PWLIB_VERSION([OpenH323], [OPENH323], [openh323buildopts.h], [1], [17], [3])
+	AST_CHECK_OPENH323_BUILD()
+	PLATFORM_OPENH323="h323_${PWLIB_PLATFORM}_${OPENH323_SUFFIX}"
+	AST_CHECK_PWLIB_BUILD([OpenH323], [OPENH323],
+		[Define if your system has the OpenH323 libraries.],
+		[#include "ptlib.h"
+		#include "h323.h"
+		#include "h323ep.h"],
+		[H323EndPoint ep = H323EndPoint();],
+		[${PWLIB_INCLUDE}], [${PWLIB_LIB}])
+fi
+if test "${USE_OPENH323}" != "no" -a "x${ac_cv_lib_OPENH323}" != "xyes" -a ! -z "${OPENH323_MANDATORY}"; then
+   AC_MSG_NOTICE(***)
+   AC_MSG_NOTICE(*** The PWLIB installation on this system appears to be broken.)
+   AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+   AC_MSG_NOTICE(*** including --without-pwlib)
+   exit 1
+fi
+
 
 AC_LANG_PUSH(C++)
 
@@ -1000,7 +1010,7 @@ AC_SUBST(PBX_CURL)
 AC_SUBST(CURL_INCLUDE)
 AC_SUBST(CURL_LIB)
 
-AC_CONFIG_FILES([build_tools/menuselect-deps makeopts])
+AC_CONFIG_FILES([build_tools/menuselect-deps makeopts channels/h323/Makefile])
 AC_OUTPUT
 
 if test "x${silent}" != "xyes" ; then
