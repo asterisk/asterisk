@@ -64,6 +64,15 @@ case "${host_os}" in
      freebsd*)
      OSARCH=FreeBSD
      ;;
+     openbsd*)
+     OSARCH=OpenBSD
+     ;;
+     netbsd*)
+     OSARCH=NetBSD
+     ;;
+     solaris*)
+     OSARCH=SunOS
+     ;;
      *)
      OSARCH=${HOST_OS}
      ;;
