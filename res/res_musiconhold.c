@@ -778,8 +778,8 @@ static int moh_scan_files(struct mohclass *class) {
 		if ((strlen(files_dirent->d_name) < 4))
 			continue;
 
-		/* Skip standard license file - it is not audio */
-		if (!strcmp(files_dirent->d_name, "LICENSE"))
+		/* Skip files without extensions... they are not audio */
+		if (!strchr(files_dirent->d_name, '.'))
 			continue;
 
 		snprintf(filepath, sizeof(filepath), "%s/%s", class->dir, files_dirent->d_name);
