@@ -1251,24 +1251,19 @@ int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best)
 
 void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, const char *list, int allowing) 
 {
-	char *parse;
-	char *this;
-	int format;
-	char *psize;
-	int framems;
+	char *parse = NULL, *this = NULL, *psize = NULL;
+	int format = 0, framems = 0;
 
 	parse = ast_strdupa(list);
 	while ((this = strsep(&parse, ","))) {
 		framems = 0;
 		if ((psize = strrchr(this, ':'))) {
-			*psize = '\0';
-			psize++;
+			*psize++ = '\0';
 			if (option_debug)
 				ast_log(LOG_DEBUG,"Packetization for codec: %s is %s\n", this, psize);
-			framems = strtol(psize,NULL,10);
-			if (framems == LONG_MIN || framems == LONG_MAX) {
+			framems = atoi(psize);
+			if (framems < 0)
 				framems = 0;
-			}
 		}
 		if (!(format = ast_getformatbyname(this))) {
 			ast_log(LOG_WARNING, "Cannot %s unknown format '%s'\n", allowing ? "allow" : "disallow", this);
