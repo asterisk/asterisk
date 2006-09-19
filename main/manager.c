@@ -23,13 +23,13 @@
  * \author Mark Spencer <markster@digium.com>
  *
  * Channel Management and more
- * 
+ *
  * \ref amiconf
  */
 
-/*! \addtogroup Group_AMI AMI functions 
+/*! \addtogroup Group_AMI AMI functions
 */
-/*! @{ 
+/*! @{
  Doxygen group */
 
 #include "asterisk.h"
@@ -103,9 +103,12 @@ static pthread_t t;
 static int block_sockets = 0;
 static int num_sessions = 0;
 
+static struct ast_manager_user *amus =NULL;
+
 /* Protected by the sessions list lock */
 struct eventqent *master_eventq = NULL;
 
+AST_MUTEX_DEFINE_STATIC(amulock);
 AST_THREADSTORAGE(manager_event_buf, manager_event_buf_init);
 #define MANAGER_EVENT_BUF_INITSIZE   256
 
@@ -175,6 +178,17 @@ struct mansession {
 	AST_LIST_ENTRY(mansession) list;
 };
 
+struct ast_manager_user {
+	char username[80];
+	char *secret;
+	char *deny;
+	char *permit;
+	char *read;
+	char *write;
+	unsigned int displayconnects:1;
+	struct ast_manager_user *next;
+};
+
 static AST_LIST_HEAD_STATIC(sessions, mansession);
 
 static struct manager_action *first_action = NULL;
@@ -199,7 +213,7 @@ static char *authority_to_str(int authority, char *res, int reslen)
 
 	if (ast_strlen_zero(res))
 		ast_copy_string(res, "<none>", reslen);
-	
+
 	return res;
 }
 
@@ -249,7 +263,7 @@ static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int low
 			strcpy(*dst, "&amp;");
 			(*dst) += 5;
 			*maxlen -= 5;
-			break;		
+			break;
 		default:
 			*(*dst)++ = lower ? tolower(*src) : *src;
 			(*maxlen)--;
@@ -271,11 +285,11 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 	int escaped = 0;
 	int inobj = 0;
 	int x;
-	
+
 	for (v = vars; v; v = v->next) {
 		if (!dest && !strcasecmp(v->name, "ajaxdest"))
 			dest = v->value;
-		else if (!objtype && !strcasecmp(v->name, "ajaxobjtype")) 
+		else if (!objtype && !strcasecmp(v->name, "ajaxobjtype"))
 			objtype = v->value;
 	}
 	if (!dest)
@@ -320,7 +334,7 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 					ast_build_string(&tmp, &len, "<response type='object' id='%s'><%s", dest, objtype);
 					inobj = 1;
 				}
-				ast_build_string(&tmp, &len, " ");				
+				ast_build_string(&tmp, &len, " ");
 				xml_copy_escape(&tmp, &len, var, 1);
 				ast_build_string(&tmp, &len, "='");
 				xml_copy_escape(&tmp, &len, val, 0);
@@ -380,6 +394,36 @@ static char *html_translate(char *in)
 	return out;
 }
 
+
+
+struct ast_manager_user *ast_get_manager_by_name_locked(const char *name)
+{
+	struct ast_manager_user *tmp = NULL;
+	tmp=amus;
+	while (tmp) {
+		if (!strcasecmp(tmp->username, name))
+			break;
+		tmp = tmp->next;
+	}
+	if ( tmp)
+		return tmp;
+	return NULL;
+}
+
+
+
+int *ast_manager_user_add(struct ast_manager_user *amu) {
+	if (!amu) {
+		ast_log(LOG_DEBUG, "You cant pass NULL to that function");
+		return NULL;
+	}
+	ast_mutex_lock(&amulock);
+	amu->next = amus;
+	amus = amu;
+	ast_mutex_unlock(&amulock);
+	return NULL;
+}
+
 void astman_append(struct mansession *s, const char *fmt, ...)
 {
 	va_list ap;
@@ -391,14 +435,14 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 	va_start(ap, fmt);
 	ast_dynamic_str_thread_set_va(&buf, 0, &astman_append_buf, fmt, ap);
 	va_end(ap);
-	
+
 	if (s->fd > -1)
 		ast_carefulwrite(s->fd, buf->str, strlen(buf->str), s->writetimeout);
 	else {
 		if (!s->outputstr && !(s->outputstr = ast_calloc(1, sizeof(*s->outputstr))))
 			return;
 
-		ast_dynamic_str_append(&s->outputstr, 0, "%s", buf->str);	
+		ast_dynamic_str_append(&s->outputstr, 0, "%s", buf->str);
 	}
 }
 
@@ -424,7 +468,80 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  CLI command 
+static int handle_showmanager(int fd, int argc, char *argv[])
+{
+	struct ast_manager_user *tmp;
+	if (argc != 4 )
+		return RESULT_SHOWUSAGE;
+
+	/* try to lock manager_user list ... */
+	if (ast_mutex_lock(&amulock)) {
+		ast_log(LOG_ERROR, "Unable to lock manager_user list\n");
+		return -1;
+	}
+
+	tmp = ast_get_manager_by_name_locked(argv[3]);
+
+	if (!tmp) {
+		ast_cli(fd, "There are no manager called %s\n",argv[3]);
+		ast_mutex_unlock(&amulock);
+		return -1;
+	}
+	ast_cli(fd,"\n");
+	ast_cli(fd,
+		"       username: %s\n"
+		"         secret: %s\n"
+		"           deny: %s\n"
+		"         permit: %s\n"
+		"           read: %s\n"
+		"          write: %s\n"
+		"displayconnects: %s\n",
+		(tmp->username ? tmp->username : "(N/A)"),
+		(tmp->secret ? tmp->secret : "(N/A)"),
+		(tmp->deny ? tmp->deny : "(N/A)"),
+		(tmp->permit ? tmp->permit : "(N/A)"),
+		(tmp->read ? tmp->read : "(N/A)"),
+		(tmp->write ? tmp->write : "(N/A)"),
+		(tmp->displayconnects ? "yes" : "no"));
+	ast_mutex_unlock(&amulock);
+
+	return RESULT_SUCCESS;
+}
+
+
+static int handle_showmanagers(int fd, int argc, char *argv[]) {
+	struct ast_manager_user *tmp;
+	int count_amu = 0;
+
+	if ( argc > 4 )
+		return RESULT_SHOWUSAGE;
+
+	/* try to lock manager_user list ... */
+	if (ast_mutex_lock(&amulock)) {
+		ast_log(LOG_ERROR, "Unable to lock manager_user list\n");
+		return -1;
+	}
+
+	tmp=amus;
+	if (!tmp) {
+		ast_cli(fd, "There are no manager user.\n");
+		ast_mutex_unlock(&amulock);
+		return -1;
+	}
+	ast_cli(fd, "\nusername\n--------\n");
+	while (tmp) {
+		ast_cli(fd, "%s\n", tmp->username);
+		tmp = tmp->next;
+		count_amu++;
+	}
+	ast_mutex_unlock(&amulock);
+	ast_cli(fd,"-------------------\n");
+	ast_cli(fd,"%d manager users configured.\n", count_amu);
+	return RESULT_SUCCESS;
+}
+
+
+/*! \brief  CLI command
 	Should change to "manager show commands" */
 static int handle_showmancmds(int fd, int argc, char *argv[])
 {
@@ -434,12 +551,12 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 
 	ast_cli(fd, format, "Action", "Privilege", "Synopsis");
 	ast_cli(fd, format, "------", "---------", "--------");
-	
+
 	ast_mutex_lock(&actionlock);
 	for (; cur; cur = cur->next) /* Walk the list of actions */
 		ast_cli(fd, format, cur->action, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->synopsis);
 	ast_mutex_unlock(&actionlock);
-	
+
 	return RESULT_SUCCESS;
 }
 
@@ -451,7 +568,7 @@ static int handle_showmanconn(int fd, int argc, char *argv[])
 	char *format = "  %-15.15s  %-15.15s\n";
 
 	ast_cli(fd, format, "Username", "IP Address");
-	
+
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_TRAVERSE(&sessions, s, list)
 		ast_cli(fd, format,s->username, ast_inet_ntoa(s->sin.sin_addr));
@@ -477,61 +594,56 @@ static int handle_showmaneventq(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char showmancmd_help[] = 
-"Usage: manager show command <actionname>\n"
+static char showmancmd_help[] =
+"Usage: show manager command <actionname>\n"
 "	Shows the detailed description for a specific Asterisk manager interface command.\n";
 
-static char showmancmds_help[] = 
-"Usage: manager list commands\n"
+static char showmancmds_help[] =
+"Usage: show manager commands\n"
 "	Prints a listing of all the available Asterisk manager interface commands.\n";
 
-static char showmanconn_help[] = 
-"Usage: manager list connected\n"
+static char showmanconn_help[] =
+"Usage: show manager connected\n"
 "	Prints a listing of the users that are currently connected to the\n"
 "Asterisk manager interface.\n";
 
-static char showmaneventq_help[] = 
-"Usage: manager list eventq\n"
+static char showmaneventq_help[] =
+"Usage: show manager eventq\n"
 "	Prints a listing of all events pending in the Asterisk manger\n"
 "event queue.\n";
 
-static struct ast_cli_entry cli_show_manager_command_deprecated = {
-	{ "show", "manager", "command", NULL },
-	handle_showmancmd, NULL,
-	NULL, complete_show_mancmd };
+static char showmanagers_help[] =
+"Usage: show managers\n"
+"       Prints a listing of all managers that are currently configured on that\n"
+" system.\n";
 
-static struct ast_cli_entry cli_show_manager_commands_deprecated = {
-	{ "show", "manager", "commands", NULL },
-	handle_showmancmds, NULL,
-	NULL };
+static char showmanager_help[] =
+" Usage: show manager foobar\n"
+" Display all the infos related to the manager foobar.\n";
 
-static struct ast_cli_entry cli_show_manager_connected_deprecated = {
-	{ "show", "manager", "connected", NULL },
-	handle_showmanconn, NULL,
-	NULL };
+static struct ast_cli_entry show_managers_cli =
+	{ { "manager", "show", "users" },
+	handle_showmanagers, "Show all managers users (connected or not)", showmanagers_help };
 
-static struct ast_cli_entry cli_show_manager_eventq_deprecated = {
-	{ "show", "manager", "eventq", NULL },
-	handle_showmaneventq, NULL,
-	NULL };
+static struct ast_cli_entry show_manager_cli =
+{ { "manager", "show", "user" }, handle_showmanager, "Display information on a specific manager", showmanager_help};
 
-static struct ast_cli_entry cli_manager[] = {
-	{ { "manager", "show", "command", NULL },
-	handle_showmancmd, "Show a manager interface command",
-	showmancmd_help, complete_show_mancmd, &cli_show_manager_command_deprecated },
 
-	{ { "manager", "list", "commands", NULL },
-	handle_showmancmds, "List manager interface commands",
-	showmancmds_help, NULL, &cli_show_manager_commands_deprecated },
+static struct ast_cli_entry show_mancmd_cli =
+	{ { "show", "manager", "command", NULL },
+	handle_showmancmd, "Show a manager interface command", showmancmd_help, complete_show_mancmd };
 
-	{ { "manager", "list", "connected", NULL },
-	handle_showmanconn, "List connected manager interface users",
-	showmanconn_help, NULL, &cli_show_manager_connected_deprecated },
+static struct ast_cli_entry show_mancmds_cli =
+	{ { "show", "manager", "commands", NULL },
+	handle_showmancmds, "List manager interface commands", showmancmds_help };
 
-	{ { "manager", "list", "eventq", NULL },
-	handle_showmaneventq, "List manager interface queued events",
-	showmaneventq_help, NULL, &cli_show_manager_eventq_deprecated },
-};
+static struct ast_cli_entry show_manconn_cli =
+	{ { "show", "manager", "connected", NULL },
+	handle_showmanconn, "Show connected manager interface users", showmanconn_help };
+
+static struct ast_cli_entry show_maneventq_cli =
+	{ { "show", "manager", "eventq", NULL },
+	handle_showmaneventq, "Show manager interface queued events", showmaneventq_help };
 
 static void unuse_eventqent(struct eventqent *e)
 {
@@ -586,12 +698,12 @@ struct ast_variable *astman_get_variables(struct message *m)
 	struct ast_variable *head = NULL, *cur;
 	char *var, *val;
 
-	char *parse;    
+	char *parse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(vars)[32];
 	);
 
-	varlen = strlen("Variable: ");	
+	varlen = strlen("Variable: ");
 
 	for (x = 0; x < m->hdrcount; x++) {
 		if (strncasecmp("Variable: ", m->headers[x], varlen))
@@ -662,7 +774,7 @@ void astman_send_ack(struct mansession *s, struct message *m, char *msg)
    ast_instring("this|that|more","this",',') == 1;
 
    feel free to move this to app.c -anthm */
-static int ast_instring(char *bigstr, char *smallstr, char delim) 
+static int ast_instring(char *bigstr, char *smallstr, char delim)
 {
 	char *val = bigstr, *next;
 
@@ -691,11 +803,11 @@ static int get_perm(char *instr)
 		if (ast_instring(instr, perms[x].label, ','))
 			ret |= perms[x].num;
 	}
-	
+
 	return ret;
 }
 
-static int ast_is_number(char *string) 
+static int ast_is_number(char *string)
 {
 	int ret = 1, x = 0;
 
@@ -708,14 +820,14 @@ static int ast_is_number(char *string)
 			break;
 		}
 	}
-	
+
 	return ret ? atoi(string) : 0;
 }
 
-static int ast_strings_to_mask(char *string) 
+static int ast_strings_to_mask(char *string)
 {
 	int x, ret = -1;
-	
+
 	x = ast_is_number(string);
 
 	if (x)
@@ -727,12 +839,12 @@ static int ast_strings_to_mask(char *string)
 	else if (ast_true(string)) {
 		ret = 0;
 		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
-			ret |= perms[x].num;		
+			ret |= perms[x].num;
 	} else {
 		ret = 0;
 		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++) {
-			if (ast_instring(string, perms[x].label, ',')) 
-				ret |= perms[x].num;		
+			if (ast_instring(string, perms[x].label, ','))
+				ret |= perms[x].num;
 		}
 	}
 
@@ -740,7 +852,7 @@ static int ast_strings_to_mask(char *string)
 }
 
 /*! \brief
-   Rather than braindead on,off this now can also accept a specific int mask value 
+   Rather than braindead on,off this now can also accept a specific int mask value
    or a ',' delim list of mask strings (the same as manager.conf) -anthm
 */
 static int set_eventmask(struct mansession *s, char *eventmask)
@@ -748,10 +860,10 @@ static int set_eventmask(struct mansession *s, char *eventmask)
 	int maskint = ast_strings_to_mask(eventmask);
 
 	ast_mutex_lock(&s->__lock);
-	if (maskint >= 0)	
+	if (maskint >= 0)
 		s->send_events = maskint;
 	ast_mutex_unlock(&s->__lock);
-	
+
 	return maskint;
 }
 
@@ -764,7 +876,7 @@ static int authenticate(struct mansession *s, struct message *m)
 	char *authtype = astman_get_header(m, "AuthType");
 	char *key = astman_get_header(m, "Key");
 	char *events = astman_get_header(m, "Events");
-	
+
 	cfg = ast_config_load("manager.conf");
 	if (!cfg)
 		return -1;
@@ -799,7 +911,7 @@ static int authenticate(struct mansession *s, struct message *m)
 						else
 							s->writetimeout = val;
 					}
-				    		
+
 				}
 				if (ha && !ast_apply_ha(ha, &(s->sin))) {
 					ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
@@ -834,7 +946,7 @@ static int authenticate(struct mansession *s, struct message *m)
 					ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
 					ast_config_destroy(cfg);
 					return -1;
-				}	
+				}
 			}
 		}
 		cat = ast_category_browse(cfg, cat);
@@ -854,7 +966,7 @@ static int authenticate(struct mansession *s, struct message *m)
 }
 
 /*! \brief Manager PING */
-static char mandescr_ping[] = 
+static char mandescr_ping[] =
 "Description: A 'Ping' action will ellicit a 'Pong' response.  Used to keep the\n"
 "  manager connection open.\n"
 "Variables: NONE\n";
@@ -915,7 +1027,7 @@ static void handle_updates(struct mansession *s, struct message *m, struct ast_c
 	char *action, *cat, *var, *value, *match;
 	struct ast_category *category;
 	struct ast_variable *v;
-	
+
 	for (x=0;x<100000;x++) {
 		snprintf(hdr, sizeof(hdr), "Action-%06d", x);
 		action = astman_get_header(m, hdr);
@@ -939,7 +1051,7 @@ static void handle_updates(struct mansession *s, struct message *m, struct ast_c
 		} else if (!strcasecmp(action, "renamecat")) {
 			if (!ast_strlen_zero(cat) && !ast_strlen_zero(value)) {
 				category = ast_category_get(cfg, cat);
-				if (category) 
+				if (category)
 					ast_category_rename(category, value);
 			}
 		} else if (!strcasecmp(action, "delcat")) {
@@ -952,8 +1064,8 @@ static void handle_updates(struct mansession *s, struct message *m, struct ast_c
 			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) && (category = ast_category_get(cfg, cat)))
 				ast_variable_delete(category, var, match);
 		} else if (!strcasecmp(action, "append")) {
-			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) && 
-				(category = ast_category_get(cfg, cat)) && 
+			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) &&
+				(category = ast_category_get(cfg, cat)) &&
 				(v = ast_variable_new(var, value))){
 				if (match && !strcasecmp(match, "object"))
 					v->object = 1;
@@ -1008,13 +1120,13 @@ static int action_updateconfig(struct mansession *s, struct message *m)
 	if (!ast_strlen_zero(rld)) {
 		if (ast_true(rld))
 			rld = NULL;
-		ast_module_reload(rld); 
+		ast_module_reload(rld);
 	}
 	return 0;
 }
 
 /*! \brief Manager WAITEVENT */
-static char mandescr_waitevent[] = 
+static char mandescr_waitevent[] =
 "Description: A 'WaitEvent' action will ellicit a 'Success' response.  Whenever\n"
 "a manager event is queued.  Once WaitEvent has been called on an HTTP manager\n"
 "session, events will be generated and queued.\n"
@@ -1038,7 +1150,7 @@ static int action_waitevent(struct mansession *s, struct message *m)
 	if (!ast_strlen_zero(timeouts)) {
 		sscanf(timeouts, "%i", &timeout);
 	}
-	
+
 	ast_mutex_lock(&s->__lock);
 	if (s->waiting_thread != AST_PTHREADT_NULL) {
 		pthread_kill(s->waiting_thread, SIGURG);
@@ -1105,7 +1217,7 @@ static int action_waitevent(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_listcommands[] = 
+static char mandescr_listcommands[] =
 "Description: Returns the action name and synopsis for every\n"
 "  action that is available to the user\n"
 "Variables: NONE\n";
@@ -1132,7 +1244,7 @@ static int action_listcommands(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_events[] = 
+static char mandescr_events[] =
 "Description: Enable/Disable sending of events to this manager\n"
 "  client.\n"
 "Variables:\n"
@@ -1154,7 +1266,7 @@ static int action_events(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_logoff[] = 
+static char mandescr_logoff[] =
 "Description: Logoff this manager session\n"
 "Variables: NONE\n";
 
@@ -1164,7 +1276,7 @@ static int action_logoff(struct mansession *s, struct message *m)
 	return -1;
 }
 
-static char mandescr_hangup[] = 
+static char mandescr_hangup[] =
 "Description: Hangup a channel\n"
 "Variables: \n"
 "	Channel: The channel name to be hungup\n";
@@ -1188,7 +1300,7 @@ static int action_hangup(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_setvar[] = 
+static char mandescr_setvar[] =
 "Description: Set a global or local channel variable.\n"
 "Variables: (Names marked with * are required)\n"
 "	Channel: Channel to set variable for\n"
@@ -1201,12 +1313,12 @@ static int action_setvar(struct mansession *s, struct message *m)
         char *name = astman_get_header(m, "Channel");
         char *varname = astman_get_header(m, "Variable");
         char *varval = astman_get_header(m, "Value");
-	
+
 	if (ast_strlen_zero(varname)) {
 		astman_send_error(s, m, "No variable specified");
 		return 0;
 	}
-	
+
 	if (ast_strlen_zero(varval)) {
 		astman_send_error(s, m, "No value specified");
 		return 0;
@@ -1219,18 +1331,18 @@ static int action_setvar(struct mansession *s, struct message *m)
 			return 0;
 		}
 	}
-	
+
 	pbx_builtin_setvar_helper(c, varname, varval);
-	  
+
 	if (c)
 		ast_channel_unlock(c);
 
-	astman_send_ack(s, m, "Variable Set");	
+	astman_send_ack(s, m, "Variable Set");
 
 	return 0;
 }
 
-static char mandescr_getvar[] = 
+static char mandescr_getvar[] =
 "Description: Get the value of a global or local channel variable.\n"
 "Variables: (Names marked with * are required)\n"
 "	Channel: Channel to read variable from\n"
@@ -1329,10 +1441,10 @@ static int action_status(struct mansession *s, struct message *m)
 			"Uniqueid: %s\r\n"
 			"%s"
 			"\r\n",
-			c->name, 
-			S_OR(c->cid.cid_num, "<unknown>"), 
-			S_OR(c->cid.cid_num, "<unknown>"), 
-			S_OR(c->cid.cid_name, "<unknown>"), 
+			c->name,
+			S_OR(c->cid.cid_num, "<unknown>"),
+			S_OR(c->cid.cid_num, "<unknown>"),
+			S_OR(c->cid.cid_name, "<unknown>"),
 			c->accountcode,
 			ast_state2str(c->_state), c->context,
 			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, idText);
@@ -1350,10 +1462,10 @@ static int action_status(struct mansession *s, struct message *m)
 			"Uniqueid: %s\r\n"
 			"%s"
 			"\r\n",
-			c->name, 
-			S_OR(c->cid.cid_num, "<unknown>"), 
-			S_OR(c->cid.cid_num, "<unknown>"), 
-			S_OR(c->cid.cid_name, "<unknown>"), 
+			c->name,
+			S_OR(c->cid.cid_num, "<unknown>"),
+			S_OR(c->cid.cid_num, "<unknown>"),
+			S_OR(c->cid.cid_name, "<unknown>"),
 			c->accountcode,
 			ast_state2str(c->_state), bridge, c->uniqueid, idText);
 		}
@@ -1369,7 +1481,7 @@ static int action_status(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_redirect[] = 
+static char mandescr_redirect[] =
 "Description: Redirect (transfer) a call.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Channel to redirect\n"
@@ -1433,7 +1545,7 @@ static int action_redirect(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_command[] = 
+static char mandescr_command[] =
 "Description: Run a CLI command.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Command: Asterisk CLI command to run\n"
@@ -1461,17 +1573,17 @@ static void *fast_originate(void *data)
 	struct ast_channel *chan = NULL;
 
 	if (!ast_strlen_zero(in->app)) {
-		res = ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1, 
-			S_OR(in->cid_num, NULL), 
+		res = ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1,
+			S_OR(in->cid_num, NULL),
 			S_OR(in->cid_name, NULL),
 			in->vars, in->account, &chan);
 	} else {
-		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, 
-			S_OR(in->cid_num, NULL), 
+		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1,
+			S_OR(in->cid_num, NULL),
 			S_OR(in->cid_name, NULL),
 			in->vars, in->account, &chan);
-	}   
-	
+	}
+
 	/* Tell the manager what happened with the channel */
 	manager_event(EVENT_FLAG_CALL,
 		res ? "OriginateFailure" : "OriginateSuccess",
@@ -1484,7 +1596,7 @@ static void *fast_originate(void *data)
 		"CallerID: %s\r\n"		/* This parameter is deprecated and will be removed post-1.4 */
 		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n",
-		in->idtext, in->tech, in->data, in->context, in->exten, reason, 
+		in->idtext, in->tech, in->data, in->context, in->exten, reason,
 		chan ? chan->uniqueid : "<null>",
 		S_OR(in->cid_num, "<unknown>"),
 		S_OR(in->cid_num, "<unknown>"),
@@ -1498,7 +1610,7 @@ static void *fast_originate(void *data)
 	return NULL;
 }
 
-static char mandescr_originate[] = 
+static char mandescr_originate[] =
 "Description: Generates an outgoing call to a Extension/Context/Priority or\n"
 "  Application/Data\n"
 "Variables: (Names marked with * are required)\n"
@@ -1536,7 +1648,7 @@ static int action_originate(struct mansession *s, struct message *m)
 	int reason = 0;
 	char tmp[256];
 	char tmp2[256];
-	
+
 	pthread_t th;
 	pthread_attr_t attr;
 	if (!name) {
@@ -1587,7 +1699,7 @@ static int action_originate(struct mansession *s, struct message *m)
 				ast_copy_string(fast->cid_num, l, sizeof(fast->cid_num));
 			if (n)
 				ast_copy_string(fast->cid_name, n, sizeof(fast->cid_name));
-			fast->vars = vars;	
+			fast->vars = vars;
 			ast_copy_string(fast->context, context, sizeof(fast->context));
 			ast_copy_string(fast->exten, exten, sizeof(fast->exten));
 			ast_copy_string(fast->account, account, sizeof(fast->account));
@@ -1610,7 +1722,7 @@ static int action_originate(struct mansession *s, struct message *m)
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			return 0;
 		}
-	}   
+	}
 	if (!res)
 		astman_send_ack(s, m, "Originate successfully queued");
 	else
@@ -1620,7 +1732,7 @@ static int action_originate(struct mansession *s, struct message *m)
 
 /*! \brief Help text for manager command mailboxstatus
  */
-static char mandescr_mailboxstatus[] = 
+static char mandescr_mailboxstatus[] =
 "Description: Checks a voicemail account for status.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
@@ -1652,7 +1764,7 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_mailboxcount[] = 
+static char mandescr_mailboxcount[] =
 "Description: Checks a voicemail account for new messages.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
@@ -1682,13 +1794,13 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 				   "Message: Mailbox Message Count\r\n"
 				   "Mailbox: %s\r\n"
 		 		   "NewMessages: %d\r\n"
-				   "OldMessages: %d\r\n" 
+				   "OldMessages: %d\r\n"
 				   "\r\n",
 				    idText,mailbox, newmsgs, oldmsgs);
 	return 0;
 }
 
-static char mandescr_extensionstate[] = 
+static char mandescr_extensionstate[] =
 "Description: Report the extension state for given extension.\n"
 "  If the extension has a hint, will use devicestate to check\n"
 "  the status of the device connected to the extension.\n"
@@ -1729,7 +1841,7 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_timeout[] = 
+static char mandescr_timeout[] =
 "Description: Hangup a channel after a certain time.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Channel name to hangup\n"
@@ -1869,7 +1981,7 @@ static int process_message(struct mansession *s, struct message *m)
 		ast_mutex_lock(&s->__lock);
 		s->busy++;
 		ast_mutex_unlock(&s->__lock);
-		while (tmp) { 		
+		while (tmp) {
 			if (!strcasecmp(action, tmp->action)) {
 				if ((s->writeperm & tmp->authority) == tmp->authority) {
 					if (tmp->func(s, m))
@@ -1906,7 +2018,7 @@ static int get_input(struct mansession *s, char *output)
 			s->inlen -= (x + 1);
 			return 1;
 		}
-	} 
+	}
 	if (s->inlen >= sizeof(s->inbuf) - 1) {
 		ast_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", ast_inet_ntoa(s->sin.sin_addr), s->inbuf);
 		s->inlen = 0;
@@ -1950,7 +2062,7 @@ static void *session_do(void *data)
 	struct mansession *s = data;
 	struct message m;
 	int res;
-	
+
 	ast_mutex_lock(&s->__lock);
 	astman_append(s, "Asterisk Call Manager/1.0\r\n");
 	ast_mutex_unlock(&s->__lock);
@@ -1977,7 +2089,7 @@ static void *session_do(void *data)
 	}
 	if (s->authenticated) {
 		if (option_verbose > 1) {
-			if (displayconnects) 
+			if (displayconnects)
 				ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 		}
 		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
@@ -2020,7 +2132,7 @@ static void *accept_thread(void *ignore)
 						s->username, ast_inet_ntoa(s->sin.sin_addr));
 				}
 				free_session(s);
-				break;	
+				break;
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END
@@ -2058,7 +2170,7 @@ static void *accept_thread(void *ignore)
 			continue;
 
 		ast_atomic_fetchadd_int(&num_sessions, 1);
-		
+
 		memcpy(&s->sin, &sin, sizeof(sin));
 		s->writetimeout = 100;
 		s->waiting_thread = AST_PTHREADT_NULL;
@@ -2098,18 +2210,18 @@ static int append_event(const char *str, int category)
 	tmp->next = NULL;
 	tmp->category = category;
 	strcpy(tmp->eventdata, str);
-	
+
 	if (master_eventq) {
 		prev = master_eventq;
-		while (prev->next) 
+		while (prev->next)
 			prev = prev->next;
 		prev->next = tmp;
 	} else {
 		master_eventq = tmp;
 	}
-	
+
 	tmp->usecount = num_sessions;
-	
+
 	return 0;
 }
 
@@ -2143,11 +2255,11 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 	va_start(ap, fmt);
 	ast_dynamic_str_thread_append_va(&buf, 0, &manager_event_buf, fmt, ap);
 	va_end(ap);
-	
-	ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf, "\r\n");	
-	
+
+	ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf, "\r\n");
+
 	append_event(buf->str, category);
-	
+
 	/* Append even to master list and wake up any sleeping sessions */
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_TRAVERSE(&sessions, s, list) {
@@ -2161,7 +2273,7 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 	return 0;
 }
 
-int ast_manager_unregister(char *action) 
+int ast_manager_unregister(char *action)
 {
 	struct manager_action *cur = first_action, *prev = first_action;
 
@@ -2170,7 +2282,7 @@ int ast_manager_unregister(char *action)
 		if (!strcasecmp(action, cur->action)) {
 			prev->next = cur->next;
 			free(cur);
-			if (option_verbose > 1) 
+			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Manager unregistered action %s\n", action);
 			ast_mutex_unlock(&actionlock);
 			return 0;
@@ -2212,10 +2324,10 @@ static int ast_manager_register_struct(struct manager_action *act)
 			}
 			break;
 		}
-		prev = cur; 
+		prev = cur;
 		cur = cur->next;
 	}
-	
+
 	if (!cur) {
 		if (prev)
 			prev->next = act;
@@ -2224,13 +2336,13 @@ static int ast_manager_register_struct(struct manager_action *act)
 		act->next = NULL;
 	}
 
-	if (option_verbose > 1) 
+	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Manager registered action %s\n", act->action);
 	ast_mutex_unlock(&actionlock);
 	return 0;
 }
 
-/*! \brief register a new command with manager, including online help. This is 
+/*! \brief register a new command with manager, including online help. This is
 	the preferred way to register a manager command */
 int ast_manager_register2(const char *action, int auth, int (*func)(struct mansession *s, struct message *m), const char *synopsis, const char *description)
 {
@@ -2239,7 +2351,7 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 	cur = ast_malloc(sizeof(*cur));
 	if (!cur)
 		return -1;
-	
+
 	cur->action = action;
 	cur->authority = auth;
 	cur->func = func;
@@ -2310,7 +2422,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 			break;
 		}
 	}
-	
+
 	if (!(s = find_session(ident))) {
 		/* Create new session */
 		if (!(s = ast_calloc(1, sizeof(*s)))) {
@@ -2343,7 +2455,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 	else
 		s->sessiontimeout += httptimeout;
 	ast_mutex_unlock(&s->__lock);
-	
+
 	memset(&m, 0, sizeof(m));
 	if (s) {
 		char tmp[80];
@@ -2362,8 +2474,8 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 		if (process_message(s, &m)) {
 			if (s->authenticated) {
 				if (option_verbose > 1) {
-					if (displayconnects) 
-						ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));    
+					if (displayconnects)
+						ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 				}
 				ast_log(LOG_EVENT, "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 			} else {
@@ -2421,12 +2533,12 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 	} else
 		s->inuse--;
 	ast_mutex_unlock(&s->__lock);
-	
+
 	if (blastaway)
 		destroy_session(s);
 generic_callback_out:
 	if (*status != 200)
-		return ast_http_error(500, "Server Error", NULL, "Internal Server Error (out of memory)\n"); 
+		return ast_http_error(500, "Server Error", NULL, "Internal Server Error (out of memory)\n");
 	return retval;
 }
 
@@ -2472,13 +2584,14 @@ static int webregged = 0;
 int init_manager(void)
 {
 	struct ast_config *cfg;
-	char *val;
+	char *val,*cat;
 	int oldportno = portno;
 	static struct sockaddr_in ba;
 	int x = 1;
 	int flags;
 	int webenabled = 0;
 	int newhttptimeout = 60;
+	amus = NULL;
 	if (!registered) {
 		/* Register default actions */
 		ast_manager_register2("Ping", 0, action_ping, "Keepalive command", mandescr_ping);
@@ -2501,7 +2614,13 @@ int init_manager(void)
 		ast_manager_register2("UserEvent", EVENT_FLAG_USER, action_userevent, "Send an arbitrary event", mandescr_userevent);
 		ast_manager_register2("WaitEvent", 0, action_waitevent, "Wait for an event to occur", mandescr_waitevent);
 
-		ast_cli_register_multiple(cli_manager, sizeof(cli_manager) / sizeof(struct ast_cli_entry));
+		ast_cli_register(&show_mancmd_cli);
+		ast_cli_register(&show_mancmds_cli);
+		ast_cli_register(&show_manconn_cli);
+		ast_cli_register(&show_maneventq_cli);
+		ast_cli_register(&show_managers_cli);
+		ast_cli_register(&show_manager_cli);
+
 		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);
 		registered = 1;
 		/* Append placeholder event so master_eventq never runs dry */
@@ -2547,12 +2666,12 @@ int init_manager(void)
 	ba.sin_port = htons(portno);
 
 	if ((val = ast_variable_retrieve(cfg, "general", "bindaddr"))) {
-		if (!inet_aton(val, &ba.sin_addr)) { 
+		if (!inet_aton(val, &ba.sin_addr)) {
 			ast_log(LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
 			memset(&ba.sin_addr, 0, sizeof(ba.sin_addr));
 		}
 	}
-	
+
 
 	if ((asock > -1) && ((portno != oldportno) || !enabled)) {
 #if 0
@@ -2563,8 +2682,62 @@ int init_manager(void)
 		ast_log(LOG_WARNING, "Unable to change management port / enabled\n");
 #endif
 	}
+
+
+
+		cat = ast_category_browse(cfg, NULL);
+		amus=NULL; /* Resetting the boss */
+		while(cat) {
+			if (!strcasecmp(cat, "general")) {
+				ast_log(LOG_NOTICE, "ignoring the cat general\n");
+				cat = ast_category_browse(cfg, cat);
+				continue;
+			}
+
+			struct ast_manager_user *amu = malloc(sizeof(struct ast_manager_user));
+			memset(amu, 0, sizeof(struct ast_manager_user));
+			struct ast_variable *var;
+			var = ast_variable_browse(cfg, cat);
+
+			while (var) {
+				if (!strcasecmp(var->name, "secret")) {
+					if (amu->secret)
+						free(amu->secret);
+					amu->secret=strdup(var->value);
+				} else if (!strcasecmp(var->name, "deny") ) {
+					if (amu->deny)
+						free(amu->deny);
+					amu->deny=strdup(var->value);
+				} else if (!strcasecmp(var->name, "permit") ) {
+					if (amu->permit)
+						free(amu->permit);
+					amu->permit=strdup(var->value);
+				}  else if (!strcasecmp(var->name, "read") ) {
+					if (amu->read)
+						free(amu->read);
+					amu->read=strdup(var->value);
+				}  else if (!strcasecmp(var->name, "write") ) {
+					if (amu->write)
+						free(amu->write);
+					amu->write=strdup(var->value);
+				}  else if (!strcasecmp(var->name, "displayconnects") ) {
+					amu->displayconnects=ast_true(var->value);
+				} else {
+					ast_log(LOG_DEBUG, "%s is unknown.\n",var->name);
+				}
+				var = var->next;
+			}
+
+			ast_copy_string(amu->username,cat,sizeof(amu->username));
+
+			ast_log(LOG_DEBUG, "Adding %s\n",amu->username);
+			ast_manager_user_add(amu);
+			amu=NULL;
+			cat = ast_category_browse(cfg, cat);
+		}
+
 	ast_config_destroy(cfg);
-	
+
 	if (webenabled && enabled) {
 		if (!webregged) {
 			ast_http_uri_link(&rawmanuri);
@@ -2621,3 +2794,4 @@ int reload_manager(void)
 	manager_event(EVENT_FLAG_SYSTEM, "Reload", "Message: Reload Requested\r\n");
 	return init_manager();
 }
+

@@ -1,4 +1,4 @@
-/*
+  /*
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2006, Digium, Inc.
@@ -17,13 +17,13 @@
  */
 
 /*!
- * \file 
+ * \file
  * \brief http server for AMI access
  *
  * \author Mark Spencer <markster@digium.com>
  * This program implements a tiny http server supporting the "get" method
- * only and was inspired by micro-httpd by Jef Poskanzer 
- * 
+ * only and was inspired by micro-httpd by Jef Poskanzer
+ *
  * \ref AstHTTP - AMI over the http protocol
  */
 
@@ -110,7 +110,7 @@ static char *static_callback(struct sockaddr_in *req, const char *uri, struct as
 	int fd;
 	void *blob;
 
-	/* Yuck.  I'm not really sold on this, but if you don't deliver static content it makes your configuration 
+	/* Yuck.  I'm not really sold on this, but if you don't deliver static content it makes your configuration
 	   substantially more challenging, but this seems like a rather irritating feature creep on Asterisk. */
 	if (!enablestatic || ast_strlen_zero(uri))
 		goto out403;
@@ -119,16 +119,16 @@ static char *static_callback(struct sockaddr_in *req, const char *uri, struct as
 		goto out403;
 	if (strstr(uri, "/.."))
 		goto out403;
-		
+
 	if ((ftype = strrchr(uri, '.')))
 		ftype++;
 	mtype=ftype2mtype(ftype, wkspace, sizeof(wkspace));
-	
+
 	/* Cap maximum length */
 	len = strlen(uri) + strlen(ast_config_AST_DATA_DIR) + strlen("/static-http/") + 5;
 	if (len > 1024)
 		goto out403;
-		
+
 	path = alloca(len);
 	sprintf(path, "%s/static-http/%s", ast_config_AST_DATA_DIR, uri);
 	if (stat(path, &st))
@@ -138,9 +138,9 @@ static char *static_callback(struct sockaddr_in *req, const char *uri, struct as
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
 		goto out403;
-	
+
 	len = st.st_size + strlen(mtype) + 40;
-	
+
 	blob = malloc(len);
 	if (blob) {
 		c = blob;
@@ -211,14 +211,14 @@ static struct ast_http_uri statusuri = {
 	.uri = "httpstatus",
 	.has_subtree = 0,
 };
-	
+
 static struct ast_http_uri staticuri = {
 	.callback = static_callback,
 	.description = "Asterisk HTTP Static Delivery",
 	.uri = "static",
 	.has_subtree = 1,
 };
-	
+
 char *ast_http_error(int status, const char *title, const char *extra_header, const char *text)
 {
 	char *c = NULL;
@@ -253,7 +253,7 @@ int ast_http_uri_link(struct ast_http_uri *urih)
 		prev->next = urih;
 	}
 	return 0;
-}	
+}
 
 void ast_http_uri_unlink(struct ast_http_uri *urih)
 {
@@ -282,8 +282,8 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 	struct ast_http_uri *urih=NULL;
 	int len;
 	struct ast_variable *vars=NULL, *v, *prev = NULL;
-	
-	
+
+
 	params = strchr(uri, '?');
 	if (params) {
 		*params = '\0';
@@ -294,7 +294,7 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 				*val = '\0';
 				val++;
 				ast_uri_decode(val);
-			} else 
+			} else
 				val = "";
 			ast_uri_decode(var);
 			if ((v = ast_variable_new(var, val))) {
@@ -395,32 +395,32 @@ static void *ast_httpd_helper_thread(void *data)
 				break;
 			if (!strncasecmp(cookie, "Cookie: ", 8)) {
 
-				/* TODO - The cookie parsing code below seems to work   
-				   in IE6 and FireFox 1.5.  However, it is not entirely 
-				   correct, and therefore may not work in all           
-				   circumstances.		                        
+				/* TODO - The cookie parsing code below seems to work
+				   in IE6 and FireFox 1.5.  However, it is not entirely
+				   correct, and therefore may not work in all
+				   circumstances.
 				      For more details see RFC 2109 and RFC 2965        */
-			
-				/* FireFox cookie strings look like:                    
-				     Cookie: mansession_id="********"                   
-				   InternetExplorer's look like:                        
+
+				/* FireFox cookie strings look like:
+				     Cookie: mansession_id="********"
+				   InternetExplorer's look like:
 				     Cookie: $Version="1"; mansession_id="********"     */
-				
-				/* If we got a FireFox cookie string, the name's right  
+
+				/* If we got a FireFox cookie string, the name's right
 				    after "Cookie: "                                    */
                                 vname = cookie + 8;
-				
-				/* If we got an IE cookie string, we need to skip to    
+
+				/* If we got an IE cookie string, we need to skip to
 				    past the version to get to the name                 */
 				if (*vname == '$') {
 					vname = strchr(vname, ';');
-					if (vname) { 
+					if (vname) {
 						vname++;
 						if (*vname == ' ')
 							vname++;
 					}
 				}
-				
+
 				if (vname) {
 					vval = strchr(vname, '=');
 					if (vval) {
@@ -444,11 +444,11 @@ static void *ast_httpd_helper_thread(void *data)
 		}
 
 		if (*uri) {
-			if (!strcasecmp(buf, "get")) 
+			if (!strcasecmp(buf, "get"))
 				c = handle_uri(&ser->requestor, uri, &status, &title, &contentlength, &vars);
-			else 
+			else
 				c = ast_http_error(501, "Not Implemented", NULL, "Attempt to use unimplemented / unsupported method");\
-		} else 
+		} else
 			c = ast_http_error(400, "Bad Request", NULL, "Invalid Request");
 
 		/* If they aren't mopped up already, clean up the cookies */
@@ -492,7 +492,7 @@ static void *http_root(void *data)
 	struct ast_http_server_instance *ser;
 	pthread_t launched;
 	pthread_attr_t attr;
-	
+
 	for (;;) {
 		ast_wait_for_input(httpfd, -1);
 		sinlen = sizeof(sin);
@@ -509,7 +509,7 @@ static void *http_root(void *data)
 			if ((ser->f = fdopen(ser->fd, "w+"))) {
 				pthread_attr_init(&attr);
 				pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-				
+
 				if (ast_pthread_create(&launched, &attr, ast_httpd_helper_thread, ser)) {
 					ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
 					fclose(ser->f);
@@ -541,36 +541,36 @@ static void http_server_start(struct sockaddr_in *sin)
 {
 	int flags;
 	int x = 1;
-	
+
 	/* Do nothing if nothing has changed */
 	if (!memcmp(&oldsin, sin, sizeof(oldsin))) {
 		ast_log(LOG_DEBUG, "Nothing changed in http\n");
 		return;
 	}
-	
+
 	memcpy(&oldsin, sin, sizeof(oldsin));
-	
+
 	/* Shutdown a running server if there is one */
 	if (master != AST_PTHREADT_NULL) {
 		pthread_cancel(master);
 		pthread_kill(master, SIGURG);
 		pthread_join(master, NULL);
 	}
-	
+
 	if (httpfd != -1)
 		close(httpfd);
 
 	/* If there's no new server, stop here */
 	if (!sin->sin_family)
 		return;
-	
-	
+
+
 	httpfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (httpfd < 0) {
 		ast_log(LOG_WARNING, "Unable to allocate socket: %s\n", strerror(errno));
 		return;
 	}
-	
+
 	setsockopt(httpfd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
 	if (bind(httpfd, (struct sockaddr *)sin, sizeof(*sin))) {
 		ast_log(LOG_NOTICE, "Unable to bind http server to %s:%d: %s\n",
@@ -634,7 +634,7 @@ static int __ast_http_load(int reload)
 				} else {
 					newprefix[0] = '\0';
 				}
-					
+
 			}
 			v = v->next;
 		}

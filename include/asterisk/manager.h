@@ -106,6 +106,12 @@ int ast_manager_register2(
 */
 int ast_manager_unregister( char *action );
 
+/*! Add a manager_user to current list of manager */
+int *ast_manager_add(struct ast_manager_user *amu);
+
+/*! Get an manager by his name */
+struct ast_manager_user *ast_get_manager_by_name_locked(const char *name);
+
 /*! External routines may send asterisk manager events this way */
 /*! 	\param category	Event category, matches manager authorization
 	\param event	Event name
@@ -133,5 +139,11 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 int init_manager(void);
 /*! Called by Asterisk initialization */
 int reload_manager(void);
+/*! Add a manager_user to current list of manager */
+int *ast_manager_add(struct ast_manager_user *amu);
+int *ast_manager_user_add(struct ast_manager_user *amu);
+/*! Get an manager by his name */
+struct ast_manager_user *ast_get_manager_by_name_locked(const char *name);
+
 
 #endif /* _ASTERISK_MANAGER_H */
