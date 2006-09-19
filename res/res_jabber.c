@@ -435,11 +435,16 @@ static void aji_log_hook(void *data, const char *xmpp, size_t size, int is_incom
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
 	manager_event(EVENT_FLAG_USER, "JabberEvent", "Account: %s\r\nPacket: %s", client->name, xmpp);
 
-	if (client->debug == 1) {
+	if (client->debug) {
 		if (is_incoming)
 			ast_verbose("\nJABBER: %s INCOMING: %s\n", client->name, xmpp);
-		else
-			ast_verbose("\nJABBER: %s OUTGOING: %s\n", client->name, xmpp);
+		else {
+			if( strlen(xmpp) == 1) {
+				if(option_debug > 2  && xmpp[0] == ' ')
+				ast_verbose("\nJABBER: Keep alive packet\n");
+			} else
+				ast_verbose("\nJABBER: %s OUTGOING: %s\n", client->name, xmpp);
+		}
 
 	}
 	ASTOBJ_UNREF(client, aji_client_destroy);
@@ -458,6 +463,7 @@ static int aji_act_hook(void *data, int type, iks *node)
 
 	if(!node) {
 		ast_log(LOG_ERROR, "aji_act_hook was called with out a packet\n"); /* most likely cause type is IKS_NODE_ERROR lost connection */
+		ASTOBJ_UNREF(client, aji_client_destroy);
 		return IKS_HOOK;
 	}
 
@@ -586,7 +592,10 @@ static int aji_act_hook(void *data, int type, iks *node)
 					free(handshake);
 					handshake = NULL;
 				}
-				client->state = AJI_CONNECTED;
+				client->state = AJI_CONNECTING;
+				if(iks_recv(client->p,1) == 2) /*XXX proper result for iksemel library on iks_recv of <handshake/> XXX*/
+					client->state = AJI_CONNECTED;
+				break;
 			}
 			break;
 
@@ -885,7 +894,10 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
 	char *node = NULL;
-
+	if (!strcasecmp(iks_find_attrib(pak->x,"type"),"error")) {
+		ast_log(LOG_WARNING, "Recieved error from a client, turn on jabber debug!\n");
+		return IKS_FILTER_EAT;
+	}
 	if (!(node = iks_find_attrib(pak->query, "node"))) {
 		iks *iq, *query, *identity, *disco, *reg, *commands, *gateway, *version, *vcard, *search;
 
@@ -1196,6 +1208,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 			if(query && iq)  {
 				iks_insert_attrib(iq, "type", "get");
 				iks_insert_attrib(iq, "to", pak->from->full);
+				iks_insert_attrib(iq,"from",iks_find_attrib(pak->x,"to"));
 				iks_insert_attrib(iq, "id", client->mid);
 				ast_aji_increment_mid(client->mid);
 				iks_insert_attrib(query, "xmlns", "http://jabber.org/protocol/disco#info");
@@ -1410,8 +1423,11 @@ static void *aji_recv_loop(void *data)
 		else if (res == IKS_NET_TLSFAIL)
 			ast_log(LOG_WARNING, "JABBER:  Failure in TLS.\n");
 		else if (client->timeout == 0 && client->state == AJI_CONNECTED) {
-			res = -1;
-			ast_log(LOG_WARNING, "JABBER:  Network Timeout\n");
+			res = iks_send_raw(client->p, " ");
+			if(res == IKS_OK)
+				client->timeout = 50;
+			else
+				ast_log(LOG_WARNING, "JABBER:  Network Timeout\n");
 		} else if (res == IKS_NET_RWERR)
 			ast_log(LOG_WARNING, "JABBER: socket read error\n");
 	} while (client);
@@ -1681,7 +1697,7 @@ static int aji_reconnect(struct aji_client *client)
 
 	if (client->state)
 		client->state = AJI_DISCONNECTED;
-	client->timeout=20;
+	client->timeout=50;
 	if (client->p)
 		iks_parser_reset(client->p);
 	if (client->authorized)
@@ -1769,13 +1785,15 @@ static int aji_component_initialize(struct aji_client *client)
 {
 	int connected = 1;
 	connected = iks_connect_via(client->p, client->jid->server, client->port, client->user);
-	if (connected == IKS_NET_NOCONN)
+	if (connected == IKS_NET_NOCONN) {
 		ast_log(LOG_ERROR, "JABBER ERROR: No Connection\n");
-	else if (connected == IKS_NET_NODNS)
+		return IKS_HOOK;
+	} else if (connected == IKS_NET_NODNS) {
 		ast_log(LOG_ERROR, "JABBER ERROR: No DNS\n");
-	else if (!connected)
+		return IKS_HOOK;
+	} else if (!connected) 
 		iks_recv(client->p, 30);
-	return 1;
+	return IKS_OK;
 }
 
 /*!
@@ -1991,7 +2009,7 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 	client->usesasl = 1;
 	client->forcessl = 0;
 	client->keepalive = 1;
-	client->timeout = 20;
+	client->timeout = 50;
 	client->message_timeout = 100;
 	AST_LIST_HEAD_INIT(&client->messages);
 	client->component = AJI_CLIENT;
