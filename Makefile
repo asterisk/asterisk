@@ -106,7 +106,7 @@ ASTCFLAGS=
 GLOBAL_MAKEOPTS=$(wildcard /etc/asterisk.makeopts)
 USER_MAKEOPTS=$(wildcard ~/.asterisk.makeopts)
 
-MOD_SUBDIR_CFLAGS=-I../include -I../main
+MOD_SUBDIR_CFLAGS=-I../include
 OTHER_SUBDIR_CFLAGS=-I../include
 
 ifeq ($(OSARCH),linux-gnu)

@@ -6,7 +6,7 @@
 
 .PHONY: Makefile.ast clean
 
-default::	opt
+default::	
 
 # Verify those options with main Makefile
 STDCCFLAGS	= -DNDEBUG
@@ -21,7 +21,7 @@ OBJDIR		= .
 OBJS		=
 
 ifndef OPENH323DIR
-OPENH323DIR=/usr/src/OpenH323/openh323
+OPENH323DIR=
 endif
 
 include $(OPENH323DIR)/openh323u.mak
