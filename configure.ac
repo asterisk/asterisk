@@ -60,6 +60,17 @@ AC_SUBST(HOST_CPU)
 AC_SUBST(HOST_VENDOR)
 AC_SUBST(HOST_OS)
 
+case "${host_os}" in
+     freebsd*)
+     OSARCH=FreeBSD
+     ;;
+     *)
+     OSARCH=${HOST_OS}
+     ;;
+esac
+
+AC_SUBST(OSARCH)
+
 #  check for uname
 AC_PATH_TOOL([UNAME], [uname], No)
 if test ! x"${UNAME}" = xNo; then
