@@ -4608,7 +4608,7 @@ static int load_module(void)
 		}
 	}
 	
-	chan_misdn_log(0, 0, "-- mISDN Channel Driver Registered -- (BE AWARE THIS DRIVER IS EXPERIMENTAL!)\n");
+	chan_misdn_log(0, 0, "-- mISDN Channel Driver Registered --\n");
 
 	return 0;
 }
