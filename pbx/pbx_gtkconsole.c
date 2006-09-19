@@ -496,7 +496,7 @@ int load_module(void)
 	} else {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Unable to start GTK console monitor -- ignoring\n");
-		else if (option_verbose > 1)
+		if (option_verbose > 1)
 			ast_verbose( VERBOSE_PREFIX_2 "GTK is not available -- skipping monitor\n");
 	}
 	return 0;

@@ -6447,7 +6447,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 	}
 	transmit_state_notify(p, state, 1, 1);
 
-	if (option_debug > 1)
+	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_1 "Extension Changed %s new state %s for Notify User %s\n", exten, ast_extension_state2str(state), p->username);
 	return 0;
 }
