@@ -35,7 +35,7 @@ $(SOURCES)::	Makefile ../../Makefile
 libchanh323.a:	$(OBJS)
 	ar crv $@ $(OBJS)
 
-cisco-h225.cpp::	cisco-h225.asn
+cisco-h225.cxx::	cisco-h225.asn
 	asnparser -m CISCO_H225 -c $<
 
 Makefile.ast:
