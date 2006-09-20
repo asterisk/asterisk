@@ -3066,19 +3066,25 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	/* Get codecs from both sides */
 	codec0 = pr0->get_codec ? pr0->get_codec(c0) : 0;
 	codec1 = pr1->get_codec ? pr1->get_codec(c1) : 0;
-	if (pr0->get_codec && pr1->get_codec) {
+	if (codec0 && codec1 && !(codec0 & codec1)) {
 		/* Hey, we can't do native bridging if both parties speak different codecs */
-		if (!(codec0 & codec1)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Channel codec0 = %d is not codec1 = %d, cannot native bridge in RTP.\n", codec0, codec1);
-			ast_channel_unlock(c0);
-			ast_channel_unlock(c1);
-			return AST_BRIDGE_FAILED_NOWARN;
-		}
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Channel codec0 = %d is not codec1 = %d, cannot native bridge in RTP.\n", codec0, codec1);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
+		return AST_BRIDGE_FAILED_NOWARN;
 	}
 
 	/* If either side can only do a partial bridge, then don't try for a true native bridge */
 	if (audio_p0_res == AST_RTP_TRY_PARTIAL || audio_p1_res == AST_RTP_TRY_PARTIAL) {
+		/* In order to do Packet2Packet bridging both sides must be in the same rawread/rawwrite */
+		if (c0->rawreadformat != c1->rawwriteformat || c1->rawreadformat != c0->rawwriteformat) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Cannot packet2packet bridge - raw formats are incompatible\n");
+			ast_channel_unlock(c0);
+			ast_channel_unlock(c1);
+			return AST_BRIDGE_FAILED_NOWARN;
+		}
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Packet2Packet bridging %s and %s\n", c0->name, c1->name);
 		res = bridge_p2p_loop(c0, c1, p0, p1, vp0, vp1, timeoutms, flags, fo, rc, pvt0, pvt1);
