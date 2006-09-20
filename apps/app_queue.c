@@ -2712,8 +2712,8 @@ static void dump_queue_members(struct call_queue *pm_queue)
 		if (!cur_member->dynamic)
 			continue;
 
-		res = snprintf(value + value_len, sizeof(value) - value_len, "%s;%d;%d%s",
-			cur_member->interface, cur_member->penalty, cur_member->paused,
+		res = snprintf(value + value_len, sizeof(value) - value_len, "%s;%d;%d;%s%s",
+			cur_member->interface, cur_member->penalty, cur_member->paused, cur_member->membername,
 			cur_member->next ? "|" : "");
 		if (res != strlen(value + value_len)) {
 			ast_log(LOG_WARNING, "Could not create persistent member string, out of space\n");
