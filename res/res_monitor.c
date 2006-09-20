@@ -323,12 +323,12 @@ int ast_monitor_unpause(struct ast_channel *chan)
 	return ast_monitor_set_state(chan, AST_MONITOR_RUNNING);
 }
 
-int pause_monitor_exec(struct ast_channel *chan, void *data)
+static int pause_monitor_exec(struct ast_channel *chan, void *data)
 {
 	return ast_monitor_pause(chan);
 }
 
-int unpause_monitor_exec(struct ast_channel *chan, void *data)
+static int unpause_monitor_exec(struct ast_channel *chan, void *data)
 {
 	return ast_monitor_unpause(chan);
 }

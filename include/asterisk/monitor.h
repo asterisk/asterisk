@@ -63,8 +63,4 @@ int ast_monitor_pause(struct ast_channel *chan);
 /* Unpause monitoring of a channel */
 int ast_monitor_unpause(struct ast_channel *chan);
 
-int pause_monitor_exec(struct ast_channel *chan, void *data);
-
-int unpause_monitor_exec(struct ast_channel *chan, void *data);
-
 #endif /* _ASTERISK_MONITOR_H */
