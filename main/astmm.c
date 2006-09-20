@@ -417,11 +417,11 @@ static struct ast_cli_entry cli_show_memory_summary_deprecated = {
 static struct ast_cli_entry cli_memory[] = {
 	{ { "memory", "show", "allocations", NULL },
 	handle_show_memory, "Display outstanding memory allocations",
-	show_memory_help, NULL, &cli_show_memory_allocations },
+	show_memory_help, NULL, &cli_show_memory_allocations_deprecated },
 
 	{ { "memory", "show", "summary", NULL },
 	handle_show_memory_summary, "Summarize outstanding memory allocations",
-	show_memory_summary_help, NULL, &cli_show_memory_summary },
+	show_memory_summary_help, NULL, &cli_show_memory_summary_deprecated },
 };
 
 void __ast_mm_init(void)
