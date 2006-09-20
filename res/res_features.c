@@ -265,10 +265,10 @@ static int adsi_announce_park(struct ast_channel *chan, char *parkingexten)
 
 	snprintf(tmp, sizeof(tmp), "Parked on %s", parkingexten);
 	message[0] = tmp;
-	res = adsi_load_session(chan, NULL, 0, 1);
+	res = ast_adsi_load_session(chan, NULL, 0, 1);
 	if (res == -1)
 		return res;
-	return adsi_print(chan, message, justify, 1);
+	return ast_adsi_print(chan, message, justify, 1);
 }
 
 /*! \brief Notify metermaids that we've changed an extension */
@@ -407,9 +407,9 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		S_OR(pu->chan->cid.cid_name, "<unknown>")
 		);
 
-	if (peer && adsipark && adsi_available(peer)) {
+	if (peer && adsipark && ast_adsi_available(peer)) {
 		adsi_announce_park(peer, pu->parkingexten);	/* Only supports parking numbers */
-		adsi_unload_session(peer);
+		ast_adsi_unload_session(peer);
 	}
 
 	con = ast_context_find(parking_con);

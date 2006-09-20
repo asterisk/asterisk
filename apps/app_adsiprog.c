@@ -1438,11 +1438,11 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 		return -1;
 
 	/* Start an empty ADSI Session */
-	if (adsi_load_session(chan, NULL, 0, 1) < 1) 
+	if (ast_adsi_load_session(chan, NULL, 0, 1) < 1) 
 		return -1;
 
 	/* Now begin the download attempt */
-	if (adsi_begin_download(chan, scr->desc, scr->fdn, scr->sec, scr->ver)) {
+	if (ast_adsi_begin_download(chan, scr->desc, scr->fdn, scr->sec, scr->ver)) {
 		/* User rejected us for some reason */
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "User rejected download attempt\n");
@@ -1456,7 +1456,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 	for (x=0;x<scr->numkeys;x++) {
 		if (bytes + scr->keys[x].retstrlen > 253) {
 			/* Send what we've collected so far */
-			if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
+			if (ast_adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
 				ast_log(LOG_WARNING, "Unable to send chunk ending at %d\n", x);
 				return -1;
 			}
@@ -1469,7 +1469,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 #endif
 	}
 	if (bytes) {
-		if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
+		if (ast_adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
 			ast_log(LOG_WARNING, "Unable to send chunk ending at %d\n", x);
 			return -1;
 		}
@@ -1480,7 +1480,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 	for (x=0;x<scr->numdisplays;x++) {
 		if (bytes + scr->displays[x].datalen > 253) {
 			/* Send what we've collected so far */
-			if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
+			if (ast_adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
 				ast_log(LOG_WARNING, "Unable to send chunk ending at %d\n", x);
 				return -1;
 			}
@@ -1493,7 +1493,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 #endif
 	}
 	if (bytes) {
-		if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
+		if (ast_adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
 			ast_log(LOG_WARNING, "Unable to send chunk ending at %d\n", x);
 			return -1;
 		}
@@ -1504,7 +1504,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 	for (x=0;x<scr->numsubs;x++) {
 		if (bytes + scr->subs[x].datalen > 253) {
 			/* Send what we've collected so far */
-			if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
+			if (ast_adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
 				ast_log(LOG_WARNING, "Unable to send chunk ending at %d\n", x);
 				return -1;
 			}
@@ -1517,7 +1517,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 #endif
 	}
 	if (bytes) {
-		if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
+		if (ast_adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
 			ast_log(LOG_WARNING, "Unable to send chunk ending at %d\n", x);
 			return -1;
 		}
@@ -1525,11 +1525,11 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 
 
 	bytes = 0;
-	bytes += adsi_display(buf, ADSI_INFO_PAGE, 1, ADSI_JUST_LEFT, 0, "Download complete.", "");
-	bytes += adsi_set_line(buf, ADSI_INFO_PAGE, 1);
-	if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY) < 0)
+	bytes += ast_adsi_display(buf, ADSI_INFO_PAGE, 1, ADSI_JUST_LEFT, 0, "Download complete.", "");
+	bytes += ast_adsi_set_line(buf, ADSI_INFO_PAGE, 1);
+	if (ast_adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY) < 0)
 		return -1;
-	if (adsi_end_download(chan)) {
+	if (ast_adsi_end_download(chan)) {
 		/* Download failed for some reason */
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Download attempt failed\n");
@@ -1538,7 +1538,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 		return -1;
 	}
 	free(scr);
-	adsi_unload_session(chan);
+	ast_adsi_unload_session(chan);
 	return 0;
 }
 
@@ -1552,7 +1552,7 @@ static int adsi_exec(struct ast_channel *chan, void *data)
 	if (ast_strlen_zero(data))
 		data = "asterisk.adsi";
 	
-	if (!adsi_available(chan)) {
+	if (!ast_adsi_available(chan)) {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "ADSI Unavailable on CPE.  Not bothering to try.\n");
 	} else {

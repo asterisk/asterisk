@@ -60,7 +60,7 @@ static int cpeid_setstatus(struct ast_channel *chan, char *stuff[], int voice)
 	for (x=0;x<4;x++)
 		tmp[x] = stuff[x];
 	tmp[4] = NULL;
-	return adsi_print(chan, tmp, justify, voice);
+	return ast_adsi_print(chan, tmp, justify, voice);
 }
 
 static int cpeid_exec(struct ast_channel *chan, void *idata)
@@ -83,10 +83,10 @@ static int cpeid_exec(struct ast_channel *chan, void *idata)
 	strncpy(stuff[0], "** CPE Info **", sizeof(data[0]) - 1);
 	strncpy(stuff[1], "Identifying CPE...", sizeof(data[1]) - 1);
 	strncpy(stuff[2], "Please wait...", sizeof(data[2]) - 1);
-	res = adsi_load_session(chan, NULL, 0, 1);
+	res = ast_adsi_load_session(chan, NULL, 0, 1);
 	if (res > 0) {
 		cpeid_setstatus(chan, stuff, 0);
-		res = adsi_get_cpeid(chan, cpeid, 0);
+		res = ast_adsi_get_cpeid(chan, cpeid, 0);
 		if (res > 0) {
 			gotcpeid = 1;
 			if (option_verbose > 2)
@@ -96,7 +96,7 @@ static int cpeid_exec(struct ast_channel *chan, void *idata)
 			strncpy(stuff[1], "Measuring CPE...", sizeof(data[1]) - 1);
 			strncpy(stuff[2], "Please wait...", sizeof(data[2]) - 1);
 			cpeid_setstatus(chan, stuff, 0);
-			res = adsi_get_cpeinfo(chan, &width, &height, &buttons, 0);
+			res = ast_adsi_get_cpeinfo(chan, &width, &height, &buttons, 0);
 			if (res > -1) {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "CPE has %d lines, %d columns, and %d buttons on '%s'\n", height, width, buttons, chan->name);
@@ -123,7 +123,7 @@ static int cpeid_exec(struct ast_channel *chan, void *idata)
 					break;
 				}
 			}
-			adsi_unload_session(chan);
+			ast_adsi_unload_session(chan);
 		}
 	}
 	ast_module_user_remove(u);

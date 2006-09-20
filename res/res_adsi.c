@@ -322,7 +322,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 	
 }
 
-int adsi_begin_download(struct ast_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version)
+int ast_adsi_begin_download(struct ast_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version)
 {
 	int bytes;
 	unsigned char buf[256];
@@ -330,8 +330,8 @@ int adsi_begin_download(struct ast_channel *chan, char *service, unsigned char *
 	bytes = 0;
 	/* Setup the resident soft key stuff, a piece at a time */
 	/* Upload what scripts we can for voicemail ahead of time */
-	bytes += adsi_download_connect(buf + bytes, service, fdn, sec, version);
-	if (adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DOWNLOAD, 0))
+	bytes += ast_adsi_download_connect(buf + bytes, service, fdn, sec, version);
+	if (ast_adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DOWNLOAD, 0))
 		return -1;
 	if (ast_readstring(chan, ack, 1, 10000, 10000, ""))
 		return -1;
@@ -341,20 +341,20 @@ int adsi_begin_download(struct ast_channel *chan, char *service, unsigned char *
 	return -1;
 }
 
-int adsi_end_download(struct ast_channel *chan)
+int ast_adsi_end_download(struct ast_channel *chan)
 {
 	int bytes;
 	unsigned char buf[256];
         bytes = 0;
         /* Setup the resident soft key stuff, a piece at a time */
         /* Upload what scripts we can for voicemail ahead of time */
-        bytes += adsi_download_disconnect(buf + bytes);
-	if (adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DOWNLOAD, 0))
+        bytes += ast_adsi_download_disconnect(buf + bytes);
+	if (ast_adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DOWNLOAD, 0))
 		return -1;
 	return 0;
 }
 
-int adsi_transmit_message_full(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait)
+int ast_adsi_transmit_message_full(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait)
 {
 	unsigned char *msgs[5] = { NULL, NULL, NULL, NULL, NULL };
 	int msglens[5];
@@ -428,9 +428,9 @@ int adsi_transmit_message_full(struct ast_channel *chan, unsigned char *msg, int
 	return res;
 }
 
-int adsi_transmit_message(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype)
+int ast_adsi_transmit_message(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype)
 {
-	return adsi_transmit_message_full(chan, msg, msglen, msgtype, 1);
+	return ast_adsi_transmit_message_full(chan, msg, msglen, msgtype, 1);
 }
 
 static inline int ccopy(unsigned char *dst, const unsigned char *src, int max)
@@ -444,7 +444,7 @@ static inline int ccopy(unsigned char *dst, const unsigned char *src, int max)
 	return x;
 }
 
-int adsi_load_soft_key(unsigned char *buf, int key, const char *llabel, const char *slabel, const char *ret, int data)
+int ast_adsi_load_soft_key(unsigned char *buf, int key, const char *llabel, const char *slabel, const char *ret, int data)
 {
 	int bytes=0;
 
@@ -483,7 +483,7 @@ int adsi_load_soft_key(unsigned char *buf, int key, const char *llabel, const ch
 	
 }
 
-int adsi_connect_session(unsigned char *buf, unsigned char *fdn, int ver)
+int ast_adsi_connect_session(unsigned char *buf, unsigned char *fdn, int ver)
 {
 	int bytes=0;
 	int x;
@@ -506,7 +506,7 @@ int adsi_connect_session(unsigned char *buf, unsigned char *fdn, int ver)
 
 }
 
-int adsi_download_connect(unsigned char *buf, char *service,  unsigned char *fdn, unsigned char *sec, int ver)
+int ast_adsi_download_connect(unsigned char *buf, char *service,  unsigned char *fdn, unsigned char *sec, int ver)
 {
 	int bytes=0;
 	int x;
@@ -536,7 +536,7 @@ int adsi_download_connect(unsigned char *buf, char *service,  unsigned char *fdn
 
 }
 
-int adsi_disconnect_session(unsigned char *buf)
+int ast_adsi_disconnect_session(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -551,7 +551,7 @@ int adsi_disconnect_session(unsigned char *buf)
 
 }
 
-int adsi_query_cpeid(unsigned char *buf)
+int ast_adsi_query_cpeid(unsigned char *buf)
 {
 	int bytes = 0;
 	buf[bytes++] = ADSI_QUERY_CPEID;
@@ -561,7 +561,7 @@ int adsi_query_cpeid(unsigned char *buf)
 	return bytes;
 }
 
-int adsi_query_cpeinfo(unsigned char *buf)
+int ast_adsi_query_cpeinfo(unsigned char *buf)
 {
 	int bytes = 0;
 	buf[bytes++] = ADSI_QUERY_CONFIG;
@@ -571,7 +571,7 @@ int adsi_query_cpeinfo(unsigned char *buf)
 	return bytes;
 }
 
-int adsi_read_encoded_dtmf(struct ast_channel *chan, unsigned char *buf, int maxlen)
+int ast_adsi_read_encoded_dtmf(struct ast_channel *chan, unsigned char *buf, int maxlen)
 {
 	int bytes = 0;
 	int res;
@@ -606,21 +606,21 @@ int adsi_read_encoded_dtmf(struct ast_channel *chan, unsigned char *buf, int max
 	return bytes;
 }
 
-int adsi_get_cpeid(struct ast_channel *chan, unsigned char *cpeid, int voice)
+int ast_adsi_get_cpeid(struct ast_channel *chan, unsigned char *cpeid, int voice)
 {
 	unsigned char buf[256];
 	int bytes = 0;
 	int res;
-	bytes += adsi_data_mode(buf);
-	adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
+	bytes += ast_adsi_data_mode(buf);
+	ast_adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 
 	bytes = 0;
-	bytes += adsi_query_cpeid(buf);
-	adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
+	bytes += ast_adsi_query_cpeid(buf);
+	ast_adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 
 	/* Get response */
 	memset(buf, 0, sizeof(buf));
-	res = adsi_read_encoded_dtmf(chan, cpeid, 4);
+	res = ast_adsi_read_encoded_dtmf(chan, cpeid, 4);
 	if (res != 4) {
 		ast_log(LOG_WARNING, "Got %d bytes back of encoded DTMF, expecting 4\n", res);
 		res = 0;
@@ -630,25 +630,25 @@ int adsi_get_cpeid(struct ast_channel *chan, unsigned char *cpeid, int voice)
 
 	if (voice) {
 		bytes = 0;
-		bytes += adsi_voice_mode(buf, 0);
-		adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
+		bytes += ast_adsi_voice_mode(buf, 0);
+		ast_adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 		/* Ignore the resulting DTMF B announcing it's in voice mode */
 		ast_waitfordigit(chan, 1000);
 	}
 	return res;
 }
 
-int adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, int *buttons, int voice)
+int ast_adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, int *buttons, int voice)
 {
 	unsigned char buf[256];
 	int bytes = 0;
 	int res;
-	bytes += adsi_data_mode(buf);
-	adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
+	bytes += ast_adsi_data_mode(buf);
+	ast_adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 
 	bytes = 0;
-	bytes += adsi_query_cpeinfo(buf);
-	adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
+	bytes += ast_adsi_query_cpeinfo(buf);
+	ast_adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 
 	/* Get width */
 	memset(buf, 0, sizeof(buf));
@@ -695,15 +695,15 @@ int adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, int *but
 	}
 	if (voice) {
 		bytes = 0;
-		bytes += adsi_voice_mode(buf, 0);
-		adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
+		bytes += ast_adsi_voice_mode(buf, 0);
+		ast_adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 		/* Ignore the resulting DTMF B announcing it's in voice mode */
 		ast_waitfordigit(chan, 1000);
 	}
 	return res;
 }
 
-int adsi_data_mode(unsigned char *buf)
+int ast_adsi_data_mode(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -718,7 +718,7 @@ int adsi_data_mode(unsigned char *buf)
 
 }
 
-int adsi_clear_soft_keys(unsigned char *buf)
+int ast_adsi_clear_soft_keys(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -733,7 +733,7 @@ int adsi_clear_soft_keys(unsigned char *buf)
 
 }
 
-int adsi_clear_screen(unsigned char *buf)
+int ast_adsi_clear_screen(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -748,7 +748,7 @@ int adsi_clear_screen(unsigned char *buf)
 
 }
 
-int adsi_voice_mode(unsigned char *buf, int when)
+int ast_adsi_voice_mode(unsigned char *buf, int when)
 {
 	int bytes=0;
 
@@ -765,7 +765,7 @@ int adsi_voice_mode(unsigned char *buf, int when)
 
 }
 
-int adsi_available(struct ast_channel *chan)
+int ast_adsi_available(struct ast_channel *chan)
 {
 	int cpe = chan->adsicpe & 0xff;
 	if ((cpe == AST_ADSI_AVAILABLE) ||
@@ -774,7 +774,7 @@ int adsi_available(struct ast_channel *chan)
 	return 0;
 }
 
-int adsi_download_disconnect(unsigned char *buf)
+int ast_adsi_download_disconnect(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -789,8 +789,8 @@ int adsi_download_disconnect(unsigned char *buf)
 
 }
 
-int adsi_display(unsigned char *buf, int page, int line, int just, int wrap, 
-		 char *col1, char *col2)
+int ast_adsi_display(unsigned char *buf, int page, int line, int just, int wrap, 
+		     char *col1, char *col2)
 {
 	int bytes=0;
 
@@ -835,7 +835,7 @@ int adsi_display(unsigned char *buf, int page, int line, int just, int wrap,
 
 }
 
-int adsi_input_control(unsigned char *buf, int page, int line, int display, int format, int just)
+int ast_adsi_input_control(unsigned char *buf, int page, int line, int display, int format, int just)
 {
 	int bytes=0;
 
@@ -858,7 +858,7 @@ int adsi_input_control(unsigned char *buf, int page, int line, int display, int 
 
 }
 
-int adsi_input_format(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2)
+int ast_adsi_input_format(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2)
 {
 	int bytes = 0;
 
@@ -877,7 +877,7 @@ int adsi_input_format(unsigned char *buf, int num, int dir, int wrap, char *form
 	return bytes;
 }
 
-int adsi_set_keys(unsigned char *buf, unsigned char *keys)
+int ast_adsi_set_keys(unsigned char *buf, unsigned char *keys)
 {
 	int bytes=0;
 	int x;
@@ -892,7 +892,7 @@ int adsi_set_keys(unsigned char *buf, unsigned char *keys)
 	return bytes;
 }
 
-int adsi_set_line(unsigned char *buf, int page, int line)
+int ast_adsi_set_line(unsigned char *buf, int page, int line)
 {
 	int bytes=0;
 
@@ -923,7 +923,7 @@ int adsi_set_line(unsigned char *buf, int page, int line)
 static int total = 0;
 static int speeds = 0;
 
-int adsi_channel_restore(struct ast_channel *chan)
+int ast_adsi_channel_restore(struct ast_channel *chan)
 {
 	unsigned char dsp[256];
 	int bytes;
@@ -934,7 +934,7 @@ int adsi_channel_restore(struct ast_channel *chan)
 
 	/* Start with initial display setup */
 	bytes = 0;
-	bytes += adsi_set_line(dsp + bytes, ADSI_INFO_PAGE, 1);
+	bytes += ast_adsi_set_line(dsp + bytes, ADSI_INFO_PAGE, 1);
 
 	/* Prepare key setup messages */
 
@@ -943,26 +943,26 @@ int adsi_channel_restore(struct ast_channel *chan)
 		for (x=0;x<speeds;x++) {
 			keyd[x] = ADSI_SPEED_DIAL + x;
 		}
-		bytes += adsi_set_keys(dsp + bytes, keyd);
+		bytes += ast_adsi_set_keys(dsp + bytes, keyd);
 	}
-	adsi_transmit_message_full(chan, dsp, bytes, ADSI_MSG_DISPLAY, 0);
+	ast_adsi_transmit_message_full(chan, dsp, bytes, ADSI_MSG_DISPLAY, 0);
 	return 0;
 
 }
 
-int adsi_print(struct ast_channel *chan, char **lines, int *aligns, int voice)
+int ast_adsi_print(struct ast_channel *chan, char **lines, int *aligns, int voice)
 {
 	unsigned char buf[4096];
 	int bytes=0;
 	int res;
 	int x;
 	for(x=0;lines[x];x++) 
-		bytes += adsi_display(buf + bytes, ADSI_INFO_PAGE, x+1, aligns[x], 0, lines[x], "");
-	bytes += adsi_set_line(buf + bytes, ADSI_INFO_PAGE, 1);
+		bytes += ast_adsi_display(buf + bytes, ADSI_INFO_PAGE, x+1, aligns[x], 0, lines[x], "");
+	bytes += ast_adsi_set_line(buf + bytes, ADSI_INFO_PAGE, 1);
 	if (voice) {
-		bytes += adsi_voice_mode(buf + bytes, 0);
+		bytes += ast_adsi_voice_mode(buf + bytes, 0);
 	}
-	res = adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
+	res = ast_adsi_transmit_message_full(chan, buf, bytes, ADSI_MSG_DISPLAY, 0);
 	if (voice) {
 		/* Ignore the resulting DTMF B announcing it's in voice mode */
 		ast_waitfordigit(chan, 1000);
@@ -970,7 +970,7 @@ int adsi_print(struct ast_channel *chan, char **lines, int *aligns, int voice)
 	return res;
 }
 
-int adsi_load_session(struct ast_channel *chan, unsigned char *app, int ver, int data)
+int ast_adsi_load_session(struct ast_channel *chan, unsigned char *app, int ver, int data)
 {
 	unsigned char dsp[256];
 	int bytes;
@@ -981,13 +981,13 @@ int adsi_load_session(struct ast_channel *chan, unsigned char *app, int ver, int
 
 	/* Connect to session */
 	bytes = 0;
-	bytes += adsi_connect_session(dsp + bytes, app, ver);
+	bytes += ast_adsi_connect_session(dsp + bytes, app, ver);
 
 	if (data)
-		bytes += adsi_data_mode(dsp + bytes);
+		bytes += ast_adsi_data_mode(dsp + bytes);
 
 	/* Prepare key setup messages */
-	if (adsi_transmit_message_full(chan, dsp, bytes, ADSI_MSG_DISPLAY, 0))
+	if (ast_adsi_transmit_message_full(chan, dsp, bytes, ADSI_MSG_DISPLAY, 0))
 		return -1;
 	if (app) {
 		res = ast_readstring(chan, resp, 1, 1200, 1200, "");
@@ -1011,7 +1011,7 @@ int adsi_load_session(struct ast_channel *chan, unsigned char *app, int ver, int
 
 }
 
-int adsi_unload_session(struct ast_channel *chan)
+int ast_adsi_unload_session(struct ast_channel *chan)
 {
 	unsigned char dsp[256];
 	int bytes;
@@ -1020,11 +1020,11 @@ int adsi_unload_session(struct ast_channel *chan)
 
 	/* Connect to session */
 	bytes = 0;
-	bytes += adsi_disconnect_session(dsp + bytes);
-	bytes += adsi_voice_mode(dsp + bytes, 0);
+	bytes += ast_adsi_disconnect_session(dsp + bytes);
+	bytes += ast_adsi_voice_mode(dsp + bytes, 0);
 
 	/* Prepare key setup messages */
-	if (adsi_transmit_message_full(chan, dsp, bytes, ADSI_MSG_DISPLAY, 0))
+	if (ast_adsi_transmit_message_full(chan, dsp, bytes, ADSI_MSG_DISPLAY, 0))
 		return -1;
 	return 0;
 }
