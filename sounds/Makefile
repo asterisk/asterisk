@@ -15,97 +15,96 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts
 
-PWD:=$(shell pwd)
 SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
 MOH_DIR:=$(DESTDIR)$(ASTDATADIR)/moh
 CORE_SOUNDS_VERSION:=1.4.2
 EXTRA_SOUNDS_VERSION:=1.4.1
 SOUNDS_URL:=http://ftp.digium.com/pub/telephony/sounds/releases
-MENUSELECT_CORE_SOUNDS:=$(subst -EN-,-en-,$(MENUSELECT_CORE_SOUNDS))
-MENUSELECT_CORE_SOUNDS:=$(subst -FR-,-fr-,$(MENUSELECT_CORE_SOUNDS))
-MENUSELECT_CORE_SOUNDS:=$(subst -ES-,-es-,$(MENUSELECT_CORE_SOUNDS))
-MENUSELECT_CORE_SOUNDS:=$(subst -WAV,-wav,$(MENUSELECT_CORE_SOUNDS))
-MENUSELECT_CORE_SOUNDS:=$(subst -ULAW,-ulaw,$(MENUSELECT_CORE_SOUNDS))
-MENUSELECT_CORE_SOUNDS:=$(subst -ALAW,-alaw,$(MENUSELECT_CORE_SOUNDS))
-MENUSELECT_CORE_SOUNDS:=$(subst -GSM,-gsm,$(MENUSELECT_CORE_SOUNDS))
-MENUSELECT_CORE_SOUNDS:=$(subst -G729,-g729,$(MENUSELECT_CORE_SOUNDS))
-CORE_SOUNDS:=$(MENUSELECT_CORE_SOUNDS:CORE-SOUNDS-%=asterisk-core-sounds-%-$(CORE_SOUNDS_VERSION).tar.gz)
-CORE_SOUND_TAGS:=$(MENUSELECT_CORE_SOUNDS:CORE-SOUNDS-%=$(SOUNDS_DIR)/.asterisk-core-sounds-%-$(CORE_SOUNDS_VERSION))
-MENUSELECT_EXTRA_SOUNDS:=$(subst -EN-,-en-,$(MENUSELECT_EXTRA_SOUNDS))
-MENUSELECT_EXTRA_SOUNDS:=$(subst -FR-,-fr-,$(MENUSELECT_EXTRA_SOUNDS))
-MENUSELECT_EXTRA_SOUNDS:=$(subst -ES-,-es-,$(MENUSELECT_EXTRA_SOUNDS))
-MENUSELECT_EXTRA_SOUNDS:=$(subst -WAV,-wav,$(MENUSELECT_EXTRA_SOUNDS))
-MENUSELECT_EXTRA_SOUNDS:=$(subst -ULAW,-ulaw,$(MENUSELECT_EXTRA_SOUNDS))
-MENUSELECT_EXTRA_SOUNDS:=$(subst -ALAW,-alaw,$(MENUSELECT_EXTRA_SOUNDS))
-MENUSELECT_EXTRA_SOUNDS:=$(subst -GSM,-gsm,$(MENUSELECT_EXTRA_SOUNDS))
-MENUSELECT_EXTRA_SOUNDS:=$(subst -G729,-g729,$(MENUSELECT_EXTRA_SOUNDS))
-EXTRA_SOUNDS:=$(MENUSELECT_EXTRA_SOUNDS:EXTRA-SOUNDS-%=asterisk-extra-sounds-%-$(EXTRA_SOUNDS_VERSION).tar.gz)
-EXTRA_SOUND_TAGS:=$(MENUSELECT_EXTRA_SOUNDS:EXTRA-SOUNDS-%=$(SOUNDS_DIR)/.asterisk-extra-sounds-%-$(EXTRA_SOUNDS_VERSION))
-MENUSELECT_MOH:=$(subst -FREEPLAY-,-freeplay-,$(MENUSELECT_MOH))
-MENUSELECT_MOH:=$(subst -WAV,-wav,$(MENUSELECT_MOH))
-MENUSELECT_MOH:=$(subst -ULAW,-ulaw,$(MENUSELECT_MOH))
-MENUSELECT_MOH:=$(subst -ALAW,-alaw,$(MENUSELECT_MOH))
-MENUSELECT_MOH:=$(subst -GSM,-gsm,$(MENUSELECT_MOH))
-MENUSELECT_MOH:=$(subst -G729,-g729,$(MENUSELECT_MOH))
-MOH:=$(MENUSELECT_MOH:MOH-%=asterisk-moh-%.tar.gz)
-MOH_TAGS:=$(MENUSELECT_MOH:MOH-%=$(MOH_DIR)/.asterisk-moh-%)
+MCS:=$(subst -EN-,-en-,$(MENUSELECT_CORE_SOUNDS))
+MCS:=$(subst -FR-,-fr-,$(MCS))
+MCS:=$(subst -ES-,-es-,$(MCS))
+MCS:=$(subst -WAV,-wav,$(MCS))
+MCS:=$(subst -ULAW,-ulaw,$(MCS))
+MCS:=$(subst -ALAW,-alaw,$(MCS))
+MCS:=$(subst -GSM,-gsm,$(MCS))
+MCS:=$(subst -G729,-g729,$(MCS))
+CORE_SOUNDS:=$(MCS:CORE-SOUNDS-%=asterisk-core-sounds-%-$(CORE_SOUNDS_VERSION).tar.gz)
+CORE_SOUND_TAGS:=$(MCS:CORE-SOUNDS-%=$(SOUNDS_DIR)/.asterisk-core-sounds-%-$(CORE_SOUNDS_VERSION))
+MES:=$(subst -EN-,-en-,$(MENUSELECT_EXTRA_SOUNDS))
+MES:=$(subst -FR-,-fr-,$(MES))
+MES:=$(subst -ES-,-es-,$(MES))
+MES:=$(subst -WAV,-wav,$(MES))
+MES:=$(subst -ULAW,-ulaw,$(MES))
+MES:=$(subst -ALAW,-alaw,$(MES))
+MES:=$(subst -GSM,-gsm,$(MES))
+MES:=$(subst -G729,-g729,$(MES))
+EXTRA_SOUNDS:=$(MES:EXTRA-SOUNDS-%=asterisk-extra-sounds-%-$(EXTRA_SOUNDS_VERSION).tar.gz)
+EXTRA_SOUND_TAGS:=$(MES:EXTRA-SOUNDS-%=$(SOUNDS_DIR)/.asterisk-extra-sounds-%-$(EXTRA_SOUNDS_VERSION))
+MM:=$(subst -FREEPLAY-,-freeplay-,$(MENUSELECT_MOH))
+MM:=$(subst -WAV,-wav,$(MM))
+MM:=$(subst -ULAW,-ulaw,$(MM))
+MM:=$(subst -ALAW,-alaw,$(MM))
+MM:=$(subst -GSM,-gsm,$(MM))
+MM:=$(subst -G729,-g729,$(MM))
+MOH:=$(MM:MOH-%=asterisk-moh-%.tar.gz)
+MOH_TAGS:=$(MM:MOH-%=$(MOH_DIR)/.asterisk-moh-%)
 WGET_ARGS:=--continue
 
 all: $(CORE_SOUNDS) $(EXTRA_SOUNDS) $(MOH)
 
-$(SOUNDS_DIR)/.asterisk-core-sounds-en-%: $(SOUNDS_DIR)
+$(SOUNDS_DIR)/.asterisk-core-sounds-en-%:
 	@PACKAGE=$(subst $(SOUNDS_DIR)/.asterisk,asterisk,$@).tar.gz; \
 	if test ! -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
 	if test ! -f $${PACKAGE}; then exit 1; fi; \
 	rm -f $(subst -$(CORE_SOUNDS_VERSION),,$@)-* && \
-	cat $${PACKAGE} | gzip -d | tar xCf $(SOUNDS_DIR) -
+	cat $${PACKAGE} | gzip -d | tar xCf $(SOUNDS_DIR) - && \
 	touch $@
 
-$(SOUNDS_DIR)/.asterisk-core-sounds-es-%: $(SOUNDS_DIR)/es
+$(SOUNDS_DIR)/.asterisk-core-sounds-es-%:
 	@PACKAGE=$(subst $(SOUNDS_DIR)/.asterisk,asterisk,$@).tar.gz; \
 	if test ! -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
 	if test ! -f $${PACKAGE}; then exit 1; fi; \
 	rm -f $(subst -$(CORE_SOUNDS_VERSION),,$@)-* && \
-	cat $${PACKAGE} | gzip -d | tar xCf $(SOUNDS_DIR)/es -
+	cat $${PACKAGE} | gzip -d | tar xCf $(SOUNDS_DIR)/es - && \
 	touch $@
 
-$(SOUNDS_DIR)/.asterisk-core-sounds-fr-%: $(SOUNDS_DIR)/fr
+$(SOUNDS_DIR)/.asterisk-core-sounds-fr-%:
 	@PACKAGE=$(subst $(SOUNDS_DIR)/.asterisk,asterisk,$@).tar.gz; \
 	if test ! -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
 	if test ! -f $${PACKAGE}; then exit 1; fi; \
 	rm -f $(subst -$(CORE_SOUNDS_VERSION),,$@)-* && \
-	cat $${PACKAGE} | gzip -d | tar xCf $(SOUNDS_DIR)/fr -
+	cat $${PACKAGE} | gzip -d | tar xCf $(SOUNDS_DIR)/fr - && \
 	touch $@
 
-$(SOUNDS_DIR)/.asterisk-extra-sounds-en-%: $(SOUNDS_DIR)
+$(SOUNDS_DIR)/.asterisk-extra-sounds-en-%:
 	@PACKAGE=$(subst $(SOUNDS_DIR)/.asterisk,asterisk,$@).tar.gz; \
 	if test ! -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
 	if test ! -f $${PACKAGE}; then exit 1; fi; \
 	rm -f $(subst -$(EXTRA_SOUNDS_VERSION),,$@)-* && \
-	cat $${PACKAGE} | gzip -d | tar xCf $(SOUNDS_DIR) -
+	cat $${PACKAGE} | gzip -d | tar xCf $(SOUNDS_DIR) - && \
 	touch $@
 
-$(SOUNDS_DIR)/.asterisk-extra-sounds-es-%: $(SOUNDS_DIR)/es
+$(SOUNDS_DIR)/.asterisk-extra-sounds-es-%:
 	@PACKAGE=$(subst $(SOUNDS_DIR)/.asterisk,asterisk,$@).tar.gz; \
 	if test ! -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
 	if test ! -f $${PACKAGE}; then exit 1; fi; \
 	rm -f $(subst -$(EXTRA_SOUNDS_VERSION),,$@)-* && \
-	cat /$${PACKAGE} | gzip -d | tar xCf $(SOUNDS_DIR)/es -
+	cat $${PACKAGE} | gzip -d | tar xCf $(SOUNDS_DIR)/es - && \
 	touch $@
 
-$(SOUNDS_DIR)/.asterisk-extra-sounds-fr-%: $(SOUNDS_DIR)/fr
+$(SOUNDS_DIR)/.asterisk-extra-sounds-fr-%:
 	@PACKAGE=$(subst $(SOUNDS_DIR)/.asterisk,asterisk,$@).tar.gz; \
 	if test ! -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
 	if test ! -f $${PACKAGE}; then exit 1; fi; \
 	rm -f $(subst -$(EXTRA_SOUNDS_VERSION),,$@)-* && \
-	cat $${PACKAGE} | gzip -d | tar xCf $(SOUNDS_DIR)/fr -
+	cat $${PACKAGE} | gzip -d | tar xCf $(SOUNDS_DIR)/fr - && \
 	touch $@
 
-$(MOH_DIR)/.asterisk-moh-%: $(MOH_DIR)
+$(MOH_DIR)/.asterisk-moh-%:
 	@PACKAGE=$(subst $(MOH_DIR)/.asterisk,asterisk,$@).tar.gz; \
 	if test ! -f $${PACKAGE}; then wget $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
 	if test ! -f $${PACKAGE}; then exit 1; fi; \
-	cat $${PACKAGE} | gzip -d | tar xCf $(MOH_DIR) -
+	cat $${PACKAGE} | gzip -d | tar xCf $(MOH_DIR) - && \
 	touch $@
 
 asterisk-core-%.tar.gz:
@@ -120,12 +119,10 @@ asterisk-moh-%.tar.gz:
 dist-clean:
 	rm -f *.tar.gz
 
-.PHONY: $(SOUNDS_DIR) $(SOUNDS_DIR)/fr $(SOUNDS_DIR)/es $(MOH_DIR)
-
 $(SOUNDS_DIR) $(MOH_DIR) $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr:
 	mkdir -p $@
 
-install: $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
+install: $(SOUNDS_DIR) $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(MOH_DIR) $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
 
 uninstall:
 	rm -rf $(SOUNDS_DIR)
