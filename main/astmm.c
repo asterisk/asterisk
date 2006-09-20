@@ -382,10 +382,10 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 		count += list->count;
 		if (fn) {
 			ast_cli(fd, "%10d bytes in %5d allocations in function '%s' of '%s'\n", 
-				list->len, list->count, list->fn, fn);
+				cur->len, cur->count, cur->fn, fn);
 		} else {
 			ast_cli(fd, "%10d bytes in %5d allocations in file '%s'\n", 
-				list->len, list->count, list->fn);
+				cur->len, cur->count, cur->fn);
 		}
 	}
 
