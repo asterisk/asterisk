@@ -701,9 +701,9 @@ static int zt_sendtext(struct ast_channel *c, const char *text);
 static int zt_call(struct ast_channel *ast, char *rdest, int timeout);
 static int zt_hangup(struct ast_channel *ast);
 static int zt_answer(struct ast_channel *ast);
-struct ast_frame *zt_read(struct ast_channel *ast);
+static struct ast_frame *zt_read(struct ast_channel *ast);
 static int zt_write(struct ast_channel *ast, struct ast_frame *frame);
-struct ast_frame *zt_exception(struct ast_channel *ast);
+static struct ast_frame *zt_exception(struct ast_channel *ast);
 static int zt_indicate(struct ast_channel *chan, int condition, const void *data, size_t datalen);
 static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int zt_setoption(struct ast_channel *chan, int option, void *data, int datalen);
@@ -4516,7 +4516,7 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 	return f;
 }
 
-struct ast_frame *zt_exception(struct ast_channel *ast)
+static struct ast_frame *zt_exception(struct ast_channel *ast)
 {
 	struct zt_pvt *p = ast->tech_pvt;
 	struct ast_frame *f;
@@ -4526,7 +4526,7 @@ struct ast_frame *zt_exception(struct ast_channel *ast)
 	return f;
 }
 
-struct ast_frame  *zt_read(struct ast_channel *ast)
+static struct ast_frame  *zt_read(struct ast_channel *ast)
 {
 	struct zt_pvt *p = ast->tech_pvt;
 	int res;

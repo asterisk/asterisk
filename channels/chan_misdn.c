@@ -223,7 +223,7 @@ static struct robin_list *robin = NULL;
 
 
 
-struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame *frame);
+static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame *frame);
 
 
 
@@ -2376,7 +2376,7 @@ static int misdn_hangup(struct ast_channel *ast)
 }
 
 
-struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame *frame)
+static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame *frame)
 {
 	struct ast_frame *f,*f2;
  
