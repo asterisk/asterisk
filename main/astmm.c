@@ -378,8 +378,8 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 	
 	/* Dump the whole list */
 	for (cur = list; cur; cur = cur->next) {
-		len += list->len;
-		count += list->count;
+		len += cur->len;
+		count += cur->count;
 		if (fn) {
 			ast_cli(fd, "%10d bytes in %5d allocations in function '%s' of '%s'\n", 
 				cur->len, cur->count, cur->fn, fn);
