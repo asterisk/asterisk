@@ -18,11 +18,9 @@
 PWD:=$(shell pwd)
 SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
 MOH_DIR:=$(DESTDIR)$(ASTDATADIR)/moh
-CORE_SOUNDS_VERSION:=1.4.1
+CORE_SOUNDS_VERSION:=1.4.2
 EXTRA_SOUNDS_VERSION:=1.4.1
 SOUNDS_URL:=http://ftp.digium.com/pub/telephony/sounds/releases
-EXTRA_SOUNDS_URL:=http://ftp.digium.com/pub/telephony/sounds/releases
-MOH_URL:=http://ftp.digium.com/pub/telephony/sounds
 MENUSELECT_CORE_SOUNDS:=$(subst -EN-,-en-,$(MENUSELECT_CORE_SOUNDS))
 MENUSELECT_CORE_SOUNDS:=$(subst -FR-,-fr-,$(MENUSELECT_CORE_SOUNDS))
 MENUSELECT_CORE_SOUNDS:=$(subst -ES-,-es-,$(MENUSELECT_CORE_SOUNDS))
@@ -57,40 +55,33 @@ all: $(CORE_SOUNDS) $(EXTRA_SOUNDS) $(MOH)
 
 $(SOUNDS_DIR)/.asterisk-core-sounds-en-%: asterisk-core-sounds-en-%.tar.gz $(SOUNDS_DIR)
 	cat $< | gzip -d | tar xCf $(SOUNDS_DIR) -
-	touch $@
 
 $(SOUNDS_DIR)/.asterisk-core-sounds-fr-%: asterisk-core-sounds-fr-%.tar.gz $(SOUNDS_DIR)/fr
 	cat $< | gzip -d | tar xCf $(SOUNDS_DIR)/fr -
-	touch $@
 
 $(SOUNDS_DIR)/.asterisk-core-sounds-es-%: asterisk-core-sounds-es-%.tar.gz $(SOUNDS_DIR)/es
 	cat $< | gzip -d | tar xCf $(SOUNDS_DIR)/es -
-	touch $@
 
 $(SOUNDS_DIR)/.asterisk-extra-sounds-en-%: asterisk-extra-sounds-en-%.tar.gz $(SOUNDS_DIR)
 	cat $< | gzip -d | tar xCf $(SOUNDS_DIR) -
-	touch $@
 
-$(SOUNDS_DIR)/.asterisk-extra-sounds-fr-%: asterisk-extra-sounds-fr-%.tar.gz $(SOUNDS_DIR)
-	cat $< | gzip -d | tar xCf $(SOUNDS_DIR) -
-	touch $@
+$(SOUNDS_DIR)/.asterisk-extra-sounds-fr-%: asterisk-extra-sounds-fr-%.tar.gz $(SOUNDS_DIR)/fr
+	cat $< | gzip -d | tar xCf $(SOUNDS_DIR)/fr -
 
-$(SOUNDS_DIR)/.asterisk-extra-sounds-es-%: asterisk-extra-sounds-es-%.tar.gz $(SOUNDS_DIR)
-	cat $< | gzip -d | tar xCf $(SOUNDS_DIR) -
-	touch $@
+$(SOUNDS_DIR)/.asterisk-extra-sounds-es-%: asterisk-extra-sounds-es-%.tar.gz $(SOUNDS_DIR)/es
+	cat $< | gzip -d | tar xCf $(SOUNDS_DIR)/es -
 
 $(MOH_DIR)/.asterisk-moh-%: asterisk-moh-%.tar.gz $(MOH_DIR)
 	cat $< | gzip -d | tar xCf $(MOH_DIR) -
-	touch $@
 
 asterisk-core-%.tar.gz:
 	@wget $(WGET_ARGS) $(SOUNDS_URL)/$@
 
 asterisk-extra-%.tar.gz:
-	@wget $(WGET_ARGS) $(EXTRA_SOUNDS_URL)/$@
+	@wget $(WGET_ARGS) $(SOUNDS_URL)/$@
 
 asterisk-moh-%.tar.gz:
-	@wget $(WGET_ARGS) $(MOH_URL)/$@
+	@wget $(WGET_ARGS) $(SOUNDS_URL)/$@
 
 dist-clean:
 	rm -f *.tar.gz
