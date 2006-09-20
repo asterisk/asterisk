@@ -1006,9 +1006,13 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 static int read_agent_config(void)
 {
 	struct ast_config *cfg;
+	struct ast_config *ucfg;
 	struct ast_variable *v;
 	struct agent_pvt *p;
 	const char *general_val;
+	const char *catname;
+	const char *hasagent;
+	int genhasagent;
 
 	group = 0;
 	autologoff = 0;
@@ -1103,6 +1107,28 @@ static int read_agent_config(void)
 			ast_copy_string(beep, v->value, sizeof(beep));
 		}
 		v = v->next;
+	}
+	if ((ucfg = ast_config_load("users.conf"))) {
+		genhasagent = ast_true(ast_variable_retrieve(ucfg, "general", "hasagent"));
+		catname = ast_category_browse(ucfg, NULL);
+		while(catname) {
+			if (strcasecmp(catname, "general")) {
+				hasagent = ast_variable_retrieve(ucfg, catname, "hasagent");
+				if (ast_true(hasagent) || (!hasagent && genhasagent)) {
+					char tmp[256];
+					const char *fullname = ast_variable_retrieve(ucfg, catname, "fullname");
+					const char *secret = ast_variable_retrieve(ucfg, catname, "secret");
+					if (!fullname)
+						fullname = "";
+					if (!secret)
+						secret = "";
+					snprintf(tmp, sizeof(tmp), "%s,%s,%s", catname, secret,fullname);
+					add_agent(tmp, 0);
+				}
+			}
+			catname = ast_category_browse(ucfg, catname);
+		}
+		ast_config_destroy(ucfg);
 	}
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&agents, p, list) {
 		if (p->dead) {
