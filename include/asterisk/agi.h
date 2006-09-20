@@ -46,8 +46,8 @@ typedef struct agi_command {
 	struct agi_command *next;
 } agi_command;
 
-int agi_register(agi_command *cmd);
-void agi_unregister(agi_command *cmd);
+int ast_agi_register(agi_command *cmd);
+void ast_agi_unregister(agi_command *cmd);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
