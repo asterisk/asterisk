@@ -628,7 +628,7 @@ static int reload(void)
 static int parse_config(void)
 {
 	struct ast_config *config;
-	char *s;
+	const char *s;
 
 	config = ast_config_load(RES_CONFIG_PGSQL_CONF);
 

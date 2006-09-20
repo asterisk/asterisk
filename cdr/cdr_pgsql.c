@@ -202,7 +202,7 @@ static int process_my_load_module(struct ast_config *cfg)
 {
 	struct ast_variable *var;
         char *pgerror;
-	char *tmp;
+	const char *tmp;
 
 	if (!(var = ast_variable_browse(cfg, "global")))
 		return 0;
