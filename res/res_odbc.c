@@ -75,7 +75,7 @@ static odbc_status odbc_obj_disconnect(struct odbc_obj *obj);
 static int odbc_register_class(struct odbc_class *class, int connect);
 
 
-SQLHSTMT odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(struct odbc_obj *obj, void *data), void *data)
+SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(struct odbc_obj *obj, void *data), void *data)
 {
 	int res = 0, i, attempt;
 	SQLINTEGER nativeerror=0, numfields=0;
@@ -130,7 +130,7 @@ SQLHSTMT odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(s
 	return stmt;
 }
 
-int odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt) 
+int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt) 
 {
 	int res = 0, i;
 	SQLINTEGER nativeerror=0, numfields=0;
@@ -172,7 +172,7 @@ int odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt)
 }
 
 
-int odbc_sanity_check(struct odbc_obj *obj) 
+int ast_odbc_sanity_check(struct odbc_obj *obj) 
 {
 	char *test_sql = "select 1";
 	SQLHSTMT stmt;
@@ -319,12 +319,12 @@ static int odbc_show_command(int fd, int argc, char **argv)
 				ast_cli(fd, "Pooled: yes\nLimit: %d\nConnections in use: %d\n", class->limit, class->count);
 
 				AST_LIST_TRAVERSE(&(class->odbc_obj), current, list) {
-					ast_cli(fd, "  Connection %d: %s", ++count, current->up && odbc_sanity_check(current) ? "connected" : "disconnected");
+					ast_cli(fd, "  Connection %d: %s", ++count, current->up && ast_odbc_sanity_check(current) ? "connected" : "disconnected");
 				}
 			} else {
 				/* Should only ever be one of these */
 				AST_LIST_TRAVERSE(&(class->odbc_obj), current, list) {
-					ast_cli(fd, "Pooled: no\nConnected: %s\n", current->up && odbc_sanity_check(current) ? "yes" : "no");
+					ast_cli(fd, "Pooled: no\nConnected: %s\n", current->up && ast_odbc_sanity_check(current) ? "yes" : "no");
 				}
 			}
 
@@ -362,8 +362,8 @@ static int odbc_register_class(struct odbc_class *class, int connect)
 
 		if (connect) {
 			/* Request and release builds a connection */
-			obj = odbc_request_obj(class->name, 0);
-			odbc_release_obj(obj);
+			obj = ast_odbc_request_obj(class->name, 0);
+			ast_odbc_release_obj(obj);
 		}
 
 		return 0;
@@ -373,14 +373,14 @@ static int odbc_register_class(struct odbc_class *class, int connect)
 	}
 }
 
-void odbc_release_obj(struct odbc_obj *obj)
+void ast_odbc_release_obj(struct odbc_obj *obj)
 {
 	/* For pooled connections, this frees the connection to be
 	 * reused.  For non-pooled connections, it does nothing. */
 	obj->used = 0;
 }
 
-struct odbc_obj *odbc_request_obj(const char *name, int check)
+struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 {
 	struct odbc_obj *obj = NULL;
 	struct odbc_class *class;
@@ -445,7 +445,7 @@ struct odbc_obj *odbc_request_obj(const char *name, int check)
 	AST_LIST_UNLOCK(&class->odbc_obj);
 
 	if (obj && check) {
-		odbc_sanity_check(obj);
+		ast_odbc_sanity_check(obj);
 	}
 	return obj;
 }

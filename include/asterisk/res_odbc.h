@@ -60,7 +60,7 @@ struct odbc_obj {
  * This function really only ever worked with MySQL, where the statement handle is
  * not prepared on the server.  If you are not using MySQL, you should avoid it.
  */
-int odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt); /* DEPRECATED */
+int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt); /* DEPRECATED */
 
 /*! \brief Retrieves a connected ODBC object
  * \param name The name of the ODBC class for which a connection is needed.
@@ -72,18 +72,18 @@ int odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt); /* DEPRECATED */
  * thread which requests it.  Note that all connections should be released
  * when the thread is done by calling odbc_release_obj(), below.
  */
-struct odbc_obj *odbc_request_obj(const char *name, int check);
+struct odbc_obj *ast_odbc_request_obj(const char *name, int check);
 
 /*! \brief Releases an ODBC object previously allocated by odbc_request_obj()
  * \param obj The ODBC object
  */
-void odbc_release_obj(struct odbc_obj *obj);
+void ast_odbc_release_obj(struct odbc_obj *obj);
 
 /*! \brief Checks an ODBC object to ensure it is still connected
  * \param obj The ODBC object
  * \return Returns 0 if connected, -1 otherwise.
  */
-int odbc_sanity_check(struct odbc_obj *obj);
+int ast_odbc_sanity_check(struct odbc_obj *obj);
 
 /*! \brief Prepares, executes, and returns the resulting statement handle.
  * \param obj The ODBC object
@@ -91,6 +91,6 @@ int odbc_sanity_check(struct odbc_obj *obj);
  * \param data A parameter to be passed to the prepare_cb parameter function, indicating which statement handle is to be prepared.
  * \return Returns a statement handle or NULL on error.
  */
-SQLHSTMT odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(struct odbc_obj *obj, void *data), void *data);
+SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(struct odbc_obj *obj, void *data), void *data);
 
 #endif /* _ASTERISK_RES_ODBC_H */

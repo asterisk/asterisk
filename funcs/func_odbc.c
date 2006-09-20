@@ -119,7 +119,7 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 		return -1;
 	}
 
-	obj = odbc_request_obj(query->dsn, 0);
+	obj = ast_odbc_request_obj(query->dsn, 0);
 
 	if (!obj) {
 		ast_log(LOG_ERROR, "No database handle available with the name of '%s' (check res_odbc.conf)\n", query->dsn);
@@ -169,7 +169,7 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 
 	AST_LIST_UNLOCK(&queries);
 
-	stmt = odbc_prepare_and_execute(obj, generic_prepare, buf);
+	stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, buf);
 
 	if (stmt) {
 		/* Rows affected */
@@ -186,7 +186,7 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 	if (stmt)
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 	if (obj)
-		odbc_release_obj(obj);
+		ast_odbc_release_obj(obj);
 
 	return 0;
 }
@@ -217,7 +217,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 		return -1;
 	}
 
-	obj = odbc_request_obj(query->dsn, 0);
+	obj = ast_odbc_request_obj(query->dsn, 0);
 
 	if (!obj) {
 		ast_log(LOG_ERROR, "No such DSN registered (or out of connections): %s (check res_odbc.conf)\n", query->dsn);
@@ -244,10 +244,10 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 
 	AST_LIST_UNLOCK(&queries);
 
-	stmt = odbc_prepare_and_execute(obj, generic_prepare, sql);
+	stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, sql);
 
 	if (!stmt) {
-		odbc_release_obj(obj);
+		ast_odbc_release_obj(obj);
 		return -1;
 	}
 
@@ -255,7 +255,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-		odbc_release_obj(obj);
+		ast_odbc_release_obj(obj);
 		return -1;
 	}
 
@@ -273,7 +273,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 			ast_log(LOG_WARNING, "Error %d in FETCH [%s]\n", res, sql);
 		}
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-		odbc_release_obj(obj);
+		ast_odbc_release_obj(obj);
 		return res1;
 	}
 
@@ -291,7 +291,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-			odbc_release_obj(obj);
+			ast_odbc_release_obj(obj);
 			return -1;
 		}
 
@@ -316,7 +316,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	buf[buflen - 1] = '\0';
 
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-	odbc_release_obj(obj);
+	ast_odbc_release_obj(obj);
 	return 0;
 }
 
