@@ -1008,7 +1008,7 @@ static int read_agent_config(void)
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	struct agent_pvt *p;
-	char *general_val;
+	const char *general_val;
 
 	group = 0;
 	autologoff = 0;

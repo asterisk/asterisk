@@ -149,7 +149,7 @@ AST_APP_OPTIONS(followme_opts, {
 static int ynlongest = 0;
 static time_t start_time, answer_time, end_time;
 
-static char *featuredigittostr;
+static const char *featuredigittostr;
 static int featuredigittimeout = 5000;		/*!< Feature Digit Timeout */
 static const char *defaultmoh = "default";    	/*!< Default Music-On-Hold Class */
 
@@ -288,9 +288,9 @@ static int reload_followme(void)
 	int timeout;
 	char *timeoutstr;
 	int numorder;	
-	char *takecallstr;
-	char *declinecallstr;
-	char *tmpstr;
+	const char *takecallstr;
+	const char *declinecallstr;
+	const char *tmpstr;
 
 	cfg = ast_config_load("followme.conf");
 	if (!cfg) {

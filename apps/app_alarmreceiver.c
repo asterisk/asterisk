@@ -733,7 +733,7 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 static int load_config(void)
 {
 	struct ast_config *cfg;
-	char *p;
+	const char *p;
 
 	/* Read in the config file */
 
