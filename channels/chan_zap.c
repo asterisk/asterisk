@@ -10325,11 +10325,11 @@ static int unload_module(void)
 static int build_channels(int iscrv, const char *value, int reload, int lineno, int *found_pseudo)
 {
 	char *c, *chan;
-	int x, y, start, finish;
+	int x, start, finish;
 	struct zt_pvt *tmp;
 #ifdef HAVE_PRI
 	struct zt_pri *pri;
-	int trunkgroup;
+	int trunkgroup, y;
 #endif
 	
 	if ((reload == 0) && (cur_signalling < 0)) {
@@ -10418,7 +10418,6 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 	char *ringc;
 	int y;
 	int found_pseudo = 0;
-	char *c;
 
 	while(v) {
 		/* Create the interface list */
@@ -10883,7 +10882,7 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 				overlapdial = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "pritimer")) {
 #ifdef PRI_GETSET_TIMERS
-				char *timerc;
+				char *timerc, *c;
 				int timer, timeridx;
 				c = v->value;
 				timerc = strsep(&c, ",");
@@ -11063,16 +11062,15 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 		
 static int setup_zap(int reload)
 {
-	int x;
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	struct ast_variable *vjb;
-	char *c;
 	int res;
 
 #ifdef HAVE_PRI
+	char *c;
 	int spanno;
-	int i;
+	int i, x;
 	int logicalspan;
 	int trunkgroup;
 	int dchannels[NUM_DCHANS];
