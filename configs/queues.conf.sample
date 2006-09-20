@@ -291,10 +291,14 @@ monitor-type = MixMonitor
 ; Each member of this call queue is listed on a separate line in
 ; the form technology/dialstring.  "member" means a normal member of a
 ; queue.  An optional penalty may be specified after a comma, such that
-; entries with higher penalties are considered last.
+; entries with higher penalties are considered last.  An optional member
+; name may also be specified after a second comma, which is used in log
+; messages as a "friendly name".  Multiple interfaces may share a single
+; member name.
 ;
 ;member => Zap/1
-;member => Zap/2
+;member => Zap/2,10
+;member => Zap/3,10,Bob Johnson
 ;member => Agent/1001
 ;member => Agent/1002
 
