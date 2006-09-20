@@ -414,3 +414,11 @@ CDR Records:
   channel drivers set ANI.  If you would like to change the callerid number
   on the channel from the dialplan and have that change also show up in the 
   CDR, then you *must* set CALLERID(ANI) as well as CALLERID(num).
+
+API:
+
+* There are some API functions that were not previously prefixed with the 'ast_'
+  prefix but now are; these include the ADSI, ODBC and AGI interfaces. If you
+  have a module that uses the services provided by res_adsi, res_odbc, or
+  res_agi, you will need to add ast_ prefixes to the functions that you call
+  from those modules.
