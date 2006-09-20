@@ -425,7 +425,7 @@ static int tds_load_module(void)
 	int res = 0;
 	struct ast_config *cfg;
 	struct ast_variable *var;
-	char *ptr = NULL;
+	const char *ptr = NULL;
 #ifdef FREETDS_PRE_0_62
 	TDS_INT result_type;
 #endif
