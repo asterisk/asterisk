@@ -238,7 +238,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	struct ast_config *cfg;
-	char *tmp;
+	const char *tmp;
 
 	if ((cfg = ast_config_load(cdr_config))) {
 		ast_set2_flag(&global_flags, ast_true(ast_variable_retrieve(cfg, "radius", "usegmtime")), RADIUS_FLAG_USEGMTIME);
