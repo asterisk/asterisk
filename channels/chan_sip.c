@@ -983,7 +983,7 @@ static force_inline int thread_safe_rand(void)
 /*! \brief  find_sip_method: Find SIP method from header
  * Strictly speaking, SIP methods are case SENSITIVE, but we don't check 
  * following Jon Postel's rule: Be gentle in what you accept, strict with what you send */
-int find_sip_method(char *msg)
+static int find_sip_method(char *msg)
 {
 	int i, res = 0;
 	
@@ -998,7 +998,7 @@ int find_sip_method(char *msg)
 }
 
 /*! \brief  parse_sip_options: Parse supported header in incoming packet */
-unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
+static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 {
 	char *next = NULL;
 	char *sep = NULL;
