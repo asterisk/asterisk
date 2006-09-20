@@ -16,7 +16,7 @@ STDCCFLAGS	+= -fPIC
 CFLAGS		= -pipe
 TARGET		= libchanh323.a
 TARGET		+= Makefile.ast
-SOURCES		= ast_h323.cxx compat_h323.cxx cisco-h225.cxx
+SOURCES		= ast_h323.cxx compat_h323.cxx cisco-h225.cxx caps_h323.cxx
 OBJDIR		= .
 OBJS		=
 
