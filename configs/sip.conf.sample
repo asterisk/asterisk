@@ -70,7 +70,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; defaults to "asterisk"
 ;disallow=all			; First disallow all codecs
 ;allow=ulaw			; Allow codecs in order of preference
-;allow=ilbc			; 
+;allow=ilbc			; see doc/rtp-packetization for framing options
 ;
 ; This option specifies a preference for which music on hold class this channel
 ; should listen to when put on hold if the music class has not been set on the
