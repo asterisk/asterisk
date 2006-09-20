@@ -1081,10 +1081,6 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 			ch->cid.cid_dnid = strdup(pvt->exten);
 		}
 		ast_setstate(ch, state);
-#if 0
-		if (pvt->rtp)
-			ast_jb_configure(ch, &global_jbconf);
-#endif
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(ch)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ch->name);
@@ -1109,15 +1105,6 @@ static struct oh323_pvt *oh323_alloc(int callid)
 	}
 	memset(pvt, 0, sizeof(struct oh323_pvt));
 	pvt->cd.redirect_reason = -1;
-#if 0
-	pvt->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0,bindaddr.sin_addr);
-	if (!pvt->rtp) {
-		ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", strerror(errno));
-		free(pvt);
-		return NULL;
-	}
-	ast_rtp_settos(pvt->rtp, tos);
-#endif
 	/* Ensure the call token is allocated for outgoing call */
 	if (!callid) {
 		if ((pvt->cd).call_token == NULL) {
@@ -1625,13 +1612,6 @@ static int create_addr(struct oh323_pvt *pvt, char *opeer)
 		found++;
 		memcpy(&pvt->options, &p->options, sizeof(pvt->options));
 		pvt->jointcapability = pvt->options.capability;
-#if 0
-		if (pvt->rtp) {
-			if (h323debug)
-				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", pvt->options.nat);
-			ast_rtp_setnat(pvt->rtp, pvt->options.nat);
-		}
-#endif
 		if (pvt->options.dtmfmode) {
 			if (pvt->options.dtmfmode & H323_DTMF_RFC2833) {
 				pvt->nonCodecCapability |= AST_RTP_DTMF;
@@ -1663,13 +1643,6 @@ static int create_addr(struct oh323_pvt *pvt, char *opeer)
 			if (p) {
 				ASTOBJ_UNREF(p, oh323_destroy_peer);
 			}
-#if 0
-			if (pvt->rtp) {
-				if (h323debug)
-					ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", pvt->options.nat);
-				ast_rtp_setnat(pvt->rtp, pvt->options.nat);
-			}
-#endif
 			if (pvt->options.dtmfmode) {
 				if (pvt->options.dtmfmode & H323_DTMF_RFC2833) {
 					pvt->nonCodecCapability |= AST_RTP_DTMF;
@@ -1748,13 +1721,6 @@ static struct ast_channel *oh323_request(const char *type, int format, void *dat
 	else {
 		memcpy(&pvt->options, &global_options, sizeof(pvt->options));
 		pvt->jointcapability = pvt->options.capability;
-#if 0
-		if (pvt->rtp) {
-			if (h323debug)
-				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", pvt->options.nat);
-			ast_rtp_setnat(pvt->rtp, pvt->options.nat);
-		}
-#endif
 		if (pvt->options.dtmfmode) {
 			if (pvt->options.dtmfmode & H323_DTMF_RFC2833) {
 				pvt->nonCodecCapability |= AST_RTP_DTMF;
