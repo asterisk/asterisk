@@ -596,7 +596,7 @@ static int statechange_queue(const char *dev, int state, void *ign)
 	return 0;
 }
 
-static struct member *create_queue_member(char *interface, char *membername, int penalty, int paused)
+static struct member *create_queue_member(char *interface, const char *membername, int penalty, int paused)
 {
 	struct member *cur;
 	
@@ -912,7 +912,7 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	}
 }
 
-static void rt_handle_member_record(struct call_queue *q, char *interface, char *membername, const char *penalty_str)
+static void rt_handle_member_record(struct call_queue *q, char *interface, const char *membername, const char *penalty_str)
 {
 	struct member *m, *prev_m;
 	int penalty = 0;
@@ -3691,7 +3691,7 @@ static int reload_queues(void)
 	struct ast_variable *var;
 	struct member *prev, *cur, *newm;
 	int new;
-	char *general_val = NULL;
+	const char *general_val = NULL;
 	char parse[80];
 	char *interface;
 	char *membername;

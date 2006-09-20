@@ -259,7 +259,7 @@ int iax_provision_version(unsigned int *version, const char *template, int force
 	return ret;
 }
 
-static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, char *s, char *def)
+static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, const char *s, const char *def)
 {
 	struct ast_variable *v;
 	int foundportno = 0;
@@ -269,7 +269,7 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 	struct hostent *hp;
 	struct ast_hostent h;
 	struct iax_template *src, tmp;
-	char *t;
+	const char *t;
 	if (def) {
 		t = ast_variable_retrieve(cfg, s ,"template");
 		src = NULL;

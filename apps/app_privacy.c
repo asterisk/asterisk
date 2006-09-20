@@ -82,7 +82,7 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 	int maxretries = 3;
 	int minlength = 10;
 	int x = 0;
-	char *s;
+	const char *s;
 	char phone[30];
 	struct ast_module_user *u;
 	struct ast_config *cfg = NULL;

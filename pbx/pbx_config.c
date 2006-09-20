@@ -2171,7 +2171,7 @@ static int pbx_load_config(const char *config_file)
 	int lastpri = -2;
 	struct ast_context *con;
 	struct ast_variable *v;
-	char *cxt;
+	const char *cxt;
 
 	cfg = ast_config_load(config_file);
 	if (!cfg)
@@ -2340,8 +2340,8 @@ static void pbx_load_users(void)
 {
 	struct ast_config *cfg;
 	char *cat, *chan;
-	char *zapchan;
-	char *hasexten;
+	const char *zapchan;
+	const char *hasexten;
 	char tmp[256];
 	char iface[256];
 	char zapcopy[256];

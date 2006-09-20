@@ -3452,7 +3452,7 @@ static struct ast_cli_entry cli_rtp[] = {
 int ast_rtp_reload(void)
 {
 	struct ast_config *cfg;
-	char *s;
+	const char *s;
 
 	rtpstart = 5000;
 	rtpend = 31000;

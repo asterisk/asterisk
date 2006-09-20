@@ -8796,8 +8796,8 @@ static int set_config(char *config_file, int reload)
 	int capability=iax2_capability;
 	struct ast_variable *v;
 	char *cat;
-	char *utype;
-	char *tosval;
+	const char *utype;
+	const char *tosval;
 	int format;
 	int portno = IAX_DEFAULT_PORTNO;
 	int  x;
@@ -9051,7 +9051,7 @@ static int set_config(char *config_file, int reload)
 		struct ast_variable *gen;
 		int genhasiax;
 		int genregisteriax;
-		char *hasiax, *registeriax;
+		const char *hasiax, *registeriax;
 		
 		genhasiax = ast_true(ast_variable_retrieve(ucfg, "general", "hasiax"));
 		genregisteriax = ast_true(ast_variable_retrieve(ucfg, "general", "registeriax"));
@@ -9080,9 +9080,9 @@ static int set_config(char *config_file, int reload)
 				}
 				if (ast_true(registeriax) || (!registeriax && genregisteriax)) {
 					char tmp[256];
-					char *host = ast_variable_retrieve(ucfg, cat, "host");
-					char *username = ast_variable_retrieve(ucfg, cat, "username");
-					char *secret = ast_variable_retrieve(ucfg, cat, "secret");
+					const char *host = ast_variable_retrieve(ucfg, cat, "host");
+					const char *username = ast_variable_retrieve(ucfg, cat, "username");
+					const char *secret = ast_variable_retrieve(ucfg, cat, "secret");
 					if (!host)
 						host = ast_variable_retrieve(ucfg, "general", "host");
 					if (!username)

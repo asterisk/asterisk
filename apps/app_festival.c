@@ -280,10 +280,10 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	struct ast_hostent ahp;
 	int fd;
 	FILE *fs;
-	char *host;
-	char *cachedir;
-	char *temp;
-	char *festivalcommand;
+	const char *host;
+	const char *cachedir;
+	const char *temp;
+	const char *festivalcommand;
 	int port=1314;
 	int n;
 	char ack[4];

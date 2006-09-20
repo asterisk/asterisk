@@ -246,7 +246,7 @@ static int odbc_load_module(void)
 	int res = 0;
 	struct ast_config *cfg;
 	struct ast_variable *var;
-	char *tmp;
+	const char *tmp;
 
 	ast_mutex_lock(&odbc_lock);
 

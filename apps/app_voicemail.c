@@ -3800,7 +3800,8 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	int res = 0, cmd = 0;
 	struct ast_vm_user *receiver = NULL, *vmtmp;
 	AST_LIST_HEAD_NOLOCK_STATIC(extensions, ast_vm_user);
-	char *stringp, *s;
+	char *stringp;
+	const char *s;
 	int saved_messages = 0, found = 0;
 	int valid_extensions = 0;
 	char *dir;
@@ -4097,7 +4098,7 @@ static int wait_file(struct ast_channel *chan, struct vm_state *vms, char *file)
 	return ast_control_streamfile(chan, file, "#", "*", "1456789", "0", "2", skipms);
 }
 
-static int play_message_category(struct ast_channel *chan, char *category)
+static int play_message_category(struct ast_channel *chan, const char *category)
 {
 	int res = 0;
 
@@ -4112,7 +4113,7 @@ static int play_message_category(struct ast_channel *chan, char *category)
 	return res;
 }
 
-static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *vmu, char *origtime, char *filename)
+static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *vmu, const char *origtime, const char *filename)
 {
 	int res = 0;
 	struct vm_zone *the_zone = NULL;
@@ -4180,7 +4181,7 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 
 
 
-static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms, char *cid, char *context, int callback)
+static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms, char *cid, const char *context, int callback)
 {
 	int res = 0;
 	int i;
@@ -4243,7 +4244,7 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 	return res;
 }
 
-static int play_message_duration(struct ast_channel *chan, struct vm_state *vms, char *duration, int minduration)
+static int play_message_duration(struct ast_channel *chan, struct vm_state *vms, const char *duration, int minduration)
 {
 	int res = 0;
 	int durationm;
@@ -4412,8 +4413,8 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
 {
 	int res = 0;
-	char filename[256],*origtime, *cid, *context, *duration;
-	char *category;
+	char filename[256], *cid;
+	const char *origtime, *context, *category, *duration;
 	struct ast_config *msg_cfg;
 
 	vms->starting = 0; 
@@ -6851,44 +6852,45 @@ static int load_config(void)
 	struct ast_config *cfg, *ucfg;
 	char *cat;
 	struct ast_variable *var;
-	char *notifystr = NULL;
-	char *smdistr = NULL;
-	char *astattach;
-	char *astsearch;
-	char *astsaycid;
-	char *send_voicemail;
+	const char *notifystr = NULL;
+	const char *smdistr = NULL;
+	const char *astattach;
+	const char *astsearch;
+	const char *astsaycid;
+	const char *send_voicemail;
 #ifdef IMAP_STORAGE
-	char *imap_server;
-	char *imap_port;
-	char *imap_flags;
-	char *auth_user;
-	char *auth_password;
-	char *expunge_on_hangup;
+	const char *imap_server;
+	const char *imap_port;
+	const char *imap_flags;
+	const char *auth_user;
+	const char *auth_password;
+	const char *expunge_on_hangup;
 #endif
-	char *astcallop;
-	char *astreview;
-	char *asttempgreetwarn;
-	char *astskipcmd;
-	char *asthearenv;
-	char *astsaydurationinfo;
-	char *astsaydurationminfo;
-	char *silencestr;
-	char *maxmsgstr;
-	char *astdirfwd;
-	char *thresholdstr;
-	char *fmt;
-	char *astemail;
-	char *ucontext;
-	char *astmailcmd = SENDMAIL;
-	char *astforcename;
-	char *astforcegreet;
-	char *s,*q,*stringp;
-	char *dialoutcxt = NULL;
-	char *callbackcxt = NULL;	
-	char *exitcxt = NULL;	
-	char *extpc;
-	char *emaildateformatstr;
-	char *volgainstr;
+	const char *astcallop;
+	const char *astreview;
+	const char *asttempgreetwarn;
+	const char *astskipcmd;
+	const char *asthearenv;
+	const char *astsaydurationinfo;
+	const char *astsaydurationminfo;
+	const char *silencestr;
+	const char *maxmsgstr;
+	const char *astdirfwd;
+	const char *thresholdstr;
+	const char *fmt;
+	const char *astemail;
+	const char *ucontext;
+	const char *astmailcmd = SENDMAIL;
+	const char *astforcename;
+	const char *astforcegreet;
+	const char *s;
+	char *q,*stringp;
+	const char *dialoutcxt = NULL;
+	const char *callbackcxt = NULL;	
+	const char *exitcxt = NULL;	
+	const char *extpc;
+	const char *emaildateformatstr;
+	const char *volgainstr;
 	int x;
 	int tmpadsi[4];
 
@@ -7474,7 +7476,8 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 #endif
 	char filename[256];
 	struct ast_config *msg_cfg;
-	char *origtime, *cid, *context, *name, *num;
+	const char *origtime, *context;
+	char *cid, *name, *num;
 	int retries = 0;
 
 	vms->starting = 0; 

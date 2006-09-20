@@ -10322,7 +10322,7 @@ static int unload_module(void)
 	return __unload_module();
 }
 
-static int build_channels(int iscrv, char *value, int reload, int lineno, int *found_pseudo)
+static int build_channels(int iscrv, const char *value, int reload, int lineno, int *found_pseudo)
 {
 	char *c, *chan;
 	int x, y, start, finish;
@@ -10337,7 +10337,7 @@ static int build_channels(int iscrv, char *value, int reload, int lineno, int *f
 		return -1;
 	}
 
-	c = value;
+	c = ast_strdupa(value);
 
 #ifdef HAVE_PRI
 	pri = NULL;
@@ -11162,7 +11162,7 @@ static int setup_zap(int reload)
 	cfg = ast_config_load("users.conf");
 	if (cfg) {
 		char *cat;
-		char *chans;
+		const char *chans;
 		process_zap(ast_variable_browse(cfg, "general"), 1, 1);
 		for (cat = ast_category_browse(cfg, NULL); cat ; cat = ast_category_browse(cfg, cat)) {
 			if (!strcasecmp(cat, "general"))

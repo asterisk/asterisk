@@ -2948,7 +2948,7 @@ static int slastate(const char *data)
 static void load_config_meetme(void)
 {
 	struct ast_config *cfg;
-	char *val;
+	const char *val;
 
 	audio_buffers = DEFAULT_AUDIO_BUFFERS;
 

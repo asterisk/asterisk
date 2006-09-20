@@ -147,9 +147,9 @@ struct ast_variable *ast_variable_browse(const struct ast_config *config, const 
 	return (cat) ? cat->root : NULL;
 }
 
-char *ast_config_option(struct ast_config *cfg, const char *cat, const char *var)
+const char *ast_config_option(struct ast_config *cfg, const char *cat, const char *var)
 {
-	char *tmp;
+	const char *tmp;
 	tmp = ast_variable_retrieve(cfg, cat, var);
 	if (!tmp)
 		tmp = ast_variable_retrieve(cfg, "general", var);
@@ -157,7 +157,7 @@ char *ast_config_option(struct ast_config *cfg, const char *cat, const char *var
 }
 
 
-char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *variable)
+const char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *variable)
 {
 	struct ast_variable *v;
 

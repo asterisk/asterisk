@@ -776,9 +776,9 @@ void astman_send_ack(struct mansession *s, struct message *m, char *msg)
    ast_instring("this|that|more","this",',') == 1;
 
    feel free to move this to app.c -anthm */
-static int ast_instring(char *bigstr, char *smallstr, char delim) 
+static int ast_instring(const char *bigstr, const char *smallstr, char delim) 
 {
-	char *val = bigstr, *next;
+	const char *val = bigstr, *next;
 
 	do {
 		if ((next = strchr(val, delim))) {
@@ -794,7 +794,7 @@ static int ast_instring(char *bigstr, char *smallstr, char delim)
 	return 0;
 }
 
-static int get_perm(char *instr)
+static int get_perm(const char *instr)
 {
 	int x = 0, ret = 0;
 
@@ -2586,7 +2586,8 @@ static int webregged = 0;
 int init_manager(void)
 {
 	struct ast_config *cfg = NULL;
-	char *val, *cat = NULL;
+	const char *val;
+	char *cat = NULL;
 	int oldportno = portno;
 	static struct sockaddr_in ba;
 	int x = 1;

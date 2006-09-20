@@ -286,7 +286,7 @@ static void init_logger_chain(void)
 	struct logchannel *chan;
 	struct ast_config *cfg;
 	struct ast_variable *var;
-	char *s;
+	const char *s;
 
 	/* delete our list of log channels */
 	AST_LIST_LOCK(&logchannels);

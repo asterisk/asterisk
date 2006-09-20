@@ -183,7 +183,7 @@ static void retrieve_file(char *dir)
 }
 #endif
 
-static char *convert(char *lastname)
+static char *convert(const char *lastname)
 {
 	char *tmp;
 	int lcount = 0;
@@ -342,8 +342,8 @@ static struct ast_config *realtime_directory(char *context)
 	struct ast_category *cat;
 	struct ast_variable *var;
 	char *mailbox;
-	char *fullname;
-	char *hidefromdir;
+	const char *fullname;
+	const char *hidefromdir;
 	char tmp[100];
 
 	/* Load flat file config. */
@@ -402,7 +402,8 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 	int res;
 	int found=0;
 	int lastuserchoice = 0;
-	char *start, *pos, *conv,*stringp=NULL;
+	char *start, *conv, *stringp = NULL;
+	const char *pos;
 
 	if (ast_strlen_zero(context)) {
 		ast_log(LOG_WARNING,
@@ -570,7 +571,8 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	int last = 1;
 	int readext = 0;
 	int fromappvm = 0;
-	char *dirintro, *parse;
+	const char *dirintro;
+	char *parse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(vmcontext);
 		AST_APP_ARG(dialcontext);

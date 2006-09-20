@@ -100,7 +100,7 @@ struct ast_variable *ast_variable_browse(const struct ast_config *config, const 
  *
  * Returns the variable value on success, or NULL if unable to find it.
  */
-char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *variable);
+const char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *variable);
 
 /*! \brief Retrieve a category if it exists
  * \param config which config to use
@@ -172,7 +172,7 @@ int read_config_maps(void);
 struct ast_config *ast_config_new(void);
 struct ast_category *ast_config_get_current_category(const struct ast_config *cfg);
 void ast_config_set_current_category(struct ast_config *cfg, const struct ast_category *cat);
-char *ast_config_option(struct ast_config *cfg, const char *cat, const char *var);
+const char *ast_config_option(struct ast_config *cfg, const char *cat, const char *var);
 
 struct ast_category *ast_category_new(const char *name);
 void ast_category_append(struct ast_config *config, struct ast_category *cat);

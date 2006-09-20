@@ -15975,7 +15975,7 @@ static int reload_config(enum channelreloadreason reason)
 	if (ucfg) {
 		struct ast_variable *gen;
 		int genhassip, genregistersip;
-		char *hassip, *registersip;
+		const char *hassip, *registersip;
 		
 		genhassip = ast_true(ast_variable_retrieve(ucfg, "general", "hassip"));
 		genregistersip = ast_true(ast_variable_retrieve(ucfg, "general", "registersip"));
@@ -15995,10 +15995,10 @@ static int reload_config(enum channelreloadreason reason)
 				}
 				if (ast_true(registersip) || (!registersip && genregistersip)) {
 					char tmp[256];
-					char *host = ast_variable_retrieve(ucfg, cat, "host");
-					char *username = ast_variable_retrieve(ucfg, cat, "username");
-					char *secret = ast_variable_retrieve(ucfg, cat, "secret");
-					char *contact = ast_variable_retrieve(ucfg, cat, "contact");
+					const char *host = ast_variable_retrieve(ucfg, cat, "host");
+					const char *username = ast_variable_retrieve(ucfg, cat, "username");
+					const char *secret = ast_variable_retrieve(ucfg, cat, "secret");
+					const char *contact = ast_variable_retrieve(ucfg, cat, "contact");
 					if (!host)
 						host = ast_variable_retrieve(ucfg, "general", "host");
 					if (!username)

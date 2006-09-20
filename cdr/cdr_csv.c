@@ -98,7 +98,7 @@ static int load_config(void)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
-	char *tmp;
+	const char *tmp;
 
 	usegmtime = 0;
 	loguniqueid = 0;

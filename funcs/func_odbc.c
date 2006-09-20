@@ -350,7 +350,7 @@ static struct ast_custom_function escape_function = {
 
 static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_query **query)
 {
-	char *tmp;
+	const char *tmp;
 
 	if (!cfg || !catg) {
 		return -1;

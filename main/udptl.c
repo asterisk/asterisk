@@ -1183,7 +1183,7 @@ static struct ast_cli_entry cli_udptl[] = {
 void ast_udptl_reload(void)
 {
 	struct ast_config *cfg;
-	char *s;
+	const char *s;
 
 	udptlstart = 4500;
 	udptlend = 4999;
