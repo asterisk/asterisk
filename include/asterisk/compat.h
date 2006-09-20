@@ -16,6 +16,7 @@
 #ifndef _COMPAT_H
 #define _COMPAT_H
 
+#include "asterisk/autoconfig.h"
 #include <inttypes.h>
 #include <sys/types.h>
 #include <stdarg.h>
