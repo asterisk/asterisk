@@ -210,7 +210,7 @@ static struct robin_list *robin = NULL;
 
 
 
-struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame *frame);
+static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame *frame);
 
 
 
@@ -695,7 +695,7 @@ static char *misdn_get_ch_state(struct chan_list *p)
 
 
 
-void reload_config(void)
+static void reload_config(void)
 {
 	int i, cfg_debug;
 	
@@ -2739,7 +2739,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 }
 
 
-struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame *frame)
+static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame *frame)
 {
 	struct ast_frame *f,*f2;
 	if (tmp->trans)
@@ -2878,7 +2878,7 @@ static void cl_dequeue_chan(struct chan_list **list, struct chan_list *chan)
 /** Channel Queue End **/
 
 
-int pbx_start_chan(struct chan_list *ch)
+static int pbx_start_chan(struct chan_list *ch)
 {
 	int ret=ast_pbx_start(ch->ast);	
 

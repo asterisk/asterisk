@@ -3215,7 +3215,7 @@ static int reload_config(void)
 	return 0;
 }
 
-void delete_devices(void)
+static void delete_devices(void)
 {
 	struct skinny_device *d, *dlast;
 	struct skinny_line *l, *llast;
