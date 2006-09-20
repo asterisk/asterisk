@@ -1385,7 +1385,7 @@ static int ospfinished_exec(struct ast_channel* chan, void* data)
 
 static int osp_load(void)
 {
-	char* t;
+	const char* t;
 	unsigned int v;
 	struct ast_config* cfg;
 	int error = OSPC_ERR_NO_ERROR;
