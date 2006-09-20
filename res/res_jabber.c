@@ -595,6 +595,8 @@ static int aji_act_hook(void *data, int type, iks *node)
 				client->state = AJI_CONNECTING;
 				if(iks_recv(client->p,1) == 2) /*XXX proper result for iksemel library on iks_recv of <handshake/> XXX*/
 					client->state = AJI_CONNECTED;
+				else
+					ast_log(LOG_WARNING,"Jabber didn't seem to handshake\n");
 				break;
 			}
 			break;
