@@ -29,15 +29,6 @@ include $(OPENH323DIR)/openh323u.mak
 notrace::
 	$(MAKE) NOTRACE=1 opt
 
-define module_cxx_template
-$(1)::	$(2)
-	ln -f $(2) $(1)
-endef
-
-$(foreach mod,$(SOURCES),$(eval $(call module_cxx_template,$(mod),$(mod:.cxx=.cpp))))
-#$(SOURCES)::	$(SOURCES:.cxx=.cpp)
-#	ln -f $(patsubst %.cxx, %.cpp, $@) $@
-
 $(SOURCES)::	Makefile ../../Makefile
 	touch $@
 
@@ -46,7 +37,6 @@ libchanh323.a:	$(OBJS)
 
 cisco-h225.cpp::	cisco-h225.asn
 	asnparser -m CISCO_H225 -c $<
-	mv -f cisco-h225.cxx cisco-h225.cpp
 
 Makefile.ast:
 	@echo H323CFLAGS  = $(STDCCFLAGS) $(OPTCCFLAGS) $(CFLAGS) >$@.tmp
@@ -55,4 +45,4 @@ Makefile.ast:
 	@if [ -r $@ ] && cmp -s $@ $@.tmp; then rm -f $@.tmp; else mv -f $@.tmp $@; fi
 
 clean::
-	rm -f $(SOURCES) $(TARGET) $(OBJS) Makefile.ast *.dep
+	rm -f $(TARGET) $(OBJS) Makefile.ast *.dep
