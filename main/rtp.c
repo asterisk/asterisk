@@ -2940,14 +2940,30 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 			if ((fr->subclass == AST_CONTROL_HOLD) ||
 			    (fr->subclass == AST_CONTROL_UNHOLD) ||
 			    (fr->subclass == AST_CONTROL_VIDUPDATE)) {
-				/* If we are going on hold, then break callback mode */
+				/* If we are going on hold, then break callback mode and P2P bridging */
 				if (fr->subclass == AST_CONTROL_HOLD) {
 					if (p0_callback)
 						p0_callback = p2p_callback_disable(c0, p0, &p0_fds[0], &p0_iod[0]);
 					if (p1_callback)
 						p1_callback = p2p_callback_disable(c1, p1, &p1_fds[0], &p1_iod[0]);
+					p0->bridged = NULL;
+					p1->bridged = NULL;
+					if (vp0) {
+						vp0->bridged = NULL;
+						vp1->bridged = NULL;
+					}
 				} else if (fr->subclass == AST_CONTROL_UNHOLD) {
-					/* If we are off hold, then go back to callback mode */
+					/* If we are off hold, then go back to callback mode and P2P bridging */
+					ast_clear_flag(p0, FLAG_P2P_SENT_MARK);
+					p0->bridged = p1;
+					ast_clear_flag(p1, FLAG_P2P_SENT_MARK);
+					p1->bridged = p0;
+					if (vp0) {
+						ast_clear_flag(vp0, FLAG_P2P_SENT_MARK);
+						vp0->bridged = vp1;
+						ast_clear_flag(vp1, FLAG_P2P_SENT_MARK);
+						vp1->bridged = vp0;
+					}
 					p0_callback = p2p_callback_enable(c0, p0, &p0_fds[0], &p0_iod[0]);
 					p1_callback = p2p_callback_enable(c1, p1, &p1_fds[0], &p1_iod[0]);
 				}
