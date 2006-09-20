@@ -58,14 +58,32 @@
 #define AST_FORMAT_ILBC		(1 << 10)
 #endif
 
-/**This class describes the G.723.1 codec capability.
+/**This class describes the G.711 codec capability.
  */
-class H323_G7231Capability : public H323AudioCapability
+class AST_G711Capability : public H323AudioCapability
 {
-	PCLASSINFO(H323_G7231Capability, H323AudioCapability);
+	PCLASSINFO(AST_G711Capability, H323AudioCapability);
 
 public:
-	H323_G7231Capability(BOOL annexA = TRUE);
+	AST_G711Capability(int rx_frames = 125, H323_G711Capability::Mode _mode = H323_G711Capability::muLaw, H323_G711Capability::Speed _speed = H323_G711Capability::At64k);
+	virtual PObject *Clone() const;
+	virtual H323Codec * CreateCodec(H323Codec::Direction direction) const;
+	virtual unsigned GetSubType() const;
+	virtual PString GetFormatName() const;
+
+protected:
+	H323_G711Capability::Mode mode;
+	H323_G711Capability::Speed speed;
+};
+
+/**This class describes the G.723.1 codec capability.
+ */
+class AST_G7231Capability : public H323AudioCapability
+{
+	PCLASSINFO(AST_G7231Capability, H323AudioCapability);
+
+public:
+	AST_G7231Capability(int rx_frames = 7, BOOL annexA = TRUE);
 	Comparison Compare(const PObject & obj) const;
 	virtual PObject * Clone() const;
 	virtual H323Codec * CreateCodec(H323Codec::Direction direction) const;
@@ -85,7 +103,7 @@ class AST_G729Capability : public H323AudioCapability
 	PCLASSINFO(AST_G729Capability, H323AudioCapability);
 
 public:
-	AST_G729Capability();
+	AST_G729Capability(int rx_frames = 24);
 	/* Create a copy of the object. */
 	virtual PObject * Clone() const;
 
@@ -110,7 +128,7 @@ class AST_G729ACapability : public H323AudioCapability
 
 public:
 	/* Create a new G.729A capability. */
-	AST_G729ACapability();
+	AST_G729ACapability(int rx_frames = 24);
 
 	/* Create a copy of the object. */
 	virtual PObject * Clone() const;
@@ -135,7 +153,7 @@ class AST_GSM0610Capability : public H323AudioCapability
 
 public:
 	/* Create a new GSM capability. */
-	AST_GSM0610Capability(int comfortNoise = 0, int scrambled = 0);
+	AST_GSM0610Capability(int rx_frames = 24, int comfortNoise = 0, int scrambled = 0);
 
 	/* Create a copy of the object. */
 	virtual PObject * Clone() const;

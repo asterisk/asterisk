@@ -210,27 +210,79 @@ void PAssertFunc(const char *msg)
 	/* XXX: Probably we need to crash here */
 }
 
-H323_REGISTER_CAPABILITY(H323_G7231Capability, OPAL_G7231);
+#define DEFINE_G711_CAPABILITY(cls, code, capName) \
+class cls : public AST_G711Capability { \
+  public: \
+    cls() : AST_G711Capability(240, code) { } \
+}; \
+H323_REGISTER_CAPABILITY(cls, capName) \
+
+DEFINE_G711_CAPABILITY(AST_G711ALaw64Capability, H323_G711Capability::ALaw, OPAL_G711_ALAW_64K);
+DEFINE_G711_CAPABILITY(AST_G711uLaw64Capability, H323_G711Capability::muLaw, OPAL_G711_ULAW_64K);
+H323_REGISTER_CAPABILITY(AST_G7231Capability, OPAL_G7231);
 H323_REGISTER_CAPABILITY(AST_G729Capability,  OPAL_G729);
 H323_REGISTER_CAPABILITY(AST_G729ACapability, OPAL_G729A);
 H323_REGISTER_CAPABILITY(AST_GSM0610Capability, OPAL_GSM0610);
 
 /*
+ * Capability: G.711
+ */
+AST_G711Capability::AST_G711Capability(int rx_frames, H323_G711Capability::Mode m, H323_G711Capability::Speed s)
+	: H323AudioCapability(rx_frames, 30) // 240ms max, 30ms desired
+{
+	mode = m;
+	speed = s;
+}
+
+
+PObject * AST_G711Capability::Clone() const
+{
+	return new AST_G711Capability(*this);
+}
+
+
+unsigned AST_G711Capability::GetSubType() const
+{
+	static const unsigned G711SubType[2][2] = {
+		{ H245_AudioCapability::e_g711Alaw64k, H245_AudioCapability::e_g711Alaw56k },
+		{ H245_AudioCapability::e_g711Ulaw64k, H245_AudioCapability::e_g711Ulaw56k }
+	};
+	return G711SubType[mode][speed];
+}
+
+
+PString AST_G711Capability::GetFormatName() const
+{
+	static const char * const G711Name[2][2] = {
+		{ OPAL_G711_ALAW_64K, OPAL_G711_ALAW_56K },
+		{ OPAL_G711_ULAW_64K, OPAL_G711_ULAW_56K },
+	};
+	return G711Name[mode][speed];
+}
+
+
+H323Codec * AST_G711Capability::CreateCodec(H323Codec::Direction direction) const
+{
+	return NULL;
+}
+
+
+/*
  * Capability: G.723.1
  */
-H323_G7231Capability::H323_G7231Capability(BOOL annexA_)
-	: H323AudioCapability(7, 4)
+AST_G7231Capability::AST_G7231Capability(int rx_frames, BOOL annexA_)
+	: H323AudioCapability(rx_frames, 4)
 {
 	annexA = annexA_;
 }
 
-PObject::Comparison H323_G7231Capability::Compare(const PObject & obj) const
+PObject::Comparison AST_G7231Capability::Compare(const PObject & obj) const
 {
 	Comparison result = H323AudioCapability::Compare(obj);
 	if (result != EqualTo) {
 		return result;
 	}
-	PINDEX otherAnnexA = ((const H323_G7231Capability &)obj).annexA;
+	PINDEX otherAnnexA = ((const AST_G7231Capability &)obj).annexA;
 	if (annexA < otherAnnexA) {
 		return LessThan;
 	}
@@ -240,22 +292,22 @@ PObject::Comparison H323_G7231Capability::Compare(const PObject & obj) const
 	return EqualTo;
 }
 
-PObject * H323_G7231Capability::Clone() const
+PObject * AST_G7231Capability::Clone() const
 {
-	return new H323_G7231Capability(*this);
+	return new AST_G7231Capability(*this);
 }
 
-PString H323_G7231Capability::GetFormatName() const
+PString AST_G7231Capability::GetFormatName() const
 {
 	return (annexA ? OPAL_G7231 "A" : OPAL_G7231);
 }
 
-unsigned H323_G7231Capability::GetSubType() const
+unsigned AST_G7231Capability::GetSubType() const
 {
 	return H245_AudioCapability::e_g7231;
 }
 
-BOOL H323_G7231Capability::OnSendingPDU(H245_AudioCapability & cap,
+BOOL AST_G7231Capability::OnSendingPDU(H245_AudioCapability & cap,
 										unsigned packetSize) const
 {
 	cap.SetTag(H245_AudioCapability::e_g7231);
@@ -265,7 +317,7 @@ BOOL H323_G7231Capability::OnSendingPDU(H245_AudioCapability & cap,
 	return TRUE;
 }
 
-BOOL H323_G7231Capability::OnReceivedPDU(const H245_AudioCapability & cap,
+BOOL AST_G7231Capability::OnReceivedPDU(const H245_AudioCapability & cap,
 										unsigned & packetSize)
 {
 	if (cap.GetTag() != H245_AudioCapability::e_g7231) {
@@ -277,7 +329,7 @@ BOOL H323_G7231Capability::OnReceivedPDU(const H245_AudioCapability & cap,
 	return TRUE;
 }
 
-H323Codec * H323_G7231Capability::CreateCodec(H323Codec::Direction direction) const
+H323Codec * AST_G7231Capability::CreateCodec(H323Codec::Direction direction) const
 {
 	return NULL;
 }
@@ -285,8 +337,8 @@ H323Codec * H323_G7231Capability::CreateCodec(H323Codec::Direction direction) co
 /*
  * Capability: G.729
  */
-AST_G729Capability::AST_G729Capability()
-	: H323AudioCapability(24, 2)
+AST_G729Capability::AST_G729Capability(int rx_frames)
+	: H323AudioCapability(rx_frames, 2)
 {
 }
 
@@ -313,8 +365,8 @@ H323Codec * AST_G729Capability::CreateCodec(H323Codec::Direction direction) cons
 /*
  * Capability: G.729A
  */
-AST_G729ACapability::AST_G729ACapability()
-	: H323AudioCapability(24, 6)
+AST_G729ACapability::AST_G729ACapability(int rx_frames)
+	: H323AudioCapability(rx_frames, 6)
 {
 }
 
@@ -341,8 +393,8 @@ H323Codec * AST_G729ACapability::CreateCodec(H323Codec::Direction direction) con
 /*
  * Capability: GSM full rate
  */
-AST_GSM0610Capability::AST_GSM0610Capability(int comfortNoise_, int scrambled_)
-	: H323AudioCapability(24, 2)
+AST_GSM0610Capability::AST_GSM0610Capability(int rx_frames, int comfortNoise_, int scrambled_)
+	: H323AudioCapability(rx_frames, 2)
 {
 	comfortNoise = comfortNoise_;
 	scrambled = scrambled_;
@@ -363,7 +415,7 @@ BOOL AST_GSM0610Capability::OnSendingPDU(H245_AudioCapability & cap,
 {
 	cap.SetTag(H245_AudioCapability::e_gsmFullRate);
 	H245_GSMAudioCapability & gsm = cap;
-	gsm.m_audioUnitSize = packetSize;
+	gsm.m_audioUnitSize = packetSize * 33;
 	gsm.m_comfortNoise = comfortNoise;
 	gsm.m_scrambled = scrambled;
 	return TRUE;
@@ -375,7 +427,7 @@ BOOL AST_GSM0610Capability::OnReceivedPDU(const H245_AudioCapability & cap,
 	if (cap.GetTag() != H245_AudioCapability::e_gsmFullRate)
 		return FALSE;
 	const H245_GSMAudioCapability & gsm = cap;
-	packetSize = gsm.m_audioUnitSize;
+	packetSize = (gsm.m_audioUnitSize + 32) / 33;
 	comfortNoise = gsm.m_comfortNoise;
 	scrambled = gsm.m_scrambled;
 
@@ -1468,6 +1520,7 @@ BOOL MyH323Connection::OnReceivedCapabilitySet(const H323Capabilities & remoteCa
 		{ 0 }
 	};
 #endif
+	struct ast_codec_pref prefs;
 
 	if (!H323Connection::OnReceivedCapabilitySet(remoteCaps, muxCap, reject)) {
 		return FALSE;
@@ -1483,6 +1536,7 @@ BOOL MyH323Connection::OnReceivedCapabilitySet(const H323Capabilities & remoteCa
 			cout << "\t-- Inbound RFC2833 on payload " << pt << endl;
 		}
 	}
+	memset(&prefs, 0, sizeof(prefs));
 	int peer_capabilities = 0;
 	for (int i = 0; i < remoteCapabilities.GetSize(); ++i) {
 		unsigned int subType = remoteCapabilities[i].GetSubType();
@@ -1493,10 +1547,24 @@ BOOL MyH323Connection::OnReceivedCapabilitySet(const H323Capabilities & remoteCa
 		case H323Capability::e_Audio:
 			for (int x = 0; codecs[x].asterisk_codec > 0; ++x) {
 				if (subType == codecs[x].h245_cap) {
-					if (h323debug) {
-						cout << "Found peer capability " << remoteCapabilities[i] << ", Asterisk code is " << codecs[x].asterisk_codec << endl;
+					int ast_codec = codecs[x].asterisk_codec;
+					int ms = 0;
+					if (!(peer_capabilities & ast_codec)) {
+						struct ast_format_list format;
+						ast_codec_pref_append(&prefs, ast_codec);
+						format = ast_codec_pref_getsize(&prefs, ast_codec);
+						if ((ast_codec == AST_FORMAT_ALAW) || (ast_codec == AST_FORMAT_ULAW)) {
+							ms = remoteCapabilities[i].GetTxFramesInPacket();
+							if (ms > 60)
+								ms = format.cur_ms;
+						} else
+							ms = remoteCapabilities[i].GetTxFramesInPacket() * format.inc_ms;
+						ast_codec_pref_setsize(&prefs, ast_codec, ms);
 					}
-					peer_capabilities |= codecs[x].asterisk_codec;
+					if (h323debug) {
+						cout << "Found peer capability " << remoteCapabilities[i] << ", Asterisk code is " << ast_codec << ", frame size (in ms) is " << ms << endl;
+					}
+					peer_capabilities |= ast_codec;
 				}
 			}
 			break;
@@ -1530,14 +1598,16 @@ BOOL MyH323Connection::OnReceivedCapabilitySet(const H323Capabilities & remoteCa
 		}
 	}
 	if (h323debug) {
-		char caps_str[1024];
-		cout << "Peer capabilities = " << ast_getformatname_multiple(caps_str, sizeof(caps_str), peer_capabilities) << endl;
+		char caps_str[1024], caps2_str[1024];
+		ast_codec_pref_string(&prefs, caps2_str, sizeof(caps2_str));
+		cout << "Peer capabilities = " << ast_getformatname_multiple(caps_str, sizeof(caps_str), peer_capabilities)
+				<< ", ordered list is " << caps2_str << endl;
 	}
 #if 0
 	redir_capabilities &= peer_capabilities;
 #endif
 	if (on_setpeercapabilities)
-		on_setpeercapabilities(GetCallReference(), (const char *)callToken, peer_capabilities);
+		on_setpeercapabilities(GetCallReference(), (const char *)callToken, peer_capabilities, &prefs);
 
 	return TRUE;
 }
@@ -1570,14 +1640,15 @@ BOOL MyH323Connection::OnStartLogicalChannel(H323Channel & channel)
 
 void MyH323Connection::SetCapabilities(int cap, int dtmf_mode, void *_prefs, int pref_codec)
 {
-	int g711Frames = 20;
-	int gsmFrames = 4;
 	PINDEX lastcap = -1; /* last common capability index */
 	int alreadysent = 0;
 	int codec;
 	int x, y;
 	char caps_str[1024];
 	struct ast_codec_pref *prefs = (struct ast_codec_pref *)_prefs;
+	struct ast_format_list format;
+	int frames_per_packet;
+	int max_frames_per_packet;
 
 	localCapabilities.RemoveAll();
 
@@ -1603,6 +1674,9 @@ void MyH323Connection::SetCapabilities(int cap, int dtmf_mode, void *_prefs, int
 		if (!(cap & codec) || (alreadysent & codec) || !(codec & AST_FORMAT_AUDIO_MASK))
 			continue;
 		alreadysent |= codec;
+		format = ast_codec_pref_getsize(prefs, codec);
+		frames_per_packet = (format.inc_ms ? format.cur_ms / format.inc_ms : format.cur_ms);
+		max_frames_per_packet = (format.inc_ms ? format.max_ms / format.inc_ms : 0);
 		switch(codec) {
 #if 0
 		case AST_FORMAT_SPEEX:
@@ -1620,28 +1694,39 @@ void MyH323Connection::SetCapabilities(int cap, int dtmf_mode, void *_prefs, int
 		case AST_FORMAT_G729A:
 			AST_G729ACapability *g729aCap;
 			AST_G729Capability *g729Cap;
-			lastcap = localCapabilities.SetCapability(0, 0, g729aCap = new AST_G729ACapability);
-			lastcap = localCapabilities.SetCapability(0, 0, g729Cap = new AST_G729Capability);
+			lastcap = localCapabilities.SetCapability(0, 0, g729aCap = new AST_G729ACapability(frames_per_packet));
+			lastcap = localCapabilities.SetCapability(0, 0, g729Cap = new AST_G729Capability(frames_per_packet));
+			if (max_frames_per_packet) {
+				g729aCap->SetTxFramesInPacket(max_frames_per_packet);
+				g729Cap->SetTxFramesInPacket(max_frames_per_packet);
+			}
 			break;
 		case AST_FORMAT_G723_1:
-			H323_G7231Capability *g7231Cap;
-			lastcap = localCapabilities.SetCapability(0, 0, g7231Cap = new H323_G7231Capability(TRUE));
-			lastcap = localCapabilities.SetCapability(0, 0, g7231Cap = new H323_G7231Capability(FALSE));
+			AST_G7231Capability *g7231Cap;
+			lastcap = localCapabilities.SetCapability(0, 0, g7231Cap = new AST_G7231Capability(frames_per_packet, TRUE));
+			if (max_frames_per_packet)
+				g7231Cap->SetTxFramesInPacket(max_frames_per_packet);
+			lastcap = localCapabilities.SetCapability(0, 0, g7231Cap = new AST_G7231Capability(frames_per_packet, FALSE));
+			if (max_frames_per_packet)
+				g7231Cap->SetTxFramesInPacket(max_frames_per_packet);
 			break;
 		case AST_FORMAT_GSM:
 			AST_GSM0610Capability *gsmCap;
-			lastcap = localCapabilities.SetCapability(0, 0, gsmCap = new AST_GSM0610Capability);
-			gsmCap->SetTxFramesInPacket(gsmFrames);
+			lastcap = localCapabilities.SetCapability(0, 0, gsmCap = new AST_GSM0610Capability(frames_per_packet));
+			if (max_frames_per_packet)
+				gsmCap->SetTxFramesInPacket(max_frames_per_packet);
 			break;
 		case AST_FORMAT_ULAW:
-			H323_G711Capability *g711uCap;
-			lastcap = localCapabilities.SetCapability(0, 0, g711uCap = new H323_G711Capability(H323_G711Capability::muLaw));
-			g711uCap->SetTxFramesInPacket(g711Frames);
+			AST_G711Capability *g711uCap;
+			lastcap = localCapabilities.SetCapability(0, 0, g711uCap = new AST_G711Capability(format.cur_ms, H323_G711Capability::muLaw));
+			if (format.max_ms)
+				g711uCap->SetTxFramesInPacket(format.max_ms);
 			break;
 		case AST_FORMAT_ALAW:
-			H323_G711Capability *g711aCap;
-			lastcap = localCapabilities.SetCapability(0, 0, g711aCap = new H323_G711Capability(H323_G711Capability::ALaw));
-			g711aCap->SetTxFramesInPacket(g711Frames);
+			AST_G711Capability *g711aCap;
+			lastcap = localCapabilities.SetCapability(0, 0, g711aCap = new AST_G711Capability(format.cur_ms, H323_G711Capability::ALaw));
+			if (format.max_ms)
+				g711aCap->SetTxFramesInPacket(format.max_ms);
 			break;
 		default:
 			alreadysent &= ~codec;

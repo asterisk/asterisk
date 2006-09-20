@@ -181,7 +181,7 @@ extern hangup_cb on_hangup;
 typedef void (*setcapabilities_cb)(unsigned, const char *);
 extern setcapabilities_cb on_setcapabilities;
 
-typedef void (*setpeercapabilities_cb)(unsigned, const char *, int);
+typedef void (*setpeercapabilities_cb)(unsigned, const char *, int, struct ast_codec_pref *);
 extern setpeercapabilities_cb on_setpeercapabilities;
 
 /* debug flag */

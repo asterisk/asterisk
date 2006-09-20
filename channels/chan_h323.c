@@ -183,6 +183,7 @@ struct oh323_pvt {
 	int pref_codec;						/* Preferred codec */
 	int peercapability;					/* Capabilities learned from peer */
 	int jointcapability;				/* Common capabilities for local and remote side */
+	struct ast_codec_pref peer_prefs;	/* Preferenced list of codecs which remote side supports */
 	int dtmf_pt;						/* Payload code used for RFC2833 messages */
 	int curDTMF;						/* DTMF tone being generated to Asterisk side */
 	int DTMFsched;						/* Scheduler descriptor for DTMF */
@@ -980,6 +981,9 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 
 	if (pvt->dtmf_pt > 0)
 		ast_rtp_set_rtpmap_type(pvt->rtp, pvt->dtmf_pt, "audio", "telephone-event", 0);
+
+	if (pvt->peercapability)
+		ast_rtp_codec_setpref(pvt->rtp, &pvt->peer_prefs);
 
 	if (pvt->owner && !ast_channel_trylock(pvt->owner)) {
 		ast_jb_configure(pvt->owner, &global_jbconf);
@@ -2404,7 +2408,7 @@ static void set_dtmf_payload(unsigned call_reference, const char *token, int pay
 		ast_log(LOG_DEBUG, "DTMF payload on %s set to %d\n", token, payload);
 }
 
-static void set_peer_capabilities(unsigned call_reference, const char *token, int capabilities)
+static void set_peer_capabilities(unsigned call_reference, const char *token, int capabilities, struct ast_codec_pref *prefs)
 {
 	struct oh323_pvt *pvt;
 
@@ -2416,6 +2420,17 @@ static void set_peer_capabilities(unsigned call_reference, const char *token, in
 		return;
 	pvt->peercapability = capabilities;
 	pvt->jointcapability = pvt->options.capability & capabilities;
+	if (prefs) {
+		memcpy(&pvt->peer_prefs, prefs, sizeof(pvt->peer_prefs));
+		if (h323debug) {
+			int i;
+			for (i = 0; i < 32; ++i) {
+				ast_log(LOG_DEBUG, "prefs[%d]=%s:%d\n", i, (prefs->order[i] ? ast_getformatname(1 << (prefs->order[i]-1)) : "<none>"), prefs->framing[i]);
+			}
+		}
+		if (pvt->rtp)
+			ast_rtp_codec_setpref(pvt->rtp, &pvt->peer_prefs);
+	}
 	ast_mutex_unlock(&pvt->lock);
 }
 
@@ -3078,7 +3093,13 @@ static enum ast_module_load_result load_module(void)
 	ASTOBJ_CONTAINER_INIT(&aliasl);
 	res = reload_config(0);
 	if (res) {
-		return AST_MODULE_LOAD_DECLINE;
+		ast_cli_unregister(&cli_h323_reload);
+		io_context_destroy(io);
+		sched_context_destroy(sched);
+		ASTOBJ_CONTAINER_DESTROY(&userl);
+		ASTOBJ_CONTAINER_DESTROY(&peerl);
+		ASTOBJ_CONTAINER_DESTROY(&aliasl);
+		return /*AST_MODULE_LOAD_DECLINE*/AST_MODULE_LOAD_FAILURE;
 	} else {
 		/* Make sure we can register our channel type */
 		if (ast_channel_register(&oh323_tech)) {
@@ -3140,7 +3161,7 @@ static enum ast_module_load_result load_module(void)
 			if (h323_set_gk(gatekeeper_discover, gatekeeper, secret)) {
 				ast_log(LOG_ERROR, "Gatekeeper registration failed.\n");
 				gatekeeper_disable = 1;
-				return AST_MODULE_LOAD_SUCCESS;
+				res = AST_MODULE_LOAD_SUCCESS;
 			}
 		}
 		/* And start the monitor for the first time */
