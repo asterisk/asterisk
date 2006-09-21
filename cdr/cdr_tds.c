@@ -320,7 +320,7 @@ static int mssql_disconnect(void)
 
 static int mssql_connect(void)
 {
-#ifdef FREETDS_0_63
+#if (defined(FREETDS_0_63) || defined(FREETDS_0_64))
 	TDSCONNECTION *connection = NULL;
 #else
 	TDSCONNECTINFO *connection = NULL;
@@ -346,7 +346,11 @@ static int mssql_connect(void)
 	tds_set_packet(login, 512);
 	tds_set_version(login, 7, 0);
 
+#ifdef FREETDS_0_64
+	if (!(context = tds_alloc_context(NULL)))
+#else
 	if (!(context = tds_alloc_context()))
+#endif
 	{
 		ast_log(LOG_ERROR, "tds_alloc_context() failed.\n");
 		goto connect_fail;
@@ -369,7 +373,7 @@ static int mssql_connect(void)
 	{
 		ast_log(LOG_ERROR, "Failed to connect to MSSQL server.\n");
 		tds = NULL;	/* freed by tds_connect() on error */
-#ifdef FREETDS_0_63
+#if (defined(FREETDS_0_63) || defined(FREETDS_0_64))
 		tds_free_connection(connection);
 #else
 		tds_free_connect(connection);
@@ -377,7 +381,7 @@ static int mssql_connect(void)
 		connection = NULL;
 		goto connect_fail;
 	}
-#ifdef FREETDS_0_63
+#if (defined(FREETDS_0_63) || defined(FREETDS_0_64))
 	tds_free_connection(connection);
 #else
 	tds_free_connect(connection);
