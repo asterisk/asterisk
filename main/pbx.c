@@ -225,7 +225,6 @@ static int pbx_builtin_ringing(struct ast_channel *, void *);
 static int pbx_builtin_progress(struct ast_channel *, void *);
 static int pbx_builtin_congestion(struct ast_channel *, void *);
 static int pbx_builtin_busy(struct ast_channel *, void *);
-static int pbx_builtin_setglobalvar(struct ast_channel *, void *);
 static int pbx_builtin_noop(struct ast_channel *, void *);
 static int pbx_builtin_gotoif(struct ast_channel *, void *);
 static int pbx_builtin_gotoiftime(struct ast_channel *, void *);
@@ -303,6 +302,13 @@ static struct pbx_builtin {
 	"Otherwise, this application will wait until the calling channel hangs up.\n"
 	},
 
+	{ "ExecIfTime", pbx_builtin_execiftime,
+	"Conditional application execution based on the current time",
+	"  ExecIfTime(<times>|<weekdays>|<mdays>|<months>?appname[|appargs]):\n"
+	"This application will execute the specified dialplan application, with optional\n"
+	"arguments, if the current time matches the given time specification.\n"
+	},
+
 	{ "Goto", pbx_builtin_goto,
 	"Jump to a particular priority, extension, or context",
 	"  Goto([[context|]extension|]priority): This application will cause the\n"
@@ -331,11 +337,14 @@ static struct pbx_builtin {
 	"in the dialplan if the current time matches the given time specification.\n"
 	},
 
-	{ "ExecIfTime", pbx_builtin_execiftime,
-	"Conditional application execution based on the current time",
-	"  ExecIfTime(<times>|<weekdays>|<mdays>|<months>?appname[|appargs]):\n"
-	"This application will execute the specified dialplan application, with optional\n"
-	"arguments, if the current time matches the given time specification.\n"
+	{ "ImportVar", pbx_builtin_importvar,
+	"Import a variable from a channel into a new variable",
+	"  ImportVar(newvar=channelname|variable): This application imports a variable\n"
+	"from the specified channel (as opposed to the current one) and stores it as\n"
+	"a variable in the current channel (the channel that is calling this\n"
+	"application). Variables created by this application have the same inheritance\n"
+	"properties as those created with the Set application. See the documentation for\n"
+	"Set for more information.\n"
 	},
 
 	{ "Hangup", pbx_builtin_hangup,
@@ -375,12 +384,10 @@ static struct pbx_builtin {
 	"tone to the user.\n"
 	},
 
-	{ "SayNumber", pbx_builtin_saynumber,
-	"Say Number",
-	"  SayNumber(digits[,gender]): This application will play the sounds that\n"
-	"correspond to the given number. Optionally, a gender may be specified.\n"
-	"This will use the language that is currently set for the channel. See the\n"
-	"LANGUAGE function for more information on setting the language for the channel.\n"
+	{ "SayAlpha", pbx_builtin_saycharacters,
+	"Say Alpha",
+	"  SayAlpha(string): This application will play the sounds that correspond to\n"
+	"the letters of the given string.\n"
 	},
 
 	{ "SayDigits", pbx_builtin_saydigits,
@@ -391,28 +398,18 @@ static struct pbx_builtin {
 	"the language for the channel.\n"
 	},
 
-	{ "SayAlpha", pbx_builtin_saycharacters,
-	"Say Alpha",
-	"  SayAlpha(string): This application will play the sounds that correspond to\n"
-	"the letters of the given string.\n"
+	{ "SayNumber", pbx_builtin_saynumber,
+	"Say Number",
+	"  SayNumber(digits[,gender]): This application will play the sounds that\n"
+	"correspond to the given number. Optionally, a gender may be specified.\n"
+	"This will use the language that is currently set for the channel. See the\n"
+	"LANGUAGE function for more information on setting the language for the channel.\n"
 	},
 
 	{ "SayPhonetic", pbx_builtin_sayphonetic,
 	"Say Phonetic",
 	"  SayPhonetic(string): This application will play the sounds from the phonetic\n"
 	"alphabet that correspond to the letters in the given string.\n"
-	},
-
-	{ "SetAMAFlags", pbx_builtin_setamaflags,
-	"Set the AMA Flags",
-	"  SetAMAFlags([flag]): This application will set the channel's AMA Flags for\n"
- 	"  billing purposes.\n"
-	},
-
-	{ "SetGlobalVar", pbx_builtin_setglobalvar,
-	"Set a global variable to a given value",
-	"  SetGlobalVar(variable=value): This application sets a given global variable to\n"
-	"the specified value.\n"
 	},
 
 	{ "Set", pbx_builtin_setvar,
@@ -429,14 +426,10 @@ static struct pbx_builtin {
 	"        (applies only to variables, not functions)\n"
 	},
 
-	{ "ImportVar", pbx_builtin_importvar,
-	"Import a variable from a channel into a new variable",
-	"  ImportVar(newvar=channelname|variable): This application imports a variable\n"
-	"from the specified channel (as opposed to the current one) and stores it as\n"
-	"a variable in the current channel (the channel that is calling this\n"
-	"application). Variables created by this application have the same inheritance\n"
-	"properties as those created with the Set application. See the documentation for\n"
-	"Set for more information.\n"
+	{ "SetAMAFlags", pbx_builtin_setamaflags,
+	"Set the AMA Flags",
+	"  SetAMAFlags([flag]): This application will set the channel's AMA Flags for\n"
+ 	"  billing purposes.\n"
 	},
 
 	{ "Wait", pbx_builtin_wait,
@@ -5857,31 +5850,6 @@ int pbx_builtin_importvar(struct ast_channel *chan, void *data)
 		}
 		pbx_builtin_setvar_helper(chan, name, tmp);
 	}
-
-	return(0);
-}
-
-/*! \todo XXX overwrites data ? */
-static int pbx_builtin_setglobalvar(struct ast_channel *chan, void *data)
-{
-	char *name;
-	char *stringp = data;
-	static int dep_warning = 0;
-
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
-		return 0;
-	}
-
-	name = strsep(&stringp, "=");
-
-	if (!dep_warning) {
-		dep_warning = 1;
-		ast_log(LOG_WARNING, "SetGlobalVar is deprecated.  Please use Set(GLOBAL(%s)=%s) instead.\n", name, stringp);
-	}
-
-	/*! \todo XXX watch out, leading whitespace ? */
-	pbx_builtin_setvar_helper(NULL, name, stringp);
 
 	return(0);
 }
