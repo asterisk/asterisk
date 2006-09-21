@@ -278,7 +278,7 @@ static struct gtalk *find_gtalk(char *name, char *connection)
 				} else if (!strcasecmp(iterator->connection->name, connection)) {
 					gtalk = iterator;
 					break;
-				} else if (iterator->connection->component == AJI_COMPONENT && !strcasecmp(iterator->connection->user,domain)) {
+				} else if (iterator->connection->component && !strcasecmp(iterator->connection->user,domain)) {
 					gtalk = iterator;
 					break;
 				}
