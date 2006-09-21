@@ -1,0 +1,16 @@
+2006-09-21  Kevin P. Fleming  <kpfleming@digium.com>
+
+	* Asterisk 1.4.0-beta2 released.
+
+2006-09-21 16:08 +0000 [r43404-43405]  Kevin P. Fleming <kpfleming@digium.com>
+
+	* main/Makefile: remove this change... it requires binutils 2.17
+
+2006-09-20 23:19 +0000 [r43396]  Jason Parker <jparker@digium.com>
+
+	* build_tools/make_version: fix minor typo in the way version is
+	  handled
+
+2006-09-20  Kevin P. Fleming  <kpfleming@digium.com>
+
+	* Asterisk 1.4.0-beta1 released.
