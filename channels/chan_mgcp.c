@@ -4266,34 +4266,35 @@ static int reload_config(void)
 /*! \brief  load_module: PBX load module - initialization ---*/
 static int load_module(void)
 {
-	int res;
-
-	sched = sched_context_create();
-	if (!sched) {
+	if (!(sched = sched_context_create())) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
-	io = io_context_create();
-	if (!io) {
+
+	if (!(io = io_context_create())) {
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
-		return -1;
+		sched_context_destroy(sched);
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	if (!(res = reload_config())) {
-		/* Make sure we can register our mgcp channel type */
-		if (ast_channel_register(&mgcp_tech)) {
-			ast_log(LOG_ERROR, "Unable to register channel class 'MGCP'\n");
-			return -1;
-		}
-		ast_rtp_proto_register(&mgcp_rtp);
-		ast_cli_register_multiple(cli_mgcp, sizeof(cli_mgcp) / sizeof(struct ast_cli_entry));
-
-		/* And start the monitor for the first time */
-		restart_monitor();
-	} else
+	if (reload_config())
 		return AST_MODULE_LOAD_DECLINE;
 
-	return res;
+	/* Make sure we can register our mgcp channel type */
+	if (ast_channel_register(&mgcp_tech)) {
+		ast_log(LOG_ERROR, "Unable to register channel class 'MGCP'\n");
+		io_context_destroy(io);
+		sched_context_destroy(sched);
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	ast_rtp_proto_register(&mgcp_rtp);
+	ast_cli_register_multiple(cli_mgcp, sizeof(cli_mgcp) / sizeof(struct ast_cli_entry));
+	
+	/* And start the monitor for the first time */
+	restart_monitor();
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 /*! \brief  mgcp_do_reload: Reload module */
