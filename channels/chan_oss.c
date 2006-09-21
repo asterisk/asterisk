@@ -1836,39 +1836,39 @@ static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
 
 static int load_module(void)
 {
-	int i;
-	struct ast_config *cfg;
+	struct ast_config *cfg = NULL;
+	char *ctg = NULL;
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 
 	/* load config file */
-	cfg = ast_config_load(config);
-	if (cfg != NULL) {
-		char *ctg = NULL;	/* first pass is 'general' */
-
-		do {
-			store_config(cfg, ctg);
-		} while ( (ctg = ast_category_browse(cfg, ctg)) != NULL);
-		ast_config_destroy(cfg);
-	} else {
-		 ast_log(LOG_NOTICE, "Unable to load config oss.conf\n");
-		 return AST_MODULE_LOAD_DECLINE;
+	if (!(cfg = ast_config_load(config))) {
+		ast_log(LOG_NOTICE, "Unable to load config %s\n", config);
+		return AST_MODULE_LOAD_DECLINE;
 	}
+
+	do {
+		store_config(cfg, ctg);
+	} while ( (ctg = ast_category_browse(cfg, ctg)) != NULL);
+
+	ast_config_destroy(cfg);
+
 	if (find_desc(oss_active) == NULL) {
 		ast_log(LOG_NOTICE, "Device %s not found\n", oss_active);
 		/* XXX we could default to 'dsp' perhaps ? */
 		/* XXX should cleanup allocated memory etc. */
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
-	i = ast_channel_register(&oss_tech);
-	if (i < 0) {
-		ast_log(LOG_ERROR, "Unable to register channel class 'Console'\n");
-		/* XXX should cleanup allocated memory etc. */
-		return -1;
+
+	if (ast_channel_register(&oss_tech)) {
+		ast_log(LOG_ERROR, "Unable to register channel class 'MGCP'\n");
+		return AST_MODULE_LOAD_FAILURE;
 	}
+
 	ast_cli_register_multiple(cli_oss, sizeof(cli_oss) / sizeof(struct ast_cli_entry));
-	return 0;
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 
