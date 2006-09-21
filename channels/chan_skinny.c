@@ -1652,16 +1652,6 @@ static int skinny_do_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int skinny_no_debug_deprecated(int fd, int argc, char *argv[])
-{
-	if (argc != 3) {
-		return RESULT_SHOWUSAGE;
-	}
-	skinnydebug = 0;
-	ast_cli(fd, "Skinny Debugging Disabled\n");
-	return RESULT_SUCCESS;
-}
-
 static int skinny_no_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 2) {
@@ -1872,29 +1862,14 @@ static char reset_usage[] =
 "Usage: skinny reset <DeviceId|all> [restart]\n"
 "       Causes a Skinny device to reset itself, optionally with a full restart\n";
 
-static struct ast_cli_entry cli_skinny_show_devices_deprecated = {
-	{ "skinny", "show", "devices", NULL },
-	skinny_show_devices, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_skinny_show_lines_deprecated = {
-	{ "skinny", "show", "lines", NULL },
-	skinny_show_lines, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_skinny_no_debug_deprecated = {
-	{ "skinny", "no", "debug", NULL },
-	skinny_no_debug_deprecated, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_skinny[] = {
 	{ { "skinny", "list", "devices", NULL },
 	skinny_show_devices, "List defined Skinny devices",
-	show_devices_usage, NULL, &cli_skinny_show_devices_deprecated },
+	show_devices_usage },
 
 	{ { "skinny", "list", "lines", NULL },
 	skinny_show_lines, "List defined Skinny lines per device",
-	show_lines_usage, NULL, &cli_skinny_show_lines_deprecated },
+	show_lines_usage },
 
 	{ { "skinny", "debug", NULL },
 	skinny_do_debug, "Enable Skinny debugging",
@@ -1902,7 +1877,7 @@ static struct ast_cli_entry cli_skinny[] = {
 
 	{ { "skinny", "nodebug", NULL },
 	skinny_no_debug, "Disable Skinny debugging",
-	no_debug_usage, NULL, &cli_skinny_no_debug_deprecated },
+	no_debug_usage },
 
 	{ { "skinny", "reset", NULL },
 	skinny_reset_device, "Reset Skinny device(s)",
@@ -4367,14 +4342,11 @@ static int reload_config(void)
 			ast_parse_allow_disallow(&default_prefs, &default_capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
 			ast_parse_allow_disallow(&default_prefs, &default_capability, v->value, 0);
-		} else if (!strcasecmp(v->name, "bindport") || !strcasecmp(v->name, "port")) {
+		} else if (!strcasecmp(v->name, "bindport")) {
 			if (sscanf(v->value, "%d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
 			} else {
 				ast_log(LOG_WARNING, "Invalid bindport '%s' at line %d of %s\n", v->value, v->lineno, config);
-			}
-			if (!strcasecmp(v->name, "port")) { /*! \todo Remove 'port' option after 1.4 */
-				ast_log(LOG_WARNING, "Option 'port' at line %d of %s has been deprecated.  Please use 'bindport' instead.\n", v->lineno, config);
 			}
 		}
 		v = v->next;

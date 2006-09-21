@@ -80,11 +80,6 @@
  * \par Hanging up
  * The PBX issues a hangup on both incoming and outgoing calls through
  * the sip_hangup() function
- *
- * \par Deprecated stuff
- * This is deprecated and will be removed after the 1.4 release
- * - the SIPUSERAGENT dialplan variable
- * - the ALERT_INFO dialplan variable
  */
 
 
@@ -10644,15 +10639,6 @@ static int sip_notify(int fd, int argc, char *argv[])
 }
 
 /*! \brief Disable SIP Debugging in CLI */
-static int sip_no_debug_deprecated(int fd, int argc, char *argv[])
-{
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	ast_clear_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
-	ast_cli(fd, "SIP Debugging Disabled\n");
-	return RESULT_SUCCESS;
-}
-
 static int sip_no_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
@@ -10674,16 +10660,6 @@ static int sip_do_history(int fd, int argc, char *argv[])
 }
 
 /*! \brief Disable SIP History logging (CLI) */
-static int sip_no_history_deprecated(int fd, int argc, char *argv[])
-{
-	if (argc != 3) {
-		return RESULT_SHOWUSAGE;
-	}
-	recordhistory = FALSE;
-	ast_cli(fd, "SIP History Recording Disabled\n");
-	return RESULT_SUCCESS;
-}
-
 static int sip_no_history(int fd, int argc, char *argv[])
 {
 	if (argc != 2) {
@@ -14863,8 +14839,6 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v)
 {
 	int res = 0;
-	static int dep_insecure_very = 0;
-	static int dep_insecure_yes = 0;
 
 	if (!strcasecmp(v->name, "trustrpid")) {
 		ast_set_flag(&mask[0], SIP_TRUSTRPID);
@@ -14932,21 +14906,7 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "insecure")) {
 		ast_set_flag(&mask[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
 		ast_clear_flag(&flags[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
-		if (!strcasecmp(v->value, "very")) {
-			ast_set_flag(&flags[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
-			if (!dep_insecure_very) {
-				ast_log(LOG_WARNING, "insecure=very at line %d is deprecated; use insecure=port,invite instead\n", v->lineno);
-				dep_insecure_very = 1;
-			}
-		}
-		else if (ast_true(v->value)) {
-			ast_set_flag(&flags[0], SIP_INSECURE_PORT);
-			if (!dep_insecure_yes) {
-				ast_log(LOG_WARNING, "insecure=%s at line %d is deprecated; use insecure=port instead\n", v->value, v->lineno);
-				dep_insecure_yes = 1;
-			}
-		}
-		else if (!ast_false(v->value)) {
+		if (!ast_false(v->value)) {
 			char buf[64];
 			char *word, *next;
 
@@ -15621,7 +15581,6 @@ static int reload_config(enum channelreloadreason reason)
 	int auto_sip_domains = FALSE;
 	struct sockaddr_in old_bindaddr = bindaddr;
 	int registry_count = 0, peer_count = 0, user_count = 0;
-	unsigned int temp_tos = 0;
 	struct ast_flags debugflag = {0};
 
 	cfg = ast_config_load(config);
@@ -15907,14 +15866,6 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "register")) {
 			if (sip_register(v->value, v->lineno) == 0)
 				registry_count++;
-		} else if (!strcasecmp(v->name, "tos")) {
-			if (!ast_str2tos(v->value, &temp_tos)) {
-				global_tos_sip = temp_tos;
-				global_tos_audio = temp_tos;
-				global_tos_video = temp_tos;
-				ast_log(LOG_WARNING, "tos value at line %d is deprecated.  See doc/ip-tos.txt for more information.", v->lineno);
-			} else
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, See doc/ip-tos.txt for more information.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "tos_sip")) {
 			if (ast_str2tos(v->value, &global_tos_sip))
 				ast_log(LOG_WARNING, "Invalid tos_sip value at line %d, recommended value is 'cs3'. See doc/ip-tos.txt.\n", v->lineno);
@@ -16666,97 +16617,42 @@ static int reload(void)
 	return sip_reload(0, 0, NULL);
 }
 
-static struct ast_cli_entry cli_sip_no_history_deprecated = {
-	{ "sip", "no", "history", NULL },
-	sip_no_history_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_sip_no_debug_deprecated = {
-	{ "sip", "no", "debug", NULL },
-	sip_no_debug_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_sip_show_objects_deprecated = {
-	{ "sip", "show", "objects", NULL },
-	sip_show_objects, NULL,
-        NULL };
-
-static struct ast_cli_entry cli_sip_show_users_deprecated = {
-	{ "sip", "show", "users", NULL },
-	sip_show_users, NULL,
-        NULL };
-
-static struct ast_cli_entry cli_sip_show_subscriptions_deprecated = {
-	{ "sip", "show", "subscriptions", NULL },
-	sip_show_subscriptions, NULL,
-        NULL };
-
-static struct ast_cli_entry cli_sip_show_channels_deprecated = {
-	{ "sip", "show", "channels", NULL },
-	sip_show_channels, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_sip_show_domains_deprecated = {
-	{ "sip", "show", "domains", NULL },
-	sip_show_domains, NULL,
-        NULL };
-
-static struct ast_cli_entry cli_sip_show_settings_deprecated = {
-	{ "sip", "show", "settings", NULL },
-	sip_show_settings, NULL,
-        NULL };
-
-static struct ast_cli_entry cli_sip_show_peers_deprecated = {
-	{ "sip", "show", "peers", NULL },
-	sip_show_peers, NULL,
-        NULL };
-
-static struct ast_cli_entry cli_sip_show_inuse_deprecated = {
-	{ "sip", "show", "inuse", NULL },
-	sip_show_inuse, NULL,
-        NULL };
-
-static struct ast_cli_entry cli_sip_show_registry_deprecated = {
-	{ "sip", "show", "registry", NULL },
-	sip_show_registry, NULL,
-        NULL };
-
 static struct ast_cli_entry cli_sip[] = {
 	{ { "sip", "list", "channels", NULL },
 	sip_show_channels, "List active SIP channels",
-	show_channels_usage, NULL, &cli_sip_show_channels_deprecated },
+	show_channels_usage },
 
 	{ { "sip", "list", "domains", NULL },
 	sip_show_domains, "List our local SIP domains.",
-	show_domains_usage, NULL, &cli_sip_show_domains_deprecated },
+	show_domains_usage },
 
 	{ { "sip", "list", "inuse", NULL },
 	sip_show_inuse, "List all inuse/limits",
-	show_inuse_usage, NULL, &cli_sip_show_inuse_deprecated },
+	show_inuse_usage },
 
 	{ { "sip", "list", "objects", NULL },
 	sip_show_objects, "List all SIP object allocations",
-	show_objects_usage, NULL, &cli_sip_show_objects_deprecated },
+	show_objects_usage },
 
 	{ { "sip", "list", "peers", NULL },
 	sip_show_peers, "List defined SIP peers",
-	show_peers_usage, NULL, &cli_sip_show_peers_deprecated },
+	show_peers_usage },
 
 	{ { "sip", "list", "registry", NULL },
 	sip_show_registry, "List SIP registration status",
-	show_reg_usage, NULL, &cli_sip_show_registry_deprecated },
+	show_reg_usage },
 
 	{ { "sip", "list", "settings", NULL },
 	sip_show_settings, "List SIP global settings",
-	show_settings_usage, NULL, &cli_sip_show_settings_deprecated },
+	show_settings_usage },
 
 	{ { "sip", "list", "subscriptions", NULL },
 	sip_show_subscriptions, "List active SIP subscriptions",
-	show_subscriptions_usage, NULL, &cli_sip_show_subscriptions_deprecated },
+	show_subscriptions_usage },
 
 	{ { "sip", "list", "users", NULL },
 	sip_show_users, "List defined SIP users",
-	show_users_usage, NULL, &cli_sip_show_users_deprecated },
+	show_users_usage },
 
 	{ { "sip", "notify", NULL },
 	sip_notify, "Send a notify packet to a SIP peer",
@@ -16804,7 +16700,7 @@ static struct ast_cli_entry cli_sip[] = {
 
 	{ { "sip", "nodebug", NULL },
 	sip_no_debug, "Disable SIP debugging",
-	no_debug_usage, NULL, &cli_sip_no_debug_deprecated },
+	no_debug_usage },
 
 	{ { "sip", "history", NULL },
 	sip_do_history, "Enable SIP history",
@@ -16812,7 +16708,7 @@ static struct ast_cli_entry cli_sip[] = {
 
 	{ { "sip", "nohistory", NULL },
 	sip_no_history, "Disable SIP history",
-	no_history_usage, NULL, &cli_sip_no_history_deprecated },
+	no_history_usage },
 
 	{ { "sip", "reload", NULL },
 	sip_reload, "Reload SIP configuration",

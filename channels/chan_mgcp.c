@@ -1122,15 +1122,6 @@ static int mgcp_do_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int mgcp_no_debug_deprecated(int fd, int argc, char *argv[])
-{
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	mgcpdebug = 0;
-	ast_cli(fd, "MGCP Debugging Disabled\n");
-	return RESULT_SUCCESS;
-}
-
 static int mgcp_no_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
@@ -1140,29 +1131,14 @@ static int mgcp_no_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static struct ast_cli_entry cli_mgcp_no_debug_deprecated = {
-	{ "mgcp", "no", "debug", NULL },
-	mgcp_no_debug_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_mgcp_audit_endpoint_deprecated = {
-	{ "mgcp", "audit", "endpoint", NULL },
-	mgcp_audit_endpoint, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_mgcp_show_endpoints_deprecated = {
-	{ "mgcp", "show", "endpoints", NULL },
-	mgcp_show_endpoints, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_mgcp[] = {
 	{ { "mgcp", "endpoint", "audit", NULL },
 	mgcp_audit_endpoint, "Audit specified MGCP endpoint",
-	audit_endpoint_usage, NULL, &cli_mgcp_audit_endpoint_deprecated },
+	audit_endpoint_usage },
 
 	{ { "mgcp", "endpoint", "list", NULL },
 	mgcp_show_endpoints, "List defined MGCP endpoints",
-	show_endpoints_usage, NULL, &cli_mgcp_show_endpoints_deprecated },
+	show_endpoints_usage },
 
 	{ { "mgcp", "debug", NULL },
 	mgcp_do_debug, "Enable MGCP debugging",
@@ -1170,7 +1146,7 @@ static struct ast_cli_entry cli_mgcp[] = {
 
 	{ { "mgcp", "nodebug", NULL },
 	mgcp_no_debug, "Disable MGCP debugging",
-	no_debug_usage, NULL, &cli_mgcp_no_debug_deprecated },
+	no_debug_usage },
 
 	{ { "mgcp", "reload", NULL },
 	mgcp_reload, "Reload MGCP configuration",

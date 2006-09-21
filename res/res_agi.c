@@ -1314,15 +1314,6 @@ static int agi_do_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int agi_no_debug_deprecated(int fd, int argc, char *argv[])
-{
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	agidebug = 0;
-	ast_cli(fd, "AGI Debugging Disabled\n");
-	return RESULT_SUCCESS;
-}
-
 static int agi_no_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
@@ -2093,21 +2084,6 @@ static char dumpagihtml_help[] =
 "Usage: agi dumphtml <filename>\n"
 "	Dumps the agi command list in html format to given filename\n";
 
-static struct ast_cli_entry cli_show_agi_deprecated = {
-	{ "show", "agi", NULL },
-	handle_showagi, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_dump_agihtml_deprecated = {
-	{ "dump", "agihtml", NULL },
-	handle_agidumphtml, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_agi_no_debug_deprecated = {
-	{ "agi", "no", "debug", NULL },
-	agi_no_debug_deprecated, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_agi[] = {
 	{ { "agi", "debug", NULL },
 	agi_do_debug, "Enable AGI debugging",
@@ -2115,15 +2091,15 @@ static struct ast_cli_entry cli_agi[] = {
 
 	{ { "agi", "nodebug", NULL },
 	agi_no_debug, "Disable AGI debugging",
-	no_debug_usage, NULL, &cli_agi_no_debug_deprecated },
+	no_debug_usage },
 
 	{ { "agi", "list", NULL },
 	handle_showagi, "List AGI commands or specific help",
-	showagi_help, NULL, &cli_show_agi_deprecated },
+	showagi_help },
 
 	{ { "agi", "dumphtml", NULL },
 	handle_agidumphtml, "Dumps a list of agi commands in html format",
-	dumpagihtml_help, NULL, &cli_dump_agihtml_deprecated },
+	dumpagihtml_help },
 };
 
 static int unload_module(void)

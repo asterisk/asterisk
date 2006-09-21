@@ -1919,15 +1919,10 @@ static char showparked_help[] =
 "Usage: show parkedcalls\n"
 "       Lists currently parked calls.\n";
 
-static struct ast_cli_entry cli_show_features_deprecated = {
-	{ "show", "features", NULL },
-	handle_showfeatures, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_features[] = {
 	{ { "feature", "list", NULL },
 	handle_showfeatures, "Lists configured features",
-	showfeatures_help, NULL, &cli_show_features_deprecated },
+	showfeatures_help },
 
 	{ { "show", "parkedcalls", NULL },
 	handle_parkedcalls, "Lists parked calls",

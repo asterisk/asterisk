@@ -561,24 +561,14 @@ static char init_keys_usage[] =
 "Usage: keys init\n"
 "       Initializes private keys (by reading in pass code from the user)\n";
 
-static struct ast_cli_entry cli_show_keys_deprecated = {
-	{ "show", "keys", NULL },
-	show_keys, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_init_keys_deprecated = {
-	{ "init", "keys", NULL },
-	init_keys, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_crypto[] = {
 	{ { "keys", "list", NULL },
 	show_keys, "Displays RSA key information",
-	show_key_usage, NULL, &cli_show_keys_deprecated },
+	show_key_usage },
 
 	{ { "keys", "init", NULL },
 	init_keys, "Initialize RSA key passcodes",
-	init_keys_usage, NULL, &cli_init_keys_deprecated },
+	init_keys_usage },
 };
 
 static int crypto_init(void)

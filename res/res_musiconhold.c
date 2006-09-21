@@ -961,11 +961,8 @@ static int load_moh_classes(int reload)
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	struct mohclass *class;	
-	char *data;
-	char *args;
 	char *cat;
 	int numclasses = 0;
-	static int dep_warning = 0;
 
 	cfg = ast_config_load("musiconhold.conf");
 
@@ -974,6 +971,7 @@ static int load_moh_classes(int reload)
 
 	cat = ast_category_browse(cfg, NULL);
 	for (; cat; cat = ast_category_browse(cfg, cat)) {
+		/* These names were deprecated in 1.4 and should not be used until after the next major release. */
 		if (strcasecmp(cat, "classes") && strcasecmp(cat, "moh_files")) {			
 			if (!(class = moh_class_malloc())) {
 				break;
@@ -1026,63 +1024,6 @@ static int load_moh_classes(int reload)
 		}
 	}
 	
-
-	/* Deprecated Old-School Configuration */
-	var = ast_variable_browse(cfg, "classes");
-	while (var) {
-		if (!dep_warning) {
-			ast_log(LOG_WARNING, "The old musiconhold.conf syntax has been deprecated!  Please refer to the sample configuration for information on the new syntax.\n");
-			dep_warning = 1;
-		}
-		data = strchr(var->value, ':');
-		if (data) {
-			*data++ = '\0';
-			args = strchr(data, ',');
-			if (args)
-				*args++ = '\0';
-			if (!(get_mohbyname(var->name))) {			
-				if (!(class = moh_class_malloc())) {
-					return numclasses;
-				}
-				
-				ast_copy_string(class->name, var->name, sizeof(class->name));
-				ast_copy_string(class->dir, data, sizeof(class->dir));
-				ast_copy_string(class->mode, var->value, sizeof(class->mode));
-				if (args)
-					ast_copy_string(class->args, args, sizeof(class->args));
-				
-				moh_register(class, reload);
-				numclasses++;
-			}
-		}
-		var = var->next;
-	}
-	var = ast_variable_browse(cfg, "moh_files");
-	while (var) {
-		if (!dep_warning) {
-			ast_log(LOG_WARNING, "The old musiconhold.conf syntax has been deprecated!  Please refer to the sample configuration for information on the new syntax.\n");
-			dep_warning = 1;
-		}
-		if (!(get_mohbyname(var->name))) {
-			args = strchr(var->value, ',');
-			if (args)
-				*args++ = '\0';			
-			if (!(class = moh_class_malloc())) {
-				return numclasses;
-			}
-			
-			ast_copy_string(class->name, var->name, sizeof(class->name));
-			ast_copy_string(class->dir, var->value, sizeof(class->dir));
-			strcpy(class->mode, "files");
-			if (args)	
-				ast_copy_string(class->args, args, sizeof(class->args));
-			
-			moh_register(class, reload);
-			numclasses++;
-		}
-		var = var->next;
-	}
-
 	ast_config_destroy(cfg);
 
 	return numclasses;
@@ -1187,16 +1128,6 @@ static int moh_classes_show(int fd, int argc, char *argv[])
 	return 0;
 }
 
-static struct ast_cli_entry cli_moh_classes_show_deprecated = {
-	{ "moh", "classes", "show"},
-	moh_classes_show, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_moh_files_show_deprecated = {
-	{ "moh", "files", "show"},
-	cli_files_show, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_moh[] = {
 	{ { "moh", "reload"},
 	moh_cli, "Music On Hold",
@@ -1204,11 +1135,11 @@ static struct ast_cli_entry cli_moh[] = {
 
 	{ { "moh", "list", "classes"},
 	moh_classes_show, "List MOH classes",
-	"Lists all MOH classes", NULL, &cli_moh_classes_show_deprecated },
+	"Lists all MOH classes" },
 
 	{ { "moh", "list", "files"},
 	cli_files_show, "List MOH file-based classes",
-	"Lists all loaded file-based MOH classes and their files", NULL, &cli_moh_files_show_deprecated },
+	"Lists all loaded file-based MOH classes and their files" },
 };
 
 static int init_classes(int reload) 

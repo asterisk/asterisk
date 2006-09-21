@@ -1244,9 +1244,6 @@ static struct oh323_alias *realtime_alias(const char *alias)
 	return a;
 }
 
-#define DEPRECATED(_v, _new_opt) \
-	ast_log(LOG_WARNING, "Option %s found at line %d has beed deprecated. Use %s instead.\n", (_v)->name, (_v)->lineno, (_new_opt))
-
 static int update_common_options(struct ast_variable *v, struct call_options *options)
 {
 	int tmp;
@@ -1274,19 +1271,10 @@ static int update_common_options(struct ast_variable *v, struct call_options *op
 		options->bridge = ast_true(v->value);
 	} else if (!strcasecmp(v->name, "nat")) {
 		options->nat = ast_true(v->value);
-	} else if (!strcasecmp(v->name, "noFastStart")) {
-		DEPRECATED(v, "fastStart");
-		options->fastStart = !ast_true(v->value);
 	} else if (!strcasecmp(v->name, "fastStart")) {
 		options->fastStart = ast_true(v->value);
-	} else if (!strcasecmp(v->name, "noH245Tunneling")) {
-		DEPRECATED(v, "h245Tunneling");
-		options->h245Tunneling = !ast_true(v->value);
 	} else if (!strcasecmp(v->name, "h245Tunneling")) {
 		options->h245Tunneling = ast_true(v->value);
-	} else if (!strcasecmp(v->name, "noSilenceSuppression")) {
-		DEPRECATED(v, "silenceSuppression");
-		options->silenceSuppression = !ast_true(v->value);
 	} else if (!strcasecmp(v->name, "silenceSuppression")) {
 		options->silenceSuppression = ast_true(v->value);
 	} else if (!strcasecmp(v->name, "progress_setup")) {
@@ -1325,7 +1313,6 @@ static int update_common_options(struct ast_variable *v, struct call_options *op
 
 	return 0;
 }
-#undef DEPRECATED
 
 static struct oh323_user *build_user(char *name, struct ast_variable *v, struct ast_variable *alt, int realtime)
 {

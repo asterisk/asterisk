@@ -4441,15 +4441,6 @@ static int iax2_do_jb_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int iax2_no_debug_deprecated(int fd, int argc, char *argv[])
-{
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	iaxdebug = 0;
-	ast_cli(fd, "IAX2 Debugging Disabled\n");
-	return RESULT_SUCCESS;
-}
-
 static int iax2_no_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
@@ -4459,31 +4450,12 @@ static int iax2_no_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int iax2_no_trunk_debug_deprecated(int fd, int argc, char *argv[])
-{
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	iaxtrunkdebug = 0;
-	ast_cli(fd, "IAX2 Trunk Debugging Disabled\n");
-	return RESULT_SUCCESS;
-}
-
 static int iax2_no_trunk_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	iaxtrunkdebug = 0;
 	ast_cli(fd, "IAX2 Trunk Debugging Disabled\n");
-	return RESULT_SUCCESS;
-}
-
-static int iax2_no_jb_debug_deprecated(int fd, int argc, char *argv[])
-{
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	jb_setoutput(jb_error_output, jb_warning_output, NULL);
-	jb_debug_output("\n");
-	ast_cli(fd, "IAX2 Jitterbuffer Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -8328,10 +8300,6 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 				peer->authmethods = get_auth_methods(v->value);
 			} else if (!strcasecmp(v->name, "encryption")) {
 				peer->encmethods = get_encrypt_methods(v->value);
-			} else if (!strcasecmp(v->name, "notransfer")) {
-				ast_log(LOG_NOTICE, "The option 'notransfer' is deprecated in favor of 'transfer' which has options 'yes', 'no', and 'mediaonly'\n");
-				ast_clear_flag(peer, IAX_TRANSFERMEDIA);	
-				ast_set2_flag(peer, ast_true(v->value), IAX_NOTRANSFER);	
 			} else if (!strcasecmp(v->name, "transfer")) {
 				if (!strcasecmp(v->value, "mediaonly")) {
 					ast_set_flags_to(peer, IAX_NOTRANSFER|IAX_TRANSFERMEDIA, IAX_TRANSFERMEDIA);	
@@ -8568,10 +8536,6 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 				user->authmethods = get_auth_methods(v->value);
 			} else if (!strcasecmp(v->name, "encryption")) {
 				user->encmethods = get_encrypt_methods(v->value);
-			} else if (!strcasecmp(v->name, "notransfer")) {
-				ast_log(LOG_NOTICE, "The option 'notransfer' is deprecated in favor of 'transfer' which has options 'yes', 'no', and 'mediaonly'\n");
-				ast_clear_flag(user, IAX_TRANSFERMEDIA);	
-				ast_set2_flag(user, ast_true(v->value), IAX_NOTRANSFER);	
 			} else if (!strcasecmp(v->name, "transfer")) {
 				if (!strcasecmp(v->value, "mediaonly")) {
 					ast_set_flags_to(user, IAX_NOTRANSFER|IAX_TRANSFERMEDIA, IAX_TRANSFERMEDIA);	
@@ -8921,11 +8885,7 @@ static int set_config(char *config_file, int reload)
 			authdebug = ast_true(v->value);
 		else if (!strcasecmp(v->name, "encryption"))
 			iax2_encryption = get_encrypt_methods(v->value);
-		else if (!strcasecmp(v->name, "notransfer")) {
-			ast_log(LOG_NOTICE, "The option 'notransfer' is deprecated in favor of 'transfer' which has options 'yes', 'no', and 'mediaonly'\n");
-			ast_clear_flag((&globalflags), IAX_TRANSFERMEDIA);	
-			ast_set2_flag((&globalflags), ast_true(v->value), IAX_NOTRANSFER);	
-		} else if (!strcasecmp(v->name, "transfer")) {
+		else if (!strcasecmp(v->name, "transfer")) {
 			if (!strcasecmp(v->value, "mediaonly")) {
 				ast_set_flags_to((&globalflags), IAX_NOTRANSFER|IAX_TRANSFERMEDIA, IAX_TRANSFERMEDIA);	
 			} else if (ast_true(v->value)) {
@@ -9752,111 +9712,42 @@ static char iax2_test_jitter_usage[] =
 "       For testing, simulate maximum jitter of +/- <ms> on <pct> percentage of packets. If <pct> is not specified, adds jitter to all packets.\n";
 #endif /* IAXTESTS */
 
-static struct ast_cli_entry cli_iax2_trunk_debug_deprecated = {
-	{ "iax2", "trunk", "debug", NULL },
-	iax2_do_trunk_debug, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_jb_debug_deprecated = {
-	{ "iax2", "jb", "debug", NULL },
-	iax2_do_jb_debug, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_no_debug_deprecated = {
-	{ "iax2", "no", "debug", NULL },
-	iax2_no_debug_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_no_trunk_debug_deprecated = {
-	{ "iax2", "no", "trunk", "debug", NULL },
-	iax2_no_trunk_debug_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_no_jb_debug_deprecated = {
-	{ "iax2", "no", "jb", "debug", NULL },
-	iax2_no_jb_debug_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_cache_deprecated = {
-	{ "iax2", "show", "cache", NULL },
-	iax2_show_cache, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_peers_deprecated = {
-	{ "iax2", "show", "peers", NULL },
-	iax2_show_peers, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_stats_deprecated = {
-	{ "iax2", "show", "stats", NULL },
-	iax2_show_stats, NULL };
-
-static struct ast_cli_entry cli_iax2_show_firmware_deprecated = {
-	{ "iax2", "show", "firmware", NULL },
-	iax2_show_firmware, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_channels_deprecated = {
-	{ "iax2", "show", "channels", NULL },
-	iax2_show_channels, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_netstats_deprecated = {
-	{ "iax2", "show", "netstats", NULL },
-	iax2_show_netstats, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_users_deprecated = {
-	{ "iax2", "show", "users", NULL },
-	iax2_show_users, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_threads_deprecated = {
-	{ "iax2", "show", "threads", NULL },
-	iax2_show_threads, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_registry_deprecated = {
-	{ "iax2", "show", "registry", NULL },
-	iax2_show_registry, "Show IAX registration status",
-	show_reg_usage };
-
 static struct ast_cli_entry cli_iax2[] = {
 	{ { "iax2", "list", "cache", NULL },
 	iax2_show_cache, "Display IAX cached dialplan",
-	show_cache_usage, NULL, &cli_iax2_show_cache_deprecated  },
+	show_cache_usage },
 
 	{ { "iax2", "list", "channels", NULL },
 	iax2_show_channels, "List active IAX channels",
-	show_channels_usage, NULL, &cli_iax2_show_channels_deprecated  },
+	show_channels_usage },
 
 	{ { "iax2", "list", "firmware", NULL },
 	iax2_show_firmware, "List available IAX firmwares",
-	show_firmware_usage, NULL, &cli_iax2_show_firmware_deprecated  },
+	show_firmware_usage },
 
 	{ { "iax2", "list", "netstats", NULL },
 	iax2_show_netstats, "List active IAX channel netstats",
-	show_netstats_usage, NULL, &cli_iax2_show_netstats_deprecated  },
+	show_netstats_usage },
 
 	{ { "iax2", "list", "peers", NULL },
 	iax2_show_peers, "List defined IAX peers",
-	show_peers_usage, NULL, &cli_iax2_show_peers_deprecated  },
+	show_peers_usage },
 
 	{ { "iax2", "list", "registry", NULL },
 	iax2_show_registry, "Display IAX registration status",
-	show_reg_usage, NULL, &cli_iax2_show_registry_deprecated  },
+	show_reg_usage },
 
 	{ { "iax2", "list", "stats", NULL },
 	iax2_show_stats, "Display IAX statistics",
-	show_stats_usage, NULL, &cli_iax2_show_stats_deprecated },
+	show_stats_usage },
 
 	{ { "iax2", "list", "threads", NULL },
 	iax2_show_threads, "Display IAX helper thread info",
-	show_threads_usage, NULL, &cli_iax2_show_threads_deprecated  },
+	show_threads_usage },
 
 	{ { "iax2", "list", "users", NULL },
 	iax2_show_users, "List defined IAX users",
-	show_users_usage, NULL, &cli_iax2_show_users_deprecated  },
+	show_users_usage },
 
 	{ { "iax2", "prune", "realtime", NULL },
 	iax2_prune_realtime, "Prune a cached realtime lookup",
@@ -9876,23 +9767,23 @@ static struct ast_cli_entry cli_iax2[] = {
 
 	{ { "iax2", "debug", "trunk", NULL },
 	iax2_do_trunk_debug, "Enable IAX trunk debugging",
-	debug_trunk_usage, NULL, &cli_iax2_trunk_debug_deprecated },
+	debug_trunk_usage },
 
 	{ { "iax2", "debug", "jb", NULL },
 	iax2_do_jb_debug, "Enable IAX jitterbuffer debugging",
-	debug_jb_usage, NULL, &cli_iax2_jb_debug_deprecated },
+	debug_jb_usage },
 
 	{ { "iax2", "nodebug", NULL },
 	iax2_no_debug, "Disable IAX debugging",
-	no_debug_usage, NULL, &cli_iax2_no_debug_deprecated },
+	no_debug_usage },
 
 	{ { "iax2", "nodebug", "trunk", NULL },
 	iax2_no_trunk_debug, "Disable IAX trunk debugging",
-	no_debug_trunk_usage, NULL, &cli_iax2_no_trunk_debug_deprecated },
+	no_debug_trunk_usage },
 
 	{ { "iax2", "nodebug", "jb", NULL },
 	iax2_no_jb_debug, "Disable IAX jitterbuffer debugging",
-	no_debug_jb_usage, NULL, &cli_iax2_no_jb_debug_deprecated },
+	no_debug_jb_usage },
 
 	{ { "iax2", "test", "losspct", NULL },
 	iax2_test_losspct, "Set IAX2 incoming frame loss percentage",

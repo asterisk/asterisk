@@ -345,11 +345,6 @@ out:			v = v->next;
 /*
  * CLI entries for commands provided by this module
  */
-static struct ast_cli_entry cli_show_indications_deprecated = {
-	{ "show", "indications", NULL },
-	handle_show_indications, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_indications[] = {
 	{ { "indication", "add", NULL },
 	handle_add_indication, "Add the given indication to the country",
@@ -361,7 +356,7 @@ static struct ast_cli_entry cli_indications[] = {
 
 	{ { "indication", "list", NULL },
 	handle_show_indications, "Display a list of all countries/indications",
-	help_show_indications, NULL, &cli_show_indications_deprecated },
+	help_show_indications },
 };
 
 /*

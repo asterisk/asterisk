@@ -13,9 +13,6 @@ In sip.conf, there are three parameters that control the TOS settings:
 signalling packets are set to.  tos_audio controls what TOS RTP audio
 packets are set to.  tos_video controls what TOS RTP video packets are
 set to.  
-There is a "tos" parameter that is supported for backwards
-compatibility.  The tos parameter should be avoided in sip.conf
-because it sets all three tos settings in sip.conf to the same value.
 
 * IAX2
 ------

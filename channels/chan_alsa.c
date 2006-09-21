@@ -841,31 +841,6 @@ static struct ast_channel *alsa_request(const char *type, int format, void *data
 	return tmp;
 }
 
-static int console_autoanswer_deprecated(int fd, int argc, char *argv[])
-{
-	int res = RESULT_SUCCESS;
-
-	if ((argc != 1) && (argc != 2))
-		return RESULT_SHOWUSAGE;
-
-	ast_mutex_lock(&alsalock);
-
-	if (argc == 1) {
-		ast_cli(fd, "Auto answer is %s.\n", autoanswer ? "on" : "off");
-	} else {
-		if (!strcasecmp(argv[1], "on"))
-			autoanswer = -1;
-		else if (!strcasecmp(argv[1], "off"))
-			autoanswer = 0;
-		else
-			res = RESULT_SHOWUSAGE;
-	}
-
-	ast_mutex_unlock(&alsalock);
-
-	return res;
-}
-
 static int console_autoanswer(int fd, int argc, char *argv[])
 {
 	int res = RESULT_SUCCESS;;
@@ -910,38 +885,6 @@ static const char autoanswer_usage[] =
 	"       argument, displays the current on/off status of autoanswer.\n"
 	"       The default value of autoanswer is in 'alsa.conf'.\n";
 
-static int console_answer_deprecated(int fd, int argc, char *argv[])
-{
-	int res = RESULT_SUCCESS;
-
-	if (argc != 1)
-		return RESULT_SHOWUSAGE;
-
-	ast_mutex_lock(&alsalock);
-
-	if (!alsa.owner) {
-		ast_cli(fd, "No one is calling us\n");
-		res = RESULT_FAILURE;
-	} else {
-		hookstate = 1;
-		cursound = -1;
-		grab_owner();
-		if (alsa.owner) {
-			struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
-			ast_queue_frame(alsa.owner, &f);
-			ast_mutex_unlock(&alsa.owner->lock);
-		}
-		answer_sound();
-	}
-
-	snd_pcm_prepare(alsa.icard);
-	snd_pcm_start(alsa.icard);
-
-	ast_mutex_unlock(&alsalock);
-
-	return RESULT_SUCCESS;
-}
-
 static int console_answer(int fd, int argc, char *argv[])
 {
 	int res = RESULT_SUCCESS;
@@ -977,47 +920,6 @@ static int console_answer(int fd, int argc, char *argv[])
 static char sendtext_usage[] =
 	"Usage: console send text <message>\n"
 	"       Sends a text message for display on the remote terminal.\n";
-
-static int console_sendtext_deprecated(int fd, int argc, char *argv[])
-{
-	int tmparg = 2;
-	int res = RESULT_SUCCESS;
-
-	if (argc < 2)
-		return RESULT_SHOWUSAGE;
-
-	ast_mutex_lock(&alsalock);
-
-	if (!alsa.owner) {
-		ast_cli(fd, "No one is calling us\n");
-		res = RESULT_FAILURE;
-	} else {
-		struct ast_frame f = { AST_FRAME_TEXT, 0 };
-		char text2send[256] = "";
-		text2send[0] = '\0';
-		while (tmparg < argc) {
-			strncat(text2send, argv[tmparg++], sizeof(text2send) - strlen(text2send) - 1);
-			strncat(text2send, " ", sizeof(text2send) - strlen(text2send) - 1);
-		}
-		text2send[strlen(text2send) - 1] = '\n';
-		f.data = text2send;
-		f.datalen = strlen(text2send) + 1;
-		grab_owner();
-		if (alsa.owner) {
-			ast_queue_frame(alsa.owner, &f);
-			f.frametype = AST_FRAME_CONTROL;
-			f.subclass = AST_CONTROL_ANSWER;
-			f.data = NULL;
-			f.datalen = 0;
-			ast_queue_frame(alsa.owner, &f);
-			ast_mutex_unlock(&alsa.owner->lock);
-		}
-	}
-
-	ast_mutex_unlock(&alsalock);
-
-	return res;
-}
 
 static int console_sendtext(int fd, int argc, char *argv[])
 {
@@ -1064,34 +966,6 @@ static char answer_usage[] =
 	"Usage: console answer\n"
 	"       Answers an incoming call on the console (ALSA) channel.\n";
 
-static int console_hangup_deprecated(int fd, int argc, char *argv[])
-{
-	int res = RESULT_SUCCESS;
-
-	if (argc != 1)
-		return RESULT_SHOWUSAGE;
-
-	cursound = -1;
-
-	ast_mutex_lock(&alsalock);
-
-	if (!alsa.owner && !hookstate) {
-		ast_cli(fd, "No call to hangup up\n");
-		res = RESULT_FAILURE;
-	} else {
-		hookstate = 0;
-		grab_owner();
-		if (alsa.owner) {
-			ast_queue_hangup(alsa.owner);
-			ast_mutex_unlock(&alsa.owner->lock);
-		}
-	}
-
-	ast_mutex_unlock(&alsalock);
-
-	return res;
-}
-
 static int console_hangup(int fd, int argc, char *argv[])
 {
 	int res = RESULT_SUCCESS;
@@ -1123,63 +997,6 @@ static int console_hangup(int fd, int argc, char *argv[])
 static char hangup_usage[] =
 	"Usage: console hangup\n"
 	"       Hangs up any call currently placed on the console.\n";
-
-static int console_dial_deprecated(int fd, int argc, char *argv[])
-{
-	char tmp[256], *tmp2;
-	char *mye, *myc;
-	char *d;
-	int res = RESULT_SUCCESS;
-
-	if ((argc != 1) && (argc != 2))
-		return RESULT_SHOWUSAGE;
-
-	ast_mutex_lock(&alsalock);
-
-	if (alsa.owner) {
-		if (argc == 2) {
-			d = argv[1];
-			grab_owner();
-			if (alsa.owner) {
-				struct ast_frame f = { AST_FRAME_DTMF };
-				while (*d) {
-					f.subclass = *d;
-					ast_queue_frame(alsa.owner, &f);
-					d++;
-				}
-				ast_mutex_unlock(&alsa.owner->lock);
-			}
-		} else {
-			ast_cli(fd, "You're already in a call.  You can use this only to dial digits until you hangup\n");
-			res = RESULT_FAILURE;
-		}
-	} else {
-		mye = exten;
-		myc = context;
-		if (argc == 2) {
-			char *stringp = NULL;
-			strncpy(tmp, argv[1], sizeof(tmp) - 1);
-			stringp = tmp;
-			strsep(&stringp, "@");
-			tmp2 = strsep(&stringp, "@");
-			if (!ast_strlen_zero(tmp))
-				mye = tmp;
-			if (!ast_strlen_zero(tmp2))
-				myc = tmp2;
-		}
-		if (ast_exists_extension(NULL, myc, mye, 1, NULL)) {
-			strncpy(alsa.exten, mye, sizeof(alsa.exten) - 1);
-			strncpy(alsa.context, myc, sizeof(alsa.context) - 1);
-			hookstate = 1;
-			alsa_new(&alsa, AST_STATE_RINGING);
-		} else
-			ast_cli(fd, "No such extension '%s' in context '%s'\n", mye, myc);
-	}
-
-	ast_mutex_unlock(&alsalock);
-
-	return res;
-}
 
 static int console_dial(int fd, int argc, char *argv[])
 {
@@ -1242,51 +1059,26 @@ static char dial_usage[] =
 	"Usage: console dial [extension[@context]]\n"
 	"       Dials a given extension (and context if specified)\n";
 
-static struct ast_cli_entry cli_alsa_answer_deprecated = {
-	{ "answer", NULL },
-	console_answer_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_alsa_hangup_deprecated = {
-	{ "hangup", NULL },
-	console_hangup_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_alsa_dial_deprecated = {
-	{ "dial", NULL },
-	console_dial_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_alsa_send_text_deprecated = {
-	{ "send", "text", NULL },
-	console_sendtext_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_alsa_autoanswer_deprecated = {
-	{ "autoanswer", NULL },
-	console_autoanswer_deprecated, NULL,
-	NULL, autoanswer_complete };
-
 static struct ast_cli_entry cli_alsa[] = {
 	{ { "console", "answer", NULL },
 	console_answer, "Answer an incoming console call",
-	answer_usage, NULL, &cli_alsa_answer_deprecated },
+	answer_usage },
 
 	{ { "console", "hangup", NULL },
 	console_hangup, "Hangup a call on the console",
-	hangup_usage, NULL, &cli_alsa_hangup_deprecated },
+	hangup_usage },
 
 	{ { "console", "dial", NULL },
 	console_dial, "Dial an extension on the console",
-	dial_usage, NULL, &cli_alsa_dial_deprecated },
+	dial_usage },
 
 	{ { "console", "send", "text", NULL },
 	console_sendtext, "Send text to the remote device",
-	sendtext_usage, NULL, &cli_alsa_send_text_deprecated },
+	sendtext_usage },
 
 	{ { "console", "autoanswer", NULL },
 	console_autoanswer, "Sets/displays autoanswer",
-	autoanswer_usage, autoanswer_complete, &cli_alsa_autoanswer_deprecated },
+	autoanswer_usage, autoanswer_complete },
 };
 
 static int load_module(void)

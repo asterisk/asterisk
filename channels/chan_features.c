@@ -533,15 +533,10 @@ static char show_features_usage[] =
 "Usage: feature list channels\n"
 "       Provides summary information on feature channels.\n";
 
-static struct ast_cli_entry cli_features_show_channels_deprecated = {
-	{ "feature", "show", "channels", NULL },
-	features_show, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_features[] = {
 	{ { "feature", "list", "channels", NULL },
 	features_show, "List status of feature channels",
-	show_features_usage, NULL, &cli_features_show_channels_deprecated },
+	show_features_usage },
 };
 
 static int load_module(void)
