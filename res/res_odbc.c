@@ -235,7 +235,8 @@ static int load_odbc_config(void)
 			limit = 0;
 			for (v = ast_variable_browse(config, cat); v; v = v->next) {
 				if (!strcasecmp(v->name, "pooling")) {
-					pooling = 1;
+					if (ast_true(v->value))
+						pooling = 1;
 				} else if (!strcasecmp(v->name, "limit")) {
 					sscanf(v->value, "%d", &limit);
 					if (ast_true(v->value) && !limit) {
