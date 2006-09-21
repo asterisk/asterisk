@@ -40,11 +40,6 @@ enum aji_btype {
 	AJI_UTRANS=2
 };
 
-enum aji_type {
-	AJI_COMPONENT,
-	AJI_CLIENT,
-};
-
 struct aji_version {
 	char version[50];
 	int jingle;
@@ -120,7 +115,7 @@ struct aji_client {
 	int message_timeout;
 	int authorized;
 	unsigned int flags;
-	enum aji_type component;
+	int component; /* 0 client,  1 component */
 	struct aji_buddy_container buddies;
 	AST_LIST_HEAD(messages,aji_message) messages;
 	void *jingle;
