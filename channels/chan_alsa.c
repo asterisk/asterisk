@@ -223,7 +223,7 @@ static int send_sound(void)
 
 	if (cursound == -1)
 		return 0;
-	
+
 	res = total;
 	if (sampsent < sounds[cursound].samplen) {
 		myoff = 0;
@@ -259,7 +259,7 @@ static int send_sound(void)
 			return 0;
 		}
 	}
-	
+
 	if (res == 0 || !frame)
 		return 0;
 
@@ -782,7 +782,7 @@ static int alsa_indicate(struct ast_channel *chan, int cond, const void *data, s
 static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 {
 	struct ast_channel *tmp = NULL;
-	
+
 	if (!(tmp = ast_channel_alloc(1)))
 		return NULL;
 
@@ -1083,7 +1083,6 @@ static struct ast_cli_entry cli_alsa[] = {
 
 static int load_module(void)
 {
-	int res;
 	struct ast_config *cfg;
 	struct ast_variable *v;
 
@@ -1092,53 +1091,54 @@ static int load_module(void)
 
 	strcpy(mohinterpret, "default");
 
-	if ((cfg = ast_config_load(config))) {
-		v = ast_variable_browse(cfg, "general");
-		for (; v; v = v->next) {
-			/* handle jb conf */
-			if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
-				continue;
+	if (!(cfg = ast_config_load(config)))
+		return AST_MODULE_LOAD_DECLINE;
 
-			if (!strcasecmp(v->name, "autoanswer"))
-				autoanswer = ast_true(v->value);
-			else if (!strcasecmp(v->name, "silencesuppression"))
-				silencesuppression = ast_true(v->value);
-			else if (!strcasecmp(v->name, "silencethreshold"))
-				silencethreshold = atoi(v->value);
-			else if (!strcasecmp(v->name, "context"))
-				ast_copy_string(context, v->value, sizeof(context));
-			else if (!strcasecmp(v->name, "language"))
-				ast_copy_string(language, v->value, sizeof(language));
-			else if (!strcasecmp(v->name, "extension"))
-				ast_copy_string(exten, v->value, sizeof(exten));
-			else if (!strcasecmp(v->name, "input_device"))
-				ast_copy_string(indevname, v->value, sizeof(indevname));
-			else if (!strcasecmp(v->name, "output_device"))
-				ast_copy_string(outdevname, v->value, sizeof(outdevname));
-			else if (!strcasecmp(v->name, "mohinterpret"))
-				ast_copy_string(mohinterpret, v->value, sizeof(mohinterpret));
-		}
-		ast_config_destroy(cfg);
+	v = ast_variable_browse(cfg, "general");
+	for (; v; v = v->next) {
+		/* handle jb conf */
+		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
+				continue;
+		
+		if (!strcasecmp(v->name, "autoanswer"))
+			autoanswer = ast_true(v->value);
+		else if (!strcasecmp(v->name, "silencesuppression"))
+			silencesuppression = ast_true(v->value);
+		else if (!strcasecmp(v->name, "silencethreshold"))
+			silencethreshold = atoi(v->value);
+		else if (!strcasecmp(v->name, "context"))
+			ast_copy_string(context, v->value, sizeof(context));
+		else if (!strcasecmp(v->name, "language"))
+			ast_copy_string(language, v->value, sizeof(language));
+		else if (!strcasecmp(v->name, "extension"))
+			ast_copy_string(exten, v->value, sizeof(exten));
+		else if (!strcasecmp(v->name, "input_device"))
+			ast_copy_string(indevname, v->value, sizeof(indevname));
+		else if (!strcasecmp(v->name, "output_device"))
+			ast_copy_string(outdevname, v->value, sizeof(outdevname));
+		else if (!strcasecmp(v->name, "mohinterpret"))
+			ast_copy_string(mohinterpret, v->value, sizeof(mohinterpret));
 	}
-	res = pipe(sndcmd);
-	if (res) {
+	ast_config_destroy(cfg);
+
+	if (pipe(sndcmd)) {
 		ast_log(LOG_ERROR, "Unable to create pipe\n");
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
-	res = soundcard_init();
-	if (res < 0) {
+
+	if (soundcard_init() < 0) {
 		if (option_verbose > 1) {
 			ast_verbose(VERBOSE_PREFIX_2 "No sound card detected -- console channel will be unavailable\n");
 			ast_verbose(VERBOSE_PREFIX_2 "Turn off ALSA support by adding 'noload=chan_alsa.so' in /etc/asterisk/modules.conf\n");
 		}
-		return 0;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	res = ast_channel_register(&alsa_tech);
-	if (res < 0) {
+	if (ast_channel_register(&alsa_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Console'\n");
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
+
 	ast_cli_register_multiple(cli_alsa, sizeof(cli_alsa) / sizeof(struct ast_cli_entry));
 
 	ast_pthread_create(&sthread, NULL, sound_thread, NULL);
@@ -1146,7 +1146,7 @@ static int load_module(void)
 	if (alsa_monitor_start())
 		ast_log(LOG_ERROR, "Problem starting Monitoring\n");
 #endif
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
