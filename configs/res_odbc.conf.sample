@@ -24,7 +24,17 @@ username => myuser
 password => mypass
 pre-connect => yes
 
-
+; Certain servers, such as MS SQL Server and Sybase use the TDS protocol, which
+; limits the number of active queries per connection to 1.  By setting up pools
+; of connections, Asterisk can be made to work with these servers.
+[sqlserver]
+enabled => no
+dsn => mickeysoft
+pooling => yes
+limit => 5
+username => oscar
+password => thegrouch
+pre-connect => yes
 
 
 
