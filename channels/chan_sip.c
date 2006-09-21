@@ -16714,22 +16714,28 @@ static int load_module(void)
 	ASTOBJ_CONTAINER_INIT(&peerl);	/* Peer object list */
 	ASTOBJ_CONTAINER_INIT(&regl);	/* Registry object list */
 
-	sched = sched_context_create();
-	if (!sched) {
-		ast_log(LOG_WARNING, "Unable to create schedule context\n");
+	if (!(sched = sched_context_create())) {
+		ast_log(LOG_ERROR, "Unable to create scheduler context\n");
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	io = io_context_create();
-	if (!io) {
-		ast_log(LOG_WARNING, "Unable to create I/O context\n");
+	if (!(io = io_context_create())) {
+		ast_log(LOG_ERROR, "Unable to create I/O context\n");
+		sched_context_destroy(sched);
+		return AST_MODULE_LOAD_FAILURE;
 	}
+
 	sip_reloadreason = CHANNEL_MODULE_LOAD;
+
 	if(reload_config(sip_reloadreason))	/* Load the configuration from sip.conf */
 		return AST_MODULE_LOAD_DECLINE;
+
 	/* Make sure we can register our sip channel type */
 	if (ast_channel_register(&sip_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel type 'SIP'\n");
-		return -1;
+		io_context_destroy(io);
+		sched_context_destroy(sched);
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	/* Register all CLI functions for SIP */
@@ -16763,7 +16769,7 @@ static int load_module(void)
 	/* And start the monitor for the first time */
 	restart_monitor();
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)

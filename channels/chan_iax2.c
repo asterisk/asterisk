@@ -9890,8 +9890,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	char *config = "iax.conf";
-	int res = 0;
-	int x;
+	int x = 0;
 	struct iax2_registry *reg = NULL;
 	struct iax2_peer *peer = NULL;
 	
@@ -9915,20 +9914,25 @@ static int load_module(void)
 
 	for (x=0;x<IAX_MAX_CALLS;x++)
 		ast_mutex_init(&iaxsl[x]);
-	
-	io = io_context_create();
-	sched = sched_context_create();
-	
-	if (!io || !sched) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return -1;
+
+	if (!(sched = sched_context_create())) {
+		ast_log(LOG_ERROR, "Failed to create scheduler context\n");
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	netsock = ast_netsock_list_alloc();
-	if (!netsock) {
-		ast_log(LOG_ERROR, "Could not allocate netsock list.\n");
-		return -1;
+	if (!(io = io_context_create())) {
+		ast_log(LOG_ERROR, "Failed to create I/O context\n");
+		sched_context_destroy(sched);
+		return AST_MODULE_LOAD_FAILURE;
 	}
+
+	if (!(netsock = ast_netsock_list_alloc())) {
+		ast_log(LOG_ERROR, "Failed to create netsock list\n");
+		io_context_destroy(io);
+		sched_context_destroy(sched);
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	ast_netsock_init(netsock);
 
 	ast_mutex_init(&waresl.lock);
@@ -9946,23 +9950,22 @@ static int load_module(void)
  	if (ast_channel_register(&iax2_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", "IAX2");
 		__unload_module();
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_register_switch(&iax2_switch)) 
 		ast_log(LOG_ERROR, "Unable to register IAX switch\n");
 
-	res = start_network_thread();
-	if (!res) {
-		if (option_verbose > 1) 
-			ast_verbose(VERBOSE_PREFIX_2 "IAX Ready and Listening\n");
-	} else {
+	if (start_network_thread()) {
 		ast_log(LOG_ERROR, "Unable to start network thread\n");
-		ast_netsock_release(netsock);
-	}
+		__unload_module();
+		return AST_MODULE_LOAD_FAILURE;
+	} else if (option_verbose > 1)
+		ast_verbose(VERBOSE_PREFIX_2 "IAX Ready and Listening\n");
 
 	for (reg = registrations; reg; reg = reg->next)
 		iax2_do_register(reg);
+
 	AST_LIST_LOCK(&peers);
 	AST_LIST_TRAVERSE(&peers, peer, entry) {
 		if (peer->sockfd < 0)
@@ -9970,9 +9973,11 @@ static int load_module(void)
 		iax2_poke_peer(peer, 0);
 	}
 	AST_LIST_UNLOCK(&peers);
+
 	reload_firmware();
 	iax_provision_reload();
-	return res;
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Inter Asterisk eXchange (Ver 2)",
