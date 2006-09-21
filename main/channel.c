@@ -295,24 +295,14 @@ static char show_channeltype_usage[] =
 "Usage: channeltype show <name>\n"
 "	Show details about the specified channel type, <name>.\n";
 
-static struct ast_cli_entry cli_show_channeltypes_deprecated = {
-	{ "show", "channeltypes", NULL },
-	show_channeltypes, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_show_channeltype_deprecated = {
-	{ "show", "channeltype", NULL },
-	show_channeltype, NULL,
-	NULL, complete_channeltypes };
-
 static struct ast_cli_entry cli_channel[] = {
 	{ { "channeltype", "list", NULL },
 	show_channeltypes, "List available channel types",
-	show_channeltypes_usage, NULL, &cli_show_channeltypes_deprecated },
+	show_channeltypes_usage },
 
 	{ { "channeltype", "show", NULL },
 	show_channeltype, "Give more details on that channel type",
-	show_channeltype_usage, complete_channeltypes, &cli_show_channeltype_deprecated },
+	show_channeltype_usage, complete_channeltypes },
 };
 
 /*! \brief Checks to see if a channel is needing hang up */

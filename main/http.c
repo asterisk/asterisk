@@ -684,15 +684,10 @@ static char show_http_help[] =
 "Usage: http list status\n"
 "       Lists status of internal HTTP engine\n";
 
-static struct ast_cli_entry cli_http_show_status_deprecated = {
-	{ "http", "show", "status", NULL },
-	handle_show_http, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_http[] = {
 	{ { "http", "list", "status", NULL },
 	handle_show_http, "Display HTTP server status",
-	show_http_help, NULL, &cli_http_show_status_deprecated },
+	show_http_help },
 };
 
 int ast_http_init(void)

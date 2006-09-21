@@ -1201,36 +1201,6 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 	}
 }
 
-/*! \brief CLI function to show installed custom functions
-    \addtogroup CLI_functions
- */
-static int handle_show_functions_deprecated(int fd, int argc, char *argv[])
-{
-	struct ast_custom_function *acf;
-	int count_acf = 0;
-	int like = 0;
-
-	if (argc == 4 && (!strcmp(argv[2], "like")) ) {
-		like = 1;
-	} else if (argc != 2) {
-		return RESULT_SHOWUSAGE;
-	}
-
-	ast_cli(fd, "%s Custom Functions:\n--------------------------------------------------------------------------------\n", like ? "Matching" : "Installed");
-
-	AST_LIST_LOCK(&acf_root);
-	AST_LIST_TRAVERSE(&acf_root, acf, acflist) {
-		if (!like || strstr(acf->name, argv[3])) {
-			count_acf++;
-			ast_cli(fd, "%-20.20s  %-35.35s  %s\n", acf->name, acf->syntax, acf->synopsis);
-		}
-	}
-	AST_LIST_UNLOCK(&acf_root);
-
-	ast_cli(fd, "%d %scustom functions installed.\n", count_acf, like ? "matching " : "");
-
-	return RESULT_SUCCESS;
-}
 static int handle_show_functions(int fd, int argc, char *argv[])
 {
 	struct ast_custom_function *acf;
@@ -1255,62 +1225,6 @@ static int handle_show_functions(int fd, int argc, char *argv[])
 	AST_LIST_UNLOCK(&acf_root);
 
 	ast_cli(fd, "%d %scustom functions installed.\n", count_acf, like ? "matching " : "");
-
-	return RESULT_SUCCESS;
-}
-
-static int handle_show_function_deprecated(int fd, int argc, char *argv[])
-{
-	struct ast_custom_function *acf;
-	/* Maximum number of characters added by terminal coloring is 22 */
-	char infotitle[64 + AST_MAX_APP + 22], syntitle[40], destitle[40];
-	char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL;
-	char stxtitle[40], *syntax = NULL;
-	int synopsis_size, description_size, syntax_size;
-
-	if (argc < 3)
-		return RESULT_SHOWUSAGE;
-
-	if (!(acf = ast_custom_function_find(argv[2]))) {
-		ast_cli(fd, "No function by that name registered.\n");
-		return RESULT_FAILURE;
-
-	}
-
-	if (acf->synopsis)
-		synopsis_size = strlen(acf->synopsis) + 23;
-	else
-		synopsis_size = strlen("Not available") + 23;
-	synopsis = alloca(synopsis_size);
-
-	if (acf->desc)
-		description_size = strlen(acf->desc) + 23;
-	else
-		description_size = strlen("Not available") + 23;
-	description = alloca(description_size);
-
-	if (acf->syntax)
-		syntax_size = strlen(acf->syntax) + 23;
-	else
-		syntax_size = strlen("Not available") + 23;
-	syntax = alloca(syntax_size);
-
-	snprintf(info, 64 + AST_MAX_APP, "\n  -= Info about function '%s' =- \n\n", acf->name);
-	term_color(infotitle, info, COLOR_MAGENTA, 0, 64 + AST_MAX_APP + 22);
-	term_color(stxtitle, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
-	term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
-	term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
-	term_color(syntax,
-		   acf->syntax ? acf->syntax : "Not available",
-		   COLOR_CYAN, 0, syntax_size);
-	term_color(synopsis,
-		   acf->synopsis ? acf->synopsis : "Not available",
-		   COLOR_CYAN, 0, synopsis_size);
-	term_color(description,
-		   acf->desc ? acf->desc : "Not available",
-		   COLOR_CYAN, 0, description_size);
-
-	ast_cli(fd,"%s%s%s\n\n%s%s\n\n%s%s\n", infotitle, stxtitle, syntax, syntitle, synopsis, destitle, description);
 
 	return RESULT_SUCCESS;
 }
@@ -3026,76 +2940,6 @@ static char *complete_show_application(const char *line, const char *word, int p
 	return ret;
 }
 
-static int handle_show_application_deprecated(int fd, int argc, char *argv[])
-{
-	struct ast_app *a;
-	int app, no_registered_app = 1;
-
-	if (argc < 3)
-		return RESULT_SHOWUSAGE;
-
-	/* ... go through all applications ... */
-	AST_LIST_LOCK(&apps);
-	AST_LIST_TRAVERSE(&apps, a, list) {
-		/* ... compare this application name with all arguments given
-		 * to 'show application' command ... */
-		for (app = 2; app < argc; app++) {
-			if (!strcasecmp(a->name, argv[app])) {
-				/* Maximum number of characters added by terminal coloring is 22 */
-				char infotitle[64 + AST_MAX_APP + 22], syntitle[40], destitle[40];
-				char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL;
-				int synopsis_size, description_size;
-
-				no_registered_app = 0;
-
-				if (a->synopsis)
-					synopsis_size = strlen(a->synopsis) + 23;
-				else
-					synopsis_size = strlen("Not available") + 23;
-				synopsis = alloca(synopsis_size);
-
-				if (a->description)
-					description_size = strlen(a->description) + 23;
-				else
-					description_size = strlen("Not available") + 23;
-				description = alloca(description_size);
-
-				if (synopsis && description) {
-					snprintf(info, 64 + AST_MAX_APP, "\n  -= Info about application '%s' =- \n\n", a->name);
-					term_color(infotitle, info, COLOR_MAGENTA, 0, 64 + AST_MAX_APP + 22);
-					term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
-					term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
-					term_color(synopsis,
-									a->synopsis ? a->synopsis : "Not available",
-									COLOR_CYAN, 0, synopsis_size);
-					term_color(description,
-									a->description ? a->description : "Not available",
-									COLOR_CYAN, 0, description_size);
-
-					ast_cli(fd,"%s%s%s\n\n%s%s\n", infotitle, syntitle, synopsis, destitle, description);
-				} else {
-					/* ... one of our applications, show info ...*/
-					ast_cli(fd,"\n  -= Info about application '%s' =- \n\n"
-						"[Synopsis]\n  %s\n\n"
-						"[Description]\n%s\n",
-						a->name,
-						a->synopsis ? a->synopsis : "Not available",
-						a->description ? a->description : "Not available");
-				}
-			}
-		}
-	}
-	AST_LIST_UNLOCK(&apps);
-
-	/* we found at least one app? no? */
-	if (no_registered_app) {
-		ast_cli(fd, "Your application(s) is (are) not registered\n");
-		return RESULT_FAILURE;
-	}
-
-	return RESULT_SUCCESS;
-}
-
 static int handle_show_application(int fd, int argc, char *argv[])
 {
 	struct ast_app *a;
@@ -3220,77 +3064,6 @@ static int handle_show_switches(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*
- * 'show applications' CLI command implementation functions ...
- */
-static int handle_show_applications_deprecated(int fd, int argc, char *argv[])
-{
-	struct ast_app *a;
-	int like = 0, describing = 0;
-	int total_match = 0; 	/* Number of matches in like clause */
-	int total_apps = 0; 	/* Number of apps registered */
-
-	AST_LIST_LOCK(&apps);
-
-	if (AST_LIST_EMPTY(&apps)) {
-		ast_cli(fd, "There are no registered applications\n");
-		AST_LIST_UNLOCK(&apps);
-		return -1;
-	}
-
-	/* show applications like <keyword> */
-	if ((argc == 4) && (!strcmp(argv[2], "like"))) {
-		like = 1;
-	} else if ((argc > 3) && (!strcmp(argv[2], "describing"))) {
-		describing = 1;
-	}
-
-	/* show applications describing <keyword1> [<keyword2>] [...] */
-	if ((!like) && (!describing)) {
-		ast_cli(fd, "    -= Registered Asterisk Applications =-\n");
-	} else {
-		ast_cli(fd, "    -= Matching Asterisk Applications =-\n");
-	}
-
-	AST_LIST_TRAVERSE(&apps, a, list) {
-		int printapp = 0;
-		total_apps++;
-		if (like) {
-			if (strcasestr(a->name, argv[3])) {
-				printapp = 1;
-				total_match++;
-			}
-		} else if (describing) {
-			if (a->description) {
-				/* Match all words on command line */
-				int i;
-				printapp = 1;
-				for (i = 3; i < argc; i++) {
-					if (!strcasestr(a->description, argv[i])) {
-						printapp = 0;
-					} else {
-						total_match++;
-					}
-				}
-			}
-		} else {
-			printapp = 1;
-		}
-
-		if (printapp) {
-			ast_cli(fd,"  %20s: %s\n", a->name, a->synopsis ? a->synopsis : "<Synopsis not available>");
-		}
-	}
-	if ((!like) && (!describing)) {
-		ast_cli(fd, "    -= %d Applications Registered =-\n",total_apps);
-	} else {
-		ast_cli(fd, "    -= %d Applications Matching =-\n",total_match);
-	}
-
-	AST_LIST_UNLOCK(&apps);
-
-	return RESULT_SUCCESS;
-}
 static int handle_show_applications(int fd, int argc, char *argv[])
 {
 	struct ast_app *a;
@@ -3358,13 +3131,6 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 	AST_LIST_UNLOCK(&apps);
 
 	return RESULT_SUCCESS;
-}
-
-static char *complete_show_applications_deprecated(const char *line, const char *word, int pos, int state)
-{
-	static char* choices[] = { "like", "describing", NULL };
-
-	return (pos != 2) ? NULL : ast_cli_complete(word, choices, state);
 }
 
 static char *complete_show_applications(const char *line, const char *word, int pos, int state)
@@ -3649,19 +3415,6 @@ static int handle_show_globals(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  CLI support for setting global variables */
-static int handle_set_global_deprecated(int fd, int argc, char *argv[])
-{
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-
-	pbx_builtin_setvar_helper(NULL, argv[2], argv[3]);
-	ast_cli(fd, "\n    -- Global variable %s set to %s\n", argv[2], argv[3]);
-
-	return RESULT_SUCCESS;
-}
-
-
 static int handle_set_global(int fd, int argc, char *argv[])
 {
 	if (argc != 5)
@@ -3678,87 +3431,42 @@ static int handle_set_global(int fd, int argc, char *argv[])
 /*
  * CLI entries for upper commands ...
  */
-static struct ast_cli_entry cli_show_applications_deprecated = {
-	{ "show", "applications", NULL },
-	handle_show_applications_deprecated, NULL,
-	NULL, complete_show_applications_deprecated };
-
-static struct ast_cli_entry cli_show_functions_deprecated = {
-	{ "show", "functions", NULL },
-	handle_show_functions_deprecated, NULL,
-        NULL };
-
-static struct ast_cli_entry cli_show_switches_deprecated = {
-	{ "show", "switches", NULL },
-	handle_show_switches, NULL,
-        NULL };
-
-static struct ast_cli_entry cli_show_hints_deprecated = {
-	{ "show", "hints", NULL },
-	handle_show_hints, NULL,
-        NULL };
-
-static struct ast_cli_entry cli_show_globals_deprecated = {
-	{ "show", "globals", NULL },
-	handle_show_globals, NULL,
-        NULL };
-
-static struct ast_cli_entry cli_show_function_deprecated = {
-	{ "show" , "function", NULL },
-	handle_show_function_deprecated, NULL,
-        NULL, complete_show_function };
-
-static struct ast_cli_entry cli_show_application_deprecated = {
-	{ "show", "application", NULL },
-	handle_show_application_deprecated, NULL,
-        NULL, complete_show_application };
-
-static struct ast_cli_entry cli_show_dialplan_deprecated = {
-	{ "show", "dialplan", NULL },
-	handle_show_dialplan, NULL,
-        NULL, complete_show_dialplan_context };
-
-static struct ast_cli_entry cli_set_global_deprecated = {
-	{ "set", "global", NULL },
-	handle_set_global_deprecated, NULL,
-        NULL };
-
 static struct ast_cli_entry pbx_cli[] = {
 	{ { "core", "list", "applications", NULL },
 	handle_show_applications, "Shows registered dialplan applications",
-	show_applications_help, complete_show_applications, &cli_show_applications_deprecated },
+	show_applications_help, complete_show_applications },
 
 	{ { "core", "list", "functions", NULL },
 	handle_show_functions, "Shows registered dialplan functions",
-	show_functions_help, NULL, &cli_show_functions_deprecated },
+	show_functions_help },
 
 	{ { "core", "list", "switches", NULL },
 	handle_show_switches, "Show alternative switches",
-	show_switches_help, NULL, &cli_show_switches_deprecated },
+	show_switches_help },
 
 	{ { "core", "list", "hints", NULL },
 	handle_show_hints, "Show dialplan hints",
-	show_hints_help, NULL, &cli_show_hints_deprecated },
+	show_hints_help },
 
 	{ { "core", "list", "globals", NULL },
 	handle_show_globals, "Show global dialplan variables",
-	show_globals_help, NULL, &cli_show_globals_deprecated },
+	show_globals_help },
 
 	{ { "core", "show" , "function", NULL },
 	handle_show_function, "Describe a specific dialplan function",
-	show_function_help, complete_show_function, &cli_show_function_deprecated },
+	show_function_help, complete_show_function },
 
 	{ { "core", "show", "application", NULL },
 	handle_show_application, "Describe a specific dialplan application",
-	show_application_help, complete_show_application, &cli_show_application_deprecated },
+	show_application_help, complete_show_application },
 
 	{ { "core", "set", "global", NULL },
 	handle_set_global, "Set global dialplan variable",
-	set_global_help, NULL, &cli_set_global_deprecated },
+	set_global_help },
 
 	{ { "dialplan", "show", NULL },
 	handle_show_dialplan, "Show dialplan",
-	show_dialplan_help, complete_show_dialplan_context, &cli_show_dialplan_deprecated },
+	show_dialplan_help, complete_show_dialplan_context },
 };
 
 int ast_unregister_application(const char *app)

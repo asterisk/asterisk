@@ -601,42 +601,22 @@ static char showmanager_help[] =
 " Usage: manager show user <user>\n"
 "        Display all information related to the manager user specified.\n";
 
-static struct ast_cli_entry cli_show_manager_command_deprecated = {
-	{ "show", "manager", "command", NULL },
-	handle_showmancmd, NULL,
-	NULL, complete_show_mancmd };
-
-static struct ast_cli_entry cli_show_manager_commands_deprecated = {
-	{ "show", "manager", "commands", NULL },
-	handle_showmancmds, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_show_manager_connected_deprecated = {
-	{ "show", "manager", "connected", NULL },
-	handle_showmanconn, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_show_manager_eventq_deprecated = {
-	{ "show", "manager", "eventq", NULL },
-	handle_showmaneventq, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_manager[] = {
 	{ { "manager", "show", "command", NULL },
 	handle_showmancmd, "Show a manager interface command",
-	showmancmd_help, complete_show_mancmd, &cli_show_manager_command_deprecated },
+	showmancmd_help, complete_show_mancmd },
 
 	{ { "manager", "list", "commands", NULL },
 	handle_showmancmds, "List manager interface commands",
-	showmancmds_help, NULL, &cli_show_manager_commands_deprecated },
+	showmancmds_help },
 
 	{ { "manager", "list", "connected", NULL },
 	handle_showmanconn, "List connected manager interface users",
-	showmanconn_help, NULL, &cli_show_manager_connected_deprecated },
+	showmanconn_help },
 
 	{ { "manager", "list", "eventq", NULL },
 	handle_showmaneventq, "List manager interface queued events",
-	showmaneventq_help, NULL, &cli_show_manager_eventq_deprecated },
+	showmaneventq_help },
 
 	{ { "manager", "list", "users", NULL },
 	handle_showmanagers, "List configured manager users",

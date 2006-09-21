@@ -1135,15 +1135,6 @@ static int udptl_do_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int udptl_nodebug_deprecated(int fd, int argc, char *argv[])
-{
-	if (argc !=3)
-		return RESULT_SHOWUSAGE;
-	udptldebug = 0;
-	ast_cli(fd,"UDPTL Debugging Disabled\n");
-	return RESULT_SUCCESS;
-}
-
 static int udptl_nodebug(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
@@ -1161,11 +1152,6 @@ static char nodebug_usage[] =
   "Usage: udptl nodebug\n"
   "       Disable all UDPTL debugging\n";
 
-static struct ast_cli_entry cli_udptl_no_debug = {
-	{ "udptl", "no", "debug", NULL },
-	udptl_nodebug_deprecated, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_udptl[] = {
 	{ { "udptl", "debug", NULL },
 	udptl_do_debug, "Enable UDPTL debugging",
@@ -1177,7 +1163,7 @@ static struct ast_cli_entry cli_udptl[] = {
 
 	{ { "udptl", "nodebug", NULL },
 	udptl_nodebug, "Disable UDPTL debugging",
-	nodebug_usage, NULL, &cli_udptl_no_debug },
+	nodebug_usage, NULL, NULL },
 };
 
 void ast_udptl_reload(void)

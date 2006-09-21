@@ -138,17 +138,6 @@ static char group_show_channels_help[] =
 "       Optional regular expression pattern is matched to group names for each\n"
 "       channel.\n";
 
-static int handle_load_deprecated(int fd, int argc, char *argv[])
-{
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
-	if (ast_load_resource(argv[1])) {
-		ast_cli(fd, "Unable to load module %s\n", argv[1]);
-		return RESULT_FAILURE;
-	}
-	return RESULT_SUCCESS;
-}
-
 static int handle_load(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
@@ -157,29 +146,6 @@ static int handle_load(int fd, int argc, char *argv[])
 		ast_cli(fd, "Unable to load module %s\n", argv[2]);
 		return RESULT_FAILURE;
 	}
-	return RESULT_SUCCESS;
-}
-
-static int handle_reload_deprecated(int fd, int argc, char *argv[])
-{
-	int x;
-	int res;
-	if (argc < 1)
-		return RESULT_SHOWUSAGE;
-	if (argc > 1) { 
-		for (x=1;x<argc;x++) {
-			res = ast_module_reload(argv[x]);
-			switch(res) {
-			case 0:
-				ast_cli(fd, "No such module '%s'\n", argv[x]);
-				break;
-			case 1:
-				ast_cli(fd, "Module '%s' does not support reload\n", argv[x]);
-				break;
-			}
-		}
-	} else
-		ast_module_reload(NULL);
 	return RESULT_SUCCESS;
 }
 
@@ -206,33 +172,6 @@ static int handle_reload(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_set_verbose_deprecated(int fd, int argc, char *argv[])
-{
-	int val = 0;
-	int oldval = option_verbose;
-
-	/* "set verbose [atleast] N" */
-	if (argc == 3)
-		option_verbose = atoi(argv[2]);
-	else if (argc == 4) {
-		if (strcasecmp(argv[2], "atleast"))
-			return RESULT_SHOWUSAGE;
-		val = atoi(argv[3]);
-		if (val > option_verbose)
-			option_verbose = val;
-	} else
-		return RESULT_SHOWUSAGE;
-
-	if (oldval != option_verbose && option_verbose > 0)
-		ast_cli(fd, "Verbosity was %d and is now %d\n", oldval, option_verbose);
-	else if (oldval > 0 && option_verbose > 0)
-		ast_cli(fd, "Verbosity is at least %d\n", option_verbose);
-	else if (oldval > 0 && option_verbose == 0)
-		ast_cli(fd, "Verbosity is now OFF\n");
-
-	return RESULT_SUCCESS;
-}
-
 static int handle_verbose(int fd, int argc, char *argv[])
 {
 	int oldval = option_verbose;
@@ -250,33 +189,6 @@ static int handle_verbose(int fd, int argc, char *argv[])
 		else
 			ast_cli(fd, "Verbosity was %d and is now %d\n", oldval, option_verbose);
 	}
-
-	return RESULT_SUCCESS;
-}
-
-static int handle_set_debug_deprecated(int fd, int argc, char *argv[])
-{
-	int val = 0;
-	int oldval = option_debug;
-
-	/* "set debug [atleast] N" */
-	if (argc == 3)
-		option_debug = atoi(argv[2]);
-	else if (argc == 4) {
-		if (strcasecmp(argv[2], "atleast"))
-			return RESULT_SHOWUSAGE;
-		val = atoi(argv[3]);
-		if (val > option_debug)
-			option_debug = val;
-	} else
-		return RESULT_SHOWUSAGE;
-
-	if (oldval != option_debug && option_debug > 0)
-		ast_cli(fd, "Core debug was %d and is now %d\n", oldval, option_debug);
-	else if (oldval > 0 && option_debug > 0)
-		ast_cli(fd, "Core debug is at least %d\n", option_debug);
-	else if (oldval > 0 && option_debug == 0)
-		ast_cli(fd, "Core debug is now OFF\n");
 
 	return RESULT_SUCCESS;
 }
@@ -335,58 +247,11 @@ static int handle_nodebug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_debuglevel_deprecated(int fd, int argc, char *argv[])
-{
-	int newlevel;
-	char *filename = "<any>";
-	if ((argc < 3) || (argc > 4))
-		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[2], "%d", &newlevel) != 1)
-		return RESULT_SHOWUSAGE;
-	option_debug = newlevel;
-	if (argc == 4) {
-		filename = argv[3];
-		ast_copy_string(debug_filename, filename, sizeof(debug_filename));
-	} else {
-		debug_filename[0] = '\0';
-	}
-	ast_cli(fd, "Debugging level set to %d, file '%s'\n", newlevel, filename);
-	return RESULT_SUCCESS;
-}
-
 static int handle_logger_mute(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	ast_console_toggle_mute(fd);
-	return RESULT_SUCCESS;
-}
-
-static int handle_unload_deprecated(int fd, int argc, char *argv[])
-{
-	int x;
-	int force=AST_FORCE_SOFT;
-	if (argc < 2)
-		return RESULT_SHOWUSAGE;
-	for (x=1;x<argc;x++) {
-		if (argv[x][0] == '-') {
-			switch(argv[x][1]) {
-			case 'f':
-				force = AST_FORCE_FIRM;
-				break;
-			case 'h':
-				force = AST_FORCE_HARD;
-				break;
-			default:
-				return RESULT_SHOWUSAGE;
-			}
-		} else if (x !=  argc - 1) 
-			return RESULT_SHOWUSAGE;
-		else if (ast_unload_resource(argv[x], force)) {
-			ast_cli(fd, "Unable to unload resource %s\n", argv[x]);
-			return RESULT_FAILURE;
-		}
-	}
 	return RESULT_SUCCESS;
 }
 
@@ -775,38 +640,6 @@ static int handle_debugchan(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_nodebugchan_deprecated(int fd, int argc, char *argv[])
-{
-	struct ast_channel *c=NULL;
-	int is_all;
-	/* 'no debug channel {all|chan_id}' */
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	is_all = !strcasecmp("all", argv[3]);
-	if (is_all) {
-		global_fin &= ~DEBUGCHAN_FLAG;
-		global_fout &= ~DEBUGCHAN_FLAG;
-		c = ast_channel_walk_locked(NULL);
-	} else {
-		c = ast_get_channel_by_name_locked(argv[3]);
-		if (c == NULL)
-			ast_cli(fd, "No such channel %s\n", argv[3]);
-	}
-	while(c) {
-		if ((c->fin & DEBUGCHAN_FLAG) || (c->fout & DEBUGCHAN_FLAG)) {
-			c->fin &= ~DEBUGCHAN_FLAG;
-			c->fout &= ~DEBUGCHAN_FLAG;
-			ast_cli(fd, "Debugging disabled on channel %s\n", c->name);
-		}
-		ast_channel_unlock(c);
-		if (!is_all)
-			break;
-		c = ast_channel_walk_locked(c);
-	}
-	ast_cli(fd, "Debugging on new channels is disabled\n");
-	return RESULT_SUCCESS;
-}
-		
 static int handle_nodebugchan(int fd, int argc, char *argv[])
 {
 	struct ast_channel *c=NULL;
@@ -972,21 +805,6 @@ static char *complete_ch_3(const char *line, const char *word, int pos, int stat
 	return ast_complete_channels(line, word, pos, state, 2);
 }
 
-static char *complete_ch_4(const char *line, const char *word, int pos, int state)
-{
-	return ast_complete_channels(line, word, pos, state, 3);
-}
-
-static char *complete_mod_2_nr(const char *line, const char *word, int pos, int state)
-{
-	return ast_module_helper(line, word, pos, state, 1, 0);
-}
-
-static char *complete_mod_2(const char *line, const char *word, int pos, int state)
-{
-	return ast_module_helper(line, word, pos, state, 1, 1);
-}
-
 static char *complete_mod_3_nr(const char *line, const char *word, int pos, int state)
 {
 	return ast_module_helper(line, word, pos, state, 2, 0);
@@ -1000,27 +818,6 @@ static char *complete_mod_3(const char *line, const char *word, int pos, int sta
 static char *complete_mod_4(const char *line, const char *word, int pos, int state)
 {
 	return ast_module_helper(line, word, pos, state, 3, 0);
-}
-
-static char *complete_fn_deprecated(const char *line, const char *word, int pos, int state)
-{
-	char *c;
-	char filename[256];
-
-	if (pos != 1)
-		return NULL;
-	
-	if (word[0] == '/')
-		ast_copy_string(filename, word, sizeof(filename));
-	else
-		snprintf(filename, sizeof(filename), "%s/%s", ast_config_AST_MODULE_DIR, word);
-	
-	c = filename_completion_function(filename, state);
-	
-	if (c && word[0] != '/')
-		c += (strlen(ast_config_AST_MODULE_DIR) + 1);
-	
-	return c ? strdup(c) : c;
 }
 
 static char *complete_fn(const char *line, const char *word, int pos, int state)
@@ -1128,91 +925,26 @@ static struct ast_cli_entry builtins[] = {
 	{ { NULL }, NULL, NULL, NULL }
 };
 
-static struct ast_cli_entry cli_debug_channel_deprecated = {
-	{ "debug", "channel", NULL },
-	handle_debugchan, NULL,
-	NULL, complete_ch_3 };
-
-static struct ast_cli_entry cli_debug_level_deprecated = {
-	{ "debug", "level", NULL },
-	handle_debuglevel_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_group_show_channels_deprecated = {
-	{ "group", "show", "channels", NULL },
-	group_show_channels, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_load_deprecated = {
-	{ "load", NULL },
-	handle_load_deprecated, NULL,
-	NULL, complete_fn_deprecated };
-
-static struct ast_cli_entry cli_no_debug_channel_deprecated = {
-	{ "no", "debug", "channel", NULL },
-	handle_nodebugchan_deprecated, NULL,
-	NULL, complete_ch_4 };
-
-static struct ast_cli_entry cli_reload_deprecated = {
-	{ "reload", NULL },
-	handle_reload_deprecated, NULL,
-	NULL, complete_mod_2 };
-
-static struct ast_cli_entry cli_set_debug_deprecated = {
-	{ "set", "debug", NULL },
-	handle_set_debug_deprecated, NULL,
-	NULL, NULL, &cli_debug_level_deprecated };
-
-static struct ast_cli_entry cli_set_verbose_deprecated = {
-	{ "set", "verbose", NULL },
-	handle_set_verbose_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_show_channel_deprecated = {
-	{ "show", "channel", NULL },
-	handle_showchan, NULL,
-	NULL, complete_ch_3 };
-
-static struct ast_cli_entry cli_show_channels_deprecated = {
-	{ "show", "channels", NULL },
-	handle_chanlist, NULL,
-	NULL, complete_show_channels };
-
-static struct ast_cli_entry cli_show_modules_deprecated = {
-	{ "show", "modules", NULL },
-	handle_modlist, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_show_modules_like_deprecated = {
-	{ "show", "modules", "like", NULL },
-	handle_modlist, NULL,
-	NULL, complete_mod_4 };
-
-static struct ast_cli_entry cli_unload_deprecated = {
-	{ "unload", NULL },
-	handle_unload_deprecated, NULL,
-	NULL, complete_mod_2_nr };
-
 static struct ast_cli_entry cli_cli[] = {
 	{ { "channel", "list", NULL },
 	handle_chanlist, "Display information on channels",
-	chanlist_help, complete_show_channels, &cli_show_channels_deprecated },
+	chanlist_help, complete_show_channels },
 
 	{ { "channel", "show", NULL },
 	handle_showchan, "Display information on a specific channel",
-	showchan_help, complete_ch_3, &cli_show_channel_deprecated },
+	showchan_help, complete_ch_3 },
 
 	{ { "channel", "debug", NULL },
 	handle_debugchan, "Enable debugging on a channel",
-	debugchan_help, complete_ch_3, &cli_debug_channel_deprecated },
+	debugchan_help, complete_ch_3 },
 
 	{ { "channel", "nodebug", NULL },
 	handle_nodebugchan, "Disable debugging on a channel",
-	nodebugchan_help, complete_ch_3, &cli_no_debug_channel_deprecated },
+	nodebugchan_help, complete_ch_3 },
 
 	{ { "core", "debug", NULL },
 	handle_debug, "Set level of debug chattiness",
-	debug_help, NULL, &cli_set_debug_deprecated },
+	debug_help },
 
 	{ { "core", "nodebug", NULL },
 	handle_nodebug, "Turns off debug chattiness",
@@ -1220,11 +952,11 @@ static struct ast_cli_entry cli_cli[] = {
 
 	{ { "core", "verbose", NULL },
 	handle_verbose, "Set level of verboseness",
-	verbose_help, NULL, &cli_set_verbose_deprecated },
+	verbose_help },
 
 	{ { "group", "list", "channels", NULL },
 	group_show_channels, "Display active channels with group(s)",
-	group_show_channels_help, NULL, &cli_group_show_channels_deprecated },
+	group_show_channels_help },
 
 	{ { "help", NULL },
 	handle_help, "Display help list, or specific help on a command",
@@ -1236,23 +968,23 @@ static struct ast_cli_entry cli_cli[] = {
 
 	{ { "module", "list", NULL },
 	handle_modlist, "List modules and info",
-	modlist_help, NULL, &cli_show_modules_deprecated },
+	modlist_help },
 
 	{ { "module", "list", "like", NULL },
 	handle_modlist, "List modules and info",
-	modlist_help, complete_mod_4, &cli_show_modules_like_deprecated },
+	modlist_help, complete_mod_4 },
 
 	{ { "module", "load", NULL },
 	handle_load, "Load a module by name",
-	load_help, complete_fn, &cli_load_deprecated },
+	load_help, complete_fn },
 
 	{ { "module", "reload", NULL },
 	handle_reload, "Reload configuration",
-	reload_help, complete_mod_3, &cli_reload_deprecated },
+	reload_help, complete_mod_3 },
 
 	{ { "module", "unload", NULL },
 	handle_unload, "Unload a module by name",
-	unload_help, complete_mod_3_nr, &cli_unload_deprecated },
+	unload_help, complete_mod_3_nr },
 
  	{ { "show", "uptime", NULL },
 	handle_showuptime, "Show uptime information",

@@ -180,19 +180,6 @@ int ast_send_image(struct ast_channel *chan, char *filename)
 	return res;
 }
 
-static int show_image_formats_deprecated(int fd, int argc, char *argv[])
-{
-#define FORMAT "%10s %10s %50s %10s\n"
-#define FORMAT2 "%10s %10s %50s %10s\n"
-	struct ast_imager *i;
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	ast_cli(fd, FORMAT, "Name", "Extensions", "Description", "Format");
-	AST_LIST_TRAVERSE(&imagers, i, list)
-		ast_cli(fd, FORMAT2, i->name, i->exts, i->desc, ast_getformatname(i->format));
-	return RESULT_SUCCESS;
-}
-
 static int show_image_formats(int fd, int argc, char *argv[])
 {
 #define FORMAT "%10s %10s %50s %10s\n"
@@ -206,16 +193,11 @@ static int show_image_formats(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-struct ast_cli_entry cli_show_image_formats_deprecated = {
-	{ "show", "image", "formats" },
-	show_image_formats_deprecated, NULL,
-	NULL };
-
 struct ast_cli_entry cli_image[] = {
 	{ { "file", "list", "formats", "image" },
 	show_image_formats, "Displays image formats",
 	"Usage: file list formats image\n"
-	"       displays currently registered image formats (if any)\n", NULL, &cli_show_image_formats_deprecated },
+	"       displays currently registered image formats (if any)\n" },
 };
 
 int ast_image_init(void)

@@ -557,15 +557,10 @@ static char logger_show_channels_help[] =
 "Usage: logger list channels\n"
 "       List configured logger channels.\n";
 
-static struct ast_cli_entry cli_logger_show_channels_deprecated = {
-	{ "logger", "show", "channels", NULL }, 
-	handle_logger_show_channels, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_logger[] = {
 	{ { "logger", "list", "channels", NULL }, 
 	handle_logger_show_channels, "List configured log channels",
-	logger_show_channels_help, NULL, &cli_logger_show_channels_deprecated },
+	logger_show_channels_help },
 
 	{ { "logger", "reload", NULL }, 
 	handle_logger_reload, "Reopens the log files",

@@ -438,52 +438,6 @@ int64_t ast_mark(int i, int startstop)
 	return prof_data->e[i].mark;
 }
 
-static int handle_show_profile_deprecated(int fd, int argc, char *argv[])
-{
-	int i, min, max;
-	char *search = NULL;
-
-	if (prof_data == NULL)
-		return 0;
-
-	min = 0;
-	max = prof_data->entries;
-	if  (argc >= 3) { /* specific entries */
-		if (isdigit(argv[2][0])) {
-			min = atoi(argv[2]);
-			if (argc == 4 && strcmp(argv[3], "-"))
-				max = atoi(argv[3]);
-		} else
-			search = argv[2];
-	}
-	if (max > prof_data->entries)
-		max = prof_data->entries;
-	if (!strcmp(argv[0], "clear")) {
-		for (i= min; i < max; i++) {
-			if (!search || strstr(prof_data->e[i].name, search)) {
-				prof_data->e[i].value = 0;
-				prof_data->e[i].events = 0;
-			}
-		}
-		return 0;
-	}
-	ast_cli(fd, "profile values (%d, allocated %d)\n-------------------\n",
-		prof_data->entries, prof_data->max_size);
-	ast_cli(fd, "%6s   %8s  %10s %12s %12s  %s\n", "ID", "Scale", "Events",
-			"Value", "Average", "Name");
-	for (i = min; i < max; i++) {
-		struct profile_entry *e = &prof_data->e[i];
-		if (!search || strstr(prof_data->e[i].name, search))
-		    ast_cli(fd, "%6d: [%8ld] %10ld %12lld %12lld  %s\n",
-			i,
-			(long)e->scale,
-			(long)e->events, (long long)e->value,
-			(long long)(e->events ? e->value / e->events : e->value),
-			e->name);
-	}
-	return 0;
-}
-
 static int handle_show_profile(int fd, int argc, char *argv[])
 {
 	int i, min, max;
@@ -1517,23 +1471,6 @@ static int show_license(int fd, int argc, char *argv[])
 
 #define ASTERISK_PROMPT2 "%s*CLI> "
 
-#if !defined(LOW_MEMORY)
-static struct ast_cli_entry cli_show_version_files_deprecated = {
-	{ "show", "version", "files", NULL },
-	handle_show_version_files, NULL,
-	NULL, complete_show_version_files };
-
-static struct ast_cli_entry cli_show_profile_deprecated = {
-	{ "show", "profile", NULL },
-	handle_show_profile_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_clear_profile_deprecated = {
-	{ "clear", "profile", NULL },
-	handle_show_profile_deprecated, NULL,
-	NULL };
-#endif /* ! LOW_MEMORY */
-
 static struct ast_cli_entry cli_asterisk[] = {
 	{ { "abort", "halt", NULL },
 	handle_abort_halt, "Cancel a running halt",
@@ -1581,7 +1518,7 @@ static struct ast_cli_entry cli_asterisk[] = {
 #if !defined(LOW_MEMORY)
 	{ { "file", "list", "version", NULL },
 	handle_show_version_files, "List versions of files used to build Asterisk",
-	show_version_files_help, complete_show_version_files, &cli_show_version_files_deprecated },
+	show_version_files_help, complete_show_version_files },
 
 	{ { "show", "threads", NULL },
 	handle_show_threads, "Show running threads",
@@ -1589,11 +1526,11 @@ static struct ast_cli_entry cli_asterisk[] = {
 
 	{ { "profile", "list", NULL },
 	handle_show_profile, "Display profiling info",
-	NULL, NULL, &cli_show_profile_deprecated },
+	NULL },
 
 	{ { "profile", "clear", NULL },
 	handle_show_profile, "Clear profiling info",
-	NULL, NULL, &cli_clear_profile_deprecated },
+	NULL },
 #endif /* ! LOW_MEMORY */
 };
 

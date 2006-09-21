@@ -95,7 +95,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 enum {
 	QUEUE_STRATEGY_RINGALL = 0,
-	QUEUE_STRATEGY_ROUNDROBIN,
 	QUEUE_STRATEGY_LEASTRECENT,
 	QUEUE_STRATEGY_FEWESTCALLS,
 	QUEUE_STRATEGY_RANDOM,
@@ -107,7 +106,6 @@ static struct strategy {
 	char *name;
 } strategies[] = {
 	{ QUEUE_STRATEGY_RINGALL, "ringall" },
-	{ QUEUE_STRATEGY_ROUNDROBIN, "roundrobin" },
 	{ QUEUE_STRATEGY_LEASTRECENT, "leastrecent" },
 	{ QUEUE_STRATEGY_FEWESTCALLS, "fewestcalls" },
 	{ QUEUE_STRATEGY_RANDOM, "random" },
@@ -402,16 +400,6 @@ struct call_queue {
 static AST_LIST_HEAD_STATIC(queues, call_queue);
 
 static int set_member_paused(char *queuename, char *interface, int paused);
-
-static void rr_dep_warning(void)
-{
-	static unsigned int warned = 0;
-
-	if (!warned) {
-		ast_log(LOG_NOTICE, "The 'roundrobin' queue strategy is deprecated. Please use the 'rrmemory' strategy instead.\n");
-		warned = 1;
-	}
-}
 
 static void set_queue_result(struct ast_channel *chan, enum queue_result res)
 {
@@ -1051,9 +1039,6 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 			tmp_name = v->name;
 		queue_set_param(q, tmp_name, v->value, -1, 0);
 	}
-
-	if (q->strategy == QUEUE_STRATEGY_ROUNDROBIN)
-		rr_dep_warning();
 
 	/* Temporarily set non-dynamic members dead so we can detect deleted ones. */
 	for (m = q->members; m; m = m->next) {
@@ -2223,18 +2208,6 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 		/* Everyone equal, except for penalty */
 		tmp->metric = mem->penalty * 1000000;
 		break;
-	case QUEUE_STRATEGY_ROUNDROBIN:
-		if (!pos) {
-			if (!q->wrapped) {
-				/* No more channels, start over */
-				q->rrpos = 0;
-			} else {
-				/* Prioritize next entry */
-				q->rrpos++;
-			}
-			q->wrapped = 0;
-		}
-		/* Fall through */
 	case QUEUE_STRATEGY_RRMEMORY:
 		if (pos < q->rrpos) {
 			tmp->metric = 1000 + pos;
@@ -3814,9 +3787,6 @@ static int reload_queues(void)
 					}
 				}
 
-				if (q->strategy == QUEUE_STRATEGY_ROUNDROBIN)
-					rr_dep_warning();
-
 				if (new) {
 					AST_LIST_INSERT_HEAD(&queues, q, list);
 				} else
@@ -4373,42 +4343,22 @@ static char qam_cmd_usage[] =
 static char qrm_cmd_usage[] =
 "Usage: queue remove member <channel> from <queue>\n";
 
-static struct ast_cli_entry cli_show_queues_deprecated = {
-	{ "show", "queues", NULL },
-	queue_list, NULL,
-	NULL, NULL };
-
-static struct ast_cli_entry cli_show_queue_deprecated = {
-	{ "show", "queue", NULL },
-	queue_show, NULL,
-	NULL, complete_queue };
-
-static struct ast_cli_entry cli_add_queue_member_deprecated = {
-	{ "add", "queue", "member", NULL },
-	handle_queue_add_member, NULL,
-	NULL, complete_queue_add_member };
-
-static struct ast_cli_entry cli_remove_queue_member_deprecated = {
-	{ "remove", "queue", "member", NULL },
-	handle_queue_remove_member, NULL,
-	NULL, complete_queue_remove_member };
-
 static struct ast_cli_entry cli_queue[] = {
 	{ { "queue", "list", NULL },
 	queue_list, "Show status of queues",
-	queue_list_usage, NULL, &cli_show_queues_deprecated },
+	queue_list_usage, NULL, NULL },
 
 	{ { "queue", "show", NULL },
 	queue_show, "Show status of a specified queue",
-	queue_show_usage, complete_queue, &cli_show_queue_deprecated },
+	queue_show_usage, complete_queue, NULL },
 
 	{ { "queue", "add", "member", NULL },
 	handle_queue_add_member, "Add a channel to a specified queue",
-	qam_cmd_usage, complete_queue_add_member, &cli_add_queue_member_deprecated },
+	qam_cmd_usage, complete_queue_add_member, NULL },
 
 	{ { "queue", "remove", "member", NULL },
 	handle_queue_remove_member, "Removes a channel from a specified queue",
-	qrm_cmd_usage, complete_queue_remove_member, &cli_remove_queue_member_deprecated },
+	qrm_cmd_usage, complete_queue_remove_member, NULL },
 };
 
 static int unload_module(void)

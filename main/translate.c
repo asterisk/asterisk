@@ -474,76 +474,6 @@ static void rebuild_matrix(int samples)
 	}
 }
 
-/*! \brief CLI "show translation" command handler */
-static int show_translation_deprecated(int fd, int argc, char *argv[])
-{
-#define SHOW_TRANS 12
-	int x, y, z;
-	int curlen = 0, longest = 0;
-
-	if (argc > 4) 
-		return RESULT_SHOWUSAGE;
-
-	AST_LIST_LOCK(&translators);	
-	
-	if (argv[2] && !strcasecmp(argv[2], "recalc")) {
-		z = argv[3] ? atoi(argv[3]) : 1;
-
-		if (z <= 0) {
-			ast_cli(fd, "         C'mon let's be serious here... defaulting to 1.\n");
-			z = 1;
-		}
-
-		if (z > MAX_RECALC) {
-			ast_cli(fd, "         Maximum limit of recalc exceeded by %d, truncating value to %d\n", z - MAX_RECALC, MAX_RECALC);
-			z = MAX_RECALC;
-		}
-		ast_cli(fd, "         Recalculating Codec Translation (number of sample seconds: %d)\n\n", z);
-		rebuild_matrix(z);
-	}
-
-	ast_cli(fd, "         Translation times between formats (in milliseconds) for one second of data\n");
-	ast_cli(fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
-	/* Get the length of the longest (usable?) codec name, so we know how wide the left side should be */
-	for (x = 0; x < SHOW_TRANS; x++) {
-		curlen = strlen(ast_getformatname(1 << (x + 1)));
-		if (curlen > longest)
-			longest = curlen;
-	}
-	for (x = -1; x < SHOW_TRANS; x++) {
-		char line[80];
-		char *buf = line;
-		size_t left = sizeof(line) - 1;	/* one initial space */
-		/* next 2 lines run faster than using ast_build_string() */
-		*buf++ = ' ';
-		*buf = '\0';
-		for (y = -1; y < SHOW_TRANS; y++) {
-			curlen = strlen(ast_getformatname(1 << (y)));
-
-			if (x >= 0 && y >= 0 && tr_matrix[x][y].step) {
-				/* XXX 999 is a little hackish
-				   We don't want this number being larger than the shortest (or current) codec
-				   For now, that is "gsm" */
-				ast_build_string(&buf, &left, "%*d", curlen + 1, tr_matrix[x][y].cost > 999 ? 0 : tr_matrix[x][y].cost);
-			} else if (x == -1 && y >= 0) {
-				/* Top row - use a dynamic size */
-				ast_build_string(&buf, &left, "%*s", curlen + 1, ast_getformatname(1 << (x + y + 1)) );
-			} else if (y == -1 && x >= 0) {
-				/* Left column - use a static size. */
-				ast_build_string(&buf, &left, "%*s", longest, ast_getformatname(1 << (x + y + 1)) );
-			} else if (x >= 0 && y >= 0) {
-				ast_build_string(&buf, &left, "%*s", curlen + 1, "-");
-			} else {
-				ast_build_string(&buf, &left, "%*s", longest, "");
-			}
-		}
-		ast_build_string(&buf, &left, "\n");
-		ast_cli(fd, line);			
-	}
-	AST_LIST_UNLOCK(&translators);
-	return RESULT_SUCCESS;
-}
-
 static int show_translation(int fd, int argc, char *argv[])
 {
 #define SHOW_TRANS 12
@@ -620,15 +550,10 @@ static char show_trans_usage[] =
 "with optional number of seconds to test a new test will be performed\n"
 "as the chart is being displayed.\n";
 
-static struct ast_cli_entry cli_show_translation_deprecated = {
-	{ "show", "translation", NULL },
-	show_translation_deprecated, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_translate[] = {
 	{ { "core", "show", "translation", NULL },
 	show_translation, "Display translation matrix",
-	show_trans_usage, NULL, &cli_show_translation_deprecated },
+	show_trans_usage, NULL, NULL },
 };
 
 /*! \brief register codec translator */

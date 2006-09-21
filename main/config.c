@@ -1235,15 +1235,10 @@ static char show_config_help[] =
 	"Usage: core list config mappings\n"
 	"	Shows the filenames to config engines.\n";
 
-static struct ast_cli_entry cli_show_config_mappings_deprecated = {
-	{ "show", "config", "mappings", NULL },
-	config_command, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_config[] = {
 	{ { "core", "list", "config", "mappings", NULL },
 	config_command, "Display config mappings (file names to config engines)",
-	show_config_help, NULL, &cli_show_config_mappings_deprecated },
+	show_config_help },
 };
 
 int register_config_cli() 
