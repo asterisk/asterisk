@@ -53,20 +53,18 @@ static char *descrip =
 "Result is returned in the SENDURLSTATUS channel variable:\n"
 "    SUCCESS       URL successfully sent to client\n"
 "    FAILURE       Failed to send URL\n"
-"    NOLOAD        Clien failed to load URL (wait enabled)\n"
+"    NOLOAD        Client failed to load URL (wait enabled)\n"
 "    UNSUPPORTED   Channel does not support URL transport\n"
 "\n"
 "If the option 'wait' is specified, execution will wait for an\n"
 "acknowledgement that the URL has been loaded before continuing\n"
-"and will return -1 if the peer is unable to load the URL\n"
 "\n"
-"Old behaviour (deprecated): \n"
-" If the client does not support Asterisk \"html\" transport, \n"
-" and there exists a step with priority n + 101, then execution will\n"
-" continue at that step.\n"
-" Otherwise, execution will continue at the next priority level.\n"
-" SendURL only returns 0 if the URL was sent correctly  or if\n"
-" the channel does not support HTML transport, and -1 otherwise.\n";
+"If jumping is specified as an option (the 'j' flag), the client does not\n"
+"support Asterisk \"html\" transport, and there exists a step with priority\n"
+"n + 101, then execution will continue at that step.\n"
+"\n"
+"SendURL continues normally if the URL was sent correctly or if the channel\n"
+"does not support HTML transport.  Otherwise, the channel is hung up.\n";
 
 
 static int sendurl_exec(struct ast_channel *chan, void *data)
