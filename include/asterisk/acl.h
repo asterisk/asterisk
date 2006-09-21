@@ -44,7 +44,6 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin);
 int ast_get_ip(struct sockaddr_in *sin, const char *value);
 int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
 int ast_ouraddrfor(struct in_addr *them, struct in_addr *us);
-int ast_lookup_iface(char *iface, struct in_addr *address);
 struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original);
 int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
 int ast_str2tos(const char *value, unsigned int *tos);

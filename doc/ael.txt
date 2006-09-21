@@ -873,10 +873,6 @@ NOTE: Every character enclosed by the switch expression's parenthesis
       are included verbatim in the labels generated. So watch out for
       spaces!
 
-NOTE: NEW: Previous to version 0.13, the random statement used the
-      "Random()" application, which has been deprecated. It now uses
-      the RAND() function instead, in the GotoIf application.
-
 
 Break, Continue, and Return
 ===========================

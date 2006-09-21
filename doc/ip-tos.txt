@@ -34,10 +34,8 @@ ef (expedited forwarding),
 
 The tos* parameters also take numeric values.
 
-The lowdelay, throughput, reliability, mincost, and none values are
-deprecated because they set the IP TOS using the outdated "IP
-precedence" model as defined in RFC 791 and RFC 1349. They still
-work in this version of Asterisk, but will be removed in future releases.
+The lowdelay, throughput, reliability, mincost, and none values are no
+longer supported in this version of Asterisk.
 
 ===========================================
 Configuration	Parameter	Recommended

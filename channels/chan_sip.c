@@ -613,7 +613,6 @@ struct sip_pkt;
 
 /*! \brief Parameters to the transmit_invite function */
 struct sip_invite_param {
-	const char *distinctive_ring;	/*!< Distinctive ring header */
 	int addsipheaders;		/*!< Add extra SIP headers */
 	const char *uri_options;	/*!< URI options to add to the URI */
 	const char *vxml_url;		/*!< VXML url for Cisco phones */
@@ -2691,9 +2690,6 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 			p->options->vxml_url = ast_var_value(current);
 		} else if (!p->options->uri_options && !strcasecmp(ast_var_name(current), "SIP_URI_OPTIONS")) {
 			p->options->uri_options = ast_var_value(current);
-		} else if (!p->options->distinctive_ring && !strcasecmp(ast_var_name(current), "ALERT_INFO")) {
-			/* Check whether there is a ALERT_INFO variable */
-			p->options->distinctive_ring = ast_var_value(current);
 		} else if (!p->options->addsipheaders && !strncasecmp(ast_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER"))) {
 			/* Check whether there is a variable with a name starting with SIPADDHEADER */
 			p->options->addsipheaders = 1;
@@ -3749,8 +3745,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		pbx_builtin_setvar_helper(tmp, "SIPURI", i->uri);
 	if (!ast_strlen_zero(i->domain))
 		pbx_builtin_setvar_helper(tmp, "SIPDOMAIN", i->domain);
-	if (!ast_strlen_zero(i->useragent))
-		pbx_builtin_setvar_helper(tmp, "SIPUSERAGENT", i->useragent);
 	if (!ast_strlen_zero(i->callid))
 		pbx_builtin_setvar_helper(tmp, "SIPCALLID", i->callid);
 	ast_setstate(tmp, state);
@@ -6513,8 +6507,6 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		add_header(&req, "Require", "replaces");
 	}
 
-	if (p->options && !ast_strlen_zero(p->options->distinctive_ring))
-		add_header(&req, "Alert-Info", p->options->distinctive_ring);
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
 	if (p->options && p->options->addsipheaders ) {

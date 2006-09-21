@@ -78,9 +78,6 @@ struct ast_ha {
 	struct ast_ha *next;
 };
 
-/* Default IP - if not otherwise set, don't breathe garbage */
-static struct in_addr __ourip = { 0x00000000 };
-
 struct my_ifreq {
 	char ifrn_name[IFNAMSIZ];	/* Interface name, e.g. "eth0", "ppp0", etc.  */
 	struct sockaddr_in ifru_addr;
@@ -294,44 +291,16 @@ int ast_str2tos(const char *value, unsigned int *tos)
 		}
 	}
 
-	if (!strcasecmp(value, "lowdelay"))
-		*tos = IPTOS_LOWDELAY;
-	else if (!strcasecmp(value, "throughput"))
-		*tos = IPTOS_THROUGHPUT;
-	else if (!strcasecmp(value, "reliability"))
-		*tos = IPTOS_RELIABILITY;
-	else if (!strcasecmp(value, "mincost"))
-		*tos = IPTOS_MINCOST;
-	else if (!strcasecmp(value, "none"))
-		*tos = 0;
-	else
-		return -1;
-
-	ast_log(LOG_WARNING, "TOS value %s is deprecated. Please see doc/ip-tos.txt for more information.\n", value);
-
-	return 0;
+	return -1;
 }
 
 const char *ast_tos2str(unsigned int tos)
 {
 	unsigned int x;
 
-	switch (tos) {
-	case 0:
-		return "none";
-	case IPTOS_LOWDELAY:
-		return "lowdelay";
-	case IPTOS_THROUGHPUT:
-		return "throughput";
-	case IPTOS_RELIABILITY:
-		return "reliability";
-	case IPTOS_MINCOST:
-		return "mincost";
-	default:
-		for (x = 0; x < sizeof(dscp_pool1) / sizeof(dscp_pool1[0]); x++) {
-			if (dscp_pool1[x].space == (tos >> 2))
-				return dscp_pool1[x].name;
-		}
+	for (x = 0; x < sizeof(dscp_pool1) / sizeof(dscp_pool1[0]); x++) {
+		if (dscp_pool1[x].space == (tos >> 2))
+			return dscp_pool1[x].name;
 	}
 
 	return "unknown";
@@ -340,29 +309,6 @@ const char *ast_tos2str(unsigned int tos)
 int ast_get_ip(struct sockaddr_in *sin, const char *value)
 {
 	return ast_get_ip_or_srv(sin, value, NULL);
-}
-
-/* iface is the interface (e.g. eth0); address is the return value */
-int ast_lookup_iface(char *iface, struct in_addr *address)
-{
-	int mysock, res = 0;
-	struct my_ifreq ifreq;
-
-	memset(&ifreq, 0, sizeof(ifreq));
-	ast_copy_string(ifreq.ifrn_name, iface, sizeof(ifreq.ifrn_name));
-
-	mysock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
-	res = ioctl(mysock, SIOCGIFADDR, &ifreq);
-
-	close(mysock);
-	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to get IP of %s: %s\n", iface, strerror(errno));
-		memcpy((char *)address, (char *)&__ourip, sizeof(__ourip));
-		return -1;
-	} else {
-		memcpy((char *)address, (char *)&ifreq.ifru_addr.sin_addr, sizeof(ifreq.ifru_addr.sin_addr));
-		return 0;
-	}
 }
 
 int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
