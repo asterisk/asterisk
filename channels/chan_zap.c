@@ -11228,8 +11228,10 @@ static struct ast_cli_entry zap_ss7_cli[] = {
 
 static int unload_module(void)
 {
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
 	int y;
-#ifdef HAVE_PRI		
+#endif
+#ifdef HAVE_PRI
 	for (y = 0; y < NUM_SPANS; y++)
 		ast_mutex_destroy(&pris[y].lock);
 #endif
@@ -12166,7 +12168,9 @@ static int setup_zap(int reload)
 static int load_module(void)
 {
 	int res;
-	int y,i;
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
+	int y, i;
+#endif
 
 #ifdef HAVE_PRI
 	memset(pris, 0, sizeof(pris));
