@@ -656,3 +656,37 @@ immediate=no
 ;context=default
 ;channel => 1 
 
+; Signaling type SS7
+signalling = ss7
+
+; Variant of SS7 signaling:
+; Options are itu and ansi
+ss7type = itu
+
+; All settings apply to linkset 1
+linkset = 1
+
+; Point code of the linkset
+pointcode = 1
+
+; Point code of node adjacent to this signaling link (Possibly the STP between you and
+; your destination)
+adjpointcode = 2
+
+; Default point code that you would like to assign to outgoing messages (in case of
+; routing through STPs, or using A links)
+defaultdpc = 3
+
+; Begin CIC (Circuit indication codes) count with this number
+cicbeginswith = 1
+
+; What the MTP3 network indicator bits should be set to.  Choices are
+; national, national_spare, international, international_spare
+networkindicator=international
+
+; First signaling channel
+sigchan = 48
+
+; Channels to associate with CICs on this linkset
+channel = 25-47
+

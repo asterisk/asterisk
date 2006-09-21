@@ -194,6 +194,7 @@ AST_EXT_LIB_SETUP([OSS], [Open Sound System], [oss])
 AST_EXT_LIB_SETUP([POPT], [popt], [popt])
 AST_EXT_LIB_SETUP([PGSQL], [PostgreSQL], [postgres])
 AST_EXT_LIB_SETUP([PRI], [ISDN PRI], [pri])
+AST_EXT_LIB_SETUP([SS7], [ISDN SS7], [ss7])
 AST_EXT_LIB_SETUP([PWLIB], [PWlib], [pwlib])
 AST_EXT_LIB_SETUP([OPENH323], [OpenH323], [h323])
 AST_EXT_LIB_SETUP([QT], [Qt], [qt])
@@ -701,6 +702,8 @@ fi
 AST_EXT_LIB_CHECK([POPT], [popt], [poptStrerror], [popt.h])
 
 AST_EXT_LIB_CHECK([PRI], [pri], [pri_call], [libpri.h])
+
+AST_EXT_LIB_CHECK([SS7], [ss7], [ss7_new], [libss7.h])
 
 if test "${USE_PWLIB}" != "no"; then
 	if test ! -z "${PWLIB_DIR}"; then
