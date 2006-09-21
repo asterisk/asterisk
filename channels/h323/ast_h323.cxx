@@ -1259,6 +1259,7 @@ BOOL MyH323Connection::OnReceivedCapabilitySet(const H323Capabilities & remoteCa
 		unsigned int asterisk_codec;
 		unsigned int h245_cap;
 		const char *oid;
+		const char *formatName;
 	};
 	static const struct __codec__ codecs[] = {
 		{ AST_FORMAT_G723_1, H245_AudioCapability::e_g7231 },
@@ -1267,6 +1268,7 @@ BOOL MyH323Connection::OnReceivedCapabilitySet(const H323Capabilities & remoteCa
 		{ AST_FORMAT_ALAW, H245_AudioCapability::e_g711Alaw64k },
 		{ AST_FORMAT_G729A, H245_AudioCapability::e_g729AnnexA },
 		{ AST_FORMAT_G729A, H245_AudioCapability::e_g729 },
+		{ AST_FORMAT_G726_AAL2, H245_AudioCapability::e_nonStandard, NULL, CISCO_G726r32 },
 #ifdef AST_FORMAT_MODEM
 		{ AST_FORMAT_MODEM, H245_DataApplicationCapability_application::e_t38fax },
 #endif
@@ -1313,7 +1315,7 @@ BOOL MyH323Connection::OnReceivedCapabilitySet(const H323Capabilities & remoteCa
 		switch(remoteCapabilities[i].GetMainType()) {
 		case H323Capability::e_Audio:
 			for (int x = 0; codecs[x].asterisk_codec > 0; ++x) {
-				if (subType == codecs[x].h245_cap) {
+				if ((subType == codecs[x].h245_cap) && (!codecs[x].formatName || (!strcmp(codecs[x].formatName, (const char *)remoteCapabilities[i].GetFormatName())))) {
 					int ast_codec = codecs[x].asterisk_codec;
 					int ms = 0;
 					if (!(peer_capabilities & ast_codec)) {
@@ -1494,6 +1496,12 @@ void MyH323Connection::SetCapabilities(int cap, int dtmf_mode, void *_prefs, int
 			lastcap = localCapabilities.SetCapability(0, 0, g711aCap = new AST_G711Capability(format.cur_ms, H323_G711Capability::ALaw));
 			if (format.max_ms)
 				g711aCap->SetTxFramesInPacket(format.max_ms);
+			break;
+		case AST_FORMAT_G726_AAL2:
+			AST_CiscoG726Capability *g726Cap;
+			lastcap = localCapabilities.SetCapability(0, 0, g726Cap = new AST_CiscoG726Capability(frames_per_packet));
+			if (max_frames_per_packet)
+				g726Cap->SetTxFramesInPacket(max_frames_per_packet);
 			break;
 		default:
 			alreadysent &= ~codec;

@@ -137,7 +137,7 @@ static const char config[] = "h323.conf";
 static char default_context[AST_MAX_CONTEXT] = "default";
 static struct sockaddr_in bindaddr;
 
-#define GLOBAL_CAPABILITY (AST_FORMAT_G723_1 | AST_FORMAT_GSM | AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_G729A | AST_FORMAT_H261)
+#define GLOBAL_CAPABILITY (AST_FORMAT_G723_1 | AST_FORMAT_GSM | AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_G729A | AST_FORMAT_G726_AAL2 | AST_FORMAT_H261)
 
 /** H.323 configuration values */
 static int h323_signalling_port = 1720;
@@ -1901,6 +1901,10 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 
 	if (!pvt->rtp)
 		__oh323_rtp_create(pvt);
+
+	if ((pt == 2) && (pvt->jointcapability & AST_FORMAT_G726_AAL2)) {
+		ast_rtp_set_rtpmap_type(pvt->rtp, pt, "audio", "G726-32", AST_RTP_OPT_G726_NONSTANDARD);
+	}
 
 	them.sin_family = AF_INET;
 	/* only works for IPv4 */

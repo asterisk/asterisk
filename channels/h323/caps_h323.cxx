@@ -4,8 +4,8 @@
 
 #define DEFINE_G711_CAPABILITY(cls, code, capName) \
 class cls : public AST_G711Capability { \
-  public: \
-    cls() : AST_G711Capability(240, code) { } \
+public: \
+	cls() : AST_G711Capability(240, code) { } \
 }; \
 H323_REGISTER_CAPABILITY(cls, capName) \
 
@@ -15,6 +15,7 @@ H323_REGISTER_CAPABILITY(AST_G7231Capability, OPAL_G7231);
 H323_REGISTER_CAPABILITY(AST_G729Capability,  OPAL_G729);
 H323_REGISTER_CAPABILITY(AST_G729ACapability, OPAL_G729A);
 H323_REGISTER_CAPABILITY(AST_GSM0610Capability, OPAL_GSM0610);
+H323_REGISTER_CAPABILITY(AST_CiscoG726Capability, CISCO_G726r32);
 
 /*
  * Capability: G.711
@@ -234,4 +235,29 @@ PString AST_GSM0610Capability::GetFormatName() const
 H323Codec * AST_GSM0610Capability::CreateCodec(H323Codec::Direction direction) const
 {
 	return NULL;
+}
+
+/*
+ * Capability: G.726 32 Kbps
+ */
+AST_CiscoG726Capability::AST_CiscoG726Capability(int rx_frames)
+	: H323NonStandardAudioCapability(rx_frames, 240,
+		181, 0, 18,
+		(const BYTE *)CISCO_G726r32, sizeof(CISCO_G726r32)-1, 0)
+{
+}
+
+PObject *AST_CiscoG726Capability::Clone() const
+{
+	return new AST_CiscoG726Capability(*this);
+}
+
+H323Codec *AST_CiscoG726Capability::CreateCodec(H323Codec::Direction direction) const
+{
+	return NULL;
+}
+
+PString AST_CiscoG726Capability::GetFormatName() const
+{
+	return PString(CISCO_G726r32);
 }
