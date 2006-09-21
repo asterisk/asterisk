@@ -1886,7 +1886,7 @@ static int get_wait_interval(struct rpt *myrpt, int type)
 	const char *wait_times;
 	char *wait_times_save = NULL;
 
-	wait_times = ast_variable_retrieve(cfg, myrpt->name, "wait_times");
+	wait_times = ast_variable_retrieve(myrpt->cfg, myrpt->name, "wait_times");
 
 	if (wait_times) {
 		wait_times_save = ast_strdupa(wait_times);
@@ -1899,28 +1899,28 @@ static int get_wait_interval(struct rpt *myrpt, int type)
 	switch (type) {
 	case DLY_TELEM:
 		if (wait_times)
-			interval = retrieve_astcfgint(wait_times_save, "telemwait", 500, 5000, 1000);
+			interval = retrieve_astcfgint(myrpt, wait_times_save, "telemwait", 500, 5000, 1000);
 		else
 			interval = 1000;
 		break;
 
 	case DLY_ID:
 		if (wait_times)
-			interval = retrieve_astcfgint(wait_times_save, "idwait", 250, 5000, 500);
+			interval = retrieve_astcfgint(myrpt, wait_times_save, "idwait", 250, 5000, 500);
 		else
 			interval = 500;
 		break;
 
 	case DLY_UNKEY:
 		if (wait_times)
-			interval = retrieve_astcfgint(wait_times_save, "unkeywait", 500, 5000, 1000);
+			interval = retrieve_astcfgint(myrpt, wait_times_save, "unkeywait", 500, 5000, 1000);
 		else
 			interval = 1000;
 		break;
 
 	case DLY_CALLTERM:
 		if (wait_times)
-			interval = retrieve_astcfgint(wait_times_save, "calltermwait", 500, 5000, 1500);
+			interval = retrieve_astcfgint(myrpt, wait_times_save, "calltermwait", 500, 5000, 1500);
 		else
 			interval = 1500;
 		break;
@@ -1929,7 +1929,7 @@ static int get_wait_interval(struct rpt *myrpt, int type)
 		return 0;
 	}
 	return interval;
-}														  
+}
 
 
 /*
