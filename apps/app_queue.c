@@ -3646,16 +3646,6 @@ static int queue_function_queuememberlist(struct ast_channel *chan, char *cmd, c
 	return 0;
 }
 
-static struct ast_custom_function queueagentcount_function = {
-	.name = "QUEUEAGENTCOUNT",
-	.synopsis = "Count number of agents answering a queue",
-	.syntax = "QUEUEAGENTCOUNT(<queuename>)",
-	.desc =
-"Returns the number of members currently associated with the specified queue.\n"
-"This function is deprecated.  You should use QUEUE_MEMBER_COUNT() instead.\n",
-	.read = queue_function_qac,
-};
-
 static struct ast_custom_function queuemembercount_function = {
 	.name = "QUEUE_MEMBER_COUNT",
 	.synopsis = "Count number of members answering a queue",
@@ -4438,7 +4428,6 @@ static int unload_module(void)
 	res |= ast_unregister_application(app_upqm);
 	res |= ast_unregister_application(app_ql);
 	res |= ast_unregister_application(app);
-	res |= ast_custom_function_unregister(&queueagentcount_function);
 	res |= ast_custom_function_unregister(&queuemembercount_function);
 	res |= ast_custom_function_unregister(&queuememberlist_function);
 	res |= ast_custom_function_unregister(&queuewaitingcount_function);
@@ -4469,7 +4458,6 @@ static int load_module(void)
 	res |= ast_manager_register("QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member, "Add interface to queue.");
 	res |= ast_manager_register("QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member, "Remove interface from queue.");
 	res |= ast_manager_register("QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member, "Makes a queue member temporarily unavailable");
-	res |= ast_custom_function_register(&queueagentcount_function);
 	res |= ast_custom_function_register(&queuemembercount_function);
 	res |= ast_custom_function_register(&queuememberlist_function);
 	res |= ast_custom_function_register(&queuewaitingcount_function);

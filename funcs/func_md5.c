@@ -54,42 +54,6 @@ static int md5(struct ast_channel *chan, char *cmd, char *data,
 	return 0;
 }
 
-static int checkmd5(struct ast_channel *chan, char *cmd, char *parse,
-		    char *buf, size_t len)
-{
-	char newmd5[33];
-	static int deprecated = 0;
-	AST_DECLARE_APP_ARGS(args, AST_APP_ARG(digest); AST_APP_ARG(data););
-
-	if (ast_strlen_zero(parse)) {
-		ast_log(LOG_WARNING,
-				"Syntax: CHECK_MD5(<digest>,<data>) - missing argument!\n");
-		return -1;
-	}
-
-	AST_STANDARD_APP_ARGS(args, parse);
-
-	if (args.argc < 2) {
-		ast_log(LOG_WARNING,
-				"Syntax: CHECK_MD5(<digest>,<data>) - missing argument!\n");
-		return -1;
-	}
-
-	if (!deprecated) {
-		deprecated = 1;
-		ast_log(LOG_WARNING, "CHECK_MD5() is deprecated in Asterisk 1.4 and later.\n");
-	}
-
-	ast_md5_hash(newmd5, args.data);
-
-	if (!strcasecmp(newmd5, args.digest))	/* they match */
-		ast_copy_string(buf, "1", len);
-	else
-		ast_copy_string(buf, "0", len);
-
-	return 0;
-}
-
 static struct ast_custom_function md5_function = {
 	.name = "MD5",
 	.synopsis = "Computes an MD5 digest",
@@ -97,24 +61,14 @@ static struct ast_custom_function md5_function = {
 	.read = md5,
 };
 
-static struct ast_custom_function checkmd5_function = {
-	.name = "CHECK_MD5",
-	.synopsis = "Checks an MD5 digest",
-	.desc = "Returns 1 on a match, 0 otherwise\n",
-	.syntax = "CHECK_MD5(<digest>,<data>)",
-	.read = checkmd5,
-};
-
 static int unload_module(void)
 {
-	return ast_custom_function_unregister(&md5_function) |
-		ast_custom_function_unregister(&checkmd5_function);
+	return ast_custom_function_unregister(&md5_function);
 }
 
 static int load_module(void)
 {
-	return ast_custom_function_register(&md5_function) |
-		ast_custom_function_register(&checkmd5_function);
+	return ast_custom_function_register(&md5_function);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "MD5 digest dialplan functions");
