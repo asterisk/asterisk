@@ -17,6 +17,87 @@ H323_REGISTER_CAPABILITY(AST_G729ACapability, OPAL_G729A);
 H323_REGISTER_CAPABILITY(AST_GSM0610Capability, OPAL_GSM0610);
 H323_REGISTER_CAPABILITY(AST_CiscoG726Capability, CISCO_G726r32);
 
+OPAL_MEDIA_FORMAT_DECLARE(OpalG711ALaw64kFormat,
+	OPAL_G711_ALAW_64K,
+	OpalMediaFormat::DefaultAudioSessionID,
+	RTP_DataFrame::PCMA,
+	TRUE,	// Needs jitter
+	64000,	// bits/sec
+	8,		// bytes/frame
+	8,		// 1 millisecond/frame
+	OpalMediaFormat::AudioTimeUnits,
+	0);
+OPAL_MEDIA_FORMAT_DECLARE(OpalG711uLaw64kFormat,
+	OPAL_G711_ULAW_64K,
+	OpalMediaFormat::DefaultAudioSessionID,
+	RTP_DataFrame::PCMU,
+	TRUE,	// Needs jitter
+	64000,	// bits/sec
+	8,		// bytes/frame
+	8,		// 1 millisecond/frame
+	OpalMediaFormat::AudioTimeUnits,
+	0);
+OPAL_MEDIA_FORMAT_DECLARE(OpalG729Format,
+	OPAL_G729,
+	OpalMediaFormat::DefaultAudioSessionID,
+	RTP_DataFrame::G729,
+	TRUE,	// Needs jitter
+	8000,	// bits/sec
+	10,		// bytes
+	80,		// 10 milliseconds
+	OpalMediaFormat::AudioTimeUnits,
+	0);
+OPAL_MEDIA_FORMAT_DECLARE(OpalG729AFormat,
+	OPAL_G729 "A",
+	OpalMediaFormat::DefaultAudioSessionID,
+	RTP_DataFrame::G729,
+	TRUE,	// Needs jitter
+	8000,	// bits/sec
+	10,		// bytes
+	80,		// 10 milliseconds
+	OpalMediaFormat::AudioTimeUnits,
+	0);
+OPAL_MEDIA_FORMAT_DECLARE(OpalG7231_6k3Format,
+	OPAL_G7231_6k3,
+	OpalMediaFormat::DefaultAudioSessionID,
+	RTP_DataFrame::G7231,
+	TRUE,	// Needs jitter
+	6400,	// bits/sec
+	24,		// bytes
+	240,	// 30 milliseconds
+	OpalMediaFormat::AudioTimeUnits,
+	0);
+OPAL_MEDIA_FORMAT_DECLARE(OpalG7231A_6k3Format,
+	OPAL_G7231A_6k3,
+	OpalMediaFormat::DefaultAudioSessionID,
+	RTP_DataFrame::G7231,
+	TRUE,	// Needs jitter
+	6400,	// bits/sec
+	24,		// bytes
+	240,	// 30 milliseconds
+	OpalMediaFormat::AudioTimeUnits,
+	0);
+OPAL_MEDIA_FORMAT_DECLARE(OpalGSM0610Format,
+	OPAL_GSM0610,
+	OpalMediaFormat::DefaultAudioSessionID,
+	RTP_DataFrame::GSM,
+	TRUE,	// Needs jitter
+	13200,	// bits/sec
+	33,		// bytes
+	160,	// 20 milliseconds
+	OpalMediaFormat::AudioTimeUnits,
+	0);
+OPAL_MEDIA_FORMAT_DECLARE(OpalCiscoG726Format,
+	CISCO_G726r32,
+	OpalMediaFormat::DefaultAudioSessionID,
+	RTP_DataFrame::G726,
+	TRUE,	// Needs jitter
+	32000,	// bits/sec
+	4,		// bytes
+	8,		// 1 millisecond
+	OpalMediaFormat::AudioTimeUnits,
+	0);
+
 /*
  * Capability: G.711
  */
