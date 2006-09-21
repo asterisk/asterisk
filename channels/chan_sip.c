@@ -1527,6 +1527,7 @@ static const struct ast_channel_tech sip_tech = {
 	.send_digit_begin = sip_senddigit_begin,
 	.send_digit_end = sip_senddigit_end,
 	.bridge = ast_rtp_bridge,
+	.early_bridge = ast_rtp_early_bridge,
 	.send_text = sip_sendtext,
 };
 

@@ -1374,8 +1374,9 @@ static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
 	return cur;
 }
 
-int ast_rtp_early_bridge(struct ast_channel *dest, struct ast_channel *src)
+int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 {
+	// dest = c0, src = c1
 	struct ast_rtp *destp = NULL, *srcp = NULL;		/* Audio RTP Channels */
 	struct ast_rtp *vdestp = NULL, *vsrcp = NULL;		/* Video RTP channels */
 	struct ast_rtp_protocol *destpr = NULL, *srcpr = NULL;
@@ -1384,68 +1385,68 @@ int ast_rtp_early_bridge(struct ast_channel *dest, struct ast_channel *src)
 	int srccodec;
 
 	/* Lock channels */
-	ast_channel_lock(dest);
-	if (src) {
-		while(ast_channel_trylock(src)) {
-			ast_channel_unlock(dest);
+	ast_channel_lock(c0);
+	if (c1) {
+		while(ast_channel_trylock(c1)) {
+			ast_channel_unlock(c0);
 			usleep(1);
-			ast_channel_lock(dest);
+			ast_channel_lock(c0);
 		}
 	}
 
 	/* Find channel driver interfaces */
-	destpr = get_proto(dest);
-	if (src)
-		srcpr = get_proto(src);
+	destpr = get_proto(c0);
+	if (c1)
+		srcpr = get_proto(c1);
 	if (!destpr) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", dest->name);
-		ast_channel_unlock(dest);
-		if (src)
-			ast_channel_unlock(src);
-		return 0;
+			ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", c0->name);
+		ast_channel_unlock(c0);
+		if (c1)
+			ast_channel_unlock(c1);
+		return -1;
 	}
 	if (!srcpr) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", src ? src->name : "<unspecified>");
-		ast_channel_unlock(dest);
-		if (src)
-			ast_channel_unlock(src);
-		return 0;
+			ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", c1 ? c1->name : "<unspecified>");
+		ast_channel_unlock(c0);
+		if (c1)
+			ast_channel_unlock(c1);
+		return -1;
 	}
 
 	/* Get audio and video interface (if native bridge is possible) */
-	audio_dest_res = destpr->get_rtp_info(dest, &destp);
-	video_dest_res = destpr->get_vrtp_info ? destpr->get_vrtp_info(dest, &vdestp) : AST_RTP_GET_FAILED;
+	audio_dest_res = destpr->get_rtp_info(c0, &destp);
+	video_dest_res = destpr->get_vrtp_info ? destpr->get_vrtp_info(c0, &vdestp) : AST_RTP_GET_FAILED;
 	if (srcpr) {
-		audio_src_res = srcpr->get_rtp_info(src, &srcp);
-		video_src_res = srcpr->get_vrtp_info ? srcpr->get_vrtp_info(src, &vsrcp) : AST_RTP_GET_FAILED;
+		audio_src_res = srcpr->get_rtp_info(c1, &srcp);
+		video_src_res = srcpr->get_vrtp_info ? srcpr->get_vrtp_info(c1, &vsrcp) : AST_RTP_GET_FAILED;
 	}
 
 	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
 	if (audio_dest_res != AST_RTP_TRY_NATIVE) {
 		/* Somebody doesn't want to play... */
-		ast_channel_unlock(dest);
-		if (src)
-			ast_channel_unlock(src);
-		return 0;
+		ast_channel_unlock(c0);
+		if (c1)
+			ast_channel_unlock(c1);
+		return -1;
 	}
 	if (audio_src_res == AST_RTP_TRY_NATIVE && srcpr->get_codec)
-		srccodec = srcpr->get_codec(src);
+		srccodec = srcpr->get_codec(c1);
 	else
 		srccodec = 0;
 	/* Consider empty media as non-existant */
 	if (audio_src_res == AST_RTP_TRY_NATIVE && !srcp->them.sin_addr.s_addr)
 		srcp = NULL;
 	/* Bridge media early */
-	if (destpr->set_rtp_peer(dest, srcp, vsrcp, srccodec, srcp ? ast_test_flag(srcp, FLAG_NAT_ACTIVE) : 0))
-		ast_log(LOG_WARNING, "Channel '%s' failed to setup early bridge to '%s'\n", dest->name, src ? src->name : "<unspecified>");
-	ast_channel_unlock(dest);
-	if (src)
-		ast_channel_unlock(src);
+	if (destpr->set_rtp_peer(c0, srcp, vsrcp, srccodec, srcp ? ast_test_flag(srcp, FLAG_NAT_ACTIVE) : 0))
+		ast_log(LOG_WARNING, "Channel '%s' failed to setup early bridge to '%s'\n", c0->name, c1 ? c1->name : "<unspecified>");
+	ast_channel_unlock(c0);
+	if (c1)
+		ast_channel_unlock(c1);
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Setting early bridge SDP of '%s' with that of '%s'\n", dest->name, src ? src->name : "<unspecified>");
-	return 1;
+		ast_log(LOG_DEBUG, "Setting early bridge SDP of '%s' with that of '%s'\n", c0->name, c1 ? c1->name : "<unspecified>");
+	return 0;
 }
 
 int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, int media)

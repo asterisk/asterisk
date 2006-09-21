@@ -196,7 +196,7 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
 
 /*! \brief If possible, create an early bridge directly between the devices without
            having to send a re-invite later */
-int ast_rtp_early_bridge(struct ast_channel *dest, struct ast_channel *src);
+int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1);
 
 void ast_rtp_stop(struct ast_rtp *rtp);
 

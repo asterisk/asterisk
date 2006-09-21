@@ -3675,6 +3675,16 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 	return res;
 }
 
+/*! \brief Bridge two channels together (early) */
+int ast_channel_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
+{
+	/* Make sure we can early bridge, if not error out */
+	if (!c0->tech->early_bridge || (c1 && (!c1->tech->early_bridge || c0->tech->early_bridge != c1->tech->early_bridge)))
+		return -1;
+
+	return c0->tech->early_bridge(c0, c1);
+}
+
 /*! \brief Bridge two channels together */
 enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1,
 					  struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc)
