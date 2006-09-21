@@ -18,7 +18,7 @@
 
 /*! \file
  *
- * \brief App to set callerid
+ * \brief App to set callerid presentation
  *
  * \author Mark Spencer <markster@digium.com>
  * 
@@ -85,75 +85,16 @@ static int setcallerid_pres_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static char *app = "SetCallerID";
-
-static char *synopsis = "Set CallerID";
-
-static char *descrip = 
-"  SetCallerID(clid[|a]): Set Caller*ID on a call to a new\n"
-"value.  Sets ANI as well if a flag is used. \n";
-
-static int setcallerid_exec(struct ast_channel *chan, void *data)
-{
-	int res = 0;
-	char *tmp = NULL;
-	char name[256];
-	char num[256];
-	struct ast_module_user *u;
-	char *opt;
-	int anitoo = 0;
-	static int dep_warning = 0;
-
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "SetCallerID requires an argument!\n");
-		return 0;
-	}
-	
-	u = ast_module_user_add(chan);
-
-	if (!dep_warning) {
-		dep_warning = 1;
-		ast_log(LOG_WARNING, "SetCallerID is deprecated.  Please use Set(CALLERID(all)=...) or Set(CALLERID(ani)=...) instead.\n");
-	}
-
-	tmp = ast_strdupa(data);
-	
-	opt = strchr(tmp, '|');
-	if (opt) {
-		*opt = '\0';
-		opt++;
-		if (*opt == 'a')
-			anitoo = 1;
-	}
-	
-	ast_callerid_split(tmp, name, sizeof(name), num, sizeof(num));
-	ast_set_callerid(chan, num, name, anitoo ? num : NULL);
-
-	ast_module_user_remove(u);
-	
-	return res;
-}
-
 static int unload_module(void)
 {
-	int res;
-
-	res = ast_unregister_application(app2);
-	res |= ast_unregister_application(app);
-
+	int res = ast_unregister_application(app2);
 	ast_module_user_hangup_all();
-
 	return res;
 }
 
 static int load_module(void)
 {
-	int res;
-	
-	res = ast_register_application(app2, setcallerid_pres_exec, synopsis2, descrip2);
-	res |= ast_register_application(app, setcallerid_exec, synopsis, descrip);
-
-	return res;
+	return ast_register_application(app2, setcallerid_pres_exec, synopsis2, descrip2);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Set CallerID Application");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Set CallerID Presentation Application");
