@@ -63,7 +63,7 @@ ifneq ($(findstring darwin,$(OSARCH)),)
 else
 # These are used for all but Darwin
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
-    ASTLINK+=-Wl,--export-dynamic -Wl,--exclude-libs -Wl,ALL
+    ASTLINK+=-Wl,--export-dynamic
   else
     ASTLINK+=${GC_LDFLAGS}
   endif
