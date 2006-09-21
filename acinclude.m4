@@ -142,13 +142,21 @@ if test "${HAS_PWLIB:-unset}" = "unset" ; then
           AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/local/share/pwlib/make)
         fi
         PWLIB_INCDIR="/usr/local/include"
-        PWLIB_LIBDIR="/usr/local/lib"
+        if test "x$LIB64" != "x"; then
+          PWLIB_LIBDIR="/usr/local/lib64"
+        else
+          PWLIB_LIBDIR="/usr/local/lib"
+        fi
       else
         AC_CHECK_FILE(/usr/include/ptlib.h, HAS_PWLIB=1, )
         if test "${HAS_PWLIB:-unset}" != "unset" ; then
           AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/share/pwlib/make)
           PWLIB_INCDIR="/usr/include"
-          PWLIB_LIBDIR="/usr/lib"
+          if test "x$LIB64" != "x"; then
+          	PWLIB_LIBDIR="/usr/lib64"
+          else
+	        PWLIB_LIBDIR="/usr/lib"
+	      fi
         fi
       fi
     fi
@@ -173,12 +181,20 @@ if test "${HAS_PWLIB:-unset}" != "unset" ; then
   if test "x$PWLIBDIR" = "x/usr" -o "x$PWLIBDIR" = "x/usr/"; then
     PWLIBDIR="/usr/share/pwlib"
     PWLIB_INCDIR="/usr/include"
-    PWLIB_LIBDIR="/usr/lib"
+    if test "x$LIB64" != "x"; then
+      PWLIB_LIBDIR="/usr/lib64"
+    else
+      PWLIB_LIBDIR="/usr/lib"
+    fi
   fi
   if test "x$PWLIBDIR" = "x/usr/local" -o "x$PWLIBDIR" = "x/usr/"; then
     PWLIBDIR="/usr/local/share/pwlib"
     PWLIB_INCDIR="/usr/local/include"
-    PWLIB_LIBDIR="/usr/local/lib"
+    if test "x$LIB64" != "x"; then
+      PWLIB_LIBDIR="/usr/local/lib64"
+    else
+      PWLIB_LIBDIR="/usr/local/lib"
+    fi
   fi
 
   if test "${PWLIB_INCDIR:-unset}" = "unset"; then
@@ -303,13 +319,21 @@ if test "${HAS_OPENH323:-unset}" = "unset" ; then
       if test "${HAS_OPENH323:-unset}" != "unset" ; then
         OPENH323DIR="/usr/local/share/openh323"
         OPENH323_INCDIR="/usr/local/include/openh323"
-        OPENH323_LIBDIR="/usr/local/lib"
+        if test "x$LIB64" != "x"; then
+          OPENH323_LIBDIR="/usr/local/lib64"
+        else
+          OPENH323_LIBDIR="/usr/local/lib"
+        fi
       else
         AC_CHECK_FILE(/usr/include/openh323/h323.h, HAS_OPENH323=1, )
         if test "${HAS_OPENH323:-unset}" != "unset" ; then
           OPENH323DIR="/usr/share/openh323"
           OPENH323_INCDIR="/usr/include/openh323"
-          OPENH323_LIBDIR="/usr/lib"
+          if test "x$LIB64" != "x"; then
+            OPENH323_LIBDIR="/usr/lib64"
+          else
+            OPENH323_LIBDIR="/usr/lib"
+          fi
         fi
       fi
     fi
