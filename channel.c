@@ -1020,7 +1020,7 @@ int ast_channel_spy_add(struct ast_channel *chan, struct ast_channel_spy *spy)
 /* Clean up a channel's spy information */
 static void spy_cleanup(struct ast_channel *chan)
 {
-	if (AST_LIST_EMPTY(&chan->spies->list))
+	if (AST_LIST_FIRST(&chan->spies->list))
 		return;
 	if (chan->spies->read_translator.path)
 		ast_translator_free_path(chan->spies->read_translator.path);
