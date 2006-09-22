@@ -231,13 +231,15 @@ else
   HAVEDOT=no
 endif
 
-all: cleantest $(SUBDIRS)
+all: _all
 	@echo " +--------- Asterisk Build Complete ---------+"  
 	@echo " + Asterisk has successfully been built, and +"  
 	@echo " + can be installed by running:              +"
 	@echo " +                                           +"
 	@echo " +               make install                +"  
 	@echo " +-------------------------------------------+"  
+
+_all: cleantest $(SUBDIRS)
 
 makeopts: configure
 	@echo "****"
@@ -329,7 +331,7 @@ distclean: clean
 	rm -rf doc/api
 	rm -f build_tools/menuselect-deps
 
-datafiles: all
+datafiles: _all
 	if [ x`$(ID) -un` = xroot ]; then CFLAGS="$(ASTCFLAGS)" sh build_tools/mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
 # Should static HTTP be installed during make samples or even with its own target ala
 # webvoicemail?  There are portions here that *could* be customized but might also be
@@ -363,7 +365,7 @@ update:
 NEWHEADERS=$(notdir $(wildcard include/asterisk/*.h))
 OLDHEADERS=$(filter-out $(NEWHEADERS),$(notdir $(wildcard $(DESTDIR)$(ASTHEADERDIR)/*.h)))
 
-bininstall: all
+bininstall: _all
 	mkdir -p $(DESTDIR)$(MODULES_DIR)
 	mkdir -p $(DESTDIR)$(ASTSBINDIR)
 	mkdir -p $(DESTDIR)$(ASTETCDIR)
@@ -427,7 +429,7 @@ oldmodcheck:
 		echo " WARNING WARNING WARNING" ;\
 	fi
 
-install: all datafiles bininstall $(SUBDIRS_INSTALL)
+install: datafiles bininstall $(SUBDIRS_INSTALL)
 	@if [ -x /usr/sbin/asterisk-post-install ]; then \
 		/usr/sbin/asterisk-post-install $(DESTDIR) . ; \
 	fi
@@ -454,7 +456,7 @@ install: all datafiles bininstall $(SUBDIRS_INSTALL)
 	@echo " +-------------------------------------------+"
 	@$(MAKE) -s oldmodcheck
 
-upgrade: all bininstall
+upgrade: bininstall
 
 adsi:
 	mkdir -p $(DESTDIR)$(ASTETCDIR)
