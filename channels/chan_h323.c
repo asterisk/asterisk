@@ -2596,65 +2596,100 @@ static int h323_tokens_show(int fd, int argc, char *argv[])
 }
 
 static char trace_usage[] =
-"Usage: h.323 trace <level num>\n"
+"Usage: h323 trace <level num>\n"
 "       Enables H.323 stack tracing for debugging purposes\n";
 
 static char no_trace_usage[] =
-"Usage: h.323 no trace\n"
+"Usage: h323 no trace\n"
 "       Disables H.323 stack tracing for debugging purposes\n";
 
 static char debug_usage[] =
-"Usage: h.323 debug\n"
+"Usage: h323 debug\n"
 "       Enables H.323 debug output\n";
 
 static char no_debug_usage[] =
-"Usage: h.323 no debug\n"
+"Usage: h323 no debug\n"
 "       Disables H.323 debug output\n";
 
 static char show_cycle_usage[] =
-"Usage: h.323 gk cycle\n"
+"Usage: h323 gk cycle\n"
 "       Manually re-register with the Gatekeper (Currently Disabled)\n";
 
 static char show_hangup_usage[] =
-"Usage: h.323 hangup <token>\n"
+"Usage: h323 hangup <token>\n"
 "       Manually try to hang up call identified by <token>\n";
 
 static char show_tokens_usage[] =
-"Usage: h.323 show tokens\n"
+"Usage: h323 show tokens\n"
 "       Print out all active call tokens\n";
 
 static char h323_reload_usage[] =
 "Usage: h323 reload\n"
 "       Reloads H.323 configuration from h323.conf\n";
 
-static struct ast_cli_entry cli_h323[] = {
+static struct ast_cli_entry cli_h323_trace_deprecated =
 	{ { "h.323", "trace", NULL },
 	h323_do_trace, "Enable H.323 Stack Tracing",
-	trace_usage },
+	trace_usage };
 
+static struct ast_cli_entry cli_h323_no_trace_deprecated =
 	{ { "h.323", "no", "trace", NULL },
 	h323_no_trace, "Disable H.323 Stack Tracing",
-	no_trace_usage },
+	no_trace_usage };
 
+static struct ast_cli_entry cli_h323_debug_deprecated =
 	{ { "h.323", "debug", NULL },
 	h323_do_debug, "Enable H.323 debug",
-	debug_usage },
+	debug_usage };
 
+static struct ast_cli_entry cli_h323_no_debug_deprecated =
 	{ { "h.323", "no", "debug", NULL },
 	h323_no_debug, "Disable H.323 debug",
-	no_debug_usage },
+	no_debug_usage };
 
+static struct ast_cli_entry cli_h323_gk_cycle_deprecated =
 	{ { "h.323", "gk", "cycle", NULL },
 	h323_gk_cycle, "Manually re-register with the Gatekeper",
-	show_cycle_usage },
+	show_cycle_usage };
 
+static struct ast_cli_entry cli_h323_hangup_deprecated =
 	{ { "h.323", "hangup", NULL },
 	h323_ep_hangup, "Manually try to hang up a call",
-	show_hangup_usage },
+	show_hangup_usage };
 
+static struct ast_cli_entry cli_h323_show_tokens_deprecated =
 	{ { "h.323", "show", "tokens", NULL },
 	h323_tokens_show, "Show all active call tokens",
-	show_tokens_usage },
+	show_tokens_usage };
+
+static struct ast_cli_entry cli_h323[] = {
+	{ { "h323", "trace", NULL },
+	h323_do_trace, "Enable H.323 Stack Tracing",
+	trace_usage, NULL, &cli_h323_trace_deprecated },
+
+	{ { "h323", "no", "trace", NULL },
+	h323_no_trace, "Disable H.323 Stack Tracing",
+	no_trace_usage, NULL, &cli_h323_no_trace_deprecated },
+
+	{ { "h323", "debug", NULL },
+	h323_do_debug, "Enable H.323 debug",
+	debug_usage, NULL, &cli_h323_debug_deprecated },
+
+	{ { "h323", "no", "debug", NULL },
+	h323_no_debug, "Disable H.323 debug",
+	no_debug_usage, NULL, &cli_h323_no_debug_deprecated },
+
+	{ { "h323", "gk", "cycle", NULL },
+	h323_gk_cycle, "Manually re-register with the Gatekeper",
+	show_cycle_usage, NULL, &cli_h323_gk_cycle_deprecated },
+
+	{ { "h323", "hangup", NULL },
+	h323_ep_hangup, "Manually try to hang up a call",
+	show_hangup_usage, NULL, &cli_h323_hangup_deprecated },
+
+	{ { "h323", "show", "tokens", NULL },
+	h323_tokens_show, "Show all active call tokens",
+	show_tokens_usage, NULL, &cli_h323_show_tokens_deprecated },
 };
 
 static int reload_config(int is_reload)
@@ -2942,10 +2977,16 @@ static int reload(void)
 	return h323_reload(0, 0, NULL);
 }
 
-static struct ast_cli_entry cli_h323_reload =
+static struct ast_cli_entry cli_h323_reload_deprecated =
 	{ { "h.323", "reload", NULL },
 	h323_reload, "Reload H.323 configuration",
 	h323_reload_usage
+};
+
+static struct ast_cli_entry cli_h323_reload =
+	{ { "h323", "reload", NULL },
+	h323_reload, "Reload H.323 configuration",
+	h323_reload_usage, NULL, &cli_h323_reload_deprecated
 };
 
 static enum ast_rtp_get_result oh323_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp)
