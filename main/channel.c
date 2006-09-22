@@ -4445,9 +4445,9 @@ int ast_channel_unlock(struct ast_channel *chan)
 #ifdef __linux__
 		int count = 0;
 #ifdef DEBUG_THREADS
-		if ((count = chan->lock.mutex.__m_count))
+		if ((count = chan->lock.mutex.__data.__count))
 #else
-		if ((count = chan->lock.__m_count))
+		if ((count = chan->lock.__data.__count))
 #endif
 			ast_log(LOG_DEBUG, ":::=== Still have %d locks (recursive)\n", count);
 #endif
@@ -4481,9 +4481,9 @@ int ast_channel_lock(struct ast_channel *chan)
 #ifdef __linux__
 		int count = 0;
 #ifdef DEBUG_THREADS
-		if ((count = chan->lock.mutex.__m_count))
+		if ((count = chan->lock.mutex.__data.__count))
 #else
-		if ((count = chan->lock.__m_count))
+		if ((count = chan->lock.__data.__count))
 #endif
 			ast_log(LOG_DEBUG, ":::=== Now have %d locks (recursive)\n", count);
 #endif
@@ -4517,9 +4517,9 @@ int ast_channel_trylock(struct ast_channel *chan)
 #ifdef __linux__
 		int count = 0;
 #ifdef DEBUG_THREADS
-		if ((count = chan->lock.mutex.__m_count))
+		if ((count = chan->lock.mutex.__data.__count))
 #else
-		if ((count = chan->lock.__m_count))
+		if ((count = chan->lock.__data.__count))
 #endif
 			ast_log(LOG_DEBUG, ":::=== Now have %d locks (recursive)\n", count);
 #endif
