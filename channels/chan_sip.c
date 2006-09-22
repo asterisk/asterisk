@@ -4531,6 +4531,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int numberofmediastreams = 0;
 	int debug = sip_debug_test_pvt(p);
 		
+	int found_rtpmap_codecs[32];
+	int last_rtpmap_codec=0;
+
 	if (!p->rtp) {
 		ast_log(LOG_ERROR, "Got SDP but have no RTP session allocated.\n");
 		return -1;
@@ -4702,8 +4705,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	 */
 	/* XXX This needs to be done per media stream, since it's media stream specific */
 	iterator = req->sdp_start;
-	int found_rtpmap_codecs[32];
-	int last_rtpmap_codec=0;
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
 		char* mimeSubtype = ast_strdupa(a); /* ensures we have enough space */
 		if (option_debug > 1) {
