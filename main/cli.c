@@ -1421,6 +1421,8 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 		   To show command B, you just need to always use ed->_full_cmd.
 		 */
 		e->_deprecated_by = S_OR(ed->_deprecated_by, ed->_full_cmd);
+	} else {
+		e->deprecated = 0;
 	}
 
 	lf = strlen(fulle);
