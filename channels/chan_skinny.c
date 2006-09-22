@@ -4521,52 +4521,40 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-#if 0
-	struct skinnysession *s;
+	delete_devices();
 
-	/* close all IP connections */
-	if (!ast_mutex_lock(&devicelock)) {
-		/* Terminate tcp listener thread */
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
+	ast_mutex_lock(&monlock);
+	if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP)) {
+		pthread_cancel(monitor_thread);
+		pthread_kill(monitor_thread, SIGURG);
+		pthread_join(monitor_thread, NULL);
 	}
-	if (!ast_mutex_lock(&monlock)) {
-		if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP)) {
-			pthread_cancel(monitor_thread);
-			pthread_kill(monitor_thread, SIGURG);
-			pthread_join(monitor_thread, NULL);
-		}
-		monitor_thread = AST_PTHREADT_STOP;
-		ast_mutex_unlock(&monlock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
+	monitor_thread = AST_PTHREADT_STOP;
+	ast_mutex_unlock(&monlock);
+
+#if 0 /* XXX This is...funky.  Will fix shortly */
+	ast_mutex_lock(&sessionlock);
+	/* Destroy all the interfaces and free their memory */
+	p = iflist;
+	while(p) {
+		pl = p;
+		p = p->next;
+		/* Free associated memory */
+		ast_mutex_destroy(&pl->lock);
+		free(pl);
 	}
-	if (!ast_mutex_lock(&iflock)) {
-		/* Destroy all the interfaces and free their memory */
-		p = iflist;
-		while(p) {
-			pl = p;
-			p = p->next;
-			/* Free associated memory */
-			ast_mutex_destroy(&pl->lock);
-			free(pl);
-		}
-		iflist = NULL;
-		ast_mutex_unlock(&iflock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
-	}
+	iflist = NULL;
+	ast_mutex_unlock(&sessionlock);
+#endif
 
 	ast_rtp_proto_unregister(&skinny_rtp);
 	ast_channel_unregister(&skinny_tech);
 	ast_cli_unregister_multiple(cli_skinny, sizeof(cli_skinny) / sizeof(struct ast_cli_entry));
 
+	close(skinnysock);
+	sched_context_destroy(sched);
+
 	return 0;
-#endif
-	return -1;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Skinny Client Control Protocol (Skinny)",
