@@ -77,4 +77,18 @@ public:
 #endif
 #define H323_REGISTER_CAPABILITY(cls, capName) static MyPFactory<H323Capability>::Worker<cls> cls##Factory(capName, true)
 
+#ifdef OPAL_MEDIA_FORMAT_DECLARE
+#undef OPAL_MEDIA_FORMAT_DECLARE
+#endif
+
+#define OPAL_MEDIA_FORMAT_DECLARE(classname, _fullName, _defaultSessionID, _rtpPayloadType, _needsJitter,_bandwidth, _frameSize, _frameTime, _timeUnits, _timeStamp) \
+class classname : public OpalMediaFormat \
+{ \
+  public: \
+    classname() \
+      : OpalMediaFormat(_fullName, _defaultSessionID, _rtpPayloadType, _needsJitter, _bandwidth, \
+        _frameSize, _frameTime, _timeUnits, _timeStamp){} \
+}; \
+static MyPFactory<OpalMediaFormat>::Worker<classname> classname##Factory(_fullName, true)
+
 #endif /* !defined AST_H323_H */
