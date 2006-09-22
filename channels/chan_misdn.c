@@ -4496,7 +4496,7 @@ static int load_module(void)
 	
 	if (max_ports<=0) {
 		ast_log(LOG_ERROR, "Unable to initialize mISDN\n");
-		return 0;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	
 	if (misdn_cfg_init(max_ports)) {
