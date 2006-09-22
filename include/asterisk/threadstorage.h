@@ -140,7 +140,7 @@ struct ast_dynamic_str {
  *       be free()'d after it is no longer needed.
  */
 AST_INLINE_API(
-struct ast_dynamic_str *__attribute__ ((malloc)) ast_dynamic_str_create(size_t init_len),
+struct ast_dynamic_str * attribute_malloc ast_dynamic_str_create(size_t init_len),
 {
 	struct ast_dynamic_str *buf;
 
