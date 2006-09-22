@@ -418,7 +418,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 struct ast_frame *ast_frdup(const struct ast_frame *f)
 {
 	struct ast_frame_cache *frames;
-	struct ast_frame *out;
+	struct ast_frame *out = NULL;
 	int len, srclen = 0;
 	void *buf = NULL;
 
