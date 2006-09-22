@@ -237,106 +237,98 @@ static void set_volume(struct ast_channel *chan, struct chanspy_translation_help
 static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int *volfactor, int fd) 
 {
 	struct chanspy_translation_helper csth;
-	int running, res = 0, x = 0;
-	char inp[24];
-	char *name=NULL;
-	struct ast_frame *f;
+	int running = 0, res = 0, x = 0;
+	char inp[24] = "", *name = NULL;
+	struct ast_frame *f = NULL;
 
-	running = (chan && !ast_check_hangup(chan) && spyee && !ast_check_hangup(spyee));
+	if ((chan && ast_check_hangup(chan)) || (spyee && ast_check_hangup(spyee)))
+		return 0;
 
-	if (running) {
-		memset(inp, 0, sizeof(inp));
-		name = ast_strdupa(spyee->name);
-		if (option_verbose >= 2)
-			ast_verbose(VERBOSE_PREFIX_2 "Spying on channel %s\n", name);
+	name = ast_strdupa(spyee->name);
+	if (option_verbose > 1)
+		ast_verbose(VERBOSE_PREFIX_2 "Spying on channel %s\n", name);
 
-		memset(&csth, 0, sizeof(csth));
-		ast_set_flag(&csth.spy, CHANSPY_FORMAT_AUDIO);
-		ast_set_flag(&csth.spy, CHANSPY_TRIGGER_NONE);
-		ast_set_flag(&csth.spy, CHANSPY_MIXAUDIO);
-		csth.spy.type = chanspy_spy_type;
-		csth.spy.status = CHANSPY_RUNNING;
-		csth.spy.read_queue.format = AST_FORMAT_SLINEAR;
-		csth.spy.write_queue.format = AST_FORMAT_SLINEAR;
-		ast_mutex_init(&csth.spy.lock);
-		csth.volfactor = *volfactor;
-		set_volume(chan, &csth);
-		csth.spy.read_vol_adjustment = csth.volfactor;
-		csth.spy.write_vol_adjustment = csth.volfactor;
-		csth.fd = fd;
+	memset(&csth, 0, sizeof(csth));
+	ast_set_flag(&csth.spy, CHANSPY_FORMAT_AUDIO);
+	ast_set_flag(&csth.spy, CHANSPY_TRIGGER_NONE);
+	ast_set_flag(&csth.spy, CHANSPY_MIXAUDIO);
+	csth.spy.type = chanspy_spy_type;
+	csth.spy.status = CHANSPY_RUNNING;
+	csth.spy.read_queue.format = AST_FORMAT_SLINEAR;
+	csth.spy.write_queue.format = AST_FORMAT_SLINEAR;
+	ast_mutex_init(&csth.spy.lock);
+	csth.volfactor = *volfactor;
+	set_volume(chan, &csth);
+	csth.spy.read_vol_adjustment = csth.volfactor;
+	csth.spy.write_vol_adjustment = csth.volfactor;
+	csth.fd = fd;
 
-		if (start_spying(spyee, chan, &csth.spy))
-			running = 0;
+	if (start_spying(spyee, chan, &csth.spy)) {
+		ast_channel_spy_free(&csth.spy);
+		return 0;
 	}
 
-	if (running) {
-		running = 1;
-		ast_activate_generator(chan, &spygen, &csth);
+	ast_activate_generator(chan, &spygen, &csth);
 
-		while (csth.spy.status == CHANSPY_RUNNING &&
-		       chan && !ast_check_hangup(chan) &&
-		       spyee &&
-		       !ast_check_hangup(spyee) &&
-		       running == 1 &&
-		       (res = ast_waitfor(chan, -1) > -1)) {
-			if ((f = ast_read(chan))) {
-				res = 0;
-				if (f->frametype == AST_FRAME_DTMF) {
-					res = f->subclass;
-				}
-				ast_frfree(f);
-				if (!res) {
-					continue;
-				}
-			} else {
+	while (csth.spy.status == CHANSPY_RUNNING &&
+	       (res = ast_waitfor(chan, -1) > -1)) {
+		
+		/* Read in frame from channel, break out if no frame */
+		if (!(f = ast_read(chan)))
+			break;
+		
+		/* Now if this is DTMF then we have to handle it as such, otherwise just skip it */
+		res = 0;
+		if (f->frametype == AST_FRAME_DTMF)
+			res = f->subclass;
+		ast_frfree(f);
+		if (!res)
+			continue;
+		
+		if (x == sizeof(inp))
+			x = 0;
+		
+		if (res < 0) {
+			running = -1;
+			break;
+		}
+		
+		/* Process DTMF digits */
+		if (res == '#') {
+			if (!ast_strlen_zero(inp)) {
+				running = x ? atoi(inp) : -1;
 				break;
+			} else {
+				(*volfactor)++;
+				if (*volfactor > 4)
+					*volfactor = -1;
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Setting spy volume on %s to %d\n", chan->name, *volfactor);
+				csth.volfactor = *volfactor;
+				set_volume(chan, &csth);
+				csth.spy.read_vol_adjustment = csth.volfactor;
+				csth.spy.write_vol_adjustment = csth.volfactor;
 			}
-			if (x == sizeof(inp)) {
-				x = 0;
-			}
-			if (res < 0) {
-				running = -1;
-			}
-			if (res == 0) {
-				continue;
-			} else if (res == '*') {
-				running = 0; 
-			} else if (res == '#') {
-				if (!ast_strlen_zero(inp)) {
-					running = x ? atoi(inp) : -1;
-					break;
-				} else {
-					(*volfactor)++;
-					if (*volfactor > 4) {
-						*volfactor = -4;
-					}
-					if (option_verbose > 2) {
-						ast_verbose(VERBOSE_PREFIX_3 "Setting spy volume on %s to %d\n", chan->name, *volfactor);
-					}
-					csth.volfactor = *volfactor;
-					set_volume(chan, &csth);
-					csth.spy.read_vol_adjustment = csth.volfactor;
-					csth.spy.write_vol_adjustment = csth.volfactor;
-				}
-			} else if (res >= 48 && res <= 57) {
-				inp[x++] = res;
-			}
+		} else if (res == '*') {
+			break;
+		} else if (res >= 48 && res <= 57) {
+			inp[x++] = res;
 		}
-		ast_deactivate_generator(chan);
-
-		if (csth.spy.chan) {
-			csth.spy.status = CHANSPY_DONE;
-			ast_mutex_lock(&csth.spy.chan->lock);
-			ast_channel_spy_remove(csth.spy.chan, &csth.spy);
-			ast_mutex_unlock(&csth.spy.chan->lock);
-		}
-
-		if (option_verbose >= 2) {
-			ast_verbose(VERBOSE_PREFIX_2 "Done Spying on channel %s\n", name);
-		}
-	} else {
-		running = 0;
 	}
+
+	ast_deactivate_generator(chan);
+	
+	ast_mutex_lock(&csth.spy.lock);
+	if (csth.spy.chan) {
+		csth.spy.status = CHANSPY_DONE;
+		ast_mutex_lock(&csth.spy.chan->lock);
+		ast_channel_spy_remove(csth.spy.chan, &csth.spy);
+		ast_mutex_unlock(&csth.spy.chan->lock);
+	}
+	ast_mutex_unlock(&csth.spy.lock);
+
+	if (option_verbose > 1)
+		ast_verbose(VERBOSE_PREFIX_2 "Done Spying on channel %s\n", name);
 
 	ast_channel_spy_free(&csth.spy);
 
