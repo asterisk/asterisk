@@ -4234,10 +4234,8 @@ static int restart_monitor(void)
 	/* If we're supposed to be stopped -- stay stopped */
 	if (monitor_thread == AST_PTHREADT_STOP)
 		return 0;
-	if (ast_mutex_lock(&monlock)) {
-		ast_log(LOG_WARNING, "Unable to lock monitor\n");
-		return -1;
-	}
+
+	ast_mutex_lock(&monlock);
 	if (monitor_thread == pthread_self()) {
 		ast_mutex_unlock(&monlock);
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
@@ -4476,6 +4474,11 @@ static void delete_devices(void)
 	ast_mutex_unlock(&devicelock);
 }
 
+#if 0
+/*
+ * XXX This never worked properly anyways.
+ * Let's get rid of it, until we can fix it.
+ */
 static int reload(void)
 {
 	delete_devices();
@@ -4483,6 +4486,7 @@ static int reload(void)
 	restart_monitor();
 	return 0;
 }
+#endif
 
 static int load_module(void)
 {
@@ -4521,6 +4525,39 @@ static int load_module(void)
 
 static int unload_module(void)
 {
+	struct skinnysession *s, *slast;
+	struct skinny_device *d;
+	struct skinny_line *l;
+	struct skinny_subchannel *sub;
+
+	ast_mutex_lock(&sessionlock);
+	/* Destroy all the interfaces and free their memory */
+	s = sessions;
+	while(s) {
+		slast = s;
+		s = s->next;
+		for (d = slast->device; d; d = d->next) {
+			for (l = d->lines; l; l = l->next) {
+				ast_mutex_lock(&l->lock);
+				for (sub = l->sub; sub; sub = sub->next) {
+					ast_mutex_lock(&sub->lock);
+					if (sub->owner) {
+						sub->alreadygone = 1;
+						ast_softhangup(sub->owner, AST_SOFTHANGUP_APPUNLOAD);
+					}
+					ast_mutex_unlock(&sub->lock);
+				}
+				ast_mutex_unlock(&l->lock);
+			}
+		}
+		if (slast->fd > -1)
+			close(slast->fd);
+		ast_mutex_destroy(&slast->lock);
+		free(slast);
+	}
+	sessions = NULL;
+	ast_mutex_unlock(&sessionlock);
+
 	delete_devices();
 
 	ast_mutex_lock(&monlock);
@@ -4532,20 +4569,21 @@ static int unload_module(void)
 	monitor_thread = AST_PTHREADT_STOP;
 	ast_mutex_unlock(&monlock);
 
-#if 0 /* XXX This is...funky.  Will fix shortly */
-	ast_mutex_lock(&sessionlock);
-	/* Destroy all the interfaces and free their memory */
-	p = iflist;
-	while(p) {
-		pl = p;
-		p = p->next;
-		/* Free associated memory */
-		ast_mutex_destroy(&pl->lock);
-		free(pl);
+	if (tcp_thread && (tcp_thread != AST_PTHREADT_STOP)) {
+		pthread_cancel(tcp_thread);
+		pthread_kill(tcp_thread, SIGURG);
+		pthread_join(tcp_thread, NULL);
 	}
-	iflist = NULL;
-	ast_mutex_unlock(&sessionlock);
-#endif
+	tcp_thread = AST_PTHREADT_STOP;
+
+	ast_mutex_lock(&netlock);
+	if (accept_t && (accept_t != AST_PTHREADT_STOP)) {
+		pthread_cancel(accept_t);
+		pthread_kill(accept_t, SIGURG);
+		pthread_join(accept_t, NULL);
+	}
+	accept_t = AST_PTHREADT_STOP;
+	ast_mutex_unlock(&netlock);
 
 	ast_rtp_proto_unregister(&skinny_rtp);
 	ast_channel_unregister(&skinny_tech);
@@ -4560,5 +4598,4 @@ static int unload_module(void)
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Skinny Client Control Protocol (Skinny)",
 		.load = load_module,
 		.unload = unload_module,
-		.reload = reload,
 	       );
