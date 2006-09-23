@@ -2433,34 +2433,36 @@ static void *do_monitor(void *data)
 			h323_do_reload();
 		}
 		/* Check for interfaces needing to be killed */
-		ast_mutex_lock(&iflock);
+		if (!ast_mutex_trylock(&iflock)) {
 #if 1
-		do {
-			for (oh323 = iflist; oh323; oh323 = oh323->next) {
+			do {
+				for (oh323 = iflist; oh323; oh323 = oh323->next) {
+					if (!ast_mutex_trylock(&oh323->lock)) {
+						if (oh323->needdestroy) {
+							__oh323_destroy(oh323);
+							break;
+						}
+						ast_mutex_unlock(&oh323->lock);
+					}
+				}
+			} while (/*oh323*/ 0);
+#else
+restartsearch:
+			oh323 = iflist;
+			while(oh323) {
 				if (!ast_mutex_trylock(&oh323->lock)) {
 					if (oh323->needdestroy) {
 						__oh323_destroy(oh323);
-						break;
+						goto restartsearch;
 					}
 					ast_mutex_unlock(&oh323->lock);
+					oh323 = oh323->next;
 				}
 			}
-		} while (/*oh323*/ 0);
-#else
-restartsearch:
-		oh323 = iflist;
-		while(oh323) {
-			if (!ast_mutex_trylock(&oh323->lock)) {
-				if (oh323->needdestroy) {
-					__oh323_destroy(oh323);
-					goto restartsearch;
-				}
-				ast_mutex_unlock(&oh323->lock);
-				oh323 = oh323->next;
-			}
-		}
 #endif
-		ast_mutex_unlock(&iflock);
+			ast_mutex_unlock(&iflock);
+		} else
+			oh323 = (struct oh323_pvt *)1;	/* Force fast loop */
 		pthread_testcancel();
 		/* Wait for sched or io */
 		res = ast_sched_wait(sched);
