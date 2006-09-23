@@ -604,10 +604,58 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 	unsigned int event;
 	char resp = 0;
 	struct ast_frame *f = NULL;
-	event = ntohl(*((unsigned int *)(data)));
-	event &= 0x001F;
+	unsigned char seq;
+	unsigned int datalen;
+	unsigned int flag;
+	unsigned int power;
+
+	/* We should have at least 4 bytes in RTP data */
+	if (len < 4)
+		return f;
+
+	/*	The format of Cisco RTP DTMF packet looks like next:
+		+0				- sequence number of DTMF RTP packet (begins from 1,
+						  wrapped to 0)
+		+1 (bits 7-0)	- count of bytes carrying DTMF information (if DTMF
+						  information repeates 3 times, i.e. packet have 6
+						  bytes of DTMF information, this value equal to 6).
+						  Last bit should always be zero (because DTMF info
+						  is multiple of 2 bytes) but really uses as described
+						  below.
+		+1 (bit 0)		- flaps by different DTMF digits delimited by audio
+						  or repeated digit without audio
+		+2 (+4,+6,...)	- power level? (rises from 0 to 32 at begin of tone
+						  then falls to 0 at its end)
+		+3 (+5,+7,...)	- detected DTMF digit (0..9,*,#,A-D,...)
+		Repeated DTMF information (bytes 4/5, 6/7) is history shifted right
+		by each new packet and thus provides some redudancy.
+		
+		Sample of Cisco RTP DTMF packet is (all data in hex):
+			19 07 00 02 12 02 20 02
+		showing end of DTMF digit '2'.
+
+		The packets
+			27 07 00 02 0A 02 20 02
+			28 06 20 02 00 02 0A 02
+		shows begin of new digit '2' with very short pause (20 ms) after
+		previous digit '2'. Bit +1.0 flips at begin of new digit.
+		
+		Cisco RTP DTMF packets comes as replacement of audio RTP packets
+		so its uses the same sequencing and timestamping rules as replaced
+		audio packets. Repeat interval of DTMF packets is 20 ms and not rely
+		on audio framing parameters. Marker bit isn't used within stream of
+		DTMFs nor audio stream coming immediately after DTMF stream. Timestamps
+		are not sequential at borders between DTMF and audio streams,
+	*/
+
+	seq = data[0];
+	datalen = data[1] & ~1;
+	flag = data[1] & 1;
+	power = data[2];
+	event = data[3] & 0x1f;
+
 	if (option_debug > 2 || rtpdebug)
-		ast_log(LOG_DEBUG, "Cisco DTMF Digit: %08x (len = %d)\n", event, len);
+		ast_log(LOG_DEBUG, "Cisco DTMF Digit: %02x (len=%d, seq=%d, repeat=%d, power=%d, history count=%d)\n", event, len, seq, flag, power, datalen / 2 - 1);
 	if (event < 10) {
 		resp = '0' + event;
 	} else if (event < 11) {
@@ -619,10 +667,19 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 	} else if (event < 17) {
 		resp = 'X';
 	}
-	if (rtp->resp && (rtp->resp != resp)) {
+	if ((!rtp->resp && power) || (rtp->resp && (rtp->resp != resp))) {
+		rtp->resp = resp;
+		/* Why we should care on DTMF compensation at receiption? */
+		if (!ast_test_flag(rtp, FLAG_DTMF_COMPENSATE)) {
+			f = send_dtmf(rtp, AST_FRAME_DTMF_BEGIN);
+			rtp->dtmfduration = 0;
+		}
+	} else if ((rtp->resp == resp) && !power) {
 		f = send_dtmf(rtp, AST_FRAME_DTMF_END);
-	}
-	rtp->resp = resp;
+		f->samples = rtp->dtmfduration * 8;
+		rtp->resp = 0;
+	} else if (rtp->resp == resp)
+		rtp->dtmfduration += 20 * 8;
 	rtp->dtmfcount = dtmftimeout;
 	return f;
 }
