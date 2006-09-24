@@ -326,7 +326,7 @@ H323Codec * AST_GSM0610Capability::CreateCodec(H323Codec::Direction direction) c
 AST_CiscoG726Capability::AST_CiscoG726Capability(int rx_frames)
 	: H323NonStandardAudioCapability(rx_frames, 240,
 		181, 0, 18,
-		(const BYTE *)CISCO_G726r32, sizeof(CISCO_G726r32)-1, 0)
+		(const BYTE *)"G726r32", 0)
 {
 }
 
