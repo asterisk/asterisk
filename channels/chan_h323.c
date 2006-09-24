@@ -1254,12 +1254,12 @@ static int update_common_options(struct ast_variable *v, struct call_options *op
 		ast_parse_allow_disallow(&options->prefs, &options->capability, v->value, 0);
 	} else if (!strcasecmp(v->name, "dtmfmode")) {
 		if (!strcasecmp(v->value, "inband")) {
-			options->dtmfmode = H323_DTMF_INBAND;
+			options->dtmfmode |= H323_DTMF_INBAND;
 		} else if (!strcasecmp(v->value, "rfc2833")) {
-			options->dtmfmode = H323_DTMF_RFC2833;
+			options->dtmfmode |= H323_DTMF_RFC2833;
 		} else {
 			ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
-			options->dtmfmode = H323_DTMF_RFC2833;
+			options->dtmfmode |= H323_DTMF_RFC2833;
 		}
 	} else if (!strcasecmp(v->name, "dtmfcodec")) {
 		tmp = atoi(v->value);
@@ -1333,6 +1333,7 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v, struct 
 	oldha = user->ha;
 	user->ha = (struct ast_ha *)NULL;
 	memcpy(&user->options, &global_options, sizeof(user->options));
+	user->options.dtmfmode = 0;
 	/* Set default context */
 	strncpy(user->context, default_context, sizeof(user->context) - 1);
 	if (user && !found)
@@ -1377,6 +1378,8 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v, struct 
 			user->ha = ast_append_ha(v->name, v->value, user->ha);
 		}
 	}
+	if (!user->options.dtmfmode)
+		user->options.dtmfmode = global_options.dtmfmode;
 	ASTOBJ_UNMARK(user);
 	ast_free_ha(oldha);
 	return user;
@@ -1438,6 +1441,7 @@ static struct oh323_peer *build_peer(const char *name, struct ast_variable *v, s
 	oldha = peer->ha;
 	peer->ha = NULL;
 	memcpy(&peer->options, &global_options, sizeof(peer->options));
+	peer->options.dtmfmode = 0;
 	peer->addr.sin_port = htons(h323_signalling_port);
 	peer->addr.sin_family = AF_INET;
 	if (!found && name)
@@ -1475,6 +1479,8 @@ static struct oh323_peer *build_peer(const char *name, struct ast_variable *v, s
 			ast_copy_string(peer->mailbox, v->value, sizeof(peer->mailbox));
 		}
 	}
+	if (!peer->options.dtmfmode)
+		peer->options.dtmfmode = global_options.dtmfmode;
 	ASTOBJ_UNMARK(peer);
 	ast_free_ha(oldha);
 	return peer;
@@ -2729,7 +2735,7 @@ static int reload_config(int is_reload)
 	global_options.fastStart = 1;
 	global_options.h245Tunneling = 1;
 	global_options.dtmfcodec = H323_DTMF_RFC2833_PT;
-	global_options.dtmfmode = H323_DTMF_RFC2833;
+	global_options.dtmfmode = 0;
 	global_options.capability = GLOBAL_CAPABILITY;
 	global_options.bridge = 1;		/* Do native bridging by default */
 	strncpy(default_context, "default", sizeof(default_context) - 1);
@@ -2822,6 +2828,8 @@ static int reload_config(int is_reload)
 			/* dummy */
 		}
 	}
+	if (!global_options.dtmfmode)
+		global_options.dtmfmode = H323_DTMF_RFC2833;
 
 	for (cat = ast_category_browse(cfg, NULL); cat; cat = ast_category_browse(cfg, cat)) {
 		if (strcasecmp(cat, "general")) {

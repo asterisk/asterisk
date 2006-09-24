@@ -1204,7 +1204,7 @@ void MyH323Connection::SendUserInputTone(char tone, unsigned duration, unsigned 
 
 void MyH323Connection::OnUserInputTone(char tone, unsigned duration, unsigned logicalChannel, unsigned rtpTimestamp)
 {
-	if (dtmfMode == H323_DTMF_RFC2833) {
+	if ((dtmfMode & H323_DTMF_RFC2833)) {
 		if (h323debug) {
 			cout << "\t-- Received user input tone (" << tone << ") from remote" << endl;
 		}
@@ -1299,7 +1299,7 @@ BOOL MyH323Connection::OnReceivedCapabilitySet(const H323Capabilities & remoteCa
 	if (cap != NULL) {
 		RTP_DataFrame::PayloadTypes pt = ((H323_UserInputCapability*)cap)->GetPayloadType();
 		on_set_rfc2833_payload(GetCallReference(), (const char *)GetCallToken(), (int)pt);
-		if ((dtmfMode == H323_DTMF_RFC2833) && (sendUserInputMode == SendUserInputAsTone))
+		if ((dtmfMode & H323_DTMF_RFC2833) && (sendUserInputMode == SendUserInputAsTone))
 			sendUserInputMode = SendUserInputAsInlineRFC2833;
 		if (h323debug) {
 			cout << "\t-- Inbound RFC2833 on payload " << pt << endl;
@@ -1514,7 +1514,7 @@ void MyH323Connection::SetCapabilities(int cap, int dtmf_mode, void *_prefs, int
 
 	lastcap++;
 	dtmfMode = dtmf_mode;
-	if (dtmf_mode == H323_DTMF_INBAND) {
+	if ((dtmfMode & H323_DTMF_INBAND)) {
 		localCapabilities.SetCapability(0, lastcap, new H323_UserInputCapability(H323_UserInputCapability::BasicString));
 		sendUserInputMode = SendUserInputAsString;
 	} else {
