@@ -1247,21 +1247,37 @@ static struct oh323_alias *realtime_alias(const char *alias)
 static int update_common_options(struct ast_variable *v, struct call_options *options)
 {
 	int tmp;
+	char *val, *opt;
 
 	if (!strcasecmp(v->name, "allow")) {
 		ast_parse_allow_disallow(&options->prefs, &options->capability, v->value, 1);
 	} else if (!strcasecmp(v->name, "disallow")) {
 		ast_parse_allow_disallow(&options->prefs, &options->capability, v->value, 0);
 	} else if (!strcasecmp(v->name, "dtmfmode")) {
+		val = strdupa(v->value);
+		if ((opt = strchr(val, ':')) != (char *)NULL) {
+			*opt++ = '\0';
+			tmp = atoi(opt);
+		}
 		if (!strcasecmp(v->value, "inband")) {
 			options->dtmfmode |= H323_DTMF_INBAND;
-		} else if (!strcasecmp(v->value, "rfc2833")) {
+		} else if (!strcasecmp(val, "rfc2833")) {
 			options->dtmfmode |= H323_DTMF_RFC2833;
+			if (!opt)
+				options->dtmfcodec = H323_DTMF_RFC2833_PT;
+			else if ((tmp >= 96) && (tmp < 128))
+				options->dtmfcodec = tmp;
+			else {
+				options->dtmfcodec = H323_DTMF_RFC2833_PT;
+				ast_log(LOG_WARNING, "Unknown rfc2833 payload %s specified at line %d, using default %d\n", opt, v->lineno, options->dtmfcodec);
+			}
 		} else {
 			ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
 			options->dtmfmode |= H323_DTMF_RFC2833;
+			options->dtmfcodec = H323_DTMF_RFC2833_PT;
 		}
 	} else if (!strcasecmp(v->name, "dtmfcodec")) {
+		ast_log(LOG_NOTICE, "Option %s at line %d is deprecated. Use dtmfmode=rfc2833[:<payload>] instead.\n", v->name, v->lineno);
 		tmp = atoi(v->value);
 		if (tmp < 96)
 			ast_log(LOG_WARNING, "Invalid %s value %s at line %d\n", v->name, v->value, v->lineno);
