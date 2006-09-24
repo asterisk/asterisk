@@ -9342,6 +9342,11 @@ static char *function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, c
 	char *peername, *colname;
 	char iabuf[INET_ADDRSTRLEN];
 
+	buf[0] = '\0';
+
+	if (chan->tech != &iax2_tech)
+		return buf;
+
 	if (!(peername = ast_strdupa(data))) {
 		ast_log(LOG_ERROR, "Memory Error!\n");
 		return ret;
