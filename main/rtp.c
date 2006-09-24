@@ -605,8 +605,7 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 	char resp = 0;
 	struct ast_frame *f = NULL;
 	unsigned char seq;
-	unsigned int datalen;
-	unsigned int flag;
+	unsigned int flags;
 	unsigned int power;
 
 	/* We should have at least 4 bytes in RTP data */
@@ -616,14 +615,9 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 	/*	The format of Cisco RTP DTMF packet looks like next:
 		+0				- sequence number of DTMF RTP packet (begins from 1,
 						  wrapped to 0)
-		+1 (bits 7-0)	- count of bytes carrying DTMF information (if DTMF
-						  information repeates 3 times, i.e. packet have 6
-						  bytes of DTMF information, this value equal to 6).
-						  Last bit should always be zero (because DTMF info
-						  is multiple of 2 bytes) but really uses as described
-						  below.
+		+1				- set of flags
 		+1 (bit 0)		- flaps by different DTMF digits delimited by audio
-						  or repeated digit without audio
+						  or repeated digit without audio???
 		+2 (+4,+6,...)	- power level? (rises from 0 to 32 at begin of tone
 						  then falls to 0 at its end)
 		+3 (+5,+7,...)	- detected DTMF digit (0..9,*,#,A-D,...)
@@ -649,13 +643,12 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 	*/
 
 	seq = data[0];
-	datalen = data[1] & ~1;
-	flag = data[1] & 1;
+	flags = data[1];
 	power = data[2];
 	event = data[3] & 0x1f;
 
 	if (option_debug > 2 || rtpdebug)
-		ast_log(LOG_DEBUG, "Cisco DTMF Digit: %02x (len=%d, seq=%d, repeat=%d, power=%d, history count=%d)\n", event, len, seq, flag, power, datalen / 2 - 1);
+		ast_log(LOG_DEBUG, "Cisco DTMF Digit: %02x (len=%d, seq=%d, flags=%02x, power=%d, history count=%d)\n", event, len, seq, flags, power, (len - 4) / 2);
 	if (event < 10) {
 		resp = '0' + event;
 	} else if (event < 11) {
