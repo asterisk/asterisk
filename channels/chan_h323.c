@@ -2728,7 +2728,7 @@ static int reload_config(int is_reload)
 	memset(&global_options, 0, sizeof(global_options));
 	global_options.fastStart = 1;
 	global_options.h245Tunneling = 1;
-	global_options.dtmfcodec = 101;
+	global_options.dtmfcodec = H323_DTMF_RFC2833_PT;
 	global_options.dtmfmode = H323_DTMF_RFC2833;
 	global_options.capability = GLOBAL_CAPABILITY;
 	global_options.bridge = 1;		/* Do native bridging by default */

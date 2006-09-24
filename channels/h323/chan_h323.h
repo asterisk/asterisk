@@ -190,6 +190,9 @@ extern int h323debug;
 #define H323_DTMF_RFC2833	(1 << 0)
 #define H323_DTMF_INBAND	(1 << 1)
 
+#define H323_DTMF_RFC2833_PT	101
+#define H323_DTMF_CISCO_PT		121
+
 #ifndef BOOL
 #define BOOL int
 #endif
