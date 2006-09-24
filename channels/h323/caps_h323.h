@@ -140,4 +140,33 @@ public:
 	/* Get the name of the media data format this class represents. */
 	virtual PString GetFormatName() const;
 };
+
+#define CISCO_DTMF_RELAY "UserInput/RtpDtmfRelay"
+
+class AST_CiscoDtmfCapability : public H323NonStandardDataCapability
+{
+	PCLASSINFO(AST_CiscoDtmfCapability, H323NonStandardDataCapability);
+
+public:
+	/* Create a new Cisco RTP DTMF Relay capability */
+	AST_CiscoDtmfCapability();
+
+	/* Create a copy of the object. */	
+	virtual PObject *Clone() const;
+
+	/* Create the codec instance, allocating resources as required. */
+	virtual H323Codec * CreateCodec(H323Codec::Direction direction) const;
+
+	/* Get the name of the media data format this class represents. */
+	virtual PString GetFormatName() const;
+	
+	virtual H323Channel *CreateChannel(H323Connection &,
+										H323Channel::Directions,
+										unsigned,
+										const H245_H2250LogicalChannelParameters *) const
+	{
+		return NULL;
+	}
+};
+
 #endif /* __AST_H323CAPS_H */

@@ -344,3 +344,27 @@ PString AST_CiscoG726Capability::GetFormatName() const
 {
 	return PString(CISCO_G726r32);
 }
+
+/*
+ * Capability: Cisco RTP DTMF Relay
+ */
+AST_CiscoDtmfCapability::AST_CiscoDtmfCapability()
+	: H323NonStandardDataCapability(0, 181, 0, 18, (const BYTE *)"RtpDtmfRelay", 0)
+{
+	rtpPayloadType = (RTP_DataFrame::PayloadTypes)121;
+}
+
+PObject *AST_CiscoDtmfCapability::Clone() const
+{
+	return new AST_CiscoDtmfCapability(*this);
+}
+
+H323Codec *AST_CiscoDtmfCapability::CreateCodec(H323Codec::Direction direction) const
+{
+	return NULL;
+}
+
+PString AST_CiscoDtmfCapability::GetFormatName() const
+{
+	return PString(CISCO_DTMF_RELAY);
+}
