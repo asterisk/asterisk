@@ -466,15 +466,10 @@ static int iax_show_provisioning(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static struct ast_cli_entry cli_iax2_show_provisioning = {
-	{ "iax2", "show", "provisioning", NULL },
-	iax_show_provisioning, NULL,
-	NULL, iax_prov_complete_template };
-
 static struct ast_cli_entry cli_iax2_provision[] = {
 	{ { "iax2", "show", "provisioning", NULL },
 	iax_show_provisioning, "Display iax provisioning",
-	show_provisioning_usage, iax_prov_complete_template, &cli_iax2_show_provisioning },
+	show_provisioning_usage, iax_prov_complete_template, },
 };
 
 static int iax_provision_init(void)
