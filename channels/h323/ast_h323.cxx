@@ -37,6 +37,7 @@
 #include <ptlib.h>
 #include <h323.h>
 #include <h323pdu.h>
+#include <h323neg.h>
 #include <mediafmt.h>
 #include <lid.h>
 
@@ -1104,6 +1105,14 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 	}
 
 	SetCallOptions(res, TRUE);
+
+	/* Disable fastStart if requested by remote side */
+	if (h245Tunneling && !setupPDU.m_h323_uu_pdu.m_h245Tunneling) {
+		masterSlaveDeterminationProcedure->Stop();
+		capabilityExchangeProcedure->Stop();
+		PTRACE(3, "H225\tFast Start DISABLED!");
+		h245Tunneling = FALSE;
+	}
 
 	return H323Connection::OnReceivedSignalSetup(setupPDU);
 }
