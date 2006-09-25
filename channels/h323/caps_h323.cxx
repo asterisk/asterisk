@@ -18,6 +18,7 @@ H323_REGISTER_CAPABILITY(AST_G729Capability,  OPAL_G729);
 H323_REGISTER_CAPABILITY(AST_G729ACapability, OPAL_G729A);
 H323_REGISTER_CAPABILITY(AST_GSM0610Capability, OPAL_GSM0610);
 H323_REGISTER_CAPABILITY(AST_CiscoG726Capability, CISCO_G726r32);
+H323_REGISTER_CAPABILITY(AST_CiscoDtmfCapability, CISCO_DTMF_RELAY);
 
 OPAL_MEDIA_FORMAT_DECLARE(OpalG711ALaw64kFormat,
 	OPAL_G711_ALAW_64K,
@@ -99,6 +100,18 @@ OPAL_MEDIA_FORMAT_DECLARE(OpalCiscoG726Format,
 	8,		// 1 millisecond
 	OpalMediaFormat::AudioTimeUnits,
 	0);
+#if 0
+OPAL_MEDIA_FORMAT_DECLARE(OpalCiscoDTMFRelayFormat,
+	CISCO_DTMF_RELAY,
+	OpalMediaFormat::DefaultAudioSessionID,
+	(RTP_DataFrame::PayloadTypes)121, // Choose this for Cisco IOS compatibility
+	TRUE,	// Needs jitter
+	100,	// bits/sec
+	4,		// bytes/frame
+	8*150,	// 150 millisecond
+	OpalMediaFormat::AudioTimeUnits,
+	0);
+#endif
 
 /*
  * Capability: G.711

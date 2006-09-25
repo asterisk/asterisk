@@ -184,7 +184,7 @@ struct oh323_pvt {
 	int peercapability;					/* Capabilities learned from peer */
 	int jointcapability;				/* Common capabilities for local and remote side */
 	struct ast_codec_pref peer_prefs;	/* Preferenced list of codecs which remote side supports */
-	int dtmf_pt;						/* Payload code used for RFC2833 messages */
+	int dtmf_pt[2];						/* Payload code used for RFC2833/CISCO messages */
 	int curDTMF;						/* DTMF tone being generated to Asterisk side */
 	int DTMFsched;						/* Scheduler descriptor for DTMF */
 	int update_rtp_info;				/* Configuration of fd's array is pending */
@@ -515,7 +515,9 @@ static int oh323_digit_begin(struct ast_channel *c, char digit)
 		return -1;
 	}
 	ast_mutex_lock(&pvt->lock);
-	if (pvt->rtp && (pvt->options.dtmfmode & H323_DTMF_RFC2833) && (pvt->dtmf_pt > 0)) {
+	if (pvt->rtp &&
+		(((pvt->options.dtmfmode & H323_DTMF_RFC2833) && pvt->dtmf_pt[0])
+		 /*|| ((pvt->options.dtmfmode & H323_DTMF_CISCO) && pvt->dtmf_pt[1]))*/)) {
 		/* out-of-band DTMF */
 		if (h323debug) {
 			ast_log(LOG_DTMF, "Begin sending out-of-band digit %c on %s\n", digit, c->name);
@@ -554,7 +556,7 @@ static int oh323_digit_end(struct ast_channel *c, char digit)
 		return -1;
 	}
 	ast_mutex_lock(&pvt->lock);
-	if (pvt->rtp && (pvt->options.dtmfmode & H323_DTMF_RFC2833) && (pvt->dtmf_pt > 0)) {
+	if (pvt->rtp && (pvt->options.dtmfmode & H323_DTMF_RFC2833) && ((pvt->dtmf_pt[0] > 0) || (pvt->dtmf_pt[0] > 0))) {
 		/* out-of-band DTMF */
 		if (h323debug) {
 			ast_log(LOG_DTMF, "End sending out-of-band digit %c on %s\n", digit, c->name);
@@ -644,7 +646,7 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	pvt->outgoing = 1;
 
 	if (h323debug)
-		ast_log(LOG_DEBUG, "Placing outgoing call to %s, %d\n", called_addr, pvt->options.dtmfcodec);
+		ast_log(LOG_DEBUG, "Placing outgoing call to %s, %d/%d\n", called_addr, pvt->options.dtmfcodec[0], pvt->options.dtmfcodec[1]);
 	ast_mutex_unlock(&pvt->lock);
 	res = h323_make_call(called_addr, &(pvt->cd), &pvt->options);
 	if (res) {
@@ -757,7 +759,7 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 
 	f = ast_rtp_read(pvt->rtp);
 	/* Don't send RFC2833 if we're not supposed to */
-	if (f && (f->frametype == AST_FRAME_DTMF) && !(pvt->options.dtmfmode & H323_DTMF_RFC2833)) {
+	if (f && (f->frametype == AST_FRAME_DTMF) && !(pvt->options.dtmfmode & (H323_DTMF_RFC2833 | H323_DTMF_CISCO))) {
 		return &ast_null_frame;
 	}
 	if (pvt->owner) {
@@ -979,8 +981,10 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 		ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", pvt->options.nat);
 	ast_rtp_setnat(pvt->rtp, pvt->options.nat);
 
-	if (pvt->dtmf_pt > 0)
-		ast_rtp_set_rtpmap_type(pvt->rtp, pvt->dtmf_pt, "audio", "telephone-event", 0);
+	if (pvt->dtmf_pt[0] > 0)
+		ast_rtp_set_rtpmap_type(pvt->rtp, pvt->dtmf_pt[0], "audio", "telephone-event", 0);
+	if (pvt->dtmf_pt[1] > 0)
+		ast_rtp_set_rtpmap_type(pvt->rtp, pvt->dtmf_pt[1], "audio", "cisco-telephone-event", 0);
 
 	if (pvt->peercapability)
 		ast_rtp_codec_setpref(pvt->rtp, &pvt->peer_prefs);
@@ -1121,7 +1125,7 @@ static struct oh323_pvt *oh323_alloc(int callid)
 	}
 	memcpy(&pvt->options, &global_options, sizeof(pvt->options));
 	pvt->jointcapability = pvt->options.capability;
-	if (pvt->options.dtmfmode & H323_DTMF_RFC2833) {
+	if (pvt->options.dtmfmode & (H323_DTMF_RFC2833 | H323_DTMF_CISCO)) {
 		pvt->nonCodecCapability |= AST_RTP_DTMF;
 	} else {
 		pvt->nonCodecCapability &= ~AST_RTP_DTMF;
@@ -1263,18 +1267,28 @@ static int update_common_options(struct ast_variable *v, struct call_options *op
 			options->dtmfmode |= H323_DTMF_INBAND;
 		} else if (!strcasecmp(val, "rfc2833")) {
 			options->dtmfmode |= H323_DTMF_RFC2833;
-			if (!opt)
-				options->dtmfcodec = H323_DTMF_RFC2833_PT;
-			else if ((tmp >= 96) && (tmp < 128))
-				options->dtmfcodec = tmp;
-			else {
-				options->dtmfcodec = H323_DTMF_RFC2833_PT;
-				ast_log(LOG_WARNING, "Unknown rfc2833 payload %s specified at line %d, using default %d\n", opt, v->lineno, options->dtmfcodec);
+			if (!opt) {
+				options->dtmfcodec[0] = H323_DTMF_RFC2833_PT;
+			} else if ((tmp >= 96) && (tmp < 128)) {
+				options->dtmfcodec[0] = tmp;
+			} else {
+				options->dtmfcodec[0] = H323_DTMF_RFC2833_PT;
+				ast_log(LOG_WARNING, "Unknown rfc2833 payload %s specified at line %d, using default %d\n", opt, v->lineno, options->dtmfcodec[0]);
 			}
+		} else if (!strcasecmp(val, "cisco")) {
+			options->dtmfmode |= H323_DTMF_CISCO;
+			if (!opt) {
+				options->dtmfcodec[1] = H323_DTMF_CISCO_PT;
+			} else if ((tmp >= 96) && (tmp < 128)) {
+				options->dtmfcodec[1] = tmp;
+			} else {
+				options->dtmfcodec[1] = H323_DTMF_CISCO_PT;
+				ast_log(LOG_WARNING, "Unknown Cisco DTMF payload %s specified at line %d, using default %d\n", opt, v->lineno, options->dtmfcodec[1]);
+			}
+		} else if (!strcasecmp(v->value, "h245-signal")) {
+			options->dtmfmode |= H323_DTMF_SIGNAL;
 		} else {
-			ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
-			options->dtmfmode |= H323_DTMF_RFC2833;
-			options->dtmfcodec = H323_DTMF_RFC2833_PT;
+			ast_log(LOG_WARNING, "Unknown dtmf mode '%s' at line %d\n", v->value, v->lineno);
 		}
 	} else if (!strcasecmp(v->name, "dtmfcodec")) {
 		ast_log(LOG_NOTICE, "Option %s at line %d is deprecated. Use dtmfmode=rfc2833[:<payload>] instead.\n", v->name, v->lineno);
@@ -1282,7 +1296,7 @@ static int update_common_options(struct ast_variable *v, struct call_options *op
 		if (tmp < 96)
 			ast_log(LOG_WARNING, "Invalid %s value %s at line %d\n", v->name, v->value, v->lineno);
 		else
-			options->dtmfcodec = tmp;
+			options->dtmfcodec[0] = tmp;
 	} else if (!strcasecmp(v->name, "bridge")) {
 		options->bridge = ast_true(v->value);
 	} else if (!strcasecmp(v->name, "nat")) {
@@ -2367,21 +2381,21 @@ static void hangup_connection(unsigned int call_reference, const char *token, in
 	ast_mutex_unlock(&pvt->lock);
 }
 
-static void set_dtmf_payload(unsigned call_reference, const char *token, int payload)
+static void set_dtmf_payload(unsigned call_reference, const char *token, int payload, int is_cisco)
 {
 	struct oh323_pvt *pvt;
 
 	if (h323debug)
-		ast_log(LOG_DEBUG, "Setting DTMF payload to %d on %s\n", payload, token);
+		ast_log(LOG_DEBUG, "Setting %s DTMF payload to %d on %s\n", (is_cisco ? "Cisco" : "RFC2833"), payload, token);
 
 	pvt = find_call_locked(call_reference, token);
 	if (!pvt) {
 		return;
 	}
 	if (pvt->rtp) {
-		ast_rtp_set_rtpmap_type(pvt->rtp, payload, "audio", "telephone-event", 0);
+		ast_rtp_set_rtpmap_type(pvt->rtp, payload, "audio", (is_cisco ? "cisco-telephone-event" : "telephone-event"), 0);
 	}
-	pvt->dtmf_pt = payload;
+	pvt->dtmf_pt[is_cisco ? 1 : 0] = payload;
 	ast_mutex_unlock(&pvt->lock);
 	if (h323debug)
 		ast_log(LOG_DEBUG, "DTMF payload on %s set to %d\n", token, payload);
@@ -2750,7 +2764,8 @@ static int reload_config(int is_reload)
 	memset(&global_options, 0, sizeof(global_options));
 	global_options.fastStart = 1;
 	global_options.h245Tunneling = 1;
-	global_options.dtmfcodec = H323_DTMF_RFC2833_PT;
+	global_options.dtmfcodec[0] = H323_DTMF_RFC2833_PT;
+	global_options.dtmfcodec[1] = H323_DTMF_CISCO_PT;
 	global_options.dtmfmode = 0;
 	global_options.capability = GLOBAL_CAPABILITY;
 	global_options.bridge = 1;		/* Do native bridging by default */

@@ -52,7 +52,7 @@ typedef struct call_options {
 	int				progress_setup;
 	int				progress_alert;
 	int				progress_audio;
-	int				dtmfcodec;
+	int				dtmfcodec[2];
 	int				dtmfmode;
 	int				capability;
 	int				bridge;
@@ -172,7 +172,7 @@ extern answer_call_cb on_answer_call;
 /* This is a callback prototype function, called when
    we know which RTP payload type RFC2833 will be
    transmitted */
-typedef void (*rfc2833_cb)(unsigned, const char *, int);
+typedef void (*rfc2833_cb)(unsigned, const char *, int, int);
 extern rfc2833_cb on_set_rfc2833_payload;
 
 typedef void (*hangup_cb)(unsigned, const char *, int);
@@ -188,7 +188,9 @@ extern setpeercapabilities_cb on_setpeercapabilities;
 extern int h323debug;
 
 #define H323_DTMF_RFC2833	(1 << 0)
-#define H323_DTMF_INBAND	(1 << 1)
+#define H323_DTMF_CISCO		(1 << 1)
+#define H323_DTMF_SIGNAL	(1 << 2)
+#define H323_DTMF_INBAND	(1 << 3)
 
 #define H323_DTMF_RFC2833_PT	101
 #define H323_DTMF_CISCO_PT		121

@@ -28,7 +28,7 @@ port = 1720
 ;
 ; User-Input Mode (DTMF)
 ;
-; valid entries are:   rfc2833, inband
+; valid entries are:   rfc2833, inband, cisco, h245-signal
 ; default is rfc2833
 ;dtmfmode=rfc2833
 ;
@@ -38,6 +38,8 @@ port = 1720
 ; To specify required payload type, put it after colon in dtmfmode
 ; option like
 ;dtmfmode=rfc2833:101
+; or
+;dtmfmode=cisco:121
 ;
 ; Set the gatekeeper 
 ; DISCOVER			- Find the Gk address using multicast

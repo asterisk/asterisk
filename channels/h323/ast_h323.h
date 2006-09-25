@@ -112,7 +112,7 @@ public:
 	unsigned progressAlert;
 	int cause;
 
-	RTP_DataFrame::PayloadTypes dtmfCodec;
+	RTP_DataFrame::PayloadTypes dtmfCodec[2];
 	int dtmfMode;
 };
 
