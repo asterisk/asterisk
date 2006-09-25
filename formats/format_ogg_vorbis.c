@@ -440,12 +440,13 @@ static struct ast_frame *ogg_vorbis_read(struct ast_filestream *fs,
 	int samples_in;
 	int samples_out = 0;
 	struct vorbis_desc *s = (struct vorbis_desc *)fs->private;
-	short *buf = (short *)(fs->fr.data);	/* SLIN data buffer */
+	short *buf;	/* SLIN data buffer */
 
 	fs->fr.frametype = AST_FRAME_VOICE;
 	fs->fr.subclass = AST_FORMAT_SLINEAR;
 	fs->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&fs->fr, fs->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
+	buf = (short *)(fs->fr.data);	/* SLIN data buffer */
 
 	while (samples_out != SAMPLES_MAX) {
 		float **pcm;
