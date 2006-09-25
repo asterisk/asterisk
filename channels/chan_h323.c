@@ -2676,7 +2676,7 @@ static int reload_config(int is_reload)
 	struct oh323_alias *alias = NULL;
 	struct ast_hostent ahp; struct hostent *hp;
 	char *cat;
-	char *utype;
+	const char *utype;
 	int is_user, is_peer, is_alias;
 	char _gatekeeper[100];
 	int gk_discover, gk_disable, gk_changed;
@@ -2721,7 +2721,7 @@ static int reload_config(int is_reload)
 	if (ucfg) {
 		struct ast_variable *gen;
 		int genhas_h323;
-		char *has_h323;
+		const char *has_h323;
 
 		genhas_h323 = ast_true(ast_variable_retrieve(ucfg, "general", "hash323"));
 		gen = ast_variable_browse(ucfg, "general");

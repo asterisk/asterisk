@@ -1,5 +1,7 @@
 #include <ptlib.h>
 #include <h323.h>
+#include <h245.h>
+#include "ast_h323.h"
 #include "caps_h323.h"
 
 #define DEFINE_G711_CAPABILITY(cls, code, capName) \

@@ -52,7 +52,7 @@ template <class _Abstract_T, typename _Key_T = PString>
 class MyPFactory: public PFactory<_Abstract_T, _Key_T>
 {
 public:
-	template <class _Contrete_T> class Worker: public PFactory<_Abstract_T, _Key_T>::WorkerBase
+	template <class _Concrete_T> class Worker: public PFactory<_Abstract_T, _Key_T>::WorkerBase
 	{
 	public:
 		Worker(const _Key_T &_key, bool singleton = false)
@@ -64,6 +64,8 @@ public:
 		{
 			PFactory<_Abstract_T, _Key_T>::Unregister(key);
 		}
+	protected:
+		virtual _Abstract_T *Create(const _Key_T &) const { return new _Concrete_T; }
 
 	private:
 		PString key;
