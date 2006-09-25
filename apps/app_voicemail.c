@@ -3784,6 +3784,10 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	BODY *body;
 	char *header_content;
 	char *temp;
+	char todir[256];
+	int todircount=0;
+	int duration;
+	char fn[256];
 #endif
 	char username[70]="";
 	int res = 0, cmd = 0;
