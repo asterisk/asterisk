@@ -1311,7 +1311,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 static int manager_sip_show_peers( struct mansession *s, struct message *m );
 static int sip_show_peers(int fd, int argc, char *argv[]);
 static int sip_show_objects(int fd, int argc, char *argv[]);
-static void  print_group(int fd, unsigned int group, int crlf);
+static void  print_group(int fd, ast_group_t group, int crlf);
 static const char *dtmfmode2str(int mode) attribute_const;
 static const char *insecure2str(int port, int invite) attribute_const;
 static void cleanup_stale_contexts(char *new, char *old);
@@ -9382,7 +9382,7 @@ static int sip_show_objects(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 /*! \brief Print call group and pickup group */
-static void  print_group(int fd, unsigned int group, int crlf)
+static void  print_group(int fd, ast_group_t group, int crlf)
 {
 	char buf[256];
 	ast_cli(fd, crlf ? "%s\r\n" : "%s\n", ast_print_group(buf, sizeof(buf), group) );

@@ -891,8 +891,8 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		"        Context: %s\n"
 		"      Extension: %s\n"
 		"       Priority: %d\n"
-		"     Call Group: %d\n"
-		"   Pickup Group: %d\n"
+		"     Call Group: %lld\n"
+		"   Pickup Group: %lld\n"
 		"    Application: %s\n"
 		"           Data: %s\n"
 		"    Blocking in: %s\n",

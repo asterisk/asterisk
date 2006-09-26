@@ -404,8 +404,8 @@ struct ast_channel {
 	unsigned int fout;
 	int hangupcause;				/*!< Why is the channel hanged up. See causes.h */
 	struct varshead varshead;			/*!< A linked list for channel variables */
-	unsigned int callgroup;				/*!< Call group for call pickups */
-	unsigned int pickupgroup;			/*!< Pickup group - which calls groups can be picked up? */
+	ast_group_t callgroup;				/*!< Call group for call pickups */
+	ast_group_t pickupgroup;			/*!< Pickup group - which calls groups can be picked up? */
 	unsigned int flags;				/*!< channel flags of AST_FLAG_ type */
 	unsigned short transfercapability;		/*!< ISDN Transfer Capbility - AST_FLAG_DIGITAL is not enough */
 	AST_LIST_HEAD_NOLOCK(, ast_frame) readq;
