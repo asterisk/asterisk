@@ -80,9 +80,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static const char tdesc[] = "Skinny Client Control Protocol (Skinny)";
 static const char config[] = "skinny.conf";
 
-/* Just about everybody seems to support ulaw, so make it a nice default */
-static int default_capability = AST_FORMAT_ULAW;
+static int default_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW;
 static struct ast_codec_pref default_prefs;
+
+enum skinny_codecs {
+	SKINNY_CODEC_ALAW = 2,
+	SKINNY_CODEC_ULAW = 4,
+	SKINNY_CODEC_G723_1 = 9,
+	SKINNY_CODEC_G729A = 12,
+	SKINNY_CODEC_G726_32 = 82, /* XXX Which packing order does this translate to? */
+	SKINNY_CODEC_H261 = 100,
+	SKINNY_CODEC_H263 = 101
+};
 
 #define DEFAULT_SKINNY_PORT	2000
 #define DEFAULT_SKINNY_BACKLOG	2
@@ -183,7 +192,7 @@ struct station_capabilities {
 	uint32_t frames;
 	union {
 		char res[8];
-		uint64_t rate;
+		uint32_t rate;
 	} payloads;
 };
 
@@ -1282,6 +1291,50 @@ static struct skinny_speeddial *find_speeddial_by_instance(struct skinny_device 
 	return sd;
 }
 
+static int codec_skinny2ast(enum skinny_codecs skinnycodec)
+{
+	switch (skinnycodec) {
+	case SKINNY_CODEC_ALAW:
+		return AST_FORMAT_ALAW;
+	case SKINNY_CODEC_ULAW:
+		return AST_FORMAT_ULAW;
+	case SKINNY_CODEC_G723_1:
+		return AST_FORMAT_G723_1;
+	case SKINNY_CODEC_G729A:
+		return AST_FORMAT_G729A;
+	case SKINNY_CODEC_G726_32:
+		return AST_FORMAT_G726_AAL2; /* XXX Is this right? */
+	case SKINNY_CODEC_H261:
+		return AST_FORMAT_H261;
+	case SKINNY_CODEC_H263:
+		return AST_FORMAT_H263;
+	default:
+		return 0;
+	}
+}
+
+static int codec_ast2skinny(int astcodec)
+{
+	switch (astcodec) {
+	case AST_FORMAT_ALAW:
+		return SKINNY_CODEC_ALAW;
+	case AST_FORMAT_ULAW:
+		return SKINNY_CODEC_ULAW;
+	case AST_FORMAT_G723_1:
+		return SKINNY_CODEC_G723_1;
+	case AST_FORMAT_G729A:
+		return SKINNY_CODEC_G729A;
+	case AST_FORMAT_G726_AAL2: /* XXX Is this right? */
+		return SKINNY_CODEC_G726_32;
+	case AST_FORMAT_H261:
+		return SKINNY_CODEC_H261;
+	case AST_FORMAT_H263:
+		return SKINNY_CODEC_H263;
+	default:
+		return 0;
+	}
+}
+
 static int transmit_response(struct skinnysession *s, struct skinny_req *req)
 {
 	int res = 0;
@@ -1302,13 +1355,6 @@ static int transmit_response(struct skinnysession *s, struct skinny_req *req)
 	}
 	ast_mutex_unlock(&s->lock);
 	return 1;
-}
-
-/* XXX Do this right */
-static int convert_cap(int capability)
-{
-	return 4; /* ulaw (this is not the same as asterisk's '4' */
-
 }
 
 static void transmit_speaker_mode(struct skinnysession *s, int mode)
@@ -1405,14 +1451,17 @@ static void transmit_connect(struct skinnysession *s, struct skinny_subchannel *
 {
 	struct skinny_req *req;
 	struct skinny_line *l = sub->parent;
+	struct ast_format_list fmt;
 
 	if (!(req = req_alloc(sizeof(struct open_receive_channel_message), OPEN_RECEIVE_CHANNEL_MESSAGE)))
 		return;
 
+	fmt = ast_codec_pref_getsize(&l->prefs, ast_best_codec(l->capability));
+
 	req->data.openreceivechannel.conferenceId = htolel(0);
 	req->data.openreceivechannel.partyId = htolel(sub->callid);
-	req->data.openreceivechannel.packets = htolel(l->prefs.framing[0]);
-	req->data.openreceivechannel.capability = htolel(convert_cap(l->capability));
+	req->data.openreceivechannel.packets = htolel(fmt.cur_ms);
+	req->data.openreceivechannel.capability = htolel(codec_ast2skinny(fmt.bits));
 	req->data.openreceivechannel.echo = htolel(0);
 	req->data.openreceivechannel.bitrate = htolel(0);
 	transmit_response(s, req);
@@ -3304,7 +3353,32 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 
 static int handle_capabilities_res_message(struct skinny_req *req, struct skinnysession *s)
 {
-	/* XXX process the capabilites */
+	struct skinny_device *d = s->device;
+	struct skinny_line *l;
+	int count = 0;
+	int codecs = 0;
+	int i;
+
+	count = letohl(req->data.caps.count);
+
+	for (i = 0; i < count; i++) {
+		int acodec = 0;
+		int scodec = 0;
+		scodec = letohl(req->data.caps.caps[i].codec);
+		acodec = codec_skinny2ast(scodec);
+		if (skinnydebug)
+			ast_verbose("Adding codec capability '%d (%d)'\n", acodec, scodec);
+		codecs |= acodec;
+	}
+
+	d->capability &= codecs;
+	ast_verbose("Device capability set to '%d'\n", d->capability);
+	for (l = d->lines; l; l = l->next) {
+		ast_mutex_lock(&l->lock);
+		l->capability = d->capability;
+		ast_mutex_unlock(&l->lock);
+	}
+
 	return 1;
 }
 
@@ -3534,6 +3608,7 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
 	struct skinny_subchannel *sub;
+	struct ast_format_list fmt;
 	struct sockaddr_in sin;
 	struct sockaddr_in us;
 	uint32_t addr;
@@ -3577,12 +3652,17 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 	if (!(req = req_alloc(sizeof(struct start_media_transmission_message), START_MEDIA_TRANSMISSION_MESSAGE)))
 		return -1;
 
+	fmt = ast_codec_pref_getsize(&l->prefs, ast_best_codec(l->capability));
+
+	if (skinnydebug)
+		ast_verbose("Setting payloadType to '%d' (%d ms)\n", fmt.bits, fmt.cur_ms);
+
 	req->data.startmedia.conferenceId = htolel(0);
 	req->data.startmedia.passThruPartyId = htolel(sub->callid);
 	req->data.startmedia.remoteIp = htolel(d->ourip.s_addr);
 	req->data.startmedia.remotePort = htolel(ntohs(us.sin_port));
-	req->data.startmedia.packetSize = htolel(l->prefs.framing[0]);
-	req->data.startmedia.payloadType = htolel(convert_cap(l->capability));
+	req->data.startmedia.packetSize = htolel(fmt.cur_ms);
+	req->data.startmedia.payloadType = htolel(codec_ast2skinny(fmt.bits));
 	req->data.startmedia.qualifier.precedence = htolel(127);
 	req->data.startmedia.qualifier.vad = htolel(0);
 	req->data.startmedia.qualifier.packets = htolel(0);
@@ -4337,6 +4417,7 @@ static int reload_config(void)
 		return -1;
 	}
 	memset(&bindaddr, 0, sizeof(bindaddr));
+	memset(&default_prefs, 0, sizeof(default_prefs));
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
