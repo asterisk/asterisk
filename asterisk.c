@@ -2417,7 +2417,7 @@ int main(int argc, char *argv[])
 					buf[strlen(buf)-1] = '\0';
 
 				consolehandler((char *)buf);
-			} else {
+			} else if (option_remote) {
 				if (write(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the asterisk console\n",
 					  strlen("\nUse EXIT or QUIT to exit the asterisk console\n")) < 0) {
 					/* Whoa, stdout disappeared from under us... Make /dev/null's */
