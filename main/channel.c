@@ -84,6 +84,7 @@ struct ast_channel_whisper_buffer {
 	ast_mutex_t lock;
 	struct ast_slinfactory sf;
 	unsigned int original_format;
+	struct ast_trans_pvt *path;
 };
 
 /* uncomment if you have problems with 'monitoring' synchronized files */
@@ -2506,66 +2507,93 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		if (chan->tech->write == NULL)
 			break;	/*! \todo XXX should return 0 maybe ? */
 
-		/* Bypass translator if we're writing format in the raw write format.  This
-		   allows mixing of native / non-native formats */
-		if (fr->subclass == chan->rawwriteformat)
-			f = fr;
-		else
-			f = (chan->writetrans) ? ast_translate(chan->writetrans, fr, 0) : fr;
+		/* If someone is whispering on this channel then we must ensure that we are always getting signed linear frames */
+		if (ast_test_flag(chan, AST_FLAG_WHISPER)) {
+			if (fr->subclass == AST_FORMAT_SLINEAR)
+				f = fr;
+			else {
+				ast_mutex_lock(&chan->whisper->lock);
+				if (chan->writeformat != AST_FORMAT_SLINEAR) {
+					/* Rebuild the translation path and set our write format back to signed linear */
+					chan->whisper->original_format = chan->writeformat;
+					ast_set_write_format(chan, AST_FORMAT_SLINEAR);
+					if (chan->whisper->path)
+						ast_translator_free_path(chan->whisper->path);
+					chan->whisper->path = ast_translator_build_path(AST_FORMAT_SLINEAR, chan->whisper->original_format);
+				}
+				/* Translate frame using the above translation path */
+				f = (chan->whisper->path) ? ast_translate(chan->whisper->path, fr, 0) : fr;
+				ast_mutex_unlock(&chan->whisper->lock);
+			}
+		} else {
+			/* If the frame is in the raw write format, then it's easy... just use the frame - otherwise we will have to translate */
+			if (fr->subclass == chan->rawwriteformat)
+				f = fr;
+			else
+				f = (chan->writetrans) ? ast_translate(chan->writetrans, fr, 0) : fr;
+		}
+
+		/* If we have no frame of audio, then we have to bail out */
 		if (f == NULL) {
 			res = 0;
-		} else {
-			if (chan->spies)
-				queue_frame_to_spies(chan, f, SPY_WRITE);
-
-			if (chan->monitor && chan->monitor->write_stream) {
-				/* XXX must explain this code */
-#ifndef MONITOR_CONSTANT_DELAY
-				int jump = chan->insmpl - chan->outsmpl - 4 * f->samples;
-				if (jump >= 0) {
-					if (ast_seekstream(chan->monitor->write_stream, jump + f->samples, SEEK_FORCECUR) == -1)
-						ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
-					chan->outsmpl += jump + 4 * f->samples;
-				} else
-					chan->outsmpl += f->samples;
-#else
-				int jump = chan->insmpl - chan->outsmpl;
-				if (jump - MONITOR_DELAY >= 0) {
-					if (ast_seekstream(chan->monitor->write_stream, jump - f->samples, SEEK_FORCECUR) == -1)
-						ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
-					chan->outsmpl += jump;
-				} else
-					chan->outsmpl += f->samples;
-#endif
-				if (chan->monitor->state == AST_MONITOR_RUNNING) {
-					if (ast_writestream(chan->monitor->write_stream, f) < 0)
-						ast_log(LOG_WARNING, "Failed to write data to channel monitor write stream\n");
-				}
-			}
-
-			if (ast_test_flag(chan, AST_FLAG_WHISPER)) {
-				/* frame is assumed to be in SLINEAR, since that is
-				   required for whisper mode */
-				ast_frame_adjust_volume(f, -2);
-				if (ast_slinfactory_available(&chan->whisper->sf) >= f->samples) {
-					short buf[f->samples];
-					struct ast_frame whisper = {
-						.frametype = AST_FRAME_VOICE,
-						.subclass = AST_FORMAT_SLINEAR,
-						.data = buf,
-						.datalen = sizeof(buf),
-						.samples = f->samples,
-					};
-
-					ast_mutex_lock(&chan->whisper->lock);
-					if (ast_slinfactory_read(&chan->whisper->sf, buf, f->samples))
-						ast_frame_slinear_sum(f, &whisper);
-					ast_mutex_unlock(&chan->whisper->lock);
-				}
-			}
-
-			res = chan->tech->write(chan, f);
+			break;
 		}
+
+		/* If spies are on the channel then queue the frame out to them */
+		if (chan->spies)
+			queue_frame_to_spies(chan, f, SPY_WRITE);
+
+		/* If Monitor is running on this channel, then we have to write frames out there too */
+		if (chan->monitor && chan->monitor->write_stream) {
+			/* XXX must explain this code */
+#ifndef MONITOR_CONSTANT_DELAY
+			int jump = chan->insmpl - chan->outsmpl - 4 * f->samples;
+			if (jump >= 0) {
+				if (ast_seekstream(chan->monitor->write_stream, jump + f->samples, SEEK_FORCECUR) == -1)
+					ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
+				chan->outsmpl += jump + 4 * f->samples;
+			} else
+				chan->outsmpl += f->samples;
+#else
+			int jump = chan->insmpl - chan->outsmpl;
+			if (jump - MONITOR_DELAY >= 0) {
+				if (ast_seekstream(chan->monitor->write_stream, jump - f->samples, SEEK_FORCECUR) == -1)
+					ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
+				chan->outsmpl += jump;
+			} else
+				chan->outsmpl += f->samples;
+#endif
+			if (chan->monitor->state == AST_MONITOR_RUNNING) {
+				if (ast_writestream(chan->monitor->write_stream, f) < 0)
+					ast_log(LOG_WARNING, "Failed to write data to channel monitor write stream\n");
+			}
+		}
+
+		/* Finally the good part! Write this out to the channel */
+		if (ast_test_flag(chan, AST_FLAG_WHISPER)) {
+			/* frame is assumed to be in SLINEAR, since that is
+			   required for whisper mode */
+			ast_frame_adjust_volume(f, -2);
+			if (ast_slinfactory_available(&chan->whisper->sf) >= f->samples) {
+				short buf[f->samples];
+				struct ast_frame whisper = {
+					.frametype = AST_FRAME_VOICE,
+					.subclass = AST_FORMAT_SLINEAR,
+					.data = buf,
+					.datalen = sizeof(buf),
+					.samples = f->samples,
+				};
+				
+				ast_mutex_lock(&chan->whisper->lock);
+				if (ast_slinfactory_read(&chan->whisper->sf, buf, f->samples))
+					ast_frame_slinear_sum(f, &whisper);
+				ast_mutex_unlock(&chan->whisper->lock);
+			}
+			/* and now put it through the regular translator */
+			f = (chan->writetrans) ? ast_translate(chan->writetrans, f, 0) : f;
+		}
+		
+		res = chan->tech->write(chan, f);
 		break;
 	case AST_FRAME_NULL:
 	case AST_FRAME_IAX:
@@ -4606,7 +4634,6 @@ int ast_channel_whisper_start(struct ast_channel *chan)
 
 	ast_mutex_init(&chan->whisper->lock);
 	ast_slinfactory_init(&chan->whisper->sf);
-	chan->whisper->original_format = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
 	ast_set_flag(chan, AST_FLAG_WHISPER);
 
 	return 0;
@@ -4630,7 +4657,10 @@ void ast_channel_whisper_stop(struct ast_channel *chan)
 		return;
 
 	ast_clear_flag(chan, AST_FLAG_WHISPER);
-	ast_set_write_format(chan, chan->whisper->original_format);
+	if (chan->whisper->path)
+		ast_translator_free_path(chan->whisper->path);
+	if (chan->whisper->original_format && chan->writeformat == AST_FORMAT_SLINEAR)
+		ast_set_write_format(chan, chan->whisper->original_format);
 	ast_slinfactory_destroy(&chan->whisper->sf);
 	ast_mutex_destroy(&chan->whisper->lock);
 	free(chan->whisper);
