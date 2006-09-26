@@ -7743,7 +7743,7 @@ static int sip_show_objects(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 /*! \brief  print_group: Print call group and pickup group ---*/
-static void  print_group(int fd, unsigned int group, int crlf) 
+static void  print_group(int fd, ast_group_t group, int crlf) 
 {
 	char buf[256];
 	ast_cli(fd, crlf ? "%s\r\n" : "%s\n", ast_print_group(buf, sizeof(buf), group) );
