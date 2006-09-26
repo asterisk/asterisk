@@ -389,8 +389,8 @@ struct ast_channel {
 	/* A linked list for variables */
 	struct varshead varshead;
 
-	unsigned int callgroup;
-	unsigned int pickupgroup;
+	ast_group_t callgroup;
+	ast_group_t pickupgroup;
 
 	/*! channel flags of AST_FLAG_ type */
 	unsigned int flags;

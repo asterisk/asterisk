@@ -5545,12 +5545,13 @@ static int vm_exec(struct ast_channel *chan, void *data)
 static int append_mailbox(char *context, char *mbox, char *data)
 {
 	/* Assumes lock is already held */
-	char tmp[256] = "";
+	char *tmp;
 	char *stringp;
 	char *s;
 	struct ast_vm_user *vmu;
 
-	ast_copy_string(tmp, data, sizeof(tmp));
+	tmp = ast_strdupa(data);
+
 	vmu = malloc(sizeof(struct ast_vm_user));
 	if (vmu) {
 		memset(vmu, 0, sizeof(struct ast_vm_user));
