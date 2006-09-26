@@ -127,7 +127,7 @@ static AST_LIST_HEAD_STATIC(locals, local_pvt);
 static int local_devicestate(void *data)
 {
 	char *exten = ast_strdupa(data);
-	char *context = NULL;
+	char *context = NULL, *opts = NULL;
 	int res;
 
 	if (!(context = strchr(exten, '@'))) {
@@ -136,6 +136,10 @@ static int local_devicestate(void *data)
 	}
 
 	*context++ = '\0';
+
+	/* Strip options if they exist */
+	if ((opts = strchr(context, '/')))
+		*opts = '\0';
 
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Checking if extension %s@%s exists (devicestate)\n", exten, context);
