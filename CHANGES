@@ -4,3 +4,4 @@ Changes since Asterisk 1.4-beta was branched:
   * MailboxExists converted to dialplan function
   * Ability to set process limits without restarting Asterisk
   * SS7 support in chan_zap (via libss7 library)
+  * Proper codec support in chan_skinny.
