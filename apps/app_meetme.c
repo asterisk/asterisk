@@ -651,6 +651,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
 			AST_LIST_INSERT_HEAD(&confs, cnf, list);
+			manager_event(EVENT_FLAG_CALL, "MeetmeStart", "Meetme: %s\r\n", cnf->confno);
 		} 
 	}
  cnfout:
@@ -946,6 +947,7 @@ static int conf_free(struct ast_conference *conf)
 	int x;
 	
 	AST_LIST_REMOVE(&confs, conf, list);
+	manager_event(EVENT_FLAG_CALL, "MeetmeEnd", "Meetme: %s\r\n", conf->confno);
 
 	if (conf->recording == MEETME_RECORD_ACTIVE) {
 		conf->recording = MEETME_RECORD_TERMINATE;
