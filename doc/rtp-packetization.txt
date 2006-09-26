@@ -48,17 +48,17 @@ maximums, and should not exceed the RTP MTU.
 
 Name		Min		Max		Default		Increment
 g723		30		300		30		30
-gsm		20		60		20		20
-ulaw		10		30		20		10
-alaw		10		30		20		10
-g726		10		50		20		10
-ADPCM		10		30		20		10
+gsm		20		300		20		20
+ulaw		10		150		20		10
+alaw		10		150		20		10
+g726		10		300		20		10
+ADPCM		10		300		20		10
 SLIN		10		70		20		10
 lpc10		20		20		20		20
 g729		10		230		20		10
 speex		10		60		20		10
 ilbc		30		30		30		30
-g726_aal2	10		50		20		10
+g726_aal2	10		300		20		10
 
 Invalid framing options are handled based on the following rules:
   1.  If the specified framing is less than the codec's minimum, then
