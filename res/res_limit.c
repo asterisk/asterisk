@@ -35,11 +35,13 @@ static struct limits {
 	{ RLIMIT_DATA, "-d", "program data segment" },
 	{ RLIMIT_STACK, "-s", "program stack size" },
 	{ RLIMIT_CORE, "-c", "core file size" },
+#ifdef RLIMIT_RSS
 	{ RLIMIT_RSS, "-m", "resident memory" },
-	{ RLIMIT_NOFILE, "-n", "number of file descriptors" },
-	{ RLIMIT_AS, "-v", "virtual memory" },
 	{ RLIMIT_NPROC, "-u", "number of processes" },
 	{ RLIMIT_MEMLOCK, "-l", "amount of memory locked into RAM" },
+#endif
+	{ RLIMIT_NOFILE, "-n", "number of file descriptors" },
+	{ RLIMIT_AS, "-v", "virtual memory" },
 };
 
 static int str2limit(const char *string)
