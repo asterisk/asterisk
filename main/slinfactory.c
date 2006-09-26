@@ -74,12 +74,7 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 		}
 	}
 
-	if (sf->trans)
-		frame = ast_translate(sf->trans, f, 0);
-	else
-		frame = ast_frdup(f);
-
-	if (!frame)
+	if (!(frame = ast_frdup( (sf->trans) ? ast_translate(sf->trans, f, 0) : f )))
 		return 0;
 
 	x = 0;

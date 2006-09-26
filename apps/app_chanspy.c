@@ -277,8 +277,10 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 
 	if (ast_test_flag(flags, OPTION_WHISPER)) {
 		struct ast_filestream *beepstream;
+		int old_write_format = 0;
 
 		ast_channel_whisper_start(csth.spy.chan);
+		old_write_format = chan->writeformat;
 		if ((beepstream = ast_openstream_full(chan, "beep", chan->language, 1))) {
 			struct ast_frame *f;
 
@@ -288,7 +290,10 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 			}
 
 			ast_closestream(beepstream);
+			chan->stream = NULL;
 		}
+		if (old_write_format)
+			ast_set_write_format(chan, old_write_format);
 	}
 
 	if (ast_test_flag(flags, OPTION_PRIVATE))
