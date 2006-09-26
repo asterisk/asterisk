@@ -20,6 +20,10 @@
 ; (defaults to yes).
 ;queue_log = no
 ;
+; Set the queue_log filename
+; (defaults to queue_log)
+;queue_log_name = queue_log
+;
 ; This determines whether or not we log generic events to a file
 ; (defaults to yes).
 ;event_log = no

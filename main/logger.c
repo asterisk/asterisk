@@ -83,6 +83,8 @@ static int syslog_level_map[] = {
 
 static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 
+static char queue_log_name[256] = QUEUELOG;
+
 static int filesize_reload_needed = 0;
 static int global_logmask = -1;
 
@@ -336,6 +338,8 @@ static void init_logger_chain(void)
 		logfiles.queue_log = ast_true(s);
 	if ((s = ast_variable_retrieve(cfg, "general", "event_log")))
 		logfiles.event_log = ast_true(s);
+	if ((s = ast_variable_retrieve(cfg, "general", "queue_log_name")))
+		ast_copy_string(queue_log_name, s, sizeof(queue_log_name));
 
 	AST_LIST_LOCK(&logchannels);
 	var = ast_variable_browse(cfg, "logfiles");
@@ -450,10 +454,10 @@ int reload_logger(int rotate)
 	}
 
 	if (logfiles.queue_log) {
-		snprintf(old, sizeof(old), "%s/%s", (char *)ast_config_AST_LOG_DIR, QUEUELOG);
+		snprintf(old, sizeof(old), "%s/%s", (char *)ast_config_AST_LOG_DIR, queue_log_name);
 		if (queue_rotate) {
 			for (x = 0; ; x++) {
-				snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, QUEUELOG, x);
+				snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, queue_log_name, x);
 				myf = fopen((char *)new, "r");
 				if (myf) 	/* File exists */
 					fclose(myf);
@@ -610,7 +614,7 @@ int init_logger(void)
 	}
 
 	if (logfiles.queue_log) {
-		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, QUEUELOG);
+		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, queue_log_name);
 		qlog = fopen(tmp, "a");
 		ast_queue_log("NONE", "NONE", "NONE", "QUEUESTART", "%s", "");
 	}
