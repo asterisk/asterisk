@@ -6533,12 +6533,13 @@ static struct ast_vm_user *find_or_create(char *context, char *mbox)
 static int append_mailbox(char *context, char *mbox, char *data)
 {
 	/* Assumes lock is already held */
-	char tmp[256] = "";
+	char *tmp;
 	char *stringp;
 	char *s;
 	struct ast_vm_user *vmu;
 
-	ast_copy_string(tmp, data, sizeof(tmp));
+	tmp = ast_strdupa(data);
+
 	if ((vmu = find_or_create(context, mbox))) {
 		populate_defaults(vmu);
 
