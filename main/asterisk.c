@@ -2753,19 +2753,17 @@ int main(int argc, char *argv[])
 					buf[strlen(buf)-1] = '\0';
 
 				consolehandler((char *)buf);
-			} else {
-				if (write(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the asterisk console\n",
-					  strlen("\nUse EXIT or QUIT to exit the asterisk console\n")) < 0) {
-					/* Whoa, stdout disappeared from under us... Make /dev/null's */
-					int fd;
-					fd = open("/dev/null", O_RDWR);
-					if (fd > -1) {
-						dup2(fd, STDOUT_FILENO);
-						dup2(fd, STDIN_FILENO);
-					} else
-						ast_log(LOG_WARNING, "Failed to open /dev/null to recover from dead console. Bad things will happen!\n");
-					break;
-				}
+			} else if (ast_opt_remote && (write(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the asterisk console\n",
+				   strlen("\nUse EXIT or QUIT to exit the asterisk console\n")) < 0)) {
+				/* Whoa, stdout disappeared from under us... Make /dev/null's */
+				int fd;
+				fd = open("/dev/null", O_RDWR);
+				if (fd > -1) {
+					dup2(fd, STDOUT_FILENO);
+					dup2(fd, STDIN_FILENO);
+				} else
+					ast_log(LOG_WARNING, "Failed to open /dev/null to recover from dead console. Bad things will happen!\n");
+				break;
 			}
 		}
 
