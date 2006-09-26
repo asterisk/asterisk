@@ -15911,7 +15911,7 @@ static int reload_config(enum channelreloadreason reason)
 				global_tos_sip = temp_tos;
 				global_tos_audio = temp_tos;
 				global_tos_video = temp_tos;
-				ast_log(LOG_WARNING, "tos value at line %d is deprecated.  See doc/ip-tos.txt for more information.", v->lineno);
+				ast_log(LOG_WARNING, "tos value at line %d is deprecated.  See doc/ip-tos.txt for more information.\n", v->lineno);
 			} else
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, See doc/ip-tos.txt for more information.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "tos_sip")) {
