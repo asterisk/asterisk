@@ -6540,6 +6540,7 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 		AST_APP_ARG(mbox);
 		AST_APP_ARG(options);
 	);
+	static int dep_warning = 0;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "MailboxExists requires an argument: (vmbox[@context][|options])\n");
@@ -6547,6 +6548,11 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 	}
 
 	u = ast_module_user_add(chan);
+
+	if (!dep_warning) {
+		dep_warning = 1;
+		ast_log(LOG_WARNING, "MailboxExists is deprecated.  Please use ${MAILBOX_EXISTS(%s)} instead.\n", (char *)data);
+	}
 
 	box = ast_strdupa(data);
 
@@ -6572,6 +6578,30 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 	ast_module_user_remove(u);
 	return 0;
 }
+
+static int acf_mailbox_exists(struct ast_channel *chan, char *cmd, char *args, char *buf, size_t len)
+{
+	struct ast_vm_user svm;
+	AST_DECLARE_APP_ARGS(arg,
+		AST_APP_ARG(mbox);
+		AST_APP_ARG(context);
+	);
+
+	AST_NONSTANDARD_APP_ARGS(arg, args, '@');
+
+	ast_copy_string(buf, find_user(&svm, ast_strlen_zero(arg.context) ? "default" : arg.context, arg.mbox) ? "1" : "0", len);
+	return 0;
+}
+
+static struct ast_custom_function mailbox_exists_acf = {
+	.name = "MAILBOX_EXISTS",
+	.synopsis = "Tell if a mailbox is configured",
+	.desc =
+"Returns a boolean of whether the corresponding mailbox exists.  If context\n"
+"is not specified, defaults to the \"default\" context.\n",
+	.syntax = "MAILBOX_EXISTS(<vmbox>[@<context>])",
+	.read = acf_mailbox_exists,
+};
 
 static int vmauthenticate(struct ast_channel *chan, void *data)
 {
@@ -7263,6 +7293,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(app3);
 	res |= ast_unregister_application(app4);
+	res |= ast_custom_function_unregister(&mailbox_exists_acf);
 	ast_cli_unregister_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
 	ast_uninstall_vm_functions();
 	
@@ -7278,6 +7309,7 @@ static int load_module(void)
 	res |= ast_register_application(app2, vm_execmain, synopsis_vmain, descrip_vmain);
 	res |= ast_register_application(app3, vm_box_exists, synopsis_vm_box_exists, descrip_vm_box_exists);
 	res |= ast_register_application(app4, vmauthenticate, synopsis_vmauthenticate, descrip_vmauthenticate);
+	res |= ast_custom_function_register(&mailbox_exists_acf);
 	if (res)
 		return(res);
 
