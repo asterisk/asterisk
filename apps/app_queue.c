@@ -3984,8 +3984,66 @@ static int manager_queues_show( struct mansession *s, struct message *m )
 	return RESULT_SUCCESS;
 }
 
+/* Dump summary of queue info */
+static int manager_queues_summary(struct mansession *s, struct message *m)
+{
+	time_t now;
+	int qmemcount = 0;
+	int qmemavail = 0;
+	int qchancount = 0;
+	char *id = astman_get_header(m, "ActionID");
+	char *queuefilter = astman_get_header(m, "Queue");
+	char idText[256] = "";
+	struct call_queue *q;
+	struct queue_ent *qe;
+	struct member *mem;
+
+	astman_send_ack(s, m, "Queue summary will follow");
+	time(&now);
+	AST_LIST_LOCK(&queues);
+	if (!ast_strlen_zero(id))
+		snprintf(idText, 256, "ActionID: %s\r\n", id);
+        AST_LIST_TRAVERSE(&queues, q, list) {
+		ast_mutex_lock(&q->lock);
+
+		/* List queue properties */
+		if (ast_strlen_zero(queuefilter) || !strcmp(q->name, queuefilter)) {
+			/* List Queue Members */
+			for (mem = q->members; mem; mem = mem->next) {
+				if ((mem->status != AST_DEVICE_UNAVAILABLE) && (mem->status != AST_DEVICE_INVALID)) {
+					++qmemcount;
+					if (((mem->status == AST_DEVICE_NOT_INUSE) || (mem->status == AST_DEVICE_UNKNOWN)) && !(mem->paused)) {
+						++qmemavail;
+					}
+				}
+			}
+			for (qe = q->head; qe; qe = qe->next) {
+				++qchancount;
+			}
+			astman_append(s, "Event: QueueSummary\r\n"
+				"Queue: %s\r\n"
+				"LoggedIn: %d\r\n"
+				"Available: %d\r\n"
+				"Callers: %d\r\n" 
+				"HoldTime: %d\r\n"
+				"%s"
+				"\r\n",
+				q->name, qmemcount, qmemavail, qchancount, q->holdtime, idText);
+		}
+		ast_mutex_unlock(&q->lock);
+	}
+	astman_append(s,
+		"Event: QueueSummaryComplete\r\n"
+		"%s"
+		"\r\n", idText);
+
+	AST_LIST_UNLOCK(&queues);
+
+	return RESULT_SUCCESS;
+}
+
 /* Dump queue status */
-static int manager_queues_status( struct mansession *s, struct message *m )
+static int manager_queues_status(struct mansession *s, struct message *m)
 {
 	time_t now;
 	int pos;
@@ -4369,6 +4427,7 @@ static int unload_module(void)
 	res = ast_manager_unregister("QueueStatus");
 	res |= ast_manager_unregister("Queues");
 	res |= ast_manager_unregister("QueueStatus");
+	res |= ast_manager_unregister("QueueSummary");
 	res |= ast_manager_unregister("QueueAdd");
 	res |= ast_manager_unregister("QueueRemove");
 	res |= ast_manager_unregister("QueuePause");
@@ -4405,6 +4464,7 @@ static int load_module(void)
 	res |= ast_register_application(app_ql, ql_exec, app_ql_synopsis, app_ql_descrip);
 	res |= ast_manager_register("Queues", 0, manager_queues_show, "Queues");
 	res |= ast_manager_register("QueueStatus", 0, manager_queues_status, "Queue Status");
+	res |= ast_manager_register("QueueSummary", 0, manager_queues_summary, "Queue Summary");
 	res |= ast_manager_register("QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member, "Add interface to queue.");
 	res |= ast_manager_register("QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member, "Remove interface from queue.");
 	res |= ast_manager_register("QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member, "Makes a queue member temporarily unavailable");
