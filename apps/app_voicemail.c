@@ -4502,7 +4502,9 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 	 */
 	snprintf(vms->vmbox, sizeof(vms->vmbox), "vm-%s", vms->curbox);
 	
-	make_dir(vms->curdir, sizeof(vms->curdir), vmu->context, vms->username, vms->curbox);
+	/* Faster to make the directory than to check if it exists. */
+	create_dirpath(vms->curdir, sizeof(vms->curdir), vmu->context, vms->username, vms->curbox);
+
 	count_msg = count_messages(vmu, vms->curdir);
 	if (count_msg < 0)
 		return count_msg;
