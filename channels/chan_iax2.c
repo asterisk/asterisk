@@ -228,7 +228,6 @@ static struct ast_flags globalflags = { 0 };
 static pthread_t netthreadid = AST_PTHREADT_NULL;
 static pthread_t schedthreadid = AST_PTHREADT_NULL;
 AST_MUTEX_DEFINE_STATIC(sched_lock);
-static int sched_halt = 0;
 static ast_cond_t sched_cond;
 
 enum {
@@ -382,7 +381,7 @@ static struct iax2_trunk_peer {
 AST_MUTEX_DEFINE_STATIC(tpeerlock);
 
 struct iax_firmware {
-	struct iax_firmware *next;
+	AST_LIST_ENTRY(iax_firmware) list;
 	int fd;
 	int mmaplen;
 	int dead;
@@ -608,7 +607,7 @@ struct chan_iax2_pvt {
 	int calling_tns;
 	int calling_pres;
 	int amaflags;
-	struct iax2_dpcache *dpentries;
+	AST_LIST_HEAD_NOLOCK(, iax2_dpcache) dpentries;
 	struct ast_variable *vars;
 	/*! last received remote rr */
 	struct iax_rr remote_rr;
@@ -631,10 +630,7 @@ static AST_LIST_HEAD_STATIC(users, iax2_user);
 
 static AST_LIST_HEAD_STATIC(peers, iax2_peer);
 
-static struct ast_firmware_list {
-	struct iax_firmware *wares;
-	ast_mutex_t lock;
-} waresl;
+static AST_LIST_HEAD_STATIC(firmwares, iax_firmware);
 
 /*! Extension exists */
 #define CACHE_FLAG_EXISTS		(1 << 0)
@@ -653,7 +649,7 @@ static struct ast_firmware_list {
 /*! Matchmore */
 #define CACHE_FLAG_MATCHMORE		(1 << 7)
 
-static struct iax2_dpcache {
+struct iax2_dpcache {
 	char peercontext[AST_MAX_CONTEXT];
 	char exten[AST_MAX_EXTENSION];
 	struct timeval orig;
@@ -661,11 +657,11 @@ static struct iax2_dpcache {
 	int flags;
 	unsigned short callno;
 	int waiters[256];
-	struct iax2_dpcache *next;
-	struct iax2_dpcache *peer;	/*!< For linking in peers */
-} *dpcache;
+	AST_LIST_ENTRY(iax2_dpcache) cache_list;
+	AST_LIST_ENTRY(iax2_dpcache) peer_list;
+};
 
-AST_MUTEX_DEFINE_STATIC(dpcache_lock);
+static AST_LIST_HEAD_STATIC(dpcache, iax2_dpcache);
 
 static void reg_source_db(struct iax2_peer *p);
 static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in *sin);
@@ -693,7 +689,6 @@ struct iax2_thread {
 	char curfunc[80];
 #endif	
 	int actions;
-	int halt;
 	pthread_t threadid;
 	int threadnum;
 	struct sockaddr_in iosin;
@@ -1069,6 +1064,8 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, cons
 	jbconf.max_contig_interp = maxjitterinterps;
 	jb_setconf(tmp->jb,&jbconf);
 
+	AST_LIST_HEAD_INIT_NOLOCK(&tmp->dpentries);
+
 	return tmp;
 }
 
@@ -1304,34 +1301,31 @@ static void destroy_firmware(struct iax_firmware *cur)
 static int try_firmware(char *s)
 {
 	struct stat stbuf;
-	struct iax_firmware *cur;
-	int ifd;
-	int fd;
-	int res;
-	
+	struct iax_firmware *cur = NULL;
+	int ifd, fd, res, len, chunk;
 	struct ast_iax2_firmware_header *fwh, fwh2;
 	struct MD5Context md5;
-	unsigned char sum[16];
-	unsigned char buf[1024];
-	int len, chunk;
-	char *s2;
-	char *last;
-	s2 = alloca(strlen(s) + 100);
-	if (!s2) {
+	unsigned char sum[16], buf[1024];
+	char *s2, *last;
+
+	if (!(s2 = alloca(strlen(s) + 100))) {
 		ast_log(LOG_WARNING, "Alloca failed!\n");
 		return -1;
 	}
+
 	last = strrchr(s, '/');
 	if (last)
 		last++;
 	else
 		last = s;
+
 	snprintf(s2, strlen(s) + 100, "/var/tmp/%s-%ld", last, (unsigned long)ast_random());
-	res = stat(s, &stbuf);
-	if (res < 0) {
+
+	if ((res = stat(s, &stbuf) < 0)) {
 		ast_log(LOG_WARNING, "Failed to stat '%s': %s\n", s, strerror(errno));
 		return -1;
 	}
+
 	/* Make sure it's not a directory */
 	if (S_ISDIR(stbuf.st_mode))
 		return -1;
@@ -1409,8 +1403,8 @@ static int try_firmware(char *s)
 		close(fd);
 		return -1;
 	}
-	cur = waresl.wares;
-	while(cur) {
+
+	AST_LIST_TRAVERSE(&firmwares, cur, list) {
 		if (!strcmp((char *)cur->fwh->devname, (char *)fwh->devname)) {
 			/* Found a candidate */
 			if (cur->dead || (ntohs(cur->fwh->version) < ntohs(fwh->version)))
@@ -1422,20 +1416,16 @@ static int try_firmware(char *s)
 			close(fd);
 			return 0;
 		}
-		cur = cur->next;
 	}
-	if (!cur) {
-		/* Allocate a new one and link it */
-		if ((cur = ast_calloc(1, sizeof(*cur)))) {
-			cur->fd = -1;
-			cur->next = waresl.wares;
-			waresl.wares = cur;
-		}
+	
+	if (!cur && ((cur = ast_calloc(1, sizeof(*cur))))) {
+		cur->fd = -1;
+		AST_LIST_INSERT_TAIL(&firmwares, cur, list);
 	}
+	
 	if (cur) {
-		if (cur->fwh) {
+		if (cur->fwh)
 			munmap(cur->fwh, cur->mmaplen);
-		}
 		if (cur->fd > -1)
 			close(cur->fd);
 		cur->fwh = fwh;
@@ -1443,25 +1433,27 @@ static int try_firmware(char *s)
 		cur->mmaplen = stbuf.st_size;
 		cur->dead = 0;
 	}
+	
 	return 0;
 }
 
 static int iax_check_version(char *dev)
 {
 	int res = 0;
-	struct iax_firmware *cur;
-	if (!ast_strlen_zero(dev)) {
-		ast_mutex_lock(&waresl.lock);
-		cur = waresl.wares;
-		while(cur) {
-			if (!strcmp(dev, (char *)cur->fwh->devname)) {
-				res = ntohs(cur->fwh->version);
-				break;
-			}
-			cur = cur->next;
+	struct iax_firmware *cur = NULL;
+
+	if (ast_strlen_zero(dev))
+		return 0;
+
+	AST_LIST_LOCK(&firmwares);
+	AST_LIST_TRAVERSE(&firmwares, cur, list) {
+		if (!strcmp(dev, (char *)cur->fwh->devname)) {
+			res = ntohs(cur->fwh->version);
+			break;
 		}
-		ast_mutex_unlock(&waresl.lock);
 	}
+	AST_LIST_UNLOCK(&firmwares);
+
 	return res;
 }
 
@@ -1472,51 +1464,52 @@ static int iax_firmware_append(struct iax_ie_data *ied, const unsigned char *dev
 	unsigned int start = (desc >> 8) & 0xffffff;
 	unsigned int bytes;
 	struct iax_firmware *cur;
-	if (!ast_strlen_zero((char *)dev) && bs) {
-		start *= bs;
-		ast_mutex_lock(&waresl.lock);
-		cur = waresl.wares;
-		while(cur) {
-			if (!strcmp((char *)dev, (char *)cur->fwh->devname)) {
-				iax_ie_append_int(ied, IAX_IE_FWBLOCKDESC, desc);
-				if (start < ntohl(cur->fwh->datalen)) {
-					bytes = ntohl(cur->fwh->datalen) - start;
-					if (bytes > bs)
-						bytes = bs;
-					iax_ie_append_raw(ied, IAX_IE_FWBLOCKDATA, cur->fwh->data + start, bytes);
-				} else {
-					bytes = 0;
-					iax_ie_append(ied, IAX_IE_FWBLOCKDATA);
-				}
-				if (bytes == bs)
-					res = 0;
-				else
-					res = 1;
-				break;
-			}
-			cur = cur->next;
+
+	if (ast_strlen_zero((char *)dev) || !bs)
+		return -1;
+
+	start *= bs;
+	
+	AST_LIST_LOCK(&firmwares);
+	AST_LIST_TRAVERSE(&firmwares, cur, list) {
+		if (strcmp((char *)dev, (char *)cur->fwh->devname))
+			continue;
+		iax_ie_append_int(ied, IAX_IE_FWBLOCKDESC, desc);
+		if (start < ntohl(cur->fwh->datalen)) {
+			bytes = ntohl(cur->fwh->datalen) - start;
+			if (bytes > bs)
+				bytes = bs;
+			iax_ie_append_raw(ied, IAX_IE_FWBLOCKDATA, cur->fwh->data + start, bytes);
+		} else {
+			bytes = 0;
+			iax_ie_append(ied, IAX_IE_FWBLOCKDATA);
 		}
-		ast_mutex_unlock(&waresl.lock);
+		if (bytes == bs)
+			res = 0;
+		else
+			res = 1;
+		break;
 	}
+	AST_LIST_UNLOCK(&firmwares);
+
 	return res;
 }
 
 
 static void reload_firmware(void)
 {
-	struct iax_firmware *cur, *curl, *curp;
+	struct iax_firmware *cur = NULL;
 	DIR *fwd;
 	struct dirent *de;
-	char dir[256];
-	char fn[256];
+	char dir[256], fn[256];
+
+	AST_LIST_LOCK(&firmwares);
+
 	/* Mark all as dead */
-	ast_mutex_lock(&waresl.lock);
-	cur = waresl.wares;
-	while(cur) {
+	AST_LIST_TRAVERSE(&firmwares, cur, list)
 		cur->dead = 1;
-		cur = cur->next;
-	}
-	/* Now that we've freed them, load the new ones */
+
+	/* Now that we have marked them dead... load new ones */
 	snprintf(dir, sizeof(dir), "%s/firmware/iax", (char *)ast_config_AST_DATA_DIR);
 	fwd = opendir(dir);
 	if (fwd) {
@@ -1534,23 +1527,13 @@ static void reload_firmware(void)
 		ast_log(LOG_WARNING, "Error opening firmware directory '%s': %s\n", dir, strerror(errno));
 
 	/* Clean up leftovers */
-	cur = waresl.wares;
-	curp = NULL;
-	while(cur) {
-		curl = cur;
-		cur = cur->next;
-		if (curl->dead) {
-			if (curp) {
-				curp->next = cur;
-			} else {
-				waresl.wares = cur;
-			}
-			destroy_firmware(curl);
-		} else {
-			curp = cur;
-		}
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&firmwares, cur, list) {
+		if (!cur->dead)
+			continue;
+		AST_LIST_REMOVE_CURRENT(&firmwares, list);
+		destroy_firmware(cur);
 	}
-	ast_mutex_unlock(&waresl.lock);
+	AST_LIST_TRAVERSE_SAFE_END
 }
 
 static int __do_deliver(void *data)
@@ -1687,20 +1670,22 @@ static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 
 static int iax2_predestroy(int callno)
 {
-	struct ast_channel *c;
-	struct chan_iax2_pvt *pvt;
+	struct ast_channel *c = NULL;
+	struct chan_iax2_pvt *pvt = NULL;
+
 	ast_mutex_lock(&iaxsl[callno]);
-	pvt = iaxs[callno];
-	if (!pvt) {
+
+	if (!(pvt = iaxs[callno])) {
 		ast_mutex_unlock(&iaxsl[callno]);
 		return -1;
 	}
+
 	if (!ast_test_flag(pvt, IAX_ALREADYGONE)) {
 		iax2_destroy_helper(pvt);
 		ast_set_flag(pvt, IAX_ALREADYGONE);	
 	}
-	c = pvt->owner;
-	if (c) {
+
+	if ((c = pvt->owner)) {
 		c->_softhangup |= AST_SOFTHANGUP_DEV;
 		c->tech_pvt = NULL;
 		ast_queue_hangup(c);
@@ -1708,7 +1693,9 @@ static int iax2_predestroy(int callno)
 		ast_atomic_fetchadd_int(&usecnt, -1);
 		ast_update_use_count();
 	}
+
 	ast_mutex_unlock(&iaxsl[callno]);
+
 	return 0;
 }
 
@@ -1723,9 +1710,9 @@ static int iax2_predestroy_nolock(int callno)
 
 static void iax2_destroy(int callno)
 {
-	struct chan_iax2_pvt *pvt;
-	struct iax_frame *cur;
-	struct ast_channel *owner;
+	struct chan_iax2_pvt *pvt = NULL;
+	struct iax_frame *cur = NULL;
+	struct ast_channel *owner = NULL;
 
 retry:
 	ast_mutex_lock(&iaxsl[callno]);
@@ -2096,16 +2083,18 @@ static int iax2_show_stats(int fd, int argc, char *argv[])
 
 static int iax2_show_cache(int fd, int argc, char *argv[])
 {
-	struct iax2_dpcache *dp;
-	char tmp[1024], *pc;
-	int s;
-	int x,y;
+	struct iax2_dpcache *dp = NULL;
+	char tmp[1024], *pc = NULL;
+	int s, x, y;
 	struct timeval tv;
+
 	gettimeofday(&tv, NULL);
-	ast_mutex_lock(&dpcache_lock);
-	dp = dpcache;
+
+	AST_LIST_LOCK(&dpcache);
+
 	ast_cli(fd, "%-20.20s %-12.12s %-9.9s %-8.8s %s\n", "Peer/Context", "Exten", "Exp.", "Wait.", "Flags");
-	while(dp) {
+
+	AST_LIST_TRAVERSE(&dpcache, dp, cache_list) {
 		s = dp->expiry.tv_sec - tv.tv_sec;
 		tmp[0] = '\0';
 		if (dp->flags & CACHE_FLAG_EXISTS)
@@ -2142,9 +2131,10 @@ static int iax2_show_cache(int fd, int argc, char *argv[])
 			ast_cli(fd, "%-20.20s %-12.12s %-9d %-8d %s\n", pc, dp->exten, s, y, tmp);
 		else
 			ast_cli(fd, "%-20.20s %-12.12s %-9.9s %-8d %s\n", pc, dp->exten, "(expired)", y, tmp);
-		dp = dp->next;
 	}
-	ast_mutex_unlock(&dpcache_lock);
+
+	AST_LIST_LOCK(&dpcache);
+
 	return RESULT_SUCCESS;
 }
 
@@ -4198,18 +4188,21 @@ static int iax2_show_firmware(int fd, int argc, char *argv[])
 #else /* __FreeBSD__ */
 #define FORMAT "%-15.15s  %-15d %-15d\n" /* XXX 2.95 ? */
 #endif /* __FreeBSD__ */
-	struct iax_firmware *cur;
+	struct iax_firmware *cur = NULL;
+
 	if ((argc != 3) && (argc != 4))
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&waresl.lock);
+
+	AST_LIST_LOCK(&firmwares);
 	
 	ast_cli(fd, FORMAT2, "Device", "Version", "Size");
-	for (cur = waresl.wares;cur;cur = cur->next) {
+	AST_LIST_TRAVERSE(&firmwares, cur, list)
 		if ((argc == 3) || (!strcasecmp(argv[3], (char *)cur->fwh->devname))) 
 			ast_cli(fd, FORMAT, cur->fwh->devname, ntohs(cur->fwh->version),
 				(int)ntohl(cur->fwh->datalen));
-	}
-	ast_mutex_unlock(&waresl.lock);
+
+	AST_LIST_UNLOCK(&firmwares);
+
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -5231,15 +5224,12 @@ static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 static int complete_dpreply(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 {
 	char exten[256] = "";
-	int status = CACHE_FLAG_UNKNOWN;
-	int expiry = iaxdefaultdpcache;
-	int x;
-	int matchmore = 0;
-	struct iax2_dpcache *dp, *prev;
+	int status = CACHE_FLAG_UNKNOWN, expiry = iaxdefaultdpcache, x, matchmore = 0;
+	struct iax2_dpcache *dp = NULL;
 	
 	if (ies->called_number)
 		ast_copy_string(exten, ies->called_number, sizeof(exten));
-
+	
 	if (ies->dpstatus & IAX_DPSTATUS_EXISTS)
 		status = CACHE_FLAG_EXISTS;
 	else if (ies->dpstatus & IAX_DPSTATUS_CANEXIST)
@@ -5247,40 +5237,31 @@ static int complete_dpreply(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 	else if (ies->dpstatus & IAX_DPSTATUS_NONEXISTENT)
 		status = CACHE_FLAG_NONEXISTENT;
 
-	if (ies->dpstatus & IAX_DPSTATUS_IGNOREPAT) {
-		/* Don't really do anything with this */
-	}
 	if (ies->refresh)
 		expiry = ies->refresh;
 	if (ies->dpstatus & IAX_DPSTATUS_MATCHMORE)
 		matchmore = CACHE_FLAG_MATCHMORE;
-	ast_mutex_lock(&dpcache_lock);
-	prev = NULL;
-	dp = pvt->dpentries;
-	while(dp) {
-		if (!strcmp(dp->exten, exten)) {
-			/* Let them go */
-			if (prev)
-				prev->peer = dp->peer;
-			else
-				pvt->dpentries = dp->peer;
-			dp->peer = NULL;
-			dp->callno = 0;
-			dp->expiry.tv_sec = dp->orig.tv_sec + expiry;
-			if (dp->flags & CACHE_FLAG_PENDING) {
-				dp->flags &= ~CACHE_FLAG_PENDING;
-				dp->flags |= status;
-				dp->flags |= matchmore;
-			}
-			/* Wake up waiters */
-			for (x=0;x<sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++)
-				if (dp->waiters[x] > -1)
-					write(dp->waiters[x], "asdf", 4);
+	
+	AST_LIST_LOCK(&dpcache);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&dpcache, dp, peer_list) {
+		if (strcmp(dp->exten, exten))
+			continue;
+		AST_LIST_REMOVE_CURRENT(&dpcache, peer_list);
+		dp->callno = 0;
+		dp->expiry.tv_sec = dp->orig.tv_sec + expiry;
+		if (dp->flags & CACHE_FLAG_PENDING) {
+			dp->flags &= ~CACHE_FLAG_PENDING;
+			dp->flags |= status;
+			dp->flags |= matchmore;
 		}
-		prev = dp;
-		dp = dp->peer;
+		/* Wake up waiters */
+		for (x=0;x<sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++)
+			if (dp->waiters[x] > -1)
+				write(dp->waiters[x], "asdf", 4);
 	}
-	ast_mutex_unlock(&dpcache_lock);
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&dpcache);
+
 	return 0;
 }
 
@@ -7024,15 +7005,11 @@ retryowner2:
 						}
 					}
 				}
-				ast_mutex_lock(&dpcache_lock);
-				dp = iaxs[fr->callno]->dpentries;
-				while(dp) {
-					if (!(dp->flags & CACHE_FLAG_TRANSMITTED)) {
+				AST_LIST_LOCK(&dpcache);
+				AST_LIST_TRAVERSE(&iaxs[fr->callno]->dpentries, dp, peer_list)
+					if (!(dp->flags & CACHE_FLAG_TRANSMITTED))
 						iax2_dprequest(dp, fr->callno);
-					}
-					dp = dp->peer;
-				}
-				ast_mutex_unlock(&dpcache_lock);
+				AST_LIST_UNLOCK(&dpcache);
 				break;
 			case IAX_COMMAND_POKE:
 				/* Send back a pong packet with the original timestamp */
@@ -7607,11 +7584,6 @@ static void *iax2_process_thread(void *data)
 		}
 		ast_mutex_unlock(&thread->lock);
 
-		/* If we were signalled, then we are already out of both lists or we are shutting down */
-		if (thread->halt) {
-			break;
-		}
-
 		/* Add ourselves to the active list now */
 		AST_LIST_LOCK(&active_list);
 		AST_LIST_INSERT_HEAD(&active_list, thread, list);
@@ -7654,11 +7626,6 @@ static void *iax2_process_thread(void *data)
 			AST_LIST_UNLOCK(&idle_list);
 		}
 	}
-
-	/* Free our own memory */
-	ast_mutex_destroy(&thread->lock);
-	ast_cond_destroy(&thread->cond);
-	free(thread);
 
 	return NULL;
 }
@@ -8015,17 +7982,17 @@ static void *sched_thread(void *ignore)
 		ts.tv_sec = tv.tv_sec;
 		ts.tv_nsec = tv.tv_usec * 1000;
 
+		pthread_testcancel();
 		ast_mutex_lock(&sched_lock);
 		ast_cond_timedwait(&sched_cond, &sched_lock, &ts);
-		if (sched_halt == 1)
-			break;
 		ast_mutex_unlock(&sched_lock);
+		pthread_testcancel();
 
 		count = ast_sched_runq(sched);
 		if (count >= 20)
 			ast_log(LOG_DEBUG, "chan_iax2: ast_sched_runq ran %d scheduled tasks all at once\n", count);
 	}
-	ast_mutex_unlock(&sched_lock);
+
 	return NULL;
 }
 
@@ -9211,48 +9178,32 @@ static int cache_get_callno_locked(const char *data)
 
 static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *data, const char *context, const char *exten, int priority)
 {
-	struct iax2_dpcache *dp, *prev = NULL, *next;
+	struct iax2_dpcache *dp = NULL;
 	struct timeval tv;
-	int x;
-	int com[2];
-	int timeout;
-	int old=0;
-	int outfd;
-	int abort;
-	int callno;
-	struct ast_channel *c;
-	struct ast_frame *f;
+	int x, com[2], timeout, old = 0, outfd, abort, callno;
+	struct ast_channel *c = NULL;
+	struct ast_frame *f = NULL;
+
 	gettimeofday(&tv, NULL);
-	dp = dpcache;
-	while(dp) {
-		next = dp->next;
-		/* Expire old caches */
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&dpcache, dp, cache_list) {
 		if (ast_tvcmp(tv, dp->expiry) > 0) {
-				/* It's expired, let it disappear */
-				if (prev)
-					prev->next = dp->next;
-				else
-					dpcache = dp->next;
-				if (!dp->peer && !(dp->flags & CACHE_FLAG_PENDING) && !dp->callno) {
-					/* Free memory and go again */
-					free(dp);
-				} else {
-					ast_log(LOG_WARNING, "DP still has peer field or pending or callno (flags = %d, peer = %p callno = %d)\n", dp->flags, dp->peer, dp->callno);
-				}
-				dp = next;
-				continue;
+			AST_LIST_REMOVE_CURRENT(&dpcache, cache_list);
+			if ((dp->flags & CACHE_FLAG_PENDING) || dp->callno)
+				ast_log(LOG_WARNING, "DP still has peer field or pending or callno (flags = %d, peer = blah, callno = %d)\n", dp->flags, dp->callno);
+			else
+				free(dp);
+			continue;
 		}
-		/* We found an entry that matches us! */
-		if (!strcmp(dp->peercontext, data) && !strcmp(dp->exten, exten)) 
+		if (!strcmp(dp->peercontext, data) && !strcmp(dp->exten, exten))
 			break;
-		prev = dp;
-		dp = next;
 	}
+	AST_LIST_TRAVERSE_SAFE_END
+
 	if (!dp) {
 		/* No matching entry.  Create a new one. */
 		/* First, can we make a callno? */
-		callno = cache_get_callno_locked(data);
-		if (callno < 0) {
+		if ((callno = cache_get_callno_locked(data)) < 0) {
 			ast_log(LOG_WARNING, "Unable to generate call for '%s'\n", data);
 			return NULL;
 		}
@@ -9266,18 +9217,18 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 		dp->orig = dp->expiry;
 		/* Expires in 30 mins by default */
 		dp->expiry.tv_sec += iaxdefaultdpcache;
-		dp->next = dpcache;
 		dp->flags = CACHE_FLAG_PENDING;
 		for (x=0;x<sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++)
 			dp->waiters[x] = -1;
-		dpcache = dp;
-		dp->peer = iaxs[callno]->dpentries;
-		iaxs[callno]->dpentries = dp;
+		/* Insert into the lists */
+		AST_LIST_INSERT_TAIL(&dpcache, dp, cache_list);
+		AST_LIST_INSERT_TAIL(&iaxs[callno]->dpentries, dp, peer_list);
 		/* Send the request if we're already up */
 		if (ast_test_flag(&iaxs[callno]->state, IAX_STATE_STARTED))
 			iax2_dprequest(dp, callno);
 		ast_mutex_unlock(&iaxsl[callno]);
 	}
+
 	/* By here we must have a dp */
 	if (dp->flags & CACHE_FLAG_PENDING) {
 		/* Okay, here it starts to get nasty.  We need a pipe now to wait
@@ -9299,31 +9250,27 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 		/* Okay, now we wait */
 		timeout = iaxdefaulttimeout * 1000;
 		/* Temporarily unlock */
-		ast_mutex_unlock(&dpcache_lock);
+		AST_LIST_UNLOCK(&dpcache);
 		/* Defer any dtmf */
 		if (chan)
 			old = ast_channel_defer_dtmf(chan);
 		abort = 0;
 		while(timeout) {
 			c = ast_waitfor_nandfds(&chan, chan ? 1 : 0, &com[0], 1, NULL, &outfd, &timeout);
-			if (outfd > -1) {
+			if (outfd > -1)
+				break;
+			if (!c)
+				continue;
+			if (!(f = ast_read(c))) {
+				abort = 1;
 				break;
 			}
-			if (c) {
-				f = ast_read(c);
-				if (f)
-					ast_frfree(f);
-				else {
-					/* Got hung up on, abort! */
-					break;
-					abort = 1;
-				}
-			}
+			ast_frfree(f);
 		}
 		if (!timeout) {
 			ast_log(LOG_WARNING, "Timeout waiting for %s exten %s\n", data, exten);
 		}
-		ast_mutex_lock(&dpcache_lock);
+		AST_LIST_LOCK(&dpcache);
 		dp->waiters[x] = -1;
 		close(com[1]);
 		close(com[0]);
@@ -9359,23 +9306,23 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 /*! \brief Part of the IAX2 switch interface */
 static int iax2_exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	struct iax2_dpcache *dp;
 	int res = 0;
+	struct iax2_dpcache *dp = NULL;
 #if 0
 	ast_log(LOG_NOTICE, "iax2_exists: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 #endif
 	if ((priority != 1) && (priority != 2))
 		return 0;
-	ast_mutex_lock(&dpcache_lock);
-	dp = find_cache(chan, data, context, exten, priority);
-	if (dp) {
+
+	AST_LIST_LOCK(&dpcache);
+	if ((dp = find_cache(chan, data, context, exten, priority))) {
 		if (dp->flags & CACHE_FLAG_EXISTS)
-			res= 1;
-	}
-	ast_mutex_unlock(&dpcache_lock);
-	if (!dp) {
+			res = 1;
+	} else {
 		ast_log(LOG_WARNING, "Unable to make DP cache\n");
 	}
+	AST_LIST_UNLOCK(&dpcache);
+
 	return res;
 }
 
@@ -9383,22 +9330,22 @@ static int iax2_exists(struct ast_channel *chan, const char *context, const char
 static int iax2_canmatch(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	int res = 0;
-	struct iax2_dpcache *dp;
+	struct iax2_dpcache *dp = NULL;
 #if 0
 	ast_log(LOG_NOTICE, "iax2_canmatch: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 #endif
 	if ((priority != 1) && (priority != 2))
 		return 0;
-	ast_mutex_lock(&dpcache_lock);
-	dp = find_cache(chan, data, context, exten, priority);
-	if (dp) {
+
+	AST_LIST_LOCK(&dpcache);
+	if ((dp = find_cache(chan, data, context, exten, priority))) {
 		if (dp->flags & CACHE_FLAG_CANEXIST)
-			res= 1;
-	}
-	ast_mutex_unlock(&dpcache_lock);
-	if (!dp) {
+			res = 1;
+	} else {
 		ast_log(LOG_WARNING, "Unable to make DP cache\n");
 	}
+	AST_LIST_UNLOCK(&dpcache);
+
 	return res;
 }
 
@@ -9406,22 +9353,22 @@ static int iax2_canmatch(struct ast_channel *chan, const char *context, const ch
 static int iax2_matchmore(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	int res = 0;
-	struct iax2_dpcache *dp;
+	struct iax2_dpcache *dp = NULL;
 #if 0
 	ast_log(LOG_NOTICE, "iax2_matchmore: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 #endif
 	if ((priority != 1) && (priority != 2))
 		return 0;
-	ast_mutex_lock(&dpcache_lock);
-	dp = find_cache(chan, data, context, exten, priority);
-	if (dp) {
+
+	AST_LIST_LOCK(&dpcache);
+	if ((dp = find_cache(chan, data, context, exten, priority))) {
 		if (dp->flags & CACHE_FLAG_MATCHMORE)
-			res= 1;
-	}
-	ast_mutex_unlock(&dpcache_lock);
-	if (!dp) {
+			res = 1;
+	} else {
 		ast_log(LOG_WARNING, "Unable to make DP cache\n");
 	}
+	AST_LIST_UNLOCK(&dpcache);
+
 	return res;
 }
 
@@ -9431,8 +9378,8 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 	char odata[256];
 	char req[256];
 	char *ncontext;
-	struct iax2_dpcache *dp;
-	struct ast_app *dial;
+	struct iax2_dpcache *dp = NULL;
+	struct ast_app *dial = NULL;
 #if 0
 	ast_log(LOG_NOTICE, "iax2_exec: con: %s, exten: %s, pri: %d, cid: %s, data: %s, newstack: %d\n", context, exten, priority, callerid ? callerid : "<unknown>", data, newstack);
 #endif
@@ -9447,9 +9394,9 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 		return -1;
 	} else if (priority != 1)
 		return -1;
-	ast_mutex_lock(&dpcache_lock);
-	dp = find_cache(chan, data, context, exten, priority);
-	if (dp) {
+
+	AST_LIST_LOCK(&dpcache);
+	if ((dp = find_cache(chan, data, context, exten, priority))) {
 		if (dp->flags & CACHE_FLAG_EXISTS) {
 			ast_copy_string(odata, data, sizeof(odata));
 			ncontext = strchr(odata, '/');
@@ -9463,18 +9410,18 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Executing Dial('%s')\n", req);
 		} else {
-			ast_mutex_unlock(&dpcache_lock);
+			AST_LIST_UNLOCK(&dpcache);
 			ast_log(LOG_WARNING, "Can't execute nonexistent extension '%s[@%s]' in data '%s'\n", exten, context, data);
 			return -1;
 		}
 	}
-	ast_mutex_unlock(&dpcache_lock);
-	dial = pbx_findapp("Dial");
-	if (dial) {
+	AST_LIST_UNLOCK(&dpcache);
+
+	if ((dial = pbx_findapp("Dial")))
 		return pbx_exec(chan, dial, req);
-	} else {
+	else
 		ast_log(LOG_WARNING, "No dial application registered\n");
-	}
+
 	return -1;
 }
 
@@ -9810,6 +9757,13 @@ static struct ast_cli_entry cli_iax2[] = {
 #endif /* IAXTESTS */
 };
 
+static void thread_free(struct iax2_thread *thread)
+{
+	ast_mutex_destroy(&thread->lock);
+	ast_cond_destroy(&thread->cond);
+	free(thread);
+}
+
 static int __unload_module(void)
 {
 	pthread_t threadid = AST_PTHREADT_NULL;
@@ -9824,7 +9778,6 @@ static int __unload_module(void)
 	if (schedthreadid != AST_PTHREADT_NULL) {
 		pthread_cancel(schedthreadid);
 		ast_mutex_lock(&sched_lock);
-		sched_halt = 1;
 		ast_cond_signal(&sched_cond);
 		ast_mutex_unlock(&sched_lock);
 		pthread_join(schedthreadid, NULL);
@@ -9835,9 +9788,10 @@ static int __unload_module(void)
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&idle_list, thread, list) {
 		AST_LIST_REMOVE_CURRENT(&idle_list, list);
 		threadid = thread->threadid;
-		thread->halt = 1;
+		pthread_cancel(threadid);
 		signal_condition(&thread->lock, &thread->cond);
 		pthread_join(threadid, NULL);
+		thread_free(thread);
 	}
 	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&idle_list);
@@ -9846,23 +9800,25 @@ static int __unload_module(void)
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&active_list, thread, list) {
 		AST_LIST_REMOVE_CURRENT(&active_list, list);
 		threadid = thread->threadid;
-		thread->halt = 1;
+		pthread_cancel(threadid);
 		signal_condition(&thread->lock, &thread->cond);
 		pthread_join(threadid, NULL);
+		thread_free(thread);
 	}
 	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&active_list);
 
 	AST_LIST_LOCK(&dynamic_list);
-        AST_LIST_TRAVERSE_SAFE_BEGIN(&dynamic_list, thread, list) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&dynamic_list, thread, list) {
 		AST_LIST_REMOVE_CURRENT(&dynamic_list, list);
 		threadid = thread->threadid;
-                thread->halt = 1;
-                signal_condition(&thread->lock, &thread->cond);
+		pthread_cancel(threadid);
+		signal_condition(&thread->lock, &thread->cond);
 		pthread_join(threadid, NULL);
-        }
+		thread_free(thread);
+	}
 	AST_LIST_TRAVERSE_SAFE_END
-        AST_LIST_UNLOCK(&dynamic_list);
+	AST_LIST_UNLOCK(&dynamic_list);
 
 	ast_netsock_release(netsock);
 	for (x=0;x<IAX_MAX_CALLS;x++)
@@ -9882,7 +9838,6 @@ static int __unload_module(void)
 
 static int unload_module(void)
 {
-	ast_mutex_destroy(&waresl.lock);
 	ast_custom_function_unregister(&iaxpeer_function);
 	return __unload_module();
 }
@@ -9936,8 +9891,6 @@ static int load_module(void)
 	}
 
 	ast_netsock_init(netsock);
-
-	ast_mutex_init(&waresl.lock);
 	
 	ast_cli_register_multiple(cli_iax2, sizeof(cli_iax2) / sizeof(struct ast_cli_entry));
 
