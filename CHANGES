@@ -12,4 +12,6 @@ Changes since Asterisk 1.4-beta was branched:
      to a depth of 7. Tests run using gosub, show depths
      limited only by virtual memory. A small test demonstrated
      recursive call depths of 100,000 without problems.
-
+  * Ability to use libcap to set high ToS bits when non-root
+     on Linux. If configure is unable to find libcap then you
+     can use --with-cap to specify the path.
