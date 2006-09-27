@@ -3351,7 +3351,7 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 		if (bridge_end.tv_sec) {
 			to = ast_tvdiff_ms(bridge_end, ast_tvnow());
 			if (to <= 0) {
-				res = AST_BRIDGE_RETRY;
+				res = AST_BRIDGE_COMPLETE;
 				break;
 			}
 		} else
@@ -3510,8 +3510,10 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		if (!ast_tvzero(nexteventts)) {
 			now = ast_tvnow();
 			to = ast_tvdiff_ms(nexteventts, now);
-			if (to < 0)
-				to = 0;
+			if (to <= 0) {
+				res = AST_BRIDGE_COMPLETE;
+				break;
+			}
 		}
 
 		if (config->timelimit) {
