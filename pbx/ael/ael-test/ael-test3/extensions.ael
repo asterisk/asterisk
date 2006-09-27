@@ -14,6 +14,7 @@ globals
 macro std-exten( ext , dev ) 
 {
         Dial(${dev}/${ext},20);
+	goto privacyManagerFailed|s|begin;
         switch(${DIALSTATUS}) 
 		{
         case BUSY:

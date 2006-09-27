@@ -10,12 +10,13 @@ FWDRINGS=Zap/6
 FWDVMBOX=1 
 
 
-[macro-std-exten]
+[std-exten]
 exten => s,1,Set(ext=${ARG1})
 exten => s,2,Set(dev=${ARG2})
 exten => s,3,Dial(${dev}/${ext}|20)
 exten => s,4,Goto(sw-1-${DIALSTATUS}|1)
 exten => s,5,NoOp(Finish switch-std-exten-1)
+exten => s,6,Return()
 exten => a,1,VoiceMailMain(${ext})
 exten => _sw-1-.,1,Voicemail(u${ext})
 exten => _sw-1-.,2,Goto(s|5)
@@ -26,7 +27,7 @@ exten => sw-1-BUSY,1,Voicemail(b${ext})
 exten => sw-1-BUSY,2,Goto(s|5)
 
 
-[macro-std-priv-exten_1]
+[std-priv-exten_1]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -37,6 +38,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-3-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_1-3)
+exten => s,11,Return()
 exten => _sw-3-.,1,Voicemail(u${ext})
 exten => _sw-3-.,2,Goto(s|10)
 exten => sw-3-NOANSWER,1,Voicemail(u${ext})
@@ -50,7 +52,7 @@ exten => sw-3-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-3-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_2]
+[std-priv-exten_2]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -61,6 +63,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-4-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_2-4)
+exten => s,11,Return()
 exten => _sw-4-.,1,Voicemail(u${ext})
 exten => _sw-4-.,2,Goto(s|10)
 exten => sw-4-NOANSWER,1,Voicemail(u${ext})
@@ -74,7 +77,7 @@ exten => sw-4-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-4-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_3]
+[std-priv-exten_3]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -85,6 +88,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-5-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_3-5)
+exten => s,11,Return()
 exten => _sw-5-.,1,Voicemail(u${ext})
 exten => _sw-5-.,2,Goto(s|10)
 exten => sw-5-NOANSWER,1,Voicemail(u${ext})
@@ -98,7 +102,7 @@ exten => sw-5-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-5-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_4]
+[std-priv-exten_4]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -109,6 +113,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-6-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_4-6)
+exten => s,11,Return()
 exten => _sw-6-.,1,Voicemail(u${ext})
 exten => _sw-6-.,2,Goto(s|10)
 exten => sw-6-NOANSWER,1,Voicemail(u${ext})
@@ -122,7 +127,7 @@ exten => sw-6-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-6-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_5]
+[std-priv-exten_5]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -133,6 +138,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-7-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_5-7)
+exten => s,11,Return()
 exten => _sw-7-.,1,Voicemail(u${ext})
 exten => _sw-7-.,2,Goto(s|10)
 exten => sw-7-NOANSWER,1,Voicemail(u${ext})
@@ -146,7 +152,7 @@ exten => sw-7-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-7-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_6]
+[std-priv-exten_6]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -157,6 +163,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-8-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_6-8)
+exten => s,11,Return()
 exten => _sw-8-.,1,Voicemail(u${ext})
 exten => _sw-8-.,2,Goto(s|10)
 exten => sw-8-NOANSWER,1,Voicemail(u${ext})
@@ -170,7 +177,7 @@ exten => sw-8-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-8-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_7]
+[std-priv-exten_7]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -181,6 +188,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-9-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_7-9)
+exten => s,11,Return()
 exten => _sw-9-.,1,Voicemail(u${ext})
 exten => _sw-9-.,2,Goto(s|10)
 exten => sw-9-NOANSWER,1,Voicemail(u${ext})
@@ -194,7 +202,7 @@ exten => sw-9-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-9-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_8]
+[std-priv-exten_8]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -205,6 +213,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-10-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_8-10)
+exten => s,11,Return()
 exten => _sw-10-.,1,Voicemail(u${ext})
 exten => _sw-10-.,2,Goto(s|10)
 exten => sw-10-NOANSWER,1,Voicemail(u${ext})
@@ -218,7 +227,7 @@ exten => sw-10-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-10-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_9]
+[std-priv-exten_9]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -229,6 +238,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-11-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_9-11)
+exten => s,11,Return()
 exten => _sw-11-.,1,Voicemail(u${ext})
 exten => _sw-11-.,2,Goto(s|10)
 exten => sw-11-NOANSWER,1,Voicemail(u${ext})
@@ -242,7 +252,7 @@ exten => sw-11-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-11-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_10]
+[std-priv-exten_10]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -253,6 +263,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-12-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_10-12)
+exten => s,11,Return()
 exten => _sw-12-.,1,Voicemail(u${ext})
 exten => _sw-12-.,2,Goto(s|10)
 exten => sw-12-NOANSWER,1,Voicemail(u${ext})
@@ -266,7 +277,7 @@ exten => sw-12-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-12-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_11]
+[std-priv-exten_11]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -277,6 +288,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-13-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_11-13)
+exten => s,11,Return()
 exten => _sw-13-.,1,Voicemail(u${ext})
 exten => _sw-13-.,2,Goto(s|10)
 exten => sw-13-NOANSWER,1,Voicemail(u${ext})
@@ -290,7 +302,7 @@ exten => sw-13-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-13-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_12]
+[std-priv-exten_12]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -301,6 +313,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-14-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_12-14)
+exten => s,11,Return()
 exten => _sw-14-.,1,Voicemail(u${ext})
 exten => _sw-14-.,2,Goto(s|10)
 exten => sw-14-NOANSWER,1,Voicemail(u${ext})
@@ -314,7 +327,7 @@ exten => sw-14-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-14-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_13]
+[std-priv-exten_13]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -325,6 +338,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-15-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_13-15)
+exten => s,11,Return()
 exten => _sw-15-.,1,Voicemail(u${ext})
 exten => _sw-15-.,2,Goto(s|10)
 exten => sw-15-NOANSWER,1,Voicemail(u${ext})
@@ -338,7 +352,7 @@ exten => sw-15-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-15-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_14]
+[std-priv-exten_14]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -349,6 +363,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-16-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_14-16)
+exten => s,11,Return()
 exten => _sw-16-.,1,Voicemail(u${ext})
 exten => _sw-16-.,2,Goto(s|10)
 exten => sw-16-NOANSWER,1,Voicemail(u${ext})
@@ -362,7 +377,7 @@ exten => sw-16-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-16-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_15]
+[std-priv-exten_15]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -373,6 +388,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-17-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_15-17)
+exten => s,11,Return()
 exten => _sw-17-.,1,Voicemail(u${ext})
 exten => _sw-17-.,2,Goto(s|10)
 exten => sw-17-NOANSWER,1,Voicemail(u${ext})
@@ -386,7 +402,7 @@ exten => sw-17-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-17-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_16]
+[std-priv-exten_16]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -397,6 +413,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-18-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_16-18)
+exten => s,11,Return()
 exten => _sw-18-.,1,Voicemail(u${ext})
 exten => _sw-18-.,2,Goto(s|10)
 exten => sw-18-NOANSWER,1,Voicemail(u${ext})
@@ -410,7 +427,7 @@ exten => sw-18-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-18-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_17]
+[std-priv-exten_17]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -421,6 +438,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-19-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_17-19)
+exten => s,11,Return()
 exten => _sw-19-.,1,Voicemail(u${ext})
 exten => _sw-19-.,2,Goto(s|10)
 exten => sw-19-NOANSWER,1,Voicemail(u${ext})
@@ -434,7 +452,7 @@ exten => sw-19-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-19-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_18]
+[std-priv-exten_18]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -445,6 +463,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-20-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_18-20)
+exten => s,11,Return()
 exten => _sw-20-.,1,Voicemail(u${ext})
 exten => _sw-20-.,2,Goto(s|10)
 exten => sw-20-NOANSWER,1,Voicemail(u${ext})
@@ -458,7 +477,7 @@ exten => sw-20-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-20-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_19]
+[std-priv-exten_19]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -469,6 +488,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-21-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_19-21)
+exten => s,11,Return()
 exten => _sw-21-.,1,Voicemail(u${ext})
 exten => _sw-21-.,2,Goto(s|10)
 exten => sw-21-NOANSWER,1,Voicemail(u${ext})
@@ -482,7 +502,7 @@ exten => sw-21-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-21-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_20]
+[std-priv-exten_20]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -493,6 +513,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-22-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_20-22)
+exten => s,11,Return()
 exten => _sw-22-.,1,Voicemail(u${ext})
 exten => _sw-22-.,2,Goto(s|10)
 exten => sw-22-NOANSWER,1,Voicemail(u${ext})
@@ -506,7 +527,7 @@ exten => sw-22-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-22-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_21]
+[std-priv-exten_21]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -517,6 +538,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-23-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_21-23)
+exten => s,11,Return()
 exten => _sw-23-.,1,Voicemail(u${ext})
 exten => _sw-23-.,2,Goto(s|10)
 exten => sw-23-NOANSWER,1,Voicemail(u${ext})
@@ -530,7 +552,7 @@ exten => sw-23-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-23-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_22]
+[std-priv-exten_22]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -541,6 +563,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-24-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_22-24)
+exten => s,11,Return()
 exten => _sw-24-.,1,Voicemail(u${ext})
 exten => _sw-24-.,2,Goto(s|10)
 exten => sw-24-NOANSWER,1,Voicemail(u${ext})
@@ -554,7 +577,7 @@ exten => sw-24-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-24-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_23]
+[std-priv-exten_23]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -565,6 +588,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-25-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_23-25)
+exten => s,11,Return()
 exten => _sw-25-.,1,Voicemail(u${ext})
 exten => _sw-25-.,2,Goto(s|10)
 exten => sw-25-NOANSWER,1,Voicemail(u${ext})
@@ -578,7 +602,7 @@ exten => sw-25-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-25-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_24]
+[std-priv-exten_24]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -589,6 +613,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-26-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_24-26)
+exten => s,11,Return()
 exten => _sw-26-.,1,Voicemail(u${ext})
 exten => _sw-26-.,2,Goto(s|10)
 exten => sw-26-NOANSWER,1,Voicemail(u${ext})
@@ -602,7 +627,7 @@ exten => sw-26-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-26-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_25]
+[std-priv-exten_25]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -613,6 +638,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-27-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_25-27)
+exten => s,11,Return()
 exten => _sw-27-.,1,Voicemail(u${ext})
 exten => _sw-27-.,2,Goto(s|10)
 exten => sw-27-NOANSWER,1,Voicemail(u${ext})
@@ -626,7 +652,7 @@ exten => sw-27-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-27-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_26]
+[std-priv-exten_26]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -637,6 +663,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-28-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_26-28)
+exten => s,11,Return()
 exten => _sw-28-.,1,Voicemail(u${ext})
 exten => _sw-28-.,2,Goto(s|10)
 exten => sw-28-NOANSWER,1,Voicemail(u${ext})
@@ -650,7 +677,7 @@ exten => sw-28-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-28-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_27]
+[std-priv-exten_27]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -661,6 +688,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-29-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_27-29)
+exten => s,11,Return()
 exten => _sw-29-.,1,Voicemail(u${ext})
 exten => _sw-29-.,2,Goto(s|10)
 exten => sw-29-NOANSWER,1,Voicemail(u${ext})
@@ -674,7 +702,7 @@ exten => sw-29-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-29-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_28]
+[std-priv-exten_28]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -685,6 +713,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-30-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_28-30)
+exten => s,11,Return()
 exten => _sw-30-.,1,Voicemail(u${ext})
 exten => _sw-30-.,2,Goto(s|10)
 exten => sw-30-NOANSWER,1,Voicemail(u${ext})
@@ -698,7 +727,7 @@ exten => sw-30-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-30-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_29]
+[std-priv-exten_29]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -709,6 +738,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-31-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_29-31)
+exten => s,11,Return()
 exten => _sw-31-.,1,Voicemail(u${ext})
 exten => _sw-31-.,2,Goto(s|10)
 exten => sw-31-NOANSWER,1,Voicemail(u${ext})
@@ -722,7 +752,7 @@ exten => sw-31-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-31-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_30]
+[std-priv-exten_30]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -733,6 +763,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-32-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_30-32)
+exten => s,11,Return()
 exten => _sw-32-.,1,Voicemail(u${ext})
 exten => _sw-32-.,2,Goto(s|10)
 exten => sw-32-NOANSWER,1,Voicemail(u${ext})
@@ -746,7 +777,7 @@ exten => sw-32-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-32-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_31]
+[std-priv-exten_31]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -757,6 +788,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-33-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_31-33)
+exten => s,11,Return()
 exten => _sw-33-.,1,Voicemail(u${ext})
 exten => _sw-33-.,2,Goto(s|10)
 exten => sw-33-NOANSWER,1,Voicemail(u${ext})
@@ -770,7 +802,7 @@ exten => sw-33-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-33-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_32]
+[std-priv-exten_32]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -781,6 +813,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-34-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_32-34)
+exten => s,11,Return()
 exten => _sw-34-.,1,Voicemail(u${ext})
 exten => _sw-34-.,2,Goto(s|10)
 exten => sw-34-NOANSWER,1,Voicemail(u${ext})
@@ -794,7 +827,7 @@ exten => sw-34-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-34-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_33]
+[std-priv-exten_33]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -805,6 +838,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-35-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_33-35)
+exten => s,11,Return()
 exten => _sw-35-.,1,Voicemail(u${ext})
 exten => _sw-35-.,2,Goto(s|10)
 exten => sw-35-NOANSWER,1,Voicemail(u${ext})
@@ -818,7 +852,7 @@ exten => sw-35-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-35-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_34]
+[std-priv-exten_34]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -829,6 +863,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-36-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_34-36)
+exten => s,11,Return()
 exten => _sw-36-.,1,Voicemail(u${ext})
 exten => _sw-36-.,2,Goto(s|10)
 exten => sw-36-NOANSWER,1,Voicemail(u${ext})
@@ -842,7 +877,7 @@ exten => sw-36-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-36-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_35]
+[std-priv-exten_35]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -853,6 +888,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-37-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_35-37)
+exten => s,11,Return()
 exten => _sw-37-.,1,Voicemail(u${ext})
 exten => _sw-37-.,2,Goto(s|10)
 exten => sw-37-NOANSWER,1,Voicemail(u${ext})
@@ -866,7 +902,7 @@ exten => sw-37-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-37-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_36]
+[std-priv-exten_36]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -877,6 +913,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-38-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_36-38)
+exten => s,11,Return()
 exten => _sw-38-.,1,Voicemail(u${ext})
 exten => _sw-38-.,2,Goto(s|10)
 exten => sw-38-NOANSWER,1,Voicemail(u${ext})
@@ -890,7 +927,7 @@ exten => sw-38-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-38-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_37]
+[std-priv-exten_37]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -901,6 +938,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-39-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_37-39)
+exten => s,11,Return()
 exten => _sw-39-.,1,Voicemail(u${ext})
 exten => _sw-39-.,2,Goto(s|10)
 exten => sw-39-NOANSWER,1,Voicemail(u${ext})
@@ -914,7 +952,7 @@ exten => sw-39-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-39-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_38]
+[std-priv-exten_38]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -925,6 +963,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-40-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_38-40)
+exten => s,11,Return()
 exten => _sw-40-.,1,Voicemail(u${ext})
 exten => _sw-40-.,2,Goto(s|10)
 exten => sw-40-NOANSWER,1,Voicemail(u${ext})
@@ -938,7 +977,7 @@ exten => sw-40-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-40-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_39]
+[std-priv-exten_39]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -949,6 +988,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-41-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_39-41)
+exten => s,11,Return()
 exten => _sw-41-.,1,Voicemail(u${ext})
 exten => _sw-41-.,2,Goto(s|10)
 exten => sw-41-NOANSWER,1,Voicemail(u${ext})
@@ -962,7 +1002,7 @@ exten => sw-41-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-41-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_40]
+[std-priv-exten_40]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -973,6 +1013,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-42-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_40-42)
+exten => s,11,Return()
 exten => _sw-42-.,1,Voicemail(u${ext})
 exten => _sw-42-.,2,Goto(s|10)
 exten => sw-42-NOANSWER,1,Voicemail(u${ext})
@@ -986,7 +1027,7 @@ exten => sw-42-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-42-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_41]
+[std-priv-exten_41]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -997,6 +1038,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-43-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_41-43)
+exten => s,11,Return()
 exten => _sw-43-.,1,Voicemail(u${ext})
 exten => _sw-43-.,2,Goto(s|10)
 exten => sw-43-NOANSWER,1,Voicemail(u${ext})
@@ -1010,7 +1052,7 @@ exten => sw-43-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-43-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_42]
+[std-priv-exten_42]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1021,6 +1063,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-44-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_42-44)
+exten => s,11,Return()
 exten => _sw-44-.,1,Voicemail(u${ext})
 exten => _sw-44-.,2,Goto(s|10)
 exten => sw-44-NOANSWER,1,Voicemail(u${ext})
@@ -1034,7 +1077,7 @@ exten => sw-44-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-44-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_43]
+[std-priv-exten_43]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1045,6 +1088,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-45-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_43-45)
+exten => s,11,Return()
 exten => _sw-45-.,1,Voicemail(u${ext})
 exten => _sw-45-.,2,Goto(s|10)
 exten => sw-45-NOANSWER,1,Voicemail(u${ext})
@@ -1058,7 +1102,7 @@ exten => sw-45-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-45-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_44]
+[std-priv-exten_44]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1069,6 +1113,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-46-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_44-46)
+exten => s,11,Return()
 exten => _sw-46-.,1,Voicemail(u${ext})
 exten => _sw-46-.,2,Goto(s|10)
 exten => sw-46-NOANSWER,1,Voicemail(u${ext})
@@ -1082,7 +1127,7 @@ exten => sw-46-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-46-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_45]
+[std-priv-exten_45]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1093,6 +1138,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-47-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_45-47)
+exten => s,11,Return()
 exten => _sw-47-.,1,Voicemail(u${ext})
 exten => _sw-47-.,2,Goto(s|10)
 exten => sw-47-NOANSWER,1,Voicemail(u${ext})
@@ -1106,7 +1152,7 @@ exten => sw-47-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-47-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_46]
+[std-priv-exten_46]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1117,6 +1163,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-48-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_46-48)
+exten => s,11,Return()
 exten => _sw-48-.,1,Voicemail(u${ext})
 exten => _sw-48-.,2,Goto(s|10)
 exten => sw-48-NOANSWER,1,Voicemail(u${ext})
@@ -1130,7 +1177,7 @@ exten => sw-48-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-48-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_47]
+[std-priv-exten_47]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1141,6 +1188,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-49-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_47-49)
+exten => s,11,Return()
 exten => _sw-49-.,1,Voicemail(u${ext})
 exten => _sw-49-.,2,Goto(s|10)
 exten => sw-49-NOANSWER,1,Voicemail(u${ext})
@@ -1154,7 +1202,7 @@ exten => sw-49-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-49-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_48]
+[std-priv-exten_48]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1165,6 +1213,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-50-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_48-50)
+exten => s,11,Return()
 exten => _sw-50-.,1,Voicemail(u${ext})
 exten => _sw-50-.,2,Goto(s|10)
 exten => sw-50-NOANSWER,1,Voicemail(u${ext})
@@ -1178,7 +1227,7 @@ exten => sw-50-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-50-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_49]
+[std-priv-exten_49]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1189,6 +1238,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-51-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_49-51)
+exten => s,11,Return()
 exten => _sw-51-.,1,Voicemail(u${ext})
 exten => _sw-51-.,2,Goto(s|10)
 exten => sw-51-NOANSWER,1,Voicemail(u${ext})
@@ -1202,7 +1252,7 @@ exten => sw-51-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-51-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_50]
+[std-priv-exten_50]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1213,6 +1263,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-52-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_50-52)
+exten => s,11,Return()
 exten => _sw-52-.,1,Voicemail(u${ext})
 exten => _sw-52-.,2,Goto(s|10)
 exten => sw-52-NOANSWER,1,Voicemail(u${ext})
@@ -1226,7 +1277,7 @@ exten => sw-52-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-52-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_51]
+[std-priv-exten_51]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1237,6 +1288,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-53-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_51-53)
+exten => s,11,Return()
 exten => _sw-53-.,1,Voicemail(u${ext})
 exten => _sw-53-.,2,Goto(s|10)
 exten => sw-53-NOANSWER,1,Voicemail(u${ext})
@@ -1250,7 +1302,7 @@ exten => sw-53-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-53-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_52]
+[std-priv-exten_52]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1261,6 +1313,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-54-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_52-54)
+exten => s,11,Return()
 exten => _sw-54-.,1,Voicemail(u${ext})
 exten => _sw-54-.,2,Goto(s|10)
 exten => sw-54-NOANSWER,1,Voicemail(u${ext})
@@ -1274,7 +1327,7 @@ exten => sw-54-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-54-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_53]
+[std-priv-exten_53]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1285,6 +1338,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-55-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_53-55)
+exten => s,11,Return()
 exten => _sw-55-.,1,Voicemail(u${ext})
 exten => _sw-55-.,2,Goto(s|10)
 exten => sw-55-NOANSWER,1,Voicemail(u${ext})
@@ -1298,7 +1352,7 @@ exten => sw-55-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-55-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_54]
+[std-priv-exten_54]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1309,6 +1363,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-56-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_54-56)
+exten => s,11,Return()
 exten => _sw-56-.,1,Voicemail(u${ext})
 exten => _sw-56-.,2,Goto(s|10)
 exten => sw-56-NOANSWER,1,Voicemail(u${ext})
@@ -1322,7 +1377,7 @@ exten => sw-56-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-56-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_55]
+[std-priv-exten_55]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1333,6 +1388,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-57-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_55-57)
+exten => s,11,Return()
 exten => _sw-57-.,1,Voicemail(u${ext})
 exten => _sw-57-.,2,Goto(s|10)
 exten => sw-57-NOANSWER,1,Voicemail(u${ext})
@@ -1346,7 +1402,7 @@ exten => sw-57-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-57-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_56]
+[std-priv-exten_56]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1357,6 +1413,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-58-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_56-58)
+exten => s,11,Return()
 exten => _sw-58-.,1,Voicemail(u${ext})
 exten => _sw-58-.,2,Goto(s|10)
 exten => sw-58-NOANSWER,1,Voicemail(u${ext})
@@ -1370,7 +1427,7 @@ exten => sw-58-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-58-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_57]
+[std-priv-exten_57]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1381,6 +1438,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-59-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_57-59)
+exten => s,11,Return()
 exten => _sw-59-.,1,Voicemail(u${ext})
 exten => _sw-59-.,2,Goto(s|10)
 exten => sw-59-NOANSWER,1,Voicemail(u${ext})
@@ -1394,7 +1452,7 @@ exten => sw-59-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-59-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_58]
+[std-priv-exten_58]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1405,6 +1463,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-60-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_58-60)
+exten => s,11,Return()
 exten => _sw-60-.,1,Voicemail(u${ext})
 exten => _sw-60-.,2,Goto(s|10)
 exten => sw-60-NOANSWER,1,Voicemail(u${ext})
@@ -1418,7 +1477,7 @@ exten => sw-60-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-60-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_59]
+[std-priv-exten_59]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1429,6 +1488,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-61-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_59-61)
+exten => s,11,Return()
 exten => _sw-61-.,1,Voicemail(u${ext})
 exten => _sw-61-.,2,Goto(s|10)
 exten => sw-61-NOANSWER,1,Voicemail(u${ext})
@@ -1442,7 +1502,7 @@ exten => sw-61-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-61-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_60]
+[std-priv-exten_60]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1453,6 +1513,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-62-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_60-62)
+exten => s,11,Return()
 exten => _sw-62-.,1,Voicemail(u${ext})
 exten => _sw-62-.,2,Goto(s|10)
 exten => sw-62-NOANSWER,1,Voicemail(u${ext})
@@ -1466,7 +1527,7 @@ exten => sw-62-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-62-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_61]
+[std-priv-exten_61]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1477,6 +1538,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-63-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_61-63)
+exten => s,11,Return()
 exten => _sw-63-.,1,Voicemail(u${ext})
 exten => _sw-63-.,2,Goto(s|10)
 exten => sw-63-NOANSWER,1,Voicemail(u${ext})
@@ -1490,7 +1552,7 @@ exten => sw-63-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-63-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_62]
+[std-priv-exten_62]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1501,6 +1563,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-64-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_62-64)
+exten => s,11,Return()
 exten => _sw-64-.,1,Voicemail(u${ext})
 exten => _sw-64-.,2,Goto(s|10)
 exten => sw-64-NOANSWER,1,Voicemail(u${ext})
@@ -1514,7 +1577,7 @@ exten => sw-64-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-64-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_63]
+[std-priv-exten_63]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1525,6 +1588,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-65-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_63-65)
+exten => s,11,Return()
 exten => _sw-65-.,1,Voicemail(u${ext})
 exten => _sw-65-.,2,Goto(s|10)
 exten => sw-65-NOANSWER,1,Voicemail(u${ext})
@@ -1538,7 +1602,7 @@ exten => sw-65-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-65-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_64]
+[std-priv-exten_64]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1549,6 +1613,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-66-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_64-66)
+exten => s,11,Return()
 exten => _sw-66-.,1,Voicemail(u${ext})
 exten => _sw-66-.,2,Goto(s|10)
 exten => sw-66-NOANSWER,1,Voicemail(u${ext})
@@ -1562,7 +1627,7 @@ exten => sw-66-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-66-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_65]
+[std-priv-exten_65]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1573,6 +1638,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-67-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_65-67)
+exten => s,11,Return()
 exten => _sw-67-.,1,Voicemail(u${ext})
 exten => _sw-67-.,2,Goto(s|10)
 exten => sw-67-NOANSWER,1,Voicemail(u${ext})
@@ -1586,7 +1652,7 @@ exten => sw-67-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-67-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_66]
+[std-priv-exten_66]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1597,6 +1663,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-68-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_66-68)
+exten => s,11,Return()
 exten => _sw-68-.,1,Voicemail(u${ext})
 exten => _sw-68-.,2,Goto(s|10)
 exten => sw-68-NOANSWER,1,Voicemail(u${ext})
@@ -1610,7 +1677,7 @@ exten => sw-68-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-68-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_67]
+[std-priv-exten_67]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1621,6 +1688,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-69-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_67-69)
+exten => s,11,Return()
 exten => _sw-69-.,1,Voicemail(u${ext})
 exten => _sw-69-.,2,Goto(s|10)
 exten => sw-69-NOANSWER,1,Voicemail(u${ext})
@@ -1634,7 +1702,7 @@ exten => sw-69-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-69-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_68]
+[std-priv-exten_68]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1645,6 +1713,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-70-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_68-70)
+exten => s,11,Return()
 exten => _sw-70-.,1,Voicemail(u${ext})
 exten => _sw-70-.,2,Goto(s|10)
 exten => sw-70-NOANSWER,1,Voicemail(u${ext})
@@ -1658,7 +1727,7 @@ exten => sw-70-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-70-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_69]
+[std-priv-exten_69]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1669,6 +1738,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-71-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_69-71)
+exten => s,11,Return()
 exten => _sw-71-.,1,Voicemail(u${ext})
 exten => _sw-71-.,2,Goto(s|10)
 exten => sw-71-NOANSWER,1,Voicemail(u${ext})
@@ -1682,7 +1752,7 @@ exten => sw-71-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-71-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_70]
+[std-priv-exten_70]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1693,6 +1763,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-72-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_70-72)
+exten => s,11,Return()
 exten => _sw-72-.,1,Voicemail(u${ext})
 exten => _sw-72-.,2,Goto(s|10)
 exten => sw-72-NOANSWER,1,Voicemail(u${ext})
@@ -1706,7 +1777,7 @@ exten => sw-72-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-72-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_71]
+[std-priv-exten_71]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1717,6 +1788,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-73-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_71-73)
+exten => s,11,Return()
 exten => _sw-73-.,1,Voicemail(u${ext})
 exten => _sw-73-.,2,Goto(s|10)
 exten => sw-73-NOANSWER,1,Voicemail(u${ext})
@@ -1730,7 +1802,7 @@ exten => sw-73-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-73-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_72]
+[std-priv-exten_72]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1741,6 +1813,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-74-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_72-74)
+exten => s,11,Return()
 exten => _sw-74-.,1,Voicemail(u${ext})
 exten => _sw-74-.,2,Goto(s|10)
 exten => sw-74-NOANSWER,1,Voicemail(u${ext})
@@ -1754,7 +1827,7 @@ exten => sw-74-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-74-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten_73]
+[std-priv-exten_73]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1765,6 +1838,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-75-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten_73-75)
+exten => s,11,Return()
 exten => _sw-75-.,1,Voicemail(u${ext})
 exten => _sw-75-.,2,Goto(s|10)
 exten => sw-75-NOANSWER,1,Voicemail(u${ext})
@@ -1778,7 +1852,7 @@ exten => sw-75-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-75-TORTURE,2,Goto(s|10)
 
 
-[macro-std-priv-exten]
+[std-priv-exten]
 exten => s,1,Set(dev=${ARG1})
 exten => s,2,Set(ext=${ARG2})
 exten => s,3,Set(timeout=${ARG3})
@@ -1789,6 +1863,7 @@ exten => s,7,Dial(${dev}|${timeout}|${opts})
 exten => s,8,NoOp(${DIALSTATUS} was chosen)
 exten => s,9,Goto(sw-76-${DIALSTATUS}|1)
 exten => s,10,NoOp(Finish switch-std-priv-exten-76)
+exten => s,11,Return()
 exten => _sw-76-.,1,Voicemail(u${ext})
 exten => _sw-76-.,2,Goto(s|10)
 exten => sw-76-NOANSWER,1,Voicemail(u${ext})
@@ -1802,9 +1877,9 @@ exten => sw-76-TORTURE,1,Goto(${torcont}|s|begin)
 exten => sw-76-TORTURE,2,Goto(s|10)
 
 
-[macro-fillcidname]
+[fillcidname]
 exten => s,1,GotoIf($["${CALLERID(number)}" = "" ]?2:3)
-exten => s,2,Goto(13)
+exten => s,2,Return()
 exten => s,3,NoOp(Finish if-fillcidname-77)
 exten => s,4,Set(cidn=${DB(cidname/${CALLERID(num)})})
 exten => s,5,GotoIf($["${CALLERID(name)}" != "" ]?6:9)
@@ -1815,10 +1890,10 @@ exten => s,9,NoOp(Finish if-fillcidname-78)
 exten => s,10,GotoIf($[( "${cidn}" != "" ) & ( "${CALLERID(name)}" = ""                                                    | "${CALLERID(name)}" = "CODY,WY        "                                                       | "${CALLERID(name)}" = "POWELL,WY      "                                                       | "${CALLERID(name)}" = "WIRELESS CALLER"                                                     | "${CALLERID(name)}" = "SUBSCRIBER,WIRE"                                                     | "${CALLERID(name)}" = "CELLULAR ONE"                                                     | "${CALLERID(name)}" = "Cellular One Customer"                                                       | "${CALLERID(name)}" = "CELLULAR ONE   "                                                       | "${CALLERID(name)}" = "Privacy Manager"                                                    | "${CALLERID(name)}" = "RIVERTON,WY    "                                                     | "${CALLERID(name)}" = "BASIN,WY       "                                                     | "${CALLERID(name)}" = "BILLINGS,MT    "                                                   | "${CALLERID(name)}" = "PROVO,UT       "                                                     | "${CALLERID(name)}" = "TOLL FREE      " ) ]?11:12)
 exten => s,11,Set(CALLERID(name)=${cidn})
 exten => s,12,NoOp(Finish if-fillcidname-80)
-exten => s,13,NoOp(End of Macro fillcidname-s)
+exten => s,13,Return()
 
 
-[macro-ciddial]
+[ciddial]
 exten => s,1,Set(dialnum=${ARG1})
 exten => s,2,Set(lookup=${ARG2})
 exten => s,3,Set(waittime=${ARG3})
@@ -1838,9 +1913,10 @@ exten => s,16,Set(CALLERID(num)=$[${cidnu}])
 exten => s,17,Dial(Zap/2/${lookup}|${waittime}|${dialopts})
 exten => s,18,NoOp(Finish if-if-ciddial-81-82)
 exten => s,19,NoOp(Finish if-ciddial-81)
+exten => s,20,Return()
 
 
-[macro-ciddial3]
+[ciddial3]
 exten => s,1,Set(dialnum=${ARG1})
 exten => s,2,Set(lookup=${ARG2})
 exten => s,3,Set(waittime=${ARG3})
@@ -1854,9 +1930,10 @@ exten => s,10,GotoIf($["${DIALSTATUS}" = "CHANUNAVAIL" ]?11:13)
 exten => s,11,BackGround(try_cell)
 exten => s,12,Dial(Zap/2/${lookup}|${waittime}|${dialopts})
 exten => s,13,NoOp(Finish if-ciddial3-83)
+exten => s,14,Return()
 
 
-[macro-ciddial2]
+[ciddial2]
 exten => s,1,Set(dialnum=${ARG1})
 exten => s,2,Set(lookup=${ARG2})
 exten => s,3,Set(waittime=${ARG3})
@@ -1876,18 +1953,21 @@ exten => s,16,BackGround(try_cell)
 exten => s,17,Dial(Zap/2/${lookup}|${waittime}|${dialopts})
 exten => s,18,NoOp(Finish if-if-ciddial2-84-85)
 exten => s,19,NoOp(Finish if-ciddial2-84)
+exten => s,20,Return()
 
 
-[macro-callerid-liar]
+[callerid-liar]
 exten => s,1,TrySystem(/usr/bin/play /var/lib/asterisk/sounds/priv-callerintros/LIAR.gsm&)
 exten => s,2,Background(priv-liar)
 exten => s,3,Hangup()
+exten => s,4,Return()
 
 
-[macro-callerid-bad]
+[callerid-bad]
 exten => s,1,Set(mycid=$[${CALLERID(num)}:"1([0-9]+)"])
 exten => s,2,Set(CALLERID(num)=${mycid})
 exten => s,3,Wait(0)
+exten => s,4,Return()
 
 
 [privacyManagerFailed]
@@ -1912,20 +1992,20 @@ exten => s,3,Zapateller(nocallerid)
 exten => s,4,PrivacyManager()
 exten => s,5,GotoIf($["${PRIVACYMGRSTATUS}" = "FAILED" ]?6:10)
 exten => s,6,TrySystem(/usr/bin/play /var/lib/asterisk/sounds/privmanfailed.gsm)
-exten => s,7,Macro(std-priv-exten|Zap/3r1&Zap/5r1|2|25|mtw|telemarket|telemarket)
+exten => s,7,Gosub(std-priv-exten|s|1:Zap/3r1&Zap/5r1|2|25|mtw|telemarket|telemarket)
 exten => s,8,Hangup()
-exten => s,9,Goto(104)
+exten => s,9,Return()
 exten => s,10,NoOp(Finish if-homeline-87)
-exten => s,11(postPriv),Macro(fillcidname)
+exten => s,11(postPriv),Gosub(fillcidname|s|1)
 exten => s,12,Set(CONFCIDNA=${CALLERID(name)})
 exten => s,13,Set(CONFCIDNU=${CALLERID(num)})
 exten => s,14,AGI(callall)
 exten => s,15,AGI(submit-announce.agi)
 exten => s,16,GotoIf($["${CALLERID(num)}" : "1" ]?17:18)
-exten => s,17,Macro(callerid-bad)
+exten => s,17,Gosub(callerid-bad|s|1)
 exten => s,18,NoOp(Finish if-homeline-88)
 exten => s,19,GotoIf($["${CALLERID(num)}"  = "7077577685" & "${CALLERID(name)}" : "Privacy Manager" ]?20:21)
-exten => s,20,Macro(callerid-liar)
+exten => s,20,Gosub(callerid-liar|s|1)
 exten => s,21,NoOp(Finish if-homeline-89)
 exten => s,22,TrySystem(/usr/local/bin/who-is-it ${CALLERID(num)} "${CALLERID(name)}"&)
 exten => s,23,Set(lds=${DB(playlds/${CALLERID(num)})})
@@ -2009,20 +2089,19 @@ exten => s,100,NoOp(Finish iftime-iftime-iftime-homeline-93-94-95)
 exten => s,101,NoOp(Finish iftime-iftime-homeline-93-94)
 exten => s,102,NoOp(Finish iftime-homeline-93)
 exten => s,103,Background(murphy-homeline-intro1)
-exten => s,104,NoOp(End of Extension s)
 exten => _sw-92-.,1,Set(z=${direct}-2)
 exten => _sw-92-.,2,Goto(homeline-kids|${z}|1)
-exten => sw-92-2,1,Macro(std-priv-exten|Zap/3r1&Zap/5r1|2|25|mtw|telemarket|telemarket)
+exten => sw-92-2,1,Gosub(std-priv-exten|s|1:Zap/3r1&Zap/5r1|2|25|mtw|telemarket|telemarket)
 exten => sw-92-2,2,Goto(s|loopback)
-exten => sw-92-1,1,Macro(std-priv-exten|Zap/6r3&Sip/murf|1|25|mpA(beep)tw|telemarket|telemarket)
+exten => sw-92-1,1,Gosub(std-priv-exten|s|1:Zap/6r3&Sip/murf|1|25|mpA(beep)tw|telemarket|telemarket)
 exten => sw-92-1,2,Goto(s|loopback)
 exten => 1,1,TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm)
 exten => 1,2,TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/2/greet.wav&)
-exten => 1,3,Macro(std-priv-exten|Zap/3r1&Zap/5r1|2|25|mtw|telemarket|telemarket)
+exten => 1,3,Gosub(std-priv-exten|s|1:Zap/3r1&Zap/5r1|2|25|mtw|telemarket|telemarket)
 exten => 1,4,Goto(s|loopback)
 exten => 2,1,Goto(homeline-kids|s|begin)
 exten => 21,1,Dial(IAX2/seaniax|20|T)
-exten => 3,1,Macro(std-priv-exten|Zap/6r3&Sip/murf|1|25|mpA(beep)tw|telemarket|telemarket)
+exten => 3,1,Gosub(std-priv-exten|s|1:Zap/6r3&Sip/murf|1|25|mpA(beep)tw|telemarket|telemarket)
 exten => 3,2,Goto(s|loopback)
 exten => 4,1,VoicemailMain()
 exten => 4,2,Goto(s|loopback)
@@ -2095,7 +2174,7 @@ exten => o,1,Goto(s|begin)
 exten => s,1(begin),Background(murphy-homeline-kids)
 exten => 1,1,TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm)
 exten => 1,2,TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/3/greet.wav&)
-exten => 1,3,Macro(std-priv-exten|IAX2/seaniax&Zap/5r2|3|35|mtw|telemarket|telemarket)
+exten => 1,3,Gosub(std-priv-exten|s|1:IAX2/seaniax&Zap/5r2|3|35|mtw|telemarket|telemarket)
 exten => 1,4,Goto(homeline|s|loopback)
 exten => 2,1,TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm)
 exten => 2,2,TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/4/greet.wav&)
@@ -2103,23 +2182,23 @@ exten => 2,3,Voicemail(u4)
 exten => 2,4,Goto(homeline|s|loopback)
 exten => 3,1,TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm)
 exten => 3,2,TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/5/greet.wav&)
-exten => 3,3,Macro(std-priv-exten|Zap/3r2&Zap/5r2|5|35|mtw|telemarket|telemarket)
+exten => 3,3,Gosub(std-priv-exten|s|1:Zap/3r2&Zap/5r2|5|35|mtw|telemarket|telemarket)
 exten => 3,4,Goto(homeline|s|loopback)
 exten => 4,1,TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm)
 exten => 4,2,TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/6/greet.wav&)
-exten => 4,3,Macro(std-priv-exten|Zap/3r2&Zap/5r2|6|35|mtw|telemarket|telemarket)
+exten => 4,3,Gosub(std-priv-exten|s|1:Zap/3r2&Zap/5r2|6|35|mtw|telemarket|telemarket)
 exten => 4,4,Goto(homeline|s|loopback)
 exten => 5,1,TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm)
 exten => 5,2,TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/7/greet.wav&)
-exten => 5,3,Macro(std-priv-exten|Zap/3r2&Zap/5r2|7|35|mtw|telemarket|telemarket)
+exten => 5,3,Gosub(std-priv-exten|s|1:Zap/3r2&Zap/5r2|7|35|mtw|telemarket|telemarket)
 exten => 5,4,Goto(homeline|s|loopback)
 exten => 6,1,TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm)
 exten => 6,2,TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/8/greet.wav&)
-exten => 6,3,Macro(std-priv-exten|Zap/3r2&Zap/5r2|8|35|mtw|telemarket|telemarket)
+exten => 6,3,Gosub(std-priv-exten|s|1:Zap/3r2&Zap/5r2|8|35|mtw|telemarket|telemarket)
 exten => 6,4,Goto(homeline|s|loopback)
 exten => 7,1,TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm)
 exten => 7,2,TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/9/greet.wav&)
-exten => 7,3,Macro(std-priv-exten|Zap/3r2&Zap/5r2|9|35|mtw|telemarket|telemarket)
+exten => 7,3,Gosub(std-priv-exten|s|1:Zap/3r2&Zap/5r2|9|35|mtw|telemarket|telemarket)
 exten => 7,4,Goto(homeline|s|loopback)
 exten => t,1,Goto(s|begin)
 exten => i,1,Background(invalid)
@@ -2141,13 +2220,13 @@ exten => s,1(begin),Answer()
 exten => s,2,Wait(1)
 exten => s,3,Set(repeatcount=0)
 exten => s,4,Zapateller(nocallerid)
-exten => s,5,Macro(fillcidname)
+exten => s,5,Gosub(fillcidname|s|1)
 exten => s,6,TrySystem(/usr/local/bin/who-is-it ${CALLERID(num)} "${CALLERID(name)}"&)
 exten => s,7(loopback),Background(greetings/greeting)
 exten => s,8,Background(murphy-office-intro1)
 exten => 1,1,TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm)
 exten => 1,2,TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/1/greet.wav&)
-exten => 1,3,Macro(std-priv-exten|Zap/6&Sip/murf|1|30|mtw|telemarket|telemarket)
+exten => 1,3,Gosub(std-priv-exten|s|1:Zap/6&Sip/murf|1|30|mtw|telemarket|telemarket)
 exten => 1,4,Goto(s|loopback)
 exten => 4,1,VoicemailMain()
 exten => 4,2,Goto(s|loopback)
@@ -2198,57 +2277,57 @@ exten => _93.,3,Congestion()
 
 [homefirst]
 ignorepat => 9
-exten => _91NXXNXXXXXX,1,Macro(ciddial|${EXTEN:1}|${EXTEN:2}|30|TW|Zap/1)
-exten => _9754XXXX,1,Macro(ciddial|${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
-exten => _9574XXXX,1,Macro(ciddial|${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
-exten => _9202XXXX,1,Macro(ciddial|${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
-exten => _9219XXXX,1,Macro(ciddial|${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
-exten => _9254XXXX,1,Macro(ciddial|${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
-exten => _9716XXXX,1,Macro(ciddial|${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
-exten => _9NXXXXXX,1,Macro(ciddial|1707${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
-exten => _9011.,1,Macro(ciddial|${EXTEN:1}|${EXTEN:1}|30|TW|Zap/1)
+exten => _91NXXNXXXXXX,1,Gosub(ciddial|s|1:${EXTEN:1}|${EXTEN:2}|30|TW|Zap/1)
+exten => _9754XXXX,1,Gosub(ciddial|s|1:${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
+exten => _9574XXXX,1,Gosub(ciddial|s|1:${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
+exten => _9202XXXX,1,Gosub(ciddial|s|1:${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
+exten => _9219XXXX,1,Gosub(ciddial|s|1:${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
+exten => _9254XXXX,1,Gosub(ciddial|s|1:${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
+exten => _9716XXXX,1,Gosub(ciddial|s|1:${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
+exten => _9NXXXXXX,1,Gosub(ciddial|s|1:1707${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
+exten => _9011.,1,Gosub(ciddial|s|1:${EXTEN:1}|${EXTEN:1}|30|TW|Zap/1)
 exten => _9911,1,Dial(Zap/1/911|30|T)
 exten => _9411,1,Dial(Zap/1/411|30|T)
 
 
 [workfirst]
 ignorepat => 9
-exten => _91NXXNXXXXXX,1,Macro(ciddial2|${EXTEN:1}|${EXTEN:2}|30|TW|Zap/1)
-exten => _9754XXXX,1,Macro(ciddial2|${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
-exten => _9574XXXX,1,Macro(ciddial2|${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
-exten => _9202XXXX,1,Macro(ciddial2|${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
-exten => _9219XXXX,1,Macro(ciddial2|${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
-exten => _9254XXXX,1,Macro(ciddial2|${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
-exten => _9716XXXX,1,Macro(ciddial2|${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
-exten => _9NXXXXXX,1,Macro(ciddial2|1707${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
+exten => _91NXXNXXXXXX,1,Gosub(ciddial2|s|1:${EXTEN:1}|${EXTEN:2}|30|TW|Zap/1)
+exten => _9754XXXX,1,Gosub(ciddial2|s|1:${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
+exten => _9574XXXX,1,Gosub(ciddial2|s|1:${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
+exten => _9202XXXX,1,Gosub(ciddial2|s|1:${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
+exten => _9219XXXX,1,Gosub(ciddial2|s|1:${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
+exten => _9254XXXX,1,Gosub(ciddial2|s|1:${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
+exten => _9716XXXX,1,Gosub(ciddial2|s|1:${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
+exten => _9NXXXXXX,1,Gosub(ciddial2|s|1:1707${EXTEN:1}|707${EXTEN:1}|30|TW|Zap/1)
 exten => _9911,1,Dial(Zap/1/911|30|T)
 exten => _9411,1,Dial(Zap/1/411|30|T)
 
 
 [force_cell]
 ignorepat => 8
-exten => _81NXXNXXXXXX,1,Macro(ciddial|${EXTEN:1}#|${EXTEN:2}|30|TW|Zap/2)
-exten => _8754XXXX,1,Macro(ciddial|${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/2)
-exten => _8574XXXX,1,Macro(ciddial|${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/2)
-exten => _8202XXXX,1,Macro(ciddial|${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/2)
-exten => _8219XXXX,1,Macro(ciddial|${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/2)
-exten => _8254XXXX,1,Macro(ciddial|${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/2)
-exten => _8716XXXX,1,Macro(ciddial|${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/2)
-exten => _8NXXXXXX,1,Macro(ciddial|${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/2)
+exten => _81NXXNXXXXXX,1,Gosub(ciddial|s|1:${EXTEN:1}#|${EXTEN:2}|30|TW|Zap/2)
+exten => _8754XXXX,1,Gosub(ciddial|s|1:${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/2)
+exten => _8574XXXX,1,Gosub(ciddial|s|1:${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/2)
+exten => _8202XXXX,1,Gosub(ciddial|s|1:${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/2)
+exten => _8219XXXX,1,Gosub(ciddial|s|1:${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/2)
+exten => _8254XXXX,1,Gosub(ciddial|s|1:${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/2)
+exten => _8716XXXX,1,Gosub(ciddial|s|1:${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/2)
+exten => _8NXXXXXX,1,Gosub(ciddial|s|1:${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/2)
 exten => _8911,1,Dial(Zap/1/911|30|T)
 exten => _8411,1,Dial(Zap/1/411|30|T)
 
 
 [force_home]
 ignorepat => 8
-exten => _81NXXNXXXXXX,1,Macro(ciddial3|${EXTEN:1}#|${EXTEN:2}|30|TW|Zap/1)
-exten => _8754XXXX,1,Macro(ciddial3|${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/1)
-exten => _8574XXXX,1,Macro(ciddial3|${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/1)
-exten => _8202XXXX,1,Macro(ciddial3|${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/1)
-exten => _8219XXXX,1,Macro(ciddial3|${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/1)
-exten => _8254XXXX,1,Macro(ciddial3|${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/1)
-exten => _8716XXXX,1,Macro(ciddial3|${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/1)
-exten => _8NXXXXXX,1,Macro(ciddial3|1707${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/1)
+exten => _81NXXNXXXXXX,1,Gosub(ciddial3|s|1:${EXTEN:1}#|${EXTEN:2}|30|TW|Zap/1)
+exten => _8754XXXX,1,Gosub(ciddial3|s|1:${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/1)
+exten => _8574XXXX,1,Gosub(ciddial3|s|1:${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/1)
+exten => _8202XXXX,1,Gosub(ciddial3|s|1:${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/1)
+exten => _8219XXXX,1,Gosub(ciddial3|s|1:${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/1)
+exten => _8254XXXX,1,Gosub(ciddial3|s|1:${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/1)
+exten => _8716XXXX,1,Gosub(ciddial3|s|1:${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/1)
+exten => _8NXXXXXX,1,Gosub(ciddial3|s|1:1707${EXTEN:1}#|707${EXTEN:1}|30|TW|Zap/1)
 exten => _8911,1,Dial(Zap/1/911|30|T)
 exten => _8411,1,Dial(Zap/1/411|30|T)
 
@@ -2260,9 +2339,9 @@ include => parkedcalls
 include => homefirst
 include => force_cell
 exten => s,1(loopback),Wait(0)
-exten => 1,1,Macro(std-priv-exten|Zap/3&Zap/5|2|35|mtw|telemarket|telemarket)
+exten => 1,1,Gosub(std-priv-exten|s|1:Zap/3&Zap/5|2|35|mtw|telemarket|telemarket)
 exten => 1,2,Goto(s|loopback)
-exten => 2,1,Macro(std-priv-exten|Zap/6&Zap/5|1|35|mpA(beep3)Tt|telemarket|telemarket)
+exten => 2,1,Gosub(std-priv-exten|s|1:Zap/6&Zap/5|1|35|mpA(beep3)Tt|telemarket|telemarket)
 exten => 2,2,Goto(s|loopback)
 exten => 4,1,VoicemailMain()
 exten => 5,1,Record(recording:gsm)
@@ -2322,55 +2401,55 @@ exten => t,1,Congestion()
 [fromvmhome]
 exten => 1,1,Dial(Zap/6&Sip/murf|20|Tt)
 exten => 2,1,Dial(Zap/3&Zap/5|20|Tt)
-exten => _707202XXXX,1,Macro(ciddial|1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707219XXXX,1,Macro(ciddial|1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707254XXXX,1,Macro(ciddial|1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707716XXXX,1,Macro(ciddial|1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707754XXXX,1,Macro(ciddial|${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707574XXXX,1,Macro(ciddial|${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _NXXNXXXXXX,1,Macro(ciddial|1${EXTEN}|${EXTEN}|30|TW|Zap/1)
-exten => _1NXXNXXXXXX,1,Macro(ciddial|${EXTEN}|${EXTEN:1}|30|TW|Zap/1)
-exten => _754XXXX,1,Macro(ciddial|${EXTEN}|707${EXTEN}|30|TW|Zap/1)
-exten => _574XXXX,1,Macro(ciddial|${EXTEN}|707${EXTEN}|30|TW|Zap/1)
-exten => _NXXXXXX,1,Macro(ciddial|1707${EXTEN}|707${EXTEN}|30|TW|Zap/1)
-exten => _911,1,Macro(ciddial|911|911|30|TW|Zap/1)
-exten => _411,1,Macro(ciddial|411|411|30|TW|Zap/1)
+exten => _707202XXXX,1,Gosub(ciddial|s|1:1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707219XXXX,1,Gosub(ciddial|s|1:1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707254XXXX,1,Gosub(ciddial|s|1:1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707716XXXX,1,Gosub(ciddial|s|1:1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707754XXXX,1,Gosub(ciddial|s|1:${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707574XXXX,1,Gosub(ciddial|s|1:${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _NXXNXXXXXX,1,Gosub(ciddial|s|1:1${EXTEN}|${EXTEN}|30|TW|Zap/1)
+exten => _1NXXNXXXXXX,1,Gosub(ciddial|s|1:${EXTEN}|${EXTEN:1}|30|TW|Zap/1)
+exten => _754XXXX,1,Gosub(ciddial|s|1:${EXTEN}|707${EXTEN}|30|TW|Zap/1)
+exten => _574XXXX,1,Gosub(ciddial|s|1:${EXTEN}|707${EXTEN}|30|TW|Zap/1)
+exten => _NXXXXXX,1,Gosub(ciddial|s|1:1707${EXTEN}|707${EXTEN}|30|TW|Zap/1)
+exten => _911,1,Gosub(ciddial|s|1:911|911|30|TW|Zap/1)
+exten => _411,1,Gosub(ciddial|s|1:411|411|30|TW|Zap/1)
 
 
 [fromvmwork]
 exten => 1,1,Dial(Zap/6&Sip/murf|20|Tt)
 exten => 2,1,Dial(Zap/3&Zap/5|20|Tt)
-exten => _707202XXXX,1,Macro(ciddial|1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707219XXXX,1,Macro(ciddial|1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707254XXXX,1,Macro(ciddial|1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707716XXXX,1,Macro(ciddial|1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707754XXXX,1,Macro(ciddial|${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707574XXXX,1,Macro(ciddial|${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _NXXNXXXXXX,1,Macro(ciddial|1${EXTEN}|${EXTEN}|30|TW|Zap/1)
-exten => _1NXXNXXXXXX,1,Macro(ciddial|${EXTEN}|${EXTEN:1}|30|TW|Zap/1)
-exten => _754XXXX,1,Macro(ciddial|${EXTEN}|707${EXTEN}|30|TW|Zap/1)
-exten => _574XXXX,1,Macro(ciddial|${EXTEN}|707${EXTEN}|30|TW|Zap/1)
-exten => _NXXXXXX,1,Macro(ciddial|1707${EXTEN}|707${EXTEN}|30|TW|Zap/1)
-exten => 911,1,Macro(ciddial|911|911|30|TW|Zap/1)
-exten => 411,1,Macro(ciddial|411|411|30|TW|Zap/1)
+exten => _707202XXXX,1,Gosub(ciddial|s|1:1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707219XXXX,1,Gosub(ciddial|s|1:1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707254XXXX,1,Gosub(ciddial|s|1:1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707716XXXX,1,Gosub(ciddial|s|1:1${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707754XXXX,1,Gosub(ciddial|s|1:${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707574XXXX,1,Gosub(ciddial|s|1:${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _NXXNXXXXXX,1,Gosub(ciddial|s|1:1${EXTEN}|${EXTEN}|30|TW|Zap/1)
+exten => _1NXXNXXXXXX,1,Gosub(ciddial|s|1:${EXTEN}|${EXTEN:1}|30|TW|Zap/1)
+exten => _754XXXX,1,Gosub(ciddial|s|1:${EXTEN}|707${EXTEN}|30|TW|Zap/1)
+exten => _574XXXX,1,Gosub(ciddial|s|1:${EXTEN}|707${EXTEN}|30|TW|Zap/1)
+exten => _NXXXXXX,1,Gosub(ciddial|s|1:1707${EXTEN}|707${EXTEN}|30|TW|Zap/1)
+exten => 911,1,Gosub(ciddial|s|1:911|911|30|TW|Zap/1)
+exten => 411,1,Gosub(ciddial|s|1:411|411|30|TW|Zap/1)
 
 
 [fromSeanUniden]
 include => parkedcalls
 exten => 21,1,Dial(IAX2/seaniax|20|T)
-exten => _707202XXXX,1,Macro(ciddial|${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707219XXXX,1,Macro(ciddial|${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707254XXXX,1,Macro(ciddial|${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707716XXXX,1,Macro(ciddial|${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707754XXXX,1,Macro(ciddial|${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _707574XXXX,1,Macro(ciddial|${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
-exten => _NXXNXXXXXX,1,Macro(ciddial|1${EXTEN}|${EXTEN}|30|TW|Zap/1)
-exten => _1NXXNXXXXXX,1,Macro(ciddial|${EXTEN}|${EXTEN:1}|30|TW|Zap/1)
-exten => _754XXXX,1,Macro(ciddial|${EXTEN}|707${EXTEN}|30|TW|Zap/1)
-exten => _574XXXX,1,Macro(ciddial|${EXTEN}|707${EXTEN}|30|TW|Zap/1)
-exten => _NXXXXXX,1,Macro(ciddial|1707${EXTEN}|707${EXTEN}|30|TW|Zap/1)
-exten => 911,1,Macro(ciddial|911|911|30|TW|Zap/1)
-exten => 411,1,Macro(ciddial|411|411|30|TW|Zap/1)
+exten => _707202XXXX,1,Gosub(ciddial|s|1:${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707219XXXX,1,Gosub(ciddial|s|1:${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707254XXXX,1,Gosub(ciddial|s|1:${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707716XXXX,1,Gosub(ciddial|s|1:${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707754XXXX,1,Gosub(ciddial|s|1:${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _707574XXXX,1,Gosub(ciddial|s|1:${EXTEN:3}|${EXTEN}|30|TW|Zap/1)
+exten => _NXXNXXXXXX,1,Gosub(ciddial|s|1:1${EXTEN}|${EXTEN}|30|TW|Zap/1)
+exten => _1NXXNXXXXXX,1,Gosub(ciddial|s|1:${EXTEN}|${EXTEN:1}|30|TW|Zap/1)
+exten => _754XXXX,1,Gosub(ciddial|s|1:${EXTEN}|707${EXTEN}|30|TW|Zap/1)
+exten => _574XXXX,1,Gosub(ciddial|s|1:${EXTEN}|707${EXTEN}|30|TW|Zap/1)
+exten => _NXXXXXX,1,Gosub(ciddial|s|1:1707${EXTEN}|707${EXTEN}|30|TW|Zap/1)
+exten => 911,1,Gosub(ciddial|s|1:911|911|30|TW|Zap/1)
+exten => 411,1,Gosub(ciddial|s|1:411|411|30|TW|Zap/1)
 
 
 [workext]

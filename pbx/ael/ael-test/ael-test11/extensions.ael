@@ -53,4 +53,5 @@ ptr1: // <-- duplicate label (macros are about the equiv of an extension)
          Noop(esac) ;
 	  }
    }
+	return;
 }

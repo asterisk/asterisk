@@ -5,3 +5,11 @@ Changes since Asterisk 1.4-beta was branched:
   * Ability to set process limits without restarting Asterisk
   * SS7 support in chan_zap (via libss7 library)
   * Proper codec support in chan_skinny.
+  * AEL upgraded to use the Gosub with Arguments instead
+     of Macro application, to hopefully reduce the problems
+     seen with the artificially low stack ceiling that 
+     Macro bumps into. Macros can only call other Macros
+     to a depth of 7. Tests run using gosub, show depths
+     limited only by virtual memory. A small test demonstrated
+     recursive call depths of 100,000 without problems.
+
