@@ -1712,15 +1712,6 @@ static int iax2_predestroy(int callno)
 	return 0;
 }
 
-static int iax2_predestroy_nolock(int callno)
-{
-	int res;
-	ast_mutex_unlock(&iaxsl[callno]);
-	res = iax2_predestroy(callno);
-	ast_mutex_lock(&iaxsl[callno]);
-	return res;
-}
-
 static void iax2_destroy(int callno)
 {
 	struct chan_iax2_pvt *pvt;
@@ -1787,13 +1778,6 @@ retry:
 	if (callno & 0x4000)
 		update_max_trunk();
 }
-static void iax2_destroy_nolock(int callno)
-{	
-	/* Actually it's easier to unlock, kill it, and relock */
-	ast_mutex_unlock(&iaxsl[callno]);
-	iax2_destroy(callno);
-	ast_mutex_lock(&iaxsl[callno]);
-}
 
 static int update_packet(struct iax_frame *f)
 {
@@ -1828,7 +1812,7 @@ static void __attempt_transmit(void *data)
 						send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_TXREJ, 0, NULL, 0, -1);
 					} else if (f->final) {
 						if (f->final) 
-							iax2_destroy_nolock(callno);
+							iax2_destroy(callno);
 					} else {
 						if (iaxs[callno]->owner)
 							ast_log(LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %d, ts=%d, seqno=%d)\n", ast_inet_ntoa(iaxs[f->callno]->addr.sin_addr),iaxs[f->callno]->owner->name , f->af.frametype, f->af.subclass, f->ts, f->oseqno);
@@ -1848,7 +1832,7 @@ static void __attempt_transmit(void *data)
 								iaxs[callno]->reg->regstate = REG_STATE_TIMEOUT;
 								iaxs[callno]->reg->refresh = IAX_DEFAULT_REG_EXPIRE;
 							}
-							iax2_destroy_nolock(callno);
+							iax2_destroy(callno);
 						}
 					}
 
@@ -2934,11 +2918,11 @@ static int iax2_hangup(struct ast_channel *c)
 		if (!iaxs[callno]->error && !alreadygone) 
  			send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_HANGUP, 0, ied.buf, ied.pos, -1);
 		/* Explicitly predestroy it */
-		iax2_predestroy_nolock(callno);
+		iax2_predestroy(callno);
 		/* If we were already gone to begin with, destroy us now */
 		if (alreadygone) {
 			ast_log(LOG_DEBUG, "Really destroying %s now...\n", c->name);
-			iax2_destroy_nolock(callno);
+			iax2_destroy(callno);
 		}
 	}
 	ast_mutex_unlock(&iaxsl[callno]);
@@ -4558,7 +4542,7 @@ static int send_command_locked(unsigned short callno, char type, int command, un
 static int send_command_final(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const unsigned char *data, int datalen, int seqno)
 {
 	/* It is assumed that the callno has already been locked */
-	iax2_predestroy_nolock(i->callno);
+	iax2_predestroy(i->callno);
 	return __send_command(i, type, command, ts, data, datalen, seqno, 0, 0, 1);
 }
 
@@ -6610,7 +6594,7 @@ static int socket_process(struct iax2_thread *thread)
 							if (cur->final) { 
 								if (iaxdebug && option_debug)
 									ast_log(LOG_DEBUG, "Really destroying %d, having been acked on final message\n", fr->callno);
-								iax2_destroy_nolock(fr->callno);
+								iax2_destroy(fr->callno);
 							}
 						}
 					}
@@ -6918,7 +6902,7 @@ retryowner:
 												using_prefs);
 								
 								if(!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format)))
-									iax2_destroy_nolock(fr->callno);
+									iax2_destroy(fr->callno);
 							} else {
 								ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
 								/* If this is a TBD call, we're ready but now what...  */
@@ -6957,7 +6941,7 @@ retryowner:
 					iaxs[fr->callno]->owner->hangupcause = ies.causecode;
 				/* Send ack immediately, before we destroy */
 				send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
-				iax2_destroy_nolock(fr->callno);
+				iax2_destroy(fr->callno);
 				break;
 			case IAX_COMMAND_REJECT:
 				/* Set hangup cause according to remote */
@@ -6977,7 +6961,7 @@ retryowner:
 						       fr->ts, NULL, 0, fr->iseqno);
 				if (!ast_test_flag(iaxs[fr->callno], IAX_PROVISION))
 					iaxs[fr->callno]->error = EPERM;
-				iax2_destroy_nolock(fr->callno);
+				iax2_destroy(fr->callno);
 				break;
 			case IAX_COMMAND_TRANSFER:
 				if (iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner) && ies.called_number) {
@@ -7007,7 +6991,7 @@ retryowner:
 				if (ast_test_flag(iaxs[fr->callno], IAX_PROVISION)) {
 					/* Send ack immediately, before we destroy */
 					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
-					iax2_destroy_nolock(fr->callno);
+					iax2_destroy(fr->callno);
 					break;
 				}
 				if (ies.format) {
@@ -7114,7 +7098,7 @@ retryowner2:
 					/* and finally send the ack */
 					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
 					/* And wrap up the qualify call */
-					iax2_destroy_nolock(fr->callno);
+					iax2_destroy(fr->callno);
 					peer->callno = 0;
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Peer %s: got pong, lastms %d, historicms %d, maxms %d\n", peer->name, peer->lastms, peer->historicms, peer->maxms);
@@ -7298,7 +7282,7 @@ retryowner2:
 
 							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
 							if(!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format)))
-								iax2_destroy_nolock(fr->callno);
+								iax2_destroy(fr->callno);
 						} else {
 							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
 							/* If this is a TBD call, we're ready but now what...  */
@@ -7326,14 +7310,14 @@ retryowner2:
 						ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
 						send_command(iaxs[fr->callno], AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, 0, NULL, 0, -1);
 						if(!(c = ast_iax2_new(fr->callno, AST_STATE_RING, iaxs[fr->callno]->peerformat)))
-							iax2_destroy_nolock(fr->callno);
+							iax2_destroy(fr->callno);
 					}
 				}
 				break;
 			case IAX_COMMAND_INVAL:
 				iaxs[fr->callno]->error = ENOTCONN;
 				ast_log(LOG_DEBUG, "Immediately destroying %d, having received INVAL\n", fr->callno);
-				iax2_destroy_nolock(fr->callno);
+				iax2_destroy(fr->callno);
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Destroying call %d\n", fr->callno);
 				break;
@@ -7369,7 +7353,7 @@ retryowner2:
 					ast_log(LOG_WARNING, "Registration failure\n");
 				/* Send ack immediately, before we destroy */
 				send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
-				iax2_destroy_nolock(fr->callno);
+				iax2_destroy(fr->callno);
 				break;
 			case IAX_COMMAND_REGREJ:
 				if (iaxs[fr->callno]->reg) {
@@ -7381,7 +7365,7 @@ retryowner2:
 				}
 				/* Send ack immediately, before we destroy */
 				send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
-				iax2_destroy_nolock(fr->callno);
+				iax2_destroy(fr->callno);
 				break;
 			case IAX_COMMAND_REGAUTH:
 				/* Authentication request */
@@ -8689,7 +8673,7 @@ static void delete_users(void)
 			ast_mutex_lock(&iaxsl[regl->callno]);
 			if (iaxs[regl->callno]) {
 				iaxs[regl->callno]->reg = NULL;
-				iax2_destroy_nolock(regl->callno);
+				iax2_destroy(regl->callno);
 			}
 			ast_mutex_unlock(&iaxsl[regl->callno]);
 		}
