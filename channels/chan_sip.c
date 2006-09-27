@@ -10011,6 +10011,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  T38 fax pt UDPTL:       %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_UDPTL) ? "Yes" : "No");
 	ast_cli(fd, "  T38 fax pt RTP:         %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_RTP) ? "Yes" : "No");
 	ast_cli(fd, "  T38 fax pt TCP:         %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_TCP) ? "Yes" : "No");
+	ast_cli(fd, "  RFC2833 Compensation:   %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_RFC2833_COMPENSATE) ? "Yes" : "No");
 	if (!realtimepeers && !realtimeusers)
 		ast_cli(fd, "  SIP realtime:           Disabled\n" );
 	else
@@ -15955,6 +15956,10 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "t38pt_tcp")) {
 			if (ast_true(v->value)) {
 				ast_set_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_TCP);
+			}
+		} else if (!strcasecmp(v->name, "rfc2833compensate")) {
+			if (ast_true(v->value)) {
+				ast_set_flag(&global_flags[1], SIP_PAGE2_RFC2833_COMPENSATE);
 			}
 		}
 	}
