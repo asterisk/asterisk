@@ -380,6 +380,7 @@ static struct ast_cli_entry cli_playback[] = {
 static int playback_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
+	int mres = 0;
 	struct ast_module_user *u;
 	char *tmp;
 	int option_skip=0;
@@ -422,11 +423,11 @@ static int playback_exec(struct ast_channel *chan, void *data)
 			res = ast_answer(chan);
 	}
 	if (!res) {
-		int mres = 0;
+		char *back = args.filenames;
 		char *front;
 
 		ast_stopstream(chan);
-		while (!res && (front = strsep(&tmp, "&"))) {
+		while (!res && (front = strsep(&back, "&"))) {
 			if (option_say)
 				res = say_full(chan, front, "", chan->language, NULL, -1, -1);
 			else
@@ -442,9 +443,9 @@ static int playback_exec(struct ast_channel *chan, void *data)
 				mres = 1;
 			}
 		}
-		pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", mres ? "FAILED" : "SUCCESS");
 	}
 done:
+	pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", mres ? "FAILED" : "SUCCESS");
 	ast_module_user_remove(u);
 	return res;
 }

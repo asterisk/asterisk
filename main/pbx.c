@@ -5292,8 +5292,10 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 		AST_APP_ARG(context);
 	);
 
-	if (ast_strlen_zero(data))
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Background requires an argument (filename)\n");
+		return -1;
+	}
 
 	parse = ast_strdupa(data);
 
