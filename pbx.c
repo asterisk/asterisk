@@ -5745,7 +5745,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 			break;
 		default:
 			ast_log(LOG_WARNING, "Background requires an argument (filename)\n");
-			break;
+			return -1;
 		}
 	}
 
