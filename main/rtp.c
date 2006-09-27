@@ -681,6 +681,12 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 		f->samples = duration;
 		rtp->resp = 0;
 		rtp->lasteventendseqn = seqno;
+	} else if (ast_test_flag(rtp, FLAG_DTMF_COMPENSATE) && event_end & 0x80 && rtp->lasteventendseqn != seqno) {
+		rtp->resp = resp;
+		f = send_dtmf(rtp, AST_FRAME_DTMF_END);
+		f->samples = duration;
+		rtp->resp = 0;
+		rtp->lasteventendseqn = seqno;
 	}
 
 	rtp->dtmfcount = dtmftimeout;
