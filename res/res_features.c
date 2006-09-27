@@ -1301,7 +1301,6 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	int hasfeatures=0;
 	int hadfeatures=0;
 	struct ast_option_header *aoh;
-	struct timeval start = { 0 , 0 };
 	struct ast_bridge_config backup_config;
 
 	memset(&backup_config, 0, sizeof(backup_config));
@@ -1354,14 +1353,12 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	}
 	for (;;) {
 		struct ast_channel *other;	/* used later */
-		if (config->feature_timer)
-			start = ast_tvnow();
 
 		res = ast_channel_bridge(chan, peer, config, &f, &who);
 
 		if (config->feature_timer) {
 			/* Update time limit for next pass */
-			diff = ast_tvdiff_ms(ast_tvnow(), start);
+			diff = ast_tvdiff_ms(ast_tvnow(), config->start_time);
 			config->feature_timer -= diff;
 			if (hasfeatures) {
 				/* Running on backup config, meaning a feature might be being
@@ -1400,7 +1397,12 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					hadfeatures = hasfeatures;
 					/* Continue as we were */
 					continue;
-				}
+				} else if (!f) {
+					/* The bridge returned without a frame and there is a feature in progress.
+					 * However, we don't think the feature has quite yet timed out, so just
+					 * go back into the bridge. */
+					continue;
+ 				}
 			} else {
 				if (config->feature_timer <=0) {
 					/* We ran out of time */
