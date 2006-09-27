@@ -102,7 +102,7 @@ int misdn_jb_empty(struct misdn_jb *jb, char *data, int len);
 
 
 enum misdn_chan_state {
-	MISDN_NOTHING,		/*!< at beginning */
+	MISDN_NOTHING=0,	/*!< at beginning */
 	MISDN_WAITING4DIGS, /*!<  when waiting for infos */
 	MISDN_EXTCANTMATCH, /*!<  when asterisk couldnt match our ext */
 	MISDN_DIALING, /*!<  when pbx_start */
@@ -1651,8 +1651,6 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		else
 			chan_misdn_log(2,port,"NO OPTS GIVEN\n");
 		
-		ch->state=MISDN_CALLING;
-		
 		r=misdn_lib_send_event( newbc, EVENT_SETUP );
 		
 		/** we should have l3id after sending setup **/
@@ -1673,6 +1671,8 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	ast->hangupcause=16;
 	
 	if (newbc->nt) stop_bc_tones(ch);
+
+	ch->state=MISDN_CALLING;
 	
 	return 0; 
 }
@@ -1974,9 +1974,9 @@ static int misdn_hangup(struct ast_channel *ast)
 
 	bc=p->bc;
 	
-	if (ast->_state == AST_STATE_RESERVED) {
+	if (ast->_state == AST_STATE_RESERVED || p->state == MISDN_NOTHING) {
 		/* between request and call */
-		ast_log(LOG_DEBUG, "State Reserved => chanIsAvail\n");
+		ast_log(LOG_DEBUG, "State Reserved (or nothing) => chanIsAvail\n");
 		MISDN_ASTERISK_TECH_PVT(ast)=NULL;
 		
 		cl_dequeue_chan(&cl_te, p);
@@ -3724,10 +3724,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			cb_log(1,bc->port," --> found holded ch\n");
 			if  (ch->state == MISDN_CONNECTED ) {
 				misdn_transfer_bc(ch, holded_ch) ;
+				hangup_chan(ch);
+			//	release_chan(bc);
+				break;
 			}
-			hangup_chan(ch);
-			release_chan(bc);
-			break;
 		}
 		
 		stop_bc_tones(ch);
