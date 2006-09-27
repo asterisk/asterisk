@@ -1625,14 +1625,27 @@ static void copy_file(char *frompath, char *topath)
 static int last_message_index(struct ast_vm_user *vmu, char *dir)
 {
 	int x;
-	char fn[256];
+	unsigned char map[MAXMSGLIMIT] = "";
+	DIR *msgdir;
+	struct dirent *msgdirent;
+	int msgdirint;
 
 	if (vm_lock_path(dir))
 		return ERROR_LOCK_PATH;
 
+	/* Reading the entire directory into a file map scales better than
+	 * doing a stat repeatedly on a predicted sequence.  I suspect this
+	 * is partially due to stat(2) internally doing a readdir(2) itself to
+	 * find each file. */
+	msgdir = opendir(dir);
+	while ((msgdirent = readdir(msgdir))) {
+		if (sscanf(msgdirent->d_name, "msg%d", &msgdirint) == 1 && msgdirint < MAXMSGLIMIT)
+			map[msgdirint] = 1;
+	}
+	closedir(msgdir);
+
 	for (x = 0; x < vmu->maxmsg; x++) {
-		make_file(fn, sizeof(fn), dir, x);
-		if (ast_fileexists(fn, NULL, NULL) < 1)
+		if (map[x] == 0)
 			break;
 	}
 	ast_unlock_path(dir);
@@ -2525,13 +2538,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 	if (vm_lock_path(todir))
 		return ERROR_LOCK_PATH;
 
-	recipmsgnum = 0;
-	do {
-		make_file(topath, sizeof(topath), todir, recipmsgnum);
-		if (!EXISTS(todir, recipmsgnum, topath, chan->language))
-			break;
-		recipmsgnum++;
-	} while (recipmsgnum < recip->maxmsg);
+	recipmsgnum = last_message_index(recip, todir) + 1;
 	if (recipmsgnum < recip->maxmsg) {
 		COPY(fromdir, msgnum, todir, recipmsgnum, recip->mailbox, recip->context, frompath, topath);
 	} else {
@@ -2995,12 +3002,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					unlink(tmptxtfile);
 					ast_unlock_path(dir);
 				} else {
-					for (;;) {
-						make_file(fn, sizeof(fn), dir, msgnum);
-						if (!EXISTS(dir, msgnum, fn, NULL))
-							break;
-						msgnum++;
-					}
+					msgnum = last_message_index(vmu, dir) + 1;
+					make_file(fn, sizeof(fn), dir, msgnum);
 
 					/* assign a variable with the name of the voicemail file */ 
 					pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", fn);
@@ -3123,11 +3126,9 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 	if (vm_lock_path(ddir))
 		return ERROR_LOCK_PATH;
 
-	for (x = 0; x < vmu->maxmsg; x++) {
-		make_file(dfn, sizeof(dfn), ddir, x);
-		if (!EXISTS(ddir, x, dfn, NULL))
-			break;
-	}
+	x = last_message_index(vmu, ddir) + 1;
+	make_file(dfn, sizeof(dfn), ddir, x);
+
 	if (x >= vmu->maxmsg) {
 		ast_unlock_path(ddir);
 		return -1;
