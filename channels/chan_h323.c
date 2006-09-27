@@ -1258,7 +1258,7 @@ static int update_common_options(struct ast_variable *v, struct call_options *op
 	} else if (!strcasecmp(v->name, "disallow")) {
 		ast_parse_allow_disallow(&options->prefs, &options->capability, v->value, 0);
 	} else if (!strcasecmp(v->name, "dtmfmode")) {
-		val = strdupa(v->value);
+		val = ast_strdupa(v->value);
 		if ((opt = strchr(val, ':')) != (char *)NULL) {
 			*opt++ = '\0';
 			tmp = atoi(opt);
