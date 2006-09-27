@@ -360,7 +360,7 @@ struct iax2_peer {
 
 #define IAX2_TRUNK_PREFACE (sizeof(struct iax_frame) + sizeof(struct ast_iax2_meta_hdr) + sizeof(struct ast_iax2_meta_trunk_hdr))
 
-static struct iax2_trunk_peer {
+struct iax2_trunk_peer {
 	ast_mutex_t lock;
 	int sockfd;
 	struct sockaddr_in addr;
@@ -373,12 +373,12 @@ static struct iax2_trunk_peer {
 	unsigned char *trunkdata;
 	unsigned int trunkdatalen;
 	unsigned int trunkdataalloc;
-	struct iax2_trunk_peer *next;
 	int trunkerror;
 	int calls;
-} *tpeers = NULL;
+	AST_LIST_ENTRY(iax2_trunk_peer) list;
+};
 
-AST_MUTEX_DEFINE_STATIC(tpeerlock);
+static AST_LIST_HEAD_STATIC(tpeers, iax2_trunk_peer);
 
 struct iax_firmware {
 	AST_LIST_ENTRY(iax_firmware) list;
@@ -3484,17 +3484,18 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset)
 
 static struct iax2_trunk_peer *find_tpeer(struct sockaddr_in *sin, int fd)
 {
-	struct iax2_trunk_peer *tpeer;
+	struct iax2_trunk_peer *tpeer = NULL;
 	
 	/* Finds and locks trunk peer */
-	ast_mutex_lock(&tpeerlock);
-	for (tpeer = tpeers; tpeer; tpeer = tpeer->next) {
-		/* We don't lock here because tpeer->addr *never* changes */
+	AST_LIST_LOCK(&tpeers);
+
+	AST_LIST_TRAVERSE(&tpeers, tpeer, list) {
 		if (!inaddrcmp(&tpeer->addr, sin)) {
 			ast_mutex_lock(&tpeer->lock);
 			break;
 		}
 	}
+
 	if (!tpeer) {
 		if ((tpeer = ast_calloc(1, sizeof(*tpeer)))) {
 			ast_mutex_init(&tpeer->lock);
@@ -3502,16 +3503,17 @@ static struct iax2_trunk_peer *find_tpeer(struct sockaddr_in *sin, int fd)
 			memcpy(&tpeer->addr, sin, sizeof(tpeer->addr));
 			tpeer->trunkact = ast_tvnow();
 			ast_mutex_lock(&tpeer->lock);
-			tpeer->next = tpeers;
 			tpeer->sockfd = fd;
-			tpeers = tpeer;
 #ifdef SO_NO_CHECK
 			setsockopt(tpeer->sockfd, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
 #endif
 			ast_log(LOG_DEBUG, "Created trunk peer for '%s:%d'\n", ast_inet_ntoa(tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
+			AST_LIST_INSERT_TAIL(&tpeers, tpeer, list);
 		}
 	}
-	ast_mutex_unlock(&tpeerlock);
+
+	AST_LIST_UNLOCK(&tpeers);
+
 	return tpeer;
 }
 
@@ -5887,10 +5889,8 @@ static inline int iax2_trunk_expired(struct iax2_trunk_peer *tpeer, struct timev
 static int timing_read(int *id, int fd, short events, void *cbdata)
 {
 	char buf[1024];
-	int res;
-	struct iax2_trunk_peer *tpeer, *prev = NULL, *drop=NULL;
-	int processed = 0;
-	int totalcalls = 0;
+	int res, processed = 0, totalcalls = 0;
+	struct iax2_trunk_peer *tpeer = NULL, *drop = NULL;
 #ifdef ZT_TIMERACK
 	int x = 1;
 #endif
@@ -5914,9 +5914,8 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		}
 	}
 	/* For each peer that supports trunking... */
-	ast_mutex_lock(&tpeerlock);
-	tpeer = tpeers;
-	while(tpeer) {
+	AST_LIST_LOCK(&tpeers);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&tpeers, tpeer, list) {
 		processed++;
 		res = 0;
 		ast_mutex_lock(&tpeer->lock);
@@ -5925,10 +5924,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		if (!drop && iax2_trunk_expired(tpeer, &now)) {
 			/* Take it out of the list, but don't free it yet, because it
 			   could be in use */
-			if (prev)
-				prev->next = tpeer->next;
-			else
-				tpeers = tpeer->next;
+			AST_LIST_REMOVE_CURRENT(&tpeers, list);
 			drop = tpeer;
 		} else {
 			res = send_trunk(tpeer, &now);
@@ -5938,10 +5934,10 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		totalcalls += res;	
 		res = 0;
 		ast_mutex_unlock(&tpeer->lock);
-		prev = tpeer;
-		tpeer = tpeer->next;
 	}
-	ast_mutex_unlock(&tpeerlock);
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&tpeers);
+
 	if (drop) {
 		ast_mutex_lock(&drop->lock);
 		/* Once we have this lock, we're sure nobody else is using it or could use it once we release it, 
@@ -5953,9 +5949,11 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		free(drop);
 		
 	}
+
 	if (iaxtrunkdebug)
 		ast_verbose("Ending trunk processing with %d peers and %d call chunks processed\n", processed, totalcalls);
-	iaxtrunkdebug =0;
+	iaxtrunkdebug = 0;
+
 	return 1;
 }
 
