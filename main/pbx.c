@@ -284,6 +284,9 @@ static struct pbx_builtin {
 	"    n - Don't answer the channel before playing the files.\n"
 	"    m - Only break if a digit hit matches a one digit\n"
 	"          extension in the destination context.\n"
+	"This application sets the following channel variable upon completion:\n"
+	" BACKGROUNDSTATUS    The status of the background attempt as a text string, one of\n"
+	"               SUCCESS | FAILED\n"
 	},
 
 	{ "Busy", pbx_builtin_busy,
@@ -5283,6 +5286,7 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 static int pbx_builtin_background(struct ast_channel *chan, void *data)
 {
 	int res = 0;
+	int mres = 0;
 	struct ast_flags flags = {0};
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
@@ -5319,7 +5323,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	/* Answer if need be */
 	if (chan->_state != AST_STATE_UP) {
 		if (ast_test_flag(&flags, BACKGROUND_SKIP)) {
-			return 0;
+			goto done;
 		} else if (!ast_test_flag(&flags, BACKGROUND_NOANSWER)) {
 			res = ast_answer(chan);
 		}
@@ -5328,12 +5332,14 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	if (!res) {
 		char *back = args.filename;
 		char *front;
+
 		ast_stopstream(chan);		/* Stop anything playing */
 		/* Stream the list of files */
 		while (!res && (front = strsep(&back, "&")) ) {
 			if ( (res = ast_streamfile(chan, front, args.lang)) ) {
 				ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char*)data);
 				res = 0;
+				mres = 1;
 				break;
 			}
 			if (ast_test_flag(&flags, BACKGROUND_PLAYBACK)) {
@@ -5352,6 +5358,8 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 		chan->priority = 0;
 		res = 0;
 	}
+done:
+	pbx_builtin_setvar_helper(chan, "BACKGROUNDSTATUS", mres ? "FAILED" : "SUCCESS");
 	return res;
 }
 
