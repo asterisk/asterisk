@@ -93,7 +93,7 @@ globals {
 //
 //	includes { 
 //		daytime|9:00-17:00|mon-fri|*|*;
-//  };
+//      };
 //
 // 	ignorepat can be used to instruct drivers to not cancel dialtone upon
 // 	receipt of a particular pattern.  The most commonly used example is
@@ -109,15 +109,15 @@ globals {
 // Sample entries for extensions.conf
 //
 //
-context dundi-e164-canonical {
+context ael-dundi-e164-canonical {
 	//
 	// List canonical entries here
 	//
-	// 12564286000 => &std-exten(6000,IAX2/foo);
+	// 12564286000 => &ael-std-exten(6000,IAX2/foo);
 	// _125642860XX => Dial(IAX2/otherbox/${EXTEN:7});
 };
 
-context dundi-e164-customers {
+context ael-dundi-e164-customers {
 	//
 	// If you are an ITSP or Reseller, list your customers here.
 	//
@@ -125,7 +125,7 @@ context dundi-e164-customers {
 	//_12564286001 => Dial(IAX2/customer2);
 };
 
-context dundi-e164-via-pstn {
+context ael-dundi-e164-via-pstn {
 	//
 	// If you are freely delivering calls to the PSTN, list them here
 	//
@@ -133,19 +133,19 @@ context dundi-e164-via-pstn {
 	//_1256325XXXX => Dial(Zap/g2/${EXTEN:7}); // Ditto for 256-325
 };
 
-context dundi-e164-local {
+context ael-dundi-e164-local {
 	//
 	// Context to put your dundi IAX2 or SIP user in for
 	// full access
 	//
 	includes {
-	 dundi-e164-canonical;
-	 dundi-e164-customers;
-	 dundi-e164-via-pstn;
+	 ael-dundi-e164-canonical;
+	 ael-dundi-e164-customers;
+	 ael-dundi-e164-via-pstn;
 	};
 };
 
-context dundi-e164-switch {
+context ael-dundi-e164-switch {
 	//
 	// Just a wrapper for the switch
 	//
@@ -155,14 +155,14 @@ context dundi-e164-switch {
 	};
 };
 
-context dundi-e164-lookup {
+context ael-dundi-e164-lookup {
 	//
 	// Locally to lookup, try looking for a local E.164 solution
 	// then try DUNDi if we don't have one.
 	//
 	includes {
-		dundi-e164-local;
-		dundi-e164-switch;
+		ael-dundi-e164-local;
+		ael-dundi-e164-switch;
 	};
 	//
 };
@@ -171,7 +171,7 @@ context dundi-e164-lookup {
 // DUNDi can also be implemented as a Macro instead of using 
 // the Local channel driver. 
 //
-macro dundi-e164(exten) {
+macro ael-dundi-e164(exten) {
 //
 // ARG1 is the extension to Dial
 //
@@ -184,7 +184,7 @@ macro dundi-e164(exten) {
 // there are exceptions.  For more information, and to sign
 // up, please go to www.gnophone.com or www.iaxtel.com
 //
-context iaxtel700 {
+context ael-iaxtel700 {
 	_91700XXXXXXX => Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel);
 };
 
@@ -194,39 +194,39 @@ context iaxtel700 {
 // allowed (e.g. both A -> B and B -> A), and the switched server needs
 // to be on-line or else dialing can be severly delayed.
 //
-context iaxprovider {
+context ael-iaxprovider {
 	switches {
 	// IAX2/user:[key]@myserver/mycontext;
 	};
 };
 
-context trunkint {
+context ael-trunkint {
 	//
 	// International long distance through trunk
 	//
 	includes {
-		dundi-e164-lookup;
+		ael-dundi-e164-lookup;
 	};
 	_9011. => {
-		&dundi-e164(${EXTEN:4});
+		&ael-dundi-e164(${EXTEN:4});
 		Dial(${TRUNK}/${EXTEN:${TRUNKMSD}});
 	};
 };
 
-context trunkld {
+context ael-trunkld {
 	//
 	// Long distance context accessed through trunk
 	//
 	includes {
-		dundi-e164-lookup;
+		ael-dundi-e164-lookup;
 	};
 	_91NXXNXXXXXX => {
-		&dundi-e164(${EXTEN:1});
+		&ael-dundi-e164(${EXTEN:1});
 		Dial(${TRUNK}/${EXTEN:${TRUNKMSD}});
 	};
 };
 
-context trunklocal {
+context ael-trunklocal {
 	//
 	// Local seven-digit dialing accessed through trunk interface
 	//
@@ -235,7 +235,7 @@ context trunklocal {
 	};
 };
 
-context trunktollfree {
+context ael-trunktollfree {
 	//
 	// Long distance context accessed through trunk interface
 	//
@@ -246,40 +246,40 @@ context trunktollfree {
 	_91866NXXXXXX => Dial(${TRUNK}/${EXTEN:${TRUNKMSD}});
 };
 
-context international {
+context ael-international {
 	//
 	// Master context for international long distance
 	//
 	ignorepat => 9;
 	includes {
-		longdistance;
-		trunkint;
+		ael-longdistance;
+		ael-trunkint;
 	};
 };
 
-context longdistance {
+context ael-longdistance {
 	//
 	// Master context for long distance
 	//
 	ignorepat => 9;
 	includes {
-		local;
-		trunkld;
+		ael-local;
+		ael-trunkld;
 	};
 };
 
-context local {
+context ael-local {
 	//
 	// Master context for local, toll-free, and iaxtel calls only
 	//
 	ignorepat => 9;
 	includes {
-		default;
-		parkedcalls;
-		trunklocal;
-		iaxtel700;
-		trunktollfree;
-		iaxprovider;
+		ael-default;
+		ael-parkedcalls;
+		ael-trunklocal;
+		ael-iaxtel700;
+		ael-trunktollfree;
+		ael-iaxprovider;
 	};
 };
 
@@ -305,7 +305,7 @@ context local {
 // eswitch => IAX2/context@${CURSERVER}
 
 
-macro std-exten-ael( ext , dev ) {
+macro ael-std-exten-ael( ext , dev ) {
         Dial(${dev}/${ext},20);
         switch(${DIALSTATUS}) {
         case BUSY:
@@ -343,7 +343,7 @@ instructions:
 		goto s|restart;
 	};
 	1000 => {
-		goto default|s|1;
+		goto ael-default|s|1;
 	};
 	500 => {
 		Playback(demo-abouttotry);
@@ -357,7 +357,7 @@ instructions:
 		Playback(demo-echodone);
 		goto s|instructions;
 	};
-	_1234 => &std-exten-ael(${EXTEN}, "IAX2");
+	_1234 => &ael-std-exten-ael(${EXTEN}, "IAX2");
 	8500 => {
 		VoicemailMain();
 		goto s|instructions;
@@ -377,14 +377,14 @@ instructions:
 // and then uncomment the one here.
 //
 
-// context default {
+context ael-default {
 
 // By default we include the demo.  In a production system, you 
 // probably don't want to have the demo there.
 
-//	includes {
-//		ael-demo;
-//	};
+	includes {
+		ael-demo;
+	};
 //
 // Extensions like the two below can be used for FWD, Nikotel, sipgate etc.
 // Note that you must have a [sipprovider] section in sip.conf whereas
@@ -444,4 +444,4 @@ instructions:
 // 'show application <command>' will show details of how you
 // use that particular application in this file, the dial plan. 
 //
-// };
+}
