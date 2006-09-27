@@ -857,7 +857,6 @@ static int misdn_show_config (int fd, int argc, char *argv[])
 	
 	if (argc == 3 || onlyport == 0) {
 		ast_cli(fd,"Misdn General-Config: \n"); 
-		ast_cli(fd," -> Version: chan_misdn-" CHAN_MISDN_VERSION "\n");
 		for (elem = MISDN_GEN_FIRST + 1, linebreak = 1; elem < MISDN_GEN_LAST; elem++, linebreak++) {
 			misdn_cfg_get_config_string( 0, elem, buffer, BUFFERSIZE);
 			ast_cli(fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
