@@ -28,6 +28,13 @@ The IAX2 protocol supports strong RSA key authentication as well as
 AES encryption of voice and signalling. The SIP channel does not
 support encryption in this version of Asterisk.
 
+By default, if you have libcap available, Asterisk will try to retain the
+CAP_NET_ADMIN capability when running as a non-root user. If you do not need
+that capability you may want to configure Asterisk with --without-cap; however,
+this will prevent Asterisk from being able to mark high ToS bits under Linux.
+More information on CAP_NET_ADMIN is available at:
+http://www.lids.org/lids-howto/node48.html
+
 * DIALPLAN SECURITY
 
 First and foremost remember this:

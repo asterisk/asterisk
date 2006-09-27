@@ -50,6 +50,9 @@ ifneq ($(findstring $(OSARCH), linux-gnu uclinux ),)
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
   AST_LIBS+=-ldl
   endif
+  ifneq (x$(CAP_LIB),x)
+    AST_LIBS+=$(CAP_LIB)
+  endif
   AST_LIBS+=-lpthread $(EDITLINE_LIB) -lm -lresolv
 else
   AST_LIBS+=$(EDITLINE_LIB) -lm
