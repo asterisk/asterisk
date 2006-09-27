@@ -8558,7 +8558,7 @@ static void *ss7_linkset(void *data)
 
 static void zt_ss7_message(struct ss7 *ss7, char *s)
 {
-	ast_log(LOG_DEBUG, "%s", s);
+	ast_verbose("%s", s);
 }
 
 static void zt_ss7_error(struct ss7 *ss7, char *s)
@@ -11290,7 +11290,7 @@ static struct ast_cli_entry zap_ss7_cli[] = {
 	{ { "ss7", "debug", "linkset", NULL }, handle_ss7_debug,
 	  "Enables SS7 debugging on a linkset", ss7_debug_help, NULL },
 	{ { "ss7", "no", "debug", "linkset", NULL }, handle_ss7_no_debug,
-	  "Enables SS7 debugging on a linkset", ss7_debug_help, NULL },
+	  "Disables SS7 debugging on a linkset", ss7_debug_help, NULL },
 	{ { "ss7", "block", "cic", NULL }, handle_ss7_block_cic,
 	  "Disables SS7 debugging on a linkset", ss7_block_cic_help, NULL },
 	{ { "ss7", "unblock", "cic", NULL }, handle_ss7_unblock_cic,
