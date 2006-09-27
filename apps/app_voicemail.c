@@ -4519,8 +4519,15 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 	detected.
 	*/
 
+	if (vm_lock_path(vms->curdir)) {
+		ast_log(LOG_ERROR, "Could not open mailbox %s:  mailbox is locked\n", vms->curdir);
+		return -1;
+	}
+
 	last_msg = last_message_index(vmu, vms->curdir);
-	if (last_msg < 0)
+	ast_unlock_path(vms->curdir);
+
+	if (last_msg < 0) 
 		return last_msg;
 	else if (vms->lastmsg != last_msg)
 	{
