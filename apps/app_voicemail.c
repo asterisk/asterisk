@@ -90,8 +90,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #ifdef IMAP_STORAGE
 AST_MUTEX_DEFINE_STATIC(curhstusr_lock);
-static char *curhst = NIL;	/* currently connected host */
-static char *curusr = NIL;	/* current login user */
+static char *curhst = NULL;	/* currently connected host */
+static char *curusr = NULL;	/* current login user */
 
 static char temp[1024];
 
@@ -8172,35 +8172,25 @@ void mm_log(char *string, long errflg)
 
 void mm_dlog(char *string)
 {
-	ast_log (LOG_NOTICE,string);
+	ast_log(LOG_NOTICE,string);
 }
 
 
 void mm_login(NETMBX * mb, char *user, char *pwd, long trial)
 {
-	char tmp[MAILTMPLEN];
-	if(option_debug > 3)
+	if (option_debug > 3)
 		ast_log(LOG_DEBUG, "Entering callback mm_login\n");
 	ast_mutex_lock(&curhstusr_lock);
 	if (curhst)
-		fs_give ((void **) &curhst);
-	curhst = (char *) fs_get (1 + strlen (mb->host));
-	strcpy (curhst, mb->host);
-	if (*mb->user) {
-		strcpy (user, mb->user);
-		sprintf (tmp, "{%s/%s/user=\"%s\"} password: ", mb->host, mb->service, mb->user);
-	} else {
-		/* strcpy (tmp, "Password for jar: ");*/
-		strcpy(user,curusr);
-	}
-	if (curusr)
-		fs_give ((void **) &curusr);
+		fs_give((void **) &curhst);
+	curhst = (char *) fs_get(1 + strlen(mb->host));
+	strcpy(curhst, mb->host);
+	strcpy(user, S_OR(mb->user, curusr));
+	fs_give((void **) &curusr);
 	ast_mutex_unlock(&curhstusr_lock);
-	/* strcpy (pwd, getpass (tmp));*/
 	/* We should only do this when necessary */
-	if (strlen(authpassword) > 0) {
-		strcpy (pwd, authpassword);
-	}
+	if (!ast_strlen_zero(authpassword))
+		strcpy(pwd, authpassword);
 }
 
 
