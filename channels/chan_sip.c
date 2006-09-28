@@ -10001,6 +10001,12 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  T38 fax pt RTP:         %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_RTP) ? "Yes" : "No");
 	ast_cli(fd, "  T38 fax pt TCP:         %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_TCP) ? "Yes" : "No");
 	ast_cli(fd, "  RFC2833 Compensation:   %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_RFC2833_COMPENSATE) ? "Yes" : "No");
+	ast_cli(fd, "  Jitterbuffer enabled:   %s\n", ast_test_flag(&global_jbconf, AST_JB_ENABLED) ? "Yes" : "No");
+	ast_cli(fd, "  Jitterbuffer forced:    %s\n", ast_test_flag(&global_jbconf, AST_JB_FORCED) ? "Yes" : "No");
+	ast_cli(fd, "  Jitterbuffer max size:  %ld\n", global_jbconf.max_size);
+	ast_cli(fd, "  Jitterbuffer resync:    %ld\n", global_jbconf.resync_threshold);
+	ast_cli(fd, "  Jitterbuffer impl:      %s\n", global_jbconf.impl);
+	ast_cli(fd, "  Jitterbuffer log:       %s\n", ast_test_flag(&global_jbconf, AST_JB_LOG) ? "Yes" : "No");
 	if (!realtimepeers && !realtimeusers)
 		ast_cli(fd, "  SIP realtime:           Disabled\n" );
 	else
