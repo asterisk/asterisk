@@ -24,7 +24,7 @@
 #define _ASTERISK_COMPILER_H
 
 #if HAVE_ATTRIBUTE_always_inline
-#define force_inline inline __attribute__((always_inline))
+#define force_inline __attribute__((always_inline)) inline
 #else
 #define force_inline inline
 #endif

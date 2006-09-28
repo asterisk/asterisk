@@ -596,6 +596,41 @@ BOOL MyH323Connection::OnReceivedProgress(const H323SignalPDU &pdu)
 	return connectionState != ShuttingDownConnection;
 }
 
+BOOL MyH323Connection::MySendProgress()
+{
+	/* The code taken from H323Connection::AnsweringCall() but ALWAYS send
+	   PROGRESS message, including slow start operations */
+	H323SignalPDU progressPDU;
+	H225_Progress_UUIE &prog = progressPDU.BuildProgress(*this);
+
+	if (!mediaWaitForConnect) {
+		if (SendFastStartAcknowledge(prog.m_fastStart))
+			prog.IncludeOptionalField(H225_Progress_UUIE::e_fastStart);
+		else {
+			if (connectionState == ShuttingDownConnection)
+				return FALSE;
+
+			/* Do early H.245 start */
+			earlyStart = TRUE;
+			if (!h245Tunneling) {
+				if (!H323Connection::StartControlChannel())
+					return FALSE;
+				prog.IncludeOptionalField(H225_Progress_UUIE::e_h245Address);
+				controlChannel->SetUpTransportPDU(prog.m_h245Address, TRUE);
+			}
+		}
+	}
+	progressPDU.GetQ931().SetProgressIndicator(Q931::ProgressInbandInformationAvailable);
+
+#ifdef TUNNELLING
+	EmbedTunneledInfo(progressPDU);
+#endif
+	HandleTunnelPDU(&progressPDU);
+	WriteSignalPDU(progressPDU);
+
+	return TRUE;
+}
+
 H323Connection::AnswerCallResponse MyH323Connection::OnAnswerCall(const PString & caller,
 								const H323SignalPDU & setupPDU,
 								H323SignalPDU & connectPDU)
@@ -2124,7 +2159,11 @@ int h323_send_progress(const char *token)
 		cout << "No connection found for " << token << endl;
 		return -1;
 	}
+#if 1
+	((MyH323Connection *)connection)->MySendProgress();
+#else
 	connection->AnsweringCall(H323Connection::AnswerCallDeferredWithMedia);
+#endif
 	connection->Unlock();
 	return 0;
 }

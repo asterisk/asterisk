@@ -80,6 +80,7 @@ public:
 	virtual void OnUserInputTone(char, unsigned, unsigned, unsigned);
 	virtual void OnUserInputString(const PString &value);
 	BOOL OnReceivedProgress(const H323SignalPDU &);
+	BOOL MySendProgress();
 	void OnSendCapabilitySet(H245_TerminalCapabilitySet &);
 	void OnSetLocalCapabilities();
 	void SetCapabilities(int, int, void *, int);
