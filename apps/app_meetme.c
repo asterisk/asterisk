@@ -1154,6 +1154,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		if (conf->users == 2) { 
 			if (!ast_streamfile(chan,"conf-onlyone",chan->language)) {
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
+				ast_stopstream(chan);
 				if (res > 0)
 					keepplaying=0;
 				else if (res == -1)
@@ -1162,6 +1163,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		} else { 
 			if (!ast_streamfile(chan, "conf-thereare", chan->language)) {
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
+				ast_stopstream(chan);
 				if (res > 0)
 					keepplaying=0;
 				else if (res == -1)
@@ -1176,6 +1178,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			}
 			if (keepplaying && !ast_streamfile(chan, "conf-otherinparty", chan->language)) {
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
+				ast_stopstream(chan);
 				if (res > 0)
 					keepplaying=0;
 				else if (res == -1) 
@@ -2358,8 +2361,10 @@ static int conf_exec(struct ast_channel *chan, void *data)
 								break;
 							} else {
 								/* Pin invalid */
-								if (!ast_streamfile(chan, "conf-invalidpin", chan->language))
+								if (!ast_streamfile(chan, "conf-invalidpin", chan->language)) {
 									res = ast_waitstream(chan, AST_DIGIT_ANY);
+									ast_stopstream(chan);
+								}
 								else {
 									ast_log(LOG_WARNING, "Couldn't play invalid pin msg!\n");
 									break;
