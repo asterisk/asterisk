@@ -1902,9 +1902,11 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					peer = o;
 				}
 			} else if (o->chan && (o->chan == winner)) {
+
+				ast_copy_string(on, o->member->interface, sizeof(on));
+				ast_copy_string(membername, o->member->membername, sizeof(membername));
+
 				if (!ast_strlen_zero(o->chan->call_forward) && !forwardsallowed) {
-					ast_copy_string(on, o->member->interface, sizeof(on));
-					ast_copy_string(membername, o->member->membername, sizeof(membername));
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s' prevented.\n", in->name, o->chan->call_forward);
                                         winner = o->chan = NULL;
