@@ -5425,7 +5425,7 @@ static int iax2_register(char *value, int lineno)
 	username = strsep(&stringp, "@");
 	hostname = strsep(&stringp, "@");
 	if (!hostname) {
-		ast_log(LOG_WARNING, "Format for registration is user[:secret]@host[:port] at line %d", lineno);
+		ast_log(LOG_WARNING, "Format for registration is user[:secret]@host[:port] at line %d\n", lineno);
 		return -1;
 	}
 	stringp=username;

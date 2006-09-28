@@ -712,7 +712,7 @@ void ast_udptl_set_error_correction_scheme(struct ast_udptl* udptl, int ec)
 			udptl->error_correction_scheme = UDPTL_ERROR_CORRECTION_NONE;
 			break;
 		default:
-			ast_log(LOG_WARNING, "error correction parameter invalid");
+			ast_log(LOG_WARNING, "error correction parameter invalid\n");
 		};
 	} else
 		ast_log(LOG_WARNING, "udptl structure is null\n");

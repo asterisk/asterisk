@@ -229,7 +229,7 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 	/* IF we have an optimization frame, send it */
 	if (s->opt) {
 		if (s->opt->offset < AST_FRIENDLY_OFFSET)
-			ast_log(LOG_WARNING, "Returning a frame of inappropriate offset (%d).",
+			ast_log(LOG_WARNING, "Returning a frame of inappropriate offset (%d).\n",
 							s->opt->offset);
 		opt = s->opt;
 		s->opt = NULL;

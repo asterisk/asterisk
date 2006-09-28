@@ -143,7 +143,7 @@ int ast_smdi_mwi_unset(struct ast_smdi_interface *iface, const char *mailbox)
 	fclose(file);
 
 	ASTOBJ_UNLOCK(iface);
-	ast_log(LOG_DEBUG, "Sent MWI unset message for %s on %s", mailbox, iface->name);
+	ast_log(LOG_DEBUG, "Sent MWI unset message for %s on %s\n", mailbox, iface->name);
 	return 0;
 }
 
@@ -199,7 +199,7 @@ struct ast_smdi_md_message *ast_smdi_md_message_pop(struct ast_smdi_interface *i
 		if (elapsed > iface->msg_expiry) {
 			/* found an expired message */
 			ASTOBJ_UNREF(md_msg, ast_smdi_md_message_destroy);
-			ast_log(LOG_NOTICE, "Purged expired message from %s SMDI MD message queue.  Message was %ld milliseconds too old.",
+			ast_log(LOG_NOTICE, "Purged expired message from %s SMDI MD message queue.  Message was %ld milliseconds too old.\n",
 				iface->name, elapsed - iface->msg_expiry);
 			md_msg = ASTOBJ_CONTAINER_UNLINK_START(&iface->md_q);
 		}
@@ -267,7 +267,7 @@ extern struct ast_smdi_mwi_message *ast_smdi_mwi_message_pop(struct ast_smdi_int
 		if (elapsed > iface->msg_expiry) {
 			/* found an expired message */
 			ASTOBJ_UNREF(mwi_msg, ast_smdi_mwi_message_destroy);
-			ast_log(LOG_NOTICE, "Purged expired message from %s SMDI MWI message queue.  Message was %ld milliseconds too old.",
+			ast_log(LOG_NOTICE, "Purged expired message from %s SMDI MWI message queue.  Message was %ld milliseconds too old.\n",
 				iface->name, elapsed - iface->msg_expiry);
 			mwi_msg = ASTOBJ_CONTAINER_UNLINK_START(&iface->mwi_q);
 		}

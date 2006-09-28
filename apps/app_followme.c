@@ -951,7 +951,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	if (option_debug)
 		ast_log(LOG_DEBUG, "New profile %s.\n", args.followmeid);
 	if (!f) { 
-		ast_log(LOG_WARNING, "Profile requested, %s, not found in the configuration.", args.followmeid);
+		ast_log(LOG_WARNING, "Profile requested, %s, not found in the configuration.\n", args.followmeid);
 		res = -1;
 	} else {
 		/* XXX TODO: Reinsert the db check value to see whether or not follow-me is on or off */

@@ -3004,7 +3004,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 				ast_log(LOG_WARNING, "Off hook, but already have owner on %s@%s\n", p->name, p->parent->name);
 			} else {
 				ast_log(LOG_WARNING, "On hook, but already have owner on %s@%s\n", p->name, p->parent->name);
-				ast_log(LOG_WARNING, "If we're onhook why are we here trying to handle a hd or hf?");
+				ast_log(LOG_WARNING, "If we're onhook why are we here trying to handle a hd or hf?\n");
 			}
 			if (ast_bridged_channel(sub->owner))
 				ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
@@ -3793,7 +3793,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 								e->sub = sub;
 							} else {
 								/* XXX Should find a way to clean up our memory */
-								ast_log(LOG_WARNING, "Out of memory allocating subchannel");
+								ast_log(LOG_WARNING, "Out of memory allocating subchannel\n");
 								return NULL;
 							}
 	 					}
@@ -3910,7 +3910,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 							sub->nat = nat;
 						} else {
 							/* XXX Should find a way to clean up our memory */
-							ast_log(LOG_WARNING, "Out of memory allocating subchannel");
+							ast_log(LOG_WARNING, "Out of memory allocating subchannel\n");
 							return NULL;
 						}
 					}

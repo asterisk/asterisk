@@ -341,7 +341,7 @@ static int __say_init(int fd, int argc, char *argv[])
                 return RESULT_SHOWUSAGE;
         mode = argv[2];
 
-	ast_log(LOG_WARNING, "init say.c from %s to %s", old_mode, mode);
+	ast_log(LOG_WARNING, "init say.c from %s to %s\n", old_mode, mode);
 
 	if (!strcmp(mode, old_mode)) {
 		ast_log(LOG_WARNING, "say mode is %s already\n", mode);
