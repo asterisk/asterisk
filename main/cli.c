@@ -743,7 +743,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
 		(long)c->whentohangup,
 		cdrtime, c->_bridge ? c->_bridge->name : "<none>", ast_bridged_channel(c) ? ast_bridged_channel(c)->name : "<none>", 
-		c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
+		c->context, c->exten, c->priority, (int) c->callgroup, (int) c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
 		( c-> data ? S_OR(c->data, "(Empty)") : "(None)"),
 		(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 	
