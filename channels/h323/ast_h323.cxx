@@ -1394,6 +1394,10 @@ H323Channel * MyH323Connection::CreateRealTimeLogicalChannel(const H323Capabilit
 									const H245_H2250LogicalChannelParameters * /*param*/,
 									RTP_QOS * /*param*/ )
 {
+	/* Do not open tx channel when transmitter has been paused by empty TCS */
+	if ((dir == H323Channel::IsTransmitter) && transmitterSidePaused)
+		return NULL;
+
 	return new MyH323_ExternalRTPChannel(*this, capability, dir, sessionID);
 }
 
