@@ -1609,7 +1609,7 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
                        					l->sub = sub;
                        				} else {
                        					/* XXX Should find a way to clean up our memory */
-                       					ast_log(LOG_WARNING, "Out of memory allocating subchannel");
+                       					ast_log(LOG_WARNING, "Out of memory allocating subchannel\n");
                       					return NULL;
                        				}
                     			}
@@ -1617,7 +1617,7 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 					d->lines = l;			
 	    			} else {
 			        	/* XXX Should find a way to clean up our memory */
-                    			ast_log(LOG_WARNING, "Out of memory allocating line");
+                    			ast_log(LOG_WARNING, "Out of memory allocating line\n");
                     			return NULL;
 				}
 			} else {
@@ -3178,7 +3178,7 @@ static int reload_config(void)
 	if (skinnysock < 0) {
 		skinnysock = socket(AF_INET, SOCK_STREAM, 0);
 		if(setsockopt(skinnysock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
-			ast_log(LOG_ERROR, "Set Socket Options failed: errno %d, %s", errno, strerror(errno));
+			ast_log(LOG_ERROR, "Set Socket Options failed: errno %d, %s\n", errno, strerror(errno));
 			ast_config_destroy(cfg);
 			return 0;
 		}
