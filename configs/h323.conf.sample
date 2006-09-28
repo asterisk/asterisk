@@ -104,9 +104,18 @@ port = 1720
 ; example, for Cisco CallManager when Q.SIG tunneling is enabled for a
 ; gateway where Asterisk lives.
 ; The option can be used multiple times, one option per line.
-;tunneling=none              ; Totally disable tunneling (default)
-;tunneling=cisco             ; Enable Cisco-specific tunneling
-;tunneling=qsig              ; Enable tunneling via Q.SIG messages
+;tunneling=none               ; Totally disable tunneling (default)
+;tunneling=cisco              ; Enable Cisco-specific tunneling
+;tunneling=qsig               ; Enable tunneling via Q.SIG messages
+;
+; Specify how to pass hold notification to remote party. Default is to
+; use H.450.4 supplementary service message.
+;hold=none                    ; Do not pass hold/retrieve notifications
+;hold=notify                  ; Use H.225 NOTIFY message
+;hold=q931only                ; Use stripped H.225 NOTIFY message (Q.931 part
+;                             ; only, usable for Cisco CallManager)
+;hold=h450                    ; Pass notification as H.450.4 supplementary
+;                             ; service
 ;
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a

@@ -117,6 +117,7 @@ rfc2833_cb on_set_rfc2833_payload;
 hangup_cb on_hangup;
 setcapabilities_cb on_setcapabilities;
 setpeercapabilities_cb on_setpeercapabilities;
+onhold_cb on_hold;
 
 /* global debug flag */
 int h323debug;
@@ -866,7 +867,7 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 	ast_mutex_unlock(&pvt->lock);
 
 	if (h323debug)
-		ast_log(LOG_DEBUG, "OH323: Indicating %d on %s\n", condition, token);
+		ast_log(LOG_DEBUG, "OH323: Indicating %d on %s (%s)\n", condition, token, c->name);
 
 	switch(condition) {
 	case AST_CONTROL_RINGING:
@@ -910,11 +911,14 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 			free(token);
 		return -1;
 	case AST_CONTROL_HOLD:
+		h323_hold_call(token, 1);
+		/* We should start MOH only if remote party isn't provide audio for us */
 		ast_moh_start(c, data, NULL);
 		if (token)
 			free(token);
 		return 0;
 	case AST_CONTROL_UNHOLD:
+		h323_hold_call(token, 0);
 		ast_moh_stop(c);
 		if (token)
 			free(token);
@@ -1338,6 +1342,17 @@ static int update_common_options(struct ast_variable *v, struct call_options *op
 			options->tunnelOptions |= H323_TUNNEL_QSIG;
 		else
 			ast_log(LOG_WARNING, "Invalid value %s for %s at line %d\n", v->value, v->name, v->lineno);
+	} else if (!strcasecmp(v->name, "hold")) {
+		if (!strcasecmp(v->value, "none"))
+			options->holdHandling = ~0;
+		else if (!strcasecmp(v->value, "notify"))
+			options->holdHandling |= H323_HOLD_NOTIFY;
+		else if (!strcasecmp(v->value, "q931only"))
+			options->holdHandling |= H323_HOLD_NOTIFY | H323_HOLD_Q931ONLY;
+		else if (!strcasecmp(v->value, "h450"))
+			options->holdHandling |= H323_HOLD_H450;
+		else
+			ast_log(LOG_WARNING, "Invalid value %s for %s at line %d\n", v->value, v->name, v->lineno);
 	} else
 		return 1;
 
@@ -1364,6 +1379,7 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v, struct 
 	user->ha = (struct ast_ha *)NULL;
 	memcpy(&user->options, &global_options, sizeof(user->options));
 	user->options.dtmfmode = 0;
+	user->options.holdHandling = 0;
 	/* Set default context */
 	strncpy(user->context, default_context, sizeof(user->context) - 1);
 	if (user && !found)
@@ -1410,6 +1426,10 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v, struct 
 	}
 	if (!user->options.dtmfmode)
 		user->options.dtmfmode = global_options.dtmfmode;
+	if (user->options.holdHandling == ~0)
+		user->options.holdHandling = 0;
+	else if (!user->options.holdHandling)
+		user->options.holdHandling = global_options.holdHandling;
 	ASTOBJ_UNMARK(user);
 	ast_free_ha(oldha);
 	return user;
@@ -1472,6 +1492,7 @@ static struct oh323_peer *build_peer(const char *name, struct ast_variable *v, s
 	peer->ha = NULL;
 	memcpy(&peer->options, &global_options, sizeof(peer->options));
 	peer->options.dtmfmode = 0;
+	peer->options.holdHandling = 0;
 	peer->addr.sin_port = htons(h323_signalling_port);
 	peer->addr.sin_family = AF_INET;
 	if (!found && name)
@@ -1511,6 +1532,10 @@ static struct oh323_peer *build_peer(const char *name, struct ast_variable *v, s
 	}
 	if (!peer->options.dtmfmode)
 		peer->options.dtmfmode = global_options.dtmfmode;
+	if (peer->options.holdHandling == ~0)
+		peer->options.holdHandling = 0;
+	else if (!peer->options.holdHandling)
+		peer->options.holdHandling = global_options.holdHandling;
 	ASTOBJ_UNMARK(peer);
 	ast_free_ha(oldha);
 	return peer;
@@ -2450,6 +2475,32 @@ static void set_local_capabilities(unsigned call_reference, const char *token)
 		ast_log(LOG_DEBUG, "Capabilities for connection %s is set\n", token);
 }
 
+static void remote_hold(unsigned call_reference, const char *token, int is_hold)
+{
+	struct oh323_pvt *pvt;
+
+	if (h323debug)
+		ast_log(LOG_DEBUG, "Setting %shold status for connection %s\n", (is_hold ? "" : "un"), token);
+
+	pvt = find_call_locked(call_reference, token);
+	if (!pvt)
+		return;
+	if (pvt->owner && !ast_channel_trylock(pvt->owner)) {
+		if (is_hold)
+			ast_queue_control(pvt->owner, AST_CONTROL_HOLD);
+		else
+			ast_queue_control(pvt->owner, AST_CONTROL_UNHOLD);
+		ast_channel_unlock(pvt->owner);
+	}
+	else {
+		if (is_hold)
+			pvt->newcontrol = AST_CONTROL_HOLD;
+		else
+			pvt->newcontrol = AST_CONTROL_UNHOLD;
+	}
+	ast_mutex_unlock(&pvt->lock);
+}
+
 static void *do_monitor(void *data)
 {
 	int res;
@@ -2767,6 +2818,7 @@ static int reload_config(int is_reload)
 	global_options.dtmfcodec[0] = H323_DTMF_RFC2833_PT;
 	global_options.dtmfcodec[1] = H323_DTMF_CISCO_PT;
 	global_options.dtmfmode = 0;
+	global_options.holdHandling = 0;
 	global_options.capability = GLOBAL_CAPABILITY;
 	global_options.bridge = 1;		/* Do native bridging by default */
 	strncpy(default_context, "default", sizeof(default_context) - 1);
@@ -2861,6 +2913,10 @@ static int reload_config(int is_reload)
 	}
 	if (!global_options.dtmfmode)
 		global_options.dtmfmode = H323_DTMF_RFC2833;
+	if (global_options.holdHandling == ~0)
+		global_options.holdHandling = 0;
+	else if (!global_options.holdHandling)
+		global_options.holdHandling = H323_HOLD_H450;
 
 	for (cat = ast_category_browse(cfg, NULL); cat; cat = ast_category_browse(cfg, cat)) {
 		if (strcasecmp(cat, "general")) {
@@ -3175,7 +3231,8 @@ static enum ast_module_load_result load_module(void)
 						set_dtmf_payload,
 						hangup_connection,
 						set_local_capabilities,
-						set_peer_capabilities);
+						set_peer_capabilities,
+						remote_hold);
 		/* start the h.323 listener */
 		if (h323_start_listener(h323_signalling_port, bindaddr)) {
 			ast_log(LOG_ERROR, "Unable to create H323 listener.\n");

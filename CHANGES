@@ -15,3 +15,5 @@ Changes since Asterisk 1.4-beta was branched:
   * Ability to use libcap to set high ToS bits when non-root
      on Linux. If configure is unable to find libcap then you
      can use --with-cap to specify the path.
+  * H323 remote hold notification support added (by NOTIFY message
+     and/or H.450 supplementary service)

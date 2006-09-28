@@ -40,6 +40,12 @@
 #include <h323neg.h>
 #include <mediafmt.h>
 #include <lid.h>
+#ifdef H323_H450
+#include "h4501.h"
+#include "h4504.h"
+#include "h45011.h"
+#include "h450pdu.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -528,10 +534,20 @@ MyH323Connection::MyH323Connection(MyH323EndPoint & ep, unsigned callReference,
 							unsigned options)
 	: H323Connection(ep, callReference, options)
 {
+#ifdef H323_H450
+	/* Dispatcher will free out all registered handlers */
+	if (h450dispatcher)
+		delete h450dispatcher;
+	h450dispatcher = new H450xDispatcher(*this);
+	h4502handler = new H4502Handler(*this, *h450dispatcher);
+	h4504handler = new MyH4504Handler(*this, *h450dispatcher);
+	h4506handler = new H4506Handler(*this, *h450dispatcher);
+	h45011handler = new H45011Handler(*this, *h450dispatcher);
+#endif
 	cause = -1;
 	sessionId = 0;
 	bridging = FALSE;
-	progressSetup = progressAlert = 0;
+	holdHandling = progressSetup = progressAlert = 0;
 	dtmfMode = 0;
 	dtmfCodec[0] = dtmfCodec[1] = (RTP_DataFrame::PayloadTypes)0;
 	redirect_reason = -1;
@@ -664,6 +680,7 @@ void MyH323Connection::SetCallOptions(void *o, BOOL isIncoming)
 
 	progressSetup = opts->progress_setup;
 	progressAlert = opts->progress_alert;
+	holdHandling = opts->holdHandling;
 	dtmfCodec[0] = (RTP_DataFrame::PayloadTypes)opts->dtmfcodec[0];
 	dtmfCodec[1] = (RTP_DataFrame::PayloadTypes)opts->dtmfcodec[1];
 	dtmfMode = opts->dtmfmode;
@@ -1641,6 +1658,48 @@ BOOL MyH323Connection::StartControlChannel(const H225_TransportAddress & h245Add
 	return TRUE;
 }
 
+#ifdef H323_H450
+void MyH323Connection::OnReceivedLocalCallHold(int linkedId)
+{
+	if (on_hold)
+		on_hold(GetCallReference(), (const char *)GetCallToken(), 1);
+}
+
+void MyH323Connection::OnReceivedLocalCallRetrieve(int linkedId)
+{
+	if (on_hold)
+		on_hold(GetCallReference(), (const char *)GetCallToken(), 0);
+}
+#endif
+
+void MyH323Connection::MyHoldCall(BOOL isHold)
+{
+	if (((holdHandling & H323_HOLD_NOTIFY) != 0) || ((holdHandling & H323_HOLD_Q931ONLY) != 0)) {
+		PBYTEArray x ((const BYTE *)(isHold ? "\xF9" : "\xFA"), 1);
+		H323SignalPDU signal;
+		signal.BuildNotify(*this);
+		signal.GetQ931().SetIE((Q931::InformationElementCodes)39 /* Q931::NotifyIE */, x);
+		if (h323debug)
+			cout << "Sending " << (isHold ? "HOLD" : "RETRIEVE") << " notification: " << signal << endl;
+		if ((holdHandling & H323_HOLD_Q931ONLY) != 0) {
+			PBYTEArray rawData;
+			signal.GetQ931().RemoveIE(Q931::UserUserIE);
+			signal.GetQ931().Encode(rawData);
+			signallingChannel->WritePDU(rawData);
+		} else
+			WriteSignalPDU(signal);
+	}
+#ifdef H323_H450
+	if ((holdHandling & H323_HOLD_H450) != 0) {
+		if (isHold)
+			h4504handler->HoldCall(TRUE);
+		else if (IsLocalHold())
+			h4504handler->RetrieveCall();
+	}
+#endif
+}
+
+
 /* MyH323_ExternalRTPChannel */
 MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connection,
 							const H323Capability & capability,
@@ -1722,6 +1781,32 @@ BOOL MyH323_ExternalRTPChannel::OnReceivedAckPDU(const H245_H2250LogicalChannelA
 	return FALSE;
 }
 
+#ifdef H323_H450
+MyH4504Handler::MyH4504Handler(MyH323Connection &_conn, H450xDispatcher &_disp)
+	:H4504Handler(_conn, _disp)
+{
+	conn = &_conn;
+}
+
+void MyH4504Handler::OnReceivedLocalCallHold(int linkedId)
+{
+	if (conn) {
+		conn->Lock();
+		conn->OnReceivedLocalCallHold(linkedId);
+		conn->Unlock();
+	}
+}
+
+void MyH4504Handler::OnReceivedLocalCallRetrieve(int linkedId)
+{
+	if (conn) {
+		conn->Lock();
+		conn->OnReceivedLocalCallRetrieve(linkedId);
+		conn->Unlock();
+	}
+}
+#endif
+
 
 /** IMPLEMENTATION OF C FUNCTIONS */
 
@@ -1780,7 +1865,8 @@ void h323_callback_register(setup_incoming_cb		ifunc,
 							rfc2833_cb				dtmffunc,
 							hangup_cb				hangupfunc,
 							setcapabilities_cb		capabilityfunc,
-							setpeercapabilities_cb	peercapabilityfunc)
+							setpeercapabilities_cb	peercapabilityfunc,
+							onhold_cb				holdfunc)
 {
 	on_incoming_call = ifunc;
 	on_outgoing_call = sfunc;
@@ -1796,6 +1882,7 @@ void h323_callback_register(setup_incoming_cb		ifunc,
 	on_hangup = hangupfunc;
 	on_setcapabilities = capabilityfunc;
 	on_setpeercapabilities = peercapabilityfunc;
+	on_hold = holdfunc;
 }
 
 /**
@@ -2095,6 +2182,18 @@ void h323_native_bridge(const char *token, const char *them, char *capability)
 	connection->Unlock();
 	return;
 
+}
+
+int h323_hold_call(const char *token, int is_hold)
+{
+	MyH323Connection *conn = (MyH323Connection *)endPoint->FindConnectionWithLock(token);
+	if (!conn) {
+		cout << "ERROR: No connection found, this is bad" << endl;
+		return -1;
+	}
+	conn->MyHoldCall((BOOL)is_hold);
+	conn->Unlock();
+	return 0;
 }
 
 #undef cout
