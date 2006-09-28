@@ -2062,7 +2062,7 @@ static int load_config(void)
 			char *exten, *party=NULL, *app=NULL, *app_args=NULL; 
 
 			if (!tmp_val) { 
-				ast_log(LOG_ERROR, "res_features: strdup failed");
+				ast_log(LOG_ERROR, "res_features: strdup failed\n");
 				continue;
 			}
 			

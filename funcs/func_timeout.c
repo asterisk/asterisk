@@ -43,7 +43,7 @@ static char *builtin_function_timeout_read(struct ast_channel *chan, char *cmd, 
 	time_t myt;
 
 	if (!data) {
-		ast_log(LOG_ERROR, "Must specify type of timeout to get.");
+		ast_log(LOG_ERROR, "Must specify type of timeout to get.\n");
                 return NULL;
 	}
 	
@@ -73,7 +73,7 @@ static char *builtin_function_timeout_read(struct ast_channel *chan, char *cmd, 
 		break;
 
 	default:
-		ast_log(LOG_ERROR, "Unknown timeout type specified.");
+		ast_log(LOG_ERROR, "Unknown timeout type specified.\n");
 		break;
 	}
 
@@ -87,7 +87,7 @@ static void builtin_function_timeout_write(struct ast_channel *chan, char *cmd, 
 	struct tm myt;
 
 	if (!data) {
-		ast_log(LOG_ERROR, "Must specify type of timeout to set.");
+		ast_log(LOG_ERROR, "Must specify type of timeout to set.\n");
 		return;
 	}
 	
@@ -129,7 +129,7 @@ static void builtin_function_timeout_write(struct ast_channel *chan, char *cmd, 
 		break;
 
 	default:
-		ast_log(LOG_ERROR, "Unknown timeout type specified.");
+		ast_log(LOG_ERROR, "Unknown timeout type specified.\n");
 		break;
 	}
 }

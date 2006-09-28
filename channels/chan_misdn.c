@@ -1630,7 +1630,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	
 	{
 		struct chan_list *ch=MISDN_ASTERISK_TECH_PVT(ast);
-		if (!ch) { ast_verbose("No chan_list in misdn_call"); return -1;}
+		if (!ch) { ast_verbose("No chan_list in misdn_call\n"); return -1;}
 		
 		newbc->capability=ast->transfercapability;
 		pbx_builtin_setvar_helper(ast,"TRANSFERCAPABILITY",ast_transfercapability2str(newbc->capability));
@@ -2751,7 +2751,7 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 	
 	f = ast_dsp_process(tmp->ast, tmp->dsp, f2);
 	if (f && (f->frametype == AST_FRAME_DTMF)) {
-		ast_log(LOG_DEBUG, "Detected inband DTMF digit: %c", f->subclass);
+		ast_log(LOG_DEBUG, "Detected inband DTMF digit: %c\n", f->subclass);
 		if (f->subclass == 'f' && tmp->faxdetect) {
 			/* Fax tone -- Handle and return NULL */
 			struct ast_channel *ast = tmp->ast;

@@ -1170,7 +1170,7 @@ static int append_history(struct sip_pvt *p, const char *event, const char *data
 	if (!recordhistory || !p)
 		return 0;
 	if(!(hist = malloc(sizeof(struct sip_history)))) {
-		ast_log(LOG_WARNING, "Can't allocate memory for history");
+		ast_log(LOG_WARNING, "Can't allocate memory for history\n");
 		return 0;
 	}
 	memset(hist, 0, sizeof(struct sip_history));
@@ -11443,10 +11443,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	parse_request(&req);
 	req.method = find_sip_method(req.rlPart1);
 	if (ast_test_flag(&req, SIP_PKT_DEBUG)) {
-		ast_verbose("--- (%d headers %d lines)", req.headers, req.lines);
-		if (req.headers + req.lines == 0) 
-			ast_verbose(" Nat keepalive ");
-		ast_verbose("---\n");
+		ast_verbose("--- (%d headers %d lines)%s ---\n", req.headers, req.lines, (req.headers + req.lines == 0) ? " Nat keepalive" : "");
 	}
 
 	if (req.headers < 2) {
