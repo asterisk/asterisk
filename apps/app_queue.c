@@ -432,11 +432,12 @@ enum queue_member_status {
 	QUEUE_NORMAL
 };
 
-static enum queue_member_status get_member_status(const struct call_queue *q)
+static enum queue_member_status get_member_status(struct call_queue *q)
 {
 	struct member *member;
 	enum queue_member_status result = QUEUE_NO_MEMBERS;
 
+	ast_mutex_lock(&q->lock);
 	for (member = q->members; member; member = member->next) {
 		if (member->paused) continue;
 
@@ -448,10 +449,12 @@ static enum queue_member_status get_member_status(const struct call_queue *q)
 			result = QUEUE_NO_REACHABLE_MEMBERS;
 			break;
 		default:
+			ast_mutex_unlock(&q->lock);
 			return QUEUE_NORMAL;
 		}
 	}
 	
+	ast_mutex_unlock(&q->lock);
 	return result;
 }
 
