@@ -483,7 +483,14 @@ static void *changethread(void *data)
 
 	AST_LIST_LOCK(&interfaces);
 	AST_LIST_TRAVERSE(&interfaces, curint, list) {
-		if (!strcasecmp(curint->interface, sc->dev))
+		char *interface;
+		char *slash_pos;
+		interface = ast_strdupa(curint->interface);
+		if ((slash_pos = strchr(interface, '/')))
+			if ((slash_pos = strchr(slash_pos + 1, '/')))
+				*slash_pos = '\0';
+
+		if (!strcasecmp(interface, sc->dev))
 			break;
 	}
 	AST_LIST_UNLOCK(&interfaces);
@@ -501,7 +508,14 @@ static void *changethread(void *data)
 	for (q = queues; q; q = q->next) {
 		ast_mutex_lock(&q->lock);
 		for (cur = q->members; cur; cur = cur->next) {
-			if (strcasecmp(sc->dev, cur->interface))
+			char *interface;
+			char *slash_pos;
+			interface = ast_strdupa(cur->interface);
+			if ((slash_pos = strchr(interface, '/')))
+				if ((slash_pos = strchr(slash_pos + 1, '/')))
+					*slash_pos = '\0';
+
+			if (strcasecmp(sc->dev, interface))
 				continue;
 
 			if (cur->status != sc->state) {
