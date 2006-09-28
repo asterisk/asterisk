@@ -1042,7 +1042,7 @@ static BOOL EmbedQSIGTunneledInfo(H323SignalPDU &pdu)
 		for (int i = 0; i < protos.GetSize(); ++i)
 		{
 			if ((protos[i].GetTag() == H225_TunnelledProtocol_id::e_tunnelledProtocolObjectID) &&
-					(((const PASN_ObjectId &)protos[i]).AsString() == OID_QSIG)) {
+					(((PASN_ObjectId &)protos[i]).AsString() == OID_QSIG)) {
 				addQSIG = FALSE;
 				break;
 			}
