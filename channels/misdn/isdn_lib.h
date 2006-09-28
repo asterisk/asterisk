@@ -59,7 +59,7 @@ enum tone_e {
 
 
 
-#define MAX_BCHANS 30
+#define MAX_BCHANS 31
 
 enum bchannel_state {
 	BCHAN_CLEANED=0,
@@ -197,8 +197,6 @@ struct misdn_bchannel {
 	/* int b_addr; */
 	int layer_id;
 
-	void *ack_hdlc;
-	
 	int layer;
 	
 	/*state stuff*/
