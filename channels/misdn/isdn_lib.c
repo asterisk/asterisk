@@ -1005,12 +1005,6 @@ int setup_bc(struct misdn_bchannel *bc)
 		
 	} else if ( bc->hdlc ) {
 		cb_log(2, stack->port," --> HDLC Mode\n");
-#ifdef ACK_HDLC
-		bc->ack_hdlc=(sem_t*)malloc(sizeof(sem_t));
-		if ( sem_init((sem_t*)bc->ack_hdlc, 1, 0)<0 )
-			sem_init((sem_t*)bc->ack_hdlc, 0, 0);
-#endif
-		
 		pid.protocol[1] = ISDN_PID_L1_B_64HDLC ;
 		pid.protocol[2] = ISDN_PID_L2_B_TRANS  ;
 		pid.protocol[3] = ISDN_PID_L3_B_USER;
@@ -2481,7 +2475,6 @@ static int handle_bchan(msg_t *msg)
 
 #endif
 		free_msg(msg);
-		
 		return 1;
 	case DL_DATA|RESPONSE:
 #if MISDN_DEBUG
@@ -3255,7 +3248,6 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		/*holded_bc->upset=0;
 		  holded_bc->active=0;*/
 		bc_state_change(holded_bc,BCHAN_CLEANED);
-		
 		cb_event( EVENT_NEW_BC, bc,  holded_bc);
 	}
 	break;
@@ -3953,13 +3945,6 @@ int misdn_lib_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len)
 	
 	cb_log(9, stack->port, "Writing %d bytes 2 mISDN\n",len);
 	r=mISDN_write(stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_INFINIT);
-#ifdef ACK_HDLC
-	if (bc->hdlc && bc->ack_hdlc) {
-		cb_log(4,stack->port,"Awaiting Acknowledge [%d]\n",len);
-		sem_wait((sem_t*)bc->ack_hdlc);
-		cb_log(4,stack->port,"Acknowledged\n");
-	}
-#endif	
 	return 0;
 }
 
