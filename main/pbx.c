@@ -104,6 +104,7 @@ AST_APP_OPTIONS(waitexten_opts, {
 });
 
 struct ast_context;
+struct ast_app;
 
 /*!
    \brief ast_exten: An extension
@@ -119,6 +120,7 @@ struct ast_exten {
 	const char *label;		/*!< Label */
 	struct ast_context *parent;	/*!< The context this extension belongs to  */
 	const char *app; 		/*!< Application to execute */
+	struct ast_app *cached_app;     /*!< Cached location of application */
 	void *data;			/*!< Data to use (arguments) */
 	void (*datad)(void *);		/*!< Data destructor */
 	struct ast_exten *peer;		/*!< Next higher priority with our extension */
@@ -1659,7 +1661,9 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			ast_mutex_unlock(&conlock);
 			return res;	/* the priority we were looking for */
 		} else {	/* spawn */
-			app = pbx_findapp(e->app);
+			if (!e->cached_app)
+				e->cached_app = pbx_findapp(e->app);
+			app = e->cached_app;
 			ast_mutex_unlock(&conlock);
 			if (!app) {
 				ast_log(LOG_WARNING, "No application '%s' for extension (%s, %s, %d)\n", e->app, context, exten, priority);
@@ -3472,6 +3476,25 @@ static struct ast_cli_entry pbx_cli[] = {
 	show_dialplan_help, complete_show_dialplan_context },
 };
 
+static void unreference_cached_app(struct ast_app *app)
+{
+	struct ast_context *context = NULL;
+	struct ast_exten *eroot = NULL, *e = NULL;
+
+	ast_lock_contexts();
+	while ((context = ast_walk_contexts(context))) {
+		while ((eroot = ast_walk_context_extensions(context, eroot))) {
+			while ((e = ast_walk_extension_priorities(eroot, e))) {
+				if (e->cached_app == app)
+					e->cached_app = NULL;
+			}
+		}
+	}
+	ast_unlock_contexts();
+
+	return;
+}
+
 int ast_unregister_application(const char *app)
 {
 	struct ast_app *tmp;
@@ -3479,6 +3502,7 @@ int ast_unregister_application(const char *app)
 	AST_LIST_LOCK(&apps);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&apps, tmp, list) {
 		if (!strcasecmp(app, tmp->name)) {
+			unreference_cached_app(tmp);
 			AST_LIST_REMOVE_CURRENT(&apps, list);
 			if (option_verbose > 1)
 				ast_verbose( VERBOSE_PREFIX_2 "Unregistered application '%s'\n", tmp->name);
