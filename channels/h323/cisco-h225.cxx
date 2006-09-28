@@ -739,10 +739,10 @@ void CISCO_H225_H323_UU_NonStdInfo::PrintOn(ostream & strm) const
     strm << setw(indent+13) << "protoParam = " << setprecision(indent) << m_protoParam << '\n';
   if (HasOptionalField(e_commonParam))
     strm << setw(indent+14) << "commonParam = " << setprecision(indent) << m_commonParam << '\n';
-  if (HasOptionalField(e_progIndParam))
-    strm << setw(indent+15) << "progIndParam = " << setprecision(indent) << m_progIndParam << '\n';
   if (HasOptionalField(e_dummy1))
     strm << setw(indent+9) << "dummy1 = " << setprecision(indent) << m_dummy1 << '\n';
+  if (HasOptionalField(e_progIndParam))
+    strm << setw(indent+15) << "progIndParam = " << setprecision(indent) << m_progIndParam << '\n';
   if (HasOptionalField(e_callMgrParam))
     strm << setw(indent+15) << "callMgrParam = " << setprecision(indent) << m_callMgrParam << '\n';
   if (HasOptionalField(e_callSignallingParam))
@@ -800,9 +800,9 @@ BOOL CISCO_H225_H323_UU_NonStdInfo::Decode(PASN_Stream & strm)
     return FALSE;
   if (HasOptionalField(e_commonParam) && !m_commonParam.Decode(strm))
     return FALSE;
-  if (!KnownExtensionDecode(strm, e_progIndParam, m_progIndParam))
-    return FALSE;
   if (!KnownExtensionDecode(strm, e_dummy1, m_dummy1))
+    return FALSE;
+  if (!KnownExtensionDecode(strm, e_progIndParam, m_progIndParam))
     return FALSE;
   if (!KnownExtensionDecode(strm, e_callMgrParam, m_callMgrParam))
     return FALSE;
@@ -827,8 +827,8 @@ void CISCO_H225_H323_UU_NonStdInfo::Encode(PASN_Stream & strm) const
     m_protoParam.Encode(strm);
   if (HasOptionalField(e_commonParam))
     m_commonParam.Encode(strm);
-  KnownExtensionEncode(strm, e_progIndParam, m_progIndParam);
   KnownExtensionEncode(strm, e_dummy1, m_dummy1);
+  KnownExtensionEncode(strm, e_progIndParam, m_progIndParam);
   KnownExtensionEncode(strm, e_callMgrParam, m_callMgrParam);
   KnownExtensionEncode(strm, e_callSignallingParam, m_callSignallingParam);
   KnownExtensionEncode(strm, e_dummy2, m_dummy2);

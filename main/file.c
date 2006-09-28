@@ -1056,11 +1056,14 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				case AST_CONTROL_RINGING:
 				case AST_CONTROL_ANSWER:
 				case AST_CONTROL_VIDUPDATE:
+				case AST_CONTROL_HOLD:
+				case AST_CONTROL_UNHOLD:
 					/* Unimportant */
 					break;
 				default:
 					ast_log(LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
 				}
+				break;
 			case AST_FRAME_VOICE:
 				/* Write audio if appropriate */
 				if (audiofd > -1)

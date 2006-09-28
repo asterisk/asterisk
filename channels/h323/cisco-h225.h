@@ -262,8 +262,8 @@ class CISCO_H225_H323_UU_NonStdInfo : public PASN_Sequence
       e_version,
       e_protoParam,
       e_commonParam,
-      e_progIndParam,
       e_dummy1,
+      e_progIndParam,
       e_callMgrParam,
       e_callSignallingParam,
       e_dummy2,
@@ -273,8 +273,8 @@ class CISCO_H225_H323_UU_NonStdInfo : public PASN_Sequence
     PASN_Integer m_version;
     CISCO_H225_ProtoParam m_protoParam;
     CISCO_H225_CommonParam m_commonParam;
-    CISCO_H225_ProgIndParam m_progIndParam;
     PASN_OctetString m_dummy1;
+    CISCO_H225_ProgIndParam m_progIndParam;
     CISCO_H225_CallMgrParam m_callMgrParam;
     CISCO_H225_CallSignallingParam m_callSignallingParam;
     PASN_OctetString m_dummy2;
