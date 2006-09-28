@@ -3977,7 +3977,7 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 				p->t38.state = T38_LOCAL_REINVITE;
 				transmit_reinvite_with_t38_sdp(p);
 				if (option_debug > 1)
-					ast_log(LOG_DEBUG, "T38 state changed to %d on channel %s", p->t38.state, ast->name);
+					ast_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n", p->t38.state, ast->name);
 			}
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 			if (option_debug > 2)
@@ -14283,10 +14283,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	parse_request(&req);
 	req.method = find_sip_method(req.rlPart1);
 	if (ast_test_flag(&req, SIP_PKT_DEBUG)) {
-		ast_verbose("--- (%d headers %d lines)", req.headers, req.lines);
-		if (req.headers + req.lines == 0) 
-			ast_verbose(" Nat keepalive ");
-		ast_verbose("---\n");
+		ast_verbose("--- (%d headers %d lines)%s ---\n", req.headers, req.lines, (req.headers + req.lines == 0) ? " Nat keepalive" : "");
 	}
 
 	if (req.headers < 2) {

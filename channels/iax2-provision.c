@@ -283,7 +283,7 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 		if (!src) {
 			src = iax_template_find(def, 0);
 			if (!src)
-				ast_log(LOG_WARNING, "Unable to locate default base template '%s' for creating '%s', omitting.", def, s);
+				ast_log(LOG_WARNING, "Unable to locate default base template '%s' for creating '%s', omitting.\n", def, s);
 		}
 		if (!src)
 			return -1;

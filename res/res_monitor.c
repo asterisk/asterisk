@@ -338,7 +338,7 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 {
 	char tmp[256];
 	if (ast_strlen_zero(fname_base)) {
-		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to null", chan->name);
+		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to null\n", chan->name);
 		return -1;
 	}
 

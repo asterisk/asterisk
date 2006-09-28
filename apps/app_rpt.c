@@ -2618,7 +2618,7 @@ pthread_attr_t attr;
 		rpt_mutex_lock(&myrpt->lock);
 		remque((struct qlem *) tele); /* We don't like stuck transmitters, remove it from the queue */
 		rpt_mutex_unlock(&myrpt->lock);	
-		ast_log(LOG_WARNING, "Could not create telemetry thread: %s",strerror(res));
+		ast_log(LOG_WARNING, "Could not create telemetry thread: %s\n",strerror(res));
 	}
 	return;
 }

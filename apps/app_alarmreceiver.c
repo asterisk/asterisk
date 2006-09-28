@@ -136,7 +136,7 @@ static void database_increment( char *key )
 	res = ast_db_put(db_family, key, value);
 	
 	if((res)&&(option_verbose >= 4))
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: database_increment write error");
+		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: database_increment write error\n");
 	
 	return;	
 }

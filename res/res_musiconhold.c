@@ -1176,7 +1176,7 @@ static int load_module(void)
 		res = ast_register_application(app4, moh4_exec, synopsis4, descrip4);
 
 	if (!init_classes(0)) { 	/* No music classes configured, so skip it */
-		ast_log(LOG_WARNING, "No music on hold classes configured, disabling music on hold.");
+		ast_log(LOG_WARNING, "No music on hold classes configured, disabling music on hold.\n");
 	} else {
 		ast_install_music_functions(local_ast_moh_start, local_ast_moh_stop, local_ast_moh_cleanup);
 	}
