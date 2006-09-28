@@ -224,8 +224,11 @@ void PAssertFunc(const char *msg)
 MyH323EndPoint::MyH323EndPoint()
 		: H323EndPoint()
 {
-	// Capabilities will be negotiated on per-connection basis
+	/* Capabilities will be negotiated on per-connection basis */
 	capabilities.RemoveAll();
+
+	/* Reset call setup timeout to some more reasonable value than 1 minute */
+	signallingChannelCallTimeout = PTimeInterval(0, 0, 10);	/* 10 minutes */
 }
 
 /** The fullAddress parameter is used directly in the MakeCall method so
