@@ -2946,7 +2946,7 @@ static void reload_queue_members(void)
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Reload Members: Queue: %s  Member: %s  Name: %s  Penalty: %d  Paused: %d\n", queue_name, interface, membername, penalty, paused);
 			
-			if (add_to_queue(queue_name, membername, interface, penalty, paused, 0) == RES_OUTOFMEMORY) {
+			if (add_to_queue(queue_name, interface, membername, penalty, paused, 0) == RES_OUTOFMEMORY) {
 				ast_log(LOG_ERROR, "Out of Memory when reloading persistent queue member\n");
 				break;
 			}
