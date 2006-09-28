@@ -105,8 +105,8 @@ chan_h323.so: chan_h323.o h323/libchanh323.a
 	$(CMD_PREFIX) $(CXX) $(SOLINK) -o $@ $< h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lcrypto -lssl -lexpat
 endif
 
-chan_misdn.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\" 
+chan_misdn.o: CFLAGS+=-Imisdn 
 
-misdn_config.o: CFLAGS+=-Imisdn -DCHAN_MISDN_VERSION=\"0.3.0\" 
+misdn_config.o: CFLAGS+=-Imisdn 
 
 $(chan_misdn): chan_misdn.o misdn_config.o misdn/isdn_lib.o misdn/isdn_msg_parser.o
