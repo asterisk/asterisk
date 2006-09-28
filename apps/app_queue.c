@@ -3306,7 +3306,7 @@ static void reload_queues(void)
 	struct ast_config *cfg;
 	char *cat, *tmp;
 	struct ast_variable *var;
-	struct member *prev, *cur, *newm;
+	struct member *prev, *cur, *newm, *next;
 	int new;
 	char *general_val = NULL;
 	char interface[80];
@@ -3405,23 +3405,21 @@ static void reload_queues(void)
 				}
 
 				/* Free remaining members marked as delme */
-				for (prev = NULL, newm = NULL, cur = q->members; cur; prev = cur, cur = cur->next) {
-					if (newm) {
-						free(newm);
-						newm = NULL;
-					}
+				for (prev = NULL, cur = q->members, next = cur ? cur->next : NULL;
+				     cur;
+				     cur = next, next = cur ? cur->next : NULL) {
+					if (!cur->delme)
+						continue;
 
-					if (cur->delme) {
-						if (prev) {
-							prev->next = cur->next;
-							newm = cur;
-						} else {
-							q->members = cur->next;
-							newm = cur;
-						}
-						remove_from_interfaces(cur->interface);
-					}
+					if (prev)
+						prev->next = next;
+					else
+						q->members = next;
+
+					remove_from_interfaces(cur->interface);
+					free(cur);
 				}
+
 				if (!new) 
 					ast_mutex_unlock(&q->lock);
 				if (new) {
