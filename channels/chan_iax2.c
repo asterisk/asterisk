@@ -7526,7 +7526,7 @@ retryowner2:
 	if (duped_fr) {
 		schedule_delivery(duped_fr, updatehistory, 0, &fr->ts);
 	}
-	if (iaxs[fr->callno]->last < fr->ts) {
+	if (iaxs[fr->callno] && iaxs[fr->callno]->last < fr->ts) {
 		iaxs[fr->callno]->last = fr->ts;
 #if 1
 		if (option_debug && iaxdebug)
