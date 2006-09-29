@@ -11,7 +11,10 @@ include $(ASTTOPDIR)/Makefile.rules
 
 all: $(LIB)
 
-$(eval $(call ast_make_a_o,$(LIB),$(OBJS)))
+$(LIB): $(OBJS)
+	$(ECHO_PREFIX) echo "   [AR] $^ -> $@"
+	$(CMD_PREFIX) $(AR) cr $@ $^
+	$(CMD_PREFIX) $(RANLIB) $@
 
 clean:
 	rm -f $(LIB) *.o

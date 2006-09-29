@@ -36,65 +36,30 @@ OPTIMIZE?=-O6
 ASTCFLAGS+=$(OPTIMIZE)
 endif
 
-define ast_make_o_c
-$(1): $(2)
-	$(ECHO_PREFIX) echo "   [CC] $$< -> $$@"
-	$(CMD_PREFIX) $$(CC) -o $$@ -c $$< $$(ASTCFLAGS)
-endef
+%.o: %.c
+	$(ECHO_PREFIX) echo "   [CC] $< -> $@"
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(ASTCFLAGS)
 
-define ast_make_oo_cc
-$(1): $(2)
-	$(ECHO_PREFIX) echo "   [CXX] $$< -> $$@"
-	$(CMD_PREFIX) $$(CXX) -o $$@ -c $$< $$(ASTCFLAGS)
-endef
+%.oo: %.cc
+	$(ECHO_PREFIX) echo "   [CXX] $< -> $@"
+	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(ASTCFLAGS)
 
-define ast_make_c_y
-$(1): $(2)
-	$(ECHO_PREFIX) echo "   [BISON] $$< -> $$@"
-	$(CMD_PREFIX) bison -o $$@ -d --name-prefix=ast_yy $$<
-endef
+%.c: %.y
+	$(ECHO_PREFIX) echo "   [BISON] $< -> $@"
+	$(CMD_PREFIX) bison -o $@ -d --name-prefix=ast_yy $<
 
-define ast_make_c_fl
-$(1): $(2)
-	$(ECHO_PREFIX) echo "   [FLEX] $$< -> $$@"
-	$(CMD_PREFIX) flex -o $$@ --full $$<
-endef
+%.c: %.fl
+	$(ECHO_PREFIX) echo "   [FLEX] $< -> $@"
+	$(CMD_PREFIX) flex -o $@ --full $<
 
-define ast_make_so_o
-$(1): $(2)
-	$(ECHO_PREFIX) echo "   [LD] $$^ -> $$@"
-	$(CMD_PREFIX) $$(CC) $$(STATIC_BUILD) -o $$@ $$(ASTLDFLAGS) $$(SOLINK) $$^ $$(LIBS)
-endef
+%.so: %.o
+	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
+	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(ASTLDFLAGS) $(SOLINK) $^ $(LIBS)
 
-define ast_make_so_oo
-$(1): $(2)
-	$(ECHO_PREFIX) echo "   [LDXX] $$^ -> $$@"
-	$(CMD_PREFIX) $$(CXX) $$(STATIC_BUILD) -o $$@ $$(ASTLDFLAGS) $$(SOLINK) $$^ $$(LIBS)
-endef
+%.soo: %.oo
+	$(ECHO_PREFIX) echo "   [LDXX] $^ -> $@"
+	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLDFLAGS) $(SOLINK) $^ $(LIBS)
 
-define ast_make_a_o
-$(1): $(2)
-	$(ECHO_PREFIX) echo "   [AR] $$^ -> $$@"
-	$(CMD_PREFIX) $$(AR) cr $$@ $$^
-	$(CMD_PREFIX) $$(RANLIB) $$@
-endef
-
-define ast_make_final
-$(1): $(2)
-	$(ECHO_PREFIX) echo "   [LD] $$^ -> $$@"
-	$(CMD_PREFIX) $$(CXX) $$(STATIC_BUILD) -o $$@ $$(ASTLDFLAGS) $$^ $$(LIBS)
-endef
-
-define ast_make_final_host
-$(1): $(2)
-	$(ECHO_PREFIX) echo "   [LD] $$^ -> $$@"
-	$(CMD_PREFIX) $$(HOST_CC) $$(STATIC_BUILD) -o $$@ $$(HOST_CFLAGS) $$(HOST_LDFLAGS) $$^ $$(LIBS)
-endef
-
-$(eval $(call ast_make_o_c,%.o,%.c))
-
-$(eval $(call ast_make_oo_cc,%.oo,%.cc))
-
-$(eval $(call ast_make_so_o,%.so,%.o))
-
-$(eval $(call ast_make_final,%,%.o))
+%: %.o
+	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
+	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLDFLAGS) $^ $(LIBS)

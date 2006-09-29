@@ -64,7 +64,10 @@ OBJ=f2clib.o analys.o bsynz.o chanwr.o dcbias.o decode.o \
     placea.o placev.o preemp.o prepro.o random.o rcchk.o \
     synths.o tbdm.o voicin.o vparms.o
 
-$(eval $(call ast_make_a_o,$(LIB),$(OBJ)))
+$(LIB): $(OBJ)
+	$(ECHO_PREFIX) echo "   [AR] $^ -> $@"
+	$(CMD_PREFIX) $(AR) cr $@ $^
+	$(CMD_PREFIX) $(RANLIB) $@
 
 clean:
 	rm -f *.o $(LIB)

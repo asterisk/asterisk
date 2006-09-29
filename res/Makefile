@@ -25,7 +25,7 @@ all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
-$(res_snmp): snmp/agent.o
+$(if $(filter res_snmp,$(EMBEDDED_MODS)),modules.link,res_snmp.so): snmp/agent.o
 
 clean::
 	rm -f snmp/*.o

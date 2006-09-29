@@ -28,13 +28,13 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 clean::
 	rm -f ael/*.o
 
-$(eval $(call ast_make_o_c,ael/aelflex.o,ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h))
-ael/aelflex.o: ASTCFLAGS+=-I.
+ael/ael_lex.o: ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h
+ael/ael_lex.o: ASTCFLAGS+=-I.
 
-$(eval $(call ast_make_o_c,ael/aelbison.o,ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h))
-ael/aelbison.o: ASTCFLAGS+=-I.
+ael/ael.tab.o: ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h
+ael/ael.tab.o: ASTCFLAGS+=-I.
 
-$(pbx_ael): ael/aelbison.o ael/aelflex.o
+$(if $(filter pbx_ael,$(EMBEDDED_MODS)),modules.link,pbx_ael.so): ael/ael.tab.o ael/ael_lex.o
 
 ael/ael_lex.c:
 	(cd ael; flex ael.flex; sed -i -e "/begin standard C headers/i#include \"asterisk.h\"" ael_lex.c)
@@ -45,4 +45,4 @@ ael/ael.tab.c ael/ael.tab.h:
 dundi-parser.o: dundi-parser.h
 dundi-parser.o: ASTCFLAGS+=-I.
 
-$(pbx_dundi): dundi-parser.o
+$(if $(filter pbx_dundi,$(EMBEDDED_MODS)),modules.link,pbx_dundi.so): dundi-parser.o

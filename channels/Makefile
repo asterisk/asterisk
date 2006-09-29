@@ -80,7 +80,9 @@ h323/libchanh323.a h323/Makefile.ast:
 	$(CMD_PREFIX) exit 1
 endif
 
-$(eval $(call ast_make_final_host,gentone,gentone.c))
+gentone: gentone.c
+	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
+	$(CMD_PREFIX) $(HOST_CC) $(STATIC_BUILD) -o $@ $(HOST_CFLAGS) $(HOST_LDFLAGS) $^ $(LIBS)
 gentone: LIBS+=-lm
 
 busy.h: gentone
@@ -91,7 +93,7 @@ ringtone.h: gentone
 
 chan_oss.o: busy.h ringtone.h
 
-$(chan_iax2): iax2-parser.o iax2-provision.o
+$(if $(filter chan_iax2,$(EMBEDDED_MODS)),modules.link,chan_iax2.so): iax2-parser.o iax2-provision.o
 
 chan_alsa.o: busy.h ringtone.h
 
@@ -109,4 +111,4 @@ chan_misdn.o: ASTCFLAGS+=-Imisdn
 
 misdn_config.o: ASTCFLAGS+=-Imisdn 
 
-$(chan_misdn): chan_misdn.o misdn_config.o misdn/isdn_lib.o misdn/isdn_msg_parser.o
+$(if $(filter chan_misdn,$(EMBEDDED_MODS)),modules.link,chan_misdn.so): chan_misdn.o misdn_config.o misdn/isdn_lib.o misdn/isdn_msg_parser.o
