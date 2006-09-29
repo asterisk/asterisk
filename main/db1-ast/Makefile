@@ -10,7 +10,7 @@ endif
 #Added support for UltraSparc - Belgarath
 ifeq ($(ARCH),sparc64)
 PROC=ultrasparc
-CFLAGS += -mtune=$(PROC) -pipe -fomit-frame-pointer -mcpu=v8
+ASTCFLAGS += -mtune=$(PROC) -pipe -fomit-frame-pointer -mcpu=v8
 endif
 
 ifeq ($(OSARCH),Darwin)
@@ -50,11 +50,11 @@ clean-depend:
 clean:
 	rm -f $(LIBDB) $(LIBDBSO) $(OBJS) $(SHOBJS)
 
-CFLAGS+=-Wall -D__DBINTERFACE_PRIVATE -I. -I.. -Iinclude -Ihash -Ibtree -Irecno
+ASTCFLAGS+=-Wall -D__DBINTERFACE_PRIVATE -I. -I.. -Iinclude -Ihash -Ibtree -Irecno
 
 OSTYPE=$(shell uname -s)
 ifeq ($(OSTYPE),SunOS)
-CFLAGS+=-I../../include -I../../include/solaris-compat -DSOLARIS
+ASTCFLAGS+=-I../../include -I../../include/solaris-compat -DSOLARIS
 endif
 
 db_dump185.o: db_dump185.c

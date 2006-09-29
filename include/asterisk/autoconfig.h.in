@@ -62,6 +62,9 @@
 /* Define to 1 if you have the `bzero' function. */
 #undef HAVE_BZERO
 
+/* Define to indicate the ${CAP_DESCRIP} library */
+#undef HAVE_CAP
+
 /* Define to 1 if your system has a working `chown' function. */
 #undef HAVE_CHOWN
 

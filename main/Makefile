@@ -93,11 +93,11 @@ ifeq ($(OSARCH),SunOS)
 endif
 
 editline/libedit.a:
-	cd editline && unset CFLAGS AST_LIBS && test -f config.h || CFLAGS="$(OPTIMIZE)" ./configure --build=$(BUILD_PLATFORM) --host=$(HOST_PLATFORM)
+	cd editline && test -f config.h || CFLAGS="$(ASTCFLAGS)" ./configure --build=$(BUILD_PLATFORM) --host=$(HOST_PLATFORM)
 	$(MAKE) -C editline libedit.a
 
 db1-ast/libdb1.a:
-	CFLAGS="$(ASTCFLAGS)" $(MAKE) -C db1-ast libdb1.a
+	CFLAGS="$(ASTCFLAGS)" LDFLAGS="$(ASTLDFLAGS)" $(MAKE) -C db1-ast libdb1.a
 
 ast_expr2.c ast_expr2.h:
 	bison -o $@ -d --name-prefix=ast_yy ast_expr2.y
@@ -111,7 +111,7 @@ testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 	$(CC) -g -o testexpr2 ast_expr2f.o ast_expr2.o
 	rm ast_expr2.o ast_expr2f.o 
 
-channel.o: CFLAGS+=$(ZAPTEL_INCLUDE)
+channel.o: ASTCFLAGS+=$(ZAPTEL_INCLUDE)
 
 AST_EMBED_LDSCRIPTS:=$(sort $(EMBED_LDSCRIPTS))
 AST_EMBED_LDFLAGS:=$(foreach dep,$(EMBED_LDFLAGS),$(value $(dep)))
@@ -131,9 +131,9 @@ asterisk: $(OBJS) editline/libedit.a db1-ast/libdb1.a $(AST_EMBED_LDSCRIPTS)
 		mv $(ASTTOPDIR)/include/asterisk/build.h.tmp $(ASTTOPDIR)/include/asterisk/build.h ; \
 	fi
 	@rm -f $(ASTTOPDIR)/include/asterisk/build.h.tmp
-	@$(CC) -c -o buildinfo.o $(CFLAGS) buildinfo.c
+	@$(CC) -c -o buildinfo.o $(ASTCFLAGS) buildinfo.c
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
-	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(LDFLAGS) $(H323LDFLAGS) $^ buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(H323LDLIBS)
+	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(ASTLDFLAGS) $(H323LDFLAGS) $^ buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(H323LDLIBS)
 	@$(ASTTOPDIR)/build_tools/strip_nonapi $@
 
 clean::

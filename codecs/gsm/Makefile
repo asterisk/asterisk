@@ -72,7 +72,6 @@ PG =
 # CCFLAGS 	= -c -O
 
 CCFLAGS 	+= -c -DNeedFunctionPrototypes=1 -funroll-loops $(OPTIMIZE)
-CCFLAGS   += -fPIC
 
 # LD		= gcc
 # LDFLAGS 	=
@@ -155,7 +154,7 @@ INC	= $(ROOT)/inc
 DEBUG	= -DNDEBUG
 ######### Remove -DNDEBUG to enable assertions.
 
-CFLAGS += $(PG) $(CCFLAGS) $(SASR) $(DEBUG) $(MULHACK) $(FAST) \
+ASTCFLAGS += $(PG) $(CCFLAGS) $(SASR) $(DEBUG) $(MULHACK) $(FAST) \
 	$(LTP_CUT) $(WAV49) $(K6OPT) $(CCINC) -I$(INC)
 ######### It's $(CC) $(CFLAGS)
 
@@ -318,10 +317,6 @@ TOAST_INSTALL_TARGETS =	\
 
 
 # Default rules
-
-.c.o:
-		$(CC) $(CFLAGS:-Werror=) $?
-		@-mv `$(BASENAME) $@` $@ > /dev/null 2>&1
 
 include $(ASTTOPDIR)/Makefile.rules
 

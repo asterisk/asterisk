@@ -12,11 +12,11 @@
 #
 
 ifneq ($(findstring MALLOC_DEBUG,$(MENUSELECT_CFLAGS)),)
-  CFLAGS+=-include $(ASTTOPDIR)/include/asterisk/astmm.h
+  ASTCFLAGS+=-include $(ASTTOPDIR)/include/asterisk/astmm.h
 endif
 
 ifeq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
-  CFLAGS+=${GC_CFLAGS}
+  ASTCFLAGS+=${GC_CFLAGS}
 endif
 
 ifneq ($(findstring STATIC_BUILD,$(MENUSELECT_CFLAGS)),)
@@ -29,14 +29,14 @@ comma:=,
 
 define module_o_template
 $(2): $(3)
-$(2): CFLAGS+=-DAST_MODULE=\"$(1)\" $$(MENUSELECT_OPTS_$(1):%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_INCLUDE))
+$(2): ASTCFLAGS+=-DAST_MODULE=\"$(1)\" $$(MENUSELECT_OPTS_$(1):%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_INCLUDE))
 endef
 
 define module_so_template
 $(1)=$(1).so
-$(1).so: CFLAGS+=-fPIC
+$(1).so: ASTCFLAGS+=-fPIC
 $(1).so: LIBS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LIB))
-$(1).so: LDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LDFLAGS))
+$(1).so: ASTLDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LDFLAGS))
 $(1).so: $(2)
 endef
 
@@ -102,4 +102,4 @@ endif
 depend: .depend
 
 .depend:
-	../build_tools/mkdep $(CFLAGS) `ls *.c *.cc 2> /dev/null`
+	../build_tools/mkdep $(ASTCFLAGS) `ls *.c *.cc 2> /dev/null`
