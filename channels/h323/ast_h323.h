@@ -90,6 +90,7 @@ public:
 	virtual BOOL StartControlChannel(const H225_TransportAddress & h245Address);
 	void SetCallOptions(void *opts, BOOL isIncoming);
 	void SetCallDetails(void *callDetails, const H323SignalPDU &setupPDU, BOOL isIncoming);
+	virtual H323Connection::CallEndReason SendSignalSetup(const PString&, const H323TransportAddress&);
 #ifdef TUNNELLING
 	virtual BOOL HandleSignalPDU(H323SignalPDU &pdu);
 	BOOL EmbedTunneledInfo(H323SignalPDU &pdu);
