@@ -1534,6 +1534,8 @@ static void reload_firmware(void)
 		destroy_firmware(cur);
 	}
 	AST_LIST_TRAVERSE_SAFE_END
+
+	AST_LIST_UNLOCK(&firmwares);
 }
 
 static int __do_deliver(void *data)
