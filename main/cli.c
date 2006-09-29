@@ -236,12 +236,28 @@ static int handle_set_verbose_deprecated(int fd, int argc, char *argv[])
 static int handle_verbose(int fd, int argc, char *argv[])
 {
 	int oldval = option_verbose;
+	int newlevel;
+	int atleast = 0;
 
-	if (argc == 3)
-		option_verbose = atoi(argv[2]);
-	else
+	if ((argc < 3) || (argc > 4))
 		return RESULT_SHOWUSAGE;
 
+	if (!strcasecmp(argv[2], "atleast"))
+		atleast = 1;
+
+	if (!atleast) {
+		if (argc > 3)
+			return RESULT_SHOWUSAGE;
+
+		option_verbose = atoi(argv[2]);
+	} else {
+		if (argc < 4)
+			return RESULT_SHOWUSAGE;
+
+		newlevel = atoi(argv[3]);
+		if (newlevel > option_verbose)
+			option_verbose = newlevel;
+        }
 	if (oldval > 0 && option_verbose == 0)
 		ast_cli(fd, "Verbosity is now OFF\n");
 	else if (option_verbose > 0) {
@@ -285,21 +301,46 @@ static int handle_debug(int fd, int argc, char *argv[])
 {
 	int oldval = option_debug;
 	int newlevel;
+	int atleast = 0;
 	char *filename = '\0';
 
-	if ((argc < 3) || (argc > 4))
+	if ((argc < 3) || (argc > 5))
 		return RESULT_SHOWUSAGE;
 
-	if (sscanf(argv[2], "%d", &newlevel) != 1)
-		return RESULT_SHOWUSAGE;
+	if (!strcasecmp(argv[2], "atleast"))
+		atleast = 1;
 
-	option_debug = newlevel;
+	if (!atleast) {
+		if (argc > 4)
+			return RESULT_SHOWUSAGE;
 
-	if (argc == 4) {
-		filename = argv[3];
-		ast_copy_string(debug_filename, filename, sizeof(debug_filename));
+		if (sscanf(argv[2], "%d", &newlevel) != 1)
+			return RESULT_SHOWUSAGE;
+
+		if (argc == 3) {
+			debug_filename[0] = '\0';
+		} else {
+			filename = argv[3];
+			ast_copy_string(debug_filename, filename, sizeof(debug_filename));
+		}
+
+		option_debug = newlevel;
 	} else {
-		debug_filename[0] = '\0';
+		if (argc < 4)
+			return RESULT_SHOWUSAGE;
+
+		if (sscanf(argv[3], "%d", &newlevel) != 1)
+			return RESULT_SHOWUSAGE;
+
+		if (argc == 4) {
+			debug_filename[0] = '\0';
+		} else {
+			filename = argv[4];
+			ast_copy_string(debug_filename, filename, sizeof(debug_filename));
+		}
+
+		if (newlevel > option_debug)
+			option_debug = newlevel;
 	}
 
 	if (oldval > 0 && option_debug == 0)
