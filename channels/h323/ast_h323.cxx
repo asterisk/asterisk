@@ -40,6 +40,12 @@
 #include <h323neg.h>
 #include <mediafmt.h>
 #include <lid.h>
+#ifdef H323_H450
+#include "h4501.h"
+#include "h4504.h"
+#include "h45011.h"
+#include "h450pdu.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
