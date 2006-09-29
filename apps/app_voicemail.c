@@ -1621,6 +1621,7 @@ static void copy_file(char *frompath, char *topath)
 
 /*
  * A negative return value indicates an error.
+ * \note Should always be called with a lock already set on dir.
  */
 static int last_message_index(struct ast_vm_user *vmu, char *dir)
 {
@@ -1629,9 +1630,6 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	DIR *msgdir;
 	struct dirent *msgdirent;
 	int msgdirint;
-
-	if (vm_lock_path(dir))
-		return ERROR_LOCK_PATH;
 
 	/* Reading the entire directory into a file map scales better than
 	 * doing a stat repeatedly on a predicted sequence.  I suspect this
@@ -1648,7 +1646,6 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 		if (map[x] == 0)
 			break;
 	}
-	ast_unlock_path(dir);
 
 	return x - 1;
 }
