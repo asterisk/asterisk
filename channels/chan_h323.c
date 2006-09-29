@@ -629,6 +629,9 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 		strncpy(pvt->options.cid_rdnis, c->cid.cid_rdnis, sizeof(pvt->options.cid_rdnis));
 	}
 
+	pvt->options.presentation = c->cid.cid_pres;
+	pvt->options.type_of_number = c->cid.cid_ton;
+
 	if ((addr = pbx_builtin_getvar_helper(c, "PRIREDIRECTREASON"))) {
 		if (!strcasecmp(addr, "UNKNOWN"))
 			pvt->options.redirect_reason = 0;
@@ -1084,6 +1087,8 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 			ch->cid.cid_rdnis = ast_strdup(pvt->cd.redirect_number);
 			pbx_builtin_setvar_helper(ch, "PRIREDIRECTREASON", redirectingreason2str(pvt->cd.redirect_reason));
 		}
+		ch->cid.cid_pres = pvt->cd.presentation;
+		ch->cid.cid_ton = pvt->cd.type_of_number;
 
 		if (!ast_strlen_zero(pvt->exten) && strcmp(pvt->exten, "s")) {
 			ch->cid.cid_dnid = strdup(pvt->exten);

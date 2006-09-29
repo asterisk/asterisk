@@ -104,6 +104,8 @@ public:
 	PString destAliases;
 	PString sourceE164;
 	PString destE164;
+	int cid_presentation;
+	int cid_ton;
 	PString rdnis;
 	int redirect_reason;
 

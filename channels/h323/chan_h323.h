@@ -50,6 +50,8 @@ typedef struct call_options {
 	char			cid_name[80];
 	char			cid_rdnis[80];
 	int				redirect_reason;
+	int				presentation;
+	int				type_of_number;
 	int				fastStart;
 	int				h245Tunneling;
 	int				silenceSuppression;
@@ -115,7 +117,7 @@ typedef struct call_details {
 	char *redirect_number;
 	int redirect_reason;
 	int presentation;
-	int screening;
+	int type_of_number;
 	char *sourceIp;
 } call_details_t;
 
