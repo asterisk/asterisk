@@ -29,10 +29,10 @@ clean::
 	rm -f ael/*.o
 
 $(eval $(call ast_make_o_c,ael/aelflex.o,ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h))
-ael/aelflex.o: CFLAGS+=-I.
+ael/aelflex.o: ASTCFLAGS+=-I.
 
 $(eval $(call ast_make_o_c,ael/aelbison.o,ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h))
-ael/aelbison.o: CFLAGS+=-I.
+ael/aelbison.o: ASTCFLAGS+=-I.
 
 $(pbx_ael): ael/aelbison.o ael/aelflex.o
 
@@ -43,6 +43,6 @@ ael/ael.tab.c ael/ael.tab.h:
 	(cd ael; bison -v -d ael.y)
 
 dundi-parser.o: dundi-parser.h
-dundi-parser.o: CFLAGS+=-I.
+dundi-parser.o: ASTCFLAGS+=-I.
 
 $(pbx_dundi): dundi-parser.o

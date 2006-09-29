@@ -13,14 +13,43 @@
 
 # All Makefiles use the following variables:
 #
-# LDFLAGS - linker flags (not libraries), used for all links
+# ASTCFLAGS - compiler options
+# ASTLDFLAGS - linker flags (not libraries)
 # LIBS - additional libraries, at top-level for all links,
 #      on a single object just for that object
 # SOLINK - linker flags used only for creating shared objects (.so files),
 #      used for all .so links
 #
+# Default values fo ASTCFLAGS and ASTLDFLAGS can be specified in the
+# environment when running make, as follows:
+#
+# $ ASTCFLAGS="-Werror" make
 
-.EXPORT_ALL_VARIABLES:
+export ASTTOPDIR
+export ASTERISKVERSION
+export ASTERISKVERSIONNUM
+export INSTALL_PATH
+export ASTETCDIR
+export ASTVARRUNDIR
+export MODULES_DIR
+export ASTSPOOLDIR
+export ASTVARLIBDIR
+export ASTDATADIR
+export ASTLOGDIR
+export AGI_DIR
+export ASTCONFPATH
+export NOISY_BUILD
+export MENUSELECT_CFLAGS
+export CC
+export CXX
+export AR
+export RANLIB
+export HOST_CC
+export STATIC_BUILD
+export INSTALL
+export DESTDIR
+export PROC
+export SOLINK
 
 # even though we could use '-include makeopts' here, use a wildcard
 # lookup anyway, so that make won't try to build makeopts if it doesn't
@@ -91,8 +120,6 @@ AGI_DIR=$(ASTDATADIR)/agi-bin
 HTTP_DOCSDIR=/var/www/html
 # Determine by a grep 'ScriptAlias' of your Apache httpd.conf file
 HTTP_CGIDIR=/var/www/cgi-bin
-
-ASTCFLAGS=
 
 # Uncomment this to use the older DSP routines
 #ASTCFLAGS+=-DOLD_DSP_ROUTINES
@@ -275,10 +302,10 @@ $(SUBDIRS): depend makeopts.embed_rules
 main: $(filter-out main,$(MOD_SUBDIRS))
 
 $(MOD_SUBDIRS):
-	@CFLAGS="$(MOD_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) --no-print-directory -C $@ SUBDIR=$@ all
+	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) --no-print-directory -C $@ SUBDIR=$@ all
 
 $(OTHER_SUBDIRS):
-	@CFLAGS="$(OTHER_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) --no-print-directory -C $@ SUBDIR=$@ all
+	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) --no-print-directory -C $@ SUBDIR=$@ all
 
 defaults.h: makeopts
 	@build_tools/make_defaults_h > $@.tmp
@@ -588,10 +615,10 @@ config:
 	fi
 
 $(MOD_SUBDIRS_DEPEND):
-	@CFLAGS="$(MOD_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) --no-print-directory -C $(@:-depend=) depend
+	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" $(MAKE) --no-print-directory -C $(@:-depend=) depend
 
 $(OTHER_SUBDIRS_DEPEND):
-	@CFLAGS="$(OTHER_SUBDIR_CFLAGS)$(ASTCFLAGS)" $(MAKE) --no-print-directory -C $(@:-depend=) depend
+	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" $(MAKE) --no-print-directory -C $(@:-depend=) depend
 
 depend: include/asterisk/version.h include/asterisk/buildopts.h defaults.h $(SUBDIRS_DEPEND)
 
@@ -646,7 +673,7 @@ menuselect: menuselect/menuselect menuselect-tree
 	-@menuselect/menuselect $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
 
 menuselect/menuselect: makeopts menuselect/menuselect.c menuselect/menuselect_curses.c menuselect/menuselect_stub.c menuselect/menuselect.h menuselect/linkedlists.h makeopts
-	@unset CC LD AR RANLIB CFLAGS LDFLAGS && $(MAKE) -C menuselect CONFIGURE_SILENT="--silent"
+	@unset CC LD AR RANLIB && $(MAKE) -C menuselect CONFIGURE_SILENT="--silent"
 
 menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml sounds/sounds.xml build_tools/embed_modules.xml
 	@echo "Generating input for menuselect ..."

@@ -42,14 +42,14 @@ clean::
 
 gsm/lib/libgsm.a:
 	@mkdir -p gsm/lib
-	@CFLAGS="$(OTHER_SUBDIR_CFLAGS) -I." $(MAKE) -C gsm lib/libgsm.a
+	@$(MAKE) -C gsm lib/libgsm.a
 
 $(LIBLPC10):
-	@CFLAGS="$(OTHER_SUBDIR_CFLAGS)" $(MAKE) -C lpc10 all
+	@$(MAKE) -C lpc10 all
 
 $(codec_lpc10): $(LIBLPC10)
 
 $(LIBILBC):
-	@CFLAGS="$(OTHER_SUBDIR_CFLAGS)" $(MAKE) -C ilbc all
+	@$(MAKE) -C ilbc all
 
 $(codec_ilbc): $(LIBILBC)

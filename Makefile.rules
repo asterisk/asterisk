@@ -33,19 +33,19 @@ ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
 #K6OPT=-DK6OPT
 
 OPTIMIZE?=-O6
-CFLAGS+=$(OPTIMIZE)
+ASTCFLAGS+=$(OPTIMIZE)
 endif
 
 define ast_make_o_c
 $(1): $(2)
 	$(ECHO_PREFIX) echo "   [CC] $$< -> $$@"
-	$(CMD_PREFIX) $$(CC) -o $$@ -c $$< $$(CFLAGS)
+	$(CMD_PREFIX) $$(CC) -o $$@ -c $$< $$(ASTCFLAGS)
 endef
 
 define ast_make_oo_cc
 $(1): $(2)
 	$(ECHO_PREFIX) echo "   [CXX] $$< -> $$@"
-	$(CMD_PREFIX) $$(CXX) -o $$@ -c $$< $$(CFLAGS)
+	$(CMD_PREFIX) $$(CXX) -o $$@ -c $$< $$(ASTCFLAGS)
 endef
 
 define ast_make_c_y
@@ -63,13 +63,13 @@ endef
 define ast_make_so_o
 $(1): $(2)
 	$(ECHO_PREFIX) echo "   [LD] $$^ -> $$@"
-	$(CMD_PREFIX) $$(CC) $$(STATIC_BUILD) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
+	$(CMD_PREFIX) $$(CC) $$(STATIC_BUILD) -o $$@ $$(ASTLDFLAGS) $$(SOLINK) $$^ $$(LIBS)
 endef
 
 define ast_make_so_oo
 $(1): $(2)
 	$(ECHO_PREFIX) echo "   [LDXX] $$^ -> $$@"
-	$(CMD_PREFIX) $$(CXX) $$(STATIC_BUILD) -o $$@ $$(LDFLAGS) $$(SOLINK) $$^ $$(LIBS)
+	$(CMD_PREFIX) $$(CXX) $$(STATIC_BUILD) -o $$@ $$(ASTLDFLAGS) $$(SOLINK) $$^ $$(LIBS)
 endef
 
 define ast_make_a_o
@@ -82,7 +82,7 @@ endef
 define ast_make_final
 $(1): $(2)
 	$(ECHO_PREFIX) echo "   [LD] $$^ -> $$@"
-	$(CMD_PREFIX) $$(CXX) $$(STATIC_BUILD) -o $$@ $$(LDFLAGS) $$^ $$(LIBS)
+	$(CMD_PREFIX) $$(CXX) $$(STATIC_BUILD) -o $$@ $$(ASTLDFLAGS) $$^ $$(LIBS)
 endef
 
 define ast_make_final_host

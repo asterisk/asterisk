@@ -65,7 +65,7 @@ clean::
 
 ifneq ($(wildcard h323/Makefile.ast),)
   include h323/Makefile.ast
-H323LDFLAGS += -Wl,--version-script=h323/noexport.map
+H323LDFLAGS+=-Wl,--version-script=h323/noexport.map
 clean::
 	$(MAKE) -C h323 clean
 else
@@ -105,8 +105,8 @@ chan_h323.so: chan_h323.o h323/libchanh323.a
 	$(CMD_PREFIX) $(CXX) $(SOLINK) -o $@ $< h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lcrypto -lssl -lexpat
 endif
 
-chan_misdn.o: CFLAGS+=-Imisdn 
+chan_misdn.o: ASTCFLAGS+=-Imisdn 
 
-misdn_config.o: CFLAGS+=-Imisdn 
+misdn_config.o: ASTCFLAGS+=-Imisdn 
 
 $(chan_misdn): chan_misdn.o misdn_config.o misdn/isdn_lib.o misdn/isdn_msg_parser.o
