@@ -774,6 +774,16 @@ void MyH323Connection::SetCallDetails(void *callDetails, const H323SignalPDU &se
 			/* Construct fields back */
 			cd->type_of_number = (type << 4) | screening;
 			cd->presentation = (presentation << 5) | screening;
+		} else if (cd->call_source_e164[0]) {
+			cd->type_of_number = 0;		/* UNKNOWN */
+			cd->presentation = 0x03;	/* ALLOWED NETWORK NUMBER - Default */
+			if (setupPDU.GetQ931().HasIE(Q931::UserUserIE)) {
+				const H225_Setup_UUIE &setup_uuie = setupPDU.m_h323_uu_pdu.m_h323_message_body;
+				if (setup_uuie.HasOptionalField(H225_Setup_UUIE::e_presentationIndicator))
+					cd->presentation = (cd->presentation & 0x9f) | (((unsigned int)setup_uuie.m_presentationIndicator.GetTag()) << 5);
+				if (setup_uuie.HasOptionalField(H225_Setup_UUIE::e_screeningIndicator))
+					cd->presentation = (cd->presentation & 0xe0) | (((unsigned int)setup_uuie.m_screeningIndicator.GetValue()) & 0x1f);
+			}
 		} else {
 			cd->type_of_number = 0;		/* UNKNOWN */
 			cd->presentation = 0x43;	/* NUMBER NOT AVAILABLE */
@@ -791,6 +801,8 @@ void MyH323Connection::SetCallDetails(void *callDetails, const H323SignalPDU &se
 		}
 		else
 			cd->redirect_reason = -1;
+
+		SetDisplayName(cd->call_dest_e164);
 	}
 
 	/* Convert complex strings */
