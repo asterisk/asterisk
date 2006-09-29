@@ -175,6 +175,7 @@ AC_SUBST(AST_DEVMODE)
 # by the --with option name, to make things easier for the users :-)
 
 AST_EXT_LIB_SETUP([ALSA], [Advanced Linux Sound Architecture], [asound])
+AST_EXT_LIB_SETUP([CURL], [cURL], [curl])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
 AST_EXT_LIB_SETUP([GNUTLS], [GNU TLS support (used for iksemel only)], [gnutls])
 AST_EXT_LIB_SETUP([GSM], [GSM], [gsm], [, or 'internal'])
@@ -989,29 +990,27 @@ AC_SUBST(PBX_GTK)
 AC_SUBST(GTK_INCLUDE)
 AC_SUBST(GTK_LIB)
 
-PBX_CURL=0
-AC_PATH_TOOL([CURL], [curl-config], No)
-if test ! x"${CURL}" = xNo; then
-# check for version
-   if test "${host_os}" = "SunOS"; then
-      if [[ 0x`curl-config --vernum` -ge 0x70907 ]]; then
-         CURL_INCLUDE=$(${CURL} --cflags)
-         CURL_LIB=$(${CURL} --libs)
-         PBX_CURL=1
-         AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
-      fi
-   else
-      if [[[ 0x`curl-config --vernum` -ge 0x70907 ]]]; then
-         CURL_INCLUDE=$(${CURL} --cflags)
-         CURL_LIB=$(${CURL} --libs)
-         PBX_CURL=1
-         AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
-      fi
-   fi
+if test "${USE_CURL}" != "no"; then
+   AC_PATH_TOOL([CURL], [curl-config], No)
+   if test ! x"${CURL}" = xNo; then
+   # check for version
+      if test "${host_os}" = "SunOS"; then
+            if [[ 0x`curl-config --vernum` -ge 0x70907 ]]; then
+	        CURL_INCLUDE=$(${CURL} --cflags)
+		CURL_LIB=$(${CURL} --libs)
+		PBX_CURL=1
+		AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
+	    fi
+	 else
+	    if [[[ 0x`curl-config --vernum` -ge 0x70907 ]]]; then
+	        CURL_INCLUDE=$(${CURL} --cflags)
+		CURL_LIB=$(${CURL} --libs)
+		PBX_CURL=1
+		AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
+	    fi
+	fi
+    fi
 fi
-AC_SUBST(PBX_CURL)
-AC_SUBST(CURL_INCLUDE)
-AC_SUBST(CURL_LIB)
 
 AC_CONFIG_FILES([build_tools/menuselect-deps makeopts channels/h323/Makefile])
 AC_OUTPUT
