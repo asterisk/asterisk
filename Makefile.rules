@@ -88,7 +88,7 @@ endef
 define ast_make_final_host
 $(1): $(2)
 	$(ECHO_PREFIX) echo "   [LD] $$^ -> $$@"
-	$(CMD_PREFIX) $$(HOST_CC) $$(STATIC_BUILD) -o $$@ $$(CFLAGS) $$(LDFLAGS) $$^ $$(LIBS)
+	$(CMD_PREFIX) $$(HOST_CC) $$(STATIC_BUILD) -o $$@ $$(HOST_CFLAGS) $$(HOST_LDFLAGS) $$^ $$(LIBS)
 endef
 
 $(eval $(call ast_make_o_c,%.o,%.c))
