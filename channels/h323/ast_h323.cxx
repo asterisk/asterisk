@@ -779,6 +779,8 @@ void MyH323Connection::SetCallDetails(void *callDetails, const H323SignalPDU &se
 		}
 		else
 			cd->redirect_reason = -1;
+
+		SetDisplayName(cd->call_dest_e164);
 	}
 
 	/* Convert complex strings */
