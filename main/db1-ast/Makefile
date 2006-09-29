@@ -36,7 +36,10 @@ include $(ASTTOPDIR)/Makefile.rules
 
 all: $(LIBDB) #$(LIBDBSO) $(PROG)
 
-$(eval $(call ast_make_a_o,$(LIBDB),$(OBJS)))
+$(LIBDB): $(OBJS)
+	$(ECHO_PREFIX) echo "   [AR] $^ -> $@"
+	$(CMD_PREFIX) $(AR) cr $@ $^
+	$(CMD_PREFIX) $(RANLIB) $@
 
 $(LIBDBSO): $(SHOBJS)
 	$(CC) -Wl,-O1 -Wl,--version-script=libdb.map -Wl,-soname=$(LIBDBSO) -shared -o $@ $^

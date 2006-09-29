@@ -347,7 +347,11 @@ $(LIBGSMSO):	$(LIB) $(GSM_OBJECTS)
 		ln -fs libgsm.so.1.0.10 lib/libgsm.so.1
 		ln -fs libgsm.so.1.0.10 lib/libgsm.so
 
-$(eval $(call ast_make_a_o,$(LIBGSM),$(GSM_OBJECTS)))
+$(LIBGSM): $(GSM_OBJECTS)
+	$(ECHO_PREFIX) echo "   [AR] $^ -> $@"
+	$(CMD_PREFIX) $(AR) cr $@ $^
+	$(CMD_PREFIX) $(RANLIB) $@
+
 
 # Toast, Untoast and Tcat -- the compress-like frontends to gsm.
 

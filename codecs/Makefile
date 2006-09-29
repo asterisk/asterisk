@@ -32,7 +32,7 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 
 ifneq ($(GSM_INTERNAL),)
 GSM_INCLUDE:=-Igsm/inc
-$(codec_gsm): gsm/lib/libgsm.a
+$(if $(filter codec_gsm,$(EMBEDDED_MODS)),modules.link,codec_gsm.so): gsm/lib/libgsm.a
 endif
 
 clean::
@@ -47,9 +47,9 @@ gsm/lib/libgsm.a:
 $(LIBLPC10):
 	@$(MAKE) -C lpc10 all
 
-$(codec_lpc10): $(LIBLPC10)
+$(if $(filter codec_lpc10,$(EMBEDDED_MODS)),modules.link,codec_lpc10.so): $(LIBLPC10)
 
 $(LIBILBC):
 	@$(MAKE) -C ilbc all
 
-$(codec_ilbc): $(LIBILBC)
+$(if $(filter codec_ilbc,$(EMBEDDED_MODS)),modules.link,codec_ilbc.so): $(LIBILBC)

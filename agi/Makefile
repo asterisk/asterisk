@@ -23,11 +23,12 @@ include $(ASTTOPDIR)/Makefile.rules
 
 all: $(AGIS)
 
+strcompat.c: ../main/strcompat.c
+	@cp $< $@
+
 eagi-test: eagi-test.o strcompat.o
 
 eagi-sphinx-test: eagi-sphinx-test.o
-
-$(eval $(call ast_make_o_c,strcompat.o,../main/strcompat.c))
 
 install: all
 	mkdir -p $(DESTDIR)$(AGI_DIR)
@@ -41,6 +42,7 @@ clean-depend:
 
 clean: clean-depend
 	rm -f *.so *.o look eagi-test eagi-sphinx-test
+	rm -f strcompat.c
 
 ifneq ($(wildcard .depend),)
   include .depend

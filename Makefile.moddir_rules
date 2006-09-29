@@ -27,35 +27,18 @@ include $(ASTTOPDIR)/Makefile.rules
 
 comma:=,
 
-define module_o_template
-$(2): $(3)
-$(2): ASTCFLAGS+=-DAST_MODULE=\"$(1)\" $$(MENUSELECT_OPTS_$(1):%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_INCLUDE))
-endef
+$(addsuffix .o,$(C_MODS)): ASTCFLAGS+=-DAST_MODULE=\"$*\" $(MENUSELECT_OPTS_$*:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_INCLUDE))
+$(addsuffix .oo,$(CC_MODS)): ASTCFLAGS+=-DAST_MODULE=\"$*\" $(MENUSELECT_OPTS_$*:%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_INCLUDE))
 
-define module_so_template
-$(1)=$(1).so
-$(1).so: ASTCFLAGS+=-fPIC
-$(1).so: LIBS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LIB))
-$(1).so: ASTLDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$$(value $(dep)_LDFLAGS))
-$(1).so: $(2)
-endef
+$(LOADABLE_MODS:%=%.so): ASTCFLAGS+=-fPIC
+$(LOADABLE_MODS:%=%.so): LIBS+=$(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_LIB))
+$(LOADABLE_MODS:%=%.so): ASTLDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$*),$(value $(dep)_LDFLAGS))
 
-define module_a_template
-$(1)=modules.link
-modules.link: $(2)
-endef
+$(addsuffix .so,$(filter $(LOADABLE_MODS),$(C_MODS))): %.so: %.o
+$(addsuffix .so,$(filter $(LOADABLE_MODS),$(CC_MODS))): %.so: %.oo
 
-$(foreach mod,$(C_MODS),$(eval $(call module_o_template,$(mod),$(mod).o,$(mod).c)))
-
-$(foreach mod,$(CC_MODS),$(eval $(call module_o_template,$(mod),$(mod).oo,$(mod).cc)))
-
-$(foreach mod,$(filter-out $(EMBEDDED_MODS),$(C_MODS)),$(eval $(call module_so_template,$(mod),$(mod).o)))
-
-$(foreach mod,$(filter-out $(EMBEDDED_MODS),$(CC_MODS)),$(eval $(call module_so_template,$(mod),$(mod).oo)))
-
-$(foreach mod,$(filter $(EMBEDDED_MODS),$(C_MODS)),$(eval $(call module_a_template,$(mod),$(mod).o)))
-
-$(foreach mod,$(filter $(EMBEDDED_MODS),$(CC_MODS)),$(eval $(call module_a_template,$(mod),$(mod).oo)))
+modules.link: $(addsuffix .o,$(filter $(EMBEDDED_MODS),$(C_MODS)))
+modules.link: $(addsuffix .oo,$(filter $(EMBEDDED_MODS),$(CC_MODS)))
 
 .PHONY: clean clean-depend depend uninstall _all
 
@@ -81,7 +64,8 @@ endif
 
 modules.link:
 	@rm -f $@
-	@for file in $(patsubst $(ASTTOPDIR)/%,%,$(realpath $^)); do echo "INPUT (../$${file})" >> $@; done
+	@for file in $(patsubst %,$(SUBDIR)/%,$(filter %.o,$^)); do echo "INPUT (../$${file})" >> $@; done
+	@for file in $(patsubst %,$(SUBDIR)/%,$(filter-out %.o,$^)); do echo "INPUT (../$${file})" >> $@; done
 
 clean-depend::
 	rm -f .depend
