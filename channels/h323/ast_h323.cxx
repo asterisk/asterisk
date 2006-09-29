@@ -715,6 +715,8 @@ void MyH323Connection::SetCallOptions(void *o, BOOL isIncoming)
 			rdnis = PString(opts->cid_rdnis);
 			redirect_reason = opts->redirect_reason;
 		}
+		cid_presentation = opts->presentation;
+		cid_ton = opts->type_of_number;
 	}
 	tunnelOptions = opts->tunnelOptions;
 }
@@ -747,6 +749,17 @@ void MyH323Connection::SetCallDetails(void *callDetails, const H323SignalPDU &se
 		WORD sourcePort;
 		PString redirect_number;
 		unsigned redirect_reason;
+		unsigned plan, type, screening, presentation;
+
+		/* Fetch presentation and type information about calling party's number */
+		if (setupPDU.GetQ931().GetCallingPartyNumber(sourceName, &plan, &type, &presentation, &screening, 2, 3)) {
+			/* Construct fields back */
+			cd->type_of_number = (type << 4) | screening;
+			cd->presentation = (presentation << 5) | screening;
+		} else {
+			cd->type_of_number = 0;		/* UNKNOWN */
+			cd->presentation = 0x43;	/* NUMBER NOT AVAILABLE */
+		}
 
 		sourceName = setupPDU.GetQ931().GetDisplayName();
 		cd->call_source_name = strdup((const char *)sourceName);
@@ -886,8 +899,14 @@ static BOOL FetchCiscoTunneledInfo(Q931 &q931, const H323SignalPDU &pdu)
 
 static BOOL EmbedCiscoTunneledInfo(H323SignalPDU &pdu)
 {
-	const static Q931::InformationElementCodes codes[] =
-	{ Q931::RedirectingNumberIE, Q931::FacilityIE };
+	const static struct {
+		Q931::InformationElementCodes ie;
+		BOOL dontDelete;
+	} codes[] = {
+		{ Q931::RedirectingNumberIE, },
+		{ Q931::FacilityIE, },
+		{ Q931::CallingPartyNumberIE, TRUE },
+	};
 
 	BOOL res = FALSE;
 	BOOL notRedirOnly = FALSE;
@@ -895,10 +914,11 @@ static BOOL EmbedCiscoTunneledInfo(H323SignalPDU &pdu)
 	Q931 &q931 = pdu.GetQ931();
 
 	for(unsigned i = 0; i < (sizeof(codes) / sizeof(codes[0])); ++i) {
-		if (q931.HasIE(codes[i])) {
-			tmpQ931.SetIE(codes[i], q931.GetIE(codes[i]));
-			q931.RemoveIE(codes[i]);
-			if (codes[i] != Q931::RedirectingNumberIE)
+		if (q931.HasIE(codes[i].ie)) {
+			tmpQ931.SetIE(codes[i].ie, q931.GetIE(codes[i].ie));
+			if (!codes[i].dontDelete)
+				q931.RemoveIE(codes[i].ie);
+			if (codes[i].ie != Q931::RedirectingNumberIE)
 				notRedirOnly = TRUE;
 			res = TRUE;
 		}
@@ -1187,6 +1207,12 @@ BOOL MyH323Connection::OnSendSignalSetup(H323SignalPDU & setupPDU)
 		}
 		return FALSE;
 	}
+
+	/* OpenH323 will build calling party information with default
+	   type and presentation information, so build it to be recorded
+	   by embedding routines */
+	setupPDU.GetQ931().SetCallingPartyNumber(GetLocalPartyName(), (cid_ton >> 4) & 0x07,
+			cid_ton & 0x0f, (cid_presentation >> 5) & 0x03, cid_presentation & 0x1f);
 
 #ifdef TUNNELLING
 	EmbedTunneledInfo(setupPDU);
