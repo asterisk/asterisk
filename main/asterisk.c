@@ -2074,9 +2074,9 @@ static void ast_remotecontrol(char * data)
 		pid = atoi(cpid);
 	else
 		pid = -1;
-	snprintf(tmp, sizeof(tmp), "core verbose %d", option_verbose);
+	snprintf(tmp, sizeof(tmp), "core verbose atleast %d", option_verbose);
 	fdprint(ast_consock, tmp);
-	snprintf(tmp, sizeof(tmp), "core debug %d", option_debug);
+	snprintf(tmp, sizeof(tmp), "core debug atleast %d", option_debug);
 	fdprint(ast_consock, tmp);
 	if (ast_opt_mute) {
 		snprintf(tmp, sizeof(tmp), "log and verbose output currently muted ('logger unmute' to unmute)");
