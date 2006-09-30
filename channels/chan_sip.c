@@ -6100,6 +6100,8 @@ static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct s
 		add_t38_sdp(&resp, p);
 	} else 
 		ast_log(LOG_ERROR, "Can't add SDP to response, since we have no UDPTL session allocated. Call-ID %s\n", p->callid);
+	if (retrans && !p->pendinginvite)
+		p->pendinginvite = seqno;		/* Buggy clients sends ACK on RINGING too */
 	return send_response(p, &resp, retrans, seqno);
 }
 
@@ -6138,6 +6140,8 @@ static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const 
 		add_sdp(&resp, p);
 	} else 
 		ast_log(LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
+	if (reliable && !p->pendinginvite)
+		p->pendinginvite = seqno;		/* Buggy clients sends ACK on RINGING too */
 	return send_response(p, &resp, reliable, seqno);
 }
 
