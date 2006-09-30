@@ -1087,9 +1087,11 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		return &ast_null_frame;
 	}
 
+#if 0	/* Allow to receive RTP stream with closed transmission path */
 	/* If we don't have the other side's address, then ignore this */
 	if (!rtp->them.sin_addr.s_addr || !rtp->them.sin_port)
 		return &ast_null_frame;
+#endif
 
 	/* Send to whoever send to us if NAT is turned on */
 	if (rtp->nat) {
@@ -1155,7 +1157,8 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		rtp->seedrxseqno = seqno;
 	}
 
-	if (rtp->rtcp && rtp->rtcp->schedid < 1) {
+	/* Do not schedule RR if RTCP isn't run */
+	if (rtp->rtcp && rtp->rtcp->them.sin_addr.s_addr && rtp->rtcp->schedid < 1) {
 		/* Schedule transmission of Receiver Report */
 		rtp->rtcp->schedid = ast_sched_add(rtp->sched, ast_rtcp_calc_interval(rtp), ast_rtcp_write, rtp);
 	}
@@ -2157,11 +2160,12 @@ static int ast_rtcp_write_sr(void *data)
 	struct timeval dlsr;
 	char bdata[512];
 
-	if (!rtp || !rtp->rtcp || (&rtp->rtcp->them.sin_addr == 0))
+	/* Commented condition is always not NULL if rtp->rtcp is not NULL */
+	if (!rtp || !rtp->rtcp/* || (&rtp->rtcp->them.sin_addr == 0)*/)
 		return 0;
 	
 	if (!rtp->rtcp->them.sin_addr.s_addr) {  /* This'll stop rtcp for this rtp session */
-		ast_verbose("RTCP SR transmission error, rtcp halted %s\n",strerror(errno));
+		ast_verbose("RTCP SR transmission error, rtcp halted\n");
 		if (rtp->rtcp->schedid > 0)
 			ast_sched_del(rtp->sched, rtp->rtcp->schedid);
 		rtp->rtcp->schedid = -1;
