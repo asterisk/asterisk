@@ -93,7 +93,7 @@ ifeq ($(OSARCH),SunOS)
 endif
 
 editline/libedit.a:
-	cd editline && test -f config.h || CFLAGS="$(ASTCFLAGS)" ./configure --build=$(BUILD_PLATFORM) --host=$(HOST_PLATFORM)
+	cd editline && test -f config.h ||  CFLAGS="$(ASTCFLAGS:-Werror=)" ./configure --build=$(BUILD_PLATFORM) --host=$(HOST_PLATFORM)
 	$(MAKE) -C editline libedit.a
 
 db1-ast/libdb1.a:

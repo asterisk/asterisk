@@ -15,6 +15,7 @@
 #
 # ASTCFLAGS - compiler options
 # ASTLDFLAGS - linker flags (not libraries)
+# AST_LIBS - libraries to build binaries XXX
 # LIBS - additional libraries, at top-level for all links,
 #      on a single object just for that object
 # SOLINK - linker flags used only for creating shared objects (.so files),
@@ -302,7 +303,7 @@ $(SUBDIRS): depend makeopts.embed_rules
 main: $(filter-out main,$(MOD_SUBDIRS))
 
 $(MOD_SUBDIRS):
-	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) --no-print-directory -C $@ SUBDIR=$@ all
+	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" AST_LIBS="$(AST_LIBS)" $(MAKE) --no-print-directory -C $@ SUBDIR=$@ all
 
 $(OTHER_SUBDIRS):
 	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) --no-print-directory -C $@ SUBDIR=$@ all
