@@ -109,7 +109,9 @@ else
   ASTVARLIBDIR=$(localstatedir)/lib/asterisk
 endif
 endif
-ASTDATADIR?=$(ASTVARLIBDIR)
+ifeq ($(ASTDATADIR),)
+  ASTDATADIR:=$(ASTVARLIBDIR)
+endif
 
 # Asterisk.conf is located in ASTETCDIR or by using the -C flag
 # when starting Asterisk
