@@ -192,6 +192,7 @@ struct oh323_pvt {
 	int txDtmfDigit;					/* DTMF digit being to send to H.323 side */
 	int noInbandDtmf;					/* Inband DTMF processing by DSP isn't available */
 	int connection_established;			/* Call got CONNECT message */
+	int got_progress;					/* Call got PROGRESS message, pass inband audio */
 	struct oh323_pvt *next;				/* Next channel in list */
 } *iflist = NULL;
 
@@ -861,9 +862,14 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 
 	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
 	char *token = (char *)NULL;
+	int res = -1;
+	int got_progress;
 
 	ast_mutex_lock(&pvt->lock);
 	token = (pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL);
+	got_progress = pvt->got_progress;
+	if (condition == AST_CONTROL_PROGRESS)
+		pvt->got_progress = 1;
 	ast_mutex_unlock(&pvt->lock);
 
 	if (h323debug)
@@ -873,6 +879,7 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 	case AST_CONTROL_RINGING:
 		if (c->_state == AST_STATE_RING || c->_state == AST_STATE_RINGING) {
 			h323_send_alerting(token);
+			res = (got_progress ? 0 : -1);	/* Do not simulate any audio tones if we got PROGRESS message */
 			break;
 		}
 		if (token)
@@ -880,7 +887,9 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 		return -1;
 	case AST_CONTROL_PROGRESS:
 		if (c->_state != AST_STATE_UP) {
-			h323_send_progress(token);
+			/* Do not send PROGRESS message more than once */
+			if (!got_progress)
+				h323_send_progress(token);
 			break;
 		}
 		if (token)
@@ -938,7 +947,7 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 		free(token);
 	oh323_update_info(c);
 
-	return -1;
+	return res;
 }
 
 static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
