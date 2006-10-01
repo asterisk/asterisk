@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
+#include "asterisk/app.h"
 
 static char *app = "Zapateller";
 
@@ -59,36 +60,36 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct ast_module_user *u;
-	int answer = 0, nocallerid = 0;
-	char *c;
-	char *stringp=NULL;
-	
+	int i, answer = 0, nocallerid = 0;
+	char *parse = ast_strdupa((char *)data);
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(options)[2];
+	);
+
 	u = ast_module_user_add(chan);
 
-	stringp=data;
-        c = strsep(&stringp, "|");
-        while(!ast_strlen_zero(c)) {
-		if (!strcasecmp(c, "answer"))
-			answer = 1;
-		else if (!strcasecmp(c, "nocallerid"))
-			nocallerid = 1;
+	AST_STANDARD_APP_ARGS(args, parse);
 
-                c = strsep(&stringp, "|");
-        }
+	for (i = 0; i < args.argc; i++) {
+		if (!strcasecmp(args.options[i], "answer"))
+			answer = 1;
+		else if (!strcasecmp(args.options[i], "nocallerid"))
+			nocallerid = 1;
+	}
 
 	ast_stopstream(chan);
 	if (chan->_state != AST_STATE_UP) {
-
 		if (answer) 
 			res = ast_answer(chan);
-		if (!res) {
+		if (!res)
 			res = ast_safe_sleep(chan, 500);
-		}
 	}
-	if (chan->cid.cid_num && nocallerid) {
+
+	if (!ast_strlen_zero(chan->cid.cid_num) && nocallerid) {
 		ast_module_user_remove(u);
 		return res;
 	} 
+
 	if (!res) 
 		res = ast_tonepair(chan, 950, 0, 330, 0);
 	if (!res) 
@@ -97,6 +98,7 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
 		res = ast_tonepair(chan, 1800, 0, 330, 0);
 	if (!res) 
 		res = ast_tonepair(chan, 0, 0, 1000, 0);
+
 	ast_module_user_remove(u);
 	return res;
 }
