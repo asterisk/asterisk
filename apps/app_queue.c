@@ -238,6 +238,9 @@ static const char *pm_family = "/Queue/PersistentMembers";
 #define PM_MAX_LEN 8192
 
 /*! \brief queues.conf [general] option */
+static int queue_keep_stats = 0;
+
+/*! \brief queues.conf [general] option */
 static int queue_persistent_members = 0;
 
 /*! \brief queues.conf per-queue weight option */
@@ -3699,6 +3702,9 @@ static int reload_queues(void)
 	while ((cat = ast_category_browse(cfg, cat)) ) {
 		if (!strcasecmp(cat, "general")) {	
 			/* Initialize global settings */
+			queue_keep_stats = 0;
+			if ((general_val = ast_variable_retrieve(cfg, "general", "keepstats")))
+				queue_keep_stats = ast_true(general_val);
 			queue_persistent_members = 0;
 			if ((general_val = ast_variable_retrieve(cfg, "general", "persistentmembers")))
 				queue_persistent_members = ast_true(general_val);
@@ -3728,7 +3734,8 @@ static int reload_queues(void)
 					ast_mutex_lock(&q->lock);
 				/* Re-initialize the queue, and clear statistics */
 				init_queue(q);
-				clear_queue(q);
+				if (!queue_keep_stats) 
+					clear_queue(q);
 				for (cur = q->members; cur; cur = cur->next) {
 					if (!cur->dynamic) {
 						cur->delme = 1;

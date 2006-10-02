@@ -17,3 +17,5 @@ Changes since Asterisk 1.4-beta was branched:
      can use --with-cap to specify the path.
   * H323 remote hold notification support added (by NOTIFY message
      and/or H.450 supplementary service)
+  * Added keepstats option to queues.conf which will keep queue
+     statistics during a reload.

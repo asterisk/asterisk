@@ -8,6 +8,11 @@
 ;    read into their recorded queues. Default is 'yes'.
 ;
 persistentmembers = yes
+;
+; Keep Stats
+;    Keep queue statistics during a reload. Default is 'no'
+;
+keepstats = no
 ; 
 ; AutoFill Behavior
 ;    The old/current behavior of the queue has a serial type behavior 
