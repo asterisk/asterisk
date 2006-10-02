@@ -38,7 +38,7 @@ AST_SBIN=/usr/sbin
 . /etc/rc.d/init.d/functions
 
 if ! [ -x $AST_SBIN/asterisk ] ; then
-	echo "ERROR: /usr/sbin/asterisk not found"
+	echo "ERROR: $AST_SBIN/asterisk not found"
 	exit 0
 fi
 
