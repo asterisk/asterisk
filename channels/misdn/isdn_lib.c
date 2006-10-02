@@ -489,7 +489,8 @@ char *bc_state2str(enum bchannel_state state) {
 
 void bc_state_change(struct misdn_bchannel *bc, enum bchannel_state state)
 {
-	cb_log(5,bc->port,"BC_STATE_CHANGE: from:%s to:%s\n",
+	cb_log(5,bc->port,"BC_STATE_CHANGE: l3id:%x from:%s to:%s\n",
+		bc->l3_id,
 	       bc_state2str(bc->bc_state),
 	       bc_state2str(state) );
 	
@@ -604,8 +605,6 @@ void empty_bc(struct misdn_bchannel *bc)
 	bc->out_fac_type=FACILITY_NONE;
 	
 	bc->te_choose_channel = 0;
-
-	bc->holded_bc=NULL;
 }
 
 
@@ -1385,21 +1384,33 @@ struct misdn_bchannel *find_bc_by_addr(unsigned long addr)
 	struct misdn_stack* stack;
 	int i;
 
-	
 	for (stack=glob_mgr->stack_list;
 	     stack;
 	     stack=stack->next) {
-		
 		for (i=0; i< stack->b_num; i++) {
-
 			if ( (stack->bc[i].addr&STACK_ID_MASK)==(addr&STACK_ID_MASK) ||  stack->bc[i].layer_id== addr ) {
 				return &stack->bc[i];
 			}
 		}
-		
 	}
-
 	
+	return NULL;
+}
+
+struct misdn_bchannel *find_bc_by_confid(unsigned long confid)
+{
+	struct misdn_stack* stack;
+	int i;
+	
+	for (stack=glob_mgr->stack_list;
+	     stack;
+	     stack=stack->next) {
+		for (i=0; i< stack->b_num; i++) {
+			if ( stack->bc[i].conf_id==confid ) {
+				return &stack->bc[i];
+			}
+		}
+	}
 	return NULL;
 }
 
@@ -1740,16 +1751,17 @@ handle_event_nt(void *dat, void *arg)
 			
 			struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
 			struct misdn_bchannel *hold_bc=stack_holder_find(stack,bc->l3_id);
+			cb_log(4, stack->port, "bc_l3id:%x holded_bc_l3id:%x\n",bc->l3_id, hold_bc->l3_id);
 
 			if (hold_bc) {
-
 				cb_log(4, stack->port, "REMOVEING Holder\n");
+
+				/*swap the backup to our new channel back*/
 				stack_holder_remove(stack, hold_bc);
-
 				memcpy(bc,hold_bc,sizeof(struct misdn_bchannel));
-				cb_event(EVENT_NEW_BC, hold_bc, bc);
-
 				free(hold_bc);
+
+				bc->holded=0;
 			}
 			
 		}
@@ -3154,8 +3166,6 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	case EVENT_CONNECT:
 	case EVENT_RETRIEVE_ACKNOWLEDGE:
 
-		bc->holded=0;
-		
 		if (stack->nt) {
 			if (bc->channel <=0 ) { /*  else we have the channel already */
 				bc->channel = find_free_chan_in_stack(stack, 0);
@@ -3174,9 +3184,6 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 			cb_log(0,bc->port,"send_event: setup_bc failed\n");
 		}
 
-		cb_log(0,bc->port,"After SETUP BC\n");
-
-		
 		if (misdn_cap_is_speech(bc->capability)) {
 			if ((event==EVENT_CONNECT)||(event==EVENT_RETRIEVE_ACKNOWLEDGE)) {
 				if ( *bc->crypt_key ) {
@@ -3204,14 +3211,27 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	case EVENT_HOLD_ACKNOWLEDGE:
 	{
 		struct misdn_bchannel *holded_bc=malloc(sizeof(struct misdn_bchannel));
+		if (!holded_bc) {
+			cb_log(0,bc->port, "Could not allocate holded_bc!!!\n");
+			return -1;
+		}
+
+		/*backup the bc*/
 		memcpy(holded_bc,bc,sizeof(struct misdn_bchannel));
 		holded_bc->holded=1;
+		bc_state_change(holded_bc,BCHAN_CLEANED);
+
 		stack_holder_add(stack,holded_bc);
-		
+	
+		/*kill the bridge and clean the bchannel*/
 		if (stack->nt) {
 			if (bc->bc_state == BCHAN_BRIDGED) {
 				misdn_split_conf(bc,bc->conf_id);
-				misdn_split_conf(bc->holded_bc,bc->holded_bc->conf_id);
+				struct misdn_bchannel *bc2=find_bc_by_confid(bc->conf_id);
+				if (!bc2) 
+					cb_log(0,bc->port,"We have no second bc in bridge???\n");
+				else 
+					misdn_split_conf(bc2,bc->conf_id);
 			}
 
 			if (bc->channel>0)
@@ -3220,11 +3240,6 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 			clean_up_bc(bc);
 		}
 		
-		/** we set it up later at RETRIEVE_ACK again.**/
-		/*holded_bc->upset=0;
-		  holded_bc->active=0;*/
-		bc_state_change(holded_bc,BCHAN_CLEANED);
-		cb_event( EVENT_NEW_BC, bc,  holded_bc);
 	}
 	break;
 
@@ -4045,6 +4060,27 @@ void stack_holder_remove(struct misdn_stack *stack, struct misdn_bchannel *holde
 	}
 }
 
+struct misdn_bchannel *stack_holder_find_bychan(struct misdn_stack *stack, int chan)
+{
+	struct misdn_bchannel *help;
+
+	cb_log(4,stack?stack->port:0, "*HOLDER: find_bychan %c\n", chan);
+	
+	if (!stack) return NULL;
+	
+	for (help=stack->holding;
+	     help;
+	     help=help->next) {
+		if (help->channel == chan) {
+			cb_log(4,stack->port, "*HOLDER: found_bychan bc\n");
+			return help;
+		}
+	}
+
+	cb_log(4,stack->port, "*HOLDER: find_bychan nothing\n");
+	return NULL;
+
+}
 
 struct misdn_bchannel *stack_holder_find(struct misdn_stack *stack, unsigned long l3id)
 {
