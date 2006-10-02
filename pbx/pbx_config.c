@@ -2371,6 +2371,10 @@ static void pbx_load_users(void)
 			snprintf(tmp, sizeof(tmp), "IAX/%s", cat);
 			append_interface(iface, sizeof(iface), tmp);
 		}
+		if (ast_true(ast_config_option(cfg, cat, "hash323"))) {
+			snprintf(tmp, sizeof(tmp), "H323/%s", cat);
+			append_interface(iface, sizeof(iface), tmp);
+		}
 		hasexten = ast_config_option(cfg, cat, "hasexten");
 		if (hasexten && !ast_true(hasexten))
 			continue;
