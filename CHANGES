@@ -23,3 +23,5 @@ Changes since Asterisk 1.4-beta was branched:
      the time to name the logger files instead of sequence number.
   * The output of CallerID in Manager events is now more consistent.
      CallerIDNum is used for number and CallerIDName for name.
+  * setinterfacevar option in queues.conf also now sets a variable
+     called MEMBERNAME which contains the member's name.

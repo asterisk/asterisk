@@ -591,6 +591,8 @@ ${HINTNAME}      	* Suggested Caller*ID name for this extension
 ${INVALID_EXTEN} 	The invalid called extension (used in the "i" extension)
 ${LANGUAGE}	 	* Current language (Deprecated; use ${LANGUAGE()})
 ${LEN(VAR)}	 	* String length of VAR (integer)
+${MEMBERINTERFACE}	* The interface name of the queuemember that was chosen
+${MEMBERNAME}		* The member name of the queuemember that was chosen
 ${PRIORITY}	 	* Current priority in the dialplan
 ${PRIREDIRECTREASON} 	Reason for redirect on PRI, if a call was directed
 ${RDNIS}         	* Redirected Dial Number ID Service (Deprecated; use ${CALLERID(rdnis)})
