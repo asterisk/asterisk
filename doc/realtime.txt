@@ -54,7 +54,7 @@ information about this is to be found in the sip.conf sample file.
 
 * Realtime H.323 friends
 ------------------------
-Like SIP realtime friends, H.323 friends aslo can be configured using
+Like SIP realtime friends, H.323 friends also can be configured using
 dynamic realtime objects.
 
 * New function in the dial plan: The Realtime Switch
