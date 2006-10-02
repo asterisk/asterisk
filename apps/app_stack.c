@@ -57,16 +57,17 @@ static const char *return_synopsis = "Return from gosub routine";
 static const char *pop_synopsis = "Remove one address from gosub stack";
 
 static const char *gosub_descrip =
-"Gosub([[context|]exten|]priority[:arg1[|...][|argN]])\n"
+"Gosub([[context|]exten|]priority[(arg1[|...][|argN])])\n"
 "  Jumps to the label specified, saving the return address.\n";
 static const char *gosubif_descrip =
-"GosubIf(condition?labeliftrue[:labeliffalse[:arg1[|...][|argN]]])\n"
+"GosubIf(condition?labeliftrue[(arg1[|...])][:labeliffalse[(arg1[|...])]])\n"
 "  If the condition is true, then jump to labeliftrue.  If false, jumps to\n"
 "labeliffalse, if specified.  In either case, a jump saves the return point\n"
 "in the dialplan, to be returned to with a Return.\n";
 static const char *return_descrip =
-"Return()\n"
-"  Jumps to the last label on the stack, removing it.\n";
+"Return([return-value])\n"
+"  Jumps to the last label on the stack, removing it.  The return value, if\n"
+"any, is saved in the channel variable GOSUB_RETVAL.\n";
 static const char *pop_descrip =
 "StackPop()\n"
 "  Removes last label on the stack, discarding it.\n";
@@ -142,16 +143,23 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_ERROR, "%s requires an argument: %s([[context|]exten|]priority[:arg1[|...][|argN]])\n", app_gosub, app_gosub);
+		ast_log(LOG_ERROR, "%s requires an argument: %s([[context|]exten|]priority[(arg1[|...][|argN])])\n", app_gosub, app_gosub);
 		return -1;
 	}
 
 	u = ast_module_user_add(chan);
 
-	AST_NONSTANDARD_APP_ARGS(args, tmp, ':');
-	AST_STANDARD_APP_ARGS(args2, args.args);
+	/* Separate the arguments from the label */
+	AST_NONSTANDARD_APP_ARGS(args, tmp, '(');
+	if (args.argc == 2) {
+		char *endparen = strrchr(args.args, ')');
+		if (endparen)
+			*endparen = '\0';
+		AST_STANDARD_APP_ARGS(args2, args.args);
+	}
 
-	snprintf(newlabel, sizeof(newlabel), "%d:%s|%s|%d", args2.argc, chan->context, chan->exten, chan->priority + 1);
+	/* Create the return address, but don't save it until we know that the Gosub destination exists */
+	snprintf(newlabel, sizeof(newlabel), "%d:%s|%s|%d", args.argc == 2 ? args2.argc : 0, chan->context, chan->exten, chan->priority + 1);
 
 	if (ast_parseable_goto(chan, data)) {
 		ast_module_user_remove(u);
@@ -159,11 +167,12 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	}
 
 	/* Now that we know for certain that we're going to a new location, set our arguments */
-	for (i = 0; i < args2.argc; i++) {
+	for (i = 0; i < (args.argc == 2 ? args2.argc : 0); i++) {
 		snprintf(argname, sizeof(argname), "ARG%d", i + 1);
 		pbx_builtin_pushvar_helper(chan, argname, args2.argval[i]);
 	}
 
+	/* And finally, save our return address */
 	pbx_builtin_pushvar_helper(chan, STACKVAR, newlabel);
 	ast_module_user_remove(u);
 
@@ -173,11 +182,11 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 static int gosubif_exec(struct ast_channel *chan, void *data)
 {
 	struct ast_module_user *u;
-	char *condition="", *label1, *label2, *args;
+	char *condition = "", *label1, *label2, *args;
 	int res=0;
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "GosubIf requires an argument\n");
+		ast_log(LOG_WARNING, "GosubIf requires an argument: GosubIf(cond?label1(args):label2(args)\n");
 		return 0;
 	}
 
@@ -187,22 +196,13 @@ static int gosubif_exec(struct ast_channel *chan, void *data)
 
 	condition = strsep(&args, "?");
 	label1 = strsep(&args, ":");
-	label2 = strsep(&args, ":");
+	label2 = args;
 
 	if (pbx_checkcondition(condition)) {
-		if (label1) {
-			int len = (args ? strlen(args) : 0) + strlen(label1) + 2;
-			char *args2 = alloca(len);
-
-			snprintf(args2, len, "%s%c%s", label1, args ? ':' : '\0', args ? args : "");
-			res = gosub_exec(chan, args2);
-		}
+		if (label1)
+			res = gosub_exec(chan, label1);
 	} else if (label2) {
-		int len = (args ? strlen(args) : 0) + strlen(label2) + 2;
-		char *args2 = alloca(len);
-
-		snprintf(args2, len, "%s%c%s", label2, args ? ':' : '\0', args ? args : "");
-		res = gosub_exec(chan, args2);
+		res = gosub_exec(chan, label2);
 	}
 
 	ast_module_user_remove(u);
