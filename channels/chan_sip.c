@@ -565,6 +565,7 @@ static enum channelreloadreason sip_reloadreason;       /*!< Reason for last rel
 
 static struct sched_context *sched;     /*!< The scheduling context */
 static struct io_context *io;           /*!< The IO context */
+static int *sipsock_read_id;            /*!< ID of IO entry for sipsock FD */
 
 #define DEC_CALL_LIMIT	0
 #define INC_CALL_LIMIT	1
@@ -14455,7 +14456,7 @@ static void *do_monitor(void *data)
 
 	/* Add an I/O event to our SIP UDP socket */
 	if (sipsock > -1) 
-		ast_io_add(io, sipsock, sipsock_read, AST_IO_IN, NULL);
+		sipsock_read_id = ast_io_add(io, sipsock, sipsock_read, AST_IO_IN, NULL);
 	
 	/* From here on out, we die whenever asked */
 	for(;;) {
@@ -14468,6 +14469,10 @@ static void *do_monitor(void *data)
 			if (option_verbose > 0)
 				ast_verbose(VERBOSE_PREFIX_1 "Reloading SIP\n");
 			sip_do_reload(sip_reloadreason);
+
+			/* Change the I/O fd of our UDP socket */
+			if (sipsock > -1)
+				sipsock_read_id = ast_io_change(io, sipsock_read_id, sipsock, NULL, 0, NULL);
 		}
 		/* Check for interfaces needing to be killed */
 		ast_mutex_lock(&iflock);
