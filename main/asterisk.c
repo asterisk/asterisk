@@ -2521,7 +2521,6 @@ int main(int argc, char *argv[])
 
 	if (!is_child_of_nonroot && runuser) {
 #ifdef HAVE_CAP
-		cap_t cap;
 		int has_cap = 1;
 #endif /* HAVE_CAP */
 		struct passwd *pw;
@@ -2533,7 +2532,7 @@ int main(int argc, char *argv[])
 #ifdef HAVE_CAP
 		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0)) {
 			ast_log(LOG_WARNING, "Unable to keep capabilities.\n");
-			has_cap  = 0;
+			has_cap = 0;
 		}
 #endif /* HAVE_CAP */
 		if (!rungroup) {
@@ -2555,12 +2554,15 @@ int main(int argc, char *argv[])
 			ast_verbose("Running as user '%s'\n", runuser);
 #ifdef HAVE_CAP
 		if (has_cap) {
+			cap_t cap;
+
 			cap = cap_from_text("cap_net_admin=ep");
-			if (cap_set_proc(cap)) {
+
+			if (cap_set_proc(cap))
 				ast_log(LOG_WARNING, "Unable to install capabilities.\n");
-			} else if (cap_free(cap)) {
+
+			if (cap_free(cap))
 				ast_log(LOG_WARNING, "Unable to drop capabilities.\n");
-			}
 		}
 #endif /* HAVE_CAP */
 	}
