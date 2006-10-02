@@ -182,27 +182,39 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 static int gosubif_exec(struct ast_channel *chan, void *data)
 {
 	struct ast_module_user *u;
-	char *condition = "", *label1, *label2, *args;
+	char *args;
 	int res=0;
+	AST_DECLARE_APP_ARGS(cond,
+		AST_APP_ARG(ition);
+		AST_APP_ARG(labels);
+	);
+	AST_DECLARE_APP_ARGS(label,
+		AST_APP_ARG(iftrue);
+		AST_APP_ARG(iffalse);
+	);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "GosubIf requires an argument: GosubIf(cond?label1(args):label2(args)\n");
 		return 0;
 	}
 
-	args = ast_strdupa(data);
-
 	u = ast_module_user_add(chan);
 
-	condition = strsep(&args, "?");
-	label1 = strsep(&args, ":");
-	label2 = args;
+	args = ast_strdupa(data);
+	AST_NONSTANDARD_APP_ARGS(cond, args, '?');
+	if (cond.argc != 2) {
+		ast_log(LOG_WARNING, "GosubIf requires an argument: GosubIf(cond?label1(args):label2(args)\n");
+		ast_module_user_remove(u);
+		return 0;
+	}
 
-	if (pbx_checkcondition(condition)) {
-		if (label1)
-			res = gosub_exec(chan, label1);
-	} else if (label2) {
-		res = gosub_exec(chan, label2);
+	AST_NONSTANDARD_APP_ARGS(label, cond.labels, ':');
+
+	if (pbx_checkcondition(cond.ition)) {
+		if (!ast_strlen_zero(label.iftrue))
+			res = gosub_exec(chan, label.iftrue);
+	} else if (!ast_strlen_zero(label.iffalse)) {
+		res = gosub_exec(chan, label.iffalse);
 	}
 
 	ast_module_user_remove(u);
