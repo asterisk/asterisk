@@ -873,6 +873,8 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 	got_progress = pvt->got_progress;
 	if (condition == AST_CONTROL_PROGRESS)
 		pvt->got_progress = 1;
+	else if ((condition == AST_CONTROL_BUSY) || (condition == AST_CONTROL_CONGESTION))
+		pvt->alreadygone = 1;
 	ast_mutex_unlock(&pvt->lock);
 
 	if (h323debug)
@@ -883,72 +885,51 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 		if (c->_state == AST_STATE_RING || c->_state == AST_STATE_RINGING) {
 			h323_send_alerting(token);
 			res = (got_progress ? 0 : -1);	/* Do not simulate any audio tones if we got PROGRESS message */
-			break;
 		}
-		if (token)
-			free(token);
-		return -1;
+		break;
 	case AST_CONTROL_PROGRESS:
 		if (c->_state != AST_STATE_UP) {
 			/* Do not send PROGRESS message more than once */
 			if (!got_progress)
 				h323_send_progress(token);
-			break;
+			res = 0;
 		}
-		if (token)
-			free(token);
-		return -1;
+		break;
 	case AST_CONTROL_BUSY:
 		if (c->_state != AST_STATE_UP) {
 			h323_answering_call(token, 1);
-			ast_mutex_lock(&pvt->lock);
-			pvt->alreadygone = 1;
-			ast_mutex_unlock(&pvt->lock);
 			ast_softhangup_nolock(c, AST_SOFTHANGUP_DEV);
-			break;
+			res = 0;
 		}
-		if (token)
-			free(token);
-		return -1;
+		break;
 	case AST_CONTROL_CONGESTION:
 		if (c->_state != AST_STATE_UP) {
 			h323_answering_call(token, 1);
-			ast_mutex_lock(&pvt->lock);
-			pvt->alreadygone = 1;
-			ast_mutex_unlock(&pvt->lock);
 			ast_softhangup_nolock(c, AST_SOFTHANGUP_DEV);
-			break;
+			res = 0;
 		}
-		if (token)
-			free(token);
-		return -1;
+		break;
 	case AST_CONTROL_HOLD:
 		h323_hold_call(token, 1);
 		/* We should start MOH only if remote party isn't provide audio for us */
 		ast_moh_start(c, data, NULL);
-		if (token)
-			free(token);
-		return 0;
+		res = 0;
+		break;
 	case AST_CONTROL_UNHOLD:
 		h323_hold_call(token, 0);
 		ast_moh_stop(c);
-		if (token)
-			free(token);
-		return 0;
+		res = 0;
+		break;
 	case AST_CONTROL_PROCEEDING:
 	case -1:
-		if (token)
-			free(token);
-		return -1;
+		break;
 	default:
-		ast_log(LOG_WARNING, "Don't know how to indicate condition %d on %s\n", condition, token);
-		if (token)
-			free(token);
-		return -1;
+		ast_log(LOG_WARNING, "OH323: Don't know how to indicate condition %d on %s\n", condition, token);
+		break;
 	}
 
 	if (h323debug)
-		ast_log(LOG_DEBUG, "OH323: Indicated %d on %s\n", condition, token);
+		ast_log(LOG_DEBUG, "OH323: Indicated %d on %s, res=%d\n", condition, token, res);
 	if (token)
 		free(token);
 	oh323_update_info(c);
