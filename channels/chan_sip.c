@@ -6897,7 +6897,7 @@ static int sip_reg_timeout(void *data)
 		r->timeout = -1;
 		res=transmit_register(r, SIP_REGISTER, NULL, NULL);
 	}
-	manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
+	manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelDriver: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
 	ASTOBJ_UNREF(r, sip_registry_destroy);
 	return 0;
 }
@@ -11599,7 +11599,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 
 		r->regstate = REG_STATE_REGISTERED;
 		r->regtime = time(NULL);		/* Reset time of last succesful registration */
-		manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
+		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelDriver: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
 		r->regattempts = 0;
 		ast_log(LOG_DEBUG, "Registration successful\n");
 		if (r->timeout > -1) {
