@@ -575,8 +575,6 @@ void ast_monitor_setjoinfiles(struct ast_channel *chan, int turnon)
 		chan->monitor->joinfiles = turnon;
 }
 
-#define IS_NULL_STRING(string) ((!(string)) || (ast_strlen_zero((string))))
-
 enum MONITOR_PAUSING_ACTION
 {
 	MONITOR_ACTION_PAUSE,
@@ -588,7 +586,7 @@ static int do_pause_or_unpause(struct mansession *s, struct message *m, int acti
 	struct ast_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
 	
-	if (IS_NULL_STRING(name)) {
+	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return -1;
 	}
