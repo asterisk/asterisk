@@ -2846,7 +2846,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 			manager_event(EVENT_FLAG_CALL, "Newchannel",
 				      "Channel: %s\r\n"
 				      "State: %s\r\n"
-				      "CallerID: %s\r\n"
+				      "CallerIDNum: %s\r\n"
 				      "CallerIDName: %s\r\n"
 				      "Uniqueid: %s\r\n",
 				      c->name, ast_state2str(c->_state),
@@ -3473,7 +3473,7 @@ void ast_set_callerid(struct ast_channel *chan, const char *callerid, const char
 		ast_cdr_setcid(chan->cdr, chan);
 	manager_event(EVENT_FLAG_CALL, "Newcallerid",
 				"Channel: %s\r\n"
-				"CallerID: %s\r\n"
+				"CallerIDNum: %s\r\n"
 				"CallerIDName: %s\r\n"
 				"Uniqueid: %s\r\n"
 				"CID-CallingPres: %d (%s)\r\n",
@@ -3499,7 +3499,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 		      (oldstate == AST_STATE_DOWN) ? "Newchannel" : "Newstate",
 		      "Channel: %s\r\n"
 		      "State: %s\r\n"
-		      "CallerID: %s\r\n"
+		      "CallerIDNum: %s\r\n"
 		      "CallerIDName: %s\r\n"
 		      "Uniqueid: %s\r\n",
 		      chan->name, ast_state2str(chan->_state),

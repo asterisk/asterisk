@@ -399,7 +399,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		"Channel: %s\r\n"
 		"From: %s\r\n"
 		"Timeout: %ld\r\n"
-		"CallerID: %s\r\n"
+		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n",
 		pu->parkingexten, pu->chan->name, peer ? peer->name : "",
 		(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL),
@@ -1514,7 +1514,7 @@ static void post_manager_event(const char *s, char *parkingexten, struct ast_cha
 	manager_event(EVENT_FLAG_CALL, s,
 		"Exten: %s\r\n"
 		"Channel: %s\r\n"
-		"CallerID: %s\r\n"
+		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n\r\n",
 		parkingexten, 
 		chan->name,
@@ -1768,7 +1768,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 			"Exten: %s\r\n"
 			"Channel: %s\r\n"
 			"From: %s\r\n"
-			"CallerID: %s\r\n"
+			"CallerIDNum: %s\r\n"
 			"CallerIDName: %s\r\n",
 			pu->parkingexten, pu->chan->name, chan->name,
 			S_OR(pu->chan->cid.cid_num, "<unknown>"),
@@ -1951,7 +1951,7 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 			"Channel: %s\r\n"
 			"From: %s\r\n"
 			"Timeout: %ld\r\n"
-			"CallerID: %s\r\n"
+			"CallerIDNum: %s\r\n"
 			"CallerIDName: %s\r\n"
 			"%s"
 			"\r\n",

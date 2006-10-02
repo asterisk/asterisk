@@ -21,3 +21,5 @@ Changes since Asterisk 1.4-beta was branched:
      statistics during a reload.
   * Added rotatetimestamp option to logger.conf which will use
      the time to name the logger files instead of sequence number.
+  * The output of CallerID in Manager events is now more consistent.
+     CallerIDNum is used for number and CallerIDName for name.

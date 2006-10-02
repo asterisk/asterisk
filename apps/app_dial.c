@@ -373,11 +373,10 @@ static const char *get_cid_name(char *name, int namelen, struct ast_channel *cha
 
 static void senddialevent(struct ast_channel *src, struct ast_channel *dst)
 {
-	/* XXX do we need also CallerIDnum ? */
 	manager_event(EVENT_FLAG_CALL, "Dial", 
 			   "Source: %s\r\n"
 			   "Destination: %s\r\n"
-			   "CallerID: %s\r\n"
+			   "CallerIDNum: %s\r\n"
 			   "CallerIDName: %s\r\n"
 			   "SrcUniqueID: %s\r\n"
 			   "DestUniqueID: %s\r\n",

@@ -82,7 +82,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 "Name=               %s\n"
 			 "Type=               %s\n"
 			 "UniqueID=           %s\n"
-			 "CallerID=           %s\n"
+			 "CallerIDNum=        %s\n"
 			 "CallerIDName=       %s\n"
 			 "DNIDDigits=         %s\n"
 			 "RDNIS=              %s\n" 

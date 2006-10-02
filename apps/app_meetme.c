@@ -1910,8 +1910,8 @@ bailoutandtrynormal:
 				      "Uniqueid: %s\r\n"
 				      "Meetme: %s\r\n"
 				      "Usernum: %d\r\n"
-				      "CallerIDnum: %s\r\n"
-				      "CallerIDname: %s\r\n"
+				      "CallerIDNum: %s\r\n"
+				      "CallerIDName: %s\r\n"
 				      "Duration: %ld\r\n",
 				      chan->name, chan->uniqueid, conf->confno, 
 				      user->user_no,

@@ -1659,7 +1659,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		manager_event(EVENT_FLAG_AGENT, "AgentCalled",
 					"AgentCalled: %s\r\n"
 					"ChannelCalling: %s\r\n"
-					"CallerID: %s\r\n"
+					"CallerIDNum: %s\r\n"
 					"CallerIDName: %s\r\n"
 					"Context: %s\r\n"
 					"Extension: %s\r\n"
@@ -4131,7 +4131,7 @@ static int manager_queues_status(struct mansession *s, struct message *m)
 					"Queue: %s\r\n"
 					"Position: %d\r\n"
 					"Channel: %s\r\n"
-					"CallerID: %s\r\n"
+					"CallerIDNum: %s\r\n"
 					"CallerIDName: %s\r\n"
 					"Wait: %ld\r\n"
 					"%s"
