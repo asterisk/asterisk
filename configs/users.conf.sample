@@ -34,6 +34,10 @@ hassip = yes
 ;
 hasiax = yes
 ;
+; Create H.323 friend
+;
+;hash323 = yes
+;
 ; Create manager entry
 ;
 hasmanager = no
@@ -59,6 +63,7 @@ pickupgroup = 1
 ;hasvoicemail = yes
 ;hassip = yes
 ;hasiax = no
+;hash323 = no
 ;hasmanager = no
 ;callwaiting = no
 ;context = international
