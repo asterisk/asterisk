@@ -2558,9 +2558,7 @@ int main(int argc, char *argv[])
 			cap = cap_from_text("cap_net_admin=ep");
 			if (cap_set_proc(cap)) {
 				ast_log(LOG_WARNING, "Unable to install capabilities.\n");
-				break;
-			}
-			if (cap_free(cap)) {
+			} else if (cap_free(cap)) {
 				ast_log(LOG_WARNING, "Unable to drop capabilities.\n");
 			}
 		}
