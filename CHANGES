@@ -19,3 +19,5 @@ Changes since Asterisk 1.4-beta was branched:
      and/or H.450 supplementary service)
   * Added keepstats option to queues.conf which will keep queue
      statistics during a reload.
+  * Added rotatetimestamp option to logger.conf which will use
+     the time to name the logger files instead of sequence number.

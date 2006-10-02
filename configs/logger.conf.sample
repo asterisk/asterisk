@@ -24,6 +24,11 @@
 ; (defaults to queue_log)
 ;queue_log_name = queue_log
 ;
+; Rename the logfiles using a timestamp instead of a
+; sequence number when "logger rotate" is executed
+; (defaults to no).
+;rotatetimestamp = yes
+;
 ; This determines whether or not we log generic events to a file
 ; (defaults to yes).
 ;event_log = no

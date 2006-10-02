@@ -87,6 +87,7 @@ static char queue_log_name[256] = QUEUELOG;
 
 static int filesize_reload_needed = 0;
 static int global_logmask = -1;
+static int rotatetimestamp = 0;
 
 static struct {
 	unsigned int queue_log:1;
@@ -340,6 +341,8 @@ static void init_logger_chain(void)
 		logfiles.event_log = ast_true(s);
 	if ((s = ast_variable_retrieve(cfg, "general", "queue_log_name")))
 		ast_copy_string(queue_log_name, s, sizeof(queue_log_name));
+	if ((s = ast_variable_retrieve(cfg, "general", "rotatetimestamp")))
+		rotatetimestamp = ast_true(s);
 
 	AST_LIST_LOCK(&logchannels);
 	var = ast_variable_browse(cfg, "logfiles");
@@ -404,16 +407,19 @@ int reload_logger(int rotate)
 			f->fileptr = NULL;
 			if (rotate) {
 				ast_copy_string(old, f->filename, sizeof(old));
-	
-				for (x = 0; ; x++) {
-					snprintf(new, sizeof(new), "%s.%d", f->filename, x);
-					myf = fopen((char *)new, "r");
-					if (myf)
-						fclose(myf);
-					else
-						break;
-				}
-	    
+				
+				if (!rotatetimestamp) { 
+					for (x = 0; ; x++) {
+						snprintf(new, sizeof(new), "%s.%d", f->filename, x);
+						myf = fopen((char *)new, "r");
+						if (myf)
+							fclose(myf);
+						else
+							break;
+					}
+				} else 
+					snprintf(new, sizeof(new), "%s.%ld", f->filename, (long)time(NULL));
+
 				/* do it */
 				if (rename(old,new))
 					fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old, new);
@@ -428,14 +434,17 @@ int reload_logger(int rotate)
 	if (logfiles.event_log) {
 		snprintf(old, sizeof(old), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
 		if (event_rotate) {
-			for (x=0;;x++) {
-				snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, EVENTLOG,x);
-				myf = fopen((char *)new, "r");
-				if (myf) 	/* File exists */
-					fclose(myf);
-				else
-					break;
-			}
+			if (!rotatetimestamp) { 
+				for (x=0;;x++) {
+					snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, EVENTLOG,x);
+					myf = fopen((char *)new, "r");
+					if (myf) 	/* File exists */
+						fclose(myf);
+					else
+						break;
+				}
+			} else 
+				snprintf(new, sizeof(new), "%s/%s.%ld", (char *)ast_config_AST_LOG_DIR, EVENTLOG,(long)time(NULL));
 	
 			/* do it */
 			if (rename(old,new))
@@ -456,15 +465,18 @@ int reload_logger(int rotate)
 	if (logfiles.queue_log) {
 		snprintf(old, sizeof(old), "%s/%s", (char *)ast_config_AST_LOG_DIR, queue_log_name);
 		if (queue_rotate) {
-			for (x = 0; ; x++) {
-				snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, queue_log_name, x);
-				myf = fopen((char *)new, "r");
-				if (myf) 	/* File exists */
-					fclose(myf);
-				else
-					break;
-			}
+			if (!rotatetimestamp) { 
+				for (x = 0; ; x++) {
+					snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, queue_log_name, x);
+					myf = fopen((char *)new, "r");
+					if (myf) 	/* File exists */
+						fclose(myf);
+					else
+						break;
+				}
 	
+			} else 
+				snprintf(new, sizeof(new), "%s/%s.%ld", (char *)ast_config_AST_LOG_DIR, queue_log_name,(long)time(NULL));
 			/* do it */
 			if (rename(old, new))
 				ast_log(LOG_ERROR, "Unable to rename file '%s' to '%s'\n", old, new);
