@@ -880,8 +880,9 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 		data = ast_strdupa((char *) tmp->us);
 		exten = strsep(&data, "/");
 		free(data);
-	}
-	ast_copy_string(tmp->exten, exten, sizeof(tmp->exten));
+	} else
+		exten = tmp->us;
+	ast_copy_string(tmp->exten,  exten, sizeof(tmp->exten));
 	ast_mutex_init(&tmp->lock);
 	ast_mutex_lock(&gtalklock);
 	tmp->next = client->p;
@@ -1515,6 +1516,7 @@ static int gtalk_do_reload(int fd, int argc, char **argv)
 	ast_verbose("IT DOES WORK!\n");
 	return RESULT_SUCCESS;
 }
+
 static int gtalk_parser(void *data, ikspak *pak)
 {
 	struct gtalk *client = ASTOBJ_REF((struct gtalk *) data);
@@ -1540,6 +1542,7 @@ static int gtalk_parser(void *data, ikspak *pak)
 	ASTOBJ_UNREF(client, gtalk_member_destroy);
 	return IKS_FILTER_EAT;
 }
+
 /* Not using this anymore probably take out soon 
 static struct gtalk_candidate *gtalk_create_candidate(char *args)
 {
@@ -1630,6 +1633,7 @@ static int gtalk_create_member(char *label, struct ast_variable *var, int allowg
 									IKS_PAK_IQ, IKS_RULE_FROM_PARTIAL, member->user,
 									IKS_RULE_NS, "http://www.google.com/session",
 									IKS_RULE_DONE);
+
 			} else {
 				ast_log(LOG_ERROR, "connection referenced not found!\n");
 				return 0;
