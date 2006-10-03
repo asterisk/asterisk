@@ -7,4 +7,5 @@ Jingle's configuration is very similar to sip.conf only as we are not the
 jabber server in this case you must provide a connection for the peer to
 travel out on.
 chan_gtalk is for supporting the non-jingle google/libjingle spec and 
-chan_jingle will continue to move in the direction of the correct spec.
+chan_jingle will continue to move in the direction of the correct spec. but
+not be supported in version 1.4

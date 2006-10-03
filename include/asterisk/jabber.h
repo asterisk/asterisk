@@ -72,13 +72,7 @@ struct aji_message {
 
 struct aji_buddy {
 	ASTOBJ_COMPONENTS(struct aji_buddy);
-	char user[160];
-	char host[160];
-	char pass[160]; /*For Transports*/
-	char server[160]; /*For Transports */
-	char channel[160];
 	struct aji_resource *resources;
-	enum aji_btype btype;
 	unsigned int flags;
 };
 
