@@ -4107,6 +4107,7 @@ static int manager_queues_status(struct mansession *s, struct message *m)
 			astman_append(s, "Event: QueueParams\r\n"
 				"Queue: %s\r\n"
 				"Max: %d\r\n"
+				"Strat: %s\r\n"
 				"Calls: %d\r\n"
 				"Holdtime: %d\r\n"
 				"Completed: %d\r\n"
@@ -4116,7 +4117,7 @@ static int manager_queues_status(struct mansession *s, struct message *m)
 				"Weight: %d\r\n"
 				"%s"
 				"\r\n",
-				q->name, q->maxlen, q->count, q->holdtime, q->callscompleted,
+				q->name, q->maxlen, int2strat(q->strategy), q->count, q->holdtime, q->callscompleted,
 				q->callsabandoned, q->servicelevel, sl, q->weight, idText);
 			/* List Queue Members */
 			for (mem = q->members; mem; mem = mem->next) {
