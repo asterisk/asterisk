@@ -871,7 +871,6 @@ static int aji_client_info_handler(void *data, ikspak *pak)
 	struct aji_buddy *buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, pak->from->partial);
 
 	resource = aji_find_resource(buddy, pak->from->resource);
-
 	if (pak->subtype == IKS_TYPE_RESULT) {
 		if (!resource) {
 			ast_log(LOG_NOTICE,"JABBER: Received client info from %s when not requested.\n", pak->from->full);
@@ -927,13 +926,26 @@ static int aji_client_info_handler(void *data, ikspak *pak)
 static int aji_dinfo_handler(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
-	char *node = NULL, *type = NULL;
-	type = iks_find_attrib(pak->x,"type");
-	if (!strcasecmp(type,"error")) {
+	char *node = NULL;
+	struct aji_resource *resource = NULL;
+	struct aji_buddy *buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, pak->from->partial);
+
+	resource = aji_find_resource(buddy, pak->from->resource);
+	if (pak->subtype == IKS_TYPE_ERROR) {
 		ast_log(LOG_WARNING, "Recieved error from a client, turn on jabber debug!\n");
 		return IKS_FILTER_EAT;
 	}
-	if (!strcasecmp(type,"get") && !(node = iks_find_attrib(pak->query, "node"))) {
+	if (pak->subtype == IKS_TYPE_RESULT) {
+		if (!resource) {
+			ast_log(LOG_NOTICE,"JABBER: Received client info from %s when not requested.\n", pak->from->full);
+			ASTOBJ_UNREF(client, aji_client_destroy);
+			return IKS_FILTER_EAT;
+		}
+		if (iks_find_with_attrib(pak->query, "feature", "var", "http://www.google.com/xmpp/protocol/voice/v1")) {
+			resource->cap->jingle = 1;
+		} else
+			resource->cap->jingle = 0;
+	} else if (pak->subtype == IKS_TYPE_GET && !(node = iks_find_attrib(pak->query, "node"))) {
 		iks *iq, *query, *identity, *disco, *reg, *commands, *gateway, *version, *vcard, *search;
 
 		iq = iks_new("iq");
@@ -999,7 +1011,7 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 		if (search)
 			iks_delete(search);
 
-	} else if (!strcasecmp(type,"get") && !strcasecmp(node, "http://jabber.org/protocol/commands")) {
+	} else if (pak->subtype == IKS_TYPE_GET && !strcasecmp(node, "http://jabber.org/protocol/commands")) {
 		iks *iq, *query, *confirm;
 		iq = iks_new("iq");
 		query = iks_new("query");
@@ -1028,7 +1040,7 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 		if (confirm)
 			iks_delete(confirm);
 
-	} else if (!strcasecmp(type,"get") && !strcasecmp(node, "confirmaccount")) {
+	} else if (pak->subtype == IKS_TYPE_GET && !strcasecmp(node, "confirmaccount")) {
 		iks *iq, *query, *feature;
 
 		iq = iks_new("iq");
