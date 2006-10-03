@@ -131,13 +131,9 @@ static int return_exec(struct ast_channel *chan, void *data)
 static int gosub_exec(struct ast_channel *chan, void *data)
 {
 	char newlabel[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 11 + 11 + 4];
-	char argname[15], *tmp = ast_strdupa(data);
+	char argname[15], *tmp = ast_strdupa(data), *label, *endparen;
 	int i;
 	struct ast_module_user *u;
-	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(label);
-		AST_APP_ARG(args);
-	);
 	AST_DECLARE_APP_ARGS(args2,
 		AST_APP_ARG(argval)[100];
 	);
@@ -150,30 +146,37 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	u = ast_module_user_add(chan);
 
 	/* Separate the arguments from the label */
-	AST_NONSTANDARD_APP_ARGS(args, tmp, '(');
-	if (args.argc == 2) {
-		char *endparen = strrchr(args.args, ')');
+	/* NOTE:  you cannot use ast_app_separate_args for this, because '(' cannot be used as a delimiter. */
+	label = strsep(&tmp, "(");
+	if (tmp) {
+		endparen = strrchr(tmp, ')');
 		if (endparen)
 			*endparen = '\0';
-		AST_STANDARD_APP_ARGS(args2, args.args);
-	}
+		else
+			ast_log(LOG_WARNING, "Ouch.  No closing paren: '%s'?\n", (char *)data);
+		AST_STANDARD_APP_ARGS(args2, tmp);
+	} else
+		args2.argc = 0;
 
 	/* Create the return address, but don't save it until we know that the Gosub destination exists */
-	snprintf(newlabel, sizeof(newlabel), "%d:%s|%s|%d", args.argc == 2 ? args2.argc : 0, chan->context, chan->exten, chan->priority + 1);
+	snprintf(newlabel, sizeof(newlabel), "%d:%s|%s|%d", args2.argc, chan->context, chan->exten, chan->priority + 1);
 
-	if (ast_parseable_goto(chan, data)) {
+	if (ast_parseable_goto(chan, label)) {
+		ast_log(LOG_ERROR, "Gosub address is invalid: '%s'\n", (char *)data);
 		ast_module_user_remove(u);
 		return -1;
 	}
 
 	/* Now that we know for certain that we're going to a new location, set our arguments */
-	for (i = 0; i < (args.argc == 2 ? args2.argc : 0); i++) {
+	for (i = 0; i < args2.argc; i++) {
 		snprintf(argname, sizeof(argname), "ARG%d", i + 1);
 		pbx_builtin_pushvar_helper(chan, argname, args2.argval[i]);
+		ast_log(LOG_DEBUG, "Setting '%s' to '%s'\n", argname, args2.argval[i]);
 	}
 
 	/* And finally, save our return address */
 	pbx_builtin_pushvar_helper(chan, STACKVAR, newlabel);
+	ast_log(LOG_DEBUG, "Setting gosub return address to '%s'\n", newlabel);
 	ast_module_user_remove(u);
 
 	return 0;
