@@ -1,3 +1,8 @@
 Information for Upgrading From Previous Asterisk Releases
 =========================================================
 
+Manager:
+
+* The CallerID fields across manager events have now been made more
+  consistent. CallerID Number will be sent as CallerIDNum and CallerID
+  Name will be sent as CallerIDName wherever used.
