@@ -3215,6 +3215,9 @@ int ast_do_masquerade(struct ast_channel *original)
 		ast_log(LOG_DEBUG, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
 			clone->name, clone->_state, original->name, original->_state);
 
+	manager_event(EVENT_FLAG_CALL, "Masquerade", "Clone: %s\r\nCloneState: %s\r\nOriginal: %s\r\nOriginalState: %s\r\n",
+		      clone->name, ast_state2str(clone->_state), original->name, ast_state2str(original->_state));
+
 	/* XXX This is a seriously wacked out operation.  We're essentially putting the guts of
 	   the clone channel into the original channel.  Start by killing off the original
 	   channel's backend.   I'm not sure we're going to keep this function, because
