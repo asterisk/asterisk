@@ -9336,7 +9336,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			"IPport: %d\r\n"
 			"Dynamic: %s\r\n"
 			"Natsupport: %s\r\n"
-			"Video Support: %s\r\n"
+			"VideoSupport: %s\r\n"
 			"ACL: %s\r\n"
 			"Status: %s\r\n"
 			"RealtimeDevice: %s\r\n\r\n", 
