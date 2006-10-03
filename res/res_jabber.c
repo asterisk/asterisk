@@ -79,12 +79,9 @@ static int aji_test(int fd, int argc, char *argv[]);
 static int aji_show_clients(int fd, int argc, char *argv[]);
 static int aji_create_client(char *label, struct ast_variable *var, int debug);
 static int aji_create_buddy(char *label, struct aji_client *client);
-static int aji_create_transport(char *label, struct aji_client *client);
 static int aji_reload(void);
 static int aji_load_config(void);
 static void aji_pruneregister(struct aji_client *client);
-static int aji_register_transport(void *data, ikspak *pak);
-static int aji_register_transport2(void *data, ikspak *pak);
 static int aji_filter_roster(void *data, ikspak *pak);
 static int aji_get_roster(struct aji_client *client);
 static int aji_client_info_handler(void *data, ikspak *pak);
@@ -94,6 +91,12 @@ static int aji_register_query_handler(void *data, ikspak *pak);
 static int aji_register_approve_handler(void *data, ikspak *pak);
 static int aji_reconnect(struct aji_client *client);
 static iks *jabber_make_auth(iksid * id, const char *pass, const char *sid);
+/* No transports in this version */
+/*
+static int aji_create_transport(char *label, struct aji_client *client);
+static int aji_register_transport(void *data, ikspak *pak);
+static int aji_register_transport2(void *data, ikspak *pak);
+*/
 
 static char debug_usage[] = 
 "Usage: jabber debug\n" 
@@ -263,14 +266,14 @@ static struct aji_version *aji_find_version(char *node, char *version, ikspak *p
 	return res;
 }
 
-static struct aji_resource *aji_find_resource(struct aji_buddy *buddy, char *rname)
+static struct aji_resource *aji_find_resource(struct aji_buddy *buddy, char *name)
 {
 	struct aji_resource *res = NULL;
-	if (!buddy || !rname)
+	if (!buddy || !name)
 		return res;
 	res = buddy->resources;
 	while (res) {
-		if (!strcasecmp(res->resource, rname)) {
+		if (!strcasecmp(res->resource, name)) {
 			break;
 		}
 		res = res->next;
@@ -659,20 +662,17 @@ static int aji_act_hook(void *data, int type, iks *node)
 static int aji_register_approve_handler(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
-	iks *iq = NULL, *presence = NULL, *query = NULL,  *x = NULL;
+	iks *iq = NULL, *presence = NULL, *x = NULL;
 
 	iq = iks_new("iq");
 	presence = iks_new("presence");
-	query = iks_new("query");
 	x = iks_new("x");
-	if (client && iq && presence && query && x) {
+	if (client && iq && presence && x) {
 		if (!iks_find(pak->query, "remove")) {
 			iks_insert_attrib(iq, "from", client->jid->full);
 			iks_insert_attrib(iq, "to", pak->from->full);
 			iks_insert_attrib(iq, "id", pak->id);
 			iks_insert_attrib(iq, "type", "result");
-			iks_insert_attrib(query, "xmlns", "jabber:iq:register");
-			iks_insert_node(iq, query);
 			iks_send(client->p, iq);
 
 			iks_insert_attrib(presence, "from", client->jid->full);
@@ -682,7 +682,7 @@ static int aji_register_approve_handler(void *data, ikspak *pak)
 			iks_insert_attrib(presence, "type", "subscribe");
 			iks_insert_attrib(x, "xmlns", "vcard-temp:x:update");
 			iks_insert_node(presence, x);
-			iks_send(client->p, presence);
+			iks_send(client->p, presence); 
 		}
 	} else {
 		ast_log(LOG_ERROR, "Out of memory.\n");
@@ -692,8 +692,6 @@ static int aji_register_approve_handler(void *data, ikspak *pak)
 		iks_delete(iq);
 	if(presence)
 		iks_delete(presence);
-	if (query)
-		iks_delete(query);
 	if (x)
 		iks_delete(x);
 	ASTOBJ_UNREF(client, aji_client_destroy);
@@ -703,11 +701,44 @@ static int aji_register_approve_handler(void *data, ikspak *pak)
 static int aji_register_query_handler(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
+	struct aji_buddy *buddy = NULL; 
 	char *node = NULL;
 
 	client = (struct aji_client *) data;
 
-	if (!(node = iks_find_attrib(pak->query, "node"))) {
+	buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, pak->from->partial);
+	if (!buddy) {
+		ast_verbose("Someone.... %s tried to register but they aren't allowed\n", pak->from->partial);
+		iks *iq = NULL, *query = NULL, *error = NULL, *notacceptable = NULL;
+		iq = iks_new("iq");
+		query = iks_new("query");
+		error = iks_new("error");
+		notacceptable = iks_new("not-acceptable");
+		if(iq && query && error && notacceptable) {
+			iks_insert_attrib(iq, "type", "error");
+			iks_insert_attrib(iq, "from", client->user);
+			iks_insert_attrib(iq, "to", pak->from->full);
+			iks_insert_attrib(iq, "id", pak->id);
+			iks_insert_attrib(query, "xmlns", "jabber:iq:register");
+			iks_insert_attrib(error, "code" , "406");
+			iks_insert_attrib(error, "type", "modify");
+			iks_insert_attrib(notacceptable, "xmlns", "urn:ietf:params:xml:ns:xmpp-stanzas");
+			iks_insert_node(iq, query);
+			iks_insert_node(iq, error);
+			iks_insert_node(error, notacceptable);
+			iks_send(client->p, iq);
+		} else {
+			ast_log(LOG_ERROR, "Out of memory.\n");
+		}
+		if (iq)
+			iks_delete(iq);
+		if (query)
+			iks_delete(query);
+		if (error)
+			iks_delete(error);
+		if (notacceptable)
+			iks_delete(notacceptable);
+	} else 	if (!(node = iks_find_attrib(pak->query, "node"))) {
 		iks *iq = NULL, *query = NULL, *instructions = NULL;
 		char *explain = "Welcome to Asterisk - the Open Source PBX.\n";
 		iq = iks_new("iq");
@@ -896,12 +927,13 @@ static int aji_client_info_handler(void *data, ikspak *pak)
 static int aji_dinfo_handler(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
-	char *node = NULL;
-	if (!strcasecmp(iks_find_attrib(pak->x,"type"),"error")) {
+	char *node = NULL, *type = NULL;
+	type = iks_find_attrib(pak->x,"type");
+	if (!strcasecmp(type,"error")) {
 		ast_log(LOG_WARNING, "Recieved error from a client, turn on jabber debug!\n");
 		return IKS_FILTER_EAT;
 	}
-	if (!(node = iks_find_attrib(pak->query, "node"))) {
+	if (!strcasecmp(type,"get") && !(node = iks_find_attrib(pak->query, "node"))) {
 		iks *iq, *query, *identity, *disco, *reg, *commands, *gateway, *version, *vcard, *search;
 
 		iq = iks_new("iq");
@@ -967,7 +999,7 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 		if (search)
 			iks_delete(search);
 
-	} else if (!strcasecmp(node, "http://jabber.org/protocol/commands")) {
+	} else if (!strcasecmp(type,"get") && !strcasecmp(node, "http://jabber.org/protocol/commands")) {
 		iks *iq, *query, *confirm;
 		iq = iks_new("iq");
 		query = iks_new("query");
@@ -996,7 +1028,7 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 		if (confirm)
 			iks_delete(confirm);
 
-	} else if (!strcasecmp(node, "confirmaccount")) {
+	} else if (!strcasecmp(type,"get") && !strcasecmp(node, "confirmaccount")) {
 		iks *iq, *query, *feature;
 
 		iq = iks_new("iq");
@@ -1083,7 +1115,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 	int status, priority;
 	struct aji_buddy *buddy;
 	struct aji_resource *tmp = NULL, *last = NULL, *found = NULL;
-	char *ver, *node, *descrip;
+	char *ver, *node, *descrip, *type;
 	
 	if(client->state != AJI_CONNECTED)
 		aji_create_buddy(pak->from->partial, client);
@@ -1093,7 +1125,8 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 		ast_log(LOG_NOTICE, "Got presence packet from %s, someone not in our roster!!!!\n", pak->from->partial);
 		return;
 	}
-	if(client->component && !strcasecmp(iks_find_attrib(pak->x, "type"), "probe")) {
+	type = iks_find_attrib(pak->x, "type");
+	if(client->component && type &&!strcasecmp("probe", type)) {
 		aji_set_presence(client, pak->from->full, iks_find_attrib(pak->x, "to"), 1, client->statusmessage);
 		ast_verbose("what i was looking for \n");
 	}
@@ -1486,7 +1519,8 @@ void ast_aji_increment_mid(char *mid)
  * \param aji_client struct, and xml packet.
  * \return IKS_FILTER_EAT.
  */
-static int aji_register_transport(void *data, ikspak *pak)
+/*allows for registering to transport , was too sketch and is out for now. */
+/*static int aji_register_transport(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
 	int res = 0;
@@ -1517,13 +1551,14 @@ static int aji_register_transport(void *data, ikspak *pak)
 	return IKS_FILTER_EAT;
 
 }
-
+*/
 /*!
  * \brief attempts to register to a transport step 2.
  * \param aji_client struct, and xml packet.
  * \return IKS_FILTER_EAT.
  */
-static int aji_register_transport2(void *data, ikspak *pak)
+/* more of the same blob of code, too wonky for now*/
+/* static int aji_register_transport2(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
 	int res = 0;
@@ -1566,7 +1601,7 @@ static int aji_register_transport2(void *data, ikspak *pak)
 	ASTOBJ_UNREF(client, aji_client_destroy);
 	return IKS_FILTER_EAT;
 }
-
+*/
 /*!
  * \brief goes through roster and prunes users not needed in list, or adds them accordingly.
  * \param aji_client struct.
@@ -1601,17 +1636,8 @@ static void aji_pruneregister(struct aji_client *client)
 				iks_insert_attrib(removeitem, "subscription", "remove");
 				res = iks_send(client->p, removeiq);
 			} else if (ast_test_flag(iterator, AJI_AUTOREGISTER)) {
-				if (iterator->btype == AJI_USER) {	/*if it is not a transport */
-					res = iks_send(client->p, iks_make_s10n(IKS_TYPE_SUBSCRIBE, iterator->name, 
-							"Greetings I am the Asterisk Open Source PBX and I want to subscribe to your presence\n"));
-				} else {
-					iks_filter_add_rule(client->f, aji_register_transport, client,
-								  IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_SUBTYPE, IKS_TYPE_RESULT, IKS_RULE_NS,
-								  "http://jabber.org/protocol/disco#items", IKS_RULE_DONE);
-					iks_insert_attrib(send, "to", iterator->host);
-					iks_insert_attrib(send, "from", client->jid->full);
-					res = iks_send(client->p, send);
-				}
+				res = iks_send(client->p, iks_make_s10n(IKS_TYPE_SUBSCRIBE, iterator->name, 
+						"Greetings I am the Asterisk Open Source PBX and I want to subscribe to your presence\n"));
 				ast_clear_flag(iterator, AJI_AUTOREGISTER);
 			}
 			ASTOBJ_UNLOCK(iterator);
@@ -1648,16 +1674,9 @@ static int aji_filter_roster(void *data, ikspak *pak)
 		flag = 0;
 		while (x) {
 			if (!iks_strcmp(iks_name(x), "item")) {
-				if (!ast_strlen_zero(iterator->pass)) {
-					if (!strcasecmp(iterator->host, iks_find_attrib(x, "jid"))) {
-						  ast_clear_flag(iterator, AJI_AUTOPRUNE | AJI_AUTOREGISTER); 
-						  flag = 1;
-					}
-				} else {
-					if (!strcasecmp(iterator->name, iks_find_attrib(x, "jid"))) {
-						  flag = 1;
-						  ast_clear_flag(iterator, AJI_AUTOPRUNE | AJI_AUTOREGISTER);
-					}
+				if (!strcasecmp(iterator->name, iks_find_attrib(x, "jid"))) {
+					flag = 1;
+					ast_clear_flag(iterator, AJI_AUTOPRUNE | AJI_AUTOREGISTER);
 				}
 			}
 			x = iks_next(x);
@@ -1675,13 +1694,8 @@ static int aji_filter_roster(void *data, ikspak *pak)
 		if (iks_strcmp(iks_name(x), "item") == 0) {
 			ASTOBJ_CONTAINER_TRAVERSE(&client->buddies, 1, {
 				ASTOBJ_RDLOCK(iterator);
-				if (!ast_strlen_zero(iterator->pass)) {
-					if (!strcasecmp(iterator->host, iks_find_attrib(x, "jid")))
+				if (!strcasecmp(iterator->name, iks_find_attrib(x, "jid")))
 					flag = 1;
-				} else {
-					if (!strcasecmp(iterator->name, iks_find_attrib(x, "jid")))
-						flag = 1;
-				}
 				ASTOBJ_UNLOCK(iterator);
 			});
 
@@ -2079,8 +2093,10 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 			ast_set2_flag(client, ast_true(var->value), AJI_AUTOREGISTER);
 		else if (!strcasecmp(var->name, "buddy"))
 				aji_create_buddy(var->value, client);
-		else if (!strcasecmp(var->name, "transport"))
+	/* no transport support in this version */
+	/*	else if (!strcasecmp(var->name, "transport"))
 				aji_create_transport(var->value, client);
+	*/
 		var = var->next;
 	}
 	if (!flag) {
@@ -2140,6 +2156,8 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
  * \param label, buddy to dump it into. 
  * \return 0.
  */
+/* no connecting to transports today */
+/*
 static int aji_create_transport(char *label, struct aji_client *client)
 {
 	char *server = NULL, *buddyname = NULL, *user = NULL, *pass = NULL;
@@ -2183,6 +2201,7 @@ static int aji_create_transport(char *label, struct aji_client *client)
 	ASTOBJ_CONTAINER_LINK(&client->buddies, buddy);
 	return 0;
 }
+*/
 
 /*!
  * \brief creates buddy.
