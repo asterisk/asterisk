@@ -486,7 +486,8 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 			break;
 	}
 	if (ret < 0) {
-		ast_log(LOG_DEBUG, "No such number found: %s (%s)\n", tmp, strerror(errno));
+		if (option_debug)
+			ast_log(LOG_DEBUG, "No such number found: %s (%s)\n", tmp, strerror(errno));
 		strcpy(dst, "0");
 		ret = 0;
 	}

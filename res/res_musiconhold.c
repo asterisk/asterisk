@@ -533,8 +533,10 @@ static void *monmp3thread(void *data)
 					kill(class->pid, SIGKILL);
 					class->pid = 0;
 				}
-			} else
-				ast_log(LOG_DEBUG, "Read %d bytes of audio while expecting %d\n", res2, len);
+			} else {
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Read %d bytes of audio while expecting %d\n", res2, len);
+			}
 			continue;
 		}
 		pthread_testcancel();
@@ -819,7 +821,8 @@ static int moh_register(struct mohclass *moh, int reload)
 	AST_LIST_LOCK(&mohclasses);
 	if (get_mohbyname(moh->name)) {
 		if (reload) {
-			ast_log(LOG_DEBUG, "Music on Hold class '%s' left alone from initial load.\n", moh->name);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Music on Hold class '%s' left alone from initial load.\n", moh->name);
 		} else {
 			ast_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
 		}
@@ -1041,7 +1044,8 @@ static void ast_moh_destroy(void)
 	AST_LIST_LOCK(&mohclasses);
 	while ((moh = AST_LIST_REMOVE_HEAD(&mohclasses, list))) {
 		if (moh->pid > 1) {
-			ast_log(LOG_DEBUG, "killing %d!\n", moh->pid);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "killing %d!\n", moh->pid);
 			stime = time(NULL) + 2;
 			pid = moh->pid;
 			moh->pid = 0;
@@ -1055,7 +1059,8 @@ static void ast_moh_destroy(void)
 			kill(pid, SIGKILL);
 			while ((ast_wait_for_input(moh->srcfd, 100) > 0) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime)
 				tbytes = tbytes + bytes;
-			ast_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
 			close(moh->srcfd);
 		}
 		ast_moh_free_class(&moh);

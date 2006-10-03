@@ -487,7 +487,8 @@ static int jingle_is_answered(struct jingle *client, ikspak *pak)
 {
 	struct jingle_pvt *tmp;
 
-	ast_log(LOG_DEBUG, "The client is %s\n", client->name);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "The client is %s\n", client->name);
 	/* Make sure our new call doesn't exist yet */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
 		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid))
@@ -555,7 +556,8 @@ static int jingle_hangup_farend(struct jingle *client, ikspak *pak)
 {
 	struct jingle_pvt *tmp;
 
-	ast_log(LOG_DEBUG, "The client is %s\n", client->name);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "The client is %s\n", client->name);
 	/* Make sure our new call doesn't exist yet */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
 		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid))

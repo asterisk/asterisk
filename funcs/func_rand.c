@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
+#include "asterisk/options.h"
 
 static int acf_rand_exec(struct ast_channel *chan, char *cmd,
 			 char *parse, char *buffer, size_t buflen)
@@ -64,12 +65,14 @@ static int acf_rand_exec(struct ast_channel *chan, char *cmd,
 
 		max_int = min_int;
 		min_int = tmp;
-		ast_log(LOG_DEBUG, "max<min\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG, "max<min\n");
 	}
 
 	response_int = min_int + (ast_random() % (max_int - min_int + 1));
-	ast_log(LOG_DEBUG, "%d was the lucky number in range [%d,%d]\n",
-		response_int, min_int, max_int);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "%d was the lucky number in range [%d,%d]\n",
+			response_int, min_int, max_int);
 	snprintf(buffer, buflen, "%d", response_int);
 
 	ast_module_user_remove(u);

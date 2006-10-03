@@ -1466,7 +1466,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			if (theapp && !res) {	/* XXX why check res here ? */
 				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_MACRO]);
 				res = pbx_exec(peer, theapp, opt_args[OPT_ARG_CALLEE_MACRO]);
-				ast_log(LOG_DEBUG, "Macro exited with status %d\n", res);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Macro exited with status %d\n", res);
 				res = 0;
 			} else {
 				ast_log(LOG_ERROR, "Could not find application Macro\n");

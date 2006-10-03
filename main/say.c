@@ -476,7 +476,8 @@ static int ast_say_number_full_en(struct ast_channel *chan, int num, const char 
 						num = num % 1000000;
 						snprintf(fn, sizeof(fn), "digits/million");
 					} else {
-						ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+						if (option_debug)
+							ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 						res = -1;
 					}
 				}
@@ -705,7 +706,8 @@ static int ast_say_number_full_da(struct ast_channel *chan, int num, const char 
 							snprintf(fn, sizeof(fn), "digits/millions");
 						num = num % 1000000;
 					} else {
-						ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+						if (option_debug)
+							ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 						res = -1;
 					}
 				}
@@ -840,7 +842,8 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 				snprintf(fn, sizeof(fn), "digits/milliards");
 			}
 		} else {
-			ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 			res = -1;
 		}
 		if (!res) {
@@ -925,7 +928,8 @@ static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const ch
 				if (num && num < 100)
 					playa++;
 		} else {
-				ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 				res = -1;
 		}
 		
@@ -1026,7 +1030,8 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, const char 
 						}
 						num = num % 1000000;
 					} else {
-						ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+						if (option_debug)
+							ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 						res = -1;
 					}
 				}
@@ -1122,7 +1127,8 @@ static int ast_say_number_full_fr(struct ast_channel *chan, int num, const char 
 			snprintf(fn, sizeof(fn), "digits/million");
 			num = num % 1000000;
 		} else {
-			ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 			res = -1;
 		}
 		if (!res) {
@@ -1268,7 +1274,8 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num,
 			snprintf(fn, sizeof(fn), "digits/million");
 			num = num % 1000000;
 		} else {
-			ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 			res = -1;
 		}
 		if (!res) {
@@ -1418,7 +1425,8 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, const char 
 							else
 								snprintf(fn, sizeof(fn), "digits/millions");
 						} else {
-							ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+							if (option_debug)
+								ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 							res = -1;
 						}
 					}
@@ -1494,7 +1502,8 @@ static int ast_say_number_full_nl(struct ast_channel *chan, int num, const char 
 						num = num % 1000000;
 						snprintf(fn, sizeof(fn), "digits/million");
 					} else {
-						ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+						if (option_debug)
+							ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 						res = -1;
 					}
 				}
@@ -1589,7 +1598,8 @@ static int ast_say_number_full_no(struct ast_channel *chan, int num, const char 
 				if (num && num < 100)
 					playa++;
 		} else {
-				ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 				res = -1;
 		}
 		
@@ -1640,7 +1650,8 @@ static void pl_odtworz_plik(struct ast_channel *chan, const char *language, int 
 {    
 	char file_name[255] = "digits/";
 	strcat(file_name, fn);
-	ast_log(LOG_DEBUG, "Trying to play: %s\n", file_name);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Trying to play: %s\n", file_name);
 	if (!ast_streamfile(chan, file_name, language)) {
 		if ((audiofd > -1) && (ctrlfd > -1))
 			ast_waitstream_full(chan, ints, audiofd, ctrlfd);
@@ -2049,7 +2060,8 @@ static int ast_say_number_full_se(struct ast_channel *chan, int num, const char 
 						num = num % 1000000;
 						snprintf(fn, sizeof(fn), "digits/million");
 					} else {
-						ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+						if (option_debug)
+							ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 						res = -1;
 					}
 				}
@@ -2114,7 +2126,8 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char 
 							num = num % 1000000;
 							snprintf(fn, sizeof(fn), "digits/million");
 						} else {
-							ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+							if (option_debug)
+								ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 							res = -1;
 						}
 					}
@@ -2223,8 +2236,9 @@ static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char 
 			}
 			num %= 1000000;
 		} else {
-			ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
-				res = -1;
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			res = -1;
 		}
 		if (!res) {
 			if (!ast_streamfile(chan, fn, language)) {
@@ -2337,7 +2351,8 @@ static int ast_say_enumeration_full_en(struct ast_channel *chan, int num, const 
 			snprintf(fn, sizeof(fn), "digits/h-last");
 			num = 0;
 		} else {
-			ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 			res = -1;
 		}
 
@@ -2490,7 +2505,8 @@ static int ast_say_enumeration_full_da(struct ast_channel *chan, int num, const 
 			snprintf(fn, sizeof(fn), "digits/h-last%s", gender);
 			num = 0;
 		} else {
-			ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 			res = -1;
 		}
 
@@ -2653,7 +2669,8 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 			snprintf(fn, sizeof(fn), "digits/h-last%s", gender);
 			num = 0;
 		} else {
-			ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 			res = -1;
 		}
 
@@ -2955,7 +2972,8 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 	ast_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -3197,7 +3215,8 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 	ast_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -3402,7 +3421,8 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 	ast_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -3632,7 +3652,8 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 	ast_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -3814,7 +3835,8 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 	ast_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -4006,7 +4028,8 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 	ast_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -4204,7 +4227,8 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 	ast_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -4437,7 +4461,8 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 	ast_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -4668,7 +4693,8 @@ int ast_say_date_with_format_pl(struct ast_channel *chan, time_t thetime, const 
 
 	for (offset = 0 ; format[offset] != '\0' ; offset++) {
 		int remainder;
-		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -4886,7 +4912,8 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 	ast_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -5109,7 +5136,8 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 	ast_localtime(&time,&tm,timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 			case '\'':
@@ -6076,7 +6104,8 @@ static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char 
 					num = num % 1000000;
 					snprintf(fn, sizeof(fn), "digits/millions");
 				} else {
-					ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
 					res = -1;
 				}
 			}
@@ -6240,7 +6269,8 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 	ast_localtime(&time,&tm,timezone);
 	
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
-		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
 		switch (format[offset]) {
 			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
 		case '\'':

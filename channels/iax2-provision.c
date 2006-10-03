@@ -249,7 +249,7 @@ int iax_provision_version(unsigned int *version, const char *template, int force
 	if (sscanf(tmp, "v%x", version) != 1) {
 		if (strcmp(tmp, "u")) {
 			ret = iax_provision_build(&ied, version, template, force);
-			if (ret)
+			if (ret && option_debug)
 				ast_log(LOG_DEBUG, "Unable to create provisioning packet for '%s'\n", template);
 		} else
 			ret = -1;

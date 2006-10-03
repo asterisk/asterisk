@@ -153,7 +153,8 @@ static void run_ras(struct ast_channel *chan, char *args)
 			if (!res) {
 				/* Check for hangup */
 				if (chan->_softhangup && !signalled) {
-					ast_log(LOG_DEBUG, "Channel '%s' hungup.  Signalling RAS at %d to die...\n", chan->name, pid);
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Channel '%s' hungup.  Signalling RAS at %d to die...\n", chan->name, pid);
 					kill(pid, SIGTERM);
 					signalled=1;
 				}

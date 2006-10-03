@@ -416,7 +416,8 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 
 		/* We go at next loop if we got the restart char */
 		if (restart && strchr(restart, res)) {
-			ast_log(LOG_DEBUG, "we'll restart the stream here at next loop\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "we'll restart the stream here at next loop\n");
 			pause_restart_point = 0;
 			continue;
 		}
@@ -508,7 +509,8 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 		return -1;
 	}
 
-	ast_log(LOG_DEBUG,"play_and_record: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
+	if (option_debug)
+		ast_log(LOG_DEBUG,"play_and_record: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
 	snprintf(comment, sizeof(comment), "Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
 
 	if (playfile || beep) {
@@ -529,7 +531,8 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 
 	stringp = fmts;
 	strsep(&stringp, "|");
-	ast_log(LOG_DEBUG, "Recording Formats: sfmts=%s\n", fmts);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Recording Formats: sfmts=%s\n", fmts);
 	sfmt[0] = ast_strdupa(fmts);
 
 	while ((fmt = strsep(&stringp, "|"))) {
@@ -584,7 +587,8 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 		for (;;) {
 		 	res = ast_waitfor(chan, 2000);
 			if (!res) {
-				ast_log(LOG_DEBUG, "One waitfor failed, trying another\n");
+				if (option_debug)
+					ast_log(LOG_DEBUG, "One waitfor failed, trying another\n");
 				/* Try one more time in case of masq */
 			 	res = ast_waitfor(chan, 2000);
 				if (!res) {
@@ -931,7 +935,8 @@ enum AST_LOCK_RESULT ast_lock_path(const char *path)
 		ast_log(LOG_WARNING, "Failed to lock path '%s': %s\n", path, strerror(errno));
 		return AST_LOCK_TIMEOUT;
 	} else {
-		ast_log(LOG_DEBUG, "Locked path '%s'\n", path);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Locked path '%s'\n", path);
 		return AST_LOCK_SUCCESS;
 	}
 }
@@ -950,8 +955,10 @@ int ast_unlock_path(const char *path)
 
 	if ((res = unlink(s)))
 		ast_log(LOG_ERROR, "Could not unlock path '%s': %s\n", path, strerror(errno));
-	else
-		ast_log(LOG_DEBUG, "Unlocked path '%s'\n", path);
+	else {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Unlocked path '%s'\n", path);
+	}
 
 	return res;
 }
@@ -1181,7 +1188,8 @@ static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_me
 		while(menu->options[pos].option) {
 			if (!strcasecmp(menu->options[pos].option, exten)) {
 				res = ivr_dispatch(chan, menu->options + pos, exten, cbdata);
-				ast_log(LOG_DEBUG, "IVR Dispatch of '%s' (pos %d) yields %d\n", exten, pos, res);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "IVR Dispatch of '%s' (pos %d) yields %d\n", exten, pos, res);
 				if (res < 0)
 					break;
 				else if (res & RES_UPONE)
@@ -1197,7 +1205,8 @@ static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_me
 					if (!maxretries)
 						maxretries = 3;
 					if ((maxretries > 0) && (retries >= maxretries)) {
-						ast_log(LOG_DEBUG, "Max retries %d exceeded\n", maxretries);
+						if (option_debug)
+							ast_log(LOG_DEBUG, "Max retries %d exceeded\n", maxretries);
 						return -2;
 					} else {
 						if (option_exists(menu, "g") > -1) 
@@ -1208,24 +1217,28 @@ static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_me
 					pos = 0;
 					continue;
 				} else if (res && strchr(AST_DIGIT_ANY, res)) {
-					ast_log(LOG_DEBUG, "Got start of extension, %c\n", res);
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Got start of extension, %c\n", res);
 					exten[1] = '\0';
 					exten[0] = res;
 					if ((res = read_newoption(chan, menu, exten, sizeof(exten))))
 						break;
 					if (option_exists(menu, exten) < 0) {
 						if (option_exists(menu, "i")) {
-							ast_log(LOG_DEBUG, "Invalid extension entered, going to 'i'!\n");
+							if (option_debug)
+								ast_log(LOG_DEBUG, "Invalid extension entered, going to 'i'!\n");
 							strcpy(exten, "i");
 							pos = 0;
 							continue;
 						} else {
-							ast_log(LOG_DEBUG, "Aborting on invalid entry, with no 'i' option!\n");
+							if (option_debug)
+								ast_log(LOG_DEBUG, "Aborting on invalid entry, with no 'i' option!\n");
 							res = -2;
 							break;
 						}
 					} else {
-						ast_log(LOG_DEBUG, "New existing extension: %s\n", exten);
+						if (option_debug)
+							ast_log(LOG_DEBUG, "New existing extension: %s\n", exten);
 						pos = 0;
 						continue;
 					}
@@ -1233,7 +1246,8 @@ static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_me
 			}
 			pos++;
 		}
-		ast_log(LOG_DEBUG, "Stopping option '%s', res is %d\n", exten, res);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Stopping option '%s', res is %d\n", exten, res);
 		pos = 0;
 		if (!strcasecmp(exten, "s"))
 			strcpy(exten, "g");

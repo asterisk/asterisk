@@ -251,14 +251,16 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 			if(option_verbose >= 4)
 				ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: DTMF Digit Timeout on %s\n", chan->name);
 				
-			ast_log(LOG_DEBUG,"AlarmReceiver: DTMF timeout on chan %s\n",chan->name);
+			if (option_debug)
+				ast_log(LOG_DEBUG,"AlarmReceiver: DTMF timeout on chan %s\n",chan->name);
 				
 			res = 1;
 			break;
 		}
 		
 		if ((r = ast_waitfor(chan, -1) < 0)) {
-			ast_log(LOG_DEBUG, "Waitfor returned %d\n", r);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Waitfor returned %d\n", r);
 			continue;
 		}
 			
@@ -350,9 +352,11 @@ static int write_metadata( FILE *logfile, char *signalling_type, struct ast_chan
 		res = fprintf(logfile, "[events]\n\n");
 	
 	if(res < 0){
+		if (option_verbose >= 3 )
 		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: can't write metadata\n");	
 		
-		ast_log(LOG_DEBUG,"AlarmReceiver: can't write metadata\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG,"AlarmReceiver: can't write metadata\n");
 	}
 	else
 		res = 0;
@@ -400,9 +404,11 @@ static int log_events(struct ast_channel *chan,  char *signalling_type, event_no
 		
 		fd = mkstemp(workstring);
 		
-		if(fd == -1){
-			ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: can't make temporary file\n");	
-			ast_log(LOG_DEBUG,"AlarmReceiver: can't make temporary file\n");
+		if(fd == -1) {
+			if (option_verbose >= 3)
+				ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: can't make temporary file\n");	
+			if (option_debug)
+				ast_log(LOG_DEBUG,"AlarmReceiver: can't make temporary file\n");
 			res = -1;
 		}
 		
@@ -521,9 +527,10 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 		
 		got_some_digits = 1;
 
-		if(option_verbose >= 2)
+		if (option_verbose >= 2)
 			ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Received Event %s\n", event);
-		ast_log(LOG_DEBUG, "AlarmReceiver: Received event: %s\n", event);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "AlarmReceiver: Received event: %s\n", event);
 		
 		/* Calculate checksum */
 		
@@ -553,7 +560,8 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 			database_increment("checksum-errors");
 			if (option_verbose >= 2)
 				ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Nonzero checksum\n");
-			ast_log(LOG_DEBUG, "AlarmReceiver: Nonzero checksum\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "AlarmReceiver: Nonzero checksum\n");
 			continue;
 		}
 
@@ -564,7 +572,8 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 				database_increment("format-errors");
 				if(option_verbose >= 2)
 					ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Wrong message type\n");
-				ast_log(LOG_DEBUG, "AlarmReceiver: Wrong message type\n");
+				if (option_debug)
+					ast_log(LOG_DEBUG, "AlarmReceiver: Wrong message type\n");
 			continue;
 			}
 		}
@@ -706,7 +715,8 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 	*/
 	
 	if((!res) && (!ast_strlen_zero(event_app)) && (event_head)){
-		ast_log(LOG_DEBUG,"Alarmreceiver: executing: %s\n", event_app);
+		if (option_debug)
+			ast_log(LOG_DEBUG,"Alarmreceiver: executing: %s\n", event_app);
 		ast_safe_system(event_app);
 	}
 

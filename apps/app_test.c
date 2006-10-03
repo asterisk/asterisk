@@ -112,7 +112,8 @@ static int measurenoise(struct ast_channel *chan, int ms, char *who)
 		ast_log(LOG_NOTICE, "No samples were received from the other side!\n");
 		return -1;
 	}
-	ast_log(LOG_DEBUG, "%s: Noise: %d, samples: %d, avg: %d\n", who, noise, samples, noise / samples);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "%s: Noise: %d, samples: %d, avg: %d\n", who, noise, samples, noise / samples);
 	return (noise / samples);
 }
 
@@ -363,7 +364,8 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 			fprintf(f, "SERVERCHAN:    %s\n", chan->name);
 			fprintf(f, "SERVERTEST ID: %s\n", testid);
 			fprintf(f, "ANSWER:        PASS\n");
-			ast_log(LOG_DEBUG, "Processing Test ID '%s'\n", testid);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Processing Test ID '%s'\n", testid);
 			res = ast_safe_sleep(chan, 1000);
 			if (!res) {
 				/* Step 1: Send "1" */

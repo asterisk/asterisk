@@ -563,7 +563,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		return RESULT_SUCCESS;
 	}	
 	vfs = ast_openvstream(chan, argv[2], chan->language);
-	if (vfs)
+	if (vfs && option_debug)
 		ast_log(LOG_DEBUG, "Ooh, found a video stream, too\n");
 		
 	if (option_verbose > 2)
@@ -628,7 +628,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 		return RESULT_SUCCESS;
 	}
 	vfs = ast_openvstream(chan, argv[2], chan->language);
-	if (vfs)
+	if (vfs && option_debug)
 		ast_log(LOG_DEBUG, "Ooh, found a video stream, too\n");
 	
 	if (option_verbose > 2)
@@ -1840,7 +1840,8 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 			/* Idle the channel until we get a command */
 			f = ast_read(c);
 			if (!f) {
-				ast_log(LOG_DEBUG, "%s hungup\n", chan->name);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "%s hungup\n", chan->name);
 				returnstatus = AGI_RESULT_HANGUP;
 				break;
 			} else {

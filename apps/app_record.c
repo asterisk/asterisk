@@ -335,7 +335,8 @@ static int record_exec(struct ast_channel *chan, void *data)
 		ast_frfree(f);
 	}
 	if (!f) {
-		ast_log(LOG_DEBUG, "Got hangup\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Got hangup\n");
 		res = -1;
 	}
 			

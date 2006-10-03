@@ -825,7 +825,10 @@ static int meetme_cmd(int fd, int argc, char **argv)
 		return RESULT_SUCCESS;
 	} else 
 		return RESULT_SHOWUSAGE;
-	ast_log(LOG_DEBUG, "Cmdline: %s\n", cmdline);
+
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Cmdline: %s\n", cmdline);
+
 	admin_exec(NULL, cmdline);
 
 	return 0;
@@ -1258,7 +1261,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	if (ztc.confmode) {
 		/* Whoa, already in a conference...  Retry... */
 		if (!retryzap) {
-			ast_log(LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
 			retryzap = 1;
 			goto zapretry;
 		}
@@ -1292,7 +1296,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		ast_mutex_unlock(&conf->playlock);
 		goto outrun;
 	}
-	ast_log(LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
 
 	if (!sent_event) {
 		manager_event(EVENT_FLAG_CALL, "MeetmeJoin", 
@@ -1524,7 +1529,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						close(fd);
 						using_pseudo = 0;
 					}
-					ast_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
 					retryzap = strcasecmp(c->tech->type, "Zap");
 					user->zapchannel = !retryzap;
 					goto zapretry;
@@ -1602,7 +1608,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					tmp[0] = f->subclass;
 					tmp[1] = '\0';
 					if (!ast_goto_if_exists(chan, exitcontext, tmp, 1)) {
-						ast_log(LOG_DEBUG, "Got DTMF %c, goto context %s\n", tmp[0], exitcontext);
+						if (option_debug)
+							ast_log(LOG_DEBUG, "Got DTMF %c, goto context %s\n", tmp[0], exitcontext);
 						ret = 0;
 						ast_frfree(f);
 						break;
@@ -2038,7 +2045,8 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 	if (!cnf) {
 		if (dynamic) {
 			/* No need to parse meetme.conf */
-			ast_log(LOG_DEBUG, "Building dynamic conference '%s'\n", confno);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Building dynamic conference '%s'\n", confno);
 			if (dynamic_pin) {
 				if (dynamic_pin[0] == 'q') {
 					/* Query the user to enter a PIN */
@@ -2074,7 +2082,8 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 				}
 			}
 			if (!var) {
-				ast_log(LOG_DEBUG, "%s isn't a valid conference\n", confno);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "%s isn't a valid conference\n", confno);
 			}
 			ast_config_destroy(cfg);
 		}
@@ -2920,7 +2929,8 @@ static int slastate(const char *data)
 	struct ast_conference *conf;
 	struct ast_sla *sla, *sla2;
 
-	ast_log(LOG_DEBUG, "asked for sla state for '%s'\n", data);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "asked for sla state for '%s'\n", data);
 
 	/* Find conference */
 	AST_LIST_LOCK(&confs);
@@ -2934,7 +2944,8 @@ static int slastate(const char *data)
 	sla = sla2 = ASTOBJ_CONTAINER_FIND(&slas, data);
 	ASTOBJ_UNREF(sla2, sla_destroy);
 
-	ast_log(LOG_DEBUG, "for '%s' conf = %p, sla = %p\n", data, conf, sla);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "for '%s' conf = %p, sla = %p\n", data, conf, sla);
 
 	if (!conf && !sla)
 		return AST_DEVICE_INVALID;

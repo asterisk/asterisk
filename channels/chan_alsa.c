@@ -366,8 +366,10 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	if (err < 0) {
 		ast_log(LOG_ERROR, "snd_pcm_open failed: %s\n", snd_strerror(err));
 		return NULL;
-	} else
-		ast_log(LOG_DEBUG, "Opening device %s in %s mode\n", dev, (stream == SND_PCM_STREAM_CAPTURE) ? "read" : "write");
+	} else {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Opening device %s in %s mode\n", dev, (stream == SND_PCM_STREAM_CAPTURE) ? "read" : "write");
+	}
 
 	snd_pcm_hw_params_alloca(&hwparams);
 	snd_pcm_hw_params_any(handle, hwparams);
@@ -393,15 +395,19 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	err = snd_pcm_hw_params_set_period_size_near(handle, hwparams, &period_size, &direction);
 	if (err < 0)
 		ast_log(LOG_ERROR, "period_size(%ld frames) is bad: %s\n", period_size, snd_strerror(err));
-	else
-		ast_log(LOG_DEBUG, "Period size is %d\n", err);
+	else {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Period size is %d\n", err);
+	}
 
 	buffer_size = 4096 * 2;		/* period_size * 16; */
 	err = snd_pcm_hw_params_set_buffer_size_near(handle, hwparams, &buffer_size);
 	if (err < 0)
 		ast_log(LOG_WARNING, "Problem setting buffer size of %ld: %s\n", buffer_size, snd_strerror(err));
-	else
-		ast_log(LOG_DEBUG, "Buffer size is set to %d frames\n", err);
+	else {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Buffer size is set to %d frames\n", err);
+	}
 
 #if 0
 	direction = 0;
@@ -460,11 +466,14 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	err = snd_pcm_poll_descriptors_count(handle);
 	if (err <= 0)
 		ast_log(LOG_ERROR, "Unable to get a poll descriptors count, error is %s\n", snd_strerror(err));
-	if (err != 1)
-		ast_log(LOG_DEBUG, "Can't handle more than one device\n");
+	if (err != 1) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Can't handle more than one device\n");
+	}
 
 	snd_pcm_poll_descriptors(handle, &pfd, err);
-	ast_log(LOG_DEBUG, "Acquired fd %d from the poll descriptor\n", pfd.fd);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Acquired fd %d from the poll descriptor\n", pfd.fd);
 
 	if (stream == SND_PCM_STREAM_CAPTURE)
 		readdev = pfd.fd;
@@ -628,7 +637,8 @@ static int alsa_write(struct ast_channel *chan, struct ast_frame *f)
 		res = snd_pcm_writei(alsa.ocard, sizbuf, len / 2);
 		if (res == -EPIPE) {
 #if DEBUG
-			ast_log(LOG_DEBUG, "XRUN write\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "XRUN write\n");
 #endif
 			snd_pcm_prepare(alsa.ocard);
 			res = snd_pcm_writei(alsa.ocard, sizbuf, len / 2);

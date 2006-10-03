@@ -135,13 +135,15 @@ static int do_waiting(struct ast_channel *chan, int silencereqd, time_t waitstar
 			/* Ended happily with silence */
 			res = 1;
 			pbx_builtin_setvar_helper(chan, "WAITSTATUS", "SILENCE");
-			ast_log(LOG_DEBUG, "WAITSTATUS was set to SILENCE\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "WAITSTATUS was set to SILENCE\n");
 			break;
 		}
 
 		if ( timeout && (difftime(time(&now),waitstart) >= timeout) ) {
 			pbx_builtin_setvar_helper(chan, "WAITSTATUS", "TIMEOUT");
-			ast_log(LOG_DEBUG, "WAITSTATUS was set to TIMEOUT\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "WAITSTATUS was set to TIMEOUT\n");
 			res = 0;
 			break;
 		}

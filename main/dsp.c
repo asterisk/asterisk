@@ -59,6 +59,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ulaw.h"
 #include "asterisk/alaw.h"
 #include "asterisk/utils.h"
+#include "asterisk/options.h"
 
 /*! Number of goertzels for progress detect */
 enum gsamp_size {
@@ -1335,8 +1336,10 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 	}
 #endif
 #if 1
-	if (res)
-		ast_log(LOG_DEBUG, "ast_dsp_busydetect detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
+	if (res) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "ast_dsp_busydetect detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
+	}
 #endif
 	return res;
 }
@@ -1470,7 +1473,8 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		memset(&dsp->f, 0, sizeof(dsp->f));
 		dsp->f.frametype = AST_FRAME_CONTROL;
 		dsp->f.subclass = AST_CONTROL_BUSY;
-		ast_log(LOG_DEBUG, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
 		return &dsp->f;
 	}
 	if ((dsp->features & DSP_FEATURE_DTMF_DETECT)) {
@@ -1655,7 +1659,8 @@ void ast_dsp_set_busy_pattern(struct ast_dsp *dsp, int tonelength, int quietleng
 {
 	dsp->busy_tonelength = tonelength;
 	dsp->busy_quietlength = quietlength;
-	ast_log(LOG_DEBUG, "dsp busy pattern set to %d,%d\n", tonelength, quietlength);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "dsp busy pattern set to %d,%d\n", tonelength, quietlength);
 }
 
 void ast_dsp_digitreset(struct ast_dsp *dsp)

@@ -1862,7 +1862,8 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 	}
 	if (!strcmp(format, "wav49"))
 		format = "WAV";
-	ast_log(LOG_DEBUG, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, ast_test_flag((&globalflags), VM_ATTACH));
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, ast_test_flag((&globalflags), VM_ATTACH));
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
 	   command hangs */
 	if ((p = vm_mkftemp(tmp)) == NULL) {
@@ -1987,12 +1988,14 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 			create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, vmu->mailbox, "tmp");
 			snprintf(newtmp, sizeof(newtmp), "%s/XXXXXX", tmpdir);
 			tmpfd = mkstemp(newtmp);
-			ast_log(LOG_DEBUG, "newtmp: %s\n", newtmp);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "newtmp: %s\n", newtmp);
 			if (vmu->volgain < -.001 || vmu->volgain > .001) {
 				snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, attach, format, newtmp, format);
 				ast_safe_system(tmpcmd);
 				attach = newtmp;
-				ast_log(LOG_DEBUG, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
 			}
 			fprintf(p, "--%s\n", bound);
 			fprintf(p, "Content-Type: %s%s; name=\"msg%04d.%s\"\n", ctype, format, msgnum, format);
@@ -2022,7 +2025,8 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 		fclose(p);
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		ast_safe_system(tmp2);
-		ast_log(LOG_DEBUG, "Sent mail to %s with command '%s'\n", vmu->email, mailcmd);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Sent mail to %s with command '%s'\n", vmu->email, mailcmd);
 	}
 	return 0;
 }
@@ -2105,7 +2109,8 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		fclose(p);
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		ast_safe_system(tmp2);
-		ast_log(LOG_DEBUG, "Sent page to %s with command '%s'\n", pager, mailcmd);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Sent page to %s with command '%s'\n", pager, mailcmd);
 	}
 	return 0;
 }
@@ -2677,14 +2682,16 @@ static void run_externnotify(char *context, char *extension)
 			ast_log(LOG_WARNING, "The switch reported '%s'\n", mwi_msg->cause);
 			ASTOBJ_UNREF(mwi_msg, ast_smdi_mwi_message_destroy);
 		} else {
-			ast_log(LOG_DEBUG, "Successfully executed SMDI MWI change for %s on %s\n", extension, smdi_iface->name);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Successfully executed SMDI MWI change for %s on %s\n", extension, smdi_iface->name);
 		}
 	} else if (!ast_strlen_zero(externnotify)) {
 		if (inboxcount(ext_context, &newvoicemails, &oldvoicemails)) {
 			ast_log(LOG_ERROR, "Problem in calculating number of voicemail messages available for extension %s\n", extension);
 		} else {
 			snprintf(arguments, sizeof(arguments), "%s %s %s %d&", externnotify, context, extension, newvoicemails);
-			ast_log(LOG_DEBUG, "Executing %s\n", arguments);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Executing %s\n", arguments);
 			ast_safe_system(arguments);
 		}
 	}
@@ -2803,12 +2810,14 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			if (ast_streamfile(chan, prefile, chan->language) > -1) 
 				res = ast_waitstream(chan, ecodes);
 		} else {
-			ast_log(LOG_DEBUG, "%s doesn't exist, doing what we can\n", prefile);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "%s doesn't exist, doing what we can\n", prefile);
 			res = invent_message(chan, vmu->context, ext, ast_test_flag(options, OPT_BUSY_GREETING), ecodes);
 		}
 		DISPOSE(prefile, -1);
 		if (res < 0) {
-			ast_log(LOG_DEBUG, "Hang up during prefile playback\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Hang up during prefile playback\n");
 			free_user(vmu);
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 			return -1;
@@ -2897,7 +2906,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 
 		/* Check if mailbox is full */
 		if (vms->quota_usage >= vms->quota_limit) {
-			ast_log(LOG_DEBUG, "*** QUOTA EXCEEDED!!\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "*** QUOTA EXCEEDED!!\n");
 			ast_play_and_wait(chan, "vm-mailboxfull");
 			return -1;
 		}
@@ -2907,7 +2917,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		if (!res)
 			res = ast_waitstream(chan, "");
 		/* play_record_review does recording and verify */
-		ast_log(LOG_DEBUG, "About to record message in file %s\n",fn);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "About to record message in file %s\n",fn);
 		res = play_record_review(chan, NULL, fn, vmmaxmessage, fmt, 1, vmu, &duration, dir, options->record_gain);
 		if (res == '0') {
 			goto transfer;
@@ -3103,7 +3114,7 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 	if (box == 1) return 10;
 	/* get the real IMAP message number for this message */
 	sprintf(sequence,"%ld",vms->msgArray[msg]);
-	if(option_debug > 2)
+	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Copying sequence %s to mailbox %s\n",sequence,dbox);
 	res = mail_copy(vms->mailstream,sequence,dbox);
 	if (res == 1) return 0;
@@ -3253,7 +3264,8 @@ static int adsi_load_vmail(struct ast_channel *chan, int *useadsi)
 	bytes += ast_adsi_voice_mode(buf + bytes, 0);
 	ast_adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD);
 
-	ast_log(LOG_DEBUG, "Done downloading scripts...\n");
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Done downloading scripts...\n");
 
 #ifdef DISPLAY
 	/* Add last dot */
@@ -3261,7 +3273,8 @@ static int adsi_load_vmail(struct ast_channel *chan, int *useadsi)
 	bytes += ast_adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, "   ......", "");
 	bytes += ast_adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
 #endif
-	ast_log(LOG_DEBUG, "Restarting session...\n");
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Restarting session...\n");
 
 	bytes = 0;
 	/* Load the session now */
@@ -3961,13 +3974,13 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
  				}
  				if (!strcasecmp(fmt, "wav49"))
  					fmt = "WAV";
- 				if(option_debug > 2)
+ 				if (option_debug > 2)
 	 				ast_log (LOG_DEBUG,"**** format set to %s, vmfmts set to %s\n",fmt,vmfmts);
  				/* ast_copy_string(fmt, vmfmts, sizeof(fmt));*/
  				/* if (!ast_strlen_zero(fmt)) { */
 				snprintf(todir, sizeof(todir), "%s/imap", VM_SPOOL_DIR);
  				make_gsm_file(vms->fn, vms->imapuser, todir, vms->curmsg);
-				if(option_debug > 2)
+				if (option_debug > 2)
 	 				ast_log (LOG_DEBUG,"Before mail_fetchstructure, message number is %ld, filename is:%s\n",vms->msgArray[vms->curmsg], vms->fn);
 				/*mail_fetchstructure (mailstream, vmArray[0], &body); */
 				mail_fetchstructure (vms->mailstream, vms->msgArray[vms->curmsg], &body);
@@ -4119,13 +4132,15 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 		return res;
 
 	/* Strip off caller ID number from name */
-	ast_log(LOG_DEBUG, "VM-CID: composite caller ID received: %s, context: %s\n", cid, context);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "VM-CID: composite caller ID received: %s, context: %s\n", cid, context);
 	ast_callerid_parse(cid, &name, &callerid);
 	if ((!ast_strlen_zero(callerid)) && strcmp(callerid, "Unknown")) {
 		/* Check for internal contexts and only */
 		/* say extension when the call didn't come from an internal context in the list */
 		for (i = 0 ; i < MAX_NUM_CID_CONTEXTS ; i++){
-			ast_log(LOG_DEBUG, "VM-CID: comparing internalcontext: %s\n", cidinternalcontexts[i]);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "VM-CID: comparing internalcontext: %s\n", cidinternalcontexts[i]);
 			if ((strcmp(cidinternalcontexts[i], context) == 0))
 				break;
 		}
@@ -4153,7 +4168,8 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 		}
 
 		else if (!res){
-			ast_log(LOG_DEBUG, "VM-CID: Numeric caller id: (%s)\n",callerid);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "VM-CID: Numeric caller id: (%s)\n",callerid);
 			/* BB: Since this is all nicely figured out, why not say "from phone number" in this case" */
 			if (!callback)
 				res = wait_file2(chan, vms, "vm-from-phonenumber");
@@ -4161,7 +4177,8 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 		}
 	} else {
 		/* Number unknown */
-		ast_log(LOG_DEBUG, "VM-CID: From an unknown number\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG, "VM-CID: From an unknown number\n");
 		/* Say "from an unknown caller" as one phrase - it is already recorded by "the voice" anyhow */
 		res = wait_file2(chan, vms, "vm-unknown-caller");
 	}
@@ -4181,7 +4198,8 @@ static int play_message_duration(struct ast_channel *chan, struct vm_state *vms,
 	durations=atoi(duration);
 	durationm=(durations / 60);
 
-	ast_log(LOG_DEBUG, "VM-Duration: duration is: %d seconds converted to: %d minutes\n", durations, durationm);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "VM-Duration: duration is: %d seconds converted to: %d minutes\n", durations, durationm);
 
 	if ((!res) && (durationm >= minduration)) {
 		res = wait_file2(chan, vms, "vm-duration");
@@ -5481,7 +5499,8 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		vm_change_password(vmu,newpassword);
 	else 
 		vm_change_password_shell(vmu,newpassword);
-	ast_log(LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
+	if (option_debug)
+		ast_log(LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
 	cmd = ast_play_and_wait(chan,"vm-passchanged");
 
 	/* If forcename is set, have the user record their name */	
@@ -5583,7 +5602,8 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 				vm_change_password(vmu,newpassword);
 			else 
 				vm_change_password_shell(vmu,newpassword);
-			ast_log(LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
+			if (option_debug)
+				ast_log(LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
 			cmd = ast_play_and_wait(chan,"vm-passchanged");
 			break;
 		case '*': 
@@ -5827,7 +5847,8 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			ast_copy_string(mailbox, fullusername, mailbox_size);
 		}
 
-		ast_log(LOG_DEBUG, "Before find user for mailbox %s\n",mailbox);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Before find user for mailbox %s\n",mailbox);
 		vmu = find_user(&vmus, context, mailbox);
 		if (vmu && (vmu->password[0] == '\0' || (vmu->password[0] == '-' && vmu->password[1] == '\0'))) {
 			/* saved password is blank, so don't bother asking */
@@ -5919,7 +5940,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	memset(&vmus, 0, sizeof(vmus));
 
 	if (chan->_state != AST_STATE_UP) {
-		ast_log(LOG_DEBUG, "Before ast_answer\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Before ast_answer\n");
 		ast_answer(chan);
 	}
 
@@ -6001,7 +6023,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	if (!valid)
 		res = vm_authenticate(chan, vms.username, sizeof(vms.username), &vmus, context, prefixstr, skipuser, maxlogins, 0);
 
-	ast_log(LOG_DEBUG, "After vm_authenticate\n");
+	if (option_debug)
+		ast_log(LOG_DEBUG, "After vm_authenticate\n");
 	if (!res) {
 		valid = 1;
 		if (!skipuser)
@@ -6036,18 +6059,21 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	create_dirpath(vms.curdir, sizeof(vms.curdir), vmu->context, vms.username, "");
 #endif
 	/* Retrieve old and new message counts */
-	ast_log(LOG_DEBUG, "Before open_mailbox\n");
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Before open_mailbox\n");
 	res = open_mailbox(&vms, vmu, 1);
 	if (res == ERROR_LOCK_PATH)
 		goto out;
 	vms.oldmessages = vms.lastmsg + 1;
-	ast_log(LOG_DEBUG, "Number of old messages: %d\n",vms.oldmessages);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Number of old messages: %d\n",vms.oldmessages);
 	/* Start in INBOX */
 	res = open_mailbox(&vms, vmu, 0);
 	if (res == ERROR_LOCK_PATH)
 		goto out;
 	vms.newmessages = vms.lastmsg + 1;
-	ast_log(LOG_DEBUG, "Number of new messages: %d\n",vms.newmessages);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Number of new messages: %d\n",vms.newmessages);
 		
 	/* Select proper mailbox FIRST!! */
 	if (play_auto) {
@@ -6938,13 +6964,16 @@ static int load_config(void)
 		
 		if ((notifystr = ast_variable_retrieve(cfg, "general", "externnotify"))) {
 			ast_copy_string(externnotify, notifystr, sizeof(externnotify));
-			ast_log(LOG_DEBUG, "found externnotify: %s\n", externnotify);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "found externnotify: %s\n", externnotify);
 			if (!strcasecmp(externnotify, "smdi")) {
-				ast_log(LOG_DEBUG, "Using SMDI for external voicemail notification\n");
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Using SMDI for external voicemail notification\n");
 				if ((smdistr = ast_variable_retrieve(cfg, "general", "smdiport"))) {
 					smdi_iface = ast_smdi_interface_find(smdistr);
 				} else {
-					ast_log(LOG_DEBUG, "No SMDI interface set, trying default (/dev/ttyS0)\n");
+					if (option_debug)
+						ast_log(LOG_DEBUG, "No SMDI interface set, trying default (/dev/ttyS0)\n");
 					smdi_iface = ast_smdi_interface_find("/dev/ttyS0");
 				}
 
@@ -6952,7 +6981,8 @@ static int load_config(void)
 					ast_log(LOG_ERROR, "No valid SMDI interface specfied, disabling external voicemail notification\n");
 					externnotify[0] = '\0';
 				} else {
-					ast_log(LOG_DEBUG, "Using SMDI port %s\n", smdi_iface->name);
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Using SMDI port %s\n", smdi_iface->name);
 				}
 			}
 		} else {
@@ -7029,7 +7059,8 @@ static int load_config(void)
 		ast_set2_flag((&globalflags), ast_true(astforcegreet), VM_FORCEGREET);
 
 		if ((s = ast_variable_retrieve(cfg, "general", "cidinternalcontexts"))){
-			ast_log(LOG_DEBUG,"VM_CID Internal context string: %s\n",s);
+			if (option_debug)
+				ast_log(LOG_DEBUG,"VM_CID Internal context string: %s\n",s);
 			stringp = ast_strdupa(s);
 			for (x = 0 ; x < MAX_NUM_CID_CONTEXTS ; x++){
 				if (!ast_strlen_zero(stringp)) {
@@ -7037,53 +7068,62 @@ static int load_config(void)
 					while ((*q == ' ')||(*q == '\t')) /* Eat white space between contexts */
 						q++;
 					ast_copy_string(cidinternalcontexts[x], q, sizeof(cidinternalcontexts[x]));
-					ast_log(LOG_DEBUG,"VM_CID Internal context %d: %s\n", x, cidinternalcontexts[x]);
+					if (option_debug)
+						ast_log(LOG_DEBUG,"VM_CID Internal context %d: %s\n", x, cidinternalcontexts[x]);
 				} else {
 					cidinternalcontexts[x][0] = '\0';
 				}
 			}
 		}
 		if (!(astreview = ast_variable_retrieve(cfg, "general", "review"))){
-			ast_log(LOG_DEBUG,"VM Review Option disabled globally\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG,"VM Review Option disabled globally\n");
 			astreview = "no";
 		}
 		ast_set2_flag((&globalflags), ast_true(astreview), VM_REVIEW);	
 
 		/*Temperary greeting reminder */
 		if (!(asttempgreetwarn = ast_variable_retrieve(cfg, "general", "tempgreetwarn"))) {
-			ast_log(LOG_DEBUG, "VM Temperary Greeting Reminder Option disabled globally\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "VM Temperary Greeting Reminder Option disabled globally\n");
 			asttempgreetwarn = "no";
 		} else {
-			ast_log(LOG_DEBUG, "VM Temperary Greeting Reminder Option enabled globally\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "VM Temperary Greeting Reminder Option enabled globally\n");
 		}
 		ast_set2_flag((&globalflags), ast_true(asttempgreetwarn), VM_TEMPGREETWARN);
 
 		if (!(astcallop = ast_variable_retrieve(cfg, "general", "operator"))){
-			ast_log(LOG_DEBUG,"VM Operator break disabled globally\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG,"VM Operator break disabled globally\n");
 			astcallop = "no";
 		}
 		ast_set2_flag((&globalflags), ast_true(astcallop), VM_OPERATOR);	
 
 		if (!(astsaycid = ast_variable_retrieve(cfg, "general", "saycid"))) {
-			ast_log(LOG_DEBUG,"VM CID Info before msg disabled globally\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG,"VM CID Info before msg disabled globally\n");
 			astsaycid = "no";
 		} 
 		ast_set2_flag((&globalflags), ast_true(astsaycid), VM_SAYCID);	
 
 		if (!(send_voicemail = ast_variable_retrieve(cfg,"general", "sendvoicemail"))){
-			ast_log(LOG_DEBUG,"Send Voicemail msg disabled globally\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG,"Send Voicemail msg disabled globally\n");
 			send_voicemail = "no";
 		}
 		ast_set2_flag((&globalflags), ast_true(send_voicemail), VM_SVMAIL);
 	
 		if (!(asthearenv = ast_variable_retrieve(cfg, "general", "envelope"))) {
-			ast_log(LOG_DEBUG,"ENVELOPE before msg enabled globally\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG,"ENVELOPE before msg enabled globally\n");
 			asthearenv = "yes";
 		}
 		ast_set2_flag((&globalflags), ast_true(asthearenv), VM_ENVELOPE);	
 
 		if (!(astsaydurationinfo = ast_variable_retrieve(cfg, "general", "sayduration"))) {
-			ast_log(LOG_DEBUG,"Duration info before msg enabled globally\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG,"Duration info before msg enabled globally\n");
 			astsaydurationinfo = "yes";
 		}
 		ast_set2_flag((&globalflags), ast_true(astsaydurationinfo), VM_SAYDURATION);	
@@ -7098,28 +7138,32 @@ static int load_config(void)
 		}
 
 		if (!(astskipcmd = ast_variable_retrieve(cfg, "general", "nextaftercmd"))) {
-			ast_log(LOG_DEBUG,"We are not going to skip to the next msg after save/delete\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG,"We are not going to skip to the next msg after save/delete\n");
 			astskipcmd = "no";
 		}
 		ast_set2_flag((&globalflags), ast_true(astskipcmd), VM_SKIPAFTERCMD);
 
 		if ((dialoutcxt = ast_variable_retrieve(cfg, "general", "dialout"))) {
 			ast_copy_string(dialcontext, dialoutcxt, sizeof(dialcontext));
-			ast_log(LOG_DEBUG, "found dialout context: %s\n", dialcontext);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "found dialout context: %s\n", dialcontext);
 		} else {
 			dialcontext[0] = '\0';	
 		}
 		
 		if ((callbackcxt = ast_variable_retrieve(cfg, "general", "callback"))) {
 			ast_copy_string(callcontext, callbackcxt, sizeof(callcontext));
-			ast_log(LOG_DEBUG, "found callback context: %s\n", callcontext);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "found callback context: %s\n", callcontext);
 		} else {
 			callcontext[0] = '\0';
 		}
 
 		if ((exitcxt = ast_variable_retrieve(cfg, "general", "exitcontext"))) {
 			ast_copy_string(exitcontext, exitcxt, sizeof(exitcontext));
-			ast_log(LOG_DEBUG, "found operator context: %s\n", exitcontext);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "found operator context: %s\n", exitcontext);
 		} else {
 			exitcontext[0] = '\0';
 		}

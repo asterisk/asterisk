@@ -597,7 +597,8 @@ static int gtalk_is_answered(struct gtalk *client, ikspak *pak)
 {
 	struct gtalk_pvt *tmp;
 	char *from;
-	ast_log(LOG_DEBUG, "The client is %s\n", client->name);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "The client is %s\n", client->name);
 	/* Make sure our new call doesn't exist yet */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
 		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid))
@@ -675,7 +676,8 @@ static int gtalk_hangup_farend(struct gtalk *client, ikspak *pak)
 	struct gtalk_pvt *tmp;
 	char *from;
 
-	ast_log(LOG_DEBUG, "The client is %s\n", client->name);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "The client is %s\n", client->name);
 	/* Make sure our new call doesn't exist yet */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
 		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid))
@@ -1239,7 +1241,8 @@ static struct ast_frame *gtalk_rtp_read(struct ast_channel *ast, struct gtalk_pv
 /*			if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
 				f = ast_dsp_process(p->owner, p->vad, f);
 				if (option_debug && f && (f->frametype == AST_FRAME_DTMF))
-					ast_log(LOG_DEBUG, "* Detected inband DTMF '%c'\n", f->subclass);
+					if (option_debug)
+						ast_log(LOG_DEBUG, "* Detected inband DTMF '%c'\n", f->subclass);
 		        } */
 		}
 	}

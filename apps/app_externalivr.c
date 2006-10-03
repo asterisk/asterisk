@@ -103,7 +103,8 @@ static void send_child_event(FILE *handle, const char event, const char *data,
 	}
 
 	fprintf(handle, "%s\n", tmp);
-	ast_chan_log(LOG_DEBUG, chan, "sent '%s'\n", tmp);
+	if (option_debug)
+		ast_chan_log(LOG_DEBUG, chan, "sent '%s'\n", tmp);
 }
 
 static void *gen_alloc(struct ast_channel *chan, void *params)
@@ -439,7 +440,8 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 				command = ast_strip(input);
 
-				ast_chan_log(LOG_DEBUG, chan, "got command '%s'\n", input);
+				if (option_debug)
+					ast_chan_log(LOG_DEBUG, chan, "got command '%s'\n", input);
 
 				if (strlen(input) < 4)
 					continue;

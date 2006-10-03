@@ -1020,7 +1020,8 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 			/*! \note Hmm, can't seem to distinguish a DB failure from a not
 			   found condition... So we might delete an in-core queue
 			   in case of DB failure. */
-			ast_log(LOG_DEBUG, "Queue %s not found in realtime.\n", queuename);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Queue %s not found in realtime.\n", queuename);
 
 			q->dead = 1;
 			/* Delete if unused (else will be deleted when last caller leaves). */
@@ -1499,9 +1500,11 @@ static int compare_weight(struct call_queue *rq, struct member *member)
 				if (strcmp(mem->interface, member->interface))
 					continue;
 
-				ast_log(LOG_DEBUG, "Found matching member %s in queue '%s'\n", mem->interface, q->name);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Found matching member %s in queue '%s'\n", mem->interface, q->name);
 				if (q->weight > rq->weight) {
-					ast_log(LOG_DEBUG, "Queue '%s' (weight %d, calls %d) is preferred over '%s' (weight %d, calls %d)\n", q->name, q->weight, q->count, rq->name, rq->weight, rq->count);
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Queue '%s' (weight %d, calls %d) is preferred over '%s' (weight %d, calls %d)\n", q->name, q->weight, q->count, rq->name, rq->weight, rq->count);
 					found = 1;
 					break;
 				}
@@ -1593,7 +1596,8 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		return 0;
 	}
 	if (use_weight && compare_weight(qe->parent,tmp->member)) {
-		ast_log(LOG_DEBUG, "Priority queue delaying call to %s:%s\n", qe->parent->name, tmp->interface);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Priority queue delaying call to %s:%s\n", qe->parent->name, tmp->interface);
 		if (qe->chan->cdr)
 			ast_cdr_busy(qe->chan->cdr);
 		tmp->stillgoing = 0;
@@ -1891,7 +1895,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 		}
 		if (pos == 1 /* not found */) {
 			if (numlines == (numbusies + numnochan)) {
-				ast_log(LOG_DEBUG, "Everyone is busy at this time\n");
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Everyone is busy at this time\n");
 			} else {
 				ast_log(LOG_NOTICE, "No one is answering queue '%s' (%d/%d/%d)\n", queue, numlines, numbusies, numnochan);
 			}
@@ -2029,7 +2034,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							/* Ignore going off hook */
 							break;
 						default:
-							ast_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
+							if (option_debug)
+								ast_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
 						}
 					}
 					ast_frfree(f);
@@ -2849,8 +2855,10 @@ static int set_member_paused(char *queuename, char *interface, int paused)
 		if (ast_strlen_zero(queuename) || !strcasecmp(q->name, queuename)) {
 			if ((mem = interface_exists(q, interface))) {
 				found++;
-				if (mem->paused == paused)
-					ast_log(LOG_DEBUG, "%spausing already-%spaused queue member %s:%s\n", (paused ? "" : "un"), (paused ? "" : "un"), q->name, interface);
+				if (mem->paused == paused) {
+					if (option_debug)
+						ast_log(LOG_DEBUG, "%spausing already-%spaused queue member %s:%s\n", (paused ? "" : "un"), (paused ? "" : "un"), q->name, interface);
+				}
 				mem->paused = paused;
 
 				if (queue_persistent_members)
@@ -3109,12 +3117,14 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 
 	switch (remove_from_queue(args.queuename, args.interface)) {
 	case RES_OKAY:
-		ast_log(LOG_DEBUG, "Removed interface '%s' from queue '%s'\n", args.interface, args.queuename);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Removed interface '%s' from queue '%s'\n", args.interface, args.queuename);
 		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "REMOVED");
 		res = 0;
 		break;
 	case RES_EXISTS:
-		ast_log(LOG_DEBUG, "Unable to remove interface '%s' from queue '%s': Not there\n", args.interface, args.queuename);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Unable to remove interface '%s' from queue '%s': Not there\n", args.interface, args.queuename);
 		if (priority_jump || ast_opt_priority_jumping)
 			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "NOTINQUEUE");

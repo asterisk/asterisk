@@ -1239,8 +1239,10 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 		found->cap = aji_find_version(node, ver, pak);
 		if(gtalk_yuck(pak->x)) /* gtalk should do discover */
 			found->cap->jingle = 1;
-		if(found->cap->jingle && option_debug > 4)
-			ast_log(LOG_DEBUG,"Special case for google till they support discover.\n");
+		if(found->cap->jingle && option_debug > 4) {
+			if (option_debug)
+				ast_log(LOG_DEBUG,"Special case for google till they support discover.\n");
+		}
 		else {
 			iks *iq, *query;
 			iq = iks_new("iq");

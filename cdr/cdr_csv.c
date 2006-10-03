@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/cdr.h"
 #include "asterisk/module.h"
+#include "asterisk/options.h"
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
 
@@ -121,7 +122,8 @@ static int load_config(void)
 	if (tmp) {
 		usegmtime = ast_true(tmp);
 		if (usegmtime) {
-			ast_log(LOG_DEBUG, "logging time in GMT\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "logging time in GMT\n");
 		}
 	}
 
@@ -129,7 +131,8 @@ static int load_config(void)
 	if (tmp) {
 		loguniqueid = ast_true(tmp);
 		if (loguniqueid) {
-			ast_log(LOG_DEBUG, "logging CDR field UNIQUEID\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "logging CDR field UNIQUEID\n");
 		}
 	}
 
@@ -137,7 +140,8 @@ static int load_config(void)
 	if (tmp) {
 		loguserfield = ast_true(tmp);
 		if (loguserfield) {
-			ast_log(LOG_DEBUG, "logging CDR user-defined field\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "logging CDR user-defined field\n");
 		}
 	}
 

@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/dns.h"
 #include "asterisk/endian.h"
+#include "asterisk/options.h"
 
 #define MAX_SIZE 4096
 
@@ -209,7 +210,8 @@ int ast_search_dns(void *context,
 			ret = -1;
 		}
 		else if (ret == 0) {
-			ast_log(LOG_DEBUG, "No matches found in DNS for %s\n", dname);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "No matches found in DNS for %s\n", dname);
 			ret = 0;
 		}
 		else

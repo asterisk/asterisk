@@ -1193,7 +1193,8 @@ static int action_waitevent(struct mansession *s, struct message *m)
 			"\r\n", idText);
 		s->waiting_thread = AST_PTHREADT_NULL;
 	} else {
-		ast_log(LOG_DEBUG, "Abandoning event request!\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Abandoning event request!\n");
 	}
 	ast_mutex_unlock(&s->__lock);
 	return 0;
@@ -1906,7 +1907,8 @@ static int process_message(struct mansession *s, struct message *m)
 	int ret = 0;
 
 	ast_copy_string(action, astman_get_header(m, "Action"), sizeof(action));
-	ast_log( LOG_DEBUG, "Manager received command '%s'\n", action );
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Manager received command '%s'\n", action);
 
 	if (ast_strlen_zero(action)) {
 		astman_send_error(s, m, "Missing action in request");
@@ -2498,10 +2500,12 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 	ast_mutex_lock(&s->__lock);
 	if (s->needdestroy) {
 		if (s->inuse == 1) {
-			ast_log(LOG_DEBUG, "Need destroy, doing it now!\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Need destroy, doing it now!\n");
 			blastaway = 1;
 		} else {
-			ast_log(LOG_DEBUG, "Need destroy, but can't do it yet!\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Need destroy, but can't do it yet!\n");
 			if (s->waiting_thread != AST_PTHREADT_NULL)
 				pthread_kill(s->waiting_thread, SIGURG);
 			s->inuse--;
@@ -2700,8 +2704,10 @@ int init_manager(void)
 				user->write = ast_strdup(var->value);
 			}  else if (!strcasecmp(var->name, "displayconnects") )
 				user->displayconnects = ast_true(var->value);
-			else
-				ast_log(LOG_DEBUG, "%s is an unknown option.\n", var->name);
+			else {
+				if (option_debug)
+					ast_log(LOG_DEBUG, "%s is an unknown option.\n", var->name);
+			}
 			var = var->next;
 		}
 	}

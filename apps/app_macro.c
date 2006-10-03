@@ -164,7 +164,8 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 
 	/* If we are to run the macro exclusively, take the mutex */
 	if (exclusive) {
-		ast_log(LOG_DEBUG, "Locking macrolock for '%s'\n", fullmacro);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Locking macrolock for '%s'\n", fullmacro);
 		ast_autoservice_start(chan);
 		if (ast_context_lockmacro(fullmacro)) {
 			ast_log(LOG_WARNING, "Failed to lock macro '%s' as in-use\n", fullmacro);
@@ -228,7 +229,8 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||
 		    	(res == '*') || (res == '#')) {
 				/* Just return result as to the previous application as if it had been dialed */
-				ast_log(LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
 				break;
 			}
 			switch(res) {
@@ -258,8 +260,9 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 		}
 		/* don't stop executing extensions when we're in "h" */
 		if (chan->_softhangup && strcasecmp(oldexten,"h") && strcasecmp(chan->macroexten,"h")) {
-			ast_log(LOG_DEBUG, "Extension %s, macroexten %s, priority %d returned normally even though call was hung up\n",
-				chan->exten, chan->macroexten, chan->priority);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Extension %s, macroexten %s, priority %d returned normally even though call was hung up\n",
+					chan->exten, chan->macroexten, chan->priority);
 			goto out;
 		}
 		chan->priority++;
@@ -330,7 +333,8 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 
 	/* Unlock the macro */
 	if (exclusive) {
-		ast_log(LOG_DEBUG, "Unlocking macrolock for '%s'\n", fullmacro);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Unlocking macrolock for '%s'\n", fullmacro);
 		if (ast_context_unlockmacro(fullmacro)) {
 			ast_log(LOG_ERROR, "Failed to unlock macro '%s' - that isn't good\n", fullmacro);
 			res = 0;

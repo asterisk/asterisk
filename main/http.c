@@ -544,7 +544,8 @@ static void http_server_start(struct sockaddr_in *sin)
 	
 	/* Do nothing if nothing has changed */
 	if (!memcmp(&oldsin, sin, sizeof(oldsin))) {
-		ast_log(LOG_DEBUG, "Nothing changed in http\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Nothing changed in http\n");
 		return;
 	}
 	

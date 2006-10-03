@@ -156,7 +156,8 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 			if (!fs->vfs && fs->filename) {
 				const char *type = ast_getformatname(f->subclass & ~0x1);
 				fs->vfs = ast_writefile(fs->filename, type, NULL, fs->flags, 0, fs->mode);
-				ast_log(LOG_DEBUG, "Opened video output file\n");
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Opened video output file\n");
 			}
 			if (fs->vfs)
 				return ast_writestream(fs->vfs, f);
@@ -785,8 +786,10 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 	fs = ast_openstream(chan, filename, preflang);
 	if (fs)
 		vfs = ast_openvstream(chan, filename, preflang);
-	if (vfs)
-		ast_log(LOG_DEBUG, "Ooh, found a video stream, too, format %s\n", ast_getformatname(vfs->fmt->format));
+	if (vfs) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Ooh, found a video stream, too, format %s\n", ast_getformatname(vfs->fmt->format));
+	}
 	if (fs){
 		if (ast_applystream(chan, fs))
 			return -1;

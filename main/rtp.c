@@ -1019,12 +1019,18 @@ static int bridge_p2p_rtcp_write(struct ast_rtp *rtp, unsigned int *rtcpheader, 
 	/* Send the data out */
 	res = sendto(bridged->rtcp->s, (void *)rtcpheader, len, 0, (struct sockaddr *)&bridged->rtcp->them, sizeof(bridged->rtcp->them));
 	if (res < 0) {
-		if (!bridged->nat || (bridged->nat && (ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE)))
-			ast_log(LOG_DEBUG, "RTCP Transmission error of packet to %s:%d: %s\n", ast_inet_ntoa(bridged->rtcp->them.sin_addr), ntohs(bridged->rtcp->them.sin_port), strerror(errno));
-		else if ((((ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug)) && (option_debug || rtpdebug))
-			ast_log(LOG_DEBUG, "RTCP NAT: Can't write RTCP to private address %s:%d, waiting for other end to send first...\n", ast_inet_ntoa(bridged->rtcp->them.sin_addr), ntohs(bridged->rtcp->them.sin_port));
-	} else if (rtp_debug_test_addr(&bridged->rtcp->them))
-		ast_verbose("Sent RTCP P2P packet to %s:%d (len %-6.6u)\n", ast_inet_ntoa(bridged->rtcp->them.sin_addr), ntohs(bridged->rtcp->them.sin_port), len);
+		if (!bridged->nat || (bridged->nat && (ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "RTCP Transmission error of packet to %s:%d: %s\n", ast_inet_ntoa(bridged->rtcp->them.sin_addr), ntohs(bridged->rtcp->them.sin_port), strerror(errno));
+		}
+		else if ((((ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug)) && (option_debug || rtpdebug)) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "RTCP NAT: Can't write RTCP to private address %s:%d, waiting for other end to send first...\n", ast_inet_ntoa(bridged->rtcp->them.sin_addr), ntohs(bridged->rtcp->them.sin_port));
+		}
+	} else if (rtp_debug_test_addr(&bridged->rtcp->them)) {
+		if (option_verbose)
+			ast_verbose("Sent RTCP P2P packet to %s:%d (len %-6.6u)\n", ast_inet_ntoa(bridged->rtcp->them.sin_addr), ntohs(bridged->rtcp->them.sin_port), len);
+		}
 
 	return 0;
 }
@@ -1069,7 +1075,8 @@ static int bridge_p2p_rtp_write(struct ast_rtp *rtp, unsigned int *rtpheader, in
 	res = sendto(bridged->s, (void *)rtpheader, len, 0, (struct sockaddr *)&bridged->them, sizeof(bridged->them));
 	if (res < 0) {
 		if (!bridged->nat || (bridged->nat && (ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
-			ast_log(LOG_DEBUG, "RTP Transmission error of packet to %s:%d: %s\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port), strerror(errno));
+			if (option_debug)
+				ast_log(LOG_DEBUG, "RTP Transmission error of packet to %s:%d: %s\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port), strerror(errno));
 		} else if (((ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(bridged, FLAG_NAT_INACTIVE_NOWARN)) {
 			if (option_debug || rtpdebug)
 				ast_log(LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port));
@@ -2517,7 +2524,8 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 		if (res <0) {
 			if (!rtp->nat || (rtp->nat && (ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
-				ast_log(LOG_DEBUG, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
+				if (option_debug)
+					ast_log(LOG_DEBUG, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
 			} else if (((ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(rtp, FLAG_NAT_INACTIVE_NOWARN)) {
 				/* Only give this error message once if we are not RTP debugging */
 				if (option_debug || rtpdebug)
@@ -2715,7 +2723,8 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 		if ((c0->tech_pvt != pvt0) ||
 		    (c1->tech_pvt != pvt1) ||
 		    (c0->masq || c0->masqr || c1->masq || c1->masqr)) {
-			ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
 			if (c0->tech_pvt == pvt0)
 				if (pr0->set_rtp_peer(c0, NULL, NULL, 0, 0))
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
@@ -2806,7 +2815,8 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 			} else {
 				*fo = fr;
 				*rc = who;
-				ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass, who->name);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass, who->name);
 				return AST_BRIDGE_COMPLETE;
 			}
 		} else {
@@ -2967,7 +2977,8 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 		if ((c0->tech_pvt != pvt0) ||
 		    (c1->tech_pvt != pvt1) ||
 		    (c0->masq || c0->masqr || c1->masq || c1->masqr)) {
-			ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
 			res = AST_BRIDGE_RETRY;
 			break;
 		}
@@ -3033,7 +3044,8 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 			} else {
 				*fo = fr;
 				*rc = who;
-				ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass, who->name);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass, who->name);
 				res = AST_BRIDGE_COMPLETE;
 				break;
 			}

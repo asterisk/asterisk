@@ -214,7 +214,8 @@ static int phone_indicate(struct ast_channel *chan, int condition, const void *d
 {
 	struct phone_pvt *p = chan->tech_pvt;
 	int res=-1;
-	ast_log(LOG_DEBUG, "Requested indication %d on channel %s\n", condition, chan->name);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Requested indication %d on channel %s\n", condition, chan->name);
 	switch(condition) {
 		case AST_CONTROL_FLASH:
 			ioctl(p->fd, IXJCTL_PSTN_SET_STATE, PSTN_ON_HOOK);
@@ -370,8 +371,10 @@ static int phone_hangup(struct ast_channel *ast)
 
 	/* If it's an FXO, hang them up */
 	if (p->mode == MODE_FXO) {
-		if (ioctl(p->fd, PHONE_PSTN_SET_STATE, PSTN_ON_HOOK)) 
-			ast_log(LOG_DEBUG, "ioctl(PHONE_PSTN_SET_STATE) failed on %s (%s)\n",ast->name, strerror(errno));
+		if (ioctl(p->fd, PHONE_PSTN_SET_STATE, PSTN_ON_HOOK)) { 
+			if (option_debug)
+				ast_log(LOG_DEBUG, "ioctl(PHONE_PSTN_SET_STATE) failed on %s (%s)\n",ast->name, strerror(errno));
+		}
 	}
 
 	/* If they're off hook, give a busy signal */
@@ -466,10 +469,14 @@ static int phone_answer(struct ast_channel *ast)
 	p = ast->tech_pvt;
 	/* In case it's a LineJack, take it off hook */
 	if (p->mode == MODE_FXO) {
-		if (ioctl(p->fd, PHONE_PSTN_SET_STATE, PSTN_OFF_HOOK)) 
-			ast_log(LOG_DEBUG, "ioctl(PHONE_PSTN_SET_STATE) failed on %s (%s)\n", ast->name, strerror(errno));
-		else
-			ast_log(LOG_DEBUG, "Took linejack off hook\n");
+		if (ioctl(p->fd, PHONE_PSTN_SET_STATE, PSTN_OFF_HOOK)) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "ioctl(PHONE_PSTN_SET_STATE) failed on %s (%s)\n", ast->name, strerror(errno));
+		}
+		else {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Took linejack off hook\n");
+		}
 	}
 	phone_setup(ast);
 	if (option_debug)
@@ -919,7 +926,8 @@ static void phone_check_exception(struct phone_pvt *i)
 	union telephony_exception phonee;
 	/* XXX Do something XXX */
 #if 0
-	ast_log(LOG_DEBUG, "Exception!\n");
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Exception!\n");
 #endif
 	phonee.bytes = ioctl(i->fd, PHONE_EXCEPTION);
 	if (phonee.bits.dtmf_ready)  {
@@ -1085,7 +1093,8 @@ static void *do_monitor(void *data)
 		}
 		/* Okay, select has finished.  Let's see what happened.  */
 		if (res < 0) {
-			ast_log(LOG_DEBUG, "select return %d: %s\n", res, strerror(errno));
+			if (option_debug)
+				ast_log(LOG_DEBUG, "select return %d: %s\n", res, strerror(errno));
 			continue;
 		}
 		/* If there are no fd's changed, just continue, it's probably time
@@ -1172,8 +1181,10 @@ static struct phone_pvt *mkif(char *iface, int mode, int txgain, int rxgain)
 			return NULL;
 		}
 		if (mode == MODE_FXO) {
-			if (ioctl(tmp->fd, IXJCTL_PORT, PORT_PSTN)) 
-				ast_log(LOG_DEBUG, "Unable to set port to PSTN\n");
+			if (ioctl(tmp->fd, IXJCTL_PORT, PORT_PSTN)) {
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Unable to set port to PSTN\n");
+			}
 		} else {
 			if (ioctl(tmp->fd, IXJCTL_PORT, PORT_POTS)) 
 				 if (mode != MODE_FXS)
@@ -1183,8 +1194,10 @@ static struct phone_pvt *mkif(char *iface, int mode, int txgain, int rxgain)
 		ioctl(tmp->fd, PHONE_REC_STOP);
 		ioctl(tmp->fd, PHONE_RING_STOP);
 		ioctl(tmp->fd, PHONE_CPT_STOP);
-		if (ioctl(tmp->fd, PHONE_PSTN_SET_STATE, PSTN_ON_HOOK)) 
-			ast_log(LOG_DEBUG, "ioctl(PHONE_PSTN_SET_STATE) failed on %s (%s)\n",iface, strerror(errno));
+		if (ioctl(tmp->fd, PHONE_PSTN_SET_STATE, PSTN_ON_HOOK)) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "ioctl(PHONE_PSTN_SET_STATE) failed on %s (%s)\n",iface, strerror(errno));
+		}
 		if (echocancel != AEC_OFF)
 			ioctl(tmp->fd, IXJCTL_AEC_START, echocancel);
 		if (silencesupression) 

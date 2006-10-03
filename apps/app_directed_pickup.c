@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
+#include "asterisk/options.h"
 
 #define PICKUPMARK "PICKUPMARK"
 
@@ -109,14 +110,16 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 			ast_mutex_unlock(&origin->lock);
 
 		} else {
-			ast_log(LOG_DEBUG, "No originating channel found.\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "No originating channel found.\n");
 		}
 
 		if (res)
 			continue;
 
 		if (target && (!target->pbx) && ((target->_state == AST_STATE_RINGING) || (target->_state == AST_STATE_RING) ) ) {
-			ast_log(LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n", target->name,
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n", target->name,
 					chan->name);
 			res = ast_answer(chan);
 			if (res) {

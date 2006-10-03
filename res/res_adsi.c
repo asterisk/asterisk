@@ -52,6 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/config.h"
 #include "asterisk/file.h"
+#include "asterisk/options.h"
 
 #define DEFAULT_ADSI_MAX_RETRIES 3
 
@@ -230,7 +231,8 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 			for(;;) {
 				if (((res = ast_waitfor(chan, waittime)) < 1)) {
 					/* Didn't get back DTMF A in time */
-					ast_log(LOG_DEBUG, "No ADSI CPE detected (%d)\n", res);
+					if (option_debug)
+						ast_log(LOG_DEBUG, "No ADSI CPE detected (%d)\n", res);
 					if (!chan->adsicpe)
 						chan->adsicpe = AST_ADSI_UNAVAILABLE;
 					errno = ENOSYS;
@@ -239,7 +241,8 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 				waittime = res;
 				f = ast_read(chan);
 				if (!f) {
-					ast_log(LOG_DEBUG, "Hangup in ADSI\n");
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Hangup in ADSI\n");
 					return -1;
 				}
 				if (f->frametype == AST_FRAME_DTMF) {
@@ -250,7 +253,8 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 						break;
 					} else {
 						if (f->subclass == 'D')  {
-							ast_log(LOG_DEBUG, "Off-hook capable CPE only, not ADSI\n");
+							if (option_debug)
+								ast_log(LOG_DEBUG, "Off-hook capable CPE only, not ADSI\n");
 						} else
 							ast_log(LOG_WARNING, "Unknown ADSI response '%c'\n", f->subclass);
 						if (!chan->adsicpe)
@@ -262,9 +266,12 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 				ast_frfree(f);
 			}
 
-			ast_log(LOG_DEBUG, "ADSI Compatible CPE Detected\n");
-		} else
-			ast_log(LOG_DEBUG, "Already in data mode\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "ADSI Compatible CPE Detected\n");
+		} else {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Already in data mode\n");
+		}
 
 		x = 0;
 		pos = 0;
@@ -277,8 +284,9 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 				ast_log(LOG_WARNING, "Failed to generate ADSI message %d on channel %s\n", x + 1, chan->name);
 				return -1;
 			}
-			ast_log(LOG_DEBUG, "Message %d, of %d input bytes, %d output bytes\n", 
-					x + 1, msglen[x], res);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Message %d, of %d input bytes, %d output bytes\n", 
+						x + 1, msglen[x], res);
 			pos += res; 
 			x++;
 		}
@@ -291,7 +299,8 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 		if (res)
 			return -1;
 
-		ast_log(LOG_DEBUG, "Sent total spill of %d bytes\n", pos);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Sent total spill of %d bytes\n", pos);
 
 		memset(ack, 0, sizeof(ack));
 		/* Get real result */
@@ -300,13 +309,15 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 		if (res < 0)
 			return -1;
 		if (ack[0] == 'D') {
-			ast_log(LOG_DEBUG, "Acked up to message %d\n", atoi(ack + 1));
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Acked up to message %d\n", atoi(ack + 1));
 			start += atoi(ack + 1);
 			if (start >= x)
 				break;
 			else {
 				retries++;
-				ast_log(LOG_DEBUG, "Retransmitting (%d), from %d\n", retries, start + 1);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Retransmitting (%d), from %d\n", retries, start + 1);
 			}
 		} else {
 			retries++;
@@ -337,7 +348,8 @@ int ast_adsi_begin_download(struct ast_channel *chan, char *service, unsigned ch
 		return -1;
 	if (ack[0] == 'B')
 		return 0;
-	ast_log(LOG_DEBUG, "Download was denied by CPE\n");
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Download was denied by CPE\n");
 	return -1;
 }
 
@@ -372,13 +384,15 @@ int ast_adsi_transmit_message_full(struct ast_channel *chan, unsigned char *msg,
 
 	for (x=0;x<msglen;x+=(msg[x+1]+2)) {
 		if (msg[x] == ADSI_SWITCH_TO_DATA) {
-			ast_log(LOG_DEBUG, "Switch to data is sent!\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Switch to data is sent!\n");
 			waitforswitch++;
 			newdatamode = ADSI_FLAG_DATAMODE;
 		}
 		
 		if (msg[x] == ADSI_SWITCH_TO_VOICE) {
-			ast_log(LOG_DEBUG, "Switch to voice is sent!\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Switch to voice is sent!\n");
 			waitforswitch++;
 			newdatamode = 0;
 		}
@@ -411,8 +425,13 @@ int ast_adsi_transmit_message_full(struct ast_channel *chan, unsigned char *msg,
 	res = __adsi_transmit_messages(chan, msgs, msglens, msgtypes);
 
 	if (dowait) {
-		ast_log(LOG_DEBUG, "Wait for switch is '%d'\n", waitforswitch);
-		while(waitforswitch-- && ((res = ast_waitfordigit(chan, 1000)) > 0)) { res = 0; ast_log(LOG_DEBUG, "Waiting for 'B'...\n"); }
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Wait for switch is '%d'\n", waitforswitch);
+		while (waitforswitch-- && ((res = ast_waitfordigit(chan, 1000)) > 0)) { 
+			res = 0; 
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Waiting for 'B'...\n");
+		}
 	}
 	
 	if (!res)
@@ -994,14 +1013,17 @@ int ast_adsi_load_session(struct ast_channel *chan, unsigned char *app, int ver,
 		if (res < 0)
 			return -1;
 		if (res) {
-			ast_log(LOG_DEBUG, "No response from CPE about version.  Assuming not there.\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "No response from CPE about version.  Assuming not there.\n");
 			return 0;
 		}
 		if (!strcmp(resp, "B")) {
-			ast_log(LOG_DEBUG, "CPE has script '%s' version %d already loaded\n", app, ver);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "CPE has script '%s' version %d already loaded\n", app, ver);
 			return 1;
 		} else if (!strcmp(resp, "A")) {
-			ast_log(LOG_DEBUG, "CPE hasn't script '%s' version %d already loaded\n", app, ver);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "CPE hasn't script '%s' version %d already loaded\n", app, ver);
 		} else {
 			ast_log(LOG_WARNING, "Unexpected CPE response to script query: %s\n", resp);
 		}

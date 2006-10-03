@@ -433,7 +433,8 @@ static int __ast_check_signature_bin(struct ast_key *key, const char *msg, int m
 	res = RSA_verify(NID_sha1, digest, sizeof(digest), (unsigned char *)dsig, 128, key->rsa);
 	
 	if (!res) {
-		ast_log(LOG_DEBUG, "Key failed verification: %s\n", key->name);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Key failed verification: %s\n", key->name);
 		return -1;
 	}
 	/* Pass */
@@ -487,7 +488,8 @@ static void crypto_load(int ifd, int ofd)
 	while(key) {
 		nkey = key->next;
 		if (key->delme) {
-			ast_log(LOG_DEBUG, "Deleting key %s type %d\n", key->name, key->ktype);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Deleting key %s type %d\n", key->name, key->ktype);
 			/* Do the delete */
 			if (last)
 				last->next = nkey;

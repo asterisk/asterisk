@@ -1529,8 +1529,8 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 			if (isfunction) {
 				/* Evaluate function */
 				cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
-
-				ast_log(LOG_DEBUG, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
 			} else {
 				/* Retrieve variable value */
 				pbx_retrieve_variable(c, vars, &cp4, workspace, VAR_BUF_SIZE, headp);
@@ -1597,7 +1597,8 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 			length = ast_expr(vars, cp2, count);
 
 			if (length) {
-				ast_log(LOG_DEBUG, "Expression result is '%s'\n", cp2);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Expression result is '%s'\n", cp2);
 				count -= length;
 				cp2 += length;
 			}
@@ -1678,7 +1679,8 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			if (option_debug) {
 				char atmp[80];
 				char atmp2[EXT_DATA_SIZE+100];
-				ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
 				snprintf(atmp, sizeof(atmp), "STACK-%s-%s-%d", context, exten, priority);
 				snprintf(atmp2, sizeof(atmp2), "%s(\"%s\", \"%s\") %s",
 					app->name, c->name, passdata, "in new stack");
@@ -1735,7 +1737,8 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 				ast_log(LOG_NOTICE, "No such label '%s' in extension '%s' in context '%s'\n", label, exten, context);
 			break;
 		default:
-			ast_log(LOG_DEBUG, "Shouldn't happen!\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Shouldn't happen!\n");
 		}
 
 		return (matching_action) ? 0 : -1;
@@ -2259,7 +2262,8 @@ static int __ast_pbx_run(struct ast_channel *c)
 			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num))) {
 				/* Something bad happened, or a hangup has been requested. */
 				if (strchr("0123456789ABCDEF*#", res)) {
-					ast_log(LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
 					pos = 0;
 					dst_exten[pos++] = digit = res;
 					dst_exten[pos] = '\0';
@@ -2294,8 +2298,9 @@ static int __ast_pbx_run(struct ast_channel *c)
 				c->whentohangup = 0;
 				c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
 			} else if (c->_softhangup) {
-				ast_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
-					c->exten, c->priority);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
+						c->exten, c->priority);
 				error = 1;
 				break;
 			}
@@ -3623,7 +3628,8 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	tmp = *extcontexts;
 	if (registrar) {
 		/* XXX remove previous contexts from same registrar */
-		ast_log(LOG_DEBUG, "must remove any reg %s\n", registrar);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "must remove any reg %s\n", registrar);
 		__ast_context_destroy(NULL,registrar);
 		while (tmp) {
 			lasttmp = tmp;
@@ -4959,7 +4965,8 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 	for (tmp = contexts; tmp; ) {
 		struct ast_context *next;	/* next starting point */
 		for (; tmp; tmpl = tmp, tmp = tmp->next) {
-			ast_log(LOG_DEBUG, "check ctx %s %s\n", tmp->name, tmp->registrar);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "check ctx %s %s\n", tmp->name, tmp->registrar);
 			if ( (!registrar || !strcasecmp(registrar, tmp->registrar)) &&
 			     (!con || !strcasecmp(tmp->name, con->name)) )
 				break;	/* found it */
@@ -4967,7 +4974,8 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 		if (!tmp)	/* not found, we are done */
 			break;
 		ast_mutex_lock(&tmp->lock);
-		ast_log(LOG_DEBUG, "delete ctx %s %s\n", tmp->name, tmp->registrar);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "delete ctx %s %s\n", tmp->name, tmp->registrar);
 		next = tmp->next;
 		if (tmpl)
 			tmpl->next = next;
@@ -5639,7 +5647,8 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 	branch = pbx_checkcondition(condition) ? branch1 : branch2;
 
 	if (ast_strlen_zero(branch)) {
-		ast_log(LOG_DEBUG, "Not taking any branch\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Not taking any branch\n");
 		return 0;
 	}
 

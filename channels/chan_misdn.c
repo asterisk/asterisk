@@ -647,9 +647,8 @@ static void send_digit_to_chan(struct chan_list *cl, char digit )
 		ast_playtones_start(chan,0,dtmf_tones[15], 0);
 	else {
 		/* not handled */
-		ast_log(LOG_DEBUG, "Unable to handle DTMF tone '%c' for '%s'\n", digit, chan->name);
-    
-    
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Unable to handle DTMF tone '%c' for '%s'\n", digit, chan->name);
 	}
 }
 /*** CLI HANDLING ***/
@@ -2223,8 +2222,9 @@ static int misdn_hangup(struct ast_channel *ast)
 {
 	struct chan_list *p;
 	struct misdn_bchannel *bc=NULL;
-	
-	ast_log(LOG_DEBUG, "misdn_hangup(%s)\n", ast->name);
+
+	if (option_debug)
+		ast_log(LOG_DEBUG, "misdn_hangup(%s)\n", ast->name);
 	
 	if (!ast || ! (p=MISDN_ASTERISK_TECH_PVT(ast) ) ) return -1;
 	
@@ -2248,7 +2248,8 @@ static int misdn_hangup(struct ast_channel *ast)
 	
 	if (ast->_state == AST_STATE_RESERVED || p->state == MISDN_NOTHING) {
 		/* between request and call */
-		ast_log(LOG_DEBUG, "State Reserved (or nothing) => chanIsAvail\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG, "State Reserved (or nothing) => chanIsAvail\n");
 		MISDN_ASTERISK_TECH_PVT(ast)=NULL;
 		
 		cl_dequeue_chan(&cl_te, p);
@@ -2392,7 +2393,8 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
  	if (!f || (f->frametype != AST_FRAME_DTMF))
  		return frame;
  
- 	ast_log(LOG_DEBUG, "Detected inband DTMF digit: %c\n", f->subclass);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Detected inband DTMF digit: %c\n", f->subclass);
  
  	if (tmp->faxdetect && (f->subclass == 'f')) {
  		/* Fax tone -- Handle and return NULL */
@@ -2423,15 +2425,19 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
  							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, context);
   					} else
  						ast_log(LOG_NOTICE, "Fax detected, but no fax extension ctx:%s exten:%s\n", context, ast->exten);
- 				} else 
-  					ast_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
+ 				} else {
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
+				}
  				break;
  			case 2:
  				ast_verbose(VERBOSE_PREFIX_3 "Not redirecting %s to fax extension, nojump is set.\n", ast->name);
  				break;
  			}
- 		} else
- 			ast_log(LOG_DEBUG, "Fax already handled\n");
+ 		} else {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Fax already handled\n");
+		}
   	}
  	
  	if (tmp->ast_dsp && (f->subclass != 'f')) {
