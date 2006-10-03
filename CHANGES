@@ -27,5 +27,5 @@ Changes since Asterisk 1.4-beta was branched:
      called MEMBERNAME which contains the member's name.
   * Added Masquerade manager event for when a masquerade happens between
      two channels.
-  * Added 'Strat' field to manager event QueueParams which represents
+  * Added 'Strategy' field to manager event QueueParams which represents
      the queue strategy in use. 

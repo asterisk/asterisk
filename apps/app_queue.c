@@ -4107,7 +4107,7 @@ static int manager_queues_status(struct mansession *s, struct message *m)
 			astman_append(s, "Event: QueueParams\r\n"
 				"Queue: %s\r\n"
 				"Max: %d\r\n"
-				"Strat: %s\r\n"
+				"Strategy: %s\r\n"
 				"Calls: %d\r\n"
 				"Holdtime: %d\r\n"
 				"Completed: %d\r\n"
