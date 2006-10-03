@@ -758,9 +758,9 @@ void MyH323Connection::SetCallDetails(void *callDetails, const H323SignalPDU &se
 		unsigned plan, type, screening, presentation;
 
 		/* Fetch presentation and type information about calling party's number */
-		if (setupPDU.GetQ931().GetCallingPartyNumber(sourceName, &plan, &type, &presentation, &screening, 2, 3)) {
+		if (setupPDU.GetQ931().GetCallingPartyNumber(sourceName, &plan, &type, &presentation, &screening, 0, 1)) {
 			/* Construct fields back */
-			cd->type_of_number = (type << 4) | screening;
+			cd->type_of_number = (type << 4) | plan;
 			cd->presentation = (presentation << 5) | screening;
 		} else if (cd->call_source_e164[0]) {
 			cd->type_of_number = 0;		/* UNKNOWN */
