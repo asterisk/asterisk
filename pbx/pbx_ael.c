@@ -3315,15 +3315,18 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 			snprintf(buf1,sizeof(buf1),"%s|s|1", p->u1.str);
 			first = 1;
 			for (p2 = p->u2.arglist; p2; p2 = p2->next) {
-				if( first )
+				if (first)
 				{
-					strcat(buf1,":");
+					strcat(buf1,"(");
 					first = 0;
 				}
 				else
 					strcat(buf1,"|");
 				strcat(buf1,p2->u1.str);
 			}
+			if (!first)
+				strcat(buf1,")");
+
 			pr->app = strdup("Gosub");
 			pr->appargs = strdup(buf1);
 			pr->origin = p;
