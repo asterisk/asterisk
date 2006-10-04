@@ -3429,6 +3429,10 @@ void add_extensions(struct ael_extension *exten)
 {
 	struct ael_priority *pr;
 	char *label=0;
+	if (!exten) {
+		ast_log(LOG_WARNING, "This file is Empty!\n" );
+		return;
+	}
 	do {
 		struct ael_priority *last = 0;
 		
