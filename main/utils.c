@@ -509,6 +509,7 @@ int ast_utils_init(void)
 #undef pthread_create /* For ast_pthread_create function only */
 #endif /* !__linux__ */
 
+#if !defined(LOW_MEMORY)
 /*
  * support for 'show threads'. The start routine is wrapped by
  * dummy_start(), so that ast_register_thread() and
@@ -546,11 +547,15 @@ static void *dummy_start(void *data)
 	return ret;
 }
 
+#endif /* !LOW_MEMORY */
+
 int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *),
 			     void *data, size_t stacksize, const char *file, const char *caller,
 			     int line, const char *start_fn)
 {
+#if !defined(LOW_MEMORY)
 	struct thr_arg *a;
+#endif
 
 	if (!attr) {
 		attr = alloca(sizeof(*attr));
@@ -575,6 +580,7 @@ int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*st
 	if ((errno = pthread_attr_setstacksize(attr, stacksize ? stacksize : AST_STACKSIZE)))
 		ast_log(LOG_WARNING, "pthread_attr_setstacksize: %s\n", strerror(errno));
 
+#if !defined(LOW_MEMORY)
 	if ((a = ast_malloc(sizeof(*a)))) {
 		a->start_routine = start_routine;
 		a->data = data;
@@ -583,6 +589,7 @@ int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*st
 			 start_fn, line, file, caller);
 		data = a;
 	}
+#endif /* !LOW_MEMORY */
 
 	return pthread_create(thread, attr, start_routine, data); /* We're in ast_pthread_create, so it's okay */
 }

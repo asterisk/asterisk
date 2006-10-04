@@ -101,6 +101,7 @@ int ast_register_atexit(void (*func)(void));
  */
 void ast_unregister_atexit(void (*func)(void));
 
+#if !defined(LOW_MEMORY)
 /*!
  * \brief Register the version of a source code file with the core.
  * \param file the source file name
@@ -124,25 +125,6 @@ void ast_register_file_version(const char *file, const char *version);
 void ast_unregister_file_version(const char *file);
 
 /*!
- * \brief support for event profiling
- *
- * (note, this must be documented a lot more)
- * ast_add_profile allocates a generic 'counter' with a given name,
- * which can be shown with the command 'show profile <name>'
- *
- * The counter accumulates positive or negative values supplied by
- * ast_add_profile(), dividing them by the 'scale' value passed in the
- * create call, and also counts the number of 'events'.
- * Values can also be taked by the TSC counter on ia32 architectures,
- * in which case you can mark the start of an event calling ast_mark(id, 1)
- * and then the end of the event with ast_mark(id, 0).
- * For non-i386 architectures, these two calls return 0.
- */
-int ast_add_profile(const char *, uint64_t scale);
-int64_t ast_profile(int, int64_t);
-int64_t ast_mark(int, int start1_stop0);
-
-/*!
  * \brief Register/unregister a source code file with the core.
  * \param file the source file name
  * \param version the version string (typically a CVS revision keyword string)
@@ -163,7 +145,6 @@ int64_t ast_mark(int, int start1_stop0);
  * not be present and CVS would expand the Revision keyword into the file's
  * revision number.
  */
-#if defined(__GNUC__) && !defined(LOW_MEMORY)
 #ifdef MTX_PROFILE
 #define	HAVE_MTX_PROFILE	/* used in lock.h */
 #define ASTERISK_FILE_VERSION(file, version) \
@@ -177,7 +158,7 @@ int64_t ast_mark(int, int start1_stop0);
 	{ \
 		ast_unregister_file_version(file); \
 	}
-#else
+#else /* !MTX_PROFILE */
 #define ASTERISK_FILE_VERSION(file, version) \
 	static void __attribute__((constructor)) __register_file_version(void) \
 	{ \
@@ -187,11 +168,34 @@ int64_t ast_mark(int, int start1_stop0);
 	{ \
 		ast_unregister_file_version(file); \
 	}
-#endif
-#elif !defined(LOW_MEMORY) /* ! __GNUC__  && ! LOW_MEMORY*/
-#define ASTERISK_FILE_VERSION(file, x) static const char __file_version[] = x;
+#endif /* !MTX_PROFILE */
 #else /* LOW_MEMORY */
 #define ASTERISK_FILE_VERSION(file, x)
-#endif /* __GNUC__ */
+#endif /* LOW_MEMORY */
+
+#if !defined(LOW_MEMORY)
+/*!
+ * \brief support for event profiling
+ *
+ * (note, this must be documented a lot more)
+ * ast_add_profile allocates a generic 'counter' with a given name,
+ * which can be shown with the command 'show profile <name>'
+ *
+ * The counter accumulates positive or negative values supplied by
+ * ast_add_profile(), dividing them by the 'scale' value passed in the
+ * create call, and also counts the number of 'events'.
+ * Values can also be taked by the TSC counter on ia32 architectures,
+ * in which case you can mark the start of an event calling ast_mark(id, 1)
+ * and then the end of the event with ast_mark(id, 0).
+ * For non-i386 architectures, these two calls return 0.
+ */
+int ast_add_profile(const char *, uint64_t scale);
+int64_t ast_profile(int, int64_t);
+int64_t ast_mark(int, int start1_stop0);
+#else /* LOW_MEMORY */
+#define ast_add_profile(a, b) 0
+#define ast_profile(a, b) do { } while (0)
+#define ast_mark(a, b) do { } while (0)
+#endif /* LOW_MEMORY */
 
 #endif /* _ASTERISK_H */
