@@ -88,8 +88,10 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
          fi
          $1_LIB=""
          $1_INCLUDE=""
-         PBX_$1=0
       else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+	    $1_LIB=""
+	 fi
          PBX_$1=1
          AC_DEFINE_UNQUOTED([HAVE_$1], 1, [Define to indicate the ${$1_DESCRIP} library])
       fi
