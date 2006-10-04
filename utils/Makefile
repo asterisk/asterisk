@@ -59,7 +59,8 @@ md5.c: ../main/md5.c
 	@cp $< $@
 
 astman: astman.o md5.o
-astman: LIBS+=-lnewt -lslang -ldl
+#astman: LIBS+=-lnewt -lslang -ldl
+astman: LIBS+= $(NEWT_LIB)
 
 stereorize: stereorize.o frame.o
 stereorize: LIBS+=-lm
