@@ -246,15 +246,30 @@ static force_inline int inaddrcmp(const struct sockaddr_in *sin1, const struct s
 		|| (sin1->sin_port != sin2->sin_port));
 }
 
-#define AST_STACKSIZE 256 * 1024
+#define AST_STACKSIZE 240 * 1024
+
+#if defined(LOW_MEMORY)
+#define AST_BACKGROUND_STACKSIZE 48 * 1024
+#else
+#define AST_BACKGROUND_STACKSIZE 240 * 1024
+#endif
 
 void ast_register_thread(char *name);
 void ast_unregister_thread(void *id);
 
-#define ast_pthread_create(a,b,c,d) ast_pthread_create_stack(a,b,c,d,0, \
-	 __FILE__, __FUNCTION__, __LINE__, #c)
-int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize,
-	const char *file, const char *caller, int line, const char *start_fn);
+int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *),
+			     void *data, size_t stacksize, const char *file, const char *caller,
+			     int line, const char *start_fn);
+
+#define ast_pthread_create(a, b, c, d) ast_pthread_create_stack(a, b, c, d,			\
+							        0,				\
+	 						        __FILE__, __FUNCTION__,		\
+ 							        __LINE__, #c)
+
+#define ast_pthread_create_background(a, b, c, d) ast_pthread_create_stack(a, b, c, d,			\
+									   AST_BACKGROUND_STACKSIZE,	\
+									   __FILE__, __FUNCTION__,	\
+									   __LINE__, #c)
 
 /*!
 	\brief Process a string to find and replace characters

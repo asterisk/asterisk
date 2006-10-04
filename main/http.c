@@ -510,7 +510,7 @@ static void *http_root(void *data)
 				pthread_attr_init(&attr);
 				pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 				
-				if (ast_pthread_create(&launched, &attr, ast_httpd_helper_thread, ser)) {
+				if (ast_pthread_create_background(&launched, &attr, ast_httpd_helper_thread, ser)) {
 					ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
 					fclose(ser->f);
 					free(ser);
@@ -589,7 +589,7 @@ static void http_server_start(struct sockaddr_in *sin)
 	}
 	flags = fcntl(httpfd, F_GETFL);
 	fcntl(httpfd, F_SETFL, flags | O_NONBLOCK);
-	if (ast_pthread_create(&master, NULL, http_root, NULL)) {
+	if (ast_pthread_create_background(&master, NULL, http_root, NULL)) {
 		ast_log(LOG_NOTICE, "Unable to launch http server on %s:%d: %s\n",
 				ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port),
 				strerror(errno));

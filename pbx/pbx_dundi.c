@@ -2151,8 +2151,8 @@ static void *process_precache(void *ign)
 
 static int start_network_thread(void)
 {
-	ast_pthread_create(&netthreadid, NULL, network_thread, NULL);
-	ast_pthread_create(&precachethreadid, NULL, process_precache, NULL);
+	ast_pthread_create_background(&netthreadid, NULL, network_thread, NULL);
+	ast_pthread_create_background(&precachethreadid, NULL, process_precache, NULL);
 	return 0;
 }
 

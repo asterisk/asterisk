@@ -867,7 +867,7 @@ static int moh_register(struct mohclass *moh, int reload)
 #else
 		moh->pseudofd = -1;
 #endif
-		if (ast_pthread_create(&moh->thread, NULL, monmp3thread, moh)) {
+		if (ast_pthread_create_background(&moh->thread, NULL, monmp3thread, moh)) {
 			ast_log(LOG_WARNING, "Unable to create moh...\n");
 			if (moh->pseudofd > -1)
 				close(moh->pseudofd);

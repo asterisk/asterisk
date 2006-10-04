@@ -300,7 +300,7 @@ void ast_register_thread(char *name)
 	if (!new)
 		return;
 	new->id = pthread_self();
-	new->name = name; /* this was a copy already */
+	new->name = name; /* steal the allocated memory for the thread name */
 	AST_LIST_LOCK(&thread_list);
 	AST_LIST_INSERT_HEAD(&thread_list, new, list);
 	AST_LIST_UNLOCK(&thread_list);
@@ -312,7 +312,7 @@ void ast_unregister_thread(void *id)
 
 	AST_LIST_LOCK(&thread_list);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&thread_list, x, list) {
-		if ((void *)x->id == id) {
+		if ((void *) x->id == id) {
 			AST_LIST_REMOVE_CURRENT(&thread_list, list);
 			break;
 		}
@@ -859,7 +859,7 @@ static void *listener(void *unused)
 					fcntl(consoles[x].p[1], F_SETFL, flags | O_NONBLOCK);
 					consoles[x].fd = s;
 					consoles[x].mute = ast_opt_mute;
-					if (ast_pthread_create(&consoles[x].t, &attr, netconsole, &consoles[x])) {
+					if (ast_pthread_create_background(&consoles[x].t, &attr, netconsole, &consoles[x])) {
 						ast_log(LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
 						close(consoles[x].p[0]);
 						close(consoles[x].p[1]);
@@ -917,7 +917,7 @@ static int ast_makesocket(void)
 		return -1;
 	}
 	ast_register_verbose(network_verboser);
-	ast_pthread_create(&lthread, NULL, listener, NULL);
+	ast_pthread_create_background(&lthread, NULL, listener, NULL);
 
 	if (!ast_strlen_zero(ast_config_AST_CTL_OWNER)) {
 		struct passwd *pw;

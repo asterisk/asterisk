@@ -1080,7 +1080,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	if ((conf->recording == MEETME_RECORD_OFF) && ((confflags & CONFFLAG_RECORDCONF) || (conf->lchan))) {
 		pthread_attr_init(&conf->attr);
 		pthread_attr_setdetachstate(&conf->attr, PTHREAD_CREATE_DETACHED);
-		ast_pthread_create(&conf->recordthread, &conf->attr, recordthread, conf);
+		ast_pthread_create_background(&conf->recordthread, &conf->attr, recordthread, conf);
 	}
 
 	time(&user->jointime);

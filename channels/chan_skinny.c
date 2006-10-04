@@ -4331,7 +4331,7 @@ static int restart_monitor(void)
 		pthread_kill(monitor_thread, SIGURG);
 	} else {
 		/* Start a new monitor */
-		if (ast_pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
+		if (ast_pthread_create_background(&monitor_thread, NULL, do_monitor, NULL) < 0) {
 			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;
@@ -4512,7 +4512,7 @@ static int reload_config(void)
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Skinny listening on %s:%d\n",
 					ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-			ast_pthread_create(&accept_t,NULL, accept_thread, NULL);
+			ast_pthread_create_background(&accept_t,NULL, accept_thread, NULL);
 		}
 	}
 	ast_mutex_unlock(&netlock);

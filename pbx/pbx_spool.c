@@ -495,7 +495,7 @@ static int load_module(void)
 	snprintf(qdonedir, sizeof(qdir), "%s/%s", ast_config_AST_SPOOL_DIR, "outgoing_done");
 	pthread_attr_init(&attr);
  	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if ((ret = ast_pthread_create(&thread,&attr,scan_thread, NULL)) != 0) {
+	if ((ret = ast_pthread_create_background(&thread,&attr,scan_thread, NULL)) != 0) {
 		ast_log(LOG_WARNING, "Unable to create thread :( (returned error: %d)\n", ret);
 		return -1;
 	}

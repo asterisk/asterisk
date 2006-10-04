@@ -1540,7 +1540,7 @@ static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
 		ast_log(LOG_ERROR, "Unable to create pipe\n");
 		goto error;
 	}
-	ast_pthread_create(&o->sthread, NULL, sound_thread, o);
+	ast_pthread_create_background(&o->sthread, NULL, sound_thread, o);
 	/* link into list of devices */
 	if (o != &oss_default) {
 		o->next = oss_default.next;
