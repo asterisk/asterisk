@@ -66,9 +66,7 @@ static char *descrip =
 "         memory stack allowance, macros are limited to 7 levels\n"
 "         of nesting (macro calling macro calling macro, etc.); It\n"
 "         may be possible that stack-intensive applications in deeply nested macros\n"
-"         could cause asterisk to crash earlier than this limit. It is advised that\n"
-"         if you need to deeply nest macro calls, that you use the Gosub application\n"
-"         (now allows arguments like a Macro) with explict Return() calls instead.\n";
+"         could cause asterisk to crash earlier than this limit.\n";
 
 static char *if_descrip =
 "  MacroIf(<expr>?macroname_a[|arg1][:macroname_b[|arg1]])\n"
