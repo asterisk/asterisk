@@ -57,7 +57,7 @@ int init_logger(void);				/*!< Provided by logger.c */
 void close_logger(void);			/*!< Provided by logger.c */
 int reload_logger(int);				/*!< Provided by logger.c */
 int init_framer(void);				/*!< Provided by frame.c */
-int term_init(void);				/*!< Provided by term.c */
+int ast_term_init(void);			/*!< Provided by term.c */
 int astdb_init(void);				/*!< Provided by db.c */
 void ast_channels_init(void);			/*!< Provided by channel.c */
 void ast_builtins_init(void);			/*!< Provided by cli.c */
