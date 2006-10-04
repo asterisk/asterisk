@@ -390,7 +390,7 @@ static int do_reload(int loading)
 	/* if this reload enabled the manager, create the background thread
 	   if it does not exist */
 	if (enabled && !was_enabled && (refresh_thread == AST_PTHREADT_NULL)) {
-		if (ast_pthread_create(&refresh_thread, NULL, do_refresh, NULL) < 0) {
+		if (ast_pthread_create_background(&refresh_thread, NULL, do_refresh, NULL) < 0) {
 			ast_log(LOG_ERROR, "Unable to start refresh thread.\n");
 		}
 		else {

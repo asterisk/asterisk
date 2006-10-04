@@ -6143,7 +6143,7 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 	if ((d = ast_calloc(1, sizeof(*d)))) {
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
-		if (!ast_pthread_create(&th, NULL, iax_park_thread, d))
+		if (!ast_pthread_create_background(&th, NULL, iax_park_thread, d))
 			return 0;
 		free(d);
 	}
@@ -8116,8 +8116,8 @@ static int start_network_thread(void)
 			AST_LIST_UNLOCK(&idle_list);
 		}
 	}
-	ast_pthread_create(&schedthreadid, NULL, sched_thread, NULL);
-	ast_pthread_create(&netthreadid, NULL, network_thread, NULL);
+	ast_pthread_create_background(&schedthreadid, NULL, sched_thread, NULL);
+	ast_pthread_create_background(&netthreadid, NULL, network_thread, NULL);
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "%d helper threaads started\n", threadcount);
 	return 0;

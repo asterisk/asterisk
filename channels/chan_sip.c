@@ -12272,7 +12272,7 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		d->chan1 = transferee;	/* Transferee */
 		d->chan2 = transferer;	/* Transferer */
 		d->seqno = seqno;
-		if (ast_pthread_create(&th, NULL, sip_park_thread, d) < 0) {
+		if (ast_pthread_create_background(&th, NULL, sip_park_thread, d) < 0) {
 			/* Could not start thread */
 			free(d);	/* We don't need it anymore. If thread is created, d will be free'd
 					   by sip_park_thread() */
@@ -14611,7 +14611,7 @@ static int restart_monitor(void)
 		pthread_kill(monitor_thread, SIGURG);
 	} else {
 		/* Start a new monitor */
-		if (ast_pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
+		if (ast_pthread_create_background(&monitor_thread, NULL, do_monitor, NULL) < 0) {
 			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;

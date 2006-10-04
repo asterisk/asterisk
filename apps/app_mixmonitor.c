@@ -292,7 +292,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	ast_pthread_create(&thread, &attr, mixmonitor_thread, mixmonitor);
+	ast_pthread_create_background(&thread, &attr, mixmonitor_thread, mixmonitor);
 	pthread_attr_destroy(&attr);
 
 }

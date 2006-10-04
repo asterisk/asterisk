@@ -853,7 +853,7 @@ void ast_cdr_submit_batch(int shutdown)
 	} else {
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (ast_pthread_create(&batch_post_thread, &attr, do_batch_backend_process, oldbatchitems)) {
+		if (ast_pthread_create_background(&batch_post_thread, &attr, do_batch_backend_process, oldbatchitems)) {
 			ast_log(LOG_WARNING, "CDR processing thread could not detach, now trying in this thread\n");
 			do_batch_backend_process(oldbatchitems);
 		} else {
@@ -1101,7 +1101,7 @@ static int do_reload(void)
 	   if it does not exist */
 	if (enabled && batchmode && (!was_enabled || !was_batchmode) && (cdr_thread == AST_PTHREADT_NULL)) {
 		ast_cond_init(&cdr_pending_cond, NULL);
-		if (ast_pthread_create(&cdr_thread, NULL, do_cdr, NULL) < 0) {
+		if (ast_pthread_create_background(&cdr_thread, NULL, do_cdr, NULL) < 0) {
 			ast_log(LOG_ERROR, "Unable to start CDR thread.\n");
 			ast_sched_del(sched, cdr_sched);
 		} else {

@@ -2366,7 +2366,7 @@ static int aji_reload()
 		ASTOBJ_RDLOCK(iterator);
 		if(iterator->state == AJI_DISCONNECTED) {
 			if (!iterator->thread)
-				ast_pthread_create(&iterator->thread, NULL, aji_recv_loop, iterator);
+				ast_pthread_create_background(&iterator->thread, NULL, aji_recv_loop, iterator);
 		} else if (iterator->state == AJI_CONNECTING)
 			aji_get_roster(iterator);
 		ASTOBJ_UNLOCK(iterator);

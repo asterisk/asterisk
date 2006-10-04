@@ -525,31 +525,38 @@ struct thr_arg {
  * are odd macros which start and end a block, so they _must_ be
  * used in pairs (the latter with a '1' argument to call the
  * handler on exit.
- * On BSD we don't need this, but we keep it for compatibility with the MAC.
+ * On BSD we don't need this, but we keep it for compatibility.
  */
 static void *dummy_start(void *data)
 {
 	void *ret;
-	struct thr_arg a = *((struct thr_arg *)data);	/* make a local copy */
+	struct thr_arg a = *((struct thr_arg *) data);	/* make a local copy */
 
+	/* note that even though data->name is a pointer to allocated memory,
+	   we are not freeing it here because ast_register_thread is going to
+	   keep a copy of the pointer and then ast_unregister_thread will
+	   free the memory
+	*/
 	free(data);
 	ast_register_thread(a.name);
-	pthread_cleanup_push(ast_unregister_thread, (void *)pthread_self());	/* on unregister */
+	pthread_cleanup_push(ast_unregister_thread, (void *) pthread_self());
 	ret = a.start_routine(a.data);
 	pthread_cleanup_pop(1);
+
 	return ret;
 }
 
-int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize,
-	const char *file, const char *caller, int line, const char *start_fn)
+int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *),
+			     void *data, size_t stacksize, const char *file, const char *caller,
+			     int line, const char *start_fn)
 {
 	struct thr_arg *a;
 
-	pthread_attr_t lattr;
 	if (!attr) {
-		pthread_attr_init(&lattr);
-		attr = &lattr;
+		attr = alloca(sizeof(*attr));
+		pthread_attr_init(attr);
 	}
+
 #ifdef __linux__
 	/* On Linux, pthread_attr_init() defaults to PTHREAD_EXPLICIT_SCHED,
 	   which is kind of useless. Change this here to
@@ -558,27 +565,25 @@ int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*st
 	   This does mean that callers cannot set a different priority using
 	   PTHREAD_EXPLICIT_SCHED in the attr argument; instead they must set
 	   the priority afterwards with pthread_setschedparam(). */
-	errno = pthread_attr_setinheritsched(attr, PTHREAD_INHERIT_SCHED);
-	if (errno)
-		ast_log(LOG_WARNING, "pthread_attr_setinheritsched returned non-zero: %s\n", strerror(errno));
+	if ((errno = pthread_attr_setinheritsched(attr, PTHREAD_INHERIT_SCHED)))
+		ast_log(LOG_WARNING, "pthread_attr_setinheritsched: %s\n", strerror(errno));
 #endif
 
 	if (!stacksize)
 		stacksize = AST_STACKSIZE;
-	errno = pthread_attr_setstacksize(attr, stacksize);
-	if (errno)
-		ast_log(LOG_WARNING, "pthread_attr_setstacksize returned non-zero: %s\n", strerror(errno));
-	a = ast_malloc(sizeof(*a));
-	if (!a)
-		ast_log(LOG_WARNING, "no memory, thread %s will not be listed\n", start_fn);
-	else {	/* remap parameters */
+
+	if ((errno = pthread_attr_setstacksize(attr, stacksize ? stacksize : AST_STACKSIZE)))
+		ast_log(LOG_WARNING, "pthread_attr_setstacksize: %s\n", strerror(errno));
+
+	if ((a = ast_malloc(sizeof(*a)))) {
 		a->start_routine = start_routine;
 		a->data = data;
 		start_routine = dummy_start;
 		asprintf(&a->name, "%-20s started at [%5d] %s %s()",
-			start_fn, line, file, caller);
+			 start_fn, line, file, caller);
 		data = a;
 	}
+
 	return pthread_create(thread, attr, start_routine, data); /* We're in ast_pthread_create, so it's okay */
 }
 

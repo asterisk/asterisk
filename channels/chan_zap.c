@@ -6914,7 +6914,7 @@ static int restart_monitor(void)
 #endif
 	} else {
 		/* Start a new monitor */
-		if (ast_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
+		if (ast_pthread_create_background(&monitor_thread, &attr, do_monitor, NULL) < 0) {
 			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;
@@ -8324,7 +8324,7 @@ static void *pri_dchannel(void *vpri)
 					idle = zt_request("Zap", AST_FORMAT_ULAW, idlen, &cause);
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
-						if (ast_pthread_create(&p, NULL, do_idle_thread, idle)) {
+						if (ast_pthread_create_background(&p, NULL, do_idle_thread, idle)) {
 							ast_log(LOG_WARNING, "Unable to start new thread for idle channel '%s'\n", idle->name);
 							zt_hangup(idle);
 						}
@@ -9348,7 +9348,7 @@ static int start_pri(struct zt_pri *pri)
 	/* Assume primary is the one we use */
 	pri->pri = pri->dchans[0];
 	pri->resetpos = -1;
-	if (ast_pthread_create(&pri->master, NULL, pri_dchannel, pri)) {
+	if (ast_pthread_create_background(&pri->master, NULL, pri_dchannel, pri)) {
 		for (i = 0; i < NUM_DCHANS; i++) {
 			if (!pri->dchannels[i])
 				break;

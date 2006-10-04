@@ -96,7 +96,7 @@ static int load_module(void)
 
 	res_snmp_dont_stop = 1;
 	if (res_snmp_enabled)
-		return ast_pthread_create(&thread, NULL, agent_thread, NULL);
+		return ast_pthread_create_background(&thread, NULL, agent_thread, NULL);
 	else
 		return 0;
 }
@@ -121,7 +121,7 @@ static int reload(void)
 
 	res_snmp_dont_stop = 1;
 	if (res_snmp_enabled)
-		return ast_pthread_create(&thread, NULL, agent_thread, NULL);
+		return ast_pthread_create_background(&thread, NULL, agent_thread, NULL);
 	else
 		return 0;
 }

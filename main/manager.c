@@ -2194,7 +2194,7 @@ static void *accept_thread(void *ignore)
 			s->eventq = s->eventq->next;
 		AST_LIST_UNLOCK(&sessions);
 		ast_atomic_fetchadd_int(&s->eventq->usecount, 1);
-		if (ast_pthread_create(&s->t, &attr, session_do, s))
+		if (ast_pthread_create_background(&s->t, &attr, session_do, s))
 			destroy_session(s);
 	}
 	pthread_attr_destroy(&attr);
@@ -2805,7 +2805,7 @@ int init_manager(void)
 		fcntl(asock, F_SETFL, flags | O_NONBLOCK);
 		if (option_verbose)
 			ast_verbose("Asterisk Management interface listening on port %d\n", portno);
-		ast_pthread_create(&t, NULL, accept_thread, NULL);
+		ast_pthread_create_background(&t, NULL, accept_thread, NULL);
 	}
 	return 0;
 }

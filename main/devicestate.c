@@ -374,7 +374,7 @@ static void *do_devstate_changes(void *data)
 int ast_device_state_engine_init(void)
 {
 	ast_cond_init(&change_pending, NULL);
-	if (ast_pthread_create(&change_thread, NULL, do_devstate_changes, NULL) < 0) {
+	if (ast_pthread_create_background(&change_thread, NULL, do_devstate_changes, NULL) < 0) {
 		ast_log(LOG_ERROR, "Unable to start device state change thread.\n");
 		return -1;
 	}

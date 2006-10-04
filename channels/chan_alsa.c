@@ -1349,7 +1349,7 @@ static int load_module(void)
 	}
 	ast_cli_register_multiple(cli_alsa, sizeof(cli_alsa) / sizeof(struct ast_cli_entry));
 
-	ast_pthread_create(&sthread, NULL, sound_thread, NULL);
+	ast_pthread_create_background(&sthread, NULL, sound_thread, NULL);
 #ifdef ALSA_MONITOR
 	if (alsa_monitor_start())
 		ast_log(LOG_ERROR, "Problem starting Monitoring\n");

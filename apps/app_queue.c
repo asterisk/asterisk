@@ -605,7 +605,7 @@ static int statechange_queue(const char *dev, int state, void *ign)
 	strcpy(sc->dev, dev);
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (ast_pthread_create(&t, &attr, changethread, sc)) {
+	if (ast_pthread_create_background(&t, &attr, changethread, sc)) {
 		ast_log(LOG_WARNING, "Failed to create update thread!\n");
 		free(sc);
 	}

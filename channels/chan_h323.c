@@ -2512,7 +2512,7 @@ static int restart_monitor(void)
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		/* Start a new monitor */
-		if (ast_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
+		if (ast_pthread_create_background(&monitor_thread, &attr, do_monitor, NULL) < 0) {
 			monitor_thread = AST_PTHREADT_NULL;
 			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
