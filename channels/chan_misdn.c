@@ -2560,7 +2560,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 						
 						
 						if ( port_up>0 )	{
-							newbc = misdn_lib_get_free_bc(port, robin_channel);
+							newbc = misdn_lib_get_free_bc(port, robin_channel,0);
 							if (newbc) {
 								chan_misdn_log(4, port, " Success! Found port:%d channel:%d\n", newbc->port, newbc->channel);
 								if (port_up)
@@ -2594,7 +2594,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 					chan_misdn_log(4, port, "portup:%d\n", port_up);
 					
 					if ( port_up>0 ) {
-						newbc = misdn_lib_get_free_bc(port, 0);
+						newbc = misdn_lib_get_free_bc(port, 0, 0);
 						if (newbc)
 							break;
 					}
@@ -2605,7 +2605,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	} else {
 		if (channel)
 			chan_misdn_log(1, port," --> preselected_channel: %d\n",channel);
-		newbc = misdn_lib_get_free_bc(port, channel);
+		newbc = misdn_lib_get_free_bc(port, channel, 0);
 	}
 	
 	if (!newbc) {
@@ -3428,6 +3428,14 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		return RESPONSE_IGNORE_SETUP; /*  Ignore MSNs which are not in our List */
 	}
 	
+	if (bc->cw) {
+		chan_misdn_log(0, bc->port, " --> Call Waiting on PMP sending RELEASE_COMPLETE\n");
+		int cause;
+		misdn_cfg_get( bc->port, MISDN_CFG_REJECT_CAUSE, &cause, sizeof(cause));
+		bc->out_cause=cause?cause:16;
+		return RESPONSE_RELEASE_SETUP;
+	}
+
 	print_bearer(bc);
     
 	{
