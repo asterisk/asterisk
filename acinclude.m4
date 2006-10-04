@@ -78,8 +78,7 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
 	 fi
       fi
       if test "x${$1_HEADER_FOUND}" = "x0" ; then
-         if test ! -z "${$1_MANDATORY}" ;
-         then
+         if test ! -z "${$1_MANDATORY}" ; then
             AC_MSG_NOTICE( ***)
             AC_MSG_NOTICE( *** It appears that you do not have the $2 development package installed.)
             AC_MSG_NOTICE( *** Please install it to include ${$1_DESCRIP} support, or re-run configure)
@@ -95,8 +94,7 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
          PBX_$1=1
          AC_DEFINE_UNQUOTED([HAVE_$1], 1, [Define to indicate the ${$1_DESCRIP} library])
       fi
-   elif test ! -z "${$1_MANDATORY}";
-   then
+   elif test ! -z "${$1_MANDATORY}"; then
       AC_MSG_NOTICE(***)
       AC_MSG_NOTICE(*** The ${$1_DESCRIP} installation on this system appears to be broken.)
       AC_MSG_NOTICE(*** Either correct the installation, or run configure)
