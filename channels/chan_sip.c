@@ -11062,7 +11062,10 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
 
  				/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
- 				if (strstr(accept, "application/pidf+xml")) {
+				/* don't supply pidf+xml to Polycom phones until they fix their firmware to
+				   parse it properly
+				*/
+ 				if (strstr(accept, "application/pidf+xml") && !strstr(p->useragent, "Polycom")) {
  					p->subscribed = PIDF_XML;         /* RFC 3863 format */
  				} else if (strstr(accept, "application/dialog-info+xml")) {
  					p->subscribed = DIALOG_INFO_XML;
@@ -11071,8 +11074,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
  					p->subscribed = CPIM_PIDF_XML;    /* RFC 3863 format */
  				} else if (strstr(accept, "application/xpidf+xml")) {
  					p->subscribed = XPIDF_XML;        /* Early pre-RFC 3863 format with MSN additions (Microsoft Messenger) */
- 				} else if (strstr(p->useragent, "Polycom")) {
- 					p->subscribed = XPIDF_XML;        /*  Polycoms subscribe for "event: dialog" but don't include an "accept:" header */
 				} else {
  					/* Can't find a format for events that we know about */
  					transmit_response(p, "489 Bad Event", req);
