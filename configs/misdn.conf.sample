@@ -187,6 +187,17 @@ te_choose_channel=no
 ;
 pmp_l1_check=yes
 
+
+
+;
+; in PMP this option defines which cause should be sent out to 
+; the 3. caller. chan_misdn does not support callwaiting on TE
+; PMP side. This allows to modify the RELEASE_COMPLETE cause 
+; at least.
+;
+reject_cause=16
+
+
 ;
 ; Send Setup_Acknowledge on incoming calls anyway (instead of PROCEEDING), 
 ; this requests additional Infos, so we can waitfordigits 

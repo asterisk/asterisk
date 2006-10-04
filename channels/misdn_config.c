@@ -90,6 +90,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "te_choose_channel", MISDN_CFG_TE_CHOOSE_CHANNEL, MISDN_CTYPE_BOOL, "no", NONE },
 	{ "far_alerting", MISDN_CFG_FAR_ALERTING, MISDN_CTYPE_BOOL, "no", NONE },
 	{ "pmp_l1_check", MISDN_CFG_PMP_L1_CHECK, MISDN_CTYPE_BOOL, "yes", NONE },
+	{ "reject_cause", MISDN_CFG_REJECT_CAUSE, MISDN_CTYPE_INT, "21", NONE },
 	{ "block_on_alarm", MISDN_CFG_ALARM_BLOCK, MISDN_CTYPE_BOOL, "yes", NONE },
 	{ "hdlc", MISDN_CFG_HDLC, MISDN_CTYPE_BOOL, "no", NONE },
 	{ "context", MISDN_CFG_CONTEXT, MISDN_CTYPE_STR, "default", NONE },
