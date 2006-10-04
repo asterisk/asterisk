@@ -604,16 +604,9 @@ if test x"${NETSNMP_CONFIG}" != xNo; then
    if test "${ac_cv_lib_netsnmp_snmp_register_callback}" = "yes"; then
       NETSNMP_LIB="${NETSNMP_libs}"
       PBX_NETSNMP=1
-   elif test ! -z "${NETSNMP_MANDATORY}";
-   then
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The Net-SNMP installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-netsnmp)
-      exit 1
    fi
-elif test ! -z "${NETSNMP_MANDATORY}";
-then
+fi
+if test ! -z "${NETSNMP_MANDATORY}" -a "x${PBX_NETSNMP}" != "x1" ; then
    AC_MSG_NOTICE(***)
    AC_MSG_NOTICE(*** The Net-SNMP installation on this system appears to be broken.)
    AC_MSG_NOTICE(*** Either correct the installation, or run configure)
@@ -629,22 +622,10 @@ AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_sync_init], [])
 
 AST_EXT_LIB_CHECK([OSPTK], [osptk], [OSPPCryptoDecrypt], [osp/osp.h], [-lcrypto -lssl])
 
-PBX_OSS=0
-AC_CHECK_HEADER([linux/soundcard.h],
-	        [
-		PBX_OSS=1
-                AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
-		])
-if test "$PBX_OSS" = "0"; then
-   AC_CHECK_HEADER([sys/soundcard.h],
-                   [
-		   PBX_OSS=1
-		   AC_DEFINE_UNQUOTED([HAVE_OSS], 1, [Define to indicate the Open Sound System library])
-		   ])
-fi
-if test "$PBX_OSS" = "0"; then
-   AST_EXT_LIB_CHECK([OSS], [ossaudio], [oss_ioctl_mixer], [soundcard.h])
-fi
+# possible places for oss definitions
+AST_EXT_LIB_CHECK([OSS], [ossaudio], [], [linux/soundcard.h])
+AST_EXT_LIB_CHECK([OSS], [ossaudio], [], [sys/soundcard.h])
+AST_EXT_LIB_CHECK([OSS], [ossaudio], [oss_ioctl_mixer], [soundcard.h])
 
 PG_CONFIG=No
 if test "${USE_PGSQL}" != "no"; then	
@@ -673,16 +654,9 @@ if test "${PG_CONFIG}" != No; then
       PGSQL_LIB="-L${PGSQL_libdir} -lpq -lz -lcrypt"
       PGSQL_INCLUDE="-I${PGSQL_includedir}"
       PBX_PGSQL=1
-   elif test ! -z "${PGSQL_MANDATORY}";
-   then
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The PostgreSQL installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-postgres)
-      exit 1
    fi
-elif test ! -z "${PGSQL_MANDATORY}";
-then
+fi
+if test ! -z "${PGSQL_MANDATORY}" -a "x${PBX_PGSQL}" != "1" ; then
    AC_MSG_NOTICE(***)
    AC_MSG_NOTICE(*** The PostgreSQL installation on this system appears to be broken.)
    AC_MSG_NOTICE(*** Either correct the installation, or run configure)
