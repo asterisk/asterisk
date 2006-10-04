@@ -3316,6 +3316,12 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 		if (ch->state == MISDN_WAITING4DIGS ) {
 			/*  Ok, incomplete Setup, waiting till extension exists */
+
+			if (ast_strlen_zero(bc->info_dad) && ! ast_strlen_zero(bc->keypad)) {
+				chan_misdn_log(1, bc->port, " --> using keypad as info\n");
+				strcpy(bc->info_dad,bc->keypad);
+			}
+
 			{
 				int l = sizeof(bc->dad);
 				strncat(bc->dad,bc->info_dad, l);
