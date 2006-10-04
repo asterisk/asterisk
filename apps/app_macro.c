@@ -60,7 +60,15 @@ static char *descrip =
 "If you Goto out of the Macro context, the Macro will terminate and control\n"
 "will be returned at the location of the Goto.\n"
 "If ${MACRO_OFFSET} is set at termination, Macro will attempt to continue\n"
-"at priority MACRO_OFFSET + N + 1 if such a step exists, and N + 1 otherwise.\n";
+"at priority MACRO_OFFSET + N + 1 if such a step exists, and N + 1 otherwise.\n"
+"WARNING: Because of the way Macro is implemented (it executes the priorities\n"
+"         contained within it via sub-engine), and a fixed per-thread\n"
+"         memory stack allowance, macros are limited to 7 levels\n"
+"         of nesting (macro calling macro calling macro, etc.); It\n"
+"         may be possible that stack-intensive applications in deeply nested macros\n"
+"         could cause asterisk to crash earlier than this limit. It is advised that\n"
+"         if you need to deeply nest macro calls, that you use the Gosub application\n"
+"         (now allows arguments like a Macro) with explict Return() calls instead.\n";
 
 static char *if_descrip =
 "  MacroIf(<expr>?macroname_a[|arg1][:macroname_b[|arg1]])\n"
