@@ -179,7 +179,8 @@ ifeq ($(AST_DEVMODE),yes)
 endif
 
 ifneq ($(findstring BSD,$(OSARCH)),)
-  ASTCFLAGS+=-I/usr/local/include -L/usr/local/lib
+  ASTCFLAGS+=-I/usr/local/include
+  ASTLDFLAGS+=-L/usr/local/lib
 endif
 
 ifneq ($(PROC),ultrasparc)
