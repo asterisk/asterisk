@@ -136,8 +136,8 @@ HTTP_CGIDIR=/var/www/cgi-bin
 GLOBAL_MAKEOPTS=$(wildcard /etc/asterisk.makeopts)
 USER_MAKEOPTS=$(wildcard ~/.asterisk.makeopts)
 
-MOD_SUBDIR_CFLAGS=-I../include
-OTHER_SUBDIR_CFLAGS=-I../include
+MOD_SUBDIR_CFLAGS=-I$(ASTTOPDIR)/include
+OTHER_SUBDIR_CFLAGS=-I$(ASTTOPDIR)/include
 
 ifeq ($(OSARCH),linux-gnu)
   ifeq ($(PROC),x86_64)

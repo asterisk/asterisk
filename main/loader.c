@@ -359,7 +359,7 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	strcpy(resource_being_loaded->resource, resource);
 
 	if (!(lib = dlopen(fn, RTLD_LAZY | RTLD_LOCAL))) {
-		ast_log(LOG_WARNING, "%s\n", dlerror());
+		ast_log(LOG_WARNING, "Error loading module '%s': %s\n", resource_in, dlerror());
 		free(resource_being_loaded);
 		return NULL;
 	}
@@ -372,6 +372,7 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	   module_list
 	*/
 	if (resource_being_loaded != (mod = AST_LIST_LAST(&module_list))) {
+		ast_log(LOG_WARNING, "Module '%s' did not register itself during load\n", resource_in);
 		/* no, it did not, so close it and return */
 		while (!dlclose(lib));
 		/* note that the module's destructor will call ast_module_unregister(),
@@ -394,7 +395,7 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	*/
 #if HAVE_RTLD_NOLOAD
 	if (!dlopen(fn, RTLD_NOLOAD | (wants_global ? RTLD_LAZY | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL))) {
-		ast_log(LOG_WARNING, "%s\n", dlerror());
+		ast_log(LOG_WARNING, "Unable to promot flags on module '%s': %s\n", resource_in, dlerror());
 		while (!dlclose(lib));
 		free(resource_being_loaded);
 		return NULL;
@@ -411,7 +412,7 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	strcpy(resource_being_loaded->resource, resource);
 
 	if (!(lib = dlopen(fn, wants_global ? RTLD_LAZY | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL))) {
-		ast_log(LOG_WARNING, "%s\n", dlerror());
+		ast_log(LOG_WARNING, "Error loading module '%s': %s\n", resource_in, dlerror());
 		free(resource_being_loaded);
 		return NULL;
 	}

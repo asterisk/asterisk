@@ -72,7 +72,7 @@ static short convshort(char *s)
 	return a + b * 256;
 }
 
-int term_init(void)
+int ast_term_init(void)
 {
 	char *term = getenv("TERM");
 	char termfile[256] = "";

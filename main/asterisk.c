@@ -2619,7 +2619,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	term_init();
+	ast_term_init();
 	printf(term_end());
 	fflush(stdout);
 
