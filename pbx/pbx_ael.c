@@ -850,6 +850,24 @@ static void check_expr2_input(pval *expr, char *str)
 	}
 }
 
+static void check_includes(pval *includes)
+{
+	struct pval *p4;
+	for (p4=includes->u1.list; p4; p4=p4->next) {
+		/* for each context pointed to, find it, then find a context/label that matches the
+		   target here! */
+		char *incl_context = p4->u1.str;
+		/* find a matching context name */
+		struct pval *that_other_context = find_context(incl_context);
+		if (!that_other_context) {
+			ast_log(LOG_WARNING, "Warning: file %s, line %d-%d: The included context '%s' cannot be found.\n",
+					includes->filename, includes->startline, includes->endline, incl_context);
+			warns++;
+		}
+	}
+}
+
+
 static void check_timerange(pval *p)
 {
 	char times[200];
@@ -1251,7 +1269,10 @@ static void check_goto(pval *item)
 	/* just one item-- the label should be in the current extension */
 	
 	if (item->u1.list && !item->u1.list->next && !strstr((item->u1.list)->u1.str,"${")) {
-		struct pval *x = find_label_in_current_extension((char*)((item->u1.list)->u1.str), current_extension? current_extension:current_context); /* if in macro, use current context instead */
+		struct pval *z = get_extension_or_contxt(item);
+		struct pval *x = 0;
+		if (z)
+			x = find_label_in_current_extension((char*)((item->u1.list)->u1.str), z); /* if in macro, use current context instead */
 		/* printf("Called find_label_in_current_extension with arg %s; current_extension is %x: %d\n",
 		   (char*)((item->u1.list)->u1.str), current_extension?current_extension:current_context, current_extension?current_extension->type:current_context->type); */
 		if (!x) {
@@ -1270,7 +1291,12 @@ static void check_goto(pval *item)
 		   (char*)((item->u1.list)->u1.str), (char *)item->u1.list->next->u1.str); */
 		if (!strstr((item->u1.list)->u1.str,"${") 
 			&& !strstr(item->u1.list->next->u1.str,"${") ) /* Don't try to match variables */ {
-			struct pval *x = find_label_in_current_context((char *)item->u1.list->u1.str, (char *)item->u1.list->next->u1.str, current_context);
+			struct pval *z = get_contxt(item);
+			struct pval *x = 0;
+			
+			if (z)
+				x = find_label_in_current_context((char *)item->u1.list->u1.str, (char *)item->u1.list->next->u1.str, z);
+
 			if (!x) {
 				ast_log(LOG_ERROR,"Error: file %s, line %d-%d: goto:  no label %s|%s exists in the current context, or any of its inclusions!\n",
 						item->filename, item->startline, item->endline, item->u1.list->u1.str, item->u1.list->next->u1.str );
@@ -2495,6 +2521,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		/* fields: item->u1.list     == pval list of PV_WORD elements, one per entry in the list
 		*/
 		check_pval(item->u1.list, apps,in_globals);
+		check_includes(item);
 		for (lp=item->u1.list; lp; lp=lp->next){
 			char *incl_context = lp->u1.str;
 			struct pval *that_context = find_context(incl_context);
