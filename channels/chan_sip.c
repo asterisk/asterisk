@@ -13880,10 +13880,12 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
 
 			/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
-			/* don't supply pidf+xml to Polycom phones until they fix their firmware to
-			   parse it properly
+			/* Polycom phones only handle xpidf+xml, even if they say they can
+			   handle pidf+xml as well
 			*/
-			if (strstr(accept, "application/pidf+xml") && !strstr(p->useragent, "Polycom")) {
+			if (strstr(p->useragent, "Polycom")) {
+				p->subscribed = XPIDF_XML;
+			} else if (strstr(accept, "application/pidf+xml")) {
  				p->subscribed = PIDF_XML;         /* RFC 3863 format */
  			} else if (strstr(accept, "application/dialog-info+xml")) {
  				p->subscribed = DIALOG_INFO_XML;
