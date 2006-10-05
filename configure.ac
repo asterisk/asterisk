@@ -6,7 +6,7 @@
 # this file just have to remember to set the AC_PREREQ argument
 # to something that suits their needs.
 
-AC_PREREQ(2.60)
+AC_PREREQ(2.59)
 
 m4_define([PBX_VERSION],
           m4_bpatsubst(m4_esyscmd([build_tools/make_version .]),
@@ -297,14 +297,7 @@ AC_LINK_IFELSE(
 	AC_MSG_RESULT(no)
 )
 
-AC_MSG_CHECKING(for RTLD_NOLOAD)
-AC_LINK_IFELSE(
-	AC_LANG_PROGRAM([#include <dlfcn.h>],
-			[int foo = RTLD_NOLOAD;]),
-	AC_MSG_RESULT(yes)
-	AC_DEFINE([HAVE_RTLD_NOLOAD], 1, [Define to 1 if your system has a dynamic linker that supports RTLD_NOLOAD.]),
-	AC_MSG_RESULT(no)
-)
+AST_C_DEFINE_CHECK([RTLD_NOLOAD], [RTLD_NOLOAD], [dlfcn.h])
 
 AC_CHECK_HEADER([libkern/OSAtomic.h],
                 [AC_DEFINE_UNQUOTED([HAVE_OSX_ATOMICS], 1, [Define to 1 if OSX atomic operations are supported.])])
@@ -500,13 +493,6 @@ if test "${USE_IMAP_TK}" != "no"; then
       if test "${ac_cv_imap_tk2006}" = "yes"; then
          AC_DEFINE([HAVE_IMAP_TK2006], 1, [Define if your system has the UW IMAP Toolkit c-client library version 2006 or greater.])
       fi
-   elif test ! -z "${IMAP_TK_MANDATORY}"; then
-      AC_MSG_RESULT(no) 
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The UW IMAP Toolkit installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-imap.)
-      exit 1
    else
       AC_MSG_RESULT(no) 
    fi
@@ -546,13 +532,6 @@ if test "${USE_KDE}" != "no"; then
       fi
       PBX_KDE=1
       AC_DEFINE([HAVE_LIBKDE], 1, [Define if your system has the KDE libraries.])
-   elif test ! -z "${KDE_MANDATORY}"; then
-      AC_MSG_RESULT(no) 
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The KDE installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-kde.)
-      exit 1
    else
       AC_MSG_RESULT(no) 
    fi
@@ -606,13 +585,6 @@ if test x"${NETSNMP_CONFIG}" != xNo; then
       PBX_NETSNMP=1
    fi
 fi
-if test ! -z "${NETSNMP_MANDATORY}" -a "x${PBX_NETSNMP}" != "x1" ; then
-   AC_MSG_NOTICE(***)
-   AC_MSG_NOTICE(*** The Net-SNMP installation on this system appears to be broken.)
-   AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-   AC_MSG_NOTICE(*** including --without-netsnmp)
-   exit 1
-fi
 
 AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
 
@@ -656,13 +628,6 @@ if test "${PG_CONFIG}" != No; then
       PBX_PGSQL=1
    fi
 fi
-if test ! -z "${PGSQL_MANDATORY}" -a "x${PBX_PGSQL}" != "1" ; then
-   AC_MSG_NOTICE(***)
-   AC_MSG_NOTICE(*** The PostgreSQL installation on this system appears to be broken.)
-   AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-   AC_MSG_NOTICE(*** including --without-postgres)
-   exit 1
-fi
 
 AST_EXT_LIB_CHECK([POPT], [popt], [poptStrerror], [popt.h])
 
@@ -689,14 +654,6 @@ if test "${USE_PWLIB}" != "no"; then
 	fi
 fi
 
-if test "${USE_PWLIB}" != "no" -a "x${ac_cv_lib_PWLIB}" != "xyes" -a ! -z "${PWLIB_MANDATORY}"; then
-   AC_MSG_NOTICE(***)
-   AC_MSG_NOTICE(*** The PWLIB installation on this system appears to be broken.)
-   AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-   AC_MSG_NOTICE(*** including --without-pwlib)
-   exit 1
-fi
-
 if test "${PBX_PWLIB}" = "1" -a "${USE_OPENH323}" != "no" ; then
 	if test ! -z "${OPENH323_DIR}"; then
 		OPENH323DIR="${OPENH323_DIR}"
@@ -713,14 +670,6 @@ if test "${PBX_PWLIB}" = "1" -a "${USE_OPENH323}" != "no" ; then
 		[H323EndPoint ep = H323EndPoint();],
 		[${PWLIB_INCLUDE}], [${PWLIB_LIB}])
 fi
-if test "${USE_OPENH323}" != "no" -a "x${ac_cv_lib_OPENH323}" != "xyes" -a ! -z "${OPENH323_MANDATORY}"; then
-   AC_MSG_NOTICE(***)
-   AC_MSG_NOTICE(*** The PWLIB installation on this system appears to be broken.)
-   AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-   AC_MSG_NOTICE(*** including --without-pwlib)
-   exit 1
-fi
-
 
 AC_LANG_PUSH(C++)
 
@@ -781,13 +730,6 @@ if test "${USE_QT}" != "no"; then
       PBX_QT=1
       AC_DEFINE([HAVE_QT], 1, [Define if your system has the Qt library])
       AC_PATH_TOOL(QTMOC, moc, No)
-   elif test ! -z "${QT_MANDATORY}"; 
-   then
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The Qt installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-qt.)
-      exit 1
    fi
 fi
 
@@ -828,7 +770,10 @@ if test "${host_os}" != "linux-gnu" ; then
   tonezone_extra="-lm"
 fi
 
-AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [zaptel/tonezone.h], [${tonezone_extra}])
+# new tonezone, version 1.4.0
+AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [zaptel/tonezone.h], [${tonezone_extra}], [140])
+# other case, old tonezone (0.80)
+AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [zaptel/zaptel.h], [${tonezone_extra}], [80])
 
 AST_EXT_LIB_CHECK([VORBIS], [vorbis], [vorbis_info_init], [vorbis/codec.h], [-lm -lvorbisenc])
 
@@ -871,12 +816,6 @@ if test "${USE_VPB}" != "no"; then
 	fi
 	PBX_VPB=1
 	AC_DEFINE([HAVE_VPB], 1, [Define if your system has the VoiceTronix API libraries.])
-   elif test ! -z "${VPB_MANDATORY}"; then
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The VoiceTronix (vpb) installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-vpb.)
-      exit 1
    fi
 fi
 
@@ -884,41 +823,10 @@ AC_LANG_POP
 
 AST_EXT_LIB_CHECK([ZLIB], [z], [compress], [zlib.h])
 
-if test "${USE_ZAPTEL}" != "no"; then
-   AC_MSG_CHECKING(for ZT_TONE_DTMF_BASE in zaptel.h)
-   saved_cppflags="${CPPFLAGS}"
-   if test "x${ZAPTEL_DIR}" != "x"; then
-      CPPFLAGS="${CPPFLAGS} -I${ZAPTEL_DIR}/include"
-   fi
-   AC_COMPILE_IFELSE(
-	[
-	AC_LANG_PROGRAM(
-	[#include <zaptel/zaptel.h>],
-	[int foo = ZT_TONE_DTMF_BASE;])
-	],
-	[	AC_MSG_RESULT(yes) 
-		ac_cv_zaptel_h="yes" 
-	],
-	[	AC_MSG_RESULT(no) 
-		ac_cv_zaptel_h="no" 
-	]
-	)
-   CPPFLAGS="${saved_cppflags}"
-   if test "${ac_cv_zaptel_h}" = "yes"; then
-	if test "${ZAPTEL_DIR}" != ""; then
-	   ZAPTEL_INCLUDE="-I${ZAPTEL_DIR}/include"
-	fi
-	PBX_ZAPTEL=1
-	AC_DEFINE([HAVE_ZAPTEL], 1, [Define if your system has the Zaptel headers.])
-   elif test ! -z "${ZAPTEL_MANDATORY}"; 
-   then
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The Zaptel installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-zaptel.)
-      exit 1
-   fi
-fi
+# check for zaptel 1.4.0
+AST_C_DEFINE_CHECK([ZAPTEL], [ZT_TONE_DTMF_BASE], [zaptel/zaptel.h], [140])
+# or, try old zaptel (0.80 or so)
+AST_EXT_LIB_CHECK([ZAPTEL], [zaptel],, [zaptel.h],, [80])
 
 EDITLINE_LIB=""
 if test "x$TERMCAP_LIB" != "x" ; then
@@ -980,6 +888,8 @@ if test "${USE_CURL}" != "no"; then
 fi
 
 AC_CONFIG_FILES([build_tools/menuselect-deps makeopts channels/h323/Makefile])
+AST_CHECK_MANDATORY
+
 AC_OUTPUT
 
 if test "x${silent}" != "xyes" ; then

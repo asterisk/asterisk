@@ -23,11 +23,11 @@ case ${withval} in
      USE_$1=no
      ;;
      y|ye|yes)
-     $1_MANDATORY="yes"
+     ac_mandatory_list="${ac_mandatory_list} $1"
      ;;
      *)
      $1_DIR="${withval}"
-     $1_MANDATORY="yes"
+     ac_mandatory_list="${ac_mandatory_list} $1"
      ;;
 esac
 ])
@@ -37,14 +37,68 @@ AC_SUBST([$1_INCLUDE])
 AC_SUBST([PBX_$1])
 ])
 
-# Check for existence of a given package ($1), looking up a function
+# Check whether any of the mandatory modules are not present, and
+# print error messages in case.
+
+AC_DEFUN([AST_CHECK_MANDATORY],
+[
+	AC_MSG_CHECKING([for mandatory modules: ${ac_mandatory_list}])
+	err=0;
+	for i in ${ac_mandatory_list}; do
+		eval "a=\${PBX_$i}"
+		if test "x${a}" = "x1" ; then continue; fi
+		if test ${err} = "0" ; then AC_MSG_RESULT(fail) ; fi
+		AC_MSG_RESULT()
+		eval "a=\${${i}_OPTION}"
+		AC_MSG_NOTICE(***)
+		AC_MSG_NOTICE(*** The $i installation appears to be missing or broken.)
+		AC_MSG_NOTICE(*** Either correct the installation, or run configure)
+		AC_MSG_NOTICE(*** including --without-${a}.)
+		err=1
+	done
+	if test $err = 1 ; then exit 1; fi
+	AC_MSG_RESULT(ok)
+])
+
+#-- The following two tests are only performed if PBX_$1 != 1,
+#   so you can use multiple tests and stop at the first matching one.
+#   On success, set PBX_$1 = 1, and also #define HAVE_$1 1
+#   and #define HAVE_$1_VERSION ${last_argument} so you can tell which
+#   test succeeded.
+#   They should be called after AST_EXT_LIB_SETUP($1, ...)
+
+# Check if a given macro is defined in a certain header.
+
+# AST_C_DEFINE_CHECK([package symbol name], [macro name], [header file], [version])
+AC_DEFUN([AST_C_DEFINE_CHECK],
+[
+    if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
+	AC_MSG_CHECKING([for $2 in $3])
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${$1_DIR}" != "x"; then
+	    $1_INCLUDE= "-I${$1_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE}"
+
+	AC_COMPILE_IFELSE(
+	    [ AC_LANG_PROGRAM( [#include <$3>], [int foo = $2;]) ],
+	    [   AC_MSG_RESULT(yes)
+		PBX_$1=1
+		AC_DEFINE([HAVE_$1], 1, [Define if your system has the $1 headers.])
+		AC_DEFINE([HAVE_$1_VERSION], $4, [Define $1 headers version])
+	    ],
+	    [       AC_MSG_RESULT(no) ] 
+	)
+	CPPFLAGS="${saved_cppflags}"
+    fi
+])
+
+
+# Check for existence of a given package ($1), either looking up a function
 # in a library, or, if no function is supplied, only check for the
 # existence of the header files.
-# Only check if PBX_$1 != 1, and set PBX_$1=1 and HAVE_$1 if found.
-# Should be called after AST_EXT_LIB_SETUP($1, ...)
 
-# AST_EXT_LIB_CHECK([package symbol name], [package library name], [function to check], [package header], [additional LIB data])
-
+# AST_EXT_LIB_CHECK([package symbol name], [package library name], [function to check], [package header], [additional LIB data], [version])
 AC_DEFUN([AST_EXT_LIB_CHECK],
 [
 if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
@@ -78,13 +132,6 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
 	 fi
       fi
       if test "x${$1_HEADER_FOUND}" = "x0" ; then
-         if test ! -z "${$1_MANDATORY}" ; then
-            AC_MSG_NOTICE( ***)
-            AC_MSG_NOTICE( *** It appears that you do not have the $2 development package installed.)
-            AC_MSG_NOTICE( *** Please install it to include ${$1_DESCRIP} support, or re-run configure)
-            AC_MSG_NOTICE( *** without explicitly specifying --with-${$1_OPTION})
-            exit 1
-         fi
          $1_LIB=""
          $1_INCLUDE=""
       else
@@ -92,14 +139,10 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
 	    $1_LIB=""
 	 fi
          PBX_$1=1
-         AC_DEFINE_UNQUOTED([HAVE_$1], 1, [Define to indicate the ${$1_DESCRIP} library])
+         # XXX don't know how to evaluate the description (third argument) in AC_DEFINE_UNQUOTED
+         AC_DEFINE_UNQUOTED([HAVE_$1], 1, [Define this to indicate the ${$1_DESCRIP} library])
+	 AC_DEFINE_UNQUOTED([HAVE_$1_VERSION], [$6], [Define to indicate the ${$1_DESCRIP} library version])
       fi
-   elif test ! -z "${$1_MANDATORY}"; then
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The ${$1_DESCRIP} installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** without explicitly specifying --with-${$1_OPTION})
-      exit 1
    fi
 fi
 ])
