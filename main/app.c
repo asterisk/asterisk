@@ -1302,14 +1302,14 @@ int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags
 		if (*s == '(') {
 			/* Has argument */
 			arg = ++s;
-			s = strchr(s, ')');
-			if (*s) {
+			if ((s = strchr(s, ')'))) {
 				if (argloc)
 					args[argloc - 1] = arg;
 				*s++ = '\0';
 			} else {
 				ast_log(LOG_WARNING, "Missing closing parenthesis for argument '%c' in string '%s'\n", curarg, arg);
 				res = -1;
+				break;
 			}
 		} else if (argloc) {
 			args[argloc - 1] = NULL;
