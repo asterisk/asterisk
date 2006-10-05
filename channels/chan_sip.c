@@ -4942,9 +4942,16 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			    ast_rtp_lookup_mime_multiple(s3, BUFSIZ, newnoncodeccapability, 0, 0));
 	}
 	if (!newjointcapability) {
-		ast_log(LOG_NOTICE, "No compatible codecs, not accepting this offer!\n");
-		/* Do NOT Change current setting */
-		return -1;
+		/* If T.38 was not negotiated either, totally bail out... */
+		if (!p->t38.jointcapability) {
+			ast_log(LOG_NOTICE, "No compatible codecs, not accepting this offer!\n");
+			/* Do NOT Change current setting */
+			return -1;
+		} else {
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "Have T.38 but no audio codecs, accepting offer anyway\n");
+			return 0;
+		}
 	}
 
 	/* We are now ready to change the sip session and p->rtp and p->vrtp with the offered codecs, since
