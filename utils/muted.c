@@ -52,7 +52,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-static char *config = "/etc/muted.conf";
+static char *config = "/etc/asterisk/muted.conf";
 
 static char host[256] = "";
 static char user[256] = "";
