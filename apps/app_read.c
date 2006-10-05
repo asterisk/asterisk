@@ -77,8 +77,8 @@ static char *descrip =
 "                'n' to read digits even if the line is not up.\n"
 "  attempts   -- if greater than 1, that many attempts will be made in the \n"
 "                event no data is entered.\n"
-"  timeout    -- An integer number of seconds to wait for a digit response. If greater\n"
-"                than 0, that value will override the default timeout.\n\n"
+"  timeout    -- The number of seconds to wait for a digit response. If greater\n"
+"                than 0, that value will override the default timeout. Can be floating point.\n\n"
 "Read should disconnect if the function fails or errors out.\n";
 
 
@@ -91,6 +91,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 	char tmp[256] = "";
 	int maxdigits = 255;
 	int tries = 1, to = 0, x = 0;
+	double tosec;
 	char *argcopy = NULL;
 	struct tone_zone_sound *ts;
 	struct ast_flags flags = {0};
@@ -126,11 +127,11 @@ static int read_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (!ast_strlen_zero(arglist.timeout)) {
-		to = atoi(arglist.timeout);
-		if (to <= 0)
+		tosec = atof(arglist.timeout);
+		if (tosec <= 0)
 			to = 0;
 		else
-			to *= 1000;
+			to = tosec * 1000.0;
 	}
 
 	if (ast_strlen_zero(arglist.filename)) {

@@ -29,3 +29,11 @@ Changes since Asterisk 1.4-beta was branched:
      two channels.
   * Added 'Strategy' field to manager event QueueParams which represents
      the queue strategy in use. 
+  * From the to-do lists: straighten out the app timeout args:
+     Wait() app now really does 0.3 seconds- was truncating arg to an int.
+     WaitExten() same as Wait().
+     Congestion() - Now takes floating pt. argument.
+     Busy() - now takes floating pt. argument.
+     Read() - timeout now can be floating pt.
+     WaitForRing() now takes floating pt timeout arg.
+     SpeechBackground() -- clarified in the docstrings that the timeout is an integer seconds.

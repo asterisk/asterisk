@@ -5023,12 +5023,14 @@ static void wait_for_hangup(struct ast_channel *chan, void *data)
 {
 	int res;
 	struct ast_frame *f;
+	double waitsec;
 	int waittime;
 
-	if (ast_strlen_zero(data) || (sscanf(data, "%d", &waittime) != 1) || (waittime < 0))
-		waittime = -1;
-	if (waittime > -1) {
-		ast_safe_sleep(chan, waittime * 1000);
+	if (ast_strlen_zero(data) || (sscanf(data, "%lg", &waitsec) != 1) || (waitsec < 0))
+		waitsec = -1;
+	if (waitsec > -1) {
+		waittime = waitsec * 1000.0;
+		ast_safe_sleep(chan, waittime);
 	} else do {
 		res = ast_waitfor(chan, -1);
 		if (res < 0)
@@ -5246,11 +5248,12 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
  */
 static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 {
+	double s;
 	int ms;
 
 	/* Wait for "n" seconds */
-	if (data && (ms = atof(data)) > 0) {
-		ms *= 1000;
+	if (data && (s = atof(data)) > 0.0) {
+		ms = s*1000.0;
 		return ast_safe_sleep(chan, ms);
 	}
 	return 0;
@@ -5262,6 +5265,7 @@ static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 {
 	int ms, res;
+	double s;
 	struct ast_flags flags = {0};
 	char *opts[1] = { NULL };
 	char *parse;
@@ -5285,12 +5289,13 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 		ast_indicate_data(chan, AST_CONTROL_HOLD, opts[0], strlen(opts[0]));
 
 	/* Wait for "n" seconds */
-	if (args.timeout && (ms = atof(args.timeout)) > 0)
-		 ms *= 1000;
+	if (args.timeout && (s = atof(args.timeout)) > 0)
+		 ms = s * 1000.0;
 	else if (chan->pbx)
 		ms = chan->pbx->rtimeout * 1000;
 	else
 		ms = 10000;
+
 	res = ast_waitfordigit(chan, ms);
 	if (!res) {
 		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 1, chan->cid.cid_num)) {
