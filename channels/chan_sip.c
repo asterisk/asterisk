@@ -13129,6 +13129,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 									transmit_response_reliable(p, "488 Not acceptable here", req);
 								sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 							}
+						} else {
+							/* The other side is already setup for T.38 most likely so we need to acknowledge this too */
+							transmit_response_with_t38_sdp(p, "200 OK", req, XMIT_CRITICAL);
+							p->t38.state = T38_ENABLED;
+							if (option_debug)
+								ast_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
 						}
 					} else {
 						/* Other side is not a SIP channel */
