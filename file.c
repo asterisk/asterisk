@@ -1028,6 +1028,7 @@ int ast_waitstream(struct ast_channel *c, const char *breakon)
 			case AST_FRAME_CONTROL:
 				switch(fr->subclass) {
 				case AST_CONTROL_HANGUP:
+				case AST_CONTROL_BUSY:
 					ast_frfree(fr);
 					return -1;
 				case AST_CONTROL_RINGING:
