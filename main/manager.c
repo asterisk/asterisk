@@ -851,100 +851,95 @@ static int set_eventmask(struct mansession *s, char *eventmask)
 
 static int authenticate(struct mansession *s, struct message *m)
 {
-	struct ast_config *cfg;
-	char *cat;
 	char *user = astman_get_header(m, "Username");
 	char *pass = astman_get_header(m, "Secret");
 	char *authtype = astman_get_header(m, "AuthType");
 	char *key = astman_get_header(m, "Key");
 	char *events = astman_get_header(m, "Events");
-	
-	cfg = ast_config_load("manager.conf");
+	char *cat = NULL;
+	struct ast_config *cfg = ast_config_load("manager.conf");
+	int ret = -1;	/* default: error return */
+
 	if (!cfg)
 		return -1;
-	cat = NULL;
 	while ( (cat = ast_category_browse(cfg, cat)) ) {
+		struct ast_variable *v;
+		struct ast_ha *ha = NULL;
+		char *password = NULL;
+
 		if (!strcasecmp(cat, "general") || strcasecmp(cat, user))
 			continue;	/* skip 'general' and non-matching sections */
 
-		/* XXX fix indentation */
-		{
-				struct ast_variable *v;
-				struct ast_ha *ha = NULL;
-				char *password = NULL;
-
-				for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
-					if (!strcasecmp(v->name, "secret")) {
-						password = v->value;
-					} else if (!strcasecmp(v->name, "displaysystemname")) {
-						if (ast_true(v->value)) {
-							if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
-								s->displaysystemname = 1;
-							} else {
-								ast_log(LOG_ERROR, "Can't enable displaysystemname in manager.conf - no system name configured in asterisk.conf\n");
-							}
-						}
-					} else if (!strcasecmp(v->name, "permit") ||
-						   !strcasecmp(v->name, "deny")) {
-						ha = ast_append_ha(v->name, v->value, ha);
-					} else if (!strcasecmp(v->name, "writetimeout")) {
-						int val = atoi(v->value);
-
-						if (val < 100)
-							ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
-						else
-							s->writetimeout = val;
+		/* collect parameters for the user's entry */
+		for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
+			if (!strcasecmp(v->name, "secret")) {
+				password = v->value;
+			} else if (!strcasecmp(v->name, "displaysystemname")) {
+				if (ast_true(v->value)) {
+					if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
+						s->displaysystemname = 1;
+					} else {
+						ast_log(LOG_ERROR, "Can't enable displaysystemname in manager.conf - no system name configured in asterisk.conf\n");
 					}
-				    		
 				}
-				if (ha && !ast_apply_ha(ha, &(s->sin))) {
-					ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
-					ast_free_ha(ha);
-					ast_config_destroy(cfg);
-					return -1;
-				} else if (ha)
-					ast_free_ha(ha);
-				if (!strcasecmp(authtype, "MD5")) {
-					if (!ast_strlen_zero(key) && s->challenge) {
-						int x;
-						int len = 0;
-						char md5key[256] = "";
-						struct MD5Context md5;
-						unsigned char digest[16];
-						MD5Init(&md5);
-						MD5Update(&md5, (unsigned char *) s->challenge, strlen(s->challenge));
-						MD5Update(&md5, (unsigned char *) password, strlen(password));
-						MD5Final(digest, &md5);
-						for (x=0; x<16; x++)
-							len += sprintf(md5key + len, "%2.2x", digest[x]);
-						if (!strcmp(md5key, key))
-							break;
-						else {
-							ast_config_destroy(cfg);
-							return -1;
-						}
-					}
-				} else if (password && !strcmp(password, pass)) {
-					break;
-				} else {
-					ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
-					ast_config_destroy(cfg);
-					return -1;
-				}	
+			} else if (!strcasecmp(v->name, "permit") ||
+				   !strcasecmp(v->name, "deny")) {
+				ha = ast_append_ha(v->name, v->value, ha);
+			} else if (!strcasecmp(v->name, "writetimeout")) {
+				int val = atoi(v->value);
+
+				if (val < 100)
+					ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
+				else
+					s->writetimeout = val;
+			}
+				
 		}
+		if (ha) {
+			if (!ast_apply_ha(ha, &(s->sin))) {
+				ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
+				ast_free_ha(ha);
+				goto error;
+			}
+			ast_free_ha(ha);
+		}
+		if (!strcasecmp(authtype, "MD5")) {
+			if (!ast_strlen_zero(key) && s->challenge) {
+				int x;
+				int len = 0;
+				char md5key[256] = "";
+				struct MD5Context md5;
+				unsigned char digest[16];
+				MD5Init(&md5);
+				MD5Update(&md5, (unsigned char *) s->challenge, strlen(s->challenge));
+				MD5Update(&md5, (unsigned char *) password, strlen(password));
+				MD5Final(digest, &md5);
+				for (x=0; x<16; x++)
+					len += sprintf(md5key + len, "%2.2x", digest[x]);
+				if (!strcmp(md5key, key))
+					break;
+			}
+		} else if (password) {
+			if (!strcmp(password, pass))
+				break;
+		}
+		ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
+		goto error;
 	}
+	/* we get here with user not found (cat = NULL) or successful authentication */
 	if (cat) {
 		ast_copy_string(s->username, cat, sizeof(s->username));
 		s->readperm = get_perm(ast_variable_retrieve(cfg, cat, "read"));
 		s->writeperm = get_perm(ast_variable_retrieve(cfg, cat, "write"));
-		ast_config_destroy(cfg);
 		if (events)
 			set_eventmask(s, events);
-		return 0;
+		ret = 0;
+	} else {
+		ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
 	}
-	ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
+error:
 	ast_config_destroy(cfg);
-	return -1;
+	return ret;
 }
 
 /*! \brief Manager PING */
