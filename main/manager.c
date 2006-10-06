@@ -2438,7 +2438,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 	ast_mutex_unlock(&s->__lock);
 	
 	memset(&m, 0, sizeof(m));
-	if (s) {
+	{
 		char tmp[80];
 		ast_build_string(&c, &len, "Content-type: text/%s\r\n", contenttype[format]);
 		sprintf(tmp, "%08lx", s->managerid);
@@ -2496,9 +2496,6 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 			ast_build_string(&c, &len, "</ajax-response>\n");
 		} else if (format == FORMAT_HTML)
 			ast_build_string(&c, &len, "</table></body>\r\n");
-	} else {
-		*status = 500;
-		*title = strdup("Server Error");
 	}
 	ast_mutex_lock(&s->__lock);
 	if (s->needdestroy) {
