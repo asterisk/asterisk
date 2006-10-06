@@ -17,7 +17,7 @@ Changes since Asterisk 1.2:
       read: http://www.voip-info.org/wiki/view/Asterisk+AEL2
     * New sounds; English, Spanish, and French prompts, as well as music on hold files, in multiple Asterisk native formats.
     * IMAP storage of voicemail
-    * Jabber/Jingle/GoogleTalk
+    * Jabber/GoogleTalk
     * New speech recognition API for interfacing to different Voice Recognition software packages
     * much more customizable and portable build system
           o also for asterisk-addons
