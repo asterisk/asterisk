@@ -1177,10 +1177,6 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		ast_verbose("Got  RTP packet from    %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
 			ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
 
-	/* When the seqno starts over we need to reset the seqno for DTMF */
-	if (seqno == 0)
-		rtp->lasteventseqn = 0;
-
 	rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
 	if (!rtpPT.isAstFormat) {
 		struct ast_frame *f = NULL;
@@ -1203,10 +1199,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 				duration &= 0xFFFF;
 				ast_verbose("Got  RTP RFC2833 from   %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u, mark %d, event %08x, end %d, duration %-5.5d) \n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
 			}
-			if (rtp->lasteventseqn <= seqno || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
-				f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno);
-				rtp->lasteventseqn = seqno;
-			}
+			f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno);
 		} else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
 			/* It's really special -- process it the Cisco way */
 			if (rtp->lasteventseqn <= seqno || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
