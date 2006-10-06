@@ -41,6 +41,9 @@ static struct limits {
 	{ RLIMIT_MEMLOCK, "-l", "amount of memory locked into RAM" },
 #endif
 	{ RLIMIT_NOFILE, "-n", "number of file descriptors" },
+#ifndef RLIMIT_AS	/* *BSD use RLIMIT_VMEM */
+#define	RLIMIT_AS	RLIMIT_VMEM
+#endif
 	{ RLIMIT_AS, "-v", "virtual memory" },
 };
 
