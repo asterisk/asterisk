@@ -1234,6 +1234,10 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		ast_verbose("Got  RTP packet from    %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
 			ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
 
+	/* When the seqno starts over we need to reset the seqno for DTMF */
+	if (seqno == 0)
+		rtp->lasteventseqn = 0;
+
 	rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
 	if (!rtpPT.isAstFormat) {
 		struct ast_frame *f = NULL;
