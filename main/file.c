@@ -1055,6 +1055,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				switch(fr->subclass) {
 				case AST_CONTROL_HANGUP:
 				case AST_CONTROL_BUSY:
+				case AST_CONTROL_CONGESTION:
 					ast_frfree(fr);
 					return -1;
 				case AST_CONTROL_RINGING:
