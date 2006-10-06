@@ -294,8 +294,6 @@ struct misdn_bchannel {
 	int holded;
 	int stack_holder;
 
-	struct misdn_bchannel *holded_bc;
-	
 	int pres;
 	int screen;
 	
