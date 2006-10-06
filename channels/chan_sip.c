@@ -15503,7 +15503,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			ast_copy_string(peer->language, v->value, sizeof(peer->language));
 		} else if (!strcasecmp(v->name, "regexten")) {
 			ast_copy_string(peer->regexten, v->value, sizeof(peer->regexten));
-		} else if (!strcasecmp(v->name, "call-limit") || !strcasecmp(v->name, "incominglimit")) {
+		} else if (!strcasecmp(v->name, "call-limit")) {
 			peer->call_limit = atoi(v->value);
 			if (peer->call_limit < 0)
 				peer->call_limit = 0;
