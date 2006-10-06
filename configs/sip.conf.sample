@@ -187,6 +187,14 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; host is either a host name defined in DNS or the name of a section defined
 ; below.
 ;
+; A similar effect can be achieved by adding a "contact" option in a peer section.
+; this is equivalent to having the following line in the general section:
+;
+;	register => username:secret@host/contact
+;
+; and more readable because you don't have to write the parameters in two places
+; (note that the "port" is ignored - this is a bug that should be fixed).
+;
 ; Examples:
 ;
 ;register => 1234:password@mysipprovider.com	
