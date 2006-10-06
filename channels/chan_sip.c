@@ -4243,44 +4243,45 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 static int sip_register(char *value, int lineno)
 {
 	struct sip_registry *reg;
-	char copy[256];
-	char *username=NULL, *hostname=NULL, *secret=NULL, *authuser=NULL;
+	int portnum = 0;
+	char username[256] = "";
+	char *hostname=NULL, *secret=NULL, *authuser=NULL;
 	char *porta=NULL;
 	char *contact=NULL;
-	char *stringp=NULL;
-	
+
 	if (!value)
 		return -1;
-	ast_copy_string(copy, value, sizeof(copy));
-	stringp=copy;
-	username = stringp;
-	hostname = strrchr(stringp, '@');
+	ast_copy_string(username, value, sizeof(username));
+	/* First split around the last '@' then parse the two components. */
+	hostname = strrchr(username, '@'); /* allow @ in the first part */
 	if (hostname)
 		*hostname++ = '\0';
 	if (ast_strlen_zero(username) || ast_strlen_zero(hostname)) {
 		ast_log(LOG_WARNING, "Format for registration is user[:secret[:authuser]]@host[:port][/contact] at line %d\n", lineno);
 		return -1;
 	}
-	stringp = username;
-	username = strsep(&stringp, ":");
-	if (username) {
-		secret = strsep(&stringp, ":");
-		if (secret) 
-			authuser = strsep(&stringp, ":");
+	/* split user[:secret[:authuser]] */
+	secret = strchr(username, ':');
+	if (secret) {
+		*secret++ = '\0';
+		authuser = strchr(secret, ':');
+		if (authuser)
+			*authuser++ = '\0';
 	}
-	stringp = hostname;
-	hostname = strsep(&stringp, "/");
-	if (hostname) 
-		contact = strsep(&stringp, "/");
+	/* split host[:port][/contact] */
+	contact = strchr(hostname, '/');
+	if (contact)
+		*contact++ = '\0';
 	if (ast_strlen_zero(contact))
 		contact = "s";
-	stringp=hostname;
-	hostname = strsep(&stringp, ":");
-	porta = strsep(&stringp, ":");
-	
-	if (porta && !atoi(porta)) {
-		ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
-		return -1;
+	porta = strchr(hostname, ':');
+	if (porta) {
+		*porta++ = '\0';
+		portnum = atoi(porta);
+		if (portnum == 0) {
+			ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
+			return -1;
+		}
 	}
 	if (!(reg = ast_calloc(1, sizeof(*reg)))) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
@@ -4307,7 +4308,7 @@ static int sip_register(char *value, int lineno)
 	reg->expire = -1;
 	reg->timeout =  -1;
 	reg->refresh = default_expiry;
-	reg->portno = porta ? atoi(porta) : 0;
+	reg->portno = portnum;
 	reg->callid_valid = FALSE;
 	reg->ocseq = INITIAL_CSEQ;
 	ASTOBJ_CONTAINER_LINK(&regl, reg);	/* Add the new registry entry to the list */
@@ -15368,6 +15369,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	struct ast_variable *tmpvar = NULL;
 	struct ast_flags peerflags[2] = {{(0)}};
 	struct ast_flags mask[2] = {{(0)}};
+	char contact[256] = "";
 
 
 	if (!realtime)
@@ -15503,6 +15505,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			ast_copy_string(peer->language, v->value, sizeof(peer->language));
 		} else if (!strcasecmp(v->name, "regexten")) {
 			ast_copy_string(peer->regexten, v->value, sizeof(peer->regexten));
+		} else if (!strcasecmp(v->name, "contact")) {
+			ast_copy_string(contact, v->value, sizeof(contact));
 		} else if (!strcasecmp(v->name, "call-limit")) {
 			peer->call_limit = atoi(v->value);
 			if (peer->call_limit < 0)
@@ -15612,6 +15616,15 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		reg_source_db(peer);
 	ASTOBJ_UNMARK(peer);
 	ast_free_ha(oldha);
+	if (!ast_strlen_zero(contact)) { /* build string from peer info */
+		char *reg_string;
+
+		asprintf(&reg_string, "%s:%s@%s/%s", peer->username, peer->secret, peer->tohost, contact);
+		if (reg_string) {
+			sip_register(reg_string, 0); /* XXX TODO: count in registry_count */
+			free(reg_string);
+		}
+	}
 	return peer;
 }
 

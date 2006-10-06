@@ -432,6 +432,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                             sendrpid
 ;                             outboundproxy
 ;                             rfc2833compensate
+;                             contact
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)
@@ -453,6 +454,14 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;outboundproxy=proxy.provider.domain	; send outbound signaling to this proxy, not directly to the peer
 				; Call-limits will not be enforced on real-time peers,
 				; since they are not stored in-memory
+
+;--- sample definition for a provider
+;[provider1]
+;type=peer
+;host=sip.provider1.com
+;username=4015552299		; how your provider knows you
+;secret=youwillneverguessit
+;contact=123			; tell asterisk to register as username:secret@host/contact
 
 ;------------------------------------------------------------------------------
 ; Definitions of locally connected SIP devices
