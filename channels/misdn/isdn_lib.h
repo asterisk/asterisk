@@ -20,6 +20,14 @@
 /* typedef int ie_nothing_t ;*/
 /** end of init usage **/
 
+
+/* 
+ * uncomment the following to make chan_misdn create
+ * record files in /tmp/misdn-{rx|tx}-PortChannel format 
+ * */
+
+/*#define MISDN_SAVE_DATA*/
+
 #ifdef WITH_BEROEC
 typedef int beroec_t;
 
@@ -95,6 +103,7 @@ enum mISDN_NUMBER_PLAN {
 enum event_response_e {
 	RESPONSE_IGNORE_SETUP_WITHOUT_CLOSE,
 	RESPONSE_IGNORE_SETUP,
+	RESPONSE_RELEASE_SETUP,
 	RESPONSE_ERR,
 	RESPONSE_OK
 };
@@ -214,6 +223,7 @@ struct misdn_bchannel {
 	int channel_preselected;
 	
 	int in_use;
+	int cw;
 	int addr;
 
 	char * bframe;
@@ -382,7 +392,7 @@ char *manager_isdn_get_info(enum event_e event);
 
 void misdn_lib_transfer(struct misdn_bchannel* holded_bc);
 
-struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel);
+struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout);
 
 void manager_bchannel_activate(struct misdn_bchannel *bc);
 void manager_bchannel_deactivate(struct misdn_bchannel * bc);
