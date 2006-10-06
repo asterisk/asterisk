@@ -2181,6 +2181,9 @@ static void *accept_thread(void *ignore)
 			/* For safety, make sure socket is non-blocking */
 			flags = fcntl(as, F_GETFL);
 			fcntl(as, F_SETFL, flags | O_NONBLOCK);
+		} else {
+			flags = fcntl(as, F_GETFL);
+			fcntl(as, F_SETFL, flags & ~O_NONBLOCK);
 		}
 		ast_mutex_init(&s->__lock);
 		s->fd = as;

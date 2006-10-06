@@ -504,6 +504,8 @@ static void *http_root(void *data)
 		}
 		ser = ast_calloc(1, sizeof(*ser));
 		if (ser) {
+			int flags = fcntl(fd, F_GETFL);
+			fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 			ser->fd = fd;
 			memcpy(&ser->requestor, &sin, sizeof(ser->requestor));
 			if ((ser->f = fdopen(ser->fd, "w+"))) {
