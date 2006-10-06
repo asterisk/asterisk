@@ -486,7 +486,51 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; If Asterisk is on a public IP, and the phone is inside of a NAT device
 ; you will need to configure nat option for those phones.
 ; Also, turn on qualify=yes to keep the nat session open
+;
+; Because you might have a large number of similar sections, it is generally
+; convenient to use templates for the common parameters, and add them
+; the the various sections. Examples are below, and we can even leave
+; the templates uncommented as they will not harm:
 
+[basic-options](!)		; a template
+	dtmfmode=rfc2833
+	context=from-office
+	type=friend
+
+[natted-phone](!,basic-options)	; another template inheriting basic-options
+	nat=yes
+	canreinvite=no
+	host=dynamic
+
+[public-phone](!,basic-options)	; another template inheriting basic-options
+	nat=no
+	canreinvite=yes
+
+[my-codecs](!)		; a template for my preferred codecs
+	disallow=all
+	allow=ilbc
+	allow=g729
+	allow=gsm
+	allow=g723
+	allow=ulaw
+
+[ulaw-phone](!)		; and another one for ulaw-only
+	disallow=all
+	allow=ulaw
+
+; and finally instantiate a few phones
+;
+; [2133](natted-phone,my-codecs)
+;	secret = peekaboo
+; [2134](natted-phone,ulaw-hone)
+;	secret = not_very_secret
+; [2136](public-phone,ulaw-hone)
+;	secret = not_very_secret_either
+; ...
+;
+
+; Standard configurations not using templates look like this:
+;
 ;[grandstream1]
 ;type=friend 			
 ;context=from-sip		; Where to start in the dialplan when this phone calls
