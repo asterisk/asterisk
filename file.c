@@ -1029,6 +1029,7 @@ int ast_waitstream(struct ast_channel *c, const char *breakon)
 				switch(fr->subclass) {
 				case AST_CONTROL_HANGUP:
 				case AST_CONTROL_BUSY:
+				case AST_CONTROL_CONGESTION:
 					ast_frfree(fr);
 					return -1;
 				case AST_CONTROL_RINGING:
@@ -1097,6 +1098,8 @@ int ast_waitstream_fr(struct ast_channel *c, const char *breakon, const char *fo
 			case AST_FRAME_CONTROL:
 				switch(fr->subclass) {
 				case AST_CONTROL_HANGUP:
+				case AST_CONTROL_BUSY:
+				case AST_CONTROL_CONGESTION:
 					ast_frfree(fr);
 					return -1;
 				case AST_CONTROL_RINGING:
@@ -1166,6 +1169,8 @@ int ast_waitstream_full(struct ast_channel *c, const char *breakon, int audiofd,
 			case AST_FRAME_CONTROL:
 				switch(fr->subclass) {
 				case AST_CONTROL_HANGUP:
+				case AST_CONTROL_BUSY:
+				case AST_CONTROL_CONGESTION:
 					ast_frfree(fr);
 					return -1;
 				case AST_CONTROL_RINGING:
@@ -1231,6 +1236,8 @@ int ast_waitstream_exten(struct ast_channel *c, const char *context)
 			case AST_FRAME_CONTROL:
 				switch(fr->subclass) {
 				case AST_CONTROL_HANGUP:
+				case AST_CONTROL_BUSY:
+				case AST_CONTROL_CONGESTION:
 					ast_frfree(fr);
 					return -1;
 				case AST_CONTROL_RINGING:
