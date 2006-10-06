@@ -862,11 +862,13 @@ static int authenticate(struct mansession *s, struct message *m)
 	cfg = ast_config_load("manager.conf");
 	if (!cfg)
 		return -1;
-	cat = ast_category_browse(cfg, NULL);
-	while (cat) {
-		if (strcasecmp(cat, "general")) {
-			/* This is a user */
-			if (!strcasecmp(cat, user)) {
+	cat = NULL;
+	while ( (cat = ast_category_browse(cfg, cat)) ) {
+		if (!strcasecmp(cat, "general") || strcasecmp(cat, user))
+			continue;	/* skip 'general' and non-matching sections */
+
+		/* XXX fix indentation */
+		{
 				struct ast_variable *v;
 				struct ast_ha *ha = NULL;
 				char *password = NULL;
@@ -929,9 +931,7 @@ static int authenticate(struct mansession *s, struct message *m)
 					ast_config_destroy(cfg);
 					return -1;
 				}	
-			}
 		}
-		cat = ast_category_browse(cfg, cat);
 	}
 	if (cat) {
 		ast_copy_string(s->username, cat, sizeof(s->username));
