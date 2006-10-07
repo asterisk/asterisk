@@ -15268,20 +15268,11 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			if (user->maxcallbitrate < 0)
 				user->maxcallbitrate = default_maxcallbitrate;
  		} else if (!strcasecmp(v->name, "t38pt_udptl")) {
-			if (ast_true(v->value)) {
-				ast_set_flag(&user->flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
-			} else
-				ast_clear_flag(&user->flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
+			ast_set2_flag(&user->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_UDPTL);
 		} else if (!strcasecmp(v->name, "t38pt_rtp")) {
-			if (ast_true(v->value)) {
-				ast_set_flag(&user->flags[1], SIP_PAGE2_T38SUPPORT_RTP);
-			} else
-				ast_clear_flag(&user->flags[1], SIP_PAGE2_T38SUPPORT_RTP);
+			ast_set2_flag(&user->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_RTP);
 		} else if (!strcasecmp(v->name, "t38pt_tcp")) {
-			if (ast_true(v->value)) {
-				ast_set_flag(&user->flags[1], SIP_PAGE2_T38SUPPORT_TCP);
-			} else
-				ast_clear_flag(&user->flags[1], SIP_PAGE2_T38SUPPORT_TCP);
+			ast_set2_flag(&user->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_TCP);
 		}
 	}
 	ast_copy_flags(&user->flags[0], &userflags[0], mask[0].flags);
@@ -15582,20 +15573,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			if (peer->maxcallbitrate < 0)
 				peer->maxcallbitrate = default_maxcallbitrate;
 		} else if (!strcasecmp(v->name, "t38pt_udptl")) {
-			if (ast_true(v->value)) {
-				ast_set_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
-			} else
-				ast_clear_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
+			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_UDPTL);
 		} else if (!strcasecmp(v->name, "t38pt_rtp")) {
-			if (ast_true(v->value)) {
-				ast_set_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_RTP);
-			} else
-				ast_clear_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_RTP);
+			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_RTP);
 		} else if (!strcasecmp(v->name, "t38pt_tcp")) {
-			if (ast_true(v->value)) {
-				ast_set_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_TCP);
-			} else
-				ast_clear_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_TCP);
+			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_TCP);
 		}
 	}
 	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE) && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && realtime) {
@@ -15863,7 +15845,7 @@ static int reload_config(enum channelreloadreason reason)
 			default_expiry = atoi(v->value);
 			if (default_expiry < 1)
 				default_expiry = DEFAULT_DEFAULT_EXPIRY;
-		} else if (!strcasecmp(v->name, "sipdebug")) {
+		} else if (!strcasecmp(v->name, "sipdebug")) {	/* XXX maybe ast_set2_flags ? */
 			if (ast_true(v->value))
 				ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONFIG);
 		} else if (!strcasecmp(v->name, "dumphistory")) {
@@ -15964,19 +15946,19 @@ static int reload_config(enum channelreloadreason reason)
 			default_maxcallbitrate = atoi(v->value);
 			if (default_maxcallbitrate < 0)
 				default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
-		} else if (!strcasecmp(v->name, "t38pt_udptl")) {
+		} else if (!strcasecmp(v->name, "t38pt_udptl")) {	/* XXX maybe ast_set2_flags ? */
 			if (ast_true(v->value)) {
 				ast_set_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
 			}
-		} else if (!strcasecmp(v->name, "t38pt_rtp")) {
+		} else if (!strcasecmp(v->name, "t38pt_rtp")) {	/* XXX maybe ast_set2_flags ? */
 			if (ast_true(v->value)) {
 				ast_set_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_RTP);
 			}
-		} else if (!strcasecmp(v->name, "t38pt_tcp")) {
+		} else if (!strcasecmp(v->name, "t38pt_tcp")) {	/* XXX maybe ast_set2_flags ? */
 			if (ast_true(v->value)) {
 				ast_set_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_TCP);
 			}
-		} else if (!strcasecmp(v->name, "rfc2833compensate")) {
+		} else if (!strcasecmp(v->name, "rfc2833compensate")) {	/* XXX maybe ast_set2_flags ? */
 			if (ast_true(v->value)) {
 				ast_set_flag(&global_flags[1], SIP_PAGE2_RFC2833_COMPENSATE);
 			}
