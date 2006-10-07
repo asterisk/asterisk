@@ -6291,7 +6291,7 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 static void build_contact(struct sip_pvt *p)
 {
 	/* Construct Contact: header */
-	if (ourport != DEFAULT_SIP_PORT)	/* Needs to be 5060, according to the RFC */
+	if (ourport != 5060)	/* Needs to be 5060, according to the RFC (NOT DEFAULT_SIP_PORT!!!!) */
 		ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip), ourport);
 	else
 		ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip));
@@ -6450,7 +6450,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		l = tmp2;
 	}
 
-	if (ourport != DEFAULT_SIP_PORT && ast_strlen_zero(p->fromdomain))	/* Needs to be 5060 */
+	if (ourport != 5060 && ast_strlen_zero(p->fromdomain))	/* Needs to be 5060 */
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)), ourport, p->tag);
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)), p->tag);
@@ -6471,7 +6471,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 			ast_build_string(&invite, &invite_max, "%s@", n);
 		}
 		ast_build_string(&invite, &invite_max, "%s", p->tohost);
-		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT)		/* Needs to be 5060 */
+		if (ntohs(p->sa.sin_port) != 5060)		/* Needs to be 5060 */
 			ast_build_string(&invite, &invite_max, ":%d", ntohs(p->sa.sin_port));
 		ast_build_string(&invite, &invite_max, "%s", urioptions);
 	}
