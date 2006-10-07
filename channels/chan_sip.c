@@ -1574,7 +1574,7 @@ static char *referstatus2str(enum referstatus rstatus)
 	a dialog */
 static void initialize_initreq(struct sip_pvt *p, struct sip_request *req)
 {
-	if (p->initreq.headers) {
+	if (p->initreq.headers && option_debug) {
 		ast_log(LOG_DEBUG, "Initializing already initialized SIP dialog %s (presumably reinvite)\n", p->callid);
 	}
 	/* Use this as the basis */
@@ -2007,6 +2007,7 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod, int
 			((ast_test_flag(cur, FLAG_RESPONSE)) || 
 			 (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33)))) {
 			if (!resp && (seqno == p->pendinginvite)) {
+				if (option_debug)
 				ast_log(LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
 				p->pendinginvite = 0;
 			}
@@ -3174,6 +3175,7 @@ static const char *hangup_cause2sip(int cause)
 			
 		case AST_CAUSE_NOTDEFINED:
 		default:
+			if (option_debug)
 			ast_log(LOG_DEBUG, "AST hangup cause %d (no match found in SIP)\n", cause);
 			return NULL;
 	}
@@ -3193,6 +3195,7 @@ static int sip_hangup(struct ast_channel *ast)
 	struct ast_channel *oldowner = ast;
 
 	if (!p) {
+		if (option_debug)
 		ast_log(LOG_DEBUG, "Asked to hangup channel that was not connected\n");
 		return 0;
 	}
@@ -3212,8 +3215,10 @@ static int sip_hangup(struct ast_channel *ast)
 	if (option_debug) {
 		if (ast_test_flag(ast, AST_FLAG_ZOMBIE) && p->refer && option_debug)
          		ast_log(LOG_DEBUG, "SIP Transfer: Hanging up Zombie channel %s after transfer ... Call-ID: %s\n", ast->name, p->callid);
-		else 
+		else  {
+			if (option_debug)
 			ast_log(LOG_DEBUG, "Hangup call %s, SIP callid %s)\n", ast->name, p->callid);
+	}
 	}
 	if (option_debug && ast_test_flag(ast, AST_FLAG_ZOMBIE)) 
 		ast_log(LOG_DEBUG, "Hanging up zombie call. Be scared.\n");
@@ -3459,9 +3464,9 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	int ret = -1;
 	struct sip_pvt *p;
 
-	if (newchan && ast_test_flag(newchan, AST_FLAG_ZOMBIE))
+	if (newchan && ast_test_flag(newchan, AST_FLAG_ZOMBIE) && option_debug)
 		ast_log(LOG_DEBUG, "New channel is zombie\n");
-	if (oldchan && ast_test_flag(oldchan, AST_FLAG_ZOMBIE))
+	if (oldchan && ast_test_flag(oldchan, AST_FLAG_ZOMBIE) && option_debug)
 		ast_log(LOG_DEBUG, "Old channel is zombie\n");
 
 	if (!newchan || !newchan->tech_pvt) {
@@ -4793,6 +4798,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				framing = strtol(tmp, NULL, 10);
 				if (framing == LONG_MIN || framing == LONG_MAX) {
 					framing = 0;
+					if (option_debug)
 					ast_log(LOG_DEBUG, "Can't read framing from SDP: %s\n", a);
 				}
 			}
@@ -7040,6 +7046,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			ast_sched_del(sched, r->timeout);
 		}
 		r->timeout = ast_sched_add(sched, global_reg_timeout * 1000, sip_reg_timeout, r);
+		if (option_debug)
 		ast_log(LOG_DEBUG, "Scheduled a registration timeout for %s id  #%d \n", r->hostname, r->timeout);
 	}
 
@@ -7649,6 +7656,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 
 	/* Once a persistant route is set, don't fool with it */
 	if (p->route && p->route_persistant) {
+		if (option_debug)
 		ast_log(LOG_DEBUG, "build_route: Retaining previous route: <%s>\n", p->route->hop);
 		return;
 	}
@@ -8246,6 +8254,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		domain_context[0] = '\0';
 		if (!check_sip_domain(p->domain, domain_context, sizeof(domain_context))) {
 			if (!allow_external_domains && (req->method == SIP_INVITE || req->method == SIP_REFER)) {
+				if (option_debug)
 				ast_log(LOG_DEBUG, "Got SIP %s to non-local domain '%s'; refusing request.\n", sip_methods[req->method].text, p->domain);
 				return -2;
 			}
@@ -8899,14 +8908,17 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			}
 			usenatroute = ast_test_flag(&p->flags[0], SIP_NAT_ROUTE);
 			if (p->rtp) {
+				if (option_debug)
 				ast_log(LOG_DEBUG, "Setting NAT on RTP to %s\n", usenatroute ? "On" : "Off");
 				ast_rtp_setnat(p->rtp, usenatroute);
 			}
 			if (p->vrtp) {
+				if (option_debug)
 				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %s\n", usenatroute ? "On" : "Off");
 				ast_rtp_setnat(p->vrtp, usenatroute);
 			}
 			if (p->udptl) {
+				if (option_debug)
 				ast_log(LOG_DEBUG, "Setting NAT on UDPTL to %s\n", usenatroute ? "On" : "Off");
 				ast_udptl_setnat(p->udptl, usenatroute);
 			}
@@ -10441,6 +10453,11 @@ static void sip_dump_history(struct sip_pvt *dialog)
 	if (!dialog)
 		return;
 
+	if (!option_debug && !sipdebug) {
+		ast_log(LOG_NOTICE, "You must have debugging enabled (SIP or Asterisk) in order to dump SIP history.\n");
+		return;
+	}
+
 	ast_log(LOG_DEBUG, "\n---------- SIP HISTORY for '%s' \n", dialog->callid);
 	if (dialog->subscribed)
 		ast_log(LOG_DEBUG, "  * Subscription\n");
@@ -11271,6 +11288,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 		e = strchr(s, '/');
 		if (e)
 			*e = '\0';
+		if (option_debug)
 		ast_log(LOG_DEBUG, "Found promiscuous redirection to 'SIP/%s'\n", s);
 		if (p->owner)
 			ast_string_field_build(p->owner, call_forward, "SIP/%s", s);
@@ -11335,6 +11353,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	}
 
 	if (ast_test_flag(&p->flags[0], SIP_ALREADYGONE)) { /* This call is already gone */
+		if (option_debug)
 		ast_log(LOG_DEBUG, "Got response on call that is already terminated: %s (ignoring)\n", p->callid);
 		return;
 	}
@@ -11653,8 +11672,10 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		r->regtime = time(NULL);		/* Reset time of last succesful registration */
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelDriver: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
 		r->regattempts = 0;
+		if (option_debug)
 		ast_log(LOG_DEBUG, "Registration successful\n");
 		if (r->timeout > -1) {
+			if (option_debug)
 			ast_log(LOG_DEBUG, "Cancelling timeout %d\n", r->timeout);
 			ast_sched_del(sched, r->timeout);
 		}
@@ -11934,6 +11955,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
 			else {
+				if (option_debug)
 				ast_log(LOG_DEBUG, "Got 491 on %s, unspported. Call ID %s\n", sip_methods[sipmethod].text, p->callid);
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			}
@@ -11995,6 +12017,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					is yet another failure of not having a layer 2 (again, YAY
 					 IETF for thinking ahead).  So we treat this as a call
 					 forward and hope we end up at the right place... */
+					if (option_debug)
 					ast_log(LOG_DEBUG, "Hairpin detected, setting up call forward for what it's worth\n");
 					if (p->owner)
 						ast_string_field_build(p->owner, call_forward,
@@ -12061,6 +12084,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (sipmethod == SIP_INVITE) {
 				handle_response_invite(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_CANCEL) {
+				if (option_debug)
 				ast_log(LOG_DEBUG, "Got 200 OK on CANCEL\n");
 
 				/* Wait for 487, then destroy */
@@ -12286,10 +12310,14 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	}
 	ast_channel_unlock(transferer);
 	if (!transferer || !transferee) {
-		if (!transferer)
+		if (!transferer) { 
+			if (option_debug)
 			ast_log(LOG_DEBUG, "No transferer channel, giving up parking\n");
-		if (!transferee)
+		}
+		if (!transferee) {
+			if (option_debug)
 			ast_log(LOG_DEBUG, "No transferee channel, giving up parking\n");
+		}
 		return -1;
 	}
 	if ((d = ast_calloc(1, sizeof(*d)))) {
@@ -12925,6 +12953,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				}
 			} else {
 				p->jointcapability = p->capability;
+				if (option_debug)
 				ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
 			}
 			if (recordhistory) /* This is a response, note what it was for */
@@ -13326,6 +13355,7 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 		append_history(transferer, "Xfer", "Refer succeeded");
 		transferer->refer->status = REFER_200OK;
 		if (targetcall_pvt->owner) {
+			if (option_debug)
 			ast_log(LOG_DEBUG, "SIP attended transfer: Unlocking channel %s\n", targetcall_pvt->owner->name);
 			ast_channel_unlock(targetcall_pvt->owner);
 		}
@@ -13454,13 +13484,13 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		case -2:	/* Syntax error */
 			transmit_response(p, "400 Bad Request (Refer-to missing)", req);
 			append_history(p, "Xfer", "Refer failed. Refer-to missing.");
-			if (ast_test_flag(req, SIP_PKT_DEBUG))
+			if (ast_test_flag(req, SIP_PKT_DEBUG) && option_debug)
 				ast_log(LOG_DEBUG, "SIP transfer to black hole can't be handled (no refer-to: )\n");
 			break;
 		case -3:
 			transmit_response(p, "603 Declined (Non sip: uri)", req);
 			append_history(p, "Xfer", "Refer failed. Non SIP uri");
-			if (ast_test_flag(req, SIP_PKT_DEBUG))
+			if (ast_test_flag(req, SIP_PKT_DEBUG) && option_debug)
 				ast_log(LOG_DEBUG, "SIP transfer to non-SIP uri denied\n");
 			break;
 		default:
@@ -13469,7 +13499,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			append_history(p, "Xfer", "Refer failed. Bad extension.");
 			transmit_notify_with_sipfrag(p, seqno, "404 Not found", TRUE);
 			ast_clear_flag(&p->flags[0], SIP_GOTREFER);	
-			if (ast_test_flag(req, SIP_PKT_DEBUG))
+			if (ast_test_flag(req, SIP_PKT_DEBUG) && option_debug)
 				ast_log(LOG_DEBUG, "SIP transfer to bad extension: %s\n", p->refer->refer_to);
 			break;
 		} 
@@ -13827,14 +13857,17 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			/* For transfers, this could happen, but since we haven't seen it happening, let us just refuse this */
  			transmit_response(p, "403 Forbidden (within dialog)", req);
 			/* Do not destroy session, since we will break the call if we do */
+			if (option_debug)
 			ast_log(LOG_DEBUG, "Got a subscription within the context of another call, can't handle that - %s (Method %s)\n", p->callid, sip_methods[p->initreq.method].text);
 			return 0;
 		} else if (ast_test_flag(req, SIP_PKT_DEBUG)) {
+			if (option_debug) {
 			if (resubscribe)
 				ast_log(LOG_DEBUG, "Got a re-subscribe on existing subscription %s\n", p->callid);
 			else
 				ast_log(LOG_DEBUG, "Got a new subscription %s (possibly with auth)\n", p->callid);
 		}
+	}
 	}
 
 	/* Check if we have a global disallow setting on subscriptions. 
@@ -15116,6 +15149,7 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
 	if (ast_strlen_zero(configuration))
 		return authlist;
 
+	if (option_debug)
 	ast_log(LOG_DEBUG, "Auth config ::  %s\n", configuration);
 
 	ast_copy_string(authcopy, configuration, sizeof(authcopy));
