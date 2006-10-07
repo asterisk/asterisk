@@ -19,7 +19,7 @@
 ;
 ;   sip debug			Show all SIP messages
 ;
-;   module reload chan_sip.so	Reload configuration file
+;   sip reload			Reload configuration file
 ;				Active SIP peers will not be reconfigured
 ;
 
