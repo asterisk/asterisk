@@ -450,7 +450,7 @@ static const struct cfsip_options {
    sip.conf.sample for new installations. These may differ to keep backwards compatibility,
    yet encouraging new behaviour on new installations 
  */
-#define DEFAULT_SIP_PORT	5060	/*!< From RFC 3261 (former 2543) */
+#define DEFAULT_SIP_PORT	5060	/*!< Our default port to listen to. From RFC 3261 (former 2543) */
 #define DEFAULT_CONTEXT		"default"
 #define DEFAULT_MOHINTERPRET    "default"
 #define DEFAULT_MOHSUGGEST      ""
