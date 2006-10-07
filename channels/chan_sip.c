@@ -16630,9 +16630,9 @@ static int sip_reload(int fd, int argc, char *argv[])
 {
 
 	ast_mutex_lock(&sip_reload_lock);
-	if (sip_reloading) {
+	if (sip_reloading) 
 		ast_verbose("Previous SIP reload not yet done\n");
-	} else {
+	else {
 		sip_reloading = TRUE;
 		if (fd)
 			sip_reloadreason = CHANNEL_CLI_RELOAD;
@@ -16645,12 +16645,13 @@ static int sip_reload(int fd, int argc, char *argv[])
 	return 0;
 }
 
-/*! \brief  reload: Part of Asterisk module interface */
+/*! \brief  Part of Asterisk module interface */
 static int reload(void)
 {
 	return sip_reload(0, 0, NULL);
 }
 
+/*! \brief SIP Cli commands definition */
 static struct ast_cli_entry cli_sip[] = {
 	{ { "sip", "list", "channels", NULL },
 	sip_show_channels, "List active SIP channels",
@@ -16749,7 +16750,7 @@ static struct ast_cli_entry cli_sip[] = {
 	sip_reload_usage },
 };
 
-/*! \brief  load_module: PBX load module - initialization */
+/*! \brief PBX load module - initialization */
 static int load_module(void)
 {
 	ASTOBJ_CONTAINER_INIT(&userl);	/* User object list */
@@ -16814,6 +16815,7 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
+/*! \brief PBX unload module API */
 static int unload_module(void)
 {
 	struct sip_pvt *p, *pl;
@@ -16821,20 +16823,26 @@ static int unload_module(void)
 	/* First, take us out of the channel type list */
 	ast_channel_unregister(&sip_tech);
 
+	/* Unregister dial plan functions */
 	ast_custom_function_unregister(&sipchaninfo_function);
 	ast_custom_function_unregister(&sippeer_function);
 	ast_custom_function_unregister(&sip_header_function);
 	ast_custom_function_unregister(&checksipdomain_function);
 
+	/* Unregister dial plan applications */
 	ast_unregister_application(app_dtmfmode);
 	ast_unregister_application(app_sipaddheader);
 
+	/* Unregister CLI commands */
 	ast_cli_unregister_multiple(cli_sip, sizeof(cli_sip) / sizeof(struct ast_cli_entry));
 
+	/* Disconnect from the RTP subsystem */
 	ast_rtp_proto_unregister(&sip_rtp);
 
+	/* Disconnect from UDPTL */
 	ast_udptl_proto_unregister(&sip_udptl);
 
+	/* Unregister AMI actions */
 	ast_manager_unregister("SIPpeers");
 	ast_manager_unregister("SIPshowpeer");
 
