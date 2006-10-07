@@ -3716,12 +3716,16 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	}
 
 
-	if (title)
-		 ast_string_field_build(tmp, name, "SIP/%s-%08x", title, (int)(long) i);
-	else if (strchr(i->fromdomain,':'))
-		ast_string_field_build(tmp, name, "SIP/%s-%08x", strchr(i->fromdomain,':') + 1, (int)(long) i);
-	else
-		ast_string_field_build(tmp, name, "SIP/%s-%08x", i->fromdomain, (int)(long) i);
+	{
+		const char *my_name;	/* pick a good name */
+		if (title)
+			my_name = title;
+		else if ( (my_name = strchr(i->fromdomain,':')) )
+			my_name++;	/* skip ':' */
+		else
+			my_name = i->fromdomain;
+		ast_string_field_build(tmp, name, "SIP/%s-%08x", my_name, (int)(long) i);
+	}
 
 	if (ast_test_flag(&i->flags[0], SIP_DTMF) ==  SIP_DTMF_INBAND) {
 		i->vad = ast_dsp_new();
