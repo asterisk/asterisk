@@ -647,9 +647,13 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	} else
 		pvt->options.redirect_reason = -1;
 
+	pvt->options.transfer_capability = c->transfercapability;
+
 	/* indicate that this is an outgoing call */
 	pvt->outgoing = 1;
 
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "Requested transfer capability: 0x%.2x - %s\n", c->transfercapability, ast_transfercapability2str(c->transfercapability));
 	if (h323debug)
 		ast_log(LOG_DEBUG, "Placing outgoing call to %s, %d/%d\n", called_addr, pvt->options.dtmfcodec[0], pvt->options.dtmfcodec[1]);
 	ast_mutex_unlock(&pvt->lock);
@@ -1083,6 +1087,8 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		if (!ast_strlen_zero(pvt->exten) && strcmp(pvt->exten, "s")) {
 			ch->cid.cid_dnid = strdup(pvt->exten);
 		}
+		if (pvt->cd.transfer_capability >= 0)
+			ch->transfercapability = pvt->cd.transfer_capability;
 		ast_setstate(ch, state);
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(ch)) {
@@ -1108,6 +1114,7 @@ static struct oh323_pvt *oh323_alloc(int callid)
 	}
 	memset(pvt, 0, sizeof(struct oh323_pvt));
 	pvt->cd.redirect_reason = -1;
+	pvt->cd.transfer_capability = -1;
 	/* Ensure the call token is allocated for outgoing call */
 	if (!callid) {
 		if ((pvt->cd).call_token == NULL) {

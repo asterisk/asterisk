@@ -554,6 +554,7 @@ MyH323Connection::MyH323Connection(MyH323EndPoint & ep, unsigned callReference,
 	dtmfMode = 0;
 	dtmfCodec[0] = dtmfCodec[1] = (RTP_DataFrame::PayloadTypes)0;
 	redirect_reason = -1;
+	transfer_capability = -1;
 #ifdef TUNNELLING
 	tunnelOptions = remoteTunnelOptions = 0;
 #endif
@@ -735,6 +736,9 @@ void MyH323Connection::SetCallOptions(void *o, BOOL isIncoming)
 		}
 		cid_presentation = opts->presentation;
 		cid_ton = opts->type_of_number;
+		if (opts->transfer_capability >= 0) {
+			transfer_capability = opts->transfer_capability;
+		}
 	}
 	tunnelOptions = opts->tunnelOptions;
 }
@@ -768,6 +772,8 @@ void MyH323Connection::SetCallDetails(void *callDetails, const H323SignalPDU &se
 		PString redirect_number;
 		unsigned redirect_reason;
 		unsigned plan, type, screening, presentation;
+		Q931::InformationTransferCapability capability;
+		unsigned transferRate, codingStandard, userInfoLayer1;
 
 		/* Fetch presentation and type information about calling party's number */
 		if (setupPDU.GetQ931().GetCallingPartyNumber(sourceName, &plan, &type, &presentation, &screening, 0, 0)) {
@@ -795,13 +801,20 @@ void MyH323Connection::SetCallDetails(void *callDetails, const H323SignalPDU &se
 		GetSignallingChannel()->GetRemoteAddress().GetIpAndPort(Ip, sourcePort);
 		cd->sourceIp = strdup((const char *)Ip.AsString());
 
-		if(setupPDU.GetQ931().GetRedirectingNumber(redirect_number, NULL, NULL, NULL, NULL, &redirect_reason, 0, 0, 0)) {
+		if (setupPDU.GetQ931().GetRedirectingNumber(redirect_number, NULL, NULL, NULL, NULL, &redirect_reason, 0, 0, 0)) {
 			cd->redirect_number = strdup((const char *)redirect_number);
 			cd->redirect_reason = redirect_reason;
 		}
 		else
 			cd->redirect_reason = -1;
 
+		/* Fetch Q.931's transfer capability */
+		if (((Q931 &)setupPDU.GetQ931()).GetBearerCapabilities(capability, transferRate, &codingStandard, &userInfoLayer1))
+			cd->transfer_capability = ((unsigned int)capability & 0x1f) | (codingStandard << 5);
+		else
+			cd->transfer_capability = 0x00;	/* ITU coding of Speech */
+
+		/* Don't show local username as called party name */
 		SetDisplayName(cd->call_dest_e164);
 	}
 
@@ -1227,6 +1240,9 @@ BOOL MyH323Connection::OnSendSignalSetup(H323SignalPDU & setupPDU)
 		IE[1] = IE[1] & 0x7f;
 		setupPDU.GetQ931().SetIE(Q931::RedirectingNumberIE, IE);
 	}
+
+	if (transfer_capability)
+		setupPDU.GetQ931().SetBearerCapabilities((Q931::InformationTransferCapability)(transfer_capability & 0x1f), 1, ((transfer_capability >> 5) & 3));
 
 	SetCallDetails(&cd, setupPDU, FALSE);
 

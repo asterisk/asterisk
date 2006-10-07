@@ -109,6 +109,7 @@ public:
 	int cid_ton;
 	PString rdnis;
 	int redirect_reason;
+	int transfer_capability;
 
 	WORD sessionId;
 	BOOL bridging;

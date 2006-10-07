@@ -52,6 +52,7 @@ typedef struct call_options {
 	int				redirect_reason;
 	int				presentation;
 	int				type_of_number;
+	int				transfer_capability;
 	int				fastStart;
 	int				h245Tunneling;
 	int				silenceSuppression;
@@ -118,6 +119,7 @@ typedef struct call_details {
 	int redirect_reason;
 	int presentation;
 	int type_of_number;
+	int transfer_capability;
 	char *sourceIp;
 } call_details_t;
 
