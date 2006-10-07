@@ -522,6 +522,7 @@ static char global_useragent[AST_MAX_EXTENSION];	/*!< Useragent for the SIP chan
 static int allow_external_domains;	/*!< Accept calls to external SIP domains? */
 static int global_callevents;		/*!< Whether we send manager events or not */
 static int global_t1min;		/*!< T1 roundtrip time minimum */
+static int global_autoframing;          /*!< ?????????? */
 static enum transfermodes global_allowtransfer;	/*!< SIP Refer restriction scheme */
 
 /*! \brief Codecs that we support by default: */
@@ -538,7 +539,6 @@ static int regobjs = 0;                  /*!< Registry objects */
 
 static struct ast_flags global_flags[2] = {{0}};        /*!< global SIP_ flags */
 
-static int global_autoframing = 0;
 
 /*! \brief Protect the SIP dialog list (of sip_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
@@ -15669,6 +15669,7 @@ static int reload_config(enum channelreloadreason reason)
 	pedanticsipchecking = DEFAULT_PEDANTIC;
 	global_mwitime = DEFAULT_MWITIME;
 	autocreatepeer = DEFAULT_AUTOCREATEPEER;
+	global_autoframing = 0;
 	global_allowguest = DEFAULT_ALLOWGUEST;
 	global_rtptimeout = 0;
 	global_rtpholdtimeout = 0;
