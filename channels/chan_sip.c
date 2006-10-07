@@ -1691,7 +1691,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
 	int res;
 	const struct sockaddr_in *dst = sip_real_dst(p);
-	res=sendto(sipsock, data, len, 0, (const struct sockaddr *)dst, sizeof(struct sockaddr_in));
+	res = sendto(sipsock, data, len, 0, (const struct sockaddr *)dst, sizeof(struct sockaddr_in));
 
 	if (res != len)
 		ast_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s:%d returned %d: %s\n", data, len, ast_inet_ntoa(dst->sin_addr), ntohs(dst->sin_port), res, strerror(errno));
@@ -16080,13 +16080,13 @@ static int reload_config(enum channelreloadreason reason)
 				close(sipsock);
 				sipsock = -1;
 			} else {
-				if (option_verbose > 1) { 
+				if (option_verbose > 1)
 					ast_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
-					ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-					ast_verbose(VERBOSE_PREFIX_2 "Using SIP TOS: %s\n", ast_tos2str(global_tos_sip));
-				}
+						ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
 				if (setsockopt(sipsock, IPPROTO_IP, IP_TOS, &global_tos_sip, sizeof(global_tos_sip))) 
 					ast_log(LOG_WARNING, "Unable to set SIP TOS to %s\n", ast_tos2str(global_tos_sip));
+				else if (option_verbose > 1)
+					ast_verbose(VERBOSE_PREFIX_2 "Using SIP TOS: %s\n", ast_tos2str(global_tos_sip));
 			}
 		}
 	}
