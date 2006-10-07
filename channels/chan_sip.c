@@ -4266,44 +4266,45 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 static int sip_register(char *value, int lineno)
 {
 	struct sip_registry *reg;
-	char copy[256];
-	char *username=NULL, *hostname=NULL, *secret=NULL, *authuser=NULL;
+	int portnum = 0;
+	char username[256] = "";
+	char *hostname=NULL, *secret=NULL, *authuser=NULL;
 	char *porta=NULL;
 	char *contact=NULL;
-	char *stringp=NULL;
 	
 	if (!value)
 		return -1;
-	ast_copy_string(copy, value, sizeof(copy));
-	stringp=copy;
-	username = stringp;
-	hostname = strrchr(stringp, '@');
+	ast_copy_string(username, value, sizeof(username));
+	/* First split around the last '@' then parse the two components. */
+	hostname = strrchr(username, '@'); /* allow @ in the first part */
 	if (hostname)
 		*hostname++ = '\0';
 	if (ast_strlen_zero(username) || ast_strlen_zero(hostname)) {
 		ast_log(LOG_WARNING, "Format for registration is user[:secret[:authuser]]@host[:port][/contact] at line %d\n", lineno);
 		return -1;
 	}
-	stringp = username;
-	username = strsep(&stringp, ":");
-	if (username) {
-		secret = strsep(&stringp, ":");
-		if (secret) 
-			authuser = strsep(&stringp, ":");
+	/* split user[:secret[:authuser]] */
+	secret = strchr(username, ':');
+	if (secret) {
+		*secret++ = '\0';
+		authuser = strchr(secret, ':');
+		if (authuser)
+			*authuser++ = '\0';
 	}
-	stringp = hostname;
-	hostname = strsep(&stringp, "/");
-	if (hostname) 
-		contact = strsep(&stringp, "/");
+	/* split host[:port][/contact] */
+	contact = strchr(hostname, '/');
+	if (contact)
+		*contact++ = '\0';
 	if (ast_strlen_zero(contact))
 		contact = "s";
-	stringp=hostname;
-	hostname = strsep(&stringp, ":");
-	porta = strsep(&stringp, ":");
-	
-	if (porta && !atoi(porta)) {
+	porta = strchr(hostname, ':');
+	if (porta) {
+		*porta++ = '\0';
+		portnum = atoi(porta);
+		if (portnum == 0) {
 		ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
 		return -1;
+	}
 	}
 	if (!(reg = ast_calloc(1, sizeof(*reg)))) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
@@ -4330,7 +4331,7 @@ static int sip_register(char *value, int lineno)
 	reg->expire = -1;
 	reg->timeout =  -1;
 	reg->refresh = default_expiry;
-	reg->portno = porta ? atoi(porta) : 0;
+	reg->portno = portnum;
 	reg->callid_valid = FALSE;
 	reg->ocseq = INITIAL_CSEQ;
 	ASTOBJ_CONTAINER_LINK(&regl, reg);	/* Add the new registry entry to the list */
@@ -15292,20 +15293,11 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			if (user->maxcallbitrate < 0)
 				user->maxcallbitrate = default_maxcallbitrate;
  		} else if (!strcasecmp(v->name, "t38pt_udptl")) {
-			if (ast_true(v->value)) {
-				ast_set_flag(&user->flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
-			} else
-				ast_clear_flag(&user->flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
+			ast_set2_flag(&user->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_UDPTL);
 		} else if (!strcasecmp(v->name, "t38pt_rtp")) {
-			if (ast_true(v->value)) {
-				ast_set_flag(&user->flags[1], SIP_PAGE2_T38SUPPORT_RTP);
-			} else
-				ast_clear_flag(&user->flags[1], SIP_PAGE2_T38SUPPORT_RTP);
+			ast_set2_flag(&user->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_RTP);
 		} else if (!strcasecmp(v->name, "t38pt_tcp")) {
-			if (ast_true(v->value)) {
-				ast_set_flag(&user->flags[1], SIP_PAGE2_T38SUPPORT_TCP);
-			} else
-				ast_clear_flag(&user->flags[1], SIP_PAGE2_T38SUPPORT_TCP);
+			ast_set2_flag(&user->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_TCP);
 		}
 	}
 	ast_copy_flags(&user->flags[0], &userflags[0], mask[0].flags);
@@ -15603,20 +15595,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			if (peer->maxcallbitrate < 0)
 				peer->maxcallbitrate = default_maxcallbitrate;
 		} else if (!strcasecmp(v->name, "t38pt_udptl")) {
-			if (ast_true(v->value)) {
-				ast_set_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
-			} else
-				ast_clear_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
+			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_UDPTL);
 		} else if (!strcasecmp(v->name, "t38pt_rtp")) {
-			if (ast_true(v->value)) {
-				ast_set_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_RTP);
-			} else
-				ast_clear_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_RTP);
+			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_RTP);
 		} else if (!strcasecmp(v->name, "t38pt_tcp")) {
-			if (ast_true(v->value)) {
-				ast_set_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_TCP);
-			} else
-				ast_clear_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_TCP);
+			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_TCP);
 		}
 	}
 	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE) && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && realtime) {
@@ -15876,7 +15859,7 @@ static int reload_config(enum channelreloadreason reason)
 			default_expiry = atoi(v->value);
 			if (default_expiry < 1)
 				default_expiry = DEFAULT_DEFAULT_EXPIRY;
-		} else if (!strcasecmp(v->name, "sipdebug")) {
+		} else if (!strcasecmp(v->name, "sipdebug")) {	/* XXX maybe ast_set2_flags ? */
 			if (ast_true(v->value))
 				ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONFIG);
 		} else if (!strcasecmp(v->name, "dumphistory")) {
@@ -15985,19 +15968,19 @@ static int reload_config(enum channelreloadreason reason)
 			default_maxcallbitrate = atoi(v->value);
 			if (default_maxcallbitrate < 0)
 				default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
-		} else if (!strcasecmp(v->name, "t38pt_udptl")) {
+		} else if (!strcasecmp(v->name, "t38pt_udptl")) {	/* XXX maybe ast_set2_flags ? */
 			if (ast_true(v->value)) {
 				ast_set_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
 			}
-		} else if (!strcasecmp(v->name, "t38pt_rtp")) {
+		} else if (!strcasecmp(v->name, "t38pt_rtp")) {	/* XXX maybe ast_set2_flags ? */
 			if (ast_true(v->value)) {
 				ast_set_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_RTP);
 			}
-		} else if (!strcasecmp(v->name, "t38pt_tcp")) {
+		} else if (!strcasecmp(v->name, "t38pt_tcp")) {	/* XXX maybe ast_set2_flags ? */
 			if (ast_true(v->value)) {
 				ast_set_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_TCP);
 			}
-		} else if (!strcasecmp(v->name, "rfc2833compensate")) {
+		} else if (!strcasecmp(v->name, "rfc2833compensate")) {	/* XXX maybe ast_set2_flags ? */
 			if (ast_true(v->value)) {
 				ast_set_flag(&global_flags[1], SIP_PAGE2_RFC2833_COMPENSATE);
 			}
@@ -16870,22 +16853,28 @@ static int load_module(void)
 	ASTOBJ_CONTAINER_INIT(&peerl);	/* Peer object list */
 	ASTOBJ_CONTAINER_INIT(&regl);	/* Registry object list */
 
-	sched = sched_context_create();
-	if (!sched) {
-		ast_log(LOG_WARNING, "Unable to create schedule context\n");
+	if (!(sched = sched_context_create())) {
+		ast_log(LOG_ERROR, "Unable to create scheduler context\n");
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	io = io_context_create();
-	if (!io) {
-		ast_log(LOG_WARNING, "Unable to create I/O context\n");
+	if (!(io = io_context_create())) {
+		ast_log(LOG_ERROR, "Unable to create I/O context\n");
+		sched_context_destroy(sched);
+		return AST_MODULE_LOAD_FAILURE;
 	}
+
 	sip_reloadreason = CHANNEL_MODULE_LOAD;
+
 	if(reload_config(sip_reloadreason))	/* Load the configuration from sip.conf */
 		return AST_MODULE_LOAD_DECLINE;
+
 	/* Make sure we can register our sip channel type */
 	if (ast_channel_register(&sip_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel type 'SIP'\n");
-		return -1;
+		io_context_destroy(io);
+		sched_context_destroy(sched);
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	/* Register all CLI functions for SIP */
@@ -16919,7 +16908,7 @@ static int load_module(void)
 	/* And start the monitor for the first time */
 	restart_monitor();
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
