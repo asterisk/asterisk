@@ -1048,8 +1048,8 @@ int ast_callerid_split(const char *buf, char *name, int namelen, char *num, int 
 /*! \brief Translation table for Caller ID Presentation settings */
 static struct {
 	int val;
-	char *name;
-	char *description;
+	const char *name;
+	const char *description;
 } pres_types[] = {
 	{  AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED, "allowed_not_screened", "Presentation Allowed, Not Screened"},
 	{  AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, "allowed_passed_screen", "Presentation Allowed, Passed Screen"},
@@ -1090,6 +1090,22 @@ const char *ast_describe_caller_presentation(int data)
 	for (i = 0; i < ((sizeof(pres_types) / sizeof(pres_types[0]))); i++) {
 		if (pres_types[i].val == data)
 			return pres_types[i].description;
+	}
+
+	return "unknown";
+}
+
+/*! \brief Convert caller ID pres value to text code
+	\param data text string
+	\return string for config file
+*/
+const char *ast_named_caller_presentation(int data)
+{
+	int i;
+
+	for (i = 0; i < ((sizeof(pres_types) / sizeof(pres_types[0]))); i++) {
+		if (pres_types[i].val == data)
+			return pres_types[i].name;
 	}
 
 	return "unknown";

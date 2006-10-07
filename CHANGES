@@ -37,3 +37,6 @@ Changes since Asterisk 1.4-beta was branched:
      Read() - timeout now can be floating pt.
      WaitForRing() now takes floating pt timeout arg.
      SpeechBackground() -- clarified in the docstrings that the timeout is an integer seconds.
+  * Extend CALLERID() function with "pres" and "ton" parameters to
+     fetch string representation of calling number presentation indicator
+     and numeric representation of type of calling number value.

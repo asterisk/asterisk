@@ -311,6 +311,7 @@ static inline float callerid_getcarrier(float *cr, float *ci, int bit)
 
 int ast_parse_caller_presentation(const char *data);
 const char *ast_describe_caller_presentation(int data);
+const char *ast_named_caller_presentation(int data);
 
 /*! \page Def_CallerPres Caller ID Presentation
 

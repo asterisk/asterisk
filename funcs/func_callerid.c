@@ -87,6 +87,10 @@ static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 			if (chan->cid.cid_rdnis) {
 				ast_copy_string(buf, chan->cid.cid_rdnis, len);
 			}
+		} else if (!strncasecmp("pres", data, 4)) {
+			ast_copy_string(buf, ast_named_caller_presentation(chan->cid.cid_pres), len);
+		} else if (!strncasecmp("ton", data, 3)) {
+			snprintf(buf, len, "%d", chan->cid.cid_ton);
 		} else {
 			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 		}
@@ -124,6 +128,34 @@ static int callerid_write(struct ast_channel *chan, char *cmd, char *data,
 		if (chan->cid.cid_rdnis)
 			free(chan->cid.cid_rdnis);
 		chan->cid.cid_rdnis = ast_strdup(value);
+	} else if (!strncasecmp("pres", data, 4)) {
+		int i;
+		char *s, *val;
+
+		/* Strip leading spaces */
+		while ((value[0] == '\t') || (value[0] == ' '))
+			++value;
+
+		val = ast_strdupa(value);
+
+		/* Strip trailing spaces */
+		s = val + strlen(val);
+		while ((s != val) && ((s[-1] == '\t') || (s[-1] == ' ')))
+			--s;
+		*s = '\0';
+
+		if ((val[0] >= '0') && (val[0] <= '9'))
+			i = atoi(val);
+		else
+			i = ast_parse_caller_presentation(val);
+
+		if (i < 0)
+			ast_log(LOG_ERROR, "Unknown calling number presentation '%s', value unchanged\n", val);
+		else
+			chan->cid.cid_pres = i;
+	} else if (!strncasecmp("ton", data, 3)) {
+		int i = atoi(value);
+		chan->cid.cid_ton = i;
 	} else {
 		ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 	}
@@ -137,7 +169,8 @@ static struct ast_custom_function callerid_function = {
 	.syntax = "CALLERID(datatype[,<optional-CID>])",
 	.desc =
 		"Gets or sets Caller*ID data on the channel.  The allowable datatypes\n"
-		"are \"all\", \"name\", \"num\", \"ANI\", \"DNID\", \"RDNIS\".\n"
+		"are \"all\", \"name\", \"num\", \"ANI\", \"DNID\", \"RDNIS\", \"pres\",\n"
+		"and \"ton\".\n"
 		"Uses channel callerid by default or optional callerid, if specified.\n",
 	.read = callerid_read,
 	.write = callerid_write,
