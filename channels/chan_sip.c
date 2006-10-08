@@ -6360,31 +6360,25 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	char tmp[BUFSIZ/2];
 	char tmp2[BUFSIZ/2];
 	const char *l = NULL, *n = NULL;
-	int x;
-	char urioptions[256]="";
+	const char *urioptions = "";
 
 	if (ast_test_flag(&p->flags[0], SIP_USEREQPHONE)) {
-	 	char onlydigits = TRUE;
-		x=0;
+	 	const char *s = p->username;	/* being a string field, cannot be NULL */
 
 		/* Test p->username against allowed characters in AST_DIGIT_ANY
 			If it matches the allowed characters list, then sipuser = ";user=phone"
 			If not, then sipuser = ""
 		*/
 		/* + is allowed in first position in a tel: uri */
-        	if (p->username && p->username[0] == '+')
-			x=1;
-
-		for (; x < strlen(p->username); x++) {
-			if (!strchr(AST_DIGIT_ANYNUM, p->username[x])) {
-                		onlydigits = FALSE;
+		if (*s == '+')
+			s++;
+		for (; *s; s++) {
+			if (!strchr(AST_DIGIT_ANYNUM, *s) )
 				break;
-			}
 		}
-
 		/* If we have only digits, add ;user=phone to the uri */
-		if (onlydigits)
-			strcpy(urioptions, ";user=phone");
+		if (*s)
+			urioptions = ";user=phone";
 	}
 
 
