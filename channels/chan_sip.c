@@ -14379,7 +14379,10 @@ retrylock:
 
 	/* Find the active SIP dialog or create a new one */
 	p = find_call(&req, &sin, req.method);	/* returns p locked */
-	if (p) {
+	if (p == NULL) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Invalid SIP message - rejected , no callid, len %d\n", req.len);
+	} else {
 		/* Go ahead and lock the owner if it has one -- we may need it */
 		/* becaues this is deadlock-prone, we need to try and unlock if failed */
 		if (p->owner && ast_channel_trylock(p->owner)) {
@@ -14415,9 +14418,6 @@ retrylock:
 		if (p->owner && !nounlock)
 			ast_channel_unlock(p->owner);
 		ast_mutex_unlock(&p->lock);
-	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Invalid SIP message - rejected , bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
 	}
 	ast_mutex_unlock(&netlock);
 	if (recount)
