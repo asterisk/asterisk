@@ -4393,70 +4393,43 @@ static int lws2sws(char *msgbuf, int len)
 */
 static void parse_request(struct sip_request *req)
 {
-	/* Divide fields by NULL's */
-	char *c;
-	int f = 0;
+	char *c = req->data, **dst = req->header;
+	int i = 0, lim = SIP_MAX_HEADERS - 1;
 
-	c = req->data;
-
-	/* First header starts immediately */
-	req->header[f] = c;
-	while(*c) {
-		if (*c == '\n') {
-			/* We've got a new header */
-			*c = 0;
-
+	req->header[0] = c;
+	req->headers = -1;	/* mark that we are working on the header */
+	for (; *c; c++) {
+		if (*c == '\r')		/* remove \r */
+			*c = '\0';
+		else if (*c == '\n') { /* end of this line */
+			*c = '\0';
 			if (sipdebug && option_debug > 3)
-				ast_log(LOG_DEBUG, "Header %d: %s (%d)\n", f, req->header[f], (int) strlen(req->header[f]));
-			if (ast_strlen_zero(req->header[f])) {
-				/* Line by itself means we're now in content */
-				c++;
-				break;
+				ast_log(LOG_DEBUG, "%7s %2d [%3d]: %s\n",
+					req->headers < 0 ? "Header" : "Body",
+					i, strlen(dst[i]), dst[i]);
+			if (ast_strlen_zero(dst[i]) && req->headers < 0) {
+				req->headers = i;	/* record number of header lines */
+				dst = req->line;	/* start working on the body */
+				i = 0;
+				lim = SIP_MAX_LINES - 1;
+			} else {	/* move to next line, check for overflows */
+				if (i++ >= lim)
+					break;
 			}
-			if (f >= SIP_MAX_HEADERS - 1) {
-				ast_log(LOG_WARNING, "Too many SIP headers. Ignoring.\n");
-			} else
-				f++;
-			req->header[f] = c + 1;
-		} else if (*c == '\r') {
-			/* Ignore but eliminate \r's */
-			*c = 0;
+			dst[i] = c + 1; /* record start of next line */
 		}
-		c++;
+        }
+	/* update count of header or body lines */
+	if (req->headers >= 0)	/* we are in the body */
+		req->lines = i;
+	else {			/* no body */
+		req->headers = i;
+		req->lines = 0;
+		req->line[0] = "";
 	}
-	/* Check for last header */
-	if (!ast_strlen_zero(req->header[f])) {
-		if (sipdebug && option_debug > 3)
-			ast_log(LOG_DEBUG, "Header %d: %s (%d)\n", f, req->header[f], (int) strlen(req->header[f]));
-		f++;
-	}
-	req->headers = f;
-	/* Now we process any mime content */
-	f = 0;
-	req->line[f] = c;
-	while(*c) {
-		if (*c == '\n') {
-			/* We've got a new line */
-			*c = 0;
-			if (sipdebug && option_debug > 3)
-				ast_log(LOG_DEBUG, "Line: %s (%d)\n", req->line[f], (int) strlen(req->line[f]));
-			if (f >= SIP_MAX_LINES - 1) {
-				ast_log(LOG_WARNING, "Too many SDP lines. Ignoring.\n");
-			} else
-				f++;
-			req->line[f] = c + 1;
-		} else if (*c == '\r') {
-			/* Ignore and eliminate \r's */
-			*c = 0;
-		}
-		c++;
-	}
-	/* Check for last line */
-	if (!ast_strlen_zero(req->line[f])) 
-		f++;
-	req->lines = f;
-	if (*c) 
-		ast_log(LOG_WARNING, "Odd content, extra stuff left over ('%s')\n", c);
+
+	if (*c)
+		ast_log(LOG_WARNING, "Too many lines, skipping <%s>\n", c);
 	/* Split up the first line parts */
 	determine_firstline_parts(req);
 }
