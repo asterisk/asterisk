@@ -2910,7 +2910,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 static int update_call_counter(struct sip_pvt *fup, int event)
 {
 	char name[256];
-	int *inuse, *call_limit, *inringing = NULL;
+	int *inuse, *call_limit, *inringing;
 	int outgoing = ast_test_flag(&fup->flags[0], SIP_OUTGOING);
 	struct sip_user *u = NULL;
 	struct sip_peer *p = NULL;
@@ -2924,96 +2924,91 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 
 	ast_copy_string(name, fup->username, sizeof(name));
 
-	/* Check the list of users */
-	if (!outgoing)	/* Only check users for incoming calls */
-		u = find_user(name, 1);
-
-	if (u) {
+	/* Check the list of users only for incoming calls */
+	if (!outgoing && (u = find_user(name, 1)) ) {
 		inuse = &u->inUse;
 		call_limit = &u->call_limit;
-		p = NULL;
+		inringing = NULL;
+	} else if ( (p = find_peer(fup->peername, NULL, 1) ) ) { /* Try to find peer */
+		inuse = &p->inUse;
+		call_limit = &p->call_limit;
+		inringing = &p->inRinging;
+		ast_copy_string(name, fup->peername, sizeof(name));
 	} else {
-		/* Try to find peer */
-		if (!p)
-			p = find_peer(fup->peername, NULL, 1);
-		if (p) {
-			inuse = &p->inUse;
-			call_limit = &p->call_limit;
-			inringing = &p->inRinging;
-			ast_copy_string(name, fup->peername, sizeof(name));
-		} else {
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "%s is not a local device, no call limit\n", name);
-			return 0;
-		}
+		if (option_debug > 1)
+			ast_log(LOG_DEBUG, "%s is not a local device, no call limit\n", name);
+		return 0;
 	}
+
 	switch(event) {
-		/* incoming and outgoing affects the inUse counter */
-		case DEC_CALL_LIMIT:
-			if ( *inuse > 0 ) {
-				if (ast_test_flag(&fup->flags[0], SIP_INC_COUNT))
-					(*inuse)--;
-			} else {
-				*inuse = 0;
+	/* incoming and outgoing affects the inUse counter */
+	case DEC_CALL_LIMIT:
+		if ( *inuse > 0 ) {
+			if (ast_test_flag(&fup->flags[0], SIP_INC_COUNT))
+				(*inuse)--;
+		} else {
+			*inuse = 0;
+		}
+		if (inringing) {
+			if (ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
+				if (*inringing > 0)
+					(*inringing)--;
+				else
+					ast_log(LOG_WARNING, "Inringing for peer '%s' < 0?\n", fup->peername);
+				ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
 			}
-			if (inringing) {
-				if (ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
-					if (*inringing > 0)
-						(*inringing)--;
-					else
-						ast_log(LOG_WARNING, "Inringing for peer '%s' < 0?\n", fup->peername);
-					ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
-				}
+		}
+		if (option_debug > 1 || sipdebug) {
+			ast_log(LOG_DEBUG, "Call %s %s '%s' removed from call limit %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
+		}
+		break;
+
+	case INC_CALL_RINGING:
+	case INC_CALL_LIMIT:
+		if (*call_limit > 0 ) {
+			if (*inuse >= *call_limit) {
+				ast_log(LOG_ERROR, "Call %s %s '%s' rejected due to usage limit of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
+				if (u)
+					ASTOBJ_UNREF(u, sip_destroy_user);
+				else
+					ASTOBJ_UNREF(p, sip_destroy_peer);
+				return -1; 
 			}
-			if (option_debug > 1 || sipdebug) {
-				ast_log(LOG_DEBUG, "Call %s %s '%s' removed from call limit %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
+		}
+		if (inringing && (event == INC_CALL_RINGING)) {
+			if (!ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
+				(*inringing)++;
+				ast_set_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
 			}
-			break;
-		case INC_CALL_RINGING:
-		case INC_CALL_LIMIT:
-			if (*call_limit > 0 ) {
-				if (*inuse >= *call_limit) {
-					ast_log(LOG_ERROR, "Call %s %s '%s' rejected due to usage limit of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
-					if (u)
-						ASTOBJ_UNREF(u, sip_destroy_user);
-					else
-						ASTOBJ_UNREF(p, sip_destroy_peer);
-					return -1; 
-				}
+		}
+		/* Continue */
+		(*inuse)++;
+		ast_set_flag(&fup->flags[0], SIP_INC_COUNT);
+		if (option_debug > 1 || sipdebug) {
+			ast_log(LOG_DEBUG, "Call %s %s '%s' is %d out of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *inuse, *call_limit);
+		}
+		break;
+
+	case DEC_CALL_RINGING:
+		if (inringing) {
+			if (ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
+				if (*inringing > 0)
+					(*inringing)--;
+				else
+					ast_log(LOG_WARNING, "Inringing for peer '%s' < 0?\n", p->name);
+				ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
 			}
-			if (inringing && (event == INC_CALL_RINGING)) {
-				if (!ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
-					(*inringing)++;
-					ast_set_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
-				}
-			}
-			/* Continue */
-			(*inuse)++;
-			ast_set_flag(&fup->flags[0], SIP_INC_COUNT);
-			if (option_debug > 1 || sipdebug) {
-				ast_log(LOG_DEBUG, "Call %s %s '%s' is %d out of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *inuse, *call_limit);
-			}
-			break;
-		case DEC_CALL_RINGING:
-			if (inringing) {
-				if (ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
-					if (*inringing > 0)
-						(*inringing)--;
-					else
-						ast_log(LOG_WARNING, "Inringing for peer '%s' < 0?\n", p->name);
-					ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
-				}
-			}
-			break;
-		default:
-			ast_log(LOG_ERROR, "update_call_counter(%s, %d) called with no event!\n", name, event);
+		}
+		break;
+
+	default:
+		ast_log(LOG_ERROR, "update_call_counter(%s, %d) called with no event!\n", name, event);
 	}
-	if (p)
+	if (p) {
 		ast_device_state_changed("SIP/%s", p->name);
-	if (u)
-		ASTOBJ_UNREF(u, sip_destroy_user);
-	else
 		ASTOBJ_UNREF(p, sip_destroy_peer);
+	} else /* u must be set */
+		ASTOBJ_UNREF(u, sip_destroy_user);
 	return 0;
 }
 
