@@ -6522,25 +6522,21 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
-	if (p->options && p->options->addsipheaders ) {
-		struct ast_channel *ast;
-		struct varshead *headp = NULL;
-		const struct ast_var_t *current;
+	if (p->options && p->options->addsipheaders && p->owner) {
+		struct ast_channel *ast = p->owner; /* The owner channel */
+		struct varshead *headp = &ast->varshead;
 
-		ast = p->owner;	/* The owner channel */
-		if (ast) {
-			char *headdup;
-	 		headp = &ast->varshead;
 			if (!headp)
 				ast_log(LOG_WARNING,"No Headp for the channel...ooops!\n");
 			else {
+				const struct ast_var_t *current;
 				AST_LIST_TRAVERSE(headp, current, entries) {  
 					/* SIPADDHEADER: Add SIP header to outgoing call */
 					if (!strncasecmp(ast_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER"))) {
 						char *content, *end;
 						const char *header = ast_var_value(current);
+						char *headdup = ast_strdupa(header);
 
-						headdup = ast_strdupa(header);
 						/* Strip of the starting " (if it's there) */
 						if (*headdup == '"')
 					 		headdup++;
@@ -6559,7 +6555,6 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 					}
 				}
 			}
-		}
 	}
 	if (sdp) {
 		if (p->udptl && p->t38.state == T38_LOCAL_DIRECT) {
