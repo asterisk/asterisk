@@ -1688,13 +1688,10 @@ static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 static int iax2_predestroy(int callno)
 {
 	struct ast_channel *c;
-	struct chan_iax2_pvt *pvt;
-	ast_mutex_lock(&iaxsl[callno]);
-	pvt = iaxs[callno];
-	if (!pvt) {
-		ast_mutex_unlock(&iaxsl[callno]);
+	struct chan_iax2_pvt *pvt = iaxs[callno];
+
+	if (!pvt)
 		return -1;
-	}
 	if (!ast_test_flag(pvt, IAX_ALREADYGONE)) {
 		iax2_destroy_helper(pvt);
 		ast_set_flag(pvt, IAX_ALREADYGONE);	
@@ -1708,19 +1705,16 @@ static int iax2_predestroy(int callno)
 		ast_atomic_fetchadd_int(&usecnt, -1);
 		ast_update_use_count();
 	}
-	ast_mutex_unlock(&iaxsl[callno]);
 	return 0;
 }
 
 static void iax2_destroy(int callno)
 {
-	struct chan_iax2_pvt *pvt;
+	struct chan_iax2_pvt *pvt = iaxs[callno];
 	struct iax_frame *cur;
 	struct ast_channel *owner;
 
 retry:
-	ast_mutex_lock(&iaxsl[callno]);
-	pvt = iaxs[callno];
 	gettimeofday(&lastused[callno], NULL);
 	
 	owner = pvt ? pvt->owner : NULL;
@@ -1730,6 +1724,7 @@ retry:
 			ast_log(LOG_NOTICE, "Avoiding IAX destroy deadlock\n");
 			ast_mutex_unlock(&iaxsl[callno]);
 			usleep(1);
+			ast_mutex_lock(&iaxsl[callno]);
 			goto retry;
 		}
 	}
@@ -1774,7 +1769,6 @@ retry:
 	if (owner) {
 		ast_mutex_unlock(&owner->lock);
 	}
-	ast_mutex_unlock(&iaxsl[callno]);
 	if (callno & 0x4000)
 		update_max_trunk();
 }
