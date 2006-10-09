@@ -146,7 +146,7 @@ static int timeout_write(struct ast_channel *chan, char *cmd, char *data,
 
 static struct ast_custom_function timeout_function = {
 	.name = "TIMEOUT",
-	.synopsis = "Gets or sets timeouts on the channel.",
+	.synopsis = "Gets or sets timeouts on the channel. Timeout values are in seconds.",
 	.syntax = "TIMEOUT(timeouttype)",
 	.desc =
 		"Gets or sets various channel timeouts. The timeouts that can be\n"
