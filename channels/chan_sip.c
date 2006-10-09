@@ -11702,7 +11702,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_requ
 }
 
 /*! \brief Immediately stop RTP, VRTP and UDPTL as applicable */
-static void stop_data_flows(struct sip_pvt *p)
+static void stop_media_flows(struct sip_pvt *p)
 {
 	/* Immediately stop RTP, VRTP and UDPTL as applicable */
 	if (p->rtp)
@@ -11903,7 +11903,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					ast_verbose(VERBOSE_PREFIX_3 "Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(p->sa.sin_addr));
 				ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
 	
-				stop_data_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
+				stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
 
 				/* XXX Locking issues?? XXX */
 				switch(resp) {
@@ -13634,7 +13634,7 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 			ast_log(LOG_DEBUG, "Got CANCEL on an answered call. Ignoring... \n");
 		return 0;
 	}
-	stop_data_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
+	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
 
 	if (p->owner)
 		ast_queue_hangup(p->owner);
@@ -13683,7 +13683,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 		}
 	}
 
-	stop_data_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
+	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
 
 	if (!ast_strlen_zero(get_header(req, "Also"))) {
 		ast_log(LOG_NOTICE, "Client '%s' using deprecated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
