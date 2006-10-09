@@ -1335,6 +1335,55 @@ static int codec_ast2skinny(int astcodec)
 	}
 }
 
+
+static int skinny_register(struct skinny_req *req, struct skinnysession *s)
+{
+	struct skinny_device *d;
+	struct sockaddr_in sin;
+	socklen_t slen;
+
+	ast_mutex_lock(&devicelock);
+	for (d = devices; d; d = d->next) {
+		if (!strcasecmp(req->data.reg.name, d->id)
+				&& ast_apply_ha(d->ha, &(s->sin))) {
+			s->device = d;
+			d->type = letohl(req->data.reg.type);
+			if (ast_strlen_zero(d->version_id)) {
+				ast_copy_string(d->version_id, version_id, sizeof(d->version_id));
+			}
+			d->registered = 1;
+			d->session = s;
+
+			slen = sizeof(sin);
+			if (getsockname(s->fd, (struct sockaddr *)&sin, &slen)) {
+				ast_log(LOG_WARNING, "Cannot get socket name\n");
+				sin.sin_addr = __ourip;
+			}
+			d->ourip = sin.sin_addr;
+			break;
+		}
+	}
+	ast_mutex_unlock(&devicelock);
+	if (!d) {
+		return 0;
+	}
+	return 1;
+}
+
+static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
+{
+	struct skinny_device *d;
+
+	d = s->device;
+
+	if (d) {
+		d->session = NULL;
+		d->registered = 0;
+	}
+
+	return -1; /* main loop will destroy the session */
+}
+
 static int transmit_response(struct skinnysession *s, struct skinny_req *req)
 {
 	int res = 0;
@@ -1350,9 +1399,17 @@ static int transmit_response(struct skinnysession *s, struct skinny_req *req)
 	memcpy(s->outbuf+skinny_header_size, &req->data, sizeof(union skinny_data));
 
 	res = write(s->fd, s->outbuf, letohl(req->len)+8);
+
 	if (res != letohl(req->len)+8) {
 		ast_log(LOG_WARNING, "Transmit: write only sent %d out of %d bytes: %s\n", res, letohl(req->len)+8, strerror(errno));
+		if (res == -1) {
+			if (skinnydebug)
+				ast_log(LOG_WARNING, "Transmit: Skinny Client was lost, unregistering\n");
+			skinny_unregister(NULL, s);
+		}
+		
 	}
+	
 	ast_mutex_unlock(&s->lock);
 	return 1;
 }
@@ -2126,54 +2183,6 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 #endif
 	}
 	return d;
-}
-
-static int skinny_register(struct skinny_req *req, struct skinnysession *s)
-{
-	struct skinny_device *d;
-	struct sockaddr_in sin;
-	socklen_t slen;
-
-	ast_mutex_lock(&devicelock);
-	for (d = devices; d; d = d->next) {
-		if (!strcasecmp(req->data.reg.name, d->id)
-				&& ast_apply_ha(d->ha, &(s->sin))) {
-			s->device = d;
-			d->type = letohl(req->data.reg.type);
-			if (ast_strlen_zero(d->version_id)) {
-				ast_copy_string(d->version_id, version_id, sizeof(d->version_id));
-			}
-			d->registered = 1;
-			d->session = s;
-
-			slen = sizeof(sin);
-			if (getsockname(s->fd, (struct sockaddr *)&sin, &slen)) {
-				ast_log(LOG_WARNING, "Cannot get socket name\n");
-				sin.sin_addr = __ourip;
-			}
-			d->ourip = sin.sin_addr;
-			break;
-		}
-	}
-	ast_mutex_unlock(&devicelock);
-	if (!d) {
-		return 0;
-	}
-	return 1;
-}
-
-static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
-{
-	struct skinny_device *d;
-
-	d = s->device;
-
-	if (d) {
-		d->session = NULL;
-		d->registered = 0;
-	}
-
-	return -1; /* main loop will destroy the session */
 }
 
 static void start_rtp(struct skinny_subchannel *sub)
@@ -4153,13 +4162,26 @@ static int get_input(struct skinnysession *s)
 		res = read(s->fd, s->inbuf, 4);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "read() returned error: %s\n", strerror(errno));
+
+			if (skinnydebug)
+				ast_verbose("Skinny Client was lost, unregistering\n");
+	      
+			skinny_unregister(NULL,s);
 			ast_mutex_unlock(&s->lock);
 			return res;
 		} else if (res != 4) {
 			ast_log(LOG_WARNING, "Skinny Client sent less data than expected.  Expected 4 but got %d.\n", res);
 			ast_mutex_unlock(&s->lock);
+			
+			if (res == 0) {
+				if (skinnydebug)
+					ast_verbose("Skinny Client was lost, unregistering\n");
+				skinny_unregister(NULL, s);
+			}
+		     
 			return -1;
 		}
+		
 		dlen = letohl(*(int *)s->inbuf);
 		if (dlen < 0) {
 			ast_log(LOG_WARNING, "Skinny Client sent invalid data.\n");
