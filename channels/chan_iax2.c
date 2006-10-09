@@ -1710,11 +1710,12 @@ static int iax2_predestroy(int callno)
 
 static void iax2_destroy(int callno)
 {
-	struct chan_iax2_pvt *pvt = iaxs[callno];
+	struct chan_iax2_pvt *pvt;
 	struct iax_frame *cur;
 	struct ast_channel *owner;
 
 retry:
+	pvt = iaxs[callno];
 	gettimeofday(&lastused[callno], NULL);
 	
 	owner = pvt ? pvt->owner : NULL;
