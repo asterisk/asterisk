@@ -14240,12 +14240,11 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	struct sockaddr_in sin = { 0, };
 	struct sip_pvt *p;
 	int res;
-	socklen_t len;
+	socklen_t len = sizeof(sin);
 	int nounlock;
 	int recount = 0;
-	unsigned int lockretry = 100;
+	int lockretry;
 
-	len = sizeof(sin);
 	memset(&req, 0, sizeof(req));
 	res = recvfrom(sipsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len);
 	if (res < 0) {
@@ -14273,62 +14272,59 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 
 	parse_request(&req);
 	req.method = find_sip_method(req.rlPart1);
-	if (ast_test_flag(&req, SIP_PKT_DEBUG)) {
+
+	if (ast_test_flag(&req, SIP_PKT_DEBUG))
 		ast_verbose("--- (%d headers %d lines)%s ---\n", req.headers, req.lines, (req.headers + req.lines == 0) ? " Nat keepalive" : "");
-	}
 
-	if (req.headers < 2) {
-		/* Must have at least two headers */
+	if (req.headers < 2)	/* Must have at least two headers */
 		return 1;
-	}
 
+	/* Process request, with netlock held, and with usual deadlock avoidance */
+	for (lockretry = 100; lockretry > 0; lockretry--) {
+		ast_mutex_lock(&netlock);
 
-	/* Process request, with netlock held */
-retrylock:
-	ast_mutex_lock(&netlock);
-
-	/* Find the active SIP dialog or create a new one */
-	p = find_call(&req, &sin, req.method);	/* returns p locked */
-	if (p == NULL) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Invalid SIP message - rejected , no callid, len %d\n", req.len);
-	} else {
-		/* Go ahead and lock the owner if it has one -- we may need it */
-		/* becaues this is deadlock-prone, we need to try and unlock if failed */
-		if (p->owner && ast_channel_trylock(p->owner)) {
+		/* Find the active SIP dialog or create a new one */
+		p = find_call(&req, &sin, req.method);	/* returns p locked */
+		if (p == NULL) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Failed to grab owner channel lock, trying again. (SIP call %s)\n", p->callid);
-			ast_mutex_unlock(&p->lock);
+				ast_log(LOG_DEBUG, "Invalid SIP message - rejected , no callid, len %d\n", req.len);
 			ast_mutex_unlock(&netlock);
-			/* Sleep for a very short amount of time */
-			usleep(1);
-			if (--lockretry)
-				goto retrylock;
-		}
-		p->recv = sin;
-
-		if (recordhistory) /* This is a request or response, note what it was for */
-			append_history(p, "Rx", "%s / %s / %s", req.data, get_header(&req, "CSeq"), req.rlPart2);
-
-		if (!lockretry) {
-			ast_log(LOG_ERROR, "We could NOT get the channel lock for %s! \n", S_OR(p->owner->name, "- no channel name ??? - "));
-			ast_log(LOG_ERROR, "SIP transaction failed: %s \n", p->callid);
-			transmit_response(p, "503 Server error", &req);	/* We must respond according to RFC 3261 sec 12.2 */
-					/* XXX We could add retry-after to make sure they come back */
-			append_history(p, "LockFail", "Owner lock failed, transaction failed.");
 			return 1;
 		}
-		nounlock = 0;
-		if (handle_request(p, &req, &sin, &recount, &nounlock) == -1) {
-			/* Request failed */
-			if (option_debug)
-				ast_log(LOG_DEBUG, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
-		}
-		
-		if (p->owner && !nounlock)
-			ast_channel_unlock(p->owner);
+		/* Go ahead and lock the owner if it has one -- we may need it */
+		/* becaues this is deadlock-prone, we need to try and unlock if failed */
+		if (!p->owner || !ast_channel_trylock(p->owner))
+			break;	/* locking succeeded */
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Failed to grab owner channel lock, trying again. (SIP call %s)\n", p->callid);
 		ast_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&netlock);
+		/* Sleep for a very short amount of time */
+		usleep(1);
 	}
+	p->recv = sin;
+
+	if (recordhistory) /* This is a request or response, note what it was for */
+		append_history(p, "Rx", "%s / %s / %s", req.data, get_header(&req, "CSeq"), req.rlPart2);
+
+	if (!lockretry) {
+		ast_log(LOG_ERROR, "We could NOT get the channel lock for %s! \n", S_OR(p->owner->name, "- no channel name ??? - "));
+		ast_log(LOG_ERROR, "SIP transaction failed: %s \n", p->callid);
+		transmit_response(p, "503 Server error", &req);	/* We must respond according to RFC 3261 sec 12.2 */
+		/* XXX We could add retry-after to make sure they come back */
+		append_history(p, "LockFail", "Owner lock failed, transaction failed.");
+		return 1;
+	}
+	nounlock = 0;
+	if (handle_request(p, &req, &sin, &recount, &nounlock) == -1) {
+		/* Request failed */
+		if (option_debug)
+			ast_log(LOG_DEBUG, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
+	}
+		
+	if (p->owner && !nounlock)
+		ast_channel_unlock(p->owner);
+	ast_mutex_unlock(&p->lock);
 	ast_mutex_unlock(&netlock);
 	if (recount)
 		ast_update_use_count();
