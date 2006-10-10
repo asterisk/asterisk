@@ -2096,7 +2096,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 	if (sip_debug_test_pvt(p)) {
 		const struct sockaddr_in *dst = sip_real_dst(p);
 
-		ast_verbose("%sTransmitting (%s) to %s:%d:\n%s\n---\n",
+		ast_verbose("\n<--- %sTransmitting (%s) to %s:%d --->\n%s\n<------------>\n",
 			reliable ? "Reliably " : "", sip_nat_mode(p),
 			ast_inet_ntoa(dst->sin_addr),
 			ntohs(dst->sin_port), req->data);
@@ -14268,7 +14268,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	if (pedanticsipchecking)
 		req.len = lws2sws(req.data, req.len);	/* Fix multiline headers */
 	if (ast_test_flag(&req, SIP_PKT_DEBUG))
-		ast_verbose("\n<-- SIP read from %s:%d: \n%s\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), req.data);
+		ast_verbose("\n<--- SIP read from %s:%d --->\n%s\n<------------->\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), req.data);
 
 	parse_request(&req);
 	req.method = find_sip_method(req.rlPart1);
