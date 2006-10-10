@@ -4828,8 +4828,8 @@ static void build_contact(struct sip_pvt *p)
 static void build_rpid(struct sip_pvt *p)
 {
 	int send_pres_tags = 1;
-	const char *privacy=NULL;
-	const char *screen=NULL;
+	const char *privacy = NULL;
+	const char *screen = NULL;
 	char buf[256];
 	const char *clid = default_callerid;
 	const char *clin = NULL;
@@ -4853,11 +4853,11 @@ static void build_rpid(struct sip_pvt *p)
 		break;
 	case AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN:
 		privacy = "off";
-		screen = "pass";
+		screen = "yes";
 		break;
 	case AST_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN:
 		privacy = "off";
-		screen = "fail";
+		screen = "no";
 		break;
 	case AST_PRES_ALLOWED_NETWORK_NUMBER:
 		privacy = "off";
@@ -4869,15 +4869,15 @@ static void build_rpid(struct sip_pvt *p)
 		break;
 	case AST_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN:
 		privacy = "full";
-		screen = "pass";
+		screen = "yes";
 		break;
 	case AST_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN:
 		privacy = "full";
-		screen = "fail";
+		screen = "no";
 		break;
 	case AST_PRES_PROHIB_NETWORK_NUMBER:
 		privacy = "full";
-		screen = "pass";
+		screen = "yes";
 		break;
 	case AST_PRES_NUMBER_NOT_AVAILABLE:
 		send_pres_tags = 0;
@@ -6864,7 +6864,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(char *callid)
 }
 
 /*! \brief  get_refer_info: Call transfer support (the REFER method) ---*/
-static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_req)
+static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_req, char **transfercontext)
 {
 
 	char *p_refer_to = NULL, *p_referred_by = NULL, *h_refer_to = NULL, *h_referred_by = NULL, *h_contact = NULL;
@@ -6872,7 +6872,6 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 	struct sip_request *req = NULL;
 	struct sip_pvt *sip_pvt_ptr = NULL;
 	struct ast_channel *chan = NULL, *peer = NULL;
-	const char *transfercontext;
 
 	req = outgoing_req;
 
@@ -6949,12 +6948,12 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 			*ptr = '\0';
 	}
 	
-	transfercontext = pbx_builtin_getvar_helper(sip_pvt->owner, "TRANSFER_CONTEXT");
-	if (ast_strlen_zero(transfercontext))
-		transfercontext = sip_pvt->context;
+	*transfercontext = pbx_builtin_getvar_helper(sip_pvt->owner, "TRANSFER_CONTEXT");
+	if (ast_strlen_zero(*transfercontext))
+		*transfercontext = sip_pvt->context;
 
 	if (sip_debug_test_pvt(sip_pvt)) {
-		ast_verbose("Transfer to %s in %s\n", refer_to, transfercontext);
+		ast_verbose("Transfer to %s in %s\n", refer_to, *transfercontext);
 		if (referred_by)
 			ast_verbose("Transfer from %s in %s\n", referred_by, sip_pvt->context);
 	}
@@ -6979,7 +6978,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 	    		  INVITE with a replaces header -anthm XXX */
 			/* The only way to find out is to use the dialplan - oej */
 		}
-	} else if (ast_exists_extension(NULL, transfercontext, refer_to, 1, NULL) || !strcmp(refer_to, ast_parking_ext())) {
+	} else if (ast_exists_extension(NULL, *transfercontext, refer_to, 1, NULL) || !strcmp(refer_to, ast_parking_ext())) {
 		/* This is an unsupervised transfer (blind transfer) */
 		
 		ast_log(LOG_DEBUG,"Unsupervised transfer to (Refer-To): %s\n", refer_to);
@@ -6998,7 +6997,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 			pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
 		}
 		return 0;
-	} else if (ast_canmatch_extension(NULL, transfercontext, refer_to, 1, NULL)) {
+	} else if (ast_canmatch_extension(NULL, *transfercontext, refer_to, 1, NULL)) {
 		return 1;
 	}
 
@@ -7203,9 +7202,9 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		ast_copy_string(p->cid_name, calleridname, sizeof(p->cid_name));
 
 	rpid = get_header(req, "Remote-Party-ID");
-	memset(rpid_num,0,sizeof(rpid_num));
+	memset(rpid_num, 0, sizeof(rpid_num));
 	if (!ast_strlen_zero(rpid)) 
-		p->callingpres = get_rpid_num(rpid,rpid_num, sizeof(rpid_num));
+		p->callingpres = get_rpid_num(rpid, rpid_num, sizeof(rpid_num));
 
 	of = get_in_brackets(from);
 	if (ast_strlen_zero(p->exten)) {
@@ -10802,12 +10801,15 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	struct ast_channel *c=NULL;
 	int res;
 	struct ast_channel *transfer_to;
+	char *transfercontext = NULL;
 
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "SIP call transfer received for call %s (REFER)!\n", p->callid);
+	res = get_refer_info(p, req, &transfercontext);
 	if (ast_strlen_zero(p->context))
 		strcpy(p->context, default_context);
-	res = get_refer_info(p, req);
+	if (ast_strlen_zero(transfercontext))
+		transfercontext = p->context;
 	if (res < 0)
 		transmit_response(p, "603 Declined", req);
 	else if (res > 0)
@@ -10843,7 +10845,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 							    be accessible after the transfer! */
 							*nounlock = 1;
 							ast_mutex_unlock(&c->lock);
-							ast_async_goto(transfer_to,p->context, p->refer_to,1);
+							ast_async_goto(transfer_to, transfercontext, p->refer_to,1);
 						}
 					} else {
 						ast_log(LOG_DEBUG, "Got SIP blind transfer but nothing to transfer to.\n");
