@@ -181,10 +181,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
                                                     below EXPIRY_GUARD_LIMIT */
 #define DEFAULT_EXPIRY 900                          /*!< Expire slowly */
 
-static int min_expiry = DEFAULT_MIN_EXPIRY;        /*!< Minimum accepted registration time */
-static int max_expiry = DEFAULT_MAX_EXPIRY;        /*!< Maximum accepted registration time */
-static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
-static int expiry = DEFAULT_EXPIRY;
+static int min_expiry;                              /*!< Minimum accepted registration time */
+static int max_expiry;                              /*!< Maximum accepted registration time */
+static int default_expiry;
+static int expiry;
 
 #ifndef MAX
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
@@ -15678,6 +15678,10 @@ static int reload_config(enum channelreloadreason reason)
 	/* Reset channel settings to default before re-configuring */
 	allow_external_domains = DEFAULT_ALLOW_EXT_DOM;				/* Allow external invites */
 	global_regcontext[0] = '\0';
+	expiry = DEFAULT_EXPIRY;
+	min_expiry = DEFAULT_MIN_EXPIRY;        /*!< Minimum accepted registration time */
+	max_expiry = DEFAULT_MAX_EXPIRY;        /*!< Maximum accepted registration time */
+	default_expiry = DEFAULT_DEFAULT_EXPIRY;
 	expiry = DEFAULT_EXPIRY;
 	global_notifyringing = DEFAULT_NOTIFYRINGING;
 	global_alwaysauthreject = 0;
