@@ -896,6 +896,7 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 
 void misdn_lib_setup_bc(struct misdn_bchannel *bc)
 {
+	clean_up_bc(bc);
 	setup_bc(bc);
 }
 
