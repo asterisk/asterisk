@@ -444,13 +444,20 @@ static const struct cfsip_options {
 /*! \brief SIP Extensions we support */
 #define SUPPORTED_EXTENSIONS "replaces" 
 
+/*! \brief Standard SIP port from RFC 3261. DO NOT CHANGE THIS */
+#define STANDARD_SIP_PORT	5060
+/* Note: in many SIP headers, absence of a port number implies port 5060,
+ * and this is why we cannot change the above constant.
+ * There is a limited number of places in asterisk where we could,
+ * in principle, use a different "default" port number, but
+ * we do not support this feature at the moment.
+ */
 
 /* Default values, set and reset in reload_config before reading configuration */
 /* These are default values in the source. There are other recommended values in the
    sip.conf.sample for new installations. These may differ to keep backwards compatibility,
    yet encouraging new behaviour on new installations 
  */
-#define DEFAULT_SIP_PORT	5060	/*!< Our default port to listen to. From RFC 3261 (former 2543) */
 #define DEFAULT_CONTEXT		"default"
 #define DEFAULT_MOHINTERPRET    "default"
 #define DEFAULT_MOHSUGGEST      ""
@@ -2651,7 +2658,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 		return res;
 	}
 	hostn = peer;
-	portno = port ? atoi(port) : DEFAULT_SIP_PORT;
+	portno = port ? atoi(port) : STANDARD_SIP_PORT;
 	if (srvlookup) {
 		char service[MAXHOSTNAMELEN];
 		int tportno;
@@ -5283,14 +5290,14 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	/* XXX bug here if string has been trimmed to sizeof(hostname) */
 	h += hn - 1;
 
-	/* Is "port" present? if not default to DEFAULT_SIP_PORT */
+	/* Is "port" present? if not default to STANDARD_SIP_PORT */
 	if (*h == ':') {
 		/* Parse port */
 		++h;
 		port = strtol(h, &h, 10);
 	}
 	else
-		port = DEFAULT_SIP_PORT;
+		port = STANDARD_SIP_PORT;
 
 	/* Got the hostname:port - but maybe there's a "maddr=" to override address? */
 	maddr = strstr(h, "maddr=");
@@ -6259,7 +6266,7 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 static void build_contact(struct sip_pvt *p)
 {
 	/* Construct Contact: header */
-	if (ourport != 5060)	/* Needs to be 5060, according to the RFC (NOT DEFAULT_SIP_PORT!!!!) */
+	if (ourport != STANDARD_SIP_PORT)
 		ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip), ourport);
 	else
 		ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip));
@@ -6412,7 +6419,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		l = tmp2;
 	}
 
-	if (ourport != 5060 && ast_strlen_zero(p->fromdomain))	/* Needs to be 5060 */
+	if (ourport != STANDARD_SIP_PORT && ast_strlen_zero(p->fromdomain))
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)), ourport, p->tag);
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)), p->tag);
@@ -6433,7 +6440,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 			ast_build_string(&invite, &invite_max, "%s@", n);
 		}
 		ast_build_string(&invite, &invite_max, "%s", p->tohost);
-		if (ntohs(p->sa.sin_port) != 5060)		/* Needs to be 5060 */
+		if (ntohs(p->sa.sin_port) != STANDARD_SIP_PORT)
 			ast_build_string(&invite, &invite_max, ":%d", ntohs(p->sa.sin_port));
 		ast_build_string(&invite, &invite_max, "%s", urioptions);
 	}
@@ -7411,7 +7418,7 @@ static int set_address_from_contact(struct sip_pvt *pvt)
 		*pt++ = '\0';
 		port = atoi(pt);
 	} else
-		port = DEFAULT_SIP_PORT;
+		port = STANDARD_SIP_PORT;
 
 	/* XXX This could block for a long time XXX */
 	/* We should only do this if it's a name, not an IP */
@@ -7518,7 +7525,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		*pt++ = '\0';
 		port = atoi(pt);
 	} else
-		port = DEFAULT_SIP_PORT;
+		port = STANDARD_SIP_PORT;
 	oldsin = peer->addr;
 	if (!ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE)) {
 		/* XXX This could block for a long time XXX */
@@ -8548,7 +8555,7 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 		memset(&p->sa, 0, sizeof(p->sa));
 		p->sa.sin_family = AF_INET;
 		memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
-		p->sa.sin_port = htons(pt ? atoi(pt) : DEFAULT_SIP_PORT);
+		p->sa.sin_port = htons(pt ? atoi(pt) : STANDARD_SIP_PORT);
 
 		if (sip_debug_test_pvt(p)) {
 			const struct sockaddr_in *dst = sip_real_dst(p);
@@ -9923,7 +9930,7 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 	ast_cli(fd, FORMAT2, "Host", "Username", "Refresh", "State", "Reg.Time");
 	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_RDLOCK(iterator);
-		snprintf(host, sizeof(host), "%s:%d", iterator->hostname, iterator->portno ? iterator->portno : DEFAULT_SIP_PORT);
+		snprintf(host, sizeof(host), "%s:%d", iterator->hostname, iterator->portno ? iterator->portno : STANDARD_SIP_PORT);
 		if (iterator->regtime) {
 			ast_localtime(&iterator->regtime, &tm, NULL);
 			strftime(tmpdat, sizeof(tmpdat), "%a, %d %b %Y %T", &tm);
@@ -15225,7 +15232,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 		*/
 		peer->expire = -1;
 		peer->pokeexpire = -1;
-		peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
+		peer->addr.sin_port = htons(STANDARD_SIP_PORT);
 	}
 	ast_copy_flags(&peer->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&peer->flags[1], &global_flags[1], SIP_PAGE2_FLAGS_TO_COPY);
@@ -15404,7 +15411,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				else {
 					ast_copy_string(peer->tohost, v->value, sizeof(peer->tohost));
 					if (!peer->addr.sin_port)
-						peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
+						peer->addr.sin_port = htons(STANDARD_SIP_PORT);
 				}
 			}
 		} else if (!strcasecmp(v->name, "defaultip")) {
@@ -15590,9 +15597,9 @@ static int reload_config(enum channelreloadreason reason)
 	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externip, 0, sizeof(externip));
 	memset(&default_prefs, 0 , sizeof(default_prefs));
-	outboundproxyip.sin_port = htons(DEFAULT_SIP_PORT);
+	outboundproxyip.sin_port = htons(STANDARD_SIP_PORT);
 	outboundproxyip.sin_family = AF_INET;	/* Type of address: IPv4 */
-	ourport = DEFAULT_SIP_PORT;
+	ourport = STANDARD_SIP_PORT;
 	srvlookup = DEFAULT_SRVLOOKUP;
 	global_tos_sip = DEFAULT_TOS_SIP;
 	global_tos_audio = DEFAULT_TOS_AUDIO;
@@ -16008,7 +16015,7 @@ static int reload_config(enum channelreloadreason reason)
 		return 0;
 	}
 	if (!ntohs(bindaddr.sin_port))
-		bindaddr.sin_port = ntohs(DEFAULT_SIP_PORT);
+		bindaddr.sin_port = ntohs(STANDARD_SIP_PORT);
 	bindaddr.sin_family = AF_INET;
 	ast_mutex_lock(&netlock);
 	if ((sipsock > -1) && (memcmp(&old_bindaddr, &bindaddr, sizeof(struct sockaddr_in)))) {
