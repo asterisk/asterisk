@@ -12455,9 +12455,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		/* We don't understand this event. */
 		/* Here's room to implement incoming voicemail notifications :-) */
 		transmit_response(p, "489 Bad event", req);
-		if (!p->lastinvite) 
-			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-		return -1;
+		res = -1;
 	} else {
 		/* Save nesting depth for now, since there might be other events we will
 			support in the future */
@@ -12558,8 +12556,12 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		
 		/* Confirm that we received this packet */
 		transmit_response(p, "200 OK", req);
-		return res;
 	};
+
+	if (!p->lastinvite)
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+
+	return res;
 }
 
 /*! \brief Handle incoming OPTIONS request */
