@@ -934,7 +934,7 @@ static void load_rpt_vars(int n, int init)
 		int savearea = (char *)&rpt_vars[n].p - (char *)&rpt_vars[n];
 
 		cp = (char *) &rpt_vars[n].p;
-		memset(cp + sizeof(rpt_vars[n].p),0,
+		memset(cp + sizeof(rpt_vars[n].p), 0,
 			sizeof(rpt_vars[n]) - (sizeof(rpt_vars[n].p) + savearea));
 		rpt_vars[n].tele.next = &rpt_vars[n].tele;
 		rpt_vars[n].tele.prev = &rpt_vars[n].tele;
@@ -1046,7 +1046,7 @@ static void load_rpt_vars(int n, int init)
 			strs.argc &= ~1; /* force an even number, rounded down */
 			if (strs.argc >= 2) {
 				for (j = 0; j < strs.argc; j += 2) {
-					rpt_mknotch(atof(strs.str[j]),atof(strs.str[j + 1]),
+					rpt_mknotch(atof(strs.str[j]), atof(strs.str[j + 1]),
 						&rpt_vars[n].filters[j >> 1].gain,
 						&rpt_vars[n].filters[j >> 1].const0,
 						&rpt_vars[n].filters[j >> 1].const1,
@@ -1138,7 +1138,7 @@ static int rpt_do_dump(int fd, int argc, char *argv[])
 	for (i = 0; i < nrpts; i++) {
 		if (!strcmp(argv[2], rpt_vars[i].name)) {
 			rpt_vars[i].disgorgetime = time(NULL) + 10; /* Do it 10 seconds later */
-			ast_cli(fd, "app_rpt struct dump requested for node %s\n",argv[2]);
+			ast_cli(fd, "app_rpt struct dump requested for node %s\n", argv[2]);
 			return RESULT_SUCCESS;
 		}
 	}
@@ -1331,7 +1331,7 @@ static int rpt_do_lstats(int fd, int argc, char *argv[])
 	int i, j;
 	struct rpt *myrpt;
 	struct rpt_link *l;
-	struct rpt_lstat *s,*t;
+	struct rpt_lstat *s, *t;
 	struct rpt_lstat s_head;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -1683,7 +1683,7 @@ static int sayfile(struct ast_channel *mychannel, const char *fname)
 	return res;
 }
 
-static int saycharstr(struct ast_channel *mychannel,char *str)
+static int saycharstr(struct ast_channel *mychannel, char *str)
 {
 	int	res;
 
@@ -1850,7 +1850,7 @@ static void wait_interval(struct rpt *myrpt, int type, struct ast_channel *chan)
 	if (debug)
 		ast_log(LOG_NOTICE, " Delay interval = %d\n", interval);
 	if (interval)
-		ast_safe_sleep(chan,interval);
+		ast_safe_sleep(chan, interval);
 	if (debug)
 		ast_log(LOG_NOTICE, "Delay complete\n");
 	return;
@@ -1920,7 +1920,7 @@ static void *rpt_tele_thread(void *this)
 	case ID:
 	case ID1:
 		/* wait a bit */
-		wait_interval(myrpt, (mytele->mode == ID) ? DLY_ID : DLY_TELEM,mychannel);
+		wait_interval(myrpt, (mytele->mode == ID) ? DLY_ID : DLY_TELEM, mychannel);
 		res = telem_any(myrpt, mychannel, myrpt->p.ident); 
 		imdone=1;	
 		break;
@@ -2054,7 +2054,7 @@ static void *rpt_tele_thread(void *this)
 			rpt_mutex_unlock(&myrpt->lock);
 		}
 		if (haslink) {
-			res = telem_lookup(myrpt,mychannel, myrpt->name, (!hastx) ? "remotemon" : "remotetx");
+			res = telem_lookup(myrpt, mychannel, myrpt->name, (!hastx) ? "remotemon" : "remotetx");
 			if (res)
 				ast_log(LOG_WARNING, "telem_lookup:remotexx failed on %s\n", mychannel->name);
 
@@ -2104,7 +2104,7 @@ static void *rpt_tele_thread(void *this)
 			ci.confno = myrpt->txconf;
 			ci.confmode = ZT_CONF_CONFANN;
 			/* first put the channel on the conference in announce mode */
-			if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1) {
+			if (ioctl(mychannel->fds[0], ZT_SETCONF, &ci) == -1) {
 				ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 				rpt_mutex_lock(&myrpt->lock);
 				remque((struct qelem *)mytele);
@@ -2404,7 +2404,7 @@ static void *rpt_tele_thread(void *this)
 		if ((res = ast_tonepair_start(mychannel, 1004.0, 0, 99999999, 7200.0))) 
 			break;
 		while (mychannel->generatordata && (!myrpt->stopgen)) {
-			if (ast_safe_sleep(mychannel,1)) break;
+			if (ast_safe_sleep(mychannel, 1)) break;
 			imdone = 1;
 		}
 		break;
@@ -2447,7 +2447,7 @@ static void *rpt_tele_thread(void *this)
 	pthread_exit(NULL);
 }
 
-static void rpt_telemetry(struct rpt *myrpt,int mode, void *data)
+static void rpt_telemetry(struct rpt *myrpt, int mode, void *data)
 {
 	struct rpt_tele *tele;
 	struct rpt_link *mylink = (struct rpt_link *) data;
@@ -2714,7 +2714,7 @@ static void *rpt_call(void *this)
 	pthread_exit(NULL);
 }
 
-static void send_link_dtmf(struct rpt *myrpt,char c)
+static void send_link_dtmf(struct rpt *myrpt, char c)
 {
 	char str[300];
 	struct ast_frame wf;
@@ -2735,10 +2735,10 @@ static void send_link_dtmf(struct rpt *myrpt,char c)
 			continue;
 		}
 		/* if we found it, write it and were done */
-		if (!strcmp(l->name,myrpt->cmdnode)) {
+		if (!strcmp(l->name, myrpt->cmdnode)) {
 			wf.data = ast_strdup(str);
 			if (l->chan)
-				ast_write(l->chan,&wf);
+				ast_write(l->chan, &wf);
 			return;
 		}
 		l = l->next;
@@ -2942,7 +2942,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 		return DC_COMPLETE;
 	case 3: /* Link transceive */
 		if ((digitbuf[0] == '0') && (myrpt->lastlinknode[0]))
-			strcpy(digitbuf,myrpt->lastlinknode);
+			strcpy(digitbuf, myrpt->lastlinknode);
 		val = ast_variable_retrieve(myrpt->cfg, myrpt->p.nodes, digitbuf);
 		if (!val) {
 			if (strlen(digitbuf) >= myrpt->longestnode)
@@ -3066,7 +3066,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			return DC_COMPLETE;
 		}
 		if ((digitbuf[0] == '0') && (myrpt->lastlinknode[0]))
-			strcpy(digitbuf,myrpt->lastlinknode);
+			strcpy(digitbuf, myrpt->lastlinknode);
 		/* node must at least exist in list */
 		val = ast_variable_retrieve(myrpt->cfg, myrpt->p.nodes, digitbuf);
 		if (!val) {
@@ -3463,7 +3463,7 @@ static void handle_link_data(struct rpt *myrpt, struct rpt_link *mylink, char *s
 				if (strcmp(l->name, src)) {
 					wf.data = ast_strdup(str);
 					if (l->chan)
-						ast_write(l->chan,&wf);
+						ast_write(l->chan, &wf);
 				}
 				return;
 			}
@@ -3482,7 +3482,7 @@ static void handle_link_data(struct rpt *myrpt, struct rpt_link *mylink, char *s
 				continue;
 			}
 			/* send, but not to src */
-			if (strcmp(l->name,src)) {
+			if (strcmp(l->name, src)) {
 				wf.data = ast_strdup(str);
 				if (l->chan)
 					ast_write(l->chan, &wf);
@@ -3631,7 +3631,7 @@ static void handle_link_phone_dtmf(struct rpt *myrpt, struct rpt_link *mylink, c
 				break;
 		    case 2:
 				res = collect_function_digits(myrpt, cmd, 
-					SOURCE_DPHONE,mylink);
+					SOURCE_DPHONE, mylink);
 				break;
 		    default:
 				res = collect_function_digits(myrpt, cmd, 
@@ -3864,7 +3864,7 @@ static void rbi_out(struct rpt *myrpt, unsigned char *data)
 	r.data = ZT_RADPAR_REM_RBI1;
 	/* if setparam ioctl fails, its probably not a pciradio card */
 	if (ioctl(myrpt->rxchannel->fds[0], ZT_RADIO_SETPARAM, &r) == -1) {
-		rbi_out_parallel(myrpt,data);
+		rbi_out_parallel(myrpt, data);
 		return;
 	}
 	r.radpar = ZT_RADPAR_REMCOMMAND;
@@ -3906,7 +3906,7 @@ static int serial_remote_io(struct rpt *myrpt, unsigned char *txbuf, int txbytes
 		return -1;
 	if (rxbuf) {
 		*rxbuf = 0;
-		memcpy(rxbuf,prm.buf,prm.index);
+		memcpy(rxbuf, prm.buf, prm.index);
 	}
 	return(prm.index);
 }
@@ -5445,7 +5445,7 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 }
 
 /* 0 return=continue, 1 return = break, -1 return = error */
-static void local_dtmf_helper(struct rpt *myrpt,char c)
+static void local_dtmf_helper(struct rpt *myrpt, char c)
 {
 	int	res;
 	pthread_attr_t attr;
@@ -5475,7 +5475,7 @@ static void local_dtmf_helper(struct rpt *myrpt,char c)
 	rpt_mutex_lock(&myrpt->lock);
 	if (myrpt->cmdnode[0]) {
 		rpt_mutex_unlock(&myrpt->lock);
-		send_link_dtmf(myrpt,c);
+		send_link_dtmf(myrpt, c);
 		return;
 	}
 	if (!myrpt->p.simple) {
@@ -5618,11 +5618,11 @@ static void *rpt(void *this)
 	struct rpt *myrpt = (struct rpt *)this;
 	char *tele, c;
 	const char *idtalkover;
-	int ms = MSWAIT,i, lasttx=0, val, remrx=0, identqueued, othertelemqueued, tailmessagequeued, ctqueued;
+	int ms = MSWAIT, i, lasttx=0, val, remrx=0, identqueued, othertelemqueued, tailmessagequeued, ctqueued;
 	struct ast_channel *who;
 	ZT_CONFINFO ci;  /* conference info */
 	time_t t;
-	struct rpt_link *l,*m;
+	struct rpt_link *l, *m;
 	struct rpt_tele *telem;
 	char tmpstr[300];
 
@@ -6029,7 +6029,7 @@ static void *rpt(void *this)
 		/* If user or links key up or are keyed up over standard ID, switch to talkover ID, if one is defined */
 		/* If tail message, kill the message if someone keys up over it */ 
 		if ((myrpt->keyed || remrx) && ((identqueued && idtalkover) || (tailmessagequeued))) {
-			int hasid = 0,hastalkover = 0;
+			int hasid = 0, hastalkover = 0;
 
 			telem = myrpt->tele.next;
 			while (telem != &myrpt->tele) {
@@ -6954,7 +6954,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 				}
 				memcpy(&ia, hp->h_addr, sizeof(in_addr_t));
 				ast_copy_string(nodeip, ast_inet_ntoa(ia), sizeof(nodeip));
-				if (strcmp(hisip,nodeip)) {
+				if (strcmp(hisip, nodeip)) {
 					ast_log(LOG_WARNING, "Node %s IP %s does not match link IP %s!!\n", chan->cid.cid_num, nodeip, hisip);
 					return -1;
 				}
@@ -7298,7 +7298,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 				}
 				if (myrpt->hfscanstatus < 0) {
 					if (myrpt->hfscanstatus == -1) {
-						if (ast_safe_sleep(myrpt->remchannel,1000) == -1)
+						if (ast_safe_sleep(myrpt->remchannel, 1000) == -1)
 							break;
 					}
 					sayfile(myrpt->remchannel, "rpt/stop");
