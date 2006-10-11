@@ -8711,16 +8711,6 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	if (ast_strlen_zero(of))
 		return AUTH_SUCCESSFUL;
 
-	if (1) {
-		const char *hdr = (sipmethod == SIP_REGISTER || sipmethod == SIP_SUBSCRIBE) ?
-			"Authorization" : "Proxy-Authorization";
-		if ( (hdr = get_header(req, hdr)) && (hdr = strstr(hdr, "username=\"")) ) {
-			ast_copy_string(from, hdr + strlen("username=\""), sizeof(from));
-			of = from;
-			of = strsep(&of, "\"");
-		}
-	}
-
 	if (!authpeer)	/* If we are looking for a peer, don't check the user objects (or realtime) */
 		user = find_user(of, 1);
 
