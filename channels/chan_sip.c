@@ -11687,8 +11687,7 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 	was_reachable = peer->lastms > 0 && peer->lastms <= peer->maxms;
 	is_reachable = pingtime <= peer->maxms;
 	statechanged = peer->lastms == 0 /* yes, unknown before */
-		|| ( !was_reachable && is_reachable)
-		|| ( was_reachable  && !is_reachable );
+		|| was_reachable != is_reachable;
 
 	peer->lastms = pingtime;
 	peer->call = NULL;
