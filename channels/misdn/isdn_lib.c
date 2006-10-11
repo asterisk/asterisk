@@ -183,6 +183,8 @@ struct misdn_lib {
 void misdn_tx_jitter(struct misdn_bchannel *bc, int len);
 
 struct misdn_bchannel *find_bc_by_l3id(struct misdn_stack *stack, unsigned long l3id);
+struct misdn_bchannel *find_bc_by_confid(unsigned long confid);
+struct misdn_bchannel *stack_holder_find_bychan(struct misdn_stack *stack, int chan);
 
 int setup_bc(struct misdn_bchannel *bc);
 
