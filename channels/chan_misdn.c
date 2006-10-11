@@ -3170,7 +3170,7 @@ static struct chan_list *find_chan_by_pid(struct chan_list *list, int pid)
 {
 	struct chan_list *help=list;
 	for (;help; help=help->next) {
-		if (help->bc->pid == pid) return help;
+		if ( help->bc && (help->bc->pid == pid) ) return help;
 	}
   
 	chan_misdn_log(6, 0, "$$$ find_chan: No channel found for pid:%d\n",pid);
