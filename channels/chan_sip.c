@@ -4500,6 +4500,8 @@ static int find_sdp(struct sip_request *req)
 
 /*! \brief Process SIP SDP offer, select formats and activate RTP channels
 	If offer is rejected, we will not change any properties of the call
+ 	Return 0 on success, a negative value on errors.
+	Must be called after find_sdp().
 */
 static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 {
@@ -8712,6 +8714,16 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	if (ast_strlen_zero(of))
 		return AUTH_SUCCESSFUL;
 
+	if (1) {
+		const char *hdr = (sipmethod == SIP_REGISTER || sipmethod == SIP_SUBSCRIBE) ?
+			"Authorization" : "Proxy-Authorization";
+		if ( (hdr = get_header(req, hdr)) && (hdr = strstr(hdr, "username=\"")) ) {
+			ast_copy_string(from, hdr + strlen("username=\""), sizeof(from));
+			of = from;
+			of = strsep(&of, "\"");
+		}
+	}
+
 	if (!authpeer)	/* If we are looking for a peer, don't check the user objects (or realtime) */
 		user = find_user(of, 1);
 
@@ -11285,10 +11297,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	/* RFC3261 says we must treat every 1xx response (but not 100)
 	   that we don't recognize as if it was 183.
 	*/
-	if ((resp > 100) &&
-	    (resp < 200) &&
-	    (resp != 180) &&
-	    (resp != 183))
+	if (resp > 100 && resp < 200 && resp != 180 && resp != 183)
 		resp = 183;
 
 	switch (resp) {
@@ -11297,6 +11306,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			sip_cancel_destroy(p);
 		check_pendings(p);
 		break;
+
 	case 180:	/* 180 Ringing */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE))
 			sip_cancel_destroy(p);
@@ -11316,6 +11326,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_set_flag(&p->flags[0], SIP_CAN_BYE);
 		check_pendings(p);
 		break;
+
 	case 183:	/* Session progress */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE))
 			sip_cancel_destroy(p);
@@ -11330,6 +11341,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_set_flag(&p->flags[0], SIP_CAN_BYE);
 		check_pendings(p);
 		break;
+
 	case 200:	/* 200 OK on invite - someone's answering our call */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE))
 			sip_cancel_destroy(p);
@@ -11428,6 +11440,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_set_flag(&p->flags[0], SIP_CAN_BYE);
 		check_pendings(p);
 		break;
+
 	case 407: /* Proxy authentication */
 	case 401: /* Www auth */
 		/* First we ACK */
@@ -11449,6 +11462,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			}
 		}
 		break;
+
 	case 403: /* Forbidden */
 		/* First we ACK */
 		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
@@ -11458,22 +11472,26 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
 		break;
+
 	case 404: /* Not found */
 		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
 		break;
+
 	case 481: /* Call leg does not exist */
 		/* Could be REFER or INVITE */
 		ast_log(LOG_WARNING, "Re-invite to non-existing call leg on other UA. SIP dialog '%s'. Giving up.\n", p->callid);
 		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		break;
+
 	case 491: /* Pending */
 		/* we have to wait a while, then retransmit */
 		/* Transmission is rescheduled, so everything should be taken care of.
 			We should support the retry-after at some point */
 		break;
+
 	case 501: /* Not implemented */
 		if (p->owner)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
