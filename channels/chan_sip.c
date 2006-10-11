@@ -13846,72 +13846,72 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		transmit_response(p, "404 Not Found", req);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		return 0;
-	} else {
-		/* XXX reduce nesting here */
-		/* Initialize tag for new subscriptions */	
-		if (ast_strlen_zero(p->tag))
-			make_our_tag(p->tag, sizeof(p->tag));
+	}
 
-		if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
+	/* Initialize tag for new subscriptions */	
+	if (ast_strlen_zero(p->tag))
+		make_our_tag(p->tag, sizeof(p->tag));
 
-			/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
-			/* Polycom phones only handle xpidf+xml, even if they say they can
-			   handle pidf+xml as well
-			*/
-			if (strstr(p->useragent, "Polycom")) {
-				p->subscribed = XPIDF_XML;
-			} else if (strstr(accept, "application/pidf+xml")) {
- 				p->subscribed = PIDF_XML;         /* RFC 3863 format */
- 			} else if (strstr(accept, "application/dialog-info+xml")) {
- 				p->subscribed = DIALOG_INFO_XML;
- 				/* IETF draft: draft-ietf-sipping-dialog-package-05.txt */
- 			} else if (strstr(accept, "application/cpim-pidf+xml")) {
- 				p->subscribed = CPIM_PIDF_XML;    /* RFC 3863 format */
- 			} else if (strstr(accept, "application/xpidf+xml")) {
- 				p->subscribed = XPIDF_XML;        /* Early pre-RFC 3863 format with MSN additions (Microsoft Messenger) */
-			} else {
- 				/* Can't find a format for events that we know about */
- 				transmit_response(p, "489 Bad Event", req);
- 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
- 				return 0;
- 			}
- 		} else if (!strcmp(event, "message-summary")) { 
-			if (!ast_strlen_zero(accept) && strcmp(accept, "application/simple-message-summary")) {
-				/* Format requested that we do not support */
-				transmit_response(p, "406 Not Acceptable", req);
-				if (option_debug > 1)
-					ast_log(LOG_DEBUG, "Received SIP mailbox subscription for unknown format: %s\n", accept);
- 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-				return 0;
-			}
-			/* Looks like they actually want a mailbox status 
-			  This version of Asterisk supports mailbox subscriptions
-			  The subscribed URI needs to exist in the dial plan
-			  In most devices, this is configurable to the voicemailmain extension you use
-			*/
-			if (!authpeer || ast_strlen_zero(authpeer->mailbox)) {
-				transmit_response(p, "404 Not found (no mailbox)", req);
-				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-				ast_log(LOG_NOTICE, "Received SIP subscribe for peer without mailbox: %s\n", authpeer->name);
-				return 0;
-			}
+	if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
 
- 			p->subscribed = MWI_NOTIFICATION;
-			if (authpeer->mwipvt && authpeer->mwipvt != p)	/* Destroy old PVT if this is a new one */
-				/* We only allow one subscription per peer */
-				sip_destroy(authpeer->mwipvt);
-			authpeer->mwipvt = p;		/* Link from peer to pvt */
-			p->relatedpeer = authpeer;	/* Link from pvt to peer */
-		} else { /* At this point, Asterisk does not understand the specified event */
+		/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
+		/* Polycom phones only handle xpidf+xml, even if they say they can
+		   handle pidf+xml as well
+		*/
+		if (strstr(p->useragent, "Polycom")) {
+			p->subscribed = XPIDF_XML;
+		} else if (strstr(accept, "application/pidf+xml")) {
+			p->subscribed = PIDF_XML;         /* RFC 3863 format */
+		} else if (strstr(accept, "application/dialog-info+xml")) {
+			p->subscribed = DIALOG_INFO_XML;
+			/* IETF draft: draft-ietf-sipping-dialog-package-05.txt */
+		} else if (strstr(accept, "application/cpim-pidf+xml")) {
+			p->subscribed = CPIM_PIDF_XML;    /* RFC 3863 format */
+		} else if (strstr(accept, "application/xpidf+xml")) {
+			p->subscribed = XPIDF_XML;        /* Early pre-RFC 3863 format with MSN additions (Microsoft Messenger) */
+		} else {
+			/* Can't find a format for events that we know about */
 			transmit_response(p, "489 Bad Event", req);
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
- 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			return 0;
 		}
-		if (p->subscribed != MWI_NOTIFICATION && !resubscribe)
-			p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
+	} else if (!strcmp(event, "message-summary")) { 
+		if (!ast_strlen_zero(accept) && strcmp(accept, "application/simple-message-summary")) {
+			/* Format requested that we do not support */
+			transmit_response(p, "406 Not Acceptable", req);
+			if (option_debug > 1)
+				ast_log(LOG_DEBUG, "Received SIP mailbox subscription for unknown format: %s\n", accept);
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			return 0;
+		}
+		/* Looks like they actually want a mailbox status 
+		  This version of Asterisk supports mailbox subscriptions
+		  The subscribed URI needs to exist in the dial plan
+		  In most devices, this is configurable to the voicemailmain extension you use
+		*/
+		if (!authpeer || ast_strlen_zero(authpeer->mailbox)) {
+			transmit_response(p, "404 Not found (no mailbox)", req);
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			ast_log(LOG_NOTICE, "Received SIP subscribe for peer without mailbox: %s\n", authpeer->name);
+			return 0;
+		}
+
+		p->subscribed = MWI_NOTIFICATION;
+		if (authpeer->mwipvt && authpeer->mwipvt != p)	/* Destroy old PVT if this is a new one */
+			/* We only allow one subscription per peer */
+			sip_destroy(authpeer->mwipvt);
+		authpeer->mwipvt = p;		/* Link from peer to pvt */
+		p->relatedpeer = authpeer;	/* Link from pvt to peer */
+	} else { /* At this point, Asterisk does not understand the specified event */
+		transmit_response(p, "489 Bad Event", req);
+		if (option_debug > 1)
+			ast_log(LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
+		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		return 0;
 	}
+
+	if (p->subscribed != MWI_NOTIFICATION && !resubscribe)
+		p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
 
 	if (!ast_test_flag(req, SIP_PKT_IGNORE) && p)
 		p->lastinvite = seqno;
@@ -13943,48 +13943,47 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				ASTOBJ_UNLOCK(p->relatedpeer);
 			}
 		} else {
+			struct sip_pvt *p_old;
+
 			if ((firststate = ast_extension_state(NULL, p->context, p->exten)) < 0) {
 
 				ast_log(LOG_ERROR, "Got SUBSCRIBE for extension %s@%s from %s, but there is no hint for that extension\n", p->exten, p->context, ast_inet_ntoa(p->sa.sin_addr));
 				transmit_response(p, "404 Not found", req);
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 				return 0;
-			} else {
-				/* XXX reduce nesting here */
-				struct sip_pvt *p_old;
-	
-				transmit_response(p, "200 OK", req);
-				transmit_state_notify(p, firststate, 1);	/* Send first notification */
-				append_history(p, "Subscribestatus", "%s", ast_extension_state2str(firststate));
-				/* hide the 'complete' exten/context in the refer_to field for later display */
-				ast_string_field_build(p, subscribeuri, "%s@%s", p->exten, p->context);
-
-				/* remove any old subscription from this peer for the same exten/context,
-			   	as the peer has obviously forgotten about it and it's wasteful to wait
-			   	for it to expire and send NOTIFY messages to the peer only to have them
-			   	ignored (or generate errors)
-				*/
-				ast_mutex_lock(&iflock);
-				for (p_old = iflist; p_old; p_old = p_old->next) {
-					if (p_old == p)
-						continue;
-					if (p_old->initreq.method != SIP_SUBSCRIBE)
-						continue;
-					if (p_old->subscribed == NONE)
-						continue;
-					ast_mutex_lock(&p_old->lock);
-					if (!strcmp(p_old->username, p->username)) {
-						if (!strcmp(p_old->exten, p->exten) &&
-						    !strcmp(p_old->context, p->context)) {
-							ast_set_flag(&p_old->flags[0], SIP_NEEDDESTROY);
-							ast_mutex_unlock(&p_old->lock);
-							break;
-						}
-					}
-					ast_mutex_unlock(&p_old->lock);
-				}
-				ast_mutex_unlock(&iflock);
 			}
+
+			transmit_response(p, "200 OK", req);
+			transmit_state_notify(p, firststate, 1);	/* Send first notification */
+			append_history(p, "Subscribestatus", "%s", ast_extension_state2str(firststate));
+			/* hide the 'complete' exten/context in the refer_to field for later display */
+			ast_string_field_build(p, subscribeuri, "%s@%s", p->exten, p->context);
+
+			/* remove any old subscription from this peer for the same exten/context,
+			as the peer has obviously forgotten about it and it's wasteful to wait
+			for it to expire and send NOTIFY messages to the peer only to have them
+			ignored (or generate errors)
+			*/
+			ast_mutex_lock(&iflock);
+			for (p_old = iflist; p_old; p_old = p_old->next) {
+				if (p_old == p)
+					continue;
+				if (p_old->initreq.method != SIP_SUBSCRIBE)
+					continue;
+				if (p_old->subscribed == NONE)
+					continue;
+				ast_mutex_lock(&p_old->lock);
+				if (!strcmp(p_old->username, p->username)) {
+					if (!strcmp(p_old->exten, p->exten) &&
+					    !strcmp(p_old->context, p->context)) {
+						ast_set_flag(&p_old->flags[0], SIP_NEEDDESTROY);
+						ast_mutex_unlock(&p_old->lock);
+						break;
+					}
+				}
+				ast_mutex_unlock(&p_old->lock);
+			}
+			ast_mutex_unlock(&iflock);
 		}
 		if (!p->expiry)
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
