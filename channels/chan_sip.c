@@ -11689,46 +11689,46 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 	if (resp == 100)
 		return;
 
-		peer = p->relatedpeer;
-		gettimeofday(&tv, NULL);
-		pingtime = ast_tvdiff_ms(tv, peer->ps);
-		if (pingtime < 1)
-			pingtime = 1;
-		if ((peer->lastms < 0)  || (peer->lastms > peer->maxms)) {
-			if (pingtime <= peer->maxms) {
-				ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
-				statechanged = 1;
-				newstate = 1;
-			}
-		} else if ((peer->lastms > 0) && (peer->lastms <= peer->maxms)) {
-			if (pingtime > peer->maxms) {
-				ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
-				statechanged = 1;
-				newstate = 2;
-			}
-		}
-		if (!peer->lastms)
+	peer = p->relatedpeer;
+	gettimeofday(&tv, NULL);
+	pingtime = ast_tvdiff_ms(tv, peer->ps);
+	if (pingtime < 1)
+		pingtime = 1;
+	if ((peer->lastms < 0)  || (peer->lastms > peer->maxms)) {
+		if (pingtime <= peer->maxms) {
+			ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
 			statechanged = 1;
-		peer->lastms = pingtime;
-		peer->call = NULL;
-		if (statechanged) {
-			ast_device_state_changed("SIP/%s", peer->name);
-			if (newstate == 2) {
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, pingtime);
-			} else {
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, pingtime);
-			}
+			newstate = 1;
 		}
+	} else if ((peer->lastms > 0) && (peer->lastms <= peer->maxms)) {
+		if (pingtime > peer->maxms) {
+			ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
+			statechanged = 1;
+			newstate = 2;
+		}
+	}
+	if (!peer->lastms)
+		statechanged = 1;
+	peer->lastms = pingtime;
+	peer->call = NULL;
+	if (statechanged) {
+		ast_device_state_changed("SIP/%s", peer->name);
+		if (newstate == 2) {
+			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, pingtime);
+		} else {
+			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, pingtime);
+		}
+	}
 
-		if (peer->pokeexpire > -1)
-			ast_sched_del(sched, peer->pokeexpire);
-		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+	if (peer->pokeexpire > -1)
+		ast_sched_del(sched, peer->pokeexpire);
+	ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 
-		/* Try again eventually */
-		if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
-			peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
-		else
-			peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer_s, peer);
+	/* Try again eventually */
+	if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
+		peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
+	else
+		peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer_s, peer);
 }
 
 /*! \brief Immediately stop RTP, VRTP and UDPTL as applicable */
