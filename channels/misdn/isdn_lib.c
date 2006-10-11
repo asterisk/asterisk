@@ -109,7 +109,7 @@ struct misdn_stack* get_stack_by_bc(struct misdn_bchannel *bc)
 	
 	for ( ; stack; stack=stack->next) {
 		int i;
-		for (i=0; i <stack->b_num; i++) {
+		for (i=0; i <=stack->b_num; i++) {
 			if ( bc->port == stack->port) return stack;
 		}
 	}
@@ -183,6 +183,10 @@ struct misdn_lib {
 void misdn_tx_jitter(struct misdn_bchannel *bc, int len);
 
 struct misdn_bchannel *find_bc_by_l3id(struct misdn_stack *stack, unsigned long l3id);
+
+struct misdn_bchannel *find_bc_by_confid(unsigned long confid);
+
+struct misdn_bchannel *stack_holder_find_bychan(struct misdn_stack *stack, int chan);
 
 int setup_bc(struct misdn_bchannel *bc);
 
@@ -418,7 +422,7 @@ static void dump_chan_list(struct misdn_stack *stack)
 {
 	int i;
 
-	for (i=0; i <stack->b_num; i++) {
+	for (i=0; i <= stack->b_num; i++) {
 		cb_log(6, stack->port, "Idx:%d stack->cchan:%d Chan:%d\n",i,stack->channels[i], i+1);
 	}
 }
@@ -535,6 +539,7 @@ static void empty_bc(struct misdn_bchannel *bc)
 	
 
 	bc->in_use= 0;
+	bc->cw= 0;
 
 	bc->channel = 0;
 
@@ -667,7 +672,7 @@ static void clear_l3(struct misdn_stack *stack)
 {
 	int i;
 
-	for (i=0; i<stack->b_num; i++) {
+	for (i=0; i<=stack->b_num; i++) {
 		if (global_state == MISDN_INITIALIZED)  {
 			cb_event(EVENT_CLEANUP, &stack->bc[i], NULL); 
 			empty_chan_in_stack(stack,i+1);
@@ -1164,7 +1169,7 @@ struct misdn_stack* stack_init( int midev, int port, int ptp )
 	stack->d_stid = stinf->id;
 	stack->b_num = stinf->childcnt;
 
-	for (i=0; i<stinf->childcnt; i++)
+	for (i=0; i<=stinf->childcnt; i++)
 		stack->b_stids[i] = stinf->child[i];
   
 	switch(stinf->pid.protocol[0] & ~ISDN_PID_FEATURE_MASK) {
@@ -1377,7 +1382,7 @@ static struct misdn_stack * find_stack_by_mgr(manager_t* mgr_nt)
 static struct misdn_bchannel *find_bc_by_masked_l3id(struct misdn_stack *stack, unsigned long l3id, unsigned long mask)
 {
 	int i;
-	for (i=0; i<stack->b_num; i++) {
+	for (i=0; i<=stack->b_num; i++) {
 		if ( (stack->bc[i].l3_id & mask)  ==  (l3id & mask)) return &stack->bc[i] ;
 	}
 	return stack_holder_find(stack,l3id);
@@ -1387,7 +1392,7 @@ static struct misdn_bchannel *find_bc_by_masked_l3id(struct misdn_stack *stack, 
 struct misdn_bchannel *find_bc_by_l3id(struct misdn_stack *stack, unsigned long l3id)
 {
 	int i;
-	for (i=0; i<stack->b_num; i++) {
+	for (i=0; i<=stack->b_num; i++) {
 		if (stack->bc[i].l3_id == l3id) return &stack->bc[i] ;
 	}
 	return stack_holder_find(stack,l3id);
@@ -1396,7 +1401,7 @@ struct misdn_bchannel *find_bc_by_l3id(struct misdn_stack *stack, unsigned long 
 static struct misdn_bchannel *find_bc_holded(struct misdn_stack *stack)
 {
 	int i;
-	for (i=0; i<stack->b_num; i++) {
+	for (i=0; i<=stack->b_num; i++) {
 		if (stack->bc[i].holded ) return &stack->bc[i] ;
 	}
 	return NULL;
@@ -1411,7 +1416,7 @@ static struct misdn_bchannel *find_bc_by_addr(unsigned long addr)
 	for (stack=glob_mgr->stack_list;
 	     stack;
 	     stack=stack->next) {
-		for (i=0; i< stack->b_num; i++) {
+		for (i=0; i<=stack->b_num; i++) {
 			if ( (stack->bc[i].addr&STACK_ID_MASK)==(addr&STACK_ID_MASK) ||  stack->bc[i].layer_id== addr ) {
 				return &stack->bc[i];
 			}
@@ -1429,7 +1434,7 @@ struct misdn_bchannel *find_bc_by_confid(unsigned long confid)
 	for (stack=glob_mgr->stack_list;
 	     stack;
 	     stack=stack->next) {
-		for (i=0; i< stack->b_num; i++) {
+		for (i=0; i<=stack->b_num; i++) {
 			if ( stack->bc[i].conf_id==confid ) {
 				return &stack->bc[i];
 			}
@@ -1446,7 +1451,7 @@ static struct misdn_bchannel *find_bc_by_channel(int port, int channel)
 
 	if (!stack) return NULL;	
 	
-	for (i=0; i< stack->b_num; i++) {
+	for (i=0; i<=stack->b_num; i++) {
 		if ( stack->bc[i].channel== channel ) {
 			return &stack->bc[i];
 		}
@@ -1536,7 +1541,7 @@ static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_
 static int handle_new_process(struct misdn_stack *stack, iframe_t *frm)
 {
   
-	struct misdn_bchannel* bc=misdn_lib_get_free_bc(stack->port, 0);
+	struct misdn_bchannel* bc=misdn_lib_get_free_bc(stack->port, 0, 1);
 	
 	
 	if (!bc) {
@@ -1556,8 +1561,9 @@ static int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
 	switch (frm->prim) {
 	case CC_NEW_CR|INDICATION:
 		cb_log(7, stack->port, " --> lib: NEW_CR Ind with l3id:%x on this port.\n",frm->dinfo);
-		if (handle_new_process(stack, frm) <0) 
+		if (handle_new_process(stack, frm) <0) {
 			return -1;
+		}
 		return 1;
 	case CC_NEW_CR|CONFIRM:
 		return 1;
@@ -2183,6 +2189,30 @@ static int do_tone(struct misdn_bchannel *bc, int len)
 }
 
 
+#ifdef MISDN_SAVE_DATA
+static void misdn_save_data(int id, char *p1, int l1, char *p2, int l2) 
+{
+	char n1[32],n2[32];
+
+	sprintf(n1,"/tmp/misdn-rx-%d.raw",id);
+	sprintf(n2,"/tmp/misdn-tx-%d.raw",id);
+
+	FILE *rx=fopen(n1,"a+"); 
+	FILE *tx=fopen(n2,"a+");
+
+	if (!rx || !tx) {
+		cb_log(0,0,"Couldn't open files: %s\n",strerror(errno));
+		return ;
+	}
+	
+	fwrite(p1,1,l1,rx);
+	fwrite(p2,1,l2,tx);
+	
+	fclose(rx);
+	fclose(tx);
+
+}
+#endif
 
 void misdn_tx_jitter(struct misdn_bchannel *bc, int len)
 {
@@ -2194,6 +2224,9 @@ void misdn_tx_jitter(struct misdn_bchannel *bc, int len)
 	jlen=cb_jb_empty(bc,data,len);
 	
 	if (jlen) {
+#ifdef MISDN_SAVE_DATA
+		misdn_save_data((bc->port*100+bc->channel), data, jlen, bc->bframe, bc->bframe_len);
+#endif
 		flip_buf_bits( data, jlen);
 		
 		if (jlen < len) {
@@ -2208,7 +2241,7 @@ void misdn_tx_jitter(struct misdn_bchannel *bc, int len)
 		
 		txfrm->len =jlen;
 		cb_log(9, bc->port, "Transmitting %d samples 2 misdn\n", txfrm->len);
-		
+
 		r=mISDN_write( glob_mgr->midev, buf, txfrm->len + mISDN_HEADER_LEN, 8000 );
 	} else {
 #define MISDN_GEN_SILENCE
@@ -2555,6 +2588,8 @@ static int handle_frm(msg_t *msg)
 
 		if (ret<0) {
 			cb_log(3,stack?stack->port:0,"handle_frm: handle_cr <0 prim:%x addr:%x\n", frm->prim, frm->addr);
+
+
 		}
 
 		if(ret) {
@@ -2590,8 +2625,9 @@ handle_frm_bc:
 					break;
 				case RESPONSE_IGNORE_SETUP:
 					/* I think we should send CC_RELEASE_CR, but am not sure*/
-
 					bc->out_cause=16;
+				
+				case RESPONSE_RELEASE_SETUP:
 					misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
 					if (bc->channel>0)
 						empty_chan_in_stack(stack, bc->channel);
@@ -2660,7 +2696,7 @@ static int handle_l1(msg_t *msg)
 			free_msg(msg);
 		}
 		
-		for (i=0;i<stack->b_num; i++) {
+		for (i=0;i<=stack->b_num; i++) {
 			if (stack->bc[i].evq != EVENT_NOTHING) {
 				cb_log(4, stack->port, "Fireing Queued Event %s because L1 got up\n", isdn_get_info(msgs_g, stack->bc[i].evq, 0));
 				misdn_lib_send_event(&stack->bc[i],stack->bc[i].evq);
@@ -2684,7 +2720,7 @@ static int handle_l1(msg_t *msg)
 	case PH_DEACTIVATE | INDICATION:
 		cb_log (3, stack->port, "L1: PH L1Link Down! \n");
 		
-		for (i=0; i<stack->b_num; i++) {
+		for (i=0; i<=stack->b_num; i++) {
 			if (global_state == MISDN_INITIALIZED)  {
 				cb_event(EVENT_CLEANUP, &stack->bc[i], glob_mgr->user_data);
 			}
@@ -3002,7 +3038,7 @@ struct misdn_bchannel *manager_find_bc_by_pid(int pid)
 	for (stack=glob_mgr->stack_list;
 	     stack;
 	     stack=stack->next) {
-		for (i=0; i<stack->b_num; i++)
+		for (i=0; i<=stack->b_num; i++)
 			if (stack->bc[i].pid == pid) return &stack->bc[i];
 	}
   
@@ -3037,7 +3073,7 @@ static void prepare_bc(struct misdn_bchannel*bc, int channel)
 #endif
 }
 
-struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel)
+struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout)
 {
 	struct misdn_stack *stack;
 	int i;
@@ -3068,8 +3104,14 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel)
 					return NULL;
 				}
 			}
-			for (i = 0; i < stack->b_num; i++) {
+
+			int maxnum=inout&&!stack->pri&&!stack->ptp?stack->b_num+1:stack->b_num;
+			for (i = 0; i <maxnum; i++) {
 				if (!stack->bc[i].in_use) {
+					/* 3. channel on bri means CW*/
+					if (!stack->pri && i==stack->b_num)
+						stack->bc[i].cw=1;
+
 					prepare_bc(&stack->bc[i], channel);
 					return &stack->bc[i];
 				}
@@ -3775,7 +3817,7 @@ int misdn_lib_init(char *portlist, struct misdn_lib_iface *iface, void *user_dat
     
 		{
 			int i;
-			for(i=0;i<stack->b_num; i++) {
+			for(i=0;i<=stack->b_num; i++) {
 				int r;
 				if ((r=init_bc(stack, &stack->bc[i], stack->midev,port,i, "", 1))<0) {
 					cb_log(0, port, "Got Err @ init_bc :%d\n",r);
@@ -3822,7 +3864,7 @@ void misdn_lib_destroy()
 	int i;
   
 	for ( help=glob_mgr->stack_list; help; help=help->next ) {
-		for(i=0;i<help->b_num; i++) {
+		for(i=0;i<=help->b_num; i++) {
 			char buf[1024];
 			mISDN_write_frame(help->midev, buf, help->bc[i].addr, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
 			help->bc[i].addr = 0;

@@ -271,6 +271,9 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "max_outgoing", MISDN_CFG_MAX_OUT, MISDN_CTYPE_INT, "-1", NONE,
 		"Defines the maximum amount of outgoing calls per port for this group\n"
 		"\texceeding calls will be rejected" },
+
+	{ "reject_cause", MISDN_CFG_REJECT_CAUSE, MISDN_CTYPE_INT, "21", NONE,
+		"Defines the cause with which a 3. call is rejected on PTMP BRI."},
 	{ "faxdetect", MISDN_CFG_FAXDETECT, MISDN_CTYPE_STR, "no", NONE,
 		"Setup fax detection:\n"
 		"\t    no        - no fax detection\n"
@@ -302,6 +305,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"MSN's for TE ports, listen on those numbers on the above ports, and\n"
 		"\tindicate the incoming calls to Asterisk.\n"
 		"\tHere you can give a comma seperated list, or simply an '*' for any msn." },
+
 };
 
 static const struct misdn_cfg_spec gen_spec[] = {
