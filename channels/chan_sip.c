@@ -11680,44 +11680,39 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 /*! \brief Handle qualification responses (OPTIONS) */
 static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_request *req)
 {
-	struct sip_peer *peer;
-	int pingtime;
-	struct timeval tv;
-	int statechanged = 0;
-	int newstate = 0;
+	struct sip_peer *peer = p->relatedpeer;
+	int statechanged, is_reachable, was_reachable;
+	int pingtime = ast_tvdiff_ms(ast_tvnow(), peer->ps);
 
-	if (resp == 100)
-		return;
-
-	peer = p->relatedpeer;
-	gettimeofday(&tv, NULL);
-	pingtime = ast_tvdiff_ms(tv, peer->ps);
-	if (pingtime < 1)
+	/*
+	 * Compute the response time to a ping (goes in peer->lastms.)
+	 * -1 means did not respond, 0 means unknown,
+	 * 1..maxms is a valid response, >maxms means late response.
+	 */
+	if (pingtime < 1)	/* zero = unknown, so round up to 1 */
 		pingtime = 1;
-	if ((peer->lastms < 0)  || (peer->lastms > peer->maxms)) {
-		if (pingtime <= peer->maxms) {
-			ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
-			statechanged = 1;
-			newstate = 1;
-		}
-	} else if ((peer->lastms > 0) && (peer->lastms <= peer->maxms)) {
-		if (pingtime > peer->maxms) {
-			ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
-			statechanged = 1;
-			newstate = 2;
-		}
-	}
-	if (!peer->lastms)
-		statechanged = 1;
+
+	/* Now determine new state and whether it has changed.
+	 * Use some helper variables to simplify the writing
+	 * of the expressions.
+	 */
+	was_reachable = peer->lastms > 0 && peer->lastms <= peer->maxms;
+	is_reachable = pingtime <= peer->maxms;
+	statechanged = peer->lastms == 0 /* yes, unknown before */
+		|| ( !was_reachable && is_reachable)
+		|| ( was_reachable  && !is_reachable );
+
 	peer->lastms = pingtime;
 	peer->call = NULL;
 	if (statechanged) {
+		const char *s = is_reachable ? "Reachable" : "Lagged";
+
+		ast_log(LOG_NOTICE, "Peer '%s' is now %s. (%dms / %dms)\n",
+			peer->name, s, pingtime, peer->maxms);
 		ast_device_state_changed("SIP/%s", peer->name);
-		if (newstate == 2) {
-			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, pingtime);
-		} else {
-			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, pingtime);
-		}
+		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+			"Peer: SIP/%s\r\nPeerStatus: %s\r\nTime: %d\r\n",
+			peer->name, s, pingtime);
 	}
 
 	if (peer->pokeexpire > -1)
@@ -11725,10 +11720,9 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 	ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 
 	/* Try again eventually */
-	if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
-		peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
-	else
-		peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer_s, peer);
+	peer->pokeexpire = ast_sched_add(sched,
+		is_reachable ? DEFAULT_FREQ_OK : DEFAULT_FREQ_NOTOK,
+		sip_poke_peer_s, peer);
 }
 
 /*! \brief Immediately stop RTP, VRTP and UDPTL as applicable */
@@ -11780,8 +11774,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		/* We don't really care what the response is, just that it replied back. 
 		   Well, as long as it's not a 100 response...  since we might
 		   need to hang around for something more "definitive" */
-
-		handle_response_peerpoke(p, resp, req);
+		if (resp != 100)
+			handle_response_peerpoke(p, resp, req);
 	} else if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 		switch(resp) {
 		case 100:	/* 100 Trying */
