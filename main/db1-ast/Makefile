@@ -7,11 +7,6 @@ SOVER=2.1
 else
 SOVER=2
 endif
-#Added support for UltraSparc - Belgarath
-ifeq ($(ARCH),sparc64)
-PROC=ultrasparc
-ASTCFLAGS += -mtune=$(PROC) -pipe -fomit-frame-pointer -mcpu=v8
-endif
 
 ifeq ($(OSARCH),Darwin)
   OSARCH_DEFINE+=-D__Darwin__
