@@ -1491,7 +1491,6 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 /*------Response handling functions */
 static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
-static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_request *req);
 static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno);
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno);
 
@@ -11679,15 +11678,17 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 }
 
 /*! \brief Handle qualification responses (OPTIONS) */
-static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_request *req)
+static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_request *req)
 {
 	struct sip_peer *peer;
 	int pingtime;
 	struct timeval tv;
+	int statechanged = 0;
+	int newstate = 0;
 
-	if (resp != 100) {
-		int statechanged = 0;
-		int newstate = 0;
+	if (resp == 100)
+		return;
+
 		peer = p->relatedpeer;
 		gettimeofday(&tv, NULL);
 		pingtime = ast_tvdiff_ms(tv, peer->ps);
@@ -11728,8 +11729,6 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_requ
 			peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
 		else
 			peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer_s, peer);
-	}
-	return 1;
 }
 
 /*! \brief Immediately stop RTP, VRTP and UDPTL as applicable */
@@ -11782,7 +11781,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		   Well, as long as it's not a 100 response...  since we might
 		   need to hang around for something more "definitive" */
 
-		res = handle_response_peerpoke(p, resp, req);
+		handle_response_peerpoke(p, resp, req);
 	} else if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 		switch(resp) {
 		case 100:	/* 100 Trying */
