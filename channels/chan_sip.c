@@ -1253,7 +1253,7 @@ static int find_sdp(struct sip_request *req);
 static int process_sdp(struct sip_pvt *p, struct sip_request *req);
 static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
 			     char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
-			     int debug);
+			     int debug, int *min_packet_size);
 static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_rate,
 				char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
 				int debug);
@@ -5678,7 +5678,7 @@ static int add_vidupdate(struct sip_request *req)
 /*! \brief Add codec offer to SDP offer/answer body in INVITE or 200 OK */
 static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
 			     char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
-			     int debug)
+			     int debug, int *min_packet_size)
 {
 	int rtp_code;
 	struct ast_format_list fmt;
@@ -5707,9 +5707,8 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 		ast_build_string(a_buf, a_size, "a=fmtp:%d mode=%d\r\n", rtp_code, fmt.cur_ms);
 	}
 
-	if (codec != AST_FORMAT_ILBC) {
-		ast_build_string(a_buf, a_size, "a=ptime:%d\r\n", fmt.cur_ms);
-	}
+	if (fmt.cur_ms && (fmt.cur_ms < *min_packet_size))
+		*min_packet_size = fmt.cur_ms;
 }
 
 /*! \brief Get Max T.38 Transmission rate from T38 capabilities */
@@ -5903,6 +5902,8 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	int capability;
 	int needvideo = FALSE;
 	int debug = sip_debug_test_pvt(p);
+	int min_audio_packet_size = 0;
+	int min_video_packet_size = 0;
 
 	m_video[0] = '\0';	/* Reset the video media string if it's not needed */
 
@@ -6035,10 +6036,9 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		add_codec_to_sdp(p, p->prefcodec & AST_FORMAT_AUDIO_MASK, 8000,
 				 &m_audio_next, &m_audio_left,
 				 &a_audio_next, &a_audio_left,
-				 debug);
+				 debug, &min_audio_packet_size);
 		alreadysent |= p->prefcodec & AST_FORMAT_AUDIO_MASK;
 	}
-
 
 	/* Start by sending our preferred audio codecs */
 	for (x = 0; x < 32; x++) {
@@ -6056,7 +6056,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		add_codec_to_sdp(p, pref_codec, 8000,
 				 &m_audio_next, &m_audio_left,
 				 &a_audio_next, &a_audio_left,
-				 debug);
+				 debug, &min_audio_packet_size);
 		alreadysent |= pref_codec;
 	}
 
@@ -6072,12 +6072,12 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 			add_codec_to_sdp(p, x, 8000,
 					 &m_audio_next, &m_audio_left,
 					 &a_audio_next, &a_audio_left,
-					 debug);
+					 debug, &min_audio_packet_size);
 		else 
 			add_codec_to_sdp(p, x, 90000,
 					 &m_video_next, &m_video_left,
 					 &a_video_next, &a_video_left,
-					 debug);
+					 debug, &min_video_packet_size);
 	}
 
 	/* Now add DTMF RFC2833 telephony-event as a codec */
@@ -6094,8 +6094,14 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "-- Done with adding codecs to SDP\n");
 
-	if(!p->owner || !ast_internal_timing_enabled(p->owner))
+	if (!p->owner || !ast_internal_timing_enabled(p->owner))
 		ast_build_string(&a_audio_next, &a_audio_left, "a=silenceSupp:off - - - -\r\n");
+
+	if (min_audio_packet_size)
+		ast_build_string(&a_audio_next, &a_audio_left, "a=ptime:%d\r\n", min_audio_packet_size);
+
+	if (min_video_packet_size)
+		ast_build_string(&a_video_next, &a_video_left, "a=ptime:%d\r\n", min_video_packet_size);
 
 	if ((m_audio_left < 2) || (m_video_left < 2) || (a_audio_left == 0) || (a_video_left == 0))
 		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
