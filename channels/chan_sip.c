@@ -309,8 +309,8 @@ enum sipmethod {
 	to the end point.
 */
 enum sip_auth_type {
-	PROXY_AUTH,
-	WWW_AUTH,
+	PROXY_AUTH = 407,
+	WWW_AUTH = 401,
 };
 
 /*! \brief Authentication result from check_auth* functions */
@@ -1254,7 +1254,6 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_
 static int add_sdp(struct sip_request *resp, struct sip_pvt *p);
 
 /*--- Authentication stuff */
-static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init);
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod, char *digest, int digest_len);
 static int build_reply_digest(struct sip_pvt *p, int method, char *digest, int digest_len);
 static int clear_realm_authentication(struct sip_auth *authlist);	/* Clear realm authentication list (at reload) */
@@ -1405,7 +1404,6 @@ static char *regstate2str(enum sipregistrystate regstate) attribute_const;
 static int sip_reregister(void *data);
 static int __sip_do_register(struct sip_registry *r);
 static int sip_reg_timeout(void *data);
-static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader);
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod,  char *digest, int digest_len);
 static void sip_send_all_registers(void);
 
@@ -7207,6 +7205,21 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, enum xm
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);
 }
 
+/*! \brief return the request and response heade for a 401 or 407 code */
+static void auth_headers(enum sip_auth_type code, char **header, char **respheader)
+{
+	if (code == WWW_AUTH) {			/* 401 */
+		*header = "WWW-Authenticate";
+		*respheader = "Authorization";
+	} else if (code == PROXY_AUTH) {	/* 407 */
+		*header = "Proxy-Authenticate";
+		*respheader = "Proxy-Authorization";
+	} else {
+		ast_verbose("-- wrong response code %d\n", code);
+		*header = *respheader = "Invalid";
+	}
+}
+
 /*! \brief Transmit SIP request, auth added */
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqno, enum xmittype reliable, int newbranch)
 {
@@ -7218,12 +7231,10 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 
 		memset(digest, 0, sizeof(digest));
 		if(!build_reply_digest(p, sipmethod, digest, sizeof(digest))) {
-			if (p->options && p->options->auth_type == PROXY_AUTH)
-				add_header(&resp, "Proxy-Authorization", digest);
-			else if (p->options && p->options->auth_type == WWW_AUTH)
-				add_header(&resp, "Authorization", digest);
-			else	/* Default, to be backwards compatible (maybe being too careful, but leaving it for now) */
-				add_header(&resp, "Proxy-Authorization", digest);
+			char *dummy, *response;
+			enum sip_auth_type code = p->options ? p->options->auth_type : PROXY_AUTH; /* XXX force 407 if unknown */
+			auth_headers(code, &dummy, &response);
+			add_header(&resp, response, digest);
 		} else
 			ast_log(LOG_WARNING, "No authentication available for call %s\n", p->callid);
 	}
@@ -7721,8 +7732,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 					 char *uri, enum xmittype reliable, int ignore)
 {
 	const char *response = "407 Proxy Authentication Required";
-	const char *reqheader = "Proxy-Authorization";
-	const char *respheader = "Proxy-Authenticate";
+	char *reqheader, *respheader;
 	const char *authtoken;
 	char a1_hash[256];
 	char resp_hash[256]="";
@@ -7749,12 +7759,14 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret))
 		return AUTH_SUCCESSFUL;
 	if (sipmethod == SIP_REGISTER || sipmethod == SIP_SUBSCRIBE) {
-		/* On a REGISTER, we have to use 401 and its family of headers instead of 407 and its family
-		   of headers -- GO SIP!  Whoo hoo!  Two things that do the same thing but are used in
-		   different circumstances! What a surprise. */
+		/* On a REGISTER, we have to use 401 and its family of headers
+		 * instead of 407 and its family of headers.
+		 */
 		response = "401 Unauthorized";
-		reqheader = "Authorization";
-		respheader = "WWW-Authenticate";
+		auth_headers(WWW_AUTH, &reqheader, &respheader);
+	} else {
+		response = "407 Proxy Authentication Required";
+		auth_headers(PROXY_AUTH, &reqheader, &respheader);
 	}
 	authtoken =  get_header(req, reqheader);	
 	if (ignore && !ast_strlen_zero(p->randdata) && ast_strlen_zero(authtoken)) {
@@ -10660,10 +10672,13 @@ static int sip_no_history(int fd, int argc, char *argv[])
 }
 
 /*! \brief Authenticate for outbound registration */
-static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader)
+static int do_register_auth(struct sip_pvt *p, struct sip_request *req, enum sip_auth_type code)
 {
+	char *header, *respheader;
 	char digest[1024];
+
 	p->authtries++;
+	auth_headers(code, &header, &respheader);
 	memset(digest,0,sizeof(digest));
 	if (reply_digest(p, req, header, SIP_REGISTER, digest, sizeof(digest))) {
 		/* There's nothing to use for authentication */
@@ -10681,14 +10696,16 @@ static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *he
 }
 
 /*! \brief Add authentication on outbound SIP packet */
-static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init)
+static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, enum sip_auth_type code, int sipmethod, int init)
 {
+	char *header, *respheader;
 	char digest[1024];
 
 	if (!p->options && !(p->options = ast_calloc(1, sizeof(*p->options))))
 		return -2;
 
 	p->authtries++;
+	auth_headers(code, &header, &respheader);
 	if (option_debug > 1)
 		ast_log(LOG_DEBUG, "Auth attempt %d on %s\n", p->authtries, sip_methods[sipmethod].text);
 	memset(digest, 0, sizeof(digest));
@@ -11433,14 +11450,12 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		/* First we ACK */
 		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->options)
-			p->options->auth_type = (resp == 401 ? WWW_AUTH : PROXY_AUTH);
+			p->options->auth_type = resp;
 
 		/* Then we AUTH */
 		ast_string_field_free(p, theirtag);	/* forget their old tag, so we don't match tags when getting response */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
-			char *authenticate = (resp == 401 ? "WWW-Authenticate" : "Proxy-Authenticate");
-			char *authorization = (resp == 401 ? "Authorization" : "Proxy-Authorization");
-			if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, authenticate, authorization, SIP_INVITE, 1)) {
+			if (p->authtries == MAX_AUTHTRIES || do_proxy_auth(p, req, resp, SIP_INVITE, 1)) {
 				ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 				ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
@@ -11491,9 +11506,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
   */
 static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno)
 {
-	char *auth = "Proxy-Authenticate";
-	char *auth2 = "Proxy-Authorization";
-
 	/* If no refer structure exists, then do nothing */
 	if (!p->refer) {
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
@@ -11518,11 +11530,7 @@ static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struc
 				ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 		}
-		if (resp == 401) {
-			auth = "WWW-Authenticate";
-			auth2 = "Authorization";
-		}
-		if ((p->authtries > 1) || do_proxy_auth(p, req, auth, auth2, SIP_REFER, 0)) {
+		if (p->authtries > 1 || do_proxy_auth(p, req, resp, SIP_REFER, 0)) {
 			ast_log(LOG_NOTICE, "Failed to authenticate on REFER to '%s'\n", get_header(&p->initreq, "From"));
 			p->refer->status = REFER_NOAUTH;
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
@@ -11555,7 +11563,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 
 	switch (resp) {
 	case 401:	/* Unauthorized */
-		if ((p->authtries == MAX_AUTHTRIES) || do_register_auth(p, req, "WWW-Authenticate", "Authorization")) {
+		if (p->authtries == MAX_AUTHTRIES || do_register_auth(p, req, resp)) {
 			ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s@%s' (Tries %d)\n", p->registry->username, p->registry->hostname, p->authtries);
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			}
@@ -11576,7 +11584,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		ast_sched_del(sched, r->timeout);
 		break;
 	case 407:	/* Proxy auth */
-		if ((p->authtries == MAX_AUTHTRIES) || do_register_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization")) {
+		if (p->authtries == MAX_AUTHTRIES || do_register_auth(p, req, resp)) {
 			ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s' (tries '%d')\n", get_header(&p->initreq, "From"), p->authtries);
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		}
@@ -11847,7 +11855,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
 							msg, ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-				if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", sipmethod, 0)) {
+				if (p->authtries == MAX_AUTHTRIES || do_proxy_auth(p, req, 407, sipmethod, 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 				}
@@ -12042,11 +12050,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			else if (sipmethod == SIP_INVITE) 
 				handle_response_invite(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_BYE) {
-				char *auth, *auth2;
-
-				auth = (resp == 407 ? "Proxy-Authenticate" : "WWW-Authenticate");
-				auth2 = (resp == 407 ? "Proxy-Authorization" : "Authorization");
-				if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, auth, auth2, sipmethod, 0)) {
+				if (p->authtries == MAX_AUTHTRIES || do_proxy_auth(p, req, resp, sipmethod, 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 				}
