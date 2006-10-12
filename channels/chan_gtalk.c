@@ -879,10 +879,11 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 	if(strchr(tmp->us, '/')) {
 		data = ast_strdupa((char *) tmp->us);
 		exten = strsep(&data, "/");
-		free(data);
 	} else
 		exten = tmp->us;
 	ast_copy_string(tmp->exten,  exten, sizeof(tmp->exten));
+	if(data)
+		free(data);
 	ast_mutex_init(&tmp->lock);
 	ast_mutex_lock(&gtalklock);
 	tmp->next = client->p;
