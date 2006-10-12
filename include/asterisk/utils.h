@@ -515,4 +515,19 @@ int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, c
 	}))
 #endif
 
+/*!
+  \brief Disable PMTU discovery on a socket
+  \param sock The socket to manipulate
+  \return Nothing
+
+  On Linux, UDP sockets default to sending packets with the Dont Fragment (DF)
+  bit set. This is supposedly done to allow the application to do PMTU
+  discovery, but Asterisk does not do this.
+
+  Because of this, UDP packets sent by Asterisk that are larger than the MTU
+  of any hop in the path will be lost. This function can be called on a socket
+  to ensure that the DF bit will not be set.
+ */
+void ast_enable_packet_fragmentation(int sock);
+
 #endif /* _ASTERISK_UTILS_H */
