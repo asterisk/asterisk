@@ -895,3 +895,14 @@ char *ast_process_quotes_and_slashes(char *start, char find, char replace_with)
 		*dataPut = 0;
 	return dataPut;
 }
+
+void ast_enable_packet_fragmentation(int sock)
+{
+#ifdef __linux__
+	int val = IP_PMTUDISC_DONT;
+	
+	if (setsockopt(sock, IPPROTO_IP, IP_MTU_DISCOVER, &val, sizeof(val)))
+		ast_log(LOG_WARNING, "Unable to disable PMTU discovery. Large UDP packets may fail to be delivered when sent from this socket.\n");
+#endif
+}
+

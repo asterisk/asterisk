@@ -12966,9 +12966,12 @@ static int reload_config(void)
 		} else {
 			/* Allow SIP clients on the same host to access us: */
 			const int reuseFlag = 1;
+
 			setsockopt(sipsock, SOL_SOCKET, SO_REUSEADDR,
 				   (const char*)&reuseFlag,
 				   sizeof reuseFlag);
+
+			ast_enable_packet_fragmentation(sipsock);
 
 			if (bind(sipsock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) < 0) {
 				ast_log(LOG_WARNING, "Failed to bind to %s:%d: %s\n",
