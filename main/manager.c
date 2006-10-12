@@ -2263,7 +2263,7 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 	
 	ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf, "\r\n");	
 	
-	/* Append even to master list and wake up any sleeping sessions */
+	/* Append event to master list and wake up any sleeping sessions */
 	AST_LIST_LOCK(&sessions);
 	append_event(buf->str, category);
 	AST_LIST_TRAVERSE(&sessions, s, list) {
