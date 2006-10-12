@@ -86,13 +86,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! Keep times of last 10 lookups */
 #define DUNDI_TIMING_HISTORY	10
 
-#define FLAG_ISREG       (1 << 0)   /*!< Transaction is register request */
-#define FLAG_DEAD        (1 << 1)   /*!< Transaction is dead */
-#define FLAG_FINAL       (1 << 2)   /*!< Transaction has final message sent */
-#define FLAG_ISQUAL      (1 << 3)   /*!< Transaction is a qualification */
-#define FLAG_ENCRYPT     (1 << 4)   /*!< Transaction is encrypted wiht ECX/DCX */
-#define FLAG_SENDFULLKEY (1 << 5)   /*!< Send full key on transaction */
-#define FLAG_STOREHIST   (1 << 6)   /*!< Record historic performance */
+enum {
+	FLAG_ISREG =       (1 << 0),  /*!< Transaction is register request */
+	FLAG_DEAD =        (1 << 1),  /*!< Transaction is dead */
+	FLAG_FINAL =       (1 << 2),  /*!< Transaction has final message sent */
+	FLAG_ISQUAL =      (1 << 3),  /*!< Transaction is a qualification */
+	FLAG_ENCRYPT =     (1 << 4),  /*!< Transaction is encrypted wiht ECX/DCX */
+	FLAG_SENDFULLKEY = (1 << 5),  /*!< Send full key on transaction */
+	FLAG_STOREHIST =   (1 << 6),  /*!< Record historic performance */
+};
 
 #define DUNDI_FLAG_INTERNAL_NOPARTIAL (1 << 17)
 
@@ -101,9 +103,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #else
 #define DUNDI_SECRET_TIME DUNDI_DEFAULT_CACHE_TIME
 #endif
-
-#define KEY_OUT			0
-#define KEY_IN			1
 
 static struct io_context *io;
 static struct sched_context *sched;
