@@ -181,10 +181,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
                                                     below EXPIRY_GUARD_LIMIT */
 #define DEFAULT_EXPIRY 900                          /*!< Expire slowly */
 
-static int min_expiry;                              /*!< Minimum accepted registration time */
-static int max_expiry;                              /*!< Maximum accepted registration time */
-static int default_expiry;
-static int expiry;
+static int min_expiry = DEFAULT_MIN_EXPIRY;        /*!< Minimum accepted registration time */
+static int max_expiry = DEFAULT_MAX_EXPIRY;        /*!< Maximum accepted registration time */
+static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
+static int expiry = DEFAULT_EXPIRY;
 
 #ifndef MAX
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
@@ -1260,7 +1260,6 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_
 static int add_sdp(struct sip_request *resp, struct sip_pvt *p);
 
 /*--- Authentication stuff */
-static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init);
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod, char *digest, int digest_len);
 static int build_reply_digest(struct sip_pvt *p, int method, char *digest, int digest_len);
 static int clear_realm_authentication(struct sip_auth *authlist);	/* Clear realm authentication list (at reload) */
@@ -1273,8 +1272,6 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 					      int sipmethod, char *uri, enum xmittype reliable,
 					      struct sockaddr_in *sin, struct sip_peer **authpeer);
 static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, enum xmittype reliable, struct sockaddr_in *sin);
-static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init);
-static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int digest_len);
 
 /*--- Domain handling */
 static int check_sip_domain(const char *domain, char *context, size_t len); /* Check if domain is one of our local domains */
@@ -1413,7 +1410,6 @@ static char *regstate2str(enum sipregistrystate regstate) attribute_const;
 static int sip_reregister(void *data);
 static int __sip_do_register(struct sip_registry *r);
 static int sip_reg_timeout(void *data);
-static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader);
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod,  char *digest, int digest_len);
 static void sip_send_all_registers(void);
 
@@ -1497,7 +1493,6 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 /*------Response handling functions */
 static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
-static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_request *req);
 static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno);
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno);
 
@@ -4537,6 +4532,8 @@ static int find_sdp(struct sip_request *req)
 
 /*! \brief Process SIP SDP offer, select formats and activate RTP channels
 	If offer is rejected, we will not change any properties of the call
+ 	Return 0 on success, a negative value on errors.
+	Must be called after find_sdp().
 */
 static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 {
@@ -11341,10 +11338,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	/* RFC3261 says we must treat every 1xx response (but not 100)
 	   that we don't recognize as if it was 183.
 	*/
-	if ((resp > 100) &&
-	    (resp < 200) &&
-	    (resp != 180) &&
-	    (resp != 183))
+	if (resp > 100 && resp < 200 && resp != 180 && resp != 183)
 		resp = 183;
 
 	switch (resp) {
@@ -11353,6 +11347,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			sip_cancel_destroy(p);
 		check_pendings(p);
 		break;
+
 	case 180:	/* 180 Ringing */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE))
 			sip_cancel_destroy(p);
@@ -11372,6 +11367,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_set_flag(&p->flags[0], SIP_CAN_BYE);
 		check_pendings(p);
 		break;
+
 	case 183:	/* Session progress */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE))
 			sip_cancel_destroy(p);
@@ -11386,6 +11382,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_set_flag(&p->flags[0], SIP_CAN_BYE);
 		check_pendings(p);
 		break;
+
 	case 200:	/* 200 OK on invite - someone's answering our call */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE))
 			sip_cancel_destroy(p);
@@ -11505,6 +11502,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			}
 		}
 		break;
+
 	case 403: /* Forbidden */
 		/* First we ACK */
 		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
@@ -11514,22 +11512,26 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
 		break;
+
 	case 404: /* Not found */
 		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
 		break;
+
 	case 481: /* Call leg does not exist */
 		/* Could be REFER or INVITE */
 		ast_log(LOG_WARNING, "Re-invite to non-existing call leg on other UA. SIP dialog '%s'. Giving up.\n", p->callid);
 		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		break;
+
 	case 491: /* Pending */
 		/* we have to wait a while, then retransmit */
 		/* Transmission is rescheduled, so everything should be taken care of.
 			We should support the retry-after at some point */
 		break;
+
 	case 501: /* Not implemented */
 		if (p->owner)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
@@ -11717,57 +11719,50 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 }
 
 /*! \brief Handle qualification responses (OPTIONS) */
-static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_request *req)
+static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_request *req)
 {
-	struct sip_peer *peer;
-	int pingtime;
-	struct timeval tv;
+	struct sip_peer *peer = p->relatedpeer;
+	int statechanged, is_reachable, was_reachable;
+	int pingtime = ast_tvdiff_ms(ast_tvnow(), peer->ps);
 
-	if (resp != 100) {
-		int statechanged = 0;
-		int newstate = 0;
-		peer = p->relatedpeer;
-		gettimeofday(&tv, NULL);
-		pingtime = ast_tvdiff_ms(tv, peer->ps);
-		if (pingtime < 1)
-			pingtime = 1;
-		if ((peer->lastms < 0)  || (peer->lastms > peer->maxms)) {
-			if (pingtime <= peer->maxms) {
-				ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
-				statechanged = 1;
-				newstate = 1;
-			}
-		} else if ((peer->lastms > 0) && (peer->lastms <= peer->maxms)) {
-			if (pingtime > peer->maxms) {
-				ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
-				statechanged = 1;
-				newstate = 2;
-			}
-		}
-		if (!peer->lastms)
-			statechanged = 1;
-		peer->lastms = pingtime;
-		peer->call = NULL;
-		if (statechanged) {
-			ast_device_state_changed("SIP/%s", peer->name);
-			if (newstate == 2) {
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, pingtime);
-			} else {
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, pingtime);
-			}
-		}
+	/*
+	 * Compute the response time to a ping (goes in peer->lastms.)
+	 * -1 means did not respond, 0 means unknown,
+	 * 1..maxms is a valid response, >maxms means late response.
+	 */
+	if (pingtime < 1)	/* zero = unknown, so round up to 1 */
+		pingtime = 1;
 
-		if (peer->pokeexpire > -1)
-			ast_sched_del(sched, peer->pokeexpire);
-		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+	/* Now determine new state and whether it has changed.
+	 * Use some helper variables to simplify the writing
+	 * of the expressions.
+	 */
+	was_reachable = peer->lastms > 0 && peer->lastms <= peer->maxms;
+	is_reachable = pingtime <= peer->maxms;
+	statechanged = peer->lastms == 0 /* yes, unknown before */
+		|| was_reachable != is_reachable;
 
-		/* Try again eventually */
-		if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
-			peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
-		else
-			peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer_s, peer);
+	peer->lastms = pingtime;
+	peer->call = NULL;
+	if (statechanged) {
+		const char *s = is_reachable ? "Reachable" : "Lagged";
+
+		ast_log(LOG_NOTICE, "Peer '%s' is now %s. (%dms / %dms)\n",
+			peer->name, s, pingtime, peer->maxms);
+		ast_device_state_changed("SIP/%s", peer->name);
+		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+			"Peer: SIP/%s\r\nPeerStatus: %s\r\nTime: %d\r\n",
+			peer->name, s, pingtime);
 	}
-	return 1;
+
+	if (peer->pokeexpire > -1)
+		ast_sched_del(sched, peer->pokeexpire);
+	ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+
+	/* Try again eventually */
+	peer->pokeexpire = ast_sched_add(sched,
+		is_reachable ? DEFAULT_FREQ_OK : DEFAULT_FREQ_NOTOK,
+		sip_poke_peer_s, peer);
 }
 
 /*! \brief Immediately stop RTP, VRTP and UDPTL as applicable */
@@ -11819,8 +11814,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		/* We don't really care what the response is, just that it replied back. 
 		   Well, as long as it's not a 100 response...  since we might
 		   need to hang around for something more "definitive" */
-
-		res = handle_response_peerpoke(p, resp, req);
+		if (resp != 100)
+			handle_response_peerpoke(p, resp, req);
 	} else if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 		switch(resp) {
 		case 100:	/* 100 Trying */
@@ -13904,72 +13899,72 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		transmit_response(p, "404 Not Found", req);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		return 0;
-	} else {
-		/* XXX reduce nesting here */
-		/* Initialize tag for new subscriptions */	
-		if (ast_strlen_zero(p->tag))
-			make_our_tag(p->tag, sizeof(p->tag));
+	}
 
-		if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
+	/* Initialize tag for new subscriptions */	
+	if (ast_strlen_zero(p->tag))
+		make_our_tag(p->tag, sizeof(p->tag));
 
-			/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
-			/* Polycom phones only handle xpidf+xml, even if they say they can
-			   handle pidf+xml as well
-			*/
-			if (strstr(p->useragent, "Polycom")) {
-				p->subscribed = XPIDF_XML;
-			} else if (strstr(accept, "application/pidf+xml")) {
- 				p->subscribed = PIDF_XML;         /* RFC 3863 format */
- 			} else if (strstr(accept, "application/dialog-info+xml")) {
- 				p->subscribed = DIALOG_INFO_XML;
- 				/* IETF draft: draft-ietf-sipping-dialog-package-05.txt */
- 			} else if (strstr(accept, "application/cpim-pidf+xml")) {
- 				p->subscribed = CPIM_PIDF_XML;    /* RFC 3863 format */
- 			} else if (strstr(accept, "application/xpidf+xml")) {
- 				p->subscribed = XPIDF_XML;        /* Early pre-RFC 3863 format with MSN additions (Microsoft Messenger) */
-			} else {
- 				/* Can't find a format for events that we know about */
- 				transmit_response(p, "489 Bad Event", req);
- 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
- 				return 0;
- 			}
- 		} else if (!strcmp(event, "message-summary")) { 
-			if (!ast_strlen_zero(accept) && strcmp(accept, "application/simple-message-summary")) {
-				/* Format requested that we do not support */
-				transmit_response(p, "406 Not Acceptable", req);
-				if (option_debug > 1)
-					ast_log(LOG_DEBUG, "Received SIP mailbox subscription for unknown format: %s\n", accept);
- 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-				return 0;
-			}
-			/* Looks like they actually want a mailbox status 
-			  This version of Asterisk supports mailbox subscriptions
-			  The subscribed URI needs to exist in the dial plan
-			  In most devices, this is configurable to the voicemailmain extension you use
-			*/
-			if (!authpeer || ast_strlen_zero(authpeer->mailbox)) {
-				transmit_response(p, "404 Not found (no mailbox)", req);
-				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-				ast_log(LOG_NOTICE, "Received SIP subscribe for peer without mailbox: %s\n", authpeer->name);
-				return 0;
-			}
+	if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
 
- 			p->subscribed = MWI_NOTIFICATION;
-			if (authpeer->mwipvt && authpeer->mwipvt != p)	/* Destroy old PVT if this is a new one */
-				/* We only allow one subscription per peer */
-				sip_destroy(authpeer->mwipvt);
-			authpeer->mwipvt = p;		/* Link from peer to pvt */
-			p->relatedpeer = authpeer;	/* Link from pvt to peer */
-		} else { /* At this point, Asterisk does not understand the specified event */
+		/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
+		/* Polycom phones only handle xpidf+xml, even if they say they can
+		   handle pidf+xml as well
+		*/
+		if (strstr(p->useragent, "Polycom")) {
+			p->subscribed = XPIDF_XML;
+		} else if (strstr(accept, "application/pidf+xml")) {
+			p->subscribed = PIDF_XML;         /* RFC 3863 format */
+		} else if (strstr(accept, "application/dialog-info+xml")) {
+			p->subscribed = DIALOG_INFO_XML;
+			/* IETF draft: draft-ietf-sipping-dialog-package-05.txt */
+		} else if (strstr(accept, "application/cpim-pidf+xml")) {
+			p->subscribed = CPIM_PIDF_XML;    /* RFC 3863 format */
+		} else if (strstr(accept, "application/xpidf+xml")) {
+			p->subscribed = XPIDF_XML;        /* Early pre-RFC 3863 format with MSN additions (Microsoft Messenger) */
+		} else {
+			/* Can't find a format for events that we know about */
 			transmit_response(p, "489 Bad Event", req);
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
- 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			return 0;
 		}
-		if (p->subscribed != MWI_NOTIFICATION && !resubscribe)
-			p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
+	} else if (!strcmp(event, "message-summary")) { 
+		if (!ast_strlen_zero(accept) && strcmp(accept, "application/simple-message-summary")) {
+			/* Format requested that we do not support */
+			transmit_response(p, "406 Not Acceptable", req);
+			if (option_debug > 1)
+				ast_log(LOG_DEBUG, "Received SIP mailbox subscription for unknown format: %s\n", accept);
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			return 0;
+		}
+		/* Looks like they actually want a mailbox status 
+		  This version of Asterisk supports mailbox subscriptions
+		  The subscribed URI needs to exist in the dial plan
+		  In most devices, this is configurable to the voicemailmain extension you use
+		*/
+		if (!authpeer || ast_strlen_zero(authpeer->mailbox)) {
+			transmit_response(p, "404 Not found (no mailbox)", req);
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			ast_log(LOG_NOTICE, "Received SIP subscribe for peer without mailbox: %s\n", authpeer->name);
+			return 0;
+		}
+
+		p->subscribed = MWI_NOTIFICATION;
+		if (authpeer->mwipvt && authpeer->mwipvt != p)	/* Destroy old PVT if this is a new one */
+			/* We only allow one subscription per peer */
+			sip_destroy(authpeer->mwipvt);
+		authpeer->mwipvt = p;		/* Link from peer to pvt */
+		p->relatedpeer = authpeer;	/* Link from pvt to peer */
+	} else { /* At this point, Asterisk does not understand the specified event */
+		transmit_response(p, "489 Bad Event", req);
+		if (option_debug > 1)
+			ast_log(LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
+		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		return 0;
 	}
+
+	if (p->subscribed != MWI_NOTIFICATION && !resubscribe)
+		p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
 
 	if (!ast_test_flag(req, SIP_PKT_IGNORE) && p)
 		p->lastinvite = seqno;
@@ -14001,48 +13996,47 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				ASTOBJ_UNLOCK(p->relatedpeer);
 			}
 		} else {
+			struct sip_pvt *p_old;
+
 			if ((firststate = ast_extension_state(NULL, p->context, p->exten)) < 0) {
 
 				ast_log(LOG_ERROR, "Got SUBSCRIBE for extension %s@%s from %s, but there is no hint for that extension\n", p->exten, p->context, ast_inet_ntoa(p->sa.sin_addr));
 				transmit_response(p, "404 Not found", req);
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 				return 0;
-			} else {
-				/* XXX reduce nesting here */
-				struct sip_pvt *p_old;
-	
-				transmit_response(p, "200 OK", req);
-				transmit_state_notify(p, firststate, 1);	/* Send first notification */
-				append_history(p, "Subscribestatus", "%s", ast_extension_state2str(firststate));
-				/* hide the 'complete' exten/context in the refer_to field for later display */
-				ast_string_field_build(p, subscribeuri, "%s@%s", p->exten, p->context);
-
-				/* remove any old subscription from this peer for the same exten/context,
-			   	as the peer has obviously forgotten about it and it's wasteful to wait
-			   	for it to expire and send NOTIFY messages to the peer only to have them
-			   	ignored (or generate errors)
-				*/
-				ast_mutex_lock(&iflock);
-				for (p_old = iflist; p_old; p_old = p_old->next) {
-					if (p_old == p)
-						continue;
-					if (p_old->initreq.method != SIP_SUBSCRIBE)
-						continue;
-					if (p_old->subscribed == NONE)
-						continue;
-					ast_mutex_lock(&p_old->lock);
-					if (!strcmp(p_old->username, p->username)) {
-						if (!strcmp(p_old->exten, p->exten) &&
-						    !strcmp(p_old->context, p->context)) {
-							ast_set_flag(&p_old->flags[0], SIP_NEEDDESTROY);
-							ast_mutex_unlock(&p_old->lock);
-							break;
-						}
-					}
-					ast_mutex_unlock(&p_old->lock);
-				}
-				ast_mutex_unlock(&iflock);
 			}
+
+			transmit_response(p, "200 OK", req);
+			transmit_state_notify(p, firststate, 1);	/* Send first notification */
+			append_history(p, "Subscribestatus", "%s", ast_extension_state2str(firststate));
+			/* hide the 'complete' exten/context in the refer_to field for later display */
+			ast_string_field_build(p, subscribeuri, "%s@%s", p->exten, p->context);
+
+			/* remove any old subscription from this peer for the same exten/context,
+			as the peer has obviously forgotten about it and it's wasteful to wait
+			for it to expire and send NOTIFY messages to the peer only to have them
+			ignored (or generate errors)
+			*/
+			ast_mutex_lock(&iflock);
+			for (p_old = iflist; p_old; p_old = p_old->next) {
+				if (p_old == p)
+					continue;
+				if (p_old->initreq.method != SIP_SUBSCRIBE)
+					continue;
+				if (p_old->subscribed == NONE)
+					continue;
+				ast_mutex_lock(&p_old->lock);
+				if (!strcmp(p_old->username, p->username)) {
+					if (!strcmp(p_old->exten, p->exten) &&
+					    !strcmp(p_old->context, p->context)) {
+						ast_set_flag(&p_old->flags[0], SIP_NEEDDESTROY);
+						ast_mutex_unlock(&p_old->lock);
+						break;
+					}
+				}
+				ast_mutex_unlock(&p_old->lock);
+			}
+			ast_mutex_unlock(&iflock);
 		}
 		if (!p->expiry)
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
@@ -15684,10 +15678,6 @@ static int reload_config(enum channelreloadreason reason)
 	/* Reset channel settings to default before re-configuring */
 	allow_external_domains = DEFAULT_ALLOW_EXT_DOM;				/* Allow external invites */
 	global_regcontext[0] = '\0';
-	expiry = DEFAULT_EXPIRY;
-	min_expiry = DEFAULT_MIN_EXPIRY;        /*!< Minimum accepted registration time */
-	max_expiry = DEFAULT_MAX_EXPIRY;        /*!< Maximum accepted registration time */
-	default_expiry = DEFAULT_DEFAULT_EXPIRY;
 	expiry = DEFAULT_EXPIRY;
 	global_notifyringing = DEFAULT_NOTIFYRINGING;
 	global_alwaysauthreject = 0;
