@@ -42,15 +42,15 @@ static real c_b2 = 1.f;
  * Revision 1.15  2004/06/26 03:50:14  markster
  * Merge source cleanups (bug #1911)
  *
-/* Revision 1.14  2003/02/12 13:59:15  matteo
-/* mer feb 12 14:56:57 CET 2003
-/*
-/* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
-/* mer feb 12 14:56:57 CET 2003
-/*
-/* Revision 1.2  2000/01/05 08:20:40  markster
-/* Some OSS fixes and a few lpc changes to make it actually work
-/*
+ * Revision 1.14  2003/02/12 13:59:15  matteo
+ * mer feb 12 14:56:57 CET 2003
+ *
+ * Revision 1.1.1.1  2003/02/12 13:59:15  matteo
+ * mer feb 12 14:56:57 CET 2003
+ *
+ * Revision 1.2  2000/01/05 08:20:40  markster
+ * Some OSS fixes and a few lpc changes to make it actually work
+ *
  * Revision 1.1  1996/08/19  22:30:04  jaf
  * Initial revision
  * */

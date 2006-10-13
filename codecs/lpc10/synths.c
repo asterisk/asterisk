@@ -70,18 +70,18 @@ static real c_b2 = .7f;
  * Revision 1.16  2004/06/26 03:50:14  markster
  * Merge source cleanups (bug #1911)
  *
-/* Revision 1.15  2003/09/27 02:45:37  markster
-/* Fix various compiler warnings (bug #322)
-/*
-/* Revision 1.2  2003/09/27 02:45:37  markster
-/* Fix various compiler warnings (bug #322)
-/*
-/* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
-/* mer feb 12 14:56:57 CET 2003
-/*
-/* Revision 1.2  2000/01/05 08:20:39  markster
-/* Some OSS fixes and a few lpc changes to make it actually work
-/*
+ * Revision 1.15  2003/09/27 02:45:37  markster
+ * Fix various compiler warnings (bug #322)
+ *
+ * Revision 1.2  2003/09/27 02:45:37  markster
+ * Fix various compiler warnings (bug #322)
+ *
+ * Revision 1.1.1.1  2003/02/12 13:59:15  matteo
+ * mer feb 12 14:56:57 CET 2003
+ *
+ * Revision 1.2  2000/01/05 08:20:39  markster
+ * Some OSS fixes and a few lpc changes to make it actually work
+ *
  * Revision 1.2  1996/08/20  20:42:59  jaf
  * Removed all static local variables that were SAVE'd in the Fortran
  * code, and put them in struct lpc10_decoder_state that is passed as an
@@ -196,18 +196,18 @@ static real c_b2 = .7f;
  * Revision 1.16  2004/06/26 03:50:14  markster
  * Merge source cleanups (bug #1911)
  *
-/* Revision 1.15  2003/09/27 02:45:37  markster
-/* Fix various compiler warnings (bug #322)
-/*
-/* Revision 1.2  2003/09/27 02:45:37  markster
-/* Fix various compiler warnings (bug #322)
-/*
-/* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
-/* mer feb 12 14:56:57 CET 2003
-/*
-/* Revision 1.2  2000/01/05 08:20:39  markster
-/* Some OSS fixes and a few lpc changes to make it actually work
-/*
+ * Revision 1.15  2003/09/27 02:45:37  markster
+ * Fix various compiler warnings (bug #322)
+ *
+ * Revision 1.2  2003/09/27 02:45:37  markster
+ * Fix various compiler warnings (bug #322)
+ *
+ * Revision 1.1.1.1  2003/02/12 13:59:15  matteo
+ * mer feb 12 14:56:57 CET 2003
+ *
+ * Revision 1.2  2000/01/05 08:20:39  markster
+ * Some OSS fixes and a few lpc changes to make it actually work
+ *
  * Revision 1.2  1996/08/20  20:42:59  jaf
  * Removed all static local variables that were SAVE'd in the Fortran
  * code, and put them in struct lpc10_decoder_state that is passed as an
@@ -236,18 +236,18 @@ static real c_b2 = .7f;
  * Revision 1.16  2004/06/26 03:50:14  markster
  * Merge source cleanups (bug #1911)
  *
-/* Revision 1.15  2003/09/27 02:45:37  markster
-/* Fix various compiler warnings (bug #322)
-/*
-/* Revision 1.2  2003/09/27 02:45:37  markster
-/* Fix various compiler warnings (bug #322)
-/*
-/* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
-/* mer feb 12 14:56:57 CET 2003
-/*
-/* Revision 1.2  2000/01/05 08:20:39  markster
-/* Some OSS fixes and a few lpc changes to make it actually work
-/*
+ * Revision 1.15  2003/09/27 02:45:37  markster
+ * Fix various compiler warnings (bug #322)
+ *
+ * Revision 1.2  2003/09/27 02:45:37  markster
+ * Fix various compiler warnings (bug #322)
+ *
+ * Revision 1.1.1.1  2003/02/12 13:59:15  matteo
+ * mer feb 12 14:56:57 CET 2003
+ *
+ * Revision 1.2  2000/01/05 08:20:39  markster
+ * Some OSS fixes and a few lpc changes to make it actually work
+ *
  * Revision 1.2  1996/08/20  20:42:59  jaf
  * Removed all static local variables that were SAVE'd in the Fortran
  * code, and put them in struct lpc10_decoder_state that is passed as an
