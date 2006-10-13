@@ -6303,11 +6303,11 @@ static void build_rpid(struct sip_pvt *p)
 		break;
 	case AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN:
 		privacy = "off";
-		screen = "pass";
+		screen = "yes";
 		break;
 	case AST_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN:
 		privacy = "off";
-		screen = "fail";
+		screen = "no";
 		break;
 	case AST_PRES_ALLOWED_NETWORK_NUMBER:
 		privacy = "off";
@@ -6319,15 +6319,15 @@ static void build_rpid(struct sip_pvt *p)
 		break;
 	case AST_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN:
 		privacy = "full";
-		screen = "pass";
+		screen = "yes";
 		break;
 	case AST_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN:
 		privacy = "full";
-		screen = "fail";
+		screen = "no";
 		break;
 	case AST_PRES_PROHIB_NETWORK_NUMBER:
 		privacy = "full";
-		screen = "pass";
+		screen = "yes";
 		break;
 	case AST_PRES_NUMBER_NOT_AVAILABLE:
 		send_pres_tags = FALSE;
