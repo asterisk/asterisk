@@ -268,6 +268,12 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	ast_mutex_init(&csth.spy.lock);
 	csth.volfactor = *volfactor;
 	set_volume(chan, &csth);
+	if (csth.volfactor) {
+		ast_set_flag(&csth.spy, CHANSPY_READ_VOLADJUST);
+		csth.spy.read_vol_adjustment = csth.volfactor;
+		ast_set_flag(&csth.spy, CHANSPY_WRITE_VOLADJUST);
+		csth.spy.write_vol_adjustment = csth.volfactor;
+	}
 	csth.fd = fd;
 	
 	if (start_spying(spyee, chan, &csth.spy)) {
@@ -359,6 +365,15 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 				ast_verbose(VERBOSE_PREFIX_3 "Setting spy volume on %s to %d\n", chan->name, *volfactor);
 			csth.volfactor = *volfactor;
 			set_volume(chan, &csth);
+			if (csth.volfactor) {
+				ast_set_flag(&csth.spy, CHANSPY_READ_VOLADJUST);
+				csth.spy.read_vol_adjustment = csth.volfactor;
+				ast_set_flag(&csth.spy, CHANSPY_WRITE_VOLADJUST);
+				csth.spy.write_vol_adjustment = csth.volfactor;
+			} else {
+				ast_clear_flag(&csth.spy, CHANSPY_READ_VOLADJUST);
+				ast_clear_flag(&csth.spy, CHANSPY_WRITE_VOLADJUST);
+			}
 		} else if (res >= '0' && res <= '9') {
 			inp[x++] = res;
 		}
