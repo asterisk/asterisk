@@ -235,8 +235,12 @@ struct ast_speech *ast_speech_new(char *engine_name, int format)
 	/* We are not ready to accept audio yet */
 	ast_speech_change_state(new_speech, AST_SPEECH_STATE_NOT_READY);
 
-	/* Pass ourselves to the engine so they can set us up some more */
-	engine->new(new_speech);
+	/* Pass ourselves to the engine so they can set us up some more and if they error out then do not create a structure */
+	if (engine->new(new_speech)) {
+		ast_mutex_destroy(&new_speech->lock);
+		free(new_speech);
+		new_speech = NULL;
+	}
 
 	return new_speech;
 }
