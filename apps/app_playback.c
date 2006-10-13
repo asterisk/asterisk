@@ -156,6 +156,9 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 	if (depth++ > 10) {
 		ast_log(LOG_WARNING, "recursion too deep, exiting\n");
 		return -1;
+	} else if (!say_cfg) {
+		ast_log(LOG_WARNING, "no say.conf, cannot spell '%s'\n", s);
+		return -1;
 	}
 
 	/* scan languages same as in file.c */
@@ -253,11 +256,6 @@ static int say_full(struct ast_channel *chan, const char *string,
         int audiofd, int ctrlfd)
 {
         say_args_t a = { chan, ints, lang, audiofd, ctrlfd };
-  
-        if (!say_cfg) {
-                ast_log(LOG_WARNING, "no say.conf, cannot spell '%s'\n", string);
-                return -1;   
-        }
         return do_say(&a, string, options, 0);
 }
 
