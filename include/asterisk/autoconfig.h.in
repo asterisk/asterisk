@@ -169,6 +169,12 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define if your system has the IP_MTU_DISCOVER headers. */
+#undef HAVE_IP_MTU_DISCOVER
+
+/* Define IP_MTU_DISCOVER headers version */
+#undef HAVE_IP_MTU_DISCOVER_VERSION
+
 /* Define to 1 if you have the `isascii' function. */
 #undef HAVE_ISASCII
 
