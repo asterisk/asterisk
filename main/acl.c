@@ -173,12 +173,12 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 		} else if (!inet_aton(nm, &ha->netmask)) {
 			ast_log(LOG_WARNING, "%s is not a valid netmask\n", nm);
 			free(ha);
-			return path;
+			return ret;
 		}
 		if (!inet_aton(tmp, &ha->netaddr)) {
 			ast_log(LOG_WARNING, "%s is not a valid IP\n", tmp);
 			free(ha);
-			return path;
+			return ret;
 		}
 		ha->netaddr.s_addr &= ha->netmask.s_addr;
 		if (!strncasecmp(sense, "p", 1)) {
