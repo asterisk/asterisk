@@ -4401,9 +4401,9 @@ static void parse_request(struct sip_request *req)
 		else if (*c == '\n') { /* end of this line */
 			*c = '\0';
 			if (sipdebug && option_debug > 3)
-				ast_log(LOG_DEBUG, "%7s %2d [%3zd]: %s\n",
+				ast_log(LOG_DEBUG, "%7s %2d [%3d]: %s\n",
 					req->headers < 0 ? "Header" : "Body",
-					i, strlen(dst[i]), dst[i]);
+					i, (int)strlen(dst[i]), dst[i]);
 			if (ast_strlen_zero(dst[i]) && req->headers < 0) {
 				req->headers = i;	/* record number of header lines */
 				dst = req->line;	/* start working on the body */
