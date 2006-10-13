@@ -455,6 +455,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 						       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
 						       OPT_CALLEE_PARK | OPT_CALLER_PARK |
 						       DIAL_NOFORWARDHTML);
+					ast_copy_string(c->context, "", sizeof(c->context));
+					ast_copy_string(c->exten, "", sizeof(c->exten));
 				}
 				continue;
 			}
@@ -574,6 +576,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 							       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
 							       OPT_CALLEE_PARK | OPT_CALLER_PARK |
 							       DIAL_NOFORWARDHTML);
+						ast_copy_string(c->context, "", sizeof(c->context));
+						ast_copy_string(c->exten, "", sizeof(c->exten));
 						/* Setup early bridge if appropriate */
 						ast_channel_early_bridge(in, peer);
 					}
@@ -1168,6 +1172,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		/* If we have an outbound group, set this peer channel to it */
 		if (outbound_group)
 			ast_app_group_set_channel(tmp->chan, outbound_group);
+
+		/* Inherit context and extension */
+		ast_copy_string(tmp->chan->context, chan->context, sizeof(tmp->chan->context));
+		ast_copy_string(tmp->chan->exten, chan->exten, sizeof(tmp->chan->exten));
 
 		/* Place the call, but don't wait on the answer */
 		res = ast_call(tmp->chan, numsubst, 0);
