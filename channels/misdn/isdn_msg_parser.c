@@ -753,8 +753,9 @@ static void parse_disconnect (struct isdn_msg msgs[], msg_t *msg, struct misdn_b
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	DISCONNECT_t *disconnect=(DISCONNECT_t*)((unsigned long)(msg->data+HEADER_LEN));
 	int location;
-  
-	dec_ie_cause(disconnect->CAUSE, (Q931_info_t *)(disconnect), &location, &bc->cause, nt,bc);
+ 	int cause; 
+	dec_ie_cause(disconnect->CAUSE, (Q931_info_t *)(disconnect), &location, &cause, nt,bc);
+	if (cause>0) bc->cause=cause;
 
 	dec_ie_progress(disconnect->PROGRESS, (Q931_info_t *)disconnect, &bc->progress_coding, &bc->progress_location, &bc->progress_indicator, nt, bc);
 #if DEBUG 
@@ -823,8 +824,10 @@ static void parse_release (struct isdn_msg msgs[], msg_t *msg, struct misdn_bcha
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RELEASE_t *release=(RELEASE_t*)((unsigned long)(msg->data+HEADER_LEN));
 	int location;
+	int cause;
   
-	dec_ie_cause(release->CAUSE, (Q931_info_t *)(release), &location, &bc->cause, nt,bc);
+	dec_ie_cause(release->CAUSE, (Q931_info_t *)(release), &location, &cause, nt,bc);
+	if (cause>0) bc->cause=cause;
 #if DEBUG 
 	printf("Parsing RELEASE Msg\n"); 
 #endif
@@ -854,6 +857,7 @@ static void parse_release_complete (struct isdn_msg msgs[], msg_t *msg, struct m
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RELEASE_COMPLETE_t *release_complete=(RELEASE_COMPLETE_t*)((unsigned long)(msg->data+HEADER_LEN));
 	int location;
+	int cause;
 	iframe_t *frm = (iframe_t*) msg->data;
 
 	struct misdn_stack *stack=get_stack_by_bc(bc);
@@ -874,7 +878,8 @@ static void parse_release_complete (struct isdn_msg msgs[], msg_t *msg, struct m
 			return;
 		}
 	}
-	dec_ie_cause(release_complete->CAUSE, (Q931_info_t *)(release_complete), &location, &bc->cause, nt,bc);
+	dec_ie_cause(release_complete->CAUSE, (Q931_info_t *)(release_complete), &location, &cause, nt,bc);
+	if (cause>0) bc->cause=cause;
 
 #if DEBUG 
 	printf("Parsing RELEASE_COMPLETE Msg\n"); 
@@ -1050,8 +1055,10 @@ static void parse_status (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchan
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	STATUS_t *status=(STATUS_t*)((unsigned long)(msg->data+HEADER_LEN));
 	int location;
+	int cause;
   
-	dec_ie_cause(status->CAUSE, (Q931_info_t *)(status), &location, &bc->cause, nt,bc);
+	dec_ie_cause(status->CAUSE, (Q931_info_t *)(status), &location, &cause, nt,bc);
+	if (cause>0) bc->cause=cause;
 	;
 
 #if DEBUG 
