@@ -44,21 +44,21 @@ extern int placea_(integer *ipitch, integer *voibuf, integer *obound, integer *a
  * Revision 1.16  2004/06/26 03:50:14  markster
  * Merge source cleanups (bug #1911)
  *
-/* Revision 1.15  2003/09/19 01:20:22  markster
-/* Code cleanups (bug #66)
-/*
-/* Revision 1.2  2003/09/19 01:20:22  markster
-/* Code cleanups (bug #66)
-/*
-/* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
-/* mer feb 12 14:56:57 CET 2003
-/*
-/* Revision 1.3  2001/04/12 21:27:53  markh
-/* app_record now supports wildcards of sort so your output file is not overwritten every time it's run.  File.h got a documentation update on the ast_fileexists to include the return call.  Watch out for the placea.c placev.c code, it's updates have not been tested yet.  Just a few parenthesis to make it compile nicer on newer gcc versions with all the -W flags set.
-/*
-/* Revision 1.2  2000/01/05 08:20:39  markster
-/* Some OSS fixes and a few lpc changes to make it actually work
-/*
+ * Revision 1.15  2003/09/19 01:20:22  markster
+ * Code cleanups (bug #66)
+ *
+ * Revision 1.2  2003/09/19 01:20:22  markster
+ * Code cleanups (bug #66)
+ *
+ * Revision 1.1.1.1  2003/02/12 13:59:15  matteo
+ * mer feb 12 14:56:57 CET 2003
+ *
+ * Revision 1.3  2001/04/12 21:27:53  markh
+ * app_record now supports wildcards of sort so your output file is not overwritten every time it's run.  File.h got a documentation update on the ast_fileexists to include the return call.  Watch out for the placea.c placev.c code, it's updates have not been tested yet.  Just a few parenthesis to make it compile nicer on newer gcc versions with all the -W flags set.
+ *
+ * Revision 1.2  2000/01/05 08:20:39  markster
+ * Some OSS fixes and a few lpc changes to make it actually work
+ *
  * Revision 1.1  1996/08/19  22:31:07  jaf
  * Initial revision
  * */
