@@ -3202,6 +3202,8 @@ static struct chan_list *find_holded_l3(struct chan_list *list, unsigned long l3
 			) 
 			return help;
 	}
+
+	return NULL;
 }
 
 static void cl_queue_chan(struct chan_list **list, struct chan_list *chan)
