@@ -4231,7 +4231,7 @@ void manager_ec_disable(struct misdn_bchannel *bc)
 		return;
 	}
 
-	if ( bc->ec_enable) {
+	if ( ! bc->ec_enable) {
 		cb_log(1, stack?stack->port:0, "Sending Control ECHOCAN_OFF\n");
 		manager_ph_control(bc,  ECHOCAN_OFF, 0);
 	}
