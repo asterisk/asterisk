@@ -159,6 +159,7 @@ void ast_speech_start(struct ast_speech *speech)
 
 	/* Clear any flags that may affect things */
 	ast_clear_flag(speech, AST_SPEECH_SPOKE);
+	ast_clear_flag(speech, AST_SPEECH_QUIET);
 
 	/* If results are on the structure, free them since we are starting again */
 	if (speech->results != NULL) {
