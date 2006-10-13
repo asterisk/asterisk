@@ -987,10 +987,10 @@ int ast_dynamic_str_thread_build_va(struct ast_dynamic_str **buf, size_t max_len
 
 void ast_enable_packet_fragmentation(int sock)
 {
-#ifdef __linux__
+#if defined(HAVE_IP_MTU_DISCOVER)
 	int val = IP_PMTUDISC_DONT;
 	
 	if (setsockopt(sock, IPPROTO_IP, IP_MTU_DISCOVER, &val, sizeof(val)))
 		ast_log(LOG_WARNING, "Unable to disable PMTU discovery. Large UDP packets may fail to be delivered when sent from this socket.\n");
-#endif
+#endif /* HAVE_IP_MTU_DISCOVER */
 }
