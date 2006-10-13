@@ -2664,7 +2664,6 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 	carr[0]=c0;
 	carr[1]=c1;
   
-  
 	if (ch1 && ch2 ) ;
 	else
 		return -1;
@@ -2688,7 +2687,6 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 			ch2->bc->ec_enable=0;
 			manager_ec_disable(ch2->bc); 
 		}
-		
 		/* trying to make a mISDN_dsp conference */
 		chan_misdn_log(1, ch1->bc->port, "I SEND: Making conference with Number:%d\n", ch1->bc->pid +1);
 
@@ -2738,7 +2736,11 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 			break;
 		}
 		
-		
+		if (f->frametype == AST_FRAME_VOICE) {
+			chan_misdn_log(1,0,"Got Voice frame in Bridged state..\n");
+			continue;
+		}
+
 		if (who == c0) {
 			ast_write(c1,f);
 		}
