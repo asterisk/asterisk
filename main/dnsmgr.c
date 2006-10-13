@@ -212,7 +212,7 @@ static void *do_refresh(void *data)
 {
 	for (;;) {
 		pthread_testcancel();
-		usleep(ast_sched_wait(sched));
+		usleep((ast_sched_wait(sched)*1000));
 		pthread_testcancel();
 		ast_sched_runq(sched);
 	}
@@ -389,16 +389,16 @@ static int do_reload(int loading)
 
 	/* if this reload enabled the manager, create the background thread
 	   if it does not exist */
-	if (enabled && !was_enabled && (refresh_thread == AST_PTHREADT_NULL)) {
-		if (ast_pthread_create_background(&refresh_thread, NULL, do_refresh, NULL) < 0) {
-			ast_log(LOG_ERROR, "Unable to start refresh thread.\n");
-		}
-		else {
+	if (enabled) {
+		if (!was_enabled && (refresh_thread == AST_PTHREADT_NULL)) {
+			if (ast_pthread_create_background(&refresh_thread, NULL, do_refresh, NULL) < 0) {
+				ast_log(LOG_ERROR, "Unable to start refresh thread.\n");
+			}
 			ast_cli_register(&cli_refresh);
-			/* make a background refresh happen right away */
-			refresh_sched = ast_sched_add_variable(sched, 100, refresh_list, &master_refresh_info, 1);
-			res = 0;
 		}
+		/* make a background refresh happen right away */
+		refresh_sched = ast_sched_add_variable(sched, 100, refresh_list, &master_refresh_info, 1);
+		res = 0;
 	}
 	/* if this reload disabled the manager and there is a background thread,
 	   kill it */
