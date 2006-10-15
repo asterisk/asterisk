@@ -344,7 +344,7 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 		*status = 302;
 		*title = strdup("Moved Temporarily");
 	} else {
-		c = ast_http_error(404, "Not Found", NULL, "The requested URL was not found on this serer.");
+		c = ast_http_error(404, "Not Found", NULL, "The requested URL was not found on this server.");
 		*status = 404;
 		*title = strdup("Not Found");
 	}
