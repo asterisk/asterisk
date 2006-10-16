@@ -89,7 +89,7 @@ struct eventqent {
 	int usecount;
 	int category;
 	struct eventqent *next;
-	char eventdata[1];
+	char eventdata[1];	/* really variable size, allocated by append_event() */
 };
 
 static int enabled = 0;
@@ -105,6 +105,10 @@ static int num_sessions = 0;
 
 /* Protected by the sessions list lock */
 struct eventqent *master_eventq = NULL;
+/*
+ * XXX for some unclear reasons, we make sure master_eventq always
+ * has one event in it (Placeholder) in init_manager().
+ */
 
 AST_THREADSTORAGE(manager_event_buf, manager_event_buf_init);
 #define MANAGER_EVENT_BUF_INITSIZE   256
@@ -557,7 +561,7 @@ static int handle_showmanconn(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief CLI command show manager connected */
+/*! \brief CLI command manager list eventq */
 /* Should change to "manager show connected" */
 static int handle_showmaneventq(int fd, int argc, char *argv[])
 {
@@ -641,9 +645,8 @@ static void free_session(struct mansession *s)
 	if (s->outputstr)
 		free(s->outputstr);
 	ast_mutex_destroy(&s->__lock);
-	while (s->eventq) {
-		eqe = s->eventq;
-		s->eventq = s->eventq->next;
+	while ( (eqe = s->eventq) ) {
+		s->eventq = eqe->next;
 		unuse_eventqent(eqe);
 	}
 	free(s);
@@ -661,14 +664,12 @@ static void destroy_session(struct mansession *s)
 
 char *astman_get_header(struct message *m, char *var)
 {
-	char cmp[80];
-	int x;
-
-	snprintf(cmp, sizeof(cmp), "%s: ", var);
+	int x, l = strlen(var);
 
 	for (x = 0; x < m->hdrcount; x++) {
-		if (!strncasecmp(cmp, m->headers[x], strlen(cmp)))
-			return m->headers[x] + strlen(cmp);
+		char *h = m->headers[x];
+		if (!strncasecmp(var, h, l) && h[l] == ':' && h[l+1] == ' ')
+			return h + l + 2;
 	}
 
 	return "";
@@ -1845,15 +1846,16 @@ static int action_timeout(struct mansession *s, struct message *m)
 
 static int process_events(struct mansession *s)
 {
-	struct eventqent *eqe;
 	int ret = 0;
+
 	ast_mutex_lock(&s->__lock);
 	if (s->fd > -1) {
+		struct eventqent *eqe;
+
 		s->busy--;
 		if (!s->eventq)
 			s->eventq = master_eventq;
-		while(s->eventq->next) {
-			eqe = s->eventq->next;
+		while( (eqe = s->eventq->next) ) {
 			if ((s->authenticated && (s->readperm & eqe->category) == eqe->category) &&
 			    ((s->send_events & eqe->category) == eqe->category)) {
 				if (!ret && ast_carefulwrite(s->fd, eqe->eventdata, strlen(eqe->eventdata), s->writetimeout) < 0)
@@ -2110,7 +2112,7 @@ static void *accept_thread(void *ignore)
 		AST_LIST_TRAVERSE_SAFE_END
 		/* Purge master event queue of old, unused events, but make sure we
 		   always keep at least one in the queue */
-		eqe = master_eventq;
+		/* XXX why do we need one entry in the queue ? */
 		while (master_eventq->next && !master_eventq->usecount) {
 			eqe = master_eventq;
 			master_eventq = master_eventq->next;
