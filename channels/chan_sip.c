@@ -536,8 +536,6 @@ static enum transfermodes global_allowtransfer;	/*!< SIP Refer restriction schem
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
 static int noncodeccapability = AST_RTP_DTMF;
 
-static int global_ignoreoodresponses = 1;
-
 /* Object counters */
 static int suserobjs = 0;                /*!< Static users */
 static int ruserobjs = 0;                /*!< Realtime users */
@@ -4260,8 +4258,8 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	}
 	ast_mutex_unlock(&iflock);
 
-	/* If this is a response and we have ignoring of out of dialog responses turned on, then drop it */
-	if (req->method == SIP_RESPONSE && global_ignoreoodresponses)
+	/* Responses can not create a pvt structure so drop it */
+	if (req->method == SIP_RESPONSE)
 		return NULL;
 
 	/* Allocate new call */
@@ -9993,7 +9991,6 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Allow subscriptions:    %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE) ? "Yes" : "No");
 	ast_cli(fd, "  Allow overlap dialing:  %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP) ? "Yes" : "No");
 	ast_cli(fd, "  Promsic. redir:         %s\n", ast_test_flag(&global_flags[0], SIP_PROMISCREDIR) ? "Yes" : "No");
-	ast_cli(fd, "  Drop misc responses:    %s\n", global_ignoreoodresponses ? "Yes" : "No");
 	ast_cli(fd, "  SIP domain support:     %s\n", AST_LIST_EMPTY(&domain_list) ? "No" : "Yes");
 	ast_cli(fd, "  Call to non-local dom.: %s\n", allow_external_domains ? "Yes" : "No");
 	ast_cli(fd, "  URI user is phone no:   %s\n", ast_test_flag(&global_flags[0], SIP_USEREQPHONE) ? "Yes" : "No");
@@ -14977,11 +14974,6 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "rfc2833compensate")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_RFC2833_COMPENSATE);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_RFC2833_COMPENSATE);
-	} else if (!strcasecmp(v->name, "ignoreoodresponses")) {
-		if (ast_true(v->value))
-			global_ignoreoodresponses = 1;
-		else
-			global_ignoreoodresponses = 0;
 	}
 
 	return res;
@@ -15671,7 +15663,6 @@ static int reload_config(enum channelreloadreason reason)
 	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE);	/* Default for peers, users: TRUE */
 	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP);		/* Default for peers, users: TRUE */
 	ast_set_flag(&global_flags[1], SIP_PAGE2_RTUPDATE);
-	global_ignoreoodresponses = 1;
 
 	/* Initialize some reasonable defaults at SIP reload (used both for channel and as default for peers and users */
 	ast_copy_string(default_context, DEFAULT_CONTEXT, sizeof(default_context));
