@@ -68,8 +68,9 @@ static struct ast_http_uri *uris;
 
 static int httpfd = -1;
 static pthread_t master = AST_PTHREADT_NULL;
+
+/* all valid URIs must be prepended by the string in prefix. */
 static char prefix[MAX_PREFIX];
-static int prefix_len = 0;
 static struct sockaddr_in oldsin;
 static int enablestatic=0;
 
@@ -239,14 +240,23 @@ char *ast_http_error(int status, const char *title, const char *extra_header, co
 	return c;
 }
 
+/*! \brief 
+ * Link the new uri into the list. They are sorted by length of
+ * the string, not alphabetically. Duplicate entries are not replaced,
+ * but the insertion order (using <= and not just <) makes sure that
+ * more recent insertions hide older ones.
+ * On a lookup, we just scan the list and stop at the first matching entry.
+ */
 int ast_http_uri_link(struct ast_http_uri *urih)
 {
 	struct ast_http_uri *prev=uris;
-	if (!uris || strlen(uris->uri) <= strlen(urih->uri)) {
+	int len = strlen(urih->uri);
+
+	if (!uris || strlen(uris->uri) <= len ) {
 		urih->next = uris;
 		uris = urih;
 	} else {
-		while (prev->next && (strlen(prev->next->uri) > strlen(urih->uri)))
+		while (prev->next && strlen(prev->next->uri) > len)
 			prev = prev->next;
 		/* Insert it here */
 		urih->next = prev->next;
@@ -275,17 +285,16 @@ void ast_http_uri_unlink(struct ast_http_uri *urih)
 static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **title, int *contentlength, struct ast_variable **cookies)
 {
 	char *c;
-	char *turi;
 	char *params;
-	char *var;
-	char *val;
 	struct ast_http_uri *urih=NULL;
-	int len;
+	int prefix_len;
 	struct ast_variable *vars=NULL, *v, *prev = NULL;
-	
-	
+
+	/* Extract arguments from the request and store them in variables. */
 	params = strchr(uri, '?');
 	if (params) {
+		char *var, *val;
+
 		*params++ = '\0';
 		while ((var = strsep(&params, "&"))) {
 			val = strchr(var, '=');
@@ -304,32 +313,35 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 			}
 		}
 	}
+	/*
+	 * Append the cookies to the variables (the only reason to have them
+	 * at the end is to avoid another pass of the cookies list to find
+	 * the tail.
+	 */
 	if (prev)
 		prev->next = *cookies;
 	else
 		vars = *cookies;
 	*cookies = NULL;
 	ast_uri_decode(uri);
-	if (!strncasecmp(uri, prefix, prefix_len)) {
-		uri += prefix_len;
-		if (!*uri || (*uri == '/')) {
-			if (*uri == '/')
-				uri++;
-			urih = uris;
-			while(urih) {
-				len = strlen(urih->uri);
-				if (!strncasecmp(urih->uri, uri, len)) {
-					if (!uri[len] || uri[len] == '/') {
-						turi = uri + len;
-						if (*turi == '/')
-							turi++;
-						if (!*turi || urih->has_subtree) {
-							uri = turi;
-							break;
-						}
+
+	/* We want requests to start with the prefix and '/' */
+	prefix_len = strlen(prefix);
+	if (prefix_len && !strncasecmp(uri, prefix, prefix_len) && uri[prefix_len] == '/') {
+		uri += prefix_len + 1;
+		/* scan registered uris to see if we match one. */
+		for (urih = uris; urih; urih = urih->next) {
+			int len = strlen(urih->uri);
+			if (!strncasecmp(urih->uri, uri, len)) {
+				if (!uri[len] || uri[len] == '/') {
+					char *turi = uri + len;	/* possible candidate */
+					if (*turi == '/')
+						turi++;
+					if (!*turi || urih->has_subtree) {
+						uri = turi;
+						break;
 					}
 				}
-				urih = urih->next;
 			}
 		}
 	}
@@ -639,10 +651,8 @@ static int __ast_http_load(int reload)
 	}
 	if (enabled)
 		sin.sin_family = AF_INET;
-	if (strcmp(prefix, newprefix)) {
+	if (strcmp(prefix, newprefix))
 		ast_copy_string(prefix, newprefix, sizeof(prefix));
-		prefix_len = strlen(prefix);
-	}
 	enablestatic = newenablestatic;
 	http_server_start(&sin);
 	return 0;
