@@ -7746,7 +7746,6 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 	char *c;
 	int  wrongnonce = FALSE;
 	int  good_response;
-	int code;
 	const char *usednonce = p->randdata;
 
 	/* table of recognised keywords, and their value in the digest */
@@ -7765,21 +7764,16 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 	/* Always OK if no secret */
 	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret))
 		return AUTH_SUCCESSFUL;
-	if (sipmethod == SIP_REGISTER || sipmethod == SIP_SUBSCRIBE) {
-		/* On a REGISTER, we have to use 401 and its family of headers
-		 * instead of 407 and its family of headers.
-		 */
-		code = WWW_AUTH;
-		response = "401 Unauthorized";
-	} else {
-		code = PROXY_AUTH;
-		response = "407 Proxy Authentication Required";
-	}
+
+	/* Always auth with WWW-auth since we're NOT a proxy */
+	/* Using proxy-auth in a B2BUA may block proxy authorization in the same transaction */
+	response = "401 Unauthorized";
+
 	/*
 	 * Note the apparent swap of arguments below, compared to other
 	 * usages of auth_headers().
 	 */
-	auth_headers(code, &respheader, &reqheader);
+	auth_headers(WWW_AUTH, &respheader, &reqheader);
 
 	authtoken =  get_header(req, reqheader);	
 	if (ignore && !ast_strlen_zero(p->randdata) && ast_strlen_zero(authtoken)) {
