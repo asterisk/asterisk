@@ -11548,10 +11548,8 @@ static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struc
 	char *auth2 = "Proxy-Authorization";
 
 	/* If no refer structure exists, then do nothing */
-	if (!p->refer) {
-		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+	if (!p->refer)
 		return;
-	}
 
 	switch (resp) {
 	case 202:   /* Transfer accepted */
