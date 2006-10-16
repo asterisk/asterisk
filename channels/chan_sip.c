@@ -1252,6 +1252,7 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_
 				char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
 				int debug);
 static int add_sdp(struct sip_request *resp, struct sip_pvt *p);
+static void do_setnat(struct sip_pvt *p, int natflags);
 
 /*--- Authentication stuff */
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod, char *digest, int digest_len);
