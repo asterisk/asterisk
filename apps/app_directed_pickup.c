@@ -51,103 +51,114 @@ static const char *descrip =
 "  Pickup(extension[@context][&extension2@context...]): This application can pickup any ringing channel\n"
 "that is calling the specified extension. If no context is specified, the current\n"
 "context will be used. If you use the special string \"PICKUPMARK\" for the context parameter, for example\n"
-"10@PICKUPMARK, this application tries to find a channel which has defined a channel variable with the same context\n"
+"10@PICKUPMARK, this application tries to find a channel which has defined a channel variable with the same content\n"
 "as \"extension\".";
 
+/* Perform actual pickup between two channels */
+static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
+{
+	int res = 0;
 
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Call pickup on '%s' by '%s'\n", target->name, chan->name);
+
+	if ((res = ast_answer(chan))) {
+		ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
+		return -1;
+	}
+
+	if ((res = ast_queue_control(chan, AST_CONTROL_ANSWER))) {
+		ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
+		return -1;
+	}
+
+	if ((res = ast_channel_masquerade(target, chan))) {
+		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, target->name);
+		return -1;
+	}
+
+	return res;
+}
+
+/* Helper function that determines whether a channel is capable of being picked up */
+static int can_pickup(struct ast_channel *chan)
+{
+	if (!chan->pbx && (chan->_state == AST_STATE_RINGING || chan->_state == AST_STATE_RING))
+		return 1;
+	else
+		return 0;
+}
+
+/* Attempt to pick up specified extension with context */
+static int pickup_by_exten(struct ast_channel *chan, char *exten, char *context)
+{
+	int res = -1;
+	struct ast_channel *target = NULL;
+
+	while ((target = ast_channel_walk_locked(target))) {
+		if (!strcasecmp(target->exten, exten) &&
+		    !strcasecmp(target->context, context) &&
+		    can_pickup(target)) {
+			res = pickup_do(chan, target);
+			ast_channel_unlock(target);
+			break;
+		}
+		ast_channel_unlock(target);
+	}
+
+	return res;
+}
+
+/* Attempt to pick up specified mark */
+static int pickup_by_mark(struct ast_channel *chan, char *mark)
+{
+	int res = -1;
+	const char *tmp = NULL;
+	struct ast_channel *target = NULL;
+
+	while ((target = ast_channel_walk_locked(target))) {
+		if ((tmp = pbx_builtin_getvar_helper(target, PICKUPMARK)) &&
+		    !strcasecmp(tmp, mark) &&
+		    can_pickup(target)) {
+			res = pickup_do(chan, target);
+			ast_channel_unlock(target);
+			break;
+		}
+		ast_channel_unlock(target);
+	}
+
+	return res;
+}
+
+/* Main application entry point */
 static int pickup_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct ast_module_user *u = NULL;
-	struct ast_channel *origin = NULL, *target = NULL;
-	char *tmp = NULL, *exten = NULL, *context = NULL, *rest=data;
-	char workspace[256] = "";
-	const char *tmp2 = NULL;
+	char *tmp = ast_strdupa(data);
+	char *exten = NULL, *context = NULL;
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Pickup requires an argument (extension) !\n");
+		ast_log(LOG_WARNING, "Pickup requires an argument (extension)!\n");
 		return -1;	
 	}
 
 	u = ast_module_user_add(chan);
 	
-	while (!target && (exten = rest) ) {
-		res = 0;
-		rest = strchr(exten, '&');
-		if (rest)
-			*rest++ = 0;
-
-		/* Get the extension and context if present */
-		context = strchr(exten, '@');
-		if (context)
+	/* Parse extension (and context if there) */
+	while (!ast_strlen_zero(tmp) && (exten = strsep(&tmp, "&"))) {
+		if ((context = strchr(exten, '@')))
 			*context++ = '\0';
-
-		/* If the context is the pickup mark, iterate through all channels finding the right origin one */
-		if (context && !strcmp(context, PICKUPMARK)) {
-			while ((origin = ast_channel_walk_locked(origin))) {
-				if (origin) {
-					tmp2 = pbx_builtin_getvar_helper(origin, PICKUPMARK);
-					if (tmp2 && !strcmp(tmp2, exten))
-						break;
-					ast_mutex_unlock(&origin->lock);
-				}
-			}
-		} else {
-			/* Use the classic mode of searching */
-			origin = ast_get_channel_by_exten_locked(exten, context);
-		}
-
-		if (origin) {
-			ast_cdr_getvar(origin->cdr, "dstchannel", &tmp, workspace,
-					sizeof(workspace), 0, 0);
-			if (tmp) {
-				/* We have a possible channel... now we need to find it! */
-				target = ast_get_channel_by_name_locked(tmp);
-			} else {
-				ast_log(LOG_NOTICE, "No target channel found for %s.\n", exten);
-				res = -1;
-			}
-			ast_mutex_unlock(&origin->lock);
-
-		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "No originating channel found.\n");
-		}
-
-		if (res)
-			continue;
-
-		if (target && (!target->pbx) && ((target->_state == AST_STATE_RINGING) || (target->_state == AST_STATE_RING) ) ) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n", target->name,
-					chan->name);
-			res = ast_answer(chan);
-			if (res) {
-				ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
-				res = -1;
+		if (context && !strcasecmp(context, PICKUPMARK)) {
+			if (!pickup_by_mark(chan, exten))
 				break;
-			}
-			res = ast_queue_control(chan, AST_CONTROL_ANSWER);
-			if (res) {
-				ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n",
-						chan->name);
-				res = -1;
-				break;
-			}
-			res = ast_channel_masquerade(target, chan);
-			if (res) {
-				ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, target->name);
-				res = -1;
-				break;
-			}
 		} else {
-			ast_log(LOG_NOTICE, "No call pickup possible for %s...\n", exten);
-			res = -1;
+			if (!pickup_by_exten(chan, exten, context ? context : chan->context))
+				break;
 		}
+		ast_log(LOG_NOTICE, "No target channel found for %s.\n", exten);
 	}
-	if (target) 
-		ast_mutex_unlock(&target->lock);
-	
+
 	ast_module_user_remove(u);
 
 	return res;
