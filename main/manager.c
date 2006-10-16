@@ -220,12 +220,12 @@ static char *authority_to_str(int authority, char *res, int reslen)
 static char *complete_show_mancmd(const char *line, const char *word, int pos, int state)
 {
 	struct manager_action *cur;
-	int which = 0;
+	int l = strlen(word), which = 0;
 	char *ret = NULL;
 
 	ast_mutex_lock(&actionlock);
 	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
-		if (!strncasecmp(word, cur->action, strlen(word)) && ++which > state) {
+		if (!strncasecmp(word, cur->action, l) && ++which > state) {
 			ret = ast_strdup(cur->action);
 			break;	/* make sure we exit even if ast_strdup() returns NULL */
 		}
@@ -430,7 +430,7 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 
 static int handle_showmancmd(int fd, int argc, char *argv[])
 {
-	struct manager_action *cur = first_action;
+	struct manager_action *cur;
 	char authority[80];
 	int num;
 
@@ -438,7 +438,7 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	ast_mutex_lock(&actionlock);
-	for (; cur; cur = cur->next) { /* Walk the list of actions */
+	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
 		for (num = 3; num < argc; num++) {
 			if (!strcasecmp(cur->action, argv[num])) {
 				ast_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n", cur->action, cur->synopsis, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->description ? cur->description : "");
@@ -525,7 +525,7 @@ static int handle_showmanagers(int fd, int argc, char *argv[])
 	Should change to "manager show commands" */
 static int handle_showmancmds(int fd, int argc, char *argv[])
 {
-	struct manager_action *cur = first_action;
+	struct manager_action *cur;
 	char authority[80];
 	char *format = "  %-15.15s  %-15.15s  %-55.55s\n";
 
@@ -533,7 +533,7 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 	ast_cli(fd, format, "------", "---------", "--------");
 	
 	ast_mutex_lock(&actionlock);
-	for (; cur; cur = cur->next) /* Walk the list of actions */
+	for (cur = first_action; cur; cur = cur->next) /* Walk the list of actions */
 		ast_cli(fd, format, cur->action, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->synopsis);
 	ast_mutex_unlock(&actionlock);
 	
@@ -1202,7 +1202,7 @@ static char mandescr_listcommands[] =
 
 static int action_listcommands(struct mansession *s, struct message *m)
 {
-	struct manager_action *cur = first_action;
+	struct manager_action *cur;
 	char idText[256] = "";
 	char temp[BUFSIZ];
 	char *id = astman_get_header(m,"ActionID");
@@ -1211,10 +1211,9 @@ static int action_listcommands(struct mansession *s, struct message *m)
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	astman_append(s, "Response: Success\r\n%s", idText);
 	ast_mutex_lock(&actionlock);
-	while (cur) { /* Walk the list of actions */
+	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
 		if ((s->writeperm & cur->authority) == cur->authority)
 			astman_append(s, "%s: %s (Priv: %s)\r\n", cur->action, cur->synopsis, authority_to_str(cur->authority, temp, sizeof(temp)));
-		cur = cur->next;
 	}
 	ast_mutex_unlock(&actionlock);
 	astman_append(s, "\r\n");
@@ -1896,7 +1895,6 @@ static int action_userevent(struct mansession *s, struct message *m)
 static int process_message(struct mansession *s, struct message *m)
 {
 	char action[80] = "";
-	struct manager_action *tmp = first_action;
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 	int ret = 0;
@@ -1951,10 +1949,12 @@ static int process_message(struct mansession *s, struct message *m)
 		} else
 			astman_send_error(s, m, "Authentication Required");
 	} else {
+		struct manager_action *tmp;
 		ast_mutex_lock(&s->__lock);
 		s->busy++;
 		ast_mutex_unlock(&s->__lock);
-		while (tmp) { 		
+		/* XXX should we protect the list navigation ? */
+		for (tmp = first_action ; tmp; tmp = tmp->next) { 		
 			if (!strcasecmp(action, tmp->action)) {
 				if ((s->writeperm & tmp->authority) == tmp->authority) {
 					if (tmp->func(s, m))
@@ -1964,7 +1964,6 @@ static int process_message(struct mansession *s, struct message *m)
 				}
 				break;
 			}
-			tmp = tmp->next;
 		}
 		if (!tmp)
 			astman_send_error(s, m, "Invalid/unknown command");
@@ -2253,17 +2252,17 @@ int ast_manager_unregister(char *action)
 	struct manager_action *cur = first_action, *prev = first_action;
 
 	ast_mutex_lock(&actionlock);
-	while (cur) {
+	for (cur = first_action, prev = NULL; cur; prev = cur, cur = cur->next) {
 		if (!strcasecmp(action, cur->action)) {
-			prev->next = cur->next;
+			if (prev)
+				prev->next = cur->next;
+			else
+				first_action = cur->next;
 			free(cur);
 			if (option_verbose > 1) 
 				ast_verbose(VERBOSE_PREFIX_2 "Manager unregistered action %s\n", action);
-			ast_mutex_unlock(&actionlock);
-			return 0;
+			break;
 		}
-		prev = cur;
-		cur = cur->next;
 	}
 	ast_mutex_unlock(&actionlock);
 	return 0;
@@ -2278,38 +2277,25 @@ static int manager_state_cb(char *context, char *exten, int state, void *data)
 
 static int ast_manager_register_struct(struct manager_action *act)
 {
-	struct manager_action *cur = first_action, *prev = NULL;
+	struct manager_action *cur, *prev = NULL;
 	int ret;
 
 	ast_mutex_lock(&actionlock);
-	while (cur) { /* Walk the list of actions */
+	for (cur = first_action; cur; prev = cur, cur = cur->next) {
 		ret = strcasecmp(cur->action, act->action);
 		if (ret == 0) {
 			ast_log(LOG_WARNING, "Manager: Action '%s' already registered\n", act->action);
 			ast_mutex_unlock(&actionlock);
 			return -1;
-		} else if (ret > 0) {
-			/* Insert these alphabetically */
-			if (prev) {
-				act->next = prev->next;
-				prev->next = act;
-			} else {
-				act->next = first_action;
-				first_action = act;
-			}
-			break;
 		}
-		prev = cur; 
-		cur = cur->next;
+		if (ret > 0)	/* Insert these alphabetically */
+			break;
 	}
-	
-	if (!cur) {
-		if (prev)
-			prev->next = act;
-		else
-			first_action = act;
-		act->next = NULL;
-	}
+	if (prev)
+		prev->next = act;
+	else
+		first_action = act;
+	act->next = cur;
 
 	if (option_verbose > 1) 
 		ast_verbose(VERBOSE_PREFIX_2 "Manager registered action %s\n", act->action);
@@ -2394,6 +2380,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 	for (v = params; v; v = v->next) {
 		if (!strcasecmp(v->name, "mansession_id")) {
 			sscanf(v->value, "%lx", &ident);
+			ast_verbose("session is <%lx>\n", ident);
 			break;
 		}
 	}
