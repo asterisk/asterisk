@@ -286,13 +286,11 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 	
 	params = strchr(uri, '?');
 	if (params) {
-		*params = '\0';
-		params++;
+		*params++ = '\0';
 		while ((var = strsep(&params, "&"))) {
 			val = strchr(var, '=');
 			if (val) {
-				*val = '\0';
-				val++;
+				*val++ = '\0';
 				ast_uri_decode(val);
 			} else 
 				val = "";
@@ -364,36 +362,28 @@ static void *ast_httpd_helper_thread(void *data)
 	time_t t;
 
 	if (fgets(buf, sizeof(buf), ser->f)) {
-		/* Skip method */
-		uri = buf;
-		while(*uri && (*uri > 32))
-			uri++;
-		if (*uri) {
-			*uri = '\0';
-			uri++;
-		}
+		uri = ast_skip_nonblanks(buf);	/* Skip method */
+		if (*uri)
+			*uri++ = '\0';
 
-		/* Skip white space */
-		while (*uri && (*uri < 33))
-			uri++;
+		uri = ast_skip_blanks(uri);	/* Skip white space */
 
-		if (*uri) {
-			c = uri;
-			while (*c && (*c > 32))
-				 c++;
-			if (*c) {
+		if (*uri) {			/* terminate at the first blank */
+			c = ast_skip_nonblanks(uri);
+			if (*c)
 				*c = '\0';
-			}
 		}
 
+		/* process "Cookie: " lines */
 		while (fgets(cookie, sizeof(cookie), ser->f)) {
 			/* Trim trailing characters */
-			while(!ast_strlen_zero(cookie) && (cookie[strlen(cookie) - 1] < 33)) {
-				cookie[strlen(cookie) - 1] = '\0';
-			}
+			ast_trim_blanks(cookie);
 			if (ast_strlen_zero(cookie))
 				break;
-			if (!strncasecmp(cookie, "Cookie: ", 8)) {
+			if (strncasecmp(cookie, "Cookie: ", 8))
+				continue;
+
+				/* XXX fix indentation */
 
 				/* TODO - The cookie parsing code below seems to work   
 				   in IE6 and FireFox 1.5.  However, it is not entirely 
@@ -440,7 +430,6 @@ static void *ast_httpd_helper_thread(void *data)
 						}
 					}
 				}
-			}
 		}
 
 		if (*uri) {
