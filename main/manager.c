@@ -136,14 +136,15 @@ struct mansession {
 	/*! Execution thread */
 	pthread_t t;
 	/*! Thread lock -- don't use in action callbacks, it's already taken care of  */
+	/* XXX need to document which fields it is protecting */
 	ast_mutex_t __lock;
 	/*! socket address */
 	struct sockaddr_in sin;
 	/*! TCP socket */
 	int fd;
-	/*! Whether or not we're busy doing an action */
+	/*! Whether or not we're busy doing an action XXX currently useless */
 	int busy;
-	/*! Whether or not we're "dead" */
+	/*! Whether or not we're "dead" XXX currently unused */
 	int dead;
 	/*! Whether an HTTP manager is in use */
 	int inuse;
@@ -1894,6 +1895,10 @@ static int action_userevent(struct mansession *s, struct message *m)
 	return 0;
 }
 
+/*
+ * Process the message, performing desired action.
+ * Return 0 on success, -1 on error that require the session to be destroyed.
+ */
 static int process_message(struct mansession *s, struct message *m)
 {
 	char action[80] = "";
@@ -1912,10 +1917,9 @@ static int process_message(struct mansession *s, struct message *m)
 	if (!ast_strlen_zero(id)) {
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	}
-	if (!s->authenticated) {
 		if (!strcasecmp(action, "Challenge")) {
-			char *authtype;
-			authtype = astman_get_header(m, "AuthType");
+			char *authtype = astman_get_header(m, "AuthType");
+
 			if (!strcasecmp(authtype, "MD5")) {
 				if (ast_strlen_zero(s->challenge))
 					snprintf(s->challenge, sizeof(s->challenge), "%ld", ast_random());
@@ -1925,11 +1929,10 @@ static int process_message(struct mansession *s, struct message *m)
 						"Challenge: %s\r\n\r\n",
 						idText, s->challenge);
 				ast_mutex_unlock(&s->__lock);
-				return 0;
 			} else {
 				astman_send_error(s, m, "Must specify AuthType");
-				return 0;
 			}
+			return 0;
 		} else if (!strcasecmp(action, "Login")) {
 			if (authenticate(s, m)) {
 				sleep(1);
@@ -1944,13 +1947,10 @@ static int process_message(struct mansession *s, struct message *m)
 				}
 				ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
 				astman_send_ack(s, m, "Authentication accepted");
+				return 0;
 			}
-		} else if (!strcasecmp(action, "Logoff")) {
-			astman_send_ack(s, m, "See ya");
-			return -1;
-		} else
-			astman_send_error(s, m, "Authentication Required");
-	} else {
+		}
+	{
 		struct manager_action *tmp;
 		ast_mutex_lock(&s->__lock);
 		s->busy++;
