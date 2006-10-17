@@ -209,23 +209,24 @@ static const struct  cfsip_methods {
 	enum sipmethod id;
 	int need_rtp;		/*!< when this is the 'primary' use for a pvt structure, does it need RTP? */
 	char * const text;
+	int can_create;
 } sip_methods[] = {
-	{ SIP_UNKNOWN,	 RTP,    "-UNKNOWN-" },
-	{ SIP_RESPONSE,	 NO_RTP, "SIP/2.0" },
-	{ SIP_REGISTER,	 NO_RTP, "REGISTER" },
- 	{ SIP_OPTIONS,	 NO_RTP, "OPTIONS" },
-	{ SIP_NOTIFY,	 NO_RTP, "NOTIFY" },
-	{ SIP_INVITE,	 RTP,    "INVITE" },
-	{ SIP_ACK,	 NO_RTP, "ACK" },
-	{ SIP_PRACK,	 NO_RTP, "PRACK" },
-	{ SIP_BYE,	 NO_RTP, "BYE" },
-	{ SIP_REFER,	 NO_RTP, "REFER" },
-	{ SIP_SUBSCRIBE, NO_RTP, "SUBSCRIBE" },
-	{ SIP_MESSAGE,	 NO_RTP, "MESSAGE" },
-	{ SIP_UPDATE,	 NO_RTP, "UPDATE" },
-	{ SIP_INFO,	 NO_RTP, "INFO" },
-	{ SIP_CANCEL,	 NO_RTP, "CANCEL" },
-	{ SIP_PUBLISH,	 NO_RTP, "PUBLISH" }
+	{ SIP_UNKNOWN,	 RTP,    "-UNKNOWN-", 0 },
+	{ SIP_RESPONSE,	 NO_RTP, "SIP/2.0", 0 },
+	{ SIP_REGISTER,	 NO_RTP, "REGISTER", 1 },
+ 	{ SIP_OPTIONS,	 NO_RTP, "OPTIONS", 1 },
+	{ SIP_NOTIFY,	 NO_RTP, "NOTIFY", 0 },
+	{ SIP_INVITE,	 RTP,    "INVITE", 1 },
+	{ SIP_ACK,	 NO_RTP, "ACK", 0 },
+	{ SIP_PRACK,	 NO_RTP, "PRACK", 0 },
+	{ SIP_BYE,	 NO_RTP, "BYE", 0 },
+	{ SIP_REFER,	 NO_RTP, "REFER", 0 },
+	{ SIP_SUBSCRIBE, NO_RTP, "SUBSCRIBE", 1 },
+	{ SIP_MESSAGE,	 NO_RTP, "MESSAGE", 1 },
+	{ SIP_UPDATE,	 NO_RTP, "UPDATE", 0 },
+	{ SIP_INFO,	 NO_RTP, "INFO", 0 },
+	{ SIP_CANCEL,	 NO_RTP, "CANCEL", 0 },
+	{ SIP_PUBLISH,	 NO_RTP, "PUBLISH", 1 }
 };
 
 /*! \brief Structure for conversion between compressed SIP and "normal" SIP */
@@ -884,7 +885,7 @@ struct ast_config *notify_types;
 
 static struct sip_auth *authl;          /*!< Authentication list */
 
-
+static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, struct sip_request *req, char *msg);
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
 static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, struct sip_request *req, char *unsupported);
@@ -3172,7 +3173,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 /*               Called by handle_request, sipsock_read */
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method)
 {
-	struct sip_pvt *p;
+	struct sip_pvt *p = NULL;
 	char *callid;
 	char *tag = "";
 	char totag[128];
@@ -3240,12 +3241,15 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	ast_mutex_unlock(&iflock);
 
 	/* If this is a response and we have ignoring of out of dialog responses turned on, then drop it */
-	if (req->method == SIP_RESPONSE)
-		return NULL;
+	if (!sip_methods[intended_method].can_create) {
+		if (intended_method != SIP_RESPONSE)
+			transmit_response_using_temp(callid, sin, 1, intended_method, req, "481 Call leg/transaction does not exist");
+	} else {
+		p = sip_alloc(callid, sin, 1, intended_method);
+		if (p)
+			ast_mutex_lock(&p->lock);
+	}
 
-	p = sip_alloc(callid, sin, 1, intended_method);
-	if (p)
-		ast_mutex_lock(&p->lock);
 	return p;
 }
 
@@ -4250,6 +4254,38 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 	}
 	add_blank_header(&resp);
 	return send_response(p, &resp, reliable, seqno);
+}
+
+/*! \brief  transmit_response_using_temp: Transmit response, no retransmits, using temporary pvt */
+static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, struct sip_request *req, char *msg)
+{
+	struct sip_pvt *p = alloca(sizeof(*p));
+
+	memset(p, 0, sizeof(*p));
+
+	p->method = intended_method;
+	if (sin) {
+		p->sa = *sin;
+		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
+			p->ourip = __ourip;
+	} else
+		p->ourip = __ourip;
+	p->branch = thread_safe_rand();
+	make_our_tag(p->tag, sizeof(p->tag));
+	p->ocseq = 101;
+
+	if (useglobal_nat && sin) {
+		ast_copy_flags(p, &global_flags, SIP_NAT);
+		memcpy(&p->recv, sin, sizeof(p->recv));
+	}
+
+	ast_copy_string(p->fromdomain, default_fromdomain, sizeof(p->fromdomain));
+	build_via(p, p->via, sizeof(p->via));
+	ast_copy_string(p->callid, callid, sizeof(p->callid));
+
+	__transmit_response(p, msg, req, 0);
+
+	return 0;
 }
 
 /*! \brief  transmit_response: Transmit response, no retransmits */
