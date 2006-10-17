@@ -373,8 +373,6 @@ static int global_rtpkeepalive = 0;
 static int global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;	
 static int global_regattempts_max = 0;
 
-static int global_ignoreoodresponses = 1;
-
 /* Object counters */
 static int suserobjs = 0;
 static int ruserobjs = 0;
@@ -3242,7 +3240,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	ast_mutex_unlock(&iflock);
 
 	/* If this is a response and we have ignoring of out of dialog responses turned on, then drop it */
-	if (req->method == SIP_RESPONSE && global_ignoreoodresponses)
+	if (req->method == SIP_RESPONSE)
 		return NULL;
 
 	p = sip_alloc(callid, sin, 1, intended_method);
@@ -8311,7 +8309,6 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Videosupport:           %s\n", videosupport ? "Yes" : "No");
 	ast_cli(fd, "  AutoCreatePeer:         %s\n", autocreatepeer ? "Yes" : "No");
 	ast_cli(fd, "  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No");
-	ast_cli(fd, "  Drop misc responses:    %s\n", global_ignoreoodresponses ? "Yes" : "No");
 	ast_cli(fd, "  Promsic. redir:         %s\n", ast_test_flag(&global_flags, SIP_PROMISCREDIR) ? "Yes" : "No");
 	ast_cli(fd, "  SIP domain support:     %s\n", AST_LIST_EMPTY(&domain_list) ? "No" : "Yes");
 	ast_cli(fd, "  Call to non-local dom.: %s\n", allow_external_domains ? "Yes" : "No");
@@ -11955,11 +11952,6 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 		ast_set_flag(mask, SIP_PROMISCREDIR);
 		ast_set2_flag(flags, ast_true(v->value), SIP_PROMISCREDIR);
 		res = 1;
-	} else if (!strcasecmp(v->name, "ignoreoodresponses")) {
-		if (ast_true(v->value))
-			global_ignoreoodresponses = 1;
-		else
-			global_ignoreoodresponses = 0;
 	}
 
 	return res;
@@ -12612,7 +12604,6 @@ static int reload_config(void)
 	tos = 0;
 	expiry = DEFAULT_EXPIRY;
 	global_allowguest = 1;
-	global_ignoreoodresponses = 1;
 
 	/* Read the [general] config section of sip.conf (or from realtime config) */
 	v = ast_variable_browse(cfg, "general");
