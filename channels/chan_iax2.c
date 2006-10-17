@@ -1751,7 +1751,7 @@ retry:
 				iax2_frame_free(frame.data);
 			jb_destroy(pvt->jb);
 			/* gotta free up the stringfields */
-			ast_string_field_free_all(pvt);
+			ast_string_field_free_pools(pvt);
 			free(pvt);
 		}
 	}
@@ -8309,7 +8309,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 					peer->expire = -1;
 					ast_clear_flag(peer, IAX_DYNAMIC);
 					if (ast_dnsmgr_lookup(v->value, &peer->addr.sin_addr, &peer->dnsmgr)) {
-						ast_string_field_free_all(peer);
+						ast_string_field_free_pools(peer);
 						free(peer);
 						return NULL;
 					}
@@ -8320,7 +8320,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 					inet_aton("255.255.255.255", &peer->mask);
 			} else if (!strcasecmp(v->name, "defaultip")) {
 				if (ast_get_ip(&peer->defaddr, v->value)) {
-					ast_string_field_free_all(peer);
+					ast_string_field_free_pools(peer);
 					free(peer);
 					return NULL;
 				}
@@ -8456,7 +8456,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 	
 	if (user) {
 		if (firstpass) {
-			ast_string_field_free_all(user);
+			ast_string_field_free_pools(user);
 			memset(user, 0, sizeof(struct iax2_user));
 			if (ast_string_field_init(user, 32)) {
 				free(user);
@@ -8654,7 +8654,7 @@ static void destroy_user(struct iax2_user *user)
 		ast_variables_destroy(user->vars);
 		user->vars = NULL;
 	}
-	ast_string_field_free_all(user);
+	ast_string_field_free_pools(user);
 	free(user);
 }
 
@@ -8695,7 +8695,7 @@ static void destroy_peer(struct iax2_peer *peer)
 	register_peer_exten(peer, 0);
 	if (peer->dnsmgr)
 		ast_dnsmgr_release(peer->dnsmgr);
-	ast_string_field_free_all(peer);
+	ast_string_field_free_pools(peer);
 	free(peer);
 }
 

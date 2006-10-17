@@ -716,7 +716,7 @@ struct sip_auth {
 #define SIP_PROG_INBAND_NEVER	(0 << 25)
 #define SIP_PROG_INBAND_NO	(1 << 25)
 #define SIP_PROG_INBAND_YES	(2 << 25)
-#define SIP_FREE_BIT		(1 << 27)	/*!< Undefined bit - not in use */
+#define SIP_NO_HISTORY		(1 << 27)	/*!< Suppress recording request/response history */
 #define SIP_CALL_LIMIT		(1 << 28)	/*!< Call limit enforced for this call */
 #define SIP_SENDRPID		(1 << 29)	/*!< Remote Party-ID Support */
 #define SIP_INC_COUNT		(1 << 30)	/*!< Did this connection increment the counter of in-use calls? */
@@ -1790,7 +1790,7 @@ static void append_history_full(struct sip_pvt *p, const char *fmt, ...)
 {
 	va_list ap;
 
-	if (!recordhistory || !p)
+	if (!p)
 		return;
 	va_start(ap, fmt);
 	append_history_va(p, fmt, ap);
@@ -1977,7 +1977,7 @@ static void sip_scheddestroy(struct sip_pvt *p, int ms)
 	}
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Scheduling destruction of SIP dialog '%s' in %d ms (Method: %s)\n", p->callid, ms, sip_methods[p->method].text);
-	if (recordhistory)
+	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 		append_history(p, "SchedDestroy", "%d ms", ms);
 
 	if (p->autokillid > -1)
@@ -2111,7 +2111,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 			ast_inet_ntoa(dst->sin_addr),
 			ntohs(dst->sin_port), req->data);
 	}
-	if (recordhistory) {
+	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY)) {
 		struct sip_request tmp;
 		parse_copy(&tmp, req);
 		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s - %s", tmp.data, get_header(&tmp, "CSeq"), 
@@ -2137,7 +2137,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 		else
 			ast_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port), req->data);
 	}
-	if (recordhistory) {
+	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY)) {
 		struct sip_request tmp;
 		parse_copy(&tmp, req);
 		append_history(p, reliable ? "TxReqRel" : "TxReq", "%s / %s - %s", tmp.data, get_header(&tmp, "CSeq"), sip_methods[tmp.method].text);
@@ -2805,7 +2805,7 @@ static void sip_registry_destroy(struct sip_registry *reg)
 		ast_sched_del(sched, reg->expire);
 	if (reg->timeout > -1)
 		ast_sched_del(sched, reg->timeout);
-	ast_string_field_free_all(reg);
+	ast_string_field_free_pools(reg);
 	regobjs--;
 	free(reg);
 	
@@ -2898,7 +2898,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	}
 	ast_mutex_destroy(&p->lock);
 
-	ast_string_field_free_all(p);
+	ast_string_field_free_pools(p);
 
 	free(p);
 }
@@ -3313,7 +3313,7 @@ static int sip_hangup(struct ast_channel *ast)
 				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
 
 				/* Get RTCP quality before end of call */
-				if (recordhistory) {
+				if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY)) {
 					if (p->rtp)
 						append_history(p, "RTCPaudio", "Quality:%s", audioqos);
 					if (p->vrtp)
@@ -3804,7 +3804,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	for (v = i->chanvars ; v ; v = v->next)
 		pbx_builtin_setvar_helper(tmp,v->name,v->value);
 
-	if (recordhistory)
+	if (!ast_test_flag(&i->flags[0], SIP_NO_HISTORY))
 		append_history(i, "NewChan", "Channel %s - from %s", tmp->name, i->callid);
 
 	return tmp;
@@ -4111,6 +4111,8 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	/* Copy global flags to this PVT at setup. */
 	ast_copy_flags(&p->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&p->flags[1], &global_flags[1], SIP_PAGE2_FLAGS_TO_COPY);
+
+	ast_set2_flag(&p->flags[0], !recordhistory, SIP_NO_HISTORY);
 
 	p->branch = ast_random();	
 	make_our_tag(p->tag, sizeof(p->tag));
@@ -5543,12 +5545,14 @@ static int transmit_response_using_temp(ast_string_field callid, struct sockaddr
 		return -1;
 	}
 
-	memset(p, 0, sizeof(*p));
+	/* if the structure was just allocated, initialize it */
+	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY)) {
+		ast_set_flag(&p->flags[0], SIP_NO_HISTORY);
+		if (ast_string_field_init(p, 512))
+			return -1;
+	}
 
 	/* Initialize the bare minimum */
-	if (ast_string_field_init(p, 512))
-		return -1;
-
 	p->method = intended_method;
 
 	if (sin) {
@@ -5575,7 +5579,7 @@ static int transmit_response_using_temp(ast_string_field callid, struct sockaddr
 	/* Use this temporary pvt structure to send the message */
 	__transmit_response(p, msg, req, XMIT_UNRELIABLE);
 
-	/* Now do a simple destruction */
+	/* Free the string fields, but not the pool space */
 	ast_string_field_free_all(p);
 
 	return 0;
@@ -6286,7 +6290,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
 	if (sipdebug)
 		add_header(&req, "X-asterisk-Info", "SIP re-invite (External RTP bridge)");
-	if (recordhistory)
+	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 		append_history(p, "ReInv", "Re-invite sent");
 	add_sdp(&req, p);
 	/* Use this as the basis */
@@ -6911,7 +6915,7 @@ static int sip_reregister(void *data)
 	if (!r)
 		return 0;
 
-	if (r->call && recordhistory)
+	if (r->call && !ast_test_flag(&r->call->flags[0], SIP_NO_HISTORY))
 		append_history(r->call, "RegistryRenew", "Account: %s@%s", r->username, r->hostname);
 	/* Since registry's are only added/removed by the the monitor thread, this
 	   may be overkill to reference/dereference at all here */
@@ -7011,7 +7015,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			ast_log(LOG_WARNING, "Unable to allocate registration transaction (memory or socket error)\n");
 			return 0;
 		}
-		if (recordhistory)
+		if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 			append_history(p, "RegistryInit", "Account: %s@%s", r->username, r->hostname);
 		/* Find address to hostname */
 		if (create_addr(p, r->hostname)) {
@@ -10818,7 +10822,7 @@ static int do_register_auth(struct sip_pvt *p, struct sip_request *req, enum sip
  			/* No old challenge */
 		return -1;
 	}
-	if (recordhistory)
+	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 		append_history(p, "RegistryAuth", "Try: %d", p->authtries);
  	if (sip_debug_test_pvt(p) && p->registry)
  		ast_verbose("Responding to challenge, registration to domain/host name %s\n", p->registry->hostname);
@@ -13037,7 +13041,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
 			}
-			if (recordhistory) /* This is a response, note what it was for */
+			if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY)) /* This is a response, note what it was for */
 				append_history(p, "ReInv", "Re-invite received");
 		}
 	} else if (debug)
@@ -13836,18 +13840,18 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
 
 	/* Get RTCP quality before end of call */
-	if (recordhistory || p->owner) {
+	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY) || p->owner) {
 		char *audioqos, *videoqos;
 		if (p->rtp) {
 			audioqos = ast_rtp_get_quality(p->rtp);
-			if (recordhistory)
+			if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 				append_history(p, "RTCPaudio", "Quality:%s", audioqos);
 			if (p->owner)
 				pbx_builtin_setvar_helper(p->owner, "RTPAUDIOQOS", audioqos);
 		}
 		if (p->vrtp) {
 			videoqos = ast_rtp_get_quality(p->vrtp);
-			if (recordhistory)
+			if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 				append_history(p, "RTCPvideo", "Quality:%s", videoqos);
 			if (p->owner)
 				pbx_builtin_setvar_helper(p->owner, "RTPVIDEOQOS", videoqos);
@@ -14469,7 +14473,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	}
 	p->recv = sin;
 
-	if (recordhistory) /* This is a request or response, note what it was for */
+	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY)) /* This is a request or response, note what it was for */
 		append_history(p, "Rx", "%s / %s / %s", req.data, get_header(&req, "CSeq"), req.rlPart2);
 
 	if (!lockretry) {
@@ -16465,7 +16469,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 	}
 	if (changed && !ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
 		if (chan->_state != AST_STATE_UP) {	/* We are in early state */
-			if (recordhistory)
+			if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 				append_history(p, "ExtInv", "Initial invite sent with remote bridge proposal.");
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Early remote bridge setting SIP '%s' - Sending media to %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip));

@@ -248,6 +248,7 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 	} \
    } while (0)
 #endif
+
 /*!
   \brief Set a field to a simple string value
   \param x Pointer to a structure containing fields
@@ -262,6 +263,7 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 #define ast_string_field_logset(x, field, data, logstr) \
 	ast_string_field_index_logset(x, ast_string_field_index(x, field), data, logstr)
 #endif
+
 /*!
   \brief Set a field to a complex (built) value
   \param x Pointer to a structure containing fields
@@ -312,7 +314,7 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 	ast_string_field_index_free(x, ast_string_field_index(x, field))
 
 /*!
-  \brief Free all fields (and the storage pool) in a structure
+  \brief Free the stringfield storage pools attached to a structure
   \param x Pointer to a structure containing fields
   \return nothing
 
@@ -320,15 +322,29 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
   structure; it should only be called immediately before freeing
   the structure itself.
 */
-#define ast_string_field_free_all(x) do { \
-	int index; \
+#define ast_string_field_free_pools(x) do { \
 	struct ast_string_field_pool *this, *prev; \
-	for (index = 0; index < ast_string_field_count(x); index ++) \
-		ast_string_field_index_free(x, index); \
 	for (this = (x)->__field_mgr.pool; this; this = prev) { \
 		prev = this->prev; \
 		free(this); \
 	} \
+	} while(0)
+
+/*!
+  \brief Free the stringfields in a structure
+  \param x Pointer to a structure containing fields
+  \return nothing
+
+  After calling this macro, the most recently allocated pool
+  attached to the structure will be available for use by
+  stringfields again.
+*/
+#define ast_string_field_free_all(x) do { \
+	int index; \
+	for (index = 0; index < ast_string_field_count(x); index++) \
+		ast_string_field_index_free(x, index); \
+	(x)->__field_mgr.used = 0; \
+	(x)->__field_mgr.space = (x)->__field_mgr.size; \
 	} while(0)
 
 #endif /* _ASTERISK_STRINGFIELDS_H */
