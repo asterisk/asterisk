@@ -111,7 +111,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 		    		; for any reason, always reject with '401 Unauthorized'
 				; instead of letting the requester know whether there was
 				; a matching user or peer for their request
-;ignoreoodresponses = no        ; If no then out of dialog responses will not be ignored
 ;
 ; If regcontext is specified, Asterisk will dynamically create and destroy a
 ; NoOp priority 1 extension for a given peer who registers or unregisters with
