@@ -594,8 +594,10 @@ ${LEN(VAR)}	 	* String length of VAR (integer)
 ${MEMBERINTERFACE}	* The interface name of the queuemember that was chosen
 ${MEMBERNAME}		* The member name of the queuemember that was chosen
 ${PRIORITY}	 	* Current priority in the dialplan
-${PRIREDIRECTREASON} 	Reason for redirect on PRI, if a call was directed
+${PRIREDIRECTREASON} 	Reason for redirect on PRI, if a call was directed (also set in SIP)
+${SIPREDIRECTREASON}	Reason for redirect on SIP (text string)
 ${RDNIS}         	* Redirected Dial Number ID Service (Deprecated; use ${CALLERID(rdnis)})
+${SIPRDNISDOMAIN}	RDNIS domain from a redirect in SIP.
 ${TIMESTAMP}	 	* Current date time in the format: YYYYMMDD-HHMMSS (Deprecated; use ${STRFTIME(${EPOCH},,%Y%m%d-%H%M%S)})
 ${TRANSFER_CONTEXT} 	Context for transferred calls
 ${FORWARD_CONTEXT}     Context for forwarded calls

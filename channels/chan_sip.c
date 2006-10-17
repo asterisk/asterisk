@@ -886,6 +886,7 @@ static struct sip_pvt {
 		AST_STRING_FIELD(mohinterpret);	/*!< MOH class to use when put on hold */
 		AST_STRING_FIELD(mohsuggest);	/*!< MOH class to suggest when putting a peer on hold */
 		AST_STRING_FIELD(rdnis);	/*!< Referring DNIS */
+		AST_STRING_FIELD(redircause);	/*!< Referring cause */
 		AST_STRING_FIELD(theirtag);	/*!< Their tag */
 		AST_STRING_FIELD(username);	/*!< [user] name */
 		AST_STRING_FIELD(peername);	/*!< [peer] name, not set if [user] */
@@ -8139,29 +8140,87 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 	return res;
 }
 
+/*! \brief Translate referring cause */
+static void sip_set_redirstr(struct sip_pvt *p, char *reason) {
+
+	if (strcmp(reason, "unknown")==0) {
+		ast_string_field_set(p, redircause, "UNKNOWN");
+	} else if (strcmp(reason, "user-busy")==0) {
+		ast_string_field_set(p, redircause, "BUSY");
+	} else if (strcmp(reason, "no-answer")==0) {
+		ast_string_field_set(p, redircause, "NOANSWER");
+	} else if (strcmp(reason, "unavailable")==0) {
+		ast_string_field_set(p, redircause, "UNREACHABLE");
+	} else if (strcmp(reason, "unconditional")==0) {
+		ast_string_field_set(p, redircause, "UNCONDITIONAL");
+	} else if (strcmp(reason, "time-of-day")==0) {
+		ast_string_field_set(p, redircause, "UNKNOWN");
+	} else if (strcmp(reason, "do-not-disturb")==0) {
+		ast_string_field_set(p, redircause, "UNKNOWN");
+	} else if (strcmp(reason, "deflection")==0) {
+		ast_string_field_set(p, redircause, "UNKNOWN");
+	} else if (strcmp(reason, "follow-me")==0) {
+		ast_string_field_set(p, redircause, "UNKNOWN");
+	} else if (strcmp(reason, "out-of-service")==0) {
+		ast_string_field_set(p, redircause, "UNREACHABLE");
+	} else if (strcmp(reason, "away")==0) {
+		ast_string_field_set(p, redircause, "UNREACHABLE");
+	} else {
+		ast_string_field_set(p, redircause, "UNKNOWN");
+	}
+}
+
 /*! \brief Get referring dnis */
 static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 {
-	char tmp[256], *c, *a;
+	char tmp[256], *exten, *rexten, *rdomain;
+	char *params, *reason = NULL;
 	struct sip_request *req;
 	
-	req = oreq;
-	if (!req)
-		req = &p->initreq;
+	req = oreq ? oreq : &p->initreq;
+
 	ast_copy_string(tmp, get_header(req, "Diversion"), sizeof(tmp));
 	if (ast_strlen_zero(tmp))
 		return 0;
-	c = get_in_brackets(tmp);
-	if (strncmp(c, "sip:", 4)) {
-		ast_log(LOG_WARNING, "Huh?  Not an RDNIS SIP header (%s)?\n", c);
+
+	exten = get_in_brackets(tmp);
+	if (strncmp(exten, "sip:", 4)) {
+		ast_log(LOG_WARNING, "Huh?  Not an RDNIS SIP header (%s)?\n", exten);
 		return -1;
 	}
-	c += 4;
-	a = c;
-	strsep(&a, "@;");	/* trim anything after @ or ; */
+	exten += 4;
+
+	/* Get diversion-reason param if present */
+	if ((params = strchr(tmp, ';'))) {
+		*params = '\0';	/* Cut off parameters  */
+		params++;
+		while (*params == ';' || *params == ' ')
+			params++;
+		/* Check if we have a reason parameter */
+		if ((reason = strcasestr(params, "reason="))) {
+			reason+=7;
+			/* Remove enclosing double-quotes */
+			if (*reason == '"') 
+				ast_strip_quoted(reason, "\"", "\"");
+			if (!ast_strlen_zero(reason)) {
+				sip_set_redirstr(p, reason);
+				if (p->owner) {
+					pbx_builtin_setvar_helper(p->owner, "__PRIREDIRECTREASON", p->redircause);
+					pbx_builtin_setvar_helper(p->owner, "__SIPREDIRECTREASON", reason);
+				}
+			}
+		}
+	}
+
+	rdomain = exten;
+	rexten = strsep(&rdomain, "@");	/* trim anything after @ */
+	if (p->owner) 
+		pbx_builtin_setvar_helper(p->owner, "__SIPRDNISDOMAIN", rdomain);
+
 	if (sip_debug_test_pvt(p))
-		ast_verbose("RDNIS is %s\n", c);
-	ast_string_field_set(p, rdnis, c);
+		ast_verbose("RDNIS for this call is is %s (reason %s)\n", exten, reason ? reason : "");
+
+	ast_string_field_set(p, rdnis, rexten);
 
 	return 0;
 }
@@ -16502,6 +16561,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	/* we'll issue the redirect message here */
 	if (!host) {
 		char *localtmp;
+
 		ast_copy_string(tmp, get_header(&p->initreq, "To"), sizeof(tmp));
 		if (ast_strlen_zero(tmp)) {
 			ast_log(LOG_ERROR, "Cannot retrieve the 'To' header from the original SIP request!\n");
@@ -16509,6 +16569,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 		}
 		if ((localtmp = strstr(tmp, "sip:")) && (localtmp = strchr(localtmp, '@'))) {
 			char lhost[80], lport[80];
+
 			memset(lhost, 0, sizeof(lhost));
 			memset(lport, 0, sizeof(lport));
 			localtmp++;
