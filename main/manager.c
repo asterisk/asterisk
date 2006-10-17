@@ -202,8 +202,9 @@ AST_MUTEX_DEFINE_STATIC(actionlock);
 /*! \brief Convert authority code to a list of options */
 static char *authority_to_str(int authority, char *res, int reslen)
 {
-	int i, len = reslen;
+	int i;
 	char *dst = res, *sep = "";
+	size_t len = reslen;
 
 	res[0] = '\0';
 	for (i = 0; i < (sizeof(perms) / sizeof(perms[0])) - 1; i++) {
