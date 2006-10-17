@@ -264,6 +264,11 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; behind a NAT, or for some other reason wants Asterisk to
 				; stay in the audio path, you may want to turn this off.
 
+				; This setting also affect direct RTP
+				; at call setup (a new feature in 1.4 - setting up the
+				; call directly between the endpoints instead of sending
+				; a re-INVITE).
+
 ;canreinvite=nonat		; An additional option is to allow media path redirection
 				; (reinvite) but only when the peer where the media is being
 				; sent is known to not be behind a NAT (as the RTP core can
