@@ -1472,7 +1472,7 @@ static void build_rpid(struct sip_pvt *p);
 /*------Request handling functions */
 static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount, int *nounlock);
 static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *recount, char *e);
-static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, int *nounlock);
+static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, int *nounlock);
 static int handle_request_bye(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_register(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, char *e);
 static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req);
@@ -1488,8 +1488,8 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 /*------Response handling functions */
 static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
-static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno);
-static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno);
+static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
+static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 
 /*----- RTP interface functions */
 static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active);
@@ -11567,7 +11567,7 @@ static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struc
 }
 
 /*! \brief Handle responses on REGISTER to services */
-static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
+static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno)
 {
 	int expires, expires_ms;
 	struct sip_registry *r;
@@ -11746,7 +11746,7 @@ static void stop_media_flows(struct sip_pvt *p)
 
 /*! \brief Handle SIP response in dialogue */
 /* XXX only called by handle_request */
-static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
+static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno)
 {
 	struct ast_channel *owner;
 	int sipmethod;
@@ -11817,7 +11817,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 						ast_set_flag(&p->flags[0], SIP_NEEDDESTROY); 
 				}
 			} else if (sipmethod == SIP_REGISTER) 
-				res = handle_response_register(p, resp, rest, req, ignore, seqno);
+				res = handle_response_register(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_BYE)		/* Ok, we're ready to go */
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY); 
 			break;
@@ -11831,7 +11831,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			else if (sipmethod == SIP_REFER)
 				handle_response_refer(p, resp, rest, req, seqno);
 			else if (p->registry && sipmethod == SIP_REGISTER)
-				res = handle_response_register(p, resp, rest, req, ignore, seqno);
+				res = handle_response_register(p, resp, rest, req, seqno);
 			else {
 				ast_log(LOG_WARNING, "Got authentication request (401) on unknown %s to '%s'\n", sip_methods[sipmethod].text, get_header(req, "To"));
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
@@ -11841,7 +11841,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
 			else if (p->registry && sipmethod == SIP_REGISTER) 
-				res = handle_response_register(p, resp, rest, req, ignore, seqno);
+				res = handle_response_register(p, resp, rest, req, seqno);
 			else {
 				ast_log(LOG_WARNING, "Forbidden - maybe wrong password on authentication for %s\n", msg);
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
@@ -11849,7 +11849,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 404: /* Not found */
 			if (p->registry && sipmethod == SIP_REGISTER)
-				res = handle_response_register(p, resp, rest, req, ignore, seqno);
+				res = handle_response_register(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
 			else if (owner)
@@ -11861,7 +11861,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			else if (sipmethod == SIP_REFER)
 				handle_response_refer(p, resp, rest, req, seqno);
 			else if (p->registry && sipmethod == SIP_REGISTER)
-				res = handle_response_register(p, resp, rest, req, ignore, seqno);
+				res = handle_response_register(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_BYE) {
 				if (ast_strlen_zero(p->authname))
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
@@ -12584,7 +12584,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 			ast_log(LOG_DEBUG, "SIP transfer: Invite Replace incoming channel should replace and hang up channel %s (one call leg)\n", replacecall->name); 
 	}
 
-	if (ignore) {
+	if (ast_test_flag(req, SIP_PKT_IGNORE)) {
 		ast_log(LOG_NOTICE, "Ignoring this INVITE with replaces in a stupid way.\n");
 		/* We should answer something here. If we are here, the
 			call we are replacing exists, so an accepted 
@@ -13372,7 +13372,7 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 	We can't destroy dialogs, since we want the call to continue.
 	
 	*/
-static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, int *nounlock)
+static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, int *nounlock)
 {
 	struct sip_dual current;	/* Chan1: Call between asterisk and transferer */
 					/* Chan2: Call between asterisk and transferee */
@@ -13406,7 +13406,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		return 0;
 	}
 
-	if(!ignore && ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
+	if(!ast_test_flag(req, SIP_PKT_IGNORE) && ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
 		/* Already have a pending REFER */	
 		transmit_response(p, "491 Request pending", req);
 		append_history(p, "Xfer", "Refer failed. Request pending.");
@@ -13467,7 +13467,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	
 	/* Is this a repeat of a current request? Ignore it */
 	/* Don't know what else to do right now. */
-	if (ignore) 
+	if (ast_test_flag(req, SIP_PKT_IGNORE)) 
 		return res;
 
 	/* If this is a blind transfer, we have the following
@@ -14064,7 +14064,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	const char *useragent;
 	int seqno;
 	int len;
-	int ignore = FALSE;
 	int respid;
 	int res = 0;
 	int debug = sip_debug_test_pvt(p);
@@ -14117,7 +14116,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		} else if (p->ocseq && (p->ocseq != seqno)) {
 			/* ignore means "don't do anything with it" but still have to 
 			   respond appropriately  */
-			ignore = TRUE;
 			ast_set_flag(req, SIP_PKT_IGNORE);
 			ast_set_flag(req, SIP_PKT_IGNORE_RESP);
 			append_history(p, "Ignore", "Ignoring this retransmit\n");
@@ -14130,7 +14128,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
 			if ((respid == 200) || ((respid >= 300) && (respid <= 399)))
 				extract_uri(p, req);
-			handle_response(p, respid, e + len, req, ignore, seqno);
+			handle_response(p, respid, e + len, req, seqno);
 		}
 		return 0;
 	}
@@ -14156,7 +14154,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		/* ignore means "don't do anything with it" but still have to 
 		   respond appropriately.  We do this if we receive a repeat of
 		   the last sequence number  */
-		ignore = 2;
 		ast_set_flag(req, SIP_PKT_IGNORE);
 		ast_set_flag(req, SIP_PKT_IGNORE_REQ);
 		if (option_debug > 2)
@@ -14205,7 +14202,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		res = handle_request_invite(p, req, debug, seqno, sin, recount, e);
 		break;
 	case SIP_REFER:
-		res = handle_request_refer(p, req, debug, ignore, seqno, nounlock);
+		res = handle_request_refer(p, req, debug, seqno, nounlock);
 		break;
 	case SIP_CANCEL:
 		res = handle_request_cancel(p, req);
@@ -14225,7 +14222,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	case SIP_INFO:
 		if (ast_test_flag(req, SIP_PKT_DEBUG))
 			ast_verbose("Receiving INFO!\n");
-		if (!ignore) 
+		if (!ast_test_flag(req, SIP_PKT_IGNORE)) 
 			handle_request_info(p, req);
 		else  /* if ignoring, transmit response */
 			transmit_response(p, "200 OK", req);
