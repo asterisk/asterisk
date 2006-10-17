@@ -2863,6 +2863,10 @@ static int get_input(struct skinnysession *s)
 			return -1;
 		}
 		dlen = letohl(*(int *)s->inbuf);
+		if (dlen < 0) {
+			ast_log(LOG_WARNING, "Skinny Client sent invalid data.\n");
+			return -1;
+		}
 		if (dlen+8 > sizeof(s->inbuf)) {
 			dlen = sizeof(s->inbuf) - 8;
 		}

@@ -5,6 +5,18 @@ applies to all loadable Asterisk modules used on your system as well,
 except as defined below. The GPL (version 2) is included in this
 source tree in the file COPYING.
 
+This package also includes various components that are not part of
+Asterisk itself; these components are in the 'contrib' directory
+and its subdirectories. Most of these components are also
+distributed under the GPL version 2 as well, except for the following:
+
+contrib/firmware/iax/iaxy.bin:
+	This file is Copyright (C) Digium, Inc. and is licensed for
+	use with Digium IAXy hardware devices only. It can be
+	distributed freely as long as the distribution is in the
+	original form present in this package (not reformatted or
+	modified).
+
 Digium, Inc. (formerly Linux Support Services) holds copyright
 and/or sufficient licenses to all components of the Asterisk
 package, and therefore can grant, at its sole discretion, the ability
