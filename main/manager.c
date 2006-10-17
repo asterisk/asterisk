@@ -199,24 +199,21 @@ static AST_LIST_HEAD_STATIC(users, ast_manager_user);
 static struct manager_action *first_action = NULL;
 AST_MUTEX_DEFINE_STATIC(actionlock);
 
-/*! \brief Convert authority code to string with serveral options */
+/*! \brief Convert authority code to a list of options */
 static char *authority_to_str(int authority, char *res, int reslen)
 {
-	int running_total = 0, i;
+	int i, len = reslen;
+	char *dst = res, *sep = "";
 
-	memset(res, 0, reslen);
+	res[0] = '\0';
 	for (i = 0; i < (sizeof(perms) / sizeof(perms[0])) - 1; i++) {
 		if (authority & perms[i].num) {
-			if (*res) {
-				strncat(res, ",", (reslen > running_total) ? reslen - running_total : 0);
-				running_total++;
-			}
-			strncat(res, perms[i].label, (reslen > running_total) ? reslen - running_total : 0);
-			running_total += strlen(perms[i].label);
+			ast_build_string(&dst, &len, "%s%s", sep, perms[i].label);
+			sep = ",";
 		}
 	}
 
-	if (ast_strlen_zero(res))
+	if (ast_strlen_zero(res))	/* replace empty string with something sensible */
 		ast_copy_string(res, "<none>", reslen);
 	
 	return res;
@@ -554,8 +551,7 @@ static int handle_showmanagers(int fd, int argc, char *argv[])
 }
 
 
-/*! \brief  CLI command 
-	Should change to "manager show commands" */
+/*! \brief  CLI command  manager list commands */
 static int handle_showmancmds(int fd, int argc, char *argv[])
 {
 	struct manager_action *cur;
@@ -573,8 +569,7 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief CLI command show manager connected */
-/* Should change to "manager show connected" */
+/*! \brief CLI command manager list connected */
 static int handle_showmanconn(int fd, int argc, char *argv[])
 {
 	struct mansession *s;
