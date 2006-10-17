@@ -1172,7 +1172,7 @@ static int action_waitevent(struct mansession *s, struct message *m)
 		ast_mutex_unlock(&s->__lock);
 		if (needexit)
 			break;
-		if (s->fd > 0) {
+		if (!s->inuse && s->fd > 0) {
 			if (ast_wait_for_input(s->fd, 1000))
 				break;
 		} else {
@@ -2445,6 +2445,11 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 			ast_build_string(&c, &len, "<body bgcolor=\"#ffffff\"><table align=center bgcolor=\"#f1f1f1\" width=\"500\">\r\n");
 			ast_build_string(&c, &len, "<tr><td colspan=\"2\" bgcolor=\"#f1f1ff\"><h1>&nbsp;&nbsp;Manager Tester</h1></td></tr>\r\n");
 		}
+		{
+			char template[32];
+			ast_copy_string(template, "/tmp/ast-http-XXXXXX", sizeof(template));
+			s->fd = mkstemp(template);
+		}
 		if (process_message(s, &m)) {
 			if (s->authenticated) {
 				if (option_verbose > 1) {
@@ -2461,6 +2466,25 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 			}
 			s->needdestroy = 1;
 		}
+		if (s->fd > -1) {	/* have temporary output */
+			char *buf;
+			off_t len = lseek(s->fd, 0, SEEK_END);	/* how many chars available */
+
+			if (len > 0 && (buf = ast_calloc(1, len+1))) {
+				if (!s->outputstr)
+					s->outputstr = ast_calloc(1, sizeof(*s->outputstr));
+				if (s->outputstr) {
+					lseek(s->fd, 0, SEEK_SET);
+					read(s->fd, buf, len);
+					ast_verbose("--- fd %d has %d bytes ---\n%s\n---\n", s->fd, (int)len, buf);
+					ast_dynamic_str_append(&s->outputstr, 0, "%s", buf);
+				}
+				free(buf);
+			}
+			close(s->fd);
+			s->fd = -1;
+		}
+
 		if (s->outputstr) {
 			char *tmp;
 			if (format == FORMAT_XML)
