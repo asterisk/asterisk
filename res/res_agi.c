@@ -95,7 +95,7 @@ static char *descrip =
 "variable to \"no\" before executing the AGI application.\n"
 "  Using 'EAGI' provides enhanced AGI, with incoming audio available out of band\n"
 "on file descriptor 3\n\n"
-"  Use the CLI command 'show agi' to list available agi commands\n"
+"  Use the CLI command 'agi list' to list available agi commands\n"
 "  This application sets the following channel variable upon completion:\n"
 "     AGISTATUS      The status of the attempt to the run the AGI script\n"
 "                    text string, one of SUCCESS | FAILED | HANGUP\n";
@@ -220,6 +220,7 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds, in
 	}
 
 	/* If we have a script parameter, relay it to the fastagi server */
+	/* Script parameters take the form of: AGI(agi://my.example.com/?extension=${EXTEN}) */
 	if (!ast_strlen_zero(script))
 		fdprintf(s, "agi_network_script: %s\n", script);
 
@@ -326,6 +327,7 @@ static enum agi_result launch_script(char *script, char *argv[], int *fds, int *
 			close(x);
 
 		/* Execute script */
+		/* XXX argv should be deprecated in favor of passing agi_argX paramaters */
 		execv(script, argv);
 		/* Can't use ast_log since FD's are closed */
 		fprintf(stdout, "verbose \"Failed to execute '%s': %s\" 2\n", script, strerror(errno));
@@ -351,8 +353,10 @@ static enum agi_result launch_script(char *script, char *argv[], int *fds, int *
 		
 }
 
-static void setup_env(struct ast_channel *chan, char *request, int fd, int enhanced)
+static void setup_env(struct ast_channel *chan, char *request, int fd, int enhanced, int argc, char *argv[])
 {
+	int count;
+
 	/* Print initial environment, with agi_request always being the first
 	   thing */
 	fdprintf(fd, "agi_request: %s\n", request);
@@ -380,6 +384,11 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 	/* User information */
 	fdprintf(fd, "agi_accountcode: %s\n", chan->accountcode ? chan->accountcode : "");
     
+	/* Send any parameters to the fastagi server that have been passed via the agi application */
+	/* Agi application paramaters take the form of: AGI(/path/to/example/script|${EXTEN}) */
+	for(count = 1; count < argc; count++)
+		fdprintf(fd, "agi_arg_%d: %s\n", count, argv[count]);
+
 	/* End with empty return */
 	fdprintf(fd, "\n");
 }
@@ -1810,7 +1819,7 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 	return 0;
 }
 #define RETRY	3
-static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, int *status, int dead)
+static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, int *status, int dead, int argc, char *argv[])
 {
 	struct ast_channel *c;
 	int outfd;
@@ -1831,7 +1840,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 		return AGI_RESULT_FAILURE;
 	}
 	setlinebuf(readf);
-	setup_env(chan, request, agi->fd, (agi->audio > -1));
+	setup_env(chan, request, agi->fd, (agi->audio > -1), argc, argv);
 	for (;;) {
 		ms = -1;
 		c = ast_waitfor_nandfds(&chan, dead ? 0 : 1, &agi->ctrl, 1, NULL, &outfd, &ms);
@@ -2014,7 +2023,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 		agi.fd = fds[1];
 		agi.ctrl = fds[0];
 		agi.audio = efd;
-		res = run_agi(chan, argv[0], &agi, pid, &status, dead);
+		res = run_agi(chan, argv[0], &agi, pid, &status, dead, argc, argv);
 		/* If the fork'd process returns non-zero, set AGISTATUS to FAILURE */
 		if (res == AGI_RESULT_SUCCESS && status)
 			res = AGI_RESULT_FAILURE;
