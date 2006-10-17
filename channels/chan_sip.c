@@ -141,6 +141,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/localtime.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/compiler.h"
+#include "asterisk/threadstorage.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -342,23 +343,24 @@ static const struct  cfsip_methods {
 	enum sipmethod id;
 	int need_rtp;		/*!< when this is the 'primary' use for a pvt structure, does it need RTP? */
 	char * const text;
+	int can_create;
 } sip_methods[] = {
-	{ SIP_UNKNOWN,	 RTP,    "-UNKNOWN-" },
-	{ SIP_RESPONSE,	 NO_RTP, "SIP/2.0" },
-	{ SIP_REGISTER,	 NO_RTP, "REGISTER" },
- 	{ SIP_OPTIONS,	 NO_RTP, "OPTIONS" },
-	{ SIP_NOTIFY,	 NO_RTP, "NOTIFY" },
-	{ SIP_INVITE,	 RTP,    "INVITE" },
-	{ SIP_ACK,	 NO_RTP, "ACK" },
-	{ SIP_PRACK,	 NO_RTP, "PRACK" },
-	{ SIP_BYE,	 NO_RTP, "BYE" },
-	{ SIP_REFER,	 NO_RTP, "REFER" },
-	{ SIP_SUBSCRIBE, NO_RTP, "SUBSCRIBE" },
-	{ SIP_MESSAGE,	 NO_RTP, "MESSAGE" },
-	{ SIP_UPDATE,	 NO_RTP, "UPDATE" },
-	{ SIP_INFO,	 NO_RTP, "INFO" },
-	{ SIP_CANCEL,	 NO_RTP, "CANCEL" },
-	{ SIP_PUBLISH,	 NO_RTP, "PUBLISH" }
+	{ SIP_UNKNOWN,	 RTP,    "-UNKNOWN-", 0 },
+	{ SIP_RESPONSE,	 NO_RTP, "SIP/2.0", 0 },
+	{ SIP_REGISTER,	 NO_RTP, "REGISTER", 1 },
+ 	{ SIP_OPTIONS,	 NO_RTP, "OPTIONS", 1 },
+	{ SIP_NOTIFY,	 NO_RTP, "NOTIFY", 0 },
+	{ SIP_INVITE,	 RTP,    "INVITE", 1 },
+	{ SIP_ACK,	 NO_RTP, "ACK", 0 },
+	{ SIP_PRACK,	 NO_RTP, "PRACK", 0 },
+	{ SIP_BYE,	 NO_RTP, "BYE", 0 },
+	{ SIP_REFER,	 NO_RTP, "REFER", 0 },
+	{ SIP_SUBSCRIBE, NO_RTP, "SUBSCRIBE", 1 },
+	{ SIP_MESSAGE,	 NO_RTP, "MESSAGE", 1 },
+	{ SIP_UPDATE,	 NO_RTP, "UPDATE", 0 },
+	{ SIP_INFO,	 NO_RTP, "INFO", 0 },
+	{ SIP_CANCEL,	 NO_RTP, "CANCEL", 0 },
+	{ SIP_PUBLISH,	 NO_RTP, "PUBLISH", 1 }
 };
 
 /*!  Define SIP option tags, used in Require: and Supported: headers 
@@ -545,7 +547,6 @@ static int apeerobjs = 0;                /*!< Autocreated peer objects */
 static int regobjs = 0;                  /*!< Registry objects */
 
 static struct ast_flags global_flags[2] = {{0}};        /*!< global SIP_ flags */
-
 
 /*! \brief Protect the SIP dialog list (of sip_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
@@ -1141,6 +1142,9 @@ static struct ast_register_list {
 	int recheck;
 } regl;
 
+/*! \brief A per-thread temporary pvt structure */
+AST_THREADSTORAGE(ts_temp_pvt, temp_pvt_init);
+
 /*! \todo Move the sip_auth list to AST_LIST */
 static struct sip_auth *authl = NULL;		/*!< Authentication list for realm authentication */
 
@@ -1186,6 +1190,7 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 static int __transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
 static int retrans_pkt(void *data);
 static int transmit_sip_request(struct sip_pvt *p, struct sip_request *req);
+static int transmit_response_using_temp(ast_string_field callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, const struct sip_request *req, const char *msg);
 static int transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req);
 static int transmit_response_reliable(struct sip_pvt *p, const char *msg, const struct sip_request *req);
 static int transmit_response_with_date(struct sip_pvt *p, const char *msg, const struct sip_request *req);
@@ -4194,7 +4199,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	Called by handle_request, sipsock_read */
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method)
 {
-	struct sip_pvt *p;
+	struct sip_pvt *p = NULL;
 	char *tag = "";	/* note, tag is never NULL */
 	char totag[128];
 	char fromtag[128];
@@ -4259,17 +4264,16 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		}
 	}
 	ast_mutex_unlock(&iflock);
-
-	/* Responses can not create a pvt structure so drop it */
-	if (req->method == SIP_RESPONSE) {
-		if (option_debug > 1)
+	
+	/* See if the method is capable of creating a dialog */
+	if (!sip_methods[intended_method].can_create) {
+		if (intended_method != SIP_RESPONSE)
+			transmit_response_using_temp(callid, sin, 1, intended_method, req, "481 Call leg/transaction does not exist");
+		else if (option_debug > 1)
 			ast_log(LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Callid %s\n", callid ? callid : "<unknown>");
-		return NULL;
-	}
-
-	/* Allocate new call */
-	if ((p = sip_alloc(callid, sin, 1, intended_method)))
+	} else if ((p = sip_alloc(callid, sin, 1, intended_method))) {
 		ast_mutex_lock(&p->lock);
+	}
 
 	return p;
 }
@@ -5527,6 +5531,54 @@ static int __transmit_response(struct sip_pvt *p, const char *msg, const struct 
 		add_header(&resp, "X-Asterisk-HangupCauseCode", buf);
 	}
 	return send_response(p, &resp, reliable, seqno);
+}
+
+/*! \brief Transmit response, no retransmits, using a temporary pvt structure */
+static int transmit_response_using_temp(ast_string_field callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, const struct sip_request *req, const char *msg)
+{
+	struct sip_pvt *p = NULL;
+
+	if (!(p = ast_threadstorage_get(&ts_temp_pvt, sizeof(*p)))) {
+		ast_log(LOG_NOTICE, "Failed to get temporary pvt\n");
+		return -1;
+	}
+
+	memset(p, 0, sizeof(*p));
+
+	/* Initialize the bare minimum */
+	if (ast_string_field_init(p, 512))
+		return -1;
+
+	p->method = intended_method;
+
+	if (sin) {
+		p->sa = *sin;
+		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
+			p->ourip = __ourip;
+	} else
+		p->ourip = __ourip;
+
+	p->branch = ast_random();
+	make_our_tag(p->tag, sizeof(p->tag));
+	p->ocseq = INITIAL_CSEQ;
+
+	if (useglobal_nat && sin) {
+		ast_copy_flags(&p->flags[0], &global_flags[0], SIP_NAT);
+		p->recv = *sin;
+		do_setnat(p, ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_ROUTE);
+	}
+
+	ast_string_field_set(p, fromdomain, default_fromdomain);
+	build_via(p);
+	ast_string_field_set(p, callid, callid);
+
+	/* Use this temporary pvt structure to send the message */
+	__transmit_response(p, msg, req, XMIT_UNRELIABLE);
+
+	/* Now do a simple destruction */
+	ast_string_field_free_all(p);
+
+	return 0;
 }
 
 /*! \brief Transmit response, no retransmits */
