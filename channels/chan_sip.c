@@ -4259,8 +4259,11 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	ast_mutex_unlock(&iflock);
 
 	/* Responses can not create a pvt structure so drop it */
-	if (req->method == SIP_RESPONSE)
+	if (req->method == SIP_RESPONSE) {
+		if (option_debug > 1)
+			ast_log(LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Callid %s\n", callid ? callid : "<unknown>");
 		return NULL;
+	}
 
 	/* Allocate new call */
 	if ((p = sip_alloc(callid, sin, 1, intended_method)))
@@ -14103,13 +14106,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 
 	/* Find out SIP method for incoming request */
 	if (req->method == SIP_RESPONSE) {	/* Response to our request */
+		/* When we get here, we know this is a SIP dialog where we've sent
+		   a request and have a response, or at least get a response
+		   within an existing dialog */
 		/* Response to our request -- Do some sanity checks */	
-		if (!p->initreq.headers) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %d Cmd %s\n", seqno, cmd);
-			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-			return 0;
-		} else if (p->ocseq && (p->ocseq < seqno)) {
+		if (p->ocseq && (p->ocseq < seqno)) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
 			return -1;
