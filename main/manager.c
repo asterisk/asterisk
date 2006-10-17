@@ -296,7 +296,7 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 	int colons = 0;
 	int breaks = 0;
 	size_t len;
-	int count = 1;
+	int in_data = 0;	/* parsing data */
 	int escaped = 0;
 	int inobj = 0;
 	int x;
@@ -311,6 +311,11 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 		dest = "unknown";
 	if (!objtype)
 		objtype = "generic";
+
+	/* determine how large is the response.
+	 * This is a heuristic - counting colons (for headers),
+	 * newlines (for extra arguments), and escaped chars.
+	 */
 	for (x = 0; in[x]; x++) {
 		if (in[x] == ':')
 			colons++;
@@ -322,39 +327,52 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 	len = (size_t) (strlen(in) + colons * 5 + breaks * (40 + strlen(dest) + strlen(objtype)) + escaped * 10); /* foo="bar", "<response type=\"object\" id=\"dest\"", "&amp;" */
 	out = ast_malloc(len);
 	if (!out)
-		return 0;
+		return NULL;
 	tmp = out;
-	while (*in) {
-		var = in;
-		while (*in && (*in >= 32))
-			in++;
-		if (*in) {
-			if ((count > 3) && inobj) {
-				ast_build_string(&tmp, &len, " /></response>\n");
-				inobj = 0;
+	/* we want to stop when we find an empty line */
+	while (in && *in) {
+		in = ast_skip_blanks(in);	/* trailing \n from before */
+		val = strsep(&in, "\r\n");	/* mark start and end of line */
+		ast_trim_blanks(val);
+		ast_verbose("inobj %d in_data %d line <%s>\n", inobj, in_data, val);
+		if (ast_strlen_zero(val)) {
+			if (in_data) { /* close data */
+				ast_build_string(&tmp, &len, "'");
+				in_data = 0;
 			}
-			count = 0;
-			while (*in && (*in < 32)) {
-				*in = '\0';
-				in++;
-				count++;
+			ast_build_string(&tmp, &len, " /></response>\n");
+			inobj = 0;
+			continue;
+		}
+		/* we expect Name: value lines */
+		if (in_data) {
+			var = NULL;
+		} else {
+			var = strsep(&val, ":");
+			if (val) {	/* found the field name */
+				val = ast_skip_blanks(val);
+				ast_trim_blanks(var);
+			} else {		/* field name not found, move to opaque mode */
+				val = var;
+				var = "Opaque-data";
 			}
-			val = strchr(var, ':');
-			if (val) {
-				*val = '\0';
-				val++;
-				if (*val == ' ')
-					val++;
-				if (!inobj) {
-					ast_build_string(&tmp, &len, "<response type='object' id='%s'><%s", dest, objtype);
-					inobj = 1;
-				}
-				ast_build_string(&tmp, &len, " ");				
-				xml_copy_escape(&tmp, &len, var, 1);
-				ast_build_string(&tmp, &len, "='");
-				xml_copy_escape(&tmp, &len, val, 0);
+		}
+		if (!inobj) {
+			ast_build_string(&tmp, &len, "<response type='object' id='%s'><%s", dest, objtype);
+			inobj = 1;
+		}
+		if (!in_data) {
+			ast_build_string(&tmp, &len, " ");				
+			xml_copy_escape(&tmp, &len, var, 1 | 2);
+			ast_build_string(&tmp, &len, "='");
+			xml_copy_escape(&tmp, &len, val, 0);
+			if (!strcmp(var, "Opaque-data")) {
+				in_data = 1;
+			} else {
 				ast_build_string(&tmp, &len, "'");
 			}
+		} else {
+			xml_copy_escape(&tmp, &len, val, 0);
 		}
 	}
 	if (inobj)
