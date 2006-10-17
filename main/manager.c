@@ -240,9 +240,19 @@ static char *complete_show_mancmd(const char *line, const char *word, int pos, i
 	return ret;
 }
 
-static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int lower)
+/*
+ * convert to xml with various conversion:
+ * mode & 1	-> lowercase;
+ * mode & 2	-> replace non-alphanumeric chars with underscore
+ */
+static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int mode)
 {
-	while (*src && (*maxlen > 6)) {
+	for ( ; *src && *maxlen > 6; src++) {
+		if ( (mode & 2) && !isalnum(*src)) {
+			*(*dst)++ = '_';
+			(*maxlen)--;
+			continue;
+		}
 		switch (*src) {
 		case '<':
 			strcpy(*dst, "&lt;");
@@ -269,11 +279,11 @@ static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int low
 			(*dst) += 5;
 			*maxlen -= 5;
 			break;		
+
 		default:
-			*(*dst)++ = lower ? tolower(*src) : *src;
+			*(*dst)++ = mode ? tolower(*src) : *src;
 			(*maxlen)--;
 		}
-		src++;
 	}
 }
 
