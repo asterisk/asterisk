@@ -285,7 +285,7 @@ static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int mod
 	}
 }
 
-static char *xml_translate(char *in, struct ast_variable *vars)
+static char *__xml_translate(char *in, struct ast_variable *vars, int xml)
 {
 	struct ast_variable *v;
 	char *dest = NULL;
@@ -298,7 +298,7 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 	int escaped = 0;
 	int inobj = 0;
 	int x;
-	
+
 	for (v = vars; v; v = v->next) {
 		if (!dest && !strcasecmp(v->name, "ajaxdest"))
 			dest = v->value;
@@ -335,10 +335,11 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 		ast_verbose("inobj %d in_data %d line <%s>\n", inobj, in_data, val);
 		if (ast_strlen_zero(val)) {
 			if (in_data) { /* close data */
-				ast_build_string(&tmp, &len, "'");
+				ast_build_string(&tmp, &len, xml ? "'" : "</td></tr>\n");
 				in_data = 0;
 			}
-			ast_build_string(&tmp, &len, " /></response>\n");
+			ast_build_string(&tmp, &len, xml ? " /></response>\n" :
+				"<tr><td colspan=\"2\"><hr></td></tr>\r\n");
 			inobj = 0;
 			continue;
 		}
@@ -356,76 +357,40 @@ static char *xml_translate(char *in, struct ast_variable *vars)
 			}
 		}
 		if (!inobj) {
-			ast_build_string(&tmp, &len, "<response type='object' id='%s'><%s", dest, objtype);
+			if (xml)
+				ast_build_string(&tmp, &len, "<response type='object' id='%s'><%s", dest, objtype);
+			else
+				ast_build_string(&tmp, &len, "<body>\n");
 			inobj = 1;
 		}
 		if (!in_data) {
-			ast_build_string(&tmp, &len, " ");				
-			xml_copy_escape(&tmp, &len, var, 1 | 2);
-			ast_build_string(&tmp, &len, "='");
+			ast_build_string(&tmp, &len, xml ? " " : "<tr><td>");
+			xml_copy_escape(&tmp, &len, var, xml ? 1 | 2 : 0);
+			ast_build_string(&tmp, &len, xml ? "='" : "</td><td>");
 			xml_copy_escape(&tmp, &len, val, 0);
 			if (!strcmp(var, "Opaque-data")) {
 				in_data = 1;
 			} else {
-				ast_build_string(&tmp, &len, "'");
+				ast_build_string(&tmp, &len, xml ? "'" : "</td></tr>\n");
 			}
 		} else {
 			xml_copy_escape(&tmp, &len, val, 0);
 		}
 	}
 	if (inobj)
-		ast_build_string(&tmp, &len, " /></response>\n");
+		ast_build_string(&tmp, &len, xml ? " /></response>\n" : "</body>\n");
 	return out;
+}
+
+static char *xml_translate(char *in, struct ast_variable *vars)
+{
+	return __xml_translate(in, vars, 1);
 }
 
 static char *html_translate(char *in)
 {
-	int x;
-	int colons = 0;
-	int breaks = 0;
-	size_t len;
-	int count = 1;
-	char *tmp, *var, *val, *out;
-
-	for (x=0; in[x]; x++) {
-		if (in[x] == ':')
-			colons++;
-		if (in[x] == '\n')
-			breaks++;
-	}
-	len = strlen(in) + colons * 40 + breaks * 40; /* <tr><td></td><td></td></tr>, "<tr><td colspan=\"2\"><hr></td></tr> */
-	out = ast_malloc(len);
-	if (!out)
-		return 0;
-	tmp = out;
-	while (*in) {
-		var = in;
-		while (*in && (*in >= 32))
-			in++;
-		if (*in) {
-			if ((count % 4) == 0){
-				ast_build_string(&tmp, &len, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
-			}
-			count = 0;
-			while (*in && (*in < 32)) {
-				*in = '\0';
-				in++;
-				count++;
-			}
-			val = strchr(var, ':');
-			if (val) {
-				*val = '\0';
-				val++;
-				if (*val == ' ')
-					val++;
-				ast_build_string(&tmp, &len, "<tr><td>%s</td><td>%s</td></tr>\r\n", var, val);
-			}
-		}
-	}
-	return out;
+	return __xml_translate(in, NULL, 0);
 }
-
-
 
 static struct ast_manager_user *ast_get_manager_by_name_locked(const char *name)
 {
@@ -2394,7 +2359,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 {
 	struct mansession *s = NULL;
 	unsigned long ident = 0;
-	char workspace[512];
+	char workspace[1024];
 	char cookie[128];
 	size_t len = sizeof(workspace);
 	int blastaway = 0;
@@ -2456,8 +2421,14 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 		if (format == FORMAT_XML) {
 			ast_build_string(&c, &len, "<ajax-response>\n");
 		} else if (format == FORMAT_HTML) {
+#define ROW_FMT	"<tr><td colspan=\"2\" bgcolor=\"#f1f1ff\">%s</td></tr>\r\n"
+#define TEST_STRING \
+	"<form action=\"manager\">action: <input name=\"action\"> cmd <input name=\"command\"><br>\
+	user <input name=\"username\"> pass <input type=\"password\" name=\"secret\"><br>
+	<input type=\"submit\"></form>"
 			ast_build_string(&c, &len, "<body bgcolor=\"#ffffff\"><table align=center bgcolor=\"#f1f1f1\" width=\"500\">\r\n");
-			ast_build_string(&c, &len, "<tr><td colspan=\"2\" bgcolor=\"#f1f1ff\"><h1>&nbsp;&nbsp;Manager Tester</h1></td></tr>\r\n");
+			ast_build_string(&c, &len, ROW_FMT, "<h1>&nbsp;&nbsp;Manager Tester</h1>");
+			ast_build_string(&c, &len, ROW_FMT, TEST_STRING);
 		}
 		{
 			char template[32];
