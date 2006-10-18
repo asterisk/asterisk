@@ -153,7 +153,9 @@ enum {
 	/*! If set, the user is a shared line appearance trunk */
 	CONFFLAG_SLA_TRUNK = (1 << 26),
 	/*! If set, the user has put us on hold */
-	CONFFLAG_HOLD = (1 << 27)
+	CONFFLAG_HOLD = (1 << 27),
+	/*! If set, the user should continue in the dialplan if kicked out */
+	CONFFLAG_KICK_CONTINUE = (1 << 28)
 };
 
 enum {
@@ -166,6 +168,7 @@ AST_APP_OPTIONS(meetme_opts, {
 	AST_APP_OPTION('a', CONFFLAG_ADMIN ),
 	AST_APP_OPTION('b', CONFFLAG_AGI ),
 	AST_APP_OPTION('c', CONFFLAG_ANNOUNCEUSERCOUNT ),
+	AST_APP_OPTION('C', CONFFLAG_KICK_CONTINUE),
 	AST_APP_OPTION('D', CONFFLAG_DYNAMICPIN ),
 	AST_APP_OPTION('d', CONFFLAG_DYNAMIC ),
 	AST_APP_OPTION('E', CONFFLAG_EMPTYNOPIN ),
@@ -219,6 +222,7 @@ static const char *descrip =
 "             Default: conf-background.agi  (Note: This does not work with\n"
 "             non-Zap channels in the same conference)\n"
 "      'c' -- announce user(s) count on joining a conference\n"
+"      'C' -- continue in dialplan when kicked out of conference\n"
 "      'd' -- dynamically add conference\n"
 "      'D' -- dynamically add conference, prompting for a PIN\n"
 "      'e' -- select an empty conference\n"
@@ -1406,9 +1410,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						if (!(confflags & CONFFLAG_QUIET))
 							if (!ast_streamfile(chan, "conf-leaderhasleft", chan->language))
 								ast_waitstream(chan, "");
-						if(confflags & CONFFLAG_MARKEDEXIT)
+						if (confflags & CONFFLAG_MARKEDEXIT) {
+							if (confflags & CONFFLAG_KICK_CONTINUE)
+								ret = 0;
 							break;
-						else {
+						} else {
 							ztc.confmode = ZT_CONF_CONF;
 							if (ioctl(fd, ZT_SETCONF, &ztc)) {
 								ast_log(LOG_WARNING, "Error setting conference\n");
@@ -1471,7 +1477,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			
 			/* Leave if the last marked user left */
 			if (currentmarked == 0 && lastmarked != 0 && (confflags & CONFFLAG_MARKEDEXIT)) {
-				ret = -1;
+				if (confflags & CONFFLAG_KICK_CONTINUE)
+					ret = 0;
+				else
+					ret = -1;
 				break;
 			}
 	

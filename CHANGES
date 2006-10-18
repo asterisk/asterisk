@@ -40,3 +40,5 @@ Changes since Asterisk 1.4-beta was branched:
   * Extend CALLERID() function with "pres" and "ton" parameters to
      fetch string representation of calling number presentation indicator
      and numeric representation of type of calling number value.
+  * Added 'C' option to Meetme which causes a caller to continue in the dialplan
+     when kicked out.
