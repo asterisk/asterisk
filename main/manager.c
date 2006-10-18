@@ -34,9 +34,9 @@
  * \ref amiconf
  */
 
-/*! \addtogroup Group_AMI AMI functions 
+/*! \addtogroup Group_AMI AMI functions
 */
-/*! @{ 
+/*! @{
  Doxygen group */
 
 #include "asterisk.h"
@@ -200,7 +200,7 @@ static char *authority_to_str(int authority, char *res, int reslen)
 
 	if (ast_strlen_zero(res))	/* replace empty string with something sensible */
 		ast_copy_string(res, "<none>", reslen);
-	
+
 	return res;
 }
 
@@ -209,7 +209,7 @@ static char *authority_to_str(int authority, char *res, int reslen)
    ast_instring("this|that|more","this",'|') == 1;
 
    feel free to move this to app.c -anthm */
-static int ast_instring(const char *bigstr, const char *smallstr, const char delim) 
+static int ast_instring(const char *bigstr, const char *smallstr, const char delim)
 {
 	const char *val = bigstr, *next;
 
@@ -238,7 +238,7 @@ static int get_perm(const char *instr)
 		if (ast_instring(instr, perms[x].label, ','))
 			ret |= perms[x].num;
 	}
-	
+
 	return ret;
 }
 
@@ -246,7 +246,7 @@ static int get_perm(const char *instr)
  * A number returns itself, false returns 0, true returns all flags,
  * other strings return the flags that are set.
  */
-static int ast_strings_to_mask(const char *string) 
+static int ast_strings_to_mask(const char *string)
 {
 	const char *p;
 
@@ -263,11 +263,12 @@ static int ast_strings_to_mask(const char *string)
 	if (ast_true(string)) {	/* all permissions */
 		int x, ret = 0;
 		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
-			ret |= perms[x].num;		
+			ret |= perms[x].num;
 		return ret;
 	}
 	return get_perm(string);
 }
+
 static char *complete_show_mancmd(const char *line, const char *word, int pos, int state)
 {
 	struct manager_action *cur;
@@ -403,12 +404,12 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 
 	ast_cli(fd, format, "Action", "Privilege", "Synopsis");
 	ast_cli(fd, format, "------", "---------", "--------");
-	
+
 	ast_mutex_lock(&actionlock);
 	for (cur = first_action; cur; cur = cur->next) /* Walk the list of actions */
 		ast_cli(fd, format, cur->action, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->synopsis);
 	ast_mutex_unlock(&actionlock);
-	
+
 	return RESULT_SUCCESS;
 }
 
@@ -419,7 +420,7 @@ static int handle_showmanconn(int fd, int argc, char *argv[])
 	char *format = "  %-15.15s  %-15.15s\n";
 
 	ast_cli(fd, format, "Username", "IP Address");
-	
+
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_TRAVERSE(&sessions, s, list)
 		ast_cli(fd, format,s->username, ast_inet_ntoa(s->sin.sin_addr));
@@ -445,20 +446,20 @@ static int handle_showmaneventq(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char showmancmd_help[] = 
+static char showmancmd_help[] =
 "Usage: manager show command <actionname>\n"
 "	Shows the detailed description for a specific Asterisk manager interface command.\n";
 
-static char showmancmds_help[] = 
+static char showmancmds_help[] =
 "Usage: manager list commands\n"
 "	Prints a listing of all the available Asterisk manager interface commands.\n";
 
-static char showmanconn_help[] = 
+static char showmanconn_help[] =
 "Usage: manager list connected\n"
 "	Prints a listing of the users that are currently connected to the\n"
 "Asterisk manager interface.\n";
 
-static char showmaneventq_help[] = 
+static char showmaneventq_help[] =
 "Usage: manager list eventq\n"
 "	Prints a listing of all events pending in the Asterisk manger\n"
 "event queue.\n";
@@ -552,7 +553,7 @@ struct ast_variable *astman_get_variables(struct message *m)
 		AST_APP_ARG(vars)[32];
 	);
 
-	varlen = strlen("Variable: ");	
+	varlen = strlen("Variable: ");
 
 	for (x = 0; x < m->hdrcount; x++) {
 		char *parse, *var, *val;
@@ -594,14 +595,14 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 	va_start(ap, fmt);
 	ast_dynamic_str_thread_set_va(&buf, 0, &astman_append_buf, fmt, ap);
 	va_end(ap);
-	
+
 	if (s->fd > -1)
 		ast_carefulwrite(s->fd, buf->str, strlen(buf->str), s->writetimeout);
 	else {
 		if (!s->outputstr && !(s->outputstr = ast_calloc(1, sizeof(*s->outputstr))))
 			return;
 
-		ast_dynamic_str_append(&s->outputstr, 0, "%s", buf->str);	
+		ast_dynamic_str_append(&s->outputstr, 0, "%s", buf->str);
 	}
 }
 
@@ -655,7 +656,7 @@ static void astman_start_ack(struct mansession *s, struct message *m)
 
 
 /*! \brief
-   Rather than braindead on,off this now can also accept a specific int mask value 
+   Rather than braindead on,off this now can also accept a specific int mask value
    or a ',' delim list of mask strings (the same as manager.conf) -anthm
 */
 static int set_eventmask(struct mansession *s, char *eventmask)
@@ -663,10 +664,10 @@ static int set_eventmask(struct mansession *s, char *eventmask)
 	int maskint = ast_strings_to_mask(eventmask);
 
 	ast_mutex_lock(&s->__lock);
-	if (maskint >= 0)	
+	if (maskint >= 0)
 		s->send_events = maskint;
 	ast_mutex_unlock(&s->__lock);
-	
+
 	return maskint;
 }
 
@@ -777,7 +778,7 @@ static int authenticate(struct mansession *s, struct message *m)
 }
 
 /*! \brief Manager PING */
-static char mandescr_ping[] = 
+static char mandescr_ping[] =
 "Description: A 'Ping' action will ellicit a 'Pong' response.  Used to keep the\n"
 "  manager connection open.\n"
 "Variables: NONE\n";
@@ -833,7 +834,7 @@ static void handle_updates(struct mansession *s, struct message *m, struct ast_c
 	char *action, *cat, *var, *value, *match;
 	struct ast_category *category;
 	struct ast_variable *v;
-	
+
 	for (x=0;x<100000;x++) {
 		snprintf(hdr, sizeof(hdr), "Action-%06d", x);
 		action = astman_get_header(m, hdr);
@@ -857,7 +858,7 @@ static void handle_updates(struct mansession *s, struct message *m, struct ast_c
 		} else if (!strcasecmp(action, "renamecat")) {
 			if (!ast_strlen_zero(cat) && !ast_strlen_zero(value)) {
 				category = ast_category_get(cfg, cat);
-				if (category) 
+				if (category)
 					ast_category_rename(category, value);
 			}
 		} else if (!strcasecmp(action, "delcat")) {
@@ -870,8 +871,8 @@ static void handle_updates(struct mansession *s, struct message *m, struct ast_c
 			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) && (category = ast_category_get(cfg, cat)))
 				ast_variable_delete(category, var, match);
 		} else if (!strcasecmp(action, "append")) {
-			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) && 
-				(category = ast_category_get(cfg, cat)) && 
+			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) &&
+				(category = ast_category_get(cfg, cat)) &&
 				(v = ast_variable_new(var, value))){
 				if (match && !strcasecmp(match, "object"))
 					v->object = 1;
@@ -921,13 +922,13 @@ static int action_updateconfig(struct mansession *s, struct message *m)
 	if (!ast_strlen_zero(rld)) {
 		if (ast_true(rld))
 			rld = NULL;
-		ast_module_reload(rld); 
+		ast_module_reload(rld);
 	}
 	return 0;
 }
 
 /*! \brief Manager WAITEVENT */
-static char mandescr_waitevent[] = 
+static char mandescr_waitevent[] =
 "Description: A 'WaitEvent' action will ellicit a 'Success' response.  Whenever\n"
 "a manager event is queued.  Once WaitEvent has been called on an HTTP manager\n"
 "session, events will be generated and queued.\n"
@@ -951,7 +952,7 @@ static int action_waitevent(struct mansession *s, struct message *m)
 	if (!ast_strlen_zero(timeouts)) {
 		sscanf(timeouts, "%i", &timeout);
 	}
-	
+
 	ast_mutex_lock(&s->__lock);
 	if (s->waiting_thread != AST_PTHREADT_NULL) {
 		pthread_kill(s->waiting_thread, SIGURG);
@@ -1017,7 +1018,7 @@ static int action_waitevent(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_listcommands[] = 
+static char mandescr_listcommands[] =
 "Description: Returns the action name and synopsis for every\n"
 "  action that is available to the user\n"
 "Variables: NONE\n";
@@ -1039,7 +1040,7 @@ static int action_listcommands(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_events[] = 
+static char mandescr_events[] =
 "Description: Enable/Disable sending of events to this manager\n"
 "  client.\n"
 "Variables:\n"
@@ -1061,7 +1062,7 @@ static int action_events(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_logoff[] = 
+static char mandescr_logoff[] =
 "Description: Logoff this manager session\n"
 "Variables: NONE\n";
 
@@ -1106,7 +1107,7 @@ static int action_challenge(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_hangup[] = 
+static char mandescr_hangup[] =
 "Description: Hangup a channel\n"
 "Variables: \n"
 "	Channel: The channel name to be hungup\n";
@@ -1130,7 +1131,7 @@ static int action_hangup(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_setvar[] = 
+static char mandescr_setvar[] =
 "Description: Set a global or local channel variable.\n"
 "Variables: (Names marked with * are required)\n"
 "	Channel: Channel to set variable for\n"
@@ -1143,12 +1144,12 @@ static int action_setvar(struct mansession *s, struct message *m)
         char *name = astman_get_header(m, "Channel");
         char *varname = astman_get_header(m, "Variable");
         char *varval = astman_get_header(m, "Value");
-	
+
 	if (ast_strlen_zero(varname)) {
 		astman_send_error(s, m, "No variable specified");
 		return 0;
 	}
-	
+
 	if (ast_strlen_zero(varval)) {
 		astman_send_error(s, m, "No value specified");
 		return 0;
@@ -1161,18 +1162,18 @@ static int action_setvar(struct mansession *s, struct message *m)
 			return 0;
 		}
 	}
-	
+
 	pbx_builtin_setvar_helper(c, varname, varval);
-	  
+
 	if (c)
 		ast_channel_unlock(c);
 
-	astman_send_ack(s, m, "Variable Set");	
+	astman_send_ack(s, m, "Variable Set");
 
 	return 0;
 }
 
-static char mandescr_getvar[] = 
+static char mandescr_getvar[] =
 "Description: Get the value of a global or local channel variable.\n"
 "Variables: (Names marked with * are required)\n"
 "	Channel: Channel to read variable from\n"
@@ -1267,9 +1268,9 @@ static int action_status(struct mansession *s, struct message *m)
 			"Uniqueid: %s\r\n"
 			"%s"
 			"\r\n",
-			c->name, 
-			S_OR(c->cid.cid_num, "<unknown>"), 
-			S_OR(c->cid.cid_name, "<unknown>"), 
+			c->name,
+			S_OR(c->cid.cid_num, "<unknown>"),
+			S_OR(c->cid.cid_name, "<unknown>"),
 			c->accountcode,
 			ast_state2str(c->_state), c->context,
 			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, idText);
@@ -1286,9 +1287,9 @@ static int action_status(struct mansession *s, struct message *m)
 			"Uniqueid: %s\r\n"
 			"%s"
 			"\r\n",
-			c->name, 
-			S_OR(c->cid.cid_num, "<unknown>"), 
-			S_OR(c->cid.cid_name, "<unknown>"), 
+			c->name,
+			S_OR(c->cid.cid_num, "<unknown>"),
+			S_OR(c->cid.cid_name, "<unknown>"),
 			c->accountcode,
 			ast_state2str(c->_state), bridge, c->uniqueid, idText);
 		}
@@ -1304,7 +1305,7 @@ static int action_status(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_redirect[] = 
+static char mandescr_redirect[] =
 "Description: Redirect (transfer) a call.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Channel to redirect\n"
@@ -1368,7 +1369,7 @@ static int action_redirect(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_command[] = 
+static char mandescr_command[] =
 "Description: Run a CLI command.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Command: Asterisk CLI command to run\n"
@@ -1413,17 +1414,17 @@ static void *fast_originate(void *data)
 	struct ast_channel *chan = NULL;
 
 	if (!ast_strlen_zero(in->app)) {
-		res = ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1, 
-			S_OR(in->cid_num, NULL), 
+		res = ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1,
+			S_OR(in->cid_num, NULL),
 			S_OR(in->cid_name, NULL),
 			in->vars, in->account, &chan);
 	} else {
-		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, 
-			S_OR(in->cid_num, NULL), 
+		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1,
+			S_OR(in->cid_num, NULL),
 			S_OR(in->cid_name, NULL),
 			in->vars, in->account, &chan);
-	}   
-	
+	}
+
 	/* Tell the manager what happened with the channel */
 	manager_event(EVENT_FLAG_CALL,
 		res ? "OriginateFailure" : "OriginateSuccess",
@@ -1435,7 +1436,7 @@ static void *fast_originate(void *data)
 		"Uniqueid: %s\r\n"
 		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n",
-		in->idtext, in->tech, in->data, in->context, in->exten, reason, 
+		in->idtext, in->tech, in->data, in->context, in->exten, reason,
 		chan ? chan->uniqueid : "<null>",
 		S_OR(in->cid_num, "<unknown>"),
 		S_OR(in->cid_name, "<unknown>")
@@ -1448,7 +1449,7 @@ static void *fast_originate(void *data)
 	return NULL;
 }
 
-static char mandescr_originate[] = 
+static char mandescr_originate[] =
 "Description: Generates an outgoing call to a Extension/Context/Priority or\n"
 "  Application/Data\n"
 "Variables: (Names marked with * are required)\n"
@@ -1486,7 +1487,7 @@ static int action_originate(struct mansession *s, struct message *m)
 	int reason = 0;
 	char tmp[256];
 	char tmp2[256];
-	
+
 	pthread_t th;
 	pthread_attr_t attr;
 	if (!name) {
@@ -1537,7 +1538,7 @@ static int action_originate(struct mansession *s, struct message *m)
 				ast_copy_string(fast->cid_num, l, sizeof(fast->cid_num));
 			if (n)
 				ast_copy_string(fast->cid_name, n, sizeof(fast->cid_name));
-			fast->vars = vars;	
+			fast->vars = vars;
 			ast_copy_string(fast->context, context, sizeof(fast->context));
 			ast_copy_string(fast->exten, exten, sizeof(fast->exten));
 			ast_copy_string(fast->account, account, sizeof(fast->account));
@@ -1560,7 +1561,7 @@ static int action_originate(struct mansession *s, struct message *m)
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			return 0;
 		}
-	}   
+	}
 	if (!res)
 		astman_send_ack(s, m, "Originate successfully queued");
 	else
@@ -1570,7 +1571,7 @@ static int action_originate(struct mansession *s, struct message *m)
 
 /*! \brief Help text for manager command mailboxstatus
  */
-static char mandescr_mailboxstatus[] = 
+static char mandescr_mailboxstatus[] =
 "Description: Checks a voicemail account for status.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
@@ -1598,7 +1599,7 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_mailboxcount[] = 
+static char mandescr_mailboxcount[] =
 "Description: Checks a voicemail account for new messages.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
@@ -1623,13 +1624,13 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 	astman_append(s,   "Message: Mailbox Message Count\r\n"
 			   "Mailbox: %s\r\n"
 			   "NewMessages: %d\r\n"
-			   "OldMessages: %d\r\n" 
+			   "OldMessages: %d\r\n"
 			   "\r\n",
 			   mailbox, newmsgs, oldmsgs);
 	return 0;
 }
 
-static char mandescr_extensionstate[] = 
+static char mandescr_extensionstate[] =
 "Description: Report the extension state for given extension.\n"
 "  If the extension has a hint, will use devicestate to check\n"
 "  the status of the device connected to the extension.\n"
@@ -1664,7 +1665,7 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char mandescr_timeout[] = 
+static char mandescr_timeout[] =
 "Description: Hangup a channel after a certain time.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Channel name to hangup\n"
@@ -1774,7 +1775,7 @@ static int process_message(struct mansession *s, struct message *m)
 	}
 
 	/* XXX should we protect the list navigation ? */
-	for (tmp = first_action ; tmp; tmp = tmp->next) { 		
+	for (tmp = first_action ; tmp; tmp = tmp->next) {
 		if (!strcasecmp(action, tmp->action)) {
 			if ((s->writeperm & tmp->authority) == tmp->authority) {
 				if (tmp->func(s, m))	/* error */
@@ -1816,7 +1817,7 @@ static int get_input(struct mansession *s, char *output)
 		memmove(s->inbuf, s->inbuf + x, s->inlen - x);
 		s->inlen -= x;
 		return 1;
-	} 
+	}
 	fds[0].fd = s->fd;
 	fds[0].events = POLLIN;
 	for (;;) {
@@ -1860,7 +1861,7 @@ static void *session_do(void *data)
 {
 	struct mansession *s = data;
 	struct message m;	/* XXX watch out, this is 20k of memory! */
-	
+
 	ast_mutex_lock(&s->__lock);
 	astman_append(s, "Asterisk Call Manager/1.0\r\n");	/* welcome prompt */
 	ast_mutex_unlock(&s->__lock);
@@ -1890,7 +1891,7 @@ static void *session_do(void *data)
 	/* session is over, explain why and terminate */
 	if (s->authenticated) {
 		if (option_verbose > 1) {
-			if (displayconnects) 
+			if (displayconnects)
 				ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 		}
 		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
@@ -1938,7 +1939,7 @@ static void *accept_thread(void *ignore)
 						s->username, ast_inet_ntoa(s->sin.sin_addr));
 				}
 				free_session(s);
-				break;	
+				break;
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END
@@ -2025,18 +2026,18 @@ static int append_event(const char *str, int category)
 	tmp->next = NULL;
 	tmp->category = category;
 	strcpy(tmp->eventdata, str);
-	
+
 	if (master_eventq) {
 		prev = master_eventq;
-		while (prev->next) 
+		while (prev->next)
 			prev = prev->next;
 		prev->next = tmp;
 	} else {
 		master_eventq = tmp;
 	}
-	
+
 	tmp->usecount = num_sessions;
-	
+
 	return 0;
 }
 
@@ -2070,9 +2071,9 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 	va_start(ap, fmt);
 	ast_dynamic_str_thread_append_va(&buf, 0, &manager_event_buf, fmt, ap);
 	va_end(ap);
-	
-	ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf, "\r\n");	
-	
+
+	ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf, "\r\n");
+
 	/* Append event to master list and wake up any sleeping sessions */
 	AST_LIST_LOCK(&sessions);
 	append_event(buf->str, category);
@@ -2090,7 +2091,7 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 /*
  * support functions to register/unregister AMI action handlers,
  */
-int ast_manager_unregister(char *action) 
+int ast_manager_unregister(char *action)
 {
 	struct manager_action *cur = first_action, *prev = first_action;
 
@@ -2102,7 +2103,7 @@ int ast_manager_unregister(char *action)
 			else
 				first_action = cur->next;
 			free(cur);
-			if (option_verbose > 1) 
+			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Manager unregistered action %s\n", action);
 			break;
 		}
@@ -2140,13 +2141,13 @@ static int ast_manager_register_struct(struct manager_action *act)
 		first_action = act;
 	act->next = cur;
 
-	if (option_verbose > 1) 
+	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Manager registered action %s\n", act->action);
 	ast_mutex_unlock(&actionlock);
 	return 0;
 }
 
-/*! \brief register a new command with manager, including online help. This is 
+/*! \brief register a new command with manager, including online help. This is
 	the preferred way to register a manager command */
 int ast_manager_register2(const char *action, int auth, int (*func)(struct mansession *s, struct message *m), const char *synopsis, const char *description)
 {
@@ -2155,7 +2156,7 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 	cur = ast_malloc(sizeof(*cur));
 	if (!cur)
 		return -1;
-	
+
 	cur->action = action;
 	cur->authority = auth;
 	cur->func = func;
@@ -2265,7 +2266,7 @@ static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int mod
 			strcpy(*dst, "&amp;");
 			(*dst) += 5;
 			*maxlen -= 5;
-			break;		
+			break;
 
 		default:
 			*(*dst)++ = mode ? tolower(*src) : *src;
@@ -2287,7 +2288,7 @@ static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int mod
  * change depending on future requirements so don't count too
  * much on it when writing applications):
  *
- * General: the unformatted text is used as a value of 
+ * General: the unformatted text is used as a value of
  * XML output:  to be completed
  *   Each section is within <response type="object" id="xxx">
  *   where xxx is taken from ajaxdest variable or defaults to unknown
@@ -2317,7 +2318,7 @@ static char *xml_translate(char *in, struct ast_variable *vars, enum output_form
 	for (v = vars; v; v = v->next) {
 		if (!dest && !strcasecmp(v->name, "ajaxdest"))
 			dest = v->value;
-		else if (!objtype && !strcasecmp(v->name, "ajaxobjtype")) 
+		else if (!objtype && !strcasecmp(v->name, "ajaxobjtype"))
 			objtype = v->value;
 	}
 	if (!dest)
@@ -2484,8 +2485,8 @@ static char *generic_http_callback(enum output_format format,
 	if (process_message(s, &m)) {
 		if (s->authenticated) {
 			if (option_verbose > 1) {
-				if (displayconnects) 
-					ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));    
+				if (displayconnects)
+					ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 			}
 			ast_log(LOG_EVENT, "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 		} else {
@@ -2564,12 +2565,12 @@ static char *generic_http_callback(enum output_format format,
 	} else
 		s->inuse--;
 	ast_mutex_unlock(&s->__lock);
-	
+
 	if (blastaway)
 		destroy_session(s);
 generic_callback_out:
 	if (*status != 200)
-		return ast_http_error(500, "Server Error", NULL, "Internal Server Error (out of memory)\n"); 
+		return ast_http_error(500, "Server Error", NULL, "Internal Server Error (out of memory)\n");
 	return retval;
 }
 
@@ -2695,12 +2696,12 @@ int init_manager(void)
 	ba.sin_port = htons(portno);
 
 	if ((val = ast_variable_retrieve(cfg, "general", "bindaddr"))) {
-		if (!inet_aton(val, &ba.sin_addr)) { 
+		if (!inet_aton(val, &ba.sin_addr)) {
 			ast_log(LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
 			memset(&ba.sin_addr, 0, sizeof(ba.sin_addr));
 		}
 	}
-	
+
 
 	if ((asock > -1) && ((portno != oldportno) || !enabled)) {
 #if 0
@@ -2791,7 +2792,7 @@ int init_manager(void)
 	AST_LIST_UNLOCK(&users);
 
 	ast_config_destroy(cfg);
-	
+
 	if (webenabled && enabled) {
 		if (!webregged) {
 			ast_http_uri_link(&rawmanuri);
