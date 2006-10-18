@@ -154,8 +154,6 @@ struct mansession {
 	struct sockaddr_in sin;
 	/*! TCP socket */
 	int fd;
-	/*! Whether or not we're busy doing an action XXX currently useless */
-	int busy;
 	/*! Whether an HTTP manager is in use */
 	int inuse;
 	/*! Whether an HTTP session should be destroyed */
@@ -1148,8 +1146,6 @@ static int action_waitevent(struct mansession *s, struct message *m)
 		if (!s->send_events)
 			s->send_events = -1;
 		/* Once waitevent is called, always queue events from now on */
-		if (s->busy == 1)
-			s->busy = 2;
 	}
 	ast_mutex_unlock(&s->__lock);
 	s->waiting_thread = pthread_self();
@@ -1895,7 +1891,6 @@ static int process_events(struct mansession *s)
 	if (s->fd > -1) {
 		struct eventqent *eqe;
 
-		s->busy--;
 		if (!s->eventq)
 			s->eventq = master_eventq;
 		while( (eqe = s->eventq->next) ) {
@@ -1956,7 +1951,6 @@ static int process_message(struct mansession *s, struct message *m)
 		return 0;
 	}
 
-	ast_atomic_fetchadd_int(&s->busy, 1);	/* XXX what's for ? */
 	/* XXX should we protect the list navigation ? */
 	for (tmp = first_action ; tmp; tmp = tmp->next) { 		
 		if (!strcasecmp(action, tmp->action)) {
@@ -2367,7 +2361,6 @@ static char *generic_http_callback(enum output_format format,
 	struct mansession *s = NULL;
 	unsigned long ident = 0;
 	char workspace[1024];
-	char cookie[128];
 	size_t len = sizeof(workspace);
 	int blastaway = 0;
 	char *c = workspace;
@@ -2419,91 +2412,98 @@ static char *generic_http_callback(enum output_format format,
 	memset(&m, 0, sizeof(m));
 	{
 		char tmp[80];
+		char cookie[128];
+
 		ast_build_string(&c, &len, "Content-type: text/%s\r\n", contenttype[format]);
 		sprintf(tmp, "%08lx", s->managerid);
 		ast_build_string(&c, &len, "%s\r\n", ast_http_setcookie("mansession_id", tmp, httptimeout, cookie, sizeof(cookie)));
-		if (format == FORMAT_HTML)
-			ast_build_string(&c, &len, "<title>Asterisk&trade; Manager Test Interface</title>");
-		vars2msg(&m, params);
-		if (format == FORMAT_XML) {
-			ast_build_string(&c, &len, "<ajax-response>\n");
-		} else if (format == FORMAT_HTML) {
+	}
+
+	if (format == FORMAT_HTML)
+		ast_build_string(&c, &len, "<title>Asterisk&trade; Manager Test Interface</title>");
+	vars2msg(&m, params);
+
+	if (format == FORMAT_XML) {
+		ast_build_string(&c, &len, "<ajax-response>\n");
+	} else if (format == FORMAT_HTML) {
+
 #define ROW_FMT	"<tr><td colspan=\"2\" bgcolor=\"#f1f1ff\">%s</td></tr>\r\n"
 #define TEST_STRING \
 	"<form action=\"manager\">action: <input name=\"action\"> cmd <input name=\"command\"><br>\
 	user <input name=\"username\"> pass <input type=\"password\" name=\"secret\"><br>
 	<input type=\"submit\"></form>"
-			ast_build_string(&c, &len, "<body bgcolor=\"#ffffff\"><table align=center bgcolor=\"#f1f1f1\" width=\"500\">\r\n");
-			ast_build_string(&c, &len, ROW_FMT, "<h1>&nbsp;&nbsp;Manager Tester</h1>");
-			ast_build_string(&c, &len, ROW_FMT, TEST_STRING);
-		}
-		{
-			char template[32];
-			ast_copy_string(template, "/tmp/ast-http-XXXXXX", sizeof(template));
-			s->fd = mkstemp(template);
-		}
-		if (process_message(s, &m)) {
-			if (s->authenticated) {
-				if (option_verbose > 1) {
-					if (displayconnects) 
-						ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));    
-				}
-				ast_log(LOG_EVENT, "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
-			} else {
-				if (option_verbose > 1) {
-					if (displayconnects)
-						ast_verbose(VERBOSE_PREFIX_2 "HTTP Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(s->sin.sin_addr));
-				}
-				ast_log(LOG_EVENT, "HTTP Failed attempt from %s\n", ast_inet_ntoa(s->sin.sin_addr));
-			}
-			s->needdestroy = 1;
-		}
-		if (s->fd > -1) {	/* have temporary output */
-			char *buf;
-			off_t len = lseek(s->fd, 0, SEEK_END);	/* how many chars available */
 
-			if (len > 0 && (buf = ast_calloc(1, len+1))) {
-				if (!s->outputstr)
-					s->outputstr = ast_calloc(1, sizeof(*s->outputstr));
-				if (s->outputstr) {
-					lseek(s->fd, 0, SEEK_SET);
-					read(s->fd, buf, len);
-					ast_verbose("--- fd %d has %d bytes ---\n%s\n---\n", s->fd, (int)len, buf);
-					ast_dynamic_str_append(&s->outputstr, 0, "%s", buf);
-				}
-				free(buf);
-			}
-			close(s->fd);
-			s->fd = -1;
-		}
-
-		if (s->outputstr) {
-			char *tmp;
-			if (format == FORMAT_XML || format == FORMAT_HTML)
-				tmp = xml_translate(s->outputstr->str, params, format);
-			else
-				tmp = s->outputstr->str;
-			if (tmp) {
-				retval = malloc(strlen(workspace) + strlen(tmp) + 128);
-				if (retval) {
-					strcpy(retval, workspace);
-					strcpy(retval + strlen(retval), tmp);
-					c = retval + strlen(retval);
-					len = 120;
-				}
-			}
-			if (tmp != s->outputstr->str)
-				free(tmp);
-			free(s->outputstr);
-			s->outputstr = NULL;
-		}
-		/* Still okay because c would safely be pointing to workspace even
-		   if retval failed to allocate above */
-		if (format == FORMAT_XML) {
-			ast_build_string(&c, &len, "</ajax-response>\n");
-		} else if (format == FORMAT_HTML)
-			ast_build_string(&c, &len, "</table></body>\r\n");
+		ast_build_string(&c, &len, "<body bgcolor=\"#ffffff\"><table align=center bgcolor=\"#f1f1f1\" width=\"500\">\r\n");
+		ast_build_string(&c, &len, ROW_FMT, "<h1>Manager Tester</h1>");
+		ast_build_string(&c, &len, ROW_FMT, TEST_STRING);
 	}
+	{
+		char template[32];
+		ast_copy_string(template, "/tmp/ast-http-XXXXXX", sizeof(template));
+		s->fd = mkstemp(template);
+	}
+	if (process_message(s, &m)) {
+		if (s->authenticated) {
+			if (option_verbose > 1) {
+				if (displayconnects) 
+					ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));    
+			}
+			ast_log(LOG_EVENT, "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
+		} else {
+			if (option_verbose > 1) {
+				if (displayconnects)
+					ast_verbose(VERBOSE_PREFIX_2 "HTTP Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(s->sin.sin_addr));
+			}
+			ast_log(LOG_EVENT, "HTTP Failed attempt from %s\n", ast_inet_ntoa(s->sin.sin_addr));
+		}
+		s->needdestroy = 1;
+	}
+	if (s->fd > -1) {	/* have temporary output */
+		char *buf;
+		off_t len = lseek(s->fd, 0, SEEK_END);	/* how many chars available */
+
+		if (len > 0 && (buf = ast_calloc(1, len+1))) {
+			if (!s->outputstr)
+				s->outputstr = ast_calloc(1, sizeof(*s->outputstr));
+			if (s->outputstr) {
+				lseek(s->fd, 0, SEEK_SET);
+				read(s->fd, buf, len);
+				ast_verbose("--- fd %d has %d bytes ---\n%s\n---\n", s->fd, (int)len, buf);
+				ast_dynamic_str_append(&s->outputstr, 0, "%s", buf);
+			}
+			free(buf);
+		}
+		close(s->fd);
+		s->fd = -1;
+	}
+
+	if (s->outputstr) {
+		char *tmp;
+		if (format == FORMAT_XML || format == FORMAT_HTML)
+			tmp = xml_translate(s->outputstr->str, params, format);
+		else
+			tmp = s->outputstr->str;
+		if (tmp) {
+			retval = malloc(strlen(workspace) + strlen(tmp) + 128);
+			if (retval) {
+				strcpy(retval, workspace);
+				strcpy(retval + strlen(retval), tmp);
+				c = retval + strlen(retval);
+				len = 120;
+			}
+		}
+		if (tmp != s->outputstr->str)
+			free(tmp);
+		free(s->outputstr);
+		s->outputstr = NULL;
+	}
+	/* Still okay because c would safely be pointing to workspace even
+	   if retval failed to allocate above */
+	if (format == FORMAT_XML) {
+		ast_build_string(&c, &len, "</ajax-response>\n");
+	} else if (format == FORMAT_HTML)
+		ast_build_string(&c, &len, "</table></body>\r\n");
+
 	ast_mutex_lock(&s->__lock);
 	if (s->needdestroy) {
 		if (s->inuse == 1) {
