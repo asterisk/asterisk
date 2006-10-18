@@ -882,6 +882,12 @@ static int authenticate(struct mansession *s, struct message *m)
 	struct ast_config *cfg = ast_config_load("manager.conf");
 	int ret = -1;	/* default: error return */
 
+	/*
+	 * XXX there is no need to scan the config file again here,
+	 * suffices to call ast_get_manager_by_name_locked() to fetch
+	 * the user's entry.
+	 */
+
 	if (!cfg)
 		return -1;
 	while ( (cat = ast_category_browse(cfg, cat)) ) {
