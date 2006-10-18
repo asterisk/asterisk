@@ -119,51 +119,41 @@ AST_THREADSTORAGE(manager_event_buf, manager_event_buf_init);
 AST_THREADSTORAGE(astman_append_buf, astman_append_buf_init);
 #define ASTMAN_APPEND_BUF_INITSIZE   256
 
+/*! \brief Descriptor for an AMI session, either a regular one
+ * or one over http.
+ */
 struct mansession {
-	/*! Execution thread */
-	pthread_t t;
-	/*! Thread lock -- don't use in action callbacks, it's already taken care of  */
-	/* XXX need to document which fields it is protecting */
-	ast_mutex_t __lock;
-	/*! socket address */
-	struct sockaddr_in sin;
-	/*! TCP socket */
-	int fd;
-	/*! Whether an HTTP manager is in use */
-	int inuse;
-	/*! Whether an HTTP session should be destroyed */
-	int needdestroy;
-	/*! Whether an HTTP session has someone waiting on events */
-	pthread_t waiting_thread;
-	/*! Unique manager identifer */
-	unsigned long managerid;
-	/*! Session timeout if HTTP */
-	time_t sessiontimeout;
-	/*! Output from manager interface */
-	struct ast_dynamic_str *outputstr;
-	/*! Logged in username */
-	char username[80];
-	/*! Authentication challenge */
-	char challenge[10];
-	/*! Authentication status */
-	int authenticated;
-	/*! Authorization for reading */
-	int readperm;
-	/*! Authorization for writing */
-	int writeperm;
-	/*! Buffer */
-	char inbuf[AST_MAX_MANHEADER_LEN];
-	int inlen;
-	int send_events;
-	/* Queued events that we've not had the ability to send yet */
-	struct eventqent *eventq;
-	/* Timeout for ast_carefulwrite() */
-	int writetimeout;
+	pthread_t t;		/*! Execution thread */
+	ast_mutex_t __lock;	/*! Thread lock -- don't use in action callbacks, it's already taken care of  */
+				/* XXX need to document which fields it is protecting */
+	struct sockaddr_in sin;	/*! socket address */
+	int fd;			/*! descriptor used for output. Either the socket (AMI) or a temporary file (HTTP) */
+	int inuse;		/*! Whether an HTTP (XXX or AMI ?) manager is in use */
+	int needdestroy;	/*! Whether an HTTP session should be destroyed */
+	pthread_t waiting_thread;	/*! Whether an HTTP session has someone waiting on events */
+	unsigned long managerid;	/*! Unique manager identifer */
+	time_t sessiontimeout;	/*! Session timeout if HTTP */
+	struct ast_dynamic_str *outputstr;	/*! Output from manager interface */
+	char username[80];	/*! Logged in username */
+	char challenge[10];	/*! Authentication challenge */
+	int authenticated;	/*! Authentication status */
+	int readperm;		/*! Authorization for reading */
+	int writeperm;		/*! Authorization for writing */
+	char inbuf[AST_MAX_MANHEADER_LEN];	/*! Buffer */
+	int inlen;		/*! number of buffered bytes */
+	int send_events;	/* XXX what ? */
+	struct eventqent *eventq;	/* Queued events that we've not had the ability to send yet */
+	int writetimeout;	/* Timeout for ast_carefulwrite() */
 	AST_LIST_ENTRY(mansession) list;
 };
 
 static AST_LIST_HEAD_STATIC(sessions, mansession);
 
+/* user descriptor, as read from the config file.
+ * It is still missing some fields -- e.g. we can have multiple permit and deny
+ * lines which are not supported here, and readperm/writeperm/writetimeout
+ * are not stored.
+ */
 struct ast_manager_user {
 	char username[80];
 	char *secret;
@@ -176,8 +166,10 @@ struct ast_manager_user {
 	AST_LIST_ENTRY(ast_manager_user) list;
 };
 
+/* list of users found in the config file */
 static AST_LIST_HEAD_STATIC(users, ast_manager_user);
 
+/* list of actions registered */
 static struct manager_action *first_action = NULL;
 AST_MUTEX_DEFINE_STATIC(actionlock);
 
