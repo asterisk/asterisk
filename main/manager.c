@@ -83,26 +83,14 @@ struct eventqent {
 	char eventdata[1];	/* really variable size, allocated by append_event() */
 };
 
-enum output_format {
-	FORMAT_RAW,
-	FORMAT_HTML,
-	FORMAT_XML,
-};
-
-static char *contenttype[] = {
-	[FORMAT_RAW] = "plain",
-	[FORMAT_HTML] = "html",
-	[FORMAT_XML] =  "xml",
-};
-
 static int enabled = 0;
 static int portno = DEFAULT_MANAGER_PORT;
-static int asock = -1;
+static int asock = -1;	/* the accept socket */
 static int displayconnects = 1;
 static int timestampevents = 0;
 static int httptimeout = 60;
 
-static pthread_t t;
+static pthread_t accept_thread_ptr;	/* the accept thread */
 static int block_sockets = 0;
 static int num_sessions = 0;
 
@@ -121,17 +109,19 @@ AST_THREADSTORAGE(astman_append_buf, astman_append_buf_init);
 
 /*! \brief Descriptor for an AMI session, either a regular one
  * or one over http.
+ * For AMI sessions, the entry is created upon a connect, and destroyed
+ * with the socket.
  */
 struct mansession {
-	pthread_t t;		/*! Execution thread */
+	pthread_t ms_t;		/*! Execution thread, basically useless */
 	ast_mutex_t __lock;	/*! Thread lock -- don't use in action callbacks, it's already taken care of  */
 				/* XXX need to document which fields it is protecting */
-	struct sockaddr_in sin;	/*! socket address */
+	struct sockaddr_in sin;	/*! address we are connecting from */
 	int fd;			/*! descriptor used for output. Either the socket (AMI) or a temporary file (HTTP) */
-	int inuse;		/*! Whether an HTTP (XXX or AMI ?) manager is in use */
+	int inuse;		/*! number of HTTP sessions using this entry */
 	int needdestroy;	/*! Whether an HTTP session should be destroyed */
 	pthread_t waiting_thread;	/*! Whether an HTTP session has someone waiting on events */
-	unsigned long managerid;	/*! Unique manager identifer */
+	unsigned long managerid;	/*! Unique manager identifer, 0 for AMI sessions */
 	time_t sessiontimeout;	/*! Session timeout if HTTP */
 	struct ast_dynamic_str *outputstr;	/*! Output from manager interface */
 	char username[80];	/*! Logged in username */
@@ -511,7 +501,7 @@ static struct ast_cli_entry cli_manager[] = {
 static void unuse_eventqent(struct eventqent *e)
 {
 	if (ast_atomic_dec_and_test(&e->usecount) && e->next)
-		pthread_kill(t, SIGURG);
+		pthread_kill(accept_thread_ptr, SIGURG);
 }
 
 static void free_session(struct mansession *s)
@@ -532,6 +522,7 @@ static void free_session(struct mansession *s)
 static void destroy_session(struct mansession *s)
 {
 	AST_LIST_LOCK(&sessions);
+	ast_verbose("destroy session %lx\n", s->managerid);
 	AST_LIST_REMOVE(&sessions, s, list);
 	AST_LIST_UNLOCK(&sessions);
 
@@ -1938,6 +1929,8 @@ static void *accept_thread(void *ignore)
 		AST_LIST_LOCK(&sessions);
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&sessions, s, list) {
 			if (s->sessiontimeout && (now > s->sessiontimeout) && !s->inuse) {
+				ast_verbose("destroy session[2] %lx now %lu to %lu\n",
+					s->managerid, now, s->sessiontimeout);
 				AST_LIST_REMOVE_CURRENT(&sessions, list);
 				ast_atomic_fetchadd_int(&num_sessions, -1);
 				if (s->authenticated && (option_verbose > 1) && displayconnects) {
@@ -2010,7 +2003,7 @@ static void *accept_thread(void *ignore)
 			s->eventq = s->eventq->next;
 		AST_LIST_UNLOCK(&sessions);
 		ast_atomic_fetchadd_int(&s->eventq->usecount, 1);
-		if (ast_pthread_create_background(&s->t, &attr, session_do, s))
+		if (ast_pthread_create_background(&s->ms_t, &attr, session_do, s))
 			destroy_session(s);
 	}
 	pthread_attr_destroy(&attr);
@@ -2189,15 +2182,31 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
  * then fed back to the client over the original socket.
  */
 
+enum output_format {
+	FORMAT_RAW,
+	FORMAT_HTML,
+	FORMAT_XML,
+};
+
+static char *contenttype[] = {
+	[FORMAT_RAW] = "plain",
+	[FORMAT_HTML] = "html",
+	[FORMAT_XML] =  "xml",
+};
+
+/* locate an http session in the list using the cookie as a key */
 static struct mansession *find_session(unsigned long ident)
 {
 	struct mansession *s;
+
+	if (ident == 0)
+		return NULL;
 
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_TRAVERSE(&sessions, s, list) {
 		ast_mutex_lock(&s->__lock);
 		if (s->sessiontimeout && (s->managerid == ident) && !s->needdestroy) {
-			s->inuse++;
+			ast_atomic_fetchadd_int(&s->inuse, 1);
 			break;
 		}
 		ast_mutex_unlock(&s->__lock);
@@ -2408,25 +2417,26 @@ static char *generic_http_callback(enum output_format format,
 	for (v = params; v; v = v->next) {
 		if (!strcasecmp(v->name, "mansession_id")) {
 			sscanf(v->value, "%lx", &ident);
-			ast_verbose("session is <%lx>\n", ident);
 			break;
 		}
 	}
-	
+
 	if (!(s = find_session(ident))) {
-		/* Create new session */
+		/* Create new session.
+		 * While it is not in the list we don't need any locking
+		 */
 		if (!(s = ast_calloc(1, sizeof(*s)))) {
 			*status = 500;
 			goto generic_callback_out;
 		}
-		memcpy(&s->sin, requestor, sizeof(s->sin));
+		s->sin = *requestor;
 		s->fd = -1;
 		s->waiting_thread = AST_PTHREADT_NULL;
 		s->send_events = 0;
 		ast_mutex_init(&s->__lock);
 		ast_mutex_lock(&s->__lock);
 		s->inuse = 1;
-		s->managerid = rand() | (unsigned long)s;
+		s->managerid = rand() | 1;	/* make sure it is non-zero */
 		AST_LIST_LOCK(&sessions);
 		AST_LIST_INSERT_HEAD(&sessions, s, list);
 		/* Hook into the last spot in the event queue */
@@ -2438,14 +2448,7 @@ static char *generic_http_callback(enum output_format format,
 		ast_atomic_fetchadd_int(&num_sessions, 1);
 	}
 
-	/* Reset HTTP timeout.  If we're not yet authenticated, keep it extremely short */
-	time(&s->sessiontimeout);
-	if (!s->authenticated && (httptimeout > 5))
-		s->sessiontimeout += 5;
-	else
-		s->sessiontimeout += httptimeout;
 	ast_mutex_unlock(&s->__lock);
-	
 	memset(&m, 0, sizeof(m));
 	{
 		char tmp[80];
@@ -2542,6 +2545,10 @@ static char *generic_http_callback(enum output_format format,
 		ast_build_string(&c, &len, "</table></body>\r\n");
 
 	ast_mutex_lock(&s->__lock);
+	/* Reset HTTP timeout.  If we're not authenticated, keep it extremely short */
+	s->sessiontimeout = time(NULL) + ((s->authenticated || httptimeout < 5) ? httptimeout : 5);
+	ast_verbose("die in %d seconds\n",
+		(int)(s->sessiontimeout - time(NULL)) );
 	if (s->needdestroy) {
 		if (s->inuse == 1) {
 			if (option_debug)
@@ -2831,7 +2838,7 @@ int init_manager(void)
 		fcntl(asock, F_SETFL, flags | O_NONBLOCK);
 		if (option_verbose)
 			ast_verbose("Asterisk Management interface listening on port %d\n", portno);
-		ast_pthread_create_background(&t, NULL, accept_thread, NULL);
+		ast_pthread_create_background(&accept_thread_ptr, NULL, accept_thread, NULL);
 	}
 	return 0;
 }
