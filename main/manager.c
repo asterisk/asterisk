@@ -1517,7 +1517,7 @@ static int action_redirect(struct mansession *s, struct message *m)
 			return 0;
 		}
 	}
-	/* XXX watch out, possible deadlock!!! */
+	/* XXX watch out, possible deadlock - we are trying to get two channels!!! */
 	chan = ast_get_channel_by_name_locked(name);
 	if (!chan) {
 		char buf[BUFSIZ];
@@ -1555,7 +1555,7 @@ static char mandescr_command[] =
 "	*Command: Asterisk CLI command to run\n"
 "	ActionID: Optional Action id for message matching.\n";
 
-/*! \brief  action_command: Manager command "command" - execute CLI command */
+/*! \brief  Manager command "command" - execute CLI command */
 static int action_command(struct mansession *s, struct message *m)
 {
 	char *cmd = astman_get_header(m, "Command");
@@ -1569,6 +1569,7 @@ static int action_command(struct mansession *s, struct message *m)
 	return 0;
 }
 
+/* helper function for originate */
 static void *fast_originate(void *data)
 {
 	struct fast_originate_helper *in = data;
@@ -1749,6 +1750,7 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 {
 	char *mailbox = astman_get_header(m, "Mailbox");
 	int ret;
+
 	if (ast_strlen_zero(mailbox)) {
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
@@ -1776,19 +1778,19 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 {
 	char *mailbox = astman_get_header(m, "Mailbox");
 	int newmsgs = 0, oldmsgs = 0;
+
 	if (ast_strlen_zero(mailbox)) {
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
 	ast_app_inboxcount(mailbox, &newmsgs, &oldmsgs);
 	astman_start_ack(s, m);
-	astman_append(s,
-				   "Message: Mailbox Message Count\r\n"
-				   "Mailbox: %s\r\n"
-		 		   "NewMessages: %d\r\n"
-				   "OldMessages: %d\r\n" 
-				   "\r\n",
-				   mailbox, newmsgs, oldmsgs);
+	astman_append(s,   "Message: Mailbox Message Count\r\n"
+			   "Mailbox: %s\r\n"
+			   "NewMessages: %d\r\n"
+			   "OldMessages: %d\r\n" 
+			   "\r\n",
+			   mailbox, newmsgs, oldmsgs);
 	return 0;
 }
 
@@ -1836,9 +1838,10 @@ static char mandescr_timeout[] =
 
 static int action_timeout(struct mansession *s, struct message *m)
 {
-	struct ast_channel *c = NULL;
+	struct ast_channel *c;
 	char *name = astman_get_header(m, "Channel");
 	int timeout = atoi(astman_get_header(m, "Timeout"));
+
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
@@ -1908,7 +1911,7 @@ static int action_userevent(struct mansession *s, struct message *m)
 }
 
 /*
- * Process the message, performing desired action.
+ * Process an AMI message, performing desired action.
  * Return 0 on success, -1 on error that require the session to be destroyed.
  */
 static int process_message(struct mansession *s, struct message *m)
@@ -1945,31 +1948,36 @@ static int process_message(struct mansession *s, struct message *m)
 	return process_events(s);
 }
 
+/*
+ * Read one full line (including crlf) from the manager socket.
+ */
 static int get_input(struct mansession *s, char *output)
 {
 	/* output must have at least sizeof(s->inbuf) space */
-	int res;
-	int x;
 	struct pollfd fds[1];
-	for (x = 1; x < s->inlen; x++) {
-		if ((s->inbuf[x] == '\n') && (s->inbuf[x-1] == '\r')) {
-			/* Copy output data up to and including \r\n */
-			memcpy(output, s->inbuf, x + 1);
-			/* Add trailing \0 */
-			output[x+1] = '\0';
-			/* Move remaining data back to the front */
-			memmove(s->inbuf, s->inbuf + x + 1, s->inlen - x);
-			s->inlen -= (x + 1);
-			return 1;
-		}
-	} 
+	char *crlf;
+
 	if (s->inlen >= sizeof(s->inbuf) - 1) {
 		ast_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", ast_inet_ntoa(s->sin.sin_addr), s->inbuf);
 		s->inlen = 0;
 	}
+	s->inbuf[s->inlen] = '\0';	/* terminate, just in case */
+	crlf = strstr(s->inbuf, "\r\n");
+	if (crlf) {
+		/* Copy output data up to and including \r\n */
+		int x = crlf - s->inbuf + 2;
+		memcpy(output, s->inbuf, x);
+		output[x] = '\0'; /* Add trailing \0 */
+		/* Move remaining data back to the front */
+		memmove(s->inbuf, s->inbuf + x, s->inlen - x);
+		s->inlen -= x;
+		return 1;
+	} 
 	fds[0].fd = s->fd;
 	fds[0].events = POLLIN;
-	do {
+	for (;;) {
+		int res;
+		/* XXX do we really need this locking ? */
 		ast_mutex_lock(&s->__lock);
 		s->waiting_thread = pthread_self();
 		ast_mutex_unlock(&s->__lock);
@@ -1979,56 +1987,63 @@ static int get_input(struct mansession *s, char *output)
 		ast_mutex_lock(&s->__lock);
 		s->waiting_thread = AST_PTHREADT_NULL;
 		ast_mutex_unlock(&s->__lock);
+
+		if (res == 0)	/* timeout ? */
+			continue;
 		if (res < 0) {
-			if (errno == EINTR) {
+			if (errno == EINTR)
 				return 0;
-			}
-			ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
+			ast_log(LOG_WARNING, "poll() returned error: %s\n", strerror(errno));
 	 		return -1;
-		} else if (res > 0) {
-			ast_mutex_lock(&s->__lock);
-			res = read(s->fd, s->inbuf + s->inlen, sizeof(s->inbuf) - 1 - s->inlen);
-			ast_mutex_unlock(&s->__lock);
-			if (res < 1)
-				return -1;
-			break;
 		}
-	} while(1);
-	s->inlen += res;
-	s->inbuf[s->inlen] = '\0';
-	return 0;
+		ast_mutex_lock(&s->__lock);
+		res = read(s->fd, s->inbuf + s->inlen, sizeof(s->inbuf) - 1 - s->inlen);
+		if (res < 1)
+			res = -1;	/* error return */
+		else {
+			s->inlen += res;
+			s->inbuf[s->inlen] = '\0';
+			res = 0;
+		}
+		ast_mutex_unlock(&s->__lock);
+		return res;
+	}
 }
 
+/*! \brief The body of the individual manager session.
+ */
 static void *session_do(void *data)
 {
 	struct mansession *s = data;
-	struct message m;
-	int res;
+	struct message m;	/* XXX watch out, this is 20k of memory! */
 	
 	ast_mutex_lock(&s->__lock);
-	astman_append(s, "Asterisk Call Manager/1.0\r\n");
+	astman_append(s, "Asterisk Call Manager/1.0\r\n");	/* welcome prompt */
 	ast_mutex_unlock(&s->__lock);
 	memset(&m, 0, sizeof(m));
 	for (;;) {
-		res = get_input(s, m.headers[m.hdrcount]);
-		if (res > 0) {
-			/* Strip trailing \r\n */
-			if (strlen(m.headers[m.hdrcount]) < 2)
+		char *buf = m.headers[m.hdrcount];
+		int res = get_input(s, buf);
+		if (res < 0)	/* error */
+			break;
+		if (res > 0) {	/* got one line */
+			res = strlen(buf);
+			if (res < 2)
 				continue;
-			m.headers[m.hdrcount][strlen(m.headers[m.hdrcount]) - 2] = '\0';
-			if (ast_strlen_zero(m.headers[m.hdrcount])) {
+			/* Strip trailing \r\n (which must be there) */
+			buf[res - 2] = '\0';
+			if (ast_strlen_zero(buf)) {	/* empty line, terminator */
 				if (process_message(s, &m))
 					break;
 				memset(&m, 0, sizeof(m));
 			} else if (m.hdrcount < AST_MAX_MANHEADERS - 1)
 				m.hdrcount++;
-		} else if (res < 0) {
-			break;
 		} else if (s->eventq->next) {
 			if (process_events(s))
 				break;
 		}
 	}
+	/* session is over, explain why and terminate */
 	if (s->authenticated) {
 		if (option_verbose > 1) {
 			if (displayconnects) 
