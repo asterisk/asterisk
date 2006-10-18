@@ -1000,9 +1000,9 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 	if (d<0)
 		d=-d;
 	rtp->rxjitter += (1./16.) * (d - rtp->rxjitter);
-	if (rtp->rxjitter > rtp->rtcp->maxrxjitter)
+	if (rtp->rtcp && rtp->rxjitter > rtp->rtcp->maxrxjitter)
 		rtp->rtcp->maxrxjitter = rtp->rxjitter;
-	if (rtp->rxjitter < rtp->rtcp->minrxjitter)
+	if (rtp->rtcp && rtp->rxjitter < rtp->rtcp->minrxjitter)
 		rtp->rtcp->minrxjitter = rtp->rxjitter;
 }
 
