@@ -1259,6 +1259,44 @@ static int action_logoff(struct mansession *s, struct message *m)
 	return -1;
 }
 
+static int action_login(struct mansession *s, struct message *m)
+{
+	if (authenticate(s, m)) {
+		sleep(1);
+		astman_send_error(s, m, "Authentication failed");
+		return -1;
+	}
+	s->authenticated = 1;
+	if (option_verbose > 1) {
+		if (displayconnects) {
+			ast_verbose(VERBOSE_PREFIX_2 "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
+		}
+	}
+	ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
+	astman_send_ack(s, m, "Authentication accepted");
+	return 0;
+}
+
+static int action_challenge(struct mansession *s, struct message *m)
+{
+	char *authtype = astman_get_header(m, "AuthType");
+
+	if (!strcasecmp(authtype, "MD5")) {
+		char *id = astman_get_header(m,"ActionID");
+		if (ast_strlen_zero(s->challenge))
+			snprintf(s->challenge, sizeof(s->challenge), "%ld", ast_random());
+		ast_mutex_lock(&s->__lock);
+		astman_append(s, "Response: Success\r\n");
+		if (!ast_strlen_zero(id))
+			astman_append(s, "ActionID: %s\r\n", id);
+		astman_append(s, "Challenge: %s\r\n\r\n", s->challenge);
+		ast_mutex_unlock(&s->__lock);
+	} else {
+		astman_send_error(s, m, "Must specify AuthType");
+	}
+	return 0;
+}
+
 static char mandescr_hangup[] = 
 "Description: Hangup a channel\n"
 "Variables: \n"
@@ -1906,9 +1944,8 @@ static int action_userevent(struct mansession *s, struct message *m)
 static int process_message(struct mansession *s, struct message *m)
 {
 	char action[80] = "";
-	char *id = astman_get_header(m,"ActionID");
-	char idText[256] = "";
 	int ret = 0;
+	struct manager_action *tmp;
 
 	ast_copy_string(action, astman_get_header(m, "Action"), sizeof(action));
 	if (option_debug)
@@ -1918,61 +1955,22 @@ static int process_message(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Missing action in request");
 		return 0;
 	}
-	if (!ast_strlen_zero(id))
-		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 
-	if (!strcasecmp(action, "Challenge")) {
-		char *authtype = astman_get_header(m, "AuthType");
-
-		if (!strcasecmp(authtype, "MD5")) {
-			if (ast_strlen_zero(s->challenge))
-				snprintf(s->challenge, sizeof(s->challenge), "%ld", ast_random());
-			ast_mutex_lock(&s->__lock);
-			astman_append(s, "Response: Success\r\n"
-					"%s"
-					"Challenge: %s\r\n\r\n",
-					idText, s->challenge);
-			ast_mutex_unlock(&s->__lock);
-		} else {
-			astman_send_error(s, m, "Must specify AuthType");
-		}
-		return 0;
-	} else if (!strcasecmp(action, "Login")) {
-		if (authenticate(s, m)) {
-			sleep(1);
-			astman_send_error(s, m, "Authentication failed");
-			return -1;
-		}
-		s->authenticated = 1;
-		if (option_verbose > 1) {
-			if (displayconnects) {
-				ast_verbose(VERBOSE_PREFIX_2 "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
+	ast_atomic_fetchadd_int(&s->busy, 1);	/* XXX what's for ? */
+	/* XXX should we protect the list navigation ? */
+	for (tmp = first_action ; tmp; tmp = tmp->next) { 		
+		if (!strcasecmp(action, tmp->action)) {
+			if ((s->writeperm & tmp->authority) == tmp->authority) {
+				if (tmp->func(s, m))	/* error */
+					return -1;
+			} else {
+				astman_send_error(s, m, "Permission denied");
 			}
+			break;
 		}
-		ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
-		astman_send_ack(s, m, "Authentication accepted");
-		return 0;
 	}
-	{
-		struct manager_action *tmp;
-		ast_mutex_lock(&s->__lock);
-		s->busy++;
-		ast_mutex_unlock(&s->__lock);
-		/* XXX should we protect the list navigation ? */
-		for (tmp = first_action ; tmp; tmp = tmp->next) { 		
-			if (!strcasecmp(action, tmp->action)) {
-				if ((s->writeperm & tmp->authority) == tmp->authority) {
-					if (tmp->func(s, m))
-						ret = -1;
-				} else {
-					astman_send_error(s, m, "Permission denied");
-				}
-				break;
-			}
-		}
-		if (!tmp)
-			astman_send_error(s, m, "Invalid/unknown command");
-	}
+	if (!tmp)
+		astman_send_error(s, m, "Invalid/unknown command");
 	if (ret)
 		return ret;
 	return process_events(s);
@@ -2588,6 +2586,8 @@ int init_manager(void)
 		ast_manager_register2("Ping", 0, action_ping, "Keepalive command", mandescr_ping);
 		ast_manager_register2("Events", 0, action_events, "Control Event Flow", mandescr_events);
 		ast_manager_register2("Logoff", 0, action_logoff, "Logoff Manager", mandescr_logoff);
+		ast_manager_register2("Login", 0, action_login, "Login Manager", NULL);
+		ast_manager_register2("Challenge", 0, action_challenge, "Generate Challenge for MD5 Auth", NULL);
 		ast_manager_register2("Hangup", EVENT_FLAG_CALL, action_hangup, "Hangup Channel", mandescr_hangup);
 		ast_manager_register("Status", EVENT_FLAG_CALL, action_status, "Lists channel status" );
 		ast_manager_register2("Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable", mandescr_setvar );
