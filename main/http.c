@@ -99,6 +99,17 @@ static char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
 	return wkspace;
 }
 
+/* like ast_uri_decode, but replace '+' with ' ' */
+static char *uri_decode(char *buf)
+{
+	char *c;
+	ast_uri_decode(buf);
+	for (c = buf; *c; c++) {
+		if (*c == '+')
+			*c = ' ';
+	}
+	return buf;
+}
 static char *static_callback(struct sockaddr_in *req, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
 {
 	char result[4096];
@@ -298,7 +309,7 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 		while ((val = strsep(&params, "&"))) {
 			var = strsep(&val, "=");
 			if (val)
-				ast_uri_decode(val);
+				uri_decode(val);
 			else 
 				val = "";
 			ast_uri_decode(var);
