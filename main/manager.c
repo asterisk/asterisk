@@ -1931,7 +1931,7 @@ static void *accept_thread(void *ignore)
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&sessions, s, list) {
 			if (s->sessiontimeout && (now > s->sessiontimeout) && !s->inuse) {
 				ast_verbose("destroy session[2] %lx now %lu to %lu\n",
-					s->managerid, now, s->sessiontimeout);
+					s->managerid, (unsigned long)now, (unsigned long)s->sessiontimeout);
 				AST_LIST_REMOVE_CURRENT(&sessions, list);
 				ast_atomic_fetchadd_int(&num_sessions, -1);
 				if (s->authenticated && (option_verbose > 1) && displayconnects) {
