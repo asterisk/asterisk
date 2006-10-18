@@ -862,6 +862,9 @@ static int authenticate(struct mansession *s, struct message *m)
 	char *cat = NULL;
 	struct ast_config *cfg = ast_config_load("manager.conf");
 	int ret = -1;	/* default: error return */
+	struct ast_variable *v;
+	struct ast_ha *ha = NULL;
+	char *password = NULL;
 
 	/*
 	 * XXX there is no need to scan the config file again here,
@@ -872,12 +875,15 @@ static int authenticate(struct mansession *s, struct message *m)
 	if (!cfg)
 		return -1;
 	while ( (cat = ast_category_browse(cfg, cat)) ) {
-		struct ast_variable *v;
-		struct ast_ha *ha = NULL;
-		char *password = NULL;
-
-		if (!strcasecmp(cat, "general") || strcasecmp(cat, user))
-			continue;	/* skip 'general' and non-matching sections */
+		/* "general" is not a valid user */
+		if (!strcasecmp(cat, user) && strcasecmp(cat, "general"))
+			break;
+	}
+	if (!cat) {
+		ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
+		ast_config_destroy(cfg);
+		return ret;
+	}
 
 		/* collect parameters for the user's entry */
 		for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
@@ -926,26 +932,23 @@ static int authenticate(struct mansession *s, struct message *m)
 				for (x=0; x<16; x++)
 					len += sprintf(md5key + len, "%2.2x", digest[x]);
 				if (!strcmp(md5key, key))
-					break;
+					goto ok;
 			}
 		} else if (password) {
 			if (!strcmp(password, pass))
-				break;
+				goto ok;
 		}
 		ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
 		goto error;
-	}
-	/* we get here with user not found (cat = NULL) or successful authentication */
-	if (cat) {
+
+ok:
 		ast_copy_string(s->username, cat, sizeof(s->username));
 		s->readperm = get_perm(ast_variable_retrieve(cfg, cat, "read"));
 		s->writeperm = get_perm(ast_variable_retrieve(cfg, cat, "write"));
 		if (events)
 			set_eventmask(s, events);
 		ret = 0;
-	} else {
-		ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
-	}
+
 error:
 	ast_config_destroy(cfg);
 	return ret;
