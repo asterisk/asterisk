@@ -2046,29 +2046,32 @@ static void *session_do(void *data)
 	return NULL;
 }
 
+/*! \brief The thread accepting connections on the manager interface port.
+ * As a side effect, it purges stale sessions, one per each iteration,
+ * which is at least every 5 seconds.
+ */
 static void *accept_thread(void *ignore)
 {
-	int as;
-	struct sockaddr_in sin;
-	socklen_t sinlen;
-	struct eventqent *eqe;
-	struct mansession *s;
-	struct protoent *p;
-	int arg = 1;
-	int flags;
 	pthread_attr_t attr;
-	time_t now;
-	struct pollfd pfds[1];
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
 	for (;;) {
-		time(&now);
+		struct mansession *s;
+		time_t now = time(NULL);
+		int as;
+		struct sockaddr_in sin;
+		socklen_t sinlen;
+		struct protoent *p;
+		int flags;
+		struct pollfd pfds[1];
+
 		AST_LIST_LOCK(&sessions);
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&sessions, s, list) {
 			if (s->sessiontimeout && (now > s->sessiontimeout) && !s->inuse) {
 				AST_LIST_REMOVE_CURRENT(&sessions, list);
+				ast_atomic_fetchadd_int(&num_sessions, -1);
 				if (s->authenticated && (option_verbose > 1) && displayconnects) {
 					ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' timed out from %s\n",
 						s->username, ast_inet_ntoa(s->sin.sin_addr));
@@ -2082,13 +2085,11 @@ static void *accept_thread(void *ignore)
 		   always keep at least one in the queue */
 		/* XXX why do we need one entry in the queue ? */
 		while (master_eventq->next && !master_eventq->usecount) {
-			eqe = master_eventq;
+			struct eventqent *eqe = master_eventq;
 			master_eventq = master_eventq->next;
 			free(eqe);
 		}
 		AST_LIST_UNLOCK(&sessions);
-		if (s)
-			ast_atomic_fetchadd_int(&num_sessions, -1);
 
 		sinlen = sizeof(sin);
 		pfds[0].fd = asock;
@@ -2104,30 +2105,34 @@ static void *accept_thread(void *ignore)
 		}
 		p = getprotobyname("tcp");
 		if (p) {
+			int arg = 1;
 			if( setsockopt(as, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg) ) < 0 ) {
 				ast_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
 			}
 		}
-		if (!(s = ast_calloc(1, sizeof(*s))))
+		s = ast_calloc(1, sizeof(*s));	/* allocate a new record */
+		if (!s) {
+			close(as);
 			continue;
+		}
 
-		ast_atomic_fetchadd_int(&num_sessions, 1);
-		
-		memcpy(&s->sin, &sin, sizeof(sin));
+
+		s->sin = sin;
 		s->writetimeout = 100;
 		s->waiting_thread = AST_PTHREADT_NULL;
 
-		if (!block_sockets) {
-			/* For safety, make sure socket is non-blocking */
-			flags = fcntl(as, F_GETFL);
-			fcntl(as, F_SETFL, flags | O_NONBLOCK);
-		} else {
-			flags = fcntl(as, F_GETFL);
-			fcntl(as, F_SETFL, flags & ~O_NONBLOCK);
-		}
+		flags = fcntl(as, F_GETFL);
+		if (!block_sockets) /* For safety, make sure socket is non-blocking */
+			flags |= O_NONBLOCK;
+		else
+			flags &= ~O_NONBLOCK;
+		fcntl(as, F_SETFL, flags);
+
 		ast_mutex_init(&s->__lock);
 		s->fd = as;
 		s->send_events = -1;
+
+		ast_atomic_fetchadd_int(&num_sessions, 1);
 		AST_LIST_LOCK(&sessions);
 		AST_LIST_INSERT_HEAD(&sessions, s, list);
 		/* Find the last place in the master event queue and hook ourselves
