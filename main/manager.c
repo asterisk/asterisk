@@ -775,10 +775,10 @@ void astman_send_ack(struct mansession *s, struct message *m, char *msg)
 
 /*! Tells you if smallstr exists inside bigstr
    which is delim by delim and uses no buf or stringsep
-   ast_instring("this|that|more","this",',') == 1;
+   ast_instring("this|that|more","this",'|') == 1;
 
    feel free to move this to app.c -anthm */
-static int ast_instring(const char *bigstr, const char *smallstr, char delim) 
+static int ast_instring(const char *bigstr, const char *smallstr, const char delim) 
 {
 	const char *val = bigstr, *next;
 
@@ -811,36 +811,26 @@ static int get_perm(const char *instr)
 	return ret;
 }
 
-static int ast_is_number(char *string) 
-{
-	int ret = 1, x = 0;
-
-	if (!string)
-		return 0;
-
-	for (x = 0; x < strlen(string); x++) {
-		if (!(string[x] >= 48 && string[x] <= 57)) {
-			ret = 0;
-			break;
-		}
-	}
-	
-	return ret ? atoi(string) : 0;
-}
-
+/*
+ * A number returns itself, false returns 0, true returns all flags,
+ * other strings return the flags that are set.
+ */
 static int ast_strings_to_mask(char *string) 
 {
-	int x, ret = -1;
-	
-	x = ast_is_number(string);
+	int x, ret = 0;
+	char *p;
 
-	if (x)
-		ret = x;
-	else if (ast_strlen_zero(string))
-		ret = -1;
-	else if (ast_false(string))
-		ret = 0;
-	else if (ast_true(string)) {
+	if (ast_strlen_zero(string))
+		return -1;
+
+	for (p = string; *p; p++)
+		if (*p < '0' || *p > '9')
+			break;
+	if (!p)
+		return atoi(string);
+	if (ast_false(string))
+		return 0;
+	if (ast_true(string)) {	/* all permissions */
 		ret = 0;
 		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
 			ret |= perms[x].num;		
