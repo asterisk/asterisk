@@ -403,23 +403,22 @@ static char *xml_translate(char *in, struct ast_variable *vars, enum output_form
 				ast_build_string(&tmp, &len, "<body>\n");
 			inobj = 1;
 		}
-		if (!in_data) {
+		if (!in_data) {	/* build appropriate line start */
 			ast_build_string(&tmp, &len, xml ? " " : "<tr><td>");
 			xml_copy_escape(&tmp, &len, var, xml ? 1 | 2 : 0);
 			ast_build_string(&tmp, &len, xml ? "='" : "</td><td>");
-			xml_copy_escape(&tmp, &len, val, 0);
-			if (!strcmp(var, "Opaque-data")) {
+			if (!strcmp(var, "Opaque-data"))
 				in_data = 1;
-			} else {
-				ast_build_string(&tmp, &len, xml ? "'" : "</td></tr>\n");
-			}
-		} else {
-			xml_copy_escape(&tmp, &len, val, 0);
-			ast_build_string(&tmp, &len, xml ? "\n" : "<br>\n");
 		}
+		xml_copy_escape(&tmp, &len, val, 0);	/* data field */
+		if (!in_data)
+			ast_build_string(&tmp, &len, xml ? "'" : "</td></tr>\n");
+		else
+			ast_build_string(&tmp, &len, xml ? "\n" : "<br>\n");
 	}
 	if (inobj)
-		ast_build_string(&tmp, &len, xml ? " /></response>\n" : "</body>\n");
+		ast_build_string(&tmp, &len, xml ? " /></response>\n" :
+			"<tr><td colspan=\"2\"><hr></td></tr>\r\n");
 	return out;
 }
 
@@ -468,7 +467,10 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
 		for (num = 3; num < argc; num++) {
 			if (!strcasecmp(cur->action, argv[num])) {
-				ast_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n", cur->action, cur->synopsis, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->description ? cur->description : "");
+				ast_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n",
+					cur->action, cur->synopsis,
+					authority_to_str(cur->authority, authority, sizeof(authority) -1),
+					S_OR(cur->description, "") );
 			}
 		}
 	}
@@ -700,9 +702,7 @@ struct ast_variable *astman_get_variables(struct message *m)
 {
 	int varlen, x, y;
 	struct ast_variable *head = NULL, *cur;
-	char *var, *val;
 
-	char *parse;    
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(vars)[32];
 	);
@@ -710,34 +710,32 @@ struct ast_variable *astman_get_variables(struct message *m)
 	varlen = strlen("Variable: ");	
 
 	for (x = 0; x < m->hdrcount; x++) {
+		char *parse, *var, *val;
+
 		if (strncasecmp("Variable: ", m->headers[x], varlen))
 			continue;
-
 		parse = ast_strdupa(m->headers[x] + varlen);
 
 		AST_STANDARD_APP_ARGS(args, parse);
-		if (args.argc) {
-			for (y = 0; y < args.argc; y++) {
-				if (!args.vars[y])
-					continue;
-				var = val = ast_strdupa(args.vars[y]);
-				strsep(&val, "=");
-				if (!val || ast_strlen_zero(var))
-					continue;
-				cur = ast_variable_new(var, val);
-				if (head) {
-					cur->next = head;
-					head = cur;
-				} else
-					head = cur;
-			}
+		if (!args.argc)
+			continue;
+		for (y = 0; y < args.argc; y++) {
+			if (!args.vars[y])
+				continue;
+			var = val = ast_strdupa(args.vars[y]);
+			strsep(&val, "=");
+			if (!val || ast_strlen_zero(var))
+				continue;
+			cur = ast_variable_new(var, val);
+			cur->next = head;
+			head = cur;
 		}
 	}
 
 	return head;
 }
 
-/*! \note NOTE:
+/*! \note NOTE: XXX this comment is unclear and possibly wrong.
    Callers of astman_send_error(), astman_send_response() or astman_send_ack() must EITHER
    hold the session lock _or_ be running in an action callback (in which case s->busy will
    be non-zero). In either of these cases, there is no need to lock-protect the session's
@@ -815,10 +813,9 @@ static int get_perm(const char *instr)
  * A number returns itself, false returns 0, true returns all flags,
  * other strings return the flags that are set.
  */
-static int ast_strings_to_mask(char *string) 
+static int ast_strings_to_mask(const char *string) 
 {
-	int x, ret = 0;
-	char *p;
+	const char *p;
 
 	if (ast_strlen_zero(string))
 		return -1;
@@ -826,23 +823,17 @@ static int ast_strings_to_mask(char *string)
 	for (p = string; *p; p++)
 		if (*p < '0' || *p > '9')
 			break;
-	if (!p)
+	if (!p)	/* all digits */
 		return atoi(string);
 	if (ast_false(string))
 		return 0;
 	if (ast_true(string)) {	/* all permissions */
-		ret = 0;
+		int x, ret = 0;
 		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
 			ret |= perms[x].num;		
-	} else {
-		ret = 0;
-		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++) {
-			if (ast_instring(string, perms[x].label, ',')) 
-				ret |= perms[x].num;		
-		}
+		return ret;
 	}
-
-	return ret;
+	return get_perm(string);
 }
 
 /*! \brief
