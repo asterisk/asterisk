@@ -285,23 +285,21 @@ void ast_http_uri_unlink(struct ast_http_uri *urih)
 static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **title, int *contentlength, struct ast_variable **cookies)
 {
 	char *c;
-	char *params;
+	char *params = uri;
 	struct ast_http_uri *urih=NULL;
-	int prefix_len;
+	int l;
 	struct ast_variable *vars=NULL, *v, *prev = NULL;
 
+	strsep(&params, "?");
 	/* Extract arguments from the request and store them in variables. */
-	params = strchr(uri, '?');
 	if (params) {
 		char *var, *val;
 
-		*params++ = '\0';
-		while ((var = strsep(&params, "&"))) {
-			val = strchr(var, '=');
-			if (val) {
-				*val++ = '\0';
+		while ((val = strsep(&params, "&"))) {
+			var = strsep(&val, "=");
+			if (val)
 				ast_uri_decode(val);
-			} else 
+			else 
 				val = "";
 			ast_uri_decode(var);
 			if ((v = ast_variable_new(var, val))) {
@@ -316,7 +314,7 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 	/*
 	 * Append the cookies to the variables (the only reason to have them
 	 * at the end is to avoid another pass of the cookies list to find
-	 * the tail.
+	 * the tail).
 	 */
 	if (prev)
 		prev->next = *cookies;
@@ -326,38 +324,40 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 	ast_uri_decode(uri);
 
 	/* We want requests to start with the prefix and '/' */
-	prefix_len = strlen(prefix);
-	if (prefix_len && !strncasecmp(uri, prefix, prefix_len) && uri[prefix_len] == '/') {
-		uri += prefix_len + 1;
+	l = strlen(prefix);
+	if (l && !strncasecmp(uri, prefix, l) && uri[l] == '/') {
+		uri += l + 1;
 		/* scan registered uris to see if we match one. */
 		for (urih = uris; urih; urih = urih->next) {
-			int len = strlen(urih->uri);
-			if (!strncasecmp(urih->uri, uri, len)) {
-				if (!uri[len] || uri[len] == '/') {
-					char *turi = uri + len;	/* possible candidate */
-					if (*turi == '/')
-						turi++;
-					if (!*turi || urih->has_subtree) {
-						uri = turi;
-						break;
-					}
-				}
+			l = strlen(urih->uri);
+			c = uri + l;	/* candidate */
+			if (strncasecmp(urih->uri, uri, l) /* no match */
+			    || (*c && *c != '/')) /* substring */
+				continue;
+			if (*c == '/')
+				c++;
+			if (!*c || urih->has_subtree) {
+				uri = c;
+				break;
 			}
 		}
 	}
 	if (urih) {
 		c = urih->callback(sin, uri, vars, status, title, contentlength);
-		ast_variables_destroy(vars);
 	} else if (ast_strlen_zero(uri) && ast_strlen_zero(prefix)) {
-		/* Special case: If no prefix, and no URI, send to /static/index.html */
-		c = ast_http_error(302, "Moved Temporarily", "Location: /static/index.html\r\n", "This is not the page you are looking for...");
+		/* Special case: no prefix, no URI, send to /static/index.html */
+		c = ast_http_error(302, "Moved Temporarily",
+			"Location: /static/index.html\r\n",
+			"This is not the page you are looking for...");
 		*status = 302;
 		*title = strdup("Moved Temporarily");
 	} else {
-		c = ast_http_error(404, "Not Found", NULL, "The requested URL was not found on this server.");
+		c = ast_http_error(404, "Not Found", NULL,
+			"The requested URL was not found on this server.");
 		*status = 404;
 		*title = strdup("Not Found");
 	}
+	ast_variables_destroy(vars);
 	return c;
 }
 
@@ -365,121 +365,120 @@ static void *ast_httpd_helper_thread(void *data)
 {
 	char buf[4096];
 	char cookie[4096];
-	char timebuf[256];
 	struct ast_http_server_instance *ser = data;
 	struct ast_variable *var, *prev=NULL, *vars=NULL;
 	char *uri, *c, *title=NULL;
-	char *vname, *vval;
 	int status = 200, contentlength = 0;
-	time_t t;
 
-	if (fgets(buf, sizeof(buf), ser->f)) {
-		uri = ast_skip_nonblanks(buf);	/* Skip method */
-		if (*uri)
-			*uri++ = '\0';
+	if (!fgets(buf, sizeof(buf), ser->f))
+		goto done;
 
-		uri = ast_skip_blanks(uri);	/* Skip white space */
+	uri = ast_skip_nonblanks(buf);	/* Skip method */
+	if (*uri)
+		*uri++ = '\0';
 
-		if (*uri) {			/* terminate at the first blank */
-			c = ast_skip_nonblanks(uri);
-			if (*c)
-				*c = '\0';
-		}
+	uri = ast_skip_blanks(uri);	/* Skip white space */
 
-		/* process "Cookie: " lines */
-		while (fgets(cookie, sizeof(cookie), ser->f)) {
-			/* Trim trailing characters */
-			ast_trim_blanks(cookie);
-			if (ast_strlen_zero(cookie))
-				break;
-			if (strncasecmp(cookie, "Cookie: ", 8))
-				continue;
-
-				/* XXX fix indentation */
-
-			/* TODO - The cookie parsing code below seems to work   
-			   in IE6 and FireFox 1.5.  However, it is not entirely 
-			   correct, and therefore may not work in all           
-			   circumstances.		                        
-			      For more details see RFC 2109 and RFC 2965        */
-		
-			/* FireFox cookie strings look like:                    
-			     Cookie: mansession_id="********"                   
-			   InternetExplorer's look like:                        
-			     Cookie: $Version="1"; mansession_id="********"     */
-			
-			/* If we got a FireFox cookie string, the name's right  
-			    after "Cookie: "                                    */
-			vname = cookie + 8;
-				
-			/* If we got an IE cookie string, we need to skip to    
-			    past the version to get to the name                 */
-			if (*vname == '$') {
-				vname = strchr(vname, ';');
-				if (vname) { 
-					vname++;
-					if (*vname == ' ')
-						vname++;
-				}
-			}
-				
-			if (vname) {
-				vval = strchr(vname, '=');
-				if (vval) {
-					/* Ditch the = and the quotes */
-					*vval++ = '\0';
-					if (*vval)
-						vval++;
-					if (strlen(vval))
-						vval[strlen(vval) - 1] = '\0';
-					var = ast_variable_new(vname, vval);
-					if (var) {
-						if (prev)
-							prev->next = var;
-						else
-							vars = var;
-						prev = var;
-					}
-				}
-			}
-		}
-
-		if (*uri) {
-			if (!strcasecmp(buf, "get")) 
-				c = handle_uri(&ser->requestor, uri, &status, &title, &contentlength, &vars);
-			else 
-				c = ast_http_error(501, "Not Implemented", NULL, "Attempt to use unimplemented / unsupported method");\
-		} else 
-			c = ast_http_error(400, "Bad Request", NULL, "Invalid Request");
-
-		/* If they aren't mopped up already, clean up the cookies */
-		if (vars)
-			ast_variables_destroy(vars);
-
-		if (!c)
-			c = ast_http_error(500, "Internal Error", NULL, "Internal Server Error");
-		if (c) {
-			time(&t);
-			strftime(timebuf, sizeof(timebuf), "%a, %d %b %Y %H:%M:%S GMT", gmtime(&t));
-			ast_cli(ser->fd, "HTTP/1.1 %d %s\r\n", status, title ? title : "OK");
-			ast_cli(ser->fd, "Server: Asterisk\r\n");
-			ast_cli(ser->fd, "Date: %s\r\n", timebuf);
-			ast_cli(ser->fd, "Connection: close\r\n");
-			if (contentlength) {
-				char *tmp;
-				tmp = strstr(c, "\r\n\r\n");
-				if (tmp) {
-					ast_cli(ser->fd, "Content-length: %d\r\n", contentlength);
-					write(ser->fd, c, (tmp + 4 - c));
-					write(ser->fd, tmp + 4, contentlength);
-				}
-			} else
-				ast_cli(ser->fd, "%s", c);
-			free(c);
-		}
-		if (title)
-			free(title);
+	if (*uri) {			/* terminate at the first blank */
+		c = ast_skip_nonblanks(uri);
+		if (*c)
+			*c = '\0';
 	}
+
+	/* process "Cookie: " lines */
+	while (fgets(cookie, sizeof(cookie), ser->f)) {
+		char *vname, *vval;
+		int l;
+
+		/* Trim trailing characters */
+		ast_trim_blanks(cookie);
+		if (ast_strlen_zero(cookie))
+			break;
+		if (strncasecmp(cookie, "Cookie: ", 8))
+			continue;
+
+		/* TODO - The cookie parsing code below seems to work   
+		   in IE6 and FireFox 1.5.  However, it is not entirely 
+		   correct, and therefore may not work in all           
+		   circumstances.		                        
+		      For more details see RFC 2109 and RFC 2965        */
+	
+		/* FireFox cookie strings look like:                    
+		     Cookie: mansession_id="********"                   
+		   InternetExplorer's look like:                        
+		     Cookie: $Version="1"; mansession_id="********"     */
+		
+		/* If we got a FireFox cookie string, the name's right  
+		    after "Cookie: "                                    */
+		vname = ast_skip_blanks(cookie + 8);
+			
+		/* If we got an IE cookie string, we need to skip to    
+		    past the version to get to the name                 */
+		if (*vname == '$') {
+			strsep(&vname, ";");
+			if (!vname)	/* no name ? */
+				continue;
+			vname = ast_skip_blanks(vname);
+		}
+		vval = strchr(vname, '=');
+		if (!vval)
+			continue;
+		/* Ditch the = and the quotes */
+		*vval++ = '\0';
+		if (*vval)
+			vval++;
+		if ( (l = strlen(vval)) )
+			vval[l - 1] = '\0';	/* trim trailing quote */
+		var = ast_variable_new(vname, vval);
+		if (var) {
+			if (prev)
+				prev->next = var;
+			else
+				vars = var;
+			prev = var;
+		}
+	}
+
+	if (!*uri)
+		c = ast_http_error(400, "Bad Request", NULL, "Invalid Request");
+	else if (strcasecmp(buf, "get")) 
+		c = ast_http_error(501, "Not Implemented", NULL,
+			"Attempt to use unimplemented / unsupported method");
+	else	/* try to serve it */
+		c = handle_uri(&ser->requestor, uri, &status, &title, &contentlength, &vars);
+
+	/* If they aren't mopped up already, clean up the cookies */
+	if (vars)
+		ast_variables_destroy(vars);
+
+	if (!c)
+		c = ast_http_error(500, "Internal Error", NULL, "Internal Server Error");
+	if (c) {
+		time_t t = time(NULL);
+		char timebuf[256];
+
+		strftime(timebuf, sizeof(timebuf), "%a, %d %b %Y %H:%M:%S GMT", gmtime(&t));
+		ast_cli(ser->fd, "HTTP/1.1 %d %s\r\n", status, title ? title : "OK");
+		ast_cli(ser->fd, "Server: Asterisk\r\n");
+		ast_cli(ser->fd, "Date: %s\r\n", timebuf);
+		ast_cli(ser->fd, "Connection: close\r\n");
+		if (contentlength) {
+			char *tmp = strstr(c, "\r\n\r\n");
+
+			if (tmp) {
+				ast_cli(ser->fd, "Content-length: %d\r\n", contentlength);
+				/* first write the header, then the body */
+				write(ser->fd, c, (tmp + 4 - c));
+				write(ser->fd, tmp + 4, contentlength);
+			}
+		} else
+			ast_cli(ser->fd, "%s", c);
+		free(c);
+	}
+	if (title)
+		free(title);
+
+done:
 	fclose(ser->f);
 	free(ser);
 	return NULL;
