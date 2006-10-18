@@ -4496,17 +4496,9 @@ int ast_channel_unlock(struct ast_channel *chan)
 	res = ast_mutex_unlock(&chan->lock);
 
 	if (option_debug > 2) {
-		/* Try to find counter if possible on your platform 
-			I've only found out how to do this on Linux
-			DEBUG_THREADS changes the lock structure
-		*/
-#ifdef __linux__
-		int count = 0;
 #ifdef DEBUG_THREADS
-		if ((count = chan->lock.mutex.__data.__count))
-#else
-		if ((count = chan->lock.__data.__count))
-#endif
+		int count = 0;
+		if ((count = chan->lock.reentrancy))
 			if (option_debug)
 				ast_log(LOG_DEBUG, ":::=== Still have %d locks (recursive)\n", count);
 #endif
@@ -4539,13 +4531,9 @@ int ast_channel_lock(struct ast_channel *chan)
 	res = ast_mutex_lock(&chan->lock);
 
 	if (option_debug > 3) {
-#ifdef __linux__
-		int count = 0;
 #ifdef DEBUG_THREADS
-		if ((count = chan->lock.mutex.__data.__count))
-#else
-		if ((count = chan->lock.__data.__count))
-#endif
+		int count = 0;
+		if ((count = chan->lock.reentrancy))
 			if (option_debug)
 				ast_log(LOG_DEBUG, ":::=== Now have %d locks (recursive)\n", count);
 #endif
@@ -4577,13 +4565,9 @@ int ast_channel_trylock(struct ast_channel *chan)
 	res = ast_mutex_trylock(&chan->lock);
 
 	if (option_debug > 2) {
-#ifdef __linux__
-		int count = 0;
 #ifdef DEBUG_THREADS
-		if ((count = chan->lock.mutex.__data.__count))
-#else
-		if ((count = chan->lock.__data.__count))
-#endif
+		int count = 0;
+		if ((count = chan->lock.reentrancy))
 			if (option_debug)
 				ast_log(LOG_DEBUG, ":::=== Now have %d locks (recursive)\n", count);
 #endif
