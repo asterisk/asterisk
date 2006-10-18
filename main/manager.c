@@ -738,16 +738,15 @@ struct ast_variable *astman_get_variables(struct message *m)
    be read until either the current action finishes or get_input() obtains the session
    lock.
  */
-void astman_send_error(struct mansession *s, struct message *m, char *error)
-{
-	char *id = astman_get_header(m,"ActionID");
 
-	astman_append(s, "Response: Error\r\n");
-	if (!ast_strlen_zero(id))
-		astman_append(s, "ActionID: %s\r\n", id);
-	astman_append(s, "Message: %s\r\n\r\n", error);
-}
-
+/*! \brief send a response with an optional message,
+ * and terminate it with an empty line.
+ * m is used only to grab the 'ActionID' field.
+ *
+ * Use the explicit constant MSG_MOREDATA to remove the empty line.
+ * XXX MSG_MOREDATA should go to a header file.
+ */
+#define MSG_MOREDATA	((char *)astman_send_response)
 void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg)
 {
 	char *id = astman_get_header(m,"ActionID");
@@ -755,15 +754,27 @@ void astman_send_response(struct mansession *s, struct message *m, char *resp, c
 	astman_append(s, "Response: %s\r\n", resp);
 	if (!ast_strlen_zero(id))
 		astman_append(s, "ActionID: %s\r\n", id);
-	if (msg)
+	if (msg == MSG_MOREDATA)
+		return;
+	else if (msg)
 		astman_append(s, "Message: %s\r\n\r\n", msg);
 	else
 		astman_append(s, "\r\n");
 }
 
+void astman_send_error(struct mansession *s, struct message *m, char *error)
+{
+	astman_send_response(s, m, "Error", error);
+}
+
 void astman_send_ack(struct mansession *s, struct message *m, char *msg)
 {
 	astman_send_response(s, m, "Success", msg);
+}
+
+static void astman_start_ack(struct mansession *s, struct message *m)
+{
+	astman_send_response(s, m, "Success", MSG_MOREDATA);
 }
 
 /*! Tells you if smallstr exists inside bigstr
@@ -972,11 +983,6 @@ static int action_getconfig(struct mansession *s, struct message *m)
 	int lineno = 0;
 	char *category=NULL;
 	struct ast_variable *v;
-	char idText[256] = "";
-	char *id = astman_get_header(m, "ActionID");
-
-	if (!ast_strlen_zero(id))
-		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 
 	if (ast_strlen_zero(fn)) {
 		astman_send_error(s, m, "Filename not specified");
@@ -986,7 +992,7 @@ static int action_getconfig(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Config file not found");
 		return 0;
 	}
-	astman_append(s, "Response: Success\r\n%s", idText);
+	astman_start_ack(s, m);
 	while ((category = ast_category_browse(cfg, category))) {
 		lineno = 0;
 		astman_append(s, "Category-%06d: %s\r\n", catcount, category);
@@ -1075,12 +1081,7 @@ static int action_updateconfig(struct mansession *s, struct message *m)
 	char *sfn = astman_get_header(m, "SrcFilename");
 	char *dfn = astman_get_header(m, "DstFilename");
 	int res;
-	char idText[256] = "";
-	char *id = astman_get_header(m, "ActionID");
 	char *rld = astman_get_header(m, "Reload");
-
-	if (!ast_strlen_zero(id))
-		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 
 	if (ast_strlen_zero(sfn) || ast_strlen_zero(dfn)) {
 		astman_send_error(s, m, "Filename not specified");
@@ -1097,7 +1098,7 @@ static int action_updateconfig(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Save of config failed");
 		return 0;
 	}
-	astman_append(s, "Response: Success\r\n%s\r\n", idText);
+	astman_send_ack(s, m, NULL);
 	if (!ast_strlen_zero(rld)) {
 		if (ast_true(rld))
 			rld = NULL;
@@ -1205,13 +1206,9 @@ static char mandescr_listcommands[] =
 static int action_listcommands(struct mansession *s, struct message *m)
 {
 	struct manager_action *cur;
-	char idText[256] = "";
 	char temp[BUFSIZ];
-	char *id = astman_get_header(m,"ActionID");
 
-	if (!ast_strlen_zero(id))
-		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
-	astman_append(s, "Response: Success\r\n%s", idText);
+	astman_start_ack(s, m);
 	ast_mutex_lock(&actionlock);
 	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
 		if ((s->writeperm & cur->authority) == cur->authority)
@@ -1278,13 +1275,10 @@ static int action_challenge(struct mansession *s, struct message *m)
 	char *authtype = astman_get_header(m, "AuthType");
 
 	if (!strcasecmp(authtype, "MD5")) {
-		char *id = astman_get_header(m,"ActionID");
 		if (ast_strlen_zero(s->challenge))
 			snprintf(s->challenge, sizeof(s->challenge), "%ld", ast_random());
 		ast_mutex_lock(&s->__lock);
-		astman_append(s, "Response: Success\r\n");
-		if (!ast_strlen_zero(id))
-			astman_append(s, "ActionID: %s\r\n", id);
+		astman_start_ack(s, m);
 		astman_append(s, "Challenge: %s\r\n\r\n", s->challenge);
 		ast_mutex_unlock(&s->__lock);
 	} else {
@@ -1371,7 +1365,6 @@ static int action_getvar(struct mansession *s, struct message *m)
 	struct ast_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
 	char *varname = astman_get_header(m, "Variable");
-	char *id = astman_get_header(m,"ActionID");
 	char *varval;
 	char workspace[1024];
 
@@ -1396,11 +1389,8 @@ static int action_getvar(struct mansession *s, struct message *m)
 
 	if (c)
 		ast_channel_unlock(c);
-	astman_append(s, "Response: Success\r\n"
-		"Variable: %s\r\nValue: %s\r\n", varname, varval);
-	if (!ast_strlen_zero(id))
-		astman_append(s, "ActionID: %s\r\n",id);
-	astman_append(s, "\r\n");
+	astman_start_ack(s, m);
+	astman_append(s, "Variable: %s\r\nValue: %s\r\n\r\n", varname, varval);
 
 	return 0;
 }
@@ -1410,18 +1400,19 @@ static int action_getvar(struct mansession *s, struct message *m)
 /* Needs documentation... */
 static int action_status(struct mansession *s, struct message *m)
 {
-	char *id = astman_get_header(m,"ActionID");
     	char *name = astman_get_header(m,"Channel");
-	char idText[256] = "";
 	struct ast_channel *c;
 	char bridge[256];
 	struct timeval now = ast_tvnow();
 	long elapsed_seconds = 0;
 	int all = ast_strlen_zero(name); /* set if we want all channels */
+	char *id = astman_get_header(m,"ActionID");
+	char idText[256] = "";
 
-	astman_send_ack(s, m, "Channel status will follow");
 	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+
+	astman_send_ack(s, m, "Channel status will follow");
 	if (all)
 		c = ast_channel_walk_locked(NULL);
 	else {
@@ -1757,21 +1748,16 @@ static char mandescr_mailboxstatus[] =
 static int action_mailboxstatus(struct mansession *s, struct message *m)
 {
 	char *mailbox = astman_get_header(m, "Mailbox");
-	char *id = astman_get_header(m,"ActionID");
-	char idText[256] = "";
 	int ret;
 	if (ast_strlen_zero(mailbox)) {
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
-        if (!ast_strlen_zero(id))
-                snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	ret = ast_app_has_voicemail(mailbox, NULL);
-	astman_append(s, "Response: Success\r\n"
-				   "%s"
-				   "Message: Mailbox Status\r\n"
-				   "Mailbox: %s\r\n"
-		 		   "Waiting: %d\r\n\r\n", idText, mailbox, ret);
+	astman_start_ack(s, m);
+	astman_append(s, "Message: Mailbox Status\r\n"
+			 "Mailbox: %s\r\n"
+			 "Waiting: %d\r\n\r\n", mailbox, ret);
 	return 0;
 }
 
@@ -1789,25 +1775,20 @@ static char mandescr_mailboxcount[] =
 static int action_mailboxcount(struct mansession *s, struct message *m)
 {
 	char *mailbox = astman_get_header(m, "Mailbox");
-	char *id = astman_get_header(m,"ActionID");
-	char idText[256] = "";
 	int newmsgs = 0, oldmsgs = 0;
 	if (ast_strlen_zero(mailbox)) {
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
 	ast_app_inboxcount(mailbox, &newmsgs, &oldmsgs);
-	if (!ast_strlen_zero(id)) {
-		snprintf(idText, sizeof(idText), "ActionID: %s\r\n",id);
-	}
-	astman_append(s, "Response: Success\r\n"
-				   "%s"
+	astman_start_ack(s, m);
+	astman_append(s,
 				   "Message: Mailbox Message Count\r\n"
 				   "Mailbox: %s\r\n"
 		 		   "NewMessages: %d\r\n"
 				   "OldMessages: %d\r\n" 
 				   "\r\n",
-				    idText,mailbox, newmsgs, oldmsgs);
+				   mailbox, newmsgs, oldmsgs);
 	return 0;
 }
 
@@ -1826,8 +1807,6 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 {
 	char *exten = astman_get_header(m, "Exten");
 	char *context = astman_get_header(m, "Context");
-	char *id = astman_get_header(m,"ActionID");
-	char idText[256] = "";
 	char hint[256] = "";
 	int status;
 	if (ast_strlen_zero(exten)) {
@@ -1838,17 +1817,13 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 		context = "default";
 	status = ast_extension_state(NULL, context, exten);
 	ast_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, context, exten);
-        if (!ast_strlen_zero(id)) {
-                snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
-        }
-	astman_append(s, "Response: Success\r\n"
-			           "%s"
-				   "Message: Extension Status\r\n"
-				   "Exten: %s\r\n"
-				   "Context: %s\r\n"
-				   "Hint: %s\r\n"
-		 		   "Status: %d\r\n\r\n",
-				   idText,exten, context, hint, status);
+	astman_start_ack(s, m);
+	astman_append(s,   "Message: Extension Status\r\n"
+			   "Exten: %s\r\n"
+			   "Context: %s\r\n"
+			   "Hint: %s\r\n"
+			   "Status: %d\r\n\r\n",
+			   exten, context, hint, status);
 	return 0;
 }
 
