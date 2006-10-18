@@ -22,8 +22,15 @@
  *
  * \author Mark Spencer <markster@digium.com>
  *
- * Channel Management and more
- * 
+ * At the moment this file contains a number of functions, namely:
+ *
+ * - data structures storing AMI state
+ * - AMI-related API functions, used by internal asterisk components
+ * - handlers for AMI-related CLI functions
+ * - handlers for AMI functions (available through the AMI socket)
+ * - the code for the main AMI listener thread and individual session threads
+ * - the http handlers invoked for AMI-over-HTTP by the threads in main/http.c
+ *
  * \ref amiconf
  */
 
@@ -69,22 +76,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/threadstorage.h"
 #include "asterisk/linkedlists.h"
 
-struct fast_originate_helper {
-	char tech[AST_MAX_MANHEADER_LEN];
-	char data[AST_MAX_MANHEADER_LEN];
-	int timeout;
-	char app[AST_MAX_APP];
-	char appdata[AST_MAX_MANHEADER_LEN];
-	char cid_name[AST_MAX_MANHEADER_LEN];
-	char cid_num[AST_MAX_MANHEADER_LEN];
-	char context[AST_MAX_CONTEXT];
-	char exten[AST_MAX_EXTENSION];
-	char idtext[AST_MAX_MANHEADER_LEN];
-	char account[AST_MAX_ACCOUNT_CODE];
-	int priority;
-	struct ast_variable *vars;
-};
-
 struct eventqent {
 	int usecount;
 	int category;
@@ -127,22 +118,6 @@ AST_THREADSTORAGE(manager_event_buf, manager_event_buf_init);
 
 AST_THREADSTORAGE(astman_append_buf, astman_append_buf_init);
 #define ASTMAN_APPEND_BUF_INITSIZE   256
-
-static struct permalias {
-	int num;
-	char *label;
-} perms[] = {
-	{ EVENT_FLAG_SYSTEM, "system" },
-	{ EVENT_FLAG_CALL, "call" },
-	{ EVENT_FLAG_LOG, "log" },
-	{ EVENT_FLAG_VERBOSE, "verbose" },
-	{ EVENT_FLAG_COMMAND, "command" },
-	{ EVENT_FLAG_AGENT, "agent" },
-	{ EVENT_FLAG_USER, "user" },
-	{ EVENT_FLAG_CONFIG, "config" },
-	{ -1, "all" },
-	{ 0, "none" },
-};
 
 struct mansession {
 	/*! Execution thread */
@@ -206,6 +181,26 @@ static AST_LIST_HEAD_STATIC(users, ast_manager_user);
 static struct manager_action *first_action = NULL;
 AST_MUTEX_DEFINE_STATIC(actionlock);
 
+/*
+ * helper functions to convert back and forth between
+ * string and numeric representation of set of flags
+ */
+static struct permalias {
+	int num;
+	char *label;
+} perms[] = {
+	{ EVENT_FLAG_SYSTEM, "system" },
+	{ EVENT_FLAG_CALL, "call" },
+	{ EVENT_FLAG_LOG, "log" },
+	{ EVENT_FLAG_VERBOSE, "verbose" },
+	{ EVENT_FLAG_COMMAND, "command" },
+	{ EVENT_FLAG_AGENT, "agent" },
+	{ EVENT_FLAG_USER, "user" },
+	{ EVENT_FLAG_CONFIG, "config" },
+	{ -1, "all" },
+	{ 0, "none" },
+};
+
 /*! \brief Convert authority code to a list of options */
 static char *authority_to_str(int authority, char *res, int reslen)
 {
@@ -227,6 +222,70 @@ static char *authority_to_str(int authority, char *res, int reslen)
 	return res;
 }
 
+/*! Tells you if smallstr exists inside bigstr
+   which is delim by delim and uses no buf or stringsep
+   ast_instring("this|that|more","this",'|') == 1;
+
+   feel free to move this to app.c -anthm */
+static int ast_instring(const char *bigstr, const char *smallstr, const char delim) 
+{
+	const char *val = bigstr, *next;
+
+	do {
+		if ((next = strchr(val, delim))) {
+			if (!strncmp(val, smallstr, (next - val)))
+				return 1;
+			else
+				continue;
+		} else
+			return !strcmp(smallstr, val);
+
+	} while (*(val = (next + 1)));
+
+	return 0;
+}
+
+static int get_perm(const char *instr)
+{
+	int x = 0, ret = 0;
+
+	if (!instr)
+		return 0;
+
+	for (x = 0; x < (sizeof(perms) / sizeof(perms[0])); x++) {
+		if (ast_instring(instr, perms[x].label, ','))
+			ret |= perms[x].num;
+	}
+	
+	return ret;
+}
+
+/*
+ * A number returns itself, false returns 0, true returns all flags,
+ * other strings return the flags that are set.
+ */
+static int ast_strings_to_mask(const char *string) 
+{
+	const char *p;
+
+	if (ast_strlen_zero(string))
+		return -1;
+
+	for (p = string; *p; p++)
+		if (*p < '0' || *p > '9')
+			break;
+	if (!p)	/* all digits */
+		return atoi(string);
+	if (ast_false(string))
+		return 0;
+	if (ast_true(string)) {	/* all permissions */
+		int x, ret = 0;
+		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
+			ret |= perms[x].num;		
+		return ret;
+	}
+	return get_perm(string);
+}
 static char *complete_show_mancmd(const char *line, const char *word, int pos, int state)
 {
 	struct manager_action *cur;
@@ -245,177 +304,6 @@ static char *complete_show_mancmd(const char *line, const char *word, int pos, i
 	return ret;
 }
 
-/*
- * convert to xml with various conversion:
- * mode & 1	-> lowercase;
- * mode & 2	-> replace non-alphanumeric chars with underscore
- */
-static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int mode)
-{
-	for ( ; *src && *maxlen > 6; src++) {
-		if ( (mode & 2) && !isalnum(*src)) {
-			*(*dst)++ = '_';
-			(*maxlen)--;
-			continue;
-		}
-		switch (*src) {
-		case '<':
-			strcpy(*dst, "&lt;");
-			(*dst) += 4;
-			*maxlen -= 4;
-			break;
-		case '>':
-			strcpy(*dst, "&gt;");
-			(*dst) += 4;
-			*maxlen -= 4;
-			break;
-		case '\"':
-			strcpy(*dst, "&quot;");
-			(*dst) += 6;
-			*maxlen -= 6;
-			break;
-		case '\'':
-			strcpy(*dst, "&apos;");
-			(*dst) += 6;
-			*maxlen -= 6;
-			break;
-		case '&':
-			strcpy(*dst, "&amp;");
-			(*dst) += 5;
-			*maxlen -= 5;
-			break;		
-
-		default:
-			*(*dst)++ = mode ? tolower(*src) : *src;
-			(*maxlen)--;
-		}
-	}
-}
-
-/*! \brief Convert the input into XML or HTML.
- * The input is supposed to be a sequence of lines of the form
- *	Name: value
- * optionally followed by a blob of unformatted text.
- * A blank line is a section separator. Basically, this is a
- * mixture of the format of Manager Interface and CLI commands.
- * The unformatted text is considered as a single value of a field
- * named 'Opaque-data'.
- *
- * At the moment the output format is the following (but it may
- * change depending on future requirements so don't count too
- * much on it when writing applications):
- *
- * General: the unformatted text is used as a value of 
- * XML output:  to be completed
- *   Each section is within <response type="object" id="xxx">
- *   where xxx is taken from ajaxdest variable or defaults to unknown
- *   Each row is reported as an attribute Name="value" of an XML
- *   entity named from the variable ajaxobjtype, default to "generic"
- *
- * HTML output:
- *   each Name-value pair is output as a single row of a two-column table.
- *   Sections (blank lines in the input) are separated by a <HR>
- *
- */
-static char *xml_translate(char *in, struct ast_variable *vars, enum output_format format)
-{
-	struct ast_variable *v;
-	char *dest = NULL;
-	char *out, *tmp, *var, *val;
-	char *objtype = NULL;
-	int colons = 0;
-	int breaks = 0;
-	size_t len;
-	int in_data = 0;	/* parsing data */
-	int escaped = 0;
-	int inobj = 0;
-	int x;
-	int xml = (format == FORMAT_XML);
-
-	for (v = vars; v; v = v->next) {
-		if (!dest && !strcasecmp(v->name, "ajaxdest"))
-			dest = v->value;
-		else if (!objtype && !strcasecmp(v->name, "ajaxobjtype")) 
-			objtype = v->value;
-	}
-	if (!dest)
-		dest = "unknown";
-	if (!objtype)
-		objtype = "generic";
-
-	/* determine how large is the response.
-	 * This is a heuristic - counting colons (for headers),
-	 * newlines (for extra arguments), and escaped chars.
-	 * XXX needs to be checked carefully for overflows.
-	 * Even better, use some code that allows extensible strings.
-	 */
-	for (x = 0; in[x]; x++) {
-		if (in[x] == ':')
-			colons++;
-		else if (in[x] == '\n')
-			breaks++;
-		else if (strchr("&\"<>", in[x]))
-			escaped++;
-	}
-	len = (size_t) (strlen(in) + colons * 5 + breaks * (40 + strlen(dest) + strlen(objtype)) + escaped * 10); /* foo="bar", "<response type=\"object\" id=\"dest\"", "&amp;" */
-	out = ast_malloc(len);
-	if (!out)
-		return NULL;
-	tmp = out;
-	/* we want to stop when we find an empty line */
-	while (in && *in) {
-		in = ast_skip_blanks(in);	/* trailing \n from before */
-		val = strsep(&in, "\r\n");	/* mark start and end of line */
-		ast_trim_blanks(val);
-		ast_verbose("inobj %d in_data %d line <%s>\n", inobj, in_data, val);
-		if (ast_strlen_zero(val)) {
-			if (in_data) { /* close data */
-				ast_build_string(&tmp, &len, xml ? "'" : "</td></tr>\n");
-				in_data = 0;
-			}
-			ast_build_string(&tmp, &len, xml ? " /></response>\n" :
-				"<tr><td colspan=\"2\"><hr></td></tr>\r\n");
-			inobj = 0;
-			continue;
-		}
-		/* we expect Name: value lines */
-		if (in_data) {
-			var = NULL;
-		} else {
-			var = strsep(&val, ":");
-			if (val) {	/* found the field name */
-				val = ast_skip_blanks(val);
-				ast_trim_blanks(var);
-			} else {		/* field name not found, move to opaque mode */
-				val = var;
-				var = "Opaque-data";
-			}
-		}
-		if (!inobj) {
-			if (xml)
-				ast_build_string(&tmp, &len, "<response type='object' id='%s'><%s", dest, objtype);
-			else
-				ast_build_string(&tmp, &len, "<body>\n");
-			inobj = 1;
-		}
-		if (!in_data) {	/* build appropriate line start */
-			ast_build_string(&tmp, &len, xml ? " " : "<tr><td>");
-			xml_copy_escape(&tmp, &len, var, xml ? 1 | 2 : 0);
-			ast_build_string(&tmp, &len, xml ? "='" : "</td><td>");
-			if (!strcmp(var, "Opaque-data"))
-				in_data = 1;
-		}
-		xml_copy_escape(&tmp, &len, val, 0);	/* data field */
-		if (!in_data)
-			ast_build_string(&tmp, &len, xml ? "'" : "</td></tr>\n");
-		else
-			ast_build_string(&tmp, &len, xml ? "\n" : "<br>\n");
-	}
-	if (inobj)
-		ast_build_string(&tmp, &len, xml ? " /></response>\n" :
-			"<tr><td colspan=\"2\"><hr></td></tr>\r\n");
-	return out;
-}
 
 static struct ast_manager_user *ast_get_manager_by_name_locked(const char *name)
 {
@@ -427,27 +315,6 @@ static struct ast_manager_user *ast_get_manager_by_name_locked(const char *name)
 	return user;
 }
 
-void astman_append(struct mansession *s, const char *fmt, ...)
-{
-	va_list ap;
-	struct ast_dynamic_str *buf;
-
-	if (!(buf = ast_dynamic_str_thread_get(&astman_append_buf, ASTMAN_APPEND_BUF_INITSIZE)))
-		return;
-
-	va_start(ap, fmt);
-	ast_dynamic_str_thread_set_va(&buf, 0, &astman_append_buf, fmt, ap);
-	va_end(ap);
-	
-	if (s->fd > -1)
-		ast_carefulwrite(s->fd, buf->str, strlen(buf->str), s->writetimeout);
-	else {
-		if (!s->outputstr && !(s->outputstr = ast_calloc(1, sizeof(*s->outputstr))))
-			return;
-
-		ast_dynamic_str_append(&s->outputstr, 0, "%s", buf->str);	
-	}
-}
 
 static int handle_showmancmd(int fd, int argc, char *argv[])
 {
@@ -730,6 +597,31 @@ struct ast_variable *astman_get_variables(struct message *m)
 	return head;
 }
 
+/*
+ * utility functions for creating AMI replies
+ */
+void astman_append(struct mansession *s, const char *fmt, ...)
+{
+	va_list ap;
+	struct ast_dynamic_str *buf;
+
+	if (!(buf = ast_dynamic_str_thread_get(&astman_append_buf, ASTMAN_APPEND_BUF_INITSIZE)))
+		return;
+
+	va_start(ap, fmt);
+	ast_dynamic_str_thread_set_va(&buf, 0, &astman_append_buf, fmt, ap);
+	va_end(ap);
+	
+	if (s->fd > -1)
+		ast_carefulwrite(s->fd, buf->str, strlen(buf->str), s->writetimeout);
+	else {
+		if (!s->outputstr && !(s->outputstr = ast_calloc(1, sizeof(*s->outputstr))))
+			return;
+
+		ast_dynamic_str_append(&s->outputstr, 0, "%s", buf->str);	
+	}
+}
+
 /*! \note NOTE: XXX this comment is unclear and possibly wrong.
    Callers of astman_send_error(), astman_send_response() or astman_send_ack() must EITHER
    hold the session lock _or_ be running in an action callback (in which case s->busy will
@@ -777,70 +669,7 @@ static void astman_start_ack(struct mansession *s, struct message *m)
 	astman_send_response(s, m, "Success", MSG_MOREDATA);
 }
 
-/*! Tells you if smallstr exists inside bigstr
-   which is delim by delim and uses no buf or stringsep
-   ast_instring("this|that|more","this",'|') == 1;
 
-   feel free to move this to app.c -anthm */
-static int ast_instring(const char *bigstr, const char *smallstr, const char delim) 
-{
-	const char *val = bigstr, *next;
-
-	do {
-		if ((next = strchr(val, delim))) {
-			if (!strncmp(val, smallstr, (next - val)))
-				return 1;
-			else
-				continue;
-		} else
-			return !strcmp(smallstr, val);
-
-	} while (*(val = (next + 1)));
-
-	return 0;
-}
-
-static int get_perm(const char *instr)
-{
-	int x = 0, ret = 0;
-
-	if (!instr)
-		return 0;
-
-	for (x = 0; x < (sizeof(perms) / sizeof(perms[0])); x++) {
-		if (ast_instring(instr, perms[x].label, ','))
-			ret |= perms[x].num;
-	}
-	
-	return ret;
-}
-
-/*
- * A number returns itself, false returns 0, true returns all flags,
- * other strings return the flags that are set.
- */
-static int ast_strings_to_mask(const char *string) 
-{
-	const char *p;
-
-	if (ast_strlen_zero(string))
-		return -1;
-
-	for (p = string; *p; p++)
-		if (*p < '0' || *p > '9')
-			break;
-	if (!p)	/* all digits */
-		return atoi(string);
-	if (ast_false(string))
-		return 0;
-	if (ast_true(string)) {	/* all permissions */
-		int x, ret = 0;
-		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
-			ret |= perms[x].num;		
-		return ret;
-	}
-	return get_perm(string);
-}
 
 /*! \brief
    Rather than braindead on,off this now can also accept a specific int mask value 
@@ -858,6 +687,13 @@ static int set_eventmask(struct mansession *s, char *eventmask)
 	return maskint;
 }
 
+/*
+ * Here we start with action_ handlers for AMI actions,
+ * and the internal functions used by them.
+ * Generally, the handlers are called action_foo()
+ */
+
+/* helper function for action_login() */
 static int authenticate(struct mansession *s, struct message *m)
 {
 	char *user = astman_get_header(m, "Username");
@@ -1006,7 +842,7 @@ static int action_getconfig(struct mansession *s, struct message *m)
 	return 0;
 }
 
-
+/* helper function for action_updateconfig */
 static void handle_updates(struct mansession *s, struct message *m, struct ast_config *cfg)
 {
 	int x;
@@ -1570,6 +1406,22 @@ static int action_command(struct mansession *s, struct message *m)
 }
 
 /* helper function for originate */
+struct fast_originate_helper {
+	char tech[AST_MAX_MANHEADER_LEN];
+	char data[AST_MAX_MANHEADER_LEN];
+	int timeout;
+	char app[AST_MAX_APP];
+	char appdata[AST_MAX_MANHEADER_LEN];
+	char cid_name[AST_MAX_MANHEADER_LEN];
+	char cid_num[AST_MAX_MANHEADER_LEN];
+	char context[AST_MAX_CONTEXT];
+	char exten[AST_MAX_EXTENSION];
+	char idtext[AST_MAX_MANHEADER_LEN];
+	char account[AST_MAX_ACCOUNT_CODE];
+	int priority;
+	struct ast_variable *vars;
+};
+
 static void *fast_originate(void *data)
 {
 	struct fast_originate_helper *in = data;
@@ -1911,6 +1763,15 @@ static int action_userevent(struct mansession *s, struct message *m)
 }
 
 /*
+ * Done with the action handlers here, we start with the code in charge
+ * of accepting connections and serving them.
+ * accept_thread() forks a new thread for each connection, session_do(),
+ * which in turn calls get_input() repeatedly until a full message has
+ * been accumulated, and then invokes process_message() to pass it to
+ * the appropriate handler.
+ */
+
+/*
  * Process an AMI message, performing desired action.
  * Return 0 on success, -1 on error that require the session to be destroyed.
  */
@@ -2164,6 +2025,10 @@ static void *accept_thread(void *ignore)
 	return NULL;
 }
 
+/*
+ * events are appended to a queue from where they
+ * can be dispatched to clients.
+ */
 static int append_event(const char *str, int category)
 {
 	struct eventqent *tmp, *prev = NULL;
@@ -2237,6 +2102,9 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 	return 0;
 }
 
+/*
+ * support functions to register/unregister AMI action handlers,
+ */
 int ast_manager_unregister(char *action) 
 {
 	struct manager_action *cur = first_action, *prev = first_action;
@@ -2317,6 +2185,18 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 /*! @}
  END Doxygen group */
 
+/*
+ * The following are support functions for AMI-over-http.
+ * The common entry point is generic_http_callback(),
+ * which extracts HTTP header and URI fields and reformats
+ * them into AMI messages, locates a proper session
+ * (using the mansession_id Cookie or GET variable),
+ * and calls process_message() as for regular AMI clients.
+ * When done, the output (which goes to a temporary file)
+ * is read back into a buffer and reformatted as desired,
+ * then fed back to the client over the original socket.
+ */
+
 static struct mansession *find_session(unsigned long ident)
 {
 	struct mansession *s;
@@ -2335,7 +2215,6 @@ static struct mansession *find_session(unsigned long ident)
 	return s;
 }
 
-
 static void vars2msg(struct message *m, struct ast_variable *vars)
 {
 	int x;
@@ -2347,6 +2226,177 @@ static void vars2msg(struct message *m, struct ast_variable *vars)
 	}
 }
 
+/*
+ * convert to xml with various conversion:
+ * mode & 1	-> lowercase;
+ * mode & 2	-> replace non-alphanumeric chars with underscore
+ */
+static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int mode)
+{
+	for ( ; *src && *maxlen > 6; src++) {
+		if ( (mode & 2) && !isalnum(*src)) {
+			*(*dst)++ = '_';
+			(*maxlen)--;
+			continue;
+		}
+		switch (*src) {
+		case '<':
+			strcpy(*dst, "&lt;");
+			(*dst) += 4;
+			*maxlen -= 4;
+			break;
+		case '>':
+			strcpy(*dst, "&gt;");
+			(*dst) += 4;
+			*maxlen -= 4;
+			break;
+		case '\"':
+			strcpy(*dst, "&quot;");
+			(*dst) += 6;
+			*maxlen -= 6;
+			break;
+		case '\'':
+			strcpy(*dst, "&apos;");
+			(*dst) += 6;
+			*maxlen -= 6;
+			break;
+		case '&':
+			strcpy(*dst, "&amp;");
+			(*dst) += 5;
+			*maxlen -= 5;
+			break;		
+
+		default:
+			*(*dst)++ = mode ? tolower(*src) : *src;
+			(*maxlen)--;
+		}
+	}
+}
+
+/*! \brief Convert the input into XML or HTML.
+ * The input is supposed to be a sequence of lines of the form
+ *	Name: value
+ * optionally followed by a blob of unformatted text.
+ * A blank line is a section separator. Basically, this is a
+ * mixture of the format of Manager Interface and CLI commands.
+ * The unformatted text is considered as a single value of a field
+ * named 'Opaque-data'.
+ *
+ * At the moment the output format is the following (but it may
+ * change depending on future requirements so don't count too
+ * much on it when writing applications):
+ *
+ * General: the unformatted text is used as a value of 
+ * XML output:  to be completed
+ *   Each section is within <response type="object" id="xxx">
+ *   where xxx is taken from ajaxdest variable or defaults to unknown
+ *   Each row is reported as an attribute Name="value" of an XML
+ *   entity named from the variable ajaxobjtype, default to "generic"
+ *
+ * HTML output:
+ *   each Name-value pair is output as a single row of a two-column table.
+ *   Sections (blank lines in the input) are separated by a <HR>
+ *
+ */
+static char *xml_translate(char *in, struct ast_variable *vars, enum output_format format)
+{
+	struct ast_variable *v;
+	char *dest = NULL;
+	char *out, *tmp, *var, *val;
+	char *objtype = NULL;
+	int colons = 0;
+	int breaks = 0;
+	size_t len;
+	int in_data = 0;	/* parsing data */
+	int escaped = 0;
+	int inobj = 0;
+	int x;
+	int xml = (format == FORMAT_XML);
+
+	for (v = vars; v; v = v->next) {
+		if (!dest && !strcasecmp(v->name, "ajaxdest"))
+			dest = v->value;
+		else if (!objtype && !strcasecmp(v->name, "ajaxobjtype")) 
+			objtype = v->value;
+	}
+	if (!dest)
+		dest = "unknown";
+	if (!objtype)
+		objtype = "generic";
+
+	/* determine how large is the response.
+	 * This is a heuristic - counting colons (for headers),
+	 * newlines (for extra arguments), and escaped chars.
+	 * XXX needs to be checked carefully for overflows.
+	 * Even better, use some code that allows extensible strings.
+	 */
+	for (x = 0; in[x]; x++) {
+		if (in[x] == ':')
+			colons++;
+		else if (in[x] == '\n')
+			breaks++;
+		else if (strchr("&\"<>", in[x]))
+			escaped++;
+	}
+	len = (size_t) (strlen(in) + colons * 5 + breaks * (40 + strlen(dest) + strlen(objtype)) + escaped * 10); /* foo="bar", "<response type=\"object\" id=\"dest\"", "&amp;" */
+	out = ast_malloc(len);
+	if (!out)
+		return NULL;
+	tmp = out;
+	/* we want to stop when we find an empty line */
+	while (in && *in) {
+		in = ast_skip_blanks(in);	/* trailing \n from before */
+		val = strsep(&in, "\r\n");	/* mark start and end of line */
+		ast_trim_blanks(val);
+		ast_verbose("inobj %d in_data %d line <%s>\n", inobj, in_data, val);
+		if (ast_strlen_zero(val)) {
+			if (in_data) { /* close data */
+				ast_build_string(&tmp, &len, xml ? "'" : "</td></tr>\n");
+				in_data = 0;
+			}
+			ast_build_string(&tmp, &len, xml ? " /></response>\n" :
+				"<tr><td colspan=\"2\"><hr></td></tr>\r\n");
+			inobj = 0;
+			continue;
+		}
+		/* we expect Name: value lines */
+		if (in_data) {
+			var = NULL;
+		} else {
+			var = strsep(&val, ":");
+			if (val) {	/* found the field name */
+				val = ast_skip_blanks(val);
+				ast_trim_blanks(var);
+			} else {		/* field name not found, move to opaque mode */
+				val = var;
+				var = "Opaque-data";
+			}
+		}
+		if (!inobj) {
+			if (xml)
+				ast_build_string(&tmp, &len, "<response type='object' id='%s'><%s", dest, objtype);
+			else
+				ast_build_string(&tmp, &len, "<body>\n");
+			inobj = 1;
+		}
+		if (!in_data) {	/* build appropriate line start */
+			ast_build_string(&tmp, &len, xml ? " " : "<tr><td>");
+			xml_copy_escape(&tmp, &len, var, xml ? 1 | 2 : 0);
+			ast_build_string(&tmp, &len, xml ? "='" : "</td><td>");
+			if (!strcmp(var, "Opaque-data"))
+				in_data = 1;
+		}
+		xml_copy_escape(&tmp, &len, val, 0);	/* data field */
+		if (!in_data)
+			ast_build_string(&tmp, &len, xml ? "'" : "</td></tr>\n");
+		else
+			ast_build_string(&tmp, &len, xml ? "\n" : "<br>\n");
+	}
+	if (inobj)
+		ast_build_string(&tmp, &len, xml ? " /></response>\n" :
+			"<tr><td colspan=\"2\"><hr></td></tr>\r\n");
+	return out;
+}
 
 static char *generic_http_callback(enum output_format format,
 	struct sockaddr_in *requestor, const char *uri,
