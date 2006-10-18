@@ -337,7 +337,6 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 	}
 	if (urih) {
 		c = urih->callback(sin, uri, vars, status, title, contentlength);
-		ast_variables_destroy(vars);
 	} else if (ast_strlen_zero(uri) && ast_strlen_zero(prefix)) {
 		/* Special case: If no prefix, and no URI, send to /static/index.html */
 		c = ast_http_error(302, "Moved Temporarily", "Location: /static/index.html\r\n", "This is not the page you are looking for...");
@@ -348,6 +347,7 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 		*status = 404;
 		*title = strdup("Not Found");
 	}
+	ast_variables_destroy(vars);
 	return c;
 }
 
