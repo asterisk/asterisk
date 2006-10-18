@@ -2413,6 +2413,7 @@ static char *generic_http_callback(enum output_format format,
 	char *retval = NULL;
 	struct message m;
 	struct ast_variable *v;
+	char template[] = "/tmp/ast-http-XXXXXX";	/* template for temporary file */
 
 	for (v = params; v; v = v->next) {
 		if (!strcasecmp(v->name, "mansession_id")) {
@@ -2477,11 +2478,9 @@ static char *generic_http_callback(enum output_format format,
 		ast_build_string(&c, &len, ROW_FMT, "<h1>Manager Tester</h1>");
 		ast_build_string(&c, &len, ROW_FMT, TEST_STRING);
 	}
-	{
-		char template[32];
-		ast_copy_string(template, "/tmp/ast-http-XXXXXX", sizeof(template));
-		s->fd = mkstemp(template);
-	}
+
+	s->fd = mkstemp(template);	/* create a temporary file for command output */
+
 	if (process_message(s, &m)) {
 		if (s->authenticated) {
 			if (option_verbose > 1) {
@@ -2515,6 +2514,7 @@ static char *generic_http_callback(enum output_format format,
 		}
 		close(s->fd);
 		s->fd = -1;
+		unlink(template);
 	}
 
 	if (s->outputstr) {
