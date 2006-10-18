@@ -2409,8 +2409,8 @@ static char *generic_http_callback(enum output_format format,
 
 #define ROW_FMT	"<tr><td colspan=\"2\" bgcolor=\"#f1f1ff\">%s</td></tr>\r\n"
 #define TEST_STRING \
-	"<form action=\"manager\">action: <input name=\"action\"> cmd <input name=\"command\"><br>\
-	user <input name=\"username\"> pass <input type=\"password\" name=\"secret\"><br>
+	"<form action=\"manager\">action: <input name=\"action\"> cmd <input name=\"command\"><br> \
+	user <input name=\"username\"> pass <input type=\"password\" name=\"secret\"><br> \
 	<input type=\"submit\"></form>"
 
 		ast_build_string(&c, &len, "<body bgcolor=\"#ffffff\"><table align=center bgcolor=\"#f1f1f1\" width=\"500\">\r\n");
