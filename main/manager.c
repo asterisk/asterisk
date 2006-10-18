@@ -156,8 +156,6 @@ struct mansession {
 	int fd;
 	/*! Whether or not we're busy doing an action XXX currently useless */
 	int busy;
-	/*! Whether or not we're "dead" XXX currently unused */
-	int dead;
 	/*! Whether an HTTP manager is in use */
 	int inuse;
 	/*! Whether an HTTP session should be destroyed */
@@ -184,7 +182,6 @@ struct mansession {
 	char inbuf[AST_MAX_MANHEADER_LEN];
 	int inlen;
 	int send_events;
-	int displaysystemname;		/*!< Add system name to manager responses and events */
 	/* Queued events that we've not had the ability to send yet */
 	struct eventqent *eventq;
 	/* Timeout for ast_carefulwrite() */
@@ -889,14 +886,6 @@ static int authenticate(struct mansession *s, struct message *m)
 		for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
 			if (!strcasecmp(v->name, "secret")) {
 				password = v->value;
-			} else if (!strcasecmp(v->name, "displaysystemname")) {
-				if (ast_true(v->value)) {
-					if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
-						s->displaysystemname = 1;
-					} else {
-						ast_log(LOG_ERROR, "Can't enable displaysystemname in manager.conf - no system name configured in asterisk.conf\n");
-					}
-				}
 			} else if (!strcasecmp(v->name, "permit") ||
 				   !strcasecmp(v->name, "deny")) {
 				ha = ast_append_ha(v->name, v->value, ha);
@@ -2021,8 +2010,6 @@ static int get_input(struct mansession *s, char *output)
 		ast_mutex_unlock(&s->__lock);
 		if (res < 0) {
 			if (errno == EINTR) {
-				if (s->dead)
-					return -1;
 				return 0;
 			}
 			ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
