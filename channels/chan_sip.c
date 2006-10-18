@@ -1264,9 +1264,6 @@ static void do_setnat(struct sip_pvt *p, int natflags);
 /*--- Authentication stuff */
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod, char *digest, int digest_len);
 static int build_reply_digest(struct sip_pvt *p, int method, char *digest, int digest_len);
-static int clear_realm_authentication(struct sip_auth *authlist);	/* Clear realm authentication list (at reload) */
-static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);	/* Add realm authentication in list */
-static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, const char *realm);	/* Find authentication for a specific realm */
 static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
 					 const char *secret, const char *md5secret, int sipmethod,
 					 char *uri, enum xmittype reliable, int ignore);
@@ -1282,7 +1279,7 @@ static void clear_sip_domains(void);
 
 /*--- SIP realm authentication */
 static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);
-static int clear_realm_authentication(struct sip_auth *authlist);
+static int clear_realm_authentication(struct sip_auth *authlist);	/* Clear realm authentication list (at reload) */
 static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, const char *realm);
 
 /*--- Misc functions */
@@ -1392,7 +1389,6 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 static struct sip_user *find_user(const char *name, int realtime);
 static int sip_poke_peer_s(void *data);
 static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_request *req);
-static int expire_register(void *data);
 static void reg_source_db(struct sip_peer *peer);
 static void destroy_association(struct sip_peer *peer);
 static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v);
@@ -1430,7 +1426,6 @@ static void parse_copy(struct sip_request *dst, const struct sip_request *src);
 static char *get_in_brackets(char *tmp);
 static const char *find_alias(const char *name, const char *_default);
 static const char *__get_header(const struct sip_request *req, const char *name, int *start);
-static const char *get_header(const struct sip_request *req, const char *name);
 static int lws2sws(char *msgbuf, int len);
 static void extract_uri(struct sip_pvt *p, struct sip_request *req);
 static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoing_req);
