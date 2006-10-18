@@ -92,6 +92,18 @@ struct eventqent {
 	char eventdata[1];	/* really variable size, allocated by append_event() */
 };
 
+enum output_format {
+	FORMAT_RAW,
+	FORMAT_HTML,
+	FORMAT_XML,
+};
+
+static char *contenttype[] = {
+	[FORMAT_RAW] = "plain",
+	[FORMAT_HTML] = "html",
+	[FORMAT_XML] =  "xml",
+};
+
 static int enabled = 0;
 static int portno = DEFAULT_MANAGER_PORT;
 static int asock = -1;
@@ -285,7 +297,32 @@ static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int mod
 	}
 }
 
-static char *__xml_translate(char *in, struct ast_variable *vars, int xml)
+/*! \brief Convert the input into XML or HTML.
+ * The input is supposed to be a sequence of lines of the form
+ *	Name: value
+ * optionally followed by a blob of unformatted text.
+ * A blank line is a section separator. Basically, this is a
+ * mixture of the format of Manager Interface and CLI commands.
+ * The unformatted text is considered as a single value of a field
+ * named 'Opaque-data'.
+ *
+ * At the moment the output format is the following (but it may
+ * change depending on future requirements so don't count too
+ * much on it when writing applications):
+ *
+ * General: the unformatted text is used as a value of 
+ * XML output:  to be completed
+ *   Each section is within <response type="object" id="xxx">
+ *   where xxx is taken from ajaxdest variable or defaults to unknown
+ *   Each row is reported as an attribute Name="value" of an XML
+ *   entity named from the variable ajaxobjtype, default to "generic"
+ *
+ * HTML output:
+ *   each Name-value pair is output as a single row of a two-column table.
+ *   Sections (blank lines in the input) are separated by a <HR>
+ *
+ */
+static char *xml_translate(char *in, struct ast_variable *vars, enum output_format format)
 {
 	struct ast_variable *v;
 	char *dest = NULL;
@@ -298,6 +335,7 @@ static char *__xml_translate(char *in, struct ast_variable *vars, int xml)
 	int escaped = 0;
 	int inobj = 0;
 	int x;
+	int xml = (format == FORMAT_XML);
 
 	for (v = vars; v; v = v->next) {
 		if (!dest && !strcasecmp(v->name, "ajaxdest"))
@@ -313,6 +351,8 @@ static char *__xml_translate(char *in, struct ast_variable *vars, int xml)
 	/* determine how large is the response.
 	 * This is a heuristic - counting colons (for headers),
 	 * newlines (for extra arguments), and escaped chars.
+	 * XXX needs to be checked carefully for overflows.
+	 * Even better, use some code that allows extensible strings.
 	 */
 	for (x = 0; in[x]; x++) {
 		if (in[x] == ':')
@@ -375,21 +415,12 @@ static char *__xml_translate(char *in, struct ast_variable *vars, int xml)
 			}
 		} else {
 			xml_copy_escape(&tmp, &len, val, 0);
+			ast_build_string(&tmp, &len, xml ? "\n" : "<br>\n");
 		}
 	}
 	if (inobj)
 		ast_build_string(&tmp, &len, xml ? " /></response>\n" : "</body>\n");
 	return out;
-}
-
-static char *xml_translate(char *in, struct ast_variable *vars)
-{
-	return __xml_translate(in, vars, 1);
-}
-
-static char *html_translate(char *in)
-{
-	return __xml_translate(in, NULL, 0);
 }
 
 static struct ast_manager_user *ast_get_manager_by_name_locked(const char *name)
@@ -2348,14 +2379,11 @@ static void vars2msg(struct message *m, struct ast_variable *vars)
 	}
 }
 
-enum {
-	FORMAT_RAW,
-	FORMAT_HTML,
-	FORMAT_XML,
-};
-static char *contenttype[] = { "plain", "html", "xml" };
 
-static char *generic_http_callback(int format, struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+static char *generic_http_callback(enum output_format format,
+	struct sockaddr_in *requestor, const char *uri,
+	struct ast_variable *params, int *status,
+	char **title, int *contentlength)
 {
 	struct mansession *s = NULL;
 	unsigned long ident = 0;
@@ -2472,10 +2500,8 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 
 		if (s->outputstr) {
 			char *tmp;
-			if (format == FORMAT_XML)
-				tmp = xml_translate(s->outputstr->str, params);
-			else if (format == FORMAT_HTML)
-				tmp = html_translate(s->outputstr->str);
+			if (format == FORMAT_XML || format == FORMAT_HTML)
+				tmp = xml_translate(s->outputstr->str, params, format);
 			else
 				tmp = s->outputstr->str;
 			if (tmp) {
