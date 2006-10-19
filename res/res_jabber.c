@@ -2381,6 +2381,7 @@ static int unload_module(void)
 {
 	ast_cli_unregister_multiple(aji_cli, sizeof(aji_cli) / sizeof(struct ast_cli_entry));
 	ast_unregister_application(app_ajisend);
+	ast_unregister_application(app_ajistatus);
 	ast_manager_unregister("JabberSend");
 	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
 		ASTOBJ_RDLOCK(iterator);
