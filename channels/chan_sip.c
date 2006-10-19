@@ -5569,6 +5569,8 @@ static void temp_pvt_cleanup(void *data)
 	struct sip_pvt *p = data;
 
 	ast_string_field_free_pools(p);
+
+	free(data);
 }
 
 /*! \brief Transmit response, no retransmits, using a temporary pvt structure */
