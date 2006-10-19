@@ -77,11 +77,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 
 struct eventqent {
-	int usecount;
+	int usecount;		/* # of clients who still need the event */
 	int category;
 	struct eventqent *next;
 	char eventdata[1];	/* really variable size, allocated by append_event() */
 };
+struct eventqent *master_eventq = NULL; /* Protected by the sessions list lock */
+/*
+ * XXX for some unclear reasons, we make sure master_eventq always
+ * has one event in it (Placeholder) in init_manager().
+ */
 
 static int enabled = 0;
 static int portno = DEFAULT_MANAGER_PORT;
@@ -93,13 +98,6 @@ static int httptimeout = 60;
 static pthread_t accept_thread_ptr;	/* the accept thread */
 static int block_sockets = 0;
 static int num_sessions = 0;
-
-/* Protected by the sessions list lock */
-struct eventqent *master_eventq = NULL;
-/*
- * XXX for some unclear reasons, we make sure master_eventq always
- * has one event in it (Placeholder) in init_manager().
- */
 
 AST_THREADSTORAGE(manager_event_buf);
 #define MANAGER_EVENT_BUF_INITSIZE   256
@@ -151,8 +149,8 @@ struct ast_manager_user {
 	char *permit;
 	char *read;
 	char *write;
-	unsigned int displayconnects:1;
-	int keep;
+	int displayconnects;	/* XXX unused */
+	int keep;	/* mark entries created on a reload */
 	AST_LIST_ENTRY(ast_manager_user) list;
 };
 
@@ -287,8 +285,11 @@ static char *complete_show_mancmd(const char *line, const char *word, int pos, i
 	return ret;
 }
 
-
-static struct ast_manager_user *ast_get_manager_by_name_locked(const char *name)
+/*
+ * lookup an entry in the list of registered users.
+ * must be called with the list lock held.
+ */
+static struct ast_manager_user *get_manager_by_name_locked(const char *name)
 {
 	struct ast_manager_user *user = NULL;
 
@@ -333,7 +334,7 @@ static int handle_showmanager(int fd, int argc, char *argv[])
 
 	AST_LIST_LOCK(&users);
 
-	if (!(user = ast_get_manager_by_name_locked(argv[3]))) {
+	if (!(user = get_manager_by_name_locked(argv[3]))) {
 		ast_cli(fd, "There is no manager called %s\n", argv[3]);
 		AST_LIST_UNLOCK(&users);
 		return -1;
@@ -499,25 +500,32 @@ static struct ast_cli_entry cli_manager[] = {
 	showmanager_help, NULL, NULL },
 };
 
-static void unuse_eventqent(struct eventqent *e)
+/*
+ * Decrement the usecount for the event; if it goes to zero,
+ * (why check for e->next ?) wakeup the
+ * main thread, which is in charge of freeing the record.
+ * Returns the next record.
+ * XXX Locking assumptions ??? next may change if we are last.
+ */
+static struct eventqent *unref_event(struct eventqent *e)
 {
-	if (ast_atomic_dec_and_test(&e->usecount) && e->next)
+	struct eventqent *ret = e->next;
+	if (ast_atomic_dec_and_test(&e->usecount) && ret)
 		pthread_kill(accept_thread_ptr, SIGURG);
+	return ret;
 }
 
 static void free_session(struct mansession *s)
 {
-	struct eventqent *eqe;
+	struct eventqent *eqe = s->eventq;
 	if (s->fd > -1)
 		close(s->fd);
 	if (s->outputstr)
 		free(s->outputstr);
 	ast_mutex_destroy(&s->__lock);
-	while ( (eqe = s->eventq) ) {
-		s->eventq = eqe->next;
-		unuse_eventqent(eqe);
-	}
 	free(s);
+	while ( eqe )
+		eqe = unref_event(eqe);
 }
 
 static void destroy_session(struct mansession *s)
@@ -692,7 +700,7 @@ static int authenticate(struct mansession *s, struct message *m)
     {
 	/*
 	 * XXX there should be no need to scan the config file again here,
-	 * suffices to call ast_get_manager_by_name_locked() to fetch
+	 * suffices to call get_manager_by_name_locked() to fetch
 	 * the user's entry.
 	 */
 	struct ast_config *cfg = ast_config_load("manager.conf");
@@ -1002,7 +1010,7 @@ static int action_waitevent(struct mansession *s, struct message *m)
 			    ((s->send_events & eqe->category) == eqe->category)) {
 				astman_append(s, "%s", eqe->eventdata);
 			}
-			unuse_eventqent(s->eventq);
+			unref_event(s->eventq);	/* XXX why not eqe ? */
 			s->eventq = eqe;
 		}
 		astman_append(s,
@@ -1713,7 +1721,7 @@ static int process_events(struct mansession *s)
 				if (!ret && ast_carefulwrite(s->fd, eqe->eventdata, strlen(eqe->eventdata), s->writetimeout) < 0)
 					ret = -1;
 			}
-			unuse_eventqent(s->eventq);
+			unref_event(s->eventq);	/* XXX why not eqe ? */
 			s->eventq = eqe;
 		}
 	}
@@ -2014,6 +2022,7 @@ static void *accept_thread(void *ignore)
 /*
  * events are appended to a queue from where they
  * can be dispatched to clients.
+ * Must be called with the session lock held (or equivalent).
  */
 static int append_event(const char *str, int category)
 {
@@ -2722,7 +2731,7 @@ int init_manager(void)
 			continue;
 
 		/* Look for an existing entry, if none found - create one and add it to the list */
-		if (!(user = ast_get_manager_by_name_locked(cat))) {
+		if (!(user = get_manager_by_name_locked(cat))) {
 			if (!(user = ast_calloc(1, sizeof(*user))))
 				break;
 			/* Copy name over */
@@ -2768,7 +2777,7 @@ int init_manager(void)
 
 	/* Perform cleanup - essentially prune out old users that no longer exist */
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&users, user, list) {
-		if (user->keep) {
+		if (user->keep) {	/* valid record. clear flag for the next round */
 			user->keep = 0;
 			continue;
 		}
