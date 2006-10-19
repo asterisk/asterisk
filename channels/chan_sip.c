@@ -1142,8 +1142,10 @@ static struct ast_register_list {
 	int recheck;
 } regl;
 
+static void temp_pvt_cleanup(void *);
+
 /*! \brief A per-thread temporary pvt structure */
-AST_THREADSTORAGE(ts_temp_pvt);
+AST_THREADSTORAGE_CUSTOM(ts_temp_pvt, NULL, temp_pvt_cleanup);
 
 /*! \todo Move the sip_auth list to AST_LIST */
 static struct sip_auth *authl = NULL;		/*!< Authentication list for realm authentication */
@@ -5528,6 +5530,15 @@ static int __transmit_response(struct sip_pvt *p, const char *msg, const struct 
 		add_header(&resp, "X-Asterisk-HangupCauseCode", buf);
 	}
 	return send_response(p, &resp, reliable, seqno);
+}
+
+static void temp_pvt_cleanup(void *data)
+{
+	struct sip_pvt *p = data;
+
+	ast_string_field_free_pools(p);
+
+	free(data);
 }
 
 /*! \brief Transmit response, no retransmits, using a temporary pvt structure */
