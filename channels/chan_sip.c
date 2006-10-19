@@ -1411,7 +1411,6 @@ static char *regstate2str(enum sipregistrystate regstate) attribute_const;
 static int sip_reregister(void *data);
 static int __sip_do_register(struct sip_registry *r);
 static int sip_reg_timeout(void *data);
-static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod,  char *digest, int digest_len);
 static void sip_send_all_registers(void);
 
 /*--- Parsing SIP requests and responses */
