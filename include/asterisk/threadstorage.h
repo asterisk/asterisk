@@ -41,35 +41,51 @@ struct ast_threadstorage {
 	pthread_key_t key;
 	/*! The function that initializes the key */
 	void (*key_init)(void);
+	/*! Custom initialization function specific to the object */
+	void (*custom_init)(void *);
 };
 
 /*!
  * \brief Define a thread storage variable
  *
- * \arg name The name of the thread storage
- * \arg name_init This is a name used to create the function that gets called
- *      to initialize this thread storage. It can be anything since it will not
- *      be referred to anywhere else
+ * \arg name The name of the thread storage object
  *
  * This macro would be used to declare an instance of thread storage in a file.
  *
  * Example usage:
  * \code
- * AST_THREADSTORAGE(my_buf, my_buf_init);
+ * AST_THREADSTORAGE(my_buf);
  * \endcode
  */
-#define AST_THREADSTORAGE(name, name_init) \
-	AST_THREADSTORAGE_CUSTOM(name, name_init, ast_free) 
+#define AST_THREADSTORAGE(name) \
+	AST_THREADSTORAGE_CUSTOM(name, NULL, NULL) 
 
-#define AST_THREADSTORAGE_CUSTOM(name, name_init, cleanup)  \
-static void name_init(void);                                \
-static struct ast_threadstorage name = {                    \
-	.once = PTHREAD_ONCE_INIT,                          \
-	.key_init = name_init,                              \
-};                                                          \
-static void name_init(void)                                 \
-{                                                           \
-	pthread_key_create(&(name).key, cleanup);           \
+/*!
+ * \brief Define a thread storage variable, with custom initialization and cleanup
+ *
+ * \arg name The name of the thread storage object
+ * \arg init This is a custom that will be called after each thread specific
+ *           object is allocated, with the allocated block of memory passed
+ *           as the argument.
+ * \arg cleanup This is a custom function that will be called instead of ast_free
+ *              when the thread goes away.  Note that if this is used, it *MUST*
+ *              call free on the allocated memory.
+ *
+ * Example usage:
+ * \code
+ * AST_THREADSTORAGE(my_buf, my_init, my_cleanup);
+ * \endcode
+ */
+#define AST_THREADSTORAGE_CUSTOM(name, c_init, c_cleanup) \
+static void init_##name(void);                            \
+static struct ast_threadstorage name = {                  \
+	.once = PTHREAD_ONCE_INIT,                        \
+	.key_init = init_##name,                          \
+	.custom_init = c_init,                            \
+};                                                        \
+static void init_##name(void)                             \
+{                                                         \
+	pthread_key_create(&(name).key, c_cleanup);       \
 }
 
 /*!
@@ -111,12 +127,16 @@ void *ast_threadstorage_get(struct ast_threadstorage *ts, size_t init_size),
 	if (!(buf = pthread_getspecific(ts->key))) {
 		if (!(buf = ast_calloc(1, init_size)))
 			return NULL;
+		if (ts->custom_init)
+			ts->custom_init(buf);
 		pthread_setspecific(ts->key, buf);
 	}
 
 	return buf;
 }
 )
+
+void __ast_threadstorage_cleanup(void *);
 
 /*!
  * \brief A dynamic length string

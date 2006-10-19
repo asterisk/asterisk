@@ -52,7 +52,7 @@ static AST_LIST_HEAD_STATIC(headerlist, ast_frame);
 static void frame_cache_cleanup(void *data);
 
 /*! \brief A per-thread cache of frame headers */
-AST_THREADSTORAGE_CUSTOM(frame_cache, frame_cache_init, frame_cache_cleanup);
+AST_THREADSTORAGE_CUSTOM(frame_cache, NULL, frame_cache_cleanup);
 
 /*! 
  * \brief Maximum ast_frame cache size

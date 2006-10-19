@@ -101,10 +101,10 @@ struct eventqent *master_eventq = NULL;
  * has one event in it (Placeholder) in init_manager().
  */
 
-AST_THREADSTORAGE(manager_event_buf, manager_event_buf_init);
+AST_THREADSTORAGE(manager_event_buf);
 #define MANAGER_EVENT_BUF_INITSIZE   256
 
-AST_THREADSTORAGE(astman_append_buf, astman_append_buf_init);
+AST_THREADSTORAGE(astman_append_buf);
 #define ASTMAN_APPEND_BUF_INITSIZE   256
 
 /*! \brief Descriptor for an AMI session, either a regular one

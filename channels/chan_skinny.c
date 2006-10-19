@@ -135,10 +135,10 @@ static struct ast_jb_conf default_jbconf =
 };
 static struct ast_jb_conf global_jbconf;
 
-AST_THREADSTORAGE(device2str_threadbuf, device2str_threadbuf_init);
+AST_THREADSTORAGE(device2str_threadbuf);
 #define DEVICE2STR_BUFSIZE   15
 
-AST_THREADSTORAGE(control2str_threadbuf, control2str_threadbuf_init);
+AST_THREADSTORAGE(control2str_threadbuf);
 #define CONTROL2STR_BUFSIZE   100
 
 /*********************

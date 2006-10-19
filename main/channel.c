@@ -100,7 +100,7 @@ static int uniqueint = 0;
 
 unsigned long global_fin = 0, global_fout = 0;
 
-AST_THREADSTORAGE(state2str_threadbuf, state2str_threadbuf_init);
+AST_THREADSTORAGE(state2str_threadbuf);
 #define STATE2STR_BUFSIZE   32
 
 /* XXX 100ms ... this won't work with wideband support */

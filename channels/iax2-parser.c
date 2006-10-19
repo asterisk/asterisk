@@ -53,7 +53,7 @@ static int oframes = 0;
 static void frame_cache_cleanup(void *data);
 
 /*! \brief A per-thread cache of iax_frame structures */
-AST_THREADSTORAGE_CUSTOM(frame_cache, frame_cache_init, frame_cache_cleanup);
+AST_THREADSTORAGE_CUSTOM(frame_cache, NULL, frame_cache_cleanup);
 
 /*! \brief This is just so iax_frames, a list head struct for holding a list of
  *  iax_frame structures, is defined. */

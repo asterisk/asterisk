@@ -51,7 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 extern unsigned long global_fin, global_fout;
 
-AST_THREADSTORAGE(ast_cli_buf, ast_cli_buf_init);
+AST_THREADSTORAGE(ast_cli_buf);
 
 /*! \brief Initial buffer size for resulting strings in ast_cli() */
 #define AST_CLI_INITLEN   256

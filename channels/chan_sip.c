@@ -1143,7 +1143,7 @@ static struct ast_register_list {
 } regl;
 
 /*! \brief A per-thread temporary pvt structure */
-AST_THREADSTORAGE(ts_temp_pvt, temp_pvt_init);
+AST_THREADSTORAGE(ts_temp_pvt);
 
 /*! \todo Move the sip_auth list to AST_LIST */
 static struct sip_auth *authl = NULL;		/*!< Authentication list for realm authentication */

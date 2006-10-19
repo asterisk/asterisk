@@ -65,7 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char base64[64];
 static char b2a[256];
 
-AST_THREADSTORAGE(inet_ntoa_buf, inet_ntoa_buf_init);
+AST_THREADSTORAGE(inet_ntoa_buf);
 
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__) || defined(__CYGWIN__)
 
