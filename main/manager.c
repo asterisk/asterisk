@@ -83,10 +83,6 @@ struct eventqent {
 	char eventdata[1];	/* really variable size, allocated by append_event() */
 };
 struct eventqent *master_eventq = NULL; /* Protected by the sessions list lock */
-/*
- * XXX for some unclear reasons, we make sure master_eventq always
- * has one event in it (Placeholder) in init_manager().
- */
 
 static int enabled = 0;
 static int portno = DEFAULT_MANAGER_PORT;
@@ -505,7 +501,6 @@ static struct ast_cli_entry cli_manager[] = {
  * (why check for e->next ?) wakeup the
  * main thread, which is in charge of freeing the record.
  * Returns the next record.
- * XXX Locking assumptions ??? next may change if we are last.
  */
 static struct eventqent *unref_event(struct eventqent *e)
 {
@@ -991,10 +986,10 @@ static int action_waitevent(struct mansession *s, struct message *m)
 		ast_mutex_unlock(&s->__lock);
 		if (needexit)
 			break;
-		if (!s->inuse && s->fd > 0) {
+		if (!s->inuse && s->fd > 0) {	/* AMI session */
 			if (ast_wait_for_input(s->fd, 1000))
 				break;
-		} else {
+		} else {	/* HTTP session */
 			sleep(1);
 		}
 	}
@@ -2022,7 +2017,6 @@ static void *accept_thread(void *ignore)
 /*
  * events are appended to a queue from where they
  * can be dispatched to clients.
- * Must be called with the session lock held (or equivalent).
  */
 static int append_event(const char *str, int category)
 {
@@ -2356,8 +2350,9 @@ static char *xml_translate(char *in, struct ast_variable *vars, enum output_form
 	tmp = out;
 	/* we want to stop when we find an empty line */
 	while (in && *in) {
-		in = ast_skip_blanks(in);	/* trailing \n from before */
 		val = strsep(&in, "\r\n");	/* mark start and end of line */
+		if (in && *in == '\n')		/* remove trailing \n if any */
+			in++;
 		ast_trim_blanks(val);
 		ast_verbose("inobj %d in_data %d line <%s>\n", inobj, in_data, val);
 		if (ast_strlen_zero(val)) {
