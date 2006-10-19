@@ -224,7 +224,9 @@ static struct event {
 	{ "Status", event_status },
 	{ "Link", event_ignore },
 	{ "Unlink", event_ignore },
-	{ "StatusComplete", event_ignore }
+	{ "StatusComplete", event_ignore },
+	{ "Dial", event_ignore },
+	{ "Newcallerid", event_ignore }
 };
 
 static int process_message(struct ast_mansession *s, struct message *m)
