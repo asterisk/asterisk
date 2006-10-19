@@ -551,9 +551,10 @@ static struct ast_flags global_flags[2] = {{0}};        /*!< global SIP_ flags *
 /*! \brief Protect the SIP dialog list (of sip_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
 
+AST_MUTEX_DEFINE_STATIC(netlock);
+
 /*! \brief Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-AST_MUTEX_DEFINE_STATIC(netlock);
 
 AST_MUTEX_DEFINE_STATIC(monlock);
 
@@ -861,7 +862,7 @@ struct sip_refer {
 };
 
 /*! \brief sip_pvt: PVT structures are used for each SIP dialog, ie. a call, a registration, a subscribe  */
-static struct sip_pvt {
+struct sip_pvt {
 	ast_mutex_t lock;			/*!< Dialog private lock */
 	int method;				/*!< SIP method that opened this dialog */
 	AST_DECLARE_STRING_FIELDS(
@@ -973,7 +974,9 @@ static struct sip_pvt {
 	struct sip_pvt *next;			/*!< Next dialog in chain */
 	struct sip_invite_param *options;	/*!< Options for INVITE */
 	int autoframing;
-} *iflist = NULL;
+};
+
+static struct sip_pvt *iflist = NULL;
 
 #define FLAG_RESPONSE (1 << 0)
 #define FLAG_FATAL (1 << 1)
