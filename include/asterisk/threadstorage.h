@@ -42,7 +42,7 @@ struct ast_threadstorage {
 	/*! The function that initializes the key */
 	void (*key_init)(void);
 	/*! Custom initialization function specific to the object */
-	void (*custom_init)(void *);
+	int (*custom_init)(void *);
 };
 
 /*!
@@ -58,13 +58,13 @@ struct ast_threadstorage {
  * \endcode
  */
 #define AST_THREADSTORAGE(name) \
-	AST_THREADSTORAGE_CUSTOM(name, NULL, NULL) 
+	AST_THREADSTORAGE_CUSTOM(name, NULL, ast_free) 
 
 /*!
  * \brief Define a thread storage variable, with custom initialization and cleanup
  *
  * \arg name The name of the thread storage object
- * \arg init This is a custom that will be called after each thread specific
+ * \arg init This is a custom function that will be called after each thread specific
  *           object is allocated, with the allocated block of memory passed
  *           as the argument.
  * \arg cleanup This is a custom function that will be called instead of ast_free
@@ -127,8 +127,10 @@ void *ast_threadstorage_get(struct ast_threadstorage *ts, size_t init_size),
 	if (!(buf = pthread_getspecific(ts->key))) {
 		if (!(buf = ast_calloc(1, init_size)))
 			return NULL;
-		if (ts->custom_init)
-			ts->custom_init(buf);
+		if (ts->custom_init && ts->custom_init(buf)) {
+			free(buf);
+			return NULL;
+		}
 		pthread_setspecific(ts->key, buf);
 	}
 

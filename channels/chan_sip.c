@@ -1142,10 +1142,11 @@ static struct ast_register_list {
 	int recheck;
 } regl;
 
+static int temp_pvt_init(void *);
 static void temp_pvt_cleanup(void *);
 
 /*! \brief A per-thread temporary pvt structure */
-AST_THREADSTORAGE_CUSTOM(ts_temp_pvt, NULL, temp_pvt_cleanup);
+AST_THREADSTORAGE_CUSTOM(ts_temp_pvt, temp_pvt_init, temp_pvt_cleanup);
 
 /*! \todo Move the sip_auth list to AST_LIST */
 static struct sip_auth *authl = NULL;		/*!< Authentication list for realm authentication */
@@ -5532,6 +5533,14 @@ static int __transmit_response(struct sip_pvt *p, const char *msg, const struct 
 	return send_response(p, &resp, reliable, seqno);
 }
 
+static int temp_pvt_init(void *data)
+{
+	struct sip_pvt *p = data;
+
+	ast_set_flag(&p->flags[0], SIP_NO_HISTORY);
+	return ast_string_field_init(p, 512);
+}
+
 static void temp_pvt_cleanup(void *data)
 {
 	struct sip_pvt *p = data;
@@ -5549,13 +5558,6 @@ static int transmit_response_using_temp(ast_string_field callid, struct sockaddr
 	if (!(p = ast_threadstorage_get(&ts_temp_pvt, sizeof(*p)))) {
 		ast_log(LOG_NOTICE, "Failed to get temporary pvt\n");
 		return -1;
-	}
-
-	/* if the structure was just allocated, initialize it */
-	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY)) {
-		ast_set_flag(&p->flags[0], SIP_NO_HISTORY);
-		if (ast_string_field_init(p, 512))
-			return -1;
 	}
 
 	/* Initialize the bare minimum */
