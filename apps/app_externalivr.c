@@ -447,7 +447,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 					continue;
 
 				if (input[0] == 'S') {
-					if (ast_fileexists(&input[2], NULL, NULL) == -1) {
+					if (ast_fileexists(&input[2], NULL, u->chan->language) == -1) {
 						ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
 						send_child_event(child_events, 'Z', NULL, chan);
 						strcpy(&input[2], "exception");
@@ -466,7 +466,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 						AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
 					AST_LIST_UNLOCK(&u->playlist);
 				} else if (input[0] == 'A') {
-					if (ast_fileexists(&input[2], NULL, NULL) == -1) {
+					if (ast_fileexists(&input[2], NULL, u->chan->language) == -1) {
 						ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
 						send_child_event(child_events, 'Z', NULL, chan);
 						strcpy(&input[2], "exception");
