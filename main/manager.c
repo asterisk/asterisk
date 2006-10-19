@@ -126,7 +126,7 @@ struct mansession {
 	char inbuf[AST_MAX_MANHEADER_LEN];	/*! Buffer */
 	int inlen;		/*! number of buffered bytes */
 	int send_events;	/* XXX what ? */
-	struct eventqent *eventq;	/* Queued events that we've not had the ability to send yet */
+	struct eventqent *eventq;	/* last event processed. */
 	int writetimeout;	/* Timeout for ast_carefulwrite() */
 	AST_LIST_ENTRY(mansession) list;
 };
@@ -1005,7 +1005,7 @@ static int action_waitevent(struct mansession *s, struct message *m)
 			    ((s->send_events & eqe->category) == eqe->category)) {
 				astman_append(s, "%s", eqe->eventdata);
 			}
-			unref_event(s->eventq);	/* XXX why not eqe ? */
+			unref_event(s->eventq);
 			s->eventq = eqe;
 		}
 		astman_append(s,
@@ -2020,12 +2020,13 @@ static void *accept_thread(void *ignore)
  */
 static int append_event(const char *str, int category)
 {
-	struct eventqent *tmp, *prev = NULL;
-	tmp = ast_malloc(sizeof(*tmp) + strlen(str));
+	struct eventqent *prev = NULL;
+	struct eventqent *tmp = ast_malloc(sizeof(*tmp) + strlen(str));
 
 	if (!tmp)
 		return -1;
 
+	/* need to init all fields, because ast_malloc() does not */
 	tmp->next = NULL;
 	tmp->category = category;
 	strcpy(tmp->eventdata, str);
