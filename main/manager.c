@@ -77,12 +77,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 
 struct eventqent {
-	int usecount;		/* # of clients who still need the event */
+	int usecount;		/*!< # of clients who still need the event */
 	int category;
 	struct eventqent *next;
-	char eventdata[1];	/* really variable size, allocated by append_event() */
+	char eventdata[1];	/*!< really variable size, allocated by append_event() */
 };
-struct eventqent *master_eventq = NULL; /* Protected by the sessions list lock */
+struct eventqent *master_eventq = NULL; /*!< Protected by the sessions list lock */
 
 static int enabled = 0;
 static int portno = DEFAULT_MANAGER_PORT;
@@ -91,7 +91,7 @@ static int displayconnects = 1;
 static int timestampevents = 0;
 static int httptimeout = 60;
 
-static pthread_t accept_thread_ptr;	/* the accept thread */
+static pthread_t accept_thread_ptr;	/*!< the accept thread */
 static int block_sockets = 0;
 static int num_sessions = 0;
 
@@ -107,34 +107,34 @@ AST_THREADSTORAGE(astman_append_buf);
  * with the socket.
  */
 struct mansession {
-	pthread_t ms_t;		/*! Execution thread, basically useless */
-	ast_mutex_t __lock;	/*! Thread lock -- don't use in action callbacks, it's already taken care of  */
+	pthread_t ms_t;		/*!< Execution thread, basically useless */
+	ast_mutex_t __lock;	/*!< Thread lock -- don't use in action callbacks, it's already taken care of  */
 				/* XXX need to document which fields it is protecting */
-	struct sockaddr_in sin;	/*! address we are connecting from */
-	int fd;			/*! descriptor used for output. Either the socket (AMI) or a temporary file (HTTP) */
-	int inuse;		/*! number of HTTP sessions using this entry */
-	int needdestroy;	/*! Whether an HTTP session should be destroyed */
-	pthread_t waiting_thread;	/*! Whether an HTTP session has someone waiting on events */
-	unsigned long managerid;	/*! Unique manager identifer, 0 for AMI sessions */
-	time_t sessiontimeout;	/*! Session timeout if HTTP */
-	struct ast_dynamic_str *outputstr;	/*! Output from manager interface */
-	char username[80];	/*! Logged in username */
-	char challenge[10];	/*! Authentication challenge */
-	int authenticated;	/*! Authentication status */
-	int readperm;		/*! Authorization for reading */
-	int writeperm;		/*! Authorization for writing */
-	char inbuf[AST_MAX_MANHEADER_LEN];	/*! Buffer */
-	int inlen;		/*! number of buffered bytes */
-	int send_events;	/* XXX what ? */
-	struct eventqent *eventq;	/* last event processed. */
-	int writetimeout;	/* Timeout for ast_carefulwrite() */
+	struct sockaddr_in sin;	/*!< address we are connecting from */
+	int fd;			/*!< descriptor used for output. Either the socket (AMI) or a temporary file (HTTP) */
+	int inuse;		/*!< number of HTTP sessions using this entry */
+	int needdestroy;	/*!< Whether an HTTP session should be destroyed */
+	pthread_t waiting_thread;	/*!< Whether an HTTP session has someone waiting on events */
+	unsigned long managerid;	/*!< Unique manager identifer, 0 for AMI sessions */
+	time_t sessiontimeout;	/*!< Session timeout if HTTP */
+	struct ast_dynamic_str *outputstr;	/*!< Output from manager interface */
+	char username[80];	/*!< Logged in username */
+	char challenge[10];	/*!< Authentication challenge */
+	int authenticated;	/*!< Authentication status */
+	int readperm;		/*!< Authorization for reading */
+	int writeperm;		/*!< Authorization for writing */
+	char inbuf[AST_MAX_MANHEADER_LEN];	/*!< Buffer */
+	int inlen;		/*!< number of buffered bytes */
+	int send_events;	/*!<  XXX what ? */
+	struct eventqent *eventq;	/*!< last event processed. */
+	int writetimeout;	/*!< Timeout for ast_carefulwrite() */
 	AST_LIST_ENTRY(mansession) list;
 };
 
 static AST_LIST_HEAD_STATIC(sessions, mansession);
 
-/* user descriptor, as read from the config file.
- * It is still missing some fields -- e.g. we can have multiple permit and deny
+/*! \brief user descriptor, as read from the config file.
+ * \note It is still missing some fields -- e.g. we can have multiple permit and deny
  * lines which are not supported here, and readperm/writeperm/writetimeout
  * are not stored.
  */
@@ -145,19 +145,19 @@ struct ast_manager_user {
 	char *permit;
 	char *read;
 	char *write;
-	int displayconnects;	/* XXX unused */
-	int keep;	/* mark entries created on a reload */
+	int displayconnects;	/*!< XXX unused */
+	int keep;	/*!< mark entries created on a reload */
 	AST_LIST_ENTRY(ast_manager_user) list;
 };
 
-/* list of users found in the config file */
+/*! \brief list of users found in the config file */
 static AST_LIST_HEAD_STATIC(users, ast_manager_user);
 
-/* list of actions registered */
+/*! \brief list of actions registered */
 static struct manager_action *first_action = NULL;
 AST_MUTEX_DEFINE_STATIC(actionlock);
 
-/*
+/*! \brief
  * helper functions to convert back and forth between
  * string and numeric representation of set of flags
  */
@@ -236,7 +236,7 @@ static int get_perm(const char *instr)
 	return ret;
 }
 
-/*
+/*!
  * A number returns itself, false returns 0, true returns all flags,
  * other strings return the flags that are set.
  */
@@ -281,7 +281,7 @@ static char *complete_show_mancmd(const char *line, const char *word, int pos, i
 	return ret;
 }
 
-/*
+/*!
  * lookup an entry in the list of registered users.
  * must be called with the list lock held.
  */
