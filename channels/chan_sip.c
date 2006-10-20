@@ -338,16 +338,18 @@ enum sipregistrystate {
 	REG_STATE_FAILED,	/*!< Registration failed after several tries */
 };
 
-#define CAN_NOT_CREATE_DIALOG	0
-#define CAN_CREATE_DIALOG	1
-#define CAN_CREATE_DIALOG_UNSUPPORTED_METHOD	2
+enum can_create_dialog {
+	CAN_NOT_CREATE_DIALOG,
+	CAN_CREATE_DIALOG,
+	CAN_CREATE_DIALOG_UNSUPPORTED_METHOD,
+};
 
 /*! XXX Note that sip_methods[i].id == i must hold or the code breaks */
 static const struct  cfsip_methods { 
 	enum sipmethod id;
 	int need_rtp;		/*!< when this is the 'primary' use for a pvt structure, does it need RTP? */
 	char * const text;
-	int can_create;
+	enum can_create_dialog can_create;
 } sip_methods[] = {
 	{ SIP_UNKNOWN,	 RTP,    "-UNKNOWN-", 	CAN_CREATE_DIALOG },
 	{ SIP_RESPONSE,	 NO_RTP, "SIP/2.0",	CAN_NOT_CREATE_DIALOG },
