@@ -302,6 +302,7 @@ enum sipmethod {
 	SIP_INFO,
 	SIP_CANCEL,
 	SIP_PUBLISH,		/* Not supported at all */
+	SIP_PING,		/* Not supported at all, no standard but still implemented out there */
 };
 
 /*! \brief Authentication types - proxy or www authentication 
@@ -337,6 +338,9 @@ enum sipregistrystate {
 	REG_STATE_FAILED,	/*!< Registration failed after several tries */
 };
 
+#define CAN_NOT_CREATE_DIALOG	0
+#define CAN_CREATE_DIALOG	1
+#define CAN_CREATE_DIALOG_UNSUPPORTED_METHOD	2
 
 /*! XXX Note that sip_methods[i].id == i must hold or the code breaks */
 static const struct  cfsip_methods { 
@@ -345,22 +349,23 @@ static const struct  cfsip_methods {
 	char * const text;
 	int can_create;
 } sip_methods[] = {
-	{ SIP_UNKNOWN,	 RTP,    "-UNKNOWN-", 0 },
-	{ SIP_RESPONSE,	 NO_RTP, "SIP/2.0", 0 },
-	{ SIP_REGISTER,	 NO_RTP, "REGISTER", 1 },
- 	{ SIP_OPTIONS,	 NO_RTP, "OPTIONS", 1 },
-	{ SIP_NOTIFY,	 NO_RTP, "NOTIFY", 0 },
-	{ SIP_INVITE,	 RTP,    "INVITE", 1 },
-	{ SIP_ACK,	 NO_RTP, "ACK", 0 },
-	{ SIP_PRACK,	 NO_RTP, "PRACK", 0 },
-	{ SIP_BYE,	 NO_RTP, "BYE", 0 },
-	{ SIP_REFER,	 NO_RTP, "REFER", 0 },
-	{ SIP_SUBSCRIBE, NO_RTP, "SUBSCRIBE", 1 },
-	{ SIP_MESSAGE,	 NO_RTP, "MESSAGE", 1 },
-	{ SIP_UPDATE,	 NO_RTP, "UPDATE", 0 },
-	{ SIP_INFO,	 NO_RTP, "INFO", 0 },
-	{ SIP_CANCEL,	 NO_RTP, "CANCEL", 0 },
-	{ SIP_PUBLISH,	 NO_RTP, "PUBLISH", 1 }
+	{ SIP_UNKNOWN,	 RTP,    "-UNKNOWN-", 	CAN_CREATE_DIALOG },
+	{ SIP_RESPONSE,	 NO_RTP, "SIP/2.0",	CAN_NOT_CREATE_DIALOG },
+	{ SIP_REGISTER,	 NO_RTP, "REGISTER", 	CAN_CREATE_DIALOG },
+ 	{ SIP_OPTIONS,	 NO_RTP, "OPTIONS", 	CAN_CREATE_DIALOG },
+	{ SIP_NOTIFY,	 NO_RTP, "NOTIFY", 	CAN_CREATE_DIALOG },
+	{ SIP_INVITE,	 RTP,    "INVITE", 	CAN_CREATE_DIALOG },
+	{ SIP_ACK,	 NO_RTP, "ACK", 	CAN_NOT_CREATE_DIALOG },
+	{ SIP_PRACK,	 NO_RTP, "PRACK", 	CAN_NOT_CREATE_DIALOG },
+	{ SIP_BYE,	 NO_RTP, "BYE", 	CAN_NOT_CREATE_DIALOG },
+	{ SIP_REFER,	 NO_RTP, "REFER", 	CAN_CREATE_DIALOG },
+	{ SIP_SUBSCRIBE, NO_RTP, "SUBSCRIBE", 	CAN_CREATE_DIALOG },
+	{ SIP_MESSAGE,	 NO_RTP, "MESSAGE", 	CAN_CREATE_DIALOG },
+	{ SIP_UPDATE,	 NO_RTP, "UPDATE", 	CAN_NOT_CREATE_DIALOG },
+	{ SIP_INFO,	 NO_RTP, "INFO", 	CAN_NOT_CREATE_DIALOG },
+	{ SIP_CANCEL,	 NO_RTP, "CANCEL", 	CAN_NOT_CREATE_DIALOG },
+	{ SIP_PUBLISH,	 NO_RTP, "PUBLISH", 	CAN_CREATE_DIALOG_UNSUPPORTED_METHOD },
+	{ SIP_PING,	 NO_RTP, "PING", 	CAN_CREATE_DIALOG_UNSUPPORTED_METHOD }
 };
 
 /*!  Define SIP option tags, used in Require: and Supported: headers 
@@ -4268,14 +4273,36 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	ast_mutex_unlock(&iflock);
 	
 	/* See if the method is capable of creating a dialog */
-	if (!sip_methods[intended_method].can_create) {
-		if (intended_method != SIP_RESPONSE)
-			transmit_response_using_temp(callid, sin, 1, intended_method, req, "481 Call leg/transaction does not exist");
-		else if (option_debug > 1)
-			ast_log(LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Callid %s\n", callid ? callid : "<unknown>");
-	} else if ((p = sip_alloc(callid, sin, 1, intended_method))) {
-		ast_mutex_lock(&p->lock);
+	if (sip_methods[intended_method].can_create == CAN_CREATE_DIALOG) {
+		if (intended_method == SIP_REFER) {
+			/* We do support REFER, but not outside of a dialog yet */
+			transmit_response_using_temp(callid, sin, 1, intended_method, req, "603 Declined (no dialog)");
+		} else if (intended_method == SIP_NOTIFY) {
+			/* We do not support out-of-dialog NOTIFY either,
+		   	like voicemail notification, so cancel that early */
+			transmit_response_using_temp(callid, sin, 1, intended_method, req, "489 Bad event");
+		} else {
+			/* Ok, time to create a new SIP dialog object, a pvt */
+			if ((p = sip_alloc(callid, sin, 1, intended_method))) 
+				/* Ok, we've created a dialog, let's go and process it */
+				ast_mutex_lock(&p->lock);
+		}
+		return p;
+	} else if( sip_methods[intended_method].can_create == CAN_CREATE_DIALOG_UNSUPPORTED_METHOD) {
+		/* A method we do not support, let's take it on the volley */
+		transmit_response_using_temp(callid, sin, 1, intended_method, req, "501 Method Not Implemented");
+		if (option_debug > 1 )
+			ast_log(LOG_DEBUG, "Got a request with unsupported SIP method.\n");
+	} else if (intended_method != SIP_RESPONSE) {
+		/* This is a request outside of a dialog that we don't know about */
+		transmit_response_using_temp(callid, sin, 1, intended_method, req, "481 Call leg/transaction does not exist");
+		if (option_debug > 1 && intended_method == SIP_RESPONSE)
+			ast_log(LOG_DEBUG, "That's odd...  Got a request in unknown dialog. Callid %s\n", callid ? callid : "<unknown>");
 	}
+	/* We do not respond to responses for dialogs that we don't know about, we just drop
+	   the session quickly */
+	if (option_debug > 1 && intended_method == SIP_RESPONSE)
+		ast_log(LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Callid %s\n", callid ? callid : "<unknown>");
 
 	return p;
 }
