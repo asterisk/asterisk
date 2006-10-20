@@ -126,10 +126,12 @@ struct mansession {
 	char inbuf[AST_MAX_MANHEADER_LEN];	/*!< Buffer */
 	int inlen;		/*!< number of buffered bytes */
 	int send_events;	/*!<  XXX what ? */
-	struct eventqent *eventq;	/*!< last event processed. */
+	struct eventqent *last_ev;	/*!< last event processed. */
 	int writetimeout;	/*!< Timeout for ast_carefulwrite() */
 	AST_LIST_ENTRY(mansession) list;
 };
+
+#define NEW_EVENT(m)	(m->last_ev->next)
 
 static AST_LIST_HEAD_STATIC(sessions, mansession);
 
@@ -512,7 +514,7 @@ static struct eventqent *unref_event(struct eventqent *e)
 
 static void free_session(struct mansession *s)
 {
-	struct eventqent *eqe = s->eventq;
+	struct eventqent *eqe = s->last_ev;
 	if (s->fd > -1)
 		close(s->fd);
 	if (s->outputstr)
@@ -945,7 +947,6 @@ static int action_waitevent(struct mansession *s, struct message *m)
 	int x;
 	int needexit = 0;
 	time_t now;
-	struct eventqent *eqe;
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 
@@ -977,7 +978,7 @@ static int action_waitevent(struct mansession *s, struct message *m)
 		ast_log(LOG_DEBUG, "Starting waiting for an event!\n");
 	for (x=0; ((x < timeout) || (timeout < 0)); x++) {
 		ast_mutex_lock(&s->__lock);
-		if (s->eventq && s->eventq->next)
+		if (s->last_ev && s->last_ev->next)
 			needexit = 1;
 		if (s->waiting_thread != pthread_self())
 			needexit = 1;
@@ -997,16 +998,14 @@ static int action_waitevent(struct mansession *s, struct message *m)
 		ast_log(LOG_DEBUG, "Finished waiting for an event!\n");
 	ast_mutex_lock(&s->__lock);
 	if (s->waiting_thread == pthread_self()) {
+		struct eventqent *eqe;
 		astman_send_response(s, m, "Success", "Waiting for Event...");
-		/* Only show events if we're the most recent waiter */
-		while(s->eventq->next) {
-			eqe = s->eventq->next;
+		while ( (eqe = NEW_EVENT(s)) ) {
 			if (((s->readperm & eqe->category) == eqe->category) &&
 			    ((s->send_events & eqe->category) == eqe->category)) {
 				astman_append(s, "%s", eqe->eventdata);
 			}
-			unref_event(s->eventq);
-			s->eventq = eqe;
+			s->last_ev = unref_event(s->last_ev);
 		}
 		astman_append(s,
 			"Event: WaitEventComplete\r\n"
@@ -1708,16 +1707,16 @@ static int process_events(struct mansession *s)
 	if (s->fd > -1) {
 		struct eventqent *eqe;
 
-		if (!s->eventq)
-			s->eventq = master_eventq;
-		while( (eqe = s->eventq->next) ) {
+		if (!s->last_ev)
+			s->last_ev = master_eventq;
+		while ( (eqe = NEW_EVENT(s)) ) {
 			if ((s->authenticated && (s->readperm & eqe->category) == eqe->category) &&
 			    ((s->send_events & eqe->category) == eqe->category)) {
-				if (!ret && ast_carefulwrite(s->fd, eqe->eventdata, strlen(eqe->eventdata), s->writetimeout) < 0)
+				if (!ret && ast_carefulwrite(s->fd, eqe->eventdata,
+						strlen(eqe->eventdata), s->writetimeout) < 0)
 					ret = -1;
 			}
-			unref_event(s->eventq);	/* XXX why not eqe ? */
-			s->eventq = eqe;
+			s->last_ev = unref_event(s->last_ev);
 		}
 	}
 	ast_mutex_unlock(&s->__lock);
@@ -1886,7 +1885,7 @@ static void *session_do(void *data)
 				memset(&m, 0, sizeof(m));
 			} else if (m.hdrcount < AST_MAX_MANHEADERS - 1)
 				m.hdrcount++;
-		} else if (s->eventq->next) {
+		} else if (s->last_ev->next) {
 			if (process_events(s))
 				break;
 		}
@@ -1948,7 +1947,6 @@ static void *accept_thread(void *ignore)
 		AST_LIST_TRAVERSE_SAFE_END
 		/* Purge master event queue of old, unused events, but make sure we
 		   always keep at least one in the queue */
-		/* XXX why do we need one entry in the queue ? */
 		while (master_eventq->next && !master_eventq->usecount) {
 			struct eventqent *eqe = master_eventq;
 			master_eventq = master_eventq->next;
@@ -2000,13 +1998,12 @@ static void *accept_thread(void *ignore)
 		ast_atomic_fetchadd_int(&num_sessions, 1);
 		AST_LIST_LOCK(&sessions);
 		AST_LIST_INSERT_HEAD(&sessions, s, list);
-		/* Find the last place in the master event queue and hook ourselves
-		   in there */
-		s->eventq = master_eventq;
-		while(s->eventq->next)
-			s->eventq = s->eventq->next;
+		/* Hook to the tail of the event queue */
+		s->last_ev = master_eventq;
+		while(s->last_ev->next)
+			s->last_ev = s->last_ev->next;
 		AST_LIST_UNLOCK(&sessions);
-		ast_atomic_fetchadd_int(&s->eventq->usecount, 1);
+		ast_atomic_fetchadd_int(&s->last_ev->usecount, 1);
 		if (ast_pthread_create_background(&s->ms_t, &attr, session_do, s))
 			destroy_session(s);
 	}
@@ -2028,6 +2025,7 @@ static int append_event(const char *str, int category)
 
 	/* need to init all fields, because ast_malloc() does not */
 	tmp->next = NULL;
+	tmp->usecount = num_sessions;
 	tmp->category = category;
 	strcpy(tmp->eventdata, str);
 
@@ -2040,7 +2038,6 @@ static int append_event(const char *str, int category)
 		master_eventq = tmp;
 	}
 
-	tmp->usecount = num_sessions;
 
 	return 0;
 }
@@ -2078,9 +2075,10 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 
 	ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf, "\r\n");
 
-	/* Append event to master list and wake up any sleeping sessions */
 	AST_LIST_LOCK(&sessions);
 	append_event(buf->str, category);
+
+	/* Wake up any sleeping sessions */
 	AST_LIST_TRAVERSE(&sessions, s, list) {
 		ast_mutex_lock(&s->__lock);
 		if (s->waiting_thread != AST_PTHREADT_NULL)
@@ -2447,11 +2445,11 @@ static char *generic_http_callback(enum output_format format,
 		AST_LIST_LOCK(&sessions);
 		AST_LIST_INSERT_HEAD(&sessions, s, list);
 		/* Hook into the last spot in the event queue */
-		s->eventq = master_eventq;
-		while (s->eventq->next)
-			s->eventq = s->eventq->next;
+		s->last_ev = master_eventq;
+		while (s->last_ev->next)
+			s->last_ev = s->last_ev->next;
 		AST_LIST_UNLOCK(&sessions);
-		ast_atomic_fetchadd_int(&s->eventq->usecount, 1);
+		ast_atomic_fetchadd_int(&s->last_ev->usecount, 1);
 		ast_atomic_fetchadd_int(&num_sessions, 1);
 	}
 
