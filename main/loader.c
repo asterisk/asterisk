@@ -394,9 +394,9 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	   on the already-opened library to what we want... if not, we have to
 	   close it and start over
 	*/
-#if HAVE_RTLD_NOLOAD
+#if defined(HAVE_RTLD_NOLOAD) && !defined(__Darwin__)
 	if (!dlopen(fn, RTLD_NOLOAD | (wants_global ? RTLD_LAZY | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL))) {
-		ast_log(LOG_WARNING, "Unable to promot flags on module '%s': %s\n", resource_in, dlerror());
+		ast_log(LOG_WARNING, "Unable to promote flags on module '%s': %s\n", resource_in, dlerror());
 		while (!dlclose(lib));
 		free(resource_being_loaded);
 		return NULL;
