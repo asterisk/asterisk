@@ -659,8 +659,8 @@ static int unload_module(void)
 	ast_manager_unregister("Monitor");
 	ast_manager_unregister("StopMonitor");
 	ast_manager_unregister("ChangeMonitor");
-	ast_unregister_application("PauseMonitor");
-	ast_unregister_application("UnpauseMonitor");
+	ast_manager_unregister("PauseMonitor");
+	ast_manager_unregister("UnpauseMonitor");
 
 	return 0;
 }
