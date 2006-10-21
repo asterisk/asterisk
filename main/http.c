@@ -628,7 +628,7 @@ static int __ast_http_load(int reload)
 	char newprefix[MAX_PREFIX];
 
 	memset(&sin, 0, sizeof(sin));
-	sin.sin_port = 8088;
+	sin.sin_port = htons(8088);
 	strcpy(newprefix, DEFAULT_PREFIX);
 	cfg = ast_config_load("http.conf");
 	if (cfg) {
@@ -639,7 +639,7 @@ static int __ast_http_load(int reload)
 			else if (!strcasecmp(v->name, "enablestatic"))
 				newenablestatic = ast_true(v->value);
 			else if (!strcasecmp(v->name, "bindport"))
-				sin.sin_port = ntohs(atoi(v->value));
+				sin.sin_port = htons(atoi(v->value));
 			else if (!strcasecmp(v->name, "bindaddr")) {
 				if ((hp = ast_gethostbyname(v->value, &ahp))) {
 					memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
