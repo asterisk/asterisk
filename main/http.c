@@ -57,21 +57,73 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MAX_PREFIX 80
 #define DEFAULT_PREFIX "/asterisk"
 
-struct ast_http_server_instance {
-	FILE *f;
-	int fd;
+/*!
+ * In order to have SSL support, we need the openssl libraries.
+ * Still we can decide whether or not to use them by commenting
+ * in or out the DO_SSL macro.
+ * We declare most of ssl support variables unconditionally,
+ * because their number is small and this simplifies the code.
+ */
+#ifdef HAVE_OPENSSL
+// #define	DO_SSL	/* comment in/out if you want to support ssl */
+#endif
+
+#ifdef DO_SSL
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+SSL_CTX* ssl_ctx;
+#endif /* DO_SSL */
+
+/* SSL support */
+#define AST_CERTFILE "asterisk.pem"
+static int do_ssl;
+static char *certfile;
+static char *cipher;
+
+/*!
+ * describes a server instance
+ */
+struct server_instance {
+	FILE *f;	/* fopen/funopen result */
+	int fd;		/* the socket returned by accept() */
+	int is_ssl;	/* is this an ssl session ? */
+#ifdef DO_SSL
+	SSL *ssl;	/* ssl state */
+#endif
 	struct sockaddr_in requestor;
 	ast_http_callback callback;
 };
 
-static struct ast_http_uri *uris;
+/*!
+ * arguments for the accepting thread
+ */
+struct server_args {
+	struct sockaddr_in sin;
+	struct sockaddr_in oldsin;
+	int is_ssl;		/* is this an SSL accept ? */
+	int accept_fd;
+	pthread_t master;
+};
 
-static int httpfd = -1;
-static pthread_t master = AST_PTHREADT_NULL;
+/*!
+ * we have up to two accepting threads, one for http, one for https
+ */
+static struct server_args http_desc = {
+	.accept_fd = -1,
+	.master = AST_PTHREADT_NULL,
+	.is_ssl = 0,
+};
+
+static struct server_args https_desc = {
+	.accept_fd = -1,
+	.master = AST_PTHREADT_NULL,
+	.is_ssl = 1,
+};
+
+static struct ast_http_uri *uris;	/*!< list of supported handlers */
 
 /* all valid URIs must be prepended by the string in prefix. */
 static char prefix[MAX_PREFIX];
-static struct sockaddr_in oldsin;
 static int enablestatic=0;
 
 /*! \brief Limit the kinds of files we're willing to serve up */
@@ -196,9 +248,12 @@ static char *httpstatus_callback(struct sockaddr_in *req, const char *uri, struc
 
 	ast_build_string(&c, &reslen, "<tr><td><i>Prefix</i></td><td><b>%s</b></td></tr>\r\n", prefix);
 	ast_build_string(&c, &reslen, "<tr><td><i>Bind Address</i></td><td><b>%s</b></td></tr>\r\n",
-			ast_inet_ntoa(oldsin.sin_addr));
+			ast_inet_ntoa(http_desc.oldsin.sin_addr));
 	ast_build_string(&c, &reslen, "<tr><td><i>Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
-			ntohs(oldsin.sin_port));
+			ntohs(http_desc.oldsin.sin_port));
+	if (do_ssl)
+		ast_build_string(&c, &reslen, "<tr><td><i>SSL Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
+			ntohs(https_desc.oldsin.sin_port));
 	ast_build_string(&c, &reslen, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
 	v = vars;
 	while(v) {
@@ -372,14 +427,72 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 	return c;
 }
 
+#ifdef DO_SSL
+/*!
+ * replacement read/write functions for SSL support.
+ * We use wrappers rather than SSL_read/SSL_write directly so
+ * we can put in some debugging.
+ */
+static int ssl_read(void *cookie, char *buf, int len)
+{
+	int i;
+	i = SSL_read(cookie, buf, len-1);
+#if 0
+	if (i >= 0)
+		buf[i] = '\0';
+	ast_verbose("ssl read size %d returns %d <%s>\n", len, i, buf);
+#endif
+	return i;
+}
+
+static int ssl_write(void *cookie, const char *buf, int len)
+{
+#if 0
+	char *s = alloca(len+1);
+	strncpy(s, buf, len);
+	s[len] = '\0';
+	ast_verbose("ssl write size %d <%s>\n", len, s);
+#endif
+	return SSL_write(cookie, buf, len);
+}
+
+static int ssl_close(void *cookie)
+{
+	close(SSL_get_fd(cookie));
+	SSL_shutdown(cookie);
+	SSL_free(cookie);
+	return 0;
+}
+#endif
+
 static void *ast_httpd_helper_thread(void *data)
 {
 	char buf[4096];
 	char cookie[4096];
-	struct ast_http_server_instance *ser = data;
+	struct server_instance *ser = data;
 	struct ast_variable *var, *prev=NULL, *vars=NULL;
 	char *uri, *c, *title=NULL;
 	int status = 200, contentlength = 0;
+
+#ifdef DO_SSL
+	if (ser->is_ssl) {
+		ser->ssl = SSL_new(ssl_ctx);
+		SSL_set_fd(ser->ssl, ser->fd);
+		if (SSL_accept(ser->ssl) == 0) {
+			ast_verbose(" error setting up ssl connection");
+			goto done;
+		}
+		ser->f = funopen(ser->ssl, ssl_read, ssl_write, NULL, ssl_close);
+	} else
+#endif
+	ser->f = fdopen(ser->fd, "w+");
+
+	if (!ser->f) {
+		ast_log(LOG_WARNING, "fdopen/funopen failed!\n");
+		close(ser->fd);
+		free(ser);
+		return NULL;
+	}
 
 	if (!fgets(buf, sizeof(buf), ser->f))
 		goto done;
@@ -499,19 +612,20 @@ done:
 
 static void *http_root(void *data)
 {
+	struct server_args *desc = data;
 	int fd;
 	struct sockaddr_in sin;
 	socklen_t sinlen;
-	struct ast_http_server_instance *ser;
+	struct server_instance *ser;
 	pthread_t launched;
 	pthread_attr_t attr;
 	
 	for (;;) {
 		int flags;
 
-		ast_wait_for_input(httpfd, -1);
+		ast_wait_for_input(desc->accept_fd, -1);
 		sinlen = sizeof(sin);
-		fd = accept(httpfd, (struct sockaddr *)&sin, &sinlen);
+		fd = accept(desc->accept_fd, (struct sockaddr *)&sin, &sinlen);
 		if (fd < 0) {
 			if ((errno != EAGAIN) && (errno != EINTR))
 				ast_log(LOG_WARNING, "Accept failed: %s\n", strerror(errno));
@@ -526,18 +640,14 @@ static void *http_root(void *data)
 		flags = fcntl(fd, F_GETFL);
 		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 		ser->fd = fd;
+		ser->is_ssl = desc->is_ssl;
 		memcpy(&ser->requestor, &sin, sizeof(ser->requestor));
-		if ((ser->f = fdopen(ser->fd, "w+"))) {
-			pthread_attr_init(&attr);
-			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 			
-			if (ast_pthread_create_background(&launched, &attr, ast_httpd_helper_thread, ser)) {
-				ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
-				fclose(ser->f);
-				free(ser);
-			}
-		} else {
-			ast_log(LOG_WARNING, "fdopen failed!\n");
+		if (ast_pthread_create_background(&launched, &attr, ast_httpd_helper_thread, ser)) {
+			ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
 			close(ser->fd);
 			free(ser);
 		}
@@ -556,66 +666,101 @@ char *ast_http_setcookie(const char *var, const char *val, int expires, char *bu
 	return buf;
 }
 
+static int ssl_setup(void)
+{
+#ifndef DO_SSL
+	do_ssl = 0;
+	return 0;
+#else
+	if (!do_ssl)
+		return 0;
+	SSL_load_error_strings();
+	SSLeay_add_ssl_algorithms();
+	ssl_ctx = SSL_CTX_new( SSLv23_server_method() );
+	if (!ast_strlen_zero(certfile)) {
+		if (SSL_CTX_use_certificate_file(ssl_ctx, certfile, SSL_FILETYPE_PEM) == 0 ||
+		    SSL_CTX_use_PrivateKey_file(ssl_ctx, certfile, SSL_FILETYPE_PEM) == 0 ||
+		    SSL_CTX_check_private_key(ssl_ctx) == 0 ) {
+			ast_verbose("ssl cert error <%s>", certfile);
+			sleep(2);
+			do_ssl = 0;
+			return 0;
+		}
+	}
+	if (!ast_strlen_zero(cipher)) {
+		if (SSL_CTX_set_cipher_list(ssl_ctx, cipher) == 0 ) {
+			ast_verbose("ssl cipher error <%s>", cipher);
+			sleep(2);
+			do_ssl = 0;
+			return 0;
+		}
+	}
+	ast_verbose("ssl cert ok");
+	return 1;
+#endif
+}
 
-static void http_server_start(struct sockaddr_in *sin)
+static void http_server_start(struct server_args *desc)
 {
 	int flags;
 	int x = 1;
 	
 	/* Do nothing if nothing has changed */
-	if (!memcmp(&oldsin, sin, sizeof(oldsin))) {
+	if (!memcmp(&desc->oldsin, &desc->sin, sizeof(desc->oldsin))) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Nothing changed in http\n");
 		return;
 	}
 	
-	memcpy(&oldsin, sin, sizeof(oldsin));
+	desc->oldsin = desc->sin;
 	
 	/* Shutdown a running server if there is one */
-	if (master != AST_PTHREADT_NULL) {
-		pthread_cancel(master);
-		pthread_kill(master, SIGURG);
-		pthread_join(master, NULL);
+	if (desc->master != AST_PTHREADT_NULL) {
+		pthread_cancel(desc->master);
+		pthread_kill(desc->master, SIGURG);
+		pthread_join(desc->master, NULL);
 	}
 	
-	if (httpfd != -1)
-		close(httpfd);
+	if (desc->accept_fd != -1)
+		close(desc->accept_fd);
 
 	/* If there's no new server, stop here */
-	if (!sin->sin_family)
+	if (desc->sin.sin_family == 0)
 		return;
 	
 	
-	httpfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (httpfd < 0) {
+	desc->accept_fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (desc->accept_fd < 0) {
 		ast_log(LOG_WARNING, "Unable to allocate socket: %s\n", strerror(errno));
 		return;
 	}
 	
-	setsockopt(httpfd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
-	if (bind(httpfd, (struct sockaddr *)sin, sizeof(*sin))) {
+	setsockopt(desc->accept_fd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
+	if (bind(desc->accept_fd, (struct sockaddr *)&desc->sin, sizeof(desc->sin))) {
 		ast_log(LOG_NOTICE, "Unable to bind http server to %s:%d: %s\n",
-			ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port),
+			ast_inet_ntoa(desc->sin.sin_addr), ntohs(desc->sin.sin_port),
 			strerror(errno));
-		close(httpfd);
-		httpfd = -1;
-		return;
+		goto error;
 	}
-	if (listen(httpfd, 10)) {
+	if (listen(desc->accept_fd, 10)) {
 		ast_log(LOG_NOTICE, "Unable to listen!\n");
-		close(httpfd);
-		httpfd = -1;
+		close(desc->accept_fd);
+		desc->accept_fd = -1;
 		return;
 	}
-	flags = fcntl(httpfd, F_GETFL);
-	fcntl(httpfd, F_SETFL, flags | O_NONBLOCK);
-	if (ast_pthread_create_background(&master, NULL, http_root, NULL)) {
+	flags = fcntl(desc->accept_fd, F_GETFL);
+	fcntl(desc->accept_fd, F_SETFL, flags | O_NONBLOCK);
+	if (ast_pthread_create_background(&desc->master, NULL, http_root, desc)) {
 		ast_log(LOG_NOTICE, "Unable to launch http server on %s:%d: %s\n",
-				ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port),
+				ast_inet_ntoa(desc->sin.sin_addr), ntohs(desc->sin.sin_port),
 				strerror(errno));
-		close(httpfd);
-		httpfd = -1;
+		goto error;
 	}
+	return;
+
+error:
+	close(desc->accept_fd);
+	desc->accept_fd = -1;
 }
 
 static int __ast_http_load(int reload)
@@ -624,27 +769,49 @@ static int __ast_http_load(int reload)
 	struct ast_variable *v;
 	int enabled=0;
 	int newenablestatic=0;
-	struct sockaddr_in sin;
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	char newprefix[MAX_PREFIX];
 
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_port = htons(8088);
+	memset(&http_desc.sin, 0, sizeof(http_desc.sin));
+	http_desc.sin.sin_port = htons(8088);
+	memset(&https_desc.sin, 0, sizeof(https_desc.sin));
+	https_desc.sin.sin_port = htons(8089);
 	strcpy(newprefix, DEFAULT_PREFIX);
 	cfg = ast_config_load("http.conf");
+
+	do_ssl = 0;
+	if (certfile)
+		free(certfile);
+	certfile = ast_strdup(AST_CERTFILE);
+	if (cipher)
+		free(cipher);
+	cipher = ast_strdup("");
+
 	if (cfg) {
 		v = ast_variable_browse(cfg, "general");
 		while(v) {
 			if (!strcasecmp(v->name, "enabled"))
 				enabled = ast_true(v->value);
+			else if (!strcasecmp(v->name, "sslenable"))
+				do_ssl = ast_true(v->value);
+			else if (!strcasecmp(v->name, "sslbindport"))
+				https_desc.sin.sin_port = htons(atoi(v->value));
+			else if (!strcasecmp(v->name, "sslcert")) {
+				free(certfile);
+				certfile = ast_strdup(v->value);
+			} else if (!strcasecmp(v->name, "sslcipher")) {
+				free(cipher);
+				cipher = ast_strdup(v->value);
+			}
 			else if (!strcasecmp(v->name, "enablestatic"))
 				newenablestatic = ast_true(v->value);
 			else if (!strcasecmp(v->name, "bindport"))
-				sin.sin_port = htons(atoi(v->value));
+				http_desc.sin.sin_port = htons(atoi(v->value));
 			else if (!strcasecmp(v->name, "bindaddr")) {
 				if ((hp = ast_gethostbyname(v->value, &ahp))) {
-					memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
+					memcpy(&http_desc.sin.sin_addr, hp->h_addr, sizeof(http_desc.sin.sin_addr));
+					memcpy(&https_desc.sin.sin_addr, hp->h_addr, sizeof(https_desc.sin.sin_addr));
 				} else {
 					ast_log(LOG_WARNING, "Invalid bind address '%s'\n", v->value);
 				}
@@ -662,11 +829,13 @@ static int __ast_http_load(int reload)
 		ast_config_destroy(cfg);
 	}
 	if (enabled)
-		sin.sin_family = AF_INET;
+		http_desc.sin.sin_family = https_desc.sin.sin_family = AF_INET;
 	if (strcmp(prefix, newprefix))
 		ast_copy_string(prefix, newprefix, sizeof(prefix));
 	enablestatic = newenablestatic;
-	http_server_start(&sin);
+	http_server_start(&http_desc);
+	if (ssl_setup())
+		http_server_start(&https_desc);
 	return 0;
 }
 
@@ -677,12 +846,17 @@ static int handle_show_http(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, "HTTP Server Status:\n");
 	ast_cli(fd, "Prefix: %s\n", prefix);
-	if (oldsin.sin_family)
-		ast_cli(fd, "Server Enabled and Bound to %s:%d\n\n",
-			ast_inet_ntoa(oldsin.sin_addr),
-			ntohs(oldsin.sin_port));
-	else
+	if (!http_desc.oldsin.sin_family)
 		ast_cli(fd, "Server Disabled\n\n");
+	else {
+		ast_cli(fd, "Server Enabled and Bound to %s:%d\n\n",
+			ast_inet_ntoa(http_desc.oldsin.sin_addr),
+			ntohs(http_desc.oldsin.sin_port));
+		if (do_ssl)
+			ast_cli(fd, "HTTPS Server Enabled and Bound to %s:%d\n\n",
+				ast_inet_ntoa(https_desc.oldsin.sin_addr),
+				ntohs(https_desc.oldsin.sin_port));
+	}
 	ast_cli(fd, "Enabled URI's:\n");
 	urih = uris;
 	while(urih){
