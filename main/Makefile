@@ -37,6 +37,8 @@ OBJS+=stdtime/localtime.o
 # by a module.
 OBJS+=say.o
 
+AST_LIBS += $(SSL_LIB)
+
 ifeq ($(wildcard /usr/include/sys/poll.h),)
   OBJS+=poll.o
   ASTCFLAGS+=-DPOLLCOMPAT

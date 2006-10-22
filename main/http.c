@@ -64,8 +64,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * We declare most of ssl support variables unconditionally,
  * because their number is small and this simplifies the code.
  */
-#ifdef HAVE_OPENSSL
-// #define	DO_SSL	/* comment in/out if you want to support ssl */
+#if defined(HAVE_OPENSSL) && (defined(HAVE_FUNOPEN) || defined(HAVE_FOPENCOOKIE))
+#define	DO_SSL	/* comment in/out if you want to support ssl */
 #endif
 
 #ifdef DO_SSL
@@ -428,30 +428,36 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 }
 
 #ifdef DO_SSL
+#if defined(HAVE_FUNOPEN)
+#define HOOK_T int
+#define LEN_T int
+#else
+#define HOOK_T ssize_t
+#define LEN_T size_t
+#endif
 /*!
  * replacement read/write functions for SSL support.
  * We use wrappers rather than SSL_read/SSL_write directly so
  * we can put in some debugging.
  */
-static int ssl_read(void *cookie, char *buf, int len)
+static HOOK_T ssl_read(void *cookie, char *buf, LEN_T len)
 {
-	int i;
-	i = SSL_read(cookie, buf, len-1);
+	int i = SSL_read(cookie, buf, len-1);
 #if 0
 	if (i >= 0)
 		buf[i] = '\0';
-	ast_verbose("ssl read size %d returns %d <%s>\n", len, i, buf);
+	ast_verbose("ssl read size %d returns %d <%s>\n", (int)len, i, buf);
 #endif
 	return i;
 }
 
-static int ssl_write(void *cookie, const char *buf, int len)
+static HOOK_T ssl_write(void *cookie, const char *buf, LEN_T len)
 {
 #if 0
 	char *s = alloca(len+1);
 	strncpy(s, buf, len);
 	s[len] = '\0';
-	ast_verbose("ssl write size %d <%s>\n", len, s);
+	ast_verbose("ssl write size %d <%s>\n", (int)len, s);
 #endif
 	return SSL_write(cookie, buf, len);
 }
@@ -463,7 +469,7 @@ static int ssl_close(void *cookie)
 	SSL_free(cookie);
 	return 0;
 }
-#endif
+#endif	/* DO_SSL */
 
 static void *ast_httpd_helper_thread(void *data)
 {
@@ -474,24 +480,38 @@ static void *ast_httpd_helper_thread(void *data)
 	char *uri, *c, *title=NULL;
 	int status = 200, contentlength = 0;
 
+	/*
+	 * open a FILE * as appropriate.
+	 */
+	if (!ser->is_ssl)
+		ser->f = fdopen(ser->fd, "w+");
 #ifdef DO_SSL
-	if (ser->is_ssl) {
-		ser->ssl = SSL_new(ssl_ctx);
+	else if ( (ser->ssl = SSL_new(ssl_ctx)) ) {
 		SSL_set_fd(ser->ssl, ser->fd);
-		if (SSL_accept(ser->ssl) == 0) {
+		if (SSL_accept(ser->ssl) == 0)
 			ast_verbose(" error setting up ssl connection");
-			goto done;
-		}
-		ser->f = funopen(ser->ssl, ssl_read, ssl_write, NULL, ssl_close);
-	} else
+		else {
+#if defined(HAVE_FUNOPEN)	/* the BSD interface */
+			ser->f = funopen(ser->ssl, ssl_read, ssl_write, NULL, ssl_close);
+
+#elif defined(HAVE_FOPENCOOKIE)	/* the glibc/linux interface */
+			static const cookie_io_functions_t cookie_funcs = {
+				ssl_read, ssl_write, NULL, ssl_close
+			};
+			ser->f = fopencookie(ser->ssl, "w+", cookie_funcs);
+#else
+			/* could add other methods here */
 #endif
-	ser->f = fdopen(ser->fd, "w+");
+		}
+		if (!ser->f)	/* no success opening descriptor stacking */
+			SSL_free(ser->ssl);
+	}
+#endif /* DO_SSL */
 
 	if (!ser->f) {
-		ast_log(LOG_WARNING, "fdopen/funopen failed!\n");
 		close(ser->fd);
-		free(ser);
-		return NULL;
+		ast_log(LOG_WARNING, "FILE * open failed!\n");
+		goto done;
 	}
 
 	if (!fgets(buf, sizeof(buf), ser->f))
@@ -605,7 +625,8 @@ static void *ast_httpd_helper_thread(void *data)
 		free(title);
 
 done:
-	fclose(ser->f);
+	if (ser->f)
+		fclose(ser->f);
 	free(ser);
 	return NULL;
 }
