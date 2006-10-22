@@ -8867,7 +8867,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	char *of;
 	char rpid_num[50];
 	const char *rpid;
-	enum check_auth_result res = AUTH_SUCCESSFUL;
+	enum check_auth_result res;
 	char *t;
 	char calleridname[50];
 	int debug=sip_debug_test_addr(sin);
@@ -9033,7 +9033,11 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			*/
 			peer = find_peer(NULL, &p->recv, 1);
 
-		if (peer) {
+		if (!peer) {
+			if (debug)
+				ast_verbose("Found no matching peer or user for '%s:%d'\n", ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+
+		} else {
 			/* Set Frame packetization */
 			if (p->rtp) {
 				ast_rtp_codec_setpref(p->rtp, &peer->prefs);
@@ -9133,18 +9137,16 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 					p->t38.jointcapability &= p->t38.peercapability;
 			}
 			ASTOBJ_UNREF(peer, sip_destroy_peer);
-		} else { 
-			if (debug)
-				ast_verbose("Found no matching peer or user for '%s:%d'\n", ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
-
-			/* do we allow guests? */
-			if (!global_allowguest) {
-				if (global_alwaysauthreject)
-					res = AUTH_FAKE_AUTH; /* reject with fake authorization request */
-				else
-					res = AUTH_SECRET_FAILED; /* we don't want any guests, authentication will fail */
-			}
+			return res;
 		}
+
+	/* Finally, apply the guest policy */
+	if (global_allowguest)
+		res = AUTH_SUCCESSFUL;
+	else if (global_alwaysauthreject)
+		res = AUTH_FAKE_AUTH; /* reject with fake authorization request */
+	else
+		res = AUTH_SECRET_FAILED; /* we don't want any guests, authentication will fail */
 
 	return res;
 }
