@@ -78,6 +78,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 char global_tracefile[BUFFERSIZE+1];
 
+static int g_config_initialized=0;
 
 struct misdn_jb{
 	int size;
@@ -955,6 +956,11 @@ static char *misdn_get_ch_state(struct chan_list *p)
 static void reload_config(void)
 {
 	int i, cfg_debug;
+
+	if (!g_config_initialized) {
+		ast_log(LOG_WARNING, "chan_misdn is not initialized properly, still reloading ?\n");
+		return ;
+	}
 	
 	free_robin_list();
 	misdn_cfg_reload();
@@ -4536,7 +4542,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
  *******************************************/
 
 
-static int g_config_initialized=0;
 
 static int unload_module(void)
 {
