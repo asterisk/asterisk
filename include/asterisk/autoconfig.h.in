@@ -102,6 +102,9 @@
 /* Define to 1 if you have the `floor' function. */
 #undef HAVE_FLOOR
 
+/* Define to 1 if you have the `fopencookie' function. */
+#undef HAVE_FOPENCOOKIE
+
 /* Define to 1 if you have the `fork' function. */
 #undef HAVE_FORK
 
@@ -117,6 +120,9 @@
 /* Define to 1 if you have the `ftruncate' function. */
 #undef HAVE_FTRUNCATE
 
+/* Define to 1 if you have the `funopen' function. */
+#undef HAVE_FUNOPEN
+
 /* Define to 1 if your GCC C compiler provides atomic operations. */
 #undef HAVE_GCC_ATOMICS
 
@@ -125,6 +131,9 @@
 
 /* Define to 1 if you have the `gethostbyname' function. */
 #undef HAVE_GETHOSTBYNAME
+
+/* Define to 1 if you have the `gethostbyname_r' function. */
+#undef HAVE_GETHOSTBYNAME_R
 
 /* Define to 1 if you have the `gethostname' function. */
 #undef HAVE_GETHOSTNAME
