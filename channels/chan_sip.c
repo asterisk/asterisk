@@ -8836,6 +8836,21 @@ static int get_rpid_num(const char *input, char *output, int maxlen)
 	return 0;
 }
 
+/*!
+ * duplicate a list of channel variables, \return the copy.
+ */
+static struct ast_variable *copy_vars(struct ast_variable *src)
+{
+	struct ast_variable *res = NULL, *tmp, *v = NULL;
+
+	for (v = src ; v ; v = v->next) {
+		if ((tmp = ast_variable_new(v->name, v->value))) {
+			tmp->next = res;
+			res = tmp;
+		}
+	}
+	return res;
+}
 
 /*! \brief  Check if matching user or peer is defined 
  	Match user on From: user name and peer on IP/port
@@ -8856,7 +8871,6 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	char *t;
 	char calleridname[50];
 	int debug=sip_debug_test_addr(sin);
-	struct ast_variable *tmpvar = NULL, *v = NULL;
 	char *uri2 = ast_strdupa(uri);
 
 	/* Terminate URI */
@@ -8918,12 +8932,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		ast_copy_flags(&p->flags[0], &user->flags[0], SIP_FLAGS_TO_COPY);
 		ast_copy_flags(&p->flags[1], &user->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 		/* copy channel vars */
-		for (v = user->chanvars ; v ; v = v->next) {
-			if ((tmpvar = ast_variable_new(v->name, v->value))) {
-				tmpvar->next = p->chanvars; 
-				p->chanvars = tmpvar;
-			}
-		}
+		p->chanvars = copy_vars(user->chanvars);
 		p->prefs = user->prefs;
 		/* Set Frame packetization */
 		if (p->rtp) {
@@ -8999,7 +9008,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 				p->vrtp = NULL;
 			}
 		}
-		if (user && debug)
+		if (debug)
 			ast_verbose("Found user '%s'\n", user->name);
 	} else {
 		if (user) {
@@ -9074,12 +9083,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 				ast_string_field_set(p, authname, peer->name);
 
 				/* copy channel vars */
-				for (v = peer->chanvars ; v ; v = v->next) {
-					if ((tmpvar = ast_variable_new(v->name, v->value))) {
-						tmpvar->next = p->chanvars; 
-						p->chanvars = tmpvar;
-					}
-				}
+				p->chanvars = copy_vars(peer->chanvars);
 				if (authpeer) {
 					(*authpeer) = ASTOBJ_REF(peer);	/* Add a ref to the object here, to keep it in memory a bit longer if it is realtime */
 				}
@@ -15327,14 +15331,30 @@ static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, con
 	return a;
 }
 
+/*!
+ * implement the servar config line
+ */
+static struct ast_variable *add_var(const char *buf, struct ast_variable *list)
+{
+	struct ast_variable *tmpvar = NULL;
+	char *varname = ast_strdupa(buf), *varval = NULL;
+	
+	if ((varval = strchr(varname,'='))) {
+		*varval++ = '\0';
+		if ((tmpvar = ast_variable_new(varname, varval))) {
+			tmpvar->next = list;
+			list = tmpvar;
+		}
+	}
+	return list;
+}
+
 /*! \brief Initiate a SIP user structure from configuration (configuration or realtime) */
 static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime)
 {
 	struct sip_user *user;
 	int format;
 	struct ast_ha *oldha = NULL;
-	char *varname = NULL, *varval = NULL;
-	struct ast_variable *tmpvar = NULL;
 	struct ast_flags userflags[2] = {{(0)}};
 	struct ast_flags mask[2] = {{(0)}};
 
@@ -15367,14 +15387,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 		} else if (!strcasecmp(v->name, "subscribecontext")) {
 			ast_copy_string(user->subscribecontext, v->value, sizeof(user->subscribecontext));
 		} else if (!strcasecmp(v->name, "setvar")) {
-			varname = ast_strdupa(v->value);
-			if ((varval = strchr(varname,'='))) {
-				*varval++ = '\0';
-				if ((tmpvar = ast_variable_new(varname, varval))) {
-					tmpvar->next = user->chanvars;
-					user->chanvars = tmpvar;
-				}
-			}
+			user->chanvars = add_var(v->value, user->chanvars);
 		} else if (!strcasecmp(v->name, "permit") ||
 				   !strcasecmp(v->name, "deny")) {
 			user->ha = ast_append_ha(v->name, v->value, user->ha);
@@ -15517,8 +15530,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	int firstpass=1;
 	int format=0;		/* Ama flags */
 	time_t regseconds = 0;
-	char *varname = NULL, *varval = NULL;
-	struct ast_variable *tmpvar = NULL;
 	struct ast_flags peerflags[2] = {{(0)}};
 	struct ast_flags mask[2] = {{(0)}};
 	char contact[256] = "";
@@ -15711,15 +15722,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				peer->rtpkeepalive = global_rtpkeepalive;
 			}
 		} else if (!strcasecmp(v->name, "setvar")) {
-			/* Set peer channel variable */
-			varname = ast_strdupa(v->value);
-			if ((varval = strchr(varname, '='))) {
-				*varval++ = '\0';
-				if ((tmpvar = ast_variable_new(varname, varval))) {
-					tmpvar->next = peer->chanvars;
-					peer->chanvars = tmpvar;
-				}
-			}
+			peer->chanvars = add_var(v->value, peer->chanvars);
 		} else if (!strcasecmp(v->name, "qualify")) {
 			if (!strcasecmp(v->value, "no")) {
 				peer->maxms = 0;
