@@ -8928,7 +8928,13 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		user = find_user(of, 1);
 
 	/* Find user based on user name in the from header */
-	if (user && ast_apply_ha(user->ha, sin)) {
+	if (user && !ast_apply_ha(user->ha, sin)) {
+		if (!authpeer && debug)
+			ast_verbose("Found user '%s', but fails host access\n", user->name);
+		ASTOBJ_UNREF(user,sip_destroy_user);
+		user = NULL;
+	}
+	if (user) {
 		ast_copy_flags(&p->flags[0], &user->flags[0], SIP_FLAGS_TO_COPY);
 		ast_copy_flags(&p->flags[1], &user->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 		/* copy channel vars */
@@ -9010,16 +9016,12 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		}
 		if (debug)
 			ast_verbose("Found user '%s'\n", user->name);
-	} else {
-		if (user) {
-			if (!authpeer && debug)
-				ast_verbose("Found user '%s', but fails host access\n", user->name);
-			ASTOBJ_UNREF(user,sip_destroy_user);
-		}
-		user = NULL;
+		ASTOBJ_UNREF(user, sip_destroy_user);
+		return res;
 	}
 
-	if (!user) {
+	/* XXX need to reindent the next block */
+
 		/* If we didn't find a user match, check for peers */
 		if (sipmethod == SIP_SUBSCRIBE)
 			/* For subscribes, match on peer name only */
@@ -9144,10 +9146,6 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 			}
 		}
 
-	}
-
-	if (user)
-		ASTOBJ_UNREF(user, sip_destroy_user);
 	return res;
 }
 
