@@ -469,21 +469,23 @@ static void *ast_httpd_helper_thread(void *data)
 		char timebuf[256];
 
 		strftime(timebuf, sizeof(timebuf), "%a, %d %b %Y %H:%M:%S GMT", gmtime(&t));
-		ast_cli(ser->fd, "HTTP/1.1 %d %s\r\n", status, title ? title : "OK");
-		ast_cli(ser->fd, "Server: Asterisk\r\n");
-		ast_cli(ser->fd, "Date: %s\r\n", timebuf);
-		ast_cli(ser->fd, "Connection: close\r\n");
-		if (contentlength) {
+		fprintf(ser->f, "HTTP/1.1 %d %s\r\n"
+				"Server: Asterisk\r\n"
+				"Date: %s\r\n"
+				"Connection: close\r\n",
+			status, title ? title : "OK", timebuf);
+		if (!contentlength) {	/* opaque body ? just dump it hoping it is properly formatted */
+			fprintf(ser->f, "%s", c);
+		} else {
 			char *tmp = strstr(c, "\r\n\r\n");
 
 			if (tmp) {
-				ast_cli(ser->fd, "Content-length: %d\r\n", contentlength);
+				fprintf(ser->f, "Content-length: %d\r\n", contentlength);
 				/* first write the header, then the body */
-				write(ser->fd, c, (tmp + 4 - c));
-				write(ser->fd, tmp + 4, contentlength);
+				fwrite(c, 1, (tmp + 4 - c), ser->f);
+				fwrite(tmp + 4, 1, contentlength, ser->f);
 			}
-		} else
-			ast_cli(ser->fd, "%s", c);
+		}
 		free(c);
 	}
 	if (title)
