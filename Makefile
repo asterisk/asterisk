@@ -332,6 +332,13 @@ include/asterisk/buildopts.h: menuselect.makeopts
 	fi
 	@rm -f $@.tmp
 
+include/asterisk/build.h:
+	@build_tools/make_build_h > $@.tmp
+	@if cmp -s $@.tmp $@ ; then : ; else \
+		mv $@.tmp $@ ; \
+	fi
+	@rm -f $@.tmp
+
 $(SUBDIRS_CLEAN_DEPEND):
 	@$(MAKE) --no-print-directory -C $(@:-clean-depend=) clean-depend
 
@@ -624,7 +631,7 @@ $(MOD_SUBDIRS_DEPEND):
 $(OTHER_SUBDIRS_DEPEND):
 	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" $(MAKE) --no-print-directory -C $(@:-depend=) depend
 
-depend: include/asterisk/version.h include/asterisk/buildopts.h defaults.h $(SUBDIRS_DEPEND)
+depend: include/asterisk/version.h include/asterisk/buildopts.h include/asterisk/build.h defaults.h $(SUBDIRS_DEPEND)
 
 sounds:
 	$(MAKE) -C sounds all
