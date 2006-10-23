@@ -9023,15 +9023,10 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	int debug=sip_debug_test_addr(sin);
 	struct sip_peer *peer;
 
-	if (sipmethod == SIP_SUBSCRIBE)
-		/* For subscribes, match on peer name only */
-		peer = find_peer(of, NULL, 1);
-	else
-		/* Look for peer based on the IP address we received data from */
-		/* If peer is registered from this IP address or have this as a default
-		   IP address, this call is from the peer 
-		*/
-		peer = find_peer(NULL, &p->recv, 1);
+	/* For subscribes, match on peer name only; for other methods,
+	 * match on IP address-port of the incoming request.
+	 */
+	peer = (sipmethod == SIP_SUBSCRIBE) ? find_peer(of, NULL, 1) : find_peer(NULL, &p->recv, 1);
 
 	if (!peer) {
 		if (debug)
@@ -9056,6 +9051,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 
 	/* Copy SIP extensions profile to peer */
+	/* XXX is this correct before a successful auth ? */
 	if (p->sipoptions)
 		peer->sipoptions = p->sipoptions;
 
