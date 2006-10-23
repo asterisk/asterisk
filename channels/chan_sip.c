@@ -324,7 +324,7 @@ enum check_auth_result {
 	AUTH_CHALLENGE_SENT = 1,
 	AUTH_SECRET_FAILED = -1,
 	AUTH_USERNAME_MISMATCH = -2,
-	AUTH_NOT_FOUND = -3,
+	AUTH_NOT_FOUND = -3,	/* returned by register_verify */
 	AUTH_FAKE_AUTH = -4,
 	AUTH_UNKNOWN_DOMAIN = -5,
 };
@@ -8076,6 +8076,24 @@ static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *r
 	transmit_response_with_auth(p, "401 Unauthorized", req, p->randdata, reliable, "WWW-Authenticate", 0);
 }
 
+/*!
+ * Terminate the uri at the first ';' or space.
+ * Technically we should ignore escaped space per RFC3261 (19.1.1 etc)
+ * but don't do it for the time being. Remember the uri format is:
+ *
+ *	sip:user:password@host:port;uri-parameters?headers
+ *	sips:user:password@host:port;uri-parameters?headers
+ *
+ */
+static char *terminate_uri(char *uri)
+{
+	char *t = uri;
+	while (*t && *t > ' ' && *t != ';')
+		t++;
+	*t = '\0';
+	return uri;
+}
+
 /*! \brief Verify registration of user 
 	- Registration is done in several steps, first a REGISTER without auth
 	  to get a challenge (nonce) then a second one with auth
@@ -8088,15 +8106,10 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 	struct sip_peer *peer;
 	char tmp[256];
 	char *name, *c;
-	char *t;
 	char *domain;
 
-	/* Terminate URI */
-	t = uri;
-	while(*t && (*t > 32) && (*t != ';'))
-		t++;
-	*t = '\0';
-	
+	terminate_uri(uri);	/* warning, overwrite the string */
+
 	ast_copy_string(tmp, get_header(req, "To"), sizeof(tmp));
 	if (pedanticsipchecking)
 		ast_uri_decode(tmp);
@@ -9111,16 +9124,12 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	char rpid_num[50];
 	const char *rpid;
 	enum check_auth_result res;
-	char *t;
 	char calleridname[50];
 	char *uri2 = ast_strdupa(uri);
 
-	/* Terminate URI */
-	t = uri2;
-	while (*t && *t > 32 && *t != ';')
-		t++;
-	*t = '\0';
-	ast_copy_string(from, get_header(req, "From"), sizeof(from));	/* XXX bug in original code, overwrote string */
+	terminate_uri(uri2);	/* trim extra stuff */
+
+	ast_copy_string(from, get_header(req, "From"), sizeof(from));
 	if (pedanticsipchecking)
 		ast_uri_decode(from);
 	/* XXX here tries to map the username for invite things */
@@ -9136,7 +9145,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 
 	of = get_in_brackets(from);
 	if (ast_strlen_zero(p->exten)) {
-		t = uri2;
+		char *t = uri2;
 		if (!strncmp(t, "sip:", 4))
 			t+= 4;
 		ast_string_field_set(p, exten, t);
