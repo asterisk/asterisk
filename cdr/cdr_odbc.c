@@ -340,7 +340,6 @@ static int odbc_load_module(void)
 		goto out;
 	}
 
-	ast_config_destroy(cfg);
 	if (option_verbose > 2) {
 		ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: dsn is %s\n",dsn);
 		if (username)
@@ -365,6 +364,8 @@ static int odbc_load_module(void)
 		ast_log(LOG_ERROR, "cdr_odbc: Unable to register ODBC CDR handling\n");
 	}
 out:
+	if (cfg)
+		ast_config_destroy(cfg);
 	ast_mutex_unlock(&odbc_lock);
 	return res;
 }
