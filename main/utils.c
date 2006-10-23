@@ -67,7 +67,7 @@ static char b2a[256];
 
 AST_THREADSTORAGE(inet_ntoa_buf);
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__) || defined(__CYGWIN__)
+#if !defined(HAVE_GETHOSTBYNAME_R)
 
 #define ERANGE 34	/*!< duh? ERANGE value copied from web... */
 #undef gethostbyname
