@@ -8758,13 +8758,13 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 		return -1;
 	}
 	c += 4;
+	if ((a = strchr(c, ';'))) 	/* Remove arguments */
+		*a = '\0';
+	
 	if ((a = strchr(c, '@'))) {	/* Separate Domain */
 		*a++ = '\0';
 		ast_copy_string(referdata->refer_to_domain, a, sizeof(referdata->refer_to_domain));
 	}
-	
-	if ((a = strchr(c, ';'))) 	/* Remove arguments */
-		*a = '\0';
 	
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Looking for %s in %s\n", c, p->context);
