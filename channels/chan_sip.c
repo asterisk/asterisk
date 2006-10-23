@@ -8905,6 +8905,21 @@ static struct ast_variable *copy_vars(struct ast_variable *src)
 	return res;
 }
 
+/* helper function for check_{user|peer}_ok() */
+
+static void replace_cid(struct sip_pvt *p, const char *rpid_num, const char *calleridname)
+{
+	/* replace callerid if rpid found, and not restricted */
+	if (!ast_strlen_zero(rpid_num) && ast_test_flag(&p->flags[0], SIP_TRUSTRPID)) {
+		char *tmp = ast_strdupa(rpid_num); /* XXX the copy can be done later */
+		if (!ast_strlen_zero(calleridname))
+			ast_string_field_set(p, cid_name, calleridname);
+		if (ast_is_shrinkable_phonenumber(tmp))
+			ast_shrink_phone_number(tmp);
+		ast_string_field_set(p, cid_num, tmp);
+	}
+}
+
 static enum check_auth_result check_user_ok(struct sip_pvt *p, char *of,
 	struct sip_request *req, int sipmethod, struct sockaddr_in *sin,
 	enum xmittype reliable,
@@ -8940,17 +8955,8 @@ static enum check_auth_result check_user_ok(struct sip_pvt *p, char *of,
 		ast_rtp_codec_setpref(p->rtp, &p->prefs);
 		p->autoframing = user->autoframing;
 	}
-	/* replace callerid if rpid found, and not restricted */
-	if (!ast_strlen_zero(rpid_num) && ast_test_flag(&p->flags[0], SIP_TRUSTRPID)) {
-		char *tmp;
-		if (*calleridname)
-			ast_string_field_set(p, cid_name, calleridname);
-		tmp = ast_strdupa(rpid_num);
-		if (ast_is_shrinkable_phonenumber(tmp))
-			ast_shrink_phone_number(tmp);
-		ast_string_field_set(p, cid_num, tmp);
-	}
-		
+
+	replace_cid(p, rpid_num, calleridname);
 	do_setnat(p, ast_test_flag(&p->flags[0], SIP_NAT_ROUTE) );
 
 	if (!(res = check_auth(p, req, user->name, user->secret, user->md5secret, sipmethod, uri2, reliable, ast_test_flag(req, SIP_PKT_IGNORE)))) {
@@ -9055,15 +9061,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	if (p->sipoptions)
 		peer->sipoptions = p->sipoptions;
 
-	/* replace callerid if rpid found, and not restricted */
-	if (!ast_strlen_zero(rpid_num) && ast_test_flag(&p->flags[0], SIP_TRUSTRPID)) {
-		char *tmp = ast_strdupa(rpid_num);
-		if (*calleridname)
-			ast_string_field_set(p, cid_name, calleridname);
-		if (ast_is_shrinkable_phonenumber(tmp))
-			ast_shrink_phone_number(tmp);
-		ast_string_field_set(p, cid_num, tmp);
-	}
+	replace_cid(p, rpid_num, calleridname);
 	do_setnat(p, ast_test_flag(&p->flags[0], SIP_NAT_ROUTE));
 
 	ast_string_field_set(p, peersecret, peer->secret);
