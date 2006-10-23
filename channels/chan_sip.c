@@ -2252,8 +2252,6 @@ static int parse_uri(char *uri, char *scheme,
 	char *name = NULL;
 	int error = 0;
 
-	ast_verbose("-------- parse_uri '%s' ----\n", uri);
-
 	/* init field as required */
 	if (*pass)
 		*pass = NULL;
@@ -2269,21 +2267,29 @@ static int parse_uri(char *uri, char *scheme,
 			error = -1;
 		}
 	}
-	if (domain) {
+	if (!domain) {
+		/* if we don't want to split around domain, keep everything as a name,
+		 * so we need to do nothing here, except remember why.
+		 */
+	} else {
 		/* store the result in a temp. variable to avoid it being
 		 * overwritten if arguments point to the same place.
 		 */
 		char *c, *dom = NULL;
 
-		if ((c = strchr(name, '@'))) {
+		if ((c = strchr(name, '@')) == NULL) {
+			/* domain-only URI, according to the SIP RFC. */
+			dom = name;
+			name = NULL;
+		} else {
 			*c++ = '\0';
 			dom = c;
-			if (port && (c = strchr(dom, ':'))) { /* Remove :port */
-				*c++ = '\0';
-				*port = c;
-			}
 		}
-		if (pass && (c = strchr(name, ':'))) {	/* user:password */
+		if (port && (c = strchr(dom, ':'))) { /* Remove :port */
+			*c++ = '\0';
+			*port = c;
+		}
+		if (name && pass && (c = strchr(name, ':'))) {	/* user:password */
 			*c++ = '\0';
 			*pass = c;
 		}
@@ -2293,6 +2299,7 @@ static int parse_uri(char *uri, char *scheme,
 		*ret_name = name;
 	if (options)
 		*options = uri;
+
 	return error;
 }
 
@@ -9183,6 +9190,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 {
 	char from[256];
 	char *dummy;	/* dummy return value for parse_uri */
+	char *domain;	/* dummy return value for parse_uri */
 	char *of;
 	char rpid_num[50];
 	const char *rpid;
@@ -9222,8 +9230,17 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	ast_string_field_set(p, from, of);
 
 	/* ignore all fields but name */
-	if (parse_uri(of, "sip:", &of, &dummy, &dummy, &dummy, &dummy)) {
+	if (parse_uri(of, "sip:", &of, &dummy, &domain, &dummy, &dummy)) {
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
+	}
+	if (of == NULL) {
+		/* XXX note: the original code considered a missing @host
+		 * as a username-only URI. The SIP RFC (19.1.1) says that
+		 * this is wrong, and it should be considered as a domain-only URI.
+		 * For backward compatibility, we keep this block, but it is
+		 * really a mistake and should go away.
+		 */
+		of = domain;
 	}
 	{
 		char *tmp = ast_strdupa(of);
