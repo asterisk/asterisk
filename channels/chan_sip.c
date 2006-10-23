@@ -2234,6 +2234,68 @@ static char *get_in_brackets(char *tmp)
 	return tmp;
 }
 
+/*!
+ * parses a URI in its components.
+ * If scheme is specified, drop it from the top.
+ * If a component is not requested, do not split around it.
+ * This means that if we don't have domain, we cannot split
+ * name:pass and domain:port.
+ * It is safe to call with ret_name, pass, domain, port
+ * pointing all to the same place.
+ *
+ * Overwrites the string.
+ * return 0 on success, other values on error.
+ */
+static int parse_uri(char *uri, char *scheme,
+	char **ret_name, char **pass, char **domain, char **port, char **options)
+{
+	char *name = NULL;
+	int error = 0;
+
+	ast_verbose("-------- parse_uri '%s' ----\n", uri);
+
+	/* init field as required */
+	if (*pass)
+		*pass = NULL;
+	if (*port)
+		*port = NULL;
+	name = strsep(&uri, ";");	/* remove options */
+	if (scheme) {
+		int l = strlen(scheme);
+		if (!strncmp(name, scheme, l))
+			name += l;
+		else {
+			ast_log(LOG_NOTICE, "Missing scheme '%s' in '%s'\n", scheme, name);
+			error = -1;
+		}
+	}
+	if (domain) {
+		/* store the result in a temp. variable to avoid it being
+		 * overwritten if arguments point to the same place.
+		 */
+		char *c, *dom = NULL;
+
+		if ((c = strchr(name, '@'))) {
+			*c++ = '\0';
+			dom = c;
+			if (port && (c = strchr(dom, ':'))) { /* Remove :port */
+				*c++ = '\0';
+				*port = c;
+			}
+		}
+		if (pass && (c = strchr(name, ':'))) {	/* user:password */
+			*c++ = '\0';
+			*pass = c;
+		}
+		*domain = dom;
+	}
+	if (ret_name)	/* same as for domain, store the result only at the end */
+		*ret_name = name;
+	if (options)
+		*options = uri;
+	return error;
+}
+
 /*! \brief Send SIP MESSAGE text within a call
 	Called from PBX core sendtext() application */
 static int sip_sendtext(struct ast_channel *ast, const char *text)
@@ -9119,7 +9181,8 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 					      int sipmethod, char *uri, enum xmittype reliable,
 					      struct sockaddr_in *sin, struct sip_peer **authpeer)
 {
-	char from[256], *c;
+	char from[256];
+	char *dummy;	/* dummy return value for parse_uri */
 	char *of;
 	char rpid_num[50];
 	const char *rpid;
@@ -9157,17 +9220,13 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	}
 	/* save the URI part of the From header */
 	ast_string_field_set(p, from, of);
-	if (strncmp(of, "sip:", 4)) {
+
+	/* ignore all fields but name */
+	if (parse_uri(of, "sip:", &of, &dummy, &dummy, &dummy, &dummy)) {
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
-	} else
-		of += 4;
-	/* Get just the username part */
-	if ((c = strchr(of, '@'))) {
-		char *tmp;
-		*c = '\0';
-		if ((c = strchr(of, ':')))
-			*c = '\0';
-		tmp = ast_strdupa(of);
+	}
+	{
+		char *tmp = ast_strdupa(of);
 		if (ast_is_shrinkable_phonenumber(tmp))
 			ast_shrink_phone_number(tmp);
 		ast_string_field_set(p, cid_num, tmp);
