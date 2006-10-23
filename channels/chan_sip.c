@@ -1437,7 +1437,7 @@ static int find_sip_method(const char *msg);
 static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported);
 static void parse_request(struct sip_request *req);
 static const char *get_header(const struct sip_request *req, const char *name);
-static char *referstatus2str(enum referstatus rstatus) attribute_pure;
+static const char *referstatus2str(enum referstatus rstatus) attribute_pure;
 static int method_match(enum sipmethod id, const char *name);
 static void parse_copy(struct sip_request *dst, const struct sip_request *src);
 static char *get_in_brackets(char *tmp);
@@ -1588,14 +1588,14 @@ static struct ast_udptl_protocol sip_udptl = {
 };
 
 /*! \brief Convert transfer status to string */
-static char *referstatus2str(enum referstatus rstatus)
+static const char *referstatus2str(enum referstatus rstatus)
 {
 	int i = (sizeof(referstatusstrings) / sizeof(referstatusstrings[0]));
 	int x;
 
 	for (x = 0; x < i; x++) {
 		if (referstatusstrings[x].status ==  rstatus)
-			return (char *) referstatusstrings[x].text;
+			return referstatusstrings[x].text;
 	}
 	return "";
 }
@@ -8607,7 +8607,7 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 		referred_by_uri = get_in_brackets(h_referred_by);
 		if(strncasecmp(referred_by_uri, "sip:", 4)) {
 			ast_log(LOG_WARNING, "Huh?  Not a sip: header (Referred-by: %s). Skipping.\n", referred_by_uri);
-			referred_by_uri = (char *) NULL;
+			referred_by_uri = NULL;
 		} else {
 			referred_by_uri += 4;		/* Skip sip: */
 		}
@@ -10408,7 +10408,6 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 #define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-4.4s  %-3.3s %-3.3s  %-15.15s %-10.10s\n"
 	struct sip_pvt *cur;
 	int numchans = 0;
-	char *referstatus = NULL;
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -10419,11 +10418,11 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 	else 
 		ast_cli(fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type", "Mailbox");
 	for (; cur; cur = cur->next) {
-		referstatus = "";
-		if (cur->refer) { /* SIP transfer in progress */
-			referstatus = referstatus2str(cur->refer->status);
-		}
+
 		if (cur->subscribed == NONE && !subscriptions) {
+			/* set if SIP transfer in progress */
+			const char *referstatus = cur->refer ? referstatus2str(cur->refer->status) : "";
+
 			ast_cli(fd, FORMAT, ast_inet_ntoa(cur->sa.sin_addr), 
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")),
 				cur->callid, 
@@ -15101,7 +15100,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 		ast_log(LOG_DEBUG, "Asked to create a SIP channel with formats: %s\n", ast_getformatname_multiple(tmp, sizeof(tmp), oldformat));
 
 	if (!(p = sip_alloc(NULL, NULL, 0, SIP_INVITE))) {
-		ast_log(LOG_ERROR, "Unable to build sip pvt data for '%s' (Out of memory or socket error)\n", (char *)data);
+		ast_log(LOG_ERROR, "Unable to build sip pvt data for '%s' (Out of memory or socket error)\n", dest);
 		*cause = AST_CAUSE_SWITCH_CONGESTION;
 		return NULL;
 	}
@@ -16691,10 +16690,9 @@ static char *descrip_sipaddheader = ""
 static int sip_dtmfmode(struct ast_channel *chan, void *data)
 {
 	struct sip_pvt *p;
-	char *mode;
-	if (data)
-		mode = (char *)data;
-	else {
+	char *mode = data;
+
+	if (!data) {
 		ast_log(LOG_WARNING, "This application requires the argument: info, inband, rfc2833\n");
 		return 0;
 	}
@@ -16743,7 +16741,7 @@ static int sip_addheader(struct ast_channel *chan, void *data)
 	int no = 0;
 	int ok = FALSE;
 	char varbuf[30];
-	char *inbuf = (char *) data;
+	char *inbuf = data;
 	
 	if (ast_strlen_zero(inbuf)) {
 		ast_log(LOG_WARNING, "This application requires the argument: Header\n");
