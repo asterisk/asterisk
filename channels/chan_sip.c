@@ -317,6 +317,9 @@ enum sip_auth_type {
 
 /*! \brief Authentication result from check_auth* functions */
 enum check_auth_result {
+	AUTH_DONT_KNOW = -100,	/*!< no result, need to check further */
+		/* XXX maybe this is the same as AUTH_NOT_FOUND */
+
 	AUTH_SUCCESSFUL = 0,
 	AUTH_CHALLENGE_SENT = 1,
 	AUTH_SECRET_FAILED = -1,
@@ -516,6 +519,7 @@ static int global_alwaysauthreject;	/*!< Send 401 Unauthorized for all failing r
 static int srvlookup;			/*!< SRV Lookup on or off. Default is off, RFC behavior is on */
 static int pedanticsipchecking;		/*!< Extra checking ?  Default off */
 static int autocreatepeer;		/*!< Auto creation of peers at registration? Default off. */
+static int match_auth_username;		/*!< Match auth username if available instead of From: Default off. */
 static int global_relaxdtmf;			/*!< Relax DTMF */
 static int global_rtptimeout;		/*!< Time out call if no RTP */
 static int global_rtpholdtimeout;
@@ -8852,6 +8856,247 @@ static struct ast_variable *copy_vars(struct ast_variable *src)
 	return res;
 }
 
+static enum check_auth_result check_user_ok(struct sip_pvt *p, char *of,
+	struct sip_request *req, int sipmethod, struct sockaddr_in *sin,
+	enum xmittype reliable,
+	char *rpid_num, char *calleridname, char *uri2)
+{
+	enum check_auth_result res;
+	struct sip_user *user = find_user(of, 1);
+	int debug=sip_debug_test_addr(sin);
+
+	/* Find user based on user name in the from header */
+	if (!user) {
+		if (debug)
+			ast_verbose("No user '%s' in SIP users list\n", of);
+		return AUTH_DONT_KNOW;
+	}
+	if (!ast_apply_ha(user->ha, sin)) {
+		if (debug)
+			ast_verbose("Found user '%s' for '%s', but fails host access\n",
+				user->name, of);
+		ASTOBJ_UNREF(user,sip_destroy_user);
+		return AUTH_DONT_KNOW;
+	}
+	if (debug)
+		ast_verbose("Found user '%s' for '%s'\n", user->name, of);
+
+	ast_copy_flags(&p->flags[0], &user->flags[0], SIP_FLAGS_TO_COPY);
+	ast_copy_flags(&p->flags[1], &user->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
+	/* copy channel vars */
+	p->chanvars = copy_vars(user->chanvars);
+	p->prefs = user->prefs;
+	/* Set Frame packetization */
+	if (p->rtp) {
+		ast_rtp_codec_setpref(p->rtp, &p->prefs);
+		p->autoframing = user->autoframing;
+	}
+	/* replace callerid if rpid found, and not restricted */
+	if (!ast_strlen_zero(rpid_num) && ast_test_flag(&p->flags[0], SIP_TRUSTRPID)) {
+		char *tmp;
+		if (*calleridname)
+			ast_string_field_set(p, cid_name, calleridname);
+		tmp = ast_strdupa(rpid_num);
+		if (ast_is_shrinkable_phonenumber(tmp))
+			ast_shrink_phone_number(tmp);
+		ast_string_field_set(p, cid_num, tmp);
+	}
+		
+	do_setnat(p, ast_test_flag(&p->flags[0], SIP_NAT_ROUTE) );
+
+	if (!(res = check_auth(p, req, user->name, user->secret, user->md5secret, sipmethod, uri2, reliable, ast_test_flag(req, SIP_PKT_IGNORE)))) {
+		sip_cancel_destroy(p);
+		ast_copy_flags(&p->flags[0], &user->flags[0], SIP_FLAGS_TO_COPY);
+		ast_copy_flags(&p->flags[1], &user->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
+		/* Copy SIP extensions profile from INVITE */
+		if (p->sipoptions)
+			user->sipoptions = p->sipoptions;
+
+		/* If we have a call limit, set flag */
+		if (user->call_limit)
+			ast_set_flag(&p->flags[0], SIP_CALL_LIMIT);
+		if (!ast_strlen_zero(user->context))
+			ast_string_field_set(p, context, user->context);
+		if (!ast_strlen_zero(user->cid_num) && !ast_strlen_zero(p->cid_num)) {
+			char *tmp = ast_strdupa(user->cid_num);
+			if (ast_is_shrinkable_phonenumber(tmp))
+				ast_shrink_phone_number(tmp);
+			ast_string_field_set(p, cid_num, tmp);
+		}
+		if (!ast_strlen_zero(user->cid_name) && !ast_strlen_zero(p->cid_num))
+			ast_string_field_set(p, cid_name, user->cid_name);
+		ast_string_field_set(p, username, user->name);
+		ast_string_field_set(p, peername, user->name);
+		ast_string_field_set(p, peersecret, user->secret);
+		ast_string_field_set(p, peermd5secret, user->md5secret);
+		ast_string_field_set(p, subscribecontext, user->subscribecontext);
+		ast_string_field_set(p, accountcode, user->accountcode);
+		ast_string_field_set(p, language, user->language);
+		ast_string_field_set(p, mohsuggest, user->mohsuggest);
+		ast_string_field_set(p, mohinterpret, user->mohinterpret);
+		p->allowtransfer = user->allowtransfer;
+		p->amaflags = user->amaflags;
+		p->callgroup = user->callgroup;
+		p->pickupgroup = user->pickupgroup;
+		if (user->callingpres)	/* User callingpres setting will override RPID header */
+			p->callingpres = user->callingpres;
+		
+		/* Set default codec settings for this call */
+		p->capability = user->capability;		/* User codec choice */
+		p->jointcapability = user->capability;		/* Our codecs */
+		if (p->peercapability)				/* AND with peer's codecs */
+			p->jointcapability &= p->peercapability;
+		if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
+		    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
+			p->noncodeccapability |= AST_RTP_DTMF;
+		else
+			p->noncodeccapability &= ~AST_RTP_DTMF;
+		if (p->t38.peercapability)
+			p->t38.jointcapability &= p->t38.peercapability;
+		p->maxcallbitrate = user->maxcallbitrate;
+		/* If we do not support video, remove video from call structure */
+		if (!ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) && p->vrtp) {
+			ast_rtp_destroy(p->vrtp);
+			p->vrtp = NULL;
+		}
+	}
+	ASTOBJ_UNREF(user, sip_destroy_user);
+	return res;
+}
+
+static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
+	struct sip_request *req, int sipmethod, struct sockaddr_in *sin,
+	struct sip_peer **authpeer,
+	enum xmittype reliable,
+	char *rpid_num, char *calleridname, char *uri2)
+{
+	enum check_auth_result res;
+	int debug=sip_debug_test_addr(sin);
+	struct sip_peer *peer;
+
+	if (sipmethod == SIP_SUBSCRIBE)
+		/* For subscribes, match on peer name only */
+		peer = find_peer(of, NULL, 1);
+	else
+		/* Look for peer based on the IP address we received data from */
+		/* If peer is registered from this IP address or have this as a default
+		   IP address, this call is from the peer 
+		*/
+		peer = find_peer(NULL, &p->recv, 1);
+
+	if (!peer) {
+		if (debug)
+			ast_verbose("No matching peer for '%s' from '%s:%d'\n",
+				of, ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+		return AUTH_DONT_KNOW;
+	}
+
+	if (debug)
+		ast_verbose("Found peer '%s' for '%s' from %s:%d\n",
+			peer->name, of, ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+
+	/* XXX what about p->prefs = peer->prefs; ? */
+	/* Set Frame packetization */
+	if (p->rtp) {
+		ast_rtp_codec_setpref(p->rtp, &peer->prefs);
+		p->autoframing = peer->autoframing;
+	}
+
+	/* Take the peer */
+	ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
+	ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
+
+	/* Copy SIP extensions profile to peer */
+	if (p->sipoptions)
+		peer->sipoptions = p->sipoptions;
+
+	/* replace callerid if rpid found, and not restricted */
+	if (!ast_strlen_zero(rpid_num) && ast_test_flag(&p->flags[0], SIP_TRUSTRPID)) {
+		char *tmp = ast_strdupa(rpid_num);
+		if (*calleridname)
+			ast_string_field_set(p, cid_name, calleridname);
+		if (ast_is_shrinkable_phonenumber(tmp))
+			ast_shrink_phone_number(tmp);
+		ast_string_field_set(p, cid_num, tmp);
+	}
+	do_setnat(p, ast_test_flag(&p->flags[0], SIP_NAT_ROUTE));
+
+	ast_string_field_set(p, peersecret, peer->secret);
+	ast_string_field_set(p, peermd5secret, peer->md5secret);
+	ast_string_field_set(p, subscribecontext, peer->subscribecontext);
+	ast_string_field_set(p, mohinterpret, peer->mohinterpret);
+	ast_string_field_set(p, mohsuggest, peer->mohsuggest);
+	if (peer->callingpres)	/* Peer calling pres setting will override RPID */
+		p->callingpres = peer->callingpres;
+	if (peer->maxms && peer->lastms)
+		p->timer_t1 = peer->lastms;
+	if (ast_test_flag(&peer->flags[0], SIP_INSECURE_INVITE)) {
+		/* Pretend there is no required authentication */
+		ast_string_field_free(p, peersecret);
+		ast_string_field_free(p, peermd5secret);
+	}
+	if (!(res = check_auth(p, req, peer->name, p->peersecret, p->peermd5secret, sipmethod, uri2, reliable, ast_test_flag(req, SIP_PKT_IGNORE)))) {
+		ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
+		ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
+		/* If we have a call limit, set flag */
+		if (peer->call_limit)
+			ast_set_flag(&p->flags[0], SIP_CALL_LIMIT);
+		ast_string_field_set(p, peername, peer->name);
+		ast_string_field_set(p, authname, peer->name);
+
+		/* copy channel vars */
+		p->chanvars = copy_vars(peer->chanvars);
+		if (authpeer) {
+			(*authpeer) = ASTOBJ_REF(peer);	/* Add a ref to the object here, to keep it in memory a bit longer if it is realtime */
+		}
+
+		if (!ast_strlen_zero(peer->username)) {
+			ast_string_field_set(p, username, peer->username);
+			/* Use the default username for authentication on outbound calls */
+			/* XXX this takes the name from the caller... can we override ? */
+			ast_string_field_set(p, authname, peer->username);
+		}
+		if (!ast_strlen_zero(peer->cid_num) && !ast_strlen_zero(p->cid_num)) {
+			char *tmp = ast_strdupa(peer->cid_num);
+			if (ast_is_shrinkable_phonenumber(tmp))
+				ast_shrink_phone_number(tmp);
+			ast_string_field_set(p, cid_num, tmp);
+		}
+		if (!ast_strlen_zero(peer->cid_name) && !ast_strlen_zero(p->cid_name)) 
+			ast_string_field_set(p, cid_name, peer->cid_name);
+		ast_string_field_set(p, fullcontact, peer->fullcontact);
+		if (!ast_strlen_zero(peer->context))
+			ast_string_field_set(p, context, peer->context);
+		ast_string_field_set(p, peersecret, peer->secret);
+		ast_string_field_set(p, peermd5secret, peer->md5secret);
+		ast_string_field_set(p, language, peer->language);
+		ast_string_field_set(p, accountcode, peer->accountcode);
+		p->amaflags = peer->amaflags;
+		p->callgroup = peer->callgroup;
+		p->pickupgroup = peer->pickupgroup;
+		p->capability = peer->capability;
+		p->prefs = peer->prefs;
+		p->jointcapability = peer->capability;
+		if (p->peercapability)
+			p->jointcapability &= p->peercapability;
+		p->maxcallbitrate = peer->maxcallbitrate;
+		if (!ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) && p->vrtp) {
+			ast_rtp_destroy(p->vrtp);
+			p->vrtp = NULL;
+		}
+		if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
+		    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
+			p->noncodeccapability |= AST_RTP_DTMF;
+		else
+			p->noncodeccapability &= ~AST_RTP_DTMF;
+		if (p->t38.peercapability)
+			p->t38.jointcapability &= p->t38.peercapability;
+	}
+	ASTOBJ_UNREF(peer, sip_destroy_peer);
+	return res;
+}
+
+
 /*! \brief  Check if matching user or peer is defined 
  	Match user on From: user name and peer on IP/port
 	This is used on first invite (not re-invites) and subscribe requests 
@@ -8861,8 +9106,6 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 					      int sipmethod, char *uri, enum xmittype reliable,
 					      struct sockaddr_in *sin, struct sip_peer **authpeer)
 {
-	struct sip_user *user = NULL;
-	struct sip_peer *peer;
 	char from[256], *c;
 	char *of;
 	char rpid_num[50];
@@ -8870,7 +9113,6 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	enum check_auth_result res;
 	char *t;
 	char calleridname[50];
-	int debug=sip_debug_test_addr(sin);
 	char *uri2 = ast_strdupa(uri);
 
 	/* Terminate URI */
@@ -8924,221 +9166,39 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	if (ast_strlen_zero(of))
 		return AUTH_SUCCESSFUL;
 
-	if (!authpeer)	/* If we are looking for a peer, don't check the user objects (or realtime) */
-		user = find_user(of, 1);
+	if (match_auth_username) {
+		/*
+		 * XXX This is experimental code to grab the search key from the
+		 * Auth header's username instead of the 'From' name, if available.
+		 * Do not enable this block unless you understand the side effects (if any!)
+		 * Note, the search for "username" should be done in a more robust way.
+		 * Note2, at the moment we chech both fields, though maybe we should
+		 * pick one or another depending on the request ? XXX
+		 */
+		const char *hdr = get_header(req, "Authorization");
+		if (ast_strlen_zero(hdr))
+			hdr = get_header(req, "Proxy-Authorization");
 
-	/* Find user based on user name in the from header */
-	if (user && !ast_apply_ha(user->ha, sin)) {
-		if (!authpeer && debug)
-			ast_verbose("Found user '%s', but fails host access\n", user->name);
-		ASTOBJ_UNREF(user,sip_destroy_user);
-		user = NULL;
-	}
-	if (user) {
-		ast_copy_flags(&p->flags[0], &user->flags[0], SIP_FLAGS_TO_COPY);
-		ast_copy_flags(&p->flags[1], &user->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
-		/* copy channel vars */
-		p->chanvars = copy_vars(user->chanvars);
-		p->prefs = user->prefs;
-		/* Set Frame packetization */
-		if (p->rtp) {
-			ast_rtp_codec_setpref(p->rtp, &p->prefs);
-			p->autoframing = user->autoframing;
+		if ( !ast_strlen_zero(hdr) && (hdr = strstr(hdr, "username=\"")) ) {
+			ast_copy_string(from, hdr + strlen("username=\""), sizeof(from));
+			of = from;
+			of = strsep(&of, "\"");
 		}
-		/* replace callerid if rpid found, and not restricted */
-		if (!ast_strlen_zero(rpid_num) && ast_test_flag(&p->flags[0], SIP_TRUSTRPID)) {
-			char *tmp;
-			if (*calleridname)
-				ast_string_field_set(p, cid_name, calleridname);
-			tmp = ast_strdupa(rpid_num);
-			if (ast_is_shrinkable_phonenumber(tmp))
-				ast_shrink_phone_number(tmp);
-			ast_string_field_set(p, cid_num, tmp);
-		}
-		
-		do_setnat(p, ast_test_flag(&p->flags[0], SIP_NAT_ROUTE) );
-
-		if (!(res = check_auth(p, req, user->name, user->secret, user->md5secret, sipmethod, uri2, reliable, ast_test_flag(req, SIP_PKT_IGNORE)))) {
-			sip_cancel_destroy(p);
-			ast_copy_flags(&p->flags[0], &user->flags[0], SIP_FLAGS_TO_COPY);
-			ast_copy_flags(&p->flags[1], &user->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
-			/* Copy SIP extensions profile from INVITE */
-			if (p->sipoptions)
-				user->sipoptions = p->sipoptions;
-
-			/* If we have a call limit, set flag */
-			if (user->call_limit)
-				ast_set_flag(&p->flags[0], SIP_CALL_LIMIT);
-			if (!ast_strlen_zero(user->context))
-				ast_string_field_set(p, context, user->context);
-			if (!ast_strlen_zero(user->cid_num) && !ast_strlen_zero(p->cid_num)) {
-				char *tmp = ast_strdupa(user->cid_num);
-				if (ast_is_shrinkable_phonenumber(tmp))
-					ast_shrink_phone_number(tmp);
-				ast_string_field_set(p, cid_num, tmp);
-			}
-			if (!ast_strlen_zero(user->cid_name) && !ast_strlen_zero(p->cid_num))
-				ast_string_field_set(p, cid_name, user->cid_name);
-			ast_string_field_set(p, username, user->name);
-			ast_string_field_set(p, peername, user->name);
-			ast_string_field_set(p, peersecret, user->secret);
-			ast_string_field_set(p, peermd5secret, user->md5secret);
-			ast_string_field_set(p, subscribecontext, user->subscribecontext);
-			ast_string_field_set(p, accountcode, user->accountcode);
-			ast_string_field_set(p, language, user->language);
-			ast_string_field_set(p, mohsuggest, user->mohsuggest);
-			ast_string_field_set(p, mohinterpret, user->mohinterpret);
-			p->allowtransfer = user->allowtransfer;
-			p->amaflags = user->amaflags;
-			p->callgroup = user->callgroup;
-			p->pickupgroup = user->pickupgroup;
-			if (user->callingpres)	/* User callingpres setting will override RPID header */
-				p->callingpres = user->callingpres;
-			
-			/* Set default codec settings for this call */
-			p->capability = user->capability;		/* User codec choice */
-			p->jointcapability = user->capability;		/* Our codecs */
-			if (p->peercapability)				/* AND with peer's codecs */
-				p->jointcapability &= p->peercapability;
-			if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
-			    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
-				p->noncodeccapability |= AST_RTP_DTMF;
-			else
-				p->noncodeccapability &= ~AST_RTP_DTMF;
-			if (p->t38.peercapability)
-				p->t38.jointcapability &= p->t38.peercapability;
-			p->maxcallbitrate = user->maxcallbitrate;
-			/* If we do not support video, remove video from call structure */
-			if (!ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) && p->vrtp) {
-				ast_rtp_destroy(p->vrtp);
-				p->vrtp = NULL;
-			}
-		}
-		if (debug)
-			ast_verbose("Found user '%s'\n", user->name);
-		ASTOBJ_UNREF(user, sip_destroy_user);
-		return res;
 	}
 
-	/* XXX need to reindent the next block */
-
-		/* If we didn't find a user match, check for peers */
-		if (sipmethod == SIP_SUBSCRIBE)
-			/* For subscribes, match on peer name only */
-			peer = find_peer(of, NULL, 1);
-		else
-			/* Look for peer based on the IP address we received data from */
-			/* If peer is registered from this IP address or have this as a default
-			   IP address, this call is from the peer 
-			*/
-			peer = find_peer(NULL, &p->recv, 1);
-
-		if (!peer) {
-			if (debug)
-				ast_verbose("Found no matching peer or user for '%s:%d'\n", ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
-
-		} else {
-			/* Set Frame packetization */
-			if (p->rtp) {
-				ast_rtp_codec_setpref(p->rtp, &peer->prefs);
-				p->autoframing = peer->autoframing;
-			}
-			if (debug)
-				ast_verbose("Found peer '%s'\n", peer->name);
-
-			/* Take the peer */
-			ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
-			ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
-
-			/* Copy SIP extensions profile to peer */
-			if (p->sipoptions)
-				peer->sipoptions = p->sipoptions;
-
-			/* replace callerid if rpid found, and not restricted */
-			if (!ast_strlen_zero(rpid_num) && ast_test_flag(&p->flags[0], SIP_TRUSTRPID)) {
-				char *tmp = ast_strdupa(rpid_num);
-				if (*calleridname)
-					ast_string_field_set(p, cid_name, calleridname);
-				if (ast_is_shrinkable_phonenumber(tmp))
-					ast_shrink_phone_number(tmp);
-				ast_string_field_set(p, cid_num, tmp);
-			}
-			do_setnat(p, ast_test_flag(&p->flags[0], SIP_NAT_ROUTE));
-
-			ast_string_field_set(p, peersecret, peer->secret);
-			ast_string_field_set(p, peermd5secret, peer->md5secret);
-			ast_string_field_set(p, subscribecontext, peer->subscribecontext);
-			ast_string_field_set(p, mohinterpret, peer->mohinterpret);
-			ast_string_field_set(p, mohsuggest, peer->mohsuggest);
-			if (peer->callingpres)	/* Peer calling pres setting will override RPID */
-				p->callingpres = peer->callingpres;
-			if (peer->maxms && peer->lastms)
-				p->timer_t1 = peer->lastms;
-			if (ast_test_flag(&peer->flags[0], SIP_INSECURE_INVITE)) {
-				/* Pretend there is no required authentication */
-				ast_string_field_free(p, peersecret);
-				ast_string_field_free(p, peermd5secret);
-			}
-			if (!(res = check_auth(p, req, peer->name, p->peersecret, p->peermd5secret, sipmethod, uri2, reliable, ast_test_flag(req, SIP_PKT_IGNORE)))) {
-				ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
-				ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
-				/* If we have a call limit, set flag */
-				if (peer->call_limit)
-					ast_set_flag(&p->flags[0], SIP_CALL_LIMIT);
-				ast_string_field_set(p, peername, peer->name);
-				ast_string_field_set(p, authname, peer->name);
-
-				/* copy channel vars */
-				p->chanvars = copy_vars(peer->chanvars);
-				if (authpeer) {
-					(*authpeer) = ASTOBJ_REF(peer);	/* Add a ref to the object here, to keep it in memory a bit longer if it is realtime */
-				}
-
-				if (!ast_strlen_zero(peer->username)) {
-					ast_string_field_set(p, username, peer->username);
-					/* Use the default username for authentication on outbound calls */
-					/* XXX this takes the name from the caller... can we override ? */
-					ast_string_field_set(p, authname, peer->username);
-				}
-				if (!ast_strlen_zero(peer->cid_num) && !ast_strlen_zero(p->cid_num)) {
-					char *tmp = ast_strdupa(peer->cid_num);
-					if (ast_is_shrinkable_phonenumber(tmp))
-						ast_shrink_phone_number(tmp);
-					ast_string_field_set(p, cid_num, tmp);
-				}
-				if (!ast_strlen_zero(peer->cid_name) && !ast_strlen_zero(p->cid_name)) 
-					ast_string_field_set(p, cid_name, peer->cid_name);
-				ast_string_field_set(p, fullcontact, peer->fullcontact);
-				if (!ast_strlen_zero(peer->context))
-					ast_string_field_set(p, context, peer->context);
-				ast_string_field_set(p, peersecret, peer->secret);
-				ast_string_field_set(p, peermd5secret, peer->md5secret);
-				ast_string_field_set(p, language, peer->language);
-				ast_string_field_set(p, accountcode, peer->accountcode);
-				p->amaflags = peer->amaflags;
-				p->callgroup = peer->callgroup;
-				p->pickupgroup = peer->pickupgroup;
-				p->capability = peer->capability;
-				p->prefs = peer->prefs;
-				p->jointcapability = peer->capability;
-				if (p->peercapability)
-					p->jointcapability &= p->peercapability;
-				p->maxcallbitrate = peer->maxcallbitrate;
-				if (!ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) && p->vrtp) {
-					ast_rtp_destroy(p->vrtp);
-					p->vrtp = NULL;
-				}
-				if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
-				    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
-					p->noncodeccapability |= AST_RTP_DTMF;
-				else
-					p->noncodeccapability &= ~AST_RTP_DTMF;
-				if (p->t38.peercapability)
-					p->t38.jointcapability &= p->t38.peercapability;
-			}
-			ASTOBJ_UNREF(peer, sip_destroy_peer);
+	if (!authpeer) {
+		/* If we are looking for a peer, don't check the
+		   user objects (or realtime) */
+		res = check_user_ok(p, of, req, sipmethod, sin,
+			reliable, rpid_num, calleridname, uri2);
+		if (res != AUTH_DONT_KNOW)
 			return res;
-		}
+	}
+
+	res = check_peer_ok(p, of, req, sipmethod, sin,
+			authpeer, reliable, rpid_num, calleridname, uri2);
+	if (res != AUTH_DONT_KNOW)
+		return res;
 
 	/* Finally, apply the guest policy */
 	if (global_allowguest)
@@ -10164,6 +10224,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Bindaddress:            %s\n", ast_inet_ntoa(bindaddr.sin_addr));
 	ast_cli(fd, "  Videosupport:           %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "Yes" : "No");
 	ast_cli(fd, "  AutoCreatePeer:         %s\n", autocreatepeer ? "Yes" : "No");
+	ast_cli(fd, "  MatchAuthUsername:      %s\n", match_auth_username ? "Yes" : "No");
 	ast_cli(fd, "  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No");
 	ast_cli(fd, "  Allow subscriptions:    %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE) ? "Yes" : "No");
 	ast_cli(fd, "  Allow overlap dialing:  %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP) ? "Yes" : "No");
@@ -15994,6 +16055,8 @@ static int reload_config(enum channelreloadreason reason)
 			outboundproxyip.sin_port = htons(format);
 		} else if (!strcasecmp(v->name, "autocreatepeer")) {
 			autocreatepeer = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "match_auth_username")) {
+			match_auth_username = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "srvlookup")) {
 			srvlookup = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "pedantic")) {
