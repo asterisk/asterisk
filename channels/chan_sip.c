@@ -7634,7 +7634,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	char data[BUFSIZ];
 	const char *expires = get_header(req, "Expires");
 	int expiry = atoi(expires);
-	char *curi, *n, *pt;
+	char *curi, *host, *pt;
 	int port;
 	const char *useragent;
 	struct hostent *hp;
@@ -7643,11 +7643,10 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 
 	ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
 
-	if (ast_strlen_zero(expires)) {	/* No expires header */
-		expires = strcasestr(contact, ";expires=");
-		if (expires) {
-			/* XXX bug here, we overwrite the string */
-			expires = strsep((char **) &expires, ";"); /* trim ; and beyond */
+	if (ast_strlen_zero(expires)) {	/* No expires header, try look in Contact: */
+		char *s = strcasestr(contact, ";expires=");
+		if (s) {
+			expires = strsep(&s, ";"); /* trim ; and beyond */
 			if (sscanf(expires + 9, "%d", &expiry) != 1)
 				expiry = default_expiry;
 		} else {
@@ -7699,31 +7698,15 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	ast_string_field_build(pvt, our_contact, "<%s>", curi);
 
 	/* Make sure it's a SIP URL */
-	if (strncasecmp(curi, "sip:", 4)) {
-		ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", curi);
-	} else
-		curi += 4;
-	/* Ditch q */
-	curi = strsep(&curi, ";");
-	/* Grab host */
-	n = strchr(curi, '@');
-	if (!n) {
-		n = curi;
-		curi = NULL;
-	} else
-		*n++ = '\0';
-	pt = strchr(n, ':');
-	if (pt) {
-		*pt++ = '\0';
-		port = atoi(pt);
-	} else
-		port = STANDARD_SIP_PORT;
+	if (parse_uri(curi, "sip:", &curi, NULL, &host, &pt, NULL))
+		ast_log(LOG_NOTICE, "Not a valid SIP contact (missing sip:) trying to use anyway\n");
+	port = !ast_strlen_zero(pt) ? atoi(pt) : STANDARD_SIP_PORT;
 	oldsin = peer->addr;
 	if (!ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE)) {
 		/* XXX This could block for a long time XXX */
-		hp = ast_gethostbyname(n, &ahp);
+		hp = ast_gethostbyname(host, &ahp);
 		if (!hp)  {
-			ast_log(LOG_WARNING, "Invalid host '%s'\n", n);
+			ast_log(LOG_WARNING, "Invalid host '%s'\n", host);
 			return PARSE_REGISTER_FAILED;
 		}
 		peer->addr.sin_family = AF_INET;
@@ -7738,7 +7721,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	/* Save SIP options profile */
 	peer->sipoptions = pvt->sipoptions;
 
-	if (curi)	/* Overwrite the default username from config at registration */
+	if (!ast_strlen_zero(curi))	/* Overwrite the default username from config at registration */
 		ast_copy_string(peer->username, curi, sizeof(peer->username));
 	else
 		peer->username[0] = '\0';
