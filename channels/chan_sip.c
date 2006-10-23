@@ -14421,11 +14421,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		   a request and have a response, or at least get a response
 		   within an existing dialog */
 		/* Response to our request -- Do some sanity checks */	
-		if (p->ocseq && (p->ocseq < seqno)) {
+		if (p->ocseq < seqno) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
 			return -1;
-		} else if (p->ocseq && (p->ocseq != seqno)) {
+		} else if (p->ocseq != seqno) {
 			/* ignore means "don't do anything with it" but still have to 
 			   respond appropriately  */
 			ast_set_flag(req, SIP_PKT_IGNORE);
