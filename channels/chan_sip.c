@@ -1304,7 +1304,6 @@ static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, con
 static int sip_do_reload(enum channelreloadreason reason);
 static int reload_config(enum channelreloadreason reason);
 static int expire_register(void *data);
-static int sip_sipredirect(struct sip_pvt *p, const char *dest);
 static void *do_monitor(void *data);
 static int restart_monitor(void);
 static int sip_send_mwi_to_peer(struct sip_peer *peer);
@@ -1649,12 +1648,13 @@ static int find_sip_method(const char *msg)
 static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported)
 {
 	char *next, *sep;
-	char *temp = ast_strdupa(supported);
+	char *temp;
 	unsigned int profile = 0;
 	int i, found;
 
 	if (ast_strlen_zero(supported) )
 		return 0;
+	temp = ast_strdupa(supported);
 
 	if (option_debug > 2 && sipdebug)
 		ast_log(LOG_DEBUG, "Begin: parsing SIP \"Supported: %s\"\n", supported);
@@ -3650,6 +3650,8 @@ static int sip_transfer(struct ast_channel *ast, const char *dest)
 	struct sip_pvt *p = ast->tech_pvt;
 	int res;
 
+	if (dest == NULL)	/* functions below do not take a NULL */
+		dest = "";
 	sip_pvt_lock(p);
 	if (ast->_state == AST_STATE_RING)
 		res = sip_sipredirect(p, dest);
@@ -15036,7 +15038,8 @@ static int sip_devicestate(void *data)
 
 	int res = AST_DEVICE_INVALID;
 
-	host = ast_strdupa(data);
+	/* make sure data is not null. Maybe unnecessary, but better be safe */
+	host = ast_strdupa(data ? data : "");
 	if ((tmp = strchr(host, '@')))
 		host = tmp + 1;
 
@@ -16782,13 +16785,13 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	char *cdest;
 	char *extension, *host, *port;
 	char tmp[80];
-	
+
 	cdest = ast_strdupa(dest);
 	
 	extension = strsep(&cdest, "@");
 	host = strsep(&cdest, ":");
 	port = strsep(&cdest, ":");
-	if (!extension) {
+	if (ast_strlen_zero(extension)) {
 		ast_log(LOG_ERROR, "Missing mandatory argument: extension\n");
 		return 0;
 	}
