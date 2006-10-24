@@ -9883,6 +9883,8 @@ static int load_module(void)
 	for (x=0;x<IAX_MAX_CALLS;x++)
 		ast_mutex_init(&iaxsl[x]);
 
+	ast_cond_init(&sched_cond, NULL);
+
 	if (!(sched = sched_context_create())) {
 		ast_log(LOG_ERROR, "Failed to create scheduler context\n");
 		return AST_MODULE_LOAD_FAILURE;
