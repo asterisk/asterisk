@@ -10009,6 +10009,8 @@ static int load_module(void)
 	for (x=0;x<IAX_MAX_CALLS;x++)
 		ast_mutex_init(&iaxsl[x]);
 	
+	ast_cond_init(&sched_cond, NULL);
+
 	io = io_context_create();
 	sched = sched_context_create();
 	
