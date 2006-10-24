@@ -278,9 +278,9 @@ static const char *descrip3 =
 "      's' -- Lower entire conference speaking volume\n"
 "      'S' -- Raise entire conference speaking volume\n"
 "      't' -- Lower one user's talk volume\n"
-"      'T' -- Lower all users talk volume\n"
+"      'T' -- Raise one user's talk volume\n"
 "      'u' -- Lower one user's listen volume\n"
-"      'U' -- Lower all users listen volume\n"
+"      'U' -- Raise one user's listen volume\n"
 "      'v' -- Lower entire conference listening volume\n"
 "      'V' -- Raise entire conference listening volume\n"
 "";
