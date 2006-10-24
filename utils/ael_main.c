@@ -62,8 +62,10 @@ void destroy_namelist(struct namelist *x)
 struct namelist *create_name(char *name);
 struct namelist *create_name(char *name)
 {
-	struct namelist *x = (struct namelist *)calloc(sizeof(struct namelist),1);
-	strncpy(x->name,name,100);
+	struct namelist *x = calloc(1, sizeof(*x));
+	if (!x)
+		return NULL;
+	strncpy(x->name, name, sizeof(x->name) - 1);
 	return x;
 }
 
@@ -253,14 +255,16 @@ void pbx_builtin_setvar(void *chan, void *data)
 
 struct ast_context * ast_context_create(void **extcontexts, const char *name, const char *registrar)
 {
-	struct ast_context *x = (struct ast_context *)calloc(sizeof(struct ast_context),1);
+	struct ast_context *x = calloc(1, sizeof(*x));
+	if (!x)
+		return NULL;
 	x->next = context_list;
 	context_list = x;
-	if(!no_comp)
+	if (!no_comp)
 		printf("Executed ast_context_create(conts, name=%s, registrar=%s);\n", name, registrar);
 	conts++;
-	strncpy(x->name,name,100);
-	strncpy(x->registrar,registrar,100);
+	strncpy(x->name, name, sizeof(x->name) - 1);
+	strncpy(x->registrar, registrar, sizeof(x->registrar) - 1);
 	return x;
 }
 

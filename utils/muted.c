@@ -85,8 +85,15 @@ static void add_channel(char *tech, char *location)
 	chan = malloc(sizeof(struct channel));
 	if (chan) {
 		memset(chan, 0, sizeof(struct channel));
-		chan->tech = strdup(tech);
-		chan->location = strdup(location);
+		if (!(chan->tech = strdup(tech))) {
+			free(chan);
+			return;
+		}
+		if (!(chan->location = strdup(location))) {
+			free(chan->tech);
+			free(chan);
+			return;
+		}
 		chan->next = channels;
 		channels = chan;
 	}
@@ -550,7 +557,10 @@ static void append_sub(struct channel *chan, char *name)
 	sub = malloc(sizeof(struct subchannel));
 	if (sub) {
 		memset(sub, 0, sizeof(struct subchannel));
-		sub->name = strdup(name);
+		if (!(sub->name = strdup(name))) {
+			free(sub);
+			return;
+		}
 		sub->next = chan->subs;
 		chan->subs = sub;
 	}
