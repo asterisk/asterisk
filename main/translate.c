@@ -644,6 +644,7 @@ static struct ast_cli_entry cli_translate[] = {
 int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 {
 	static int added_cli = 0;
+	struct ast_translator *u;
 
 	if (!mod) {
 		ast_log(LOG_WARNING, "Missing module pointer, you need to supply one\n");
@@ -701,7 +702,24 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 		ast_cli_register_multiple(cli_translate, sizeof(cli_translate) / sizeof(struct ast_cli_entry));
 		added_cli++;
 	}
-	AST_LIST_INSERT_HEAD(&translators, t, list);
+
+	/* find any existing translators that provide this same srcfmt/dstfmt,
+	   and put this one in order based on cost */
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
+		if ((u->srcfmt == t->srcfmt) &&
+		    (u->dstfmt == t->dstfmt) &&
+		    (u->cost > t->cost)) {
+			AST_LIST_INSERT_BEFORE_CURRENT(&translators, t, list);
+			t = NULL;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	/* if no existing translator was found for this format combination,
+	   add it to the beginning of the list */
+	if (t)
+		AST_LIST_INSERT_HEAD(&translators, t, list);
+
 	rebuild_matrix(0);
 	AST_LIST_UNLOCK(&translators);
 	return 0;
@@ -721,7 +739,7 @@ int ast_unregister_translator(struct ast_translator *t)
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 	rebuild_matrix(0);
 	AST_LIST_UNLOCK(&translators);
 	return (u ? 0 : -1);
