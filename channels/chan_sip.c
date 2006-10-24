@@ -2254,9 +2254,9 @@ static int parse_uri(char *uri, char *scheme,
 	int error = 0;
 
 	/* init field as required */
-	if (*pass)
+	if (pass && *pass)
 		*pass = "";
-	if (*port)
+	if (port && *port)
 		*port = "";
 	name = strsep(&uri, ";");	/* remove options */
 	if (scheme) {
