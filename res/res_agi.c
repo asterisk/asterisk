@@ -1869,7 +1869,8 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 					returnstatus = -1;
 				if (option_verbose > 2) 
 					ast_verbose(VERBOSE_PREFIX_3 "AGI Script %s completed, returning %d\n", request, returnstatus);
-				waitpid(pid, status, 0);
+				if (pid > 0)
+					waitpid(pid, status, 0);
 				/* No need to kill the pid anymore, since they closed us */
 				pid = -1;
 				break;
