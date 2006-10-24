@@ -2615,7 +2615,10 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		res = 0;
 		break;
 	default:
-		res = chan->tech->write(chan, f);
+		/* At this point, fr is the incoming frame and f is NULL.  Channels do
+		 * not expect to get NULL as a frame pointer and will segfault.  Hence,
+		 * we output the original frame passed in. */
+		res = chan->tech->write(chan, fr);
 		break;
 	}
 
