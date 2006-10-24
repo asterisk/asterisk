@@ -777,3 +777,45 @@ unsigned int ast_translate_path_steps(unsigned int dest, unsigned int src)
 		return tr_matrix[src][dest].multistep + 1;
 }
 
+unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src)
+{
+	unsigned int res = dest;
+	unsigned int x;
+	unsigned int src_audio = powerof(src & AST_FORMAT_AUDIO_MASK);
+	unsigned int src_video = powerof(src & AST_FORMAT_VIDEO_MASK);
+
+	for (x = 1; x < AST_FORMAT_MAX_AUDIO; x <<= 1) {
+		/* if this is not a desired format, nothing to do */
+		if (!dest & x)
+			continue;
+
+		/* if the source is supplying this format, then
+		   we can leave it in the result */
+		if (src & x)
+			continue;
+
+		/* if we don't have a translation path from the src
+		   to this format, remove it from the result */
+		if (!tr_matrix[src_audio][powerof(x)].step)
+			res &= ~x;
+	}
+
+	/* roll over into video formats */
+	for (; x < AST_FORMAT_MAX_VIDEO; x <<= 1) {
+		/* if this is not a desired format, nothing to do */
+		if (!dest & x)
+			continue;
+
+		/* if the source is supplying this format, then
+		   we can leave it in the result */
+		if (src & x)
+			continue;
+
+		/* if we don't have a translation path from the src
+		   to this format, remove it from the result */
+		if (!tr_matrix[src_video][powerof(x)].step)
+			res &= ~x;
+	}
+
+	return res;
+}
