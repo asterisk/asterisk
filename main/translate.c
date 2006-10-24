@@ -63,6 +63,9 @@ struct translator_path {
  * until step->dstfmt == desired_format.
  *
  * Array indexes are 'src' and 'dest', in that order.
+ *
+ * Note: the lock in the 'translators' list is also used to protect
+ * this structure.
  */
 static struct translator_path tr_matrix[MAX_FORMAT][MAX_FORMAT];
 
@@ -253,18 +256,22 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 	source = powerof(source);
 	dest = powerof(dest);
 	
+	AST_LIST_LOCK(&translators);
+
 	while (source != dest) {
 		struct ast_trans_pvt *cur;
 		struct ast_translator *t = tr_matrix[source][dest].step;
 		if (!t) {
 			ast_log(LOG_WARNING, "No translator path from %s to %s\n", 
 				ast_getformatname(source), ast_getformatname(dest));
+			AST_LIST_UNLOCK(&translators);
 			return NULL;
 		}
 		if (!(cur = newpvt(t))) {
 			ast_log(LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
 			if (head)
 				ast_translator_free_path(head);	
+			AST_LIST_UNLOCK(&translators);
 			return NULL;
 		}
 		if (!head)
@@ -276,6 +283,8 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 		/* Keep going if this isn't the final destination */
 		source = cur->t->dstfmt;
 	}
+
+	AST_LIST_UNLOCK(&translators);
 	return head;
 }
 
@@ -768,13 +777,20 @@ int ast_translator_best_choice(int *dst, int *srcs)
 
 unsigned int ast_translate_path_steps(unsigned int dest, unsigned int src)
 {
+	unsigned int res = -1;
+
 	/* convert bitwise format numbers into array indices */
 	src = powerof(src);
 	dest = powerof(dest);
-	if (!tr_matrix[src][dest].step)
-		return -1;
-	else
-		return tr_matrix[src][dest].multistep + 1;
+
+	AST_LIST_LOCK(&translators);
+
+	if (tr_matrix[src][dest].step)
+		res = tr_matrix[src][dest].multistep + 1;
+
+	AST_LIST_UNLOCK(&translators);
+
+	return res;
 }
 
 unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src)
@@ -783,6 +799,8 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 	unsigned int x;
 	unsigned int src_audio = powerof(src & AST_FORMAT_AUDIO_MASK);
 	unsigned int src_video = powerof(src & AST_FORMAT_VIDEO_MASK);
+
+	AST_LIST_LOCK(&translators);
 
 	for (x = 1; x < AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		/* if this is not a desired format, nothing to do */
@@ -816,6 +834,8 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 		if (!tr_matrix[src_video][powerof(x)].step)
 			res &= ~x;
 	}
+
+	AST_LIST_UNLOCK(&translators);
 
 	return res;
 }
