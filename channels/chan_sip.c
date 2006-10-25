@@ -5632,7 +5632,9 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		add_header(req, "From", ot);
 		add_header(req, "To", of);
 	}
-	add_header(req, "Contact", p->our_contact);
+	/* Do not add Contact for BYE and Cancel requests */
+	if (sipmethod != SIP_BYE && sipmethod != SIP_CANCEL)
+		add_header(req, "Contact", p->our_contact);
 	copy_header(req, orig, "Call-ID");
 	add_header(req, "CSeq", tmp);
 
