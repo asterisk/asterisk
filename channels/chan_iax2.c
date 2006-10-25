@@ -140,6 +140,15 @@ static struct ast_codec_pref prefs;
 
 static const char tdesc[] = "Inter Asterisk eXchange Driver (Ver 2)";
 
+
+/*! \brief Maximum transimission unit for the UDP packet in the trunk not to be
+    fragmented. This is based on 1516 - ethernet - ip - udp - iax minus one g711 frame = 1240 */
+#define MAX_TRUNK_MTU 1240 
+
+static int global_max_trunk_mtu; 	/*!< Maximum MTU, 0 if not used */
+static int trunk_timed, trunk_untimed, trunk_maxmtu, trunk_nmaxmtu ; 	/*!< Trunk MTU statistics */
+
+
 static char context[80] = "default";
 
 static char language[MAX_LANGUAGE] = "";
@@ -374,6 +383,7 @@ struct iax2_trunk_peer {
 	unsigned char *trunkdata;
 	unsigned int trunkdatalen;
 	unsigned int trunkdataalloc;
+	int trunkmaxmtu;
 	int trunkerror;
 	int calls;
 	AST_LIST_ENTRY(iax2_trunk_peer) list;
@@ -787,6 +797,7 @@ static int iax2_sendtext(struct ast_channel *c, const char *text);
 static int iax2_setoption(struct ast_channel *c, int option, void *data, int datalen);
 static int iax2_transfer(struct ast_channel *c, const char *dest);
 static int iax2_write(struct ast_channel *c, struct ast_frame *f);
+static int send_trunk(struct iax2_trunk_peer *tpeer, struct timeval *now);
 static int send_command(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
 static int send_command_final(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
 static int send_command_immediate(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
@@ -2057,8 +2068,41 @@ static int iax2_show_stats(int fd, int argc, char *argv[])
 	ast_cli(fd, "    IAX Statistics\n");
 	ast_cli(fd, "---------------------\n");
 	ast_cli(fd, "Outstanding frames: %d (%d ingress, %d egress)\n", iax_get_frames(), iax_get_iframes(), iax_get_oframes());
+	ast_cli(fd, "%d timed and %d untimed transmits; MTU %d/%d/%d\n", trunk_timed, trunk_untimed,
+		trunk_maxmtu, trunk_nmaxmtu, global_max_trunk_mtu);
+
 	ast_cli(fd, "Packets in transmit queue: %d dead, %d final, %d total\n\n", dead, final, cnt);
+
+	trunk_timed = trunk_untimed = 0;
+	if (trunk_maxmtu > trunk_nmaxmtu)
+		trunk_nmaxmtu = trunk_maxmtu;
 	
+	return RESULT_SUCCESS;
+}
+
+/*! \brief Set trunk MTU from CLI */
+static int iax2_set_mtu(int fd, int argc, char *argv[])
+{
+	int mtuv;
+
+	if (argc != 4)
+		return RESULT_SHOWUSAGE; 
+	if (strncasecmp(argv[3], "default", strlen(argv[3])) == 0) 
+		mtuv = MAX_TRUNK_MTU; 
+	else                                         
+		mtuv = atoi(argv[3]); 
+
+	if (mtuv == 0) {
+		ast_cli(fd, "Trunk MTU control disabled (mtu was %d)\n", global_max_trunk_mtu); 
+		global_max_trunk_mtu = 0; 
+		return RESULT_SUCCESS; 
+	}
+	if (mtuv < 172 || mtuv > 4000) {
+		ast_cli(fd, "Trunk MTU must be between 172 and 4000\n"); 
+		return RESULT_SHOWUSAGE; 
+	}
+	ast_cli(fd, "Trunk MTU changed from %d to %d\n", global_max_trunk_mtu, mtuv); 
+	global_max_trunk_mtu = mtuv; 
 	return RESULT_SUCCESS;
 }
 
@@ -2882,9 +2926,6 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		iaxs[callno]->initid = ast_sched_add(sched, autokill * 2, auto_congest, CALLNO_TO_PTR(callno));
 	}
 
-	/* send the command using the appropriate socket for this peer */
-	iaxs[callno]->sockfd = cai.sockfd;
-
 	/* Transmit the string in a "NEW" request */
 	send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_NEW, 0, ied.buf, ied.pos, -1);
 
@@ -3526,6 +3567,8 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 	struct ast_frame *f;
 	struct iax2_trunk_peer *tpeer;
 	void *tmp, *ptr;
+	struct timeval now;
+	int res; 
 	struct ast_iax2_meta_trunk_entry *met;
 	struct ast_iax2_meta_trunk_mini *mtm;
 
@@ -3574,6 +3617,18 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 		tpeer->trunkdatalen += f->datalen;
 
 		tpeer->calls++;
+
+		/* track the largest mtu we actually have sent */
+		if (tpeer->trunkdatalen + f->datalen + 4 > trunk_maxmtu) 
+			trunk_maxmtu = tpeer->trunkdatalen + f->datalen + 4 ; 
+
+		/* if we have enough for a full MTU, ship it now without waiting */
+		if (global_max_trunk_mtu > 0 && tpeer->trunkdatalen + f->datalen + 4 >= global_max_trunk_mtu) {
+			gettimeofday(&now, NULL);
+			res = send_trunk(tpeer, &now); 
+			trunk_untimed ++; 
+		}
+
 		ast_mutex_unlock(&tpeer->lock);
 	}
 	return 0;
@@ -5936,6 +5991,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 			drop = tpeer;
 		} else {
 			res = send_trunk(tpeer, &now);
+			trunk_timed++; 
 			if (iaxtrunkdebug)
 				ast_verbose(" - Trunk peer (%s:%d) has %d call chunk%s in transit, %d bytes backloged and has hit a high water mark of %d bytes\n", ast_inet_ntoa(tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), res, (res != 1) ? "s" : "", tpeer->trunkdatalen, tpeer->trunkdataalloc);
 		}		
@@ -8743,6 +8799,7 @@ static int set_config(char *config_file, int reload)
 	int format;
 	int portno = IAX_DEFAULT_PORTNO;
 	int  x;
+	int mtuv; 
 	struct iax2_user *user;
 	struct iax2_peer *peer;
 	struct ast_netsock *ns;
@@ -8904,6 +8961,15 @@ static int set_config(char *config_file, int reload)
 			trunkfreq = atoi(v->value);
 			if (trunkfreq < 10)
 				trunkfreq = 10;
+		} else if (!strcasecmp(v->name, "trunkmtu")) {
+			mtuv = atoi(v->value);
+			if (mtuv  == 0 )  
+				global_max_trunk_mtu = 0; 
+			else if (mtuv >= 172 && mtuv < 4000) 
+				global_max_trunk_mtu = mtuv; 
+			else 
+				ast_log(LOG_NOTICE, "trunkmtu value out of bounds (%d) at line %d\n",
+					mtuv, v->lineno); 
 		} else if (!strcasecmp(v->name, "autokill")) {
 			if (sscanf(v->value, "%d", &x) == 1) {
 				if (x >= 0)
@@ -9086,6 +9152,7 @@ static int reload_config(void)
 	strcpy(language, "");
 	strcpy(mohinterpret, "default");
 	strcpy(mohsuggest, "");
+	global_max_trunk_mtu = MAX_TRUNK_MTU;
 	amaflags = 0;
 	delayreject = 0;
 	ast_clear_flag((&globalflags), IAX_NOTRANSFER);	
@@ -9096,6 +9163,9 @@ static int reload_config(void)
 	set_config(config,1);
 	prune_peers();
 	prune_users();
+	trunk_timed = trunk_untimed = 0; 
+	trunk_nmaxmtu = trunk_maxmtu = 0; 
+
 	for (reg = registrations; reg; reg = reg->next)
 		iax2_do_register(reg);
 	/* Qualify hosts, too */
@@ -9577,6 +9647,13 @@ static char show_stats_usage[] =
 "Usage: iax2 list stats\n"
 "       Display statistics on IAX channel driver.\n";
 
+static char set_mtu_usage[] =
+"Usage: iax2 set mtu <value>\n"
+"       Set the system-wide IAX IP mtu to <value> bytes net or zero to disable.\n"
+"       Disabling means that the operating system must handle fragmentation of UDP packets\n"
+"       when the IAX2 trunk packet exceeds the UDP payload size.\n"
+"       This is substantially below the IP mtu. Try 1240 on ethernets.\n"
+"       Must be 172 or greater for G.711 samples.\n"; 
 static char show_cache_usage[] =
 "Usage: iax2 list cache\n"
 "       Display currently cached IAX Dialplan results.\n";
@@ -9705,6 +9782,10 @@ static struct ast_cli_entry cli_iax2[] = {
 	{ { "iax2", "list", "threads", NULL },
 	iax2_show_threads, "Display IAX helper thread info",
 	show_threads_usage },
+
+	{ { "iax2", "set", "mtu", NULL },
+	iax2_set_mtu, "Set the IAX systemwide trunking MTU",
+	set_mtu_usage, NULL, NULL },
 
 	{ { "iax2", "list", "users", NULL },
 	iax2_show_users, "List defined IAX users",
