@@ -7370,6 +7370,21 @@ static int pri_create_spanmap(int span, int trunkgroup, int logicalspan)
 #endif
 
 #ifdef HAVE_SS7
+
+static unsigned int parse_pointcode(char *pcstring)
+{
+	unsigned int code1, code2, code3;
+	int numvals;
+
+	numvals = sscanf(pcstring, "%d.%d.%d", &code1, &code2, &code3);
+	if (numvals == 1)
+		return code1;
+	if (numvals == 3)
+		return (code1 << 16) | (code2 << 8) | code3;
+
+	return 0;
+}
+
 static struct zt_ss7 * ss7_resolve_linkset(int linkset)
 {
 	if ((linkset < 0) || (linkset >= NUM_SPANS))
@@ -12073,11 +12088,11 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 			} else if (!strcasecmp(v->name, "linkset")) {
 				cur_linkset = atoi(v->value);
 			} else if (!strcasecmp(v->name, "pointcode")) {
-				cur_pointcode = atoi(v->value);
+				cur_pointcode = parse_pointcode(v->value);
 			} else if (!strcasecmp(v->name, "adjpointcode")) {
-				cur_adjpointcode = atoi(v->value);
+				cur_adjpointcode = parse_pointcode(v->value);
 			} else if (!strcasecmp(v->name, "defaultdpc")) {
-				cur_defaultdpc = atoi(v->value);
+				cur_defaultdpc = parse_pointcode(v->value);
 			} else if (!strcasecmp(v->name, "cicbeginswith")) {
 				cur_cicbeginswith = atoi(v->value);
 			} else if (!strcasecmp(v->name, "networkindicator")) {

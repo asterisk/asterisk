@@ -666,15 +666,18 @@ ss7type = itu
 ; All settings apply to linkset 1
 linkset = 1
 
-; Point code of the linkset
+; Point code of the linkset.  For ITU, this is the decimal number
+; format of the point code.  For ANSI, this can either be in decimal
+; number format or in the xxx.xxx.xxx format
 pointcode = 1
 
 ; Point code of node adjacent to this signaling link (Possibly the STP between you and
-; your destination)
+; your destination).  Point code format follows the same rules as above.
 adjpointcode = 2
 
 ; Default point code that you would like to assign to outgoing messages (in case of
-; routing through STPs, or using A links)
+; routing through STPs, or using A links).  Point code format follows the same rules
+; as above.
 defaultdpc = 3
 
 ; Begin CIC (Circuit indication codes) count with this number
