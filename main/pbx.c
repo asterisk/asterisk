@@ -5526,6 +5526,7 @@ static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 {
 	int ms, res;
+	double sec;
 	struct ast_flags flags = {0};
 	char *opts[1] = { NULL };
 	char *parse;
@@ -5549,8 +5550,8 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 		ast_indicate_data(chan, AST_CONTROL_HOLD, opts[0], strlen(opts[0]));
 
 	/* Wait for "n" seconds */
-	if (args.timeout && (ms = atof(args.timeout)) > 0)
-		 ms *= 1000;
+	if (args.timeout && (sec = atof(args.timeout)) > 0.0)
+		ms = 1000 * sec;
 	else if (chan->pbx)
 		ms = chan->pbx->rtimeout * 1000;
 	else
