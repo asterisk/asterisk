@@ -2926,6 +2926,9 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		iaxs[callno]->initid = ast_sched_add(sched, autokill * 2, auto_congest, CALLNO_TO_PTR(callno));
 	}
 
+	/* send the command using the appropriate socket for this peer */
+	iaxs[callno]->sockfd = cai.sockfd;
+
 	/* Transmit the string in a "NEW" request */
 	send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_NEW, 0, ied.buf, ied.pos, -1);
 
