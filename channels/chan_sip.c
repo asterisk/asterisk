@@ -16803,11 +16803,6 @@ static struct ast_cli_entry cli_sip_show_domains_deprecated = {
 	sip_show_domains, NULL,
         NULL };
 
-static struct ast_cli_entry cli_sip_show_settings_deprecated = {
-	{ "sip", "show", "settings", NULL },
-	sip_show_settings, NULL,
-        NULL };
-
 static struct ast_cli_entry cli_sip_show_peers_deprecated = {
 	{ "sip", "show", "peers", NULL },
 	sip_show_peers, NULL,
@@ -16848,9 +16843,9 @@ static struct ast_cli_entry cli_sip[] = {
 	sip_show_registry, "List SIP registration status",
 	show_reg_usage, NULL, &cli_sip_show_registry_deprecated },
 
-	{ { "sip", "list", "settings", NULL },
-	sip_show_settings, "List SIP global settings",
-	show_settings_usage, NULL, &cli_sip_show_settings_deprecated },
+	{ { "sip", "show", "settings", NULL },
+	sip_show_settings, "Show SIP global settings",
+	show_settings_usage, NULL, NULL},
 
 	{ { "sip", "list", "subscriptions", NULL },
 	sip_show_subscriptions, "List active SIP subscriptions",
