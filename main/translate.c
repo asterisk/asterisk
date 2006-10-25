@@ -818,6 +818,11 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 	unsigned int src_audio = powerof(src & AST_FORMAT_AUDIO_MASK);
 	unsigned int src_video = powerof(src & AST_FORMAT_VIDEO_MASK);
 
+	/* if we don't have a source format, we just have to try all
+	   possible destination formats */
+	if (!src)
+		return dest;
+
 	AST_LIST_LOCK(&translators);
 
 	for (x = 1; x < AST_FORMAT_MAX_AUDIO; x <<= 1) {
