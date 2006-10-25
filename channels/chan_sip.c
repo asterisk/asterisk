@@ -16965,7 +16965,7 @@ static struct ast_cli_entry cli_sip[] = {
 	sip_show_registry, "List SIP registration status",
 	show_reg_usage },
 
-	{ { "sip", "list", "settings", NULL },
+	{ { "sip", "show", "settings", NULL },
 	sip_show_settings, "List SIP global settings",
 	show_settings_usage },
 
