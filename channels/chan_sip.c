@@ -8912,8 +8912,7 @@ static struct ast_variable *copy_vars(struct ast_variable *src)
 	return res;
 }
 
-/* helper function for check_{user|peer}_ok() */
-
+/*! \brief helper function for check_{user|peer}_ok() */
 static void replace_cid(struct sip_pvt *p, const char *rpid_num, const char *calleridname)
 {
 	/* replace callerid if rpid found, and not restricted */
@@ -8927,6 +8926,7 @@ static void replace_cid(struct sip_pvt *p, const char *rpid_num, const char *cal
 	}
 }
 
+/*! \brief Validate user authentication */
 static enum check_auth_result check_user_ok(struct sip_pvt *p, char *of,
 	struct sip_request *req, int sipmethod, struct sockaddr_in *sin,
 	enum xmittype reliable,
@@ -9026,6 +9026,7 @@ static enum check_auth_result check_user_ok(struct sip_pvt *p, char *of,
 	return res;
 }
 
+/*! \brief Validate peer authentication */
 static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	struct sip_request *req, int sipmethod, struct sockaddr_in *sin,
 	struct sip_peer **authpeer,
