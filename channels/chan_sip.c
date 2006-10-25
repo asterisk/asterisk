@@ -209,18 +209,18 @@ static const struct  cfsip_methods {
 	enum sipmethod id;
 	int need_rtp;		/*!< when this is the 'primary' use for a pvt structure, does it need RTP? */
 	char * const text;
-	int can_create;
+	int can_create;	/*!< 0=can't create, 1 can create, 2 can create, but not supported */
 } sip_methods[] = {
-	{ SIP_UNKNOWN,	 RTP,    "-UNKNOWN-", 0 },
+	{ SIP_UNKNOWN,	 RTP,    "-UNKNOWN-", 2 },
 	{ SIP_RESPONSE,	 NO_RTP, "SIP/2.0", 0 },
 	{ SIP_REGISTER,	 NO_RTP, "REGISTER", 1 },
  	{ SIP_OPTIONS,	 NO_RTP, "OPTIONS", 1 },
-	{ SIP_NOTIFY,	 NO_RTP, "NOTIFY", 0 },
+	{ SIP_NOTIFY,	 NO_RTP, "NOTIFY", 2 },
 	{ SIP_INVITE,	 RTP,    "INVITE", 1 },
 	{ SIP_ACK,	 NO_RTP, "ACK", 0 },
-	{ SIP_PRACK,	 NO_RTP, "PRACK", 0 },
+	{ SIP_PRACK,	 NO_RTP, "PRACK", 2 },
 	{ SIP_BYE,	 NO_RTP, "BYE", 0 },
-	{ SIP_REFER,	 NO_RTP, "REFER", 0 },
+	{ SIP_REFER,	 NO_RTP, "REFER", 2 },
 	{ SIP_SUBSCRIBE, NO_RTP, "SUBSCRIBE", 1 },
 	{ SIP_MESSAGE,	 NO_RTP, "MESSAGE", 1 },
 	{ SIP_UPDATE,	 NO_RTP, "UPDATE", 0 },
@@ -3242,8 +3242,21 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 
 	/* If this is a response and we have ignoring of out of dialog responses turned on, then drop it */
 	if (!sip_methods[intended_method].can_create) {
+		/* Can't create dialog */
 		if (intended_method != SIP_RESPONSE)
 			transmit_response_using_temp(callid, sin, 1, intended_method, req, "481 Call leg/transaction does not exist");
+	} else if (sip_methods[intended_method].can_create == 2) {
+		char *response = "481 Call leg/transaction does not exist";
+		/* In theory, can create dialog. We don't support it */
+		if (intended_method == SIP_PRACK || intended_method == SIP_UNKNOWN)
+			response = "501 Method not implemented";
+		else if(intended_method == SIP_REFER)
+			response = "603 Declined (no dialog)";
+		else if(intended_method == SIP_NOTIFY)
+			response = "489 Bad event";
+
+		transmit_response_using_temp(callid, sin, 1, intended_method, req, "603 Declined (no dialog)");
+		
 	} else {
 		p = sip_alloc(callid, sin, 1, intended_method);
 		if (p)
