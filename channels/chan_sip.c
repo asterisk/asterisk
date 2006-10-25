@@ -5546,6 +5546,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	const char *c;
 	const char *ot, *of;
 	int is_strict = FALSE;		/*!< Strict routing flag */
+	int is_outbound = ast_test_flag(&p->flags[0], SIP_OUTGOING);	/* Session direction */
 
 	memset(req, 0, sizeof(struct sip_request));
 	
@@ -5567,6 +5568,14 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		if (sipdebug)
 			ast_log(LOG_DEBUG, "Strict routing enforced for session %s\n", p->callid);
 	}
+	
+	/* Let's try to figure out the direction of this transaction within the dialog */
+	/* If we're sending an ACK, we DID send the INVITE - which means outbound.
+	   INVITE's are outbound transactions, always 
+	*/
+	if (sipmethod == SIP_ACK || sipmethod == SIP_INVITE)
+		is_outbound = TRUE;
+	/* In other case's, let's follow the flow of the dialog */
 
 	if (sipmethod == SIP_CANCEL)
 		c = p->initreq.rlPart2;	/* Use original URI */
@@ -5584,7 +5593,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	else {
 		char *n;
 		/* We have no URI, use To: or From:  header as URI (depending on direction) */
-		ast_copy_string(stripped, get_header(orig, (ast_test_flag(&p->flags[0], SIP_OUTGOING)) ? "To" : "From"),
+		ast_copy_string(stripped, get_header(orig, is_outbound ? "To" : "From"),
 				sizeof(stripped));
 		n = get_in_brackets(stripped);
 		c = strsep(&n, ";");	/* trim ; and beyond */
@@ -5607,16 +5616,16 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	if (!strcasestr(ot, "tag=") && sipmethod != SIP_CANCEL) {
 		/* Add the proper tag if we don't have it already.  If they have specified
 		   their tag, use it.  Otherwise, use our own tag */
-		if (ast_test_flag(&p->flags[0], SIP_OUTGOING) && !ast_strlen_zero(p->theirtag))
+		if (is_outbound && !ast_strlen_zero(p->theirtag))
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->theirtag);
-		else if (!ast_test_flag(&p->flags[0], SIP_OUTGOING))
+		else if (!is_outbound)
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->tag);
 		else
 			snprintf(newto, sizeof(newto), "%s", ot);
 		ot = newto;
 	}
 
-	if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
+	if (is_outbound) {
 		add_header(req, "From", of);
 		add_header(req, "To", ot);
 	} else {
