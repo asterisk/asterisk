@@ -10,6 +10,8 @@
 		</member>
 		<member name="CORE-SOUNDS-EN-G729" displayname="English, G.729 format">
 		</member>
+		<member name="CORE-SOUNDS-EN-G722" displayname="English, G.722 format">
+		</member>
 		<member name="CORE-SOUNDS-ES-WAV" displayname="Spanish, WAV format">
 		</member>
 		<member name="CORE-SOUNDS-ES-ULAW" displayname="Spanish, mu-Law format">
@@ -20,6 +22,8 @@
 		</member>
 		<member name="CORE-SOUNDS-ES-G729" displayname="Spanish, G.729 format">
 		</member>
+		<member name="CORE-SOUNDS-ES-G722" displayname="Spanish, G.722 format">
+		</member>
 		<member name="CORE-SOUNDS-FR-WAV" displayname="French, WAV format">
 		</member>
 		<member name="CORE-SOUNDS-FR-ULAW" displayname="French, mu-Law format">
@@ -29,6 +33,8 @@
 		<member name="CORE-SOUNDS-FR-GSM" displayname="French, GSM format">
 		</member>
 		<member name="CORE-SOUNDS-FR-G729" displayname="French, G.729 format">
+		</member>
+		<member name="CORE-SOUNDS-FR-G722" displayname="French, G.722 format">
 		</member>
 	</category>
 	<category name="MENUSELECT_MOH" displayname="Music On Hold File Packages" positive_output="yes">
@@ -43,6 +49,8 @@
 		</member>
 		<member name="MOH-FREEPLAY-G729" displayname="FreePlay Music On Hold Files, G.729 format" >
 		</member>
+		<member name="MOH-FREEPLAY-G722" displayname="FreePlay Music On Hold Files, G.722 format" >
+		</member>
 	</category>
 	<category name="MENUSELECT_EXTRA_SOUNDS" displayname="Extras Sound Packages" positive_output="yes">
 		<member name="EXTRA-SOUNDS-EN-WAV" displayname="English, WAV format">
@@ -54,5 +62,7 @@
 		<member name="EXTRA-SOUNDS-EN-GSM" displayname="English, GSM format" >
 		</member>
 		<member name="EXTRA-SOUNDS-EN-G729" displayname="English, G.729 format">
+		</member>
+		<member name="EXTRA-SOUNDS-EN-G722" displayname="English, G.722 format">
 		</member>
 	</category>
