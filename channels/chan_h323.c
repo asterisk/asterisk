@@ -3122,6 +3122,8 @@ static char *convertcap(int cap)
 		return "ULAW";
 	case AST_FORMAT_ALAW:
 		return "ALAW";
+	case AST_FORMAT_G722:
+		return "G.722";
 	case AST_FORMAT_ADPCM:
 		return "G.728";
 	case AST_FORMAT_G729A:

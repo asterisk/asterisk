@@ -1330,6 +1330,7 @@ static struct {
 	{{1, AST_FORMAT_G729A}, "audio", "G729"},
 	{{1, AST_FORMAT_SPEEX}, "audio", "speex"},
 	{{1, AST_FORMAT_ILBC}, "audio", "iLBC"},
+	{{1, AST_FORMAT_G722}, "audio", "G722"},
 	{{1, AST_FORMAT_G726_AAL2}, "audio", "AAL2-G726-32"},
 	{{0, AST_RTP_DTMF}, "audio", "telephone-event"},
 	{{0, AST_RTP_CISCO_DTMF}, "audio", "cisco-telephone-event"},
@@ -1356,6 +1357,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
 	[6] = {1, AST_FORMAT_ADPCM}, /* 16 kHz */
 	[7] = {1, AST_FORMAT_LPC10},
 	[8] = {1, AST_FORMAT_ALAW},
+	[9] = {1, AST_FORMAT_G722},
 	[10] = {1, AST_FORMAT_SLINEAR}, /* 2 channels */
 	[11] = {1, AST_FORMAT_SLINEAR}, /* 1 channel */
 	[13] = {0, AST_RTP_CN},

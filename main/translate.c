@@ -476,7 +476,7 @@ static void rebuild_matrix(int samples)
 
 static int show_translation(int fd, int argc, char *argv[])
 {
-#define SHOW_TRANS 12
+#define SHOW_TRANS 13
 	int x, y, z;
 	int curlen = 0, longest = 0;
 
