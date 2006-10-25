@@ -78,13 +78,13 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	char *return_context;
-	int l, lot, timeout = 0, dres;
+	int lot, timeout = 0, dres;
 	char *working, *context, *exten, *priority, *dial, *dialtech, *dialstr;
 	char *template, *tpl_working, *tpl_current;
 	char *tmp[100];
 	char buf[13];
 	int looptemp=0,i=0;
-	char *s,*orig_s;
+	char *s;
 
 	struct ast_channel *dchan;
 	struct outgoing_helper oh;
@@ -99,18 +99,11 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
   
 	u = ast_module_user_add(chan);
 
-	l=strlen(data)+2;	
-	if (!(orig_s = ast_malloc(l))) {
-		ast_module_user_remove(u);
-		return -1;
-	}
-	s=orig_s;
-	strncpy(s,data,l);
+	s = ast_strdupa(data);
 
 	template=strsep(&s,"|");
 	if(! template) {
 		ast_log(LOG_WARNING, "PARK: An announce template must be defined\n");
-		free(orig_s);
 		ast_module_user_remove(u);
 		return -1;
 	}
@@ -122,7 +115,6 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	dial=strsep(&s, "|");
 	if(!dial) {
 		ast_log(LOG_WARNING, "PARK: A dial resource must be specified i.e: Console/dsp or Zap/g1/5551212\n");
-		free(orig_s);
 		ast_module_user_remove(u);
 		return -1;
 	} else {
@@ -155,16 +147,15 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	}
 	if(atoi(priority) < 0) {
 		ast_log(LOG_WARNING, "Priority '%s' must be a number > 0\n", priority);
-		free(orig_s);
 		ast_module_user_remove(u);
 		return -1;
 	}
 	/* At this point we have a priority and maybe an extension and a context */
 	chan->priority = atoi(priority);
 	if (exten)
-		strncpy(chan->exten, exten, sizeof(chan->exten)-1);
+		ast_copy_string(chan->exten, exten, sizeof(chan->exten));
 	if (context)
-		strncpy(chan->context, context, sizeof(chan->context)-1);
+		ast_copy_string(chan->context, context, sizeof(chan->context));
 	} else {  /* increment the priority by default*/
 		chan->priority++;
 	}
@@ -202,13 +193,11 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 				ast_verbose(VERBOSE_PREFIX_4 "Channel %s was never answered.\n", dchan->name);
         			ast_log(LOG_WARNING, "PARK: Channel %s was never answered for the announce.\n", dchan->name);
 			ast_hangup(dchan);
-			free(orig_s);
 			ast_module_user_remove(u);
 			return -1;
 		}
 	} else {
 		ast_log(LOG_WARNING, "PARK: Unable to allocate announce channel.\n");
-		free(orig_s);
 		ast_module_user_remove(u);
 		return -1; 
 	}
@@ -245,7 +234,6 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 
 	ast_stopstream(dchan);  
 	ast_hangup(dchan);
-	free(orig_s);
 	
 	ast_module_user_remove(u);
 	

@@ -141,7 +141,7 @@ static int ices_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	if (((char *)data)[0] == '/')
-		strncpy(filename, (char *)data, sizeof(filename) - 1);
+		ast_copy_string(filename, (char *) data, sizeof(filename));
 	else
 		snprintf(filename, sizeof(filename), "%s/%s", (char *)ast_config_AST_CONFIG_DIR, (char *)data);
 	/* Placeholder for options */		

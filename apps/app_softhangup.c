@@ -74,7 +74,7 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 	all = options && strchr(options,'a');
 	c = ast_channel_walk_locked(NULL);
 	while (c) {
-		strncpy(name, c->name, sizeof(name)-1);
+		ast_copy_string(name, c->name, sizeof(name));
 		ast_mutex_unlock(&c->lock);
 		/* XXX watch out, i think it is wrong to access c-> after unlocking! */
 		if (all) {

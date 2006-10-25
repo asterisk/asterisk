@@ -1158,7 +1158,7 @@ static int console_dial_deprecated(int fd, int argc, char *argv[])
 		myc = context;
 		if (argc == 2) {
 			char *stringp = NULL;
-			strncpy(tmp, argv[1], sizeof(tmp) - 1);
+			ast_copy_string(tmp, argv[1], sizeof(tmp));
 			stringp = tmp;
 			strsep(&stringp, "@");
 			tmp2 = strsep(&stringp, "@");
@@ -1168,8 +1168,8 @@ static int console_dial_deprecated(int fd, int argc, char *argv[])
 				myc = tmp2;
 		}
 		if (ast_exists_extension(NULL, myc, mye, 1, NULL)) {
-			strncpy(alsa.exten, mye, sizeof(alsa.exten) - 1);
-			strncpy(alsa.context, myc, sizeof(alsa.context) - 1);
+			ast_copy_string(alsa.exten, mye, sizeof(alsa.exten));
+			ast_copy_string(alsa.context, myc, sizeof(alsa.context));
 			hookstate = 1;
 			alsa_new(&alsa, AST_STATE_RINGING);
 		} else
@@ -1215,7 +1215,7 @@ static int console_dial(int fd, int argc, char *argv[])
 		myc = context;
 		if (argc == 3) {
 			char *stringp = NULL;
-			strncpy(tmp, argv[2], sizeof(tmp) - 1);
+			ast_copy_string(tmp, argv[2], sizeof(tmp));
 			stringp = tmp;
 			strsep(&stringp, "@");
 			tmp2 = strsep(&stringp, "@");
@@ -1225,8 +1225,8 @@ static int console_dial(int fd, int argc, char *argv[])
 				myc = tmp2;
 		}
 		if (ast_exists_extension(NULL, myc, mye, 1, NULL)) {
-			strncpy(alsa.exten, mye, sizeof(alsa.exten) - 1);
-			strncpy(alsa.context, myc, sizeof(alsa.context) - 1);
+			ast_copy_string(alsa.exten, mye, sizeof(alsa.exten));
+			ast_copy_string(alsa.context, myc, sizeof(alsa.context));
 			hookstate = 1;
 			alsa_new(&alsa, AST_STATE_RINGING);
 		} else

@@ -8485,7 +8485,7 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 
 			/* This is an attended transfer */
 			referdata->attendedtransfer = 1;
-			strncpy(referdata->replaces_callid, ptr+9, sizeof(referdata->replaces_callid));
+			ast_copy_string(referdata->replaces_callid, ptr+9, sizeof(referdata->replaces_callid));
 			ast_uri_decode(referdata->replaces_callid);
 			if ((ptr = strchr(referdata->replaces_callid, ';'))) 	/* Find options */ {
 				*ptr++ = '\0';
@@ -8532,9 +8532,9 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 		if ((urioption = strchr(ptr, ';')))
 			*urioption++ = '\0';
 		/* Save the domain for the dial plan */
-		strncpy(referdata->refer_to_domain, ptr, sizeof(referdata->refer_to_domain));
+		ast_copy_string(referdata->refer_to_domain, ptr, sizeof(referdata->refer_to_domain));
 		if (urioption)
-			strncpy(referdata->refer_to_urioption, urioption, sizeof(referdata->refer_to_urioption));
+			ast_copy_string(referdata->refer_to_urioption, urioption, sizeof(referdata->refer_to_urioption));
 	}
 
 	if ((ptr = strchr(refer_to, ';'))) 	/* Remove options */
@@ -8559,7 +8559,7 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 					S_OR(transferer->context, default_context));
 	}
 
-	strncpy(referdata->refer_to_context, transfer_context, sizeof(referdata->refer_to_context));
+	ast_copy_string(referdata->refer_to_context, transfer_context, sizeof(referdata->refer_to_context));
 	
 	/* Either an existing extension or the parking extension */
 	if (ast_exists_extension(NULL, transfer_context, refer_to, 1, NULL) ) {

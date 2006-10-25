@@ -1425,7 +1425,7 @@ static int rpt_do_lstats(int fd, int argc, char *argv[])
 					return RESULT_FAILURE;
 				}
 				memset(s, 0, sizeof(struct rpt_lstat));
-				strncpy(s->name, l->name, MAXREMSTR - 1);
+				ast_copy_string(s->name, l->name, MAXREMSTR);
 				pbx_substitute_variables_helper(l->chan, "${IAXPEER(CURRENTCHANNEL)}", s->peer, MAXPEERSTR - 1);
 				s->mode = l->mode;
 				s->outbound = l->outbound;
@@ -2606,8 +2606,7 @@ pthread_attr_t attr;
 		}
 	}
 	else if ((mode == ARB_ALPHA) || (mode == REV_PATCH)) {
-		strncpy(tele->param, (char *) data, TELEPARAMSIZE - 1);
-		tele->param[TELEPARAMSIZE - 1] = 0;
+		ast_copy_string(tele->param, (char *) data, TELEPARAMSIZE);
 	}
 	insque((struct qelem *)tele, (struct qelem *)myrpt->tele.next);
 	rpt_mutex_unlock(&myrpt->lock);
@@ -2782,11 +2781,11 @@ struct ast_channel *mychannel,*genchannel;
 		}
 	}
 
-	strncpy(mychannel->exten, myrpt->exten, sizeof(mychannel->exten) - 1);
-	strncpy(mychannel->context, myrpt->patchcontext, sizeof(mychannel->context) - 1);
+	ast_copy_string(mychannel->exten, myrpt->exten, sizeof(mychannel->exten));
+	ast_copy_string(mychannel->context, myrpt->patchcontext, sizeof(mychannel->context));
 	
 	if (myrpt->p.acctcode)
-		strncpy((char *)mychannel->accountcode, myrpt->p.acctcode, sizeof(mychannel->accountcode) - 1);
+		ast_string_field_set(mychannel, accountcode, myrpt->p.acctcode);
 	mychannel->priority = 1;
 	ast_channel_undefer_dtmf(mychannel);
 	if (ast_pbx_start(mychannel) < 0)
@@ -2938,7 +2937,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 	if (!myrpt->enable)
 		return DC_ERROR;
 
-	strncpy(digitbuf,digits,MAXNODESTR - 1);
+	ast_copy_string(digitbuf,digits,MAXNODESTR);
 
 	if(debug)
 		printf("@@@@ ilink param = %s, digitbuf = %s\n", (param)? param : "(null)", digitbuf);
@@ -2953,7 +2952,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 					return DC_ERROR;
 				break;
 			}
-			strncpy(tmp,val,sizeof(tmp) - 1);
+			ast_copy_string(tmp,val,sizeof(tmp));
 			s = tmp;
 			s1 = strsep(&s,",");
 			s2 = strsep(&s,",");
@@ -2973,7 +2972,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			}
 			if (l != &myrpt->links){ /* if found */
 				struct	ast_frame wf;
-				strncpy(myrpt->lastlinknode,digitbuf,MAXNODESTR - 1);
+				ast_copy_string(myrpt->lastlinknode,digitbuf,MAXNODESTR);
 				l->retries = MAX_RETRIES + 1;
 				l->disced = 1;
 				rpt_mutex_unlock(&myrpt->lock);
@@ -3004,7 +3003,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 					return DC_ERROR;
 				break;
 			}
-			strncpy(tmp,val,sizeof(tmp) - 1);
+			ast_copy_string(tmp, val, sizeof(tmp));
 			s = tmp;
 			s1 = strsep(&s,",");
 			s2 = strsep(&s,",");
@@ -3040,7 +3039,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				modechange = 1;
 			} else
 				rpt_mutex_unlock(&myrpt->lock);
-			strncpy(myrpt->lastlinknode,digitbuf,MAXNODESTR - 1);
+			ast_copy_string(myrpt->lastlinknode,digitbuf,MAXNODESTR);
 			/* establish call in monitor mode */
 			l = malloc(sizeof(struct rpt_link));
 			if (!l){
@@ -3057,7 +3056,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			}
 			*tele++ = 0;
 			l->isremote = (s && ast_true(s));
-			strncpy(l->name, digitbuf, MAXNODESTR - 1);
+			ast_copy_string(l->name, digitbuf, MAXNODESTR);
 			l->chan = ast_request(deststr,AST_FORMAT_SLINEAR,tele,NULL);
 			if (modechange) l->connected = 1;
 			if (l->chan){
@@ -3122,7 +3121,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 					return DC_ERROR;
 				break;
 			}
-			strncpy(tmp,val,sizeof(tmp) - 1);
+			ast_copy_string(tmp,val,sizeof(tmp));
 			s = tmp;
 			s1 = strsep(&s,",");
 			s2 = strsep(&s,",");
@@ -3156,7 +3155,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				modechange = 1;
 			} else
 				rpt_mutex_unlock(&myrpt->lock);
-			strncpy(myrpt->lastlinknode,digitbuf,MAXNODESTR - 1);
+			ast_copy_string(myrpt->lastlinknode,digitbuf,MAXNODESTR);
 			/* establish call in tranceive mode */
 			l = malloc(sizeof(struct rpt_link));
 			if (!l){
@@ -3167,7 +3166,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			memset((char *)l,0,sizeof(struct rpt_link));
 			l->mode = 1;
 			l->outbound = 1;
-			strncpy(l->name, digitbuf, MAXNODESTR - 1);
+			ast_copy_string(l->name, digitbuf, MAXNODESTR);
 			l->isremote = (s && ast_true(s));
 			if (modechange) l->connected = 1;
 			snprintf(deststr, sizeof(deststr), "IAX2/%s", s1);
@@ -3255,7 +3254,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			}
 			rpt_mutex_lock(&myrpt->lock);
 			strcpy(myrpt->lastlinknode,digitbuf);
-			strncpy(myrpt->cmdnode, digitbuf, sizeof(myrpt->cmdnode) - 1);
+			ast_copy_string(myrpt->cmdnode, digitbuf, sizeof(myrpt->cmdnode));
 			rpt_mutex_unlock(&myrpt->lock);
 			rpt_telemetry(myrpt, REMGO, NULL);	
 			return DC_COMPLETE;
@@ -3320,7 +3319,7 @@ static int function_autopatchup(struct rpt *myrpt, char *param, char *digitbuf, 
 		myrpt->patchdialtime = 0;
 		myrpt->patchfarenddisconnect = 0;
 		myrpt->patchquiet = 0;
-		strncpy(myrpt->patchcontext, myrpt->p.ourcontext, MAXPATCHCONTEXT);
+		ast_copy_string(myrpt->patchcontext, myrpt->p.ourcontext, MAXPATCHCONTEXT);
 
 		if(param){
 			/* Process parameter list */
@@ -3337,7 +3336,7 @@ static int function_autopatchup(struct rpt *myrpt, char *param, char *digitbuf, 
 				switch(index){
 
 					case 1: /* context */
-						strncpy(myrpt->patchcontext, value, MAXPATCHCONTEXT - 1) ;
+						ast_copy_string(myrpt->patchcontext, value, MAXPATCHCONTEXT) ;
 						break;
 						
 					case 2: /* dialtime */
@@ -3545,16 +3544,16 @@ static int collect_function_digits(struct rpt *myrpt, char *digits,
 	
 	if (command_source == SOURCE_DPHONE) {
 		if (!myrpt->p.dphone_functions) return DC_INDETERMINATE;
-		strncpy(function_table_name, myrpt->p.dphone_functions, sizeof(function_table_name) - 1);
+		ast_copy_string(function_table_name, myrpt->p.dphone_functions, sizeof(function_table_name));
 		}
 	else if (command_source == SOURCE_PHONE) {
 		if (!myrpt->p.phone_functions) return DC_INDETERMINATE;
-		strncpy(function_table_name, myrpt->p.phone_functions, sizeof(function_table_name) - 1);
+		ast_copy_string(function_table_name, myrpt->p.phone_functions, sizeof(function_table_name));
 		}
 	else if (command_source == SOURCE_LNK)
-		strncpy(function_table_name, myrpt->p.link_functions, sizeof(function_table_name) - 1);
+		ast_copy_string(function_table_name, myrpt->p.link_functions, sizeof(function_table_name));
 	else
-		strncpy(function_table_name, myrpt->p.functions, sizeof(function_table_name) - 1);
+		ast_copy_string(function_table_name, myrpt->p.functions, sizeof(function_table_name));
 	vp = ast_variable_browse(myrpt->cfg, function_table_name);
 	while(vp) {
 		if(!strncasecmp(vp->name, digits, strlen(vp->name)))
@@ -3577,7 +3576,7 @@ static int collect_function_digits(struct rpt *myrpt, char *digits,
 			return DC_INDETERMINATE;
 	}	
 	/* Found a match, retrieve value part and parse */
-	strncpy(workstring, vp->value, sizeof(workstring) - 1 );
+	ast_copy_string(workstring, vp->value, sizeof(workstring));
 	stringp = workstring;
 	action = strsep(&stringp, ",");
 	param = stringp;
@@ -3620,7 +3619,7 @@ struct	ast_frame wf;
 	wf.datalen = strlen(str) + 1;
 	wf.samples = 0;
  	/* put string in our buffer */
-	strncpy(tmp,str,sizeof(tmp) - 1);
+	ast_copy_string(tmp, str, sizeof(tmp));
 
         if (!strcmp(tmp,discstr))
         {
@@ -3743,7 +3742,7 @@ struct	ast_frame wf;
 			myrpt->rem_dtmfbuf[myrpt->rem_dtmfidx] = 0;
 			
 			rpt_mutex_unlock(&myrpt->lock);
-			strncpy(cmd, myrpt->rem_dtmfbuf, sizeof(cmd) - 1);
+			ast_copy_string(cmd, myrpt->rem_dtmfbuf, sizeof(cmd));
 			res = collect_function_digits(myrpt, cmd, SOURCE_LNK, mylink);
 			rpt_mutex_lock(&myrpt->lock);
 			
@@ -3761,7 +3760,7 @@ struct	ast_frame wf;
 				case DC_COMPLETE:
 					myrpt->totalexecdcommands++;
 					myrpt->dailyexecdcommands++;
-					strncpy(myrpt->lastdtmfcommand, cmd, MAXDTMF-1);
+					ast_copy_string(myrpt->lastdtmfcommand, cmd, MAXDTMF);
 					myrpt->lastdtmfcommand[MAXDTMF-1] = '\0';
 					myrpt->rem_dtmfbuf[0] = 0;
 					myrpt->rem_dtmfidx = -1;
@@ -3857,7 +3856,7 @@ int	res;
 			myrpt->rem_dtmfbuf[myrpt->rem_dtmfidx] = 0;
 			
 			rpt_mutex_unlock(&myrpt->lock);
-			strncpy(cmd, myrpt->rem_dtmfbuf, sizeof(cmd) - 1);
+			ast_copy_string(cmd, myrpt->rem_dtmfbuf, sizeof(cmd));
 			switch(mylink->phonemode)
 			{
 			    case 1:
@@ -3894,7 +3893,7 @@ int	res;
 				case DC_COMPLETE:
 					myrpt->totalexecdcommands++;
 					myrpt->dailyexecdcommands++;
-					strncpy(myrpt->lastdtmfcommand, cmd, MAXDTMF-1);
+					ast_copy_string(myrpt->lastdtmfcommand, cmd, MAXDTMF);
 					myrpt->lastdtmfcommand[MAXDTMF-1] = '\0';
 					myrpt->rem_dtmfbuf[0] = 0;
 					myrpt->rem_dtmfidx = -1;
@@ -4165,7 +4164,7 @@ int	band,txoffset = 0,txpower = 0,txpl;
 	if (!myrpt->remote) return(0);
 	/* must have rbi hardware */
 	if (strncmp(myrpt->remote,remote_rig_rbi,3)) return(0);
-	strncpy(tmp, myrpt->freq, sizeof(tmp) - 1);
+	ast_copy_string(tmp, myrpt->freq, sizeof(tmp));
 	s = strchr(tmp,'.');
 	/* if no decimal, is invalid */
 	
@@ -4293,16 +4292,14 @@ static int check_freq_rbi(int m, int d, int *defmode)
  
 static int split_freq(char *mhz, char *decimals, char *freq)
 {
-	char freq_copy[MAXREMSTR];
 	char *decp;
 
-	decp = strchr(strncpy(freq_copy, freq, MAXREMSTR),'.');
-	if(decp){
+	freq = ast_strdupa(freq);
+	if ((decp = strchr(freq, '.'))) {
 		*decp++ = 0;
-		strncpy(mhz, freq_copy, MAXREMSTR);
+		ast_copy_string(mhz, freq, MAXREMSTR);
 		strcpy(decimals, "00000");
-		strncpy(decimals, decp, strlen(decp));
-		decimals[5] = 0;
+		ast_copy_string(decimals, decp, 6);
 		return 0;
 	}
 	else
@@ -4316,15 +4313,13 @@ static int split_freq(char *mhz, char *decimals, char *freq)
  
 static int split_ctcss_freq(char *hertz, char *decimal, char *freq)
 {
-	char freq_copy[MAXREMSTR];
 	char *decp;
 
-	decp = strchr(strncpy(freq_copy, freq, MAXREMSTR),'.');
-	if(decp){
+	freq = ast_strdupa(freq);
+	if ((decp = strchr(freq, '.'))) {
 		*decp++ = 0;
-		strncpy(hertz, freq_copy, MAXREMSTR);
-		strncpy(decimal, decp, strlen(decp));
-		decimal[strlen(decp)] = '\0';
+		ast_copy_string(hertz, freq, MAXREMSTR);
+		ast_copy_string(decimal, decp, sizeof(decimal));
 		return 0;
 	}
 	else
@@ -4966,9 +4961,9 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 			if (!s1)
 				return DC_ERROR;
 			*s1++ = 0;
-			strncpy(myrpt->freq, tmp, sizeof(myrpt->freq) - 1);
-			strncpy(myrpt->rxpl, s, sizeof(myrpt->rxpl) - 1);
-			strncpy(myrpt->txpl, s, sizeof(myrpt->rxpl) - 1);
+			ast_copy_string(myrpt->freq, tmp, sizeof(myrpt->freq));
+			ast_copy_string(myrpt->rxpl, s, sizeof(myrpt->rxpl));
+			ast_copy_string(myrpt->txpl, s, sizeof(myrpt->rxpl));
 			myrpt->remmode = REM_MODE_FM;
 			myrpt->offset = REM_SIMPLEX;
 			myrpt->powerlevel = REM_MEDPWR;
@@ -5082,7 +5077,7 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 
 			/* We have a frequency */
 
-			strncpy(tmp, digitbuf ,sizeof(tmp) - 1);
+			ast_copy_string(tmp, digitbuf ,sizeof(tmp));
 			
 			s = tmp;
 			s1 = strsep(&s, "*"); /* Pick off MHz */
@@ -5167,15 +5162,15 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 			}	
 			offsave = myrpt->offset;
 			modesave = myrpt->remmode;
-			strncpy(savestr, myrpt->freq, sizeof(savestr) - 1);
-			strncpy(myrpt->freq, freq, sizeof(myrpt->freq) - 1);
+			ast_copy_string(savestr, myrpt->freq, sizeof(savestr));
+			ast_copy_string(myrpt->freq, freq, sizeof(myrpt->freq));
 			myrpt->offset = offset;
 			myrpt->remmode = defmode;
 
 			if (setrem(myrpt) == -1){
 				myrpt->offset = offsave;
 				myrpt->remmode = modesave;
-				strncpy(myrpt->freq, savestr, sizeof(myrpt->freq) - 1);
+				ast_copy_string(myrpt->freq, savestr, sizeof(myrpt->freq));
 				goto invalid_freq;
 			}
 
@@ -5212,16 +5207,16 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 			if(debug)
 				printf("PL digits entered %s\n", digitbuf);
 	    		
-			strncpy(tmp, digitbuf, sizeof(tmp) - 1);
+			ast_copy_string(tmp, digitbuf, sizeof(tmp));
 			/* see if we have at least 1 */
 			s = strchr(tmp,'*');
 			if(s)
 				*s = '.';
-			strncpy(savestr, myrpt->rxpl, sizeof(savestr) - 1);
-			strncpy(myrpt->rxpl, tmp, sizeof(myrpt->rxpl) - 1);
+			ast_copy_string(savestr, myrpt->rxpl, sizeof(savestr));
+			ast_copy_string(myrpt->rxpl, tmp, sizeof(myrpt->rxpl));
 			
 			if (setrem(myrpt) == -1){
-				strncpy(myrpt->rxpl, savestr, sizeof(myrpt->rxpl) - 1);
+				ast_copy_string(myrpt->rxpl, savestr, sizeof(myrpt->rxpl));
 				return DC_ERROR;
 			}
 		
@@ -5252,16 +5247,16 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 			if(debug)
 				printf("PL digits entered %s\n", digitbuf);
 	    		
-			strncpy(tmp, digitbuf, sizeof(tmp) - 1);
+			ast_copy_string(tmp, digitbuf, sizeof(tmp));
 			/* see if we have at least 1 */
 			s = strchr(tmp,'*');
 			if(s)
 				*s = '.';
-			strncpy(savestr, myrpt->txpl, sizeof(savestr) - 1);
-			strncpy(myrpt->txpl, tmp, sizeof(myrpt->txpl) - 1);
+			ast_copy_string(savestr, myrpt->txpl, sizeof(savestr));
+			ast_copy_string(myrpt->txpl, tmp, sizeof(myrpt->txpl));
 			
 			if (setrem(myrpt) == -1){
-				strncpy(myrpt->txpl, savestr, sizeof(myrpt->txpl) - 1);
+				ast_copy_string(myrpt->txpl, savestr, sizeof(myrpt->txpl) - 1);
 				return DC_ERROR;
 			}
 		
@@ -5693,8 +5688,7 @@ int	ret,res = 0,src;
 		case DC_COMPLETE:
 			myrpt->totalexecdcommands++;
 			myrpt->dailyexecdcommands++;
-			strncpy(myrpt->lastdtmfcommand, myrpt->dtmfbuf, MAXDTMF-1);
-			myrpt->lastdtmfcommand[MAXDTMF-1] = '\0';
+			ast_copy_string(myrpt->lastdtmfcommand, myrpt->dtmfbuf, MAXDTMF);
 			myrpt->dtmfbuf[0] = 0;
 			myrpt->dtmfidx = -1;
 			myrpt->dtmf_time_rem = 0;
@@ -5719,7 +5713,7 @@ char	tmp[300],cmd[300],dest[300],src[300],c;
 int	seq,res;
 
  	/* put string in our buffer */
-	strncpy(tmp,str,sizeof(tmp) - 1);
+	ast_copy_string(tmp,str,sizeof(tmp));
 	if (!strcmp(tmp,discstr)) return 0;
 	if (sscanf(tmp,"%s %s %s %d %c",cmd,dest,src,&seq,&c) != 5)
 	{
@@ -5791,7 +5785,7 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 	/* remove from queue */
 	remque((struct qelem *) l);
 	rpt_mutex_unlock(&myrpt->lock);
-	strncpy(tmp,val,sizeof(tmp) - 1);
+	ast_copy_string(tmp,val,sizeof(tmp));
 	s = tmp;
 	s1 = strsep(&s,",");
 	s2 = strsep(&s,",");
@@ -5891,7 +5885,7 @@ char	cmd[MAXDTMF+1] = "";
 				myrpt->dtmfbuf[myrpt->dtmfidx++] = c;
 				myrpt->dtmfbuf[myrpt->dtmfidx] = 0;
 				
-				strncpy(cmd, myrpt->dtmfbuf, sizeof(cmd) - 1);
+				ast_copy_string(cmd, myrpt->dtmfbuf, sizeof(cmd));
 				
 				rpt_mutex_unlock(&myrpt->lock);
 				res = collect_function_digits(myrpt, cmd, SOURCE_RPT, NULL);
@@ -5906,8 +5900,7 @@ char	cmd[MAXDTMF+1] = "";
 				    case DC_COMPLETE:
 					myrpt->totalexecdcommands++;
 					myrpt->dailyexecdcommands++;
-					strncpy(myrpt->lastdtmfcommand, cmd, MAXDTMF-1);
-					myrpt->lastdtmfcommand[MAXDTMF-1] = '\0';
+					ast_copy_string(myrpt->lastdtmfcommand, cmd, MAXDTMF);
 					myrpt->dtmfbuf[0] = 0;
 					myrpt->dtmfidx = -1;
 					myrpt->dtmf_time = 0;
@@ -5936,7 +5929,7 @@ char	cmd[MAXDTMF+1] = "";
 			myrpt->patchquiet = 0;
 			myrpt->patchfarenddisconnect = 0;
 			myrpt->patchdialtime = 0;
-			strncpy(myrpt->patchcontext, myrpt->p.ourcontext, MAXPATCHCONTEXT);
+			ast_copy_string(myrpt->patchcontext, myrpt->p.ourcontext, MAXPATCHCONTEXT);
 			myrpt->cidx = 0;
 			myrpt->exten[myrpt->cidx] = 0;
 			rpt_mutex_unlock(&myrpt->lock);
@@ -6051,7 +6044,7 @@ char tmpstr[300];
 		}
 	}
 	rpt_mutex_lock(&myrpt->lock);
-	strncpy(tmpstr,myrpt->rxchanname,sizeof(tmpstr) - 1);
+	ast_copy_string(tmpstr,myrpt->rxchanname,sizeof(tmpstr));
 	tele = strchr(tmpstr,'/');
 	if (!tele)
 	{
@@ -6098,7 +6091,7 @@ char tmpstr[300];
 	}
 	if (myrpt->txchanname)
 	{
-		strncpy(tmpstr,myrpt->txchanname,sizeof(tmpstr) - 1);
+		ast_copy_string(tmpstr,myrpt->txchanname,sizeof(tmpstr));
 		tele = strchr(tmpstr,'/');
 		if (!tele)
 		{
@@ -7209,10 +7202,9 @@ struct ast_config *cfg;
 		/* if is a remote, dont start one for it */
 		if (rpt_vars[i].remote)
 		{
-			strncpy(rpt_vars[i].freq, "146.580", sizeof(rpt_vars[i].freq) - 1);
-			strncpy(rpt_vars[i].rxpl, "100.0", sizeof(rpt_vars[i].rxpl) - 1);
-
-			strncpy(rpt_vars[i].txpl, "100.0", sizeof(rpt_vars[i].txpl) - 1);
+			strcpy(rpt_vars[i].freq, "146.580");
+			strcpy(rpt_vars[i].rxpl, "100.0");
+			strcpy(rpt_vars[i].txpl, "100.0");
 			rpt_vars[i].remmode = REM_MODE_FM;
 			rpt_vars[i].offset = REM_SIMPLEX;
 			rpt_vars[i].powerlevel = REM_MEDPWR;
@@ -7291,7 +7283,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Rpt requires an argument (system node)\n");
 		return -1;
 	}
-	strncpy(tmp, (char *)data, sizeof(tmp)-1);
+	ast_copy_string(tmp, (char *)data, sizeof(tmp));
 	stringp=tmp;
 	strsep(&stringp, "|");
 	options = stringp;
@@ -7364,7 +7356,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			return -1;
 		}
 		s=orig_s;
-		strncpy(s,options,l);
+		ast_copy_string(s,options,l);
 
 		template=strsep(&s,"|");
 		if(!template) {
@@ -7412,9 +7404,9 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 #else
 		if(exten)
 #endif
-			strncpy(chan->exten, exten, sizeof(chan->exten)-1);
+			ast_copy_string(chan->exten, exten, sizeof(chan->exten));
 		if(context)
-			strncpy(chan->context, context, sizeof(chan->context)-1);
+			ast_copy_string(chan->context, context, sizeof(chan->context));
 		} else {  /* increment the priority by default*/
 			chan->priority++;
 		}
@@ -7490,7 +7482,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "Reported node %s cannot be found!!\n",b1);
 			return -1;
 		}
-		strncpy(tmp,val,sizeof(tmp) - 1);
+		ast_copy_string(tmp,val,sizeof(tmp));
 		s = tmp;
 		s1 = strsep(&s,",");
 		s2 = strsep(&s,",");
@@ -7588,7 +7580,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		/* zero the silly thing */
 		memset((char *)l,0,sizeof(struct rpt_link));
 		l->mode = 1;
-		strncpy(l->name,b1,MAXNODESTR - 1);
+		ast_copy_string(l->name,b1,MAXNODESTR);
 		l->isremote = 0;
 		l->chan = chan;
 		l->connected = 1;

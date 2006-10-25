@@ -601,7 +601,7 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	ast_mutex_lock(&pvt->lock);
 	if (!gatekeeper_disable) {
 		if (ast_strlen_zero(pvt->exten)) {
-			strncpy(called_addr, dest, sizeof(called_addr));
+			ast_copy_string(called_addr, dest, sizeof(called_addr));
 		} else {
 			snprintf(called_addr, sizeof(called_addr), "%s@%s", pvt->exten, dest);
 		}
@@ -618,13 +618,13 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	called_addr[sizeof(called_addr) - 1] = '\0';
 
 	if (c->cid.cid_num)
-		strncpy(pvt->options.cid_num, c->cid.cid_num, sizeof(pvt->options.cid_num));
+		ast_copy_string(pvt->options.cid_num, c->cid.cid_num, sizeof(pvt->options.cid_num));
 
 	if (c->cid.cid_name)
-		strncpy(pvt->options.cid_name, c->cid.cid_name, sizeof(pvt->options.cid_name));
+		ast_copy_string(pvt->options.cid_name, c->cid.cid_name, sizeof(pvt->options.cid_name));
 
 	if (c->cid.cid_rdnis) {
-		strncpy(pvt->options.cid_rdnis, c->cid.cid_rdnis, sizeof(pvt->options.cid_rdnis));
+		ast_copy_string(pvt->options.cid_rdnis, c->cid.cid_rdnis, sizeof(pvt->options.cid_rdnis));
 	}
 
 	pvt->options.presentation = c->cid.cid_pres;
@@ -1046,8 +1046,8 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		/* Set the owner of this channel */
 		pvt->owner = ch;
 
-		strncpy(ch->context, pvt->context, sizeof(ch->context) - 1);
-		strncpy(ch->exten, pvt->exten, sizeof(ch->exten) - 1);
+		ast_copy_string(ch->context, pvt->context, sizeof(ch->context));
+		ast_copy_string(ch->exten, pvt->exten, sizeof(ch->exten));
 		ch->priority = 1;
 		if (!ast_strlen_zero(pvt->accountcode)) {
 			ast_string_field_set(ch, accountcode, pvt->accountcode);
@@ -1128,7 +1128,7 @@ static struct oh323_pvt *oh323_alloc(int callid)
 	} else {
 		pvt->nonCodecCapability &= ~AST_RTP_DTMF;
 	}
-	strncpy(pvt->context, default_context, sizeof(pvt->context) - 1);
+	ast_copy_string(pvt->context, default_context, sizeof(pvt->context));
 	pvt->newstate = pvt->newcontrol = pvt->newdigit = pvt->update_rtp_info = pvt->DTMFsched = -1;
 	ast_mutex_init(&pvt->lock);
 	/* Add to interface list */
@@ -1201,16 +1201,16 @@ static struct oh323_alias *build_alias(const char *name, struct ast_variable *v,
 		ASTOBJ_INIT(alias);
 	}
 	if (!found && name)
-		strncpy(alias->name, name, sizeof(alias->name) - 1);
+		ast_copy_string(alias->name, name, sizeof(alias->name));
 	for (; v || ((v = alt) && !(alt = NULL)); v = v->next) {
 		if (!strcasecmp(v->name, "e164")) {
-			strncpy(alias->e164, v->value, sizeof(alias->e164) - 1);
+			ast_copy_string(alias->e164, v->value, sizeof(alias->e164));
 		} else if (!strcasecmp(v->name, "prefix")) {
-			strncpy(alias->prefix, v->value, sizeof(alias->prefix) - 1);
+			ast_copy_string(alias->prefix, v->value, sizeof(alias->prefix));
 		} else if (!strcasecmp(v->name, "context")) {
-			strncpy(alias->context, v->value, sizeof(alias->context) - 1);
+			ast_copy_string(alias->context, v->value, sizeof(alias->context));
 		} else if (!strcasecmp(v->name, "secret")) {
-			strncpy(alias->secret, v->value, sizeof(alias->secret) - 1);
+			ast_copy_string(alias->secret, v->value, sizeof(alias->secret));
 		} else {
 			if (strcasecmp(v->value, "h323")) {
 				ast_log(LOG_WARNING, "Keyword %s does not make sense in type=h323\n", v->name);
@@ -1349,9 +1349,9 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v, struct 
 	user->ha = (struct ast_ha *)NULL;
 	memcpy(&user->options, &global_options, sizeof(user->options));
 	/* Set default context */
-	strncpy(user->context, default_context, sizeof(user->context) - 1);
+	ast_copy_string(user->context, default_context, sizeof(user->context));
 	if (user && !found)
-		strncpy(user->name, name, sizeof(user->name) - 1);
+		ast_copy_string(user->name, name, sizeof(user->name));
 
 #if 0 /* XXX Port channel variables functionality from chan_sip XXX */
 	if (user->chanvars) {
@@ -1364,11 +1364,11 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v, struct 
 		if (!update_common_options(v, &user->options))
 			continue;
 		if (!strcasecmp(v->name, "context")) {
-			strncpy(user->context, v->value, sizeof(user->context) - 1);
+			ast_copy_string(user->context, v->value, sizeof(user->context));
 		} else if (!strcasecmp(v->name, "secret")) {
-			strncpy(user->secret, v->value, sizeof(user->secret) - 1);
+			ast_copy_string(user->secret, v->value, sizeof(user->secret));
 		} else if (!strcasecmp(v->name, "accountcode")) {
-			strncpy(user->accountcode, v->value, sizeof(user->accountcode) - 1);
+			ast_copy_string(user->accountcode, v->value, sizeof(user->accountcode));
 		} else if (!strcasecmp(v->name, "host")) {
 			if (!strcasecmp(v->value, "dynamic")) {
 				ast_log(LOG_ERROR, "A dynamic host on a type=user does not make any sense\n");
@@ -1456,7 +1456,7 @@ static struct oh323_peer *build_peer(const char *name, struct ast_variable *v, s
 	peer->addr.sin_port = htons(h323_signalling_port);
 	peer->addr.sin_family = AF_INET;
 	if (!found && name)
-		strncpy(peer->name, name, sizeof(peer->name) - 1);
+		ast_copy_string(peer->name, name, sizeof(peer->name));
 
 #if 0 /* XXX Port channel variables functionality from chan_sip XXX */
 	if (peer->chanvars) {
@@ -1602,7 +1602,7 @@ static int create_addr(struct oh323_pvt *pvt, char *opeer)
 	char *hostn;
 	char peer[256] = "";
 
-	strncpy(peer, opeer, sizeof(peer) - 1);
+	ast_copy_string(peer, opeer, sizeof(peer));
 	port = strchr(peer, ':');
 	if (port) {
 		*port = '\0';
@@ -1690,7 +1690,7 @@ static struct ast_channel *oh323_request(const char *type, int format, void *dat
 			*cause = AST_CAUSE_INCOMPATIBLE_DESTINATION;
 		return NULL;
 	}
-	strncpy(tmp, dest, sizeof(tmp) - 1);
+	ast_copy_string(tmp, dest, sizeof(tmp));
 	host = strchr(tmp, '@');
 	if (host) {
 		*host = '\0';
@@ -1707,7 +1707,7 @@ static struct ast_channel *oh323_request(const char *type, int format, void *dat
 		h323_set_id(h323id);
 	}
 	if (ext) {
-		strncpy(pvt->exten, ext, sizeof(pvt->exten) - 1);
+		ast_copy_string(pvt->exten, ext, sizeof(pvt->exten));
 	}
 	if (h323debug)
 		ast_log(LOG_DEBUG, "Extension: %s Host: %s\n", pvt->exten, host);
@@ -1858,8 +1858,7 @@ static struct rtp_info *external_rtp_create(unsigned call_reference, const char 
 	ast_rtp_get_us(pvt->rtp, &us);
 	ast_mutex_unlock(&pvt->lock);
 
-	strncpy(info->addr, ast_inet_ntoa(us.sin_addr), sizeof(info->addr));
-	info->addr[sizeof(info->addr)-1] = '\0';
+	ast_copy_string(info->addr, ast_inet_ntoa(us.sin_addr), sizeof(info->addr));
 	info->port = ntohs(us.sin_port);
 	if (h323debug)
 		ast_log(LOG_DEBUG, "Sending RTP 'US' %s:%d\n", info->addr, info->port);
@@ -2077,8 +2076,8 @@ static call_options_t *setup_incoming_call(call_details_t *cd)
 	/* Decide if we are allowing Gatekeeper routed calls*/
 	if ((!strcasecmp(cd->sourceIp, gatekeeper)) && (gkroute == -1) && !gatekeeper_disable) {
 		if (!ast_strlen_zero(cd->call_dest_e164)) {
-			strncpy(pvt->exten, cd->call_dest_e164, sizeof(pvt->exten) - 1);
-			strncpy(pvt->context, default_context, sizeof(pvt->context) - 1);
+			ast_copy_string(pvt->exten, cd->call_dest_e164, sizeof(pvt->exten));
+			ast_copy_string(pvt->context, default_context, sizeof(pvt->context));
 		} else {
 			alias = find_alias(cd->call_dest_alias, 1);
 			if (!alias) {
@@ -2086,8 +2085,8 @@ static call_options_t *setup_incoming_call(call_details_t *cd)
 				oh323_destroy(pvt);
 				return NULL;
 			}
-			strncpy(pvt->exten, alias->name, sizeof(pvt->exten) - 1);
-			strncpy(pvt->context, alias->context, sizeof(pvt->context) - 1);
+			ast_copy_string(pvt->exten, alias->name, sizeof(pvt->exten));
+			ast_copy_string(pvt->context, alias->context, sizeof(pvt->context));
 		}
 	} else {
 		/* Either this call is not from the Gatekeeper
@@ -2104,11 +2103,11 @@ static call_options_t *setup_incoming_call(call_details_t *cd)
 				oh323_destroy(pvt);
 				return NULL;
 			}
-			strncpy(pvt->context, default_context, sizeof(pvt->context) - 1);
+			ast_copy_string(pvt->context, default_context, sizeof(pvt->context));
 			if (!ast_strlen_zero(pvt->cd.call_dest_e164)) {
-				strncpy(pvt->exten, cd->call_dest_e164, sizeof(pvt->exten) - 1);
+				ast_copy_string(pvt->exten, cd->call_dest_e164, sizeof(pvt->exten));
 			} else {
-				strncpy(pvt->exten, cd->call_dest_alias, sizeof(pvt->exten) - 1);
+				ast_copy_string(pvt->exten, cd->call_dest_alias, sizeof(pvt->exten));
 			}
 			if (h323debug)
 				ast_log(LOG_DEBUG, "Sending %s@%s to context [%s] extension %s\n", cd->call_source_aliases, cd->sourceIp, pvt->context, pvt->exten);
@@ -2122,9 +2121,9 @@ static call_options_t *setup_incoming_call(call_details_t *cd)
 							ASTOBJ_UNREF(user, oh323_destroy_user);
 							return NULL;
 						}
-						strncpy(pvt->context, default_context, sizeof(pvt->context) - 1);
+						ast_copy_string(pvt->context, default_context, sizeof(pvt->context));
 					} else {
-						strncpy(pvt->context, user->context, sizeof(pvt->context) - 1);
+						ast_copy_string(pvt->context, user->context, sizeof(pvt->context));
 					}
 					pvt->exten[0] = 'i';
 					pvt->exten[1] = '\0';
@@ -2134,16 +2133,16 @@ static call_options_t *setup_incoming_call(call_details_t *cd)
 					return NULL;	/* XXX: Hmmm... Why to setup context if we drop connection immediately??? */
 				}
 			}
-			strncpy(pvt->context, user->context, sizeof(pvt->context) - 1);
+			ast_copy_string(pvt->context, user->context, sizeof(pvt->context));
 			memcpy(&pvt->options, &user->options, sizeof(pvt->options));
 			pvt->jointcapability = pvt->options.capability;
 			if (!ast_strlen_zero(pvt->cd.call_dest_e164)) {
-				strncpy(pvt->exten, cd->call_dest_e164, sizeof(pvt->exten) - 1);
+				ast_copy_string(pvt->exten, cd->call_dest_e164, sizeof(pvt->exten));
 			} else {
-				strncpy(pvt->exten, cd->call_dest_alias, sizeof(pvt->exten) - 1);
+				ast_copy_string(pvt->exten, cd->call_dest_alias, sizeof(pvt->exten));
 			}
 			if (!ast_strlen_zero(user->accountcode)) {
-				strncpy(pvt->accountcode, user->accountcode, sizeof(pvt->accountcode) - 1);
+				ast_copy_string(pvt->accountcode, user->accountcode, sizeof(pvt->accountcode));
 			}
 			if (user->amaflags) {
 				pvt->amaflags = user->amaflags;
@@ -2176,7 +2175,7 @@ static int answer_call(unsigned call_reference, const char *token)
 		return 0;
 	}
 	/* Check if requested extension@context pair exists in the dialplan */
-	strncpy(tmp_exten, pvt->exten, sizeof(tmp_exten));
+	ast_copy_string(tmp_exten, pvt->exten, sizeof(tmp_exten));
 
 	/* Try to find best extension in specified context */
 	if ((tmp_exten[0] != '\0') && (tmp_exten[1] == '\0')) {
@@ -2218,7 +2217,7 @@ static int answer_call(unsigned call_reference, const char *token)
 	} else if ((try_exten != ext_original) && (strcmp(pvt->exten, tmp_exten) != 0)) {
 		if (h323debug)
 			ast_log(LOG_DEBUG, "Going to extension %s@%s because %s@%s isn't exists\n", tmp_exten, pvt->context, pvt->exten, pvt->context);
-		strncpy(pvt->exten, tmp_exten, sizeof(pvt->exten));
+		ast_copy_string(pvt->exten, tmp_exten, sizeof(pvt->exten));
 	}
 
 	/* allocate a channel and tell asterisk about it */
@@ -2697,7 +2696,7 @@ static int reload_config(int is_reload)
 	if (!h323_end_point_exist()) {
 		h323_end_point_create();
 	}
-	strncpy(_gatekeeper, gatekeeper, sizeof(_gatekeeper));
+	ast_copy_string(_gatekeeper, gatekeeper, sizeof(_gatekeeper));
 	gk_discover = gatekeeper_discover;
 	gk_disable = gatekeeper_disable;
 	memset(&bindaddr, 0, sizeof(bindaddr));
@@ -2708,7 +2707,7 @@ static int reload_config(int is_reload)
 	global_options.dtmfmode = H323_DTMF_RFC2833;
 	global_options.capability = GLOBAL_CAPABILITY;
 	global_options.bridge = 1;		/* Do native bridging by default */
-	strncpy(default_context, "default", sizeof(default_context) - 1);
+	strcpy(default_context, "default");
 	h323_signalling_port = 1720;
 	gatekeeper_disable = 1;
 	gatekeeper_discover = 0;
@@ -2781,14 +2780,14 @@ static int reload_config(int is_reload)
 				gatekeeper_discover = 1;
 			} else {
 				gatekeeper_disable = 0;
-				strncpy(gatekeeper, v->value, sizeof(gatekeeper) - 1);
+				ast_copy_string(gatekeeper, v->value, sizeof(gatekeeper));
 			}
 		} else if (!strcasecmp(v->name, "secret")) {
-			strncpy(secret, v->value, sizeof(secret) - 1);
+			ast_copy_string(secret, v->value, sizeof(secret));
 		} else if (!strcasecmp(v->name, "AllowGKRouted")) {
 			gkroute = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "context")) {
-			strncpy(default_context, v->value, sizeof(default_context) - 1);
+			ast_copy_string(default_context, v->value, sizeof(default_context));
 			ast_verbose(VERBOSE_PREFIX_2 "Setting default context to %s\n", default_context);
 		} else if (!strcasecmp(v->name, "UserByAlias")) {
 			userbyalias = ast_true(v->value);

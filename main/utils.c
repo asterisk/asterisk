@@ -449,7 +449,7 @@ char *ast_uri_encode(const char *string, char *outbuf, int buflen, int doreserve
 	char *out = NULL;
 	char *buf = NULL;
 
-	strncpy(outbuf, string, buflen);
+	ast_copy_string(outbuf, string, buflen);
 
 	/* If there's no characters to convert, just go through and don't do anything */
 	while (*ptr) {

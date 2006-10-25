@@ -125,7 +125,7 @@ struct ast_frame *ast_read_image(char *filename, const char *preflang, int forma
 	AST_LIST_TRAVERSE(&imagers, i, list) {
 		if (i->format & format) {
 			char *stringp=NULL;
-			strncpy(tmp, i->exts, sizeof(tmp)-1);
+			ast_copy_string(tmp, i->exts, sizeof(tmp));
 			stringp=tmp;
 			e = strsep(&stringp, "|");
 			while(e) {

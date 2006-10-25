@@ -212,7 +212,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 		} while (ast_fileexists(tmp, ext, chan->language) > 0);
 		pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
 	} else
-		strncpy(tmp, filename, sizeof(tmp)-1);
+		ast_copy_string(tmp, filename, sizeof(tmp));
 	/* end of routine mentioned */
 	
 	
