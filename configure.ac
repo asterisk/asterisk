@@ -734,9 +734,9 @@ if test "${PBX_PWLIB}" = "1" -a "${USE_OPENH323}" != "no" ; then
 fi
 if test "${USE_OPENH323}" != "no" -a "x${ac_cv_lib_OPENH323}" != "xyes" -a ! -z "${OPENH323_MANDATORY}"; then
    AC_MSG_NOTICE(***)
-   AC_MSG_NOTICE(*** The PWLIB installation on this system appears to be broken.)
+   AC_MSG_NOTICE(*** The OPENH323 installation on this system appears to be broken.)
    AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-   AC_MSG_NOTICE(*** including --without-pwlib)
+   AC_MSG_NOTICE(*** including --without-h323)
    exit 1
 fi
 
