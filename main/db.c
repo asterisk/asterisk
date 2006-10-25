@@ -203,8 +203,7 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 		if (data.size) {
 			((char *)data.data)[data.size - 1] = '\0';
 			/* Make sure that we don't write too much to the dst pointer or we don't read too much from the source pointer */
-			strncpy(value, data.data, (valuelen > data.size) ? data.size : valuelen);
-			value[valuelen - 1] = '\0';
+			ast_copy_string(value, data.data, (valuelen > data.size) ? data.size : valuelen);
 		} else {
 			ast_log(LOG_NOTICE, "Strange, empty value for /%s/%s\n", family, keys);
 		}

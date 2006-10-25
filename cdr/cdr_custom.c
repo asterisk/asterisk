@@ -77,9 +77,9 @@ static int load_config(int reload)
 		while(var) {
 			ast_mutex_lock(&lock);
 			if (!ast_strlen_zero(var->name) && !ast_strlen_zero(var->value)) {
-				if (strlen(var->value) > (sizeof(format) - 2))
+				if (strlen(var->value) > (sizeof(format) - 1))
 					ast_log(LOG_WARNING, "Format string too long, will be truncated, at line %d\n", var->lineno);
-				strncpy(format, var->value, sizeof(format) - 2);
+				ast_copy_string(format, var->value, sizeof(format) - 1);
 				strcat(format,"\n");
 				snprintf(master, sizeof(master),"%s/%s/%s", ast_config_AST_LOG_DIR, name, var->name);
 				ast_mutex_unlock(&lock);

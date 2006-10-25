@@ -7278,23 +7278,22 @@ static int load_config(void)
 			char *tmpread, *tmpwrite;
 			emailbody = ast_strdup(s);
 
-			/* substitute strings \t and \n into the apropriate characters */
+			/* substitute strings \t and \n into the appropriate characters */
 			tmpread = tmpwrite = emailbody;
 			while ((tmpwrite = strchr(tmpread,'\\'))) {
-				int len = strlen("\n");
 				switch (tmpwrite[1]) {
 				case 'n':
-					strncpy(tmpwrite + len, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
-					strncpy(tmpwrite, "\n", len);
+					*tmpwrite++ = '\n';
+					memmove(tmpwrite, tmpwrite + 1, strlen(tmpwrite + 1) + 1);
 					break;
 				case 't':
-					strncpy(tmpwrite + len, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
-					strncpy(tmpwrite, "\t", len);
+					*tmpwrite++ = '\t';
+					memmove(tmpwrite, tmpwrite + 1, strlen(tmpwrite + 1) + 1);
 					break;
 				default:
 					ast_log(LOG_NOTICE, "Substitution routine does not support this character: %c\n", tmpwrite[1]);
 				}
-				tmpread = tmpwrite + len;
+				tmpread = tmpwrite + 1;
 			}
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "pagersubject")))
@@ -7303,23 +7302,22 @@ static int load_config(void)
 			char *tmpread, *tmpwrite;
 			pagerbody = ast_strdup(s);
 
-			/* substitute strings \t and \n into the apropriate characters */
+			/* substitute strings \t and \n into the appropriate characters */
 			tmpread = tmpwrite = pagerbody;
 			while ((tmpwrite = strchr(tmpread, '\\'))) {
-				int len = strlen("\n");
 				switch (tmpwrite[1]) {
-					case 'n':
-						strncpy(tmpwrite + len, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
-						strncpy(tmpwrite, "\n", len);
-						break;
-					case 't':
-						strncpy(tmpwrite + len, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
-						strncpy(tmpwrite, "\t", len);
-						break;
-					default:
-						ast_log(LOG_NOTICE, "Substitution routine does not support this character: %c\n", tmpwrite[1]);
+				case 'n':
+					*tmpwrite++ = '\n';
+					memmove(tmpwrite, tmpwrite + 1, strlen(tmpwrite + 1) + 1);
+					break;
+				case 't':
+					*tmpwrite++ = '\t';
+					memmove(tmpwrite, tmpwrite + 1, strlen(tmpwrite + 1) + 1);
+					break;
+				default:
+					ast_log(LOG_NOTICE, "Substitution routine does not support this character: %c\n", tmpwrite[1]);
 				}
-				tmpread = tmpwrite + len;
+				tmpread = tmpwrite + 1;
 			}
 		}
 		AST_LIST_UNLOCK(&users);

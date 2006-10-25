@@ -678,7 +678,7 @@ int ast_cdr_appenduserfield(struct ast_channel *chan, const char *userfield)
 		int len = strlen(cdr->userfield);
 
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
-			strncpy(cdr->userfield+len, userfield, sizeof(cdr->userfield) - len - 1);
+			ast_copy_string(cdr->userfield + len, userfield, sizeof(cdr->userfield) - len);
 	}
 
 	return 0;

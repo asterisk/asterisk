@@ -129,7 +129,7 @@ static void dump_string(char *output, int maxlen, void *value, int len)
 	maxlen--;
 	if (maxlen > len)
 		maxlen = len;
-	strncpy(output,value, maxlen);
+	strncpy(output, value, maxlen);
 	output[maxlen] = '\0';
 }
 

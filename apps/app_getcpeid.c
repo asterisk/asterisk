@@ -71,21 +71,20 @@ static int cpeid_exec(struct ast_channel *chan, void *idata)
 	int gotgeometry = 0;
 	int gotcpeid = 0;
 	int width, height, buttons;
-	char data[4][80];
-	char *stuff[4];
+	char *data[4];
+	unsigned int x;
 
 	u = ast_module_user_add(chan);
-	stuff[0] = data[0];
-	stuff[1] = data[1];
-	stuff[2] = data[2];
-	stuff[3] = data[3];
-	memset(data, 0, sizeof(data));
-	strncpy(stuff[0], "** CPE Info **", sizeof(data[0]) - 1);
-	strncpy(stuff[1], "Identifying CPE...", sizeof(data[1]) - 1);
-	strncpy(stuff[2], "Please wait...", sizeof(data[2]) - 1);
+
+	for (x = 0; x < 4; x++)
+		data[x] = alloca(80);
+
+	strcpy(data[0], "** CPE Info **");
+	strcpy(data[1], "Identifying CPE...");
+	strcpy(data[2], "Please wait...");
 	res = ast_adsi_load_session(chan, NULL, 0, 1);
 	if (res > 0) {
-		cpeid_setstatus(chan, stuff, 0);
+		cpeid_setstatus(chan, data, 0);
 		res = ast_adsi_get_cpeid(chan, cpeid, 0);
 		if (res > 0) {
 			gotcpeid = 1;
@@ -93,9 +92,9 @@ static int cpeid_exec(struct ast_channel *chan, void *idata)
 				ast_verbose(VERBOSE_PREFIX_3 "Got CPEID of '%02x:%02x:%02x:%02x' on '%s'\n", cpeid[0], cpeid[1], cpeid[2], cpeid[3], chan->name);
 		}
 		if (res > -1) {
-			strncpy(stuff[1], "Measuring CPE...", sizeof(data[1]) - 1);
-			strncpy(stuff[2], "Please wait...", sizeof(data[2]) - 1);
-			cpeid_setstatus(chan, stuff, 0);
+			strcpy(data[1], "Measuring CPE...");
+			strcpy(data[2], "Please wait...");
+			cpeid_setstatus(chan, data, 0);
 			res = ast_adsi_get_cpeinfo(chan, &width, &height, &buttons, 0);
 			if (res > -1) {
 				if (option_verbose > 2)
@@ -105,15 +104,15 @@ static int cpeid_exec(struct ast_channel *chan, void *idata)
 		}
 		if (res > -1) {
 			if (gotcpeid)
-				snprintf(stuff[1], sizeof(data[1]), "CPEID: %02x:%02x:%02x:%02x", cpeid[0], cpeid[1], cpeid[2], cpeid[3]);
+				snprintf(data[1], 80, "CPEID: %02x:%02x:%02x:%02x", cpeid[0], cpeid[1], cpeid[2], cpeid[3]);
 			else
-				strncpy(stuff[1], "CPEID Unknown", sizeof(data[1]) - 1);
+				strcpy(data[1], "CPEID Unknown");
 			if (gotgeometry) 
-				snprintf(stuff[2], sizeof(data[2]), "Geom: %dx%d, %d buttons", width, height, buttons);
+				snprintf(data[2], 80, "Geom: %dx%d, %d buttons", width, height, buttons);
 			else
-				strncpy(stuff[2], "Geometry unknown", sizeof(data[2]) - 1);
-			strncpy(stuff[3], "Press # to exit", sizeof(data[3]) - 1);
-			cpeid_setstatus(chan, stuff, 1);
+				strcpy(data[2], "Geometry unknown");
+			strcpy(data[3], "Press # to exit");
+			cpeid_setstatus(chan, data, 1);
 			for(;;) {
 				res = ast_waitfordigit(chan, 1000);
 				if (res < 0)

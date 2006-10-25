@@ -166,11 +166,11 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 				printf("'%s' is '%s' at line %d\n", buf, c, lineno);
 #endif
 				if (!strcasecmp(buf, "channel")) {
-					strncpy(o->tech, c, sizeof(o->tech) - 1);
+					ast_copy_string(o->tech, c, sizeof(o->tech));
 					if ((c2 = strchr(o->tech, '/'))) {
 						*c2 = '\0';
 						c2++;
-						strncpy(o->dest, c2, sizeof(o->dest) - 1);
+						ast_copy_string(o->dest, c2, sizeof(o->dest));
 					} else {
 						ast_log(LOG_NOTICE, "Channel should be in form Tech/Dest at line %d of %s\n", lineno, fn);
 						o->tech[0] = '\0';
@@ -178,18 +178,18 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 				} else if (!strcasecmp(buf, "callerid")) {
 					ast_callerid_split(c, o->cid_name, sizeof(o->cid_name), o->cid_num, sizeof(o->cid_num));
 				} else if (!strcasecmp(buf, "application")) {
-					strncpy(o->app, c, sizeof(o->app) - 1);
+					ast_copy_string(o->app, c, sizeof(o->app));
 				} else if (!strcasecmp(buf, "data")) {
-					strncpy(o->data, c, sizeof(o->data) - 1);
+					ast_copy_string(o->data, c, sizeof(o->data));
 				} else if (!strcasecmp(buf, "maxretries")) {
 					if (sscanf(c, "%d", &o->maxretries) != 1) {
 						ast_log(LOG_WARNING, "Invalid max retries at line %d of %s\n", lineno, fn);
 						o->maxretries = 0;
 					}
 				} else if (!strcasecmp(buf, "context")) {
-					strncpy(o->context, c, sizeof(o->context) - 1);
+					ast_copy_string(o->context, c, sizeof(o->context));
 				} else if (!strcasecmp(buf, "extension")) {
-					strncpy(o->exten, c, sizeof(o->exten) - 1);
+					ast_copy_string(o->exten, c, sizeof(o->exten));
 				} else if (!strcasecmp(buf, "priority")) {
 					if ((sscanf(c, "%d", &o->priority) != 1) || (o->priority < 1)) {
 						ast_log(LOG_WARNING, "Invalid priority at line %d of %s\n", lineno, fn);
@@ -240,7 +240,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 				ast_log(LOG_NOTICE, "Syntax error at line %d of %s\n", lineno, fn);
 		}
 	}
-	strncpy(o->fn, fn, sizeof(o->fn) - 1);
+	ast_copy_string(o->fn, fn, sizeof(o->fn));
 	if (ast_strlen_zero(o->tech) || ast_strlen_zero(o->dest) || (ast_strlen_zero(o->app) && ast_strlen_zero(o->exten))) {
 		ast_log(LOG_WARNING, "At least one of app or extension must be specified, along with tech and dest in file %s\n", fn);
 		return -1;

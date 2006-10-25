@@ -8594,11 +8594,9 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 				ast_string_field_set(user, dbsecret, v->value);
 			} else if (!strcasecmp(v->name, "secret")) {
 				if (!ast_strlen_zero(user->secret)) {
-					char buf99[100];
-					strncpy(buf99,user->secret,100); /* just in case some weirdness happens in the string_field_build */
-					ast_string_field_build(user,secret,"%s;%s",buf99,v->value);
-					/* strncpy(user->secret + strlen(user->secret), ";", sizeof(user->secret) - strlen(user->secret) - 1);
-					   strncpy(user->secret + strlen(user->secret), v->value, sizeof(user->secret) - strlen(user->secret) - 1); */
+					char *old = ast_strdupa(user->secret);
+
+					ast_string_field_build(user, secret, "%s;%s", old, v->value);
 				} else
 					ast_string_field_set(user, secret, v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {

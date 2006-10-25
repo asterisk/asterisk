@@ -3642,7 +3642,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "port")) {
 				gw->addr.sin_port = htons(atoi(v->value));
 			} else if (!strcasecmp(v->name, "context")) {
-				strncpy(context, v->value, sizeof(context) - 1);
+				ast_copy_string(context, v->value, sizeof(context));
 			} else if (!strcasecmp(v->name, "dtmfmode")) {
 				if (!strcasecmp(v->value, "inband"))
 					dtmfmode = MGCP_DTMF_INBAND;
@@ -3664,9 +3664,9 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					ast_callerid_split(v->value, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
 				}
 			} else if (!strcasecmp(v->name, "language")) {
-				strncpy(language, v->value, sizeof(language)-1);
+				ast_copy_string(language, v->value, sizeof(language));
 			} else if (!strcasecmp(v->name, "accountcode")) {
-				strncpy(accountcode, v->value, sizeof(accountcode)-1);
+				ast_copy_string(accountcode, v->value, sizeof(accountcode));
 			} else if (!strcasecmp(v->name, "amaflags")) {
 				y = ast_cdr_amaflags2int(v->value);
 				if (y < 0) {
@@ -3675,7 +3675,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					amaflags = y;
 				}
 			} else if (!strcasecmp(v->name, "musiconhold")) {
-				strncpy(musicclass, v->value, sizeof(musicclass)-1);
+				ast_copy_string(musicclass, v->value, sizeof(musicclass));
 			} else if (!strcasecmp(v->name, "callgroup")) {
 				cur_callergroup = ast_get_group(v->value);
 			} else if (!strcasecmp(v->name, "pickupgroup")) {
@@ -3689,7 +3689,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "canreinvite")) {
 				canreinvite = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "mailbox")) {
-				strncpy(mailbox, v->value, sizeof(mailbox) -1);
+				ast_copy_string(mailbox, v->value, sizeof(mailbox));
 			} else if (!strcasecmp(v->name, "adsi")) {
 				adsi = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callreturn")) {
@@ -3727,19 +3727,18 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 						ast_mutex_init(&e->lock);
 						ast_mutex_init(&e->rqnt_queue_lock);
 						ast_mutex_init(&e->cmd_queue_lock);
-						strncpy(e->name, v->value, sizeof(e->name) - 1);
+						ast_copy_string(e->name, v->value, sizeof(e->name));
 						e->needaudit = 1;
 					}
-					strncpy(gw->wcardep, v->value, sizeof(gw->wcardep) - 1);
-					/*strncpy(e->name, "aaln/" "*", sizeof(e->name) - 1);*/
+					ast_copy_string(gw->wcardep, v->value, sizeof(gw->wcardep));
 					/* XXX Should we really check for uniqueness?? XXX */
-					strncpy(e->accountcode, accountcode, sizeof(e->accountcode) - 1);
-					strncpy(e->context, context, sizeof(e->context) - 1);
-					strncpy(e->cid_num, cid_num, sizeof(e->cid_num) - 1);
-					strncpy(e->cid_name, cid_name, sizeof(e->cid_name) - 1);
-					strncpy(e->language, language, sizeof(e->language) - 1);
-					strncpy(e->musicclass, musicclass, sizeof(e->musicclass) - 1);
-					strncpy(e->mailbox, mailbox, sizeof(e->mailbox) - 1);
+					ast_copy_string(e->accountcode, accountcode, sizeof(e->accountcode));
+					ast_copy_string(e->context, context, sizeof(e->context));
+					ast_copy_string(e->cid_num, cid_num, sizeof(e->cid_num));
+					ast_copy_string(e->cid_name, cid_name, sizeof(e->cid_name));
+					ast_copy_string(e->language, language, sizeof(e->language));
+					ast_copy_string(e->musicclass, musicclass, sizeof(e->musicclass));
+					ast_copy_string(e->mailbox, mailbox, sizeof(e->mailbox));
 					snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08lx", ast_random());
 					e->msgstate = -1;
 					e->amaflags = amaflags;
@@ -3827,17 +3826,17 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 						ast_mutex_init(&e->lock);
 						ast_mutex_init(&e->rqnt_queue_lock);
 						ast_mutex_init(&e->cmd_queue_lock);
-						strncpy(e->name, v->value, sizeof(e->name) - 1);
+						ast_copy_string(e->name, v->value, sizeof(e->name));
 						e->needaudit = 1;
 					}
 					/* XXX Should we really check for uniqueness?? XXX */
-					strncpy(e->accountcode, accountcode, sizeof(e->accountcode) - 1);
-					strncpy(e->context, context, sizeof(e->context) - 1);
-					strncpy(e->cid_num, cid_num, sizeof(e->cid_num) - 1);
-					strncpy(e->cid_name, cid_name, sizeof(e->cid_name) - 1);
-					strncpy(e->language, language, sizeof(e->language) - 1);
-					strncpy(e->musicclass, musicclass, sizeof(e->musicclass) - 1);
-					strncpy(e->mailbox, mailbox, sizeof(e->mailbox)-1);
+					ast_copy_string(e->accountcode, accountcode, sizeof(e->accountcode));
+					ast_copy_string(e->context, context, sizeof(e->context));
+					ast_copy_string(e->cid_num, cid_num, sizeof(e->cid_num));
+					ast_copy_string(e->cid_name, cid_name, sizeof(e->cid_name));
+					ast_copy_string(e->language, language, sizeof(e->language));
+					ast_copy_string(e->musicclass, musicclass, sizeof(e->musicclass));
+					ast_copy_string(e->mailbox, mailbox, sizeof(e->mailbox));
 					if (!ast_strlen_zero(mailbox)) {
 						ast_verbose(VERBOSE_PREFIX_3 "Setting mailbox '%s' on %s@%s\n", mailbox, gw->name, e->name);
 					}
@@ -3890,7 +3889,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 								memset(sub, 0, sizeof(struct mgcp_subchannel));
 								ast_mutex_init(&sub->lock);
 								ast_mutex_init(&sub->cx_queue_lock);
-								strncpy(sub->magic, MGCP_SUBCHANNEL_MAGIC, sizeof(sub->magic) - 1);
+								ast_copy_string(sub->magic, MGCP_SUBCHANNEL_MAGIC, sizeof(sub->magic));
 								sub->parent = e;
 								sub->id = i;
 								snprintf(sub->txident, sizeof(sub->txident), "%08lx", ast_random());

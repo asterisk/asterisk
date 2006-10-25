@@ -1437,8 +1437,7 @@ char **ast_cli_completion_matches(const char *text, const char *word)
 	if (!(retstr = ast_malloc(max_equal + 1)))
 		return NULL;
 	
-	strncpy(retstr, match_list[1], max_equal);
-	retstr[max_equal] = '\0';
+	ast_copy_string(retstr, match_list[1], max_equal + 1);
 	match_list[0] = retstr;
 
 	/* ensure that the array is NULL terminated */

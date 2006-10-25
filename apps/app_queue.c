@@ -767,10 +767,6 @@ static void clear_and_free_interfaces(void)
    extra fields in the tables. */
 static void queue_set_param(struct call_queue *q, const char *param, const char *val, int linenum, int failunknown)
 {
-	int i = 0;
-	char *c, *lastc;
-	char buff[80];
-
 	if (!strcasecmp(param, "musicclass") || 
 		!strcasecmp(param, "music") || !strcasecmp(param, "musiconhold")) {
 		ast_copy_string(q->moh, val, sizeof(q->moh));
@@ -831,22 +827,18 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		else
 			q->announceholdtime = 0;
 	} else if (!strcasecmp(param, "periodic-announce")) {
-		if (strchr(val,'|')) {
-			lastc = (char *)val;
-			while ((c = strchr(lastc,'|'))) {
-				if (i > MAX_PERIODIC_ANNOUNCEMENTS)
-					break;
-				strncpy(buff, lastc, abs(lastc - c));
-				buff[abs(lastc - c)] = '\0';
-				ast_copy_string(q->sound_periodicannounce[i], buff, sizeof(q->sound_periodicannounce[i]));
-				lastc = (c + 1);
+		if (strchr(val, '|')) {
+			char *s, *buf = ast_strdupa(val);
+			unsigned int i = 0;
+
+			while ((s = strsep(&buf, "|"))) {
+				ast_copy_string(q->sound_periodicannounce[i], s, sizeof(q->sound_periodicannounce[i]));
 				i++;
-			}
-			if (strlen(lastc)) {
-				ast_copy_string(q->sound_periodicannounce[i], lastc, sizeof(q->sound_periodicannounce[i]));
+				if (i == MAX_PERIODIC_ANNOUNCEMENTS)
+					break;
 			}
 		} else {
-			ast_copy_string(q->sound_periodicannounce[i], val, sizeof(q->sound_periodicannounce[i]));
+			ast_copy_string(q->sound_periodicannounce[0], val, sizeof(q->sound_periodicannounce[0]));
 		}
 	} else if (!strcasecmp(param, "periodic-announce-frequency")) {
 		q->periodicannouncefrequency = atoi(val);

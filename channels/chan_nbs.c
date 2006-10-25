@@ -129,10 +129,10 @@ static struct nbs_pvt *nbs_alloc(void *data)
 {
 	struct nbs_pvt *p;
 	int flags = 0;
-	char stream[256] = "";
+	char stream[256];
 	char *opts;
 
-	strncpy(stream, data, sizeof(stream) - 1);
+	ast_copy_string(stream, data, sizeof(stream));
 	if ((opts = strchr(stream, ':'))) {
 		*opts = '\0';
 		opts++;
@@ -153,7 +153,7 @@ static struct nbs_pvt *nbs_alloc(void *data)
 		} else
 			flags = NBS_FLAG_OVERSPEAK;
 		
-		strncpy(p->stream, stream, sizeof(p->stream) - 1);
+		ast_copy_string(p->stream, stream, sizeof(p->stream));
 		p->nbs = nbs_newstream("asterisk", stream, flags);
 		if (!p->nbs) {
 			ast_log(LOG_WARNING, "Unable to allocate new NBS stream '%s' with flags %d\n", stream, flags);
@@ -247,8 +247,8 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state)
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->tech_pvt = i;
-		strncpy(tmp->context, context, sizeof(tmp->context)-1);
-		strncpy(tmp->exten, "s",  sizeof(tmp->exten) - 1);
+		ast_copy_string(tmp->context, context, sizeof(tmp->context));
+		ast_copy_string(tmp->exten, "s",  sizeof(tmp->exten));
 		ast_string_field_set(tmp, language, "");
 		i->owner = tmp;
 		i->u = ast_module_user_add(tmp);

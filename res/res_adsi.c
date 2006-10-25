@@ -1114,10 +1114,9 @@ static void adsi_load(void)
 			if (!sname) 
 				sname = name;
 			if (x < ADSI_MAX_SPEED_DIAL) {
-				/* Up to 20 digits */
 				ast_copy_string(speeddial[x][0], v->name, sizeof(speeddial[x][0]));
-				strncpy(speeddial[x][1], name, 18);
-				strncpy(speeddial[x][2], sname, 7);
+				ast_copy_string(speeddial[x][1], name, 18);
+				ast_copy_string(speeddial[x][2], sname, 7);
 				x++;
 			}
 		}

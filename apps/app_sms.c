@@ -1389,7 +1389,7 @@ static int sms_exec (struct ast_channel *chan, void *data)
 			ast_module_user_remove(u);
 			return -1;
 		}
-		strncpy (h.queue, (char *)d, p - d);
+		strncpy(h.queue, (char *)d, p - d);
 		if (*p == '|')
 			p++;
 		d = p;

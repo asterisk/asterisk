@@ -97,7 +97,7 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 	case MODE_MATCH:
 	default:
 		ematch = "exten";
-		strncpy(rexten, exten, sizeof(rexten) - 1);
+		ast_copy_string(rexten, exten, sizeof(rexten));
 	}
 	var = ast_load_realtime(table, ematch, rexten, "context", context, "priority", pri, NULL);
 	if (!var) {
@@ -183,7 +183,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 
 		for (v = var; v ; v = v->next) {
 			if (!strcasecmp(v->name, "app"))
-				strncpy(app, v->value, sizeof(app) -1 );
+				ast_copy_string(app, v->value, sizeof(app));
 			else if (!strcasecmp(v->name, "appdata"))
 				tmp = ast_strdupa(v->value);
 		}

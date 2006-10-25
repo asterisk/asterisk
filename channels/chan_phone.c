@@ -313,12 +313,12 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 	/* the standard format of ast->callerid is:  "name" <number>, but not always complete */
 	if (ast_strlen_zero(ast->cid.cid_name))
-		strncpy(cid.name, DEFAULT_CALLER_ID, sizeof(cid.name) - 1);
+		strcpy(cid.name, DEFAULT_CALLER_ID);
 	else
-		strncpy(cid.name, ast->cid.cid_name, sizeof(cid.name) - 1);
+		ast_copy_string(cid.name, ast->cid.cid_name, sizeof(cid.name));
 
 	if (ast->cid.cid_num) 
-		strncpy(cid.number, ast->cid.cid_num, sizeof(cid.number) - 1);
+		ast_copy_string(cid.number, ast->cid.cid_num, sizeof(cid.number));
 
 	p = ast->tech_pvt;
 
@@ -873,11 +873,11 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->tech_pvt = i;
-		strncpy(tmp->context, context, sizeof(tmp->context)-1);
+		ast_copy_string(tmp->context, context, sizeof(tmp->context));
 		if (!ast_strlen_zero(i->ext))
-			strncpy(tmp->exten, i->ext, sizeof(tmp->exten)-1);
+			ast_copy_string(tmp->exten, i->ext, sizeof(tmp->exten));
 		else
-			strncpy(tmp->exten, "s",  sizeof(tmp->exten) - 1);
+			strcpy(tmp->exten, "s");
 		if (!ast_strlen_zero(i->language))
 			ast_string_field_set(tmp, language, i->language);
 
@@ -1213,15 +1213,15 @@ static struct phone_pvt *mkif(char *iface, int mode, int txgain, int rxgain)
 		tmp->lastinput = -1;
 		tmp->ministate = 0;
 		memset(tmp->ext, 0, sizeof(tmp->ext));
-		strncpy(tmp->language, language, sizeof(tmp->language)-1);
-		strncpy(tmp->dev, iface, sizeof(tmp->dev)-1);
-		strncpy(tmp->context, context, sizeof(tmp->context)-1);
+		ast_copy_string(tmp->language, language, sizeof(tmp->language));
+		ast_copy_string(tmp->dev, iface, sizeof(tmp->dev));
+		ast_copy_string(tmp->context, context, sizeof(tmp->context));
 		tmp->next = NULL;
 		tmp->obuflen = 0;
 		tmp->dialtone = 0;
 		tmp->cpt = 0;
-		strncpy(tmp->cid_num, cid_num, sizeof(tmp->cid_num)-1);
-		strncpy(tmp->cid_name, cid_name, sizeof(tmp->cid_name)-1);
+		ast_copy_string(tmp->cid_num, cid_num, sizeof(tmp->cid_num));
+		ast_copy_string(tmp->cid_name, cid_name, sizeof(tmp->cid_name));
 		tmp->txgain = txgain;
 		ioctl(tmp->fd, PHONE_PLAY_VOLUME, tmp->txgain);
 		tmp->rxgain = rxgain;
@@ -1392,7 +1392,7 @@ static int load_module(void)
 		} else if (!strcasecmp(v->name, "silencesupression")) {
 			silencesupression = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "language")) {
-			strncpy(language, v->value, sizeof(language)-1);
+			ast_copy_string(language, v->value, sizeof(language));
 		} else if (!strcasecmp(v->name, "callerid")) {
 			ast_callerid_split(v->value, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
 		} else if (!strcasecmp(v->name, "mode")) {
@@ -1411,7 +1411,7 @@ static int load_module(void)
 			else
 				ast_log(LOG_WARNING, "Unknown mode: %s\n", v->value);
 		} else if (!strcasecmp(v->name, "context")) {
-			strncpy(context, v->value, sizeof(context)-1);
+			ast_copy_string(context, v->value, sizeof(context));
 		} else if (!strcasecmp(v->name, "format")) {
 			if (!strcasecmp(v->value, "g723.1")) {
 				prefformat = AST_FORMAT_G723_1;

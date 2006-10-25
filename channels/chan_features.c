@@ -437,8 +437,8 @@ static struct feature_pvt *features_alloc(char *data, int format)
 			for (x=0;x<3;x++)
 				init_sub(tmp->subs + x);
 			ast_mutex_init(&tmp->lock);
-			strncpy(tmp->tech, tech, sizeof(tmp->tech) - 1);
-			strncpy(tmp->dest, dest, sizeof(tmp->dest) - 1);
+			ast_copy_string(tmp->tech, tech, sizeof(tmp->tech));
+			ast_copy_string(tmp->dest, dest, sizeof(tmp->dest));
 			tmp->subchan = chan;
 			AST_LIST_LOCK(&features);
 			AST_LIST_INSERT_HEAD(&features, tmp, list);
