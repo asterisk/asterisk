@@ -54,6 +54,7 @@ enum misdn_cfg_elements {
 	MISDN_CFG_ECHOCANCEL,          /* int */
 	MISDN_CFG_ECHOCANCELWHENBRIDGED,  /* int (bool) */
 	MISDN_CFG_NEED_MORE_INFOS,     /* bool */
+	MISDN_CFG_NTTIMEOUT,     /* bool */
 	MISDN_CFG_JITTERBUFFER,              /* int */
 	MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD,              /* int */
 	MISDN_CFG_CALLGROUP,           /* ast_group_t */
