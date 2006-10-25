@@ -8075,7 +8075,8 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 		p->laststate = state;
 		break;
 	}
-	transmit_state_notify(p, state, 1);
+	if (p->subscribed != NONE)	/* Only send state NOTIFY if we know the format */
+		transmit_state_notify(p, state, 1);
 
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_1 "Extension Changed %s new state %s for Notify User %s\n", exten, ast_extension_state2str(state), p->username);
@@ -14066,9 +14067,10 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	int res = 0;
 	int firststate = AST_EXTENSION_REMOVED;
 	struct sip_peer *authpeer = NULL;
-	const char *event = get_header(req, "Event");	/* Get Event package name */
+	const char *eventheader = get_header(req, "Event");	/* Get Event package name */
 	const char *accept = get_header(req, "Accept");
 	int resubscribe = (p->subscribed != NONE);
+	char *temp, *event;
 
 	if (p->initreq.headers) {	
 		/* We already have a dialog */
@@ -14099,22 +14101,34 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		return 0;
 	}
 
-	if (!ast_test_flag(req, SIP_PKT_IGNORE) && !p->initreq.headers) {	/* Set up dialog, new subscription */
+	if (!ast_test_flag(req, SIP_PKT_IGNORE) && !resubscribe) {	/* Set up dialog, new subscription */
 		/* Use this as the basis */
 		if (ast_test_flag(req, SIP_PKT_DEBUG))
 			ast_verbose("Creating new subscription\n");
 
-		/* This call is no longer outgoing if it ever was */
-		ast_clear_flag(&p->flags[0], SIP_OUTGOING);
 		copy_request(&p->initreq, req);
 		check_via(p, req);
 	} else if (ast_test_flag(req, SIP_PKT_DEBUG) && ast_test_flag(req, SIP_PKT_IGNORE))
 		ast_verbose("Ignoring this SUBSCRIBE request\n");
 
 	/* Find parameters to Event: header value and remove them for now */
-	event = strsep((char **)&event, ";");	/* XXX bug here, overwrite string */
+	if (ast_strlen_zero(eventheader)) {
+		transmit_response(p, "489 Bad Event", req);
+		if (option_debug > 1)
+			ast_log(LOG_DEBUG, "Received SIP subscribe for unknown event package: <none>\n");
+		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		return 0;
+	}
 
-	/* Handle authentication if this is our first subscribe */
+	if ( (strchr(eventheader, ';'))) {
+		event = ast_strdupa(eventheader);	/* Since eventheader is a const, we can't change it */
+		temp = strchr(event, ';'); 		
+		*temp = '\0';				/* Remove any options for now */
+							/* We might need to use them later :-) */
+	} else
+		event = (char *) eventheader;		/* XXX is this legal ? */
+
+	/* Handle authentication */
 	res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, &authpeer);
 	/* if an authentication response was sent, we are done here */
 	if (res == AUTH_CHALLENGE_SENT)
