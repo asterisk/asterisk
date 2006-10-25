@@ -183,7 +183,8 @@ int (*iax2_regfunk)(const char *username, int onoff) = NULL;
 #define IAX_CAPABILITY_MEDBANDWIDTH 	(IAX_CAPABILITY_FULLBANDWIDTH & 	\
 					 ~AST_FORMAT_SLINEAR &			\
 					 ~AST_FORMAT_ULAW &			\
-					 ~AST_FORMAT_ALAW) 
+					 ~AST_FORMAT_ALAW &			\
+					 ~AST_FORMAT_G722) 
 /* A modem */
 #define IAX_CAPABILITY_LOWBANDWIDTH	(IAX_CAPABILITY_MEDBANDWIDTH & 		\
 					 ~AST_FORMAT_G726 &			\

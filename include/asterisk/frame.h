@@ -240,6 +240,8 @@ extern struct ast_frame ast_null_frame;
 #define AST_FORMAT_ILBC		(1 << 10)
 /*! ADPCM (G.726, 32kbps, RFC3551 codeword packing) */
 #define AST_FORMAT_G726		(1 << 11)
+/*! G.722 */
+#define AST_FORMAT_G722		(1 << 12)
 /*! Maximum audio format */
 #define AST_FORMAT_MAX_AUDIO	(1 << 15)
 /*! Maximum audio mask */

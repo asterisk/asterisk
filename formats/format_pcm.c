@@ -443,6 +443,18 @@ static const struct ast_format pcm_f = {
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 };
 
+static const struct ast_format g722_f = {
+	.name = "g722",
+	.exts = "g722",
+	.format = AST_FORMAT_G722,
+	.write = pcm_write,
+	.seek = pcm_seek,
+	.trunc = pcm_trunc,
+	.tell = pcm_tell,
+	.read = pcm_read,
+	.buf_size = (BUF_SIZE * 2) + AST_FRIENDLY_OFFSET,
+};
+
 static const struct ast_format au_f = {
 	.name = "au",
 	.exts = "au",
@@ -467,14 +479,18 @@ static int load_module(void)
 	for (index = 0; index < (sizeof(alaw_silence) / sizeof(alaw_silence[0])); index++)
 		alaw_silence[index] = AST_LIN2A(0);
 
-	return ast_format_register(&pcm_f) || ast_format_register(&alaw_f)
-		|| ast_format_register(&au_f);
+	return ast_format_register(&pcm_f)
+		|| ast_format_register(&alaw_f)
+		|| ast_format_register(&au_f)
+		|| ast_format_register(&g722_f);
 }
 
 static int unload_module(void)
 {
-	return ast_format_unregister(pcm_f.name) || ast_format_unregister(alaw_f.name)
-		|| ast_format_unregister(au_f.name);
+	return ast_format_unregister(pcm_f.name)
+		|| ast_format_unregister(alaw_f.name)
+		|| ast_format_unregister(au_f.name)
+		|| ast_format_unregister(g722_f.name);
 }	
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Raw/Sun uLaw/ALaw 8khz Audio support (PCM,PCMA,AU)");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Raw/Sun uLaw/ALaw 8KHz Audio support (PCM,PCMA,AU) and G.722 16Khz Audio Support");
