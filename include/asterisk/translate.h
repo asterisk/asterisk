@@ -205,11 +205,25 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *tr, struct ast_frame *f, i
 
 /*!
  * \brief Returns the number of steps required to convert from 'src' to 'dest'.
- * \param dest Destination format
- * \param src Source format
+ * \param dest destination format
+ * \param src source format
  * \return the number of translation steps required, or -1 if no path is available
  */
 unsigned int ast_translate_path_steps(unsigned int dest, unsigned int src);
+
+/*!
+ * \brief Mask off unavailable formats from a format bitmask
+ * \param dest possible destination formats
+ * \param src source formats
+ * \return the destination formats that are available in the source or translatable
+ *
+ * The result will include all formats from 'dest' that are either present
+ * in 'src' or translatable from a format present in 'src'.
+ *
+ * Note that only a single audio format and a single video format can be
+ * present in 'src', or the function will produce unexpected results.
+ */
+unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

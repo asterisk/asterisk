@@ -142,6 +142,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/abstract_jb.h"
 #include "asterisk/compiler.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/translate.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -927,7 +928,7 @@ struct sip_pvt {
 	unsigned int sipoptions;		/*!< Supported SIP options on the other end */
 	struct ast_codec_pref prefs;		/*!< codec prefs */
 	int capability;				/*!< Special capability (codec) */
-	int jointcapability;			/*!< Supported capability at both ends (codecs ) */
+	int jointcapability;			/*!< Supported capability at both ends (codecs) */
 	int peercapability;			/*!< Supported peer capability */
 	int prefcodec;				/*!< Preferred codec (outbound only) */
 	int noncodeccapability;			/*!< DTMF RFC2833 telephony-event */
@@ -6091,15 +6092,13 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	if (p->redirip.sin_addr.s_addr) {
 		dest.sin_port = p->redirip.sin_port;
 		dest.sin_addr = p->redirip.sin_addr;
-		if (p->redircodecs)
-			capability = p->redircodecs;
 	} else {
 		dest.sin_addr = p->ourip;
 		dest.sin_port = sin.sin_port;
 	}
 
 	/* Ok, let's start working with codec selection here */
-	capability = p->jointcapability;
+	capability = ast_translate_available_formats(p->jointcapability, p->prefcodec);
 
 	if (option_debug > 1) {
 		char codecbuf[BUFSIZ];
@@ -6107,26 +6106,25 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		ast_log(LOG_DEBUG, "** Our prefcodec: %s \n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), p->prefcodec));
 	}
 	
-	if ((ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT_RTP))) {
+	if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT_RTP)) {
 		ast_build_string(&m_audio_next, &m_audio_left, " %d", 191);
 		ast_build_string(&a_audio_next, &a_audio_left, "a=rtpmap:%d %s/%d\r\n", 191, "t38", 8000);
 	}
 
 	/* Check if we need video in this call */
-	if((capability & AST_FORMAT_VIDEO_MASK) && !ast_test_flag(&p->flags[0], SIP_NOVIDEO)) {
+	if ((capability & AST_FORMAT_VIDEO_MASK) && !ast_test_flag(&p->flags[0], SIP_NOVIDEO)) {
 		if (p->vrtp) {
 			needvideo = TRUE;
 			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "This call needs video offers! \n");
+				ast_log(LOG_DEBUG, "This call needs video offers!\n");
 		} else if (option_debug > 1)
-			ast_log(LOG_DEBUG, "This call needs video offers, but there's no video support enabled ! \n");
+			ast_log(LOG_DEBUG, "This call needs video offers, but there's no video support enabled!\n");
 	}
 		
 
 	/* Ok, we need video. Let's add what we need for video and set codecs.
 	   Video is handled differently than audio since we can not transcode. */
 	if (needvideo) {
-
 		/* Determine video destination */
 		if (p->vredirip.sin_addr.s_addr) {
 			vdest.sin_addr = p->vredirip.sin_addr;
@@ -6142,31 +6140,8 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 			snprintf(bandwidth, sizeof(bandwidth), "b=CT:%d\r\n", p->maxcallbitrate);
 		if (debug) 
 			ast_verbose("Video is at %s port %d\n", ast_inet_ntoa(p->ourip), ntohs(vsin.sin_port));	
-
-		/* For video, we can't negotiate video offers. Let's compare the incoming call with what we got. */
-		if (p->prefcodec) {
-			int videocapability = (capability & p->prefcodec) & AST_FORMAT_VIDEO_MASK; /* Outbound call */
-		
-			/*! \todo XXX We need to select one codec, not many, since there's no transcoding */
-
-			/* Now, merge this video capability into capability while removing unsupported codecs */
-			if (!videocapability) {
-				needvideo = FALSE;
-				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "** No compatible video codecs... Disabling video.\n");
-			} 
-
-			/* Replace video capabilities with the new videocapability */
-			capability = (capability & AST_FORMAT_AUDIO_MASK) | videocapability;
-
-			if (option_debug > 4) {
-				char codecbuf[BUFSIZ];
-				if (videocapability)
-					ast_log(LOG_DEBUG, "** Our video codec selection is: %s \n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), videocapability));
-				ast_log(LOG_DEBUG, "** Capability now set to : %s \n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), capability));
-			}
-		}
 	}
+
 	if (debug) 
 		ast_verbose("Audio is at %s port %d\n", ast_inet_ntoa(p->ourip), ntohs(sin.sin_port));	
 
