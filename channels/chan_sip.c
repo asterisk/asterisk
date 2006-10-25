@@ -11138,6 +11138,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
  					ast_set_flag(p, SIP_NEEDDESTROY);	
  					return 0;
  				}
+				if (option_debug > 2)
+					ast_log(LOG_DEBUG, "Subscription type: Event: %s Format: %s\n",  subscription_types[p->subscribed].event, subscription_types[p->subscribed].mediatype);
  			} else if (!strcmp(event, "message-summary") && !strcmp(accept, "application/simple-message-summary")) {
 				/* Looks like they actually want a mailbox status */
 
