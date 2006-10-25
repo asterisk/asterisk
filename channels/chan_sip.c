@@ -4028,7 +4028,9 @@ static const char *__get_header(const struct sip_request *req, const char *name,
 	return "";
 }
 
-/*! \brief Get header from SIP request */
+/*! \brief Get header from SIP request 
+	\return Always return something, so don't check for NULL because it won't happen :-)
+*/
 static const char *get_header(const struct sip_request *req, const char *name)
 {
 	int start = 0;
