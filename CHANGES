@@ -1,5 +1,11 @@
 Changes since Asterisk 1.4-beta was branched:
-
+  * rev.45982: enable https support for builtin web server.
+     See configs/http.conf.sample for details.
+  * rev.45945: add a new option, match_auth_username, to sip.conf,
+     to improve the matching of incoming requests.
+     If set, and the incoming request carries authentication info,
+     the username to match in the users list is taken from there
+     rather than from the From: field.
   * Argument support for Gosub application
   * MailboxExists converted to dialplan function
   * Ability to set process limits without restarting Asterisk
