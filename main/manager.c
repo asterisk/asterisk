@@ -145,7 +145,8 @@ struct mansession {
 	int authenticated;	/*!< Authentication status */
 	int readperm;		/*!< Authorization for reading */
 	int writeperm;		/*!< Authorization for writing */
-	char inbuf[AST_MAX_MANHEADER_LEN];	/*!< Buffer */
+	char inbuf[AST_MAX_MANHEADER_LEN+1];	/*!< Buffer */
+		/* we use the extra byte to add a '\0' and simplify parsing */
 	int inlen;		/*!< number of buffered bytes */
 	int send_events;	/*!<  XXX what ? */
 	struct eventqent *last_ev;	/*!< last event processed. */
@@ -1903,66 +1904,71 @@ static int process_message(struct mansession *s, struct message *m)
 	return process_events(s);
 }
 
-/*
+/*!
  * Read one full line (including crlf) from the manager socket.
+ * \r\n is the only valid terminator for the line.
+ * (Note that, later, '\0' will be considered as the end-of-line marker,
+ * so everything between the '\0' and the '\r\n' will not be used).
+ * Also note that we assume output to have at least "maxlen" space.
  */
 static int get_input(struct mansession *s, char *output)
 {
-	/* output must have at least sizeof(s->inbuf) space */
 	struct pollfd fds[1];
-	char *crlf;
+	int res, x;
+	int maxlen = sizeof(s->inbuf) - 1;
+	char *src = s->inbuf;
 
-	if (s->inlen >= sizeof(s->inbuf) - 1) {
-		ast_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", ast_inet_ntoa(s->sin.sin_addr), s->inbuf);
-		s->inlen = 0;
-	}
-	s->inbuf[s->inlen] = '\0';	/* terminate, just in case */
-	crlf = strstr(s->inbuf, "\r\n");
-	if (crlf) {
-		/* Copy output data up to and including \r\n */
-		int x = crlf - s->inbuf + 2;
-		memcpy(output, s->inbuf, x);
-		output[x] = '\0'; /* Add trailing \0 */
-		/* Move remaining data back to the front */
-		memmove(s->inbuf, s->inbuf + x, s->inlen - x);
-		s->inlen -= x;
+	/*
+	 * Look for \r\n within the buffer. If found, copy to the output
+	 * buffer and return, trimming the \r\n (not used afterwards).
+	 */
+	for (x = 1; x < s->inlen; x++) {
+		if (src[x] != '\n' || src[x-1] != '\r')
+			continue;
+		x++;	/* Found. Update length to include \r\n */
+		memmove(output, src, x-2);	/*... but trim \r\n */
+		output[x-2] = '\0';		/* terminate the string */
+		s->inlen -= x;			/* remaining size */
+		memmove(src, src + x, s->inlen); /* remove used bytes */
 		return 1;
+	}
+	if (s->inlen >= maxlen) {
+		/* no crlf found, and buffer full - sorry, too long for us */
+		ast_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", ast_inet_ntoa(s->sin.sin_addr), src);
+		s->inlen = 0;
 	}
 	fds[0].fd = s->fd;
 	fds[0].events = POLLIN;
-	for (;;) {
-		int res;
+	res = 0;
+	while (res == 0) {
 		/* XXX do we really need this locking ? */
 		ast_mutex_lock(&s->__lock);
 		s->waiting_thread = pthread_self();
 		ast_mutex_unlock(&s->__lock);
 
-		res = poll(fds, 1, -1);
+		res = poll(fds, 1, -1);	/* return 0 on timeout ? */
 
 		ast_mutex_lock(&s->__lock);
 		s->waiting_thread = AST_PTHREADT_NULL;
 		ast_mutex_unlock(&s->__lock);
-
-		if (res == 0)	/* timeout ? */
-			continue;
-		if (res < 0) {
-			if (errno == EINTR)
-				return 0;
-			ast_log(LOG_WARNING, "poll() returned error: %s\n", strerror(errno));
-	 		return -1;
-		}
-		ast_mutex_lock(&s->__lock);
-		res = read(s->fd, s->inbuf + s->inlen, sizeof(s->inbuf) - 1 - s->inlen);
-		if (res < 1)
-			res = -1;	/* error return */
-		else {
-			s->inlen += res;
-			s->inbuf[s->inlen] = '\0';
-			res = 0;
-		}
-		ast_mutex_unlock(&s->__lock);
-		return res;
 	}
+	if (res < 0) {
+		if (errno == EINTR)
+			return 0;
+		ast_log(LOG_WARNING, "poll() returned error: %s\n", strerror(errno));
+		return -1;
+	}
+	ast_mutex_lock(&s->__lock);
+	res = read(s->fd, src + s->inlen, maxlen - s->inlen);
+	if (res < 1)
+		res = -1;	/* error return */
+	else {
+		s->inlen += res;
+		src[s->inlen] = '\0';
+		res = 0;
+	}
+	ast_mutex_unlock(&s->__lock);
+	return res;
 }
 
 /*! \brief The body of the individual manager session.
@@ -1982,11 +1988,6 @@ static void *session_do(void *data)
 		if (res < 0)	/* error */
 			break;
 		if (res > 0) {	/* got one line */
-			res = strlen(buf);
-			if (res < 2)
-				continue;
-			/* Strip trailing \r\n (which must be there) */
-			buf[res - 2] = '\0';
 			if (ast_strlen_zero(buf)) {	/* empty line, terminator */
 				if (process_message(s, &m))
 					break;
