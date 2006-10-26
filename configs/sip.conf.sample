@@ -26,6 +26,10 @@
 [general]
 context=default			; Default context for incoming calls
 ;allowguest=no			; Allow or reject guest calls (default is yes)
+;match_auth_username=yes	; if available, match user entry using the
+				; 'username' field from the authentication line
+				; instead of the From: field.
+				
 allowoverlap=no			; Disable overlap dialing support. (Default is yes)
 ;allowtransfer=no		; Disable all transfers (unless enabled in peers or users)
 				; Default is enabled
