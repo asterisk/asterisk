@@ -46,6 +46,7 @@ Changes since Asterisk 1.2:
     * Builtin mini HTTP server
     * Added support for Sigma Designs cards.
     * Frame header caching to reduce memory allocation/freeing
+    * Passthrough and record/playback support for G.722 wideband audio
     * using mpg123 to play MP3 files for music-on-hold will be deprecated in 1.4 (start using the "native support")
     * New Apps:
          1. AMD() ;; Answering Machine Detection
