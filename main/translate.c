@@ -740,17 +740,29 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 {
 	unsigned int res = dest;
 	unsigned int x;
-	unsigned int src_audio = powerof(src & AST_FORMAT_AUDIO_MASK);
-	unsigned int src_video = powerof(src & AST_FORMAT_VIDEO_MASK);
+	unsigned int src_audio = src & AST_FORMAT_AUDIO_MASK;
+	unsigned int src_video = src & AST_FORMAT_VIDEO_MASK;
 
 	/* if we don't have a source format, we just have to try all
 	   possible destination formats */
 	if (!src)
 		return dest;
 
+	/* If we have a source audio format, get its format index */
+	if (src_audio)
+		src_audio = powerof(src_audio);
+
+	/* If we have a source video format, get its format index */
+	if (src_video)
+		src_video = powerof(src_video);
+
 	AST_LIST_LOCK(&translators);
 
-	for (x = 1; x < AST_FORMAT_MAX_AUDIO; x <<= 1) {
+	/* For a given source audio format, traverse the list of
+	   known audio formats to determine whether there exists
+	   a translation path from the source format to the
+	   destination format. */
+	for (x = 1; src_audio && x < AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		/* if this is not a desired format, nothing to do */
 		if (!dest & x)
 			continue;
@@ -766,8 +778,11 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 			res &= ~x;
 	}
 
-	/* roll over into video formats */
-	for (; x < AST_FORMAT_MAX_VIDEO; x <<= 1) {
+	/* For a given source video format, traverse the list of
+	   known video formats to determine whether there exists
+	   a translation path from the source format to the
+	   destination format. */
+	for (; src_video && x < AST_FORMAT_MAX_VIDEO; x <<= 1) {
 		/* if this is not a desired format, nothing to do */
 		if (!dest & x)
 			continue;
