@@ -3022,7 +3022,7 @@ static int handle_show_application(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  handle_show_hints: CLI support for listing registred dial plan hints */
+/*! \brief  handle_show_hints: CLI support for listing registered dial plan hints */
 static int handle_show_hints(int fd, int argc, char *argv[])
 {
 	struct ast_hint *hint;
@@ -3054,7 +3054,7 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  handle_show_switches: CLI support for listing registred dial plan switches */
+/*! \brief  handle_show_switches: CLI support for listing registered dial plan switches */
 static int handle_show_switches(int fd, int argc, char *argv[])
 {
 	struct ast_switch *sw;
@@ -4634,7 +4634,7 @@ static int ast_pbx_outgoing_cdr_failed(void)
 	}
 
 	/* allocation of the cdr was successful */
-	ast_cdr_init(chan->cdr, chan);  /* initilize our channel's cdr */
+	ast_cdr_init(chan->cdr, chan);  /* initialize our channel's cdr */
 	ast_cdr_start(chan->cdr);       /* record the start and stop time */
 	ast_cdr_end(chan->cdr);
 	ast_cdr_failed(chan->cdr);      /* set the status to failed */
@@ -4672,7 +4672,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 					goto outgoing_exten_cleanup;
 				}
 				/* allocation of the cdr was successful */
-				ast_cdr_init(chan->cdr, chan);  /* initilize our channel's cdr */
+				ast_cdr_init(chan->cdr, chan);  /* initialize our channel's cdr */
 				ast_cdr_start(chan->cdr);
 			}
 			if (chan->_state == AST_STATE_UP) {
@@ -4845,7 +4845,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 					goto outgoing_app_cleanup;
 				}
 				/* allocation of the cdr was successful */
-				ast_cdr_init(chan->cdr, chan);  /* initilize our channel's cdr */
+				ast_cdr_init(chan->cdr, chan);  /* initialize our channel's cdr */
 				ast_cdr_start(chan->cdr);
 			}
 			ast_set_variables(chan, vars);

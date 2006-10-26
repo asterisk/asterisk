@@ -660,7 +660,7 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	/* Set default values for this invokation of the application */
+	/* Set default values for this invocation of the application */
 	
 	ast_copy_string(signalling_type, ADEMCO_CONTACT_ID, sizeof(signalling_type));
 

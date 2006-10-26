@@ -766,7 +766,7 @@ static struct telem_defaults tele_defs[] = {
 } ;
 
 /*
-* Forward decl's - these suppress compiler warnings when funcs coded further down the file than thier invokation
+* Forward decl's - these suppress compiler warnings when funcs coded further down the file than their invocation
 */
 
 static int setrbi(struct rpt *myrpt);
@@ -1540,7 +1540,7 @@ static int send_morse(struct ast_channel *chan, const char *string, int speed, i
 	
 	dottime = 900 / speed;
 	
-	/* Establish timing releationships */
+	/* Establish timing relationships */
 	
 	dashtime = 3 * dottime;
 	intralettertime = dottime;
@@ -7238,7 +7238,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 				service_scan(myrpt);
 			}
 		}
-		if (who == chan) { /* if it was a read from incomming */
+		if (who == chan) { /* if it was a read from incoming */
 			f = ast_read(chan);
 			if (!f) {
 				if (debug)

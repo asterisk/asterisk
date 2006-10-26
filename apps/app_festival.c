@@ -73,7 +73,7 @@ static char *socket_receive_file_to_buff(int fd,int *size)
 {
     /* Receive file (probably a waveform file) from socket using   */
     /* Festival key stuff technique, but long winded I know, sorry */
-    /* but will receive any file without closeing the stream or    */
+    /* but will receive any file without closing the stream or    */
     /* using OOB data                                              */
     static char *file_stuff_key = "ft_StUfF_key"; /* must == Festival's key */
     char *buff;

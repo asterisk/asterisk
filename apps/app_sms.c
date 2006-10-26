@@ -542,7 +542,7 @@ static void unpacksms8 (unsigned char *i, unsigned char l, unsigned char *udh, i
 		}
 	}
 	while (l--)
-		*o++ = *i++;	  /* not to UTF-8 as explicitely 8 bit coding in DCS */
+		*o++ = *i++;	  /* not to UTF-8 as explicitly 8 bit coding in DCS */
 	*udl = (o - ud);
 }
 

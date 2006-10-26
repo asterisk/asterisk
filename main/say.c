@@ -3614,7 +3614,7 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 
 /* TODO: this probably is not the correct format for doxygen remarks */
 
-/** ast_say_date_with_format_he Say formmated date in Hebrew
+/** ast_say_date_with_format_he Say formatted date in Hebrew
  *
  * \ref ast_say_date_with_format_en for the details of the options 
  *

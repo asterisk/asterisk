@@ -131,7 +131,7 @@ struct osp_result {
 /* OSP Module Global Variables */
 AST_MUTEX_DEFINE_STATIC(osplock);				/* Lock of OSP provider list */
 static int osp_initialized = 0;					/* Init flag */
-static int osp_hardware = 0;					/* Hardware accelleration flag */
+static int osp_hardware = 0;					/* Hardware acceleration flag */
 static struct osp_provider* ospproviders = NULL;		/* OSP provider list */
 static unsigned int osp_tokenformat = TOKEN_ALGO_SIGNED;	/* Token format supported */
 
@@ -1484,7 +1484,7 @@ static int osp_load(void)
 		t = ast_variable_retrieve(cfg, OSP_GENERAL_CAT, "accelerate");
 		if (t && ast_true(t)) {
 			if ((error = OSPPInit(1)) != OSPC_ERR_NO_ERROR) {
-				ast_log(LOG_WARNING, "OSP: Unable to enable hardware accelleration\n");
+				ast_log(LOG_WARNING, "OSP: Unable to enable hardware acceleration\n");
 				OSPPInit(0);
 			} else {
 				osp_hardware = 1;

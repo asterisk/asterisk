@@ -364,7 +364,7 @@ struct ast_sla_station_box {
 	ASTOBJ_CONTAINER_COMPONENTS(struct ast_sla_station);
 };
 
-/*! SLA - Shared Line Apperance object. These consist of one trunk (outbound line)
+/*! SLA - Shared Line Appearance object. These consist of one trunk (outbound line)
 	and stations that receive incoming calls and place outbound calls over the trunk 
 */
 struct ast_sla {
@@ -1090,7 +1090,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	time(&user->jointime);
 
 	if (conf->locked && (!(confflags & CONFFLAG_ADMIN))) {
-		/* Sorry, but this confernce is locked! */	
+		/* Sorry, but this conference is locked! */	
 		if (!ast_streamfile(chan, "conf-locked", chan->language))
 			ast_waitstream(chan, "");
 		goto outrun;

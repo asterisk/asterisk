@@ -1790,7 +1790,7 @@ static int base_encode(char *filename, FILE *so)
 static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *dur, char *date, char *passdata, size_t passdatasize, const char *category)
 {
 	char callerid[256];
-	/* Prepare variables for substition in email body and subject */
+	/* Prepare variables for substitution in email body and subject */
 	pbx_builtin_setvar_helper(ast, "VM_NAME", vmu->fullname);
 	pbx_builtin_setvar_helper(ast, "VM_DUR", dur);
 	snprintf(passdata, passdatasize, "%d", msgnum);
@@ -2901,7 +2901,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		msgnum = newmsgs + oldmsgs;
 		ast_log(LOG_NOTICE, "Messagecount set to %d\n",msgnum);
 		snprintf(fn, sizeof(fn), "%s/imap/msg%s%04d", VM_SPOOL_DIR, vmu->mailbox, msgnum);
-		/* set variable for compatability */
+		/* set variable for compatibility */
 		pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", "IMAP_STORAGE");
 
 		/* Check if mailbox is full */
@@ -5908,7 +5908,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 
 static int vm_execmain(struct ast_channel *chan, void *data)
 {
-	/* XXX This is, admittedly, some pretty horrendus code.  For some
+	/* XXX This is, admittedly, some pretty horrendous code.  For some
 	   reason it just seemed a lot easier to do with GOTO's.  I feel
 	   like I'm back in my GWBASIC days. XXX */
 	int res=-1;
@@ -6429,7 +6429,7 @@ out:
 #endif
 			mail_expunge(vms.mailstream);
 	}
-	/*  before we delete the state, we should copy pertainent info
+	/*  before we delete the state, we should copy pertinent info
 	 *  back to the persistent model */
 	vmstate_delete(&vms);
 #endif
@@ -7082,14 +7082,14 @@ static int load_config(void)
 		}
 		ast_set2_flag((&globalflags), ast_true(astreview), VM_REVIEW);	
 
-		/*Temperary greeting reminder */
+		/*Temporary greeting reminder */
 		if (!(asttempgreetwarn = ast_variable_retrieve(cfg, "general", "tempgreetwarn"))) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "VM Temperary Greeting Reminder Option disabled globally\n");
+				ast_log(LOG_DEBUG, "VM Temporary Greeting Reminder Option disabled globally\n");
 			asttempgreetwarn = "no";
 		} else {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "VM Temperary Greeting Reminder Option enabled globally\n");
+				ast_log(LOG_DEBUG, "VM Temporary Greeting Reminder Option enabled globally\n");
 		}
 		ast_set2_flag((&globalflags), ast_true(asttempgreetwarn), VM_TEMPGREETWARN);
 
@@ -8459,7 +8459,7 @@ static void vmstate_delete(struct vm_state *vms)
 	struct vmstate *vc, *vf = NULL, *vl = NULL;
 	struct vm_state *altvms;
 
-	/* If interactive, we should copy pertainent info
+	/* If interactive, we should copy pertinent info
 	   back to the persistent state (to make update immediate) */
 	if (vms->interactive == 1) {
 		altvms = vms->persist_vms;

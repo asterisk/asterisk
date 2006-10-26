@@ -662,7 +662,7 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 	}
 	if ((!rtp->resp && power) || (rtp->resp && (rtp->resp != resp))) {
 		rtp->resp = resp;
-		/* Why we should care on DTMF compensation at receiption? */
+		/* Why we should care on DTMF compensation at reception? */
 		if (!ast_test_flag(rtp, FLAG_DTMF_COMPENSATE)) {
 			f = send_dtmf(rtp, AST_FRAME_DTMF_BEGIN);
 			rtp->dtmfduration = 0;
@@ -2311,7 +2311,7 @@ static int ast_rtcp_write_sr(void *data)
 	return res;
 }
 
-/*! \brief Send RTCP recepient's report */
+/*! \brief Send RTCP recipient's report */
 static int ast_rtcp_write_rr(void *data)
 {
 	struct ast_rtp *rtp = data;

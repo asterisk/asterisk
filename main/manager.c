@@ -137,7 +137,7 @@ struct mansession {
 	int inuse;		/*!< number of HTTP sessions using this entry */
 	int needdestroy;	/*!< Whether an HTTP session should be destroyed */
 	pthread_t waiting_thread;	/*!< Whether an HTTP session has someone waiting on events */
-	unsigned long managerid;	/*!< Unique manager identifer, 0 for AMI sessions */
+	unsigned long managerid;	/*!< Unique manager identifier, 0 for AMI sessions */
 	time_t sessiontimeout;	/*!< Session timeout if HTTP */
 	struct ast_dynamic_str *outputstr;	/*!< Output from manager interface */
 	char username[80];	/*!< Logged in username */
