@@ -1,13 +1,13 @@
-This document is to provide information on how to obtain the
+This document is intended to provide information on how to obtain the
 backtraces required on the asterisk bug tracker, available at
 http://bugs.digium.com. The information is required by developers to
 help fix problem with bugs of any kind. Backtraces provide information
 about what was wrong when a program crashed; in our case,
-Asterisk. There are two kind of backtraces (aka 'bt'), which are
+Asterisk. There are two kind of backtraces (aka 'bt') which are
 useful: bt and bt full.
 
 First of all, when you start Asterisk, you MUST start it with option
--g (this tells Asterisk to produce a core file if it crashes).
+-g. This tells Asterisk to produce a core file if it crashes.
 
 If you start Asterisk with the safe_asterisk script, it automatically
 starts using the option -g.
@@ -24,8 +24,8 @@ The interesting information is located in the last column.
 
 Second, your copy of Asterisk must have been built without
 optimization or the backtrace will be (nearly) unusable. This can be
-done by using 'make dont-optimize' instead of 'make install' to build
-and install the Asterisk binary and modules.
+done by selecting the 'DONT_OPTIMIZE' option in the Compiler Flags
+submenu in the 'make menuselect' tree before building Asterisk.
 
 After Asterisk crashes, a core file will be "dumped" in your /tmp/
 directory. To make sure it's really there, you can just type the
@@ -39,6 +39,10 @@ debian:/tmp# ls -l /tmp/core.*
 -rw-------  1 root root  9441280 Aug 12 20:20 /tmp/core.26462
 -rw-------  1 root root  8331264 Aug 13 00:32 /tmp/core.26647
 debian:/tmp#
+
+In the event that there are multiple core files present (as in the
+above example), it is important to look at the file timestamps in
+order to determine which one you really intend to look at.
 
 Now that we've verified the core file has been written to disk, the
 final part is to extract 'bt' from the core file. Core files are
@@ -63,7 +67,7 @@ Which is great, we can continue. If you don't have gdb installed, go install gdb
 
 Now load the core file in gdb, as follows:
 
-debian:/tmp# gdb -se "asterisk" -c /tmp/core.26252
+debian:/tmp# gdb asterisk /tmp/core.26252
 [...]
 (You would see a lot of output here.)
 [...]
@@ -143,11 +147,11 @@ We also need gdb's output. That output gives more details compared to
 the simple "bt". So we recommend that you use bt full instead of bt.
 But, if you could include both, we appreciate that.
 
-The final "extraction" would the to know all traces by all
-threads. Even if asterisk runs on the same thread for each calls, it
-could have some new threads created.
+The final "extraction" would be to know all traces by all
+threads. Even if asterisk runs on the same thread for each call, it
+could have created some new threads.
 
-To make sure we have the correct informations, just do:
+To make sure we have the correct information, just do:
 (gdb) thread apply all bt
 
 Thread 1 (process 26252):
@@ -172,16 +176,16 @@ Thread 1 (process 26252):
 (gdb)
 
 
-That output tell us crucial informations for threads.
+That output tells us crucial information about each thread.
 
-Now, just create a output.txt and dump your "bt full" (and/or "bt")
-AND with "thread apply all bt".
+Now, just create an output.txt file and dump your "bt full"
+(and/or "bt") ALONG WITH "thread apply all bt" into it.
 
 Note: Please ATTACH your output, DO NOT paste it as a note.
 
-And you're ready for upload on bug tracker.
+And you're ready for upload on the bug tracker.
 
 
-Questions or comments regarding this documentation, feel free to pass
-by #asterisk-bugs on FreeNode.
+If you have questions or comments regarding this documentation, feel
+free to pass by the #asterisk-bugs channel on irc.freenode.net.
 
