@@ -6,28 +6,32 @@ Changes since Asterisk 1.2:
           o Change the way CLI commands are structured.
           o Most commands are now <module> <verb> <args>
     * chan_h323 update
-    * multi-parking
     * RTP packetization
     * SLA (Shared Line Appearance) support
-    * T.38 Passthrough Support for faxing
+    * T.38 Passthrough Support for faxing in SIP
     * Generic channel jitterbuffer (spawned from RTP)
-    * VLDTMF for better DTMF compatibility
-    * Improved chan_iax2 scalability
+    * Variable Length DTMF for better DTMF compatibility
+    * Improved chan_iax2 scalability by using multithreading
     * AEL2 has replaced the original implementation of AEL. The "2" is removed. For more details, 
       read: http://www.voip-info.org/wiki/view/Asterisk+AEL2
-    * New sounds; English, Spanish, and French prompts, as well as music on hold files, in multiple Asterisk native formats.
+      AEL is no longer considered experimental.
+    * New sounds; English, Spanish, and French prompts, as well as music on hold files, in 
+      multiple Asterisk native formats.
     * IMAP storage of voicemail
-    * Jabber/GoogleTalk
+    * Jabber/GoogleTalk integration
     * New speech recognition API for interfacing to different Voice Recognition software packages
     * much more customizable and portable build system
           o also for asterisk-addons
     * Radius CDR logging
     * SNMP support
     * SMDI (Simplified Message Desk Interface) support
+    * Redesign of MusicOnHold configuration settings
     * Manager over HTTP
     * Significant chan_skinny updates
     * Significant chan_misdn updates
     * Improved SIP transfers
+    * Much improved support for SIP video
+    * Control over SIP transfers and subscriptions (enable/disable per device)
     * ChanSpy whisper mode (Whisper Paging)
     * Configurable language support for saying dates and times
     * Significant architecture improvements for memory usage and performance
@@ -93,7 +97,7 @@ Changes since Asterisk 1.2:
         17. SetRDNIS -- use the function CALLERID(rdnis) instead
         18. Sql_postgres -- was deprecated in 1.2, now removed
         19. Txtcidname -- use the function TXTCIDNAME instead
-    * New Funcs:
+    * New Dialplan Functions:
          1. ARRAY()
          2. BASE_64_DECODE()
          3. BASE_64_ENCODE()
@@ -155,11 +159,11 @@ Changes since Asterisk 1.2:
         17. UserEvent() -- slight change in behavior. Read the description.
         18. VoiceMailMain() -- new a(#) option, goes to folder # directly.
         19. WaitForSilence() -- new optional 3rd arg, time delay before returning.
-    * Funcs that have changes to their interfaces:
+    * Functions that have changes to their interfaces:
          1. CDR -- new option: u
          2. LANGUAGE -- Deprecated. Use CHANNEL(language) instead.
          3. MUSICCLASS -- Deprecated. Use CHANNEL(musicclass) instead.
-    * Config File Changes:
+    * Configuration File Changes:
          1. NEW config files:
                1. amd.conf -- Answering Machine Detection parameters
                2. followme.conf -- parameters for the findme/followme call forwarding
@@ -231,7 +235,6 @@ Changes since Asterisk 1.2:
                       o [my] entry added (Malaysia)
                       o [th] entry added (Thailand)
               11. manager.conf
-                      o displaysystemname variable added
                       o webenabled variable added
                       o httptimeout variable added
                       o timestampevents variable added
@@ -330,6 +333,6 @@ Changes since Asterisk 1.2:
                       o JitterBuffer support added
     * Removed Codecs/Channels:
          1. codec_g723 was removed because the actual codec implementation it was designed to use is not distributable
-         2. chan_modem_* stuff is gone because the kernel support for those interfaces is old, buggy and unsupported
+         2. chan_modem_* and related modules is gone because the kernel support for those interfaces is old, buggy and unsupported
     * New Utils:
          1. aelparse -- compile .ael files outside of asterisk
