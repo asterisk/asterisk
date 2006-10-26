@@ -60,7 +60,7 @@ static const char *page_descrip =
 "caller is dumped into the conference as a speaker and the room is\n"
 "destroyed when the original caller leaves.  Valid options are:\n"
 "        d - full duplex audio\n"
-"	 q - quiet, do not play beep to caller\n"
+"        q - quiet, do not play beep to caller\n"
 "        r - record the page into a file (see 'r' for app_meetme)\n";
 
 
