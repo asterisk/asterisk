@@ -62,6 +62,93 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *extconfig_conf = "extconfig.conf";
 
+/* Growable string buffer */
+static char *comment_buffer;   /* this will be a comment collector.*/
+static int   comment_buffer_size;  /* the amount of storage so far alloc'd for the comment_buffer */
+
+static char *lline_buffer;    /* A buffer for stuff behind the ; */
+static int  lline_buffer_size;
+
+
+struct ast_comment {
+	struct ast_comment *next;
+	char cmt[0];
+};
+
+#define CB_INCR 250
+
+static void CB_INIT(void)
+{
+	if( !comment_buffer ) {
+		comment_buffer = (char*)malloc(CB_INCR);
+		comment_buffer[0] = 0;
+		comment_buffer_size = CB_INCR;
+		lline_buffer = (char*)malloc(CB_INCR);
+		lline_buffer[0] = 0;
+		lline_buffer_size = CB_INCR;
+		
+	}  else {
+		comment_buffer[0] = 0;
+		lline_buffer[0] = 0;
+	}
+}
+
+static void  CB_ADD(char *str)
+{
+	char *x = (str);
+	int rem = comment_buffer_size - strlen(comment_buffer) - 1;
+	int siz = strlen(x);
+	if( rem < siz+1 )
+	{
+		comment_buffer = (char*)realloc(comment_buffer,comment_buffer_size+CB_INCR+siz+1);
+		comment_buffer_size += CB_INCR+siz+1;
+	}
+	strcat(comment_buffer,x);
+}
+
+static void  CB_ADD_LEN(char *str, int len)
+{
+	char *x = (str);
+	int cbl = strlen(comment_buffer)+1;
+	int rem = comment_buffer_size - cbl;
+	if( rem < len+1 )
+	{
+		comment_buffer = (char*)realloc(comment_buffer,comment_buffer_size+CB_INCR+len+1);
+		comment_buffer_size += CB_INCR+len+1;
+	}
+	strncat(comment_buffer,x,len);
+	comment_buffer[cbl+len-1] = 0;
+}
+
+static void  LLB_ADD(char *str)
+{
+	char *x = (str);
+	int rem = lline_buffer_size - strlen(lline_buffer) - 1;
+	int siz = strlen(x);
+	if( rem < siz+1 )
+	{
+		lline_buffer = (char*)realloc(lline_buffer,lline_buffer_size+CB_INCR+siz+1);
+		lline_buffer_size += CB_INCR+siz+1;
+	}
+	strcat(lline_buffer,x);
+}
+
+static void CB_RESET(void )  
+{ 
+	comment_buffer[0] = 0; 
+	lline_buffer[0] = 0;
+}
+		
+
+
+static struct ast_comment *ALLOC_COMMENT(const char *buffer)
+{ 
+	struct ast_comment *x = (struct ast_comment *)calloc(1,sizeof(struct ast_comment)+strlen(buffer)+1);
+	strcpy(x->cmt, buffer);
+	return x;
+}
+
+
 static struct ast_config_map {
 	struct ast_config_map *next;
 	char *name;
@@ -76,14 +163,11 @@ static struct ast_config_engine *config_engine_list;
 
 #define MAX_INCLUDE_LEVEL 10
 
-struct ast_comment {
-	struct ast_comment *next;
-	char cmt[0];
-};
-
 struct ast_category {
 	char name[80];
 	int ignored;			/* do not let user of the config see this category */
+	struct ast_comment *precomments;
+	struct ast_comment *sameline;
 	struct ast_variable *root;
 	struct ast_variable *last;
 	struct ast_category *next;
@@ -534,6 +618,16 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 		if (!(*cat = newcat = ast_category_new(catname))) {
 			return -1;
 		}
+		/* add comments */
+		if (withcomments && comment_buffer && comment_buffer[0] ) {
+			newcat->precomments = ALLOC_COMMENT(comment_buffer);
+		}
+		if (withcomments && lline_buffer && lline_buffer[0] ) {
+			newcat->sameline = ALLOC_COMMENT(lline_buffer);
+		}
+		if( withcomments )
+			CB_RESET();
+		
  		/* If there are options or categories to inherit from, process them now */
  		if (c) {
  			if (!(cur = strchr(c, ')'))) {
@@ -656,13 +750,22 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				/* Put and reset comments */
 				v->blanklines = 0;
 				ast_variable_append(*cat, v);
+				/* add comments */
+				if (withcomments && comment_buffer && comment_buffer[0] ) {
+					v->precomments = ALLOC_COMMENT(comment_buffer);
+				}
+				if (withcomments && lline_buffer && lline_buffer[0] ) {
+					v->sameline = ALLOC_COMMENT(lline_buffer);
+				}
+				if( withcomments )
+					CB_RESET();
+				
 			} else {
 				return -1;
 			}
 		} else {
 			ast_log(LOG_WARNING, "No '=' (equal sign) in line %d of %s\n", lineno, configfile);
 		}
-
 	}
 	return 0;
 }
@@ -687,6 +790,10 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		snprintf(fn, sizeof(fn), "%s/%s", (char *)ast_config_AST_CONFIG_DIR, filename);
 	}
 
+	if (withcomments) {
+		CB_INIT();
+	}
+	
 #ifdef AST_INCLUDE_GLOB
 	{
 		int glob_ret;
@@ -736,11 +843,17 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		while(!feof(f)) {
 			lineno++;
 			if (fgets(buf, sizeof(buf), f)) {
+				if ( withcomments ) {    
+					CB_ADD(lline_buffer);       /* add the current lline buffer to the comment buffer */
+					lline_buffer[0] = 0;        /* erase the lline buffer */
+				}
+				
 				new_buf = buf;
-				if (comment)
+				if (comment) 
 					process_buf = NULL;
 				else
 					process_buf = buf;
+				
 				while ((comment_p = strchr(new_buf, COMMENT_META))) {
 					if ((comment_p > new_buf) && (*(comment_p-1) == '\\')) {
 						/* Yuck, gotta memmove */
@@ -768,6 +881,11 @@ static struct ast_config *config_text_file_load(const char *database, const char
 								/* Actually have to move what's left over the top, then continue */
 								char *oldptr;
 								oldptr = process_buf + strlen(process_buf);
+								if ( withcomments ) {
+									CB_ADD(";");
+									CB_ADD_LEN(oldptr+1,new_buf-oldptr-1);
+								}
+								
 								memmove(oldptr, new_buf, strlen(new_buf) + 1);
 								new_buf = oldptr;
 							} else
@@ -777,12 +895,20 @@ static struct ast_config *config_text_file_load(const char *database, const char
 						if (!comment) {
 							/* If ; is found, and we are not nested in a comment, 
 							   we immediately stop all comment processing */
+							if ( withcomments ) {
+								LLB_ADD(comment_p);
+							}
 							*comment_p = '\0'; 
 							new_buf = comment_p;
 						} else
 							new_buf = comment_p + 1;
 					}
 				}
+				if( comment && !process_buf )
+				{
+					CB_ADD(buf);  /* the whole line is a comment, store it */
+				}
+				
 				if (process_buf) {
 					char *buf = ast_strip(process_buf);
 					if (!ast_strlen_zero(buf)) {
@@ -807,6 +933,16 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			}
 		}
 #endif
+	if (withcomments) {
+		if (comment_buffer) { 
+			free(comment_buffer);
+			free(lline_buffer);
+			comment_buffer=0; 
+			lline_buffer=0; 
+			comment_buffer_size=0; 
+			lline_buffer_size=0;
+		}
+	}
 	if (count == 0)
 		return NULL;
 
@@ -821,6 +957,7 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 	time_t t;
 	struct ast_variable *var;
 	struct ast_category *cat;
+	struct ast_comment *cmt;
 	int blanklines = 0;
 
 	if (configfile[0] == '/') {
@@ -846,11 +983,29 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 		cat = cfg->root;
 		while(cat) {
 			/* Dump section with any appropriate comment */
-			fprintf(f, "\n[%s]\n", cat->name);
+			for (cmt = cat->precomments; cmt; cmt=cmt->next)
+			{
+				if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')
+					fprintf(f,"%s", cmt->cmt);
+			}
+			if (!cat->precomments)
+				fprintf(f,"\n");
+			fprintf(f, "[%s]", cat->name);
+			for(cmt = cat->sameline; cmt; cmt=cmt->next)
+			{
+				fprintf(f,"%s", cmt->cmt);
+			}
+			if (!cat->sameline)
+				fprintf(f,"\n");
 			var = cat->root;
 			while(var) {
+				for (cmt = var->precomments; cmt; cmt=cmt->next)
+				{
+					if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')
+						fprintf(f,"%s", cmt->cmt);
+				}
 				if (var->sameline) 
-					fprintf(f, "%s %s %s  ; %s\n", var->name, (var->object ? "=>" : "="), var->value, var->sameline->cmt);
+					fprintf(f, "%s %s %s  %s", var->name, (var->object ? "=>" : "="), var->value, var->sameline->cmt);
 				else	
 					fprintf(f, "%s %s %s\n", var->name, (var->object ? "=>" : "="), var->value);
 				if (var->blanklines) {
@@ -1081,7 +1236,7 @@ struct ast_config *ast_config_internal_load(const char *filename, struct ast_con
 	char db[256];
 	char table[256];
 	struct ast_config_engine *loader = &text_file_engine;
-	struct ast_config *result;
+	struct ast_config *result; 
 
 	if (cfg->include_level == cfg->max_include_level) {
 		ast_log(LOG_WARNING, "Maximum Include level (%d) exceeded\n", cfg->max_include_level);
