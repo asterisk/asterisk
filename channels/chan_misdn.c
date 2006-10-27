@@ -4265,6 +4265,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			ch->state=MISDN_CLEANING;
 	}
 	break;
+	case EVENT_BCHAN_ERROR:
 	case EVENT_CLEANUP:
 	{
 		stop_bc_tones(ch);
