@@ -297,7 +297,7 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		/* unblock important signal handlers */
 		if (sigfillset(&signal_set) || pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL)) {
 			ast_log(LOG_WARNING, "unable to unblock signals for AGI script: %s\n", strerror(errno));
-			exit(1);
+			_exit(1);
 		}
 
 		/* Close everything but stdin/out/error */
@@ -308,7 +308,7 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		execv(script, argv);
 		/* Can't use ast_log since FD's are closed */
 		fprintf(stderr, "Failed to execute '%s': %s\n", script, strerror(errno));
-		exit(1);
+		_exit(1);
 	}
 	if (option_verbose > 2) 
 		ast_verbose(VERBOSE_PREFIX_3 "Launched AGI Script %s\n", script);

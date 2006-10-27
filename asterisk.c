@@ -449,7 +449,7 @@ int ast_safe_system(const char *s)
 		for (x = STDERR_FILENO + 1; x < 4096; x++)
 			close(x);
 		execl("/bin/sh", "/bin/sh", "-c", s, NULL);
-		exit(1);
+		_exit(1);
 	} else if (pid > 0) {
 		for(;;) {
 			res = wait4(pid, &status, 0, &rusage);
