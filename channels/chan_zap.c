@@ -11644,9 +11644,6 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 	int y;
 	int found_pseudo = 0;
 
-	/* Copy the default jb config over global_jbconf */
-	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
-
 	while(v) {
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
 			continue;
@@ -12417,6 +12414,10 @@ static int setup_zap(int reload)
 		}
 	}
 #endif
+	
+	/* Copy the default jb config over global_jbconf */
+	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
+
 	v = ast_variable_browse(cfg, "channels");
 	res = process_zap(v, reload, 0);
 	ast_mutex_unlock(&iflock);
