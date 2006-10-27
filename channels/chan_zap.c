@@ -635,6 +635,10 @@ static struct zt_pvt {
 	unsigned int usedistinctiveringdetection:1;
 	unsigned int zaptrcallerid:1;			/*!< should we use the callerid from incoming call on zap transfer or not */
 	unsigned int transfertobusy:1;			/*!< allow flash-transfers to busy channels */
+	/* Channel state or unavilability flags */
+	unsigned int inservice:1;
+	unsigned int locallyblocked:1;
+	unsigned int remotelyblocked:1;
 #if defined(HAVE_PRI)
 	unsigned int alerting:1;
 	unsigned int alreadyhungup:1;
@@ -643,9 +647,6 @@ static struct zt_pvt {
 	unsigned int progress:1;
 	unsigned int resetting:1;
 	unsigned int setup_ack:1;
-#endif
-#if defined(HAVE_SS7)
-	unsigned int blocked:1;
 #endif
 	unsigned int use_smdi:1;		/* Whether to use SMDI on this channel */
 	struct ast_smdi_interface *smdi_iface;	/* The serial port to listen for SMDI data on */
@@ -7840,7 +7841,13 @@ static struct zt_pvt *mkintf(int channel, int signalling, int outsignalling, int
 		tmp->answeronpolarityswitch = answeronpolarityswitch;
 		tmp->hanguponpolarityswitch = hanguponpolarityswitch;
 		tmp->sendcalleridafter = sendcalleridafter;
-
+		if (!here) {
+			tmp->locallyblocked = tmp->remotelyblocked = 0;
+			if ((signalling == SIG_PRI) || (signalling == SIG_SS7))
+				tmp->inservice = 0;
+			else /* We default to in service on protocols that don't have a reset */
+				tmp->inservice = 1;
+		}
 	}
 	if (tmp && !here) {
 		/* nothing on the iflist */
@@ -7917,6 +7924,9 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 	/* If guard time, definitely not */
 	if (p->guardtime && (time(NULL) < p->guardtime)) 
 		return 0;
+
+	if (p->locallyblocked || p->remotelyblocked || !p->inservice)
+		return 0;
 		
 	/* If no owner definitely available */
 	if (!p->owner) {
@@ -7930,9 +7940,9 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 		}
 #endif
 #ifdef HAVE_SS7
-		/* Trust PRI */
+		/* Trust SS7 */
 		if (p->ss7) {
-			if (p->ss7call || p->blocked)
+			if (p->ss7call)
 				return 0;
 			else
 				return 1;
@@ -8312,10 +8322,20 @@ static inline void ss7_block_cics(struct zt_ss7 *linkset, int startcic, int endc
 		if (linkset->pvts[i] && ((linkset->pvts[i]->cic >= startcic) && (linkset->pvts[i]->cic <= endcic))) {
 			if (state) {
 				if (state[i])
-					linkset->pvts[i]->blocked = block;
+					linkset->pvts[i]->remotelyblocked = block;
 			} else
-				linkset->pvts[i]->blocked = block;
+				linkset->pvts[i]->remotelyblocked = block;
 		}
+	}
+}
+
+static void ss7_inservice(struct zt_ss7 *linkset, int startcic, int endcic)
+{
+	int i;
+
+	for (i = 0; i < linkset->numchans; i++) {
+		if (linkset->pvts[i] && (linkset->pvts[i]->cic >= startcic) && (linkset->pvts[i]->cic <= endcic))
+			linkset->pvts[i]->inservice = 1;
 	}
 }
 
@@ -8333,7 +8353,7 @@ static int ss7_reset_linkset(struct zt_ss7 *linkset)
 			continue;
 		} else {
 			endcic = linkset->pvts[i]->cic;
-			ast_verbose(VERBOSE_PREFIX_3 "Resetting CICs %d to %d\n", startcic, endcic);
+			ast_verbose("Resetting CICs %d to %d\n", startcic, endcic);
 			isup_grs(linkset->ss7, startcic, endcic);
 
 			if (linkset->pvts[i+1])
@@ -8530,7 +8550,10 @@ static void *ss7_linkset(void *data)
 					break;
 				}
 				p = linkset->pvts[chanpos];
-				p->blocked = 0;
+				ast_mutex_lock(&p->lock);
+				p->inservice = 1;
+				p->remotelyblocked = 0;
+				ast_mutex_unlock(&p->lock);
 				isup_rlc(ss7, e->rsc.call);
 				break;
 			case ISUP_EVENT_GRS:
@@ -8539,7 +8562,8 @@ static void *ss7_linkset(void *data)
 				ss7_block_cics(linkset, e->grs.startcic, e->grs.endcic, NULL, 0);
 				break;
 			case ISUP_EVENT_GRA:
-				ast_log(LOG_DEBUG, "Got GRA from CIC %d to %d.\n", e->gra.startcic, e->gra.endcic);
+				ast_verbose("Got reset acknowledgement from CIC %d to %d.\n", e->gra.startcic, e->gra.endcic);
+				ss7_inservice(linkset, e->gra.startcic, e->gra.endcic);
 				ss7_block_cics(linkset, e->gra.startcic, e->gra.endcic, e->gra.status, 1);
 				break;
 			case ISUP_EVENT_IAM:
@@ -8670,7 +8694,7 @@ static void *ss7_linkset(void *data)
 				}
 				p = linkset->pvts[chanpos];
 				ast_log(LOG_DEBUG, "Blocking CIC %d\n", e->blo.cic);
-				p->blocked = 1;
+				p->remotelyblocked = 1;
 				isup_bla(linkset->ss7, e->blo.cic);
 				break;
 			case ISUP_EVENT_UBL:
@@ -8681,7 +8705,7 @@ static void *ss7_linkset(void *data)
 				}
 				p = linkset->pvts[chanpos];
 				ast_log(LOG_DEBUG, "Unblocking CIC %d\n", e->ubl.cic);
-				p->blocked = 0;
+				p->remotelyblocked = 0;
 				isup_uba(linkset->ss7, e->ubl.cic);
 				break;
 			case ISUP_EVENT_CON:
@@ -10078,6 +10102,7 @@ static void *pri_dchannel(void *vpri)
 							pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 						}
 						pri->pvts[chanpos]->resetting = 0;
+						pri->pvts[chanpos]->inservice = 1;
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "B-channel %d/%d successfully restarted on span %d\n", pri->pvts[chanpos]->logicalspan, 
 									pri->pvts[chanpos]->prioffset, pri->span);
@@ -10751,7 +10776,6 @@ static int zap_show_channel(int fd, int argc, char **argv)
 #ifdef HAVE_SS7
 			if (tmp->ss7) {
 				ast_cli(fd, "CIC: %d\n", tmp->cic);
-				ast_cli(fd, "Blocked: %s\n", tmp->blocked ? "yes" : "no");
 			}
 #endif
 #ifdef HAVE_PRI
@@ -11362,6 +11386,7 @@ static int handle_ss7_debug(int fd, int argc, char *argv[])
 static int handle_ss7_block_cic(int fd, int argc, char *argv[])
 {
 	int linkset, cic;
+	int blocked = -1, i;
 	if (argc == 5)
 		linkset = atoi(argv[3]);
 	else
@@ -11384,10 +11409,30 @@ static int handle_ss7_block_cic(int fd, int argc, char *argv[])
 		return RESULT_SUCCESS;
 	}
 
-	ast_mutex_lock(&linksets[linkset-1].lock);
-	isup_blo(linksets[linkset-1].ss7, cic);
-	ast_mutex_unlock(&linksets[linkset-1].lock);
-	ast_cli(fd, "Sent blocking request for linkset %d on CIC %d\n", linkset, cic);
+	for (i = 0; i < linksets[linkset-1].numchans; i++) {
+		if (linksets[linkset-1].pvts[i]->cic == cic) {
+			blocked = linksets[linkset-1].pvts[i]->locallyblocked;
+			if (!blocked) {
+				ast_mutex_lock(&linksets[linkset-1].pvts[i]->lock);
+				linksets[linkset-1].pvts[i]->locallyblocked = 1;
+				ast_mutex_unlock(&linksets[linkset-1].pvts[i]->lock);
+				ast_mutex_lock(&linksets[linkset-1].lock);
+				isup_blo(linksets[linkset-1].ss7, cic);
+				ast_mutex_unlock(&linksets[linkset-1].lock);
+			}
+		}
+	}
+
+	if (blocked < 0) {
+		ast_cli(fd, "Invalid CIC specified!\n");
+		return RESULT_SUCCESS;
+	}
+
+	if (!blocked)
+		ast_cli(fd, "Sent blocking request for linkset %d on CIC %d\n", linkset, cic);
+	else
+		ast_cli(fd, "CIC %d already locally blocked\n", cic);
+
 	return RESULT_SUCCESS;
 }
 
