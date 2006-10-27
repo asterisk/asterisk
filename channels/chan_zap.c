@@ -11599,7 +11599,13 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 	int y;
 	int found_pseudo = 0;
 
+	/* Copy the default jb config over global_jbconf */
+	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
+
 	while(v) {
+		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
+			continue;
+
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "channel")
 #ifdef HAVE_PRI
@@ -12285,7 +12291,6 @@ static int setup_zap(int reload)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	struct ast_variable *vjb;
 	int res;
 
 #ifdef HAVE_PRI
@@ -12368,11 +12373,6 @@ static int setup_zap(int reload)
 	}
 #endif
 	v = ast_variable_browse(cfg, "channels");
-	/* Copy the default jb config over global_jbconf */
-	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
-	/* Traverse all variables to handle jb conf */
-	for (vjb = v; vjb; vjb = vjb->next)
-		ast_jb_read_conf(&global_jbconf, vjb->name, vjb->value);
 	res = process_zap(v, reload, 0);
 	ast_mutex_unlock(&iflock);
 	ast_config_destroy(cfg);
