@@ -301,7 +301,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\tPossible values are positive integers or:\n"
 		"\t   yes (= 4 seconds)\n"
 		"\t   no  (= 0 seconds = disabled)" },
-	{ "nttimeout", MISDN_CFG_NTTIMEOUT, MISDN_CTYPE_BOOL, "no", NONE 
+	{ "nttimeout", MISDN_CFG_NTTIMEOUT, MISDN_CTYPE_BOOL, "no", NONE ,
 		"Set this to yes if you want calls disconnected in overlap mode" 
 		"when a timeout happens.\n"},
 	{ "msns", MISDN_CFG_MSNS, MISDN_CTYPE_MSNLIST, NO_DEFAULT, NONE,
