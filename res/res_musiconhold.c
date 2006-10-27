@@ -461,7 +461,7 @@ static int spawn_mp3(struct mohclass *class)
 		}
 		ast_log(LOG_WARNING, "Exec failed: %s\n", strerror(errno));
 		close(fds[1]);
-		exit(1);
+		_exit(1);
 	} else {
 		/* Parent */
 		close(fds[1]);

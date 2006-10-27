@@ -668,7 +668,7 @@ int ast_safe_system(const char *s)
 			close(x);
 #endif
 		execl("/bin/sh", "/bin/sh", "-c", s, (char *) NULL);
-		exit(1);
+		_exit(1);
 	} else if (pid > 0) {
 		for(;;) {
 			res = wait4(pid, &status, 0, &rusage);

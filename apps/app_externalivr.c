@@ -323,7 +323,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 			close(i);
 		execv(argv[0], argv);
 		fprintf(stderr, "Failed to execute '%s': %s\n", argv[0], strerror(errno));
-		exit(1);
+		_exit(1);
 	} else {
 		/* parent process */
 		int child_events_fd = child_stdin[1];

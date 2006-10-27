@@ -319,7 +319,7 @@ static enum agi_result launch_script(char *script, char *argv[], int *fds, int *
 		/* unblock important signal handlers */
 		if (sigfillset(&signal_set) || pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL)) {
 			ast_log(LOG_WARNING, "unable to unblock signals for AGI script: %s\n", strerror(errno));
-			exit(1);
+			_exit(1);
 		}
 
 		/* Close everything but stdin/out/error */
@@ -332,7 +332,7 @@ static enum agi_result launch_script(char *script, char *argv[], int *fds, int *
 		/* Can't use ast_log since FD's are closed */
 		fprintf(stdout, "verbose \"Failed to execute '%s': %s\" 2\n", script, strerror(errno));
 		fflush(stdout);
-		exit(1);
+		_exit(1);
 	}
 	if (option_verbose > 2) 
 		ast_verbose(VERBOSE_PREFIX_3 "Launched AGI Script %s\n", script);
