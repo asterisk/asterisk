@@ -1842,8 +1842,8 @@ static int say_periodic_announcement(struct queue_ent *qe)
 
 static void record_abandoned(struct queue_ent *qe)
 {
-	set_queue_variables(qe);
 	ast_mutex_lock(&qe->parent->lock);
+	set_queue_variables(qe);
 	manager_event(EVENT_FLAG_AGENT, "QueueCallerAbandon",
 		"Queue: %s\r\n"
 		"Uniqueid: %s\r\n"
@@ -2615,6 +2615,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_channel_sendurl(peer, url);
 		}
 		
+		ast_mutex_lock(&qe->parent->lock);
 		/* if setinterfacevar is defined, make member variables available to the channel */
 		/* use  pbx_builtin_setvar to set a load of variables with one call */
 		if (qe->parent->setinterfacevar) {
@@ -2633,6 +2634,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	
 		/* try to set queue variables if configured to do so*/
 		set_queue_variables(qe);
+		ast_mutex_unlock(&qe->parent->lock);
 		
 		/* run a macro for this connection if defined. The macro simply returns, no action is taken on the result */
 		/* use macro from dialplan if passed as a option, otherwise use the default queue macro */
