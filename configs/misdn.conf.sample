@@ -223,6 +223,13 @@ reject_cause=16
 ;
 need_more_infos=no
 
+
+;
+; set this to yes if you want to disconnect calls when a timeout occurs
+; for example during the overlapdial phase
+;
+nttimeout=no
+
 ; set the method to use for channel selection:
 ;   standard    - always choose the first free channel with the lowest number
 ;   round_robin - use the round robin algorithm to select a channel. use this

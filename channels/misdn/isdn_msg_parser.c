@@ -1262,6 +1262,7 @@ char EVENT_NEW_CHANNEL_INFO[] = "NEW_CHANNEL";
 char EVENT_BCHAN_DATA_INFO[] = "BCHAN_DATA";
 char EVENT_BCHAN_ACTIVATED_INFO[] = "BCHAN_ACTIVATED";
 char EVENT_TONE_GENERATE_INFO[] = "TONE_GENERATE";
+char EVENT_BCHAN_ERROR_INFO[] = "BCHAN_ERROR";
 
 char * isdn_get_info(struct isdn_msg msgs[], enum event_e event, int nt)
 {
@@ -1278,6 +1279,7 @@ char * isdn_get_info(struct isdn_msg msgs[], enum event_e event, int nt)
 	if (event == EVENT_BCHAN_ACTIVATED) return EVENT_BCHAN_ACTIVATED_INFO;
 	if (event == EVENT_TONE_GENERATE) return EVENT_TONE_GENERATE_INFO;
 	if (event == EVENT_PORT_ALARM) return EVENT_PORT_ALARM_INFO;
+	if (event == EVENT_BCHAN_ERROR) return EVENT_BCHAN_ERROR_INFO;
 	
 	return NULL;
 }
