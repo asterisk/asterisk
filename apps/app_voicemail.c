@@ -506,6 +506,13 @@ static int maxgreet;
 static int skipms;
 static int maxlogins;
 
+/* cutom password sounds */
+static char vm_password[80] = "vm-password";
+static char vm_newpassword[80] = "vm-newpassword";
+static char vm_passchanged[80] = "vm-passchanged";
+static char vm_reenterpassword[80] = "vm-reenterpassword";
+static char vm_mismatch[80] = "vm-mismatch";
+
 static struct ast_flags globalflags = {0};
 
 static int saydurationminfo;
@@ -5471,7 +5478,7 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 	   so they won't get here again */
 	for (;;) {
 		newpassword[1] = '\0';
-		newpassword[0] = cmd = ast_play_and_wait(chan,"vm-newpassword");
+		newpassword[0] = cmd = ast_play_and_wait(chan, vm_newpassword);
 		if (cmd == '#')
 			newpassword[0] = '\0';
 		if (cmd < 0 || cmd == 't' || cmd == '#')
@@ -5480,7 +5487,7 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		if (cmd < 0 || cmd == 't' || cmd == '#')
 			return cmd;
 		newpassword2[1] = '\0';
-		newpassword2[0] = cmd = ast_play_and_wait(chan,"vm-reenterpassword");
+		newpassword2[0] = cmd = ast_play_and_wait(chan, vm_reenterpassword);
 		if (cmd == '#')
 			newpassword2[0] = '\0';
 		if (cmd < 0 || cmd == 't' || cmd == '#')
@@ -5491,7 +5498,7 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		if (!strcmp(newpassword, newpassword2))
 			break;
 		ast_log(LOG_NOTICE,"Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
-		cmd = ast_play_and_wait(chan, "vm-mismatch");
+		cmd = ast_play_and_wait(chan, vm_mismatch);
 		if (++tries == 3)
 			return -1;
 	}
@@ -5501,7 +5508,7 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		vm_change_password_shell(vmu,newpassword);
 	if (option_debug)
 		ast_log(LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
-	cmd = ast_play_and_wait(chan,"vm-passchanged");
+	cmd = ast_play_and_wait(chan, vm_passchanged);
 
 	/* If forcename is set, have the user record their name */	
 	if (ast_test_flag(vmu, VM_FORCENAME)) {
@@ -5571,7 +5578,7 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 				break;
 			}
 			newpassword[1] = '\0';
-			newpassword[0] = cmd = ast_play_and_wait(chan,"vm-newpassword");
+			newpassword[0] = cmd = ast_play_and_wait(chan, vm_newpassword);
 			if (cmd == '#')
 				newpassword[0] = '\0';
 			else {
@@ -5582,7 +5589,7 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 				}
 			}
 			newpassword2[1] = '\0';
-			newpassword2[0] = cmd = ast_play_and_wait(chan,"vm-reenterpassword");
+			newpassword2[0] = cmd = ast_play_and_wait(chan, vm_reenterpassword);
 			if (cmd == '#')
 				newpassword2[0] = '\0';
 			else {
@@ -5595,7 +5602,7 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			}
 			if (strcmp(newpassword, newpassword2)) {
 				ast_log(LOG_NOTICE,"Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
-				cmd = ast_play_and_wait(chan, "vm-mismatch");
+				cmd = ast_play_and_wait(chan, vm_mismatch);
 				break;
 			}
 			if (ast_strlen_zero(ext_pass_cmd)) 
@@ -5604,7 +5611,7 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 				vm_change_password_shell(vmu,newpassword);
 			if (option_debug)
 				ast_log(LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
-			cmd = ast_play_and_wait(chan,"vm-passchanged");
+			cmd = ast_play_and_wait(chan, vm_passchanged);
 			break;
 		case '*': 
 			cmd = 't';
@@ -5854,7 +5861,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			/* saved password is blank, so don't bother asking */
 			password[0] = '\0';
 		} else {
-			if (ast_streamfile(chan, "vm-password", chan->language)) {
+			if (ast_streamfile(chan, vm_password, chan->language)) {
 				ast_log(LOG_WARNING, "Unable to stream password file\n");
 				return -1;
 			}
@@ -6844,6 +6851,11 @@ static int load_config(void)
 	const char *extpc;
 	const char *emaildateformatstr;
 	const char *volgainstr;
+	const char *vm_paswd;
+	const char *vm_newpasswd;
+	const char *vm_passchange;
+	const char *vm_reenterpass;
+	const char *vm_mism;
 	int x;
 	int tmpadsi[4];
 
@@ -7167,6 +7179,18 @@ static int load_config(void)
 		} else {
 			exitcontext[0] = '\0';
 		}
+		
+		/* load password sounds configuration */
+		if ((vm_paswd = ast_variable_retrieve(cfg, "general", "vm-password")))
+			ast_copy_string(vm_password, vm_paswd, sizeof(vm_password));
+		if ((vm_newpasswd = ast_variable_retrieve(cfg, "general", "vm-newpassword")))
+			ast_copy_string(vm_newpassword, vm_newpasswd, sizeof(vm_newpassword));
+		if ((vm_passchange = ast_variable_retrieve(cfg, "general", "vm-passchanged")))
+			ast_copy_string(vm_passchanged, vm_passchange, sizeof(vm_passchanged));
+		if ((vm_reenterpass = ast_variable_retrieve(cfg, "general", "vm-reenterpassword")))
+			ast_copy_string(vm_reenterpassword, vm_reenterpass, sizeof(vm_reenterpassword));
+		if ((vm_mism = ast_variable_retrieve(cfg, "general", "vm-mismatch")))
+			ast_copy_string(vm_mismatch, vm_mism, sizeof(vm_mismatch));
 
 		if (!(astdirfwd = ast_variable_retrieve(cfg, "general", "usedirectory"))) 
 			astdirfwd = "no";
