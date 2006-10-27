@@ -50,3 +50,7 @@ Changes since Asterisk 1.4-beta was branched:
      and numeric representation of type of calling number value.
   * Added 'C' option to Meetme which causes a caller to continue in the dialplan
      when kicked out.
+  * Added option to run macro when a queue member is connected to a caller, 
+     see queues.conf.sample for details.
+  * Added QUEUE_VARIABLES function to set queue variables added setqueuevar and 
+    setqueueentryvar options for each queue, see queues.conf.sample for details.

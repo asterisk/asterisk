@@ -128,13 +128,43 @@ monitor-type = MixMonitor
 ;maxlen = 0
 ;
 ; If set to yes, just prior to the caller being bridged with a queue member 
-; the MEMBERINTERFACE variable will be set with the interface name (eg. Agent/1234)
-; and the MEMBERNAME variable will be set with the member name (eg. Joe Soap)
-; of the queue member that was chosen and is now connected to be bridged with
-; the caller
+; the following variables will be set
+; MEMBERINTERFACE is the interface name (eg. Agent/1234)
+; MEMBERNAME is the member name (eg. Joe Soap)
+; MEMBERCALLS is the number of calls that interface has taken, 
+; MEMBERLASTCALL is the last time the member took a call. 
+; MEMBERPENALTY is the penalty of the member 
+; MEMBERDYNAMIC indicates if a member is dynamic or not
 ;
 ;setinterfacevar=no
 ;
+; If set to yes, just prior to the caller being bridged with a queue member 
+; the following variables will be set:
+; QEHOLDTIME callers hold time 
+; QEORIGINALPOS original position of the caller in the queue
+;
+;setqueueentryvar=no
+;
+; If set to yes, the following variables will be set
+; just prior to the caller being bridged with a queue member
+; and just prior to the caller leaving the queue
+; QUEUEMAX maxmimum number of calls allowed
+; QUEUESTRATEGY the strategy of the queue; 
+; QUEUECALLS number of calls currently in the queue
+; QUEUEHOLDTIME current average hold time
+; QUEUECOMPLETED number of completed calls for the queue
+; QUEUEABANDONED number of abandoned calls
+; QUEUESRVLEVEL queue service level
+; QUEUESRVLEVELPERF current service level performance
+;
+;setqueuevar=no
+;
+; if set, run this macro when connected to the queue member
+; you can override this macro by setting the macro option on 
+; the queue application
+;
+; membermacro=somemacro
+
 ; How often to announce queue position and/or estimated 
 ; holdtime to caller (0=off)
 ;
