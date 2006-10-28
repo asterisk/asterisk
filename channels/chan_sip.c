@@ -3546,7 +3546,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				if ((ast->_state != AST_STATE_UP) &&
 					!ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) && 
 				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
-					transmit_response_with_t38_sdp(p, "183 Session Progress", &p->initreq, XMIT_RELIABLE);
+					transmit_response_with_t38_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 				}
 				res = ast_udptl_write(p->udptl, frame);
@@ -12899,7 +12899,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 		/* We should answer something here. If we are here, the
 			call we are replacing exists, so an accepted 
 			can't harm */
-		transmit_response_with_sdp(p, "200 OK", req, 1);
+		transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE);
 		/* Do something more clever here */
 		ast_channel_unlock(c);
 		sip_pvt_unlock(p->refer->refer_call);
@@ -12908,7 +12908,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	if (!c) {
 		/* What to do if no channel ??? */
 		ast_log(LOG_ERROR, "Unable to create new channel.  Invite/replace failed.\n");
-		transmit_response_with_sdp(p, "503 Service Unavailable", req, 1);
+		transmit_response_reliable(p, "503 Service Unavailable", req);
 		append_history(p, "Xfer", "INVITE/Replace Failed. No new channel.");
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		sip_pvt_unlock(p->refer->refer_call);
@@ -12933,7 +12933,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	   Targetcall is not touched by the masq */
 
 	/* Answer the incoming call and set channel to UP state */
-	transmit_response_with_sdp(p, "200 OK", req, 1);
+	transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE);
 	ast_setstate(c, AST_STATE_UP);
 	
 	/* Stop music on hold and other generators */
