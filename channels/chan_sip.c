@@ -962,7 +962,13 @@ struct sip_pvt {
 	char lastmsg[256];			/*!< Last Message sent/received */
 	int amaflags;				/*!< AMA Flags */
 	int pendinginvite;			/*!< Any pending invite ? (seqno of this) */
-	struct sip_request initreq;		/*!< Initial request that opened the SIP dialog */
+	struct sip_request initreq;		/*!< Initial request that opened the SIP dialog 
+							... but keeps getting overwritten, so
+							when we want to send a BYE or a CANCEL,
+							we might be totally lost and have no
+							record of what opened the dialog...
+							XXX BUG!!! XXX
+						*/
 	
 	int maxtime;				/*!< Max time for first response */
 	int initid;				/*!< Auto-congest ID if appropriate (scheduler) */
