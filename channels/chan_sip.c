@@ -14060,8 +14060,8 @@ static int handle_request_message(struct sip_pvt *p, struct sip_request *req)
 		if (ast_test_flag(req, SIP_PKT_DEBUG))
 			ast_verbose("Receiving message!\n");
 		receive_message(p, req);
-	} 
-	transmit_response(p, "202 Accepted", req);
+	} else
+		transmit_response(p, "202 Accepted", req);
 	return 1;
 }
 
