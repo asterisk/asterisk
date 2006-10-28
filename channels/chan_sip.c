@@ -561,7 +561,7 @@ static int regobjs = 0;                  /*!< Registry objects */
 static struct ast_flags global_flags[2] = {{0}};        /*!< global SIP_ flags */
 
 /*! \brief Protect the SIP dialog list (of sip_pvt's) */
-AST_MUTEX_DEFINE_STATIC(iflock);
+AST_MUTEX_DEFINE_STATIC(dialoglock);
 
 AST_MUTEX_DEFINE_STATIC(netlock);
 
@@ -989,7 +989,7 @@ struct sip_pvt {
 	int autoframing;
 };
 
-static struct sip_pvt *iflist = NULL;
+static struct sip_pvt *dialoglist = NULL;
 
 #define FLAG_RESPONSE (1 << 0)
 #define FLAG_FATAL (1 << 1)
@@ -2970,12 +2970,15 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 		p->history = NULL;
 	}
 
-	for (prev = NULL, cur = iflist; cur; prev = cur, cur = cur->next) {
+	/* Lock dialog list before removing ourselves from the list */
+	ast_mutex_lock(&dialoglock);
+	for (prev = NULL, cur = dialoglist; cur; prev = cur, cur = cur->next) {
 		if (cur == p) {
-			UNLINK(cur, iflist, prev);
+			UNLINK(cur, dialoglist, prev);
 			break;
 		}
 	}
+	ast_mutex_unlock(&dialoglock);
 	if (!cur) {
 		ast_log(LOG_WARNING, "Trying to destroy \"%s\", not found in dialog list?!?! \n", p->callid);
 		return;
@@ -3121,11 +3124,9 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 /*! \brief Destroy SIP call structure */
 static void sip_destroy(struct sip_pvt *p)
 {
-	ast_mutex_lock(&iflock);
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Destroying SIP dialog %s\n", p->callid);
 	__sip_destroy(p, 1);
-	ast_mutex_unlock(&iflock);
 }
 
 /*! \brief Convert SIP hangup causes to Asterisk hangup causes */
@@ -4288,10 +4289,10 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	ast_string_field_set(p, context, default_context);
 
 	/* Add to active dialog list */
-	ast_mutex_lock(&iflock);
-	p->next = iflist;
-	iflist = p;
-	ast_mutex_unlock(&iflock);
+	ast_mutex_lock(&dialoglock);
+	p->next = dialoglist;
+	dialoglist = p;
+	ast_mutex_unlock(&dialoglock);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Allocating new SIP dialog for %s - %s (%s)\n", callid ? callid : "(No Call-ID)", sip_methods[intended_method].text, p->rtp ? "With RTP" : "No RTP");
 	return p;
@@ -4333,8 +4334,8 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 			ast_log(LOG_DEBUG, "= Looking for  Call ID: %s (Checking %s) --From tag %s --To-tag %s  \n", callid, req->method==SIP_RESPONSE ? "To" : "From", fromtag, totag);
 	}
 
-	ast_mutex_lock(&iflock);
-	for (p = iflist; p; p = p->next) {
+	ast_mutex_lock(&dialoglock);
+	for (p = dialoglist; p; p = p->next) {
 		/* In pedantic, we do not want packets with bad syntax to be connected to a PVT */
 		int found = FALSE;
 		if (req->method == SIP_REGISTER)
@@ -4364,11 +4365,11 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		if (found) {
 			/* Found the call */
 			sip_pvt_lock(p);
-			ast_mutex_unlock(&iflock);
+			ast_mutex_unlock(&dialoglock);
 			return p;
 		}
 	}
-	ast_mutex_unlock(&iflock);
+	ast_mutex_unlock(&dialoglock);
 	
 	/* See if the method is capable of creating a dialog */
 	if (sip_methods[intended_method].can_create == CAN_CREATE_DIALOG) {
@@ -8494,7 +8495,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	return -1;
 }
 
-/*! \brief Lock interface lock and find matching pvt lock  
+/*! \brief Lock dialog lock and find matching pvt lock  
 	- Their tag is fromtag, our tag is to-tag
 	- This means that in some transactions, totag needs to be their tag :-)
 	  depending upon the direction
@@ -8503,13 +8504,13 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 {
 	struct sip_pvt *sip_pvt_ptr;
 
-	ast_mutex_lock(&iflock);
+	ast_mutex_lock(&dialoglock);
 
 	if (option_debug > 3 && totag)
 		ast_log(LOG_DEBUG, "Looking for callid %s (fromtag %s totag %s)\n", callid, fromtag ? fromtag : "<no fromtag>", totag ? totag : "<no totag>");
 
-	/* Search interfaces and find the match */
-	for (sip_pvt_ptr = iflist; sip_pvt_ptr; sip_pvt_ptr = sip_pvt_ptr->next) {
+	/* Search dialogs and find the match */
+	for (sip_pvt_ptr = dialoglist; sip_pvt_ptr; sip_pvt_ptr = sip_pvt_ptr->next) {
 		if (!strcmp(sip_pvt_ptr->callid, callid)) {
 			int match = 1;
 			char *ourtag = sip_pvt_ptr->tag;
@@ -8543,7 +8544,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 			break;
 		}
 	}
-	ast_mutex_unlock(&iflock);
+	ast_mutex_unlock(&dialoglock);
 	if (option_debug > 3 && !sip_pvt_ptr)
 		ast_log(LOG_DEBUG, "Found no match for callid %s to-tag %s from-tag %s\n", callid, totag, fromtag);
 	return sip_pvt_ptr;
@@ -10404,8 +10405,8 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&iflock);
-	cur = iflist;
+	ast_mutex_lock(&dialoglock);
+	cur = dialoglist;
 	if (!subscriptions)
 		ast_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Format", "Hold", "Last Message");
 	else 
@@ -10441,7 +10442,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 			numchans++;
 		}
 	}
-	ast_mutex_unlock(&iflock);
+	ast_mutex_unlock(&dialoglock);
 	if (!subscriptions)
 		ast_cli(fd, "%d active SIP channel%s\n", numchans, (numchans != 1) ? "s" : "");
 	else
@@ -10460,14 +10461,14 @@ static char *complete_sipch(const char *line, const char *word, int pos, int sta
 	char *c = NULL;
 	int wordlen = strlen(word);
 
-	ast_mutex_lock(&iflock);
-	for (cur = iflist; cur; cur = cur->next) {
+	ast_mutex_lock(&dialoglock);
+	for (cur = dialoglist; cur; cur = cur->next) {
 		if (!strncasecmp(word, cur->callid, wordlen) && ++which > state) {
 			c = ast_strdup(cur->callid);
 			break;
 		}
 	}
-	ast_mutex_unlock(&iflock);
+	ast_mutex_unlock(&dialoglock);
 	return c;
 }
 
@@ -10592,8 +10593,8 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	len = strlen(argv[3]);
-	ast_mutex_lock(&iflock);
-	for (cur = iflist; cur; cur = cur->next) {
+	ast_mutex_lock(&dialoglock);
+	for (cur = dialoglist; cur; cur = cur->next) {
 		if (!strncasecmp(cur->callid, argv[3], len)) {
 			char formatbuf[BUFSIZ/2];
 			ast_cli(fd,"\n");
@@ -10646,7 +10647,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			found++;
 		}
 	}
-	ast_mutex_unlock(&iflock);
+	ast_mutex_unlock(&dialoglock);
 	if (!found) 
 		ast_cli(fd, "No such SIP Call ID starting with '%s'\n", argv[3]);
 	return RESULT_SUCCESS;
@@ -10664,8 +10665,8 @@ static int sip_show_history(int fd, int argc, char *argv[])
 	if (!recordhistory)
 		ast_cli(fd, "\n***Note: History recording is currently DISABLED.  Use 'sip history' to ENABLE.\n");
 	len = strlen(argv[3]);
-	ast_mutex_lock(&iflock);
-	for (cur = iflist; cur; cur = cur->next) {
+	ast_mutex_lock(&dialoglock);
+	for (cur = dialoglist; cur; cur = cur->next) {
 		if (!strncasecmp(cur->callid, argv[3], len)) {
 			struct sip_history *hist;
 			int x = 0;
@@ -10683,7 +10684,7 @@ static int sip_show_history(int fd, int argc, char *argv[])
 			found++;
 		}
 	}
-	ast_mutex_unlock(&iflock);
+	ast_mutex_unlock(&dialoglock);
 	if (!found) 
 		ast_cli(fd, "No such SIP Call ID starting with '%s'\n", argv[3]);
 	return RESULT_SUCCESS;
@@ -14303,8 +14304,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			for it to expire and send NOTIFY messages to the peer only to have them
 			ignored (or generate errors)
 			*/
-			ast_mutex_lock(&iflock);
-			for (p_old = iflist; p_old; p_old = p_old->next) {
+			ast_mutex_lock(&dialoglock);
+			for (p_old = dialoglist; p_old; p_old = p_old->next) {
 				if (p_old == p)
 					continue;
 				if (p_old->initreq.method != SIP_SUBSCRIBE)
@@ -14322,7 +14323,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				}
 				sip_pvt_unlock(p_old);
 			}
-			ast_mutex_unlock(&iflock);
+			ast_mutex_unlock(&dialoglock);
 		}
 		if (!p->expiry)
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
@@ -14833,15 +14834,15 @@ static void *do_monitor(void *data)
 			if (sipsock > -1)
 				sipsock_read_id = ast_io_change(io, sipsock_read_id, sipsock, NULL, 0, NULL);
 		}
-		/* Check for interfaces needing to be killed */
-		ast_mutex_lock(&iflock);
+		/* Check for dialogs needing to be killed */
+		ast_mutex_lock(&dialoglock);
 restartsearch:		
 		t = time(NULL);
-		/* don't scan the interface list if it hasn't been a reasonable period
+		/* don't scan the dialogs list if it hasn't been a reasonable period
 		   of time since the last time we did it (when MWI is being sent, we can
 		   get back to this point every millisecond or less)
 		*/
-		for (sip = iflist; !fastrestart && sip; sip = sip->next) {
+		for (sip = dialoglist; !fastrestart && sip; sip = sip->next) {
 			sip_pvt_lock(sip);
 			/* Check RTP timeouts and kill calls if we have a timeout set and do not get RTP */
 			check_rtp_timeout(sip, t);
@@ -14854,7 +14855,7 @@ restartsearch:
 			}
 			sip_pvt_unlock(sip);
 		}
-		ast_mutex_unlock(&iflock);
+		ast_mutex_unlock(&dialoglock);
 
 		pthread_testcancel();
 		/* Wait for sched or io */
@@ -16025,7 +16026,7 @@ static int reload_config(enum channelreloadreason reason)
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
 			continue;
 
-		/* Create the interface list */
+		/* Create the dialogs list */
 		if (!strcasecmp(v->name, "context")) {
 			ast_copy_string(default_context, v->value, sizeof(default_context));
 		} else if (!strcasecmp(v->name, "realm")) {
@@ -17163,13 +17164,13 @@ static int unload_module(void)
 	ast_manager_unregister("SIPpeers");
 	ast_manager_unregister("SIPshowpeer");
 
-	ast_mutex_lock(&iflock);
-	/* Hangup all interfaces if they have an owner */
-	for (p = iflist; p ; p = p->next) {
+	ast_mutex_lock(&dialoglock);
+	/* Hangup all dialogs if they have an owner */
+	for (p = dialoglist; p ; p = p->next) {
 		if (p->owner)
 			ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
 	}
-	ast_mutex_unlock(&iflock);
+	ast_mutex_unlock(&dialoglock);
 
 	ast_mutex_lock(&monlock);
 	if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP)) {
@@ -17180,9 +17181,9 @@ static int unload_module(void)
 	monitor_thread = AST_PTHREADT_STOP;
 	ast_mutex_unlock(&monlock);
 
-	ast_mutex_lock(&iflock);
-	/* Destroy all the interfaces and free their memory */
-	p = iflist;
+	ast_mutex_lock(&dialoglock);
+	/* Destroy all the dialogs and free their memory */
+	p = dialoglist;
 	while (p) {
 		pl = p;
 		p = p->next;
@@ -17194,8 +17195,8 @@ static int unload_module(void)
 		}
 		free(pl);
 	}
-	iflist = NULL;
-	ast_mutex_unlock(&iflock);
+	dialoglist = NULL;
+	ast_mutex_unlock(&dialoglock);
 
 	/* Free memory for local network address mask */
 	ast_free_ha(localaddr);
