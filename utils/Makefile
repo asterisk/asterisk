@@ -23,6 +23,10 @@ ifeq ($(OSARCH),SunOS)
   UTILS:=$(filter-out muted,$(UTILS))
 endif
 
+ifeq ($(OSARCH),OpenBSD)
+  UTILS:=$(filter-out muted,$(UTILS))
+endif
+
 ifeq ($(POPT_LIB),)
   UTILS:=$(filter-out smsq,$(UTILS))
 endif
