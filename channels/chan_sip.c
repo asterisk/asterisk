@@ -1221,7 +1221,7 @@ static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *r
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, enum xmittype reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqno, enum xmittype reliable, int newbranch);
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init);
-static int transmit_reinvite_with_sdp(struct sip_pvt *p);
+static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version);
 static int transmit_info_with_digit(struct sip_pvt *p, const char digit);
 static int transmit_info_with_vidupdate(struct sip_pvt *p);
 static int transmit_message_with_text(struct sip_pvt *p, const char *text);
@@ -1520,7 +1520,6 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 /*------ T38 Support --------- */
 static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt, int reinvite); /*!< T38 negotiation helper function */
 static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
-static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p);
 static struct ast_udptl *sip_get_udptl_peer(struct ast_channel *chan);
 static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl);
 
@@ -4120,7 +4119,7 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 				if (option_debug > 2)
 					ast_log(LOG_DEBUG, "Sending reinvite on SIP (%s) for T.38 negotiation.\n",ast->name);
 				p->t38.state = T38_LOCAL_REINVITE;
-				transmit_reinvite_with_t38_sdp(p);
+				transmit_reinvite_with_sdp(p, TRUE);
 				if (option_debug > 1)
 					ast_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n", p->t38.state, ast->name);
 			}
@@ -6402,8 +6401,11 @@ static int determine_firstline_parts(struct sip_request *req)
 	INVITE that opened the SIP dialogue 
 	We reinvite so that the audio stream (RTP) go directly between
 	the SIP UAs. SIP Signalling stays with * in the path.
+	
+	If t38version is TRUE, we send T38 SDP for re-invite from audio/video to
+	T38 UDPTL transmission on the channel
 */
-static int transmit_reinvite_with_sdp(struct sip_pvt *p)
+static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version)
 {
 	struct sip_request req;
 
@@ -6415,29 +6417,10 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 		add_header(&req, "X-asterisk-Info", "SIP re-invite (External RTP bridge)");
 	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 		append_history(p, "ReInv", "Re-invite sent");
-	add_sdp(&req, p);
-	/* Use this as the basis */
-	initialize_initreq(p, &req);
-	p->lastinvite = p->ocseq;
-	return send_request(p, &req, XMIT_CRITICAL, p->ocseq);
-}
-
-/*! \brief Transmit reinvite with T38 SDP 
-       We reinvite so that the T38 processing can take place.
-       SIP Signalling stays with * in the path.
-*/
-static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
-{
-	struct sip_request req;
-
-	reqprep(&req, p, ast_test_flag(&p->flags[0], SIP_REINVITE_UPDATE) ?  SIP_UPDATE : SIP_INVITE, 0, 1);
-	
-	add_header(&req, "Allow", ALLOWED_METHODS);
-	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
-	if (sipdebug)
-		add_header(&req, "X-asterisk-info", "SIP re-invite (T38 switchover)");
-	ast_udptl_offered_from_local(p->udptl, 1);
-	add_t38_sdp(&req, p);
+	if (t38version)
+		add_t38_sdp(&req, p);
+	else
+		add_sdp(&req, p);
 	/* Use this as the basis */
 	initialize_initreq(p, &req);
 	p->lastinvite = p->ocseq;
@@ -11564,7 +11547,7 @@ static void check_pendings(struct sip_pvt *p)
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Sending pending reinvite on '%s'\n", p->callid);
 		/* Didn't get to reinvite yet, so do it now */
-		transmit_reinvite_with_sdp(p);
+		transmit_reinvite_with_sdp(p, FALSE);
 		ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
 	}
 }
@@ -16479,7 +16462,7 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 			if (option_debug > 2) {
 				ast_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
 			}
-			transmit_reinvite_with_t38_sdp(p);
+			transmit_reinvite_with_sdp(p, TRUE);
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 			if (option_debug > 2) {
 				ast_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
@@ -16524,7 +16507,7 @@ static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt
 					else
 						ast_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip));
 				}
-				transmit_reinvite_with_t38_sdp(p);
+				transmit_reinvite_with_sdp(p, TRUE);
 			} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 				if (option_debug > 2) {
 					if (flag)
@@ -16668,7 +16651,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 			if (option_debug > 2) {
 				ast_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip));
 			}
-			transmit_reinvite_with_sdp(p);
+			transmit_reinvite_with_sdp(p, FALSE);
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 			if (option_debug > 2) {
 				ast_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip));
