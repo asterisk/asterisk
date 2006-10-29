@@ -702,7 +702,7 @@ struct sip_auth {
 #define SIP_USEREQPHONE		(1 << 10)	/*!< Add user=phone to numeric URI. Default off */
 #define SIP_REALTIME		(1 << 11)	/*!< Flag for realtime users */
 #define SIP_USECLIENTCODE	(1 << 12)	/*!< Trust X-ClientCode info message */
-#define SIP_OUTGOING		(1 << 13)	/*!< Is this an outgoing call? */
+#define SIP_OUTGOING		(1 << 13)	/*!< Direction of the last transaction in this dialog */
 #define SIP_CAN_BYE		(1 << 14)	/*!< Can we send BYE on this dialog? */
 #define SIP_DEFER_BYE_ON_TRANSFER	(1 << 15)	/*!< Do not hangup at first ast_hangup */
 #define SIP_DTMF		(3 << 16)	/*!< DTMF Support: four settings, uses two bits */
@@ -5569,16 +5569,6 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 			ast_log(LOG_DEBUG, "Strict routing enforced for session %s\n", p->callid);
 	}
 	
-#ifdef SKREP
-	/* Let's try to figure out the direction of this transaction within the dialog */
-	/* If we're sending an ACK, we DID send the INVITE - which means outbound.
-	   INVITE's are outbound transactions, always 
-	*/
-	if (sipmethod == SIP_ACK || sipmethod == SIP_INVITE)
-		is_outbound = TRUE;
-	/* In other case's, let's follow the flow of the dialog */
-#endif
-
 	if (sipmethod == SIP_CANCEL)
 		c = p->initreq.rlPart2;	/* Use original URI */
 	else if (sipmethod == SIP_ACK) {
@@ -6424,6 +6414,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version)
 	/* Use this as the basis */
 	initialize_initreq(p, &req);
 	p->lastinvite = p->ocseq;
+	ast_set_flag(&p->flags[0], SIP_OUTGOING);		/* Change direction of this dialog */
 	return send_request(p, &req, XMIT_CRITICAL, p->ocseq);
 }
 
@@ -10585,7 +10576,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 				ast_cli(fd, "  * Subscription (type: %s)\n", subscription_type2str(cur->subscribed));
 			else
 				ast_cli(fd, "  * SIP Call\n");
-			ast_cli(fd, "  Direction:              %s\n", ast_test_flag(&cur->flags[0], SIP_OUTGOING)?"Outgoing":"Incoming");
+			ast_cli(fd, "  Curr. trans. direction:  %s\n", ast_test_flag(&cur->flags[0], SIP_OUTGOING) ? "Outgoing" : "Incoming");
 			ast_cli(fd, "  Call-ID:                %s\n", cur->callid);
 			ast_cli(fd, "  Owner channel ID:       %s\n", cur->owner ? cur->owner->name : "<none>");
 			ast_cli(fd, "  Our Codec Capability:   %d\n", cur->capability);
@@ -13171,14 +13162,14 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		p->pendinginvite = seqno;
 		check_via(p, req);
 
+		copy_request(&p->initreq, req);		/* Save this INVITE as the transaction basis */
 		if (!p->owner) {	/* Not a re-invite */
-			/* Use this as the basis */
-			copy_request(&p->initreq, req);
 			if (debug)
 				ast_verbose("Using INVITE request as basis request - %s\n", p->callid);
 			append_history(p, "Invite", "New call: %s", p->callid);
 			parse_ok_contact(p, req);
 		} else {	/* Re-invite on existing call */
+			ast_clear_flag(&p->flags[0], SIP_OUTGOING);	/* This is now an inbound dialog */
 			/* Handle SDP here if we already have an owner */
 			if (find_sdp(req)) {
 				if (process_sdp(p, req)) {
@@ -14148,6 +14139,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	if (!ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
 		transmit_response(p, "403 Forbidden (policy)", req);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+		if (authpeer)
+			ASTOBJ_UNREF(authpeer,sip_destroy_peer);
 		return 0;
 	}
 
@@ -14168,6 +14161,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	if (gotdest) {
 		transmit_response(p, "404 Not Found", req);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		if (authpeer)
+			ASTOBJ_UNREF(authpeer,sip_destroy_peer);
 		return 0;
 	}
 
@@ -14176,6 +14171,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		make_our_tag(p->tag, sizeof(p->tag));
 
 	if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
+		if (authpeer)	/* We do not need the authpeer any more */
+			ASTOBJ_UNREF(authpeer,sip_destroy_peer);
 
 		/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
 		/* Polycom phones only handle xpidf+xml, even if they say they can
@@ -14205,6 +14202,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			if (option_debug > 1)
 				ast_log(LOG_DEBUG, "Received SIP mailbox subscription for unknown format: %s\n", accept);
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			if (authpeer)
+				ASTOBJ_UNREF(authpeer,sip_destroy_peer);
 			return 0;
 		}
 		/* Looks like they actually want a mailbox status 
@@ -14216,6 +14215,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			transmit_response(p, "404 Not found (no mailbox)", req);
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			ast_log(LOG_NOTICE, "Received SIP subscribe for peer without mailbox: %s\n", authpeer->name);
+			if (authpeer)
+				ASTOBJ_UNREF(authpeer,sip_destroy_peer);
 			return 0;
 		}
 
@@ -14225,14 +14226,18 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			sip_destroy(authpeer->mwipvt);
 		authpeer->mwipvt = p;		/* Link from peer to pvt */
 		p->relatedpeer = authpeer;	/* Link from pvt to peer */
+		/* Do not release authpeer here */
 	} else { /* At this point, Asterisk does not understand the specified event */
 		transmit_response(p, "489 Bad Event", req);
 		if (option_debug > 1)
 			ast_log(LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		if (authpeer)
+			ASTOBJ_UNREF(authpeer,sip_destroy_peer);
 		return 0;
 	}
 
+	/* Add subscription for extension state from the PBX core */
 	if (p->subscribed != MWI_NOTIFICATION && !resubscribe)
 		p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
 
@@ -14311,8 +14316,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (!p->expiry)
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 	}
-	if (authpeer)
-		ASTOBJ_UNREF(authpeer, sip_destroy_peer);
 	return 1;
 }
 
