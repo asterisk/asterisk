@@ -979,7 +979,7 @@ struct sip_pvt {
 	int laststate;				/*!< SUBSCRIBE: Last known extension state */
 	int dialogver;				/*!< SUBSCRIBE: Version for subscription dialog-info */
 	
-	struct ast_dsp *vad;			/*!< Voice Activation Detection dsp */
+	struct ast_dsp *vad;			/*!< Inband DTMF Detection dsp */
 	
 	struct sip_peer *relatedpeer;		/*!< If this dialog is related to a peer, which one 
 							Used in peerpoke, mwi subscriptions */
