@@ -30,6 +30,7 @@ Changes since Asterisk 1.2:
     * Significant chan_skinny updates
     * Significant chan_misdn updates
     * Improved SIP transfers
+    * SIP MWI subscription support
     * Much improved support for SIP video
     * Control over SIP transfers and subscriptions (enable/disable per device)
     * ChanSpy whisper mode (Whisper Paging)

@@ -1957,6 +1957,10 @@ static int __sip_autodestruct(void *data)
 		return 10000;	/* Reschedule this destruction so that we know that it's gone */
 	}
 
+	/* If we're destroying a subscription, dereference peer object too */
+	if (p->subscribed == MWI_NOTIFICATION && p->relatedpeer)
+		ASTOBJ_UNREF(p->relatedpeer,sip_destroy_peer);
+
 	/* Reset schedule ID */
 	p->autokillid = -1;
 
@@ -13954,8 +13958,11 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	/* Handle authentication */
 	res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, &authpeer);
 	/* if an authentication response was sent, we are done here */
-	if (res == AUTH_CHALLENGE_SENT)
+	if (res == AUTH_CHALLENGE_SENT) {
+		if (authpeer)
+			ASTOBJ_UNREF(authpeer, sip_destroy_peer);
 		return 0;
+	}
 	if (res < 0) {
 		if (res == AUTH_FAKE_AUTH) {
 			ast_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
@@ -13965,6 +13972,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			transmit_response_reliable(p, "403 Forbidden", req);
 		}
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		if (authpeer)
+			ASTOBJ_UNREF(authpeer, sip_destroy_peer);
 		return 0;
 	}
 
@@ -13972,6 +13981,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	if (!ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
 		transmit_response(p, "403 Forbidden (policy)", req);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+		if (authpeer)
+			ASTOBJ_UNREF(authpeer, sip_destroy_peer);
 		return 0;
 	}
 
@@ -13992,6 +14003,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	if (gotdest) {
 		transmit_response(p, "404 Not Found", req);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		if (authpeer)
+			ASTOBJ_UNREF(authpeer, sip_destroy_peer);
 		return 0;
 	}
 
@@ -14000,6 +14013,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		make_our_tag(p->tag, sizeof(p->tag));
 
 	if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
+		if (authpeer)	/* No need for authpeer here */
+			ASTOBJ_UNREF(authpeer, sip_destroy_peer);
 
 		/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
 		/* Polycom phones only handle xpidf+xml, even if they say they can
@@ -14029,6 +14044,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			if (option_debug > 1)
 				ast_log(LOG_DEBUG, "Received SIP mailbox subscription for unknown format: %s\n", accept);
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			if (authpeer)	/* No need for authpeer here */
+				ASTOBJ_UNREF(authpeer, sip_destroy_peer);
 			return 0;
 		}
 		/* Looks like they actually want a mailbox status 
@@ -14040,6 +14057,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			transmit_response(p, "404 Not found (no mailbox)", req);
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			ast_log(LOG_NOTICE, "Received SIP subscribe for peer without mailbox: %s\n", authpeer->name);
+			if (authpeer)	/* No need for authpeer here */
+				ASTOBJ_UNREF(authpeer, sip_destroy_peer);
 			return 0;
 		}
 
@@ -14054,6 +14073,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (option_debug > 1)
 			ast_log(LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		if (authpeer)	/* No need for authpeer here */
+			ASTOBJ_UNREF(authpeer, sip_destroy_peer);
 		return 0;
 	}
 
@@ -14135,8 +14156,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (!p->expiry)
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 	}
-	if (authpeer)
-		ASTOBJ_UNREF(authpeer, sip_destroy_peer);
 	return 1;
 }
 
