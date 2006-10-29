@@ -925,20 +925,18 @@ static int ast_makesocket(void)
 
 	if (!ast_strlen_zero(ast_config_AST_CTL_OWNER)) {
 		struct passwd *pw;
-		if ((pw = getpwnam(ast_config_AST_CTL_OWNER)) == NULL) {
+		if ((pw = getpwnam(ast_config_AST_CTL_OWNER)) == NULL)
 			ast_log(LOG_WARNING, "Unable to find uid of user %s\n", ast_config_AST_CTL_OWNER);
-		} else {
+		else
 			uid = pw->pw_uid;
-		}
 	}
 		
 	if (!ast_strlen_zero(ast_config_AST_CTL_GROUP)) {
 		struct group *grp;
-		if ((grp = getgrnam(ast_config_AST_CTL_GROUP)) == NULL) {
+		if ((grp = getgrnam(ast_config_AST_CTL_GROUP)) == NULL)
 			ast_log(LOG_WARNING, "Unable to find gid of group %s\n", ast_config_AST_CTL_GROUP);
-		} else {
+		else
 			gid = grp->gr_gid;
-		}
 	}
 
 	if (chown(ast_config_AST_SOCKET, uid, gid) < 0)
@@ -1587,9 +1585,8 @@ static int ast_el_read_char(EditLine *el, char *cp)
 							printf(term_quit());
 							WELCOME_MESSAGE;
 							break;
-						} else {
+						} else
 							usleep(1000000 / reconnects_per_second);
-						}
 					}
 					if (tries >= 30 * reconnects_per_second) {
 						fprintf(stderr, "Failed to reconnect for 30 seconds.  Quitting.\n");
@@ -1606,9 +1603,8 @@ static int ast_el_read_char(EditLine *el, char *cp)
 			if ((buf[res-1] == '\n') || (buf[res-2] == '\n')) {
 				*cp = CC_REFRESH;
 				return(1);
-			} else {
+			} else
 				lastpos = 1;
-			}
 		}
 	}
 
@@ -1650,25 +1646,19 @@ static char *cli_prompt(EditLine *el)
 					}
 
 					/* If the color has been reset correctly, then there's no need to reset it later */
-					if ((fgcolor == COLOR_WHITE) && (bgcolor == COLOR_BLACK)) {
-						color_used = 0;
-					} else {
-						color_used = 1;
-					}
+					color_used = ((fgcolor == COLOR_WHITE) && (bgcolor == COLOR_BLACK)) ? 0 : 1;
 					break;
 				case 'd': /* date */
 					memset(&tm, 0, sizeof(tm));
 					time(&ts);
-					if (localtime_r(&ts, &tm)) {
+					if (localtime_r(&ts, &tm)) 
 						strftime(p, sizeof(prompt) - strlen(prompt), "%Y-%m-%d", &tm);
-					}
 					break;
 				case 'h': /* hostname */
-					if (!gethostname(hostname, sizeof(hostname) - 1)) {
+					if (!gethostname(hostname, sizeof(hostname) - 1))
 						strncat(p, hostname, sizeof(prompt) - strlen(prompt) - 1);
-					} else {
+					else
 						strncat(p, "localhost", sizeof(prompt) - strlen(prompt) - 1);
-					}
 					break;
 				case 'H': /* short hostname */
 					if (!gethostname(hostname, sizeof(hostname) - 1)) {
@@ -1679,9 +1669,8 @@ static char *cli_prompt(EditLine *el)
 							}
 						}
 						strncat(p, hostname, sizeof(prompt) - strlen(prompt) - 1);
-					} else {
+					} else
 						strncat(p, "localhost", sizeof(prompt) - strlen(prompt) - 1);
-					}
 					break;
 #ifdef linux
 				case 'l': /* load avg */
@@ -1719,16 +1708,14 @@ static char *cli_prompt(EditLine *el)
 				case 't': /* time */
 					memset(&tm, 0, sizeof(tm));
 					time(&ts);
-					if (localtime_r(&ts, &tm)) {
+					if (localtime_r(&ts, &tm))
 						strftime(p, sizeof(prompt) - strlen(prompt), "%H:%M:%S", &tm);
-					}
 					break;
 				case '#': /* process console or remote? */
-					if (!ast_opt_remote) {
+					if (!ast_opt_remote) 
 						strncat(p, "#", sizeof(prompt) - strlen(prompt) - 1);
-					} else {
+					else
 						strncat(p, ">", sizeof(prompt) - strlen(prompt) - 1);
-					}
 					break;
 				case '%': /* literal % */
 					strncat(p, "%", sizeof(prompt) - strlen(prompt) - 1);
@@ -1737,9 +1724,8 @@ static char *cli_prompt(EditLine *el)
 					t--;
 					break;
 				}
-				while (*p != '\0') {
+				while (*p != '\0')
 					p++;
-				}
 				t++;
 			} else {
 				*p = *t;
@@ -1750,11 +1736,10 @@ static char *cli_prompt(EditLine *el)
 		if (color_used) {
 			/* Force colors back to normal at end */
 			term_color_code(term_code, COLOR_WHITE, COLOR_BLACK, sizeof(term_code));
-			if (strlen(term_code) > sizeof(prompt) - strlen(prompt)) {
+			if (strlen(term_code) > sizeof(prompt) - strlen(prompt))
 				strncat(prompt + sizeof(prompt) - strlen(term_code) - 1, term_code, strlen(term_code));
-			} else {
+			else
 				strncat(p, term_code, sizeof(term_code));
-			}
 		}
 	} else if (remotehostname)
 		snprintf(prompt, sizeof(prompt), ASTERISK_PROMPT2, remotehostname);
@@ -2176,9 +2161,8 @@ static void ast_readconfig(void)
 		cfg = ast_config_load(ast_config_AST_CONFIG_FILE);
 		if (!cfg)
 			ast_log(LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", ast_config_AST_CONFIG_FILE);
-	} else {
+	} else 
 		cfg = ast_config_load(config);
-	}
 
 	/* init with buildtime config */
 	ast_copy_string(ast_config_AST_CONFIG_DIR, AST_CONFIG_DIR, sizeof(ast_config_AST_CONFIG_DIR));
@@ -2201,15 +2185,14 @@ static void ast_readconfig(void)
 	}
 
 	for (v = ast_variable_browse(cfg, "files"); v; v = v->next) {
-		if (!strcasecmp(v->name, "astctlpermissions")) {
+		if (!strcasecmp(v->name, "astctlpermissions"))
 			ast_copy_string(ast_config_AST_CTL_PERMISSIONS, v->value, sizeof(ast_config_AST_CTL_PERMISSIONS));
-		} else if (!strcasecmp(v->name, "astctlowner")) {
+		else if (!strcasecmp(v->name, "astctlowner"))
 			ast_copy_string(ast_config_AST_CTL_OWNER, v->value, sizeof(ast_config_AST_CTL_OWNER));
-		} else if (!strcasecmp(v->name, "astctlgroup")) {
+		else if (!strcasecmp(v->name, "astctlgroup"))
 			ast_copy_string(ast_config_AST_CTL_GROUP, v->value, sizeof(ast_config_AST_CTL_GROUP));
-		} else if (!strcasecmp(v->name, "astctl")) {
+		else if (!strcasecmp(v->name, "astctl"))
 			ast_copy_string(ast_config_AST_CTL, v->value, sizeof(ast_config_AST_CTL));
-		}
 	}
 
 	for (v = ast_variable_browse(cfg, "directories"); v; v = v->next) {
@@ -2670,21 +2653,21 @@ int main(int argc, char *argv[])
 	srand((unsigned int) getpid() + (unsigned int) time(NULL));
 	initstate((unsigned int) getpid() * 65536 + (unsigned int) time(NULL), randompool, sizeof(randompool));
 
-	if (init_logger()) {
+	if (init_logger()) {		/* Start logging subsystem */
 		printf(term_quit());
 		exit(1);
 	}
-	if (load_modules(1)) {
-		printf(term_quit());
-		exit(1);
-	}
-
-	if (dnsmgr_init()) {
+	if (load_modules(1)) {		/* Load modules */
 		printf(term_quit());
 		exit(1);
 	}
 
-	ast_http_init();
+	if (dnsmgr_init()) {		/* Initialize the DNS manager */
+		printf(term_quit());
+		exit(1);
+	}
+
+	ast_http_init();		/* Start the HTTP server, if needed */
 
 	ast_channels_init();
 
