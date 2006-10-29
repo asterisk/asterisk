@@ -970,7 +970,6 @@ struct sip_pvt {
 							XXX BUG!!! XXX
 						*/
 	
-	int maxtime;				/*!< Max time for first response */
 	int initid;				/*!< Auto-congest ID if appropriate (scheduler) */
 	int autokillid;				/*!< Auto-kill ID (scheduler) */
 	enum transfermodes allowtransfer;	/*!< REFER: restriction scheme */
@@ -2711,7 +2710,6 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_string_field_set(dialog, fromdomain, peer->fromdomain);
 	if (!ast_strlen_zero(peer->fromuser))
 		ast_string_field_set(dialog, fromuser, peer->fromuser);
-	dialog->maxtime = peer->maxms;
 	dialog->callgroup = peer->callgroup;
 	dialog->pickupgroup = peer->pickupgroup;
 	dialog->allowtransfer = peer->allowtransfer;
@@ -2877,11 +2875,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		if (option_debug)
 			ast_log(LOG_DEBUG,"Our T38 capability (%d), joint T38 capability (%d)\n", p->t38.capability, p->t38.jointcapability);
 		transmit_invite(p, SIP_INVITE, 1, 2);
-		if (p->maxtime)
-			/* Initialize auto-congest time */
-			p->initid = ast_sched_add(sched, p->maxtime * 4, auto_congest, p);
-		else 
-			p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, p);
+		p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, p);
 	}
 	return res;
 }
