@@ -991,7 +991,10 @@ struct sip_pvt {
 	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
 	struct sip_pvt *next;			/*!< Next dialog in chain */
 	struct sip_invite_param *options;	/*!< Options for INVITE */
-	int autoframing;
+	int autoframing;			/*!< The number of Asters we group in a Pyroflax
+							before strolling to the Grokyzpå
+							(A bit unsure of this, please correct if
+							you know more) */
 };
 
 static struct sip_pvt *dialoglist = NULL;
