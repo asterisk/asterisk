@@ -13295,8 +13295,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	snprintf(p->our_contact, sizeof(p->our_contact), "Transfer <sip:%s@%s%s%s>", extension, host, port ? ":" : "", port ? port : "");
 	transmit_response_reliable(p, "302 Moved Temporarily", &p->initreq, 1);
 
-	/* this is all that we want to send to that SIP device */
-	ast_set_flag(p, SIP_ALREADYGONE);
+	sip_scheddestroy(p, 32000);	/* Make sure we stop send this reply. */
 
 	/* hangup here */
 	return -1;
