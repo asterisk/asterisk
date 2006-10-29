@@ -1981,6 +1981,10 @@ static int __sip_autodestruct(void *data)
 		return 10000;	/* Reschedule this destruction so that we know that it's gone */
 	}
 
+	if (p->subscribed == MWI_NOTIFICATION)
+		if (p->relatedpeer)
+			ASTOBJ_UNREF(p->relatedpeer,sip_destroy_peer);	/* Remove link to peer. If it's realtime, make sure it's gone from memory) */
+
 	/* Reset schedule ID */
 	p->autokillid = -1;
 
@@ -1990,11 +1994,10 @@ static int __sip_autodestruct(void *data)
 	if (p->owner) {
 		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner in place (Method: %s)\n", p->callid, sip_methods[p->method].text);
 		ast_queue_hangup(p->owner);
-	} else if (p->refer) {
+	} else if (p->refer)
 		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
-	} else {
+	else 
 		sip_destroy(p);
-	}
 	return 0;
 }
 
@@ -2916,7 +2919,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 		ast_verbose("Really destroying SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
 
 	/* Remove link from peer to subscription of MWI */
-	if (p->relatedpeer && p->relatedpeer->mwipvt)
+	if (p->relatedpeer && p->relatedpeer->mwipvt) 
 		p->relatedpeer->mwipvt = NULL;
 
 	if (dumphistory)
