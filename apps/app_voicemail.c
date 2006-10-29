@@ -506,7 +506,7 @@ static int maxgreet;
 static int skipms;
 static int maxlogins;
 
-/* cutom password sounds */
+/* custom password sounds */
 static char vm_password[80] = "vm-password";
 static char vm_newpassword[80] = "vm-newpassword";
 static char vm_passchanged[80] = "vm-passchanged";
