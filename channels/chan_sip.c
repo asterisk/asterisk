@@ -262,7 +262,6 @@ enum parse_register_result {
 
 enum subscriptiontype { 
 	NONE = 0,
-	TIMEOUT,
 	XPIDF_XML,
 	DIALOG_INFO_XML,
 	CPIM_PIDF_XML,
@@ -1233,7 +1232,6 @@ static int transmit_message_with_text(struct sip_pvt *p, const char *text);
 static int transmit_refer(struct sip_pvt *p, const char *dest);
 static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs, char *vmexten);
 static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *message, int terminate);
-static int transmit_state_notify(struct sip_pvt *p, int state, int full);
 static int transmit_register(struct sip_registry *r, int sipmethod, const char *auth, const char *authheader);
 static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
 static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno);
@@ -1460,8 +1458,8 @@ static int get_rpid_num(const char *input, char *output, int maxlen);
 static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq);
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq);
 static int get_msg_text(char *buf, int len, struct sip_request *req);
-static const char *gettag(const struct sip_request *req, const char *header, char *tagbuf, int tagbufsize);
 static void free_old_route(struct sip_route *route);
+static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout);
 
 /*--- Constructing requests and responses */
 static void initialize_initreq(struct sip_pvt *p, struct sip_request *req);
@@ -1972,8 +1970,7 @@ static int __sip_autodestruct(void *data)
 
 	/* If this is a subscription, tell the phone that we got a timeout */
 	if (p->subscribed) {
-		p->subscribed = TIMEOUT;
-		transmit_state_notify(p, AST_EXTENSION_DEACTIVATED, 1);	/* Send last notification */
+		transmit_state_notify(p, AST_EXTENSION_DEACTIVATED, 1, TRUE);	/* Send last notification */
 		p->subscribed = NONE;
 		append_history(p, "Subscribestatus", "timeout");
 		if (option_debug > 2)
@@ -6749,7 +6746,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 }
 
 /*! \brief Used in the SUBSCRIBE notification subsystem */
-static int transmit_state_notify(struct sip_pvt *p, int state, int full)
+static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout)
 {
 	char tmp[4000], from[256], to[256];
 	char *t = tmp, *c, *mfrom, *mto;
@@ -6840,7 +6837,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 	add_header(&req, "Content-Type", subscriptiontype->mediatype);
 	switch(state) {
 	case AST_EXTENSION_DEACTIVATED:
-		if (p->subscribed == TIMEOUT)
+		if (timeout)
 			add_header(&req, "Subscription-State", "terminated;reason=timeout");
 		else {
 			add_header(&req, "Subscription-State", "terminated;reason=probation");
@@ -8067,7 +8064,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 		break;
 	}
 	if (p->subscribed != NONE)	/* Only send state NOTIFY if we know the format */
-		transmit_state_notify(p, state, 1);
+		transmit_state_notify(p, state, 1, FALSE);
 
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_1 "Extension Changed %s new state %s for Notify User %s\n", exten, ast_extension_state2str(state), p->username);
@@ -14285,7 +14282,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			}
 
 			transmit_response(p, "200 OK", req);
-			transmit_state_notify(p, firststate, 1);	/* Send first notification */
+			transmit_state_notify(p, firststate, 1, FALSE);	/* Send first notification */
 			append_history(p, "Subscribestatus", "%s", ast_extension_state2str(firststate));
 			/* hide the 'complete' exten/context in the refer_to field for later display */
 			ast_string_field_build(p, subscribeuri, "%s@%s", p->exten, p->context);
