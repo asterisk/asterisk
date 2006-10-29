@@ -701,7 +701,7 @@ struct sip_auth {
 #define SIP_USEREQPHONE		(1 << 10)	/*!< Add user=phone to numeric URI. Default off */
 #define SIP_REALTIME		(1 << 11)	/*!< Flag for realtime users */
 #define SIP_USECLIENTCODE	(1 << 12)	/*!< Trust X-ClientCode info message */
-#define SIP_OUTGOING		(1 << 13)	/*!< Is this an outgoing call? */
+#define SIP_OUTGOING		(1 << 13)	/*!< Direction of the last transaction in this dialog */
 #define SIP_CAN_BYE		(1 << 14)	/*!< Can we send BYE on this dialog? */
 #define SIP_DEFER_BYE_ON_TRANSFER	(1 << 15)	/*!< Do not hangup at first ast_hangup */
 #define SIP_DTMF		(3 << 16)	/*!< DTMF Support: four settings, uses two bits */
@@ -959,7 +959,8 @@ static struct sip_pvt {
 	char lastmsg[256];			/*!< Last Message sent/received */
 	int amaflags;				/*!< AMA Flags */
 	int pendinginvite;			/*!< Any pending invite ? (seqno of this) */
-	struct sip_request initreq;		/*!< Initial request that opened the SIP dialog */
+	struct sip_request initreq;		/*!< Request that opened the latest transaction
+						     within this SIP dialog */
 	
 	int maxtime;				/*!< Max time for first response */
 	int initid;				/*!< Auto-congest ID if appropriate (scheduler) */
@@ -6339,6 +6340,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 	/* Use this as the basis */
 	initialize_initreq(p, &req);
 	p->lastinvite = p->ocseq;
+	ast_set_flag(&p->flags[0], SIP_OUTGOING);		/* Change direction of this dialog */
 	return send_request(p, &req, XMIT_CRITICAL, p->ocseq);
 }
 
@@ -10406,7 +10408,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 				ast_cli(fd, "  * Subscription (type: %s)\n", subscription_type2str(cur->subscribed));
 			else
 				ast_cli(fd, "  * SIP Call\n");
-			ast_cli(fd, "  Direction:              %s\n", ast_test_flag(&cur->flags[0], SIP_OUTGOING)?"Outgoing":"Incoming");
+			ast_cli(fd, "  Curr. trans. direction:  %s\n", ast_test_flag(&cur->flags[0], SIP_OUTGOING) ? "Outgoing" : "Incoming");
 			ast_cli(fd, "  Call-ID:                %s\n", cur->callid);
 			ast_cli(fd, "  Owner channel ID:       %s\n", cur->owner ? cur->owner->name : "<none>");
 			ast_cli(fd, "  Our Codec Capability:   %d\n", cur->capability);
@@ -12993,14 +12995,14 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		p->pendinginvite = seqno;
 		check_via(p, req);
 
+		copy_request(&p->initreq, req);		/* Save this INVITE as the transaction basis */
 		if (!p->owner) {	/* Not a re-invite */
-			/* Use this as the basis */
-			copy_request(&p->initreq, req);
 			if (debug)
 				ast_verbose("Using INVITE request as basis request - %s\n", p->callid);
 			append_history(p, "Invite", "New call: %s", p->callid);
 			parse_ok_contact(p, req);
 		} else {	/* Re-invite on existing call */
+			ast_clear_flag(&p->flags[0], SIP_OUTGOING);	/* This is now an inbound dialog */
 			/* Handle SDP here if we already have an owner */
 			if (find_sdp(req)) {
 				if (process_sdp(p, req)) {
