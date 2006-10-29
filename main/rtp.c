@@ -1740,6 +1740,7 @@ char *ast_rtp_lookup_mime_multiple(char *buf, size_t size, const int capability,
 	return buf;
 }
 
+/*! \brief Open RTP or RTCP socket for a session */
 static int rtp_socket(void)
 {
 	int s;
@@ -1815,9 +1816,12 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 		/* Must be an even port number by RTP spec */
 		rtp->us.sin_port = htons(x);
 		rtp->us.sin_addr = addr;
+
 		/* If there's rtcp, initialize it as well. */
-		if (rtp->rtcp)
+		if (rtp->rtcp) {
 			rtp->rtcp->us.sin_port = htons(x + 1);
+			rtp->rtcp->us.sin_addr = addr;
+		}
 		/* Try to bind it/them. */
 		if (!(first = bind(rtp->s, (struct sockaddr *)&rtp->us, sizeof(rtp->us))) &&
 			(!rtp->rtcp || !bind(rtp->rtcp->s, (struct sockaddr *)&rtp->rtcp->us, sizeof(rtp->rtcp->us))))
