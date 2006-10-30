@@ -113,6 +113,13 @@ void ast_update_use_count(void);
 int ast_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *like),
 			   const char *like);
 
+/*!
+ * \brief Check if module with the name given is loaded
+ * \param name Module name, like "chan_sip.so"
+ * \return 0 if false, 1 if true 
+ */
+int ast_module_check(char *name);
+
 /*! 
  * \brief Add a procedure to be run when modules have been updated.
  * \param updater The function to run when modules have been updated.
