@@ -8759,7 +8759,7 @@ static void zt_ss7_message(struct ss7 *ss7, char *s)
 		if (linksets[i].ss7 == ss7)
 			break;
 
-	ast_verbose("[%d] %s", i, s);
+	ast_verbose("[%d] %s", i+1, s);
 }
 
 static void zt_ss7_error(struct ss7 *ss7, char *s)
@@ -8770,7 +8770,7 @@ static void zt_ss7_error(struct ss7 *ss7, char *s)
 		if (linksets[i].ss7 == ss7)
 			break;
 
-	ast_log(LOG_ERROR, "[%d] %s", i, s);
+	ast_log(LOG_ERROR, "[%d] %s", i+1, s);
 }
 #endif /* HAVE_SS7 */
 
